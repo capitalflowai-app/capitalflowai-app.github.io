@@ -47,6 +47,8 @@ NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
 PLIKI = ['meta', 'etf', 'trendy', 'oecd', 'rynki', 'dzwignia', 'wieloryby', 'energia', 'surowce', 'surowce-hist', 'usa-makro', 'bilans-usa', 'krypto', 'krypto-top10', 'cmc', 'instytucje', 'tic', 'cm', 'fred', 'cftc', 'ceny', 'indeksy', 'ceny-krypto', 'snb', 'ici', 'fed', 'lancuch', 'wycena', 'insider', 'nastroj', 'stres', 'aukcje', 'swiat-dzien', 'swiat-dziennik', 'surowce-dziennik', 'premie', 'dolar', 'stopy', 'jpx', 'rwa', 'zloto-krypto', 'szlaki', 'krypto-dzien', 'krypto-dziennik']
 LIMIT_MIN = {'stopy': 24 * 60, 'meta': 90, 'etf': 180, 'trendy': 180, 'oecd': 24 * 60, 'rynki': 180, 'dzwignia': 180, 'wieloryby': 90, 'energia': 24 * 60, 'surowce': 24 * 60, 'surowce-hist': 48 * 60,
              'usa-makro': 24 * 60, 'bilans-usa': 48 * 60, 'krypto': 180, 'krypto-top10': 180, 'cmc': 90, 'instytucje': 180, 'tic': 48 * 60, 'cm': 180, 'fred': 180, 'cftc': 24 * 60, 'ceny': 180, 'indeksy': 24 * 60, 'ceny-krypto': 180, 'snb': 24 * 60, 'ici': 24 * 60, 'fed': 90, 'lancuch': 90, 'wycena': 8 * 60, 'insider': 48 * 60, 'nastroj': 12 * 60, 'stres': 24 * 60, 'aukcje': 24 * 60, 'swiat-dzien': 180, 'swiat-dziennik': 180, 'surowce-dziennik': 180, 'premie': 90, 'dolar': 180, 'jpx': 26 * 60, 'rwa': 12 * 60, 'zloto-krypto': 90, 'szlaki': 26 * 60, 'krypto-dzien': 180, 'krypto-dziennik': 180}
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'polska')   # v304: Polska (data/polska.json) — przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['polska'] = 48 * 60   # v304: plik zmienia się przy każdym udanym pobraniu części (gaz i prąd z giełdy codziennie, także w weekend)
 # v171: części zbieracza wyłączone celowo (notatka w meta.json) — brak pliku to wtedy stan, nie usterka: w raporcie „wyłączone”, bez uwagi
 WYLACZONE = {'insider': ('brak SEC_CONTACT', 'SEC_CONTACT to nie adres e-mail')}
 
@@ -636,6 +638,9 @@ AW_BEZ_BLEDU = {   # v211/v215: części bez czerwieni z serii awarii — seria 
 
 AW_BEZ_BLEDU.update({'szlaki_' + p: 'szlaki — część z błędem zostaje z datą (v305); wiek danych w wierszach świeżości'
                      for p in ('cies', 'presja', 'bcpi')})
+
+AW_BEZ_BLEDU.update({'polska_' + p: 'Polska — część z błędem zostaje z datą (v304); wiek danych w wierszach świeżości'
+                     for p in ('zloto', 'hurt', 'energia', 'stacje', 'pszenica')})
 
 
 def _aw_t(s):
@@ -4382,6 +4387,266 @@ def szlaki_kontrola(j, R):
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v304: Polska (data/polska.json) ----------------------------------------------------------------
+# Świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian — test liczy jej wiersze), najwyżej ⚠️; pole next pliku mówi, kiedy
+# spodziewana jest publikacja. Progi z testu wstecznego (ws53/v304-polska/bt/bt_swiezosc.py, 08.10.2026; wiek liczony wiek_danych jak tu;
+# kontrola o 06:20 UTC i — po pushu — o dowolnej godzinie; modele dostępności pesymistyczne):
+#  złoto (dni robocze w Polsce, 2014–10.2026): 36 h robocze — ⚠️ w 0,26% kontroli o 06:20 i 0,71% godzinowych (święta: Wigilia + 2 dni Bożego
+#    Narodzenia, Wielkanoc); 48 h — 0,21% / 0,17%;
+#  ceny hurtowe (dni obowiązywania wt–sob, 2019–10.2026): 36 h robocze — 0,39% / 1,13% (ponad 1%), 48 h — 0,32% / 0,29% → 48 h;
+#  gaz i prąd (dostawa codziennie, także w święta): v304b — 6 h kalendarzowych od końca dnia ostatniej dostawy (recenzja v304: 24 h dawało ⚠️ dopiero
+#    po drugiej brakującej publikacji); ws53/v304b-polska/bt2/bt_swiezosc.out: 0% kontroli ponad próg także przy publikacji o 22:00 UTC (zwykle
+#    indeksy na jutro są ok. 13:50–15:30 czasu polskiego, a wiek najnowszej dostawy wynosi 0); jeden brak publikacji = ⚠️ już o 06:20 (6 h 20 min);
+#  stacje (poniedziałki, pobranie w nocy po środzie, 2016–10.2026): 9 dni — 3,0%, 11 dni — 2,3% (do 2022 biuletyn nie wychodził w tygodnie
+#    Wielkanocy i Bożego Narodzenia: przerwy 14–21 dni), 16 dni — 0,69% / 0,70% → 16 dni (od 06.2022 bez przerw: 9–16 dni — 0%); model: plik
+#    powstaje w środę po południu, pobranie w nocy ze środy na czwartek (ten sam dzień co bramka zbieracza i pole next — v304b);
+#  pszenica (tydzień do niedzieli, publikacja w czwartek, 2016–10.2026): 13 dni — 0% poza prawdziwą przerwą źródła (07–09.2021: 12 tygodni
+#    bez danych — tam ⚠️ jest słuszny).
+# Porównanie (najwyżej ⚠️): złoto w zł/g (dzień D) wobec ceny złota w USD/oz z pliku surowców (LBMA PM z archiwum funduszu) × kurs USD/PLN z pliku
+# rynków (kursy referencyjne EBC) ÷ 31,1034768 — z OSTATNIEJ sesji przed D, w której są obie liczby (cena dnia D jest liczona z cen poprzedniej
+# sesji: mediana różnicy 0,16%, a z ceną tego samego dnia — 0,60%). Test wsteczny 2013–10.2026 (bt/bt_zloto.py, 3345 dni): p99 1,45%, maks.
+# 4,45%; próg 3,0% — ponad próg 0,09% dni (5 lat: 0,25%, ostatnie 12 mies. przy zmiennym złocie 2026: 0,83%); próg 2,0% dawałby 4,55% w
+# ostatnich 12 mies. ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (zła jednostka, zero zamiast braku, daty nie rosną, średnia UE z innego
+# tygodnia niż cena Polski, cena bez podatków nie niższa niż z podatkami, zły wpis q, lista v8 niezgodna z podatkami w cenach z pliku).
+# v304b — ceny na stacjach: ⚠️, gdy NAJNOWSZY tydzień paliwa ma oznaczenie q (zbieracz: cena sprzeczna z ceną hurtową przy każdej stawce VAT
+# stosowanej w Polsce — test wsteczny 2019–10.2026: 0 z 792 tygodni, ws53/v304b-polska/bt2/bt_q.py), ℹ️ dla starszych tygodni z q w pliku; ℹ️, gdy
+# podatki w cenie najnowszego tygodnia zmieniły się o ≥ 10% wobec tygodnia wcześniej (bt2/bt_podatki.py, 2005–10.2026: 0,93% / 0,84% tygodni
+# benzyny / oleju — wyłącznie przy zmianach podatków: 2010 akcyza na olej, 02.2022 VAT 8%, 01.2023 koniec obniżki, 2026 kolejne edycje obniżki
+# VAT i akcyzy) — to opis, nie błąd; ℹ️, gdy najnowszy tydzień jest na liście v8 (obniżony VAT na paliwa — zbieracz rozpoznaje go z podatków
+# w cenie benzyny: akcyza i opłaty przy VAT 23% poniżej 0,85 × minimalnej akcyzy UE; test wsteczny 2005–10.2026: 0 pomyłek, bt3/bt_vat.py).
+import bisect   # v304: ostatnia sesja przed dniem ceny (biblioteka standardowa; ponowny import jest nieszkodliwy)
+PL_ETYKIETA = {'zloto': 'Polska: złoto w zł/g (dni robocze w Polsce)', 'hurt': 'Polska: ceny hurtowe paliw (dni obowiązywania wt–sob)',
+               'energia': 'Polska: gaz i prąd z giełdy (dzień dostawy, 7 dni w tygodniu)',
+               'stacje': 'Polska: ceny na stacjach na tle UE (poniedziałki, pobierane w nocy)',
+               'pszenica': 'Polska: pszenica (tydzień do niedzieli, publ. w czwartek)'}
+PL_PROG = {'zloto': ('d', 36 * 60), 'hurt': ('d', 48 * 60), 'energia': ('w', 6 * 60), 'stacje': ('w', 16 * 24 * 60), 'pszenica': ('w', 13 * 24 * 60)}
+PL_SERIE = {'zloto': (None,), 'hurt': ('pb95', 'on'), 'energia': ('gaz', 'prad'), 'stacje': ('pb95', 'on'), 'pszenica': (None,)}
+PL_JEDN = {'zloto': 'PLN/g', 'hurt': 'PLN/l', 'energia': 'PLN/MWh', 'stacje': 'PLN/l', 'pszenica': 'EUR/t'}
+PL_ZLOTO_PROG = 3.0      # % — patrz komentarz wyżej (test wsteczny)
+PL_ZLOTO_DNI = 10        # najnowszych notowań złota w zł/g, wśród których szukamy pary do porównania (starsze — bez porównania)
+PL_OZ = 31.1034768       # g w uncji trojańskiej
+PL_POD_PROG = 10.0       # % — zmiana podatków w cenie na stacjach tydzień do tygodnia (opis ℹ️; test wsteczny wyżej)
+PL_PALIWO = {'pb95': 'benzyna 95', 'on': 'olej napędowy'}
+PL_QOPIS = {'nisko': 'niższa niż cena hurtowa z VAT', 'wysoko': 'o ponad 30% wyższa niż cena hurtowa z 23% VAT'}
+PL_V8 = (23.0, 359.0, 0.85)   # v304b: stawka podstawowa VAT %, minimalna akcyza UE na benzynę (EUR/1000 l), próg — jak w zbieraczu (opis wiersza ℹ️)
+
+
+def _pl_e(j, p, k):
+    P = j.get(p) if isinstance(j.get(p), dict) else None
+    if P is None:
+        return None
+    e = P if k is None else P.get(k)
+    return e if isinstance(e, dict) else None
+
+
+def polska_swiezosc(j, now=None):
+    """Wiersze świeżości części pliku polska.json w kształcie wierszy swiezosc(): (etykieta, status, wiek min, data danych, uwaga). Data części
+    z dwiema seriami = starsza z ich ostatnich dat (obie mają być świeże). Najwyżej ⚠️, nigdy ❌; brak pliku albo inna wersja = brak wierszy."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    nx = j.get('next') if isinstance(j.get('next'), dict) else {}
+    rows = []
+    for p, label in PL_ETYKIETA.items():
+        ls = [_su_ostatni(_pl_e(j, p, k)) for k in PL_SERIE[p]]
+        if not any(ls):
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        txt = min(x[0] for x in ls if x)
+        kat, prog = PL_PROG[p]
+        w = wiek_danych(txt, 'day', kat, now)
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        note = ''
+        if st == '⚠️':
+            pt = _aw_t(nx.get(p)) if isinstance(nx.get(p), str) else None
+            note = f'próg {fmt_wiek(prog)}' + (' (godziny robocze)' if kat == 'd' else '') + ' — najwyżej uwaga' + (
+                f'; spodziewana publikacja {czas_pl(nx[p])}' + (' — zaległa (święto albo przerwa źródła?)' if pt < now else '') if pt else '')
+        if not all(ls):
+            note = (note + '; ' if note else '') + 'jedna z dwóch serii bez danych'
+        rows.append((label, st, w, txt, note))
+    return rows
+
+
+def polska_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w części Polska): jednostka inna niż w umowie pliku, zero zamiast braku (poza prądem — średnia
+    doby może wynieść 0,00), daty nie rosną albo się powtarzają, średnia UE z tygodnia, którego nie ma w cenach Polski, kurs ≤ 0; v304b: ceny bez
+    podatków, wpisy q, lista v8 (tygodnie z obniżonym VAT — ta sama reguła co w zbieraczu, policzona z liczb pliku). → lista opisów."""
+    zle = []
+    if not isinstance(j, dict):
+        return zle
+    for p, ks in PL_SERIE.items():
+        for k in ks:
+            e = _pl_e(j, p, k)
+            if e is None:
+                continue
+            n = p if k is None else f'{p}.{k}'
+            if e.get('u') != PL_JEDN[p]:
+                zle.append(f'{n}: jednostka {e.get("u")} zamiast {PL_JEDN[p]}')
+            d = [x for x in (e.get('d') or []) if isinstance(x, list) and len(x) == 2]
+            ds = [str(x[0]) for x in d]
+            if ds != sorted(set(ds)):
+                zle.append(f'{n}: daty nie rosną albo się powtarzają')
+            if k != 'prad' and any(x[1] == 0 and not isinstance(x[1], bool) for x in d):
+                zle.append(f'{n}: wartość 0 (brak ma być null)')
+            if p == 'stacje':
+                ue = [x for x in (e.get('ue') or []) if isinstance(x, list) and len(x) == 2]
+                if any(str(x[0]) not in set(ds) for x in ue):
+                    zle.append(f'{n}: średnia UE z tygodnia bez ceny Polski')
+                if any(x[1] == 0 and not isinstance(x[1], bool) for x in ue):
+                    zle.append(f'{n}: średnia UE 0 (brak ma być null)')
+                # v304b: ceny bez podatków (Polska, UE) — tylko z tygodni z ceną Polski, dodatnie i niższe niż ceny z podatkami; wpisy q
+                V = {str(x[0]): x[1] for x in d}
+                U = {str(x[0]): x[1] for x in ue}
+                for kk, ref, opis in (('n', V, 'cena bez podatków'), ('ue_n', U, 'średnia UE bez podatków')):
+                    xs = [x for x in (e.get(kk) or []) if isinstance(x, list) and len(x) == 2]
+                    if any(str(x[0]) not in V for x in xs):
+                        zle.append(f'{n}: {opis} z tygodnia bez ceny Polski')
+                    if any(not isinstance(x[1], (int, float)) or isinstance(x[1], bool) or x[1] <= 0 for x in xs):
+                        zle.append(f'{n}: {opis} ≤ 0 albo nie liczba')
+                    elif any(isinstance(ref.get(str(x[0])), (int, float)) and x[1] >= ref[str(x[0])] for x in xs):
+                        zle.append(f'{n}: {opis} nie niższa niż z podatkami')
+                q = e.get('q')
+                if q is not None and (not isinstance(q, list) or any(not isinstance(x, list) or len(x) != 4 or str(x[0]) not in V
+                                                                     or x[1] not in PL_QOPIS for x in q)):
+                    zle.append(f'{n}: zły wpis q (tydzień niepewny)')
+    S8 = j.get('stacje') if isinstance(j.get('stacje'), dict) else {}
+    e95 = _pl_e(j, 'stacje', 'pb95')
+    if 'v8' in S8 or e95:   # v304b: tygodnie z obniżonym VAT — poniedziałki z cenami benzyny, zgodne z podatkami w cenie z tego samego pliku
+        D95 = {str(x[0]): x[1] for x in ((e95 or {}).get('d') or []) if isinstance(x, list) and len(x) == 2}
+        v8 = S8.get('v8', [])
+        if not isinstance(v8, list) or any(not isinstance(x, str) or x not in D95 for x in v8) or v8 != sorted(set(v8)):
+            zle.append('stacje.v8: zły wpis (tydzień spoza cen benzyny w Polsce, powtórzony albo daty nie rosną)')
+        else:
+            jest = polska_v8(j)
+            if jest is not None and jest != v8:
+                zle.append('stacje.v8: lista tygodni z obniżonym VAT niezgodna z podatkami w cenach z pliku (' + ', '.join(sorted(set(jest) ^ set(v8))[:3]) + ')')
+    ku = _pl_e(j, 'stacje', 'kurs')
+    if ku and any(isinstance(x, list) and len(x) == 2 and isinstance(x[1], (int, float)) and not isinstance(x[1], bool) and x[1] <= 0 for x in ku.get('d') or []):
+        zle.append('stacje.kurs: kurs ≤ 0')
+    return zle
+
+
+def polska_v8(j):
+    """v304b: tygodnie z obniżonym VAT na paliwa policzone z liczb pliku (benzyna 95: z podatkami, bez podatków, kurs — ta sama reguła i stałe co
+    w zbieraczu, PL_V8) → posortowana lista poniedziałków; None, gdy pliku nie da się tak sprawdzić (brak cen benzyny)."""
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)   # noqa: E731
+    e = _pl_e(j, 'stacje', 'pb95')
+    if e is None:
+        return None
+    N = {str(x[0]): x[1] for x in (e.get('n') or []) if isinstance(x, list) and len(x) == 2 and num(x[1])}
+    K = {str(x[0]): x[1] for x in ((_pl_e(j, 'stacje', 'kurs') or {}).get('d') or []) if isinstance(x, list) and len(x) == 2 and num(x[1])}
+    out = []
+    for x in (e.get('d') or []):
+        if not (isinstance(x, list) and len(x) == 2 and num(x[1])):
+            continue
+        d, p = str(x[0]), x[1]
+        n, k = N.get(d), K.get(d)
+        if num(n) and num(k) and 0 < n < p and k > 0 and (p - n) - p * PL_V8[0] / (100 + PL_V8[0]) < PL_V8[2] * PL_V8[1] * k / 1000:
+            out.append(d)
+    return sorted(out)
+
+
+def polska_zloto(j, su, rynki):
+    """Złoto w zł/g wobec ceny w USD/oz × kurs USD/PLN ÷ 31,1034768 z ostatniej sesji przed dniem ceny, w której są obie liczby (pliki strony,
+    bez zapytań). → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    Z = [x for x in ((_pl_e(j, 'zloto', None) or {}).get('d') or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[1], (int, float))
+         and not isinstance(x[1], bool) and x[1] > 0]
+    gd = (((su or {}).get('ceny') or {}).get('gold') or {}).get('d') if isinstance(su, dict) and isinstance(su.get('ceny'), dict) else None
+    G = {str(x[0]): x[1] for x in (gd or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[1], (int, float)) and not isinstance(x[1], bool) and x[1] > 0}
+    FX = {}
+    for v in (((rynki or {}).get('fx') or {}).values() if isinstance(rynki, dict) and isinstance(rynki.get('fx'), dict) else ()):
+        r = v.get('rates') if isinstance(v, dict) and isinstance(v.get('rates'), dict) else {}
+        if v.get('base') == 'USD' and isinstance(r.get('PLN'), (int, float)) and not isinstance(r.get('PLN'), bool) and r['PLN'] > 0 and isinstance(v.get('date'), str):
+            FX[v['date'][:10]] = r['PLN']
+    gs = sorted(G)
+    for D, v in reversed(Z[-PL_ZLOTO_DNI:]):
+        i = bisect.bisect_left(gs, str(D))
+        f = gs[i - 1] if i else None
+        if f is None or f not in FX:
+            continue
+        r = (v / (G[f] * FX[f] / PL_OZ) - 1) * 100
+        zn = '⚠️' if abs(r) > PL_ZLOTO_PROG else '✅'
+        W = [(f'złoto w Polsce {D} (zł/g) vs cena w USD z {f} × kurs USD/PLN: {r:+.2f}% (próg {PL_ZLOTO_PROG:g}%)'.replace('.', ','), zn)]
+        U = [f'Polska: złoto {D} — cena w zł/g różni się o {r:+.2f}% od ceny w USD × kurs z {f} (próg {PL_ZLOTO_PROG:g}% z testu wstecznego) — sprawdzić'
+             .replace('.', ',')] if zn == '⚠️' else []
+        return {'wiersze': W, 'uwagi': U}
+    return {'wiersze': [('złoto w Polsce: bez porównania — w plikach strony brak sesji z ceną w USD i kursem USD/PLN tuż przed najnowszymi cenami w zł', 'ℹ️')],
+            'uwagi': []}
+
+
+def polska_stacje(j):
+    """v304b: ceny na stacjach — oznaczenia q z pliku (⚠️ najnowszy tydzień paliwa, ℹ️ starsze tygodnie) i zmiana podatków w cenie najnowszego
+    tygodnia wobec tygodnia wcześniej (≥ PL_POD_PROG %, przerwa ≤ 14 dni; ℹ️ — opis zmiany, nie błąd). → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    W, U = [], []
+    f3 = lambda v: f'{v:.3f}'.replace('.', ',')   # noqa: E731
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)   # noqa: E731
+    for c, nazwa in PL_PALIWO.items():
+        e = _pl_e(j, 'stacje', c)
+        d = [x for x in ((e or {}).get('d') or []) if isinstance(x, list) and len(x) == 2 and num(x[1])]
+        if not d:
+            continue
+        V = {str(x[0]): x[1] for x in d}
+        last = str(d[-1][0])
+        q = [x for x in (e.get('q') if isinstance(e.get('q'), list) else []) if isinstance(x, list) and len(x) == 4 and x[1] in PL_QOPIS
+             and str(x[0]) in V]
+        for x in sorted(q, key=lambda y: str(y[0]), reverse=True):
+            h = f3(x[3]) if num(x[3]) else '—'
+            txt = (f'ceny na stacjach: {nazwa} z {x[0]} — {f3(V[str(x[0])])} zł/l, cena ze źródła {PL_QOPIS[x[1]]} (hurt z {x[2]}: {h} zł/l bez VAT)'
+                   ' — tydzień oznaczony jako niepewny')
+            if str(x[0]) == last:
+                W.append((txt, '⚠️'))
+                U.append(f'Polska: {txt} (strona pokazuje cenę z dopiskiem, bez zmiany w tygodniu) — sprawdzić biuletyn')
+            else:
+                W.append((txt + ' (starszy tydzień w pliku)', 'ℹ️'))
+        N = {str(x[0]): x[1] for x in (e.get('n') or []) if isinstance(x, list) and len(x) == 2 and num(x[1])}
+        if len(d) < 2:
+            continue
+        pr = str(d[-2][0])
+        try:
+            gap = (dt.date.fromisoformat(last[:10]) - dt.date.fromisoformat(pr[:10])).days
+        except ValueError:
+            continue
+        if last not in N or pr not in N or gap > 14:
+            continue
+        ta, tb = V[pr] - N[pr], V[last] - N[last]
+        if not (ta > 0 and tb > 0 and N[pr] > 0):
+            continue
+        r, rn = (tb / ta - 1) * 100, (N[last] / N[pr] - 1) * 100
+        if abs(r) >= PL_POD_PROG:
+            pc = lambda v: f'{v:+.1f}%'.replace('.', ',')   # noqa: E731
+            W.append((f'ceny na stacjach: {nazwa} {last} — podatki w cenie {f3(ta)} → {f3(tb)} zł/l ({pc(r)}), cena bez podatków {pc(rn)}'
+                      f' (próg {PL_POD_PROG:g}% — zmiana podatków; strona ją opisuje)', 'ℹ️'))
+    S8 = j.get('stacje') if isinstance(j.get('stacje'), dict) else {}
+    e = _pl_e(j, 'stacje', 'pb95')
+    d = [x for x in ((e or {}).get('d') or []) if isinstance(x, list) and len(x) == 2 and num(x[1])]
+    q95 = {str(x[0]) for x in ((e or {}).get('q') if isinstance((e or {}).get('q'), list) else []) if isinstance(x, list) and len(x) == 4}
+    if d and isinstance(S8.get('v8'), list) and str(d[-1][0]) in S8['v8'] and str(d[-1][0]) not in q95:   # v304b: najnowszy tydzień z obniżonym VAT — opis
+        last = str(d[-1][0])
+        N = {str(x[0]): x[1] for x in (e.get('n') or []) if isinstance(x, list) and len(x) == 2 and num(x[1])}
+        K = {str(x[0]): x[1] for x in ((_pl_e(j, 'stacje', 'kurs') or {}).get('d') or []) if isinstance(x, list) and len(x) == 2 and num(x[1])}
+        p, n, k = d[-1][1], N.get(last), K.get(last)
+        ile, pr = '', f'{PL_V8[2]:g}'.replace('.', ',')
+        if num(n) and num(k) and k > 0:
+            ile = (f' (akcyza i opłaty, jakie musiałyby być w cenie benzyny przy VAT {PL_V8[0]:g}%: {f3((p - n) - p * PL_V8[0] / (100 + PL_V8[0]))} zł/l,'
+                   f' mniej niż {pr} × minimalna akcyza UE {f3(PL_V8[1] * k / 1000)} zł/l)')
+        W.append((f'ceny na stacjach: tydzień {last} — obniżony VAT na paliwa{ile}; strona to opisuje', 'ℹ️'))
+    return {'wiersze': W, 'uwagi': U}
+
+
+def polska_kontrola(files, R):
+    """Kontrola pliku polska.json bez sieci: sprzeczności wewnątrz pliku (❌ = BŁĄD) i porównanie złota (najwyżej ⚠️). Brak pliku = None."""
+    j = files.get('polska')
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle = polska_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'polska.json: sprzeczność w pliku — {z}')
+    P = polska_zloto(j, files.get('surowce'), files.get('rynki'))
+    S = polska_stacje(j)   # v304b: tygodnie niepewne (q) i zmiana podatków w cenach na stacjach
+    R['uwagi'] += P['uwagi'] + S['uwagi']
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'wiersze': P['wiersze'] + S['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- v295c: złoto i surowce a krypto (data/zloto-krypto.json) ----------------------------------------------------------------
 # Zasoby wydobytego złota do szacunku wielkości rynku (słupek „Złoto (szacunek)”) to stała z datą stanu w zbieraczu (ZK_ZLOTO), aktualizowana ręcznie
 # co najmniej raz w roku (wydawca publikuje co kwartał). Stan starszy niż ZK_ZASOBY_MAX_MIES miesięcy = uwaga (przypomnienie, nigdy błąd); data
@@ -4577,6 +4842,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: {note}')
     # 3c-sz. v305: szlaki handlowe i łańcuchy dostaw (data/szlaki.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in szlaki_swiezosc(files.get('szlaki')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
+    # 3c-pl. v304: Polska (data/polska.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️, nigdy ❌ ani BŁĄD
+    for label, st, w, txt, note in polska_swiezosc(files.get('polska')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
         if st == '⚠️':
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
@@ -4822,6 +5094,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['szlaki'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'szlaki: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v304: Polska — sprzeczności w pliku (❌) i złoto w zł/g wobec ceny w USD × kurs USD/PLN (najwyżej ⚠️), z plików strony, bez zapytań
+    try:
+        Z['polska'] = polska_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['polska'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Polska: kontrola przerwana ({str(e)[:80]})')
     # 3g. v295c: złoto i surowce a krypto — wiek stałej zasobów wydobytego złota (z pliku strony, bez zapytań; najwyżej ⚠️)
     try:
         Z['zloto-krypto'] = zk_kontrola(files.get('zloto-krypto'), R)
@@ -5130,6 +5408,11 @@ def raport_md(R):
             L.append('- Szlaki handlowe i łańcuchy dostaw (z pliku strony): ' + (f'? kontrola przerwana ({szl["blad"]})' if szl.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(szl['spojnosc'][:3]) + ' ❌ · ' if szl.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in szl.get('wiersze') or []) or '—') + '.')
+        pz = Z.get('polska')   # v304: Polska — sprzeczności w pliku i porównanie złota (różnica w %, bez cen); brak pliku = bez linii
+        if pz:
+            L.append('- Polska (porównanie z plików strony): ' + (f'? kontrola przerwana ({pz["blad"]})' if pz.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(pz['spojnosc'][:3]) + ' ❌ · ' if pz.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in pz.get('wiersze') or []) or '—') + '.')
         rz = Z.get('rwa')   # v133: tokenizowane aktywa — zmiana 7 dni (własna vs źródło), produkty spoza listy, skoki sumy; brak pliku = bez linii
         if rz:
             L.append('- Tokenizowane aktywa (RWA): ' + (rz.get('opis') or (f'? kontrola przerwana ({rz["blad"]})' if rz.get('blad') else '—')) + '.')

@@ -16810,3 +16810,302 @@ test('v305g: miejsce w kodzie — funkcje bloku przed renderSu, blok przed stopk
   assert.ok(sec('g-surowce') > 0 && sec('g-surowce') < sec('tv-markets'), 'widgety TradingView na dole');
   assert.ok(!sz305.code.includes('setTimeout') && !sz305.code.includes('localStorage'), 'bez zegarów i pamięci przeglądarki w bloku');
 });
+
+/* ===================== v304: POLSKA — blok „Polska: paliwa, energia i złoto” w #g-surowce (plik data/polska.json po rozwinięciu) =====================
+   PL304_FILE — wynik zbieracza v304 na nagraniach z 08.10.2026 (NBP, Orlen, TGE — strona główna, biuletyn KE, portal danych rolnych KE), przycięty
+   do 12 dni / 6 tygodni; v304b: ceny bez podatków (n, ue_n) z arkusza „Prices wo taxes” tego samego nagrania; tygodnie 31.08 i 05.10 to prawdziwe
+   obniżki VAT na paliwa do 8% (05.10 także akcyzy; cena na stacji niższa niż hurt × 1,23, zgodna z hurtem × 1,08) — automat nie oznacza ich jako
+   niepewnych (q), tylko wpisuje na listę v8 (obniżony VAT — strona to opisuje). Zegar przypięty (atrapa su295: 2026-10-07 18:00 UTC), wiek danych — atrapa „wiek(…)”. */
+const PL304_FILE = {"v":1,"at":"2026-10-08T04:30:00+00:00","part_at":{"zloto":"2026-10-08T04:30:00+00:00","hurt":"2026-10-08T04:30:00+00:00","energia":"2026-10-08T04:30:00+00:00","stacje":"2026-10-08T04:30:00+00:00","pszenica":"2026-10-08T04:30:00+00:00"},"ok":{"zloto":true,"hurt":true,"energia":true,"stacje":true,"pszenica":true},"next":{"zloto":"2026-10-08T10:00:00+00:00","hurt":"2026-10-08T22:00:00+00:00","energia":"2026-10-08T13:45:00+00:00","stacje":"2026-10-15T01:20:00+00:00","pszenica":"2026-10-08T12:00:00+00:00"},"err":{},"zloto":{"u":"PLN/g","f":"D","d":[["2026-09-22",530.81],["2026-09-23",528.04],["2026-09-24",529.95],["2026-09-25",528.37],["2026-09-28",530.05],["2026-09-29",512.64],["2026-09-30",512.85],["2026-10-01",518.14],["2026-10-02",517.55],["2026-10-05",523.03],["2026-10-06",523.96],["2026-10-07",519.24]],"z":"nbp","t":"2026-10-08T04:30:00+00:00"},"hurt":{"pb95":{"u":"PLN/l","f":"D","d":[["2026-09-23",6.237],["2026-09-24",6.268],["2026-09-25",6.469],["2026-09-26",6.358],["2026-09-29",6.26],["2026-09-30",6.141],["2026-10-01",6.165],["2026-10-02",6.218],["2026-10-03",5.986],["2026-10-06",6.049],["2026-10-07",6.025],["2026-10-08",6.086]],"z":"orlen","x":["netto"],"t":"2026-10-08T04:30:00+00:00"},"on":{"u":"PLN/l","f":"D","d":[["2026-09-23",7.347],["2026-09-24",7.342],["2026-09-25",7.483],["2026-09-26",7.442],["2026-09-29",7.363],["2026-09-30",7.255],["2026-10-01",7.272],["2026-10-02",7.28],["2026-10-03",6.943],["2026-10-06",6.919],["2026-10-07",6.864],["2026-10-08",6.939]],"z":"orlen","x":["netto"],"t":"2026-10-08T04:30:00+00:00"}},"energia":{"gaz":{"u":"PLN/MWh","f":"D","d":[["2026-09-27",333.85],["2026-09-28",337.46],["2026-09-29",337.66],["2026-09-30",323.39],["2026-10-01",319.45],["2026-10-02",328.86],["2026-10-03",327.59],["2026-10-04",333.62],["2026-10-05",336.41],["2026-10-06",336.14],["2026-10-07",345.71],["2026-10-08",345.89]],"z":"tge","t":"2026-10-08T04:30:00+00:00"},"prad":{"u":"PLN/MWh","f":"D","d":[["2026-09-27",484.9],["2026-09-28",588.63],["2026-09-29",622.04],["2026-09-30",551.44],["2026-10-01",613.58],["2026-10-02",743.27],["2026-10-03",681.45],["2026-10-04",621.68],["2026-10-05",673.04],["2026-10-06",733.02],["2026-10-07",740.46],["2026-10-08",587.76]],"z":"tge","t":"2026-10-08T04:30:00+00:00"}},"stacje":{"pb95":{"u":"PLN/l","f":"W","d":[["2026-08-31",6.599],["2026-09-07",7.809],["2026-09-14",7.91],["2026-09-21",7.922],["2026-09-28",8.102],["2026-10-05",6.655]],"z":"wob","x":["brutto","wyl"],"t":"2026-10-08T04:30:00+00:00","ue":[["2026-08-31",8.44],["2026-09-07",8.806],["2026-09-14",8.959],["2026-09-21",9.107],["2026-09-28",9.2],["2026-10-05",8.75]],"n":[["2026-08-31",4.291],["2026-09-07",4.529],["2026-09-14",4.612],["2026-09-21",4.621],["2026-09-28",4.768],["2026-10-05",4.633]],"ue_n":[["2026-08-31",4.397],["2026-09-07",4.614],["2026-09-14",4.723],["2026-09-21",4.839],["2026-09-28",4.904],["2026-10-05",4.68]]},"on":{"u":"PLN/l","f":"W","d":[["2026-08-31",7.225],["2026-09-07",8.543],["2026-09-14",8.706],["2026-09-21",8.876],["2026-09-28",9.01],["2026-10-05",7.727]],"z":"wob","x":["brutto","wyl"],"t":"2026-10-08T04:30:00+00:00","ue":[["2026-08-31",8.825],["2026-09-07",9.088],["2026-09-14",9.373],["2026-09-21",9.692],["2026-09-28",9.78],["2026-10-05",9.402]],"n":[["2026-08-31",4.996],["2026-09-07",5.252],["2026-09-14",5.384],["2026-09-21",5.523],["2026-09-28",5.632],["2026-10-05",5.742]],"ue_n":[["2026-08-31",5.274],["2026-09-07",5.484],["2026-09-14",5.711],["2026-09-21",5.946],["2026-09-28",6.013],["2026-10-05",5.793]]},"kurs":{"u":"PLN/EUR","f":"W","d":[["2026-08-31",4.328],["2026-09-07",4.3103],["2026-09-14",4.3418],["2026-09-21",4.353],["2026-09-28",4.373],["2026-10-05",4.3795]],"z":"wob"},"v8":["2026-08-31","2026-10-05"]},"pszenica":{"u":"EUR/t","f":"W","d":[["2026-08-23",199.91],["2026-08-30",199.13],["2026-09-06",207.61],["2026-09-13",213.32],["2026-09-20",211.42],["2026-09-27",211.71]],"z":"agri","t":"2026-10-08T04:30:00+00:00"}};
+const pl304 = {
+  /* blok po załadowaniu: atrapa panelu surowców, plik surowców; rozwinięcie bloku = zdarzenie toggle (słuchacz z kodu strony, faza przechwytywania) */
+  run(L, files, opt) {
+    const K = su295.mk(L, Object.assign({}, SU295_ALL, files === undefined ? {polska: PL304_FILE} : files), opt);
+    K.api.suApply(opt && opt.su ? opt.su : SU295_FILE);
+    K.click = hit => { for (const [ev, fn] of K.clicks) if (ev === 'click') fn({target: {closest: s => (s === hit ? {} : null)}}); };
+    K.toggle = (open, id) => { for (const [ev, fn] of K.clicks) if (ev === 'toggle') fn({target: {id: id || 'su-b-pl', open: open !== false}}); };
+    return K;
+  },
+  blk: h => { const a = h.indexOf('<details class="etfd su-b su-pl" id="su-b-pl"'), b = h.indexOf('</details>', a); return a < 0 ? '' : h.slice(a, b + 10); },
+  tiles: h => { const o = {}, M = [...h.matchAll(/<div class="etfk su-k" data-pl="([\w.]+)">/g)];
+    M.forEach((m, i) => { o[m[1]] = h.slice(m.index, i + 1 < M.length ? M[i + 1].index : h.indexOf('<p ', m.index)); }); return o; },
+};
+
+test('v304: blok Polska — zwinięty, z flagą, po „Dokąd płynie kapitał w surowcach”; data/polska.json pobierany dopiero po rozwinięciu (raz; bez nowego słuchacza kliknięć i zegara)', () => {
+  const K = pl304.run('pl', undefined, {su: su298.file()}), h = su295.sp(K.el.innerHTML), b = pl304.blk(h);   /* plik z częściami v298 — sekcja „Dokąd płynie kapitał” */
+  assert.ok(b.startsWith('<details class="etfd su-b su-pl" id="su-b-pl" data-su-pl="1"><summary><span class="icos">') && b.includes('img/flagi/pl.svg'), 'blok zwijany z flagą Polski');
+  assert.ok(b.includes('</span>Polska: paliwa, energia i złoto</summary>'), 'tytuł bloku');
+  assert.ok(h.indexOf('Dokąd płynie kapitał w surowcach') > 0 && h.indexOf('Dokąd płynie kapitał w surowcach') < h.indexOf('id="su-b-pl"'), 'po sekcji przepływów kapitału');
+  assert.ok(h.indexOf('id="su-b-pl"') < h.indexOf('<p class="pfoot">'), 'przed stopką panelu');
+  assert.ok(h.indexOf('id="su-b-sz"') > h.indexOf('id="su-b-pl"'), 'v304b: przed blokiem „Szlaki handlowe” (kolejność: Dokąd płynie kapitał → Polska → Szlaki)');
+  assert.ok(!K.calls.includes('polska'), 'przy starcie strony — bez pobierania pliku Polski');
+  assert.ok(b.includes('<p class="pnote">Wczytuję ceny w Polsce…</p>') && !b.includes('etfkpis'), 'przed wczytaniem — tylko komunikat');
+  K.click('#g-surowce details[data-su-h]>summary'); K.toggle(true, 'su-b-gaz'); K.toggle(false);
+  assert.ok(!K.calls.includes('polska'), 'inny blok albo zwinięcie — bez pobierania');
+  assert.equal(K.clicks.filter(c => c[0] === 'toggle').length, 1, 'jeden słuchacz rozwinięcia bloku (słuchacze kliknięć — bez zmian: blok Polski żadnego nie dodaje)');
+  K.toggle();
+  assert.equal(K.calls.filter(n => n === 'polska').length, 1, 'rozwinięcie = jedno pobranie');
+  const b2 = pl304.blk(su295.sp(K.el.innerHTML));
+  assert.ok(b2.includes('<div class="etfkpis su-kpis">'), 'kafle po wczytaniu');
+  K.toggle(); K.api.renderSu();
+  assert.equal(K.calls.filter(n => n === 'polska').length, 1, 'ponowne rozwinięcie i rysowanie panelu — bez drugiego pobrania (plik młodszy niż 10 min)');
+  const B = su295.blk, pk = B.slice(B.indexOf('/* ---------- v304: POLSKA'), B.indexOf('/* ---------- koniec bloku Polski (v304) ---------- */'));
+  assert.ok(pk.includes("document.addEventListener('toggle',e=>{const d=e.target;if(!d||d.id!=='su-b-pl'||!d.open||PL.l)return;const n=Date.now();if(n-PL.e<60e3)return;"), 'po błędzie — najwcześniej po minucie');
+  assert.ok(pk.includes('if(!PL.j||n-PL.t>=10*60e3)plLoad();},true);'), 'blok otwarty — świeży plik przy rysowaniu panelu, gdy ma ponad 10 min (bez własnego zegara)');
+  assert.ok(!pk.includes('setInterval') && !pk.includes("addEventListener('click'"), 'bez zegara i słuchacza kliknięć');
+  assert.ok(B.includes('+su3D()+plD()+'), 'w panelu zaraz po sekcji „Dokąd płynie kapitał”');
+  /* plik zły — komunikat; przywrócenie rozwinięcia przy rysowaniu tuż po błędzie nie ponawia (bez pętli zapytań) */
+  const K2 = pl304.run('pl', {polska: {v: 2, at: 'x'}});
+  K2.toggle();
+  assert.ok(pl304.blk(su295.sp(K2.el.innerHTML)).includes('Nie udało się wczytać danych dla Polski — zwiń i rozwiń blok za minutę, aby spróbować ponownie.'));
+  K2.toggle(); K2.api.renderSu(); assert.equal(K2.calls.filter(n => n === 'polska').length, 1, 'tuż po błędzie — bez kolejnego zapytania');
+});
+
+test('v304: kafle Polski — cena z jednostką, zmiana w tygodniu (≥ 7 dni wstecz), mini-wykres, data i wiek; średnia UE przy cenach na stacjach; brak = „—”', () => {
+  const K = pl304.run('pl'); K.toggle();
+  const b = pl304.blk(su295.sp(K.el.innerHTML)), T = pl304.tiles(b), d = x => su295.day('pl', x);
+  assert.deepEqual(Object.keys(T), ['stacje.pb95', 'stacje.on', 'hurt.pb95', 'hurt.on', 'energia.gaz', 'energia.prad', 'zloto', 'pszenica'], '8 kafli');
+  /* stacje: 05.10 6,655 zł/l wobec 28.09 8,102 → −17,9%; średnia UE 8,75; z podatkami, przeliczone */
+  assert.ok(/<b>6,6[56] <small class="mtxt">zł\/l<\/small> <small class="neg">▼ −17,9% w tygodniu<\/small><\/b>/.test(T['stacje.pb95']), T['stacje.pb95']);
+  assert.ok(T['stacje.pb95'].includes('<small class="mtxt">średnia UE: 8,75 zł/l</small>') && T['stacje.pb95'].includes('z podatkami; cena z poniedziałku, przeliczona na złote'));
+  assert.ok(T['stacje.pb95'].includes('ceny z ' + d('2026-10-05') + ' · wiek(2026-10-05)'), 'data i wiek');
+  assert.ok(T['stacje.on'].includes('<b>7,73 <small class="mtxt">zł/l</small> <small class="neg">▼ −14,2% w tygodniu</small></b>') && T['stacje.on'].includes('średnia UE: 9,40 zł/l'));
+  /* v304b: podatki w litrze zmieniły się o ≥ 10% — opis (ile podatków przed i po, zmiana ceny bez podatków); hurt i reszta — bez opisu */
+  assert.ok(T['stacje.pb95'].includes('<small class="mtxt pl-pod">podatki w cenie litra: 3,33 zł/l → 2,02 zł/l (−39,4%); cena bez podatków −2,8%</small>'), T['stacje.pb95']);
+  assert.ok(T['stacje.on'].includes('<small class="mtxt pl-pod">podatki w cenie litra: 3,38 zł/l → 1,99 zł/l (−41,2%); cena bez podatków +2,0%</small>'), T['stacje.on']);
+  for (const k of ['hurt.pb95', 'hurt.on', 'energia.gaz', 'zloto']) assert.ok(!T[k].includes('pl-pod') && !T[k].includes('su-qo'), k);
+  /* hurt: 08.10 6,086 wobec 01.10 6,165 (dni obowiązywania wt–sob) → −1,3%; bez VAT */
+  assert.ok(T['hurt.pb95'].includes('Benzyna 95 w hurcie (Orlen)') && T['hurt.pb95'].includes('<b>6,09 <small class="mtxt">zł/l</small> <small class="neg">▼ −1,3% w tygodniu</small></b>'), T['hurt.pb95']);
+  assert.ok(T['hurt.pb95'].includes('cena hurtowa bez VAT (cena za 1000 l ÷ 1000)') && T['hurt.pb95'].includes('obowiązuje ' + d('2026-10-08') + ' · wiek(2026-10-08)'));
+  assert.ok(T['hurt.on'].includes('<b>6,94 <small class="mtxt">zł/l</small> <small class="neg">▼ −4,6% w tygodniu</small></b>'));
+  /* giełda: gaz 345,89 wobec 01.10 319,45 → +8,3%; prąd 587,76 wobec 613,58 → −4,2%; dzień dostawy */
+  assert.ok(T['energia.gaz'].includes('Gaz na giełdzie (TGE)') && T['energia.gaz'].includes('<b>345,89 <small class="mtxt">zł/MWh</small> <small class="pos">▲ +8,3% w tygodniu</small></b>'), T['energia.gaz']);
+  assert.ok(T['energia.gaz'].includes('dostawa ' + d('2026-10-08')) && T['energia.gaz'].includes('indeks na następny dzień'));
+  assert.ok(T['energia.prad'].includes('<b>587,76 <small class="mtxt">zł/MWh</small> <small class="neg">▼ −4,2% w tygodniu</small></b>') && T['energia.prad'].includes('indeks bazowy: średnia cena doby'));
+  /* złoto 07.10 519,24 wobec 30.09 512,85 → +1,2%; pszenica do 27.09 211,71 EUR/t wobec 211,42 → +0,1% */
+  assert.ok(T.zloto.includes('<b>519,24 <small class="mtxt">zł/g</small> <small class="pos">▲ +1,2% w tygodniu</small></b>') && T.zloto.includes('za 1 g czystego złota') && T.zloto.includes('cena z ' + d('2026-10-07')));
+  assert.ok(T.pszenica.includes('<b>211,71 <small class="mtxt">EUR/t</small> <small class="pos">▲ +0,1% w tygodniu</small></b>') && T.pszenica.includes('tydzień do ' + d('2026-09-27')));
+  for (const k in T) assert.ok(T[k].includes('<div class="su-sp"><div class="arc-gr">') && T[k].includes('<polyline class="arc-l l1"'), 'mini-wykres: ' + k);
+  for (const k in T) assert.ok(T[k].includes('img/flagi/pl.svg'), 'flaga Polski: ' + k);
+  /* brak części i serii: „—” z opisem, nigdy zero; prąd ujemny / zero — bez zmiany %; za długa przerwa — bez zmiany */
+  const F = JSON.parse(JSON.stringify(PL304_FILE)); delete F.zloto; F.energia.prad.d = [['2026-10-01', -5.0], ['2026-10-08', 120.0]]; F.pszenica.d = [['2026-08-30', 200.0], ['2026-09-27', 211.71]];
+  F.ok.zloto = false; F.err = {zloto: 'nbp: offline'};
+  const K2 = pl304.run('pl', {polska: F}); K2.toggle();
+  const b2 = pl304.blk(su295.sp(K2.el.innerHTML)), T2 = pl304.tiles(b2);
+  assert.ok(T2.zloto.includes('<b class="na">—</b>') && T2.zloto.includes('brak danych — to nie zero') && !/\d{2}/.test(su295.txt(T2.zloto)), 'brak = „—” (bez liczby ceny)');
+  assert.ok(T2['energia.prad'].includes('<b>120,00 <small class="mtxt">zł/MWh</small></b>'), 'cena wcześniejsza ≤ 0 — bez zmiany w %');
+  assert.ok(T2.pszenica.includes('<b>211,71 <small class="mtxt">EUR/t</small></b>'), 'przerwa ponad 14 dni — bez zmiany tygodnia');
+  assert.ok(b2.includes('Części danych jeszcze nie pobrano (złoto) — pojawią się po pierwszym udanym pobraniu.'), 'część bez danych — „jeszcze nie pobrano”');
+  const F3 = JSON.parse(JSON.stringify(PL304_FILE)); F3.ok.hurt = false;
+  const K3 = pl304.run('pl', {polska: F3}); K3.toggle();
+  assert.ok(pl304.blk(su295.sp(K3.el.innerHTML)).includes('<p class="pnote neu">Ostatnie pobranie części danych się nie udało (ceny hurtowe) — pokazujemy wcześniejsze dane z ich datą.</p>'));
+});
+
+test('v304: zdanie bloku — benzyna 95 w Polsce wobec średniej UE z tego samego poniedziałku; dwa wykresy linii Polska / średnia UE', () => {
+  const K = pl304.run('pl'); K.toggle();
+  const b = pl304.blk(su295.sp(K.el.innerHTML)), d = su295.day('pl', '2026-10-05');
+  assert.ok(/<p class="pnote su-s">Benzyna 95 na stacjach w Polsce kosztuje 6,6[56] zł\/l — o 24% mniej niż średnio w UE \(8,75 zł\/l\)\. Ceny z /.test(b), b.slice(0, 600));
+  assert.ok(b.includes('Ceny z ' + d + ' · wiek(2026-10-05). Bez podatków ten sam litr kosztuje w Polsce 4,63 zł/l, a średnio w UE 4,68 zł/l. W tym tygodniu VAT na paliwa w Polsce był obniżony.</p>'),
+    'v304b: te same ceny bez podatków i zdanie o obniżonym VAT (tydzień z listy v8)');
+  assert.equal((b.match(/<p class="pnote su-s">/g) || []).length, 1, 'jedno zdanie na blok');
+  assert.ok(b.includes('<b>Benzyna 95 na stacjach: Polska i średnia UE</b> · zł/l · od ' + su295.day('pl', '2026-08-31')) && b.includes('<b>Olej napędowy na stacjach: Polska i średnia UE</b>'));
+  assert.equal((b.match(/<polyline class="wk-l s1"/g) || []).length, 2); assert.equal((b.match(/<polyline class="wk-l s2"/g) || []).length, 2, 'Polska i średnia UE na każdym wykresie');
+  assert.ok(b.includes('aria-label="Wykres liniowy: Benzyna 95 na stacjach: Polska i średnia UE — co tydzień"'));
+  for (const [pl, eu, k] of [[9.5, 9.0, 'więcej'], [8.75, 8.75, 'tyle samo']]) {
+    const F = JSON.parse(JSON.stringify(PL304_FILE)); F.stacje.pb95.d[5][1] = pl; F.stacje.pb95.ue[5][1] = eu;
+    const K2 = pl304.run('pl', {polska: F}); K2.toggle();
+    assert.ok(pl304.blk(su295.sp(K2.el.innerHTML)).includes(k), k);
+  }
+  const F = JSON.parse(JSON.stringify(PL304_FILE)); F.stacje.pb95.ue.pop();
+  const K3 = pl304.run('pl', {polska: F}); K3.toggle();
+  const b3 = pl304.blk(su295.sp(K3.el.innerHTML));
+  assert.ok(!b3.includes('pnote su-s') && b3.includes('średnia UE: —'), 'średnia UE z innego tygodnia — bez zdania i „—” w kaflu');
+});
+
+test('v304: 10 języków — blok rysuje się w każdym, bez nazw wydawców (strażnik G126), bez surowych kluczy, bez polskiego w obcych językach', () => {
+  const names = G126_NAMES.HIDE.concat(G126_NAMES.BOTH);
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const K = pl304.run(L); K.toggle();
+    const b = pl304.blk(K.el.innerHTML), vis = su295.txt(b) + ' ' + [...b.matchAll(/(?:aria-label|data-t|title)="([^"]*)"/g)].map(m => m[1]).join(' ');
+    assert.ok(b.includes('data-pl="stacje.pb95"') && b.includes('data-pl="pszenica"'), L + ': kafle');
+    for (const [n, re] of names) assert.ok(!re.test(vis), L + ': nazwa ' + n);
+    assert.doesNotMatch(vis, /\b(?:NBP|Narodow\w* Bank\w* Polsk\w*|Komisj\w* Europejsk\w*|European Commission|Oil Bulletin|Agri-?food|DG ENER)\b/, L + ': wydawca danych');
+    assert.ok(!/pl304\.|NaN|undefined/.test(b), L + ': surowe klucze lub NaN');
+    if (L !== 'pl') assert.ok(!/Benzyna|Olej napędowy|na stacjach|Wczytuję|średnia UE|Pszenica/.test(b), L + ': bez polskich tekstów');
+  }
+});
+
+test('v304: słownik pl304 — czysty JSON w 10 językach zaraz po poprzednim, te same klucze i pola {x}, tłumaczenia (de–ja ≠ en poza jednostkami), zh bez kany, bez nazw dostawców; każdy klucz użyty w kodzie', () => {
+  const a = html.indexOf('{"pl":{"pl304.'); assert.ok(a > 0, 'słownik v304');
+  const d0 = html.lastIndexOf('const EXTRA', a), name = html.slice(d0 + 6, a - 1), n = +name.slice(5);
+  assert.ok(html.slice(0, d0).endsWith('for(const l in EXTRA' + (n - 1) + ')if(I18N[l])Object.assign(I18N[l],EXTRA' + (n - 1) + '[l]);\n'), 'zaraz po linii nakładania poprzedniego słownika');
+  const d1 = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', a); assert.ok(d1 > a, 'linia nakładania');
+  const D = JSON.parse(html.slice(a, d1)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10); const K = Object.keys(D.pl);
+  assert.equal(K.length, 53); assert.ok(K.every(k => k.startsWith('pl304.')), 'przedrostek zadania');
+  for (const l of L10) { assert.deepEqual(Object.keys(D[l]), K, l); for (const k of K) { assert.ok(D[l][k].trim(), l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k); assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k); } }
+  for (const l of L10.slice(2)) for (const k of K) if (!k.startsWith('pl304.u.')) assert.notEqual(D[l][k], D.en[k], l + ' ' + k);
+  for (const k of K) assert.ok(!/[぀-ヿ]/.test(D.zh[k]), 'zh bez kany: ' + k);
+  for (const l of L10) for (const k of K) assert.deepEqual(G126_NAMES.check(D[l][k], l), [], l + ' ' + k);
+  const B = su295.blk, pk = B.slice(B.indexOf('/* ---------- v304: POLSKA'), B.indexOf('/* ---------- koniec bloku Polski (v304) ---------- */'));
+  assert.ok(pk.length > 1000, 'kod bloku Polski w wycinku panelu surowców');
+  for (const k of K) {
+    const s = k.slice(6), dyn = /^(k|x|pt|c)\.(\w+)$/.exec(s);
+    assert.ok(pk.includes("'" + k + "'") || (dyn && (dyn[1] === 'c' ? pk.includes("plCh('" + dyn[2] + "')") || pk.includes("'pl304.c.'+id") && ['pb95', 'on'].includes(dyn[2]) : pk.includes("'" + dyn[2] + "'"))), 'klucz w kodzie bloku: ' + k);
+  }
+  assert.equal(D.pl['pl304.u.l'], 'zł/l'); assert.equal(D.en['pl304.u.l'], 'PLN/l');
+});
+
+test('v304: styl i telefon — kafle w siatce pulsu (telefon 2 kolumny), nagłówek bloku z flagą, bez nowych kolorów; wykresy przez arcChart i wkLines', () => {
+  assert.ok(html.includes('#g-surowce .su-pl{margin-top:18px}#g-surowce .su-pl>summary{color:var(--tx);font-weight:600;font-size:13px}'), 'styl bloku');
+  assert.ok(html.includes('@media (max-width:620px){#g-surowce .su-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}'), 'telefon: 2 kolumny kafli (390 px bez przewijania w bok)');
+  const B = su295.blk, pk = B.slice(B.indexOf('/* ---------- v304: POLSKA'), B.indexOf('/* ---------- koniec bloku Polski (v304) ---------- */'));
+  assert.ok(pk.length > 1000 && pk.includes('suSpark(R,Q)') && pk.includes('wkLines(L,{zero:false,'), 'wykresy z istniejących funkcji');
+  assert.ok(!/#[0-9a-f]{3,6}\b/i.test(pk.replace(/#g-surowce/g, '')), 'bez kolorów na sztywno');
+  assert.ok(pk.includes("srvJSON('polska')") && (pk.match(/srvJSON\(/g) || []).length === 1, 'jedno miejsce pobierania pliku');
+});
+
+/* ---- v304b: tydzień niepewny (q) — dopisek „liczba niepewna”, puste kółko na wykresach, zmiana „—”, zdanie o UE z ostatniego tygodnia bez q;
+   chwilowy błąd po udanym wczytaniu nie kasuje danych (zegar przesuwany w osobnej atrapie) ---- */
+const pl304q = (() => {
+  const withQ = q => { const F = JSON.parse(JSON.stringify(PL304_FILE)); F.stacje.pb95.q = q; return F; };
+  const loaded = (L, F) => { const K = pl304.run(L, {polska: F}); K.toggle(); return pl304.blk(su295.sp(K.el.innerHTML)); };
+  const chart = (b, id) => { const n = id === 'on' ? 'Olej napędowy na stacjach' : 'Benzyna 95 na stacjach'; const i = b.indexOf('<b>' + n + ': Polska i średnia UE</b>');
+    return i < 0 ? '' : b.slice(i, b.indexOf('<div class="wk-tip"', i)); };
+  return {withQ, loaded, chart};
+})();
+
+test('v304b: tydzień niepewny (q) — liczba zostaje z dopiskiem, puste kółko na mini-wykresie i wykresie Polska / UE, zmiana w tygodniu „—”, bez opisu podatków', () => {
+  const b = pl304q.loaded('pl', pl304q.withQ([['2026-10-05', 'nisko', '2026-10-03', 7.0], ['2026-09-14', 'wysoko', '2026-09-12', 4.5]])), T = pl304.tiles(b), d = x => su295.day('pl', x);
+  const P = T['stacje.pb95'];
+  assert.ok(/<b>6,6[56] <small class="mtxt">zł\/l<\/small> <small class="su-nc">— w tygodniu \(cena niepewna\)<\/small><\/b>/.test(P), P);
+  assert.ok(P.includes('<small class="mtxt su-qn su-qr"><i class="su-qo" aria-hidden="true"></i>cena ze źródła niższa niż cena hurtowa z VAT — liczba niepewna (możliwy błąd źródła)</small>'));
+  assert.ok(P.includes('<small class="mtxt su-qn"><i class="su-qo" aria-hidden="true"></i>cena z ' + d('2026-09-14') + ' niepewna (niezgodna z ceną hurtową)</small>'), 'starszy tydzień q w oknie');
+  assert.ok(!P.includes('pl-pod') && !P.includes('▼'), 'bez zmiany w % i bez opisu podatków przy tygodniu niepewnym');
+  assert.equal((P.match(/<line class="su-q" /g) || []).length, 2); assert.equal((P.match(/<line class="su-qi" /g) || []).length, 2, 'puste kółka na mini-wykresie');
+  assert.ok(P.includes('średnia UE: 8,75 zł/l') && P.includes('ceny z ' + d('2026-10-05')), 'średnia UE, data i wiek bez zmian');
+  assert.ok(T['stacje.on'].includes('▼ −14,2% w tygodniu') && !T['stacje.on'].includes('su-qo'), 'olej bez oznaczenia — bez zmian');
+  /* wykres benzyny: kółka (bez linii łączącej), legenda „cena niepewna”, podpowiedź tylko w tygodniach q */
+  const C = pl304q.chart(b, 'pb95'), O = pl304q.chart(b, 'on');
+  assert.equal((C.match(/<line class="su-q" [^>]*vector-effect="non-scaling-stroke"\/><line class="su-qi" /g) || []).length, 2, C.slice(0, 400));
+  assert.ok(!C.includes('wk-l su-q') && !C.includes('wk-pt su-q') && !C.includes('wk-sq su-q'), 'bez linii między kółkami i bez kwadratu w legendzie');
+  assert.ok(C.includes('<span><i class="su-qo" aria-hidden="true"></i>cena niepewna</span>'), 'legenda');
+  const tips = [...C.matchAll(/data-t="([^"]*)"/g)].map(m => su295.sp(m[1]));
+  assert.equal(tips.length, 6); assert.equal(tips.filter(x => x.includes('cena niepewna')).length, 2, tips.join(' | '));
+  assert.ok(tips.some(x => /cena niepewna: 6,6[56] zł\/l/.test(x)) && !tips.some(x => x.includes('brak danych')), 'tydzień q z liczbą; pozostałe bez „cena niepewna: —”');
+  assert.ok(!O.includes('su-q'), 'olej — bez kółek');
+  /* zdanie o UE: z ostatniego tygodnia bez q (28.09), z jego datą, i wyjaśnienie */
+  assert.ok(b.includes('<p class="pnote neu">Najnowsza cena benzyny 95 na stacjach (' + d('2026-10-05') + ') jest niepewna — porównanie ze średnią UE podajemy z ostatniego tygodnia bez tej uwagi.</p>'));
+  assert.ok(b.includes('<p class="pnote su-s">Benzyna 95 na stacjach w Polsce kosztuje 8,10 zł/l — o 12% mniej niż średnio w UE (9,20 zł/l). Ceny z ' + d('2026-09-28') +
+    ' · wiek(2026-09-28). Bez podatków ten sam litr kosztuje w Polsce 4,77 zł/l, a średnio w UE 4,90 zł/l.</p>'), b.slice(0, 900));
+  assert.ok(!b.includes('o 24% mniej'), 'liczba sprzed sprawdzenia nie jest podana jako pewna w zdaniu');
+});
+
+test('v304b: q na końcu sprzed tygodnia — zmiana „—” z dopiskiem przy starszym tygodniu; wszystkie tygodnie q — zdanie bez porównania z UE; zły wpis q — pominięty', () => {
+  const d = x => su295.day('pl', x);
+  let b = pl304q.loaded('pl', pl304q.withQ([['2026-09-28', 'nisko', '2026-09-26', 9.9]])), P = pl304.tiles(b)['stacje.pb95'];
+  assert.ok(P.includes('<small class="su-nc">— w tygodniu (cena niepewna)</small></b>') && P.includes('cena z ' + d('2026-09-28') + ' niepewna'), P);
+  assert.ok(!P.includes('cena ze źródła niższa') && b.includes('kosztuje 6,6') && b.includes('o 24% mniej') && !b.includes('pnote neu">Najnowsza'), 'najnowszy tydzień pewny — zdanie z niego');
+  const all = PL304_FILE.stacje.pb95.d.map(r => [r[0], 'nisko', r[0], 9.9]);
+  b = pl304q.loaded('pl', pl304q.withQ(all));
+  assert.ok(b.includes('<p class="pnote neu">Najnowsza cena benzyny 95 na stacjach (' + d('2026-10-05') + ') jest niepewna — nie porównujemy jej ze średnią UE.</p>') && !b.includes('pnote su-s'));
+  P = pl304.tiles(b)['stacje.pb95'];
+  assert.equal((P.match(/class="mtxt su-qn"><i class="su-qo"/g) || []).length, 2, 'najwyżej 2 dopiski starszych tygodni (pozostałe — kółka na wykresie)');
+  const C = pl304q.chart(b, 'pb95');
+  assert.equal((C.match(/<line class="su-q" /g) || []).length, 6, 'kolejne tygodnie q — osobne kółka'); assert.ok(!C.includes('wk-l su-q'), 'bez linii między kółkami');
+  b = pl304q.loaded('pl', pl304q.withQ([['2026-10-05', 'inne', 'x', 1], ['2026-10-05'], 'zle', ['2026-13-40', 'nisko', 'x', 1]]));
+  assert.ok(!b.includes('su-qo') && b.includes('▼ −17,9% w tygodniu'), 'nieznany powód / zły kształt wpisu — bez oznaczenia');
+});
+
+test('v304b: opis zmiany podatków — od 10% (test wsteczny), z ceną bez podatków; mniejsza zmiana albo brak ceny bez podatków — bez opisu', () => {
+  const F = JSON.parse(JSON.stringify(PL304_FILE));
+  F.stacje.pb95.n[5][1] = 4.80; F.stacje.pb95.d[5][1] = +(4.80 + 3.334 * 0.905).toFixed(3); F.stacje.pb95.ue_n[5][1] = 5.0;   /* podatki −9,5% */
+  F.stacje.on.n.pop();
+  const T = pl304.tiles(pl304q.loaded('pl', F));
+  assert.ok(!T['stacje.pb95'].includes('pl-pod') && !T['stacje.on'].includes('pl-pod'), 'podatki −9,5% / brak ceny bez podatków — bez opisu');
+  F.stacje.pb95.d[5][1] = +(4.80 + 3.334 * 0.899).toFixed(3);   /* −10,1% */
+  assert.ok(pl304.tiles(pl304q.loaded('pl', F))['stacje.pb95'].includes('podatki w cenie litra: 3,33 zł/l → 3,00 zł/l (−10,1%); cena bez podatków +0,7%'));
+  /* 10 języków: opis, dopisek q i zdanie bez surowych kluczy, bez polskich tekstów w innych językach */
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const b = pl304q.loaded(L, pl304q.withQ([['2026-10-05', 'nisko', '2026-10-03', 7.0], ['2026-09-21', 'wysoko', '2026-09-19', 4.5]]));
+    const b2 = pl304q.loaded(L, PL304_FILE);
+    for (const x of [b, b2]) assert.ok(!/pl304\.|NaN|undefined/.test(x), L + ': surowe klucze lub NaN');
+    assert.ok(b.includes('su-qo') && b.includes('pnote neu') && b2.includes('pl-pod'), L);
+    if (L !== 'pl') assert.ok(!/niepewn|Najnowsza|podatki w cenie|Bez podatków|obniżon/.test(b + b2), L + ': bez polskich tekstów');
+  }
+});
+
+test('v304b: chwilowy błąd pobrania po udanym wczytaniu nie kasuje danych; ponowienie najwcześniej po minucie; świeży plik po 10 min (zegar przesuwany)', () => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const BODY = "'use strict';\n" + cut('function arcMs(d){', '\n/* v293 (audyt G2)') + '\n' + cut('const wkNum=v=>', '\n/* pierścień: udziały') + '\n' +
+    cut('const wkMs=d=>', '\nconst WK_FGZ=') + '\n' + su295.blk + '\nreturn {suApply, renderSu, PL};';
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const fPct=', f0));
+  const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt, sg, fPct};')('pl', LOC);
+  let now = Date.parse('2026-10-08T12:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(now); else super(...a); } static now() { return now; } }
+  const el = {innerHTML: '', hidden: true, open: [], querySelectorAll(q) { return q === 'details[open]' ? this.open.map(id => ({id})) : []; }, querySelector() { return null; }};
+  const files = {surowce: SU295_FILE, polska: PL304_FILE}, calls = [], ev = [];
+  const srv = n => { calls.push(n); const v = files[n]; return {then(f) { f(v === undefined ? null : JSON.parse(JSON.stringify(v))); return this; }}; };
+  const api = new Function('$', 't', 'escH', 'nfmt', 'sg', 'fPct', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'flagsHtml', 'sepK', 'sepL',
+    'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date', 'renderUsa', BODY)(
+    q => (q === '#g-surowce' ? el : null), v96src.tFor('pl'), v96src.escH, F.nfmt, F.sg, F.fPct, LOC, 'pl', d => ' · wiek(' + d + ')', s => 'D:' + s, srv,
+    v96src.H.glyphImg, v96src.H.flagImg, undefined, () => ': ', () => ', ', {getItem: () => null, setItem() {}},
+    {addEventListener: (e, f) => ev.push([e, f]), querySelector: () => null, hidden: false}, function () { this.observe = () => {}; }, () => 0, FD, undefined);
+  api.suApply(SU295_FILE);
+  const tg = ev.filter(e => e[0] === 'toggle'); assert.equal(tg.length, 1);
+  const open = () => tg[0][1]({target: {id: 'su-b-pl', open: true}}), blk = () => pl304.blk(su295.sp(el.innerHTML)), n = () => calls.filter(x => x === 'polska').length;
+  open(); assert.equal(n(), 1); assert.ok(blk().includes('data-pl="stacje.pb95"') && api.PL.t === now);
+  now += 9 * 60e3; open(); assert.equal(n(), 1, 'plik młodszy niż 10 min — bez pobrania');
+  now += 2 * 60e3; files.polska = {v: 2}; open(); assert.equal(n(), 2, 'po 11 min — nowe pobranie');
+  assert.ok(api.PL.j && !api.PL.x && api.PL.e === now, 'zły plik po udanym wczytaniu — dane zostają, zapisany czas błędu');
+  assert.ok(blk().includes('data-pl="stacje.pb95"') && !blk().includes('Nie udało się wczytać'), 'blok dalej z danymi');
+  now += 30e3; open(); assert.equal(n(), 2, '30 s po błędzie — bez ponowienia');
+  now += 31e3; files.polska = PL304_FILE; open(); assert.equal(n(), 3, 'po minucie — ponowienie'); assert.ok(api.PL.t === now);
+});
+
+test('v304b: obniżony VAT na paliwa (lista v8) — dopisek na kaflach cen na stacjach i zdanie przy porównaniu z UE; tydzień q ma pierwszeństwo; bez listy — bez dopisku', () => {
+  const v8 = '<small class="mtxt pl-v8">cena z obniżonym VAT na paliwa</small>', zd = 'W tym tygodniu VAT na paliwa w Polsce był obniżony.';
+  let b = pl304q.loaded('pl', PL304_FILE), T = pl304.tiles(b);
+  assert.ok(T['stacje.pb95'].includes(v8) && T['stacje.on'].includes(v8), 'oba paliwa (ten sam VAT)');
+  assert.ok(T['stacje.pb95'].indexOf('pl-pod') < T['stacje.pb95'].indexOf('pl-v8') && T['stacje.pb95'].indexOf('pl-v8') < T['stacje.pb95'].indexOf('su-sp'), 'po opisie podatków, przed mini-wykresem');
+  for (const k of ['hurt.pb95', 'hurt.on', 'energia.gaz', 'energia.prad', 'zloto', 'pszenica']) assert.ok(!T[k].includes('pl-v8'), k);
+  { const F = JSON.parse(JSON.stringify(PL304_FILE)); F.stacje.v8 = ['2026-08-31', '2026-10-05', '2026-10-07', '2026-10-08'];   /* dni innych kafli na liście — i tak bez dopisku */
+    const T2 = pl304.tiles(pl304q.loaded('pl', F)); for (const k of ['hurt.pb95', 'hurt.on', 'energia.gaz', 'energia.prad', 'zloto']) assert.ok(!T2[k].includes('pl-v8'), 'tylko ceny na stacjach: ' + k); }
+  assert.equal((b.match(/W tym tygodniu VAT na paliwa w Polsce był obniżony\./g) || []).length, 1, 'zdanie raz');
+  /* wykresy Polska / UE: kropki tygodni z obniżonym VAT na linii Polski (31.08 i 05.10), legenda, podpowiedź z samym napisem (bez powtórzenia ceny) */
+  for (const id of ['pb95', 'on']) {
+    const C = pl304q.chart(b, id), tips = [...C.matchAll(/data-t="([^"]*)"/g)].map(m => su295.sp(m[1]));
+    assert.equal((C.match(/<line class="wk-pt pl-v8p" /g) || []).length, 2, id); assert.ok(!C.includes('wk-l pl-v8p'), id + ': bez linii między kropkami');
+    assert.ok(C.includes('<span><i class="wk-sq pl-v8p"></i>obniżony VAT na paliwa</span>'), id + ': legenda');
+    assert.equal(tips.length, 6); assert.deepEqual(tips.filter(x => x.includes('obniżony VAT')).map(x => x.slice(x.lastIndexOf(' · '))), [' · obniżony VAT na paliwa', ' · obniżony VAT na paliwa'], id);
+    assert.ok(!tips.some(x => /obniżony VAT na paliwa:|brak danych/.test(x)), id + ': bez ceny po napisie i bez „brak danych” w innych tygodniach');
+    assert.ok(tips.find(x => x.includes('obniżony VAT')).includes('Polska: '), id + ': cena Polski w podpowiedzi zostaje');
+  }
+  assert.ok(html.includes('#g-surowce .wk-ch .pl-v8p{--k:var(--tl)}'), 'kolor kropek i legendy z palety strony');
+  { const F = JSON.parse(JSON.stringify(PL304_FILE)); F.stacje.v8 = ['2026-09-21', '2026-09-28', '2026-10-05'];   /* kolejne tygodnie — osobne kropki, bez linii */
+    const C = pl304q.chart(pl304q.loaded('pl', F), 'pb95');
+    assert.equal((C.match(/<line class="wk-pt pl-v8p" /g) || []).length, 3); assert.ok(!C.includes('wk-l pl-v8p'), 'kolejne tygodnie z obniżonym VAT — bez linii między kropkami'); }
+  /* tydzień spoza listy (28.09 — VAT 23%) — bez dopisku; lista pusta / bez listy / złe wpisy — bez dopisku i zdania */
+  for (const L8 of [['2026-08-31'], [], undefined, ['x', 5, null, '2026-13-01']]) {
+    const F = JSON.parse(JSON.stringify(PL304_FILE)); if (L8 === undefined) delete F.stacje.v8; else F.stacje.v8 = L8;
+    b = pl304q.loaded('pl', F); T = pl304.tiles(b);
+    assert.ok(!T['stacje.pb95'].includes('pl-v8') && !T['stacje.on'].includes('pl-v8') && !b.includes(zd) && b.includes('o 24% mniej'), JSON.stringify(L8));
+    assert.equal((pl304q.chart(b, 'pb95').match(/<line class="wk-pt pl-v8p" /g) || []).length, L8 && L8[0] === '2026-08-31' ? 1 : 0, 'kropki tylko w tygodniach z listy: ' + JSON.stringify(L8));
+  }
+  /* q na 05.10 (benzyna): kafel benzyny bez dopisku VAT (liczba niepewna), olej z dopiskiem; zdanie z 28.09 (VAT 23%) — bez zdania o VAT */
+  b = pl304q.loaded('pl', pl304q.withQ([['2026-10-05', 'nisko', '2026-10-03', 7.0]])); T = pl304.tiles(b);
+  assert.ok(!T['stacje.pb95'].includes('pl-v8') && T['stacje.pb95'].includes('su-qr') && T['stacje.on'].includes(v8), T['stacje.pb95']);
+  { const C = pl304q.chart(b, 'pb95'); assert.equal((C.match(/<line class="wk-pt pl-v8p" /g) || []).length, 1, 'tydzień q — kółko zamiast kropki VAT');
+    assert.equal((C.match(/<line class="su-q" /g) || []).length, 1); assert.equal((pl304q.chart(b, 'on').match(/<line class="wk-pt pl-v8p" /g) || []).length, 2); }
+  assert.ok(b.includes('kosztuje 8,10 zł/l') && !b.includes(zd), 'zdanie z ostatniego tygodnia bez q (28.09, VAT 23%)');
+  /* zdanie z tygodnia z listy, gdy najnowszy ma q, a poprzedni pewny jest na liście (31.08 przy q na 07.09–05.10) */
+  const F = pl304q.withQ(['2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28', '2026-10-05'].map(d => [d, 'nisko', d, 9.9]));
+  b = pl304q.loaded('pl', F);
+  assert.ok(b.includes('kosztuje 6,60 zł/l') && b.includes('Ceny z ' + su295.day('pl', '2026-08-31')) && b.includes(zd), b.slice(0, 900));
+  /* 10 języków: dopisek i zdanie przetłumaczone, bez surowych kluczy */
+  for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const x = pl304q.loaded(L, PL304_FILE), D = v96src.I18N[L];
+    assert.ok(x.includes('<small class="mtxt pl-v8">' + D['pl304.v8'] + '</small>') && x.includes(D['pl304.s.v8'] + '</p>') && !/pl304\./.test(x), L);
+  }
+});

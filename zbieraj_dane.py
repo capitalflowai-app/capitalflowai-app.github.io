@@ -23530,6 +23530,642 @@ def build_zloto_krypto(S, prev=None, now=None):
     return out
 
 
+# ===================== v304: POLSKA — paliwa, energia, złoto i pszenica (plik data/polska.json; dział SUROWCE, etap 8) =====================
+# Osobny plik i osobny budowniczy (surowce.json ma już ok. 128 KB). Pięć części — każda z part_at / ok / next / err jak surowce.json v2,
+# własną bramką według terminów publikacji źródła i limitem czasu; część z błędem = poprzednie dane z ich datami (ok False, krótki błąd err);
+# brak = brak wiersza (null), nigdy 0. Na stronie: blok „Polska: paliwa, energia i złoto” w panelu #g-surowce (plik pobierany po rozwinięciu).
+#  zloto    — cena złota w Polsce: zł za 1 g złota próby 1000, dni robocze w Polsce, 90 notowań (API cen złota NBP; jedno zapytanie ≤ 367 dni);
+#  hurt     — ceny hurtowe Orlenu: benzyna Eurosuper 95 (produkt 41) i olej napędowy Ekodiesel (43); źródło podaje zł za m³ netto (bez VAT) →
+#             zł/l (÷ 1000); dni obowiązywania wt–sob (cena z soboty obowiązuje do poniedziałku; po święcie przerwa do 6 dni), 90 dni obowiązywania (ok. 4 miesiące);
+#  energia  — giełda energii TGE (strona główna: tabela indeksów i wykresy 61 dni dostawy w jednym pliku ok. 0,26 MB): gaz — indeks TGEgasDA
+#             (dzień następny), prąd — TGeBase (rynek dnia następnego, średnia doby); zł/MWh, dzień dostawy, 7 dni w tygodniu; 90 dni (historia
+#             rośnie z kolejnych pobrań); data z wykresu „DD-MM” → rok wyliczany (najpóźniejsza data nie dalej niż 2 dni od dziś);
+#  stacje   — ceny detaliczne z podatkami w Polsce i średnia UE (biuletyn cen paliw Komisji Europejskiej, plik historii XLSX ok. 4,5 MB,
+#             ceny z poniedziałku): benzyna 95 i olej napędowy; arkusz podaje EUR za 1000 l → zł/l po kursie z tego samego zestawienia
+#             (PL_exchange_rate = EUR za 1 zł); 26 tygodni; pobranie tylko w nocy (01:20–05:00 UTC), od czwartku po poniedziałku cen (plik
+#             powstaje w środę po południu: 07.10.2026 13:33 UTC dla 05.10), i nie w długim przebiegu — raz na noc, aż przyjdzie nowy tydzień;
+#             v304b: także ceny bez podatków (arkusz „Prices wo taxes”, Polska i UE — strona pokazuje, ile w cenie to podatki), oznaczenie q
+#             tygodnia niepewnego (pl_q: cena sprzeczna z ceną hurtową przy każdej stawce VAT na paliwa stosowanej w Polsce — dane nie są
+#             usuwane) i lista v8 tygodni z obniżonym VAT na paliwa (pl_v8: z podatków w cenie benzyny — wyjaśnienie dla czytelnika, czemu cena
+#             na stacji bywa niższa niż hurt + 23% VAT); tydzień bez ceny Polski — bez średniej UE i bez cen bez podatków;
+#  pszenica — pszenica konsumpcyjna w Polsce, średnia krajowa (portal danych rolnych KE), EUR/t, tydzień do niedzieli (publikacja w czwartek),
+#             26 tygodni; cena tekstem „€211,71” (przecinek) albo „€593.18” (kropka).
+# Testy wsteczne progów kontroli: ws53/v304-polska/bt (bt_swiezosc.py, bt_zloto.py).
+PL_V = 1
+PL_PARTS = ('zloto', 'hurt', 'energia', 'stacje', 'pszenica')
+PL_ZR = (('nbp', 'zloto'), ('orlen', 'hurt'), ('tge', 'energia'), ('agri', 'pszenica'), ('wob', 'stacje'))   # ciężki biuletyn na końcu
+PL_D, PL_W = 90, 26          # wierszy: dni z danymi (złoto — dni robocze, hurt — dni obowiązywania: ok. 4 miesiące; gaz i prąd — dni dostawy) / tygodni
+PL_BUDZET_S = 100            # s na cały budowniczy; źródło startuje tylko, gdy zmieszczą się wszystkie jego zapytania z pełnymi limitami
+PL_LATE = BACK_LATE          # s od startu przebiegu — dalej bez pliku biuletynu (PL_CIEZKIE)
+PL_LIMIT_S = {'nbp': 20, 'orlen': 20, 'tge': 30, 'agri': 30, 'wob': 90}
+PL_ZAPYTANIA = {'orlen': 2}
+PL_CIEZKIE = frozenset(('wob',))
+PL_NOC = ((1, 20), (5, 0))   # UTC — okno nocne biuletynu (plik 4,5 MB)
+PL_NBP_URL = 'https://api.nbp.pl/api/cenyzlota/{od}/{do}?format=json'
+PL_ORLEN_URL = 'https://tool.orlen.pl/api/wholesalefuelprices/ByProduct?productId={id}&from={od}&to={do}'
+PL_ORLEN = (('pb95', 41, 'Pb95'), ('on', 43, 'ONEkodiesel'))   # id części, numer produktu (lista /api/wholesalefuelprices/Products), symbol w odpowiedzi
+PL_TGE_URL = 'https://tge.pl/'
+PL_TGE = (('gaz', 'TGEgasDA', 1.0, 5000.0), ('prad', 'TGeBase', -5000.0, 20000.0))   # id, indeks, zakres wiarygodny zł/MWh (prąd bywa ujemny)
+PL_WOB_URL = ('https://energy.ec.europa.eu/document/download/906e60ca-8b6a-44e7-8589-652854d2fd3f_en'
+              '?filename=Weekly_Oil_Bulletin_Prices_History_maticni_4web.xlsx')
+PL_WOB_ARK = 'Prices with taxes'
+PL_WOB_ARK_N = 'Prices wo taxes'   # v304b: ceny bez podatków (bez VAT, akcyzy i opłat) — ten sam plik
+PL_WOB = (('pb95', 'euro95'), ('on', 'diesel'))
+# v304b: tydzień cen na stacjach niepewny (q), gdy cena z podatkami jest sprzeczna z ceną hurtową (bez VAT, z akcyzą i opłatą paliwową)
+# przy KAŻDEJ stawce VAT na paliwa stosowanej w Polsce: niższa niż hurt × 1,08 × (1 − 8%) albo wyższa niż hurt × 1,23 × (1 + 30%); hurt = ostatnia
+# cena obowiązująca w dniu biuletynu lub przed nim (najwyżej 6 dni wcześniej; dalej — bez sprawdzenia). Test wsteczny 2019–10.2026
+# (ws53/v304b-polska/bt2/bt_q.py; 396 tygodni × 2 paliwa): 0 tygodni oznaczonych; najniżej stacja / (hurt × 1,08) = 0,958 (olej 10.10.2022),
+# najwyżej stacja / (hurt × 1,23) = 1,227 (benzyna 23.03.2020). Reguła „stacja < hurt × 1,23” oznaczałaby 20–26% tygodni, w tym WSZYSTKIE 63
+# tygodnie z obniżonym VAT 8% (tarcza 02–12.2022; pakiet obniżek cen paliw 31.03–30.06, 17–31.08 i od 03.10.2026) — to prawdziwe ceny,
+# nie błąd źródła (obowiązywały też ceny maksymalne na stacjach, np. 03–05.10.2026: 6,73 zł/l benzyna, 7,88 zł/l olej; cena hurtowa jest bez VAT,
+# więc obniżka VAT jej nie zmienia, a obniżka akcyzy tak — benzyna / olej 03.10 o 0,23 / 0,34 zł/l taniej niż 02.10, razem z ruchem rynku).
+PL_Q_VAT = (1.08, 1.23)      # najniższa i podstawowa stawka VAT na paliwa w Polsce (mnożniki)
+PL_Q_TOL = (0.08, 0.30)      # zapas w dół (wobec VAT 8%) i w górę (wobec VAT 23%) — z testu wstecznego
+PL_Q_DNI = 6                 # najstarsza cena hurtowa do sprawdzenia tygodnia (dni przed poniedziałkiem biuletynu)
+# v304b: tydzień z obniżonym VAT na paliwa (v8) — z danych samego biuletynu (benzyna 95): podatki w cenie (z podatkami − bez podatków) minus VAT
+# liczony stawką podstawową 23% to akcyza i opłaty, jakie musiałyby być w cenie przy VAT 23%; gdy wychodzi mniej niż 0,85 × minimalna akcyza UE na
+# benzynę (359 EUR/1000 l — dyrektywa 2003/96/WE; przeliczenie kursem z tego samego zestawienia), stawka 23% jest niemożliwa — VAT był obniżony.
+# Przy VAT 23% wychodzi 1,82 zł/l (akcyza 1,529 + opłata paliwowa i emisyjna — stawki ustawowe; 05.10.2026 przy VAT 8% — 1,53 zł/l: akcyza obniżona
+# o 0,29 zł/l od 03.10.2026). Test wsteczny 2005–10.2026 (ws53/v304b-polska/bt3/bt_vat.py; 1087 tygodni; do 2010 stawka podstawowa 22%): w tygodniach
+# ze stawką podstawową najniżej 0,922 × minimum (20.12.2021 — akcyza obniżona do minimum UE), w 63 tygodniach z VAT 8% (02–12.2022; 2026: 31.03–30.06,
+# 17–31.08, od 03.10) najwyżej 0,753 → 0 pomyłek w obie strony. Olej napędowy nie rozstrzyga (2009: akcyza poniżej minimum UE — 0,72–0,76), a VAT
+# jest ten sam dla obu paliw — tydzień oznacza benzyna. To opis, nie oznaczenie niepewności (q ma pierwszeństwo na stronie).
+PL_V8_VAT = 23.0             # % — podstawowa stawka VAT na paliwa
+PL_V8_EMIN = 359.0           # EUR/1000 l — minimalna akcyza UE na benzynę bezołowiową
+PL_V8_PROG = 0.85            # ułamek minimum — z testu wstecznego (0,753 … 0,922)
+PL_AGRI_URL = ('https://api.tech.ec.europa.eu/agrifood/api/cereal/prices?memberStateCodes=PL&productCodes=BLTPAN'
+               '&beginDate={od}&endDate={do}')
+PL_DNI_PIERWSZE = 140        # dni wstecz w pierwszym (albo krótkim) zapytaniu części dziennych: 90 dni roboczych / obowiązywania ≈ 126 dni
+PL_DNI_KOLEJNE = 21          # dni wstecz w kolejnych zapytaniach (poprawki źródła i dni po przerwie)
+PL_AGRI_PIERWSZE, PL_AGRI_KOLEJNE = 200, 63   # dni wstecz — pszenica
+
+
+def _pl_off(u):
+    """Przesunięcie czasu polskiego wobec UTC w godzinach — reguła UE (czas letni od ostatniej niedzieli marca 01:00 UTC do ostatniej niedzieli
+    października 01:00 UTC); bez bazy stref (te same wyniki na każdej maszynie)."""
+    def ost_nd(y, m):
+        d = datetime.date(y, m, 31)
+        return d - datetime.timedelta(days=(d.weekday() + 1) % 7)
+    a = datetime.datetime.combine(ost_nd(u.year, 3), datetime.time(1), datetime.timezone.utc)
+    b = datetime.datetime.combine(ost_nd(u.year, 10), datetime.time(1), datetime.timezone.utc)
+    return 2 if a <= u < b else 1
+
+
+def _pl_lok(u):
+    """Chwila UTC → czas polski (bez strefy)."""
+    return (u + datetime.timedelta(hours=_pl_off(u))).replace(tzinfo=None)
+
+
+def _pl_utc(day, h, m=0):
+    """Godzina czasu polskiego w dniu day → chwila UTC."""
+    loc = datetime.datetime(day.year, day.month, day.day, h, m)
+    off = _pl_off(loc.replace(tzinfo=datetime.timezone.utc) - datetime.timedelta(hours=2))
+    return (loc - datetime.timedelta(hours=off)).replace(tzinfo=datetime.timezone.utc)
+
+
+def _pl_hurt_ocz(day):
+    """Dzień obowiązywania cen hurtowych, który powinien już być w pliku: dziś (wt–sob); w niedzielę i poniedziałek — sobota."""
+    while day.weekday() in (6, 0):
+        day -= datetime.timedelta(days=1)
+    return day
+
+
+def _pl_wob_pn(day):
+    """Poniedziałek biuletynu, który powinien już być w pliku w dniu day (UTC): od czwartku — poniedziałek tego tygodnia, wcześniej — poprzedni
+    (v304b: plik powstaje w środę po południu, pobranie w nocy — pierwsza noc po publikacji to noc ze środy na czwartek; ten sam dzień w polu
+    next i w teście wstecznym świeżości)."""
+    m = day - datetime.timedelta(days=day.weekday())
+    return m if day.weekday() >= 3 else m - datetime.timedelta(days=7)
+
+
+def _pl_agri_nd(day):
+    """Niedziela kończąca tydzień cen pszenicy, który powinien już być w pliku: od czwartku — tydzień do niedzieli przed nim, wcześniej —
+    tydzień wcześniejszy (publikacja w czwartek po tygodniu)."""
+    th = day - datetime.timedelta(days=(day.weekday() - 3) % 7)
+    return th - datetime.timedelta(days=4)
+
+
+def _pl_due(src, z, now):
+    """Czy źródło trzeba pobrać w tym przebiegu (kalendarz publikacji, po błędzie ponowienie). z — stan źródła ({at, try, asof})."""
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    asof = z.get('asof') if isinstance(z.get('asof'), str) else ''
+    first = at == float('inf')
+    loc = _pl_lok(now)
+    dl, hm = loc.date(), (loc.hour, loc.minute)
+    if src == 'nbp':      # dni robocze w Polsce, w ciągu dnia (11:00–19:00 czasu polskiego) co 30 min, aż przyjdzie dzisiejsza cena
+        if first:
+            return tr >= 60
+        if dl.weekday() < 5 and (11, 0) <= hm < (19, 0) and asof < dl.isoformat():
+            return tr >= 30
+        if asof < _su_dzien_rob(dl, -1).isoformat():    # zaległy dzień roboczy (awaria albo święto w Polsce) — co 2 h
+            return tr >= 120
+        return at >= 12 * 60 and tr >= 60
+    if src == 'orlen':    # cena obowiązuje od północy (publishFrom); brak dnia, który już obowiązuje — co 2 h (po święcie dzień bywa pominięty)
+        if first:
+            return tr >= 60
+        if asof < _pl_hurt_ocz(dl).isoformat():
+            return tr >= 120
+        return at >= 12 * 60 and tr >= 60
+    if src == 'tge':      # indeksy na jutro: prąd od 13:50, gaz po sesji do 15:30 czasu polskiego — od 15:45 co 30 min (po 20:00 co 2 h), aż są oba
+        if first:
+            return tr >= 60
+        ocz = dl + datetime.timedelta(days=1) if hm >= (15, 45) else dl
+        if asof < ocz.isoformat():
+            return tr >= (30 if hm < (20, 0) else 120)
+        return at >= 24 * 60 and tr >= 60
+    if src == 'agri':     # tydzień do niedzieli — w czwartek; w czwartek i piątek co 3 h, w inne dni co 6 h, aż przyjdzie; poza tym raz na dobę
+        if first:
+            return tr >= 60
+        if asof < _pl_agri_nd(dl).isoformat():
+            return tr >= (180 if dl.weekday() in (3, 4) else 360)
+        return at >= 24 * 60 and tr >= 60
+    if src == 'wob':      # plik 4,5 MB: tylko w nocy (raz na noc — także, gdy pobrany plik nie miał jeszcze nowego tygodnia), aż przyjdzie poniedziałek
+        if first:
+            return tr >= 120
+        if not (PL_NOC[0] <= (now.hour, now.minute) < PL_NOC[1]) or asof >= _pl_wob_pn(now.date()).isoformat():
+            return False
+        noc = now.replace(hour=PL_NOC[0][0], minute=PL_NOC[0][1], second=0, microsecond=0)
+        ta = _aw_t(z.get('at')) if isinstance(z.get('at'), str) else None
+        return (ta is None or ta < noc) and tr >= 60
+    return False
+
+
+def _pl_next(part, out, now):
+    """Najbliższa spodziewana publikacja części (ISO, UTC) — kontrola i strona wiedzą, że brak nowych danych do tej chwili jest normą;
+    termin w przeszłości = publikacja zaległa (święto, przerwa źródła)."""
+    def ost(e):
+        r = [x[0] for x in (e.get('d') or []) if isinstance(x, list) and len(x) == 2 and _isnum(x[1])] if isinstance(e, dict) else []
+        return datetime.date.fromisoformat(r[-1]) if r else None
+    P = out.get(part) if isinstance(out.get(part), dict) else {}
+    S = [P] if part in ('zloto', 'pszenica') else [P.get(k) for k in (('pb95', 'on') if part in ('hurt', 'stacje') else ('gaz', 'prad'))]
+    L = [ost(e) for e in S]
+    a = min(L) if L and all(L) else None
+    dl = _pl_lok(now).date()
+    if part == 'zloto':      # dni robocze w Polsce, ok. 12:00 czasu polskiego (godziny publikacji źródło nie podaje)
+        d = _su_dzien_rob(a, 1) if a else (dl if dl.weekday() < 5 else _su_dzien_rob(dl, 1))
+        return _pl_utc(d, 12).isoformat()
+    if part == 'hurt':       # następny dzień obowiązywania (wt–sob) od północy czasu polskiego
+        d = (a or dl) + datetime.timedelta(days=1)
+        while d.weekday() in (6, 0):
+            d += datetime.timedelta(days=1)
+        return _pl_utc(d, 0).isoformat()
+    if part == 'energia':    # dostawa na dzień po ostatnim — publikacja w dniu ostatniej dostawy ok. 15:45 czasu polskiego
+        return _pl_utc(a or dl, 15, 45).isoformat()
+    if part == 'stacje':     # następny poniedziałek cen — w pliku od nocy po środzie
+        n = (a + datetime.timedelta(days=7)) if a else _pl_wob_pn(now.date()) + datetime.timedelta(days=7)
+        d = n + datetime.timedelta(days=3)
+        return datetime.datetime(d.year, d.month, d.day, PL_NOC[0][0], PL_NOC[0][1], tzinfo=datetime.timezone.utc).isoformat()
+    s = (a + datetime.timedelta(days=7)) if a else _pl_agri_nd(dl) + datetime.timedelta(days=7)   # pszenica: czwartek po tygodniu
+    d = s + datetime.timedelta(days=4)
+    return datetime.datetime(d.year, d.month, d.day, 12, 0, tzinfo=datetime.timezone.utc).isoformat()
+
+
+# ---- parsery (nagrania odpowiedzi w testach PolskaV304) ----
+def _pl_json(b):
+    return json.loads(b.decode('utf-8', 'replace') if isinstance(b, (bytes, bytearray)) else b)
+
+
+def pl_nbp(b):
+    """API cen złota: [{data, cena}] (zł za 1 g próby 1000) → {dzień: cena}; poza zakresem 20–5000 zł/g albo nie-liczba = brak."""
+    j = _pl_json(b)
+    if not isinstance(j, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    out = {}
+    for r in j:
+        if isinstance(r, dict) and re.match(r'^\d{4}-\d{2}-\d{2}$', str(r.get('data') or '')) and _isnum(r.get('cena')) and 20 < r['cena'] < 5000:
+            out[r['data']] = round(float(r['cena']), 2)
+    if not out:
+        raise RuntimeError('brak notowań')
+    return out
+
+
+def pl_orlen(b, sym):
+    """Ceny hurtowe jednego produktu: [{productName, effectiveDate, value (zł/m³)}] → {dzień obowiązywania: zł/l}; inny produkt, zła data albo
+    wartość poza 1000–30 000 zł/m³ = brak."""
+    j = _pl_json(b)
+    if not isinstance(j, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    out = {}
+    for r in j:
+        if not isinstance(r, dict) or str(r.get('productName') or '') != sym:
+            continue
+        d, v = str(r.get('effectiveDate') or '')[:10], r.get('value')
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', d) and _isnum(v) and 1000 <= v <= 30000:
+            out[d] = round(v / 1000, 4)
+    if not out:
+        raise RuntimeError(f'{sym}: brak cen')
+    return out
+
+
+def _pl_rok(dd, mm, today):
+    """Data wykresu „DD-MM” bez roku → najpóźniejsza data nie dalej niż 2 dni od dziś (wykres obejmuje 61 dni wstecz i jutro)."""
+    for y in (today.year + 1, today.year, today.year - 1):
+        try:
+            d = datetime.date(y, mm, dd)
+        except ValueError:
+            continue
+        if d <= today + datetime.timedelta(days=2):
+            return d
+    return None
+
+
+def pl_tge(b, today):
+    """Strona główna giełdy: wykresy indeksów (AmCharts, dataProvider: {"date": "DD-MM", "kurs": 'liczba' albo '-'}) → {id: {dzień dostawy: zł/MWh}}
+    i błędy indeksów bez danych; kurs z tabeli indeksów (ostatnia dostawa, przecinek dziesiętny) wobec ostatniego punktu wykresu — uwaga przy różnicy."""
+    s = b.decode('utf-8', 'replace') if isinstance(b, (bytes, bytearray)) else str(b)
+    out, zle, uw = {}, [], []
+    for cid, name, lo, hi in PL_TGE:
+        m = re.search(r'makeChart\(\s*"chartdiv-indexes--' + re.escape(name) + r'"', s)
+        a = s.find('"dataProvider"', m.end()) if m else -1
+        e = s.find(']', a) if a >= 0 else -1
+        if e < 0:
+            zle.append(f'{name}: brak wykresu na stronie'); continue
+        r = {}
+        for dd, mm, v in re.findall(r'"date"\s*:\s*"(\d{2})-(\d{2})"\s*,\s*"kurs"\s*:\s*\'([^\']*)\'', s[a:e]):
+            d = _pl_rok(int(dd), int(mm), today)
+            try:
+                x = float(v)
+            except ValueError:
+                continue   # „-” — brak indeksu tego dnia (brak, nie zero)
+            if d and _isnum(x) and lo <= x <= hi:
+                r[d.isoformat()] = round(x, 2)
+        if not r:
+            zle.append(f'{name}: brak kursów'); continue
+        out[cid] = r
+        t = re.search(r'<td>\s*<b>' + re.escape(name) + r'</b>\s*</td>\s*<td[^>]*>\s*(-?[\d \u00a0]+,\d+)\s*</td>', s)
+        if t:
+            tv = float(re.sub(r'[ \u00a0]', '', t.group(1)).replace(',', '.'))
+            last = r[max(r)]
+            if abs(tv - last) > 0.011:
+                uw.append(f'{name}: tabela {tv:g} vs wykres {last:g} ({max(r)}) — zapisano wykres')
+    return out, zle, uw
+
+
+def _pl_wob_ark(data, ark, tag, need_fx):
+    """Arkusz biuletynu → {poniedziałek: {kolumna: liczba}} (kolumny po nazwie z wiersza nagłówka, data jako liczba seryjna Excela:
+    46300 = 2026-10-05); brak kolumn = wyjątek z ich listą."""
+    R = _xlsx_rows(data, ark)
+    hdr = next((r for r in sorted(R)[:12] if f'PL_price_{tag}_tax_euro95' in R[r].values()), None)
+    if hdr is None:
+        raise RuntimeError('brak kolumn Polski w arkuszu')
+    col = {v: k for k, v in R[hdr].items()}
+    need = (['PL_exchange_rate'] if need_fx else []) + [f'{c}_price_{tag}_tax_{f}' for _, f in PL_WOB for c in ('PL', 'EU')]
+    brak = [c for c in need if c not in col]
+    if brak:
+        raise RuntimeError('brak kolumn: ' + ', '.join(brak))
+    out = {}
+    for r in sorted(R):
+        if r <= hdr:
+            continue
+        row = R[r]
+        try:
+            n = int(float(row.get(1)))
+        except (TypeError, ValueError):
+            continue
+        if not 38000 <= n <= 80000:   # 2004–2119
+            continue
+        w = {}
+        for c in need:
+            try:
+                v = float(row.get(col[c]))
+            except (TypeError, ValueError):
+                continue
+            if _isnum(v):
+                w[c] = v
+        out[(datetime.date(1899, 12, 30) + datetime.timedelta(days=n)).isoformat()] = w
+    return out
+
+
+def pl_wob(data):
+    """Plik historii biuletynu: arkusz „Prices with taxes” (PL_exchange_rate = EUR za 1 zł, PL_/EU_price_with_tax_euro95 / _diesel = EUR
+    za 1000 l) i — v304b — „Prices wo taxes” (ceny bez podatków, te same jednostki; brak arkusza albo kolumn = ceny bez podatków puste,
+    nie błąd) → {poniedziałek: {'kurs': zł za 1 EUR, 'pb95': (Polska zł/l, UE zł/l, Polska bez podatków, UE bez podatków), 'on': (…)}};
+    wiersz bez kursu albo z ceną z podatkami poza 1–30 zł/l = brak; cena bez podatków poza 0,5–30 zł/l albo nie niższa niż z podatkami = brak."""
+    A = _pl_wob_ark(data, PL_WOB_ARK, 'with', True)
+    try:
+        N = _pl_wob_ark(data, PL_WOB_ARK_N, 'wo', False)
+    except RuntimeError:
+        N = {}
+    out = {}
+    for d in sorted(A):
+        row, rn = A[d], N.get(d) or {}
+        fx = row.get('PL_exchange_rate')
+        if fx is None or not 0.1 < fx < 0.5:
+            continue
+        w = {'kurs': round(1 / fx, 4)}
+        zl = lambda v: round(v / fx / 1000, 3) if v is not None else None   # noqa: E731
+        for cid, f in PL_WOB:
+            pl, eu = zl(row.get(f'PL_price_with_tax_{f}')), zl(row.get(f'EU_price_with_tax_{f}'))
+            pl, eu = (pl if pl is not None and 1 < pl < 30 else None), (eu if eu is not None and 1 < eu < 30 else None)
+            pn, en = zl(rn.get(f'PL_price_wo_tax_{f}')), zl(rn.get(f'EU_price_wo_tax_{f}'))
+            pn = pn if pn is not None and pl is not None and 0.5 < pn < pl else None
+            en = en if en is not None and eu is not None and 0.5 < en < eu else None
+            w[cid] = (pl, eu, pn, en)
+        if any(w[c][0] is not None for c, _ in PL_WOB):
+            out[d] = w
+    if not out:
+        raise RuntimeError('brak cen Polski')
+    return out
+
+
+def pl_q(st, hurt):
+    """v304b: tygodnie cen na stacjach sprzeczne z ceną hurtową przy każdej stawce VAT na paliwa stosowanej w Polsce (PL_Q_VAT, PL_Q_TOL; test
+    wsteczny przy stałych). st — {poniedziałek: zł/l z podatkami}, hurt — {dzień obowiązywania: zł/l bez VAT} → {poniedziałek: [poniedziałek,
+    'nisko'|'wysoko', dzień ceny hurtowej, cena hurtowa] albo None (sprawdzony, zgodny)}; tydzień bez ceny hurtowej z ostatnich PL_Q_DNI dni —
+    bez wpisu (nie da się sprawdzić)."""
+    hs = sorted(hurt)
+    out = {}
+    for d, v in st.items():
+        hd = next((x for x in reversed(hs) if x <= d), None)
+        if hd is None or (datetime.date.fromisoformat(d) - datetime.date.fromisoformat(hd)).days > PL_Q_DNI or not hurt[hd] > 0:
+            continue
+        h = hurt[hd]
+        out[d] = ([d, 'nisko', hd, h] if v < h * PL_Q_VAT[0] * (1 - PL_Q_TOL[0]) else
+                  [d, 'wysoko', hd, h] if v > h * PL_Q_VAT[1] * (1 + PL_Q_TOL[1]) else None)
+    return out
+
+
+def pl_v8(st, stn, kurs):
+    """v304b: tygodnie z obniżonym VAT na paliwa (PL_V8_*; test wsteczny przy stałych). st — {poniedziałek: zł/l z podatkami}, stn — {poniedziałek:
+    zł/l bez podatków}, kurs — {poniedziałek: zł za 1 EUR} (benzyna 95) → posortowana lista poniedziałków; tydzień bez którejś liczby — pominięty."""
+    out = []
+    for d in sorted(st):
+        p, n, k = st.get(d), stn.get(d), kurs.get(d)
+        if not (_isnum(p) and _isnum(n) and _isnum(k) and 0 < n < p and k > 0):
+            continue
+        if (p - n) - p * PL_V8_VAT / (100 + PL_V8_VAT) < PL_V8_PROG * PL_V8_EMIN * k / 1000:
+            out.append(d)
+    return out
+
+
+def pl_kwota(s):
+    """Cena tekstem z portalu danych rolnych → liczba: '€211,71' → 211.71, '€593.18' → 593.18, '€1.234,56' → 1234.56, '€1,234' → 1234;
+    zły zapis = None (brak, nie zero)."""
+    x = re.sub(r'[\s\u00a0\u202f€]', '', str(s or ''))   # spacje, także twarde (zapis ucieczkami — bez znaków niewidocznych w kodzie)
+    if not re.match(r'^-?\d[\d.,]*$', x):
+        return None
+    if ',' in x and '.' in x:
+        x = x.replace('.', '').replace(',', '.') if x.rfind(',') > x.rfind('.') else x.replace(',', '')
+    elif ',' in x:
+        x = x.replace(',', '') if re.match(r'^-?\d{1,3}(?:,\d{3})+$', x) else x.replace(',', '.')
+    try:
+        v = float(x)
+    except ValueError:
+        return None
+    return v if _isnum(v) else None
+
+
+def pl_agri(b):
+    """Ceny zbóż (pszenica, Polska): [{memberStateCode, marketName, endDate dd/mm/rrrr, price tekstem, unit}] → {niedziela kończąca tydzień: EUR/t};
+    tylko średnia krajowa w tonach; powtórzony tydzień (ten sam dzień w dwóch latach gospodarczych) — jedna wartość; poza 50–1000 EUR/t = brak."""
+    j = _pl_json(b)
+    if not isinstance(j, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    out = {}
+    for r in j:
+        if not isinstance(r, dict) or r.get('memberStateCode') != 'PL' or r.get('marketName') != 'National Average' or r.get('unit') != 'TONNES':
+            continue
+        m = re.match(r'^(\d{2})/(\d{2})/(\d{4})$', str(r.get('endDate') or ''))
+        v = pl_kwota(r.get('price'))
+        if m and v is not None and 50 < v < 1000:
+            out[f'{m.group(3)}-{m.group(2)}-{m.group(1)}'] = round(v, 2)
+    if not out:
+        raise RuntimeError('brak cen pszenicy')
+    return out
+
+
+# ---- pobieranie (ctx: now, fetch, H — historia części z poprzedniego pliku, bledy, uwagi) ----
+def _pl_get(ctx, src, url):
+    return ctx['fetch'](url, PL_LIMIT_S[src])
+
+
+def _pl_od(ctx, rows, n_min, pierwsze, kolejne):
+    return ctx['now'].date() - datetime.timedelta(days=pierwsze if len(rows) < n_min else kolejne)
+
+
+def _pl_nbp(ctx):
+    H = ctx['H']['zloto']
+    od = _pl_od(ctx, H, PL_D, PL_DNI_PIERWSZE, PL_DNI_KOLEJNE)
+    g = pl_nbp(_pl_get(ctx, 'nbp', PL_NBP_URL.format(od=od.isoformat(), do=ctx['now'].date().isoformat())))
+    H.update(g)
+    return max(H)
+
+
+def _pl_orlen(ctx):
+    H, ok = ctx['H']['hurt'], 0
+    do = ctx['now'].date() + datetime.timedelta(days=2)   # cena na jutro bywa już opublikowana wieczorem
+    for cid, pid, sym in PL_ORLEN:
+        h = H.setdefault(cid, {})
+        od = _pl_od(ctx, h, PL_D, PL_DNI_PIERWSZE, PL_DNI_KOLEJNE)
+        try:
+            h.update(pl_orlen(_pl_get(ctx, 'orlen', PL_ORLEN_URL.format(id=pid, od=od.isoformat(), do=do.isoformat())), sym))
+            ok += 1
+        except Exception as e:
+            ctx['bledy'].append(mask(f'orlen {cid}: {e}')[:160])
+    if not ok:
+        raise RuntimeError('; '.join(ctx['bledy'][-len(PL_ORLEN):]))
+    return min(max(H[c]) if H.get(c) else '' for c, _, _ in PL_ORLEN)
+
+
+def _pl_tge(ctx):
+    H = ctx['H']['energia']
+    out, zle, uw = pl_tge(_pl_get(ctx, 'tge', PL_TGE_URL), _pl_lok(ctx['now']).date())
+    if not out:
+        raise RuntimeError('; '.join(zle) or 'brak indeksów')
+    for cid, r in out.items():
+        H.setdefault(cid, {}).update(r)
+    ctx['bledy'].extend(mask(f'tge {x}')[:160] for x in zle)
+    ctx['uwagi'].extend(f'giełda energii: {x}' for x in uw)
+    return min(max(H[c]) if H.get(c) else '' for c, _, _, _ in PL_TGE)
+
+
+def _pl_agri(ctx):
+    H = ctx['H']['pszenica']
+    od = ctx['now'].date() - datetime.timedelta(days=PL_AGRI_PIERWSZE if len(H) < PL_W else PL_AGRI_KOLEJNE)
+    f = lambda d: d.strftime('%d/%m/%Y')   # noqa: E731
+    g = pl_agri(_pl_get(ctx, 'agri', PL_AGRI_URL.format(od=f(od), do=f(ctx['now'].date()))))
+    H.update(g)
+    return max(H)
+
+
+def _pl_wob(ctx):
+    H = ctx['H']['stacje']
+    w = pl_wob(_pl_get(ctx, 'wob', PL_WOB_URL))
+    for d, x in sorted(w.items())[-PL_W - 4:]:   # z zapasem 4 tygodni (poprawki ostatnich tygodni w pliku)
+        H['kurs'][d] = x['kurs']
+        for cid, _ in PL_WOB:
+            pl, eu, pn, en = x[cid]
+            if pl is None:   # v304b (recenzja v304): tydzień bez ceny Polski — bez średniej UE i cen bez podatków (kontrola uznałaby plik za sprzeczny)
+                eu = pn = en = None
+            for k, v in ((cid, pl), (cid + '_ue', eu), (cid + '_n', pn), (cid + '_uen', en)):
+                if v is None:
+                    H[k].pop(d, None)
+                else:
+                    H[k][d] = v
+    return max(w)
+
+
+PL_POBIERZ = {'nbp': _pl_nbp, 'orlen': _pl_orlen, 'tge': _pl_tge, 'agri': _pl_agri, 'wob': _pl_wob}
+
+
+def _pl_rows(e):
+    """Seria pliku [[dzień, liczba], …] → {dzień: liczba} (zła data albo nie-liczba pominięte)."""
+    return {str(x[0]): x[1] for x in (e or []) if isinstance(x, list) and len(x) == 2 and re.match(r'^\d{4}-\d{2}-\d{2}$', str(x[0])) and _isnum(x[1])}
+
+
+def _pl_hist(prev):
+    """Historia części z poprzedniego pliku (nowe pobranie dopisuje i poprawia dni; okno 90 dni / 26 tygodni)."""
+    P = {p: prev.get(p) if isinstance(prev.get(p), dict) else {} for p in PL_PARTS}
+    sub = lambda p, k: P[p].get(k) if isinstance(P[p].get(k), dict) else {}   # noqa: E731
+    H = {'zloto': _pl_rows(P['zloto'].get('d')), 'pszenica': _pl_rows(P['pszenica'].get('d')),
+         'hurt': {c: _pl_rows(sub('hurt', c).get('d')) for c, _, _ in PL_ORLEN},
+         'energia': {c: _pl_rows(sub('energia', c).get('d')) for c, _, _, _ in PL_TGE},
+         'stacje': {'kurs': _pl_rows(sub('stacje', 'kurs').get('d'))}}
+    for c, _ in PL_WOB:
+        H['stacje'][c] = _pl_rows(sub('stacje', c).get('d'))
+        H['stacje'][c + '_ue'] = _pl_rows(sub('stacje', c).get('ue'))
+        H['stacje'][c + '_n'] = _pl_rows(sub('stacje', c).get('n'))       # v304b: ceny bez podatków (Polska, UE)
+        H['stacje'][c + '_uen'] = _pl_rows(sub('stacje', c).get('ue_n'))
+        q = sub('stacje', c).get('q')   # v304b: oznaczenia q z poprzedniego pliku (tydzień, którego nie da się już sprawdzić — wpis zostaje)
+        H['stacje'][c + '_q'] = {x[0]: list(x) for x in (q if isinstance(q, list) else []) if isinstance(x, list) and len(x) == 4
+                                 and isinstance(x[0], str) and x[1] in ('nisko', 'wysoko')}
+    return H
+
+
+def _pl_ser(rows, n, u, f, z, pe, now_iso, x=None):
+    """Seria części: ostatnie n wierszy rosnąco, jednostka, częstotliwość, kod źródła, t — chwila, od której jest ostatnia wartość (z poprzedniego
+    pliku, gdy ostatni dzień i liczba się nie zmieniły)."""
+    d = [[k, rows[k]] for k in sorted(rows)][-n:]
+    if not d:
+        return None
+    e = {'u': u, 'f': f, 'd': d, 'z': z}
+    if x:
+        e['x'] = list(x)
+    pd_ = pe.get('d') if isinstance(pe, dict) and isinstance(pe.get('d'), list) else []
+    pl = [x_ for x_ in pd_ if isinstance(x_, list) and len(x_) == 2 and _isnum(x_[1])]
+    e['t'] = pe['t'] if pl and pl[-1] == d[-1] and isinstance(pe.get('t'), str) else now_iso
+    return e
+
+
+def build_polska(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
+    """v304: data/polska.json (wersja 1) → plik. Każde źródło ma własną bramkę (_pl_due) i budżet czasu; źródło z błędem — poprzednie dane z datą
+    (część z ok False i krótkim błędem err; częściowy błąd — dane pozostałych serii zapisane). Wyjątek na zewnątrz tylko przy błędzie w samym
+    budowniczym (main zostawia wtedy poprzedni plik)."""
+    now = now or _now_utc()
+    now_iso = now.replace(microsecond=0).isoformat()
+    prev = prev if isinstance(prev, dict) and prev.get('v') == PL_V else {}
+    st = json.loads(json.dumps(prev.get('st'))) if isinstance(prev.get('st'), dict) else {}
+    ctx = {'now': now, 'H': _pl_hist(prev), 'bledy': [], 'uwagi': [],
+           'fetch': fetch or (lambda url, timeout: get_bytes(url, timeout=timeout))}
+    t0, budzet = time.monotonic(), PL_BUDZET_S if budzet_s is None else budzet_s
+    late = run_t0 is not None and time.monotonic() - run_t0 > PL_LATE
+    proby, udane, zle, pominiete = {p: 0 for p in PL_PARTS}, set(), {}, []
+    for src, part in PL_ZR:
+        z = st.setdefault(src, {})
+        if not _pl_due(src, z, now):
+            continue
+        if late and src in PL_CIEZKIE:
+            pominiete.append(f'{src} (długi przebieg)'); continue
+        if time.monotonic() - t0 + PL_ZAPYTANIA.get(src, 1) * PL_LIMIT_S[src] > budzet:
+            pominiete.append(f'{src} (budżet czasu)'); continue
+        nb = len(ctx['bledy'])
+        z['try'] = now_iso
+        try:
+            asof = PL_POBIERZ[src](ctx)
+        except Exception as e:
+            proby[part] += 1
+            msg = mask(f'{src}: {e}')[:160]
+            z['err'] = msg; zle.setdefault(part, []).append(msg)
+            del ctx['bledy'][nb:]
+            continue
+        proby[part] += 1
+        z['at'] = now_iso; z['asof'] = asof; z.pop('err', None); udane.add(src)
+        if len(ctx['bledy']) > nb:   # częściowy błąd (jedna z dwóch serii) — dane drugiej zapisane
+            zle.setdefault(part, []).extend(ctx['bledy'][nb:])
+    H = ctx['H']
+    sub = lambda p, k: (prev.get(p) or {}).get(k) if isinstance(prev.get(p), dict) else None   # noqa: E731
+    out = {'v': PL_V, 'at': None}
+    parts = {}
+    e = _pl_ser(H['zloto'], PL_D, 'PLN/g', 'D', 'nbp', prev.get('zloto'), now_iso)
+    if e:
+        parts['zloto'] = e
+    P = {}
+    for c, _, _ in PL_ORLEN:
+        e = _pl_ser(H['hurt'].get(c) or {}, PL_D, 'PLN/l', 'D', 'orlen', sub('hurt', c), now_iso, ['netto'])
+        if e:
+            P[c] = e
+    if P:
+        parts['hurt'] = P
+    P = {}
+    for c, _, _, _ in PL_TGE:
+        e = _pl_ser(H['energia'].get(c) or {}, PL_D, 'PLN/MWh', 'D', 'tge', sub('energia', c), now_iso)
+        if e:
+            P[c] = e
+    if P:
+        parts['energia'] = P
+    P = {}
+    for c, _ in PL_WOB:
+        e = _pl_ser(H['stacje'].get(c) or {}, PL_W, 'PLN/l', 'W', 'wob', sub('stacje', c), now_iso, ['brutto', 'wyl'])
+        if e:
+            dset = {x[0] for x in e['d']}
+            for k, kk in (('ue', '_ue'), ('n', '_n'), ('ue_n', '_uen')):   # tylko tygodnie z ceną Polski w oknie wykresu
+                r = [[d, v] for d, v in sorted((H['stacje'].get(c + kk) or {}).items()) if d in dset]
+                if r or k == 'ue':
+                    e[k] = r
+            # v304b: q — tydzień niepewny (cena sprzeczna z ceną hurtową; dane zostają); sprawdzenie na nowo, gdy jest cena hurtowa, inaczej
+            # wpis z poprzedniego pliku
+            Q = dict(H['stacje'].get(c + '_q') or {})
+            for d, x in pl_q({d: v for d, v in e['d']}, H['hurt'].get(c) or {}).items():
+                if x is None:
+                    Q.pop(d, None)
+                else:
+                    Q[d] = x
+            q = [Q[d] for d in sorted(Q) if d in dset]
+            if q:
+                e['q'] = q
+            P[c] = e
+    k = [[d, v] for d, v in sorted((H['stacje'].get('kurs') or {}).items())][-PL_W:]
+    if P and k:
+        P['kurs'] = {'u': 'PLN/EUR', 'f': 'W', 'd': k, 'z': 'wob'}
+    if 'pb95' in P:   # v304b: tygodnie z obniżonym VAT na paliwa (tygodnie cen benzyny z okna wykresu) — opis dla strony i kontroli
+        v8 = pl_v8({d: v for d, v in P['pb95']['d']}, H['stacje'].get('pb95_n') or {}, H['stacje'].get('kurs') or {})
+        if v8:
+            P['v8'] = v8
+    if P:
+        parts['stacje'] = P
+    e = _pl_ser(H['pszenica'], PL_W, 'EUR/t', 'W', 'agri', prev.get('pszenica'), now_iso)
+    if e:
+        parts['pszenica'] = e
+    part_src = {p: [s for s, pp in PL_ZR if pp == p] for p in PL_PARTS}
+    pat = dict(prev.get('part_at') or {}) if isinstance(prev.get('part_at'), dict) else {}
+    perr = dict(prev.get('err') or {}) if isinstance(prev.get('err'), dict) else {}
+    ok = {}
+    for p in PL_PARTS:
+        if any(x in udane for x in part_src[p]):
+            pat[p] = now_iso
+        if zle.get(p):
+            ok[p] = False; perr[p] = '; '.join(zle[p])[:240]
+        elif proby[p]:
+            ok[p] = True; perr.pop(p, None)
+        else:
+            ok[p] = 'cached' if p in pat and p in parts else False
+            if p not in parts and p not in perr:
+                perr[p] = 'brak danych (źródło jeszcze nie pobrane)'
+    out.update({'part_at': {p: pat[p] for p in PL_PARTS if pat.get(p)}, 'ok': ok, 'next': {},
+                'err': {p: perr[p] for p in PL_PARTS if perr.get(p)}, 'st': st})
+    out.update(parts)
+    out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
+    out['next'] = {p: _pl_next(p, out, now) for p in PL_PARTS}
+    for x in ctx['uwagi']:
+        META['notes'].append(mask('Polska: ' + x)[:200])
+    for p in PL_PARTS:
+        for x in zle.get(p, []):
+            META['errors'].append(mask('surowce (Polska) ' + x)[:200])
+    if pominiete:
+        META['notes'].append('Polska: pominięte w tym przebiegu — ' + ', '.join(pominiete))
+    return out
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -23665,6 +24301,18 @@ def main():
         if prev_sh: save('surowce-hist', prev_sh)
         if isinstance(prev_su, dict) and prev_su.get('v') == SU_V:
             _SU_RUN['su'] = prev_su
+    # v304: POLSKA (data/polska.json; dział SUROWCE, etap 8; v304b: po surowcach, przed szlakami) — złoto w zł/g, ceny hurtowe paliw, gaz i prąd z giełdy, ceny na stacjach na tle
+    # średniej UE, pszenica; każda część z własną bramką według terminów publikacji i z budżetem czasu w budowniczym (plik biuletynu 4,5 MB tylko
+    # w nocy i nie w długim przebiegu); awaria budowniczego = poprzedni plik. META ok: polska_<część>.
+    prev_pl = previous('polska')
+    try:
+        pl = build_polska(prev_pl, run_t0=_RUN_T0[0]); save('polska', pl)
+        for p in PL_PARTS:
+            META['ok']['polska_' + p] = pl['ok'][p]
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'surowce (Polska): {e}')[:200])
+        if isinstance(prev_pl, dict):
+            save('polska', prev_pl)
     # v305: SZLAKI HANDLOWE I ŁAŃCUCHY DOSTAW (data/szlaki.json) — ruch statków w 8 cieśninach, wskaźnik presji w łańcuchach dostaw, indeks
     # cen surowców; części z własnymi bramkami wg terminów publikacji i budżetem czasu (zwykle bez zapytań — dane tygodniowe i miesięczne);
     # awaria budowniczego = poprzedni plik. META ok: szlaki_cies, szlaki_presja, szlaki_bcpi.
