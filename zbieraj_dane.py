@@ -8725,6 +8725,9 @@ def _tr_flows(S):
         cm = S.get('cm') if isinstance(S.get('cm'), dict) else {}; out = []
         for k in ('btc', 'eth'):
             a = (cm.get('assets') or {}).get(k) or {}
+            # v318 (drobne8; recenzja TRENDY fali 7): tylko ZAMKNIĘTE doby UTC — jawny warunek jak w stable() (dostawca publikuje dobę po jej końcu, więc dziś
+            # warunek nic nie zmienia; pilnuje podpisu „7 pełnych dób do …” na kartach giełd BTC i ETH)
+            a = dict(a, d=[r for r in a.get('d') or [] if isinstance(r, list) and r and isinstance(r[0], str) and _d(r[0]) and _d(r[0]) < today])
             ds, v, u, sp = _tr_cols(a, 3, 6, 7)
             if ds:
                 u = [x / 1e6 if _isnum(x) else None for x in u]      # Coin Metrics podaje USD — tu mln USD jak w pozostałych wierszach
@@ -15850,14 +15853,15 @@ def _stabh_pelne(dd, dzis):
     """v315 (TR7-2): zmiany podaży z PEŁNYCH dób UTC kończących się na ostatniej zamkniętej dobie — ostatni dzień dd przed `dzis` (dzień UTC
     chwili pobrania), bo punkt bieżącej doby wciąż się zmienia (10.10.2026 o 07:21 UTC stabh.d['7'] = 10.10 minus 03.10 = ok. 6⅓ doby: −911 mln
     USD; 7 pełnych dób do 09.10: +95 mln, jak w TRENDACH, które liczą dzienne zmiany bez dzisiejszego dnia). dd: [[dzień, USD], …] (_stabh_dd).
-    → {'do': ostatnia zamknięta doba, 'od': {N: dzień}, 'd': {N: USD}, 'pct': {N: %}} dla N z STABH_PELNE — okno N tylko, gdy w dd jest dzień
+    → {'do': ostatnia zamknięta doba, 'cur': podaż na koniec tej doby (v318), 'od': {N: dzień}, 'd': {N: USD}, 'pct': {N: %}} dla N z STABH_PELNE —
+    okno N tylko, gdy w dd jest dzień
     dokładnie N dni wcześniej (brak dnia = brak okna, nigdy sąsiedni dzień); bez zamkniętej doby w dd = None."""
     M = {r[0]: r[1] for r in dd or [] if isinstance(r, (list, tuple)) and len(r) == 2 and _d(r[0]) and _isnum(r[1]) and r[1] > 0}
     zam = sorted(x for x in M if x < dzis)
     if not zam:
         return None
     do = zam[-1]
-    out = {'do': do, 'od': {}, 'd': {}, 'pct': {}}
+    out = {'do': do, 'cur': round(M[do]), 'od': {}, 'd': {}, 'pct': {}}   # v318 (drobne8): poziom z dnia końca okna — GLOBAL (kafel, Aktywa) w tygodniu i miesiącu
     for n in STABH_PELNE:
         od, k = (_d(do) - datetime.timedelta(days=n)).isoformat(), str(n)
         if od in M:

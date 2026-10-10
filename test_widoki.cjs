@@ -6099,7 +6099,7 @@ test('v125 (dopisek do SPEC §5.1, A1): stara karta przeglądarki — osadzony b
   for (const L of ['pl', 'en']) { const a = mk(L), b = make(L); a.trdApply(prodFile()); b.trdApply(prodFile());
     const s293 = ' · ' + v96src.tFor(L)('a293t.stab'), B0 = b.el.innerHTML;   /* v293 (T5): jedyna różnica — zdanie o sygnale dziennym na karcie stablecoinów */
     const w316 = [v96src.tFor(L)('t316.stab.win', {d: ''}), v96src.tFor(L)('fo.s', {n: 7, x: v96src.tFor(L)('trd.u.days'), d: ''})], B = B0.split(w316[0]).join(w316[1]);   /* v316 (TR7-2): druga różnica — okno stablecoinów „7 pełnych dób do …” (kafel i karta) zamiast „7 dni do …” */
-    assert.ok(B0.split(w316[0]).length === 3 && !a.el.innerHTML.includes(w316[0]), L + ': okno v316 dwa razy (kafel i karta), w starej stronie wcale');
+    assert.ok(B0.split(w316[0]).length === 5 && !a.el.innerHTML.includes(w316[0]), L + ': okno „7 pełnych dób” cztery razy (stablecoiny i giełdy BTC: kafel i karta), w starej stronie wcale');   /* v318 (recenzja TRENDY): + giełdy BTC — dawniej dwa razy */
     assert.ok(B.split(s293).length === 2, L + ': zdanie v293 raz');
     assert.ok(sec(a.el.innerHTML).includes('<b>' + (L === 'pl' ? '48,2' : '48.2') + '%</b>') && B.split(s293).join('') === a.el.innerHTML, L + ': plik v1 — stara strona i strona v125 bajt w bajt'); }
 });
@@ -14552,7 +14552,7 @@ test('v293c CR-04: panel stablecoinów — nagłówek z tej samej serii co tabel
   const H = {asof: '2026-10-07', cur: 312834075148, d: {'1': 163697752, '7': 1633777343, '30': 3878837663}, pct: {'1': 0.0524}};
   const h = f(S, H);
   assert.ok(h.includes('[stc.k.tot|314.79 mld|stc.day{"d":"2026-10-07"}][stc.k.d7|+1.89 mld|c315.stc.now][stc.k.d30|+1.18 mld|c315.stc.now]'), 'nagłówek = suma wszystkich sieci, te same zasady co wiersze (dawniej 312.83 / +1.63 / +3.88)');   /* v315 (TR7-2): podpis okna — do chwili pobrania */
-  assert.ok(h.includes('[a293c.stc.k.all|312.83 mld|stc.day{"d":"2026-10-07"}][stc.k.d7|+1.63 mld|c315.stc.now][stc.k.d30|+3.88 mld|c315.stc.now]</div><p class="pnote">a293c.stc.diff</p>'), 'cała podaż osobno, z objaśnieniem');   /* v315 (TR7-2): historia bez stabh.pelne — do chwili pobrania, z podpisem */
+  assert.ok(h.includes('[a293c.stc.k.all|312.83 mld|stc.day{"d":"2026-10-07"}][stc.k.d7|+1.63 mld|c315.stc.now][stc.k.d30|+3.88 mld|c315.stc.now]</div><p class="pnote">dr318.stc.diff0</p>'), 'cała podaż osobno, z objaśnieniem');   /* v315 (TR7-2): historia bez stabh.pelne — do chwili pobrania, z podpisem; v318: nota bez zdania o pełnych dobach */
   assert.ok(h.indexOf('a293c.stc.k.all') < h.indexOf('stc.tab'), 'nad tabelą');
   const h0 = f(null, H);
   assert.ok(h0.includes('<h2>stc.t0</h2>') && h0.includes('[stc.k.tot|312.83 mld|stc.day{"d":"2026-10-07"}]') && !h0.includes('a293c.stc.k.all'), 'bez podziału na sieci — sumy z historii jak dotąd');
@@ -16604,11 +16604,11 @@ test('v303: blok „w cieniu” SUROWCE — zwinięty, opis, data rejestracji, l
 test('v303: ujawnienie dopiero z werdyktem „przewaga” w punkcie 200 — nazwa reguły i data oceny; ostatnia ocena bez przewagi = wycofana', () => {
   const {su, view, panel} = v303, {data} = trdV96;
   let p = panel(view(Object.assign({}, data, {su: su({ok: [['eq.cu', 200, 'edge', '2027-09-01']]})}), 'global'));
-  assert.ok(p.includes('<b>td303.l.eq.cu</b> — td303.d.eq.cu<br><span class="mtxt">td303.ok{"c":200,"d":"01.09.2027"}</span>'), p);
+  assert.ok(p.includes('<b>td303.l.eq.cu</b> — td303.d.eq.cu<br><span class="mtxt">dr318.su.ok.w{"c":200,"d":"01.09.2027"}</span>'), p);   /* v318 (recenzja TRENDY): linia świata — werdykt w sesjach z sygnałem; krypto — td303.ok (test v318) */
   p = panel(view(Object.assign({}, data, {su: su({ok: [['eq.cu', 400, 'none', '2029-01-02']]})}), 'global'));
-  assert.ok(p.includes('td303.wyc{"c":400,"d":"02.01.2029"}'), 'po 400 bez przewagi — wycofujemy');
+  assert.ok(p.includes('dr318.su.wyc.w{"c":400,"d":"02.01.2029"}'), 'po 400 bez przewagi — wycofujemy');   /* v318: linia świata */
   p = panel(view(Object.assign({}, data, {su: su({ok: [['eq.cu', 100, 'edge', '2027-01-04'], ['cr.au', 200, 'edge', 'zła data']]})}), 'global'));
-  assert.ok(!/td303\.(ok|wyc)/.test(p), 'ocena przed punktem 200 albo zły wpis — nic nie ujawnia');
+  assert.ok(!/td303\.(ok|wyc)|dr318\.su\.(ok|wyc)/.test(p), 'ocena przed punktem 200 albo zły wpis — nic nie ujawnia');   /* v318: także teksty werdyktu linii świata */
 });
 
 /* ===================== v305g: SZLAKI HANDLOWE I ŁAŃCUCHY DOSTAW — blok zwijany #su-b-sz panelu #g-surowce (plik automatu data/szlaki.json) =====================
@@ -17931,13 +17931,13 @@ test('v314 (audyt G3): opisy kwot mapy (DZIŚ, 1T–1R, okno pomocy) — od szac
 test('v314 (audyt G4): Strach i chciwość — S&P 500 z dwoma miejscami po przecinku i nota: zamknięcie według wydawcy indeksu, tabela indeksów — notowanie giełdowe', () => {
   const X = fg139.mk(), cp = X.fgComps(fg139.N, true);
   assert.ok(cp.rows.includes('fg.raw.spx{"v":"7743.41","p":"+4.3%"}'), 'dwa miejsca (jak tabela indeksów), dawniej „7743”');
-  assert.equal(cp.sx, '<p class="pnote">g314.fg.spxn{"t":"ix.t"}</p>', 'nota z tytułem panelu indeksów');
+  assert.equal(cp.sx, '<p class="pnote">dr318.fg.spx0</p>', 'wycinek bez panelu indeksów — samo zdanie o źródle');   /* v318 (recenzja G4): nota v314 („ta sama sesja”) tylko przy tym samym dniu sesji w obu panelach — test v318 */
   assert.equal(cp.note, '', 'nota o brakach bez zmian');
   const N2 = Object.assign({}, fg139.N, {c: {vix: fg139.N.c.vix, hy: fg139.N.c.hy, sb: fg139.N.c.sb}, why: {spx: 'fetch'}});
   assert.equal(X.fgComps(N2, true).sx, '', 'składnik bez liczby — bez noty');
   const elG = {hidden: true, innerHTML: ''}, Y = fg139.mk({$: q => q === '#g-fg' ? elG : null});
   Y.fgApplyG(fg139.N); const g = elG.innerHTML;
-  assert.ok(g.includes('</tbody></table></div><p class="pnote">g314.fg.spxn{"t":"ix.t"}</p><details class="etfd" id="fg-how-g">'), 'nota pod tabelą składników, przed „Jak liczymy”');
+  assert.ok(g.includes('</tbody></table></div><p class="pnote">dr318.fg.spx0</p><details class="etfd" id="fg-how-g">'), 'nota pod tabelą składników, przed „Jak liczymy”');   /* v318: wycinek bez panelu indeksów */
   for (const L of V314_L10) {
     const T = v96src.tFor(L), v = T('g314.fg.spxn', {t: T('ix.t')});
     assert.ok(v.includes(T('ix.t')) && v.includes('S&P 500') && /400/.test(v), L + ': ' + v);
@@ -18498,7 +18498,7 @@ test('v316 TR7-5: wersja 1 reguł (świat i krypto) — trafienia liczone na now
 test('v316 TR7-2: stablecoiny w TRENDACH — „7 pełnych dób do …” (zbieracz: 7 zamkniętych dób, bez dzisiejszej, niepełnej doby — test TrendyAudytV316); kafel i karta; giełdy i fundusze bez zmian; 10 języków', () => {
   const {mkB, I, L10} = v316, B = mkB('pl');
   assert.equal(B.trdWin({id: 'stab', sz: 7, date: '2026-10-09'}), '7 pełnych dób do 09.10.2026');
-  assert.equal(B.trdWin({id: 'cm_btc', sz: 7, date: '2026-10-09'}), '7 dni do 09.10.2026', 'giełdy — bez zmian');
+  assert.equal(B.trdWin({id: 'cm_btc', sz: 7, date: '2026-10-09'}), '7 pełnych dób do 09.10.2026', 'giełdy');   /* v318 (recenzja TRENDY): giełdy BTC i ETH — też pełne doby (zbieracz: tylko zamknięte doby) */
   assert.equal(B.trdWin({id: 'cf_btc', sz: 1, date: '2026-10-06'}), I.pl['trd.n.wk'].replace('{d}', '06.10.2026'), 'tydzień raportu — bez zmian');
   assert.deepEqual(L10.map(l => I[l]['t316.stab.win']), ['7 pełnych dób do {d}', '7 full days to {d}', '7 volle Tage bis {d}', '7 días completos hasta el {d}', '7 jours complets au {d}',
     '7 giorni interi al {d}', '7 dias completos até {d}', '7 полных суток по {d}', '截至 {d} 的 7 个完整日', '{d}までの丸7日間']);
@@ -18508,6 +18508,295 @@ test('v316 TR7-2: stablecoiny w TRENDACH — „7 pełnych dób do …” (zbier
   assert.ok(g.includes('Stablecoiny (wszystkie dolarowe) · 7 pełnych dób do 24.09.2026'), 'kafel');
   const c = trdV96.card(g, 'Stablecoiny (wszystkie dolarowe)');
   assert.ok(c.includes('7 pełnych dób do 24.09.2026') && c.includes('sygnał dzienny liczy tylko USDT i USDC'), c);
-  assert.ok(trdV96.card(g, I.pl['trd.s.cm_btc']).includes('7 dni do 24.09.2026'), 'giełdy BTC — „7 dni” bez zmian');
-  assert.ok(html.includes("  if(r.id==='stab'&&r.sz===7)return t('t316.stab.win',{d:trdDay(r.date)});") && html.includes("t('fo.s',{n,x:trdUnit(r,n),d:trdDay(r.date)})"), 'kod: tylko wiersz stab');
+  assert.ok(trdV96.card(g, I.pl['trd.s.cm_btc']).includes('7 pełnych dób do 24.09.2026'), 'giełdy BTC');   /* v318: giełdy — „7 pełnych dób” */
+  assert.ok(html.includes("  if((r.id==='stab'||r.id==='cm_btc'||r.id==='cm_eth')&&r.sz===7)return t('t316.stab.win',{d:trdDay(r.date)});") && html.includes("t('fo.s',{n,x:trdUnit(r,n),d:trdDay(r.date)})"), 'kod: wiersze stab, cm_btc i cm_eth');   /* v318: + giełdy */
+});
+
+/* ===================== v318 (drobne8): uwagi niskie i drobne recenzentów fali 7 — GLOBAL, CRYPTO, TRENDY (słownik dr318.*) ===================== */
+const v318 = (() => {
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const i = html.indexOf('{"pl":{"dr318.'), a = html.lastIndexOf('const EXTRA', i), name = html.slice(a + 6, i - 1);
+  const e = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', i);
+  const D = JSON.parse(html.slice(i, e));
+  const cut = (x, y) => { const p = html.indexOf(x), q = html.indexOf(y, p); assert.ok(p > 0 && q > p, 'wycinek: ' + x); return html.slice(p, q); };
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const sepZ = L => new Function('LANG', cut('function sepZ(){', '\nconst NF={};') + '\nreturn sepZ;')(L);
+  const tp = L => v96src.tFor(L);
+  /* blok TRENDY z prawdziwym słownikiem, tN i separatorem zdań strony (jak v316.mkB, z sepZ) */
+  const tNsrc = cut('function tN(k,n,o){', '\nfunction rwN(n)'), b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v158: koniec infografiki */');
+  const blk = html.slice(b0, b1).replace(/document\.addEventListener\('click'[\s\S]*?\},true\);/, '');
+  const mkB = L => { const F = trdV127.fmt(L);
+    const names = ['$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'gAgeNote', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N', 'sepK', 'sepZ'];
+    const vals = [() => null, tp(L), {mode: 'trendy', trdv: 'global'}, () => Promise.resolve(null), v96src.escH, () => '', () => '', F.fInt, F.sg, F.nfmt, F.fPct, () => 'ses', s => s, L, LOC, v96src.I18N, () => ': ', sepZ(L)];
+    return new Function(...names, tNsrc + '\n' + blk + '\nreturn {trdSu, trdWin, trdDay};')(...vals); };
+  return {L10, name, D, cut, LOC, sepZ, tp, mkB};
+})();
+
+test('v318: słownik dr318.* — czysty JSON zaraz po linii for poprzedniego słownika, 10 języków, te same klucze i pola, prawdziwe tłumaczenia, zh bez kany, ja bez spacji przed licznikiem, bez nazw dostawców; nazwa tylko w definicji i linii for', () => {
+  const {L10, name, D} = v318;
+  assert.ok(/^EXTRA\d+$/.test(name), name);
+  assert.deepEqual(Object.keys(D), L10);
+  const K = Object.keys(D.pl), ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(K, ['dr318.fg.spx0', 'dr318.fg.spxd', 'dr318.stc.diff0', 'dr318.sup.in', 'dr318.sup.out', 'dr318.sup.flat', 'dr318.su.ok.w', 'dr318.su.wyc.w', 'dr318.k.dn', 'dr318.plain.cry']);
+  for (const l of L10) {
+    assert.deepEqual(Object.keys(D[l]), K, l);
+    for (const k of K) {
+      assert.ok(typeof D[l][k] === 'string' && D[l][k].trim().length > 0, l + ' ' + k);
+      assert.equal(ph(D[l][k]), ph(D.pl[k]), 'pola ' + l + ' ' + k);
+      if (!['pl', 'en'].includes(l)) assert.notEqual(D[l][k], D.en[k], 'nie kopia angielskiego: ' + l + ' ' + k);
+    }
+  }
+  assert.equal(ph(D.pl['dr318.fg.spxd']), '{a},{b},{t}'); assert.equal(ph(D.pl['dr318.su.ok.w']), '{c},{d}'); assert.equal(ph(D.pl['dr318.plain.cry']), '{n}');
+  /* zdanie proste węzła „Krypto” z pełnych dób = dawne zdanie z innym oknem: ta sama druga część (przybliżenie, nie pomiar) w każdym języku */
+  for (const l of L10) { const a = v318.tp(l)('g.plain.crypto'), b = D[l]['dr318.plain.cry'], tail = s => s.slice(s.search(/[.。]\s*/) + 1).trim();
+    assert.equal(tail(b), tail(a), l + ': ' + b); }
+  assert.ok(!new RegExp('[' + String.fromCharCode(0x3040) + '-' + String.fromCharCode(0x30ff) + ']').test(Object.values(D.zh).join('|')), 'zh bez kany');
+  assert.ok(!new RegExp('(\\d|\\})[ ' + String.fromCharCode(0xa0, 0x3000) + ']+(営業日|日間|日|銘柄|件|か月|年|回|本|分|時間|週|つ|位|組|枚|取引日|ブロック|市場|契約|個)').test(Object.values(D.ja).join('|')), 'ja: bez spacji przed licznikiem');
+  assert.ok(!/coingecko|llama|coin ?metrics|binance|sosovalue|ishares|ssga|cftc|lbma|github|tiingo|twelve|eodhd/i.test(JSON.stringify(D)), 'bez nazw dostawców');
+  assert.equal(html.split(name).length, 4, 'nazwa tylko w definicji i w linii for');
+  const prev = html.slice(0, html.lastIndexOf('const ' + name + '=')).trimEnd();
+  assert.ok(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/.test(prev), 'zaraz po linii for poprzedniego słownika');
+  for (const k of K) assert.equal(v318.tp('pl')(k), D.pl[k], 'słownik nałożony (pl): ' + k);
+});
+
+test('v318 (recenzja GLOBAL fali 7, G4): Strach i chciwość — nota o S&P 500 zależy od dnia sesji w panelu indeksów: ten sam dzień — „ta sama sesja, ułamek punktu” (v314); inny — oba dni i „liczby się różnią”; panel bez S&P 500 — samo zdanie o źródle; po wczytaniu indeksów panel rysowany ponownie', () => {
+  const i0 = html.indexOf('/* ===================== v139: STRACH I CHCIWOŚĆ'), i1 = html.indexOf('\nfunction fgLoadG(', i0);
+  const ix = v318.cut('const ixNum=', 'function ixTone(');   // ixNum, ixRows, ixDerive — te same funkcje co tabela indeksów
+  const mk = IXD => new Function('$', 't', 'nfmt', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'KR', 'icoWrap', 'flagImg', 'glyphImg', 'IX', ix + '\n' + html.slice(i0, i1) + '\nreturn {fgComps, fgSpxNote, fgIxSpx};')(
+    () => null, (k, v) => k + (v ? JSON.stringify(v) : ''), (v, d) => Number(v).toFixed(d), v96src.escH, d => ' · age(' + d + ')', iso => 'D(' + iso + ')', {pl: 'pl-PL', en: 'en-US'}, 'en', {data: null}, undefined, undefined, undefined, {data: IXD, timer: null});
+  const N = fg139.N, ixf = rows => ({at: '2026-09-27T12:00:00Z', ix: {GSPC: {cc: 'us', d: rows}}});
+  assert.equal(N.c.spx.date, '2026-09-25');
+  assert.equal(mk(ixf([['2026-09-24', 7700.1], ['2026-09-25', 7742.9]])).fgComps(N, true).sx, '<p class="pnote">g314.fg.spxn{"t":"ix.t"}</p>', 'ten sam dzień — nota v314');
+  assert.equal(mk(ixf([['2026-09-25', 7742.9], ['2026-09-26', 7790.4]])).fgComps(N, true).sx, '<p class="pnote">dr318.fg.spxd{"a":"Sep 25, 2026","b":"Sep 26, 2026","t":"ix.t"}</p>', 'panel indeksów z nowszą sesją — oba dni');
+  assert.equal(mk(ixf([['2026-09-24', 7701], ['2026-09-23', 7700.1]])).fgComps(N, true).sx, '<p class="pnote">dr318.fg.spxd{"a":"Sep 25, 2026","b":"Sep 24, 2026","t":"ix.t"}</p>', 'starsza sesja w panelu (wiersze nieposortowane) — oba dni');
+  for (const D of [null, {ix: {}}, {ix: {GSPC: {bad_at: '2026-09-20T00:00:00Z'}}}, ixf([]), ixf([['zła', 1], ['2026-09-25', 0]]), {ix: {GSPC: null}}, {ix: null}])
+    assert.equal(mk(D).fgComps(N, true).sx, '<p class="pnote">dr318.fg.spx0</p>', 'bez S&P 500 w panelu indeksów: ' + JSON.stringify(D));
+  assert.equal(fg139.mk().fgComps(N, true).sx, '<p class="pnote">dr318.fg.spx0</p>', 'wycinek bez bloku indeksów (IX niezadeklarowane) — bez wyjątku');
+  const N2 = Object.assign({}, N, {c: Object.assign({}, N.c, {spx: Object.assign({}, N.c.spx, {score: null})})});
+  assert.equal(mk(ixf([['2026-09-25', 7742.9]])).fgComps(N2, true).sx, '', 'składnik bez liczby — bez noty');
+  /* kopia migawki m7 z plikiem nastrojów sprzed sesji (recenzja: S&P 500 we wskaźniku z 8 paź, w panelu indeksów — 9 paź) i migawka m7 (oba 9 paź) */
+  const LAG = Object.assign({}, N, {c: Object.assign({}, N.c, {spx: {date: '2026-10-08', x: 0.033675, pct: 34.3, score: 34.3, n: 252, v: 7765.36, ma: 7512.38}})});
+  const M7 = Object.assign({}, N, {c: Object.assign({}, N.c, {spx: {date: '2026-10-09', x: 0.039823, pct: 34.3, score: 34.3, n: 252, v: 7811.54, ma: 7512.38}})});
+  const IXM7 = ixf([['2026-10-07', 7801.77], ['2026-10-08', 7765.36], ['2026-10-09', 7811.09]]);
+  const lag = mk(IXM7).fgComps(LAG, true);
+  assert.ok(lag.rows.includes('fg.raw.spx{"v":"7765.36"') && lag.sx === '<p class="pnote">dr318.fg.spxd{"a":"Oct 8, 2026","b":"Oct 9, 2026","t":"ix.t"}</p>', lag.sx);
+  assert.equal(mk(IXM7).fgComps(M7, true).sx, '<p class="pnote">g314.fg.spxn{"t":"ix.t"}</p>', 'migawka m7: 7811,54 i 7811,09 z 9 paź — ta sama sesja');
+  /* 10 języków: zdanie o źródle = początek noty v314; nota „inny dzień” — oba dni, tytuł panelu, S&P 500 */
+  for (const L of v318.L10) {
+    const T = v318.tp(L), s0 = T('dr318.fg.spx0'), sd = T('dr318.fg.spxd', {a: 'A1', b: 'B2', t: T('ix.t')});
+    assert.ok(T('g314.fg.spxn', {t: T('ix.t')}).startsWith(s0) && s0.includes('S&P 500') && /400/.test(s0), L + ': ' + s0);
+    assert.ok(sd.includes('A1') && sd.includes('B2') && sd.includes(T('ix.t')) && sd.includes('S&P 500') && sd.indexOf('A1') < sd.indexOf('B2'), L + ': ' + sd);
+  }
+  /* po wczytaniu pliku indeksów — panel strachu i chciwości rysowany ponownie (nota zależy od dnia w panelu indeksów); chwilowy błąd — bez zmian */
+  const x0 = html.indexOf('/* ===================== v106: INDEKSY GIEŁDOWE ŚWIATA'), x1 = html.indexOf('\nfunction ixLoad(', x0);
+  let n = 0; class FD extends Date { static now() { return Date.parse('2026-09-27T12:00:00Z'); } }
+  const Y = new Function('$', 't', 'nfmt', 'fPct', 'sg', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'fgRenderG', 'Date', html.slice(x0, x1) + '\nreturn {ixApply, IX};')(
+    () => null, k => k, (v, d) => Number(v).toFixed(d), v => String(v), () => '', s => String(s), () => '', s => s, {en: 'en-US'}, 'en', () => { n++; }, FD);
+  Y.ixApply({at: '2026-09-27T11:00:00Z', ix: {GSPC: {d: [['2026-09-25', 7742.9]]}}});
+  assert.equal(n, 1, 'po wczytaniu indeksów — fgRenderG');
+  Y.ixApply(null); assert.equal(n, 1, 'chwilowy błąd pobrania (dane zostają) — bez ponownego rysowania');
+  assert.ok(html.includes("  IX.data=ok?j:null;renderIx();\n  if(typeof fgRenderG==='function')fgRenderG();"), 'kod: ixApply');
+});
+
+test('v318 (recenzja GLOBAL fali 7): luki testów v314 — TIC: próg „<0,01” to 5000 mln USD (6000 mln = „0,01”, 4999 mln = „<0,01”); Puls surowców: 3 notowania z niepotwierdzoną ostatnią ceną — „— w tygodniu (dane od …)”, nie pusto', () => {
+  const D = v314TicData(); D.regions.rus.hold_in = ['2026-07', 6000, 1]; D.regions.oce.hold_in = ['2026-07', 4999, 2]; D.regions.asean.hold_in = ['2026-07', 5000, 5];
+  const h = v314Tic(D);
+  assert.ok(v314TicRow(h, 'rus')[5].startsWith('<span class="cell mono">0,01</span>'), '6000 mln USD = 0,006 bln — „0,01”: ' + v314TicRow(h, 'rus')[5]);
+  assert.ok(v314TicRow(h, 'oce')[5].startsWith('<span class="cell mono">&lt;0,01</span>'), '4999 mln USD — „<0,01”: ' + v314TicRow(h, 'oce')[5]);
+  assert.ok(v314TicRow(h, 'asean')[5].startsWith('<span class="cell mono">0,01</span>'), 'dokładnie 5000 mln — już „0,01”');
+  const K = su295.mk('pl', SU295_ALL), sp = su295.sp, d = x => su295.day('pl', x);
+  const F = su295.clone(SU295_FILE);
+  F.ceny.copper.d = [['2026-10-02', 14632], ['2026-10-05', 14648], ['2026-10-06', 14811]]; F.ceny.copper.q = [['2026-10-06', 'skok', 'niepotw']];
+  K.api.suApply(F);
+  const T = su295.tiles(sp(K.el.innerHTML));
+  assert.ok(T.copper.includes('<small class="su-nc">— w tygodniu (dane od ' + d('2026-10-02') + ')</small></b>'), 'miedź: 3 notowania, ostatnie bez potwierdzenia: ' + T.copper.slice(0, 400));
+  F.ceny.copper.d = [['2026-09-29', 14000], ['2026-09-30', 14100], ['2026-10-01', 14200], ['2026-10-02', 14300], ['2026-10-05', 14400], ['2026-10-06', 14700]];
+  K.api.suApply(F);
+  const T2 = su295.tiles(sp(K.el.innerHTML)).copper;
+  assert.ok(!T2.includes('dane od') && !T2.includes('▲ +5,0% w tygodniu'), 'pełna historia, ostatnia cena bez potwierdzenia — bez zmiany w tygodniu i bez „dane od”: ' + T2.slice(0, 300));
+});
+
+test('v318 (recenzja CRYPTO fali 7): GLOBAL — tydzień i miesiąc stablecoinów z 7 i 30 PEŁNYCH dób (stabh.pelne z poziomem cur) jak CRYPTO i TRENDY; data kafla = dzień końca okna; dzień, kwartał i rok jak dotąd; plik bez pola albo bez poziomu — jak dotąd', () => {
+  const src = v318.cut('function gStabPelne(per){', 'function gBuild(){') + v318.cut('function gStabFresh(st,per){', 'function gKpis(){');
+  const mk = H => new Function('krStabh', 'GLIVE', src + '\nreturn {gStabPelne, gStabDelta, gStabFresh};')(() => H, {stab: null});
+  /* migawka m7 (krypto.json 10.10.2026 07:21 UTC) + pole pelne z tych samych dób (zbieracz v318 — test DrobneV318) */
+  const H0 = {asof: '2026-10-10', cur: 310982936603, d: {'1': -628560660, '7': -911413972, '30': 2077713113, '91': 2875267112, '365': 8130063725},
+    pct: {'1': -0.2017, '7': -0.2922, '30': 0.6726, '91': 0.9332, '365': 2.6845}};
+  const P = {do: '2026-10-09', cur: 311611497263, od: {'7': '2026-10-02', '30': '2026-09-09'}, d: {'7': 94559624, '30': 2553675089}, pct: {'7': 0.0304, '30': 0.8263}};
+  const X = mk(Object.assign({pelne: P}, H0));
+  assert.deepEqual(X.gStabDelta('1T'), [0.094559624, 0.0304, 311.611497263], 'tydzień: +95 mln USD za 7 pełnych dób do 09.10 (jak CRYPTO i TRENDY; dawniej −911 mln), poziom z 09.10');
+  assert.deepEqual(X.gStabDelta('1M'), [2.553675089, 0.8263, 311.611497263], 'miesiąc: +2,55 mld (CRYPTO „+2,6 mld”; dawniej +2,08)');
+  assert.equal(X.gStabFresh(X.gStabDelta('1T'), '1T'), '2026-10-09'); assert.equal(X.gStabFresh(X.gStabDelta('1M'), '1M'), '2026-10-09');
+  assert.deepEqual(X.gStabDelta('1D'), [-0.62856066, -0.2017, 310.982936603], 'dzień — jak dotąd'); assert.equal(X.gStabFresh(X.gStabDelta('1D'), '1D'), '2026-10-10');
+  assert.deepEqual(X.gStabDelta('1Q'), [2.875267112, 0.9332, 310.982936603]); assert.deepEqual(X.gStabDelta('1R'), [8.130063725, 2.6845, 310.982936603], 'kwartał i rok — jak dotąd');
+  assert.deepEqual(X.gStabPelne('1T'), {k: '7', do: '2026-10-09', d: 94559624, pct: 0.0304, cur: 311611497263});
+  assert.deepEqual(X.gStabPelne('1M'), {k: '30', do: '2026-10-09', d: 2553675089, pct: 0.8263, cur: 311611497263});
+  for (const per of ['1D', '1Q', '1R', 'x']) assert.equal(X.gStabPelne(per), null, per);
+  assert.equal(Math.round(X.gStabDelta('1T')[0] * 1e5) / 100, 94.56, 'ta sama liczba co wiersz stab w TRENDACH (+94,56 mln USD)');
+  /* plik bez pola, bez poziomu (zbieracz przed v318), bez okna, ze złym zapisem — jak dotąd (do chwili pobrania, data stabh.asof) */
+  const old = [-0.911413972, -0.2922, 310.982936603];
+  for (const pe of [undefined, null, 'x', Object.assign({}, P, {cur: undefined}), Object.assign({}, P, {cur: 0}), Object.assign({}, P, {cur: '311611497263'}), Object.assign({}, P, {do: '9.10.2026'}),
+    Object.assign({}, P, {d: {'30': 1}}), Object.assign({}, P, {pct: {'7': NaN}}), Object.assign({}, P, {d: null})]) {
+    const Y = mk(Object.assign({pelne: pe}, H0));
+    assert.deepEqual(Y.gStabDelta('1T'), old, JSON.stringify(pe)); assert.equal(Y.gStabFresh(old, '1T'), '2026-10-10', JSON.stringify(pe));
+  }
+  assert.equal(mk(null).gStabPelne('1T'), null, 'bez historii serwera');
+  /* gBuild zapisuje okno przy liczbach (podpis w szczegółach węzła „Krypto”) — tylko tydzień i miesiąc, tylko przy liczbie na żywo */
+  assert.ok(html.includes("  ['1T','1M'].forEach(per=>{const F=GDATA[per];if(F&&F.crypto&&F.crypto[2]&&!F.crypto[3])F.cryP=gStabPelne(per);});\n  gEdges();gKpis();gProb();"), 'gBuild: F.cryP');
+  assert.ok(html.includes("fresh:gStabFresh(st,per)}") && html.includes("const sdD=sd?gkf('g.k.stab'):'';"), 'kafel i strona Aktywa — data z gStabFresh (dzień końca okna)');
+});
+
+test('v318 (recenzja CRYPTO fali 7): GLOBAL — gBuild i kafel „Podaż stablecoinów” w tygodniu i miesiącu z pełnych dób: liczby, okres „7 (30) pełnych dób”, data końca okna; strona Aktywa i Sektory z dopiskiem okna; bez pola — jak dotąd', () => {
+  const g0 = html.indexOf('const GREG=['), g1 = html.indexOf('const GB_=', g0), p0 = html.indexOf('const GPROXY='), p1 = html.indexOf('let gDayBusy', p0);
+  const c0 = html.indexOf('const GCENY_N='), c1 = html.indexOf('function gCenyAt(', c0), b0 = html.indexOf('const GSAMPLE={'), b1 = html.indexOf('\n}\n', html.indexOf('function gKpis(){', b0)) + 3;
+  const e0 = html.indexOf('function gEqTot('), e1 = html.indexOf('\nfunction renderAssets(', e0);
+  assert.ok([g0, g1, p0, p1, c0, c1, b0, b1, e0, e1].every(x => x > 0) && b1 > html.indexOf('function gStabPelne(') && html.indexOf('function gStabPelne(') > b0, 'bloki kodu (gStabPelne w bloku gBuild)');
+  const src = html.slice(g0, g1) + html.slice(p0, p1) + html.slice(c0, c1) + html.slice(b0, b1) + html.slice(e0, e1) + '\nreturn {gBuild, gKpis, get: () => ({GDATA, GKPI})};';
+  const H0 = {asof: '2026-10-10', cur: 310982936603, d: {'1': -628560660, '7': -911413972, '30': 2077713113, '91': 2875267112, '365': 8130063725},
+    pct: {'1': -0.2017, '7': -0.2922, '30': 0.6726, '91': 0.9332, '365': 2.6845}};
+  const P = {do: '2026-10-09', cur: 311611497263, od: {'7': '2026-10-02', '30': '2026-09-09'}, d: {'7': 94559624, '30': 2553675089}, pct: {'7': 0.0304, '30': 0.8263}};
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const run = (H, per) => { const gst = {period: per}, GL = {st: 'ok', oecd: null, fx: null, crypto: null, stab: null, fiat: null, asof: '2026-08', src: {}, srcAt: {}, cenySrv: null, day: null, dayAt: '', ceny: null};
+    const f = new Function('GLIVE', 'GPER', 'gst', 'GLINK', 'location', 'krStabh', 'gDaily', 'CMC', 't', 'escH', 'gOk', 'gPeriodButtons', 'LOCALE', 'LANG', 'gpct', src)(
+      GL, ['1D', '1T', '1M', '1Q', '1R'], gst, null, {protocol: 'https:'}, () => H, () => null, {data: null}, T, s => String(s), () => {}, () => {}, {pl: 'pl-PL'}, 'pl', v => String(v));
+    f.gBuild(); return f.get(); };
+  const W = run(Object.assign({pelne: P}, H0), '1T'), kW = W.GKPI.find(k => k.k === 'g.k.stab');
+  assert.deepEqual([kW.v, kW.d, kW.pw, kW.fresh], [311.611497263, 0.0304, 'dr318.k.dn{"n":"7"}', '2026-10-09'], 'tydzień: poziom i zmiana z 09.10, okres „7 pełnych dób”');
+  assert.deepEqual(W.GDATA['1T'].crypto, [0.094559624, 0.0304, true]); assert.deepEqual(W.GDATA['1M'].crypto, [2.553675089, 0.8263, true]);
+  assert.deepEqual([W.GDATA['1T'].cryP.k, W.GDATA['1T'].cryP.do, W.GDATA['1M'].cryP.k], ['7', '2026-10-09', '30']);
+  assert.ok(!('cryP' in W.GDATA['1D']) && !('cryP' in W.GDATA['1Q']) && !('cryP' in W.GDATA['1R']), 'dzień, kwartał, rok — bez okna pełnych dób');
+  assert.deepEqual(W.GDATA['1D'].crypto, [-0.62856066, -0.2017, true], 'dzień — jak dotąd');
+  const M = run(Object.assign({pelne: P}, H0), '1M').GKPI.find(k => k.k === 'g.k.stab'); assert.deepEqual([M.d, M.pw, M.fresh], [0.8263, 'dr318.k.dn{"n":"30"}', '2026-10-09']);
+  const D1 = run(Object.assign({pelne: P}, H0), '1D').GKPI.find(k => k.k === 'g.k.stab'); assert.deepEqual([D1.v, D1.d, D1.pw, D1.fresh], [310.982936603, -0.2017, '', '2026-10-10']);
+  const O = run(Object.assign({pelne: Object.assign({}, P, {cur: undefined})}, H0), '1T'), kO = O.GKPI.find(k => k.k === 'g.k.stab');
+  assert.deepEqual([kO.v, kO.d, kO.pw, kO.fresh], [310.982936603, -0.2922, '', '2026-10-10'], 'zbieracz przed v318 (bez cur) — jak dotąd'); assert.equal(O.GDATA['1T'].cryP, null);
+  /* kafel: okres z pw (7 pełnych dób), inne kafle i stablecoiny bez okna — okres GLOBAL */
+  const r0 = html.indexOf('function gRenderKpi(){'), r1 = html.indexOf('function gNameL(id){', r0), el = {innerHTML: ''};
+  new Function('$', 'GKPI', 't', 'gfmt', 'LOCALE', 'LANG', 'gst', 'escH', 'gFreshTxt', 'gAgeNote', html.slice(r0, r1) + '\ngRenderKpi();')(
+    () => el, [Object.assign({}, kW), Object.assign({}, kO), {k: 'g.k.eq', v: 150, u: 'u.b', d: 0.31, fresh: '2026-10-09'}], T, v => v.toFixed(1) + ' B', {pl: 'pl-PL'}, 'pl', {period: '1T'}, s => String(s), s => s, d => ' ·age(' + d + ')');
+  const tiles = el.innerHTML.split('<div class="panel kpi">').slice(1);
+  assert.ok(tiles[0].includes('<i>dr318.k.dn{"n":"7"}</i>') && tiles[0].includes('<span class="ksrc">2026-10-09 ·age(2026-10-09)</span>'), tiles[0]);
+  assert.ok(tiles[1].includes('<i>g.per.1T</i>') && tiles[2].includes('<i>g.per.1T</i>'), 'bez okna pełnych dób — okres GLOBAL jak dotąd');
+  /* strona Aktywa (wiersz stablecoinów) i Sektory (podpis wiersza krypto) — dopisek okna; bez okna — jak dotąd */
+  const pe = pgEnv({gStabDelta: () => [2.553675089, 0.8263, 311.611497263], gStabPelne: per => per === '1M' ? {k: '30', do: '2026-10-09'} : null, GKPI: [{k: 'g.k.stab', fresh: '2026-10-09'}],
+    GDATA: {'1M': {eur: [-5, -1, true], jpn: [3, 2, true], usa: [0, 0, true], rus: [0, 0, false], crypto: [2.553675089, 0.8263, true], cryP: {k: '30', do: '2026-10-09'}}}});
+  pe.f.renderAssets(); const ra = pe.el.innerHTML.split('<tr>').find(r => r.includes('as.stab')) || '';
+  assert.ok(ra.includes('0.83%<small class="mtxt"> · dr318.k.dn{"n":"30"}</small>') && ra.includes('2026-10-09'), ra);
+  pe.f.renderSectorsPage(); const rs = pe.el.innerHTML.split('<div class="secrow">').find(r => r.includes('a293c.pg.n.crypto<')) || '';
+  assert.ok(rs.includes('<span>pg.sub.crypto · dr318.k.dn{"n":"30"}</span>'), rs);
+  const p0e = pgEnv(); p0e.f.renderSectorsPage();
+  assert.ok((p0e.el.innerHTML.split('<div class="secrow">').find(r => r.includes('a293c.pg.n.crypto<')) || '').includes('<span>pg.sub.crypto</span>'), 'bez okna — podpis jak dotąd');
+});
+
+test('v318 (recenzja CRYPTO fali 7): GLOBAL — szczegóły węzła „Krypto”: w tygodniu i miesiącu podpis „7 (30) pełnych dób do {dzień}” z wiekiem, gdy liczba jest z pełnych dób (GDATA[okres].cryP z gBuild); bez okna albo bez liczby — bez podpisu', () => {
+  const r0 = html.indexOf('\nfunction gNameL('), r1 = html.indexOf('function gRenderQ(){', r0);
+  const n0 = html.indexOf('const gfmt=v=>{'), n1 = html.indexOf('\n', html.indexOf('\nconst gpct=', n0) + 1);
+  const g0 = html.indexOf('const GREG=['), g1 = html.indexOf('\n];', g0) + 3;
+  assert.ok(r0 > 0 && r1 > r0 && n0 > 0 && n1 > n0 && g0 > 0 && g1 > g0);
+  const T = v318.tp('pl'), NF = new Function('t', 'LOCALE', 'LANG', html.slice(n0, n1) + '\nreturn {gfmt, gpct};')(T, {pl: 'pl-PL'}, 'pl');
+  const GREG = new Function(html.slice(g0, g1) + '\nreturn GREG;')(), GB_ = Object.fromEntries(GREG.map(r => [r.id, r]));
+  const H = gm96.H, els = {}, $ = q => els[q] || (els[q] = {innerHTML: '', hidden: false, addEventListener() {}});
+  const names = ['t', 'I18N', 'LANG', 'LOCALE', '$', 'gst', 'GDATA', 'GB_', 'GLIVE', 'gStabDelta', 'ETF', 'etfTotals', 'etfCls', 'etfM', 'etfA', 'gCenyRow', 'spRegion', 'eerRegion', 'zagRegion',
+    'GCENY_N', 'GLINK', 'GCEDGE', 'GEDGE', 'GPROB', 'gDirty', 'gfmt', 'gpct', 'escH', 'flagImg', 'regFlags', 'ccyMark', 'coinImg', 'icoWrap', 'fundIco', 'bilCty',
+    'gFrozen', 'gFrozenN', 'BI', 'TIC', 'INST', 'instSign', 'instMld', 'instFoot', 'bopMld', 'biRow', 'biV', 'bopSum'];
+  const run = (F, per) => { const gst = {period: per, sel: {type: 'node', id: 'crypto'}};
+    new Function(...names, html.slice(r0, r1) + '\nreturn {gRenderDetail};')(
+      T, v96src.I18N, 'pl', {pl: 'pl-PL'}, $, gst, {[per]: F}, GB_, {}, () => null, {data: null}, () => ({m: 0, d1: 0, aum: 0}), () => '', String, String,
+      () => '', () => '', () => '', () => '', {'1M': 12}, false, [], [], [], () => {}, NF.gfmt, NF.gpct, gm96.escH,
+      H.flagImg, H.regFlags, H.ccyMark, H.coinImg, H.icoWrap, H.fundIco, c => c,
+      () => false, () => 1, {data: {no_reporter: [], flows: {}}}, {data: null}, {data: null}, v => v > 0 ? '+' : v < 0 ? '−' : '', v => String(v), d => 'F(' + d + ')', v => String(v), () => null, () => null, () => null).gRenderDetail();
+    return els['#g-detail'].innerHTML; };
+  const flow = T('g.stabflow');
+  const w = run({crypto: [0.094559624, 0.0304, true], cryP: {k: '7', do: '2026-10-09', d: 94559624, pct: 0.0304, cur: 311611497263}}, '1T');
+  assert.ok(w.includes(flow + ' · 7 pełnych dób do F(2026-10-09)</small></div>'), w.slice(0, 700));
+  assert.ok(w.includes('Przez ostatnie 7 pełnych dób podaż stablecoinów zmieniła się o tę kwotę.') && !w.includes('tydzień (5 sesji)'), 'zdanie proste z oknem pełnych dób, bez „5 sesji”');
+  const m = run({crypto: [2.553675089, 0.8263, true], cryP: {k: '30', do: '2026-10-09', d: 2553675089, pct: 0.8263, cur: 311611497263}}, '1M');
+  assert.ok(m.includes(flow + ' · 30 pełnych dób do F(2026-10-09)</small></div>'), m.slice(0, 700));
+  for (const [F, per] of [[{crypto: [-0.62856066, -0.2017, true]}, '1D'], [{crypto: [-0.911413972, -0.2922, true], cryP: null}, '1T'], [{crypto: [0, 0, false], cryP: {k: '7', do: '2026-10-09'}}, '1T']]) {
+    const x = run(F, per); assert.ok(x.includes(flow + '</small></div>') && !x.includes('pełnych dób') && x.includes(T('g.plain.crypto', {p: T('g.per.' + per)})), per + ': ' + x.slice(0, 500)); }
+});
+
+test('v318 (recenzja CRYPTO fali 7): panel stablecoinów — zdanie „z pełnych dób … tak jak w zakładce TRENDY” tylko przy polu stabh.pelne; bez pola (okres przejściowy po wdrożeniu) — nota bez tego zdania; 10 języków', () => {
+  const a0 = html.indexOf('function stcPanel(S,H){'), a1 = html.indexOf("ENG_OVR['defillama-stablecoins']=el=>", a0);
+  const f = new Function('t', 'gfmt', 'engDate', 'instRow', 'instFoot', 'engNum', 'escH', 'KR', html.slice(a0, a1) + '\nreturn stcPanel;')(
+    (k, o) => k + (o ? JSON.stringify(o) : ''), v => v.toFixed(2) + ' mld', s => String(s), (a, b, c, d) => `[${a}|${b}|${d}]`, s => 'F(' + s + ')', v => String(v), s => String(s), {data: {at: 'x'}});
+  const S = {asof: '2026-10-10', n: 210, total: [312295588248, -330585801, -570449623, -652244283], rows: [['Ethereum', 146553133782, -964027311, -340054492, -1462369137]]};
+  const H0 = {asof: '2026-10-10', cur: 310982936603, d: {'1': -628560660, '7': -911413972, '30': 2077713113}, pct: {'1': -0.2017, '7': -0.2922, '30': 0.6726}};
+  const P = {do: '2026-10-09', cur: 311611497263, od: {'7': '2026-10-02', '30': '2026-09-09'}, d: {'7': 94559624, '30': 2553675089}, pct: {'7': 0.0304, '30': 0.8263}};
+  const h = f(S, Object.assign({pelne: P}, H0)), o = f(S, H0);
+  assert.ok(h.includes('[stc.k.d7|+0.09 mld|c315.stc.z7{"d":"F(2026-10-09)"}]') && h.includes('</div><p class="pnote">a293c.stc.diff</p>') && !h.includes('dr318.stc.diff0'), 'z polem — nota v315 (pełne doby)');
+  assert.ok(o.includes('[stc.k.d7|−0.91 mld|c315.stc.now]') && o.includes('</div><p class="pnote">dr318.stc.diff0</p>') && !o.includes('a293c.stc.diff'), 'bez pola — liczby do chwili pobrania i nota bez zdania o pełnych dobach');
+  for (const zle of [{do: 'x', d: P.d}, {do: '2026-10-09'}, null, 'x']) assert.ok(f(S, Object.assign({}, H0, {pelne: zle})).includes('<p class="pnote">dr318.stc.diff0</p>'), JSON.stringify(zle));
+  const FULL = {pl: 'pełnych dób', en: 'full days', de: 'volle Tage', es: 'días completos', fr: 'jours complets', it: 'giorni interi', pt: 'dias completos', ru: 'полным суткам', zh: '完整日', ja: '丸一日'};
+  for (const L of v318.L10) {
+    const T = v318.tp(L), a = T('a293c.stc.diff'), b = T('dr318.stc.diff0');
+    assert.ok(a.includes(FULL[L]) && !b.includes(FULL[L]), L + ': ' + b);
+    assert.ok(b.includes('GLOBAL') && a.slice(0, 60) === b.slice(0, 60) && b.length < a.length, L + ': to samo pierwsze zdanie, krócej');
+  }
+});
+
+test('v318 (recenzja CRYPTO fali 7): okno „Dlaczego to widzisz?” — „Giełdy” w makiecie (dane przykładowe mają procent) bez procentu przy reszcie bilansu (luka testu „x||”); stablecoiny ze zmierzonej podaży — podtytuł „Wzrost / Spadek / Bez zmiany podaży”; zapas z ceny i inne elementy — „wartości” jak dotąd', () => {
+  const I = c315.I.pl, N = c315.num('pl'), sub = s => (s.match(/<div class="sub" style="margin:2px 0 0">([^<]*)<\/div>/) || [])[1];
+  const ex = c315.det('pl', {st: {period: '24H', sel: {type: 'node', id: 'exch'}}, DATA: {'24H': {exch: [-520, -2.1]}}, live: false});
+  assert.ok(ex.includes('<dd>' + N.fInt(-520) + ' mln USD</dd>') && !ex.includes('%') && !ex.includes('względem') && !ex.includes('2,1'), ex);
+  assert.equal(sub(ex), I['c315.sub.exch'] + ' · 24 godziny');
+  const sb = c315.det('pl', {st: {period: '24H', sel: {type: 'node', id: 'stab'}}, DATA: {'24H': {stab: [-628.56, -0.2017, 'sup']}}, LIVE: {src: 'srv'}});
+  assert.equal(sub(sb), 'Spadek podaży · 24 godziny'); assert.ok(sb.includes('(−0,2% względem poprzednich 24 godzin)'), 'procent podaży zostaje');
+  assert.equal(sub(c315.det('pl', {st: {period: '1R', sel: {type: 'node', id: 'stab'}}, DATA: {'1R': {stab: [8130.06, 2.68, 'sup']}}, LIVE: {src: 'srv'}})), 'Wzrost podaży · 12 miesięcy');
+  assert.equal(sub(c315.det('pl', {st: {period: '24H', sel: {type: 'node', id: 'stab'}}, DATA: {'24H': {stab: [0, 0, 'sup']}}})), 'Bez zmiany podaży · 24 godziny');
+  assert.equal(sub(c315.det('pl', {st: {period: '24H', sel: {type: 'node', id: 'stab'}}, DATA: {'24H': {stab: [720, 5.7]}}, live: false})), 'Wzrost wartości · 24 godziny', 'zapas z ceny — wartość jak dotąd');
+  assert.equal(sub(c315.det('pl', {st: {period: '24H', sel: {type: 'node', id: 'eth'}}, DATA: {'24H': {eth: [-970.9, -0.31]}}})), 'Spadek wartości · 24 godziny');
+  assert.equal(sub(c315.det('en', {st: {period: '24H', sel: {type: 'node', id: 'stab'}}, DATA: {'24H': {stab: [-628.56, -0.2017, 'sup']}}})), 'Supply fall · 24 hours');
+});
+
+test('v318 (recenzja CRYPTO fali 7): telefon 360 px — tabele dób wielorybów, przelewów i rodzajów RWA w karcie (bez kolumny liczby przelewów w dobach, węższe odstępy, kierunek z giełdą i kwoty RWA w dwóch liniach); reguła tylko poniżej 380 px, po regule v315', () => {
+  const R = '@media (max-width:379px){#c-wieloryby .whdob th:nth-child(6),#c-wieloryby .whdob td:nth-child(6){display:none}#c-wieloryby td .cell,#c-wieloryby .etft th{padding-left:2px;padding-right:2px}#c-wieloryby .etft:not(.whdob) td:nth-child(3) .cell{flex-wrap:wrap;row-gap:2px}#rw-seg td .cell.mono{white-space:normal}.arc-last{white-space:normal;flex-wrap:wrap}}';
+  assert.equal(html.split(R).length, 2, 'reguła raz');
+  assert.ok(html.indexOf(R) > html.indexOf('@media (max-width:430px){#c-wieloryby .whdob td:first-child .cell{flex-wrap:wrap;white-space:nowrap}'), 'po regule v315 (430 px) — wygrywa na węższym ekranie');
+  assert.ok(html.indexOf(R) > html.indexOf('#c-rwa td .cell.mono{font-size:12px;white-space:nowrap}'), 'po regule nowrap kwot RWA');
+  assert.ok(html.includes("<th>${t('wh.c.net')}</th><th>${t('wh.c.n')}</th></tr></thead>"), 'liczba przelewów to szósta (ostatnia) kolumna tabeli dób');
+  assert.ok(html.includes("<table class=\"etft\"><thead><tr><th>${t('wh.c.time')}</th><th>${t('wh.c.amt')}</th><th>${t('wh.c.dir')} · ${t('wh.c.exch')}</th><th>${t('wh.c.tx')}</th></tr></thead>"), 'kierunek z giełdą — trzecia kolumna tabeli przelewów (bez klasy whdob)');
+  assert.ok(html.includes('<details class="etfd" id="rw-seg" open>'), 'tabela rodzajów RWA w #rw-seg');
+  assert.ok(html.indexOf(R) > html.indexOf('.arc-last{display:inline-flex;align-items:baseline;gap:5px;font-size:12px;white-space:nowrap}') && html.indexOf(R) > html.indexOf('#c-surowce .arc-last small{white-space:normal}'), 'podpisy arc-last: po regułach nowrap');
+  /* TRENDY: nazwa funduszu w zdaniu „Najważniejsze” — do 430 px zawija się sama nazwa (b), ikona i nazwa nadal razem (.trd-nw nowrap, bez spacji między nimi) */
+  const N = '.trd-nw{white-space:nowrap}\n', M = '@media (max-width:430px){.trd-nw b{white-space:normal}}';
+  assert.ok(html.includes(N) && html.indexOf(M) > html.indexOf(N) && html.split(M).length === 2, 'reguła po .trd-nw');
+  assert.ok(html.includes("`<span class=\"trd-nw\">${ic}${nm}</span>`") && html.includes("nm=`<b>${escH(t('trd.s.'+r.id))}</b>`"), 'nazwa w <b>, ikona tuż przed nią');
+});
+
+test('v318 (recenzja TRENDY fali 7): blok surowców — werdykt linii świata „po … sesjach z sygnałem”, linii krypto „po … dniach z sygnałem”; zh i ja — zdania bez spacji; de — jedno słowo „Handelstagen mit Signal”; 10 języków', () => {
+  const {L10, mkB, tp, LOC, sepZ} = v318;
+  const su = v303.su({ok: [['eq.cu', 200, 'edge', '2027-09-01'], ['cm.p', 400, 'none', '2029-01-02'], ['cr.au', 200, 'edge', '2027-06-01']]});
+  const dmy = (L, d) => new Date(Date.parse(d + 'T12:00:00Z')).toLocaleDateString(LOC[L] || 'pl-PL', {timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric'});
+  const p = mkB('pl').trdSu({su});
+  assert.ok(p.includes('przewaga potwierdzona w ocenie po 200 sesjach z sygnałem (01.09.2027) — o włączeniu do sygnałów decyduje właściciel strony'), 'świat: przewaga');
+  assert.ok(p.includes('ostatnia ocena po 400 sesjach z sygnałem (02.01.2029) bez przewagi — regułę wycofujemy'), 'świat: wycofana');
+  assert.ok(p.includes('przewaga potwierdzona w ocenie po 200 dniach z sygnałem (01.06.2027)'), 'krypto: dni');
+  assert.ok(!/po \d+ dniach z sygnałem \(0[12]\.0[19]\.20(27|29)\)/.test(p.replace('po 200 dniach z sygnałem (01.06.2027)', '')), 'linie świata bez „dniach”');
+  for (const L of L10) {
+    const T = tp(L), q = mkB(L).trdSu({su});
+    assert.ok(q.includes(T('dr318.su.ok.w', {c: '200', d: dmy(L, '2027-09-01')})) && q.includes(T('dr318.su.wyc.w', {c: '400', d: dmy(L, '2029-01-02')})) && q.includes(T('td303.ok', {c: '200', d: dmy(L, '2027-06-01')})), L);
+    const j = L === 'zh' || L === 'ja' ? '' : ' ';
+    assert.ok(q.includes('<p class="pnote">' + T('td303.reg', {d: dmy(L, '2026-10-08')}) + j + T('t316.su.sep', {c: T('td303.l.cr.au')}) + '</p>'), L + ': odstęp między zdaniami');
+    assert.equal(sepZ(L)(), j, L);
+  }
+  /* de: liczniki linii świata i opisy bloku — „Handelstagen mit Signal” (jak „Nauka”), nigdzie „Sitzungen mit Signal” */
+  const de = mkB('de').trdSu({su: v303.su()}).replace(/<[^>]+>/g, ' ');
+  assert.ok(de.includes('7 von 100 Handelstagen mit Signal bis zur nächsten Prüfung') && de.includes('Handelstagen mit Signal (bei Krypto: Tagen mit Signal)') && !/Sitzungen mit Signal/.test(de), de.slice(0, 600));
+  const DE = v96src.I18N.de;
+  for (const k of ['td303.n.w', 'td303.sub', 'td303.how', 'dr318.su.ok.w', 'dr318.su.wyc.w', 'a293t.w.l.next']) assert.ok(DE[k].includes('Handelstag') && !DE[k].includes('Sitzungen mit Signal'), k + ': ' + DE[k]);
+  assert.equal(DE['td303.n.w'], '{n} von {c} Handelstagen mit Signal bis zur nächsten Prüfung');
+  assert.ok(html.includes("${t('td303.reg',{d:fd(S.reg,dmy)})}${typeof sepZ==='function'?sepZ():' '}${t('t316.su.sep',{c:t('td303.l.cr.au')})}"), 'kod: sepZ');
+});
+
+test('v318 (recenzja TRENDY fali 7): karty giełd BTC i ETH w TRENDACH krypto — „7 pełnych dób do …” jak stablecoiny (zbieracz: tylko zamknięte doby UTC — test DrobneV318); kafel i karty; fundusze i tydzień raportu bez zmian; 10 języków', () => {
+  const {mkB, I, L10} = v316, B = mkB('pl');
+  for (const id of ['stab', 'cm_btc', 'cm_eth']) assert.equal(B.trdWin({id, sz: 7, date: '2026-10-09'}), '7 pełnych dób do 09.10.2026', id);
+  assert.ok(!B.trdWin({id: 'etf_btc', sz: 5, date: '2026-10-09'}).includes('pełnych'), 'fundusze ETF — sesje, bez zmian');
+  assert.ok(!B.trdWin({id: 'cm_btc', sz: 1, date: '2026-10-09'}).includes('pełnych'), 'inny rozmiar okna — bez zmian');
+  for (const l of L10) { const X = mkB(l); for (const id of ['cm_btc', 'cm_eth']) assert.equal(X.trdWin({id, sz: 7, date: '2026-10-09'}), I[l]['t316.stab.win'].replace('{d}', X.trdDay('2026-10-09')), l + ' ' + id); }
+  const f = trdV96.make({mode: 'trendy', trdv: 'crypto'}, false, v96src.tFor('pl')); f.trdApply(trdV96.data); const g = f.el.innerHTML;
+  assert.ok(trdV96.card(g, I.pl['trd.s.cm_btc']).includes('7 pełnych dób do 24.09.2026'), 'karta giełd BTC');
+  const kf = g.split('<div class="panel kpi">').find(x => x.includes(I.pl['trd.kc.exch'])) || '';
+  assert.ok(kf.includes(I.pl['trd.s.cm_btc']) && kf.includes('7 pełnych dób do 24.09.2026') && !kf.includes('7 dni do'), 'kafel giełd (BTC): ' + kf.slice(0, 400));
 });
