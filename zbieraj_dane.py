@@ -2656,6 +2656,48 @@ def build_rezerwy():
     return out
 
 
+def rezerwy_chiny_safe(res, su):
+    """v338 (F1Z4): data/rezerwy.json — Chiny z miesięcznego zestawienia SAFE (surowce.json, banki.rez_cn), gdy ma miesiące NOWSZE niż tabela
+    MFW (SAFE ma IX 2026, MFW — VI). Pola kraju liczone tak jak w parse_rezerwy (razem, waluty, złoto = wartość złota w pliku SAFE, bez złota =
+    razem − złoto; zmiana miesiąca / 12 miesięcy z szeregu 'd'), z oznaczeniem z = 'safe' i safe_od (pierwszy miesiąc z SAFE). Miesiąc wspólny
+    sprawdzany: razem w obu źródłach różni się o ponad 1% = bez nakładki (zła skala). Bez nowszych miesięcy, bez danych SAFE albo przy
+    jakimkolwiek błędzie — res bez zmian (idempotentne: drugie nałożenie nic nie zmienia)."""
+    try:
+        rc = (((su or {}).get('banki') or {}).get('rez_cn') or {}).get('d')
+        c = ((res or {}).get('countries') or {}).get('CHN')
+        if not (isinstance(rc, list) and rc and isinstance(c, dict) and isinstance(c.get('d'), list) and re.fullmatch(r'\d{4}-\d{2}', str(c.get('asof')))):
+            return res
+        S = {r[0]: r[1:] for r in rc if isinstance(r, list) and len(r) == 4 and isinstance(r[0], str) and all(_isnum(x) for x in r[1:])}
+        nowe = sorted(m for m in S if m > c['asof'])
+        if not nowe:
+            return res
+        if c['asof'] in S and _isnum(c.get('total')) and c['total'] and abs(S[c['asof']][0] - c['total']) > 0.01 * c['total']:
+            META['notes'].append(f'rezerwy Chin: SAFE {c["asof"]} {S[c["asof"]][0]:.1f} mld USD wobec {c["total"]} w tabeli MFW — bez nakładki')
+            return res
+        r1 = lambda v: None if v is None else round(v, 1)   # noqa: E731
+        D = {m: v for m, v in c['d'] if isinstance(m, str) and _isnum(v)}
+        for m in nowe:
+            D[m] = r1(S[m][0])
+        last = nowe[-1]
+        tot, fx, gold = S[last]
+        dokl = lambda m: S[m][0] if m in S else D.get(m)   # noqa: E731 — SAFE dokładnie, tam gdzie jest; inaczej wartość z tabeli MFW (do 0,1 mld)
+        p1, p12 = dokl(_imf_month_add(last, -1)), dokl(_imf_month_add(last, -12))
+        import copy
+        out = copy.deepcopy(res)
+        o = out['countries']['CHN']
+        o.update({'asof': last, 'total': r1(tot), 'ex_gold': r1(tot - gold), 'fx': r1(fx), 'gold': r1(gold),
+                  'd1m': None if p1 is None else r1(tot - p1), 'd12m': None if p12 is None else r1(tot - p12),
+                  'p12m': None if not p12 else round(100.0 * (tot - p12) / p12, 1),
+                  'd': [[m, D[m]] for m in sorted(D)[-13:]], 'z': 'safe', 'safe_od': nowe[0]})
+        mm = [x['asof'] for x in out['countries'].values() if isinstance(x, dict) and isinstance(x.get('asof'), str)]
+        out['asof_min'], out['asof_max'] = min(mm), max(mm)
+        out['order'] = sorted(out['countries'], key=lambda k: -(out['countries'][k].get('total') or 0))
+        return out
+    except Exception as e:   # noqa: BLE001 — nakładka nigdy nie psuje tabeli z MFW
+        META['notes'].append(mask(f'rezerwy Chin z SAFE: {e}')[:200])
+        return res
+
+
 # BIS — stopy procentowe banków centralnych (WS_CBPOL), bez klucza; dzienne (stan) + miesięczne (historia zmian)
 CBPOL_AREAS = ['US', 'XM', 'GB', 'CH', 'SE', 'NO', 'PL', 'JP', 'KR', 'CN', 'IN', 'ID', 'AU', 'CA', 'BR', 'MX', 'ZA', 'TR', 'SA', 'RU']
 CBPOL_BASE = 'https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBPOL/1.0/'
@@ -11075,18 +11117,19 @@ SU_POBIERZ = {'eia': _su_eia, 'eia_dz': _su_eia_dz, 'acer': _su_acer, 'gld': _su
 #  fundusze — ilość metalu w funduszach fizycznych (nie cena): złoto w tonach — GLD i GLDM (archiwa funduszy), IAU (wyliczony z wartości
 #             aktywów z pliku funduszy strony i ceny złota), PHYS; srebro (PSLV), platyna i pallad (SPPP), uran (SPUT, mln funtów), miedź (COP);
 #             90 dni, zmiana tygodnia, sumy złota.
-#  banki    — złoto banków centralnych 10 krajów w tonach (MFW IL, wskaźnik RGV_REVS w uncjach; Chiny — także SAFE, zwykle o 2 miesiące
-#             szybciej), 24 miesiące, każdy kraj ze swoim miesiącem.
+#  banki    — złoto banków centralnych 55 krajów w tonach (MFW IL, wskaźnik RGV_REVS w uncjach; Chiny — także SAFE, zwykle o 2 miesiące
+#             szybciej; Rosja — także druga tabela MFW IRFCL, o ok. 9 miesięcy szybciej; v338), 24 miesiące (kraje dodane w v338 — 14),
+#             każdy kraj ze swoim miesiącem.
 # Tony = uncje ÷ 32 150,7466 (uncja trojańska = 31,1034768 g). Brak = null, nigdy 0. Ciężkie pliki (CFTC roczny 1,9 MB, archiwum GLD 0,54 MB):
 # odpowiedź źródła-lidera z tego samego przebiegu (źródła-naśladowcy SU_ZA) albo własne pobranie tylko na start, po błędzie i gdy lider ma
 # nowsze dane. Kody źródeł (z) — pełne nazwy wyłącznie na stronie „Źródła”: gld (archiwa GLD, GLDM), ish (wyliczenie z pliku funduszy strony),
 # sprott, imf, safe; pozycje — z kodem w nazwie części (cftc, ice, cit, tff).
 SU_OZ_T = 32150.7466
-SU_E3_ZR = (('sprott_t', 'fundusze'), ('gldm', 'fundusze'), ('gld_t', 'fundusze'), ('imf_il', 'banki'), ('safe_zl', 'banki'),
+SU_E3_ZR = (('sprott_t', 'fundusze'), ('gldm', 'fundusze'), ('gld_t', 'fundusze'), ('imf_il', 'banki'), ('irfcl', 'banki'), ('safe_zl', 'banki'),
             ('cit', 'pozycje'), ('tff', 'pozycje'), ('ice', 'pozycje'), ('cftcd', 'pozycje'))   # lekkie najpierw; naśladowcy po liderach
 SU_ZR = SU_ZR + SU_E3_ZR
 SU_CIEZKIE = SU_CIEZKIE | frozenset(('gld_t', 'cftcd'))   # ciężkie tylko przy własnym pobraniu — lider (też ciężki) w długim przebiegu i tak czeka
-SU_LIMIT_S.update({'sprott_t': 20, 'gldm': 30, 'gld_t': 60, 'imf_il': 30, 'safe_zl': 20, 'cit': 20, 'tff': 30, 'ice': 30, 'cftcd': 60})
+SU_LIMIT_S.update({'sprott_t': 20, 'gldm': 30, 'gld_t': 60, 'imf_il': 30, 'irfcl': 20, 'safe_zl': 20, 'cit': 20, 'tff': 30, 'ice': 30, 'cftcd': 60})
 SU_ZAPYTANIA.update({'safe_zl': 2, 'cit': 2, 'tff': 2, 'ice': 2, 'cftcd': 2})   # strona + plik; tydzień + rok (rok tylko przy krótkiej historii)
 SU_ZA = {'cftcd': 'cftc', 'gld_t': 'gld', 'sprott_t': 'sprott'}   # naśladowca → lider (ta sama odpowiedź w tym samym przebiegu)
 SU_ZA_PONOW = {'cftcd': 360, 'gld_t': 60, 'sprott_t': 60}        # min — po błędzie naśladowcy ponowienie własnym pobraniem
@@ -11147,15 +11190,25 @@ SU_FU_SKOK_FU = {'COP': 1.0, 'SPUT': 0.5}   # v301: młode, małe trusty — oso
                         # listy (3000–30000 USD/t; SPPP: 1064); kolejność listy sprawdzają też ceny złota i srebra z listy (bez udanego lidera)
 # ---- banki ----
 SU_BANKI = (('PL', 'POL'), ('CN', 'CHN'), ('TR', 'TUR'), ('IN', 'IND'), ('CZ', 'CZE'), ('KZ', 'KAZ'), ('JP', 'JPN'), ('US', 'USA'),
-            ('DE', 'DEU'), ('RU', 'RUS'))
+            ('DE', 'DEU'), ('RU', 'RUS'),
+            # v338 (F1Z4): kolejne banki centralne z TEJ SAMEJ odpowiedzi MFW — lista z nagrania 10.10.2026: co najmniej 20 t złota i odczyt nie
+            # starszy niż 5 miesięcy (bez krajów z 0 t: HRV — straż skali SU_BANKI_T; bez starych odczytów: LBN 2025-03, TWN i LBY 2026-04, PER i COL 2026-01)
+            ('IT', 'ITA'), ('FR', 'FRA'), ('CH', 'CHE'), ('NL', 'NLD'), ('UZ', 'UZB'), ('PT', 'PRT'), ('SA', 'SAU'), ('GB', 'GBR'), ('ES', 'ESP'),
+            ('AT', 'AUT'), ('TH', 'THA'), ('BE', 'BEL'), ('SG', 'SGP'), ('IQ', 'IRQ'), ('DZ', 'DZA'), ('BR', 'BRA'), ('PH', 'PHL'), ('EG', 'EGY'),
+            ('SE', 'SWE'), ('ZA', 'ZAF'), ('MX', 'MEX'), ('QA', 'QAT'), ('GR', 'GRC'), ('HU', 'HUN'), ('KR', 'KOR'), ('RO', 'ROU'), ('ID', 'IDN'),
+            ('AU', 'AUS'), ('KW', 'KWT'), ('JO', 'JOR'), ('AE', 'ARE'), ('DK', 'DNK'), ('PK', 'PAK'), ('AR', 'ARG'), ('RS', 'SRB'), ('BY', 'BLR'),
+            ('KG', 'KGZ'), ('MY', 'MYS'), ('FI', 'FIN'), ('BG', 'BGR'), ('SK', 'SVK'), ('UA', 'UKR'), ('GH', 'GHA'), ('MA', 'MAR'), ('NG', 'NGA'))
+SU_BANKI_PIERWSZE = frozenset(c for c, _ in SU_BANKI[:10])   # v338: pierwsze 10 krajów — historia 24 mies. (Polska: linia na stronie); reszta — SU_BANKI_M_NOWE
 SU_BANKI_M = 24
+SU_BANKI_M_NOWE = 14   # v338: miesięcy w pliku dla krajów dodanych w v338 (zmiana 12 mies. + 1 + zapas) — plik rośnie o ok. 12 KB zamiast 30 KB
 SU_IMF_IL_ZL_URL = ('https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/IL/+/' + '+'.join(c3 for _, c3 in SU_BANKI)
-                    + '.RGV_REVS.*.M?lastNObservations=' + str(SU_BANKI_M + 1))   # 11 KB; 07.10.2026: PL, CZ, JP, KZ, TR, US — 2026-08,
+                    + '.RGV_REVS.*.M?lastNObservations=' + str(SU_BANKI_M + 1))   # v338: 55 krajów (ok. 65 KB; 10 krajów — 11 KB); 07.10.2026: PL, CZ, JP, KZ, TR, US — 2026-08,
                                                                                 # DE, IN — 07, CN — 06, RU — 2025-11 (każdy kraj ze swoim miesiącem)
 SU_SAFE_ZL_PAGE = 'https://www.safe.gov.cn/en/2021/0203/2045.html'   # „Official Reserve Assets (2026)” — strona z odnośnikiem do pliku miesiąca
-SU_BANKI_T = (0.5, 20000)    # t — straż skali (atrybut SCALE MFW): kraj spoza zakresu = cała odpowiedź odrzucona (USA 8133 t, CZ 86 t)
+SU_BANKI_T = (0.5, 20000)    # t — straż skali (atrybut SCALE MFW): odpowiedź odrzucona, gdy spoza zakresu jest więcej niż co piąty kraj (USA 8133 t, CZ 86 t);
+                             # v338: pojedynczy kraj spoza zakresu (np. 0 t) jest pomijany z notatką — przy 55 krajach nie odrzuca pozostałych
 SU_SAFE_WAN = (3000, 30000)  # 万盎司 (10 tys. uncji) — złoto Chin w pliku SAFE (I–VIII 2026: 7419–7673); spoza zakresu = plik odrzucony
-SU_MIEKKIE = {'safe_zl': 'imf_il'}   # v301: źródło uzupełniające → główne źródło tej samej części. Błąd uzupełniającego, gdy główne udało się
+SU_MIEKKIE = {'safe_zl': 'imf_il', 'irfcl': 'imf_il'}   # v301: źródło uzupełniające → główne źródło tej samej części. Błąd uzupełniającego, gdy główne udało się
                                      # w tym przebiegu albo część ma wcześniejsze dane = notatka, nie błąd części (SAFE dodaje Chinom 1–2 miesiące
                                      # przed MFW; przegląd v298: SAFE niesprawdzony z serwerów GitHuba — przy blokadzie co godzinę błąd w META
                                      # i ok.banki = False, choć Chiny mają dobre dane z MFW)
@@ -11210,6 +11263,8 @@ def _su_due3(src, z, now, S):
         return _su_termin(now, z, ((1, 0), (13, 0)))
     if src == 'imf_il':   # MFW dopisuje kraje w różnych dniach miesiąca — raz na dobę (11 KB)
         return tr >= 60 and (first or at >= 24 * 60)
+    if src == 'irfcl':    # v338: druga tabela MFW (Rosja, Polska; 3,8 KB) — raz na dobę, po błędzie najwyżej co 6 h (jak SAFE; źródło uzupełniające)
+        return tr >= (SU_SAFE_PONOW if z.get('err') else 60) and (first or at >= 24 * 60)
     if src == 'safe_zl':  # SAFE ok. 7. dnia miesiąca: w dniach 5–20 co 6 h, aż przyjdzie poprzedni miesiąc; poza tym raz na tydzień
         pon = SU_SAFE_PONOW if z.get('err') else 60   # v301: po błędzie (także przed pierwszym udanym pobraniem) — najwcześniej po 6 h
         if first:
@@ -11375,9 +11430,11 @@ def parse_sprott_ilosci(j):
     return out
 
 
-def parse_imf_il_zloto(j):
+def parse_imf_il_zloto(j, odrz=None):
     """MFW IL, wskaźnik RGV_REVS (złoto w rezerwach; jednostka FTO — uncje trojańskie) → ({kraj ISO2: {RRRR-MM: uncje}}, [kraje z inną
-    jednostką]). Straż skali: kraj z ostatnią wartością poza SU_BANKI_T ton = cała odpowiedź odrzucona (zmiana atrybutu SCALE)."""
+    jednostką]). Straż skali: zmiana atrybutu SCALE dotyka wszystkich krajów naraz, więc gdy ostatnia wartość więcej niż co piątego kraju jest poza
+    SU_BANKI_T ton — cała odpowiedź odrzucona. v338: przy ok. 55 krajach pojedynczy kraj spoza zakresu (np. rezerwa spadła do zera) jest pomijany
+    (jego opis trafia do odrz), a nie odrzuca pozostałych."""
     ser = parse_imf_sdmx(j)
     iso = {c3: c2 for c2, c3 in SU_BANKI}
     out, inna = {}, []
@@ -11389,10 +11446,15 @@ def parse_imf_il_zloto(j):
         out[iso[lab[0]]] = {m: v for m, v in rows}
     if not out:
         raise RuntimeError('brak krajów z jednostką FTO' + (f' (inna jednostka: {", ".join(inna)})' if inna else ''))
-    for c2, rows in out.items():
-        t = rows[max(rows)] / SU_OZ_T
-        if not SU_BANKI_T[0] <= t <= SU_BANKI_T[1]:
-            raise RuntimeError(f'{c2}: {t:.1f} t poza zakresem {SU_BANKI_T[0]:g}–{SU_BANKI_T[1]:g} t — zmiana skali? odpowiedź odrzucona')
+    zle = [(c2, rows[max(rows)] / SU_OZ_T) for c2, rows in sorted(out.items())
+           if not SU_BANKI_T[0] <= rows[max(rows)] / SU_OZ_T <= SU_BANKI_T[1]]
+    if zle and len(zle) * 5 > len(out):
+        c2, t = zle[0]
+        raise RuntimeError(f'{c2}: {t:.1f} t poza zakresem {SU_BANKI_T[0]:g}–{SU_BANKI_T[1]:g} t — zmiana skali? odpowiedź odrzucona')
+    for c2, t in zle:
+        del out[c2]
+        if odrz is not None:
+            odrz.append(f'{c2} ({t:.1f} t)')
     return out, inna
 
 
@@ -11427,6 +11489,46 @@ def parse_safe_zloto(data):
             raise RuntimeError('brak miesięcy z ilością złota')
         return out
     raise RuntimeError('brak arkusza z nagłówkiem miesięcy i wierszem złota')
+
+
+# ---- v338 (F1Z4): rezerwy Chin razem z tego samego pliku SAFE co złoto (tabela rezerw na stronie: Chiny o 1–3 miesiące świeższe niż w MFW) ----
+SU_SAFE_REZ = (20000, 60000)   # 100 mln USD — rezerwy razem w pliku SAFE (I–IX 2026: 37 511–38 827 = 3,75–3,88 bln USD); spoza zakresu = plik odrzucony
+SU_SAFE_SUMA = 0.5             # 100 mln USD — składniki (waluty, pozycja w MFW, SDR, złoto, inne) muszą sumować się do „razem” (w pliku z 08.10.2026: dokładnie)
+
+
+def parse_safe_rezerwy(data):
+    """SAFE „Official Reserve Assets” (xlsx) → {RRRR-MM: [razem, waluty obce, złoto]} w mld USD (komórki w 100 mln USD ÷ 10). Wiersze po nazwie
+    („合计” razem, „外汇储备” waluty obce, „黄金” złoto + trzy pozostałe składniki); miesiąc bez liczb (kolejne miesiące roku) pominięty; składniki
+    nie sumują się do „razem” (SU_SAFE_SUMA) albo „razem” spoza SU_SAFE_REZ = cały plik odrzucony."""
+    import html as _h
+    import zipfile as _zf
+    wb = _zf.ZipFile(io.BytesIO(data)).read('xl/workbook.xml').decode('utf-8', 'replace')
+    for name in [_h.unescape(x) for x in re.findall(r'<sheet\b[^>]*\bname="([^"]*)"', wb)]:
+        rows = _xlsx_rows(data, name)
+        ks = sorted(rows)
+        head = next((k for k in ks if re.search(r'Item|项目', str(rows[k].get(1, ''))) and any(re.fullmatch(r'20\d{2}\.(0[1-9]|1[0-2])', str(v).strip())
+                                                                                                    for v in rows[k].values())), None)
+        lab = lambda k: str(rows[k].get(1, '')).replace('\xa0', ' ')   # noqa: E731
+        find = lambda pat: next((k for k in ks if re.search(pat, lab(k))), None)   # noqa: E731
+        sk = [find(p) for p in ('合计', '外汇储备', '基金组织储备头寸', '特别提款权', '黄金', '其他储备资产')]
+        if head is None or None in sk:
+            continue
+        months = {c: str(v).strip().replace('.', '-') for c, v in rows[head].items() if re.fullmatch(r'20\d{2}\.(0[1-9]|1[0-2])', str(v).strip())}
+        out = {}
+        for c, m in sorted(months.items()):
+            v = [_num(rows[k].get(c)) for k in sk]
+            if not all(_isnum(x) for x in v):
+                continue
+            tot, parts = v[0], v[1:]
+            if not SU_SAFE_REZ[0] <= tot <= SU_SAFE_REZ[1]:
+                raise RuntimeError(f'{m}: rezerwy razem {tot} (100 mln USD) poza zakresem — plik odrzucony')
+            if abs(sum(parts) - tot) > SU_SAFE_SUMA:
+                raise RuntimeError(f'{m}: składniki rezerw ({sum(parts):.2f}) ≠ razem ({tot:.2f}) — plik odrzucony')
+            out[m] = [round(tot / 10, 3), round(parts[0] / 10, 3), round(parts[3] / 10, 3)]
+        if not out:
+            raise RuntimeError('brak miesięcy z rezerwami razem')
+        return out
+    raise RuntimeError('brak arkusza z nagłówkiem miesięcy i wierszami rezerw')
 
 
 # ---- wpisy części pozycje ----
@@ -11776,8 +11878,11 @@ def _su_fu_sumy(F):
 
 # ---- banki ----
 def _su_bk_imf(ctx):
-    """Banki — MFW IL: złoto w uncjach dla 10 krajów (jedno zapytanie, 11 KB); historia łączona z poprzednią (kraj ze swoim miesiącem)."""
-    got, inna = parse_imf_il_zloto(_su_json(_su_get(ctx, 'imf_il', SU_IMF_IL_ZL_URL, {'Accept': 'application/json'})))
+    """Banki — MFW IL: złoto w uncjach dla 55 krajów (jedno zapytanie, ok. 65 KB); historia łączona z poprzednią (kraj ze swoim miesiącem)."""
+    odrz = []
+    got, inna = parse_imf_il_zloto(_su_json(_su_get(ctx, 'imf_il', SU_IMF_IL_ZL_URL, {'Accept': 'application/json'})), odrz)
+    if odrz:
+        ctx['uwagi'].append('banki: kraj poza zakresem skali (pominięty, poprzednie dane zostają) — ' + ', '.join(odrz))
     if inna:
         ctx['uwagi'].append('banki: inna jednostka złota niż uncje (pominięte) — ' + ', '.join(inna))
     brak = [c2 for c2, _ in SU_BANKI if c2 not in got]
@@ -11797,13 +11902,81 @@ def _su_bk_safe(ctx):
     if not m:
         raise RuntimeError('brak odnośnika do pliku na stronie')
     url = m.group(1) if m.group(1).startswith('http') else 'https://www.safe.gov.cn' + m.group(1)
-    rows = parse_safe_zloto(_su_get(ctx, 'safe_zl', url))
+    data = _su_get(ctx, 'safe_zl', url)
+    rows = parse_safe_zloto(data)
     ctx['H']['b'].setdefault('CN_safe', {}).update(rows)
+    try:   # v338 (F1Z4): z tego samego pliku — rezerwy Chin razem (tabela rezerw na stronie); błąd tej części nie odrzuca złota
+        ctx.setdefault('rez', {})['CN'] = parse_safe_rezerwy(data)
+    except Exception as e:  # noqa: BLE001
+        ctx['uwagi'].append(f'banki: rezerwy Chin z pliku odrzucone ({mask(str(e))[:100]}) — złoto zapisane')
     return max(rows)
 
 
+# ---- v338 (F1Z4): druga tabela MFW (IRFCL, rezerwy płynne w walutach) — Rosja o miesiące świeższa niż w głównej tabeli (IL); Polska — kontrola ----
+# Główna tabela (IL) ma Rosję tylko do listopada 2025 (kraj publikuje tam z dużym opóźnieniem), a IRFCL — do sierpnia 2026, w tych samych uncjach
+# (nagranie 10.10.2026: lipiec–listopad 2025 identyczne). IRFCL bierzemy WYŁĄCZNIE dla krajów sprawdzonych na nagraniach: Brazylia podaje tam
+# złoto w innej skali (5,54 mld „uncji” zamiast 5,54 mln), więc inne kraje wymagałyby osobnego sprawdzenia skali. Z drugiej tabeli na stronę trafiają
+# miesiące WYŁĄCZNIE Rosji (i tylko nowsze niż w głównej tabeli); Polska służy tylko do kontroli dziennej (IRFCL zaokrągla do 1000 uncji: 20 833 000
+# wobec 20 833 322,9 w IL; Rosja — do 100 000 uncji, więc mieszanie źródeł w jednym szeregu Polski dawałoby sztuczne ±0,03 t).
+SU_IRFCL = (('RU', 'RUS'), ('PL', 'POL'))
+SU_IMF_IRFCL_URL = ('https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/IRFCL/+/' + '+'.join(c3 for _, c3 in SU_IRFCL)
+                    + '.IRFCLDT1_IRFCL56V_FTO.S1XS1311.M?lastNObservations=24')   # ok. 6 KB; 10.10.2026: Rosja VIII 2026 (IL: XI 2025), Polska VIII 2026; 24 mies. — długie okno wspólne z IL do sprawdzenia skali
+SU_IRFCL_TOL = 0.01   # największa względna różnica wobec głównej tabeli w miesiącach wspólnych (zaokrąglenia IRFCL: do 0,07%); więcej = kraj odrzucony
+
+
+def parse_irfcl_zloto(j, odrz=None):
+    """MFW IRFCL, wskaźnik IRFCL56V_FTO (złoto w rezerwach oficjalnych, uncje trojańskie) → {kraj ISO2: {RRRR-MM: uncje}} dla krajów SU_IRFCL.
+    Straż skali jak w głównej tabeli (SU_BANKI_T): kraj spoza zakresu ton jest pomijany (odrz — jego opis), odpowiedź bez żadnego kraju = błąd."""
+    ser = parse_imf_sdmx(j)
+    iso = {c3: c2 for c2, c3 in SU_IRFCL}
+    out = {}
+    for lab, rows in ser.items():
+        if len(lab) != 4 or lab[1] != 'IRFCLDT1_IRFCL56V_FTO' or lab[3] != 'M' or lab[0] not in iso:
+            continue
+        out[iso[lab[0]]] = {m: v for m, v in rows}
+    if not out:
+        raise RuntimeError('brak serii złota (IRFCL56V_FTO) dla Rosji i Polski')
+    for c2 in sorted(out):
+        t = out[c2][max(out[c2])] / SU_OZ_T
+        if not SU_BANKI_T[0] <= t <= SU_BANKI_T[1]:
+            if odrz is not None:
+                odrz.append(f'{c2} ({t:.1f} t poza zakresem)')
+            del out[c2]
+    if not out:
+        raise RuntimeError('złoto z drugiej tabeli poza zakresem skali — zmiana skali? odpowiedź odrzucona')
+    return out
+
+
+def _su_bk_irfcl(ctx):
+    """Banki — MFW IRFCL: złoto Rosji (miesiące nowsze niż w IL) i Polski (kontrola). Źródło uzupełniające (SU_MIEKKIE) po imf_il: każdy kraj musi
+    zgadzać się z główną tabelą w miesiącach wspólnych (SU_IRFCL_TOL) — inaczej ten kraj jest pominięty (zła skala albo inna definicja).
+    Wzorzec skali: główna tabela, a w miesiącach, których w niej brak — wcześniej PRZYJĘTA seria drugiej tabeli (c2_irfcl; jej skala była już sprawdzona
+    wobec głównej). Dzięki temu Rosja nie przestaje się odświeżać, gdy główna tabela stoi dłużej niż okno pobrania (przegląd v338)."""
+    odrz = []
+    got = parse_irfcl_zloto(_su_json(_su_get(ctx, 'irfcl', SU_IMF_IRFCL_URL, {'Accept': 'application/json'})), odrz)
+    dobre, uwagi = {}, list(odrz)
+    for c2, rows in sorted(got.items()):
+        il = {m: v for m, v in (ctx['H']['b'].get(c2) or {}).items() if _isnum(v)}
+        il = dict({m: v for m, v in (ctx['H']['b'].get(c2 + '_irfcl') or {}).items() if _isnum(v)}, **il)   # główna tabela ma pierwszeństwo
+        wsp = sorted(set(rows) & set(il))
+        if not wsp:
+            uwagi.append(f'{c2}: brak miesięcy wspólnych z główną tabelą — skali nie da się sprawdzić'); continue
+        zly = [m for m in wsp if abs(rows[m] - il[m]) > SU_IRFCL_TOL * il[m]]
+        if zly:
+            m = zly[-1]
+            uwagi.append(f'{c2}: {m} {rows[m] / SU_OZ_T:.1f} t wobec {il[m] / SU_OZ_T:.1f} t w głównej tabeli'); continue
+        dobre[c2] = rows
+    if not dobre:
+        raise RuntimeError('złoto z drugiej tabeli odrzucone — ' + '; '.join(uwagi))
+    if uwagi:
+        ctx['uwagi'].append('banki: druga tabela — kraj pominięty: ' + '; '.join(uwagi))
+    for c2, rows in dobre.items():
+        ctx['H']['b'].setdefault(c2 + '_irfcl', {}).update(rows)
+    return max(max(r) for r in dobre.values())
+
+
 SU_POBIERZ.update({'cftcd': _su_poz_cftcd, 'ice': _su_poz_ice, 'cit': _su_poz_cit, 'tff': _su_poz_tff, 'gld_t': _su_fu_gld, 'gldm': _su_fu_gldm,
-                   'sprott_t': _su_fu_sprott, 'imf_il': _su_bk_imf, 'safe_zl': _su_bk_safe})
+                   'sprott_t': _su_fu_sprott, 'imf_il': _su_bk_imf, 'irfcl': _su_bk_irfcl, 'safe_zl': _su_bk_safe})
 
 
 def _su_hist3(H, prev):
@@ -11821,9 +11994,10 @@ def _su_hist3(H, prev):
         if not isinstance(e, dict):
             continue
         od = e.get('safe_od') if c2 == 'CN' and isinstance(e.get('safe_od'), str) else None   # miesiące z SAFE (Chiny) — do osobnej serii
+        odi = e.get('irfcl_od') if isinstance(e.get('irfcl_od'), str) else None   # v338: miesiące z drugiej tabeli MFW (Rosja, Polska) — też osobna seria
         for r in e.get('d') or []:
             if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and _isnum(r[1]):
-                tgt = H['b'].setdefault('CN_safe' if od and r[0] >= od else c2, {})
+                tgt = H['b'].setdefault('CN_safe' if od and r[0] >= od else (c2 + '_irfcl' if odi and r[0] >= odi else c2), {})
                 tgt.setdefault(r[0], e['oz'] if r[0] == e.get('asof') and _isnum(e.get('oz')) else round(r[1] * SU_OZ_T, 2))
 
 
@@ -11877,6 +12051,7 @@ def _su_etap3(ctx, prev):
     fund = {'u': 't', 'f': f, 'suma': suma}
     # banki
     safe = {m: v for m, v in (H['b'].get('CN_safe') or {}).items() if _isnum(v)}
+    irfcl = {c2: {m: v for m, v in (H['b'].get(c2 + '_irfcl') or {}).items() if _isnum(v)} for c2 in ('RU', 'PL')}   # v338: druga tabela MFW
     kr = {}
     for c2, _c3 in SU_BANKI:
         imf = {m: v for m, v in (H['b'].get(c2) or {}).items() if _isnum(v)}
@@ -11885,9 +12060,12 @@ def _su_etap3(ctx, prev):
             for m, v in safe.items():
                 if not imf or m > max(imf):
                     rows[m], zr[m] = v, 'safe'
+        for m, v in ((irfcl.get(c2) or {}).items() if c2 == 'RU' else ()):   # v338 (F1Z4): miesiące z drugiej tabeli MFW — tylko Rosja i tylko nowsze niż w głównej
+            if not imf or m > max(imf):                # tabeli (stare miesiące zawsze z głównej; Polska z drugiej tabeli — wyłącznie kontrola, jej zaokrąglenia do 1000 uncji)
+                rows[m], zr[m] = v, 'irfcl'
         if not rows:
             continue
-        ks = sorted(rows)[-SU_BANKI_M:]
+        ks = sorted(rows)[-(SU_BANKI_M if c2 in SU_BANKI_PIERWSZE else SU_BANKI_M_NOWE):]
         last = ks[-1]
         p1, p12 = _imf_month_add(last, -1), _imf_month_add(last, -12)
         e = {'u': 't', 'asof': last, 'z': zr[last], 'oz': rows[last], 'd': [[m, round(rows[m] / SU_OZ_T, 3)] for m in ks],
@@ -11900,8 +12078,23 @@ def _su_etap3(ctx, prev):
             wsp = sorted(set(imf) & set(safe))[-6:]
             if wsp:
                 e['kontr'] = [[m, imf[m], safe[m]] for m in wsp]   # ten sam miesiąc z dwóch źródeł (uncje) — kontrola dzienna
+        if irfcl.get(c2):   # v338: Rosja i Polska — druga tabela MFW (miesiące na stronie tylko Rosji; u Polski — wspólne miesiące do kontroli)
+            od = [m for m in ks if zr[m] == 'irfcl']
+            if od:
+                e['irfcl_od'] = od[0]   # pierwszy miesiąc z drugiej tabeli (nowszy niż ostatni miesiąc głównej)
+            wsp = sorted(set(imf) & set(irfcl[c2]))[-6:]
+            if wsp:
+                e['kontr'] = [[m, imf[m], irfcl[c2][m]] for m in wsp]   # ten sam miesiąc z dwóch tabel (uncje) — kontrola dzienna
         kr[c2] = e
     banki = {'u': 't', 'order': sorted(kr, key=lambda c: -kr[c]['d'][-1][1]), 'kr': kr}
+    rc, pr = {}, (prev.get('banki') or {}).get('rez_cn') if isinstance(prev.get('banki'), dict) else None   # v338: rezerwy Chin razem (SAFE) — dla tabeli rezerw
+    for r in ((pr or {}).get('d') or []) if isinstance(pr, dict) else []:
+        if isinstance(r, list) and len(r) == 4 and isinstance(r[0], str) and all(_isnum(x) for x in r[1:]):
+            rc[r[0]] = r[1:]
+    rc.update((ctx.get('rez') or {}).get('CN') or {})
+    if rc:
+        mm = sorted(rc)[-SU_BANKI_M_NOWE:]
+        banki['rez_cn'] = {'u': 'mld USD', 'z': 'safe', 'asof': mm[-1], 'd': [[m] + list(rc[m]) for m in mm]}
     return {'pozycje': poz, 'fundusze': fund, 'banki': banki}, sumy
 
 
@@ -26365,13 +26558,13 @@ def main():
     # MFW — rezerwy walutowe (International Liquidity, bez klucza): dane miesięczne, najwyżej raz na dobę; przy awarii poprzedni plik
     prev_res = previous('rezerwy')
     if prev_res and fresh(prev_res, 24 * 60):
-        save('rezerwy', prev_res); META['ok']['imf'] = 'cached'; print('MFW: dane z', prev_res.get('at'), '— młodsze niż doba')
+        save('rezerwy', rezerwy_chiny_safe(prev_res, _SU_RUN.get('su'))); META['ok']['imf'] = 'cached'; print('MFW: dane z', prev_res.get('at'), '— młodsze niż doba')
     else:
         try:
-            save('rezerwy', build_rezerwy()); META['ok']['imf'] = True
+            save('rezerwy', rezerwy_chiny_safe(build_rezerwy(), _SU_RUN.get('su'))); META['ok']['imf'] = True
         except Exception as e:
             META['errors'].append(mask(f'MFW rezerwy: {e}')); META['ok']['imf'] = False
-            if prev_res: save('rezerwy', prev_res); print('MFW zawiódł — zachowano poprzedni rezerwy.json z', prev_res.get('at'))
+            if prev_res: save('rezerwy', rezerwy_chiny_safe(prev_res, _SU_RUN.get('su'))); print('MFW zawiódł — zachowano poprzedni rezerwy.json z', prev_res.get('at'))
     # STOPY banków centralnych (BIS, bez klucza): najwyżej co 6 h; przy awarii poprzedni plik
     # v325 (ZB02-03): plik z nieudaną częścią (ok[...] False) — ponowienie po STOPY_PONOW min; plik sprzed v325 (bez pola ok, d12 od końca
     # miesiąca) — od razu nowe pobranie

@@ -15870,9 +15870,11 @@ test('v298g: słupki tygodniowe — ta sama reguła co w1 zbieracza (≥ 7 dni w
 test('v298g: banki centralne — słupki zmiany w tonach z flagą i miesiącem KAŻDEGO kraju, od największego zakupu; zdanie; Rosja ze starą datą (gwiazdka); Polska — linia 24 miesięcy', () => {
   const F = su298.file(), K = su298.mk('pl', su298.files(F)); K.api.suApply(F);
   const B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-bk'), m = ym => su298.monS('pl', ym), c = x => su298.cty('pl', x);
-  const exp = [['CN', '2026-08', '+20,2 t'], ['TR', '2026-08', '+18,9 t'], ['PL', '2026-08', '+7,8 t'], ['KZ', '2026-08', '+7,4 t'], ['CZ', '2026-08', '+1,7 t'],
-    ['IN', '2026-07', '0,0 t'], ['JP', '2026-08', '0,0 t'], ['US', '2026-08', '0,0 t'], ['DE', '2026-07', '0,0 t'], ['RU', '2025-11', '0,0 t']];
-  assert.deepEqual(su298.rows(B).map(r => [r[0], r[1]]), exp.map(([k, a, v]) => [c(k) + (k === 'RU' ? ' *' : '') + ' ' + m(a), v]), 'kolejność, kraj z miesiącem, wartość');
+  /* v338 (świadoma zmiana asercji v298g): w komórce wartości jest też cały zapas kraju (mniejsza liczba), Chiny (miesiące z drugiego źródła) mają † */
+  const exp = [['CN', '2026-08', '+20,2 t', '2386,6 t'], ['TR', '2026-08', '+18,9 t', '791,4 t'], ['PL', '2026-08', '+7,8 t', '648,0 t'], ['KZ', '2026-08', '+7,4 t', '377,1 t'],
+    ['CZ', '2026-08', '+1,7 t', '85,8 t'], ['IN', '2026-07', '0,0 t', '880,5 t'], ['JP', '2026-08', '0,0 t', '846,0 t'], ['US', '2026-08', '0,0 t', '8133,5 t'],
+    ['DE', '2026-07', '0,0 t', '3349,3 t'], ['RU', '2025-11', '0,0 t', '2326,5 t']];
+  assert.deepEqual(su298.rows(B).map(r => [r[0], r[1]]), exp.map(([k, a, v, h]) => [c(k) + (k === 'RU' ? ' *' : '') + (k === 'CN' ? ' †' : '') + ' ' + m(a), v + ' ' + h]), 'kolejność, kraj z miesiącem, wartość i zapas');
   for (const [k] of exp) assert.ok(B.includes('img/flagi/' + k.toLowerCase() + '.svg'), 'flaga ' + k);
   assert.ok(B.includes('data-su-bper="1" aria-pressed="true">1 mies.</button>') && B.includes('data-su-bper="12" aria-pressed="false">12 mies.</button>'));
   assert.ok(B.includes('Zmiana zapasu złota w ostatnim miesiącu, tony — przy każdym kraju jego miesiąc'));
@@ -15893,7 +15895,7 @@ test('v298g: banki centralne — przełącznik 1 / 12 mies. (kliknięcie, zapami
   clk({target: {closest: s => (s === '#g-surowce button[data-su-bper]' ? btn : null)}});
   assert.equal(K.api.SU.bper, 12); assert.equal(K.ls['cfai.su.bper'], '12', 'wybór zapamiętany');
   const B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-bk');
-  assert.deepEqual(su298.rows(B).map(r => r[1]), ['+132,7 t', '+84,3 t', '+60,6 t', '+20,5 t', '+0,5 t', '0,0 t', '0,0 t', '−1,0 t', '−5,8 t', '−6,2 t']);
+  assert.deepEqual(su298.rows(B).map(r => r[1].split(' ').slice(0, 2).join(' ')), ['+132,7 t', '+84,3 t', '+60,6 t', '+20,5 t', '+0,5 t', '0,0 t', '0,0 t', '−1,0 t', '−5,8 t', '−6,2 t']);   /* v338: pierwsze dwa wyrazy = zmiana, dalej zapas */
   assert.equal(su298.rows(B)[0][0].split(' ')[0], c('PL'), 'Polska pierwsza w 12 miesięcy');
   /* v301: Rosja (dane z listopada 2025, gwiazdka) poza zdaniem — zostaje na słupkach; dopisek o krajach z gwiazdką (świadoma zmiana asercji v298g) */
   assert.ok(B.includes(`Najwięcej złota w 12 miesięcy dokupiły: ${c('PL')} (+132,7 t), ${c('CN')} (+84,3 t), ${c('KZ')} (+60,6 t). Zapas zmniejszyły: ${c('TR')} (−5,8 t), ${c('DE')} (−1,0 t). Bez krajów z gwiazdką — ich dane są starsze.`));
@@ -15902,7 +15904,8 @@ test('v298g: banki centralne — przełącznik 1 / 12 mies. (kliknięcie, zapami
   const K3 = su298.mk('pl', {}, {ls: {'cfai.su.bper': '7'}}); K3.api.suApply(F); assert.equal(K3.api.SU.bper, 1, 'zła wartość — 1 mies.');
   const G = su298.file(); G.banki.kr.KZ.m1 = null; G.banki.kr.DE.asof = '2026-05'; G.banki.kr.CZ.asof = '2026-06';
   const Q = su298.mk('pl'); Q.api.suApply(G); const R = su298.rows(su298.blk(su298.sp(Q.el.innerHTML), 'su-b-bk'));
-  const kz = R.find(r => r[0].startsWith(c('KZ'))); assert.ok(kz[1] === '—' && kz[2] && R[R.length - 1] === kz, 'brak liczby — „—”, kreska, na końcu');
+  const kz = R.find(r => r[0].startsWith(c('KZ'))); assert.ok(kz[1].startsWith('—') && kz[2] && R[R.length - 1] === kz,   /* v338: po „—” zostaje cały zapas */
+     'brak liczby — „—”, kreska, na końcu');
   assert.ok(R.find(r => r[0].startsWith(c('DE')))[0].includes(' * ') && !R.find(r => r[0].startsWith(c('CZ')))[0].includes('*'), 'maj (130 dni) — gwiazdka; czerwiec (100 dni) — bez');
   const N = su298.file(); for (const k in N.banki.kr) N.banki.kr[k].m1 = 0; const Q2 = su298.mk('pl'); Q2.api.suApply(N);
   assert.ok(su298.txt(Q2.el.innerHTML).includes('W ostatnim miesiącu żaden z tych banków nie dokupił złota.'));
@@ -16238,7 +16241,7 @@ test('v301: banki — zdania o zakupach i spadkach bez krajów z danymi starszym
   const B12 = bk(su298.file(), {'cfai.su.bper': '12'});
   assert.ok(B12.includes(`Zapas zmniejszyły: ${c('TR')} (−5,8 t), ${c('DE')} (−1,0 t). Bez krajów z gwiazdką — ich dane są starsze.</p>`), 'bez Rosji w zdaniu, z dopiskiem');
   assert.ok(!su298.txt(B12.slice(B12.indexOf('Zapas zmniejszyły'), B12.indexOf('</p>', B12.indexOf('Zapas zmniejszyły')))).includes(c('RU')));
-  assert.ok(su298.rows(B12).find(r => r[0].startsWith(c('RU') + ' *') && r[1] === '−6,2 t'), 'Rosja na słupkach z gwiazdką i liczbą');
+  assert.ok(su298.rows(B12).find(r => r[0].startsWith(c('RU') + ' *') && r[1].startsWith('−6,2 t')), 'Rosja na słupkach z gwiazdką i liczbą');
   assert.ok(B12.includes(`<p class="pnote">* ${c('RU')}: najnowsze dostępne dane są za ${su298.mon('pl', '2025-11')} · wiek(2025-11).</p>`), 'przypis zostaje');
   /* 1 mies.: Rosja 0,0 t — nie trafiłaby do zdania — bez dopisku, zdanie jak w v298g */
   const B1 = bk(su298.file());
@@ -21422,4 +21425,203 @@ test('v337: napływ do akcji — suma 4 kwartałów równa zero w osobnej grupie
   assert.ok(!h.slice(h.indexOf('p337.d.in'), h.indexOf('p337.d.zero')).includes('Chile'), 'nie pod napływem ani odpływem');
   const Y = v337.make(), e2 = v337.el(); Y.pipApply(null, v337.BILF); Y.ENG_OVR['wdi-destinations'](e2);
   assert.ok(!e2.innerHTML.includes('p337.d.zero'), 'bez zera — bez pustej grupy');
+});
+
+
+// ===================== v338 (F1Z4_ZLOTO): złoto banków centralnych — ranking ~55 krajów, Rosja i Chiny z drugiego źródła (†), rezerwy Chin =====================
+/* Dane testowe: kraje z symulacji zbieracza na nagraniach z 10.10.2026 (ws53/v338-f1z4/symulacja.py): [kraj, miesiąc, zapas (t), zmiana miesiąca (t), zmiana 12 mies. (t),
+   źródło ostatniego miesiąca (imf | safe | irfcl), pierwszy miesiąc z drugiego źródła]. Zegar przypięty jak w v298g (2026-10-08 12:00 UTC). */
+const BK338 = [["PL", "2026-09", 672.9, 24.9, 157.5, "imf", null],
+  ["CN", "2026-09", 2409.6, 23.0, 106.1, "safe", "2026-07"],
+  ["TR", "2026-09", 795.2, 3.9, -3.6, "imf", null],
+  ["IN", "2026-08", 880.5, 0.0, 0.5, "imf", null],
+  ["CZ", "2026-08", 85.8, 1.7, 20.5, "imf", null],
+  ["KZ", "2026-08", 377.1, 7.4, 60.6, "imf", null],
+  ["JP", "2026-09", 846.0, 0.0, 0.0, "imf", null],
+  ["US", "2026-08", 8133.5, 0.0, 0.0, "imf", null],
+  ["DE", "2026-07", 3349.3, 0.0, -1.0, "imf", null],
+  ["RU", "2026-08", 2270.6, -6.2, -56.0, "irfcl", "2025-12"],
+  ["IT", "2026-08", 2451.8, 0.0, 0.0, "imf", null],
+  ["FR", "2026-07", 2437.0, 0.0, 0.0, "imf", null],
+  ["CH", "2026-08", 1039.9, 0.0, 0.0, "imf", null],
+  ["NL", "2026-07", 612.5, 0.0, 0.0, "imf", null],
+  ["UZ", "2026-07", 430.8, -0.9, 66.9, "imf", null],
+  ["PT", "2026-07", 382.7, 0.0, 0.0, "imf", null],
+  ["SA", "2026-07", 323.1, 0.0, 0.0, "imf", null],
+  ["GB", "2026-09", 310.3, 0.0, 0.0, "imf", null],
+  ["ES", "2026-07", 281.6, 0.0, 0.0, "imf", null],
+  ["AT", "2026-07", 280.1, 0.0, 0.1, "imf", null],
+  ["TH", "2026-08", 234.5, 0.0, 0.0, "imf", null],
+  ["BE", "2026-07", 227.4, 0.0, 0.0, "imf", null],
+  ["SG", "2026-08", 203.4, -0.1, -0.7, "imf", null],
+  ["IQ", "2026-06", 175.6, 0.0, 10.4, "imf", null],
+  ["DZ", "2026-07", 173.6, 0.0, 0.0, "imf", null],
+  ["BR", "2026-09", 172.4, 0.0, 27.3, "imf", null],
+  ["PH", "2026-07", 133.5, 0.0, 3.1, "imf", null],
+  ["EG", "2026-07", 129.7, 0.0, 1.1, "imf", null],
+  ["SE", "2026-09", 125.7, 0.0, 0.0, "imf", null],
+  ["ZA", "2026-08", 125.5, 0.0, 0.1, "imf", null],
+  ["MX", "2026-09", 120.0, 0.0, -0.1, "imf", null],
+  ["QA", "2026-08", 115.2, -0.9, 0.1, "imf", null],
+  ["GR", "2026-07", 114.7, 0.0, 0.1, "imf", null],
+  ["HU", "2026-09", 110.0, 0.0, 0.0, "imf", null],
+  ["KR", "2026-07", 104.4, 0.0, 0.0, "imf", null],
+  ["RO", "2026-09", 103.6, 0.0, 0.0, "imf", null],
+  ["ID", "2026-08", 87.1, 0.0, 6.7, "imf", null],
+  ["AU", "2026-09", 79.9, 0.0, 2.0, "imf", null],
+  ["KW", "2026-08", 79.0, 0.0, 0.0, "imf", null],
+  ["JO", "2026-08", 74.6, -3.1, 2.1, "imf", null],
+  ["AE", "2026-08", 72.8, -2.2, -2.2, "imf", null],
+  ["DK", "2026-09", 66.5, 0.0, 0.0, "imf", null],
+  ["PK", "2026-08", 64.8, 0.0, 0.1, "imf", null],
+  ["AR", "2026-08", 61.7, 0.0, 0.0, "imf", null],
+  ["RS", "2026-08", 55.0, 0.2, 3.7, "imf", null],
+  ["BY", "2026-08", 53.9, 0.0, 0.1, "imf", null],
+  ["KG", "2026-06", 48.7, -0.3, 9.7, "imf", null],
+  ["MY", "2026-08", 44.8, 0.0, 5.9, "imf", null],
+  ["FI", "2026-07", 43.9, 0.0, 0.1, "imf", null],
+  ["BG", "2026-08", 41.0, 0.0, -1.9, "imf", null],
+  ["SK", "2026-07", 31.7, 0.0, 0.0, "imf", null],
+  ["UA", "2026-08", 27.4, 0.0, 0.0, "imf", null],
+  ["GH", "2026-07", 24.6, 0.2, -9.8, "imf", null],
+  ["MA", "2026-08", 22.1, 0.0, 0.0, "imf", null],
+  ["NG", "2026-08", 21.5, 0.0, 0.1, "imf", null]];
+
+const bk338 = {
+  file(rows) {
+    const F = su298.file(), kr = {}, T = 32150.7466, prevM = ym => { const y = +ym.slice(0, 4), m = +ym.slice(5, 7); return m === 1 ? (y - 1) + '-12' : y + '-' + String(m - 1).padStart(2, '0'); };
+    for (const [c, asof, t, m1, m12, z, od] of rows || BK338) {
+      const e = {u: 't', asof, z, oz: Math.round(t * T), d: [[prevM(asof), m1 === null ? null : Math.round((t - m1) * 1000) / 1000], [asof, t]], m1, m12};
+      if (od) e[z === 'safe' ? 'safe_od' : 'irfcl_od'] = od;
+      kr[c] = e;
+    }
+    F.banki = {u: 't', order: Object.keys(kr), kr};
+    return F;
+  },
+  html(F, L, opt) { const K = su298.mk(L || 'pl', su298.files(F), opt); K.api.suApply(F); const h = su298.sp(K.el.innerHTML), i = h.indexOf('<details class="etfd su-b" id="su-b-bk"'); return {K, h, B: h.slice(i, h.indexOf('<details class="etfd su-b" id="su-b-poz"', i))}; },
+  rows(B) { return su298.rows(B).map(r => ({l: r[0], v: r[1], na: r[2], tip: r[3]})); },
+  names(L, codes) { return codes.map(c => su298.cty(L, c)); },
+};
+
+test('v338 (F1Z4): ranking 55 banków centralnych — 10 największych zakupów, 5 największych sprzedaży i Polska; reszta w bloku „Pozostałe kraje” na tej samej skali', () => {
+  const F = bk338.file(), {B} = bk338.html(F);
+  assert.equal(BK338.length, 55);
+  const R = [...BK338].sort((a, b) => b[3] - a[3]);   // sort stabilny jak na stronie: wg zmiany w miesiącu malejąco
+  const up = R.filter(r => r[3] > 0).slice(0, 10).map(r => r[0]), dn = R.filter(r => r[3] < 0).slice(-5).map(r => r[0]);
+  const vis = R.filter(r => up.includes(r[0]) || dn.includes(r[0]) || r[0] === 'PL').map(r => r[0]), rest = R.map(r => r[0]).filter(c => !vis.includes(c));
+  const iR = B.indexOf('<details class="etfd su-bk-rest" id="su-b-bk-rest">');
+  assert.ok(iR > 0, 'blok „Pozostałe kraje”');
+  const main = bk338.rows(B.slice(0, iR)), rst = bk338.rows(B.slice(iR));
+  assert.equal(main.length + rst.length, 55, 'każdy kraj jest w rankingu');
+  assert.deepEqual(main.map(r => r.l.replace(/ [^ ]+ \d\d$| \*| †/g, '').trim()), bk338.names('pl', vis).map(n => n), 'główny wykres: kraje w kolejności zmiany');
+  assert.equal(rst.length, rest.length);
+  assert.ok(vis.includes('PL') && vis.length === up.length + dn.length + (up.includes('PL') || dn.includes('PL') ? 0 : 1));
+  const nm = c => su298.cty('pl', c), plr = main.find(r => r.l.startsWith(nm('PL')));
+  assert.ok(plr && plr.v.startsWith('+24,9 t 672,9 t'), 'Polska: zmiana miesiąca i cały zapas ' + (plr && plr.v));
+  assert.ok(B.includes('<b class="su-bk-pl">' + nm('PL') + '</b>') && !B.slice(iR).includes('su-bk-pl'), 'Polska wyróżniona (pogrubienie + tło w CSS), tylko w głównym wykresie');
+  assert.ok(main.every(r => !r.na) && rst.every(r => /^0,0 t |^[+−]0,\d t |^[+−]\d,\d t /.test(r.v)), 'wartości z jednostką i zapasem');
+  const zero = h => [...h.matchAll(/<line class="wk-z" x1="([\d.]+)"/g)].map(m => m[1]);
+  assert.ok(zero(B.slice(0, iR)).length && zero(B.slice(0, iR))[0] === zero(B.slice(iR))[0] || !zero(B).length, 'ta sama skala (linia zera w tym samym miejscu)');
+  for (const c of BK338.map(r => r[0])) assert.ok(B.includes('img/flagi/' + c.toLowerCase() + '.svg'), 'flaga ' + c);
+  assert.ok(B.includes('Pozostałe kraje (' + rest.length + '): mniejsze zmiany albo zapas bez zmian'));
+  assert.ok(B.includes('Lista obejmuje 55 banków centralnych, które miały co najmniej 20 t złota; widać największe zakupy, największe sprzedaże i Polskę.'));
+  assert.ok(B.includes('Pasek i kolorowa liczba — zmiana zapasu złota; druga, mniejsza liczba — cały zapas banku w tonach.'));
+  assert.ok(B.includes('aria-label="Złoto banków centralnych: zmiana w tonach za') && B.includes('krajów: ' + main.length + '"') && B.includes('krajów: ' + rst.length + '"'));
+});
+
+test('v338 (F1Z4): ranking — widok 12 miesięcy: Polska pierwsza, sprzedający (Rosja) w głównym wykresie, zdania o zakupach bez Rosji (jej odczyt ma dopisek), kolory kierunku', () => {
+  const F = bk338.file(), {B, h} = bk338.html(F, 'pl', {ls: {'cfai.su.bper': '12'}});
+  const iR = B.indexOf('<details class="etfd su-bk-rest"'), main = bk338.rows(B.slice(0, iR)), nm = c => su298.cty('pl', c);
+  assert.equal(main[0].l.split(' ')[0], nm('PL')); assert.ok(main[0].v.startsWith('+157,5 t 672,9 t'), main[0].v);
+  assert.deepEqual(main.slice(0, 4).map(r => r.l.split(' ')[0]), ['PL', 'CN', 'UZ', 'KZ'].map(c => nm(c).split(' ')[0]), 'kolejność zmian 12 mies.: Polska, Chiny, Uzbekistan, Kazachstan');
+  const ru = main.find(r => r.l.startsWith(nm('RU')));
+  assert.ok(ru && ru.v.startsWith('−56,0 t 2270,6 t') && ru.l.includes('†') && !ru.l.includes('*'), 'Rosja: −56 t w 12 mies., odczyt VIII 2026 z drugiej tabeli (†), nie gwiazdka starych danych: ' + (ru && ru.l + ' | ' + ru.v));
+  assert.ok(main.length >= 15 && main.length <= 16, 'największe zakupy (10) + sprzedaże (5) + Polska (już wśród zakupów)');
+  const cn = main.find(r => r.l.startsWith(nm('CN')));
+  assert.ok(cn && cn.l.includes('†') && cn.v.startsWith('+106,1 t 2409,6 t'));
+  assert.ok(B.includes('Najwięcej złota w 12 miesięcy dokupiły: ' + nm('PL') + ' (+157,5 t), ' + nm('CN') + ' (+106,1 t), ' + nm('UZ') + ' (+66,9 t).'));
+  assert.ok(B.includes('Zapas zmniejszyły: ' + nm('RU') + ' (−56,0 t), ' + nm('GH') + ' (−9,8 t), ' + nm('TR') + ' (−3,6 t).'), 'Rosja z odczytem z VIII 2026 jest w zdaniu o sprzedaży');
+  const dagger = B.match(/<p class="pnote">† [^<]*<\/p>/g) || [];
+  assert.equal(dagger.length, 2);
+  assert.ok(dagger.some(p => p.startsWith('<p class="pnote">† ' + nm('RU') + ': miesiące od grudnia 2025 pochodzą z osobnej, świeższej tabeli tych samych międzynarodowych statystyk; w miesiącach wspólnych z główną tabelą liczby się zgadzają.')), dagger.join('|'));
+  assert.ok(dagger.some(p => p.startsWith('<p class="pnote">† ' + nm('CN') + ': miesiące od lipca 2026 pochodzą z miesięcznego zestawienia rezerw Chin, świeższego niż główna tabela;')), dagger.join('|'));
+  assert.ok(!/MFW|IMF|SAFE|IRFCL|Fundusz Walutowy|International Monetary|State Administration/.test(B), 'żadnych nazw dostawców');
+  assert.ok(/class="wk-b pos"/.test(B) && /class="wk-b neg"/.test(B) && /class="wk-b zer"/.test(B), 'kolory kierunku: wzrost, spadek, bez zmian');
+});
+
+test('v338 (F1Z4): ranking — do 16 krajów bez bloku „Pozostałe kraje” (wszystkie słupki, jak dotąd); brak liczby = „—” z zapasem; Polska bez zmiany miesiąca nadal widoczna', () => {
+  const few = BK338.slice(0, 16), F = bk338.file(few), {B} = bk338.html(F);
+  assert.ok(!B.includes('su-bk-rest') && !B.includes('Lista obejmuje'), 'bez bloku i bez zdania o liście');
+  assert.equal(bk338.rows(B).length, 16);
+  const G = bk338.file(BK338.map(r => r[0] === 'PL' ? ['PL', r[1], r[2], null, r[4], r[5], r[6]] : r)), {B: B2} = bk338.html(G);
+  const iR = B2.indexOf('<details class="etfd su-bk-rest"'), pl = bk338.rows(B2.slice(0, iR)).find(r => r.l.startsWith(su298.cty('pl', 'PL')));
+  assert.ok(pl && pl.na && pl.v.startsWith('— 672,9 t'), 'Polska bez zmiany miesiąca: „—”, kreska, zapas; wymuszona w głównym wykresie: ' + (pl && pl.v));
+  const H = bk338.file(BK338.map(r => ['PL', 'CN', 'RU'].includes(r[0]) ? [r[0], r[1], r[2], r[3], r[4], 'imf', null] : r)), {B: B3} = bk338.html(H);
+  assert.ok(!/<p class="pnote">† /.test(B3) && !B3.includes(' †'), 'źródło imf — bez † i przypisów');
+});
+
+test('v338 (F1Z4): ranking w 10 językach — tytuły, przypisy † i podpisy bez surowych kluczy i nawiasów klamrowych; bez nazw dostawców', () => {
+  const F = bk338.file();
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const {B} = bk338.html(F, L, {ls: {'cfai.su.bper': '12'}});
+    assert.ok(!/su338\.|\{[a-z]\}/.test(B), L + ': surowy klucz albo niepodstawiony parametr: ' + (B.match(/su338\.[a-z.]+|\{[a-z]\}/) || [])[0]);
+    assert.equal((B.match(/<p class="pnote">† /g) || []).length, 2, L + ': dwa przypisy †');
+    assert.ok(B.includes('55') && /<details class="etfd su-bk-rest"[^>]*><summary>[^<]*\d+[^<]*<\/summary>/.test(B), L + ': liczba krajów w opisie listy i bloku reszty');
+    assert.ok(!/MFW|IMF|SAFE|IRFCL/.test(B), L + ': bez nazw dostawców');
+  }
+  const pl = bk338.html(F, 'pl').B, en = bk338.html(F, 'en').B;
+  assert.notEqual(su298.txt(pl), su298.txt(en));
+});
+
+test('v338 (F1Z4): słownik EXTRA — 6 kluczy su338.* we wszystkich 10 językach z tymi samymi parametrami; prawdziwe tłumaczenia (różne od polskiego i od siebie nawzajem tam, gdzie język inny)', () => {
+  const m = html.match(/const EXTRA(\d+)=(\{"pl":\{"su338\.bk\.how"[^\n]*?\});\nfor\(const l in EXTRA\1\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],EXTRA\1\[l\]\);/);
+  assert.ok(m, 'słownik v338: czysty JSON + jedna linia for (numer = najwyższy + 1)');
+  /* numer słownika liczy się przy nakładaniu łatki (najwyższy wtedy + 1); łatki nakładane PÓŹNIEJ dostają większe numery, więc „najwyższy w pliku” nie jest
+     własnością v338 (poprawka po przeglądzie) — sprawdzamy tylko, że stoi (po własnym komentarzu) zaraz po linii for słownika o MNIEJSZYM numerze */
+  const nr = +m[1], at = m.index, pre = html.slice(0, at).split('\n').slice(-3, -2)[0].match(/^for\(const l in EXTRA(\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],EXTRA\1\[l\]\);$/);
+  assert.ok(pre && +pre[1] < nr, 'słownik v338 stoi zaraz po linii for słownika o mniejszym numerze');
+  const D = JSON.parse(m[2]), L = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(D), L);
+  const keys = ['su338.bk.how', 'su338.bk.rest', 'su338.bk.list', 'su338.bk.z.irfcl', 'su338.bk.z.safe', 'su338.rez.z'];
+  for (const l of L) assert.deepEqual(Object.keys(D[l]).sort(), keys.slice().sort(), l);
+  for (const k of keys) {
+    const ph = s => (s.match(/\{[a-z]\}/g) || []).sort().join();
+    for (const l of L) { assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k + ': te same parametry'); assert.ok(D[l][k].length > 10, l + ' ' + k); if (l !== 'pl') assert.notEqual(D[l][k], D.pl[k], l + ' ' + k); }
+    for (const l of L.filter(x => !['pl', 'en'].includes(x))) assert.notEqual(D[l][k], D.en[k], l + ' ' + k + ' różny od angielskiego');
+    if (/\.z\.|rez\.z/.test(k)) for (const l of L) assert.ok(D[l][k].startsWith('†'), l + ' ' + k + ': zaczyna się od †');
+    assert.ok(!/MFW|IMF|SAFE|IRFCL|International Monetary/.test(JSON.stringify(D.pl[k]) + JSON.stringify(D.en[k])), k + ': bez nazw dostawców');
+  }
+});
+
+test('v338 (F1Z4): tabela rezerw — Chiny z miesięcznego zestawienia (z = safe): † przy miesiącu i przypis z miesiącem początku; bez z nic się nie zmienia', () => {
+  const R = {at: '2026-10-10T21:00:00+00:00', order: ['CHN', 'JPN'], missing: [], countries: {
+    CHN: {pl: 'Chiny', en: 'China', asof: '2026-09', total: 3789.4, fx: 3400.3, gold: 323.5, d1m: -65.5, d12m: 100.1, p12m: 2.7, z: 'safe', safe_od: '2026-07'},
+    JPN: {pl: 'Japonia', en: 'Japan', asof: '2026-08', total: 1207.5, fx: 1010.8, gold: 124.1, d1m: -79.6, d12m: -116.7, p12m: -8.8}}};
+  const h = fm.rezHtml(R);
+  assert.ok(h.includes('<span class="cell mono">2026-09 †</span>') && h.includes('<span class="cell mono">2026-08</span>'), 'tylko Chiny mają †');
+  assert.equal((h.match(/ †/g) || []).length, 1);
+  assert.ok(h.includes('<p class="pnote">† Chiny: miesiące od') === false && h.includes('su338.rez.z{"m":"2026-07"}'), 'przypis z miesiącem początku (w teście t zwraca klucz i parametry)');
+  assert.ok(h.indexOf('rez.note') < h.indexOf('su338.rez.z') && h.indexOf('su338.rez.z') < h.indexOf('<details class="etfd">'), 'przypis po uwagach pod tabelą, przed „czego nie mówią”');
+  /* poprawka po przeglądzie: † stoi przy miesiącu (przed „· wiek”), a miesiąc początku w przypisie jest słowami jak w sekcji banków (suMonG, gdy jest) */
+  const fm2 = new Function('t', 'escH', 'engDate', 'engNum', 'nfmt', 'instRow', 'instFoot', 'instMld', 'instSign', 'gOk', 'renderInst', 'LANG',
+    html.slice(fm0, fm1) + '\nreturn {rezHtml};')(fmT, fmEsc, x => 'D(' + x + ')', v => String(v), (v, d) => Number(v).toFixed(d || 0), () => '', d => fmEsc(d) + ' · wiek(' + d + ')',
+    mln => '', v => v > 0 ? '+' : (v < 0 ? '−' : ''), () => {}, () => {}, 'pl');
+  const g0 = globalThis.suMonG;
+  globalThis.suMonG = ym => 'S(' + ym + ')';
+  let h3;
+  try { h3 = fm2.rezHtml(R); } finally { if (g0 === undefined) delete globalThis.suMonG; else globalThis.suMonG = g0; }
+  assert.ok(h3.includes('<span class="cell mono">2026-09 † · wiek(2026-09)</span>') && h3.includes('<span class="cell mono">2026-08 · wiek(2026-08)</span>'), '† przy miesiącu, wiek za nim');
+  assert.ok(h3.includes('su338.rez.z{"m":"S(2026-07)"}'), 'przypis: miesiąc początku przez suMonG (słowami), nie surowe 2026-07');
+  const h2 = fm.rezHtml({at: R.at, order: ['CHN'], missing: [], countries: {CHN: Object.assign({}, R.countries.CHN, {z: undefined, safe_od: undefined})}});
+  assert.ok(!h2.includes('†') && !h2.includes('su338.rez.z'));
+  assert.ok(!/MFW|IMF|SAFE/.test(h), 'żadnych nazw dostawców');
+});
+
+test('v338 (F1Z4): styl rankingu — Polska wyróżniona tłem, telefon: pasek pod nazwą na całą szerokość (jak pozycje), zapas przy wartości', () => {
+  for (const s of ['#g-surowce .su-bk .wk-br:has(.su-bk-pl){background:var(--sel)}', '#g-surowce .su-bk-pl{font-weight:700}', '#g-surowce .su-hold{margin-left:6px}',
+    '@media (max-width:620px){#g-surowce .su-bk .wk-br{grid-template-columns:minmax(0,1fr) auto;row-gap:2px}#g-surowce .su-bk .wk-bt{grid-column:1/-1;grid-row:2}'])
+    assert.ok(html.includes(s), s);
+  assert.ok(!html.includes('#g-surowce .su-bk .wk-br{--lw:52%}'), 'dawny sposób (kolumna etykiet 52%) zastąpiony');
+  const c0 = html.indexOf('#g-surowce .su-bk .wk-br:has(.su-bk-pl)'), css = html.slice(c0, html.indexOf('\n', c0));
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgb\(\d/.test(css), 'tylko zmienne motywu');
 });

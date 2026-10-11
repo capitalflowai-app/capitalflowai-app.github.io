@@ -33262,6 +33262,7 @@ class SurowceEtap3V298(unittest.TestCase):
         """Odpowiedzi źródeł etapu 3 (także dla sieci testowej SurowceV295); inny adres = None."""
         T = {zd.SU_GLDM_URL: cls.gldm_xlsx, zd.SU_IMF_IL_ZL_URL: lambda: json.dumps(cls.imf_il()).encode(),
              zd.SU_SAFE_ZL_PAGE: lambda: cls.SAFE_PAGE.encode(), cls.SAFE_URL: cls.safe_xlsx,
+             zd.SU_IMF_IRFCL_URL: lambda: json.dumps(BankiZlotoV338.irfcl_stary()).encode(),   # v338: druga tabela MFW (źródło irfcl) — te same miesiące co IL
              zd.SU_CIT_WEEK_URL: lambda: _E3_CITW.encode(), zd.SU_CIT_YEAR_URL.format(2026): lambda: cls.zip_txt('annualci.txt', _E3_CITY),
              zd.CFTC_WEEK_URL: lambda: (_E3_TFFW + '\n').encode(),
              zd.CFTC_YEAR_URL.format(2026): lambda: cls.zip_txt('FinFutYY.txt', ','.join(zd.CFTC_COLS) + '\n' + _E3_TFFY + '\n'),
@@ -33537,7 +33538,7 @@ class SurowceEtap3V298(unittest.TestCase):
                          (['2026-10-06', round(34079177.78 / self.T, 3)], ['2026-10-06', 463.524], ['wyl'], 't', 'mln lb'))
         self.assertEqual((out['banki']['kr']['CN']['z'], out['banki']['kr']['PL']['asof']), ('safe', '2026-08'))
         self.assertEqual((set(h) >= {'f', 'fs', 'b'}, h['f']['GLD'][-1], h['fs']['au_usa'][-1][0], sorted(h['b'])), (True, ['2026-10-06', round(34079177.78 / self.T, 3)], '2026-10-06',
-                                                                                                    ['CN', 'CN_safe', 'DE', 'PL', 'RU']))
+                                                                                                    ['CN', 'CN_safe', 'DE', 'PL', 'PL_irfcl', 'RU', 'RU_irfcl']))   # v338: + serie drugiej tabeli MFW
         self.assertEqual(zd.META['errors'], [])
         # drugi przebieg 10 min później: nic należnego — te same części, bez zapytań
         calls.clear()
@@ -33633,7 +33634,7 @@ class SurowceEtap3V298(unittest.TestCase):
         P = k.surowce_porownania3({'v': 2, 'fundusze': {'f': {'GLD': {'asof': '2026-04-10', 'nav_r': 0.3445}, 'GLDM': {'asof': '2026-10-06', 'nav_r': -0.0101}}},
                                    'banki': {'kr': {'CN': {'kontr': [['2026-06', 75440000.0, 75460000.0]]}}}})
         W = dict(P['wiersze'])
-        self.assertEqual([zn for o, zn in P['wiersze']], ['⚠️', '✅', 'ℹ️'])
+        self.assertEqual([zn for o, zn in P['wiersze']], ['⚠️', '✅', 'ℹ️', '✅'])   # v338: + wiersz skoku zapasu banków (brak skoku = ✅)
         self.assertTrue(any('fundusz GLD 2026-04-10' in u for u in P['uwagi'])); self.assertEqual(len(P['uwagi']), 1, 'Chiny: różnica — tylko informacja')
         self.assertTrue(any('różne: 2026-06' in o for o in W))
         P2 = k.surowce_porownania3({'v': 2, 'fundusze': {'f': {'GLD': {'asof': '2026-10-06'}, 'IAU': {'asof': '2026-09-30'}}}})
@@ -34157,7 +34158,7 @@ class SurowcePoprawkiV301(unittest.TestCase):
         self.assertFalse(due('safe_zl', z, later, {}), 'poza dniami 5–20, po błędzie — też najwcześniej po 6 h')
         self.assertTrue(due('safe_zl', dict(z, **{'try': '2026-10-25T03:00:00+00:00'}), later, {}))
         self.assertTrue(due('safe_zl', {k: v for k, v in z.items() if k != 'err'} | {'try': '2026-10-25T08:00:00+00:00'}, later, {}), 'bez błędu — jak dotąd')
-        self.assertEqual((zd.SU_SAFE_PONOW, zd.SU_MIEKKIE), (360, {'safe_zl': 'imf_il'}))
+        self.assertEqual((zd.SU_SAFE_PONOW, zd.SU_MIEKKIE), (360, {'safe_zl': 'imf_il', 'irfcl': 'imf_il'}))   # v338: + druga tabela MFW (Rosja, Polska)
 
     def test_safe_blad_bez_bledu_czesci_banki(self):
         fetch, calls = SurowceV295().siec(fail=('safe.gov.cn',))
@@ -42368,3 +42369,551 @@ class PipKontrolaV337(unittest.TestCase):
         self.assertEqual([r[1] for r in R['rows']], ['✅', '✅', '⚠️', '?'])
         self.assertTrue(any('różnica 2.5 mld USD' in u for u in R['uwagi']))
         self.assertEqual(self.k.pip_kontrola(None)['rows'], [])
+
+
+_BZ_IL63 = {   # nagranie MFW IL (RGV_REVS, 63 krajów, 14 ostatnich miesięcy) z 10.10.2026: kraj → [pierwszy miesiąc, uncje w kolejnych miesiącach]
+    'ARE': ['2025-07', [2393455.901, 2408307.89, 2387518.887, 2392722.672, 2422831.271, 2395699.114, 2353050.574, 2421149.494, 2363711.09, 2410156.245, 2392178.533, 2395444.17, 2410737.595, 2339081.256]],
+    'ARG': ['2025-07', [1984962.21, 1984962.21, 1984962.21, 1984962.21, 1984962.21, 1984962.21, 1984962.21, 1984962.21, 1984962.21, 1984962.21, 1984962.21, 1984962.21, 1984962.21, 1984962.21]],
+    'AUS': ['2025-08', [2504000.0, 2504000.0, 2344000.0, 2408000.0, 2408000.0, 2568000.0, 2568000.0, 2568000.0, 2568000.0, 2568000.0, 2568000.0, 2568000.0, 2568000.0, 2568000.0]],
+    'AUT': ['2025-06', [9002000.0, 9002000.0, 9002000.0, 9002000.0, 9002000.0, 9002000.0, 9003000.0, 9003000.0, 9003000.0, 9003000.0, 9003000.0, 9003000.0, 9004000.0, 9004000.0]],
+    'BEL': ['2025-06', [7311000.0, 7311000.0, 7311000.0, 7311000.0, 7311000.0, 7311000.0, 7311000.0, 7311000.0, 7311000.0, 7311000.0, 7311000.0, 7311000.0, 7311000.0, 7311000.0]],
+    'BGR': ['2025-07', [1314100.0, 1380100.0, 1380100.0, 1380100.0, 1380100.0, 1380100.0, 1319500.0, 1319500.0, 1319500.0, 1319500.0, 1319500.0, 1319500.0, 1319500.0, 1319500.0]],
+    'BLR': ['2025-07', [1732200.0, 1731900.0, 1733000.0, 1730700.0, 1731500.0, 1733600.0, 1732100.0, 1730200.0, 1731900.0, 1732000.0, 1733200.0, 1734300.0, 1734400.0, 1734200.0]],
+    'BRA': ['2025-08', [4168461.723, 4666461.723, 5180461.723, 5544278.723, 5544278.723, 5544278.723, 5544278.723, 5544278.723, 5544278.723, 5544278.723, 5544278.723, 5544278.723, 5544278.723, 5544278.723]],
+    'CHE': ['2025-07', [33435000.0, 33435000.0, 33435000.0, 33435000.0, 33435000.0, 33435000.0, 33435000.0, 33435000.0, 33435000.0, 33435000.0, 33435000.0, 33435000.0, 33435000.0, 33435000.0]],
+    'CHL': ['2025-05', [7900.0, 7900.0, 7900.0, 7900.0, 7900.0, 7900.0, 7900.0, 7900.0, 7900.0, 209900.0, 269900.0, 314900.0, 314900.0, 314900.0]],
+    'CHN': ['2025-05', [73830000.0, 73900000.0, 73960000.0, 74020000.0, 74060000.0, 74090000.0, 74120000.0, 74150000.0, 74190000.0, 74220000.0, 74380000.0, 74640000.0, 74960000.0, 75440000.0]],
+    'COL': ['2024-12', [150306.718, 150306.718, 150306.718, 150306.718, 150306.718, 150306.718, 150306.72, 150306.718, 150306.718, 150306.718, 150306.718, 150306.718, 150306.718, 150306.718]],
+    'CZE': ['2025-07', [2044159.0, 2098159.0, 2149020.0, 2225281.0, 2275891.0, 2302229.0, 2356206.0, 2410153.0, 2464153.0, 2545002.0, 2598074.0, 2650166.0, 2703268.0, 2757262.0]],
+    'DEU': ['2025-06', [107714000.0, 107714000.0, 107714000.0, 107714000.0, 107714000.0, 107714000.0, 107714000.0, 107714000.0, 107714000.0, 107714000.0, 107689000.0, 107689000.0, 107683000.0, 107683000.0]],
+    'DNK': ['2025-08', [2139600.0, 2139600.0, 2139600.0, 2139600.0, 2139600.0, 2139600.0, 2139600.0, 2139600.0, 2139600.0, 2139600.0, 2139600.0, 2139600.0, 2139600.0, 2139600.0]],
+    'DZA': ['2025-06', [5580000.0, 5580000.0, 5580000.0, 5580000.0, 5580000.0, 5580000.0, 5580000.0, 5580000.0, 5580000.0, 5580000.0, 5580000.0, 5580000.0, 5580000.0, 5580000.0]],
+    'EGY': ['2025-06', [4132589.7, 4134357.99, 4134357.99, 4141559.76, 4142339.28, 4153077.62, 4159010.01, 4161099.81, 4161099.81, 4163800.47, 4163800.47, 4166822.64, 4168944.59, 4168944.59]],
+    'ESP': ['2025-06', [9053000.0, 9053000.0, 9053000.0, 9053000.0, 9053000.0, 9053000.0, 9053000.0, 9053000.0, 9053000.0, 9053000.0, 9053000.0, 9053000.0, 9053000.0, 9053000.0]],
+    'FIN': ['2025-06', [1407000.0, 1407000.0, 1407000.0, 1407000.0, 1407000.0, 1407000.0, 1407000.0, 1407000.0, 1407000.0, 1407000.0, 1410000.0, 1410000.0, 1410000.0, 1410000.0]],
+    'FRA': ['2025-06', [78352000.0, 78352000.0, 78352000.0, 78352000.0, 78352000.0, 78351000.0, 78352000.0, 78352000.0, 78352000.0, 78351000.0, 78351000.0, 78351000.0, 78352000.0, 78352000.0]],
+    'GBR': ['2025-08', [9976041.071, 9976041.071, 9976041.071, 9976041.071, 9976041.071, 9976041.071, 9976041.071, 9976041.071, 9976041.071, 9976041.213, 9976041.279, 9976041.279, 9976041.279, 9976041.279]],
+    'GHA': ['2025-06', [1060651.593, 1105984.08, 1158068.214, 1191504.942, 1223012.628, 884787.264, 598324.527, 610863.3, 618579.468, 668413.053, 715674.582, 761328.576, 784798.587, 790264.206]],
+    'GRC': ['2025-06', [3686000.0, 3687000.0, 3687000.0, 3687000.0, 3687000.0, 3688000.0, 3688000.0, 3688000.0, 3688000.0, 3689000.0, 3689000.0, 3689000.0, 3689000.0, 3689000.0]],
+    'HRV': ['2025-06', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]],
+    'HUN': ['2025-08', [3537000.0, 3537000.0, 3537000.0, 3537000.0, 3537000.0, 3537000.0, 3537000.0, 3537000.0, 3537000.0, 3537000.0, 3537000.0, 3537000.0, 3537000.0, 3537000.0]],
+    'IDN': ['2025-07', [2526002.65, 2584802.65, 2584802.65, 2710000.0, 2730000.0, 2750000.0, 2798499.83, 2798499.83, 2798504.092, 2798508.266, 2798511.165, 2798511.89, 2798511.89, 2798846.721]],
+    'IND': ['2025-07', [28292088.56, 28292088.56, 28298486.9, 28298486.9, 28298486.896, 28303687.64, 28303707.17, 28303709.24, 28309307.7, 28309311.06, 28309311.06, 28309311.06, 28309311.06, 28309311.06]],
+    'IRL': ['2025-06', [387000.0, 387000.0, 387000.0, 387000.0, 387000.0, 387000.0, 387000.0, 387000.0, 387000.0, 387000.0, 387000.0, 387000.0, 387000.0, 387000.0]],
+    'IRQ': ['2025-05', [5262000.0, 5313000.0, 5413000.0, 5493000.0, 5493000.0, 5614000.0, 5614000.0, 5614000.0, 5614000.0, 5647000.0, 5647000.0, 5647000.0, 5647000.0, 5647000.0]],
+    'ITA': ['2025-07', [78829000.0, 78829000.0, 78829000.0, 78829000.0, 78829000.0, 78829000.0, 78829000.0, 78829000.0, 78829000.0, 78829000.0, 78829000.0, 78829000.0, 78829000.0, 78828795.0]],
+    'JOR': ['2025-07', [2332117.38, 2332147.607, 2352147.607, 2334566.923, 2277090.706, 2342882.866, 2354916.478, 2292319.006, 2338919.006, 2397185.976, 2431044.726, 2531077.756, 2500000.0, 2400000.0]],
+    'JPN': ['2025-08', [27198880.83, 27198880.83, 27198880.83, 27198880.83, 27198880.83, 27198880.83, 27198880.83, 27198880.83, 27198880.83, 27198880.83, 27198880.83, 27198880.83, 27198880.83, 27198880.83]],
+    'KAZ': ['2025-07', [9925827.46, 10174517.36, 10428742.02, 10449876.27, 10707606.7, 10964891.792, 10928272.833, 11174283.91, 11368416.53, 11390606.83, 11612175.02, 11843658.59, 11888015.15, 12124366.05]],
+    'KGZ': ['2025-05', [1214829.135, 1252168.396, 1295606.366, 1295443.636, 1308585.731, 1362473.113, 1420684.012, 1474729.796, 1440487.88, 1504512.914, 1537172.73, 1530221.548, 1576099.688, 1565487.318]],
+    'KOR': ['2025-06', [3358068.255, 3358068.255, 3358068.255, 3358068.255, 3358068.255, 3358068.255, 3358068.255, 3358068.255, 3358068.255, 3358068.255, 3358068.255, 3358068.255, 3358068.255, 3358068.255]],
+    'KWT': ['2025-07', [2539167.648, 2539167.648, 2539167.658, 2539167.648, 2539167.648, 2539167.648, 2539167.648, 2539167.648, 2539199.107, 2539199.107, 2539199.107, 2539199.107, 2539599.117, 2539199.107]],
+    'LBN': ['2024-02', [9222000.0, 9222000.0, 9222000.0, 9222000.0, 9222000.0, 9222000.0, 9222000.0, 9222000.0, 9222000.0, 9222000.0, 9222000.0, 9222000.0, 9222000.0, 9222000.0]],
+    'LBY': ['2025-03', [4715000.0, 4715000.0, 4715000.0, 4715000.0, 4715000.0, 4715000.0, 4715000.0, 4715000.0, 4715000.0, 4715000.0, 4715000.0, 4715000.0, 4715000.0, 4715000.0]],
+    'MAR': ['2025-07', [711032.19, 711078.12, 711078.12, 711078.12, 711078.12, 711078.12, 711078.13, 711078.13, 711078.13, 711109.16, 711163.93, 711206.22, 711206.22, 711206.22]],
+    'MEX': ['2025-08', [3862909.319, 3862523.51, 3861848.345, 3861269.632, 3862137.702, 3861848.345, 3861366.084, 3862780.716, 3862684.264, 3861912.646, 3859533.493, 3858697.574, 3859533.493, 3858986.931]],
+    'MYS': ['2025-07', [1250000.0, 1250000.0, 1250000.0, 1250000.0, 1250000.0, 1250000.0, 1360000.0, 1410000.0, 1410000.0, 1410000.0, 1410000.0, 1410000.0, 1440000.0, 1440000.0]],
+    'NGA': ['2025-07', [689318.058, 689318.058, 689318.058, 689318.058, 689318.058, 689318.058, 689318.058, 695428.5, 692373.28, 692373.28, 692373.28, 692373.28, 692373.28, 692373.28]],
+    'NLD': ['2025-06', [19691000.0, 19691000.0, 19691000.0, 19691000.0, 19691000.0, 19691000.0, 19691000.0, 19691000.0, 19691000.0, 19691000.0, 19691000.0, 19691000.0, 19691000.0, 19691000.0]],
+    'PAK': ['2025-07', [2081886.299, 2081886.299, 2082046.731, 2082046.731, 2082207.164, 2082367.596, 2082527.867, 2083490.461, 2083490.461, 2083490.461, 2083650.732, 2084131.707, 2084131.707, 2084131.707]],
+    'PER': ['2024-12', [1114680.21, 1114680.21, 1114680.16, 1114680.16, 1114680.16, 1114680.16, 1114680.15, 1114680.15, 1114680.12, 1114680.12, 1114680.11, 1114680.1, 1114680.09, 1114680.09]],
+    'PHL': ['2025-06', [4168897.137, 4193258.812, 4217273.331, 4240676.587, 4256872.289, 4268744.485, 4275108.338, 4279841.954, 4292427.091, 4292427.108, 4292427.22, 4292713.957, 4292713.957, 4292951.802]],
+    'POL': ['2025-08', [16568320.661, 16568590.92, 17068981.854, 17469115.686, 17689846.694, 17689952.511, 18340272.261, 18700373.066, 19150645.859, 19735585.209, 20333239.989, 20583249.145, 20833322.858, 21633794.527]],
+    'PRT': ['2025-06', [12303000.0, 12303000.0, 12303000.0, 12303000.0, 12303000.0, 12303000.0, 12303000.0, 12303000.0, 12303000.0, 12303000.0, 12303000.0, 12303000.0, 12303000.0, 12303000.0]],
+    'QAT': ['2025-07', [3703673.715, 3703673.819, 3728676.372, 3723740.361, 3703784.198, 3703784.164, 3704539.735, 3704859.083, 3704859.115, 3704859.115, 3704859.111, 3734856.148, 3735310.294, 3705310.331]],
+    'ROU': ['2025-08', [3331700.0, 3331700.0, 3331700.0, 3331700.0, 3331700.0, 3331700.0, 3331700.0, 3331700.0, 3331500.0, 3331500.0, 3331500.0, 3331500.0, 3331500.0, 3331500.0]],
+    'RUS': ['2024-10', [75000000.0, 75000000.0, 75000000.0, 74900000.0, 74900000.0, 74900000.0, 74900000.0, 74900000.0, 74900000.0, 74900000.0, 74800000.0, 74900000.0, 74800000.0, 74800000.0]],
+    'SAU': ['2025-06', [10386941.0, 10386941.0, 10386941.0, 10386941.0, 10386941.0, 10386941.0, 10386941.0, 10386941.0, 10386941.0, 10386941.0, 10386941.0, 10386941.0, 10386941.0, 10386941.0]],
+    'SGP': ['2025-07', [6563000.0, 6563000.0, 6582000.0, 6582000.0, 6585000.0, 6223000.0, 6226000.0, 6230000.0, 6232000.0, 6223000.0, 6338000.0, 6549000.0, 6544000.0, 6540000.0]],
+    'SRB': ['2025-07', [1632897.126, 1649838.337, 1661939.679, 1676864.984, 1684932.52, 1688159.597, 1706715.035, 1717202.819, 1727690.156, 1734950.955, 1746245.439, 1754313.013, 1761573.566, 1768027.325]],
+    'SVK': ['2025-06', [1019000.0, 1019000.0, 1019000.0, 1019000.0, 1019000.0, 1019000.0, 1019000.0, 1019000.0, 1019000.0, 1019000.0, 1019000.0, 1019000.0, 1019000.0, 1019000.0]],
+    'SWE': ['2025-08', [4042000.0, 4042000.0, 4042000.0, 4042000.0, 4042000.0, 4042000.0, 4042000.0, 4042000.0, 4042000.0, 4042000.0, 4042000.0, 4042000.0, 4042000.0, 4042000.0]],
+    'THA': ['2025-07', [7540000.0, 7540000.0, 7540000.0, 7540000.0, 7540000.0, 7540000.0, 7540000.0, 7540000.0, 7540000.0, 7540000.0, 7540000.0, 7540000.0, 7540000.0, 7540000.0]],
+    'TUR': ['2025-08', [25628000.0, 25683000.0, 25719000.0, 25876000.0, 26088000.0, 26415000.0, 26445000.0, 22296000.0, 23538000.0, 23466000.0, 23465000.0, 24835000.0, 25443000.0, 25567000.0]],
+    'TWN': ['2025-03', [13630000.0, 13630000.0, 13630000.0, 13630000.0, 13630000.0, 13630000.0, 13630000.0, 13630000.0, 13630000.0, 13630000.0, 13630000.0, 13630000.0, 13630000.0, 13630000.0]],
+    'UKR': ['2025-07', [880000.0, 880000.0, 880000.0, 880000.0, 880000.0, 880000.0, 880000.0, 880000.0, 880000.0, 881000.0, 880000.0, 880000.0, 880000.0, 880000.0]],
+    'USA': ['2025-07', [261498926.26, 261498926.24, 261498926.26, 261498926.26, 261498926.26, 261498926.26, 261498926.26, 261498926.24, 261498926.26, 261498926.26, 261498926.26, 261498926.24, 261498926.2, 261498926.24]],
+    'UZB': ['2025-06', [11720000.0, 11700000.0, 11760000.0, 11620000.0, 11920000.0, 12230000.0, 12550000.0, 12830000.0, 13080000.0, 13360000.0, 13320000.0, 13600000.0, 13880000.0, 13850000.0]],
+    'ZAF': ['2025-07', [4034000.0, 4034000.0, 4034000.0, 4035000.0, 4035000.0, 4035000.0, 4035000.0, 4035000.0, 4035000.0, 4035000.0, 4035000.0, 4036000.0, 4036000.0, 4036000.0]],
+}
+_BZ_IRFCL = {   # nagranie MFW IRFCL (IRFCL56V_FTO, Rosja i Polska, 14 miesięcy) z 10.10.2026
+    'POL': ['2025-07', [16568000.0, 16568000.0, 16569000.0, 17069000.0, 17469000.0, 17690000.0, 17690000.0, 18340000.0, 18700000.0, 19151000.0, 19736000.0, 20333000.0, 20583000.0, 20833000.0]],
+    'RUS': ['2025-07', [74900000.0, 74800000.0, 74900000.0, 74800000.0, 74800000.0, 74800000.0, 74500000.0, 74300000.0, 74100000.0, 73900000.0, 73700000.0, 73400000.0, 73200000.0, 73000000.0]],
+}
+_BZ_SAFE = {   # nagranie pliku „Official Reserve Assets (2026)” (SAFE) z 08.10.2026: wiersz → 18 komórek (miesiące I–IX: USD i SDR, 100 mln)
+    'fx': ['33990.78', '24597.67', '34278.07', '24933.77', '33421.23', '24639.84', '34105.47', '24857.91', '34422.38', '25148.72', '34162.62', '25191.76', '34187.76', '25070.26', '34383.25', '25117.86', '34002.51', '25006.53'],
+    'imf': ['111.98', '81.04', '111.40', '81.03', '109.03', '80.38', '109.38', '79.72', '111.85', '81.72', '109.81', '80.97', '110.42', '80.97', '109.99', '80.35', '109.26', '80.35'],
+    'sdr': ['562.34', '406.94', '560.93', '408.02', '553.43', '408.02', '560.33', '408.40', '560.34', '409.38', '551.42', '406.62', '557.41', '408.75', '561.00', '409.83', '557.26', '409.83'],
+    'gold': ['3695.82', '2674.51', '3875.88', '2819.30', '3427.63', '2527.02', '3441.72', '2508.51', '3407.52', '2489.51', '3037.24', '2239.68', '3063.54', '2246.53', '3500.80', '2557.43', '3235.17', '2379.25'],
+    'other': ['1.89', '1.37', '0.65', '0.47', '-0.09', '-0.07', '0.27', '0.20', '3.77', '2.75', '2.09', '1.54', '-3.11', '-2.28', '-6.19', '-4.52', '-9.95', '-7.32'],
+    'total': ['38362.81', '27761.53', '38826.93', '28242.59', '37511.23', '27655.19', '38217.17', '27854.74', '38505.86', '28132.08', '37863.18', '27920.57', '37916.02', '27804.23', '38548.85', '28160.95', '37894.25', '27868.64'],
+    'qty': ['7419万盎司', '7419万盎司', '7422万盎司', '7422万盎司', '7438万盎司', '7438万盎司', '7464万盎司', '7464万盎司', '7496万盎司', '7496万盎司', '7544万盎司', '7544万盎司', '7608万盎司', '7608万盎司', '7673万盎司', '7673万盎司', '7747万盎司', '7747万盎司'],
+}
+
+
+class BankiZlotoV338(unittest.TestCase):
+    """v338 (F1Z4_ZLOTO): złoto banków centralnych z 10 do 55 krajów (ta sama odpowiedź MFW, nagranie 63 krajów z 10.10.2026), Rosja z drugiej tabeli
+    MFW (IRFCL — o 9 miesięcy świeższa), rezerwy Chin z miesięcznego zestawienia SAFE (nagranie pliku z 08.10.2026) w tabeli rezerw, kontrola dzienna
+    (druga tabela wobec głównej, skok zapasu u kraju bez wcześniejszych ruchów). Bez zegara (NOW przypięty) i bez sieci (nagrania)."""
+    NOW = datetime.datetime(2026, 10, 7, 17, 10, tzinfo=datetime.timezone.utc)
+    T = 32150.7466
+    SAFE_URL = 'https://www.safe.gov.cn/en/file/file/20261008/3cf0c472b23c4feeab5cfa72dc7ec36d.xlsx'
+    SAFE_PAGE = ('<html><title>Official Reserve Assets (2026)_Forex Reserves_State Administration of Foreign Exchange</title>'
+                 '<a href="/en/file/file/20261008/3cf0c472b23c4feeab5cfa72dc7ec36d.xlsx" title="xlsx.xlsx">xlsx</a></html>')
+    FUND = {'f': {'IAU': {'h': SurowceEtap3V298.IAU}}}
+    ORYGINALNE_10 = ['PL', 'CN', 'TR', 'IN', 'CZ', 'KZ', 'JP', 'US', 'DE', 'RU']
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self._td = zd._TD_T[0]; zd._TD_T[0] = None
+        zd._SU_RUN.clear()
+        self.enterContext(mock.patch.object(zd, 'NOW', self.NOW.isoformat()))
+
+    def tearDown(self):
+        zd._TD_T[0] = self._td; zd._SU_RUN.clear()
+
+    # ---- nagrania jako odpowiedzi źródeł ----
+    @staticmethod
+    def _miesiace(pierwszy, n):
+        out, m = [], pierwszy
+        for _ in range(n):
+            out.append(m); m = zd._imf_month_add(m, 1)
+        return out
+
+    @classmethod
+    def _sdmx(cls, wymiary, serie):
+        """Odpowiedź SDMX-JSON 2.0 MFW: wymiary — [(id, [wartości])] w kolejności klucza serii, serie — {krotka etykiet: [(miesiąc, liczba)]}."""
+        okresy = sorted({m for rows in serie.values() for m, _ in rows})
+        out = {}
+        for lab, rows in serie.items():
+            key = ':'.join(str(wymiary[i][1].index(x)) for i, x in enumerate(lab))
+            out[key] = {'observations': {str(okresy.index(m)): [str(v), None] for m, v in rows}}
+        return {'data': {'dataSets': [{'series': out}], 'structures': [{'dimensions': {
+            'series': [{'id': i, 'keyPosition': k, 'values': [{'id': v} for v in vals]} for k, (i, vals) in enumerate(wymiary)],
+            'observation': [{'id': 'TIME_PERIOD', 'values': [{'value': p.replace('-', '-M')} for p in okresy]}]}}]}}
+
+    @classmethod
+    def il_json(cls, il=None, unit='FTO', skala=None):
+        """MFW IL RGV_REVS — domyślnie nagranie 63 krajów (14 miesięcy); skala: {ISO3: mnożnik}."""
+        il = il or _BZ_IL63
+        kraje = sorted(il)
+        serie = {(c, 'RGV_REVS', unit, 'M'): list(zip(cls._miesiace(il[c][0], len(il[c][1])), [v * (skala or {}).get(c, 1) for v in il[c][1]])) for c in kraje}
+        return cls._sdmx([('COUNTRY', kraje), ('INDICATOR', ['RGV_REVS']), ('UNIT', [unit]), ('FREQUENCY', ['M'])], serie)
+
+    @classmethod
+    def irfcl_json(cls, ir=None, skala=None):
+        """MFW IRFCL IRFCL56V_FTO — domyślnie nagranie Rosji i Polski (14 miesięcy); skala: {ISO3: mnożnik}."""
+        ir = ir or _BZ_IRFCL
+        kraje = sorted(ir)
+        serie = {(c, 'IRFCLDT1_IRFCL56V_FTO', 'S1XS1311', 'M'): list(zip(cls._miesiace(ir[c][0], len(ir[c][1])), [v * (skala or {}).get(c, 1) for v in ir[c][1]]))
+                 for c in kraje}
+        return cls._sdmx([('COUNTRY', kraje), ('INDICATOR', ['IRFCLDT1_IRFCL56V_FTO']), ('SECTOR', ['S1XS1311']), ('FREQUENCY', ['M'])], serie)
+
+    @classmethod
+    def irfcl_stary(cls):
+        """Druga tabela dla starych testów etapu 3 (SurowceEtap3V298): te same miesiące co ich IL (Rosja X–XI 2025, Polska VI–VIII 2026) — bez nowych miesięcy."""
+        return cls.irfcl_json({'RUS': ['2025-10', [74800000.0, 74800000.0]], 'POL': ['2026-06', [20333000.0, 20583000.0, 20833000.0]]})
+
+    @staticmethod
+    def safe_xlsx(usun=None, suma=None, razem=None):
+        """Plik SAFE „Official Reserve Assets (2026)”: układ z nagrania (miesiące I–XII po dwie kolumny: USD i SDR; wiersze po chińsku i angielsku).
+        usun — wiersz do pominięcia (np. 'total'), suma — poprawka składnika „inne” (psuje sumę), razem — podmiana „razem” ostatniego miesiąca."""
+        S = {k: list(v) for k, v in _BZ_SAFE.items()}
+        if suma is not None:
+            S['other'][16] = suma
+        if razem is not None:
+            S['total'][16] = razem
+        glowa = ['项目\xa0\xa0Item']
+        for mm in range(1, 13):
+            glowa += [f'2026.{mm:02d}', None]
+        pad = lambda v: list(v) + [None] * (24 - len(v))   # noqa: E731 — miesiące X–XII bez danych
+        wiersze = [['官方储备资产'], ['Official reserve assets'], [], glowa, [''] + ['亿美元', '亿SDR'] * 12, [''] + ['100million USD', '100million SDR'] * 12, [],
+                   ['1.\xa0\xa0外汇储备'] + pad(S['fx']), ['Foreign currency reserves'], ['2.\xa0\xa0基金组织储备头寸'] + pad(S['imf']), ['IMF reserve position'],
+                   ['3.\xa0\xa0特别提款权'] + pad(S['sdr']), ['SDRs'], ['4.\xa0\xa0黄金'] + pad(S['gold']), ['Gold'], [''] + pad(S['qty']),
+                   ['5.\xa0\xa0其他储备资产'] + pad(S['other']), ['Other reserve assets'], ['合计'] + pad(S['total']), ['Total'], ['注：…']]
+        if usun == 'total':
+            wiersze = [w for w in wiersze if not (w and w[0] in ('合计', 'Total'))]
+        return _xlsx({'Sheet1': wiersze})
+
+    def dane(self, url):
+        """Odpowiedź nagrań dla adresów źródeł banków (IL 63 kraje, IRFCL, strona i plik SAFE); inny adres = None."""
+        return {zd.SU_IMF_IL_ZL_URL: lambda: json.dumps(self.il_json()).encode(), zd.SU_IMF_IRFCL_URL: lambda: json.dumps(self.irfcl_json()).encode(),
+                zd.SU_SAFE_ZL_PAGE: lambda: self.SAFE_PAGE.encode(), self.SAFE_URL: self.safe_xlsx}.get(url, lambda: None)()
+
+    def ctx(self, prev=None, fetch=None, hist_b=None):
+        c = SurowceEtap3V298().ctx(prev=prev, fetch=fetch or (lambda u, t, h=None: self.dane(u)))
+        for k, rows in (hist_b or {}).items():
+            c['H']['b'][k] = dict(rows)
+        return c
+
+    def przebieg_banki(self):
+        """Źródła banków po kolei jak w build_surowce (IL → druga tabela → SAFE) na nagraniach; → (ctx, banki z _su_etap3)."""
+        c = self.ctx()
+        zd._su_bk_imf(c); zd._su_bk_irfcl(c); zd._su_bk_safe(c)
+        return c, zd._su_etap3(c, None)[0]['banki']
+
+    def siec(self, fail=()):
+        """Sieć pełnego budowniczego (SurowceV295) z nagraniami banków tego testu zamiast zaślepek etapu 3."""
+        baza, calls = SurowceV295().siec()
+        moje = []
+
+        def fetch(url, timeout, headers=None):
+            for k in fail:
+                if k in url:
+                    raise zd.urllib.error.HTTPError(url, 503, 'x', {}, __import__('io').BytesIO(b''))
+            d = self.dane(url)
+            if d is not None:
+                moje.append(url)
+                return d
+            return baza(url, timeout, headers)
+        return fetch, moje
+
+    # ---- (1) lista krajów i zapytanie ----
+    def test_lista_55_krajow_pierwsze_10_bez_zmian_zapytanie_jednym_adresem(self):
+        self.assertEqual(len(zd.SU_BANKI), 55)
+        self.assertEqual([c for c, _ in zd.SU_BANKI[:10]], self.ORYGINALNE_10, 'dotychczasowe kraje na początku, w tej samej kolejności')
+        self.assertEqual((len({c for c, _ in zd.SU_BANKI}), len({c for _, c in zd.SU_BANKI})), (55, 55), 'kody ISO2 i ISO3 bez powtórzeń')
+        self.assertTrue(all(len(a) == 2 and len(b) == 3 for a, b in zd.SU_BANKI))
+        self.assertEqual(zd.SU_BANKI_PIERWSZE, frozenset(self.ORYGINALNE_10))
+        self.assertNotIn('HRV', [b for _, b in zd.SU_BANKI], 'kraj z 0 t łamie straż skali — nie dodawać')
+        u = zd.SU_IMF_IL_ZL_URL
+        self.assertEqual(u.split('/IL/+/')[1].split('.RGV_REVS')[0].split('+'), [b for _, b in zd.SU_BANKI])
+        self.assertTrue(u.endswith('.RGV_REVS.*.M?lastNObservations=25') and len(u) < 400, 'jedno zapytanie: 55 krajów, 25 miesięcy (24 + 1 na zmianę)')
+        self.assertTrue(all(b in _BZ_IL63 for _, b in zd.SU_BANKI), 'każdy kraj listy jest w nagraniu odpowiedzi')
+
+    def test_parser_55_krajow_z_nagrania_tony_zgodne_z_planem(self):
+        got, inna = zd.parse_imf_il_zloto(self.il_json())
+        self.assertEqual((len(got), inna), (55, []), '63 kraje w odpowiedzi, 55 z listy strony')
+        t = lambda c2: round(got[c2][max(got[c2])] / self.T, 1)   # noqa: E731
+        self.assertEqual((t('PL'), t('CN'), t('UZ'), t('KZ'), t('BR'), t('IQ'), t('US'), t('IT')), (672.9, 2346.4, 430.8, 377.1, 172.4, 175.6, 8133.5, 2451.8))
+        self.assertEqual((max(got['PL']), max(got['CN']), max(got['RU']), max(got['UZ'])), ('2026-09', '2026-06', '2025-11', '2026-07'), 'każdy kraj ze swoim miesiącem')
+        m12 = lambda c2, k: round((got[c2][max(got[c2])] - got[c2][zd._imf_month_add(max(got[c2]), -12)]) / self.T, 1)   # noqa: E731
+        self.assertEqual((m12('PL', 0), m12('UZ', 0), m12('KZ', 0), m12('BR', 0), m12('IQ', 0)), (157.5, 66.9, 60.6, 27.3, 10.4), 'zakupy roku z planu F1Z4')
+
+    # ---- (2) straż skali ----
+    def test_straz_skali_kraj_zero_pomijany_zmiana_skali_odrzuca_calosc(self):
+        il = {c: list(v) for c, v in _BZ_IL63.items()}
+        il['MAR'] = [il['MAR'][0], [0.0] * len(il['MAR'][1])]   # rezerwa spadła do zera
+        odrz = []
+        got, inna = zd.parse_imf_il_zloto(self.il_json(il), odrz)
+        self.assertEqual((len(got), 'MA' in got, odrz), (54, False, ['MA (0.0 t)']), 'jeden kraj spoza zakresu nie odrzuca pozostałych 54')
+        zd.parse_imf_il_zloto(self.il_json(il))   # wywołanie bez listy odrz (jak dawniej) też działa
+        ctx = self.ctx(fetch=lambda u, t, h=None: json.dumps(self.il_json(il)).encode())
+        zd._su_bk_imf(ctx)
+        self.assertTrue(any('poza zakresem skali' in x and 'MA (0.0 t)' in x for x in ctx['uwagi']), ctx['uwagi'])
+        self.assertNotIn('MA', ctx['H']['b'], 'bez wpisu kraju — poprzednie dane (gdyby były) zostają')
+        lista = [b for _, b in zd.SU_BANKI]
+        z = lambda n: self.il_json(skala={c: 1e6 for c in lista[:n]})   # noqa: E731 — n krajów w złej skali (np. zmiana atrybutu SCALE)
+        self.assertEqual(len(zd.parse_imf_il_zloto(z(11))[0]), 44, '11 z 55 (20%) — kraje pomijane')
+        self.assertRaisesRegex(RuntimeError, 'zmiana skali', zd.parse_imf_il_zloto, z(12))   # więcej niż co piąty kraj = cała odpowiedź odrzucona
+        self.assertRaisesRegex(RuntimeError, 'zmiana skali', zd.parse_imf_il_zloto, self.il_json(skala={c: 1e6 for c in lista}))
+        self.assertRaisesRegex(RuntimeError, 'brak krajów z jednostką FTO', zd.parse_imf_il_zloto, self.il_json(unit='USD'))
+
+
+    def test_historia_24_miesiace_dla_pierwszych_10_krajow_14_dla_pozostalych(self):
+        il = {c: list(v) for c, v in _BZ_IL63.items()}
+        for c in ('POL', 'UZB', 'ITA'):   # odpowiedź z 25 miesiącami (lastNObservations=25): 11 miesięcy wcześniej niż w nagraniu
+            il[c] = [zd._imf_month_add(il[c][0], -11), [100.0] * 11 + list(il[c][1])]
+        ctx = self.ctx(fetch=lambda u, t, h=None: json.dumps(self.il_json(il)).encode())
+        zd._su_bk_imf(ctx)
+        kr = zd._su_etap3(ctx, None)[0]['banki']['kr']
+        self.assertEqual((len(kr['PL']['d']), kr['PL']['d'][0][0]), (24, '2024-10'), 'Polska (jeden z pierwszych 10 krajów): 24 miesiące, linia na stronie')
+        self.assertEqual((len(kr['UZ']['d']), kr['UZ']['d'][0][0], len(kr['IT']['d'])), (14, '2025-06', 14), 'kraje dodane w v338: 14 miesięcy (zmiana 12 mies. + zapas)')
+        self.assertEqual((kr['UZ']['m12'], kr['IT']['m12'] is not None), (round((kr['UZ']['oz'] - il['UZB'][1][-13]) / self.T, 3), True))
+
+    # ---- (3) druga tabela MFW: Rosja i Polska ----
+    def test_irfcl_parser_nagranie_i_straz_skali_brazylii(self):
+        got = zd.parse_irfcl_zloto(self.irfcl_json())
+        self.assertEqual((sorted(got), max(got['RU']), got['RU']['2026-08'], got['PL']['2026-08'], len(got['RU'])), (['PL', 'RU'], '2026-08', 73000000.0, 20833000.0, 14))
+        self.assertEqual(round(got['RU']['2026-08'] / self.T, 1), 2270.6, 'plan F1Z4: Rosja VIII 2026 ≈ 2 270,6 t')
+        # Brazylia w tej tabeli: 5 544 278 723 „uncji” (≈ 172 mln t) — inna skala niż w głównej tabeli; kraj spoza listy SU_IRFCL jest ignorowany, a zła skala pomijana
+        odrz = []
+        zle = zd.parse_irfcl_zloto(self.irfcl_json(skala={'RUS': 1000}), odrz)
+        self.assertEqual((sorted(zle), odrz), (['PL'], [f'RU ({73000000.0 * 1000 / self.T:.1f} t poza zakresem)']))
+        self.assertRaisesRegex(RuntimeError, 'poza zakresem skali', zd.parse_irfcl_zloto, self.irfcl_json(skala={'RUS': 1000, 'POL': 1000}))
+        self.assertRaisesRegex(RuntimeError, 'brak serii', zd.parse_irfcl_zloto, self.irfcl_json({'BRA': ['2026-06', [5544278722.99959, 5544278722.99908]]}))
+
+    def test_rosja_z_drugiej_tabeli_nowsze_miesiace_polska_tylko_kontrola(self):
+        c, B = self.przebieg_banki()
+        ru, pl, cn = B['kr']['RU'], B['kr']['PL'], B['kr']['CN']
+        self.assertEqual((ru['asof'], ru['z'], ru['oz'], ru['irfcl_od']), ('2026-08', 'irfcl', 73000000.0, '2025-12'), 'Rosja VIII 2026 zamiast XI 2025')
+        self.assertEqual((ru['d'][-1], ru['m1'], ru['m12']), (['2026-08', round(73000000.0 / self.T, 3)], round((73000000.0 - 73200000.0) / self.T, 3),
+                                                              round((73000000.0 - 74800000.0) / self.T, 3)), 'zmiana z miesięcy z obu tabel')
+        self.assertEqual(round(ru['m12'], 1), -56.0, 'Rosja sprzedaje: −56 t w 12 miesięcy (w głównej tabeli −6,2 t do XI 2025)')
+        self.assertEqual([m for m, _ in ru['d']][:3], ['2024-10', '2024-11', '2024-12'], 'historia 24 mies. z głównej tabeli, potem druga tabela')
+        self.assertEqual([k[0] for k in ru['kontr']], ['2025-07', '2025-08', '2025-09', '2025-10', '2025-11'], 'miesiące wspólne obu tabel')
+        self.assertTrue(all(abs(a - b) <= 100000 for _, a, b in ru['kontr']), 'zgodne do zaokrągleń (Rosja do 100 000 uncji)')
+        self.assertEqual((pl['asof'], pl['z'], 'irfcl_od' in pl), ('2026-09', 'imf', False), 'Polska: główna tabela ma wrzesień — druga niczego nie zmienia')
+        self.assertEqual([k[0] for k in pl['kontr']], ['2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'])
+        self.assertTrue(all(abs(a - b) <= 1000 for _, a, b in pl['kontr']), 'Polska VIII 2026: 20 833 322,9 (główna) wobec 20 833 000 (druga)')
+        self.assertEqual((cn['asof'], cn['z']), ('2026-09', 'safe'), 'Chiny z SAFE jak dotąd')
+        self.assertEqual(len(B['kr']), 55)
+        self.assertEqual(B['order'][:5], ['US', 'DE', 'IT', 'FR', 'CN'], 'kolejność wg zapasu')
+        self.assertLess(len(json.dumps(B, separators=(',', ':'))), 30000, 'część banki ok. 23 KB (dawniej 6 KB)')
+
+    def test_irfcl_zla_skala_lub_brak_wspolnych_miesiecy_kraj_pominiety_z_notatka(self):
+        def sieci(skala):
+            return lambda u, t, h=None: json.dumps(self.il_json() if u == zd.SU_IMF_IL_ZL_URL else self.irfcl_json(skala=skala)).encode()
+        c = self.ctx(fetch=sieci({'RUS': 1.05}))   # Rosja +5% wobec głównej tabeli
+        zd._su_bk_imf(c)
+        self.assertEqual(zd._su_bk_irfcl(c), '2026-08', 'Polska zgodna — druga tabela przyjęta tylko dla niej')
+        self.assertNotIn('RU_irfcl', c['H']['b']); self.assertIn('PL_irfcl', c['H']['b'])
+        self.assertTrue(any('druga tabela — kraj pominięty' in x and 'RU: 2025-11' in x for x in c['uwagi']), c['uwagi'])
+        B = zd._su_etap3(c, None)[0]['banki']['kr']['RU']
+        self.assertEqual((B['asof'], B['z']), ('2025-11', 'imf'), 'Rosja zostaje przy głównej tabeli (zła skala nie zasila strony)')
+        c2 = self.ctx(fetch=sieci({'RUS': 1.05, 'POL': 0.9})); zd._su_bk_imf(c2)
+        self.assertRaisesRegex(RuntimeError, 'złoto z drugiej tabeli odrzucone', zd._su_bk_irfcl, c2)
+        self.assertNotIn('PL_irfcl', c2['H']['b'])
+        c3 = self.ctx()   # bez głównej tabeli w historii: skali nie da się sprawdzić
+        self.assertRaisesRegex(RuntimeError, 'brak miesięcy wspólnych', zd._su_bk_irfcl, c3)
+
+    def test_irfcl_starsza_od_glownej_nie_nadpisuje_i_historia_odtwarzana_z_pliku(self):
+        c, B = self.przebieg_banki()
+        c['H']['b']['RU']['2026-09'] = 72.9e6   # główna tabela dogoniła: Rosja IX 2026
+        B2 = zd._su_etap3(c, None)[0]['banki']['kr']['RU']
+        self.assertEqual((B2['asof'], B2['z'], B2['oz'], 'irfcl_od' in B2), ('2026-09', 'imf', 72.9e6, False), 'druga tabela tylko dla miesięcy NOWSZYCH od głównej')
+        # historia odtwarzana z poprzedniego pliku (brak surowce-hist.json): miesiące z drugiej tabeli i z SAFE wracają do osobnych serii
+        H = {'d': {}, 'w': {}, 'm': {}, 'f': {}, 'b': {}}
+        zd._su_hist3(H, {'v': zd.SU_V, 'banki': B})
+        self.assertEqual((min(H['b']['RU_irfcl']), max(H['b']['RU']), min(H['b']['CN_safe'])), ('2025-12', '2025-11', '2026-07'))
+        self.assertNotIn('PL_irfcl', H['b'], 'Polska bez miesięcy z drugiej tabeli w wyniku — nic do odtworzenia')
+
+    def test_bramka_irfcl_raz_na_dobe_po_bledzie_6_h_zrodlo_uzupelniajace(self):
+        due = lambda z, now: zd._su_due3('irfcl', z, now, {'st': {}, 'udane': set()})   # noqa: E731
+        U = datetime.timezone.utc
+        now = datetime.datetime(2026, 10, 8, 12, 0, tzinfo=U)
+        self.assertTrue(due({}, now), 'start')
+        self.assertFalse(due({'at': '2026-10-08T03:00:00+00:00', 'try': '2026-10-08T03:00:00+00:00', 'asof': '2026-08'}, now), 'udane 9 h temu — raz na dobę')
+        self.assertTrue(due({'at': '2026-10-07T03:00:00+00:00', 'try': '2026-10-07T03:00:00+00:00', 'asof': '2026-08'}, now))
+        e = {'at': '2026-10-06T03:00:00+00:00', 'asof': '2026-08', 'err': 'irfcl: HTTP Error 503'}
+        self.assertFalse(due(dict(e, **{'try': '2026-10-08T08:00:00+00:00'}), now), 'po błędzie — najwcześniej po 6 h (jak SAFE)')
+        self.assertTrue(due(dict(e, **{'try': '2026-10-08T05:00:00+00:00'}), now))
+        self.assertEqual([s for s, p in zd.SU_ZR if p == 'banki'], ['imf_il', 'irfcl', 'safe_zl'], 'druga tabela po głównej (jej historia służy do sprawdzenia skali)')
+        self.assertEqual((zd.SU_MIEKKIE['irfcl'], zd.SU_LIMIT_S['irfcl'], zd.SU_POBIERZ['irfcl'].__name__), ('imf_il', 20, '_su_bk_irfcl'))
+
+    # ---- (4) SAFE: rezerwy Chin razem ----
+    def test_safe_rezerwy_parser_nagranie_suma_i_zakres(self):
+        R = zd.parse_safe_rezerwy(self.safe_xlsx())
+        self.assertEqual(sorted(R), [f'2026-{m:02d}' for m in range(1, 10)], 'miesiące bez liczb (X–XII) pominięte')
+        self.assertEqual(R['2026-09'], [3789.425, 3400.251, 323.517], 'IX 2026: razem 3,789 bln USD, waluty, złoto (mld USD)')
+        self.assertEqual(R['2026-06'], [3786.318, 3416.262, 303.724])
+        self.assertEqual(zd.parse_safe_zloto(self.safe_xlsx())['2026-09'], 77470000.0, 'złoto z tego samego pliku jak dotąd')
+        self.assertRaisesRegex(RuntimeError, 'składniki rezerw', zd.parse_safe_rezerwy, self.safe_xlsx(suma='-0.95'))
+        self.assertRaisesRegex(RuntimeError, 'poza zakresem', zd.parse_safe_rezerwy, self.safe_xlsx(razem='3789.425'))   # 100 mln USD zamiast tysięcy: zły rząd wielkości
+        self.assertRaisesRegex(RuntimeError, 'brak arkusza', zd.parse_safe_rezerwy, self.safe_xlsx(usun='total'))
+        self.assertRaisesRegex(RuntimeError, 'brak arkusza', zd.parse_safe_rezerwy, SurowceEtap3V298.safe_xlsx())   # plik z samym złotem (bez wierszy rezerw)
+
+    def test_safe_rezerwy_do_pliku_banki_scalane_z_poprzednimi_blad_nie_psuje_zlota(self):
+        c = self.ctx()
+        self.assertEqual(zd._su_bk_safe(c), '2026-09')
+        self.assertEqual(sorted(c['rez']['CN'])[0], '2026-01')
+        prev = {'v': zd.SU_V, 'banki': {'rez_cn': {'d': [['2025-11', 3300.0, 3000.0, 250.0], ['2025-12', 3342.0, 3050.0, 260.0]]}, 'kr': {}}}
+        c2 = self.ctx(prev=prev); zd._su_bk_safe(c2)
+        rc = zd._su_etap3(c2, prev)[0]['banki']['rez_cn']
+        self.assertEqual((rc['u'], rc['z'], rc['asof'], len(rc['d']), rc['d'][0][0], rc['d'][-1]), ('mld USD', 'safe', '2026-09', 11, '2025-11', ['2026-09', 3789.425, 3400.251, 323.517]), rc)
+        c3 = self.ctx(fetch=lambda u, t, h=None: {zd.SU_SAFE_ZL_PAGE: self.SAFE_PAGE.encode(), self.SAFE_URL: SurowceEtap3V298.safe_xlsx()}[u])
+        self.assertEqual(zd._su_bk_safe(c3), '2026-08', 'plik z samym złotem: złoto zapisane')
+        self.assertTrue(any('rezerwy Chin z pliku odrzucone' in x for x in c3['uwagi']), c3['uwagi'])
+        self.assertNotIn('CN', c3.get('rez', {}))
+        self.assertNotIn('rez_cn', zd._su_etap3(c3, None)[0]['banki'], 'bez danych SAFE o rezerwach — bez pola')
+
+    # ---- (5) tabela rezerw: Chiny z SAFE ----
+    def _res(self):
+        d = [[m, v] for m, v in zip(self._miesiace('2025-06', 13), [3627.6, 3602.4, 3643.3, 3689.3, 3707.2, 3723.8, 3748.7, 3836.1, 3882.6, 3751.1, 3821.7, 3850.2, 3786.1])]
+        return {'src': 'x', 'url': 'y', 'unit': 'mld USD', 'asof_min': '2026-04', 'asof_max': '2026-08', 'order': ['CHN', 'JPN', 'TWN'], 'missing': [],
+                'countries': {'CHN': {'pl': 'Chiny', 'en': 'China', 'asof': '2026-06', 'total': 3786.1, 'ex_gold': 3482.4, 'fx': 3416.3, 'gold': 303.7, 'd1m': -64.1,
+                                      'd12m': 158.5, 'p12m': 4.4, 'd': d},
+                              'JPN': {'pl': 'Japonia', 'en': 'Japan', 'asof': '2026-08', 'total': 1207.5, 'ex_gold': 1083.4, 'fx': 1010.8, 'gold': 124.1, 'd1m': -79.6,
+                                      'd12m': -116.7, 'p12m': -8.8, 'd': [['2026-08', 1207.5]]},
+                              'TWN': {'pl': 'Tajwan', 'en': 'Taiwan', 'asof': '2026-04', 'total': 665.3, 'ex_gold': 602.5, 'fx': 602.5, 'gold': 62.9, 'd1m': 5.6, 'd12m': 37.5,
+                                      'p12m': 6.0, 'd': [['2026-04', 665.3]]}}}
+
+    def test_rezerwy_chiny_nakladka_safe_ix_2026_zamiast_vi(self):
+        c, B = self.przebieg_banki()
+        su = {'banki': B}
+        res = self._res()
+        o = zd.rezerwy_chiny_safe(res, su)
+        ch = o['countries']['CHN']
+        self.assertEqual((ch['asof'], ch['total'], ch['fx'], ch['gold'], ch['ex_gold']), ('2026-09', 3789.4, 3400.3, 323.5, 3465.9))
+        self.assertEqual((ch['d1m'], ch['d12m'], ch['p12m'], ch['z'], ch['safe_od']), (-65.5, 100.1, 2.7, 'safe', '2026-07'), 'zmiana miesiąca i roku z szeregu')
+        self.assertEqual((ch['d'][0], ch['d'][-1], len(ch['d'])), (['2025-09', 3689.3], ['2026-09', 3789.4], 13), 'szereg 13 miesięcy: MFW do VI, potem SAFE')
+        self.assertEqual((o['asof_min'], o['asof_max'], o['order']), ('2026-04', '2026-09', ['CHN', 'JPN', 'TWN']))
+        self.assertEqual(o['countries']['JPN'], res['countries']['JPN'], 'pozostałe kraje bez zmian')
+        self.assertEqual(res['countries']['CHN']['asof'], '2026-06', 'argument nie jest zmieniany')
+        self.assertEqual(zd.rezerwy_chiny_safe(o, su), o, 'drugie nałożenie nic nie zmienia')
+        # zgodność w miesiącu wspólnym (VI 2026): MFW 3786,1 wobec SAFE 3786,3 mld USD; waluty i złoto też
+        self.assertEqual((round(c['rez']['CN']['2026-06'][0], 1), round(c['rez']['CN']['2026-06'][1], 1), round(c['rez']['CN']['2026-06'][2], 1)), (3786.3, 3416.3, 303.7))
+        # MFW dogoniło (Chiny VII 2026): nakładka tylko z miesięcy NOWSZYCH
+        r2 = self._res(); r2['countries']['CHN'].update(asof='2026-07', total=3791.5, d=r2['countries']['CHN']['d'][1:] + [['2026-07', 3791.5]])
+        o2 = zd.rezerwy_chiny_safe(r2, su)['countries']['CHN']
+        self.assertEqual((o2['asof'], o2['safe_od'], o2['d1m'], o2['d'][-3:]), ('2026-09', '2026-08', -65.5, [['2026-07', 3791.5], ['2026-08', 3854.9], ['2026-09', 3789.4]]))
+        r3 = self._res(); r3['countries']['CHN'].update(asof='2026-09', total=3789.4)
+        self.assertIs(zd.rezerwy_chiny_safe(r3, su), r3, 'MFW ma wrzesień — bez nakładki')
+
+    def test_rezerwy_nakladka_straz_zgodnosci_i_odpornosc_na_brak_danych(self):
+        c, B = self.przebieg_banki()
+        su = {'banki': B}
+        r = self._res(); r['countries']['CHN']['total'] = 3000.0   # MFW VI = 3000, SAFE VI = 3786 (różnica 26%) — zła skala albo jednostka
+        self.assertIs(zd.rezerwy_chiny_safe(r, su), r)
+        self.assertTrue(any('bez nakładki' in x for x in zd.META['notes']), zd.META['notes'])
+        for zly in (None, {}, {'banki': None}, {'banki': {'rez_cn': {'d': 'x'}}}, {'banki': {'rez_cn': {'d': [['2026-09', 'x', 1, 2]]}}}, {'banki': {'rez_cn': {'d': []}}}):
+            r = self._res()
+            self.assertIs(zd.rezerwy_chiny_safe(r, zly), r, zly)
+        for zla in (None, {}, {'countries': None}, {'countries': {'CHN': None}}, {'countries': {'CHN': {'asof': 'x', 'd': []}}}, {'countries': {'JPN': {}}}):
+            self.assertIs(zd.rezerwy_chiny_safe(zla, su), zla, zla)
+        src = __import__('inspect').getsource(zd.main)
+        self.assertEqual(src.count('rezerwy_chiny_safe('), 3, 'nakładka w trzech ścieżkach zapisu rezerwy.json: z pamięci, nowa, po awarii MFW')
+        self.assertTrue(src.index("build_surowce(prev_su") < src.index('rezerwy_chiny_safe('), 'surowce budowane przed rezerwami (nakładka czyta _SU_RUN)')
+
+    # ---- (6) pełny przebieg budowniczego ----
+    def test_pelny_przebieg_55_krajow_druga_tabela_i_safe_bramki_i_notatki(self):
+        fetch, moje = self.siec()
+        out, h, zm = zd.build_surowce(None, None, SurowceV295().keys(), now=self.NOW, fetch=fetch, fund=self.FUND)
+        B = out['banki']
+        self.assertEqual((len(B['kr']), out['ok']['banki'], {'imf_il', 'irfcl', 'safe_zl'} <= zm), (55, True, True))
+        self.assertEqual((B['kr']['RU']['z'], B['kr']['RU']['asof'], B['kr']['CN']['z'], B['kr']['CN']['asof']), ('irfcl', '2026-08', 'safe', '2026-09'))
+        self.assertEqual((B['rez_cn']['asof'], B['rez_cn']['d'][-1]), ('2026-09', ['2026-09', 3789.425, 3400.251, 323.517]))
+        self.assertEqual(sorted(moje), sorted([zd.SU_IMF_IL_ZL_URL, zd.SU_IMF_IRFCL_URL, zd.SU_SAFE_ZL_PAGE, self.SAFE_URL]), 'po jednym zapytaniu na źródło')
+        self.assertTrue({'RU_irfcl', 'PL_irfcl', 'CN_safe', 'RU', 'UZ'} <= set(h['b']), sorted(h['b'])[:6])
+        self.assertFalse([x for x in zd.META['errors'] if 'banki' in x or 'irfcl' in x], zd.META['errors'])
+        # 10 minut później: bramki — bez zapytań do tych źródeł
+        fetch2, moje2 = self.siec()
+        out2, h2, zm2 = zd.build_surowce(out, h, SurowceV295().keys(), now=self.NOW + datetime.timedelta(minutes=10), fetch=fetch2, fund=self.FUND)
+        self.assertEqual((moje2, zm2 & {'imf_il', 'irfcl', 'safe_zl'}), ([], set()))
+        self.assertEqual(out2['banki']['kr'], B['kr'], 'dane bez zmian z poprzedniego pliku')
+
+    def test_pelny_przebieg_blad_drugiej_tabeli_to_notatka_nie_blad_czesci(self):
+        fetch, moje = self.siec(fail=('IMF.STA/IRFCL',))
+        out, h, zm = zd.build_surowce(None, None, SurowceV295().keys(), now=self.NOW, fetch=fetch, fund=self.FUND)
+        self.assertIs(out['ok']['banki'], True, 'główna tabela udana — błąd drugiej to notatka')
+        self.assertNotIn('banki', out.get('err') or {})
+        self.assertEqual((out['banki']['kr']['RU']['z'], out['banki']['kr']['RU']['asof']), ('imf', '2025-11'), 'Rosja z głównej tabeli (jak przed v338)')
+        self.assertIn('irfcl: HTTP Error 503', out['st']['irfcl']['err'])
+        self.assertFalse(any('irfcl' in x for x in zd.META['errors']), zd.META['errors'])
+        self.assertTrue(any(x.startswith('surowce: irfcl: HTTP Error 503') and 'notatka' in x for x in zd.META['notes']), zd.META['notes'])
+        self.assertNotIn('irfcl', zm)
+
+    # ---- (7) kontrola dzienna ----
+    def test_kontrola_druga_tabela_wobec_glownej_zgodne_i_roznica(self):
+        k = SurowceV295._kontrola()
+        c, B = self.przebieg_banki()
+        j = {'v': 2, 'banki': B}
+        P = k.surowce_porownania3(j)
+        W = dict(P['wiersze'])
+        pol = [o for o in W if o.startswith('banki: Polska')][0]; ros = [o for o in W if o.startswith('banki: Rosja')][0]
+        self.assertEqual((W[pol], W[ros]), ('✅', '✅'))
+        self.assertIn('6 wspólnych mies. (do 2026-08): zgodne', pol); self.assertIn('5 wspólnych mies. (do 2025-11): zgodne', ros)
+        sk = [o for o in W if o.startswith('banki: skok zapasu')][0]
+        self.assertTrue(sk.endswith('— brak') and '(55 krajów)' in sk and W[sk] == '✅', sk)
+        self.assertEqual(P['uwagi'], [], P['uwagi'])
+        R = {'bledy': [], 'uwagi': []}
+        z = k.surowce_kontrola(j, R)
+        self.assertEqual(R['bledy'], []); self.assertTrue(any(o.startswith('banki: Chiny — MFW vs SAFE') for o, _ in z['wiersze']))
+        # różnica: druga tabela dla Polski o 2 tony wyżej (powyżej tolerancji), Rosja bez zmian
+        j2 = json.loads(json.dumps(j)); j2['banki']['kr']['PL']['kontr'][-1][2] += 70000
+        P2 = k.surowce_porownania3(j2)
+        W2 = dict(P2['wiersze']); o2 = [o for o in W2 if o.startswith('banki: Polska')][0]
+        self.assertEqual(W2[o2], '\u26a0\ufe0f'); self.assertIn('różne: 2026-08', o2)
+        self.assertEqual(len(P2['uwagi']), 1); self.assertTrue(P2['uwagi'][0].startswith('surowce: banki — Polska: druga tabela MFW różni się od głównej w 2026-08'))
+        self.assertEqual(k.SU3_TABELE_TOL, (5000, 0.001))
+        # kraj bez wpisu kontr albo uszkodzony — bez wiersza i bez wyjątku
+        for zle in ({'v': 2, 'banki': {'kr': {'PL': {'kontr': 'x'}, 'RU': None}}}, {'v': 2, 'banki': {'kr': []}}, {'v': 2, 'banki': None}, {'v': 2}):
+            self.assertIsInstance(k.surowce_porownania3(zle)['wiersze'], list)
+
+    def test_kontrola_skok_zapasu_ponad_50_t_u_kraju_bez_wczesniejszych_ruchow(self):
+        k = SurowceV295._kontrola()
+        mm = self._miesiace('2025-09', 13)
+        wpis = lambda t: {'d': [[m, v] for m, v in zip(mm, t)]}   # noqa: E731
+        spokoj = [100.0, 100.2, 100.2, 100.0, 100.0, 100.0, 100.1, 100.1, 100.1, 100.1, 100.0, 100.0]
+        self.assertEqual(k.su3_skok(wpis(spokoj + [160.0])), ('2026-09', 60.0), 'zapas stał w miejscu, potem +60 t w miesiącu')
+        self.assertEqual(k.su3_skok(wpis(spokoj + [40.0])), ('2026-09', -60.0), 'sprzedaż też')
+        self.assertIsNone(k.su3_skok(wpis(spokoj + [150.0])), 'dokładnie 50 t — poniżej progu (powyżej 50)')
+        self.assertIsNone(k.su3_skok(wpis(spokoj[:-1] + [105.0, 160.0])), 'poprzedni miesiąc +5 t = wcześniejszy ruch')
+        self.assertIsNone(k.su3_skok(wpis([100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 210.0, 270.0])), 'kraj, który kupuje co miesiąc (Polska)')
+        self.assertIsNone(k.su3_skok(wpis(spokoj[-2:] + [160.0])), 'za krótka historia (mniej niż 3 poprzednie zmiany)')
+        dziura = wpis(spokoj + [160.0]); dziura['d'][6][0] = '2027-01'
+        self.assertIsNone(k.su3_skok(dziura), 'przerwa w miesiącach — brak oceny')
+        self.assertIsNone(k.su3_skok(None)); self.assertIsNone(k.su3_skok({'d': 'x'})); self.assertIsNone(k.su3_skok({}))
+        # wiersz i uwaga w porównaniach
+        j = {'v': 2, 'banki': {'kr': {'HU': wpis(spokoj + [160.0]), 'PL': wpis(spokoj + [101.0])}}}
+        P = k.surowce_porownania3(j)
+        o = [o for o, _ in P['wiersze'] if o.startswith('banki: skok zapasu')][0]
+        self.assertTrue(o.endswith('HU 2026-09 +60,0 t') and '(2 krajów)' in o, o)
+        self.assertEqual([zn for oo, zn in P['wiersze'] if oo == o], ['\u26a0\ufe0f'])
+        self.assertEqual(len(P['uwagi']), 1); self.assertIn('HU 2026-09: zapas zmienił się o +60,0 t w jednym miesiącu', P['uwagi'][0])
+        self.assertIn('nie musi być błędem', P['uwagi'][0])
+        self.assertEqual((k.SU3_SKOK_T, k.SU3_SPOKOJ_T, k.SU3_SPOKOJ_N), (50.0, 1.0, 3))
+
+    def test_test_wsteczny_regula_skoku_na_historii_2016_2026_dwa_trafienia(self):
+        """Reguła skoku na 120 miesiącach 55 krajów (nagranie MFW IL z 10.10.2026, odtwarzane z wartości testowych niżej): HU III 2021 +63,0 t i JP III 2021
+        +80,8 t. Pełne nagranie (216 KB) jest poza repozytorium — skrypt ws53/v338-f1z4/bt_skok.py; tu przypadki brzegowe na tych dwóch szeregach."""
+        k = SurowceV295._kontrola()
+        mm = self._miesiace('2020-03', 13)
+        hu = [32.0] * 12 + [95.0]   # Węgry: 32 t do II 2021, III 2021 — 94,5 t (prawdziwy zakup)
+        jp = [765.2] * 12 + [846.0]
+        self.assertEqual(k.su3_skok({'d': [[m, v] for m, v in zip(mm, hu)]}), ('2021-03', 63.0))
+        m, x = k.su3_skok({'d': [[m, v] for m, v in zip(mm, jp)]})
+        self.assertEqual((m, round(x, 6)), ('2021-03', 80.8))
+
+    def test_pelny_przebieg_kontrola_nie_zglasza_bledow_na_nagraniach(self):
+        k = SurowceV295._kontrola()
+        fetch, _ = self.siec()
+        out, h, zm = zd.build_surowce(None, None, SurowceV295().keys(), now=self.NOW, fetch=fetch, fund=self.FUND)
+        R = {'bledy': [], 'uwagi': []}
+        z = k.surowce_kontrola(out, R)
+        self.assertEqual((R['bledy'], z['spojnosc']), ([], []), 'żadnej sprzeczności wewnątrz pliku z 55 krajami')
+        W = dict(z['wiersze'])
+        for pref in ('banki: Polska', 'banki: Rosja', 'banki: skok zapasu', 'banki: odczyt Rosji'):
+            self.assertEqual([zn for o, zn in z['wiersze'] if o.startswith(pref)], ['✅'], pref)
+        self.assertNotIn('\u26a0\ufe0f', [zn for o, zn in z['wiersze'] if o.startswith('banki')])
+
+    # ---- poprawki po przeglądzie ----
+    def test_irfcl_okno_24_miesiace_skala_sprawdzana_tez_wobec_przyjetej_serii_rosja_sie_odswieza(self):
+        self.assertTrue(zd.SU_IMF_IRFCL_URL.endswith('.M?lastNObservations=24'), 'długie okno: więcej miesięcy wspólnych z główną tabelą')
+        # główna tabela Rosji stoi na XI 2025; poprzednio PRZYJĘTA seria drugiej tabeli sięga VIII 2026; świeża odpowiedź ma tylko VIII–IX 2026 (bez miesięcy wspólnych z IL)
+        stara = {m: v for m, v in zip(self._miesiace('2025-07', 14), _BZ_IRFCL['RUS'][1])}
+        il = {m: v for m, v in zip(self._miesiace('2025-07', 5), _BZ_IL63['RUS'][1])}
+        def siec(mnoznik):
+            ir = {'RUS': ['2026-08', [stara['2026-08'] * mnoznik, 72900000.0 * mnoznik]]}
+            return lambda u, t, h=None: json.dumps(self.irfcl_json(ir)).encode()
+        c = self.ctx(fetch=siec(1), hist_b={'RU': il, 'RU_irfcl': stara})
+        self.assertEqual(zd._su_bk_irfcl(c), '2026-09', 'przyjęta, choć brak miesięcy wspólnych z główną tabelą — skala wobec wcześniej przyjętej serii')
+        self.assertEqual((c['H']['b']['RU_irfcl']['2026-09'], c['uwagi']), (72900000.0, []))
+        B = zd._su_etap3(c, None)[0]['banki']['kr']['RU']
+        self.assertEqual((B['asof'], B['z'], B['irfcl_od']), ('2026-09', 'irfcl', '2025-12'), 'Rosja dalej się odświeża')
+        c2 = self.ctx(fetch=siec(1.05), hist_b={'RU': il, 'RU_irfcl': stara})   # +5% wobec przyjętej serii = zła skala
+        self.assertRaisesRegex(RuntimeError, 'złoto z drugiej tabeli odrzucone', zd._su_bk_irfcl, c2)
+        self.assertNotIn('2026-09', c2['H']['b']['RU_irfcl'])
+        c3 = self.ctx(fetch=siec(1), hist_b={'RU': il})   # bez przyjętej serii (pierwszy raz) i bez miesięcy wspólnych: skali nie da się sprawdzić
+        self.assertRaisesRegex(RuntimeError, 'brak miesięcy wspólnych', zd._su_bk_irfcl, c3)
+
+    def test_polska_z_drugiej_tabeli_tylko_kontrola_nawet_gdy_glowna_zostaje_w_tyle(self):
+        il = {c: list(v) for c, v in _BZ_IL63.items()}
+        il['POL'] = [il['POL'][0], il['POL'][1][:-2]]   # główna tabela Polski kończy się o 2 miesiące wcześniej (VII 2026), druga ma VIII
+        c = self.ctx(fetch=lambda u, t, h=None: json.dumps(self.il_json(il) if u == zd.SU_IMF_IL_ZL_URL else self.irfcl_json()).encode())
+        zd._su_bk_imf(c); zd._su_bk_irfcl(c)
+        kr = zd._su_etap3(c, None)[0]['banki']['kr']
+        self.assertEqual((kr['PL']['asof'], kr['PL']['z'], 'irfcl_od' in kr['PL']), ('2026-07', 'imf', False), 'Polska zostaje przy głównej tabeli (druga zaokrągla do 1000 uncji)')
+        self.assertEqual((kr['RU']['asof'], kr['RU']['z']), ('2026-08', 'irfcl'), 'Rosja z drugiej tabeli jak dotąd')
+        self.assertEqual([x[0] for x in kr['PL']['kontr']], ['2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07'], 'wspólne miesiące zostają do kontroli dziennej')
+
+    def test_kontrola_swiezosc_rosji_wobec_reszty_listy(self):
+        k = SurowceV295._kontrola()
+        c, B = self.przebieg_banki()
+        j = {'v': 2, 'banki': B}
+        P = k.surowce_porownania3(j)
+        wr = [(o, zn) for o, zn in P['wiersze'] if o.startswith('banki: odczyt Rosji')]
+        self.assertEqual(len(wr), 1); self.assertEqual(wr[0][1], '✅')
+        self.assertIn('2026-08 (druga tabela MFW), 1 mies. za najnowszym', wr[0][0]); self.assertEqual(P['uwagi'], [])
+        def z_rosja(m, z):
+            j2 = json.loads(json.dumps(j)); j2['banki']['kr']['RU'].update({'asof': m, 'z': z})
+            return k.surowce_porownania3(j2)
+        for m, zal, zn in (('2026-05', 4, '✅'), ('2026-04', 5, '\u26a0\ufe0f')):   # próg: powyżej 4 miesięcy
+            P2 = z_rosja(m, 'irfcl'); w = [(o, x) for o, x in P2['wiersze'] if o.startswith('banki: odczyt Rosji')][0]
+            self.assertEqual((w[1], f'{zal} mies.' in w[0], len(P2['uwagi'])), (zn, True, 0 if zn == '✅' else 1), m)
+        P3 = z_rosja('2025-11', 'imf')   # druga tabela stale odrzucana: Rosja z głównej tabeli, 10 mies. za resztą listy
+        w = [(o, x) for o, x in P3['wiersze'] if o.startswith('banki: odczyt Rosji')][0]
+        self.assertEqual(w[1], '\u26a0\ufe0f'); self.assertIn('2025-11 (główna tabela MFW), 10 mies.', w[0])
+        self.assertTrue(len(P3['uwagi']) == 1 and P3['uwagi'][0].startswith('surowce: banki — Rosja: ostatni odczyt 2025-11') and 'nie odświeża Rosji' in P3['uwagi'][0])
+        self.assertEqual(k.SU3_RU_ZALEGLOSC, 4)
+        self.assertEqual([o for o, _ in k.surowce_porownania3({'v': 2, 'banki': {'kr': {'PL': {'asof': '2026-09'}}}})['wiersze'] if 'Rosji' in o], [], 'bez Rosji — bez wiersza')

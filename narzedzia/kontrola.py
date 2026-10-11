@@ -4564,6 +4564,88 @@ def surowce_spojnosc3(j):
     return zle
 
 
+# v338 (F1Z4): złoto banków centralnych — druga tabela MFW wobec głównej i skok zapasu u kraju bez wcześniejszych ruchów.
+# Skok: zmiana zapasu w ostatnim miesiącu danych kraju o ponad SU3_SKOK_T t, gdy w co najmniej SU3_SPOKOJ_N poprzednich kolejnych miesiącach (do 12)
+# zapas zmieniał się najwyżej o SU3_SPOKOJ_T t (zaokrąglenia) = ⚠ „do sprawdzenia” — nie błąd (bank mógł naprawdę kupić albo sprzedać; kraj mógł też
+# zmienić sposób raportowania). Test wsteczny (ws53/v338-f1z4/bt_skok.py) na historii 2016–2026 55 krajów z listy strony (6544 zmiany miesięczne,
+# MFW IL RGV_REVS, nagranie 10.10.2026): reguła wskazuje 2 miesiące — Węgry III 2021 (+63,0 t, zapas 32 → 95 t: prawdziwy zakup) i Japonia III 2021
+# (+80,8 t: zmiana sposobu raportowania) — ok. 0,03% miesięcy kraju. Sam próg 50 t, bez warunku „bez wcześniejszych ruchów”, wskazałby 7 miesięcy
+# (w tym 4 sprzedaże Turcji i Polskę VI 2019, które mają wcześniejsze ruchy); z warunkiem próg 30 t daje 7 trafień, próg 100 t — żadnego.
+SU3_SKOK_T = 50.0
+SU3_SPOKOJ_T = 1.0
+SU3_SPOKOJ_N = 3
+SU3_TABELE_TOL = (5000, 0.001)   # uncje i ułamek — druga tabela wobec głównej w miesiącu wspólnym (zaokrąglenia drugiej: Polska do 1000 uncji, Rosja do 100 000)
+SU3_TABELE_KRAJE = (('PL', 'Polska'), ('RU', 'Rosja'))
+SU3_RU_ZALEGLOSC = 4   # miesięcy — o tyle ostatni odczyt Rosji może być starszy od najnowszego odczytu na liście (druga tabela MFW: zwykle 1–2 mies., IL: 10)
+
+
+def _su3_mies(m):
+    try:
+        return int(m[:4]) * 12 + int(m[5:7])
+    except (TypeError, ValueError):
+        return None
+
+
+def su3_skok(e):
+    """(miesiąc, zmiana w t) ostatniego miesiąca kraju z wpisu banki.kr[kraj], gdy to skok u kraju bez wcześniejszych ruchów (zob. SU3_SKOK_T);
+    inaczej None. Miesiące muszą być kolejne — przerwa w szeregu wśród poprzednich miesięcy = brak oceny."""
+    d = [x for x in (e.get('d') or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[0], str) and _su3_num(x[1])] if isinstance(e, dict) else []
+    dz = []
+    for a, b in zip(d, d[1:]):
+        ma, mb = _su3_mies(a[0]), _su3_mies(b[0])
+        dz.append((b[0], b[1] - a[1] if ma is not None and mb == ma + 1 else None))
+    if len(dz) < SU3_SPOKOJ_N + 1 or dz[-1][1] is None or abs(dz[-1][1]) <= SU3_SKOK_T:
+        return None
+    wcz = [y for _, y in dz[-13:-1]]
+    if len(wcz) < SU3_SPOKOJ_N or any(y is None or abs(y) > SU3_SPOKOJ_T for y in wcz):
+        return None
+    return dz[-1][0], dz[-1][1]
+
+
+def surowce_banki_porownania(j):
+    """v338 (F1Z4): wiersze porównań złota banków centralnych → ([(opis, znak)], [uwagi]): Polska i Rosja — druga tabela MFW (IRFCL) wobec głównej (IL)
+    w miesiącach wspólnych (✅ zgodne, ⚠ różnica powyżej SU3_TABELE_TOL) oraz skok zapasu u kraju bez wcześniejszych ruchów (⚠ do sprawdzenia)."""
+    W, U = [], []
+    kr = ((j.get('banki') or {}).get('kr')) if isinstance(j, dict) and isinstance(j.get('banki'), dict) else None
+    if not isinstance(kr, dict):
+        return W, U
+    for kod, nazwa in SU3_TABELE_KRAJE:
+        e = kr.get(kod)
+        k = [x for x in (e.get('kontr') or []) if isinstance(x, list) and len(x) == 3 and _su3_num(x[1]) and _su3_num(x[2])] if isinstance(e, dict) else []
+        if not k:
+            continue
+        zle = [x for x in k if abs(x[1] - x[2]) > max(SU3_TABELE_TOL[0], SU3_TABELE_TOL[1] * x[1])]
+        W.append((f'banki: {nazwa} — druga tabela MFW wobec głównej, {len(k)} wspólnych mies. (do {k[-1][0]}): '
+                  + ('różne: ' + ', '.join(f'{x[0]} {x[1] / SU3_OZ_T:.1f} vs {x[2] / SU3_OZ_T:.1f} t' for x in zle[:3]) if zle else 'zgodne').replace('.', ','),
+                  '\u26a0\ufe0f' if zle else '✅'))
+        if zle:
+            U.append(f'surowce: banki — {nazwa}: druga tabela MFW różni się od głównej w {zle[-1][0]} ({zle[-1][1] / SU3_OZ_T:.1f} vs {zle[-1][2] / SU3_OZ_T:.1f} t) '
+                     '— sprawdzić, czy to zmiana skali albo rewizja danych'.replace('.', ','))
+    ru = kr.get('RU')   # świeżość Rosji: druga tabela MFW zasila ją tylko, gdy przejdzie sprawdzenie skali — gdy jest stale odrzucana albo MFW jej nie publikuje,
+    mr = _su3_mies(ru.get('asof')) if isinstance(ru, dict) else None   # Rosja zostaje na ostatnim odczycie (w META tylko notatka), więc liczymy zaległość wobec reszty listy
+    mx = max((x for x in (_su3_mies(e.get('asof')) for e in kr.values() if isinstance(e, dict)) if x is not None), default=None)
+    if mr is not None and mx is not None:
+        zal = mx - mr
+        ostatni = ru['asof']
+        zr = 'druga tabela MFW' if ru.get('z') == 'irfcl' else 'główna tabela MFW'
+        W.append((f'banki: odczyt Rosji {ostatni} ({zr}), {zal} mies. za najnowszym odczytem na liście (próg {SU3_RU_ZALEGLOSC})',
+                  '\u26a0\ufe0f' if zal > SU3_RU_ZALEGLOSC else '✅'))
+        if zal > SU3_RU_ZALEGLOSC:
+            U.append(f'surowce: banki — Rosja: ostatni odczyt {ostatni} ({zr}), {zal} mies. za resztą listy — druga tabela MFW nie odświeża Rosji '
+                     '(odrzucona przy sprawdzeniu skali albo MFW jej nie publikuje) — sprawdzić notatki zbieracza (irfcl)')
+    sk = []
+    for kod, e in sorted(kr.items()):
+        s = su3_skok(e)
+        if s:
+            sk.append((kod, s[0], s[1]))
+    W.append((f'banki: skok zapasu o ponad {SU3_SKOK_T:g} t w miesiącu u kraju bez wcześniejszych ruchów ({len(kr)} krajów) — '
+              + (', '.join(f'{k} {m} {x:+.1f} t' for k, m, x in sk) if sk else 'brak').replace('.', ','), '\u26a0\ufe0f' if sk else '✅'))
+    for k, m, x in sk:
+        U.append(f'surowce: banki — {k} {m}: zapas zmienił się o {x:+.1f} t w jednym miesiącu, choć wcześniej stał w miejscu — do sprawdzenia '
+                 '(prawdziwy zakup albo sprzedaż, zmiana sposobu raportowania albo zmiana skali; nie musi być błędem)'.replace('.', ','))
+    return W, U
+
+
 def surowce_porownania3(j):
     """Porównania etapu 3 z pliku strony (bez sieci): wartość aktywów GLD/GLDM wobec uncji × ceny (⚠️ powyżej SU3_NAV_PROG, test wsteczny
     w komentarzu stałej), złoto Chin — MFW wobec SAFE w tych samych miesiącach (ℹ️: SAFE podaje 万盎司 — zgodność do 5000 uncji; za krótka
@@ -4594,6 +4676,9 @@ def surowce_porownania3(j):
         W.append((f'banki: Chiny — MFW vs SAFE, {len(cn["kontr"])} wspólnych mies. (do {cn["kontr"][-1][0]}): '
                   + ('różne: ' + ', '.join(f'{x[0]} {x[1] / SU3_OZ_T:.1f} vs {x[2] / SU3_OZ_T:.1f} t' for x in zle[:3]) if zle else 'zgodne')
                   .replace('.', ','), 'ℹ️'))
+    Wb, Ub = surowce_banki_porownania(j)   # v338 (F1Z4): Polska i Rosja — druga tabela wobec głównej; skok zapasu u kraju bez wcześniejszych ruchów
+    W += Wb
+    U += Ub
     P = j.get('pozycje') if isinstance(j.get('pozycje'), dict) else None
     if P is not None:
         cz = []
