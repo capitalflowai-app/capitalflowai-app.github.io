@@ -4209,6 +4209,158 @@ def build_bilans():
     return out
 
 
+# v337 (F2Z4): MFW — kto trzyma czyje papiery (Portfolio Investment Positions by Counterpart Economy, PIP, dawniej CPIS): STAN papierów
+# portfelowych (akcje, udziały w funduszach, papiery dłużne) inwestorów z jednej gospodarki u emitentów z drugiej, na koniec półrocza; bez klucza.
+# Zastępuje widok dawnego silnika z 24.09 (data/widoki/imf-portfolio-pairs.json, ważny do 24.10.2026). Raz na dobę lekkie zapytanie: Polska jako
+# emitent — wszyscy posiadacze (ok. 13 KB, 5–8 s; daje najnowsze półrocze). Pełna macierz (wszyscy posiadacze × wszyscy emitenci; 10.10.2026: ok.
+# 0,6 MB z kompresją, 39 s) tylko po nowym półroczu albo gdy część „pary” ma ponad PIP_PELNE_DNI dni (spóźnione zgłoszenia), nie w długim przebiegu
+# (po PIP_LATE s od startu — wtedy w następnym) i najwyżej raz na PIP_PONOW_H h po błędzie. Z macierzy: PIP_TOP największych par dwóch różnych
+# gospodarek i Polska jako inwestor. Kwoty w mln USD (0,1); brak = brak, nigdy 0. Świat (G001), regiony i grupy (U…, G…, GX…) poza parami;
+# rezerwy banków centralnych i organizacji (TX093), papiery organizacji międzynarodowych (TX091) i nieprzypisane (TX983) — osobno, w sumie świata.
+# Wymiary przypięte (S1.S1): gwiazdka w sektorach = ponad 45 s (sonda planisty 10.10.2026).
+PIP_BASE = 'https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/PIP/+/'
+PIP_TAIL = '.S?lastNObservations=2&dimensionAtObservation=TIME_PERIOD&attributes=none'
+PIP_POL_URL = PIP_BASE + '*.A.P_TOTINV_P_USD.S1.S1.POL' + PIP_TAIL
+PIP_ALL_URL = PIP_BASE + '*.A.P_TOTINV_P_USD.S1.S1.*' + PIP_TAIL
+PIP_PAGE = 'https://data.imf.org/en/datasets/IMF.STA:PIP'
+PIP_SRC = 'International Monetary Fund, Portfolio Investment Positions by Counterpart Economy (PIP)'
+PIP_TOP, PIP_POL_TOP = 20, 15
+PIP_SWIAT = 'G001'
+PIP_SPEC = ('TX091', 'TX093', 'TX983')   # organizacje międzynarodowe (emitent); SEFER + SSIO — banki centralne i organizacje (posiadacz); nieprzypisane
+PIP_MIN_RAP = 10          # najnowsze półrocze = najnowsze, za które zgłosiło co najmniej tyle gospodarek (pojedyncze wczesne zgłoszenie nie przestawia okresu; 10.10.2026: 80)
+PIP_PELNE_DNI = 30        # część „pary” starsza = pełna macierz jeszcze raz (spóźnione zgłoszenia i korekty)
+PIP_PONOW_H = 6           # po nieudanej pełnej macierzy następna próba najwcześniej po tylu godzinach
+PIP_LATE = BACK_LATE      # s od startu przebiegu — dalej bez pełnej macierzy
+PIP_T_LEKKIE, PIP_T_PELNE = 60, 150   # limit czasu zapytania, s
+
+
+def _pip_half(p):
+    """'2025-S2' → '2025-S2'; inny zapis → None."""
+    s = str(p or '').strip()
+    return s if re.match(r'^\d{4}-S[12]$', s) else None
+
+
+def _pip_prev(h):
+    """Półrocze wcześniej: '2025-S2' → '2025-S1', '2025-S1' → '2024-S2'."""
+    return f'{h[:4]}-S1' if h.endswith('S2') else f'{int(h[:4]) - 1}-S2'
+
+
+def _pip_gosp(c):
+    """Gospodarka (kraj albo terytorium): kod ISO 3 litery albo terytorium TX### spoza PIP_SPEC; świat, regiony i grupy — nie."""
+    c = str(c or '')
+    return bool(re.match(r'^[A-Z]{3}$', c)) or (bool(re.match(r'^TX\d{3}$', c)) and c not in PIP_SPEC)
+
+
+def _pip_ser(j):
+    """SDMX-JSON PIP → {(posiadacz, emitent): {półrocze: USD}} tylko dla stanu razem (P_TOTINV_P_USD, S1.S1, półrocznie)."""
+    out = {}
+    for lab, rows in parse_imf_sdmx(j, _pip_half).items():
+        if len(lab) == 7 and lab[2] == 'P_TOTINV_P_USD' and lab[6] == 'S':
+            out[(lab[0], lab[5])] = dict(rows)
+    if not out:
+        raise RuntimeError('PIP: brak serii stanu portfelowego')
+    return out
+
+
+def _pip_okres(ser):
+    """Najnowsze półrocze, za które zgłosiło co najmniej PIP_MIN_RAP gospodarek-posiadaczy (dowolny emitent); brak = błąd."""
+    rap = {}
+    for (h, i), d in ser.items():
+        if _pip_gosp(h):
+            for p in d:
+                rap.setdefault(p, set()).add(h)
+    ok = [p for p, s in rap.items() if len(s) >= PIP_MIN_RAP]
+    if not ok:
+        raise RuntimeError(f'PIP: żadne półrocze nie ma {PIP_MIN_RAP} zgłaszających gospodarek')
+    return max(ok)
+
+
+def _pip_m(v):
+    return None if v is None else round(v / 1e6, 1)
+
+
+def _pip_rola(ser, kod, rola, L):
+    """Gospodarka `kod` jako emitent (rola 'e': kto trzyma jej papiery) albo jako inwestor (rola 'p': czyje papiery trzyma) w półroczu L.
+    swiat = wiersz świata (G001); suma = gospodarki + PIP_SPEC (do porównania ze światem w kontroli); rows = PIP_POL_TOP największych
+    [kod, stan, zmiana od półrocza wcześniej]; inne = reszta gospodarek; n = gospodarki z dodatnim stanem. Brak czegokolwiek = None."""
+    P, gosp, spec, swiat = _pip_prev(L), [], None, None
+    for (h, i), d in ser.items():
+        if (i if rola == 'e' else h) != kod:
+            continue
+        c, v = (h if rola == 'e' else i), d.get(L)
+        if v is None:
+            continue
+        if c == PIP_SWIAT:
+            swiat = v
+        elif c in PIP_SPEC:
+            spec = (spec or 0.0) + v
+        elif _pip_gosp(c) and c != kod:
+            gosp.append((c, v, d.get(P)))
+    if swiat is None and not gosp:
+        return None
+    gosp.sort(key=lambda x: (-x[1], x[0]))
+    top = gosp[:PIP_POL_TOP]
+    return {'okres': L, 'poprz': P, 'swiat': _pip_m(swiat), 'suma': _pip_m(sum(v for _, v, _ in gosp) + (spec or 0.0)),
+            'spec': _pip_m(spec), 'inne': _pip_m(sum(v for _, v, _ in gosp[PIP_POL_TOP:])) if len(gosp) > PIP_POL_TOP else None,
+            'n': sum(1 for _, v, _ in gosp if v > 0),
+            'rows': [[c, _pip_m(v), None if p is None else _pip_m(v - p)] for c, v, p in top]}
+
+
+def _pip_pary(ser, L):
+    """PIP_TOP największych stanów par dwóch różnych gospodarek w półroczu L: [posiadacz, emitent, stan, zmiana od półrocza wcześniej];
+    n = pary gospodarek z wartością (także zero), rap = gospodarki-posiadacze z wartością w L."""
+    P, rows, rap = _pip_prev(L), [], set()
+    for (h, i), d in ser.items():
+        v = d.get(L)
+        if v is None or h == i or not (_pip_gosp(h) and _pip_gosp(i)):
+            continue
+        rap.add(h); rows.append((h, i, v, d.get(P)))
+    if not rows:
+        raise RuntimeError(f'PIP: brak par gospodarek w półroczu {L}')
+    rows.sort(key=lambda x: (-x[2], x[0], x[1]))
+    if not 1e11 <= rows[0][2] <= 1e14:   # największa para świata: setki mld – kilka bln USD (10.10.2026: 7,1 bln); inaczej zmiana skali (SCALE)
+        raise RuntimeError(f'PIP: skala niezgodna (największa para {rows[0][2]:.0f} USD)')
+    return {'okres': L, 'poprz': P, 'n': len(rows), 'rap': len(rap),
+            'rows': [[h, i, _pip_m(v), None if p is None else _pip_m(v - p)] for h, i, v, p in rows[:PIP_TOP]]}
+
+
+def build_pip(prev=None, run_t0=None, fetch=None):
+    """data/pip.json (v337): lekkie zapytanie zawsze (Polska jako emitent i najnowsze półrocze); pełna macierz tylko wg reguł w nagłówku bloku.
+    Część „pary” (z „pol_p”) niepobrana albo nieudana — z poprzedniego pliku z własną datą part_at; ok['pary'] = False, gdy była potrzebna
+    (plik niepełny → ponowienie po 55 min w main()); błąd pełnej macierzy w polu bledy (main() przenosi do meta)."""
+    fetch = fetch or (lambda url, timeout: get_json(url, {'Accept': 'application/json'}, timeout))
+    prev = prev if isinstance(prev, dict) else {}
+    ser = _pip_ser(fetch(PIP_POL_URL, PIP_T_LEKKIE))
+    L = _pip_okres(ser)
+    pol_e = _pip_rola(ser, 'POL', 'e', L)
+    if not pol_e or pol_e['swiat'] is None or not 1e3 <= pol_e['swiat'] <= 1e7:   # Polska jako emitent: rząd 10–1000 mld USD (10.10.2026: 193,3)
+        raise RuntimeError('PIP: brak wiersza świata dla Polski albo skala niezgodna')
+    out = {'at': NOW, 'src': PIP_SRC, 'url': PIP_PAGE,
+           'unit': 'mln USD; stan na koniec półrocza (nie przepływ); zmiana = stan minus stan półrocza wcześniej (z cenami i kursami walut)',
+           'okres': L, 'pol_e': pol_e, 'pary': None, 'pol_p': None, 'ok': {'pol_e': True, 'pary': True}, 'part_at': {'pol_e': NOW}, 'bledy': []}
+    pp = prev.get('pary') if isinstance(prev.get('pary'), dict) and _pip_half(prev['pary'].get('okres')) else None
+    pat = prev['part_at'].get('pary') if isinstance(prev.get('part_at'), dict) else None
+    proba = prev.get('pary_proba') if isinstance(prev.get('pary_proba'), str) else None
+    potrzeba = pp is None or pp['okres'] < L or not _zapas_wiek_ok(pat, PIP_PELNE_DNI)
+    late = run_t0 is not None and time.monotonic() - run_t0 > PIP_LATE
+    if potrzeba and not late and not (proba and _zapas_wiek_ok(proba, PIP_PONOW_H / 24)):
+        try:
+            serm = _pip_ser(fetch(PIP_ALL_URL, PIP_T_PELNE))
+            Lm = _pip_okres(serm)
+            out['pary'], out['pol_p'] = _pip_pary(serm, Lm), _pip_rola(serm, 'POL', 'p', Lm)
+            out['part_at']['pary'] = NOW
+            return out
+        except Exception as e:  # noqa — część z poprzedniego pliku, błąd w meta; ponowienie najwcześniej po PIP_PONOW_H h
+            out['bledy'].append(mask(f'MFW PIP (pełna macierz): {e}')[:200]); proba = NOW
+    if proba:
+        out['pary_proba'] = proba
+    if pp:
+        out['pary'], out['pol_p'], out['part_at']['pary'] = pp, (prev.get('pol_p') if isinstance(prev.get('pol_p'), dict) else None), pat
+    if potrzeba:
+        out['ok']['pary'] = False
+    return out
+
+
 # v72: SAFE (Chiny) — kupno i sprzedaż walut przez banki w imieniu klientów, miesięcznie, w USD; bez klucza
 SAFE_PAGE = 'https://www.safe.gov.cn/en/2023/0215/2048.html'
 SAFE_LINK = 'Time-series Data of Foreign Exchange Settlement and Sales by Banks'
@@ -26566,6 +26718,18 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'MFW bilans płatniczy: {e}')); META['ok']['bilans'] = False
             if prev_bl: save('bilans', prev_bl)
+    # v337 (F2Z4): MFW PIP — kto trzyma czyje papiery (półrocznie): najwyżej raz na dobę lekkie zapytanie (plik niepełny — po 55 min); pełna macierz wg
+    # reguł build_pip; awaria = poprzedni plik i błąd
+    prev_pip = previous('pip')
+    if prev_pip and fresh_pelny(prev_pip, 1440):
+        save('pip', prev_pip); META['ok']['pip'] = 'cached'
+    else:
+        try:
+            pip_ = build_pip(prev_pip, run_t0=_RUN_T0[0]); save('pip', pip_)
+            META['errors'].extend(pip_.get('bledy') or []); META['ok']['pip'] = not pip_.get('bledy')
+        except Exception as e:
+            META['errors'].append(mask(f'MFW PIP: {e}')); META['ok']['pip'] = False
+            if prev_pip: save('pip', prev_pip)
     # v72: SAFE — kupno i sprzedaż walut przez banki w Chinach (miesięcznie): najwyżej raz na dobę; awaria = poprzedni plik i błąd
     prev_sf = previous('safe')
     if prev_sf and fresh(prev_sf, 1440):

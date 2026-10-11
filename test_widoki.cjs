@@ -11050,7 +11050,7 @@ test('v149: separatory składane w kodzie — ja „：” i „、”, fr wąsk
   const F = L => new Function('LANG', html.slice(a, b) + '\nreturn {sepK, sepL};')(L);
   assert.equal(F('ja').sepK(), '：'); assert.equal(F('ja').sepL(), '、'); assert.equal(F('fr').sepK(), '\u202f: '); assert.equal(F('fr').sepL(), ', ');
   for (const L of ['pl', 'en', 'de', 'es', 'it', 'pt', 'ru', 'zh', undefined]) { assert.equal(F(L).sepK(), ': ', String(L)); assert.equal(F(L).sepL(), ', ', String(L)); }
-  assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 36, 'etykiety składane w kodzie: 36 miejsc (v157: podpowiedzi wykresów — wkK; v230: „7 dni” przy nowej liście portfeli; v321: +3 — karta wskaźnika fgCard ×2 i kafel gRenderKpi, pokrycie gCovCard i sgCovC zamiast fgBlock i paska v156)');
+  assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 37, 'etykiety składane w kodzie: 37 miejsc (v157: podpowiedzi wykresów — wkK; v230: „7 dni” przy nowej liście portfeli; v321: +3 — karta wskaźnika fgCard ×2 i kafel gRenderKpi, pokrycie gCovCard i sgCovC zamiast fgBlock i paska v156; v337: +1 — pipSep paneli PIP i bilansu)');   /* v337 (F2Z4): świadoma zmiana 36 → 37 — jedna funkcja pipSep (z typeof) dla dwóch nowych paneli */
   assert.equal(html.split("typeof sepL==='function'?sepL():', '").length - 1, 30, 'listy składane w kodzie: 30 miejsc');   /* v323: +1 — panel „Siła sygnałów” (trdSilaSep) */
   for (const s of ["${t('wh.d7')}: ${", "${t('eng.oi')}: ${cftcN", "t('trd.d.fam.'+b.fam)+': '", "escH(engCty(r0.issuer,r0.issuer_name))}: ${", "l:miss.map(k=>t('trd.dc2.n.'+k)).join(', ')", "t('bis2.not3b',{r:nrep.join(', ')})"])
     assert.ok(!html.includes(s), 'dawny separator: ' + s);
@@ -21228,4 +21228,198 @@ test('v336 ZB08-02 (Z4, strona): indeksy — „ · wstępnie” za datą, gdy p
   assert.equal(nums.filter(x => x === nr).length, 1, 'jeden słownik o tym numerze');
   const fp = 'for(const l in EXTRA' + (nr - 1) + ')if(I18N[l])Object.assign(I18N[l],EXTRA' + (nr - 1) + '[l]);', ip = html.lastIndexOf(fp, d0);
   assert.ok(ip > 0 && /^\s*(\/\*[\s\S]*?\*\/\s*)*$/.test(html.slice(ip + fp.length, d0)), 'słownik zaraz po linii for poprzedniego numeru (dozwolony komentarz)');
+});
+
+// v337 (F2Z4): panele GLOBAL „Kto trzyma czyje papiery” i „Dokąd płynie kapitał portfelowy” z plików zbieracza (data/pip.json; data/bilans.json,
+// pole in_pe) zamiast widoków silnika z 24.09 (ważnych do 24.10.2026). Plik pip.json = wynik build_pip na nagraniach z 10.10.2026; bilans — wycinek
+// pliku z 10.10.2026 (Turcja bez 2026-Q1 — test sumy tylko z kompletu; Singapur bez in_pe — brak, nie zero).
+const v337 = (() => {
+  const PIPF = JSON.parse('{"at":"2026-10-10T21:00:00+00:00","src":"International Monetary Fund, Portfolio Investment Positions by Counterpart Economy (PIP)","url":"https://data.imf.org/en/datasets/IMF.STA:PIP","unit":"mln USD; stan na koniec półrocza (nie przepływ); zmiana = stan minus stan półrocza wcześniej (z cenami i kursami walut)","okres":"2025-S2","pol_e":{"okres":"2025-S2","poprz":"2025-S1","swiat":193259.4,"suma":193259.4,"spec":9607.8,"inne":22212.5,"n":63,"rows":[["USA",38445.0,null],["DEU",24831.3,null],["LUX",21999.2,null],["IRL",11621.9,null],["NLD",11304.7,null],["FRA",9856.3,null],["JPN",9672.2,null],["GBR",9048.2,null],["AUT",4843.4,null],["CYM",4796.7,null],["ITA",4614.1,null],["CHE",3204.3,null],["GGY",2710.8,null],["SWE",2284.6,null],["BEL",2206.7,null]]},"pary":{"okres":"2025-S2","poprz":"2025-S1","n":13340,"rap":80,"rows":[["CYM","USA",7097163.9,2583825.6],["USA","CYM",3000726.0,202596.0],["IRL","USA",2857912.5,274876.1],["JPN","USA",2461601.4,135635.7],["CAN","USA",2374112.1,200500.7],["LUX","USA",2308990.0,189412.9],["USA","GBR",2009273.0,123783.0],["GBR","USA",1928380.2,103761.1],["USA","CAN",1879249.0,250824.0],["USA","JPN",1477582.0,133437.0],["DEU","LUX",1291104.1,8653.6],["USA","IRL",1176212.0,41512.0],["CHN","HKG",978948.8,162860.1],["SGP","USA",924670.7,null],["FRA","USA",923775.1,47706.1],["DEU","USA",919355.2,41121.7],["ITA","LUX",904384.3,49259.8],["USA","FRA",901427.0,45124.0],["JPN","CYM",874806.7,13402.0],["IRL","GBR",860953.1,28993.6]]},"pol_p":{"okres":"2025-S2","poprz":"2025-S1","swiat":94269.5,"suma":94269.5,"spec":27363.9,"inne":5670.3,"n":91,"rows":[["USA",13222.5,-51.2],["LUX",12131.8,1297.9],["IRL",8650.0,1613.2],["FRA",6172.3,140.3],["NLD",2987.6,493.4],["AUT",2821.8,210.9],["DEU",2802.6,-56.6],["GBR",1954.1,-219.0],["CZE",1835.9,248.6],["ROU",1814.2,374.4],["ITA",1791.1,209.5],["HUN",1552.1,97.9],["CHE",1363.0,735.6],["ESP",1230.8,8.9],["BEL",905.4,-268.4]]},"ok":{"pol_e":true,"pary":true},"part_at":{"pol_e":"2026-10-10T21:00:00+00:00","pary":"2026-10-10T21:00:00+00:00"},"bledy":[]}'), BILF = JSON.parse('{"at":"2026-10-10T02:19:36+00:00","asof_max":"2026-Q2","order":["USA","CHL","POL","IRL","KOR","SGP","TUR"],"rows":{"USA":{"q":"2026-Q2","s":{"in_pe":[["2024-Q3",199106.0],["2024-Q4",168555.0],["2025-Q1",14802.0],["2025-Q2",262552.0],["2025-Q3",197465.0],["2025-Q4",273941.0],["2026-Q1",23276.0],["2026-Q2",425602.0]]}},"CHL":{"q":"2026-Q1","s":{"in_pe":[["2024-Q2",-362.0],["2024-Q3",-515.7],["2024-Q4",58.2],["2025-Q1",-290.1],["2025-Q2",-502.5],["2025-Q3",-1264.7],["2025-Q4",-1082.4],["2026-Q1",-459.7]]}},"POL":{"q":"2026-Q2","s":{"in_pe":[["2024-Q3",428.0],["2024-Q4",-229.0],["2025-Q1",-7288.0],["2025-Q2",1797.0],["2025-Q3",813.0],["2025-Q4",1140.0],["2026-Q1",903.0],["2026-Q2",265.0]]}},"IRL":{"q":"2025-Q4","s":{"in_pe":[["2024-Q1",42151.4],["2024-Q2",93542.7],["2024-Q3",136854.6],["2024-Q4",136536.5],["2025-Q1",108059.6],["2025-Q2",64376.1],["2025-Q3",121255.2],["2025-Q4",103335.5]]}},"KOR":{"q":"2026-Q2","s":{"in_pe":[["2024-Q3",-4993.6],["2024-Q4",-9913.3],["2025-Q1",-3374.1],["2025-Q2",-4237.4],["2025-Q3",7715.3],["2025-Q4",-5858.0],["2026-Q1",-42374.7],["2026-Q2",-63905.4]]}},"SGP":{"q":"2026-Q2","s":{"in_p":[["2024-Q3",10579.7],["2024-Q4",-1092.8],["2025-Q1",7840.3],["2025-Q2",-4234.9],["2025-Q3",3193.1],["2025-Q4",14959.4],["2026-Q1",-450.6],["2026-Q2",9428.7]]}},"TUR":{"q":"2026-Q2","s":{"in_pe":[["2024-Q3",-125.0],["2024-Q4",30.0],["2025-Q1",330.0],["2025-Q2",2069.0],["2025-Q3",2738.0],["2025-Q4",2163.0],["2026-Q2",4401.0]]}}}}');
+  const a = html.indexOf('/* ===================== v337 (F2Z4)'), b = html.indexOf('/* v337 (F2Z4): koniec */', a);
+  assert.ok(a > 0 && b > a, 'blok v337 w stronie');
+  /* pomocnicze funkcje strony po samej nazwie (bez kształtu parametrów — inne wydania mogą je zmieniać, np. v336 instSign(v,s)); jednolinijkowe do końca
+     linii (z komentarzem), wielolinijkowe do zamykającego „}” w kolumnie 0 */
+  const fn = (name, multi) => { const i = html.search(new RegExp('\\n(?:function ' + name + '\\(|const ' + name + '=)')) + 1; assert.ok(i > 0, name);
+    const end = multi ? '\n}\n' : '\n', j = html.indexOf(end, i); assert.ok(j > i, name + ' — koniec'); return html.slice(i, j + end.length); };
+  const helpers = [fn('engCheck', 1), fn('engHalf'), fn('instMld', 1), fn('instSign'), fn('bopMld'), fn('instRow', 1), fn('engK'), fn('escH'), fn('bilQadd')].join('\n');
+  const NAMES = {US: 'Stany Zjednoczone', KY: 'Kajmany', IE: 'Irlandia', JP: 'Japonia', CA: 'Kanada', LU: 'Luksemburg', GB: 'Wielka Brytania', DE: 'Niemcy',
+    CN: 'Chiny', HK: 'SRA Hongkong (Chiny)', SG: 'Singapur', FR: 'Francja', IT: 'Włochy', BM: 'Bermudy', CH: 'Szwajcaria', PL: 'Polska', CL: 'Chile', KR: 'Korea Płd.',
+    TR: 'Turcja', NL: 'Holandia', AT: 'Austria', XK: 'Kosowo', GG: 'Guernsey', SE: 'Szwecja', BE: 'Belgia', CZ: 'Czechy', RO: 'Rumunia',
+    HU: 'Węgry', ES: 'Hiszpania'};
+  const ISO = {USA: 'US', CYM: 'KY', IRL: 'IE', JPN: 'JP', CAN: 'CA', LUX: 'LU', GBR: 'GB', DEU: 'DE', CHN: 'CN', HKG: 'HK', SGP: 'SG', FRA: 'FR', ITA: 'IT',
+    BMU: 'BM', CHE: 'CH', POL: 'PL', CHL: 'CL', KOR: 'KR', TUR: 'TR', NLD: 'NL', AUT: 'AT', GGY: 'GG', SWE: 'SE', BEL: 'BE', CZE: 'CZ',
+    ROU: 'RO', HUN: 'HU', ESP: 'ES'};
+  const make = (opt = {}) => {
+    const S = {now: opt.now || Date.parse('2026-10-10T21:00:00Z'), renders: 0, srv: []};
+    const ENG = {index: opt.index === undefined ? null : opt.index, files: opt.files || {}};
+    const ENG_OVR = {};
+    const t = (k, v) => k + (v ? JSON.stringify(v) : '');
+    const gtI = (k, a, c, d) => k === 't' ? ((typeof a === 'number' && isFinite(a)) ? ' ' + (a > 0 ? 'pos' : a < 0 ? 'neg' : 'neu') : '') :
+      k === 'w' ? ((typeof a === 'number' && isFinite(a)) ? `<span class="${a > 0 ? 'pos' : a < 0 ? 'neg' : 'neu'}">${c}</span>` : c) : k === 'f' ? `[f:${a}]` : k === 'v' ? `[v:${a}]` : k === 'g' ? `[g:${a}]` : '';
+    const deps = {t, gtI, LANG: 'pl', LOCALE: {pl: 'pl-PL'}, ENG_DN: {}, ISO32: ISO, CTY_PL: {HK: 'Hongkong', MO: 'Makau'}, ENG, ENG_OVR,
+      Intl: {DisplayNames: class { of(c) { return NAMES[c] || c; } }},
+      engDate: s => 'D(' + s + ')', engNum: v => String(v), engPeriod: p => p.kind + ':' + p.value, gAgeNote: s => ' · wiek(' + s + ')', instFoot: d => d + ' · wiek(' + d + ')',
+      sepK: () => ': ', srvJSON: n => { S.srv.push(n); return Promise.resolve(opt.srv ? opt.srv[n] : null); }, renderEng: () => { S.renders++; },
+      document: {hidden: false}, setInterval: () => 1, clearInterval: () => {}, Date: {now: () => S.now, parse: s => Date.parse(s)}};
+    const k = Object.keys(deps);
+    const api = new Function(...k, helpers + '\n' + html.slice(a, b) + '\nreturn {PIP,ENG_OVR,pipPanel,pipBilPanel,pipBilRows,pipApply,pipLoad,pipCty,pipLvl,pipChg,engCheck};')(...k.map(x => deps[x]));
+    return Object.assign(api, {S, ENG});
+  };
+  const el = () => ({hidden: true, innerHTML: 'silnik'});
+  const clone = o => JSON.parse(JSON.stringify(o));
+  return {PIPF, BILF, make, el, clone, src: html.slice(a, b)};
+})();
+
+test('v337: rejestr ENG_OVR — osobne przypisania po definicji (definicja bez zmian), start ładowania raz, po bloku', () => {
+  assert.equal(html.split('const ENG_OVR={};   /* v50: widok → funkcja(el) rysująca panel z pliku zbieracza; zwraca true, gdy narysowała */').length - 1, 1, 'definicja ENG_OVR bez zmian');
+  const d = html.indexOf('const ENG_OVR={};');
+  for (const v of ['imf-portfolio-pairs', 'wdi-destinations']) {
+    assert.equal(html.split(`ENG_OVR['${v}']=el=>`).length - 1, 1, v);
+    assert.ok(html.indexOf(`ENG_OVR['${v}']=el=>`) > d, v + ': po definicji');
+    assert.ok(html.includes(`<section class="panel pcard" id="eng-${v}" hidden></section>`), v + ': sekcja w tym samym miejscu');
+  }
+  assert.equal(html.split('pipLoad();pipAuto();').length - 1, 1, 'start ładowania raz');
+  assert.ok(html.indexOf('pipLoad();pipAuto();') > html.indexOf('/* v337 (F2Z4): koniec */'), 'start po definicjach bloku');
+});
+
+test('v337: panel par z pip.json — 20 par (Kajmany → USA 7 097,2 mld USD, zmiana +2 583,8), półrocze i wiek; Polska w obu rolach z wierszem świata', () => {
+  const X = v337.make(), e = v337.el();
+  X.pipApply(v337.PIPF, null);
+  assert.equal(X.S.renders, 1);
+  assert.equal(X.ENG_OVR['imf-portfolio-pairs'](e), true); assert.equal(e.hidden, false);
+  const h = e.innerHTML;
+  assert.ok(h.includes('[v:imf-portfolio-pairs]eng.t.imf-portfolio-pairs</h2>'), 'tytuł jak dotąd');
+  assert.ok(h.includes('eng.b.state{"p":"HALF:2025-S2","c":"D(2026-10-10T21:00:00+00:00)"}'), 'stan na półrocze i czas pliku');
+  assert.ok(h.includes('<span class="live on">'), 'plik świeży');
+  assert.ok(h.includes('eng.k.top{"p":"eng.h.2{\\"y\\":\\"2025\\"}"}'), 'największa pozycja z półroczem');
+  assert.ok(h.includes('[f:ky]Kajmany → [f:us]Stany Zjednoczone: 7 097,2 inst.mld.usd'), 'kafel największej pary');
+  assert.ok(h.includes('eng.d.pairs{"n":20,"t":"13340"}'));
+  assert.ok(h.includes('[f:cn]Chiny → [f:hk]Hongkong</span>'), 'po polsku krótko „Hongkong” (CTY_PL), nie nazwa Intl');
+  assert.equal((h.match(/<tr><td><span class="cell mono">\d+<\/span><\/td><td><span class="cell">\[f:/g) || []).length, 20 + 15 + 15, '20 par + 15 posiadaczy + 15 emitentów');
+  assert.ok(h.includes('<td><span class="cell mono">7 097,2</span></td><td><span class="cell mono pos">+2 583,8</span></td>'), 'pierwszy wiersz: stan i zmiana w kolorze');
+  assert.ok(h.includes('<span class="cell mono">924,7</span></td><td><span class="cell mono">eng.chg.gap</span>'), 'Singapur bez półrocza wcześniej — „brak danych”, nie 0');
+  assert.ok(h.includes('p337.d.pole{"n":"63"}') && h.includes('p337.d.polp{"n":"91"}'), 'Polska w obu rolach');
+  assert.ok(h.includes('<span class="cell">[f:us]Stany Zjednoczone</span></td><td><span class="cell mono">38,4</span>'), 'USA 38,4 mld USD w polskich papierach');
+  assert.ok(h.includes('p337.k.top1{"c":"[f:us]Stany Zjednoczone","v":"38,4 inst.mld.usd"}'), 'kafel Polski: „najwięcej” z jednostką');
+  assert.ok(h.includes('[g:globe]<b>p337.r.swiat</b></span></td><td><span class="cell mono">193,3</span>') && h.includes('<b>p337.r.swiat</b></span></td><td><span class="cell mono">94,3</span>'), 'wiersz świata w obu rolach');
+  assert.ok(h.includes('p337.r.spec.e</span></td><td><span class="cell mono">9,6</span>') && h.includes('p337.r.spec.p</span></td><td><span class="cell mono">27,4</span>'));
+  assert.ok(h.includes('p337.k.asof{"d":"DAY:2025-12-31"} · wiek(2025-12-31)'), 'wiek od końca półrocza');
+  assert.ok(h.includes('<details class="etfd" open><summary>[f:pl]<b>p337.d.pole') && h.includes('<details class="etfd"><summary>[f:pl]<b>p337.d.polp'));
+  for (const k of ['p337.pip.not1', 'p337.pip.not2', 'p337.pip.not3', 'p337.pip.not4', 'p337.pip.not5']) assert.ok(h.includes(k), k);
+  assert.ok(h.includes('inst.file{"t":"D(2026-10-10T21:00:00+00:00)"} · eng.disclaimer'));
+  assert.ok(!/>0,0</.test(h) && !h.includes('NaN') && !h.includes('undefined'), 'bez zer zamiast braku i bez NaN');
+  const Y = v337.make({now: Date.parse('2026-10-13T00:00:00Z')}), e2 = v337.el(); Y.pipApply(v337.PIPF, null); Y.ENG_OVR['imf-portfolio-pairs'](e2);
+  assert.ok(e2.innerHTML.includes('<span class="live off">'), 'plik starszy niż 48 h — znacznik wyłączony');
+});
+
+test('v337: bez pliku zbieracza — ważny widok silnika jak dotąd (false); po 24.10.2026 panel z „—” zamiast „Nie pokazujemy” i kodów; plik zbieracza wygrywa', () => {
+  const okEng = (v, nowMs) => ({index: {schema: 'capitalflowai.public-views-index.v1'}, files: {[v]: {schema: 'capitalflowai.public-view.v1', view: v, state: 'BOUND', trial: false,
+    public_display: {admitted: true}, valid_until: v === 'wdi-destinations' ? '2026-10-24T14:50:35.000000+00:00' : '2026-10-24T14:58:11.000000+00:00',
+    captured_at: '2026-09-24T15:01:24.564310+00:00', values: null, engine_panel: {data: {}}}}, now: nowMs});
+  for (const v of ['imf-portfolio-pairs', 'wdi-destinations']) {
+    const A = v337.make(okEng(v, Date.parse('2026-10-20T12:00:00Z'))), e = v337.el();
+    assert.equal(A.ENG_OVR[v](e), false, v + ': do 24.10 bez pliku zbieracza — widok silnika'); assert.equal(e.innerHTML, 'silnik');
+    assert.equal(A.engCheck(A.ENG.files[v], v, Date.parse('2026-10-24T15:00:00Z')).code, 'FILE_EXPIRED', v + ': widok silnika po terminie nie pokazuje liczb');
+    const B = v337.make(okEng(v, Date.parse('2026-10-24T15:00:00Z'))), e2 = v337.el();
+    assert.equal(B.ENG_OVR[v](e2), true, v + ': po terminie — panel strony'); assert.equal(e2.hidden, false);
+    assert.ok(e2.innerHTML.includes('—') && e2.innerHTML.includes('eng.gap'), v + ': brak = „—”');
+    assert.ok(!/FILE_EXPIRED|eng\.b\.off|eng\.k\.why|eng\.r\./.test(e2.innerHTML), v + ': bez karty „Nie pokazujemy” i kodów');
+    assert.ok(!/>0,0</.test(e2.innerHTML), v + ': bez zer');
+    const C = v337.make(okEng(v, Date.parse('2026-10-20T12:00:00Z'))), e3 = v337.el();
+    C.pipApply(v337.PIPF, v337.BILF);
+    assert.equal(C.ENG_OVR[v](e3), true, v + ': plik zbieracza przed terminem widoku — panel z pliku zbieracza');
+    assert.ok(/[1-9]/.test(e3.innerHTML.replace(/<[^>]+>/g, '')), v + ': liczby');
+  }
+  const D = v337.make(), e4 = v337.el();
+  assert.equal(D.ENG_OVR['imf-portfolio-pairs'](e4), true, 'bez indeksu widoków i bez pliku — panel z „—” (nie pusta karta)');
+  if (typeof fs.existsSync === 'function' && __dirname) {   // pod node: prawdziwe pliki widoków z repozytorium (pod jsc readFileSync zwraca index.html)
+    for (const v of ['imf-portfolio-pairs', 'wdi-destinations']) {
+      const rec = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'widoki', v + '.json'), 'utf8'));
+      assert.deepEqual(D.engCheck(rec, v, Date.parse('2026-10-10T21:00:00Z')), {ok: true, state: 'BOUND'}, v + ': 10.10 widok jeszcze ważny');
+      assert.equal(D.engCheck(rec, v, Date.parse('2026-10-25T00:00:00Z')).code, 'FILE_EXPIRED', v + ': 25.10 widok wygasł');
+    }
+  }
+});
+
+test('v337: napływ do akcji z bilansu (in_pe) — suma 4 kwartałów tylko z kompletu, odpływ osobno, brak = „—”, Polska z kwartałem i wiekiem', () => {
+  const X = v337.make(), e = v337.el();
+  const R = X.pipBilRows(v337.BILF);
+  assert.deepEqual(R.brak, ['SGP'], 'Singapur bez in_pe — brak, nie zero');
+  const by = Object.fromEntries(R.out.map(r => [r.c, r]));
+  assert.equal(by.USA.q, '2026-Q2'); assert.equal(Math.round(by.USA.s4 * 10) / 10, 920284);
+  assert.equal(by.IRL.q, '2025-Q4', 'Irlandia — własny ostatni kwartał'); assert.equal(Math.round(by.IRL.s4 * 10) / 10, 397026.4);
+  assert.equal(by.POL.last, 265); assert.equal(by.POL.s4, 3121);
+  assert.equal(by.TUR.s4, null, 'Turcja bez 2026-Q1 — bez sumy (nie suma z 3 kwartałów)'); assert.equal(by.TUR.last, 4401);
+  assert.equal(by.CHL.q, '2026-Q1'); assert.equal(Math.round(by.CHL.s4 * 10) / 10, -3309.3);
+  X.pipApply(null, v337.BILF);
+  assert.equal(X.ENG_OVR['wdi-destinations'](e), true);
+  const h = e.innerHTML;
+  assert.ok(h.includes('[v:wdi-destinations]eng.t.wdi-destinations</h2>') && h.includes('p337.bil.sub{"n":"7"}'));
+  assert.ok(h.includes('p337.b.flow{"p":"2026-Q2","c":"D(2026-10-10T02:19:36+00:00)"}') && !h.includes('eng.b.state'), 'przepływ: „dane za”, nie „stan na”');
+  assert.ok(h.includes('eng.k.in{"y":"p337.y4"}') && h.includes('[f:us]Stany Zjednoczone: <span class="pos">+920,3</span> inst.mld.usd · p337.k.do{"q":"2026-Q2"}'));
+  assert.ok(h.includes('eng.k.out{"y":"p337.y4"}') && h.includes('[f:kr]Korea Płd.: <span class="neg">−104,4</span>'), 'największy odpływ');
+  assert.ok(h.includes('<span class="pos">+0,3</span> inst.mld.usd') && h.includes('2026-Q2 · wiek(2026-Q2) · p337.k.pl.v{"v":"<span class=\\"pos\\">+3,1</span>"}'), 'Polska');
+  assert.ok(h.includes('p337.k.cov.v{"a":"6","e":"7"}') && h.includes('p337.k.cov.no{"l":"Singapur"}'));
+  assert.ok(h.includes('<b class="pos">p337.d.in{"n":3}</b>') && h.includes('<b class="neg">p337.d.out{"n":2}</b>') && h.includes('<summary><b>p337.d.part{"n":1}</b>'));
+  const inBlk = h.slice(h.indexOf('p337.d.in'), h.indexOf('p337.d.out'));
+  assert.ok(inBlk.indexOf('Stany Zjednoczone') < inBlk.indexOf('Irlandia') && inBlk.indexOf('Irlandia') < inBlk.indexOf('Polska'), 'napływ malejąco');
+  assert.ok(inBlk.includes('<span class="cell mono">2025-Q4 · wiek(2025-Q4)</span>'), 'kwartał i wiek w wierszu');
+  const outBlk = h.slice(h.indexOf('p337.d.out'), h.indexOf('p337.d.part'));
+  assert.ok(outBlk.indexOf('Korea') < outBlk.indexOf('Chile'), 'odpływ — największy na górze');
+  assert.ok(outBlk.includes('<span class="cell mono neg">−3,3</span>'));
+  const part = h.slice(h.indexOf('p337.d.part'));
+  assert.ok(part.includes('Turcja') && part.includes('<span class="cell mono pos">+4,4</span></td><td><span class="cell mono">—</span>'), 'bez kompletu — „—”, nie 0');
+  for (const k of ['p337.bil.not1', 'p337.bil.not2', 'p337.bil.not3', 'p337.bil.not4', 'p337.bil.not5']) assert.ok(h.includes(k), k);
+  assert.ok(!h.includes('NaN') && !h.includes('undefined'));
+  const Y = v337.make(), e2 = v337.el(); Y.pipApply(null, {at: 'x'}); assert.equal(Y.PIP.bil, null, 'zły plik bilansu nie wchodzi');
+  const Z = v337.make(); Z.pipApply(v337.PIPF, v337.BILF); Z.pipApply(null, null);
+  assert.ok(Z.PIP.data && Z.PIP.bil, 'chwilowy błąd sieci nie kasuje wczytanych plików');
+});
+
+test('v337: ładowanie — pip.json i bilans.json z serwera, potem przerysowanie widoków', () => {
+  const X = v337.make({srv: {pip: v337.PIPF, bilans: v337.BILF}});
+  return X.pipLoad().then(() => {
+    assert.deepEqual(X.S.srv, ['pip', 'bilans']); assert.equal(X.S.renders, 1);
+    assert.ok(X.PIP.data && X.PIP.bil);
+  });
+});
+
+test('v337: słownik — czysty JSON, 10 języków, te same klucze i pola {x}, każdy klucz użyty w bloku, bez kopii angielskiego, bez nazw dostawców', () => {
+  const m = /\nconst (EXTRA\d+)=(\{"pl":\{"p337\.[^\n]*);\nfor\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],(EXTRA\d+)\[l\]\);\n/.exec(html);
+  assert.ok(m && m[1] === m[3] && m[3] === m[4], 'definicja + jedna linia for');
+  const D = JSON.parse(m[2]), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(D), L10);
+  const K = Object.keys(D.pl), ph = s => (s.match(/\{[a-z0-9]+\}/g) || []).sort().join();
+  assert.equal(K.length, 38); assert.ok(K.every(k => k.startsWith('p337.')));
+  assert.equal(html.split(m[1]).length - 1, 3, 'nazwa słownika tylko w definicji i linii for');
+  for (const l of L10) { assert.deepEqual(Object.keys(D[l]), K, l); for (const k of K) assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k + ': pola {x}'); }
+  for (const l of L10.slice(2)) for (const k of K) assert.ok(D[l][k] !== D.en[k], l + ' ' + k + ': nie kopia angielskiego');
+  for (const k of K) assert.ok(v337.src.includes("'" + k + "'"), 'klucz użyty w bloku: ' + k);
+  const all = JSON.stringify(D);
+  for (const p of ['MFW', 'IMF', 'International Monetary', 'Bank Światowy', 'World Bank', 'Weltbank', 'Banco Mundial', 'Banque mondiale', 'Banca Mondiale', 'FMI', 'IWF', 'МВФ', 'Всемирный банк', '国际货币基金', '世界银行', '国際通貨基金', '世界銀行', 'CPIS', 'PIP', 'WDI'])
+    assert.ok(!all.includes(p), 'bez nazwy dostawcy: ' + p);
+  assert.ok(!/[\u3040-\u30ff]/.test(JSON.stringify(D.zh)), 'zh bez kany');
+  assert.ok(D.pl['p337.pip.not1'].startsWith('To stan na koniec półrocza, nie przepływ'), 'opis „to stan, nie przepływ” zostaje');
+});
+
+test('v337: bez nowych stylów i bez nazw dostawców w kodzie bloku; brak = „—”', () => {
+  assert.ok(!/<style|style="/.test(v337.src), 'panele w istniejących klasach');
+  for (const p of ['MFW', 'IMF', 'Bank Świat', 'World Bank']) assert.ok(!v337.src.replace(/\/\*[\s\S]*?\*\//g, '').includes(p), 'bez nazwy w kodzie: ' + p);
+  const X = v337.make();
+  assert.equal(X.pipLvl(null), '—'); assert.equal(X.pipChg(undefined), '—'); assert.equal(X.pipLvl(0), '0,0'); assert.equal(X.pipChg(-20), '−&lt;0,1');
+  assert.equal(X.pipCty('KOS'), 'Kosowo'); assert.equal(X.pipCty('TX983'), 'TX983');
+});
+
+test('v337: napływ do akcji — suma 4 kwartałów równa zero w osobnej grupie (żółtej), nie pod napływem ani odpływem; „dane za”, nie „stan na”', () => {
+  const B = v337.clone(v337.BILF), S = B.rows.CHL.s.in_pe, z = {'2025-Q2': 10, '2025-Q3': -10, '2025-Q4': 5.5, '2026-Q1': -5.5};
+  B.rows.CHL.s.in_pe = S.map(r => r[0] in z ? [r[0], z[r[0]]] : r);
+  const X = v337.make(), e = v337.el(); X.pipApply(null, B); X.ENG_OVR['wdi-destinations'](e);
+  const h = e.innerHTML;
+  assert.equal(X.pipBilRows(B).out.find(r => r.c === 'CHL').s4, 0);
+  assert.ok(h.includes('<b class="pos">p337.d.in{"n":3}</b>') && h.includes('<b class="neg">p337.d.out{"n":1}</b>') && h.includes('<b class="neu">p337.d.zero{"n":1}</b>'), 'grupy: 3 / 1 / 1');
+  const zb = h.slice(h.indexOf('p337.d.zero'), h.indexOf('p337.d.part'));
+  assert.ok(zb.includes('Chile') && zb.includes('<span class="cell mono neu">'), 'Chile w grupie zera, komórka żółta');
+  assert.ok(!h.slice(h.indexOf('p337.d.in'), h.indexOf('p337.d.zero')).includes('Chile'), 'nie pod napływem ani odpływem');
+  const Y = v337.make(), e2 = v337.el(); Y.pipApply(null, v337.BILF); Y.ENG_OVR['wdi-destinations'](e2);
+  assert.ok(!e2.innerHTML.includes('p337.d.zero'), 'bez zera — bez pustej grupy');
 });

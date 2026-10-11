@@ -62,6 +62,65 @@ for _n, _m in PLIKI_V327:
     PLIKI.insert(PLIKI.index('krypto-dzien'), _n)   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
     LIMIT_MIN[_n] = _m
 PLIKI_BEZ = {}   # v327 (KON-08): plik zbieracza świadomie bez kontroli wieku — {nazwa: powód}; dziś żaden (test: każdy zapisywany plik jest w PLIKI albo tu)
+# v337 (F2Z4): MFW PIP — kto trzyma czyje papiery (data/pip.json, półrocznie). Wiek PLIKU jak bilans (zapis raz na dobę → limit 2 doby). Wiek
+# OKRESU: półrocze starsze niż PIP_OKRES_MIES miesięcy od jego końca = ⚠️ (MFW publikuje półrocze z opóźnieniem ok. 9 mies.; 10.10.2026: 2025-S2,
+# a 2025-S1 miałoby już 15,3 mies.). Zgodność: suma posiadaczy (gospodarki + rezerwy banków centralnych i organizacje + nieprzypisane) ≈ wiersz
+# świata — różnica ponad max(PIP_SUMA_TOL_MLN, PIP_SUMA_TOL_PCT % świata) = ⚠️ (10.10.2026: Polska 193,3 = 193,3; Polska jako inwestor 94,3 = 94,3).
+# Najwyżej ⚠️, nigdy ❌ ani BŁĄD. Wiersze w tabeli świeżości (lista SWIEZOSC bez zmian).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'pip')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['pip'] = 48 * 60
+PIP_OKRES_MIES = 15
+PIP_SUMA_TOL_MLN, PIP_SUMA_TOL_PCT = 500.0, 1.0
+PIP_ETYKIETA = {'pol_e': 'MFW PIP — Polska jako emitent (półrocze)', 'pary': 'MFW PIP — 20 największych par (półrocze)',
+                'suma_e': 'MFW PIP — kto trzyma polskie papiery: suma = świat', 'suma_p': 'MFW PIP — Polska jako inwestor: suma = świat'}
+
+
+def _pip_koniec(h):
+    """'2025-S2' → (miesiąc końca '2025-12', ostatni dzień półrocza 2025-12-31 UTC jako datetime) albo None."""
+    m = re.match(r'^(\d{4})-S([12])$', str(h or ''))
+    if not m:
+        return None
+    y, mm = int(m.group(1)), (6 if m.group(2) == '1' else 12)
+    return f'{y}-{mm:02d}', dt.datetime(y + (mm == 12), mm % 12 + 1, 1, tzinfo=dt.timezone.utc)
+
+
+def pip_kontrola(j, now=None):
+    """data/pip.json → {'rows': [(etykieta, status, wiek min, data, uwaga)], 'uwagi': [...]}; brak pliku = bez wierszy (wiek pliku i brak
+    pliku zgłasza pętla PLIKI). Półrocze: ✅ / ⚠️ wg PIP_OKRES_MIES; suma: ✅ / ⚠️ wg tolerancji; brak części = '?'."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': []}
+    if not isinstance(j, dict):
+        return out
+    for k in ('pol_e', 'pary'):
+        lab, P = PIP_ETYKIETA[k], j.get(k) if isinstance(j.get(k), dict) else None
+        ko = _pip_koniec(P.get('okres')) if P else None
+        if not ko:
+            out['rows'].append((lab, '?', None, None, 'brak tej części w pliku'))
+            out['uwagi'].append(f'{lab}: brak tej części w pliku'); continue
+        mies, koniec = ko
+        w = wiek_danych(mies, 'month', 'k', now)
+        lim = dt.datetime(koniec.year + (koniec.month - 1 + PIP_OKRES_MIES) // 12, (koniec.month - 1 + PIP_OKRES_MIES) % 12 + 1, 1, tzinfo=dt.timezone.utc)
+        st = '⚠️' if now >= lim else '✅'
+        note = '' if st == '✅' else (f'półrocze starsze niż {PIP_OKRES_MIES} mies. od końca — nowe półrocze nie dotarło '
+                                      '(publikacja co pół roku, z opóźnieniem ok. 9 mies.); najwyżej uwaga')
+        out['rows'].append((lab, st, w, P['okres'], note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: dane z {P["okres"]} — {fmt_wiek(w)} temu ({note})')
+    for k, s in (('pol_e', 'suma_e'), ('pol_p', 'suma_p')):
+        lab, P = PIP_ETYKIETA[s], j.get(k) if isinstance(j.get(k), dict) else None
+        a, b = (P.get('suma'), P.get('swiat')) if P else (None, None)
+        if not all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (a, b)):
+            out['rows'].append((lab, '?', None, None, 'brak sumy albo wiersza świata')); continue
+        tol = max(PIP_SUMA_TOL_MLN, abs(b) * PIP_SUMA_TOL_PCT / 100)
+        st = '✅' if abs(a - b) <= tol else '⚠️'
+        txt = f'{a / 1000:.1f} vs {b / 1000:.1f} mld USD ({P.get("okres")})'
+        note = '' if st == '✅' else f'różnica {abs(a - b) / 1000:.1f} mld USD — ponad {tol / 1000:.1f} mld (zmiana listy agregatów u źródła?)'
+        out['rows'].append((lab, st, None, txt, note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: {txt} — {note}')
+    return out
+
+
 
 
 def pliki_bez_nadzoru(src):
@@ -5549,6 +5608,12 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-pip. v337 (F2Z4): MFW PIP (data/pip.json) — wiek półrocza (≤ PIP_OKRES_MIES mies. od końca) i suma posiadaczy ≈ wiersz świata; osobne
+    # wiersze (lista SWIEZOSC bez zmian); najwyżej ⚠️, nigdy ❌ ani BŁĄD
+    P_pip = pip_kontrola(files.get('pip'))
+    for label, st, w, txt, note in P_pip['rows']:
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+    R['uwagi'] += P_pip['uwagi']
     # 3c-pl. v304: Polska (data/polska.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️, nigdy ❌ ani BŁĄD
     for label, st, w, txt, note in polska_swiezosc(files.get('polska')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})

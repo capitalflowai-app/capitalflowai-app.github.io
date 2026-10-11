@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -346,7 +346,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -534,7 +534,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -624,7 +624,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -757,7 +757,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1116,7 +1116,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1360,7 +1360,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1597,7 +1597,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1828,7 +1828,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2341,7 +2341,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3093,7 +3093,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3220,7 +3220,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3255,7 +3255,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3631,7 +3631,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -4116,7 +4116,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -8765,7 +8765,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         for s in stubs:
             s.start()
         try:
@@ -9157,7 +9157,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
@@ -10013,7 +10013,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -32154,7 +32154,7 @@ class SurowceV295(unittest.TestCase):
             'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
             'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
             'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
             'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
         for zm, want_new in (({'eia'}, True), (set(), False)):
             saved.clear(); calls.clear()
@@ -33576,7 +33576,7 @@ class SurowceEtap3V298(unittest.TestCase):
             'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
             'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
             'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
             'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
         for s in stubs:
             s.start()
@@ -39466,7 +39466,7 @@ class StopySurowceV325(unittest.TestCase):
                 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
                 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
                 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia',
+                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia',
                 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa',
                 'build_surowce', 'build_energia')]
             for s in stubs:
@@ -40006,7 +40006,7 @@ class KontrolaV327(unittest.TestCase):
             self.assertTrue(md.startswith('# Kontrola strony — 06.10.2026, 21:50 (czas polski)\n\n**Wynik: BŁĄD**'), md[:120])
             site = [u for u, _ in calls if u.startswith(k.SITE)]
             self.assertLessEqual(len(site), 4, 'strona: 2 próby strony głównej, 2 pliku stanu — potem reszta pominięta')
-            self.assertIn('pominięto plików strony: ', md); self.assertIn('pominięto plików strony: 64 (strona nie odpowiada w czasie — 3 kolejne przekroczenia czasu) — etf, trendy, oecd, rynki, dzwignia, wieloryby …', md)
+            self.assertIn('pominięto plików strony: ', md); self.assertIn('pominięto plików strony: 65 (strona nie odpowiada w czasie — 3 kolejne przekroczenia czasu) — etf, trendy, oecd, rynki, dzwignia, wieloryby …', md)   # v337 (F2Z4): świadoma zmiana 64 → 65 — nowy plik data/pip.json w liście PLIKI kontroli
             self.assertTrue(os.path.exists(os.path.join(d, 'kontrola', 'historia.json')))
             self.assertTrue(all(isinstance(t, (int, float)) and t <= 45 for _, t in calls), 'każde zapytanie z limitem')
 
@@ -40087,7 +40087,7 @@ class KontrolaV327(unittest.TestCase):
         self.assertEqual(k.pliki_bez_nadzoru(src + "\n    for name, fn, key, mins, label, need in (('nowy2', build_x, x_key, 60, 'X', True),):\n"), ['nowy2'])
         nowe = ['bilans', 'bis', 'cofer', 'dzis', 'eer', 'fundusze', 'kanada', 'korea', 'krypto-top10-logo', 'kursy', 'meksyk', 'obce', 'rezerwy', 'safe', 'spw', 'ue']
         self.assertTrue(set(nowe) <= set(k.PLIKI)); self.assertEqual(len(k.PLIKI), len(set(k.PLIKI)), 'bez powtórzeń')
-        self.assertEqual(len(k.PLIKI), 46 + 16, 'v327: 46 plików (do v320) + 16')
+        self.assertEqual(len(k.PLIKI), 46 + 16 + 1, 'v327: 46 plików (do v320) + 16; v337: + pip')   # v337 (F2Z4): świadoma zmiana — nowy plik data/pip.json z kontrolą wieku
         self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik'])
         self.assertEqual({n: k.LIMIT_MIN[n] for n in nowe},
                          {'dzis': 180, 'fundusze': 180, 'obce': 180, 'krypto-top10-logo': 180, 'eer': 1440, 'meksyk': 1440, 'kursy': 1440, 'bis': 2880,
@@ -42096,3 +42096,275 @@ class ZbozaEsmisV332(unittest.TestCase):
             o = zd.build_su_raporty(None, {}, now=self.NOW)
         self.assertEqual((o['ok']['zboza'], o['zboza']['nr'], o['st']['wasde']['via']), (True, 676, 'esmis'))
         self.assertEqual(widziane, [zd.SR_WASDE_STRONA_MAX, zd.SR_WASDE_XML_MAX], 'domyślne pobieranie budowniczego przekazuje limit rozmiaru obu odpowiedzi')
+
+
+# v337 (F2Z4): MFW PIP — nagranie planisty 10.10.2026 19:10 UTC (imf_pip_pol.body: wszyscy posiadacze polskich papierów, 91 serii, ostatnia
+# obserwacja) i wycinek pełnej macierzy z 10.10.2026 23:46 UTC (17 posiadaczy × 16 emitentów z 20 największymi parami świata, Polska jako inwestor —
+# wszyscy emitenci z wartością; półrocza 2025-S1 i 2025-S2, wartości w USD dokładnie jak w odpowiedzi)
+_PIP_REC_V337 = '{"meta":{},"data":{"dataSets":[{"structure":0,"action":"Replace","series":{"0:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["1167695.53072626",null,0,null]}},"1:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["6760110.663444094",null,0,null]}},"2:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"1":["1868000",null,0,null]}},"3:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["36286.034581114",null,0,null]}},"4:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["1439147600.399998",null,0,null]}},"5:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["4843350000",null,0,null]}},"6:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["2206650000",null,0,null]}},"7:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"2":["0",null,0,null]}},"8:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["1323006757.491152",null,0,null]}},"9:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["84632062.9411184",null,0,null]}},"10:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"3":["0",null,0,null]}},"11:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["14300",null,0,null]}},"12:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["843569016.562921",null,0,null]}},"13:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["1374516.96",null,0,null]}},"14:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"4":["0",null,0,null]}},"15:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["1189989785.495403",null,0,null]}},"16:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["3204267144.562353",null,0,null]}},"17:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["49030891.2779741",null,0,null]}},"18:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["616468163.25",null,0,null]}},"19:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["28157828.1906431",null,0,null]}},"20:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["0",null,0,null]}},"21:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"4":["0",null,0,null]}},"22:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["4796749965",null,0,null]}},"23:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":[null,null,0,"C"]}},"24:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["2140364482.357503",null,0,null]}},"25:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["24831275000",null,0,null]}},"26:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["1432146961.134636",null,0,null]}},"27:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["112700000",null,0,null]}},"28:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["1263125000",null,0,null]}},"29:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["85695235.125",null,0,null]}},"30:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["732025000",null,0,null]}},"31:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["9856263075",null,0,null]}},"32:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["193259382321.168",null,0,null]}},"33:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["9048150975",null,0,null]}},"34:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["2710752924.79656",null,0,null]}},"35:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"3":["54810",null,0,null]}},"36:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["350150000",null,0,null]}},"37:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":[null,null,0,"C"]}},"38:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["0",null,0,null]}},"39:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["2196273064.977772",null,0,null]}},"40:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["126425.810885167",null,0,null]}},"41:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"5":["100539.9532654991",null,0,null]}},"42:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["0",null,0,null]}},"43:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["11621925000",null,0,null]}},"44:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["2614.75375399361",null,0,null]}},"45:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["90000000",null,0,null]}},"46:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["4614067252.725",null,0,null]}},"47:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["2138078950",null,0,null]}},"48:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["9672160660.678183",null,0,null]}},"49:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["456090155.35",null,0,null]}},"50:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["1084800000",null,0,null]}},"51:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["2944508.429031652",null,0,null]}},"52:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"6":["0",null,0,null]}},"53:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["369524",null,0,null]}},"54:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["358069500",null,0,null]}},"55:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["21999175988.575",null,0,null]}},"56:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["195050000",null,0,null]}},"57:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["61539605.20363708",null,0,null]}},"58:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["2291471.24290466",null,0,null]}},"59:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["679358.754244",null,0,null]}},"60:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":[null,null,0,"C"]}},"61:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["128798.6",null,0,null]}},"62:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["3000000",null,0,null]}},"63:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["436772109.7017501",null,0,null]}},"64:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["839301.3348799422",null,0,null]}},"65:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["11304675000",null,0,null]}},"66:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"2":["2194713656.387665",null,0,null]}},"67:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"7":["0",null,0,null]}},"68:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"6":["0",null,0,null]}},"69:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["6123334.11304",null,0,null]}},"70:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"8":["945033.222436905",null,0,null]}},"71:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":[null,null,0,"C"]}},"72:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["509468250",null,0,null]}},"73:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["12649831.72025",null,0,null]}},"74:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"9":["18056516.6620868",null,0,null]}},"75:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["250995754.4457579",null,0,null]}},"76:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":[null,null,0,"C"]}},"77:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["0",null,0,null]}},"78:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["1882115000",null,0,null]}},"79:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["759454200",null,0,null]}},"80:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["2284631588.090947",null,0,null]}},"81:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["16754352",null,0,null]}},"82:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["381494",null,0,null]}},"83:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["9607798490.95697",null,0,null]}},"84:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["25109572.03",null,0,null]}},"85:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"2":["59899.09",null,0,null]}},"86:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["38445000000",null,0,null]}},"87:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"10":["0",null,0,null]}},"88:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"6":["0",null,0,null]}},"89:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"9":["1770000",null,0,null]}},"90:0:0:0:0:0:0":{"attributes":[0,null,null],"observations":{"0":["22820385.89999996",null,0,null]}}},"dimensionGroupAttributes":{"::0:::::":[0,0,null,null,null,0,null,0]}}],"structures":[{"dataSets":[0],"links":[{"urn":"urn:sdmx:org.sdmx.infomodel.datastructure.Dataflow=IMF.STA:PIP(5.0.0)","title":"Dataflow"},{"urn":"urn:sdmx:org.sdmx.infomodel.datastructure.DataStructure=IMF.STA:DSD_PIP(5.0.0)","title":"DataStructureDefinition"}],"dimensions":{"series":[{"id":"COUNTRY","keyPosition":0,"roles":[],"values":[{"id":"ABW"},{"id":"ALB"},{"id":"ANT"},{"id":"ARG"},{"id":"AUS"},{"id":"AUT"},{"id":"BEL"},{"id":"BGD"},{"id":"BGR"},{"id":"BHR"},{"id":"BHS"},{"id":"BLR"},{"id":"BMU"},{"id":"BRA"},{"id":"BRB"},{"id":"CAN"},{"id":"CHE"},{"id":"CHL"},{"id":"CHN"},{"id":"COL"},{"id":"CRI"},{"id":"CWX"},{"id":"CYM"},{"id":"CYP"},{"id":"CZE"},{"id":"DEU"},{"id":"DNK"},{"id":"EGY"},{"id":"ESP"},{"id":"EST"},{"id":"FIN"},{"id":"FRA"},{"id":"G001"},{"id":"GBR"},{"id":"GGY"},{"id":"GIB"},{"id":"GRC"},{"id":"HKG"},{"id":"HND"},{"id":"HUN"},{"id":"IDN"},{"id":"IMN"},{"id":"IND"},{"id":"IRL"},{"id":"ISL"},{"id":"ISR"},{"id":"ITA"},{"id":"JEY"},{"id":"JPN"},{"id":"KAZ"},{"id":"KOR"},{"id":"KOS"},{"id":"KWT"},{"id":"LBN"},{"id":"LTU"},{"id":"LUX"},{"id":"LVA"},{"id":"MAC"},{"id":"MEX"},{"id":"MKD"},{"id":"MLT"},{"id":"MNG"},{"id":"MUS"},{"id":"MYS"},{"id":"NAM"},{"id":"NLD"},{"id":"NOR"},{"id":"NZL"},{"id":"PAK"},{"id":"PAN"},{"id":"PER"},{"id":"PHL"},{"id":"PRT"},{"id":"ROU"},{"id":"RUS"},{"id":"SAU"},{"id":"SGP"},{"id":"SLV"},{"id":"SVK"},{"id":"SVN"},{"id":"SWE"},{"id":"THA"},{"id":"TUR"},{"id":"TX093"},{"id":"UKR"},{"id":"URY"},{"id":"USA"},{"id":"VEN"},{"id":"VUT"},{"id":"WBG"},{"id":"ZAF"}]},{"id":"ACCOUNTING_ENTRY","keyPosition":1,"roles":[],"values":[{"id":"A"}]},{"id":"INDICATOR","keyPosition":2,"roles":[],"values":[{"id":"P_TOTINV_P_USD"}]},{"id":"SECTOR","keyPosition":3,"roles":[],"values":[{"id":"S1"}]},{"id":"COUNTERPART_SECTOR","keyPosition":4,"roles":[],"values":[{"id":"S1"}]},{"id":"COUNTERPART_COUNTRY","keyPosition":5,"roles":[],"values":[{"id":"POL"}]},{"id":"FREQUENCY","keyPosition":6,"roles":["FREQ"],"values":[{"id":"S"}]}],"observation":[{"id":"TIME_PERIOD","keyPosition":7,"values":[{"value":"2025-S2"},{"value":"2009-S2"},{"value":"2024-S2"},{"value":"2025-S1"},{"value":"2023-S2"},{"value":"2018-S2"},{"value":"2005-S2"},{"value":"2024-S1"},{"value":"2017-S2"},{"value":"2021-S2"},{"value":"2011-S2"}]}]},"measures":{"observation":[{"id":"OBS_VALUE","roles":[]}]},"attributes":{"dimensionGroup":[{"id":"INSTR_ASSET","roles":[],"isMandatory":false,"relationship":{"dimensions":["INDICATOR"]},"values":[{"id":"TOTINV"}]},{"id":"FUNCTIONAL_CAT","roles":[],"isMandatory":false,"relationship":{"dimensions":["INDICATOR"]},"values":[{"id":"P"}]},{"id":"FI_MATURITY","roles":[],"isMandatory":false,"relationship":{"dimensions":["INDICATOR"]}},{"id":"CURRENCY_DENOMINATION","roles":[],"isMandatory":false,"relationship":{"dimensions":["INDICATOR"]}},{"id":"CURRENCY","roles":[],"isMandatory":false,"relationship":{"dimensions":["INDICATOR"]}},{"id":"FLOW_STOCK_ENTRY","roles":[],"isMandatory":false,"relationship":{"dimensions":["INDICATOR"]},"values":[{"id":"P"}]},{"id":"DV_TYPE","roles":[],"isMandatory":false,"relationship":{"dimensions":["INDICATOR"]}},{"id":"UNIT","roles":[],"isMandatory":false,"relationship":{"dimensions":["INDICATOR"]},"values":[{"id":"USD"}]}],"series":[{"id":"SCALE","roles":[],"isMandatory":false,"relationship":{"dimensions":["COUNTRY","ACCOUNTING_ENTRY","INDICATOR","SECTOR","COUNTERPART_SECTOR","COUNTERPART_COUNTRY","FREQUENCY"]},"values":[{"id":"6"}]},{"id":"DECIMALS_DISPLAYED","roles":[],"isMandatory":false,"relationship":{"dimensions":["COUNTRY","ACCOUNTING_ENTRY","INDICATOR","SECTOR","COUNTERPART_SECTOR","COUNTERPART_COUNTRY","FREQUENCY"]}},{"id":"OVERLAP","roles":[],"isMandatory":false,"relationship":{"dimensions":["COUNTRY","ACCOUNTING_ENTRY","INDICATOR","SECTOR","COUNTERPART_SECTOR","COUNTERPART_COUNTRY","FREQUENCY"]}}],"observation":[{"id":"PRECISION","roles":[],"isMandatory":false,"relationship":{"observation":{}}},{"id":"DERIVATION_TYPE","roles":[],"isMandatory":false,"relationship":{"observation":{}},"values":[{"id":"O"}]},{"id":"STATUS","roles":[],"isMandatory":false,"relationship":{"observation":{}}}]},"annotations":[]}]}}'
+_PIP_MAC_V337 = json.loads('{"BMU|CAN":[null,"45758947579.1707"],"BMU|CHE":[null,"4177875689.33106"],"BMU|CYM":[null,"57919344419.8281"],"BMU|DEU":[null,"9662293662.53688"],"BMU|FRA":[null,"23107015716.2071"],"BMU|G001":[null,"1351914064341.98"],"BMU|GBR":[null,"51575662014.6181"],"BMU|GX031":[null,"152073361396.517"],"BMU|HKG":[null,"17426677188.7595"],"BMU|IRL":[null,"52914101561.0883"],"BMU|JPN":[null,"31407712400.2447"],"BMU|LUX":[null,"33198067085.9471"],"BMU|POL":[null,"843569016.562921"],"BMU|TX091":[null,"4635049640.09483"],"BMU|TX983":[null,"18644919055.3935"],"BMU|USA":[null,"844816414075.252"],"CAN|CHE":["32516308729.75152","36268057784.91172"],"CAN|CYM":["31615480466.17313","34889829271.85174"],"CAN|DEU":["58583889173.93535","56557711950.97038"],"CAN|FRA":["68284834713.77263","71839340434.84605"],"CAN|G001":["3083011067946.932","3389800817160.368"],"CAN|GBR":["136318991424.1736","149110608492.631"],"CAN|GX031":["253022795572.82","300433386837.882"],"CAN|HKG":["13892105841.82365","15599007733.83919"],"CAN|IRL":["22760389943.5608","26428571428.57143"],"CAN|JPN":["72628454152.31254","79688457609.80592"],"CAN|LUX":["16685479733.19651","17830147380.70918"],"CAN|POL":["1297368613.941215","1189989785.495403"],"CAN|TX091":["20793080700.72565","21734276958.99606"],"CAN|TX983":["98787656673.75211","130891580329.7826"],"CAN|USA":["2173611375797.112","2374112067707.573"],"CHN|CAN":["13701785676.95","14593518380.98"],"CHN|CHE":["5268665070.8","5543917118.33"],"CHN|CYM":["125241824905.03","145095506368.4"],"CHN|DEU":["23035231066.39","28631191092.56"],"CHN|FRA":["24272196359.87","27702922845.31"],"CHN|G001":["1694168948781.4","1987525911577.69"],"CHN|GBR":["39191632301.2","48527686692.08"],"CHN|GX031":["279529035155.88","324520033121.66"],"CHN|HKG":["816088746174.34","978948844736.27"],"CHN|IRL":["10538599713.24","11492962722.7"],"CHN|JPN":["23026967283.32","25646617093.37"],"CHN|LUX":["35008523441.04","39804755704.93"],"CHN|POL":["447134110.22","616468163.25"],"CHN|TX091":["34318063437.46","46805615931.96"],"CHN|TX983":["319755969.97","65969135.68"],"CHN|USA":["330700334561.03","363980279701.7"],"CYM|CAN":["125421526264.32","159136894276.29"],"CYM|CHE":["15500195194.26","17940926221.96"],"CYM|DEU":["98529524859.8","182777624947.26"],"CYM|FRA":["108015602344.9","213030418908.12"],"CYM|G001":["6895576138844.17","10315303600000"],"CYM|GBR":["615759360875.6","544548834709.04"],"CYM|GX031":["239582575558.33","285400263679.69"],"CYM|HKG":["37846139733.26","40977401681.87"],"CYM|IRL":["90338434453.18","95949757986.99"],"CYM|JPN":["173483605177.7","369377982717.18"],"CYM|LUX":["91795307126.23","136412065471.52"],"CYM|POL":["3480222965","4796749965"],"CYM|TX091":["5734000000","6561000000"],"CYM|TX983":["0","0"],"CYM|USA":["4513338297996","7097163897653.9"],"DEU|CAN":["129000868000","139087100000"],"DEU|CHE":["85422392000","91980175000"],"DEU|CYM":["31489296000","34843450000"],"DEU|FRA":["575432076000","584950250000"],"DEU|G001":["5526950416000","5811477150000"],"DEU|GBR":["229881940000","232983700000"],"DEU|GX031":["638055552000","675354750000"],"DEU|HKG":["7275776000","8159200000"],"DEU|IRL":["595081828000","700590225000"],"DEU|JPN":["55884476000","61188125000"],"DEU|LUX":["1282450452000","1291104100000"],"DEU|POL":["22938384000","24831275000"],"DEU|TX091":["195806040000","200160075000"],"DEU|TX983":["0","0"],"DEU|USA":["878233512000","919355250000"],"FRA|CAN":["56892270596","66484696000"],"FRA|CHE":["57239487316","56652338300"],"FRA|CYM":["22400344584","26490323300"],"FRA|DEU":["295948582060","321509359725"],"FRA|G001":["4309025170564","4493818715050"],"FRA|GBR":["278832415124","276905299875"],"FRA|GX031":["539868452092","551020992300"],"FRA|HKG":["3500054940","4350385800"],"FRA|IRL":["197279626072","206058555025"],"FRA|JPN":["121244127812","95885067775"],"FRA|LUX":["602879604596","677406181325"],"FRA|POL":["12001713640","9856263075"],"FRA|TX091":["297736503220","291344375500"],"FRA|TX983":["504303396","166380000"],"FRA|USA":["876069015520","923775078300"],"G001|CAN":["2877352248030.535","3461856540687.617"],"G001|CHE":["1496562920558.427","1727246422837.37"],"G001|CYM":["5305257165470.836","5889554997709.741"],"G001|DEU":["3779081537598.087","4055082017552.386"],"G001|FRA":["4825807122365.695","5138031099054.451"],"G001|G001":["88722564817198.56","104089763977494.7"],"G001|GBR":["5842707600337.685","6448717027528.414"],"G001|GX031":["15026820121648.69","17418382970371.93"],"G001|HKG":["1143851258966.462","1423797472205.896"],"G001|IRL":["4708400044314.878","5250237272713.884"],"G001|JPN":["3027289674450.887","3734227314980.624"],"G001|LUX":["5950446369857.839","6543837322709.05"],"G001|POL":["171158560144.8971","193259382321.168"],"G001|TX091":["2157731933744.056","2262566058304.474"],"G001|TX983":["697356907934.8275","1494578720290.118"],"G001|USA":["25436788041999.19","32234626981938.21"],"GBR|CAN":["104710805325","106282976175"],"GBR|CHE":["85331633625","86907325285"],"GBR|CYM":["59195485125","59919090715"],"GBR|DEU":["239894052300","247213326630"],"GBR|FRA":["270110531250","277138089520"],"GBR|G001":["5058643731750","5392712782150"],"GBR|GX031":["751113225450","816448254130"],"GBR|HKG":["38954289150","41748245295"],"GBR|IRL":["620502091650","681257078090"],"GBR|JPN":["182915768700","191366677545"],"GBR|LUX":["257187840525","283622025860"],"GBR|POL":["7999108425","9048150975"],"GBR|TX091":["246631571550","257020502360"],"GBR|TX983":["72811385325","97707113250"],"GBR|USA":["1824619144950","1928380230145"],"IRL|CAN":["121640708000","164558750000"],"IRL|CHE":["92979448000","102579850000"],"IRL|CYM":["157542584000","151315325000"],"IRL|DEU":["258287704000","262385725000"],"IRL|FRA":["402414404000","408984600000"],"IRL|G001":["6345499828000","6973559200000"],"IRL|GBR":["831959436000","860953050000"],"IRL|GX031":["646858444000","748587800000"],"IRL|HKG":["13996024000","16587475000"],"IRL|JPN":["190937552000","206835250000"],"IRL|LUX":["218534636000","265859025000"],"IRL|POL":["10194056000","11621925000"],"IRL|TX091":["41534508000","44230525000"],"IRL|TX983":["23368508000","64706075000"],"IRL|USA":["2583036432000","2857912550000"],"ITA|CAN":["9848694850.172","10144065689.125"],"ITA|CHE":["16090809726.62","16682780514.3"],"ITA|CYM":["4563586036.452","5383641347.025"],"ITA|DEU":["136592918327.252","133002950277.3"],"ITA|FRA":["274431821829.008","289853916573.65"],"ITA|G001":["2507314296053.936","2643943992343.725"],"ITA|GBR":["58005716066.084","60986219638.75"],"ITA|GX031":["189747135536.568","198376785305.525"],"ITA|HKG":["708137146.104","661666035.25"],"ITA|IRL":["336039164964","373507715659.2"],"ITA|JPN":["16392922596.212","17508504973.975"],"ITA|LUX":["855124517226.896","904384273485.6"],"ITA|POL":["4054249970.488","4614067252.725"],"ITA|TX091":["76096596808.124","77744126325.45"],"ITA|TX983":["1224792536.072","702237398.75"],"ITA|USA":["238396975991.212","251418270008.6"],"JPN|CAN":["85078757921.4868","90828159475.6238"],"JPN|CHE":["34366409965.86293","39593379092.01536"],"JPN|CYM":["861404734071.4661","874806697334.2738"],"JPN|DEU":["96534664458.87108","95605178247.53679"],"JPN|FRA":["202696907780.0677","187975756545.771"],"JPN|G001":["4795532524354.069","4917807576254.894"],"JPN|GBR":["168520887431.5048","158925986731.7658"],"JPN|GX031":["1106364876771.645","1118175751514.964"],"JPN|HKG":["10711621042.18599","12546635780.37108"],"JPN|IRL":["121989127720.9755","121692318950.4798"],"JPN|LUX":["124380777644.4038","125372724116.0845"],"JPN|POL":["8014918756.370043","9672160660.678183"],"JPN|TX091":["37208123404.13155","37575478382.85988"],"JPN|TX983":["124311434.9592373","127641717.2680742"],"JPN|USA":["2325965676877.138","2461601418476.417"],"LUX|CAN":["137169388594.84","153956168408.375"],"LUX|CHE":["119109438524.376","130185185718.325"],"LUX|CYM":["182224637652.452","199765565435.325"],"LUX|DEU":["460200178357.356","482112705080.625"],"LUX|FRA":["649686937421.052","693321937804.025"],"LUX|G001":["6875954541120.064","7472079844637.275"],"LUX|GBR":["537378355972.576","566876137946.8"],"LUX|GX031":["918282418864.108","1015327656494.375"],"LUX|HKG":["21924518353.756","23119342868.7"],"LUX|IRL":["361353996106.3","402601752737.7"],"LUX|JPN":["188244591079.128","200073379836.35"],"LUX|POL":["19559424278.18","21999175988.575"],"LUX|TX091":["83272244446.092","87001369139.975"],"LUX|TX983":[null,"1004227510.423796"],"LUX|USA":["2119577116366.928","2308989973827.55"],"NLD|CAN":["43538628000","46611075000"],"NLD|CHE":["33712580000","35620125000"],"NLD|CYM":["49507624000","47197400000"],"NLD|DEU":["229199836000","234661600000"],"NLD|FRA":["206631804000","200698225000"],"NLD|G001":["2600115988000","2674563200000"],"NLD|GBR":["155115372000","156250325000"],"NLD|GX031":["378906428000","389719300000"],"NLD|HKG":["8153604000","7669225000"],"NLD|IRL":["178555372000","190888150000"],"NLD|JPN":["58856668000","63387725000"],"NLD|LUX":["193279208000","194652850000"],"NLD|POL":["10061620000","11304675000"],"NLD|TX091":["89090752000","92822650000"],"NLD|TX983":["0","1455825000"],"NLD|USA":["756215420000","779896850000"],"POL|AGO":["2765180.842827121","3054198.134162594"],"POL|ALB":["3594735.095675257","2221235.006663705"],"POL|ARE":["21291892.48976883","25821856.95246557"],"POL|ARG":["3318217.011392545","4720124.389160373"],"POL|ARM":["3594735.095675257","4164815.637494447"],"POL|AUS":["123050547.5058069","197967569.9689027"],"POL|AUT":["2610883751.797368","2821801421.590404"],"POL|AZE":[null,"5275433.140826299"],"POL|BEL":["1173819267.780113","905430919.5912928"],"POL|BGR":["180566309.036611","237394491.3371835"],"POL|BHR":["2765180.842827121","2776543.758329631"],"POL|BHS":["1935626.589978985","2221235.006663705"],"POL|BMU":["32352615.86107731","30541981.34162594"],"POL|BOL":[null,"555308.7516659263"],"POL|BRA":["87379714.63333702","100788538.4273656"],"POL|CAN":["476717177.3033956","793813860.5064416"],"POL|CHE":["627419533.2374737","1363005330.964016"],"POL|CHL":["96781329.49894923","105508662.816526"],"POL|CHN":["7189470.191350514","8051976.899155931"],"POL|CIV":["13549386.12985289","17214571.30164371"],"POL|CMR":["1935626.589978985","2776543.758329631"],"POL|COL":["91527485.8975777","105786317.192359"],"POL|CRI":["1659108.505696273","3331852.509995558"],"POL|CUW":["9401614.865612211","7774322.523322968"],"POL|CYM":["210706780.2234266","248778320.746335"],"POL|CYP":["235869925.8931534","287649933.3629498"],"POL|CZE":["1587213803.782767","1835850733.007552"],"POL|DEU":["2859196991.483243","2802643269.65793"],"POL|DNK":["139365114.4784869","305975122.1679254"],"POL|DOM":["34564760.53533901","29153709.46246113"],"POL|ECU":[null,"3054198.134162594"],"POL|EGY":["8019024.444198651","7774322.523322968"],"POL|ESP":["1221933414.445305","1230841848.067526"],"POL|EST":["91804003.98186041","80519768.99155931"],"POL|FIN":["89038823.13903329","78853842.73656153"],"POL|FRA":["6031965490.543082","6172256774.76677"],"POL|G001":["85977491427.93939","94269491337.18347"],"POL|GBR":["2173155624.377834","1954131497.112394"],"POL|GGY":["34011724.36677359","42481119.50244336"],"POL|GHA":[null,"1665926.254997779"],"POL|GRC":["42583784.97953766","93847179.03154154"],"POL|GTM":["10784205.28702577","12494446.91248334"],"POL|GX031":["32798363012.94105","36535984007.10795"],"POL|HND":["3594735.095675257","3609506.885828521"],"POL|HRV":["67746930.64926446","53309640.15992892"],"POL|HUN":["1454208605.242783","1552087960.906264"],"POL|IRL":["7036832208.826457","8650044424.700133"],"POL|IRN":["9954651.034177635","69968902.70990671"],"POL|ISR":["120008848.578697","396212794.3136384"],"POL|ITA":["1581683442.097113","1791148378.498445"],"POL|JAM":[null,"3331852.509995558"],"POL|JOR":["6083397.854219666","4997778.764993336"],"POL|JPN":["48943700.91804004","54142603.28742781"],"POL|KAZ":["42860303.06382037","38038649.48911595"],"POL|KEN":["3041698.927109833","3054198.134162594"],"POL|KOR":["30416989.27109833","50533096.40159929"],"POL|LBR":[null,"4720124.389160373"],"POL|LTU":["124986174.0957859","75799644.60239893"],"POL|LUX":["10833978542.19666","12131830297.64549"],"POL|LVA":[null,"30541981.34162594"],"POL|MAR":["15761530.80411459","11383829.40915149"],"POL|MEX":["136046897.4670943","167147934.2514438"],"POL|MHL":["7742506.359915939","13327410.03998223"],"POL|MKD":["9954651.034177635","9995557.529986673"],"POL|MLT":["71065147.66065701","63860506.44158152"],"POL|MNE":["4147771.264240681","6108396.268325189"],"POL|MNG":["1935626.589978985","2776543.758329631"],"POL|MYS":["2765180.842827121","2776543.758329631"],"POL|NGA":["5253843.60137153","5275433.140826299"],"POL|NLD":["2494193120.230063","2987561083.962683"],"POL|NOR":["161486561.2211039","228231896.9346957"],"POL|OMN":["18803229.73122442","14438027.54331408"],"POL|PAN":["31523061.60822918","33596179.47578854"],"POL|PER":["30970025.43966375","26377165.7041315"],"POL|PHL":["36776905.20960071","21379386.93913816"],"POL|PRT":["354219665.9661542","349011550.4220347"],"POL|PRY":["9125096.781329499","4997778.764993336"],"POL|ROU":["1439829664.860082","1814193691.692581"],"POL|SGP":["12719831.87700476","12772101.2883163"],"POL|SLV":[null,"1943580.630830742"],"POL|SRB":["47008074.32806106","46923589.51577077"],"POL|SVK":["239464660.9888287","239893380.7196801"],"POL|SVN":["268775577.9227962","296812527.7654376"],"POL|SWE":["275135493.8612985","226843625.0555309"],"POL|TGO":[null,"2498889.382496668"],"POL|TTO":[null,"5553087.516659263"],"POL|TUR":["62769605.13217564","88294091.51488227"],"POL|TWN":["34841278.61962172","42758773.87827632"],"POL|TX091":["23100044242.89349","24946690359.84007"],"POL|TX983":["1967426169.671497","2417258996.001777"],"POL|UKR":["1106072.337130848","1943580.630830742"],"POL|USA":["13273697599.82303","13222456685.91737"],"POL|UZB":["6912952.107067802","13605064.41581519"],"POL|VGB":["14931976.55126645","17214571.30164371"],"POL|ZAF":["53091472.18228072","70246557.08573967"],"SGP|CAN":[null,"38116892765.36095"],"SGP|CHE":[null,"20562495132.77782"],"SGP|CYM":[null,"87153349427.61467"],"SGP|DEU":[null,"35549332606.49482"],"SGP|G001":[null,"2368218588116.19"],"SGP|GBR":[null,"75460689977.41609"],"SGP|GX031":[null,"611600150299.82"],"SGP|HKG":[null,"44828864574.41009"],"SGP|JPN":[null,"111078551514.6795"],"SGP|LUX":[null,"42159396464.44981"],"SGP|TX983":[null,"416876263530.8777"],"SGP|USA":[null,"924670737481.5046"],"TX093|CAN":["213074563981.91","235078443782.548"],"TX093|CHE":["44357143650.6448","100201171299.631"],"TX093|CYM":["1610430716.15166","1583384316.44489"],"TX093|DEU":["595544439324.516","598010778732.757"],"TX093|FRA":["435795758124.388","388836040287.452"],"TX093|G001":["6126528136067.82","6068877198860.73"],"TX093|GBR":["215313992373.469","217952125236.711"],"TX093|GX031":["659254004529.902","705012198522.272"],"TX093|HKG":["8674503853.61751","9762493566.10392"],"TX093|IRL":["19479680561.2751","17182010539.6469"],"TX093|JPN":["261821453094.406","264146842686.355"],"TX093|LUX":["11768207393.6754","10028710752.3872"],"TX093|POL":["8775600007.16472","9607798490.95697"],"TX093|TX091":["394178952523.473","435072271658.488"],"TX093|TX983":["84967094990.1031","114520159223.039"],"TX093|USA":["2755460019350.5","2695869949904.31"],"USA|CAN":["1628425000000","1879249000000"],"USA|CHE":["741336000000","806038000000"],"USA|CYM":["2798130000000","3000726000000"],"USA|DEU":["691326000000","684479000000"],"USA|FRA":["856303000000","901427000000"],"USA|G001":["17599151000000","19189003000000"],"USA|GBR":["1885490000000","2009273000000"],"USA|GX031":["5432098000000","5941312000000"],"USA|HKG":["107448000000","120561000000"],"USA|IRL":["1134700000000","1176212000000"],"USA|JPN":["1344145000000","1477582000000"],"USA|LUX":["349904000000","355953000000"],"USA|POL":["35622000000","38445000000"],"USA|TX091":["58645000000","68991000000"],"USA|TX983":["176877000000","273513000000"]}')
+
+
+def _pip_mac_sdmx_v337(M, periods=('2025-S1', '2025-S2'), extra=None):
+    """Odpowiedź SDMX-JSON w kształcie PIP (7 wymiarów, attributes=none — obserwacja [wartość]) z {'POSIADACZ|EMITENT': [S1, S2]}; extra —
+    dodatkowe serie {klucz: słownik serii} (np. bez pola observations, jak w prawdziwej odpowiedzi)."""
+    H = sorted({k.split('|')[0] for k in M}); I = sorted({k.split('|')[1] for k in M})
+    ser = {}
+    for k, vals in M.items():
+        h, i = k.split('|')
+        ser[f'{H.index(h)}:0:0:0:0:{I.index(i)}:0'] = {'observations': {str(n): [v] for n, v in enumerate(vals) if v is not None}}
+    ser.update(extra or {})
+    dims = [('COUNTRY', H), ('ACCOUNTING_ENTRY', ['A']), ('INDICATOR', ['P_TOTINV_P_USD']), ('SECTOR', ['S1']), ('COUNTERPART_SECTOR', ['S1']),
+            ('COUNTERPART_COUNTRY', I), ('FREQUENCY', ['S'])]
+    return {'meta': {}, 'data': {'dataSets': [{'structure': 0, 'action': 'Replace', 'series': ser}], 'structures': [{'dimensions': {
+        'series': [{'id': n, 'keyPosition': p, 'values': [{'id': x} for x in vals]} for p, (n, vals) in enumerate(dims)],
+        'observation': [{'id': 'TIME_PERIOD', 'keyPosition': 7, 'values': [{'value': x} for x in periods]}]}}]}}
+
+
+class PipMfwV337(unittest.TestCase):
+    """v337 (F2Z4): data/pip.json — kto trzyma czyje papiery (stan na koniec półrocza): lekkie zapytanie raz na dobę (Polska jako emitent),
+    pełna macierz tylko po nowym półroczu / po 30 dniach, nie w długim przebiegu, ponowienie po błędzie najwcześniej po 6 h; brak = brak."""
+    NOW = '2026-10-10T21:00:00+00:00'
+
+    def setUp(self):
+        self.p_now = mock.patch.object(zd, 'NOW', self.NOW); self.p_now.start()
+        zd.SECRETS[:] = []
+
+    def tearDown(self):
+        self.p_now.stop()
+
+    def rec(self):
+        return json.loads(_PIP_REC_V337)
+
+    def mac(self, **kw):
+        return _pip_mac_sdmx_v337(_PIP_MAC_V337, **kw)
+
+    def fetch(self, calls, pol=None, mac=None, blad_mac=None, blad_pol=None):
+        def f(url, timeout):
+            calls.append((url, timeout))
+            if url == zd.PIP_POL_URL:
+                if blad_pol:
+                    raise blad_pol
+                return pol if pol is not None else self.rec()
+            self.assertEqual(url, zd.PIP_ALL_URL)
+            if blad_mac:
+                raise blad_mac
+            return mac if mac is not None else self.mac()
+        return f
+
+    def test_adresy_bez_klucza_z_przypietymi_sektorami(self):
+        for u in (zd.PIP_POL_URL, zd.PIP_ALL_URL):
+            self.assertTrue(u.startswith('https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/PIP/+/*.A.P_TOTINV_P_USD.S1.S1.'), u)
+            self.assertIn('lastNObservations=2', u); self.assertNotIn('key', u.lower())
+        self.assertIn('.S1.S1.POL.S?', zd.PIP_POL_URL); self.assertIn('.S1.S1.*.S?', zd.PIP_ALL_URL)
+        self.assertEqual((zd.PIP_T_LEKKIE, zd.PIP_T_PELNE, zd.PIP_PELNE_DNI, zd.PIP_PONOW_H, zd.PIP_TOP), (60, 150, 30, 6, 20))
+
+    def test_kody_gospodarek_agregaty_i_osobne(self):
+        for c in ('POL', 'USA', 'CYM', 'KOS', 'WBG', 'TX117', 'TX793'):
+            self.assertTrue(zd._pip_gosp(c), c)
+        for c in ('G001', 'GX031', 'G163', 'U150', 'GASEAN', 'TX091', 'TX093', 'TX983', '', None):
+            self.assertFalse(zd._pip_gosp(c), c)
+        self.assertEqual((zd._pip_prev('2025-S2'), zd._pip_prev('2025-S1')), ('2025-S1', '2024-S2'))
+        self.assertEqual((zd._pip_half('2025-S2'), zd._pip_half('2025-Q2'), zd._pip_half(None)), ('2025-S2', None, None))
+
+    def test_nagranie_polska_jako_emitent(self):
+        ser = zd._pip_ser(self.rec())
+        L = zd._pip_okres(ser); self.assertEqual(L, '2025-S2')
+        E = zd._pip_rola(ser, 'POL', 'e', L)
+        self.assertEqual((E['okres'], E['poprz'], E['swiat'], E['suma'], E['spec']), ('2025-S2', '2025-S1', 193259.4, 193259.4, 9607.8))
+        self.assertEqual(E['rows'][:3], [['USA', 38445.0, None], ['DEU', 24831.3, None], ['LUX', 21999.2, None]], 'kontrola planu: USA 38,4, Niemcy 24,8')
+        self.assertEqual((len(E['rows']), E['n'], E['inne']), (15, 63, 22212.5))
+        kody = [r[0] for r in E['rows']]
+        self.assertTrue(all(zd._pip_gosp(c) for c in kody) and 'G001' not in kody and 'TX093' not in kody)
+        self.assertAlmostEqual(sum(r[1] for r in E['rows']) + E['inne'] + E['spec'], E['swiat'], delta=0.5)
+        stare = {c for (c, i), d in ser.items() if '2025-S2' not in d}   # posiadacze tylko ze starszym półroczem (2009-S2, 2024-S2 …) — brak, nie zero
+        self.assertTrue(stare and not stare & set(kody))
+
+    def test_macierz_pary_i_polska_jako_inwestor(self):
+        ser = zd._pip_ser(self.mac(extra={'0:0:0:0:0:0:0': {'attributes': [0]}}))   # seria bez pola observations — jak w prawdziwej odpowiedzi
+        P = zd._pip_pary(ser, '2025-S2')
+        self.assertEqual(P['rows'][0], ['CYM', 'USA', 7097163.9, 2583825.6])
+        self.assertEqual(P['rows'][1], ['USA', 'CYM', 3000726.0, 202596.0])
+        self.assertEqual(P['rows'][13], ['SGP', 'USA', 924670.7, None], 'brak półrocza wcześniej — zmiana None, nie 0')
+        self.assertEqual(P['rows'][19], ['IRL', 'GBR', 860953.1, 28993.6])
+        self.assertEqual(len(P['rows']), 20)
+        self.assertTrue(all(zd._pip_gosp(r[0]) and zd._pip_gosp(r[1]) and r[0] != r[1] for r in P['rows']))
+        Q = zd._pip_rola(ser, 'POL', 'p', '2025-S2')
+        self.assertEqual((Q['swiat'], Q['spec'], Q['rows'][0], Q['rows'][1]), (94269.5, 27363.9, ['USA', 13222.5, -51.2], ['LUX', 12131.8, 1297.9]))
+        self.assertAlmostEqual(Q['suma'], Q['swiat'], delta=0.2)
+        self.assertNotIn('GX031', [r[0] for r in Q['rows']])
+
+    def test_pierwszy_przebieg_lekkie_i_pelna_macierz(self):
+        calls = []
+        o = zd.build_pip(None, fetch=self.fetch(calls))
+        self.assertEqual([t for _, t in calls], [60, 150])
+        self.assertEqual((o['at'], o['okres'], o['ok'], o['part_at'], o['bledy']), (self.NOW, '2025-S2', {'pol_e': True, 'pary': True},
+                                                                                     {'pol_e': self.NOW, 'pary': self.NOW}, []))
+        self.assertEqual((o['pary']['okres'], o['pol_p']['okres'], o['pol_e']['swiat']), ('2025-S2', '2025-S2', 193259.4))
+        self.assertIn('International Monetary Fund', o['src']); self.assertFalse(zd.plik_niepelny(o))
+        json.dumps(o, allow_nan=False)
+
+    def test_bez_pelnej_macierzy_gdy_to_samo_polrocze_i_swieza(self):
+        calls = []
+        prev = zd.build_pip(None, fetch=self.fetch([]))
+        prev['part_at']['pary'] = '2026-09-25T21:00:00+00:00'
+        o = zd.build_pip(prev, fetch=self.fetch(calls))
+        self.assertEqual(len(calls), 1, 'tylko lekkie zapytanie')
+        self.assertEqual((o['pary'], o['pol_p'], o['part_at']['pary'], o['ok']['pary']), (prev['pary'], prev['pol_p'], '2026-09-25T21:00:00+00:00', True))
+
+    def test_pelna_macierz_po_nowym_polroczu_i_po_30_dniach(self):
+        prev = zd.build_pip(None, fetch=self.fetch([]))
+        stary = json.loads(json.dumps(prev)); stary['pary']['okres'] = '2025-S1'
+        calls = []; zd.build_pip(stary, fetch=self.fetch(calls)); self.assertEqual(len(calls), 2, 'nowe półrocze')
+        stary = json.loads(json.dumps(prev)); stary['part_at']['pary'] = '2026-09-09T20:00:00+00:00'
+        calls = []; zd.build_pip(stary, fetch=self.fetch(calls)); self.assertEqual(len(calls), 2, 'część „pary” ma ponad 30 dni')
+
+    def test_dlugi_przebieg_bez_pelnej_macierzy_plik_niepelny(self):
+        calls = []
+        o = zd.build_pip(None, run_t0=zd.time.monotonic() - zd.PIP_LATE - 5, fetch=self.fetch(calls))
+        self.assertEqual(len(calls), 1)
+        self.assertEqual((o['pary'], o['pol_p'], o['ok']['pary'], o['bledy']), (None, None, False, []))
+        self.assertTrue(zd.plik_niepelny(o), 'ponowienie po 55 min (fresh_pelny)')
+        self.assertEqual(o['pol_e']['swiat'], 193259.4)
+
+    def test_blad_pelnej_macierzy_czesc_z_poprzedniego_i_ponowienie_po_6_h(self):
+        prev = zd.build_pip(None, fetch=self.fetch([]))
+        prev['pary']['okres'] = '2025-S1'
+        calls = []
+        o = zd.build_pip(prev, fetch=self.fetch(calls, blad_mac=RuntimeError('HTTP Error 504')))
+        self.assertEqual(len(calls), 2)
+        self.assertEqual((o['pary'], o['ok']['pary'], o['pary_proba']), (prev['pary'], False, self.NOW))
+        self.assertEqual(o['bledy'], ['MFW PIP (pełna macierz): HTTP Error 504'])
+        with mock.patch.object(zd, 'NOW', '2026-10-11T00:00:00+00:00'):
+            calls = []; o2 = zd.build_pip(o, fetch=self.fetch(calls))
+        self.assertEqual((len(calls), o2['pary_proba'], o2['ok']['pary'], o2['bledy']), (1, self.NOW, False, []), '3 h po błędzie — bez próby')
+        with mock.patch.object(zd, 'NOW', '2026-10-11T03:30:00+00:00'):
+            calls = []; o3 = zd.build_pip(o2, fetch=self.fetch(calls))
+        self.assertEqual((len(calls), o3['ok']['pary'], o3['pary']['okres']), (2, True, '2025-S2'), '6,5 h po błędzie — nowa próba')
+        self.assertNotIn('pary_proba', o3)
+
+    def test_blad_lekkiego_zapytania_i_skala(self):
+        with self.assertRaisesRegex(RuntimeError, 'HTTP Error 503'):
+            zd.build_pip(None, fetch=self.fetch([], blad_pol=RuntimeError('HTTP Error 503')))
+        r = self.rec()
+        for s in r['data']['dataSets'][0]['series'].values():
+            for o in s['observations'].values():
+                o[0] = None if o[0] is None else str(float(o[0]) / 1e6)
+        with self.assertRaisesRegex(RuntimeError, 'skala'):
+            zd.build_pip(None, fetch=self.fetch([], pol=r))
+        M = {k: [None if v is None else str(float(v) / 1e6) for v in x] for k, x in _PIP_MAC_V337.items()}
+        with self.assertRaisesRegex(RuntimeError, 'skala'):
+            zd._pip_pary(zd._pip_ser(_pip_mac_sdmx_v337(M)), '2025-S2')
+
+    def test_nan_i_puste_to_brak(self):
+        M = dict(_PIP_MAC_V337); M['CYM|USA'] = [M['CYM|USA'][0], 'NaN']; M['USA|CYM'] = [None, M['USA|CYM'][1]]
+        P = zd._pip_pary(zd._pip_ser(_pip_mac_sdmx_v337(M)), '2025-S2')
+        self.assertNotIn(['CYM', 'USA'], [r[:2] for r in P['rows']], 'NaN = brak, nie 0')
+        self.assertEqual(P['rows'][0], ['USA', 'CYM', 3000726.0, None])
+
+    def test_okres_wymaga_10_zglaszajacych(self):
+        M = {k: v + [None] for k, v in _PIP_MAC_V337.items()}; M['USA|GBR'] = M['USA|GBR'][:2] + ['2100000000000']
+        ser = zd._pip_ser(_pip_mac_sdmx_v337(M, periods=('2025-S1', '2025-S2', '2026-S1')))   # jeden posiadacz z „nowszym” półroczem
+        self.assertEqual(zd._pip_okres(ser), '2025-S2')
+        self.assertEqual(zd._pip_pary(ser, '2025-S2')['rows'][0][:2], ['CYM', 'USA'])
+
+
+class PipMainV337(unittest.TestCase):
+    """v337 (F2Z4): main() — pip.json raz na dobę (plik niepełny po 55 min), awaria = poprzedni plik i błąd z przedrostkiem MFW PIP."""
+    ENV = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY')}
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
+        self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
+        src = open(os.path.join(self.ROOT, 'test_zbieraj_dane.py'), encoding='utf-8').read()
+        T = [m.group(0) for m in re.finditer(r"\(\s*'build_\w+'(?:\s*,\s*'build_\w+')+\s*\)", src) if "'build_su_raporty'" in m.group(0)]
+        names = (set(re.findall(r"'(build_\w+)'", ' '.join(T))) | {'build_instytucje', 'build_krypto', 'build_tic', 'build_rezerwy'}) - {'build_pip'}
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in sorted(names)]
+        [p.start() for p in self.ps]
+
+    def tearDown(self):
+        [p.stop() for p in self.ps]
+
+    def _main(self, prev, build):
+        with mock.patch.dict(os.environ, self.ENV, clear=False), mock.patch.object(zd, 'previous', lambda name: prev if name == 'pip' else None), \
+             mock.patch.object(zd, 'build_pip', build):
+            zd.main()
+
+    def test_mlody_plik_bez_zapytan(self):
+        prev = {'at': _iso(60), 'ok': {'pol_e': True, 'pary': True}}
+        self._main(prev, mock.Mock(side_effect=AssertionError('bez zapytań')))
+        self.assertIs(self.saved['pip'], prev); self.assertEqual(zd.META['ok']['pip'], 'cached')
+
+    def test_plik_niepelny_po_55_min_od_nowa(self):
+        prev = {'at': _iso(60), 'ok': {'pol_e': True, 'pary': False}}
+        new = {'at': zd.NOW, 'ok': {'pol_e': True, 'pary': True}, 'bledy': []}
+        b = mock.Mock(return_value=new)
+        self._main(prev, b)
+        self.assertIs(self.saved['pip'], new); self.assertIs(zd.META['ok']['pip'], True)
+        self.assertIs(b.call_args.args[0], prev); self.assertIn('run_t0', b.call_args.kwargs)
+
+    def test_bledy_czesci_do_meta(self):
+        new = {'at': zd.NOW, 'ok': {'pol_e': True, 'pary': False}, 'bledy': ['MFW PIP (pełna macierz): HTTP Error 504']}
+        self._main(None, mock.Mock(return_value=new))
+        self.assertIs(self.saved['pip'], new); self.assertIs(zd.META['ok']['pip'], False)
+        self.assertIn('MFW PIP (pełna macierz): HTTP Error 504', zd.META['errors'])
+
+    def test_awaria_zostawia_poprzedni_plik(self):
+        prev = {'at': _iso(26 * 60), 'ok': {'pol_e': True, 'pary': True}}
+        self._main(prev, mock.Mock(side_effect=RuntimeError('brak serii z wartościami')))
+        self.assertIs(self.saved['pip'], prev); self.assertIs(zd.META['ok']['pip'], False)
+        self.assertIn('MFW PIP: brak serii z wartościami', zd.META['errors'])
+
+    def test_krotki_zaslepek_znaja_build_pip(self):
+        src = open(os.path.join(self.ROOT, 'test_zbieraj_dane.py'), encoding='utf-8').read()
+        T = [m.group(0) for m in re.finditer(r"\(\s*'build_\w+'(?:\s*,\s*'build_\w+')+\s*\)", src) if "'build_su_raporty'" in m.group(0)]
+        self.assertGreaterEqual(len(T), 20)
+        self.assertEqual([t[:60] for t in T if "'build_pip'" not in t], [], 'każda krotka zaślepek zna build_pip (brak = prawdziwe zapytania w testach z main())')
+
+
+class PipKontrolaV337(unittest.TestCase):
+    """v337 (F2Z4): kontrola dzienna — pip.json w liście plików (limit 2 doby), wiek półrocza ≤ 15 mies., suma posiadaczy ≈ świat; najwyżej ⚠️."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        cls.tmp = tempfile.mkdtemp(prefix='kontrola337-')
+        os.environ['KONTROLA_DIR'] = os.path.join(cls.tmp, 'kontrola'); os.environ['KONTROLA_ARCH'] = os.path.join(cls.tmp, 'archiwum')
+        spec = importlib.util.spec_from_file_location('v337_k', os.path.join(cls.ROOT, 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def plik(self):
+        with mock.patch.object(zd, 'NOW', '2026-10-10T21:00:00+00:00'):
+            f = lambda url, t: json.loads(_PIP_REC_V337) if url == zd.PIP_POL_URL else _pip_mac_sdmx_v337(_PIP_MAC_V337)
+            return zd.build_pip(None, fetch=f)
+
+    def test_lista_plikow_i_limit(self):
+        k = self.k
+        self.assertIn('pip', k.PLIKI); self.assertLess(k.PLIKI.index('pip'), k.PLIKI.index('krypto-dzien'))
+        self.assertEqual(k.LIMIT_MIN['pip'], 48 * 60)
+        src = open(os.path.join(self.ROOT, 'zbieraj_dane.py'), encoding='utf-8').read()
+        self.assertNotIn('pip', k.pliki_bez_nadzoru(src))
+
+    def test_pliku_z_10_10_wszystko_zgodne(self):
+        now = self.k.dt.datetime(2026, 10, 10, 21, tzinfo=self.k.dt.timezone.utc)
+        R = self.k.pip_kontrola(self.plik(), now)
+        self.assertEqual([r[1] for r in R['rows']], ['✅'] * 4); self.assertEqual(R['uwagi'], [])
+        self.assertEqual(R['rows'][2][3], '193.3 vs 193.3 mld USD (2025-S2)')
+        self.assertEqual(R['rows'][0][2], self.k.wiek_danych('2025-12', 'month', 'k', now))
+
+    def test_polrocze_starsze_niz_15_mies_to_uwaga(self):
+        j = self.plik(); j['pol_e']['okres'] = '2025-S1'
+        now = self.k.dt.datetime(2026, 10, 10, 21, tzinfo=self.k.dt.timezone.utc)
+        R = self.k.pip_kontrola(j, now)
+        self.assertEqual(R['rows'][0][1], '⚠️'); self.assertEqual(len(R['uwagi']), 1); self.assertIn('2025-S1', R['uwagi'][0])
+        R2 = self.k.pip_kontrola(j, self.k.dt.datetime(2026, 9, 30, 23, tzinfo=self.k.dt.timezone.utc))
+        self.assertEqual(R2['rows'][0][1], '✅', 'do 30.09.2026 włącznie (15 mies. od końca czerwca 2025)')
+
+    def test_suma_niezgodna_i_brak_czesci(self):
+        j = self.plik(); j['pol_e']['suma'] = j['pol_e']['swiat'] - 2500.0; j.pop('pol_p')
+        R = self.k.pip_kontrola(j, self.k.dt.datetime(2026, 10, 10, 21, tzinfo=self.k.dt.timezone.utc))
+        self.assertEqual([r[1] for r in R['rows']], ['✅', '✅', '⚠️', '?'])
+        self.assertTrue(any('różnica 2.5 mld USD' in u for u in R['uwagi']))
+        self.assertEqual(self.k.pip_kontrola(None)['rows'], [])
