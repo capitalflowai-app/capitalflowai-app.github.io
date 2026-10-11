@@ -5087,6 +5087,237 @@ def szlaki_kontrola(j, R):
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v340: gaz i LNG (data/lng.json) ----------------------------------------------------------------
+# Świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️ — pole next pliku mówi, kiedy spodziewana jest zmiana.
+# Progi z testu wstecznego (ws53/v340-lng/bt/, historia 2023-01-01 – 2026-10-10: 1379 dób, 30 punktów wejścia, nagrania 11.10.2026):
+# * (kategoria 'w' — wiek kalendarzowy: gaz płynie, a dane powstają także w soboty i niedziele)
+# * Świnoujście: wynik doby D pojawia się ok. 07:03 czasu polskiego dnia D+1 (wiek doby na koniec jej ostatniego dnia: 7 h – 31 h); w historii 0 braków
+#   doby z 1379 → próg 3 dni (plan F5Z1: „Świnoujście bez danych 3 dni = ostrzeżenie”), ⚠️ także przy 3 i więcej brakach doby w ostatnich 30 dniach;
+# * terminale UE razem: doba kompletna, gdy raportują wszyscy operatorzy (ostatni ok. 19:56 czasu polskiego dnia D+1) → zwykły wiek ostatniej doby
+#   do ok. 43 h; w historii 23 niekompletne doby z 1379, najwyżej 2 kolejne → najgorszy wiek ok. 91 h < próg 5 dni (⚠️ 0%); braki doby UE w oknie
+#   30 dni: najwięcej 2 → ⚠️ powyżej 5;
+# * dane miesięczne urzędowej statystyki: rozporządzenie wymaga danych w 2 miesiące po miesiącu, agregat UE27 pojawia się później od krajów
+#   (10.10.2026: UE27 do lipca = 70 dni od końca miesiąca, Polska do sierpnia = 40 dni) → próg 120 dni dla UE27 i 90 dni dla Polski.
+# ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (daty nie rosną, suma UE < Świnoujście w tej samej dobie, suma terminali ≠ suma UE, hist ≠ d,
+# pasmo poza porządkiem, suma partnerów ≠ suma importu, mln m³ niezgodne z TJ). Progi ⚠️ danych (test wsteczny na 1379 dobach): suma UE poza
+# [800, 8000] GWh/d (w historii 1 914 – 4 919), skok sumy UE o ponad 60% z doby na dobę (w historii −23% … +39%, 0 z 1366), Świnoujście ponad
+# 600 GWh/d (w historii do 272; zmiany doba do doby bez progu — wyłączenia terminalu to zdarzenia: min 0, skok z 0); suma dób miesiąca terminali UE
+# wobec importu UE27 z miesięcznej statystyki poza [0,60; 1,10] (w historii 43 miesiące: 0,742 – 0,976, średnio 0,85 — Dunkierka nie publikuje
+# tych danych), Świnoujście wobec importu Polski poza [0,60; 1,40] (w historii 0,753 – 1,244). Porównanie tylko dla miesięcy z kompletnymi
+# dobami (brak najwyżej 3 dób — średnia z dostępnych).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'lng')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['lng'] = 26 * 60
+AW_BEZ_BLEDU.update({'lng_' + p: 'gaz i LNG — część z błędem zostaje z datą (v340); wiek danych w wierszach świeżości' for p in ('dz', 'skad', 'zapasy')})
+LNG_K_ETYKIETA = {'pl': 'gaz i LNG: Świnoujście, dobowa wysyłka z terminalu (doba gazowa)',
+                  'ue': 'gaz i LNG: terminale UE razem, dobowa wysyłka (doba kompletna)',
+                  'skad': 'gaz i LNG: import LNG do UE27 wg pochodzenia (miesięcznie)',
+                  'skad_pl': 'gaz i LNG: import LNG do Polski (miesięcznie)',
+                  'zap': 'gaz i LNG: zapasy gazu w magazynach UE27 (miesięcznie)',
+                  'zap_pl': 'gaz i LNG: zapasy gazu w magazynach Polski (miesięcznie)'}
+LNG_K_PROG = {'pl': ('w', 3 * 1440), 'ue': ('w', 5 * 1440), 'skad': ('m', 120 * 1440), 'skad_pl': ('m', 90 * 1440), 'zap': ('m', 120 * 1440), 'zap_pl': ('m', 90 * 1440)}
+LNG_K_UE_MIN, LNG_K_UE_MAX = 800.0, 8000.0   # GWh/d — suma UE
+LNG_K_UE_SKOK = 60.0                         # % — zmiana sumy UE z doby na dobę
+LNG_K_PL_MAX = 600.0                         # GWh/d — Świnoujście
+LNG_K_BRAKI_UE, LNG_K_BRAKI_PL = 5, 2        # dób bez wartości w ostatnich 30 dniach: ⚠️ powyżej (UE) / od 3 (PL)
+LNG_K_RAZEM = (0.60, 1.10)                   # suma dób miesiąca (GWh × 3,6 = TJ) wobec importu UE27
+LNG_K_RAZEM_PL = (0.60, 1.40)                # … Świnoujście wobec importu Polski
+LNG_K_TOL = 0.06                             # GWh — zaokrąglenia do 0,1
+
+
+def _lng_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))
+
+
+def _lng_k_wiersze(e):
+    d = e.get('d') if isinstance(e, dict) else None
+    return [x for x in d if isinstance(x, list) and len(x) >= 2] if isinstance(d, list) else []
+
+
+def lng_swiezosc(j, now=None):
+    """Wiersze świeżości części pliku lng.json w kształcie wierszy swiezosc(): (etykieta, status, wiek min, data danych, uwaga). Najwyżej ⚠️, nigdy ❌;
+    brak pliku albo inna wersja = brak wierszy; część bez daty danych — '?'. Dla dz: dodatkowo ⚠️ przy brakach dób w ostatnich 30 dniach."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    nx = j.get('next') if isinstance(j.get('next'), dict) else {}
+    dz, sk, zp = (j.get(p) if isinstance(j.get(p), dict) else {} for p in ('dz', 'skad', 'zapasy'))
+    zrodlo = {'pl': ((dz.get('pl') or {}).get('asof'), 'dz', 'day'), 'ue': ((dz.get('ue') or {}).get('asof'), 'dz', 'day'),
+              'skad': ((sk.get('ue') or {}).get('m'), 'skad', 'month'), 'skad_pl': ((sk.get('pl') or {}).get('m'), 'skad', 'month'),
+              'zap': ((((zp.get('k') or {}).get('EU27_2020') or {}).get('m')), 'zapasy', 'month'),
+              'zap_pl': ((((zp.get('k') or {}).get('PL') or {}).get('m')), 'zapasy', 'month')}
+    rows = []
+    for p, label in LNG_K_ETYKIETA.items():
+        txt, czesc, kind = zrodlo[p]
+        kat, prog = LNG_K_PROG[p]
+        if not isinstance(txt, str) or not txt:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        w = wiek_danych(txt, kind, kat, now)
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        note = ''
+        if st == '⚠️':
+            nt = nx.get(czesc); pt = _aw_t(nt) if isinstance(nt, str) else None
+            note = f'próg {fmt_wiek(prog)} — najwyżej uwaga' + (
+                f'; spodziewana zmiana {czas_pl(nt)}' + (' — zaległa (przerwa u źródła?)' if pt and pt < now else '') if pt else '')
+        if p in ('pl', 'ue') and st != '?':   # braki dób w ostatnich 30 dniach wykresu
+            V = [x[1] for x in _lng_k_wiersze(dz.get(p))][-30:]
+            n = sum(1 for v in V if v is None)
+            lim = LNG_K_BRAKI_PL if p == 'pl' else LNG_K_BRAKI_UE
+            if len(V) >= 30 and n > lim:
+                st = '⚠️'
+                note = '; '.join(x for x in (note, f'{n} z ostatnich 30 dób bez wartości (próg {lim}; w historii 2023–2026 najwyżej {0 if p == "pl" else 2}) — najwyżej uwaga') if x)
+        rows.append((label, st, w, txt, note))
+    return rows
+
+
+def lng_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w gazie i LNG) → lista opisów."""
+    zle = []
+    dz = j.get('dz') if isinstance(j.get('dz'), dict) else {}
+    S = {}
+    for p in ('pl', 'ue'):
+        e = dz.get(p) if isinstance(dz.get(p), dict) else None
+        if e is None:
+            continue
+        R = _lng_k_wiersze(e)
+        ds = [str(x[0]) for x in R]
+        if ds != sorted(set(ds)):
+            zle.append(f'dz.{p}: doby nie rosną albo się powtarzają')
+        if any(x[1] is not None and not (_lng_k_num(x[1]) and x[1] >= 0) for x in R):
+            zle.append(f'dz.{p}: wartość ujemna albo nie-liczba (brak ma być null)')
+        S[p] = {str(x[0]): x[1] for x in R if _lng_k_num(x[1])}
+        if R and e.get('asof') != R[-1][0]:
+            zle.append(f'dz.{p}: asof {e.get("asof")} ≠ ostatnia doba wykresu {R[-1][0]}')
+        pas = e.get('pasmo')
+        if pas is not None:
+            for x in (pas if isinstance(pas, list) else [None]):
+                if not (isinstance(x, list) and len(x) == 4 and all(_lng_k_num(v) for v in x[1:]) and x[1] <= x[2] <= x[3] and str(x[0]) in {*ds}):
+                    zle.append(f'dz.{p}: pasmo poza porządkiem (najmniej ≤ mediana ≤ najwięcej) albo doba spoza wykresu'); break
+    for d, u in (S.get('ue') or {}).items():
+        v = (S.get('pl') or {}).get(d)
+        if v is not None and u < v - LNG_K_TOL:
+            zle.append(f'dz: suma terminali UE ({u}) mniejsza niż Świnoujście ({v}) w dobie {d}'); break
+    T = dz.get('term') if isinstance(dz.get('term'), dict) else None
+    if T is not None:
+        rows = [r for r in (T.get('r') or []) if isinstance(r, list) and len(r) == 3 and _lng_k_num(r[2])]
+        s = sum(r[2] for r in rows)
+        u = (S.get('ue') or {}).get(T.get('d'))
+        if u is not None and abs(s - u) > 0.05 * (len(rows) + 1) + 0.01:
+            zle.append(f'dz.term: suma terminali {s:.1f} ≠ suma UE {u} w dobie {T.get("d")}')
+        pw = [r[2] for r in rows if r[0] == 'Świnoujście']
+        v = (S.get('pl') or {}).get(T.get('d'))
+        if pw and v is not None and abs(pw[0] - v) > LNG_K_TOL:
+            zle.append(f'dz.term: Świnoujście {pw[0]} ≠ {v} w dobie {T.get("d")}')
+    h = dz.get('hist') if isinstance(dz.get('hist'), dict) else None
+    if h is not None:
+        if not (isinstance(h.get('pl'), list) and isinstance(h.get('ue'), list) and len(h['pl']) == len(h['ue'])):
+            zle.append('dz.hist: serie różnej długości')
+        else:
+            d0 = _sz_k_dzien(h.get('od'))
+            for p in ('pl', 'ue'):
+                for d, v in (S.get(p) or {}).items():
+                    dd = _sz_k_dzien(d)
+                    i = (dd - d0).days if dd and d0 else -1
+                    if not (0 <= i < len(h[p])) or not _lng_k_num(h[p][i]) or abs(h[p][i] - v) > LNG_K_TOL:
+                        zle.append(f'dz.hist: {p} {d} ≠ wykres'); break
+                else:
+                    continue
+                break
+    sk = j.get('skad') if isinstance(j.get('skad'), dict) else {}
+    for g in ('ue', 'pl'):
+        e = sk.get(g) if isinstance(sk.get(g), dict) else None
+        if e is None:
+            continue
+        K = [x for x in (e.get('k') or []) if isinstance(x, list) and len(x) == 2 and _lng_k_num(x[1])]
+        if _lng_k_num(e.get('razem')) and sum(x[1] for x in K) > e['razem'] * 1.03:
+            zle.append(f'skad.{g}: suma partnerów {sum(x[1] for x in K):.0f} większa niż suma importu {e["razem"]}')
+        H = [x for x in (e.get('hist') or []) if isinstance(x, list) and len(x) == 2]
+        if H and (H[-1][0] != e.get('m') or H[-1][1] != e.get('razem')):
+            zle.append(f'skad.{g}: ostatni miesiąc szeregu ≠ miesiąc i suma importu')
+    zp = ((j.get('zapasy') or {}).get('k') or {}) if isinstance(j.get('zapasy'), dict) else {}
+    for g, e in (zp.items() if isinstance(zp, dict) else ()):
+        R = _lng_k_wiersze(e)
+        ms = [str(x[0]) for x in R]
+        if ms != sorted(set(ms)):
+            zle.append(f'zapasy.{g}: miesiące nie rosną albo się powtarzają')
+        for x in R:
+            if len(x) >= 3 and _lng_k_num(x[1]) and _lng_k_num(x[2]) and not 30 <= x[1] / x[2] <= 45:
+                zle.append(f'zapasy.{g} {x[0]}: TJ / mln m³ = {x[1] / x[2]:.1f} poza 30–45'); break
+        if R and e.get('m') != R[-1][0]:
+            zle.append(f'zapasy.{g}: m {e.get("m")} ≠ ostatni miesiąc szeregu {R[-1][0]}')
+    return zle
+
+
+def _lng_k_razem(H, d0, miesiace):
+    """Sumy dób miesiąca terminali (GWh) przeliczone na TJ (× 3,6), wobec importu miesiąca: [(miesiąc, stosunek)] dla miesięcy z co najwyżej 3 brakami."""
+    out = []
+    for m, tj in miesiace:
+        if not (_lng_k_num(tj) and tj > 0 and re.match(r'^\d{4}-\d{2}$', str(m))):
+            continue
+        y, mo = int(m[:4]), int(m[5:7])
+        n = (dt.date(y + (mo == 12), mo % 12 + 1, 1) - dt.date(y, mo, 1)).days
+        V = []
+        for k in range(n):
+            i = (dt.date(y, mo, 1) + dt.timedelta(days=k) - d0).days
+            if 0 <= i < len(H) and _lng_k_num(H[i]):
+                V.append(H[i])
+        if len(V) >= n - 3 and V:
+            out.append((str(m), sum(V) / len(V) * n * 3.6 / tj))
+    return out
+
+
+def lng_porownania(j):
+    """Progi z testów wstecznych (najwyżej ⚠️): zakres i skoki sumy UE, Świnoujście, suma dób miesiąca wobec importu miesięcznej statystyki.
+    → {'wiersze': [(opis, znak)], 'uwagi': [...]}."""
+    W, U = [], []
+    dz = j.get('dz') if isinstance(j.get('dz'), dict) else {}
+    ue = [(str(x[0]), x[1]) for x in _lng_k_wiersze(dz.get('ue')) if _lng_k_num(x[1])]
+    pl = [(str(x[0]), x[1]) for x in _lng_k_wiersze(dz.get('pl')) if _lng_k_num(x[1])]
+    if ue:
+        poza = [(d, v) for d, v in ue if not LNG_K_UE_MIN <= v <= LNG_K_UE_MAX]
+        sk = [(b[0], (b[1] / a[1] - 1) * 100) for a, b in zip(ue, ue[1:]) if a[1] > 0 and _sz_k_dni(a[0], b[0]) == 1 and abs(b[1] / a[1] - 1) * 100 > LNG_K_UE_SKOK]
+        for d, v in poza[:2]:
+            U.append(f'gaz i LNG: terminale UE razem {d} = {v:.0f} GWh/d — poza zakresem {LNG_K_UE_MIN:.0f}–{LNG_K_UE_MAX:.0f} (w historii 1 914–4 919) — sprawdzić')
+        for d, c in sk[:2]:
+            U.append(f'gaz i LNG: terminale UE razem {d} — zmiana o {c:+.0f}% z doby na dobę (próg {LNG_K_UE_SKOK:.0f}%; w historii −23% … +39%) — sprawdzić'.replace('.', ','))
+        W.append(('terminale UE: zakres i skoki dobowe', '⚠️' if poza or sk else '✅'))
+    if pl:
+        duze = [(d, v) for d, v in pl if v > LNG_K_PL_MAX]
+        for d, v in duze[:2]:
+            U.append(f'gaz i LNG: Świnoujście {d} = {v:.0f} GWh/d — powyżej {LNG_K_PL_MAX:.0f} (w historii najwyżej 272) — sprawdzić')
+        W.append(('Świnoujście: zakres', '⚠️' if duze else '✅'))
+    h = dz.get('hist') if isinstance(dz.get('hist'), dict) else None
+    d0 = _sz_k_dzien(h.get('od')) if h else None
+    sk_ = j.get('skad') if isinstance(j.get('skad'), dict) else {}
+    for nm, g, lim, etyk in (('ue', 'ue', LNG_K_RAZEM, 'terminale UE razem wobec importu UE27'), ('pl', 'pl', LNG_K_RAZEM_PL, 'Świnoujście wobec importu Polski')):
+        H = h.get(nm) if h else None
+        e = sk_.get(g) if isinstance(sk_.get(g), dict) else None
+        if not (d0 and isinstance(H, list) and e and isinstance(e.get('hist'), list)):
+            continue
+        R = _lng_k_razem(H, d0, [(x[0], x[1]) for x in e['hist'] if isinstance(x, list) and len(x) == 2])
+        if not R:
+            continue
+        zle = [(m, r) for m, r in R if not lim[0] <= r <= lim[1]]
+        for m, r in zle[:2]:
+            U.append(f'gaz i LNG: {etyk}, {m}: stosunek {r:.2f} poza przedziałem {lim[0]:.2f}–{lim[1]:.2f} (w historii 2023–2026: '
+                     f'{"0,74–0,98" if nm == "ue" else "0,75–1,24"}; to rząd wielkości, nie rozliczenie) — sprawdzić'.replace('.', ','))
+        W.append((f'suma dób miesiąca: {etyk}', '⚠️' if zle else '✅'))
+    return {'wiersze': W, 'uwagi': U}
+
+
+def lng_kontrola(j, R):
+    """Kontrola pliku lng.json bez sieci: sprzeczności w pliku (❌ = BŁĄD) i progi z testów wstecznych (najwyżej ⚠️). Brak pliku albo inna wersja =
+    None (raport bez linii)."""
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle = lng_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'lng.json: sprzeczność w pliku — {z}')
+    P = lng_porownania(j)
+    R['uwagi'] += P['uwagi']
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- v320: surowce — raporty miesięczne (data/surowce-raporty.json) i drugi kanał pozycji CFTC ----------------------------------------------------------------
 # Świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️; data danych = dzień wydania raportu (ropa, zboża) albo koniec
 # miesiąca ceny (uran). Progi z testu wstecznego (ws53/v320-surowce46/bt/bt_swiezosc.py, 10.10.2026; wiek jak wiek_danych, kontrola co godzinę
@@ -5868,6 +6099,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-lng. v340: gaz i LNG (data/lng.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in lng_swiezosc(files.get('lng')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c-sr. v320: raporty miesięczne o surowcach (data/surowce-raporty.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in surowce_raporty_swiezosc(files.get('surowce-raporty')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
@@ -6157,6 +6395,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['metale'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'metale: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v340: gaz i LNG — sprzeczności w pliku (❌) i progi z testów wstecznych (najwyżej ⚠️), z pliku strony, bez zapytań
+    try:
+        Z['lng'] = lng_kontrola(files.get('lng'), R)
+    except Exception as e:  # noqa
+        Z['lng'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'gaz i LNG: kontrola przerwana ({str(e)[:80]})')
     # 3g. v320: raporty miesięczne o surowcach — sprzeczności w pliku (❌) i porównania (uran z funduszu vs średnia branżowa — ℹ️), z plików strony, bez zapytań
     try:
         Z['surowce-raporty'] = surowce_raporty_kontrola(files, R)
@@ -6494,6 +6738,11 @@ def raport_md(R):
             L.append('- Metale przemysłowe (z plików strony): ' + (f'? kontrola przerwana ({mtz["blad"]})' if mtz.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(mtz['spojnosc'][:3]) + ' ❌ · ' if mtz.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in mtz.get('wiersze') or []) or '—') + '.')
+        lgz = Z.get('lng')   # v340: gaz i LNG — sprzeczności w pliku i progi (zakres i skoki sumy UE, suma dób miesiąca wobec importu); brak pliku = bez linii
+        if lgz:
+            L.append('- Gaz i LNG (z pliku strony): ' + (f'? kontrola przerwana ({lgz["blad"]})' if lgz.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(lgz['spojnosc'][:3]) + ' ❌ · ' if lgz.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in lgz.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

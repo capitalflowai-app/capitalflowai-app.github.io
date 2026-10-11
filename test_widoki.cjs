@@ -21850,3 +21850,293 @@ test('v339: poprawki po przeglądzie — dzień przy metalu z innym dniem w „C
   assert.ok(X.includes('<p class="wk-sub"><b>Zapasy miedzi w magazynach giełd&nbsp;(t)</b></p>'));
   const cnB = mt339.blkOf(X, 'mt-b-cn'); assert.equal((cnB.match(/copper/g) || []).length, 1, 'w „Chiny wobec świata” glif tylko przy miedzi');
 });
+
+/* ===================== v340: GAZ I LNG — blok zwijany „Gaz i LNG” w części C panelu #g-surowce (plik automatu data/lng.json) =====================
+   LNG340_FILE — wynik zbieracza v340 (build_lng) na nagraniach z 11.10.2026 (dobowa wysyłka z terminali LNG 2023–2026, import LNG wg kraju pochodzenia i zapasy
+   gazu — miesięczna statystyka UE; bez sieci), bez pola hist (strona go nie czyta). Świnoujście do 10.10 (118,8 GWh/d), terminale UE razem do 9.10 (2785,6 GWh/d —
+   doba 10.10 jeszcze niekompletna; doba 30.09 bez sumy UE — 7 terminali bez wyniku: w wykresie przerwa), import UE27 do lipca, Polska do sierpnia; pasmo sezonowe
+   10.–90. centyl z trzech poprzednich lat dla 90 dób wykresu. Zegar przypięty (2026-10-11 08:00 UTC), wiek danych — atrapa „· wiek(…)”; srvJSON — odpowiedź od
+   razu (liczone wywołania). Panel = SU295_FILE. Testy nie zależą od numeru słownika (szukany po kluczu). */
+const LNG340_FILE = {"v":1,"at":"2026-10-11T06:40:00+00:00","src":"CapitalFlowAI — gaz i LNG (kody źródeł z: dz, skad, zapasy — pełne nazwy na stronie Źródła)","dz":{"u":"GWh/d","przel":10.7,"asof":"2026-10-10","pl":{"asof":"2026-10-10","d":[["2026-07-13",239.0],["2026-07-14",238.6],["2026-07-15",224.4],["2026-07-16",199.0],["2026-07-17",221.2],["2026-07-18",230.1],["2026-07-19",229.3],["2026-07-20",229.3],["2026-07-21",245.7],["2026-07-22",245.5],["2026-07-23",222.9],["2026-07-24",263.4],["2026-07-25",228.8],["2026-07-26",208.4],["2026-07-27",253.7],["2026-07-28",254.2],["2026-07-29",234.8],["2026-07-30",159.7],["2026-07-31",220.5],["2026-08-01",249.6],["2026-08-02",248.9],["2026-08-03",99.2],["2026-08-04",109.5],["2026-08-05",110.0],["2026-08-06",111.2],["2026-08-07",106.0],["2026-08-08",92.4],["2026-08-09",92.5],["2026-08-10",108.7],["2026-08-11",108.7],["2026-08-12",109.6],["2026-08-13",208.5],["2026-08-14",206.6],["2026-08-15",165.1],["2026-08-16",187.8],["2026-08-17",228.3],["2026-08-18",211.7],["2026-08-19",171.5],["2026-08-20",171.5],["2026-08-21",170.8],["2026-08-22",130.7],["2026-08-23",131.3],["2026-08-24",199.4],["2026-08-25",219.3],["2026-08-26",218.8],["2026-08-27",243.8],["2026-08-28",242.0],["2026-08-29",223.7],["2026-08-30",181.6],["2026-08-31",239.7],["2026-09-01",248.2],["2026-09-02",251.0],["2026-09-03",248.5],["2026-09-04",242.9],["2026-09-05",234.5],["2026-09-06",245.3],["2026-09-07",253.8],["2026-09-08",240.5],["2026-09-09",235.8],["2026-09-10",240.2],["2026-09-11",179.6],["2026-09-12",159.2],["2026-09-13",157.4],["2026-09-14",169.3],["2026-09-15",154.3],["2026-09-16",103.9],["2026-09-17",105.2],["2026-09-18",119.3],["2026-09-19",98.8],["2026-09-20",91.7],["2026-09-21",149.0],["2026-09-22",200.7],["2026-09-23",248.8],["2026-09-24",164.4],["2026-09-25",106.6],["2026-09-26",56.4],["2026-09-27",59.2],["2026-09-28",80.7],["2026-09-29",86.3],["2026-09-30",107.4],["2026-10-01",114.5],["2026-10-02",91.8],["2026-10-03",62.3],["2026-10-04",53.0],["2026-10-05",51.2],["2026-10-06",102.0],["2026-10-07",102.3],["2026-10-08",97.0],["2026-10-09",116.2],["2026-10-10",118.8]],"pasmo":[["2026-07-13",172.0,219.2,251.7],["2026-07-14",174.8,219.2,251.7],["2026-07-15",174.8,219.2,251.7],["2026-07-16",174.8,219.2,251.7],["2026-07-17",174.8,219.4,252.4],["2026-07-18",184.8,219.7,252.5],["2026-07-19",203.6,219.6,252.5],["2026-07-20",203.6,219.7,252.5],["2026-07-21",196.6,219.8,252.8],["2026-07-22",199.0,219.9,253.1],["2026-07-23",199.0,219.9,253.3],["2026-07-24",191.4,219.8,253.4],["2026-07-25",191.0,219.8,253.5],["2026-07-26",191.0,219.8,253.3],["2026-07-27",191.0,219.8,253.1],["2026-07-28",191.0,219.7,253.1],["2026-07-29",190.9,219.7,253.1],["2026-07-30",190.9,219.4,253.1],["2026-07-31",190.6,219.1,252.8],["2026-08-01",188.7,219.1,252.7],["2026-08-02",186.7,219.1,252.7],["2026-08-03",183.9,219.1,252.7],["2026-08-04",176.2,218.2,252.7],["2026-08-05",173.7,213.5,252.6],["2026-08-06",138.1,213.5,251.3],["2026-08-07",123.0,213.5,249.5],["2026-08-08",115.0,213.5,249.4],["2026-08-09",115.0,195.6,249.4],["2026-08-10",114.2,195.5,249.5],["2026-08-11",112.4,195.5,249.5],["2026-08-12",109.3,195.5,249.5],["2026-08-13",105.0,194.4,249.6],["2026-08-14",105.0,191.6,250.3],["2026-08-15",105.0,191.0,250.3],["2026-08-16",105.0,189.1,250.3],["2026-08-17",105.0,189.1,250.3],["2026-08-18",105.0,189.1,250.3],["2026-08-19",108.8,189.1,250.3],["2026-08-20",108.8,189.1,250.3],["2026-08-21",108.8,189.1,250.3],["2026-08-22",108.8,189.1,250.3],["2026-08-23",110.9,189.1,250.3],["2026-08-24",110.9,191.2,249.0],["2026-08-25",110.9,191.2,238.9],["2026-08-26",112.2,191.5,224.5],["2026-08-27",115.6,196.4,224.5],["2026-08-28",117.4,209.2,224.5],["2026-08-29",123.0,215.9,224.5],["2026-08-30",133.2,217.8,226.6],["2026-08-31",138.6,219.0,229.0],["2026-09-01",158.8,219.2,231.5],["2026-09-02",169.1,219.2,242.0],["2026-09-03",187.6,219.8,248.4],["2026-09-04",189.0,220.6,250.5],["2026-09-05",191.3,221.7,252.3],["2026-09-06",193.5,221.7,253.8],["2026-09-07",193.5,221.7,254.5],["2026-09-08",202.8,221.7,254.5],["2026-09-09",212.4,221.9,254.5],["2026-09-10",212.4,222.3,254.5],["2026-09-11",209.8,222.3,254.5],["2026-09-12",209.8,222.3,254.5],["2026-09-13",209.8,222.4,254.5],["2026-09-14",197.3,222.4,254.5],["2026-09-15",190.0,222.3,254.5],["2026-09-16",189.8,221.9,254.3],["2026-09-17",186.8,221.9,254.3],["2026-09-18",184.8,220.9,254.3],["2026-09-19",175.0,220.2,254.6],["2026-09-20",153.3,219.7,254.6],["2026-09-21",138.4,219.6,254.6],["2026-09-22",127.5,219.2,254.8],["2026-09-23",123.5,214.7,255.0],["2026-09-24",109.4,190.1,255.0],["2026-09-25",109.4,189.8,255.0],["2026-09-26",104.2,188.8,255.0],["2026-09-27",100.2,188.7,255.0],["2026-09-28",100.2,188.8,255.1],["2026-09-29",100.2,199.4,255.4],["2026-09-30",100.2,218.2,255.4],["2026-10-01",100.2,218.3,255.4],["2026-10-02",100.2,218.7,255.4],["2026-10-03",100.2,219.7,255.4],["2026-10-04",100.2,219.7,255.0],["2026-10-05",103.3,219.7,254.7],["2026-10-06",122.1,221.2,253.6],["2026-10-07",141.9,221.2,253.1],["2026-10-08",150.8,221.2,253.1],["2026-10-09",160.6,221.2,253.1],["2026-10-10",189.4,221.2,253.1]]},"ue":{"asof":"2026-10-09","d":[["2026-07-12",2805.2],["2026-07-13",3081.2],["2026-07-14",3270.2],["2026-07-15",2863.0],["2026-07-16",2678.3],["2026-07-17",2604.3],["2026-07-18",2303.9],["2026-07-19",2159.6],["2026-07-20",2172.5],["2026-07-21",2293.5],["2026-07-22",2593.9],["2026-07-23",2667.7],["2026-07-24",2455.1],["2026-07-25",2104.9],["2026-07-26",1969.0],["2026-07-27",2494.8],["2026-07-28",2713.1],["2026-07-29",2794.5],["2026-07-30",2833.7],["2026-07-31",2745.7],["2026-08-01",2437.0],["2026-08-02",2548.8],["2026-08-03",2443.9],["2026-08-04",2477.6],["2026-08-05",2481.1],["2026-08-06",2404.7],["2026-08-07",2593.7],["2026-08-08",2317.7],["2026-08-09",2287.3],["2026-08-10",2542.8],["2026-08-11",2816.7],["2026-08-12",2847.0],["2026-08-13",3044.4],["2026-08-14",2917.4],["2026-08-15",2490.6],["2026-08-16",2794.0],["2026-08-17",2914.3],["2026-08-18",2628.9],["2026-08-19",2892.2],["2026-08-20",2830.2],["2026-08-21",2740.3],["2026-08-22",2410.2],["2026-08-23",2429.1],["2026-08-24",2727.2],["2026-08-25",3069.5],["2026-08-26",3258.5],["2026-08-27",3263.6],["2026-08-28",3219.9],["2026-08-29",3022.5],["2026-08-30",3051.3],["2026-08-31",3189.4],["2026-09-01",3332.6],["2026-09-02",3629.7],["2026-09-03",3624.5],["2026-09-04",3566.2],["2026-09-05",3090.9],["2026-09-06",3004.7],["2026-09-07",3315.1],["2026-09-08",2892.1],["2026-09-09",2767.9],["2026-09-10",2687.4],["2026-09-11",2643.7],["2026-09-12",2602.7],["2026-09-13",2660.4],["2026-09-14",3038.0],["2026-09-15",3242.1],["2026-09-16",2926.2],["2026-09-17",2898.8],["2026-09-18",3348.6],["2026-09-19",3285.4],["2026-09-20",3238.4],["2026-09-21",3591.9],["2026-09-22",3395.7],["2026-09-23",3362.8],["2026-09-24",3204.6],["2026-09-25",3524.9],["2026-09-26",3139.1],["2026-09-27",3015.4],["2026-09-28",3028.9],["2026-09-29",2887.4],["2026-09-30",null],["2026-10-01",2906.4],["2026-10-02",2908.7],["2026-10-03",3142.6],["2026-10-04",2940.1],["2026-10-05",3068.2],["2026-10-06",3151.0],["2026-10-07",3244.0],["2026-10-08",2867.3],["2026-10-09",2785.6]],"pasmo":[["2026-07-12",2451.2,3431.5,3984.0],["2026-07-13",2417.6,3422.1,3984.0],["2026-07-14",2451.2,3422.1,3984.0],["2026-07-15",2494.5,3421.8,3935.7],["2026-07-16",2451.2,3421.8,3840.5],["2026-07-17",2451.2,3422.1,3827.4],["2026-07-18",2443.6,3421.8,3812.8],["2026-07-19",2417.6,3345.5,3800.7],["2026-07-20",2405.6,3288.4,3800.7],["2026-07-21",2405.6,3283.3,3800.7],["2026-07-22",2405.6,3272.8,3800.7],["2026-07-23",2378.5,3272.8,3786.1],["2026-07-24",2312.2,3272.8,3773.1],["2026-07-25",2266.0,3216.3,3753.4],["2026-07-26",2246.6,3161.7,3698.9],["2026-07-27",2205.9,3126.9,3681.8],["2026-07-28",2201.5,3047.1,3681.8],["2026-07-29",2173.3,3036.1,3664.3],["2026-07-30",2166.1,3018.1,3629.3],["2026-07-31",2161.5,3018.1,3532.0],["2026-08-01",2146.7,2978.9,3354.3],["2026-08-02",2129.1,2978.9,3286.4],["2026-08-03",2120.9,2978.9,3257.8],["2026-08-04",2105.9,2970.4,3224.7],["2026-08-05",2105.9,2963.3,3216.1],["2026-08-06",2105.9,2962.5,3214.3],["2026-08-07",2105.9,2963.3,3207.6],["2026-08-08",2105.9,2936.3,3182.9],["2026-08-09",2105.9,2929.4,3170.1],["2026-08-10",2105.9,2918.1,3175.5],["2026-08-11",2121.5,2918.1,3182.9],["2026-08-12",2104.0,2871.1,3182.9],["2026-08-13",2104.0,2871.1,3182.9],["2026-08-14",2095.9,2918.1,3183.1],["2026-08-15",2095.9,2918.1,3183.1],["2026-08-16",2103.1,2918.1,3183.1],["2026-08-17",2093.7,2918.1,3183.1],["2026-08-18",2093.7,2918.1,3233.7],["2026-08-19",2138.5,2918.1,3241.6],["2026-08-20",2138.5,2924.2,3241.6],["2026-08-21",2138.5,2946.6,3241.6],["2026-08-22",2138.5,2946.6,3241.6],["2026-08-23",2138.5,2988.7,3241.6],["2026-08-24",2138.5,3001.9,3271.6],["2026-08-25",2138.5,3029.3,3319.4],["2026-08-26",2138.5,3074.4,3363.2],["2026-08-27",2181.9,3074.4,3402.9],["2026-08-28",2200.4,3102.4,3414.8],["2026-08-29",2288.7,3102.4,3472.2],["2026-08-30",2440.0,3126.5,3472.2],["2026-08-31",2440.0,3135.6,3472.2],["2026-09-01",2440.0,3167.8,3521.0],["2026-09-02",2489.9,3135.6,3557.0],["2026-09-03",2489.9,3135.6,3575.5],["2026-09-04",2489.9,3135.6,3575.5],["2026-09-05",2489.9,3135.6,3575.5],["2026-09-06",2458.5,3100.4,3575.5],["2026-09-07",2418.2,3112.5,3575.5],["2026-09-08",2415.9,3067.1,3644.2],["2026-09-09",2346.1,3014.7,3658.7],["2026-09-10",2281.4,2984.1,3712.2],["2026-09-11",2281.4,2967.9,3753.0],["2026-09-12",2281.4,2901.2,3757.7],["2026-09-13",2281.4,2854.2,3723.2],["2026-09-14",2263.3,2838.2,3723.2],["2026-09-15",2263.3,2828.7,3723.2],["2026-09-16",2281.4,2815.7,3762.3],["2026-09-17",2281.4,2815.7,3722.3],["2026-09-18",2281.4,2817.4,3722.3],["2026-09-19",2281.4,2817.4,3762.3],["2026-09-20",2277.2,2817.4,3762.3],["2026-09-21",2263.4,2811.5,3759.8],["2026-09-22",2235.9,2811.5,3759.8],["2026-09-23",2216.8,2808.1,3779.4],["2026-09-24",2172.1,2808.1,3803.5],["2026-09-25",2172.1,2811.5,3803.5],["2026-09-26",2172.1,2823.3,3803.5],["2026-09-27",2172.1,2823.3,3803.5],["2026-09-28",2172.1,2823.3,3803.5],["2026-09-29",2213.3,2825.8,3809.4],["2026-09-30",2259.5,2825.8,3821.2],["2026-10-01",2259.5,2825.8,3821.2],["2026-10-02",2259.5,2827.7,3825.2],["2026-10-03",2259.5,2903.8,3833.9],["2026-10-04",2259.5,2913.1,3833.9],["2026-10-05",2259.5,2927.7,3833.9],["2026-10-06",2338.1,3040.9,3833.9],["2026-10-07",2461.3,3040.9,3848.5],["2026-10-08",2487.4,3040.9,3876.4],["2026-10-09",2496.1,3057.4,3918.1]]},"term":{"d":"2026-10-09","r":[["Gate (Rotterdam)","nl",559.2],["Fos-sur-Mer","fr",395.7],["Eemshaven","nl",306.6],["Cavarzere","it",259.9],["Bilbao","es",221.9],["Wilhelmshaven","de",183.8],["Sines","pt",175.8],["Świnoujście","pl",116.2],["Montoir-de-Bretagne","fr",71.4],["Brunsbüttel","de",67.3],["Agia Triada","gr",66.0],["Sagunto","es",55.1],["Kłajpeda","lt",54.0],["Barcelona","es",48.4],["Huelva","es",44.3],["Kartagena","es",39.5],["Amfitriti","gr",35.3],["Musel","es",31.1],["Ravenna","it",25.0],["Zeebrugge","be",23.9],["Mugardos","es",2.8],["Panigaglia","it",1.5],["Hamina","fi",0.5],["Krk","hr",0.2]],"n":24},"lat":3,"bf":{"od":"2023-01-01","gotowe":true}},"skad":{"u":"TJ (ciepło spalania)","ue":{"m":"2026-07","razem":321790.0,"k":[["US",134773.7],["DZ",45177.6],["NSP",44748.1],["RU",31036.5],["NG",28502.7],["NO",13874.0],["PE",7737.1],["TT",3920.7],["AME_OTH",3883.4],["CG",2567.7],["MR",1592.4],["SN",1592.4],["NL",1506.3],["LT",588.7],["BE",221.0],["EUR_OTH",59.6],["FI",8.1]],"rok":{"m":"2025-07","razem":462203.7,"k":[["US",183463.0],["NSP",64943.0],["DZ",58980.1],["NG",51164.4],["RU",29690.6],["QA",22447.8],["AO",14804.6],["PE",7942.6],["TT",7459.4],["NO",6965.3],["ASI_NME_OTH",5113.0],["GQ",4034.0],["MR",1981.2],["SN",1981.2],["FI",603.4],["NL",563.9],["EUR_OTH",66.3]]},"hist":[["2025-06",488669.3],["2025-07",462203.7],["2025-08",396247.8],["2025-09",456269.2],["2025-10",503489.3],["2025-11",439155.5],["2025-12",495661.3],["2026-01",491476.4],["2026-02",421786.2],["2026-03",560360.9],["2026-04",476058.7],["2026-05",459989.1],["2026-06",406768.5],["2026-07",321790.0]]},"pl":{"m":"2026-08","razem":22776.0,"k":[["NSP",22723.2],["EUR_OTH",52.9]],"nsp":22723.2,"hist":[["2025-06",26104.4],["2025-07",26014.0],["2025-08",30369.0],["2025-09",28303.1],["2025-10",28791.8],["2025-11",31683.1],["2025-12",26840.9],["2026-01",33129.3],["2026-02",29469.0],["2026-03",30576.1],["2026-04",19556.9],["2026-05",24475.7],["2026-06",27524.7],["2026-07",23477.0],["2026-08",22776.0]]},"asof":"2026-07"},"zapasy":{"u":"TJ (ciepło spalania) i mln m³","asof":"2026-07","lat":5,"k":{"EU27_2020":{"m":"2026-07","d":[["2024-06",3256036.6,84517.9],["2024-07",3552984.0,92301.3],["2024-08",3888027.4,101038.7],["2024-09",3966920.8,103070.6],["2024-10",4031558.6,104620.4],["2024-11",3628310.5,94048.4],["2024-12",3026515.0,78383.5],["2025-01",2306345.5,59643.2],["2025-02",1660388.7,42919.5],["2025-03",1488910.4,38334.6],["2025-04",1706258.6,43897.5],["2025-05",2078123.0,53571.5],["2025-06",2493177.2,64462.2],["2025-07",2887362.7,74711.4],["2025-08",3255065.9,84238.5],["2025-09",3472755.0,89909.1],["2025-10",3493404.5,90483.0],["2025-11",3184197.4,82410.2],["2025-12",2627857.8,67931.4],["2026-01",1751793.3,45142.5],["2026-02",1313345.7,33601.9],["2026-03",1240870.9,31565.5],["2026-04",1414674.8,36085.6],["2026-05",1733852.4,44313.0],["2026-06",2081642.1,53436.2],["2026-07",2373841.8,61142.8]],"pasmo":[["2024-06",2093155.5,2586014.8,3188750.7],["2024-07",2450690.6,2978904.5,3555975.8],["2024-08",2880034.1,3400056.7,3890036.4],["2024-09",3163998.4,3656227.6,4022895.4],["2024-10",3264299.7,3833812.1,4190035.5],["2024-11",2852518.4,3614132.9,4029599.0],["2024-12",2274382.7,3164286.0,3641197.8],["2025-01",1621808.0,2522806.1,2991114.8],["2025-02",1278037.7,2158929.0,2656574.4],["2025-03",1171560.7,1837807.4,2493275.0],["2025-04",1365795.4,1990655.2,2631931.0],["2025-05",1687114.1,2382084.8,2936716.3],["2025-06",2093155.5,2753520.2,3256036.6],["2025-07",2450690.6,3122424.4,3555975.8],["2025-08",2880034.1,3522049.4,3890036.4],["2025-09",3163998.4,3733900.9,4022895.4],["2025-10",3264299.7,3883248.7,4190035.5],["2025-11",2852518.4,3617677.3,4029599.0],["2025-12",2274382.7,3129843.3,3641197.8],["2026-01",1621808.0,2468691.0,2991114.8],["2026-02",1278037.7,2034293.9,2656574.4],["2026-03",1171560.7,1768028.0,2493275.0],["2026-04",1365795.4,1933775.9,2631931.0],["2026-05",1687114.1,2321292.4,2936716.3],["2026-06",2093155.5,2701451.6,3256036.6],["2026-07",2450690.6,3075412.1,3555975.8]]},"DE":{"m":"2026-07","d":[["2024-06",709258.0,18192.0],["2024-07",776714.0,19922.0],["2024-08",830434.0,21300.0],["2024-09",841914.0,21594.0],["2024-10",878998.0,22545.0],["2024-11",814669.0,20895.0],["2024-12",696287.0,17859.0],["2025-01",498920.0,12797.0],["2025-02",301979.0,7745.0],["2025-03",254563.0,6529.0],["2025-04",288590.0,7402.0],["2025-05",355252.0,9112.0],["2025-06",439034.0,11261.0],["2025-07",527882.0,13540.0],["2025-08",619924.0,15900.0],["2025-09",675832.0,17334.0],["2025-10",665140.0,17060.0],["2025-11",595584.0,15276.0],["2025-12",498190.0,12778.0],["2026-01",285548.0,7324.0],["2026-02",180108.0,4620.0],["2026-03",188320.0,4830.0],["2026-04",220424.0,5654.0],["2026-05",280354.0,7191.0],["2026-06",360144.0,9237.0],["2026-07",403592.0,10352.0]],"pasmo":[["2024-06",398596.0,662933.6,857437.0],["2024-07",472972.0,712967.8,853384.0],["2024-08",563962.0,795973.6,906383.0],["2024-09",644292.0,840161.6,930481.0],["2024-10",685184.0,872556.4,941627.0],["2024-11",605977.0,837893.4,937440.0],["2024-12",497452.0,761866.6,920120.0],["2025-01",341726.0,593584.3,819993.6],["2025-02",271778.0,516780.8,772445.0],["2025-03",246074.0,472297.6,698501.0],["2025-04",258563.0,505271.4,761681.0],["2025-05",309150.0,574721.8,818773.0],["2025-06",398596.0,645444.8,857437.0],["2025-07",472972.0,700882.6,853384.0],["2025-08",563962.0,780783.8,893322.0],["2025-09",644292.0,822448.2,910739.0],["2025-10",685184.0,860030.6,941378.0],["2025-11",605977.0,813339.2,937123.0],["2025-12",497452.0,717100.0,864634.0],["2026-01",341726.0,529369.6,690739.0],["2026-02",271778.0,422687.6,609318.0],["2026-03",246074.0,383510.0,579319.0],["2026-04",258563.0,410653.2,592279.0],["2026-05",309150.0,482017.6,659725.0],["2026-06",398596.0,561764.2,709258.0],["2026-07",472972.0,635782.2,776714.0]]},"PL":{"m":"2026-08","d":[["2024-07",127329.5,3315.6],["2024-08",145215.8,3776.1],["2024-09",144163.3,3752.3],["2024-10",145920.1,3797.2],["2024-11",141302.7,3677.4],["2024-12",126858.1,3303.8],["2025-01",105485.3,2759.0],["2025-02",74680.7,1966.0],["2025-03",67067.0,1767.2],["2025-04",62458.9,1649.5],["2025-05",72044.9,1888.7],["2025-06",91554.8,2385.7],["2025-07",108511.6,2823.3],["2025-08",129859.9,3369.2],["2025-09",143993.4,3730.6],["2025-10",143121.8,3708.8],["2025-11",133415.9,3460.5],["2025-12",118657.9,3076.8],["2026-01",96473.7,2505.5],["2026-02",80124.0,2081.7],["2026-03",72840.6,1898.2],["2026-04",66337.6,1734.4],["2026-05",81761.9,2127.3],["2026-06",105583.4,2741.4],["2026-07",122852.6,3190.8],["2026-08",138003.6,3584.0]],"pasmo":[["2024-07",110634.0,123601.6,146747.5],["2024-08",123054.0,138800.4,155943.3],["2024-09",134619.0,147353.7,165595.3],["2024-10",133031.0,146748.9,167683.8],["2024-11",127632.6,142424.7,162862.5],["2024-12",105366.8,128922.3,151943.1],["2025-01",83007.7,100285.0,119278.6],["2025-02",67125.8,82191.4,100322.6],["2025-03",53919.6,71166.8,93795.9],["2025-04",59974.1,75918.0,111079.1],["2025-05",74474.5,89630.0,132203.3],["2025-06",92720.2,106802.1,137181.4],["2025-07",114724.6,126940.7,146747.5],["2025-08",130292.5,143232.8,155943.3],["2025-09",137439.5,149262.5,165595.3],["2025-10",135097.2,149326.7,167683.8],["2025-11",127632.6,144139.6,162862.5],["2025-12",105366.8,129531.7,151943.1],["2026-01",83007.7,102713.1,119278.6],["2026-02",67125.8,83123.9,100322.6],["2026-03",53919.6,72004.7,93795.9],["2026-04",59974.1,74777.1,111079.1],["2026-05",72044.9,88232.1,132203.3],["2026-06",91554.8,105870.2,137181.4],["2026-07",108511.6,125698.1,146747.5],["2026-08",129859.9,142084.0,155943.3]]}}},"part_at":{"dz":"2026-10-11T06:40:00+00:00","skad":"2026-10-11T06:40:00+00:00","zapasy":"2026-10-11T06:40:00+00:00"},"ok":{"dz":true,"skad":true,"zapasy":true},"err":{},"next":{"dz":"2026-10-12T06:30:00+00:00","skad":"2026-10-11T21:30:00+00:00","zapasy":"2026-10-11T21:30:00+00:00"}};
+Object.assign(V142_OK, {'lng340.k.pl': 'es fr it pt'});   /* nazwa terminalu pisana tak samo po angielsku, hiszpańsku, francusku, włosku i portugalsku */
+const lng340 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const arc = cut('function arcMs(d){', '\n/* v293 (audyt G2)'), wk = cut('const wkNum=v=>', '\n/* pierścień: udziały'), wk2 = cut('const wkMs=d=>', '\nconst WK_FGZ=');
+  const blk = cut('/* ===================== v295g: SUROWCE', '\nsuLoad();suAuto();'), code = cut('/* ===================== v340: GAZ I LNG', '/* ---------- panel ---------- */');
+  const lis = cut('/* v340: gaz i LNG — plik data/lng.json', '/* v320: raporty miesięczne o surowcach — plik data/surowce-raporty.json');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const fPct=', f0));
+  const NOW = Date.parse('2026-10-11T08:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o)), sp = su295.sp, txt = su295.txt;
+  const BODY = "'use strict';\n" + arc + '\n' + wk + '\n' + wk2 + '\n' + blk + '\n' + lis + '\nreturn {SU, LNG, renderSu, suApply, lngLoad, lngApply, lngOk, lngBlk, lngG, lngCty};';
+  const mk = (L, files, opt) => {
+    opt = opt || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt, sg, fPct};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, open: [], querySelectorAll(q) { return q === 'details[open]' ? this.open.map(id => ({id})) : []; }, querySelector() { return null; }};
+    const calls = [], clicks = [], ivs = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f) => clicks.push([e, f]), querySelector: () => null, hidden: false};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'sg', 'fPct', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'flagsHtml', 'sepK', 'sepL',
+      'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date', 'renderUsa', BODY)(
+      q => (q === '#g-surowce' ? el : null), v96src.tFor(L), v96src.escH, F.nfmt, F.sg, F.fPct, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv,
+      v96src.H.glyphImg, v96src.H.flagImg, undefined, () => ': ', () => ', ', {getItem: () => null, setItem() {}}, doc,
+      function () { this.observe = () => {}; }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD, undefined);
+    return {api, el, calls, clicks, ivs, doc};
+  };
+  const files = F => ({surowce: SU295_FILE, lng: F === undefined ? LNG340_FILE : F});
+  const blkOf = h => { const i = h.indexOf('<details class="etfd su-b lng-b" id="su-b-lng">'); return i < 0 ? '' : h.slice(i, h.indexOf('</details>', i) + 10); };
+  /* kafle: id → fragment do następnego kafla albo do końca siatki */
+  const tiles = B => { const o = {}, M = [...B.matchAll(/<div class="etfk su-k lng-k" data-lng="([\w-]+)">/g)];
+    M.forEach((m, i) => { o[m[1]] = B.slice(m.index, i + 1 < M.length ? M[i + 1].index : B.indexOf('</div></div>', m.index) + 6); }); return o; };
+  const mine = f => String(f).includes('su-b-lng') || String(f).includes('lngLoad');
+  const ev = () => ({target: {closest: s => (s === '#g-surowce details#su-b-lng>summary' ? {} : null)}});
+  const clk = K => { const C = K.clicks.filter(c => c[0] === 'click' && mine(c[1])); assert.equal(C.length, 1, 'jeden słuchacz bloku'); C[0][1](ev()); };
+  const inne = K => K.clicks.filter(c => c[0] === 'click' && !mine(c[1])).forEach(([, f]) => f(ev()));
+  const iv = K => { const I = K.ivs.filter(x => mine(x[0])); assert.equal(I.length, 1, 'jeden zegar bloku'); return I[0]; };
+  const loaded = (L, F) => { const K = mk(L, files(F)); K.api.suApply(SU295_FILE); K.el.open = ['su-b-lng']; clk(K); return {K, B: blkOf(sp(K.el.innerHTML))}; };
+  const day = (L, d) => su295.day(L, d), mon = (L, ym) => su295.mon(L, ym);
+  const hits = h => { const i = h.indexOf('<div class="wk-ch wk-lines"'); if (i < 0) return []; const c = h.slice(i, h.indexOf('</svg>', i));
+    return [...c.matchAll(/<rect class="wk-hit" [^>]*data-t="([^"]*)"\/>/g)].map(m => sp(m[1])); };
+  /* wykresy linii w bloku (kolejność: Świnoujście, UE razem, zapasy UE27, zapasy Polski) */
+  const lines = B => { const o = [], re = /<div class="wk-ch wk-lines"/g; let m; while ((m = re.exec(B))) o.push(B.slice(m.index, B.indexOf('<div class="wk-tip"', m.index))); return o; };
+  const bars = B => { const o = [], re = /<div class="wk-ch wk-bars"/g; let m; while ((m = re.exec(B))) o.push(B.slice(m.index, B.indexOf('</div></div>', m.index) + 12)); return o; };
+  const rowsOf = h => [...h.matchAll(/<div class="wk-br[^"]*" data-t="([^"]*)"><span class="wk-bl">([\s\S]*?)<\/span><svg[\s\S]*?<span class="wk-bv[^"]*">([\s\S]*?)<\/span>/g)].map(r => [sp(r[1]), txt(r[2]), txt(r[3])]);
+  return {mk, files, blkOf, tiles, clk, inne, iv, loaded, day, mon, hits, lines, bars, rowsOf, clone, sp, txt, code, lis, blk, NOW, LOC};
+})();
+
+test('v340: blok „Gaz i LNG” — w części C po bloku gazu (ceny), przed „Miedź do złota”, zwinięty; plik dopiero po kliknięciu nagłówka (raz), nieudane pobranie bez pętli, kliknięcie = nowa próba; zegar 30 min', () => {
+  const K = lng340.mk('pl', lng340.files()); K.api.suApply(SU295_FILE);
+  let h = lng340.sp(K.el.innerHTML);
+  const iG = h.indexOf('id="su-b-gaz"'), iL = h.indexOf('id="su-b-lng"'), iF = h.indexOf('id="su-b-fao"'), iSz = h.indexOf('id="su-b-sz"');
+  assert.ok(iG > 0 && iL > iG && iF > iL && iSz > iL, 'po bloku „Gaz w Europie” (ceny), przed blokiem żywności i szlakami');
+  assert.ok(h.indexOf('<b>Co surowce mówią o gospodarce</b>') < iL && h.lastIndexOf('<details') === h.lastIndexOf('<details class="etfd su-b sz-b" id="su-b-sz">'), 'w części C; blok szlaków nadal ostatni w panelu');
+  assert.equal(lng340.blkOf(h), '<details class="etfd su-b lng-b" id="su-b-lng"><summary>Gaz i LNG: ile wpływa, skąd jest i ile leży w magazynach</summary><p class="pnote">Wczytujemy dane…</p></details>');
+  assert.deepEqual(K.calls, [], 'przy starcie i rysowaniu panelu — bez pobrania data/lng.json');
+  assert.equal(html.split("srvJSON('lng')").length, 2, 'jedno miejsce pobrania (lngLoad)');
+  assert.ok(!/suLoad\(\)\{[^}]*'lng'/.test(html) && !html.includes("'szlaki','lng'") && !html.includes("'" + 'lng' + "':'c'"), 'nie przy starcie strony i poza grupą plików CRYPTO');
+  lng340.inne(K); assert.deepEqual(K.calls, [], 'słuchacze panelu i innych bloków nie reagują na blok gazu');
+  K.el.open = ['su-b-lng']; lng340.clk(K);
+  assert.deepEqual(K.calls, ['lng']);
+  h = lng340.sp(K.el.innerHTML);
+  assert.ok(lng340.blkOf(h).includes('data-lng="pl"') && h.includes('<p class="pfoot">'), 'po wczytaniu — panel narysowany ponownie, blok z kaflami; rozwinięcie zachowane');
+  lng340.clk(K); K.api.renderSu(); assert.deepEqual(K.calls, ['lng'], 'plik w pamięci — bez kolejnych pobrań');
+  assert.equal(lng340.iv(K)[1], 30 * 60 * 1000); lng340.iv(K)[0](); assert.deepEqual(K.calls, ['lng', 'lng'], 'po wczytaniu — odświeżenie co 30 min');
+  const K0 = lng340.mk('pl', lng340.files()); K0.api.suApply(SU295_FILE); lng340.iv(K0)[0]();
+  assert.deepEqual(K0.calls, [], 'blok nigdy nierozwinięty — zegar nic nie pobiera');
+  const F = {surowce: SU295_FILE}, K2 = lng340.mk('pl', F); K2.api.suApply(SU295_FILE); K2.el.open = ['su-b-lng']; lng340.clk(K2);
+  assert.deepEqual(K2.calls, ['lng']);
+  assert.ok(lng340.blkOf(lng340.sp(K2.el.innerHTML)).includes('<p class="pnote">Nie udało się wczytać danych — zwiń i rozwiń blok, aby spróbować ponownie.</p>'));
+  K2.api.renderSu(); K2.api.renderSu(); assert.deepEqual(K2.calls, ['lng'], 'bez pętli');
+  F.lng = LNG340_FILE; lng340.clk(K2); assert.deepEqual(K2.calls, ['lng', 'lng']); assert.ok(lng340.blkOf(lng340.sp(K2.el.innerHTML)).includes('data-lng="pl"'));
+  delete F.lng; lng340.iv(K2)[0](); assert.ok(lng340.blkOf(lng340.sp(K2.el.innerHTML)).includes('data-lng="pl"'), 'chwilowy błąd po wczytaniu nie zasłania danych');
+  for (const bad of [Object.assign(lng340.clone(LNG340_FILE), {v: 2}), {v: 1, at: 'x', dz: {}}, {v: 1, at: '2026-10-11T06:40:00+00:00'}, [], 'x']) {
+    const K3 = lng340.mk('pl', {surowce: SU295_FILE, lng: bad}); K3.api.suApply(SU295_FILE); lng340.clk(K3);
+    assert.ok(lng340.blkOf(lng340.sp(K3.el.innerHTML)).includes('Nie udało się wczytać danych'), JSON.stringify(bad).slice(0, 60));
+  }
+  const K4 = lng340.mk('pl', lng340.files()); K4.api.suApply(null); assert.equal(K4.el.innerHTML, ''); assert.ok(K4.el.hidden, 'bez pliku surowców panel jest schowany — bloku nie ma');
+});
+
+test('v340: kafle Świnoujście i terminale UE razem — GWh/d, ≈ mln m³ (przelicznik z pliku), zmiana wobec doby wcześniej w kolorze kierunku, pasmo typowe, doba gazowa, liczba terminali i wiek; flagi', () => {
+  const {B} = lng340.loaded('pl'), T = lng340.tiles(B), d = x => lng340.day('pl', x);
+  assert.deepEqual(Object.keys(T).slice(0, 2), ['pl', 'ue']);
+  assert.ok(B.includes('<p class="wk-sub"><b>Dobowa wysyłka gazu z terminali LNG do sieci</b> · GWh na dobę gazową (6:00–6:00 czasu środkowoeuropejskiego)</p><div class="etfkpis su-kpis lng-kpis">'), 'siatka pulsu');
+  assert.ok(T.pl.includes('img/flagi/pl.svg') && T.ue.includes('img/flagi/eu.svg'), 'flaga Polski i Unii');
+  assert.ok(T.pl.includes('<b>118,8 <small class="mtxt">GWh/d</small> <small class="pos">▲ +2,6 wobec doby wcześniej</small></b>'), T.pl);
+  assert.ok(T.pl.includes('<small class="mtxt">≈ 11,1 mln m³ gazu na dobę</small><small class="mtxt">typowo o tej porze roku: 189,4–253,1 (mediana 221,2)</small>'), 'Świnoujście: 118,8 / 10,7 = 11,1; pasmo z 10 października');
+  assert.ok(T.pl.includes('<small class="mtxt su-d">doba gazowa: ' + d('2026-10-10') + ' · wiek(2026-10-10)</small>'));
+  assert.ok(T.ue.includes('<b>2786 <small class="mtxt">GWh/d</small> <small class="neg">▼ −82 wobec doby wcześniej</small></b>'), 'UE: 2785,6 (od 1000 bez miejsc po przecinku), zmiana −81,7 → −82 czerwona');
+  assert.ok(T.ue.includes('≈ 260 mln m³ gazu na dobę') && T.ue.includes('typowo o tej porze roku: 2496–3918 (mediana 3057)'));
+  assert.ok(T.ue.includes('<small class="mtxt su-d">doba gazowa: ' + d('2026-10-09') + ' · z 24 punktów wejścia · wiek(2026-10-09)</small>'), 'ostatnia kompletna doba UE jest starsza niż doba Świnoujścia — każda z własną datą');
+  /* zmiana zero = żółta; brak poprzedniej doby = bez zmiany (nie zero); brak pasma przy niegotowej historii — zdanie o historii; brak serii = „—” */
+  const F = lng340.clone(LNG340_FILE); F.dz.pl.d[F.dz.pl.d.length - 2][1] = 118.8;
+  assert.ok(lng340.tiles(lng340.loaded('pl', F).B).pl.includes('<small class="neu">• 0,0 wobec doby wcześniej</small>'), 'zero (po zaokrągleniu) — żółte, bez strzałki w górę ani w dół');
+  const G = lng340.clone(LNG340_FILE); G.dz.pl.d[G.dz.pl.d.length - 2][1] = null;
+  const tG = lng340.tiles(lng340.loaded('pl', G).B).pl; assert.ok(!tG.includes('wobec doby wcześniej') && tG.includes('<b>118,8 <small class="mtxt">GWh/d</small></b>'), 'poprzednia doba bez wartości — brak zmiany, nie zero');
+  const H = lng340.clone(LNG340_FILE); delete H.dz.pl.pasmo; delete H.dz.ue.pasmo; H.dz.bf.gotowe = false;
+  const tH = lng340.tiles(lng340.loaded('pl', H).B); assert.ok(tH.pl.includes('pasmo sezonowe pojawi się po uzupełnieniu historii od 2023 r.') && !tH.pl.includes('typowo o tej porze'));
+  const I = lng340.clone(LNG340_FILE); delete I.dz.pl; const tI = lng340.tiles(lng340.loaded('pl', I).B);
+  assert.ok(tI.pl.includes('<b class="na">—</b><small class="mtxt">brak danych — to nie zero</small>') && tI.ue.includes('2786'), 'brak serii Świnoujścia — „—”, UE osobno');
+  const J = lng340.clone(LNG340_FILE); J.dz.pl.d[J.dz.pl.d.length - 1][1] = 0; J.dz.pl.pasmo = J.dz.pl.pasmo.slice(0, 5);
+  const tJ = lng340.tiles(lng340.loaded('pl', J).B).pl; assert.ok(tJ.includes('<b>0,0 <small class="mtxt">GWh/d</small> <small class="neg">▼ −116,2'), '0 GWh/d to pomiar (terminal stoi), nie brak');
+});
+
+test('v340: wykresy 90 dób — linia, mediana i granice pasma z cieniowanym obszarem; przerwa w dobie bez sumy UE; zdanie: w pasmie / powyżej / poniżej; udział Świnoujścia w sumie UE; bez pasma — sama linia', () => {
+  const {B} = lng340.loaded('pl'), L = lng340.lines(B);
+  assert.equal(L.length, 4, 'dwa wykresy dobowe + dwa wykresy zapasów');
+  const [pl, ue] = L;
+  for (const c of [pl, ue]) {
+    assert.ok(c.includes('<polygon class="su-band"') && c.includes('wk-l su-avg') && c.includes('wk-l su-mm') && c.includes('wk-l s1'), 'linia, mediana, granice, obszar pasma');
+    assert.ok(c.includes('<span><i class="wk-sq s1"></i>Wysyłka dobowa</span>') && c.includes('Mediana z 3 poprzednich lat') && c.includes('Dolna granica pasma (10. centyl)') && c.includes('Górna granica pasma (90. centyl)'));
+  }
+  assert.ok(pl.includes('aria-label="Wykres dobowej wysyłki gazu: Świnoujście, 90 dób"'), 'opis dla czytnika ekranu');
+  assert.equal(lng340.hits(pl).length, 90); assert.equal(lng340.hits(ue).length, 90);
+  const gap = lng340.hits(ue).find(x => x.includes(lng340.day('pl', '2026-09-30').replace(/ \d{4}$/, '')));
+  assert.ok(gap && gap.includes('Wysyłka dobowa: brak danych'), 'doba 30.09 bez kompletu terminali — w podpowiedzi „brak danych”, nie zero: ' + gap);
+  const last = lng340.hits(pl).pop(); assert.ok(last.includes('Wysyłka dobowa: 118,8') && last.includes('Mediana z 3 poprzednich lat: 221,2'), last);
+  assert.ok(B.includes('<p class="wk-sub"><b>Świnoujście</b> · ostatnie 90 dób</p>') && B.includes('<p class="wk-sub"><b>Terminale LNG w UE razem</b> · ostatnie 90 dób</p>'));
+  assert.ok(B.includes('<p class="pnote su-s">Świnoujście: 118,8 GWh/d (≈ 11,1 mln m³) w dobie ' + lng340.day('pl', '2026-10-10') + ' · wiek(2026-10-10) — poniżej typowego pasma dla tej pory roku (189,4–253,1 GWh/d, mediana 221,2).</p>'));
+  assert.ok(B.includes('Terminale LNG w UE razem: 2786 GWh/d (≈ 260 mln m³) w dobie ' + lng340.day('pl', '2026-10-09') + ' · wiek(2026-10-09) — w typowym paśmie dla tej pory roku (2496–3918 GWh/d, mediana 3057). Świnoujście to 4,2% tej sumy w dobie ' + lng340.day('pl', '2026-10-09') + '.</p>'), 'udział 116,2 / 2785,6 = 4,2%');
+  /* powyżej pasma i bez pasma */
+  const F = lng340.clone(LNG340_FILE); F.dz.pl.d[F.dz.pl.d.length - 1][1] = 300;
+  assert.ok(lng340.loaded('pl', F).B.includes('300,0 GWh/d (≈ 28,0 mln m³) w dobie') && lng340.loaded('pl', F).B.includes('powyżej typowego pasma dla tej pory roku (189,4–253,1 GWh/d'));
+  const G = lng340.clone(LNG340_FILE); delete G.dz.pl.pasmo; const bG = lng340.loaded('pl', G).B, cG = lng340.lines(bG)[0];
+  assert.ok(!cG.includes('su-band') && !cG.includes('Mediana z 3') && !cG.includes('<div class="wk-leg">'), 'bez pasma: sama linia, bez legendy i obszaru');
+  assert.ok(bG.includes('Świnoujście: 118,8 GWh/d (≈ 11,1 mln m³) w dobie ' + lng340.day('pl', '2026-10-10') + ' · wiek(2026-10-10).</p>'), 'zdanie bez pasma — bez oceny');
+  /* pasmo ze złym wierszem (porządek, nie-liczba, zła data) pomijane; pusta seria — brak wykresu i zdania */
+  const H = lng340.clone(LNG340_FILE); H.dz.pl.pasmo = [['zła', 1, 2, 3], ['2026-10-10', 5, 4, 6], ['2026-10-09', null, 1, 2], ['2026-10-08', '1', 2, 3]];
+  const bH = lng340.loaded('pl', H).B; assert.ok(!lng340.tiles(bH).pl.includes('typowo o tej porze') && !lng340.lines(bH)[0].includes('su-band'));
+  const I = lng340.clone(LNG340_FILE); I.dz.pl.d = []; I.dz.ue.d = [['2026-10-09', null]];
+  const bI = lng340.loaded('pl', I).B; assert.ok(!bI.includes('Wysyłka dobowa') && !bI.includes('data-lng="pl"') && !bI.includes('Dobowa wysyłka gazu'), 'serie bez żadnej liczby — cała sekcja dobowa pominięta (reszta bloku jest)'); assert.ok(bI.includes('Skąd UE bierze LNG'));
+});
+
+test('v340: terminale UE w ostatniej pełnej dobie — 8 największych (z flagami) i reszta, słupki jednej serii, podpowiedź z udziałem w sumie; zero nie ma słupka', () => {
+  const {B} = lng340.loaded('pl'), W = lng340.bars(B), R = lng340.rowsOf(W[0]);
+  assert.ok(B.includes('<p class="wk-sub"><b>Terminale UE w dobie ' + lng340.day('pl', '2026-10-09') + '</b> · GWh/d · wiek(2026-10-09)</p>'));
+  assert.deepEqual(R.map(r => r[1]), ['Gate (Rotterdam)', 'Fos-sur-Mer', 'Eemshaven', 'Cavarzere', 'Bilbao', 'Wilhelmshaven', 'Sines', 'Świnoujście', 'pozostałe terminale (16)']);
+  assert.deepEqual(R.map(r => r[2]), ['559,2', '395,7', '306,6', '259,9', '221,9', '183,8', '175,8', '116,2', '566,3'], 'kolejność malejąco, reszta = suma 16 mniejszych');
+  const tot = 559.2 + 395.7 + 306.6 + 259.9 + 221.9 + 183.8 + 175.8 + 116.2 + 566.3;
+  assert.ok(Math.abs(tot - 2785.6) < 1.3, 'razem = suma UE z dnia');
+  assert.equal(R[0][0], 'Gate (Rotterdam): 559,2 GWh/d (20,1% sumy)'); assert.equal(R[8][0], 'pozostałe terminale (16): 566,3 GWh/d (20,3% sumy)');
+  assert.ok(W[0].includes('img/flagi/nl.svg') && W[0].includes('img/flagi/fr.svg') && W[0].includes('img/flagi/pl.svg'), 'flagi krajów terminali');
+  assert.ok(W[0].includes('aria-label="Wysyłka gazu z terminali UE w dobie ' + lng340.day('pl', '2026-10-09') + ': 24 terminali"'));
+  /* nazwa z pliku jest tekstem (nie HTML); mniej niż 9 terminali — bez wiersza reszty */
+  const F = lng340.clone(LNG340_FILE); F.dz.term.r = [['<b>X&Y</b>', 'xx', 10], ['Z', 'pl', 5], ['Zero', 'de', 0], ['Ujemny', 'de', -3], ['Tekst', 'de', 'a']];
+  const rF = lng340.rowsOf(lng340.bars(lng340.loaded('pl', F).B)[0]); assert.deepEqual(rF.map(r => r[1]), ['<b>X&Y</b>', 'Z']); assert.ok(!lng340.loaded('pl', F).B.includes('<b>X&Y</b>'), 'zmieniona na tekst');
+  const G = lng340.clone(LNG340_FILE); delete G.dz.term; assert.equal(lng340.bars(lng340.loaded('pl', G).B).length, 1, 'bez podziału na terminale — tylko słupki importu');
+});
+
+test('v340: skąd UE bierze LNG — udział kraju w imporcie UE27 w ostatnim miesiącu i rok wcześniej (w nawiasie), „nieokreślone”, „pozostałe”; zdanie o największym dostawcy i Polsce (kraj pochodzenia nieznany)', () => {
+  const {B} = lng340.loaded('pl'), W = lng340.bars(B), R = lng340.rowsOf(W[1]);
+  assert.ok(B.includes('<p class="wk-sub"><b>Skąd UE bierze LNG</b> · udział kraju w imporcie LNG do UE27, ' + lng340.mon('pl', '2026-07') + '</p>'));
+  assert.deepEqual(R.map(r => r[1]), ['Stany Zjednoczone', 'Algieria', 'Rosja', 'Nigeria', 'Norwegia', 'Peru', 'Trynidad i Tobago', 'Katar', 'kraj nieokreślony w statystyce', 'pozostałe kraje'],
+    '7 największych w lipcu 2026, Katar (0 w tym roku, 4,9% rok wcześniej — tylko dzięki roku wcześniejszemu), nieokreślone, reszta');
+  assert.deepEqual(R.map(r => r[2]), ['41,9% (39,7%)', '14,0% (12,8%)', '9,6% (6,4%)', '8,9% (11,1%)', '4,3% (1,5%)', '2,4% (1,7%)', '1,2% (1,6%)', '0,0% (4,9%)', '13,9% (14,1%)', '3,7% (6,3%)']);
+  assert.equal(R[0][0], 'Stany Zjednoczone: ' + lng340.mon('pl', '2026-07') + ' — 37,4 TWh (41,9%); ' + lng340.mon('pl', '2025-07') + ' — 51,0 TWh (39,7%)');
+  assert.ok(W[1].includes('img/flagi/us.svg') && W[1].includes('img/flagi/dz.svg') && W[1].includes('img/flagi/qa.svg'), 'flagi krajów');
+  assert.ok(W[1].includes('<span><i class="wk-sq s1"></i>' + lng340.mon('pl', '2026-07') + '</span>') && W[1].includes('<span><i class="wk-sq s2"></i>' + lng340.mon('pl', '2025-07') + '</span>'), 'legenda: dwa miesiące');
+  assert.ok(B.includes('<p class="pnote su-s">Za ' + lng340.mon('pl', '2026-07') + ' · wiek(2026-07): do UE27 trafiło 89,4 TWh LNG (321,8 tys. TJ). Największy dostawca: Stany Zjednoczone — 41,9% (rok wcześniej: 39,7%).</p>'));
+  assert.ok(B.includes('<p class="pnote">Polska, ' + lng340.mon('pl', '2026-08') + ' · wiek(2026-08): 6,3 TWh LNG (22,8 tys. TJ). Statystyka nie podaje kraju pochodzenia polskiego importu — 99,8% oznaczono jako „nieokreślone”.</p>'), '22 776 TJ / 3600 = 6,3 TWh; 22 723,2 / 22 776 = 99,8%');
+  /* bez roku wcześniej: jedna seria, zdanie bez porównania; Polska z dostawcą, gdy kraj pochodzenia znany; brak Polski — bez zdania */
+  const F = lng340.clone(LNG340_FILE); delete F.skad.ue.rok; F.skad.pl.nsp = 100; F.skad.pl.k = [['US', 12000], ['NSP', 100]];
+  const bF = lng340.loaded('pl', F).B, rF = lng340.rowsOf(lng340.bars(bF)[1]);
+  assert.deepEqual(rF[0].slice(1), ['Stany Zjednoczone', '41,9%']); assert.ok(!lng340.bars(bF)[1].includes('wk-sq s2') && bF.includes('Największy dostawca: Stany Zjednoczone — 41,9%.</p>'));
+  assert.ok(bF.includes('Polska, ' + lng340.mon('pl', '2026-08') + ' · wiek(2026-08): 6,3 TWh LNG (22,8 tys. TJ). Największy dostawca: Stany Zjednoczone — 52,7%.</p>'), '12 000 / 22 776');
+  const G = lng340.clone(LNG340_FILE); delete G.skad.pl; assert.ok(!lng340.loaded('pl', G).B.includes('6,3 TWh LNG'), 'brak Polski w imporcie — bez zdania o Polsce');
+  const F2 = lng340.clone(LNG340_FILE); F2.skad.pl.nsp = 11000; F2.skad.pl.k = [['US', 9000], ['NSP', 11000]];
+  assert.ok(lng340.loaded('pl', F2).B.includes('Największy dostawca: Stany Zjednoczone — 39,5%.</p>') && !lng340.loaded('pl', F2).B.includes('oznaczono jako „nieokreślone”'), 'nieokreślone 48% (poniżej 90%) — zdanie o dostawcy, nie o braku kraju pochodzenia');
+  const H = lng340.clone(LNG340_FILE); H.skad.pl.nsp = 0; H.skad.pl.k = []; assert.ok(lng340.loaded('pl', H).B.includes('Polska, ' + lng340.mon('pl', '2026-08') + ' · wiek(2026-08): 6,3 TWh LNG (22,8 tys. TJ).</p>'));
+  const I = lng340.clone(LNG340_FILE); delete I.skad.ue; assert.ok(!lng340.loaded('pl', I).B.includes('Skąd UE bierze LNG'), 'import UE27 bez danych (ok true) — bez sekcji, bez zer');
+});
+
+test('v340: zapasy gazu w magazynach — kafle UE27, Niemcy, Polska (TWh, ≈ mld m³, zmiana m/m w kolorze kierunku, rok wcześniej, koniec miesiąca i wiek), wykresy UE27 i Polski z pasmem 5 lat i zdaniem', () => {
+  const {B} = lng340.loaded('pl'), T = lng340.tiles(B);
+  assert.deepEqual(Object.keys(T), ['pl', 'ue', 'z-ue', 'z-de', 'z-pl']);
+  assert.ok(B.includes('<p class="wk-sub"><b>Zapasy gazu w magazynach na koniec miesiąca</b> · TWh w cieple spalania (≈ mld m³ gazu)</p>'));
+  assert.ok(T['z-ue'].includes('<b>659 <small class="mtxt">TWh</small> <small class="pos">▲ +81,2 TWh wobec poprzedniego miesiąca</small></b>') && T['z-ue'].includes('≈ 61,1 mld m³ gazu') && T['z-ue'].includes('rok wcześniej: 802 TWh'), T['z-ue']);
+  assert.ok(T['z-ue'].includes('koniec miesiąca: ' + lng340.mon('pl', '2026-07') + ' · wiek(2026-07)') && T['z-ue'].includes('img/flagi/eu.svg'), 'UE27 do lipca');
+  assert.ok(T['z-de'].includes('<b>112 <small class="mtxt">TWh</small> <small class="pos">▲ +12,1 TWh') && T['z-de'].includes('≈ 10,4 mld m³ gazu') && T['z-de'].includes('rok wcześniej: 147 TWh') && T['z-de'].includes('img/flagi/de.svg'));
+  assert.ok(T['z-pl'].includes('<b>38,3 <small class="mtxt">TWh</small> <small class="pos">▲ +4,2 TWh') && T['z-pl'].includes('≈ 3,6 mld m³ gazu') && T['z-pl'].includes('koniec miesiąca: ' + lng340.mon('pl', '2026-08') + ' · wiek(2026-08)'), 'Polska do sierpnia — własny miesiąc');
+  const L = lng340.lines(B).slice(2);
+  assert.equal(L.length, 2); for (const c of L) assert.ok(c.includes('<polygon class="su-band"') && c.includes('Średnia z 5 poprzednich lat') && c.includes('Najmniej w 5 poprzednich latach') && c.includes('Najwięcej w 5 poprzednich latach'));
+  assert.equal(lng340.hits(L[0]).length, 26, '26 miesięcy'); assert.ok(lng340.hits(L[0]).pop().includes('Zapasy na koniec miesiąca: 659'), lng340.hits(L[0]).pop());
+  assert.ok(B.includes('<p class="wk-sub"><b>Unia Europejska (27 krajów)</b> · TWh · ostatnie 26 miesięcy</p>') && B.includes('<p class="wk-sub"><b>Polska</b> · TWh · ostatnie 26 miesięcy</p>'));
+  assert.ok(B.includes('Unia Europejska (27 krajów), koniec miesiąca ' + lng340.mon('pl', '2026-07') + ' · wiek(2026-07): 659 TWh — poniżej typowego pasma z 5 poprzednich lat (681–988 TWh).'), 'najmniej w pięciu latach 681 TWh (lipiec 2022)');
+  assert.ok(B.includes('Polska, koniec miesiąca ' + lng340.mon('pl', '2026-08') + ' · wiek(2026-08): 38,3 TWh — w typowym paśmie z 5 poprzednich lat (36,1–43,3 TWh).'));
+  assert.ok(B.includes('<p class="pnote">Dane miesięczne urzędowej statystyki pojawiają się z opóźnieniem 1–3 miesięcy (zbiorcze dane UE27 później niż dane Polski). To nie jest dzienny stan magazynów.</p>'));
+  /* spadek — czerwony; zero — żółte; brak mln m³ i roku wcześniej — bez tych linii; brak pasma — sama linia i brak zdania; jeden miesiąc — bez wykresu */
+  const F = lng340.clone(LNG340_FILE), pd = F.zapasy.k.PL.d; pd[pd.length - 2][1] = pd[pd.length - 1][1] + 3600 * 4.2; pd[pd.length - 1][2] = null; F.zapasy.k.PL.d = pd.filter(r => r[0] !== '2025-08');
+  const tF = lng340.tiles(lng340.loaded('pl', F).B)['z-pl']; assert.ok(tF.includes('<small class="neg">▼ −4,2 TWh wobec poprzedniego miesiąca</small>') && !tF.includes('mld m³') && !tF.includes('rok wcześniej'));
+  const G = lng340.clone(LNG340_FILE); delete G.zapasy.k.PL.pasmo; G.zapasy.k.DE.d = [G.zapasy.k.DE.d[0]];
+  const bG = lng340.loaded('pl', G).B; assert.ok(!lng340.lines(bG)[3].includes('su-band') && !bG.includes('Polska, koniec miesiąca'));
+  assert.ok(lng340.tiles(bG)['z-de'].includes('<b>') && !lng340.tiles(bG)['z-de'].includes('wobec poprzedniego miesiąca'), 'kafel z jednego miesiąca — bez zmiany');
+  const H = lng340.clone(LNG340_FILE); H.zapasy.k = {}; H.ok.zapasy = false; const bH = lng340.loaded('pl', H).B; assert.ok(bH.includes('Części danych jeszcze nie pobrano (zapasy w magazynach)') && !bH.includes('Zapasy gazu w magazynach na koniec miesiąca'), 'plik bez zapasów — informacja, nie zero');
+});
+
+test('v340: błąd części — z danymi „pokazujemy wcześniejsze dane”, bez danych „jeszcze nie pobrano”, błąd częściowy — „część danych niedostępna”; stopka bloku z czasem pliku; brak części = brak sekcji', () => {
+  const F = lng340.clone(LNG340_FILE); F.ok = {dz: false, skad: false, zapasy: true}; delete F.zapasy; F.err = {skad: 'x'};
+  const B = lng340.loaded('pl', F).B;
+  assert.ok(B.includes('<p class="pnote neu">Ostatnie pobranie części danych się nie udało (dobowa wysyłka z terminali, import LNG wg pochodzenia) — pokazujemy wcześniejsze dane z ich datą.</p>'));
+  assert.ok(!B.includes('Zapasy gazu w magazynach na koniec miesiąca') && B.includes('data-lng="pl"') && B.includes('Skąd UE bierze LNG'), 'brak zapasów w pliku — bez sekcji; reszta jest');
+  assert.ok(B.includes('<p class="pnote">Plik z D:2026-10-11T06:40:00+00:00</p></details>'), 'czas pliku na końcu bloku');
+  const G = lng340.clone(LNG340_FILE); G.ok = {dz: true, skad: false, zapasy: false}; delete G.skad; G.cz = {zapasy: true};
+  const bG = lng340.loaded('pl', G).B;
+  assert.ok(bG.includes('<p class="pnote">Części danych jeszcze nie pobrano (import LNG wg pochodzenia) — pojawią się po pierwszym udanym pobraniu.</p>') && !bG.includes('Skąd UE bierze LNG'));
+  assert.ok(bG.includes('<p class="pnote neu">Część danych jest niedostępna (zapasy w magazynach) — nie było jej w ostatnim pobraniu. Braki oznaczamy „—”, reszta pochodzi z tego pobrania.</p>') && bG.includes('Zapasy gazu w magazynach na koniec miesiąca'), 'błąd częściowy części z danymi');
+  const H = {v: 1, at: '2026-10-11T06:40:00+00:00', zapasy: LNG340_FILE.zapasy}; const bH = lng340.loaded('pl', H).B;
+  assert.ok(bH.includes('Zapasy gazu w magazynach') && !bH.includes('Dobowa wysyłka') && !bH.includes('Skąd UE bierze LNG'), 'plik z jedną częścią');
+});
+
+test('v340: odporność na złe wartości w pliku — tekst, ujemne, NaN, brak pól: bez wyjątków, bez „NaN” i „undefined”, brak = „—” albo brak wiersza', () => {
+  for (const mut of [
+    F => { F.dz.pl.d = F.dz.pl.d.map(r => [r[0], 'x']); },
+    F => { F.dz.ue.d = F.dz.ue.d.map(r => [r[0], -5]); F.dz.ue.d[0][1] = null; },
+    F => { F.dz.przel = 'a'; }, F => { delete F.dz.przel; }, F => { F.dz.pl.d = 'x'; F.dz.ue = null; }, F => { F.dz.term = {d: 'zła', r: 'x'}; },
+    F => { F.skad.ue.k = 'x'; F.skad.ue.rok = []; }, F => { F.skad.ue.razem = 0; }, F => { F.skad.pl = {m: 'zły', razem: 'a'}; },
+    F => { F.zapasy.k.EU27_2020.d = [['zły', 1], ['2026-07', 'a'], null, 5]; F.zapasy.k.PL.pasmo = 'x'; },
+    F => { F.dz = null; F.skad = []; F.zapasy = 'x'; F.ok = 'x'; F.cz = 5; },
+    F => { F.dz.ue.d = F.dz.ue.d.map(r => [r[0].replace('-10-', '-13-'), r[1]]); },
+  ]) {
+    const F = lng340.clone(LNG340_FILE); mut(F);
+    for (const L of ['pl', 'en', 'ja']) {
+      const B = lng340.loaded(L, F).B; assert.ok(B.startsWith('<details class="etfd su-b lng-b" id="su-b-lng">'), L + ': blok jest');
+      assert.ok(!/NaN|undefined|null|\[object/.test(lng340.txt(B)), L + ': ' + (lng340.txt(B).match(/.{20}(NaN|undefined|null|\[object).{20}/) || [])[0]);
+    }
+  }
+});
+
+test('v340: 10 języków — blok w języku widza, bez surowych kluczy i bez nazw dostawców; kraje przez nazwy regionów języka widza; słownik czystym JSON-em, te same klucze i pola {x}, każdy klucz użyty w kodzie', () => {
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const PROV = /Eurostat|ENTSOG|\bGIE\b|AGSI|\bACER\b|Gaz-System|GAZ-SYSTEM|transparency\.|\bAlsi\b|\bGTS\b|Fluxys|Enag|Snam|REN\b|GRTgaz|NaTran|\bTSO\b/;
+  const names = G126_NAMES.HIDE.concat(G126_NAMES.BOTH);
+  for (const L of L10) {
+    const B = lng340.loaded(L).B, T = lng340.txt(B);
+    assert.ok(!B.includes('lng340.') && !B.includes('su295g.') && !B.includes('sz305.') && !B.includes('undefined') && !B.includes('NaN'), L + ': klucze i liczby');
+    assert.ok(!PROV.test(T), L + ': nazwa dostawcy: ' + (T.match(PROV) || [])[0]);
+    for (const [n, re] of names) assert.ok(!re.test(T), L + ': ' + n);
+    assert.equal(Object.keys(lng340.tiles(B)).length, 5, L); assert.equal(lng340.lines(B).length, 4, L); assert.equal(lng340.bars(B).length, 2, L);
+  }
+  const E = lng340.loaded('en').B, Tn = lng340.tiles(E);
+  assert.ok(E.includes('<summary>Gas and LNG: how much flows in, where it comes from and how much is in storage</summary>') && Tn.pl.includes('<b>118.8 <small class="mtxt">GWh/d</small> <small class="pos">▲ +2.6 vs the day before</small></b>'));
+  assert.ok(lng340.rowsOf(lng340.bars(E)[1])[0][1] === 'United States' && lng340.rowsOf(lng340.bars(E)[1])[8][1] === 'country not specified in the statistics', 'nazwy krajów z Intl.DisplayNames języka widza');
+  assert.ok(E.includes('Largest supplier: United States — 41.9% (a year earlier: 39.7%)') && E.includes('below the typical band of the previous 5 years (681–988 TWh)'));
+  const J = lng340.loaded('ja').B; assert.ok(lng340.rowsOf(lng340.bars(J)[1])[0][1] === 'アメリカ合衆国' && J.includes('シフィノウイシチェ'));
+  const R = lng340.loaded('ru').B; assert.ok(R.includes('ГВт·ч/сут') && lng340.rowsOf(lng340.bars(R)[1])[0][1] === new Intl.DisplayNames([lng340.LOC.ru], {type: 'region'}).of('US'));
+  /* słownik: szukany po kluczu (numer nadaje łatka przy nakładaniu) */
+  const a = html.indexOf('{"pl":{"lng340.b":'); assert.ok(a > 0, 'słownik v340');
+  const d0 = html.lastIndexOf('const EXTRA', a), name = html.slice(d0 + 6, a - 1);
+  const d1 = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', a); assert.ok(d1 > a, 'linia nakładania zaraz po słowniku');
+  assert.ok(/^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2);
+  const D = JSON.parse(html.slice(a, d1)), ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10); const K = Object.keys(D.pl);
+  assert.ok(K.length >= 60 && K.every(k => k.startsWith('lng340.')), 'klucze: ' + K.length);
+  for (const l of L10) { assert.deepEqual(Object.keys(D[l]), K, l); for (const k of K) { assert.ok(D[l][k].trim(), l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k); assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k); } }
+  for (const l of L10.slice(2)) for (const k of K) if (/[A-Za-z]{4}/.test(D.en[k].replace(/\{\w+\}/g, ' ')) && !(V142_OK[k] || '').split(' ').includes(l)) assert.notEqual(D[l][k], D.en[k], l + ' ' + k);
+  const c = lng340.code, ids = {k: ['pl', 'ue'], pt: ['dz', 'skad', 'zapasy']};
+  for (const k of K) { const m = /^lng340\.(?:(k|pt)\.|z\.k\.)(\w+)$/.exec(k);
+    if (m && (m[1] ? ids[m[1]] : ['ue', 'de', 'pl']).includes(m[2])) { assert.ok(c.includes(m[1] === 'k' ? "t('lng340.k.'+id)" : m[1] === 'pt' ? "t('lng340.pt.'+p)" : "t('lng340.z.k.'+id)"), 'klucz składany w kodzie: ' + k); continue; }
+    assert.ok(c.includes("'" + k + "'") || c.includes("'" + k + "',") || c.includes('?\'' + k + '\''), 'klucz w kodzie: ' + k); }
+});
+
+test('v340: miejsce w kodzie — funkcje bloku przed renderSu (w bloku panelu, po v320), blok w części C po gazie, słuchacz i zegar za startem panelu przed v320 i szlakami (poza ich wycinkami); styl; bez zegarów i pamięci przeglądarki w funkcjach', () => {
+  const r0 = html.indexOf('function renderSu(){'), z0 = html.indexOf('/* ===================== v340: GAZ I LNG');
+  assert.ok(z0 > html.indexOf('/* ===================== v320: SUROWCE') && z0 < r0, 'funkcje bloku w bloku panelu surowców, po v320, przed renderSu');
+  assert.ok(html.includes("suBlk('su-b-gaz','su295g.b.gaz',suGas())+lngBlk()+suBlk('su-b-fao'"), 'blok tuż po bloku cen gazu');
+  const l0 = html.indexOf("document.addEventListener('click',e=>{const tg=e.target;if(tg&&tg.closest&&tg.closest('#g-surowce details#su-b-lng>summary'))lngLoad();});");
+  assert.ok(l0 > html.indexOf('\nsuLoad();suAuto();try{new MutationObserver') && l0 < html.indexOf('/* v320: raporty miesięczne o surowcach — plik data/surowce-raporty.json dopiero'), 'słuchacz za startem panelu, przed słuchaczami v320 i szlaków');
+  assert.ok(!lng340.blk.includes('su-b-lng>summary') && !lng340.blk.includes('lngLoad(1)'), 'poza wycinkiem v295g (do startu panelu) — liczba słuchaczy i zegarów panelu bez zmian');
+  assert.ok(lng340.lis.includes("document.addEventListener('click',") && lng340.lis.split('addEventListener(').length === 2, 'jeden słuchacz bloku'); assert.ok(html.includes('setInterval(()=>{if(!document.hidden&&LNG.j)lngLoad(1);},30*60*1000);'));
+  assert.ok(!lng340.code.includes('setTimeout') && !lng340.code.includes('localStorage') && !lng340.code.includes('addEventListener') && !lng340.code.includes('fetch('), 'bez zegarów, pamięci przeglądarki, słuchaczy i własnych pobrań');
+  assert.ok(html.includes('#g-surowce .lng-k>small.su-d{color:var(--mut)}'), 'data doby przygaszona jak w szlakach');
+  assert.ok(!/#g-surowce[^{}]*\.lng[^{}]*\{[^}]*(--gr|--rd|green|red)/i.test(html), 'bez zieleni i czerwieni w stylu bloku (kolor kierunku daje klasa pos / neg)');
+  assert.ok(html.indexOf('<p class="pfoot">${t(\'inst.file\'', r0) > r0, 'stopka panelu bez zmian');
+  const sec = id => html.indexOf(`<section class="panel pcard" id="${id}" hidden></section>`);
+  assert.ok(sec('g-surowce') > 0 && sec('tv-markets') < 0, 'bez widgetów TradingView');
+});
+
+test('v340: telefon 390 px — kafle w 2 kolumnach (siatka pulsu), wykresy i słupki w kolumnie panelu; bez stałych szerokości w stylu bloku', () => {
+  assert.ok(html.includes('@media (max-width:620px){#g-surowce .su-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}'), 'reguła pulsu: 2 kolumny na telefonie');
+  const B = lng340.loaded('pl').B;
+  assert.ok(/class="etfkpis su-kpis lng-kpis"/.test(B) && !/ style="[^"]*width:\s*\d{3,}px/.test(B), 'siatka pulsu, bez sztywnych szerokości w px');
+  for (const r of lng340.bars(B)) assert.ok(/--lw:\d+%/.test(r), 'kolumna etykiet słupków w procentach');
+});

@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -346,7 +346,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -534,7 +534,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -624,7 +624,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -757,7 +757,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1116,7 +1116,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1360,7 +1360,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1597,7 +1597,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1828,7 +1828,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2341,7 +2341,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3093,7 +3093,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3220,7 +3220,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3255,7 +3255,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3631,7 +3631,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -4116,7 +4116,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -8765,7 +8765,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         for s in stubs:
             s.start()
         try:
@@ -9157,7 +9157,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
@@ -10013,7 +10013,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -25613,7 +25613,7 @@ class PoPrzegladzieV211(unittest.TestCase):
         self.assertEqual((Z['bledy'], Z['uwagi'], len(Z['trwa'])), ([], [], 3)); self.assertTrue(all(x['bez'] for x in Z['trwa']))
         md = self.k.raport_md({'at': t(0.2), 'wynik': 'OK', 'meta': {}, 'awarie': Z, 'uwagi': [], 'bledy': []})
         self.assertIn('jpx od 02.10.2026, 02:00 (4 dni 4 godz., nieudanych przebiegów: 500) ℹ️ (Japonia — tydzień czeka na publikację giełdy)', md)
-        self.assertEqual(set(self.k.AW_BEZ_BLEDU) - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii
+        self.assertEqual(set(self.k.AW_BEZ_BLEDU) - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii
                                                     'surowce_fundusze', 'surowce_banki'}, 'v215: snb — zwykła ocena; v295: + surowce; v298: + etap 3')   # v320: świadomie odjęte części raportów miesięcznych surowców (surowce_raporty_*) — też bez czerwieni z serii awarii
 
     def test_czas_do_ostatniego_przebiegu_i_pamiec_od(self):
@@ -25707,7 +25707,7 @@ class PoPrzegladzieV215(unittest.TestCase):
         Z = k.awarie_ocena({'at': t(0), 'awarie': aw}, datetime.datetime(2026, 10, 6, 4, 10, tzinfo=datetime.timezone.utc))
         self.assertEqual(len(Z['bledy']), 1); self.assertIn('„snb”', Z['bledy'][0]); self.assertEqual(Z['uwagi'], [])
         self.assertEqual(sorted(x['czesc'] for x in Z['trwa'] if x['bez']), ['ici', 'jpx', 'wycena_bg'])
-        self.assertEqual(set(k.AW_BEZ_BLEDU) - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii
+        self.assertEqual(set(k.AW_BEZ_BLEDU) - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii
                                                'surowce_fundusze', 'surowce_banki'})   # v295: + części surowców; v298: + etap 3; v320: świadomie odjęte części raportów miesięcznych (surowce_raporty_*)
         self.assertIn('z założenia bez czerwieni', k.AW_BEZ_BLEDU['ici'])
 
@@ -32154,7 +32154,7 @@ class SurowceV295(unittest.TestCase):
             'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
             'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
             'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
             'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
         for zm, want_new in (({'eia'}, True), (set(), False)):
             saved.clear(); calls.clear()
@@ -33577,7 +33577,7 @@ class SurowceEtap3V298(unittest.TestCase):
             'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
             'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
             'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
             'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
         for s in stubs:
             s.start()
@@ -39467,7 +39467,7 @@ class StopySurowceV325(unittest.TestCase):
                 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
                 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
                 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_ici', 'build_nastroj', 'build_dzwignia',
+                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia',
                 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa',
                 'build_surowce', 'build_energia')]
             for s in stubs:
@@ -43377,3 +43377,655 @@ class MetaleUwagiPrzegladuV339(unittest.TestCase):
         self.assertNotIn('zpd', zd._mt_tyg_zloz(None, '2026-10-09', nowe, 'z')['m']['cu'], 'pierwszy raport — dnia poprzedniego nie znamy')
         again = zd._mt_tyg_zloz(out, '2026-10-09', nowe, 'z')
         self.assertEqual(again['m']['cu']['zpd'], '2026-09-30', 'ten sam raport drugi raz — dzień poprzedni bez zmian (nie on sam)')
+
+
+# ===================== v340: GAZ I LNG — data/lng.json (zbieracz), kontrola dzienna, przebieg główny =====================
+# Nagrania z 11.10.2026 (sieć nie jest używana: odpowiedzi zaślepione z nagrań):
+#   * dobowa wysyłka z terminali LNG (platforma przejrzystości operatorów sieci gazowych): 11 dób 30.09–10.10.2026 × 30 punktów wejścia, wiersze entry
+#     i exit (dane zwrotne), Zeebrugge i Montoir z dwoma wierszami (kierunek exit / operator bez wartości), Baltic Energy Gate z dwoma operatorami;
+#     doba 30.09 — 23 z 30 punktów (część operatorów bez wyniku), doba 10.10 — 5 z 30 (wynik Świnoujścia ok. 07:03, reszta później);
+#   * import LNG wg kraju pochodzenia (UE27 i Polska, 15 miesięcy 2025-06 … 2026-08; tylko partnerzy z wartością > 0 — suma partnerów = suma),
+#   * zapasy gazu na koniec miesiąca (UE27, Niemcy, Polska; 2019-01 … 2026-08; TJ i mln m³).
+# Liczby oczekiwane policzone z nagrań (UE: 9.10.2026 = 2 785,6 GWh/d z 30 punktów, Świnoujście 118,8 GWh/d 10.10; import UE27 lipiec 2026 = 321 790 TJ,
+# USA 134 773,7 TJ; Polska sierpień 2026 = 22 776 TJ; zapasy UE27 lipiec 2026 = 2 373 842 TJ = 61 143 mln m³).
+LNG340_FX_DZ = '{"ops":["FI-TSO-0003","DE-TSO-0009","PL-TSO-0002","PT-TSO-0001","LT-TSO-0001","DE-TSO-0001","DE-TSO-0017","NL-TSO-0001","GR-TSO-0001","BE-TSO-0001","IT-TSO-0001","DE-TSO-0005","ES-TSO-0006","FR-TSO-0003","HR-TSO-0001","DE-TSO-0018"],"rows":[[72,0,"e",0,0],[83,0,"e",1,236548479],[6,0,"e",2,107366952],[26,0,"e",3,183362305],[30,0,"e",4,64488865],[79,0,"e",5,0],[75,0,"e",6,0],[27,0,"e",7,503995212],[27,0,"x",7,0],[68,0,"e",7,258587673],[11,0,"e",0,364463],[14,0,"e",8,24706124],[42,0,"e",8,30770054],[17,0,"e",9,23842947],[17,0,"x",9,0],[19,0,"e",10,21657633],[15,0,"e",10,302330285],[4,0,"e",10,166049920],[82,0,"e",10,65066768],[69,0,"e",10,0],[60,0,"e",11,36358467],[12,0,"e",12,null],[22,0,"e",12,null],[18,0,"e",12,null],[21,0,"e",12,null],[23,0,"e",12,null],[13,0,"e",12,null],[16,0,"e",12,null],[29,0,"e",13,204433769],[24,0,"e",13,133319976],[71,0,"e",13,0],[32,0,"e",14,81256590],[72,1,"e",0,0],[83,1,"e",1,236916841],[6,1,"e",2,114506902],[26,1,"e",3,181767578],[30,1,"e",4,53413844],[79,1,"e",5,3783272],[75,1,"e",6,0],[27,1,"e",7,561808611],[27,1,"x",7,0],[68,1,"e",7,264036140],[11,1,"e",0,422108],[14,1,"e",8,42277884],[42,1,"e",8,13078341],[17,1,"e",9,26046151],[17,1,"x",9,0],[19,1,"e",10,22111335],[15,1,"e",10,265611395],[4,1,"e",10,167990271],[82,1,"e",10,26981512],[69,1,"e",10,0],[60,1,"e",11,36246205],[12,1,"e",12,48599105],[22,1,"e",12,60858615],[18,1,"e",12,44932691],[21,1,"e",12,3465942],[23,1,"e",12,215485212],[13,1,"e",12,187023086],[16,1,"e",12,30962502],[29,1,"e",13,204667323],[24,1,"e",13,93206175],[71,1,"e",13,0],[32,1,"e",14,163937],[72,2,"e",0,0],[83,2,"e",1,236190300],[6,2,"e",2,91800498],[26,2,"e",3,183784180],[30,2,"e",4,55134903],[79,2,"e",5,0],[75,2,"e",6,0],[27,2,"e",7,587127500],[27,2,"x",7,0],[68,2,"e",7,259479009],[11,2,"e",0,489336],[14,2,"e",8,20309464],[42,2,"e",8,25250240],[17,2,"e",9,24489008],[17,2,"x",9,0],[19,2,"e",10,1352723],[15,2,"e",10,265454030],[4,2,"e",10,168008417],[82,2,"e",10,27032633],[69,2,"e",10,0],[60,2,"e",11,36274779],[18,2,"e",12,44307366],[21,2,"e",12,3483635],[23,2,"e",12,166372480],[16,2,"e",12,31105197],[22,2,"e",12,43205168],[13,2,"e",12,146145214],[12,2,"e",12,51577870],[29,2,"e",13,334937151],[24,2,"e",13,105382947],[71,2,"e",13,0],[32,2,"e",14,0],[72,3,"e",0,0],[83,3,"e",1,229570617],[6,3,"e",2,62266183],[26,3,"e",3,173503906],[30,3,"e",4,53844380],[79,3,"e",5,4730262],[75,3,"e",6,0],[27,3,"e",7,590156162],[27,3,"x",7,0],[68,3,"e",7,305535864],[11,3,"e",0,446588],[14,3,"e",8,0],[42,3,"e",8,27552592],[17,3,"e",9,24877669],[17,3,"x",9,0],[19,3,"e",10,1480122],[15,3,"e",10,239692036],[4,3,"e",10,117974828],[82,3,"e",10,26982435],[69,3,"e",10,0],[60,3,"e",11,36240670],[12,3,"e",12,77517752],[22,3,"e",12,50724719],[18,3,"e",12,44480230],[21,3,"e",12,3218466],[23,3,"e",12,171659597],[13,3,"e",12,199512317],[16,3,"e",12,31198371],[29,3,"e",13,334395033],[24,3,"e",13,335071312],[71,3,"e",13,0],[32,3,"e",14,0],[72,4,"e",0,0],[83,4,"e",1,231341950],[6,4,"e",2,53009948],[26,4,"e",3,170530273],[30,4,"e",4,49107156],[27,4,"e",7,588298611],[27,4,"x",7,0],[68,4,"e",7,305322092],[79,4,"e",5,0],[75,4,"e",6,0],[11,4,"e",0,417491],[14,4,"e",8,420630],[42,4,"e",8,29137048],[17,4,"e",9,23504385],[17,4,"x",9,0],[19,4,"e",10,1428915],[15,4,"e",10,242100124],[4,4,"e",10,88399214],[82,4,"e",10,25040880],[69,4,"e",10,0],[60,4,"e",11,36246597],[12,4,"e",12,48285788],[22,4,"e",12,42958183],[18,4,"e",12,43717173],[21,4,"e",12,3214286],[23,4,"e",12,89780609],[13,4,"e",12,165037471],[16,4,"e",12,31154777],[29,4,"e",13,335066516],[24,4,"e",13,336576662],[71,4,"e",13,0],[32,4,"e",14,0],[72,5,"e",0,0],[83,5,"e",1,232309975],[6,5,"e",2,51180538],[26,5,"e",3,172760742],[30,5,"e",4,50039190],[79,5,"e",5,3566010],[75,5,"e",6,0],[27,5,"e",7,593406667],[27,5,"x",7,0],[68,5,"e",7,302234292],[11,5,"e",0,412188],[14,5,"e",8,60412416],[42,5,"e",8,32325658],[17,5,"e",9,20216919],[17,5,"x",9,0],[19,5,"e",10,1532043],[15,5,"e",10,265919167],[4,5,"e",10,88380397],[82,5,"e",10,25017043],[69,5,"e",10,0],[60,5,"e",11,36313831],[22,5,"e",12,73211487],[18,5,"e",12,44208293],[21,5,"e",12,3481336],[23,5,"e",12,166307923],[13,5,"e",12,211500442],[16,5,"e",12,30925047],[12,5,"e",12,46430417],[29,5,"e",13,346584964],[24,5,"e",13,209572040],[71,5,"e",13,0],[32,5,"e",14,0],[72,6,"e",0,0],[83,6,"e",1,232252536],[6,6,"e",2,101954462],[26,6,"e",3,175279297],[30,6,"e",4,50033772],[79,6,"e",5,0],[75,6,"e",6,0],[27,6,"e",7,588675498],[27,6,"x",7,0],[68,6,"e",7,308923335],[11,6,"e",0,448594],[14,6,"e",8,53850704],[42,6,"e",8,35246076],[17,6,"e",9,25436132],[17,6,"x",9,0],[19,6,"e",10,1551786],[15,6,"e",10,235510923],[4,6,"e",10,88368694],[82,6,"e",10,25050039],[69,6,"e",10,0],[60,6,"e",11,36411620],[29,6,"e",13,334703572],[24,6,"e",13,191278883],[71,6,"e",13,0],[12,6,"e",12,69990887],[22,6,"e",12,97065411],[18,6,"e",12,44534721],[21,6,"e",12,3507948],[23,6,"e",12,197842887],[13,6,"e",12,220023983],[16,6,"e",12,33025524],[32,6,"e",14,0],[72,7,"e",0,0],[83,7,"e",1,232419785],[6,7,"e",2,102315463],[26,7,"e",3,174698242],[30,7,"e",4,53832099],[79,7,"e",5,3069894],[75,7,"e",6,0],[27,7,"e",7,589514343],[27,7,"x",7,0],[68,7,"e",7,311042909],[11,7,"e",0,449994],[14,7,"e",8,72550880],[42,7,"e",8,35215168],[17,7,"e",9,24687599],[17,7,"x",9,0],[19,7,"e",10,1532192],[15,7,"e",10,252407848],[4,7,"e",10,83850332],[82,7,"e",10,25039283],[69,7,"e",10,0],[60,7,"e",11,36586550],[29,7,"e",13,319414601],[24,7,"e",13,210445232],[71,7,"e",13,0],[12,7,"e",12,110490570],[22,7,"e",12,95178561],[21,7,"e",12,3084498],[18,7,"e",12,45827006],[23,7,"e",12,216318870],[13,7,"e",12,212476653],[16,7,"e",12,31509279],[32,7,"e",14,0],[72,8,"e",0,0],[83,8,"e",1,214069061],[6,8,"e",2,96960341],[30,8,"e",4,53196262],[26,8,"e",3,174391602],[79,8,"e",5,3184771],[75,8,"e",6,0],[27,8,"e",7,587357045],[27,8,"x",7,0],[68,8,"e",7,309799703],[11,8,"e",0,505463],[14,8,"e",8,65546468],[42,8,"e",8,35237840],[79,8,"e",15,0],[17,8,"e",9,23394961],[17,8,"x",9,0],[19,8,"e",10,1532192],[15,8,"e",10,259826482],[4,8,"e",10,0],[82,8,"e",10,25044301],[69,8,"e",10,0],[60,8,"e",11,15671902],[29,8,"e",13,375868044],[24,8,"e",13,88951927],[71,8,"e",13,0],[12,8,"e",12,45592843],[22,8,"e",12,64585531],[18,8,"e",12,44271268],[21,8,"e",12,2934790],[23,8,"e",12,129869384],[13,8,"e",12,218620103],[16,8,"e",12,30936005],[32,8,"e",14,0],[72,9,"e",0,0],[83,9,"e",1,183812745],[6,9,"e",2,116197297],[26,9,"e",3,175833008],[30,9,"e",4,54021200],[79,9,"e",5,0],[75,9,"e",6,0],[27,9,"e",7,559221061],[27,9,"x",7,0],[68,9,"e",7,306628635],[11,9,"e",0,520352],[14,9,"e",8,66028040],[42,9,"e",8,35275924],[17,9,"e",9,23873047],[17,9,"x",9,0],[19,9,"e",10,1499445],[15,9,"e",10,259945192],[4,9,"e",10,39559],[82,9,"e",10,25026301],[69,9,"e",10,0],[60,9,"e",11,67328051],[29,9,"e",13,395732604],[24,9,"e",13,71363758],[71,9,"e",13,0],[12,9,"e",12,48382736],[22,9,"e",12,39497601],[18,9,"e",12,44257695],[21,9,"e",12,2768040],[23,9,"e",12,55071687],[13,9,"e",12,221940001],[16,9,"e",12,31117804],[32,9,"e",14,231955],[72,10,"e",0,0],[83,10,"e",1,203785801],[6,10,"e",2,118844581],[26,10,"e",3,161818894],[30,10,"e",4,53482509],[68,0,"x",7,""],[68,1,"x",7,""],[68,2,"x",7,""],[68,3,"x",7,""],[68,4,"x",7,""],[68,5,"x",7,""],[68,6,"x",7,""],[68,7,"x",7,""],[68,8,"x",7,""],[68,9,"x",7,""],[68,10,"x",7,""],[29,0,"x",13,""],[29,1,"x",13,""],[29,2,"x",13,""],[29,3,"x",13,""],[29,4,"x",13,""],[29,5,"x",13,""],[29,6,"x",13,""],[29,7,"x",13,""],[29,8,"x",13,""],[29,9,"x",13,""],[29,10,"x",13,""],[71,0,"x",13,""],[71,1,"x",13,""],[71,2,"x",13,""],[71,3,"x",13,""],[71,4,"x",13,""],[71,5,"x",13,""],[71,6,"x",13,""],[71,7,"x",13,""],[71,8,"x",13,""],[71,9,"x",13,""],[71,10,"x",13,""],[26,0,"x",3,""],[26,1,"x",3,""],[26,2,"x",3,""],[26,3,"x",3,""],[26,4,"x",3,""],[26,5,"x",3,""],[26,6,"x",3,""],[26,7,"x",3,""],[26,8,"x",3,""],[26,9,"x",3,""],[26,10,"x",3,""],[24,0,"x",13,""],[24,1,"x",13,""],[24,2,"x",13,""],[24,3,"x",13,""],[24,4,"x",13,""],[24,5,"x",13,""],[24,6,"x",13,""],[24,7,"x",13,""],[24,8,"x",13,""],[24,9,"x",13,""],[24,10,"x",13,""],[-1,0,"x",12,""],[-1,1,"x",12,""],[-1,2,"x",12,""],[-1,3,"x",12,""],[-1,4,"x",12,""],[-1,5,"x",12,""],[-1,6,"x",12,""],[-1,7,"x",12,""],[-1,8,"x",12,""],[-1,9,"x",12,""],[-1,10,"x",12,""]]}'
+LNG340_FX_SK = '{"version":"2.0","class":"dataset","id":["freq","siec","partner","unit","geo","time"],"size":[1,1,32,1,2,15],"dimension":{"freq":{"category":{"index":{"M":0}}},"siec":{"category":{"index":{"G3200":0}}},"partner":{"category":{"index":{"BE":0,"DE":1,"EE":2,"ES":3,"FR":4,"LT":5,"NL":6,"FI":7,"NO":8,"RU":9,"EUR_OTH":10,"AO":11,"CM":12,"CG":13,"CD":14,"GQ":15,"DZ":16,"EG":17,"MR":18,"NG":19,"SN":20,"AFR_OTH":21,"US":22,"TT":23,"MX":24,"PE":25,"AME_OTH":26,"OM":27,"QA":28,"ASI_NME_OTH":29,"TOTAL":30,"NSP":31}}},"unit":{"category":{"index":{"TJ_GCV":0}}},"geo":{"category":{"index":{"EU27_2020":0,"PL":1}}},"time":{"category":{"index":{"2025-06":0,"2025-07":1,"2025-08":2,"2025-09":3,"2025-10":4,"2025-11":5,"2025-12":6,"2026-01":7,"2026-02":8,"2026-03":9,"2026-04":10,"2026-05":11,"2026-06":12,"2026-07":13,"2026-08":14}}}},"value":{"0":0.0,"1":0.0,"2":224.0,"3":608.555,"4":637.555,"5":284.0,"6":222.0,"7":614.139,"8":234.476,"9":0.0,"10":431.7,"11":0.0,"12":208.0,"13":221.0,"30":0.0,"31":0.0,"32":0.0,"33":0.0,"34":0.0,"35":0.0,"36":0.0,"37":0.0,"38":20.241,"39":0.0,"40":0.0,"41":0.0,"42":0.0,"43":0.0,"60":0.0,"61":0.0,"62":0.0,"63":0.0,"64":0.0,"65":0.0,"66":0.0,"67":1.1,"68":0.0,"69":137.0,"70":0.0,"71":0.0,"72":0.0,"73":0.0,"90":1378.67,"91":0.0,"92":0.0,"93":0.0,"94":0.0,"95":0.0,"96":0.0,"97":410.0,"98":0.0,"99":0.0,"100":0.0,"101":0.0,"102":0.0,"103":0.0,"120":243.0,"121":0.0,"122":0.0,"123":0.0,"124":0.0,"125":0.0,"126":0.0,"127":0.0,"128":0.0,"129":0.0,"130":0.0,"131":0.0,"132":0.0,"133":0.0,"150":0.0,"151":0.0,"152":442.422,"153":0.0,"154":395.601,"155":691.907,"156":819.599,"157":671.083,"158":930.265,"159":498.448,"160":236.295,"161":573.043,"162":49.564,"163":588.659,"180":0.0,"181":563.852,"182":0.0,"183":264.869,"184":277.76,"185":0.0,"186":0.0,"187":0.0,"188":1773.605,"189":561.5,"190":583.176,"191":486.202,"192":1027.375,"193":1506.317,"210":585.436,"211":603.374,"212":0.0,"213":150.859,"214":228.751,"215":316.189,"216":244.013,"217":10.337,"218":0.0,"219":8.33,"220":388.244,"221":7.601,"222":0.0,"223":8.148,"240":179.072,"241":6965.319,"242":5114.136,"243":14747.572,"244":9772.174,"245":18870.941,"246":9548.1,"247":14522.532,"248":8283.129,"249":16556.007,"250":7868.865,"251":6037.149,"252":7833.333,"253":13873.979,"270":57012.461,"271":29690.636,"272":23797.105,"273":23623.168,"274":27860.532,"275":35768.925,"276":63111.008,"277":49097.215,"278":48257.596,"279":67667.155,"280":50781.226,"281":64369.932,"282":55497.59,"283":31036.538,"300":123.511,"301":66.29,"302":93.469,"303":64.934,"304":267.522,"305":360.994,"306":326.135,"307":67.182,"308":3858.459,"309":96.837,"310":77.384,"311":40.199,"312":18.492,"313":59.562,"330":11344.722,"331":14804.632,"332":0.0,"333":7710.285,"334":7354.823,"335":16085.308,"336":11076.576,"337":0.0,"338":7363.642,"339":0.0,"340":0.0,"341":3692.054,"342":0.0,"343":0.0,"360":0.0,"361":0.0,"362":0.0,"363":0.0,"364":0.0,"365":0.0,"366":0.0,"367":0.0,"368":3579.785,"369":2494.747,"370":0.0,"371":0.0,"372":0.0,"373":0.0,"390":0.0,"391":0.0,"392":0.0,"393":0.0,"394":0.0,"395":2467.006,"396":0.0,"397":3197.96,"398":1860.417,"399":1877.339,"400":0.0,"401":6647.0,"402":0.0,"403":2567.731,"420":0.0,"421":0.0,"422":0.0,"423":0.0,"424":0.0,"425":0.0,"426":0.0,"427":0.0,"428":0.0,"429":0.0,"430":2597.052,"431":3681.213,"432":0.0,"433":0.0,"450":4023.037,"451":4034.019,"452":0.0,"453":4154.031,"454":4063.891,"455":0.0,"456":3910.336,"457":0.0,"458":0.0,"459":3910.712,"460":463.929,"461":0.0,"462":0.0,"463":0.0,"480":76422.41,"481":58980.093,"482":65631.827,"483":93482.61,"484":70036.068,"485":75025.33,"486":69898.282,"487":68922.064,"488":1562.1,"489":99084.396,"490":116320.507,"491":72286.665,"492":74275.956,"493":45177.579,"510":0.0,"511":0.0,"512":0.0,"513":3721.111,"514":3795.757,"515":3609.727,"516":0.0,"517":0.0,"518":1827.019,"519":0.0,"520":0.0,"521":0.0,"522":0.0,"523":0.0,"540":0.0,"541":1981.2,"542":3802.094,"543":1917.444,"544":0.0,"545":0.0,"546":3797.69,"547":3255.857,"548":2121.746,"549":2336.956,"550":317.224,"551":4023.221,"552":0.0,"553":1592.402,"570":58434.865,"571":51164.357,"572":33491.026,"573":10874.546,"574":64082.826,"575":18038.01,"576":46431.513,"577":50500.52,"578":69129.674,"579":48585.228,"580":26137.481,"581":42389.538,"582":28570.126,"583":28502.733,"600":0.0,"601":1981.2,"602":1769.094,"603":1917.444,"604":0.0,"605":0.0,"606":3797.69,"607":2004.701,"608":2014.412,"609":0.0,"610":3607.7,"611":0.0,"612":4017.036,"613":1592.402,"630":0.0,"631":0.0,"632":0.0,"633":0.0,"634":3887.728,"635":0.0,"636":0.0,"637":0.0,"638":0.0,"639":0.0,"640":0.0,"641":0.0,"642":0.0,"643":0.0,"660":168691.995,"661":183462.98,"662":175775.368,"663":195639.293,"664":204761.363,"665":163717.575,"666":168651.941,"667":198374.041,"668":180702.934,"669":193841.38,"670":210060.423,"671":183255.107,"672":156146.424,"673":134773.666,"690":7173.11,"691":7459.364,"692":2568.27,"693":6626.965,"694":13693.46,"695":10425.392,"696":2631.9,"697":3888.399,"698":4140.182,"699":3862.775,"700":0.0,"701":2608.733,"702":3871.826,"703":3920.673,"720":4091.125,"721":0.0,"722":0.0,"723":0.0,"724":0.0,"725":0.0,"726":0.0,"727":0.0,"728":0.0,"729":0.0,"730":0.0,"731":3596.399,"732":0.0,"733":0.0,"750":7940.671,"751":7942.572,"752":4005.975,"753":0.0,"754":0.0,"755":0.0,"756":3979.305,"757":3923.272,"758":0.0,"759":0.0,"760":0.0,"761":0.0,"762":11819.802,"763":7737.051,"780":0.0,"781":0.0,"782":0.0,"783":3852.281,"784":0.0,"785":0.0,"786":0.0,"787":0.0,"788":0.0,"789":0.0,"790":0.0,"791":0.0,"792":0.0,"793":3883.406,"810":0.0,"811":0.0,"812":0.0,"813":0.0,"814":0.0,"815":0.0,"816":0.0,"817":0.0,"818":878.059,"819":0.0,"820":0.0,"821":0.0,"822":0.0,"823":0.0,"840":22989.95,"841":22447.849,"842":6166.47,"843":24948.935,"844":37626.01,"845":24301.425,"846":34044.022,"847":17870.852,"848":25008.003,"849":35766.85,"850":0.0,"851":0.0,"852":0.0,"853":0.0,"870":5084.625,"871":5112.979,"872":15162.085,"873":4941.721,"874":5090.738,"875":5089.226,"876":15079.946,"877":5057.203,"878":5078.658,"879":9901.594,"880":0.0,"881":0.0,"882":0.0,"883":0.0,"900":488669.333,"901":462203.715,"902":396247.783,"903":456269.195,"904":503489.332,"905":439155.541,"906":495661.33,"907":491476.398,"908":421786.227,"909":560360.872,"910":476058.718,"911":459989.091,"912":406768.487,"913":321789.973,"930":62950.673,"931":64943.0,"932":58204.442,"933":57022.571,"934":49656.773,"935":64103.587,"936":58091.274,"937":69087.94,"938":53161.824,"939":73173.618,"940":56187.513,"941":66295.036,"942":63432.963,"943":44748.128,"15":0.0,"16":0.0,"17":0.0,"18":0.0,"19":0.0,"20":0.0,"21":0.0,"22":102.139,"23":102.676,"24":0.0,"25":0.0,"26":0.0,"27":0.0,"28":0.0,"29":0.0,"45":0.0,"46":0.0,"47":0.0,"48":0.0,"49":0.0,"50":0.0,"51":0.0,"52":0.0,"53":20.241,"54":0.0,"55":0.0,"56":0.0,"57":0.0,"58":0.0,"59":0.0,"75":0.0,"76":0.0,"77":0.0,"78":0.0,"79":0.0,"80":0.0,"81":0.0,"82":0.0,"83":0.0,"84":0.0,"85":0.0,"86":0.0,"87":0.0,"88":0.0,"89":0.0,"105":0.0,"106":0.0,"107":0.0,"108":0.0,"109":0.0,"110":0.0,"111":0.0,"112":0.0,"113":0.0,"114":0.0,"115":0.0,"116":0.0,"117":0.0,"118":0.0,"119":0.0,"135":0.0,"136":0.0,"137":0.0,"138":0.0,"139":0.0,"140":0.0,"141":0.0,"142":0.0,"143":0.0,"144":0.0,"145":0.0,"146":0.0,"147":0.0,"148":0.0,"149":0.0,"165":0.0,"166":0.0,"167":0.0,"168":0.0,"169":0.0,"170":0.0,"171":0.0,"172":200.752,"173":176.884,"174":150.447,"175":0.0,"176":37.771,"177":49.564,"178":0.0,"179":0.0,"195":0.0,"196":0.0,"197":0.0,"198":0.0,"199":0.0,"200":0.0,"201":0.0,"202":0.0,"203":59.915,"204":0.0,"205":0.0,"206":0.0,"207":0.0,"208":0.0,"209":0.0,"225":0.0,"226":0.0,"227":0.0,"228":0.0,"229":0.0,"230":0.0,"231":0.0,"232":0.0,"233":0.0,"234":0.0,"235":0.0,"236":0.0,"237":0.0,"238":0.0,"239":0.0,"255":0.0,"256":0.0,"257":0.0,"258":0.0,"259":0.0,"260":0.0,"261":0.0,"262":0.0,"263":0.0,"264":0.0,"265":0.0,"266":0.0,"267":0.0,"268":0.0,"269":0.0,"285":0.0,"286":0.0,"287":0.0,"288":0.0,"289":0.0,"290":0.0,"291":0.0,"292":0.0,"293":0.0,"294":0.0,"295":0.0,"296":0.0,"297":0.0,"298":0.0,"299":0.0,"315":123.511,"316":66.29,"317":93.469,"318":64.934,"319":267.522,"320":360.994,"321":326.135,"322":67.182,"323":3858.459,"324":96.837,"325":77.384,"326":40.199,"327":18.492,"328":59.562,"329":52.875,"345":0.0,"346":0.0,"347":0.0,"348":0.0,"349":0.0,"350":0.0,"351":0.0,"352":0.0,"353":0.0,"354":0.0,"355":0.0,"356":0.0,"357":0.0,"358":0.0,"359":0.0,"375":0.0,"376":0.0,"377":0.0,"378":0.0,"379":0.0,"380":0.0,"381":0.0,"382":0.0,"383":0.0,"384":0.0,"385":0.0,"386":0.0,"387":0.0,"388":0.0,"389":0.0,"405":0.0,"406":0.0,"407":0.0,"408":0.0,"409":0.0,"410":0.0,"411":0.0,"412":0.0,"413":0.0,"414":0.0,"415":0.0,"416":0.0,"417":0.0,"418":0.0,"419":0.0,"435":0.0,"436":0.0,"437":0.0,"438":0.0,"439":0.0,"440":0.0,"441":0.0,"442":0.0,"443":0.0,"444":0.0,"445":0.0,"446":0.0,"447":0.0,"448":0.0,"449":0.0,"465":0.0,"466":0.0,"467":0.0,"468":0.0,"469":0.0,"470":0.0,"471":0.0,"472":0.0,"473":0.0,"474":0.0,"475":0.0,"476":0.0,"477":0.0,"478":0.0,"479":0.0,"495":0.0,"496":0.0,"497":0.0,"498":0.0,"499":0.0,"500":0.0,"501":0.0,"502":0.0,"503":0.0,"504":0.0,"505":0.0,"506":0.0,"507":0.0,"508":0.0,"509":0.0,"525":0.0,"526":0.0,"527":0.0,"528":0.0,"529":0.0,"530":0.0,"531":0.0,"532":0.0,"533":0.0,"534":0.0,"535":0.0,"536":0.0,"537":0.0,"538":0.0,"539":0.0,"555":0.0,"556":0.0,"557":0.0,"558":0.0,"559":0.0,"560":0.0,"561":0.0,"562":0.0,"563":0.0,"564":0.0,"565":0.0,"566":0.0,"567":0.0,"568":0.0,"569":0.0,"585":0.0,"586":0.0,"587":0.0,"588":0.0,"589":0.0,"590":0.0,"591":0.0,"592":0.0,"593":0.0,"594":0.0,"595":0.0,"596":0.0,"597":0.0,"598":0.0,"599":0.0,"615":0.0,"616":0.0,"617":0.0,"618":0.0,"619":0.0,"620":0.0,"621":0.0,"622":0.0,"623":0.0,"624":0.0,"625":0.0,"626":0.0,"627":0.0,"628":0.0,"629":0.0,"645":0.0,"646":0.0,"647":0.0,"648":0.0,"649":3887.728,"650":0.0,"651":0.0,"652":0.0,"653":0.0,"654":0.0,"655":0.0,"656":0.0,"657":0.0,"658":0.0,"659":0.0,"675":0.0,"676":0.0,"677":0.0,"678":0.0,"679":0.0,"680":0.0,"681":0.0,"682":0.0,"683":0.0,"684":0.0,"685":0.0,"686":0.0,"687":0.0,"688":0.0,"689":0.0,"705":0.0,"706":0.0,"707":0.0,"708":0.0,"709":0.0,"710":0.0,"711":0.0,"712":0.0,"713":0.0,"714":0.0,"715":0.0,"716":0.0,"717":0.0,"718":0.0,"719":0.0,"735":0.0,"736":0.0,"737":0.0,"738":0.0,"739":0.0,"740":0.0,"741":0.0,"742":0.0,"743":0.0,"744":0.0,"745":0.0,"746":0.0,"747":0.0,"748":0.0,"749":0.0,"765":0.0,"766":0.0,"767":0.0,"768":0.0,"769":0.0,"770":0.0,"771":0.0,"772":0.0,"773":0.0,"774":0.0,"775":0.0,"776":0.0,"777":0.0,"778":0.0,"779":0.0,"795":0.0,"796":0.0,"797":0.0,"798":3852.281,"799":0.0,"800":0.0,"801":0.0,"802":0.0,"803":0.0,"804":0.0,"805":0.0,"806":0.0,"807":0.0,"808":3883.406,"809":0.0,"825":0.0,"826":0.0,"827":0.0,"828":0.0,"829":0.0,"830":0.0,"831":0.0,"832":0.0,"833":0.0,"834":0.0,"835":0.0,"836":0.0,"837":0.0,"838":0.0,"839":0.0,"855":0.0,"856":0.0,"857":0.0,"858":0.0,"859":0.0,"860":0.0,"861":0.0,"862":0.0,"863":0.0,"864":0.0,"865":0.0,"866":0.0,"867":0.0,"868":0.0,"869":0.0,"885":5084.625,"886":5112.979,"887":15162.085,"888":4941.721,"889":5090.738,"890":5089.226,"891":15079.946,"892":5057.203,"893":5078.658,"894":9901.594,"895":0.0,"896":0.0,"897":0.0,"898":0.0,"899":0.0,"915":26104.41,"916":26014.023,"917":30368.957,"918":28303.086,"919":28791.752,"920":31683.056,"921":26840.909,"922":33129.345,"923":29469.022,"924":30576.131,"925":19556.855,"926":24475.662,"927":27524.703,"928":23476.966,"929":22776.032,"945":20896.274,"946":20834.754,"947":15113.403,"948":19444.15,"949":19545.764,"950":26232.836,"951":11434.828,"952":27702.069,"953":20172.189,"954":20427.253,"955":19479.471,"956":24397.692,"957":27456.647,"958":19533.998,"959":22723.157}}'
+LNG340_FX_ST = '{"id":["freq","stk_flow","siec","unit","geo","time"],"size":[1,1,1,2,3,92],"dimension":{"freq":{"label":"Time frequency","category":{"index":{"M":0}}},"stk_flow":{"label":"Stock or flow","category":{"index":{"STKCL_NAT":0}}},"siec":{"label":"Standard international energy product classification (SIEC)","category":{"index":{"G3000":0}}},"unit":{"label":"Unit of measure","category":{"index":{"MIO_M3":0,"TJ_GCV":1}}},"geo":{"label":"Geopolitical entity (reporting)","category":{"index":{"EU27_2020":0,"DE":1,"PL":2}}},"time":{"label":"Time","category":{"index":{"2019-01":0,"2019-02":1,"2019-03":2,"2019-04":3,"2019-05":4,"2019-06":5,"2019-07":6,"2019-08":7,"2019-09":8,"2019-10":9,"2019-11":10,"2019-12":11,"2020-01":12,"2020-02":13,"2020-03":14,"2020-04":15,"2020-05":16,"2020-06":17,"2020-07":18,"2020-08":19,"2020-09":20,"2020-10":21,"2020-11":22,"2020-12":23,"2021-01":24,"2021-02":25,"2021-03":26,"2021-04":27,"2021-05":28,"2021-06":29,"2021-07":30,"2021-08":31,"2021-09":32,"2021-10":33,"2021-11":34,"2021-12":35,"2022-01":36,"2022-02":37,"2022-03":38,"2022-04":39,"2022-05":40,"2022-06":41,"2022-07":42,"2022-08":43,"2022-09":44,"2022-10":45,"2022-11":46,"2022-12":47,"2023-01":48,"2023-02":49,"2023-03":50,"2023-04":51,"2023-05":52,"2023-06":53,"2023-07":54,"2023-08":55,"2023-09":56,"2023-10":57,"2023-11":58,"2023-12":59,"2024-01":60,"2024-02":61,"2024-03":62,"2024-04":63,"2024-05":64,"2024-06":65,"2024-07":66,"2024-08":67,"2024-09":68,"2024-10":69,"2024-11":70,"2024-12":71,"2025-01":72,"2025-02":73,"2025-03":74,"2025-04":75,"2025-05":76,"2025-06":77,"2025-07":78,"2025-08":79,"2025-09":80,"2025-10":81,"2025-11":82,"2025-12":83,"2026-01":84,"2026-02":85,"2026-03":86,"2026-04":87,"2026-05":88,"2026-06":89,"2026-07":90,"2026-08":91}}}},"value":{"92":15345.0,"93":13279.0,"94":13341.0,"95":15483.0,"96":17681.0,"97":20435.0,"98":21472.0,"99":23248.0,"100":23866.0,"101":24152.0,"102":24044.0,"103":23600.0,"104":21032.0,"105":19812.0,"106":17916.0,"107":19536.0,"108":21001.0,"109":21992.0,"110":21888.0,"111":22913.0,"112":23359.0,"113":23293.0,"114":21819.0,"115":18426.0,"116":11613.0,"117":8248.0,"118":6925.0,"119":6632.0,"120":7929.0,"121":10224.0,"122":12131.0,"123":14465.0,"124":16525.0,"125":17574.0,"126":15543.0,"127":12759.0,"128":8765.0,"129":6971.0,"130":6312.0,"131":8306.0,"132":11463.0,"133":14221.0,"134":16210.0,"135":20212.0,"136":22251.0,"137":24145.0,"138":24036.0,"139":22177.0,"140":17717.0,"141":15628.0,"142":14558.0,"143":15191.0,"144":16921.0,"145":18146.0,"146":19733.0,"147":21242.0,"148":21744.0,"149":22736.0,"150":22013.0,"151":20743.0,"152":16997.0,"153":15615.0,"154":14859.0,"155":15132.0,"156":16390.0,"157":18192.0,"158":19922.0,"159":21300.0,"160":21594.0,"161":22545.0,"162":20895.0,"163":17859.0,"164":12797.0,"165":7745.0,"166":6529.0,"167":7402.0,"168":9112.0,"169":11261.0,"170":13540.0,"171":15900.0,"172":17334.0,"173":17060.0,"174":15276.0,"175":12778.0,"176":7324.0,"177":4620.0,"178":4830.0,"179":5654.0,"180":7191.0,"181":9237.0,"182":10352.0,"26":35297.233,"27":35398.859,"28":43639.308,"29":54252.852,"30":63586.093,"31":74762.723,"32":82261.134,"33":84744.097,"34":74074.375,"35":58863.083,"36":42038.982,"37":33149.193,"38":30339.399,"39":37644.183,"40":52619.278,"41":64356.577,"42":76184.935,"43":89165.853,"44":98470.981,"45":105144.495,"46":102836.457,"47":92817.58,"48":77656.116,"49":66198.659,"50":60706.988,"51":65443.427,"52":74842.844,"53":83041.193,"54":92535.252,"55":101110.392,"56":104548.096,"57":108851.022,"58":104652.053,"59":94484.257,"60":76690.575,"61":68933.867,"62":64727.898,"63":68299.563,"64":76257.572,"65":84517.915,"66":92301.267,"67":101038.74,"68":103070.637,"69":104620.418,"70":94048.439,"71":78383.542,"72":59643.216,"73":42919.511,"74":38334.574,"75":43897.509,"76":53571.474,"77":64462.218,"78":74711.35,"79":84238.461,"80":89909.058,"81":90482.992,"82":82410.215,"83":67931.415,"84":45142.548,"85":33601.891,"86":31565.474,"87":36085.649,"88":44313.001,"89":53436.221,"90":61142.82,"184":2084.0,"185":1757.0,"186":1505.0,"187":1611.0,"188":2015.0,"189":2446.0,"190":2923.0,"191":3250.0,"192":3552.0,"193":3511.0,"194":3503.0,"195":3267.0,"196":2468.722,"197":1858.306,"198":1669.295,"199":1802.29,"200":2080.294,"201":2527.852,"202":3012.909,"203":3557.049,"204":3608.936,"205":3549.639,"206":3353.035,"207":2774.211,"208":2189.391,"209":1770.615,"210":1427.239,"211":1581.805,"212":1957.867,"213":2433.695,"214":3021.949,"215":3424.896,"216":3676.58,"217":3596.318,"218":3561.965,"219":3192.781,"220":2469.64,"221":2244.66,"222":2461.909,"223":2908.003,"224":3450.796,"225":3587.296,"226":3842.399,"227":4084.182,"228":4167.993,"229":4218.434,"230":4014.854,"231":3718.094,"232":3124.72,"233":2630.217,"234":2087.499,"235":1966.254,"236":2128.714,"237":2686.902,"238":3407.941,"239":3879.499,"240":4303.391,"241":4356.311,"242":4229.544,"243":3946.273,"244":2922.785,"245":2314.191,"246":1739.522,"247":1730.905,"248":2127.643,"249":2741.728,"250":3315.572,"251":3776.105,"252":3752.314,"253":3797.207,"254":3677.353,"255":3303.825,"256":2759.028,"257":1965.979,"258":1767.224,"259":1649.487,"260":1888.651,"261":2385.651,"262":2823.276,"263":3369.151,"264":3730.574,"265":3708.829,"266":3460.539,"267":3076.784,"268":2505.478,"269":2081.692,"270":1898.25,"271":1734.377,"272":2127.308,"273":2741.419,"274":3190.799,"275":3584.008,"368":598275.0,"369":517709.0,"370":520121.0,"371":603670.0,"372":689357.0,"373":796702.0,"374":837140.0,"375":906383.0,"376":930481.0,"377":941627.0,"378":937440.0,"379":920120.0,"380":819993.6,"381":772445.0,"382":698501.0,"383":761681.0,"384":818773.0,"385":857437.0,"386":853384.0,"387":893322.0,"388":910739.0,"389":908154.0,"390":850691.0,"391":718398.0,"392":452779.0,"393":321563.0,"394":269993.0,"395":258563.0,"396":309150.0,"397":398596.0,"398":472972.0,"399":563962.0,"400":644292.0,"401":685184.0,"402":605977.0,"403":497452.0,"404":341726.0,"405":271778.0,"406":246074.0,"407":323852.0,"408":446929.0,"409":554443.0,"410":632012.0,"411":788017.0,"412":867528.0,"413":941378.0,"414":937123.0,"415":864634.0,"416":690739.0,"417":609318.0,"418":567601.0,"419":592279.0,"420":659725.0,"421":707490.0,"422":769331.0,"423":828184.0,"424":847768.0,"425":886439.0,"426":858236.0,"427":808729.0,"428":662684.0,"429":608800.0,"430":579319.0,"431":589982.0,"432":639032.0,"433":709258.0,"434":776714.0,"435":830434.0,"436":841914.0,"437":878998.0,"438":814669.0,"439":696287.0,"440":498920.0,"441":301979.0,"442":254563.0,"443":288590.0,"444":355252.0,"445":439034.0,"446":527882.0,"447":619924.0,"448":675832.0,"449":665140.0,"450":595584.0,"451":498190.0,"452":285548.0,"453":180108.0,"454":188320.0,"455":220424.0,"456":280354.0,"457":360144.0,"458":403592.0,"302":1358188.026,"303":1365795.403,"304":1687114.092,"305":2093155.469,"306":2450690.642,"307":2880034.063,"308":3163998.394,"309":3264299.701,"310":2852518.427,"311":2274382.721,"312":1621808.012,"313":1278037.687,"314":1171560.723,"315":1453394.207,"316":2029133.357,"317":2476138.209,"318":2930047.21,"319":3430099.755,"320":3781788.882,"321":4047101.099,"322":3960281.426,"323":3577277.64,"324":2991114.8,"325":2542174.996,"326":2328205.827,"327":2511500.252,"328":2875375.371,"329":3188750.655,"330":3555975.768,"331":3890036.386,"332":4022895.395,"333":4190035.471,"334":4029598.981,"335":3641197.773,"336":2955495.525,"337":2656574.368,"338":2493275.044,"339":2631930.952,"340":2936716.28,"341":3256036.604,"342":3552983.997,"343":3888027.447,"344":3966920.813,"345":4031558.644,"346":3628310.483,"347":3026514.984,"348":2306345.485,"349":1660388.728,"350":1488910.389,"351":1706258.615,"352":2078122.979,"353":2493177.18,"354":2887362.653,"355":3255065.876,"356":3472755.032,"357":3493404.481,"358":3184197.413,"359":2627857.762,"360":1751793.325,"361":1313345.658,"362":1240870.937,"363":1414674.781,"364":1733852.407,"365":2081642.067,"366":2373841.848,"460":78660.0,"461":66372.0,"462":56521.0,"463":60627.0,"464":76388.0,"465":92660.0,"466":110634.0,"467":123054.0,"468":134619.0,"469":133031.0,"470":132728.0,"471":123811.0,"472":93344.679,"473":70018.046,"474":62877.908,"475":68163.625,"476":79034.231,"477":96214.362,"478":114724.579,"479":135603.549,"480":137439.459,"481":135097.25,"482":127632.617,"483":105366.774,"484":83007.725,"485":67125.843,"486":53919.58,"487":59974.098,"488":74474.527,"489":92720.168,"490":115095.12,"491":130292.466,"492":139850.086,"493":136704.594,"494":135403.571,"495":121360.462,"496":93715.726,"497":85133.77,"498":93795.905,"499":111079.117,"500":132203.287,"501":137181.405,"502":146747.457,"503":155943.272,"504":159264.436,"505":161227.641,"506":153496.909,"507":142130.06,"508":119278.567,"509":100322.648,"510":79343.579,"511":74715.84,"512":81127.003,"513":102712.669,"514":130806.609,"515":149108.771,"516":165595.336,"517":167683.835,"518":162862.467,"519":151943.09,"520":112078.164,"521":88356.531,"522":65897.226,"523":65657.4,"524":81311.034,"525":105181.994,"526":127329.511,"527":145215.76,"528":144163.284,"529":145920.124,"530":141302.663,"531":126858.058,"532":105485.262,"533":74680.731,"534":67066.967,"535":62458.873,"536":72044.863,"537":91554.803,"538":108511.563,"539":129859.877,"540":143993.421,"541":143121.761,"542":133415.899,"543":118657.899,"544":96473.739,"545":80123.977,"546":72840.56,"547":66337.618,"548":81761.931,"549":105583.36,"550":122852.565,"551":138003.636}}'
+
+
+def _lng340_wiersze(fx=None, dni=None):
+    fx = fx or json.loads(LNG340_FX_DZ)
+    d0 = datetime.date(2026, 9, 30)
+    out = []
+    for num, i, dr, oi, v in fx['rows']:
+        if dni is not None and i not in dni:
+            continue
+        pk = 'VTP-00043' if num == -1 else ('ITP-00424' if num == -2 else 'LNG-%05d' % num)
+        day = (d0 + datetime.timedelta(days=i)).isoformat()
+        out.append({'pointKey': pk, 'indicator': 'Physical Flow', 'periodType': 'day', 'directionKey': 'entry' if dr == 'e' else 'exit', 'unit': 'kWh/d',
+                    'periodFrom': day + 'T06:00:00+02:00', 'periodTo': day + 'T06:00:00+02:00', 'value': v, 'operatorKey': fx['ops'][oi],
+                    'lastUpdateDateTime': day + 'T09:00:00+02:00', 'flowStatus': 'Provisional'})
+    return out
+
+
+class GazLngV340(unittest.TestCase):
+    """v340 (F5Z1): data/lng.json — parsery na nagraniach, doba kompletna, pasmo sezonowe, bramki wg terminów publikacji (czas przypięty), historia wstecz,
+    część z błędem zostaje z datą, budżet czasu, przebieg główny (zaślepki), kontrola dzienna (świeżość, sprzeczności, progi z testu wstecznego). Bez sieci."""
+    U = datetime.timezone.utc
+    NOW = datetime.datetime(2026, 10, 11, 6, 40, tzinfo=U)   # niedziela 08:40 czasu polskiego: wynik Świnoujścia z 10.10 już jest
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+
+    # ---------------- pomocnicze ----------------
+    def P(self, **kw):
+        return zd.parse_lng_dz({'operationalData': _lng340_wiersze(**kw)})[0]
+
+    def rozszerz(self, P):
+        """Doby 27–29.09 jak 1.10 (nagranie zaczyna się 30.09 — doba 30.09 potrzebuje odniesienia 2 i 3 doby wcześniej)."""
+        Q = {p: dict(dd) for p, dd in P.items()}
+        for p, dd in P.items():
+            if '2026-10-01' in dd:
+                for d in ('2026-09-27', '2026-09-28', '2026-09-29'):
+                    Q[p][d] = dd['2026-10-01']
+        return Q
+
+    def serwer(self, ti=None, st=None, wywal=(), log=None):
+        """Zaślepka pobrania (url, timeout, maks) → bajty: operationalData z nagrania (wiersze entry z zakresu from–to; doby sprzed nagrania — kopia doby 2.10
+        z przesuniętą datą, żeby dało się dobrać historię), dwa zbiory urzędowej statystyki."""
+        wiersze = _lng340_wiersze()
+        wzor = [w for w in wiersze if w['periodFrom'][:10] == '2026-10-02' and w['directionKey'] == 'entry']
+
+        def f(url, timeout, maks=None):
+            if log is not None:
+                log.append(url)
+            for w in wywal:
+                if w in url:
+                    raise RuntimeError('HTTP Error 503: test')
+            if 'operationalData' in url:
+                a = re.search(r'from=([\d-]+)', url).group(1); b = re.search(r'to=([\d-]+)', url).group(1)
+                out = [w for w in wiersze if a <= w['periodFrom'][:10] <= b and w['directionKey'] == 'entry' and w['pointKey'] in url]
+                d, k = datetime.date.fromisoformat(a), datetime.date(2026, 9, 30)
+                while d <= min(datetime.date.fromisoformat(b), k - datetime.timedelta(days=1)):
+                    out += [dict(w, periodFrom=d.isoformat() + 'T06:00:00+02:00') for w in wzor]
+                    d += datetime.timedelta(days=1)
+                return json.dumps({'meta': {}, 'operationalData': out}).encode()
+            if 'nrg_ti_gasm' in url:
+                return (ti or LNG340_FX_SK).encode()
+            if 'nrg_stk_gasm' in url:
+                return (st or LNG340_FX_ST).encode()
+            raise AssertionError('nieznany adres: ' + url)
+        return f
+
+    # ---------------- parser dób ----------------
+    def test_parse_dz_kierunek_operatorzy_wiersze_pominiete(self):
+        P, bad = zd.parse_lng_dz({'operationalData': _lng340_wiersze()})
+        self.assertEqual(bad, {}); self.assertEqual(len(P), 30, '30 punktów wejścia (bez VTP-00043 ani wierszy exit)')
+        self.assertNotIn('VTP-00043', P); self.assertNotIn('ITP-00424', P)
+        self.assertEqual(P['LNG-00006']['2026-10-09'], 116.197297)   # Świnoujście 9.10: 116 197 297 kWh/d → GWh/d
+        self.assertAlmostEqual(P['LNG-00027']['2026-10-09'], 559.2, 1)   # Gate (NL) — wiersz exit 0 nie wchodzi (dane zwrotne)
+        self.assertAlmostEqual(P['LNG-00079']['2026-10-08'], 3.184771, 5)   # dwóch operatorów: GASCADE 3,18 + Fluxys Deutschland 0
+        # sumowanie operatorów jednego punktu w jednej dobie + dwa wiersze tego samego operatora (wygrywa nowszy lastUpdate, liczba wygrywa z pustym)
+        W = [dict(_lng340_wiersze()[0], pointKey='LNG-00079', value=2e6, operatorKey='A', periodFrom='2026-10-01T06:00:00+02:00', lastUpdateDateTime='2026-10-02T07:00:00+02:00'),
+             dict(_lng340_wiersze()[0], pointKey='LNG-00079', value=3e6, operatorKey='B', periodFrom='2026-10-01T06:00:00+02:00', lastUpdateDateTime='2026-10-02T07:00:00+02:00'),
+             dict(_lng340_wiersze()[0], pointKey='LNG-00079', value=2.5e6, operatorKey='A', periodFrom='2026-10-01T06:00:00+02:00', lastUpdateDateTime='2026-10-03T07:00:00+02:00'),
+             dict(_lng340_wiersze()[0], pointKey='LNG-00079', value=None, operatorKey='B', periodFrom='2026-10-01T06:00:00+02:00', lastUpdateDateTime='2026-10-04T07:00:00+02:00')]
+        self.assertEqual(zd.parse_lng_dz({'operationalData': W})[0]['LNG-00079']['2026-10-01'], 5.5, 'A: 2,5 (nowszy), B: 3 (liczba, nie pusty)')
+        # wiersz exit (dane zwrotne) nawet z większą wartością i nowszym lastUpdate nie wchodzi do sumy punktu wejścia
+        W2 = [dict(W[0], value=2e6), dict(W[0], directionKey='exit', value=9e8, lastUpdateDateTime='2026-10-09T07:00:00+02:00')]
+        self.assertEqual(zd.parse_lng_dz({'operationalData': W2})[0]['LNG-00079']['2026-10-01'], 2.0, 'kierunek exit pominięty')
+
+    def test_parse_dz_zle_wiersze_nigdy_zero(self):
+        w0 = _lng340_wiersze()[0]
+        W = [dict(w0, pointKey='LNG-00006', value=1.0e6, periodFrom='2026-10-01T06:00:00+02:00'),
+             dict(w0, pointKey='LNG-00006', value=-5, periodFrom='2026-10-02T06:00:00+02:00'),            # ujemna
+             dict(w0, pointKey='LNG-00006', value='abc', periodFrom='2026-10-03T06:00:00+02:00'),         # nie-liczba
+             dict(w0, pointKey='LNG-00006', value=2e9, periodFrom='2026-10-04T06:00:00+02:00'),           # ponad 1500 GWh/d (błąd jednostki)
+             dict(w0, pointKey='LNG-00006', value='', periodFrom='2026-10-05T06:00:00+02:00'),            # brak publikacji
+             dict(w0, pointKey='LNG-00006', value=True, periodFrom='2026-10-06T06:00:00+02:00'),          # bool nie jest liczbą
+             dict(w0, pointKey='LNG-00006', value=0, periodFrom='2026-10-07T06:00:00+02:00'),             # zero = pomiar (terminal stoi)
+             dict(w0, pointKey='LNG-00006', value='55000000', periodFrom='2026-10-08T06:00:00+02:00'),    # liczba w tekście
+             dict(w0, pointKey='LNG-00006', unit='kWh/h', periodFrom='2026-10-09T06:00:00+02:00'),        # inna jednostka
+             dict(w0, pointKey='LNG-00006', periodFrom='2026-10-10T12:00:00+02:00'),                      # doba nie od 04–07
+             dict(w0, pointKey='LNG-00006', periodType='hour', periodFrom='2026-10-11T06:00:00+02:00'),
+             dict(w0, pointKey='LNG-00006', indicator='Allocation', periodFrom='2026-10-12T06:00:00+02:00'),
+             dict(w0, pointKey='LNG-99999', periodFrom='2026-10-13T06:00:00+02:00'),                      # punkt spoza listy
+             dict(w0, pointKey='LNG-00011', value=400000, periodFrom='2026-01-05T05:00:00+01:00')]        # Finlandia: doba od 05:00 CET
+        P, bad = zd.parse_lng_dz({'operationalData': W})
+        self.assertEqual(P['LNG-00006'], {'2026-10-01': 1.0, '2026-10-07': 0.0, '2026-10-08': 55.0})
+        self.assertEqual(P['LNG-00011'], {'2026-01-05': 0.4}, 'doba od 05:00 CET (Finlandia) przyjęta')
+        self.assertEqual(bad, {'wartosc': 4, 'jednostka': 1, 'okres': 1}, 'ujemna, tekst, ponad limit i bool = pominięte z licznikiem; pusta wartość bez licznika')
+        for zle in ({}, {'message': 'No result found'}, {'operationalData': 'x'}, {'operationalData': []}, [], None, {'operationalData': [dict(w0, pointKey='LNG-99999')]}):
+            with self.assertRaises(RuntimeError, msg=str(zle)[:40]):
+                zd.parse_lng_dz(zle)
+        with self.assertRaisesRegex(RuntimeError, 'No result found'):
+            zd.parse_lng_dz({'message': 'No result found'})
+
+    # ---------------- doba kompletna ----------------
+    def test_doba_kompletna_suma_ue_swinoujscie_terminale(self):
+        P = self.rozszerz(self.P())
+        ue, pl, pt = zd.lng_dni(P, '2026-09-30', '2026-10-10')
+        self.assertEqual(ue['2026-10-09'], 2785.6); self.assertEqual(ue['2026-10-08'], 2867.3); self.assertEqual(ue['2026-10-05'], 3068.2)
+        self.assertNotIn('2026-09-30', ue, 'doba 30.09: 23 z 30 punktów odniesienia — brak sumy, nie suma częściowa')
+        self.assertNotIn('2026-10-10', ue, 'doba 10.10: 5 z 30 punktów — brak sumy')
+        self.assertEqual(pl['2026-10-10'], 118.8, 'Świnoujście osobno, także gdy UE niekompletne'); self.assertEqual(pl['2026-10-09'], 116.2)
+        self.assertEqual(len(pt['2026-10-09']), 30)
+        T = zd.lng_term(pt['2026-10-09'])
+        self.assertEqual(T[:3], [['Gate (Rotterdam)', 'nl', 559.2], ['Fos-sur-Mer', 'fr', 395.7], ['Eemshaven', 'nl', 306.6]])
+        self.assertEqual(len(T), 24, 'terminale z dodatnią wysyłką (6 z 30 punktów ma 0: Livorno, Piombino, Le Havre, Inkoo, Baltic Energy Gate (Port) i Baltic Energy Gate)')
+        self.assertTrue(all(x[2] > 0 for x in T)); self.assertAlmostEqual(sum(x[2] for x in T), ue['2026-10-09'], delta=1.3)
+        self.assertEqual([x for x in T if x[0] == 'Świnoujście'], [['Świnoujście', 'pl', 116.2]])
+        self.assertTrue(all(ue[d] >= pl[d] for d in ue), 'suma terminali UE ≥ Świnoujście w każdej kompletnej dobie')
+
+    def test_vtp_tvb_i_alias_wilhelmshaven_nie_licza_podwojnie(self):
+        w0 = _lng340_wiersze()[0]
+        # TVB (VTP-00043) to suma terminali Hiszpanii — nie jest punktem LNG (pominięte); strefa Wilhelmshaven zastępuje terminale 66 i 80 w tej samej dobie
+        base = _lng340_wiersze(dni={5, 6, 7, 8, 9, 10})
+        extra = []
+        for i in (7, 8, 9, 10):
+            d = (datetime.date(2026, 9, 30) + datetime.timedelta(days=i)).isoformat()
+            extra += [dict(w0, pointKey='VTP-00043', value=9e8, operatorKey='ES-TSO-0006', periodFrom=d + 'T06:00:00+02:00'),
+                      dict(w0, pointKey='LNG-00066', value=50e6, operatorKey='DE-TSO-0009', periodFrom=d + 'T06:00:00+02:00'),
+                      dict(w0, pointKey='LNG-00080', value=40e6, operatorKey='DE-TSO-0009', periodFrom=d + 'T06:00:00+02:00')]
+        P, _ = zd.parse_lng_dz({'operationalData': base + extra})
+        ue, _pl, pt = zd.lng_dni(P, '2026-10-07', '2026-10-09')
+        self.assertEqual(ue['2026-10-09'], 2785.6, 'TVB i terminale 66/80 przy strefie 83 nie dodają nic')
+        self.assertNotIn('LNG-00066', pt['2026-10-09']); self.assertNotIn('LNG-00080', pt['2026-10-09']); self.assertNotIn('VTP-00043', P)
+        # bez strefy 83 (jak do 31.03.2025) terminal 66 liczy się sam; punkt zastąpiony spełnia odniesienie, gdy raportuje zastępujący
+        P2 = {p: dd for p, dd in P.items() if p != 'LNG-00083'}
+        ue2, _a, pt2 = zd.lng_dni(P2, '2026-10-09', '2026-10-09')
+        self.assertIn('LNG-00066', pt2['2026-10-09'])
+
+    def test_doba_niekompletna_punkt_bez_wyniku_i_progi(self):
+        P = self.rozszerz(self.P())
+        P1 = {p: dict(dd) for p, dd in P.items()}
+        del P1['LNG-00015']['2026-10-09']   # Cavarzere (260 GWh/d) bez wyniku — suma częściowa byłaby zaniżona
+        ue, _pl, _pt = zd.lng_dni(P1, '2026-10-07', '2026-10-09')
+        self.assertIn('2026-10-08', ue); self.assertNotIn('2026-10-09', ue)
+        # suma poza [300; 12000] GWh/d (np. błąd jednostki u kilku operatorów) = brak sumy
+        P3 = {p: dict(dd) for p, dd in P.items()}
+        for p in ('LNG-00027', 'LNG-00029', 'LNG-00068', 'LNG-00015', 'LNG-00013', 'LNG-00023', 'LNG-00022', 'LNG-00026', 'LNG-00083', 'LNG-00004'):
+            P3[p]['2026-10-09'] = 1400.0
+        self.assertNotIn('2026-10-09', zd.lng_dni(P3, '2026-10-09', '2026-10-09')[0], 'suma > 12000')
+        P4 = {'LNG-00006': {d: 100.0 for d in ('2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09')}}
+        ue4, pl4, _ = zd.lng_dni(P4, '2026-10-09', '2026-10-09')
+        self.assertEqual((ue4, pl4), ({}, {'2026-10-09': 100.0}), 'mniej niż 8 punktów = brak sumy UE')
+        self.assertEqual(zd.lng_dni(P, 'zła', '2026-10-09'), ({}, {}, {}), 'zła data początku = puste wyniki, bez wyjątku')
+
+    # ---------------- pasmo sezonowe ----------------
+    def test_pasmo_centyle_lata_dni_okno_i_brak_zera(self):
+        H = {}
+        for k, base in ((1, 100.0), (2, 200.0), (3, 300.0)):
+            for j in range(-10, 11):
+                H[(datetime.date(2026 - k, 10, 10) + datetime.timedelta(days=j)).isoformat()] = base + j
+        P = zd.lng_pasmo(H, ['2026-10-10', '2026-12-01'])
+        self.assertEqual([x[0] for x in P], ['2026-10-10'], '1.12 — brak wartości w oknie ±7 dni = brak pasma (nie zero)')
+        V = sorted(b + j for b in (100.0, 200.0, 300.0) for j in range(-7, 8))
+        self.assertEqual(P[0][1:], [round(zd.lng_centyl(V, p), 1) for p in (10, 50, 90)])
+        self.assertEqual(zd.lng_centyl([1.0, 2.0, 3.0, 4.0, 5.0], 50), 3.0); self.assertEqual(zd.lng_centyl([10.0, 20.0], 25), 12.5); self.assertIsNone(zd.lng_centyl([], 50))
+        # pasmo w pliku dopiero po komplecie historii (st.bf.gotowe): z kawałka historii (3 lata danych, ale historia jeszcze niegotowa) go nie ma
+        pl_h = {k: v for k, v in H.items()}; ue_h = {k: v * 10 for k, v in H.items()}
+        self.assertNotIn('pasmo', zd.lng_dz_czesc(pl_h, ue_h, {}, {'od': '2023-10-01', 'gotowe': False})['pl'])
+        self.assertEqual(zd.lng_dz_czesc({**pl_h, '2026-10-10': 5.0}, ue_h, {}, {'od': '2023-01-01', 'gotowe': True})['pl']['pasmo'][-1][0], '2026-10-10', 'po komplecie — pasmo dla doby z historii')
+        # tylko jeden rok = brak (minimum 2 lata); mniej niż 20 wartości = brak
+        H1 = {k: v for k, v in H.items() if k.startswith('2025')}
+        self.assertEqual(zd.lng_pasmo(H1, ['2026-10-10']), [])
+        H2 = {}
+        for k in (1, 2):
+            for j in range(-4, 5):
+                H2[(datetime.date(2026 - k, 10, 10) + datetime.timedelta(days=j)).isoformat()] = 100.0 + k
+        self.assertEqual(zd.lng_pasmo(H2, ['2026-10-10']), [], '18 wartości < 20')
+        self.assertEqual(zd.lng_pasmo({'2023-02-28': 5.0}, ['2024-02-29']), [], 'rok przestępny: 29.02 → 28.02 poprzedniego roku, bez wyjątku')
+        self.assertEqual(zd._lng_rok_wstecz('2024-02-29', 1), '2023-02-28'); self.assertEqual(zd._lng_rok_wstecz('2026-10-11', 3), '2023-10-11')
+
+    # ---------------- terminy publikacji ----------------
+    def test_oczekiwane_doby_i_bramki(self):
+        U = self.U
+        T = lambda d, h, m: datetime.datetime(2026, 10, d, h, m, tzinfo=U)
+        self.assertEqual(zd._lng_oczek(T(11, 6, 29)), ('2026-10-09', '2026-10-09'))   # 06:29 — Świnoujście 10.10 jeszcze nie oczekiwane; UE: 9.10 (od 10.10 18:30)
+        self.assertEqual(zd._lng_oczek(T(11, 6, 30)), ('2026-10-10', '2026-10-09'))
+        self.assertEqual(zd._lng_oczek(T(11, 18, 29)), ('2026-10-10', '2026-10-09'))
+        self.assertEqual(zd._lng_oczek(T(11, 18, 30)), ('2026-10-10', '2026-10-10'))
+        self.assertEqual(zd._lng_oczek(T(12, 0, 0)), ('2026-10-10', '2026-10-10'))
+        self.assertEqual(zd._lng_slot(T(11, 21, 29)), T(10, 21, 30)); self.assertEqual(zd._lng_slot(T(11, 21, 30)), T(11, 21, 30)); self.assertEqual(zd._lng_slot(T(11, 0, 5)), T(10, 21, 30))
+        dz = {'pl': {'asof': '2026-10-10'}, 'ue': {'asof': '2026-10-09'}}
+        z = lambda at, tr=None: {'at': at.isoformat(), 'try': (tr or at).isoformat()}
+        # świeże (PL 10.10 i UE 9.10 są o 06:40): bez pobrania do 12:40 (poprawki co 6 h), niepilnie
+        self.assertEqual(zd._lng_due('dz', z(T(11, 6, 40)), T(11, 12, 39), dz), (False, False)); self.assertEqual(zd._lng_due('dz', z(T(11, 6, 40)), T(11, 12, 40), dz), (True, False))
+        # o 18:30 oczekiwana doba UE to 10.10 — jej nie ma: pilnie, co 60 min od ostatniej próby
+        self.assertEqual(zd._lng_due('dz', z(T(11, 12, 40)), T(11, 18, 30), dz), (True, True)); self.assertEqual(zd._lng_due('dz', z(T(11, 12, 40), T(11, 18, 30)), T(11, 19, 29), dz), (False, True))
+        self.assertEqual(zd._lng_due('dz', z(T(11, 12, 40), T(11, 18, 30)), T(11, 19, 30), dz), (True, True))
+        # pierwsze pobranie: bez at — od razu, po błędzie za godzinę
+        self.assertEqual(zd._lng_due('dz', {}, T(11, 6, 40), None), (True, True)); self.assertEqual(zd._lng_due('dz', {'try': T(11, 6, 0).isoformat()}, T(11, 6, 40), None), (False, True))
+        # brakująca doba spóźniona o ponad 72 h — co 6 h (źródło stoi: nie męczymy go co godzinę)
+        stary = {'pl': {'asof': '2026-10-05'}, 'ue': {'asof': '2026-10-05'}}   # pierwsza brakująca doba 6.10 → publikacja 7.10 06:30
+        zz = lambda d, h, m: z(datetime.datetime(2026, 10, d, h, m, tzinfo=U))
+        self.assertEqual(zd._lng_due('dz', zz(10, 5, 0), T(10, 6, 30), stary), (True, True), 'dokładnie 72 h po terminie 7.10 06:30 — jeszcze co godzinę (90 min od próby)')
+        self.assertEqual(zd._lng_due('dz', zz(10, 5, 0), T(10, 6, 31), stary), (False, True), 'ponad 72 h po terminie: próba co 6 h — 91 min po poprzedniej to za wcześnie')
+        self.assertEqual(zd._lng_due('dz', zz(10, 0, 30), T(10, 6, 31), stary), (True, True), '… a po 6 h 1 min — próba')
+        # skad / zapasy: pierwsze pobranie pilnie, potem raz na dobę po 21:30 UTC, po błędzie najwcześniej po 60 min
+        zk = lambda h, m, d=10: {'at': T(d, h, m).isoformat(), 'try': T(d, h, m).isoformat()}
+        self.assertEqual(zd._lng_due('skad', {}, T(11, 6, 40), None), (True, True))
+        self.assertEqual(zd._lng_due('skad', zk(21, 31), T(11, 21, 29), None), (False, False)); self.assertEqual(zd._lng_due('skad', zk(21, 31), T(11, 21, 30), None), (True, False))
+        self.assertEqual(zd._lng_due('zapasy', {'at': T(10, 21, 29).isoformat(), 'try': T(11, 21, 10).isoformat()}, T(11, 21, 40), None), (False, False), 'ostatnia próba 30 min temu')
+        self.assertEqual(zd._lng_due('zapasy', zk(21, 31, 11), T(11, 23, 0), None), (False, False), 'pobrane po slocie — raz na dobę')
+        self.assertEqual(zd._lng_next('skad', None, T(11, 6, 40)), '2026-10-11T21:30:00+00:00'); self.assertEqual(zd._lng_next('zapasy', None, T(11, 22, 0)), '2026-10-12T21:30:00+00:00')
+        self.assertEqual(zd._lng_next('dz', dz, T(11, 6, 40)), '2026-10-12T06:30:00+00:00', 'nic nie brakuje — jutro 06:30')
+        self.assertEqual(zd._lng_next('dz', {'pl': {'asof': '2026-10-09'}, 'ue': {'asof': '2026-10-09'}}, T(11, 6, 40)), '2026-10-11T06:30:00+00:00', 'brak doby 10.10 Świnoujścia — jej termin 11.10 06:30 (w przeszłości = zaległa)')
+        self.assertEqual(zd._lng_next('dz', {'pl': {'asof': '2026-10-10'}, 'ue': {'asof': '2026-10-08'}}, T(11, 19, 0)), '2026-10-10T18:30:00+00:00', 'doba 9.10 UE miała być 10.10 18:30')
+
+    # ---------------- Eurostat: import i zapasy ----------------
+    def test_parse_skad_ue27_polska_rok_wczesniej(self):
+        o = zd.parse_lng_skad(json.loads(LNG340_FX_SK))
+        U, Pl = o['ue'], o['pl']
+        self.assertEqual((o['asof'], U['m'], U['razem']), ('2026-07', '2026-07', 321790.0), 'UE27: agregat do lipca; sierpnia jeszcze nie ma')
+        self.assertEqual(U['k'][:3], [['US', 134773.7], ['DZ', 45177.6], ['NSP', 44748.1]]); self.assertEqual(dict(U['k'])['QA'] if 'QA' in dict(U['k']) else 0, 0)
+        self.assertEqual(U['rok']['m'], '2025-07'); self.assertEqual(U['rok']['razem'], 462203.7); self.assertEqual(dict(U['rok']['k'])['QA'], 22447.8, 'Katar rok wcześniej; w lipcu 2026 — 0 (nie w liście dodatnich)')
+        self.assertEqual(U['hist'][0], ['2025-06', 488669.3]); self.assertEqual(U['hist'][-1], ['2026-07', 321790.0]); self.assertEqual(len(U['hist']), 14, 'UE27: 14 miesięcy z sumą (sierpnia brak)')
+        self.assertEqual((Pl['m'], Pl['razem'], Pl['nsp']), ('2026-08', 22776.0, 22723.2)); self.assertEqual(len(Pl['hist']), 15); self.assertLess(Pl['nsp'] / Pl['razem'], 1.0)
+        self.assertLessEqual(sum(v for _, v in U['k']), U['razem'] * 1.001)
+        self.assertEqual(o['u'], 'TJ (ciepło spalania)')
+
+    def test_import_okno_pobrania_rok_wczesniej_takze_tuz_przed_publikacja_miesiaca(self):
+        """Źródło zwraca tylko miesiące od sinceTimePeriod. 2.11.2026 (nowy miesiąc kalendarzowy, a UE27 za sierpień dopiero ok. 10.11) okno musi sięgać
+        miesiąca „rok wcześniej” dla lipca 2026 — w pierwszej wersji okno (15 miesięcy) zaczynało się w 2025-08 i pole rok znikało."""
+        wz = json.loads(LNG340_FX_SK)
+        tm = list(wz['dimension']['time']['category']['index'])
+
+        def serwer_od(url, timeout, maks=None):
+            od = re.search(r'sinceTimePeriod=([\d-]+)', url).group(1)
+            j = json.loads(json.dumps(wz)); idx = j['dimension']['time']['category']['index']; n = len(idx)
+            tt = {m: i for m, i in idx.items() if m >= od}
+            j['value'] = {f: v for f, v in j['value'].items() if [m for m, i in idx.items() if i == int(f) % n][0] in tt}
+            return json.dumps(j).encode()
+        now = datetime.datetime(2026, 11, 2, 6, 40, tzinfo=self.U)
+        o = zd.build_lng(None, now=now, fetch=lambda url, timeout, maks=None: serwer_od(url, timeout, maks) if 'nrg_ti_gasm' in url else self.serwer()(url, timeout, maks))
+        U = o['skad']['ue']
+        self.assertEqual((U['m'], U['rok']['m']), ('2026-07', '2025-07'), 'rok wcześniej jest w pliku mimo nowego miesiąca kalendarzowego')
+        self.assertEqual(U['rok']['razem'], 462203.7); self.assertLessEqual(len(U['hist']), 15)
+        # stare okno (15 miesięcy) nie wystarczyłoby: od 2025-08 nie ma lipca 2025
+        self.assertNotIn('2025-07', [m for m in tm if m >= zd._lng_ym_od(now, 15)])
+
+    def test_parse_skad_bledy_nie_zgaduja(self):
+        j = json.loads(LNG340_FX_SK)
+        for zly in (None, {'id': ['x']}, {'foo': 1}):
+            with self.assertRaises(Exception):
+                zd.parse_lng_skad(zly)
+        # suma partnerów ≠ suma (zmiana układu zbioru) → błąd; brak sumy UE27 → błąd; suma poza zakresem → błąd
+        j2 = json.loads(json.dumps(j)); P = list(j2['dimension']['partner']['category']['index'])
+        flat = lambda p, g, t: str((((P.index(p)) * 2) + g) * 15 + t)
+        j2['value'][flat('US', 0, 13)] = 1.0   # lipiec 2026: USA 1 TJ zamiast 134 774
+        with self.assertRaisesRegex(RuntimeError, 'suma partnerów'):
+            zd.parse_lng_skad(j2)
+        j3 = json.loads(json.dumps(j))
+        for t in range(15):
+            j3['value'].pop(flat('TOTAL', 0, t), None)
+        with self.assertRaisesRegex(RuntimeError, 'brak miesiąca z sumą UE27'):
+            zd.parse_lng_skad(j3)
+        j4 = json.loads(json.dumps(j)); j4['value'][flat('TOTAL', 0, 13)] = 5.0
+        with self.assertRaisesRegex(RuntimeError, 'poza zakresem'):
+            zd.parse_lng_skad(j4)
+
+    def test_parse_zapasy_pasmo_5_lat_tj_mln_m3(self):
+        o = zd.parse_lng_zapasy(json.loads(LNG340_FX_ST))
+        K = o['k']; self.assertEqual(o['asof'], '2026-07'); self.assertEqual(list(K), ['EU27_2020', 'DE', 'PL'])
+        self.assertEqual((K['EU27_2020']['m'], K['DE']['m'], K['PL']['m']), ('2026-07', '2026-07', '2026-08'), 'agregat UE27 później niż Polska')
+        self.assertEqual(K['EU27_2020']['d'][-1], ['2026-07', 2373841.8, 61142.8]); self.assertEqual(K['PL']['d'][-1][0], '2026-08')   # 2 373 841,8 TJ = 61 142,8 mln m³
+        self.assertEqual(len(K['EU27_2020']['d']), 26)
+        j = json.loads(LNG340_FX_ST)
+        ids = j['id']; keys = [list(j['dimension'][d]['category']['index']) for d in ids]
+        ser = {}
+        for f, v in j['value'].items():
+            i, lab = int(f), []
+            for s, ks in zip(reversed(j['size']), reversed(keys)):
+                lab.append(ks[i % s]); i //= s
+            fr, sf, si, un, g, t = reversed(lab)
+            ser[(g, un, t)] = v
+        B = [ser[('EU27_2020', 'TJ_GCV', f'{y}-07')] for y in range(2021, 2026)]
+        pas = {x[0]: x for x in K['EU27_2020']['pasmo']}['2026-07']
+        self.assertEqual(pas, ['2026-07', round(min(B), 1), round(sum(B) / 5, 1), round(max(B), 1)], 'najmniej / średnia / najwięcej z lipca 2021–2025')
+        self.assertTrue(all(x[1] <= x[2] <= x[3] for g in K.values() for x in g['pasmo']))
+        for g, e in K.items():
+            for _, tj, m3 in e['d']:
+                self.assertTrue(m3 is None or 30 <= tj / m3 <= 45, (g, tj, m3))
+        # mln m³ niezgodne z TJ = None (nie zgadujemy); zapasy poza zakresem = błąd; brak UE27 = błąd
+        j2 = json.loads(json.dumps(j)); pos = {d: i for i, d in enumerate(ids)}
+        for f in list(j2['value']):
+            i, lab = int(f), []
+            for s, ks in zip(reversed(j2['size']), reversed(keys)):
+                lab.append(ks[i % s]); i //= s
+            lab = tuple(reversed(lab))
+            if lab[pos['geo']] == 'EU27_2020' and lab[pos['time']] == '2026-07' and lab[pos['unit']] == 'MIO_M3':
+                j2['value'][f] = 5.0
+        self.assertIsNone(zd.parse_lng_zapasy(j2)['k']['EU27_2020']['d'][-1][2])
+        with self.assertRaises(RuntimeError):
+            zd.parse_lng_zapasy({'id': ['stk_flow', 'unit', 'geo', 'time'], 'size': [1, 1, 1, 1], 'dimension': {'stk_flow': {'category': {'index': ['STKCL_NAT']}}, 'unit': {'category': {'index': ['TJ_GCV']}},
+                                 'geo': {'category': {'index': ['PL']}}, 'time': {'category': {'index': ['2026-08']}}}, 'value': {'0': 138003.6}})
+
+    # ---------------- budowniczy: przebieg, części, błędy, budżet ----------------
+    def test_build_pierwszy_przebieg_wszystkie_czesci_i_kontrola_spojnosci(self):
+        log = []
+        o = zd.build_lng(None, now=self.NOW, fetch=self.serwer(log=log))
+        self.assertEqual(o['v'], 1); self.assertEqual(o['ok'], {'dz': True, 'skad': True, 'zapasy': True}); self.assertEqual(o['err'], {})
+        self.assertEqual(o['part_at'], {p: '2026-10-11T06:40:00+00:00' for p in ('dz', 'skad', 'zapasy')}); self.assertEqual(o['at'], '2026-10-11T06:40:00+00:00')
+        dz = o['dz']
+        self.assertEqual((dz['pl']['asof'], dz['ue']['asof'], dz['asof']), ('2026-10-10', '2026-10-09', '2026-10-10'))
+        self.assertEqual(dz['pl']['d'][-1], ['2026-10-10', 118.8]); self.assertEqual(dz['ue']['d'][-1], ['2026-10-09', 2785.6]); self.assertEqual(len(dz['pl']['d']), 90)
+        self.assertEqual(dz['term']['d'], '2026-10-09'); self.assertEqual(dz['term']['n'], 30); self.assertEqual(len(dz['term']['r']), 24)
+        self.assertEqual(dz['u'], 'GWh/d'); self.assertEqual(dz['przel'], 10.7); self.assertEqual(dz['lat'], 3)
+        self.assertNotIn('pasmo', dz['pl'], 'bez pełnej historii nie ma pasma (nie pokazujemy pasma z kawałka historii)')
+        self.assertFalse(dz['bf']['gotowe']); self.assertEqual(o['st']['bf']['od'], dz['bf']['od'])
+        self.assertEqual(o['skad']['asof'], '2026-07'); self.assertEqual(o['zapasy']['asof'], '2026-07')
+        self.assertEqual(o['next']['skad'], '2026-10-11T21:30:00+00:00'); self.assertEqual(o['next']['dz'], '2026-10-12T06:30:00+00:00')
+        self.assertEqual(sum('operationalData' in u for u in log), 2, 'okno 14 dób + jedno żądanie historii (pierwszy przebieg)')
+        self.assertEqual(sum('nrg_ti_gasm' in u for u in log), 1); self.assertEqual(sum('nrg_stk_gasm' in u for u in log), 1)
+        okno = [u for u in log if 'operationalData' in u][0]
+        self.assertIn('from=2026-09-24&to=2026-10-10', okno, 'okno: 14 dób do oczekiwanej doby Świnoujścia + 3 doby odniesienia'); self.assertIn('directionKey=entry', okno)
+        self.assertNotIn('VTP-00043', okno); self.assertNotIn('LNG-00005', okno)
+        self.assertIn('sinceTimePeriod=2025-03', [u for u in log if 'nrg_ti_gasm' in u][0], 'import: 19 miesięcy wstecz (rok wcześniej musi się zmieścić także tuż przed publikacją nowego miesiąca)'); self.assertIn('sinceTimePeriod=2019-05', [u for u in log if 'nrg_stk_gasm' in u][0], '26 miesięcy wykresu + 5 lat pasma + 3')
+        k = self.kt()
+        self.assertEqual(k.lng_spojnosc(json.loads(json.dumps(o))), [], 'plik z nagrań: zero sprzeczności')
+        self.assertEqual([r[1] for r in k.lng_swiezosc(o, self.NOW + datetime.timedelta(hours=1))], ['✅'] * 6)
+        self.assertEqual(json.loads(json.dumps(o)), o, 'plik serializowalny, bez NaN')
+
+    def test_build_drugi_przebieg_z_pamieci_bez_zapytan_i_poprawki_okna(self):
+        o = zd.build_lng(None, now=self.NOW, fetch=self.serwer())
+        od1 = o['st']['bf']['od']
+        self.assertEqual(od1, (datetime.date(2026, 9, 27) - datetime.timedelta(days=120)).isoformat(), 'pierwszy przebieg: okno od 27.09 i jedno żądanie historii o 120 dób wstecz')
+        log = []
+        o2 = zd.build_lng(json.loads(json.dumps(o)), now=self.NOW + datetime.timedelta(minutes=10), fetch=self.serwer(log=log))
+        self.assertEqual(o2['ok'], {'dz': 'cached', 'skad': 'cached', 'zapasy': 'cached'}); self.assertEqual(o2['part_at'], o['part_at'])
+        self.assertEqual(log, [], 'dz świeże i niepilne; Eurostat po slocie 21:30; historia: następne żądanie dopiero po 20 min')
+        log = []
+        o3 = zd.build_lng(json.loads(json.dumps(o2)), now=self.NOW + datetime.timedelta(minutes=21), fetch=self.serwer(log=log))
+        self.assertEqual(len(log), 1); self.assertIn('operationalData', log[0])
+        self.assertEqual(o3['st']['bf']['od'], (datetime.date.fromisoformat(od1) - datetime.timedelta(days=120)).isoformat(), 'historia cofnęła się o kolejne 120 dób')
+        self.assertEqual(o3['part_at'], o['part_at'], 'dobór historii nie zmienia czasu pobrania części'); self.assertEqual(o3['ok']['dz'], 'cached')
+        self.assertEqual(o3['dz']['pl']['d'][-1], o['dz']['pl']['d'][-1])
+        self.assertEqual(o3['dz']['hist']['od'], o3['st']['bf']['od'], 'hist sięga tak daleko, jak dobrana historia')
+        # następna doba (po 06:30 następnego dnia): pobranie okna; nagranie nie ma doby 11.10 — plik zachowuje ostatnią dobę, a część jest ok
+        log = []
+        o4 = zd.build_lng(json.loads(json.dumps(o3)), now=datetime.datetime(2026, 10, 12, 6, 45, tzinfo=self.U), fetch=self.serwer(log=log))
+        self.assertEqual(o4['ok'], {'dz': True, 'skad': True, 'zapasy': True}, 'po slocie 21:30 z 11.10 Eurostat należny też')
+        self.assertEqual(o4['dz']['pl']['asof'], '2026-10-10'); self.assertEqual(o4['part_at']['dz'], '2026-10-12T06:45:00+00:00')
+        self.assertEqual(o4['next']['dz'], '2026-10-11T18:30:00+00:00', 'brak doby 10.10 UE (nagranie nie ma jej wcześniej niż 9.10) — termin 11.10 18:30 minął: zaległa')
+
+    def test_historia_wstecz_do_2023_pasmo_dopiero_po_komplecie(self):
+        """Fałszywe źródło generuje dla każdego żądanego dnia wartości 8 punktów (Świnoujście 100 + dzień roku): po 12 żądaniach historia sięga 2023-01-01,
+        pasmo pojawia się dopiero wtedy, a hist ma ciągły szereg z wartościami UE i Świnoujścia."""
+        PT = ['LNG-00004', 'LNG-00006', 'LNG-00012', 'LNG-00013', 'LNG-00015', 'LNG-00017', 'LNG-00018', 'LNG-00022']
+
+        def f(url, timeout, maks=None):
+            if 'operationalData' in url:
+                a = datetime.date.fromisoformat(re.search(r'from=([\d-]+)', url).group(1)); b = datetime.date.fromisoformat(re.search(r'to=([\d-]+)', url).group(1))
+                W, d = [], a
+                while d <= b:
+                    for p in PT:
+                        W.append({'pointKey': p, 'indicator': 'Physical Flow', 'periodType': 'day', 'directionKey': 'entry', 'unit': 'kWh/d', 'operatorKey': 'X',
+                                  'periodFrom': d.isoformat() + 'T06:00:00+02:00', 'lastUpdateDateTime': '',
+                                  'value': (100 + d.timetuple().tm_yday) * 1e6 * (1 if p == 'LNG-00006' else 3)})
+                    d += datetime.timedelta(days=1)
+                return json.dumps({'operationalData': W}).encode()
+            return (LNG340_FX_SK if 'nrg_ti' in url else LNG340_FX_ST).encode()
+        o, t = None, self.NOW
+        for i in range(16):
+            o = zd.build_lng(json.loads(json.dumps(o)) if o else None, now=t, fetch=f)
+            if i == 3:
+                self.assertNotIn('pasmo', o['dz']['pl']); self.assertFalse(o['dz']['bf']['gotowe'])
+            t += datetime.timedelta(minutes=21)
+        bf = o['st']['bf']
+        self.assertEqual((bf['od'], bf['gotowe']), ('2023-01-01', True)); self.assertTrue(o['dz']['bf']['gotowe'])
+        h = o['dz']['hist']; self.assertEqual(h['od'], '2023-01-01')
+        self.assertEqual(len(h['pl']), (datetime.date(2026, 10, 10) - datetime.date(2023, 1, 1)).days + 1); self.assertEqual(len(h['pl']), len(h['ue']))
+        self.assertTrue(all(isinstance(x, float) for x in h['pl'])); self.assertTrue(all(isinstance(x, float) for x in h['ue']))
+        self.assertGreaterEqual(len(o['dz']['pl']['pasmo']), 85, 'pasmo dla (prawie) wszystkich dób wykresu'); self.assertEqual(o['dz']['pl']['pasmo'][-1][0], '2026-10-10')
+        pa = o['dz']['pl']['pasmo'][-1]
+        self.assertEqual(len(pa), 4); self.assertTrue(pa[1] <= pa[2] <= pa[3]); self.assertAlmostEqual(pa[2], 100 + datetime.date(2026, 10, 10).timetuple().tm_yday, delta=7.1)
+        log = []   # po komplecie żadnych dalszych żądań historii
+        zd.build_lng(json.loads(json.dumps(o)), now=t + datetime.timedelta(minutes=5), fetch=lambda u, tt, m=None: log.append(u) or f(u, tt, m))
+        self.assertEqual(log, [], 'historia gotowa, dz świeże (następne poprawki po 6 h)')
+
+    def test_historia_blad_zaden_blad_czesci_i_ponowienie(self):
+        o = zd.build_lng(None, now=self.NOW, fetch=self.serwer())
+        calls = []
+
+        def f(url, timeout, maks=None):
+            calls.append(url)
+            raise RuntimeError('HTTP Error 503: test')
+        o2 = zd.build_lng(json.loads(json.dumps(o)), now=self.NOW + datetime.timedelta(minutes=25), fetch=f)
+        self.assertEqual(o2['ok']['dz'], 'cached', 'błąd historii to notatka, nie błąd części dz'); self.assertEqual(len(calls), 1)
+        self.assertTrue(any('dz historia' in x and 'HTTP Error 503' in x for x in zd.META['notes'])); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(o2['st']['bf']['od'], o['st']['bf']['od'], 'historia nie ruszyła'); self.assertEqual(o2['st']['bf']['try'], '2026-10-11T07:05:00+00:00', 'ponowienie najwcześniej po 20 min')
+        calls.clear()
+        zd.build_lng(json.loads(json.dumps(o2)), now=self.NOW + datetime.timedelta(minutes=30), fetch=f)
+        self.assertEqual(calls, [], 'przed upływem 20 min — bez żądania')
+
+    def test_zrodlo_z_bledem_poprzednia_czesc_z_data(self):
+        o = zd.build_lng(None, now=self.NOW, fetch=self.serwer())
+        later = datetime.datetime(2026, 10, 11, 21, 40, tzinfo=self.U)   # po 21:30 — Eurostat należny; po 18:30 — doba 10.10 UE oczekiwana
+        o2 = zd.build_lng(json.loads(json.dumps(o)), now=later, fetch=self.serwer(wywal=('nrg_ti_gasm', 'operationalData')))
+        self.assertEqual(o2['ok'], {'dz': False, 'skad': False, 'zapasy': True})
+        self.assertEqual(o2['skad'], o['skad'], 'import: poprzednia część'); self.assertEqual(o2['dz']['pl'], o['dz']['pl'])
+        self.assertEqual(o2['part_at']['skad'], o['part_at']['skad'], 'data poprzedniego pobrania, nie nowa'); self.assertEqual(o2['part_at']['zapasy'], later.isoformat())
+        self.assertIn('skad: HTTP Error 503', o2['err']['skad']); self.assertIn('dz: HTTP Error 503', o2['err']['dz'])
+        self.assertTrue(all(e.startswith('surowce (gaz i LNG) ') for e in zd.META['errors'])); self.assertEqual(len(zd.META['errors']), 2)
+        self.assertEqual(o2['st']['bf'], o['st']['bf'], 'przy błędzie dz historii się nie dobiera')
+        # po błędzie najwcześniej po 60 min (zapytania do źródeł części z błędem — żadne)
+        log = []
+        o3 = zd.build_lng(json.loads(json.dumps(o2)), now=later + datetime.timedelta(minutes=30), fetch=self.serwer(log=log))
+        self.assertEqual([u for u in log if 'nrg_' in u or 'to=2026-10-10' in u], [], 'skad i dz nie ponawiane przed upływem godziny'); self.assertEqual(o3['ok']['skad'], False)
+        self.assertEqual(o3['err']['skad'], o2['err']['skad'], 'błąd zostaje do następnej próby')
+        o4 = zd.build_lng(json.loads(json.dumps(o3)), now=later + datetime.timedelta(minutes=61), fetch=self.serwer())
+        self.assertEqual(o4['ok']['skad'], True); self.assertEqual(o4['ok']['dz'], True); self.assertEqual(o4['err'], {}); self.assertNotIn('err', o4['st']['skad'], 'po udanym pobraniu stary błąd znika także z pamięci źródła'); self.assertNotIn('err', o4['st']['dz']); self.assertEqual(o4['part_at']['skad'], (later + datetime.timedelta(minutes=61)).isoformat())
+
+    def test_sekret_odpowiedz_za_duza_budzet_i_dlugi_przebieg(self):
+        sec = list(zd.SECRETS)
+        zd.SECRETS[:] = ['SEKRET-LNG-340']
+        try:
+            def f(url, timeout, maks=None):
+                raise RuntimeError('HTTP Error 500: SEKRET-LNG-340 w adresie')
+            o = zd.build_lng(None, now=self.NOW, fetch=f)
+        finally:
+            zd.SECRETS[:] = sec
+        self.assertNotIn('SEKRET-LNG-340', json.dumps(o)); self.assertNotIn('SEKRET-LNG-340', json.dumps(zd.META)); self.assertEqual(o['ok'], {'dz': False, 'skad': False, 'zapasy': False})
+        self.assertNotIn('dz', o); self.assertTrue(all(o['err'][p].startswith(p + ': ') for p in ('dz', 'skad', 'zapasy')))
+        zd.META['errors'].clear()
+        # odpowiedź większa niż limit (po rozpakowaniu) = błąd części
+        o = zd.build_lng(None, now=self.NOW, fetch=lambda u, t, m=None: b'x' * (m + 1))
+        self.assertEqual(o['ok'], {'dz': False, 'skad': False, 'zapasy': False}); self.assertIn('większa niż', o['err']['dz'])
+        # budżet czasu: źródło nie startuje, gdy zapytanie z pełnym limitem się nie zmieści (dz 45 s > 40 s; skad i zapasy po 25 s — mieszczą się)
+        log = []
+        o = zd.build_lng(None, now=self.NOW, fetch=self.serwer(log=log), budzet_s=40)
+        self.assertEqual([('operationalData' in u) for u in log], [False, False]); self.assertEqual(o['ok'], {'dz': False, 'skad': True, 'zapasy': True})
+        self.assertTrue(any('dz (budżet czasu)' in x for x in zd.META['notes']))
+        # długi przebieg (po BACK_LATE): tylko pilne — Eurostat po slocie i historia czekają; dz (oczekiwana doba) idzie
+        zd.META['notes'].clear()
+        import time as _t
+        p0 = zd.build_lng(None, now=self.NOW - datetime.timedelta(days=1), fetch=self.serwer())
+        log = []
+        o = zd.build_lng(json.loads(json.dumps(p0)), now=self.NOW, fetch=self.serwer(log=log), run_t0=_t.monotonic() - zd.BACK_LATE - 5)
+        self.assertEqual(o['ok']['dz'], True); self.assertEqual(o['ok']['skad'], 'cached'); self.assertEqual([u for u in log if 'nrg_' in u], [])
+        self.assertEqual(sum('operationalData' in u for u in log), 1, 'tylko okno, bez żądania historii w długim przebiegu')
+        self.assertTrue(any('skad (długi przebieg)' in x for x in zd.META['notes']))
+
+    def test_plik_innej_wersji_start_od_zera_i_zepsuty_hist(self):
+        o = zd.build_lng({'v': 2, 'dz': {'pl': {'asof': '2099-01-01'}}, 'st': {'dz': {'at': '2026-10-11T06:00:00+00:00'}}}, now=self.NOW, fetch=self.serwer())
+        self.assertEqual(o['ok']['dz'], True); self.assertEqual(o['dz']['pl']['asof'], '2026-10-10')
+        # zły kształt hist (tekst, ujemne, nie-liczby) → puste słowniki; nigdy wyjątek
+        for h in (None, 'x', {'od': 'zła', 'pl': [1]}, {'od': '2026-10-01', 'pl': 'x', 'ue': None}, {'od': '2026-10-01', 'pl': [-1, None, 'a', True, 5.55], 'ue': []}):
+            pl, ue = zd._lng_hist_z_pliku(h)
+            self.assertTrue(isinstance(pl, dict) and isinstance(ue, dict))
+        self.assertEqual(zd._lng_hist_z_pliku({'od': '2026-10-01', 'pl': [-1, None, 'a', True, 5.55], 'ue': []})[0], {'2026-10-05': 5.5}, 'ujemna, brak, tekst i bool pominięte; liczba zaokrąglona do 0,1')
+        self.assertEqual(zd._lng_hist_z_pliku({'od': '2026-10-01', 'pl': [1.0, None, 3.0], 'ue': [2.0]}), ({'2026-10-01': 1.0, '2026-10-03': 3.0}, {'2026-10-01': 2.0}))
+        self.assertEqual(zd._lng_hist_do_pliku({'2026-10-01': 1.0, '2026-10-03': 3.0}, {'2026-10-01': 2.0}), {'od': '2026-10-01', 'pl': [1.0, None, 3.0], 'ue': [2.0, None, None]})
+        self.assertIsNone(zd._lng_hist_do_pliku({}, {}))
+
+    def test_pobieranie_gzip_limity_i_naglowki(self):
+        import gzip, io
+        widziane = []
+
+        class Odp:
+            def __init__(self, b):
+                self.b = io.BytesIO(b)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self, n=-1):
+                return self.b.read(n)
+
+        def otworz(b):
+            def f(url, headers=None, timeout=30):
+                widziane.append((url, dict(headers or {}), timeout))
+                return Odp(b)
+            return f
+        dane = json.dumps({'operationalData': [1, 2, 3]}).encode()
+        with mock.patch.object(zd, '_otworz', otworz(gzip.compress(dane))):
+            self.assertEqual(zd._lng_pobierz('https://x/a', 12, 1000), dane, 'spakowana odpowiedź rozpakowana')
+        self.assertEqual(widziane[0][1].get('Accept-Encoding'), 'gzip'); self.assertEqual(widziane[0][2], 12)
+        with mock.patch.object(zd, '_otworz', otworz(dane)):
+            self.assertEqual(zd._lng_pobierz('https://x/a', 12, 1000), dane, 'odpowiedź niespakowana też działa')
+        with mock.patch.object(zd, '_otworz', otworz(gzip.compress(b'x' * 5000))), self.assertRaisesRegex(ValueError, 'większa niż limit'):
+            zd._lng_pobierz('https://x/a', 12, 1000)   # bomba gzip: po rozpakowaniu ponad limit
+        with mock.patch.object(zd, '_otworz', otworz(b'y' * 3000)), mock.patch.object(zd, 'LNG_GZ_MAKS', 2000), self.assertRaisesRegex(RuntimeError, 'większa niż limit'):
+            zd._lng_pobierz('https://x/a', 12, 1000)   # ponad limit na łączu
+        with mock.patch.object(zd, '_otworz', otworz(dane)), mock.patch.object(zd.time, 'monotonic', side_effect=[0.0, 99.0, 99.0]), self.assertRaises(TimeoutError):
+            zd._lng_pobierz('https://x/a', 5, 1000)   # termin całego pobierania, nie tylko odczytu
+
+    # ---------------- przebieg główny ----------------
+    def test_main_po_coin_metrics_przed_mfw_i_zaslepki(self):
+        with open(zd.__file__, encoding='utf-8') as fh:
+            src = fh.read()
+        m = src[src.index('def main():'):]
+        i, j, k_ = m.index("prev_sz = previous('szlaki')"), m.index('    # v340: GAZ I LNG'), m.index('    # MFW — rezerwy walutowe (International Liquidity, bez klucza)')
+        self.assertTrue(i < m.index('    # COIN METRICS (Community, bez klucza)') < j < k_, 'po szlakach i Coin Metrics, przed rezerwami MFW (poza wycinkami szlaków i Złota a krypto)')
+        blk = src[src.index('# ===================== v340: GAZ I LNG'):src.index('# ===================== v305: SZLAKI HANDLOWE')]
+        for zakazane in ('KEY', 'os.environ', 'print(', 'urllib', 'get_json(', 'klucz('):
+            self.assertNotIn(zakazane, blk, 'źródła bez klucza, bez nowych importów sieci: ' + zakazane)
+        code = compile('\n'.join(x[4:] for x in m[j:k_].split('\n')), 'main-lng', 'exec')
+        o = zd.build_lng(None, now=self.NOW, fetch=self.serwer())
+        saved = {}
+        with mock.patch.object(zd, 'previous', lambda n: o if n == 'lng' else None), mock.patch.object(zd, 'save', lambda n, x: saved.__setitem__(n, x)), \
+                mock.patch.object(zd, 'build_lng', return_value=dict(o, ok={'dz': True, 'skad': 'cached', 'zapasy': False})) as b:
+            exec(code, vars(zd), {})
+        self.assertEqual(saved['lng']['ok'], {'dz': True, 'skad': 'cached', 'zapasy': False}); b.assert_called_once()
+        self.assertEqual({k: zd.META['ok'][k] for k in ('lng_dz', 'lng_skad', 'lng_zapasy')}, {'lng_dz': True, 'lng_skad': 'cached', 'lng_zapasy': False})
+        saved.clear()
+        with mock.patch.object(zd, 'previous', lambda n: o if n == 'lng' else None), mock.patch.object(zd, 'save', lambda n, x: saved.__setitem__(n, x)), \
+                mock.patch.object(zd, 'build_lng', side_effect=ValueError('test')):
+            exec(code, vars(zd), {})
+        self.assertIs(saved['lng'], o, 'awaria budowniczego — poprzedni plik'); self.assertIs(zd.META['ok']['lng'], False); self.assertEqual(zd.META['errors'][-1], 'surowce (gaz i LNG): test')
+        saved.clear(); zd.META['errors'].clear()
+        with mock.patch.object(zd, 'previous', lambda n: None), mock.patch.object(zd, 'save', lambda n, x: saved.__setitem__(n, x)), mock.patch.object(zd, 'build_lng', side_effect=ValueError('test')):
+            exec(code, vars(zd), {})
+        self.assertNotIn('lng', saved, 'bez poprzedniego pliku — nic (nie pustka)')
+
+    def test_krotki_zaslepek_zawieraja_build_lng(self):
+        with open(__file__, encoding='utf-8') as fh:
+            me = fh.read()
+        T = [m.group(0) for m in re.finditer(r"\(\s*'build_\w+'(?:\s*,\s*'build_\w+')+\s*\)", me) if "'build_wieloryby'" in m.group(0)]
+        self.assertGreaterEqual(len(T), 20)
+        self.assertEqual([t[:60] for t in T if "'build_lng'" not in t], [], 'każda krotka zaślepek zawiera build_lng (brak = prawdziwe zapytania w teście z main())')
+        i = me.index('def test_meta_is_always_written'); j = me.index('\n    def ', i + 1)
+        self.assertIn("'surowce', 'szlaki', ", me[i:j], 'błędy „surowce (gaz i LNG): …” przechodzą przez filtr przedrostka „surowce”')
+
+    # ---------------- kontrola dzienna ----------------
+    def kt(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v340', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    def plik(self):
+        """Plik z nagrań (kolejne żądania historii — kopie doby 2.10) z szeregami importu dopasowanymi do dób pliku: suma dób miesiąca = 0,85 importu UE27
+        i 1,0 importu Polski (jak w historii 2023–2026: średnio 0,85 i ok. 1), żeby próg stosunku nie zgłaszał nic bez powodu."""
+        o = json.loads(json.dumps(zd.build_lng(None, now=self.NOW, fetch=self.serwer())))
+        h = o['dz']['hist']; d0 = datetime.date.fromisoformat(h['od'])
+        for nm, g, r in (('ue', 'ue', 0.85), ('pl', 'pl', 1.0)):
+            S = {}
+            for i, v in enumerate(h[nm]):
+                d = d0 + datetime.timedelta(days=i)
+                if v is not None:
+                    S.setdefault(d.strftime('%Y-%m'), []).append(v)
+            L = [[m, round(sum(V) / len(V) * (31 if m[-2:] in ('07', '08', '10') else 30) * 3.6 / r, 1)] for m, V in sorted(S.items()) if m <= o['skad'][g]['m'] and len(V) >= 28]
+            o['skad'][g]['hist'] = L; o['skad'][g]['m'] = L[-1][0]; o['skad'][g]['razem'] = L[-1][1]
+            o['skad'][g]['k'] = [['US', round(L[-1][1] * 0.5, 1)]]
+        return o
+
+    def test_kontrola_lista_wpisy_i_wiersze_swiezosci(self):
+        k = self.kt()
+        self.assertIn('lng', k.PLIKI); self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik']); self.assertEqual(k.LIMIT_MIN['lng'], 26 * 60); self.assertEqual(k.PLIKI.count('lng'), 1)
+        self.assertNotIn('lng', [x[1] for x in k.SWIEZOSC], 'lista SWIEZOSC bez zmian — osobne wiersze (najwyżej ⚠️)')
+        self.assertTrue({'lng_dz', 'lng_skad', 'lng_zapasy'} <= set(k.AW_BEZ_BLEDU)); self.assertIn('zostaje z datą', k.AW_BEZ_BLEDU['lng_dz'])
+        o = self.plik(); U = self.U
+        rows = k.lng_swiezosc(o, datetime.datetime(2026, 10, 11, 8, 0, tzinfo=U))
+        self.assertEqual([r[3] for r in rows], ['2026-10-10', '2026-10-09', '2026-07', '2026-08', '2026-07', '2026-08'])
+        self.assertEqual([r[1] for r in rows], ['✅'] * 6); self.assertEqual(rows[0][2], 8 * 60, 'kalendarzowy wiek doby Świnoujścia: koniec doby 11.10 00:00 UTC → 8 h (weekend nie wydłuża)')
+        self.assertEqual(rows[2][2] // 1440, 71, 'import UE27: koniec lipca → 11.10: 72 dni (8 h przed 72. dniem)')
+        # progi: Świnoujście 3 dni, UE 5 dni, UE27 120 dni, Polska 90 dni
+        r = k.lng_swiezosc(o, datetime.datetime(2026, 10, 14, 0, 1, tzinfo=U)); self.assertEqual([x[1] for x in r][:2], ['⚠️', '✅'])
+        self.assertIn('próg 3 d 0 h', r[0][4]); self.assertIn('spodziewana zmiana', r[0][4])
+        r = k.lng_swiezosc(o, datetime.datetime(2026, 10, 15, 0, 1, tzinfo=U)); self.assertEqual([x[1] for x in r][:2], ['⚠️', '⚠️'])
+        r = k.lng_swiezosc(o, datetime.datetime(2026, 11, 29, 0, 1, tzinfo=U)); self.assertEqual([x[1] for x in r][2:], ['⚠️', '✅', '⚠️', '✅'], 'UE27 > 120 d od końca lipca (29.11 00:00), Polska jeszcze nie (90 d od końca sierpnia mija 30.11)')
+        r = k.lng_swiezosc(o, datetime.datetime(2026, 12, 1, 0, 1, tzinfo=U)); self.assertEqual([x[1] for x in r][2:], ['⚠️', '⚠️', '⚠️', '⚠️'])
+        # brak części / zły plik
+        o2 = json.loads(json.dumps(o)); del o2['dz']['ue']; del o2['zapasy']
+        r = k.lng_swiezosc(o2, self.NOW); self.assertEqual([(x[1], x[4]) for x in r if x[1] == '?'], [('?', 'brak danych tej części w pliku')] * 3)
+        self.assertEqual(k.lng_swiezosc(None, self.NOW), []); self.assertEqual(k.lng_swiezosc({'v': 2}, self.NOW), [])
+        # braki dób w ostatnich 30 dniach: UE więcej niż 5, Świnoujście 3 i więcej (w historii 2023–2026: 2 i 0)
+        o3 = json.loads(json.dumps(o))
+        o3['dz']['ue']['d'] = [[d, None if i % 4 == 0 else v] for i, (d, v) in enumerate(o3['dz']['ue']['d'])]; o3['dz']['ue']['d'][-1][1] = 2785.6
+        o3['dz']['pl']['d'][-3][1] = None; o3['dz']['pl']['d'][-5][1] = None
+        r = k.lng_swiezosc(o3, datetime.datetime(2026, 10, 11, 8, 0, tzinfo=U)); self.assertEqual([x[1] for x in r][:2], ['✅', '⚠️']); self.assertIn('bez wartości (próg 5; w historii 2023–2026 najwyżej 2)', r[1][4])
+        o3['dz']['pl']['d'][-7][1] = None
+        r = k.lng_swiezosc(o3, datetime.datetime(2026, 10, 11, 8, 0, tzinfo=U)); self.assertEqual(r[0][1], '⚠️'); self.assertIn('3 z ostatnich 30 dób bez wartości (próg 2; w historii 2023–2026 najwyżej 0)', r[0][4])
+
+    def test_kontrola_spojnosc_porownania_i_wiring(self):
+        k = self.kt(); o = self.plik()
+        R = {'bledy': [], 'uwagi': []}
+        z = k.lng_kontrola(o, R)
+        self.assertEqual((z['spojnosc'], R['bledy'], R['uwagi']), ([], [], [])); self.assertEqual([w[1] for w in z['wiersze']], ['✅'] * len(z['wiersze']))
+        self.assertEqual([w[0] for w in z['wiersze']][:2], ['terminale UE: zakres i skoki dobowe', 'Świnoujście: zakres'])
+        self.assertIsNone(k.lng_kontrola(None, R)); self.assertIsNone(k.lng_kontrola({'v': 3}, R)); self.assertEqual(k.lng_porownania({'v': 1}), {'wiersze': [], 'uwagi': []})
+        def zly(f, tekst):
+            x = json.loads(json.dumps(o)); f(x); s = k.lng_spojnosc(x)
+            self.assertTrue(any(tekst in e for e in s), (tekst, s))
+        zly(lambda x: x['dz']['ue']['d'].__setitem__(-1, [x['dz']['ue']['d'][-2][0], 1.0]), 'doby nie rosną')
+        zly(lambda x: x['dz']['ue']['d'][-1].__setitem__(1, 100.0), 'suma terminali UE (100.0) mniejsza niż Świnoujście (116.2)')
+        zly(lambda x: x['dz']['pl']['d'][-2].__setitem__(1, -3.0), 'wartość ujemna')
+        zly(lambda x: x['dz']['term']['r'].pop(0), 'dz.term: suma terminali')
+        zly(lambda x: x['dz'].__setitem__('hist', dict(x['dz']['hist'], ue=x['dz']['hist']['ue'][:-1])), 'serie różnej długości')
+        zly(lambda x: x['dz']['hist']['ue'].__setitem__(-3, 1.0), 'dz.hist: ue')
+        zly(lambda x: x['dz']['pl'].__setitem__('pasmo', [[x['dz']['pl']['d'][-1][0], 10.0, 5.0, 20.0]]), 'pasmo poza porządkiem')
+        zly(lambda x: x['skad']['ue']['k'].__setitem__(0, ['US', 500000.0]), 'suma partnerów')
+        zly(lambda x: x['skad']['pl']['hist'].pop(), 'ostatni miesiąc szeregu')
+        zly(lambda x: x['zapasy']['k']['PL']['d'][-1].__setitem__(2, 5.0), 'TJ / mln m³')
+        zly(lambda x: x['zapasy']['k']['PL'].__setitem__('m', '2020-01'), 'zapasy.PL: m')
+        # sprzeczność → BŁĄD (R.bledy), nie ⚠️
+        x = json.loads(json.dumps(o)); x['dz']['ue']['d'][-1][1] = 100.0; R2 = {'bledy': [], 'uwagi': []}; k.lng_kontrola(x, R2)
+        self.assertTrue(R2['bledy'] and R2['bledy'][0].startswith('lng.json: sprzeczność w pliku — '))
+        # progi ⚠️ danych
+        x = json.loads(json.dumps(o)); x['dz']['ue']['d'][-1][1] = 9000.0; x['dz']['pl']['d'][-1][1] = 650.0; x['dz']['ue']['d'][-2][1] = 3000.0
+        P = k.lng_porownania(x); self.assertEqual([w[1] for w in P['wiersze']][:2], ['⚠️', '⚠️'])
+        self.assertTrue(any('poza zakresem 800–8000' in u for u in P['uwagi'])); self.assertTrue(any('+200% z doby na dobę' in u or 'z doby na dobę' in u for u in P['uwagi'])); self.assertTrue(any('Świnoujście 2026-10-10 = 650' in u for u in P['uwagi']))
+        # suma dób miesiąca wobec importu UE27 (kompletny lipiec w historii): 0,6–1,10; w historii 2023–2026: 0,74–0,98
+        x = json.loads(json.dumps(o)); h = x['dz']['hist']; h['od'] = '2026-06-25'; n = (datetime.date(2026, 10, 10) - datetime.date(2026, 6, 25)).days + 1
+        h['ue'] = [3000.0] * n; h['pl'] = [100.0] * n; x['skad']['ue']['hist'] = [['2026-07', 3000.0 * 31 * 3.6 / 0.9], ['2026-08', 3000.0 * 31 * 3.6 / 0.3]]
+        x['skad']['ue']['m'] = '2026-08'; x['skad']['ue']['razem'] = 3000.0 * 31 * 3.6 / 0.3
+        P = k.lng_porownania(x); w = {a: b for a, b in P['wiersze']}
+        self.assertEqual(w['suma dób miesiąca: terminale UE razem wobec importu UE27'], '⚠️'); self.assertTrue(any('UE27, 2026-08: stosunek 0,30 poza przedziałem 0,60–1,10' in u for u in P['uwagi']), P['uwagi'])
+        self.assertFalse(any('2026-07' in u and 'stosunek' in u and 'UE27' in u for u in P['uwagi']), 'lipiec 0,90 — w przedziale')
+        # miesiąc z więcej niż 3 brakami dób — bez porównania
+        h['ue'][10] = None; h['ue'][11] = None; h['ue'][12] = None; h['ue'][13] = None
+        r = k._lng_k_razem(h['ue'], datetime.date(2026, 6, 25), [('2026-07', 3000.0), ('2026-08', 3000.0)]); self.assertEqual([m for m, _ in r], ['2026-08'])
+        # wpięcie w kontrolę (wiersze, wywołanie, linia raportu)
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as fh:
+            kk = fh.read()
+        self.assertIn("for label, st, w, txt, note in lng_swiezosc(files.get('lng')):", kk); self.assertIn("Z['lng'] = lng_kontrola(files.get('lng'), R)", kk)
+        self.assertIn("lgz = Z.get('lng')", kk); self.assertIn("'- Gaz i LNG (z pliku strony): '", kk)
+        self.assertLess(kk.index("lng_swiezosc(files.get('lng'))"), kk.index('surowce_raporty_swiezosc(files.get(')); self.assertLess(kk.index("Z['lng'] ="), kk.index("Z['surowce-raporty'] ="))
+        self.assertNotIn('Wynik', kk[kk.index('# ---------------------------------------------------------------- v340: gaz i LNG'):kk.index('# ---------------------------------------------------------------- v320: surowce — raporty miesięczne')],
+                         'nagłówek raportu i linia „Wynik: …” bez zmian — blok gazu ich nie dotyka')

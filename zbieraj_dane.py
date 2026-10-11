@@ -24749,6 +24749,629 @@ def rwe_meta(rw, off, cached=False):
         META['ok']['rwa-emitenci'] = False if ok is False else ('cached' if cached else ok is True)   # v326 GL-06: błąd ostatniego odczytu widać także z pamięci
 
 
+# ===================== v340: GAZ I LNG — data/lng.json (dział SUROWCE, blok „Gaz i LNG”; zadanie F5Z1) =====================
+# Osobny plik i osobny budowniczy (surowce.json bez zmian). Trzy części, każda z part_at / ok / next / err jak w szlaki.json:
+#   dz     — dobowa wysyłka gazu z terminali LNG do sieci przesyłowych (GWh na dobę gazową; doba gazowa = 06:00–06:00 czasu środkowoeuropejskiego):
+#            Świnoujście osobno (pl) i wszystkie terminale UE razem (ue) + podział ostatniej pełnej doby na terminale (term). Źródło: platforma
+#            przejrzystości operatorów sieci gazowych (kod 'dz'); wartość w kWh/d → GWh/d (÷ 1e6). Pasmo sezonowe (pasmo): dla każdego dnia wykresu
+#            10., 50. i 90. centyl wartości z tego samego dnia kalendarzowego ± 7 dni w 3 poprzednich latach (od 2023-01-01; pasmo tylko, gdy
+#            dobrana jest cała historia — st.bf.gotowe — i są wartości z co najmniej 2 lat, minimum 20); historia (hist) = ciągły szereg
+#            dobowy od 2023-01-01 (null = doba bez wartości), z którego pasmo jest liczone co pobranie.
+#            Reguły (sprawdzone na 1379 dobach 2023-01-01 – 2026-10-10 i 30 punktach wejścia, nagrania 11.10.2026):
+#            * punkt wejścia = „LNG Entry point” z kierunkiem entry (wiersze exit to dane zwrotne — pomijane); wartości kilku operatorów tego samego
+#              punktu w jednej dobie są sumowane (np. Baltic Energy Gate: GASCADE + Fluxys Deutschland); VTP-00043 („TVB”, suma terminali Hiszpanii)
+#              NIE wchodzi do sumy — liczyłby Hiszpanię drugi raz; LNG-00083 (strefa Wilhelmshaven) zastępuje 00066 i 00080 w tej samej dobie;
+#              Dunkierka (LNG-00047) nie publikuje tych danych na platformie — suma jej nie obejmuje (stąd ok. 85% importu z miesięcznej statystyki);
+#            * doba kompletna dla UE: raportują wszystkie punkty, które miały wartość 2 i 3 doby wcześniej (minimum 8 punktów); doba niekompletna =
+#              brak sumy UE (null, nigdy suma częściowa); w historii 23 z 1379 dób, najwyżej 2 kolejne;
+#            * bieżąca doba gazowa jest niepełna (wartość rośnie w ciągu doby) — do pliku wchodzą tylko doby zakończone: Świnoujście publikuje wynik
+#              ok. 07:03 czasu polskiego następnego dnia, Hiszpania, Francja, Chorwacja i Litwa do ok. 19:56 (sprawdzone 11.10.2026: lastUpdateDateTime);
+#            * wartość punktu < 0 albo > 1500 GWh/d, inna jednostka niż kWh/d, doba nie od 04:00–07:00 = wiersz pominięty (z notatką), nigdy 0;
+#   skad   — import LNG do UE (UE27) wg kraju pochodzenia, miesięcznie, TJ w cieple spalania (GCV); ostatni miesiąc z sumą UE27, ten sam miesiąc
+#            rok wcześniej, szereg sum UE27 z 15 miesięcy; Polska: miesiąc, suma, udział „nieokreślone” (statystyka nie podaje kraju pochodzenia
+#            polskiego importu — prawie cały jako „nieokreślone”);
+#   zapasy — zapasy gazu w magazynach na koniec miesiąca (stan roboczy na terytorium kraju): UE27, Niemcy i Polska; TJ i mln m³; 26 miesięcy
+#            i pasmo (najmniej / średnia / najwięcej) z tego samego miesiąca w 5 poprzednich latach. Dane miesięczne z opóźnieniem 1–3 miesięcy
+#            (agregat UE27 później niż Polska) — dzienne zapasy magazynów nie są tu dostępne (wymagają klucza — nie używamy).
+# Kody źródeł (pole st) — pełne nazwy wyłącznie na stronie „Źródła”: dz — platforma przejrzystości operatorów sieci gazowych (bez klucza, odpowiedź
+# spakowana gzip, żądanie okna ≈ 30 KB), skad i zapasy — urzędowa statystyka UE (bez klucza). Bramki wg terminów publikacji:
+# dz — oczekiwana doba Świnoujścia = (teraz − 6 h 30 min) − 1 dzień, doba UE = (teraz − 18 h 30 min) − 1 dzień (UTC); dopóki brak, ponowienie co
+# 60 min (po 72 h — co 6 h); poza tym co 6 h (poprawki: Provisional → Confirmed); skad i zapasy — raz na dobę po 21:30 UTC (publikacja ok. 21:00 UTC).
+# Historia (od 2023-01-01) dobierana wstecz po jednym żądaniu 120 dób w przebiegu, najwyżej co 20 min, nie w długim przebiegu (≈ 180 KB po
+# spakowaniu, 2–13 s); 12 żądań. Źródło z błędem = poprzednia część z datą (ok False); brak = null, nigdy 0.
+LNG_V = 1
+LNG_PARTS = ('dz', 'skad', 'zapasy')
+LNG_PUNKTY = ('LNG-00004', 'LNG-00006', 'LNG-00011', 'LNG-00012', 'LNG-00013', 'LNG-00014', 'LNG-00015', 'LNG-00016', 'LNG-00017', 'LNG-00018',
+              'LNG-00019', 'LNG-00021', 'LNG-00022', 'LNG-00023', 'LNG-00024', 'LNG-00026', 'LNG-00027', 'LNG-00029', 'LNG-00030', 'LNG-00032',
+              'LNG-00042', 'LNG-00047', 'LNG-00059', 'LNG-00060', 'LNG-00066', 'LNG-00068', 'LNG-00069', 'LNG-00071', 'LNG-00072', 'LNG-00075',
+              'LNG-00078', 'LNG-00079', 'LNG-00080', 'LNG-00081', 'LNG-00082', 'LNG-00083')
+LNG_PL = 'LNG-00006'
+LNG_ALIAS = {'LNG-00083': ('LNG-00066', 'LNG-00080')}          # strefa Wilhelmshaven zastępuje oba terminale w tej samej dobie
+LNG_NAZWY = {'LNG-00004': ('Livorno', 'it'), 'LNG-00006': ('Świnoujście', 'pl'), 'LNG-00011': ('Hamina', 'fi'), 'LNG-00012': ('Barcelona', 'es'),
+             'LNG-00013': ('Bilbao', 'es'), 'LNG-00014': ('Agia Triada', 'gr'), 'LNG-00015': ('Cavarzere', 'it'), 'LNG-00016': ('Musel', 'es'),
+             'LNG-00017': ('Zeebrugge', 'be'), 'LNG-00018': ('Huelva', 'es'), 'LNG-00019': ('Panigaglia', 'it'), 'LNG-00021': ('Mugardos', 'es'),
+             'LNG-00022': ('Kartagena', 'es'), 'LNG-00023': ('Sagunto', 'es'), 'LNG-00024': ('Montoir-de-Bretagne', 'fr'), 'LNG-00026': ('Sines', 'pt'),
+             'LNG-00027': ('Gate (Rotterdam)', 'nl'), 'LNG-00029': ('Fos-sur-Mer', 'fr'), 'LNG-00030': ('Kłajpeda', 'lt'), 'LNG-00032': ('Krk', 'hr'),
+             'LNG-00042': ('Amfitriti', 'gr'), 'LNG-00047': ('Dunkierka', 'fr'), 'LNG-00059': ('Sardynia', 'it'), 'LNG-00060': ('Brunsbüttel', 'de'),
+             'LNG-00066': ('Wilhelmshaven', 'de'), 'LNG-00068': ('Eemshaven', 'nl'), 'LNG-00069': ('Piombino', 'it'), 'LNG-00071': ('Le Havre', 'fr'),
+             'LNG-00072': ('Inkoo', 'fi'), 'LNG-00075': ('Baltic Energy Gate (Port)', 'de'), 'LNG-00078': ('Stade', 'de'),
+             'LNG-00079': ('Baltic Energy Gate', 'de'), 'LNG-00080': ('Wilhelmshaven', 'de'), 'LNG-00081': ('Pakrineeme', 'ee'),
+             'LNG-00082': ('Ravenna', 'it'), 'LNG-00083': ('Wilhelmshaven', 'de')}
+LNG_START = '2023-01-01'            # najstarsza doba historii (po 2022 — nowe terminale w Niemczech, Holandii i Włoszech zmieniają skalę)
+LNG_OKNO_DNI = 14                   # dób wstecz przeliczanych przy każdym pobraniu (poprawki: Provisional → Confirmed)
+LNG_WYKRES = 90                     # dób na wykresie
+LNG_CHUNK = 120                     # dób w jednym żądaniu historii
+LNG_BF_ODSTEP_MIN = 20              # min między żądaniami historii
+LNG_PUNKT_MAX = 1500.0              # GWh/d — największy punkt (Gate ok. 590); powyżej = błąd jednostki
+LNG_UE_MIN, LNG_UE_MAX = 300.0, 12000.0   # GWh/d — suma UE w dobie kompletnej (w historii 2 100 – 5 300)
+LNG_MIN_PKT = 8                     # najmniej punktów w dobie kompletnej
+LNG_PASMO_LAT, LNG_PASMO_DNI, LNG_PASMO_MIN = 3, 7, 20   # lata wstecz, ± dni, najmniej wartości (z co najmniej 2 lat)
+LNG_PASMO_P = (10, 50, 90)          # centyle pasma
+LNG_ZAP_PASMO_LAT, LNG_ZAP_MIES = 5, 26   # zapasy: lat do pasma, miesięcy w pliku
+LNG_SK_MIES = 19                    # import: okno pobrania (miesięcy wstecz od bieżącego); UE27 spóźnia się o 2–4 miesiące, a wiersz „rok wcześniej” musi być w odpowiedzi także tuż przed publikacją
+#                                     kolejnego miesiąca (z oknem 15 miesięcy pole rok znikało na ok. 10 dni w miesiącu); szereg hist i tak przycięty do 15 pozycji
+LNG_GWH_MLN_M3 = 10.7               # GWh w 1 mln m³ gazu (ciepło spalania ok. 38,5 MJ/m³ — przeliczenie przybliżone; UE27 lipiec 2026: 38,8 TJ/mln m³)
+LNG_ENTSOG = 'https://transparency.entsog.eu/api/v1/operationalData?indicator=Physical%20Flow&pointKey='
+LNG_ESTAT = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/'
+LNG_GEO = ('EU27_2020', 'DE', 'PL')
+LNG_LIMIT_S = {'dz': 45, 'skad': 25, 'zapasy': 25}
+LNG_MAKS_B = {'dz': 40_000_000, 'skad': 3_000_000, 'zapasy': 2_000_000}   # po rozpakowaniu (okno 14 dób ≈ 0,5 MB, 120 dób ≈ 4,6 MB)
+LNG_GZ_MAKS = 12_000_000            # B na łączu (120 dób ≈ 0,18 MB)
+LNG_BUDZET_S = 100
+LNG_CZESTO_MIN, LNG_RZADKO_MIN, LNG_ZALEGLE_H = 60, 360, 72
+LNG_SLOT_UTC = (21, 30)             # skad, zapasy: raz na dobę po tej godzinie (publikacja zbioru ok. 21:00 UTC)
+
+
+def _lng_d(s):
+    """'RRRR-MM-DD' → data; inaczej None."""
+    try:
+        return datetime.date.fromisoformat(s) if isinstance(s, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', s) else None
+    except ValueError:
+        return None
+
+
+def _lng_przes(ds, k):
+    """Dzień ds ('RRRR-MM-DD') przesunięty o k dni."""
+    return (datetime.date.fromisoformat(ds) + datetime.timedelta(days=k)).isoformat()
+
+
+def _lng_rok_wstecz(ds, k):
+    """Ten sam dzień kalendarzowy k lat wcześniej (29 lutego → 28 lutego)."""
+    d = datetime.date.fromisoformat(ds)
+    try:
+        return d.replace(year=d.year - k).isoformat()
+    except ValueError:
+        return d.replace(year=d.year - k, day=28).isoformat()
+
+
+def _lng_liczba(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _lng_wart(v):
+    """Wartość punktu w kWh/d (liczba albo tekst z liczbą) → GWh/d; pusta, ujemna, nie-liczba albo ponad LNG_PUNKT_MAX = None (nigdy 0)."""
+    if isinstance(v, str):
+        try:
+            v = float(v.strip())
+        except ValueError:
+            return None
+    if not _lng_liczba(v) or v < 0 or v / 1e6 > LNG_PUNKT_MAX:
+        return None
+    return v / 1e6
+
+
+def parse_lng_dz(j):
+    """Odpowiedź platformy (operationalData) → ({punkt: {doba: GWh/d}}, {licznik pominiętych wierszy}). Tylko punkty z LNG_PUNKTY, kierunek entry,
+    wskaźnik Physical Flow, doby (periodType day) zaczynające się o 04:00–07:00 (gaz: 06:00 czasu lokalnego operatora; Finlandia 05:00 CET), jednostka kWh/d. Wartości kilku operatorów tego samego punktu
+    w tej samej dobie są sumowane; powtórzony wiersz tego samego operatora — wygrywa nowszy lastUpdateDateTime (wiersz z liczbą wygrywa z pustym).
+    Odpowiedź bez operationalData (np. komunikat „No result found”) albo bez ani jednego wiersza punktu = błąd."""
+    if not isinstance(j, dict):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    rows = j.get('operationalData')
+    if not isinstance(rows, list):
+        raise RuntimeError('brak wierszy: ' + str(j.get('message') or 'nieznany kształt odpowiedzi')[:80])
+    pk = set(LNG_PUNKTY)
+    O, bad = {}, {}
+    for r in rows:
+        if not isinstance(r, dict) or r.get('pointKey') not in pk:
+            continue
+        if r.get('directionKey') != 'entry' or r.get('indicator') != 'Physical Flow' or r.get('periodType') != 'day':
+            continue
+        if r.get('unit') != 'kWh/d':
+            bad['jednostka'] = bad.get('jednostka', 0) + 1; continue
+        m = re.match(r'^(\d{4}-\d{2}-\d{2})T0[4-7]:00:00[+-]\d{2}:?\d{2}$', str(r.get('periodFrom') or ''))   # początek doby gazowej 06:00 (Finlandia: 06:00 EET = 05:00 CET)
+        if not m or _lng_d(m.group(1)) is None:
+            bad['okres'] = bad.get('okres', 0) + 1; continue
+        raw = r.get('value')
+        v = _lng_wart(raw)
+        if v is None and raw is not None and raw != '':
+            bad['wartosc'] = bad.get('wartosc', 0) + 1   # ujemna, nie-liczba albo ponad LNG_PUNKT_MAX (pusta wartość to zwykły brak publikacji)
+        key = (r['pointKey'], m.group(1), str(r.get('operatorKey') or '?'))
+        lu = str(r.get('lastUpdateDateTime') or '')
+        old = O.get(key)
+        if old is None or (v is not None and old[0] is None) or ((v is None) == (old[0] is None) and lu > old[1]):
+            O[key] = (v, lu)
+    if not O:
+        raise RuntimeError('brak wierszy punktów LNG w odpowiedzi')
+    P = {}
+    for (p, d, _op), (v, _lu) in O.items():
+        if v is not None:
+            P.setdefault(p, {})[d] = P.get(p, {}).get(d, 0.0) + v
+    return P, bad
+
+
+def lng_dni(P, od, do):
+    """Doby od..do (włącznie) z P (parse_lng_dz; dane muszą sięgać 3 doby przed od) → ({doba: suma UE GWh/d} tylko doby kompletne, {doba: Świnoujście},
+    {doba: {punkt: GWh/d}} tej samej doby). Doba kompletna: raportują wszystkie punkty, które miały wartość 2 i 3 doby wcześniej (punkt zastąpiony
+    przez LNG_ALIAS jest spełniony, gdy raportuje zastępujący), co najmniej LNG_MIN_PKT punktów, suma w [LNG_UE_MIN, LNG_UE_MAX]."""
+    a, b = _lng_d(od), _lng_d(do)
+    ue, pl, pt = {}, {}, {}
+    if a is None or b is None:
+        return ue, pl, pt
+    for i in range((b - a).days + 1):
+        ds = (a + datetime.timedelta(days=i)).isoformat()
+        rep = {p: dd[ds] for p, dd in P.items() if ds in dd}
+        if LNG_PL in rep:
+            pl[ds] = round(rep[LNG_PL], 1)
+        for glowny, zast in LNG_ALIAS.items():
+            if glowny in rep:
+                for z in zast:
+                    rep.pop(z, None)
+        d2, d3 = _lng_przes(ds, -2), _lng_przes(ds, -3)
+        ref = [p for p, dd in P.items() if d2 in dd and d3 in dd]
+        brak = [p for p in ref if p not in rep and not any(p in zast and g in rep for g, zast in LNG_ALIAS.items())]
+        if len(rep) >= LNG_MIN_PKT and not brak:
+            tot = sum(rep.values())
+            if LNG_UE_MIN <= tot <= LNG_UE_MAX:
+                ue[ds] = round(tot, 1); pt[ds] = rep
+    return ue, pl, pt
+
+
+def lng_term(rep):
+    """Punkty jednej doby {punkt: GWh/d} → [[nazwa, kraj, GWh/d]] malejąco, bez zer; punkty o tej samej nazwie (strefa Wilhelmshaven) scalone."""
+    S = {}
+    for p, v in rep.items():
+        n, c = LNG_NAZWY.get(p, (p, ''))
+        S[(n, c)] = S.get((n, c), 0.0) + v
+    return [[n, c, round(v, 1)] for (n, c), v in sorted(S.items(), key=lambda kv: (-kv[1], kv[0])) if round(v, 1) > 0]
+
+
+def lng_centyl(V, p):
+    """Centyl p (0–100) listy liczb, interpolacja liniowa; pusta lista = None."""
+    V = sorted(V)
+    if not V:
+        return None
+    k = (len(V) - 1) * p / 100.0
+    lo = int(math.floor(k)); hi = min(lo + 1, len(V) - 1)
+    return V[lo] + (V[hi] - V[lo]) * (k - lo)
+
+
+def lng_pasmo(H, dni):
+    """Pasmo sezonowe dla dób `dni`: [doba, 10. centyl, mediana, 90. centyl] z wartości H ({doba: GWh/d}) tego samego dnia kalendarzowego ± LNG_PASMO_DNI
+    w LNG_PASMO_LAT poprzednich latach; doba bez co najmniej LNG_PASMO_MIN wartości z co najmniej 2 lat — pominięta (nigdy zero)."""
+    out = []
+    for ds in dni:
+        V, lata = [], set()
+        for k in range(1, LNG_PASMO_LAT + 1):
+            c = _lng_rok_wstecz(ds, k)
+            for j in range(-LNG_PASMO_DNI, LNG_PASMO_DNI + 1):
+                v = H.get(_lng_przes(c, j))
+                if _lng_liczba(v):
+                    V.append(v); lata.add(k)
+        if len(V) >= LNG_PASMO_MIN and len(lata) >= 2:
+            out.append([ds] + [round(lng_centyl(V, p), 1) for p in LNG_PASMO_P])
+    return out
+
+
+def _lng_szereg(H, do, n):
+    """Ostatnie n dób kończące się w `do`: [[doba, wartość | None]] (doba bez wartości = None)."""
+    return [[_lng_przes(do, -i), H.get(_lng_przes(do, -i))] for i in range(n - 1, -1, -1)]
+
+
+def _lng_hist_z_pliku(h):
+    """Pole hist pliku ({od, pl, ue} — listy po kolei od doby od) → ({doba: Świnoujście}, {doba: UE}); zły kształt = puste słowniki."""
+    pl, ue = {}, {}
+    d0 = _lng_d(h.get('od')) if isinstance(h, dict) else None
+    if d0 is not None:
+        for nm, D in (('pl', pl), ('ue', ue)):
+            L = h.get(nm)
+            for i, v in enumerate(L if isinstance(L, list) else []):
+                if _lng_liczba(v) and v >= 0:
+                    D[(d0 + datetime.timedelta(days=i)).isoformat()] = round(float(v), 1)
+    return pl, ue
+
+
+def _lng_hist_do_pliku(pl, ue):
+    """({doba: Świnoujście}, {doba: UE}) → hist: ciągły szereg od najstarszej doby (None = brak)."""
+    dni = sorted(set(pl) | set(ue))
+    if not dni:
+        return None
+    a, b = _lng_d(dni[0]), _lng_d(dni[-1])
+    n = (b - a).days + 1
+    ds = [(a + datetime.timedelta(days=i)).isoformat() for i in range(n)]
+    return {'od': dni[0], 'pl': [pl.get(d) for d in ds], 'ue': [ue.get(d) for d in ds]}
+
+
+def lng_dz_czesc(pl, ue, term, bf, uw=None):
+    """Część dz z historii: dwa wykresy (ostatnie LNG_WYKRES dób każdy kończący się na swojej ostatniej dobie z wartością), pasmo (tylko przy
+    kompletnej historii), podział ostatniej pełnej doby UE na terminale, historia."""
+    if not pl and not ue:
+        raise RuntimeError('brak dób z wartościami')
+    out = {'u': 'GWh/d', 'przel': LNG_GWH_MLN_M3, 'asof': max(pl) if pl else max(ue)}
+    for nm, H in (('pl', pl), ('ue', ue)):
+        if not H:
+            continue
+        last = max(H)
+        e = {'asof': last, 'd': _lng_szereg(H, last, LNG_WYKRES)}
+        if bf.get('gotowe'):
+            pas = lng_pasmo(H, [x[0] for x in e['d']])
+            if pas:
+                e['pasmo'] = pas
+        out[nm] = e
+    if ue and term:
+        d = max(ue)
+        T = term.get(d)
+        if T:
+            out['term'] = {'d': d, 'r': T['r'], 'n': T['n']}   # r — terminale z dodatnią wysyłką, n — wszystkie punkty raportujące w tej dobie (także z zerem)
+    out['lat'] = LNG_PASMO_LAT; out['hist'] = _lng_hist_do_pliku(pl, ue); out['bf'] = {'od': bf.get('od'), 'gotowe': bool(bf.get('gotowe'))}
+    return out
+
+
+# ---- Eurostat: import wg pochodzenia i zapasy ----
+def _lng_ym(s):
+    return s if isinstance(s, str) and re.match(r'^\d{4}-(0[1-9]|1[0-2])$', s) else None
+
+
+def _lng_ym_przes(ym, k):
+    y, m = int(ym[:4]), int(ym[5:7])
+    t = y * 12 + (m - 1) + k
+    return f'{t // 12:04d}-{t % 12 + 1:02d}'
+
+
+def _lng_ym_od(now, k):
+    """Miesiąc `k` miesięcy przed miesiącem chwili now ('RRRR-MM')."""
+    return _lng_ym_przes(f'{now.year:04d}-{now.month:02d}', -k)
+
+
+def parse_lng_skad(j):
+    """Import LNG (G3200) wg kraju pochodzenia, TJ (GCV), UE27 i Polska → część skad. UE27: ostatni miesiąc z sumą (TOTAL), jego partnerzy > 0
+    malejąco, ten sam miesiąc rok wcześniej, szereg sum; Polska: ostatni miesiąc z sumą, udział NSP („nieokreślone”), najwięksi partnerzy.
+    Suma partnerów musi zgadzać się z sumą (±3%) — inaczej błąd (zmiana układu zbioru)."""
+    vals, ids, _fl = parse_jsonstat(j)
+    pos = {d: i for i, d in enumerate(ids)}
+    for d in ('siec', 'partner', 'unit', 'geo', 'time'):
+        if d not in pos:
+            raise RuntimeError(f'brak wymiaru {d}')
+    M = {}
+    for lab, v in vals.items():
+        if lab[pos['siec']] != 'G3200' or lab[pos['unit']] != 'TJ_GCV' or v < 0:
+            continue
+        g, p, t = lab[pos['geo']], lab[pos['partner']], lab[pos['time']]
+        if g in ('EU27_2020', 'PL') and _lng_ym(t):
+            M.setdefault(g, {}).setdefault(t, {})[p] = v
+    out = {'u': 'TJ (ciepło spalania)'}
+    for g, nm, lo, hi in (('EU27_2020', 'ue', 20000.0, 2000000.0), ('PL', 'pl', 100.0, 200000.0)):
+        mm = {t: pp for t, pp in M.get(g, {}).items() if 'TOTAL' in pp}
+        if not mm:
+            if g == 'EU27_2020':
+                raise RuntimeError('brak miesiąca z sumą UE27')
+            continue
+        t = max(mm)
+        pp = mm[t]
+        tot = pp['TOTAL']
+        if not lo <= tot <= hi:
+            raise RuntimeError(f'import {nm} {t}: suma {tot:.0f} TJ poza zakresem')
+        reszta = {p: v for p, v in pp.items() if p != 'TOTAL'}
+        if abs(sum(reszta.values()) - tot) > 0.03 * tot:
+            raise RuntimeError(f'import {nm} {t}: suma partnerów {sum(reszta.values()):.0f} ≠ suma {tot:.0f} TJ')
+        e = {'m': t, 'razem': round(tot, 1), 'k': [[p, round(v, 1)] for p, v in sorted(reszta.items(), key=lambda kv: (-kv[1], kv[0])) if v > 0][:40]}
+        if g == 'EU27_2020':
+            y = _lng_ym_przes(t, -12)
+            if y in mm:
+                yp = {p: v for p, v in mm[y].items() if p != 'TOTAL'}
+                e['rok'] = {'m': y, 'razem': round(mm[y]['TOTAL'], 1), 'k': [[p, round(v, 1)] for p, v in sorted(yp.items(), key=lambda kv: (-kv[1], kv[0])) if v > 0][:40]}
+        else:
+            e['nsp'] = round(reszta.get('NSP', 0.0), 1)
+        e['hist'] = [[m, round(mm[m]['TOTAL'], 1)] for m in sorted(mm)][-15:]
+        out[nm] = e
+    out['asof'] = out['ue']['m']
+    return out
+
+
+def parse_lng_zapasy(j):
+    """Zapasy gazu na koniec miesiąca (stan roboczy na terytorium kraju, STKCL_NAT) → część zapasy: {kraj: {m: ostatni miesiąc z TJ, d: [[miesiąc, TJ,
+    mln m³ | None]] (LNG_ZAP_MIES miesięcy), pasmo: [[miesiąc, najmniej, średnia, najwięcej]] z tego samego miesiąca w 5 poprzednich latach}}.
+    mln m³ tylko, gdy TJ / mln m³ mieści się w 30–45 (inaczej None — nie zgadujemy). Brak miesiąca = brak wiersza, nigdy 0."""
+    vals, ids, _fl = parse_jsonstat(j)
+    pos = {d: i for i, d in enumerate(ids)}
+    for d in ('stk_flow', 'unit', 'geo', 'time'):
+        if d not in pos:
+            raise RuntimeError(f'brak wymiaru {d}')
+    S = {}
+    for lab, v in vals.items():
+        if lab[pos['stk_flow']] != 'STKCL_NAT' or v < 0:
+            continue
+        g, u, t = lab[pos['geo']], lab[pos['unit']], lab[pos['time']]
+        if g in LNG_GEO and u in ('TJ_GCV', 'MIO_M3') and _lng_ym(t):
+            S.setdefault(g, {}).setdefault(t, {})[u] = v
+    k, gr = {}, {'EU27_2020': (100000.0, 5000000.0), 'DE': (20000.0, 1500000.0), 'PL': (5000.0, 500000.0)}
+    for g in LNG_GEO:
+        tj = {t: x['TJ_GCV'] for t, x in S.get(g, {}).items() if 'TJ_GCV' in x}
+        if not tj:
+            continue
+        m = max(tj)
+        if not gr[g][0] <= tj[m] <= gr[g][1]:
+            raise RuntimeError(f'zapasy {g} {m}: {tj[m]:.0f} TJ poza zakresem')
+
+        def m3(t):
+            x = S[g][t]
+            return round(x['MIO_M3'], 1) if 'MIO_M3' in x and 'TJ_GCV' in x and x['MIO_M3'] > 0 and 30 <= x['TJ_GCV'] / x['MIO_M3'] <= 45 else None
+        ms = sorted(tj)[-LNG_ZAP_MIES:]
+        e = {'m': m, 'd': [[t, round(tj[t], 1), m3(t)] for t in ms]}
+        pas = []
+        for t in ms:
+            B = [tj[_lng_ym_przes(t, -12 * i)] for i in range(1, LNG_ZAP_PASMO_LAT + 1) if _lng_ym_przes(t, -12 * i) in tj]
+            if len(B) >= 3:
+                pas.append([t, round(min(B), 1), round(sum(B) / len(B), 1), round(max(B), 1)])
+        if pas:
+            e['pasmo'] = pas
+        k[g] = e
+    if 'EU27_2020' not in k:
+        raise RuntimeError('brak zapasów UE27')
+    return {'u': 'TJ (ciepło spalania) i mln m³', 'asof': k['EU27_2020']['m'], 'lat': LNG_ZAP_PASMO_LAT, 'k': k}
+
+
+# ---- terminy publikacji (UTC) ----
+def _lng_oczek(now):
+    """(doba Świnoujścia, doba UE) oczekiwane w pliku w chwili now: Świnoujście publikuje wynik ok. 05:03–06:04 UTC następnego dnia, wszyscy operatorzy
+    UE do ok. 17:56 UTC (11.10.2026: lastUpdateDateTime Amber Grid 19:56 czasu polskiego); zapasy czasu 6 h 30 min i 18 h 30 min."""
+    pl = (now - datetime.timedelta(hours=6, minutes=30)).date() - datetime.timedelta(days=1)
+    ue = (now - datetime.timedelta(hours=18, minutes=30)).date() - datetime.timedelta(days=1)
+    return pl.isoformat(), ue.isoformat()
+
+
+def _lng_slot(now):
+    """Ostatnia chwila LNG_SLOT_UTC (21:30 UTC) nie późniejsza niż now."""
+    t = datetime.datetime(now.year, now.month, now.day, LNG_SLOT_UTC[0], LNG_SLOT_UTC[1], tzinfo=datetime.timezone.utc)
+    return t if t <= now else t - datetime.timedelta(days=1)
+
+
+def _lng_termin(asof, exp, h, m):
+    """Chwila publikacji pierwszej brakującej doby (po ostatniej dobie asof): asof + 2 dni o h:m UTC; brak asof — chwila publikacji doby oczekiwanej exp."""
+    d = _lng_d(asof) if isinstance(asof, str) else None
+    base = d + datetime.timedelta(days=1) if d else datetime.date.fromisoformat(exp)
+    return datetime.datetime(base.year, base.month, base.day, h, m, tzinfo=datetime.timezone.utc) + datetime.timedelta(days=1)
+
+
+def _lng_due(src, z, now, part):
+    """(czy pobrać źródło w tym przebiegu, czy pilnie). dz: pierwsze pobranie — co godzinę do skutku; oczekiwane doby jeszcze nie przyszły — co
+    LNG_CZESTO_MIN min (gdy brakująca doba jest spóźniona o ponad LNG_ZALEGLE_H h — co 6 h), pilnie; poza tym co LNG_RZADKO_MIN min (poprawki wstecz),
+    niepilnie. skad, zapasy: pierwsze pobranie pilnie, potem raz na dobę po 21:30 UTC; po błędzie najwcześniej po 60 min."""
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    if src == 'dz':
+        if at == float('inf'):
+            return tr >= 60, True
+        ep, eu = _lng_oczek(now)
+        pl = (part.get('pl') or {}).get('asof') if isinstance(part, dict) else None
+        ue = (part.get('ue') or {}).get('asof') if isinstance(part, dict) else None
+        brak = []
+        if str(pl or '') < ep:
+            brak.append(_lng_termin(pl, ep, 6, 30))
+        if str(ue or '') < eu:
+            brak.append(_lng_termin(ue, eu, 18, 30))
+        if brak:
+            return tr >= (LNG_CZESTO_MIN if (now - min(brak)).total_seconds() <= LNG_ZALEGLE_H * 3600 else 360), True
+        return at >= LNG_RZADKO_MIN and tr >= 60, False
+    if at == float('inf'):
+        return tr >= 60, True
+    t_at = _aw_t(z.get('at'))
+    return (t_at is None or t_at < _lng_slot(now)) and tr >= 60, False
+
+
+def _lng_next(src, part, now):
+    """Najbliższa spodziewana zmiana źródła (ISO, UTC); termin w przeszłości = zaległa. dz: pierwsza brakująca doba (Świnoujście 06:30, UE 18:30 UTC
+    następnego dnia po niej), gdy nic nie brakuje — jutro 06:30."""
+    if src == 'dz':
+        ep, eu = _lng_oczek(now)
+        pl = (part.get('pl') or {}).get('asof') if isinstance(part, dict) else None
+        ue = (part.get('ue') or {}).get('asof') if isinstance(part, dict) else None
+        brak = []
+        if str(pl or '') < ep:
+            brak.append(_lng_termin(pl, ep, 6, 30))
+        if str(ue or '') < eu:
+            brak.append(_lng_termin(ue, eu, 18, 30))
+        if brak:
+            return min(brak).isoformat()
+        t = datetime.datetime(now.year, now.month, now.day, 6, 30, tzinfo=datetime.timezone.utc)
+        return (t if t > now else t + datetime.timedelta(days=1)).isoformat()
+    return (_lng_slot(now) + datetime.timedelta(days=1)).isoformat()
+
+
+# ---- pobrania ----
+def _lng_pobierz(url, timeout, maks=None):
+    """GET z nagłówkami zbieracza i Accept-Encoding: gzip → bajty po rozpakowaniu (limit LNG_GZ_MAKS na łączu i maks po rozpakowaniu). Czytanie
+    kawałkami z terminem (limit czasu całego pobierania, nie tylko pojedynczego odczytu)."""
+    kon = time.monotonic() + timeout
+    buf = bytearray()
+    with _otworz(url, {'Accept-Encoding': 'gzip', 'Accept': 'application/json'}, timeout) as r:
+        while chunk := r.read(1 << 16):
+            buf += chunk
+            if len(buf) > LNG_GZ_MAKS:
+                raise RuntimeError('odpowiedź większa niż limit')
+            if time.monotonic() > kon:
+                raise TimeoutError('limit czasu pobierania')
+    return rwa_gunzip(bytes(buf), maks or LNG_MAKS_B['dz'])
+
+
+def _lng_get(ctx, src, url):
+    """Jedno zapytanie z limitem źródła, nie dłuższym niż reszta budżetu budowniczego (reszta < 5 s = błąd; ponowienie później)."""
+    lim = LNG_LIMIT_S[src]
+    if ctx.get('t0') is not None and ctx.get('budzet') is not None:
+        left = ctx['budzet'] - (time.monotonic() - ctx['t0'])
+        if left < 5:
+            raise RuntimeError('budżet czasu budowniczego wyczerpany')
+        lim = min(lim, round(left, 1))
+    maks = LNG_MAKS_B[src]
+    b = ctx['fetch'](url, lim, maks)
+    if len(b) > maks:
+        raise RuntimeError(f'odpowiedź większa niż {maks} B (limit)')
+    return b
+
+
+def _lng_dz_url(od, do):
+    return f"{LNG_ENTSOG}{','.join(LNG_PUNKTY)}&from={od}&to={do}&periodType=day&timezone=CET&limit=-1&directionKey=entry"
+
+
+def _lng_dz_okno(ctx, od, do):
+    """Pobranie [od − 3 doby, do] i przeliczenie dób od..do → (UE, Świnoujście, punkty doby, {licznik pominiętych})."""
+    P, bad = parse_lng_dz(json.loads(_lng_get(ctx, 'dz', _lng_dz_url(_lng_przes(od, -3), do))))
+    ue, pl, pt = lng_dni(P, od, do)
+    return ue, pl, pt, P, bad
+
+
+def _lng_bf_krok(ctx, H_pl, H_ue, st):
+    """Jedno żądanie historii wstecz: [max(LNG_START, od − LNG_CHUNK), od − 1], gdzie od = najstarsza dotąd pobrana doba. Zwraca True, gdy zapisano."""
+    bf = st.setdefault('bf', {})
+    od = bf.get('od')
+    if bf.get('gotowe') or not _lng_d(od):
+        return False
+    a = max(LNG_START, _lng_przes(od, -LNG_CHUNK))
+    b = _lng_przes(od, -1)
+    ue, pl, _pt, _P, bad = _lng_dz_okno(ctx, a, b)
+    H_ue.update(ue); H_pl.update(pl)
+    bf['od'] = a
+    if a <= LNG_START:
+        bf['gotowe'] = True
+    if bad:
+        ctx['uwagi'].append('dz historia: pominięte wiersze ' + ', '.join(f'{k} {v}' for k, v in sorted(bad.items())))
+    return True
+
+
+def _lng_pobierz_dz(ctx):
+    now = ctx['now']
+    prev = ctx['prev'].get('dz') if isinstance(ctx['prev'].get('dz'), dict) else {}
+    H_pl, H_ue = _lng_hist_z_pliku(prev.get('hist'))
+    ep, _eu = _lng_oczek(now)
+    od = _lng_przes(ep, -(LNG_OKNO_DNI - 1))
+    ue, pl, pt, P, bad = _lng_dz_okno(ctx, od, ep)
+    if not ue and not pl:
+        raise RuntimeError('brak dób z wartościami w oknie')
+    H_ue.update(ue); H_pl.update(pl)
+    if bad:
+        ctx['uwagi'].append('dz: pominięte wiersze ' + ', '.join(f'{k} {v}' for k, v in sorted(bad.items())))
+    bf = ctx['st'].setdefault('bf', {})
+    if not _lng_d(bf.get('od')) and not bf.get('gotowe'):
+        bf['od'] = od   # start historii: najstarsza doba pierwszego okna
+    term = {d: {'r': lng_term(pt[d]), 'n': len(pt[d])} for d in pt if ue.get(d) is not None}
+    if not term and isinstance(prev.get('term'), dict):
+        term = {prev['term']['d']: {'r': prev['term']['r'], 'n': prev['term'].get('n', len(prev['term']['r']))}}
+    ctx['dz_hist'] = (H_pl, H_ue, term)
+    part = lng_dz_czesc(H_pl, H_ue, term, bf)
+    ctx['parts']['dz'] = part
+    return part['asof']
+
+
+def _lng_pobierz_skad(ctx):
+    now = ctx['now']
+    url = f"{LNG_ESTAT}nrg_ti_gasm?format=JSON&lang=EN&geo=EU27_2020&geo=PL&siec=G3200&unit=TJ_GCV&sinceTimePeriod={_lng_ym_od(now, LNG_SK_MIES)}"
+    part = parse_lng_skad(json.loads(_lng_get(ctx, 'skad', url)))
+    ctx['parts']['skad'] = part
+    return part['asof']
+
+
+def _lng_pobierz_zapasy(ctx):
+    url = (f"{LNG_ESTAT}nrg_stk_gasm?format=JSON&lang=EN&geo=EU27_2020&geo=DE&geo=PL&siec=G3000&stk_flow=STKCL_NAT&unit=TJ_GCV&unit=MIO_M3"
+           f"&sinceTimePeriod={_lng_ym_od(ctx['now'], LNG_ZAP_MIES + 12 * LNG_ZAP_PASMO_LAT + 3)}")
+    part = parse_lng_zapasy(json.loads(_lng_get(ctx, 'zapasy', url)))
+    ctx['parts']['zapasy'] = part
+    return part['asof']
+
+
+LNG_POBIERZ = {'dz': _lng_pobierz_dz, 'skad': _lng_pobierz_skad, 'zapasy': _lng_pobierz_zapasy}
+
+
+def build_lng(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
+    """v340: data/lng.json. Każde źródło z własną bramką (_lng_due) i budżetem czasu; źródło z błędem — poprzednia część z datą (ok False, krótki
+    zamaskowany błąd err); część bez próby — 'cached' (z danymi) albo False (jeszcze nie pobrana). Plik innej wersji = start od zera. Historia
+    (dz) dobierana wstecz po jednym żądaniu w przebiegu (najwyżej co LNG_BF_ODSTEP_MIN min, nie w długim przebiegu); jej błąd to notatka, nie błąd części."""
+    now = now or _now_utc()
+    now_iso = now.replace(microsecond=0).isoformat()
+    prev = prev if isinstance(prev, dict) and prev.get('v') == LNG_V else {}
+    st = json.loads(json.dumps(prev.get('st'))) if isinstance(prev.get('st'), dict) else {}
+    ctx = {'now': now, 'bledy': [], 'uwagi': [], 'parts': {}, 'prev': prev, 'st': st, 't0': time.monotonic(),
+           'budzet': LNG_BUDZET_S if budzet_s is None else budzet_s,
+           'fetch': fetch or (lambda url, timeout, maks=None: _lng_pobierz(url, timeout, maks))}
+    late = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
+    proby, zle, pominiete = {p: 0 for p in LNG_PARTS}, {}, []
+    for src in LNG_PARTS:
+        z = st.setdefault(src, {})
+        due, pilne = _lng_due(src, z, now, prev.get(src))
+        if not due:
+            continue
+        if late and not pilne:
+            pominiete.append(f'{src} (długi przebieg)'); continue
+        if time.monotonic() - ctx['t0'] + LNG_LIMIT_S[src] > ctx['budzet']:
+            pominiete.append(f'{src} (budżet czasu)'); continue
+        z['try'] = now_iso
+        proby[src] += 1
+        try:
+            asof = LNG_POBIERZ[src](ctx)
+        except Exception as e:
+            msg = mask(f'{src}: {e}')[:160]
+            z['err'] = msg; zle.setdefault(src, []).append(msg)
+            continue
+        z['at'] = now_iso; z['asof'] = asof; z.pop('err', None)
+    # historia wstecz (po oknie bieżącym; tylko gdy jest od czego zacząć)
+    bf = st.setdefault('bf', {})
+    wstecz = ctx.get('dz_hist')
+    dz_prev = prev.get('dz') if isinstance(prev.get('dz'), dict) else None
+    if (dz_prev or wstecz) and not bf.get('gotowe') and _lng_d(bf.get('od')) and not late and not zle.get('dz') \
+            and _su_min(now, bf.get('try')) >= LNG_BF_ODSTEP_MIN and time.monotonic() - ctx['t0'] + LNG_LIMIT_S['dz'] + 5 <= ctx['budzet']:
+        if wstecz:
+            H_pl, H_ue, term = wstecz
+        else:
+            H_pl, H_ue = _lng_hist_z_pliku(dz_prev.get('hist'))
+            term = ({dz_prev['term']['d']: {'r': dz_prev['term']['r'], 'n': dz_prev['term'].get('n', len(dz_prev['term']['r']))}}
+                    if isinstance(dz_prev.get('term'), dict) else {})
+        bf['try'] = now_iso
+        try:
+            if _lng_bf_krok(ctx, H_pl, H_ue, st):
+                ctx['parts']['dz'] = lng_dz_czesc(H_pl, H_ue, term, bf)
+        except Exception as e:
+            ctx['uwagi'].append(mask(f'dz historia od {bf.get("od")}: {e}')[:160])
+    out = {'v': LNG_V, 'at': None, 'src': 'CapitalFlowAI — gaz i LNG (kody źródeł z: dz, skad, zapasy — pełne nazwy na stronie Źródła)'}
+    pat = dict(prev.get('part_at') or {}) if isinstance(prev.get('part_at'), dict) else {}
+    perr = dict(prev.get('err') or {}) if isinstance(prev.get('err'), dict) else {}
+    ok = {}
+    for p in LNG_PARTS:
+        if p in ctx['parts']:
+            out[p] = ctx['parts'][p]
+            if proby[p]:
+                pat[p] = now_iso
+        elif isinstance(prev.get(p), dict):
+            out[p] = prev[p]
+        if zle.get(p):
+            ok[p] = False; perr[p] = '; '.join(zle[p])[:240]
+        elif proby[p]:
+            ok[p] = True; perr.pop(p, None)
+        else:
+            ok[p] = False if (perr.get(p) or not isinstance(out.get(p), dict)) else 'cached'   # błąd ostatniej próby zostaje widoczny do udanego pobrania
+            if not isinstance(out.get(p), dict) and p not in perr:
+                perr[p] = 'brak danych (źródło jeszcze nie pobrane)'
+    out['part_at'] = {p: pat[p] for p in LNG_PARTS if pat.get(p) and isinstance(out.get(p), dict)}
+    out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
+    out.update({'ok': ok, 'err': {p: perr[p] for p in LNG_PARTS if perr.get(p)},
+                'next': {p: _lng_next(p, out.get(p), now) for p in LNG_PARTS}, 'st': st})
+    for x in ctx['uwagi']:
+        META['notes'].append(mask('gaz i LNG: ' + x)[:200])
+    for p in LNG_PARTS:
+        for x in zle.get(p, []):
+            META['errors'].append(mask('surowce (gaz i LNG) ' + x)[:200])
+    if pominiete:
+        META['notes'].append('gaz i LNG: pominięte w tym przebiegu — ' + ', '.join(pominiete))
+    return out
+
+
 # ===================== v305: SZLAKI HANDLOWE I ŁAŃCUCHY DOSTAW — data/szlaki.json (dział SUROWCE, etapy 4 i 9 — część) =====================
 # Osobny plik i osobny budowniczy (surowce.json bez zmian). Trzy części, każda z part_at / ok / next / err jak w surowce.json:
 #   cies   — ruch statków przez 8 cieśnin i kanałów (Ormuz, Bab el-Mandeb, Kanał Sueski, Bosfor, Kanał Panamski, Malakka, Gibraltar, Przylądek
@@ -27421,6 +28044,20 @@ def main():
             msg = str(e)
             META['errors'].append(mask(msg if msg.startswith('Coin Metrics') else f'Coin Metrics: {msg}')); META['ok']['cm'] = False
             if prev_cm: save('cm', _cm_kept(prev_cm, e)); print('Coin Metrics zawiódł — zachowano poprzedni cm.json z', prev_cm.get('at'))   # v124: po nieudanej próbie pełnego pobrania z bf_fail (granica 6 h)
+    # v340: GAZ I LNG (data/lng.json; dział SUROWCE, blok „Gaz i LNG”; F5Z1) — dobowa wysyłka gazu z terminali LNG (Świnoujście i UE razem), import LNG
+    # do UE wg pochodzenia i zapasy gazu w magazynach (miesięcznie, urzędowa statystyka UE); części z własnymi bramkami wg terminów publikacji i budżetem
+    # czasu (historia od 2023 r. dobierana wstecz po jednym żądaniu w przebiegu, nie w długim przebiegu); awaria budowniczego = poprzedni plik.
+    # META ok: lng_dz, lng_skad, lng_zapasy.
+    prev_lng = previous('lng')
+    try:
+        lg = build_lng(prev_lng, run_t0=_RUN_T0[0])
+        save('lng', lg)
+        for p in LNG_PARTS:
+            META['ok']['lng_' + p] = lg['ok'][p]
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'surowce (gaz i LNG): {e}')[:200]); META['ok']['lng'] = False
+        if prev_lng:
+            save('lng', prev_lng)
     # MFW — rezerwy walutowe (International Liquidity, bez klucza): dane miesięczne, najwyżej raz na dobę; przy awarii poprzedni plik
     prev_res = previous('rezerwy')
     if prev_res and fresh(prev_res, 24 * 60):
