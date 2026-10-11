@@ -5893,7 +5893,11 @@ def _etf_coin(out, s, key, prev_day=None, prev_a=None):
 # State Street (SPDR: pełna historia NAV i liczby jednostek w pliku xlsx) i iShares (BlackRock: zestawienie 525 funduszy z NAV
 # i aktywami z datą — aktywa / NAV = liczba jednostek; pełna historia funduszu tylko do uzupełnienia wstecz). Bez klucza.
 # Wynik: data/fundusze.json (historia do obliczeń; strona go nie czyta — liczby trafiają do TRENDÓW).
-FUND_SSGA_URL = 'https://www.ssga.com/us/en/intermediary/library-content/products/fund-data/etfs/us/navhist-us-en-{t}.xlsx'
+FUND_SSGA_URL = 'https://www.ssga.com/library-content/products/fund-data/etfs/us/navhist-us-en-{t}.xlsx'
+# v342 (F1Z2): nowa ścieżka plików State Street. Dawna (/us/en/intermediary/…) odpowiada przekierowaniem 301 na tę (zwiad 10.10.2026; sonda z serwera
+# GitHub v324p 10.10.2026 19:43 UTC: nowa ścieżka HTTP 206, stara HTTP 206 przez przekierowanie). Nowa ścieżka 404/410 (plik przeniesiony z powrotem)
+# = jedna próba starej (_fund_ssga_bytes); 403 i inne błędy — bez drugiej próby (blokada to koniec tej drogi).
+FUND_SSGA_URL_STARA = 'https://www.ssga.com/us/en/intermediary/library-content/products/fund-data/etfs/us/navhist-us-en-{t}.xlsx'
 FUND_ISH_SCR = ('https://www.ishares.com/us/product-screener/product-screener-v3.1.jsn?dcrPath=/templatedata/config/product-screener-v3/'
                 'data/en/us-ishares/ishares-product-screener-backend-config&siteEntryPassthrough=true')
 FUND_ISH_DOC = ('https://www.blackrock.com/varnish-api/blk-one01-product-data/product-data/api/v1/get-fund-document?appType=PRODUCT_PAGE'
@@ -5913,6 +5917,91 @@ FUND_SLEEP = 1.0
 FUND_BUDGET = 240       # v94: s — cały krok funduszy; po nim reszta w kolejnym przebiegu (automat strony ma limit 15 min)
 FUND_RETRY = 60         # v94: min — przerwa po błędzie pliku State Street
 FUND_BF_RETRY = 360     # v94: min — przerwa po błędzie pełnego pliku iShares
+# v342 (F1Z2): fundusze ETF — rozszerzenie (plan źródeł F1Z2). Te same pliki wydawców i te same parsery: 5 funduszy State Street (materiały,
+# nieruchomości, komunikacja — komplet 11 sektorów S&P 500 — oraz Dow Jones i ropa i gaz) i 52 fundusze iShares z odpowiedzi zestawienia, które
+# zbieracz już pobiera (kraje i regiony mapy GLOBAL, Polska — EPOL, style, świat, tematy, gotówka i obligacje). Część 'f' pliku fundusze (ta sama
+# postać wpisu: iss, at, h, pid …); listy FUND_SSGA i FUND_ISH (przepływy GLOBAL i TRENDÓW, ceny mapy IX_ETF, plik dzienny świata) bez zmian —
+# nowe szeregi w TRENDACH wymagają rejestracji reguł przed kodem (osobne zadanie). Odświeżanie: build_fundusze_x (po build_fundusze, ten sam
+# przebieg), strona: build_fundusze_przeplywy → data/fundusze-przeplywy.json (bez sieci).
+FUND_SSGA_X = ('XLB', 'XLRE', 'XLC', 'DIA', 'XOP')
+FUND_ISH_X = ('EWC', 'ILF', 'EWU', 'EWL', 'EWP', 'EWS', 'EWW', 'EWG', 'EWA', 'EWH', 'EWI', 'EWD', 'EWN', 'EPOL', 'ECH', 'EIDO', 'THD', 'EWM',
+              'EPHE', 'KSA', 'UAE', 'QAT', 'KWT', 'TUR', 'EIS', 'EZA', 'IWM', 'IJR', 'IJH', 'IWF', 'IWD', 'ITOT', 'IXUS', 'ACWI', 'IEUR', 'AIA',
+              'AAXJ', 'EMXC', 'SOXX', 'IGV', 'IBB', 'ITA', 'IYW', 'IYF', 'IYH', 'SGOV', 'SHV', 'MBB', 'GOVT', 'MUB', 'IUSB', 'IGSB')
+FUND_X_PUB_H = 6         # godz. UTC: pliki State Street publikowane w dni robocze (data zmiany 04:53–04:56 UTC, 09.10.2026; dane do poprzedniej sesji)
+FUND_X_PONOW = 180       # min — plik pobrany po publikacji, a bez oczekiwanej sesji (spóźniona publikacja): ponowienie co tyle, do 18:00 UTC
+FUND_X_PONOW_DO = 18     # godz. UTC — koniec okna ponowień plików State Street (dni robocze od FUND_X_PUB_H); po błędzie innym niż blokada — też
+FUND_X_OKNO = (3, 13)    # godz. UTC — pełne pliki iShares rozszerzenia (1–28 MB) tylko w tym oknie: po wieczornej publikacji NAV w Nowym Jorku,
+                         # przed otwarciem następnej sesji (zestawienie z nowym dniem: 00:02–12:03 UTC, 05–09.10.2026)
+FUND_X_BF = 2            # pełnych plików iShares rozszerzenia na przebieg (po funduszach GLOBAL — te mają własny limit FUND_BACKFILL)
+FUND_X_BF_DOBA = 20 * 60  # min — jeden fundusz: pełny plik najwyżej raz na dobę (także po luce albo złym wierszu)
+FUND_X_BUDGET = 60       # s — cały krok rozszerzenia (pliki State Street + pełne pliki iShares); reszta w kolejnym przebiegu
+FUND_SSGA_MAKS = 3 * 2 ** 20    # B — plik State Street (115–270 KB; zapas ×10) — dłuższa odpowiedź = błąd, czytanie przerwane
+FUND_ISH_MAKS = 40 * 2 ** 20    # B — pełny plik iShares (do 28 MB z listą spółek)
+
+
+def _fund_ssga_bytes(t, pobierz):
+    """v342 (F1Z2): plik State Street funduszu t — nowa ścieżka (FUND_SSGA_URL); 404 albo 410 (plik pod inną ścieżką) = jedna próba dawnej
+    (FUND_SSGA_URL_STARA). pobierz(adres) → bajty (zbieracz: get_bytes / get_bytes_maks; plik dzienny świata: _wd_req)."""
+    try:
+        return pobierz(FUND_SSGA_URL.format(t=t.lower()))
+    except urllib.error.HTTPError as e:
+        if e.code not in (404, 410):
+            raise
+    return pobierz(FUND_SSGA_URL_STARA.format(t=t.lower()))
+
+
+def _fund_x_get(url, timeout, maks):
+    """v342: zapytanie kroku rozszerzenia — z limitem rozmiaru odpowiedzi (get_bytes_maks: czytanie przerwane po maks + 1 B)."""
+    return get_bytes_maks(url, timeout=timeout, maks=maks)
+
+
+def _fund_x_dt(s):
+    try:
+        t = datetime.datetime.fromisoformat(str(s))
+    except (TypeError, ValueError):
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)
+
+
+def _fund_sesja_przed(day):
+    """v342: ostatnia sesja NYSE przed dniem `day` (data) — dni robocze bez TD_NYSE_CLOSED (po 2027 — same dni robocze)."""
+    d = day - datetime.timedelta(days=1)
+    while d.weekday() >= 5 or d.isoformat() in TD_NYSE_CLOSED:
+        d -= datetime.timedelta(days=1)
+    return d.isoformat()
+
+
+def _fund_x_pub(now):
+    """v342: ostatnia chwila publikacji plików State Street ≤ now (dni robocze, FUND_X_PUB_H:00 UTC)."""
+    c = now.replace(hour=FUND_X_PUB_H, minute=0, second=0, microsecond=0)
+    if c > now:
+        c -= datetime.timedelta(days=1)
+    while c.weekday() >= 5:
+        c -= datetime.timedelta(days=1)
+    return c
+
+
+def _fund_x_ssga_pora(p, now):
+    """v342: czy pobrać plik State Street funduszu rozszerzenia (bramka publikacji — plik najwyżej raz po każdej publikacji, nie co 6 h).
+    Okno ponowień: dni robocze FUND_X_PUB_H:00–FUND_X_PONOW_DO:00 UTC (w weekend i nocą bez zapytań — nowego pliku i tak nie ma).
+    Bez danych (pierwszy raz) — tak. Po błędzie: najwcześniej po FUND_RETRY min; blokada (HTTP 403, 429 — err_kod) = koniec tej drogi do następnej
+    publikacji (jedna próba po niej); inny błąd — ponowienie tylko w oknie ponowień. Plik pobrany przed ostatnią publikacją — tak; pobrany po niej,
+    a bez oczekiwanej sesji (ostatnia sesja NYSE przed dniem tej publikacji — w weekend: czwartek, bo piątek przychodzi w poniedziałek; publikacja
+    spóźniona) — ponowienie co FUND_X_PONOW min, tylko w oknie ponowień (recenzja v342: także po 18:00 UTC i w weekend bez zapytań)."""
+    pub = _fund_x_pub(now)
+    okno = now.weekday() < 5 and FUND_X_PUB_H <= now.hour < FUND_X_PONOW_DO
+    e = _fund_x_dt(p.get('err_at')) if p.get('err_at') else None
+    if e is not None:
+        if (now - e).total_seconds() < FUND_RETRY * 60:
+            return False
+        if p.get('err_kod') in (403, 429):
+            return e < pub
+        return okno or e < pub
+    h, at = p.get('h') or [], _fund_x_dt(p.get('at'))
+    if at is None or at < pub:
+        return True
+    last = h[-1][0] if h and isinstance(h[-1], list) and h[-1] and isinstance(h[-1][0], str) else ''
+    return okno and last < _fund_sesja_przed(pub.date()) and (now - at).total_seconds() >= FUND_X_PONOW * 60
 
 
 def _fund_num(x):
@@ -6125,7 +6214,7 @@ def build_fundusze(prev=None):
             continue
         time.sleep(FUND_SLEEP)
         try:
-            h = parse_ssga_navhist(get_bytes(FUND_SSGA_URL.format(t=t.lower()), timeout=30), t)
+            h = parse_ssga_navhist(_fund_ssga_bytes(t, lambda u: get_bytes(u, timeout=30)), t)   # v342 (F1Z2): nowa ścieżka, zapas — stara
             out['f'][t] = {'iss': 'ssga', 'at': NOW, 'h': _fund_merge(p.get('h'), h)}
             bad = _fund_clean(out['f'][t]['h'])[1]   # v217/v221: wykryte; w historii zostają (zły wiersz przerywa łańcuch: przepływy i zwroty tych dni = brak)
             _fund_notatka(t, out['f'][t]['h'], bad)   # v223: notatka tylko o świeżych
@@ -6137,7 +6226,7 @@ def build_fundusze(prev=None):
     if due(prev.get('scr_at'), FUND_SCR_EVERY) and left():
         try:
             scr = parse_ishares_screener(json.loads(get_bytes(FUND_ISH_SCR, timeout=45).decode('utf-8-sig', 'replace')),
-                                         FUND_ISH + FUND_ISH_SU)   # v309: + fundusze surowcowe z tej samej odpowiedzi (bez zapytania)
+                                         FUND_ISH + FUND_ISH_SU + FUND_ISH_X)   # v309: + fundusze surowcowe z tej samej odpowiedzi (bez zapytania); v342: + rozszerzenie (scr_x)
             out['scr_at'] = NOW
             n_ish = sum(1 for t in scr if t in FUND_ISH)   # v309: ocena jak dotąd — tylko fundusze FUND_ISH (surowcowe jej nie zmieniają)
             if n_ish < len(FUND_ISH) // 2:
@@ -6205,6 +6294,13 @@ def build_fundusze(prev=None):
             out['su' if t in FUND_ISH_SU else 'f'][t] = p
     if not any(f.get('h') for f in out['f'].values()):
         raise RuntimeError('żaden fundusz nie odpowiedział' + (f' ({errs[0]})' if errs else ''))
+    # v342 (F1Z2): fundusze rozszerzenia (FUND_SSGA_X, FUND_ISH_X) — przeniesione bez zmian (odświeża je build_fundusze_x w tym samym
+    # przebiegu); ich dni z zestawienia iShares — część scr_x (ta sama odpowiedź, bez zapytania; bez nowego zestawienia — poprzednia)
+    for t in FUND_SSGA_X + FUND_ISH_X:
+        if isinstance(pf.get(t), dict):
+            out['f'][t] = pf[t]
+    out['scr_x'] = ({t: list(scr[t]) for t in FUND_ISH_X if t in scr} if scr
+                    else (prev.get('scr_x') if isinstance(prev.get('scr_x'), dict) else {}))
     if not left():   # v312 (recenzja v309): limit przekroczony dopiero przy funduszach surowcowych (pełne pliki po funduszach GLOBAL) — uwaga funduszy
         # surowcowych, nie licznik problemów funduszy GLOBAL (ich szósta pozycja zmieniłaby uwagę „fundusze ETF” w błąd, choć fundusze GLOBAL były gotowe)
         (errs_su if czas_glob else errs).append(f'limit czasu kroku funduszy ({FUND_BUDGET} s) — reszta w kolejnym przebiegu')
@@ -6212,6 +6308,194 @@ def build_fundusze(prev=None):
         (META['errors'] if len(errs) > 5 else META['notes']).append(mask(f'fundusze ETF: {len(errs)} problemów, np. {errs[0]}'))
     if errs_su:   # v309: fundusze surowcowe (reguły „w cieniu” TRENDÓW) — tylko uwaga; poprzednie dane zostają w części 'su'
         META['notes'].append(mask(f'fundusze surowcowe (TRENDY, reguły w cieniu): {len(errs_su)} problemów, np. {errs_su[0]}')[:300])
+    return out
+
+
+def _fund_x_luka(h, d, spy):
+    """v342: jak gap() w build_fundusze — czy między ostatnim dniem historii a dniem d brakuje sesji (według SPY, bez niego — dni robocze bez świąt NYSE)."""
+    if not h:
+        return False
+    L = h[-1][0]
+    if spy and spy[-1] >= d:
+        return any(L < c < d for c in spy)
+    return _bdays(_d(L), _d(d), TD_NYSE_CLOSED) > 1
+
+
+def build_fundusze_x(fu, run_t0=None, pobierz=None, now=None):
+    """v342 (F1Z2): fundusze rozszerzenia w części 'f' pliku fundusze (wpis jak w build_fundusze: iss, at, h [, pid, bf_*]) → nowy słownik pliku.
+    fu — plik zapisany w tym przebiegu (build_fundusze przenosi wpisy rozszerzenia bez zmian i zapisuje dni z zestawienia iShares w 'scr_x').
+    State Street (FUND_SSGA_X): plik najwyżej raz po każdej publikacji (_fund_x_ssga_pora), nowa ścieżka z zapasem starej, limit rozmiaru;
+    iShares (FUND_ISH_X): dzień z zestawienia (bez zapytania) dopisany tylko bez luki w sesjach; pełny plik (krótka historia, luka, świeży zły
+    wiersz) najwyżej FUND_X_BF na przebieg, tylko w oknie FUND_X_OKNO, najwyżej raz na dobę na fundusz, bez DOCTYPE/ENTITY; w długim przebiegu
+    (BACK_LATE) bez zapytań — same dni z zestawienia. Błąd pliku = poprzednie dane z datą (err_at / bf_err_at) i uwaga w meta (nie błąd części
+    fundusze — fundusze GLOBAL i TRENDÓW są gotowe); kontrola dzienna pilnuje, czy fundusze mają ostatnią sesję. Złe wiersze: _fund_clean (v217) —
+    zostają w historii, przepływ tego dnia = brak. Zegar: now (testy) albo _now_utc; pobierz(adres, limit_s, maks_B) — domyślnie _fund_x_get."""
+    fu = fu if isinstance(fu, dict) else {}
+    now = now or _now_utc()
+    stamp = now.replace(microsecond=0).isoformat()
+    pob = pobierz or _fund_x_get
+    out = dict(fu)
+    F = dict(fu.get('f')) if isinstance(fu.get('f'), dict) else {}
+    out['f'] = F
+    out['lista'] = {'ssga': list(FUND_SSGA + FUND_SSGA_X), 'ishares': list(FUND_ISH + FUND_ISH_X)}   # kontrola: oczekiwane fundusze wydawców
+    late = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
+    t0 = time.monotonic()
+    left = lambda: time.monotonic() - t0 < FUND_X_BUDGET   # noqa: E731
+    due = lambda at, minutes: not at or _fund_x_dt(at) is None or (now - _fund_x_dt(at)).total_seconds() >= minutes * 60   # noqa: E731
+    errs, nfetch = [], 0
+    for t in FUND_SSGA_X:
+        p = F.get(t) if isinstance(F.get(t), dict) else {}
+        if late or not left() or not _fund_x_ssga_pora(p, now):
+            continue
+        time.sleep(FUND_SLEEP); nfetch += 1
+        try:
+            h = parse_ssga_navhist(_fund_ssga_bytes(t, lambda u: pob(u, 30, FUND_SSGA_MAKS)), t)
+            F[t] = {'iss': 'ssga', 'at': stamp, 'h': _fund_merge(p.get('h'), h)}
+            _fund_notatka(t, F[t]['h'], _fund_clean(F[t]['h'])[1])
+        except Exception as e:
+            errs.append(f'{t}: {e}')
+            F[t] = dict(p, iss='ssga', err_at=stamp)
+            F[t].pop('err_kod', None)
+            if isinstance(getattr(e, 'code', None), int):
+                F[t]['err_kod'] = e.code   # 403/429 = blokada: następna próba dopiero po kolejnej publikacji (_fund_x_ssga_pora)
+    spy = [r[0] for r in ((F.get('SPY') or {}).get('h') or []) if isinstance(r, list) and r]
+    scr = fu.get('scr_x') if isinstance(fu.get('scr_x'), dict) else {}
+    okno = FUND_X_OKNO[0] <= now.hour < FUND_X_OKNO[1]
+    nbf = 0
+    for t in FUND_ISH_X:
+        p = dict(F[t]) if isinstance(F.get(t), dict) else {'iss': 'ishares'}
+        h = p.get('h') or []
+        s = scr.get(t) if isinstance(scr.get(t), list) and len(scr.get(t)) == 4 else None
+        pobrany = None
+        pid = (s or (p.get('pid'),))[0]
+        if pid:
+            p['pid'] = str(pid)
+        if s and _fund_x_luka(h, s[1], spy):
+            p['bf_need'] = True
+        need = (len(h) < FUND_MIN and not p.get('bf_done')) or p.get('bf_need')
+        if (need and pid and okno and not late and nbf < FUND_X_BF and due(p.get('bf_at'), FUND_X_BF_DOBA)
+                and due(p.get('bf_err_at'), FUND_BF_RETRY) and left()):
+            nbf += 1; nfetch += 1
+            time.sleep(FUND_SLEEP)
+            p['bf_at'] = stamp
+            try:
+                b = pob(FUND_ISH_DOC.format(pid=p['pid']), 90, FUND_ISH_MAKS)
+                if re.search(rb'<!(?:DOCTYPE|ENTITY)', b[:65536]):
+                    raise RuntimeError('plik XML z DOCTYPE/ENTITY — odrzucony')
+                full = parse_ishares_hist(b)
+                h = _fund_merge(h, full)
+                p['at'] = stamp; p.pop('bf_need', None); p.pop('bf_err_at', None)
+                pobrany = max((r[0] for r in full if isinstance(r, list) and r and isinstance(r[0], str)), default='')
+                if _fund_bf_zapisz(p, pobrany):
+                    p['bf_need'] = True; p['bf_err_at'] = stamp
+                if len(full) < FUND_MIN:
+                    p['bf_done'] = True
+            except Exception as e:
+                errs.append(f'{t} (historia): {e}'); p['bf_err_at'] = stamp
+                if getattr(e, 'code', None) in (403, 429):
+                    nbf = FUND_X_BF   # blokada — w tym przebiegu bez kolejnych pełnych plików (każdy fundusz i tak najwyżej raz na dobę)
+        if s:
+            _, d, nav, sh = s
+            last = h[-1] if h else None
+            if last and last[0] == d and abs(last[2] - sh) > max(1, 1e-4 * sh):
+                META['notes'].append(f'fundusze {t}: liczba jednostek z zestawienia ({sh}) ≠ z historii ({last[2]}) dla {d} — zostaje historia')
+            elif (not last or d > last[0]) and not _fund_x_luka(h, d, spy):
+                h = _fund_merge(h, [[d, nav, sh]])
+                p.pop('bf_need', None)
+        p['iss'] = 'ishares'
+        if h:
+            p['h'] = h
+            bad = _fund_clean(h)[1]
+            if bad:
+                _fund_notatka(t, h, bad)
+                if _fund_bf_odrz(p, bad):
+                    if pobrany is None:
+                        p['bf_need'] = True
+                    elif _fund_bf_zapisz(p, pobrany):
+                        p['bf_need'] = True; p['bf_err_at'] = p.get('bf_err_at') or stamp
+            F[t] = p
+    if errs:
+        META['notes'].append(mask(f'fundusze ETF (rozszerzenie, {len(FUND_SSGA_X) + len(FUND_ISH_X)} funduszy): {len(errs)} problemów, np. {errs[0]}')[:300])
+    if late and any(_fund_x_ssga_pora(F.get(t) if isinstance(F.get(t), dict) else {}, now) for t in FUND_SSGA_X):
+        META['notes'].append('fundusze ETF (rozszerzenie): długi przebieg — pliki State Street w kolejnym przebiegu')
+    print(f'fundusze ETF (rozszerzenie): zapytań {nfetch}, pełnych plików iShares {nbf}, funduszy z historią '
+          f'{sum(1 for t in FUND_SSGA_X + FUND_ISH_X if (F.get(t) or {}).get("h"))}/{len(FUND_SSGA_X) + len(FUND_ISH_X)}')
+    return out
+
+
+# v342 (F1Z2): plik strony data/fundusze-przeplywy.json — przepływy pieniędzy do funduszy ETF notowanych w USA na regiony mapy GLOBAL, które
+# dotąd miały tylko ceny (Kanada, Ameryka Łacińska poza Brazylią, Bliski Wschód, Afryka, Azja Płd.-Wsch., Australia), na Polskę (EPOL) i na
+# 11 sektorów S&P 500. Bez sieci — z pliku fundusze tego przebiegu. Przepływ dnia = zmiana liczby jednostek × NAV (fund_group: podziały, złe wiersze
+# pliku i luki jak w TRENDACH — skok bez wyjaśnienia = brak, nigdy zero). Okna: tydzień = FP_W sesji, miesiąc = FP_M sesji NYSE — suma tylko
+# z kompletu sesji (wartość obejmująca dzień przed oknem albo brak w oknie = brak okna; dzień bez wiersza w pliku liczy się jako sesja, więc
+# przepływ dwóch dni w jednej wartości w środku okna jest dokładny); słupki: ostatnie FP_S wartości.
+FP_SYMS = ('EWC', 'EWW', 'ECH', 'ILF', 'KSA', 'UAE', 'QAT', 'KWT', 'TUR', 'EIS', 'EZA', 'EWS', 'EIDO', 'THD', 'EWM', 'EPHE', 'EWA', 'EPOL',
+           'XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLY', 'XLP', 'XLU', 'XLB', 'XLRE', 'XLC')
+FP_W, FP_M = 5, 21
+FP_S = FP_M   # słupki strony = okno miesiąca
+
+
+def _fp_okno(vals, ns, d0, n):
+    """v342: suma ostatnich wartości obejmujących dokładnie n sesji → (suma, pierwsza sesja) albo (None, None): brak wartości w oknie,
+    za krótka historia albo wartość sięgająca przed okno (przepływ kilku dni bez podziału na dni)."""
+    s, k, i = 0.0, 0, len(vals) - 1
+    while i >= 0 and k < n:
+        if not _isnum(vals[i]):
+            return None, None
+        s += vals[i]; k += ns[i]; i -= 1
+    return (s, d0[i + 1]) if k == n else (None, None)
+
+
+def _fp_nast(d):
+    """v342: pierwsza sesja NYSE po dniu d ('RRRR-MM-DD')."""
+    x = _d(d) + datetime.timedelta(days=1)
+    while x.weekday() >= 5 or x.isoformat() in TD_NYSE_CLOSED:
+        x += datetime.timedelta(days=1)
+    return x.isoformat()
+
+
+def build_fundusze_przeplywy(fu):
+    """v342 (F1Z2): plik fundusze → plik strony {'at', 'v', 'unit', 'okna', 'kal', 'f': {symbol: {'iss', 'd' (ostatni dzień z przepływem),
+    'aum' (mln USD, ostatni poprawny wiersz), 'w', 'w0', 'm', 'm0' (sumy okien w mln USD i pierwsze sesje; brak = None), 'nz' (sesje ze
+    zmianą liczby jednostek w oknie miesiąca), 'lz' (ostatni dzień ze zmianą), 's' ([dzień, przepływ, sesji] — ostatnie FP_S)}}} albo None
+    (brak pliku albo żadnego funduszu z przepływem)."""
+    F = fu.get('f') if isinstance(fu, dict) and isinstance(fu.get('f'), dict) else None
+    if not F:
+        return None
+    out = {'at': NOW, 'v': 1, 'src': 'CapitalFlowAI — obliczenia z pliku fundusze tej strony (NAV i liczba jednostek z plików wydawców funduszy)',
+           'unit': 'mln USD; przepływ = zmiana liczby jednostek × NAV z tego dnia (pieniądz wpłacony do funduszu minus wypłacony)',
+           'okna': {'w': FP_W, 'm': FP_M, 's': FP_S}, 'f': {}}
+    r3 = lambda v: round(v, 3) if _isnum(v) else None   # noqa: E731
+    for t in FP_SYMS:
+        e = F.get(t)
+        if not isinstance(e, dict) or not e.get('h'):
+            continue
+        info = {}
+        try:
+            days, vals, aum = fund_group(F, (t,), info)
+        except Exception as x:   # zepsuta historia jednego funduszu — bez niego (uwaga), reszta zostaje
+            META['notes'].append(mask(f'fundusze-przeplywy {t}: {x}')[:160]); continue
+        if not days:
+            continue
+        ns, d0 = list(info.get('ns') or [1] * len(days)), list(info.get('d0') or days)
+        for i in range(1, len(days)):   # sesje NYSE w każdej wartości (dzień bez wiersza w pliku funduszu = luka, nie mniej sesji)
+            n_ = _bdays(_d(days[i - 1]), _d(days[i]), TD_NYSE_CLOSED)
+            if n_ > ns[i]:
+                ns[i], d0[i] = n_, _fp_nast(days[i - 1])
+        w, w0 = _fp_okno(vals, ns, d0, FP_W)
+        m, m0 = _fp_okno(vals, ns, d0, FP_M)
+        nz = None
+        if m is not None:
+            k, i, nz = 0, len(vals) - 1, 0
+            while k < FP_M:
+                nz += vals[i] != 0; k += ns[i]; i -= 1
+        lz = next((d for d, v in zip(reversed(days), reversed(vals)) if _isnum(v) and v != 0), None)
+        out['f'][t] = {'iss': e.get('iss') if e.get('iss') in ('ssga', 'ishares') else None, 'd': days[-1],
+                       'aum': round(aum, 1) if _isnum(aum) and aum > 0 else None, 'w': r3(w), 'w0': w0, 'm': r3(m), 'm0': m0,
+                       'nz': nz, 'lz': lz, 's': [[d, r3(v), n] for d, v, n in zip(days[-FP_S:], vals[-FP_S:], ns[-FP_S:])]}
+    if not out['f']:
+        return None
+    out['kal'] = max(x['d'] for x in out['f'].values())
     return out
 
 
@@ -8808,7 +9092,7 @@ def _wd_ssga_fetch(tickers):
     got, err = {}, {}
 
     def one(t):
-        return t, parse_ssga_navhist(_wd_req(_wd_get_bytes, FUND_SSGA_URL.format(t=t.lower()), WD_TIMEOUT), t)
+        return t, parse_ssga_navhist(_fund_ssga_bytes(t, lambda u: _wd_req(_wd_get_bytes, u, WD_TIMEOUT)), t)   # v342 (F1Z2): nowa ścieżka, zapas — stara
     with _wd_cf.ThreadPoolExecutor(WD_THREADS) as ex:
         for t0, f in [(t, ex.submit(one, t)) for t in tickers]:
             try:
@@ -29373,6 +29657,22 @@ def main():
     except Exception as e:
         META['errors'].append(mask(f'fundusze ETF: {e}')); META['ok']['fundusze'] = False
         if prev_fu: save('fundusze', prev_fu)
+    # v342 (F1Z2): fundusze ETF — rozszerzenie (5 funduszy State Street, 52 iShares; część 'f' pliku fundusze, plik zapisany drugi raz) i plik
+    # strony data/fundusze-przeplywy.json (bez sieci). Awaria rozszerzenia = uwaga (wpisy rozszerzenia zostają w pliku — przenosi je build_fundusze);
+    # awaria pliku strony = poprzedni plik i błąd
+    try:
+        if isinstance(SAVED.get('fundusze'), dict):
+            save('fundusze', build_fundusze_x(SAVED['fundusze'], run_t0=_RUN_T0[0]))
+    except Exception as e:
+        META['notes'].append(mask(f'fundusze ETF (rozszerzenie): {e}')[:200])
+    try:
+        fp_ = build_fundusze_przeplywy(SAVED.get('fundusze'))
+        if fp_:
+            save('fundusze-przeplywy', fp_)
+    except Exception as e:
+        META['errors'].append(mask(f'fundusze ETF — plik strony: {e}')[:200])
+        prev_fp = previous('fundusze-przeplywy')
+        if prev_fp: save('fundusze-przeplywy', prev_fp)
     # v127: plik dzienny świata (tylko dla zbieracza): otwarcia i zamknięcia 44 ETF, NAV i jednostki 35 funduszy, zagraniczni (v309: + ceny
     # 7 funduszy surowcowych i NAV z jednostkami 3 z nich — z części 'su' pliku fundusze z tego przebiegu, dlatego po nim) — pierwsza
     # publikacja z chwilą zapisu; poranne pliki State Street; jeden limit czasu; awaria = poprzedni plik i błąd. ~8 MB: pamięć Actions, gdy

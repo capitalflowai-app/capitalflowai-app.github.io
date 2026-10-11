@@ -69,6 +69,34 @@ PLIKI_BEZ = {}   # v327 (KON-08): plik zbieracza świadomie bez kontroli wieku �
 # Najwyżej ⚠️, nigdy ❌ ani BŁĄD. Wiersze w tabeli świeżości (lista SWIEZOSC bez zmian).
 PLIKI.insert(PLIKI.index('krypto-dzien'), 'pip')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
 LIMIT_MIN['pip'] = 48 * 60
+# v342 (F1Z2): fundusze ETF w USA (data/fundusze.json, część 'f': 20 funduszy State Street, 74 iShares — lista oczekiwanych w polu 'lista') i plik
+# strony data/fundusze-przeplywy.json (wiek pliku: zapis co przebieg → limit 3 h jak plik fundusze). Wiersze (lista SWIEZOSC bez zmian), najwyżej uwaga (⚠):
+# (1) fundusze z ostatnią sesją: dla każdego wydawcy oczekiwana sesja = ostatnia sesja NYSE S, której dane powinny już być w pliku (model
+#     publikacji z zapasem: iShares — S + 1 dzień 14:00 UTC (zestawienie z nowym dniem zaobserwowane 00:02–12:03 UTC, 05–09.10.2026);
+#     State Street — następna sesja po S, 12:00 UTC (pliki publikowane w dni robocze ok. 04:55 UTC, pobierane po publikacji)); fundusz ma
+#     ostatnią sesję, gdy jego najnowszy dzień (bez powtórzonych wierszy — dzień wolny w pliku złota) ≥ oczekiwanej sesji. Mniej niż FU_UDZIAL %
+#     funduszy z listy = uwaga (⚠). Fundusz bez danych FU_SESJE sesji (albo bez historii) = uwaga (⚠) z nazwą — brak liczony od OSTATNIEJ ZAMKNIĘTEJ
+#     sesji NYSE (_fu_ost: dzień sesji po FU_ZAMK_H UTC), nie od oczekiwanej (recenzja v342: od oczekiwanej ostrzeżenie przychodziło dopiero przy
+#     ok. 4 brakujących sesjach); zdrowy fundusz o 06:20 UTC ma brak 0–1 (sesja z poprzedniego dnia jeszcze w drodze). Test wsteczny (ws53/v342-fundusze/bt/bt_sesje.py i
+#     bt_kontrola.py): 47 funduszy (37 z migawki 10.10.2026 i 10 nagranych) × 234 sesje NYSE (11.2025–10.2026) — każda sesja w każdym pliku
+#     (0 dni z udziałem < 95%, 0 funduszy bez 3 sesji); 25 zapisanych plików fundusze z 27.09–11.10.2026 (27 ocen: w chwili zapisu i o 06:20 UTC,
+#     gdy plik miał ≤ 3 h) — 0 fałszywych ostrzeżeń; model ma zapas wobec zaobserwowanych pór (iShares 12:03 → 14:00, State Street ok. 05:00–11:10 → 12:00);
+#     brak sesji od ostatniej zamkniętej sesji (bt/bt_brak_sesji.py, te same 25 plików, 1 056 ocen funduszy): największy 1 (iShares 46, State Street
+#     345 ocen) — próg 3 ma zapas 2 sesji.
+# (2) kontrola krzyżowa: NAV z pliku wydawcy a zamknięcie na giełdzie z pliku ceny (inne źródło) w ostatnim wspólnym dniu — różnica ponad
+#     FU_NAV_PROG % = uwaga (⚠; błąd pliku, np. NAV 0,001328 EWZ 05.10.2026). Test wsteczny (bt/bt_nav_ceny.py): 9 funduszy × ok. 260 dni = 2 337 par,
+#     największa różnica 6,98% (EWY 04.03.2026 — giełda w Seulu zamknięta 8 h wcześniej niż Nowy Jork), ponad 8% — 0 (fałszywych 0%).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'fundusze-przeplywy')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['fundusze-przeplywy'] = 180
+FU_NYSE_ZAMK = frozenset(('2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07',
+                          '2026-11-26', '2026-12-25', '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18',
+                          '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24'))   # = TD_NYSE_CLOSED w zbieraj_dane.py (test pilnuje zgodności)
+FU_UDZIAL = 95.0
+FU_SESJE = 3
+FU_ZAMK_H = 21   # godz. UTC — sesja NYSE zamknięta (16:00 w Nowym Jorku: 20:00 UTC latem, 21:00 zimą)
+FU_NAV_PROG = 8.0
+FU_ETYKIETA = {'sesja': 'Fundusze ETF (USA) — fundusze z ostatnią sesją (State Street, iShares)',
+               'nav': 'Fundusze ETF (USA) — NAV a zamknięcie na giełdzie (kontrola krzyżowa)'}
 PLIKI.insert(PLIKI.index('krypto-dzien'), 'zboza-dzien')   # v341 (F5Z3): zboża dziennie i koszt transportu — przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
 LIMIT_MIN['zboza-dzien'] = 100 * 60   # v341: plik zmienia się, gdy źródło ma nowe dane (indeks dzienny w dni robocze — przez weekend i święto do ok. 4 dni); wiek części ocenia wiersz świeżości
 PIP_OKRES_MIES = 15
@@ -311,6 +339,119 @@ def metale_kontrola(files, R):
     R['uwagi'] += P['uwagi']
     nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
+def _fu_sesja(d):
+    return d.weekday() < 5 and d.isoformat() not in FU_NYSE_ZAMK
+
+
+def _fu_oczek(iss, now):
+    """v342: oczekiwana sesja wydawcy (patrz FU_*): ostatnia sesja NYSE S, której publikacja w modelu ≤ now → 'RRRR-MM-DD' albo None."""
+    d0 = now.date()
+    for k in range(0, 20):
+        S = d0 - dt.timedelta(days=k)
+        if not _fu_sesja(S):
+            continue
+        if iss == 'ssga':
+            n = S + dt.timedelta(days=1)
+            while not _fu_sesja(n):
+                n += dt.timedelta(days=1)
+            P = dt.datetime(n.year, n.month, n.day, 12, 0, tzinfo=dt.timezone.utc)
+        else:
+            n = S + dt.timedelta(days=1)
+            P = dt.datetime(n.year, n.month, n.day, 14, 0, tzinfo=dt.timezone.utc)
+        if P <= now:
+            return S.isoformat()
+    return None
+
+
+def _fu_ost(now):
+    """v342 (recenzja): ostatnia zamknięta sesja NYSE ≤ now (dzień sesji po FU_ZAMK_H:00 UTC — po zamknięciu giełdy także zimą; wcześniej —
+    poprzednia sesja) → data. Od niej liczy się „bez danych FU_SESJE sesji” (sesje po ostatnim dniu funduszu do tej sesji włącznie)."""
+    d = now.date() if now.hour >= FU_ZAMK_H else now.date() - dt.timedelta(days=1)
+    while not _fu_sesja(d):
+        d -= dt.timedelta(days=1)
+    return d
+
+
+def _fu_dni(h):
+    """v342: dni historii funduszu z liczbami (NAV i liczba jednostek > 0) bez wierszy powtórzonych (ten sam NAV i ta sama liczba jednostek co
+    dzień wcześniej — dzień wolny w pliku złota), rosnąco."""
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and 0 < v < float('inf')  # noqa: E731
+    R = sorted((r for r in (h if isinstance(h, list) else []) if isinstance(r, list) and len(r) == 3 and isinstance(r[0], str)
+                and _DZ_DZIEN.match(r[0]) and num(r[1]) and num(r[2])), key=lambda r: r[0])
+    return [b[0] for a, b in zip([None] + R, R) if a is None or (a[1], a[2]) != (b[1], b[2])]
+
+
+def fundusze_kontrola(fu, ceny=None, now=None):
+    """v342 (F1Z2): data/fundusze.json (+ data/ceny.json) → {'rows': [(etykieta, status, wiek min, tekst, uwaga)], 'uwagi': [...]}; brak pliku =
+    bez wierszy (brak pliku zgłasza pętla PLIKI)."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': []}
+    F = fu.get('f') if isinstance(fu, dict) and isinstance(fu.get('f'), dict) else None
+    if F is None:
+        return out
+    L = fu.get('lista') if isinstance(fu.get('lista'), dict) else None
+    if L is None:   # plik sprzed v342 — fundusze z pliku według wydawcy
+        L = {}
+        for t, e in sorted(F.items()):
+            if isinstance(e, dict) and e.get('iss') in ('ssga', 'ishares'):
+                L.setdefault(e['iss'], []).append(t)
+    ok, n, stare, brak, oczek = 0, 0, [], [], {}
+    ost = _fu_ost(now)
+    for iss in ('ishares', 'ssga'):
+        syms = [t for t in (L.get(iss) or []) if isinstance(t, str)]
+        if not syms:
+            continue
+        E = _fu_oczek(iss, now); oczek[iss] = E
+        for t in syms:
+            n += 1
+            ds = _fu_dni((F.get(t) or {}).get('h') if isinstance(F.get(t), dict) else None)
+            if not ds:
+                brak.append(t); continue
+            last = ds[-1]
+            ok += not E or last >= E   # udział: fundusz ma oczekiwaną sesję wydawcy (model publikacji z zapasem)
+            # brak sesji liczony od ostatniej zamkniętej sesji NYSE (nie od oczekiwanej): sesje po ostatnim dniu funduszu do niej włącznie
+            lag, d = 0, dt.date.fromisoformat(last) + dt.timedelta(days=1)
+            while d <= ost:
+                lag += _fu_sesja(d); d += dt.timedelta(days=1)
+            if lag >= FU_SESJE:
+                stare.append(f'{t} (ostatni dzień {last}, brak {lag} sesji)')
+    if n:
+        pct = 100.0 * ok / n
+        st = '\u26a0\ufe0f' if pct < FU_UDZIAL or stare or brak else '\u2705'
+        txt = (f'{ok} z {n} ({pct:.0f}%) — oczekiwana sesja: iShares {oczek.get("ishares") or "—"}, State Street {oczek.get("ssga") or "—"}'
+               .replace('.', ','))
+        u = []
+        if pct < FU_UDZIAL:
+            u.append(f'mniej niż {FU_UDZIAL:g}% funduszy z ostatnią sesją'.replace('.', ','))
+        if stare:
+            u.append(f'bez danych {FU_SESJE}+ sesji: ' + ', '.join(stare[:8]) + (f' i {len(stare) - 8} więcej' if len(stare) > 8 else ''))
+        if brak:
+            u.append('bez historii w pliku: ' + ', '.join(brak[:8]) + (f' i {len(brak) - 8} więcej' if len(brak) > 8 else ''))
+        note = '; '.join(u) + (' (tylko uwaga)' if u else '')
+        out['rows'].append((FU_ETYKIETA['sesja'], st, None, txt, note))
+        if u:
+            out['uwagi'].append(f'{FU_ETYKIETA["sesja"]}: {txt} — {note}')
+    Q = ceny.get('q') if isinstance(ceny, dict) and isinstance(ceny.get('q'), dict) else {}
+    par = []
+    for t in sorted(set(Q) & set(F)):
+        nav = {r[0]: r[1] for r in ((F.get(t) or {}).get('h') or []) if isinstance(r, list) and len(r) == 3 and isinstance(r[1], (int, float)) and r[1] > 0}
+        zam = {r[0]: r[1] for r in ((Q.get(t) or {}).get('d') or []) if isinstance(r, list) and len(r) >= 2 and isinstance(r[1], (int, float)) and r[1] > 0}
+        wsp = sorted(set(nav) & set(zam))
+        if wsp:
+            d = wsp[-1]; par.append((abs(zam[d] / nav[d] - 1) * 100, t, d))
+    if par:
+        par.sort(reverse=True)
+        zle = [x for x in par if x[0] > FU_NAV_PROG]
+        st = '\u26a0\ufe0f' if zle else '\u2705'
+        txt = f'{len(par)} funduszy, największa różnica {par[0][0]:.2f}% ({par[0][1]}, {par[0][2]})'.replace('.', ',', 1)
+        note = ('NAV i cena różnią się ponad ' + f'{FU_NAV_PROG:g}% — błąd pliku wydawcy albo cen: '.replace('.', ',')
+                + ', '.join(f'{t} {d} {x:.1f}%'.replace('.', ',') for x, t, d in zle[:6]) + ' (tylko uwaga)') if zle else ''
+        out['rows'].append((FU_ETYKIETA['nav'], st, None, txt, note))
+        if zle:
+            out['uwagi'].append(f'{FU_ETYKIETA["nav"]}: {note}')
+    return out
 
 
 def pliki_bez_nadzoru(src):
@@ -6433,6 +6574,12 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-fu. v342 (F1Z2): fundusze ETF w USA (data/fundusze.json) — fundusze z ostatnią sesją wydawcy (≥ 95%, bez danych 3 sesje) i NAV a zamknięcie
+    # na giełdzie (data/ceny.json); osobne wiersze (lista SWIEZOSC bez zmian); najwyżej uwaga (⚠), nigdy ❌ ani BŁĄD
+    F_fu = fundusze_kontrola(files.get('fundusze'), files.get('ceny'))
+    for label, st, w, txt, note in F_fu['rows']:
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+    R['uwagi'] += F_fu['uwagi']
     # 3c-pl. v304: Polska (data/polska.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️, nigdy ❌ ani BŁĄD
     for label, st, w, txt, note in polska_swiezosc(files.get('polska')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})

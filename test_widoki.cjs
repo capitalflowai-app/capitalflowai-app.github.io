@@ -22465,3 +22465,166 @@ test('v341 (F5Z3), przegląd: nakładanie obok innych łatek — słuchacz blok�
   assert.ok(c0 > 0 && c1 > c0 && html.slice(c0, c1).split('/*').length <= 3, 'styl: własny wycinek do znacznika końca (bez cudzych reguł)');
   assert.ok(html.match(/^const EXTRA\d+=\{.*"zd341\.h".*\};$/m), 'słownik zd341.* w jednej linii, numer dowolny');
 });
+
+// v342 (F1Z2): fundusze ETF w USA na regiony mapy GLOBAL bez przepływów (Kanada, Ameryka Łacińska poza Brazylią, Bliski Wschód, Afryka, Azja Płd.-Wsch.,
+// Australia), Polska w Europie i 11 sektorów S&P 500 na stronie Sektory — plik data/fundusze-przeplywy.json (wycinek: wynik build_fundusze_przeplywy
+// na nagraniach z 10–11.10.2026 — State Street XLB, XLRE, XLC, iShares EPOL, EWC, KSA, TUR, EZA i plik funduszy migawki m9).
+const v342 = (() => {
+  const FP = JSON.parse('{"at":"2026-10-11T06:30:00+00:00","v":1,"src":"CapitalFlowAI — obliczenia z pliku fundusze tej strony (NAV i liczba jednostek z plików wydawców funduszy)","unit":"mln USD; przepływ = zmiana liczby jednostek × NAV z tego dnia (pieniądz wpłacony do funduszu minus wypłacony)","okna":{"w":5,"m":21,"s":21},"f":{"EWC":{"iss":"ishares","d":"2026-10-09","aum":7119.0,"w":17.754,"w0":"2026-10-05","m":439.998,"m0":"2026-09-11","nz":7,"lz":"2026-10-06","s":[["2026-09-11",0.0,1],["2026-09-14",42.336,1],["2026-09-15",0.0,1],["2026-09-16",0.0,1],["2026-09-17",66.452,1],["2026-09-18",0.0,1],["2026-09-21",0.0,1],["2026-09-22",-133.685,1],["2026-09-23",334.017,1],["2026-09-24",47.566,1],["2026-09-25",65.558,1],["2026-09-28",0.0,1],["2026-09-29",0.0,1],["2026-09-30",0.0,1],["2026-10-01",0.0,1],["2026-10-02",0.0,1],["2026-10-05",0.0,1],["2026-10-06",17.754,1],["2026-10-07",0.0,1],["2026-10-08",0.0,1],["2026-10-09",0.0,1]]},"KSA":{"iss":"ishares","d":"2026-10-09","aum":583.2,"w":0.0,"w0":"2026-10-05","m":-13.061,"m0":"2026-09-11","nz":1,"lz":"2026-09-22","s":[["2026-09-11",0.0,1],["2026-09-14",0.0,1],["2026-09-15",0.0,1],["2026-09-16",0.0,1],["2026-09-17",0.0,1],["2026-09-18",0.0,1],["2026-09-21",0.0,1],["2026-09-22",-13.061,1],["2026-09-23",0.0,1],["2026-09-24",0.0,1],["2026-09-25",0.0,1],["2026-09-28",0.0,1],["2026-09-29",0.0,1],["2026-09-30",0.0,1],["2026-10-01",0.0,1],["2026-10-02",0.0,1],["2026-10-05",0.0,1],["2026-10-06",0.0,1],["2026-10-07",0.0,1],["2026-10-08",0.0,1],["2026-10-09",0.0,1]]},"TUR":{"iss":"ishares","d":"2026-10-09","aum":164.4,"w":0.0,"w0":"2026-10-05","m":-29.676,"m0":"2026-09-11","nz":2,"lz":"2026-09-30","s":[["2026-09-11",0.0,1],["2026-09-14",0.0,1],["2026-09-15",0.0,1],["2026-09-16",0.0,1],["2026-09-17",0.0,1],["2026-09-18",0.0,1],["2026-09-21",-24.572,1],["2026-09-22",0.0,1],["2026-09-23",0.0,1],["2026-09-24",0.0,1],["2026-09-25",0.0,1],["2026-09-28",0.0,1],["2026-09-29",0.0,1],["2026-09-30",-5.104,1],["2026-10-01",0.0,1],["2026-10-02",0.0,1],["2026-10-05",0.0,1],["2026-10-06",0.0,1],["2026-10-07",0.0,1],["2026-10-08",0.0,1],["2026-10-09",0.0,1]]},"EZA":{"iss":"ishares","d":"2026-10-09","aum":466.7,"w":0.0,"w0":"2026-10-05","m":-60.973,"m0":"2026-09-11","nz":4,"lz":"2026-10-01","s":[["2026-09-11",0.0,1],["2026-09-14",0.0,1],["2026-09-15",0.0,1],["2026-09-16",0.0,1],["2026-09-17",0.0,1],["2026-09-18",0.0,1],["2026-09-21",-13.646,1],["2026-09-22",-34.544,1],["2026-09-23",0.0,1],["2026-09-24",0.0,1],["2026-09-25",0.0,1],["2026-09-28",0.0,1],["2026-09-29",-6.496,1],["2026-09-30",0.0,1],["2026-10-01",-6.287,1],["2026-10-02",0.0,1],["2026-10-05",0.0,1],["2026-10-06",0.0,1],["2026-10-07",0.0,1],["2026-10-08",0.0,1],["2026-10-09",0.0,1]]},"EPOL":{"iss":"ishares","d":"2026-10-09","aum":835.5,"w":0.0,"w0":"2026-10-05","m":26.428,"m0":"2026-09-11","nz":4,"lz":"2026-10-02","s":[["2026-09-11",0.0,1],["2026-09-14",0.0,1],["2026-09-15",0.0,1],["2026-09-16",0.0,1],["2026-09-17",0.0,1],["2026-09-18",0.0,1],["2026-09-21",2.282,1],["2026-09-22",0.0,1],["2026-09-23",0.0,1],["2026-09-24",4.462,1],["2026-09-25",8.941,1],["2026-09-28",0.0,1],["2026-09-29",0.0,1],["2026-09-30",0.0,1],["2026-10-01",0.0,1],["2026-10-02",10.743,1],["2026-10-05",0.0,1],["2026-10-06",0.0,1],["2026-10-07",0.0,1],["2026-10-08",0.0,1],["2026-10-09",0.0,1]]},"XLK":{"iss":"ssga","d":"2026-10-08","aum":130312.7,"w":1389.075,"w0":"2026-10-02","m":1643.926,"m0":"2026-09-10","nz":21,"lz":"2026-10-08","s":[["2026-09-10",-166.68,1],["2026-09-11",-168.958,1],["2026-09-14",-110.543,1],["2026-09-15",73.501,1],["2026-09-16",27.596,1],["2026-09-17",-103.436,1],["2026-09-18",189.698,1],["2026-09-21",-38.969,1],["2026-09-22",284.582,1],["2026-09-23",156.243,1],["2026-09-24",-38.952,1],["2026-09-25",-49.074,1],["2026-09-28",19.449,1],["2026-09-29",-184.724,1],["2026-09-30",78.269,1],["2026-10-01",286.849,1],["2026-10-02",-39.964,1],["2026-10-05",130.575,1],["2026-10-06",979.461,1],["2026-10-07",141.009,1],["2026-10-08",177.993,1]]},"XLF":{"iss":"ssga","d":"2026-10-08","aum":50432.0,"w":-307.202,"w0":"2026-10-02","m":-1106.824,"m0":"2026-09-10","nz":21,"lz":"2026-10-08","s":[["2026-09-10",324.217,1],["2026-09-11",111.611,1],["2026-09-14",325.106,1],["2026-09-15",335.379,1],["2026-09-16",55.926,1],["2026-09-17",-622.947,1],["2026-09-18",-791.036,1],["2026-09-21",-1282.349,1],["2026-09-22",1035.134,1],["2026-09-23",275.364,1],["2026-09-24",13.633,1],["2026-09-25",260.416,1],["2026-09-28",401.075,1],["2026-09-29",118.802,1],["2026-09-30",-322.876,1],["2026-10-01",-1037.075,1],["2026-10-02",-18.712,1],["2026-10-05",-193.878,1],["2026-10-06",661.298,1],["2026-10-07",-666.424,1],["2026-10-08",-89.486,1]]},"XLE":{"iss":"ssga","d":"2026-10-08","aum":41940.5,"w":569.598,"w0":"2026-10-02","m":-686.811,"m0":"2026-09-10","nz":21,"lz":"2026-10-08","s":[["2026-09-10",172.064,1],["2026-09-11",-68.393,1],["2026-09-14",-45.181,1],["2026-09-15",-164.862,1],["2026-09-16",60.844,1],["2026-09-17",-309.425,1],["2026-09-18",-421.521,1],["2026-09-21",-56.189,1],["2026-09-22",64.845,1],["2026-09-23",159.038,1],["2026-09-24",118.976,1],["2026-09-25",37.229,1],["2026-09-28",-139.765,1],["2026-09-29",-215.369,1],["2026-09-30",-285.757,1],["2026-10-01",-162.944,1],["2026-10-02",329.812,1],["2026-10-05",15.857,1],["2026-10-06",175.234,1],["2026-10-07",120.421,1],["2026-10-08",-71.727,1]]},"XLV":{"iss":"ssga","d":"2026-10-08","aum":43536.8,"w":284.175,"w0":"2026-10-02","m":-135.28,"m0":"2026-09-10","nz":20,"lz":"2026-10-08","s":[["2026-09-10",-33.13,1],["2026-09-11",157.146,1],["2026-09-14",-109.016,1],["2026-09-15",-8.383,1],["2026-09-16",-150.96,1],["2026-09-17",-50.642,1],["2026-09-18",-58.966,1],["2026-09-21",-819.473,1],["2026-09-22",280.281,1],["2026-09-23",236.261,1],["2026-09-24",33.97,1],["2026-09-25",110.957,1],["2026-09-28",59.922,1],["2026-09-29",-102.398,1],["2026-09-30",134.649,1],["2026-10-01",-99.675,1],["2026-10-02",91.352,1],["2026-10-05",41.836,1],["2026-10-06",0.0,1],["2026-10-07",-84.423,1],["2026-10-08",235.411,1]]},"XLI":{"iss":"ssga","d":"2026-10-08","aum":30712.7,"w":608.184,"w0":"2026-10-02","m":114.712,"m0":"2026-09-10","nz":21,"lz":"2026-10-08","s":[["2026-09-10",-85.275,1],["2026-09-11",34.482,1],["2026-09-14",-33.986,1],["2026-09-15",-211.059,1],["2026-09-16",109.617,1],["2026-09-17",16.9,1],["2026-09-18",-93.386,1],["2026-09-21",-203.943,1],["2026-09-22",-8.514,1],["2026-09-23",-59.532,1],["2026-09-24",143.549,1],["2026-09-25",-136.374,1],["2026-09-28",67.508,1],["2026-09-29",-25.364,1],["2026-09-30",-33.387,1],["2026-10-01",25.291,1],["2026-10-02",203.913,1],["2026-10-05",331.564,1],["2026-10-06",291.656,1],["2026-10-07",8.395,1],["2026-10-08",-227.344,1]]},"XLY":{"iss":"ssga","d":"2026-10-08","aum":21896.0,"w":150.26,"w0":"2026-10-02","m":498.541,"m0":"2026-09-10","nz":18,"lz":"2026-10-08","s":[["2026-09-10",-145.534,1],["2026-09-11",-67.762,1],["2026-09-14",0.0,1],["2026-09-15",-22.17,1],["2026-09-16",611.302,1],["2026-09-17",66.839,1],["2026-09-18",55.531,1],["2026-09-21",0.0,1],["2026-09-22",67.394,1],["2026-09-23",38.714,1],["2026-09-24",0.0,1],["2026-09-25",-22.108,1],["2026-09-28",70.826,1],["2026-09-29",-10.912,1],["2026-09-30",-212.234,1],["2026-10-01",-81.608,1],["2026-10-02",-16.502,1],["2026-10-05",49.671,1],["2026-10-06",78.214,1],["2026-10-07",83.549,1],["2026-10-08",-44.673,1]]},"XLP":{"iss":"ssga","d":"2026-10-08","aum":13917.5,"w":243.004,"w0":"2026-10-02","m":-550.541,"m0":"2026-09-10","nz":21,"lz":"2026-10-08","s":[["2026-09-10",-124.663,1],["2026-09-11",66.732,1],["2026-09-14",-194.14,1],["2026-09-15",25.118,1],["2026-09-16",-100.021,1],["2026-09-17",-96.017,1],["2026-09-18",-41.424,1],["2026-09-21",-131.024,1],["2026-09-22",82.716,1],["2026-09-23",164.894,1],["2026-09-24",8.172,1],["2026-09-25",-61.561,1],["2026-09-28",24.684,1],["2026-09-29",81.827,1],["2026-09-30",-265.895,1],["2026-10-01",-232.94,1],["2026-10-02",48.317,1],["2026-10-05",16.204,1],["2026-10-06",-36.796,1],["2026-10-07",73.537,1],["2026-10-08",141.742,1]]},"XLU":{"iss":"ssga","d":"2026-10-08","aum":23785.7,"w":898.704,"w0":"2026-10-02","m":2398.282,"m0":"2026-09-10","nz":20,"lz":"2026-10-08","s":[["2026-09-10",0.0,1],["2026-09-11",-2.119,1],["2026-09-14",20.904,1],["2026-09-15",53.715,1],["2026-09-16",-2.066,1],["2026-09-17",-152.132,1],["2026-09-18",-104.801,1],["2026-09-21",32.513,1],["2026-09-22",314.043,1],["2026-09-23",131.215,1],["2026-09-24",-11.811,1],["2026-09-25",237.145,1],["2026-09-28",145.284,1],["2026-09-29",-21.843,1],["2026-09-30",218.835,1],["2026-10-01",640.697,1],["2026-10-02",380.274,1],["2026-10-05",57.935,1],["2026-10-06",-98.774,1],["2026-10-07",316.998,1],["2026-10-08",242.272,1]]},"XLB":{"iss":"ssga","d":"2026-10-08","aum":7786.8,"w":-46.388,"w0":"2026-10-02","m":-320.014,"m0":"2026-09-10","nz":21,"lz":"2026-10-08","s":[["2026-09-10",43.143,1],["2026-09-11",-119.726,1],["2026-09-14",10.094,1],["2026-09-15",-25.37,1],["2026-09-16",35.262,1],["2026-09-17",25.361,1],["2026-09-18",-97.492,1],["2026-09-21",-39.783,1],["2026-09-22",93.493,1],["2026-09-23",-37.689,1],["2026-09-24",2.485,1],["2026-09-25",-146.859,1],["2026-09-28",32.143,1],["2026-09-29",-12.27,1],["2026-09-30",-2.434,1],["2026-10-01",-33.985,1],["2026-10-02",-48.878,1],["2026-10-05",-12.372,1],["2026-10-06",7.46,1],["2026-10-07",-2.449,1],["2026-10-08",9.851,1]]},"XLRE":{"iss":"ssga","d":"2026-10-08","aum":7661.1,"w":36.738,"w0":"2026-10-02","m":20.547,"m0":"2026-09-10","nz":18,"lz":"2026-10-08","s":[["2026-09-10",-58.089,1],["2026-09-11",0.0,1],["2026-09-14",-32.346,1],["2026-09-15",-32.314,1],["2026-09-16",-12.835,1],["2026-09-17",352.176,1],["2026-09-18",-404.01,1],["2026-09-21",6.387,1],["2026-09-22",38.254,1],["2026-09-23",12.557,1],["2026-09-24",29.156,1],["2026-09-25",33.236,1],["2026-09-28",0.0,1],["2026-09-29",39.277,1],["2026-09-30",28.63,1],["2026-10-01",-16.271,1],["2026-10-02",-42.832,1],["2026-10-05",0.0,1],["2026-10-06",36.993,1],["2026-10-07",44.619,1],["2026-10-08",-2.042,1]]},"XLC":{"iss":"ssga","d":"2026-10-08","aum":23885.0,"w":569.985,"w0":"2026-10-02","m":1154.237,"m0":"2026-09-10","nz":20,"lz":"2026-10-08","s":[["2026-09-10",-22.293,1],["2026-09-11",-180.186,1],["2026-09-14",80.513,1],["2026-09-15",-91.187,1],["2026-09-16",-39.543,1],["2026-09-17",67.406,1],["2026-09-18",116.419,1],["2026-09-21",86.047,1],["2026-09-22",192.982,1],["2026-09-23",-5.626,1],["2026-09-24",-125.39,1],["2026-09-25",0.0,1],["2026-09-28",127.841,1],["2026-09-29",-94.715,1],["2026-09-30",-83.213,1],["2026-10-01",555.195,1],["2026-10-02",-121.31,1],["2026-10-05",-345.966,1],["2026-10-06",145.088,1],["2026-10-07",628.901,1],["2026-10-08",263.272,1]]}},"kal":"2026-10-09"}');
+  const a = html.indexOf('/* ===================== v342 (F1Z2)'), b = html.indexOf('/* v342 (F1Z2): koniec */', a);
+  assert.ok(a > 0 && b > a, 'blok v342 w stronie');
+  const fn = (name) => { const i = html.search(new RegExp('\\n(?:function ' + name + '\\(|const ' + name + '=)')) + 1; assert.ok(i > 0, name);
+    const j = html.indexOf('\n', i); return html.slice(i, j + 1); };
+  const helpers = [fn('escH')].join('\n');
+  const make = (opt = {}) => {
+    const S = {now: opt.now || Date.parse('2026-10-11T07:00:00Z'), srv: [], det: 0, sek: 0, pend: []};
+    const t = (k, v) => k + (v ? JSON.stringify(v) : '');
+    const deps = {t, trdAmt: (v, c) => 'A(' + v + ' ' + c + ')', trdDay: d => 'D(' + d + ')', gAgeNote: d => ' · wiek(' + d + ')', etfBars: s => '[bars:' + s.length + ':' + s.map(x => x[1] === null ? 'n' : x[1] > 0 ? 'p' : x[1] < 0 ? 'm' : 'z').join('') + ']',
+      gmFl: c => '[f:' + c + ']', gmRf: id => '[r:' + id + ']', bilCty: c => 'N(' + c + ')', fundIco: s => '[W:' + s + ']', glyphImg: (n, c, ti) => (n === 'etf' && c === 'sm' ? '[i:' : '[?:') + ti + ']', icoWrap: x => x, nfmt: (v, d) => v.toFixed(d).replace('.', ','),
+      srvJSON: n => { S.srv.push(n); return opt.srvFail ? Promise.reject(new Error('x')) : Promise.resolve(opt.srv === undefined ? FP : opt.srv); },
+      gst: opt.gst || {sel: null}, gRenderDetail: () => { S.det++; }, gActive: () => opt.gActive !== false, renderSectorsPage: () => { S.sek++; },
+      Date: {now: () => S.now, parse: s => Date.parse(s)}};
+    const k = Object.keys(deps);
+    const api = new Function(...k, helpers + '\n' + html.slice(a, b) + '\nreturn {F342,F342_REG,F342_SEK,f342Load,f342Region,f342Row,f342Sum,f342SekBody,f342Sek,f342Okna};')(...k.map(x => deps[x]));
+    return Object.assign(api, {S, deps});
+  };
+  const tick = () => Promise.resolve().then(() => {}).then(() => {}).then(() => {});   /* mikrozadania (bez zegara; pod jsc też) */
+  const loaded = (opt) => { const X = make(opt); X.F342.j = JSON.parse(JSON.stringify(FP)); X.F342.at = X.S.now; return X; };
+  return {FP, make, loaded, tick, src: html.slice(a, b)};
+})();
+
+test('v342: wpięcie — linia regionu zaraz po liniach TRENDÓW (feRegion bez zmian), panel sektorów na końcu renderSectorsPage, blok po końcu TRENDÓW', () => {
+  const r = "          ${typeof feRegion==='function'?feRegion(s.id):''}\n          ${typeof f342Region==='function'?f342Region(s.id):''}\n";
+  assert.equal(html.split(r).length - 1, 1, 'f342Region po feRegion w szczegółach regionu');
+  assert.ok(html.includes("const FE_REG={usa:['fe_us'],eur:['fe_eur'],jpn:['fe_jpn','fe_kor'],chn:['fe_chn'],ind:['fe_india'],lat:['fe_bra']};"), 'linie TRENDÓW bez zmian');
+  const s0 = html.indexOf('function renderSectorsPage(){'), s1 = html.indexOf('\n}\n', s0);
+  assert.ok(html.slice(s0, s1).trimEnd().endsWith("if(typeof f342Sek==='function')f342Sek(w);   /* v342 (F1Z2): panel 11 sektorów S&P 500 (fundusze ETF) pod listą regionów — tylko GLOBAL */"));
+  assert.ok(html.indexOf('/* ===================== v342 (F1Z2)') > html.indexOf('/* v89: TRENDY — koniec */'));
+  assert.deepEqual(Object.keys(v342.make().F342_REG).sort(), ['afr', 'asean', 'can', 'eur', 'lat', 'mea', 'oce']);
+  assert.ok(!/<style|sepK|sepL/.test(v342.src), 'bez nowych stylów i bez separatorów składanych w kodzie (etykiety w słowniku)');
+  for (const p of ['iShares', 'State Street', 'SPDR', 'BlackRock', 'MSCI', 'ssga', 'blackrock'])
+    assert.ok(!v342.src.replace(/\/\*[\s\S]*?\*\//g, '').includes(p), 'bez nazwy wydawcy w kodzie: ' + p);
+});
+
+test('v342: region bez danych — wczytanie dopiero przy wyborze regionu, „Wczytywanie”, potem przerysowanie szczegółów; błąd — komunikat, ponowienie po 2 min', async () => {
+  const X = v342.make({gst: {sel: {type: 'node', id: 'can'}}});
+  assert.equal(X.f342Region('usa'), '', 'region z TRENDAMI — bez nowej linii'); assert.deepEqual(X.S.srv, [], 'bez wczytania');
+  const h = X.f342Region('can');
+  assert.ok(h.includes('<dt>f342.reg</dt><dd>f342.load</dd>')); assert.deepEqual(X.S.srv, ['fundusze-przeplywy']);
+  await v342.tick();
+  assert.equal(X.S.det, 1, 'po wczytaniu — przerysowanie szczegółów'); assert.ok(X.F342.j);
+  X.f342Region('can'); assert.deepEqual(X.S.srv, ['fundusze-przeplywy'], 'plik świeży — bez ponownego wczytania');
+  X.S.now += 31 * 60e3; X.f342Region('can'); assert.equal(X.S.srv.length, 2, 'po 30 min — odświeżenie');
+  const Y = v342.make({srvFail: true, gst: {sel: {type: 'node', id: 'mea'}}});
+  Y.f342Region('mea'); await v342.tick();
+  assert.equal(Y.S.det, 1); assert.ok(Y.f342Region('mea').includes('<dd>f342.err</dd>')); assert.equal(Y.S.srv.length, 1, 'błąd — bez pętli');
+  Y.S.now += 121e3; Y.f342Region('mea'); assert.equal(Y.S.srv.length, 2, 'po 2 min — ponowienie');
+  const Z = v342.make({srv: {v: 2}}); Z.f342Region('afr'); await v342.tick(); assert.equal(Z.F342.j, null, 'zły plik nie wchodzi'); assert.ok(Z.F342.err);
+});
+
+test('v342: Kanada (EWC) — tydzień +17,754, miesiąc +439,998 mln USD z dniem i wiekiem, słupki 21 sesji; brak = „—”, zero = zero', () => {
+  const X = v342.loaded();
+  const h = X.f342Region('can');
+  assert.ok(h.startsWith('<div class="wide"><dt>f342.reg</dt><dd class="trd-fr">'));
+  assert.ok(h.includes('[f:CAN]<b>N(CAN) (EWC)</b> · f342.l.w{"n":5,"v":"<b class=\\"pos\\">A(17.754 USD)</b>"} · f342.l.m{"n":21,"v":"<b class=\\"pos\\">A(439.998 USD)</b>"} · f342.l.do{"d":"D(2026-10-09)"} · wiek(2026-10-09)'), h);
+  assert.ok(/\[bars:21:[pmz]{21}\]/.test(h), 'słupki 21 sesji'); assert.ok(h.includes('f342.m{"n":21}'));
+  const m = X.f342Region('mea');
+  assert.ok(m.includes('[f:SAU]<b>N(SAU) (KSA)</b> · f342.l.w{"n":5,"v":"<b class=\\"neu\\">A(0 USD)</b>"}'), 'tydzień bez zmiany jednostek — zero (żółte), nie brak');
+  assert.ok(m.includes('f342.l.m{"n":21,"v":"<b class=\\"neg\\">A(-13.061 USD)</b>"}'));
+  assert.ok(m.includes('[f:ARE]<b>N(ARE) (UAE)</b> · <b class="na">—</b>'), 'fundusz bez historii (jeszcze bez pełnego pliku) — „—”');
+  assert.ok(m.includes('<b>f342.sum{"k":6}</b> · f342.l.w{"n":5,"v":"<b class=\\"na\\">—</b>"}'), 'suma tylko z kompletu funduszy');
+  assert.ok(!m.includes('NaN') && !m.includes('undefined'));
+  const l = X.f342Region('lat');
+  assert.ok(l.includes('[r:lat]<b>f342.n.ILF (ILF)</b>') && l.includes('f342.ilf') && !l.includes('f342.sum'), 'ILF z flagami regionu, opis, bez sumy');
+  const o = X.f342Region('oce'); assert.ok(o.includes('[f:AUS]<b>N(AUS) (EWA)</b> · <b class="na">—</b>'));
+});
+
+test('v342: suma regionu — tylko gdy każdy fundusz ma okno i ten sam dzień', () => {
+  const X = v342.loaded(), F = X.F342.j.f;
+  for (const s of ['UAE', 'QAT', 'KWT', 'EIS']) F[s] = Object.assign({}, F.KSA, {w: 1.5, m: -2});
+  F.TUR = Object.assign({}, F.TUR, {w: 0.5});
+  const m = X.f342Region('mea');
+  assert.ok(m.includes('<b>f342.sum{"k":6}</b> · f342.l.w{"n":5,"v":"<b class=\\"pos\\">A(6.5 USD)</b>"} · f342.l.m{"n":21,"v":"<b class=\\"neg\\">A(-50.73'), m);
+  const sm = /f342\.sum\{"k":6\}<\/b> · [^·]*· f342\.l\.m\{"n":21,"v":"<b class=\\"neg\\">A\((-[\d.]+) USD\)/.exec(m);
+  assert.ok(sm && Math.abs(+sm[1] - (-50.737)) < 1e-9, 'miesiąc regionu = suma 6 funduszy');
+  F.EIS = Object.assign({}, F.EIS, {d: '2026-10-08'});
+  assert.ok(X.f342Region('mea').includes('<b>f342.sum{"k":6}</b> · f342.l.w{"n":5,"v":"<b class=\\"na\\">—</b>"}'), 'inny ostatni dzień — bez sumy');
+  assert.equal(X.f342Sum([F.KSA], 'w'), null, 'jeden fundusz — bez sumy');
+});
+
+test('v342: Polska w Europie — EPOL: tydzień 0 (żółty), miesiąc +26,428 mln USD; opis małego funduszu: 4 zmiany w 21 sesjach, ostatnia 02.10.2026', () => {
+  const X = v342.loaded();
+  const h = X.f342Region('eur');
+  assert.ok(h.startsWith('<div class="wide"><dt>f342.pl.t</dt>'));
+  assert.ok(h.includes('[f:POL]<b>N(POL) (EPOL)</b> · f342.l.w{"n":5,"v":"<b class=\\"neu\\">A(0 USD)</b>"} · f342.l.m{"n":21,"v":"<b class=\\"pos\\">A(26.428 USD)</b>"}'));
+  assert.ok(h.includes('f342.pl.note{"m":21,"n":4,"d":"D(2026-10-02)"}'));
+  assert.ok(h.includes('[bars:21:zzzzzzpzzppzzzzpzzzzz]'), 'słupki: 4 dni ze zmianą (zielone), reszta zero (żółte)');
+  delete X.F342.j.f.EPOL;
+  const b = X.f342Region('eur'); assert.ok(b.includes('<b class="na">—</b>') && !b.includes('f342.pl.note'), 'bez danych — „—”, bez opisu z liczbami');
+});
+
+test('v342: strona Sektory — 11 sektorów S&P 500 malejąco wg miesiąca, pasek, % aktywów, dzień i wiek; brak = „—” na końcu', () => {
+  const X = v342.loaded();
+  const h = X.f342SekBody();
+  assert.equal((h.match(/<div class="secrow">/g) || []).length, 11);
+  const ord = [...h.matchAll(/\[i:(X\w+)\]/g)].map(m => m[1]);
+  assert.deepEqual(ord, ['XLU', 'XLK', 'XLC', 'XLY', 'XLI', 'XLRE', 'XLV', 'XLB', 'XLP', 'XLE', 'XLF'], 'malejąco wg miesiąca');
+  assert.ok(h.includes('<span class="sbar p"><i style="width:100.0%"></i></span>\n       <span class="sval pos">A(2398.282 USD)</span>'), 'największy — pełny pasek');
+  assert.ok(h.includes('<span class="sval neg">A(-1106.824 USD)</span>') && h.includes('<span class="sbar n">'));
+  assert.ok(h.includes('<span class="ssub"><span>f342.sek.c{"w":"<b class=\\"pos\\">A(898.704 USD)</b>","p":"<b class=\\"pos\\">+10,08%</b>"} · f342.l.do{"d":"D(2026-10-08)"} · wiek(2026-10-08)</span></span>'), 'XLU: miesiąc to 10,08% aktywów (podpis w jednym elemencie — bez rozrywania w układzie wiersza)');
+  assert.equal(X.F342.j.kal, '2026-10-09', 'wycinek: najnowszy dzień pliku (fundusze regionów) — nowszy niż sektory');
+  assert.ok(h.startsWith('<p class="mtxt">f342.sek.sub{"n":21} · f342.l.do{"d":"D(2026-10-08)"} · wiek(2026-10-08)</p>'), 'nagłówek: dzień funduszy sektorowych (recenzja v342), nie kal pliku');
+  assert.ok(!h.includes('[W:') && !h.includes('[?:'), 'jeden zwykły znaczek ETF dla 11 sektorów — bez znaczka wydawcy (recenzja v342)');
+  assert.ok(h.includes('"p":"<b class=\\"neg\\">−') , 'odpływ — % aktywów czerwony (recenzja v342)');
+  assert.ok(h.includes('(XLB)') && h.includes('(XLRE)') && h.includes('(XLC)'), '3 nowe sektory'); assert.ok(h.includes('f342.sek.m'));
+  X.F342.j.f.XLB = Object.assign({}, X.F342.j.f.XLB, {m: null}); delete X.F342.j.f.XLC;
+  const g = X.f342SekBody(), o2 = [...g.matchAll(/\[i:(X\w+)\]/g)].map(m => m[1]);
+  assert.deepEqual(o2.slice(-2).sort(), ['XLB', 'XLC'], 'bez miesiąca — na końcu');
+  assert.ok(g.includes('<span class="sval na">—</span>') && g.includes('<span class="sna">g.nodata</span>') && !g.includes('NaN'));
+  X.F342.j.f.XLRE = Object.assign({}, X.F342.j.f.XLRE, {m: 0});
+  const z = X.f342SekBody();
+  assert.ok(z.includes('<span class="sbar p"><i style="width:0.0%"></i></span>\n       <span class="sval eq">A(0 USD)</span>'), 'zero — żółte, bez paska');
+  assert.ok(z.includes('"p":"<b class=\\"neu\\">0,00%</b>"'), 'zero % aktywów — żółte'); assert.ok(g.includes('"p":"<b class=\\"na\\">—</b>"'), 'bez miesiąca — % „—”');
+  X.F342.j.f.XLE = Object.assign({}, X.F342.j.f.XLE, {d: '2026-10-09'});
+  assert.ok(X.f342SekBody().startsWith('<p class="mtxt">f342.sek.sub{"n":21} · f342.l.do{"d":"D(2026-10-09)"} · wiek(2026-10-09)</p>'), 'nagłówek = najnowszy dzień sektorów');
+  for (const s of v342.make().F342_SEK) delete X.F342.j.f[s];
+  assert.ok(X.f342SekBody().startsWith('<p class="mtxt">f342.sek.sub{"n":21}</p>'), 'bez sektorów — nagłówek bez daty');
+});
+
+test('v342: panel sektorów — tylko GLOBAL, zwinięty bez wczytania; rozwinięcie wczytuje i przerysowuje; stan rozwinięcia zapamiętany', async () => {
+  const el = () => { const E = {html: '', ev: {}, insertAdjacentHTML(p, s) { this.html += s; }, querySelector(q) { return q === '#f342-sek' ? E.det : null; } };
+    E.det = {open: false, addEventListener(n, f) { E.ev[n] = f; }}; return E; };
+  const N = v342.make({gActive: false}), e0 = el(); N.f342Sek(e0); assert.equal(e0.html, '', 'CRYPTO — bez panelu');
+  const X = v342.make(), e = el();
+  X.f342Sek(e);
+  assert.ok(e.html.startsWith('<section class="panel pgc"><details class="etfd" id="f342-sek"><summary><b>f342.sek.t</b></summary></details>'));
+  assert.deepEqual(X.S.srv, [], 'zwinięty — bez wczytania');
+  e.det.open = true; e.ev.toggle();
+  assert.equal(X.F342.so, true); assert.equal(X.S.sek, 1, 'rozwinięcie — przerysowanie strony');
+  const e2 = el(); X.f342Sek(e2);
+  assert.ok(e2.html.includes('<details class="etfd" id="f342-sek" open>') && e2.html.includes('f342.load')); assert.deepEqual(X.S.srv, ['fundusze-przeplywy']);
+  await v342.tick();
+  assert.equal(X.S.sek, 2, 'po wczytaniu — przerysowanie'); const e3 = el(); X.f342Sek(e3); assert.ok(e3.html.includes('<div class="secrow">'));
+  e3.det.open = true; e3.ev.toggle(); assert.equal(X.S.sek, 2, 'ten sam stan (zdarzenie po przerysowaniu z „open”) — bez pętli');
+  e3.det.open = false; e3.ev.toggle(); assert.equal(X.F342.so, false);
+});
+
+test('v342: słownik — czysty JSON, 10 języków, te same klucze i pola {x}, każdy klucz użyty w bloku, bez kopii angielskiego, bez nazw wydawców; ja bez „, ” i „: ”', () => {
+  const m = /\nconst (EXTRA\d+)=(\{"pl":\{"f342\.[^\n]*);\nfor\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],(EXTRA\d+)\[l\]\);\n/.exec(html);
+  assert.ok(m && m[1] === m[3] && m[3] === m[4], 'definicja + jedna linia for');
+  const D = JSON.parse(m[2]), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(D), L10);
+  const K = Object.keys(D.pl), ph = s => (s.match(/\{[a-z0-9]+\}/g) || []).sort().join();
+  assert.equal(K.length, 27); assert.ok(K.every(k => k.startsWith('f342.')));
+  assert.equal(html.split(m[1]).length - 1, 3, 'nazwa słownika tylko w definicji i linii for');
+  for (const l of L10) { assert.deepEqual(Object.keys(D[l]), K, l); for (const k of K) assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k + ': pola {x}'); }
+  for (const l of L10.slice(2)) for (const k of K) assert.ok(D[l][k] !== D.en[k], l + ' ' + k + ': nie kopia angielskiego');
+  const dyn = k => /^f342\.(n|s)\./.test(k);
+  for (const k of K) assert.ok(dyn(k) ? v342.src.includes("'" + k.replace(/[A-Z]+$/, "'")) : v342.src.includes("'" + k + "'"), 'klucz użyty w bloku: ' + k);
+  for (const s of ['XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLY', 'XLP', 'XLU', 'XLB', 'XLRE', 'XLC']) assert.ok(('f342.s.' + s) in D.pl, s);
+  const all = JSON.stringify(D);
+  for (const p of ['iShares', 'State Street', 'SPDR', 'BlackRock', 'MSCI', 'Select Sector']) assert.ok(!all.includes(p), 'bez nazwy wydawcy: ' + p);
+  for (const k of K) assert.ok(!/[^\x00-\x7f\s][,:] |\}: \{/.test(D.ja[k]), 'ja: separator ASCII w ' + k);
+  assert.ok(!/[\u3040-\u30ff]/.test(JSON.stringify(D.zh)), 'zh bez kany');
+  assert.ok(D.pl['f342.pl.note'].includes('{m}') && D.pl['f342.pl.note'].includes('zero, nie brak danych'));
+});
