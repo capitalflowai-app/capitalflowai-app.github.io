@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -346,7 +346,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -534,7 +534,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -624,7 +624,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -757,7 +757,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1116,7 +1116,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1360,7 +1360,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1597,7 +1597,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1828,7 +1828,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2341,7 +2341,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3093,7 +3093,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3220,7 +3220,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3255,7 +3255,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3631,7 +3631,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -4116,7 +4116,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -8765,7 +8765,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                  'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         for s in stubs:
             s.start()
         try:
@@ -9157,7 +9157,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True}, 'hl': {'rows': {}}}
@@ -10013,7 +10013,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -25613,7 +25613,7 @@ class PoPrzegladzieV211(unittest.TestCase):
         self.assertEqual((Z['bledy'], Z['uwagi'], len(Z['trwa'])), ([], [], 3)); self.assertTrue(all(x['bez'] for x in Z['trwa']))
         md = self.k.raport_md({'at': t(0.2), 'wynik': 'OK', 'meta': {}, 'awarie': Z, 'uwagi': [], 'bledy': []})
         self.assertIn('jpx od 02.10.2026, 02:00 (4 dni 4 godz., nieudanych przebiegów: 500) ℹ️ (Japonia — tydzień czeka na publikację giełdy)', md)
-        self.assertEqual(set(self.k.AW_BEZ_BLEDU) - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii
+        self.assertEqual(set(self.k.AW_BEZ_BLEDU) - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
                                                     'surowce_fundusze', 'surowce_banki'}, 'v215: snb — zwykła ocena; v295: + surowce; v298: + etap 3')   # v320: świadomie odjęte części raportów miesięcznych surowców (surowce_raporty_*) — też bez czerwieni z serii awarii
 
     def test_czas_do_ostatniego_przebiegu_i_pamiec_od(self):
@@ -25707,7 +25707,7 @@ class PoPrzegladzieV215(unittest.TestCase):
         Z = k.awarie_ocena({'at': t(0), 'awarie': aw}, datetime.datetime(2026, 10, 6, 4, 10, tzinfo=datetime.timezone.utc))
         self.assertEqual(len(Z['bledy']), 1); self.assertIn('„snb”', Z['bledy'][0]); self.assertEqual(Z['uwagi'], [])
         self.assertEqual(sorted(x['czesc'] for x in Z['trwa'] if x['bez']), ['ici', 'jpx', 'wycena_bg'])
-        self.assertEqual(set(k.AW_BEZ_BLEDU) - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii
+        self.assertEqual(set(k.AW_BEZ_BLEDU) - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
                                                'surowce_fundusze', 'surowce_banki'})   # v295: + części surowców; v298: + etap 3; v320: świadomie odjęte części raportów miesięcznych (surowce_raporty_*)
         self.assertIn('z założenia bez czerwieni', k.AW_BEZ_BLEDU['ici'])
 
@@ -32154,7 +32154,7 @@ class SurowceV295(unittest.TestCase):
             'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
             'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
             'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
             'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
         for zm, want_new in (({'eia'}, True), (set(), False)):
             saved.clear(); calls.clear()
@@ -33577,7 +33577,7 @@ class SurowceEtap3V298(unittest.TestCase):
             'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
             'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
             'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
             'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
         for s in stubs:
             s.start()
@@ -39467,7 +39467,7 @@ class StopySurowceV325(unittest.TestCase):
                 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
                 'build_meksyk', 'build_fundusze', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
                 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia',
+                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia',
                 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa',
                 'build_surowce', 'build_energia')]
             for s in stubs:
@@ -44029,3 +44029,919 @@ class GazLngV340(unittest.TestCase):
         self.assertLess(kk.index("lng_swiezosc(files.get('lng'))"), kk.index('surowce_raporty_swiezosc(files.get(')); self.assertLess(kk.index("Z['lng'] ="), kk.index("Z['surowce-raporty'] ="))
         self.assertNotIn('Wynik', kk[kk.index('# ---------------------------------------------------------------- v340: gaz i LNG'):kk.index('# ---------------------------------------------------------------- v320: surowce — raporty miesięczne')],
                          'nagłówek raportu i linia „Wynik: …” bez zmian — blok gazu ich nie dotyka')
+
+
+# ===================== v341 (F5Z3): ZBOŻA DZIENNIE I KOSZT TRANSPORTU — data/zboza-dzien.json (dział SUROWCE, surowce rolne) =====================
+def _zd341_dni(start, koniec, roboczy=True):
+    d, e, out = datetime.date.fromisoformat(start), datetime.date.fromisoformat(koniec), []
+    while d <= e:
+        if not roboczy or d.weekday() < 5:
+            out.append(d)
+        d += datetime.timedelta(days=1)
+    return out
+
+
+def _zd341_wartosci(dni, baza, krok, fala=0.0):
+    """Seria sztuczna, ale deterministyczna: liniowy wzrost (krok na punkt) z falą; ostatni punkt = baza + krok × (n − 1) + fala."""
+    import math
+    return [(d, round(baza + krok * i + fala * math.sin(i / 7.0), 2)) for i, d in enumerate(dni)]
+
+
+def _zd341_strona(serie, tabela=''):
+    """Strona wskaźników u źródła: skrypt wykresu (`series: [{ name: …, data: [[Date.UTC(r, m0, d), wartość], …] }, …]`, miesiąc liczony od 0) i tabela HTML."""
+    bloki = ["name: 'IGC niezwiązana seria', data: [[Date.UTC(2020,0,1),1.0]]"]   # seria spoza słownika — pomijana
+    for nazwa, rows in serie:
+        bloki.append("name: '%s',\n            data: [%s]" % (nazwa, ','.join('[Date.UTC(%d,%d,%d),%r]' % (d.year, d.month - 1, d.day, v) for d, v in rows)))
+    return ('<html><body><script>\nChart({\n        series: [{\n            ' + '\n        },{\n            '.join(bloki) + '\n        }]\n});\n</script>\n' + tabela + '\n</body></html>').encode()
+
+
+def _zd341_tabela(wiersze):
+    """Tabela jak 10.10.2026: komórki z zagnieżdżonym znacznikiem ItemStyle i span w kolumnie zmiany rocznej."""
+    h = ('<table cellspacing="0" id="PricesGridView">\n\t\t<tr>\n\t\t\t<th scope="col">&nbsp;</th><th scope="col">Last</th><th scope="col">Daily Change</th><th scope="col">Annual Change</th>'
+         '<th scope="col">52 Week Low</th><th scope="col">52 Week High</th><th scope="col">&nbsp;</th>\n\t\t</tr>')
+    for n, (nazwa, last, zm, rok, lo, hi, et) in enumerate(wiersze):
+        h += ('<tr>\n\t\t\t<td>%s</td><td>%s</td><td class="blacktextclass">%s</td><td>\n       <ItemStyle CssClass="blacktextclass"></ItemStyle>\n'
+              '       <span id="PricesGridView_ctl%02d_AnnualChangePositiveLabel" class="template">%s</span>\n      </td><td class="blacktextclass">%s</td>'
+              '<td class="blacktextclass">%s</td><td class="blacktextclass">%s</td>\n\t\t</tr>' % (nazwa, last, zm, n + 2, rok, lo, hi, et))
+    return h + '\n\t</table>'
+
+
+def _zd341_csv_fao(od='2023-01', do='2026-09', zboza=None):
+    y, m = int(od[:4]), int(od[5:7])
+    w = ['FAO Food Price Index,,,,,,,,,', '2014-2016=100,,,,,,,,,', 'Date,Food Price Index,Meat,Dairy,Cereals,Oils,Sugar,,,', ',,,,,,,,,']
+    i = 0
+    while f'{y:04d}-{m:02d}' <= do:
+        zb = zboza[f'{y:04d}-{m:02d}'] if zboza else 100 + i * 0.4
+        w.append(f'{y:04d}-{m:02d},{100 + i * 0.5:.1f},{110 + i * 0.1:.1f},{105 + i * 0.2:.1f},{zb:.1f},{120 + i * 0.7:.2f},{80 + i * 0.9:.1f},,,')
+        i += 1
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return '\n'.join(w) + '\n'
+
+
+def _zd341_cena_zb(v):
+    return '€' + ('%.2f' % v).replace('.', ',')   # zboża: przecinek dziesiętny
+
+
+def _zd341_eu_zb(wiersze):
+    """wiersze: (kraj, produkt, rynek, niedziela 'RRRR-MM-DD', cena, jednostka) → odpowiedź portalu (zboża): cena tekstem z przecinkiem."""
+    out = []
+    for kraj, prod, rynek, nd, v, *u in wiersze:
+        d = datetime.date.fromisoformat(nd)
+        out.append({'memberStateCode': kraj, 'memberStateName': kraj, 'beginDate': (d - datetime.timedelta(days=6)).strftime('%d/%m/%Y'), 'endDate': d.strftime('%d/%m/%Y'),
+                    'price': _zd341_cena_zb(v), 'unit': u[0] if u else 'TONNES', 'weekNumber': d.isocalendar()[1], 'productName': prod, 'marketName': rynek,
+                    'stageName': 'Free On Board - Incoterm', 'referencePeriod': '08/10/2026'})
+    return json.dumps(out, indent=1).encode()
+
+
+def _zd341_eu_ole(wiersze):
+    """Oleiste: cena z kropką dziesiętną, pola product / market / marketStage, jednostka „national currency/ton”."""
+    out = []
+    for kraj, prod, rynek, nd, v in wiersze:
+        d = datetime.date.fromisoformat(nd)
+        out.append({'memberStateCode': kraj, 'memberStateName': kraj, 'beginDate': (d - datetime.timedelta(days=6)).strftime('%d/%m/%Y'), 'endDate': d.strftime('%d/%m/%Y'),
+                    'price': '€%.2f' % v, 'unit': 'national currency/ton', 'weekNumber': d.isocalendar()[1], 'product': prod, 'productType': 'Standard',
+                    'marketStage': 'Not Defined', 'market': rynek, 'marketingYear': '2026/2027'})
+    return json.dumps(out).encode()
+
+
+class ZbozaDzienV341(unittest.TestCase):
+    """v341 (F5Z3): data/zboza-dzien.json — dzienny indeks zbóż i oleistych z pięcioma podindeksami (strona z wykresem i tabelą kontrolną; nagłówek pliku liczbowego
+    mówi o nowym wydaniu), tygodniowy indeks frachtu (7 tras), podindeksy żywności z pliku, który i tak pobrały surowce (zero zapytań), ceny zbóż i rzepaku w czterech
+    krajach UE (cena tekstem z przecinkiem albo kropką), nawozy UE. Odpowiedzi sztuczne, ale w kształcie nagrań z 10–11.10.2026 (strona IGC: skrypt wykresu, miesiące
+    od 0, punkt-widmo 1899, tabela z zagnieżdżonym ItemStyle; portal UE: pola różne między sektorami), zegar przypięty."""
+    NOW = datetime.datetime(2026, 10, 10, 15, 0, tzinfo=datetime.timezone.utc)   # sobota: indeks dzienny do czwartku 08.10, fracht do wtorku 06.10, ceny UE do 04.10, miesiące do 2026-09
+    LM = 'Fri, 09 Oct 2026 08:19:14 GMT'
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        zd._ZD_FAO.clear()
+
+    # ---- sztuczne odpowiedzi źródeł ----
+    def dni_goi(self, do='2026-10-08'):
+        return _zd341_dni('2020-01-01', do)
+
+    def seria_goi(self, do='2026-10-08'):
+        dni = self.dni_goi(do)
+        return {'IGC GOI': _zd341_wartosci(dni, 100.0, 0.05, 3.0), 'Wheat sub-Index': _zd341_wartosci(dni, 95.0, 0.05, 4.0), 'Maize sub-Index': _zd341_wartosci(dni, 90.0, 0.05, 5.0),
+                'Barley sub-Index': _zd341_wartosci(dni, 97.0, 0.05, 3.0), 'Soyabean sub-Index': _zd341_wartosci(dni, 92.0, 0.06, 4.0), 'Rice sub-Index': _zd341_wartosci(dni, 98.0, 0.04, 2.0)}
+
+    def tabela_goi(self, S, nazwy=None, et='8 Oct', zmien=None):
+        nazwy = nazwy or {'IGC GOI': 'Grains and Oilseeds Index', 'Wheat sub-Index': 'Wheat sub-Index', 'Maize sub-Index': 'Maize sub-Index', 'Rice sub-Index': 'Rice sub-Index',
+                          'Soyabean sub-Index': 'Soyabeans sub-Index', 'Barley sub-Index': 'Barley sub-Index'}
+        W = []
+        for k, rows in S.items():
+            last = rows[-1][1]
+            ya = rows[-1][0] - datetime.timedelta(days=365)
+            base = [v for d, v in rows if d <= ya][-1]
+            win = [v for d, v in rows if d > ya]
+            W.append((nazwy[k], round(last + (zmien or 0)), round(rows[-1][1] - rows[-2][1]), round((last / base - 1) * 100), round(min(win)), round(max(win)), et))
+        return _zd341_tabela(W)
+
+    def strona_goi(self, do='2026-10-08', tab=True, **kw):
+        S = self.seria_goi(do)
+        return _zd341_strona(list(S.items()), self.tabela_goi(S, **kw) if tab else '')
+
+    def seria_gofi(self):
+        dni = [d for d in _zd341_dni('2025-03-18', '2026-10-06', False) if d.weekday() == 1]   # wtorki
+        S = {'Grains and Oilseeds Freight Index': _zd341_wartosci(dni, 130.0, 0.6, 3.0)}
+        for i, n in enumerate(('Argentina', 'Australia', 'Brazil', 'Black Sea', 'Canada', 'Europe', 'USA')):
+            S[n + ' sub-index'] = _zd341_wartosci(dni, 100.0 + 10 * i, 0.5 + 0.1 * i, 2.0)
+        return S
+
+    def strona_gofi(self, wednesday_extra=True, tab=True):
+        S = self.seria_gofi()
+        if wednesday_extra:   # raz w miesiącu źródło dopisuje środę obok wtorku (18.03.2025 + 19.03.2025, 15.04 + 16.04 …)
+            for k, rows in S.items():
+                S[k] = sorted(rows + [(rows[3][0] + datetime.timedelta(days=1), rows[3][1] + 0.3)])
+        T = ''
+        if tab:
+            nz = {'Grains and Oilseeds Freight Index': 'IGC Grains and Oilseeds Freight Index'}
+            W = []
+            for k, rows in self.seria_gofi().items():
+                W.append((nz.get(k, k.replace('sub-index', 'sub-Index')), round(rows[-1][1]), round(rows[-1][1] - rows[-2][1]), 20, round(min(v for _, v in rows[-52:])), round(max(v for _, v in rows[-52:])), '6 Oct'))
+            T = _zd341_tabela(W)
+        return _zd341_strona([(k, S[k]) for k in S], T)
+
+    def eu_dane(self, do='2026-10-04', tyg=60, bez=(), zly=False):
+        """Tygodnie kończące się w niedzielę do `do`: zboża (ZD_RYNEK), rzepak (cztery kraje), śruta i olej w Polsce; bez — pominięte kraje (kraj, produkt)."""
+        nd = [datetime.date.fromisoformat(do) - datetime.timedelta(days=7 * i) for i in range(tyg)][::-1]
+        zb, rz, pl = [], [], []
+        for i, d in enumerate(nd):
+            for (p, c), r in zd.ZD_RYNEK.items():
+                if (c, p) in bez:
+                    continue
+                nazwa = dict(zd.ZD_ZB)[p]
+                zb.append((c, nazwa, r, d.isoformat(), 200.0 + 3 * list(zd.ZD_RYNEK).index((p, c)) + 0.5 * i))
+            for j, c in enumerate(zd.ZD_KRAJE):
+                if (c, 'rz') not in bez:
+                    rz.append((c, 'Rapeseed', zd.ZD_RZ_RYNEK[c], d.isoformat(), 500.0 + 10 * j + 0.8 * i))
+            pl.append(('PL', 'Rapeseed meal', 'Not Defined', d.isoformat(), 240.0 + 0.1 * i)); pl.append(('PL', 'Crude rape oil', 'Not Defined', d.isoformat(), 1100.0 + 2 * i))
+        # szum: ten sam tydzień drugi raz (dwa lata gospodarcze) — zostaje jedna wartość
+        zb.append(zb[-1]); zb.append(('PL', 'Milling wheat', 'Hamburg', do, 999.0))   # rynek spoza listy dla Polski — pominięty
+        if zly:   # ostatni tydzień pszenicy w Rouen z ceną spoza zakresu (50–1000): brak punktu, nie zero
+            zb = [x for x in zb if not (x[0] == 'FR' and x[1] == 'Milling wheat' and x[3] == do)] + [('FR', 'Milling wheat', 'Rouen', do, 5.0)]
+        return _zd341_eu_zb(zb), _zd341_eu_ole(rz), _zd341_eu_ole(pl)
+
+    def eu_naw(self, do='2026-09'):
+        w, y, m = [], 2021, 1
+        mies = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+        i = 0
+        while f'{y:04d}-{m:02d}' <= do:
+            for nazwa, v in (('K (Potash)', 300.0 + i), ('N (Nitrogen)', 400.0 + 2 * i), ('P (Phosphorus)', 600.0 + 3 * i)):
+                w.append({'year': y, 'quarter': 'Q%d' % ((m - 1) // 3 + 1), 'month': mies[m - 1], 'memberStateName': 'European Commission', 'product': nazwa, 'price': v, 'unit': '€/tonne'})
+            i += 1
+            y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+        w.reverse()
+        return json.dumps(w, indent=1).encode()
+
+    def siec(self, calls=None, goi=None, gofi=None, eu=None, naw=None, fao=None, lm=None, blad=()):
+        """fetch(url, timeout, headers, maks) i lm(url, timeout) z nagraniami; blad — fragmenty adresów, które mają zawieść (HTTP 500)."""
+        calls = calls if calls is not None else []
+        goi = goi if goi is not None else self.strona_goi()
+        gofi = gofi if gofi is not None else self.strona_gofi()
+        eu = eu if eu is not None else self.eu_dane()
+        naw = naw if naw is not None else self.eu_naw()
+        fao = fao if fao is not None else _zd341_csv_fao().encode()
+
+        def fetch(url, timeout, headers=None, maks=None):
+            calls.append((url, timeout, maks))
+            if any(b in url for b in blad):
+                raise RuntimeError('HTTP Error 500: SUSPENDED')
+            if 'marketinfo-goi' in url:
+                return goi
+            if 'marketinfo-freight' in url:
+                return gofi
+            if 'cereal/prices' in url:
+                return eu[0]
+            if 'oilseeds/prices' in url:
+                return eu[1] if 'memberStateCodes=PL,FR' in url else eu[2]
+            if 'fertiliser/prices' in url:
+                return naw
+            if 'food_price_indices_data' in url:
+                return fao
+            raise AssertionError('nieznany adres ' + url)
+
+        def lm_(url, timeout):
+            calls.append(('LM ' + url, timeout, None))
+            if isinstance(lm, Exception):
+                raise lm
+            return lm if lm is not None else self.LM
+        return fetch, lm_, calls
+
+    def csv_fao(self, od='2023-01', do='2026-09'):
+        """Plik indeksów żywności, w którym podindeks zbóż idzie za indeksem dziennym (jak naprawdę: korelacja zmian miesięcznych 0,91 przez 26 lat)."""
+        M = {}
+        for d, v in self.seria_goi()['IGC GOI']:
+            M.setdefault(d.isoformat()[:7], []).append(v)
+        return _zd341_csv_fao(od, do, {m: 1.1 * sum(x) / len(x) for m, x in M.items()})
+
+    def build(self, prev=None, now=None, fao=True, **kw):
+        fetch, lm, calls = self.siec(**kw)
+        o = zd.build_zboza_dzien(prev, now=now or self.NOW, fetch=fetch, lm=lm, fao_tekst=(self.csv_fao() if fao is True else fao))
+        return o, calls
+
+    # ---- parsery ----
+    def test_parser_strony_indeksu(self):
+        S = self.seria_goi()
+        S['Maize sub-Index'] = [(datetime.date(1899, 12, 30), 62.26)] + S['Maize sub-Index']   # punkt-widmo z 1899 (kukurydza, 10.10.2026)
+        S['IGC GOI'] = S['IGC GOI'] + [(S['IGC GOI'][-1][0], 1.0)]                              # ten sam dzień dwa razy — ostatni
+        S['Rice sub-Index'] = S['Rice sub-Index'][:50] + [(datetime.date(2020, 3, 14), 0.0), (datetime.date(2020, 3, 15), -3.0)] + S['Rice sub-Index'][50:]   # ≤ 0 = brak punktu
+        ser, tab, uw = zd.zd_parse_igc(_zd341_strona(list(S.items()), self.tabela_goi(self.seria_goi())), zd.ZD_GOI_ID)
+        self.assertEqual(sorted(ser), ['goi', 'jeczmien', 'kukurydza', 'pszenica', 'ryz', 'soja'], 'seria spoza słownika pominięta; nazwy u źródła → identyfikatory')
+        self.assertEqual(ser['kukurydza'][0][0], '2020-01-01', 'punkt z 1899 odrzucony')
+        self.assertEqual(ser['goi'][-1], ('2026-10-08', 1.0), 'ten sam dzień dwa razy — zostaje ostatni')
+        self.assertNotIn('2020-03-14', dict(ser['ryz'])); self.assertNotIn('2020-03-15', dict(ser['ryz']))
+        self.assertEqual(len(ser['pszenica']), len(self.dni_goi()))
+        self.assertEqual(ser['pszenica'][5][0], self.dni_goi()[5].isoformat(), 'miesiąc liczony od 0 (Date.UTC(r, m0, d))')
+        self.assertEqual([r[0] for r in tab], ['goi', 'pszenica', 'kukurydza', 'jeczmien', 'soja', 'ryz'], 'tabela: nazwy tabeli (Soyabeans) mapowane tym samym słownikiem')
+        self.assertEqual(tab[0][6], '8 Oct'); self.assertEqual(tab[5][3], round((ser['ryz'][-1][1] / [v for d, v in ser['ryz'] if d <= '2025-10-08'][-1] - 1) * 100), 'zmiana roczna z komórki z ItemStyle i span')
+        self.assertEqual(zd.zd_parse_igc(b'<html>nic</html>', zd.ZD_GOI_ID), ({}, [], []), 'strona bez wykresu i tabeli — pusty wynik (builder zgłasza błąd)')
+        self.assertEqual(zd._zd_etykieta_dnia('8 Oct'), (8, 10)); self.assertEqual(zd._zd_etykieta_dnia(' 31 dec '), (31, 12))
+        for x in ('8 October', 'Oct 8', '', None, '32'):
+            self.assertIsNone(zd._zd_etykieta_dnia(x), x)
+        self.assertEqual((zd._zd_liczba('−2'), zd._zd_liczba('19'), zd._zd_liczba('+1.5'), zd._zd_liczba('n/a'), zd._zd_liczba('')), (-2.0, 19.0, 1.5, None, None))
+
+    def test_statystyki_serii_z_liczb_wyliczonych_recznie(self):
+        dni = _zd341_dni('2025-01-01', '2026-01-10', False)   # kalendarzowo, 375 dni
+        rows = [(d.isoformat(), 100.0 + i) for i, d in enumerate(dni)]
+        st = zd._zd_stat(rows, ((5, 'p5'), (21, 'p21')), True)
+        self.assertEqual((st['last'], st['dt'], st['d1']), (474.0, '2026-01-10', 1.0))
+        self.assertEqual(st['p1'], round((474 / 473 - 1) * 100, 2)); self.assertEqual(st['p5'], round((474 / 469 - 1) * 100, 2)); self.assertEqual(st['p21'], round((474 / 453 - 1) * 100, 2))
+        ya = '2025-01-10'   # 365 dni przed 2026-01-10
+        base = [v for d, v in rows if d == ya][0]
+        self.assertEqual(st['y1'], round((474 / base - 1) * 100, 2))
+        win = [v for d, v in rows if d > ya]
+        self.assertEqual((st['lo'], st['hi']), (min(win), max(win))); self.assertEqual(st['pos'], 100.0, 'rosnąca seria: ostatni = najwyższy z 365 dni')
+        self.assertEqual(st['pct'], round(sum(1 for _, v in rows if v < 474) / len(rows) * 100, 1)); self.assertEqual(st['pct'], 99.7)
+        # za krótka seria na przedział 365 dni i na zmianę roczną: pola None (nie 0), reszta liczona
+        kr = zd._zd_stat(rows[-60:], ((5, 'p5'),))
+        self.assertEqual((kr['lo'], kr['hi'], kr['pos'], kr['y1']), (None, None, None, None)); self.assertEqual(kr['p5'], round((474 / 469 - 1) * 100, 2)); self.assertNotIn('pct', kr)
+        self.assertIsNone(zd._zd_stat(rows[:1], ()), 'jeden punkt — brak statystyk')
+        self.assertEqual(zd._zd_stat([('2026-01-01', 5.0), ('2026-01-02', 5.0)], ())['p1'], 0.0, 'bez zmiany: 0,0 — to pomiar')
+        self.assertIsNone(zd._zd_pct(5.0, 0)); self.assertIsNone(zd._zd_pct(None, 5.0)); self.assertIsNone(zd._zd_pct(5.0, -1))
+        self.assertEqual(zd._zd_miesiace([('2026-01-30', 10.0), ('2026-01-31', 11.0), ('2026-02-01', 20.0)]), [['2026-01', 10.5], ['2026-02', 20.0]])
+        t = zd._zd_tydzien([('2025-03-18', 1.0), ('2025-03-19', 2.0), ('2025-03-25', 3.0)])
+        self.assertEqual(t, [('2025-03-18', 1.0), ('2025-03-25', 3.0)], 'punkty jednego tygodnia ISO: zostaje wtorek (najwcześniejszy), nie dopisana środa')
+        self.assertEqual(zd._zd_tydzien([('2025-03-19', 2.0), ('2025-03-18', 1.0), ('2025-04-02', 7.0)]), [('2025-03-18', 1.0), ('2025-04-02', 7.0)], 'kolejność wejścia bez znaczenia; tydzień tylko ze środą zostaje ze środą')
+
+    def test_zmiana_roczna_serii_tygodniowej_364_dni_i_przedzial_52_tygodni(self):
+        # seria tygodniowa (wtorki): rok = 52 tygodnie = 364 dni, nie 365 (punkt sprzed 365 dni to wtorek sprzed 371 dni — dawny błąd: zmiana z 53 tygodni)
+        dni = [d for d in _zd341_dni('2025-03-18', '2026-10-06', False) if d.weekday() == 1]
+        rows = [(d.isoformat(), 100.0 + i) for i, d in enumerate(dni)]
+        st = zd._zd_stat(rows, ((4, 'p4'),), False, 364, 3)
+        self.assertEqual(rows[-1][0], '2026-10-06'); b = dict(rows)['2025-10-07']
+        self.assertEqual(st['y1'], round((rows[-1][1] / b - 1) * 100, 2), 'zmiana roczna względem wtorku sprzed 364 dni (07.10.2025)')
+        old = zd._zd_stat(rows, ((4, 'p4'),))
+        self.assertEqual(old['y1'], round((rows[-1][1] / dict(rows)['2025-09-30'] - 1) * 100, 2)); self.assertNotEqual(old['y1'], st['y1'], 'domyślne 365 dni brałoby punkt sprzed 371 dni')
+        self.assertEqual((st['lo'], st['hi']), (min(v for d, v in rows if d > '2025-10-07'), rows[-1][1]), 'przedział: 52 ostatnie punkty (364 dni), bez punktu sprzed roku')
+        self.assertEqual(sum(1 for d, v in rows if d > '2025-10-07'), 52)
+        # luka w serii (brak tygodnia 07.10.2025): najbliższy wcześniejszy punkt jest o 7 dni od granicy > 3 — zmiana roczna „—” (nie liczba z dłuższego okresu)
+        luka = [r for r in rows if r[0] != '2025-10-07']
+        self.assertIsNone(zd._zd_stat(luka, ((4, 'p4'),), False, 364, 3)['y1'])
+        # punkt o 2 dni wcześniejszy niż granica mieści się w tolerancji 3 dni
+        przes = sorted(luka + [('2025-10-05', 77.0)])
+        self.assertEqual(zd._zd_stat(przes, ((4, 'p4'),), False, 364, 3)['y1'], round((rows[-1][1] / 77.0 - 1) * 100, 2))
+        # w części frachtu: ta sama reguła (zmiana roczna i przedział 52 tygodni z serii wtorków mimo dopisanych śród)
+        ser, tab, _ = zd.zd_parse_igc(self.strona_gofi(), zd.ZD_GOFI_ID)
+        c, _, _ = zd.zd_fracht_czesc(ser, tab, self.NOW)
+        S = self.seria_gofi()['Grains and Oilseeds Freight Index']; sd = {d.isoformat(): v for d, v in S}
+        self.assertEqual(c['s']['gofi']['st']['y1'], round((S[-1][1] / sd['2025-10-07'] - 1) * 100, 2))
+        self.assertEqual(c['s']['gofi']['st']['hi'], max(v for d, v in S if d.isoformat() > '2025-10-07'))
+        # brak wtorku 07.10.2025 w danych źródła: zmiana roczna „—” (None), nie liczba z tygodnia wcześniejszego (7 dni od granicy)
+        ser_l = {k: [r for r in v if r[0] != '2025-10-07'] for k, v in ser.items()}
+        cl, _, _ = zd.zd_fracht_czesc(ser_l, tab, self.NOW)
+        self.assertIsNone(cl['s']['gofi']['st']['y1']); self.assertIsNotNone(cl['s']['gofi']['st']['p4'])
+
+    def test_czesc_indeksu_dziennego(self):
+        ser, tab, _ = zd.zd_parse_igc(self.strona_goi(), zd.ZD_GOI_ID)
+        c, br, uw = zd.zd_goi_czesc(ser, tab, self.NOW, self.LM)
+        self.assertEqual((br, uw), ([], []))
+        self.assertEqual((c['asof'], c['u'], c['baza'], c['lm'], c['n']), ('2026-10-08', 'idx', '2000-01', self.LM, len(self.dni_goi())))
+        self.assertEqual(sorted(c['s']), sorted(zd.ZD_GOI_KOLEJNOSC))
+        e = c['s']['goi']
+        self.assertEqual(e['d'][-1], ['2026-10-08', ser['goi'][-1][1]])
+        self.assertEqual(e['d'][0][0], [d for d, _ in ser['goi'] if d >= '2025-09-03'][0], 'granica okna = ostatni dzień − 400 dni (2026-10-08 − 400 = 2025-09-03)')
+        self.assertEqual(e['m'][0], ['2020-01', round(sum(v for d, v in ser['goi'] if d.startswith('2020-01')) / len([1 for d, _ in ser['goi'] if d.startswith('2020-01')]), 2)])
+        self.assertEqual(len(e['m']), 2020 * 0 + (2026 - 2020) * 12 + 10, 'średnie miesięczne od początku serii do października 2026')
+        st = e['st']
+        self.assertEqual(st, zd._zd_stat(ser['goi'], ((5, 'p5'), (21, 'p21')), True)); self.assertEqual(st['dt'], '2026-10-08')
+        self.assertEqual(c['tab']['goi'][0], round(st['last'])); self.assertEqual(sorted(c['tab']), sorted(zd.ZD_GOI_KOLEJNOSC))
+        # niezgodna tabela źródła w tym samym dniu = błąd odczytu (część zostaje z poprzednimi danymi)
+        ser2, tab2, _ = zd.zd_parse_igc(self.strona_goi(zmien=5), zd.ZD_GOI_ID)
+        with self.assertRaises(RuntimeError) as r:
+            zd.zd_goi_czesc(ser2, tab2, self.NOW)
+        self.assertIn('tabela źródła niezgodna z serią', str(r.exception))
+        # inny dzień w etykiecie tabeli = tylko uwaga (nie błąd danych); brak tabeli = uwaga
+        s3, t3, _ = zd.zd_parse_igc(self.strona_goi(et='7 Oct'), zd.ZD_GOI_ID)
+        c3, br3, uw3 = zd.zd_goi_czesc(s3, t3, self.NOW)
+        self.assertEqual((c3['asof'], br3), ('2026-10-08', [])); self.assertEqual(len(uw3), 6); self.assertIn('tabela źródła ma dzień „7 Oct”, seria kończy się 2026-10-08', uw3[0])
+        s4, t4, _ = zd.zd_parse_igc(self.strona_goi(tab=False), zd.ZD_GOI_ID)
+        self.assertEqual(zd.zd_goi_czesc(s4, t4, self.NOW)[2], ['brak tabeli kontrolnej na stronie źródła'])
+        # brak jednej serii (zmieniona strona) = błąd częściowy; brak indeksu ogółem = błąd
+        S = self.seria_goi(); del S['Rice sub-Index']
+        s5, t5, _ = zd.zd_parse_igc(_zd341_strona(list(S.items()), ''), zd.ZD_GOI_ID)
+        c5, br5, _ = zd.zd_goi_czesc(s5, [], self.NOW)
+        self.assertEqual((br5, 'ryz' in c5['s'], 'pszenica' in c5['s']), (['goi: brak serii ryz'], False, True))
+        S = self.seria_goi(); del S['IGC GOI']
+        with self.assertRaises(RuntimeError):
+            zd.zd_goi_czesc(*zd.zd_parse_igc(_zd341_strona(list(S.items()), ''), zd.ZD_GOI_ID)[:2], self.NOW)
+        # za krótka seria (zmieniona strona) = odrzucona; data z przyszłości = odrzucona
+        S = self.seria_goi(); S['Soyabean sub-Index'] = S['Soyabean sub-Index'][-300:]
+        s6, _, _ = zd.zd_parse_igc(_zd341_strona(list(S.items()), ''), zd.ZD_GOI_ID)
+        self.assertTrue(zd.zd_goi_czesc(s6, [], self.NOW)[1][0].startswith('goi: seria soja odrzucona (300 punktów'))
+        s7, _, _ = zd.zd_parse_igc(self.strona_goi(do='2026-10-14', tab=False), zd.ZD_GOI_ID)
+        with self.assertRaises(RuntimeError):
+            zd.zd_goi_czesc(s7, [], self.NOW)
+
+    def test_czesc_frachtu(self):
+        ser, tab, _ = zd.zd_parse_igc(self.strona_gofi(), zd.ZD_GOFI_ID)
+        self.assertEqual(sorted(ser), sorted(zd.ZD_GOFI_KOLEJNOSC)); self.assertEqual(len(tab), 8)
+        c, br, uw = zd.zd_fracht_czesc(ser, tab, self.NOW)
+        self.assertEqual((br, uw, c['asof'], c['u']), ([], [], '2026-10-06', 'idx'))
+        S = self.seria_gofi()['Grains and Oilseeds Freight Index']
+        e = c['s']['gofi']
+        self.assertEqual(len(e['d']), len(S), 'środa dopisana obok wtorku — jeden punkt na tydzień')
+        self.assertEqual(e['d'][-1], [S[-1][0].isoformat(), S[-1][1]]); self.assertEqual(e['d'][3], [S[3][0].isoformat(), S[3][1]], 'w tygodniu z dwoma punktami zostaje wtorek (zwykły rytm), nie dopisana środa')
+        self.assertEqual({(datetime.date.fromisoformat(b[0]) - datetime.date.fromisoformat(a[0])).days for a, b in zip(e['d'], e['d'][1:])}, {7}, 'odstępy równe 7 dni (kontrola skoków z krokiem tygodnia obejmuje całą serię)')
+        self.assertEqual(e['st']['p1'], round((S[-1][1] / S[-2][1] - 1) * 100, 2)); self.assertEqual(e['st']['p4'], round((S[-1][1] / S[-5][1] - 1) * 100, 2)); self.assertNotIn('pct', e['st'])
+        self.assertEqual(sorted(c['s']), sorted(zd.ZD_GOFI_KOLEJNOSC))
+        # tabela frachtu niezgodna z serią (inna wartość w tym samym dniu) = błąd
+        t2 = [(r[0], r[1] + 3) + r[2:] for r in tab]
+        with self.assertRaises(RuntimeError):
+            zd.zd_fracht_czesc(ser, t2, self.NOW)
+        with self.assertRaises(RuntimeError):
+            zd.zd_fracht_czesc({'argentyna': ser['argentyna']}, [], self.NOW)
+
+    def test_podindeksy_zywnosci(self):
+        ser, base, uw = zd.zd_parse_fao(_zd341_csv_fao('2025-01', '2026-09'))
+        self.assertEqual((base, uw, sorted(ser)), ('2014-2016=100', [], sorted(['ogolem', 'mieso', 'nabial', 'zboza', 'oleje', 'cukier'])))
+        self.assertEqual(len(ser['cukier']), 21); self.assertEqual(ser['cukier']['2026-09'], round(80 + 20 * 0.9, 1))
+        c = zd.zd_fao_czesc(ser, base, self.NOW)
+        self.assertEqual((c['asof'], c['baza'], len(c['s']['zboza']['d'])), ('2026-09', '2014-2016=100', 21)); self.assertEqual(c['s']['oleje']['d'][-1], ['2026-09', ser['oleje']['2026-09']])
+        # pusta komórka = brak miesiąca tej serii (nie 0); asof = najstarszy z ostatnich miesięcy serii; brak kolumny = uwaga
+        tx = _zd341_csv_fao('2025-01', '2026-09').replace('2026-09,', '2026-09,', 1)
+        wiersze = tx.split('\n'); wiersze[-2] = '2026-09,121.0,,,111.0,,,,,'
+        s2, _, uw2 = zd.zd_parse_fao('\n'.join(wiersze))
+        self.assertNotIn('2026-09', s2['mieso']); self.assertEqual(s2['ogolem']['2026-09'], 121.0)
+        self.assertEqual(zd.zd_fao_czesc(s2, base, self.NOW)['asof'], '2026-08', 'seria bez wrześniowej wartości — asof nie wyprzedza najwolniejszej serii')
+        s3, _, uw3 = zd.zd_parse_fao(_zd341_csv_fao('2025-01', '2026-09').replace('Sugar', 'Cukier'))
+        self.assertEqual((uw3, 'cukier' in s3), (['brak kolumny Sugar'], False))
+        for zle in ('Date,Foo\n2026-09,1\n', '<html>strona</html>', ''):
+            with self.assertRaises(RuntimeError):
+                zd.zd_parse_fao(zle)
+        # plik nieaktualny (ostatni miesiąc starszy niż 4 miesiące — stary adres) = błąd
+        s4, b4, _ = zd.zd_parse_fao(_zd341_csv_fao('2015-01', '2018-03'))
+        with self.assertRaises(RuntimeError) as r:
+            zd.zd_fao_czesc(s4, b4, self.NOW)
+        self.assertIn('plik nieaktualny (ostatni miesiąc 2018-03)', str(r.exception))
+
+    def test_ceny_w_ue(self):
+        # cena tekstem: przecinek w zbożach, kropka w oleistych, tysiące
+        W = zd.zd_eu_wiersze(_zd341_eu_zb([('PL', 'Milling wheat', 'National Average', '2026-10-04', 214.14)]))
+        self.assertEqual((W[0]['kraj'], W[0]['produkt'], W[0]['rynek'], W[0]['dzien'], W[0]['cena'], W[0]['jednostka']), ('PL', 'Milling wheat', 'National Average', '2026-10-04', 214.14, 'TONNES'))
+        self.assertEqual(zd.zd_eu_wiersze(_zd341_eu_ole([('PL', 'Rapeseed', 'Not Defined', '2026-10-04', 563.75)]))[0]['cena'], 563.75)
+        raw = json.loads(_zd341_eu_ole([('PL', 'Crude rape oil', 'Not Defined', '2026-10-04', 1246.97)]))
+        raw[0]['price'] = '€1,246.97'; raw[1:] = [dict(raw[0], price='zł 5', endDate='04/10/2026'), dict(raw[0], endDate='31/02/2026'), dict(raw[0], endDate=None), 'x']
+        self.assertEqual([w['cena'] for w in zd.zd_eu_wiersze(json.dumps(raw).encode())], [1246.97], 'zły zapis ceny, zła data i nie-słownik pominięte')
+        for zle in (b'{"a":1}', b'nie json'):
+            with self.assertRaises((RuntimeError, ValueError)):
+                zd.zd_eu_wiersze(zle)
+        # budowa części: jedna seria na rynek referencyjny; zakres; duplikat tygodnia; obce rynki pominięte
+        o, _ = self.build(eu=self.eu_dane(zly=True))
+        U = o['ue']
+        self.assertEqual((U['asof'], U['u'], o['ok']['ue']), ('2026-10-04', 'EUR/t', True))
+        for (p, c), r in zd.ZD_RYNEK.items():
+            e = U['zb'][p][c]
+            self.assertEqual(e['r'], r); self.assertEqual(len(e['d']), 60 if (p, c) != ('pszenica', 'FR') else 59, (p, c)); self.assertEqual(e['d'][-1][0], '2026-10-04' if (p, c) != ('pszenica', 'FR') else '2026-09-27')
+        self.assertNotIn(999.0, [x[1] for x in U['zb']['pszenica']['PL']['d']], 'rynek spoza listy dla Polski pominięty')
+        self.assertEqual(len(U['zb']['pszenica']['PL']['d']), 60, 'ten sam tydzień drugi raz (dwa lata gospodarcze) — jedna wartość')
+        self.assertNotIn('2026-10-04', dict(U['zb']['pszenica']['FR']['d']), 'cena 5 EUR/t (spoza zakresu 50–1000) = brak punktu tygodnia, nie zero')
+        self.assertIn('zboża dziennie: ue: 1 cen spoza zakresu pominięto', zd.META['notes'])
+        self.assertEqual(sorted(U['rz']), ['DE', 'FR', 'PL', 'RO']); self.assertEqual(U['rz']['FR']['r'], 'Rouen'); self.assertEqual(U['rz']['PL']['r'], 'Not Defined')
+        self.assertEqual(sorted(U['pl']), ['olej', 'sruta']); self.assertEqual(U['pl']['olej']['d'][-1], ['2026-10-04', 1100.0 + 2 * 59])
+        self.assertEqual(U['zb']['pszenica']['PL']['d'][-1], ['2026-10-04', 200.0 + 3 * list(zd.ZD_RYNEK).index(('pszenica', 'PL')) + 0.5 * 59])
+
+    def test_ceny_w_ue_brak_serii_i_okna_zapytan(self):
+        # kraj bez żadnej serii produktu = błąd częściowy (reszta zapisana)
+        eu = self.eu_dane(bez=(('RO', 'kukurydza'), ('DE', 'rz')))
+        o, _ = self.build(eu=eu)
+        self.assertEqual(o['ok']['ue'], False); self.assertEqual(o['cz'], {'ue': True}); self.assertNotIn('RO', o['ue']['zb']['kukurydza']); self.assertIn('PL', o['ue']['zb']['kukurydza'])
+        self.assertIn('ue: brak serii kukurydza w kraju RO', o['err']['ue']); self.assertIn('ue: brak rzepaku w kraju DE', o['err']['ue'])
+        self.assertNotIn('DE', o['ue']['rz'])
+        # pierwsze zapytanie: ZD_UE_PIERWSZE dni wstecz; następne (≥ 52 tygodni w pliku): ZD_UE_KOLEJNE dni; tydzień kończy się w sobotę/dzień zapytania
+        o0, calls = self.build()
+        ue = [c for c in calls if 'cereal/prices' in c[0]][0][0]
+        self.assertIn('memberStateCodes=PL,FR,DE,RO&productCodes=BLTPAN,MAI,ORGFOUR', ue)
+        self.assertIn('beginDate=06/08/2025&endDate=10/10/2026', ue, 'pierwsze zapytanie: 430 dni wstecz (ok. 14 miesięcy)'); self.assertEqual((zd.ZD_UE_PIERWSZE, zd.ZD_UE_KOLEJNE), (430, 63))
+        nowy = self.NOW + datetime.timedelta(days=5)   # czwartek 15.10: nowy tydzień (do 11.10) już w portalu
+        o1, calls1 = self.build(prev=o0, now=nowy, eu=self.eu_dane(do='2026-10-11'))
+        ue1 = [c for c in calls1 if 'cereal/prices' in c[0]][0][0]
+        self.assertIn('beginDate=13/08/2026&endDate=15/10/2026', ue1, 'kolejne zapytania: 63 dni wstecz')
+        self.assertEqual((o1['ue']['asof'], o1['ue']['zb']['pszenica']['PL']['d'][-1][0], len(o1['ue']['zb']['pszenica']['PL']['d'])), ('2026-10-11', '2026-10-11', zd.ZD_UE_TYG if 61 > zd.ZD_UE_TYG else 61),
+                         'historia z poprzedniego pliku + nowy tydzień, najwyżej ZD_UE_TYG tygodni')
+        self.assertEqual(sum(1 for c in calls1 if 'oilseeds' in c[0]), 2); self.assertEqual(sum(1 for c in calls1 if 'cereal' in c[0]), 1)
+
+    def test_ue_zapytanie_nieudane_zostawia_poprzednie_serie(self):
+        o0, _ = self.build()
+        nowy = self.NOW + datetime.timedelta(days=5)
+        # zawodzi zapytanie o rzepak: błąd częściowy; zboża i śruta zapisane, rzepak z poprzedniego pliku
+        o1, _ = self.build(prev=o0, now=nowy, eu=self.eu_dane(do='2026-10-11'), blad=('products=Rapeseed&',))
+        self.assertEqual(o1['ok']['ue'], False); self.assertEqual(o1['cz'], {'ue': True}); self.assertIn('rzepak: HTTP Error 500', o1['err']['ue'])
+        self.assertEqual(o1['ue']['zb']['pszenica']['PL']['d'][-1][0], '2026-10-11'); self.assertEqual(o1['ue']['rz']['PL']['d'][-1][0], '2026-10-04', 'rzepak: poprzednie dane z własną datą')
+        self.assertEqual(o1['ue']['pl']['olej']['d'][-1][0], '2026-10-11')
+        # wszystkie trzy zawodzą = błąd źródła: poprzednia część bez zmian
+        o2, _ = self.build(prev=o0, now=nowy, blad=('agrifood/api/cereal', 'agrifood/api/oilseeds'))
+        self.assertEqual((o2['ok']['ue'], o2['ue']), (False, o0['ue'])); self.assertNotIn('cz', o2); self.assertEqual(o2['part_at']['ue'], o0['part_at']['ue'])
+        self.assertIn('ue: zboża: HTTP Error 500', o2['err']['ue'])
+
+    def test_nawozy(self):
+        o, _ = self.build()
+        N = o['nawozy']
+        self.assertEqual((N['asof'], N['u'], sorted(N['s'])), ('2026-09', 'EUR/t', ['K', 'N', 'P']))
+        self.assertEqual(len(N['s']['N']['d']), zd.ZD_M_NAW if 69 > zd.ZD_M_NAW else 69); self.assertEqual(N['s']['N']['d'][-1], ['2026-09', 400.0 + 2 * 68]); self.assertEqual(N['s']['P']['d'][-1], ['2026-09', 600.0 + 3 * 68])
+        self.assertEqual(zd.zd_parse_nawozy(self.eu_naw('2026-09'))['K']['2021-01'], 300.0)
+        for zle in (b'{"a":1}', b'[]', b'[{"year":2026,"month":"Sep","product":"X","price":5,"unit":"EUR"}]'):
+            with self.assertRaises((RuntimeError, ValueError)):
+                zd.zd_parse_nawozy(zle)
+        x = json.loads(self.eu_naw('2026-09')); x[0]['price'] = 99999.0; x[1]['unit'] = 'zł/t'; x[2]['month'] = 'Foo'
+        S = zd.zd_parse_nawozy(json.dumps(x).encode())
+        self.assertNotIn('2026-09', S['K']); self.assertNotIn('2026-09', S['N']); self.assertNotIn('2026-09', S['P'], 'cena spoza zakresu, zła jednostka i zły miesiąc = brak (nie 0)')
+        # kolejne pobranie: nowy miesiąc dopisany do historii z poprzedniego pliku
+        o1, calls = self.build(prev=o, now=datetime.datetime(2026, 11, 12, 12, tzinfo=datetime.timezone.utc), naw=self.eu_naw('2026-10'))
+        self.assertEqual((o1['nawozy']['asof'], o1['nawozy']['s']['K']['d'][-1], o1['nawozy']['s']['K']['d'][-2]), ('2026-10', ['2026-10', 300.0 + 69], ['2026-09', 300.0 + 68]))
+
+    # ---- bramki i przebieg ----
+    def test_pierwszy_przebieg_i_brak_zapytan_potem(self):
+        o, calls = self.build()
+        self.assertEqual({p: o['ok'][p] for p in zd.ZD_PARTS}, {p: True for p in zd.ZD_PARTS}); self.assertNotIn('cz', o); self.assertEqual(o['err'], {})
+        zap = sorted(c[0].split('?')[0].split('/')[-1] for c in calls if not c[0].startswith('LM '))
+        self.assertEqual(zap, ['marketinfo-freight.aspx', 'marketinfo-goi.aspx', 'prices', 'prices', 'prices', 'prices'], 'goi: strona, gofi: strona, ue: 3 zapytania, nawozy: 1; fao — z pliku, bez zapytania')
+        self.assertEqual([c[0] for c in calls if c[0].startswith('LM ')], ['LM https://igc.int/_csv/igc__goi.xlsb'])
+        self.assertFalse(any('food_price' in c[0] for c in calls), 'podindeksy żywności: zero nowych zapytań, gdy plik zostawił budowniczy surowców')
+        self.assertTrue(all(c[1] <= zd.ZD_LIMIT_S['goi'] for c in calls) and all(c[2] for c in calls if not c[0].startswith('LM ')), 'limity czasu i rozmiaru odpowiedzi w każdym zapytaniu')
+        self.assertEqual(o['st']['goi']['lm'], '2026-10-09T08:19:14+00:00'); self.assertEqual(o['st']['goi']['okno'], [8 * 60 + 19]); self.assertEqual(o['st']['goi']['page_at'], self.NOW.isoformat())
+        self.assertEqual(o['part_at'], {p: self.NOW.isoformat() for p in zd.ZD_PARTS}); self.assertEqual(o['at'], self.NOW.isoformat())
+        self.assertEqual(o['next'], {'goi': '2026-10-12T08:00:00+00:00', 'fracht': '2026-10-14T08:45:00+00:00', 'fao': '2026-11-06T12:00:00+00:00', 'ue': '2026-10-15T12:00:00+00:00', 'nawozy': '2026-11-10T12:00:00+00:00'})
+        # zaraz potem (ten sam zegar): nic nie jest należne — bez zapytań; części 'cached' z danymi
+        o2, calls2 = self.build(prev=o, fao=None)
+        self.assertEqual(calls2, []); self.assertEqual({p: o2['ok'][p] for p in zd.ZD_PARTS}, {p: 'cached' for p in zd.ZD_PARTS})
+        self.assertEqual((o2['goi'], o2['ue'], o2['at']), (o['goi'], o['ue'], o['at'])); self.assertEqual(o2['part_at'], o['part_at'])
+
+    def test_indeks_dzienny_okno_publikacji_naglowek_i_strona(self):
+        o, _ = self.build()
+        pon = datetime.datetime(2026, 10, 12, 7, 0, tzinfo=datetime.timezone.utc)   # poniedziałek rano, przed oknem: spodziewany piątek 09.10, ale okno jeszcze nie otwarte
+        self.assertEqual(zd._zd_goi_oczek(pon, 480)[0], '2026-10-08', 'przed 08:00 UTC w poniedziałek — dzień danych z czwartku (piątkowa publikacja)')
+        o1, c1 = self.build(prev=o, now=pon, fao=None)
+        self.assertEqual([c[0] for c in c1 if 'igc.int' in c[0]], [], 'przed oknem: indeks dzienny i fracht bez zapytań (brak nowych danych do spodziewania się); ceny UE — raz na dobę')
+        w = pon.replace(hour=8, minute=20)
+        self.assertEqual(zd._zd_goi_oczek(w, 480), ('2026-10-09', pon.replace(hour=8)))
+        o2, c2 = self.build(prev=o, now=w, fao=None)   # okno otwarte, nagłówek bez zmiany: 1 zapytanie (1 B), bez strony
+        self.assertEqual([c[0] for c in c2 if 'igc.int' in c[0]], ['LM https://igc.int/_csv/igc__goi.xlsb']); self.assertEqual((o2['goi']['asof'], o2['ok']['goi']), ('2026-10-08', True))
+        self.assertEqual(o2['part_at']['goi'], o['part_at']['goi'], 'bez nowej strony część nie dostaje nowego part_at'); self.assertEqual(o2['st']['goi']['at'], w.isoformat())
+        o3, c3 = self.build(prev=o2, now=w + datetime.timedelta(minutes=10), fao=None)
+        self.assertEqual([c for c in c3 if 'igc.int' in c[0]], [], 'po sprawdzeniu — następne najwcześniej po ZD_GOI_CZESTO min')
+        o4, c4 = self.build(prev=o2, now=w + datetime.timedelta(minutes=25), fao=None, lm='Mon, 12 Oct 2026 08:31:02 GMT', goi=self.strona_goi(do='2026-10-09'))
+        self.assertEqual([c[0].split('/')[-1] for c in c4 if 'igc.int' in c[0]], ['igc__goi.xlsb', 'marketinfo-goi.aspx']); self.assertEqual(o4['goi']['asof'], '2026-10-09'); self.assertEqual(o4['goi']['lm'], '2026-10-12T08:31:02+00:00')
+        self.assertEqual(o4['st']['goi']['okno'], [8 * 60 + 19, 8 * 60 + 31], 'nauka okna: godziny zmiany pliku (UTC)'); self.assertEqual(o4['next']['goi'], '2026-10-13T08:00:00+00:00')
+        o5, c5 = self.build(prev=o4, now=w + datetime.timedelta(hours=2), fao=None)
+        self.assertEqual([c for c in c5 if 'igc.int' in c[0]], [], 'dzień z piątku jest — do jutra bez zapytań')
+        self.assertEqual(zd._zd_goi_start({'okno': [499, 511, 492]}), 482, 'dolny kwintyl godzin zmiany − 10 min (po 3 obserwacjach)'); self.assertEqual(zd._zd_goi_start({'okno': [499]}), zd.ZD_GOI_START)
+        self.assertEqual(zd._zd_goi_start({'okno': [10, 20, 30]}), 300, 'granica 05:00'); self.assertEqual(zd._zd_goi_start({'okno': [900, 910, 920]}), 720, 'granica 12:00')
+        self.assertEqual(zd._zd_goi_start({'okno': ['x', 5000, True, -1]}), zd.ZD_GOI_START, 'złe wpisy ignorowane')
+
+    def test_strona_najwyzej_raz_na_dobe_i_awaria_naglowka(self):
+        o, _ = self.build()
+        nowy = datetime.datetime(2026, 10, 12, 9, 0, tzinfo=datetime.timezone.utc)
+        # nagłówek zmieniony, ale poprzednia strona sprzed 42 h: nowa strona; ten sam dzień po 1 h i zmianie nagłówka — bez drugiej strony (poniżej doby) gdy dane są spodziewane
+        o1, c1 = self.build(prev=o, now=nowy, fao=None, lm='Mon, 12 Oct 2026 08:40:00 GMT', goi=self.strona_goi(do='2026-10-09'))
+        self.assertEqual(sum(1 for c in c1 if 'marketinfo-goi' in c[0]), 1)
+        o2, c2 = self.build(prev=o1, now=nowy + datetime.timedelta(hours=1), fao=None, lm='Mon, 12 Oct 2026 09:50:00 GMT')
+        self.assertEqual(c2, [], 'dane są spodziewane (09.10) — drugi nagłówek tego samego dnia nie wymaga sprawdzania')
+        # dane starsze niż spodziewane i nowy nagłówek: strona po 3 h (nie po 20), nie częściej
+        o3, c3 = self.build(prev=o, now=nowy, fao=None, lm='Mon, 12 Oct 2026 08:40:00 GMT', goi=self.strona_goi(do='2026-10-08'))   # nowa data pliku, ale dane bez zmiany (święto)
+        self.assertEqual(o3['goi']['asof'], '2026-10-08'); self.assertEqual(o3['ok']['goi'], True)
+        o4, c4 = self.build(prev=o3, now=nowy + datetime.timedelta(minutes=30), fao=None, lm='Mon, 12 Oct 2026 09:00:00 GMT')
+        self.assertEqual([c[0].split('/')[-1] for c in c4], ['igc__goi.xlsb'], 'strona pobrana 30 min temu — tylko nagłówek')
+        o5, c5 = self.build(prev=o3, now=nowy + datetime.timedelta(hours=3, minutes=1), fao=None, lm='Mon, 12 Oct 2026 11:00:00 GMT', goi=self.strona_goi(do='2026-10-08'))
+        self.assertEqual(sum(1 for c in c5 if 'marketinfo-goi' in c[0]), 1, 'dane starsze niż spodziewane + nowy nagłówek + 3 h od strony = nowa strona')
+        # nagłówek niedostępny: ostrzeżenie w notatkach; strona dopiero gdy dane starsze niż spodziewane i poprzednia sprzed ≥ 6 h
+        zd.META['notes'].clear()
+        o6, c6 = self.build(prev=o, now=nowy, fao=None, lm=RuntimeError('HTTP Error 403'), goi=self.strona_goi(do='2026-10-09'))
+        self.assertEqual(o6['goi']['asof'], '2026-10-09'); self.assertTrue(any('goi: nagłówek pliku niedostępny (HTTP Error 403)' in n for n in zd.META['notes']))
+        o7, c7 = self.build(prev=o6, now=nowy + datetime.timedelta(hours=1), fao=None, lm=RuntimeError('HTTP Error 403'))
+        self.assertEqual(c7, [], 'dane są — nagłówek niedostępny nie wymusza strony')
+        self.assertIsNone(zd._zd_lm_iso('nie data')); self.assertEqual(zd._zd_lm_iso(self.LM), '2026-10-09T08:19:14+00:00'); self.assertIsNone(zd._zd_lm_iso(None))
+
+    def test_data_pliku_przyjeta_dopiero_gdy_strona_ma_spodziewany_dzien(self):
+        o, _ = self.build()   # strona do czwartku 08.10, plik z 09.10 08:19
+        pon = datetime.datetime(2026, 10, 12, 9, 0, tzinfo=datetime.timezone.utc)   # poniedziałek: spodziewany piątek 09.10
+        h = lambda c: [x[0].split('/')[-1] for x in c if 'igc.int' in x[0]]   # noqa: E731
+        LM2 = 'Mon, 12 Oct 2026 08:40:00 GMT'
+        # plik zmienił się, ale strona jeszcze nie ma piątku: data pliku NIE jest przyjęta (st.lm bez zmiany), kandydat zapamiętany, okno uczone raz
+        o1, c1 = self.build(prev=o, now=pon, fao=None, lm=LM2, goi=self.strona_goi(do='2026-10-08'))
+        self.assertEqual(h(c1), ['igc__goi.xlsb', 'marketinfo-goi.aspx']); g = o1['st']['goi']
+        self.assertEqual((g['lm'], g['lm_k'], g['lm_n'], g['okno']), ('2026-10-09T08:19:14+00:00', '2026-10-12T08:40:00+00:00', 1, [8 * 60 + 19, 8 * 60 + 40]))
+        self.assertEqual(o1['goi']['asof'], '2026-10-08')
+        # godzinę później ta sama data pliku: strona jeszcze nie (mniej niż 3 h od poprzedniej), tylko nagłówek
+        o2, c2 = self.build(prev=o1, now=pon + datetime.timedelta(hours=1), fao=None, lm=LM2)
+        self.assertEqual(h(c2), ['igc__goi.xlsb']); self.assertEqual(o2['st']['goi']['lm_n'], 1)
+        # po 3 h strona znów, wciąż bez piątku: druga próba; okno nie uczy się drugi raz z tej samej daty pliku
+        o3, c3 = self.build(prev=o2, now=pon + datetime.timedelta(hours=3, minutes=5), fao=None, lm=LM2, goi=self.strona_goi(do='2026-10-08'))
+        self.assertEqual(h(c3), ['igc__goi.xlsb', 'marketinfo-goi.aspx']); g = o3['st']['goi']
+        self.assertEqual((g['lm'], g['lm_k'], g['lm_n'], g['okno']), ('2026-10-09T08:19:14+00:00', '2026-10-12T08:40:00+00:00', 2, [8 * 60 + 19, 8 * 60 + 40]))
+        # trzecia próba: data pliku przyjęta (strona nie nadąża — święto), bez dalszych pobrań strony dla tej daty
+        o4, c4 = self.build(prev=o3, now=pon + datetime.timedelta(hours=6, minutes=10), fao=None, lm=LM2, goi=self.strona_goi(do='2026-10-08'))
+        self.assertEqual(h(c4), ['igc__goi.xlsb', 'marketinfo-goi.aspx']); g = o4['st']['goi']
+        self.assertEqual((g['lm'], 'lm_k' in g, 'lm_n' in g), ('2026-10-12T08:40:00+00:00', False, False))
+        o5, c5 = self.build(prev=o4, now=pon + datetime.timedelta(hours=10), fao=None, lm=LM2)
+        self.assertEqual(h(c5), ['igc__goi.xlsb'], 'data pliku przyjęta — do następnej zmiany pliku tylko nagłówek (1 B)')
+        # druga próba z piątkiem na stronie: data pliku przyjęta od razu, dane nowe
+        o6, c6 = self.build(prev=o1, now=pon + datetime.timedelta(hours=3, minutes=5), fao=None, lm=LM2, goi=self.strona_goi(do='2026-10-09'))
+        g = o6['st']['goi']; self.assertEqual((o6['goi']['asof'], g['lm'], 'lm_k' in g, 'lm_n' in g), ('2026-10-09', '2026-10-12T08:40:00+00:00', False, False))
+        # pierwsza obserwacja daty pliku jest przyjęta od razu (bez poprzedniej daty)
+        o7, _ = self.build(now=pon, lm=LM2, goi=self.strona_goi(do='2026-10-08'))
+        self.assertEqual((o7['st']['goi']['lm'], 'lm_k' in o7['st']['goi']), ('2026-10-12T08:40:00+00:00', False))
+        self.assertEqual(zd.ZD_GOI_PROBY, 3)
+
+    def test_nawozy_zalegle_dane_pytanie_najwyzej_co_3_godziny(self):
+        o, _ = self.build()   # nawozy do 2026-09
+        t0 = datetime.datetime(2026, 11, 13, 9, 0, tzinfo=datetime.timezone.utc)   # od 12. dnia spodziewany październik; portal go jeszcze nie ma
+        f = lambda c: sum(1 for x in c if 'fertiliser' in x[0])   # noqa: E731
+        self.assertEqual(zd._zd_naw_oczek(t0), '2026-10')
+        o1, c1 = self.build(prev=o, now=t0, fao=None, naw=self.eu_naw('2026-09'))
+        self.assertEqual((f(c1), o1['nawozy']['asof']), (1, '2026-09'))
+        o2, c2 = self.build(prev=o1, now=t0 + datetime.timedelta(minutes=60), fao=None, naw=self.eu_naw('2026-09'))
+        self.assertEqual(f(c2), 0, 'dane zaległe, ostatnie pytanie 60 min temu — bez pytania')
+        o3, c3 = self.build(prev=o1, now=t0 + datetime.timedelta(minutes=179), fao=None, naw=self.eu_naw('2026-09'))
+        self.assertEqual(f(c3), 0, 'poniżej 3 h — bez pytania')
+        o4, c4 = self.build(prev=o1, now=t0 + datetime.timedelta(minutes=181), fao=None, naw=self.eu_naw('2026-10'))
+        self.assertEqual((f(c4), o4['nawozy']['asof']), (1, '2026-10'), 'po 3 h — pytanie, nowy miesiąc zapisany')
+        o5, c5 = self.build(prev=o4, now=t0 + datetime.timedelta(hours=7), fao=None, naw=self.eu_naw('2026-10'))
+        self.assertEqual(f(c5), 0, 'dane są (październik) — bez pytania do następnego terminu')
+
+    def test_zapytanie_nie_dluzsze_niz_reszta_budzetu(self):
+        widziane = []
+        def fetch(url, timeout, headers=None, maks=None):
+            widziane.append(timeout); return b'ok'
+        # budżet 30 s, od startu minęło 10 s: limit zapytania źródła (60 s) skrócony do reszty budżetu (20 s)
+        with mock.patch.object(zd.time, 'monotonic', return_value=1000.0):
+            self.assertEqual(zd._zd_get({'fetch': fetch, 't0': 990.0, 'budzet': 30}, 'goi', 'https://x', 100), b'ok')
+            self.assertEqual(widziane, [20.0], 'limit = min(limit źródła, reszta budżetu)')
+            self.assertEqual(zd._zd_get({'fetch': fetch, 't0': 990.0, 'budzet': 30}, 'goi', 'https://x', 100, limit=7), b'ok'); self.assertEqual(widziane[-1], 7, 'krótszy limit zostaje')
+            with self.assertRaises(RuntimeError) as e:
+                zd._zd_get({'fetch': fetch, 't0': 972.0, 'budzet': 30}, 'goi', 'https://x', 100)   # reszta 2 s < 5 s
+            self.assertIn('budżet czasu', str(e.exception)); self.assertEqual(len(widziane), 2, 'zapytania nie wysłano')
+            self.assertEqual(zd._zd_get({'fetch': fetch}, 'goi', 'https://x', 100), b'ok'); self.assertEqual(widziane[-1], zd.ZD_LIMIT_S['goi'], 'bez budżetu — pełny limit źródła')
+
+    def test_blad_zrodla_zostawia_poprzednia_czesc(self):
+        o0, _ = self.build()
+        nowy = datetime.datetime(2026, 10, 15, 9, 0, tzinfo=datetime.timezone.utc)   # czwartek: nowe dane wszędzie
+        zd.META['errors'].clear()
+        o1, _ = self.build(prev=o0, now=nowy, fao=None, goi=b'<html>strona zmieniona</html>', blad=('marketinfo-freight',), lm='Thu, 15 Oct 2026 08:20:00 GMT')
+        self.assertEqual((o1['ok']['goi'], o1['ok']['fracht']), (False, False)); self.assertEqual((o1['goi'], o1['fracht']), (o0['goi'], o0['fracht']), 'część z błędem = poprzednie dane')
+        self.assertEqual((o1['part_at']['goi'], o1['part_at']['fracht']), (o0['part_at']['goi'], o0['part_at']['fracht']), 'z własną, starą datą')
+        self.assertIn('goi: brak serii indeksu ogółem', o1['err']['goi']); self.assertIn('gofi: HTTP Error 500', o1['err']['fracht']); self.assertNotIn('cz', o1)
+        self.assertTrue(any(e.startswith('zboża dziennie goi: ') for e in zd.META['errors']) and any(e.startswith('zboża dziennie gofi: ') for e in zd.META['errors']))
+        self.assertEqual((o1['ok']['ue'], o1['ok']['nawozy']), (True, 'cached'), 'ceny UE (czwartek: nowy tydzień spodziewany) odpytane i udane; nawozy nie należne — z danymi poprzedniego pliku')
+        self.assertEqual(o1['st']['goi']['err'][:4], 'goi:'); self.assertEqual(o1['st']['gofi']['at'], o0['st']['gofi']['at'], 'po błędzie st.at nie przesuwa się'); self.assertEqual(o1['st']['gofi']['try'], nowy.isoformat())
+        # ponowienie po błędzie najwcześniej po 60 min
+        o2, c2 = self.build(prev=o1, now=nowy + datetime.timedelta(minutes=30), fao=None, blad=('marketinfo-freight',))
+        self.assertFalse(any('marketinfo-freight' in c[0] for c in c2)); o3, c3 = self.build(prev=o1, now=nowy + datetime.timedelta(minutes=61), fao=None)
+        self.assertTrue(any('marketinfo-freight' in c[0] for c in c3)); self.assertEqual(o3['ok']['fracht'], True); self.assertNotIn('fracht', o3['err'])
+        # tabela źródła niezgodna z serią = błąd odczytu (poprzednia część), nie zapis błędnych liczb
+        o4, _ = self.build(prev=o0, now=nowy, fao=None, goi=self.strona_goi(zmien=7), lm='Thu, 15 Oct 2026 08:20:00 GMT')
+        self.assertEqual((o4['ok']['goi'], o4['goi']), (False, o0['goi'])); self.assertIn('tabela źródła niezgodna z serią', o4['err']['goi'])
+
+    def test_plik_innej_wersji_i_czesc_fao(self):
+        o, _ = self.build(prev={'v': 2, 'at': '2026-10-01T00:00:00+00:00', 'goi': {'asof': 'x'}})
+        self.assertEqual(o['v'], 1); self.assertEqual(o['goi']['asof'], '2026-10-08', 'plik innej wersji = start od zera')
+        # podindeksy żywności: bez pliku z budowniczego surowców i bez części w pliku — własne pobranie (1 zapytanie), potem zero
+        o1, c1 = self.build(fao=None)
+        self.assertEqual(sum(1 for c in c1 if 'food_price' in c[0]), 1); self.assertEqual(o1['ok']['fao'], True); self.assertEqual(o1['fao']['asof'], '2026-09')
+        o2, c2 = self.build(prev=o1, fao=None, now=self.NOW + datetime.timedelta(hours=1))
+        self.assertFalse(any('food_price' in c[0] for c in c2), 'część jest — bez własnego pobrania (zero zapytań); odświeża ją tylko plik z surowców'); self.assertEqual(o2['ok']['fao'], 'cached')
+        # plik z surowców jest: część odświeżona z niego, bez zapytania, także w długim przebiegu
+        nowy_csv = _zd341_csv_fao('2023-01', '2026-10')
+        o3, c3 = self.build(prev=o1, fao=nowy_csv, now=self.NOW + datetime.timedelta(days=3))
+        self.assertFalse(any('food_price' in c[0] for c in c3)); self.assertEqual((o3['fao']['asof'], o3['ok']['fao']), ('2026-10', True)); self.assertEqual(o3['part_at']['fao'], (self.NOW + datetime.timedelta(days=3)).isoformat())
+        o4, _ = self.build(prev=o1, fao='<html>zły plik</html>', now=self.NOW + datetime.timedelta(days=3))
+        self.assertEqual((o4['ok']['fao'], o4['fao']), (False, o1['fao'])); self.assertIn('fao: brak nagłówka', o4['err']['fao'])
+        # _su_fao zostawia tekst pliku (zero nowych zapytań) — sprawdzenie w kodzie
+        with open(zd.__file__, encoding='utf-8') as fh:
+            src = fh.read()
+        i = src.index('def _su_fao(ctx):')
+        self.assertIn("_ZD_FAO[:] = [tekst]", src[i:i + 600]); self.assertIn("rows, base = parse_fao(tekst, ctx['now'].date())", src[i:i + 600])
+
+    def test_budzet_dlugi_przebieg_i_limit_rozmiaru(self):
+        # długi przebieg (BACK_LATE): bez strony indeksu i cen UE (ciężkie), reszta tak; krótki budżet: źródło startuje tylko, gdy zmieszczą się wszystkie jego zapytania
+        zd.META['notes'].clear()
+        fetch, lm, calls = self.siec()
+        o = zd.build_zboza_dzien(None, now=self.NOW, fetch=fetch, lm=lm, fao_tekst=self.csv_fao(), run_t0=zd.time.monotonic() - zd.BACK_LATE - 1)
+        self.assertEqual({p: o['ok'][p] for p in zd.ZD_PARTS}, {'goi': False, 'fracht': True, 'fao': True, 'ue': False, 'nawozy': True})
+        self.assertIn('zboża dziennie: pominięte w tym przebiegu — ue (długi przebieg), goi (długi przebieg)', zd.META['notes']); self.assertEqual(o['err']['goi'], 'brak danych (źródło jeszcze nie pobrane)')
+        self.assertFalse(any('marketinfo-goi' in c[0] or 'cereal' in c[0] for c in calls))
+        zd.META['notes'].clear()
+        fetch, lm, calls = self.siec()
+        o = zd.build_zboza_dzien(None, now=self.NOW, fetch=fetch, lm=lm, fao_tekst=self.csv_fao(), budzet_s=70)
+        self.assertEqual(sum(1 for c in calls if 'marketinfo-goi' in c[0]), 0, 'budżet 70 s < 2 × 60 s: źródło goi pominięte w całości'); self.assertTrue(any('pominięte w tym przebiegu' in n and 'goi (budżet czasu)' in n for n in zd.META['notes']))
+        self.assertEqual(zd.ZD_ZAPYTANIA, {'goi': 2, 'ue': 3}); self.assertEqual(zd.ZD_BUDZET_S, 240); self.assertLessEqual(max(zd.ZD_LIMIT_S[k] * zd.ZD_ZAPYTANIA.get(k, 1) for k in ('goi', 'gofi', 'fao', 'ue', 'naw')), zd.ZD_BUDZET_S, 'najcięższe źródło mieści się w budżecie')
+        # odpowiedź dłuższa niż limit = błąd źródła (nie zapis)
+        def za_duza(url, timeout, headers=None, maks=None):
+            return b'x' * (maks + 1) if 'freight' in url else fetch(url, timeout, headers, maks)
+        o = zd.build_zboza_dzien(None, now=self.NOW, fetch=za_duza, lm=lm, fao_tekst=self.csv_fao())
+        self.assertEqual(o['ok']['fracht'], False); self.assertIn('odpowiedź dłuższa niż 600000 B (limit)', o['err']['fracht'])
+        self.assertEqual((zd.ZD_GOI_MAX, zd.ZD_GOFI_MAX, zd.ZD_FAO_MAX, zd.ZD_UE_MAX, zd.ZD_NAW_MAX), (4_000_000, 600_000, 1_000_000, 4_000_000, 1_000_000))
+        # domyślne pobieranie: limit rozmiaru przez get_bytes_maks, nagłówek przez Range: bytes=0-0 (jeden bajt), zły adres/nagłówek bez klucza w komunikacie
+        with mock.patch.object(zd, 'get_bytes_maks', return_value=b'ok') as g:
+            self.assertEqual(zd._zd_fetch_domyslny('https://x', 7, None, 99), b'ok'); g.assert_called_once_with('https://x', None, 7, 99)
+        class R:
+            headers = {'Last-Modified': 'Fri, 09 Oct 2026 08:19:14 GMT'}
+            def read(self, n=-1): self.n = n; return b'x'
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+        r = R()
+        with mock.patch.object(zd, '_otworz', return_value=r) as ot:
+            self.assertEqual(zd._zd_lm_domyslny('https://igc.int/_csv/igc__goi.xlsb', 20), 'Fri, 09 Oct 2026 08:19:14 GMT')
+        self.assertEqual(ot.call_args[0], ('https://igc.int/_csv/igc__goi.xlsb', {'Range': 'bytes=0-0'}, 20)); self.assertEqual(r.n, 2, 'serwer, który zignoruje zakres, nie jest czytany do końca')
+
+    def test_sekrety_maskowane_i_brak_kluczy_w_kodzie(self):
+        sek = list(zd.SECRETS)
+        try:
+            zd.SECRETS[:] = ['SEKRET-ZD-341']
+            fetch, lm, calls = self.siec(blad=('fertiliser',))
+            def f(url, timeout, headers=None, maks=None):
+                if 'fertiliser' in url:
+                    raise RuntimeError('HTTP 500 dla SEKRET-ZD-341')
+                return fetch(url, timeout, headers, maks)
+            o = zd.build_zboza_dzien(None, now=self.NOW, fetch=f, lm=lm, fao_tekst=self.csv_fao())
+            self.assertNotIn('SEKRET-ZD-341', json.dumps(o)); self.assertNotIn('SEKRET-ZD-341', json.dumps(zd.META)); self.assertIn('***', o['err']['nawozy'])
+        finally:
+            zd.SECRETS[:] = sek
+        with open(zd.__file__, encoding='utf-8') as fh:
+            src = fh.read()
+        blk = src[src.index('# ===================== v341 (F5Z3): ZBOŻA DZIENNIE'):src.index('# ===================== v295c: ZŁOTO I SUROWCE A KRYPTO')]
+        for zakaz in ('_KEY', 'klucz(', 'get_json(', 'os.environ', 'xml.', 'ElementTree', 'DOCTYPE', 'ENTITY', 'subprocess', 'requests'):
+            self.assertNotIn(zakaz, blk, zakaz)
+        self.assertIn('import email.utils as _zd_email', src); self.assertLess(src.index('import email.utils as _zd_email'), src.index('# ===================== v341 (F5Z3): ZBOŻA DZIENNIE'))
+        self.assertLess(src.index('def build_zboza_dzien('), src.index('def main():'))
+
+    # ---- kalendarz ----
+    def test_kalendarz_publikacji(self):
+        U = datetime.timezone.utc
+        d = lambda y, m, dd, h=0, mi=0: datetime.datetime(y, m, dd, h, mi, tzinfo=U)
+        self.assertEqual(zd._zd_gofi_oczek(d(2026, 10, 7, 8, 44)), ('2026-09-29', d(2026, 9, 30, 8, 45)), 'środa 08:44 — jeszcze poprzedni tydzień (wtorek 29.09)')
+        self.assertEqual(zd._zd_gofi_oczek(d(2026, 10, 7, 8, 45)), ('2026-10-06', d(2026, 10, 7, 8, 45)))
+        self.assertEqual(zd._zd_gofi_oczek(d(2026, 10, 11, 6)), ('2026-10-06', d(2026, 10, 7, 8, 45)))
+        self.assertEqual(zd._zd_ue_nd(datetime.date(2026, 10, 11)), datetime.date(2026, 10, 4)); self.assertEqual(zd._zd_ue_nd(datetime.date(2026, 10, 8)), datetime.date(2026, 10, 4), 'czwartek — tydzień do niedzieli 04.10')
+        self.assertEqual(zd._zd_ue_nd(datetime.date(2026, 10, 7)), datetime.date(2026, 9, 27), 'środa — jeszcze tydzień wcześniejszy')
+        self.assertEqual((zd._zd_naw_oczek(d(2026, 10, 11)), zd._zd_naw_oczek(d(2026, 10, 12)), zd._zd_naw_oczek(d(2026, 1, 12)), zd._zd_naw_oczek(d(2026, 1, 11))), ('2026-08', '2026-09', '2025-12', '2025-11'))
+        self.assertEqual(zd._zd_goi_oczek(d(2026, 10, 9, 8, 0), 480)[0], '2026-10-08'); self.assertEqual(zd._zd_goi_oczek(d(2026, 10, 12, 8, 0), 480)[0], '2026-10-09', 'poniedziałek — dzień z piątku')
+        self.assertEqual(zd._zd_goi_oczek(d(2026, 10, 11, 12), 480)[0], '2026-10-08', 'niedziela — nadal czwartek (publikacja piątkowa)')
+        # następne publikacje (pole next) — z dnia danych
+        z = {}
+        self.assertEqual(zd._zd_next('goi', '2026-10-08', z, d(2026, 10, 10)), '2026-10-12T08:00:00+00:00'); self.assertEqual(zd._zd_next('goi', '2026-10-09', z, d(2026, 10, 10)), '2026-10-13T08:00:00+00:00')
+        self.assertEqual(zd._zd_next('fracht', '2026-10-06', z, d(2026, 10, 10)), '2026-10-14T08:45:00+00:00'); self.assertEqual(zd._zd_next('fracht', '2026-10-07', z, d(2026, 10, 10)), '2026-10-14T08:45:00+00:00', 'środowy punkt tygodnia')
+        self.assertEqual(zd._zd_next('ue', '2026-10-04', z, d(2026, 10, 10)), '2026-10-15T12:00:00+00:00'); self.assertEqual(zd._zd_next('fao', '2026-09', z, d(2026, 10, 10)), '2026-11-06T12:00:00+00:00', 'pierwszy piątek listopada')
+        self.assertEqual(zd._zd_next('fao', '2026-11', z, d(2026, 12, 10)), '2027-01-01T12:00:00+00:00'); self.assertEqual(zd._zd_next('nawozy', '2026-09', z, d(2026, 10, 10)), '2026-11-10T12:00:00+00:00')
+        self.assertEqual(zd._zd_next('nawozy', '2026-12', z, d(2027, 1, 10)), '2027-02-10T12:00:00+00:00', 'przejście roku'); self.assertEqual(zd._zd_next('goi', None, z, d(2026, 10, 10)), '2026-10-09T08:00:00+00:00')
+        self.assertEqual(zd._zd_next('ue', None, z, d(2026, 10, 10)), '2026-10-15T12:00:00+00:00'); self.assertEqual(zd._zd_next('fracht', None, z, d(2026, 10, 10)), '2026-10-07T08:45:00+00:00')
+        # bramka _due: pierwsze pobranie co godzinę do skutku; fao tylko z plikiem z surowców (albo przy braku części)
+        ctx = {'fao_tekst': None, 'ma_fao': True}
+        now = d(2026, 10, 10, 15)
+        self.assertTrue(zd._zd_due('goi', {}, now, ctx)); self.assertFalse(zd._zd_due('goi', {'try': now.isoformat()}, now + datetime.timedelta(minutes=30), ctx)); self.assertTrue(zd._zd_due('goi', {'try': now.isoformat()}, now + datetime.timedelta(minutes=61), ctx))
+        self.assertFalse(zd._zd_due('fao', {}, now, ctx)); self.assertTrue(zd._zd_due('fao', {}, now, {'fao_tekst': 'x', 'ma_fao': True})); self.assertTrue(zd._zd_due('fao', {}, now, {'fao_tekst': None, 'ma_fao': False}))
+        z2 = {'at': d(2026, 10, 10, 14).isoformat(), 'try': d(2026, 10, 10, 14).isoformat(), 'asof': '2026-10-08'}
+        self.assertFalse(zd._zd_due('goi', z2, now, ctx), 'dane spodziewane są, sprawdzone dziś — następne za tydzień'); self.assertTrue(zd._zd_due('goi', z2, now + datetime.timedelta(days=7), ctx))
+        z3 = dict(z2, asof='2026-10-06')
+        self.assertTrue(zd._zd_due('goi', z3, now, ctx), 'dane starsze niż spodziewane — należne co ZD_GOI_CZESTO min w ciągu 72 h od terminu'); self.assertFalse(zd._zd_due('goi', {**z3, 'try': now.isoformat()}, now + datetime.timedelta(minutes=10), ctx))
+        stare = d(2026, 10, 14, 15)   # dane sprzed ponad 3 dni roboczych wobec spodziewanych (05.10 wobec 13.10): źródło stoi — co 6 h
+        z4 = dict(z3, asof='2026-10-05')
+        self.assertFalse(zd._zd_due('goi', {**z4, 'try': stare.isoformat()}, stare + datetime.timedelta(hours=5), ctx)); self.assertTrue(zd._zd_due('goi', {**z4, 'try': stare.isoformat()}, stare + datetime.timedelta(hours=6), ctx))
+        self.assertTrue(zd._zd_due('goi', {**z3, 'asof': '2026-10-09', 'try': stare.isoformat()}, stare + datetime.timedelta(minutes=20), ctx), 'zaległość 1–2 dni roboczych: nadal co ZD_GOI_CZESTO min')
+        self.assertTrue(zd._zd_due('gofi', {'at': stare.isoformat(), 'try': stare.isoformat(), 'asof': '2026-10-06'}, stare + datetime.timedelta(hours=1), ctx), 'fracht: tydzień spóźniony — co godzinę')
+        self.assertFalse(zd._zd_due('gofi', {'at': stare.isoformat(), 'try': stare.isoformat(), 'asof': '2026-09-01'}, stare + datetime.timedelta(hours=5), ctx), 'fracht: ponad 14 dni zaległości — co 6 h')
+        self.assertTrue(zd._zd_due('ue', {'at': 'x', 'asof': '2026-09-27'}, d(2026, 10, 8, 12), ctx)); self.assertFalse(zd._zd_due('ue', {'at': d(2026, 10, 8, 11).isoformat(), 'try': d(2026, 10, 8, 11).isoformat(), 'asof': '2026-09-27'}, d(2026, 10, 8, 12), ctx), 'czwartek: co 3 h')
+        self.assertEqual(zd._zd_due('nonsens', {'at': now.isoformat()}, now, ctx), False)
+
+    # ---- przebieg główny ----
+    def test_przebieg_glowny(self):
+        with open(zd.__file__, encoding='utf-8') as fh:
+            src = fh.read()
+        m = src[src.index('def main():'):]
+        i, j, k_ = m.index("prev_su = previous('surowce')"), m.index("prev_zd = previous('zboza-dzien')"), m.index('    # STOPY banków centralnych (BIS, bez klucza)')
+        self.assertTrue(i < j < k_ and m.index("prev_sz = previous('szlaki')") < j, 'po surowcach i szlakach, przed stopami (pliki surowców zostawiają tekst indeksów żywności)')
+        a = m.index('    # v341 (F5Z3): ZBOŻA DZIENNIE'); b = k_
+        code = compile('\n'.join(x[4:] for x in m[a:b].split('\n')), 'main-zboza', 'exec')
+        o, _ = self.build()
+        saved = {}
+        with mock.patch.object(zd, 'previous', lambda n: o if n == 'zboza-dzien' else None), mock.patch.object(zd, 'save', lambda n, x: saved.__setitem__(n, x)), mock.patch.object(zd, '_RUN_T0', [12.5]), \
+                mock.patch.object(zd, 'build_zboza_dzien', return_value=dict(o, ok={'goi': True, 'fracht': 'cached', 'fao': True, 'ue': False, 'nawozy': 'cached'})) as bz:
+            zd._ZD_FAO[:] = ['TEKST']
+            exec(code, vars(zd), {})
+        self.assertEqual(bz.call_args[1]['fao_tekst'], 'TEKST'); self.assertEqual(bz.call_args[1]['run_t0'], 12.5); self.assertIs(bz.call_args[0][0], o)
+        self.assertEqual(saved['zboza-dzien']['ok'], {'goi': True, 'fracht': 'cached', 'fao': True, 'ue': False, 'nawozy': 'cached'})
+        self.assertEqual({p: zd.META['ok']['zboza_dzien_' + p] for p in zd.ZD_PARTS}, {'goi': True, 'fracht': 'cached', 'fao': True, 'ue': False, 'nawozy': 'cached'}); self.assertEqual(zd._ZD_FAO, [], 'tekst po przebiegu usunięty')
+        saved.clear()
+        with mock.patch.object(zd, 'previous', lambda n: o if n == 'zboza-dzien' else None), mock.patch.object(zd, 'save', lambda n, x: saved.__setitem__(n, x)), \
+                mock.patch.object(zd, 'build_zboza_dzien', side_effect=ValueError('test')) as bz:
+            exec(code, vars(zd), {})
+        self.assertIs(saved['zboza-dzien'], o, 'awaria budowniczego — poprzedni plik'); self.assertIs(zd.META['ok']['zboza_dzien'], False); self.assertEqual(zd.META['errors'][-1], 'surowce (zboża dziennie): test')
+        self.assertEqual(zd._ZD_FAO, [])
+        saved.clear()
+        with mock.patch.object(zd, 'previous', lambda n: None), mock.patch.object(zd, 'save', lambda n, x: saved.__setitem__(n, x)), mock.patch.object(zd, 'build_zboza_dzien', side_effect=ValueError('test')):
+            exec(code, vars(zd), {})
+        self.assertNotIn('zboza-dzien', saved, 'bez poprzedniego pliku — nic (nie pustka)')
+
+    def test_zaslepki_przebiegu_glownego(self):
+        with open(__file__, encoding='utf-8') as fh:
+            me = fh.read()
+        T = [m.group(0) for m in re.finditer(r"\(\s*'build_\w+'(?:\s*,\s*'build_\w+')+\s*\)", me) if "'build_wieloryby'" in m.group(0)]
+        self.assertGreaterEqual(len(T), 20)
+        self.assertEqual([t[:60] for t in T if "'build_zboza_dzien'" not in t], [], 'każda krotka zaślepek zna build_zboza_dzien (brak = prawdziwe zapytania w testach z main())')
+        self.assertEqual(zd.META['ok'].get('zboza_dzien_goi'), None)
+
+    # ---- kontrola dzienna ----
+    def kt(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v341', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    def plik(self):
+        o, _ = self.build()
+        return json.loads(json.dumps(o))
+
+    def test_kontrola_lista_i_swiezosc(self):
+        k = self.kt()
+        U = datetime.timezone.utc
+        self.assertIn('zboza-dzien', k.PLIKI); self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik']); self.assertEqual(k.LIMIT_MIN['zboza-dzien'], 100 * 60)
+        self.assertNotIn('zboza-dzien', [x[1] for x in k.SWIEZOSC], 'lista SWIEZOSC bez zmian — osobne wiersze części (najwyżej ⚠️)')
+        self.assertTrue({'zboza_dzien_' + p for p in zd.ZD_PARTS} <= set(k.AW_BEZ_BLEDU)); self.assertIn('zostaje z datą', k.AW_BEZ_BLEDU['zboza_dzien_goi'])
+        o = self.plik()
+        rows = k.zboza_swiezosc(o, datetime.datetime(2026, 10, 10, 15, tzinfo=U))
+        self.assertEqual([r[0] for r in rows], list(k.ZD_K_ETYKIETA.values())); self.assertEqual({r[1] for r in rows}, {'✅'}, rows)
+        self.assertEqual([r[3] for r in rows], ['2026-10-08', '2026-10-06', '2026-09', '2026-10-04', '2026-09'])
+        # progi z testu wstecznego: indeks dzienny 96 godz. roboczych od końca dnia danych (soboty i niedziele się nie liczą), fracht i ceny UE 14 dni, żywność 45 dni, nawozy 50 dni
+        def st(now):
+            return {r[0][:18]: (r[1], r[2]) for r in k.zboza_swiezosc(o, now)}
+        S = {k_: v for k_, v in k.ZD_K_ETYKIETA.items()}
+        r = {x[0]: x for x in k.zboza_swiezosc(o, datetime.datetime(2026, 10, 15, 0, 0, tzinfo=U))}   # czwartek 0:00: 8.10 → koniec dnia 9.10 00:00: 24 + 24 (pn) + 24 (wt) + 24 (śr) = 96 godz. roboczych
+        self.assertEqual(r[S['goi']][1:3], ('✅', 96 * 60), 'dokładnie 96 godz. roboczych — próg nie jest przekroczony')
+        r2 = {x[0]: x for x in k.zboza_swiezosc(o, datetime.datetime(2026, 10, 15, 0, 1, tzinfo=U))}
+        self.assertEqual(r2[S['goi']][1], '⚠️'); self.assertIn('próg 4 d 0 h roboczych — najwyżej uwaga', r2[S['goi']][4])
+        self.assertIn('spodziewana publikacja 12.10.2026, 10:00 — zaległa (przerwa u źródła?)', r2[S['goi']][4])
+        late = {x[0]: x for x in k.zboza_swiezosc(o, datetime.datetime(2026, 10, 21, 0, 1, tzinfo=U))}
+        self.assertEqual((late[S['fracht']][1], late[S['ue']][1]), ('⚠️', '⚠️'), 'koniec 6.10 + 14 dni + 1 min; koniec 4.10 + 14 dni')
+        self.assertEqual({k_: late[v][1] for k_, v in S.items() if k_ in ('fao', 'nawozy')}, {'fao': '✅', 'nawozy': '✅'})
+        m45 = {x[0]: x for x in k.zboza_swiezosc(o, datetime.datetime(2026, 11, 14, 23, 59, tzinfo=U))}; m46 = {x[0]: x for x in k.zboza_swiezosc(o, datetime.datetime(2026, 11, 15, 0, 1, tzinfo=U))}
+        self.assertEqual((m45[S['fao']][1], m46[S['fao']][1]), ('✅', '⚠️'), 'żywność: 45 dni od końca września'); self.assertEqual((m46[S['nawozy']][1]), '✅')
+        self.assertEqual(k.zboza_swiezosc(o, datetime.datetime(2026, 11, 20, 0, 1, tzinfo=U))[4][1], '⚠️', 'nawozy: 50 dni')
+        self.assertNotIn('❌', {x[1] for x in k.zboza_swiezosc(o, datetime.datetime(2027, 6, 1, tzinfo=U))}, 'najwyżej uwaga, nigdy ❌')
+        self.assertEqual(k.zboza_swiezosc(dict(o, goi={}), datetime.datetime(2026, 10, 10, 15, tzinfo=U))[0][1:], ('?', None, None, 'brak danych tej części w pliku'))
+        self.assertEqual((k.zboza_swiezosc(None), k.zboza_swiezosc(dict(o, v=2))), ([], []))
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as fh:
+            src = fh.read()
+        kk = src[src.index('def kontrola():'):]
+        self.assertIn("for label, st, w, txt, note in zboza_swiezosc(files.get('zboza-dzien')):", kk); self.assertIn("Z['zboza-dzien'] = zboza_kontrola(files.get('zboza-dzien'), files, R)", kk)
+        self.assertIn("zdz = Z.get('zboza-dzien')", kk); self.assertIn("'- Zboża dziennie i koszt transportu (z plików strony): '", kk)
+        self.assertLess(kk.index('zboza_swiezosc(files'), kk.index('# 3c-zs. v327')); self.assertLess(kk.index("Z['zboza-dzien'] ="), kk.index("Z['surowce-raporty'] ="))
+
+    def test_kontrola_cala_z_plikiem_zboz(self):
+        """Cała kontrola na zaślepionej sieci (zaślepka urlopen klasy KontrolaEmitentV130 + nasz plik): pięć wierszy świeżości, linia raportu, plik w liście wieku; sprzeczność w pliku = BŁĄD."""
+        import tempfile
+        k = self.kt()
+        kc = KontrolaEmitentV130('test_kontrola_calosc_na_nagranych')
+        U = datetime.timezone.utc
+        teraz = datetime.datetime(2026, 10, 11, 12, 0, tzinfo=U)
+
+        class Resp:
+            status = 200
+
+            def __init__(self, b):
+                self.b = b
+
+            def read(self):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def uruchom(plik):
+            urlopen0, calls = kc._siec({'333011': kc.xml(kc.IBIT), '337614': kc.xml(kc.ETHA)})
+
+            def urlopen(req, timeout=None):
+                if '/data/zboza-dzien.json?' in req.full_url:
+                    return Resp(json.dumps(plik).encode())
+                return urlopen0(req, timeout)
+            d = tempfile.mkdtemp(prefix='k341-')
+            with mock.patch.object(k, 'NOW', teraz), mock.patch.object(k, 'OUT_DIR', d), mock.patch.object(k, 'ARCH_DIR', os.path.join(d, 'brak')), \
+                    mock.patch.object(k.time, 'sleep', lambda s: None), mock.patch.object(k.urllib.request, 'urlopen', urlopen):
+                R = k.kontrola()
+            return R, k.raport_md(R)
+        R, md = uruchom(self.plik())
+        self.assertEqual(R['pliki']['zboza-dzien']['http'], 200); self.assertEqual(R['pliki']['zboza-dzien']['czesci_bez_odpowiedzi'], [])
+        rows = [x for x in R['swiezosc'] if x['zrodlo'] in k.ZD_K_ETYKIETA.values()]
+        self.assertEqual([(x['zrodlo'], x['status'], x['data']) for x in rows], [(k.ZD_K_ETYKIETA[p], '✅', a) for p, a in zip(zd.ZD_PARTS, ('2026-10-08', '2026-10-06', '2026-09', '2026-10-04', '2026-09'))])
+        Z = R['zgodnosc']['zboza-dzien']
+        self.assertEqual((Z['spojnosc'], {w[1] for w in Z['wiersze']}), ([], {'✅'}))
+        self.assertFalse([b for b in R['bledy'] if 'zboza' in b]); self.assertFalse([u for u in R['uwagi'] if 'zboża dziennie' in u or 'zboza-dzien' in u])
+        linia = next(x for x in md.splitlines() if x.startswith('- Zboża dziennie i koszt transportu (z plików strony): '))
+        self.assertIn('indeks dzienny: skoki dnia ✅ · indeks frachtu: skoki tygodnia ✅', linia); self.assertIn('indeks dzienny: tabela źródła vs seria ✅', linia); self.assertTrue(linia.endswith('.'))
+        self.assertNotIn('❌', linia); self.assertIn('| zboża: indeks dzienny (dni robocze, dane z poprzedniego dnia roboczego) | ✅ |', md)
+        # sprzeczność w pliku = BŁĄD z linią w raporcie; część bez odpowiedzi (ok False) = uwaga
+        zly = self.plik(); zly['goi']['s']['goi']['d'][3][0] = '2020-01-01'; zly['ok'] = {'ue': False}
+        R2, md2 = uruchom(zly)
+        self.assertEqual(R2['wynik'], 'BŁĄD'); self.assertTrue(any(b.startswith('zboza-dzien.json: sprzeczność w pliku — goi.indeks ogółem') for b in R2['bledy']))
+        self.assertTrue(any('zboza-dzien.json: części bez odpowiedzi: ue' in u for u in R2['uwagi'])); self.assertIn('sprzeczności w pliku: goi.indeks ogółem: daty nie rosną albo się powtarzają ❌', md2)
+
+    def test_kontrola_spojnosc_i_progi(self):
+        k = self.kt()
+        o = self.plik()
+        self.assertEqual(k.zboza_spojnosc(o), [])
+        P = k.zboza_porownania(o)
+        self.assertEqual(P['uwagi'], []); self.assertEqual([w[0] for w in P['wiersze']], ['indeks dzienny: skoki dnia', 'indeks frachtu: skoki tygodnia', 'podindeksy żywności: skoki miesiąca', 'ceny w UE: skoki tygodnia',
+                                                                                          'nawozy w UE: skoki miesiąca', 'indeks dzienny: tabela źródła vs seria',
+                                                                                          'indeks dzienny vs podindeks zbóż w żywności (zmiany miesięczne)'])
+        self.assertEqual({w[1] for w in P['wiersze']}, {'✅'})
+        R = {'bledy': [], 'uwagi': []}
+        self.assertEqual(k.zboza_kontrola(o, {}, R), {'spojnosc': [], 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': []}); self.assertEqual(R, {'bledy': [], 'uwagi': []})
+        # sprzeczności w pliku (❌)
+        x = json.loads(json.dumps(o))
+        x['goi']['s']['goi']['d'][5], x['goi']['s']['goi']['d'][6] = x['goi']['s']['goi']['d'][6], x['goi']['s']['goi']['d'][5]
+        x['goi']['s']['pszenica']['st']['last'] = 1.0; x['goi']['s']['kukurydza']['st']['p1'] = 5.0; x['goi']['s']['soja']['st']['pos'] = 120.0; x['goi']['s']['jeczmien']['st']['hi'] = 10.0
+        x['fracht']['s']['usa']['d'][3][1] = 0; x['fao']['s']['cukier']['d'][2][1] = None; x['ue']['asof'] = '2026-09-27'; x['goi']['asof'] = '2026-10-07'
+        Z = k.zboza_spojnosc(x)
+        gk = o['goi']['s']['kukurydza']; gj = o['goi']['s']['jeczmien']['st']; gp = o['goi']['s']['pszenica']
+        self.assertEqual(Z, ['goi.indeks ogółem: daty nie rosną albo się powtarzają', 'fracht.USA: wartość ≤ 0 albo nie-liczba (brak ma być brakiem punktu)', 'fao.cukier: wartość ≤ 0 albo nie-liczba (brak ma być brakiem punktu)',
+                             f'goi.pszenica: st.last 1.0 z dnia 2026-10-08 ≠ ostatni punkt serii {gp["d"][-1][1]} z 2026-10-08', f'goi.pszenica: ostatni indeks 1.0 poza przedziałem 365 dni {gp["st"]["lo"]}–{gp["st"]["hi"]}',
+                             f'goi.kukurydza: zmiana kroku 5.0% ≠ {(gk["d"][-1][1] / gk["d"][-2][1] - 1) * 100:.2f}% z serii', f'goi.jęczmień: ostatni indeks {gj["last"]} poza przedziałem 365 dni {gj["lo"]}–10.0',
+                             'goi.soja: położenie w przedziale 120.0% poza 0–100', 'goi: asof 2026-10-07 ≠ ostatni dzień indeksu ogółem 2026-10-08', 'ue: asof 2026-09-27 ≠ ostatni tydzień pszenicy w Polsce 2026-10-04'])
+        R = {'bledy': [], 'uwagi': []}; z = k.zboza_kontrola(x, {}, R)
+        self.assertEqual(len(R['bledy']), 5, 'najwyżej 5 linii BŁĘDU'); self.assertTrue(R['bledy'][0].startswith('zboza-dzien.json: sprzeczność w pliku — goi.indeks ogółem')); self.assertEqual(len(z['spojnosc']), 10)
+        # skoki w kroku serii (progi z historii: 20% dzień, 45% tydzień fracht i UE, 40% miesiąc żywność, 90% nawozy)
+        y = json.loads(json.dumps(o))
+        y['goi']['s']['ryz']['d'][-1][1] = round(y['goi']['s']['ryz']['d'][-2][1] * 1.21, 2); y['goi']['s']['ryz']['st']['last'] = y['goi']['s']['ryz']['d'][-1][1]
+        y['fracht']['s']['czarne']['d'][-1][1] = round(y['fracht']['s']['czarne']['d'][-2][1] * 0.5, 2)
+        y['fao']['s']['cukier']['d'][-1][1] = round(y['fao']['s']['cukier']['d'][-2][1] * 1.41, 2)
+        y['ue']['rz']['RO']['d'][-1][1] = round(y['ue']['rz']['RO']['d'][-2][1] * 1.46, 2); y['nawozy']['s']['N']['d'][-1][1] = round(y['nawozy']['s']['N']['d'][-2][1] * 1.91, 2)
+        P2 = k.zboza_porownania(y)
+        self.assertEqual([w[1] for w in P2['wiersze']][:6], ['⚠️'] * 6)
+        self.assertEqual([u.split(' — ')[0] for u in P2['uwagi']], ['zboża dziennie: goi.ryż 2026-10-08', 'zboża dziennie: fracht.Morze Czarne 2026-10-06', 'zboża dziennie: fao.cukier 2026-09', 'zboża dziennie: ue.rz.RO 2026-10-04',
+                                                                      'zboża dziennie: nawozy.azot 2026-09', 'zboża dziennie: tabela źródła vs seria'], 'pięć skoków + tabela źródła (zmieniony ostatni punkt ryżu nie zgadza się z zaokrągloną tabelą)')
+        self.assertIn('+21,0% w jednym kroku (próg 20%; w historii najwyżej 14,4%) — sprawdzić', P2['uwagi'][0])
+        z1 = json.loads(json.dumps(o)); z1['goi']['s']['ryz']['d'][-1][1] = round(z1['goi']['s']['ryz']['d'][-2][1] * 1.19, 2); z1['goi']['s']['ryz']['st']['last'] = z1['goi']['s']['ryz']['d'][-1][1]
+        self.assertEqual(k.zboza_porownania(z1)['wiersze'][0][1], '✅', '19% < 20% — bez uwagi')
+        # luka w serii (dwa dni zamiast jednego, miesiąc zamiast kolejnego) — to nie skok
+        g = json.loads(json.dumps(o)); g['fracht']['s']['usa']['d'] = g['fracht']['s']['usa']['d'][:-3] + [[g['fracht']['s']['usa']['d'][-1][0], 1000.0]]
+        self.assertEqual(k.zboza_porownania(g)['wiersze'][1][1], '✅', 'odstęp 4 tygodni zamiast 1 — tylko kroki dokładnie 7 dni')
+        # tabela źródła: różnica ponad tolerancję zaokrągleń
+        t = json.loads(json.dumps(o)); t['goi']['tab']['goi'][0] = o['goi']['tab']['goi'][0] + 2; t['goi']['tab']['soja'][3] = 80
+        P3 = k.zboza_porownania(t)
+        self.assertEqual(P3['wiersze'][5], ('indeks dzienny: tabela źródła vs seria', '⚠️')); self.assertEqual(len(P3['uwagi']), 2)
+        self.assertIn('tabela źródła vs seria — indeks ogółem last:', P3['uwagi'][0]); self.assertIn('soja lo: tabela 80, seria', P3['uwagi'][1])
+        self.assertEqual(k.zboza_porownania({'v': 1}), {'wiersze': [], 'uwagi': []}, 'plik bez części — bez wierszy'); self.assertIsNone(k.zboza_kontrola(None, {}, R)); self.assertIsNone(k.zboza_kontrola({'v': 2}, {}, R))
+
+    def test_kontrola_korelacje_i_inne_pliki(self):
+        k = self.kt()
+        o = self.plik()
+        # korelacja zmian miesięcznych: sztuczne serie z rosnącym trendem i falą — te same kształty w dwóch seriach = korelacja bliska 1; odwrócony znak = ⚠️
+        ms = [f'{2023 + (i + 9) // 12}-{(i + 9) % 12 + 1:02d}' for i in range(36)]
+        import math
+        wzor = [100 + 3 * math.sin(i / 2.5) * (1 + i / 20.0) + i for i in range(36)]
+        r = k._zd_k_kor_serii([[m, v] for m, v in zip(ms, wzor)], [[m, 2 * v + 5] for m, v in zip(ms, wzor)])
+        self.assertAlmostEqual(r[0], 1.0, 3); self.assertEqual(r[1:], (35, 35))
+        r2 = k._zd_k_kor_serii([[m, v] for m, v in zip(ms, wzor)], [[m, 400 - v] for m, v in zip(ms, wzor)])
+        self.assertLess(r2[0], -0.9); self.assertEqual(r2[2], 0)
+        self.assertIsNone(k._zd_k_kor_serii([[m, v] for m, v in zip(ms[:20], wzor)], [[m, v] for m, v in zip(ms[:20], wzor)]), 'za mało par zmian (< 24) — bez korelacji')
+        self.assertIsNone(k._zd_k_korelacja([1, 1, 1], [1, 2, 3])); self.assertIsNone(k._zd_k_korelacja([1, 2], [1, 2]))
+        # dziura w miesiącach: zmiana tylko między kolejnymi miesiącami
+        z = k._zd_k_zmiany([['2026-01', 100.0], ['2026-02', 110.0], ['2026-04', 120.0], ['2026-05', 0.0], ['2026-06', 1.0]], miesiac=True)
+        self.assertEqual([(a, round(b, 1)) for a, b in z], [('2026-02', 10.0), ('2026-05', -100.0)], 'kwiecień → maj liczony (kolejne miesiące), luka luty → kwiecień i podstawa 0 — nie')
+        # pełny plik: zgodność z podindeksem zbóż w żywności (ten sam plik) i z plikiem o Polsce; zła wartość = ⚠️
+        x = json.loads(json.dumps(o))
+        x['goi']['s']['goi']['m'] = [[m, v] for m, v in zip(ms, wzor)]; x['fao']['s']['zboza']['d'] = [[m, 3 * v] for m, v in zip(ms, wzor)]
+        P = k.zboza_porownania(x, {'polska': {'pszenica': {'d': [[d, v] for d, v in o['ue']['zb']['pszenica']['PL']['d']]}}})
+        W = dict(P['wiersze'])
+        self.assertEqual(W['indeks dzienny vs podindeks zbóż w żywności (zmiany miesięczne)'], '✅'); self.assertEqual(W['pszenica w Polsce: ten sam portal w dwóch plikach'], '✅'); self.assertEqual(P['uwagi'], [])
+        x['fao']['s']['zboza']['d'] = [[m, 400 - v] for m, v in zip(ms, wzor)]
+        P = k.zboza_porownania(x, {'polska': {'pszenica': {'d': [[d, v + 0.5] for d, v in o['ue']['zb']['pszenica']['PL']['d']]}}})
+        W = dict(P['wiersze'])
+        self.assertEqual(W['indeks dzienny vs podindeks zbóż w żywności (zmiany miesięczne)'], '⚠️'); self.assertEqual(W['pszenica w Polsce: ten sam portal w dwóch plikach'], '⚠️')
+        self.assertTrue(any('korelacja' in u and 'podindeks zbóż w żywności' in u for u in P['uwagi'])); self.assertTrue(any('pszenica w Polsce 2026-10-04' in u for u in P['uwagi']))
+        # indeks zbóż świata i azot vs indeks nawozów świata z pliku surowców (35 miesięcy: 10.2023 – 09.2026)
+        sw = {'mies': {'ix': {'zboza': {'d': [[m, v] for m, v in zip(ms, wzor)]}, 'nawozy': {'d': [[m, 400 - v] for m, v in zip(ms, wzor)]}}}}
+        x['nawozy']['s']['N']['d'] = [[m, 2 * v] for m, v in zip(ms, wzor)]; x['fao']['s']['zboza']['d'] = [[m, v] for m, v in zip(ms, wzor)]
+        W = dict(k.zboza_porownania(x, {'surowce': sw})['wiersze'])
+        self.assertEqual(W['indeks dzienny vs indeks zbóż świata (zmiany miesięczne)'], '✅'); self.assertEqual(W['azot w UE vs indeks nawozów świata (zmiany miesięczne)'], '⚠️', 'azot rośnie, indeks świata maleje')
+        self.assertNotIn('azot w UE vs indeks nawozów świata (zmiany miesięczne)', dict(k.zboza_porownania(x, {})['wiersze']), 'bez pliku surowców — bez tego wiersza')
+        # wejście spoza założeń: puste części, złe typy — bez wyjątku
+        for zly in ({'v': 1, 'goi': 5, 'fracht': [], 'fao': {'s': 1}, 'ue': {'zb': 3}, 'nawozy': None}, {'v': 1, 'ue': {'zb': {'pszenica': {'PL': {'d': 'x'}}}}}):
+            k.zboza_spojnosc(zly); k.zboza_porownania(zly, {'polska': 7, 'surowce': {'mies': 3}})
+        self.assertIn('zboza-dzien', k.PLIKI)
+        # stałe progów (z testu wstecznego) i kierunek zgodny z kodem zbieracza
+        self.assertEqual((k.ZD_K_PROG['goi'], k.ZD_K_PROG['fracht'], k.ZD_K_PROG['fao'], k.ZD_K_PROG['ue'], k.ZD_K_PROG['nawozy']),
+                         (('d', 5760), ('w', 20160), ('m', 64800), ('w', 20160), ('m', 72000)))
+        self.assertEqual(k.ZD_K_SKOK, {'goi': 20.0, 'fracht': 45.0, 'fao': 40.0, 'ue': 45.0, 'nawozy': 90.0}); self.assertEqual(k.ZD_K_KOR, {'fao': 0.6, 'wb_zboza': 0.4, 'wb_nawozy': 0.3})

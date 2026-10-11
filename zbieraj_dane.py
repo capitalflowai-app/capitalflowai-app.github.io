@@ -11069,7 +11069,9 @@ def _su_cftc(ctx):
 
 
 def _su_fao(ctx):
-    rows, base = parse_fao(_su_get(ctx, 'fao', SU_FAO_URL).decode('utf-8', 'replace'), ctx['now'].date())
+    tekst = _su_get(ctx, 'fao', SU_FAO_URL).decode('utf-8', 'replace')
+    _ZD_FAO[:] = [tekst]   # v341: ten sam plik czyta część fao pliku zboza-dzien.json (zero nowych zapytań o pięć podindeksów)
+    rows, base = parse_fao(tekst, ctx['now'].date())
     ctx['H']['m'].setdefault('fao', {}).update(rows)
     ctx['st'].setdefault('fao', {})['baza'] = base
     return max(k for k, v in rows.items() if v is not None)
@@ -26660,6 +26662,755 @@ def build_metale(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None, fx
     return out
 
 
+import email.utils as _zd_email   # v341: nagłówek Last-Modified (biblioteka standardowa)
+# ===================== v341 (F5Z3): ZBOŻA DZIENNIE I KOSZT TRANSPORTU — data/zboza-dzien.json (dział SUROWCE, surowce rolne) =====================
+# Osobny plik i osobny budowniczy (surowce.json, polska.json i surowce-raporty.json bez zmian). Pięć części, każda z part_at / ok / next / err jak w szlaki.json:
+#   goi    — dzienny indeks cen zbóż i nasion oleistych (ogółem) i pięć podindeksów (pszenica, kukurydza, jęczmień, soja, ryż) od 2000-01-03; styczeń 2000 = 100
+#            (średnia stycznia 2000 w danych źródła wychodzi równo 100,0 dla wszystkich sześciu serii — sprawdzone 10.10.2026). To INDEKS (punkty), nie cena w USD
+#            za tonę. W pliku: ostatnie 400 dni dziennie (d), średnie miesięczne od 2000 (m) i liczby wyliczone przez zbieracza (st) — ostatni indeks, zmiana
+#            dnia / 5 sesji / 21 sesji / roku, najniższy i najwyższy z 365 dni, położenie w tym przedziale w % (pos) i udział dni od 2000 z niższym indeksem
+#            (pct). Źródło publikuje dane w dni robocze rano (plik 09.10.2026 o 08:19 UTC, dane do 08.10): jedno zapytanie o nagłówek pliku liczbowego
+#            (Range: bytes=0-0, 1 bajt) mówi, czy jest nowe wydanie; stronę ok. 1,5 MB pobieramy tylko po zmianie tej daty (zwykle raz na dobę, najwyżej raz na
+#            ZD_GOI_STRONA_H h, a gdy dane są starsze niż spodziewane — po 3 h). Nagłówek pytamy co ZD_GOI_CZESTO min od początku okna, dopóki spodziewany dzień
+#            nie przyjdzie (zaległość ponad 3 dni roboczych — co 6 h; poza tym raz na tydzień). Godzina okna jest uczona z dat nagłówka (st.goi.okno, jak
+#            v262–v264 i v279); dopóki nie ma 3 obserwacji — ZD_GOI_START. Tabela na stronie źródła (ostatnia wartość, zmiana, najniższy / najwyższy z 52 tygodni) jest kontrolą
+#            odczytu: wartość inna niż w serii o więcej niż ZD_TAB_TOL w tym samym dniu = błąd odczytu strony (część zostaje z poprzednimi danymi);
+#   fracht — tygodniowy indeks kosztu frachtu zbóż i nasion oleistych (ogółem) i siedem podindeksów tras (Argentyna, Australia, Brazylia, Morze Czarne,
+#            Kanada, Europa, USA): ok. 99 tygodni; punkty z jednego tygodnia (w trzecim tygodniu miesiąca źródło dopisuje środę obok wtorku) — zostaje
+#            wtorek, zwykły rytm publikacji (odstępy równe 7 dni; najwyższa i najniższa wartość z 52 tygodni zgadza się z tabelą źródła). Podindeks każdej trasy
+#            jest liczony od własnego poziomu z 1 stycznia 2013 (= 100), więc poziomów tras NIE porównujemy ze sobą — strona porównuje zmiany. Zmiana roczna
+#            liczona względem punktu sprzed 364 dni (52 tygodnie, wtorek do wtorku; tolerancja 3 dni) — jak w tabeli źródła. Kolumna źródła nazywa się
+#            „US$/ton”, ale poziomy (100–250) wskazują na indeks — strona pisze „indeks”, nie dolary za tonę. Środa po ZD_FRACHT_START;
+#   fao    — pięć podindeksów żywności (mięso, nabiał, zboża, oleje, cukier) i indeks ogólny (2014–2016 = 100), 61 miesięcy — Z PLIKU, KTÓRY I TAK POBIERA
+#            budowniczy surowców (v295: _su_fao zostawia tekst pliku w _ZD_FAO): ZERO nowych zapytań. Własne pobranie tylko gdy w pliku nie ma jeszcze tej
+#            części (pierwszy przebieg);
+#   ue     — portal danych rolnych Komisji Europejskiej (ten sam host co pszenica w polska.json): tygodniowe ceny zbóż w Polsce, Francji, Niemczech
+#            i Rumunii (pszenica, kukurydza, jęczmień paszowy; rynki referencyjne w ZD_RYNEK), rzepak w czterech krajach (Francja: Rouen — nie ma średniej
+#            krajowej) oraz śruta i olej rzepakowy w Polsce; EUR/t; do ZD_UE_TYG tygodni (data = niedziela kończąca tydzień). Etapy łańcucha dostaw różnią się
+#            między krajami — porównanie jest orientacyjne i strona to mówi. Czwartek po tygodniu (w czwartek i piątek co 3 h, aż przyjdzie; poza tym raz na dobę —
+#            poprawki wstecz); pierwsze pobranie obejmuje ZD_UE_PIERWSZE dni (ok. 14 miesięcy, ok. 0,7 MB), kolejne ZD_UE_KOLEJNE dni;
+#   nawozy — średnie ceny nawozów w UE (azot N, fosfor P, potas K; EUR/t), miesięcznie, 61 miesięcy; parametr kraju w zapytaniu nie działa (zawsze średnia
+#            UE). Wrzesień 2026 był 10.10.
+# Kody źródeł (pole z, stan st) — pełne nazwy wyłącznie na stronie „Źródła”: goi, gofi — międzynarodowa rada zbożowa, fao — organizacja żywności ONZ,
+# ue, naw — portal danych rolnych KE. Bramki wg terminów publikacji (_zd_due); źródło z błędem = poprzednia część z datą (ok False, krótki zamaskowany błąd
+# err); błąd częściowy (źródło odpowiedziało, czegoś w nim brak) — cz. Budżet czasu: cały budowniczy ZD_BUDZET_S s; źródło startuje tylko, gdy zmieszczą się
+# wszystkie jego zapytania z pełnymi limitami; w długim przebiegu (BACK_LATE) bez stron ciężkich (goi, ue). Zwykle 0 zapytań (dane dzienne i tygodniowe
+# rano w dni robocze); odpowiedzi z limitem rozmiaru, XML nie występuje (JSON / CSV / HTML czytany wyrażeniami regularnymi, bez rozwijania encji).
+# Pomiar 11.10.2026 (komputer agenta): nagłówek pliku 0,2 s, strona frachtu 0,7 s, zapytania UE 1,1 + 0,4 + ok. 0,3 s, nawozy 1,8 s — w dniu z nowymi danymi
+# razem kilka sekund, w pozostałych przebiegach 0 zapytań (średnio znacznie poniżej +1 s na przebieg; limit planu: +10 s).
+ZD_V = 1
+ZD_PARTS = ('goi', 'fracht', 'fao', 'ue', 'nawozy')
+ZD_ZR = (('fao', 'fao'), ('gofi', 'fracht'), ('naw', 'nawozy'), ('ue', 'ue'), ('goi', 'goi'))   # kolejność: bez zapytań i najlżejsze najpierw
+ZD_LIMIT_S = {'goi': 60, 'goi_lm': 20, 'gofi': 30, 'fao': 30, 'ue': 60, 'naw': 30}             # s — limit jednego zapytania
+ZD_ZAPYTANIA = {'goi': 2, 'ue': 3}                                                            # goi: nagłówek + strona; ue: zboża, rzepak, śruta i olej
+ZD_BUDZET_S = 240
+ZD_GOI_URL = 'https://igc.int/en/public-site/markets/marketinfo-goi.aspx'
+ZD_GOI_LM_URL = 'https://igc.int/_csv/igc__goi.xlsb'
+ZD_GOFI_URL = 'https://igc.int/en/public-site/markets/marketinfo-freight.aspx'
+ZD_GOI_MAX, ZD_GOFI_MAX, ZD_FAO_MAX, ZD_UE_MAX, ZD_NAW_MAX = 4_000_000, 600_000, 1_000_000, 4_000_000, 1_000_000   # B — limity odpowiedzi
+ZD_AGRI = 'https://api.tech.ec.europa.eu/agrifood/api'
+ZD_UE_ZB_URL = (ZD_AGRI + '/cereal/prices?memberStateCodes=PL,FR,DE,RO&productCodes=BLTPAN,MAI,ORGFOUR&beginDate={od}&endDate={do}')
+ZD_UE_RZ_URL = (ZD_AGRI + '/oilseeds/prices?memberStateCodes=PL,FR,DE,RO&products=Rapeseed&beginDate={od}&endDate={do}')
+ZD_UE_PL_URL = (ZD_AGRI + '/oilseeds/prices?memberStateCodes=PL&products=Rapeseed%20meal,Crude%20rape%20oil&beginDate={od}&endDate={do}')
+ZD_NAW_URL = ZD_AGRI + '/fertiliser/prices?beginDate={od}&endDate={do}'
+ZD_GOI_START = 8 * 60          # min UTC — domyślny początek okna publikacji indeksu dziennego (plik 09.10.2026 o 08:19), do czasu nauczenia okna
+ZD_GOI_CZESTO = 20             # min — sprawdzanie nagłówka pliku w oknie publikacji, dopóki nie przyjdzie spodziewany dzień
+ZD_GOI_PROBY = 3               # tyle razy najwyżej pobieramy stronę dla tej samej daty pliku, gdy strona nie ma jeszcze nowego dnia (potem data pliku jest przyjęta)
+ZD_GOI_STRONA_H = 20           # h — strona ok. 1,5 MB najwyżej raz na tyle godzin (poza przypadkiem „dane starsze niż spodziewane”: po 3 h)
+ZD_FRACHT_START = 8 * 60 + 45  # min UTC — środa: indeks frachtu za wtorek (plik z 10.10.2026: ostatni punkt wtorek 06.10)
+ZD_TAB_TOL = 0.6               # tolerancja zaokrąglenia tabeli źródła (liczby całkowite) względem serii
+ZD_D, ZD_M_FAO, ZD_M_NAW, ZD_UE_TYG = 400, 61, 61, 70    # dni dziennych punktów; miesięcy FAO i nawozów; tygodni cen w UE
+ZD_UE_PIERWSZE, ZD_UE_KOLEJNE = 430, 63                  # dni wstecz w zapytaniu o ceny zbóż: pierwsze (ok. 14 miesięcy) i kolejne (poprawki źródła)
+ZD_GOI_MIN = 1000              # najmniej punktów serii dziennej (od 2000 jest ok. 6970) — mniej = zmieniona strona
+ZD_GOI_ID = {'igc goi': 'goi', 'grains and oilseeds index': 'goi', 'wheat sub-index': 'pszenica', 'maize sub-index': 'kukurydza', 'barley sub-index': 'jeczmien',
+             'soyabean sub-index': 'soja', 'soyabeans sub-index': 'soja', 'rice sub-index': 'ryz'}
+ZD_GOFI_ID = {'grains and oilseeds freight index': 'gofi', 'igc grains and oilseeds freight index': 'gofi', 'argentina sub-index': 'argentyna',
+              'australia sub-index': 'australia', 'brazil sub-index': 'brazylia', 'black sea sub-index': 'czarne', 'canada sub-index': 'kanada',
+              'europe sub-index': 'europa', 'usa sub-index': 'usa'}
+ZD_GOI_KOLEJNOSC = ('goi', 'pszenica', 'kukurydza', 'jeczmien', 'soja', 'ryz')
+ZD_GOFI_KOLEJNOSC = ('gofi', 'argentyna', 'australia', 'brazylia', 'czarne', 'kanada', 'europa', 'usa')
+ZD_FAO_KOL = (('Food Price Index', 'ogolem'), ('Meat', 'mieso'), ('Dairy', 'nabial'), ('Cereals', 'zboza'), ('Oils', 'oleje'), ('Sugar', 'cukier'))
+ZD_KRAJE = ('PL', 'FR', 'DE', 'RO')
+ZD_ZB = (('pszenica', 'Milling wheat'), ('kukurydza', 'Feed maize'), ('jeczmien', 'Feed barley'))   # produkt, nazwa u źródła
+# Rynek referencyjny każdego kraju (jeden na serię — seria nie miesza rynków). Polska: średnia krajowa (dostawa do pierwszego odbiorcy). Francja, Niemcy
+# i Rumunia: średnie krajowe tych produktów w portalu kończą się w lipcu / sierpniu 2026 (FR 26.07, DE i RO 02.08 — nie ma ich dla nowego sezonu), więc
+# bierzemy bieżące notowania giełd i portów z najdłuższą i najświeższą serią (10.10.2026: wszystkie do 04.10): Rouen (do portu), Hamburg (z silosu),
+# Konstanca (FOB, Morze Czarne), kukurydza: Francja — Ren (FOB), Niemcy — Kolonia, Rumunia — Muntenia (z silosu). To NIE jest ta sama pozycja w łańcuchu
+# dostaw co w Polsce — porównanie jest orientacyjne (kierunek i skala, nie różnica co do euro), strona to mówi.
+ZD_RYNEK = {('pszenica', 'PL'): 'National Average', ('pszenica', 'FR'): 'Rouen', ('pszenica', 'DE'): 'Hamburg', ('pszenica', 'RO'): 'Constanta',
+            ('kukurydza', 'PL'): 'National Average', ('kukurydza', 'FR'): 'Rhin', ('kukurydza', 'DE'): 'Köln', ('kukurydza', 'RO'): 'Muntenia',
+            ('jeczmien', 'PL'): 'National Average', ('jeczmien', 'FR'): 'Rouen', ('jeczmien', 'DE'): 'Hamburg', ('jeczmien', 'RO'): 'Muntenia'}
+ZD_RZ_RYNEK = {'PL': 'Not Defined', 'DE': 'National Average', 'RO': 'National Average', 'FR': 'Rouen'}   # rzepak: rynek ceny krajowej (FR: brak średniej krajowej)
+ZD_PL_OLEJ = (('sruta', 'Rapeseed meal'), ('olej', 'Crude rape oil'))
+ZD_ZAKRES = {'zb': (50, 1000), 'rz': (150, 1500), 'sruta': (50, 1000), 'olej': (300, 4000), 'naw': (50, 3000)}   # EUR/t — wartość spoza zakresu = brak
+ZD_NAW_ID = (('N', 'N (Nitrogen)'), ('P', 'P (Phosphorus)'), ('K', 'K (Potash)'))
+ZD_MIES = ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec')
+_ZD_FAO = []        # tekst pliku FAO z tego przebiegu (zostawia go _su_fao) — zero nowych zapytań o pięć podindeksów
+
+
+def _zd_nazwa(s):
+    return re.sub(r'\s+', ' ', str(s or '')).strip().lower()
+
+
+def _zd_tekst(h):
+    return re.sub(r'\s+', ' ', _html.unescape(re.sub(r'<[^>]+>', ' ', h))).strip()
+
+
+def _zd_liczba(s):
+    """Liczba z komórki tabeli ('-1', '19', '−2', '254.5'); inaczej None."""
+    x = str(s or '').replace('−', '-').replace('\xa0', '').strip()
+    return float(x) if re.fullmatch(r'[-+]?\d+(?:\.\d+)?', x) else None
+
+
+def _zd_pct(a, b):
+    return round((a / b - 1) * 100, 2) if _isnum(a) and _isnum(b) and b > 0 else None
+
+
+def _zd_data(y, m, d):
+    try:
+        return datetime.date(int(y), int(m), int(d))
+    except ValueError:
+        return None
+
+
+def zd_parse_igc(page, ids):
+    """Strona wskaźników źródła (indeks dzienny albo frachtu) → ({id: [(RRRR-MM-DD, wartość)] rosnąco}, tabela, uwagi). Serie z bloku wykresu:
+    `name : '…', data: [[Date.UTC(r,m0,d),wartość],…]` — miesiąc liczony od 0; punkty sprzed 2000 r. odrzucone (seria kukurydzy zaczyna się punktem-widmem
+    1899-12-30); ten sam dzień dwa razy — ostatni; wartość ≤ 0 albo nie-liczba = brak. ids — słownik nazw u źródła (małe litery) → id; seria spoza słownika
+    pomijana. Tabela: [(id, ostatnia, zmiana, zmiana roczna %, min 52 tyg., max 52 tyg., etykieta dnia 'D Mon')] z pierwszej tabeli HTML (nazwy tabeli
+    mapowane tym samym słownikiem)."""
+    if isinstance(page, (bytes, bytearray)):
+        page = bytes(page).decode('utf-8', 'replace')
+    pos = [(m.start(), m.group(1)) for m in re.finditer(r"name\s*:\s*'([^']*)'", page)]
+    pos.append((len(page), None))
+    ser, uw = {}, []
+    for (s, nazwa), (e, _) in zip(pos, pos[1:]):
+        cid = ids.get(_zd_nazwa(nazwa))
+        if not cid or cid in ser:
+            continue
+        M = {}
+        for y, m0, d, v in re.findall(r'Date\.UTC\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)\s*,\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)\s*\]', page[s:e]):
+            day = _zd_data(y, int(m0) + 1, d)
+            x = float(v)
+            if day and day.year >= 2000 and _isnum(x) and x > 0:
+                M[day.isoformat()] = round(x, 2)
+        if M:
+            ser[cid] = sorted(M.items())
+    tab = []
+    t = re.search(r'<table.*?</table>', page, flags=re.S | re.I)
+    if t:
+        for tr in re.findall(r'<tr.*?</tr>', t.group(0), flags=re.S | re.I):
+            c = [_zd_tekst(x) for x in re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', tr, flags=re.S | re.I)]
+            cid = ids.get(_zd_nazwa(c[0])) if c else None
+            if cid and len(c) >= 7 and _zd_liczba(c[1]) is not None:
+                tab.append((cid, _zd_liczba(c[1]), _zd_liczba(c[2]), _zd_liczba(c[3]), _zd_liczba(c[4]), _zd_liczba(c[5]), c[6]))
+    return ser, tab, uw
+
+
+def _zd_etykieta_dnia(e):
+    """'8 Oct' → (8, 10); inaczej None."""
+    m = re.fullmatch(r'(\d{1,2})\s+([A-Za-z]{3})', str(e or '').strip())
+    return (int(m.group(1)), ZD_MIES.index(m.group(2).lower()) + 1) if m and m.group(2).lower() in ZD_MIES else None
+
+
+def _zd_tydzien(rows):
+    """Seria tygodniowa: z punktów jednego tygodnia ISO zostaje najwcześniejszy, czyli wtorek (w trzecim tygodniu miesiąca źródło dopisuje środę obok
+    wtorku): odstępy są wtedy równe 7 dni, a najwyższa i najniższa wartość z 52 tygodni zgadza się z tabelą źródła. Tydzień bez wtorku (święto, przesunięcie)
+    zostaje z tym punktem, który jest."""
+    out = {}
+    for d, v in sorted(rows):
+        out.setdefault(datetime.date.fromisoformat(d).isocalendar()[:2], (d, v))
+    return sorted(out.values())
+
+
+def _zd_stat(rows, krok, ranking=False, rok=365, tol=10):
+    """Liczby wyliczone z serii rows ([(dzień, wartość)] rosnąco): ostatnia (last) z dniem (dt), zmiana do poprzedniego punktu (d1 punkty, p1 %), zmiany
+    % wobec punktu k wstecz (krok = [(k, klucz)]), zmiana roczna y1 (wobec ostatniego punktu nie późniejszego niż rok dni przed, nie starszego niż
+    tol dni przed tą granicą; indeks dzienny: 365 i 10, seria tygodniowa: 364 = 52 tygodnie i 3), najniższy / najwyższy z roku (lo, hi — tylko gdy seria
+    sięga co najmniej 330 dni wstecz) i położenie w tym przedziale
+    (pos, 0–100 %), a dla ranking — udział punktów serii z niższą wartością (pct, %). Za mało punktów = None."""
+    n = len(rows)
+    if n < 2:
+        return None
+    ld, last = rows[-1]
+    d0 = datetime.date.fromisoformat(ld)
+    st = {'last': last, 'dt': ld, 'd1': round(last - rows[-2][1], 2), 'p1': _zd_pct(last, rows[-2][1])}
+    for k, key in krok:
+        st[key] = _zd_pct(last, rows[-1 - k][1]) if n > k else None
+    ya = (d0 - datetime.timedelta(days=rok)).isoformat()
+    base = [(d, v) for d, v in rows if d <= ya]
+    st['y1'] = _zd_pct(last, base[-1][1]) if base and (datetime.date.fromisoformat(ya) - datetime.date.fromisoformat(base[-1][0])).days <= tol else None
+    win = [v for d, v in rows if d > ya]
+    if base or datetime.date.fromisoformat(rows[0][0]) <= d0 - datetime.timedelta(days=330):
+        lo, hi = min(win), max(win)
+        st['lo'], st['hi'] = lo, hi
+        st['pos'] = round((last - lo) / (hi - lo) * 100, 1) if hi > lo else None
+    else:
+        st['lo'] = st['hi'] = st['pos'] = None
+    if ranking:
+        st['pct'] = round(sum(1 for _, v in rows if v < last) / n * 100, 1)
+    return st
+
+
+def _zd_miesiace(rows):
+    """Średnie miesięczne z punktów dziennych: [[RRRR-MM, średnia]]."""
+    G = {}
+    for d, v in rows:
+        G.setdefault(d[:7], []).append(v)
+    return [[m, round(sum(x) / len(x), 2)] for m, x in sorted(G.items())]
+
+
+def _zd_tabela(ser, tab, kolejnosc):
+    """Kontrola odczytu: tabela na stronie źródła (liczby całkowite) vs ostatni punkt serii. → (niezgodne wartości, uwagi o dniu). Wartość różna o więcej niż
+    ZD_TAB_TOL przy tym samym dniu = niezgodna; inny dzień etykiety niż dzień ostatniego punktu = uwaga (wartości wtedy nie porównujemy)."""
+    zle, uw = [], []
+    for cid, last, _d, _y, _lo, _hi, et in tab:
+        S = ser.get(cid)
+        if not S:
+            continue
+        dz = _zd_etykieta_dnia(et)
+        ld = datetime.date.fromisoformat(S[-1][0])
+        if dz is None or dz != (ld.day, ld.month):
+            uw.append(f'{cid}: tabela źródła ma dzień „{et}”, seria kończy się {S[-1][0]}')
+        elif abs(S[-1][1] - last) > ZD_TAB_TOL:
+            zle.append(f'{cid}: tabela {last:g} ≠ seria {S[-1][1]:g}')
+    return zle, uw
+
+
+def zd_goi_czesc(ser, tab, now, lm=None):
+    """Część goi z odczytanej strony (patrz zd_parse_igc) → (część, braki, uwagi). Indeks ogółem wymagany; brak innej serii (albo seria krótsza niż
+    ZD_GOI_MIN punktów, albo z datą z przyszłości) = brak (błąd częściowy); inny dzień w tabeli źródła i brak tabeli = uwaga (notatka, nie błąd danych);
+    wartość tabeli niezgodna z serią w tym samym dniu = RuntimeError (błąd odczytu)."""
+    uw, br = [], []
+    if 'goi' not in ser:
+        raise RuntimeError('brak serii indeksu ogółem (zmieniona strona źródła?)')
+    zle, uw2 = _zd_tabela(ser, tab, ZD_GOI_KOLEJNOSC)
+    if zle:
+        raise RuntimeError('tabela źródła niezgodna z serią: ' + '; '.join(zle))
+    uw += uw2
+    if not tab:
+        uw.append('brak tabeli kontrolnej na stronie źródła')
+    jutro = (now.date() + datetime.timedelta(days=1)).isoformat()
+    S, zb = {}, {}
+    for cid in ZD_GOI_KOLEJNOSC:
+        rows = ser.get(cid)
+        if not rows:
+            br.append(f'goi: brak serii {cid}'); continue
+        if len(rows) < ZD_GOI_MIN or rows[-1][0] > jutro:
+            br.append(f'goi: seria {cid} odrzucona ({len(rows)} punktów, ostatni {rows[-1][0]})'); continue
+        d0 = (datetime.date.fromisoformat(rows[-1][0]) - datetime.timedelta(days=ZD_D)).isoformat()
+        S[cid] = {'d': [[d, v] for d, v in rows if d >= d0], 'm': _zd_miesiace(rows), 'st': _zd_stat(rows, ((5, 'p5'), (21, 'p21')), True)}
+    if 'goi' not in S:
+        raise RuntimeError('indeks ogółem odrzucony: ' + '; '.join(br))
+    for r in tab:
+        if r[0] in S:
+            zb[r[0]] = [r[1], r[2], r[3], r[4], r[5]]
+    out = {'asof': S['goi']['st']['dt'], 'u': 'idx', 'baza': '2000-01', 's': S, 'tab': zb, 'n': len(ser['goi'])}
+    if lm:
+        out['lm'] = lm
+    return out, br, uw
+
+
+def zd_fracht_czesc(ser, tab, now):
+    """Część fracht (indeks frachtu i siedem tras) z odczytanej strony. Jak zd_goi_czesc, ale seria tygodniowa (jeden punkt na tydzień ISO)."""
+    uw, br = [], []
+    if 'gofi' not in ser:
+        raise RuntimeError('brak serii indeksu frachtu (zmieniona strona źródła?)')
+    zle, uw2 = _zd_tabela(ser, tab, ZD_GOFI_KOLEJNOSC)
+    if zle:
+        raise RuntimeError('tabela źródła niezgodna z serią: ' + '; '.join(zle))
+    uw += uw2
+    jutro = (now.date() + datetime.timedelta(days=1)).isoformat()
+    S, zb = {}, {}
+    for cid in ZD_GOFI_KOLEJNOSC:
+        rows = ser.get(cid)
+        if not rows:
+            br.append(f'fracht: brak serii {cid}'); continue
+        rows = _zd_tydzien(rows)
+        if len(rows) < 20 or rows[-1][0] > jutro:
+            br.append(f'fracht: seria {cid} odrzucona ({len(rows)} punktów, ostatni {rows[-1][0]})'); continue
+        S[cid] = {'d': [[d, v] for d, v in rows], 'st': _zd_stat(rows, ((4, 'p4'),), False, 364, 3)}
+    if 'gofi' not in S:
+        raise RuntimeError('indeks frachtu odrzucony: ' + '; '.join(br))
+    for r in tab:
+        if r[0] in S:
+            zb[r[0]] = [r[1], r[2], r[3], r[4], r[5]]
+    return {'asof': S['gofi']['st']['dt'], 'u': 'idx', 's': S, 'tab': zb}, br, uw
+
+
+def zd_parse_fao(text):
+    """Plik indeksów cen żywności (CSV) → ({id: {RRRR-MM: wartość}}, baza). Kolumny wg nazwy w wierszu nagłówka 'Date'; pusta komórka = brak miesiąca tej
+    serii (nigdy 0); brak kolumny = brak serii (uwaga). Plik, którego ostatni miesiąc ogólnego indeksu jest starszy niż 4 miesiące od dziś — błąd (stary adres)."""
+    if isinstance(text, (bytes, bytearray)):
+        text = bytes(text).decode('utf-8-sig', 'replace')
+    rows = list(csv.reader(io.StringIO(str(text).lstrip('\ufeff'))))
+    base = next((r[0].strip() for r in rows[:4] if r and '=100' in r[0]), None)
+    hi = next((i for i, r in enumerate(rows) if r and r[0].strip() == 'Date'), None)
+    if hi is None:
+        raise RuntimeError('brak nagłówka')
+    head = [c.strip() for c in rows[hi]]
+    out, uw = {}, []
+    for nazwa, cid in ZD_FAO_KOL:
+        if nazwa not in head:
+            uw.append(f'brak kolumny {nazwa}'); continue
+        ci = head.index(nazwa)
+        S = {}
+        for r in rows[hi + 1:]:
+            if r and re.fullmatch(r'\d{4}-\d{2}', r[0].strip()) and len(r) > ci:
+                v = _num(r[ci])
+                if _isnum(v) and v > 0:
+                    S[r[0].strip()] = round(v, 2)
+        if S:
+            out[cid] = S
+    if 'ogolem' not in out:
+        raise RuntimeError('brak indeksu ogólnego')
+    return out, base, uw
+
+
+def zd_fao_czesc(ser, base, now):
+    """Część fao: ostatnie ZD_M_FAO miesięcy każdej serii; asof = najstarszy z ostatnich miesięcy serii (strona nie zapewnia nowszych danych, niż ma najwolniejsza
+    seria). Plik, w którym ostatni miesiąc indeksu ogólnego jest starszy niż 4 miesiące — błąd."""
+    t = now.year * 12 + now.month - 1 - 4
+    last = {k: max(v) for k, v in ser.items()}
+    if max(last['ogolem'], '0000-00') < f'{t // 12:04d}-{t % 12 + 1:02d}':
+        raise RuntimeError(f'plik nieaktualny (ostatni miesiąc {last["ogolem"]}) — stary adres?')
+    S = {cid: {'d': [[m, v] for m, v in sorted(ser[cid].items())[-ZD_M_FAO:]]} for _, cid in ZD_FAO_KOL if cid in ser}
+    return {'asof': min(last.values()), 'baza': base or '2014-2016=100', 's': S}
+
+
+def zd_eu_wiersze(b):
+    """Odpowiedź portalu danych rolnych (lista JSON) → [{kraj, produkt, rynek, etap, dzien (niedziela kończąca tydzień), cena (EUR/t), jednostka}].
+    Cena jest tekstem: '€211,71' (przecinek) w zbożach, '€563.75' (kropka) w oleistych — pl_kwota. Pola różnią się między sektorami: productName / product,
+    marketName / market, stageName / marketStage. Wiersz bez daty albo ceny pominięty."""
+    j = json.loads(b.decode('utf-8', 'replace') if isinstance(b, (bytes, bytearray)) else b)
+    if not isinstance(j, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    out = []
+    for r in j:
+        if not isinstance(r, dict):
+            continue
+        m = re.match(r'^(\d{2})/(\d{2})/(\d{4})$', str(r.get('endDate') or ''))
+        d = _zd_data(m.group(3), m.group(2), m.group(1)) if m else None
+        v = pl_kwota(r.get('price'))
+        if d and v is not None:
+            out.append({'kraj': r.get('memberStateCode'), 'produkt': r.get('productName') or r.get('product'), 'rynek': r.get('marketName') or r.get('market'),
+                        'etap': r.get('stageName') or r.get('marketStage'), 'dzien': d.isoformat(), 'cena': v, 'jednostka': r.get('unit')})
+    return out
+
+
+def _zd_seria(W, kraj, produkty, rynek, zakres, jednostka=None):
+    """Wiersze jednego kraju, produktu i rynku → {dzień: cena}; cena spoza zakresu pomijana (zwracana liczba pominiętych)."""
+    out, bad = {}, 0
+    for w in W:
+        if w['kraj'] == kraj and w['produkt'] in produkty and w['rynek'] == rynek and (jednostka is None or w['jednostka'] == jednostka):
+            if zakres[0] < w['cena'] < zakres[1]:
+                out[w['dzien']] = round(w['cena'], 2)
+            else:
+                bad += 1
+    return out, bad
+
+
+def zd_parse_nawozy(b):
+    """Ceny nawozów w UE (lista JSON: year, month 'Sep', product, price, unit '€/tonne') → {'N': {RRRR-MM: EUR/t}, 'P': …, 'K': …}; cena spoza zakresu = brak."""
+    j = json.loads(b.decode('utf-8', 'replace') if isinstance(b, (bytes, bytearray)) else b)
+    if not isinstance(j, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    out = {}
+    for r in j:
+        if not isinstance(r, dict) or not _isnum(r.get('price')) or not _isnum(r.get('year')) or str(r.get('month') or '').lower()[:3] not in ZD_MIES:
+            continue
+        for cid, nazwa in ZD_NAW_ID:
+            if r.get('product') == nazwa and ZD_ZAKRES['naw'][0] < r['price'] < ZD_ZAKRES['naw'][1] and r.get('unit') == '€/tonne':
+                out.setdefault(cid, {})[f'{int(r["year"]):04d}-{ZD_MIES.index(str(r["month"]).lower()[:3]) + 1:02d}'] = round(float(r['price']), 2)
+    if not out:
+        raise RuntimeError('brak cen nawozów')
+    return out
+
+
+# ---- kalendarz publikacji ----
+def _zd_utc(d, minuty):
+    return datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc) + datetime.timedelta(minutes=minuty)
+
+
+def _zd_goi_start(z):
+    """Początek okna publikacji indeksu dziennego (minuty UTC): dolny kwintyl godzin zmiany nagłówka pliku (st.goi.okno) minus 10 min, gdy są co
+    najmniej 3 obserwacje; inaczej ZD_GOI_START. Granice 05:00–12:00."""
+    o = sorted(m for m in (z.get('okno') or []) if isinstance(m, int) and not isinstance(m, bool) and 0 <= m < 1440) if isinstance(z, dict) else []
+    return max(300, min(720, o[len(o) // 5] - 10)) if len(o) >= 3 else ZD_GOI_START
+
+
+def _zd_goi_oczek(now, start):
+    """(najnowszy dzień danych spodziewany według kalendarza, chwila publikacji): w dniu roboczym D od chwili D + start jest dzień roboczy poprzedzający D."""
+    for back in range(8):
+        D = now.date() - datetime.timedelta(days=back)
+        if D.weekday() < 5 and now >= _zd_utc(D, start):
+            return _su_dzien_rob(D, -1).isoformat(), _zd_utc(D, start)
+    raise ValueError('kalendarz goi')
+
+
+def _zd_gofi_oczek(now):
+    """Wtorek, którego indeks frachtu powinien już być (środa od ZD_FRACHT_START UTC) i chwila publikacji."""
+    for back in range(10):
+        D = now.date() - datetime.timedelta(days=back)
+        if D.weekday() == 2 and now >= _zd_utc(D, ZD_FRACHT_START):
+            return (D - datetime.timedelta(days=1)).isoformat(), _zd_utc(D, ZD_FRACHT_START)
+    raise ValueError('kalendarz gofi')
+
+
+def _zd_ue_nd(day):
+    """Niedziela kończąca tydzień cen, który powinien już być w portalu: od czwartku — tydzień do niedzieli przed nim, wcześniej — tydzień wcześniejszy."""
+    th = day - datetime.timedelta(days=(day.weekday() - 3) % 7)
+    return th - datetime.timedelta(days=4)
+
+
+def _zd_naw_oczek(now):
+    """Miesiąc nawozów, który powinien już być w portalu: poprzedni od 12. dnia miesiąca (wrzesień 2026 był 10.10), wcześniej — miesiąc przed nim."""
+    k = now.year * 12 + now.month - 1 - (1 if now.day >= 12 else 2)
+    return f'{k // 12:04d}-{k % 12 + 1:02d}'
+
+
+def _zd_due(src, z, now, ctx):
+    """Czy źródło trzeba odpytać w tym przebiegu: pierwsze pobranie — co godzinę do skutku; spodziewane dane jeszcze nie przyszły — co ZD_GOI_CZESTO min
+    (indeks dzienny: tylko nagłówek, 1 B), co godzinę (fracht), co 3 / 6 h (ceny UE, nawozy); zaległość ponad 3 dni robocze (indeks dzienny), 14 dni (fracht)
+    — co 6 h (źródło stoi: święto, przerwa); poza tym rzadko (poprawki wstecz); po błędzie najwcześniej po 60 min. fao: zawsze, gdy budowniczy surowców
+    zostawił plik (zero zapytań), własne pobranie tylko przy braku całej części."""
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    asof = z.get('asof') if isinstance(z.get('asof'), str) else ''
+    first = at == float('inf')
+    if src == 'fao':
+        if ctx.get('fao_tekst') is not None:
+            return True
+        return first and not ctx.get('ma_fao') and tr >= 60
+    if first:
+        return tr >= 60
+    if src == 'goi':
+        exp = _zd_goi_oczek(now, _zd_goi_start(z))[0]
+        if asof < exp:
+            return tr >= (360 if asof < _su_dzien_rob(datetime.date.fromisoformat(exp), -3).isoformat() else ZD_GOI_CZESTO)
+        return at >= 7 * 24 * 60 and tr >= 60
+    if src == 'gofi':
+        exp = _zd_gofi_oczek(now)[0]
+        if asof < exp:
+            return tr >= (360 if asof < (datetime.date.fromisoformat(exp) - datetime.timedelta(days=14)).isoformat() else 60)
+        return at >= 7 * 24 * 60 and tr >= 60
+    if src == 'ue':
+        if asof < _zd_ue_nd(now.date()).isoformat():
+            return tr >= (180 if now.weekday() in (3, 4) else 360)
+        return at >= 24 * 60 and tr >= 60
+    if src == 'naw':
+        if asof < _zd_naw_oczek(now):
+            return tr >= 180
+        return at >= 7 * 24 * 60 and tr >= 60
+    return False
+
+
+def _zd_next(part, asof, z, now):
+    """Najbliższa spodziewana publikacja części (ISO, UTC); termin w przeszłości = publikacja zaległa (święto, przerwa u źródła). Bez daty danych: najbliższy
+    termin z kalendarza."""
+    try:
+        a = datetime.date.fromisoformat(str(asof)[:10]) if asof else None
+    except ValueError:
+        a = None
+    if part == 'goi':
+        s = _zd_goi_start(z)
+        return _zd_utc(_su_dzien_rob(a, 2) if a else _zd_goi_oczek(now, s)[1].date(), s).isoformat()
+    if part == 'fracht':
+        if a:
+            return _zd_utc(a - datetime.timedelta(days=a.weekday()) + datetime.timedelta(days=9), ZD_FRACHT_START).isoformat()
+        return _zd_gofi_oczek(now)[1].isoformat()
+    if part == 'ue':
+        s = a if a else _zd_ue_nd(now.date())
+        return _zd_utc(s + datetime.timedelta(days=11), 12 * 60).isoformat()
+    ym = str(asof or '')[:7]
+    k = int(ym[:4]) * 12 + int(ym[5:7]) - 1 if re.fullmatch(r'\d{4}-\d{2}', ym) else now.year * 12 + now.month - 3
+    y, m = divmod(k + 2, 12)
+    if part == 'fao':   # pierwszy piątek miesiąca po miesiącu danych (wrzesień 2026 — 02.10)
+        d = datetime.date(y, m + 1, 1)
+        d += datetime.timedelta(days=(4 - d.weekday()) % 7)
+        return _zd_utc(d, 12 * 60).isoformat()
+    return _zd_utc(datetime.date(y, m + 1, 10), 12 * 60).isoformat()   # nawozy: ok. 10. dnia miesiąca po miesiącu danych
+
+
+# ---- pobrania (ctx: now, fetch, lm, H — poprzednie dane, parts, bledy, uwagi, fao_tekst) ----
+def _zd_lm_domyslny(url, timeout):
+    """Data zmiany pliku (nagłówek Last-Modified) z odpowiedzi na Range: bytes=0-0 — 1 bajt (serwer, który zignoruje zakres, nie jest czytany do końca)."""
+    h = {'Range': 'bytes=0-0'}
+    _zuz_licz(url, h)
+    with _otworz(url, h, timeout) as r:
+        r.read(2)
+        return r.headers.get('Last-Modified')
+
+
+def _zd_fetch_domyslny(url, timeout, headers=None, maks=None):
+    return get_bytes_maks(url, headers, timeout, maks)
+
+
+def _zd_lm_iso(s):
+    """Nagłówek Last-Modified ('Fri, 09 Oct 2026 08:19:14 GMT') → ISO UTC; zły zapis = None."""
+    try:
+        t = _zd_email.parsedate_to_datetime(str(s))
+    except (TypeError, ValueError, IndexError):
+        return None
+    if t is None:
+        return None
+    return (t.astimezone(datetime.timezone.utc) if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)).replace(microsecond=0).isoformat()
+
+
+def _zd_get(ctx, src, url, maks, limit=None):
+    """Jedno zapytanie z limitem źródła, nie dłuższym niż reszta budżetu budowniczego (reszta < 5 s = błąd źródła; ponowienie później) i z limitem
+    rozmiaru odpowiedzi (dłuższa = błąd)."""
+    lim = limit if limit is not None else ZD_LIMIT_S[src]
+    if ctx.get('t0') is not None and ctx.get('budzet') is not None:
+        left = ctx['budzet'] - (time.monotonic() - ctx['t0'])
+        if left < 5:
+            raise RuntimeError('budżet czasu budowniczego wyczerpany')
+        lim = min(lim, round(left, 1))
+    b = ctx['fetch'](url, lim, None, maks)
+    if len(b) > maks:
+        raise RuntimeError(f'odpowiedź dłuższa niż {maks} B (limit)')
+    return b
+
+
+def _zd_pobierz_goi(ctx, z):
+    """Indeks dzienny: nagłówek pliku liczbowego (1 B) → strona (ok. 1,5 MB) tylko po zmianie daty pliku, a przy pierwszym pobraniu zawsze. Zwraca dzień
+    danych (bez nowej strony — dotychczasowy)."""
+    now, asof = ctx['now'], z.get('asof') if isinstance(z.get('asof'), str) else ''
+    lm, blad_lm = None, None
+    try:
+        lim = ZD_LIMIT_S['goi_lm']
+        if ctx.get('t0') is not None and ctx.get('budzet') is not None:
+            lim = min(lim, max(round(ctx['budzet'] - (time.monotonic() - ctx['t0']), 1), 1))
+        lm = _zd_lm_iso(ctx['lm'](ZD_GOI_LM_URL, lim))
+        if lm is None:
+            blad_lm = 'brak daty pliku w nagłówku'
+    except Exception as e:
+        blad_lm = mask(str(e))[:100]
+    exp = _zd_goi_oczek(now, _zd_goi_start(z))[0]
+    wiek_h = _su_min(now, z.get('page_at')) / 60
+    nowy = bool(lm) and lm != z.get('lm')
+    if not z.get('page_at'):
+        czy = True
+    elif nowy:
+        czy = wiek_h >= ZD_GOI_STRONA_H or (asof < exp and wiek_h >= 3)
+    elif blad_lm:
+        czy = asof < exp and wiek_h >= 6    # bez nagłówka: stronę raz na 6 h, jeśli dane są starsze niż spodziewane
+    else:
+        czy = False
+    if blad_lm:
+        ctx['uwagi'].append(f'goi: nagłówek pliku niedostępny ({blad_lm})')
+    if not czy:
+        if lm:
+            z['lm_wid'] = lm
+        return asof
+    ser, tab, _ = zd_parse_igc(_zd_get(ctx, 'goi', ZD_GOI_URL, ZD_GOI_MAX), ZD_GOI_ID)
+    czesc, br, uw = zd_goi_czesc(ser, tab, now, lm or z.get('lm'))
+    ctx['parts']['goi'] = czesc
+    ctx['bledy'].extend(br); ctx['uwagi'].extend(uw)
+    z['page_at'] = now.replace(microsecond=0).isoformat()
+    if lm:
+        if lm != z.get('lm') and lm != z.get('lm_k'):
+            o = [m for m in (z.get('okno') or []) if isinstance(m, int)]
+            t = datetime.datetime.fromisoformat(lm)
+            z['okno'] = (o + [t.hour * 60 + t.minute])[-10:]   # nauka okna: godzina zmiany pliku (UTC), raz na każdą nową datę pliku
+        # data pliku jest przyjęta (z['lm']) dopiero, gdy strona ma już spodziewany dzień — inaczej plik zmienił się, a strona jeszcze nie: ta sama data pliku wraca
+        # jako „nowa” i strona jest pobierana ponownie po 3 h (najwyżej ZD_GOI_PROBY razy dla tej samej daty pliku; potem data jest przyjęta i do następnej zmiany
+        # pliku pytamy tylko o nagłówek). Pierwsza obserwacja daty pliku jest przyjęta od razu.
+        pr = (z['lm_n'] if lm == z.get('lm_k') and isinstance(z.get('lm_n'), int) else 0) + 1
+        if czesc['asof'] >= exp or pr >= ZD_GOI_PROBY or not z.get('lm'):
+            z['lm'] = lm
+            z.pop('lm_k', None); z.pop('lm_n', None)
+        else:
+            z['lm_k'], z['lm_n'] = lm, pr
+    z['lm_wid'] = lm or z.get('lm_wid')
+    return czesc['asof']
+
+
+def _zd_pobierz_gofi(ctx, z):
+    ser, tab, _ = zd_parse_igc(_zd_get(ctx, 'gofi', ZD_GOFI_URL, ZD_GOFI_MAX), ZD_GOFI_ID)
+    czesc, br, uw = zd_fracht_czesc(ser, tab, ctx['now'])
+    ctx['parts']['fracht'] = czesc
+    ctx['bledy'].extend(br); ctx['uwagi'].extend(uw)
+    return czesc['asof']
+
+
+def _zd_pobierz_fao(ctx, z):
+    tekst = ctx.get('fao_tekst')
+    if tekst is None:
+        tekst = _zd_get(ctx, 'fao', SU_FAO_URL, ZD_FAO_MAX)   # tylko przy braku całej części (pierwszy przebieg)
+    ser, base, uw = zd_parse_fao(tekst)
+    czesc = zd_fao_czesc(ser, base, ctx['now'])
+    ctx['parts']['fao'] = czesc
+    ctx['bledy'].extend(uw)
+    return czesc['asof']
+
+
+def _zd_hist(prev, klucze):
+    """Poprzednie wiersze serii z pliku → {klucz: {dzień: cena}} (klucze: ścieżki 'zb/pszenica/PL')."""
+    out = {}
+    for k in klucze:
+        e = prev.get('ue') if isinstance(prev.get('ue'), dict) else {}
+        for p in k.split('/'):
+            e = e.get(p) if isinstance(e, dict) else None
+        d = e.get('d') if isinstance(e, dict) else None
+        out[k] = {x[0]: x[1] for x in d if isinstance(x, list) and len(x) == 2 and isinstance(x[0], str) and _isnum(x[1])} if isinstance(d, list) else {}
+    return out
+
+
+def _zd_klucze_ue():
+    return [f'zb/{p}/{c}' for p, _ in ZD_ZB for c in ZD_KRAJE] + [f'rz/{c}' for c in ZD_KRAJE] + [f'pl/{c}' for c, _ in ZD_PL_OLEJ]
+
+
+def _zd_pobierz_ue(ctx, z):
+    """Ceny w UE: trzy zapytania (zboża w czterech krajach, rzepak w czterech, śruta i olej w Polsce). Każde zapytanie niezależnie — błąd jednego = błąd
+    częściowy (reszta zapisana, brakująca seria z poprzedniego pliku); wszystkie nieudane = błąd źródła."""
+    H = ctx['H']
+    n_pl = len(H.get('zb/pszenica/PL') or {})
+    do, od = ctx['now'].date(), ctx['now'].date() - datetime.timedelta(days=ZD_UE_PIERWSZE if n_pl < 52 else ZD_UE_KOLEJNE)
+    f = lambda d: d.strftime('%d/%m/%Y')   # noqa: E731
+    ok, zle = 0, []
+    pominiete = 0
+    try:
+        W = zd_eu_wiersze(_zd_get(ctx, 'ue', ZD_UE_ZB_URL.format(od=f(od), do=f(do)), ZD_UE_MAX))
+        for p, nazwa in ZD_ZB:
+            for c in ZD_KRAJE:
+                S, bad = _zd_seria(W, c, (nazwa,), ZD_RYNEK[(p, c)], ZD_ZAKRES['zb'], 'TONNES')
+                H['zb/%s/%s' % (p, c)].update(S); pominiete += bad
+                if not S:
+                    ctx['bledy'].append(f'ue: brak serii {p} w kraju {c}')
+        ok += 1
+    except Exception as e:
+        zle.append(mask(f'zboża: {e}')[:100])
+    try:
+        W = zd_eu_wiersze(_zd_get(ctx, 'ue', ZD_UE_RZ_URL.format(od=f(od), do=f(do)), ZD_UE_MAX))
+        for c in ZD_KRAJE:
+            S, bad = _zd_seria(W, c, ('Rapeseed',), ZD_RZ_RYNEK[c], ZD_ZAKRES['rz'])
+            H['rz/' + c].update(S); pominiete += bad
+            if not S:
+                ctx['bledy'].append(f'ue: brak rzepaku w kraju {c}')
+        ok += 1
+    except Exception as e:
+        zle.append(mask(f'rzepak: {e}')[:100])
+    try:
+        W = zd_eu_wiersze(_zd_get(ctx, 'ue', ZD_UE_PL_URL.format(od=f(od), do=f(do)), ZD_UE_MAX))
+        for cid, nazwa in ZD_PL_OLEJ:
+            S, bad = _zd_seria(W, 'PL', (nazwa,), 'Not Defined', ZD_ZAKRES[cid])
+            H['pl/' + cid].update(S); pominiete += bad
+            if not S:
+                ctx['bledy'].append(f'ue: brak serii {cid} w Polsce')
+        ok += 1
+    except Exception as e:
+        zle.append(mask(f'śruta i olej: {e}')[:100])
+    if not ok:
+        raise RuntimeError('; '.join(zle))
+    ctx['bledy'].extend(zle)
+    if pominiete:
+        ctx['uwagi'].append(f'ue: {pominiete} cen spoza zakresu pominięto')
+    R = lambda k: [[d, v] for d, v in sorted(H[k].items())[-ZD_UE_TYG:]]   # noqa: E731
+    czesc = {'u': 'EUR/t', 'zb': {p: {c: {'d': R(f'zb/{p}/{c}'), 'r': ZD_RYNEK[(p, c)]} for c in ZD_KRAJE if H[f'zb/{p}/{c}']} for p, _ in ZD_ZB},
+             'rz': {c: {'d': R('rz/' + c), 'r': ZD_RZ_RYNEK[c]} for c in ZD_KRAJE if H['rz/' + c]},
+             'pl': {c: {'d': R('pl/' + c)} for c, _ in ZD_PL_OLEJ if H['pl/' + c]}}
+    czesc['zb'] = {p: v for p, v in czesc['zb'].items() if v}
+    pl = H['zb/pszenica/PL']
+    pierwsze = max(pl) if pl else max((max(h) for k, h in H.items() if h), default=None)
+    if not pierwsze:
+        raise RuntimeError('brak cen w odpowiedzi')
+    czesc['asof'] = pierwsze
+    ctx['parts']['ue'] = czesc
+    return pierwsze
+
+
+def _zd_pobierz_naw(ctx, z):
+    now = ctx['now']
+    od = datetime.date(now.year - 5, 1, 1)
+    S = zd_parse_nawozy(_zd_get(ctx, 'naw', ZD_NAW_URL.format(od=od.strftime('%d/%m/%Y'), do=now.date().strftime('%d/%m/%Y')), ZD_NAW_MAX))
+    p = ctx['prev'].get('nawozy') if isinstance(ctx['prev'].get('nawozy'), dict) else {}
+    out = {}
+    for cid, _ in ZD_NAW_ID:
+        H = {x[0]: x[1] for x in ((p.get('s') or {}).get(cid) or {}).get('d', []) if isinstance(x, list) and len(x) == 2 and _isnum(x[1])} if isinstance(p.get('s'), dict) else {}
+        H.update(S.get(cid, {}))
+        if H:
+            out[cid] = {'d': [[m, v] for m, v in sorted(H.items())[-ZD_M_NAW:]]}
+        else:
+            ctx['bledy'].append(f'naw: brak serii {cid}')
+    last = [max(x[0] for x in e['d']) for e in out.values()]
+    ctx['parts']['nawozy'] = {'asof': min(last), 'u': 'EUR/t', 's': out}
+    return min(last)
+
+
+ZD_POBIERZ = {'goi': _zd_pobierz_goi, 'gofi': _zd_pobierz_gofi, 'fao': _zd_pobierz_fao, 'ue': _zd_pobierz_ue, 'naw': _zd_pobierz_naw}
+
+
+def build_zboza_dzien(prev=None, now=None, fetch=None, lm=None, budzet_s=None, run_t0=None, fao_tekst=None):
+    """v341: data/zboza-dzien.json. Każde źródło z własną bramką (_zd_due) i budżetem czasu; źródło z błędem — poprzednia część z datą (ok False, krótki
+    zamaskowany błąd err); część bez próby — 'cached' (z danymi) albo False (jeszcze nie pobrana). Plik innej wersji = start od zera. Błąd częściowy
+    (źródło odpowiedziało, ale czegoś zabrakło — jednej serii, jednego zapytania) — ok False jak dotąd i pole cz = {część: True} (tylko w przebiegu
+    z taką próbą). fetch(url, timeout, headers, maks) → bajty; lm(url, timeout) → nagłówek Last-Modified; fao_tekst — plik indeksów żywności z tego
+    przebiegu (zero zapytań)."""
+    now = now or _now_utc()
+    now_iso = now.replace(microsecond=0).isoformat()
+    prev = prev if isinstance(prev, dict) and prev.get('v') == ZD_V else {}
+    st = json.loads(json.dumps(prev.get('st'))) if isinstance(prev.get('st'), dict) else {}
+    ctx = {'now': now, 'bledy': [], 'uwagi': [], 'parts': {}, 't0': time.monotonic(), 'prev': prev, 'fao_tekst': fao_tekst,
+           'ma_fao': isinstance(prev.get('fao'), dict), 'H': {k: v for k, v in _zd_hist(prev, _zd_klucze_ue()).items()},
+           'budzet': ZD_BUDZET_S if budzet_s is None else budzet_s,
+           'fetch': fetch or _zd_fetch_domyslny, 'lm': lm or _zd_lm_domyslny}
+    late = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
+    proby, zle, pominiete, czesc = {p: 0 for p in ZD_PARTS}, {}, [], set()
+    for src, part in ZD_ZR:
+        z = st.setdefault(src, {})
+        if not _zd_due(src, z, now, ctx):
+            continue
+        if late and src in ('goi', 'ue'):
+            pominiete.append(f'{src} (długi przebieg)'); continue
+        if time.monotonic() - ctx['t0'] + ZD_ZAPYTANIA.get(src, 1) * ZD_LIMIT_S[src] > ctx['budzet']:
+            pominiete.append(f'{src} (budżet czasu)'); continue
+        nb = len(ctx['bledy'])
+        z['try'] = now_iso
+        proby[part] += 1
+        try:
+            asof = ZD_POBIERZ[src](ctx, z)
+        except Exception as e:
+            msg = mask(f'{src}: {e}')[:160]
+            z['err'] = msg; zle.setdefault(part, []).append(msg)
+            del ctx['bledy'][nb:]
+            continue
+        z['at'] = now_iso; z['asof'] = asof or z.get('asof'); z.pop('err', None)
+        if len(ctx['bledy']) > nb:
+            zle.setdefault(part, []).extend(mask(x)[:160] for x in ctx['bledy'][nb:])
+            czesc.add(part)   # błąd częściowy — dane tej części z tego pobrania, czegoś w nich brak
+    out = {'v': ZD_V, 'at': None, 'src': 'CapitalFlowAI — zboża dziennie i koszt transportu (kody źródeł z: goi, gofi, fao, ue, naw — pełne nazwy na stronie Źródła)'}
+    pat = dict(prev.get('part_at') or {}) if isinstance(prev.get('part_at'), dict) else {}
+    perr = dict(prev.get('err') or {}) if isinstance(prev.get('err'), dict) else {}
+    ok, src_of = {}, {p: s for s, p in ZD_ZR}
+    for p in ZD_PARTS:
+        if p in ctx['parts']:
+            out[p] = ctx['parts'][p]; pat[p] = now_iso
+        elif isinstance(prev.get(p), dict):
+            out[p] = prev[p]
+        if zle.get(p):
+            ok[p] = False; perr[p] = '; '.join(zle[p])[:240]
+        elif proby[p]:
+            ok[p] = True; perr.pop(p, None)
+        else:
+            ok[p] = 'cached' if isinstance(out.get(p), dict) else False
+            if not isinstance(out.get(p), dict) and p not in perr:
+                perr[p] = 'brak danych (źródło jeszcze nie pobrane)'
+    out['part_at'] = {p: pat[p] for p in ZD_PARTS if pat.get(p) and isinstance(out.get(p), dict)}
+    out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
+    out.update({'ok': ok, 'err': {p: perr[p] for p in ZD_PARTS if perr.get(p)},
+                'next': {p: _zd_next(p, (out.get(p) or {}).get('asof'), st.get(src_of[p]) or {}, now) for p in ZD_PARTS}, 'st': st})
+    if czesc:
+        out['cz'] = {p: True for p in ZD_PARTS if p in czesc}
+    for x in ctx['uwagi']:
+        META['notes'].append(mask('zboża dziennie: ' + x)[:200])
+    for p in ZD_PARTS:
+        for x in zle.get(p, []):
+            META['errors'].append(mask('zboża dziennie ' + x)[:200])
+    if pominiete:
+        META['notes'].append('zboża dziennie: pominięte w tym przebiegu — ' + ', '.join(pominiete))
+    return out
+
+
 # ===================== v295c: ZŁOTO I SUROWCE A KRYPTO — panel CRYPTO #c-surowce (plik data/zloto-krypto.json) =====================
 # Etap 5 działu SUROWCE (agent CRYPTO). Wyliczenia z plików TEGO przebiegu (SAVED) — bez nowych zapytań do sieci:
 #  * złoto — cena z londyńskiego fixingu popołudniowego wyliczona z archiwum funduszu (data/surowce-hist.json, ostatnie sesje z data/surowce.json);
@@ -28068,6 +28819,22 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'MFW rezerwy: {e}')); META['ok']['imf'] = False
             if prev_res: save('rezerwy', rezerwy_chiny_safe(prev_res, _SU_RUN.get('su'))); print('MFW zawiódł — zachowano poprzedni rezerwy.json z', prev_res.get('at'))
+    # v341 (F5Z3): ZBOŻA DZIENNIE I KOSZT TRANSPORTU (data/zboza-dzien.json) — dzienny indeks zbóż i nasion oleistych z pięcioma podindeksami od 2000,
+    # tygodniowy indeks frachtu zbóż (7 tras), pięć podindeksów żywności z pliku, który i tak pobrały surowce (zero nowych zapytań), ceny zbóż, rzepaku,
+    # śruty i oleju w Polsce, Francji, Niemczech i Rumunii oraz nawozy w UE; części z własnymi bramkami wg terminów publikacji (zwykle bez zapytań)
+    # i budżetem czasu; awaria budowniczego = poprzedni plik. META ok: zboza_dzien_goi, zboza_dzien_fracht, zboza_dzien_fao, zboza_dzien_ue,
+    # zboza_dzien_nawozy. Po surowcach (plik indeksów żywności z tego samego przebiegu zostawia _su_fao).
+    prev_zd = previous('zboza-dzien')
+    try:
+        zdz = build_zboza_dzien(prev_zd, run_t0=_RUN_T0[0], fao_tekst=_ZD_FAO[0] if _ZD_FAO else None)
+        save('zboza-dzien', zdz)
+        for p in ZD_PARTS:
+            META['ok']['zboza_dzien_' + p] = zdz['ok'][p]
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'surowce (zboża dziennie): {e}')[:200]); META['ok']['zboza_dzien'] = False
+        if prev_zd:
+            save('zboza-dzien', prev_zd)
+    _ZD_FAO.clear()
     # STOPY banków centralnych (BIS, bez klucza): najwyżej co 6 h; przy awarii poprzedni plik
     # v325 (ZB02-03): plik z nieudaną częścią (ok[...] False) — ponowienie po STOPY_PONOW min; plik sprzed v325 (bez pola ok, d12 od końca
     # miesiąca) — od razu nowe pobranie

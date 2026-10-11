@@ -69,6 +69,8 @@ PLIKI_BEZ = {}   # v327 (KON-08): plik zbieracza świadomie bez kontroli wieku �
 # Najwyżej ⚠️, nigdy ❌ ani BŁĄD. Wiersze w tabeli świeżości (lista SWIEZOSC bez zmian).
 PLIKI.insert(PLIKI.index('krypto-dzien'), 'pip')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
 LIMIT_MIN['pip'] = 48 * 60
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'zboza-dzien')   # v341 (F5Z3): zboża dziennie i koszt transportu — przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['zboza-dzien'] = 100 * 60   # v341: plik zmienia się, gdy źródło ma nowe dane (indeks dzienny w dni robocze — przez weekend i święto do ok. 4 dni); wiek części ocenia wiersz świeżości
 PIP_OKRES_MIES = 15
 PIP_SUMA_TOL_MLN, PIP_SUMA_TOL_PCT = 500.0, 1.0
 PIP_ETYKIETA = {'pol_e': 'MFW PIP — Polska jako emitent (półrocze)', 'pary': 'MFW PIP — 20 największych par (półrocze)',
@@ -1001,6 +1003,9 @@ AW_BEZ_BLEDU.update({'polska_' + p: 'Polska — część z błędem zostaje z da
 
 AW_BEZ_BLEDU.update({'surowce_raporty_' + p: 'surowce — raport miesięczny z błędem zostaje z datą (v320); wiek danych w wierszach świeżości'
                      for p in ('ropa', 'zboza', 'uran')})
+
+AW_BEZ_BLEDU.update({'zboza_dzien_' + p: 'zboża dziennie — część z błędem zostaje z datą (v341); wiek danych w wierszach świeżości'
+                     for p in ('goi', 'fracht', 'fao', 'ue', 'nawozy')})
 AW_BEZ_BLEDU.update({'metale_' + p: 'metale — część z błędem zostaje z datą (v339); wiek danych w wierszach świeżości'
                      for p in ('lme', 'sh', 'shd', 'shw', 'cu')})
 
@@ -5318,6 +5323,293 @@ def lng_kontrola(j, R):
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v341 (F5Z3): zboża dziennie i koszt transportu (data/zboza-dzien.json) ----------------------------------------------------------------
+# Świeżość każdej z pięciu części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠ — pole next pliku mówi, kiedy spodziewana jest publikacja.
+# Progi z testu wstecznego na modelu kalendarza publikacji i prawdziwych datach wierszy z nagrań 10–11.10.2026 (ws53/v341-zboza-dz/bt/bt_swiezosc.py, sprawdzenia
+# co 2 h albo co 1 h): indeks dzienny — dane z dnia roboczego D dostępne od następnego dnia roboczego ok. 08:20 UTC; 26 lat (2000–2026), 116 958 sprawdzeń:
+# najwyższy wiek 80 godzin roboczych (Wielkanoc 2025), ponad 84 — 0%, próg 96 godz. roboczych (kategoria 'd': soboty i niedziele się nie liczą), 0%;
+# indeks frachtu (99 tygodni): najwyższy wiek 14,3 dnia (jeden 14-dniowy odstęp między punktami), próg 14 dni — 0,06% sprawdzeń; ceny w UE (60 tygodni
+# bez luk): najwyższy wiek 10,5 dnia, próg 14 dni — 0%; podindeksy żywności (441 miesięcy bez luk, publikacja w pierwszy piątek miesiąca): najwyższy
+# wiek 36 dni, próg 45 dni — 0%; nawozy (93 miesiące bez luk, publikacja ok. 10. dnia): próg 50 dni.
+# ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (daty nie rosną, wartość ≤ 0, st.last ≠ ostatni punkt serii, zmiana dnia ≠ wyliczona z serii,
+# ostatni indeks poza przedziałem 365 dni, asof ≠ ostatni dzień danych). Progi ⚠ (test wsteczny, ws53/v341-zboza-dz/bt/):
+#   — skok w jednym kroku serii: indeks dzienny (26 lat, 6968 dni) najwyżej 14,4% (jęczmień 2010) → próg 20%; indeks frachtu (99 tygodni) najwyżej 26,7%
+#     (Australia) → 45%; podindeksy żywności (441 miesięcy) najwyżej 26,6% (cukier) → 40%; ceny w UE (60 tygodni, 12 serii zbóż) najwyżej 30,1% (jęczmień
+#     w Rumunii, 18.01.2026) → 45%; nawozy (93 miesiące) najwyżej 68% → 90%. W historii 0 przekroczeń;
+#   — zmiany miesięczne indeksu dziennego (średnie miesięczne) vs podindeks zbóż w żywności (te same dane źródła w innym przetworzeniu, 320 miesięcy
+#     2000–2026): korelacja 0,91, zgodny znak 85% miesięcy; w oknach kroczących 36 miesięcy najniżej 0,78 (285 okien) → ⚠ poniżej 0,6 (0% okien);
+#   — zmiany miesięczne indeksu dziennego vs indeks zbóż świata (z surowce.json, 35 miesięcy 10.2023–09.2026): korelacja 0,74, w oknach 24-miesięcznych
+#     najniżej 0,66 → ⚠ poniżej 0,4; azot (N) w UE vs indeks nawozów świata (35 miesięcy): korelacja 0,80, w oknach 24-miesięcznych najniżej 0,59
+#     → ⚠ poniżej 0,3 (fosfor i potas nie są sprawdzane — korelacja 0,40 i 0,15: indeks świata to głównie azot i fosforany z innych rynków);
+#   — tabela wartości na stronie źródła (liczby całkowite) vs seria: ostatnia wartość ±0,6, zmiana dnia ±0,6, zmiana roczna ±1,6 pkt proc., najniższy
+#     i najwyższy z 52 tygodni ±1,0 (10.10.2026: wszystkie sześć serii mieści się w tych granicach; różnice wynikają z zaokrągleń do liczb całkowitych);
+#   — pszenica w Polsce (ceny w UE) vs pszenica w polska.json (ten sam portal, dwa pobrania): ostatni wspólny tydzień ±0,011 EUR/t (10.10.2026: 26 wspólnych
+#     tygodni, różnica 0,00).
+ZD_K_ETYKIETA = {'goi': 'zboża: indeks dzienny (dni robocze, dane z poprzedniego dnia roboczego)',
+                 'fracht': 'zboża: indeks frachtu (tygodniowo, środa, dane za wtorek)',
+                 'fao': 'żywność: podindeksy cen FAO (miesięcznie, publ. ok. 1. piątku)',
+                 'ue': 'zboża i rzepak w UE: ceny tygodniowe (czwartek, tydzień do niedzieli)',
+                 'nawozy': 'nawozy w UE (miesięcznie, publ. ok. 10. dnia)'}
+ZD_K_PROG = {'goi': ('d', 96 * 60), 'fracht': ('w', 14 * 24 * 60), 'fao': ('m', 45 * 24 * 60), 'ue': ('w', 14 * 24 * 60), 'nawozy': ('m', 50 * 24 * 60)}
+ZD_K_SKOK = {'goi': 20.0, 'fracht': 45.0, 'fao': 40.0, 'ue': 45.0, 'nawozy': 90.0}   # % w jednym kroku serii
+ZD_K_KOR = {'fao': 0.6, 'wb_zboza': 0.4, 'wb_nawozy': 0.3}   # korelacja zmian miesięcznych — poniżej = ⚠
+ZD_K_KOR_MIN = 24       # najmniej par zmian miesięcznych do policzenia korelacji
+ZD_K_TOL = 0.011        # zaokrąglenie do 2 miejsc po przecinku
+ZD_K_HIST = {'goi': '14,4', 'fracht': '26,7', 'fao': '26,6', 'ue': '30,1', 'nawozy': '68'}   # % — największy skok w kroku w historii (progi wyżej)
+ZD_K_TAB = {'last': 0.6, 'd1': 0.6, 'y1': 1.6, 'lo': 1.0, 'hi': 1.0}   # tolerancje tabeli źródła (liczby całkowite)
+ZD_K_NAZWY = {'goi': 'indeks ogółem', 'pszenica': 'pszenica', 'kukurydza': 'kukurydza', 'jeczmien': 'jęczmień', 'soja': 'soja', 'ryz': 'ryż',
+              'gofi': 'fracht ogółem', 'argentyna': 'Argentyna', 'australia': 'Australia', 'brazylia': 'Brazylia', 'czarne': 'Morze Czarne', 'kanada': 'Kanada',
+              'europa': 'Europa', 'usa': 'USA', 'ogolem': 'indeks ogólny', 'mieso': 'mięso', 'nabial': 'nabiał', 'zboza': 'zboża', 'oleje': 'oleje',
+              'cukier': 'cukier', 'N': 'azot', 'P': 'fosfor', 'K': 'potas', 'sruta': 'śruta rzepakowa', 'olej': 'olej rzepakowy'}
+
+
+def _zd_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float('inf')
+
+
+def _zd_k_wiersze(e):
+    d = e.get('d') if isinstance(e, dict) else None
+    return [x for x in d if isinstance(x, list) and len(x) == 2] if isinstance(d, list) else []
+
+
+def _zd_k_seria(j, sciezka):
+    """Obiekt serii z pliku po ścieżce 'goi/s/goi' (brak = None)."""
+    e = j
+    for p in sciezka.split('/'):
+        e = e.get(p) if isinstance(e, dict) else None
+    return e if isinstance(e, dict) else None
+
+
+def _zd_k_serie(j):
+    """Wszystkie serie pliku: {nazwa do raportu: (ścieżka, wiersze)} — z wartościami wierszy jako [dzień lub miesiąc, liczba|None]."""
+    out = {}
+    for p in ('goi', 'fracht'):
+        P = j.get(p) if isinstance(j.get(p), dict) else {}
+        for cid, e in (P.get('s') or {}).items() if isinstance(P.get('s'), dict) else ():
+            out[f'{p}.{ZD_K_NAZWY.get(cid, cid)}'] = (f'{p}/s/{cid}', _zd_k_wiersze(e))
+    for p in ('fao', 'nawozy'):
+        P = j.get(p) if isinstance(j.get(p), dict) else {}
+        for cid, e in (P.get('s') or {}).items() if isinstance(P.get('s'), dict) else ():
+            out[f'{p}.{ZD_K_NAZWY.get(cid, cid)}'] = (f'{p}/s/{cid}', _zd_k_wiersze(e))
+    U = j.get('ue') if isinstance(j.get('ue'), dict) else {}
+    for pr, v in (U.get('zb') or {}).items() if isinstance(U.get('zb'), dict) else ():
+        for c, e in (v or {}).items() if isinstance(v, dict) else ():
+            out[f'ue.{pr}.{c}'] = (f'ue/zb/{pr}/{c}', _zd_k_wiersze(e))
+    for g in ('rz', 'pl'):
+        for c, e in (U.get(g) or {}).items() if isinstance(U.get(g), dict) else ():
+            out[f'ue.{g}.{c}'] = (f'ue/{g}/{c}', _zd_k_wiersze(e))
+    return out
+
+
+def zboza_swiezosc(j, now=None):
+    """Wiersze świeżości części pliku zboza-dzien.json w kształcie wierszy swiezosc(): (etykieta, status, wiek min, data danych, uwaga).
+    Najwyżej ⚠, nigdy ❌; brak pliku albo inna wersja = brak wierszy; część bez daty danych — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    nx = j.get('next') if isinstance(j.get('next'), dict) else {}
+    rows = []
+    for p, label in ZD_K_ETYKIETA.items():
+        P = j.get(p) if isinstance(j.get(p), dict) else {}
+        txt = P.get('asof') if isinstance(P.get('asof'), str) else None
+        kat, prog = ZD_K_PROG[p]
+        if not txt:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        w = wiek_danych(txt, 'month' if p in ('fao', 'nawozy') else 'day', kat, now)
+        st = '?' if w is None else ('\u26a0\ufe0f' if w > prog else '✅')
+        note = ''
+        if st == '\u26a0\ufe0f':
+            nt = nx.get(p); pt = _aw_t(nt) if isinstance(nt, str) else None
+            note = f'próg {fmt_wiek(prog)}{" roboczych" if kat == "d" else ""} — najwyżej uwaga' + (
+                f'; spodziewana publikacja {czas_pl(nt)}' + (' — zaległa (przerwa u źródła?)' if pt and pt < now else '') if pt else '')
+        rows.append((label, st, w, txt, note))
+    return rows
+
+
+def zboza_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w zbożach) → lista opisów."""
+    zle = []
+    for nazwa, (sc, d) in _zd_k_serie(j).items():
+        ds = [str(x[0]) for x in d]
+        if ds != sorted(set(ds)):
+            zle.append(f'{nazwa}: daty nie rosną albo się powtarzają')
+        if any(not (_zd_k_num(x[1]) and x[1] > 0) for x in d):
+            zle.append(f'{nazwa}: wartość ≤ 0 albo nie-liczba (brak ma być brakiem punktu)')
+    for p in ('goi', 'fracht'):
+        P = j.get(p) if isinstance(j.get(p), dict) else {}
+        for cid, e in (P.get('s') or {}).items() if isinstance(P.get('s'), dict) else ():
+            d, st = _zd_k_wiersze(e), (e.get('st') if isinstance(e, dict) else None)
+            nm = f'{p}.{ZD_K_NAZWY.get(cid, cid)}'
+            if not isinstance(st, dict) or not d:
+                continue
+            if st.get('dt') != d[-1][0] or (_zd_k_num(st.get('last')) and abs(st['last'] - d[-1][1]) > ZD_K_TOL):
+                zle.append(f'{nm}: st.last {st.get("last")} z dnia {st.get("dt")} ≠ ostatni punkt serii {d[-1][1]} z {d[-1][0]}')
+            if len(d) > 1 and _zd_k_num(st.get('p1')) and d[-2][1] > 0 and abs((d[-1][1] / d[-2][1] - 1) * 100 - st['p1']) > ZD_K_TOL:
+                zle.append(f'{nm}: zmiana kroku {st["p1"]}% ≠ {(d[-1][1] / d[-2][1] - 1) * 100:.2f}% z serii')
+            if all(_zd_k_num(st.get(x)) for x in ('lo', 'hi', 'last')) and not (st['lo'] - ZD_K_TOL <= st['last'] <= st['hi'] + ZD_K_TOL):
+                zle.append(f'{nm}: ostatni indeks {st["last"]} poza przedziałem 365 dni {st["lo"]}–{st["hi"]}')
+            if _zd_k_num(st.get('pos')) and not (0 <= st['pos'] <= 100):
+                zle.append(f'{nm}: położenie w przedziale {st["pos"]}% poza 0–100')
+        if P.get('asof') and isinstance(P.get('s'), dict):
+            e = P['s'].get('goi' if p == 'goi' else 'gofi')
+            d = _zd_k_wiersze(e)
+            if d and P['asof'] != d[-1][0]:
+                zle.append(f'{p}: asof {P["asof"]} ≠ ostatni dzień indeksu ogółem {d[-1][0]}')
+    U = j.get('ue') if isinstance(j.get('ue'), dict) else {}
+    pl = _zd_k_wiersze(((U.get('zb') or {}).get('pszenica') or {}).get('PL')) if isinstance(U.get('zb'), dict) else []
+    if pl and U.get('asof') != pl[-1][0]:
+        zle.append(f'ue: asof {U.get("asof")} ≠ ostatni tydzień pszenicy w Polsce {pl[-1][0]}')
+    return zle
+
+
+def _zd_k_zmiany(rows, krok_dni=None, miesiac=False):
+    """Zmiany % między sąsiednimi punktami: [(koniec odcinka, zmiana %)]; krok_dni — tylko odstęp dokładnie tylu dni (luka ≠ skok), miesiac — tylko
+    kolejne miesiące."""
+    out = []
+    for a, b in zip(rows, rows[1:]):
+        if not (_zd_k_num(a[1]) and _zd_k_num(b[1]) and a[1] > 0):
+            continue
+        if miesiac:
+            ok = str(b[0])[:4].isdigit() and str(a[0])[:4].isdigit() and (int(b[0][:4]) * 12 + int(b[0][5:7])) - (int(a[0][:4]) * 12 + int(a[0][5:7])) == 1
+        elif krok_dni:
+            ok = _sz_k_dni(a[0], b[0]) == krok_dni
+        else:
+            ok = _sz_k_dni(a[0], b[0]) is not None
+        if ok:
+            out.append((b[0], (b[1] / a[1] - 1) * 100))
+    return out
+
+
+def _zd_k_korelacja(a, b):
+    n = len(a)
+    if n < 3 or n != len(b):
+        return None
+    ma, mb = sum(a) / n, sum(b) / n
+    sa, sb = sum((x - ma) ** 2 for x in a) ** 0.5, sum((y - mb) ** 2 for y in b) ** 0.5
+    return None if sa == 0 or sb == 0 else sum((x - ma) * (y - mb) for x, y in zip(a, b)) / (sa * sb)
+
+
+def _zd_k_kor_serii(A, B, ostatnie=36):
+    """Korelacja zmian miesięcznych dwóch serii miesięcznych ([[RRRR-MM, liczba]]) na wspólnych kolejnych miesiącach (ostatnie `ostatnie` miesięcy wspólnych);
+    → (korelacja, liczba par, zgodnych znaków) albo None, gdy par jest mniej niż ZD_K_KOR_MIN."""
+    a = {x[0]: x[1] for x in A if _zd_k_num(x[1]) and x[1] > 0}
+    b = {x[0]: x[1] for x in B if _zd_k_num(x[1]) and x[1] > 0}
+    ms = sorted(set(a) & set(b))[-ostatnie:]
+    za = dict(_zd_k_zmiany([[m, a[m]] for m in ms], miesiac=True))
+    zb = dict(_zd_k_zmiany([[m, b[m]] for m in ms], miesiac=True))
+    kk = sorted(set(za) & set(zb))
+    if len(kk) < ZD_K_KOR_MIN:
+        return None
+    x, y = [za[m] for m in kk], [zb[m] for m in kk]
+    r = _zd_k_korelacja(x, y)
+    return None if r is None else (r, len(kk), sum(1 for p, q in zip(x, y) if (p > 0) == (q > 0)))
+
+
+def _zd_k_pl(r):
+    return f'{r:+.2f}'.replace('.', ',')
+
+
+def zboza_porownania(j, files=None):
+    """Progi z testów wstecznych (najwyżej ⚠): skoki w jednym kroku serii, tabela źródła vs seria, korelacje zmian miesięcznych (podindeks zbóż w żywności,
+    indeks zbóż świata, indeks nawozów świata) i pszenica w Polsce vs polska.json. → {'wiersze': [(opis, znak)], 'uwagi': [...]}."""
+    W, U = [], []
+    files = files if isinstance(files, dict) else {}
+    S = _zd_k_serie(j)
+    # skoki
+    for grupa, prefiksy, krok, mies, etyk in (('goi', ('goi.',), None, False, 'indeks dzienny: skoki dnia'), ('fracht', ('fracht.',), 7, False, 'indeks frachtu: skoki tygodnia'),
+                                                ('fao', ('fao.',), None, True, 'podindeksy żywności: skoki miesiąca'),
+                                                ('ue', ('ue.',), 7, False, 'ceny w UE: skoki tygodnia'), ('nawozy', ('nawozy.',), None, True, 'nawozy w UE: skoki miesiąca')):
+        ser = {k: v for k, v in S.items() if k.startswith(prefiksy)}
+        if not ser:
+            continue
+        zle = []
+        for nazwa, (sc, d) in ser.items():
+            for dz, c in _zd_k_zmiany(d, krok, mies):
+                if abs(c) > ZD_K_SKOK[grupa]:
+                    zle.append((nazwa, dz, c))
+        for nazwa, dz, c in zle[:2]:
+            zm = f'{c:+.1f}'.replace('.', ',')
+            U.append(f'zboża dziennie: {nazwa} {dz} — zmiana o {zm}% w jednym kroku (próg {ZD_K_SKOK[grupa]:g}%; w historii najwyżej {ZD_K_HIST[grupa]}%) — sprawdzić')
+        W.append((etyk, '\u26a0\ufe0f' if zle else '✅'))
+    # tabela źródła vs seria — tylko indeks dzienny. Tabela frachtu NIE służy do kontroli: 11.10.2026 ma w wierszu Europa zmianę roczną 20 (seria: +10,4%, jak z punktu
+    # sprzed 52 tygodni) i w wierszu USA najniższy / najwyższy z 52 tygodni skopiowane z Europy (124 / 170; seria: 112,5 / 157,3) — błędy po stronie źródła; odczyt
+    # ostatniej wartości frachtu sprawdza zbieracz przy każdym pobraniu (RuntimeError przy niezgodności), a zmianę roczną całej serii (19,6% wobec 20 w tabeli) dał test ręczny
+    # tabela źródła vs seria
+    G = j.get('goi') if isinstance(j.get('goi'), dict) else {}
+    T = G.get('tab') if isinstance(G.get('tab'), dict) else {}
+    rozne = []
+    for cid, t in T.items():
+        e = (G.get('s') or {}).get(cid) if isinstance(G.get('s'), dict) else None
+        st = e.get('st') if isinstance(e, dict) else None
+        if not isinstance(st, dict) or not isinstance(t, list) or len(t) != 5:
+            continue
+        for x, k_ in zip(t, ('last', 'd1', 'y1', 'lo', 'hi')):
+            if _zd_k_num(x) and _zd_k_num(st.get(k_)) and abs(x - st[k_]) > ZD_K_TAB[k_]:
+                rozne.append(f'{ZD_K_NAZWY.get(cid, cid)} {k_}: tabela {x:g}, seria {st[k_]:g}')
+    if T:
+        for x in rozne[:2]:
+            U.append(f'zboża dziennie: tabela źródła vs seria — {x} (tolerancja zaokrągleń: ostatnia ±0,6, zmiana dnia ±0,6, roczna ±1,6 pkt, przedział ±1) — sprawdzić'.replace('.', ','))
+        W.append(('indeks dzienny: tabela źródła vs seria', '\u26a0\ufe0f' if rozne else '✅'))
+    # korelacje miesięczne
+    gm = ((G.get('s') or {}).get('goi') or {}).get('m') if isinstance(G.get('s'), dict) else None
+    fz = _zd_k_wiersze(((j.get('fao') or {}).get('s') or {}).get('zboza')) if isinstance(j.get('fao'), dict) and isinstance(j['fao'].get('s'), dict) else []
+    if isinstance(gm, list) and fz:
+        r = _zd_k_kor_serii(gm, fz)
+        if r:
+            zle = r[0] < ZD_K_KOR['fao']
+            if zle:
+                U.append(f'zboża dziennie: zmiany miesięczne indeksu dziennego vs podindeks zbóż w żywności — korelacja {_zd_k_pl(r[0])} z {r[1]} miesięcy '
+                         f'(próg {_zd_k_pl(ZD_K_KOR["fao"])}; w historii 2000–2026 najniżej +0,78) — sprawdzić')
+            W.append(('indeks dzienny vs podindeks zbóż w żywności (zmiany miesięczne)', '\u26a0\ufe0f' if zle else '✅'))
+    sw = files.get('surowce') if isinstance(files.get('surowce'), dict) else {}
+    ix = (((sw.get('mies') or {}).get('ix')) if isinstance(sw.get('mies'), dict) else None) or {}
+    wz = _zd_k_wiersze(ix.get('zboza')) if isinstance(ix, dict) else []
+    if isinstance(gm, list) and wz:
+        r = _zd_k_kor_serii(gm, wz)
+        if r:
+            zle = r[0] < ZD_K_KOR['wb_zboza']
+            if zle:
+                U.append(f'zboża dziennie: zmiany miesięczne indeksu dziennego vs indeks zbóż świata (surowce) — korelacja {_zd_k_pl(r[0])} z {r[1]} miesięcy '
+                         f'(próg {_zd_k_pl(ZD_K_KOR["wb_zboza"])}; w 35 miesiącach 10.2023–09.2026 najniżej +0,66 w oknach 24 mies.) — sprawdzić')
+            W.append(('indeks dzienny vs indeks zbóż świata (zmiany miesięczne)', '\u26a0\ufe0f' if zle else '✅'))
+    nw = _zd_k_wiersze(ix.get('nawozy')) if isinstance(ix, dict) else []
+    nn = _zd_k_wiersze((((j.get('nawozy') or {}).get('s')) or {}).get('N')) if isinstance(j.get('nawozy'), dict) and isinstance(j['nawozy'].get('s'), dict) else []
+    if nn and nw:
+        r = _zd_k_kor_serii(nn, nw)
+        if r:
+            zle = r[0] < ZD_K_KOR['wb_nawozy']
+            if zle:
+                U.append(f'zboża dziennie: azot w UE vs indeks nawozów świata (zmiany miesięczne) — korelacja {_zd_k_pl(r[0])} z {r[1]} miesięcy '
+                         f'(próg {_zd_k_pl(ZD_K_KOR["wb_nawozy"])}; w 35 miesiącach najniżej +0,59 w oknach 24 mies.) — sprawdzić')
+            W.append(('azot w UE vs indeks nawozów świata (zmiany miesięczne)', '\u26a0\ufe0f' if zle else '✅'))
+    # pszenica w Polsce: dwa pobrania z tego samego portalu
+    mine = _zd_k_wiersze((((j.get('ue') or {}).get('zb') or {}).get('pszenica') or {}).get('PL')) if isinstance(j.get('ue'), dict) and isinstance(j['ue'].get('zb'), dict) else []
+    po = files.get('polska') if isinstance(files.get('polska'), dict) else {}
+    other = {x[0]: x[1] for x in _zd_k_wiersze(po.get('pszenica')) if _zd_k_num(x[1])}
+    wsp = [(x[0], x[1], other[x[0]]) for x in mine if x[0] in other and _zd_k_num(x[1])]
+    if wsp:
+        d, a, b = wsp[-1]
+        zle = abs(a - b) > ZD_K_TOL
+        if zle:
+            U.append(f'zboża dziennie: pszenica w Polsce {d} — {a:g} EUR/t tu, {b:g} EUR/t w danych o Polsce (ten sam portal; poprawka źródła w jednym z pobrań?) — sprawdzić'.replace('.', ','))
+        W.append(('pszenica w Polsce: ten sam portal w dwóch plikach', '\u26a0\ufe0f' if zle else '✅'))
+    return {'wiersze': W, 'uwagi': U}
+
+
+def zboza_kontrola(j, files, R):
+    """Kontrola pliku zboza-dzien.json bez sieci: sprzeczności w pliku (❌ = BŁĄD) i progi z testów wstecznych (najwyżej ⚠). Brak pliku albo inna wersja =
+    None (raport bez linii)."""
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle = zboza_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'zboza-dzien.json: sprzeczność w pliku — {z}')
+    P = zboza_porownania(j, files)
+    R['uwagi'] += P['uwagi']
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- v320: surowce — raporty miesięczne (data/surowce-raporty.json) i drugi kanał pozycji CFTC ----------------------------------------------------------------
 # Świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️; data danych = dzień wydania raportu (ropa, zboża) albo koniec
 # miesiąca ceny (uran). Progi z testu wstecznego (ws53/v320-surowce46/bt/bt_swiezosc.py, 10.10.2026; wiek jak wiek_danych, kontrola co godzinę
@@ -6113,6 +6405,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-zd. v341 (F5Z3): zboża dziennie i koszt transportu (data/zboza-dzien.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in zboza_swiezosc(files.get('zboza-dzien')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c-zs. v327 (KON-08): zastój źródeł Meksyku, SPW i Korei (zbieracz zgłasza go tylko w przebiegu budującym plik) — progi zbieracza, osobne
     # wiersze (lista SWIEZOSC bez zmian); najwyżej ⚠️, nigdy ❌ ani BŁĄD
     for label, st, w, txt, note in zastoj_swiezosc(files):
@@ -6401,6 +6700,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['lng'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'gaz i LNG: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v341 (F5Z3): zboża dziennie i koszt transportu — sprzeczności w pliku (❌), skoki, korelacje zmian miesięcznych z innymi danymi i tabela źródła (najwyżej ⚠️), z plików strony, bez zapytań
+    try:
+        Z['zboza-dzien'] = zboza_kontrola(files.get('zboza-dzien'), files, R)
+    except Exception as e:  # noqa
+        Z['zboza-dzien'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'zboża dziennie: kontrola przerwana ({str(e)[:80]})')
     # 3g. v320: raporty miesięczne o surowcach — sprzeczności w pliku (❌) i porównania (uran z funduszu vs średnia branżowa — ℹ️), z plików strony, bez zapytań
     try:
         Z['surowce-raporty'] = surowce_raporty_kontrola(files, R)
@@ -6748,6 +7053,11 @@ def raport_md(R):
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(srz['spojnosc'][:3]) + ' ❌ · ' if srz.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in srz.get('wiersze') or []) or '—') + '.')
+        zdz = Z.get('zboza-dzien')   # v341: zboża dziennie i koszt transportu — sprzeczności w pliku i porównania; brak pliku = bez linii
+        if zdz:
+            L.append('- Zboża dziennie i koszt transportu (z plików strony): ' + (f'? kontrola przerwana ({zdz["blad"]})' if zdz.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(zdz['spojnosc'][:3]) + ' ❌ · ' if zdz.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in zdz.get('wiersze') or []) or '—') + '.')
         scz = Z.get('surowce-cftc')   # v320: pozycje funduszy USA — plik tygodniowy vs drugi kanał urzędu; brak pozycji w pliku = bez linii
         if scz:
             L.append('- Surowce — pozycje funduszy USA, plik tygodniowy vs drugi kanał urzędu (ten sam raport): ' + (f'? kontrola przerwana ({scz["blad"]})' if scz.get('blad') else
