@@ -22628,3 +22628,186 @@ test('v342: słownik — czysty JSON, 10 języków, te same klucze i pola {x}, k
   assert.ok(!/[\u3040-\u30ff]/.test(JSON.stringify(D.zh)), 'zh bez kany');
   assert.ok(D.pl['f342.pl.note'].includes('{m}') && D.pl['f342.pl.note'].includes('zero, nie brak danych'));
 });
+
+
+// ===================== v343 (F1Z3): dźwignia — krzywa terminowa (basis), zmienność wg terminu, skos, max pain, ściany, Coinbase USA =====================
+// Nagrania: próbka pliku dzwignia.json zbudowana kodem zbieracza z publicznych odpowiedzi giełd z 11.10.2026 ok. 06:09 UTC (historia basis 3M — cztery dni zmyślone, tylko do testu wykresu).
+// Zegar przypięty (11.10.2026 06:30 UTC = 20 minut po odczycie) — testy bez zegara.
+const F1Z3_PLIK = {"at":"2026-10-11T06:10:00+00:00","ok":{"dr":true,"okx":true,"cde":true},"part_at":{"dr":"2026-10-11T06:10:00+00:00","okx":"2026-10-11T06:10:00+00:00","cde":"2026-10-11T06:10:00+00:00"},"dr":{"BTC":{"opt":{"oi":93140.6,"oi_p":38071.4,"oi_c":55069.2,"pc":0.6913,"n":126,"px":82966.07,"exp":[["2026-10-30",62310.6],["2026-11-27",16645.1],["2026-10-16",14184.9]],"t":"2026-10-11T06:10:00+00:00","term":[{"d":"2026-10-16","dni":5.1,"mo":false,"oi":14184.9,"oi_usd":1177935373.0,"fwd":83041.5,"iv":31.34,"skew":13.45,"pain":83000,"walls":[[80000,2262.0,14.2],[78000,1975.9,2.4],[83000,922.2,599.0]],"pc":1.6487},{"d":"2026-10-30","dni":19.1,"mo":true,"oi":62310.6,"oi_usd":5186262030.0,"fwd":83232.4,"iv":33.14,"skew":6.23,"pain":81000,"walls":[[90000,45.6,15159.1],[80000,2790.9,1431.3],[72000,2523.0,645.1]],"pc":0.592},{"d":"2026-11-27","dni":47.1,"mo":true,"oi":16645.1,"oi_usd":1391201120.0,"fwd":83580.2,"iv":36.52,"skew":2.81,"pain":80000,"walls":[[90000,9.6,3230.6],[75000,2203.5,288.8],[80000,564.8,1146.9]],"pc":0.5742}],"vol_p":245.3,"vol_c":376.0,"pcv":0.652},"fut":{"t":"2026-10-11T06:09:18+00:00","idx":82966.22,"perp":{"mark":82981.11,"oi_usd":830557640.0,"vol_usd":313208440.0,"f8":5.21e-06,"f_y":0.57},"terms":[{"d":"2026-10-23","dni":12.1,"mark":83133.81,"b":0.202,"y":6.1,"oi_usd":7829100.0,"vol_usd":413150.0},{"d":"2026-10-30","dni":19.1,"mark":83232.57,"b":0.321,"y":6.14,"oi_usd":136628310.0,"vol_usd":2736990.0},{"d":"2026-11-27","dni":47.1,"mark":83580.22,"b":0.74,"y":5.74,"oi_usd":37518230.0,"vol_usd":99440.0},{"d":"2026-12-25","dni":75.1,"mark":83903.19,"b":1.129,"y":5.49,"oi_usd":317042640.0,"vol_usd":2457570.0},{"d":"2027-03-26","dni":166.1,"mark":84993.98,"b":2.444,"y":5.37,"oi_usd":95421040.0,"vol_usd":226250.0},{"d":"2027-06-25","dni":257.1,"mark":86171.42,"b":3.863,"y":5.49,"oi_usd":65145130.0,"vol_usd":309500.0},{"d":"2027-09-24","dni":348.1,"mark":87283.53,"b":5.204,"y":5.46,"oi_usd":4820440.0,"vol_usd":42000.0}]}},"ETH":{"opt":{"oi":238582.0,"oi_p":149259.0,"oi_c":89323.0,"pc":1.671,"n":80,"px":2501.07,"exp":[["2026-10-30",115583.0],["2026-10-16",82126.0],["2026-11-27",40873.0]],"t":"2026-10-11T06:10:00+00:00","term":[{"d":"2026-10-16","dni":5.1,"mo":false,"oi":82126.0,"oi_usd":205439832.0,"fwd":2501.5,"iv":41.63,"skew":9.21,"pain":2600,"walls":[[2500,35509.0,1124.0],[2800,259.0,6697.0],[2600,3987.0,2766.0]],"pc":2.5691},{"d":"2026-10-30","dni":19.1,"mo":true,"oi":115583.0,"oi_usd":289478779.0,"fwd":2504.5,"iv":45.16,"skew":5.0,"pain":2550,"walls":[[2300,21210.0,1100.0],[2400,10134.0,3601.0],[2500,4933.0,6338.0]],"pc":1.6541},{"d":"2026-11-27","dni":47.1,"mo":true,"oi":40873.0,"oi_usd":102675428.0,"fwd":2512.1,"iv":49.0,"skew":2.51,"pain":2600,"walls":[[2800,1098.0,4631.0],[2700,1489.0,3558.0],[2500,2427.0,2393.0]],"pc":0.7955}],"vol_p":1344.0,"vol_c":6383.0,"pcv":0.211},"fut":{"t":"2026-10-11T06:09:19+00:00","idx":2501.06,"perp":{"mark":2501.46,"oi_usd":246446753.0,"vol_usd":38872806.0,"f8":0.0,"f_y":0.0},"terms":[{"d":"2026-10-23","dni":12.1,"mark":2503.05,"b":0.08,"y":2.4,"oi_usd":1640665.0,"vol_usd":304847.0},{"d":"2026-10-30","dni":19.1,"mark":2504.51,"b":0.138,"y":2.64,"oi_usd":32645058.0,"vol_usd":221512.0},{"d":"2026-11-27","dni":47.1,"mark":2512.06,"b":0.44,"y":3.41,"oi_usd":6874937.0,"vol_usd":445174.0},{"d":"2026-12-25","dni":75.1,"mark":2521.85,"b":0.831,"y":4.04,"oi_usd":82441830.0,"vol_usd":503309.0},{"d":"2027-03-26","dni":166.1,"mark":2549.79,"b":1.948,"y":4.28,"oi_usd":25433019.0,"vol_usd":415922.0},{"d":"2027-06-25","dni":257.1,"mark":2580.82,"b":3.189,"y":4.53,"oi_usd":13745876.0,"vol_usd":652093.0},{"d":"2027-09-24","dni":348.1,"mark":2611.94,"b":4.433,"y":4.65,"oi_usd":6062931.0,"vol_usd":913074.0}]}}},"okx":{"BTC":{"t":"2026-10-11T06:10:00+00:00","fut":{"t":"2026-10-11T06:09:24+00:00","idx":82964.5,"terms":[{"d":"2026-10-30","dni":19.1,"mark":83196.1,"b":0.279,"y":5.34},{"d":"2026-11-27","dni":47.1,"mark":83528.2,"b":0.679,"y":5.27},{"d":"2026-12-25","dni":75.1,"mark":83846.2,"b":1.063,"y":5.17},{"d":"2027-03-26","dni":166.1,"mark":84958.1,"b":2.403,"y":5.28},{"d":"2027-06-25","dni":257.1,"mark":86153.7,"b":3.844,"y":5.46},{"d":"2027-09-24","dni":348.1,"mark":87206.5,"b":5.113,"y":5.36}]}},"ETH":{"t":"2026-10-11T06:10:00+00:00","fut":{"t":"2026-10-11T06:09:25+00:00","idx":2500.85,"terms":[{"d":"2026-10-30","dni":19.1,"mark":2504.67,"b":0.153,"y":2.92},{"d":"2026-11-27","dni":47.1,"mark":2512.71,"b":0.474,"y":3.68},{"d":"2026-12-25","dni":75.1,"mark":2521.41,"b":0.822,"y":4.0},{"d":"2027-03-26","dni":166.1,"mark":2549.59,"b":1.949,"y":4.28},{"d":"2027-06-25","dni":257.1,"mark":2581.88,"b":3.24,"y":4.6},{"d":"2027-09-24","dni":348.1,"mark":2619.12,"b":4.729,"y":4.96}]}}},"cde":{"t":"2026-10-11T06:08:47+00:00","f_hours":1,"BTC":{"f_h":6e-06,"f_y":5.256,"f_hours":1.0,"oi":1696.07,"oi_usd":140744129.0,"px":82982.5,"vol":407.26,"vol_usd":33792398.0,"t":"2026-10-11T06:08:47+00:00","idx":82966.59,"terms":[{"id":"BIT-30OCT26-CDE","d":"2026-10-30","dni":19.4,"px":83285.0,"b":0.384,"y":7.22,"oi_usd":100346765.0}]},"ETH":{"f_h":5e-06,"f_y":4.38,"f_hours":1.0,"oi":24493.9,"oi_usd":61265367.0,"px":2501.25,"vol":3427.4,"vol_usd":8575355.0,"t":"2026-10-11T06:08:47+00:00","idx":2500.97,"terms":[{"id":"ET-30OCT26-CDE","d":"2026-10-30","dni":19.4,"px":2507.5,"b":0.261,"y":4.91,"oi_usd":15975533.0}]}},"hist":[{"d":"2026-10-07","basis_3m_btc":5.1,"basis_3m_eth":4.2},{"d":"2026-10-08","basis_3m_btc":5.3,"basis_3m_eth":4.4},{"d":"2026-10-09","basis_3m_btc":5.2,"basis_3m_eth":4.1},{"d":"2026-10-10","basis_3m_btc":5.5,"basis_3m_eth":4.5}]};
+const f1z3 = (() => {
+  const b0 = html.indexOf('/* ===================== v104: dźwignia i pozycje w krypto'), b1 = html.indexOf('function levAuto(){', b0);
+  const blk = b0 > 0 && b1 > b0 ? html.slice(b0, html.indexOf('\n', b1)) : '';
+  const NOW = '2026-10-11T06:30:00Z';
+  const code = v157.cut('const nSg=', '\n') + v157.cut('const fPct=', '\n') + v157.KIT + '\n' + blk;
+  const RET = 'LEV,renderLev,levApply,levFut,levVol,levVen,levFutOf,levPerpOf,levCdeOf,levVenNote,levOk';
+  const mk = (iso, extra) => {
+    const el = {innerHTML: '', hidden: true, querySelectorAll() { return []; }, querySelector() { return null; }};
+    const env = v157.ENV(iso || NOW, Object.assign({$: () => el, srvJSON: () => Promise.resolve(null), setInterval: () => 7, clearInterval: () => {}, document: {hidden: false}}, extra || {}));
+    const f = v157.run(code, env, RET); f.el = el; return f;
+  };
+  const fix = () => JSON.parse(JSON.stringify(F1Z3_PLIK));
+  const day = d => new Date(Date.parse(d + 'T12:00:00Z')).toLocaleDateString('pl-PL', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
+  return {blk, mk, fix, day, NOW};
+})();
+const f1z3Details = (h, id) => { const i = h.indexOf('<details class="etfd" id="' + id + '">'); return i < 0 ? '' : h.slice(i, h.indexOf('</details>', i)); };
+
+test('v343 (F1Z3): krzywa terminowa — blok zwinięty, wykres basis BTC i ETH (oś = terminy), tabele terminów z kolorami kierunku, bez zer i bez nazw dostawców', () => {
+  assert.ok(f1z3.blk.length > 20000 && f1z3.blk.includes('function levFut(){') && f1z3.blk.includes('function levVol(){'), 'blok v104 z nowymi funkcjami');
+  const f = f1z3.mk(); f.levApply(f1z3.fix());
+  const h = f.el.innerHTML, B = f1z3Details(h, 'lev-fut');
+  assert.ok(!f.el.hidden && B, 'panel i blok krzywej terminowej');
+  assert.ok(!/<details class="etfd" id="lev-fut" open/.test(h), 'blok zwinięty — czytelnik otwiera go sam');
+  assert.ok(B.includes('<summary>') && B.includes('Kontrakty z datą: krzywa terminowa (basis)') && B.includes('To nie jest porada inwestycyjna'), 'tytuł i zastrzeżenie');
+  // wykres: dwie linie, legenda, opis, jedna podpowiedź na termin
+  assert.equal((B.match(/class="wk-ch wk-lines"/g) || []).length, 2, 'wykres krzywej i wykres historii basis 3M');
+  assert.ok(B.includes('<polyline class="wk-l c-btc"') && B.includes('<polyline class="wk-l c-eth"'), 'linie BTC i ETH');
+  assert.ok(B.includes('<i class="wk-sq c-btc"></i>BTC') && B.includes('<i class="wk-sq c-eth"></i>ETH'), 'legenda');
+  assert.ok(B.includes('aria-label="Krzywa terminowa: basis roczny kontraktów BTC i ETH według terminu rozliczenia, do 7 terminów"'), 'opis jednym zdaniem');
+  const ch = B.slice(B.indexOf('class="wk-ch wk-lines"'), B.indexOf('class="wk-ch wk-lines"', B.indexOf('class="wk-ch wk-lines"') + 10)), T = v157.tips(ch);
+  assert.equal(T.length, 7, 'jedna podpowiedź na termin rozliczenia (dni krótsze niż 7 pominięte)');
+  assert.equal(T[0], f1z3.day('2026-10-23') + ' · 12 dni do rozliczenia · BTC: +6,1% · ETH: +2,4%', 'termin, dni do rozliczenia i basis roczny obu monet');
+  assert.ok(T[3].endsWith('BTC: +5,5% · ETH: +4,0%') && T[3].startsWith(f1z3.day('2026-12-25')), T[3]);
+  // tabele: kolor z pokazanej liczby (plus zielony), pozycje w mln USD, brak = „—”
+  const row = d => { const i = B.indexOf('<td><span class="cell mono">' + f1z3.day(d) + '</span></td>'); return B.slice(i, B.indexOf('</tr>', i)); };
+  const r1 = row('2026-12-25');
+  assert.ok(r1.includes('<td><span class="cell mono">75</span></td><td><span class="cell mono">83&nbsp;903</span></td>'.replace('&nbsp;', '\u00a0')) || r1.includes('83\u00a0903'), 'dni i cena kontraktu: ' + r1);
+  assert.ok(r1.includes('<span class="cell mono pos">+1,13%</span>') && r1.includes('<span class="cell mono pos">+5,5%</span>') && r1.includes('<span class="cell mono">317</span>'), 'basis, basis roczny, pozycje mln USD: ' + r1);
+  assert.ok(row('2026-10-23').includes('<span class="cell mono">8</span>'), 'pozycje 7,8 mln USD → 8');
+  // Coinbase USA: kontrakt miesięczny obok Deribit w tym samym terminie
+  assert.ok(B.includes('regulowany rynek kontraktów w USA') && B.includes('Cienki rynek: pokazujemy tylko kontrakty z pozycjami od 1 mln USD'), 'opis rynku i uwaga o cienkich kontraktach');
+  const us = B.slice(B.indexOf('regulowany rynek kontraktów w USA')), ur = us.slice(us.indexOf('<tbody>'), us.indexOf('</tbody>'));
+  assert.equal((ur.match(/<tr>/g) || []).length, 2, 'po jednym kontrakcie miesięcznym BTC i ETH (cienkie dalsze miesiące pominięte)');
+  assert.ok(ur.includes('<span class="cell mono">' + f1z3.day('2026-10-30') + '</span></td><td><span class="cell mono">19</span></td>'), 'wiersz Coinbase USA: termin 30.10, 19 dni: ' + ur.slice(0, 400));
+  assert.ok(ur.includes('<span class="cell mono pos">+7,2%</span>') && ur.includes('<span class="cell mono pos">+0,38%</span>') && ur.includes('<span class="cell mono pos">+6,1%</span>'), 'basis Coinbase USA 0,38 % (7,2 % rocznie) obok Deribit w tym samym terminie (6,1 %): ' + ur.slice(0, 600));
+  // historia basis 3M (≥ 3 dni): drugi wykres z dwiema liniami i objaśnieniem
+  assert.ok(B.includes('Basis 3M — historia dzienna (rocznie)') && B.includes('Każdy dzień to kontrakt najbliższy 90 dniom do rozliczenia'), 'historia basis 3M');
+  assert.ok(!/<span class="cell mono[^"]*">(0|0,0|0,00|0,0%|0,00%)<\/span>/.test(B.replace('<span class="cell mono neu">0,0%</span>', '')) && !B.includes('NaN') && !B.includes('undefined'), 'żadnych zer w miejscu braków (zero tylko wyliczone z cen)');
+  assert.ok(!/Coinalyze|CoinGecko|CoinPaprika|CoinMarketCap|DefiLlama|Glassnode|Etherscan|SoSoValue|Farside|Finnhub/.test(h), 'żadnych nazw dostawców danych');
+  assert.ok(h.indexOf('id="lev-fut"') < h.indexOf('id="lev-vol"') && h.indexOf('id="lev-vol"') < h.indexOf('id="lev-opt"') || !h.includes('id="lev-opt"'), 'kolejność: krzywa, zmienność, opcje wg terminu wygaśnięcia');
+});
+
+test('v343 (F1Z3): zmienność wg terminu, skos (czerwony = większy strach przed spadkiem), max pain, put/call i trzy ściany najbliższego terminu miesięcznego', () => {
+  const f = f1z3.mk(); f.levApply(f1z3.fix());
+  const h = f.el.innerHTML, V = f1z3Details(h, 'lev-vol');
+  assert.ok(V && !/<details class="etfd" id="lev-vol" open/.test(h), 'blok zwinięty');
+  assert.ok(V.includes('Opcje: zmienność wg terminu, skos i ściany') && V.includes('Skos to o ile droższa jest ochrona przed spadkiem'), 'tytuł i objaśnienie skosu');
+  assert.ok(V.includes('Zmienność ATM wg terminu (% w skali roku)') && V.includes('<polyline class="wk-l c-btc"') && V.includes('<polyline class="wk-l c-eth"'), 'wykres zmienności BTC i ETH');
+  const ch = V.slice(V.indexOf('class="wk-ch wk-lines"')), T = v157.tips(ch.slice(0, ch.indexOf('<div class="wk-tip"')));
+  assert.equal(T.length, 3, 'trzy terminy opcji'); assert.ok(T[1].startsWith(f1z3.day('2026-10-30')) && T[1].endsWith('BTC: 33,1% · ETH: 45,2%'), T[1]);
+  // tabela BTC
+  const tr = d => { const i = V.indexOf('<span class="cell mono">' + f1z3.day(d)); return V.slice(i, V.indexOf('</tr>', i)); };
+  const m = tr('2026-10-30'), w = tr('2026-10-16');
+  assert.ok(m.includes('<small>mies.</small>') && !w.includes('<small>mies.</small>'), 'termin miesięczny oznaczony, tygodniowy nie');
+  assert.ok(m.includes('<span class="cell mono">33,1%</span>') && m.includes('<span class="cell mono neg">+6,2</span>') && m.includes('81\u00a0000') && m.includes('<span class="cell mono pos">0,59</span>') && m.includes('<span class="cell mono">5,19</span>'),
+    'zmienność ATM, skos (plus = czerwony), max pain, put/call (poniżej 1 = zielony), pozycje mld USD: ' + m);
+  assert.ok(w.includes('<span class="cell mono neg">+13,5</span>') && w.includes('<span class="cell mono neg">1,65</span>'), 'tydzień: skos +13,5, put/call 1,65 (więcej zabezpieczeń) — czerwono');
+  // kafle obrotu put/call
+  const pcv = v157.nfmt(F1Z3_PLIK.dr.BTC.opt.pcv, 2);
+  assert.ok(V.includes('Obrót opcji 24 h BTC: put / call') && V.includes('<b class="pos">' + pcv + ' <small class="pos">'), 'obrót put/call poniżej 1 — zielono: ' + V.slice(V.indexOf('etfkpis'), V.indexOf('etfkpis') + 400));
+  assert.ok(V.includes('put 245 BTC · call 376 BTC') && V.includes('put ' + v157.nfmt(1344, 0) + ' ETH · call ' + v157.nfmt(6383, 0) + ' ETH'), 'obrót 24 h w monetach (kontrakty opcji = 1 moneta), nie premia w USD');
+  // ściany: trzy słupki najbliższego terminu miesięcznego, rosnąco po cenie wykonania, put pomarańczowy i call niebieski (klasy), odległość od forwardu
+  const W = V.slice(V.indexOf('Ściany otwartych pozycji — BTC'));
+  assert.ok(W.includes('Ściany otwartych pozycji — BTC, termin ' + f1z3.day('2026-10-30')), 'termin miesięczny, nie tygodniowy');
+  const rows = (W.slice(0, W.indexOf('class="wk-ch wk-bars"', 10) > 0 ? W.indexOf('Ściany otwartych pozycji — ETH') : W.length).match(/<div class="wk-br"/g) || []);
+  assert.equal(rows.length, 3, 'trzy ściany');
+  const labs = [...W.matchAll(/<span class="wk-bl"><b>([^<]*)<\/b>(?: <small>([^<]*)<\/small>)?<\/span>/g)].map(x => x[1] + '|' + x[2]);
+  assert.deepEqual(labs.slice(0, 3), ['72\u00a0000|−13,5%', '80\u00a0000|−3,9%', '90\u00a0000|+8,1%'], 'rosnąco po cenie wykonania; odległość od ceny terminowej ze znakiem');
+  assert.ok(W.includes('class="wk-b lv-p"') && W.includes('class="wk-b lv-c"') && W.includes('<i class="wk-sq lv-p"></i>put (ochrona przed spadkiem)') && W.includes('<i class="wk-sq lv-c"></i>call (zakład na wzrost)'), 'put i call w legendzie i słupkach');
+  assert.ok(W.includes('<span class="wk-bv">' + v157.nfmt(3168.1, 0) + ' BTC</span>') && W.includes('<span class="wk-bv">' + v157.nfmt(15204.7, 0) + ' BTC</span>'), 'wartości przy słupkach: put + call w monetach');
+  assert.ok(v157.tips(W)[0].startsWith('72\u00a0000 USD · opcje sprzedaży (put)') && v157.tips(W)[0].includes(v157.nfmt(2523, 0) + ' BTC') && v157.tips(W)[0].endsWith('−13,5%'), 'podpowiedź z rozbiciem: ' + v157.tips(W)[0]);
+  assert.ok(V.includes('Max pain to cena rozliczenia, przy której wygasające opcje wypłaciłyby najmniej') && V.includes('To nie jest porada inwestycyjna'), 'wyliczenia opisane jako takie');
+});
+
+test('v343 (F1Z3): tabela giełd — wiersze Deribit (wieczysty) i Coinbase USA; wstrzymane Coinbase International znika, gdy jest Coinbase USA; objaśnienie okresów stawek', () => {
+  const j = f1z3.fix(); const t0 = '2026-10-01T09:00:29+00:00';
+  j.cb = {t: j.cde.t, f_hours: 1, BTC: {f_h: null, f_y: null, f_hours: 1, oi: 1031.4, oi_usd: 86636785, px: 84000, vol: null, vol_usd: null, t: t0, stan: 'PAUSED'}}; j.ok.cb = true; j.part_at.cb = j.at;
+  const f = f1z3.mk(); f.levApply(j);
+  const h = f.el.innerHTML, T = h.slice(h.indexOf('<table class="etft"><thead><tr><th>Giełda'), h.indexOf('</table>', h.indexOf('<table class="etft"><thead><tr><th>Giełda')));
+  assert.ok(T.includes('Deribit') && T.includes('Coinbase USA'), 'oba wiersze w tabeli według giełd');
+  const dr = T.slice(T.indexOf('Deribit'), T.indexOf('</tr>', T.indexOf('Deribit')));
+  assert.ok(dr.includes('<span class="cell mono pos">+0,6%</span>') && dr.includes('<span class="cell mono">0,83</span>') && dr.includes('<span class="cell mono">313</span>'), 'Deribit BTC: stawka z 8 h na rok (+0,57 %), pozycje 0,83 mld, obrót 313 mln USD: ' + dr);
+  assert.ok(T.includes('<span class="cell mono neu">0,0%</span>'), 'Deribit ETH: stawka dokładnie zero to prawdziwa liczba (żółta), nie brak');
+  const cd = T.slice(T.indexOf('Coinbase USA'), T.indexOf('</tr>', T.indexOf('Coinbase USA')));
+  assert.ok(cd.includes('<span class="cell mono pos">+5,3%</span>') && cd.includes('<span class="cell mono">0,14</span>'), 'Coinbase USA BTC: +5,26 % rocznie, pozycje 0,14 mld: ' + cd);
+  assert.ok(!T.includes('handel wstrzymany') && !/Coinbase<\/span>/.test(T.replace(/Coinbase USA/g, '')), 'wstrzymany wiersz Coinbase International ukryty, gdy jest Coinbase USA');
+  assert.ok(h.includes('Deribit: średnia stawka z 8 godzin przeliczona na rok. Coinbase USA: stawka godzinowa przeliczona na rok'), 'objaśnienie okresów pod tabelą');
+  // bez części cde wstrzymany wiersz zostaje (jak dotąd)
+  const k = f1z3.fix(); delete k.cde; k.cb = j.cb; k.ok.cb = true; k.part_at.cb = k.at;
+  const g = f1z3.mk(); g.levApply(k);
+  assert.ok(g.el.innerHTML.includes('handel wstrzymany'), 'bez Coinbase USA wiersz z oznaczeniem „handel wstrzymany” zostaje');
+});
+
+test('v343 (F1Z3): stare albo niepełne dane — blok znika zamiast pokazywać zero; brak liczby = „—”; część cde starsza niż 12 h nie wchodzi do tabel', () => {
+  const stale = f1z3.mk('2026-10-12T00:00:00Z'); stale.levApply(f1z3.fix());
+  const hs = stale.el.innerHTML;
+  assert.ok(!hs.includes('id="lev-fut"') && !hs.includes('id="lev-vol"') && !hs.includes('Cienki rynek'), 'bloki krzywej i zmienności z odczytów sprzed 17 godzin pominięte jak brak (migawka rynku, nie szereg dzienny)');
+  assert.ok(hs.includes('Coinbase USA') && hs.includes('wiek(2026-10-11)'), 'wiersze tabeli giełd zostają, jak u pozostałych giełd — z własną datą i wiekiem');
+  const j = f1z3.fix();
+  j.dr.ETH.fut.terms = j.dr.ETH.fut.terms.map(x => Object.assign({}, x, {oi_usd: null}));
+  j.dr.BTC.opt.term.forEach(x => { x.skew = null; x.iv = null; x.pc = null; x.pain = null; });
+  const f = f1z3.mk(); f.levApply(j);
+  const h = f.el.innerHTML, B = f1z3Details(h, 'lev-fut'), V = f1z3Details(h, 'lev-vol');
+  assert.ok(B.includes('<span class="cell mono na">—</span>') && V.includes('<span class="cell mono na">—</span>'), 'brak = „—”');
+  assert.ok(!/<span class="cell mono[^"]*">(0|0,0|0,00|NaN|undefined|null)(%|<)/.test(B.replace('<span class="cell mono">0,0%', '')) && !V.includes('NaN') && !V.includes('undefined') && !B.includes('undefined'), 'żadnych zer ani NaN w miejscu braków');
+  const only = f1z3.fix(); delete only.dr.ETH; delete only.cde; only.hist = only.hist.map(h => ({d: h.d, basis_3m_btc: h.basis_3m_btc}));
+  const g = f1z3.mk(); g.levApply(only);
+  const hb = f1z3Details(g.el.innerHTML, 'lev-fut');
+  assert.ok(hb && hb.includes('<polyline class="wk-l c-btc"') && !hb.includes('c-eth') && !hb.includes('Coinbase USA') && !hb.includes('Cienki rynek'), 'sam BTC: jedna linia, bez ETH i bez Coinbase USA, bez pustych sekcji');
+  const none = f1z3.fix(); delete none.dr; delete none.cde; delete none.okx;
+  const e = f1z3.mk(); e.levApply(Object.assign({}, none, {hist: []}));
+  assert.ok(!e.el.innerHTML.includes('lev-fut') && !e.el.innerHTML.includes('lev-vol'), 'bez części dr i cde — żadnych nowych bloków');
+});
+
+test('v343 (F1Z3): bez zestawu wykresów (starszy kod strony / test) blok działa na samych tabelach; nowe bloki nie zmieniają dotychczasowego panelu bez nowych danych', () => {
+  const j = f1z3.fix(); const now = new Date(Date.now() - 20 * 60e3).toISOString();
+  const shift = o => { for (const k of Object.keys(o)) { if (k === 't' && typeof o[k] === 'string') o[k] = now; else if (o[k] && typeof o[k] === 'object') shift(o[k]); } };
+  shift(j.dr); shift(j.okx); shift(j.cde); j.at = now; for (const k of Object.keys(j.part_at)) j.part_at[k] = now;
+  const f = lev104.mk({}); f.levApply(j);
+  const h = f.el.innerHTML;
+  assert.ok(h.includes('id="lev-fut"') && h.includes('id="lev-vol"') && h.includes('f1z3.fut.t'), 'bloki są (teksty jako klucze w tym harnessie)');
+  assert.ok(!h.includes('wk-ch') && h.includes('lev-fut'), 'bez wk-wykresów: tylko tabele, bez błędu');
+  const old = lev104.mk({}); const o = lev104.fix(); old.levApply(o);
+  assert.ok(!old.el.innerHTML.includes('lev-fut') && !old.el.innerHTML.includes('lev-vol') && !old.el.innerHTML.includes('f1z3.'), 'plik bez nowych pól: panel jak dotąd, bez nowych bloków i bez śladów po nich');
+});
+
+test('v343 (F1Z3): słownik EXTRA — 38 kluczy f1z3.* we wszystkich 10 językach z tymi samymi parametrami; prawdziwe tłumaczenia; bez nazw dostawców', () => {
+  const m = html.match(/const EXTRA(\d+)=(\{"pl":\{"f1z3\.[^\n]*?\});\nfor\(const l in EXTRA\1\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],EXTRA\1\[l\]\);/);
+  assert.ok(m, 'słownik v343: czysty JSON + jedna linia for (numer = najwyższy + 1 przy nakładaniu)');
+  /* numer słownika liczy się przy nakładaniu łatki (najwyższy wtedy + 1); łatki nakładane PÓŹNIEJ dostają większe numery — sprawdzamy tylko, że słownik stoi (po własnym
+     komentarzu) zaraz po linii for słownika o MNIEJSZYM numerze, a nie że jest „najwyższy w pliku” */
+  const nr = +m[1], at = m.index, pre = html.slice(0, at).split('\n').slice(-3, -2)[0].match(/^for\(const l in EXTRA(\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],EXTRA\1\[l\]\);$/);
+  assert.ok(pre && +pre[1] < nr, 'słownik v343 stoi zaraz po linii for słownika o mniejszym numerze');
+  const D = JSON.parse(m[2]), L = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(D), L);
+  const keys = Object.keys(D.pl);
+  assert.equal(keys.length, 38); assert.ok(keys.every(k => k.startsWith('f1z3.')));
+  for (const l of L) assert.deepEqual(Object.keys(D[l]).sort(), keys.slice().sort(), l);
+  const used = new Set([...f1z3.blk.matchAll(/t\('(f1z3\.[\w.]+)'/g)].map(x => x[1]).concat([...f1z3.blk.matchAll(/'(f1z3\.[\w.]+)'/g)].map(x => x[1])));
+  for (const k of keys) assert.ok(used.has(k), 'klucz używany przez kod strony: ' + k);
+  for (const k of used) assert.ok(keys.includes(k), 'klucz użyty w kodzie ma tłumaczenia: ' + k);
+  const ph = s => (s.match(/\{[a-z]\}/g) || []).sort().join();
+  for (const k of keys) {
+    for (const l of L) { assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k + ': te same parametry'); assert.ok(D[l][k].length >= 2, l + ' ' + k); }
+    if (D.pl[k].length >= 40) {
+      for (const l of L.filter(x => x !== 'pl')) assert.notEqual(D[l][k], D.pl[k], l + ' ' + k + ' różny od polskiego');
+      for (const l of L.filter(x => !['pl', 'en'].includes(x))) assert.notEqual(D[l][k], D.en[k], l + ' ' + k + ' różny od angielskiego');
+      const sig = x => x.length; assert.ok(new Set(L.map(l => D[l][k])).size >= 9, k + ': prawdziwe tłumaczenia, nie kopie');
+    }
+    assert.ok(!/Coinalyze|CoinGecko|CoinPaprika|CoinMarketCap|DefiLlama|Glassnode|Etherscan|SoSoValue|Farside|Finnhub/.test(JSON.stringify(L.map(l => D[l][k]))), k + ': bez nazw dostawców');
+  }
+  assert.equal(D.zh['f1z3.c.basisy'], '年化基差'); assert.ok(/[а-я]/.test(D.ru['f1z3.fut.sub']) && /[ぁ-ん]/.test(D.ja['f1z3.vol.sub']) && /[一-龥]/.test(D.zh['f1z3.vol.sub']));
+  assert.ok(D.pl['f1z3.fut.note'].includes('To nie jest porada inwestycyjna') && D.en['f1z3.vol.note'].includes('not investment advice'), 'zastrzeżenie we wszystkich opisach wyliczeń');
+});
+
+test('v343 (F1Z3): styl i miejsce w kodzie — kolory serii z zmiennych motywu, telefon, kolejność bloków; stałe dotychczasowego bloku bez zmian', () => {
+  for (const s of ['#c-dzwignia .wk-ch .c-btc,#c-dzwignia .wk-ch .lv-p{--k:var(--or)}', '#c-dzwignia .wk-ch .c-eth,#c-dzwignia .wk-ch .lv-c{--k:var(--bl)}', '#c-dzwignia .etft.lev-fut,#c-dzwignia .etft.lev-vol{min-width:0}',
+    '@media (max-width:520px){#c-dzwignia .wk-br{--lw:40%}#c-dzwignia .wk-sv{min-height:120px}}'])
+    assert.ok(html.includes(s), 'CSS: ' + s);
+  const c0 = html.indexOf('/* v343 (F1Z3): krzywa terminowa'), css = html.slice(c0, html.indexOf('@media (max-width:520px){#c-dzwignia .wk-br{--lw:40%}', c0) + 80);
+  assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,8}\b|rgb\(\d|rgba\(\d/.test(css), 'tylko zmienne motywu (żadnych kolorów na sztywno)');
+  assert.ok(html.indexOf('/* v343 (F1Z3): krzywa terminowa') > html.indexOf('#c-dzwignia .lqw-r{grid-template-columns:minmax(0,64px) minmax(0,1fr) 88px'), 'wstawka stylu po dotychczasowych stylach panelu');
+  assert.ok(html.includes('levTab()+levFut()+levVol()+levOpt():\'\''), 'nowe bloki między tabelą kontraktów a opcjami wg terminu wygaśnięcia');
+  assert.ok(html.includes("LEV_PARTS=['hl','bn','dr','okx','kr','cb','dy']") && html.includes("LEV_LIVE=['hl','okx','kr','cb','dy'],LEV_SUMAGE=6*3600e3"), 'sumy „wszystkie giełdy razem” bez zmian (Coinbase USA poza sumą)');
+  assert.ok(html.includes("for(const k of ['kr','cb','cde','dy'])") && html.includes('const LEV_FUT_MAXAGE=12*3600e3;'), 'wiersz Coinbase USA w tabeli giełd; dane starsze niż 12 h pomijane');
+  assert.ok(!f1z3.blk.includes('fetch(') && !/srvJSON\('(dzwignia-|krzywa)/.test(f1z3.blk), 'żadnych nowych pobrań: dane z tego samego pliku dzwignia.json');
+});

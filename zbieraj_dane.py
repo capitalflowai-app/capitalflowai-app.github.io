@@ -14141,6 +14141,15 @@ LEV_HOURS = {'kr': 1, 'cb': 1, 'dy': 1}    # v109: okres finansowania wg dokumen
 LEV_FMAX = 0.005                          # v109: |stawka godzinowa| ponad 0,5 % (4 380 % rocznie) = pomyłka jednostki → brak, nie liczba
 LEV_SUMAGE = 6 * 3600                     # v109: do sumy „wszystkie giełdy” wchodzą tylko wiersze młodsze niż 6 h
 LEV_LIVE = ['hl', 'okx', 'kr', 'cb', 'dy']
+LEV_PX['cde'] = 'Coinbase USA'    # v343 (F1Z3): osiem części — Coinbase USA (regulowany rynek kontraktów) obok wstrzymanego Coinbase International (cb zostaje: wznowienie handlu)
+DR_FUT_MIN_DNI = 7.0              # v343: krzywa terminowa tylko od 7 dni do rozliczenia — przy krótszych terminach basis w skali roku to szum
+DR_OPT_TERMS = 10                 # v343: najwyżej tyle terminów opcji w pliku (wszystkie miesięczne + najbliższe tygodniowe z dużymi pozycjami)
+DR_OPT_WEEK_N = 3                 # v343: tygodniowych terminów opcji w pliku
+DR_OPT_MIN_USD = 5e7              # v343: tygodniowy termin opcji trafia do pliku od 50 mln USD otwartych pozycji (monety × forward)
+CDE_URL = 'https://api.coinbase.com/api/v3/brokerage/market/products?product_type=FUTURE&limit=100'   # v343: ok. 280 KB, 100 produktów (BTC, ETH i inne)
+CDE_MAXB = 2_000_000              # v343: limit rozmiaru odpowiedzi Coinbase USA (bajty)
+CDE_PAGES = 2                     # v343: najwyżej tyle stron listy (100 produktów mieści się w jednej; druga tylko, gdy odpowiedź ma kolejną)
+CDE_MIN_OI_USD = 1e6              # v343: kontrakt z datą z mniejszymi pozycjami (USD) nie wchodzi do krzywej — cienki rynek, ostatnia cena bywa nieaktualna
 LEV_LIMIT = 45                            # v109.1: sekund na cały przebieg budowniczego — milcząca giełda nie blokuje przebiegu (limit BRIEF < 60 s)
 _LEV_TERMIN = [None]                      # koniec budżetu (time.monotonic) ustawiany w build_dzwignia
 
@@ -14355,7 +14364,7 @@ def dr_book(cur, top=4):
         raise ValueError('brak wierszy z liczbami')
     exp = sorted(byexp.items(), key=lambda x: -x[1])[:top]
     return {'oi': lev_r(puts + calls, 2), 'oi_p': lev_r(puts, 2), 'oi_c': lev_r(calls, 2), 'pc': lev_r(puts / calls, 4) if calls > 0 else None,
-            'n': n, 'px': sorted(px)[len(px) // 2] if px else None, 'exp': [[d, lev_r(v, 2)] for d, v in exp], 't': NOW}
+            'n': n, 'px': sorted(px)[len(px) // 2] if px else None, 'exp': [[d, lev_r(v, 2)] for d, v in exp], 't': NOW, **dr_terms_safe(R)}   # v343: + term, vol_p, vol_c, pcv
 
 
 def lev_dr(prev=None):
@@ -14372,8 +14381,12 @@ def lev_dr(prev=None):
             o['opt'] = dr_book(cur); new += 1
         except Exception as e:  # noqa
             fails.append(f'opcje {cur}: {e}')
+        try:   # v343 (F1Z3): kontrakty z datą (krzywa terminowa, basis) — druga odpowiedź tej samej giełdy (5 KB)
+            o['fut'] = dr_fut(cur); new += 1
+        except Exception as e:  # noqa
+            fails.append(f'kontrakty z datą {cur}: {e}')
         old = prev.get(cur) if isinstance(prev.get(cur), dict) else {}
-        for k in ('dvol', 'opt'):   # podczęść bez nowych danych → poprzednia (ma własny czas 't'), nigdy zera
+        for k in ('dvol', 'opt', 'fut'):   # podczęść bez nowych danych → poprzednia (ma własny czas 't'), nigdy zera
             if k not in o and isinstance(old.get(k), dict):
                 o[k] = old[k]
         if o:
@@ -14420,8 +14433,15 @@ def lev_okx(prev=None):
             o['ls'] = v; o['ls_t'] = datetime.datetime.fromtimestamp(ts / 1000, datetime.timezone.utc).replace(microsecond=0).isoformat()
         except Exception as e:  # noqa
             fails.append(f'długie/krótkie {cur}: {e}')
+        try:   # v343 (F1Z3): kontrakty z datą OKX (cena znacznikowa + indeks) — tylko do kontroli dziennej basis wobec Deribit
+            o['fut'] = okx_fut(cur)
+        except Exception as e:  # noqa
+            fails.append(f'kontrakty z datą {cur}: {e}')
         if len(o) > 1:
             out[cur] = o; new += 1
+            po = prev.get(cur) if isinstance(prev.get(cur), dict) else {}
+            if 'fut' not in o and isinstance(po.get('fut'), dict):
+                o['fut'] = po['fut']   # v343: bez nowej krzywej OKX zostaje poprzednia (z własnym czasem t)
         elif isinstance(prev.get(cur), dict):
             out[cur] = prev[cur]
     if not new:   # nic nowego — cała część nieudana (zostaje poprzednia z jej czasem)
@@ -14567,6 +14587,313 @@ def lev_dy(prev=None):
     return out
 
 
+# ===================== v343 (F1Z3): dźwignia — kontrakty z datą (basis), pełniejsze opcje, Coinbase USA, kontrola basis na OKX =====================
+# Wszystko z odpowiedzi, które i tak pobieramy (Deribit: opcje już są — liczymy z nich więcej), plus trzy małe zapytania na godzinę:
+# Deribit kontrakty z datą BTC i ETH (po ok. 5 KB), OKX kontrakty z datą (cena znacznikowa + indeks; do kontroli dziennej), Coinbase USA — lista
+# kontraktów regulowanego rynku w USA (jedno zapytanie ok. 280 KB, limit rozmiaru). Zasady jak w całym bloku: brak liczby = None (nigdy zero),
+# część z błędem = poprzednia z własnym czasem, każda miara z własnym czasem `t` pochodzącym z odpowiedzi giełdy, nie z zegara zbieracza.
+# BASIS = cena kontraktu z datą / cena indeksu − 1 (w %); BASIS ROCZNY = basis × 365 / dni do rozliczenia (prosta annualizacja — WYLICZENIE,
+# nie zysk i nie prognoza; dla terminów krótszych niż DR_FUT_MIN_DNI dni zostaje pominięty: kilka dni w skali roku to szum).
+# Opcje: zmienność ATM = średnia IV call i put na cenie wykonania najbliższej forwardowi terminu; SKOS = IV putu 90 % forwardu − IV calla 110 %
+# forwardu (przybliżenie na moneyness, nie 25-delta: w tym zapytaniu nie ma delt); MAX PAIN = cena rozliczenia, przy której wypłaty z wygasających opcji
+# są najmniejsze (wyliczenie z otwartych pozycji); ŚCIANY = 3 ceny wykonania z największą liczbą otwartych opcji (put + call).
+def lev_dt(ms):
+    return datetime.datetime.fromtimestamp(ms / 1000, datetime.timezone.utc).replace(microsecond=0)
+
+
+def lev_pos(v, n=0):
+    """Liczba dodatnia po zaokrągleniu albo None (zero pozycji lub obrotu nie da się odróżnić od braku)."""
+    r = None if v is None else lev_r(v, n)
+    return r if r is not None and r > 0 else None
+
+
+def lev_basis(px, idx, dni):
+    """(basis %, basis roczny %) z ceny kontraktu, indeksu i dni do rozliczenia; brak któregokolwiek składnika → (None, None)."""
+    if px is None or idx is None or dni is None or px <= 0 or idx <= 0 or dni <= 0:
+        return None, None
+    b = px / idx - 1
+    return lev_r(b * 100, 3), lev_r(b * 365 / dni * 100, 2)
+
+
+def lev_ms(r, key='creation_timestamp'):
+    v = r.get(key) if isinstance(r, dict) else None
+    return int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 else None
+
+
+def dr_fut_exp(name):
+    """'BTC-27NOV26' → rozliczenie 2026-11-27 08:00 UTC (Deribit rozlicza o 08:00 UTC); inny kształt (wieczysty, opcja, zła data) → None."""
+    m = re.match(r'^[A-Z0-9]+-(\d{1,2})([A-Z]{3})(\d{2})$', str(name or ''))
+    if not m or m.group(2) not in _LEV_MON:
+        return None
+    try:
+        return datetime.datetime(2000 + int(m.group(3)), _LEV_MON[m.group(2)], int(m.group(1)), 8, tzinfo=datetime.timezone.utc)
+    except ValueError:
+        return None
+
+
+def dr_fut(cur, j=None):
+    """Deribit, kontrakty z datą i wieczysty (get_book_summary_by_currency?kind=future): krzywa terminowa. Cena indeksu = estimated_delivery_price
+    (mediana wierszy), czas = creation_timestamp odpowiedzi. Terminy krótsze niż DR_FUT_MIN_DNI dni pomijane. Otwarte pozycje kontraktów odwrotnych
+    (BTC, ETH) Deribit podaje w USD. Wieczysty: mark, pozycje, obrót 24 h (USD) i stawka funding_8h (za 8 h) przeliczona na rok (× 3 × 365)."""
+    if j is None:
+        j = get_json(DR_URL + f'get_book_summary_by_currency?currency={cur}&kind=future', timeout=lev_tmo())
+    R = j.get('result') if isinstance(j, dict) else None
+    if not isinstance(R, list) or not R:
+        raise ValueError('brak instrumentów')
+    R = [r for r in R if isinstance(r, dict)]
+    ms = [m for m in (lev_ms(r) for r in R) if m]
+    t = lev_dt(max(ms)) if ms else datetime.datetime.fromisoformat(NOW)
+    ix = sorted(v for v in (lev_num(r.get('estimated_delivery_price')) for r in R) if v and v > 0)
+    if not ix:
+        raise ValueError('brak ceny indeksu')
+    idx = ix[len(ix) // 2]
+    perp, terms = None, []
+    for r in R:
+        name, mark = r.get('instrument_name'), lev_num(r.get('mark_price'))
+        if not isinstance(name, str) or mark is None or mark <= 0:
+            continue
+        if name.endswith('-PERPETUAL'):
+            f8 = lev_num(r.get('funding_8h'))
+            if f8 is not None and abs(f8) > LEV_FMAX * 8:
+                f8 = None   # stawka za 8 h ponad 4 % = pomyłka jednostki → brak, nie liczba
+            perp = {'mark': mark, 'oi_usd': lev_pos(lev_num(r.get('open_interest'))), 'vol_usd': lev_pos(lev_num(r.get('volume_usd'))),
+                    'f8': f8, 'f_y': None if f8 is None else lev_r(f8 * 3 * 365 * 100, 3)}
+            continue
+        e = dr_fut_exp(name)
+        if not e:
+            continue
+        dni = (e - t).total_seconds() / 86400
+        if dni < DR_FUT_MIN_DNI:
+            continue
+        b, y = lev_basis(mark, idx, dni)
+        if y is None:
+            continue
+        terms.append({'d': e.date().isoformat(), 'dni': lev_r(dni, 1), 'mark': mark, 'b': b, 'y': y,
+                      'oi_usd': lev_pos(lev_num(r.get('open_interest'))), 'vol_usd': lev_pos(lev_num(r.get('volume_usd')))})
+    if not terms and not perp:
+        raise ValueError('brak kontraktów z liczbami')
+    terms.sort(key=lambda x: x['d'])
+    return {'t': t.isoformat(), 'idx': lev_r(idx, 2), 'perp': perp, 'terms': terms}
+
+
+def dr_terms(R, t=None):
+    """Z odpowiedzi o opcjach (lista instrumentów) → wyliczenia na termin i obrót put/call. Zwraca {'term': [...], 'vol_p', 'vol_c' (obrót 24 h w monetach), 'pcv' (put/call wg obrotu)}.
+    Termin: d (rozliczenie), dni, mo (miesięczny/kwartalny = ostatni piątek miesiąca), oi (monety), oi_usd (× forward), fwd, iv (ATM, %), skew
+    (pp: IV putu 90 % − IV calla 110 % forwardu; None, gdy najbliższa cena wykonania jest dalej niż 4 % od celu), pain (max pain), walls
+    ([cena wykonania, put, call] × 3 największe), pc (put/call wg otwartych pozycji). Zostają terminy ≥ 1 dzień: wszystkie miesięczne oraz najwyżej
+    DR_OPT_WEEK_N najbliższych tygodniowych z pozycjami ≥ DR_OPT_MIN_USD (USD), do DR_OPT_TERMS terminów."""
+    ms = [m for m in (lev_ms(r) for r in R if isinstance(r, dict)) if m]
+    t = t or (lev_dt(max(ms)) if ms else datetime.datetime.fromisoformat(NOW))
+    by, vp, vc, nv = {}, 0.0, 0.0, 0
+    for r in R:
+        if not isinstance(r, dict):
+            continue
+        m = re.match(r'^[A-Z0-9]+-(\d{1,2}[A-Z]{3}\d{2})-(\d+)-([PC])$', str(r.get('instrument_name') or ''))
+        if not m:
+            continue
+        e = dr_fut_exp('X-' + m.group(1))
+        if not e:
+            continue
+        v = lev_num(r.get('volume'))   # obrót 24 h w monetach (kontrakty opcji = 1 moneta); pole volume_usd to premia w USD, nie wartość kontraktów
+        if v is not None and v >= 0:
+            nv += 1
+            if m.group(3) == 'P':
+                vp += v
+            else:
+                vc += v
+        by.setdefault(e, []).append((int(m.group(2)), m.group(3), r))
+    out = []
+    for e in sorted(by):
+        rows = by[e]
+        dni = (e - t).total_seconds() / 86400
+        if dni < 1:
+            continue
+        oi_of = lambda r: lev_num(r.get('open_interest')) or 0.0   # noqa: E731
+        oi = sum(oi_of(r) for _k, _t, r in rows)
+        if oi <= 0:
+            continue
+        fw = sorted(v for v in (lev_num(r.get('underlying_price')) for _k, _t, r in rows) if v and v > 0)
+        fwd = fw[len(fw) // 2] if fw else None
+        if not fwd:
+            continue
+        ks = sorted({k for k, _t, _r in rows})
+        near = lambda x: min(ks, key=lambda k: abs(k - x))   # noqa: E731
+        iv = lambda k, ty: next((lev_num(r.get('mark_iv')) for kk, tt, r in rows if kk == k and tt == ty and (lev_num(r.get('mark_iv')) or 0) > 0), None)   # noqa: E731
+        atm = [v for v in (iv(near(fwd), 'C'), iv(near(fwd), 'P')) if v is not None]
+        kp, kc = near(0.9 * fwd), near(1.1 * fwd)
+        ip = iv(kp, 'P') if abs(kp / fwd - 0.9) <= 0.04 else None
+        ic = iv(kc, 'C') if abs(kc / fwd - 1.1) <= 0.04 else None
+        pain = min(ks, key=lambda K: (sum(oi_of(r) * (max(0, K - k) if ty == 'C' else max(0, k - K)) for k, ty, r in rows), K))
+        wall = {}
+        for k, ty, r in rows:
+            w = wall.setdefault(k, [0.0, 0.0])
+            w[0 if ty == 'P' else 1] += oi_of(r)
+        top = sorted(wall.items(), key=lambda x: -(x[1][0] + x[1][1]))[:3]
+        po = sum(oi_of(r) for _k, ty, r in rows if ty == 'P')
+        co = sum(oi_of(r) for _k, ty, r in rows if ty == 'C')
+        d = e.date()
+        mo = d.weekday() == 4 and (d + datetime.timedelta(days=7)).month != d.month
+        out.append({'d': d.isoformat(), 'dni': lev_r(dni, 1), 'mo': mo, 'oi': lev_r(oi, 1), 'oi_usd': lev_r(oi * fwd, 0), 'fwd': lev_r(fwd, 1),
+                    'iv': lev_r(sum(atm) / len(atm), 2) if atm else None, 'skew': lev_r(ip - ic, 2) if ip is not None and ic is not None else None,
+                    'pain': pain, 'walls': [[k, lev_r(p, 1), lev_r(c, 1)] for k, (p, c) in top], 'pc': lev_r(po / co, 4) if co > 0 else None})
+    mon = [x for x in out if x['mo']]
+    wk = [x for x in out if not x['mo'] and x['oi_usd'] >= DR_OPT_MIN_USD][:DR_OPT_WEEK_N]
+    sel = sorted(mon + wk, key=lambda x: x['d'])[:DR_OPT_TERMS]
+    return {'term': sel, 'vol_p': lev_pos(vp, 1) if nv else None, 'vol_c': lev_pos(vc, 1) if nv else None, 'pcv': lev_r(vp / vc, 3) if nv and vc > 0 and vp > 0 else None}
+
+
+def dr_terms_safe(R):
+    """Wyliczenia opcji wg terminu nie psują dotychczasowych miar opcji: błąd → pusty słownik i wpis w błędach (strona zostaje bez tej części)."""
+    try:
+        return dr_terms(R)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Dźwignia: Deribit: opcje wg terminu: {e}'))
+        return {}
+
+
+def okx_fut(cur):
+    """OKX, kontrakty z datą w parze coin-USD (public/mark-price?instType=FUTURES&instFamily=…) + indeks (market/index-tickers) → ta sama krzywa
+    co z Deribit (do kontroli dziennej, na stronie niewidoczna). Termin: data z nazwy BTC-USD-261030, rozliczenie 08:00 UTC; czas = ts odpowiedzi."""
+    mk = okx_get(f'public/mark-price?instType=FUTURES&instFamily={cur}-USD')
+    ix = lev_num(okx_get(f'market/index-tickers?instId={cur}-USD')[0].get('idxPx'))
+    if ix is None or ix <= 0:
+        raise ValueError('brak ceny indeksu')
+    ms = [int(x['ts']) for x in mk if isinstance(x, dict) and str(x.get('ts', '')).isdigit() and int(x['ts']) > 0]
+    t = lev_dt(max(ms)) if ms else datetime.datetime.fromisoformat(NOW)
+    terms = []
+    for x in mk:
+        m = re.match(r'^' + cur + r'-USD-(\d{2})(\d{2})(\d{2})$', str(x.get('instId') or '')) if isinstance(x, dict) else None
+        px = lev_num(x.get('markPx')) if m else None
+        if not m or px is None or px <= 0:
+            continue
+        try:
+            e = datetime.datetime(2000 + int(m.group(1)), int(m.group(2)), int(m.group(3)), 8, tzinfo=datetime.timezone.utc)
+        except ValueError:
+            continue
+        dni = (e - t).total_seconds() / 86400
+        if dni < DR_FUT_MIN_DNI:
+            continue
+        b, y = lev_basis(px, ix, dni)
+        if y is not None:
+            terms.append({'d': e.date().isoformat(), 'dni': lev_r(dni, 1), 'mark': px, 'b': b, 'y': y})
+    if not terms:
+        raise ValueError('brak kontraktów z liczbami')
+    terms.sort(key=lambda x: x['d'])
+    return {'t': t.isoformat(), 'idx': lev_r(ix, 2), 'terms': terms}
+
+
+def cde_get(url):
+    """Coinbase USA: GET z limitem rozmiaru odpowiedzi (CDE_MAXB) — większa odpowiedź to błąd, nie wczytujemy jej w całości."""
+    with _otworz(url, {'Accept': 'application/json'}, lev_tmo()) as r:
+        b = r.read(CDE_MAXB + 1)
+    if len(b) > CDE_MAXB:
+        raise ValueError(f'odpowiedź większa niż {CDE_MAXB // 1000} KB')
+    return json.loads(b.decode('utf-8', 'replace'))
+
+
+def cde_parse(j):
+    """Coinbase USA (regulowany rynek kontraktów, lista get products?product_type=FUTURE): BTC i ETH — wieczysty (funding_interval, np. '3600s')
+    i kontrakty z datą. Wiersz wieczystego jak w innych giełdach (lev_row: stawka godzinowa i roczna, pozycje w monetach = kontrakty × contract_size,
+    obrót) + idx (index_price) i terms: kontrakty z datą z pozycjami ≥ CDE_MIN_OI_USD (cienkie kontrakty mają nieaktualne ceny — pomijane),
+    cena = mid_market_price, a gdy jej brak — ostatnia cena. Czas `t` = chwila odpowiedzi odczytana z pola time_to_expiry_ms (rozliczenie − pozostały
+    czas), nie z zegara zbieracza."""
+    P = j.get('products') if isinstance(j, dict) else None
+    if not isinstance(P, list) or not P:
+        raise ValueError('brak produktów')
+    rows = []
+    for p in P:
+        d = p.get('future_product_details') if isinstance(p, dict) else None
+        if not isinstance(d, dict) or d.get('contract_root_unit') not in ('BTC', 'ETH') or p.get('trading_disabled') or p.get('is_disabled'):
+            continue
+        try:
+            e = datetime.datetime.fromisoformat(str(d.get('contract_expiry')).replace('Z', '+00:00'))
+        except ValueError:
+            continue
+        ttl = lev_num(d.get('time_to_expiry_ms'))
+        rows.append((p, d, e, None if ttl is None else e - datetime.timedelta(milliseconds=ttl)))
+    ts = [x[3] for x in rows if x[3] is not None]
+    t = max(ts).replace(microsecond=0) if ts else datetime.datetime.fromisoformat(NOW)
+    out = {'t': t.isoformat(), 'f_hours': LEV_HOURS['cb']}
+    for c in ('BTC', 'ETH'):
+        perp, dated = None, []
+        for p, d, e, _t in rows:
+            if d.get('contract_root_unit') != c:
+                continue
+            if re.match(r'^\d+s$', str(d.get('funding_interval') or '')):
+                perp = (p, d)
+            else:
+                dated.append((p, d, e))
+        if not perp:
+            continue
+        p, d = perp
+        size = lev_num(d.get('contract_size'))
+        mid, last = lev_num(p.get('mid_market_price')), lev_num(p.get('price'))
+        px = mid if mid is not None and mid > 0 else last
+        hours = int(re.match(r'^(\d+)s$', d['funding_interval']).group(1)) / 3600
+        oi_c = lev_num(d.get('open_interest'))
+        v_c = lev_num(p.get('volume_24h'))
+        row = lev_row(lev_num(d.get('funding_rate')), hours if 0 < hours <= 24 else LEV_HOURS['cb'], None if oi_c is None or size is None else oi_c * size, px,
+                      None if v_c is None or size is None else v_c * size, lev_num(p.get('approximate_quote_24h_volume')), t.isoformat())
+        if not row:
+            continue
+        idx = lev_num(d.get('index_price'))
+        idx = idx if idx and idx > 0 else None   # indeks wieczystego tej samej monety — mianownik basis kontraktów z datą (liczony bez zaokrąglenia)
+        row['idx'] = lev_r(idx, 2) if idx else None
+        terms = []
+        for q, dd, e in dated:
+            sz, oi_q = lev_num(dd.get('contract_size')), lev_num(dd.get('open_interest'))
+            m2, l2 = lev_num(q.get('mid_market_price')), lev_num(q.get('price'))
+            px2 = m2 if m2 is not None and m2 > 0 else l2
+            if sz is None or oi_q is None or px2 is None or px2 <= 0 or not idx:
+                continue
+            usd = oi_q * sz * px2
+            dni = (e - t).total_seconds() / 86400
+            if usd < CDE_MIN_OI_USD or dni < DR_FUT_MIN_DNI:
+                continue
+            b, y = lev_basis(px2, idx, dni)
+            if y is not None:
+                terms.append({'id': q.get('product_id'), 'd': e.date().isoformat(), 'dni': lev_r(dni, 1), 'px': px2, 'b': b, 'y': y, 'oi_usd': lev_r(usd, 0)})
+        terms.sort(key=lambda x: x['d'])
+        row['terms'] = terms
+        out[c] = row
+    if len(out) <= 2:
+        raise ValueError('brak wieczystych BTC i ETH')
+    return out
+
+
+def lev_cde(prev=None):
+    """Coinbase USA: lista kontraktów (do CDE_PAGES stron, gdy odpowiedź ma kolejną); moneta bez wiersza → poprzednia wersja tej monety (z własnym czasem)."""
+    prev = prev if isinstance(prev, dict) else {}
+    if _RUN_T0[0] is not None and time.monotonic() - _RUN_T0[0] > BACK_LATE:   # długi przebieg — tylko pilne: lista kontraktów (ok. 280 KB) poczeka na następny
+        META['notes'].append(f'Dźwignia: Coinbase USA pominięte — przebieg trwa już {time.monotonic() - _RUN_T0[0]:.0f} s (granica {BACK_LATE} s), poprzednia część zostaje')
+        return None   # None = „bez pobierania” (jak Binance z tego samego dnia): część zostaje z poprzedniego przebiegu z własnym czasem
+    prods, url, pages = [], CDE_URL, 0
+    while url and pages < CDE_PAGES:
+        j = cde_get(url); pages += 1
+        if not isinstance(j, dict) or not isinstance(j.get('products'), list):
+            raise ValueError('zły kształt odpowiedzi')
+        prods += j['products']
+        pg = j.get('pagination') if isinstance(j.get('pagination'), dict) else {}
+        cur = pg.get('next_cursor') if pg.get('has_next') is True else ''
+        url = CDE_URL + '&cursor=' + _zuz_parse.quote(str(cur), safe='') if cur else None
+    out = cde_parse({'products': prods})
+    for c in ('BTC', 'ETH'):
+        if c not in out and isinstance(prev.get(c), dict):
+            out[c] = prev[c]; META['errors'].append(mask(f'Dźwignia: Coinbase USA: brak wiersza wieczystego {c} — zostaje poprzedni'))
+    return out
+
+
+def lev_b3m(fut, day=None):
+    """Basis roczny (%) kontraktu najbliższego trzem miesiącom (45–135 dni; najbliżej 90) z krzywej Deribit; (wartość, data rozliczenia) albo (None, None).
+    Do historii dziennej: ten sam sposób wyboru co dzień, choć sam kontrakt zmienia się z biegiem czasu (wyliczenie, nie jeden szereg cen)."""
+    T = [x for x in (fut.get('terms') if isinstance(fut, dict) else None) or [] if isinstance(x, dict) and lev_num(x.get('y')) is not None
+         and lev_num(x.get('dni')) is not None and 45 <= x['dni'] <= 135]
+    if not T:
+        return None, None
+    x = min(T, key=lambda z: (abs(z['dni'] - 90), z['d']))
+    return x['y'], x['d']
+
+
 def lev_all(out, now=None):
     """Suma otwartych pozycji w USD z giełd z bieżącym stanem (wiersz młodszy niż LEV_SUMAGE wg własnego czasu `t`, a bez niego — czasu części);
     Binance poza sumą (plik z poprzedniego dnia). Na monetę: usd i posortowana lista giełd — historia porównuje dzień do dnia tylko ten sam zestaw.
@@ -14616,6 +14943,12 @@ def lev_hist(hist, out, today):
             dvo = dvo.get('dvol') if isinstance(dvo, dict) else None
             if isinstance(dvo, dict) and _dig(dvo, ('v',)) is not None and str(dvo.get('t') or '')[:10] == d:
                 row['dvol_' + c] = dvo['v']
+            co = out['dr'].get(c.upper()) if isinstance(out.get('dr'), dict) else None   # v343 (F1Z3): basis 3M (kontrakt najbliższy trzem miesiącom) — dzień z czasu odczytu
+            fu = co.get('fut') if isinstance(co, dict) else None
+            if isinstance(fu, dict) and str(fu.get('t') or '')[:10] == d:
+                v3, d3 = lev_b3m(fu)
+                if v3 is not None:
+                    row['basis_3m_' + c] = v3; row['basis_3m_' + c + '_d'] = d3
     tot = lev_all(out)   # v109: suma giełd z bieżącym stanem (do 6 h) — do zmiany dziennej; zestaw giełd zapisany, żeby porównywać to samo
     for c in ('btc', 'eth'):
         if c.upper() in tot:
@@ -15222,6 +15555,7 @@ def build_dzwignia(prev=None, today=None, only=None, cz_key=None):
     part('kr', lambda: lev_kr(prev.get('kr')))     # v109
     part('cb', lambda: lev_cb(prev.get('cb')))
     part('dy', lambda: lev_dy(prev.get('dy')))
+    part('cde', lambda: lev_cde(prev.get('cde')))   # v343 (F1Z3): Coinbase USA — w miejsce wstrzymanego Coinbase International
     if not any(out['ok'].get(k) for k in LEV_PX):   # v126: liczą się tylko odczyty bezpośrednie — sama część cz nie może odświeżyć pliku
         raise RuntimeError('żadna część nie odpowiedziała')   # (wszystkie bezpośrednie padły: poprzedni plik zostaje, kontrola to widzi; bez zapytań cz)
     if cz_key:   # v126: część dodatkowa tylko z kluczem — ostatnia, by porównać stawki z bieżącymi odczytami bezpośrednimi (hl, kr, cb, dy, okx)

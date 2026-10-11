@@ -454,6 +454,135 @@ def fundusze_kontrola(fu, ceny=None, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v343 (F1Z3): dźwignia — krzywa terminowa i basis ----------------------------------------------------------------
+# Plik data/dzwignia.json (zbieracz co ok. 55 min): krzywa kontraktów z datą Deribit (dr.<moneta>.fut), Coinbase USA (część cde) i — tylko do tej kontroli —
+# krzywa kontraktów z datą OKX (okx.<moneta>.fut). Wiersze: wiek odczytu liczony z CZASU Z ODPOWIEDZI giełdy (pole t), nie z czasu pliku; próg DZW_WIEK_MIN.
+# Zgodność: basis roczny Deribit vs OKX w tym samym terminie rozliczenia (oba o 08:00 UTC), tylko terminy ≥ 7 dni (krótsze zbieracz pomija: szum w skali roku);
+# odczyty z różnych chwil (> DZW_ROZNICA_MIN) nie są porównywane. Tolerancja = max(DZW_BASIS_PP pp rocznie, DZW_BASIS_CENA_PCT % ceny w przeliczeniu na rok
+# dla danego terminu): ta sama rozbieżność cen (indeksów i cen kontraktów obu giełd) daje w skali roku tym większą różnicę, im krótszy termin, więc stała
+# tolerancja w pp dawałaby fałszywe ostrzeżenia przy terminach do miesiąca (plan zadania: 1 pp rocznie — dla 19 dni to zaledwie 0,05 % ceny).
+# TEST WSTECZNY (11.10.2026, nagrania godzinowe z ostatnich ~4 dób: 100 godzin × 6 kontraktów — BTC 4 terminy, ETH 2; w testach: _F1Z3_BACKTEST):
+# różnica cen Deribit (ceny transakcji — bardziej zaszumione niż ceny znacznikowe z odczytu zbieracza, więc próg jest ostrożny) vs OKX (cena znacznikowa i indeks
+# godzinowy): mediana 0,09 %, p95 0,38 %, p99 0,65 %, maks. 1,66 % (ETH 30.10). Próg ceny 1,0 % = 1 godzina z 200 z ostrzeżeniem (0,5 % < 1 %); próg 0,25 % dawałby
+# 18,5 % fałszywych ostrzeżeń, 0,5 % — 4 %. Żywy odczyt zbieracza (cena znacznikowa vs znacznikowa) 11.10: różnice ≤ 0,09 % (BTC) i ≤ 0,3 % (ETH, cienki
+# kontrakt wrzesień 2027). Kontrola zapisuje największą różnicę w tabeli — po kilku tygodniach prawdziwej historii próg można zaostrzyć. Najwyżej ostrzeżenie.
+DZW_WIEK_MIN = 180
+DZW_ROZNICA_MIN = 120
+DZW_BASIS_PP = 1.0
+DZW_BASIS_CENA_PCT = 1.0
+DZW_TERMINY_MIN = 4
+DZW_W = '\u26a0\ufe0f'   # to samo znak ostrzeżenia co w reszcie kontroli (selektor wariantu zapisany ucieczką)
+DZW_OK = '\u2705'
+DZW_ETYKIETA = {'dr': 'Dźwignia — krzywa terminowa Deribit (BTC, ETH)', 'cde': 'Dźwignia — Coinbase USA (kontrakty BTC, ETH)',
+                'por': 'Dźwignia — basis Deribit vs OKX (ten sam termin)'}
+
+
+def _dzw_t(x):
+    try:
+        t = dt.datetime.fromisoformat(str(x).replace('Z', '+00:00'))
+        return t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def _dzw_terminy(f, klucz='y'):
+    """{data rozliczenia: (basis roczny, dni)} z listy terminów krzywej; wiersze bez liczb pomijane."""
+    out = {}
+    for z in (f.get('terms') if isinstance(f, dict) and isinstance(f.get('terms'), list) else []):
+        if isinstance(z, dict) and isinstance(z.get('d'), str) and all(isinstance(z.get(k), (int, float)) and not isinstance(z.get(k), bool) for k in (klucz, 'dni')):
+            out[z['d']] = (float(z[klucz]), float(z['dni']))
+    return out
+
+
+def dzw_tolerancja(dni):
+    """Tolerancja różnicy basis rocznego (pp) między giełdami dla terminu o danej liczbie dni do rozliczenia."""
+    return max(DZW_BASIS_PP, DZW_BASIS_CENA_PCT * 365 / dni)
+
+
+def dzw_kontrola(j, now=None):
+    """data/dzwignia.json → {'rows': [(etykieta, status, wiek min, data, uwaga)], 'uwagi': [...], 'por': {moneta: {...}}}; brak pliku = bez wierszy
+    (wiek pliku i brak pliku zgłasza pętla PLIKI). status: zgodne / ostrzeżenie / '?' (brak części — np. pierwsze godziny po wdrożeniu)."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'por': {}}
+    if not isinstance(j, dict):
+        return out
+    dr = j.get('dr') if isinstance(j.get('dr'), dict) else {}
+    # 1. krzywa Deribit: wiek odczytu i liczba terminów
+    ts, ile, brak = [], [], []
+    for c in ('BTC', 'ETH'):
+        f = dr.get(c, {}).get('fut') if isinstance(dr.get(c), dict) else None
+        t = _dzw_t(f.get('t')) if isinstance(f, dict) else None
+        if t is None:
+            brak.append(c); continue
+        ts.append(t); ile.append(len(_dzw_terminy(f)))
+    lab = DZW_ETYKIETA['dr']
+    if brak:
+        out['rows'].append((lab, '?', None, None, 'brak krzywej: ' + ', '.join(brak)))
+        out['uwagi'].append(f'{lab}: brak krzywej w pliku ({", ".join(brak)})')
+    else:
+        w = int((now - min(ts)).total_seconds() // 60)
+        st, nota = DZW_OK, ''
+        if w > DZW_WIEK_MIN:
+            st, nota = DZW_W, f'odczyt starszy niż {DZW_WIEK_MIN} min (zbieracz odświeża co ok. 55 min)'
+        elif min(ile) < DZW_TERMINY_MIN:
+            st, nota = DZW_W, f'tylko {min(ile)} terminów z basis (oczekiwane ≥ {DZW_TERMINY_MIN}) — giełda zmieniła listę kontraktów?'
+        out['rows'].append((lab, st, w, min(ts).isoformat(), nota))
+        if st == DZW_W:
+            out['uwagi'].append(f'{lab}: dane z {min(ts).isoformat()} — {fmt_wiek(w)} temu ({nota})')
+    # 2. Coinbase USA: wiek odczytu
+    cde = j.get('cde') if isinstance(j.get('cde'), dict) else None
+    lab = DZW_ETYKIETA['cde']
+    t = _dzw_t(cde.get('t')) if cde else None
+    if t is None:
+        out['rows'].append((lab, '?', None, None, 'brak części w pliku'))
+        out['uwagi'].append(f'{lab}: brak części w pliku')
+    else:
+        w = int((now - t).total_seconds() // 60)
+        st = DZW_W if w > DZW_WIEK_MIN else DZW_OK
+        nota = '' if st == DZW_OK else f'odczyt starszy niż {DZW_WIEK_MIN} min'
+        out['rows'].append((lab, st, w, t.isoformat(), nota))
+        if st == DZW_W:
+            out['uwagi'].append(f'{lab}: dane z {t.isoformat()} — {fmt_wiek(w)} temu ({nota})')
+    # 3. zgodność: basis roczny Deribit vs OKX w tym samym terminie
+    lab = DZW_ETYKIETA['por']
+    okx = j.get('okx') if isinstance(j.get('okx'), dict) else {}
+    zle, ok_n, nic = [], 0, []
+    for c in ('BTC', 'ETH'):
+        fd = dr.get(c, {}).get('fut') if isinstance(dr.get(c), dict) else None
+        fo = okx.get(c, {}).get('fut') if isinstance(okx.get(c), dict) else None
+        td, to = (_dzw_t(fd.get('t')) if isinstance(fd, dict) else None), (_dzw_t(fo.get('t')) if isinstance(fo, dict) else None)
+        if td is None or to is None:
+            nic.append(f'{c}: brak krzywej {"Deribit" if td is None else "OKX"}'); continue
+        if abs((td - to).total_seconds()) / 60 > DZW_ROZNICA_MIN:
+            nic.append(f'{c}: odczyty z różnych chwil (> {DZW_ROZNICA_MIN} min)'); continue
+        A, B = _dzw_terminy(fd), _dzw_terminy(fo)
+        wsp = sorted(set(A) & set(B))
+        if not wsp:
+            nic.append(f'{c}: brak wspólnych terminów'); continue
+        rz = []
+        for d in wsp:
+            (ya, dni), (yb, _d2) = A[d], B[d]
+            tol = dzw_tolerancja(dni)
+            rz.append((abs(ya - yb) - tol, abs(ya - yb), tol, d, ya, yb))
+        ok_n += 1
+        najg = max(rz)
+        out['por'][c] = {'terminy': len(wsp), 'max_roznica_pp': round(najg[1], 2), 'tolerancja_pp': round(najg[2], 2), 'termin': najg[3]}
+        if najg[0] > 0:
+            zle.append(f'{c} {najg[3]}: Deribit {najg[4]:.2f}% vs OKX {najg[5]:.2f}% rocznie (różnica {najg[1]:.2f} pp, tolerancja {najg[2]:.2f} pp)')
+    if zle:
+        out['rows'].append((lab, DZW_W, None, None, '; '.join(zle)))
+        out['uwagi'].append(f'{lab}: ' + '; '.join(zle) + ' — jedna z giełd ma błędną cenę kontraktu, indeks albo termin?')
+    elif ok_n:
+        txt = '; '.join(f'{c}: {v["terminy"]} terminów, największa różnica {v["max_roznica_pp"]:.2f} pp (tolerancja {v["tolerancja_pp"]:.2f})' for c, v in out['por'].items())
+        out['rows'].append((lab, DZW_OK, None, txt, '' if not nic else '; '.join(nic)))
+    else:
+        out['rows'].append((lab, '?', None, None, '; '.join(nic) or 'brak danych'))
+        out['uwagi'].append(f'{lab}: {"; ".join(nic) or "brak danych"}')
+    return out
+
+
+
+
 def pliki_bez_nadzoru(src):
     """v327 (KON-08): nazwy plików data/*.json zapisywanych przez zbieracz (save('nazwa', …) i pętla budowniczych z kluczem w main()) bez wpisu w PLIKI
     i bez powodu w PLIKI_BEZ — test pilnuje, żeby nowy plik nie został bez kontroli wieku."""
@@ -6567,6 +6696,12 @@ def kontrola():
     for label, st, w, txt, note in P_pip['rows']:
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
     R['uwagi'] += P_pip['uwagi']
+    # 3c-dzw. v343 (F1Z3): dźwignia (data/dzwignia.json) — wiek krzywej terminowej Deribit i Coinbase USA (czas z odpowiedzi giełdy) oraz zgodność basis
+    # Deribit vs OKX w tym samym terminie; osobne wiersze (lista SWIEZOSC bez zmian); najwyżej ostrzeżenie, nigdy błąd krytyczny ani BŁĄD
+    P_dzw = dzw_kontrola(files.get('dzwignia'))
+    for label, st, w, txt, note in P_dzw['rows']:
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+    R['uwagi'] += P_dzw['uwagi']
     # 3c-mt. v339 (F4Z1+F4Z2): metale przemysłowe (data/metale.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in metale_swiezosc(files.get('metale')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
