@@ -600,7 +600,10 @@ test('v50 cm: brak pliku zostawia kartę silnika; plik z danymi rysuje panel, gO
   assert.deepEqual(m.oks, ['cm']); assert.equal(m.calls.render, 1);
   assert.equal(m.ENG_OVR['coinmetrics-exchange-flows'](el), true); assert.equal(el.hidden, false);
   assert.ok(el.innerHTML.includes('<h2>cm.t</h2>'));
-  m.api.cmApply(null); assert.equal(m.api.CM.data, null); assert.equal(m.ENG_OVR['coinmetrics-exchange-flows'](el), false);
+  /* v333 (S1, CR8-03): świadoma zmiana — nieudane odświeżenie (null po wczytanym pliku) NIE kasuje danych (dawniej panel znikał na 30 min);
+     „pliku nigdy nie było” (null bez wcześniejszych danych) — jak dotąd brak danych */
+  m.api.cmApply(null); assert.ok(m.api.CM.data && m.api.CM.data.at, 'dane zostają'); assert.equal(m.ENG_OVR['coinmetrics-exchange-flows'](el), true);
+  const m2 = cmMake(); m2.api.cmApply(null); assert.equal(m2.api.CM.data, null); assert.equal(m2.api.CM.tried, 1); assert.equal(m2.ENG_OVR['coinmetrics-exchange-flows'](el), false);
 });
 
 test('v50 cm: netto z pola net (nie z zaokrąglonych wpłat i wypłat), podpis ze znaku, brak = „—” i „brak danych”, nigdy 0', () => {
@@ -20404,4 +20407,228 @@ test('v323: styl — tylko zmienne motywu (bez kolorów zapisanych wprost), kolo
     '@media (max-width:620px){.tsg-l{grid-template-columns:minmax(0,1fr)}']) assert.ok(css.includes(s), s);
   assert.ok(html.includes('@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}'), 'reguła ogólna: bez ruchu');
   assert.ok(c0 > html.indexOf('/* v158: TRENDY — infografika „Wyniki sygnałów” (pierścienie'), 'po stylu infografiki (test v158 sprawdza tam tylko zmienne motywu)');
+});
+
+
+/* ===================== v333 (pas S1 planu napraw): ładowanie danych i znaczniki świeżości — GL-01, CR8-03, GL-07, CR8-04, CR8-05, CR8-06, GL-02, GL-12.
+   Testy bez zegara (czas podany wprost) i bez sieci (atrapy pobierania). ===================== */
+const S1T = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i >= 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const tk = (k, o) => k + (o ? ':' + JSON.stringify(o) : '');
+  const clock = ms => { let now = ms; class D extends Date { constructor(...a) { if (a.length) super(...a); else super(now); } static now() { return now; } }
+    return {D, set: v => { now = v; }, add: v => { now += v; }, get now() { return now; }}; };
+  const glob = proto => {   /* gUdane, gNieakt, gStatus, gRenderRefresh, gDay — prawdziwy kod strony */
+    const src = cut('function gUdane(){', 'function gStatus(){') + cut('function gStatus(){', '\n/* wiek danych:') + '\n' + cut('function gRenderRefresh(){', '\nfunction gRenderAll(){') + '\n' +
+      cut('function gDay(cb){', '\nfunction gDayLive(cb){');
+    const C = clock(Date.parse('2026-10-10T08:00:00Z')), el = {'#g-live': {className: '', innerHTML: ''}, '#g-sample': {hidden: true}, '#g-refresh': {innerHTML: ''}, '[data-i18n="upd.v"]': {textContent: ''}};
+    const GLIVE = {st: 'ok', oecd: {USA: [['2026-08', 1]]}, src: {a: 1}, at: '', tms: 0, failN: 0}, box = {dzis: {at: 'x', q: {}}};
+    const F = new Function('$', 't', 'GLIVE', 'LOCALE', 'LANG', 'Date', 'location', 'srvJSON', 'gDayApply', 'gDayLive', 'gPeriodButtons', src + '\nreturn {gUdane, gNieakt, gStatus, gRenderRefresh, gDay};')(
+      q => el[q] || null, tk, GLIVE, {pl: 'pl-PL'}, 'pl', C.D, {protocol: proto || 'https:'}, () => v312.SP.resolve(box.dzis), () => 0, () => {}, () => {});
+    const show = () => { F.gStatus(); F.gRenderRefresh(); return {cls: el['#g-live'].className, live: el['#g-live'].innerHTML, bar: el['#g-refresh'].innerHTML, sample: el['#g-sample'].hidden, upd: el['[data-i18n="upd.v"]'].textContent}; };
+    return {F, C, GLIVE, box, show};
+  };
+  return {cut, tk, clock, glob};
+})();
+
+test('v333 (S1, GL-01): GLOBAL — 15 min zwykłej pracy bez „brak nowych danych”; dwa nieudane pobrania z rzędu albo ponad 11 min bez udanego — komunikat; odczyt dzis.json przesuwa „Odświeżone”', () => {
+  const G = S1T.glob(), t0 = G.C.now; G.F.gUdane(); const bad = [];
+  for (let s = 30; s <= 15 * 60; s += 30) {   /* plik dnia co 5 min (zegar gAuto), znacznik i pasek co 30 s */
+    G.C.set(t0 + s * 1000); if (s % 300 === 0) G.F.gDay();
+    const v = G.show(); if (v.cls !== 'live on' || /g\.rf\.stale/.test(v.live + v.bar)) bad.push(s);
+  }
+  assert.deepEqual(bad, [], 'zwykła praca — ani razu „brak nowych danych” (dawniej co 5 min przez ok. 2 min)');
+  assert.ok(/g\.rf\.(now|at)/.test(G.show().bar), 'pasek: „Odświeżone…”');
+  G.box.dzis = null; G.F.gDay(); let v = G.show();
+  assert.equal(v.cls, 'live on', 'jedno nieudane pobranie — jeszcze bez komunikatu'); assert.equal(G.GLIVE.failN, 1);
+  G.F.gDay(); v = G.show();
+  assert.equal(v.cls, 'live off', 'dwa nieudane z rzędu — żółta kropka'); assert.ok(v.live.startsWith('<i></i>g.rf.stale:') && v.bar.includes('g.rf.stale:'), v.live);
+  G.box.dzis = {at: 'x', q: {}}; G.F.gDay(); v = G.show();
+  assert.equal(G.GLIVE.failN, 0); assert.equal(v.cls, 'live on', 'udany odczyt — znowu na żywo');
+  G.C.add(11 * 60 * 1000 + 1000); v = G.show();
+  assert.equal(v.cls, 'live off', 'ponad 11 min bez żadnego udanego pobrania (np. zegary stoją) — komunikat'); assert.ok(v.bar.includes('g.rf.stale:'));
+  assert.ok(!html.includes('(Date.now()-GLIVE.tms)>150000') && !html.includes('age>150;'), 'dawny próg 150 s usunięty');
+});
+
+test('v333 (S1, GL-02): GLOBAL — bez wskaźników miesięcznych: „na żywo” z uwagą o rankingu, bez „dane przykładowe”; brak wszystkiego — „brak połączenia”; „dane przykładowe” tylko w pliku z dysku', () => {
+  const G = S1T.glob(); G.GLIVE.oecd = null; G.GLIVE.sample = true; G.F.gUdane(); let v = G.show();
+  assert.equal(v.cls, 'live on'); assert.ok(v.live.includes('g.live.on:') && v.live.endsWith(' · s1.g.nooecd'), v.live);
+  assert.ok(!/g\.live\.off|g\.rf\.sample/.test(v.live + v.bar), 'bez napisu o danych przykładowych nad prawdziwymi liczbami'); assert.ok(v.upd && v.upd !== '—', 'pasek boczny: czas pobrania');
+  assert.equal(v.sample, true, 'plakietka „dane przykładowe” ukryta');
+  G.GLIVE.oecd = {USA: [['2026-08', 1]]}; v = G.show(); assert.ok(!v.live.includes('s1.g.nooecd'), 'z danymi miesięcznymi — bez uwagi');
+  G.GLIVE.st = 'err'; v = G.show();
+  assert.equal(v.live, '<i></i>s1.g.off'); assert.ok(v.bar.includes('g.rf.off') && !v.bar.includes('g.rf.sample'), v.bar);
+  const L = S1T.glob('file:'); L.GLIVE.st = 'err'; L.GLIVE.oecd = null; L.GLIVE.sample = true; v = L.show();
+  assert.equal(v.live, '<i></i>g.live.off'); assert.ok(v.bar.includes('g.rf.sample')); assert.equal(v.sample, false, 'plik z dysku — plakietka „dane przykładowe”');
+});
+
+test('v333 (S1, GL-02, GL-12): gLoad — zapasy wprost ze źródeł czekają w pierwszym widoku najwyżej 5 s; bez wskaźników miesięcznych stan „na żywo” i czas pobrania; spóźnione — jeszcze raz', async () => {
+  const A = v299.mk(), T = []; let id = 0;
+  A.E.setTimeout = (f, ms) => { T.push([ms, f, ++id]); return id; }; A.E.clearTimeout = x => { const i = T.findIndex(r => r[2] === x); if (i >= 0) T.splice(i, 1); };
+  const hold = {}; A.E.oecdSrv = () => ({});   /* plik OECD przeterminowany — strona pyta źródło wprost */
+  A.E.gJSON = u => { A.c.gj.push(u); return ['OECD', 'RATE', 'CLI'].includes(u) ? new Promise((r, j) => { hold[u] = j; }) : Promise.resolve({data: {}}); };
+  A.gLoad(); await v299.tick();
+  assert.equal(A.c.cb, 0, 'przed upływem 5 s — czeka'); assert.deepEqual(T.map(r => r[0]), [5000], 'jeden limit (zapas OECD); kursy z pliku — bez czekania');
+  T.splice(0).forEach(r => r[1]()); await v299.tick();
+  assert.deepEqual([A.c.cb, A.c.build, A.c.render], [1, 1, 0], 'po 5 s pierwszy widok bez odpowiedzi źródła');
+  assert.equal(A.E.GLIVE.st, 'ok', 'GL-02: kursy i ceny są — „na żywo” (dawniej „err” i „dane przykładowe”)'); assert.ok(A.E.GLIVE.tms > 0 && A.E.GLIVE.asof === '');
+  for (const k in hold) hold[k](new Error('429')); await v299.tick();
+  assert.deepEqual([A.c.build, A.c.render], [2, 1], 'odpowiedź (tu: odmowa) po pierwszym widoku — mapa i kafelki jeszcze raz');
+  const B = v299.mk(), TB = []; B.E.setTimeout = (f, ms) => { TB.push(ms); return 1; }; B.E.clearTimeout = () => {}; B.gLoad(); await v299.tick();
+  assert.deepEqual([B.c.cb, B.c.render], [1, 0], 'świeże pliki — pełny widok naraz, bez drugiego rysowania (v299)');
+});
+
+test('v333 (S1, GL-07, CR8-03): powrót do karty — też pełne odświeżenie GLOBAL (gdy zakładka otwarta); bez sieci — czekanie na „online”; powrót sieci — od razu pliki, najwyżej raz na 30 s', () => {
+  const a = html.indexOf('/* v176: powrót do karty'), b = html.indexOf('})();   /* v176: koniec */', a), src = html.slice(html.indexOf('(function(){', a), b + 5);
+  const N = ['metaLoad', 'gLoad', 'cmcLoad', 'krLoad', 'etfLoad', 'whLoad', 'levLoad', 'lnLoad', 'prmLoad', 'rwLoad', 't10Load', 'trdLoad', 'kcLoad', 'wyLoad', 'cmLoad', 'dlLoad',
+    'ixLoad', 'fgLoadG', 'strLoad', 'snbLoad', 'aukLoad', 'fndLoad', 'usaLoad', 'insLoad', 'engLoad', 'arcLoad'];
+  const mk = (started, online) => {
+    const calls = [], timers = [], ev = {}, wev = {}, nav = {onLine: online}; let now = 1e9, hidden = true;
+    new Function('document', 'Date', 'setTimeout', 'window', 'navigator', 'gStarted', ...N, src)({get hidden() { return hidden; }, addEventListener: (e, f) => { ev[e] = f; }},
+      {now: () => now}, (f, ms) => timers.push([ms, f]), {addEventListener: (e, f) => { wev[e] = f; }}, nav, started, ...N.map(n => () => calls.push(n)));
+    const flush = () => timers.splice(0).forEach(([, f]) => f());
+    return {calls, nav, wev, flush, show: ms => { now += ms; hidden = false; ev.visibilitychange(); flush(); }, hide: () => { hidden = true; ev.visibilitychange(); }, step: ms => { now += ms; }};
+  };
+  const A = mk(true, true); A.show(3 * 3600e3);
+  assert.equal(A.calls.length, 26); assert.deepEqual(A.calls.slice(0, 3), ['metaLoad', 'gLoad', 'cmcLoad'], 'GLOBAL (ceny, dzis, rynki, oecd, kursy) zaraz po stanie źródeł');
+  const B = mk(false, true); B.show(3 * 3600e3); assert.equal(B.calls.length, 25); assert.ok(!B.calls.includes('gLoad'), 'GLOBAL jeszcze nieotwarty — bez pobierania');
+  const C = mk(true, false); C.show(5 * 60e3); assert.deepEqual(C.calls, [], 'telefon bez sieci — bez 26 nieudanych zapytań');
+  C.nav.onLine = true; C.wev.online(); C.flush(); assert.equal(C.calls.length, 26, 'sieć wróciła — od razu pliki');
+  C.calls.length = 0; C.step(10e3); C.wev.online(); C.flush(); assert.equal(C.calls.length, 0, 'drugie „online” w ciągu 30 s — nic');
+  C.step(31e3); C.wev.online(); C.flush(); assert.equal(C.calls.length, 26, 'po 30 s — znowu');
+  const D = mk(true, false); D.show(5 * 60e3); D.hide(); D.nav.onLine = true; D.show(30e3);
+  assert.equal(D.calls.length, 26, 'powrót bez sieci, potem krótko w tle — przy następnym spojrzeniu pliki (mimo < 2 min)');
+});
+
+test('v333 (S1, CR8-03): ponowienia — po 5 i 10 s, najwyżej dwa na jedną awarię, udane od zera; karta w tle — bez pobierania', () => {
+  const T = []; let hidden = false;
+  const L = new Function('setTimeout', 'document', S1T.cut('function ldPonow(', '\n/* v176: powrót do karty') + '\nreturn {ldPonow, ldUdane};')((f, ms) => T.push([ms, f]), {get hidden() { return hidden; }});
+  const calls = [], f = () => calls.push('f'), old = {a: 1};
+  assert.equal(L.ldPonow('x', f, old), old, 'wcześniejsze dane wracają do wołającego'); assert.equal(L.ldPonow('x', f), null, 'bez danych — null (nigdy migawka)');
+  assert.deepEqual(T.map(r => r[0]), [5000, 10000]); L.ldPonow('x', f); assert.equal(T.length, 2, 'trzeci błąd z rzędu — bez ponowienia');
+  T.forEach(r => r[1]()); assert.equal(calls.length, 2);
+  L.ldPonow('x', f); assert.deepEqual(T.slice(2).map(r => r[0]), [5000], 'następna awaria (tyknięcie zegara) — znowu ponowienie');
+  L.ldUdane('x'); L.ldPonow('x', f); assert.equal(T[3][0], 5000, 'po sukcesie od zera'); L.ldPonow('y', f); assert.equal(T[4][0], 5000, 'każdy plik osobno');
+  hidden = true; T[3][1](); assert.equal(calls.length, 2, 'karta w tle — bez pobierania');
+});
+
+test('v333 (S1, CR8-03): cmcLoad, krLoad, metaLoad, cmApply, etfLoad — nieudane odświeżenie po udanym wczytaniu nie zmienia danych ani paneli; bez wcześniejszych danych — jak dotąd', () => {
+  const SP = v312.SP;
+  const one = (fn, names, holder, resp, rej) => {   /* prawdziwa ładowarka; ev — wywołania rysowania i ponowień */
+    const a = html.indexOf('function ' + fn + '(){'), b = html.indexOf('});}', a) + 4, ev = [];
+    const stubs = names.map(n => n === 'H' ? holder : (...x) => { ev.push(n + (n === 'ldPonow' ? ':' + x[0] : '')); return n === 'ldPonow' ? (x[2] || null) : undefined; });
+    new Function('srvJSON', ...names, html.slice(a, b).replace(/\b(CMC|KR)\b/g, 'H') + '\n' + fn + '();')(() => (rej ? SP.reject(new Error('sieć')) : SP.resolve(resp)), ...stubs);
+    return ev;
+  };
+  const OLD = {total_mcap: 1, at: 'x'};
+  let H = {data: OLD};
+  assert.deepEqual(one('cmcLoad', ['renderWhy', 'H', 'gOk', 'renderCmc', 'renderKPI', 'ldPonow', 'ldUdane'], H, null), ['ldPonow:cmc'], 'cmc.json: błąd — bez rysowania, ponowienie');
+  assert.equal(H.data, OLD, 'dane rynku zostają');
+  assert.deepEqual(one('cmcLoad', ['renderWhy', 'H', 'gOk', 'renderCmc', 'renderKPI', 'ldPonow', 'ldUdane'], H, null, true), ['ldPonow:cmc', 'renderCmc', 'renderWhy']); assert.equal(H.data, OLD);
+  H = {data: OLD}; assert.deepEqual(one('cmcLoad', ['renderWhy', 'H', 'gOk', 'renderCmc', 'renderKPI', 'ldPonow', 'ldUdane'], H, {total_mcap: 2, at: 'y'}), ['ldUdane', 'gOk', 'renderCmc', 'renderWhy', 'renderKPI']);
+  assert.equal(H.data.total_mcap, 2, 'nowy plik — nowe dane');
+  H = {data: null}; assert.deepEqual(one('cmcLoad', ['renderWhy', 'H', 'gOk', 'renderCmc', 'renderKPI', 'ldPonow', 'ldUdane'], H, null), ['ldPonow:cmc', 'renderCmc', 'renderWhy']); assert.equal(H.data, null, 'pliku nigdy nie było — brak');
+  const KOLD = {at: 'x', fng: 1}; H = {data: KOLD};
+  assert.deepEqual(one('krLoad', ['renderWhy', 'H', 'LIVE', 'gOk', 'renderKr', 'ldPonow', 'ldUdane'], H, {at: 'x'}), ['ldPonow:kr'], 'krypto.json bez części — jak błąd'); assert.equal(H.data, KOLD);
+  /* metaLoad — pasek „dane serwera sprzed …” zostaje */
+  const mm = (G, resp) => { const ev = [];
+    new Function('srvJSON', 'GLIVE', 'page', 'renderPage', 'srvStale', 'ldPonow', 'ldUdane', S1T.cut('function metaLoad(){', '\n/* v191:') + '\nmetaLoad();')(
+      () => SP.resolve(resp), G, 'overview', () => ev.push('renderPage'), () => ev.push('srvStale'), k => ev.push('ldPonow:' + k), k => ev.push('ldUdane:' + k));
+    return ev; };
+  const MOLD = {ok: {a: 1}, at: 'x'}, G1 = {meta: MOLD};
+  assert.deepEqual(mm(G1, null), ['ldPonow:meta']); assert.equal(G1.meta, MOLD);
+  const G2 = {meta: null}; assert.deepEqual(mm(G2, null), ['ldPonow:meta', 'srvStale']); assert.equal(G2.meta, null);
+  assert.deepEqual(mm(G1, {ok: {b: 1}, at: 'y'}), ['ldUdane:meta', 'srvStale']); assert.equal(G1.meta.at, 'y');
+  /* cmApply — przez atrapę testów v50 */
+  const m = cmMake(); m.api.cmApply(cmSample()); const r0 = m.calls.render; m.api.cmApply(null);
+  assert.ok(m.api.CM.data && m.api.CM.data.at === cmSample().at && m.calls.render === r0, 'cm.json: dane i panel bez zmian');
+  /* etfLoad — wczytany plik serwera zostaje (bez migawki z 23.09), po 3 h z napisem „nieodświeżone” */
+  const NOW = Date.parse('2026-10-10T12:00:00Z'), D = {now: () => NOW, parse: Date.parse};
+  const etf = (ETF, srv) => { const ev = [];
+    const F = new Function('srvJSON', 'ETF', 'renderEtf', 'renderWhy', 'etfKey', 'etfFromSnap', 'LOCALE', 'LANG', 'Date', 'ldPonow', 'ldUdane', v312.cut('function etfLoad(cb){', '\nfunction etfAuto(){') + '\nreturn etfLoad;')(
+      () => SP.resolve(srv), ETF, () => ev.push('renderEtf:' + ETF.st), () => ev.push('renderWhy'), () => '', () => { ev.push('MIGAWKA'); return {snap: true}; }, {pl: 'pl-PL'}, 'pl', D,
+      k => ev.push('ldPonow:' + k), k => ev.push('ldUdane:' + k));
+    F(); return ev; };
+  const EOLD = {assets: {btc: {day: [[1, 21]]}}}, E1 = {data: EOLD, st: 'srv', live: true, atMs: NOW - 4 * 3600e3, stale: false, mcap: {}};
+  assert.deepEqual(etf(E1, null), ['ldPonow:etf', 'renderEtf:srv', 'renderWhy']); assert.ok(E1.data === EOLD && E1.st === 'srv' && E1.stale === true, 'plik zostaje, „nieodświeżone”');
+  const E2 = {mcap: {}}; assert.ok(etf(E2, null).includes('MIGAWKA') && E2.st === 'snap', 'danych nie było wcale — migawka jak dotąd');
+});
+
+test('v333 (S1, CR8-04): wybrany okres 30D/1R — bez cichego przełączenia na stałe: wraca z danymi; bez krypto.json zmiany 30D/1R z poprzedniego odczytu', () => {
+  const src = S1T.cut('function applyLive(keepSel){', '\nfunction refreshEdges(){');
+  const mk = () => { const st = {period: '1R', sel: null}, LIVE = {}, box = {have: {'24H': 1, '7D': 1, '30D': 1, '1R': 1}};
+    const btn = ['24H', '7D', '30D', '1R'].map(v => ({dataset: {v}, disabled: false, title: '', setAttribute(k, x) { this[k] = x; }}));
+    const F = new Function('PCTF', 'buildPeriod', 'st', 'LIVE', '$$', 't', 'buildEdges', 'let DATA,EDGES,EB;\n' + src + '\nreturn applyLive;')(
+      {'24H': 1, '7D': 1, '30D': 1, '1R': 1}, p => box.have[p] ? {btc: [1, 1]} : null, st, LIVE, () => btn, k => k, () => []);
+    return {F, st, LIVE, btn, box}; };
+  const A = mk(); A.F(true); assert.equal(A.st.period, '1R');
+  A.box.have = {'24H': 1, '7D': 1}; A.F(true); assert.equal(A.st.period, '24H', 'brak danych 1R — chwilowo 24H'); assert.equal(A.btn[3].disabled, true);
+  A.F(true); assert.equal(A.st.period, '24H');
+  A.box.have = {'24H': 1, '7D': 1, '30D': 1, '1R': 1}; A.F(true); assert.equal(A.st.period, '1R', 'dane wróciły — wybór czytelnika wraca'); assert.equal(A.btn[3]['aria-pressed'], 'true');
+  const B = mk(); B.box.have = {'24H': 1, '7D': 1}; B.F(true); B.st.period = '7D'; B.box.have = {'24H': 1, '7D': 1, '30D': 1, '1R': 1}; B.F(true);
+  assert.equal(B.st.period, '7D', 'czytelnik wybrał w międzyczasie inny okres — zostaje');
+  /* loadAll: krypto.json chwilowo brak — 30D/1R z poprzedniego odczytu (źródło na żywo ich nie podaje) */
+  const SP = v312.SP, syms = Array.from({length: 12}, (_, i) => 'S' + i);
+  const coins = syms.map((s, i) => ({symbol: s, rank: i + 1, last_updated: '2026-10-10T08:00:00Z', quotes: {USD: {market_cap: 1e9, volume_24h: 1, percent_change_24h: 1, percent_change_7d: 2, percent_change_30d: 0, percent_change_1y: 0}}}));
+  const run = (krd) => { const LIVE = {st: 'ok', C: Object.fromEntries(syms.map(s => [s, {pct: {'24H': 0, '7D': 0, '30D': 5.5, '1R': -32}}])), src: 'live', err: ''};
+    new Function('LIVE', 'SEC_SYM', 'getJSON', 'SRC', 'krMerge', 'applyLive', 'lvSrv', 'krData', 'Promise', S1T.cut('function loadAll(cb,quiet){', '\n/* ===================== v164: zapas') + '\nreturn loadAll;')(
+      LIVE, {x: syms}, u => SP.resolve(u === 'C' ? coins : null), {coins: 'C', global: 'G', tvl: 'T', stab: 'S'}, () => {}, () => {}, () => false, () => krd, SP)(() => {}, true);   /* obietnice od razu (bez zegara) */
+    return LIVE; };
+  const L1 = run(null); assert.deepEqual([L1.C.S0.pct['30D'], L1.C.S0.pct['1R'], L1.C.S0.pct['24H'], L1.failN], [5.5, -32, 1, 0], 'zmiany 30D/1R zostają; 24H nowe');
+  const L2 = run({mk: {rows: []}}); assert.deepEqual([L2.C.S0.pct['30D'], L2.C.S0.pct['1R']], [null, null], 'plik jest — zmiany z pliku (krMerge), nie z poprzedniego odczytu');
+});
+
+test('v333 (S1, CR8-05): CRYPTO — źródło cen milczy ponad 15 min: żółta plakietka z wiekiem cen; plik serwera nowszy — przejście na plik', () => {
+  const st = (L, nowIso) => { const el = {className: '', innerHTML: '', title: ''}, now = Date.parse(nowIso);
+    new Function('$', 't', 'LIVE', 'isLive', 'liveWhen', 'document', 'Date', S1T.cut('function renderStatus(){', '\n\n/* v89: TRENDY') + '\nrenderStatus();')(
+      q => (q === '#live-badge' ? el : null), S1T.tk, L, () => L.st === 'ok', () => 'CZAS', {querySelector: () => null}, {now: () => now, parse: Date.parse});
+    return el; };
+  const base = {st: 'ok', src: 'live', err: 'x', at: '2026-10-10T07:51:30Z', okAt: Date.parse('2026-10-10T07:55:00Z'), cover: 1};
+  let e = st(Object.assign({failN: 3}, base), '2026-10-10T08:15:00Z');
+  assert.equal(e.className, 'live off'); assert.equal(e.innerHTML, '<i></i>s1.live.oldm:{"n":24}'); assert.equal(e.title, 's1.live.oldT');
+  e = st(Object.assign({failN: 36}, base), '2026-10-10T10:55:00Z'); assert.equal(e.innerHTML, '<i></i>s1.live.oldh:{"n":3}', 'trzy godziny');
+  e = st(Object.assign({failN: 2}, base), '2026-10-10T08:05:00Z'); assert.equal(e.className, 'live on', 'mniej niż 15 min — jak dotąd'); assert.ok(e.innerHTML.includes('live.on'));
+  e = st(Object.assign({failN: 0}, base), '2026-10-10T10:55:00Z'); assert.equal(e.className, 'live on', 'bez błędu (np. karta wróciła z tła) — jak dotąd');
+  e = st(Object.assign({failN: 5}, base, {src: 'srv'}), '2026-10-10T10:55:00Z'); assert.ok(e.innerHTML.includes('live.srv'), 'plik serwera — jak dotąd');
+  /* loadAll: ciche odświeżenie z błędem — plik serwera nowszy niż ceny na ekranie → przejście na plik; starszy → plakietka z wiekiem */
+  const SP = v312.SP;
+  const pob = asof => { const ev = [], LIVE = {st: 'ok', C: {BTC: {}}, src: 'live', err: '', at: '2026-10-10T07:51:30Z', failN: 0};
+    const F = new Function('LIVE', 'SEC_SYM', 'getJSON', 'SRC', 'krMerge', 'applyLive', 'lvSrv', 'krData', 'renderStatus', S1T.cut('function loadAll(cb,quiet){', '\n/* ===================== v164: zapas') + '\nreturn loadAll;')(
+      LIVE, {btc: ['BTC']}, () => SP.reject(new Error('HTTP 503')), {coins: [], global: [], tvl: [], stab: []}, () => {}, () => {},
+      k => { ev.push('lvSrv(' + k + ')'); LIVE.src = 'srv'; return true; }, () => ({mk: {asof}}), () => ev.push('renderStatus'));
+    F(() => ev.push('cb'), true); return {ev, LIVE}; };
+  let r = pob('2026-10-10T08:12:40'); assert.deepEqual(r.ev, ['lvSrv(true)', 'cb']); assert.deepEqual([r.LIVE.src, r.LIVE.err, r.LIVE.failN], ['srv', 'HTTP 503', 1]);
+  r = pob('2026-10-10T07:22:52'); assert.deepEqual(r.ev, ['renderStatus'], 'plik starszy — zostają ceny na żywo, plakietka przerysowana'); assert.equal(r.LIVE.src, 'live');
+});
+
+test('v333 (S1, CR8-06): widoki z własnym plikiem (cm, cftc) bez danych — karta „wczytywanie” / „brak połączenia”, nigdy stara karta silnika z kodami', () => {
+  const src = S1T.cut('function renderEng(){', '\n/* v34: sekcje informacyjne'), els = {};
+  const V = ['cftc-euro-fx', 'coinmetrics-exchange-flows', 'cftc-crypto', 'wdi-destinations'];
+  const mk = (CM, CFTC) => new Function('ENG_VIEWS', 'ENG_OVR', 'ENG', '$', 'engCheck', 'engBound', 'engWithheld', 'CM', 'CFTC', 't', 'escH', 'gtI', src + '\nreturn renderEng;')(
+    V, {'cftc-euro-fx': () => false, 'cftc-crypto': () => false, 'coinmetrics-exchange-flows': () => false}, {index: {}, files: {}}, q => els[q] || (els[q] = {hidden: true, innerHTML: ''}),
+    () => ({ok: true, state: 'WITHHELD'}), () => 'BOUND', v => 'SILNIK:' + v + ' Licencja NON_COMMERCIAL_STATUS_UNCONFIRMED FILE_EXPIRED', CM, CFTC, k => k, s => String(s), undefined);
+  const CM = {data: null}, CFTC = {data: null, timer: null}; mk(CM, CFTC)();
+  for (const v of ['cftc-euro-fx', 'coinmetrics-exchange-flows', 'cftc-crypto']) {
+    const h = els['#eng-' + v].innerHTML;
+    assert.ok(h.includes('<h2>eng.t.' + v + '</h2>') && h.includes('s1.eng.load') && h.includes('class="live wait"') && !/SILNIK|Licencja|NON_COMMERCIAL|FILE_EXPIRED/.test(h), v + ': ' + h);
+    assert.equal(els['#eng-' + v].hidden, false);
+  }
+  assert.ok(els['#eng-wdi-destinations'].innerHTML.startsWith('SILNIK:'), 'inne widoki silnika — jak dotąd');
+  CM.tried = 1; CFTC.timer = 1; mk(CM, CFTC)();
+  assert.ok(els['#eng-coinmetrics-exchange-flows'].innerHTML.includes('s1.eng.off') && els['#eng-cftc-crypto'].innerHTML.includes('s1.eng.offB'), 'pobranie się nie udało — „brak połączenia”');
+  CFTC.data = {markets: {}}; mk(CM, CFTC)();
+  assert.ok(els['#eng-cftc-euro-fx'].innerHTML.includes('eng.r.MARKET_MISSING') && els['#eng-cftc-euro-fx'].innerHTML.includes('s1.eng.missB'), 'plik bez tego rynku — „brak danych”, bez kodów');
+});
+
+test('v333 (S1): słownik — czysty JSON, 10 języków z tymi samymi kluczami i polami, prawdziwe tłumaczenia, linia nakładania zaraz po słowniku; każdy tekst czytany przez kod', () => {
+  const k0 = html.indexOf('"s1.g.off"'), d0 = html.lastIndexOf('\nconst EXTRA', k0) + 1, name = /^const (EXTRA\d+)=/.exec(html.slice(d0))[1], d1 = html.indexOf(';\n', d0);
+  const D = JSON.parse(html.slice(d0 + ('const ' + name + '=').length, d1));
+  assert.equal(html.slice(d1 + 2, html.indexOf('\n', d1 + 2)), 'for(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);');
+  assert.equal(html.split('const ' + name + '=').length, 2, 'numer słownika jeden raz');
+  assert.deepEqual(Object.keys(D), ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']);
+  const K = Object.keys(D.pl).sort(), pola = s => [...s.matchAll(/\{([a-z]+)\}/g)].map(m => m[1]).sort().join(',');
+  const kod = html.slice(0, d0) + html.slice(d1);
+  for (const k of K) assert.ok(kod.includes("'" + k + "'"), 'kod czyta ' + k);
+  for (const L of Object.keys(D)) { assert.deepEqual(Object.keys(D[L]).sort(), K, L);
+    for (const k of K) { assert.equal(pola(D[L][k]), pola(D.pl[k]), L + ' ' + k); if (L !== 'pl') assert.notEqual(D[L][k], D.pl[k], L + ' ' + k); if (!['pl', 'en'].includes(L)) assert.notEqual(D[L][k], D.en[k], L + ' ' + k); } }
+  for (const L of Object.keys(D)) for (const k of K) assert.ok(!/OECD|CoinGecko|CoinPaprika|Coin Metrics|CFTC/.test(D[L][k]), 'bez nazw dostawców: ' + L + ' ' + k);
 });
