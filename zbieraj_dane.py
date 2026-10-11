@@ -25171,6 +25171,872 @@ def build_szlaki(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
     return out
 
 
+# ===================== v339 (F4Z1+F4Z2): METALE PRZEMYSŁOWE — data/metale.json (plan źródeł, fala 4; dział SUROWCE) =====================
+# Osobny plik i osobny budowniczy (surowce.json bez zmian). Sześć metali giełdy w Londynie: miedź (cu), aluminium (al), nikiel (ni), cynk (zn),
+# ołów (pb), cyna (sn). Pięć części, każda z part_at / ok / next / err jak w szlaki.json:
+#   lme — oficjalne ceny giełdy w Londynie (cash = dostawa natychmiastowa, m3 = dostawa za 3 miesiące; USD/t) i dzienne zapasy w magazynach
+#         tej giełdy (t) ze strony przeglądu cen (jedno zapytanie ok. 40 KB na dzień); historia z tabel rocznych tej samej strony (jedna tabela =
+#         jeden metal i jeden rok: data, zapas, cash, 3M; ok. 30–35 KB) — najwyżej MT_WMH_NA_PRZEBIEG tabela na przebieg, nie w długim przebiegu,
+#         do skutku dla lat bieżący − MT_HIST_LAT … bieżący (raz; rok bieżący ponownie po luce w dniach). Z historii: tygodniowe zapasy (ostatni
+#         dzień handlu tygodnia ISO) i pasmo min.–średnia–maks. z 5 poprzednich lat dla każdego tygodnia ostatnich 53 (_su_avg5 — jak zapasy ropy
+#         w USA; tydzień bez pełnych 5 lat — bez pasma), średnie miesięczne cash (kontrola z Bankiem Światowym);
+#   sh  — giełda w Szanghaju: dzienny plik notowań (JSON ok. 120 KB): kontrakt główny każdego metalu = największa liczba otwartych pozycji (bez
+#         wierszy sum „小计”), cena rozliczeniowa (CNY/t, z VAT 13%) i poprzednia cena rozliczeniowa TEGO SAMEGO kontraktu; dzień wolny = 404;
+#   shd — giełda w Szanghaju: dzienny raport zapasów (HTML ok. 146 KB): kwity magazynowe (towar zarejestrowany do dostawy, „期货”) i zmiana;
+#   shw — giełda w Szanghaju: tygodniowy raport zapasów (HTML ok. 330 KB; data = ostatni dzień handlu tygodnia): zapas całkowity w magazynach
+#         giełdy („小计” — towar o jakości dostawy, w tym kwity) tego i poprzedniego tygodnia, kwity;
+#   cu  — tygodniowy raport o rynku miedzi (lista PDF ok. 185 KB + PDF ok. 340 KB; PDF tylko, gdy na liście jest nowy plik): zapasy miedzi
+#         w magazynach giełd w Londynie, Nowym Jorku (USA) i Szanghaju oraz razem (t), stan na piątek (albo ostatni dzień roboczy tygodnia).
+# „Chiny wobec świata” (cn, liczone co przebieg z pliku, bez zapytań): cena rozliczeniowa z Szanghaju bez VAT 13% (÷ 1,13), przeliczona na USD
+# po kursie referencyjnym USD/CNY z TEGO SAMEGO dnia (data/rynki.json z tego przebiegu — część fx; kursy zbierane w polu fx), wobec ceny
+# 3-miesięcznej w Londynie z tego samego dnia — premia (+) albo dyskonto (−) w %. To przeliczenie, nie notowanie (różne godziny notowań,
+# różne terminy dostawy kontraktów; cło i koszty transportu pominięte).
+# Kody źródeł (pole z, stan st) — pełne nazwy wyłącznie na stronie „Źródła”: wm — przegląd cen (wmh — jego tabele roczne), kx — dzienny plik
+# notowań w Szanghaju, sd / sw — dzienny / tygodniowy raport zapasów w Szanghaju, co — tygodniowy raport o miedzi. Bramki (_mt_due): okno
+# publikacji wg dnia danych (minuty od północy UTC dnia danych) — domyślne MT_OKNO_DOM, potem UCZONE z obserwacji pierwszego zobaczenia
+# nowego dnia (pub: 10. centyl − 60 min … 90. centyl + 30 min w granicach MT_OKNO_GRAN, od MT_PUB_MIN obserwacji — jak v279); w oknie, dopóki
+# spodziewany dzień nie przyszedł — co MT_CZESTO min; po oknie bez danych (święto, przerwa u źródła) — co MT_ZALEGLE min; z danymi — co
+# MT_RZADKO min. Szanghaj: 404 po końcu okna = dzień wolny (pole brak; wtedy jeszcze najwyżej MT_SH_WSTECZ wcześniejszych dni roboczych, żeby
+# nie zgubić ostatniego dnia handlu przed świętem). Źródło z błędem = poprzednia część z jej datą (ok False, krótki zamaskowany błąd err);
+# brak = null, nigdy 0. Budżet: cały budowniczy MT_BUDZET_S s; źródło startuje tylko, gdy zmieszczą się jego zapytania z pełnymi limitami;
+# w długim przebiegu (BACK_LATE) — bez historii i bez raportu tygodniowego o miedzi (nie pilne). Odpowiedzi ograniczone rozmiarem (MT_MAX_B),
+# PDF: tylko strumienie FlateDecode z limitem rozpakowania (MT_PDF_MAX_B), bez wykonywania czegokolwiek z pliku.
+MT_V = 1
+MT_PARTS = ('lme', 'sh', 'shd', 'shw', 'cu')
+MT_M = ('cu', 'al', 'ni', 'zn', 'pb', 'sn')
+MT_ZR = (('wm', 'lme'), ('kx', 'sh'), ('sd', 'shd'), ('sw', 'shw'), ('co', 'cu'))   # kolejność: dzienne najpierw
+MT_TYG = frozenset(('sw', 'co'))                                                     # źródła tygodniowe (dzień danych = piątek albo wcześniej w tym tygodniu)
+MT_WM_NAZWA = {'Copper': 'cu', 'Aluminium': 'al', 'Nickel': 'ni', 'Zinc': 'zn', 'Lead': 'pb', 'Tin': 'sn'}
+MT_WM_POLE = {'cu': 'Cu', 'al': 'Al', 'ni': 'Ni', 'zn': 'Zn', 'pb': 'Pb', 'sn': 'Sn'}
+MT_SH_NAZWA = {'铜': 'cu', '铝': 'al', '锌': 'zn', '铅': 'pb', '镍': 'ni', '锡': 'sn'}   # 铜 铝 锌 铅 镍 锡 (nazwy tabel u źródła)
+MT_ZAKRES = {'cu': (2000, 60000), 'al': (500, 15000), 'ni': (3000, 150000), 'zn': (500, 20000), 'pb': (500, 15000), 'sn': (5000, 250000)}   # USD/t — poza = błąd odczytu
+MT_KURS = (4.0, 12.0)            # CNY za USD z VAT: cena w Szanghaju / cena w USD musi leżeć w zakresie MT_ZAKRES × MT_KURS (straż jednostki)
+MT_VAT = 1.13                    # VAT w Chinach dla metali notowanych w Szanghaju (ceny z VAT; 13% od 01.04.2019)
+MT_FX_ZAKRES = (5.0, 9.5)        # USD/CNY — kurs spoza zakresu nie jest używany
+MT_WM_URL = 'https://www.westmetall.com/en/markdaten.php'
+MT_WMH_URL = 'https://www.westmetall.com/en/markdaten.php?action=table&field=LME_{p}_stock'   # rok bieżący bez parametru year (jak link na stronie)
+MT_KX_URL = 'https://www.shfe.com.cn/data/tradedata/future/dailydata/kx{d}.dat'
+MT_SD_URL = 'https://www.shfe.com.cn/data/tradedata/future/stockdata/dailystock_{d}/ZH/all.html'
+MT_SW_URL = 'https://www.shfe.com.cn/data/tradedata/future/stockdata/weeklystock_{d}/ZH/all.html'
+MT_CO_URL = 'https://www.cochilco.cl/web/informe-semanal-del-cobre/'
+MT_CO_PDF = re.compile(r'href="(https://www\.cochilco\.cl/web/download/\d+/\d{4}/\d+/informe-del-mercado-internacional-del-cobre[\w-]*\.pdf)"')
+MT_LIMIT_S = {'wm': 20, 'wmh': 20, 'kx': 25, 'sd': 25, 'sw': 30, 'co': 45}     # s — limit jednego zapytania (sondy 10.10.2026: 0,1–1,5 s; 2–4 s; 2,2 s; 3,9 s; 3,6–7,4 s)
+MT_ZAPYTANIA = {'wm': 1, 'kx': 2, 'sd': 2, 'sw': 2, 'co': 2}                 # typowo najwięcej zapytań źródła w przebiegu (start tylko, gdy się zmieszczą)
+MT_MAX_B = {'wm': 400_000, 'wmh': 400_000, 'kx': 2_000_000, 'sd': 1_500_000, 'sw': 2_000_000, 'col': 1_500_000, 'co': 3_000_000}   # bajtów odpowiedzi
+MT_PDF_MAX_B = 8_000_000         # bajtów po rozpakowaniu wszystkich strumieni PDF (więcej = błąd, nie czytamy dalej)
+MT_BUDZET_S = 150                # s — cały budowniczy (pesymistycznie: pełne limity zapytań; typowo kilka sekund)
+MT_OKNO_DOM = {'wm': (17 * 60, 26 * 60), 'kx': (7 * 60 + 15, 11 * 60), 'sd': (7 * 60 + 30, 12 * 60), 'sw': (7 * 60 + 30, 14 * 60), 'co': (18 * 60, 90 * 60)}
+MT_OKNO_GRAN = {'wm': (11 * 60, 40 * 60), 'kx': (6 * 60, 16 * 60), 'sd': (6 * 60, 16 * 60), 'sw': (6 * 60, 40 * 60), 'co': (12 * 60, 7 * 24 * 60)}
+MT_CZESTO = {'wm': 60, 'kx': 30, 'sd': 30, 'sw': 60, 'co': 360}          # min — w oknie, dopóki spodziewany dzień nie przyszedł
+MT_RZADKO = {'wm': 12 * 60, 'kx': 24 * 60, 'sd': 24 * 60, 'sw': 24 * 60, 'co': 72 * 60}   # min — dane aktualne (sprawdzenie poprawek; raport o miedzi — co 3 doby)
+MT_ZALEGLE = 360                 # min — po oknie bez spodziewanych danych
+MT_PUB_KEEP, MT_PUB_MIN = 30, 5  # obserwacji pory publikacji na źródło; od tylu — okno z danych
+MT_SH_WSTECZ = 3                 # Szanghaj: najwięcej wcześniejszych dni roboczych sprawdzanych po dniu wolnym
+MT_HIST_LAT = 6                  # lat historii zapasów w Londynie przed rokiem bieżącym (pasmo 5 lat dla tygodni sprzed roku)
+MT_WMH_NA_PRZEBIEG = 1           # tabel rocznych na przebieg (mała strona — oszczędnie; komplet 6 × 7 tabel w ok. 7 godz.)
+MT_WMH_PONOW = 60                # min — po błędzie tabeli rocznej (następna z kolejki); ta sama tabela ponownie najwcześniej po MT_WMH_ZLA_H h,
+                                 # tabele z błędem na końcu kolejki od najdawniej nieudanej (bez zagłodzenia pozostałych)
+MT_WMH_ZLA_H = 24
+MT_D_DNI = 100                   # dni kalendarzowych wierszy dziennych w pliku (zmiany, średnie miesięczne)
+MT_WYK_DNI = 371                 # dni wykresu tygodniowych zapasów (53 tygodnie)
+MT_MIES_N = 13                   # średnich miesięcznych na metal
+MT_SH_D, MT_CN_N, MT_FX_N, MT_TYG_N = 120, 120, 60, 104   # wierszy: ceny w Szanghaju, premia, kursy, raporty tygodniowe
+MT_SRC = 'CapitalFlowAI — metale przemysłowe (kody źródeł z: wm, kx, sd, sw, co — pełne nazwy na stronie Źródła)'
+import html.parser as _mt_hp   # v339: tabele HTML (biblioteka standardowa)
+import zlib as _mt_zlib         # v339: strumienie PDF (biblioteka standardowa)
+
+
+class _MtTab(_mt_hp.HTMLParser):
+    """Wszystkie tabele dokumentu: lista tabel → lista wierszy → lista tekstów komórek (białe znaki ściśnięte). Tabele zagnieżdżone — płasko."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.t, self.cur, self.row, self.c = [], None, None, None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'table':
+            self.cur = []
+        elif tag == 'tr' and self.cur is not None:
+            self.row = []
+        elif tag in ('td', 'th') and self.row is not None:
+            self.c = ''
+
+    def handle_endtag(self, tag):
+        if tag in ('td', 'th') and self.c is not None and self.row is not None:
+            self.row.append(' '.join(self.c.split())); self.c = None
+        elif tag == 'tr' and self.row is not None and self.cur is not None:
+            self.cur.append(self.row); self.row = None
+        elif tag == 'table' and self.cur is not None:
+            self.t.append(self.cur); self.cur = None
+
+    def handle_data(self, data):
+        if self.c is not None:
+            self.c += data
+
+
+def _mt_tabele(b):
+    p = _MtTab()
+    p.feed(b.decode('utf-8', 'replace') if isinstance(b, (bytes, bytearray)) else str(b))
+    p.close()
+    return p.t
+
+
+_MT_MIES_EN = {m: i + 1 for i, m in enumerate(('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
+                                               'October', 'November', 'December'))}
+_MT_MIES_ES = {'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4, 'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8, 'septiembre': 9, 'setiembre': 9,
+               'octubre': 10, 'noviembre': 11, 'diciembre': 12}
+
+
+def _mt_dzien_en(s):
+    """'09. October 2026' → '2026-10-09'; inny zapis = None."""
+    m = re.fullmatch(r'(\d{1,2})\. ([A-Z][a-z]+) (\d{4})', str(s or '').strip())
+    if not m or m.group(2) not in _MT_MIES_EN:
+        return None
+    try:
+        return datetime.date(int(m.group(3)), _MT_MIES_EN[m.group(2)], int(m.group(1))).isoformat()
+    except ValueError:
+        return None
+
+
+def _mt_liczba(s):
+    """'14,689.00' → 14689.0; '-2,200' → -2200.0; inne (w tym '-' i puste) = None."""
+    t = str(s or '').strip().replace(',', '')
+    return float(t) if re.fullmatch(r'-?\d+(?:\.\d+)?', t) else None
+
+
+def _mt_int(s):
+    t = str(s or '').strip().replace(',', '')
+    return int(t) if re.fullmatch(r'-?\d+', t) else None
+
+
+def parse_mt_przeglad(b):
+    """Strona przeglądu cen → {'pd': dzień cen, 'p': {metal: [cash, 3M]}, 'zd': dzień zapasów, 'z': {metal: [zapas, zmiana]}}. Brak któregoś z 6 metali,
+    daty albo cena / zapas poza zakresem = ValueError (zmiana formatu strony — część z błędem, poprzednie dane zostają)."""
+    out = {'pd': None, 'p': {}, 'zd': None, 'z': {}}
+    for t in _mt_tabele(b):
+        if not t or not t[0]:
+            continue
+        h = t[0][0]
+        if h.startswith('Official LME-Prices in US Dollar') and len(t[0]) > 1:
+            out['pd'] = _mt_dzien_en(t[0][1])
+            for r in t[1:]:
+                if len(r) >= 3 and r[0] in MT_WM_NAZWA:
+                    out['p'][MT_WM_NAZWA[r[0]]] = [_mt_liczba(r[1]), _mt_liczba(r[2])]
+        elif h == 'LME Stocks' and len(t[0]) > 1:
+            out['zd'] = _mt_dzien_en(t[0][1])
+            for r in t[1:]:
+                if len(r) >= 3 and r[0] in MT_WM_NAZWA:
+                    out['z'][MT_WM_NAZWA[r[0]]] = [_mt_int(r[1]), _mt_int(r[2])]
+    if not out['pd'] or not out['zd']:
+        raise ValueError('przegląd cen: brak daty cen albo zapasów')
+    for m in MT_M:
+        c, m3 = out['p'].get(m, [None, None])
+        lo, hi = MT_ZAKRES[m]
+        if not (_isnum(c) and _isnum(m3) and lo <= c <= hi and lo <= m3 <= hi):
+            raise ValueError(f'przegląd cen: {m} — brak ceny albo poza zakresem')
+        z = out['z'].get(m, [None, None])[0]
+        if not (isinstance(z, int) and 0 <= z <= 20_000_000):
+            raise ValueError(f'przegląd cen: {m} — brak zapasu albo poza zakresem')
+    return out
+
+
+def parse_mt_tabela(b, m):
+    """Tabela roczna jednego metalu → {dzień: [cash, 3M, zapas]} (kolumny wg nagłówka „date | … stock | … Cash-Settlement | … 3-month”).
+    Brak nagłówka albo wierszy = ValueError."""
+    out, hdr = {}, None
+    for t in _mt_tabele(b):
+        for r in t:
+            if r and r[0] == 'date':
+                low = [c.lower() for c in r]
+                try:
+                    hdr = (next(i for i, c in enumerate(low) if c.endswith('stock')), next(i for i, c in enumerate(low) if 'cash' in c),
+                           next(i for i, c in enumerate(low) if '3-month' in c))
+                except StopIteration:
+                    hdr = None
+                continue
+            d = _mt_dzien_en(r[0]) if r else None
+            if hdr and d and len(r) > max(hdr):
+                z, c, m3 = _mt_int(r[hdr[0]]), _mt_liczba(r[hdr[1]]), _mt_liczba(r[hdr[2]])
+                lo, hi = MT_ZAKRES[m]
+                out[d] = [c if _isnum(c) and lo <= c <= hi else None, m3 if _isnum(m3) and lo <= m3 <= hi else None,
+                          z if isinstance(z, int) and z >= 0 else None]
+    if not out:
+        raise ValueError(f'tabela roczna {m}: brak wierszy (zmiana formatu?)')
+    return out
+
+
+def parse_mt_kx(b, dzien):
+    """Dzienny plik notowań w Szanghaju → {metal: {'k': kontrakt, 's': cena rozliczeniowa, 'p': poprzednia rozliczeniowa tego kontraktu,
+    'c': zamknięcie, 'oi': otwarte pozycje}} — kontrakt główny = największe otwarte pozycje (wiersze z miesiącem dostawy RRMM). Inny dzień
+    w pliku, brak metalu albo cena poza zakresem = ValueError."""
+    j = json.loads(b.decode('utf-8', 'replace') if isinstance(b, (bytes, bytearray)) else b)
+    if str(j.get('report_date') or '') != dzien.replace('-', ''):
+        raise ValueError(f'plik notowań: dzień {j.get("report_date")!r} zamiast {dzien}')
+    g = {}
+    for r in j.get('o_curinstrument') or []:
+        if not isinstance(r, dict):
+            continue
+        p, dm = str(r.get('PRODUCTGROUPID') or '').strip(), str(r.get('DELIVERYMONTH') or '').strip()
+        oi = r.get('OPENINTEREST')
+        if p in MT_M and re.fullmatch(r'\d{4}', dm) and _isnum(oi) and (p not in g or oi > g[p]['oi']):
+            g[p] = {'k': p + dm, 's': r.get('SETTLEMENTPRICE'), 'p': r.get('PRESETTLEMENTPRICE'), 'c': r.get('CLOSEPRICE'), 'oi': oi}
+    out = {}
+    for m in MT_M:
+        e = g.get(m)
+        lo, hi = MT_ZAKRES[m][0] * MT_KURS[0], MT_ZAKRES[m][1] * MT_KURS[1]
+        if not e or not (_isnum(e['s']) and lo <= e['s'] <= hi):
+            raise ValueError(f'plik notowań: {m} — brak kontraktu albo cena poza zakresem')
+        out[m] = {k: (v if (k == 'k' or (_isnum(v) and v > 0)) else None) for k, v in e.items()}
+    return out
+
+
+def _mt_sh_tabele(b, dzien):
+    """Raport zapasów w Szanghaju → (tabele, {metal: wiersz „总计”}); pierwsza komórka dokumentu zaczyna się od dnia raportu (RRRR-MM-DD) —
+    inny dzień = ValueError."""
+    T = _mt_tabele(b)
+    first = next((r[0] for t in T for r in t if r and r[0]), '')
+    if not first.startswith(dzien):
+        raise ValueError(f'raport zapasów: dzień {first[:10]!r} zamiast {dzien}')
+    tot = {}
+    for t in T:
+        nazwa = None
+        for r in t:
+            j = ' '.join(r)
+            if '单位' in j:   # „单位” (jednostka) — wiersz z nazwą produktu
+                nm = [c for c in r if c and not c.startswith('单位')]
+                nazwa = MT_SH_NAZWA.get(nm[0]) if nm else None
+                if nazwa and '吨' not in j:   # „吨” — tony; inna jednostka = nie ten produkt
+                    nazwa = None
+            elif nazwa and r and r[0] == '总计':   # „总计” — suma metalu
+                tot[nazwa] = r
+                nazwa = None
+    return T, tot
+
+
+def parse_mt_sd(b, dzien):
+    """Dzienny raport zapasów → {metal: {'w': kwity (t), 'dw': zmiana}}; brak metalu albo nie-liczba = ValueError."""
+    _, tot = _mt_sh_tabele(b, dzien)
+    out = {}
+    for m in MT_M:
+        r = tot.get(m)
+        w, dw = (_mt_int(r[1]), _mt_int(r[2])) if r and len(r) >= 3 else (None, None)
+        if not (isinstance(w, int) and w >= 0 and isinstance(dw, int)):
+            raise ValueError(f'raport dzienny zapasów: {m} — brak sumy')
+        out[m] = {'w': w, 'dw': dw}
+    return out
+
+
+def parse_mt_sw(b, dzien):
+    """Tygodniowy raport zapasów → {metal: {'zp': zapas poprzedni tydzień, 'wp': kwity poprzedni, 'z': zapas, 'w': kwity, 'dz': zmiana zapasu}}
+    (kolumny: poprzedni tydzień 小计/期货, ten tydzień 小计/期货, zmiana 小计/期货 — sprawdzane w nagłówku); inny układ = ValueError."""
+    T, tot = _mt_sh_tabele(b, dzien)
+    if not any(r[:5] == ['地区', '仓库', '上周库存', '本周库存', '库存增减'] for t in T for r in t):
+        raise ValueError('raport tygodniowy zapasów: inny układ kolumn')   # 地区 仓库 上周库存 本周库存 库存增减
+    out = {}
+    for m in MT_M:
+        r = tot.get(m)
+        v = [_mt_int(x) for x in r[1:6]] if r and len(r) >= 6 else []
+        if len(v) != 5 or not all(isinstance(x, int) for x in v) or v[0] < 0 or v[2] < 0 or v[2] - v[0] != v[4]:
+            raise ValueError(f'raport tygodniowy zapasów: {m} — brak sumy albo zmiana ≠ różnica')
+        out[m] = {'zp': v[0], 'wp': v[1], 'z': v[2], 'w': v[3], 'dz': v[4]}
+    return out
+
+
+_MT_PDF_TOK = re.compile(rb'\((?:\\.|[^\\()])*\)|\[|\]|<<|>>|/[^\s/\[\]()<>]+|[-+]?\d*\.?\d+|[A-Za-z\'"*]+')
+
+
+def _mt_pdf_unesc(s):
+    out, i = bytearray(), 0
+    esc = {110: 10, 114: 13, 116: 9, 98: 8, 102: 12, 40: 40, 41: 41, 92: 92}
+    while i < len(s):
+        c = s[i]
+        if c == 0x5c and i + 1 < len(s):
+            n = s[i + 1]
+            if n in esc:
+                out.append(esc[n]); i += 2; continue
+            if 48 <= n <= 55:
+                j = i + 1
+                while j < len(s) and j < i + 4 and 48 <= s[j] <= 55:
+                    j += 1
+                out.append(int(s[i + 1:j], 8) & 255); i = j; continue
+            out.append(n); i += 2; continue
+        out.append(c); i += 1
+    return bytes(out)
+
+
+def mt_pdf_tekst(dane):
+    """Tekst prostego PDF (tylko biblioteka standardowa): strumienie FlateDecode (rozpakowanie z limitem MT_PDF_MAX_B łącznie) i operatory tekstu
+    Tj / TJ / ' / " / Td / TD / Tm / T* — bez map znaków (wystarcza dla raportu o miedzi; czytnik zwiadu armii 10.10.2026). Wiersze = fragmenty
+    o tej samej pozycji pionowej w jednym strumieniu, od lewej do prawej. Nic z pliku nie jest wykonywane."""
+    frag, nr, razem = [], 0, 0
+    for m in re.finditer(rb'stream\r?\n(.*?)\r?\nendstream', dane, re.S):
+        try:
+            dz = _mt_zlib.decompressobj()
+            d = dz.decompress(m.group(1), MT_PDF_MAX_B - razem + 1)
+        except _mt_zlib.error:
+            continue
+        razem += len(d)
+        if razem > MT_PDF_MAX_B:
+            raise ValueError('PDF: za dużo danych po rozpakowaniu')
+        if b'BT' not in d or not (b'Tj' in d or b'TJ' in d):
+            continue
+        nr += 1
+        lx = ly = tl = 0.0
+        stos, arr = [], None
+        for t in _MT_PDF_TOK.findall(d):
+            if t == b'[':
+                arr = []; continue
+            if t == b']':
+                continue
+            if t.startswith(b'('):
+                (arr if arr is not None else stos).append(_mt_pdf_unesc(t[1:-1]).decode('latin-1')); continue
+            if re.fullmatch(rb'[-+]?\d*\.?\d+', t):
+                (arr if arr is not None else stos).append(float(t)); continue
+            op = t.decode('latin-1')
+            if op == 'BT':
+                lx = ly = 0.0
+            elif op == 'Tm' and len(stos) >= 6 and all(isinstance(v, float) for v in stos[-6:]):
+                lx, ly = stos[-2], stos[-1]
+            elif op in ('Td', 'TD') and len(stos) >= 2 and all(isinstance(v, float) for v in stos[-2:]):
+                lx += stos[-2]; ly += stos[-1]
+                if op == 'TD':
+                    tl = -stos[-1]
+            elif op == 'TL' and stos and isinstance(stos[-1], float):
+                tl = stos[-1]
+            elif op == 'T*':
+                ly -= tl
+            elif op in ('Tj', "'", '"'):
+                if op != 'Tj':
+                    ly -= tl
+                s = [v for v in stos if isinstance(v, str)]
+                if s:
+                    frag.append((nr, round(ly, 1), lx, s[-1]))
+            elif op == 'TJ':
+                src = arr if arr is not None else stos
+                frag.append((nr, round(ly, 1), lx, ''.join(v for v in src if isinstance(v, str))))
+            stos, arr = [], None
+    wiersze = {}
+    for p, yy, xx, s in frag:
+        wiersze.setdefault((p, yy), []).append((xx, s))
+    return [''.join(s for _, s in sorted(wiersze[k], key=lambda a: a[0])) for k in sorted(wiersze, key=lambda k: (k[0], -k[1]))]
+
+
+def parse_mt_co(dane):
+    """Tygodniowy raport o miedzi (PDF) → {'asof': dzień raportu, 'lme', 'comex', 'shfe', 'razem'} (t). Dzień z nagłówka „Reporte al <dzień
+    tygodnia> DD de <miesiąc> de RRRR”; wiersze tabeli zapasów „BML-Londres / COMEX-EE.UU / SHFE-Shanghai / TOTAL GLOBAL” (liczby z kropką
+    tysięcy). Brak dnia, wiersza albo suma ≠ razem (± 3 t) = ValueError."""
+    tx = mt_pdf_tekst(dane)
+    asof = None
+    for w in tx:
+        m = re.search(r'Reporte al \w+ (\d{1,2}) de ([a-z]+) de (\d{4})', w)
+        if m and m.group(2) in _MT_MIES_ES:
+            try:
+                asof = datetime.date(int(m.group(3)), _MT_MIES_ES[m.group(2)], int(m.group(1))).isoformat()
+            except ValueError:
+                asof = None
+            break
+    K = {'BML-Londres': 'lme', 'COMEX-EE.UU': 'comex', 'COMEX-EE.UU.': 'comex', 'SHFE-Shanghai': 'shfe', 'TOTALGLOBAL': 'razem'}
+    out = {}
+    for w in tx:
+        m = re.match(r'(BML-Londres|COMEX-EE\.UU\.?|SHFE-Shanghai|TOTALGLOBAL)(\d{1,3}(?:\.\d{3})*)(?=[+-])', w.replace(' ', ''))
+        if m and K[m.group(1)] not in out:
+            out[K[m.group(1)]] = int(m.group(2).replace('.', ''))
+    if not asof:
+        raise ValueError('raport o miedzi: brak dnia raportu')
+    if set(out) != {'lme', 'comex', 'shfe', 'razem'}:
+        raise ValueError('raport o miedzi: brak wiersza tabeli zapasów (' + ', '.join(sorted(set(K.values()) - set(out))) + ')')
+    if abs(out['lme'] + out['comex'] + out['shfe'] - out['razem']) > 3:
+        raise ValueError('raport o miedzi: suma giełd ≠ razem')
+    out['asof'] = asof
+    return out
+
+
+def mt_co_link(b):
+    """Lista raportów → adres najnowszego PDF (pierwszy na liście); brak = ValueError."""
+    m = MT_CO_PDF.search(b.decode('utf-8', 'replace') if isinstance(b, (bytes, bytearray)) else str(b))
+    if not m:
+        raise ValueError('lista raportów o miedzi: brak pliku PDF')
+    return m.group(1)
+
+
+# ---- okna publikacji i bramki ----
+def _mt_utc(d, minuty=0):
+    return datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc) + datetime.timedelta(minutes=minuty)
+
+
+def _mt_obs(rows):
+    out = []
+    for r in (rows if isinstance(rows, list) else []):
+        try:
+            d, t = datetime.date.fromisoformat(r[0]), _ix_dt(r[1])
+            m = (t - _mt_utc(d)).total_seconds() / 60
+        except (TypeError, ValueError, IndexError, AttributeError):
+            continue
+        if 0 <= m <= 7 * 24 * 60:
+            out.append(m)
+    return out
+
+
+def mt_okno(src, pub):
+    """Okno publikacji źródła (minuty od północy UTC dnia danych): z obserwacji pub (≥ MT_PUB_MIN) 10. centyl − 60 … 90. centyl + 30, w granicach
+    MT_OKNO_GRAN (co najmniej 60 min); mniej obserwacji — MT_OKNO_DOM. → (od, do, n)."""
+    obs = sorted(_mt_obs(pub))
+    if len(obs) < MT_PUB_MIN:
+        return MT_OKNO_DOM[src][0], MT_OKNO_DOM[src][1], len(obs)
+    q = lambda p: obs[min(len(obs) - 1, int(p * (len(obs) - 1) + 0.5))]  # noqa: E731
+    g0, g1 = MT_OKNO_GRAN[src]
+    od = max(g0, q(0.1) - 60)
+    do = min(g1, max(od + 60, q(0.9) + 30))
+    return int(od), int(do), len(obs)
+
+
+def mt_oczek(src, now, od):
+    """Spodziewany dzień danych: źródła dzienne — ostatni dzień pn–pt D z now ≥ D + od; tygodniowe — ostatni piątek z tym warunkiem."""
+    for back in range(15):
+        d = (now - datetime.timedelta(days=back)).date()
+        if (d.weekday() == 4 if src in MT_TYG else d.weekday() < 5) and _mt_utc(d, od) <= now:
+            return d
+    return None
+
+
+def _mt_aktualne(src, z, E):
+    """Czy dane źródła są aktualne wobec spodziewanego dnia E: dzienne — asof ≥ E; tygodniowe — asof w tygodniu E (od poniedziałku; święto
+    w piątek = raport wcześniej w tym tygodniu); dzień E oznaczony jako wolny (brak) — też."""
+    a = str(z.get('asof') or '')
+    if z.get('brak') == E.isoformat():
+        return True
+    return a >= ((E - datetime.timedelta(days=4)).isoformat() if src in MT_TYG else E.isoformat())
+
+
+def mt_due(src, z, now):
+    """Czy pobrać źródło w tym przebiegu: pierwsze pobranie — co godzinę do skutku; spodziewany dzień jeszcze nie przyszedł — w oknie co
+    MT_CZESTO min, po oknie co MT_ZALEGLE min; dane aktualne — co MT_RZADKO min (i nie częściej niż co godzinę po próbie)."""
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    if at == float('inf'):
+        return tr >= 60
+    od, do, _ = mt_okno(src, z.get('pub'))
+    E = mt_oczek(src, now, od)
+    if E is None or _mt_aktualne(src, z, E):
+        return at >= MT_RZADKO[src] and tr >= 60
+    return tr >= (MT_CZESTO[src] if now <= _mt_utc(E, do) else MT_ZALEGLE)
+
+
+def mt_next(src, z, now):
+    """Najbliższa spodziewana publikacja (ISO, UTC; początek okna): dane nieaktualne — początek okna spodziewanego dnia (w przeszłości = zaległa);
+    aktualne — następny dzień roboczy (tygodniowe — następny piątek)."""
+    od, _, _ = mt_okno(src, z.get('pub'))
+    E = mt_oczek(src, now, od)
+    if E is None:
+        return None
+    if not _mt_aktualne(src, z, E):
+        return _mt_utc(E, od).isoformat()
+    d = E + datetime.timedelta(days=7 if src in MT_TYG else 1)
+    while d.weekday() >= 5:
+        d += datetime.timedelta(days=1)
+    return _mt_utc(d, od).isoformat()
+
+
+def _mt_pub(src, z, asof, now, now_iso, prev_try):
+    """Obserwacja pory publikacji: nowy dzień = spodziewany dzień E, a poprzednia próba była najwyżej 2 × MT_CZESTO min temu albo to pierwsza
+    próba w oknie (pierwsze zobaczenie dokładne co do odstępu prób; inaczej bez obserwacji)."""
+    od, _, _ = mt_okno(src, z.get('pub'))
+    E = mt_oczek(src, now, od)
+    if E is None or asof != E.isoformat():
+        return
+    dok = _su_min(now, prev_try) <= 2 * MT_CZESTO[src] or (now - _mt_utc(E, od)).total_seconds() / 60 <= MT_CZESTO[src]
+    if dok:
+        z['pub'] = ([list(r) for r in z.get('pub') or [] if isinstance(r, list) and len(r) == 2 and r[0] != asof] + [[asof, now_iso]])[-MT_PUB_KEEP:]
+
+
+# ---- pobrania ----
+def _mt_http(url, timeout, limit):
+    """GET z identyfikatorem zbieracza i limitem rozmiaru: → (kod, bajty); 404 = (404, b'') (dzień wolny w Szanghaju), inne błędy HTTP — wyjątek."""
+    try:
+        with _otworz(url, None, timeout) as r:
+            b = r.read(limit + 1)
+            if len(b) > limit:
+                raise ValueError(f'odpowiedź większa niż {limit // 1000} KB')
+            return r.status, b
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return 404, b''
+        raise
+
+
+def _mt_get(ctx, src, url, maxb=None):
+    """Jedno zapytanie z limitem źródła, nie dłuższym niż reszta budżetu budowniczego (reszta < 3 s = błąd źródła; ponowienie później)."""
+    lim = MT_LIMIT_S[src]
+    left = ctx['budzet'] - (time.monotonic() - ctx['t0'])
+    if left < 3:
+        raise RuntimeError('budżet czasu budowniczego wyczerpany')
+    ctx['n'] += 1
+    st, b = ctx['fetch'](url, min(lim, left), maxb or MT_MAX_B[src])
+    if st != 404 and not (200 <= int(st) < 300):
+        raise RuntimeError(f'HTTP {st}')
+    return st, b
+
+
+def _mt_dni_wstecz(E, asof, n):
+    """Dni robocze przed E (najwyżej n) późniejsze niż asof — do sprawdzenia po dniu wolnym."""
+    out, d = [], E
+    while len(out) < n:
+        d -= datetime.timedelta(days=1)
+        if d.weekday() >= 5:
+            continue
+        if asof and d.isoformat() <= asof:
+            break
+        out.append(d)
+    return out
+
+
+def _mt_sh_pobierz(ctx, src, z, url, parse):
+    """Szanghaj (kx, sd, sw): spodziewany dzień E; 404 w oknie = jeszcze nie ma (bez zmian); 404 po oknie = dzień wolny (brak = E) i jeszcze
+    najwyżej MT_SH_WSTECZ wcześniejszych dni roboczych (ostatni dzień handlu przed świętem). → (dzień, dane) albo None."""
+    now = ctx['now']
+    od, do, _ = mt_okno(src, z.get('pub'))
+    E = mt_oczek(src, now, od)
+    if E is None:
+        return None
+    dni = [E]
+    if src in MT_TYG:   # tydzień: piątek, potem wcześniejsze dni tego tygodnia (raport z ostatniego dnia handlu)
+        dni += [E - datetime.timedelta(days=k) for k in range(1, 5)]
+    for i, d in enumerate(dni):
+        if i and (now <= _mt_utc(E, do) or (src not in MT_TYG and i > MT_SH_WSTECZ)):
+            break
+        if z.get('asof') and d.isoformat() <= str(z.get('asof')):
+            break
+        st, b = _mt_get(ctx, src, url.format(d=d.strftime('%Y%m%d')))
+        if st == 404:
+            if i == 0 and now > _mt_utc(E, do):
+                z['brak'] = E.isoformat()
+            if src not in MT_TYG and i == 0 and now > _mt_utc(E, do):
+                dni += [x for x in _mt_dni_wstecz(E, z.get('asof'), MT_SH_WSTECZ) if x not in dni]
+            continue
+        return d.isoformat(), parse(b, d.isoformat())
+    return None
+
+
+def _mt_wmh_plan(st, rok, now=None):
+    """Kolejka tabel rocznych: rok bieżący każdego metalu (jeszcze nie pobrany w tym roku albo metal w odsw — odświeżenie po luce w dniach),
+    potem lata rok − 1 … rok − MT_HIST_LAT jeszcze niepobrane. Tabele z błędem (zla: klucz → czas ostatniego błędu) — na końcu, od najdawniej
+    nieudanej, i nie wcześniej niż MT_WMH_ZLA_H h po swoim błędzie (stale niedostępna tabela nie blokuje pozostałych). → (lista (metal, rok albo
+    None = bieżący) do pobrania teraz, liczba wszystkich zaległych tabel)."""
+    done, odsw = set(st.get('done') or []), set(st.get('odsw') or [])
+    out = []
+    for m in MT_M:
+        cur = (st.get('cur') or {}).get(m)
+        if m in odsw or not (isinstance(cur, str) and cur[:4] == str(rok)):
+            out.append((m, None))
+    for y in range(rok - 1, rok - MT_HIST_LAT - 1, -1):
+        out += [(m, y) for m in MT_M if f'{m}:{y}' not in done]
+    key = lambda x: f'{x[0]}:{x[1] or rok}'  # noqa: E731
+    zla = {k: v for k, v in (st.get('zla') or {}).items() if k in {key(x) for x in out}} if isinstance(st.get('zla'), dict) else {}
+    if zla:
+        st['zla'] = zla
+    else:
+        st.pop('zla', None)
+    teraz = [x for x in out if key(x) not in zla]
+    pozniej = sorted((x for x in out if key(x) in zla), key=lambda x: str(zla[key(x)]))
+    if now is not None:
+        pozniej = [x for x in pozniej if _su_min(now, zla[key(x)]) >= MT_WMH_ZLA_H * 60]
+    return teraz + pozniej, len(out)
+
+
+def _mt_iso_tydz(d):
+    y, w, _ = datetime.date.fromisoformat(d).isocalendar()
+    return y * 100 + w
+
+
+def _mt_lme_zloz(prev_lme, wm, tabele, now):
+    """Część lme z poprzedniej części, odczytu przeglądu (wm albo None) i tabel rocznych ({metal: {dzień: [cash, 3M, zapas]}}). Dzień z przeglądu
+    nadpisuje wiersz z tabeli (nowszy odczyt), brakujące pola wiersza zostają. → (część, luka: True, gdy między ostatnim znanym dniem a nowym
+    dniem przeglądu brakuje dni roboczych)."""
+    P = prev_lme.get('m') if isinstance(prev_lme, dict) and isinstance(prev_lme.get('m'), dict) else {}
+    out_m, luka = {}, False
+    for m in MT_M:
+        e = P.get(m) if isinstance(P.get(m), dict) else {}
+        rows = {r[0]: [r[1], r[2], r[3]] for r in (e.get('d') or []) if isinstance(r, list) and len(r) == 4 and isinstance(r[0], str)}
+        tz = {r[0]: r[1] for r in (e.get('tz') or []) if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and isinstance(r[1], int)}
+        mies = {r[0]: r for r in (e.get('mies') or []) if isinstance(r, list) and len(r) == 3}
+        stare = max(rows) if rows else None
+        for d, v in sorted((tabele.get(m) or {}).items()):
+            w = rows.setdefault(d, [None, None, None])
+            for i in range(3):
+                if v[i] is not None:
+                    w[i] = v[i]
+        zz = e.get('zz') if isinstance(e.get('zz'), list) else None
+        if wm:
+            c, m3 = wm['p'][m]
+            rows.setdefault(wm['pd'], [None, None, None])[0:2] = [c, m3]
+            z, dz = wm['z'][m]
+            rows.setdefault(wm['zd'], [None, None, None])[2] = z
+            zz = [wm['zd'], dz]
+            nowy = max(wm['pd'], wm['zd'])
+            if stare and nowy > stare:
+                d = datetime.date.fromisoformat(stare) + datetime.timedelta(days=1)
+                while d.isoformat() < nowy:
+                    luka = luka or d.weekday() < 5
+                    d += datetime.timedelta(days=1)
+        if not rows:
+            continue
+        for d, v in rows.items():
+            if isinstance(v[2], int):
+                tz[d] = v[2]
+        wk = {}
+        for d in sorted(tz):
+            wk[_mt_iso_tydz(d)] = d
+        last = max(rows)
+        y0 = datetime.date.fromisoformat(last).year - MT_HIST_LAT
+        tz = {d: tz[d] for d in sorted(wk.values()) if d >= f'{y0}-01-01'}
+        # średnie miesięczne cash: miesiące pełne w wierszach (pierwszy wiersz nie później niż 4. dnia miesiąca), przed miesiącem ostatniego dnia
+        first = min(rows)
+        by = {}
+        for d, v in rows.items():
+            if _isnum(v[0]):
+                by.setdefault(d[:7], []).append(v[0])
+        for ym, L in by.items():
+            if ym < last[:7] and first <= ym + '-04' and len(L) >= 15:
+                mies[ym] = [ym, round(sum(L) / len(L), 2), len(L)]
+        od = (datetime.date.fromisoformat(last) - datetime.timedelta(days=MT_D_DNI)).isoformat()
+        D = [[d] + rows[d] for d in sorted(rows) if d >= od]
+        cs = [r for r in D if _isnum(r[1])]
+        zs = [r for r in D if isinstance(r[3], int)]
+        o = {'d': D, 'tz': [[d, tz[d]] for d in sorted(tz)], 'mies': [mies[k] for k in sorted(mies)][-MT_MIES_N:]}
+        if cs:
+            o.update(c=cs[-1][1], m3=cs[-1][2], cd=cs[-1][0])
+            if len(cs) > 1:
+                o.update(pc=cs[-2][1], pcd=cs[-2][0], ch=round((cs[-1][1] / cs[-2][1] - 1) * 100, 3))
+        if zs:
+            o.update(z=zs[-1][3], zd=zs[-1][0])
+            if len(zs) > 1:
+                o.update(pz=zs[-2][3], pzd=zs[-2][0])
+        if zz:
+            o['zz'] = zz
+        wd = (datetime.date.fromisoformat(last) - datetime.timedelta(days=MT_WYK_DNI)).isoformat()
+        W = [[d, tz[d]] for d in sorted(tz) if d >= wd]
+        if W:
+            o['wyk'] = W
+            o['pas'] = _su_avg5(dict(tz), [d for d, _ in W])
+            o['h0'] = min(tz)
+        out_m[m] = o
+    asof = max((o.get('cd') or '' for o in out_m.values()), default='') or None
+    return {'asof': asof, 'm': out_m}, luka
+
+
+def _mt_pobierz_wm(ctx):
+    _, b = _mt_get(ctx, 'wm', MT_WM_URL)
+    return parse_mt_przeglad(b)
+
+
+def _mt_pobierz_co(ctx, z):
+    """Raport o miedzi: lista (zawsze), PDF tylko, gdy na liście jest inny plik niż ostatnio przeczytany (pole url w stanie)."""
+    _, b = _mt_get(ctx, 'co', MT_CO_URL, MT_MAX_B['col'])
+    u = mt_co_link(b)
+    if u == z.get('url') and isinstance(ctx['prev'].get('cu'), dict):
+        return None
+    _, p = _mt_get(ctx, 'co', u)
+    o = parse_mt_co(p)
+    z['url'] = u
+    return o
+
+
+def _mt_tyg_zloz(prev_part, asof, nowe, pole):
+    """Część tygodniowa / dzienna z historią: wiersze [dzień, wartość] (pole) z poprzedniej części + nowy dzień; najwyżej MT_TYG_N.
+    Raport tygodniowy (pole zp = zapas z poprzedniego raportu): zpd = dzień poprzedniego raportu z historii — tylko gdy ostatni wcześniejszy
+    wiersz ma TĘ SAMĄ liczbę co zp (po święcie poprzedni raport bywa sprzed więcej niż tygodnia; bez pewności — bez dnia)."""
+    P = prev_part.get('m') if isinstance(prev_part, dict) and isinstance(prev_part.get('m'), dict) else {}
+    out = {}
+    for m in MT_M:
+        old = {r[0]: r[1] for r in ((P.get(m) or {}).get('d') or []) if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str)}
+        e = dict(nowe[m])
+        wcz = [d for d in sorted(old) if d < asof]
+        if 'zp' in e and wcz and old[wcz[-1]] == e['zp']:
+            e['zpd'] = wcz[-1]
+        old[asof] = e[pole]
+        e['d'] = [[d, old[d]] for d in sorted(old)][-MT_TYG_N:]
+        out[m] = e
+    return {'asof': asof, 'm': out}
+
+
+def _mt_fx(prev_fx, ry):
+    """Kursy USD/CNY (dzień → kurs) z poprzedniego pliku i z data/rynki.json (część fx: wpisy {date, base USD, rates.CNY}); spoza
+    MT_FX_ZAKRES — pominięte; najwyżej MT_FX_N ostatnich dni."""
+    fx = {r[0]: r[1] for r in (prev_fx or []) if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and _isnum(r[1])}
+    F = ry.get('fx') if isinstance(ry, dict) and isinstance(ry.get('fx'), dict) else {}
+    for e in F.values():
+        if isinstance(e, dict) and e.get('base') == 'USD' and isinstance(e.get('date'), str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', e['date']):
+            v = (e.get('rates') or {}).get('CNY') if isinstance(e.get('rates'), dict) else None
+            if _isnum(v) and MT_FX_ZAKRES[0] <= v <= MT_FX_ZAKRES[1]:
+                fx[e['date']] = v
+    return [[d, fx[d]] for d in sorted(fx)][-MT_FX_N:]
+
+
+def mt_cn(sh, lme, fx):
+    """Chiny wobec świata: {metal: [[dzień, cena w Szanghaju bez VAT w USD, cena 3M w Londynie, premia %]]} — tylko dni, w których są wszystkie
+    trzy liczby z TEGO SAMEGO dnia (inaczej brak wiersza, nigdy przybliżenie innym dniem)."""
+    F = {d: v for d, v in fx}
+    out = {}
+    for m in MT_M:
+        S = ((sh or {}).get('m') or {}).get(m) or {}
+        L = {r[0]: r[2] for r in (((lme or {}).get('m') or {}).get(m) or {}).get('d') or [] if isinstance(r, list) and len(r) == 4 and _isnum(r[2])}
+        rows = []
+        for r in S.get('d') or []:
+            if isinstance(r, list) and len(r) >= 2 and _isnum(r[1]) and r[0] in L and r[0] in F:
+                usd = r[1] / MT_VAT / F[r[0]]
+                rows.append([r[0], round(usd, 1), L[r[0]], round((usd / L[r[0]] - 1) * 100, 2)])
+        if rows:
+            out[m] = rows[-MT_CN_N:]
+    return out
+
+
+def build_metale(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None, fx=None):
+    """v339: data/metale.json. Każde źródło z własną bramką (mt_due) i budżetem czasu; źródło z błędem — poprzednia część z datą (ok False,
+    krótki zamaskowany błąd err); część bez próby — 'cached' (z danymi) albo False (jeszcze nie pobrana). Plik innej wersji = start od zera.
+    fx — data/rynki.json z tego przebiegu (kursy USD/CNY). fetch(url, timeout, max_bajtów) → (kod HTTP, bajty) — w testach nagrania."""
+    now = now or _now_utc()
+    now_iso = now.replace(microsecond=0).isoformat()
+    prev = prev if isinstance(prev, dict) and prev.get('v') == MT_V else {}
+    st = json.loads(json.dumps(prev.get('st'))) if isinstance(prev.get('st'), dict) else {}
+    ctx = {'now': now, 'prev': prev, 'parts': {}, 't0': time.monotonic(), 'n': 0, 'budzet': MT_BUDZET_S if budzet_s is None else budzet_s,
+           'fetch': fetch or _mt_http}
+    late = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
+    proby, zle, pominiete, hist_err = {p: 0 for p in MT_PARTS}, {}, [], []
+    wm_odczyt, tabele = None, {}
+    for src, part in MT_ZR:
+        z = st.setdefault(src, {})
+        if not mt_due(src, z, now):
+            continue
+        if late and src == 'co':
+            pominiete.append('co (długi przebieg)'); continue
+        if time.monotonic() - ctx['t0'] + MT_ZAPYTANIA[src] * MT_LIMIT_S[src] > ctx['budzet']:
+            pominiete.append(f'{src} (budżet czasu)'); continue
+        prev_try, prev_asof = z.get('try'), z.get('asof')
+        z['try'] = now_iso
+        proby[part] += 1
+        try:
+            if src == 'wm':
+                wm_odczyt = _mt_pobierz_wm(ctx)
+                asof = max(wm_odczyt['pd'], wm_odczyt['zd'])
+            elif src == 'co':
+                o = _mt_pobierz_co(ctx, z)
+                if o is None or (prev_asof and o['asof'] < str(prev_asof)):   # ten sam plik albo starszy raport na górze listy — bez zmian
+                    asof = prev_asof
+                else:
+                    asof = o['asof']
+                    P = prev.get('cu') if isinstance(prev.get('cu'), dict) else {}
+                    H = {r[0]: r for r in P.get('d') or [] if isinstance(r, list) and len(r) == 5 and isinstance(r[0], str)}
+                    H[asof] = [asof, o['lme'], o['comex'], o['shfe'], o['razem']]
+                    ctx['parts']['cu'] = dict({k: o[k] for k in ('lme', 'comex', 'shfe', 'razem')}, asof=asof, d=[H[d] for d in sorted(H)][-MT_TYG_N:])
+            else:
+                url = {'kx': MT_KX_URL, 'sd': MT_SD_URL, 'sw': MT_SW_URL}[src]
+                parse = {'kx': parse_mt_kx, 'sd': parse_mt_sd, 'sw': parse_mt_sw}[src]
+                r = _mt_sh_pobierz(ctx, src, z, url, parse)
+                asof = prev_asof
+                if r is not None:
+                    asof, dane = r
+                    if src == 'kx':
+                        P = (prev.get('sh') or {}).get('m') if isinstance(prev.get('sh'), dict) else None
+                        M = {}
+                        for m in MT_M:
+                            old = {x[0]: x for x in (((P or {}).get(m) or {}).get('d') or []) if isinstance(x, list) and len(x) == 3}
+                            old[asof] = [asof, dane[m]['s'], dane[m]['k']]
+                            M[m] = dict(dane[m], d=[old[d] for d in sorted(old)][-MT_SH_D:])
+                        ctx['parts']['sh'] = {'asof': asof, 'vat': MT_VAT, 'm': M}
+                    elif src == 'sd':
+                        ctx['parts']['shd'] = {'asof': asof, 'm': dane}
+                    else:
+                        ctx['parts']['shw'] = _mt_tyg_zloz(prev.get('shw'), asof, dane, 'z')
+        except Exception as e:
+            msg = mask(f'{src}: {e}')[:160]
+            z['err'] = msg; zle.setdefault(part, []).append(msg)
+            continue
+        z['at'] = now_iso; z.pop('err', None)
+        if asof:
+            if not prev_asof or asof > str(prev_asof):
+                _mt_pub(src, z, asof, now, now_iso, prev_try)
+            z['asof'] = asof
+    # historia zapasów w Londynie: tabele roczne (kolejka _mt_wmh_plan), nie w długim przebiegu, po błędzie najwcześniej po MT_WMH_PONOW min
+    h = st.setdefault('wmh', {})
+    rok = now.year
+    prev_lme = prev.get('lme') if isinstance(prev.get('lme'), dict) else {}
+    if wm_odczyt is not None:
+        _, luka = _mt_lme_zloz(prev_lme, wm_odczyt, {}, now)
+        if luka:
+            h['odsw'] = list(MT_M)
+    plan, zalegle = _mt_wmh_plan(h, rok, now)
+    if plan and not late and _su_min(now, h.get('try')) >= (MT_WMH_PONOW if h.get('err') else 0):
+        for m, y in plan[:MT_WMH_NA_PRZEBIEG]:
+            if time.monotonic() - ctx['t0'] + MT_LIMIT_S['wmh'] > ctx['budzet']:
+                pominiete.append('wmh (budżet czasu)'); break
+            h['try'] = now_iso
+            url = MT_WMH_URL.format(p=MT_WM_POLE[m]) + ('' if y is None else f'&year={y}')
+            try:
+                kod, b = _mt_get(ctx, 'wmh', url)
+                if kod == 404:
+                    raise RuntimeError('HTTP 404')
+                try:
+                    rows = parse_mt_tabela(b, m)
+                except ValueError:
+                    if y is None and now.month == 1 and now.day <= 10:   # początek roku: tabela roku bieżącego jeszcze pusta — to nie błąd
+                        rows = {}
+                    else:
+                        raise
+                if any(d[:4] != str(y or rok) for d in rows):
+                    raise ValueError(f'tabela {m} {y or rok}: dni z innego roku')
+            except Exception as e:   # błąd tabeli historii NIE oznacza części lme jako nieudanej (ceny i zapasy dzienne są osobno) — st.wmh.err + notatka
+                h['err'] = mask(f'wmh {m} {y or rok}: {e}')[:160]
+                h.setdefault('zla', {})[f'{m}:{y or rok}'] = now_iso
+                hist_err.append(h['err'])
+                break
+            h.pop('err', None)
+            (h.get('zla') or {}).pop(f'{m}:{y or rok}', None)
+            tabele[m] = rows
+            if y is None:
+                h.setdefault('cur', {})[m] = max(rows) if rows else f'{rok}-01-01'
+                h['odsw'] = [k for k in (h.get('odsw') or []) if k != m]
+                if not h['odsw']:
+                    h.pop('odsw', None)
+            else:
+                h['done'] = sorted(set(h.get('done') or []) | {f'{m}:{y}'})
+            proby['lme'] += 1
+    if hist_err:   # tabela historii z błędem: na koniec kolejki (24 h), część lme bez zmiany statusu — notatka przebiegu, nie błąd części
+        META['notes'].append(mask('metale: historia zapasów (Londyn) — ' + '; '.join(hist_err))[:200])
+    if wm_odczyt is not None or tabele:
+        ctx['parts']['lme'], _ = _mt_lme_zloz(prev_lme, wm_odczyt, tabele, now)
+    if zalegle - len(tabele) > 0:
+        h['kolejka'] = zalegle - len(tabele)   # tabel jeszcze do pobrania (także czekających po błędzie)
+    else:
+        h.pop('kolejka', None)
+    out = {'v': MT_V, 'at': None, 'src': MT_SRC}
+    pat = dict(prev.get('part_at') or {}) if isinstance(prev.get('part_at'), dict) else {}
+    perr = dict(prev.get('err') or {}) if isinstance(prev.get('err'), dict) else {}
+    ok = {}
+    for p in MT_PARTS:
+        if p in ctx['parts']:
+            out[p] = ctx['parts'][p]; pat[p] = now_iso
+        elif isinstance(prev.get(p), dict):
+            out[p] = prev[p]
+        if zle.get(p):
+            ok[p] = False; perr[p] = '; '.join(zle[p])[:240]
+        elif proby[p]:
+            ok[p] = True; perr.pop(p, None)
+        else:
+            ok[p] = 'cached' if isinstance(out.get(p), dict) else False
+            if not isinstance(out.get(p), dict) and p not in perr:
+                perr[p] = 'brak danych (źródło jeszcze nie pobrane)'
+    out['fx'] = _mt_fx(prev.get('fx'), fx)
+    out['cn'] = mt_cn(out.get('sh'), out.get('lme'), out['fx'])
+    out['part_at'] = {p: pat[p] for p in MT_PARTS if pat.get(p) and isinstance(out.get(p), dict)}
+    out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
+    out.update({'ok': ok, 'err': {p: perr[p] for p in MT_PARTS if perr.get(p)},
+                'next': {p: mt_next(s, st.get(s) or {}, now) for s, p in MT_ZR}, 'st': st})
+    for p in MT_PARTS:
+        for x in zle.get(p, []):
+            META['errors'].append(mask('metale ' + x)[:200])
+    if pominiete:
+        META['notes'].append('metale: pominięte w tym przebiegu — ' + ', '.join(pominiete))
+    return out
+
+
 # ===================== v295c: ZŁOTO I SUROWCE A KRYPTO — panel CRYPTO #c-surowce (plik data/zloto-krypto.json) =====================
 # Etap 5 działu SUROWCE (agent CRYPTO). Wyliczenia z plików TEGO przebiegu (SAVED) — bez nowych zapytań do sieci:
 #  * złoto — cena z londyńskiego fixingu popołudniowego wyliczona z archiwum funduszu (data/surowce-hist.json, ostatnie sesje z data/surowce.json);
@@ -26597,6 +27463,19 @@ def main():
             META['errors'].append(mask(f'Rynki: {e}'))
             for k in RYNKI_PX: META['ok'][f'rynki_{k}'] = False
             if prev_ry: save('rynki', prev_ry)
+    # v339 (F4Z1+F4Z2): METALE PRZEMYSŁOWE (data/metale.json) — ceny i zapasy giełdy w Londynie, ceny i zapasy w Szanghaju, tygodniowy raport
+    # o zapasach miedzi; części z własnymi bramkami wg uczonych okien publikacji i budżetem czasu (build_metale); kursy USD/CNY z rynki.json
+    # TEGO przebiegu (blok wyżej); awaria budowniczego = poprzedni plik. META ok: metale_<część> (strona Źródła).
+    prev_mt = previous('metale')
+    try:
+        mt_ = build_metale(prev_mt, run_t0=_RUN_T0[0], fx=SAVED.get('rynki'))
+        save('metale', mt_)
+        for p in MT_PARTS:
+            META['ok']['metale_' + p] = mt_['ok'][p]
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'metale: {e}')[:200]); META['ok']['metale'] = False
+        if isinstance(prev_mt, dict):
+            save('metale', prev_mt)
     # v104: dźwignia i pozycje w krypto (bez klucza) — co godzinę od pełnej budowy; młody plik z częścią z błędem: dobieramy tylko tę część (strona Źródła: dzwignia)
     # v126: część `cz` (wszystkie duże giełdy, sekret COINALYZE_KEY — tylko nagłówek zapytań, maskowany w błędach). Bez klucza plik jak dotąd (notatka).
     # Z kluczem: młody zdrowy plik z zaległymi zadaniami tej części = dobierana tylko ona (co przebieg, w budżecie wywołań); jej awaria nigdy nie

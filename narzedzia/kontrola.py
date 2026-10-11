@@ -123,6 +123,194 @@ def pip_kontrola(j, now=None):
 
 
 
+# ---------------------------------------------------------------- v339 (F4Z1+F4Z2): metale przemysłowe (data/metale.json) ----------------------------------------------------------------
+# Wiek PLIKU (pole at = najnowsza przebudowana część): części zmieniają się w dni handlu w Londynie (wieczorem UTC), w Szanghaju (ok. 07:30 UTC)
+# i w sobotę (raport tygodniowy o miedzi). Najdłuższa przerwa bez żadnej nowej części w modelu kalendarza 2026 (Wielkanoc: Londyn zamknięty
+# 3 i 6.04, Szanghaj 4–6.04, raport o miedzi w czwartek 2.04): ok. 96 h → limit 5 dni. Świeżość KAŻDEJ części osobnym wierszem (lista SWIEZOSC
+# bez zmian), najwyżej ⚠️ — progi (wiek od końca dnia danych):
+#   Londyn 6 dni — test wsteczny na dniach handlu 2020-01 – 2026-10 (1712 sesji z tabel rocznych; najdłuższa przerwa 5 dni — Wielkanoc i
+#     Boże Narodzenie): kontrola co godzinę, publikacja do D + 30 h — najwyższy wiek 5 d 5 h, ⚠️ 0 z 59 136 godzin (z dodatkowym dniem
+#     spóźnienia: 65 = 0,11%);
+#   Szanghaj, ceny i kwity dzienne — 12 dni: model kalendarza (weekendy i zamknięcia giełd w Chinach; najdłuższa przerwa między sesjami —
+#     Święto Wiosny, do 11 dni; w nagraniach 30.09 → 8.10.2026 = 8 dni). Bez pełnej historii sesji — próg do przeglądu po roku danych w pliku;
+#   Szanghaj, zapasy tygodniowe — 15 dni (raport z ostatniego dnia handlu tygodnia; przy Święcie Wiosny dwa tygodnie bez raportu = do 14 dni);
+#   raport tygodniowy o miedzi — 14 dni: 146 raportów 2024-01 – 2026-10 z listy wydawcy, najdłuższa przerwa między dniami raportów 10 dni (święta
+#     we wrześniu), publikacja do 3 dni po dniu raportu → najwyższy wiek 12 dni, ⚠️ 0.
+# Porównania (najwyżej ⚠️, nigdy ❌): (1) miedź w Londynie z raportu tygodniowego = zapas dzienny tego samego dnia; (2) miedź w Szanghaju
+# z raportu tygodniowego = zapas z tygodniowego raportu giełdy z TEGO SAMEGO tygodnia ISO (przy świętach raport giełdy bywa z wtorku albo
+# środy); tolerancja MT_K_TOL_PCT % — nagrania 25.09, 2.10, 9.10.2026: 3 + 2 pary równe co do tony; (3) kwity z raportu tygodniowego
+# giełdy w Szanghaju = kwity z raportu dziennego tego samego dnia (9.10.2026: 6 z 6 równych); (4) średnia miesięczna cen cash z pliku wobec
+# średniej miesięcznej Banku Światowego (surowce-hist.json / surowce.json) — próg MT_K_MIES_PCT %: 126 par miesięcy (miedź 2020-01 – 2026-09,
+# pozostałe metale 2026-01 – 2026-09) — największa różnica 0,74% (cyna 01.2026), ⚠️ 0. ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku
+# (daty nie rosną, cena ≤ 0, zapas ujemny, suma giełd ≠ razem w raporcie o miedzi, zmiana ≠ cena / poprzednia).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'metale')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['metale'] = 5 * 24 * 60
+MT_K_ETYKIETA = {'lme': 'metale: giełda w Londynie — ceny i zapasy (dziennie, publ. wieczorem UTC)',
+                 'sh': 'metale: giełda w Szanghaju — ceny (dziennie, ok. 07:30 UTC)',
+                 'shd': 'metale: giełda w Szanghaju — kwity magazynowe (dziennie)',
+                 'shw': 'metale: giełda w Szanghaju — zapasy w magazynach (tygodniowo)',
+                 'cu': 'metale: raport tygodniowy o zapasach miedzi (Londyn, USA, Chiny)'}
+MT_K_PROG = {'lme': 6 * 24 * 60, 'sh': 12 * 24 * 60, 'shd': 12 * 24 * 60, 'shw': 15 * 24 * 60, 'cu': 14 * 24 * 60}
+MT_K_TOL_PCT = 0.1       # % — zapasy miedzi: raport tygodniowy vs dane giełdy
+MT_K_MIES_PCT = 1.0      # % — średnia miesięczna cash vs Bank Światowy
+MT_K_WB = {'cu': 'miedz', 'al': 'aluminium', 'ni': 'nikiel', 'zn': 'cynk', 'pb': 'olow', 'sn': 'cyna'}
+MT_K_NAZWY = {'cu': 'miedź', 'al': 'aluminium', 'ni': 'nikiel', 'zn': 'cynk', 'pb': 'ołów', 'sn': 'cyna'}
+
+
+def _mt_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float('inf')
+
+
+def _mt_k_tydz(d):
+    try:
+        y, w, _ = dt.date.fromisoformat(str(d)[:10]).isocalendar()
+        return (y, w)
+    except ValueError:
+        return None
+
+
+def metale_swiezosc(j, now=None):
+    """Wiersze świeżości części pliku metale.json w kształcie wierszy swiezosc(): (etykieta, status, wiek min, data danych, uwaga). Najwyżej ⚠️,
+    nigdy ❌; brak pliku albo inna wersja = brak wierszy; część bez daty danych — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    nx = j.get('next') if isinstance(j.get('next'), dict) else {}
+    rows = []
+    for p, label in MT_K_ETYKIETA.items():
+        P = j.get(p) if isinstance(j.get(p), dict) else {}
+        txt = P.get('asof') if isinstance(P.get('asof'), str) else None
+        if not txt:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        w = wiek_danych(txt, 'day', 'k', now)
+        prog = MT_K_PROG[p]
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        note = ''
+        if st == '⚠️':
+            nt = nx.get(p); pt = _aw_t(nt) if isinstance(nt, str) else None
+            note = f'próg {fmt_wiek(prog)} — najwyżej uwaga' + (
+                f'; spodziewana publikacja {czas_pl(nt)}' + (' — zaległa (święto albo przerwa u źródła?)' if pt and pt < now else '') if pt else '')
+        rows.append((label, st, w, txt, note))
+    return rows
+
+
+def _mt_k_rosna(rows):
+    ds = [str(r[0]) for r in rows if isinstance(r, list) and r]
+    return ds == sorted(set(ds))
+
+
+def metale_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w metalach) → lista opisów."""
+    zle = []
+    L = ((j.get('lme') or {}).get('m') or {}) if isinstance(j.get('lme'), dict) else {}
+    for m, e in (L.items() if isinstance(L, dict) else ()):
+        if not isinstance(e, dict):
+            continue
+        for k in ('d', 'tz', 'wyk', 'mies'):
+            if isinstance(e.get(k), list) and not _mt_k_rosna(e[k]):
+                zle.append(f'lme.{m}.{k}: daty nie rosną albo się powtarzają')
+        for r in e.get('d') or []:
+            if isinstance(r, list) and len(r) == 4 and ((r[1] is not None and not (_mt_k_num(r[1]) and r[1] > 0))
+                                                       or (r[3] is not None and not (_mt_k_num(r[3]) and r[3] >= 0))):
+                zle.append(f'lme.{m}: {r[0]} — cena ≤ 0 albo zapas ujemny'); break
+        c, pc, ch = e.get('c'), e.get('pc'), e.get('ch')
+        if _mt_k_num(c) and _mt_k_num(pc) and pc > 0 and _mt_k_num(ch) and abs((c / pc - 1) * 100 - ch) > 0.002:
+            zle.append(f'lme.{m}: zmiana {ch}% ≠ {(c / pc - 1) * 100:.3f}% z ceny i poprzedniej ceny')
+    S = ((j.get('sh') or {}).get('m') or {}) if isinstance(j.get('sh'), dict) else {}
+    for m, e in (S.items() if isinstance(S, dict) else ()):
+        if isinstance(e, dict) and isinstance(e.get('d'), list) and not _mt_k_rosna(e['d']):
+            zle.append(f'sh.{m}.d: daty nie rosną albo się powtarzają')
+    C = j.get('cu') if isinstance(j.get('cu'), dict) else {}
+    if C and all(_mt_k_num(C.get(k)) for k in ('lme', 'comex', 'shfe', 'razem')) and abs(C['lme'] + C['comex'] + C['shfe'] - C['razem']) > 3:
+        zle.append('cu: suma giełd ≠ razem')
+    if isinstance(C.get('d'), list) and not _mt_k_rosna(C['d']):
+        zle.append('cu.d: daty nie rosną albo się powtarzają')
+    return zle
+
+
+def _mt_k_wb(files, wid):
+    """Średnie miesięczne Banku Światowego {RRRR-MM: cena} z surowce.json (mies.s) i surowce-hist.json (m) — nowsze z surowce.json."""
+    out = {}
+    h = files.get('surowce-hist') if isinstance(files.get('surowce-hist'), dict) else {}
+    for r in ((h.get('m') or {}).get(wid) or []) if isinstance(h.get('m'), dict) else []:
+        if isinstance(r, list) and len(r) == 2 and _mt_k_num(r[1]):
+            out[r[0]] = r[1]
+    s = files.get('surowce') if isinstance(files.get('surowce'), dict) else {}
+    S = ((s.get('mies') or {}).get('s') or {}) if isinstance(s.get('mies'), dict) else {}
+    for r in ((S.get(wid) or {}).get('d') or []) if isinstance(S.get(wid), dict) else []:
+        if isinstance(r, list) and len(r) == 2 and _mt_k_num(r[1]):
+            out[r[0]] = r[1]
+    return out
+
+
+def metale_porownania(j, files):
+    """Porównania z progami (najwyżej ⚠️) → {'wiersze': [(opis, znak)], 'uwagi': [...]}."""
+    W, U = [], []
+    C = j.get('cu') if isinstance(j.get('cu'), dict) else {}
+    L = ((j.get('lme') or {}).get('m') or {}) if isinstance(j.get('lme'), dict) else {}
+    tol = lambda a, b: abs(a - b) <= max(1, abs(b) * MT_K_TOL_PCT / 100)  # noqa: E731
+    if C.get('asof') and _mt_k_num(C.get('lme')):
+        D = {r[0]: r[3] for r in ((L.get('cu') or {}).get('d') or []) if isinstance(r, list) and len(r) == 4}
+        b = D.get(C['asof'])
+        if _mt_k_num(b):
+            ok = tol(C['lme'], b)
+            W.append((f'miedź w Londynie {C["asof"]}: raport tygodniowy vs zapas dzienny', '✅' if ok else '⚠️'))
+            if not ok:
+                U.append(f'metale: miedź w Londynie {C["asof"]} — raport tygodniowy {C["lme"]} t vs zapas dzienny {b} t '
+                         f'(tolerancja {MT_K_TOL_PCT:g}%, w nagraniach 3 z 3 równe) — sprawdzić')
+    if C.get('asof') and _mt_k_num(C.get('shfe')):
+        SW = ((((j.get('shw') or {}).get('m') or {}).get('cu') or {}).get('d') or []) if isinstance(j.get('shw'), dict) else []
+        tc = _mt_k_tydz(C['asof'])
+        x = [r for r in SW if isinstance(r, list) and len(r) == 2 and _mt_k_tydz(r[0]) == tc and _mt_k_num(r[1])]
+        if x:
+            ok = tol(C['shfe'], x[-1][1])
+            W.append((f'miedź w Szanghaju (tydzień {C["asof"]}): raport tygodniowy vs raport giełdy', '✅' if ok else '⚠️'))
+            if not ok:
+                U.append(f'metale: miedź w Szanghaju — raport tygodniowy z {C["asof"]} {C["shfe"]} t vs raport giełdy z {x[-1][0]} {x[-1][1]} t '
+                         f'(tolerancja {MT_K_TOL_PCT:g}%, w nagraniach 2 z 2 równe) — sprawdzić')
+    SW, SD = j.get('shw') if isinstance(j.get('shw'), dict) else {}, j.get('shd') if isinstance(j.get('shd'), dict) else {}
+    if SW.get('asof') and SW.get('asof') == SD.get('asof'):
+        zle = [m for m in MT_K_NAZWY if _mt_k_num(((SW.get('m') or {}).get(m) or {}).get('w')) and _mt_k_num(((SD.get('m') or {}).get(m) or {}).get('w'))
+               and SW['m'][m]['w'] != SD['m'][m]['w']]
+        W.append((f'Szanghaj {SW["asof"]}: kwity tygodniowe = dzienne', '⚠️' if zle else '✅'))
+        if zle:
+            U.append(f'metale: Szanghaj {SW["asof"]} — kwity w raporcie tygodniowym ≠ dziennym: ' + ', '.join(MT_K_NAZWY[m] for m in zle)
+                     + ' (9.10.2026: 6 z 6 równych) — sprawdzić')
+    roz, ile = [], 0
+    for m, wid in MT_K_WB.items():
+        M = {r[0]: r[1] for r in ((L.get(m) or {}).get('mies') or []) if isinstance(r, list) and len(r) == 3 and _mt_k_num(r[1])}
+        wb = _mt_k_wb(files, wid)
+        wsp = sorted(set(M) & set(wb))
+        if not wsp or not (wb[wsp[-1]] > 0):
+            continue
+        ym = wsp[-1]
+        r = (M[ym] / wb[ym] - 1) * 100
+        ile += 1
+        if abs(r) > MT_K_MIES_PCT:
+            roz.append(f'{MT_K_NAZWY[m]} {ym}: {r:+.2f}%'.replace('.', ','))
+    if ile:
+        W.append((f'średnie miesięczne cen ({ile} metali) vs Bank Światowy', '⚠️' if roz else '✅'))
+        if roz:
+            U.append('metale: średnia miesięczna cen w Londynie vs Bank Światowy ponad ' + f'{MT_K_MIES_PCT:g}'.replace('.', ',') + '% — '
+                     + '; '.join(roz) + ' (126 par miesięcy 2020–2026: najwyżej 0,74%) — sprawdzić')
+    return {'wiersze': W, 'uwagi': U}
+
+
+def metale_kontrola(files, R):
+    """Kontrola pliku metale.json bez sieci: sprzeczności w pliku (❌ = BŁĄD) i porównania z progami (najwyżej ⚠️). Brak pliku albo inna wersja
+    = None (raport bez linii)."""
+    j = files.get('metale')
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle = metale_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'metale.json: sprzeczność w pliku — {z}')
+    P = metale_porownania(j, files)
+    R['uwagi'] += P['uwagi']
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
 def pliki_bez_nadzoru(src):
     """v327 (KON-08): nazwy plików data/*.json zapisywanych przez zbieracz (save('nazwa', …) i pętla budowniczych z kluczem w main()) bez wpisu w PLIKI
     i bez powodu w PLIKI_BEZ — test pilnuje, żeby nowy plik nie został bez kontroli wieku."""
@@ -813,6 +1001,8 @@ AW_BEZ_BLEDU.update({'polska_' + p: 'Polska — część z błędem zostaje z da
 
 AW_BEZ_BLEDU.update({'surowce_raporty_' + p: 'surowce — raport miesięczny z błędem zostaje z datą (v320); wiek danych w wierszach świeżości'
                      for p in ('ropa', 'zboza', 'uran')})
+AW_BEZ_BLEDU.update({'metale_' + p: 'metale — część z błędem zostaje z datą (v339); wiek danych w wierszach świeżości'
+                     for p in ('lme', 'sh', 'shd', 'shw', 'cu')})
 
 
 def _aw_t(s):
@@ -5699,6 +5889,13 @@ def kontrola():
     for label, st, w, txt, note in P_pip['rows']:
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
     R['uwagi'] += P_pip['uwagi']
+    # 3c-mt. v339 (F4Z1+F4Z2): metale przemysłowe (data/metale.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in metale_swiezosc(files.get('metale')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c-pl. v304: Polska (data/polska.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️, nigdy ❌ ani BŁĄD
     for label, st, w, txt, note in polska_swiezosc(files.get('polska')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
@@ -5953,6 +6150,13 @@ def kontrola():
     except Exception as e:  # noqa
         Z['szlaki'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'szlaki: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v339: metale przemysłowe — sprzeczności w pliku (❌) i porównania (raport tygodniowy o miedzi vs dane giełd, kwity, średnie miesięczne vs
+    # Bank Światowy; najwyżej ⚠️), z plików strony, bez zapytań
+    try:
+        Z['metale'] = metale_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['metale'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'metale: kontrola przerwana ({str(e)[:80]})')
     # 3g. v320: raporty miesięczne o surowcach — sprzeczności w pliku (❌) i porównania (uran z funduszu vs średnia branżowa — ℹ️), z plików strony, bez zapytań
     try:
         Z['surowce-raporty'] = surowce_raporty_kontrola(files, R)
@@ -6285,6 +6489,11 @@ def raport_md(R):
             L.append('- Szlaki handlowe i łańcuchy dostaw (z pliku strony): ' + (f'? kontrola przerwana ({szl["blad"]})' if szl.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(szl['spojnosc'][:3]) + ' ❌ · ' if szl.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in szl.get('wiersze') or []) or '—') + '.')
+        mtz = Z.get('metale')   # v339: metale przemysłowe — sprzeczności w pliku i porównania; brak pliku = bez linii
+        if mtz:
+            L.append('- Metale przemysłowe (z plików strony): ' + (f'? kontrola przerwana ({mtz["blad"]})' if mtz.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(mtz['spojnosc'][:3]) + ' ❌ · ' if mtz.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in mtz.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

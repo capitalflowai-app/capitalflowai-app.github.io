@@ -21625,3 +21625,228 @@ test('v338 (F1Z4): styl rankingu — Polska wyróżniona tłem, telefon: pasek p
   const c0 = html.indexOf('#g-surowce .su-bk .wk-br:has(.su-bk-pl)'), css = html.slice(c0, html.indexOf('\n', c0));
   assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgb\(\d/.test(css), 'tylko zmienne motywu');
 });
+
+/* ===================== v339 (F4Z1+F4Z2): METALE PRZEMYSŁOWE — bloki zwijane panelu #g-surowce (plik automatu data/metale.json) =====================
+   Dane testowe MT339_FILE: build_metale (zbieracz v339) na nagraniach z 10.10.2026 (przegląd cen i tabele roczne giełdy w Londynie, plik notowań
+   i raporty zapasów w Szanghaju, tygodniowy raport o miedzi; bez sieci), d/wyk/sh przycięte. Panel = atrapa (#g-surowce z blokiem szlaków i stopką)
+   — bloki wstawia obserwator zmian panelu (renderSu bez zmian). Zegar przypięty (2026-10-10 12:00 UTC), wiek danych — atrapa „· wiek(…)”; srvJSON —
+   odpowiedź od razu (liczone wywołania). Testy nie zależą od numeru słownika (szukany po kluczu). */
+const MT339_FILE = {"v":1,"at":"2026-10-10T09:00:00+00:00","src":"CapitalFlowAI — metale przemysłowe (kody źródeł z: wm, kx, sd, sw, co — pełne nazwy na stronie Źródła)","part_at":{"lme":"2026-10-10T09:00:00+00:00","sh":"2026-10-10T09:00:00+00:00","shd":"2026-10-10T09:00:00+00:00","shw":"2026-10-10T09:00:00+00:00","cu":"2026-10-10T09:00:00+00:00"},"ok":{"lme":true,"sh":true,"shd":true,"shw":true,"cu":true},"err":{"lme":"wmh zn 2024: HTTP 404"},"next":{"lme":"2026-10-12T17:00:00+00:00","sh":"2026-10-12T07:15:00+00:00","shd":"2026-10-12T07:30:00+00:00","shw":"2026-10-16T07:30:00+00:00","cu":"2026-10-16T18:00:00+00:00"},"lme":{"asof":"2026-10-09","m":{"cu":{"c":14689.0,"m3":14570.0,"cd":"2026-10-09","pc":14526.0,"pcd":"2026-10-08","ch":1.122,"z":233025,"zd":"2026-10-09","pz":235225,"pzd":"2026-10-08","zz":["2026-10-09",-2200],"h0":"2021-01-08","d":[["2026-09-24",14765.0,14640.0,251175],["2026-09-25",14740.0,14647.0,251500],["2026-09-28",14544.5,14455.0,251350],["2026-09-29",14474.5,14448.0,250475],["2026-09-30",14487.0,14455.0,249400],["2026-10-01",14335.0,14290.0,248075],["2026-10-02",14355.0,14320.0,248650],["2026-10-05",14430.0,14366.0,244900],["2026-10-06",14505.0,14434.0,242975],["2026-10-07",14510.0,14422.0,239875],["2026-10-08",14526.0,14417.0,235225],["2026-10-09",14689.0,14570.0,233025]],"wyk":[["2025-10-03",140745],["2025-10-10",139400],["2025-10-17",137225],["2025-10-24",136350],["2025-10-31",134625],["2025-11-07",135900],["2025-11-14",135725],["2025-11-21",155025],["2025-11-28",159425],["2025-12-05",162550],["2025-12-12",165900],["2025-12-19",160400],["2025-12-24",157025],["2026-01-02",145325],["2026-01-09",138975],["2026-01-16",143575],["2026-01-23",171700],["2026-01-30",174975],["2026-02-06",183275],["2026-02-13",203875],["2026-02-20",235150],["2026-02-27",253700],["2026-03-06",284325],["2026-03-13",311825],["2026-03-20",342350],["2026-03-27",360250],["2026-04-02",364450],["2026-04-10",392750],["2026-04-17",400225],["2026-04-24",392575],["2026-05-01",398675],["2026-05-08",399400],["2026-05-15",395725],["2026-05-22",391900],["2026-05-29",389425],["2026-06-05",379225],["2026-06-12",364100],["2026-06-19",352150],["2026-06-26",336475],["2026-07-03",318900],["2026-07-10",306500],["2026-07-17",296625],["2026-07-24",276775],["2026-07-31",249850],["2026-08-07",222975],["2026-08-14",204975],["2026-08-21",238575],["2026-08-28",234275],["2026-09-04",234175],["2026-09-11",234475],["2026-09-18",255100],["2026-09-25",251500],["2026-10-02",248650],["2026-10-09",233025]],"pas":[["2026-01-09",85210.714,139351.429,265192.857],["2026-01-16",82210.714,137651.429,260696.429],["2026-01-23",77432.143,134483.571,257975.0],["2026-01-30",72271.429,127282.857,256425.0],["2026-02-06",67042.857,122073.571,248853.571],["2026-02-13",63839.286,120045.0,254139.286],["2026-02-20",64375.0,121329.286,265960.714],["2026-02-27",66678.571,120330.0,262885.714],["2026-03-06",71053.571,119293.571,258003.571],["2026-03-13",73000.0,117959.286,237117.857],["2026-03-20",73832.143,119835.0,225907.143],["2026-03-27",69267.857,121623.095,214592.857],["2026-04-02",64958.333,126462.47,211407.143],["2026-04-10",58487.5,131786.786,209064.286],["2026-04-17",51689.286,134541.786,213400],["2026-04-24",57307.143,135720.179,204693.75],["2026-05-01",67067.857,135991.429,198178.571],["2026-05-08",73082.143,133860.0,192564.286],["2026-05-15",83203.571,133256.429,181146.429],["2026-05-22",94439.286,133351.429,169335.714],["2026-05-29",98132.143,128070.571,152085.0],["2026-06-05",98235.714,122812.619,134896.429],["2026-06-12",94639.286,119632.143,137625.0],["2026-06-19",85771.429,126942.857,174717.857],["2026-06-26",76589.286,134587.857,211114.286],["2026-07-03",68689.286,138597.857,212642.857],["2026-07-10",60489.286,143896.429,217853.571],["2026-07-17",58342.857,151700.714,224257.143],["2026-07-24",61839.286,157040.714,235942.857],["2026-07-31",70810.714,164739.286,244000.0],["2026-08-07",81714.286,176505.714,282142.857],["2026-08-14",88028.571,183347.143,305435.714],["2026-08-21",94482.143,187775.0,313710.714],["2026-08-28",100417.857,189986.429,319396.429],["2026-09-04",109092.857,190478.571,318532.143],["2026-09-11",104464.286,189051.429,313253.571],["2026-09-18",108492.857,190636.429,305685.714],["2026-09-25",127732.143,193051.429,302760.714],["2026-10-02",137685.714,192413.429,299667.857],["2026-10-09",139592.143,190640.571,297828.571]]},"al":{"c":3055.5,"m3":3070.0,"cd":"2026-10-09","pc":3060.5,"pcd":"2026-10-08","ch":-0.163,"z":238875,"zd":"2026-10-09","pz":238875,"pzd":"2026-10-08","zz":["2026-10-09",0],"h0":"2026-01-02","d":[["2026-09-24",3228.0,3252.5,241375],["2026-09-25",3254.0,3267.0,241375],["2026-09-28",3248.5,3252.0,241375],["2026-09-29",3225.5,3232.0,241375],["2026-09-30",3204.0,3210.0,241375],["2026-10-01",3120.0,3131.0,240625],["2026-10-02",3109.5,3122.0,240375],["2026-10-05",3107.0,3118.0,240375],["2026-10-06",3134.5,3148.5,238875],["2026-10-07",3102.5,3114.0,238875],["2026-10-08",3060.5,3069.0,238875],["2026-10-09",3055.5,3070.0,238875]],"wyk":[["2026-08-07",256400],["2026-08-14",248300],["2026-08-21",246925],["2026-08-28",246725],["2026-09-04",244525],["2026-09-11",244100],["2026-09-18",242600],["2026-09-25",241375],["2026-10-02",240375],["2026-10-09",238875]],"pas":[]},"ni":{"c":15545.0,"m3":15720.0,"cd":"2026-10-09","pc":15415.0,"pcd":"2026-10-08","ch":0.843,"z":282864,"zd":"2026-10-09","pz":284178,"pzd":"2026-10-08","zz":["2026-10-09",-1314],"h0":"2026-01-02","d":[["2026-09-24",16320.0,16475.0,278898],["2026-09-25",16050.0,16230.0,284946],["2026-09-28",16050.0,16220.0,284922],["2026-09-29",15860.0,16085.0,284898],["2026-09-30",15860.0,16060.0,284898],["2026-10-01",15570.0,15760.0,284682],["2026-10-02",15435.0,15625.0,285168],["2026-10-05",15470.0,15690.0,284970],["2026-10-06",15530.0,15720.0,284178],["2026-10-07",15645.0,15840.0,284178],["2026-10-08",15415.0,15600.0,284178],["2026-10-09",15545.0,15720.0,282864]],"wyk":[["2026-08-07",264444],["2026-08-14",264732],["2026-08-21",268488],["2026-08-28",268362],["2026-09-04",270768],["2026-09-11",274320],["2026-09-18",278826],["2026-09-25",284946],["2026-10-02",285168],["2026-10-09",282864]],"pas":[]},"zn":{"c":3840.0,"m3":3781.5,"cd":"2026-10-09","pc":3781.0,"pcd":"2026-10-08","ch":1.56,"z":126850,"zd":"2026-10-09","pz":127425,"pzd":"2026-10-08","zz":["2026-10-09",-575],"h0":"2026-01-02","d":[["2026-09-24",3981.0,3915.5,123200],["2026-09-25",4060.0,3952.0,121600],["2026-09-28",3957.0,3852.0,123475],["2026-09-29",3977.0,3871.0,123550],["2026-09-30",3954.0,3842.0,121600],["2026-10-01",3834.0,3766.0,123975],["2026-10-02",3798.0,3733.0,123750],["2026-10-05",3774.0,3714.0,126975],["2026-10-06",3803.0,3766.0,127275],["2026-10-07",3799.0,3756.0,127750],["2026-10-08",3781.0,3737.0,127425],["2026-10-09",3840.0,3781.5,126850]],"wyk":[["2026-08-07",97075],["2026-08-14",88000],["2026-08-21",93125],["2026-08-28",97950],["2026-09-04",112175],["2026-09-11",109575],["2026-09-18",115300],["2026-09-25",121600],["2026-10-02",123750],["2026-10-09",126850]],"pas":[]},"pb":{"c":1847.0,"m3":1883.5,"cd":"2026-10-09","pc":1833.0,"pcd":"2026-10-08","ch":0.764,"z":347125,"zd":"2026-10-09","pz":347875,"pzd":"2026-10-08","zz":["2026-10-09",-750],"h0":"2026-01-02","d":[["2026-09-24",1900.0,1925.0,364075],["2026-09-25",1902.5,1929.0,362525],["2026-09-28",1886.0,1911.5,358700],["2026-09-29",1876.0,1907.0,357550],["2026-09-30",1856.0,1890.0,357350],["2026-10-01",1837.0,1869.0,356600],["2026-10-02",1827.0,1865.0,354175],["2026-10-05",1829.5,1872.0,351475],["2026-10-06",1837.5,1880.0,349625],["2026-10-07",1844.5,1884.0,349400],["2026-10-08",1833.0,1874.0,347875],["2026-10-09",1847.0,1883.5,347125]],"wyk":[["2026-08-07",424575],["2026-08-14",412675],["2026-08-21",416850],["2026-08-28",406250],["2026-09-04",391975],["2026-09-11",380025],["2026-09-18",373625],["2026-09-25",362525],["2026-10-02",354175],["2026-10-09",347125]],"pas":[]},"sn":{"c":52900.0,"m3":53050.0,"cd":"2026-10-09","pc":53050.0,"pcd":"2026-10-08","ch":-0.283,"z":4265,"zd":"2026-10-09","pz":4310,"pzd":"2026-10-08","zz":["2026-10-09",-45],"h0":"2026-01-02","d":[["2026-09-24",53875.0,54195.0,4590],["2026-09-25",54025.0,54200.0,4590],["2026-09-28",53750.0,53945.0,4565],["2026-09-29",53950.0,54075.0,4455],["2026-09-30",54075.0,54350.0,4480],["2026-10-01",54400.0,54500.0,4475],["2026-10-02",54355.0,54400.0,4475],["2026-10-05",54250.0,54325.0,4430],["2026-10-06",54275.0,54410.0,4405],["2026-10-07",54000.0,54150.0,4325],["2026-10-08",53050.0,53050.0,4310],["2026-10-09",52900.0,53050.0,4265]],"wyk":[["2026-08-07",5690],["2026-08-14",5485],["2026-08-21",5385],["2026-08-28",5550],["2026-09-04",5470],["2026-09-11",5200],["2026-09-18",4855],["2026-09-25",4590],["2026-10-02",4475],["2026-10-09",4265]],"pas":[]}}},"sh":{"asof":"2026-10-09","vat":1.13,"m":{"cu":{"k":"cu2611","s":109610,"p":110740,"c":110110,"oi":192040,"d":[["2026-10-09",109610,"cu2611"]]},"al":{"k":"al2611","s":23380,"p":23585,"c":23470,"oi":257694,"d":[["2026-10-09",23380,"al2611"]]},"ni":{"k":"ni2611","s":119310,"p":119550,"c":119100,"oi":138667,"d":[["2026-10-09",119310,"ni2611"]]},"zn":{"k":"zn2611","s":25850,"p":26225,"c":25930,"oi":107450,"d":[["2026-10-09",25850,"zn2611"]]},"pb":{"k":"pb2611","s":15965,"p":16215,"c":15980,"oi":62050,"d":[["2026-10-09",15965,"pb2611"]]},"sn":{"k":"sn2611","s":391170,"p":408700,"c":391410,"oi":34969,"d":[["2026-10-09",391170,"sn2611"]]}}},"shd":{"asof":"2026-10-09","m":{"cu":{"w":8285,"dw":599},"al":{"w":113610,"dw":-4786},"ni":{"w":94059,"dw":3501},"zn":{"w":79526,"dw":-976},"pb":{"w":42257,"dw":0},"sn":{"w":3994,"dw":-332}}},"shw":{"asof":"2026-10-09","m":{"cu":{"zp":38744,"wp":10011,"z":58744,"w":8285,"dz":20000,"d":[["2026-10-09",58744]]},"al":{"zp":288764,"wp":121863,"z":266373,"w":113610,"dz":-22391,"d":[["2026-10-09",266373]]},"ni":{"zp":107495,"wp":90835,"z":107250,"w":94059,"dz":-245,"d":[["2026-10-09",107250]]},"zn":{"zp":143527,"wp":81176,"z":146164,"w":79526,"dz":2637,"d":[["2026-10-09",146164]]},"pb":{"zp":55986,"wp":42257,"z":55986,"w":42257,"dz":0,"d":[["2026-10-09",55986]]},"sn":{"zp":7170,"wp":4158,"z":7068,"w":3994,"dz":-102,"d":[["2026-10-09",7068]]}}},"cu":{"lme":233025,"comex":711610,"shfe":58744,"razem":1003379,"asof":"2026-10-09","d":[["2026-10-09",233025,711610,58744,1003379]]},"fx":[["2025-10-09",7.1224],["2026-07-09",6.796],["2026-09-09",6.7078],["2026-10-02",6.7046],["2026-10-08",6.7023],["2026-10-09",6.6921]],"cn":{"cu":[["2026-10-09",14494.7,14570.0,-0.52]],"al":[["2026-10-09",3091.7,3070.0,0.71]],"ni":[["2026-10-09",15777.4,15720.0,0.37]],"zn":[["2026-10-09",3418.4,3781.5,-9.6]],"pb":[["2026-10-09",2111.2,1883.5,12.09]],"sn":[["2026-10-09",51727.9,53050.0,-2.49]]}};
+/* strażnik tłumaczeń v142 (kategoria c — nazwa własna albo wyraz pisany w tym języku tak samo jak po angielsku): Aluminium (de, fr), Nickel (de, fr),
+   Zinc (es, fr), London (de), New York (de, it), China (de) */
+Object.assign(V142_OK, {'mt339.n.al': 'de fr', 'mt339.n.ni': 'de fr', 'mt339.n.zn': 'es fr', 'mt339.z.lme': 'de', 'mt339.cu.lo': 'de', 'mt339.cu.us': 'de it', 'mt339.cu.cn': 'de'});
+const mt339 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const arc = cut('function arcMs(d){', '\n/* v293 (audyt G2)'), wk = cut('const wkNum=v=>', '\n/* pierścień: udziały'), wk2 = cut('const wkMs=d=>', '\nconst WK_FGZ=');
+  const blk = cut('/* ===================== v295g: SUROWCE', '\nsuLoad();suAuto();');
+  const code = cut('/* ===================== v339 (F4Z1+F4Z2): METALE', '/* ---------- koniec bloku metali (v339) ---------- */');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const fPct=', f0));
+  const NOW = Date.parse('2026-10-10T12:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o)), sp = su295.sp, txt = su295.txt;
+  const BODY = "'use strict';\n" + arc + '\n' + wk + '\n' + wk2 + '\n' + blk + '\n' + code + '\nreturn {MT, mtOk, mtInner, mtBody, mtApply, mtLoad, mtInject, mtRender};';
+  const BASE = '<div class="etfh"><h2>Surowce</h2></div><details class="etfd su-b sz-b" id="su-b-sz"><summary>Szlaki</summary></details><p class="pfoot">stopka</p>';
+  const SZ = '<details class="etfd su-b sz-b" id="su-b-sz">';
+  const mk = (L, files, opt) => {
+    opt = opt || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt, sg, fPct};')(L, LOC);
+    /* atrapa panelu: HTML jako tekst; querySelector — kontener metali (#mt-w), blok szlaków i stopka (wstawianie przed nimi) */
+    const el = {html: BASE, hidden: !!opt.hidden};
+    const W0 = '<div id="mt-w" class="mt-w">';
+    const end = () => { const a = el.html.indexOf(SZ); return a >= 0 ? a : el.html.indexOf('<p class="pfoot">'); };
+    el.querySelector = q => {
+      if (q === '#mt-w') { const i = el.html.indexOf(W0); if (i < 0) return null;
+        return {set innerHTML(v) { el.html = el.html.slice(0, i) + W0 + v + '</div>' + el.html.slice(end()); }}; }
+      const at = q === '#su-b-sz' ? el.html.indexOf(SZ) : q === '.pfoot' ? el.html.indexOf('<p class="pfoot">') : -1;
+      return at < 0 ? null : {insertAdjacentHTML(pos, h) { assert.equal(pos, 'beforebegin'); el.html = el.html.slice(0, at) + h + el.html.slice(at); }};
+    };
+    const calls = [], lis = [], ivs = [], obs = [], ls = Object.assign({}, opt.ls || {}), focus = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => lis.push([e, f, c]), querySelector: q => (q.includes('aria-pressed="true"') ? {focus: () => focus.push(q)} : null), hidden: false};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'sg', 'fPct', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'flagsHtml', 'sepK', 'sepL',
+      'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date', 'renderUsa', BODY)(
+      q => (q === '#g-surowce' ? el : null), v96src.tFor(L), v96src.escH, F.nfmt, F.sg, F.fPct, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv,
+      v96src.H.glyphImg, v96src.H.flagImg, undefined, () => ': ', () => ', ', {getItem: k => (k in ls ? ls[k] : null), setItem: (k, v) => { ls[k] = String(v); }}, doc,
+      function (cb) { obs.push(cb); this.observe = () => {}; }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD, undefined);
+    return {api, el, calls, lis, ivs, obs, ls, focus};
+  };
+  const mine = f => String(f).includes('mt');
+  /* zdarzenia: kliknięcie nagłówka bloku (rozwija zwinięty), przycisk metalu, przełączenie (toggle) */
+  const click = (K, id, open) => K.lis.filter(l => l[0] === 'click' && mine(l[1])).forEach(([, f]) => f({target: {closest: s => (s === '#mt-w details>summary' ? {parentNode: {id, open: !!open}} : null)}}));
+  const btn = (K, m) => K.lis.filter(l => l[0] === 'click' && mine(l[1])).forEach(([, f]) => f({target: {closest: s => (s === '#mt-w button[data-mt-m]' ? {getAttribute: () => m} : null)}}));
+  const toggle = (K, id, open) => K.lis.filter(l => l[0] === 'toggle').forEach(([, f]) => f({target: {id, open}}));
+  const box = K => { const h = sp(K.el.html), i = h.indexOf('<div id="mt-w" class="mt-w">'); return i < 0 ? '' : h.slice(i, h.indexOf(SZ) >= 0 ? h.indexOf(SZ) : h.indexOf('<p class="pfoot">')); };
+  const blkOf = (B, id) => { const i = B.indexOf(`id="${id}"`); if (i < 0) return ''; const a = B.lastIndexOf('<details', i), j = B.indexOf('</details>', i); return B.slice(a, j + 10); };
+  const loaded = (L, id, F) => { const K = mk(L, {metale: F === undefined ? MT339_FILE : F}); click(K, id); return {K, B: blkOf(box(K), id)}; };
+  const tiles = (B, attr) => { const o = {}, re = new RegExp('<div class="etfk su-k mt-k[^"]*" ' + attr + '="(\\w+)">', 'g'), M = [...B.matchAll(re)];
+    M.forEach((m, i) => { o[m[1]] = B.slice(m.index, i + 1 < M.length ? M[i + 1].index : B.indexOf('</div><p class="pnote">', m.index) + 6); }); return o; };
+  const bars = B => [...B.matchAll(/<span class="wk-bl">([\s\S]*?)<\/span><svg[\s\S]*?<\/svg><span class="wk-bv[^"]*">([\s\S]*?)<\/span>/g)].map(r => [txt(r[1]), txt(r[2])]);
+  const day = (L, d) => su295.day(L, d);
+  return {mk, click, btn, toggle, box, blkOf, loaded, tiles, bars, day, clone, sp, txt, code, mine, NOW};
+})();
+
+test('v339: metale — cztery bloki zwinięte przed blokiem szlaków (po każdym rysowaniu panelu); plik dopiero po kliknięciu nagłówka (raz), nieudane pobranie bez pętli, kliknięcie = nowa próba, odświeżanie co 30 min', () => {
+  const K = mt339.mk('pl', {metale: MT339_FILE});
+  let B = mt339.box(K);
+  assert.ok(B && mt339.sp(K.el.html).indexOf(B) < mt339.sp(K.el.html).indexOf('id="su-b-sz"'), 'kontener przed blokiem szlaków');
+  assert.ok(B.startsWith('<div id="mt-w" class="mt-w"><h3 class="mtxt su-h">') && B.includes('<b>Metale przemysłowe — giełdy w Londynie, Szanghaju i Nowym Jorku</b>'));
+  assert.deepEqual([...B.matchAll(/<details class="etfd su-b mt-b" id="([\w-]+)"( open)?>/g)].map(m => [m[1], !!m[2]]),
+    [['mt-b-ceny', false], ['mt-b-zap', false], ['mt-b-cn', false], ['mt-b-cu', false]]);
+  assert.equal(B.split('<p class="pnote">Wczytujemy dane…</p>').length, 5); assert.deepEqual(K.calls, [], 'przy starcie — bez pobrania data/metale.json');
+  assert.equal(html.split("srvJSON('metale')").length, 2, 'jedno miejsce pobrania (mtLoad)');
+  /* rysowanie panelu od nowa (renderSu) — obserwator wstawia bloki raz; panel schowany — nic */
+  assert.equal(K.obs.length, 1); K.el.html = '<p>nowy</p>' + mt339.box(K).length + '<details class="etfd su-b sz-b" id="su-b-sz"></details><p class="pfoot">x</p>';
+  K.obs[0](); K.obs[0](); assert.equal(mt339.sp(K.el.html).split('<div id="mt-w"').length, 2, 'jeden kontener');
+  K.el.html = '<p class="pfoot">x</p>'; K.obs[0](); assert.ok(mt339.sp(K.el.html).startsWith('<div id="mt-w"'), 'bez bloku szlaków — przed stopką');
+  const H = mt339.mk('pl', {metale: MT339_FILE}, {hidden: true}); assert.equal(mt339.box(H), '', 'panel schowany — bez bloków');
+  /* kliknięcie nagłówka rozwijające blok — jedno pobranie, blok rozwinięty po wczytaniu; ponowne kliknięcie (zwinięcie) — bez pobrania */
+  mt339.click(K, 'mt-b-zap'); assert.deepEqual(K.calls, ['metale']);
+  B = mt339.box(K); assert.ok(B.includes('<details class="etfd su-b mt-b" id="mt-b-zap" open>') && !B.includes('id="mt-b-ceny" open'), 'rozwinięty tylko kliknięty');
+  assert.ok(mt339.blkOf(B, 'mt-b-ceny').includes('data-mt="cu"'), 'po wczytaniu — wszystkie bloki z danymi');
+  mt339.toggle(K, 'mt-b-zap', false); mt339.click(K, 'mt-b-zap', true); K.el.html = '<p class="pfoot">x</p>'; K.obs[0](); assert.deepEqual(K.calls, ['metale']);
+  assert.ok(!mt339.box(K).includes('id="mt-b-zap" open'), 'zwinięcie zapamiętane');
+  mt339.toggle(K, 'mt-b-cn', true); K.el.html = mt339.sp('<p class="pfoot">x</p>'); K.obs[0]();
+  assert.ok(mt339.box(K).includes('id="mt-b-cn" open') && mt339.box(K).includes('mt339') === false, 'rozwinięcie przetrwa rysowanie panelu');
+  /* odświeżanie: co 30 min, tylko gdy plik był wczytany */
+  const I = K.ivs.filter(x => mt339.mine(x[0])); assert.equal(I.length, 1); assert.equal(I[0][1], 30 * 60 * 1000);
+  I[0][0](); assert.deepEqual(K.calls, ['metale', 'metale']);
+  const K0 = mt339.mk('pl', {metale: MT339_FILE}); K0.ivs.filter(x => mt339.mine(x[0]))[0][0](); assert.deepEqual(K0.calls, [], 'blok nigdy nierozwinięty — zegar nic nie pobiera');
+  /* nieudane pobranie: zdanie z prośbą, bez pętli przy rysowaniu; kliknięcie — nowa próba; chwilowy błąd po wczytaniu nie zasłania danych */
+  const F = {}, K2 = mt339.mk('pl', F); mt339.click(K2, 'mt-b-ceny'); assert.deepEqual(K2.calls, ['metale']);
+  assert.ok(mt339.blkOf(mt339.box(K2), 'mt-b-ceny').includes('<p class="pnote">Nie udało się wczytać danych — zwiń i rozwiń blok, aby spróbować ponownie.</p>'));
+  mt339.toggle(K2, 'mt-b-ceny', true); K2.el.html = '<p class="pfoot">x</p>'; K2.obs[0](); K2.obs[0](); assert.deepEqual(K2.calls, ['metale'], 'bez pętli');
+  F.metale = MT339_FILE; mt339.click(K2, 'mt-b-cu'); assert.deepEqual(K2.calls, ['metale', 'metale']); assert.ok(mt339.box(K2).includes('data-mt="cu"'));
+  delete F.metale; K2.ivs.filter(x => mt339.mine(x[0]))[0][0](); assert.ok(mt339.box(K2).includes('data-mt="cu"'), 'chwilowy błąd nie zasłania danych');
+  for (const bad of [Object.assign(mt339.clone(MT339_FILE), {v: 2}), {v: 1, at: 'x', lme: {}}, {v: 1, at: '2026-10-10T09:00:00+00:00'}]) {
+    const K3 = mt339.mk('pl', {metale: bad}); mt339.click(K3, 'mt-b-ceny');
+    assert.ok(mt339.box(K3).includes('Nie udało się wczytać danych'), JSON.stringify(bad).slice(0, 60));
+  }
+});
+
+test('v339: ceny dzienne — 6 kafli (cena od ręki z jednostką, zmiana wobec poprzedniej sesji w kolorze kierunku, cena za 3 mies. z różnicą w kolorze, mini-wykres, dzień i wiek); brak = „—”', () => {
+  const {B} = mt339.loaded('pl', 'mt-b-ceny'), T = mt339.tiles(B, 'data-mt');
+  assert.deepEqual(Object.keys(T), ['cu', 'al', 'ni', 'zn', 'pb', 'sn']);
+  const d9 = mt339.day('pl', '2026-10-09'), d8 = mt339.day('pl', '2026-10-08');
+  assert.ok(T.cu.includes(`<b>14 689 <small class="mtxt">USD za tonę</small> <small class="pos">▲ +1,1% wobec ${d8}</small></b>`), T.cu);
+  assert.ok(T.cu.includes('za 3 mies.: 14 570 <span class="neg">(−0,8%)</span>') && T.cu.includes('<div class="su-sp">'), 'cena za 3 mies. i mini-wykres');
+  assert.ok(T.cu.includes(`<small class="mtxt su-d">${d9} · wiek(2026-10-09)</small>`));
+  assert.ok(T.al.includes('<b>3055,50 <small class="mtxt">USD za tonę</small> <small class="neg">▼ −0,2% wobec') && T.al.includes('<span class="pos">(+0,5%)</span>'), T.al);
+  assert.ok(T.cu.includes('Miedź') && T.sn.includes('Cyna') && T.pb.includes('Ołów'));
+  const F = mt339.clone(MT339_FILE); delete F.lme.m.ni; F.lme.m.zn.ch = 0; F.lme.m.zn.c = F.lme.m.zn.pc;
+  const B2 = mt339.loaded('pl', 'mt-b-ceny', F).B, T2 = mt339.tiles(B2, 'data-mt');
+  assert.ok(T2.ni.includes('<b class="na">—</b><small class="mtxt">brak danych — to nie zero</small>'), 'brak = „—”, nigdy 0');
+  assert.ok(T2.zn.includes('<small class="neu">• 0,0% wobec'), 'zero — żółte');
+});
+
+test('v339: zapasy — wykres tygodniowy Londynu z pasmem 5 lat i zdaniem (gdy jest pełne pasmo), bez pasma — dzień początku historii; wybór metalu pamiętany; kafle Londyn / Szanghaj z dniami i zmianami w kolorze', () => {
+  const {K, B} = mt339.loaded('pl', 'mt-b-zap');
+  const cu = MT339_FILE.lme.m.cu, a = cu.pas.find(r => r[0] === '2026-10-09'), r = Math.round((233025 / a[2] - 1) * 1000) / 10;
+  assert.ok(B.includes('<div class="seg arc-seg su-seg mt-seg" role="group" aria-label="Metal na wykresie">') && B.includes('data-mt-m="cu" aria-pressed="true"'));
+  assert.ok(B.includes('<p class="wk-sub"><span><b>Miedź — zapasy w magazynach giełdy w Londynie&nbsp;(t)</b>&nbsp;· co tydzień (ostatni dzień handlu tygodnia)</span></p>'), 'jednostka w tytule; „·” sklejona z poprzednim słowem');
+  assert.ok(B.includes('<polygon class="su-band"'), 'pasmo min.–maks. 5 lat');
+  assert.ok(B.includes(`Miedź: zapas ${mt339.day('pl', '2026-10-09')} · wiek(2026-10-09) jest o ${String(r).replace('.', ',')}% wyższy niż średnia 5 poprzednich lat dla tej pory roku.`), B.slice(B.indexOf('su-s'), B.indexOf('su-s') + 200));
+  mt339.btn(K, 'al');
+  const B2 = mt339.blkOf(mt339.box(K), 'mt-b-zap');
+  assert.equal(K.ls['cfai.mt.m'], 'al'); assert.ok(B2.includes('data-mt-m="al" aria-pressed="true"') && K.focus.length === 1);
+  assert.ok(!B2.includes('su-band') && B2.includes(`Pasmo 5 lat pojawi się, gdy automat pobierze starsze dane (historia od ${mt339.day('pl', '2026-01-02')}).`));
+  const K2 = mt339.mk('pl', {metale: MT339_FILE}, {ls: {'cfai.mt.m': 'sn'}}); mt339.click(K2, 'mt-b-zap');
+  assert.ok(mt339.box(K2).includes('data-mt-m="sn" aria-pressed="true"'), 'wybór z pamięci przeglądarki');
+  const T = mt339.tiles(B, 'data-mt-z'), d9 = mt339.day('pl', '2026-10-09');
+  assert.deepEqual(Object.keys(T), ['cu', 'al', 'ni', 'zn', 'pb', 'sn']);
+  assert.ok(T.cu.includes(`Londyn: <b>233 025 t</b><br><small class="neg">▼ −2200 t wobec ${mt339.day('pl', '2026-10-08')}</small> · <small class="mtxt su-d">${d9} · wiek(2026-10-09)</small>`), T.cu);
+  assert.ok(T.cu.includes('Szanghaj, zapas: <b>58 744 t</b><br><small class="pos">▲ +20 000 t wobec poprzedniego raportu</small> · ') && T.cu.includes('Szanghaj, kwity: <b>8285 t</b><br><small class="pos">▲ +599 t w dniu</small> · '), T.cu);
+  assert.ok(T.pb.includes('Szanghaj, kwity: <b>42 257 t</b><br><small class="neu">• 0 t w dniu</small> · '), 'zero — żółte');
+  const F = mt339.clone(MT339_FILE); delete F.shd; F.ok.shd = false;
+  const B3 = mt339.loaded('pl', 'mt-b-zap', F).B;
+  assert.ok(mt339.tiles(B3, 'data-mt-z').cu.includes('Szanghaj, kwity: <b class="na">—</b>') && B3.includes('Części danych jeszcze nie pobrano (kwity w Szanghaju)'));
+});
+
+test('v339: Chiny wobec świata — słupki różnicy w % w kolorze znaku (6 metali), dzień i kurs, opis przeliczenia; linia dla miedzi od 5 dni', () => {
+  const {B} = mt339.loaded('pl', 'mt-b-cn');
+  assert.ok(B.includes(`<p class="wk-sub"><span><b>Cena w Szanghaju wobec Londynu</b>&nbsp;· ${mt339.day('pl', '2026-10-09')} · wiek(2026-10-09)&nbsp;· kurs USD/CNY 6,6921</span></p>`));
+  assert.deepEqual(mt339.bars(B), [['Miedź', '−0,5%'], ['Aluminium', '+0,7%'], ['Nikiel', '+0,4%'], ['Cynk', '−9,6%'], ['Ołów', '+12,1%'], ['Cyna', '−2,5%']]);
+  assert.ok(/<rect class="wk-b neg"/.test(B) && /<rect class="wk-b pos"/.test(B), 'kolor znaku');
+  assert.ok(B.includes('Miedź: Szanghaj 14 495 USD/t bez VAT, Londyn (3 mies.) 14 570 USD/t'), 'podpowiedź z liczbami');
+  assert.ok(B.includes('To przeliczenie, nie notowanie') && B.includes('bez VAT 13%'), 'opisane jako przeliczenie');
+  assert.ok(!B.includes('wk-lines'), 'jeden dzień — bez linii');
+  const F = mt339.clone(MT339_FILE); F.cn.cu = ['05', '06', '07', '08', '09'].map((d, i) => ['2026-10-' + d, 14000 + i, 14100, -0.7 + i * 0.1]); delete F.cn.ni;
+  const B2 = mt339.loaded('pl', 'mt-b-cn', F).B;
+  assert.ok(B2.includes('<b>Miedź — różnica dzień po dniu</b>') && B2.includes('wk-lines'));
+  assert.deepEqual(mt339.bars(B2)[2], ['Nikiel', '—'], 'brak = „—”');
+});
+
+test('v339: gdzie leży miedź — 3 słupki (USA, Londyn, Chiny) z dniami, jeden kolor; zdanie z udziałami z jednego raportu tygodniowego', () => {
+  const {B} = mt339.loaded('pl', 'mt-b-cu'), d9 = mt339.day('pl', '2026-10-09');
+  assert.deepEqual(mt339.bars(B), [['USA (Nowy Jork) ' + d9, '711 610 t'], ['Londyn ' + d9, '233 025 t'], ['Chiny (Szanghaj) ' + d9, '58 744 t']]);
+  assert.ok(/<rect class="wk-b lvl"/.test(B) && !/<rect class="wk-b (pos|neg)"/.test(B), 'poziom — jeden kolor');
+  assert.ok(B.includes(`W raporcie tygodniowym z ${d9} · wiek(2026-10-09): razem 1 003 379 t — USA 70,9%, Londyn 23,2%, Chiny 5,9%.`), B);
+  const F = mt339.clone(MT339_FILE); delete F.cu; F.ok.cu = false;
+  const B2 = mt339.loaded('pl', 'mt-b-cu', F).B;
+  assert.deepEqual(mt339.bars(B2).map(r => r[1]), ['—', '233 025 t', '58 744 t']); assert.ok(!B2.includes('W raporcie tygodniowym') && B2.includes('Części danych jeszcze nie pobrano (raport tygodniowy o miedzi)'));
+  const F2 = mt339.clone(MT339_FILE); F2.ok.cu = false;
+  assert.ok(mt339.loaded('pl', 'mt-b-cu', F2).B.includes('Ostatnie pobranie części danych się nie udało (raport tygodniowy o miedzi) — pokazujemy wcześniejsze dane z ich datą.'));
+});
+
+test('v339: metale — 10 języków, bez surowych kluczy, bez nazw serwisów i giełd-marek; słownik mt339 czystym JSON-em, te same klucze i pola {x}, każdy klucz użyty w kodzie', () => {
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const PROV = /Westmetall|Cochilco|westmetall|cochilco|\bLME\b|\bSHFE\b|\bINE\b|COMEX|Bank Światowy|World Bank|Refinitiv/;
+  const names = G126_NAMES.HIDE.concat(G126_NAMES.BOTH);
+  for (const L of L10) {
+    const K = mt339.mk(L, {metale: MT339_FILE}); ['mt-b-ceny', 'mt-b-zap', 'mt-b-cn', 'mt-b-cu'].forEach(id => mt339.click(K, id));
+    const B = mt339.box(K), T = mt339.txt(B);
+    assert.ok(!B.includes('mt339.') && !B.includes('su295g.') && !B.includes('undefined') && !B.includes('NaN'), L + ': klucze i liczby');
+    assert.ok(!PROV.test(T), L + ': nazwa: ' + (T.match(PROV) || [])[0]);
+    for (const [n, re] of names) assert.ok(!re.test(T), L + ': ' + n);
+    assert.equal(Object.keys(mt339.tiles(mt339.blkOf(B, 'mt-b-ceny'), 'data-mt')).length, 6, L);
+  }
+  const E = mt339.box((() => { const K = mt339.mk('en', {metale: MT339_FILE}); mt339.click(K, 'mt-b-ceny'); return K; })());
+  assert.ok(E.includes('<summary>Daily metal prices (London exchange)</summary>') && E.includes('<b>14,689 <small class="mtxt">USD per tonne</small> <small class="pos">▲ +1.1% vs Oct 8, 2026</small></b>'), E.slice(0, 800));
+  const a = html.indexOf('{"pl":{"mt339.h":'); assert.ok(a > 0, 'słownik v339');
+  const d0 = html.lastIndexOf('const EXTRA', a), name = html.slice(d0 + 6, a - 1);
+  const d1 = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', a); assert.ok(d1 > a, 'linia nakładania zaraz po słowniku');
+  assert.ok(/^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2);
+  const D = JSON.parse(html.slice(a, d1)), ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10); const K = Object.keys(D.pl);
+  assert.ok(K.length >= 50 && K.every(k => k.startsWith('mt339.')), 'klucze: ' + K.length);
+  for (const l of L10) { assert.deepEqual(Object.keys(D[l]), K, l); for (const k of K) { assert.ok(D[l][k].trim(), l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k); assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k); } }
+  for (const l of L10.slice(2)) for (const k of K) if (/[A-Za-z]{4}/.test(D.en[k].replace(/\{\w+\}/g, ' ')) && !(V142_OK[k] || '').split(' ').includes(l)) assert.notEqual(D[l][k], D.en[k], l + ' ' + k);
+  const c = mt339.code, sk = {n: "t('mt339.n.'+", b: "t('mt339.b.'+", pt: "t('mt339.pt.'+", cu: "t('mt339.cu.'+"};
+  for (const k of K) { const m = /^mt339\.(n|b|pt|cu)\.(\w+)$/.exec(k);
+    if (m && m[1] !== 'cu' || m && ['us', 'lo', 'cn'].includes(m[2])) { assert.ok(c.includes(sk[m[1]]), 'klucz składany w kodzie: ' + k); continue; }
+    assert.ok(c.includes("'" + k + "'"), 'klucz w kodzie: ' + k); }
+});
+
+test('v339: miejsce w kodzie — blok po panelu USA (przed archiwum), poza wycinkami bloków v295g i v305g, renderSu bez zmian; style: 3 kolumny, telefon 2 (kafle zapasów 1), przyciski metali zawijane; bez zegarów jednorazowych', () => {
+  const m0 = html.indexOf('/* ===================== v339 (F4Z1+F4Z2): METALE');
+  assert.ok(m0 > html.indexOf('\nusaLoad();usaAuto();') && m0 < html.indexOf('/* ===================== v114: ARCHIWUM WŁASNE'), 'po starcie panelu USA');
+  assert.ok(!su295.blk.includes('mtLoad') && !/mtInject|mt-w|mtBody/.test(html.slice(html.indexOf('function renderSu(){'), html.indexOf('\nfunction suUsaS('))), 'renderSu i blok v295g bez zmian');
+  assert.ok(html.includes("szBlk()+`<p class=\"pfoot\">${t('inst.file',{t:engDate(J.at)})} · ${t('su295g.foot')}"), 'stopka panelu bez zmian');
+  assert.ok(html.includes('#g-surowce .mt-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}') && html.includes('@media (max-width:620px){#g-surowce .mt-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}#g-surowce .mt-zkpis{grid-template-columns:minmax(0,1fr)}') && html.includes('#g-surowce .mt-zkpis{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}'));
+  assert.ok(html.includes('#g-surowce .mt-seg{display:flex;flex-wrap:wrap;'), 'telefon: przyciski metali zawijane');
+  assert.ok(!mt339.code.includes('setTimeout') && mt339.code.split('setInterval(').length === 2 && mt339.code.split('MutationObserver(').length === 2);
+});
+
+test('v339: poprawki po przeglądzie — dzień przy metalu z innym dniem w „Chiny wobec świata”, zmiana zapasu w Szanghaju wobec dnia poprzedniego raportu, glif miedzi tylko przy miedzi, podtytuły bez kropki na początku wiersza', () => {
+  /* C) metal, którego ostatni wiersz jest z wcześniejszego dnia niż reszta — przy nazwie jego dzień (inaczej wyglądałby na dzisiejszy) */
+  const F = mt339.clone(MT339_FILE); F.cn.sn = [['2026-10-08', 51000, 52000, -1.92]];
+  const B = mt339.loaded('pl', 'mt-b-cn', F).B, br = mt339.bars(B), d8 = mt339.day('pl', '2026-10-08');
+  assert.deepEqual(br[5], ['Cyna (' + d8 + ')', '−1,9%'], JSON.stringify(br[5]));
+  assert.deepEqual(br[0], ['Miedź', '−0,5%'], 'metal z dnia nagłówka — bez dopisku');
+  assert.ok(B.includes(`· ${mt339.day('pl', '2026-10-09')} · wiek(2026-10-09)`), 'nagłówek — najnowszy dzień');
+  /* B) zmiana zapasu w Szanghaju: z dniem poprzedniego raportu (po święcie — więcej niż tydzień), bez dnia — „wobec poprzedniego raportu” */
+  const F2 = mt339.clone(MT339_FILE); F2.shw.m.cu.zpd = '2026-09-30'; F2.shw.m.al.zpd = '2026-10-09';
+  const T = mt339.tiles(mt339.loaded('pl', 'mt-b-zap', F2).B, 'data-mt-z');
+  assert.ok(T.cu.includes(`Szanghaj, zapas: <b>58 744 t</b><br><small class="pos">▲ +20 000 t wobec ${mt339.day('pl', '2026-09-30')}</small> · `), T.cu);
+  assert.ok(T.al.includes('wobec poprzedniego raportu</small>'), 'dzień poprzedni nie wcześniejszy niż raport — bez dnia');
+  const E = mt339.tiles(mt339.loaded('en', 'mt-b-zap', F2).B, 'data-mt-z');
+  assert.ok(E.cu.includes(`+20,000 t vs ${mt339.day('en', '2026-09-30')}</small>`) && E.ni.includes('vs the previous report</small>'), E.cu);
+  /* glif miedzi tylko przy miedzi (dla innych metali glifu nie ma); podtytuły: „·” nie zaczyna zawiniętego wiersza */
+  const C = mt339.tiles(mt339.loaded('pl', 'mt-b-ceny').B, 'data-mt');
+  assert.ok(C.cu.includes('copper') && !['al', 'ni', 'zn', 'pb', 'sn'].some(m => C[m].includes('copper')), 'glif miedzi tylko przy miedzi');
+  const K = mt339.mk('pl', {metale: MT339_FILE}); ['mt-b-ceny', 'mt-b-zap', 'mt-b-cn', 'mt-b-cu'].forEach(id => mt339.click(K, id));
+  const X = mt339.box(K);
+  assert.ok(!/<p class="wk-sub">[^<]*·|<\/b> · |<p class="wk-sub"><b>[^<]*<\/b>[^<]*·/.test(X), 'podtytuły: „·” nie jako osobny element zawijanego wiersza (flex) i nie po zwykłej spacji');
+  assert.ok(X.includes('<p class="wk-sub"><b>Zapasy miedzi w magazynach giełd&nbsp;(t)</b></p>'));
+  const cnB = mt339.blkOf(X, 'mt-b-cn'); assert.equal((cnB.match(/copper/g) || []).length, 1, 'w „Chiny wobec świata” glif tylko przy miedzi');
+});
