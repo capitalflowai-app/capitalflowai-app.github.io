@@ -2907,7 +2907,7 @@ test('v96-trendy: ikony na każdej karcie, cenie, kaflu i wyniku — flagi, loga
   assert.ok(vgk.includes('flagi/eu.svg') && vgk.includes('flagi/gb.svg') && vgk.includes('flagi/ch.svg') && vgk.includes('title="Vanguard"'), 'Europa (VGK) — UE, Wielka Brytania, Szwajcaria + Vanguard');
   assert.ok(card(g, 'trd.px.ILF').includes('<i class="more">+1</i>'), 'więcej krajów niż 3 — „+N”');
   const fpg = g.slice(g.indexOf('trd.x.fp')), fpc = card(fpg, 'trd.s.fe_gold');
-  assert.ok(fpc.includes('glify/gold.svg') && fpc.includes('>iS</span>') && !fpc.includes('>SP</span>'), 'cena funduszu złota — wydawca z symbolu w pliku (IAU = iShares)');
+  assert.ok(fpc.includes('glify/gold.svg') && fpc.includes('>iS</span>') && fpc.includes('>SP</span>'), 'cena funduszu złota — dwaj wydawcy jak na karcie przepływów (v335, TR8-6: lista kart przepływów to TRD.data.f; dotąd test utrwalał literówkę .flows i zapas jednego wydawcy z symbolu IAU)');
   const ob = card(g, 'trd.b.ob');
   assert.ok(['in', 'tw', 'hk', 'br'].every(c => ob.includes('flagi/' + c + '.svg')) && !ob.includes('class="more"'), 'wynik dla krajów — cztery flagi');
   assert.ok(card(g, 'trd.b.px').includes('glify/globe.svg') && card(g, 'trd.b.fe').includes('glify/etf.svg'));
@@ -5515,9 +5515,10 @@ const trdV125 = (() => {
     const el = el0 || {innerHTML: '', querySelectorAll() { return []; }, querySelector() { return null; }};
     const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt, sg, fInt, fPct};')(L, LOC);
     const names = ['$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'gAgeNote', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N',
-      'flagImg', 'glyphImg', 'coinImg', 'issBadge', 'issuerOf', 'icoWrap'];
+      'flagImg', 'glyphImg', 'coinImg', 'issBadge', 'issuerOf', 'icoWrap', 'Date'];   /* v335 (TR8-3): zegar bloku przypięty (27.09 16:00 UTC, w oknie kart z fixtury) — karta po końcu okna starzeje się wg zegara, nie wg prawdziwego czasu testu */
     const vals = [() => el, tt || v96src.tFor(L), st || {mode: 'trendy', trdv: 'crypto'}, () => Promise.resolve(null), v96src.escH, v => v > 0 ? 'pos' : v < 0 ? 'neg' : '', () => '',
-      F.fInt, F.sg, F.nfmt, F.fPct, () => 'ses', s => s, L, LOC, v96src.I18N, I.flagImg, I.glyphImg, I.coinImg, I.issBadge, I.issuerOf, I.icoWrap];
+      F.fInt, F.sg, F.nfmt, F.fPct, () => 'ses', s => s, L, LOC, v96src.I18N, I.flagImg, I.glyphImg, I.coinImg, I.issBadge, I.issuerOf, I.icoWrap,
+      class FD extends Date { constructor(...a) { if (a.length === 0) super(Date.parse('2026-09-27T16:00:00Z')); else super(...a); } static now() { return Date.parse('2026-09-27T16:00:00Z'); } }];
     const ret = src ? '\nreturn {TRD, trdApply, renderTrendy, trdDRow, trdDWhy, trdDCard, TRD_DST, TRD_DRL, TRD_DRULESC};'
       : '\nreturn {TRD, trdApply, renderTrendy, trdDRow, TRD_DCAL, TRD_CRL, TRD_CRK, TRD_DRULESC2, TRD_DRULESC, TRD_DST};';
     const f = new Function(...names, (src || blk) + ret)(...vals);
@@ -7001,7 +7002,8 @@ test('v127: przewagi i weta — linia z przewagą + karta z ek → zielona „pr
 });
 
 test('v127: trdDRowW odrzuca zły wiersz v2 (nigdy „0”) — znak N ≠ dir, powtórzony klucz, reguła v1 p / x / none, nieznany klucz, głos ceny obligacji, 4 wpisy rs, głos bez z, N ≠ suma głosów, cx bez głosu, c0 z głosami, stan „late” ze stroną, głos 2; przyjmuje cx z głosami, które się znoszą; trdDRow v1 odrzuca każdy wiersz v2; trdDRow, TRD_DST, TRD_DRULES, TRD_DRULESC i filtr linii v1 świata bez zmian', () => {
-  const {make, W2, row, clone, blk, V123, PW2, FN} = trdV127, f = make('pl');
+  const {make, W2, row, clone, blk, V123, PW2, FN} = trdV127; trdV127.at();   /* v335 (TR8-3): zegar jawnie w oknie kart z fixtury (27.09 16:00 UTC) — nie stan po poprzednich testach */
+  const f = make('pl');
   const good = row(W2, 'EWJ'), bond = row(W2, 'HYG'), quiet = row(W2, 'SPY'), A = o => Object.assign(clone(good), o), Q = o => Object.assign(clone(quiet), o);
   const bad = [A({N: -1}), A({rs: [['p', 1, 1, 1], ['p', 1, 1, 1]]}), A({rule: 'p'}), Q({rule: 'none'}), Q({rule: 'x'}), A({rs: [['t', 1, 1, 0]]}),
     Object.assign(clone(bond), {rs: [['p', 1, 1.5, 1], ['f', 1, 1.9, 0]]}), A({rs: [['p', 1, 1, 1], ['f', 1, 1, 1], ['o', 1, 1, 0], ['p', 0, 0, 0]]}), A({rs: [['p', 1, null, 1]]}),
@@ -11835,7 +11837,7 @@ test('v158: świat przed startem dziennika — „rusza 5.10”, pierścienie cz
     assert.ok(h.includes('aria-label="tig.d.hist: 50%"') && (h.match(/tig\.d\.wait/g) || []).length === 3 && !h.includes('tig-kp'), 'historia 49,7% ≈ 50%; dwa pierścienie i pole „Trafione” czekają (bez pustego procentu)');
     assert.ok(!/NaN|undefined/.test(h) && !/NaN|undefined/.test(h0));
     const d0 = html.indexOf('const EXTRA158='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA158='.length, d1));
-    assert.deepEqual(Object.keys(D), ['pl']); assert.ok(Object.keys(D.pl).every(k => k.startsWith('tig.')) && Object.keys(D.pl).length === 28);
+    assert.deepEqual(Object.keys(D), ['pl']); assert.ok(Object.keys(D.pl).every(k => k.startsWith('tig.')) && Object.keys(D.pl).length === 24);   /* v335: 28 -> 24 — usunięte martwe klucze tig.s.t / tig.s.sub / tig.s.none / tig.s.empty (infografika „Dzisiejsze sygnały” zniknęła w v323; uwaga recenzenta) */
     const c0 = html.indexOf('/* v158: TRENDY — infografika „Wyniki sygnałów” (pierścienie'), css = html.slice(c0, html.indexOf('</style>', c0));
     assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,6}\b/.test(css), 'styl: tylko zmienne motywu');
   });
@@ -13401,7 +13403,7 @@ test('v208: nauka sygnałów — pasek „n z c dni z sygnałem”, szacunek (mi
   const L7 = {p: [3, 100, null], t: [3, 100, null], e: [0, 100, null], s: [2, 100, null], h: [3, 100, null], n2: [3, 100, null], all: [4, 100, null]};
   X.TRDJ.c = {since: '2026-09-28', rows: [], pg: {do: '2026-10-01', l: L7}, cp: {}}; X.TRDJ.at = Date.now();
   let h = X.trdIg({d: []}, true);
-  assert.ok(h.includes('<div class="tig-l"><h3 class="mtxt"><b>tig.l.t</b></h3><div class="tig-pb" role="img" aria-label="tig.l.aria"><i style="width:4.0%"></i></div>'), h.slice(h.indexOf('tig-l'), h.indexOf('tig-l') + 300));
+  assert.ok(h.includes('<div class="tig-l"><div class="tig-pb" role="img" aria-label="tig.l.aria"><i style="width:4.0%"></i></div>') && !h.includes('<b>tig.l.t</b>'), h.slice(h.indexOf('tig-l'), h.indexOf('tig-l') + 300));   /* v335: w rozwijanym bloku „Nauka” (summary) nie ma już drugiego nagłówka tig.l.t (uwaga recenzenta v323) */
   assert.ok(h.includes('<p class="pnote">tig.l.first · tig.l.est0</p>') && h.includes('<p class="pnote tig-lw">tig.l.how</p></div>'), 'pierwsza ocena, bez szacunku');
   assert.ok(h.indexOf('class="tig-l"') > h.indexOf('class="tig-g') && (h.indexOf('class="tig-s"') < 0 || h.indexOf('class="tig-l"') < h.indexOf('class="tig-s"')), 'pod pierścieniami, przed chipami');
   const t2 = (k, v) => k + (v ? JSON.stringify(v) : '');
@@ -20799,4 +20801,215 @@ test('v334 (faza 2A, v330): plik top 10 z samymi pustymi grupami — także kart
     R.files['data/krypto-top10'] = {at: 'x', cols: ['id'], g: {}}; load('plik nieczytelny'); assert.equal(n(), 80, 'plik bez kolumn — dane zostają');
     assert.deepEqual(R.ERR, []);
   } finally { R.files['data/krypto-top10'] = keep; t10H.CLK.ms = c0; }
+});
+
+
+/* ===================== v335 (S4, strona): TRENDY — TR8-1, TR8-2, TR8-3, TR8-4, TR8-6 + uwagi recenzenta v323 =====================
+   TR8-1 kafel tygodniowy: kwota w USD, więc „zwykle” też w USD (wu − du), nie w walucie źródła (JPY). TR8-2 same karty nieaktualne: „Odpowiedź na dziś” i panel
+   „Siła sygnałów” mówią o wygaśnięciu kart, nie „dziś nic nie wskazuje”. TR8-3 otwarta zakładka: znacznik świeżości pliku, wygaśnięcie karty po końcu okna
+   (świat: 15 min po zamknięciu sesji NY; krypto: 06:00 UTC doby po dobie karty) i chwila 9:00 NY przerysowują zakładkę z zegara minutowego, tylko przy zmianie
+   stanu. TR8-4 pierwsze pobranie pliku nieudane: ponowienie po 2 min (do 5 prób), wejście w zakładkę pobiera od razu. TR8-6 literówka TRD.data.flows → f.
+   Zegar przypięty (Date w piaskownicy), pliki z fixtur testów v323 (stan z 10.10.2026 07:52 UTC), bez sieci. */
+const v335 = (() => {
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v323: koniec siły sygnału */');
+  assert.ok(b0 > 0 && b1 > b0, 'blok TRENDY z panelem v323');
+  const blk = html.slice(b0, b1).replace(/document\.addEventListener\('click'[\s\S]*?\},true\);/, '');
+  const I = v96src.I18N, l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const tNsrc = html.slice(html.indexOf('function tN(k,n,o){'), html.indexOf('\nfunction rwN(n)'));
+  const g0 = html.indexOf('function gAgeNote(fresh){'), gAge = html.slice(g0, html.indexOf('\n}\n', g0) + 3);
+  const names = ['$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N',
+    'flagImg', 'glyphImg', 'coinImg', 'issBadge', 'issuerOf', 'icoWrap', 'Date', 'sepL', 'sepK', 'setTimeout', 'document'];
+  const RET = '\nreturn {TRD, TRDJ, trdApply, trdLoad, trdRetry, trdTick, trdKey, trdAge, trdKpis, trdIcoP, trdIcoF, renderTrendy, trdDRow, trdDRowW, trdDAnsW, trdDAns, trdSilaPanel,' +
+    ' trdExpired, trdExpMsg, trdIgLd, trdIgLearn, TRD_DRULESW2, TRD_DRULESC2, TRD_RETRY};';
+  /* o: clk — [ms] zegar; el — element #trendy (licznik zapisów); timers — zapisane setTimeout; srv — srvJSON; doc — document; st — stan strony */
+  const make = (L, o = {}) => {
+    const F = trdV127.fmt(L), IC = trdV96.ICO, CLK = o.clk || [Date.parse('2026-10-10T08:05:00Z')];
+    const el = o.el || {n: 0, h: '', set innerHTML(v) { this.h = v; this.n++; }, get innerHTML() { return this.h; }, querySelectorAll() { return []; }, querySelector() { return null; }};
+    class FD extends Date { constructor(...a) { if (a.length === 0) super(CLK[0]); else super(...a); } static now() { return CLK[0]; } }
+    const T = o.timers || [], setT = (f, ms) => { T.push({f, ms}); return T.length; };
+    const vals = [() => el, v323.tp(L), o.st || {mode: 'trendy', trdv: 'global', anim: true}, o.srv || (() => new Promise(() => {})), v96src.escH, () => '', F.fInt, F.sg, F.nfmt, F.fPct,
+      () => 'ses', s => 'T[' + s + ']', L, LOC, I, IC.flagImg, IC.glyphImg, IC.coinImg, IC.issBadge, IC.issuerOf, IC.icoWrap, FD, () => (L === 'ja' ? '、' : ', '), () => ': ', setT, o.doc || {hidden: false}];
+    const f = new Function(...names, tNsrc + '\n' + gAge + '\n' + blk + RET)(...vals); f.el = el; f.timers = T; f.clk = CLK; return f;
+  };
+  const row = o => Object.assign({g: 'eq', m: 'flow', sz: 5, cur: 'USD', date: '2026-10-08', age: 2, n: 8, lc: false, s: 1, sg: 1, x: false}, o);
+  const BDW = X => X.TRD_DRULESW2.map(p => ({fam: p[0], rule: p[1], v: 2, k: 50, n: 100, days: 100, vd: 'none', ca: [40, 60], thr: 60, mde: 65, y1: null, cut: 540, cl: 99.3}));
+  const BDC = X => X.TRD_DRULESC2.map(r => ({fam: 'cr', rule: Array.isArray(r) ? r[1] : r, v: 2, k: 57, n: 100, days: 100, vd: 'none', ca: [47, 67], thr: 60, mde: 65, y1: null, wh: 6, cut: 330, cl: 99.3}));
+  const tile = (h, k) => { const i = h.indexOf(k); if (i < 0) return ''; const a = h.lastIndexOf('<div class="panel kpi">', i); return h.slice(a, h.indexOf('</div></div>', i) + 12); };
+  const txt = s => s.replace(/<br>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  return {make, row, BDW, BDC, tile, txt};
+})();
+
+test('v335 (TR8-6): karta ceny funduszu (fp_*) ma znaczki wydawców jak karta przepływów tego funduszu — lista kart przepływów to TRD.data.f (dotąd literówka .flows)', () => {
+  const X = v335.make('pl');
+  const iss = {fe_gold: 'both', fe_dev: 'both', fe_em: 'both', fe_eur: 'ishares', fe_twn: 'ishares', fe_bra: 'ishares', fe_tech: 'ssga'};
+  X.TRD.data = {at: '2026-10-10T07:52:13+00:00', f: Object.keys(iss).map(id => ({id, iss: iss[id]})), p: []};
+  const P = {fp_gold: 'GLD', fp_dev: 'IEFA', fp_em: 'IEMG', fp_eur: 'EZU', fp_twn: 'EWT', fp_bra: 'EWZ', fp_tech: 'XLK'};
+  for (const fp of Object.keys(P)) {
+    const k = 'fe_' + fp.slice(3), p = X.trdIcoP({g: 'fp', id: fp, sym: P[fp]}, 'sm'), f = X.trdIcoF({id: k, iss: iss[k]}, 'sm');
+    assert.equal(p, f, fp + ': ten sam zestaw znaczków co karta przepływów ' + k);
+  }
+  for (const fp of ['fp_gold', 'fp_dev', 'fp_em']) { const h = X.trdIcoP({g: 'fp', id: fp, sym: P[fp]}); assert.ok(h.includes('>iS</span>') && h.includes('>SP</span>'), fp + ': dwaj wydawcy (iShares i SPDR)'); }
+  assert.ok(!X.trdIcoP({g: 'fp', id: 'fp_eur', sym: 'EZU'}).includes('>SP</span>'), 'fundusz jednego wydawcy — jeden znaczek');
+  X.TRD.data = {at: 'x', f: [], p: []};   /* bez karty przepływów — zapas: wydawca z symbolu (jak dotąd) */
+  assert.ok(X.trdIcoP({g: 'fp', id: 'fp_eur', sym: 'EZU'}).includes('>iS</span>'), 'zapas z symbolu');
+  assert.ok(!html.includes('TRD.data.flows'), 'w kodzie strony nie ma już literówki TRD.data.flows');
+});
+
+test('v335 (TR8-1): kafle tygodniowe — „zwykle” w tej samej jednostce co kwota (USD), także dla JPY / HKD; bez przeliczenia (brak wu / du) obie liczby w walucie źródła; kafle w USD bez zmian', () => {
+  const X = v335.make('pl'), row = v335.row;
+  const F = [row({id: 'jp_eq', sz: 1, cur: 'JPY', st: 'in_rev', date: '2026-10-03', w: 2191.9, base: -1531.88, d: 2.05, wu: 14016.5, du: 23812.3}),
+    row({id: 'fe_us', g: 'fe', iss: 'both', st: 'out_rev', w: -12400, base: 3950, d: -3, du: -16350}),
+    row({id: 'hk', st: 'in_down', cur: 'HKD', lc: false, w: 700, base: 24306.46, d: -1.73, wu: 90, du: -3098.1}),
+    row({id: 'tw', st: 'out_stop', cur: 'TWD', w: 100, base: 300, d: -1, wu: null, du: -50})];
+  const h = X.trdKpis(F, [], []), a = v335.tile(h, 'Największy napływ'), b = v335.tile(h, 'Największy odpływ'), c = v335.tile(h, 'Najbardziej osłabł');
+  assert.ok(a.includes('≈ +14,0 mld USD') && a.includes('zwykle: ≈ −9,80 mld USD') && !a.includes('JPY'), 'Japonia: kwota i „zwykle” w USD: ' + v335.txt(a));
+  assert.ok(b.includes('−12,4 mld USD') && b.includes('zwykle: +3,95 mld USD') && !b.includes('≈'), 'USD bez zmian: ' + v335.txt(b));
+  assert.ok(c.includes('zwykle: ≈ ') && c.includes('USD') && !c.includes('HKD'), 'Hongkong (osłabienie) — w USD: ' + v335.txt(c));
+  /* ta sama jednostka obok siebie: kwota i „zwykle” w kaflu różnią się o odchylenie (wu − du = zwykły poziom w USD) */
+  assert.equal(Math.round((14016.5 - 23812.3) * 10) / 10, -9795.8);
+  /* bez wu — kwota i „zwykle” w walucie źródła, nie mieszanka */
+  const g = X.trdKpis([row({id: 'tw', st: 'in_up', cur: 'TWD', w: 100, base: 30, d: 3, wu: null, du: 70})], [], []), t = v335.tile(g, 'Największy napływ');
+  assert.ok(t.includes('TWD') && !t.includes('≈') && (t.match(/TWD/g) || []).length >= 2 && !t.includes('USD'), 'bez przeliczenia: obie liczby w TWD: ' + v335.txt(t));
+});
+
+test('v335 (TR8-3): karta „na żywo” po końcu swojego okna jest nieaktualna także przed nowym plikiem — świat 15 min po zamknięciu sesji NY (też sesja skrócona), krypto 06:00 UTC doby po dobie karty; stany bez wyjątku nie ruszane', () => {
+  const X = v335.make('pl'), W = {id: 'SPY', fam: 'eq', live: true, st: 'obs', side: 'buy', dir: 1, str: 2, nx: '2026-10-12', we: 960, rs: [], N: 1};
+  const e1 = Date.parse('2026-10-12T20:15:00Z');   /* 16:15 w Nowym Jorku (EDT = UTC−4) */
+  assert.equal(X.trdAge(W, e1 - 1), W, 'przed końcem okna — ta sama karta');
+  const a = X.trdAge(W, e1);
+  assert.deepEqual([a.live, a.st, a.side, a.dir, a.str, a.nx], [false, 'stale', 'none', 1, 2, '2026-10-12'], 'po końcu: nieaktualna, bez strony (jak zapisuje zbieracz), reszta pól bez zmian');
+  assert.deepEqual([W.live, W.st, W.side], [true, 'obs', 'buy'], 'wiersz z pliku niezmieniony (kopia)');
+  const H = Object.assign({}, W, {nx: '2026-11-27', we: 780}), e2 = Date.parse('2026-11-27T18:15:00Z');   /* sesja skrócona: 13:15 w Nowym Jorku (EST = UTC−5) */
+  assert.equal(X.trdAge(H, e2 - 1), H); assert.equal(X.trdAge(H, e2).st, 'stale');
+  const C = {id: 'BTC', fam: 'cr', live: true, st: 'obs', side: 'buy', dir: 1, nx: '2026-10-10', rs: [], N: 1}, e3 = Date.parse('2026-10-11T06:00:00Z');
+  assert.equal(X.trdAge(C, e3 - 1), C, 'krypto: do 06:00 UTC doby po dobie karty'); assert.equal(X.trdAge(C, e3).st, 'stale');
+  for (const o of [{st: 'stale'}, {st: 'nodata'}, {st: 'short'}, {live: false}, {rs: undefined}, {nx: null}, {nx: 'jutro'}]) { const r = Object.assign({}, W, o); assert.equal(X.trdAge(r, e1 + 1e9), r, JSON.stringify(o) + ': bez zmian'); }
+  assert.equal(X.trdAge(null, e1), null); assert.equal(X.trdAge('x', e1), 'x');
+  /* wiersz po przejściu przez normalizator: karta po końcu okna jest „stale” z live = false (jak z pliku zbieracza) */
+  const rw = v323.world().d.find(r => r.id === 'EWZ'), L = X.clk;
+  L[0] = Date.parse('2026-10-12T20:14:00Z'); assert.deepEqual([X.trdDRowW(rw).st, X.trdDRowW(rw).live], ['obs', true]);
+  L[0] = Date.parse('2026-10-12T20:16:00Z'); assert.deepEqual([X.trdDRowW(rw).st, X.trdDRowW(rw).live, X.trdDRowW(rw).side], ['stale', false, 'none']);
+  const rc = v323.crypto().d.find(r => r.id === 'XRP');
+  L[0] = Date.parse('2026-10-11T05:59:00Z'); assert.equal(X.trdDRow(rc).st, 'obs');
+  L[0] = Date.parse('2026-10-11T06:01:00Z'); assert.deepEqual([X.trdDRow(rc).st, X.trdDRow(rc).live], ['stale', false]);
+});
+
+test('v335 (TR8-3): otwarta zakładka bez nowego pliku — znacznik świeżości, wygaśnięcie kart i chwila „ustalone o 9:00” przerysowują ją z zegara minutowego, tylko przy zmianie stanu (nie co minutę); ukryta karta i inny tryb — bez rysowania', () => {
+  const X = v335.make('pl'), D = Object.assign(v323.clone(v323.FILE), {f: [], p: [], bd: []}), L = X.clk, el = X.el;
+  D.d = v323.world().d;   /* 13 kart świata, sesja 12.10.2026 */
+  X.trdApply(D);
+  const live = () => (/<span class="live ([a-z ]+)" id="trd-live"><i><\/i>([^<]*)<\/span>/.exec(el.innerHTML) || []).slice(1);
+  assert.equal(el.n, 1); assert.equal(live()[0], 'on', 'plik sprzed 13 min: świeży');
+  X.trdTick(); X.trdTick(); assert.equal(el.n, 1, 'bez zmiany stanu — bez przerysowania');
+  L[0] += 3 * 3600e3;   /* 11:05 UTC, plik ten sam */
+  X.trdTick(); assert.equal(el.n, 2, 'po 2 godzinach pliku — przerysowanie'); assert.equal(live()[0], 'wait'); assert.ok(/starszy niż 2 godziny/.test(live()[1]), live()[1]);
+  X.trdTick(); assert.equal(el.n, 2, 'jednokrotnie');
+  L[0] = Date.parse('2026-10-12T12:59:00Z'); X.trdTick(); assert.equal(el.n, 2, 'przed 9:00 w Nowym Jorku (13:00 UTC)');
+  L[0] = Date.parse('2026-10-12T13:00:00Z'); X.trdTick(); assert.equal(el.n, 3, '9:00 w Nowym Jorku — karty ustalone');
+  L[0] = Date.parse('2026-10-12T20:14:00Z'); X.trdTick(); assert.equal(el.n, 3, 'przed końcem okna');
+  L[0] = Date.parse('2026-10-12T20:15:00Z'); X.trdTick(); assert.equal(el.n, 4, '16:15 w Nowym Jorku — karty wygasły'); X.trdTick(); assert.equal(el.n, 4);
+  /* inny tryb albo ukryta karta — bez rysowania, ale po powrocie stan jest policzony od nowa */
+  const doc = {hidden: true}, Y = v335.make('pl', {doc}); Y.trdApply(D); const n0 = Y.el.n; Y.clk[0] += 3 * 3600e3; Y.trdTick(); assert.equal(Y.el.n, n0, 'karta ukryta (document.hidden)');
+  doc.hidden = false; Y.trdTick(); assert.equal(Y.el.n, n0 + 1, 'po powrocie — jedno przerysowanie');
+  const Z = v335.make('pl', {st: {mode: 'global', trdv: 'global'}}); Z.trdApply(D); Z.clk[0] += 3 * 3600e3; Z.trdTick(); assert.equal(Z.el.n, 0, 'tryb GLOBAL — TRENDY nie rysowane');
+  assert.ok(html.includes('TRD.tk=setInterval(trdTick,60*1000)') && html.includes('TRD.key=trdKey(D);TRD.shown=v;'), 'zegar minutowy i zapamiętany stan');
+});
+
+test('v335 (TR8-4): pierwsze pobranie trendy.json nieudane — ponowienie po 2 min (najwyżej 5 prób, jeden zegar naraz), udane wczytanie zeruje licznik, ukryta karta nie pobiera; wejście w zakładkę pobiera od razu (nie częściej niż co minutę)', async () => {
+  const flush = () => new Promise(r => setImmediate(r));
+  let good = false; const calls = [], DATA = Object.assign(v323.clone(v323.FILE), {f: [], p: [], bd: []});
+  const srv = n => { calls.push(n); return Promise.resolve(good ? v323.clone(DATA) : null); };
+  const X = v335.make('pl', {srv});
+  X.trdLoad(); await flush();
+  assert.deepEqual([calls.length, X.timers.length, X.timers[0].ms, X.TRD.data, X.TRD.tries], [1, 1, 120000, null, 1], 'po błędzie: jeden zegar 2 min');
+  X.trdLoad(); await flush(); assert.equal(X.timers.length, 1, 'zegar już czeka — drugiego nie ma');
+  for (let i = 2; i <= 5; i++) { X.timers[X.timers.length - 1].f(); await flush(); assert.equal(X.timers.length, i, 'próba ' + i); }
+  const nc = calls.length; X.timers[X.timers.length - 1].f(); await flush();
+  assert.equal(X.timers.length, 5, 'po 5 próbach — bez kolejnego zegara (zostaje zegar co 20 min)'); assert.equal(calls.length, nc + 1);
+  good = true; X.trdLoad(); await flush();
+  assert.ok(X.TRD.data && X.TRD.data.at === DATA.at && X.TRD.tries === 0, 'udane wczytanie: dane i licznik 0');
+  /* zegar po udanym wczytaniu w międzyczasie nic nie robi */
+  const n1 = calls.length; X.timers.forEach(t => t.f()); await flush(); assert.equal(calls.length, n1, 'dane są — zegar ponowienia nie pobiera');
+  /* karta ukryta w chwili zegara — bez pobrania, bez kolejnego zegara */
+  const doc = {hidden: false}, Y = v335.make('pl', {srv: () => Promise.resolve(null), doc}); Y.trdLoad(); await flush(); doc.hidden = true;
+  const t0 = Y.timers.length; Y.timers[0].f(); await flush(); assert.equal(Y.timers.length, t0, 'ukryta karta: bez pobrania i bez nowego zegara');
+  /* sandbox bez setTimeout (jsc, stare wycinki) — bez ponowienia, bez błędu */
+  /* wejście w zakładkę (setMode): pobranie od razu przy pustych danych, nie częściej niż co minutę */
+  const s0 = html.indexOf('function setMode(m){'), sm = html.slice(s0, html.indexOf('\n}\n', s0) + 3), CLK = [Date.parse('2026-10-10T08:00:00Z')];
+  class FD extends Date { static now() { return CLK[0]; } }
+  const run = (m, data, last) => { const log = []; const TRD = {data, last}; const el = {setAttribute() {}};
+    new Function('st', '$', 'srvOpen', 'applyVis', 'renderTrendy', 'TRD', 'TRD_RETRY', 'trdLoad', 'Date', 'gStarted', 'gInit', 'gPeriodButtons', 'gRenderAll', 'gLoad', 'gResize', 'gDirty', sm + '\nreturn setMode;')(
+      {mode: ''}, () => el, () => {}, () => log.push('vis'), () => log.push('render'), TRD, X.TRD_RETRY, () => log.push('load'), FD, true, () => {}, () => {}, () => {}, () => {}, () => {}, () => {})(m); return log.join(','); };
+  assert.equal(run('trendy', null, undefined), 'vis,load,render', 'puste dane, nigdy nie próbowano: pobranie, potem rysowanie (komunikat o braku pliku)');
+  assert.equal(run('trendy', null, CLK[0] - 59e3), 'vis,render', 'ostatnia próba 59 s temu — bez pobrania');
+  assert.equal(run('trendy', null, CLK[0] - 60e3), 'vis,load,render', 'ostatnia próba minutę temu — pobranie');
+  assert.equal(run('trendy', {at: 'x'}, undefined), 'vis,render', 'dane są — bez pobrania'); assert.equal(run('crypto', null, undefined), 'vis', 'inny tryb — bez pobrania');
+});
+
+test('v335 (TR8-2): same karty nieaktualne — „Odpowiedź na dziś” i panel „Siła sygnałów” mówią, że poprzednie karty wygasły i nowych jeszcze nie ma (nie „dziś nic nie wskazuje”); przed końcem okna bez zmian; krypto tak samo', () => {
+  const W = v323.world(), C = v323.crypto(), mk = (ms, L = 'pl') => { const X = v335.make(L, {clk: [Date.parse(ms)]}); return X; };
+  const rowsW = X => W.d.map(X.trdDRowW).filter(Boolean).map(r => Object.assign(r, {nm: r.id})), rowsC = X => C.d.map(X.trdDRow).filter(Boolean).map(r => Object.assign(r, {nm: r.id}));
+  /* świat: 20:30 UTC = 16:30 w Nowym Jorku, plik nadal z 10.10 — karty na sesję 12.10.2026 wygasły o 16:15 */
+  let X = mk('2026-10-12T20:30:00Z'), R = rowsW(X), BD = v335.BDW(X);
+  assert.ok(R.length === 13 && R.every(r => r.st === 'stale' && !r.live), 'wszystkie karty nieaktualne');
+  let h = X.trdDAnsW(R, BD, {cl: 99.3, cut: 540}, W);
+  assert.ok(h.includes('Karty na następną sesję jeszcze się nie pojawiły — poprzednie dotyczyły sesji 12.10.2026, która już się skończyła.') && h.includes('żadna karta nie jest aktualna'), h.slice(0, 600));
+  assert.ok(!/Dziś dane nie wskazują|Kolor \(zielony|zostały ustalone|Najwyżej wypada: .*nie ma przewagi/.test(h) && h.includes('Najwyżej wypada'), 'bez zdań o dzisiejszych danych; linia z najwyższym wynikiem (historia) zostaje');
+  let P = X.trdSilaPanel(W, false);
+  assert.ok(P.includes('poprzednie dotyczyły sesji 12.10.2026, która już się skończyła') && !/Dziś żadnego sygnału|potwierdzonej przewagi w historii/.test(P) && !P.includes('tsg-gh up') && !P.includes('tsg-gh dn') && P.includes('Bez oceny teraz'), 'panel: jedno zdanie o wygaśnięciu, bez pustych grup wzrostu i spadku');
+  assert.equal((P.match(/class="tsg-k na"/g) || []).length, 13, 'karty zostają (jako „bez oceny”)');
+  /* przed końcem okna (20:14 UTC) — jak dotąd */
+  X = mk('2026-10-12T20:14:00Z'); R = rowsW(X); h = X.trdDAnsW(R, v335.BDW(X), {cl: 99.3, cut: 540}, W);
+  assert.ok(R.some(r => r.live) && /Dziś dane nie wskazują niczego/.test(h) && h.includes('Karty na sesję 12.10.2026 zostały ustalone') && !h.includes('już się skończyła'), h.slice(0, 500));
+  P = X.trdSilaPanel(W, false); assert.ok(P.includes('tsg-gh up') && P.includes('tsg-gh dn') && !P.includes('już się skończyła'), 'panel przed końcem okna bez zmian');
+  /* część kart aktualna — nie ma komunikatu o wygaśnięciu (np. nowy plik tylko dla części rynków) */
+  X = mk('2026-10-12T20:30:00Z'); R = rowsW(X); R[0].live = true; R[0].st = 'quiet'; h = X.trdDAnsW(R, v335.BDW(X), {cl: 99.3, cut: 540}, W); assert.ok(!h.includes('już się skończyła') && !X.trdExpired(R));
+  assert.ok(X.trdExpired(rowsW(mk('2026-10-12T20:30:00Z'))) && !X.trdExpired([]) && !X.trdExpired(null), 'trdExpired: tylko gdy są karty i wszystkie nieaktualne');
+  /* krypto: okno do 06:00 UTC doby po dobie karty (nx 10.10 → 11.10 06:00) */
+  X = mk('2026-10-11T07:00:00Z'); R = rowsC(X); BD = v335.BDC(X);
+  assert.ok(R.length === 10 && R.every(r => r.st === 'stale'), 'krypto: karty nieaktualne');
+  h = X.trdDAns(R, BD, {cl: 99.3, cut: 330, wh: 6});
+  assert.ok(/Karty na następną dobę jeszcze się nie pojawiły — poprzednie dotyczyły okna do 11\.10, 06:00 \(UTC\), które już minęło\./.test(h) && !/Dziś dane nie wskazują|Kolor \(zielony/.test(h) && h.includes('Najwyżej wypada'), h.slice(0, 500));
+  assert.ok(/11\.10, 06:00/.test(X.trdExpMsg(R, true, {})) && /11\.10, 06:00/.test(X.trdExpMsg(R, true, undefined)) && /11\.10, 08:00/.test(X.trdExpMsg(R, true, {wh: 8})), 'koniec okna z linii (wh), a bez niej 6 h');
+  P = X.trdSilaPanel(C, true); assert.ok(/okna do 11\.10, 06:00 \(UTC\), które już minęło/.test(P) && !/Dziś żadnego sygnału/.test(P) && !P.includes('tsg-gh up'), 'panel krypto');
+  X = mk('2026-10-11T05:00:00Z'); R = rowsC(X); h = X.trdDAns(R, v335.BDC(X), {cl: 99.3, cut: 330, wh: 6}); assert.ok(R.some(r => r.live) && !h.includes('już minęło'), 'krypto przed końcem okna — bez zmian');
+  /* 10 języków: zdanie w języku widza, bez surowych kluczy, z datą sesji */
+  for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) { const Y = mk('2026-10-12T20:30:00Z', L), a = Y.trdSilaPanel(W, false), b = mk('2026-10-11T07:00:00Z', L).trdSilaPanel(C, true);
+    assert.ok(!/v335t\.|undefined|NaN|\{[a-z]\}/.test(a + b), L + ': bez surowych kluczy'); assert.ok(/12/.test(a) && /11/.test(b), L + ': data sesji / okna'); }
+});
+
+test('v335: słownik v335t.* — czysty JSON zaraz po linii for innego słownika, 10 języków z prawdziwymi tłumaczeniami (te same pola {s} / {b} / {m}), bez nazw dostawców, ja bez spacji przed licznikiem', () => {
+  const i = html.indexOf('{"pl":{"v335t.'), a = html.lastIndexOf('const EXTRA', i), name = html.slice(a + 6, i - 1);
+  const e = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', i);
+  assert.ok(i > 0 && a > 0 && e > i && /^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2, 'słownik: ' + name);
+  const ln = html.slice(html.lastIndexOf('\n', a - 2) + 1, a - 1);
+  assert.ok(/^for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/.test(ln) && html[a - 1] === '\n', 'zaraz po linii for innego słownika: ' + ln.slice(0, 80));
+  const D = JSON.parse(html.slice(i, e)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], K = ['v335t.ans.w', 'v335t.ans.c', 'v335t.jak.3'], ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10);
+  for (const L of L10) { assert.deepEqual(Object.keys(D[L]), K, L);
+    K.forEach((k, j) => { assert.equal(ph(D[L][k]), ['{s}', '{b}', '{m}'][j], L + ' ' + k + ': pola'); assert.ok(D[L][k].length > 40 && !/undefined|NaN/.test(D[L][k]), L + ' ' + k); }); }
+  for (const k of K) { const base = new Set(L10.map(L => D[L][k])); assert.equal(base.size, 10, k + ': dziesięć różnych tłumaczeń (nie kopia)'); }
+  for (const k of K) assert.ok(!/(\d|\})[ \u00a0](日|件|営業日|日間|銘柄|か月|年)/.test(D.ja[k]), 'ja bez spacji przed licznikiem: ' + k);
+  const prov = ['SoSoValue', 'DefiLlama', 'CoinMarketCap', 'CoinGecko', 'CoinPaprika', 'Coin Metrics', 'Farside', 'Binance', 'Bybit', 'Deribit', 'iShares', 'SPDR', 'State Street', 'BlackRock', 'Twelve Data', 'Finnhub',
+    'EODHD', 'FRED', 'TradingView', 'Glassnode', 'CryptoQuant', 'Alternative', 'Yahoo', 'Nasdaq', 'Stooq'];
+  const all = JSON.stringify(D); for (const p of prov) assert.ok(!all.includes(p), 'bez nazwy dostawcy: ' + p);
+  for (const k of K) assert.ok(html.includes("'" + k + "'"), 'klucz użyty w kodzie: ' + k);
+});
+
+test('v335 (uwagi recenzenta v323): wskazówki panelu „Siła sygnałów” wjeżdżają raz dla pliku i widoku (przerysowanie po dziennikach / zmianie języka bez ponownego ruchu), pasek 10 kratek opisany w „Jak liczymy”, jeden nagłówek „Nauka”, martwe klucze tig.s.* usunięte', () => {
+  const W = v323.world(), C = v323.crypto(), X = v335.make('pl');
+  const p1 = X.trdSilaPanel(W, false), p2 = X.trdSilaPanel(W, false), c1 = X.trdSilaPanel(C, true), c2 = X.trdSilaPanel(C, true);
+  assert.ok(p1.startsWith('<section class="panel pcard trd-sila" id="trd-sila">') && c1.startsWith('<section class="panel pcard trd-sila" id="trd-sila">'), 'pierwsze rysowanie widoku: z ruchem');
+  assert.ok(p2.startsWith('<section class="panel pcard trd-sila tsg-still" id="trd-sila">') && c2.startsWith('<section class="panel pcard trd-sila tsg-still" id="trd-sila">'), 'ten sam plik i widok: bez ponownego ruchu');
+  const W2 = Object.assign(v323.clone(W), {at: '2026-10-10T08:50:00+00:00'}); assert.ok(X.trdSilaPanel(W2, false).startsWith('<section class="panel pcard trd-sila" id="trd-sila">'), 'nowy plik — znów z ruchem');
+  const S = v335.make('pl', {st: {mode: 'trendy', trdv: 'global', anim: false}}); assert.ok(S.trdSilaPanel(W, false).includes('trd-sila tsg-still'), '„Animacje: wył.” jak dotąd');
+  /* pasek 10 kratek: zdanie w „Jak liczymy” (po pierwszych dwóch akapitach) */
+  assert.ok(/<p class="pnote">Wskaźnik bierze[^<]*<\/p><p class="pnote">Każdy dodatkowy[^<]*<\/p><p class="pnote">Pasek 10 kratek pokazuje tę samą siłę co półkole, liczoną od środka: w prawo na zielono wzrost, w lewo na czerwono spadek\. Im więcej zapalonych kratek \(od 1 do 5 po jednej stronie\), tym silniejszy sygnał; sam środek \(5,5\) oznacza brak wyraźnego kierunku\.<\/p><\/details>/.test(p1), 'opis paska');
+  /* „Nauka”: summary jest nagłówkiem — stary nagłówek ze środka bloku pominięty (trdIgLearn bez zmian) */
+  const J = {since: '2026-09-28', rows: [], pg: {do: '2026-10-01', l: {p: [3, 100, null], t: [3, 100, null], e: [0, 100, null], s: [2, 100, null], h: [3, 100, null], n2: [3, 100, null], all: [4, 100, null]}}, cp: {}};
+  const raw = X.trdIgLearn(J, true, {}), ld = X.trdIgLd(J, true, {});
+  assert.ok(raw.startsWith('<div class="tig-l"><h3 class="mtxt"><b>') && ld.startsWith('<details class="etfd tig-ld" id="trd-nauka"><summary>Nauka') && ld.includes('</summary><div class="tig-l"><div class="tig-pb"') && !ld.includes('<h3'), ld.slice(0, 300));
+  assert.equal(ld.replace(/^<details[^>]*><summary>[^<]*<\/summary>/, '').replace(/<\/details>$/, ''), raw.replace(/^<div class="tig-l"><h3 class="mtxt"><b>[^<]*<\/b><\/h3>/, '<div class="tig-l">'), 'reszta bloku bez zmian');
+  assert.equal(X.trdIgLd(null, true, {}), '', 'bez bloku nauki — nic');
+  assert.ok(!html.includes('tig.s.t"') && !html.includes('tig.s.sub') && !html.includes('tig.s.none') && !html.includes('tig.s.empty'), 'martwe klucze tig.s.* usunięte z EXTRA158');
 });
