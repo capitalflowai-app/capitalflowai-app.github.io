@@ -219,7 +219,7 @@ test('FRED: strona czyta fred.json z serwera, pokazuje cztery serie Fed; v126.2:
 const ga0 = html.indexOf('function gAgeNote(fresh){');
 const ga1 = html.indexOf('\nfunction gRenderKpi(){', ga0);
 const ageFor = new Function('t', html.slice(ga0, ga1) + '\nreturn gAgeNote;')(k => k);
-const dayIso = (back) => new Date(Date.now() - back * 86400000).toISOString().slice(0, 10);
+const dayIso = (back) => { const n = new Date(Date.now()), d = new Date(n.getFullYear(), n.getMonth(), n.getDate() - back); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };   /* v334 (CR8-08): dzień czytelnika (strefa lokalna), jak gAgeNote — dawniej doba UTC */
 
 test('wiek danych: dziś → „dane z dzisiaj”, 1 dzień → g.age1, więcej → g.age; brak daty → nic', () => {
   assert.equal(ageFor(dayIso(0)), ' · g.age0');
@@ -2620,7 +2620,7 @@ const pgEnv = (over = {}) => {
     GREG: [{id: 'eur', mcap: 100, iso: ['DEU', 'FRA', 'GBR']}, {id: 'jpn', mcap: 50, iso: ['JPN', 'KOR']}, {id: 'usa', mcap: 200, iso: ['USA']}, {id: 'rus', mcap: 9, iso: ['RUS']}],
     GDATA: {'1M': {eur: [-5, -1, true], jpn: [3, 2, true], usa: [0, 0, true], rus: [0, 0, false], crypto: [1, .5, true]}},
     GEDGE: [{f: 'eur', t: 'jpn', a: 3, ev: 'proxy'}], GCEDGE: [{f: 'usa', t: 'crypto', a: .5, ev: 'proxy'}],
-    ETF: {data: {assets: {btc: {m: 1200, sym: 'BTC'}}}}, ETF_SYMS: ['btc', 'eth'],
+    ETF: {live: true, data: {assets: {btc: {m: 1200, sym: 'BTC'}}}}, ETF_SYMS: ['btc', 'eth'],   /* v334 (GL-05): plik ETF na żywo — wiersze „ETF → Krypto” tylko z niego (migawka wbudowana i moneta „stale” — bez wiersza) */
     EDGES: [{f: 'btc', t: 'exch', a: 415, k: 'out', ev: 'direct'}, {f: 'stab', t: 'defi', a: 512, k: 'in', ev: 'onchain'}],
     NODES: [{id: 'btc', ev: 'proxy'}, {id: 'exch', ev: 'unc'}, {id: 'stab', ev: 'onchain'}, {id: 'defi', ev: 'proxy'}],
     DATA: {'24H': {btc: [1840, 8.4], exch: [-520, -2.1], stab: [0, 0], defi: [240, 1.8]}},
@@ -2653,7 +2653,7 @@ test('v96-pages: Przepływy — flagi obu końców (GLOBAL), loga grup (CRYPTO),
   assert.ok(!h.includes('g.n.rus'), 'region bez danych i region z zerem nie trafiają do list największych');
   for (const r of rows) assert.ok(/<img |<span class="iss/.test(r.split('<td>')[1] || '') , 'każdy wiersz ma ikonę przy „Z”');
   // CRYPTO: loga grup, odpływ do giełd czerwony z „−”, bez podwójnego znaku
-  const c = pgEnv({st: {mode: 'crypto', period: '24H'}});
+  const c = pgEnv({st: {mode: 'crypto', period: '24H'}, isLive: () => true});   /* v334 (CR8-01): liczby sceny tylko przy danych na żywo albo z pliku serwera — bez nich zdanie zamiast liczb przykładowych */
   c.f.renderFlows();
   const k = c.el.innerHTML;
   assert.ok(k.includes('data-id="btc"') && k.includes('data-id="exch"') && k.includes('data-id="stab"') && k.includes('data-id="defi"'), 'loga grup krypto');
@@ -2681,7 +2681,7 @@ test('v96-pages: Sektory — flagi regionu przed nazwą, kraje jako flagi (dwa k
   assert.ok(nameOf(cr).includes('krypto/usdt.svg') && !nameOf(cr).includes('krypto/btc.svg') && subOf(cr).includes('pg.sub.crypto') && subOf(cr).includes('krypto/usdt.svg') && subOf(cr).includes('krypto/usdc.svg'));   // v296c (CR-03): przed nazwą USDT i USDC (wiersz = podaż stablecoinów), nie BTC
   const p0 = html.indexOf('function pgNodes(){'), p1 = html.indexOf('\nconst pgFmt=', p0);
   assert.ok(p1 > p0 && !html.slice(p0, p1).includes("'BTC · ETH · stablecoiny'") && html.slice(p0, p1).includes("t('pg.sub.crypto')"), 'podpis krypto tłumaczony');
-  const c = pgEnv({st: {mode: 'crypto', period: '24H'}});
+  const c = pgEnv({st: {mode: 'crypto', period: '24H'}, isLive: () => true});   /* v334 (CR8-01): liczby sceny tylko przy danych na żywo albo z pliku serwera — bez nich zdanie zamiast liczb przykładowych */
   c.f.renderSectorsPage();
   const k = c.el.innerHTML;
   assert.ok(k.includes('data-id="btc"') && k.includes('data-id="exch"') && k.includes('<span class="sval pos">+1840 u.m</span>') && k.includes('<span class="sval neg">−520 u.m</span>'));   /* v322 (pkt 5): reszta bilansu poza rankingiem, w kolorze znaku */   /* v315 (CR7-01): reszta bilansu poza rankingiem — osobny wiersz bez koloru */
@@ -2795,7 +2795,7 @@ test('v96-pages: po przeglądzie — Sektory: flagi przy nazwie = kraje z wiersz
   assert.ok(!chn.includes('flagi/hk.svg') && !as.includes('flagi/sg.svg') && !as.includes('flagi/th.svg'), 'bez flag krajów spoza wiersza');
   assert.ok(eur.includes('<i class="more">+2</i>'), 'Europa: trzy flagi i „+2”, pełna lista w wierszu');
   // CRYPTO: |v| < 0,5 mln pokazuje „0 mln” — bez zieleni/czerwieni, bez paska i poza listami największych
-  const E = {st: {mode: 'crypto', period: '24H'}, DATA: {'24H': {btc: [1840, 8.4], exch: [-0.4, -2.1], stab: [0.3, 0], defi: [240, 1.8]}},
+  const E = {st: {mode: 'crypto', period: '24H'}, isLive: () => true, DATA: {'24H': {btc: [1840, 8.4], exch: [-0.4, -2.1], stab: [0.3, 0], defi: [240, 1.8]}},   /* v334 (CR8-01): dane sceny na żywo */
     EDGES: [{f: 'btc', t: 'exch', a: 0.2, k: 'out', ev: 'direct'}, {f: 'stab', t: 'defi', a: 512, k: 'in', ev: 'onchain'}]};
   const c = pgEnv(E);
   c.f.renderSectorsPage();
@@ -3413,7 +3413,7 @@ test('v103-zrodla: bez pliku meta „—” z powodem i bez linii liczby źróde
 
 test('v103-zrodla: wszystkie klucze zr2 w 10 językach, foot.src = „Źródła” jak nav.sources, zdanie o źródłach w każdym języku, bez surowych kluczy', () => {
   const a0 = html.indexOf('function gAgeNote(fresh){'), a1 = html.indexOf('\n}', a0) + 2;
-  const AGE = (L, days) => new Function('t', html.slice(a0, a1) + '\nreturn gAgeNote;')(v96src.tFor(L))(new Date(Date.now() - days * 86400000).toISOString().slice(0, 10));
+  const AGE = (L, days) => new Function('t', html.slice(a0, a1) + '\nreturn gAgeNote;')(v96src.tFor(L))(dayIso(days));   /* v334 (CR8-08): dzień czytelnika, jak gAgeNote (dawniej doba UTC) */
   const d = v103zr.dict, KEYS = ['zr2.live', 'zr2.refresh', 'zr2.count', 'zr2.legal', 'zr2.note', 'zr2.help', 'zr2.stale', 'zr2.nometa', 'zr2.noat', 'foot.src', 'pg.sources', 'g.age1', 'g.age'];   /* v151: zr2.attr, zr2.tv, zr2.icons (podpisy usunięte z karty w v126.2) usunięte ze słowników */
   assert.deepEqual(Object.keys(d).sort(), [...v103zr.L10].sort());
   for (const l of v103zr.L10) {
@@ -3837,7 +3837,7 @@ test('v109-dzwignia2: „wszystkie giełdy razem” — suma z giełd z bieżąc
   const f = lev104.mk({}); const j = lev109.fix(); f.levApply(j); const h = f.el.innerHTML;
   const S = j.hl.rows.BTC.oi_usd + j.okx.BTC.oi_usd + j.kr.BTC.oi_usd + j.cb.BTC.oi_usd + j.dy.BTC.oi_usd, pct = (S / j.hist[0].all_btc - 1) * 100;
   const i0 = h.indexOf('lev.h.all'); assert.ok(i0 > 0 && i0 < h.indexOf('lev.h.hl') && h.includes('lev.all.sub'), 'rząd „razem” przed Hyperliquid, z podtytułem');
-  const want = 'lev.k.oiall{c=BTC}</span><b>' + (S / 1e9).toFixed(2) + ' <small class="mtxt">lev.u.mld</small> <small>lev.sumof{n=5,v=' + lev109.VEN + '} · <span class="pos">lev.dn{n=2,v=' + lev109.fp(pct) + '}</span> · lev.bnout{v=8.09 lev.u.mld,d=';
+  const want = 'lev.k.oiall{c=BTC}</span><b>' + (S / 1e9).toFixed(2) + ' <small class="mtxt">lev.u.mld</small> <small>lev.sumof{n=5,v=' + lev109.VEN + '} · <span class="pos">c334.lev.vs{d=' + new Date(Date.parse(j.hist[0].d + 'T12:00:00Z')).toLocaleDateString('pl-PL', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'}) + ',v=' + lev109.fp(pct) + '}</span> · lev.bnout{v=8.09 lev.u.mld,d=';   /* v334 (CR8-07): podpis z dniem kotwicy (koniec doby UTC), nie „zmiana w 2 dn.” */
   assert.ok(h.includes(want), 'suma BTC z 5 giełd, zmiana wobec wpisu sprzed 2 dni, Binance poza sumą: ' + h.slice(h.indexOf('lev.k.oiall{c=BTC}'), h.indexOf('lev.k.oiall{c=BTC}') + 320));
   assert.ok(h.includes('lev.k.oiall{c=ETH}</span><b>') && h.includes('lev.sumof{n=5,v=' + lev109.VEN + '} · lev.diffn · lev.bnout{v=6.10 lev.u.mld,d='), 'ETH: dzień wcześniej inny zestaw giełd — bez zmiany, z powodem');
   const L = [[10.95, j.hl.rows.BTC.oi_usd], [2.307, j.okx.BTC.oi_usd], [j.kr.BTC.f_y, j.kr.BTC.oi_usd], [j.cb.BTC.f_y, j.cb.BTC.oi_usd], [j.dy.BTC.f_y, j.dy.BTC.oi_usd]];
@@ -14377,7 +14377,7 @@ test('v293c CR-01: kafel z dniem danych (RRRR-MM-DD) — sama data czytelnika i 
   const tiles = el.innerHTML.split('<div class="panel kpi">').slice(1), day = new Date(Date.parse('2026-10-07T12:00:00Z')).toLocaleDateString('pl-PL', {dateStyle: 'short', timeZone: 'UTC'});
   assert.ok(tiles[2].includes('<span class="ksrc">' + day + ' ·age(2026-10-07)</span>') && tiles[2].includes('▲ +0.05%'), tiles[2]);
   assert.ok(tiles[0].includes('<span class="ksrc">D(2026-10-07T16:21:59.999Z) ·age(2026-10-07T16:21:59.999Z)</span>'), 'chwila — jak dotąd');
-  assert.ok(html.includes("own?t('pg.20m')+' · '+escH(/^\\d{4}-\\d{2}-\\d{2}$/.test(String(own))&&typeof kpiDay==='function'?kpiDay(own):engDate(own))+gAgeNote(String(own))"), 'Aktywa (CRYPTO) — dzień tak samo');
+  assert.ok(html.includes("own?t(k.id==='stab'?'pg.1h':'pg.20m')+' · '+escH(/^\\d{4}-\\d{2}-\\d{2}$/.test(String(own))&&typeof kpiDay==='function'?kpiDay(own):engDate(own))+gAgeNote(String(own))"), 'Aktywa (CRYPTO) — dzień tak samo');
 });
 
 test('v293c CR-04: panel stablecoinów — nagłówek z tej samej serii co tabela (suma sieci), cała podaż z historii osobno z objaśnieniem; Wykresy — suma i dzień serii sieci', () => {
@@ -14835,7 +14835,7 @@ test('v296c CR-03: Sektory i Przepływy — wiersz „Krypto: stablecoiny” z l
   assert.ok(it && it.includes('krypto/usdt.svg') && it.includes('krypto/usdc.svg') && !it.includes('krypto/btc.svg'), 'lista napływów: ' + it);
   const etf = h.split('<tr>').find(r => r.includes('ETF BTC'));
   assert.equal((etf.match(/krypto\/btc\.svg/g) || []).length, 2, 'korytarz ETF BTC → Krypto — jak dotąd (rynek krypto)');
-  const c = pgEnv({st: {mode: 'crypto', period: '24H'}});
+  const c = pgEnv({st: {mode: 'crypto', period: '24H'}, isLive: () => true});   /* v334 (CR8-01): liczby sceny tylko przy danych na żywo albo z pliku serwera — bez nich zdanie zamiast liczb przykładowych */
   c.f.renderSectorsPage();
   assert.ok(c.el.innerHTML.includes('data-id="btc"') && c.el.innerHTML.includes('data-id="exch"') && c.el.innerHTML.includes('data-id="stab"'), 'CRYPTO — loga grup jak dotąd');
   assert.equal(g.f.pgNodes().find(n => n.id === 'crypto').coins.join(','), 'USDT,USDC');
@@ -18009,7 +18009,7 @@ test('v315 (CR7-01…05, dopiski): okno „Dlaczego to widzisz?” — „spadł
 
 test('v315 (CR7-01, CR7-04): Przepływy i Sektory w CRYPTO — „Giełdy” poza listami wzrostów/spadków i poza rankingiem, osobny opisany wiersz (v322: w kolorze znaku); stablecoiny: pomiar podaży albo szacunek; GLOBAL bez zmian', () => {
   const D = {'1R': {btc: [-781319, -32.6], exch: [1161298, null], stab: [8130, 2.68, 'sup'], defi: [-8576, -10.1]}};
-  const c = pgEnv({st: {mode: 'crypto', period: '1R'}, DATA: D});
+  const c = pgEnv({st: {mode: 'crypto', period: '1R'}, DATA: D, isLive: () => true});   /* v334 (CR8-01): dane sceny na żywo */
   c.f.renderFlows();
   const k = c.el.innerHTML, a = k.indexOf('<div class="pg2">'), b = k.indexOf('<section class="panel pgc pg-exch">');
   assert.ok(a > 0 && b > a && k.indexOf('<section class="panel"><div class="list-wrap"><table>') > b, 'osobny wiersz pod listami, nad tabelą korytarzy');
@@ -18021,7 +18021,7 @@ test('v315 (CR7-01, CR7-04): Przepływy i Sektory w CRYPTO — „Giełdy” poz
   assert.ok(rows.length === 4 && rows[3].includes('data-id="exch"') && s.indexOf('pg-exch') > s.indexOf('data-id="defi"'), 'ranking bez „Giełd”, osobny wiersz na końcu');
   assert.ok(rows[3].includes('<span class="sval pos">+1161298 u.m</span>')   /* v322 (pkt 5): reszta bilansu w kolorze znaku */ && rows[3].includes('<span>c315.pg.exch.d</span>') && rows[0].includes('data-id="stab"') && rows[0].includes('<span>c315.ev.meas</span>'), rows[0] + rows[3]);
   assert.ok(rows[2].includes('width:100%'), 'pasek najdłuższy dla największej zmiany wartości (BTC), nie dla reszty bilansu');
-  const p = pgEnv({st: {mode: 'crypto', period: '1R'}, DATA: {'1R': {btc: [5, 1], exch: [-5, null], stab: [0, 0], defi: [0, 0]}}});
+  const p = pgEnv({st: {mode: 'crypto', period: '1R'}, DATA: {'1R': {btc: [5, 1], exch: [-5, null], stab: [0, 0], defi: [0, 0]}}, isLive: () => true});   /* v334 (CR8-01): dane sceny na żywo */
   p.f.renderSectorsPage(); const ps = p.el.innerHTML.split('<div class="secrow">').find(r => r.includes('data-id="stab"')) || '';
   assert.ok(ps.includes('<span>ev.proxy</span>') && !p.el.innerHTML.includes('c315.ev.meas'), 'stablecoiny z ceny — szacunek');
   const g = pgEnv(); g.f.renderFlows(); assert.ok(!g.el.innerHTML.includes('pg-exch')); g.f.renderSectorsPage(); assert.ok(!g.el.innerHTML.includes('pg-exch'), 'GLOBAL bez zmian');
@@ -20631,4 +20631,172 @@ test('v333 (S1): słownik — czysty JSON, 10 języków z tymi samymi kluczami i
   for (const L of Object.keys(D)) { assert.deepEqual(Object.keys(D[L]).sort(), K, L);
     for (const k of K) { assert.equal(pola(D[L][k]), pola(D.pl[k]), L + ' ' + k); if (L !== 'pl') assert.notEqual(D[L][k], D.pl[k], L + ' ' + k); if (!['pl', 'en'].includes(L)) assert.notEqual(D[L][k], D.en[k], L + ' ' + k); } }
   for (const L of Object.keys(D)) for (const k of K) assert.ok(!/OECD|CoinGecko|CoinPaprika|Coin Metrics|CFTC/.test(D[L][k]), 'bez nazw dostawców: ' + L + ' ' + k);
+});
+
+/* ===================== v334 — pas S2 planu napraw: CR8-02, CR8-01, GL-05, CR8-09, CR8-07, CR8-08, CR8-10, CR8-12 i top 10 z pustymi grupami (faza 2A, v330) ===================== */
+const s2v334 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i >= 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const dict = () => { const k = html.indexOf('"c334.pg.err"'), a = html.lastIndexOf('\nconst EXTRA', k) + 1, m = /^const (EXTRA\d+)=/.exec(html.slice(a, a + 24)), e = html.indexOf(';\n', a);
+    assert.ok(k > 0 && m && e > k, 'słownik v334'); return {name: m[1], D: JSON.parse(html.slice(a + m[0].length, e)), at: a}; };
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const dayLoc = ms => { const d = new Date(ms); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  return {cut, dict, L10, dayLoc};
+})();
+
+test('v334 (CR8-02): kliknięcie wiersza rankingu na stronie Przepływy nie zaznacza linii; zaznaczenie bez elementu sceny — bez wyjątków w szczegółach, scenie i przerysowaniu', () => {
+  const rr = s2v334.cut('function renderRail(){', '\nconst SEC_IDS=');
+  assert.ok(rr.includes("$$('#rows-in .row, #rows-out .row')") && !rr.includes("$$('.row')"), 'słuchacze tylko na wierszach paska bocznego');
+  /* renderRail w atrapie: wiersze paska bocznego (z data-e) i ranking strony Przepływy (div.row bez data-e), dwa odświeżenia jak co 5 min */
+  const mkEl = e => ({dataset: e ? {e} : {}, L: [], addEventListener(ty, f) { if (ty === 'click') this.L.push(f); }});
+  /* każde przypisanie innerHTML tworzy nowe wiersze (jak przeglądarka); ranking strony Przepływy stoi, aż strona się przerysuje */
+  const mkBox = () => ({els: [], set innerHTML(v) { this.els = [...String(v).matchAll(/data-e="([^"]+)"/g)].map(m => mkEl(m[1])); }, get innerHTML() { return ''; }});
+  const flows = [mkEl(), mkEl()], box = {'#rows-in': mkBox(), '#rows-out': mkBox()};
+  const $$ = q => q.split(',').map(x => x.trim()).flatMap(p => p === '.row' ? box['#rows-in'].els.concat(box['#rows-out'].els, flows)
+    : p === '#rows-in .row' ? box['#rows-in'].els : p === '#rows-out .row' ? box['#rows-out'].els : []);
+  const sel = [];
+  const EDGES = [{id: 'btc>eth', f: 'btc', t: 'eth', a: 5, k: 'in'}, {id: 'eth>exch', f: 'eth', t: 'exch', a: 3, k: 'out'}];
+  const run = new Function('EDGES', 'st', '$', '$$', 'cGrpW', 'nName', 'nfmt', 'eAmt', 't', 'select', 'railShow', rr + '\nreturn renderRail;')(
+    EDGES, {sel: null}, q => box[q], $$, () => '', id => id, v => String(v), e => e.a, k => k, s => sel.push(s), () => false);
+  run(); run();
+  for (const r of flows) r.L.forEach(f => f());
+  assert.deepEqual(sel, [], 'kliknięcie wiersza rankingu Przepływów — bez zaznaczenia (dawniej {type:"edge"} bez id)');
+  const r0 = box['#rows-in'].els[0]; assert.ok(r0 && r0.dataset.e === 'btc>eth'); r0.L.forEach(f => f());
+  assert.deepEqual(sel, [{type: 'edge', id: 'btc>eth'}], 'wiersz paska bocznego zaznacza swoją linię (jeden słuchacz)');
+  /* select(): element bez wpisu w EB / NB — zaznaczenie bez zmian i bez przerysowania */
+  const sc = s2v334.cut('function select(s){', '\nfunction renderTop10(');
+  const ev = [], st = {sel: null, view: 'list'};
+  const select = new Function('st', 'EB', 'NB', 'cam', 'camTo', 'routeOf', 'mid', 'HOME', 'homeDist', 'homeBase', 'renderDetails', 'renderRail', 'renderList', 'renderChips', 'dirty', sc + '\nreturn select;')(
+    st, {'btc>eth': EDGES[0]}, {btc: {p: [0, 0, 0]}}, {dist: 10}, () => {}, () => ({pts: [[0, 0, 0], [1, 1, 1]]}), (a, b) => a, () => ({tx: 0, ty: 0, tz: 0}), () => 10, () => 10,
+    () => ev.push('d'), () => ev.push('r'), () => ev.push('l'), () => ev.push('c'), false);
+  select({type: 'edge'}); select({type: 'edge', id: 'eth>btc'}); select({type: 'node', id: 'zzz'});
+  assert.equal(st.sel, null); assert.deepEqual(ev, [], 'bez zmian i bez rysowania');
+  select({type: 'edge', id: 'btc>eth'}); assert.deepEqual(st.sel, {type: 'edge', id: 'btc>eth'}); assert.equal(ev.length, 4, 'prawdziwa linia — jak dotąd');
+  /* relNode: zaznaczenie linii bez wpisu (np. sprzed przełączenia okresu) — nic nie przygaszone, bez wyjątku */
+  const rn = new Function('st', 'EB', 'EDGES', s2v334.cut('const relNode=', '\nconst relEdge=') + '\nreturn relNode;');
+  assert.equal(rn({sel: {type: 'edge'}}, {}, [])({id: 'btc'}), true);
+  assert.equal(rn({sel: {type: 'edge', id: 'btc>eth'}}, {'btc>eth': EDGES[0]}, EDGES)({id: 'ai'}), false, 'prawdziwe zaznaczenie przygasza jak dotąd');
+  /* renderDetails: takie zaznaczenie = brak zaznaczenia (dawniej TypeError przerywał renderAll i applyLang) */
+  assert.equal(c315.det('pl', {st: {period: '24H', sel: {type: 'edge'}}, DATA: {'24H': {}}, EB: {}}), '');
+  assert.equal(c315.det('pl', {st: {period: '24H', sel: {type: 'node', id: 'zzz'}}, DATA: {'24H': {}}, EB: {}}), '');
+  /* cała strona w atrapie: zaznaczenie bez id, potem przerysowanie wszystkiego i klatka sceny — bez błędów */
+  const R = t10B.open(1100, 680), A = R.api;
+  A.st.sel = {type: 'edge'};
+  R.act('renderAll', () => A.renderAll()); R.act('klatka', () => A.render());
+  assert.deepEqual(R.ERR, [], 'bez wyjątków');
+});
+
+test('v334 (CR8-01): Przepływy i Sektory w CRYPTO bez danych na żywo i bez pliku serwera — zdanie zamiast liczb przykładowych; po nadejściu danych strona rysuje się od razu', () => {
+  const D = {'24H': {btc: [1840, 8.4], exch: [-520, -2.1], stab: [720, 1], defi: [240, 1.8]}, '1R': {btc: [38200, 30], exch: [-9000, null], stab: [21500, 9], defi: [6100, 5]}};
+  for (const [stt, key] of [['err', 'c334.pg.err'], ['load', 'c334.pg.load'], ['idle', 'c334.pg.load']]) for (const per of ['24H', '1R']) {
+    const c = pgEnv({st: {mode: 'crypto', period: per}, DATA: D, LIVE: {st: stt}});   /* isLive: () => false (atrapa pgEnv) */
+    assert.deepEqual(c.f.pgNodes(), [], stt + ' ' + per + ': bez węzłów'); assert.deepEqual(c.f.pgEdges(), [], stt + ' ' + per + ': bez linii');
+    c.f.renderFlows(); const fl = c.el.innerHTML;
+    assert.ok(fl.includes('<h1>pg.flows</h1>') && fl.includes('<p class="pnote">' + key + '</p>') && !/1840|38200|512|415|520|pg-exch|<table>|rail\.in/.test(fl), stt + ' ' + per + ': ' + fl);
+    c.f.renderSectorsPage(); const se = c.el.innerHTML;
+    assert.ok(se.includes('<h1>pg.sectors</h1>') && se.includes('<p class="pnote">' + key + '</p>') && !/1840|38200|secrow|pg-exch/.test(se), stt + ' ' + per + ': ' + se);
+  }
+  const L = pgEnv({st: {mode: 'crypto', period: '24H'}, isLive: () => true, LIVE: {st: 'ok'}});
+  L.f.renderFlows(); assert.ok(L.el.innerHTML.includes('+1840 u.m') && !L.el.innerHTML.includes('c334.pg'), 'dane sceny — liczby jak dotąd');
+  L.f.renderSectorsPage(); assert.ok(L.el.innerHTML.includes('+1840 u.m') && !L.el.innerHTML.includes('c334.pg'));
+  const G = pgEnv({LIVE: {st: 'err'}});
+  G.f.renderFlows(); assert.ok(G.el.innerHTML.includes('g.n.eur') && !G.el.innerHTML.includes('c334.pg'), 'GLOBAL bez zmian');
+  G.f.renderSectorsPage(); assert.ok(G.el.innerHTML.includes('g.n.eur') && !G.el.innerHTML.includes('c334.pg'));
+  /* afterLive: strona z menu w CRYPTO przerysowana od razu (np. plik serwera doszedł po błędzie) */
+  const src = s2v334.cut('function afterLive(){', '\nfunction renderStatus(){');
+  const go = (mode, page) => { const ev = []; new Function('renderStatus', 'renderAll', 'retarget', 'st', 'PAGES', 'page', 'renderPage', 'dirty', src + '\nafterLive();')(
+    () => ev.push('s'), () => ev.push('a'), () => ev.push('r'), {mode}, ['flows', 'assets', 'sectors', 'sources', 'method'], page, () => ev.push('PAGE'), false); return ev.join(','); };
+  assert.equal(go('crypto', 'flows'), 's,a,r,PAGE'); assert.equal(go('crypto', 'sectors'), 's,a,r,PAGE');
+  assert.equal(go('crypto', 'overview'), 's,a,r'); assert.equal(go('global', 'flows'), 's,a,r', 'GLOBAL — bez danych sceny'); assert.equal(go('trendy', 'sectors'), 's,a,r');
+  const {D: X} = s2v334.dict();
+  for (const l of s2v334.L10) for (const k of ['c334.pg.err', 'c334.pg.load']) assert.ok(typeof X[l][k] === 'string' && X[l][k].length > 12 && !/[{}<>]/.test(X[l][k]), l + ' ' + k);
+  assert.ok(X.pl['c334.pg.err'].includes('liczb przykładowych') && X.en['c334.pg.err'].includes('sample numbers'));
+});
+
+test('v334 (GL-05): Przepływy GLOBAL (miesiąc) — wiersze „ETF → Krypto” tylko z pliku na żywo i bez monety „stale”', () => {
+  const ids = etf => { const g = pgEnv({ETF: etf, ETF_SYMS: ['btc', 'eth', 'xrp']}); return g.f.pgEdges().filter(e => /^etf-/.test(e.f)).map(e => e.f).join(','); };
+  const A = {btc: {m: 1700, sym: 'BTC'}, eth: {m: 56, sym: 'ETH'}, xrp: {m: 106, sym: 'XRP'}};
+  assert.equal(ids({live: true, data: {assets: A}}), 'etf-btc,etf-eth,etf-xrp', 'na żywo — jak dotąd');
+  assert.equal(ids({live: true, data: {assets: Object.assign({}, A, {xrp: {m: 106, sym: 'XRP', stale: true}})}}), 'etf-btc,etf-eth', 'XRP stale — bez wiersza (panel ETF ma „—”)');
+  assert.equal(ids({live: false, data: {asof: '2026-09-23', assets: {btc: {m: 3200, sym: 'BTC'}, xrp: {m: 182, sym: 'XRP'}}}}), '', 'plik niedostępny (migawka wbudowana) — bez wierszy');
+  const g = pgEnv({ETF: {live: true, data: {assets: Object.assign({}, A, {xrp: {m: 106, sym: 'XRP', stale: true}})}}, ETF_SYMS: ['btc', 'eth', 'xrp']});
+  g.f.renderFlows(); assert.ok(g.el.innerHTML.includes('ETF BTC') && !g.el.innerHTML.includes('ETF XRP'));
+});
+
+test('v334 (CR8-09): kolumna słupków ETF — „Ostatnie 30 sesji” (słupków jest 30 sesji, ok. 6 tygodni), nie „30 dni”, w 10 językach', () => {
+  const a = 'const EXTRA19=', x = html.indexOf(a), D = JSON.parse(html.slice(x + a.length, html.indexOf(';\n', x)));
+  const W = {pl: 'Ostatnie 30 sesji', en: 'Last 30 sessions', de: 'Letzte 30 Handelstage', es: 'Últimas 30 sesiones', fr: '30 dernières séances', it: 'Ultime 30 sedute',
+    pt: 'Últimos 30 pregões', ru: 'Последние 30 сессий', zh: '最近 30 个交易日', ja: '直近30営業日'};
+  for (const l of s2v334.L10) assert.equal(D[l]['etf.c.bars'], W[l], l);
+  assert.equal((html.match(/"etf\.c\.bars":/g) || []).length, 10, 'klucz tylko w EXTRA19 (bez nadpisania w innym słowniku)');
+  const bars = new Function(s2v334.cut('function etfBars(day){', '\n/* ---------- render') + '\nreturn etfBars;')();
+  assert.equal((bars(Array.from({length: 43}, (_, i) => [i, i % 2 ? 5 : -3])).match(/<rect /g) || []).length, 30, '30 ostatnich wpisów sesji');
+});
+
+test('v334 (CR8-07): dźwignia „razem” — zmiana podpisana dniem kotwicy (koniec doby UTC), nie „zmiana w 1 dn.”', () => {
+  const f = lev104.mk({}); const j = lev109.fix(); f.levApply(j); const h = f.el.innerHTML;
+  const b0 = h.indexOf('lev.k.oiall{c=BTC}'), btc = h.slice(b0, h.indexOf('class="etfk"', b0 + 10));
+  const day = new Date(Date.parse(j.hist[0].d + 'T12:00:00Z')).toLocaleDateString('pl-PL', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
+  assert.ok(btc.includes('c334.lev.vs{d=' + day + ',v=') && !btc.includes('lev.dn{'), btc);
+  assert.equal(f.levHist('hl_btc', 1).d, j.hist.filter(x => x.hl_btc > 0 && Date.parse(x.d) <= Date.parse(j.hist[j.hist.length - 1].d) - 864e5).pop().d, 'levHist podaje dzień kotwicy');
+  const {D} = s2v334.dict();
+  for (const l of s2v334.L10) assert.ok(D[l]['c334.lev.vs'].includes('{d}') && D[l]['c334.lev.vs'].includes('{v}') && D[l]['c334.lev.vs'].includes('UTC'), l);
+});
+
+test('v334 (CR8-08): wiek danych — dzień bez godziny liczony od daty czytelnika, jak chwila z godziną (o 01:30 w Warszawie oba napisy mówią to samo)', () => {
+  const src = s2v334.cut('function gAgeNote(fresh){', '\nfunction gRenderKpi(){');
+  const PE = (typeof process !== 'undefined' && process && process.env) ? process.env : null, tz0 = PE ? PE.TZ : undefined, now0 = Date.now;
+  const A = new Function('t', src + '\nreturn gAgeNote;')(k => k), loc = s2v334.dayLoc;
+  try {
+    if (PE) PE.TZ = 'Europe/Warsaw';
+    const NOW = Date.parse('2026-10-10T23:30:00Z'); Date.now = () => NOW;
+    for (const iso of ['2026-10-10T07:50:59.999Z', '2026-10-10T22:40:00Z', '2026-10-09T12:00:00Z', '2026-10-10T23:10:00Z', '2026-10-01T09:00:00Z'])
+      assert.equal(A(loc(Date.parse(iso))), A(iso), 'ten sam dzień czytelnika — ten sam napis: ' + iso);
+    assert.equal(A(loc(NOW)), ' · g.age0'); assert.equal(A(loc(NOW - 86400000)), ' · g.age1');
+    if (PE) {
+      assert.equal(A('2026-10-10'), ' · g.age1', 'Warszawa, 11.10 01:30 — doba UTC 10.10 to wczoraj czytelnika (dawniej „z dzisiaj” obok „sprzed 1 dnia”)');
+      assert.equal(A('2026-10-10T07:50:59.999Z'), ' · g.age1'); assert.equal(A('2026-10-11'), ' · g.age0');
+      PE.TZ = 'America/New_York'; const NY = Date.parse('2026-10-11T02:00:00Z'); Date.now = () => NY;   /* 10.10, 22:00 czytelnika — doba UTC już 11.10 */
+      assert.equal(A('2026-10-11'), ' · g.age0', 'dzień o jeden po dacie czytelnika — „z dzisiaj”, nie pusto'); assert.equal(A('2026-10-12'), '', 'dalej w przyszłości — pusto');
+      assert.equal(A('2026-10-09'), ' · g.age1');
+      PE.TZ = 'Europe/Warsaw'; Date.now = () => NOW;
+    }
+    assert.equal(A('2026-09'), ' · g.age', 'miesiąc — bez zmian'); assert.equal(A('2026-Q3'), ' · g.age'); assert.equal(A('x'), ''); assert.equal(A(''), ''); assert.equal(A('2026-13-45'), '');
+  } finally { Date.now = now0; if (PE) { if (tz0 === undefined) delete PE.TZ; else PE.TZ = tz0; } }
+});
+
+test('v334 (CR8-10): reszta bilansu „Giełdy” po unikalnych monetach — moneta w dwóch koszykach (AKT: AI i DePIN) liczona raz, w sektorach w obu', () => {
+  const src = s2v334.cut('function secFlow(id,per){', '\n/* przepływy między elementami');
+  const mk = (LIVE, SEC) => new Function('LIVE', 'SEC_SYM', src + '\nreturn buildPeriod;')(LIVE, SEC);
+  const C = {A: {mcap: 1e11, pct: {'24H': 2}}, B: {mcap: 5e10, pct: {'24H': -4}}, X: {mcap: 2e9, pct: {'24H': 10}}, Y: {mcap: 1e9, pct: {'24H': null}}, Z: {mcap: 3e9, pct: {'24H': -50}}};
+  const fl = s => (C[s].mcap - C[s].mcap / (1 + C[s].pct['24H'] / 100)) / 1e6;
+  const P = mk({C}, {s1: ['A', 'X'], s2: ['B', 'X', 'Y'], s3: ['Z', 'X'], s4: ['Z']})('24H');
+  assert.ok(Math.abs(P.s1[0] - (fl('A') + fl('X'))) < 1e-6 && Math.abs(P.s2[0] - (fl('B') + fl('X'))) < 1e-6 && Math.abs(P.s3[0] - (fl('Z') + fl('X'))) < 1e-6, 'sektory z monetą wspólną — jak dotąd');
+  assert.ok(Math.abs(P.exch[0] + (fl('A') + fl('B') + fl('X') + fl('Z'))) < 1e-6, 'reszta = −Σ po unikalnych monetach: ' + P.exch[0]);
+  const Q = mk({C}, {s1: ['A'], s2: ['B']})('24H');
+  assert.ok(Math.abs(Q.exch[0] + fl('A') + fl('B')) < 1e-9, 'koszyki rozłączne — bez zmian');
+  const b0 = html.indexOf('const BASKET={'), B = new Function(html.slice(b0, html.indexOf('\n};', b0) + 3) + '\nreturn BASKET;')();
+  assert.ok(B.ai.includes('AKT') && B.depin.includes('AKT'), 'AKT nadal w obu sektorach (zamierzone)');
+});
+
+test('v334 (CR8-12): Aktywa w CRYPTO — podaż stablecoinów (historia serwera, przebudowa co godzinę) „co godzinę”, rynek krypto z pliku „co 10 min” jak dotąd', () => {
+  const c = pgEnv({st: {mode: 'crypto', period: '24H'}, kpiVals: () => ({mcap: {val: 2.8, unit: 'u.t', dec: 2, d: 1.04, at: '2026-10-10T20:40:00Z'}, stab: {val: 311, unit: 'u.b', dec: 1, d: -0.21, at: '2026-10-10'}})});
+  c.f.renderAssets(); const rows = c.el.innerHTML.split('<tr>');
+  const sb = rows.find(r => r.includes('<b>kpi.stab</b>')) || '', mc = rows.find(r => r.includes('<b>kpi.mcap</b>')) || '';
+  assert.ok(sb.includes('pg.1h · ') && !sb.includes('pg.20m'), sb); assert.ok(mc.includes('pg.20m · ') && !mc.includes('pg.1h'), mc);
+});
+
+test('v334 (faza 2A, v330): plik top 10 z samymi pustymi grupami — także karta otwarta wcześniej pokazuje brak danych (nie stare monety); błąd sieci i plik nieczytelny — dane zostają', () => {
+  const R = t10B.open(1100, 680), A = R.api, keep = R.files['data/krypto-top10'], c0 = t10H.CLK.ms;
+  const load = w => { t10H.CLK.ms += 20 * 60 * 1000; R.act(w, () => A.t10Load()); };   /* jak zegar strony: co 20 min (pamięć srvJSON trzyma odpowiedź przez minutę) */
+  const n = () => { const D = A.T10.data; if (!D) return null; let k = 0; for (const g in D.g) k += D.g[g].c.length; return k; };
+  assert.equal(n(), 80); assert.equal(A.T10.st, 'ok');
+  try {
+    R.files['data/krypto-top10'] = t10B.file(['l1', 'l2', 'ai', 'defi', 'rwa', 'meme', 'depin', 'gaming']);
+    load('pusty plik');
+    assert.equal(A.T10.data, null, 'stare monety usunięte'); assert.equal(A.T10.st, 'err', 'stan „brak danych” jak u nowego widza');
+    R.files['data/krypto-top10'] = keep; load('powrót źródła'); assert.equal(n(), 80); assert.equal(A.T10.st, 'ok');
+    R.files['data/krypto-top10'] = null; load('błąd sieci'); assert.equal(n(), 80, 'błąd sieci (404) — dane zostają');
+    R.files['data/krypto-top10'] = {at: 'x', cols: ['id'], g: {}}; load('plik nieczytelny'); assert.equal(n(), 80, 'plik bez kolumn — dane zostają');
+    assert.deepEqual(R.ERR, []);
+  } finally { R.files['data/krypto-top10'] = keep; t10H.CLK.ms = c0; }
 });
