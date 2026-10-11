@@ -1947,12 +1947,17 @@ function sepL(){return (typeof LANG!=='undefined'&&LANG==='ja')?'、':', ';}
    kropka), w pozostałych językach spacja; miejsca wywołania sprawdzają typeof, jak przy sepK i sepL */
 function sepZ(){const L=typeof LANG!=='undefined'?LANG:'';return L==='zh'||L==='ja'?'':' ';}
 const NF={};
-const nfmt=(v,d=0)=>{const k=LANG+d;if(!NF[k])NF[k]=new Intl.NumberFormat(LOCALE[LANG],{minimumFractionDigits:d,maximumFractionDigits:d});return NF[k].format(v);};
+const nfmt=(v,d=0)=>{if(v==null||(typeof v==='number'&&!isFinite(v)))return '—';if(typeof v==='number'&&v<=0&&+(-v).toFixed(d)===0)v=0;   /* v336 (GL-13): brak liczby = „—” (dawniej null → „0”, undefined → „NaN”); „−0,00” → „0,00” */
+  const k=LANG+d;if(!NF[k])NF[k]=new Intl.NumberFormat(LOCALE[LANG],{minimumFractionDigits:d,maximumFractionDigits:d});return NF[k].format(v);};
+/* v336 (GL-10, CR8-11): jedna reguła liczb ze znakiem dla całej strony — NAJPIERW zaokrąglenie, POTEM znak: nSg(v, s) = „+” / „−” (U+2212) liczby v pokazanej
+   jako napis s, gdy s ma cyfrę różną od zera; zaokrąglone do zera — bez znaku (kolor „bez zmian”). Ta sama reguła: instSign(v, s) (panele urzędowe). */
+const nSg=(v,s)=>/[1-9]/.test(String(s))?(v>0?'+':v<0?'−':''):'';
 const sg=v=>v>0?'+':v<0?'−':'';
-const fInt=v=>sg(v)+nfmt(Math.abs(v));
-const fPct=(v,d=1)=>sg(v)+nfmt(Math.abs(v),d)+'%';
-const compactU=v=>{const a=Math.abs(v);return a>=1000?nfmt(a/1000,a>=10000?1:2)+' '+t('u.b'):nfmt(a)+' '+t('u.m');};   /* v315 (CR7-02): kwota BEZ znaku — do zdań „wzrosła o …” / „spadła o …”, kierunek mówi czasownik (dawniej „spadła o +971 mln USD”) */
-const compact=v=>sg(v)+compactU(v);
+const fInt=v=>{if(typeof v!=='number'||!isFinite(v))return '—';const s=nfmt(Math.abs(v));return nSg(v,s)+s;};   /* v336 (GL-10): „+0” → „0” */
+const fPct=(v,d=1)=>{if(typeof v!=='number'||!isFinite(v))return '—';const s=nfmt(Math.abs(v),d);return nSg(v,s)+s+'%';};   /* v336 (GL-10): „+0,0%” → „0,0%” (np. chip „L1/L2” przy +0,048%) */
+const compactU=v=>{if(typeof v!=='number'||!isFinite(v))return '—';const a=Math.abs(v);if(a>0&&a<0.5)return '<1 '+t('u.m');   /* v336 (GL-10): mały przepływ nie jest zerem (jak gfmt v48) */
+  return +a.toFixed(0)>=1000?nfmt(a/1000,a>=10000?1:2)+' '+t('u.b'):nfmt(a)+' '+t('u.m');};   /* v336 (GL-10): jednostka po zaokrągleniu — 999,5 mln = „1,00 mld USD”, nie „1000 mln USD” */   /* v315 (CR7-02): kwota BEZ znaku — do zdań „wzrosła o …” / „spadła o …”, kierunek mówi czasownik (dawniej „spadła o +971 mln USD”) */
+const compact=v=>{const s=compactU(v);return nSg(v,s)+s;};   /* v336 (GL-10): znak po zaokrągleniu */
 const EXTRA={
 pl:{'anim.on':'Włączona','anim.off':'Wyłączona','rot.auto':'Obrót automatyczny','rot.on':'Włączony','rot.off':'Wyłączony'},
 en:{'anim.on':'On','anim.off':'Off','rot.auto':'Auto-rotate','rot.on':'On','rot.off':'Off'},
@@ -2523,6 +2528,9 @@ const EXTRA220={"pl":{"c334.pg.err":"Brak danych: ceny krypto są chwilowo niedo
 for(const l in EXTRA220)if(I18N[l])Object.assign(I18N[l],EXTRA220[l]);
 const EXTRA221={"pl":{"v335t.ans.w":"Karty na następną sesję jeszcze się nie pojawiły — poprzednie dotyczyły sesji {s}, która już się skończyła. Nowe pokażemy, gdy tylko dojdą dane na kolejną sesję; do tego czasu żadna karta nie jest aktualna.","v335t.ans.c":"Karty na następną dobę jeszcze się nie pojawiły — poprzednie dotyczyły okna do {b} (UTC), które już minęło. Nowe pokażemy, gdy tylko dojdą dane na kolejną dobę; do tego czasu żadna karta nie jest aktualna.","v335t.jak.3":"Pasek 10 kratek pokazuje tę samą siłę co półkole, liczoną od środka: w prawo na zielono wzrost, w lewo na czerwono spadek. Im więcej zapalonych kratek (od 1 do 5 po jednej stronie), tym silniejszy sygnał; sam środek ({m}) oznacza brak wyraźnego kierunku."},"en":{"v335t.ans.w":"The cards for the next session have not appeared yet — the previous ones concerned the {s} session, which has already ended. We will show new ones as soon as the data for the next session arrive; until then no card is current.","v335t.ans.c":"The cards for the next day have not appeared yet — the previous ones concerned the window ending {b} (UTC), which has already passed. We will show new ones as soon as the data for the next day arrive; until then no card is current.","v335t.jak.3":"The 10-cell bar shows the same strength as the half-circle gauge, counted from the middle: green to the right for a rise, red to the left for a fall. The more cells are lit (1 to 5 on one side), the stronger the signal; the middle alone ({m}) means no clear direction."},"de":{"v335t.ans.w":"Die Karten für die nächste Sitzung sind noch nicht erschienen — die bisherigen betrafen die Sitzung am {s}, die schon vorbei ist. Neue zeigen wir, sobald die Daten für die nächste Sitzung da sind; bis dahin ist keine Karte aktuell.","v335t.ans.c":"Die Karten für den nächsten Tag sind noch nicht erschienen — die bisherigen betrafen das Fenster bis {b} (UTC), das schon vorbei ist. Neue zeigen wir, sobald die Daten für den nächsten Tag da sind; bis dahin ist keine Karte aktuell.","v335t.jak.3":"Der Balken aus 10 Feldern zeigt dieselbe Stärke wie das Halbrund, von der Mitte aus gezählt: nach rechts in Grün ein Anstieg, nach links in Rot ein Rückgang. Je mehr Felder leuchten (1 bis 5 auf einer Seite), desto stärker das Signal; die Mitte allein ({m}) bedeutet keine klare Richtung."},"es":{"v335t.ans.w":"Las tarjetas para la próxima sesión aún no han aparecido: las anteriores se referían a la sesión del {s}, que ya terminó. Mostraremos las nuevas en cuanto lleguen los datos de la siguiente sesión; hasta entonces ninguna tarjeta está vigente.","v335t.ans.c":"Las tarjetas para el próximo día aún no han aparecido: las anteriores se referían a la ventana hasta {b} (UTC), que ya pasó. Mostraremos las nuevas en cuanto lleguen los datos del siguiente día; hasta entonces ninguna tarjeta está vigente.","v335t.jak.3":"La barra de 10 casillas muestra la misma fuerza que el semicírculo, contada desde el centro: hacia la derecha en verde una subida, hacia la izquierda en rojo una bajada. Cuantas más casillas encendidas (de 1 a 5 a un lado), más fuerte es la señal; solo el centro ({m}) significa que no hay una dirección clara."},"fr":{"v335t.ans.w":"Les cartes pour la prochaine séance ne sont pas encore apparues : les précédentes concernaient la séance du {s}, déjà terminée. Nous afficherons les nouvelles dès que les données de la séance suivante arriveront ; d’ici là, aucune carte n’est à jour.","v335t.ans.c":"Les cartes pour le prochain jour ne sont pas encore apparues : les précédentes concernaient la fenêtre jusqu’au {b} (UTC), déjà passée. Nous afficherons les nouvelles dès que les données du jour suivant arriveront ; d’ici là, aucune carte n’est à jour.","v335t.jak.3":"La barre de 10 cases montre la même force que le demi-cercle, comptée à partir du milieu : vers la droite en vert une hausse, vers la gauche en rouge une baisse. Plus il y a de cases allumées (de 1 à 5 d’un côté), plus le signal est fort ; le milieu seul ({m}) signifie aucune direction claire."},"it":{"v335t.ans.w":"Le schede per la prossima seduta non sono ancora comparse: le precedenti riguardavano la seduta del {s}, ormai conclusa. Mostreremo le nuove non appena arriveranno i dati della seduta successiva; fino ad allora nessuna scheda è attuale.","v335t.ans.c":"Le schede per il prossimo giorno non sono ancora comparse: le precedenti riguardavano la finestra fino a {b} (UTC), ormai passata. Mostreremo le nuove non appena arriveranno i dati del giorno successivo; fino ad allora nessuna scheda è attuale.","v335t.jak.3":"La barra di 10 caselle mostra la stessa forza del semicerchio, contata dal centro: verso destra in verde un rialzo, verso sinistra in rosso un ribasso. Più caselle sono accese (da 1 a 5 per lato), più il segnale è forte; il solo centro ({m}) significa nessuna direzione chiara."},"pt":{"v335t.ans.w":"Os cartões para a próxima sessão ainda não apareceram: os anteriores diziam respeito à sessão de {s}, que já terminou. Mostraremos os novos assim que chegarem os dados da sessão seguinte; até lá nenhum cartão está atual.","v335t.ans.c":"Os cartões para o próximo dia ainda não apareceram: os anteriores diziam respeito à janela até {b} (UTC), que já passou. Mostraremos os novos assim que chegarem os dados do dia seguinte; até lá nenhum cartão está atual.","v335t.jak.3":"A barra de 10 casas mostra a mesma força do semicírculo, contada a partir do meio: para a direita, a verde, uma subida; para a esquerda, a vermelho, uma descida. Quanto mais casas acesas (de 1 a 5 de cada lado), mais forte é o sinal; só o meio ({m}) significa nenhuma direção clara."},"ru":{"v335t.ans.w":"Карточки на следующую сессию ещё не появились — прежние относились к сессии {s}, которая уже закончилась. Новые покажем, как только придут данные на следующую сессию; до тех пор ни одна карточка не актуальна.","v335t.ans.c":"Карточки на следующие сутки ещё не появились — прежние относились к окну до {b} (UTC), которое уже прошло. Новые покажем, как только придут данные на следующие сутки; до тех пор ни одна карточка не актуальна.","v335t.jak.3":"Полоса из 10 клеток показывает ту же силу, что и полукруг, считая от середины: вправо зелёным — рост, влево красным — падение. Чем больше закрашено клеток (от 1 до 5 с одной стороны), тем сильнее сигнал; одна лишь середина ({m}) означает отсутствие ясного направления."},"zh":{"v335t.ans.w":"下一个交易日的卡片尚未出现——之前的卡片针对的是 {s} 交易日，而该交易日已经结束。下一个交易日的数据一到，我们就会显示新卡片；在此之前没有任何一张卡片是最新的。","v335t.ans.c":"下一天的卡片尚未出现——之前的卡片针对的是截至 {b}（UTC）的窗口，该窗口已过去。下一天的数据一到，我们就会显示新卡片；在此之前没有任何一张卡片是最新的。","v335t.jak.3":"10 格条与半圆指示表示同一强度，从中间向两侧计数：向右为绿色，表示上涨；向左为红色，表示下跌。点亮的格子越多（每侧 1 至 5 格），信号越强；仅中间（{m}）表示没有明确方向。"},"ja":{"v335t.ans.w":"次の取引日のカードはまだ表示されていません——これまでのカードは {s} の取引日に関するもので、その取引日はすでに終わりました。次の取引日のデータが届き次第、新しいカードを表示します。それまで最新のカードはありません。","v335t.ans.c":"翌日のカードはまだ表示されていません——これまでのカードは {b}（UTC）までの期間に関するもので、すでに過ぎました。翌日のデータが届き次第、新しいカードを表示します。それまで最新のカードはありません。","v335t.jak.3":"10マスのバーは半円の指標と同じ強さを、中央から数えて示します。右へ緑は上昇、左へ赤は下落です。点灯したマスが多いほど（片側1〜5マス）シグナルは強く、中央だけ（{m}）ならはっきりした方向はありません。"}};
 for(const l in EXTRA221)if(I18N[l])Object.assign(I18N[l],EXTRA221[l]);
+/* v336 (ZB08-02): indeksy giełdowe — dopisek „wstępnie” przy zamknięciu wstępnym ostatniej sesji (10 języków) */
+const EXTRA222={"pl":{"ix.wst":"wstępnie","ix.wst.tip":"Zamknięcie tej sesji jest wstępne — zwykle zostaje poprawione w ciągu doby, więc liczby mogą się jeszcze zmienić."},"en":{"ix.wst":"preliminary","ix.wst.tip":"This session's close is preliminary — it is usually revised within a day, so the figures may still change."},"de":{"ix.wst":"vorläufig","ix.wst.tip":"Der Schlussstand dieser Sitzung ist vorläufig — er wird meist innerhalb eines Tages korrigiert, die Zahlen können sich also noch ändern."},"es":{"ix.wst":"preliminar","ix.wst.tip":"El cierre de esta sesión es preliminar — suele corregirse en el plazo de un día, así que las cifras aún pueden cambiar."},"fr":{"ix.wst":"provisoire","ix.wst.tip":"La clôture de cette séance est provisoire — elle est généralement corrigée dans les 24 heures, les chiffres peuvent donc encore changer."},"it":{"ix.wst":"provvisorio","ix.wst.tip":"La chiusura di questa seduta è provvisoria — di solito viene corretta entro un giorno, quindi i valori possono ancora cambiare."},"pt":{"ix.wst":"preliminar","ix.wst.tip":"O fechamento desta sessão é preliminar — costuma ser corrigido em até um dia, então os números ainda podem mudar."},"ru":{"ix.wst":"предварительно","ix.wst.tip":"Закрытие этой сессии предварительное — обычно его уточняют в течение суток, поэтому цифры ещё могут измениться."},"zh":{"ix.wst":"初步","ix.wst.tip":"该交易日的收盘价为初步数据，通常会在一天内修正，数字仍可能变化。"},"ja":{"ix.wst":"速報値","ix.wst.tip":"この取引日の終値は速報値です。通常1日以内に修正されるため、数値はまだ変わる可能性があります。"}};
+for(const l in EXTRA222)if(I18N[l])Object.assign(I18N[l],EXTRA222[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -3805,13 +3813,14 @@ function gproj(lon,lat,R){
   return [R.x+(lon+180)/360*R.w, R.y+(GLAT0-lat)/(GLAT0-GLAT1)*R.h];
 }
 /* ---------- liczby ---------- */
-const gfmt=v=>{const a=Math.abs(v);
-  if(a>0&&a<0.0005)return (v<0?'−':'')+'<1 '+t('u.m');   /* v48: poniżej 1 mln nie jest zerem */
-  if(a>=999.5)return (v/1000).toLocaleString(LOCALE[LANG],{maximumFractionDigits:2})+' '+t('u.t');
-  if(a>=10)return v.toLocaleString(LOCALE[LANG],{maximumFractionDigits:0})+' '+t('u.b');
-  if(a>=1)return v.toLocaleString(LOCALE[LANG],{maximumFractionDigits:1})+' '+t('u.b');
-  return (v*1000).toLocaleString(LOCALE[LANG],{maximumFractionDigits:0})+' '+t('u.m');};
-const gpct=v=>(v>=0?'+':'−')+Math.abs(v).toLocaleString(LOCALE[LANG],{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
+const gfmt=v=>{if(typeof v!=='number'||!isFinite(v))return '—';const a=Math.abs(v),m=v<0?'−':'',L=(x,d)=>x.toLocaleString(LOCALE[LANG],{maximumFractionDigits:d});
+  /* v336 (GL-10): jednostka po zaokrągleniu (0,9996 mld = „1 mld USD”, nie „1000 mln USD”), długi minus (U+2212) zamiast „-”; zero bez znaku */
+  if(a>0&&a<0.0005)return m+'<1 '+t('u.m');   /* v48: poniżej 1 mln nie jest zerem */
+  if(a>=999.5)return m+L(a/1000,2)+' '+t('u.t');
+  if(a>=10)return m+L(a,0)+' '+t('u.b');
+  if(a>=0.9995)return m+L(a,1)+' '+t('u.b');
+  return m+L(a*1000,0)+' '+t('u.m');};
+const gpct=v=>{if(typeof v!=='number'||!isFinite(v))return '—';const s=Math.abs(v).toLocaleString(LOCALE[LANG],{minimumFractionDigits:2,maximumFractionDigits:2});return (/[1-9]/.test(s)?(v>0?'+':v<0?'−':''):'')+s+'%';};   /* v336 (GL-10): znak po zaokrągleniu — −0,004 = „0,00%”, nie „−0,00%”; 0 = „0,00%”, nie „+0,00%” */
 
 /* ---------- pobieranie danych ---------- */
 const GSRC={
@@ -3908,10 +3917,10 @@ function gDayApply(q){
   const day={};let ok=0;
   GREG.forEach(r=>{const P=GPROXY[r.id]||[];let s=0,ws=0,syms2=[];
     const pc={};   /* v296 (runda 2, G1): poprzednie zamknięcie funduszy — początek sesji dla kwoty dnia (gDayStart) */
-    P.forEach(([sy,w])=>{if(q[sy]&&isFinite(q[sy].dp)){s+=q[sy].dp*w;ws+=w;syms2.push(sy);if(typeof q[sy].pc==='number'&&q[sy].pc>0&&isFinite(q[sy].pc))pc[sy]=q[sy].pc;}});
+    P.forEach(([sy,w])=>{if(q[sy]&&typeof q[sy]==='object'&&typeof q[sy].dp==='number'&&isFinite(q[sy].dp)){   /* v336 (GL-13): dp null nie jest zerem */s+=q[sy].dp*w;ws+=w;syms2.push(sy);if(typeof q[sy].pc==='number'&&q[sy].pc>0&&isFinite(q[sy].pc))pc[sy]=q[sy].pc;}});
     if(ws){day[r.id]={dp:s/ws,syms:syms2,pc};ok++;}});
   if(ok){GLIVE.day=day;gOk('finnhub');GLIVE.dayErr='';
-    const tt=Math.max(...Object.values(q).map(x=>x.t||0));
+    const tt=Math.max(...Object.values(q).map(x=>(x&&typeof x==='object'&&x.t)||0));   /* v336 (GL-13): wpis null — pominięty (dawniej TypeError i ukryty przycisk DZIŚ) */
     GLIVE.dayAt=(tt>0&&tt<1e11)?new Date(tt*1000).toISOString():'';   /* v314 (audyt G6): chwila notowania jako ISO (UTC) — pod liczbą data i godzina czytelnika (gFreshTxt)
        i wiek (gAgeNote), jak przy chwilach ze strefą (v287/v290); dawniej gotowy napis lokalny („9.10.2026, 22:00”), przy którym wiek się nie liczył (DZIŚ: kafel
        „Rynki akcji”, „Jakość danych mapy”, Aktywa, Wykresy; „Ostatnia sesja” w kartach regionów w każdym okresie) */
@@ -4262,6 +4271,10 @@ function renderCmc(){
 const INST={data:null,at:''};
 const INST_TGB=['DE','IT','ES','NL','FR','IE','PT','GR','LU'];
 function instApply(j){
+  /* v336 (GL-13): wpis serii niebędący parą [dzień, wartość, …] (null, liczba, obiekt) — pominięty; mof.d to obiekty tygodni (bez zmian) */
+  const pr=r=>Array.isArray(r)&&r.length>=2&&typeof r[0]==='string';
+  if(j&&typeof j==='object'){['tga','rrp','soma','ilm','m3'].forEach(k=>{const x=j[k];if(x&&typeof x==='object'&&Array.isArray(x.d))x.d=x.d.filter(pr);});
+    [j.tgb&&j.tgb.q,j.bop&&j.bop.s].forEach(Q=>{if(Q&&typeof Q==='object')for(const c in Q)if(Array.isArray(Q[c]))Q[c]=Q[c].filter(pr);});}
   const ok=!!(j&&typeof j==='object'&&typeof j.at==='string'&&['tga','rrp','soma','tgb','ilm','m3','bop','mof'].some(k=>j[k]&&typeof j[k]==='object'));
   INST.data=ok?j:null;INST.at=ok?j.at:'';
   if(ok)['tga','rrp','soma','tgb','ilm','m3','bop','mof'].forEach(k=>{if(j[k])gOk('inst.'+k);});
@@ -4275,7 +4288,7 @@ function instMld(mln,dec){
   if(LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')return (neg?'−':'')+nfmt(w+'.'+t,1);   /* v147: de–ja — zapis języka widza (nfmt = Intl.NumberFormat(LOCALE[LANG]): de 1.234,5 · fr 1 234,5 · ja 1,234.5); pl i en — linia niżej bez zmian */
   return (neg?'−':'')+String(w).replace(/\B(?=(\d{3})+(?!\d))/g,LANG==='pl'?' ':',')+(LANG==='pl'?',':'.')+t;
 }
-const instSign=v=>v>0?'+':(v<0?'−':'');
+const instSign=(v,s)=>(s!==undefined&&!/[1-9]/.test(String(s)))?'':(v>0?'+':(v<0?'−':''));   /* v336 (GL-10): z napisem s — znak po zaokrągleniu (reguła nSg); bez s jak dotąd */
 function instDelta(series,back){
   if(!Array.isArray(series)||series.length<back+1)return null;
   const a=series[series.length-1][1],b=series[series.length-1-back][1];
@@ -4287,9 +4300,10 @@ function fredPct(series,back){
   const a=series[series.length-1][1],b=series[series.length-1-back][1];
   return (typeof a==='number'&&typeof b==='number'&&b!==0)?(a/b-1)*100:null;
 }
-const fredSignPct=p=>instSign(p)+nfmt(Math.abs(p),2)+'%';
+const fredSignPct=p=>{if(typeof p!=='number'||!isFinite(p))return '—';const s=nfmt(Math.abs(p),2);return instSign(p,s)+s+'%';};   /* v336 (GL-10): −0,004 = „0,00%” */
 const FRED={data:null};
 function fredApply(j){
+  if(j&&typeof j==='object'&&j.series&&typeof j.series==='object')for(const k in j.series){const x=j.series[k];if(x&&typeof x==='object'&&Array.isArray(x.d))x.d=x.d.filter(r=>Array.isArray(r)&&r.length>=2&&typeof r[0]==='string');}   /* v336 (GL-13) */
   const ok=!!(j&&typeof j==='object'&&typeof j.at==='string'&&j.series&&typeof j.series==='object'&&Object.keys(j.series).length);
   FRED.data=ok?j:null;if(ok)gOk('fred');
   renderInst();
@@ -4431,8 +4445,8 @@ function fredCustTable(F){
 const REZ={data:null};
 function rezRows(R){return (R&&Array.isArray(R.order)&&R.countries&&typeof R.countries==='object')?R.order.map(c=>[c,R.countries[c]]).filter(x=>x[1]&&typeof x[1]==='object'&&fredNum(x[1].total)!=null):[];}
 function rezApply(j){const ok=!!(j&&typeof j==='object'&&typeof j.at==='string'&&rezRows(j).length);REZ.data=ok?j:null;if(ok)gOk('imf');renderInst();}
-const rezBn=v=>fredNum(v)==null?'—':nfmt(v,1);
-const rezD=v=>fredNum(v)==null?'—':instSign(v)+nfmt(Math.abs(v),1);
+const rezBn=v=>{if(fredNum(v)==null)return '—';const s=nfmt(Math.abs(v),1);return (v<0&&/[1-9]/.test(s)?'−':'')+s;};   /* v336 (GL-10): długi minus */
+const rezD=v=>{if(fredNum(v)==null)return '—';const s=nfmt(Math.abs(v),1);return instSign(v,s)+s;};   /* v336 (GL-10): −0,04 = „0,0” */
 function rezHtml(R){
   const RR=rezRows(R);if(!RR.length)return '';
   const nm=(c,x)=>escH((LANG==='pl'?x.pl:(typeof ctyName==='function'&&ctyName(c,x.en,x.pl))||x.en)||x.en||c),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* v96: flaga kraju, zmiany w kolorze, bez zdania o źródle; v147: de–ja — nazwa kraju w języku widza (ctyName) */
@@ -4449,7 +4463,7 @@ function rezHtml(R){
 const SP={data:null};
 const SP_REG={usa:['US'],can:['CA'],lat:['BR','MX'],eur:['XM','GB','CH','SE','PL'],rus:['RU'],mea:['SA','TR'],afr:['ZA'],ind:['IN'],chn:['CN'],jpn:['JP','KR'],asean:['ID'],oce:['AU']};
 function spApply(j){const ok=!!(j&&typeof j==='object'&&typeof j.at==='string'&&j.rows&&typeof j.rows==='object'&&Array.isArray(j.order)&&j.order.length);SP.data=ok?j:null;if(ok)gOk('stopy');renderInst();}
-const spPct=v=>(typeof v==='number'&&isFinite(v))?nfmt(v,Math.round(v*1000)%10===0?2:3):'—';   /* 2 miejsca, 3 gdy stopa ma trzecie (np. 3,875) */
+const spPct=v=>{if(typeof v!=='number'||!isFinite(v))return '—';const a=Math.abs(v),s=nfmt(a,Math.round(a*1000)%10===0?2:3);return (v<0&&/[1-9]/.test(s)?'−':'')+s;};   /* 2 miejsca, 3 gdy stopa ma trzecie (np. 3,875); v336 (GL-10): ujemna stopa z długim minusem („−0,25”, nie „-0,25”) */
 const spPP=v=>(typeof v==='number'&&isFinite(v))?(v===0?'0':instSign(v)+nfmt(Math.abs(v),Math.round(Math.abs(v)*1000)%10===0?2:3)):'—';   /* v63: ta sama dokładność co stopy */
 /* v56: kursy efektywne BIS (WS_EER, szeroki koszyk) z pliku serwera eer.json — siła waluty obok stopy procentowej */
 const EER={data:null};
@@ -4490,11 +4504,12 @@ function spBlock(){const D=SP.data;if(!D)return '';const I=typeof gtI==='functio
     `<details class="etfd"><summary>${t('eng.notsays')}</summary><p class="pnote">${t('sp.not')}</p></details><p class="pnote">${t('inst.file',{t:engDate(D.at)})}${EER.data?' · '+t('inst.file',{t:engDate(EER.data.at)}):''}</p>`;}
 /* v54: ZMIERZONE dzienne przepływy inwestorów zagranicznych — Indie (NSDL) i Tajwan (TWSE), plik serwera obce.json */
 const ZAG={data:null};
-function zagApply(j){const okD=p=>!!(p&&typeof p==='object'&&Array.isArray(p.d)&&p.d.length);const ok=!!(j&&typeof j==='object'&&typeof j.at==='string'&&(okD(j.in)||okD(j.tw)||okD(j.hk)||okD(j.br)||okD(j.tr)||okD(j.th)));
+function zagApply(j){if(j&&typeof j==='object')['in','tw','hk','br','tr','th'].forEach(k=>{const x=j[k];if(x&&typeof x==='object')['d','m'].forEach(f=>{if(Array.isArray(x[f]))x[f]=x[f].filter(r=>Array.isArray(r)&&typeof r[0]==='string');});});   /* v336 (GL-13): wiersz niebędący tablicą [dzień, …] — pominięty */
+  const okD=p=>!!(p&&typeof p==='object'&&Array.isArray(p.d)&&p.d.length);const ok=!!(j&&typeof j==='object'&&typeof j.at==='string'&&(okD(j.in)||okD(j.tw)||okD(j.hk)||okD(j.br)||okD(j.tr)||okD(j.th)));
   ZAG.data=ok?j:null;if(ok){if(okD(j.in))gOk('obce_in');if(okD(j.tw))gOk('obce_tw');if(okD(j.hk))gOk('obce_hk');if(okD(j.br))gOk('obce_br');if(okD(j.tr))gOk('obce_tr');if(okD(j.th))gOk('obce_th');}renderInst();}
 const zagNum=v=>(typeof v==='number'&&isFinite(v))?v:null;
 const zagSum=(d,i,n)=>{if(!Array.isArray(d)||d.length<n)return null;let s=0;for(const r of d.slice(-n)){const v=Array.isArray(r)?zagNum(r[i]):null;if(v==null)return null;s+=v;}return s;};   /* brak w oknie = brak sumy, nie zero */
-const zagM=v=>v==null?'—':(v===0?'0':instSign(v)+nfmt(Math.abs(v),Math.abs(v)<10?1:0));   /* mln */
+const zagM=v=>{if(v==null)return '—';if(v===0)return '0';const s=nfmt(Math.abs(v),Math.abs(v)<10?1:0);return instSign(v,s)+s;};   /* mln; v336 (GL-10): −0,04 = „0,0” */
 const zagB=v=>v==null?'—':(v===0?'0':(Math.abs(v)<50?instSign(v)+'&lt;'+nfmt(0.1,1):instSign(v)+nfmt(Math.abs(v)/1000,1)));   /* mln → mld; v314 (audyt G7): poniżej 0,05 mld — „<0,1” ze znakiem, nie „+0,0” (jak bopMld, spwLv) */
 const zagSes=n=>(typeof LANG!=='undefined'&&LANG==='pl')?(n===1?'sesja':((n%10>=2&&n%10<=4&&(n%100<12||n%100>14))?'sesje':'sesji')):zagSesW(n);   /* v69; v146: pozostałe 9 języków — słowo ze słownika (ses.*), już nie angielskie „session(s)” */
 /* v146: „sesja” w języku widza — kategoria liczby z Intl.PluralRules(LANG) (one / few / many / other; ru: сессия / сессии / сессий; zh i ja bez liczby mnogiej) → klucz ses.<kategoria>;
@@ -4763,6 +4778,10 @@ function renderInst(){
   const xtra=[typeof SP!=='undefined'?SP.data:null,typeof ZAG!=='undefined'?ZAG.data:null,typeof COF!=='undefined'?COF.data:null,typeof BIL!=='undefined'?BIL.data:null,typeof SAFE!=='undefined'?SAFE.data:null,typeof UE!=='undefined'?UE.data:null,typeof KAN!=='undefined'?KAN.data:null,typeof KOR!=='undefined'?KOR.data:null,typeof SPW!=='undefined'?SPW.data:null,typeof MX!=='undefined'?MX.data:null,typeof jpxData==='function'?jpxData():null].filter(Boolean);   /* v63: także same nowe pliki */
   const D=INST.data||{};if(!INST.data&&!FRED.data&&!REZ.data&&!xtra.length){el.hidden=true;el.innerHTML='';return;}   /* v42: sekcja także z samym FRED */
   const at=engDate(INST.at||(FRED.data&&FRED.data.at)||(REZ.data&&REZ.data.at)||(xtra[0]&&xtra[0].at)||''),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'',chg=(v,s,x)=>I('w',v,s,x);   /* v96: flagi i kolory; zdania o źródłach tylko na stronie Źródła */
+  /* v336 (GL-13): poziom bez liczby (null w pliku) = „—” (dawniej „null mld USD”, „0,000 mld USD”, „0,00”); GL-10: zmiana ze znakiem dopiero po zaokrągleniu */
+  const iN=v=>typeof v==='number'&&isFinite(v),mS=v=>{const s=iN(v)?instMld(v):null;return s==null?'—':s;},mV=(v,u)=>iN(v)?mS(v)+' '+t(u):'—',nV=(v,d,u)=>iN(v)?nfmt(v,d)+(u?' '+t(u):''):'—',
+    eV=(v,u)=>iN(v)?engNum(v)+' '+t(u):'—',xV=(v,u)=>iN(v)?t('inst.exact',{v:engNum(v)+' '+t(u)}):'',sM=v=>{const s=instMld(Math.abs(v));return instSign(v,s)+s;},
+    sN=(v,d)=>{const s=nfmt(Math.abs(v),d);return instSign(v,s)+s;},sE=v=>{const s=engNum(Math.abs(v));return instSign(v,s)+s;};
   let html=`<div class="etfh"><div><h2>${I('g','globe')}${t('inst.t')}</h2><p class="pnote">${t('inst.sub')}</p></div><div class="etfb"><span class="live on"><i></i>${t('inst.file',{t:at})}</span></div></div>`;
   html+=typeof flowOverview==='function'?flowOverview():'';   /* v75: przegląd zmierzonych przepływów na samym początku */
   html+=spBlock();   /* v52: stopy banków centralnych na początku — główny motor krótkoterminowych przepływów */
@@ -4782,13 +4801,13 @@ function renderInst(){
   if(tga||rrp||soma){
     html+=`<h3 class="mtxt">${I('f','us')}<b>${t('inst.usd.t')}</b></h3><p class="pnote">${t('inst.usd.plain')}</p><div class="etfkpis">`;
     if(tga&&Array.isArray(tga.d)&&tga.d.length){const last=tga.d[tga.d.length-1],d5=instDelta(tga.d,5);
-      html+=instRow(t('inst.tga'),`${instMld(last[1])} ${t('inst.mld.usd')}`,t('inst.exact',{v:engNum(last[1])+' '+t('inst.mln.usd')}),`${t('inst.asof')} ${instFoot(last[0])}${d5==null?'':' · '+t('inst.d5',{v:chg(d5,instSign(d5)+instMld(Math.abs(d5)))})}`);}
+      html+=instRow(t('inst.tga'),`${mV(last[1],'inst.mld.usd')}`,xV(last[1],'inst.mln.usd'),`${t('inst.asof')} ${instFoot(last[0])}${d5==null?'':' · '+t('inst.d5',{v:chg(d5,sM(d5))})}`);}
     else html+=instRow(t('inst.tga'),'—','',t('eng.gap'));
     if(rrp&&Array.isArray(rrp.d)&&rrp.d.length){const last=rrp.d[rrp.d.length-1],d1=instDelta(rrp.d,1);
-      html+=instRow(t('inst.rrp'),`${engNum(last[1])} ${t('inst.mln.usd')}`,'',`${t('inst.asof')} ${instFoot(last[0])}${d1==null?'':' · '+t('inst.d1m',{v:chg(d1,instSign(d1)+engNum(Math.abs(d1)))})}`);}
+      html+=instRow(t('inst.rrp'),`${eV(last[1],'inst.mln.usd')}`,'',`${t('inst.asof')} ${instFoot(last[0])}${d1==null?'':' · '+t('inst.d1m',{v:chg(d1,sE(d1))})}`);}
     else html+=instRow(t('inst.rrp'),'—','',t('eng.gap'));
     if(soma&&Array.isArray(soma.d)&&soma.d.length){const last=soma.d[soma.d.length-1],d1=instDelta(soma.d,1);
-      html+=instRow(t('inst.soma'),`${instMld(last[1])} ${t('inst.mld.usd')}`,t('inst.exact',{v:engNum(last[1])+' '+t('inst.mln.usd')}),`${t('inst.asof')} ${instFoot(last[0])}${d1==null?'':' · '+t('inst.dw',{v:chg(d1,instSign(d1)+instMld(Math.abs(d1)))})}`);}
+      html+=instRow(t('inst.soma'),`${mV(last[1],'inst.mld.usd')}`,xV(last[1],'inst.mln.usd'),`${t('inst.asof')} ${instFoot(last[0])}${d1==null?'':' · '+t('inst.dw',{v:chg(d1,sM(d1))})}`);}
     else html+=instRow(t('inst.soma'),'—','',t('eng.gap'));
     html+=`</div>`;
     if(tga&&Array.isArray(tga.d)){const rows=tga.d.slice(-10).reverse();const rr=new Map((rrp&&rrp.d||[]).map(x=>[x[0],x[1]]));
@@ -4800,16 +4819,16 @@ function renderInst(){
     const walcl=sr('WALCL'),rrp2=sr('RRPONTSYD'),dxy=sr('DTWEXBGS'),tga2=sr('WDTGAL');   /* v293 (audyt G2): stan na środę jak etykieta (WTREGEN to średnia tygodnia czwartek–środa) */
     html+=`<h3 class="mtxt">${I('f','us')}<b>${t('inst.fred.t')}</b></h3><p class="pnote">${t('inst.fred.sub')}</p><div class="etfkpis">`;
     if(walcl){const l=walcl[walcl.length-1],d1=instDelta(walcl,1);
-      html+=instRow(t('inst.fred.walcl'),`${instMld(l[1])} ${t('inst.mld.usd')}`,t('inst.exact',{v:engNum(l[1])+' '+t('inst.mln.usd')}),`${t('inst.asof')} ${instFoot(l[0])}${d1==null?'':' · '+t('inst.dw',{v:chg(d1,instSign(d1)+instMld(Math.abs(d1)))})}`);}
+      html+=instRow(t('inst.fred.walcl'),`${mV(l[1],'inst.mld.usd')}`,xV(l[1],'inst.mln.usd'),`${t('inst.asof')} ${instFoot(l[0])}${d1==null?'':' · '+t('inst.dw',{v:chg(d1,sM(d1))})}`);}
     else html+=instRow(t('inst.fred.walcl'),'—','',t('eng.gap'));
     if(rrp2){const l=rrp2[rrp2.length-1],d1=instDelta(rrp2,1);
-      html+=instRow(t('inst.fred.rrp'),`${nfmt(l[1],3)} ${t('inst.mld.usd')}`,'',`${t('inst.asof')} ${instFoot(l[0])}${d1==null?'':' · '+t('inst.d1',{v:chg(d1,instSign(d1)+nfmt(Math.abs(d1),3))})}`);}
+      html+=instRow(t('inst.fred.rrp'),`${nV(l[1],3,'inst.mld.usd')}`,'',`${t('inst.asof')} ${instFoot(l[0])}${d1==null?'':' · '+t('inst.d1',{v:chg(d1,sN(d1,3))})}`);}
     else html+=instRow(t('inst.fred.rrp'),'—','',t('eng.gap'));
     if(dxy){const l=dxy[dxy.length-1],p5=fredPct(dxy,5),p21=fredPct(dxy,21);
-      html+=instRow(t('inst.fred.dxy'),nfmt(l[1],2),t('inst.fred.dxy.base'),`${t('inst.asof')} ${instFoot(l[0])}${p5==null?'':' · '+t('inst.fred.p5',{v:chg(p5,fredSignPct(p5))})}${p21==null?'':' · '+t('inst.fred.p21',{v:chg(p21,fredSignPct(p21))})}`);}
+      html+=instRow(t('inst.fred.dxy'),nV(l[1],2),t('inst.fred.dxy.base'),`${t('inst.asof')} ${instFoot(l[0])}${p5==null?'':' · '+t('inst.fred.p5',{v:chg(p5,fredSignPct(p5))})}${p21==null?'':' · '+t('inst.fred.p21',{v:chg(p21,fredSignPct(p21))})}`);}
     else html+=instRow(t('inst.fred.dxy'),'—','',t('eng.gap'));
     if(tga2){const l=tga2[tga2.length-1],d1=instDelta(tga2,1);
-      html+=instRow(t('inst.fred.tga'),`${instMld(l[1])} ${t('inst.mld.usd')}`,t('inst.exact',{v:engNum(l[1])+' '+t('inst.mln.usd')}),`${t('inst.asof')} ${instFoot(l[0])}${d1==null?'':' · '+t('inst.dw',{v:chg(d1,instSign(d1)+instMld(Math.abs(d1)))})}`);}
+      html+=instRow(t('inst.fred.tga'),`${mV(l[1],'inst.mld.usd')}`,xV(l[1],'inst.mln.usd'),`${t('inst.asof')} ${instFoot(l[0])}${d1==null?'':' · '+t('inst.dw',{v:chg(d1,sM(d1))})}`);}
     else html+=instRow(t('inst.fred.tga'),'—','',t('eng.gap'));
     html+=fredCustKpis(F);   /* v50: papiery w depozycie Fed dla zagranicznych instytucji oficjalnych (H.4.1) */
     html+=`</div>`;
@@ -4823,7 +4842,7 @@ function renderInst(){
   if(tgb&&tgb.q){
     const rows=INST_TGB.filter(c=>Array.isArray(tgb.q[c])&&tgb.q[c].length).map(c=>{const sr=tgb.q[c],last=sr[sr.length-1],d12=instDelta(sr,12);return {c,last,d12};});
     html+=`<h3 class="mtxt">${I('f','eu')}<b>${t('inst.tgb.t')}</b></h3><p class="pnote">${t('inst.tgb.sub')}</p>`;
-    html+=`<div class="list-wrap"><table class="etft"><thead><tr><th>${t('inst.c.country')}</th><th>${t('inst.c.bal')}</th><th>${t('inst.c.month')}</th><th>${t('inst.c.d12')}</th></tr></thead><tbody>${rows.map(r=>`<tr><td><span class="cell">${I('f',r.c)}${t('inst.cc.'+r.c)} <span class="cell mono">${r.c}</span></span></td><td><span class="cell mono" title="${escH(t('inst.exact',{v:engNum(r.last[1])+' '+t('inst.mln.eur')}))}">${instMld(r.last[1])}</span></td><td><span class="cell mono">${escH(r.last[0])}</span></td><td><span class="cell mono${I('t',r.d12,0,r.d12==null?'':instMld(Math.abs(r.d12)))}">${r.d12==null?'—':instSign(r.d12)+instMld(Math.abs(r.d12))}</span></td></tr>`).join('')}</tbody></table></div>`;
+    html+=`<div class="list-wrap"><table class="etft"><thead><tr><th>${t('inst.c.country')}</th><th>${t('inst.c.bal')}</th><th>${t('inst.c.month')}</th><th>${t('inst.c.d12')}</th></tr></thead><tbody>${rows.map(r=>`<tr><td><span class="cell">${I('f',r.c)}${t('inst.cc.'+r.c)} <span class="cell mono">${r.c}</span></span></td><td><span class="cell mono" title="${escH(xV(r.last[1],'inst.mln.eur'))}">${mS(r.last[1])}</span></td><td><span class="cell mono">${escH(r.last[0])}</span></td><td><span class="cell mono${I('t',r.d12,0,r.d12==null?'':instMld(Math.abs(r.d12)))}">${r.d12==null?'—':sM(r.d12)}</span></td></tr>`).join('')}</tbody></table></div>`;
     html+=`<p class="pnote">${t('inst.tgb.unit')} · ${t('inst.asof')} ${instFoot(tgb.asof)}</p>`;
   }
   /* B2. Eurosystem (EBC): aktywa razem z tygodniowego sprawozdania (ILM) i M3 miesięcznie (BSI) */
@@ -4831,10 +4850,10 @@ function renderInst(){
   if(ilmD||m3D){
     html+=`<h3 class="mtxt">${I('f','eu')}<b>${t('inst.ecb.t')}</b></h3><p class="pnote">${t('inst.ecb.sub')}</p><div class="etfkpis">`;
     if(ilmD){const l=ilmD[ilmD.length-1],d1=instDelta(ilmD,1),d4=instDelta(ilmD,4);
-      html+=instRow(t('inst.ecb.ilm'),`${instMld(l[1])} ${t('inst.mld.eur')}`,t('inst.exact',{v:engNum(l[1])+' '+t('inst.mln.eur')}),`${t('inst.asof')} ${instFoot(l[0])} (${escH(l[2]||'')})${d1==null?'':' · '+t('inst.dw',{v:chg(d1,instSign(d1)+instMld(Math.abs(d1)))})}${d4==null?'':' · '+t('inst.ecb.d4',{v:chg(d4,instSign(d4)+instMld(Math.abs(d4)))})}`);}
+      html+=instRow(t('inst.ecb.ilm'),`${mV(l[1],'inst.mld.eur')}`,xV(l[1],'inst.mln.eur'),`${t('inst.asof')} ${instFoot(l[0])} (${escH(l[2]||'')})${d1==null?'':' · '+t('inst.dw',{v:chg(d1,sM(d1))})}${d4==null?'':' · '+t('inst.ecb.d4',{v:chg(d4,sM(d4))})}`);}
     else html+=instRow(t('inst.ecb.ilm'),'—','',t('eng.gap'));
     if(m3D){const l=m3D[m3D.length-1],d1=instDelta(m3D,1),p12=fredPct(m3D,12);
-      html+=instRow(t('inst.ecb.m3'),`${instMld(l[1])} ${t('inst.mld.eur')}`,t('inst.exact',{v:engNum(l[1])+' '+t('inst.mln.eur')}),`${t('inst.asof')} ${instFoot(l[0])}${d1==null?'':' · '+t('inst.ecb.dm',{v:chg(d1,instSign(d1)+instMld(Math.abs(d1)))})}${p12==null?'':' · '+t('inst.ecb.p12',{v:chg(p12,fredSignPct(p12))})}`);}
+      html+=instRow(t('inst.ecb.m3'),`${mV(l[1],'inst.mld.eur')}`,xV(l[1],'inst.mln.eur'),`${t('inst.asof')} ${instFoot(l[0])}${d1==null?'':' · '+t('inst.ecb.dm',{v:chg(d1,sM(d1))})}${p12==null?'':' · '+t('inst.ecb.p12',{v:chg(p12,fredSignPct(p12))})}`);}
     else html+=instRow(t('inst.ecb.m3'),'—','',t('eng.gap'));
     html+=`</div>`;
     if(ilmD){const rows=ilmD.slice(-8).reverse();
@@ -4846,7 +4865,7 @@ function renderInst(){
     const last=k=>(Array.isArray(BS[k])&&BS[k].length)?BS[k][BS[k].length-1]:null;
     const inv=k=>k!=='ca';   /* v96: rachunek finansowy — plus = kapitał wypłynął ze strefy euro (odpływ, czerwony); rachunek bieżący — plus = nadwyżka */
     const tile=(k,label,extra)=>{const l=last(k);if(!l)return instRow(label,'—','',t('eng.gap'));const s12=bopSum(BS[k],12);
-      return instRow(label,chg(l[1],`${bopMld(l[1])} ${t('inst.mld.eur')}`,inv(k)),t('inst.exact',{v:engNum(l[1])+' '+t('inst.mln.eur')}),`${t('inst.asof')} ${instFoot(l[0])}${s12==null?'':' · '+t('inst.bop.s12',{v:chg(s12,bopMld(s12),inv(k))})}${extra?' · '+extra:''}`);};
+      return instRow(label,chg(l[1],`${bopMld(l[1])} ${t('inst.mld.eur')}`,inv(k)),xV(l[1],'inst.mln.eur'),`${t('inst.asof')} ${instFoot(l[0])}${s12==null?'':' · '+t('inst.bop.s12',{v:chg(s12,bopMld(s12),inv(k))})}${extra?' · '+extra:''}`);};
     html+=`<h3 class="mtxt">${I('f','eu')}<b>${t('inst.bop.t')}</b></h3><p class="pnote">${t('inst.bop.sub')}</p><div class="etfkpis">`;
     html+=tile('ca',t('inst.bop.ca'))+tile('fa',t('inst.bop.fa'));
     const pe=last('pi_eq'),pd=last('pi_debt');
@@ -4865,7 +4884,7 @@ function renderInst(){
   const mof=D.mof;
   if(mof&&Array.isArray(mof.d)&&mof.d.length){
     const w=mof.d[mof.d.length-1],A=w.assets||{},L=w.liabilities||{};
-    const jpy=(v,x)=>typeof v==='number'?chg(v,instSign(v)+instMld(Math.abs(v)*100),x):'—';   /* 100 mln JPY → mld JPY (×0,1); v96: x — zakupy Japończyków za granicą (odpływ z Japonii) */
+    const jpy=(v,x)=>typeof v==='number'?chg(v,(s=>instSign(v,s)+s)(instMld(Math.abs(v)*100)),x):'—';   /* 100 mln JPY → mld JPY (×0,1); v96: x — zakupy Japończyków za granicą (odpływ z Japonii) */
     const sum4=k=>{const xs=mof.d.slice(-4).map(x=>(x[k[0]]||{})[k[1]]);return xs.every(v=>typeof v==='number')?xs.reduce((a,b)=>a+b,0):null;};
     html+=`<h3 class="mtxt">${I('f','jp')}<b>${t('inst.mof.t')}</b></h3><p class="pnote">${t('inst.mof.sub')}</p><div class="etfkpis">`;
     html+=instRow(t('inst.mof.a.eq'),`${jpy(A.equity_net,1)} ${t('inst.mld.jpy')}`,'',`${t('inst.week')} ${escH(w.from)} – ${escH(w.to)}`);
@@ -5063,7 +5082,7 @@ function gDaily(s,per){
   if(per==='1D')ref=s.length>1?s[s.length-2]:null;
   else if(per==='1T'){const d=new Date(last[0]+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-7);const lim=d.toISOString().slice(0,10);
     for(let i=s.length-1;i>=0;i--){if(s[i][0]<=lim){ref=s[i];break;}}}
-  else{const d=new Date(last[0]+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()-(GBACK[per]||1));const lim=d.toISOString().slice(0,10);
+  else{const lim=gFxBack(last[0],per);   /* v336 (GL-04): ten sam dzień n mies. wcześniej, koniec miesiąca przycięty (31.03 → 28.02) — jak kursy (gFxBack); dawniej setUTCMonth: 31.03 − 1 mies. = 3.03 */
     for(let i=s.length-1;i>=0;i--){if(s[i][0]<=lim){ref=s[i];break;}}}
   return {v:last[1],d:ref?last[1]-ref[1]:null,date:last[0]};
 }
@@ -5299,7 +5318,7 @@ function gStabDelta(per){
   return (a&&b)?[(a-b)/1e9,(a/b-1)*100,a/1e9]:null;
 }
 function gBuild(){
-  GDATA={};
+  GDATA={};if(typeof GVER==='number')GVER++;   /* v336 (GL-03): nowe dane = nowy klucz układu (gKey) — promienie kół liczone od nowa (typeof: wycinki testów bez GVER) */
   GLIVE.est=gEstAll();   /* v293 (audyt G1): szacunek wartości regionów — jeden dla wszystkich okresów, z tych samych cen co zmiany */
   const live=!!GLIVE.oecd;
   GLIVE.sample=!live;
@@ -5513,7 +5532,8 @@ function gLayout(){
   GKEY=gKey();
 }
 function gKey(){return GCW+'x'+GCH+'|'+gst.period+'|'+(GLIVE.asof||'s')+'|'+(GLINK?'b':'-')
-  +'|'+gv.k.toFixed(3)+'|'+Math.round(gv.x)+'|'+Math.round(gv.y);}
+  +'|'+gv.k.toFixed(3)+'|'+Math.round(gv.x)+'|'+Math.round(gv.y)+'|'+GVER;}
+let GVER=0;   /* v336 (GL-03): licznik danych mapy (gBuild) w kluczu układu — dawniej koła zostawały w wielkości z poprzednich danych do zmiany okresu albo rozmiaru */
 function gEnsure(){if(!GLAY||GKEY!==gKey())gLayout();}
 /* ---------- flagi rysowane wektorowo, przycięte do koła ----------
    Układ współrzędnych każdej flagi: szerokość 3, wysokość 2.
@@ -6409,9 +6429,9 @@ function gInit(){
    sprawdza, jak często kierunek wyniku zgadzał się z tym, co rynek zrobił
    w kolejnym miesiącu. To nie jest uczenie modelu — to rachunek trafień na faktach. */
 const GMEM_KEY='cfai.global.hist.v1';
-function gMemRead(){try{const r=localStorage.getItem(GMEM_KEY);return r?JSON.parse(r):[];}catch(e){return [];}}
+function gMemRead(){try{const r=localStorage.getItem(GMEM_KEY),a=r?JSON.parse(r):[];return Array.isArray(a)?a.filter(x=>x&&typeof x==='object'&&typeof x.m==='string'):[];}catch(e){return [];}}   /* v336 (GL-09): tylko tablica wpisów z polem m (null / {} / "x" / [null] → []) */
 function gMemWrite(a){try{localStorage.setItem(GMEM_KEY,JSON.stringify(a.slice(-400)));}catch(e){}}
-function gMemSave(){
+function gMemSave(){try{   /* v336 (GL-09): błąd pamięci przeglądarki nie zatrzymuje gLoad (zegar odświeżania GLOBAL, cb) */
   if(!GLIVE.oecd||!GPROB.length)return;                 /* tylko prawdziwe dane */
   const asof=GLIVE.asof;if(!asof)return;
   const h=gMemRead();
@@ -6421,17 +6441,20 @@ function gMemSave(){
           c:Object.fromEntries(GREG.map(r=>{const v=F[r.id];   /* brak danych (v[2]===false) albo liczba przykładowa (v[3]) = null, nigdy 0 */
             return [r.id,(v&&v[2]&&!v[3]&&isFinite(v[1]))?+(v[1].toFixed(2)):null];}))});
   h.sort((a,b)=>a.m<b.m?-1:1);gMemWrite(h);
-}
+}catch(e){}}
 function gMemStats(){
   const h=gMemRead();if(h.length<2)return null;
   let hit=0,n=0,skip=0;
   for(let i=0;i<h.length-1;i++){
     const a=h[i],b=h[i+1];
+    /* v336 (GL-08): wynik „kolejnego miesiąca” tylko z NASTĘPNEGO miesiąca danych (b.m = a.m + 1), zapisanego 25–45 dni po a (zmiana 1M liczona przy zapisie);
+       dawniej każdy kolejny wpis — po przerwie w wizytach para 03 → 08 liczona jak „kolejny miesiąc”. Para niekolejna — sygnały pominięte (bez wyniku) */
+    const ym=typeof a.m==='string'&&/^(\d{4})-(\d{2})$/.exec(a.m),nx1=ym?(+ym[2]===12?(+ym[1]+1)+'-01':ym[1]+'-'+String(+ym[2]+1).padStart(2,'0')):null,dt=(b.t-a.t)/864e5,seq=!!nx1&&b.m===nx1&&dt>=25&&dt<=45;
     for(const id in a.s){
       const sc=a.s[id],nx=b.c&&b.c[id];
       if(sc==null||!isFinite(sc)||Math.abs(sc)<8)continue;   /* słabe sygnały pomijamy */
       /* brak danych nie jest pudłem: null/brak oraz dokładne 0 (tak starsze wpisy zapisywały brak) wypadają z liczenia */
-      if(nx==null||!isFinite(nx)||nx===0){skip++;continue;}
+      if(!seq||nx==null||!isFinite(nx)||nx===0){skip++;continue;}
       n++;if((sc>0&&nx>0)||(sc<0&&nx<0))hit++;
     }
   }
@@ -6697,7 +6720,7 @@ function engLoad(cb){
   });
 }
 function engAuto(){if(ENG.timer)clearInterval(ENG.timer);ENG.timer=setInterval(()=>{if(!document.hidden)engLoad();},60*60*1000);}
-const engNum=v=>typeof v==='number'&&isFinite(v)?v.toLocaleString(LOCALE[LANG]):(typeof v==='string'&&v!==''?v:'—');
+const engNum=v=>typeof v==='number'&&isFinite(v)?(s=>(v<0&&/[1-9]/.test(s)?'−':'')+s)(Math.abs(v).toLocaleString(LOCALE[LANG])):(typeof v==='string'&&v!==''?v:'—');   /* v336 (GL-10): długi minus, bez „−0” */
 const engDate=iso=>{const ms=Date.parse(iso||'');return isFinite(ms)?new Date(ms).toLocaleString(LOCALE[LANG],{dateStyle:'short',timeStyle:'short'}):'—';};
 function engPeriod(p){
   if(!p||!p.kind)return t('eng.p.none');
@@ -6853,7 +6876,7 @@ const CFTC={data:null,timer:null,ms:0};
 const CFTC_G=['dealer','asset_mgr','lev_funds','other_rept','nonrept'];
 const cftcIso=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&isFinite(Date.parse(d+'T00:00:00Z'));
 const cftcIsN=v=>typeof v==='number'&&isFinite(v);
-const cftcN=v=>cftcIsN(v)?nfmt(v):'—';
+const cftcN=v=>{if(!cftcIsN(v))return '—';const s=nfmt(Math.abs(v));return (v<0&&/[1-9]/.test(s)?'−':'')+s;};   /* v336 (GL-10): długi minus */
 const cftcS=v=>cftcIsN(v)?(v===0?nfmt(0):instSign(v)+nfmt(Math.abs(v))):'—';
 /* v98.2: opis jednostki kontraktu (np. „(5 Bitcoins)”) → zdanie w języku strony, bez nazwy dostawcy; nierozpoznany opis — tylko po polsku, oczyszczony */
 function cftcUnit(s){if(typeof s!=='string'||!s)return '';const b=/\((\d+)\s*Bitcoins?\)/i.exec(s),x=/\((\d+)\s*Index Points?\)/i.exec(s);
@@ -6949,7 +6972,7 @@ const cmIs=v=>typeof v==='number'&&isFinite(v);
 /* monety: od 100 w górę bez części ułamkowej (dokładna liczba w podpowiedzi); brak → null */
 function cmCoin(v,sym,signed){if(!cmIs(v))return null;const a=Math.abs(v);return (signed?instSign(v):(v<0?'−':''))+nfmt(a,a>=100?0:2)+' '+sym;}
 function cmExact(v,sym){return cmIs(v)?t('inst.exact',{v:(v<0?'−':'')+nfmt(Math.abs(v),2)+' '+sym}):'';}
-function cmUsd(v,signed){if(!cmIs(v))return null;return (signed?instSign(v):(v<0?'−':''))+gfmt(Math.abs(v)/1e9);}   /* gfmt przyjmuje mld USD */
+function cmUsd(v,signed){if(!cmIs(v))return null;const s=gfmt(Math.abs(v)/1e9);return (signed?instSign(v,s):(v<0&&/[1-9]/.test(s)?'−':''))+s;}   /* gfmt przyjmuje mld USD; v336 (GL-10): znak po zaokrągleniu */
 function cmSign(v){return cmIs(v)?t(v>0?'cm.s.in':(v<0?'cm.s.out':'cm.s.eq')):'';}
 function cmBack(d,n){const ms=Date.parse(d+'T00:00:00Z');return isFinite(ms)?new Date(ms-n*864e5).toISOString().slice(0,10):'';}
 function cmAsset(A,sym,name){
@@ -7348,11 +7371,11 @@ const etfM=v=>{ /* v w mln USD */
   const a=Math.abs(v),sg=v<0?'−':(v>0?'+':'');
   if(a===0)return '0 '+t('u.m');
   if(a<.05)return sg+((LANG!=='pl'&&LANG!=='en'&&typeof nfmt==='function')?'<'+nfmt(.1,1)+' ':(LANG==='pl'?'<0,1 ':'<0.1 '))+t('u.m');   /* v48: mały przepływ nie jest zerem; v147: „<0,1” w zapisie języka widza (de–ja) */
-  if(a>=1000)return sg+(a/1000).toLocaleString(LOCALE[LANG],{maximumFractionDigits:a>=10000?1:2})+' '+t('u.b');
+  if(+a.toFixed(a<10?1:0)>=1000)return sg+(a/1000).toLocaleString(LOCALE[LANG],{maximumFractionDigits:a>=10000?1:2})+' '+t('u.b');   /* v336 (GL-10): jednostka po zaokrągleniu — 999,96 = „+1 mld USD”, nie „+1000 mln USD” */
   return sg+a.toLocaleString(LOCALE[LANG],{maximumFractionDigits:a<10?1:0})+' '+t('u.m');
 };
-const etfA=v=>{if(v==null||isNaN(v))return '—';const a=Math.abs(v);
-  return a>=1000?(a/1000).toLocaleString(LOCALE[LANG],{maximumFractionDigits:1})+' '+t('u.b'):a.toLocaleString(LOCALE[LANG],{maximumFractionDigits:0})+' '+t('u.m');};
+const etfA=v=>{if(v==null||isNaN(v))return '—';const a=Math.abs(v);   /* v336 (GL-10): jednostka po zaokrągleniu */
+  return +a.toFixed(0)>=1000?(a/1000).toLocaleString(LOCALE[LANG],{maximumFractionDigits:1})+' '+t('u.b'):a.toLocaleString(LOCALE[LANG],{maximumFractionDigits:0})+' '+t('u.m');};
 const etfP=(v,d)=>{if(v==null||isNaN(v))return '—';const s=Math.abs(v).toLocaleString(LOCALE[LANG],{minimumFractionDigits:d==null?1:d,maximumFractionDigits:d==null?1:d});return (v<0&&/[1-9]/.test(s)?'−':'')+s+'%';};   /* v206: długi minus jak w całej stronie; zaokrąglone do zera — bez znaku */
 const etfCls=v=>v>0?'pos':v<0?'neg':'';
 function etfBars(day){
@@ -9547,7 +9570,7 @@ function applyLang(){
   $$('[data-i18n-title]').forEach(el=>el.title=t(el.dataset.i18nTitle));
   $$('[data-i18n-ph]').forEach(el=>el.placeholder=t(el.dataset.i18nPh));
   $$('[data-i18n-html]').forEach(el=>el.innerHTML=t(el.dataset.i18nHtml));
-  renderAll();if(gStarted)gRenderAll();renderPage();DD.forEach(d=>d.refresh());dirty=true;
+  renderAll();if(gStarted){if(GDATA){try{gKpis();gProb();}catch(e){}}gRenderAll();}renderPage();DD.forEach(d=>d.refresh());dirty=true;   /* v336 (GL-11): teksty kafelków i rankingu liczone w nowym języku (dawniej do 60 s stare) */
   if(typeof renderEtf==='function')renderEtf();
   if(typeof renderEng==='function')renderEng();if(typeof renderInst==='function')renderInst();if(typeof renderCmc==='function')renderCmc();if(typeof renderKr==='function')renderKr();if(typeof renderTic==='function')renderTic();if(typeof renderBis==='function')renderBis();
   if(typeof renderTrendy==='function'&&st.mode==='trendy')renderTrendy();   /* v89 */
@@ -10316,7 +10339,8 @@ function rwDayS(d){return rwIsDay(d)?new Date(Date.parse(d+'T12:00:00Z')).toLoca
 /* chwila pobrania z wiekiem (wiek jak w panelu sieci Bitcoin, gdy jest pomocnik) */
 function rwWhen(iso){const ms=Date.parse(iso||'');if(!isFinite(ms))return '—';return engDate(iso)+(typeof lnAgo==='function'?lnAgo(iso):gAgeNote(String(iso)));}
 /* kwota USD: bln / mld (1 miejsce) / mln; brak = „—” (nigdy 0) */
-function rwUsd(v){const x=rwPos(v);if(x===null)return '—';if(x>=1e12)return nfmt(x/1e12,2)+' '+t('u.t');if(x>=1e9)return nfmt(x/1e9,1)+' '+t('u.b');if(x>=1e6)return nfmt(x/1e6,0)+' '+t('u.m');return '<1 '+t('u.m');}
+/* v336 (GL-10): jednostka po zaokrągleniu — 999,95 mld = „1,00 bln”, 999,5 mln = „1,0 mld” (dawniej „1000,0 mld”, „1000 mln”) */
+function rwUsd(v){const x=rwPos(v);if(x===null)return '—';if(+(x/1e9).toFixed(1)>=1000)return nfmt(x/1e12,2)+' '+t('u.t');if(+(x/1e6).toFixed(0)>=1000)return nfmt(x/1e9,1)+' '+t('u.b');if(x>=1e6)return nfmt(x/1e6,0)+' '+t('u.m');return '<1 '+t('u.m');}
 /* zmiana w %: znak, 1 miejsce; zero po zaokrągleniu bez znaku (kolor z rwCls — v322: żółty); brak = „—” */
 function rwPct(v){if(!rwNum(v))return '—';const r=Math.round(v*10)/10;if(!r)return nfmt(0,1)+'%';return (r>0?'+':'−')+nfmt(Math.abs(r),1)+'%';}
 function rwCls(v){if(!rwNum(v))return 'na';const r=Math.round(v*10)/10;return r>0?'pos':r<0?'neg':'neu';}   /* v322: zero żółte */
@@ -12467,7 +12491,7 @@ function ixItems(D){
   const S=D&&D.ix&&typeof D.ix==='object'?D.ix:{},out=[];
   if(!Object.keys(S).length)return out;
   for(const sym in IX_META){const rec=S[sym],R=rec&&typeof rec==='object'?rec:null,v=R?ixDerive(R.d):null;
-    out.push(Object.assign({sym,cc:IX_META[sym][0],name:IX_META[sym][1],why:v?'':(R&&typeof R.bad_at==='string'?'bad':'none'),bad_at:R&&typeof R.bad_at==='string'?R.bad_at:'',bad_od:R&&typeof R.bad_od==='string'?R.bad_od:''},v||{date:null,close:null,d1:null,w1:null,m1:null,ytd:null,n:0}));}
+    out.push(Object.assign({sym,cc:IX_META[sym][0],name:IX_META[sym][1],wst:R&&typeof R.wst==='string'?R.wst:'',why:v?'':(R&&typeof R.bad_at==='string'?'bad':'none'),bad_at:R&&typeof R.bad_at==='string'?R.bad_at:'',bad_od:R&&typeof R.bad_od==='string'?R.bad_od:''},v||{date:null,close:null,d1:null,w1:null,m1:null,ytd:null,n:0}));}
   return out;
 }
 /* kolejność: z wartością (malejąco), potem z zamknięciem bez tej zmiany (alfabetycznie), na końcu bez danych (alfabetycznie) */
@@ -12488,10 +12512,12 @@ function ixWyk(items){
 function ixBody(D){
   const items=ixSort(ixItems(D),'m1');if(!items.some(x=>ixNum(x.close)))return '';   /* żadnej serii — panel ukryty (klucz jeszcze nie działa) */
   const F=(c,cls)=>typeof flagImg==='function'?flagImg(c,cls):'',G=(n,cls)=>typeof glyphImg==='function'?glyphImg(n,cls):'';
-  const rows=items.map(x=>{const has=ixNum(x.close),sub=has?`${ixDay(x.date)}${gAgeNote(x.date)}`:(x.why==='bad'?(x.bad_od?t('ix.bad',{d:ixDay(x.bad_od)}):t('a293g.ix.badl',{d:ixDay(x.bad_at)})):t('ix.nodata'));
+  /* v336 (ZB08-02): ostatnia sesja z zamknięciem wstępnym (pole wst zbieracza = dzień tej sesji) — dopisek za datą; bez pola albo inny dzień — nic */
+  const WS=x=>x&&x.wst&&x.wst===x.date?` · <span title="${escH(t('ix.wst.tip'))}">${t('ix.wst')}</span>`:'';
+  const rows=items.map(x=>{const has=ixNum(x.close),sub=has?`${ixDay(x.date)}${WS(x)}${gAgeNote(x.date)}`:(x.why==='bad'?(x.bad_od?t('ix.bad',{d:ixDay(x.bad_od)}):t('a293g.ix.badl',{d:ixDay(x.bad_at)})):t('ix.nodata'));
     return `<tr${has?'':' class="ix-na"'}><td><span class="cell"><span class="icos">${F(x.cc,'sm')}</span><span class="ixn"><b>${escH(x.name)}</b><small>${escH(ixCty(x.cc))} · ${sub}</small></span></span></td><td>${has?`<span class="cell mono">${nfmt(x.close,2)}</span>`:'<span class="cell mono na">—</span>'}</td><td>${ixPct(x.d1)}</td><td class="ix-w">${ixPct(x.w1)}</td><td>${ixPct(x.m1)}</td><td>${ixPct(x.ytd)}</td></tr>`;}).join('');
   const M=items.filter(x=>typeof x.m1==='number'&&isFinite(x.m1)),Y=ixSort(items,'ytd').filter(x=>typeof x.ytd==='number'&&isFinite(x.ytd));
-  const tile=(label,x,key)=>x?`<div class="etfk"><span>${escH(label)}</span><b class="${ixTone(x[key],1)}">${fPct(Math.round(x[key]*10)/10,1)} <small><span class="icos">${F(x.cc,'sm')}</span>${escH(x.name)}</small></b><small class="mtxt">${ixDay(x.date)}${gAgeNote(x.date)}</small></div>`:'';
+  const tile=(label,x,key)=>x?`<div class="etfk"><span>${escH(label)}</span><b class="${ixTone(x[key],1)}">${fPct(Math.round(x[key]*10)/10,1)} <small><span class="icos">${F(x.cc,'sm')}</span>${escH(x.name)}</small></b><small class="mtxt">${ixDay(x.date)}${WS(x)}${gAgeNote(x.date)}</small></div>`:'';
   const up=M.filter(x=>Math.round(x.m1*10)/10>0).length,newest=M.map(x=>x.date).sort().pop()||'';
   /* „najsłabszy” tylko gdy jest z czego wybierać — jeden indeks nie może być naraz najmocniejszy i najsłabszy */
   const tiles=[M.length?`<div class="etfk"><span><span class="icos">${G('chart','sm')}</span>${t('ix.k.up')}</span><b>${t('ix.k.upv',{n:nfmt(up,0),m:nfmt(M.length,0)})}</b><small class="mtxt">${t('ix.k.upn',{d:ixDay(newest)})}${gAgeNote(newest)}</small></div>`:'',

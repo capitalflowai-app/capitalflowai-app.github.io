@@ -2051,7 +2051,7 @@ test('v96-global_map: gRenderDetail uruchomiony — węzeł krypto, regiony, kra
     H.flagImg, H.regFlags, H.ccyMark, H.coinImg, H.icoWrap, H.fundIco, c => ({USA: 'Stany Zjednoczone', JPN: 'Japonia', KOR: 'Korea Południowa'})[c] || c,
     () => false, () => 1, {data: {no_reporter: [], flows: {}}}, {data: null}, {data: null}, v => v > 0 ? '+' : v < 0 ? '−' : '', v => String(v), s => s, v => String(v), () => null, () => null, () => null);
   const f = mk(false), fL = mk(true);
-  const Z = NF.gpct(0), Z0 = Z.replace(/^[+−]/, '');   // „+0,00%” → „0,00%”
+  const Z0 = NF.gpct(0), Z = '+' + Z0.replace(/^[+−]/, '');   // „+0,00%” → „0,00%”; v336 (GL-10): gpct(0) = „0,00%” (dawniej „+0,00%”) — zakazany napis „+0,00%” zapisany wprost
   const run = (sel, g) => { gst.sel = sel; (g || f).gRenderDetail(); return els['#g-detail'].innerHTML; };
   const clean = (h, id) => { assert.ok(!GM_PROV.test(h) && !h.includes('d.source') && !h.includes('g.src.') && !h.includes('Źródło'), id + ': bez źródeł: ' + (h.match(GM_PROV) || [])[0]); };
   // węzeł krypto
@@ -9767,7 +9767,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
     if (L === 'en') { assert.ok(!/\d\.\d{3},\d/.test(txt), 'en: bez niemieckiego zapisu'); }
     assert.ok(!/ \d{3}[,.]/.test(txt.replace(/\u00a0/g, '#')), L + ': tysiące bez łamliwej spacji');
   }
-  assert.ok(html.includes("const jpy=(v,x)=>typeof v==='number'?chg(v,instSign(v)+instMld(Math.abs(v)*100),x):'—';"), 'blok MOF (C) bez zmian formatu');
+  assert.ok(html.includes("const jpy=(v,x)=>typeof v==='number'?chg(v,(s=>instSign(v,s)+s)(instMld(Math.abs(v)*100)),x):'—';"), 'blok MOF (C) bez zmian formatu');   /* v336 (GL-10): ten sam zapis liczby, znak dopiero po zaokrągleniu do 0,1 mld JPY (instSign z napisem) */
 });
 
 /* ===================== v142: strażnik tłumaczeń — słowniki JSON (const EXTRAnn={"pl":{…},"en":{…},"de":{…},…}) bez kopii angielskiego w de–ja =====================
@@ -20110,7 +20110,7 @@ test('v322 (po przeglądzie, pkt 5): okno szczegółów — wiersz „Wartość�
   assert.ok(up.includes('<div class="d-val sora pos">'), 'nagłówek w tym samym kolorze');
   assert.deepEqual(row(dn), ['neg', '−971 mln USD (−0,3% względem poprzednich 24 godzin)'], dn);
   assert.deepEqual(row(z), ['eq', '0 mln USD (0,0% względem poprzednich 24 godzin)'], z);
-  assert.deepEqual(row(tiny), ['eq', '+0 mln USD (+0,0% względem poprzednich 24 godzin)'], 'zero po zaokrągleniu — żółte jak nagłówek');
+  assert.deepEqual(row(tiny), ['eq', '0 mln USD (0,0% względem poprzednich 24 godzin)'], 'zero po zaokrągleniu — żółte jak nagłówek');   /* v336 (GL-10): zero po zaokrągleniu bez znaku (dawniej „+0 mln USD (+0,0%…)” — plan napraw GL-10) */
   assert.deepEqual(row(x), ['neg', '−8840 mln USD'], 'Giełdy: reszta bilansu bez procentu, w kolorze znaku');
   const E = (k, a) => c315.det('pl', {st: {period: '24H', sel: {type: 'edge', id: 'e'}}, EB: {e: {id: 'e', f: 'exch', t: 'btc', a, k, ev: 'proxy', live: true}}, DATA: {'24H': {}}});
   assert.deepEqual(row(E('in', 574)), ['pos', '+574 mln USD'], 'linia: napływ zielony'); assert.deepEqual(row(E('out', 302)), ['neg', '−302 mln USD'], 'linia: odpływ czerwony');
@@ -21012,4 +21012,220 @@ test('v335 (uwagi recenzenta v323): wskazówki panelu „Siła sygnałów” wje
   assert.equal(ld.replace(/^<details[^>]*><summary>[^<]*<\/summary>/, '').replace(/<\/details>$/, ''), raw.replace(/^<div class="tig-l"><h3 class="mtxt"><b>[^<]*<\/b><\/h3>/, '<div class="tig-l">'), 'reszta bloku bez zmian');
   assert.equal(X.trdIgLd(null, true, {}), '', 'bez bloku nauki — nic');
   assert.ok(!html.includes('tig.s.t"') && !html.includes('tig.s.sub') && !html.includes('tig.s.none') && !html.includes('tig.s.empty'), 'martwe klucze tig.s.* usunięte z EXTRA158');
+});
+
+
+// ===================== v336 (S3_GLOBAL): pas S3 planu napraw — GL-04 (rentowności: miesiąc wstecz z przyciętym końcem miesiąca), GL-03 (układ kół mapy
+// z wersją danych), GL-08 (skuteczność: tylko kolejne miesiące), GL-09 (uszkodzona pamięć przeglądarki), GL-10 + CR8-11 (najpierw zaokrąglenie, potem znak
+// i jednostka), GL-13 (brak = „—”, null w notowaniu nie ukrywa DZIŚ), GL-11 (zmiana języka przelicza kafelki i ranking) oraz część strony pasa Z4
+// (ZB08-02: dopisek „wstępnie” przy indeksie z wstępnym zamknięciem ostatniej sesji). Wycinki kodu strony z atrapami; bez zegara (stałe daty).
+const v336 = (() => {
+  const cut = (a, b, inc) => { const i = html.indexOf(a), j = html.indexOf(b, i + 1); assert.ok(i >= 0 && j > i, 'wycinek strony: ' + a.slice(0, 60)); return html.slice(i, inc ? j + b.length : j); };
+  const line = a => cut(a, '\n');
+  const LOC = new Function(line('const LOCALE=') + '\nreturn LOCALE;')();
+  const sp = s => String(s).replace(/[\u00a0\u202f]/g, ' ');
+  const tk = (k, o) => k + (o ? JSON.stringify(o) : '');
+  /* liczby jak na stronie (NF, nfmt, nSg, sg, fInt, fPct, compactU, compact) w języku L; t zwraca klucz */
+  const num = (L = 'pl') => new Function('LANG', 'LOCALE', 't', cut('const NF={};', '\nconst EXTRA={') + '\nreturn {nfmt, nSg, sg, fInt, fPct, compact, compactU};')(L, LOC, tk);
+  const gf = (L = 'pl') => new Function('LOCALE', 'LANG', 't', cut('const gfmt=v=>{', '\nconst gpct=') + '\n' + line('const gpct=') + '\nreturn {gfmt, gpct};')(LOC, L, tk);
+  const etf = (L = 'pl') => new Function('LOCALE', 'LANG', 't', 'nfmt', cut('const etfM=v=>{', '\nconst etfP=') + '\nreturn {etfM, etfA};')(LOC, L, tk, num(L).nfmt);
+  /* panele urzędowe: instSign, fredSignPct, rezBn, rezD, zagM, spPct, cftcN, engNum, cmUsd, rwUsd — z prawdziwym nfmt i gfmt */
+  const inst = (L = 'pl') => { const N = num(L), G = gf(L);
+    const src = [line('const instSign='), line('const fredSignPct='), line('const fredNum='), line('const rezBn='), line('const rezD='), line('const zagM='), line('const spPct='),
+      line('const cftcIsN='), line('const cftcN='), line('const engNum='), line('const cmIs='), line('function cmUsd('), line('const rwNum='), line('const rwPos='), line('function rwUsd(')].join('\n');
+    return new Function('LANG', 'LOCALE', 't', 'nfmt', 'gfmt', src + '\nreturn {instSign, fredSignPct, rezBn, rezD, zagM, spPct, cftcN, engNum, cmUsd, rwUsd};')(L, LOC, tk, N.nfmt, G.gfmt); };
+  return {cut, line, LOC, sp, tk, num, gf, etf, inst};
+})();
+
+test('v336 GL-10 + CR8-11: najpierw zaokrąglenie, potem znak i jednostka — zero po zaokrągleniu bez znaku, jednostka po zaokrągleniu, długi minus', () => {
+  const N = v336.num('pl'), G = v336.gf('pl'), E = v336.etf('pl'), I = v336.inst('pl'), sp = v336.sp;
+  /* procenty: zero po zaokrągleniu — bez „+” i „−” (kolor „bez zmian” bierze się z napisu); dawniej gpct(−0,004) = „−0,00%”, gpct(0) = „+0,00%”, fPct(0,048) = „+0,0%” */
+  assert.equal(G.gpct(-0.004), '0,00%'); assert.equal(G.gpct(0.004), '0,00%'); assert.equal(G.gpct(0), '0,00%'); assert.equal(G.gpct(0.005), '+0,01%');
+  assert.equal(G.gpct(-1.234), '−1,23%'); assert.equal(G.gpct(null), '—');
+  assert.equal(N.fPct(-0.04), '0,0%'); assert.equal(N.fPct(0.048), '0,0%', 'chip „L1/L2” przy +0,048%'); assert.equal(N.fPct(0.05), '+0,1%'); assert.equal(N.fPct(-1.26), '−1,3%');
+  assert.equal(N.fPct(0.004, 2), '0,00%'); assert.equal(N.fPct(null), '—');
+  assert.equal(N.fInt(0.4), '0'); assert.equal(N.fInt(-0.4), '0'); assert.equal(N.fInt(0.5), '+1'); assert.equal(N.fInt(-2), '−2'); assert.equal(N.fInt(undefined), '—');
+  assert.equal(I.fredSignPct(-0.004), '0,00%'); assert.equal(I.fredSignPct(-0.006), '−0,01%'); assert.equal(I.fredSignPct(null), '—');
+  assert.equal(I.rezD(-0.04), '0,0'); assert.equal(I.rezD(0.06), '+0,1'); assert.equal(I.zagM(-0.04), '0,0'); assert.equal(I.zagM(-12.4), '−12'); assert.equal(I.zagM(0), '0');
+  assert.equal(I.instSign(-0.04, '0,0'), '', 'instSign z napisem: zero po zaokrągleniu bez znaku'); assert.equal(I.instSign(-0.04), '−', 'bez napisu — jak dotąd');
+  assert.equal(I.instSign(0.06, '0,1'), '+');
+  /* jednostka po zaokrągleniu: dawniej „1000 mln USD”, „+1000 mln USD”, „1000,0 mld” */
+  assert.equal(sp(G.gfmt(0.9996)), '1 u.b'); assert.equal(sp(G.gfmt(0.9994)), '999 u.m'); assert.equal(sp(G.gfmt(-0.9996)), '−1 u.b'); assert.equal(sp(G.gfmt(999.7)), '1 u.t');
+  assert.equal(sp(G.gfmt(-12.4)), '−12 u.b', 'długi minus (dawniej „-12”)'); assert.equal(G.gfmt(-0.0001), '−<1 u.m'); assert.equal(G.gfmt(0), '0 u.m'); assert.equal(G.gfmt(null), '—');
+  assert.equal(sp(N.compactU(999.6)), '1,00 u.b'); assert.equal(sp(N.compact(999.5)), '+1,00 u.b'); assert.equal(sp(N.compact(999.4)), '+999 u.m'); assert.equal(sp(N.compact(-12345)), '−12,3 u.b');
+  assert.equal(N.compactU(0.4), '<1 u.m', 'mały przepływ nie jest zerem — „wzrosła o <1 mln USD”, nie „o 0 mln USD”'); assert.equal(N.compact(0.4), '+<1 u.m'); assert.equal(N.compact(-0.4), '−<1 u.m');
+  assert.equal(N.compact(0), '0 u.m'); assert.equal(N.compactU(null), '—');
+  assert.equal(sp(E.etfM(999.96)), '+1 u.b'); assert.equal(sp(E.etfM(-999.96)), '−1 u.b'); assert.equal(sp(E.etfM(999.4)), '+999 u.m'); assert.equal(E.etfM(0.03), '+<0,1 u.m');
+  assert.equal(sp(E.etfA(999.6)), '1 u.b'); assert.equal(sp(E.etfA(999.4)), '999 u.m');
+  assert.equal(sp(I.rwUsd(999.95e9)), '1,00 u.t'); assert.equal(sp(I.rwUsd(999.5e6)), '1,0 u.b'); assert.equal(sp(I.rwUsd(999.4e6)), '999 u.m'); assert.equal(I.rwUsd(0.5e6), '<1 u.m');
+  assert.equal(sp(I.cmUsd(-999.6e6, true)), '−1 u.b'); assert.equal(sp(I.cmUsd(-999.6e6)), '−1 u.b'); assert.equal(I.cmUsd(0.1, true), '+<1 u.m');
+  /* długi minus (U+2212), nie „-”: ujemna stopa banku, rezerwy, CFTC, liczby silnika */
+  assert.equal(I.spPct(-0.25), '−0,25'); assert.equal(I.spPct(3.875), '3,875'); assert.equal(I.spPct(-0.0001), '0,00'); assert.equal(I.spPct(null), '—');
+  assert.equal(I.rezBn(-1.5), '−1,5'); assert.equal(I.rezBn(-0.01), '0,0'); assert.equal(I.cftcN(-5), '−5'); assert.equal(I.cftcN(null), '—');
+  assert.equal(sp(I.engNum(-1234.5)), '−1234,5'); assert.equal(I.engNum(-0.0001), '0'); assert.equal(I.engNum('x'), 'x'); assert.equal(I.engNum(null), '—');
+  /* wspólna reguła nSg */
+  assert.equal(N.nSg(-0.004, '0,00'), ''); assert.equal(N.nSg(-0.006, '0,01'), '−'); assert.equal(N.nSg(5, '<1'), '+'); assert.equal(N.nSg(0, '0'), '');
+  /* inne języki: zapis języka, ta sama reguła */
+  const NE = v336.num('en'), GE = v336.gf('en');
+  assert.equal(GE.gpct(-0.004), '0.00%'); assert.equal(NE.fPct(0.048), '0.0%'); assert.equal(sp(NE.compact(999.5)), '+1.00 u.b'); assert.equal(sp(GE.gfmt(-1234.5)), '−1.23 u.t');
+  const ND = v336.num('de'); assert.equal(sp(ND.compact(-12345)), '−12,3 u.b'); assert.equal(ND.fPct(-0.04), '0,0%');
+});
+
+test('v336 GL-13: nfmt — brak liczby = „—” (null, undefined, NaN, ±∞), „−0,00” → „0,00”; liczby i napisy liczbowe jak dotąd', () => {
+  const N = v336.num('pl'), sp = v336.sp;
+  for (const v of [null, undefined, NaN, Infinity, -Infinity]) { assert.equal(N.nfmt(v), '—', String(v)); assert.equal(N.nfmt(v, 2), '—', String(v) + ' (2)'); }
+  assert.equal(N.nfmt(-0.001, 2), '0,00'); assert.equal(N.nfmt(-0), '0'); assert.equal(N.nfmt(-0.4), '0'); assert.equal(N.nfmt(-0.6), '-1', 'liczba ujemna — zapis Intl jak dotąd');
+  assert.equal(N.nfmt(-5), '-5'); assert.equal(sp(N.nfmt(12345.678, 1)), '12 345,7'); assert.equal(N.nfmt('1000.25', 1), '1000,3', 'napis liczbowy (instMld de–ja) — jak dotąd');
+  assert.equal(v336.num('en').nfmt(null), '—');
+});
+
+test('v336 GL-13: renderInst — poziom null w pliku = „—” (nie „null mld USD”, „0,000 mld USD”, „0,00”); zmiana ze znakiem dopiero po zaokrągleniu; apply pomija wpisy niebędące parą', () => {
+  const {cut, LOC, tk, num} = v336, N = num('pl');
+  const helpers = cut('function instMld(mln,dec){', '\nconst FRED={data:null};') + '\n' + cut('function instRow(label,value,exact,note){', '\nfunction instFoot(') + '\n' + v336.line('const engNum=');
+  const ri = cut('function renderInst(){', '\n/* v96-gt: ikony w tabelach GLOBAL');
+  const run = (INSTd, FREDd) => {
+    const el = {innerHTML: '', hidden: true};
+    new Function('$', 'INST', 'FRED', 'REZ', 'COF', 'engDate', 'spBlock', 'zagBlock', 'fredCustKpis', 'fredCustTable', 'INST_TGB', 'bopSum', 'bopMld', 'rezHtml', 'cofHtml', 't', 'escH', 'instFoot', 'nfmt', 'LANG', 'LOCALE',
+      helpers + '\n' + ri + '\nrenderInst();')(q => (q === '#inst' ? el : null), {data: INSTd, at: INSTd ? INSTd.at : ''}, {data: FREDd}, {data: null}, {data: null}, s => 'D(' + s + ')', () => '', () => '', () => '', () => '',
+      ['DE'], () => null, v => String(v), () => '', () => '', tk, s => String(s), d => String(d), N.nfmt, 'pl', LOC);
+    return el.innerHTML;
+  };
+  const I = {at: '2026-10-10T20:00:00+00:00', tga: {d: [['2026-10-07', 880000], ['2026-10-08', null]]}, rrp: {d: [['2026-10-08', 300], ['2026-10-09', null]]},
+    soma: {d: [['2026-09-30', 6360000], ['2026-10-07', 6360040]]}, m3: {d: [['2026-07', 17600000], ['2026-08', null]]}, tgb: {asof: '2026-08', q: {DE: [['2026-07', 1100000], ['2026-08', null]]}}};
+  const F = {at: '2026-10-10T20:00:00+00:00', series: {WALCL: {d: [['2026-10-01', 6600000], ['2026-10-08', 6599950]]}, RRPONTSYD: {d: [['2026-10-08', 0.3], ['2026-10-09', null]]},
+    DTWEXBGS: {d: [['2026-10-01', 121.3], ['2026-10-02', null]]}, WDTGAL: {d: [['2026-10-08', null]]}}};
+  const h = run(I, F);
+  assert.ok(!/null|NaN|undefined/.test(h), 'bez „null” / „NaN” na stronie: ' + (h.match(/.{0,60}(null|NaN|undefined).{0,30}/) || [''])[0]);
+  assert.ok(!h.includes('0,000 u') && !h.includes('>0,00<'), 'brak nie jest zerem');
+  for (const k of ['inst.tga', 'inst.rrp', 'inst.fred.rrp', 'inst.fred.dxy', 'inst.fred.tga', 'inst.ecb.m3']) assert.ok(new RegExp(k.replace(/\./g, '\\.') + '</span><b[^>]*>—</b>').test(h), 'poziom bez liczby = „—”: ' + k + ' → ' + (h.match(new RegExp(k.replace(/\./g, '\\.') + '</span><b[^>]*>[^<]*')) || [''])[0]);
+  assert.ok(h.includes('inst.dw{"v":"0,0"}'), 'SOMA +40 mln = „0,0” mld bez znaku (dawniej „+0,0”)');
+  assert.ok(h.includes('inst.dw{"v":"−0,1"}'), 'bilans Fed −50 mln = „−0,1” mld');
+  assert.ok(h.includes('<span class="cell mono">—</span>') || h.includes('>—</span></td>'), 'TARGET: saldo null = „—”');
+  /* instApply / fredApply / zagApply: wpis niebędący parą [dzień, …] — pominięty, bez TypeError */
+  const ia = new Function('INST', 'gOk', 'renderInst', cut('function instApply(j){', '\n/* mln → mld') + '\nreturn instApply;'), IN = {data: null, at: ''};
+  const j = {at: 'x', tga: {d: [['2026-10-07', 1], null, 5, {a: 1}, ['2026-10-08', 2]]}, tgb: {q: {DE: [null, ['2026-08', 3]]}}, bop: {s: {ca: [['2026-07', 1], 'x']}}, mof: {d: [{from: 'a'}]}};
+  ia(IN, () => {}, () => {})(j);
+  assert.deepEqual(IN.data.tga.d, [['2026-10-07', 1], ['2026-10-08', 2]]); assert.deepEqual(IN.data.tgb.q.DE, [['2026-08', 3]]); assert.deepEqual(IN.data.bop.s.ca, [['2026-07', 1]]);
+  assert.deepEqual(IN.data.mof.d, [{from: 'a'}], 'MOF: tygodnie jako obiekty — bez zmian');
+  const fa = new Function('FRED', 'gOk', 'renderInst', cut('function fredApply(j){', '\n/* v46: suma ostatnich') + '\nreturn fredApply;'), FR = {data: null};
+  fa(FR, () => {}, () => {})({at: 'x', series: {WALCL: {d: [null, ['2026-10-08', 1], [5]]}}}); assert.deepEqual(FR.data.series.WALCL.d, [['2026-10-08', 1]]);
+  const za = new Function('ZAG', 'gOk', 'renderInst', cut('function zagApply(j){', '\nconst zagNum=') + '\nreturn zagApply;'), ZG = {data: null};
+  za(ZG, () => {}, () => {})({at: 'x', in: {d: [null, ['2026-10-09', 1, 2]]}, br: {d: [['2026-10-02', 1]], m: [7, ['2026-08', 1]]}});
+  assert.deepEqual(ZG.data.in.d, [['2026-10-09', 1, 2]]); assert.deepEqual(ZG.data.br.m, [['2026-08', 1]]);
+});
+
+test('v336 GL-13: gDayApply — notowanie null (dzis.json q.SPY = null) nie zatrzymuje dnia ani przycisku DZIŚ; dp null nie liczy się jak 0', () => {
+  const d0 = html.indexOf('function gDayApply('), d1 = html.indexOf('function gDay(', d0), GL = {};
+  const apply = new Function('GREG', 'GPROXY', 'GLIVE', 'gOk', 'LOCALE', 'LANG', 'GDATA', html.slice(d0, d1) + '\nreturn gDayApply;')(
+    [{id: 'usa'}, {id: 'mea'}], {usa: [['SPY', 1]], mea: [['KSA', .76], ['TUR', .13], ['EIS', .11]]}, GL, () => {}, v336.LOC, 'pl', null);
+  assert.equal(apply({SPY: null, KSA: {dp: 1, t: 1791576000}, TUR: {dp: null, t: 0}, EIS: {dp: 3, t: 0}}), 1, 'bez TypeError (dawniej: null.t)');
+  assert.equal(GL.dayAt, '2026-10-09T20:00:00.000Z', 'chwila notowania z pozostałych funduszy');
+  assert.deepEqual(GL.day.mea.syms, ['KSA', 'EIS'], 'TUR z dp null — pominięty, nie 0 %'); assert.equal(GL.day.mea.dp, (1 * .76 + 3 * .11) / (.76 + .11));
+  assert.equal(GL.day.usa, undefined, 'SPY null — region bez liczby');
+});
+
+test('v336 GL-04: gDaily — „miesiąc / kwartał wstecz” z przyciętym końcem miesiąca (jak gFxBack): 31.03 − 1 mies. = 28.02, nie 3.03', () => {
+  const src = v336.cut('function gFxBack(d0,k){', '\nfunction gFxUsd(') + '\n' + v336.cut('function gDaily(s,per){', '\n/* 10L USA prosto');
+  const gDaily = new Function('GBACK', src + '\nreturn gDaily;')({'1D': 0, '1T': 0, '1M': 1, '1Q': 3, '1R': 12});
+  const s = []; for (let t = Date.UTC(2025, 0, 1); t <= Date.UTC(2027, 0, 1); t += 864e5) { const d = new Date(t).toISOString().slice(0, 10); s.push([d, t / 864e5]); }
+  const ref = (last, per) => { const ser = s.filter(x => x[0] <= last), o = gDaily(ser, per); return new Date((ser[ser.length - 1][1] - o.d) * 864e5).toISOString().slice(0, 10); };
+  assert.equal(ref('2026-03-31', '1M'), '2026-02-28'); assert.equal(ref('2026-03-30', '1M'), '2026-02-28'); assert.equal(ref('2026-07-31', '1M'), '2026-06-30');
+  assert.equal(ref('2026-12-31', '1Q'), '2026-09-30'); assert.equal(ref('2026-05-29', '1Q'), '2026-02-28'); assert.equal(ref('2026-08-31', '1M'), '2026-07-31');
+  assert.equal(ref('2026-10-09', '1R'), '2025-10-09'); assert.equal(ref('2026-10-09', '1T'), '2026-10-02'); assert.equal(ref('2026-10-09', '1D'), '2026-10-08');
+  assert.equal(gDaily([], '1M'), null);
+});
+
+test('v336 GL-03: klucz układu mapy zawiera wersję danych (GVER) — po gBuild z nowymi danymi promienie kół liczone od nowa', () => {
+  const c = v336.cut;
+  assert.ok(html.includes("  GDATA={};if(typeof GVER==='number')GVER++;"), 'gBuild podbija licznik danych');
+  const src = [c('const GW=432,', '\n'), c('const GREG=[', '\n];\n', true), c('function gproj(lon,lat,R){', '\n}\n', true), c('function gLayout(){', '\nfunction gEnsure(){'), v336.line('function gEnsure(){')].join('\n');
+  const S = new Function('GCW', 'GCH', 'gst', 'gv', 'GLIVE', 'GLINK', 'let GLAY=null,GKEY="",GDATA=null;\n' + src +
+    '\nreturn {ens(){gEnsure();return Object.fromEntries(Object.entries(GLAY.N).map(([k,n])=>[k,+n.r.toFixed(1)]));},set(D){GDATA={"1M":D};},bump(){GVER++;},key:()=>gKey()};')(
+    1200, 800, {period: '1M'}, {k: 1, x: 0, y: 0}, {asof: ''}, null);
+  const ids = ['usa', 'can', 'lat', 'eur', 'rus', 'mea', 'afr', 'ind', 'chn', 'jpn', 'asean', 'oce'], D = v => Object.fromEntries(ids.map(id => [id, [v(id), 1, true]]));
+  const r0 = S.ens();
+  assert.ok(ids.every(id => r0[id] === r0.usa), 'przed danymi — koła równe');
+  S.set(D(id => (id === 'usa' ? 2000 : id === 'chn' ? -681 : 10))); S.bump();
+  const r1 = S.ens();
+  assert.ok(r1.usa > r1.can && r1.chn > r1.can, 'nowe dane (gBuild) — promienie przeliczone, dawniej zostawały minimalne: ' + JSON.stringify(r1));
+  S.set(D(id => (id === 'chn' ? 5 : id === 'usa' ? 2000 : 10))); S.bump();
+  const r2 = S.ens();
+  assert.ok(r2.chn < r1.chn, 'odświeżenie w tym samym okresie — koło Chin mniejsze: ' + r1.chn + ' → ' + r2.chn);
+  assert.ok(/\|\d+$/.test(S.key()), 'klucz kończy się wersją danych');
+});
+
+test('v336 GL-08 + GL-09: skuteczność sygnału — tylko kolejne miesiące (25–45 dni); uszkodzona pamięć przeglądarki nie zatrzymuje strony', () => {
+  const src = v336.cut('const GMEM_KEY=', '\n  return n?{hit,n,skip,pct:Math.round(100*hit/n),months:h.length}:null;\n}', true);
+  const ids = ['usa', 'can', 'lat', 'eur', 'rus', 'mea', 'afr', 'ind', 'chn', 'jpn', 'asean', 'oce'];
+  const mk = (init, gdata) => { const m = new Map(init === undefined ? [] : [['cfai.global.hist.v1', init]]);
+    const LS = {getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }};
+    const env = {GLIVE: {oecd: true, asof: '2026-08'}, GPROB: [{id: 'usa', score: 30}], GDATA: gdata || {'1M': Object.fromEntries(ids.map(id => [id, [1, 0.5, true]]))}};
+    const f = new Function('localStorage', 'GLIVE', 'GPROB', 'GDATA', 'GREG', 'Date', src + '\nreturn {gMemRead, gMemSave, gMemStats};')(LS, env.GLIVE, env.GPROB, env.GDATA, ids.map(id => ({id})),
+      {now: () => Date.parse('2026-10-10T08:00:00Z')});
+    return Object.assign(f, {LS, m}); };
+  const e = (m, t, sc, ch) => ({m, t: Date.parse(t), s: Object.fromEntries(ids.map((id, i) => [id, sc[i]])), c: Object.fromEntries(ids.map((id, i) => [id, ch[i]]))});
+  const sc = [30, -20, 15, -12, 25, -18, 10, -30, 22, -9, 14, -16], up = ids.map(() => 1);
+  /* 03 → 08 (przerwa w wizytach) nie jest „kolejnym miesiącem”; 08 → 09 po 33 dniach — tak */
+  const A = mk(JSON.stringify([e('2026-03', '2026-04-02T10:00:00Z', sc, up), e('2026-08', '2026-09-05T10:00:00Z', sc, up), e('2026-09', '2026-10-08T10:00:00Z', sc, up)]));
+  assert.deepEqual(A.gMemStats(), {hit: 6, n: 12, skip: 12, pct: 50, months: 3}, 'sparowane tylko 08 → 09 (12 mocnych sygnałów, 6 trafień); 03 → 08 — 12 pominiętych (dawniej też liczone: n = 24)');
+  const B = mk(JSON.stringify([e('2026-08', '2026-09-05T10:00:00Z', sc, up), e('2026-09', '2026-09-07T10:00:00Z', sc, up)]));
+  assert.equal(B.gMemStats(), null, 'kolejny miesiąc zapisany po 2 dniach — wynik nie z następnego miesiąca');
+  const C = mk(JSON.stringify([e('2025-12', '2026-01-05T10:00:00Z', sc, up), e('2026-01', '2026-02-06T10:00:00Z', sc, up)]));
+  assert.equal(C.gMemStats().n, 12, 'grudzień → styczeń');
+  /* GL-09: wpis uszkodzony — pusta pamięć, zapis bez wyjątku i poprawna tablica */
+  for (const bad of ['null', '{}', '"x"', '[null]', '42', '[1,{"m":5},{"m":"2026-07"}]', '{zły json']) {
+    const X = mk(bad);
+    assert.ok(Array.isArray(X.gMemRead()), bad);
+    X.gMemSave(); X.gMemStats();   /* bez wyjątku (dawniej TypeError: h.some / null.m) */
+    const h = JSON.parse(X.m.get('cfai.global.hist.v1'));
+    assert.ok(Array.isArray(h) && h.every(x => x && typeof x.m === 'string') && h.some(x => x.m === '2026-08'), bad + ' → ' + X.m.get('cfai.global.hist.v1'));
+  }
+  assert.deepEqual(mk('[1,{"m":5},{"m":"2026-07"}]').gMemRead().map(x => x.m), ['2026-07'], 'tylko wpisy z polem m');
+  const T = mk('[]'); T.LS.setItem = () => { throw new Error('quota'); }; T.gMemSave();   /* pełna pamięć przeglądarki — bez wyjątku */
+  /* brak tabeli „1M” w danych (GDATA bez okresu) — gMemSave bez wyjątku (try/catch), pamięć bez zmian */
+  const U = mk('[]', {}); U.gMemSave();   /* GDATA bez „1M” — bez wyjątku (zapis nie zatrzymuje gLoad) */
+  assert.equal(U.m.get('cfai.global.hist.v1'), '[]', 'GDATA bez „1M” — nic nie zapisane');
+});
+
+test('v336 GL-11: applyLang przelicza kafelki i ranking GLOBAL (gKpis, gProb) przed rysowaniem — bez czekania na następny gBuild', () => {
+  const a0 = html.indexOf('function applyLang(){'), a1 = html.indexOf('\nfunction applyTheme(', a0), src = html.slice(a0, a1);
+  const calls = [], noop = () => {};
+  const run = (GDATA, gStarted) => { calls.length = 0; new Function('document', 'seoApply', '$$', 't', 'renderAll', 'gStarted', 'GDATA', 'gKpis', 'gProb', 'gRenderAll', 'renderPage', 'DD', 'st', 'LANG', 'dirty', src + '\napplyLang();')(
+    {documentElement: {}}, noop, () => [], k => k, () => calls.push('renderAll'), gStarted, GDATA, () => calls.push('gKpis'), () => calls.push('gProb'), () => calls.push('gRenderAll'),
+    () => calls.push('renderPage'), [], {mode: 'global'}, 'en', false); return calls.slice(); };
+  const c = run({'1M': {}}, true);
+  assert.ok(c.indexOf('gKpis') >= 0 && c.indexOf('gProb') > c.indexOf('gKpis') && c.indexOf('gRenderAll') > c.indexOf('gProb'), 'kolejność: gKpis, gProb, potem gRenderAll: ' + c.join(','));
+  assert.ok(!run(null, true).includes('gKpis') && run(null, true).includes('gRenderAll'), 'bez danych — bez przeliczania');
+  assert.ok(!run({'1M': {}}, false).includes('gKpis'), 'GLOBAL nieuruchomiony — bez zmian');
+});
+
+test('v336 ZB08-02 (Z4, strona): indeksy — „ · wstępnie” za datą, gdy pole wst = dzień ostatniej sesji (tabela i kafle najmocniejszy / najsłabszy); bez pola albo inny dzień — nic', () => {
+  const X = ix229.mk(), d = ix229.days, last = d[d.length - 1], prev = d[d.length - 2];
+  const D = w => ({at: '2026-01-21T06:00:00+00:00', ix: {GSPC: {d: d.map((x, i) => [x, 100 + i])}, MXX: Object.assign({d: d.map((x, i) => [x, 300 - i])}, w),
+    N225: {d: d.map((x, i) => [x, 200 + (i % 3)])}}});
+  const tag = 'ix.wst</span>', tip = '<span title="ix.wst.tip">ix.wst</span>';
+  const it = X.ixItems(D({wst: last})).find(x => x.sym === 'MXX');
+  assert.equal(it.wst, last, 'ixItems przenosi pole wst'); assert.equal(X.ixItems(D({})).find(x => x.sym === 'MXX').wst, '', 'bez pola — pusto');
+  const b1 = X.ixBody(D({wst: last}));
+  const rows = b1.split('<tr').filter(r => r.startsWith('><td>')), row = rows.find(r => r.includes('<b>IPC</b>'));
+  assert.ok(row.includes(' · ' + tip + ' · age(' + last + ')'), 'dopisek za datą, przed wiekiem: ' + row);
+  assert.equal(b1.split(tag).length - 1, 3, 'tabela i kafle „najsłabszy” (1 M) oraz „najsłabszy od początku roku” — IPC spada: 3 razy');
+  assert.ok(rows.length === 3 && rows.filter(r => r.includes(tag)).length === 1, 'inne indeksy — bez dopisku');
+  for (const w of [{}, {wst: prev}, {wst: 5}, {wst: ''}]) assert.ok(!X.ixBody(D(w)).includes(tag), 'bez dopisku: ' + JSON.stringify(w));
+  /* słownik: czysty JSON, 10 języków, te same klucze, prawdziwe tłumaczenia, klucze użyte w kodzie, bez nazw dostawców */
+  const a = html.indexOf('{"pl":{"ix.wst":'), d0 = html.lastIndexOf('const EXTRA', a), name = html.slice(d0 + 6, a - 1);
+  const d1 = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', a);
+  assert.ok(a > 0 && d1 > a && /^EXTRA\d+$/.test(name), 'słownik');
+  const DD = JSON.parse(html.slice(a, d1)), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(DD), L10);
+  for (const L of L10) { assert.deepEqual(Object.keys(DD[L]), ['ix.wst', 'ix.wst.tip'], L); if (L !== 'en') for (const k in DD[L]) assert.notEqual(DD[L][k], DD.en[k], L + ' ' + k); }
+  assert.equal(DD.pl['ix.wst'], 'wstępnie'); assert.equal(DD.de['ix.wst'], 'vorläufig'); assert.equal(DD.ja['ix.wst'], '速報値');
+  for (const k of ['ix.wst', 'ix.wst.tip']) assert.ok(html.includes("t('" + k + "')"), 'klucz użyty: ' + k);
+  assert.ok(!/Tiingo|EODHD|FMP|Financial Modeling|Twelve Data|Finnhub|Yahoo|Stooq/.test(JSON.stringify(DD)), 'bez nazw dostawców');
+  /* v336 (koordynator, scalanie fazy 2B): numer słownika liczy się przy nakładaniu, więc kolejne łatki dostają większe numery — test sprawdza
+     jeden słownik o tym numerze i położenie zaraz po linii for słownika o numerze o 1 mniejszym, a nie „najwyższy numer w pliku” */
+  const nr = +name.slice(5), nums = [...html.matchAll(/const EXTRA(\d+)=/g)].map(m => +m[1]);
+  assert.equal(nums.filter(x => x === nr).length, 1, 'jeden słownik o tym numerze');
+  const fp = 'for(const l in EXTRA' + (nr - 1) + ')if(I18N[l])Object.assign(I18N[l],EXTRA' + (nr - 1) + '[l]);', ip = html.lastIndexOf(fp, d0);
+  assert.ok(ip > 0 && /^\s*(\/\*[\s\S]*?\*\/\s*)*$/.test(html.slice(ip + fp.length, d0)), 'słownik zaraz po linii for poprzedniego numeru (dozwolony komentarz)');
 });
