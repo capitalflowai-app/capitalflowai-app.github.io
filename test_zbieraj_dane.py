@@ -46113,3 +46113,199 @@ class TrendyKursV346(unittest.TestCase):
         self.assertIsNone(zd._tr_fxd({'d': [['2026-10-01', 1, 2]]}, 3, '2026-10-01')); self.assertIsNone(zd._tr_fxd(None, 3, '2026-10-01')); self.assertIsNone(zd._tr_fxd({'d': [['2026-10-01', 1, 2, '2026-10-01']]}, 3, '2026-10-05'))
         r = {'id': 'x'}; zd._tr_fx(r, '2026-10-01', 'd'); self.assertNotIn('fxd', r, 'bez wu nic nie dopisujemy')
         r = {'id': 'x', 'wu': 1.0}; zd._tr_fx(r, None, 'd'); self.assertNotIn('fxd', r); zd._tr_fx(r, '2026-10-01', '1'); self.assertEqual((r['fxk'], r['fxd']), ('1', '2026-10-01')); zd._tr_fx(None, '2026-10-01', 'd')
+
+
+class LiczbaZrodelV347(unittest.TestCase):
+    """v347 (decyzja właściciela 11.10): na stronie tylko LICZBA źródeł — META['zrodla'] = {'n', 'ok'} liczone z tabeli ZRODLA_META (jedna instytucja albo
+    serwis = jedno źródło, ile by nie dawała części). Nowa część META['ok'] bez wpisu w tabeli = ten test pada."""
+
+    # klucze META['ok'] z żywego pliku stanu (11.10, migawka audytu) — wszystkie muszą mieć wpis w tabeli
+    ZYWE = ["aukcje", "bea", "bilans", "bis", "bls", "ceny-krypto", "cftc", "cm", "cofer", "coinmarketcap", "dolar", "dzwignia", "dzwignia_bn", "dzwignia_cb", "dzwignia_cde",
+            "dzwignia_cz", "dzwignia_dr", "dzwignia_dy", "dzwignia_hl", "dzwignia_kr", "dzwignia_okx", "eer", "eia", "fed", "finnhub", "fred", "fundusze", "ici", "imf",
+            "indeksy_etf", "indeksy_ix", "instytucje", "jpx", "kanada", "korea", "krypto", "krypto-dzien", "krypto-top10", "kursy", "lancuch", "lancuch_2", "lng_dz",
+            "lng_skad", "lng_zapasy", "meksyk", "metale_cu", "metale_lme", "metale_sh", "metale_shd", "metale_shw", "nastroj", "obce", "obce_br", "obce_hk", "obce_in",
+            "obce_th", "obce_tr", "obce_tw", "oecd", "pip", "polska_energia", "polska_hurt", "polska_pszenica", "polska_stacje", "polska_zloto", "premie_bn", "premie_cb",
+            "premie_fx", "premie_up", "rwa", "rwa-emitenci", "rwa-lancuch", "rynki_buba", "rynki_fx", "rynki_ust", "safe", "snb", "sosovalue", "spw", "stopy", "stres",
+            "surowce", "surowce_banki", "surowce_ceny", "surowce_fundusze", "surowce_mies", "surowce_pozycje", "surowce_raporty_ropa", "surowce_raporty_uran",
+            "surowce_raporty_zboza", "surowce_zapasy", "swiat-dzien", "szlaki_bcpi", "szlaki_cies", "szlaki_presja", "tic", "trendy", "twelvedata", "ue", "wieloryby",
+            "wieloryby_eth", "wycena", "wycena_bg", "zboza_dzien_fao", "zboza_dzien_fracht", "zboza_dzien_goi", "zboza_dzien_nawozy", "zboza_dzien_ue", "zloto-krypto"]
+    # generatory kluczy w kodzie (wyrażenie → zbiór kluczy); nowe wyrażenie w META['ok'][...] = dopisz je tu razem z wpisami w tabeli
+    GENERATORY = {
+        'name': {'tga', 'rrp', 'soma', 'tgb', 'ilm', 'm3', 'bop', 'mof'},
+        "'obce_' + part": {'obce_in', 'obce_tw', 'obce_hk', 'obce_br', 'obce_tr', 'obce_th'}, "'obce_' + p": {'obce_in', 'obce_tw', 'obce_hk', 'obce_br', 'obce_tr', 'obce_th'},
+        "'krypto.' + name": {'krypto.deriv', 'krypto.defi', 'krypto.fng', 'krypto.mk', 'krypto.stabh', 'krypto.stabc'},
+        "'surowce' if p == 'markets' else 'surowce_' + p": 'SU', "'polska_' + p": 'PL', "'surowce_raporty_' + p": 'SR', "'szlaki_' + p": 'SZ', "'lng_' + p": 'LNG',
+        "'zboza_dzien_' + p": 'ZD', "'metale_' + p": 'MT', "f'rynki_{k}'": 'RYNKI', "f'dzwignia_{k}'": 'LEV', "f'premie_{k}'": 'PR', "'indeksy_' + k": 'IX',
+        'label.lower()': {'eia', 'bls', 'bea'},
+    }
+
+    def _klucze_z_kodu(self):
+        import ast
+        with open(zd.__file__, encoding='utf-8') as f:
+            tree = ast.parse(f.read())
+        stale, dyn = set(), set()
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Subscript) and isinstance(node.ctx, ast.Store) and isinstance(node.value, ast.Subscript)
+                    and isinstance(node.value.value, ast.Name) and node.value.value.id == 'META'
+                    and isinstance(node.value.slice, ast.Constant) and node.value.slice.value == 'ok'):
+                (stale.add(node.slice.value) if isinstance(node.slice, ast.Constant) else dyn.add(ast.unparse(node.slice)))
+        return stale, dyn
+
+    def _rozwin(self, g):
+        if isinstance(g, set):
+            return g
+        czesci = {'SU': lambda: {'surowce' if p == 'markets' else 'surowce_' + p for p in zd.SU_PARTS}, 'PL': lambda: {'polska_' + p for p in zd.PL_PARTS},
+                  'SR': lambda: {'surowce_raporty_' + p for p in zd.SR_PARTS}, 'SZ': lambda: {'szlaki_' + p for p in zd.SZ_PARTS},
+                  'LNG': lambda: {'lng_' + p for p in zd.LNG_PARTS}, 'ZD': lambda: {'zboza_dzien_' + p for p in zd.ZD_PARTS},
+                  'MT': lambda: {'metale_' + p for p in zd.MT_PARTS}, 'RYNKI': lambda: {f'rynki_{k}' for k in zd.RYNKI_PX},
+                  'LEV': lambda: {f'dzwignia_{k}' for k in zd.LEV_PX}, 'PR': lambda: {f'premie_{k}' for k in zd.PR_PARTS},
+                  'IX': lambda: {'indeksy_' + k for k in zd.IX_PARTS}}
+        return czesci[g]()
+
+    def test_kazda_czesc_meta_ma_wpis_w_tabeli_zrodel(self):
+        stale, dyn = self._klucze_z_kodu()
+        nowe = sorted(dyn - set(self.GENERATORY))
+        self.assertEqual(nowe, [], 'nowy generator kluczy META["ok"] — dopisz jego klucze do ZRODLA_META i do GENERATORY w tym teście')
+        oczek = set(stale)
+        for g in self.GENERATORY.values():
+            oczek |= self._rozwin(g)
+        oczek |= {'dzwignia_cz', 'wycena', 'wycena_bg'}
+        brak = sorted(k for k in oczek if k not in zd.ZRODLA_META)
+        self.assertEqual(brak, [], 'części META ok bez wpisu w ZRODLA_META: ' + ', '.join(brak))
+        nadmiar = sorted(k for k in zd.ZRODLA_META if k not in oczek)
+        self.assertEqual(nadmiar, [], 'wpisy tabeli bez takiej części w kodzie: ' + ', '.join(nadmiar))
+        self.assertEqual(sorted(k for k in self.ZYWE if k not in zd.ZRODLA_META), [])
+        self.assertTrue(set(self.ZYWE) <= oczek, 'klucz z żywego pliku stanu, którego kod już nie ustawia: ' + ', '.join(sorted(set(self.ZYWE) - oczek)))
+
+    def test_wpisy_tabeli_maja_poprawny_ksztalt(self):
+        for k, v in zd.ZRODLA_META.items():
+            ids = () if v is None else ((v,) if isinstance(v, str) else v)
+            self.assertTrue(all(isinstance(i, str) and i == i.lower() and i.replace('-', '').isalnum() for i in ids), k)
+            self.assertEqual(len(set(ids)), len(ids), k + ': źródło dwa razy w jednym wpisie')
+        for i in zd.ZRODLA_WYLACZONE:   # źródło wyłączalne istnieje w tabeli (literówka w identyfikatorze = wyłączenie, które nic nie robi)
+            self.assertTrue(any(i in ((v,) if isinstance(v, str) else (v or ())) for v in zd.ZRODLA_META.values()), i)
+
+    def test_jedna_instytucja_to_jedno_zrodlo(self):
+        ok = {'zboza_dzien_goi': True, 'zboza_dzien_fracht': False, 'metale_sh': True, 'metale_shd': True, 'metale_shw': 'cached', 'metale_lme': False}
+        self.assertEqual(zd.zrodla_meta(ok), {'n': 3, 'ok': 2})      # IGC (dwie części), SHFE (trzy), Westmetall (jedna, bez odpowiedzi)
+        ok = {'tic': True, 'aukcje': True, 'rynki_ust': False}        # skarb USA: krzywa, TIC i aukcje to jedno źródło
+        self.assertEqual(zd.zrodla_meta(ok), {'n': 1, 'ok': 1})
+        ok = {'imf': True, 'cofer': 'cached', 'bilans': False, 'pip': True, 'surowce_banki': False}
+        self.assertEqual(zd.zrodla_meta(ok), {'n': 2, 'ok': 1})       # MFW + SAFE (SAFE tylko w części banki, która zawiodła)
+        self.assertEqual(zd.zrodla_meta({'kursy': True, 'rynki_fx': True, 'premie_fx': True}), {'n': 1, 'ok': 1})   # kursy EBC przez trzy części i usługę przeliczającą
+
+    def test_wlasne_wyliczenia_nie_sa_zrodlami(self):
+        self.assertIsNone(zd.zrodla_meta({'trendy': True, 'zloto-krypto': True}))
+        self.assertEqual(zd.zrodla_meta({'trendy': True, 'fred': True}), {'n': 1, 'ok': 1})
+
+    def test_brak_zrodel_to_brak_pola_nigdy_zero(self):
+        self.assertIsNone(zd.zrodla_meta({})); self.assertIsNone(zd.zrodla_meta(None)); self.assertIsNone(zd.zrodla_meta({'nieznana-czesc': True}))
+        self.assertEqual(zd.zrodla_meta({'fred': False}), {'n': 1, 'ok': 0})   # zero odpowiedzi przy znanym źródle to prawdziwa liczba
+
+    def test_czesci_wylaczone_nie_licza_sie(self):
+        ok = {'finnhub': False, 'twelvedata': True, 'fred': False}
+        self.assertEqual(zd.zrodla_meta(ok, ['brak FINNHUB_KEY']), {'n': 2, 'ok': 1})
+        self.assertEqual(zd.zrodla_meta(ok, ['brak FINNHUB_KEY', 'brak FRED_KEY']), {'n': 1, 'ok': 1})
+        # źródło bez sekretu znika ze wszystkich części, które z niego korzystają (tu FMP w surowcach i w indeksach)
+        ok = {'surowce_ceny': True, 'indeksy_ix': True}
+        self.assertEqual(zd.zrodla_meta(ok, [], ['pominięte w tym przebiegu — fmp (brak FMP_KEY)', 'brak EODHD_KEY — indeksy świata wyłączone']), {'n': 5, 'ok': 5})
+        self.assertEqual(zd.zrodla_meta({'stres': True}, [], ['Stres: część put/call wyłączona (zmienna CBOE_ZGODA pusta)']), {'n': 1, 'ok': 1})
+        self.assertEqual(zd.zrodla_meta({'stres': True}), {'n': 2, 'ok': 2})
+
+    def test_o_odpowiedzi_grupy_decyduja_czesci_skladowe(self):
+        ok = {'instytucje': True, 'tga': True, 'rrp': False, 'soma': False, 'tgb': False, 'ilm': False, 'm3': False, 'bop': False, 'mof': False}
+        self.assertEqual(zd.zrodla_meta(ok), {'n': 4, 'ok': 1})      # zbiorcze True znaczy „coś odpowiedziało”
+        self.assertEqual(zd.zrodla_meta({'instytucje': 'cached'}), {'n': 4, 'ok': 4})   # z pamięci cały plik jest świeży
+        ok = {'obce': True, 'obce_in': True, 'obce_tw': 'cached', 'obce_hk': False, 'obce_br': True, 'obce_tr': False, 'obce_th': True}
+        self.assertEqual(zd.zrodla_meta(ok), {'n': 6, 'ok': 4})
+
+    def test_wynik_jest_liczbami_calkowitymi_do_json(self):
+        r = zd.zrodla_meta({k: True for k in self.ZYWE})
+        self.assertIsInstance(r['n'], int); self.assertIsInstance(r['ok'], int); self.assertLessEqual(r['ok'], r['n'])
+        self.assertEqual(json.loads(json.dumps(r)), r)
+        self.assertGreaterEqual(r['n'], 84)   # żywy plik stanu 11.10: ok. 87 źródeł (a nie 109 części)
+        self.assertLess(r['n'], len(self.ZYWE))
+
+    # --- uwagi z przeglądu: awaria jednego źródła w części wieloźródłowej nie może wyglądać jak awaria całej grupy ---
+    RWE = {'spiko': {'kind': 'spiko'}, 'a': {'kind': 'sec'}, 'b': {'kind': 'sec'}, 'hastra': {'kind': 'hastra'}, 'oe': {'kind': 'oe'}, 'xaum': {'kind': 'xaum'},
+           'cfg': {'kind': 'cfg'}, 'ya': {'kind': 'ondo_ya'}, 'gm': {'kind': 'ondo_gm'}, 'xs': {'kind': 'xs'}}
+
+    def _rwa(self, **err):
+        p = {k: dict(v, err=err.get(k)) for k, v in self.RWE.items()}
+        return {'rwa': {'issuer': {'ok': not any(err.values()), 'p': p}}}
+
+    def test_jeden_emitent_z_bledem_to_jedno_milczace_zrodlo(self):
+        # scenariusz audytu m10: 'rwa-emitenci' = False, bo nie odpowiedział jeden emitent (xStocks, TimeoutError); pozostałe 7 odczytanych
+        ok = {k: True for k in self.ZYWE}; ok['rwa-emitenci'] = False
+        pelne = zd.zrodla_meta({k: True for k in self.ZYWE})
+        r = zd.zrodla_meta(ok, [], [], self._rwa(xs='TimeoutError: The read operation timed out'))
+        self.assertEqual(r, {'n': pelne['n'], 'ok': pelne['n'] - 1}, 'jedno źródło milczy, nie osiem')
+        self.assertEqual(zd.zrodla_cisze(self._rwa(xs='x'))['rwa-emitenci'], {'backed'})
+        # emitent z kilkoma produktami milczy dopiero, gdy zawiodły wszystkie; jeden z dwóch produktów Securitize z błędem = emitent odpowiada
+        self.assertEqual(zd.zrodla_cisze(self._rwa(a='x'))['rwa-emitenci'], set())
+        self.assertEqual(zd.zrodla_cisze(self._rwa(a='x', b='y', ya='z'))['rwa-emitenci'], {'securitize'})
+        self.assertEqual(zd.zrodla_cisze(self._rwa(ya='z', gm='z', hastra='h'))['rwa-emitenci'], {'ondo', 'hastra'})
+        # błąd w pliku z pamięci (v326) liczy się tak samo; blok wyłączony albo zły kształt — brak wiedzy, nie wyjątek
+        for zly in (None, {}, {'rwa': None}, {'rwa': {'issuer': {'off': True}}}, {'rwa': {'issuer': {'p': 'x'}}}, {'rwa': {'issuer': {'p': {'a': None}}}}):
+            self.assertEqual(zd.zrodla_cisze(zly).get('rwa-emitenci', set()), set())
+        # nieznany błąd (część False, ale w pliku żaden emitent z błędem): dolna granica, jedno milczące — nigdy wszystkie
+        self.assertEqual(zd.zrodla_meta({'rwa-emitenci': False}, [], [], self._rwa()), {'n': 8, 'ok': 7})
+        self.assertEqual(zd.zrodla_meta({'rwa-emitenci': False}), {'n': 8, 'ok': 7})
+        # część z błędem, ale prawdziwa wiedza z pliku bije dolną granicę: dwóch milczących
+        self.assertEqual(zd.zrodla_meta({'rwa-emitenci': False}, [], [], self._rwa(xs='x', hastra='y')), {'n': 8, 'ok': 6})
+        # część poprawna ('cached' albo True) nie zmienia nic, choć w pliku zostały stare błędy pozycji
+        self.assertEqual(zd.zrodla_meta({'rwa-emitenci': 'cached'}, [], [], self._rwa(xs='x')), {'n': 8, 'ok': 8})
+
+    def test_wieloryby_to_wezly_lancucha_a_nie_gieldy_ktorych_portfele_sa_liczone(self):
+        self.assertEqual(zd.ZRODLA_META['wieloryby'], 'wezly-lancuchow')   # Binance, OKX, Bybit, KuCoin, Bitfinex to PRZEDMIOT danych (czyje portfele)
+        self.assertEqual(zd.zrodla_meta({'wieloryby': True}), {'n': 1, 'ok': 1})
+        self.assertEqual(zd.zrodla_meta({'wieloryby': False}), {'n': 1, 'ok': 0})
+        self.assertEqual(zd.zrodla_meta({'wieloryby': True, 'rwa-lancuch': False}), {'n': 2, 'ok': 1}, 'węzły odpowiedziały w innej części — nie milczą')
+        for i in ('bybit', 'kucoin', 'bitfinex'):
+            self.assertFalse(any(i in ((v,) if isinstance(v, str) else (v or ())) for v in zd.ZRODLA_META.values()), i)
+
+    def test_czesc_wielozrodlowa_bez_wiedzy_o_zrodle_ma_jedno_milczace(self):
+        self.assertEqual(zd.zrodla_meta({'surowce_ceny': False}), {'n': 6, 'ok': 5})
+        self.assertEqual(zd.zrodla_meta({'surowce_ceny': True}), {'n': 6, 'ok': 6})
+        self.assertEqual(zd.zrodla_meta({'surowce_ceny': False, 'twelvedata': True, 'surowce_fundusze': True}), {'n': 6, 'ok': 5},
+                         'twelvedata, sprott i spdr-gold potwierdzone w innych częściach; z trzech niepotwierdzonych (acer, eia, fmp) milczy jedno')
+        self.assertEqual(zd.zrodla_meta({'surowce_ceny': False, 'twelvedata': True, 'surowce_fundusze': True, 'eia': True, 'surowce_pozycje': True}), {'n': 8, 'ok': 7})
+        # część z jednym źródłem i ok False: źródło milczy (nic nie łagodzi)
+        self.assertEqual(zd.zrodla_meta({'eia': False}), {'n': 1, 'ok': 0})
+
+    def test_stres_i_swiat_dzien_znaja_zrodlo_z_zapisanego_pliku(self):
+        st = {'stres': {'ok': {'fsi': True, 'pc': False}}}
+        self.assertEqual(zd.zrodla_meta({'stres': False}, [], [], st), {'n': 2, 'ok': 1})
+        self.assertEqual(zd.zrodla_cisze(st)['stres'], {'cboe'})
+        self.assertEqual(zd.zrodla_cisze({'stres': {'ok': {'fsi': False, 'pc': True}}})['stres'], {'ofr'})
+        wd = {'swiat-dzien': {'bledy': {'ssga': 'x'}, 'nq': {'fails': 0}}}
+        self.assertEqual(zd.zrodla_cisze(wd)['swiat-dzien'], {'ssga'})
+        self.assertEqual(zd.zrodla_meta({'swiat-dzien': False}, [], [], wd), {'n': 3, 'ok': 2})
+        wd = {'swiat-dzien': {'bledy': {}, 'nq': {'fails': 3, 'since': 'x'}}}
+        self.assertEqual(zd.zrodla_cisze(wd)['swiat-dzien'], {'nasdaq'})
+        self.assertEqual(zd.zrodla_meta({'swiat-dzien': False}, [], [], {'swiat-dzien': {'bledy': {'fl': 'x'}}}), {'n': 3, 'ok': 2}, 'błąd bez znanego źródła — jedno milczące')
+
+
+class ZrodlaMainV347(unittest.TestCase):
+    """v347: main() zapisuje META['zrodla'] w pliku stanu; źródła bez klucza się nie liczą."""
+    setUp = MainFlow.setUp
+    tearDown = MainFlow.tearDown
+
+    def test_meta_ma_liczbe_zrodel_bez_wylaczonych(self):
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY')}
+        with mock.patch.dict(os.environ, env, clear=False):
+            zd.main()
+        m = self.saved['meta']
+        self.assertIn('zrodla', m)
+        z = m['zrodla']
+        self.assertEqual(set(z), {'n', 'ok'}); self.assertGreater(z['n'], 0); self.assertLessEqual(z['ok'], z['n'])
+        self.assertEqual(z, zd.zrodla_meta(m['ok'], m['errors'], m['notes'], self.saved))
+        self.assertLess(z['n'], zd.zrodla_meta(m['ok'])['n'], 'źródła bez klucza (brak … _KEY) nie mogą się liczyć')
+        self.assertEqual(json.loads(json.dumps(m))['zrodla'], z)
+
+    def test_main_przekazuje_zapisane_pliki_do_liczenia_zrodel(self):
+        env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY')}
+        with mock.patch.dict(os.environ, env, clear=False), mock.patch.object(zd, 'zrodla_cisze', wraps=zd.zrodla_cisze) as zc:
+            zd.main()
+        self.assertTrue(zc.called)
+        self.assertIs(zc.call_args[0][0], zd.SAVED, 'źródła milczące wynikają z plików zapisanych w tym przebiegu (emitenci RWA, stres, świat dziennie)')

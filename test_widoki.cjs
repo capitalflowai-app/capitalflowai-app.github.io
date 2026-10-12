@@ -3448,7 +3448,7 @@ test('v103-zrodla (v126.2): strona Źródła = sama karta stanu — bez sekcji �
   const out = v103zr.render('pl', {at: v103zr.FRESH, ok: {fred: true, sosovalue: 'cached'}}).out;
   const PROV = /Etherscan|EODHD|Tiingo|SoSoValue|Twelve Data|Finnhub|OECD|Bundesbank|CoinMarketCap|DefiLlama|CoinPaprika|CoinGecko|Coin ?Metrics|FRED|Massive|Alpha Vantage|FMP|CryptoPanic|PublicNode|Frankfurter|Eurostat|Coinalyze|Binance|Trading ?View|Statistics Canada|New York Fed|Banco de México|Alternative\.me|\bSNB\b|EVDS|\bBIS\b|\bMFW\b|\bIMF\b|Creative Commons|CC BY|country-flag-icons|web3icons|cryptocurrency-icons/;
   assert.ok(!PROV.test(out), 'strona Źródła bez nazw: ' + (out.match(PROV) || [''])[0]);
-  assert.ok(!out.includes('zr-attr2') && !out.includes('<h2>') && !out.includes('<a ') && !out.includes('<br>'), 'bez sekcji podpisów i bez linków');
+  assert.ok(!out.includes('zr-attr2') && !out.includes('<h2>') && !out.replace(/<a href="mailto:cryptoportal\.pw@gmail\.com">cryptoportal\.pw@gmail\.com<\/a>/g, '').includes('<a ') && !out.includes('<br>'), 'bez sekcji podpisów i bez linków (v347: poza adresem projektu)');
   assert.ok(out.includes('NA ŻYWO') && out.includes('id="zr-clock"') && out.includes('Źródła danych bez błędu: 2 z 2') && out.includes(v103zr.dict.pl['zr2.legal']), 'karta stanu zostaje');
   for (const L of v103zr.L10) { const o = v103zr.render(L, {at: v103zr.FRESH, ok: {a: true}}).out; assert.ok(!PROV.test(o) && !o.includes('zr-attr2'), L + ': ' + (o.match(PROV) || [''])[0]); }
   for (const s of ['function zrCredits(', 'const SNB_CREDIT=', 'function snbCredit(', 'const TR_CREDIT=', 'function trCredit(', 'zr-attr2', 'https://www.banxico.org.mx/', 'evds3.tcmb.gov.tr', 'data.snb.ch/en', 'data.binance.vision', 'https://coinalyze.net'])
@@ -7199,7 +7199,7 @@ const fed131 = (() => {
     class PD extends Date { constructor(...a) { if (a.length) super(...a); else super(clk.ms); } static now() { return clk.ms; } }
     const tz = o.tz === undefined ? 'Europe/Warsaw' : o.tz;
     let code = html.slice(a0, a1);
-    if (o.venueOff) code = code.replace('const FED_VENUE_SHOW=true;', 'const FED_VENUE_SHOW=false;');
+    code = code.replace(/const FED_VENUE_SHOW=(?:true|false);/, 'const FED_VENUE_SHOW=' + (o.venueOff ? 'false' : 'true') + ';');   // v347: strona ma domyślnie false (decyzja 11.10) — testy mechanizmu bez venueOff włączają przełącznik
     if (tz) { assert.equal(code.split('const FED_TZ=null;').length, 2, 'stała strefy'); code = code.replace('const FED_TZ=null;', 'const FED_TZ=' + JSON.stringify(tz) + ';'); }
     return new Function('$', 't', 'nfmt', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'flagImg', 'glyphImg', 'icoWrap', 'lnAgo', 'Date', code +
       '\nreturn {FED, FED_MAX_AGE_H, FED_VENUE, FED_VENUE_SHOW, FED_ORDER, FED_TZ, fedPct, fedPp, fedLeft, fedLocDay, fedTime, fedMeet, fedNorm, fedRows, fedTop, fedVenue, fedBody, fedOk, renderFed, fedApply};')(
@@ -12777,7 +12777,7 @@ test('v166: warunki — miesiąc danych i wiek w nagłówku karty, objaśnienie 
   assert.ok(D.pl['g.pr.d'].includes('{d}') && /CLI/.test(D.pl['g.pr.leg']) && /TVL/.test(D.pl['cmc.diff']));
   assert.ok(!/oecd|coinmarketcap|coinpaprika|defillama|llama|ecb|twelve/i.test(JSON.stringify(D)), 'bez nazw dostawców');
   const P = v143Final(html).pl;
-  assert.deepEqual([P['g.rf.src'], P['cmc.stab'], P['cmc.defi'], P['cmc.vol']], ['{n} źródeł w tej zakładce', 'Stablecoiny: kapitalizacja', 'Tokeny DeFi: kapitalizacja', 'Wolumen 24h']);   /* v293c (CR-02) */
+  assert.deepEqual([P['g.rf.src'], P['cmc.stab'], P['cmc.defi'], P['cmc.vol']], ['Zestawy danych w tej zakładce: {n}' /* v347: nagłówek liczy zestawy danych, nie źródła; szyk bez odmiany liczby (wcześniej „{n} źródeł w tej zakładce”) */, 'Stablecoiny: kapitalizacja', 'Tokeny DeFi: kapitalizacja', 'Wolumen 24h']);   /* v293c (CR-02) */
 });
 test('v166: „Jakość danych mapy” — data danych wybranego okresu jak kafel „Rynki akcji” (ETF-y dziennie albo miesiące OECD); karta rynku krypto — zdanie o innym spisie monet', () => {
   const a = html.indexOf('function gRenderQ(){'), b = html.indexOf('\nfunction gRenderProb(', a), s = html.slice(a, b);
@@ -16743,7 +16743,7 @@ test('v304: kafle Polski — cena z jednostką, zmiana w tygodniu (≥ 7 dni wst
   assert.ok(T['stacje.on'].includes('<small class="mtxt pl-pod">podatki w cenie litra: 3,38 zł/l → 1,99 zł/l (−41,2%); cena bez podatków +2,0%</small>'), T['stacje.on']);
   for (const k of ['hurt.pb95', 'hurt.on', 'energia.gaz', 'zloto']) assert.ok(!T[k].includes('pl-pod') && !T[k].includes('su-qo'), k);
   /* hurt: 08.10 6,086 wobec 01.10 6,165 (dni obowiązywania wt–sob) → −1,3%; bez VAT */
-  assert.ok(T['hurt.pb95'].includes('Benzyna 95 w hurcie (Orlen)') && T['hurt.pb95'].includes('<b>6,09 <small class="mtxt">zł/l</small> <small class="neg">▼ −1,3% w tygodniu</small></b>'), T['hurt.pb95']);
+  assert.ok(/Benzyna 95 w hurcie(?: \(Orlen\))?<\/span>/.test(T['hurt.pb95']) &&   /* v347: bez nazwy producenta */ T['hurt.pb95'].includes('<b>6,09 <small class="mtxt">zł/l</small> <small class="neg">▼ −1,3% w tygodniu</small></b>'), T['hurt.pb95']);
   assert.ok(T['hurt.pb95'].includes('cena hurtowa z akcyzą i opłatą paliwową, bez VAT (cena za 1000 l ÷ 1000)')   /* v310: opis mówi, że cena hurtowa zawiera akcyzę i opłatę paliwową */ && T['hurt.pb95'].includes('obowiązuje ' + d('2026-10-08') + ' · wiek(2026-10-08)'));
   assert.ok(T['hurt.on'].includes('<b>6,94 <small class="mtxt">zł/l</small> <small class="neg">▼ −4,6% w tygodniu</small></b>'));
   /* giełda: gaz 345,89 wobec 01.10 319,45 → +8,3%; prąd 587,76 wobec 613,58 → −4,2%; dzień dostawy */
@@ -23455,4 +23455,158 @@ test('v346 T10-10: „Jak liczymy sygnały dzienne świata” — lista źróde�
   assert.ok(html.includes("(Number.isInteger(r.we)&&r.we>=600&&r.we<=1200?r.we:960)+15)") && html.includes("+(k==='trd.dw2.m.1'?trdDExcl(D):'')"), 'strona: koniec karty = zamknięcie + 15 minut; akapit w opisie metody');
   const TG = {br: 'late', mx: 'late', th: 'late', in_bd: 'late', jp: 'week', tr: 'week', cf: 'week', cs: 'week', ix: 'idx', cr: 'cr'};
   for (const k of FILE.dr.excluded) assert.ok(TG[k], 'powód znany dla ' + k);
+});
+
+// ===================== v347: LICZBA ŹRÓDEŁ zamiast nazw (decyzja właściciela 11.10), kontakt, Fed i hurt paliw bez nazw dostawców =====================
+const v347z = (() => {
+  const s0 = html.indexOf('/* ===================== v347: LICZBA ŹRÓDEŁ'), s1 = html.indexOf('/* v347: koniec liczby źródeł */', s0);
+  assert.ok(s0 > 0 && s1 > s0, 'blok v347 w stronie');
+  const code = html.slice(s0, s1);
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], LOC = {pl: 'pl-PL', en: 'en-US', de: 'de-DE', es: 'es-ES', fr: 'fr-FR', it: 'it-IT', pt: 'pt-PT', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP'};
+  const FRESH = new Date(Date.now() - 10 * 60000).toISOString();
+  const mk = (L, meta) => {
+    const el = {hidden: true, innerHTML: '', title: '', get textContent() { return this.innerHTML; }, set textContent(v) { this.innerHTML = v; }, removeAttribute(a) { if (a === 'title') this.title = ''; }};   // textContent = '' czyści też innerHTML, jak w przeglądarce
+    const doc = {getElementById: id => id === 'upd-n' ? el : null};
+    const F = new Function('t', 'nfmt', 'LOCALE', 'LANG', 'GLIVE', 'document', 'engDate', 'gAgeNote', code + '\nreturn {srcInfo, srcN, srcTip, srcOk, updSrc};')(v96src.tFor(L), v => String(v), LOC, L, {meta}, doc, iso => 'ED[' + iso + ']', d => ' · AGE[' + d + ']');
+    return Object.assign(F, {el});
+  };
+  return {code, L10, LOC, FRESH, mk};
+})();
+
+test('v347: srcInfo — liczba źródeł tylko z datowanego pliku i poprawnych liczb; brak pola = brak informacji, nigdy „0”', () => {
+  const I = m => v347z.mk('pl', m).srcInfo(m), at = v347z.FRESH;
+  assert.deepEqual(I({at, zrodla: {n: 90, ok: 82}}), {n: 90, ok: 82, at});
+  assert.deepEqual(I({at, zrodla: {n: 90}}), {n: 90, ok: null, at}, 'bez ok liczba zostaje, znika tylko zdanie o odpowiedziach');
+  assert.deepEqual(I({at, zrodla: {n: 90, ok: 91}}), {n: 90, ok: null, at}, 'ok większe od n — pominięte');
+  assert.deepEqual(I({at, zrodla: {n: 90, ok: -1}}), {n: 90, ok: null, at});
+  assert.deepEqual(I({at, zrodla: {n: 5, ok: 0}}), {n: 5, ok: 0, at}, 'zero odpowiedzi przy znanej liczbie to prawdziwa liczba');
+  for (const bad of [null, undefined, {}, {at}, {at, zrodla: null}, {at, zrodla: 'x'}, {at, zrodla: {}}, {at, zrodla: {n: 0, ok: 0}}, {at, zrodla: {n: -3}}, {at, zrodla: {n: 1.5}}, {at, zrodla: {n: '90'}},
+    {at, zrodla: {n: null}}, {at, zrodla: {n: NaN}}, {at: 'garbage', zrodla: {n: 90}}, {at: '', zrodla: {n: 90}}, {at: 1758834179000, zrodla: {n: 90}}, {at: '2026-09-25', zrodla: {n: 90}}, 'x', 5, []])
+    assert.equal(I(bad), null, 'brak informacji: ' + JSON.stringify(bad));
+});
+
+test('v347: „Dane z N źródeł” — odmiana według języka widza (pl: źródła / źródeł; ru: источника / источников; en: source / sources), liczba wyróżniona, bez nazw', () => {
+  const S = (L, n) => v347z.mk(L, null).srcN(n, true);
+  assert.equal(S('pl', 1), 'Dane z <b>1</b> źródła'); assert.equal(S('pl', 2), 'Dane z <b>2</b> źródeł'); assert.equal(S('pl', 5), 'Dane z <b>5</b> źródeł');
+  assert.equal(S('pl', 22), 'Dane z <b>22</b> źródeł'); assert.equal(S('pl', 90), 'Dane z <b>90</b> źródeł');
+  assert.equal(S('en', 1), 'Data from <b>1</b> source'); assert.equal(S('en', 90), 'Data from <b>90</b> sources');
+  assert.equal(S('ru', 21), 'Данные из <b>21</b> источника'); assert.equal(S('ru', 90), 'Данные из <b>90</b> источников'); assert.equal(S('ru', 3), 'Данные из <b>3</b> источников');
+  assert.equal(S('de', 90), 'Daten aus <b>90</b> Quellen'); assert.equal(S('es', 90), 'Datos de <b>90</b> fuentes'); assert.equal(S('fr', 90), 'Données de <b>90</b> sources');
+  assert.equal(S('it', 90), 'Dati da <b>90</b> fonti'); assert.equal(S('pt', 90), 'Dados de <b>90</b> fontes'); assert.equal(S('zh', 90), '数据来自 <b>90</b> 个来源'); assert.equal(S('ja', 90), '<b>90</b>件のソースからのデータ');
+  assert.equal(v347z.mk('pl', null).srcN(90, false), 'Dane z 90 źródeł', 'wersja bez znaczników (podpowiedzi, czytniki ekranu)');
+});
+
+test('v347: lewa karta „Ostatnia aktualizacja” — linia „Dane z N źródeł” z dymkiem; bez pola w meta ukryta (nigdy „0”); w każdym języku', () => {
+  assert.ok(html.includes('<b data-i18n="upd.v"></b><small class="upd-n" id="upd-n" hidden></small></div></div>'), 'miejsce linii w karcie (ukryta do czasu pliku stanu)');
+  assert.ok(html.includes('.upd .upd-n b{display:inline;'), 'liczba w linii nie dziedziczy bloku z .upd b');
+  assert.ok(html.includes("GLIVE.meta=ok?m:null;try{if(page==='sources')renderPage();}catch(e){}try{updSrc();}catch(e){}"), 'odświeżenie po każdym wczytaniu pliku stanu');
+  assert.ok(html.includes("if(typeof updSrc==='function')updSrc();"), 'zmiana języka przelicza linię');
+  const F = v347z.mk('pl', {at: v347z.FRESH, zrodla: {n: 90, ok: 82}});
+  F.updSrc();
+  assert.equal(F.el.hidden, false); assert.equal(F.el.innerHTML, 'Dane z <b>90</b> źródeł');
+  assert.ok(F.el.title.startsWith('Liczymy niezależne instytucje i serwisy danych: urzędy, banki centralne, giełdy, organizacje międzynarodowe') && F.el.title.includes('Jedna instytucja to jedno źródło') && F.el.title.endsWith('(ED[' + v347z.FRESH + '] · AGE[' + v347z.FRESH + ']) odpowiedziało lub miało świeże dane: 82 z 90.'), F.el.title);
+  assert.ok(F.el.title.includes('emitentów funduszy i tokenów, firmy publikujące własne dane'), 'dymek wymienia też emitentów i firmy (nie tylko urzędy i giełdy)');
+  for (const meta of [null, {}, {at: v347z.FRESH}, {at: v347z.FRESH, zrodla: {}}, {at: v347z.FRESH, zrodla: {n: 0, ok: 0}}, {zrodla: {n: 90, ok: 82}}]) {
+    const G = v347z.mk('pl', meta); G.el.hidden = false; G.el.innerHTML = 'stare'; G.el.title = 'stare'; G.updSrc();
+    assert.ok(G.el.hidden === true && G.el.innerHTML === '' && G.el.textContent === '' && G.el.title === '', 'ukryta, bez starej treści: ' + JSON.stringify(meta));
+  }
+  for (const L of v347z.L10) {
+    const H = v347z.mk(L, {at: v347z.FRESH, zrodla: {n: 74, ok: 70}}); H.updSrc();
+    assert.ok(H.el.innerHTML.includes('<b>74</b>') && !/\{[a-z]\}|src\./.test(H.el.innerHTML + H.el.title), L + ': teksty w języku widza, bez surowych kluczy i pól');
+    assert.ok(H.el.title.includes('70') && H.el.title.includes('74'), L + ': dymek z liczbami');
+  }
+});
+
+/* strona Źródła z własnym wycinkiem kodu (jak v103zr, ale z nfmt) */
+const v347src = (L, meta) => {
+  const w = {innerHTML: ''}, I = v96src.H;
+  const f = new Function('$', 't', 'GLIVE', 'engDate', 'gAgeNote', 'LOCALE', 'LANG', 'escH', 'icoWrap', 'glyphImg', 'flagImg', 'coinImg', 'KAN', 'kanLast', 'nfmt', 'document',
+    v103zr.src + '\nrenderSources();\nreturn {};');
+  f(q => q === '#page-sources' ? w : null, v96src.tFor(L), {meta}, iso => 'ED[' + iso + ']', d => ' · AGE[' + d + ']', v347z.LOC, L, v96src.escH, I.icoWrap, I.glyphImg, I.flagImg, I.coinImg, null, () => null, v => String(v), {getElementById: () => null});
+  return w.innerHTML;
+};
+
+test('v347: zakładka Źródła — „Dane z N źródeł” na górze karty z wyjaśnieniem i zdaniem o odpowiedziach; dawna liczba części znika; bez pola — jak dotąd', () => {
+  const at = v347z.FRESH, out = v347src('pl', {at, ok: {a: true, b: 'cached', c: false}, zrodla: {n: 90, ok: 82}});
+  const iN = out.indexOf('Dane z <b>90</b> źródeł'), iLive = out.indexOf('NA ŻYWO');
+  assert.ok(iN > 0 && iN < iLive && out.indexOf('<section class="panel zr-live">') < iN, 'liczba na górze zakładki, przed plakietką i zegarem');
+  assert.ok(out.includes('<p class="zr-n" title="Liczymy niezależne instytucje i serwisy danych'), 'dymek na liczbie');
+  assert.ok(out.includes('<p class="zr-nm">W ostatnim przebiegu automatu (ED[' + at + '] · AGE[' + at + ']) odpowiedziało lub miało świeże dane: 82 z 90.</p>') && out.includes('<p class="zr-nm">Liczymy niezależne instytucje i serwisy danych: urzędy, banki centralne, giełdy'), 'wyjaśnienie widoczne też bez najechania');
+  assert.ok(!out.includes('Źródła danych bez błędu') && !out.includes('automat zapytał'), 'dwie różne „liczby źródeł” (części i instytucje) nie stoją obok siebie');
+  assert.ok(out.includes('Dane na serwerze odświeżone: <b>ED[' + at + ']</b>') && out.includes('NA ŻYWO') && out.includes('legalnych, publicznie dostępnych źródeł danych'), 'reszta karty bez zmian');
+  const noOk = v347src('pl', {at, zrodla: {n: 90}});
+  assert.ok(noOk.includes('Dane z <b>90</b> źródeł') && !noOk.includes('odpowiedziało lub miało'), 'bez ok zostaje liczba i wyjaśnienie');
+  for (const meta of [{at, ok: {a: true, b: false}}, {at, ok: {a: true}, zrodla: {}}, {at, ok: {a: true}, zrodla: {n: 0, ok: 0}}, {ok: {a: true}, zrodla: {n: 90, ok: 80}}, null]) {
+    const o = v347src('pl', meta);
+    assert.ok(!o.includes('Dane z <b>') && !o.includes('zr-n') && !o.includes('Dane z 0'), 'bez pola (albo bez daty pliku) linia ukryta: ' + JSON.stringify(meta));
+  }
+  assert.ok(v347src('pl', {at, ok: {a: true, b: false}}).includes('<p class="zr-count">Źródła danych bez błędu: 1 z 2</p>'), 'stary plik stanu bez pola zrodla — dotychczasowa linia (do pierwszego przebiegu nowego zbieracza)');
+  for (const L of v347z.L10) {
+    const o = v347src(L, {at, ok: {a: true}, zrodla: {n: 74, ok: 70}});
+    assert.ok(o.includes('<b>74</b>') && o.includes('70') && !/\{[a-z]\}|src\.|kont\./.test(o), L + ': strona w tym języku');
+  }
+});
+
+test('v347: kontakt — „Uwagi, błędy i propozycje: cryptoportal.pw@gmail.com” (mailto) w Metodologii i w Źródłach, 10 języków, tylko adres projektu', () => {
+  const MAIL = 'cryptoportal.pw@gmail.com', A = `<a href="mailto:${MAIL}">${MAIL}</a>`, at = v347z.FRESH;
+  for (const L of v347z.L10) {
+    const d = v96src.I18N[L]['kont.t'];
+    assert.ok(typeof d === 'string' && d.includes('{m}') && (L === 'pl' || L === 'en' || d !== v96src.I18N.en['kont.t']), L + ': własne tłumaczenie z polem na adres');
+    const method = v146Method(L), src = v347src(L, {at, ok: {a: true}, zrodla: {n: 74, ok: 70}});
+    assert.equal(method.split(A).length, 2, L + ': Metodologia — jeden odsyłacz'); assert.equal(src.split(A).length, 2, L + ': Źródła — jeden odsyłacz');
+    assert.ok(method.includes(d.replace('{m}', A)) && src.includes(d.replace('{m}', A)), L + ': całe zdanie z odsyłaczem');
+  }
+  assert.equal(v96src.I18N.pl['kont.t'], 'Uwagi, błędy i propozycje: {m}'); assert.equal(v96src.I18N.en['kont.t'], 'Comments, errors and suggestions: {m}');
+  const mails = new Set(html.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g) || []);
+  assert.deepEqual([...mails], [MAIL], 'w stronie tylko adres projektu (nigdy prywatny adres właściciela)');
+  assert.ok(!/wyrtki|peeter/i.test(html), 'żadnego prywatnego adresu ani nazwiska w stronie');
+  assert.equal(html.split('href="mailto:').length - 1, 2, 'dwa miejsca na stronie: Metodologia i Źródła (odsyłacz w kodzie; selektor stylu ma href^=)');
+  assert.ok(!v347src('pl', {at, ok: {a: true}}).includes('{m}') && v347src('pl', null).includes(A), 'kontakt jest także bez pliku stanu');
+});
+
+test('v347: słownik v347 — 10 języków, pola, brak kopii angielskiego i spacji przed licznikiem po japońsku; strażnik: żadnych nazw dostawców danych w słownikach (poza przedmiotem danych)', () => {
+  const D = v96src.I18N, K = ['src.n.one', 'src.n.few', 'src.n.many', 'src.n.other', 'src.tip', 'src.ok', 'kont.t'];
+  for (const L of v347z.L10) for (const k of K) assert.ok(typeof D[L][k] === 'string' && D[L][k].length > 8, L + ' ' + k);
+  for (const L of v347z.L10) {
+    for (const k of K.slice(0, 4)) assert.ok(D[L][k].includes('{n}') && !/\{[a-mo-z]\}/.test(D[L][k]), L + ' ' + k + ': pole {n}');
+    assert.ok(['{m}', '{n}', '{t}', '{age}'].every(f => D[L]['src.ok'].includes(f)), L + ': src.ok — liczby oraz data i wiek przebiegu');
+  }
+  for (const L of ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) for (const k of K) assert.notEqual(D[L][k], D.en[k], L + ' ' + k + ': prawdziwe tłumaczenie, nie kopia angielskiego');
+  assert.ok(!/\{n\} /.test(D.ja['src.n.one']) && D.ja['src.n.one'].startsWith('{n}件'), 'ja: bez spacji przed licznikiem');
+  assert.ok(D.pl['src.n.one'] === 'Dane z {n} źródła' && D.pl['src.n.many'] === 'Dane z {n} źródeł');
+  // strażnik nazw: dostawcy i wydawcy danych (nie giełdy, fundusze, kraje ani banki centralne jako przedmiot pomiaru) nie występują w żadnym tekście słowników 10 języków
+  const PROV = /\b(?:FRED|Twelve ?Data|Finnhub|Coin ?Gecko|Coin ?Market ?Cap|SoSo ?Value|Coin ?Metrics|Alternative\.me|Defi ?Llama|Kalshi|Polymarket|Coinalyze|Etherscan|BGeometrics|Blockstream|mempool\.space|EDGAR|Cboe|Bundesbank|Banxico|NSDL|TWSE|HKEX|ThaiBMA|Cochilco|Westmetall|SHFE|Cameco|EODHD|Tiingo|Frankfurter|ENTSOG|ACER|Eurostat|OECD|CFTC|Orlen|ORLEN|Bloomberg|Yahoo|Reuters|TradingView|Glassnode|Farside)\b/;
+  for (const L of v347z.L10) for (const [k, v] of Object.entries(D[L])) if (typeof v === 'string') assert.ok(!PROV.test(v), 'nazwa dostawcy danych w słowniku: ' + L + ' ' + k + ': ' + v.slice(0, 80));
+});
+
+test('v347: Źródła — „odświeżone … (co 10 minut)” w każdym z 10 języków (dziewięć miało „co 20 minut”, choć automat działa co 10 min i po polsku jest 10)', () => {
+  for (const L of v347z.L10) { const x = v96src.I18N[L]['zr2.refresh']; assert.ok(/\b10\b|10分|10 分/.test(x) && !/\b20\b|20分|20 分/.test(x), L + ': ' + x); assert.ok(x.includes('{t}') && x.includes('{age}'), L + ': pola'); }
+});
+
+test('v347: nagłówek GLOBAL — „Zestawy danych w tej zakładce: {n}” (bez odmiany liczby; części), nie „źródeł”: obok „Dane z N źródeł” (niezależne instytucje) dwie liczby nie nazywają się tak samo', () => {
+  const D = v96src.I18N, W = {pl: 'Zestawy danych w tej zakładce: {n}', en: '{n} data sets', de: '{n} Datensätze', es: '{n} conjuntos de datos', fr: '{n} jeux de données', it: '{n} serie di dati', pt: '{n} conjuntos de dados',
+    ru: 'наборов данных: {n}', zh: '{n} 组数据', ja: 'データセット{n}件'};
+  for (const L of v347z.L10) assert.equal(D[L]['g.rf.src'], W[L], L);
+  assert.ok(html.includes("t('g.rf.src',{n:nsrc})"), 'nagłówek nadal liczy pliki i części (GLIVE.src)');
+});
+
+test('v347: Fed — domyślnie bez nazwy rynku („Rynek zakładów w USA”); hurt paliw bez nazwy producenta w 10 językach (Orlen); giełda energii zostaje jako miejsce obrotu', () => {
+  assert.ok(html.includes('const FED_VENUE_SHOW=false;') && !html.includes('const FED_VENUE_SHOW=true;'), 'Fed: przełącznik wyłączony');
+  assert.equal(v96src.I18N.pl['fed.venue.gen'], 'Rynek zakładów w USA'); assert.equal(v96src.I18N.en['fed.venue.gen'], 'US betting market');
+  const P = {pl: ['Benzyna 95 w hurcie', 'Olej napędowy w hurcie'], en: ['Petrol 95, wholesale', 'Diesel, wholesale'], de: ['Benzin 95 im Großhandel', 'Diesel im Großhandel'], es: ['Gasolina 95 al por mayor', 'Gasóleo al por mayor'],
+    fr: ['Essence 95 en gros', 'Gazole en gros'], it: ['Benzina 95 all’ingrosso', 'Gasolio all’ingrosso'], pt: ['Gasolina 95 por grosso', 'Gasóleo por grosso'], ru: ['Бензин 95, опт', 'Дизельное топливо, опт'],
+    zh: ['95号汽油批发价', '柴油批发价'], ja: ['ガソリン95 卸売', '軽油 卸売']};
+  for (const L of v347z.L10) {
+    assert.equal(v96src.I18N[L]['pl304.k.h95'], P[L][0], L + ' h95'); assert.equal(v96src.I18N[L]['pl304.k.hon'], P[L][1], L + ' hon');
+    assert.ok(/TGE/.test(v96src.I18N[L]['pl304.k.gaz']) && /TGE/.test(v96src.I18N[L]['pl304.k.prad']), L + ': giełda energii (miejsce obrotu) zostaje');
+  }
+});
+
+test('v347: adres projektu ma kolor odsyłaczy strony (Apple), nie domyślny niebieski przeglądarki; zdanie o liczbie źródeł podaje datę i wiek przebiegu', () => {
+  assert.ok(html.includes('#page-sources .zr-kont a,#page-method .pgc a[href^="mailto:"]{color:var(--bl);text-decoration:underline;'), 'styl odsyłacza mailto w Źródłach i w Metodologii');
+  assert.ok(!/const FED_VENUE_SHOW=false;[^\n]*\n\s*\/\* false: podpis kolumn/.test(html), 'Fed: bez osieroconego komentarza pod przełącznikiem');
+  assert.equal((html.match(/const FED_VENUE_SHOW=/g) || []).length, 1);
+  const at = '2026-10-11T08:49:00+00:00';
+  assert.ok(v347z.mk('pl', {at, zrodla: {n: 90, ok: 89}}).srcTip(v347z.mk('pl', null).srcInfo({at, zrodla: {n: 90, ok: 89}})).includes('(ED[' + at + '] · AGE[' + at + '])'), 'dymek: data i wiek przebiegu');
+  assert.ok(!v347z.mk('pl', {at, zrodla: {n: 90}}).srcTip({n: 90, ok: null, at}).includes('ED['), 'bez ok nie ma zdania o odpowiedziach, więc i daty');
 });

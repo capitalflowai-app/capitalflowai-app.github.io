@@ -87,6 +87,152 @@ _KLUCZ_ZLY = re.compile(r'[\x00-\x20\x7f]')   # v272: spacja, tabulator, nowa li
 SAVED = {}        # v89: obiekty zapisane w tym przebiegu (wejście dla TRENDÓW)
 TICKER = re.compile(r'^[A-Z0-9.]{1,10}$')
 
+# ===================== v347: LICZBA NIEZALEŻNYCH ŹRÓDEŁ — META['zrodla'] = {'n', 'ok'} (strona: „Dane z N źródeł”) =====================
+# Decyzja właściciela 11.10: na stronie żadnych nazw źródeł — tylko LICZBA źródeł. Dotąd strona liczyła klucze META['ok'] („części” — kilka na jedno
+# źródło: 5 podindeksów zbóż, 8 giełd w dźwigni, 7 części surowców...), więc liczba „źródeł” była zawyżona. Tu: jedna instytucja albo serwis = jedno
+# źródło, ile by nie dawała części i ile by nie miała adresów (skarb USA: krzywa rentowności, TIC, TGA, aukcje = 1; EBC: kursy, M3, bilans płatniczy
+# = 1; MFW: rezerwy, COFER, bilans, PIP, złoto banków, PortWatch = 1; publiczne węzły łańcuchów bloków = 1; usługa przeliczająca cudze dane
+# (Frankfurter — kursy EBC) nie jest osobnym źródłem; dwie usługi tego samego autora (dolarapi + argentinadatos) = 1). Identyfikatory są wewnętrzne
+# (nie trafiają na stronę ani do pliku stanu — tam jest tylko liczba). Wpis None = własne wyliczenie z innych plików, bez zapytań (nie jest źródłem).
+# Wartość krotki = część czerpie z kilku źródeł naraz (część „ok” = wszystkie jej źródła odpowiedziały; „nie ok” = co najmniej jedno nie — które, mówi zrodla_cisze).
+# Nowa część META['ok'] bez wpisu = test pada (tabela jest kompletna dla wszystkich kluczy, które kod potrafi ustawić).
+_Z_WEZLY = 'wezly-lancuchow'
+ZRODLA_META = {
+    # --- dzień i ceny (klucze właściciela) ---
+    'sosovalue': 'sosovalue', 'coingecko': 'coingecko', 'finnhub': 'finnhub', 'twelvedata': 'twelvedata', 'coinmarketcap': 'coinmarketcap',
+    'fred': 'fred', 'nastroj': 'fred',
+    # --- instytucje i urzędy USA ---
+    'tic': 'skarb-usa', 'aukcje': 'skarb-usa', 'rynki_ust': 'skarb-usa', 'cftc': 'cftc', 'eia': 'eia', 'bls': 'bls', 'bea': 'bea',
+    'insider': 'sec', 'stres': ('ofr', 'cboe'), 'ici': 'ici', 'fed': 'kalshi',
+    'instytucje': ('skarb-usa', 'ny-fed', 'ecb', 'mof-japonii'),
+    'tga': 'skarb-usa', 'rrp': 'ny-fed', 'soma': 'ny-fed', 'tgb': 'ecb', 'ilm': 'ecb', 'm3': 'ecb', 'bop': 'ecb', 'mof': 'mof-japonii',
+    # --- banki centralne, MFW, BIS, OECD, Eurostat ---
+    'bis': 'bis', 'stopy': 'bis', 'eer': 'bis', 'imf': 'imf', 'cofer': 'imf', 'bilans': 'imf', 'pip': 'imf', 'oecd': 'oecd',
+    'kursy': 'ecb', 'rynki_fx': 'ecb', 'rynki_buba': 'bundesbank', 'snb': 'snb', 'ue': 'eurostat',
+    'kanada': 'statcan', 'korea': 'fss-korea', 'spw': 'mf-polska', 'meksyk': 'banxico', 'safe': 'safe-chiny', 'jpx': 'jpx',
+    'dolar': 'dolarapi',
+    'obce': ('nsdl', 'twse', 'hkex', 'bcb', 'tcmb', 'thaibma'), 'obce_in': 'nsdl', 'obce_tw': 'twse', 'obce_hk': 'hkex', 'obce_br': 'bcb',
+    'obce_tr': 'tcmb', 'obce_th': 'thaibma',
+    # --- fundusze i indeksy ---
+    'fundusze': ('ssga', 'ishares'), 'swiat-dzien': ('nasdaq', 'ssga', 'ishares'),
+    'indeksy_ix': ('eodhd', 'fmp'), 'indeksy_etf': ('massive', 'tiingo'),
+    # --- krypto ---
+    'krypto': ('coingecko', 'alternative-me', 'defillama'), 'krypto.deriv': 'coingecko', 'krypto.defi': 'coingecko', 'krypto.fng': 'alternative-me',
+    'krypto.mk': 'coingecko', 'krypto.stabh': 'defillama', 'krypto.stabc': 'defillama', 'krypto-top10': 'coingecko',
+    'ceny-krypto': 'binance', 'krypto-dzien': 'binance', 'cm': 'coinmetrics', 'wycena': 'coinmetrics', 'wycena_bg': 'bitcoin-data',
+    'lancuch': 'mempool-space', 'lancuch_2': 'blockstream',
+    'wieloryby': _Z_WEZLY, 'wieloryby_eth': 'etherscan',   # giełdy to tu PRZEDMIOT danych (czyje portfele), nie źródło: salda i zdarzenia czyta węzeł łańcucha, kurs ETH — wyrocznia w łańcuchu
+    'dzwignia': ('hyperliquid', 'binance', 'deribit', 'okx', 'kraken', 'coinbase', 'dydx'),
+    'dzwignia_hl': 'hyperliquid', 'dzwignia_bn': 'binance', 'dzwignia_dr': 'deribit', 'dzwignia_okx': 'okx', 'dzwignia_kr': 'kraken',
+    'dzwignia_cb': 'coinbase', 'dzwignia_dy': 'dydx', 'dzwignia_cde': 'coinbase', 'dzwignia_cz': 'coinalyze',
+    'premie_cb': 'coinbase', 'premie_bn': 'binance', 'premie_up': 'upbit', 'premie_fx': 'ecb',
+    'rwa': 'defillama', 'rwa-lancuch': (_Z_WEZLY, 'tether'),
+    'rwa-emitenci': ('spiko', 'securitize', 'hastra', 'openeden', 'matrixdock', 'centrifuge', 'ondo', 'backed'),
+    # --- surowce, Polska, szlaki, gaz, zboża, metale ---
+    'surowce': 'cftc', 'surowce_ceny': ('eia', 'twelvedata', 'sprott', 'acer', 'spdr-gold', 'fmp'), 'surowce_zapasy': 'eia',
+    'surowce_mies': ('fao', 'imf', 'bank-swiatowy'), 'surowce_pozycje': ('cftc', 'ice'), 'surowce_fundusze': ('sprott', 'spdr-gold'),
+    'surowce_banki': ('imf', 'safe-chiny'),
+    'polska_zloto': 'nbp', 'polska_hurt': 'orlen', 'polska_energia': 'tge', 'polska_stacje': 'komisja-europejska', 'polska_pszenica': 'komisja-europejska',
+    'surowce_raporty': ('eia', 'usda', 'cameco'), 'surowce_raporty_ropa': 'eia', 'surowce_raporty_zboza': 'usda', 'surowce_raporty_uran': 'cameco',
+    'szlaki': ('imf', 'ny-fed', 'bank-kanady'), 'szlaki_cies': 'imf', 'szlaki_presja': 'ny-fed', 'szlaki_bcpi': 'bank-kanady',
+    'lng': ('entsog', 'eurostat'), 'lng_dz': 'entsog', 'lng_skad': 'eurostat', 'lng_zapasy': 'eurostat',
+    'zboza_dzien': ('igc', 'fao', 'komisja-europejska'), 'zboza_dzien_goi': 'igc', 'zboza_dzien_fracht': 'igc', 'zboza_dzien_fao': 'fao',
+    'zboza_dzien_ue': 'komisja-europejska', 'zboza_dzien_nawozy': 'komisja-europejska',
+    'metale': ('westmetall', 'shfe', 'cochilco'), 'metale_lme': 'westmetall', 'metale_sh': 'shfe', 'metale_shd': 'shfe', 'metale_shw': 'shfe', 'metale_cu': 'cochilco',
+    # --- własne wyliczenia z innych plików (bez zapytań do sieci) ---
+    'trendy': None, 'zloto-krypto': None,
+}
+# Źródło wyłączone (brak sekretu albo zmienna wyłączająca) — jego części nie liczą się do „n”; rozpoznanie po komunikatach przebiegu (errors + notes).
+ZRODLA_WYLACZONE = {
+    'sosovalue': ('brak SOSOVALUE_KEY',), 'finnhub': ('brak FINNHUB_KEY',), 'twelvedata': ('brak TWELVEDATA_KEY',), 'coinmarketcap': ('brak COINMARKETCAP_KEY',),
+    'fred': ('brak FRED_KEY',), 'eia': ('brak EIA_KEY',), 'bea': ('brak BEA_KEY',), 'fmp': ('brak FMP_KEY',), 'eodhd': ('brak EODHD_KEY',),
+    'massive': ('brak MASSIVE_KEY',), 'tiingo': ('brak TIINGO_KEY',), 'coinalyze': ('brak COINALYZE_KEY',), 'etherscan': ('brak ETHERSCAN_KEY',),
+    'sec': ('brak SEC_CONTACT', 'SEC_CONTACT to nie adres'), 'cboe': ('CBOE_ZGODA pusta',),
+}
+
+
+# Część zbiorcza ma części składowe (przebieg, który pytał, zapisuje obie): wtedy o odpowiedzi decydują składowe, nie zbiorcza (zbiorcza „True” =
+# odpowiedziało COKOLWIEK); zbiorcza z pamięci ('cached', bez składowych) znaczy, że cały plik jest świeży.
+ZRODLA_SKLADOWE = {
+    'instytucje': ('tga', 'rrp', 'soma', 'tgb', 'ilm', 'm3', 'bop', 'mof'),
+    'obce': ('obce_in', 'obce_tw', 'obce_hk', 'obce_br', 'obce_tr', 'obce_th'),
+    'dzwignia': ('dzwignia_hl', 'dzwignia_bn', 'dzwignia_dr', 'dzwignia_okx', 'dzwignia_kr', 'dzwignia_cb', 'dzwignia_dy', 'dzwignia_cde', 'dzwignia_cz'),
+    'krypto': ('krypto.deriv', 'krypto.defi', 'krypto.fng', 'krypto.mk', 'krypto.stabh', 'krypto.stabc'),
+}
+
+
+# Emitenci tokenów RWA: rodzaj odczytu (pole kind w rwa.json → issuer.p[]) → źródło (jeden emitent może mieć kilka produktów: Securitize, Ondo).
+ZRODLA_RWE = {'spiko': 'spiko', 'sec': 'securitize', 'hastra': 'hastra', 'oe': 'openeden', 'xaum': 'matrixdock', 'cfg': 'centrifuge',
+              'ondo_ya': 'ondo', 'ondo_gm': 'ondo', 'xs': 'backed'}
+
+
+def zrodla_cisze(saved):
+    """→ {część META ok: zbiór źródeł tej części, o których WIEMY, że w ostatnim odczycie nie odpowiedziały}, z plików zapisanych w tym przebiegu
+    (SAVED; także z pamięci — wtedy to stan ostatniego odczytu). Część wieloźródłowa z błędem bez wpisu tutaj liczy jedno źródło jako milczące
+    (zrodla_meta), nie wszystkie: awaria jednego portfela czy emitenta nie może wyglądać jak awaria całej grupy."""
+    out = {}
+    saved = saved if isinstance(saved, dict) else {}
+    try:   # emitenci RWA: źródło milczy, gdy ostatni odczyt KAŻDEGO jego produktu zakończył się błędem (err w issuer.p)
+        em = (saved.get('rwa') or {}).get('issuer')
+        if isinstance(em, dict) and not em.get('off') and isinstance(em.get('p'), dict):
+            odp, cichy = set(), set()
+            for p in em['p'].values():
+                i = ZRODLA_RWE.get(p.get('kind')) if isinstance(p, dict) else None
+                if i:
+                    (cichy if p.get('err') else odp).add(i)
+            out['rwa-emitenci'] = cichy - odp
+    except Exception:  # noqa
+        pass
+    try:   # stres: indeks stresu (urząd) i put/call (giełda opcji) to dwie części pliku z własnym ok
+        ok = (saved.get('stres') or {}).get('ok')
+        if isinstance(ok, dict):
+            out['stres'] = {i for k, i in (('fsi', 'ofr'), ('pc', 'cboe')) if ok.get(k) is False}
+    except Exception:  # noqa
+        pass
+    try:   # plik dzienny świata: ceny sesji (giełda Nasdaq) i poranne pliki State Street mają osobne wpisy błędów
+        wd = saved.get('swiat-dzien') or {}
+        bl = wd.get('bledy') if isinstance(wd.get('bledy'), dict) else {}
+        cichy = {'nasdaq'} if (bl.get('px') or bl.get('seed_px') or ((wd.get('nq') or {}).get('fails') or 0) > 0) else set()
+        if bl.get('ssga'):
+            cichy.add('ssga')
+        out['swiat-dzien'] = cichy
+    except Exception:  # noqa
+        pass
+    return out
+
+
+def zrodla_meta(ok, errors=(), notes=(), saved=None):
+    """→ {'n': liczba źródeł, które mają część w tym przebiegu, 'ok': ile z nich odpowiedziało albo ma świeże dane z pamięci} albo None, gdy nie ma
+    żadnego źródła (strona nie pokazuje wtedy liczby — nigdy „0”). Źródło „odpowiedziało”, gdy choć jedna jego część ma ok True albo 'cached'
+    (pamięć = dane jeszcze świeże, bez ponownego pytania). Część z jednym źródłem i ok False = źródło milczy. Część z kilkoma źródłami i ok False
+    = co najmniej jedno zawiodło: znane z zapisanych plików (zrodla_cisze) milczą, pozostałe liczą się jako odpowiedziane; gdy nie wiadomo które,
+    milczące jest jedno (dolna granica — nie osiem emitentów, gdy zawiódł jeden). Część bez wpisu w tabeli jest pomijana (test tabeli pilnuje,
+    by takiej nie było)."""
+    msgs = [str(x) for x in list(errors) + list(notes)]
+    off = {i for i, fr in ZRODLA_WYLACZONE.items() if any(f in m for f in fr for m in msgs)}
+    ok = ok or {}
+    cisze = zrodla_cisze(saved)
+    wszystkie, odp, niepewne = set(), set(), []
+    for k, v in ok.items():
+        ids = ZRODLA_META.get(k)
+        if not ids:
+            continue
+        ids = [i for i in ((ids,) if isinstance(ids, str) else ids) if i not in off]
+        wszystkie.update(ids)
+        if any(s in ok for s in ZRODLA_SKLADOWE.get(k, ())):
+            continue   # o odpowiedzi decydują części składowe tej samej grupy
+        if v is True or v == 'cached':
+            odp.update(ids)
+        elif len(ids) > 1:
+            znane = set(cisze.get(k) or ()) & set(ids)
+            if znane:
+                odp.update(set(ids) - znane)
+            else:
+                niepewne.append(ids)
+    for ids in sorted(niepewne):
+        odp.update(sorted(i for i in ids if i not in odp)[1:])   # jedno z nieodpowiedzianych milczy (dolna granica), reszta odpowiedziała
+    return {'n': len(wszystkie), 'ok': len(odp)} if wszystkie else None
+
 
 import functools as _mk_ft   # v272: pamięć postaci kluczy (biblioteka standardowa)
 
@@ -30151,6 +30297,13 @@ def main():
     except Exception as e:
         META['notes'].append(f'licznik zużycia planów: {e}')
     META['errors'] = [mask(x) for x in META['errors']]; META['notes'] = [mask(x) for x in META['notes']]   # v117: żadna wartość klucza w pliku stanu
+    try:   # v347: liczba niezależnych źródeł (strona: „Dane z N źródeł”) z tych samych ok, errors i notes, które trafiają do pliku; brak źródeł = bez pola
+        z_ = zrodla_meta(META['ok'], META['errors'], META['notes'], SAVED)
+        META.pop('zrodla', None)
+        if z_:
+            META['zrodla'] = z_
+    except Exception as e:  # noqa
+        META['notes'].append(mask(f'liczba źródeł: {e}')[:160])
     save('meta', META)
     print('błędy:', META['errors'] or 'brak')
     return 0
