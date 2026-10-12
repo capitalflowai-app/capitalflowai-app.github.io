@@ -6580,8 +6580,8 @@ def kontrola():
         except Exception as e:  # noqa
             R['pliki'][n] = {'blad': str(e)[:160]}
             R['uwagi'].append(f'{n}.json: {str(e)[:100]}')
-    # 3b. v111: pliki dla wyszukiwarek (robots.txt, sitemap.xml, plik weryfikacji Google) — tylko kod HTTP
-    for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html'):
+    # 3b. v111: pliki dla wyszukiwarek (robots.txt, sitemap.xml, plik weryfikacji Google) — tylko kod HTTP; v348: także skrypt licznika count.js (strona ładuje go z własnego adresu)
+    for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js'):
         pp = site_pomin()   # v327 (KON-04)
         if pp:
             R['pliki'][f] = {'pominiete': True}; pominiete.append(f); pow_pom = pow_pom or pp

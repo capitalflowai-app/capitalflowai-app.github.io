@@ -13439,17 +13439,17 @@ test('v208: nauka sygnałów — pasek „n z c dni z sygnałem”, szacunek (mi
 
 
 /* ---------- v210: Ustawienia — karta „Prywatność” ---------- */
-test('v210: Ustawienia — karta „Prywatność” przed przyciskiem „Gotowe”: nagłówek i trzy akapity z data-i18n, bez nazw dostawców; słownik tylko po polsku', () => {
+test('v210: Ustawienia — karta „Prywatność” przed przyciskiem „Gotowe”: nagłówek i trzy akapity z data-i18n, bez nazw dostawców; słownik w 10 językach (v348: pl + 9)', () => {
   const s0 = html.indexOf('<section class="settings" id="settings" hidden>'), s1 = html.indexOf('</section>\n\n  <section class="page" id="page-flows"', s0), S = html.slice(s0, s1);
   const c0 = S.indexOf('<section class="panel set-card set-priv">');
   assert.ok(c0 > S.indexOf('id="set-scene"') && c0 < S.indexOf('id="set-done"'), 'ostatnia karta, przed „Gotowe”');
   assert.ok(S.includes('<h2 data-i18n="set.priv.t"></h2>\n      <p data-i18n="set.priv.1"></p>\n      <p data-i18n="set.priv.2"></p>\n      <p data-i18n="set.priv.3"></p>'), 'nagłówek i trzy akapity');
   const d0 = html.indexOf('const EXTRA176='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA176='.length, d1));
-  assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl), ['set.priv.t', 'set.priv.1', 'set.priv.2', 'set.priv.3']);
+  assert.deepEqual(Object.keys(D), ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']); assert.deepEqual(Object.keys(D.pl), ['set.priv.t', 'set.priv.1', 'set.priv.2', 'set.priv.3', 'set.priv.skip', 'set.priv.skip.y', 'set.priv.skip.n']);   /* v348: dziesięć języków i wiersz „Nie licz moich odwiedzin” */
   assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA176)if(I18N[l])Object.assign(I18N[l],EXTRA176[l]);'), 'jedna linia for po słowniku');
   const T = Object.values(D.pl).join(' ');
   for (const w of ['TradingView', 'GitHub', 'CoinGecko', 'CoinPaprika', 'DefiLlama', 'BIS', 'Google']) assert.ok(!T.includes(w), 'bez nazwy: ' + w);
-  assert.ok(T.includes('nie zapisuje ciasteczek') && T.includes('nie są nigdzie wysyłane') && T.includes('nie wczytuje skryptów, ramek ani widgetów firm zewnętrznych') && !T.includes('zgod') && T.includes('Obraz tła'), 'kluczowe zdania (v215: o wysyłaniu; v321: bez widgetów i zgody na nie)');
+  assert.ok(T.includes('Liczymy odwiedziny bez ciasteczek i bez danych osobowych') && !T.includes('nie zapisuje ciasteczek') && T.includes('nie są nigdzie wysyłane') && T.includes('nie wczytuje skryptów, ramek ani widgetów firm zewnętrznych') && !T.includes('zgod') && T.includes('Obraz tła'), 'kluczowe zdania (v215: o wysyłaniu; v321: bez widgetów i zgody na nie)');
   for (const k of Object.keys(D.pl)) assert.equal(v96src.tFor('pl')(k), D.pl[k], 'wpis widoczny w słowniku strony: ' + k);
   assert.ok(html.includes("$$('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));"), 'teksty jako zwykły tekst (bez HTML)');
   const c = html.slice(html.indexOf('/* v210: Ustawienia — karta „Prywatność”'), html.indexOf('\n', html.indexOf('.set-priv p{')));
@@ -23609,4 +23609,175 @@ test('v347: adres projektu ma kolor odsyłaczy strony (Apple), nie domyślny nie
   const at = '2026-10-11T08:49:00+00:00';
   assert.ok(v347z.mk('pl', {at, zrodla: {n: 90, ok: 89}}).srcTip(v347z.mk('pl', null).srcInfo({at, zrodla: {n: 90, ok: 89}})).includes('(ED[' + at + '] · AGE[' + at + '])'), 'dymek: data i wiek przebiegu');
   assert.ok(!v347z.mk('pl', {at, zrodla: {n: 90}}).srcTip({n: 90, ok: null, at}).includes('ED['), 'bez ok nie ma zdania o odpowiedziach, więc i daty');
+});
+
+
+// ===================== v348: LICZNIK ODWIEDZIN (decyzja właściciela 12.10) — skrypt z naszej strony, bez ciasteczek, bez wizyt technicznych, prawdziwe zdanie o prywatności =====================
+const v348 = (() => {
+  const g0 = html.indexOf('<!-- v348: licznik odwiedzin'), g1 = html.indexOf('</head>');
+  assert.ok(g0 > 0 && g1 > g0, 'blok licznika w <head>');
+  const block = html.slice(g0, g1);
+  const gate = (/<script id="cf-licznik">([^]*?)<\/script>/.exec(block) || [])[1];
+  const tag = (/<script async src="count\.js" data-goatcounter="[^"]*"><\/script>/.exec(block) || [])[0];
+  const csp = (html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/) || [])[1] || '';
+  const dir = n => (csp.split(';').map(s => s.trim()).find(s => s.startsWith(n + ' ')) || '').split(/\s+/).slice(1);
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  /* przycisk „Nie licz moich odwiedzin” — słownik znajdowany po kluczu (nie po numerze EXTRA) */
+  const dict = v142Dicts(html).find(d => d.obj.pl && 'set.priv.skip' in d.obj.pl);
+  /* bramka z <head>: wynik = window.goatcounter ustawione przed załadowaniem skryptu licznika */
+  const bramka = o => { const win = {}; new Function('window', 'navigator', 'location', gate)(win, {webdriver: o.webdriver, userAgent: o.ua}, {hostname: o.host}); return win.goatcounter; };
+  return {block, gate, tag, csp, dir, L10, dict, bramka, HOST: 'https://capitalflowai.goatcounter.com', ADRES: 'https://capitalflowai.goatcounter.com/count'};
+})();
+
+test('v348: skrypt licznika — jeden, z naszej strony (count.js), async, z dokładnym adresem zliczania; żadnego obcego skryptu ani zdarzeń', () => {
+  assert.ok(v348.gate && v348.tag, 'bramka i znacznik w <head>');
+  assert.equal(v348.tag, '<script async src="count.js" data-goatcounter="' + v348.ADRES + '"></script>');
+  assert.equal(html.split(v348.tag).length, 2, 'znacznik raz');
+  const pre = html.slice(0, html.indexOf("<script>\n(function(){\n'use strict';\n"));
+  assert.ok(pre.indexOf(v348.tag) > 0 && pre.indexOf(v348.tag) < pre.indexOf('</head>'), 'znacznik w <head>, przed skryptem strony');
+  const src = [...pre.matchAll(/<script\b[^>]*\bsrc="([^"]*)"/g)].map(m => m[1]);
+  assert.deepEqual(src, ['count.js'], 'jedyny skrypt z adresem (src) to count.js');
+  assert.ok(src.every(s => !/^([a-z][a-z0-9+.-]*:)?\/\//i.test(s) && !/^[a-z][a-z0-9+.-]*:/i.test(s) && !s.startsWith('/')), 'ścieżka względna — nasza strona, nie obca domena');
+  assert.ok(!/zgo\.at/.test(html), 'bez adresu skryptu na obcej domenie');
+  assert.ok(!html.includes('data-goatcounter-click') && !html.includes('visit_count') && !html.includes('data-goatcounter-settings'), 'tylko odsłona strony: bez zdarzeń, licznika w ramce i ustawień w atrybucie');
+  const reszta = html.split(v348.tag).join('').split(v348.csp).join('');
+  assert.ok(!reszta.includes('capitalflowai.goatcounter.com'), 'adres licznika tylko w znaczniku skryptu i w polityce bezpieczeństwa (connect-src)');
+  assert.ok(!/<script\b[^>]*>[^<]*document\.cookie/.test(pre), 'żadnego dostępu do ciasteczek w nagłówku');
+});
+
+test('v348: polityka bezpieczeństwa — adres licznika tylko w connect-src (sendBeacon); skrypty nadal tylko własne; zapas obrazkiem dozwolony przez https:', () => {
+  const connect = v348.dir('connect-src');
+  assert.equal(connect.filter(x => x === v348.HOST).length, 1, 'adres licznika raz w connect-src');
+  assert.ok(connect.includes("'self'") && connect.includes('https://finnhub.io') && connect.includes('https://api.coingecko.com'), 'dotychczasowe adresy zostają');
+  assert.ok(!connect.some(x => x === '*' || x === 'https:' || x === 'https://*'), 'bez znaków wieloznacznych');
+  for (const d of v348.csp.split(';').map(s => s.trim().split(/\s+/)[0]).filter(Boolean)) if (d !== 'connect-src') assert.ok(!v348.dir(d).some(x => /goatcounter/i.test(x)), 'adres licznika poza connect-src: ' + d);
+  assert.deepEqual(v348.dir('script-src'), ["'self'", "'unsafe-inline'"], 'skrypty tylko własne (count.js leży na naszej stronie)');
+  assert.deepEqual(v348.dir('frame-src'), ["'none'"]); assert.deepEqual(v348.dir('default-src'), ["'self'"]);
+  const img = v348.dir('img-src');
+  assert.ok(img.includes('https:') || img.includes(v348.HOST), 'obrazek-zapas count.js (img.src = adres zliczania) dozwolony');
+});
+
+test('v348: wizyty techniczne — bramka w <head> wyłącza zliczanie dla przeglądarki sterowanej automatem, Chrome bez okna (kontrola dzienna), Lighthouse i adresów .local / [::1]; zwykły czytelnik jest liczony', () => {
+  const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36', H = 'capitalflowai-app.github.io';
+  const B = (o) => v348.bramka(Object.assign({webdriver: false, ua: UA, host: H}, o));
+  assert.deepEqual(B({}), {no_onload: false}, 'zwykły czytelnik: skrypt liczy sam, przy załadowaniu');
+  assert.deepEqual(B({webdriver: undefined}), {no_onload: false}); assert.deepEqual(B({ua: undefined}), {no_onload: false}, 'brak nagłówka UA nie wywraca bramki');
+  assert.equal(B({webdriver: true}).no_onload, true, 'przeglądarka sterowana automatem (Selenium, Puppeteer, Playwright)');
+  /* kontrola dzienna: Chrome --headless=new --dump-dom ma navigator.webdriver = false (sprawdzone 12.10.2026, Chrome 154), ale UA z „HeadlessChrome” */
+  assert.equal(B({ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36'}).no_onload, true, 'Chrome bez okna');
+  assert.equal(B({ua: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36'}).no_onload, true, 'Chrome bez okna na maszynie GitHub');
+  assert.equal(B({ua: UA + ' Chrome-Lighthouse'}).no_onload, true, 'Lighthouse / PageSpeed');
+  for (const h of ['mac-piotra.local', 'a.b.local', '[::1]', '[::]']) assert.equal(B({host: h}).no_onload, true, 'adres lokalny: ' + h);
+  for (const h of ['local.example.com', 'notlocal', 'localhost', '127.0.0.1', '192.168.1.5', 'capitalflowai-app.github.io']) assert.equal(B({host: h}).no_onload, false, h + ' — resztę lokalnych adresów odrzuca sam count.js (test niżej)');
+  assert.ok(!/cookie|localStorage|document\.|fetch|XMLHttpRequest/i.test(v348.gate), 'bramka nie dotyka ciasteczek, pamięci, dokumentu ani sieci');
+});
+
+test('v348: count.js (zachowanie na przypiętym pliku; node) — zwykła wizyta = jedno zliczenie pod adres z atrybutu; localhost, adresy prywatne, file:, ramka, „nie licz mnie”, no_onload, automat = bez zapytania; ciasteczek nikt nie rusza', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'count.js'), 'utf8');   /* node: brak pliku = wyjątek = test czerwony */
+  if (!src.startsWith('// GoatCounter: https://www.goatcounter.com\n')) return;   /* pod jsc czytnik plików zwraca stronę zamiast pliku — wtedy pomijamy; to samo sprawdza node w GitHub Actions i w bramce */
+  const run = (o = {}) => {
+    const out = {beacons: [], imgs: [], warns: [], cookie: 0, ls: [], listeners: {}};
+    const u = new URL(o.url || 'https://capitalflowai-app.github.io/?lang=de');
+    const location = {hostname: u.hostname, protocol: u.protocol, search: u.search, pathname: u.pathname};
+    const el = o.bezAtrybutu ? null : {dataset: {goatcounter: o.endpoint || v348.ADRES}};
+    const canon = {href: 'https://capitalflowai-app.github.io/'};
+    const document = {
+      body: {appendChild: n => out.imgs.push(n.src)}, referrer: o.referrer === undefined ? 'https://example.org/x' : o.referrer, title: 'CapitalFlowAI — Gdzie płynie kapitał?',
+      visibilityState: o.widocznosc || 'visible',
+      querySelector: s => s === 'script[data-goatcounter]' ? el : (s === 'link[rel="canonical"][href]' ? canon : null), querySelectorAll: () => [],
+      createElement: tag => { if (tag === 'a') { const a = {}; Object.defineProperty(a, 'href', {set(v) { const x = new URL(v); a.hostname = x.hostname; a.pathname = x.pathname; a.search = x.search; }}); return a; } return {style: {}, setAttribute() {}, addEventListener() {}}; },
+      addEventListener: (ev, f) => { (out.listeners[ev] = out.listeners[ev] || []).push(f); }, removeEventListener: () => {},
+      get cookie() { out.cookie++; return ''; }, set cookie(v) { out.cookie++; },
+    };
+    const navigator = {userAgent: 'x', webdriver: !!o.webdriver, sendBeacon: o.bezBeacona ? undefined : (url => { out.beacons.push(url); return !o.beaconOdmowa; })};
+    const localStorage = {getItem: k => { out.ls.push(k); return o.nieLicz && k === 'skipgc' ? 't' : null; }, setItem() { throw new Error('zapis do pamięci'); }, removeItem() { throw new Error('zapis do pamięci'); }};
+    const win = {screen: {width: 390}, goatcounter: o.noOnload ? {no_onload: true} : undefined};
+    const console_ = {warn: m => out.warns.push(String(m)), error: m => out.warns.push('E:' + m)};
+    new Function('window', 'document', 'navigator', 'location', 'localStorage', 'console', 'parent', 'with(window){' + src + '\n}')(win, document, navigator, location, localStorage, console_, {location: o.ramka ? {} : location});
+    return Object.assign(out, {document, win});
+  };
+  const kol = u => { const x = new URL(u); return {origin: x.origin + x.pathname, p: Object.fromEntries(x.searchParams)}; };
+  const S1 = run();
+  assert.equal(S1.beacons.length, 1, 'zwykła wizyta: dokładnie jedno zliczenie'); assert.deepEqual(S1.imgs, []);
+  const K = kol(S1.beacons[0]);
+  assert.equal(K.origin, v348.ADRES, 'adres z atrybutu data-goatcounter');
+  assert.deepEqual(Object.keys(K.p).sort(), ['b', 'p', 'q', 'r', 'rnd', 's', 't'], 'wysyłane tylko: ścieżka, skąd, tytuł, szerokość ekranu, znacznik bota, parametry adresu');
+  assert.equal(K.p.p, '/', 'ścieżka z adresu kanonicznego (bez ?lang=)'); assert.equal(K.p.q, '?lang=de'); assert.equal(K.p.s, '390'); assert.equal(K.p.b, '0'); assert.equal(K.p.r, 'https://example.org/x');
+  assert.equal(K.p.t, 'CapitalFlowAI — Gdzie płynie kapitał?');
+  const bez = (o, powod) => { const r = run(o); assert.deepEqual(r.beacons, [], powod); assert.deepEqual(r.imgs, [], powod + ' (obrazek)'); return r; };
+  for (const h of ['localhost', '127.0.0.1', '192.168.1.5', '10.1.2.3', '172.16.0.9', '172.31.255.1', '0.0.0.0', 'podglad.localhost'])
+    assert.ok(bez({url: 'http://' + h + ':8381/'}, 'adres lokalny ' + h).warns.some(w => w.includes('not counting because of: localhost')), h);
+  assert.ok(bez({url: 'file:///Users/x/index.html'}, 'plik lokalny').warns.some(w => w.includes('localfile')));
+  assert.ok(bez({nieLicz: true}, 'wybór „nie licz moich odwiedzin” (skipgc = t)').warns.some(w => w.includes('disabled')));
+  assert.ok(bez({ramka: true}, 'strona w ramce').warns.some(w => w.includes('frame')));
+  bez({noOnload: true}, 'no_onload (bramka z <head>: automat, Chrome bez okna)'); assert.deepEqual(run({noOnload: true}).warns, [], 'bez hałasu w konsoli');
+  assert.ok(bez({bezAtrybutu: true}, 'brak adresu zliczania').warns.some(w => w.includes('no endpoint')), 'bez adresu nic nie wychodzi');
+  const W = run({widocznosc: 'hidden'}); assert.deepEqual(W.beacons, [], 'karta w tle: czeka'); W.document.visibilityState = 'visible'; W.listeners.visibilitychange.forEach(f => f()); assert.equal(W.beacons.length, 1, 'po przełączeniu na widoczną: jedno zliczenie');
+  const P = run({widocznosc: 'prerender'}); assert.deepEqual(P.beacons, [], 'prerender nie liczy się, dopóki strona nie stanie się widoczna');
+  const F = run({beaconOdmowa: true}); assert.deepEqual(F.beacons.length, 1); assert.equal(F.imgs.length, 1, 'sendBeacon odmówił (np. CSP) → obrazek-zapas'); assert.equal(kol(F.imgs[0]).origin, v348.ADRES, 'zapas idzie pod ten sam adres');
+  const N = run({bezBeacona: true}); assert.equal(N.imgs.length, 1, 'przeglądarka bez sendBeacon → obrazek-zapas'); assert.equal(kol(N.imgs[0]).origin, v348.ADRES);
+  for (const r of [S1, W, P, F, N]) { assert.equal(r.cookie, 0, 'żadnego dostępu do document.cookie'); assert.ok(r.ls.every(k => k === 'skipgc'), 'z pamięci przeglądarki czytany tylko znacznik skipgc: ' + r.ls); }
+  for (const r of [S1, W, F, N]) for (const u of r.beacons.concat(r.imgs)) assert.ok(u.startsWith(v348.ADRES + '?'), 'każde zapytanie tylko pod adres licznika: ' + u);
+  assert.ok(src.includes("localStorage.getItem('skipgc') === 't'"), 'ten sam znacznik zapisuje przełącznik w Ustawieniach');
+});
+
+test('v348: Prywatność — po polsku dokładnie „Liczymy odwiedziny bez ciasteczek i bez danych osobowych”; dziesięć języków z prawdziwymi tłumaczeniami; stare „bez statystyk odwiedzin / nie zapisuje ciasteczek” nigdzie nie zostało', () => {
+  const I = v96src.I18N, L10 = v348.L10;
+  assert.equal(I.pl['set.priv.1'], 'Strona nie ma kont, formularzy ani reklam. Liczymy odwiedziny bez ciasteczek i bez danych osobowych.');
+  const ZD = {pl: 'Liczymy odwiedziny bez ciasteczek i bez danych osobowych', en: 'We count visits without cookies and without personal data', de: 'Wir zählen Besuche ohne Cookies und ohne personenbezogene Daten',
+    es: 'Contamos las visitas sin cookies y sin datos personales', fr: 'Nous comptons les visites sans cookies et sans données personnelles', it: 'Contiamo le visite senza cookie e senza dati personali',
+    pt: 'Contamos as visitas sem cookies e sem dados pessoais', ru: 'Мы считаем посещения без файлов cookie и без персональных данных', zh: '我们统计访问量时不使用 Cookie，也不收集个人数据',
+    ja: 'Cookie を使わず、個人データも取得せずに集計しています'};
+  const K = ['set.priv.t', 'set.priv.1', 'set.priv.2', 'set.priv.3', 'set.priv.skip', 'set.priv.skip.y', 'set.priv.skip.n'];
+  for (const L of L10) {
+    assert.ok(I[L]['set.priv.1'].includes(ZD[L]), L + ': zdanie o liczeniu odwiedzin');
+    for (const k of K) assert.ok(typeof I[L][k] === 'string' && I[L][k].trim(), L + ' ' + k);
+    if (L !== 'pl') for (const k of K.slice(0, 5)) assert.notEqual(I[L][k], I.pl[k], L + ' ' + k + ': nie kopia polskiego');
+    if (L !== 'en' && L !== 'pl') for (const k of K.slice(0, 5)) assert.notEqual(I[L][k], I.en[k], L + ' ' + k + ': nie kopia angielskiego');
+    const T = K.map(k => I[L][k]).join(' ');
+    assert.ok(!/goatcounter|zgo\.at|github|cloudflare|google/i.test(T), L + ': bez nazw dostawców');
+    assert.ok(!/\{[a-z0-9]+\}/.test(T), L + ': bez pól {x}');
+    assert.ok(/count|odwiedz|Besuch|visit|visita|visite|посещ|访问|訪問|Cookie|cookie/i.test(I[L]['set.priv.1']), L);
+    assert.ok(!/statystyk odwiedzin|nie zapisuje ciasteczek|nie zbiera danych osobowych|bez śledzenia|nie śledzi/i.test(Object.values(I[L]).join('\n')), L + ': stare twierdzenie o braku statystyk / ciasteczek nie może zostać w żadnym tekście');
+  }
+  assert.ok(!/no (visit )?(statistics|analytics|tracking)|(does not|doesn.t) track/i.test(Object.values(I.en).join('\n')));
+  assert.ok(/[\u0400-\u04ff]/.test(I.ru['set.priv.1']) && /[\u4e00-\u9fff]/.test(I.zh['set.priv.1']) && !/[\u3040-\u30ff]/.test(I.zh['set.priv.1']) && /[\u3040-\u30ff]/.test(I.ja['set.priv.1']), 'ru: cyrylica, zh: znaki bez kany, ja: kana');
+  assert.ok(I.pl['set.priv.2'].includes('wybór „Nie licz moich odwiedzin”') && I.pl['set.priv.2'].includes('Te zapisy nie są nigdzie wysyłane'), 'pamięć przeglądarki: także wybór „nie licz mnie”');
+  assert.ok(I.pl['set.priv.3'].includes('do licznika odwiedzin adres i tytuł strony') && I.pl['set.priv.3'].includes('nie zapisuje adresu IP') && I.pl['set.priv.3'].includes('Strona nie wczytuje skryptów, ramek ani widgetów firm zewnętrznych.')
+    && I.pl['set.priv.3'].includes('Skrypt licznika leży na naszym serwerze.'), 'co wychodzi do licznika i gdzie leży jego skrypt');
+  for (const L of L10) for (const k of ['set.priv.2', 'set.priv.3']) assert.ok(I[L][k].length > (L === 'zh' ? 120 : L === 'ja' ? 180 : 250), L + ' ' + k + ': pełny akapit, nie skrót');
+});
+
+test('v348: słownik karty Prywatność — czysty JSON w 10 językach z tymi samymi kluczami, jedna linia for zaraz po nim; wiersz ustawienia w karcie po trzech akapitach', () => {
+  const d = v348.dict;
+  assert.ok(d, 'słownik z kluczem set.priv.skip');
+  const K = Object.keys(d.obj.pl);
+  assert.deepEqual(Object.keys(d.obj), v348.L10); for (const L of v348.L10) assert.deepEqual(Object.keys(d.obj[L]), K, L + ': te same klucze w tej samej kolejności');
+  assert.ok(html.slice(d.e, d.e + 160).startsWith(';\nfor(const l in ' + d.name + ')if(I18N[l])Object.assign(I18N[l],' + d.name + '[l]);'), 'jedna linia for zaraz po słowniku');
+  assert.equal(html.split('const ' + d.name + '=').length, 2); assert.equal(html.split('for(const l in ' + d.name + ')').length, 2);
+  const s0 = html.indexOf('<section class="settings" id="settings" hidden>'), s1 = html.indexOf('</section>\n\n  <section class="page" id="page-flows"', s0), S = html.slice(s0, s1);
+  const c0 = S.indexOf('<section class="panel set-card set-priv">'), c1 = S.indexOf('</section>', c0);
+  const R = '<div class="set-row"><span data-i18n="set.priv.skip"></span><div class="dd" id="dd-skipgc"></div></div>';
+  assert.ok(S.slice(c0, c1).includes('<p data-i18n="set.priv.3"></p>\n      ' + R), 'wiersz po trzecim akapicie, w karcie Prywatność');
+  assert.equal(html.split('id="dd-skipgc"').length, 2);
+});
+
+test('v348: Ustawienia — „Nie licz moich odwiedzin na tym urządzeniu”: lista rozwijana jak pozostałe, zapis tego samego znacznika (skipgc = t), który czyta skrypt licznika; brak pamięci przeglądarki nie wywraca strony', () => {
+  const a = html.indexOf('const cfSkipGet='), b = html.indexOf('\n', html.indexOf("dropdown($('#dd-skipgc')", a)) + 1;
+  assert.ok(a > html.indexOf("dropdown($('#dd-size')") && b > a, 'kod zaraz po liście rozmiaru sceny');
+  const code = html.slice(a, b);
+  const mk = (ls) => { const cfg = []; new Function('localStorage', 'dropdown', '$', code)(ls, (h, c) => cfg.push([h, c]), s => s); return cfg; };
+  const mem = {}, ls = {getItem: k => mem[k] === undefined ? null : mem[k], setItem: (k, v) => { mem[k] = v; }, removeItem: k => { delete mem[k]; }};
+  const [[host, cfg]] = mk(ls), g = cfg.groups[0];
+  assert.equal(host, '#dd-skipgc'); assert.equal(cfg.right, true); assert.equal(cfg.groups.length, 1); assert.equal(g.key, 'skipgc');
+  assert.deepEqual(g.items, [{v: '0', l: 'set.priv.skip.n'}, {v: '1', l: 'set.priv.skip.y'}]);
+  assert.equal(g.get(), '0', 'domyślnie liczymy odwiedziny');
+  g.set('1'); assert.deepEqual(mem, {skipgc: 't'}, 'ten sam znacznik i wartość, które czyta count.js'); assert.equal(g.get(), '1');
+  g.set('0'); assert.deepEqual(mem, {}, 'wyłączenie usuwa znacznik'); assert.equal(g.get(), '0');
+  const psuje = {getItem() { throw new Error('zablokowane'); }, setItem() { throw new Error('zablokowane'); }, removeItem() { throw new Error('zablokowane'); }};
+  const [[, c2]] = mk(psuje), g2 = c2.groups[0];
+  assert.equal(g2.get(), '0'); g2.set('1'); g2.set('0');   /* bez wyjątku */
+  for (const L of v348.L10) for (const k of ['set.priv.skip', 'set.priv.skip.y', 'set.priv.skip.n']) assert.ok(v96src.I18N[L][k], L + ' ' + k);
+  assert.equal(v96src.I18N.pl['set.priv.skip'], 'Nie licz moich odwiedzin na tym urządzeniu'); assert.equal(v96src.I18N.en['set.priv.skip'], 'Don’t count my visits on this device');
+  assert.equal(html.split("localStorage.setItem('skipgc','t')").length, 2); assert.equal(html.split("localStorage.getItem('skipgc')==='t'").length, 2);
 });

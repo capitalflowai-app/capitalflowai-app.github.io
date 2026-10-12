@@ -13895,7 +13895,7 @@ class KontrolaEmitentV130(unittest.TestCase):
                 return J(ETF)
             if '/data/' in url:
                 return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
-            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
                 return Resp(b'x' * 100)
             if url == self.k.CG_GLOBAL:
                 return J({'data': {'total_market_cap': {'usd': 4.0e12}}})
@@ -17432,7 +17432,7 @@ class DolarV136(unittest.TestCase):
                     return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
                 if url.startswith('https://api.bcra.gob.ar/'):
                     return J(DL_BCRA_J)
-                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
                     return Resp(b'x' * 100)
                 if url.startswith('https://api.github.com/'):
                     return J({'workflow_runs': []})
@@ -19819,7 +19819,7 @@ class JpxV137(unittest.TestCase):
                     return J(dict(inst, at=(NOW - datetime.timedelta(minutes=20)).isoformat()))
                 if '/data/' in url:
                     return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
-                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
                     return Resp(b'x' * 100)
                 if url.startswith('https://api.github.com/'):
                     return J({'workflow_runs': []})
@@ -22772,7 +22772,7 @@ class KontrolaDziennikowV162(unittest.TestCase):
                     return J(dict(sw, at=(NOW - datetime.timedelta(minutes=17)).isoformat()))
                 if '/data/' in url:
                     return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
-                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
                     return Resp(b'x' * 100)
                 if url.startswith('https://api.github.com/'):
                     return J({'workflow_runs': []})
@@ -23771,7 +23771,7 @@ class KontrolaWylaczoneV171(unittest.TestCase):
                 raise k.urllib.error.HTTPError(url, 404, 'Not Found', {}, io.BytesIO(b''))
             if '/data/' in url:
                 return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
-            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
                 return Resp(b'x' * 100)
             if url.startswith('https://api.github.com/'):
                 return J({'workflow_runs': []})
@@ -24074,7 +24074,7 @@ class JakoscV176(unittest.TestCase):
                                         'powod': 'brak adresu kontaktowego wymaganego przez urząd (sekret SEC_CONTACT) — część wyłączona'}).encode())
             if '/data/' in url:
                 return Resp(json.dumps({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()}).encode())
-            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
                 return Resp(b'x' * 100)
             if url.startswith('https://api.github.com/'):
                 return Resp(b'{"workflow_runs": []}')
@@ -24117,7 +24117,7 @@ class KontrolaPrzebiegiV177(unittest.TestCase):
                 return Resp(b'<html>const EXTRA126={};' + b' ' * 1_000_100)
             if '/data/' in url:
                 return Resp(json.dumps({'at': (NOW - datetime.timedelta(minutes=8)).isoformat(), 'ok': {'etf': True}, 'errors': [], 'notes': []}).encode())
-            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
                 return Resp(b'x' * 100)
             if url.startswith('https://api.github.com/'):
                 urls.append(url)
@@ -24329,7 +24329,7 @@ class PoPrzegladzieV181(unittest.TestCase):
                 return Resp(b'<html>const EXTRA126={};' + b' ' * 1_000_100)
             if '/data/' in url:
                 return Resp(json.dumps({'at': (NOW - datetime.timedelta(minutes=8)).isoformat(), 'ok': {'etf': True}, 'errors': [], 'notes': []}).encode())
-            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html')):
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
                 return Resp(b'x' * 100)
             if '/actions/workflows/strona.yml/runs' in url:
                 r = strona(int(url.split('&page=')[1].split('&')[0]))
@@ -40014,7 +40014,7 @@ class KontrolaV327(unittest.TestCase):
             self.assertTrue(md.startswith('# Kontrola strony — 06.10.2026, 21:50 (czas polski)\n\n**Wynik: BŁĄD**'), md[:120])
             site = [u for u, _ in calls if u.startswith(k.SITE)]
             self.assertLessEqual(len(site), 4, 'strona: 2 próby strony głównej, 2 pliku stanu — potem reszta pominięta')
-            self.assertIn('pominięto plików strony: ', md); self.assertIn(f'pominięto plików strony: {len(k.PLIKI) + 2} (strona nie odpowiada w czasie — 3 kolejne przekroczenia czasu) — etf, trendy, oecd, rynki, dzwignia, wieloryby …', md)   # v339 (metale): liczba z len(k.PLIKI) (było stałe 65; jak v340/v342)   # v337 (F2Z4): świadoma zmiana 64 → 65 — nowy plik data/pip.json w liście PLIKI kontroli
+            self.assertIn('pominięto plików strony: ', md); self.assertIn(f'pominięto plików strony: {len(k.PLIKI) + 3} (strona nie odpowiada w czasie — 3 kolejne przekroczenia czasu) — etf, trendy, oecd, rynki, dzwignia, wieloryby …', md)   # v348: + count.js — czwarty plik strony po robots.txt, sitemap.xml i pliku Google (było + 2)   # v339 (metale): liczba z len(k.PLIKI) (było stałe 65; jak v340/v342)   # v337 (F2Z4): świadoma zmiana 64 → 65 — nowy plik data/pip.json w liście PLIKI kontroli
             self.assertTrue(os.path.exists(os.path.join(d, 'kontrola', 'historia.json')))
             self.assertTrue(all(isinstance(t, (int, float)) and t <= 45 for _, t in calls), 'każde zapytanie z limitem')
 
@@ -46309,3 +46309,148 @@ class ZrodlaMainV347(unittest.TestCase):
             zd.main()
         self.assertTrue(zc.called)
         self.assertIs(zc.call_args[0][0], zd.SAVED, 'źródła milczące wynikają z plików zapisanych w tym przebiegu (emitenci RWA, stres, świat dziennie)')
+
+
+# ===================== v348: LICZNIK ODWIEDZIN (decyzja właściciela 12.10) — count.js u nas, bez ciasteczek, przypięty skrótem; publikacja i kontrola =====================
+class LicznikV348(unittest.TestCase):
+    """v348: licznik odwiedzin. Skrypt count.js leży w repozytorium strony (nie ładujemy go z obcej domeny), nie dotyka ciasteczek i wysyła tylko pod adres
+    z atrybutu data-goatcounter; jego treść jest przypięta skrótem SHA-256 (nie zmieni się po cichu). Publikacja kopiuje go do _site i wymaga go w osobnej
+    linii „test -f”; kontrola dzienna sprawdza, że na żywej stronie odpowiada. Bez zegara i bez sieci."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    SHA256 = '792b7abd26c1fb6ae62906833e09a301251e2641816e69e4f95aba518f3fe3f0'
+    BAJTY = 9213
+    NAGLOWEK = ('// GoatCounter: https://www.goatcounter.com\n'
+                '// This file is released under the ISC license: https://opensource.org/licenses/ISC\n')
+    ADRES = 'https://capitalflowai.goatcounter.com/count'
+
+    def _count(self):
+        with open(os.path.join(self.ROOT, 'count.js'), 'rb') as f:
+            return f.read()
+
+    def test_count_js_przypiety_skrotem(self):
+        import hashlib
+        p = os.path.join(self.ROOT, 'count.js')
+        self.assertTrue(os.path.isfile(p), 'brak count.js w katalogu głównym strony (publikacja kopiuje go do _site/count.js)')
+        b = self._count()
+        self.assertEqual(hashlib.sha256(b).hexdigest(), self.SHA256,
+                         'count.js się zmienił. Nowa wersja skryptu licznika wchodzi na stronę dopiero po przeczytaniu jej w całości (czy nie zapisuje ciasteczek, '
+                         'czy wysyła tylko pod adres z data-goatcounter), po aktualizacji skrótu tutaj i w testach zachowania (test_widoki.cjs, v348)')
+        self.assertEqual(len(b), self.BAJTY)
+        t = b.decode('utf-8')
+        self.assertTrue(t.startswith(self.NAGLOWEK), 'nagłówek z licencją zostaje bez zmian')
+        self.assertTrue(t.isascii() and '\r' not in t, 'skrypt ASCII, końce linii LF')
+
+    def test_count_js_bez_ciasteczek_i_bez_obcych_adresow(self):
+        t = self._count().decode('utf-8')
+        code = t[len(self.NAGLOWEK):]
+        self.assertIsNone(re.search(r'cookie', t, re.I), 'skrypt w ogóle nie dotyka ciasteczek (żadnego zapisu ani odczytu document.cookie)')
+        self.assertEqual(re.findall(r'https?://[^\s\'"]+', code), [], 'w kodzie (poza nagłówkiem) żadnego adresu: zliczenie idzie tylko pod adres z data-goatcounter')
+        for zakazane in ('XMLHttpRequest', 'fetch(', 'WebSocket', 'eval(', 'new Function', 'importScripts', 'document.write', 'sessionStorage', 'indexedDB', 'Image('):
+            self.assertNotIn(zakazane, code, zakazane)
+        self.assertEqual(sorted(set(re.findall(r"localStorage\.(?:get|set|remove)Item\('([^']*)'", code))), ['skipgc'], 'jedyny znacznik w pamięci przeglądarki: skipgc (wybór „nie licz mnie”)')
+        self.assertIn("localStorage.getItem('skipgc') === 't'", code, 'ten sam znacznik i wartość zapisuje przełącznik w Ustawieniach strony')
+        self.assertEqual(len(re.findall(r'navigator\.sendBeacon\(url\)', code)), 1)
+        self.assertEqual(len(re.findall(r'\.src = ', code)), 1, 'jedyne inne zapytanie: obrazek-zapas pod tym samym adresem')
+        self.assertIn('s.dataset.goatcounter', code, 'adres zliczania z atrybutu data-goatcounter znacznika skryptu')
+        self.assertIn("location.hostname.match(/(localhost$|^127\\.|^10\\.|", code)
+        self.assertIn("location.protocol === 'file:'", code); self.assertIn('allow_local', code)   # localhost, adresy prywatne i file: odrzucane, o ile nie ma allow_local
+
+    def test_strona_laduje_skrypt_z_wlasnego_adresu(self):
+        with open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8') as f:
+            h = f.read()
+        tag = f'<script async src="count.js" data-goatcounter="{self.ADRES}"></script>'
+        self.assertEqual(h.count(tag), 1)
+        self.assertLess(h.index(tag), h.index('</head>'))
+        self.assertNotIn('zgo.at', h)
+        self.assertNotIn('data-goatcounter-click', h, 'żadnych zdarzeń: licznik dostaje tylko odsłonę strony')
+
+    def test_publikacja_kopiuje_count_js_i_wymaga_go(self):
+        with open(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'), encoding='utf-8') as f:
+            w = f.read()
+        cp = re.search(r'^ +cp count\.js _site/count\.js(?: +#.*)?$', w, re.M)
+        tf = re.search(r'^ +test -f _site/count\.js(?: +#.*)?$', w, re.M)
+        self.assertIsNotNone(cp, 'kopiowanie count.js do _site')
+        self.assertIsNotNone(tf, 'osobna linia „test -f _site/count.js” (w liście „&&” błąd pierwszego członu nie przerywa kroku przy bash -e)')
+        self.assertLess(cp.start(), tf.start(), 'sprawdzenie po skopiowaniu')
+        a, b = w.index('- name: Złóż stronę'), w.index('- name: Straż kluczy')
+        self.assertTrue(a < cp.start() < tf.start() < b, 'w kroku „Złóż stronę”, przed strażą kluczy')
+        self.assertNotRegex(w, r'test -f _site/count\.js *&&|&& *test -f _site/count\.js')
+        self.assertTrue(os.path.isfile(os.path.join(self.ROOT, 'count.js')))
+
+    def test_kontrola_sprawdza_count_js(self):
+        with open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
+            k = f.read()
+        self.assertIn("for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js'):", k)
+
+
+class LicznikKontrolaV348(unittest.TestCase):
+    """v348: kontrola dzienna — count.js sprawdzany jak robots.txt i sitemap.xml (tylko kod HTTP i niepusta treść); brak pliku to uwaga, nigdy BŁĄD;
+    nagłówek raportu i linia „Wynik” bez zmian. Cała kontrola na zaślepionej sieci i przypiętym zegarze (zaślepka z KontrolaEmitentV130)."""
+    NOW = KontrolaEmitentV130.NOW
+    ETF = KontrolaEmitentV130.ETF
+    IBIT = KontrolaEmitentV130.IBIT
+    ETHA = KontrolaEmitentV130.ETHA
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    xml = staticmethod(KontrolaEmitentV130.xml)
+    _kontrola = KontrolaEmitentV130._kontrola
+    COUNT_TRYB = 'ok'
+
+    @classmethod
+    def setUpClass(cls):
+        KontrolaEmitentV130.setUpClass.__func__(cls)
+
+    def _siec(self, emitent, etf=None):
+        import io
+        urlopen, calls = KontrolaEmitentV130._siec(self, emitent, etf)
+        tryb, k = self.COUNT_TRYB, self.k
+
+        class Odp:
+            status = 200
+
+            def __init__(self, b):
+                self.b = b
+
+            def read(self):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def inny(req, timeout=None):
+            url = req.full_url
+            if tryb != 'ok' and 'count.js?' in url:
+                calls.append((url, req.get_header('User-agent'), timeout))
+                if tryb == '404':
+                    raise k.urllib.error.HTTPError(url, 404, 'Not Found', {}, io.BytesIO(b''))
+                return Odp(b'x' * 5)
+            return urlopen(req, timeout)
+        return inny, calls
+
+    def _przebieg(self, tryb):
+        self.COUNT_TRYB = tryb
+        return self._kontrola({'333011': self.xml(self.IBIT), '337614': self.xml(self.ETHA)})
+
+    def test_count_js_odpowiada_i_raport_bez_zmian(self):
+        R, md, calls, _ = self._przebieg('ok')
+        zap = [(u, ua) for u, ua, _ in calls if '/count.js?' in u]
+        self.assertEqual(len(zap), 1, 'jedno zapytanie o count.js')
+        self.assertRegex(zap[0][0], r'^https://[^/]+/count\.js\?nc=\d+$'); self.assertEqual(zap[0][1], 'CapitalFlowAI-kontrola/1.0')
+        self.assertEqual(R['pliki']['count.js'], {'http': 200, 'bajty': 100}); self.assertEqual(R['pliki']['robots.txt'], {'http': 200, 'bajty': 100})
+        self.assertFalse([u for u in R['uwagi'] if 'count.js' in u], 'plik odpowiada — bez uwagi')
+        L = md.splitlines()
+        self.assertRegex(L[0], r'^# Kontrola strony — \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2} \(czas polski\)$'); self.assertRegex(L[2], r'^\*\*Wynik: (OK|UWAGA|BŁĄD)\*\*$')
+        wiersz = next(x for x in L if x.startswith('- Pliki danych (wiek):'))
+        self.assertIn('robots.txt HTTP 200', wiersz); self.assertIn('count.js HTTP 200', wiersz)
+        self.assertLess(wiersz.index('google433f7c24524100a9.html'), wiersz.index('count.js'), 'count.js po plikach dla wyszukiwarek')
+
+    def test_brak_count_js_to_uwaga_nigdy_blad(self):
+        R, md, _, _ = self._przebieg('404')
+        self.assertEqual(R['pliki']['count.js'], {'http': 404})
+        self.assertIn('count.js: HTTP 404', R['uwagi'])
+        self.assertFalse([b for b in R['bledy'] if 'count.js' in b]); self.assertNotEqual(R['wynik'], 'BŁĄD')
+        self.assertIn('count.js HTTP 404', next(x for x in md.splitlines() if x.startswith('- Pliki danych (wiek):')))
+        R2, _, _, _ = self._przebieg('maly')
+        self.assertIn('count.js: HTTP 200, 5 B', R2['uwagi'], 'prawie pusty plik = uwaga (jak robots.txt)')

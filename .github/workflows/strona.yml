@@ -98,6 +98,8 @@ jobs:
           test -f _site/img/flagi/pl.svg                # brak ikon = przerwij publikację
           test -f _site/img/loga/btc.webp               # v319: loga węzłów i monet z plików (dawniej base64 w index.html) — brak = przerwij publikację
           test -f _site/img/monety/aave.webp            #   (osobne linie: w liście „&&” błąd pierwszego członu nie przerywa kroku)
+          cp count.js _site/count.js                    # v348: licznik odwiedzin — skrypt z tej samej strony (nie z obcej domeny); treść przypięta skrótem SHA-256 w teście
+          test -f _site/count.js                        # brak skryptu licznika = przerwij publikację (osobna linia, jak wyżej)
           cp data/*.json _site/data/ 2>/dev/null || true
           cp data/widoki/*.json _site/data/widoki/ 2>/dev/null || true   # widoki silnika (v35), gdy już będą
           test -f _site/fonts/fonts.css                 # brak czcionek = przerwij publikację
