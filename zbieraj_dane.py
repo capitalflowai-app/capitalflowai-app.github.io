@@ -14168,7 +14168,7 @@ LEV_PX = {'hl': 'Hyperliquid', 'bn': 'Binance', 'dr': 'Deribit', 'okx': 'OKX', '
 LEV_HOURS = {'kr': 1, 'cb': 1, 'dy': 1}    # v109: okres finansowania wg dokumentacji giełd (godziny): Kraken, Coinbase i dYdX rozliczają co godzinę
 LEV_FMAX = 0.005                          # v109: |stawka godzinowa| ponad 0,5 % (4 380 % rocznie) = pomyłka jednostki → brak, nie liczba
 LEV_SUMAGE = 6 * 3600                     # v109: do sumy „wszystkie giełdy” wchodzą tylko wiersze młodsze niż 6 h
-LEV_LIVE = ['hl', 'okx', 'kr', 'cb', 'dy']
+LEV_LIVE = ['hl', 'okx', 'kr', 'cb', 'cde', 'dy']   # v345 (C-08): + Coinbase USA (cde) — do sumy „wszystkie giełdy razem” (strona liczy ten sam zestaw); część `cde` ma wiersz BTC/ETH jak inne giełdy
 LEV_PX['cde'] = 'Coinbase USA'    # v343 (F1Z3): osiem części — Coinbase USA (regulowany rynek kontraktów) obok wstrzymanego Coinbase International (cb zostaje: wznowienie handlu)
 DR_FUT_MIN_DNI = 7.0              # v343: krzywa terminowa tylko od 7 dni do rozliczenia — przy krótszych terminach basis w skali roku to szum
 DR_OPT_TERMS = 10                 # v343: najwyżej tyle terminów opcji w pliku (wszystkie miesięczne + najbliższe tygodniowe z dużymi pozycjami)
