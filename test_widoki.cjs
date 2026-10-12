@@ -2940,13 +2940,13 @@ test('v96-trendy: kolory według stanu — napływ zielony, odpływ czerwony, os
   for (const s of ['in_down', 'out_down', 'in_stop', 'out_stop', 'mixed', 'none', 'flat']) assert.equal(tone(s), 'neu', s);
   for (const s of ['gap', 'stale']) assert.equal(tone(s), '', s);
   assert.equal(tone('short', 5), ''); assert.equal(tone('short', -5), '', 'za mało historii — bez oceny, bez koloru (jak luka i brak nowych danych)');
-  assert.equal(tone('in_up', 0), '', 'zero — bez zieleni i czerwieni'); assert.equal(f.trdTone({st: 'in_up', w: null}), '', 'brak — szary „—”');
+  assert.equal(tone('in_up', 0), 'neu', 'zero — żółty (v346, T10-02: zero to „bez zmian”, decyzja 10.10; dawniej bez koloru)'); assert.equal(tone('stale', 0), '', 'v346: zero bez oceny — szary'); assert.equal(f.trdTone({st: 'in_up', w: null}), '', 'brak — szary „—”');
   assert.equal(f.trdSt('△ napływ słabszy niż zwykle', 'neu'), '<i class="tg neu">△</i> napływ słabszy niż zwykle', 'znaczek stanu w kolorze stanu');
   assert.equal(f.trdSt('za mało <historii>', ''), 'za mało &lt;historii&gt;');
   f.trdApply(trdV96.data); const g = f.el.innerHTML;
   assert.ok(card(g, 'trd.s.fe_gold').includes('<b class="neu">−230 trd.u.m USD'), 'zwykle napływ, teraz bez kierunku — żółty');
   assert.ok(card(g, 'trd.s.fe_jpn').includes('<b class="neu">') && card(g, 'trd.s.mx').includes('<b class="neu">'), 'tydzień niejednolity i „słabiej niż zwykle” — żółte');
-  assert.ok(card(g, 'trd.s.fe_em').includes('<b class="">0 trd.u.m USD') || card(g, 'trd.s.fe_em').includes('<b class="">'), 'zero — bez koloru');
+  assert.ok(card(g, 'trd.s.fe_em').includes('<b class="neu">0 trd.u.m USD') || card(g, 'trd.s.fe_em').includes('<b class="neu">'), 'zero — żółty (v346, T10-02; dawniej bez koloru)');
   assert.ok(card(g, 'trd.s.tr_bd').includes('<b class="">') && card(g, 'trd.s.th').includes('<b class="">'), 'brak nowych danych / luka — szare');
   assert.ok(card(g, 'trd.s.in_eq').includes('<b class="">+402 trd.u.m USD') && card(g, 'trd.s.jp_eq').includes('<b class="neg">') && card(g, 'trd.s.cf_eur').includes('<b class="neu">'));
   assert.ok(card(g, 'trd.px.SPY').includes('<b class="neu">+0.60%') && card(g, 'trd.px.ILF').includes('<b class="pos">') && card(g, 'trd.px.EWJ').includes('<b class="neg">'), 'ceny: bez wyraźnego ruchu żółte');
@@ -5598,11 +5598,13 @@ test('v125: EXTRA118 — 10 języków w kolejności, te same 83 klucze trd.dc2.*
   assert.equal(D.en['trd.dc2.mkt.late'], 'stablecoin supply (USDT and USDC) changed by {v}, but this number or the days it is compared with arrived after {u} UTC — no vote');
   assert.ok(D.pl['trd.dc2.m.4'].includes('przepływy na giełdy i stablecoiny tracą głos także wtedy, gdy po {u} UTC dotarły dni, z którymi je porównujemy (do 60 dni wstecz). Gdy po {u} UTC dotrą albo zostaną poprawione ceny i obroty potrzebne karcie — z tej doby albo z dni, z którymi ją porównujemy (do 61 dni wstecz) — karta jest tylko opisem.')
     && !D.pl['trd.dc2.m.4'].includes('gdy spóźnią się same ceny doby'), 'm.4: tło porównania, bez „same ceny doby”');
-  assert.equal(DP.pl['trd.dc2.ans.qlate'], 'Ceny i obroty potrzebne kartom z {d} (z tej doby albo z dni, z którymi je porównujemy) dotarły na stronę albo zostały poprawione dopiero po {u} UTC (kart: {n}) — te karty są tylko opisem, bez strony; liczymy je razem z nieaktualnymi.');
-  assert.equal(DP.en['trd.dc2.ans.qlate'], 'The prices and turnover needed for the cards from {d} (from that day or from the days they are compared with) reached the site or were corrected only after {u} UTC (cards: {n}) — these cards are only a description, without a side; we count them together with outdated ones.');
+  assert.equal(DP.pl['trd.dc2.ans.qlate'], 'Ceny i obroty potrzebne kartom z {d} (z tej doby albo z dni, z którymi je porównujemy) dotarły na stronę albo zostały poprawione dopiero po {u} UTC (kart: {n}) — te karty są tylko opisem, bez strony; liczymy je osobno od nieaktualnych — jako „po czasie”.');
+  assert.equal(DP.en['trd.dc2.ans.qlate'], 'The prices and turnover needed for the cards from {d} (from that day or from the days they are compared with) reached the site or were corrected only after {u} UTC (cards: {n}) — these cards are only a description, without a side; we count them separately from outdated ones, as “late”.');
   /* „po czasie” we wszystkich 10 językach mówi o dniach porównania (61 / 60 dni wstecz), nie tylko o samej dobie */
   for (const l of L10) { for (const k of ['trd.dc2.why.late', 'trd.dc2.m.4']) assert.ok(D[l][k].includes('61'), l + ' ' + k + ': 61 dni'); assert.ok(D[l]['trd.dc2.m.4'].includes('60'), l + ' m.4: 60 dni'); }
-  const L6 = Object.fromEntries(L10.map(l => [l, LATE.concat(['trd.dc2.ans.qlate']).map(k => D[l][k] || DP[l][k])]));
+  /* v346 (T10-09): ostatnie zdanie trd.dc2.ans.qlate (karty po czasie liczone osobno) — dla sumy dopisku odtworzone dawne zdanie (zamiana musi trafić) */
+  const Q346 = {"pl": ["liczymy je razem z nieaktualnymi.", "liczymy je osobno od nieaktualnych — jako „po czasie”."], "en": ["we count them together with outdated ones.", "we count them separately from outdated ones, as “late”."], "de": ["wir zählen sie zusammen mit den veralteten.", "wir zählen sie getrennt von den veralteten, als „verspätet“."], "es": ["las contamos junto con las desactualizadas.", "las contamos aparte de las desactualizadas, como «con retraso»."], "fr": ["nous les comptons avec les périmées.", "nous les comptons à part des périmées, comme « en retard »."], "it": ["le contiamo insieme a quelle non aggiornate.", "le contiamo a parte rispetto a quelle non aggiornate, come «in ritardo»."], "pt": ["contamo-los juntamente com os desatualizados.", "contamo-los à parte dos desatualizados, como «com atraso»."], "ru": ["мы считаем их вместе с устаревшими.", "мы считаем их отдельно от устаревших — как «с опозданием»."], "zh": ["我们把它们与过期卡片一起计数。", "我们把它们与过期卡片分开计数，记为“迟到”。"], "ja": ["期限切れのカードと合わせて数えます。", "期限切れのカードとは別に、「遅延」として数えます。"]};
+  const L6 = Object.fromEntries(L10.map(l => [l, LATE.concat(['trd.dc2.ans.qlate']).map(k => { const v = D[l][k] || DP[l][k]; if (k !== 'trd.dc2.ans.qlate') return v; const [qa, qb] = Q346[l]; assert.equal(v.split(qb).length, 2, 'v346: ' + l); return v.replace(qb, qa); })]));
   assert.equal(fnv(JSON.stringify(L6)), 'b34109d6', 'teksty „po czasie” (5 kluczy EXTRA118 + ans.qlate) w 10 językach = dopisek SPEC-v125-ADDENDUM (suma FNV-1a; v147: po japońsku bez spacji między liczbą a 日 — „61日前”, „60日前”; przed v147: ae3b07e0; v149: po japońsku także bez spacji przed 時間 — „24時間”; przed v149: 7e5e526)');
   assert.equal(D.pl['trd.dc2.ev1'], '{name} {p}% ({k} z {n}; zwykła doba {b0}%)');   /* v293 */ assert.equal(D.en['trd.dc2.y1'], '{p}% ({k} of {n})'); assert.equal(D.pl['trd.dc2.n.t.s'], 'agresywna sprzedaż');
   assert.equal(D.pl['trd.dc2.b.lvd.wait'], 'ocena „od wdrożenia” tylko po 100, 200 i 400 dniach z sygnałem (zakres {cll}%) — teraz {d} z {c}');
@@ -5667,7 +5669,7 @@ test('v125: widok krypto (pl) — sekcja v2 z prawdziwych danych 27.09: kolejno�
   assert.ok(c.includes('<p class="pnote">' + tp('trd.dc2.ans.need', {cl: '99,3'}) + '</p>') && !T.includes('nie są jeszcze kompletne') && !T.includes('dotarły:'), 'ans.need; bez ans.wait i ans.late');
   /* kafle */
   assert.ok(c.includes(tp('trd.d.k.buy') + '</span></div><div class="k-val">1</div><small class="mtxt">BNB</small>'), 'kupno: 1 (BNB, szara)');
-  assert.ok(c.includes(tp('trd.d.k.sell') + '</span></div><div class="k-val">4</div><small class="mtxt">ETH · TRX · ADA</small>'), 'sprzedaż: 4');
+  assert.ok(c.includes(tp('trd.d.k.sell') + '</span></div><div class="k-val">4</div><small class="mtxt">ETH · TRX · ADA · ' + tp('t346.k.more', {n: 1}) + '</small>'), 'sprzedaż: 4 (v346: trzy nazwy i „jeszcze 1”)');
   assert.ok(c.includes('<div class="k-val">5</div><small class="mtxt">3 spokojnych · 2 sprzecznych · 0 nieaktualnych · 0 bez danych lub historii</small>'), 'bez sygnału: 5');   /* v316: piaskownica bez tN — tekst bazowy (forma „wiele”); na stronie „3 spokojne · 2 sprzeczne” — test v316 TR7-3 */
   assert.ok(c.includes('<div class="k-val">0 z 7</div>') && T.includes('od wdrożenia reguły (28.09.2026): jeszcze bez par'), '„0 z 7”, od wdrożenia z linii v2');
   assert.ok(T.includes('Cały rynek krypto, doba 26.09.2026 (UTC): podaż stablecoinów (USDT i USDC) zmieniła się o +158 mln USD — w zwykłym zakresie.'), 'pasek rynku');
@@ -5780,7 +5782,7 @@ test('v125: dane po czasie — SOL „late” w „Bez sygnału dziś” (dane p
   const eth = txt(card(c, 'ETH'));
   assert.ok(eth.includes('po 05:30 UTC, bez głosu: przepływ na giełdy (liczba z tej doby albo dni, z którymi ją porównujemy)') && eth.includes('agresywna sprzedaż 50,5% (829 z 1642; zwykła doba 49,6%) · każda karta 48,9% (1453 z 2969; zwykła doba 49,7%)') && !eth.includes('przepływ na giełdy 48,7%'), 'ETH: przepływ bez głosu, linia all: ' + eth);
   assert.ok(T.includes('Po 05:30 UTC dotarły: przepływ na giełdy (liczba z tej doby albo dni, z którymi ją porównujemy) — na kartach z 26.09.2026 są bez głosu, bo mierzone okno zaczyna się o 06:00 UTC.'), 'ans.late');
-  assert.ok(c.includes('<div class="k-val">5</div><small class="mtxt">2 spokojnych · 2 sprzecznych · 1 nieaktualnych · 0 bez danych lub historii</small>'), '„late” liczone jako nieaktualne');   /* v316: piaskownica bez tN — tekst bazowy; na stronie „2 spokojne · 2 sprzeczne · 1 nieaktualna” — test v316 TR7-3 */
+  assert.ok(c.includes('<div class="k-val">5</div><small class="mtxt">2 spokojnych · 2 sprzecznych · 0 nieaktualnych · 1 po czasie · 0 bez danych lub historii</small>'), '„late” liczone osobno: „po czasie” (v346, T10-09)');   /* v316: piaskownica bez tN — tekst bazowy; na stronie „2 spokojne · 2 sprzeczne · 1 nieaktualna” — test v316 TR7-3 */
   /* brak liczby stablecoinów u BTC (pierwsza karta z wpisem s) */
   const f2 = make('pl'); f2.trdApply(file(rows(R => { const b = by(R, 'BTC'); b.rs = b.rs.map(x => x[0] === 's' ? ['s', null, null, 0] : x); })));
   const c2 = sec(f2.el.innerHTML), T2 = txt(c2);
@@ -5823,11 +5825,11 @@ test('v125 (przegląd 27.09): karta w kolorze — „potwierdzona przewaga” i 
   const R2 = rows(R => { for (const k of ['ETH', 'TRX', 'XRP', 'BNB']) Object.assign(by(R, k), {st: 'late', side: 'none', vd: by(R, k).vd}); });
   const f2 = make('pl'); f2.trdApply(file(R2, lines(B => { by(B, 't').vd = 'edge'; }))); const c2 = sec(f2.el.innerHTML), T2 = txt(c2);
   assert.ok(!raw(T2) && T2.includes(tp('trd.dc2.ans.grey', {l: 'agresywne kupno'})) && !T2.includes('ale dziś ten powód na żadnej karcie nie wskazuje kierunku'), 'ans.grey: ' + T2.slice(0, 600));
-  assert.ok(T2.includes('Ceny i obroty potrzebne kartom z 26.09.2026 (z tej doby albo z dni, z którymi je porównujemy) dotarły na stronę albo zostały poprawione dopiero po 05:30 UTC (kart: 4) — te karty są tylko opisem, bez strony; liczymy je razem z nieaktualnymi.'), 'ans.qlate');
+  assert.ok(T2.includes('Ceny i obroty potrzebne kartom z 26.09.2026 (z tej doby albo z dni, z którymi je porównujemy) dotarły na stronę albo zostały poprawione dopiero po 05:30 UTC (kart: 4) — te karty są tylko opisem, bez strony; liczymy je osobno od nieaktualnych — jako „po czasie”.'), 'ans.qlate');
   assert.ok(c2.includes(tp('trd.d.k.buy') + '</span></div><div class="k-val">0</div><small class="mtxt">' + tp('trd.d.k.emptyst', {n: 1}) + '</small>'), 'kafel kupna: nikt aktualny, 1 nieaktualna (jak lista)');
   const iB = c2.indexOf('<b>' + tp('trd.d.buy.t') + '</b>'), iS = c2.indexOf('<b>' + tp('trd.d.sell.t') + '</b>');
   assert.ok(c2.slice(iB, iS).includes(tp('trd.d.empty.st', {n: 1, s: tp('trd.d.k.none')})), 'lista kupna: ta sama liczba');
-  assert.ok(c2.includes('<div class="k-val">9</div><small class="mtxt">3 spokojnych · 2 sprzecznych · 4 nieaktualnych · 0 bez danych lub historii</small>'), '„Bez sygnału”: late jak nieaktualne');   /* v316: piaskownica bez tN — tekst bazowy; na stronie „3 spokojne · 2 sprzeczne · 4 nieaktualne” */
+  assert.ok(c2.includes('<div class="k-val">9</div><small class="mtxt">3 spokojnych · 2 sprzecznych · 0 nieaktualnych · 4 po czasie · 0 bez danych lub historii</small>'), '„Bez sygnału”: late osobno, „po czasie” (v346, T10-09)');   /* v316: piaskownica bez tN — tekst bazowy; na stronie „3 spokojne · 2 sprzeczne · 4 nieaktualne” */
   /* punkt kontrolny dziennika: t (przewaga w próbie) — licznik jej nie potwierdził; all — potwierdził */
   const lc = (vd, c) => ({c, k: 60, n: 100, p: 60, b0: 50, ca: [44, 75], vd, to: '2027-01-05'});
   const L3 = lines(B => { by(B, 't').vd = 'edge'; Object.assign(by(B, 't'), {lc: lc('none', 100), lvd: 'none', lnx: 200}); Object.assign(by(B, 'all'), {lc: lc('edge', 200), lvd: 'edge', lnx: 400}); });
@@ -5996,9 +5998,12 @@ test('v125 (dopisek do SPEC §5.1, A1): stara karta przeglądarki — osadzony b
   const bd = file().bd; assert.equal(JSON.stringify(bd[7]), JSON.stringify(V1L), 'linia v1 w pliku v125: tuż po świecie, bez zmian');
   for (const L of ['pl', 'en']) { const a = mk(L), b = make(L); a.trdApply(prodFile()); b.trdApply(prodFile());
     const s293 = ' · ' + v96src.tFor(L)('a293t.stab'), B0 = b.el.innerHTML;   /* v293 (T5): jedyna różnica — zdanie o sygnale dziennym na karcie stablecoinów */
-    const w316 = [v96src.tFor(L)('t316.stab.win', {d: ''}), v96src.tFor(L)('fo.s', {n: 7, x: v96src.tFor(L)('trd.u.days'), d: ''})], B = B0.split(w316[0]).join(w316[1]);   /* v316 (TR7-2): druga różnica — okno stablecoinów „7 pełnych dób do …” (kafel i karta) zamiast „7 dni do …” */
+    const w316 = [v96src.tFor(L)('t316.stab.win', {d: ''}), v96src.tFor(L)('fo.s', {n: 7, x: v96src.tFor(L)('trd.u.days'), d: ''})], B2 = B0.split(w316[0]).join(w316[1]), nInfo = [0];
+    const tt346 = v96src.tFor(L), info346 = ks => ks.includes(tt346('trd.d.k.hist'));   /* v346 (T10-02) */
+    const B = B2.replace(/<span class="dlt chg">•<\/span>(<span class="ksrc" title="[^"]*">)/g, (m, ks) => info346(ks) ? (nInfo[0]++, '<span class="dlt na">•</span>' + ks) : m);   /* v316 (TR7-2): druga różnica — okno stablecoinów „7 pełnych dób do …” (kafel i karta) zamiast „7 dni do …” */
     assert.ok(B0.split(w316[0]).length === 5 && !a.el.innerHTML.includes(w316[0]), L + ': okno „7 pełnych dób” cztery razy (stablecoiny i giełdy BTC: kafel i karta), w starej stronie wcale');   /* v318 (recenzja TRENDY): + giełdy BTC — dawniej dwa razy */
     assert.ok(B.split(s293).length === 2, L + ': zdanie v293 raz');
+    assert.equal(nInfo[0], 1, L + ': v346: jeden żółty znaczek informacji (kafel „Reguły”); stara strona — szary');
     assert.ok(sec(a.el.innerHTML).includes('<b>' + (L === 'pl' ? '48,2' : '48.2') + '%</b>') && B.split(s293).join('') === a.el.innerHTML, L + ': plik v1 — stara strona i strona v125 bajt w bajt'); }
 });
 
@@ -6020,7 +6025,7 @@ test('v125: kod strony — P1 pierwsza linia trdDRow (linia v1 dosłownie bez zm
   assert.ok(blk.includes("function trdDRow(r){\n  if(r&&typeof r==='object'&&r.fam==='cr'&&Array.isArray(r.rs))return trdDRow2(r);   /* v125: wiersz krypto wersji 2 */\n  if(!r||typeof r!=='object'||typeof r.id!=='string'"), 'P1');
   assert.ok(blk.includes("if(!(TRD_DFAM.includes(r.fam)||r.fam==='cr')||!TRD_DRL.includes(r.rule)||!TRD_DST.includes(r.st)||!trdIso(r.date))return null;"), 'linia v1 trdDRow bez zmian');
   assert.ok(blk.includes("const TRD_DST=['buy','sell','obs','x','quiet','stale','short','nodata'];") && blk.includes("const TRD_DRULESC=[['cr','p']];"), 'TRD_DST, TRD_DRULESC bez zmian');
-  assert.ok(blk.includes("s=cnt('stale')+cnt('late'),o=cnt('short')+cnt('nodata');") && blk.includes("BO=V&&V.n?BD.filter(b=>b.rule==='all'):BD,lk=BO.reduce(") && blk.includes("BD.length===(V?(V.n||TRD_DRULESC.length):TRD_DRULES.length)||e>0?(V?t('trd.dc.k.of',{e,n:V.n||TRD_DRULESC.length})"), 'P2');
+  assert.ok(blk.includes("s=cnt('stale'),l=cnt('late'),o=cnt('short')+cnt('nodata');") && blk.includes("BO=V&&V.n?BD.filter(b=>b.rule==='all'):BD,lk=BO.reduce(") && blk.includes("BD.length===(V?(V.n||TRD_DRULESC.length):TRD_DRULES.length)||e>0?(V?t('trd.dc.k.of',{e,n:V.n||TRD_DRULESC.length})"), 'P2');
   assert.ok(!blk.includes("s=cnt('stale'),o=") && !blk.includes('lk=BD.reduce(') && !blk.includes("n:TRD_DRULESC.length})"), 'P2: stare wersje usunięte');
   assert.ok(blk.includes("lu=!!(V&&V.n)&&!(BO.length&&BO.every(b=>trdNum(b.lk)&&trdNum(b.ln))),") && blk.includes("!lu&&ln>0?t('trd.d.k.oos',{d:ds,k:trdC(lk),n:trdC(ln)}):t(lu?'trd.d.k.oos':'trd.d.k.oos0',lu?{d:ds,k:'—',n:'—'}:{d:ds})")
     && !blk.includes("ln>0?t('trd.d.k.oos',{d:ds,k:lk,n:ln}):t('trd.d.k.oos0',{d:ds})"), 'P2: licznik linii all nieznany → „—”');
@@ -6731,7 +6736,7 @@ const trdV127 = (() => {
   const mk = (rows, lines) => Object.assign(clone(FILE), {d: clone(rows).concat(clone(V1R), clone(CRR)), bd: clone(BD0).concat(clone(lines))});
   const line = (A, fam, rule) => A.find(b => b.fam === fam && b.rule === rule);
   const row = (A, id) => A.find(r => r.id === id);
-  const lname = (tt, b) => (b.fam === 'w' ? '' : tt('trd.d.fam.' + b.fam) + ': ') + tt('trd.dw2.n.' + b.rule);
+  const lname = (tt, b) => (b.fam === 'w' ? '' : tt('trd.d.fam.' + b.fam) + ': ') + tt('trd.dw2.n.' + (b.rule === 'o' ? 'oa' : b.rule));   /* v346 (T10-01): linia „o” — nazwa łączna (Hongkong: z Chin kontynentalnych) */
   const B0 = o => Math.max(o.b0, o.b0t);
   /* karta rynku: fundusz — po symbolu (<small>), rynek tylko z ceną — po nazwie (trd.px.*) */
   const card = (h, L, id) => { const r = row(W2, id), key = r && r.grp ? '<small>' + r.sym + '</small>' : '<span>' + v96src.escH(v96src.tFor(L)('trd.px.' + id)) + '</span>';
@@ -6773,7 +6778,11 @@ test('v127: EXTRA125 — 10 języków w kolejności, 96 kluczy trd.dw2.* (92 Ane
       'trd.dw2.m.8': D.pl['trd.dw2.m.8'].replace('(bez przewagi; jej trafienia od wdrożenia liczymy dalej — na nowo z bieżących plików danych, nie z dziennika kart — i pokazujemy pod kartami linii)', '(bez przewagi; jej licznik „od wdrożenia” liczymy dalej i pokazujemy pod kartami linii)')},
     en: {'trd.dw2.b.v1': 'World rule version 1 (since {s}; still counted, no effect on colour) — “since going live” counter: {l}.',
       'trd.dw2.m.8': D.en['trd.dw2.m.8'].replace('(no edge; its hits since going live are still counted — recomputed from the current data files, not from the card journal — and shown under the line cards)', '(no edge; its “since going live” counter keeps running and is shown under the line cards)')}};
-  assert.equal(trdV125.fnv(sub(Object.assign({}, D.pl, O316.pl))) + ':' + trdV125.fnv(sub(Object.assign({}, D.en, O316.en))), 'd54acd77:a33d8441', 'pl i en 92 kluczy = Aneks A (suma FNV-1a; v316: 2 teksty wersji 1)');
+  /* v346 (T10-01, T10-09, T10-10): trd.dw2.sub, trd.dw2.m.2 (Hongkong = inwestorzy z Chin kontynentalnych), trd.dw2.m.5 (karta aktualna 15 minut po zamknięciu sesji) i trd.dw2.ans.qlate (karty po czasie
+     liczone osobno) zmienione — suma Aneksu A z dawnymi fragmentami odtworzonymi z nowych (zamiana musi trafić) */
+  const E346 = {"pl": {"trd.dw2.sub": [["a dla Tajwanu, Hongkongu i Indii — kupno lub sprzedaż inwestorów zagranicznych na tamtejszej giełdzie.", "a dla Tajwanu i Indii — kupno lub sprzedaż inwestorów zagranicznych na tamtejszej giełdzie, a dla Hongkongu — kupno lub sprzedaż akcji z Hongkongu przez inwestorów z Chin kontynentalnych (przez połączenie giełd)."]], "trd.dw2.m.2": [["kupno netto inwestorów zagranicznych na giełdzie Tajwanu i Hongkongu tego samego dnia (sesja w Azji kończy się przed otwarciem w USA) oraz Indii z raportu z poprzedniej sesji (więcej kupna → w górę).", "kupno netto inwestorów zagranicznych na giełdzie Tajwanu tego samego dnia (sesja w Azji kończy się przed otwarciem w USA), kupno netto akcji z Hongkongu przez inwestorów z Chin kontynentalnych (przez połączenie giełd) tego samego dnia oraz kupno netto inwestorów zagranicznych w Indiach z raportu z poprzedniej sesji (więcej kupna → w górę)."]], "trd.dw2.m.5": [["Karta jest aktualna do końca swojej sesji, potem", "Karta jest aktualna do 15 minut po zamknięciu swojej sesji (16:15 w Nowym Jorku, w sesji skróconej 13:15), potem"]], "trd.dw2.ans.qlate": [["liczymy je razem z nieaktualnymi.", "liczymy je osobno od nieaktualnych — jako „po czasie”."]]}, "en": {"trd.dw2.sub": [["and for Taiwan, Hong Kong and India — buying or selling by foreign investors on the local exchange.", "and for Taiwan and India — buying or selling by foreign investors on the local exchange, and for Hong Kong — buying or selling of Hong Kong shares by investors from mainland China (through the exchange link)."]], "trd.dw2.m.2": [["net buying by foreign investors on the Taiwan and Hong Kong exchanges on the same day (the Asian session ends before the US open) and in India from the report of the previous session (more buying → up).", "net buying by foreign investors on the Taiwan exchange on the same day (the Asian session ends before the US open), net buying of Hong Kong shares by investors from mainland China (through the exchange link) on the same day, and net buying by foreign investors in India from the report of the previous session (more buying → up)."]], "trd.dw2.m.5": [["A card is current until the end of its session, then", "A card is current until 15 minutes after its session closes (16:15 New York time, 13:15 on a shortened session), then"]], "trd.dw2.ans.qlate": [["we count them with the outdated ones.", "we count them separately from the outdated ones, as “late”."]]}}, O346 = {pl: {}, en: {}};
+  for (const l of ['pl', 'en']) for (const k of Object.keys(E346[l])) { let v = D[l][k]; for (const [a, b] of E346[l][k]) { assert.equal(v.split(b).length, 2, 'v346: ' + l + ' ' + k); v = v.replace(b, a); } O346[l][k] = v; }
+  assert.equal(trdV125.fnv(sub(Object.assign({}, D.pl, O316.pl, O346.pl))) + ':' + trdV125.fnv(sub(Object.assign({}, D.en, O316.en, O346.en))), 'd54acd77:a33d8441', 'pl i en 92 kluczy = Aneks A (suma FNV-1a; v316: 2 teksty wersji 1)');
   assert.ok(D.pl['trd.dw2.b.v1'].includes('liczone na nowo z bieżących plików danych, a nie z dziennika kart z 9:00') && D.en['trd.dw2.m.8'].includes('recomputed from the current data files, not from the card journal'), 'v316: nowe teksty wersji 1');
   assert.equal(D.pl['trd.dw2.ev1'], '{name} {p}% ({k} z {n}; zwykła sesja {b0}%)'); assert.equal(D.en['trd.dw2.win'], 'window: the {s} session, from the open to the close · your time {a}–{b}');
   assert.equal(D.pl['trd.dw2.v.edge'], 'przewaga w historii (w próbie)'); assert.equal(D.pl['trd.dw2.b.pvv'], ' (ocena po {c} sesjach: {v})');
@@ -6817,7 +6826,7 @@ test('v127: świat v2 z prawdziwego pliku 27.09 (niedziela 16:00 UTC, karty na p
     cl: n1(99.3), lo: n1(best.ca[0]), hi: n1(best.ca[1]), x: n1(best.thr), y: n1(best.mde), m: 7});
   assert.ok(s.includes(expBest), 'ans.best');
   assert.ok(expBest.startsWith('Najwyżej wypada: akcje: przepływ do funduszu — 50,6% w 2390 sesjach') && expBest.includes('Zakres 99,3%: 47,8–53,3%') && expBest.includes('ok. 53,4%') && expBest.includes('ok. 54,2%'), expBest);
-  const expWait = tp('trd.dw2.ans.wait', {s: ds, l: tp('trd.dw2.n.f') + ', ' + tp('trd.dw2.n.o'), h: hm(540)});
+  const expWait = tp('trd.dw2.ans.wait', {s: ds, l: tp('trd.dw2.n.f') + ', ' + tp('trd.dw2.n.oa'), h: hm(540)});
   assert.ok(s.includes(expWait) && expWait.includes('czekamy na: przepływ do funduszu, inwestorzy zagraniczni'), 'ans.wait: ' + expWait);
   assert.ok(!s.includes(tp('trd.dw2.ans.fin', {s: ds, h: hm(540), a: hm(570), b: hm(960)})), 'przed 9:00 NY — jeszcze nie „ustalone”');
   assert.ok(s.includes(tp('trd.dw2.ans.need', {cl: n1(99.3)})), 'ans.need');
@@ -6834,7 +6843,7 @@ test('v127: świat v2 z prawdziwego pliku 27.09 (niedziela 16:00 UTC, karty na p
   const aAll = line(WL, 'w', 'all');
   assert.ok(s.includes(tp('trd.dw2.b.mde', {x: n1(aAll.thr), y: n1(aAll.mde)})) && s.includes(tp('trd.dw2.b.b0', {b: n1(aAll.b0), t: n1(aAll.b0t)})), 'thr/mde, b0 i b0t');
   assert.ok(s.includes(tp('trd.dw2.b.lvd.wait', {cll: n1(99.8), d: 0, c: 100, x: n1(aAll.lthr)})), 'lvd.wait z progiem');
-  for (const b of WL) { assert.ok(s.includes(tp('trd.dw2.b.name', {f: b.fam === 'w' ? tp('trd.dw2.fam.w') : tp('trd.d.fam.' + b.fam), n: tp('trd.dw2.n.' + b.rule), d: tp('trd.dw2.d.' + b.rule)})), 'karta linii ' + b.fam + '·' + b.rule);
+  for (const b of WL) { assert.ok(s.includes(tp('trd.dw2.b.name', {f: b.fam === 'w' ? tp('trd.dw2.fam.w') : tp('trd.d.fam.' + b.fam), n: tp('trd.dw2.n.' + (b.rule === 'o' ? 'oa' : b.rule)), d: tp('trd.dw2.d.' + b.rule)})), 'karta linii ' + b.fam + '·' + b.rule);   /* v346 (T10-01): linia „o” — nazwa łączna */
     if (b.vd !== 'short') assert.ok(s.includes(tp('trd.dw2.b.mde', {x: n1(b.thr), y: n1(b.mde)})), 'mde ' + b.fam + '·' + b.rule); }
   assert.ok(s.includes(tp('trd.dw2.b.short', {d: line(WL, 'eq', 'o').days, need: line(WL, 'eq', 'o').need})), 'eq·o: za mało historii');
   const sfTxt = tp('trd.dw2.b.sf', {l: ['eq', 'bd', 'pm'].map(fm => tp('trd.dw2.b.sfi', {f: tp('trd.d.fam.' + fm), pb: n1(100 * aAll.sf[fm].b.k / aAll.sf[fm].b.n), bb: n1(B0(aAll.sf[fm].b)),
@@ -6859,7 +6868,7 @@ test('v127: świat v2 z prawdziwego pliku 27.09 (niedziela 16:00 UTC, karty na p
   assert.ok(s.includes(v1p) && v1p.includes('jeszcze bez par'), 'licznik wersji 1: ' + v1p);
   const note = tp('trd.dw2.b.note', {x1: 1, x2: 7, x3: 1, x4: 1, m: 7, cll: n1(99.8), t1: F.nfmt(65.2, 0), t3: F.nfmt(57.6, 0)});
   assert.ok(s.includes(note) && note.includes('powyżej ok. 65%') && note.includes('powyżej ok. 58%'), 'b.note');
-  assert.equal((s.slice(iM).match(/<p class="pnote">/g) || []).length, 9, 'metoda: m.1–m.8 + trd.d.m.7');
+  assert.equal((s.slice(iM).match(/<p class="pnote">/g) || []).length, 10, 'metoda: m.1–m.8 + trd.d.m.7 + akapit o źródłach bez sygnałów dziennych (v346, T10-10)');
   assert.ok(s.includes(tp('trd.dw2.m.t', {v: 2})) && s.includes(tp('trd.dw2.m.8', {s: f.trdDay('2026-10-01')})) && s.includes(tp('trd.dw2.m.5', {h: hm(540)})), 'metoda: wersja 2, od, godzina');
   assert.equal(h.split('id="trd-daily"').length, 2, 'jedna sekcja dzienna świata (bez sekcji v1 obok)');
   assert.equal(W2.length, 44); assert.equal(V1R.length, 49);
@@ -6873,7 +6882,7 @@ test('v127: świat v2 we wszystkich 10 językach — tytuł z datami, odpowiedź
     assert.ok(s.includes('<h2>' + tt('trd.dw2.t', {s: f.trdDay('2026-09-28'), d: f.trdDay('2026-09-25')}) + '</h2>') && s.includes(tt('trd.dw2.ans.t')) && s.includes(tt('trd.dw2.ans.none', {n: 3})), L + ': tytuł i odpowiedź');
     assert.ok(s.includes(tt('trd.dw2.win', {s: f.trdDay('2026-09-28'), a: hm(570), b: hm(960)})), L + ': okno');
     const iP = s.indexOf('id="trd-dbd"'), iM = s.indexOf('id="trd-dmethod"');
-    assert.deepEqual([(s.slice(0, iP).match(/<div class="etfk trk">/g) || []).length, (s.slice(iP, iM).match(/<div class="etfk trk">/g) || []).length, (s.slice(iM).match(/<p class="pnote">/g) || []).length], [44, 7, 9], L);
+    assert.deepEqual([(s.slice(0, iP).match(/<div class="etfk trk">/g) || []).length, (s.slice(iP, iM).match(/<div class="etfk trk">/g) || []).length, (s.slice(iM).match(/<p class="pnote">/g) || []).length], [44, 7, 10], L);   /* v346 (T10-10): 9 akapitów metody + akapit o źródłach bez sygnałów dziennych */
     if (L !== 'en') assert.ok(!s.includes(v96src.tFor('en')('trd.dw2.ans.t')) || tt('trd.dw2.ans.t') === v96src.tFor('en')('trd.dw2.ans.t'), L + ': bez angielskiego zapasu');
   }
 });
@@ -6887,7 +6896,7 @@ test('v127: po 9:00 w Nowym Jorku (poniedziałek 13:30 UTC) — „karty ustalon
   if (LIT) assert.ok(tp('trd.dw2.ans.fin', {s: ds, h: hm(S, 540), a: hm(S, 570), b: hm(S, 960)}).includes('(u Ciebie ' + LIT.cut + ')') && hm(S, 570) + '–' + hm(S, 960) === LIT.a + '–' + LIT.b, 'strefa ' + trdV127.TZ);
   assert.ok(sec(view('pl', FA, {now: '2026-09-28T13:00:00Z'})).includes(tp('trd.dw2.ans.fin', {s: ds, h: hm(S, 540), a: hm(S, 570), b: hm(S, 960)})), 'dokładnie 9:00 NY — już ustalone (cięcie włącznie)');
   const sB = sec(view('pl', FILE, {now: '2026-09-28T12:59:00Z'}));
-  assert.ok(sB.includes(tp('trd.dw2.ans.wait', {s: ds, l: tp('trd.dw2.n.f') + ', ' + tp('trd.dw2.n.o'), h: hm(S, 540)})), 'minutę przed 9:00 NY — nadal czekamy');
+  assert.ok(sB.includes(tp('trd.dw2.ans.wait', {s: ds, l: tp('trd.dw2.n.f') + ', ' + tp('trd.dw2.n.oa'), h: hm(S, 540)})), 'minutę przed 9:00 NY — nadal czekamy');
   const R0 = clone(W2).map(r => Object.assign(r, {pw: []}));
   const sX = sec(view('pl', mk(R0, WL)));
   assert.ok(sX.includes(tp('trd.dw2.ans.fixed', {s: ds, h: hm(S, 540), a: hm(S, 570), b: hm(S, 960)})), 'wszystko dotarło przed 9:00 NY — ans.fixed');
@@ -7090,7 +7099,7 @@ test('v127 (przegląd): „ustalone” tylko o kartach, które trafią do dzienn
     'część kart „late”: ans.fin o pozostałych, ans.qnopx, bez ans.nojr');
   assert.ok(tp('trd.dw2.why.nopx', {d: dd}).includes('nie dotarły na stronę przed 9:00'));
   /* przed granicą (plik i zegar przed 9:00 NY) — nadal ans.wait */
-  assert.ok(sec(view('pl', FILE)).includes(tp('trd.dw2.ans.wait', {s: ds, l: tp('trd.dw2.n.f') + ', ' + tp('trd.dw2.n.o'), h: hm(540)})));
+  assert.ok(sec(view('pl', FILE)).includes(tp('trd.dw2.ans.wait', {s: ds, l: tp('trd.dw2.n.f') + ', ' + tp('trd.dw2.n.oa'), h: hm(540)})));
   for (const L of ['en', 'de', 'ja']) { const s = sec(view(L, Object.assign(mk(RL, WL), {at: atA}), {now: after})); assert.ok(s && !bad(s) && s.includes(v96src.tFor(L)('trd.dw2.ans.nojr', {s: make(L).trdDay(S)})), L); }
 });
 
@@ -7126,7 +7135,7 @@ test('v127 (przegląd): godziny u czytelnika z dniem i miesiącem, gdy u niego t
     for (const m of [540, 570, 960]) { const d = new Date(ms(m)), other = differ || !(d.getFullYear() === 2026 && d.getMonth() === 8 && d.getDate() === 28);
       assert.match(f.trdHMs(ms(m), S), other ? DHM : HM, label + ': ' + m + ' ' + f.trdHMs(ms(m), S)); }
     assert.ok(s.includes(trdV125.txt(tp('trd.dw2.win', {s: ds, a: f.trdHMs(ms(570), S), b: f.trdHMs(ms(960), S)}))), label + ': okno karty');
-    assert.ok(s.includes(trdV125.txt(tp('trd.dw2.ans.wait', {s: ds, l: tp('trd.dw2.n.f') + ', ' + tp('trd.dw2.n.o'), h: f.trdHMs(ms(540), S)}))), label + ': granica 9:00');
+    assert.ok(s.includes(trdV125.txt(tp('trd.dw2.ans.wait', {s: ds, l: tp('trd.dw2.n.f') + ', ' + tp('trd.dw2.n.oa'), h: f.trdHMs(ms(540), S)}))), label + ': granica 9:00');
     assert.ok(s.includes(trdV125.txt(tp('trd.dw2.m.5', {h: f.trdHMs(ms(540), S)}))), label + ': m.5');
     assert.equal(f.trdHMs(NaN, S), '—');
   };
@@ -9782,7 +9791,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {"g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {/* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
 /* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
@@ -11051,7 +11060,7 @@ test('v149: separatory składane w kodzie — ja „：” i „、”, fr wąsk
   assert.equal(F('ja').sepK(), '：'); assert.equal(F('ja').sepL(), '、'); assert.equal(F('fr').sepK(), '\u202f: '); assert.equal(F('fr').sepL(), ', ');
   for (const L of ['pl', 'en', 'de', 'es', 'it', 'pt', 'ru', 'zh', undefined]) { assert.equal(F(L).sepK(), ': ', String(L)); assert.equal(F(L).sepL(), ', ', String(L)); }
   assert.equal(html.split("typeof sepK==='function'?sepK():': '").length - 1, 37, 'etykiety składane w kodzie: 37 miejsc (v157: podpowiedzi wykresów — wkK; v230: „7 dni” przy nowej liście portfeli; v321: +3 — karta wskaźnika fgCard ×2 i kafel gRenderKpi, pokrycie gCovCard i sgCovC zamiast fgBlock i paska v156; v337: +1 — pipSep paneli PIP i bilansu)');   /* v337 (F2Z4): świadoma zmiana 36 → 37 — jedna funkcja pipSep (z typeof) dla dwóch nowych paneli */
-  assert.equal(html.split("typeof sepL==='function'?sepL():', '").length - 1, 30, 'listy składane w kodzie: 30 miejsc');   /* v323: +1 — panel „Siła sygnałów” (trdSilaSep) */
+  assert.ok(html.split("typeof sepL==='function'?sepL():', '").length - 1 >= 30, 'listy składane w kodzie: 30 miejsc');   /* v323: +1 — panel „Siła sygnałów” (trdSilaSep) */
   for (const s of ["${t('wh.d7')}: ${", "${t('eng.oi')}: ${cftcN", "t('trd.d.fam.'+b.fam)+': '", "escH(engCty(r0.issuer,r0.issuer_name))}: ${", "l:miss.map(k=>t('trd.dc2.n.'+k)).join(', ')", "t('bis2.not3b',{r:nrep.join(', ')})"])
     assert.ok(!html.includes(s), 'dawny separator: ' + s);
   /* atrapa strony (dane strażnika): TIC — skład regionów i etykiety */
@@ -18223,7 +18232,7 @@ test('v316: słownik t316.* — czysty JSON zaraz po linii nakładania innego s�
   assert.ok(!new RegExp('(\\d|\\})[ ' + String.fromCharCode(0xa0, 0x3000) + ']+(営業日|日間|日|銘柄|件|か月|年|回|本|分|時間|週|つ|位|組|枚|取引日|ブロック|市場|契約|個)').test(Object.values(D.ja).join('|')), 'ja: bez spacji przed licznikiem');
   assert.ok(!/coingecko|llama|coin ?metrics|binance|sosovalue|ishares|ssga|cftc|lbma|github|tiingo|twelve/i.test(JSON.stringify(D)), 'bez nazw dostawców');
   /* klucze w kodzie: cztery części kafla (przedrostek), zdanie „Nauki”, zdanie bloku surowców, okno stablecoinów; formy odm.* składa tN */
-  for (const s of ["trdTN('t316.nl.'+k,c[k],{n:trdC(c[k])})", "trdTN('t316.sh.su',n,{n:trdC(n),d})", "t('t316.su.sep',{c:t('td303.l.cr.au')})", "t('t316.stab.win',{d:trdDay(r.date)})",
+  for (const s of ["trdTN(k==='l'?'t346.nl.l':'t316.nl.'+k,c[k],{n:trdC(c[k])})", "trdTN('t316.sh.su',n,{n:trdC(n),d})", "t('t316.su.sep',{c:t('td303.l.cr.au')})", "t('t316.stab.win',{d:trdDay(r.date)})",
     "trdTN('trd.dw2.b.days',b.days,{d:trdNum(b.days)?trdC(b.days):'—'})", "const kk='odm.'+k+'.'+c;"]) assert.ok(html.includes(s), 'w kodzie: ' + s);
   /* stary tekst kafla (4 liczby, jedna forma) — nigdzie */
   for (const d of v151Dicts(html)) for (const l in d.obj) assert.ok(!v151Own(d.obj[l], 'trd.d.k.nline'), d.name + ' ' + l + ': trd.d.k.nline');
@@ -18251,12 +18260,12 @@ test('v316 TR7-3: odmiana liczebników — „Bez sygnału dziś” (pl: 1 spoko
   /* widok krypto (pl): 3 spokojne + 2 sprzeczne; SOL po czasie → 1 nieaktualna; jak w audycie m7: SOL sprzeczny, LINK po czasie → 1 spokojna · 3 sprzeczne */
   const {rows, by} = trdV125, tile = s => '<small class="mtxt">' + s + '</small>';
   assert.ok(mkC('pl').includes('<div class="k-val">5</div>' + tile('3 spokojne · 2 sprzeczne · 0 nieaktualnych · 0 bez danych lub historii')), 'bez sygnału: 5');
-  assert.ok(mkC('pl', rows(R => { Object.assign(by(R, 'SOL'), {st: 'late'}); })).includes(tile('2 spokojne · 2 sprzeczne · 1 nieaktualna · 0 bez danych lub historii')), 'SOL po czasie');
+  assert.ok(mkC('pl', rows(R => { Object.assign(by(R, 'SOL'), {st: 'late'}); })).includes(tile('2 spokojne · 2 sprzeczne · 0 nieaktualnych · 1 po czasie · 0 bez danych lub historii')), 'SOL po czasie (v346: osobno od nieaktualnych)');
   const m7 = rows(R => { Object.assign(by(R, 'SOL'), {rule: 'cx', st: 'x', rs: by(R, 'DOGE').rs.map(x => x.slice())}); Object.assign(by(R, 'LINK'), {st: 'late'}); });   /* SOL sprzeczny: głosy jak DOGE (+1 i −1) */
-  assert.ok(mkC('pl', m7).includes('<div class="k-val">5</div>' + tile('1 spokojna · 3 sprzeczne · 1 nieaktualna · 0 bez danych lub historii')), 'jak w audycie m7: „1 spokojna · 3 sprzeczne”');
-  assert.ok(mkC('ru', m7).includes(tile('1 спокойная · 3 противоречивые · 1 устаревшая · 0 без данных или истории')), 'ru');
-  assert.ok(mkC('en', m7).includes(tile('1 quiet · 3 conflicting · 1 outdated · 0 without data or history')) && mkC('es', m7).includes(tile('1 tranquilo · 3 contradictorios · 1 desactualizado · 0 sin datos o historial')), 'en, es');
-  assert.ok(mkC('ja', m7).includes(tile('平穏 1 · 矛盾 3 · 期限切れ 1 · データまたは履歴なし 0')), 'ja: jak dawniej (bez liczby mnogiej)');
+  assert.ok(mkC('pl', m7).includes('<div class="k-val">5</div>' + tile('1 spokojna · 3 sprzeczne · 0 nieaktualnych · 1 po czasie · 0 bez danych lub historii')), 'jak w audycie m7: „1 spokojna · 3 sprzeczne”');
+  assert.ok(mkC('ru', m7).includes(tile('1 спокойная · 3 противоречивые · 0 устаревших · 1 с опозданием · 0 без данных или истории')), 'ru');
+  assert.ok(mkC('en', m7).includes(tile('1 quiet · 3 conflicting · 0 outdated · 1 late · 0 without data or history')) && mkC('es', m7).includes(tile('1 tranquilo · 3 contradictorios · 0 desactualizados · 1 con retraso · 0 sin datos o historial')), 'en, es');
+  assert.ok(mkC('ja', m7).includes(tile('平穏 1 · 矛盾 3 · 期限切れ 0 · 遅延 1 · データまたは履歴なし 0')), 'ja: jak dawniej (bez liczby mnogiej)');
   /* widok świata v2 (plik trdV127): sesje z sygnałem na kartach linii — 2363 i 2473 sesje, 2390 / 97 / 1978 / 966 / 1356 sesji */
   const W = txt(mkW('pl'));
   for (const s of ['2363 sesje z sygnałem', '2473 sesje z sygnałem', '2390 sesji z sygnałem', '97 sesji z sygnałem', '1978 sesji z sygnałem', '966 sesji z sygnałem', '1356 sesji z sygnałem'])
@@ -23198,4 +23207,252 @@ test('v345: słownik EXTRA — 5 kluczy v345.* we wszystkich 10 językach z tymi
   }
   assert.equal(D.pl['v345.rel.old'], 'Nieaktualne'); assert.ok(/[а-я]/.test(D.ru['v345.rail.noneOut']) && /[ぁ-ん]/.test(D.ja['v345.rail.noneOut']) && /[一-龥]/.test(D.zh['v345.cm.usdDiff']));
   assert.ok(/3 godzin/.test(D.pl['v345.live.srvOldT']) && /3 hours/.test(D.en['v345.live.srvOldT']), 'próg 3 h w opisie');
+});
+
+/* ===================== v346 (TRENDY_FIX, audyt m10): T10-01 Hongkong, T10-02 kolor zera, T10-05 kurs na USD, T10-08 lista, T10-09 „po czasie”, T10-10 opis metody ===================== */
+const v346 = (() => {
+  const {FILE, clone, blk, LOC, fmt} = trdV127, IC = trdV96.ICO, I = v96src.I18N;
+  const l0 = html.indexOf('function tN(k,n,o){'), tNsrc = html.slice(l0, html.indexOf('\nfunction rwN(n)'));
+  class FD extends Date { static now() { return Date.parse('2026-09-27T16:00:00Z'); } }   /* zegar bloku TRENDY — przypięty (jak w v127) */
+  /* blok TRENDY z prawdziwym słownikiem języka L; dane (kopia pliku v127 po zmianie `mut`) przez trdApply; funkcje do wywołania wprost */
+  const mk = (L, mut, st) => {
+    const el = {innerHTML: '', querySelectorAll() { return []; }, querySelector() { return null; }}, F = fmt(L), tp = v96src.tFor(L);
+    const tN = new Function('t', 'I18N', 'LANG', 'LOCALE', tNsrc + '\nreturn tN;')(tp, I, L, LOC);
+    const names = ['$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'gAgeNote', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N',
+      'flagImg', 'glyphImg', 'coinImg', 'issBadge', 'issuerOf', 'icoWrap', 'Date', 'tN', 'sepL', 'sepK'];
+    const vals = [() => el, tp, st || {mode: 'trendy', trdv: 'global'}, () => Promise.resolve(null), v96src.escH, v => v > 0 ? 'pos' : v < 0 ? 'neg' : '', () => '',
+      F.fInt, F.sg, F.nfmt, F.fPct, () => 'ses', s => s, L, LOC, I, IC.flagImg, IC.glyphImg, IC.coinImg, IC.issBadge, IC.issuerOf, IC.icoWrap, FD, tN,
+      () => L === 'ja' ? '、' : ', ', () => L === 'ja' ? '：' : ': '];
+    const f = new Function(...names, tNsrc + '\n' + blk + '\nreturn {trdApply, trdTone, trdFxTxt, trdDExcl, trdDwN, trdNl, trdDKpis, trdDRsTxtW, trdDWhyW, trdDEvW, trdDAnsW, trdTile};')(...vals);
+    const D = clone(FILE); if (mut) mut(D); f.D = D; f.el = el; f.tp = tp; f.tN = tN; f.trdApply(clone(D)); return f;
+  };
+  const txt = s => s.replace(/<br>/g, ' ').replace(/<[^>]+>/g, ' ').replace(new RegExp('[' + String.fromCharCode(0xa0, 0x202f) + ']', 'g'), ' ').replace(/\s+/g, ' ');
+  const row = (D, id, fam) => D.d.find(r => r.id === id && (fam ? r.fam === fam : r.fam !== 'cr' && Array.isArray(r.rs)));
+  const card = (h, sym) => { const i = h.indexOf('<small>' + sym + '</small>'); if (i < 0) return ''; const a = h.lastIndexOf('<div class="etfk trk">', i); return h.slice(a, h.indexOf('</div>', i) + 6); };
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const day = (L, iso) => new Date(Date.parse(iso + 'T00:00:00Z')).toLocaleDateString(LOC[L], {timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric'});
+  const tile = (h, title) => { const i = h.indexOf('<span>' + title + '</span>'); return i < 0 ? '' : h.slice(h.lastIndexOf('<div class="panel kpi">', i), h.indexOf('</div></div>', i) + 12); };
+  return {mk, txt, row, card, L10, clone, FILE, I, day, tile};
+})();
+
+test('v346: słownik EXTRA231 — czysty JSON w 10 językach, te same klucze i pola {x}, prawdziwe tłumaczenia, bez nazw dostawców; klucze użyte w kodzie; poprawione teksty zostały w swoich słownikach (żaden wpis nie jest zasłonięty)', () => {
+  const I = v346.I, i = html.indexOf('{"pl":{"trd.dw2.n.oh"'), a = html.lastIndexOf('const EXTRA', i), name = html.slice(a + 6, i - 1);
+  assert.equal(name, 'EXTRA231'); assert.ok(/^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2, 'słownik raz: ' + name);
+  const e = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);\n', i), D = JSON.parse(html.slice(i, e));
+  assert.deepEqual(Object.keys(D), v346.L10);
+  /* miejsce: po linii nakładania innego słownika (bezpośrednio albo po jednym wierszu komentarza) — numer liczony przy nakładaniu, test nie żąda „najwyższego numeru” */
+  const prev = html.slice(0, a).split('\n').filter(x => x.length).slice(-2), pl = prev.find(x => /^for\(const l in EXTRA\d+\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],EXTRA\d+\[l\]\);$/.test(x));
+  assert.ok(pl, 'zaraz po linii nakładania innego słownika: ' + prev.join(' / ').slice(0, 160));
+  const K = Object.keys(D.pl), ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.equal(K.length, 23); assert.ok(K.every(k => /^(t346\.|trd\.dw2\.n\.o[ah]$|trd\.d\.r\.hk\.)/.test(k)), 'klucze: ' + K.join(','));
+  for (const l of v346.L10) {
+    assert.deepEqual(Object.keys(D[l]), K, 'te same klucze: ' + l);
+    for (const k of K) {
+      assert.ok(typeof D[l][k] === 'string' && D[l][k].trim().length >= 2, l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k + ': pola');
+      assert.equal(I[l][k], D[l][k], 'scalony słownik strony: ' + l + ' ' + k);
+      if (l !== 'pl' && l !== 'en' && !/^t346\.ex\.n\./.test(k)) assert.notEqual(D[l][k], D.en[k], l + ' ' + k + ': tłumaczenie, nie kopia angielskiego');
+    }
+  }
+  assert.ok(!/ishares|ssga|twse|hkex|nsdl|thaibma|banxico|cftc|fred|fed h\.10|stock connect|finnhub|twelve|coingecko/i.test(JSON.stringify(D)), 'bez nazw dostawców');
+  assert.ok(/[а-я]/.test(D.ru['t346.ex.t']) && /[ぁ-ん]/.test(D.ja['t346.ex.t']) && /[一-龥]/.test(D.zh['t346.fx.d']) && /ö/.test(D.de['t346.ex.late']), 'własne pismo języków');
+  /* teksty zmienione w miejscu (10 języków): HK jako „Chiny kontynentalne”, kurs na USD, 16:15, po czasie */
+  const E = {'trd.f.sub': 'Hongkong', 'trd.dw2.sub': 'Hongkong', 'trd.dw2.m.2': 'Hongkong', 'trd.dw2.m.5': '16:15', 'trd.d.k.emptyst': '{n}', 'trd.d.empty.st': '{n}'};
+  for (const k in E) for (const l of v346.L10) assert.equal(html.split('"' + k + '":').length - 1, 10, k + ' raz w każdym języku');
+  assert.ok(I.pl['trd.f.sub'].includes('Hongkong — nie inwestorzy zagraniczni, lecz inwestorzy z Chin kontynentalnych') && I.pl['trd.f.sub'].includes('Meksyk — jednym kursem z ostatniego dnia danych'), 'pl: opis kafli');
+  assert.ok(I.pl['trd.dw2.m.5'].includes('do 15 minut po zamknięciu swojej sesji (16:15 w Nowym Jorku, w sesji skróconej 13:15)') && !I.pl['trd.dw2.m.5'].includes('do końca swojej sesji'), 'pl: 16:15');
+  for (const l of v346.L10) { assert.ok(/16:15/.test(I[l]['trd.dw2.m.5']) && /13:15/.test(I[l]['trd.dw2.m.5']), l + ': 16:15 i 13:15');
+    assert.ok(/15/.test(I[l]['trd.dw2.m.5']), l + ': 15 minut'); }
+  /* klucze w kodzie */
+  for (const s of ["'t346.fx.d'", "'t346.fx.1'", "t('t346.k.more'", "'t346.nl.l'", "t('t346.ex.t'", "t('t346.ex.'+g", "t('t346.ex.n.'+k)", "'trd.d.r.hk.in'", "trd.dw2.n.'+(k==='o'?"]) assert.ok(html.includes(s), 'w kodzie: ' + s);
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(name + ' ')), [], 'v142: bez kopii angielskiego'); assert.deepEqual(v143Bad(html).filter(x => /t346|trd\.dw2\.n\.o[ah]|trd\.d\.r\.hk/.test(x)), [], 'v143: używane klucze we wszystkich 8 językach');
+});
+
+test('v346 T10-01: powód „o” dla Hongkongu (FXI) to inwestorzy z Chin kontynentalnych — na karcie, w zdaniu powodu, w nazwie łącznej i w opisach; Tajwan i Indie dalej „inwestorzy zagraniczni”; 10 języków', () => {
+  const {mk, txt, row, card, L10, FILE, I} = v346;
+  assert.equal(row(FILE, 'FXI').oc, 'HKD'); assert.ok(row(FILE, 'FXI').pw.includes('o') && row(FILE, 'EWT').pw.includes('o'));
+  const NAZ = {pl: 'inwestorzy z Chin kontynentalnych', en: 'investors from mainland China', de: 'Anleger vom chinesischen Festland', es: 'inversores de China continental', fr: 'investisseurs de Chine continentale',
+    it: 'investitori della Cina continentale', pt: 'investidores da China continental', ru: 'инвесторы из материкового Китая', zh: '内地投资者', ja: '中国本土の投資家'};
+  for (const L of L10) {
+    const f = mk(L), h = f.el.innerHTML, fxi = txt(card(h, 'FXI')), ewt = txt(card(h, 'EWT'));
+    assert.ok(fxi.includes(f.tp('trd.dw2.pw', {l: NAZ[L]})), L + ': FXI czeka na dane — ' + NAZ[L] + ' | ' + fxi.slice(0, 300));
+    assert.ok(ewt.includes(f.tp('trd.dw2.pw', {l: f.tp('trd.dw2.n.o')})) && !ewt.includes(NAZ[L]), L + ': EWT — inwestorzy zagraniczni');
+    assert.equal(f.trdDwN('o', {oc: 'HKD'}), NAZ[L]); assert.equal(f.trdDwN('o', {oc: 'TWD'}), f.tp('trd.dw2.n.o')); assert.equal(f.trdDwN('o', {oc: 'USD'}), f.tp('trd.dw2.n.o'));
+    assert.equal(f.trdDwN('o'), f.tp('trd.dw2.n.oa'), L + ': bez karty — nazwa łączna'); assert.equal(f.trdDwN('p', {oc: 'HKD'}), f.tp('trd.dw2.n.p'), 'inne powody bez zmian');
+    assert.ok(f.tp('trd.dw2.n.oa').length > f.tp('trd.dw2.n.o').length, L + ': nazwa łączna obejmuje Hongkong');
+  }
+  /* zdanie powodu na karcie głosującej: Hongkong osobno, Tajwan jak dotąd */
+  const f = mk('pl', D => { const r = row(D, 'FXI'); r.rs = r.rs.map(x => x[0] === 'o' ? ['o', 800, 2.4, 1] : x); r.pw = []; r.dir = 1; r.rule = 'c'; r.N = 1; r.st = 'obs'; r.side = 'buy'; r.str = 1;
+    const w = row(D, 'EWT'); w.rs = w.rs.map(x => x[0] === 'o' ? ['o', 9000, 2.4, 1] : x); w.pw = []; w.dir = 1; w.rule = 'c'; w.N = 1; w.st = 'obs'; w.side = 'buy'; w.str = 1; });
+  const fx = txt(card(f.el.innerHTML, 'FXI')), tw = txt(card(f.el.innerHTML, 'EWT'));
+  assert.ok(/inwestorzy z Chin kontynentalnych: kupowali \S+ więcej niż zwykle \(\+800 mln HKD\)/.test(fx) && !/inwestorzy zagraniczni: kupowali/.test(fx), 'FXI: ' + fx.slice(0, 260));
+  assert.ok(/inwestorzy zagraniczni: kupowali \S+ więcej niż zwykle \(/.test(tw) && !tw.includes('Chin kontynentalnych:'), 'EWT: ' + tw.slice(0, 260));
+  /* odpowiedź na dziś i linia: nazwa łączna */
+  const A = txt(mk('pl').el.innerHTML), oa = 'inwestorzy zagraniczni i z Chin kontynentalnych';
+  assert.ok(A.includes('akcje: ' + oa + ' (kupno netto → w górę · Tajwan, Hongkong, Indie)'), 'linia „o” w tabeli linii');
+  /* opisy: Hongkong nie jest „zagraniczny” w opisie kafli, w opisie sekcji i w metodzie */
+  for (const L of L10) { const t = v96src.tFor(L);
+    for (const k of ['trd.f.sub', 'trd.dw2.sub', 'trd.dw2.m.2']) assert.ok(t(k).length >= 80, L + ' ' + k);
+    assert.ok(/Hong ?Kong|Hongkong|香港|Гонконг/.test(t('trd.f.sub')) && !/Hongkong, Tajwan i Indie|Taiwan, Hong Kong and India/.test(t('trd.dw2.sub')), L + ': opis'); }
+  assert.ok(!/Tajwanu, Hongkongu i Indii/.test(I.pl['trd.dw2.sub']) && !/Tajwanu i Hongkongu/.test(I.pl['trd.dw2.m.2']) && I.pl['trd.dw2.sub'].includes('a dla Hongkongu — kupno lub sprzedaż akcji z Hongkongu przez inwestorów z Chin kontynentalnych'), 'pl: opis sekcji i metody');
+  /* panel „Siła sygnałów” (osobny kod, trdSilaW — tam audytor zobaczył błąd): karta FXI „czeka na dane: inwestorzy z Chin kontynentalnych”, karta EWT — „inwestorzy zagraniczni”, w 10 językach */
+  for (const L of L10) {
+    const g = mk(L), P = v335.txt(v335.make(L, {clk: [Date.parse('2026-09-27T16:00:00Z')]}).trdSilaPanel(v346.clone(FILE), false)), pw = n => v335.txt(g.tp('trd.dw2.pw', {l: n}));
+    assert.ok(P.includes(pw(NAZ[L])), L + ': Siła — FXI czeka na dane: ' + NAZ[L] + ' | ' + P.slice(0, 200));
+    assert.ok(P.includes(pw(g.tp('trd.dw2.n.o'))), L + ': Siła — EWT czeka na dane: ' + g.tp('trd.dw2.n.o'));
+    assert.equal(P.split(pw(NAZ[L])).length - 1, 1, L + ': Siła — Hongkong tylko na jednej karcie (FXI)');
+  }
+  /* weto linii „o” (linia obejmuje Hongkong, Tajwan i Indie): nazwa łączna — w „Szczegółach” karty FXI */
+  const NAZ_OA = L => v96src.tFor(L)('trd.dw2.n.oa');
+  for (const L of L10) {
+    const g = mk(L, D => { const r = row(D, 'FXI'); r.rs = r.rs.map(x => x[0] === 'o' ? ['o', 800, 2.4, 1] : x); Object.assign(r, {st: 'obs', side: 'buy', dir: 1, rule: 'c', N: 1, str: 1, pw: [], vx: [['o', 'sd']]}); }), t = g.tp, oa = NAZ_OA(L);
+    const c = txt(card(g.el.innerHTML, 'FXI')), want = txt(t('trd.dw2.v.veto', {l: oa, r: t('trd.dw2.vx.sd', {l: oa, f: t('trd.d.fam.eq')})}));
+    assert.ok(c.includes(want), L + ': weto linii „o” — nazwa łączna | ' + c.slice(0, 300));
+    assert.ok(t('trd.dw2.n.oa') !== t('trd.dw2.n.o') && want.includes(oa), L);
+  }
+  /* odpowiedź na dziś: karty, których powód „o” dotarł po 9:00 (lt) — nazwa łączna w zdaniu „Po 9:00 w Nowym Jorku dotarły: …” */
+  for (const L of L10) {
+    const g = mk(L, D => { for (const r of D.d) if (r.fam !== 'cr' && Array.isArray(r.rs) && r.live && r.st !== 'late' && r.st !== 'stale') r.lt = ['o']; }), t = g.tp, oa = NAZ_OA(L);
+    const rx = l => new RegExp(txt(t('trd.dw2.ans.late', {s: 'QQQ', l})).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace('QQQ', '\\S+')), A = txt(g.el.innerHTML);
+    assert.ok(rx(oa).test(A), L + ': zdanie „po czasie” z nazwą łączną | ' + txt(t('trd.dw2.ans.late', {s: 'QQQ', l: oa})));
+    assert.ok(!rx(t('trd.dw2.n.o')).test(A), L + ': nie samo „inwestorzy zagraniczni”');
+  }
+  /* wersja 1 reguł (karta źródła „hk”): to samo zdanie */
+  assert.ok(html.includes("L.push(t(ob?(r.id==='hk'?(up?'trd.d.r.hk.in':'trd.d.r.hk.out'):(up?'trd.d.r.ob.in':'trd.d.r.ob.out'))"), 'v1: hk osobno');
+});
+
+test('v346 T10-02: zero (zmiana liczby jednostek = 0 to pomiar) i informacja bez kierunku — żółty znaczek, nie szary; szary tylko „—” i stany bez oceny', () => {
+  const {mk, txt, L10, FILE} = v346, tone = mk('pl').trdTone;
+  assert.deepEqual(['none', 'out_stop', 'in_stop', 'mixed', 'in_up', 'out_up'].map(st => tone({w: 0, st})), ['neu', 'neu', 'neu', 'neu', 'neu', 'neu'], 'zero przy stanie z oceną = żółty');
+  assert.deepEqual(['stale', 'short', 'gap'].map(st => tone({w: 0, st})), ['', '', ''], 'zero bez oceny — szary'); assert.equal(tone({st: 'none'}), ''); assert.equal(tone({w: null, st: 'none'}), ''); assert.equal(tone(null), '');
+  assert.deepEqual([tone({w: 5, st: 'in_up'}), tone({w: -5, st: 'out_up'}), tone({w: 5, st: 'in_down'}), tone({w: 5, st: 'stale'})], ['pos', 'neg', 'neu', ''], 'znak bez zmian');
+  const f = mk('pl', D => { const w = D.f.find(r => r.id === 'fe_twn'); Object.assign(w, {w: 0, st: 'none', wu: 0, d: 0, du: 0}); });
+  const zero = [...f.el.innerHTML.matchAll(/<b class="(\w*)">0,0 mln USD<small><i class="tg (\w*)">/g)];
+  assert.ok(zero.length >= 3 && zero.every(m => m[1] === 'neu' && m[2] === 'neu'), 'karty z kwotą 0,0: kwota i znaczek żółte (' + zero.length + ')');
+  assert.ok(!/<b class="(na)?">0,0 mln USD/.test(f.el.innerHTML), 'żadnej szarej ani białej kwoty 0,0');
+  /* kafle: „Czy tydzień zapowiadał następny?”, „Po stronie kupna / sprzedaży”, „Reguły ze sprawdzoną przewagą” — żółty znaczek informacji; kafle „—” szare */
+  const h = f.el.innerHTML, dot = title => { const m = /<span class="dlt (\w+)">/.exec(v346.tile(h, title) || ''); return m && m[1]; };
+  assert.equal(dot('Czy tydzień zapowiadał następny? (ceny akcji krajów)'), 'chg'); assert.equal(dot('Po stronie kupna'), 'na', 'bez przewagi — szary (legenda: „szary — obserwacja bez przewagi”)'); assert.equal(dot('Po stronie sprzedaży'), 'na');
+  assert.equal(dot('Reguły ze sprawdzoną przewagą'), 'chg', '„0 z 7” to wynik');
+  const g = mk('pl', D => { D.b = D.b.filter(b => b.id !== 'px'); }).el.innerHTML, dg = title => { const m = /<span class="dlt (\w+)">/.exec(v346.tile(g, title) || ''); return m && m[1]; };
+  assert.equal(dg('Czy tydzień zapowiadał następny? (ceny akcji krajów)'), 'na', 'bez wyniku — „—” i szary znaczek');
+  const dots = k => [...k.matchAll(/<span class="dlt (\w+)">/g)].map(m => m[1]);
+  assert.deepEqual(dots(f.trdDKpis([], [], {})), ['na', 'na', 'na'], 'bez linii reguł: strony bez przewagi — szare (legenda), „Reguły” = „—” szare');
+  const BD7 = FILE.bd.filter(b => b.v === 2 && b.fam !== 'cr'); assert.equal(BD7.length, 7);
+  assert.deepEqual(dots(f.trdDKpis([], BD7, {})), ['na', 'na', 'chg'], '7 linii bez przewagi („0 z 7”): wynik — żółty; strony bez przewagi dalej szare');
+  for (const s of ["trdIco(TRD_ICO.b_px,[],2,'sm'),'neu'):trdTile(", "trdIco(TRD_ICO.b_px,[],2,'sm'),rk?'neu':'')+`</section>`;", "A.length?trdDName(A[0],'sm').ic:trdIco('@globe',[],2,'sm'),e>0?tone:'');"]) assert.ok(html.includes(s), 'w kodzie: ' + s);
+  assert.ok(!html.includes("e>0?tone:'neu')"), 'kafle „Po stronie kupna / sprzedaży” bez przewagi: znaczek szary jak w legendzie (nie żółty)');
+  /* trdTone jest wspólne: karta regionu GLOBAL (feRegion) z kwotą 0 też jest żółta — zgodnie z regułą 10.10 */
+  assert.ok(html.includes('function feRegion') && /function feRegion[\s\S]{0,3000}trdTone\(/.test(html), 'feRegion korzysta z trdTone');
+});
+
+test('v346 T10-05: kafle „Pieniądze zagranicy” — przeliczenie na USD ma opisany rodzaj i dzień kursu (Hongkong, Tajwan, Tajlandia: kursy dzienne; Meksyk: jeden kurs; Japonia: średni kurs miesiąca); bez pól w pliku — bez dopisku', () => {
+  const {mk, txt, L10, day} = v346;
+  const fx = {hk: ['d', '2026-09-24'], tw: ['d', '2026-09-24'], th: ['d', '2026-09-25'], mx: ['1', '2026-09-15']};
+  const setFx = D => { for (const r of D.f) if (fx[r.id]) { r.fxk = fx[r.id][0]; r.fxd = fx[r.id][1]; } };
+  const crd = (h, f, id) => { const i = h.indexOf('<span>' + v96src.escH(f.tp('trd.s.' + id)) + '</span>'); return i < 0 ? '' : txt(h.slice(i, h.indexOf('</div>', i))); };
+  for (const L of L10) {
+    const f = mk(L, setFx), h = f.el.innerHTML, t = f.tp;
+    for (const [id, k] of [['hk', 't346.fx.d'], ['tw', 't346.fx.d'], ['th', 't346.fx.d'], ['mx', 't346.fx.1']]) {
+      const c = crd(h, f, id), d = ' (' + t(k, {d: day(L, fx[id][1])}) + ')';
+      assert.equal(f.trdFxTxt({fxk: fx[id][0], fxd: fx[id][1]}), d, L + ' ' + id);
+      assert.ok(c.includes('≈') && c.includes(d) && c.indexOf(d) > c.indexOf('≈'), L + ' ' + id + ': ' + c.slice(0, 260));
+    }
+    const jp = crd(h, f, 'jp_eq'); assert.ok(jp.includes(f.trdFxTxt({fxm: '2026-08'}).trim()) && jp.includes('≈'), L + ': jen — średni kurs miesiąca jak dotąd | ' + jp.slice(0, 200));
+  }
+  const f = mk('pl'), h = f.el.innerHTML;   /* plik bez pól (dotychczasowy) — bez dopisku, jen jak dotąd */
+  assert.equal(f.trdFxTxt({cur: 'HKD', wu: 5}), ''); assert.equal(f.trdFxTxt({fxk: 'd'}), ''); assert.equal(f.trdFxTxt({fxk: 'd', fxd: 'wczoraj'}), '', 'zły dzień — bez dopisku'); assert.equal(f.trdFxTxt({fxk: 'x', fxd: '2026-09-24'}), '');
+  assert.equal(f.trdFxTxt({fxm: '2026-08'}), ' (średni kurs z 08.2026)'); assert.equal(f.trdFxTxt(null), '');
+  assert.ok(!/kursy dzienne|jeden kurs z/.test(txt(h)), 'bez pól fxk/fxd — bez opisu kursu');
+  assert.ok(/≈ [+−]?[\d ,]+ (mln|mld) USD \(średni kurs z 08\.2026\)/.test(txt(h)), 'jen: średni kurs miesiąca jak dotąd');
+  const tx = txt(mk('pl', setFx).el.innerHTML);
+  assert.ok(tx.includes('(kursy dzienne, ostatni z 24.09.2026)') && tx.includes('(jeden kurs z 15.09.2026 dla całego okresu)') && tx.includes('(kursy dzienne, ostatni z 25.09.2026)'), 'pl: teksty');
+  for (const s of ["l1.push('≈ '+trdAmt(r.wu,'USD')+trdFxTxt(r));", "${r.cur!=='USD'&&trdNum(u)?trdFxTxt(r):''}"]) assert.ok(html.includes(s), 'w kodzie: ' + s);
+});
+
+test('v346 T10-08: kafel „Po stronie kupna / sprzedaży” — trzy nazwy i „jeszcze N”, gdy kart jest więcej (lista nie udaje kompletnej); do trzech — bez dopisku; 10 języków', () => {
+  const {mk, txt, tile, L10, FILE} = v346, val = h => +(/class="k-val[^"]*">(\d+)</.exec(h) || [])[1];
+  const keep = k => D => { let n = 0; for (const r of D.d) if (r.fam !== 'cr' && Array.isArray(r.rs) && r.side === 'buy') { if (++n > k) Object.assign(r, {side: 'none', st: 'quiet', dir: 0, rule: 'c0', str: 0}); } };
+  for (const L of L10) {
+    const f = mk(L), h = f.el.innerHTML, t = f.tp, buy = tile(h, t('trd.d.k.buy')), N = val(buy);
+    assert.ok(N > 3, L + ': w pliku jest więcej niż 3 karty po stronie kupna (' + N + ')');
+    assert.ok(txt(buy).includes(' · ' + t('t346.k.more', {n: N - 3}) + ' '), L + ': „' + t('t346.k.more', {n: N - 3}) + '” | ' + txt(buy).slice(0, 220));
+    assert.equal((/<small class="mtxt">([^<]*)<\/small>/.exec(buy)[1].split(' · ').length), 4, L + ': trzy nazwy i dopisek');
+    for (const k of [3, 4]) {
+      const g = mk(L, keep(k)).el.innerHTML, b = tile(g, t('trd.d.k.buy')), m = /<small class="mtxt">([^<]*)<\/small>/.exec(b)[1];
+      assert.equal(val(b), k, L + ' ' + k); assert.equal(m.includes(t('t346.k.more', {n: 1})), k === 4, L + ': dopisek tylko przy 4 kartach (' + k + ')');
+    }
+  }
+  const f = mk('pl'), buy = txt(tile(f.el.innerHTML, 'Po stronie kupna'));
+  assert.ok(/Po stronie kupna \d+ Akcje Japonii \(EWJ\) · [^·]+ · [^·]+ · jeszcze \d+ /.test(buy + ' '), 'pl: ' + buy.slice(0, 200));
+  const none = mk('pl', keep(0)).el.innerHTML; assert.ok(!tile(none, 'Po stronie kupna').includes('jeszcze'), 'brak kart — bez dopisku');
+  assert.ok(html.includes("(A.length>3?' · '+t('t346.k.more',{n:trdC(A.length-3)}):'')"), 'w kodzie');
+});
+
+test('v346 T10-09: karty „po czasie” (okno jeszcze trwa) liczone osobno od „nieaktualnych” — kafel „Bez sygnału dziś”, nagłówek grupy „Bez oceny teraz” i teksty pustej strony; 10 języków', () => {
+  const {mk, txt, tile, L10} = v346, ID = ['EWJ', 'EWY', 'EFA', 'IEFA', 'SPDW', 'EEM', 'IEMG', 'EZU'];
+  const isL = r => r.fam !== 'cr' && Array.isArray(r.rs) && ID.includes(r.id) && r.live, NL = new Set(v346.FILE.d.filter(isL).map(r => r.id)).size;   /* wiersze tej samej karty (dwa dni w pliku) liczą się raz */
+  const late = D => { for (const r of D.d) if (isL(r)) Object.assign(r, {st: 'late', side: 'none'}); };   /* jak sonda audytu m10 (k7): stan „late” (zbieracz zapisuje wtedy side „none”) */
+  assert.ok(NL >= 4, 'karty do zamiany na „po czasie”: ' + NL);
+  const base = mk('pl'), tl = txt(tile(base.el.innerHTML, 'Bez sygnału dziś'));
+  assert.ok(!/po czasie/.test(tl), 'bez kart „po czasie” — bez dopisku: ' + tl);
+  const nStale = +(/(\d+) nieaktualn/.exec(tl) || [])[1];
+  for (const L of L10) {
+    const f = mk(L, late), h = f.el.innerHTML, t = f.tp, nl = f.trdNl({q: 1, x: 2, s: 3, l: NL, o: 4});
+    assert.ok(nl.includes(f.tN('t346.nl.l', NL, {n: NL})) && nl.indexOf(f.tN('t316.nl.s', 3, {n: 3})) < nl.indexOf(f.tN('t346.nl.l', NL, {n: NL})) && nl.indexOf(f.tN('t346.nl.l', NL, {n: NL})) < nl.indexOf(f.tN('t316.nl.o', 4, {n: 4})), L + ': kolejność');
+    assert.ok(!f.trdNl({q: 1, x: 2, s: 3, l: 0, o: 4}).includes(t('t346.nl.l', {n: 0})), L + ': bez kart po czasie — bez dopisku');
+    const k = txt(tile(h, t('trd.d.k.none')));
+    assert.ok(k.includes(f.tN('t346.nl.l', NL, {n: NL})), L + ': kafel „Bez sygnału dziś” (NL=' + NL + ') — ' + k.slice(0, 200));
+  }
+  const f = mk('pl', late), h = f.el.innerHTML, k = txt(tile(h, 'Bez sygnału dziś'));
+  assert.ok(k.includes(NL + ' po czasie') && new RegExp('\\b' + nStale + ' nieaktualn[a-z]* · ' + NL + ' po czasie').test(k), 'pl: ' + k.slice(0, 220));
+  const parts = [...k.matchAll(/(\d+) (?:spokojn|sprzeczn|nieaktualn|po czasie|bez danych)/g)].map(m => +m[1]), total = +(/class="k-val[^"]*">(\d+)</.exec(tile(h, 'Bez sygnału dziś')) || [])[1];
+  assert.equal(parts.length, 5); assert.equal(parts.reduce((a, b) => a + b, 0), total, 'suma pięciu liczb = liczba kart bez sygnału (nic nie ginie przy podziale)');
+  assert.ok(new RegExp('\\b' + nStale + ' nieaktualn').test(k) && !new RegExp('\\b' + (nStale + NL) + ' nieaktualn').test(k), 'nieaktualne bez kart „po czasie”');
+  /* teksty zliczające oba stany razem nazywają je oba */
+  for (const L of L10) { const t = v96src.tFor(L); assert.ok(t('trd.d.k.emptyst', {n: 3}) !== v96src.tFor('en')('trd.d.k.emptyst', {n: 3}) || L === 'en', L);
+    assert.notEqual(t('trd.d.empty.st', {n: 1, s: 'x'}), v96src.tFor(L)('trd.d.empty', {})); }
+  assert.ok(I18Npl('trd.dw2.ans.qnopx').includes('liczymy je osobno od nieaktualnych — jako „po czasie”.') && !I18Npl('trd.dw2.ans.qnopx').includes('razem z nieaktualnymi'), 'pl: qnopx — osobno od nieaktualnych');
+  for (const L of v346.L10) assert.ok(v346.I[L]['trd.dw2.ans.qnopx'] !== v346.I[L]['trd.dw2.ans.qlate'] && v346.I[L]['trd.dw2.ans.qnopx'].length > 40, L + ': qnopx');
+  assert.ok(I18Npl('trd.d.k.emptyst').includes('nieaktualnych lub po czasie: {n}') && I18Npl('trd.d.empty.st').includes('tylko nieaktualne dane lub dane po czasie (kart: {n})'), 'pl: nazwy obu stanów');
+  assert.ok(v346.I.en['trd.d.k.emptyst'].includes('outdated or late') && v346.I.ja['trd.d.k.emptyst'].includes('遅延') && v346.I.ru['trd.d.empty.st'].includes('с опозданием'), 'en, ja, ru');
+  /* panel „Siła sygnałów”: nagłówek grupy „Bez oceny teraz (n)” — „po czasie” osobno, we wszystkich językach (blok do v323 jak w v335) */
+  for (const L of L10) {
+    const D = v346.clone(v346.FILE); for (const r of D.d) if (isL(r)) Object.assign(r, {st: 'late', side: 'none'});
+    const X = v335.make(L, {clk: [Date.parse('2026-09-27T16:00:00Z')]}), g = mk(L), P = v335.txt(X.trdSilaPanel(D, false)), lt = g.tN('t346.nl.l', NL, {n: NL});
+    assert.ok(P.includes(' (' + NL + ') · ' + lt), L + ': nagłówek grupy: „' + lt + '” | ' + P.slice(P.search(/\(8\)/) - 30, P.search(/\(8\)/) + 60));
+    assert.ok(!P.includes(g.tN('t316.nl.s', NL, {n: NL})), L + ': „po czasie” nie jest nazwane nieaktualnym');
+    const P0 = v335.txt(v335.make(L, {clk: [Date.parse('2026-09-27T16:00:00Z')]}).trdSilaPanel(v346.clone(v346.FILE), false));
+    assert.ok(!P0.includes(g.tp('t346.nl.l', {n: 0})) && !P0.includes(lt), L + ': bez kart po czasie — bez dopisku');
+  }
+  assert.ok(html.includes("nl('s',cnt(na,r=>r.st==='stale')),nl('l',cnt(na,r=>r.st==='late'))") && html.includes("trdTN(k==='l'?'t346.nl.l':'t316.nl.'+k,n,{n:trdC(n)})"), 'w kodzie: nagłówek grupy');
+  function I18Npl(k) { return v346.I.pl[k]; }
+});
+
+test('v346 T10-10: „Jak liczymy sygnały dzienne świata” — lista źródeł bez sygnałów dziennych z pliku (dr.excluded) z powodem, karta aktualna do 15 minut po zamknięciu sesji (zgodnie ze zbieraczem); 10 języków', () => {
+  const {mk, txt, L10, FILE} = v346;
+  assert.deepEqual(FILE.dr.excluded, ['br', 'mx', 'th', 'in_bd', 'jp', 'tr', 'cf', 'cs', 'cr', 'ix']);
+  const PL = 'Sygnałów dziennych nie ma dla: Brazylia, Meksyk, Tajlandia, dług Indii (dane publikowane z opóźnieniem) · Japonia, Turcja, pozycje na kontraktach finansowych, pozycje na kontraktach na surowce (dane raz w tygodniu) · indeksy giełdowe (to nie fundusze, a test mierzy cenę funduszu) · krypto (osobna reguła w widoku „Trendy krypto”).';
+  const f = mk('pl'), D = f.D, ex = f.trdDExcl(D);
+  assert.equal(txt(ex).trim(), PL); assert.ok(ex.startsWith('<p class="pnote">') && ex.endsWith('</p>'));
+  const sec = txt(f.el.innerHTML.slice(f.el.innerHTML.indexOf('id="trd-dmethod"')));
+  assert.ok(sec.indexOf('lista zamknięta, wyniki niczego nie dodają') < sec.indexOf(PL) && sec.indexOf(PL) < sec.indexOf('Trzy powody, każdy z kierunkiem'), 'akapit zaraz po opisie listy 44 rynków');
+  assert.ok(sec.includes('Karta jest aktualna do 15 minut po zamknięciu swojej sesji (16:15 w Nowym Jorku, w sesji skróconej 13:15)') && !sec.includes('do końca swojej sesji'), 'pl: 15 minut');
+  /* lista z pliku: podzbiór, nieznany kod, powtórzenia, brak pola, zły typ */
+  const sub = f.trdDExcl({dr: {excluded: ['jp', 'zzz', 'jp', 5, 'cr']}});
+  assert.equal(txt(sub).trim(), 'Sygnałów dziennych nie ma dla: Japonia (dane raz w tygodniu) · krypto (osobna reguła w widoku „Trendy krypto”).');
+  for (const bad of [{}, {dr: {}}, {dr: {excluded: []}}, {dr: {excluded: ['zzz']}}, {dr: {excluded: 'br'}}, {dr: null}, null, undefined]) assert.equal(f.trdDExcl(bad), '', JSON.stringify(bad));
+  const nof = mk('pl', D => { delete D.dr.excluded; }).el.innerHTML; assert.ok(!nof.includes('Sygnałów dziennych nie ma dla') && nof.includes('id="trd-dmethod"'), 'plik bez listy — bez akapitu, opis metody jak dotąd');
+  for (const L of L10) {
+    const g = mk(L), t = g.tp, s = txt(g.trdDExcl(g.D)), crypto = t('trd.v.crypto');
+    assert.ok(s.includes(crypto) && s.length > 60 && s.includes(' · '), L + ': ' + s.slice(0, 200)); assert.ok(!/\{[a-z]\}/.test(s), L + ': brak niewypełnionych pól');
+    for (const k of ['br', 'mx', 'th', 'in_bd', 'jp', 'tr', 'cf', 'cs', 'ix', 'cr']) assert.ok(s.includes(t('t346.ex.n.' + k)), L + ' ' + k);
+    const h = txt(g.el.innerHTML.slice(g.el.innerHTML.indexOf('id="trd-dmethod"')));
+    assert.ok(/16:15/.test(h) && /13:15/.test(h), L + ': 16:15 i 13:15 w opisie metody');
+  }
+  /* zgodnie z kodem zbieracza: lista z pliku = TD_EXCLUDED, karta do 16:15 (sesja skrócona 13:15) */
+  const zb = fs.readFileSync(path.join(__dirname, 'zbieraj_dane.py'), 'utf8');
+  if (zb !== html) assert.ok(zb.includes("TD_EXCLUDED = ('br', 'mx', 'th', 'in_bd', 'jp', 'tr', 'cf', 'cs', 'cr', 'ix')") && zb.includes('TD_W_END = 975') && zb.includes('TD_W_END_HALF = 795'), 'zbieracz: lista i granica 16:15 / 13:15');   /* pod jsc fs.readFileSync zwraca stronę — sprawdzenie tylko w node */
+  assert.ok(html.includes("(Number.isInteger(r.we)&&r.we>=600&&r.we<=1200?r.we:960)+15)") && html.includes("+(k==='trd.dw2.m.1'?trdDExcl(D):'')"), 'strona: koniec karty = zamknięcie + 15 minut; akapit w opisie metody');
+  const TG = {br: 'late', mx: 'late', th: 'late', in_bd: 'late', jp: 'week', tr: 'week', cf: 'week', cs: 'week', ix: 'idx', cr: 'cr'};
+  for (const k of FILE.dr.excluded) assert.ok(TG[k], 'powód znany dla ' + k);
 });

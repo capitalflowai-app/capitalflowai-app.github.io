@@ -6916,6 +6916,22 @@ def _tr_cols(part, *idx):
     return ([r[0] for r in d],) + tuple([r[i] if len(r) > i and _isnum(r[i]) else None for r in d] for i in idx)
 
 
+def _tr_fxd(part, ci, date):
+    """v346 (T10-05): dzień kursu USD użytego dla sesji `date` — kolumna ci wiersza z tą datą (ISO); brak albo zły zapis = None (nigdy zgadywany)."""
+    for r in reversed((part or {}).get('d') or []):
+        if isinstance(r, list) and r and r[0] == date:
+            v = r[ci] if len(r) > ci else None
+            return v if isinstance(v, str) and _d(v) else None
+    return None
+
+
+def _tr_fx(r, fd, kind):
+    """v346 (T10-05): wiersz z przeliczeniem na USD (jest `wu`) dostaje opis kursu: fxk „d” = kursy dzienne, „1” = jeden kurs na cały okres; fxd = jego dzień.
+    Pola tylko opisowe — nie wchodzą do żadnej reguły ani do dziennika."""
+    if r and 'wu' in r and fd:
+        r['fxd'] = fd; r['fxk'] = kind
+
+
 def _tr_sessions(part, *idx):
     """Tajwan i Hongkong: kolumny na pełnym kalendarzu dni roboczych od pierwszego do ostatniego wiersza, bez znanych dni bez sesji
     (part['empty']); dzień bez wiersza = None (brak, nie zero) — pomijany dzień nie jest cicho sklejany z sąsiednimi."""
@@ -9465,14 +9481,18 @@ def _tr_flows(S):
         for k, cur in (('tw', 'TWD'), ('hk', 'HKD')):
             if ob.get(k):
                 ds, v, u = _tr_sessions(ob[k], 1, 5)
-                out.append(_tr_row(k, 'eq', 'flow', 5, ds, v, usd=u, cur=cur, skip=set(ob[k].get('empty') or [])))
+                r = _tr_row(k, 'eq', 'flow', 5, ds, v, usd=u, cur=cur, skip=set(ob[k].get('empty') or []))
+                _tr_fx(r, _tr_fxd(ob[k], 6, r['date']) if r else None, 'd')   # v346 (T10-05): dzień ostatniego kursu dziennego
+                out.append(r)
         return out
 
     def thai():
         if not ob.get('th'):
             return []
         ds, v, u, h = _tr_cols(ob['th'], 1, 7, 6)
-        return [_tr_row('th', 'bd', 'flow', 5, ds, v, usd=u, hold=next((x for x in reversed(h) if _isnum(x)), None), cur='THB', span=TR_SPAN)]
+        r = _tr_row('th', 'bd', 'flow', 5, ds, v, usd=u, hold=next((x for x in reversed(h) if _isnum(x)), None), cur='THB', span=TR_SPAN)
+        _tr_fx(r, _tr_fxd(ob['th'], 9, r['date']) if r else None, 'd')   # v346 (T10-05)
+        return [r]
 
     def brazil():
         if not ob.get('br'):
@@ -9513,7 +9533,10 @@ def _tr_flows(S):
         ch = [md[i][1] - md[i - 1][1] if _isnum(md[i][1]) and _isnum(md[i - 1][1]) else None for i in range(1, len(md))]
         fx = (mx.get('fx') or [None])[0]
         usd = [x / fx if _isnum(x) and _isnum(fx) and fx > 0 else None for x in ch]
-        return [_tr_row('mx', 'bd', 'stock', 5, [r[0] for r in md[1:]], ch, usd=usd, hold=md[-1][1], lag=10, cur='MXN', span=TR_SPAN)]
+        r = _tr_row('mx', 'bd', 'stock', 5, [r[0] for r in md[1:]], ch, usd=usd, hold=md[-1][1], lag=10, cur='MXN', span=TR_SPAN)
+        fxs = mx.get('fx') if isinstance(mx.get('fx'), list) else []
+        _tr_fx(r, fxs[1] if len(fxs) > 1 and isinstance(fxs[1], str) and _d(fxs[1]) else None, '1')   # v346 (T10-05): jeden kurs pliku na cały okres
+        return [r]
 
     def etfs():
         etf = S.get('etf') if isinstance(S.get('etf'), dict) else {}; out = []

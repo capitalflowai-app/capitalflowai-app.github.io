@@ -46027,3 +46027,89 @@ class DzwigniaV345(unittest.TestCase):
         self.assertIsNotNone(m)
         self.assertEqual([x.strip().strip("'") for x in m.group(1).split(',')], zd.LEV_LIVE, 'LEV_LIVE strony = LEV_LIVE zbieracza (zestaw giełd porównywany dzień do dnia)')
         self.assertIn("cde:'Coinbase USA'", html)
+
+
+class TrendyKursV346(unittest.TestCase):
+    """v346 (TRENDY_FIX, T10-05): wiersze `f` z przeliczeniem na USD niosą opis kursu — fxk „d” (kursy dzienne: Hongkong, Tajwan, Tajlandia; fxd = dzień kursu
+    ostatniej sesji) albo „1” (jeden kurs na cały okres: Meksyk; fxd = dzień kursu pliku). Pola tylko opisowe: liczby wierszy bez zmian; zły albo brakujący dzień kursu
+    i brak ≈ USD — bez pól (nigdy zgadywane). Zegar przypięty."""
+    NOW = datetime.datetime(2026, 10, 11, 8, 55, 7, tzinfo=datetime.timezone.utc)
+
+    @staticmethod
+    def weekdays(end, n):
+        d, out = datetime.date.fromisoformat(end), []
+        while len(out) < n:
+            if d.weekday() < 5:
+                out.append(d.isoformat())
+            d -= datetime.timedelta(days=1)
+        return out[::-1]
+
+    def S(self, rate=lambda d: d, usd=True):
+        ses = self.weekdays('2026-10-09', 45)
+        late = set(ses[-3:])                                    # kursy dzienne dochodzą z opóźnieniem: ostatnie trzy sesje mają kurs sprzed tygodnia
+        rd = lambda d: '2026-10-02' if d in late else rate(d)
+        hk = [[d, 100.0 + i, 0, 0, 2, 12.0 if usd else None, rd(d)] for i, d in enumerate(ses)]
+        tw = [[d, -50.0, 0, 0, 0, -1.6 if usd else None, rd(d)] for d in ses]
+        th = [[d, 10.0, 10.0, 0, 0, 0, 1000000.0, 0.3 if usd else None, 33.0, rd(d)] for d in ses]
+        mx = [[d, 1000.0 + i, 5000.0] for i, d in enumerate(ses)]
+        return {'obce': {'hk': {'d': hk}, 'tw': {'d': tw}, 'th': {'d': th}}, 'meksyk': {'d': mx, 'fx': [18.0609, '2026-09-30']}}
+
+    def rows(self, S):
+        with mock.patch.object(zd, '_now_utc', return_value=self.NOW):
+            return {r['id']: r for r in zd.build_trendy(S)['f']}
+
+    def test_opis_kursu_w_wierszach(self):
+        by = self.rows(self.S())
+        for k in ('hk', 'tw', 'th'):
+            self.assertEqual((by[k]['fxk'], by[k]['fxd']), ('d', '2026-10-02'), k + ': ostatnia sesja 09.10 przeliczona kursem z 02.10')
+            self.assertIn('wu', by[k])
+        self.assertEqual((by['mx']['fxk'], by['mx']['fxd']), ('1', '2026-09-30'), 'Meksyk: jeden kurs z pliku meksyk.json na cały okres')
+        self.assertEqual({k for k, r in by.items() if 'fxd' in r}, {'hk', 'tw', 'th', 'mx'}, 'tylko te cztery wiersze; reszta (fundusze, jen) bez nowych pól')
+        self.assertTrue(all(('fxk' in r) == ('fxd' in r) for r in by.values()))
+        for k in ('hk', 'tw', 'th'):
+            r = by[k]
+            self.assertEqual(r['date'], '2026-10-09'); self.assertTrue(r['fxd'] <= r['date'], 'kurs nie z przyszłości')
+
+    def test_liczby_bez_zmian(self):
+        a = self.rows(self.S())
+        b = self.rows(self.S(rate=lambda d: 'wczoraj'))                                   # zły zapis dnia kursu na wszystkich sesjach poza ostatnimi trzema
+        c = self.rows(self.S(rate=lambda d: None))
+        for k in ('hk', 'tw', 'th', 'mx'):
+            for r2 in (b, c):
+                self.assertEqual({x: y for x, y in a[k].items() if x not in ('fxd', 'fxk')}, {x: y for x, y in r2[k].items() if x not in ('fxd', 'fxk')}, k + ': stan, kwoty i ≈ USD bez zmian')
+        self.assertEqual(b['hk']['fxd'], '2026-10-02', 'ostatnia sesja ma poprawny dzień kursu')
+
+    def test_zly_albo_brakujacy_dzien_kursu_bez_pol(self):
+        S = self.S()
+        for k, ci in (('hk', 6), ('tw', 6), ('th', 9)):
+            for bad in (None, 'wczoraj', 5, '2026-13-45'):
+                S2 = json.loads(json.dumps(S)); S2['obce'][k]['d'][-1][ci] = bad
+                by = self.rows(S2)
+                self.assertNotIn('fxd', by[k], f'{k}: dzień kursu {bad!r} — bez opisu'); self.assertNotIn('fxk', by[k]); self.assertIn('wu', by[k], 'przeliczenie dalej jest (kurs z innych dni)')
+        S2 = json.loads(json.dumps(S)); S2['obce']['hk']['d'] = [r[:5] for r in S2['obce']['hk']['d']]
+        by = self.rows(S2); self.assertNotIn('fxd', by['hk'], 'wiersz bez kolumny kursu')
+
+    def test_bez_przeliczenia_bez_opisu(self):
+        by = self.rows(self.S(usd=False))
+        for k in ('hk', 'tw', 'th'):
+            self.assertNotIn('wu', by[k]); self.assertNotIn('fxd', by[k], k + ': bez ≈ USD nie ma co opisywać')
+        for fx in (None, [], [18.0609], [18.0609, 'wczoraj'], [18.0609, None], 'x'):
+            S = self.S(); S['meksyk']['fx'] = fx
+            if fx is None:
+                del S['meksyk']['fx']
+            by = self.rows(S)
+            if isinstance(fx, list) and fx and isinstance(fx[0], float):
+                self.assertIn('wu', by['mx'], 'jest kurs liczbowy — jest przeliczenie'); self.assertNotIn('fxd', by['mx'], f'Meksyk: fx={fx!r} bez dnia kursu — bez opisu')
+            else:
+                self.assertNotIn('wu', by['mx'], f'Meksyk: fx={fx!r}'); self.assertNotIn('fxd', by['mx'])
+
+    def test_kod_i_miejsce_pol(self):
+        with open(os.path.join(os.path.dirname(os.path.abspath(zd.__file__)), 'zbieraj_dane.py'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertIn("_tr_fx(r, _tr_fxd(ob[k], 6, r['date']) if r else None, 'd')", src)
+        self.assertIn("_tr_fx(r, _tr_fxd(ob['th'], 9, r['date']) if r else None, 'd')", src)
+        self.assertIn("'1')   # v346 (T10-05): jeden kurs pliku na cały okres", src)
+        self.assertEqual(zd._tr_fxd({'d': [['2026-10-01', 1, 2, '2026-10-01'], ['2026-10-02', 1, 2, '2026-10-02']]}, 3, '2026-10-01'), '2026-10-01')
+        self.assertIsNone(zd._tr_fxd({'d': [['2026-10-01', 1, 2]]}, 3, '2026-10-01')); self.assertIsNone(zd._tr_fxd(None, 3, '2026-10-01')); self.assertIsNone(zd._tr_fxd({'d': [['2026-10-01', 1, 2, '2026-10-01']]}, 3, '2026-10-05'))
+        r = {'id': 'x'}; zd._tr_fx(r, '2026-10-01', 'd'); self.assertNotIn('fxd', r, 'bez wu nic nie dopisujemy')
+        r = {'id': 'x', 'wu': 1.0}; zd._tr_fx(r, None, 'd'); self.assertNotIn('fxd', r); zd._tr_fx(r, '2026-10-01', '1'); self.assertEqual((r['fxk'], r['fxd']), ('1', '2026-10-01')); zd._tr_fx(None, '2026-10-01', 'd')
