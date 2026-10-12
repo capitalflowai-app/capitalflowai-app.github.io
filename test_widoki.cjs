@@ -1907,7 +1907,7 @@ const GM_PROV = /OECD|\bBIS\b|\bEBC\b|\bECB\b|Bank Światowy|World Bank|Finnhub|
 
 test('v98: mapa świata bez zmian (decyzja właściciela 25.09) — flagi i loga tylko w opisach, kafelkach i tabelach', () => {
   assert.ok(html.includes('const GFLAG={') && html.includes('function gFlagOn(c,id,x,y,r){') && html.includes('const GSIL={') && html.includes('function gSil(c,x,y,rad,id){'), 'dawne flagi i sylwetki na mapie');
-  assert.ok(html.includes('if(!gFlagOn(g2,r.id,n.x,n.y,rr*.93)){') && html.includes('tint=v[2]?(up?PAL.gr:PAL.rd):PAL.bl'), 'węzły mapy rysowane jak wcześniej');
+  assert.ok(html.includes('if(!gFlagOn(g2,r.id,n.x,n.y,rr*.93)){') && html.includes('tint=v[2]?gRgb(up):PAL.bl'), 'węzły mapy rysowane jak wcześniej (v344, G-03: kolor ze znaku po zaokrągleniu przez gRgb — dawniej (up?PAL.gr:PAL.rd))');
   assert.ok(!html.includes('function gFlagsOn(') && !html.includes('function gFlagBmp('), 'bez nowego rysowania flag na mapie');
   assert.ok(html.includes("vl=gst.label==='name'?'':(v[2]?gpct(v[1]):t('g.nodata'))"), 'podpisy na mapie jak wcześniej');
 });
@@ -3733,8 +3733,8 @@ test('v106: indeksy świata — zmiany z sesji indeksu (1 D, 1 T, 1 M, od począ
   const s = X.ixDerive(rows.slice(-10));
   assert.ok(s.d1 !== null && s.w1 !== null && s.m1 === null && s.ytd === null, 'za krótka seria: 1 M i od początku roku = brak, nie 0');
   assert.equal(X.ixDerive([]), null); assert.equal(X.ixDerive(null), null); assert.equal(X.ixDerive([['2026-01-20', 5]]).d1, null);
-  assert.equal(X.ixTone(0.04, 1), ''); assert.equal(X.ixTone(0.06, 1), 'pos'); assert.equal(X.ixTone(-0.06, 1), 'neg'); assert.equal(X.ixTone(null, 1), '');
-  assert.equal(X.ixPct(0.04), '<span class="cell mono">0.0%</span>', 'zero po zaokrągleniu — bez koloru i bez znaku');
+  assert.equal(X.ixTone(0.04, 1), 'neu' /* v344 (G-01): zero po zaokrągleniu — żółte „bez zmian”, dawniej '' (bez koloru) */); assert.equal(X.ixTone(0.06, 1), 'pos'); assert.equal(X.ixTone(-0.06, 1), 'neg'); assert.equal(X.ixTone(null, 1), '');
+  assert.equal(X.ixPct(0.04), '<span class="cell mono neu">0.0%</span>', 'zero po zaokrągleniu — żółte (neu) i bez znaku (v344, G-01; dawniej bez koloru)');
   assert.equal(X.ixPct(-0.06), '<span class="cell mono neg">−0.1%</span>'); assert.equal(X.ixPct(2.345), '<span class="cell mono pos">+2.3%</span>');
   assert.equal(X.ixPct(null), '<span class="cell mono na">—</span>'); assert.equal(X.ixPct(NaN), '<span class="cell mono na">—</span>');
   const it = X.ixItems({ix: {GSPC: {d: rows}, ZZZ: {d: rows}, DJI: {d: []}, FCHI: 'x', GDAXI: {d: rows.slice(-3)}, N225: {bad_at: '2026-01-15T10:00:00+00:00', bad_n: 1, bad: 403}}});
@@ -10843,7 +10843,7 @@ const V149_F = {usa: [412, .59, true], can: [-118, -4.16, true], lat: [-71, -3.4
 function v149Rand(seed) {
   let x = seed >>> 0; const r = () => { x = (Math.imul(x ^ (x >>> 15), 2246822507) + 0x9e3779b9) >>> 0; return (x % 100000) / 100000; };
   const F = {};
-  for (const id of Object.keys(V149_F)) { const has = r() > .12, v = (r() - .45) * (id === 'crypto' ? 300 : 3000); F[id] = [has ? v : 0, has ? (r() - .5) * 30 : 0, has]; }
+  for (const id of Object.keys(V149_F)) { const has = r() > .12, v = (r() - .45) * (id === 'crypto' ? 300 : 3000); F[id] = [has ? v : 0, has ? Math.sign(v) * Math.abs((r() - .5) * 30) : 0, has];   /* v344 (G-03): znak procentu = znak kwoty (jak w danych strony; kolor podpisu idzie z procentu) — te same wywołania r() co dotąd */ }
   return F;
 }
 /* piaskownica mapy: prawdziwe GREG, gproj, gLayout, labelSpotG, blok v149 (gLabels …), gfmt, gpct; „taken” jak w gDraw (wycinek strony) */
@@ -13744,7 +13744,7 @@ test('v229: indeksy — słupki 1 M nad tabelą: kolejność tabeli, zielony w p
   assert.ok(R[0].includes('<i class="ixw-b pos" style="left:50.00%;width:' + (Math.round(up * 10) / 10 / mx * 50).toFixed(2) + '%"></i>'), 'wzrost: od środka w prawo');
   const wd = Math.abs(Math.round(dn * 10) / 10) / mx * 50;
   assert.ok(R[2].includes('<i class="ixw-b neg" style="left:' + (50 - wd).toFixed(2) + '%;width:' + wd.toFixed(2) + '%"></i>'), 'spadek: od środka w lewo');
-  assert.ok(R[1].includes('<span class="ixw-t" aria-hidden="true"></span><span class="ixw-v">0.0%</span>'), 'zero po zaokrągleniu — bez słupka, bez koloru i bez znaku');
+  assert.ok(R[1].includes('<span class="ixw-t" aria-hidden="true"></span><span class="ixw-v neu">0.0%</span>'), 'zero po zaokrągleniu — bez słupka, żółte (neu) i bez znaku (v344, G-01; dawniej bez koloru)');
   assert.ok(R[0].includes('<span class="ixw-v pos">+19.4%</span>') && /<span class="ixw-v neg">−7\.2%<\/span>/.test(R[2]), 'wartość w kolorze');
   assert.ok(!/<tr|undefined|NaN|cell mono na/.test(w), 'bez wierszy tabeli i bez komórek „—”');
   assert.equal(X.ixWyk(X.ixSort(X.ixItems({at: 'x', ix: {GSPC: D.ix.GSPC, GDAXI: D.ix.GDAXI}}), 'm1')), '', 'mniej niż 3 indeksy z wartością — bez wykresu');
@@ -22810,4 +22810,136 @@ test('v343 (F1Z3): styl i miejsce w kodzie — kolory serii z zmiennych motywu, 
   assert.ok(html.includes("LEV_PARTS=['hl','bn','dr','okx','kr','cb','dy']") && html.includes("LEV_LIVE=['hl','okx','kr','cb','dy'],LEV_SUMAGE=6*3600e3"), 'sumy „wszystkie giełdy razem” bez zmian (Coinbase USA poza sumą)');
   assert.ok(html.includes("for(const k of ['kr','cb','cde','dy'])") && html.includes('const LEV_FUT_MAXAGE=12*3600e3;'), 'wiersz Coinbase USA w tabeli giełd; dane starsze niż 12 h pomijane');
   assert.ok(!f1z3.blk.includes('fetch(') && !/srvJSON\('(dzwignia-|krzywa)/.test(f1z3.blk), 'żadnych nowych pobrań: dane z tego samego pliku dzwignia.json');
+});
+
+/* ===================== v344 (GLOBAL_FIX po audycie m10): G-01, G-02, G-03, G-08, T10-07 ===================== */
+/* Zasada kolorów (decyzja 10.10): wzrost/plus/▲ zielony, spadek/minus/▼ czerwony, zero/bez zmian/informacja żółty — kolor wynika z tego, co widać po zaokrągleniu. */
+const v344Ix = () => {
+  const i0 = html.indexOf('/* ===================== v106: INDEKSY GIEŁDOWE ŚWIATA'), i1 = html.indexOf('\nfunction ixLoad(', i0);
+  assert.ok(i0 > 0 && i1 > i0, 'blok v106 na stronie');
+  return new Function('$', 't', 'nfmt', 'fPct', 'sg', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'flagImg', html.slice(i0, i1) + '\nreturn {ixTone, ixPct, ixWyk, ixBody, ixItems, ixSort};')(
+    () => null, (k, o) => k + (o ? JSON.stringify(o) : ''), (v, d) => Number(v).toFixed(d), (v, d) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%',
+    v => v > 0 ? '+' : v < 0 ? '−' : '', s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c])),
+    d => ' · age(' + d + ')', iso => 'D(' + iso + ')', {pl: 'pl-PL', en: 'en-US'}, 'en', (c) => '<img flag=' + c + '>');
+};
+
+test('v344 (G-01): tabela „Indeksy giełdowe świata” — zero po zaokrągleniu do 0,1% to żółte „bez zmian” (klasa neu), nie szare; plus i minus bez zmian; zero bez słupka', () => {
+  const X = v344Ix();
+  assert.equal(X.ixTone(0.04, 1), 'neu'); assert.equal(X.ixTone(-0.04, 1), 'neu', 'ujemne mikro-zero też po zaokrągleniu');
+  assert.equal(X.ixTone(0.06, 1), 'pos'); assert.equal(X.ixTone(-0.06, 1), 'neg'); assert.equal(X.ixTone(0, 1), 'neu');
+  assert.equal(X.ixTone(null, 1), '', 'brak liczby — bez koloru (w tabeli „—”, nigdy zero)'); assert.equal(X.ixTone(NaN, 1), '');
+  assert.equal(X.ixPct(0.04), '<span class="cell mono neu">0.0%</span>', 'zero po zaokrągleniu — żółte i bez znaku');
+  assert.equal(X.ixPct(-0.034), '<span class="cell mono neu">0.0%</span>', 'wartość z audytu (BIST 100, 1 T: −0,034%)');
+  assert.equal(X.ixPct(0.026), '<span class="cell mono neu">0.0%</span>', 'wartość z audytu (S&P/ASX 200: +0,026%)');
+  assert.equal(X.ixPct(-0.06), '<span class="cell mono neg">−0.1%</span>'); assert.equal(X.ixPct(2.345), '<span class="cell mono pos">+2.3%</span>');
+  assert.equal(X.ixPct(null), '<span class="cell mono na">—</span>');
+  /* ten sam układ co w teście v229: Nikkei ma 1 M równe zero → wiersz wykresu bez słupka, wartość żółta; tabela i kafle też */
+  const d = ix229.days, D = {at: '2026-01-21T06:00:00+00:00', ix: {GSPC: {d: d.map((x, i) => [x, 100 + i])}, GDAXI: {d: d.map((x, i) => [x, 300 - i])},
+    N225: {d: d.map((x, i) => [x, i < 8 ? 100 + i : 107])}}};
+  const w = X.ixWyk(X.ixSort(X.ixItems(D), 'm1')), R = w.split('<div class="ixw-r">').slice(1);
+  assert.equal(R.length, 3);
+  assert.ok(R[1].includes('<span class="ixw-t" aria-hidden="true"></span><span class="ixw-v neu">0.0%</span>'), 'zero: bez słupka, wartość z klasą neu');
+  assert.ok(!/ixw-b neu/.test(w) && (w.match(/<i class="ixw-b /g) || []).length === 2, 'słupki tylko plus i minus');
+  const body = X.ixBody(D);
+  assert.ok(body.includes('<td><span class="cell mono neu">0.0%</span></td>'), 'tabela: zero w kolorze neu');
+  /* styl: neu żółty także w wykresie, nigdy var(--dim) dla zera */
+  assert.ok(html.includes('#g-indeksy .ixw-v.neu{color:var(--yl-tx)}'), 'wartość słupka — żółta');
+  assert.ok(html.split('\n').some(l => l.includes('#global .etft .cell.neu') && l.includes('{color:var(--yl-tx)}')), 'komórka tabeli neu w GLOBAL — żółta');
+});
+
+test('v344 (G-02): lista stóp banków centralnych — zero zmiany 12 mies. (small.neu) żółte jak w tabeli obok: reguła z id #inst nie zostawia szarego', () => {
+  const css = html.slice(html.indexOf('#inst .spw-v small{margin-left:6px'), html.indexOf('\n', html.indexOf('#inst .spw-v small{margin-left:6px')));
+  assert.ok(css.includes('#inst .spw-v small.pos{color:var(--gr-tx)}') && css.includes('#inst .spw-v small.neg{color:var(--rd-tx)}') && css.includes('#inst .spw-v small.neu{color:var(--yl-tx)}'), css);
+  assert.ok(css.indexOf('small{margin-left:6px;font-size:11px;color:var(--dim)}') < css.indexOf('small.neu{color:var(--yl-tx)}'), 'wariant neu po regule bazowej (ta sama swoistość z #inst)');
+  assert.equal(html.split('#inst .spw-v small.neu{color:var(--yl-tx)}').length, 2, 'jedna reguła');
+  assert.ok(html.includes('<small class="${I(\'t\',r.d12).trim()}">${spPP(r.d12)}</small>'), 'render: klasa z gtI (zero → neu)');
+});
+
+/* mapa: piaskownica v149Map (prawdziwe gLabels, gpct, gfmt) z paletą z żółtym */
+const v344Pal = Object.assign({}, V149_PAL, {yl: '255,214,10'});
+function v344Map(L, F) {
+  const S = v149Map(L, 1186, 576, F, 'both');
+  return S;
+}
+test('v344 (G-03): mapa GLOBAL — kolor podpisu i krypto ze znaku liczby PO zaokrągleniu: „0,00%” żółte (także z drobnego plusa i minusa), „+0,01%” zielone, „−0,01%” czerwone; krypto zero bez „+”', () => {
+  const a = html.indexOf('function gDir(v){'), b = html.indexOf('function gLabels(W,H,ids,F,CN,taken,fz,lh,ms,ov){');
+  assert.ok(a > 0 && b > a, 'pomocniki przed gLabels (wewnątrz bloku v149)');
+  const Sx = v149Map('pl', 1186, 576, V149_F, 'both');
+  const H = new Function('gpct', 'PAL', html.slice(a, b) + '\nreturn {gDir, gDirN, gRgb};')(Sx.gpct, v344Pal);
+  assert.deepEqual([0, 0.004, -0.004, 0.0049, -0.0049, 0.005, 0.006, -0.006, 1.2, -1.2].map(H.gDir), [0, 0, 0, 0, 0, 1, 1, -1, 1, -1], 'znak procentu z podpisu: po zaokrągleniu do 0,01');
+  assert.deepEqual([null, undefined, NaN, 'x', Infinity].map(H.gDir), [0, 0, 0, 0, 0], 'brak liczby — nie plus ani minus');
+  assert.deepEqual([0, 0.0002, -0.0002, 3, -3].map(H.gDirN), [0, 1, -1, 1, -1], 'kwota krypto: zero tylko dla dokładnego zera („<1 mln” zachowuje znak)');
+  assert.deepEqual([1, -1, 0].map(H.gRgb), [v344Pal.gr, v344Pal.rd, v344Pal.yl]);
+  const F = Object.assign({}, V149_F, {usa: [0, 0, true], can: [-5, -0.004, true], lat: [5, 0.004, true], eur: [5, 0.006, true], mea: [-5, -0.006, true], crypto: [0, 0, true]});
+  V149_PAL.yl = v344Pal.yl;
+  try {
+    for (const L of ['pl', 'en', 'de', 'ja']) {
+      const S = v149Map(L, 1186, 576, F, 'both'), R = S.run(), zero = S.gpct(0), all = R.r.concat(R.c);
+      const z = R.r.filter(x => x[0] === zero);
+      assert.equal(z.length, 3, L + ': trzy regiony ze zmianą „' + zero + '” (zero, −0,004 i +0,004)');
+      assert.ok(z.every(x => x[4] === 'rgb(' + v344Pal.yl + ')'), L + ': „' + zero + '” żółte, dawniej zielone albo czerwone: ' + z.map(x => x[4]));
+      assert.equal(R.r.find(x => x[0] === S.gpct(0.006))[4], 'rgb(' + v344Pal.gr + ')', L + ': +0,01% zielone');
+      assert.equal(R.r.find(x => x[0] === S.gpct(-0.006))[4], 'rgb(' + v344Pal.rd + ')', L + ': −0,01% czerwone');
+      const cv = R.c[1];
+      assert.equal(cv[0], S.gfmt(0), L + ': krypto zero — „0 …” bez znaku plus'); assert.ok(!/^[+−]/.test(cv[0]), cv[0]);
+      assert.equal(cv[4], 'rgb(' + v344Pal.yl + ')', L + ': podpis krypto zero — żółty');
+      assert.ok(all.every(x => !/undefined|NaN/.test(String(x[0]) + String(x[4]))), L);
+    }
+    /* krypto: mikro-plus i minus zachowują znak (napis „<1 mln” ma znak), zwykły plus i minus */
+    const col = (v) => { const S = v149Map('pl', 1186, 576, Object.assign({}, V149_F, {crypto: [v, 0, true]}), 'both'), c = S.run().c[1]; return [c[0], c[4]]; };
+    const g = 'rgb(' + v344Pal.gr + ')', r = 'rgb(' + v344Pal.rd + ')';
+    assert.ok(/^\+<1 mln/.test(col(0.0002)[0]) && col(0.0002)[1] === g, 'mikro-plus: znak i zielony'); assert.ok(/^−<1 mln/.test(col(-0.0002)[0]) && col(-0.0002)[1] === r, 'mikro-minus: znak i czerwony');
+    assert.deepEqual(col(4.3).slice(1), [g]); assert.ok(col(4.3)[0].startsWith('+'));
+    assert.deepEqual(col(-3).slice(1), [r]); assert.ok(col(-3)[0].startsWith('−'));
+  } finally { delete V149_PAL.yl; }
+  /* gDraw: koło regionu i krypto z tego samego znaku co podpis (nie z kwoty przed zaokrągleniem) */
+  const d0 = html.indexOf('function gDraw(time){'), d1 = html.indexOf('\nfunction gwrap(', d0), D = html.slice(d0, d1);
+  assert.ok(D.includes('const n=GLAY.N[r.id],v=F[r.id],up=gDir(v[1]);') && D.includes('rr=n.r*k,tint=v[2]?gRgb(up):PAL.bl;'), 'koło regionu: znak procentu z podpisu, zero żółte');
+  assert.ok(D.includes('const v=F.crypto,up=gDirN(v[0]),tint=v[2]?gRgb(up):PAL.bl;'), 'koło krypto: znak kwoty z podpisu');
+  assert.ok(!/up=v\[0\]>=0/.test(D) && !D.includes('(up?PAL.gr:PAL.rd)'), 'bez dawnego „zero = zielone” w gDraw');
+  const lb = html.slice(html.indexOf('function gLabels(W,H,ids,F,CN,taken,fz,lh,ms,ov){'), html.indexOf('\nfunction gLabBox('));
+  assert.ok(!/v\[0\]>=0/.test(lb) && lb.includes('const vc=v[2]?`rgb(${gRgb(gDir(v[1]))})`:PAL.dim;') && lb.includes("(v[0]>0?'+':v[0]<0?'−':'')+gfmt(Math.abs(v[0]))"), 'gLabels: bez dawnego „zero = zielone”');
+  /* szczegóły regionu: „Zmiana ceny ETF-ów” — zero po zaokrągleniu to klasa neu (żółte), nie pusta */
+  assert.ok(html.includes("<b class=\"${gDir(c.dp)>0?'pos':gDir(c.dp)<0?'neg':'neu'}\">${gpct(c.dp)}</b>") && !html.includes("c.dp>=0.005?'pos':(c.dp<=-0.005?'neg':'')"), 'gCenyRow: neu przy zerze');
+});
+
+test('v344 (G-08): „Jakość danych mapy” → „Metoda” — opis zgodny z metodą z karty regionu (szacunek × zmiana ÷ (1 + zmiana)) w 10 językach; klucze bez zmian', () => {
+  const I = v143Final(html), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  for (const L of L10) {
+    const m = I[L]['gmap.q.methd'], card = I[L]['g.m.regtd'];
+    assert.ok(typeof m === 'string' && m.length > 40, L);
+    assert.ok(m.includes('÷') && /1 \+/.test(m), L + ': wzór z dzieleniem przez (1 + zmiana) jak w karcie regionu: ' + m);
+    assert.ok(card.includes('÷') && /1 \+/.test(card), L + ': karta regionu ma ten sam wzór');
+    assert.ok(!/razy wartość rynku|times market capitalisation \(TODAY/.test(m), L + ': bez dawnego uproszczenia');
+    if (L !== 'pl' && L !== 'en') assert.notEqual(m, I.en['gmap.q.methd'], L + ': własne tłumaczenie');
+  }
+  assert.ok(I.pl['gmap.q.methd'].includes('szacunek bieżącej wartości rynku × zmiana ÷ (1 + zmiana)') && I.pl['gmap.q.methd'].includes('(DZIŚ–1R)'), 'pl');
+  assert.ok(I.en['gmap.q.methd'].includes('estimated current market value × change ÷ (1 + change)') && I.en['gmap.q.methd'].includes('(TODAY–1Y)'), 'en');
+  /* przykład z audytu: ILF 1R +35,62% — kwota z wzoru strony 694 mld, a „zmiana × baza” dałaby ok. 751 mld; opis ma mówić o pierwszym */
+  const est = 694 / (0.3562 / 1.3562), nowa = est * 0.3562 / 1.3562; assert.ok(Math.abs(nowa - 694) < 1e-6);
+  assert.ok(Math.abs(est * 0.3562 - 694) / 694 > 0.3, 'dawny opis (zmiana × baza) dałby inną kwotę');
+  assert.equal((html.match(/"gmap\.q\.methd":/g) || []).length, 10, 'jeden wpis na język (bez dublowania słownika)');
+});
+
+test('v344 (T10-07): karta „Pokrycie danych GLOBAL” w lewej kolumnie — sam dzień jak w karcie „Strach i chciwość” (np. „9 paź”), nie ISO; chwila z godziną i miesiąc bez zmian', () => {
+  const d0 = html.indexOf('/* v53: okno czasu i źródło bazy'), d1 = html.indexOf('function gRenderRefresh(){', d0);
+  const fgS = html.slice(html.indexOf('const fgIso=s=>'), html.indexOf('\n', html.indexOf('const fgIso=s=>'))), fgL = html.slice(html.indexOf('function fgShort(iso){'), html.indexOf('\n', html.indexOf('function fgShort(iso){')));
+  const ids = ['usa', 'can', 'lat', 'eur', 'gbr', 'chn', 'jpn', 'ind', 'asia', 'oce', 'afr', 'rus'], GD = {'1M': {}};
+  ids.forEach((id, i) => { GD['1M'][id] = id === 'rus' ? [0, 0, false] : [1, .5, true]; });
+  const card = (fresh, withFg) => {
+    const X = fg139.mk(), shown = fresh === undefined ? [] : [{k: 'g.k.eq', fresh}];
+    const f = new Function('t', 'escH', '$', '$$', 'GDATA', 'gst', 'GLIVE', 'GREG', 'GLINK', 'GPROB', 'I18N', 'gAgeNote', 'flagImg', 'regFlags', 'st', 'gRenderDetail', 'gDirty',
+      'GKPI', 'sgSvg', 'SG_COV', 'sepK', 'gFreshTxt', 'LOCALE', 'LANG', (withFg ? fgS + '\n' + fgL + '\n' : '') + html.slice(d0, d1) + '\nreturn gCovCard;')(
+      v321.T, v96src.escH, () => ({innerHTML: '', hidden: true}), () => [], GD, {period: '1M'}, {asof: '2026-08', src: {}}, ids.map(id => ({id})), true, [], {en: {}}, d => ' · wiek(' + d + ')', () => '', () => '',
+      {anim: false}, () => {}, () => {}, shown, X.sgSvg, X.SG_COV, () => ': ', d => 'F(' + d + ')', {pl: 'pl-PL', en: 'en-US', de: 'de-DE'}, 'pl');
+    return f();
+  };
+  const dom = c => (/<span class="sg-d">([^<]*)<\/span>/.exec(c) || [])[1];
+  assert.equal(dom(card('2026-10-09', true)), '9 paź · wiek(2026-10-09)', 'sam dzień: zapis jak w karcie obok (fgShort), wiek jak dotąd');
+  assert.equal(dom(card('2026-10-09T14:05:00+00:00', true)), 'F(2026-10-09T14:05:00+00:00) · wiek(2026-10-09T14:05:00+00:00)', 'chwila z godziną — jak dotąd (gFreshTxt)');
+  assert.equal(dom(card('2026-08', true)), 'F(2026-08) · wiek(2026-08)', 'miesiąc — bez zmian');
+  assert.equal(dom(card('2026-10-09', false)), 'F(2026-10-09) · wiek(2026-10-09)', 'bez fgShort (stary kod i testy) — jak dotąd');
+  assert.ok(!/\b20\d\d-\d\d-\d\d\b/.test(card('2026-10-09', true).replace(/wiek\([^)]*\)/g, '')), 'w karcie nie ma daty ISO');
+  assert.equal(dom(card('2026-02-30', true)), 'F(2026-02-30) · wiek(2026-02-30)', 'zła data (30.02) — nie jest przesuwana w „1 mar”, jak dotąd');
+  assert.ok(html.includes("(typeof fgIso==='function'&&fgIso(fr)?fgShort(fr):typeof gFreshTxt==='function'?gFreshTxt(fr):fr)+gAgeNote(fr)"), 'kod gCovCard');
 });

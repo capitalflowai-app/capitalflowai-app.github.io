@@ -11561,6 +11561,32 @@ def _su_due3(src, z, now, S):
     return False
 
 
+# ---- v344: zmiana zapytania źródła albo pól czytanych z jego odpowiedzi wymusza jedno ponowne pobranie ----
+# Bramki _su_due3 liczą czas od ostatniego udanego pobrania, więc po wdrożeniu v338 (lista MFW 10 → 55 krajów; z pliku SAFE nowe pole rez_cn) część „banki”
+# czekała ze starym kształtem do końca doby (MFW) albo tygodnia (SAFE) — nie na „nowy miesiąc”. Stan źródła niesie teraz odcisk konfiguracji z ostatniego
+# udanego pobrania (z['cfg']); gdy odcisk jest inny albo go brak (stan sprzed v344), źródło jest należne od razu (z odstępem między próbami jak dotąd:
+# godzina, po błędzie SAFE 6 h), a po udanym pobraniu zapisuje nowy odcisk i wraca zwykły rytm. imf_il: odcisk z adresu zapytania — dopisanie albo
+# usunięcie kraju w SU_BANKI zmienia go samo; safe_zl: odcisk ręczny SU_CFG_WER — podnieść wpis, gdy z tej samej odpowiedzi zbieramy nowe pole.
+# Źródła bez wpisu (irfcl i reszta) — bez zmian. Nigdy nie pobrane (first) — zwykła bramka.
+SU_CFG_WER = {'safe_zl': 'rez1'}   # v338: rezerwy Chin (parse_safe_rezerwy) z tego samego pliku SAFE
+
+
+def _su_cfg(src):
+    """v344: odcisk konfiguracji źródła (adres zapytania MFW IL albo ręczna wersja pól), None = źródło bez kontroli."""
+    if src == 'imf_il':
+        import hashlib as _su_hash
+        return 'u' + _su_hash.sha1(SU_IMF_IL_ZL_URL.encode('utf-8')).hexdigest()[:10]
+    return SU_CFG_WER.get(src)
+
+
+def _su_cfg_zmiana(src, z, now):
+    """v344: True, gdy ostatnie udane pobranie źródła było z inną konfiguracją (albo bez odcisku) i minął odstęp między próbami."""
+    c = _su_cfg(src)
+    if c is None or z.get('cfg') == c or _su_min(now, z.get('at')) == float('inf'):
+        return False
+    return _su_min(now, z.get('try')) >= (SU_SAFE_PONOW if src == 'safe_zl' and z.get('err') else 60)
+
+
 def _su_next3(part, out, now):
     """v298: najbliższa spodziewana publikacja części etapu 3 (ISO, UTC); termin w przeszłości = publikacja zaległa."""
     utc = datetime.timezone.utc
@@ -12425,7 +12451,7 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
     pominiete, miekkie = [], []   # v301: miekkie — błędy źródeł uzupełniających (SU_MIEKKIE), rozstrzygane po pętli
     for src, part in SU_ZR:
         z = st.setdefault(src, {})
-        if not _su_due(src, z, now, S):
+        if not (_su_due(src, z, now, S) or _su_cfg_zmiana(src, z, now)):   # v344: albo kalendarz źródła, albo zmiana jego konfiguracji
             continue
         if SU_KLUCZ.get(src) and not keys.get(SU_KLUCZ[src]):
             pominiete.append(f'{src} (brak {SU_KLUCZ[src]})'); continue
@@ -12451,6 +12477,8 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
             continue
         proby[part] += 1
         z['at'] = now_iso; z['asof'] = asof; z.pop('err', None); udane.add(src)
+        if _su_cfg(src):
+            z['cfg'] = _su_cfg(src)   # v344: odcisk konfiguracji tylko po udanym pobraniu — nieudane ponowienie nie gasi wymuszenia
         if src == 'cftc':
             S['markets_asof'] = asof
         if len(ctx['bledy']) > nb:   # częściowy błąd źródła (np. jeden z kilku symboli) — dane pozostałych zapisane

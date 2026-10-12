@@ -45870,3 +45870,120 @@ class DzwigniaKontrolaF1Z3(unittest.TestCase):
         self.assertEqual(k.DZW_W, '\u26a0\ufe0f'); self.assertEqual(k.DZW_OK, '\u2705')
         zb = open(os.path.join(self.ROOT, 'zbieraj_dane.py'), encoding='utf-8').read()
         self.assertNotIn('dzwignia', k.pliki_bez_nadzoru(zb))
+
+
+class BankiBramkaCfgV344(unittest.TestCase):
+    """v344: część „banki” pliku surowce.json po zmianie żądanej listy krajów (v338: 10 → 55) albo pól czytanych z pliku SAFE (rez_cn) była nadal stara ponad dobę —
+    nie dlatego, że „pobieranie tylko przy nowym miesiącu”, lecz dlatego, że bramki źródeł liczą czas od ostatniego udanego pobrania, a to wypadło tuż PRZED wdrożeniem
+    (imf_il: raz na dobę; safe_zl: raz na tydzień). Stan źródła niesie odcisk konfiguracji (cfg); inny albo brak = jedno ponowne pobranie, potem zwykły rytm.
+    Scenariusz „plik z 10 krajami, kod z 55”. Bez zegara (NOW przypięty) i bez sieci (nagrania testu BankiZlotoV338)."""
+    T0 = datetime.datetime(2026, 10, 7, 17, 10, tzinfo=datetime.timezone.utc)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self._td = zd._TD_T[0]; zd._TD_T[0] = None
+        zd._SU_RUN.clear()
+        self.enterContext(mock.patch.object(zd, 'NOW', self.T0.isoformat()))
+        self.B = BankiZlotoV338('test_lista_55_krajow_pierwsze_10_bez_zmian_zapytanie_jednym_adresem')
+
+    def tearDown(self):
+        zd._TD_T[0] = self._td; zd._SU_RUN.clear()
+
+    def stary_plik(self):
+        """Plik w kształcie sprzed zmiany: pełny przebieg nowego kodu o T0 (55 krajów, rez_cn, cfg), a potem cofnięty do stanu z 10 krajami, bez rez_cn i bez odcisków
+        (tak wyglądał plik produkcyjny 12.10: imf_il pobrany 11.10 04:30 starym adresem, safe_zl 08.10 przed parse_safe_rezerwy)."""
+        fetch, _ = self.B.siec()
+        out, h, zm = zd.build_surowce(None, None, SurowceV295().keys(), now=self.T0, fetch=fetch, fund=self.B.FUND)
+        self.assertEqual((len(out['banki']['kr']), 'rez_cn' in out['banki'], {'imf_il', 'safe_zl'} <= zm), (55, True, True))
+        old = json.loads(json.dumps(out))
+        old['banki']['kr'] = {c: old['banki']['kr'][c] for c in self.B.ORYGINALNE_10}
+        old['banki']['order'] = [c for c in old['banki']['order'] if c in self.B.ORYGINALNE_10]
+        del old['banki']['rez_cn']
+        for s in ('imf_il', 'safe_zl'):
+            self.assertIn('cfg', old['st'][s], 'nowy kod zapisuje odcisk po udanym pobraniu')
+            del old['st'][s]['cfg']
+        return old
+
+    def test_odciski_zrodel(self):
+        a = zd._su_cfg('imf_il')
+        self.assertTrue(a.startswith('u') and len(a) == 11, a)
+        self.assertEqual(zd._su_cfg('imf_il'), a, 'stały dla tej samej listy')
+        with mock.patch.object(zd, 'SU_IMF_IL_ZL_URL', zd.SU_IMF_IL_ZL_URL.replace('+USA+', '+')):
+            self.assertNotEqual(zd._su_cfg('imf_il'), a, 'zmiana listy krajów w adresie zmienia odcisk sama')
+        self.assertEqual(zd._su_cfg('safe_zl'), 'rez1')
+        self.assertEqual(zd.SU_CFG_WER, {'safe_zl': 'rez1'}, 'tylko źródła, których pola się zmieniły; irfcl i reszta bez kontroli')
+        for s in ('irfcl', 'cftc', 'gld_t', 'eia', 'td', 'zzz'):
+            self.assertIsNone(zd._su_cfg(s), s)
+
+    def test_zmiana_konfiguracji_wymusza_pobranie_z_odstepem(self):
+        now = self.T0 + datetime.timedelta(hours=2)
+        iso = lambda m: (now - datetime.timedelta(minutes=m)).isoformat()   # noqa: E731
+        c = zd._su_cfg('imf_il')
+        stary = {'at': iso(120), 'try': iso(120), 'asof': '2026-09'}
+        self.assertFalse(zd._su_due('imf_il', stary, now, {'st': {}}), 'bramka kalendarza: dopiero po dobie — tu było źródło problemu')
+        self.assertTrue(zd._su_cfg_zmiana('imf_il', stary, now), 'brak odcisku (stan sprzed v344) = należne od razu')
+        self.assertTrue(zd._su_cfg_zmiana('imf_il', dict(stary, cfg='uINNY'), now), 'inny odcisk (lista krajów zmieniona)')
+        self.assertFalse(zd._su_cfg_zmiana('imf_il', dict(stary, cfg=c), now), 'ten sam odcisk — zwykły rytm')
+        self.assertFalse(zd._su_cfg_zmiana('imf_il', dict(stary, **{'try': iso(30)}), now), 'odstęp między próbami: godzina (nieudana próba sprzed 30 min)')
+        self.assertTrue(zd._su_cfg_zmiana('imf_il', dict(stary, **{'try': iso(61)}), now))
+        self.assertFalse(zd._su_cfg_zmiana('imf_il', {}, now), 'nigdy nie pobrane — zwykła bramka (first), nie to wymuszenie')
+        self.assertFalse(zd._su_cfg_zmiana('imf_il', {'try': iso(300)}, now), 'tylko nieudane próby (brak at) — zwykła bramka')
+        s = {'at': iso(3 * 24 * 60), 'try': iso(120), 'asof': '2026-09'}
+        self.assertFalse(zd._su_due('safe_zl', s, now, {'st': {}}), 'SAFE poza oknem 5.–20. i < tygodnia — według kalendarza nie')
+        self.assertTrue(zd._su_cfg_zmiana('safe_zl', s, now), 'nowe pole z tego samego pliku (rez_cn) — jedno pobranie')
+        self.assertFalse(zd._su_cfg_zmiana('safe_zl', dict(s, cfg='rez1'), now))
+        self.assertFalse(zd._su_cfg_zmiana('safe_zl', dict(s, err='x', **{'try': iso(120)}), now), 'po błędzie SAFE ponowienie najwcześniej po 6 h (jak dotąd)')
+        self.assertTrue(zd._su_cfg_zmiana('safe_zl', dict(s, err='x', **{'try': iso(361)}), now))
+        self.assertFalse(zd._su_cfg_zmiana('irfcl', stary, now), 'źródło bez wpisu — bez zmian')
+
+    def test_plik_z_10_krajami_kod_z_55_przebudowa_raz_potem_zwykly_rytm(self):
+        old = self.stary_plik()
+        now = self.T0 + datetime.timedelta(hours=2)
+        S = {'st': old['st']}
+        self.assertFalse(zd._su_due('imf_il', old['st']['imf_il'], now, S) or zd._su_due('safe_zl', old['st']['safe_zl'], now, S),
+                         'sam kalendarz nie pobierze ani MFW (doba), ani SAFE (tydzień) — dawny błąd')
+        self.assertEqual((len(old['banki']['kr']), 'rez_cn' in old['banki']), (10, False))
+        fetch, moje = self.B.siec()
+        out, h, zm = zd.build_surowce(old, None, SurowceV295().keys(), now=now, fetch=fetch, fund=self.B.FUND)
+        B = out['banki']
+        self.assertTrue({'imf_il', 'safe_zl'} <= zm, zm)
+        self.assertNotIn('irfcl', zm, 'druga tabela: bez wpisu odcisku, zwykła bramka')
+        self.assertEqual(sorted(moje), sorted([zd.SU_IMF_IL_ZL_URL, zd.SU_SAFE_ZL_PAGE, self.B.SAFE_URL]), 'po jednym zapytaniu: lista krajów i strona + plik SAFE')
+        self.assertEqual((len(B['kr']), out['ok']['banki']), (55, True), 'wszystkie 55 krajów po jednym przebiegu')
+        self.assertEqual((B['rez_cn']['asof'], B['rez_cn']['d'][-1]), ('2026-09', ['2026-09', 3789.425, 3400.251, 323.517]), 'pole rez_cn z pliku SAFE')
+        self.assertEqual(out['st']['imf_il']['cfg'], zd._su_cfg('imf_il')); self.assertEqual(out['st']['safe_zl']['cfg'], 'rez1')
+        self.assertNotIn('cfg', out['st']['irfcl'])
+        for c in self.B.ORYGINALNE_10:
+            self.assertIn(c, B['kr'])
+        # 10 minut później i godzinę później: odcisk zgodny — zwykły rytm, bez zapytań o te źródła
+        for plus in (10, 70):
+            fetch2, moje2 = self.B.siec()
+            out2, h2, zm2 = zd.build_surowce(out, h, SurowceV295().keys(), now=now + datetime.timedelta(minutes=plus), fetch=fetch2, fund=self.B.FUND)
+            self.assertEqual((moje2, zm2 & {'imf_il', 'safe_zl'}), ([], set()), plus)
+            self.assertEqual(out2['banki']['kr'], B['kr'])
+
+    def test_nieudane_ponowienie_nie_gasi_wymuszenia_i_trzyma_odstep(self):
+        old = self.stary_plik()
+        t1 = self.T0 + datetime.timedelta(hours=2)
+        fetch, moje = self.B.siec(fail=('IMF.STA/IL/',))
+        out, h, zm = zd.build_surowce(old, None, SurowceV295().keys(), now=t1, fetch=fetch, fund=self.B.FUND)
+        self.assertIn('imf_il: HTTP Error 503', out['st']['imf_il']['err'])
+        self.assertNotIn('cfg', out['st']['imf_il'], 'odcisk tylko po udanym pobraniu')
+        self.assertEqual(len(out['banki']['kr']), 10, 'poprzednie dane zostają z datą (część nie jest zerowana)')
+        fetch2, moje2 = self.B.siec()
+        out2, h2, zm2 = zd.build_surowce(out, h, SurowceV295().keys(), now=t1 + datetime.timedelta(minutes=10), fetch=fetch2, fund=self.B.FUND)
+        self.assertNotIn(zd.SU_IMF_IL_ZL_URL, moje2, 'odstęp: godzina między próbami')
+        out3, h3, zm3 = zd.build_surowce(out2, h2, SurowceV295().keys(), now=t1 + datetime.timedelta(minutes=61), fetch=fetch2, fund=self.B.FUND)
+        self.assertEqual(len(out3['banki']['kr']), 55, 'po godzinie ponowienie się udaje')
+        self.assertEqual(out3['st']['imf_il']['cfg'], zd._su_cfg('imf_il'))
+
+    def test_kod_petli_i_stan_zachowany_w_pliku(self):
+        src = __import__('inspect').getsource(zd.build_surowce)
+        self.assertIn('_su_due(src, z, now, S) or _su_cfg_zmiana(src, z, now)', src)
+        self.assertIn("z['cfg'] = _su_cfg(src)", src)
+        self.assertLess(src.index("z.pop('err', None); udane.add(src)"), src.index("z['cfg'] = _su_cfg(src)"), 'odcisk po udanym pobraniu, nie przy próbie')
+        # stan źródła z odciskiem przechodzi przez zapis i odczyt pliku bez zmian
+        old = self.stary_plik()
+        fetch, _ = self.B.siec()
+        out, h, zm = zd.build_surowce(old, None, SurowceV295().keys(), now=self.T0 + datetime.timedelta(hours=2), fetch=fetch, fund=self.B.FUND)
+        self.assertEqual(json.loads(json.dumps(out))['st']['imf_il']['cfg'], out['st']['imf_il']['cfg'])
