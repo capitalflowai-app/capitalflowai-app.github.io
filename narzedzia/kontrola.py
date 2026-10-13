@@ -3999,13 +3999,17 @@ PRZEGL_BLAD = re.compile(r'^(Uncaught (\(in promise\) )?)?(\[object \w*(Error|Ex
 PRZEGL_KONSOLA_LUZ = re.compile(r':CONSOLE(?::\d+\]|\(\d+\)\]) "(.*?)", source: (\S*) \((\d+)\)', re.S)   # v252: wpis z doklejoną obcą linią
 PRZEGL_POPRZ_H = 30   # v250: „drugi raz z rzędu” — poprzednia kontrola z przeglądarką nie starsza niż tyle godzin
 PRZEGL_MIN_WYKRESY = 10   # v248: wykresów liniowych poza tekstem skryptów — 06.10: 20 z danymi, 0 bez danych (strona z pliku, dane niedostępne)
-PRZEGL_ARTEFAKTY = re.compile(r'\bNaN\b|\bundefined\b|\[object Object\]|\bInfinity\b|\bnull\b|∞|Invalid Date')   # v252: „∞” — Intl dla Infinity
+# v356: „Infinity” tylko jako artefakt liczbowy — ze znakiem (+, -, minus U+2212, półpauza U+2013) przed nim, z „%”, walutą albo jednostką (mld, mln, tys, bln, USD, EUR, PLN, pkt)
+# zaraz po nim, albo gdy przed nim nie stoi wyraz (np. „Zmiana: Infinity”); „PancakeSwap Infinity” (nazwa protokołu w panelu DEX) to nazwa własna, nie błąd
+PRZEGL_INF = (r'(?<=[+\-−–])\bInfinity\b|(?<![^\W\d_] )\bInfinity\b|\bInfinity\b(?=\s?(?:%|[$€£]|(?:mld|mln|tys|bln|USD|EUR|PLN|pkt)\b))')
+PRZEGL_ARTEFAKTY = re.compile(r'\bNaN\b|\bundefined\b|\[object Object\]|' + PRZEGL_INF + r'|\bnull\b|∞|Invalid Date')   # v252: „∞” — Intl dla Infinity; v356: „Infinity” patrz wyżej
 #   # v250: napisy-błędy (06.10: 0 na całej stronie)
 
 
 def przegladarka_artefakty(tresc):
     """v250: napisy-błędy w tekście narysowanej strony (bez skryptów — już usunięte —, stylów, znaczników i atrybutów): „NaN”, „undefined”,
-    „[object Object]”, „Infinity”, „null” — objaw błędu na prawdziwych danych → fragmenty tekstu z otoczeniem (gdzie)."""
+    „[object Object]”, „Infinity”, „null” — objaw błędu na prawdziwych danych → fragmenty tekstu z otoczeniem (gdzie).
+    v356: „Infinity” tylko jako artefakt liczbowy — nazwa protokołu „PancakeSwap Infinity” nie jest błędem (PRZEGL_INF)."""
     t = re.sub(r'<style\b[^>]*>.*?</style>', ' ', str(tresc or ''), flags=re.S | re.I)
     t = ' '.join(re.sub(r'<[^>]+>', ' ', t).split())
     return [t[max(0, m.start() - 40):m.end() + 20] for m in PRZEGL_ARTEFAKTY.finditer(t)]

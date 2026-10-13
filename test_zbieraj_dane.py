@@ -48429,3 +48429,45 @@ class ZwiadWdrozV355(unittest.TestCase):
         T = [m.group(0) for m in re.finditer(r"\(\s*'build_\w+'(?:\s*,\s*'build_\w+')+\s*,?\s*\)", src) if "'build_pip'" in m.group(0) and "'build_gieldy'" in m.group(0)]
         self.assertGreaterEqual(len(T), 10)
         self.assertEqual([x[:50] for x in T if "'build_target'" not in x or "'build_mica'" not in x], [])
+
+
+# ===================== v356: KONTROLA — „Infinity” W NAZWIE WŁASNEJ TO NIE BŁĄD =====================
+class KontrolaInfinityV356(unittest.TestCase):
+    """v356: napisy-błędy w tekście strony — „Infinity” tylko jako artefakt liczbowy; „PancakeSwap Infinity” (nazwa protokołu w panelu DEX) nie jest alarmem."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola356-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v356_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def test_nazwa_wlasna_nie_alarmuje(self):
+        k = self.k
+        for h in ('<div class="gxs-r"><span class="gxs-n">PancakeSwap Infinity <span class="pos">+4,2%</span></span><span class="gxs-v">3,1% · 233 mln</span></div>',
+                  '<td><b>PancakeSwap Infinity</b></td><td>12,5 mld</td>', '<p>Największe protokoły: Uniswap V3, PancakeSwap Infinity, Aerodrome</p>',
+                  '<span>PancakeSwap Infinity</span>'):
+            self.assertEqual(k.przegladarka_artefakty(h), [], h)
+
+    def test_artefakty_liczbowe_alarmuja(self):
+        k = self.k
+        for h, w in (('<b>Infinity%</b>', 'Infinity%'), ('<p>Zmiana: +Infinity</p>', '+Infinity'), ('<p>Zmiana: -Infinity%</p>', '-Infinity'), ('<p>Zmiana: −Infinity</p>', '−Infinity'),
+                     ('<p>Zmiana: Infinity</p>', 'Infinity'), ('<span>Infinity</span>', 'Infinity'), ('<p>Rentowność 10L Infinity%</p>', 'Infinity%'), ('<p>Obrót Infinity mld</p>', 'Infinity mld'),
+                     ('<p>Wzrost 12 Infinity</p>', 'Infinity'), ('<p>Stan: Infinity USD</p>', 'Infinity USD'), ('<p>PancakeSwap Infinity%</p>', 'Infinity%')):
+            A = k.przegladarka_artefakty(h)
+            self.assertEqual(len(A), 1, (h, A)); self.assertIn(w, A[0], (h, A))
+
+    def test_pozostale_artefakty_bez_zmian(self):
+        k = self.k
+        A = k.przegladarka_artefakty('<p>NaN%</p><p>undefined</p><p>[object Object]</p><p>null mld</p><p>−∞</p><p>Invalid Date</p><p>PancakeSwap Infinity</p>')
+        self.assertEqual(len(A), 6, A)
+        self.assertEqual(k.przegladarka_artefakty('<p>PancakeSwap Infinity</p><p>Zmiana 1,2%</p>'), [])
+        self.assertEqual(len(k.przegladarka_artefakty('<p>PancakeSwap Infinity</p><p>Zmiana: Infinity%</p>')), 1)
+
+    def test_raport_bez_zmian_naglowka_i_wyniku(self):
+        k = self.k
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        self.assertEqual(src.count('def przegladarka_artefakty('), 1)
+        self.assertIn("A = przegladarka_artefakty(tresc)   # v250: napisy-błędy w tekście strony", src)
+        self.assertEqual(k.PRZEGL_INF.count('Infinity'), 3)

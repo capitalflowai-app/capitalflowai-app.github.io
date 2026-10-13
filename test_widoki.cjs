@@ -12295,7 +12295,8 @@ test('v157: kafel — tytuł, rodzaj liczb, podtytuł, data z wiekiem, „Szczeg
   assert.ok(e.includes('<b>brak danych</b> — nie udało się narysować wykresu'), 'wyjątek budowniczego — kafel z powodem');
   /* v350 (zlecenie 13.10.2026): kafla strachu i chciwości GLOBAL nie ma — wskaźnik w prawej kolumnie GLOBAL; siatka nadal pełna (asercja niżej) */
   assert.deepEqual(K.WK_T.global.map(T => T.id), ['g-reg', 'g-prob', 'g-ix', 'g-str', 'g-fund', 'g-tic', 'g-fed', 'g-dl']);
-  assert.deepEqual(K.WK_T.crypto.map(T => T.id), ['c-flow', 'c-etf', 'c-t10', 'c-stab', 'c-cap', 'c-lev', 'c-prm', 'c-rwa', 'c-fg', 'c-wh']);
+  const V157_C = ['c-flow', 'c-etf', 'c-t10', 'c-stab', 'c-cap', 'c-lev', 'c-prm', 'c-rwa', 'c-fg', 'c-wh'];   /* v356: dawne kafle w tej samej kolejności; nowe dochodzą po nich */
+  assert.deepEqual(K.WK_T.crypto.map(T => T.id).filter(id => V157_C.includes(id)), V157_C);
   const cells = L => L.reduce((a, T) => a + (T.w ? 2 : 1) * (T.r ? 2 : 1), 0);
   assert.deepEqual([cells(K.WK_T.global) % 3, cells(K.WK_T.crypto) % 3], [0, 0], 'siatka 3 kolumn bez pustych pól');
   for (const tab of ['global', 'crypto']) for (const T of K.WK_T[tab]) {
@@ -12478,7 +12479,7 @@ test('v157: słownik EXTRA157 — czysty JSON, tylko „pl”, jedna linia nakł
   assert.ok(m.indexOf('EXTRA157') > m.indexOf('EXTRA154') && m.indexOf('EXTRA154') > 0, 'nałożony po wcześniejszych słownikach');
   const code = v157.KIT + v157.UI + html.slice(html.indexOf('<body'), html.indexOf('<script>'));
   for (const k in D.pl) { assert.ok(typeof D.pl[k] === 'string' && D.pl[k].trim(), k); assert.ok(code.includes("'" + k + "'") || code.includes('"' + k + '"'), 'klucz używany: ' + k); }
-  for (const k of new Set([...code.matchAll(/['"](wk\.[a-z0-9.]+)['"]/g)].map(x => x[1]))) assert.ok(k in D.pl, 'klucz z kodu w słowniku: ' + k);
+  for (const k of new Set([...code.matchAll(/['"](wk\.[a-z0-9.]+)['"]/g)].map(x => x[1]))) assert.ok(k in D.pl || k in v157.I.pl, 'klucz z kodu w słowniku: ' + k);
   for (const k in D.pl) assert.deepEqual(v151Names(D.pl[k]), [], 'bez nazwy dostawcy: ' + k);
   for (const l of Object.keys(v157.I)) if (l !== 'pl') for (const k in D.pl) assert.ok(!(k in v157.I[l]), l + ': bez tłumaczeń (t() pokazuje polski)');
 });
@@ -12488,7 +12489,7 @@ test('v157: strona w atrapie (dane wbudowane strażnika, 27.09) — „Wykresy�
   R.fireMOs([{type: 'attributes', attributeName: 'data-theme'}]);   /* atrapa nie zgłasza zmian treści — przerysowanie kafli po wczytaniu danych jak po zmianie motywu */
   assert.deepEqual(R.ERR, [], 'bez błędów strony');
   const box = id => R.CAP.filter(c => c.k === 'html' && c.id === id).map(c => c.v).pop() || '';
-  for (const [id, n] of [['wk-global', 8 /* v350: bez kafla strachu i chciwości GLOBAL */], ['wk-crypto', 10]]) {
+  for (const [id, n] of [['wk-global', 8 /* v350: bez kafla strachu i chciwości GLOBAL */], ['wk-crypto', (html.slice(html.indexOf('  crypto:['), html.indexOf('const WK_KIND')).match(/\{id:'c-/g) || []).length]]) {
     const h = box(id);
     assert.equal((h.match(/<article class="wk-t panel/g) || []).length, n, id + ': kafle');
     for (const tile of h.split('<article ').slice(1)) assert.ok(/class="wk-ch /.test(tile) || /<p class="wk-na"><b>brak danych<\/b> — [^<]{8,}<\/p>/.test(tile), id + ': wykres albo brak z powodem: ' + tile.slice(0, 120));
@@ -24756,7 +24757,7 @@ test('v355 ZWIAD_WDROZ: słownik w czystym JSON po linii for słownika o najwyż
   const mm = [...html.matchAll(/^for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/gm)];
   const mine = mm.find(m => html.includes('const ' + m[1] + '={"pl":{"tg355.t"'));
   assert.ok(mine, 'słownik v355 ma własną linię for');
-  const num = n => +n[1].replace('EXTRA', ''); assert.equal(num(mine), Math.max(...mm.map(num)), 'najwyższy numer');
+  const num = n => +n[1].replace('EXTRA', ''); assert.ok(num(mine) > 0 && mm.filter(m => m[1] === mine[1]).length === 1, 'numer słownika, jedna linia nakładania');
   const i0 = html.indexOf('const ' + mine[1] + '='), i1 = html.indexOf(';\nfor(const l in ' + mine[1] + ')', i0), D = JSON.parse(html.slice(i0 + ('const ' + mine[1] + '=').length, i1));
   assert.ok(html.slice(0, i0).trimEnd().endsWith('*/') && html.slice(html.lastIndexOf('\n', i0 - 2), i0).includes('v355'), 'komentarz nagłówkowy nad słownikiem');
   const LG = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']; assert.deepEqual(Object.keys(D), LG);
@@ -24773,4 +24774,132 @@ test('v355 ZWIAD_WDROZ: słownik w czystym JSON po linii for słownika o najwyż
   const code = zw355.code; assert.ok(!/ESMA|European Central|Europejski Bank|EBC\b|\bECB\b/.test(code), 'kod modułu bez nazw dostawców (także w komentarzach)');
   assert.ok(!/\bdocument\.write\b|\beval\(|innerHTML\s*=\s*[^`'"]*\bj\./.test(code), 'bez niebezpiecznych wzorców');
   assert.ok(!html.includes('rejestry MiCA: firmy'), 'Źródła i Metodologia („Jak czytać liczby” w 10 językach, test v146) bez zmian — liczba źródeł z pliku stanu, wiersz TARGET już jest');
+});
+
+
+/* ===================== v356: data dnia w kaflach GLOBAL i karcie „Jakość danych mapy”; kafle CRYPTO dla paneli v349 ===================== */
+test('v356: gFreshTxt — dzień bez godziny jak w tabelach („9 paź 2026”), chwila przez engDate, miesiąc, kwartał i zła data bez zmian; wiek dalej z gAgeNote', () => {
+  const a = html.indexOf('function gFreshTxt(f){'), b = html.indexOf('/* v356: data danych bez godziny', a), b2 = html.indexOf('\n', b);
+  assert.ok(a > 0 && b > a, 'gFreshTxt w stronie');
+  const code = html.slice(a, b2);
+  const fgi = html.slice(html.indexOf('const fgIso=s=>'), html.indexOf('\n', html.indexOf('const fgIso=s=>'))), fgl = html.slice(html.indexOf('function fgLong(iso){'), html.indexOf('\n', html.indexOf('function fgLong(iso){')));
+  const mk = (lang, withFg) => new Function('engDate', 'LOCALE', 'LANG', (withFg ? fgi + '\n' + fgl + '\n' : '') + code + '\nreturn gFreshTxt;')(s => 'ED(' + s + ')', {pl: 'pl-PL', en: 'en-US', de: 'de-DE'}, lang);
+  const f = mk('pl', true);
+  assert.equal(f('2026-10-09'), '9 paź 2026'); assert.equal(f('2026-10-07T07:51:59.999Z'), 'ED(2026-10-07T07:51:59.999Z)');
+  assert.equal(f('2026-09'), '2026-09'); assert.equal(f('2026-Q3'), '2026-Q3'); assert.equal(f('2026-02-30'), '2026-02-30', 'nieistniejący dzień — bez zmian (nie przesuwamy daty)');
+  assert.equal(f(''), ''); assert.equal(f(null), null); assert.equal(f(undefined), undefined);
+  assert.equal(mk('en', true)('2026-10-09'), 'Oct 9, 2026'); assert.equal(mk('de', true)('2026-10-09'), '9. Okt. 2026');
+  assert.equal(mk('pl', false)('2026-10-09'), '2026-10-09', 'bez fgLong (wycinek testowy innych testów) — jak dotąd');
+  /* kafel, karta „Jakość danych mapy” i tabela Aktywa korzystają z tej samej funkcji; dzień nie jest już wypisywany surowo */
+  assert.ok(html.includes("k.fresh?escH(typeof gFreshTxt==='function'?gFreshTxt(k.fresh):k.fresh)+gAgeNote(k.fresh):"), 'stopka kafla GLOBAL');
+  assert.ok(html.includes("fr?escH(frT)+gAgeNote(fr):'<span class=\"na\">—</span>'") && html.includes("const sum=(fr?escH(frT)+gAgeNote(fr)+' · ':'')"), 'karta „Jakość danych mapy”: nagłówek i „Świeżość”');
+  assert.ok(html.includes("const fT=D=>escH(typeof gFreshTxt==='function'?gFreshTxt(D):D)+gAgeNote(D);"), 'tabela Aktywa');
+});
+
+test('v356: kafel „Jakość danych mapy” i kafle górnego rzędu — dzień z datą czytelnika i wiekiem, liczby bez zmian', () => {
+  const NOW = Date.parse('2026-10-12T10:00:00Z');
+  const P = v96src.tFor('pl'), l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const e0 = html.indexOf('const engDate=iso=>'), engDate = new Function('LOCALE', 'LANG', html.slice(e0, html.indexOf('\n', e0)) + '\nreturn engDate;')(LOC, 'pl');
+  const fgi = html.slice(html.indexOf('const fgIso=s=>'), html.indexOf('\n', html.indexOf('const fgIso=s=>'))), fgl = html.slice(html.indexOf('function fgLong(iso){'), html.indexOf('\n', html.indexOf('function fgLong(iso){')));
+  const oldNow = Date.now; Date.now = () => NOW;
+  try {
+    const GF = new Function('t', 'engDate', 'LOCALE', 'LANG', fgi + '\n' + fgl + '\n' + html.slice(html.indexOf('function gAgeNote(fresh){'), html.indexOf('\nfunction gRenderKpi(){')) + '\nreturn {gAgeNote, gFreshTxt};')(P, engDate, LOC, 'pl');
+    const k0 = html.indexOf('\nfunction gRenderKpi(){'), k1 = html.indexOf('\nfunction gNameL(', k0), wrap = {innerHTML: ''};
+    new Function('$', 'GKPI', 'gst', 't', 'LOCALE', 'LANG', 'gfmt', 'escH', 'gFreshTxt', 'gAgeNote', html.slice(k0, k1) + '\ngRenderKpi();')(
+      q => q === '#g-kpis' ? wrap : null, [{k: 'g.k.eq', v: 152970, u: 'u.b', d: 0.87, cov: [11, 12], fresh: '2026-10-09'}, {k: 'g.k.us10', v: 4.31, u: 'u.pp0', dec: 2, d: 0.02, dpp: 1, fresh: '2026-10-09'}], {period: '1D'}, P, LOC, 'pl', v => String(v), v96src.escH, GF.gFreshTxt, GF.gAgeNote);
+    assert.equal((wrap.innerHTML.match(/9 paź 2026 · dane sprzed 3 dni/g) || []).length, 2, 'oba kafle: „9 paź 2026 · dane sprzed 3 dni”: ' + wrap.innerHTML.slice(-300));
+    assert.ok(!wrap.innerHTML.includes('2026-10-09') && wrap.innerHTML.includes('152970') && wrap.innerHTML.includes('4,31'), 'bez zapisu RRRR-MM-DD; liczby bez zmian');
+    const q0 = html.indexOf('function gRenderQ(){'), q1 = html.indexOf('\nfunction gRenderProb(', q0), qel = {innerHTML: ''};
+    new Function('$', 'GREG', 'GDATA', 'gst', 'GKPI', 'GLIVE', 'GLINK', 't', 'escH', 'gAgeNote', 'gFreshTxt', html.slice(q0, q1) + '\ngRenderQ();')(
+      q => q === '#g-q' ? qel : null, [{id: 'usa'}, {id: 'rus'}], {'1D': {usa: [469, 0.6, true], rus: [0, 0, false]}}, {period: '1D'}, [{k: 'g.k.eq', fresh: '2026-10-09'}], {asof: '2026-08'}, true, P, v96src.escH, GF.gAgeNote, GF.gFreshTxt);
+    assert.ok(qel.innerHTML.includes('<p class="pnote">9 paź 2026 · dane sprzed 3 dni · ') && qel.innerHTML.includes('<div class="v">9 paź 2026 · dane sprzed 3 dni</div>'), 'nagłówek i karta „Świeżość”: ' + qel.innerHTML.slice(0, 400));
+    assert.ok(!qel.innerHTML.includes('2026-10-09'), 'bez RRRR-MM-DD');
+  } finally { Date.now = oldNow; }
+});
+
+/* kafle CRYPTO „Wykresy” dla paneli v349: budowniczowie w piaskownicy v157 z kodem pomocniczym panelu (GX, gx*) i danymi z nagrania */
+const v356 = (() => {
+  const helpers = [['const GX={cex:null', '/* ---------- A) giełdy scentralizowane'], ['function gxRows(c)', 'function gxCexTiles('], ['function gxDexOk(j)', 'function gxDexTiles('], ['const gxOiHas=', 'function gxOiBody(']].map(([a, b]) => v157.cut(a, b)).join('\n');
+  const run = (iso, extra) => v157.run(helpers + v157.KIT, v157.ENV(iso || '2026-10-13T15:00:00Z', Object.assign({localStorage: {getItem: () => null, setItem: () => {}}, exchImg: n => '<i data-x="' + n + '"></i>'}, extra || {})),
+    'GX,wkCGx,wkCDx,wkCOi,WK_T,wkTileHtml');
+  const CEX = {v: 1, at: '2026-10-13T14:14:07+00:00', cex: {src_at: '2026-10-13T13:11:29+00:00', n: 4, razem: {n: 4, bal: 4e11, in24: 3e9, in7: -5e8, in30: -5e8},
+    rows: [{name: 'Binance', bal: 1.4e11, in24: 2.05e9, in7: -9.3e8, in30: -4.1e8, dz: 0, dz7: 0, dz30: 0}, {name: 'OKX', bal: 3e10, in24: 1.2e8, in7: 3.9e8, in30: 3.8e8, dz: 0, dz7: 0, dz30: 0},
+      {name: 'Bybit', bal: 1.5e10, in24: 1.3e9, in7: 3e5, in30: -2e8, dz: 0, dz7: 0, dz30: 0}, {name: 'Zonk', bal: 1e10, in24: 5e7, in7: 6e8, in30: 1e8, dz: 0, dz7: 2, dz30: 0}, {name: 'Pusta', bal: 0, in24: 1, in7: 1, in30: 1}]}};
+  const DEX = {v: 1, at: '2026-10-13T14:14:08+00:00', dex: {day: '2026-10-12', n: 1044, s24: 7413194623, s48: 4445864691, s7: 47010473290, d7: 7324965254, d30: 5894765994, s30: 2.4e11},
+    oi: {n: 141, n_on: 84, on: 13501152063, chg: -2.34, src_at: '2026-10-13T14:14:08+00:00', kinds: {perp: 1.1e10},
+      top: [['Hyperliquid Perps', 'perp', 7652100589, -2.7, 'Hyperliquid L1'], ['Derive V3 Options', 'opt', 1690641303, 3.6, 'Derive V3'], ['PancakeSwap Infinity', 'zagadka', 400000, null, null]]}};
+  return {run, CEX, DEX, helpers};
+})();
+
+test('v356: kafel CRYPTO „Giełdy: przepływy netto” — słupki z okna przełącznika, kolory z pokazanej liczby, flaga skoku bez słupka, „<1 mln”, starszy plik = brak z powodem', () => {
+  const K = v356.run(), cp = o => JSON.parse(JSON.stringify(o));
+  assert.deepEqual(K.WK_T.crypto.slice(-3).map(T => [T.id, T.go, T.src.join(), T.w || 0, T.r || 0]), [['c-gx', 'c-gieldy', 'c-gieldy', 0, 0], ['c-dx', 'c-dex', 'c-dex', 0, 0], ['c-oi', 'c-kontrakty', 'c-kontrakty', 0, 0]]);
+  assert.match(K.wkCGx().na, /wczytuje/, 'bez pliku — brak z powodem');
+  K.GX.cex = cp(v356.CEX); K.GX.per = 7;
+  const o = K.wkCGx(), h = o.ch;
+  assert.equal(o.k, 's'); assert.match(o.s, /Największe giełdy, 7 dni, w USD/); assert.match(o.d, /D\(2026-10-13T13:11:29\+00:00\)/, 'chwila odczytu z wiekiem');
+  const R = v157.tags(h, 'rect', 'wk-b').map(r => r.class);
+  assert.deepEqual(R, ['wk-b neg', 'wk-b pos', 'wk-b zer'], 'Binance −930 mln (czerwony), OKX +390 mln (zielony), Bybit +0,3 mln (poniżej 0,5 mln — żółty „zer”); Zonk i Pusta bez słupka (flaga / saldo 0)');
+  const T = v157.txt(h);
+  assert.ok(T.includes('Binance') && T.includes('−930 mln USD') && T.includes('+390 mln USD') && T.includes('&lt;1 mln USD') && T.includes('Zonk') && T.includes('⚠') && !T.includes('Pusta'), T);
+  assert.ok(!/NaN|undefined|null/.test(h), 'bez napisów-błędów');
+  assert.ok(v157.tips(h).some(x => x.startsWith('Zonk: Możliwa zmiana listy portfeli')), 'flaga: powód w podpowiedzi, bez liczby');
+  assert.ok(v157.tips(h).some(x => x.startsWith('Binance · 24 h: +2,05 mld USD · 7 dni: −930 mln USD · 30 dni: −410 mln USD · D(')), v157.tips(h).join(' | '));
+  assert.ok(/aria-label="Giełdy: przepływ netto, 7 dni; 4 giełd, od Binance \(−930 mln USD\) do OKX \(\+390 mln USD\)\."/.test(h), h.slice(0, 300));
+  K.GX.per = 1; const d1 = K.wkCGx(); assert.match(d1.s, /24 h/); assert.deepEqual(v157.tags(d1.ch, 'rect', 'wk-b').map(r => r.class), ['wk-b pos', 'wk-b pos', 'wk-b pos', 'wk-b pos'], 'doba: bez flag, cztery giełdy z plusem');
+  /* plik starszy niż 48 h */
+  const old = cp(v356.CEX); old.cex.src_at = '2026-10-10T13:11:29+00:00'; K.GX.cex = old;
+  assert.match(K.wkCGx().na, /starsze niż 48 godzin/);
+  /* wszystkie giełdy z flagą = brak z powodem, nie puste słupki */
+  const fl = cp(v356.CEX); fl.cex.rows.forEach(r => { r.dz = 2; }); K.GX.cex = fl; K.GX.per = 7; assert.match(K.wkCGx().na, /nie ma liczb/);
+  /* tytuł i render kafla w całości */
+  K.GX.cex = cp(v356.CEX);
+  const tile = K.wkTileHtml(K.WK_T.crypto.find(x => x.id === 'c-gx'));
+  assert.ok(tile.includes('Giełdy: przepływy netto') && tile.includes('<span class="wk-kd">szacunek</span>') && tile.includes('<span class="wk-d">Dane: '), tile.slice(0, 400));
+});
+
+test('v356: kafle CRYPTO „Obrót na giełdach zdecentralizowanych” i „Kontrakty na łańcuchu” — kolumny doby, słupki protokołów, bez nazw dostawców, starsze dane i braki', () => {
+  const K = v356.run(), cp = o => JSON.parse(JSON.stringify(o));
+  assert.match(K.wkCDx().na, /wczytuje/); assert.match(K.wkCOi().na, /wczytuje/);
+  K.GX.dex = cp(v356.DEX);
+  const dx = K.wkCDx(), h = dx.ch, tp = v157.tips(h);
+  assert.equal(dx.k, 'p'); assert.match(dx.d, /^12 paź 2026 · wiek\(2026-10-12\)$/, dx.d);
+  assert.equal(v157.tags(h, 'rect', 'wk-b').length, 4); assert.ok(v157.tags(h, 'rect', 'wk-b').every(r => r.class.endsWith(' lvl')), 'obrót to poziom, nie kierunek — jeden kolor');
+  assert.equal(tp.length, 4, 'cztery podpowiedzi');
+  assert.ok(tp[0].startsWith('12.09 — 30 dób wcześniej: 5,89 mld') && tp[3].startsWith('12.10 — ostatnia pełna doba: 7,41 mld'), tp.join(' | '));
+  assert.ok(/aria-label="Obrót DEX: doba 12 paź 2026 — 7,41 mld[^"]*; doba wcześniej 4,45 mld[^"]*\."/.test(h), h.slice(0, 300));
+  const few = cp(v356.DEX); few.dex.d30 = null; few.dex.d7 = null; K.GX.dex = few; assert.match(K.wkCDx().na, /nie ma liczb|za mało|krótk|mało/i, 'dwie doby = brak (jak w karcie)');
+  const old = cp(v356.DEX); old.dex.day = '2026-10-01'; K.GX.dex = old; assert.match(K.wkCDx().na, /starsze niż 48 godzin/);
+  const none = cp(v356.DEX); delete none.dex; K.GX.dex = none; assert.match(K.wkCDx().na, /nie ma liczb/);
+  /* kontrakty na łańcuchu */
+  K.GX.dex = cp(v356.DEX);
+  const oi = K.wkCOi(), o = oi.ch, ot = v157.tips(o);
+  assert.equal(oi.k, 'p'); assert.equal(v157.tags(o, 'rect', 'wk-b').length, 3); assert.ok(v157.txt(o).includes('Hyperliquid Perps') && v157.txt(o).includes('7,65 mld') && v157.txt(o).includes('&lt;1 mln'), v157.txt(o));
+  assert.ok(ot[0].startsWith('Hyperliquid Perps · Kontrakty bezterminowe: 7,65 mld USD · 57% · '), ot[0]);
+  assert.ok(ot[0].includes('Zmiana 24 h: −2,7%') && ot[0].includes('Sieć: Hyperliquid L1'), ot[0]);
+  assert.ok(ot[2].includes('Inne') && !ot[2].includes('Zmiana 24 h') && !ot[2].includes('Sieć'), 'rodzaj spoza listy = „Inne”, brak zmiany i sieci pominięty: ' + ot[2]);
+  assert.ok(/aria-label="Kontrakty na łańcuchu: otwarte pozycje 13,5 mld USD w 84 protokołach; największy Hyperliquid Perps \(7,65 mld USD\)\."/.test(o), o.slice(0, 300));
+  const oold = cp(v356.DEX); oold.oi.src_at = '2026-10-10T00:00:00+00:00'; K.GX.dex = oold; assert.match(K.wkCOi().na, /starsze niż 48 godzin/);
+  const ono = cp(v356.DEX); ono.oi.top = []; K.GX.dex = ono; assert.match(K.wkCOi().na, /nie ma liczb/);
+  /* bez nazw dostawców i napisów-błędów */
+  K.GX.dex = cp(v356.DEX); K.GX.cex = cp(v356.CEX);
+  for (const x of [K.wkCGx(), K.wkCDx(), K.wkCOi()]) { const s = JSON.stringify(x); assert.ok(!/NaN|undefined|null|DefiLlama|CoinGecko|CoinMarketCap|Arkham|Etherscan/.test(s), s.slice(0, 200)); }
+});
+
+test('v356: kafle CRYPTO dla paneli v349 — siatka 3 kolumn pełna, cele „Szczegółów” i źródła odświeżenia istnieją, słownik w 10 językach z tymi samymi znacznikami', () => {
+  const K = v157.run(v157.KIT, v157.ENV(), 'WK_T'), cells = L => L.reduce((a, T) => a + (T.w ? 2 : 1) * (T.r ? 2 : 1), 0);
+  assert.equal(cells(K.WK_T.crypto) % 3, 0, 'siatka 3 kolumn bez pustych pól'); assert.equal(cells(K.WK_T.crypto) % 2, 0, 'siatka 2 kolumn bez pustych pól');
+  const ids = K.WK_T.crypto.map(T => T.id); for (const id of ['c-gx', 'c-dx', 'c-oi']) assert.ok(ids.includes(id), id);
+  assert.equal(new Set(ids).size, ids.length, 'identyfikatory kafli różne');
+  for (const T of K.WK_T.crypto.filter(x => ['c-gx', 'c-dx', 'c-oi'].includes(x.id))) {
+    assert.ok(html.includes('id="' + T.go + '"') && html.includes('id="' + T.src[0] + '"'), T.id + ': cel i źródło odświeżenia istnieją');
+    assert.ok(/^[a-z0-9-]{1,40}$/.test(T.go), 'cel „Szczegółów” przechodzi walidację wkGo');
+  }
+  const I = v143Final(html), KEYS = ['wk.c.gx.t', 'wk.c.gx.s', 'wk.c.gx.a', 'wk.c.dx.t', 'wk.c.dx.s', 'wk.c.dx.a', 'wk.c.oi.t', 'wk.c.oi.s', 'wk.c.oi.a'];
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) for (const k of KEYS) {
+    assert.ok(typeof I[l][k] === 'string' && I[l][k].length > 2, l + ' ' + k);
+    const ph = s => (s.match(/\{\w\}/g) || []).sort().join(); assert.equal(ph(I[l][k]), ph(I.pl[k]), l + ' ' + k + ': te same znaczniki co po polsku');
+    if (l !== 'pl') assert.notEqual(I[l][k], I.pl[k], l + ' ' + k + ': prawdziwe tłumaczenie');
+  }
+  assert.ok(!KEYS.some(k => /DefiLlama|Etherscan|CoinGecko/.test(I.pl[k])), 'bez nazw dostawców');
 });
