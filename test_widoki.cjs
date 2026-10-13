@@ -23861,7 +23861,7 @@ test('v349: karta giełd — kafle (suma sald, przepływy 24 h / 7 / 30 dni z ko
   assert.equal(R[0].tone, R[0].val.includes('−') ? 'neg' : 'pos');
   const bi = rows => rows.find(r => r.name === 'Binance');
   assert.ok(bi(R).oth.includes('24 h +965 mln USD') && bi(R).oth.includes('30 dni'), bi(R).oth);
-  assert.ok(R[4].val === '0 mln USD' && R[4].tone === 'neu' && R[4].bar.includes('class="neu"'), 'Robinhood: 4,5 tys. USD = zero po zaokrągleniu → żółte, nie „—”: ' + R[4].val);
+  assert.ok(R[4].val === '<1 mln USD' /* v349b: 4,5 tys. USD ≠ zero — „<1 mln” jak w całej stronie */ && R[4].tone === 'neu' && R[4].bar.includes('class="neu"'), 'Robinhood: 4,5 tys. USD = zero po zaokrągleniu → żółte, nie „—”: ' + R[4].val);
   /* flaga: Bitstamp w oknie 24 h — znak ostrzegawczy z podpowiedzią bez liczb progu, słupek poza skalą (x), wartość pokazana */
   K.api.GX.per = 1; K.api.renderGx(); const R1 = gx349.rows(K.els['#c-gieldy'].innerHTML), b1 = R1.find(r => r.name === 'Bitstamp');
   assert.ok(b1.fl && b1.flag.includes('class="gx-fl"') && b1.flag.includes('title="Możliwa zmiana listy portfeli'), b1.flag); assert.ok(b1.bar.includes('class="pos x"'), b1.bar);
@@ -23969,4 +23969,9 @@ test('v349 (przegląd): polska forma „liczba dób: N” bez błędnej odmiany;
   assert.ok(html.includes('"gx349.c.hist.n":"Własna migawka dobowa od {d} · liczba dób: {n}."'), 'pl bez odmiany po liczebniku');
   assert.ok(!html.includes('({n} dób)'), 'stara forma „(3 dób)” usunięta');
   assert.ok(html.includes("const sub=old?t('gx349.c.row.sub0',{b:'—'}):"), 'stare dane: saldo w wierszu jako „—”');
+});
+
+test('v349b: giełdy — małe przepływy: zero „0 mln USD”, różne od zera poniżej 0,5 mln „<1 mln USD” (żółte), 0,5–1 mln z jednym miejscem', () => {
+  assert.ok(html.includes("if(tn==='neu')return (v===0?'0 ':'<1 ')+t('u.m');"), 'gxSig: zero i „<1”');
+  assert.ok(html.includes("if(a>=5e5)return nfmt(a/1e6,1)+' '+t('u.m');"), 'gxMag: 0,5–1 mln z jednym miejscem');
 });

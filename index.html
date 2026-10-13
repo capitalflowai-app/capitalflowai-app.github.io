@@ -10602,10 +10602,11 @@ function gxMag(a){if(!gxNum(a))return '—';a=Math.abs(a);
   if(+(a/1e9).toFixed(1)>=1000)return nfmt(a/1e12,2)+' '+t('u.t');
   if(a>=1e9||+(a/1e6).toFixed(0)>=1000)return nfmt(a/1e9,a>=1e10?1:2)+' '+t('u.b');
   if(a>=1e6)return nfmt(a/1e6,a>=1e8?0:1)+' '+t('u.m');
+  if(a>=5e5)return nfmt(a/1e6,1)+' '+t('u.m');   /* v349b: 0,5–1 mln z jednym miejscem, nie „<1” ze znakiem */
   return '<1 '+t('u.m');}
 /* kierunek z pokazanej liczby: poniżej 0,5 mln USD to „0” (żółte), inaczej znak */
 const gxTone=v=>!gxNum(v)?'na':Math.abs(v)<GX_MIN?'neu':v>0?'pos':'neg';
-function gxSig(v,arrow){if(!gxNum(v))return '—';const tn=gxTone(v);if(tn==='neu')return '0 '+t('u.m');return (arrow?(v>0?'▲ ':'▼ '):'')+(v>0?'+':'−')+gxMag(v);}
+function gxSig(v,arrow){if(!gxNum(v))return '—';const tn=gxTone(v);if(tn==='neu')return (v===0?'0 ':'<1 ')+t('u.m');   /* v349b: różne od zera poniżej 0,5 mln = „<1 mln” (jak v336/v345), zero = „0” */return (arrow?(v>0?'▲ ':'▼ '):'')+(v>0?'+':'−')+gxMag(v);}
 /* zmiana w %: znak, 1 miejsce; zero po zaokrągleniu bez znaku; brak = „—” */
 function gxPct(v){if(!gxNum(v))return '—';const r=Math.round(v*10)/10;return r?(r>0?'+':'−')+nfmt(Math.abs(r),1)+'%':nfmt(0,1)+'%';}
 const gxPcTone=v=>{if(!gxNum(v))return 'na';const r=Math.round(v*10)/10;return r>0?'pos':r<0?'neg':'neu';};
