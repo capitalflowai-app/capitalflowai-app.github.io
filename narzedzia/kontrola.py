@@ -8112,6 +8112,149 @@ def _ix_dt_k(s):
         return None
 
 
+# ---------------------------------------------------------------- v366 (F2Z2): inflacja (BIS), koniunktura (OECD) i stopy realne ----------------------------------------------------------------
+# Dwa nowe pliki zbieracza: data/inflacja.json (inflacja CPI r/r, ok. 63 gospodarek) i data/koniunktura.json (zaufanie konsumentów i firm, ok. 25 krajów z Polską). Kontrola dzienna czyta je
+# z plików strony (bez zapytań do sieci) i sprawdza:
+# (1) wiek najnowszego miesiąca danych (od końca miesiąca) — BIS dopisuje miesiąc inflacji 4–7 tygodni po jego końcu (stan 13.10.2026: sierpień u większości krajów, wrzesień nie), więc
+#     tuż przed ukazaniem się kolejnego miesiąca najnowszy miesiąc ma ok. 45 + 31 = 76 dni; próg 100 dni (RL_K_INFL_PROG) ma zapas ok. 3 tygodni. OECD: zaufanie za miesiąc ukazuje się ok.
+#     10. dnia następnego (13.10.2026: wrzesień u większości krajów), więc przed kolejną publikacją najnowszy miesiąc ma ok. 40 dni; próg 55 dni (RL_K_KON_PROG). Progi wynikają z kalendarza
+#     publikacji, nie z testu wstecznego na latach danych (źródła nie udostępniają dat wydań), dlatego z zapasem — ⚠ = źródło spóźnia się albo plik przestał się odświeżać;
+# (2) spójność w pliku: miesiące 'RRRR-MM' rosnąco bez powtórzeń, liczby w granicach (inflacja −30…1000 % r/r, zaufanie 50…150), ostatni miesiąc kraju = pola m/v, pole asof = najnowszy
+#     miesiąc, w koniunkturze Polska w obu miarach (po to ta część powstała) i dwie miary nie są tą samą serią (pułapka: oecd_parse zapytania łączącego miary nadpisuje jedną drugą);
+# (3) TYLKO INFORMACJA: inflacja USA z BIS a inflacja r/r z CPI-U (BLS) z pliku usa-makro.json w tym samym miesiącu (11.10: BIS 3,3965 % a BLS 3,4 %) — różnica do RL_K_BLS pp ✅, większa
+#     tylko jako informacja (nigdy ⚠); i pokrycie stopy realnej: dla ilu banków z stopy.json da się ją policzyć (miesiąc inflacji nie starszy niż 3 mies. od miesiąca stanu stopy) — poniżej
+#     połowy banków ⚠ (kolumna na stronie byłaby prawie pusta).
+# Najwyżej ⚠ (nigdy błąd przebiegu); brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'inflacja')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'koniunktura')
+LIMIT_MIN['inflacja'] = 30 * 60      # zapis co przebieg; odpytanie BIS co ok. 20 h (zapas na nieudane próby) — wiek pliku; wiek miesiąca ocenia wiersz świeżości
+LIMIT_MIN['koniunktura'] = 12 * 60   # odpytanie OECD co 6 h (część z błędem: co godzinę)
+AW_BEZ_BLEDU.update({'inflacja': 'inflacja — błąd zostaje z poprzednim plikiem i datą (v366); wiek miesiąca w wierszu świeżości',
+                     'koniunktura': 'koniunktura — część z błędem zostaje z datą (v366); wiek miesiąca w wierszu świeżości'})
+RL_K_INFL_PROG = 100 * 24 * 60   # min — wiek najnowszego miesiąca inflacji od jego końca (kalendarz publikacji wyżej)
+RL_K_KON_PROG = 55 * 24 * 60     # min — to samo dla zaufania konsumentów i firm
+RL_K_BLS = 0.15                  # pp — inflacja USA: BIS (3 miejsca) a BLS (1 miejsce po przecinku, zaokrąglenie ±0,05) w tym samym miesiącu
+RL_K_INFL_ZAKRES = (-30.0, 1000.0)
+RL_K_KON_ZAKRES = (50.0, 150.0)
+RL_K_MAX_MIES = 3                # stopa realna tylko przy inflacji nie starszej niż tyle miesięcy od miesiąca stanu stopy (jak na stronie)
+
+
+def _rl_k_mi(s):
+    m = re.fullmatch(r'(\d{4})-(0[1-9]|1[0-2])', s) if isinstance(s, str) else None
+    return int(m.group(1)) * 12 + int(m.group(2)) - 1 if m else None
+
+
+def _rl_k_num(v):
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float('inf') else None
+
+
+def _rl_k_seria(s, zakres, nazwa, zle):
+    """lista [[miesiąc, liczba], …]: miesiące rosnąco bez powtórzeń, liczby w zakresie; zwraca ostatnią parę albo None"""
+    if not isinstance(s, list) or not s:
+        zle.append(f'{nazwa}: pusta seria'); return None
+    prev = None
+    for p in s:
+        if not (isinstance(p, list) and len(p) == 2 and _rl_k_mi(p[0]) is not None and _rl_k_num(p[1]) is not None):
+            zle.append(f'{nazwa}: zły wiersz serii'); return None
+        if prev is not None and _rl_k_mi(p[0]) <= prev:
+            zle.append(f'{nazwa}: miesiące nie rosną'); return None
+        if not zakres[0] <= p[1] <= zakres[1]:
+            zle.append(f'{nazwa}: liczba {p[1]} poza zakresem'); return None
+        prev = _rl_k_mi(p[0])
+    return s[-1]
+
+
+def stopy_realne_kontrola(infl, kon, usam=None, stopy=None, now=None):
+    """Pliki data/inflacja.json, data/koniunktura.json (+ usa-makro.json, stopy.json) → {'rows': [(etykieta, status, wiek min, miesiąc, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)],
+    'spojnosc': [...]}; brak pliku albo inna wersja = brak wierszy tej części (wiek pliku i brak pliku zgłasza pętla PLIKI). Najwyżej ⚠."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    zle = out['spojnosc']
+    # ---- inflacja ----
+    ic = infl.get('c') if isinstance(infl, dict) and infl.get('v') == 1 and isinstance(infl.get('c'), dict) else None
+    ost = {}
+    if ic:
+        for a, o in ic.items():
+            if not (isinstance(o, dict) and _rl_k_mi(o.get('m')) is not None and _rl_k_num(o.get('v')) is not None):
+                zle.append(f'inflacja {a}: zły miesiąc albo liczba'); continue
+            last = _rl_k_seria(o.get('s'), RL_K_INFL_ZAKRES, f'inflacja {a}', zle)
+            if last is not None and (last[0] != o['m'] or abs(last[1] - o['v']) > 1e-9):
+                zle.append(f'inflacja {a}: ostatni punkt serii różni się od pól m/v')
+            ost[a] = o
+        if ost:
+            asof = max((o['m'] for o in ost.values()), key=_rl_k_mi)
+            if infl.get('asof') != asof:
+                zle.append(f'inflacja: pole asof {infl.get("asof")} ≠ najnowszy miesiąc {asof}')
+            w = wiek_danych(asof, 'month', 'm', now)
+            st = '?' if w is None else ('⚠\ufe0f' if w > RL_K_INFL_PROG else '✅')
+            note = f'najnowszy miesiąc starszy niż {fmt_wiek(RL_K_INFL_PROG)} — źródło spóźnia się z miesiącem albo plik przestał się odświeżać; najwyżej uwaga' if st == '⚠\ufe0f' else ''
+            out['rows'].append(('Inflacja r/r (miesięcznie, najnowszy miesiąc)', st, w, asof, note))
+            if st == '⚠\ufe0f':
+                out['uwagi'].append(f'Inflacja r/r: najnowszy miesiąc {asof} — {fmt_wiek(w)} temu ({note})')
+        else:
+            out['rows'].append(('Inflacja r/r (miesięcznie, najnowszy miesiąc)', '?', None, None, 'brak poprawnej inflacji w pliku'))
+    # ---- tylko informacja: USA — BIS a BLS ----
+    try:
+        us = ost.get('US')
+        yoy = ((usam or {}).get('s') or {}).get('cpi', {}).get('yoy') if isinstance(usam, dict) else None
+        if us and isinstance(yoy, list):
+            bl = {r[0]: _rl_k_num(r[1]) for r in yoy if isinstance(r, list) and len(r) >= 2 and isinstance(r[0], str)}
+            x = bl.get(us['m'])
+            if x is not None:
+                roz = abs(us['v'] - x)
+                out['wiersze'].append((f'inflacja USA {us["m"]}: {us["v"]:.2f} % (plik inflacja) a {x:.1f} % (CPI-U z pliku usa-makro) — tylko informacja', '✅' if roz <= RL_K_BLS else '\u2139\ufe0f'))
+    except Exception as e:  # noqa
+        zle.append(f'porównanie USA: {str(e)[:60]}')
+    # ---- pokrycie stopy realnej ----
+    if ost and isinstance(stopy, dict) and isinstance(stopy.get('rows'), dict):
+        n = k = 0
+        for a, r in stopy['rows'].items():
+            if not (isinstance(r, dict) and _rl_k_num(r.get('rate')) is not None):
+                continue
+            k += 1
+            o, m = ost.get(a), _rl_k_mi(str(r.get('date'))[:7])
+            if o and m is not None and m - _rl_k_mi(o['m']) <= RL_K_MAX_MIES:
+                n += 1
+        if k:
+            slabo = n * 2 < k
+            out['wiersze'].append((f'stopa realna policzona dla {n} z {k} banków (reszta: brak inflacji albo starsza niż {RL_K_MAX_MIES} mies. od stanu stopy)', '⚠\ufe0f' if slabo else '✅'))
+            if slabo:
+                out['uwagi'].append(f'Stopa realna: tylko {n} z {k} banków ma inflację nie starszą niż {RL_K_MAX_MIES} mies. — kolumna na stronie prawie pusta')
+    # ---- koniunktura ----
+    kc = kon.get('c') if isinstance(kon, dict) and kon.get('v') == 1 and isinstance(kon.get('c'), dict) else None
+    if kc:
+        miesiace, ost_k = [], {}
+        for cz in ('cci', 'bci'):
+            P = kc.get(cz)
+            if not isinstance(P, dict) or not P:
+                zle.append(f'koniunktura {cz}: brak części'); continue
+            for iso, s in P.items():
+                last = _rl_k_seria(s, RL_K_KON_ZAKRES, f'koniunktura {cz} {iso}', zle)
+                if last is not None:
+                    miesiace.append(last[0]); ost_k[(cz, iso)] = last
+            if 'POL' not in P:
+                zle.append(f'koniunktura {cz}: brak Polski')
+        if ('cci', 'POL') in ost_k and ('bci', 'POL') in ost_k:
+            wsp = [i for (c_, i) in ost_k if c_ == 'cci' and ('bci', i) in ost_k]
+            if len(wsp) >= 5 and all(ost_k[('cci', i)] == ost_k[('bci', i)] for i in wsp):
+                zle.append('koniunktura: zaufanie konsumentów i firm to ta sama seria (jedna miara nadpisała drugą)')
+        if miesiace:
+            asof = max(miesiace, key=_rl_k_mi)
+            w = wiek_danych(asof, 'month', 'm', now)
+            st = '?' if w is None else ('⚠\ufe0f' if w > RL_K_KON_PROG else '✅')
+            note = f'najnowszy miesiąc starszy niż {fmt_wiek(RL_K_KON_PROG)} — źródło spóźnia się z miesiącem albo plik przestał się odświeżać; najwyżej uwaga' if st == '⚠\ufe0f' else ''
+            out['rows'].append(('Koniunktura: zaufanie konsumentów i firm (miesięcznie)', st, w, asof, note))
+            if st == '⚠\ufe0f':
+                out['uwagi'].append(f'Koniunktura: najnowszy miesiąc {asof} — {fmt_wiek(w)} temu ({note})')
+    elif isinstance(kon, dict) and kon.get('v') == 1:
+        out['rows'].append(('Koniunktura: zaufanie konsumentów i firm (miesięcznie)', '?', None, None, 'brak części w pliku'))
+    for z in zle[:4]:
+        out['uwagi'].append(f'inflacja i koniunktura (v366): {z}')
+    if out['rows']:
+        out['wiersze'].append(('spójność plików (miesiące, liczby, Polska w obu miarach zaufania)', '⚠\ufe0f' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -8502,6 +8645,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['krzywe'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'krzywe rentowności (v362): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v366. inflacja (BIS) i koniunktura (OECD): wiek najnowszego miesiąca, spójność plików, pokrycie stopy realnej, inflacja USA a CPI-U z usa-makro (tylko informacja) — z plików strony, bez zapytań; najwyżej ⚠
+    try:
+        T_ = stopy_realne_kontrola(files.get('inflacja'), files.get('koniunktura'), files.get('usa-makro'), files.get('stopy'))
+        for label, st, w, txt, note in T_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += T_['uwagi']
+        R['zgodnosc']['stopy-realne'] = {'spojnosc': T_['spojnosc'], 'wiersze': T_['wiersze']} if (T_['rows'] or T_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['stopy-realne'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'inflacja i koniunktura (v366): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -9129,6 +9282,11 @@ def raport_md(R):
             L.append('- Krzywe rentowności (z plików strony; porównanie 10L USA i Niemiec z rynki.json): ' + (f'? kontrola przerwana ({kz_["blad"]})' if kz_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(kz_['spojnosc'][:3]) + ' \u26a0\ufe0f · ' if kz_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in kz_.get('wiersze') or []) or '—') + '.')
+        sr_ = Z.get('stopy-realne')   # v366: inflacja (BIS), koniunktura (OECD), pokrycie stopy realnej i inflacja USA a CPI-U — sprzeczności w plikach; brak plików = bez linii
+        if sr_:
+            L.append('- Inflacja, koniunktura i stopy realne (z plików strony; inflacja USA a CPI-U z pliku usa-makro tylko informacyjnie): ' + (f'? kontrola przerwana ({sr_["blad"]})' if sr_.get('blad') else
+                     ('niespójności w plikach: ' + '; '.join(sr_['spojnosc'][:3]) + ' ⚠\ufe0f · ' if sr_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in sr_.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

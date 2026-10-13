@@ -210,6 +210,9 @@ def zrodla_cisze(saved):
     return out
 
 
+ZRODLA_META.update({'inflacja': 'bis', 'koniunktura': 'oecd'})   # v366 (F2Z2): inflacja i koniunktura — te same dwa źródła co dotąd (liczba źródeł bez zmian)
+
+
 def zrodla_meta(ok, errors=(), notes=(), saved=None):
     """→ {'n': liczba źródeł, które mają część w tym przebiegu, 'ok': ile z nich odpowiedziało albo ma świeże dane z pamięci} albo None, gdy nie ma
     żadnego źródła (strona nie pokazuje wtedy liczby — nigdy „0”). Źródło „odpowiedziało”, gdy choć jedna jego część ma ok True albo 'cached'
@@ -2930,7 +2933,8 @@ def rezerwy_chiny_safe(res, su):
 
 
 # BIS — stopy procentowe banków centralnych (WS_CBPOL), bez klucza; dzienne (stan) + miesięczne (historia zmian)
-CBPOL_AREAS = ['US', 'XM', 'GB', 'CH', 'SE', 'NO', 'PL', 'JP', 'KR', 'CN', 'IN', 'ID', 'AU', 'CA', 'BR', 'MX', 'ZA', 'TR', 'SA', 'RU']
+CBPOL_AREAS = ['US', 'XM', 'GB', 'CH', 'SE', 'NO', 'PL', 'JP', 'KR', 'CN', 'IN', 'ID', 'AU', 'CA', 'BR', 'MX', 'ZA', 'TR', 'SA', 'RU',
+               'CL', 'CO', 'CZ', 'DK', 'HK', 'HU', 'IL', 'IS', 'KW', 'MA', 'MK', 'MY', 'NZ', 'PE', 'RO', 'RS', 'TH']   # v366 (F2Z2): 37 banków — 17 dodatkowych (AR, PH, HR odrzucone: stare/puste dane)
 CBPOL_BASE = 'https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBPOL/1.0/'
 CBPOL_AGO_DNI = 7      # v325 (ZB02-01): zapytanie rocznicowe — zapas dni przed najstarszą rocznicą; baza d12 = odczyt dzienny najwyżej tyle dni przed rocznicą
 CBPOL_AGO_MAX = 372    # v325: okno zapytania rocznicowego najwyżej tyle dni (kraj ze stanem dużo starszym od reszty — d12 brak, nie ogromne zapytanie)
@@ -30683,6 +30687,32 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'BIS stopy: {e}')); META['ok']['stopy'] = False
             if prev_st: save('stopy', prev_st)
+    # v366 (F2Z2): INFLACJA r/r (BIS, data/inflacja.json — raz na INFL_EVERY min) i KONIUNKTURA (OECD: zaufanie konsumentów i firm, data/koniunktura.json — co KON_EVERY min, część z błędem
+    # najwyżej NIEPELNY_MIN min); awaria budowniczego = poprzedni plik. META ok: inflacja, koniunktura (te same dwa źródła co dotąd — liczba źródeł bez zmian). Stopa realna jest liczona na stronie.
+    prev_if = previous('inflacja')
+    if prev_if and fresh(prev_if, INFL_EVERY):
+        save('inflacja', prev_if); META['ok']['inflacja'] = 'cached'
+    else:
+        try:
+            if_ = build_inflacja(prev_if); save('inflacja', if_); META['ok']['inflacja'] = True
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{INFL_PX}: {e}')[:200]); META['ok']['inflacja'] = False
+            if prev_if:
+                save('inflacja', prev_if)
+    prev_kn = previous('koniunktura')
+    if prev_kn and fresh_pelny(prev_kn, KON_EVERY):
+        save('koniunktura', prev_kn)
+        zle_kn = [k_ for k_ in KON_Q if _dict(prev_kn.get('ok')).get(k_) is False]
+        META['ok']['koniunktura'] = False if zle_kn else 'cached'
+        for k_ in zle_kn:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+            META['errors'].append(mask(f"{KON_PX[k_]}: {str(_dict(prev_kn.get('errs')).get(k_) or 'błąd w ostatnim pobraniu')[:160]}"))
+    else:
+        try:
+            kn_ = build_koniunktura(prev_kn); save('koniunktura', kn_); META['ok']['koniunktura'] = all(kn_['ok'].values())
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'Koniunktura: {e}')[:200]); META['ok']['koniunktura'] = False
+            if prev_kn:
+                save('koniunktura', prev_kn)
     # v101: kursy EBC i rentowności 10L (bez klucza) — co godzinę; każda część osobno (strona Źródła: rynki_fx / rynki_ust / rynki_buba)
     prev_ry = previous('rynki')
     pok_ry = _dict((prev_ry or {}).get('ok'))
@@ -33428,6 +33458,132 @@ def build_polska_kapital(prev=None, run_t0=None, now=None):
         out['proba'] = pro
     if not any(n in out for n in ('fdi', 'ue')):
         raise RuntimeError('żadna część pliku nie ma danych')
+    return out
+
+
+# ===================== v366 (F2Z2): stopy realne i nastroje gospodarki — inflacja (BIS) i zaufanie konsumentów i firm (OECD) =====================
+# (1) data/inflacja.json — inflacja CPI r/r (BIS, zbiór długich serii cen konsumenckich, miara 771 = zmiana % rok do roku) dla ok. 63 gospodarek jednym zapytaniem (ok. 34 KB),
+#     14 ostatnich miesięcy każdej: {kraj: {'m': ostatni miesiąc, 'v': inflacja %, 's': [[miesiąc, %], …]}}. Strona liczy z niej stopę realną = stopa banku centralnego (stopy.json)
+#     minus inflacja r/r — to WYLICZENIE, nie dana ze źródła (opisane tak na stronie, z miesiącem inflacji). Miesiąc danych kraju nie cofa się (źródło pokazujące starszy miesiąc
+#     niż poprzedni plik nie nadpisuje); kraj, którego nie ma w odpowiedzi, zostaje z poprzedniego pliku, o ile jego miesiąc nie jest starszy niż INFL_ZAPAS_MIES od najnowszego.
+#     Odpowiedź z mniej niż INFL_N_MIN gospodarek to odpowiedź obcięta — wyjątek (poprzedni plik zostaje). Zapytanie najwyżej raz na INFL_EVERY min.
+# (2) data/koniunktura.json — zaufanie konsumentów (CCICP) i firm (BCICP) z tej samej kostki OECD co wskaźnik wyprzedzający (DF_CLI), dla krajów mapy GLOBAL (OECD_ISO; 25 z 27 ma dane,
+#     m.in. Polska — jedyny wskaźnik nastrojów, jaki OECD ma dla Polski). Indeks: 100 = średnia wieloletnia. PUŁAPKA (zwiadowca planu źródeł): oecd_parse czyta tylko REF_AREA
+#     i TIME_PERIOD, więc zapytanie łączące miary nadpisałoby jedną drugą (USA IX: 100,9993 zamiast 96,14) — dlatego osobne zapytanie na miarę, a kon_parse sprawdza, że w odpowiedzi
+#     jest dokładnie jedna miara (wymiar MEASURE) i to ta zamówiona. Dwa zapytania z przerwą OECD_SLEEP, co KON_EVERY min (część z błędem: ponowienie po NIEPELNY_MIN, fresh_pelny).
+# Brak = brak klucza (nigdy zero). Źródła BIS i OECD już są w tabeli ZRODLA_META — liczba źródeł na stronie bez zmian.
+INFL_URL = 'https://stats.bis.org/api/v2/data/dataflow/BIS/WS_LONG_CPI/1.0/M..771?lastNObservations=14&format=csv'
+INFL_EVERY = 20 * 60       # min — BIS dopisuje miesiące raz na kilka dni; częściej nie ma po co
+INFL_N_MIN = 30            # gospodarek — odpowiedź z mniejszą liczbą jest obcięta
+INFL_DL = 14               # miesięcy historii w pliku
+INFL_MIN, INFL_MAX = -30.0, 1000.0   # % r/r — poza przedziałem to błąd skali (w danych 2026: Turcja 31,5, Argentyna 33,7)
+INFL_ZAPAS_MIES = 6        # kraj bez wiersza w odpowiedzi zostaje z poprzedniego pliku, o ile jego miesiąc jest nie starszy niż tyle miesięcy od najnowszego
+INFL_PX = 'Inflacja r/r'   # początek komunikatu błędu
+KON_Q = {'cci': ('OECD.SDD.STES,DSD_STES@DF_CLI,4.1/{iso}.M.CCICP...AA...H', 'CCICP'), 'bci': ('OECD.SDD.STES,DSD_STES@DF_CLI,4.1/{iso}.M.BCICP...AA...H', 'BCICP')}
+KON_PX = {'cci': 'Koniunktura zaufanie konsumentów', 'bci': 'Koniunktura zaufanie firm'}
+KON_EVERY = 6 * 60         # min — dane miesięczne; jak wskaźnik wyprzedzający (OECD_EVERY)
+KON_MIES = 15              # miesięcy wstecz w zapytaniu (jak oecd_start)
+KON_DL = 12                # miesięcy historii w pliku
+KON_MIN, KON_MAX = 50.0, 150.0   # indeks zaufania poza przedziałem = błąd skali albo znaczenia pola (w danych od 1960: 70–120)
+KON_ZAPAS_MIES = 6
+
+
+def _mi(ym):
+    """Numer miesiąca z 'RRRR-MM' (rok·12 + miesiąc − 1); zły zapis = None."""
+    m = re.fullmatch(r'(\d{4})-(0[1-9]|1[0-2])', str(ym or ''))
+    return int(m.group(1)) * 12 + int(m.group(2)) - 1 if m else None
+
+
+def infl_parse(raw):
+    """CSV BIS (WS_LONG_CPI, miara 771) → {kraj: [[miesiąc, inflacja % r/r], …]} rosnąco, najwyżej INFL_DL ostatnich miesięcy; tylko kody dwuliterowe, miesiące 'RRRR-MM' nie późniejsze niż
+    bieżący, liczby w granicach INFL_MIN…INFL_MAX (poza nimi, NaN i status braku — pominięte, nigdy zero)."""
+    ser = parse_cbpol_csv(raw)
+    teraz = _mi(NOW[:7])
+    out = {}
+    for a, s in ser.items():
+        if not re.fullmatch(r'[A-Z]{2}', a):
+            continue
+        m = {}
+        for p, v in s:
+            if _mi(p) is not None and (teraz is None or _mi(p) <= teraz) and INFL_MIN <= v <= INFL_MAX and len(p) == 7:
+                m[p] = round(v, 3)
+        if m:
+            out[a] = [[p, m[p]] for p in sorted(m)][-INFL_DL:]
+    if not out:
+        raise RuntimeError('brak inflacji w odpowiedzi')
+    return out
+
+
+def build_inflacja(prev=None):
+    """Plik data/inflacja.json (v366): jedno zapytanie BIS; miesiąc danych kraju nie cofa się; kraj bez wiersza zostaje z poprzedniego pliku (do INFL_ZAPAS_MIES miesięcy za najnowszym)."""
+    prev = prev if isinstance(prev, dict) else {}
+    pc = _dict(prev.get('c'))
+    ser = infl_parse(get_bytes(INFL_URL, timeout=90))
+    if len(ser) < INFL_N_MIN:
+        raise RuntimeError(f'za mało gospodarek w odpowiedzi ({len(ser)} zamiast co najmniej {INFL_N_MIN})')
+    c = {}
+    for a in sorted(ser):
+        s = ser[a]
+        o = {'m': s[-1][0], 'v': s[-1][1], 's': s}
+        p = pc.get(a)
+        if isinstance(p, dict) and isinstance(p.get('m'), str) and _mi(p['m']) is not None and _mi(p['m']) > _mi(o['m']):
+            o = p   # źródło pokazuje starszy miesiąc niż poprzedni plik — zostaje poprzedni
+        c[a] = o
+    nowy = max(_mi(o['m']) for o in c.values())
+    for a, p in sorted(pc.items()):
+        if a not in c and isinstance(p, dict) and _mi(p.get('m')) is not None and nowy - _mi(p['m']) <= INFL_ZAPAS_MIES:
+            c[a] = p
+    asof = max((o['m'] for o in c.values()), key=_mi)
+    return {'v': 1, 'at': NOW, 'unit': '% r/r', 'asof': asof, 'n': len(c), 'ok': {'cpi': True}, 'c': c}
+
+
+def kon_parse(j, miara):
+    """SDMX-JSON OECD (jedna miara) → {kraj ISO3: [[miesiąc, indeks], …]} rosnąco, najwyżej KON_DL miesięcy, liczby w granicach KON_MIN…KON_MAX. Odpowiedź, w której wymiar MEASURE
+    nie jest dokładnie {miara}, to wyjątek (oecd_parse czyta tylko kraj i miesiąc — przy dwóch miarach jedna nadpisałaby drugą)."""
+    D = j['data']['structure']['dimensions']['observation']
+    im = next((d for d in D if d.get('id') == 'MEASURE'), None)
+    ids = [v.get('id') for v in (im or {}).get('values', [])]
+    if ids != [miara]:
+        raise ValueError(f'w odpowiedzi miara {ids} zamiast {miara}')
+    out = {}
+    for iso, s in oecd_parse(j).items():
+        m = {p: round(v, 4) for p, v in s if _mi(p) is not None and len(p) == 7 and KON_MIN <= v <= KON_MAX}
+        if m:
+            out[iso] = [[p, m[p]] for p in sorted(m)][-KON_DL:]
+    return out
+
+
+def build_koniunktura(prev=None, today=None):
+    """Plik data/koniunktura.json (v366): dwie części (cci, bci) z własnym ok/part_at/errs; część z błędem zostaje z poprzedniego pliku z własną chwilą; miesiąc danych kraju nie cofa się;
+    kraj bez wiersza w odpowiedzi zostaje do KON_ZAPAS_MIES miesięcy za najnowszym. Żadna część nie odpowiedziała = wyjątek (poprzedni plik zostaje)."""
+    prev = prev if isinstance(prev, dict) else {}
+    pat, pc = _dict(prev.get('part_at')), _dict(prev.get('c'))
+    start = oecd_start(today, KON_MIES)
+    out = {'v': 1, 'at': NOW, 'start': start, 'unit': 'indeks, 100 = średnia wieloletnia', 'ok': {}, 'part_at': {}, 'c': {}}
+    for i, (k, (sciezka, miara)) in enumerate(KON_Q.items()):
+        if i:
+            time.sleep(OECD_SLEEP)
+        try:
+            ser = kon_parse(oecd_get(sciezka, start), miara)
+            if not ser:
+                raise ValueError('pusta odpowiedź')
+            pk = _dict(pc.get(k))
+            for iso in list(ser):
+                p = pk.get(iso)
+                if isinstance(p, list) and p and isinstance(p[-1], list) and _mi(p[-1][0]) is not None and _mi(p[-1][0]) > _mi(ser[iso][-1][0]):
+                    ser[iso] = p   # miesiąc danych nie cofa się
+            nowy = max(_mi(s[-1][0]) for s in ser.values())
+            for iso, p in pk.items():
+                if iso not in ser and isinstance(p, list) and p and isinstance(p[-1], list) and _mi(p[-1][0]) is not None and nowy - _mi(p[-1][0]) <= KON_ZAPAS_MIES:
+                    ser[iso] = p
+            out['c'][k] = dict(sorted(ser.items())); out['ok'][k] = True; out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część z błędem: poprzednia wersja z własnym czasem, nigdy zera
+            META['errors'].append(mask(f'{KON_PX[k]}: {e}')[:200]); out['ok'][k] = False
+            out.setdefault('errs', {})[k] = mask(str(e))[:160]
+            if isinstance(pc.get(k), dict) and pc[k]:
+                out['c'][k] = pc[k]; out['part_at'][k] = pat.get(k) or prev.get('at')
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
     return out
 
 

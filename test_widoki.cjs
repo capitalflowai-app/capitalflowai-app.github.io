@@ -9792,7 +9792,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {/* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {/* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
 /* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
@@ -13965,7 +13965,7 @@ test('v238: stopy banków centralnych — od najwyższej, Turcja poza skalą (pa
   assert.ok(!/undefined|NaN/.test(w));
 });
 test('v238: wykres w spBlock nad tabelą; styl i telefon; słownik EXTRA189 (10 języków, czysty JSON, linia for po EXTRA188)', () => {
-  assert.ok(html.includes("<p class=\"pnote\">${t('sp.sub')}</p>${spWyk(D)}<div class=\"list-wrap\"><table class=\"etft\"><thead><tr><th>${t('sp.c.cb')}</th>"), 'nad tabelą');
+  assert.ok(/<p class="pnote">\$\{t\('sp\.sub'\)\}<\/p>\$\{spWyk\(D\)\}(?:\$\{typeof \w+==='function'\?\w+\(\):''\})?<div class="list-wrap"><table class="etft"><thead><tr><th>\$\{t\('sp\.c\.cb'\)\}<\/th>/.test(html), 'nad tabelą');
   assert.ok(html.includes('@media (max-width:520px){#inst .spw-r{') && html.includes('#inst .spw-us .spw-n{color:var(--tx);font-weight:600}'));
   const i = html.indexOf('const EXTRA189='), j = html.indexOf(';\n', i), D = JSON.parse(html.slice(i + 'const EXTRA189='.length, j));
   assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
@@ -26287,4 +26287,204 @@ test('v365: miejsce w kodzie i zasady — moduł zaraz za blokiem „Polska: gie
   assert.ok(html.includes('#g-surowce .su-plk .wk-ch .plk1{--k:var(--bl)}#g-surowce .su-plk .wk-ch .plk2{--k:var(--tl)}') && html.includes('#g-surowce .su-plk .wk-bl{white-space:normal;line-height:1.25}'), 'serie w kolorach tożsamości, długie nazwy się zawijają');
   assert.ok(html.includes('#g-surowce .su-plk .etfk b.pos{color:var(--gr-tx)}#g-surowce .su-plk .etfk b.neg{color:var(--rd-tx)}'), 'kwoty netto w kolorze znaku (zero bez koloru)');
   assert.ok(!/<(script|link)[^>]+(eurostat|cohesiondata)/i.test(html), 'strona nie łączy się z obcymi serwerami: plik idzie tylko przez srvJSON');
+});
+
+// ===================== v366 (F2Z2): stopy realne i nastroje gospodarki w GLOBAL =====================
+const rl366 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const spSrc = cut('const SP={data:null};', '/* v54: ZMIERZONE dzienne');   /* SP, spPct, spPP, EER, spRegion, spWyk, spBlock — z wywołaniami modułu v366 przez typeof */
+  const code = cut('/* ===================== v366 (F2Z2): STOPY REALNE I NASTROJE GOSPODARKI', '/* ---------- koniec bloku stóp realnych i nastrojów (v366) ---------- */');
+  const instRowSrc = cut('function instRow(label,value,exact,note){', 'function instFoot(');
+  const escH = new Function(html.slice(html.indexOf('function escH(s){'), html.indexOf('\n', html.indexOf('function escH(s){'))) + '\nreturn escH;')();
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/\u00a0|\u202f/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const gI = (k, a, c) => k === 't' ? (typeof a === 'number' ? (a > 0 ? ' pos' : a < 0 ? ' neg' : ' neu') : '')
+    : k === 'w' ? (typeof a === 'number' ? `<span class="${a > 0 ? 'pos' : a < 0 ? 'neg' : 'neu'}">${c}</span>` : c)
+    : k === 'f' ? `[f:${Array.isArray(a) ? a.join('+') : a}]` : k === 'g' ? `[g:${a}]` : '';
+  const mk = (L, o) => {
+    o = o || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const calls = [], lis = [], ivs = [], tos = [], bars = [];
+    let renders = 0;
+    const srv = n => { calls.push(n); const v = (o.files || {})[n]; const r = {then(f) { f(v === undefined || v === null ? null : clone(v)); return r; }, catch() { return r; }}; return r; };
+    const doc = {hidden: false, addEventListener: (e, f) => lis.push([e, f]), querySelector: q => { const m = /data-srs="(\w*)"/.exec(q); return m ? {focus: () => { doc.focused = m[1]; }} : null; }};
+    const wkBars = (rows, op) => { bars.push({rows, op}); return '<bars aria="' + op.aria + '">' + rows.map(r => `[${r.l}|${r.v}|${r.vt}|${r.tip}]`).join('') + '</bars>'; };
+    const api = new Function('t', 'gOk', 'renderInst', 'instSign', 'nfmt', 'instFoot', 'escH', 'engDate', 'gtI', 'wkBars', 'document', 'srvJSON', 'setTimeout', 'setInterval', 'LANG', 'LOCALE', 'ISO32',
+      instRowSrc + spSrc + '\n' + code + '\nreturn {SP, spApply, spBlock, RL, rrReal, rrOrder, rrSort, rrClick, rrAfter, rrTd, rrTh, nsBlock, nsLast, nsOk, rrInfOk, rrLoad};')(
+      v96src.tFor(L), () => {}, () => { renders++; }, v => v > 0 ? '+' : (v < 0 ? '−' : ''), F.nfmt, d => escH(d) + ' · wiek(' + d + ')', escH, s => 'D:' + s, gI, wkBars, doc, srv,
+      (f, ms) => { tos.push([f, ms]); return tos.length; }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, L, LOC, {POL: 'PL', USA: 'US', DEU: 'DE', IND: 'IN', TUR: 'TR', CAN: 'CA'});
+    return {api, calls, lis, ivs, tos, bars, doc, renders: () => renders, F};
+  };
+  const STO = {at: '2026-10-13T22:30:00+00:00', order: ['US', 'XM', 'PL', 'JP', 'CH', 'TR', 'AU', 'NZ', 'CZ', 'ZZ'], rows: {
+    US: {rate: 3.875, date: '2026-10-06', d12: -0.25, vs_us: 0, last: ['2026-03', -0.25], m_n: 25}, XM: {rate: 2.5, date: '2026-10-06', d12: -0.5, vs_us: -1.375, last: ['2026-06', -0.25], m_n: 25},
+    PL: {rate: 3.75, date: '2026-10-06', d12: -1.0, vs_us: -0.125, last: ['2026-03', -0.25], m_n: 25}, JP: {rate: 1.25, date: '2026-10-06', d12: 0.5, vs_us: -2.625, last: ['2026-01', 0.25], m_n: 25},
+    CH: {rate: 0.0, date: '2026-10-06', d12: -0.25, vs_us: -3.875, last: ['2025-06', -0.25], m_n: 25}, TR: {rate: 37.0, date: '2026-10-02', d12: -3.5, vs_us: 33.125, last: ['2026-09', -1], m_n: 25},
+    AU: {rate: 4.35, date: '2026-09-24', d12: 0.25, vs_us: 0.475, last: ['2026-02', 0.25], m_n: 25}, NZ: {rate: 2.75, date: '2026-10-02', d12: -0.75, vs_us: -1.125, last: ['2026-05', -0.25], m_n: 25},
+    CZ: {rate: 3.75, date: '2026-10-05', d12: 0.25, vs_us: -0.125, last: ['2025-11', 0.5], m_n: 25}, ZZ: {rate: 2.0, date: '2026-10-06', d12: null, vs_us: -1.875, last: null, m_n: 25}}};
+  const cpi = (m, v) => ({m, v, s: [[m, v]]});
+  const INF = {v: 1, at: '2026-10-13T22:30:00+00:00', unit: '% r/r', asof: '2026-08', n: 9, ok: {cpi: true}, c: {US: cpi('2026-08', 3.397), XM: cpi('2026-08', 3.249), PL: cpi('2026-08', 3.257), JP: cpi('2026-07', 1.898),
+    CH: cpi('2026-08', 0.807), TR: cpi('2026-08', 31.507), AU: cpi('2026-06', 3.942), NZ: cpi('2026-06', 4.058), CZ: cpi('2026-08', 1.887), ZZ: cpi('2026-08', 2.0)}};
+  const ser = (a, b) => [['2026-07', a], ['2026-08', b]];
+  const KON = {v: 1, at: '2026-10-13T22:30:00+00:00', start: '2025-07', unit: 'indeks, 100 = średnia wieloletnia', ok: {cci: true, bci: true}, part_at: {},
+    c: {cci: {POL: [['2026-07', 100.7185], ['2026-08', 100.6583], ['2026-09', 100.5757]], USA: [['2026-08', 96.3356], ['2026-09', 96.1416]], DEU: [['2026-08', 98.9891], ['2026-09', 98.9403]],
+      IND: [['2026-05', 101.6242], ['2026-06', 101.2944]], TUR: [['2026-08', 100.9848], ['2026-09', 101.3714]]},
+      bci: {POL: [['2026-07', 99.6818], ['2026-08', 99.6428], ['2026-09', 99.6]], USA: [['2026-08', 100.363], ['2026-09', 100.3444]], DEU: [['2026-08', 99.6618], ['2026-09', 99.8972]],
+        IND: [['2026-01', 96.8778], ['2026-02', 95.4336]], TUR: [['2026-08', 99.6347], ['2026-09', 100.1039]]}}};
+  const rows = h => [...sp(h).matchAll(/<tr><td>.*?<\/tr>/g)].map(m => m[0]);
+  const codes = h => rows(h).map(r => /\[f:([A-Z]+)\]/.exec(r)[1]);
+  const full = (L, extra) => { const K = mk(L || 'pl', Object.assign({files: {inflacja: INF, koniunktura: KON}}, extra || {})); K.api.spApply(clone(STO)); K.api.RL.i = clone(INF); K.api.RL.n = clone(KON); return K; };
+  return {mk, full, STO, INF, KON, rows, codes, clone, sp, txt, code, spSrc, cpi, gI, ser, escH};
+})();
+
+
+test('v366 (F2Z2): kolumna „Stopa realna” w tabeli stóp — stopa − inflacja r/r, z miesiącem inflacji i wiekiem, kolory kierunku, „—” bez inflacji albo gdy jest starsza niż 3 miesiące od stanu stopy', () => {
+  const K = rl366.full(), h = rl366.sp(K.api.spBlock());
+  assert.ok(/Różnica wobec Fed, pkt proc\.<\/th><th>Stopa realna, pkt proc\.<\/th><th>/.test(h), 'kolumna między „Różnica wobec Fed” a kursem efektywnym');
+  const R = Object.fromEntries(rl366.rows(h).map(r => [/\[f:([A-Z]+)\]/.exec(r)[1], [...r.matchAll(/<td>(.*?)<\/td>/g)].map(m => m[1])]));
+  assert.equal(R.US.length, 8, 'siedem dotychczasowych kolumn + stopa realna');
+  const real = a => rl366.txt(R[a][6]);
+  assert.equal(real('US'), '+0,48 inflacja 3,40% · 2026-08 · wiek(2026-08)', 'USA: 3,875 − 3,397 = +0,478 → +0,48; inflacja z miesiącem i wiekiem'); assert.ok(R.US[6].includes('<span class="pos">+0,48</span>'), 'dodatnia zielona');
+  assert.equal(real('PL'), '+0,49 inflacja 3,26% · 2026-08 · wiek(2026-08)', 'Polska: 3,75 − 3,257 = +0,493'); assert.equal(real('TR'), '+5,49 inflacja 31,51% · 2026-08 · wiek(2026-08)');
+  assert.equal(real('JP'), '−0,65 inflacja 1,90% · 2026-07 · wiek(2026-07)', 'Japonia: 1,25 − 1,898 = −0,648 → −0,65, minus typograficzny'); assert.ok(R.JP[6].includes('<span class="neg">−0,65</span>'), 'ujemna czerwona');
+  assert.equal(real('CH').split(' inflacja')[0], '−0,81'); assert.equal(real('CZ').split(' inflacja')[0], '+1,86', 'nowy bank: Czechy 3,75 − 1,887');
+  assert.equal(real('AU').split(' inflacja')[0], '+0,41', 'granica: stan 24.09, inflacja 2026-06 = dokładnie 3 miesiące — liczymy');
+  assert.equal(real('NZ'), '—', 'stan 2.10, inflacja 2026-06 = 4 miesiące — „—”, nie zero'); assert.equal(R.NZ[6], '<span class="cell mono">—</span>');
+  assert.equal(real('ZZ').split(' inflacja')[0], '0', 'stopa = inflacja: zero, żółte'); assert.ok(R.ZZ[6].includes('<span class="neu">0</span>'));
+  assert.ok(!/NaN|undefined|null/.test(h)); assert.ok(!/\b(?:BIS|OECD)\b/.test(rl366.txt(h)), 'zero nazw dostawców');
+  /* bez pliku inflacji: tabela stóp jak dotąd — bez kolumny, bez paska „stopa realna”, bez wykresu */
+  const B = rl366.mk('pl'); B.api.spApply(rl366.clone(rl366.STO)); const hb = rl366.sp(B.api.spBlock());
+  assert.ok(!hb.includes('Stopa realna') && !hb.includes('data-srs="real"') && !hb.includes('inflacja') && B.bars.length === 0, 'bez pliku inflacji tabela stóp jak dotąd');
+  assert.equal((h.match(/<th>/g) || []).length - (hb.match(/<th>/g) || []).length, 1, 'jedna kolumna więcej');
+  assert.deepEqual(rl366.codes(hb), rl366.STO.order, 'kolejność domyślna zachowana');
+});
+
+test('v366 (F2Z2): stopa realna — granica 3 miesięcy, brak stopy, zła inflacja, zaokrąglenie do zera bez minusa', () => {
+  const K = rl366.full(), A = K.api;
+  assert.deepEqual(A.rrReal('US'), {v: 0.48, i: 3.397, m: '2026-08', r: 3.875}); assert.equal(A.rrReal('NZ'), null); assert.equal(A.rrReal('XX'), null, 'bank bez stopy w pliku');
+  assert.equal(A.rrReal('AU').v, 0.41);
+  const I = A.RL.i; I.c.US = {m: '2026-08', v: 'x'}; assert.equal(A.rrReal('US'), null, 'zła liczba inflacji — brak, nie zero'); I.c.US = {m: '2026-8', v: 3.4}; assert.equal(A.rrReal('US'), null, 'zły miesiąc');
+  I.c.US = {m: '2026-08', v: 3.875}; assert.equal(Object.is(A.rrReal('US').v, 0), true, 'dokładnie zero — 0, nie −0');
+  I.c.US = {m: '2026-08', v: 3.8749}; assert.equal(Object.is(A.rrReal('US').v, 0), true, 'zaokrąglenie do zera — 0, nie −0');
+  A.SP.data.rows.US.rate = null; assert.equal(A.rrReal('US'), null, 'stopa bez liczby'); A.SP.data.rows.US.rate = 3.875; A.SP.data.rows.US.date = 'x'; assert.equal(A.rrReal('US'), null, 'zła data stanu stopy');
+  assert.equal(A.rrInfOk(null), false); assert.equal(A.rrInfOk({v: 2, at: '2026-10-13T00:00:00Z', c: {}}), false); assert.equal(A.rrInfOk(rl366.clone(rl366.INF)), true);
+  assert.equal(A.rrInfOk(Object.assign(rl366.clone(rl366.INF), {c: {US: {m: 'zły', v: 1}}})), false, 'żaden kraj z poprawnym miesiącem i liczbą — plik odrzucony');
+  assert.ok(/const RL_MAX=3;/.test(rl366.code), 'próg 3 miesięcy (ten sam co RL_K_MAX_MIES w kontroli dziennej)');
+});
+
+test('v366 (F2Z2): sortowanie tabeli stóp — domyślna, stopa, stopa realna, zmiana 12 mies.; ponowne kliknięcie odwraca; brak liczby zawsze na końcu; remis w kolejności domyślnej', () => {
+  const K = rl366.full(), A = K.api;
+  const ord = () => rl366.codes(A.spBlock());
+  assert.deepEqual(ord(), rl366.STO.order); let h = rl366.sp(A.spBlock());
+  assert.ok(h.includes('<div class="sr-sort" role="group" aria-label="Kolejność tabeli"><span class="sr-sl">Kolejność tabeli:</span>'), 'pasek sortowania');
+  const bt = () => [...rl366.sp(A.spBlock()).matchAll(/<button type="button" data-srs="(\w*)" aria-pressed="(\w+)">(.*?)<\/button>/g)].map(m => [m[1], m[2], m[3]]);
+  assert.deepEqual(bt(), [['', 'true', 'domyślna'], ['rate', 'false', 'stopa'], ['real', 'false', 'stopa realna'], ['d12', 'false', 'zmiana 12 mies.']]);
+  assert.ok(h.indexOf('class="sr-sort"') > h.indexOf('class="spw"') && h.indexOf('class="sr-sort"') < h.indexOf('<table class="etft">'), 'między wykresem a tabelą');
+  const click = k => { const b = {getAttribute: () => k}; K.lis.filter(l => l[0] === 'click').forEach(l => l[1]({target: {closest: s => (s === '[data-srs]' ? b : null)}})); };
+  const r0 = K.renders();
+  click('real'); assert.equal(K.renders(), r0 + 1, 'kliknięcie przerysowuje panel'); assert.equal(K.doc.focused, 'real', 'fokus wraca na przycisk');
+  assert.deepEqual(ord(), ['TR', 'CZ', 'PL', 'US', 'AU', 'ZZ', 'JP', 'XM', 'CH', 'NZ'], 'wg stopy realnej malejąco; NZ (brak realnej) na końcu');
+  assert.deepEqual(bt()[2], ['real', 'true', 'stopa realna · malejąco'], 'kierunek w podpisie przycisku');
+  click('real'); assert.deepEqual(ord(), ['CH', 'XM', 'JP', 'ZZ', 'AU', 'US', 'PL', 'CZ', 'TR', 'NZ'], 'rosnąco; brak liczby nadal na końcu'); assert.deepEqual(bt()[2], ['real', 'true', 'stopa realna · rosnąco']);
+  click('rate'); assert.deepEqual(ord(), ['TR', 'AU', 'US', 'PL', 'CZ', 'NZ', 'XM', 'ZZ', 'JP', 'CH'], 'wg stopy malejąco; remis PL i CZ (3,75) w kolejności domyślnej');
+  click('d12'); assert.deepEqual(ord(), ['JP', 'AU', 'CZ', 'US', 'CH', 'XM', 'NZ', 'PL', 'TR', 'ZZ'], 'wg zmiany 12 mies.; ZZ (null) na końcu; remisy w kolejności domyślnej');
+  click('d12'); assert.deepEqual(ord(), ['TR', 'PL', 'NZ', 'XM', 'US', 'CH', 'AU', 'CZ', 'JP', 'ZZ'], 'zmiana 12 mies. rosnąco: ZZ (null) nadal na końcu');
+  click(''); assert.deepEqual(ord(), rl366.STO.order, 'domyślna przywraca kolejność'); assert.equal(A.RL.d, -1);
+  click('rate'); click('rate'); click(''); assert.deepEqual([A.RL.s, A.RL.d], ['', -1]);
+  K.lis.filter(l => l[0] === 'click').forEach(l => { l[1]({target: {closest: () => null}}); l[1](null); l[1]({}); }); assert.equal(K.renders(), r0 + 9, 'dziewięć kliknięć w przyciski = dziewięć przerysowań; kliknięcie poza przyciskiem i puste zdarzenie — bez przerysowania');
+  assert.equal(K.lis.length, 1); assert.equal(K.lis[0][0], 'click');
+  A.SP.data.rows.US.d12 = null; click('d12'); assert.deepEqual(ord(), ['JP', 'AU', 'CZ', 'CH', 'XM', 'NZ', 'PL', 'TR', 'US', 'ZZ'], 'brak liczby na końcu także dla wiersza, który w kolejności domyślnej jest pierwszy (USA); remis braków w kolejności domyślnej'); click('');
+  const B = rl366.mk('pl'); B.api.spApply(rl366.clone(rl366.STO)); const hb = rl366.sp(B.api.spBlock());
+  assert.ok(!hb.includes('data-srs="real"') && hb.includes('data-srs="rate"') && hb.includes('data-srs="d12"'), 'bez inflacji: bez sortowania wg stopy realnej');
+});
+
+test('v366 (F2Z2): wykres stóp realnych — od najwyższej, słupki od zera, podpowiedź z rachunkiem, miesiące inflacji, opis wyliczenia; mniej niż 3 kraje — bez wykresu', () => {
+  const K = rl366.full(), A = K.api; const h = rl366.sp(A.spBlock());
+  assert.equal(K.bars.length, 1, 'jeden wykres (rrAfter)'); const B = K.bars[0];
+  assert.deepEqual(B.rows.map(r => /\[f:([A-Z]+)\]/.exec(r.l)[1]), ['TR', 'CZ', 'PL', 'US', 'AU', 'ZZ', 'JP', 'XM', 'CH'], 'od najwyższej; NZ bez realnej — bez wiersza');
+  assert.deepEqual(B.rows.map(r => r.v).slice(0, 4), [5.49, 1.86, 0.49, 0.48]); assert.deepEqual(B.rows.slice(-2).map(r => r.v), [-0.75, -0.81]);
+  assert.equal(rl366.sp(B.rows[3].tip), 'USA (Fed): stopa 3,875% − inflacja 3,40% (2026-08) = +0,48 pkt proc.', 'rachunek w podpowiedzi'); assert.equal(rl366.sp(B.rows[3].vt), '+0,48');
+  assert.equal(B.op.aria, 'Stopa realna według banków centralnych, w punktach procentowych'); assert.equal(B.op.lw, '40%');
+  assert.ok(h.includes('Stopy realne: gdzie za trzymanie waluty płaci się najwięcej</b>') && h.includes('Miesiące inflacji użyte w wykresie: 2026-06 – 2026-08 · wiek(2026-06 – 2026-08)'), 'zakres miesięcy z wiekiem');
+  assert.ok(h.includes('To nasze wyliczenie, nie gotowa liczba ze źródła') && h.includes('Policzono dla 9 z 10 banków.'), 'opis wyliczenia i pokrycie: NZ bez realnej, 9 z 10');
+  assert.ok(h.includes('Stopa banku centralnego po odjęciu inflacji'), 'podtytuł'); assert.ok(h.includes('D:2026-10-13T22:30:00+00:00'), 'czas pliku inflacji');
+  assert.ok(h.indexOf('<table class="etft">') < h.indexOf('<bars') && h.indexOf('<bars') < h.indexOf('<details class="etfd">'), 'wykres realnych pod tabelą, przed „Czego ta tabela nie mówi”');
+  assert.ok(!/\b(?:BIS|OECD)\b/.test(rl366.txt(h)), 'zero nazw dostawców');
+  const K2 = rl366.mk('pl'); K2.api.spApply(rl366.clone(rl366.STO)); const inf = rl366.clone(rl366.INF); inf.c = {US: inf.c.US, PL: inf.c.PL}; K2.api.RL.i = inf;
+  assert.equal(K2.api.rrAfter(K2.api.SP.data), '', 'dwa kraje z realną — bez wykresu'); assert.equal(K2.api.rrAfter(null), ''); assert.equal(K2.api.rrAfter({order: 'x', rows: {}}), '');
+});
+
+test('v366 (F2Z2): nastroje gospodarki — Polska w dwóch kaflach (wskaźnik wobec 100 i zmiana m/m w kolorach), podsumowanie krajów, porównanie po rozwinięciu; brak pliku — nic', () => {
+  const K = rl366.full(), h = rl366.sp(K.api.nsBlock());
+  const T = [...h.matchAll(/<div class="etfk"><span>(.*?)<\/span><b>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({lab: rl366.txt(m[1]), val: rl366.txt(m[2]), raw: m[2], when: rl366.txt(m[3]), whenRaw: m[3]}));
+  assert.deepEqual(T.map(x => x.lab), ['[f:POL]Polska: zaufanie konsumentów', '[f:POL]Polska: zaufanie firm'], 'nazwy kafli z flagą Polski');
+  assert.deepEqual(T.map(x => x.val), ['100,58', '99,60'], 'konsumenci 100,5757 → 100,58; firmy 99,6 → 99,60'); assert.ok(T[0].raw.includes('<span class="pos">100,58</span>'), 'powyżej 100 zielone'); assert.ok(T[1].raw.includes('<span class="neg">99,60</span>'), 'poniżej 100 czerwone');
+  assert.equal(T[0].when, '2026-09 · wiek(2026-09) · zmiana wobec poprzedniego miesiąca: ▼ −0,08', '100,5757 − 100,6583 = −0,0826 → −0,08'); assert.ok(T[0].whenRaw.includes('<span class="neg">▼ −0,08</span>'));
+  assert.equal(T[1].when, '2026-09 · wiek(2026-09) · zmiana wobec poprzedniego miesiąca: ▼ −0,04');
+  assert.ok(h.includes('Powyżej 100: konsumenci w 3 z 5 krajów, firmy w 2 z 5 krajów.'), 'konsumenci: POL, IND, TUR; firmy: USA, TUR');
+  assert.ok(h.includes('<h3 class="mtxt">[g:globe]<b>Nastroje gospodarki: zaufanie konsumentów i firm</b></h3>') && h.includes('Wskaźniki zaufania z ankiet (100 = średnia z wielu lat)'));
+  assert.equal(K.bars.length, 2); const [C, F] = K.bars;
+  assert.deepEqual(C.rows.map(r => rl366.txt(r.l).replace(/\[f:\w+\]\s*/, '')), ['Turcja', 'Indie 2026-06', 'Polska', 'Niemcy', 'Stany Zjednoczone'], 'konsumenci od najwyższego; Indie ze starszym miesiącem podpisane');
+  assert.deepEqual(C.rows.map(r => r.vt), ['101,37', '101,29', '100,58', '98,94', '96,14']); assert.deepEqual(C.rows.map(r => Math.round(r.v * 100) / 100), [1.37, 1.29, 0.58, -1.06, -3.86], 'słupek = odchylenie od 100');
+  assert.ok(C.rows[2].l.includes('<b>Polska</b>'), 'Polska pogrubiona'); assert.equal(rl366.sp(C.rows[2].tip), 'Polska: 100,58 (2026-09)');
+  assert.deepEqual(F.rows.map(r => rl366.txt(r.l).replace(/\[f:\w+\]\s*/, '')), ['Stany Zjednoczone', 'Turcja', 'Niemcy', 'Polska', 'Indie 2026-02'], 'firmy od najwyższego');
+  assert.equal(C.op.aria, 'Zaufanie konsumentów według krajów, wskaźnik (100 = średnia)'); assert.equal(F.op.aria, 'Zaufanie firm według krajów, wskaźnik (100 = średnia)');
+  assert.ok(h.includes('<details class="etfd"><summary>Porównanie krajów</summary>') && h.includes('Zaufanie konsumentów (wskaźnik, słupek = odchylenie od 100)') && h.includes('Brak kraju oznacza brak danych, nie zero.'));
+  assert.ok(h.includes('D:2026-10-13T22:30:00+00:00'), 'czas pliku'); assert.ok(!/NaN|undefined|null/.test(h)); assert.ok(!/\b(?:BIS|OECD)\b/.test(rl366.txt(h)), 'zero nazw dostawców');
+  /* przerwa w serii (brak poprzedniego miesiąca) — zmiana „—”; dokładnie 100 nie jest powyżej 100 i jest żółte */
+  const K5 = rl366.full(); K5.api.RL.n.c.cci.POL = [['2026-06', 100.1], ['2026-09', 100]]; K5.api.RL.n.c.cci.TUR = [['2026-08', 100.9848], ['2026-09', 100]];
+  const h5 = rl366.sp(K5.api.nsBlock()), T5 = [...h5.matchAll(/<div class="etfk"><span>(.*?)<\/span><b>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({raw: m[2], when: rl366.txt(m[3])}));
+  assert.equal(T5[0].raw, '<span class="neu">100,00</span>', 'dokładnie 100 — żółte'); assert.ok(T5[0].when.endsWith('zmiana wobec poprzedniego miesiąca: —'), 'miesiąc przed ostatnim nie jest poprzednim miesiącem — bez zmiany m/m');
+  assert.ok(h5.includes('Powyżej 100: konsumenci w 1 z 5 krajów'), 'IND (101,29) powyżej; POL i TUR dokładnie 100 — nie');
+  /* kraj bez Polski: kafle z „—”, porównanie krajów zostaje; brak pliku albo zła wersja: nic */
+  const K2 = rl366.full(); delete K2.api.RL.n.c.cci.POL; const h2 = rl366.sp(K2.api.nsBlock());
+  assert.ok(h2.includes('Polska: zaufanie konsumentów') && h2.includes('<b>—</b>') && h2.includes('brak danych — to nie zero'), 'brak Polski w jednej mierze — „—”'); assert.ok(h2.includes('Polska: zaufanie firm'));
+  const K3 = rl366.mk('pl'); assert.equal(K3.api.nsBlock(), ''); K3.api.RL.n = {v: 2, at: '2026-10-13T00:00:00Z', c: {}}; assert.equal(K3.api.nsBlock(), '');
+  assert.equal(K3.api.nsOk(null), false); assert.equal(K3.api.nsOk({v: 1, at: 'x', c: {cci: {}}}), false); assert.equal(K3.api.nsOk(rl366.clone(rl366.KON)), true);
+  assert.equal(K3.api.nsOk({v: 1, at: '2026-10-13T00:00:00Z', c: {cci: {POL: [['2026-9', 100]]}}}), false, 'zły miesiąc w jedynym punkcie');
+  const K4 = rl366.full(); K4.api.RL.n.c.cci = {POL: [['2026-09', 100.5757]]}; const h4 = rl366.sp(K4.api.nsBlock());
+  assert.ok(!h4.includes('Powyżej 100:') || h4.includes('2 z 5'), 'podsumowanie tylko z dwóch miar naraz'); assert.equal(K4.bars.length, 1, 'jedna miara z mniej niż 3 krajami — bez wykresu');
+});
+
+test('v366 (F2Z2): ładowanie plików — z opóźnieniem po starcie, co 30 min przy widocznej karcie; błędny plik nie psuje strony; kafle bez zmian wobec nastrojów starszych niż stopa', () => {
+  const K = rl366.mk('pl', {files: {inflacja: rl366.INF, koniunktura: rl366.KON}}); const A = K.api;
+  assert.deepEqual(K.calls, [], 'przy starcie modułu żadnego pobrania'); assert.deepEqual(K.tos.map(x => x[1]), [1200], 'pobranie z opóźnieniem 1,2 s — nie blokuje pierwszego widoku'); assert.deepEqual(K.ivs.map(x => x[1]), [30 * 60 * 1000]);
+  K.tos[0][0](); assert.deepEqual(K.calls, ['inflacja', 'koniunktura']); assert.equal(A.RL.i.n, 9); assert.equal(Object.keys(A.RL.n.c).join(), 'cci,bci'); assert.equal(K.renders(), 2, 'po każdym pliku przerysowanie panelu');
+  K.doc.hidden = true; K.ivs[0][0](); assert.equal(K.calls.length, 2, 'ukryta karta nie pobiera'); K.doc.hidden = false; K.ivs[0][0](); assert.equal(K.calls.length, 4);
+  const Z = rl366.mk('pl', {files: {inflacja: {v: 9}, koniunktura: 'x'}}); Z.api.RL.i = rl366.clone(rl366.INF); Z.api.RL.n = rl366.clone(rl366.KON); Z.tos[0][0]();
+  assert.equal(Z.api.RL.i, null, 'zły plik inflacji zastępuje poprzedni brakiem — kolumna znika (nie pokazuje starych liczb jako świeżych)'); assert.equal(Z.api.RL.n, null);
+  const N = rl366.mk('pl', {files: {}}); N.tos[0][0](); assert.equal(N.api.RL.i, null); assert.equal(N.api.RL.n, null, 'brak plików (null) — bez kolumny i bloku');
+});
+
+test('v366 (F2Z2): wpięcie w stronę — kotwice w spBlock i renderInst, CSS, brak wywołań bez typeof, brak nazw dostawców w nowych tekstach', () => {
+  for (const s of ["(typeof rrOrder==='function'?rrOrder(D):D.order).filter(a=>D.rows[a])", "${spWyk(D)}${typeof rrSort==='function'?rrSort():''}<div class=\"list-wrap\">", "<th>${t('sp.c.vs')}</th>${typeof rrTh==='function'?rrTh():''}<th>${t('sp.c.fx')}</th></tr></thead>",
+    "${spPP(r.vs_us)}</span></td>${typeof rrTd==='function'?rrTd(a):''}<td><span class=\"cell mono\"><span>${eerCell(a)}</span></span></td></tr>", "+(typeof rrAfter==='function'?rrAfter(D):'')+",
+    "html+=typeof nsBlock==='function'?nsBlock():'';"]) assert.ok(html.includes(s), s);
+  assert.ok(html.indexOf("html+=spBlock();") < html.indexOf("html+=typeof nsBlock==='function'?nsBlock():'';") && html.indexOf("html+=typeof nsBlock==='function'?nsBlock():'';") < html.indexOf('html+=zagBlock();'), 'nastroje tuż po stopach');
+  for (const s of ['#inst .sr-sort{', '#inst .sr-sort button[aria-pressed="true"]{', '@media (max-width:620px){#inst .sr-sort button{', '#inst .etft td .cell .rl-i{white-space:normal', '#inst .wk-ch .pos{--k:var(--gr)}#inst .wk-ch .neg{--k:var(--rd)}#inst .wk-ch .zer{--k:var(--yl)}']) assert.ok(html.includes(s), s);
+  const code = rl366.code;
+  assert.ok(!/gOk\(/.test(code), 'bez gOk — liczba źródeł na stronie bez zmian (BIS i OECD już są)'); assert.ok(/srvJSON\('inflacja'\)/.test(code) && /srvJSON\('koniunktura'\)/.test(code));
+  assert.ok(!/\b(?:BIS|OECD|Eurostat)\b/.test(code.replace(/\/\*[\s\S]*?\*\//g, '')), 'w kodzie modułu (poza komentarzami) żadnych nazw dostawców');
+  assert.ok(!/innerHTML\s*=/.test(code), 'moduł nie zapisuje do DOM — tylko zwraca HTML do renderInst');
+  const css = html.slice(html.indexOf('/* v366 (F2Z2): stopy realne (sortowanie tabeli stóp'), html.indexOf('/* v114 archiwum własne'));
+  assert.ok(!/#[0-9a-fA-F]{3,6}\b/.test(css.replace(/#inst/g, '')), 'CSS tylko zmienne motywu'); assert.ok(css.includes('var(--sel)') && css.includes('var(--line-2)'));
+});
+
+test('v366 (F2Z2): słownik — czysty JSON w 10 językach, te same klucze i miejsca na liczby, nazwy 17 nowych banków, linia for po poprzednim słowniku, bez nazw dostawców i znaczników', () => {
+  const m = [...html.matchAll(/^const (EXTRA\d+)=(\{.*\});\r?$/gm)].find(x => x[2].includes('"sr366.sort"')); assert.ok(m, 'słownik v366 jako czysty JSON w jednej linii');
+  const D = JSON.parse(m[2]), n = +m[1].slice(5);
+  assert.deepEqual(Object.keys(D).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  const keys = Object.keys(D.pl).sort(); assert.ok(keys.length >= 45);
+  for (const L in D) { assert.deepEqual(Object.keys(D[L]).sort(), keys, L); for (const k of keys) { assert.ok(typeof D[L][k] === 'string' && D[L][k].length > 0, L + ' ' + k); assert.ok(!/[<>]/.test(D[L][k]), L + ' ' + k + ': bez znaczników');
+    assert.deepEqual((D[L][k].match(/\{[a-z]+\}/g) || []).sort(), (D.pl[k].match(/\{[a-z]+\}/g) || []).sort(), L + ' ' + k + ': te same miejsca na liczby'); assert.ok(!/\b(?:BIS|OECD|IMF|MFW|Eurostat)\b/.test(D[L][k]), L + ' ' + k + ': bez nazw dostawców'); } }
+  for (const L of ['de', 'ru', 'zh', 'ja']) for (const k of keys.filter(x => /^(sr|ns)366\./.test(x) && !/ns366\.tip/.test(x))) assert.notEqual(D[L][k], D.en[k], L + ' ' + k + ': prawdziwe tłumaczenie, nie angielski');
+  const NOWE = ['CL', 'CO', 'CZ', 'DK', 'HK', 'HU', 'IL', 'IS', 'KW', 'MA', 'MK', 'MY', 'NZ', 'PE', 'RO', 'RS', 'TH'];
+  for (const L in D) for (const c of NOWE) assert.ok(D[L]['sp.cc.' + c], L + ' sp.cc.' + c);
+  const I = v96src.I18N; for (const c of ['US', 'XM', 'GB', 'CH', 'SE', 'NO', 'PL', 'JP', 'KR', 'CN', 'IN', 'ID', 'AU', 'CA', 'BR', 'MX', 'ZA', 'TR', 'SA', 'RU', ...NOWE]) for (const L of ['pl', 'en']) assert.ok(I[L]['sp.cc.' + c], L + ' nazwa banku ' + c + ': 37 banków ma nazwy');
+  assert.equal(I.pl['sp.cc.MK'], 'Macedonia Północna'); assert.equal(I.ja['sp.cc.NZ'], 'ニュージーランド'); assert.equal(I.de['sr366.d.desc'], 'absteigend');
+  assert.ok(html.includes('/* v366 (F2Z2): stopy realne, nastroje gospodarki i nazwy 17 nowych banków centralnych (GLOBAL) — 10 języków */\nconst EXTRA' + n + '='), 'komentarz i czysty JSON w jednej linii');
+  assert.ok(html.includes(`for(const l in EXTRA${n})if(I18N[l])Object.assign(I18N[l],EXTRA${n}[l]);\n`), 'linia for po słowniku'); assert.ok(html.indexOf('const EXTRA' + n + '=') < html.indexOf(`for(const l in EXTRA${n})`));
+  assert.ok(!/[\u200b-\u200f\u2060\ufeff\ufe0f\u00a0\u202f]/.test(m[0]), 'znaki niewidoczne tylko jako ucieczki');
 });
