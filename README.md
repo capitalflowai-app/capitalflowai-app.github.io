@@ -30,3 +30,5 @@ Wyłączniki awaryjne:
   wyłączony Service Worker nie przechwytuje niczego, kasuje pamięci `cf-*` i sam się wyrejestrowuje).
 
 Kontrola dzienna sprawdza, że `sw.js` na żywej stronie odpowiada (HTTP 200).
+
+Automat działa sam w chmurze GitHub; od v354 raz w tygodniu pilnuje go przepływ „Strażnik harmonogramów” (dba o aktywność repozytorium — commit po 30 dniach ciszy — i próbuje włączyć przepływy wyłączone przez GitHub). Opis, co robić gdy coś stanie, i jak odtworzyć dane: `docs/ODTWORZENIE.md`.

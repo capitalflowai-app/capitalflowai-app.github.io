@@ -2924,6 +2924,97 @@ def github_ostrz_odczyt(hdr, getf=None):
     return {'sprawdzone': nwf, 'znalezione': ostrzezenia_github(ann), 'bledne': bledne}
 
 
+STRAZNIK_WF = ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml')   # v354: przepływy z harmonogramem (jak ZAPLANOWANE w narzedzia/straznik.py; test pilnuje zgodności)
+STRAZNIK_PRZEBIEG_DNI = 16   # v354: strażnik działa raz w tygodniu — 2 tygodnie + 2 dni zapasu: jeden pominięty poniedziałek nie jest alarmem (zapas do 60 dni jest ogromny)
+STRAZNIK_COMMIT_DNI = 45     # v354: strażnik robi commit aktywności po 30 dniach bez commitu; 45 = nie zadziałał (GitHub wyłącza harmonogramy po 60)
+
+
+def _straznik_t(s):
+    try:
+        t = dt.datetime.fromisoformat(str(s).replace('Z', '+00:00'))
+        return t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
+    except Exception:
+        return None
+
+
+def _straznik_dni(s, now):
+    t = _straznik_t(s)
+    return None if t is None else max(0, (now - t).days)
+
+
+def straznik_ocena(workflows, runs, commit_iso, now):
+    """v354: lista przepływów repozytorium (API: pole state), zakończone przebiegi „Strażnika harmonogramów” (None = nieczytelne), data ostatniego
+    commitu i chwila → {'czynne', 'razem', 'wylaczone', 'brak', 'przebieg_dni', 'przebieg_wynik', 'commit_dni', 'uwagi'}. Uwagi (nigdy błąd): przepływ z harmonogramem
+    wyłączony albo nieobecny; strażnik nie działał dłużej niż STRAZNIK_PRZEBIEG_DNI (albo nigdy, choć przepływ istnieje dłużej) albo ostatni przebieg nieudany;
+    ostatni commit starszy niż STRAZNIK_COMMIT_DNI."""
+    stany, utw = {}, None
+    for w in workflows if isinstance(workflows, list) else []:
+        if isinstance(w, dict):
+            n = os.path.basename(str(w.get('path') or ''))
+            if n in STRAZNIK_WF:
+                stany[n] = w.get('state')
+                if n == 'straznik.yml':
+                    utw = w.get('created_at')
+    brak = [n for n in STRAZNIK_WF if n not in stany]
+    wyl = [f'{n} ({stany[n]})' for n in STRAZNIK_WF if n in stany and stany[n] != 'active']
+    S = {'czynne': sum(1 for v in stany.values() if v == 'active'), 'razem': len(STRAZNIK_WF), 'wylaczone': wyl, 'brak': brak,
+         'przebieg_dni': None, 'przebieg_wynik': None, 'commit_dni': _straznik_dni(commit_iso, now), 'uwagi': []}
+    u = S['uwagi']
+    if wyl:
+        u.append('wyłączone przepływy z harmonogramem: ' + ', '.join(wyl) + ' (Actions, Enable workflow; wyłączone przez GitHub strażnik włącza w poniedziałki, o ile sam działa)')
+    if brak:
+        u.append('brak w repozytorium przepływów: ' + ', '.join(brak))
+    if runs is not None:
+        gotowe = [(_straznik_t(r.get('created_at')), r) for r in runs if isinstance(r, dict) and r.get('status') == 'completed' and _straznik_t(r.get('created_at'))]
+        if gotowe:
+            t_ost, r_ost = max(gotowe, key=lambda x: x[0])
+            S['przebieg_dni'], S['przebieg_wynik'] = max(0, (now - t_ost).days), r_ost.get('conclusion')
+            if S['przebieg_dni'] > STRAZNIK_PRZEBIEG_DNI:
+                u.append(f'strażnik nie działał od {S["przebieg_dni"]} dni (powinien raz w tygodniu)')
+            if S['przebieg_wynik'] != 'success':
+                u.append(f'ostatni przebieg strażnika zakończył się wynikiem „{S["przebieg_wynik"]}”')
+        elif 'straznik.yml' in stany and (_straznik_dni(utw, now) or 0) > STRAZNIK_PRZEBIEG_DNI:
+            u.append('strażnik nie miał jeszcze żadnego przebiegu, choć przepływ istnieje od ponad ' + str(STRAZNIK_PRZEBIEG_DNI) + ' dni')
+    if S['commit_dni'] is not None and S['commit_dni'] > STRAZNIK_COMMIT_DNI:
+        u.append(f'ostatni commit w repozytorium sprzed {S["commit_dni"]} dni (limit GitHuba 60; strażnik robi commit po 30)')
+    return S
+
+
+def straznik_odczyt(hdr, now, getf=None):
+    """v354: 3 zapytania do API GitHuba (lista przepływów, zakończone przebiegi strażnika, ostatni commit) → straznik_ocena. Nieczytelna lista przepływów
+    = wyjątek („?” w raporcie); nieczytelne przebiegi albo commit — pole None (bez uwagi o tym). `getf` — atrapa w testach."""
+    getf = getf or get
+    _, b, _ = getf(f'https://api.github.com/repos/{REPO}/actions/workflows?per_page=100', headers=hdr)
+    wfs = json.loads(b).get('workflows') or []
+    runs = commit = None
+    try:
+        _, b2, _ = getf(f'https://api.github.com/repos/{REPO}/actions/workflows/straznik.yml/runs?per_page=5&status=completed', headers=hdr)
+        runs = json.loads(b2).get('workflow_runs') or []
+    except Exception:  # noqa
+        pass
+    try:
+        _, b3, _ = getf(f'https://api.github.com/repos/{REPO}/commits?per_page=1', headers=hdr)
+        c = (json.loads(b3)[0].get('commit') or {})
+        commit = (c.get('committer') or {}).get('date') or (c.get('author') or {}).get('date')
+    except Exception:  # noqa
+        pass
+    return straznik_ocena(wfs, runs, commit, now)
+
+
+def _straznik_temu(n):
+    return '?' if n is None else ('dziś' if n == 0 else '1 dzień temu' if n == 1 else f'{n} dni temu')
+
+
+def straznik_wiersz(S):
+    """v354: wiersz raportu — przepływy czynne, ostatni przebieg strażnika, wiek ostatniego commitu; ⚠️ przy uwagach."""
+    if S.get('blad'):
+        return f'- Strażnik harmonogramów: ? (odczyt przerwany: {str(S["blad"])[:60]}).'
+    pr = (f'ostatni przebieg strażnika {_straznik_temu(S.get("przebieg_dni"))} ({S.get("przebieg_wynik")})' if S.get('przebieg_dni') is not None
+          else 'strażnik: brak zakończonego przebiegu (albo odczyt nieudany)')
+    return (f'- Strażnik harmonogramów (raz w tygodniu): przepływy z harmonogramem czynne {S.get("czynne", 0)} z {S.get("razem", 0)}; {pr}; '
+            f'ostatni commit w repozytorium {_straznik_temu(S.get("commit_dni"))} ' + ('⚠️ ' + '; '.join(S['uwagi']) + '.' if S.get('uwagi') else '✅.'))
+
+
 def opis_kroku(zadanie, krok):
     """Nazwa nieudanego kroku po ludzku: publikacja GitHub Pages to zwykle chwilowa awaria po stronie GitHuba; długie nazwy kroków
     z workflow skrócone do części przed nawiasem / myślnikiem."""
@@ -7520,6 +7611,16 @@ def kontrola():
                               + ') — napisz do Claude: „zaktualizuj akcje GitHuba”')
     except Exception as e:  # noqa
         R['github_ostrz'] = {'blad': str(e)[:120]}
+    # 4c. v354: strażnik harmonogramów — przepływy z harmonogramem czynne (GitHub wyłącza je po 60 dniach bez aktywności), ostatni przebieg strażnika (raz w tygodniu),
+    # wiek ostatniego commitu; tylko uwaga, nigdy BŁĄD; błąd odczytu = „?” bez uwagi
+    try:
+        hdr = {'Accept': 'application/vnd.github+json'}
+        if TOKEN:
+            hdr['Authorization'] = 'Bearer ' + TOKEN
+        R['straznik'] = straznik_odczyt(hdr, NOW)
+        R['uwagi'] += ['strażnik harmonogramów: ' + x for x in R['straznik']['uwagi']]
+    except Exception as e:  # noqa
+        R['straznik'] = {'blad': str(e)[:120] or type(e).__name__}
     # 5. v115: historia — błędy zbieracza w 3 kolejnych przebiegach kontroli = czerwone
     if _TERMIN['przekroczony']:   # v327 (KON-04): po terminie całej kontroli część zapytań nie wyszła — raport częściowy
         R['bledy'].append(kontrola_przerwana_opis(KoniecCzasu()))
@@ -7574,6 +7675,9 @@ def raport_md(R):
         if a.get('porazki'):   # v124.1: każda porażka z godziną i krokiem; czy automat już działa
             L.append('- Nieudane przebiegi (24 h): ' + '; '.join(czas_pl(p['at']) + (f' — {p["krok"]}' if p.get('krok') else '') for p in a['porazki'])
                      + (f'. Od ostatniej porażki {pl_udane(a["udane_po_porazce"])} z rzędu.' if a.get('udane_po_porazce') else '. Ostatni zakończony przebieg nieudany.'))
+    sz = R.get('straznik') if isinstance(R.get('straznik'), dict) else None   # v354: strażnik harmonogramów
+    if sz is not None:
+        L.append(straznik_wiersz(sz))
     go = R.get('github_ostrz') if isinstance(R.get('github_ostrz'), dict) else None   # v291: ostrzeżenia GitHuba o przestarzałych akcjach
     if go is not None:
         if go.get('blad'):

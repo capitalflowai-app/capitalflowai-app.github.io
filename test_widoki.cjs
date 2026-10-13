@@ -24550,3 +24550,30 @@ test('v353: słownik — wszystkie klucze karty w 10 językach, te same pola {x}
   assert.ok(mm.length > 20 && html.includes('"ru353.eq.t"'), 'słownik nałożony jedną linią for');
   const dict = html.slice(html.indexOf('"ru353.eq.t"') - 500, html.indexOf('"ru353.eq.t"')); assert.ok(/const EXTRA\d+=\{"pl":\{$/.test(dict.slice(-30)) || dict.includes('const EXTRA'), 'czysty JSON w linii const EXTRA…');
 });
+
+// v354: dokumenty rejestracji reguł w docs/ — bajt w bajt z sumami SHA-256 (suma zgodna z plikiem i z SUT_SHA w kodzie zbieracza); strażnik harmonogramów w przepływie
+test('v354: docs/ — sumy SHA-256 dokumentów rejestracji zgadzają się z plikami i z SUT_SHA; strażnik ma osobne, najmniejsze uprawnienia', () => {
+  if (typeof process === 'undefined') return;   // v354: pod jsc (bramka lokalna) nie ma systemu plików — sprawdza node (GitHub Actions i bramka)
+  const crypto = require('node:crypto');
+  const dir = path.join(__dirname, 'docs');
+  const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(path.join(dir, f))).digest('hex');
+  const sumy = fs.readdirSync(dir).filter((f) => /^REGULY_.*_PL\.md\.sha256$/.test(f));
+  assert.ok(sumy.length >= 1, 'jest co najmniej jeden dokument z sumą');
+  for (const s of sumy) {
+    const doc = s.replace(/\.sha256$/, '');
+    assert.deepEqual(fs.readFileSync(path.join(dir, s), 'ascii').trim().split(/\s+/), [sha(doc), doc], s);
+  }
+  const kod = fs.readFileSync(path.join(__dirname, 'zbieraj_dane.py'), 'utf8');
+  const m = kod.match(/^SUT_SHA = '([0-9a-f]{64})'/m);
+  assert.ok(m, 'SUT_SHA w kodzie zbieracza');
+  assert.equal(sha('REGULY_SUROWCE_2026-10-08_PL.md'), m[1], 'dokument surowców = SUT_SHA');
+  assert.ok(fs.readFileSync(path.join(dir, 'ODTWORZENIE.md'), 'utf8').includes('Strażnik harmonogramów'), 'opis odtworzenia obejmuje strażnika');
+  const y = fs.readFileSync(path.join(__dirname, '.github', 'workflows', 'straznik.yml'), 'utf8');
+  assert.ok(y.includes("cron: '41 4 * * 1'") && y.includes('permissions: {}'), 'raz w tygodniu, domyślnie bez uprawnień');
+  const yb = y.split('\n').filter((l) => !l.trim().startsWith('#')).join('\n');
+  assert.equal((yb.match(/contents: write/g) || []).length, 1, 'zapis do repozytorium tylko w zadaniu commitu aktywności');
+  assert.ok(!/secrets\.(?!GITHUB_TOKEN)/.test(y), 'bez sekretów właściciela');
+  // powiązania zadań, od których zależy commit aktywności (mutacje z recenzji v354)
+  for (const linia of ['        id: straznik\n        continue-on-error: true\n', '      aktywnosc: ${{ steps.straznik.outputs.aktywnosc }}\n      dni: ${{ steps.straznik.outputs.dni }}\n',
+    "    needs: straznik\n    if: always() && needs.straznik.outputs.aktywnosc == 'tak'\n", '          persist-credentials: false\n']) assert.ok(y.includes(linia), linia);
+});

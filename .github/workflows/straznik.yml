@@ -1,0 +1,69 @@
+name: Strażnik harmonogramów (raz w tygodniu)
+
+# v354 (13.10.2026): GitHub wyłącza zaplanowane przepływy w publicznym repozytorium po 60 dniach bez aktywności — automat stanąłby sam, bez niczyjej
+# wiedzy. Raz w tygodniu (poniedziałek ok. 04:41 UTC) zadanie 1 sprawdza przez API, czy przepływy z harmonogramem (strona, zegar, kontrola, archiwum,
+# strażnik) są włączone, i włącza te, które GitHub wyłączył z powodu braku aktywności (wyłączone ręcznie zostawia — chyba że zmienna STRAZNIK_RECZNIE=1);
+# gdy w repozytorium nie było commitu od ponad 30 dni, zadanie 2 robi malutki commit aktywności (kontrola/straznik.json, [skip ci]) — to GŁÓWNA ochrona
+# (działa u przyczyny); włączanie wyłączonych przepływów to dodatek (gdy GitHub wyłączy wszystko naraz, stoi też strażnik — wtedy ręczne „Enable workflow”).
+# Uprawnienia najmniejsze i osobne: zadanie 1 — actions: write (włączanie) + contents: read, zadanie 2 — contents: write (tylko commit). Bez sekretów
+# właściciela (wyłącznie token przebiegu). Wyłącznik: zmienna repozytorium STRAZNIK_OFF=1. Nieudany przebieg = e-mail od GitHuba.
+on:
+  schedule:
+    - cron: '41 4 * * 1'        # poniedziałek 04:41 UTC (poza pełną godziną); to samo zadanie można uruchomić ręcznie (workflow_dispatch)
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: straznik
+  cancel-in-progress: false
+
+jobs:
+  straznik:
+    runs-on: ubuntu-24.04   # v274: przypięty obraz (etykieta „latest” → Ubuntu 26 od 19.10.2026) — przejście świadomie, po teście
+    timeout-minutes: 5
+    permissions:
+      actions: write           # włączenie przepływu wyłączonego przez GitHub
+      contents: read           # odczyt skryptu i listy commitów
+    outputs:
+      aktywnosc: ${{ steps.straznik.outputs.aktywnosc }}
+      dni: ${{ steps.straznik.outputs.dni }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: narzedzia/straznik.py
+          sparse-checkout-cone-mode: false
+      - name: Strażnik — włącz wyłączone przepływy i sprawdź wiek ostatniego commitu (token przebiegu tylko w nagłówku)
+        id: straznik
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STRAZNIK_OFF: ${{ vars.STRAZNIK_OFF }}
+          STRAZNIK_RECZNIE: ${{ vars.STRAZNIK_RECZNIE }}
+        run: python3 narzedzia/straznik.py sprawdz
+      - name: Wynik
+        if: steps.straznik.outcome == 'failure'
+        run: echo "Strażnik nie zdołał naprawić wszystkiego — patrz log kroku wyżej" && exit 1   # bez dwukropka w tekście (YAML)
+
+  aktywnosc:
+    needs: straznik
+    if: always() && needs.straznik.outputs.aktywnosc == 'tak'
+    runs-on: ubuntu-24.04   # v274: przypięty obraz (etykieta „latest” → Ubuntu 26 od 19.10.2026) — przejście świadomie, po teście
+    timeout-minutes: 5
+    permissions:
+      contents: write          # jedyny zapis: commit aktywności
+    steps:
+      - uses: actions/checkout@v7
+      - name: Commit aktywności (ostatni commit starszy niż 30 dni)
+        env:
+          STRAZNIK_DNI: ${{ needs.straznik.outputs.dni }}
+        run: |
+          python3 narzedzia/straznik.py zapisz
+          git config user.name 'straznik-strony'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add kontrola/straznik.json
+          if git diff --cached --quiet; then echo "bez zmian"; else
+            git commit -q -m "Aktywność repozytorium $(date -u +%Y-%m-%d) [skip ci]"
+            git push -q origin HEAD:main || (git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main)
+          fi

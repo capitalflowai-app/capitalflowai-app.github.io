@@ -47712,3 +47712,292 @@ class RosjaV353(unittest.TestCase):
         z, R2 = psuj(lambda p: p['zloto'].update(t=2100.0)); self.assertTrue(any('≠ źródło' in x for x in R2['uwagi']))
         # brak surowców — porównania z tym plikiem pomijane, bez wyjątku
         R3 = {'bledy': [], 'uwagi': []}; z = k.rosja_kontrola({'rosja': o}, R3); self.assertEqual(R3['uwagi'], []); self.assertTrue(all('uncji' not in a and 'kopia' not in a for a, _ in z['wiersze']))
+
+
+# ===================== v354: STRAŻNIK HARMONOGRAMÓW + DOKUMENTY W docs/ =====================
+class StraznikV354(unittest.TestCase):
+    """v354: raz w tygodniu strażnik włącza przepływy wyłączone przez GitHub (brak aktywności 60 dni) i robi malutki commit, gdy repozytorium milczy ponad 30 dni;
+    uprawnienia najmniejsze i osobne; kontrola dzienna pokazuje, że strażnik działa; dokumenty rejestracji reguł w docs/ bajt w bajt z sumami SHA-256.
+    Testy bez sieci i bez zegara (chwila przypięta, atrapa API)."""
+
+    NOW = datetime.datetime(2026, 10, 13, 12, 0, tzinfo=datetime.timezone.utc)
+    SHA_CIEN = '3c2ecf62276c8219cabdaa15e3c8964261286d3e0e5de86543e979a22a1a1696'   # REGULY_W_CIENIU_2026-10-06_PL.md (bez pliku .sha256 — suma przypięta tu)
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        cls.root = os.path.dirname(os.path.abspath(__file__))
+        for nm, plik in (('s', 'straznik'), ('k', 'kontrola')):
+            spec = importlib.util.spec_from_file_location('v354_' + plik, os.path.join(cls.root, 'narzedzia', plik + '.py'))
+            m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); setattr(cls, nm, m)
+
+    @staticmethod
+    def rd_abs(p):
+        with open(p, encoding='utf-8') as f:
+            return f.read()
+
+    def rd(self, *p):
+        with open(os.path.join(self.root, *p), encoding='utf-8') as f:
+            return f.read()
+
+    @staticmethod
+    def wf(nazwa, stan='active', i=None, utw='2026-09-23T18:23:12.000Z'):
+        return {'id': i if i is not None else abs(hash(nazwa)) % 10**8, 'path': f'.github/workflows/{nazwa}', 'state': stan, 'created_at': utw}
+
+    def lista(self, **stany):
+        return [self.wf(n + '.yml', stan, 100 + i) for i, (n, stan) in enumerate(stany.items())]
+
+    # ---- logika strażnika ----
+    def test_do_wlaczenia(self):
+        s = self.s
+        L = [self.wf('strona.yml', 'disabled_inactivity', 1), self.wf('zegar.yml', 'active', 2), self.wf('kontrola.yml', 'disabled_manually', 3),
+             self.wf('archiwum.yml', 'disabled_inactivity', 4), self.wf('sondy.yml', 'disabled_inactivity', 5), self.wf('straznik.yml', 'disabled_inactivity', '6'),
+             {'path': 'x', 'state': 'disabled_inactivity'}, 'zły', None]
+        self.assertEqual([(i, n) for i, n, _ in s.do_wlaczenia(L)], [(1, 'strona.yml'), (4, 'archiwum.yml')], 'tylko z ZAPLANOWANE, stan disabled_inactivity, id liczbowe; sondy nie')
+        self.assertEqual([i for i, _, _ in s.do_wlaczenia(L, True)], [1, 3, 4], 'STRAZNIK_RECZNIE=1: także wyłączone ręcznie')
+        self.assertEqual(s.wylaczone_recznie(L), ['kontrola.yml']); self.assertEqual(s.wylaczone_recznie(L, True), [])
+        self.assertEqual(s.do_wlaczenia(None), []); self.assertEqual(s.do_wlaczenia({}), [])
+
+    def test_wiek_commita(self):
+        s = self.s
+        self.assertEqual(s.dni_bez_commita('2026-09-13T12:00:00Z', self.NOW), 30)
+        self.assertFalse(s.potrzebny_commit(30), 'dokładnie 30 dni — jeszcze nie'); self.assertTrue(s.potrzebny_commit(31))
+        self.assertEqual(s.dni_bez_commita('2026-10-13T06:51:12Z', self.NOW), 0)
+        self.assertIsNone(s.dni_bez_commita('zła data', self.NOW)); self.assertIsNone(s.dni_bez_commita(None, self.NOW))
+        self.assertFalse(s.potrzebny_commit(None), 'nieczytelna data = nie zgaduje (błąd zgłasza sprawdz)')
+        self.assertEqual((s.PROG_COMMIT_DNI, s.ZAPLANOWANE), (30, ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml')))
+
+    def _api(self, lista, commit_iso, zle_put=(), log=None):
+        s = self.s
+        log = [] if log is None else log
+
+        def api(metoda, sciezka, token, dane=None):
+            log.append((metoda, sciezka, dane))
+            if sciezka.startswith(f'/repos/{s.REPO}/actions/workflows?'):
+                return 200, {'workflows': lista}
+            if metoda == 'PUT':
+                i = int(sciezka.split('/workflows/')[1].split('/')[0])
+                if i in zle_put:
+                    raise s.urllib.error.HTTPError('https://api.github.com/x', 403, 'Forbidden', {}, None)
+                return 204, None
+            if sciezka.startswith(f'/repos/{s.REPO}/commits?'):
+                return 200, [{'commit': {'committer': {'date': commit_iso}}}] if commit_iso else []
+            raise AssertionError(sciezka)
+        return api, log
+
+    def test_sprawdz_wlacza_i_ocenia(self):
+        s = self.s
+        L = [self.wf('strona.yml', 'disabled_inactivity', 11), self.wf('zegar.yml', 'disabled_inactivity', 12), self.wf('kontrola.yml', 'active', 13),
+             self.wf('archiwum.yml', 'disabled_manually', 14), self.wf('straznik.yml', 'active', 15)]
+        api, log = self._api(L, '2026-08-20T10:00:00Z')
+        w = s.sprawdz('ghs_TAJNY_TOKEN', self.NOW, False, api)
+        self.assertEqual((w['wlaczone'], w['reczne'], w['bledy'], w['dni'], w['aktywnosc']), (['strona.yml', 'zegar.yml'], ['archiwum.yml'], [], 54, True))
+        puts = [(m, p, d) for m, p, d in log if m == 'PUT']
+        self.assertEqual(puts, [('PUT', f'/repos/{s.REPO}/actions/workflows/11/enable', b''), ('PUT', f'/repos/{s.REPO}/actions/workflows/12/enable', b'')], 'puste ciało PUT')
+        # świeży commit: bez commitu aktywności, nic do włączania: tylko odczyty
+        api2, log2 = self._api([self.wf(n) for n in s.ZAPLANOWANE], '2026-10-12T10:00:00Z')
+        w2 = s.sprawdz('t', self.NOW, False, api2)
+        self.assertEqual((w2['wlaczone'], w2['dni'], w2['aktywnosc'], w2['bledy']), ([], 1, False, []))
+        self.assertTrue(all(m == 'GET' for m, _, _ in log2), 'bez włączania — tylko odczyt')
+
+    def test_sprawdz_bledy_nie_blokuja_reszty(self):
+        s = self.s
+        L = [self.wf('strona.yml', 'disabled_inactivity', 11), self.wf('zegar.yml', 'disabled_inactivity', 12)]
+        api, _ = self._api(L, '2026-01-01T00:00:00Z', zle_put=(11,))
+        w = s.sprawdz('ghs_TAJNY_TOKEN', self.NOW, False, api)
+        self.assertEqual(w['wlaczone'], ['zegar.yml'], 'błąd jednego nie blokuje drugiego')
+        self.assertEqual(w['bledy'], ['strona.yml: włączenie nieudane (HTTP 403)']); self.assertTrue(w['aktywnosc'], 'commit aktywności mimo błędu włączania')
+        # nieczytelna lista przepływów — commit nadal oceniony
+        def api2(metoda, sciezka, token, dane=None):
+            if '/actions/workflows?' in sciezka:
+                raise TimeoutError('x ghs_TAJNY_TOKEN')
+            return 200, [{'commit': {'author': {'date': '2026-08-01T00:00:00Z'}}}]
+        w2 = s.sprawdz('ghs_TAJNY_TOKEN', self.NOW, False, api2)
+        self.assertEqual(w2['bledy'], ['lista przepływów nieczytelna (TimeoutError)']); self.assertEqual((w2['dni'], w2['aktywnosc']), (73, True))
+        self.assertNotIn('TAJNY', ' '.join(w['bledy'] + w2['bledy']), 'token ani treść wyjątku nigdy w opisie')
+        # brak daty commitu = błąd, nie zgadywanie
+        w3 = s.sprawdz('t', self.NOW, False, self._api([], None)[0])
+        self.assertEqual((w3['aktywnosc'], len(w3['bledy'])), (False, 1))
+
+    def test_main(self):
+        import io
+        import tempfile
+        s = self.s
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'wyjscie.txt'); zapis = os.path.join(tmp, 'kontrola', 'straznik.json')
+            L = [self.wf('strona.yml', 'disabled_inactivity', 11)]
+            api, _ = self._api(L, '2026-08-20T10:00:00Z')
+            env = {'GH_TOKEN': 'ghs_TAJNY_TOKEN', 'GITHUB_OUTPUT': out}
+            buf = io.StringIO()
+            with mock.patch('sys.stdout', buf):
+                rc = s.main(['straznik.py', 'sprawdz'], now_fn=lambda: self.NOW, env=env, api=api)
+            self.assertEqual(rc, 0); self.assertNotIn('TAJNY', buf.getvalue())
+            self.assertEqual(self.rd_abs(out), 'aktywnosc=tak\ndni=54\n')
+            self.assertIn('włączone ponownie: strona.yml', buf.getvalue())
+            # zapis pliku aktywności
+            with mock.patch.object(s, 'PLIK_AKTYWNOSCI', zapis), mock.patch('sys.stdout', io.StringIO()):
+                self.assertEqual(s.main(['straznik.py', 'zapisz'], now_fn=lambda: self.NOW, env={'STRAZNIK_DNI': '54'}), 0)
+            with open(zapis, encoding='utf-8') as fh:
+                j = json.load(fh)
+            self.assertEqual((j['at'], j['dni_bez_commita']), ('2026-10-13T12:00:00Z', 54)); self.assertIn('30 dni', j['powod'])
+            # wyłącznik, brak tokenu, zły tryb, błąd włączania = kod 1 ze zapisanym wynikiem
+            out2 = os.path.join(tmp, 'w2.txt')
+            with mock.patch('sys.stdout', io.StringIO()):
+                self.assertEqual(s.main(['x', 'sprawdz'], now_fn=lambda: self.NOW, env={'STRAZNIK_OFF': '1', 'GITHUB_OUTPUT': out2}, api=api), 0)
+                self.assertEqual(self.rd_abs(out2), 'aktywnosc=nie\ndni=\n')
+                self.assertEqual(s.main(['x', 'sprawdz'], now_fn=lambda: self.NOW, env={}, api=api), 1, 'brak tokenu = widoczny błąd')
+                self.assertEqual(s.main(['x', 'inny'], now_fn=lambda: self.NOW, env={}, api=api), 2)
+                api3, _ = self._api(L, '2026-10-12T00:00:00Z', zle_put=(11,))
+                out3 = os.path.join(tmp, 'w3.txt')
+                self.assertEqual(s.main(['x', 'sprawdz'], now_fn=lambda: self.NOW, env={'GH_TOKEN': 't', 'GITHUB_OUTPUT': out3}, api=api3), 1)
+                self.assertEqual(self.rd_abs(out3), 'aktywnosc=nie\ndni=1\n')
+
+    # ---- przepływ ----
+    def test_przeplyw_i_uprawnienia(self):
+        import re
+        y = self.rd('.github', 'workflows', 'straznik.yml')
+        self.assertTrue(y.startswith('name: Strażnik harmonogramów'))
+        self.assertIn("cron: '41 4 * * 1'", y); self.assertIn('workflow_dispatch:', y)
+        self.assertEqual(len(re.findall(r'^permissions: \{\}$', y, re.M)), 1, 'domyślnie brak uprawnień')
+        zad = re.split(r'^  (?=straznik:|aktywnosc:)', y.split('\njobs:\n', 1)[1], flags=re.M)[1:]
+        self.assertEqual(len(zad), 2)
+        p1, p2 = zad
+        self.assertIn('    permissions:\n      actions: write', p1); self.assertIn('      contents: read', p1); self.assertNotIn('contents: write', p1)
+        self.assertEqual(re.findall(r'^      (\w+): (\w+)', p2.split('steps:')[0], re.M), [('contents', 'write')], 'zadanie 2: jedyny zapis to contents')
+        self.assertIn('needs.straznik.outputs.aktywnosc', p2); self.assertIn("python3 narzedzia/straznik.py zapisz", p2)
+        self.assertIn('[skip ci]', p2); self.assertIn('git add kontrola/straznik.json', p2)
+        self.assertNotIn('secrets.', y.replace('GITHUB_TOKEN', ''), 'bez sekretów właściciela'); self.assertIn('GH_TOKEN: ${{ github.token }}', y)
+        self.assertEqual(y.count('runs-on:'), y.count('runs-on: ubuntu-24.04')); self.assertNotIn('ubuntu-latest', y)
+        self.assertIn('actions/checkout@v7', y); self.assertNotIn('\t', y)
+        self.assertIn('STRAZNIK_OFF: ${{ vars.STRAZNIK_OFF }}', y); self.assertIn('STRAZNIK_RECZNIE: ${{ vars.STRAZNIK_RECZNIE }}', y)
+        self.assertIn("steps.straznik.outcome == 'failure'", y, 'nieudane naprawy = widoczny błąd (e-mail), ale wynik kroku 1 zapisany przed tym')
+        # powiązania zadań (od nich zależy commit aktywności) — dokładne linie; mutacje z recenzji v354: bez któregokolwiek z nich commit powstawałby po cichu nigdy
+        self.assertEqual(len(re.findall(r'^        id: straznik\n        continue-on-error: true\n', p1, re.M)), 1, 'krok sprawdzenia: id i continue-on-error')
+        self.assertIn('        run: python3 narzedzia/straznik.py sprawdz\n', p1)
+        self.assertIn('    outputs:\n      aktywnosc: ${{ steps.straznik.outputs.aktywnosc }}\n      dni: ${{ steps.straznik.outputs.dni }}\n', p1)
+        self.assertIn('    needs: straznik\n    if: always() && needs.straznik.outputs.aktywnosc == \'tak\'\n', p2)
+        self.assertIn('STRAZNIK_DNI: ${{ needs.straznik.outputs.dni }}', p2)
+        self.assertIn('          persist-credentials: false\n', p1, 'token z actions: write nie zostaje w .git/config')
+        self.assertNotIn('persist-credentials: true', y)
+
+    def test_zaplanowane_zgodne_z_plikami(self):
+        import glob
+        import re
+        z = {}
+        for p in sorted(glob.glob(os.path.join(self.root, '.github', 'workflows', '*.yml'))):
+            with open(p, encoding='utf-8') as fh:
+                y = fh.read()
+            z[os.path.basename(p)] = bool(re.search(r'^\s*schedule:\s*$', y, re.M))
+        self.assertEqual(sorted(n for n, v in z.items() if v), sorted(self.s.ZAPLANOWANE), 'każdy przepływ z harmonogramem pilnowany (i odwrotnie)')
+        self.assertEqual(self.k.STRAZNIK_WF, self.s.ZAPLANOWANE, 'kontrola pilnuje tych samych przepływów')
+
+    # ---- kontrola ----
+    def test_kontrola_ocena(self):
+        k, N = self.k, self.NOW
+        W = [self.wf(n) for n in k.STRAZNIK_WF]
+        run = lambda dni, wynik='success': {'status': 'completed', 'conclusion': wynik, 'created_at': (N - datetime.timedelta(days=dni, hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')}  # noqa: E731
+        S = k.straznik_ocena(W, [run(8), run(15)], '2026-10-13T06:51:12Z', N)
+        self.assertEqual((S['czynne'], S['razem'], S['przebieg_dni'], S['przebieg_wynik'], S['commit_dni'], S['uwagi']), (5, 5, 8, 'success', 0, []))
+        self.assertIn('✅', k.straznik_wiersz(S)); self.assertIn('czynne 5 z 5', k.straznik_wiersz(S)); self.assertIn('8 dni temu (success)', k.straznik_wiersz(S))
+        # wyłączony przez GitHub, brakujący, strażnik milczy 17 dni, nieudany, stary commit
+        W2 = [self.wf('strona.yml', 'disabled_inactivity'), self.wf('zegar.yml'), self.wf('kontrola.yml'), self.wf('straznik.yml')]
+        S2 = k.straznik_ocena(W2, [run(17, 'failure')], '2026-08-01T00:00:00Z', N)
+        self.assertEqual(S2['czynne'], 3); self.assertEqual(S2['brak'], ['archiwum.yml'])
+        txt = ' | '.join(S2['uwagi'])
+        for fr in ('strona.yml (disabled_inactivity)', 'brak w repozytorium przepływów: archiwum.yml', 'nie działał od 17 dni', 'wynikiem „failure”', 'sprzed 73 dni'):
+            self.assertIn(fr, txt)
+        self.assertIn('⚠️', k.straznik_wiersz(S2))
+        # granice: 16 dni jeszcze w normie (jeden pominięty poniedziałek), 17 nie; commit 45 w normie, 46 nie
+        self.assertEqual(k.straznik_ocena(W, [run(16)], None, N)['uwagi'], []); self.assertEqual(len(k.straznik_ocena(W, [run(17)], None, N)['uwagi']), 1)
+        self.assertEqual(k.STRAZNIK_PRZEBIEG_DNI, 16)
+        self.assertEqual(k.straznik_ocena(W, [run(1)], '2026-08-29T12:00:00Z', N)['uwagi'], []); self.assertEqual(len(k.straznik_ocena(W, [run(1)], '2026-08-28T11:00:00Z', N)['uwagi']), 1)
+        # brak przebiegów: nowy przepływ — bez uwagi; stary — uwaga; przebiegi nieczytelne (None) — bez uwagi
+        Wn = [self.wf(n, utw='2026-10-10T00:00:00Z') for n in k.STRAZNIK_WF]
+        self.assertEqual(k.straznik_ocena(Wn, [], None, N)['uwagi'], []); self.assertEqual(len(k.straznik_ocena(W, [], None, N)['uwagi']), 1)
+        self.assertEqual(k.straznik_ocena(W, None, None, N)['uwagi'], []); self.assertIn('brak zakończonego przebiegu', k.straznik_wiersz(k.straznik_ocena(W, None, None, N)))
+        self.assertEqual(k.straznik_ocena(None, None, None, N)['czynne'], 0)
+        self.assertEqual(k.straznik_wiersz({'blad': 'HTTP Error 403'}), '- Strażnik harmonogramów: ? (odczyt przerwany: HTTP Error 403).')
+
+    def test_kontrola_odczyt_i_raport(self):
+        k, N = self.k, self.NOW
+        W = [self.wf(n) for n in k.STRAZNIK_WF]
+        wywolania = []
+
+        def get(url, timeout=25, headers=None, limit=None):
+            wywolania.append(url)
+            if '/actions/workflows?' in url:
+                return 200, json.dumps({'workflows': W}).encode(), 5
+            if '/straznik.yml/runs' in url:
+                return 200, json.dumps({'workflow_runs': [{'status': 'completed', 'conclusion': 'success', 'created_at': '2026-10-12T04:45:00Z'}]}).encode(), 5
+            if '/commits?' in url:
+                return 200, json.dumps([{'commit': {'committer': {'date': '2026-10-13T06:51:12Z'}}}]).encode(), 5
+            raise AssertionError(url)
+        S = k.straznik_odczyt({}, N, get)
+        self.assertEqual((len(wywolania), S['przebieg_dni'], S['commit_dni'], S['uwagi']), (3, 1, 0, []), 'trzy zapytania')
+        # przebiegi i commit nieczytelne — ocena z pozostałych, lista nieczytelna — wyjątek
+        def get2(url, timeout=25, headers=None, limit=None):
+            if '/actions/workflows?' in url:
+                return 200, json.dumps({'workflows': W}).encode(), 5
+            raise k.urllib.error.HTTPError(url, 500, 'x', {}, None)
+        S2 = k.straznik_odczyt({}, N, get2)
+        self.assertEqual((S2['przebieg_dni'], S2['commit_dni'], S2['uwagi'], S2['czynne']), (None, None, [], 5))
+        with self.assertRaises(Exception):
+            k.straznik_odczyt({}, N, lambda *a, **kw: (_ for _ in ()).throw(RuntimeError('503')))
+        R = {'at': '2026-10-13T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 100}, 'meta': {}, 'pliki': {}, 'actions': {},
+             'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': [], 'straznik': S}
+        md = k.raport_md(R)
+        self.assertIn('- Strażnik harmonogramów (raz w tygodniu): przepływy z harmonogramem czynne 5 z 5;', md)
+        self.assertNotIn('Strażnik', k.raport_md({kk: v for kk, v in R.items() if kk != 'straznik'}), 'stary raport bez pola — bez linii')
+        import inspect
+        src = inspect.getsource(k)
+        i = src.index('# 4c. v354'); j = src.index('# 5. v115', i)
+        blok = src[i:j]
+        self.assertIn("R['uwagi'] += ", blok); self.assertNotIn("R['bledy']", blok, 'strażnik: nigdy BŁĄD kontroli')
+        self.assertLess(src.index('# 4b. v291'), i)
+
+    # ---- dokumenty w docs/ ----
+    def test_docs_sumy_kontrolne(self):
+        import glob
+        import hashlib
+        import re
+        d = os.path.join(self.root, 'docs')
+        def sha(p):
+            with open(p, 'rb') as fh:
+                return hashlib.sha256(fh.read()).hexdigest()
+        sumy = sorted(glob.glob(os.path.join(d, 'REGULY_*_PL.md.sha256')))
+        self.assertTrue(sumy, 'dokument rejestracji z sumą')
+        for p in sumy:
+            with open(p, encoding='ascii') as fh:
+                tresc = fh.read().strip().split()
+            doc = p[:-len('.sha256')]
+            self.assertEqual(tresc, [sha(doc), os.path.basename(doc)], os.path.basename(p) + ': suma zgadza się z plikiem i jego nazwą')
+        self.assertEqual(sha(os.path.join(d, 'REGULY_SUROWCE_2026-10-08_PL.md')), zd.SUT_SHA, 'dokument surowców = suma przypięta w kodzie zbieracza (SUT_SHA)')
+        self.assertEqual(sha(os.path.join(d, 'REGULY_W_CIENIU_2026-10-06_PL.md')), self.SHA_CIEN, 'reguły „w cieniu” bez zmian (bajt w bajt)')
+        for p in glob.glob(os.path.join(d, '*')):
+            with open(p, 'rb') as fh:
+                b = fh.read()
+            self.assertNotIn(b'\r', b, os.path.basename(p) + ': końce linii LF (kopia bajt w bajt, bez przeróbek)')
+        # tylko dokumenty rejestracji i opis odtworzenia — wewnętrzne dokumenty projektu nie są publiczne
+        self.assertTrue(all(re.fullmatch(r'REGULY_[A-Z_0-9-]+_PL\.md(\.sha256)?|ODTWORZENIE\.md', f) for f in os.listdir(d)), sorted(os.listdir(d)))
+
+    def test_docs_odtworzenie(self):
+        import glob
+        import re
+        t = self.rd('docs', 'ODTWORZENIE.md')
+        self.assertEqual(sorted(set(re.findall(r'[\w.+-]+@[\w-]+(?:\.[\w-]+)+', t))), ['cryptoportal.pw@gmail.com'], 'jedyny adres to adres projektu')
+        self.assertIsNone(re.search(r'ghp_|github_pat_|sk-[A-Za-z0-9]{20}|[0-9a-f]{32,}', t), 'żadnych wartości kluczy')
+        for fr in ('Service Worker', 'wyłącznik', 'GoatCounter', 'archiwum/', 'kontrola/ostatnia.md', '60 dni', 'Enable workflow', 'git push --mirror', 'To nie jest porada inwestycyjna'):
+            self.assertIn(fr, t)
+        # rytm w opisie = cron w plikach przepływów
+        for wf, godz in (('kontrola.yml', '06:20'), ('archiwum.yml', '01:20'), ('straznik.yml', '04:41')):
+            y = self.rd('.github', 'workflows', wf)
+            c = re.search(r"cron: '(\d+) (\d+) ", y)
+            self.assertEqual('%02d:%02d' % (int(c.group(2)), int(c.group(1))), godz, wf)
+            self.assertIn(godz, t)
+        # nazwy z części „Sekrety i zmienne” istnieją w przepływach (opis niczego nie zmyśla)
+        czesc = t.split('## 3.', 1)[1].split('## 4.', 1)[0]
+        wszystkie = ' '.join(self.rd('.github', 'workflows', os.path.basename(p)) for p in glob.glob(os.path.join(self.root, '.github', 'workflows', '*.yml')))
+        nazwy = set(re.findall(r'`([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*)`', czesc))
+        self.assertGreaterEqual(len(nazwy), 25)
+        for n in nazwy:
+            self.assertIn(n, wszystkie, n)
