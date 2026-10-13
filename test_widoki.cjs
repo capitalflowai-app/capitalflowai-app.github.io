@@ -9792,7 +9792,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {/* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {/* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
 /* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
@@ -26487,4 +26487,226 @@ test('v366 (F2Z2): słownik — czysty JSON w 10 językach, te same klucze i mie
   assert.ok(html.includes('/* v366 (F2Z2): stopy realne, nastroje gospodarki i nazwy 17 nowych banków centralnych (GLOBAL) — 10 języków */\nconst EXTRA' + n + '='), 'komentarz i czysty JSON w jednej linii');
   assert.ok(html.includes(`for(const l in EXTRA${n})if(I18N[l])Object.assign(I18N[l],EXTRA${n}[l]);\n`), 'linia for po słowniku'); assert.ok(html.indexOf('const EXTRA' + n + '=') < html.indexOf(`for(const l in EXTRA${n})`));
   assert.ok(!/[\u200b-\u200f\u2060\ufeff\ufe0f\u00a0\u202f]/.test(m[0]), 'znaki niewidoczne tylko jako ucieczki');
+});
+
+// ===================== v367 (F5Z2): prąd i CO2 — blok „Prąd i CO2” w GLOBAL › Surowce =====================
+const PRAD367 = JSON.parse(String.raw`{"v":1,"at":"2026-10-13T15:00:00+00:00","src":"CapitalFlowAI — prąd i CO2 (kody źródeł z: pl, co2, str — pełne nazwy na stronie Źródła)","pl":{"asof":"2026-10-14","u":"PLN/MWh","d":{"2026-10-13":{"p":[646.92,615.82,637.06,649.5,615.15,637.47,639.33,646.07,650.43,642.76,642.78,649.99,646.07,646.98,639.27,638.93,631.47,644.13,653.98,702.01,634.52,666.58,727.76,776.37,812.08,913.47,997.51,1029.98,1066.25,1142.5,1136.33,1125.83,1125.02,1069.63,1015.59,936.12,984.18,866.7,747.78,635.25,631.94,581.8,549.32,560.41,536.52,605.05,584.32,575.48,509.01,529.68,532.53,557.09,527.4,540.4,663.0,687.18,542.6,611.49,666.05,722.37,618.7,617.49,710.9,836.65,690.07,747.07,897.76,1056.75,1008.04,1124.78,1266.26,1586.61,1313.23,1391.81,1467.27,1507.78,1523.89,1430.19,1300.8,1239.97,1233.53,1090.22,1014.8,785.11,802.79,751.65,657.35,590.21,664.29,623.9,574.43,542.01,550.23,514.93,473.92,458.44],"n":96,"pub":"2026-10-12T12:42:14Z"},"2026-10-14":{"p":[544.47,523.5,497.54,495.45,517.82,493.14,489.31,486.65,493.69,475.16,480.71,484.18,485.15,484.21,475.52,475.49,489.68,494.09,519.7,522.19,507.98,515.74,560.2,587.7,607.22,723.53,815.07,780.6,700.52,835.32,880.29,905.83,975.54,964.47,881.06,727.41,903.02,773.01,624.82,569.29,694.97,641.0,561.81,559.36,506.74,488.31,514.12,503.77,485.87,476.11,442.27,459.92,471.68,451.97,455.41,443.57,449.62,455.32,460.34,486.14,465.38,480.12,493.59,484.68,489.62,503.16,526.62,566.53,512.07,587.31,663.29,779.3,627.97,717.15,842.67,950.18,955.02,904.36,864.72,816.57,768.04,727.5,618.8,553.43,732.4,664.53,546.14,552.1,750.67,590.99,561.91,676.33,581.91,657.01,699.17,687.41],"n":96,"pub":"2026-10-13T11:58:11Z"}},"hist":[["2026-10-13",798.57],["2026-10-14",608.05]]},"co2":{"asof":"2026-10-13","u":"EUR/t","d":[["2026-10-04",84.79,370.93],["2026-10-05",83.64,366.8],["2026-10-06",84.55,369.46],["2026-10-07",85.02,372.38],["2026-10-08",86.66,379.48],["2026-10-09",86.72,379.62],["2026-10-10",86.16,377.16],["2026-10-11",86.52,378.75],["2026-10-12",88.12,386.75],["2026-10-13",86.95,380.89]]},"str":{"asof":"2026-10-14","u":"EUR/MWh","z":{"PL":{"at":"2026-10-13T12:30:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[181.04,97.33,379.18,96],"2026-10-14":[136.6,102.64,225.85,96]}},"DE-LU":{"at":"2026-10-13T12:40:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[160.23,110.12,247.76,96],"2026-10-14":[178.99,87.55,303.42,96]}},"FR":{"at":"2026-10-13T12:50:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[169.44,68.84,269.29,96],"2026-10-14":[191.12,83.83,303.42,96]}},"NL":{"at":"2026-10-13T15:00:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[164.05,103.7,252.19,96]}},"BE":{"at":"2026-10-13T13:10:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[182.01,119.89,310.26,96],"2026-10-14":[197.82,88.19,323.43,96]}},"AT":{"at":"2026-10-13T13:20:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[209.22,152.47,314.12,96],"2026-10-14":[223.28,157.46,343.0,96]}},"CH":{"at":"2026-10-13T13:30:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[209.07,187.2,231.01,24],"2026-10-14":[216.25,184.52,292.15,24]}},"CZ":{"at":"2026-10-13T13:40:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[168.99,96.77,273.81,96],"2026-10-14":[163.49,82.76,303.42,96]}},"HU":{"at":"2026-10-13T13:50:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[223.0,152.47,292.99,96]}},"SI":{"at":"2026-10-13T14:00:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[212.83,152.47,290.24,96],"2026-10-14":[222.15,167.0,316.38,96]}},"IT-North":{"at":"2026-10-13T14:10:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[224.65,170.0,314.12,96],"2026-10-14":[229.54,167.0,343.0,96]}},"DK1":{"at":"2026-10-13T14:20:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[140.11,89.59,192.54,96],"2026-10-14":[161.71,87.33,303.42,96]}},"DK2":{"at":"2026-10-13T14:30:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[156.78,91.23,258.05,96],"2026-10-14":[163.77,85.77,303.67,96]}},"NO2":{"at":"2026-10-13T14:40:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[137.8,92.92,166.71,96],"2026-10-14":[141.41,95.03,178.0,96]}},"SE4":{"at":"2026-10-13T14:50:00+00:00","u":"EUR/MWh","lic":"CC BY 4.0","d":{"2026-10-13":[149.78,5.3,260.43,96],"2026-10-14":[119.93,4.26,268.7,96]}}}},"part_at":{"pl":"2026-10-13T12:30:00+00:00","co2":"2026-10-13T12:30:00+00:00","str":"2026-10-13T15:00:00+00:00"},"ok":{"pl":"cached","co2":"cached","str":true},"err":{},"next":{"pl":"2026-10-14T11:45:00+00:00","co2":"2026-10-13T18:00:00+00:00","str":"2026-10-13T15:08:00+00:00"}}`);   /* plik z nagrań 13.10.2026: Polska 13 i 14.10 (96 kwadransów), CO2 z 10 dni, 15 stref (NL i HU bez doby jutrzejszej) */
+const prd367 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i + 1); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const line = a => { const i = html.indexOf(a); assert.ok(i > 0, a); return html.slice(i, html.indexOf('\n', i)); };
+  const suSrc = cut('const SU={j:null,', 'function suDay(d){');
+  const suSrc2 = cut('function suDay(d){', 'function suIco(');
+  const icoSrc = line('function suIco(g,F,cls){');
+  const code = cut('/* ===================== v367 (F5Z2): PRĄD I CO2', '/* ---------- koniec bloku prądu i CO2 (v367) ---------- */');
+  const escH = new Function(html.slice(html.indexOf('function escH(s){'), html.indexOf('\n', html.indexOf('function escH(s){'))) + '\nreturn escH;')();
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/\u00a0|\u202f/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mkDate = ms => { class D extends Date { constructor(...a) { if (a.length === 0) super(ms); else super(...a); } static now() { return ms; } } return D; };
+  const mk = (L, o) => {
+    o = o || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const calls = [], lis = [], ivs = [], lines = [], bars = [];
+    let renders = 0;
+    const srv = n => { calls.push(n); const v = (o.files || {})[n]; const r = {then(f) { f(v === undefined || v === null ? null : clone(v)); return r; }, catch() { return r; }}; return r; };
+    const doc = {hidden: false, addEventListener: (e, f) => lis.push([e, f])};
+    const wkLines = (Ls, op) => { lines.push({L: Ls, op}); return '<lines aria="' + op.aria + '">' + Ls.map(l => `[${l.n}|${l.cls}|${l.d.length}]`).join('') + '</lines>'; };
+    const wkBars = (rows, op) => { bars.push({rows, op}); return '<bars aria="' + op.aria + '">' + rows.map(r => `[${r.l}|${r.v}|${r.vt}|${r.cls}]`).join('') + '</bars>'; };
+    const wkMs = d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z');
+    const wkDay = (ms, yr) => new Date(ms).toLocaleDateString(LOC[L] || 'pl-PL', yr ? {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'} : {day: 'numeric', month: 'short', timeZone: 'UTC'});
+    const now = Date.parse(o.now || '2026-10-13T12:30:00Z');
+    const flagImg = c => `[f:${c}]`;
+    const api = new Function('t', 'nfmt', 'escH', 'engDate', 'srvJSON', 'renderSu', 'document', 'setInterval', 'wkBars', 'wkLines', 'wkMs', 'wkDay', 'gAgeNote', 'flagImg', 'glyphImg', 'Date', 'LANG', 'LOCALE',
+      'const sg=v=>v>0?"+":v<0?"−":"";\n' + suSrc + suSrc2 + icoSrc + '\n' + code + '\nreturn {SU, PRD, prdBody, prdBlk, prdSec, prdApply, prdLoad, prdMarza, prdPL, prdCo2, prdStr, prdToday, prdOk, prdHas, prdZl, prdEu};')(
+      v96src.tFor(L), F.nfmt, escH, d => 'D:' + d, srv, () => { renders++; }, doc, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, wkBars, wkLines, wkMs, wkDay, d => ' · wiek(' + d + ')', flagImg, undefined, mkDate(now), L, LOC);
+    return {api, calls, lis, ivs, lines, bars, doc, renders: () => renders, F, t: v96src.tFor(L)};
+  };
+  const ttf = rows => ({u: 'EUR/MWh', d: rows});
+  const TTF = [['2026-10-08', 37.5], ['2026-10-09', 38.9], ['2026-10-12', 41.25]];   /* syntetyczne ceny gazu TTF na potrzeby modelu (plik surowców ma tę serię) */
+  const full = (L, o) => { const K = mk(L || 'pl', o); K.api.SU.j = {ceny: {ttf: ttf(clone(TTF))}}; K.api.PRD.j = clone((o && o.file) || PRAD367); return K; };
+  const tile = (h, id) => { const m = new RegExp('<div class="etfk su-k prd-k" data-prd="' + id + '">(.*?)</div>').exec(sp(h)); assert.ok(m, 'kafel ' + id); return m[1]; };
+  const avg = p => p.reduce((a, v) => a + v, 0) / p.length;
+  return {mk, full, tile, clone, sp, txt, avg, code, escH, ttf, TTF, suSrc2, mkDate};
+})();
+
+test('v367 (F5Z2): kafle — Polska dziś i jutro (zł/MWh) z najtańszym i najdroższym kwadransem, zmiana jutro wobec dziś w kolorze kierunku, data doby i wiek', () => {
+  const K = prd367.full(), nf = K.F.nfmt, h = K.api.prdBody(), A = PRAD367.pl.d;
+  const a13 = prd367.avg(A['2026-10-13'].p), a14 = prd367.avg(A['2026-10-14'].p), z = x => prd367.sp(nf(x, Math.abs(x) >= 1000 ? 0 : 1));
+  const t13 = prd367.tile(h, 'today'), t14 = prd367.tile(h, 'tom');
+  assert.ok(t13.includes('<b>' + z(a13) + ' <small class="mtxt">zł/MWh</small></b>'), 'średnia dzisiejszej doby: ' + z(a13)); assert.equal(z(a13), '798,6');
+  const p13 = A['2026-10-13'].p, mx = Math.max(...p13), mn = Math.min(...p13), k = p13.indexOf(mx);
+  const hm = k => String(Math.floor(k / 4)).padStart(2, '0') + ':' + String(k % 4 * 15).padStart(2, '0');
+  assert.ok(prd367.txt(t13).includes(`najtaniej ${z(mn)}, najdrożej ${z(mx)} · szczyt o ${hm(k)}`), 'najtańszy, najdroższy i godzina szczytu kwadransa');
+  assert.ok(/doba 13 paź 2026 · wiek\(2026-10-13\)/.test(prd367.txt(t13)), 'data doby i wiek'); assert.ok(!t13.includes('wobec'), 'brak poprzedniej doby w historii: bez zmiany (nie zero)');
+  const ch = (a14 - a13) / Math.abs(a13) * 100, cls = ch > 0 ? 'pos' : ch < 0 ? 'neg' : 'neu', arrow = ch > 0 ? '▲' : ch < 0 ? '▼' : '•';
+  assert.ok(t14.includes(`<small class="${cls}">${arrow} ${ch > 0 ? '+' : '−'}${prd367.sp(nf(Math.abs(ch), 1))}% wobec dziś</small>`), 'zmiana jutro wobec dziś: ' + ch.toFixed(2)); assert.equal(cls, 'neg', '14.10 taniej niż 13.10 — czerwone');
+  assert.ok(prd367.txt(t14).includes('doba 14 paź 2026') && !prd367.txt(t14).includes('wiek('), 'jutrzejsza doba bez wieku (jeszcze nie minęła)');
+  assert.ok(!/NaN|undefined|null/.test(h) && !h.includes('>0 zł/MWh'), 'brak NaN i fałszywych zer');
+  /* poprzednia doba w historii daje zmianę dziś wobec wczoraj */
+  const F2 = prd367.clone(PRAD367); F2.pl.hist = [['2026-10-12', 700.0], ['2026-10-13', 798.57], ['2026-10-14', 608.05]];
+  const K2 = prd367.full('pl', {file: F2}), t2 = prd367.tile(K2.api.prdBody(), 'today'), c2 = (a13 - 700) / 700 * 100;
+  assert.ok(t2.includes(`<small class="pos">▲ +${prd367.sp(nf(c2, 1))}% wobec poprzedniej doby</small>`), 'dziś drożej niż wczoraj — zielone ▲');
+});
+
+test('v367 (F5Z2): kafle — jutro nieopublikowane to „—” z wyjaśnieniem (nie zero), plik starszy niż dziś pokazuje ostatnią dobę z jej datą; brak CO2 i gazu = „—” w marży', () => {
+  const F = prd367.clone(PRAD367); delete F.pl.d['2026-10-14']; F.pl.asof = '2026-10-13';
+  const K = prd367.full('pl', {file: F}), h = K.api.prdBody(), t14 = prd367.tile(h, 'tom');
+  assert.ok(t14.includes('<b class="na">—</b>') && prd367.txt(t14).includes('Jeszcze nie opublikowano — zwykle po 13:45 czasu polskiego.'), 'jutro: „—” i wyjaśnienie'); assert.ok(!t14.includes('zł/MWh'));
+  assert.ok(prd367.tile(h, 'today').includes('zł/MWh'));
+  assert.equal(K.lines[0].L.length, 1, 'wykres doby z jedną serią'); assert.ok(!/drożej niż|taniej niż/.test(h), 'bez zdania o porównaniu dziś z jutrem');
+  /* po północy: w pliku tylko wczorajsze doby — kafel „dziś” staje się „ostatnią dobą” z datą, a nie dzisiejszą liczbą */
+  const S = prd367.full('pl', {now: '2026-10-16T08:00:00Z'}), hs = S.api.prdBody(), ts = prd367.tile(hs, 'today');
+  assert.ok(prd367.txt(ts).includes('Polska — ostatnia doba w pliku') && prd367.txt(ts).includes('doba 14 paź 2026'), 'ostatnia doba w pliku z datą: ' + prd367.txt(ts)); assert.ok(prd367.tile(hs, 'tom').includes('class="na"'));
+  assert.equal(S.api.prdMarza().d, '2026-10-14', 'model z ostatniej doby w pliku (2 dni), gdy gaz i CO2 są młodsze niż ich progi (5 i 4 dni)');
+  assert.equal(prd367.full('pl', {now: '2026-10-20T08:00:00Z'}).api.prdMarza(), null, 'model nie liczy z doby prądu sprzed 6 dni, CO2 i gazu też za starych');
+  assert.ok(prd367.full('pl', {now: '2026-10-17T08:00:00Z'}).api.prdMarza(), '17.10: doba prądu ma 3 dni, CO2 4, gaz 5 — wszystko na granicy, jeszcze w modelu');
+  assert.equal(prd367.full('pl', {now: '2026-10-18T08:00:00Z'}).api.prdMarza(), null, '18.10: doba prądu ma 4 dni (próg 3), CO2 5, gaz 6 — poza modelem');
+  /* brak pliku CO2 */
+  const G = prd367.clone(PRAD367); delete G.co2; const KG = prd367.full('pl', {file: G}), hg = KG.api.prdBody();
+  assert.ok(prd367.tile(hg, 'co2').includes('<b class="na">—</b>')); assert.ok(prd367.tile(hg, 'mar').includes('<b class="na">—</b>') && hg.includes('Za mało świeżych danych'));
+  assert.ok(!KG.lines.some(l => /CO2/.test(l.op.aria)), 'bez wykresu CO2');
+});
+
+test('v367 (F5Z2): uprawnienia do emisji CO2 — kafel w €/t ze zmianą wobec poprzedniego dnia w kolorze kierunku i wartością w zł; wykres 10 dni z podpisem', () => {
+  const K = prd367.full(), h = K.api.prdBody(), c = prd367.tile(h, 'co2'), nf = K.F.nfmt, C = PRAD367.co2.d, l = C[C.length - 1], p = C[C.length - 2];
+  assert.ok(c.includes('<b>' + prd367.sp(nf(l[1], 2)) + ' <small class="mtxt">€/t</small>'), 'ostatnia cena 86,95 €/t'); assert.equal(prd367.sp(nf(l[1], 2)), '86,95');
+  const ch = (l[1] - p[1]) / p[1] * 100;
+  assert.ok(c.includes(`<small class="neg">▼ −${prd367.sp(nf(Math.abs(ch), 1))}% wobec poprzedniej doby</small>`), 'spadek ceny — czerwone ▼ (88,12 → 86,95)');
+  assert.ok(prd367.txt(c).includes('≈ ' + prd367.sp(nf(l[2], 1)) + ' zł za tonę') && prd367.txt(c).includes('doba 13 paź 2026 · wiek(2026-10-13)'));
+  const L = K.lines.find(x => /CO2/.test(x.op.aria)); assert.ok(L, 'wykres CO2'); assert.equal(L.L[0].d.length, C.length); assert.equal(L.L[0].d[C.length - 1][1], l[1]);
+  assert.ok(prd367.txt(h).includes('Ostatnia cena: 86,95 €/t (D:2026-10-13)') || prd367.txt(h).includes('Ostatnia cena: 86,95 €/t (13 paź 2026'), 'zdanie z ostatnią ceną i datą');
+  assert.equal(L.op.fmt(86.949), '86,95');
+});
+
+test('v367 (F5Z2): marża elektrowni gazowej — MODEL: prąd (zł→€ po kursie z notowania CO2) − gaz/0,5 − CO2·0,202/0,5; składniki, daty, ostrzeżenie o modelu; nic bez świeżych składników', () => {
+  const K = prd367.full(), M = K.api.prdMarza(), nf = K.F.nfmt;
+  const p13 = PRAD367.pl.d['2026-10-13'].p, kurs = 380.89 / 86.95, el = prd367.avg(p13) / kurs, gaz = 41.25 / 0.5, co2 = 86.95 * 0.202 / 0.5;
+  assert.ok(Math.abs(M.el - el) < 1e-9 && Math.abs(M.gaz - gaz) < 1e-9 && Math.abs(M.co2 - co2) < 1e-9 && Math.abs(M.v - (el - gaz - co2)) < 1e-9, 'składniki modelu');
+  assert.deepEqual([M.d, M.dg, M.dc], ['2026-10-13', '2026-10-12', '2026-10-13']);
+  assert.ok(M.el > 182 && M.el < 183 && Math.abs(M.gaz - 82.5) < 1e-9 && Math.abs(M.co2 - 35.1) < 0.05, 'rząd wielkości: ok. 182,3 − 82,5 − 35,1');
+  const h = K.api.prdBody(), m = prd367.tile(h, 'mar'), s = M.v > 0 ? '+' : '−';
+  assert.ok(m.includes(`<b class="${M.v > 0 ? 'pos' : 'neg'}">${s}${prd367.sp(nf(Math.abs(M.v), 1))} <small class="mtxt">€/MWh</small></b>`), 'kolor wg znaku marży');
+  assert.ok(prd367.txt(m).includes(`prąd ${prd367.sp(nf(M.el, 1))} − gaz ${prd367.sp(nf(M.gaz, 1))} − CO2 ${prd367.sp(nf(M.co2, 1))} (€/MWh)`) && prd367.txt(m).includes('model, nie pomiar'));
+  assert.ok(prd367.txt(m).includes('gaz TTF z 12 paź 2026') || prd367.txt(m).includes('gaz TTF z D:2026-10-12') || /gaz TTF z .*2026/.test(prd367.txt(m)), 'data gazu i CO2 przy marży');
+  assert.ok(/węglow/.test(prd367.txt(h)) && /nie liczymy/.test(prd367.txt(h)), 'opis: marży elektrowni węglowej nie liczymy (brak dziennej ceny węgla)');
+  /* wiek składników */
+  const G = prd367.full(); G.api.SU.j.ceny.ttf = prd367.ttf([['2026-10-07', 41.0]]); assert.equal(G.api.prdMarza(), null, 'gaz sprzed 6 dni — poza modelem');
+  const G2 = prd367.full(); G2.api.SU.j.ceny.ttf = prd367.ttf([['2026-10-08', 41.0]]); assert.ok(G2.api.prdMarza(), 'gaz sprzed 5 dni — jeszcze w modelu');
+  const G3 = prd367.full(); G3.api.SU.j = null; assert.equal(G3.api.prdMarza(), null, 'bez pliku surowców');
+  const F = prd367.clone(PRAD367); F.co2.d = F.co2.d.map(r => [r[0], r[1], null]); assert.equal(prd367.full('pl', {file: F}).api.prdMarza(), null, 'bez ceny CO2 w zł nie ma kursu');
+  const F3 = prd367.clone(PRAD367); F3.co2.d = F3.co2.d.filter(r => r[0] < '2026-10-09'); assert.equal(prd367.full('pl', {file: F3}).api.prdMarza(), null, 'CO2 sprzed 5 dni — poza modelem');
+  const F4 = prd367.clone(PRAD367); F4.co2.d = F4.co2.d.filter(r => r[0] < '2026-10-10'); assert.ok(prd367.full('pl', {file: F4}).api.prdMarza(), 'CO2 sprzed 4 dni — jeszcze w modelu');
+  /* ujemna marża: czerwone minus */
+  const N = prd367.full(); N.api.SU.j.ceny.ttf = prd367.ttf([['2026-10-12', 120.0]]); const hn = N.api.prdBody();
+  assert.ok(prd367.tile(hn, 'mar').includes('<b class="neg">−'), 'przy drogim gazie marża ujemna — czerwona, z minusem typograficznym');
+});
+
+test('v367 (F5Z2): wykres doby w Polsce — dziś i jutro na jednej osi (96 kwadransów, oś w godzinach), zdanie z liczb, ceny ujemne dozwolone', () => {
+  const K = prd367.full(), h = K.api.prdBody(), c = K.lines.find(x => /kwadransach/.test(x.op.aria)), nf = K.F.nfmt;
+  assert.ok(c, 'wykres doby'); assert.deepEqual(c.L.map(l => [l.n, l.cls, l.d.length]), [['dziś', 's1', 96], ['jutro', 's2', 96]]);
+  assert.equal(c.L[0].d[0][1], PRAD367.pl.d['2026-10-13'].p[0]); assert.equal(c.L[1].d[95][1], PRAD367.pl.d['2026-10-14'].p[95]);
+  assert.equal(c.op.dt(c.L[0].d[0][0]), '00:00–00:15'); assert.equal(c.op.dx(c.L[0].d[95][0]), '23:45'); assert.equal(c.op.dt(c.L[0].d[95][0]), '23:45–24:00'); assert.equal(c.op.zero, false);
+  assert.ok(!/NaN/.test(c.op.aria) && c.op.aria.includes('serie: 2'));
+  const txt = prd367.txt(h);
+  assert.ok(/Dziś: najdrożej o 17:45 \(1587 zł\/MWh\), najtaniej o 23:45 \(458,4 zł\/MWh\), średnio 798,6 zł\/MWh\./.test(prd367.sp(txt)), 'zdanie: dziś — wielką literą, z liczbami: ' + txt.slice(0, 0)); assert.ok(/Jutro: najdrożej/.test(txt));
+  assert.ok(/Jutro średnio o \d+,\d% taniej niż dziś\./.test(txt), 'jutro taniej niż dziś'); assert.ok(!/Ceny ujemne/.test(txt));
+  /* ceny ujemne */
+  const F = prd367.clone(PRAD367); F.pl.d['2026-10-14'].p[4] = -80.0; F.pl.d['2026-10-14'].p[5] = -10.5;
+  const N = prd367.full('pl', {file: F}), hn = N.api.prdBody(), tn = prd367.txt(hn);
+  assert.ok(tn.includes('Ceny ujemne w 2 z 96 kwadransów — zdarzają się przy nadmiarze wiatru i słońca, to nie błąd.'), 'ceny ujemne opisane, nie jako błąd');
+  assert.ok(/najtaniej −80,0/.test(prd367.sp(prd367.txt(prd367.tile(hn, 'tom')))) || /najtaniej [−-]80,0/.test(prd367.sp(prd367.txt(prd367.tile(hn, 'tom')))), 'minimum ujemne w kaflu (minus typograficzny)');
+  assert.equal(N.lines[0].L[1].d[4][1], -80.0, 'wykres nie obcina cen ujemnych');
+  /* pełny dzień z zerem to pomiar, nie brak */
+  const Z = prd367.clone(PRAD367); Z.pl.d['2026-10-13'].p[10] = 0; assert.equal(prd367.full('pl', {file: Z}).api.prdPL()[0].p[10], 0);
+  /* doba z liczbą kwadransów spoza 92–100 albo z tekstem w serii jest pomijana */
+  const B = prd367.clone(PRAD367); B.pl.d['2026-10-13'].p.pop(); B.pl.d['2026-10-14'].p[3] = 'x'; assert.deepEqual(prd367.full('pl', {file: B}).api.prdPL(), []);
+});
+
+test('v367 (F5Z2): 15 stref Europy — słupki średniej doby, Polska wyróżniona (s2, pogrubiona), flagi, jutro gdy ma je co najmniej 8 stref, brakujące strefy wymienione, miejsce Polski', () => {
+  const K = prd367.full(), h = K.api.prdBody(), S = PRAD367.str.z, nf = K.F.nfmt;
+  assert.equal(K.bars.length, 1); const b = K.bars[0], rows = b.rows;
+  const exp = Object.keys(S).filter(z => S[z].d['2026-10-14']).map(z => [z, S[z].d['2026-10-14'][0]]).sort((p, q) => q[1] - p[1]);
+  assert.equal(rows.length, 13, '13 stref ma jutrzejszą dobę'); assert.deepEqual(rows.map(r => r.v), exp.map(e => e[1]), 'od najdroższej');
+  const pl = rows.find(r => r.cls === 's2'); assert.ok(pl && pl.l.includes('<b>Polska</b>') && pl.l.includes('[f:pl]'), 'Polska wyróżniona'); assert.equal(rows.filter(r => r.cls === 's1').length, 12);
+  assert.ok(rows.every(r => r.vt === prd367.escH(nf(r.v, 1))), 'wartość w €/MWh z jednym miejscem po przecinku'); assert.equal(b.op.lw, '44%');
+  assert.ok(/ · 14 paź 2026: średnia .*, minimum .*, maksimum .* €\/MWh$/.test(rows[0].tip), 'podpowiedź: strefa, doba, średnia, minimum, maksimum');
+  const flags = Object.fromEntries(rows.map(r => [/\[f:(\w+)\]/.exec(r.l)[1], 1])); assert.deepEqual(Object.keys(flags).sort(), ['at', 'be', 'ch', 'cz', 'de', 'dk', 'fr', 'it', 'no', 'pl', 'se', 'si'], 'flagi krajów (Dania ma dwie strefy)');
+  const txt = prd367.txt(h), rank = exp.findIndex(e => e[0] === 'PL') + 1;
+  assert.ok(txt.includes('Europa: ceny prądu w 15 strefach — jutro'), 'nagłówek z dobą'); assert.ok(txt.includes(`Polska jest na ${rank}. miejscu od najdroższej wśród 13 stref; najdrożej: `), 'miejsce Polski: ' + rank);
+  assert.ok(txt.includes('Brak jeszcze danych dla: Holandia, Węgry.'), 'strefy bez doby jutrzejszej wymienione, nie rysowane jako zero');
+  /* mniej niż 8 stref z jutrem → dziś */
+  const F = prd367.clone(PRAD367); ['AT', 'BE', 'CH', 'CZ', 'DE-LU', 'DK1', 'DK2'].forEach(z => delete F.str.z[z].d['2026-10-14']);
+  const T = prd367.full('pl', {file: F}); const ht = T.api.prdBody(); assert.equal(T.bars[0].rows.length, 15, 'dziś mają wszystkie strefy'); assert.ok(prd367.txt(ht).includes('Europa: ceny prądu w 15 strefach — dziś'));
+  assert.ok(!prd367.txt(ht).includes('Brak jeszcze danych'));
+  /* zła strefa (średnia poza min–max) jest pomijana, jednostka godzinowa Szwajcarii działa */
+  const W = prd367.clone(PRAD367); W.str.z.FR.d['2026-10-14'] = [500.0, 10.0, 20.0, 96]; W.str.z.CH.d['2026-10-14'] = [100, 90, 110, 24];
+  const WK = prd367.full('pl', {file: W}); WK.api.prdBody(); const wr = WK.bars[0].rows; assert.equal(wr.length, 12); assert.ok(wr.some(r => r.l.includes('Szwajcaria')) && !wr.some(r => r.l.includes('Francja')));
+  /* za mało stref — bez wykresu */
+  const E = prd367.clone(PRAD367); E.str.z = {PL: E.str.z.PL, FR: E.str.z.FR}; const EK = prd367.full('pl', {file: E}); const he = EK.api.prdBody(); assert.equal(EK.bars.length, 0); assert.ok(!he.includes('Europa:'));
+  assert.ok(!/NaN|undefined|null/.test(h));
+});
+
+test('v367 (F5Z2): blok zwijany — plik dopiero po kliknięciu nagłówka, odświeżanie co 15 min przy widocznej karcie, błędny plik nie psuje strony, awaria bez pętli', () => {
+  const K = prd367.mk('pl', {files: {prad: PRAD367}}), A = K.api;
+  assert.deepEqual(K.calls, [], 'przy starcie strony plik nie jest pobierany'); assert.equal(K.lis.length, 1); assert.equal(K.lis[0][0], 'click'); assert.equal(K.ivs.length, 1); assert.equal(K.ivs[0][1], 15 * 60 * 1000);
+  let h = A.prdBlk(); assert.ok(h.startsWith('<details class="etfd su-b prd-b" id="su-b-prd"><summary>Prąd i CO2: ceny w Polsce i Europie oraz uprawnienia do emisji</summary>') && h.includes(K.t('sz305.lazy')), 'przed wczytaniem — „Wczytujemy dane…”');
+  const kl = id => ({target: {closest: q => q.includes('details#su-b-' + id + '>summary') ? {} : null}});
+  K.lis[0][1](kl('lng')); assert.deepEqual(K.calls, [], 'inny blok — bez pobierania');
+  K.lis[0][1](kl('prd')); assert.deepEqual(K.calls, ['prad']); assert.equal(K.renders(), 1); assert.ok(A.PRD.j && A.prdOk(A.PRD.j));
+  h = A.prdBlk(); assert.ok(h.includes('data-prd="today"') && !h.includes(K.t('sz305.lazy')));
+  K.lis[0][1](kl('prd')); assert.deepEqual(K.calls, ['prad'], 'drugie kliknięcie przy wczytanym pliku — bez pobierania');
+  K.ivs[0][0](); assert.deepEqual(K.calls, ['prad', 'prad'], 'zegar odświeża wczytany plik'); K.doc.hidden = true; K.ivs[0][0](); assert.equal(K.calls.length, 2, 'karta ukryta — bez pobierania');
+  /* błędny plik po wczytaniu nie zasłania danych; pierwsza awaria — komunikat, nowe kliknięcie = nowa próba */
+  const B = prd367.mk('pl', {files: {prad: {v: 2, at: 'x'}}}); B.lis[0][1](kl('prd')); assert.equal(B.api.PRD.j, null); assert.ok(B.api.prdBlk().includes(B.t('sz305.err'))); B.lis[0][1](kl('prd')); assert.equal(B.calls.length, 2, 'nowe kliknięcie = nowa próba');
+  const N = prd367.mk('pl', {}); N.lis[0][1](kl('prd')); assert.ok(N.api.prdBlk().includes(N.t('sz305.err')), 'brak odpowiedzi (null) — komunikat');
+  const G = prd367.full(); G.api.prdApply({v: 2}); assert.ok(G.api.PRD.j && G.api.prdBlk().includes('data-prd="today"'), 'chwilowy błąd nie zasłania wczytanych danych');
+  /* ok:false części — komunikat o błędzie z nazwą części, dane z datą zostają */
+  const F = prd367.clone(PRAD367); F.ok = {pl: true, co2: false, str: false}; const hf = prd367.full('pl', {file: F}).api.prdBody();
+  assert.ok(prd367.txt(hf).includes('uprawnienia CO2, strefy Europy') && hf.includes('data-prd="co2"'), 'nazwy części bez odpowiedzi; dane zostają');
+  const Fn = prd367.clone(PRAD367); Fn.ok = {pl: true, co2: false, str: true}; delete Fn.co2; assert.ok(prd367.txt(prd367.full('pl', {file: Fn}).api.prdBody()).includes('uprawnienia CO2'), 'część bez danych — „jeszcze nie pobrano”');
+});
+
+test('v367 (F5Z2): wpięcie w stronę — hook w renderSu po blokach Polski przez typeof, moduł poza wycinkami v357, CSS, brak nazw dostawców i kluczy w kodzie bloku', () => {
+  assert.equal(html.split("(typeof plkD==='function'?plkD():'')+(typeof prdSec==='function'?prdSec():'')+zdBlks()+").length, 2, 'hook raz, po blokach Polski, przed zbożami');
+  const sec = prd367.mk('pl').api.prdSec(); assert.ok(sec.startsWith('<h3 class="mtxt su-h">') && sec.includes('<b>Prąd i CO2</b></h3><details class="etfd su-b prd-b" id="su-b-prd">'), 'nagłówek sekcji jak przy zbożach i blok zwijany');
+  const i = html.indexOf('/* v357: koniec */\n'), j = html.indexOf('var PRD={j:null,'); assert.ok(i > 0 && j > i && html.split('var PRD={j:null,').length === 2, 'moduł po znaczniku końca modułu v357');
+  assert.ok(html.includes('#g-surowce .prd-k>small.su-d{color:var(--mut)}'), 'CSS: data doby przygaszona, tylko zmienne motywu');
+  const code = prd367.code;
+  assert.ok(!/\b(PSE|Energy-?Charts|Fraunhofer|SMARD|Bundesnetzagentur|ENTSO-?E|EEX|TGE|api\.raporty|energy-charts)\b/i.test(code), 'zero nazw dostawców w kodzie bloku');
+  assert.ok(!/api[_-]?key|token|localStorage|sessionStorage|document\.cookie/i.test(code), 'bez kluczy i pamięci przeglądarki');
+  assert.ok(/srvJSON\('prad'\)/.test(code) && !/fetch\(/.test(code), 'plik tylko przez srvJSON (pamięć minutowa, bramka grup)');
+  assert.ok(!/[\u200b-\u200f\u2060\ufeff\ufe0f\u00a0\u202f]/.test(code), 'znaki niewidoczne tylko jako ucieczki');
+  /* dla każdej wartości liczbowej brak = „—”: funkcje formatujące */
+  const K = prd367.full(), A = K.api; assert.ok(A.prdHas('pl') && A.prdHas('co2') && A.prdHas('str'));
+  for (const v of [null, undefined, NaN, Infinity, 'x']) assert.ok(A.prdZl(v) === '—' && A.prdEu(v) === '—', 'brak liczby = „—”, nigdy zero: ' + String(v)); assert.equal(prd367.sp(A.prdZl(0)), '0,0', 'zero to pomiar, nie brak'); assert.ok(/^[−-]3,[23]$/.test(prd367.sp(A.prdEu(-3.25))), 'ujemna cena z minusem');
+  const E = prd367.full('pl', {file: {v: 1, at: '2026-10-13T12:30:00Z', pl: {}, co2: {}, str: {}}}); assert.ok(!E.api.prdHas('pl') && !E.api.prdHas('co2') && !E.api.prdHas('str')); const he = E.api.prdBody();
+  assert.ok(!/NaN|undefined|null/.test(he), 'pusty plik: bez NaN'); assert.ok(prd367.tile(he, 'today').includes('class="na"') && prd367.tile(he, 'co2').includes('class="na"') && prd367.tile(he, 'mar').includes('class="na"'));
+});
+
+test('v367 (F5Z2): słownik — czysty JSON w 10 językach, te same klucze i miejsca na liczby, wszystkie klucze bloku istnieją, 15 nazw stref, bez nazw dostawców', () => {
+  const mm = [...html.matchAll(/^const (EXTRA\d+)=(\{"pl":\{"prd367\..*?\});\n/gm)]; assert.equal(mm.length, 1, 'jeden słownik v367, w jednej linii');
+  const n = mm[0][1], D = JSON.parse(mm[0][2].replace(/\\u/g, '\\u')); const LANGS = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(D), LANGS); const keys = Object.keys(D.pl); assert.ok(keys.length >= 60 && keys.every(k => k.startsWith('prd367.')));
+  for (const L of LANGS) {
+    assert.deepEqual(Object.keys(D[L]), keys, L + ': te same klucze');
+    for (const k of keys) {
+      const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(','); assert.equal(ph(D[L][k]), ph(D.pl[k]), `${L} ${k}: te same pola {x}`); assert.ok(!/[<>]/.test(D[L][k]), `${L} ${k}: bez znaczników HTML`);
+      assert.ok(D[L][k].trim().length > 0 && !/\b(PSE|Energy-?Charts|Fraunhofer|SMARD|Bundesnetzagentur|ENTSO-?E|EEX|TGE)\b/i.test(D[L][k]), `${L} ${k}: niepusty, bez nazw dostawców`);
+    }
+  }
+  assert.ok(D.pl['prd367.b'] !== D.en['prd367.b'] && D.de['prd367.k.mar'] !== D.en['prd367.k.mar'] && D.ja['prd367.read1'] !== D.en['prd367.read1'] && D.ru['prd367.s.day'] !== D.en['prd367.s.day'], 'prawdziwe tłumaczenia');
+  /* klucze użyte w kodzie bloku */
+  const used = new Set([...prd367.code.matchAll(/'(prd367\.[a-z0-9.]+)'/gi)].map(m => m[1]).filter(k => !k.endsWith('.')));
+  for (const k of used) assert.ok(keys.includes(k), 'klucz użyty w kodzie, brak w słowniku: ' + k);
+  for (const id of ['today', 'tom', 'last', 'co2', 'mar']) assert.ok(keys.includes('prd367.k.' + id), id);
+  for (const z of ['PL', 'DE-LU', 'FR', 'NL', 'BE', 'AT', 'CH', 'CZ', 'HU', 'SI', 'IT-North', 'DK1', 'DK2', 'NO2', 'SE4']) assert.ok(keys.includes('prd367.z.' + z), z);
+  for (const p of ['pl', 'co2', 'str']) assert.ok(keys.includes('prd367.pt.' + p), p);
+  assert.ok(html.includes('/* v367 (F5Z2): prąd i CO2 — ceny w Polsce (dziś i jutro), w 15 strefach Europy, uprawnienia do emisji (GLOBAL › Surowce) — 10 języków */\nconst ' + n + '='), 'komentarz i czysty JSON w jednej linii');
+  assert.ok(html.includes(`for(const l in ${n})if(I18N[l])Object.assign(I18N[l],${n}[l]);\n`) && html.indexOf('const ' + n + '=') < html.indexOf(`for(const l in ${n})`), 'linia for po słowniku');
+  const m = mm[0][0]; assert.ok(!/[\u200b-\u200f\u2060\ufeff\ufe0f\u00a0\u202f]/.test(m), 'znaki niewidoczne tylko jako ucieczki');
+  /* język bez tłumaczenia schodzi do angielskiego, nie do surowego klucza; każdy język renderuje blok bez NaN */
+  for (const L of LANGS) { const K = prd367.full(L), hh = K.api.prdBody(); assert.ok(!/prd367\./.test(hh) && !/NaN|undefined/.test(hh), L + ': blok bez surowych kluczy i NaN'); }
+  const ja = prd367.full('ja').api.prdBody(); assert.ok(ja.includes('PLN/MWh') && ja.includes('€/t'));
 });

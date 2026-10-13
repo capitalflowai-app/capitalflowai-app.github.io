@@ -31448,6 +31448,20 @@ def main():
         save('surowce-dziennik', _SUT_LOG[1])
     elif _sut_valid(_SUT_LOG[0]):                                 # blok bez dziennika w tym przebiegu (awaria trendów): poprzedni bez zmian
         save('surowce-dziennik', _SUT_LOG[0])
+    # v367 (F5Z2): PRĄD I CO2 (data/prad.json; dział SUROWCE, blok „Prąd i CO2”) — Polska: cena energii w 96 kwadransach dziś i jutro, cena uprawnień do emisji CO2 oraz ceny
+    # dnia następnego w 15 strefach Europy (jedno zapytanie na przebieg — limit źródła); części z własnymi bramkami wg terminów publikacji i budżetem czasu; awaria
+    # budowniczego = poprzedni plik. META ok: prad_pl, prad_co2, prad_str (dwa nowe źródła: operator sieci przesyłowej i interfejs danych o energii).
+    prev_pr = previous('prad')
+    try:
+        pr_ = build_prad(prev_pr, run_t0=_RUN_T0[0])
+        save('prad', pr_)
+        META['ok']['prad_pl'] = pr_['ok']['pl']
+        META['ok']['prad_co2'] = pr_['ok']['co2']
+        META['ok']['prad_str'] = pr_['ok']['str']
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'surowce (prąd i CO2): {e}')[:200]); META['ok']['prad'] = False
+        if prev_pr:
+            save('prad', prev_pr)
     META['czas'] = czas_przebiegu(_CZAS, time.monotonic() - _RUN_T0[0])   # v185: cały przebieg i 5 najdłuższych części
     if META['czas']['s'] > CZAS_UWAGA_S:
         META['notes'].append(f"przebieg automatu trwał {META['czas']['s'] / 60:.1f} min — blisko limitu zadania (25 min); najdłużej: "
@@ -33584,6 +33598,426 @@ def build_koniunktura(prev=None, today=None):
                 out['c'][k] = pc[k]; out['part_at'][k] = pat.get(k) or prev.get('at')
     if not any(out['ok'].values()):
         raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+# ===================== v367 (F5Z2): PRĄD I CO2 — data/prad.json (dział SUROWCE, blok „Prąd i CO2”) =====================
+# Osobny plik i osobny budowniczy (surowce.json, polska.json i lng.json bez zmian). Trzy części, każda z part_at / ok / err / next jak w lng.json:
+#   pl   — Polska: rynkowa cena energii (RCE) w 96 kwadransach doby, w zł/MWh, DZIŚ i JUTRO (jutro — gdy opublikowane; operator sieci publikuje je ok. 13:45
+#          czasu polskiego, sprawdzone 13.10.2026: publikacja 13:58). Doba trwa 96 kwadransów, a w dniach zmiany czasu 92 albo 100: kwadrans numerowany od początku
+#          doby (nie od zegara), doba bez kompletu kwadransów (brak, dubel, luka, kwadrans poza dobą, liczba spoza zakresu) NIE wchodzi do pliku (nigdy suma
+#          częściowa). Ceny ujemne są dopuszczalne (nadmiar wiatru i słońca). Do tego historia średnich dobowych (hist, 60 dni, własna).
+#   co2  — cena uprawnień do emisji CO2 (EUA) z tego samego źródła: dzienna, w €/t i zł/t, 45 dni jednym zapytaniem.
+#   str  — ceny dnia następnego w 15 strefach cenowych Europy, w €/MWh: dla każdej strefy dzień dzisiejszy i jutrzejszy jako [średnia, minimum, maksimum,
+#          liczba okresów]. Źródło ma limit 2 zapytań na minutę na adres (adres maszyn GitHuba jest wspólny), więc JEDNO zapytanie na przebieg i jedna strefa:
+#          najpierw strefa bez dzisiejszego dnia, potem bez jutrzejszego (od 14:00 czasu polskiego), potem najstarsza z odświeżeniem co STR_ODSW_MIN min; 429
+#          albo błąd = notatka i wstrzymanie zapytań na STR_WSTRZYM_MIN min (bez ponawiania). Strefa tylko z licencją „CC BY” w odpowiedzi — inna = pominięta.
+# Kody źródeł (pole src) — pełne nazwy wyłącznie na stronie „Źródła”: pl i co2 — publiczny interfejs operatora polskiej sieci przesyłowej, str — publiczny
+# interfejs danych o energii (licencja CC BY 4.0, atrybucja w polu lic każdej strefy). Brak = None albo pominięcie, nigdy 0.
+# Marża elektrowni gazowej (model) jest liczona NA STRONIE z danych już pobieranych (cena prądu z tego pliku, TTF z surowce.json, CO2 z tego pliku); marży
+# elektrowni węglowej nie liczymy — dziennej ceny węgla w danych projektu nie ma (miesięczna cena z banku światowego jest stara o miesiąc).
+PRAD_V = 1
+PRAD_PARTS = ('pl', 'co2', 'str')
+PRAD_PSE = 'https://api.raporty.pse.pl/api/'
+PRAD_EC = 'https://api.energy-charts.info/price?bzn={z}&start={a}&end={b}'
+PRAD_STREFY = ('PL', 'DE-LU', 'FR', 'NL', 'BE', 'AT', 'CH', 'CZ', 'HU', 'SI', 'IT-North', 'DK1', 'DK2', 'NO2', 'SE4')
+PRAD_LIMIT_S = {'pl': 25, 'co2': 20, 'str': 30}
+PRAD_MAKS_B = {'pl': 600_000, 'co2': 200_000, 'str': 200_000}
+PRAD_BUDZET_S = 70
+PRAD_PRZEBIEG_MAX_S = 1200             # s: po tylu sekundach przebiegu części prądu nie są odpytywane (limit zadania 25 min)
+PRAD_PL_ZAKRES = (-2000.0, 20000.0)    # zł/MWh — wiarygodny zakres kwadransa (w danych: od ok. −200 do 1600)
+PRAD_STR_ZAKRES = (-1000.0, 5000.0)    # €/MWh
+PRAD_CO2_ZAKRES = (5.0, 500.0)         # €/t
+PRAD_PL_JUTRO_GODZ = (13, 45)          # czas polski: od tej godziny jutrzejsza doba powinna być opublikowana
+PRAD_STR_JUTRO_GODZ = (14, 0)          # czas polski: ceny dnia następnego w strefach (publikacja ok. 12:00–14:00 UTC)
+PRAD_PL_ODSW_MIN, PRAD_CO2_ODSW_MIN, PRAD_STR_ODSW_MIN = 180, 180, 180
+PRAD_PO_BLEDZIE_MIN = 8                # min między próbami tej samej części (przebiegi co ok. 10 min z rozrzutem)
+PRAD_STR_WSTRZYM_MIN = 30
+PRAD_STR_JUTRO_PONOW_MIN = 60          # strefa bez jutrzejszej doby po godzinie publikacji — ponowna próba najwcześniej po tylu minutach
+PRAD_HIST = 60                         # dni średnich dobowych Polski w pliku
+PRAD_CO2_DNI = 45
+PRAD_LICENCJA = 'CC BY'
+_PR_DZIEN = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+ZRODLA_META.update({'prad': ('pse', 'energy-charts'), 'prad_pl': 'pse', 'prad_co2': 'pse', 'prad_str': 'energy-charts'})   # v367: operator sieci (+1 źródło) i interfejs danych o energii (+1 źródło)
+
+
+class _PradPomin(Exception):
+    pass
+
+
+def _prad_liczba(v, zakres=None):
+    """Liczba skończona (nie bool) w zakresie albo None."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+        return None
+    if zakres and not (zakres[0] <= v <= zakres[1]):
+        return None
+    return float(v)
+
+
+def _prad_dzien(s):
+    try:
+        return datetime.date.fromisoformat(s) if isinstance(s, str) and _PR_DZIEN.match(s) else None
+    except ValueError:
+        return None
+
+
+def _prad_utc(txt):
+    """'RRRR-MM-DD GG:MM:SS[.ms]' (UTC) → chwila UTC albo None."""
+    try:
+        t = datetime.datetime.fromisoformat(str(txt).strip().replace('Z', '')[:19])
+        return t.replace(tzinfo=datetime.timezone.utc)
+    except ValueError:
+        return None
+
+
+def _prad_start(day):
+    """Początek doby polskiej (00:00 czasu polskiego) jako chwila UTC."""
+    return _pl_utc(day, 0)
+
+
+def _prad_okresow(day, krok_min=15):
+    """Liczba okresów w dobie polskiej day (96 kwadransów; 92 albo 100 w dniach zmiany czasu)."""
+    return round((_prad_start(day + datetime.timedelta(days=1)) - _prad_start(day)).total_seconds() / 60) // krok_min
+
+
+def parse_prad_pl(rows, dni):
+    """Wiersze rce-pln (lista słowników) → ({dzień: {'p': [zł/MWh co kwadrans], 'n', 'pub'}}, [notatki]). Dla każdej doby z dni: kwadransy numerowane od początku doby
+    (dtime_utc = KONIEC kwadransa), wszystkie muszą być liczbą w zakresie, bez dubli i bez luk; inaczej doba pominięta z notatką."""
+    wg, uw = {}, []
+    for r in rows:
+        if isinstance(r, dict) and _prad_dzien(r.get('business_date')):
+            wg.setdefault(r['business_date'], []).append(r)
+    out = {}
+    for d in dni:
+        ds = d.isoformat()
+        R = wg.get(ds)
+        if not R:
+            continue
+        n = _prad_okresow(d)
+        t0 = _prad_start(d)
+        p, pub, zle = [None] * n, [], None
+        for r in R:
+            te, v = _prad_utc(r.get('dtime_utc')), _prad_liczba(r.get('rce_pln'), PRAD_PL_ZAKRES)
+            if te is None or v is None:
+                zle = zle or 'wiersz bez czasu albo liczby w zakresie'; continue
+            k = round((te - t0).total_seconds() / 60) // 15 - 1
+            if not (0 <= k < n) or (te - t0).total_seconds() % 900:
+                zle = zle or f'kwadrans poza dobą ({r.get("dtime_utc")})'; continue
+            if p[k] is not None:
+                zle = zle or 'dubel kwadransa'; continue
+            p[k] = round(v, 2)
+            pt = _prad_utc(r.get('publication_ts_utc'))
+            if pt:
+                pub.append(pt)
+        if zle or any(x is None for x in p):
+            uw.append(f'pl {ds}: doba pominięta ({zle or str(sum(x is None for x in p)) + " z " + str(n) + " kwadransów bez wartości"})')
+            continue
+        out[ds] = {'p': p, 'n': n, 'pub': max(pub).strftime('%Y-%m-%dT%H:%M:%SZ') if pub else None}
+    return out, uw
+
+
+def parse_prad_co2(rows):
+    """Wiersze rcco2 → [[dzień, €/t, zł/t]] rosnąco po dniu (dubel dnia = ostatni; €/t w zakresie, zł/t liczba dodatnia albo None)."""
+    M = {}
+    for r in rows:
+        if not isinstance(r, dict) or not _prad_dzien(r.get('business_date')):
+            continue
+        e, z = _prad_liczba(r.get('rcco2_eur'), PRAD_CO2_ZAKRES), _prad_liczba(r.get('rcco2_pln'))
+        if e is None:
+            continue
+        M[r['business_date']] = [r['business_date'], round(e, 2), round(z, 2) if z is not None and z > 0 else None]
+    return [M[d] for d in sorted(M)]
+
+
+def parse_prad_str(j, dni):
+    """Odpowiedź ceny dnia następnego jednej strefy → ({dzień: [średnia, minimum, maksimum, liczba okresów]} dla dób z dni, [notatki]). Krok 15 albo 60 minut; doba musi
+    mieć komplet okresów z liczbą w zakresie (nie ma sumy częściowej); licencja musi zawierać „CC BY”."""
+    if not isinstance(j, dict) or not isinstance(j.get('unix_seconds'), list) or not isinstance(j.get('price'), list) or len(j['unix_seconds']) != len(j['price']):
+        raise RuntimeError('zły kształt odpowiedzi')
+    if PRAD_LICENCJA not in str(j.get('license_info') or ''):
+        raise RuntimeError('licencja inna niż CC BY — strefa pominięta')
+    if j.get('deprecated') is True:
+        raise RuntimeError('źródło oznacza serię jako wycofaną')
+    T = j['unix_seconds']
+    if len(T) < 2 or not all(isinstance(x, int) and not isinstance(x, bool) for x in T):
+        raise RuntimeError('brak znaczników czasu')
+    krok = min(b - a for a, b in zip(T, T[1:]))
+    if krok not in (900, 3600):
+        raise RuntimeError(f'nieznany krok serii ({krok} s)')
+    wg = {}
+    for ts, v in zip(T, j['price']):
+        u = datetime.datetime.fromtimestamp(ts, datetime.timezone.utc)
+        wg.setdefault(_pl_lok(u).date(), []).append(_prad_liczba(v, PRAD_STR_ZAKRES))
+    out, uw = {}, []
+    for d in dni:
+        V = wg.get(d)
+        if not V:
+            continue
+        n = _prad_okresow(d, krok // 60)
+        if len(V) != n or any(x is None for x in V):
+            uw.append(f'str {d.isoformat()}: doba pominięta ({len(V)} z {n} okresów, {sum(x is None for x in V)} bez wartości)')
+            continue
+        out[d.isoformat()] = [round(sum(V) / n, 2), round(min(V), 2), round(max(V), 2), n]
+    return out, uw
+
+
+def _prad_jutro_oczek(now, godz):
+    """Od kiedy (UTC) jutrzejsza doba powinna być już opublikowana: dziś o godz. czasu polskiego."""
+    return _pl_utc(_pl_lok(now).date(), godz[0], godz[1])
+
+
+def _prad_dzis(now):
+    return _pl_lok(now).date()
+
+
+def _prad_due_pl(z, prev, now):
+    """Czy pobrać część pl: brak pliku/dzisiejszej doby — zawsze (po błędzie najwcześniej po PRAD_PO_BLEDZIE_MIN); brak jutrzejszej po godzinie publikacji — co PRAD_PO_BLEDZIE_MIN
+    min do 17:00, potem co godzinę; poza tym co PRAD_PL_ODSW_MIN min (poprawki)."""
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    d = prev.get('d') if isinstance(prev, dict) and isinstance(prev.get('d'), dict) else {}
+    dzis = _prad_dzis(now)
+    if tr < PRAD_PO_BLEDZIE_MIN:
+        return False
+    if dzis.isoformat() not in d:
+        return True
+    if (dzis + datetime.timedelta(days=1)).isoformat() not in d and now >= _prad_jutro_oczek(now, PRAD_PL_JUTRO_GODZ):
+        return tr >= (PRAD_PO_BLEDZIE_MIN if _pl_lok(now).hour < 17 else 60)
+    return at >= PRAD_PL_ODSW_MIN
+
+
+def _prad_due_co2(z, prev, now):
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    if tr < PRAD_PO_BLEDZIE_MIN:
+        return False
+    return not (isinstance(prev, dict) and prev.get('d')) or at >= PRAD_CO2_ODSW_MIN
+
+
+def _prad_wybierz_strefe(prev_str, st, now):
+    """Strefa do odpytania w tym przebiegu albo None: najpierw bez dzisiejszej doby, potem bez jutrzejszej (po godzinie publikacji), potem najstarsza stan ≥ PRAD_STR_ODSW_MIN min;
+    wewnątrz grupy najdawniej próbowana. Co najwyżej jedna na przebieg i nie w czasie wstrzymania."""
+    h = _aw_t(st['hold']) if isinstance(st.get('hold'), str) else None
+    if h is not None and h > now:
+        return None
+    Z = prev_str.get('z') if isinstance(prev_str, dict) and isinstance(prev_str.get('z'), dict) else {}
+    dzis = _prad_dzis(now).isoformat()
+    jutro = (_prad_dzis(now) + datetime.timedelta(days=1)).isoformat()
+    jutro_ocz = now >= _prad_jutro_oczek(now, PRAD_STR_JUTRO_GODZ)
+    kand = []
+    for z in PRAD_STREFY:
+        e = Z.get(z) if isinstance(Z.get(z), dict) else {}
+        d = e.get('d') if isinstance(e.get('d'), dict) else {}
+        tr = _su_min(now, (st.get('try') or {}).get(z)) if isinstance(st.get('try'), dict) else float('inf')
+        if tr < PRAD_PO_BLEDZIE_MIN * 3:
+            continue
+        at = _su_min(now, e.get('at'))
+        if dzis not in d:
+            kl = 0
+        elif jutro_ocz and jutro not in d:
+            if tr < PRAD_STR_JUTRO_PONOW_MIN:   # strefa, która nie publikuje doby następnej (część stref później albo wcale), nie zajmuje wszystkich zapytań
+                continue
+            kl = 1
+        elif at >= PRAD_STR_ODSW_MIN:
+            kl = 2
+        else:
+            continue
+        kand.append((kl, -min(tr, 1e9), PRAD_STREFY.index(z), z))
+    return min(kand)[3] if kand else None
+
+
+def _prad_pobierz(url, timeout, maks=None):
+    return _lng_pobierz(url, timeout, maks)
+
+
+def _prad_get(ctx, czesc, url):
+    lim = PRAD_LIMIT_S[czesc]
+    if ctx.get('t0') is not None and ctx.get('budzet') is not None:
+        left = ctx['budzet'] - (time.monotonic() - ctx['t0'])
+        if left < 5:
+            raise RuntimeError('budżet czasu budowniczego wyczerpany')
+        lim = min(lim, round(left, 1))
+    b = ctx['fetch'](url, lim, PRAD_MAKS_B[czesc])
+    if len(b) > PRAD_MAKS_B[czesc]:
+        raise RuntimeError(f'odpowiedź większa niż {PRAD_MAKS_B[czesc]} B (limit)')
+    return b
+
+
+def _prad_pse_wiersze(ctx, czesc, rep, filtr, ile):
+    """Wiersze value[] zapytania OData; następna strona (nextLink, tylko z tego samego interfejsu) tylko gdy wierszy jest za mało (≥ ile oczekiwanych)."""
+    url = PRAD_PSE + rep + '?%24filter=' + urllib.parse.quote(filtr, safe='')
+    rows = []
+    for _ in range(3):
+        j = json.loads(_prad_get(ctx, czesc, url))
+        if not isinstance(j, dict) or not isinstance(j.get('value'), list):
+            raise RuntimeError('zły kształt odpowiedzi')
+        rows += [r for r in j['value'] if isinstance(r, dict)]
+        nl = j.get('nextLink')
+        if len(rows) >= ile or not isinstance(nl, str) or not nl.startswith(PRAD_PSE):
+            break
+        url = nl
+    return rows
+
+
+def _prad_pobierz_pl(ctx):
+    now = ctx['now']
+    dzis = _prad_dzis(now)
+    dni = [dzis]
+    if now >= _prad_jutro_oczek(now, PRAD_PL_JUTRO_GODZ):
+        dni.append(dzis + datetime.timedelta(days=1))
+    prev = ctx['prev'].get('pl') if isinstance(ctx['prev'].get('pl'), dict) else {}
+    d = {k: v for k, v in (prev.get('d') or {}).items() if isinstance(v, dict) and k >= dzis.isoformat()} if isinstance(prev.get('d'), dict) else {}
+    nowe = {}
+    for dd in dni:
+        rows = _prad_pse_wiersze(ctx, 'pl', 'rce-pln', f"business_date eq '{dd.isoformat()}'", _prad_okresow(dd))
+        o, uw = parse_prad_pl(rows, [dd])
+        nowe.update(o)
+        ctx['uwagi'] += uw
+    if dzis.isoformat() not in nowe and dzis.isoformat() not in d:
+        raise RuntimeError('brak kompletnej dzisiejszej doby')
+    d.update(nowe)
+    hist = {r[0]: r[1] for r in (prev.get('hist') or []) if isinstance(r, list) and len(r) == 2 and _prad_dzien(r[0]) and _prad_liczba(r[1]) is not None}
+    for k, v in d.items():
+        hist[k] = round(sum(v['p']) / len(v['p']), 2)
+    hist = [[k, hist[k]] for k in sorted(hist)][-PRAD_HIST:]
+    part = {'asof': max(d), 'u': 'PLN/MWh', 'd': {k: d[k] for k in sorted(d)}, 'hist': hist}
+    ctx['parts']['pl'] = part
+    return part['asof']
+
+
+def _prad_pobierz_co2(ctx):
+    now = ctx['now']
+    od = (_prad_dzis(now) - datetime.timedelta(days=PRAD_CO2_DNI)).isoformat()
+    rows = _prad_pse_wiersze(ctx, 'co2', 'rcco2', f"business_date ge '{od}'", 10 ** 6)
+    L = parse_prad_co2(rows)
+    if not L:
+        raise RuntimeError('brak ceny CO2 w odpowiedzi')
+    part = {'asof': L[-1][0], 'u': 'EUR/t', 'd': L[-PRAD_CO2_DNI:]}
+    ctx['parts']['co2'] = part
+    return part['asof']
+
+
+def _prad_pobierz_str(ctx):
+    now = ctx['now']
+    prev = ctx['prev'].get('str') if isinstance(ctx['prev'].get('str'), dict) else {}
+    z = _prad_wybierz_strefe(prev, ctx['st'], now)
+    if z is None:
+        return None
+    ctx['st'].setdefault('try', {})[z] = now.replace(microsecond=0).isoformat()
+    dzis = _prad_dzis(now)
+    dni = [dzis, dzis + datetime.timedelta(days=1)]
+    try:
+        j = json.loads(_prad_get(ctx, 'str', PRAD_EC.format(z=urllib.parse.quote(z, safe=''), a=dni[0].isoformat(), b=dni[1].isoformat())))
+        d, uw = parse_prad_str(j, dni)
+    except urllib.error.HTTPError as e:
+        if e.code == 429:
+            ctx['st']['hold'] = (now + datetime.timedelta(minutes=PRAD_STR_WSTRZYM_MIN)).isoformat()
+            raise _PradPomin(f'strefa {z}: limit zapytań (429) — wstrzymanie {PRAD_STR_WSTRZYM_MIN} min') from None
+        raise RuntimeError(f'strefa {z}: HTTP {e.code}') from None
+    ctx['uwagi'] += uw
+    Z = {k: v for k, v in (prev.get('z') or {}).items() if k in PRAD_STREFY and isinstance(v, dict)} if isinstance(prev.get('z'), dict) else {}
+    stare = Z.get(z, {}).get('d') if isinstance(Z.get(z), dict) else None
+    if not d:
+        raise RuntimeError(f'strefa {z}: brak kompletnej doby w odpowiedzi')
+    zd = {k: v for k, v in (stare or {}).items() if isinstance(v, list) and k >= dzis.isoformat()} if isinstance(stare, dict) else {}
+    zd.update(d)
+    Z[z] = {'at': now.replace(microsecond=0).isoformat(), 'u': 'EUR/MWh', 'lic': 'CC BY 4.0', 'd': {k: zd[k] for k in sorted(zd)}}
+    for k, e in list(Z.items()):   # dni sprzed dziś znikają także w strefach, których dziś nie pytaliśmy
+        e['d'] = {dk: dv for dk, dv in e.get('d', {}).items() if dk >= dzis.isoformat()} if isinstance(e.get('d'), dict) else {}
+    dni_ = [k for e in Z.values() for k in e['d']]
+    part = {'asof': max(dni_) if dni_ else None, 'u': 'EUR/MWh', 'z': {k: Z[k] for k in PRAD_STREFY if k in Z}}
+    ctx['parts']['str'] = part
+    return part['asof']
+
+
+PRAD_POBIERZ = {'pl': _prad_pobierz_pl, 'co2': _prad_pobierz_co2, 'str': _prad_pobierz_str}
+
+
+def _prad_next(czesc, part, now):
+    """Najbliższa spodziewana zmiana (ISO, UTC); termin w przeszłości = zaległa."""
+    dzis = _prad_dzis(now)
+    if czesc == 'pl':
+        d = (part or {}).get('d') if isinstance(part, dict) else {}
+        if isinstance(d, dict) and (dzis + datetime.timedelta(days=1)).isoformat() not in d:
+            return _prad_jutro_oczek(now, PRAD_PL_JUTRO_GODZ).isoformat() if now < _prad_jutro_oczek(now, PRAD_PL_JUTRO_GODZ) else now.isoformat()
+        return _pl_utc(dzis + datetime.timedelta(days=1), PRAD_PL_JUTRO_GODZ[0], PRAD_PL_JUTRO_GODZ[1]).isoformat()
+    if czesc == 'co2':
+        return (now + datetime.timedelta(minutes=PRAD_CO2_ODSW_MIN)).isoformat()
+    return (now + datetime.timedelta(minutes=PRAD_PO_BLEDZIE_MIN)).isoformat()
+
+
+def build_prad(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
+    """v367: data/prad.json. Każda część z własną bramką (_prad_due_*), budżetem czasu i zamaskowanym błędem; część z błędem — poprzednia z datą (ok False), część bez próby —
+    'cached' (z danymi) albo False (jeszcze nie pobrana). Plik innej wersji = start od zera. Strefy: jedno zapytanie na przebieg (limit źródła)."""
+    now = now or _now_utc()
+    now_iso = now.replace(microsecond=0).isoformat()
+    prev = prev if isinstance(prev, dict) and prev.get('v') == PRAD_V else {}
+    st = json.loads(json.dumps(prev.get('st'))) if isinstance(prev.get('st'), dict) else {}
+    ctx = {'now': now, 'uwagi': [], 'parts': {}, 'prev': prev, 'st': st, 't0': time.monotonic(),
+           'budzet': PRAD_BUDZET_S if budzet_s is None else budzet_s,
+           'fetch': fetch or (lambda url, timeout, maks=None: _prad_pobierz(url, timeout, maks))}
+    late = run_t0 is not None and time.monotonic() - run_t0 > PRAD_PRZEBIEG_MAX_S   # tylko przebieg bliski limitu zadania; zwykle budżet czasu (PRAD_BUDZET_S) wystarcza
+    proby, zle, pominiete = {p: 0 for p in PRAD_PARTS}, {}, []
+    for p in PRAD_PARTS:
+        z = st.setdefault('cz', {}).setdefault(p, {})
+        if p == 'pl':
+            due = _prad_due_pl(z, prev.get('pl'), now)
+        elif p == 'co2':
+            due = _prad_due_co2(z, prev.get('co2'), now)
+        else:
+            due = _prad_wybierz_strefe(prev.get('str'), st, now) is not None
+        if not due:
+            continue
+        if late:
+            pominiete.append(f'{p} (długi przebieg)'); continue
+        if time.monotonic() - ctx['t0'] + PRAD_LIMIT_S[p] > ctx['budzet']:
+            pominiete.append(f'{p} (budżet czasu)'); continue
+        z['try'] = now_iso
+        proby[p] += 1
+        try:
+            asof = PRAD_POBIERZ[p](ctx)
+        except _PradPomin as e:   # limit zapytań źródła (429) to pominięcie, nie błąd części
+            ctx['uwagi'].append(str(e)); proby[p] -= 1
+            continue
+        except Exception as e:
+            msg = mask(f'{p}: {e}')[:160]
+            z['err'] = msg; zle.setdefault(p, []).append(msg)
+            continue
+        z['at'] = now_iso; z['asof'] = asof; z.pop('err', None)
+    out = {'v': PRAD_V, 'at': None, 'src': 'CapitalFlowAI — prąd i CO2 (kody źródeł z: pl, co2, str — pełne nazwy na stronie Źródła)'}
+    pat = dict(prev.get('part_at') or {}) if isinstance(prev.get('part_at'), dict) else {}
+    perr = dict(prev.get('err') or {}) if isinstance(prev.get('err'), dict) else {}
+    ok = {}
+    for p in PRAD_PARTS:
+        if p in ctx['parts']:
+            out[p] = ctx['parts'][p]
+            if proby[p]:
+                pat[p] = now_iso
+        elif isinstance(prev.get(p), dict):
+            out[p] = prev[p]
+        if zle.get(p):
+            ok[p] = False; perr[p] = '; '.join(zle[p])[:240]
+        elif proby[p]:
+            ok[p] = True; perr.pop(p, None)
+        else:
+            ok[p] = False if (perr.get(p) or not isinstance(out.get(p), dict)) else 'cached'
+            if not isinstance(out.get(p), dict) and p not in perr:
+                perr[p] = 'brak danych (źródło jeszcze nie pobrane)'
+    # dni sprzed dziś znikają z części pl także wtedy, gdy nie było próby
+    pl_ = out.get('pl')
+    if isinstance(pl_, dict) and isinstance(pl_.get('d'), dict):
+        dzis = _prad_dzis(now).isoformat()
+        d2 = {k: v for k, v in pl_['d'].items() if k >= dzis}
+        if d2 and d2 != pl_['d']:
+            out['pl'] = dict(pl_, d=d2, asof=max(d2))
+    out['part_at'] = {p: pat[p] for p in PRAD_PARTS if pat.get(p) and isinstance(out.get(p), dict)}
+    out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
+    out.update({'ok': ok, 'err': {p: perr[p] for p in PRAD_PARTS if perr.get(p)}, 'next': {p: _prad_next(p, out.get(p), now) for p in PRAD_PARTS}, 'st': st})
+    for x in ctx['uwagi']:
+        META['notes'].append(mask('prąd i CO2: ' + x)[:200])
+    for p in PRAD_PARTS:
+        for x in zle.get(p, []):
+            META['errors'].append(mask('surowce (prąd i CO2) ' + x)[:200])
+    if pominiete:
+        META['notes'].append('prąd i CO2: pominięte w tym przebiegu — ' + ', '.join(pominiete))
     return out
 
 

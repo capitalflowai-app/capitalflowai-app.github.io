@@ -8255,6 +8255,189 @@ def stopy_realne_kontrola(infl, kon, usam=None, stopy=None, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v367 (F5Z2): prąd i CO2 (data/prad.json) ----------------------------------------------------------------
+# Plik: pl (Polska: cena energii w kwadransach doby, dziś i jutro, zł/MWh), co2 (cena uprawnień do emisji, €/t i zł/t, dziennie także w weekendy), str (15 stref Europy:
+# dzień dzisiejszy i jutrzejszy jako [średnia, min, max, liczba okresów], €/MWh). Świeżość trzech części osobnymi wierszami (lista SWIEZOSC bez zmian), najwyżej ⚠️.
+# Progi (nagrania 13–14.10.2026; publikacje: jutrzejsza doba Polski 13.10 o 13:58 czasu polskiego, ceny CO2 co dzień także w sobotę i niedzielę 10–11.10):
+# * jutro w Polsce: dopiero po PRAD_K_JUTRO_UTC (15:00 UTC = 17:00 latem / 16:00 zimą w Polsce; publikacja ok. 13:45 czasu polskiego) — wcześniej brak jutrzejszej doby NIE jest uwagą;
+# * ceny ujemne są dozwolone (nadmiar wiatru i słońca) — tylko informacja o liczbie kwadransów; uwagą dopiero średnia doby poniżej −500 albo powyżej 3000 zł/MWh;
+# * CO2: dzień danych starszy niż 3 doby (dane powstają co dzień, także w weekend);
+# * strefy: mniej niż 10 z 15 stref z danymi odświeżonymi w ciągu 6 h albo — po 18:00 UTC — mniej niż 8 stref z jutrzejszą dobą (źródło publikuje dobę następną w strefach
+#   w różnych godzinach; 13.10 wieczorem część stref nie miała jeszcze doby następnej);
+# * RCE Polski a cena w strefie Polska ze źródła europejskiego (ta sama doba, po kursie z ceny CO2): ponad 5% różnicy = uwaga (13.10: 0,7%);
+# * RCE a indeks prądu z giełdy w polska.json (inny rynek): ponad 12% różnicy tej samej doby = uwaga (plan: 0,8% dla 11.10).
+# ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (liczba kwadransów ≠ n albo spoza 92/96/100, średnia dobowa w hist ≠ średnia z kwadransów ±0,01, asof ≠ najnowszy dzień,
+# dni nie rosną, minimum > średnia > maksimum w strefie, cena CO2 poza zakresem).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'prad')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['prad'] = 8 * 60   # plik zapisywany co przebieg; strefy odświeżane co ok. 10 min (jedna na przebieg), Polska i CO2 co 3 h — wiek dnia danych ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({k_: 'prąd i CO2 — część z błędem zostaje z datą (v367); wiek danych w wierszach świeżości' for k_ in ('prad', 'prad_pl', 'prad_co2', 'prad_str')})
+PRAD_K_JUTRO_UTC = 15          # godzina UTC, po której jutrzejsza doba Polski powinna być w pliku
+PRAD_K_STR_JUTRO_UTC = 18      # godzina UTC, po której co najmniej PRAD_K_STR_JUTRO stref powinno mieć jutrzejszą dobę
+PRAD_K_STR_JUTRO, PRAD_K_STR_SW, PRAD_K_STR_SW_H = 8, 10, 6
+PRAD_K_CO2_DNI = 3
+PRAD_K_ETYKIETA = {'pl': 'Prąd w Polsce: cena w kwadransach, dziś i jutro (dziennie)', 'co2': 'Prąd i CO2: cena uprawnień do emisji (dziennie, także w weekend)',
+                 'str': 'Prąd w Europie: ceny w 15 strefach (dziś i jutro)'}
+PRAD_K_RCE_STREFA, PRAD_K_RCE_TGE = 0.05, 0.12   # względna różnica RCE do strefy Polska / do indeksu giełdowego (tylko uwaga)
+PRAD_K_AVG_MIN, PRAD_K_AVG_MAX = -500.0, 3000.0  # zł/MWh — średnia doby (uwaga)
+
+
+def _prad_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))
+
+
+def _prad_k_dzien(s):
+    try:
+        return dt.date.fromisoformat(s) if isinstance(s, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', s) else None
+    except ValueError:
+        return None
+
+
+def _prad_k_dzis(now):
+    """Dzień polski dla 'now' bez bazy stref: UTC + 1 h (zima) albo 2 h (lato: od ostatniej niedzieli marca do ostatniej niedzieli października, 01:00 UTC)."""
+    def ost_nd(y, m):
+        d = dt.date(y, m, 31)
+        return d - dt.timedelta(days=(d.weekday() + 1) % 7)
+    a = dt.datetime.combine(ost_nd(now.year, 3), dt.time(1), dt.timezone.utc)
+    b = dt.datetime.combine(ost_nd(now.year, 10), dt.time(1), dt.timezone.utc)
+    return (now + dt.timedelta(hours=2 if a <= now < b else 1)).date()
+
+
+def prad_swiezosc(j, now=None):
+    """Wiersze świeżości trzech części pliku prad.json (etykieta, status, wiek min, data danych, uwaga). Najwyżej ⚠️; brak pliku albo inna wersja = brak wierszy; część bez dnia
+    danych — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    dzis = _prad_k_dzis(now)
+    jutro = dzis + dt.timedelta(days=1)
+    for p, label in PRAD_K_ETYKIETA.items():
+        e = j.get(p) if isinstance(j.get(p), dict) else {}
+        txt = e.get('asof')
+        if not txt:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        w = wiek_danych(str(txt), 'day', 'k', now)
+        if p == 'pl':
+            d = e.get('d') if isinstance(e.get('d'), dict) else {}
+            if dzis.isoformat() not in d:
+                st, note = '⚠️', f'brak dzisiejszej doby ({dzis.isoformat()}) — ostatnia {txt}; najwyżej uwaga'
+            elif jutro.isoformat() not in d and now.hour >= PRAD_K_JUTRO_UTC:
+                st, note = '⚠️', f'jutrzejsza doba ({jutro.isoformat()}) jeszcze nie opublikowana po godzinie publikacji (ok. 13:45 czasu polskiego; sprawdzenie po {PRAD_K_JUTRO_UTC}:00 UTC) — najwyżej uwaga'
+            else:
+                st, note = '✅', ''
+        elif p == 'co2':
+            st = '?' if w is None else ('⚠️' if w > PRAD_K_CO2_DNI * 1440 else '✅')
+            note = f'dzień danych starszy niż {PRAD_K_CO2_DNI} doby (źródło publikuje co dzień, także w weekend) — najwyżej uwaga' if st == '⚠️' else ''
+        else:
+            Z = e.get('z') if isinstance(e.get('z'), dict) else {}
+            sw = sum(1 for v in Z.values() if isinstance(v, dict) and isinstance(v.get('at'), str) and wiek_danych(v['at'], 'ts', 'k', now) is not None
+                     and wiek_danych(v['at'], 'ts', 'k', now) <= PRAD_K_STR_SW_H * 60)
+            zj = sum(1 for v in Z.values() if isinstance(v, dict) and isinstance(v.get('d'), dict) and jutro.isoformat() in v['d'])
+            zle = []
+            if sw < PRAD_K_STR_SW:
+                zle.append(f'tylko {sw} z 15 stref odświeżonych w ciągu {PRAD_K_STR_SW_H} h (próg {PRAD_K_STR_SW})')
+            if now.hour >= PRAD_K_STR_JUTRO_UTC and zj < PRAD_K_STR_JUTRO:
+                zle.append(f'jutrzejszą dobę ma {zj} z 15 stref po {PRAD_K_STR_JUTRO_UTC}:00 UTC (próg {PRAD_K_STR_JUTRO})')
+            st = '⚠️' if zle else '✅'
+            note = '; '.join(zle) + (' — najwyżej uwaga (limit zapytań źródła: jedna strefa na przebieg)' if zle else '')
+        rows.append((label, st, w, str(txt), note))
+    return rows
+
+
+def prad_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w prądzie i CO2) → lista opisów."""
+    zle = []
+    pl = j.get('pl') if isinstance(j.get('pl'), dict) else {}
+    d = pl.get('d') if isinstance(pl.get('d'), dict) else {}
+    hist = pl.get('hist') if isinstance(pl.get('hist'), list) else []
+    hd = {r[0]: r[1] for r in hist if isinstance(r, list) and len(r) == 2}
+    if pl and d and pl.get('asof') != max(d):
+        zle.append(f'pl: asof {pl.get("asof")} ≠ najnowszy dzień {max(d)}')
+    for k, v in d.items():
+        p = v.get('p') if isinstance(v, dict) else None
+        if _prad_k_dzien(k) is None or not isinstance(p, list) or v.get('n') != len(p) or len(p) not in (92, 96, 100) or not all(_prad_k_num(x) for x in p):
+            zle.append(f'pl {k}: liczba kwadransów ≠ n albo spoza 92/96/100 albo brak liczby'); continue
+        sr = sum(p) / len(p)
+        if k in hd and _prad_k_num(hd[k]) and abs(hd[k] - sr) > 0.011:
+            zle.append(f'pl {k}: średnia dobowa w hist {hd[k]} ≠ średnia z kwadransów {sr:.2f}')
+    ds = [r[0] for r in hist if isinstance(r, list) and r]
+    if ds != sorted(set(ds)):
+        zle.append('pl: hist — dni nie rosną')
+    c = j.get('co2') if isinstance(j.get('co2'), dict) else {}
+    cd = c.get('d') if isinstance(c.get('d'), list) else []
+    dd = [r[0] for r in cd if isinstance(r, list) and r]
+    if dd != sorted(set(dd)) or (cd and c.get('asof') != dd[-1]):
+        zle.append('co2: dni nie rosną albo asof ≠ ostatni dzień')
+    for r in cd:
+        if not (isinstance(r, list) and len(r) == 3 and _prad_k_dzien(r[0]) and _prad_k_num(r[1]) and 5.0 <= r[1] <= 500.0 and (r[2] is None or (_prad_k_num(r[2]) and r[2] > 0))):
+            zle.append(f'co2 {r[0] if isinstance(r, list) and r else "?"}: zła pozycja'); break
+    s = j.get('str') if isinstance(j.get('str'), dict) else {}
+    for z, e in (s.get('z') or {}).items() if isinstance(s.get('z'), dict) else []:
+        for k, v in ((e.get('d') or {}) if isinstance(e, dict) and isinstance(e.get('d'), dict) else {}).items():
+            if not (isinstance(v, list) and len(v) == 4 and all(_prad_k_num(x) for x in v) and v[1] <= v[0] <= v[2] and v[3] in (23, 24, 25, 92, 96, 100) and _prad_k_dzien(k)):
+                zle.append(f'str {z} {k}: zła pozycja (średnia poza minimum–maksimum albo zła liczba okresów)')
+    return zle
+
+
+def prad_porownania(j, files, now=None):
+    """Tylko informacje i uwagi ⚠️ (nigdy ❌): ceny ujemne, średnia doby poza zakresem, RCE a strefa Polska, RCE a indeks giełdowy z polska.json. → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    now = now or NOW
+    out = {'wiersze': [], 'uwagi': []}
+    pl = j.get('pl') if isinstance(j.get('pl'), dict) else {}
+    d = pl.get('d') if isinstance(pl.get('d'), dict) else {}
+    c = j.get('co2') if isinstance(j.get('co2'), dict) else {}
+    kurs = {}
+    for r in (c.get('d') or []) if isinstance(c.get('d'), list) else []:
+        if isinstance(r, list) and len(r) == 3 and _prad_k_num(r[1]) and _prad_k_num(r[2]) and r[1] > 0 and r[2] > 0:
+            kurs[r[0]] = r[2] / r[1]
+    dzis = _prad_k_dzis(now).isoformat()
+    for k in sorted(d):
+        v = d[k]
+        p = v.get('p') if isinstance(v, dict) else None
+        if not (isinstance(p, list) and p and all(_prad_k_num(x) for x in p)):
+            continue
+        sr = sum(p) / len(p)
+        ujem = sum(1 for x in p if x < 0)
+        if k == dzis or k == max(d):
+            out['wiersze'].append((f'Polska {k}: średnia {sr:.1f} zł/MWh, minimum {min(p):.1f}, maksimum {max(p):.1f}; kwadransów z ceną ujemną: {ujem} (dozwolone — tylko informacja)', 'ℹ️'))
+        if not (PRAD_K_AVG_MIN <= sr <= PRAD_K_AVG_MAX):
+            out['wiersze'].append((f'Polska {k}: średnia doby {sr:.1f} zł/MWh poza zakresem [{PRAD_K_AVG_MIN:.0f}; {PRAD_K_AVG_MAX:.0f}]', '⚠️'))
+            out['uwagi'].append(f'Prąd w Polsce {k}: średnia doby {sr:.1f} zł/MWh poza zakresem [{PRAD_K_AVG_MIN:.0f}; {PRAD_K_AVG_MAX:.0f}] — sprawdź źródło')
+        # RCE wobec strefy Polska ze źródła europejskiego (ta sama doba, kurs z ceny CO2 tego dnia albo najbliższego wcześniejszego)
+        ec = ((((j.get('str') or {}).get('z') or {}).get('PL') or {}).get('d') or {}).get(k) if isinstance(j.get('str'), dict) and isinstance((j.get('str') or {}).get('z'), dict) else None
+        kr = kurs.get(k) or (kurs[max(x for x in kurs if x <= k)] if any(x <= k for x in kurs) else None)
+        if isinstance(ec, list) and len(ec) == 4 and _prad_k_num(ec[0]) and ec[0] > 0 and kr:
+            eur = sr / kr
+            roz = abs(eur - ec[0]) / ec[0]
+            ok = roz <= PRAD_K_RCE_STREFA
+            out['wiersze'].append((f'Polska {k}: RCE {eur:.1f} €/MWh (po kursie z ceny CO2) wobec strefy Polska {ec[0]:.1f} €/MWh — różnica {roz * 100:.1f}%', '✅' if ok else '⚠️'))
+            if not ok:
+                out['uwagi'].append(f'Prąd w Polsce {k}: RCE {eur:.1f} €/MWh a strefa Polska {ec[0]:.1f} €/MWh — różnica {roz * 100:.1f}% (próg {PRAD_K_RCE_STREFA * 100:.0f}%)')
+        # RCE wobec indeksu giełdowego (polska.json: energia.prad.d = [[dzień, zł/MWh]])
+        pj = files.get('polska') if isinstance(files, dict) else None
+        tge = ((((pj or {}).get('energia') or {}).get('prad') or {}).get('d')) if isinstance(pj, dict) and isinstance(pj.get('energia'), dict) else None
+        if isinstance(tge, list):
+            t = {r[0]: r[1] for r in tge if isinstance(r, list) and len(r) == 2 and _prad_k_num(r[1])}
+            if k in t and t[k] > 0:
+                roz = abs(sr - t[k]) / t[k]
+                ok = roz <= PRAD_K_RCE_TGE
+                out['wiersze'].append((f'Polska {k}: RCE {sr:.1f} zł/MWh wobec indeksu giełdowego {t[k]:.1f} zł/MWh (inny rynek) — różnica {roz * 100:.1f}%', '✅' if ok else '⚠️'))
+                if not ok:
+                    out['uwagi'].append(f'Prąd w Polsce {k}: RCE {sr:.1f} zł/MWh a indeks giełdowy {t[k]:.1f} zł/MWh — różnica {roz * 100:.1f}% (próg {PRAD_K_RCE_TGE * 100:.0f}%; inny rynek)')
+    return out
+
+
+def prad_kontrola(files, now=None):
+    """Kontrola pliku prad.json bez sieci: sprzeczności w pliku (❌ = BŁĄD, zapisuje je hook w kontrola()) i progi (najwyżej ⚠️). Brak pliku albo inna wersja = None (raport bez linii).
+    → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}"""
+    j = files.get('prad') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    P = prad_porownania(j, files, now)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': prad_spojnosc(j), 'wiersze': P['wiersze'], 'uwagi': P['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -8655,6 +8838,23 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['stopy-realne'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'inflacja i koniunktura (v366): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v367. prąd i CO2 (data/prad.json): świeżość trzech części osobnymi wierszami (lista SWIEZOSC bez zmian), sprzeczności w pliku (❌) i progi/porównania (najwyżej ⚠️) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in prad_swiezosc(files.get('prad')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_ = prad_kontrola(files)
+        if T_:
+            for z_ in T_['spojnosc'][:5]:
+                R['bledy'].append(f'prad.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_['uwagi']
+        R['zgodnosc']['prad'] = {k_: T_[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_ else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['prad'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'prąd i CO2 (v367): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -9287,6 +9487,11 @@ def raport_md(R):
             L.append('- Inflacja, koniunktura i stopy realne (z plików strony; inflacja USA a CPI-U z pliku usa-makro tylko informacyjnie): ' + (f'? kontrola przerwana ({sr_["blad"]})' if sr_.get('blad') else
                      ('niespójności w plikach: ' + '; '.join(sr_['spojnosc'][:3]) + ' ⚠\ufe0f · ' if sr_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in sr_.get('wiersze') or []) or '—') + '.')
+        prz = Z.get('prad')   # v367: prąd i CO2 — sprzeczności w pliku i porównania (RCE ze strefą Polska i indeksem giełdowym, ceny ujemne tylko informacją); brak pliku = bez linii
+        if prz:
+            L.append('- Prąd i CO2 (z pliku strony): ' + (f'? kontrola przerwana ({prz["blad"]})' if prz.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(prz['spojnosc'][:3]) + ' ❌ · ' if prz.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in prz.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else
