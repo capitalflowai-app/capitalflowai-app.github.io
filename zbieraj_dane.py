@@ -14417,7 +14417,7 @@ LEV_PX = {'hl': 'Hyperliquid', 'bn': 'Binance', 'dr': 'Deribit', 'okx': 'OKX', '
 LEV_HOURS = {'kr': 1, 'cb': 1, 'dy': 1}    # v109: okres finansowania wg dokumentacji giełd (godziny): Kraken, Coinbase i dYdX rozliczają co godzinę
 LEV_FMAX = 0.005                          # v109: |stawka godzinowa| ponad 0,5 % (4 380 % rocznie) = pomyłka jednostki → brak, nie liczba
 LEV_SUMAGE = 6 * 3600                     # v109: do sumy „wszystkie giełdy” wchodzą tylko wiersze młodsze niż 6 h
-LEV_LIVE = ['hl', 'okx', 'kr', 'cb', 'cde', 'dy']   # v345 (C-08): + Coinbase USA (cde) — do sumy „wszystkie giełdy razem” (strona liczy ten sam zestaw); część `cde` ma wiersz BTC/ETH jak inne giełdy
+LEV_LIVE = ['hl', 'okx', 'kr', 'cb', 'cde', 'dy', 'dr']   # v359 (CR-M11-03): + wieczysty Deribit (wiersz fut.perp; strona liczy ten sam zestaw); v345 (C-08): + Coinbase USA (cde) — do sumy „wszystkie giełdy razem” (strona liczy ten sam zestaw); część `cde` ma wiersz BTC/ETH jak inne giełdy
 LEV_PX['cde'] = 'Coinbase USA'    # v343 (F1Z3): osiem części — Coinbase USA (regulowany rynek kontraktów) obok wstrzymanego Coinbase International (cb zostaje: wznowienie handlu)
 DR_FUT_MIN_DNI = 7.0              # v343: krzywa terminowa tylko od 7 dni do rozliczenia — przy krótszych terminach basis w skali roku to szum
 DR_OPT_TERMS = 10                 # v343: najwyżej tyle terminów opcji w pliku (wszystkie miesięczne + najbliższe tygodniowe z dużymi pozycjami)
@@ -15171,6 +15171,16 @@ def lev_b3m(fut, day=None):
     return x['y'], x['d']
 
 
+def lev_dr_wiersz(co):
+    """v359 (CR-M11-03): wieczysty Deribit jako wiersz giełdy do sumy „wszystkie giełdy razem”: {'oi_usd', 't'} z fut.perp.oi_usd i czasu odczytu fut.t (opcje i kontrakty
+    z datą rozliczenia poza sumą); brak kontraktu wieczystego, liczby albo czasu → None."""
+    fu = co.get('fut') if isinstance(co, dict) else None
+    pp = fu.get('perp') if isinstance(fu, dict) else None
+    if not isinstance(pp, dict) or not isinstance(fu.get('t'), str):
+        return None
+    return {'oi_usd': pp.get('oi_usd'), 't': fu['t']}
+
+
 def lev_all(out, now=None):
     """Suma otwartych pozycji w USD z giełd z bieżącym stanem (wiersz młodszy niż LEV_SUMAGE wg własnego czasu `t`, a bez niego — czasu części);
     Binance poza sumą (plik z poprzedniego dnia). Na monetę: usd i posortowana lista giełd — historia porównuje dzień do dnia tylko ten sam zestaw.
@@ -15184,7 +15194,7 @@ def lev_all(out, now=None):
             P = out.get(k)
             if not isinstance(P, dict):
                 continue
-            r = (P.get('rows') or {}).get(c) if k == 'hl' else P.get(c)
+            r = (P.get('rows') or {}).get(c) if k == 'hl' else lev_dr_wiersz(P.get(c)) if k == 'dr' else P.get(c)   # v359: Deribit — tylko kontrakt wieczysty
             if not isinstance(r, dict):
                 continue
             v = r.get('oi_usd')

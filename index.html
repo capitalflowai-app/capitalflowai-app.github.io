@@ -1877,9 +1877,9 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
           <canvas id="c3d" tabindex="0" role="img" data-i18n-aria="scene.aria"></canvas>
           <div class="hint" id="hint" data-i18n="hint"></div>
           <div class="zoom">
-            <button id="z-in" data-i18n-aria="zoom.in">+</button>
-            <button id="z-out" data-i18n-aria="zoom.out">−</button>
-            <button id="z-reset" data-i18n-aria="zoom.reset">⟲</button>
+            <button id="z-in" data-i18n-aria="zoom.in" data-i18n-title="zoom.in">+</button>
+            <button id="z-out" data-i18n-aria="zoom.out" data-i18n-title="zoom.out">−</button>
+            <button id="z-reset" data-i18n-aria="zoom.reset" data-i18n-title="zoom.reset">⟲</button>
             <button id="z-full" data-i18n-aria="c10.full" data-i18n-title="c10.full" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path class="ic-open" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><path class="ic-close" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>
             <button id="z-t10" data-i18n-aria="c10.btn" data-i18n-title="c10.btn" aria-pressed="true"><span class="t10-ic" aria-hidden="true"><small>TOP</small>10</span></button>
           </div>
@@ -1994,10 +1994,10 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
       <div class="gstage">
         <canvas id="gmap" role="img" data-i18n-aria="g.aria"></canvas>
         <div class="zoom">
-          <button id="gz-in" data-i18n-aria="zoom.in">+</button>
-          <button id="gz-out" data-i18n-aria="zoom.out">−</button>
-          <button id="gz-reset" data-i18n-aria="zoom.reset">⟲</button>
-          <button id="gz-full" data-i18n-aria="zoom.full" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path class="ic-open" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><path class="ic-close" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>
+          <button id="gz-in" data-i18n-aria="zoom.in" data-i18n-title="zoom.in">+</button>
+          <button id="gz-out" data-i18n-aria="zoom.out" data-i18n-title="zoom.out">−</button>
+          <button id="gz-reset" data-i18n-aria="zoom.reset" data-i18n-title="zoom.reset">⟲</button>
+          <button id="gz-full" data-i18n-aria="zoom.full" data-i18n-title="zoom.full" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path class="ic-open" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><path class="ic-close" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>
         </div>
         <div class="hint" data-i18n="g.hint"></div>
         <div class="refresh" id="g-refresh"></div>
@@ -2782,6 +2782,9 @@ for(const l in EXTRA239)if(I18N[l])Object.assign(I18N[l],EXTRA239[l]);
 /* v358 (audyt G11): „Ostatnia aktualizacja” z dopiskiem, panel sald TARGET (wybrane kraje, pozostałe kraje) — 10 języków */
 const EXTRA240={"pl":{"upd.br":"odświeżono w przeglądarce","inst.tgb.sel":"Wybrane kraje; wszystkie kraje strefy euro są w karcie Europy na mapie GLOBAL.","inst.tgb.rest":"Pozostałe kraje ({n})"},"en":{"upd.br":"refreshed in your browser","inst.tgb.sel":"Selected countries; all euro-area countries are in the Europe card on the GLOBAL map.","inst.tgb.rest":"Other countries ({n})"},"de":{"upd.br":"im Browser aktualisiert","inst.tgb.sel":"Ausgewählte Länder; alle Euroländer stehen in der Europa-Karte auf der GLOBAL-Karte.","inst.tgb.rest":"Übrige Länder ({n})"},"es":{"upd.br":"actualizado en el navegador","inst.tgb.sel":"Países seleccionados; todos los países de la zona euro figuran en la ficha de Europa del mapa GLOBAL.","inst.tgb.rest":"Otros países ({n})"},"fr":{"upd.br":"actualisé dans le navigateur","inst.tgb.sel":"Pays choisis ; tous les pays de la zone euro figurent dans la fiche Europe de la carte GLOBAL.","inst.tgb.rest":"Autres pays ({n})"},"it":{"upd.br":"aggiornato nel browser","inst.tgb.sel":"Paesi selezionati; tutti i paesi dell’area euro sono nella scheda Europa della mappa GLOBALE.","inst.tgb.rest":"Altri paesi ({n})"},"pt":{"upd.br":"atualizado no navegador","inst.tgb.sel":"Países selecionados; todos os países da zona euro estão no cartão da Europa no mapa GLOBAL.","inst.tgb.rest":"Outros países ({n})"},"ru":{"upd.br":"обновлено в браузере","inst.tgb.sel":"Выбранные страны; все страны еврозоны — в карточке Европы на карте ГЛОБАЛ.","inst.tgb.rest":"Остальные страны ({n})"},"zh":{"upd.br":"在浏览器中刷新","inst.tgb.sel":"仅显示部分国家；欧元区全部国家见全球地图上的欧洲卡片。","inst.tgb.rest":"其他国家（{n}）"},"ja":{"upd.br":"ブラウザで更新","inst.tgb.sel":"一部の国のみ表示しています。ユーロ圏の全加盟国は、グローバル地図のヨーロッパのカードにあります。","inst.tgb.rest":"その他の国（{n}）"}};
 for(const l in EXTRA240)if(I18N[l])Object.assign(I18N[l],EXTRA240[l]);
+/* v359: poprawki audytu CRYPTO — nazwane giełdy w kaflu 24 h, różnica metod Hyperliquid, Deribit w sumie, powtórzenia w grupach, kraje MiCA — 10 języków */
+const EXTRA241={"pl":{"cr359.gx.dz1":"w sumie, mimo dużego przepływu względem salda: {l}","cr359.oi.not4":"Ta sama giełda może mieć tu inną liczbę niż w sekcji o dźwigni i pozycjach (np. Hyperliquid): tutaj liczy zbiorcze zestawienie protokołów, tam odczyt prosto z giełdy po cenie znacznikowej, a pokrycie rynków i sposób liczenia otwartej pozycji mogą się różnić. Nie łączymy tych liczb ani nie przeliczamy udziału z jednej na drugą.","cr359.lev.hl":"Te liczby pochodzą z odczytu rynków giełdy po cenie znacznikowej. Karta o kontraktach na łańcuchu podaje dla Hyperliquid inną kwotę, bo bierze ją ze zbiorczego zestawienia protokołów (inne pokrycie rynków i inny sposób liczenia pozycji) — nie łączymy obu liczb.","cr359.lev.dr":"Z Deribit do sumy wchodzi tylko kontrakt wieczysty; opcje i kontrakty terminowe z datą rozliczenia są poza sumą.","cr359.t10.dup":"moneta może należeć do kilku grup (np. HYPE do L1 i DeFi) — pola grup nie sumują się do rynku","cr359.mc.more":"Pozostałe kraje: {n}. Liczba firm w każdym z nich: {r}.","cr359.mc.zd":"Firmy bez prawidłowej daty zezwolenia ({n}) nie są na wykresie.","cr359.mc.emto":"Pozostałe: {o}."},"en":{"cr359.gx.dz1":"in the total despite a large flow relative to the balance: {l}","cr359.oi.not4":"The same exchange can show a different number here than in the section on leverage and positions (e.g. Hyperliquid): here it comes from an aggregated list of protocols, there from a direct reading of the exchange at the mark price, and market coverage and the way an open position is counted may differ. We do not combine these numbers or convert a share from one to the other.","cr359.lev.hl":"These figures are read from the exchange's markets at the mark price. The on-chain contracts card shows a different amount for Hyperliquid because it takes it from an aggregated list of protocols (different market coverage and way of counting positions) — we do not combine the two numbers.","cr359.lev.dr":"From Deribit only the perpetual contract is in the total; options and dated futures are left out.","cr359.t10.dup":"a coin can belong to several groups (e.g. HYPE to L1 and DeFi) — group areas do not add up to the market","cr359.mc.more":"Other countries: {n}. Number of firms in each: {r}.","cr359.mc.zd":"Firms without a valid authorisation date ({n}) are not on the chart.","cr359.mc.emto":"Other: {o}."},"de":{"cr359.gx.dz1":"in der Summe trotz großer Bewegung im Verhältnis zum Saldo: {l}","cr359.oi.not4":"Dieselbe Börse kann hier eine andere Zahl zeigen als im Abschnitt zu Hebel und Positionen (z. B. Hyperliquid): Hier stammt sie aus einer Sammelübersicht der Protokolle, dort aus dem direkten Abruf bei der Börse zum Markierungspreis; Marktabdeckung und Zählweise der offenen Position können abweichen. Wir verbinden diese Zahlen nicht und rechnen auch keinen Anteil von einer auf die andere um.","cr359.lev.hl":"Diese Zahlen stammen aus dem Abruf der Märkte der Börse zum Markierungspreis. Die Karte zu Kontrakten on-chain nennt für Hyperliquid einen anderen Betrag, weil sie ihn aus einer Sammelübersicht der Protokolle bezieht (andere Marktabdeckung und Zählweise der Positionen) – wir verbinden beide Zahlen nicht.","cr359.lev.dr":"Von Deribit fließt nur der ewige Kontrakt in die Summe ein; Optionen und Terminkontrakte mit Fälligkeit bleiben außen vor.","cr359.t10.dup":"eine Münze kann zu mehreren Gruppen gehören (z. B. HYPE zu L1 und DeFi) – die Gruppenflächen ergeben zusammen nicht den Markt","cr359.mc.more":"Weitere Länder: {n}. Zahl der Unternehmen in jedem: {r}.","cr359.mc.zd":"Unternehmen ohne gültiges Zulassungsdatum ({n}) sind im Diagramm nicht enthalten.","cr359.mc.emto":"Übrige: {o}."},"es":{"cr359.gx.dz1":"incluido en el total pese a un flujo grande en relación con el saldo: {l}","cr359.oi.not4":"La misma plataforma puede mostrar aquí una cifra distinta a la de la sección sobre apalancamiento y posiciones (p. ej. Hyperliquid): aquí procede de un resumen agregado de protocolos; allí, de la lectura directa de la plataforma al precio de referencia (mark); la cobertura de mercados y el criterio para contar la posición abierta pueden diferir. No combinamos estas cifras ni convertimos una cuota de una a otra.","cr359.lev.hl":"Estas cifras proceden de la lectura de los mercados de la plataforma al precio de referencia (mark). La tarjeta de contratos en la cadena muestra otra cantidad para Hyperliquid porque la toma de un resumen agregado de protocolos (otra cobertura de mercados y otro criterio de conteo de posiciones); no combinamos ambas cifras.","cr359.lev.dr":"De Deribit solo entra en la suma el contrato perpetuo; las opciones y los futuros con vencimiento quedan fuera.","cr359.t10.dup":"una moneda puede pertenecer a varios grupos (p. ej., HYPE a L1 y DeFi): las áreas de los grupos no suman el mercado","cr359.mc.more":"Otros países: {n}. Número de empresas en cada uno: {r}.","cr359.mc.zd":"Las empresas sin una fecha de autorización válida ({n}) no aparecen en el gráfico.","cr359.mc.emto":"Otros: {o}."},"fr":{"cr359.gx.dz1":"inclus dans le total malgré un flux important par rapport au solde : {l}","cr359.oi.not4":"La même plateforme peut afficher ici un chiffre différent de celui de la section sur l'effet de levier et les positions (p. ex. Hyperliquid) : ici il provient d'un relevé agrégé des protocoles, là d'une lecture directe de la plateforme au prix de marque ; la couverture des marchés et la façon de compter la position ouverte peuvent différer. Nous ne combinons pas ces chiffres et ne convertissons pas une part de l'un à l'autre.","cr359.lev.hl":"Ces chiffres proviennent de la lecture des marchés de la plateforme au prix de marque. La carte des contrats sur la chaîne indique un autre montant pour Hyperliquid, car elle le tire d'un relevé agrégé des protocoles (autre couverture des marchés et autre façon de compter les positions) ; nous ne combinons pas les deux chiffres.","cr359.lev.dr":"Pour Deribit, seul le contrat perpétuel entre dans la somme ; les options et les contrats à terme à échéance en sont exclus.","cr359.t10.dup":"une crypto peut appartenir à plusieurs groupes (p. ex. HYPE à L1 et DeFi) : les aires des groupes ne s'additionnent pas au marché","cr359.mc.more":"Autres pays : {n}. Nombre d'entreprises dans chacun : {r}.","cr359.mc.zd":"Les entreprises sans date d'agrément valide ({n}) ne figurent pas sur le graphique.","cr359.mc.emto":"Autres : {o}."},"it":{"cr359.gx.dz1":"incluso nel totale nonostante un flusso elevato rispetto al saldo: {l}","cr359.oi.not4":"Lo stesso exchange può mostrare qui un numero diverso da quello della sezione su leva e posizioni (ad es. Hyperliquid): qui deriva da un prospetto aggregato dei protocolli, lì da una lettura diretta dell'exchange al prezzo di riferimento (mark); la copertura dei mercati e il criterio di conteggio della posizione aperta possono differire. Non combiniamo questi numeri né convertiamo una quota dall'uno all'altro.","cr359.lev.hl":"Questi numeri derivano dalla lettura dei mercati dell'exchange al prezzo di riferimento (mark). La scheda dei contratti on-chain indica per Hyperliquid un importo diverso perché lo ricava da un prospetto aggregato dei protocolli (copertura dei mercati e criterio di conteggio delle posizioni diversi); non combiniamo i due numeri.","cr359.lev.dr":"Di Deribit entra nella somma solo il contratto perpetuo; opzioni e future con scadenza ne restano fuori.","cr359.t10.dup":"una moneta può appartenere a più gruppi (ad es. HYPE a L1 e DeFi): le aree dei gruppi non si sommano al mercato","cr359.mc.more":"Altri paesi: {n}. Numero di imprese in ciascuno: {r}.","cr359.mc.zd":"Le imprese senza una data di autorizzazione valida ({n}) non compaiono nel grafico.","cr359.mc.emto":"Altri: {o}."},"pt":{"cr359.gx.dz1":"incluído no total apesar de um fluxo grande em relação ao saldo: {l}","cr359.oi.not4":"A mesma corretora pode mostrar aqui um número diferente do da seção sobre alavancagem e posições (por exemplo, Hyperliquid): aqui vem de um resumo agregado de protocolos; lá, da leitura direta da corretora ao preço de referência (mark); a cobertura de mercados e o critério de contagem da posição em aberto podem diferir. Não combinamos esses números nem convertemos uma participação de um para o outro.","cr359.lev.hl":"Estes números vêm da leitura dos mercados da corretora ao preço de referência (mark). O cartão de contratos na cadeia mostra outro valor para a Hyperliquid porque o obtém de um resumo agregado de protocolos (outra cobertura de mercados e outro critério de contagem das posições); não combinamos os dois números.","cr359.lev.dr":"Da Deribit, entra na soma apenas o contrato perpétuo; opções e futuros com vencimento ficam de fora.","cr359.t10.dup":"uma moeda pode pertencer a vários grupos (por exemplo, HYPE a L1 e DeFi): as áreas dos grupos não somam o mercado","cr359.mc.more":"Outros países: {n}. Número de empresas em cada um: {r}.","cr359.mc.zd":"As empresas sem data de autorização válida ({n}) não aparecem no gráfico.","cr359.mc.emto":"Outros: {o}."},"ru":{"cr359.gx.dz1":"учтено в сумме, хотя поток велик относительно остатка: {l}","cr359.oi.not4":"Одна и та же биржа может показывать здесь другое число, чем в разделе о кредитном плече и позициях (например, Hyperliquid): здесь оно взято из сводной таблицы протоколов, там — прямым считыванием с биржи по маркировочной цене; охват рынков и способ подсчёта открытой позиции могут отличаться. Мы не объединяем эти числа и не пересчитываем долю с одного на другое.","cr359.lev.hl":"Эти числа получены считыванием рынков биржи по маркировочной цене. Карточка о контрактах в блокчейне показывает для Hyperliquid другую сумму, потому что берёт её из сводной таблицы протоколов (иной охват рынков и иной способ подсчёта позиций); мы не объединяем два числа.","cr359.lev.dr":"Из Deribit в сумму входит только бессрочный контракт; опционы и срочные фьючерсы не учитываются.","cr359.t10.dup":"монета может входить в несколько групп (например, HYPE — в L1 и DeFi): площади групп не складываются в весь рынок","cr359.mc.more":"Остальные страны: {n}. Число компаний в каждой: {r}.","cr359.mc.zd":"Компании без корректной даты разрешения ({n}) на графике не показаны.","cr359.mc.emto":"Прочие: {o}."},"zh":{"cr359.gx.dz1":"已计入合计，但其流量相对余额偏大：{l}","cr359.oi.not4":"同一家交易所在这里的数字可能与“杠杆与持仓”部分不同（例如 Hyperliquid）：这里来自协议的汇总统计，那里是按标记价格直接从交易所读取，市场覆盖范围和未平仓合约的统计口径也可能不同。我们不合并这些数字，也不把占比从一处换算到另一处。","cr359.lev.hl":"这些数字来自对交易所各市场按标记价格的直接读取。链上合约卡片中 Hyperliquid 的金额不同，因为它取自协议的汇总统计（市场覆盖范围和持仓统计口径不同）；我们不合并这两个数字。","cr359.lev.dr":"Deribit 只有永续合约计入合计；期权和有交割日的期货不计入。","cr359.t10.dup":"一种币可能属于多个分组（例如 HYPE 同时属于 L1 和 DeFi）——各组面积之和不等于整个市场","cr359.mc.more":"其余国家：{n} 个。每个国家的企业数：{r}。","cr359.mc.zd":"没有有效授权日期的企业（{n} 家）不在图表中。","cr359.mc.emto":"其他：{o}。"},"ja":{"cr359.gx.dz1":"残高に対して大きな動きがあるものの合計に含む：{l}","cr359.oi.not4":"同じ取引所でも、ここの数字はレバレッジとポジションの項目（例：Hyperliquid）と異なる場合があります。ここはプロトコルの集計一覧、そちらは取引所から直接取得しマーク価格で評価した値で、対象市場や未決済ポジションの数え方が違うことがあります。これらの数字は合算せず、シェアの換算もしません。","cr359.lev.hl":"これらの数字は、取引所の各市場をマーク価格で直接読み取ったものです。オンチェーン契約のカードでHyperliquidの金額が異なるのは、プロトコルの集計一覧から取っているためです（対象市場やポジションの数え方が違います）。2つの数字は合算しません。","cr359.lev.dr":"Deribitは無期限契約のみ合計に含め、オプションと期限付き先物は含めません。","cr359.t10.dup":"1つのコインが複数のグループに属することがあります（例：HYPEはL1とDeFi）。グループの面積を足しても市場全体にはなりません","cr359.mc.more":"その他の国：{n}か国。各国の企業数：{r}。","cr359.mc.zd":"有効な認可日がない企業（{n}社）はグラフに含まれていません。","cr359.mc.emto":"その他：{o}。"}};
+for(const l in EXTRA241)if(I18N[l])Object.assign(I18N[l],EXTRA241[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -7323,8 +7326,8 @@ function stcPanel(S,H){const g=v=>(typeof v==='number'&&isFinite(v))?v:null,mld=
   const tone=v=>v==null?'':v>0?'pos':v<0?'neg':'eq',rowC=(x,cls)=>cls?x.replace('</span><b',`</span><b class="${cls}"`):x;   /* v322: zero żółte */
   let h=`<div class="etfh"><div><h2>${t(R0?'stc.t':'stc.t0')}</h2><p class="pnote">${t(R0?'stc.sub':'stc.sub0')}</p></div><div class="etfb"><span class="live on"><i></i>${t('inst.file',{t:engDate(KR.data&&KR.data.at)})}</span></div></div>`;
   const ft=(v,k)=>v==null?'':(sumS||hz(k)==null?nowF:hzF(k));   /* v315: podpis okna zmiany w nagłówku — suma sieci do chwili pobrania, historia z pełnych dób */
-  h+=`<div class="etfkpis">`+instRow(sc+t('stc.k.tot'),lvl(g(cur)),'',asof?t('stc.day',{d:instFoot(asof)}):'')+rowC(instRow(t('stc.k.d7'),mld(g(d7)),'',ft(g(d7),'7')),tone(g(d7)))+rowC(instRow(t('stc.k.d30'),mld(g(d30)),'',ft(g(d30),'30')),tone(g(d30)))+`</div>`;
-  if(sumS&&hOk)h+=`<div class="etfkpis">`+instRow(sc+t('a293c.stc.k.all'),lvl(H.cur),'',typeof H.asof==='string'&&H.asof?t('stc.day',{d:instFoot(H.asof)}):'')+rowC(instRow(t('stc.k.d7'),mld(hz('7')),'',hz('7')==null?'':hzF('7')),tone(hz('7')))+rowC(instRow(t('stc.k.d30'),mld(hz('30')),'',hz('30')==null?'':hzF('30')),tone(hz('30')))+`</div><p class="pnote">${t(P?'a293c.stc.diff':'dr318.stc.diff0')}</p>`;   /* v293c (CR-04): cała podaż (z nowymi monetami) osobno, z objaśnieniem różnicy; v315 (TR7-2): zmiany z pełnych dób, z podpisem okna; v318: zdanie o pełnych dobach tylko przy polu pelne */
+  h+=`<div class="etfkpis">`+instRow(sc+t('stc.k.tot'),lvl(g(cur)),'',asof?t('stc.day',{d:(typeof instFootL==='function'?instFootL:instFoot)(asof)}):'')+rowC(instRow(t('stc.k.d7'),mld(g(d7)),'',ft(g(d7),'7')),tone(g(d7)))+rowC(instRow(t('stc.k.d30'),mld(g(d30)),'',ft(g(d30),'30')),tone(g(d30)))+`</div>`;
+  if(sumS&&hOk)h+=`<div class="etfkpis">`+instRow(sc+t('a293c.stc.k.all'),lvl(H.cur),'',typeof H.asof==='string'&&H.asof?t('stc.day',{d:(typeof instFootL==='function'?instFootL:instFoot)(H.asof)}):'')+rowC(instRow(t('stc.k.d7'),mld(hz('7')),'',hz('7')==null?'':hzF('7')),tone(hz('7')))+rowC(instRow(t('stc.k.d30'),mld(hz('30')),'',hz('30')==null?'':hzF('30')),tone(hz('30')))+`</div><p class="pnote">${t(P?'a293c.stc.diff':'dr318.stc.diff0')}</p>`;   /* v293c (CR-04): cała podaż (z nowymi monetami) osobno, z objaśnieniem różnicy; v315 (TR7-2): zmiany z pełnych dób, z podpisem okna; v318: zdanie o pełnych dobach tylko przy polu pelne */
   const R=S&&Array.isArray(S.rows)?S.rows.filter(r=>Array.isArray(r)&&typeof r[0]==='string'):[];
   if(R.length)h+=`<details class="etfd" open><summary><b>${t('stc.tab',{n:R.length,t:typeof S.n==='number'?engNum(S.n):'—'})}</b></summary><div class="list-wrap"><table class="etft"><thead><tr><th>${t('stc.c.chain')}</th><th>${t('stc.c.cur')}</th><th>${t('stc.c.d7')}</th><th>${t('stc.c.d30')}</th></tr></thead><tbody>${R.map(r=>
     `<tr><td><span class="cell">${ni(r[0])}${escH(r[0])}</span></td><td><span class="cell mono">${lvl(g(r[1]))}</span></td><td><span class="cell mono ${g(r[3])>0?'pos':g(r[3])<0?'neg':g(r[3])===0?'eq':''}">${mld(g(r[3]))}</span></td><td><span class="cell mono ${g(r[4])>0?'pos':g(r[4])<0?'neg':g(r[4])===0?'eq':''}">${mld(g(r[4]))}</span></td></tr>`).join('')}</tbody></table></div></details>`;
@@ -7834,7 +7837,7 @@ function cBal(){try{const el=$('#c-bal');if(!el)return;const L=[];
   const cbTone=v=>{const x=cftcS(v);return (typeof v==='number'&&isFinite(v))?`<span class="${v>0?'pos':v<0?'neg':'eq'}">${x}</span>`:x;};   /* v98.2: pozycja netto w kolorze (długie zielone, krótkie czerwone) — jak w GLOBAL; v322: zero żółte (dawniej bez koloru) */
   /* v96: logo przy każdej linii (ETF-y w USA, stablecoiny, BTC+ETH); bez pomocników v96 — bez ikon */
   const ok96=typeof icoWrap==='function'&&typeof coinImg==='function',ic=(...s)=>ok96?icoWrap(s.map(x=>coinImg(x,'sm')).join('')):'';
-  const ln=(k,v,cls,kind,d,extra,icon)=>`<p class="pnote" style="margin:6px 0 0">${icon||''}${t(k)}${typeof sepK==='function'?sepK():': '}<b class="${cls||''}">${v}</b><br><small class="mtxt">${t(kind)}${extra?' · '+extra:''}${d?' · '+instFoot(d):''}</small></p>`;
+  const ln=(k,v,cls,kind,d,extra,icon)=>`<p class="pnote" style="margin:6px 0 0">${icon||''}${t(k)}${typeof sepK==='function'?sepK():': '}<b class="${cls||''}">${v}</b><br><small class="mtxt">${t(kind)}${extra?' · '+extra:''}${d?' · '+(typeof instFootL==='function'?instFootL:instFoot)(d):''}</small></p>`;   /* v359 (CR-M11-10): dzień pomiaru w zapisie polskim */
   if(typeof ETF!=='undefined'&&ETF.data&&ETF.data.assets){const T=etfTotals(ETF.data);L.push(ln('cb.etf',etfM(T.m),etfCls(T.m)||(T.m===0?'eq':''),'cb.k.meas',ETF.data.asof,0,
     ok96&&typeof flagImg==='function'&&typeof glyphImg==='function'?icoWrap(flagImg('us','sm')+glyphImg('etf','sm')):''));}
   const H=krStabh(),P=H&&H.pelne&&typeof H.pelne==='object'&&/^\d{4}-\d{2}-\d{2}$/.test(String(H.pelne.do))&&H.pelne.d&&typeof H.pelne.d['30']==='number'&&isFinite(H.pelne.d['30'])?H.pelne:null,
@@ -10906,8 +10909,8 @@ function gxMag(a){if(!gxNum(a))return '—';a=Math.abs(a);
 const gxTone=v=>!gxNum(v)?'na':Math.abs(v)<GX_MIN?'neu':v>0?'pos':'neg';
 function gxSig(v,arrow){if(!gxNum(v))return '—';const tn=gxTone(v);if(tn==='neu')return (v===0?'0 ':'<1 ')+t('u.m');   /* v349b: różne od zera poniżej 0,5 mln = „<1 mln” (jak v336/v345), zero = „0” */return (arrow?(v>0?'▲ ':'▼ '):'')+(v>0?'+':'−')+gxMag(v);}
 /* zmiana w %: znak, 1 miejsce; zero po zaokrągleniu bez znaku; brak = „—” */
-function gxPct(v){if(!gxNum(v))return '—';const r=Math.round(v*10)/10;return r?(r>0?'+':'−')+nfmt(Math.abs(r),1)+'%':nfmt(0,1)+'%';}
-const gxPcTone=v=>{if(!gxNum(v))return 'na';const r=Math.round(v*10)/10;return r>0?'pos':r<0?'neg':'neu';};
+function gxPct(v){if(!gxNum(v))return '—';const r=Math.sign(v)*Math.round(Math.abs(v)*10)/10;return r?(r>0?'+':'−')+nfmt(Math.abs(r),1)+'%':nfmt(0,1)+'%';}
+const gxPcTone=v=>{if(!gxNum(v))return 'na';const r=Math.sign(v)*Math.round(Math.abs(v)*10)/10;return r>0?'pos':r<0?'neg':'neu';};
 function gxI(f,...a){try{const g={glyph:typeof glyphImg==='function'?glyphImg:null}[f];return g?g(...a):'';}catch(e){return '';}}
 function gxTile(label,val,cls,lines,when){return `<div class="etfk"><span>${escH(label)}</span><b${cls?` class="${cls}"`:''}>${val}${lines.filter(Boolean).map(l=>`<small${l.cls?` class="${l.cls}"`:''}>${l.txt}</small>`).join('')}</b><small class="mtxt">${when}</small></div>`;}
 /* poziomy słupek udziału: nazwa nad paskiem, wartość po prawej */
@@ -10921,13 +10924,18 @@ function gxSpark(P,fmt){
     +`<div class="gx-spl"><span>${escH(gxDayS(P[0][0]))}: ${fmt(P[0][1])}</span><span>${escH(gxDayS(P[n-1][0]))}: ${fmt(P[n-1][1])}</span></div>`;}
 /* ---------- A) giełdy scentralizowane ---------- */
 function gxRows(c){return (Array.isArray(c&&c.rows)?c.rows:[]).filter(r=>gxObj(r)&&typeof r.name==='string');}
+/* v359 (CR-M11-01, CR-M11-04): lista nazw: pierwsze n, reszta jako „+N” (zamiast cichego ucięcia) */
+function gxList(a,n){const sp=typeof sepL==='function'?sepL():', ';return a.slice(0,n).map(escH).join(sp)+(a.length>n?' +'+nfmt(a.length-n,0):'');}
 function gxCexOk(j){return !!(gxObj(j)&&j.v===1&&typeof j.at==='string'&&isFinite(Date.parse(j.at))&&gxObj(j.cex)&&gxObj(j.cex.razem)&&gxRows(j.cex).length>0&&gxIsDay(String(j.cex.src_at||'').slice(0,10)));}
 function gxCexTiles(c,old){
   const Z=c.razem,when=t('gx349.c.src',{t:gxWhen(c.src_at)}),bal=old?null:Z.bal;
   const gap={txt:t('eng.gap'),cls:'na'};
   const T=[gxTile(t('gx349.c.k.bal'),gxNum(bal)&&bal>0?gxMag(bal):'—',gxNum(bal)&&bal>0?'':'na',old?[{txt:t('gx349.old'),cls:'na'}]:[{txt:t('gx349.c.k.bal.n',{n:nfmt(Z.n_bal,0),m:nfmt(Z.n,0)})}],when)];
-  for(const p of GX.ok){const k=GX_PK[p],v=old?null:Z[k],wyl=Array.isArray(Z[GX_WYL[p]])?Z[GX_WYL[p]].length:0;
-    T.push(gxTile(t('gx349.c.k.f'+p),gxNum(v)?gxSig(v,true):'—',gxTone(v),gxNum(v)?[{txt:t('gx349.c.k.fn',{n:nfmt(Z['n_'+k],0)})},wyl?{txt:t('gx349.c.k.wyl',{n:nfmt(wyl,0)}),cls:'neu'}:null]:[old?{txt:t('gx349.old'),cls:'na'}:gap],when));}
+  for(const p of GX.ok){const k=GX_PK[p],v=old?null:Z[k],W=Array.isArray(Z[GX_WYL[p]])?Z[GX_WYL[p]]:[],wyl=W.length;
+    /* v359 (CR-M11-01): doba — wiersze z flagą dz = 1 (przepływ duży względem salda, lecz nie większy niż obrót) zostają w sumie: nazwane w kaflu; wykluczone (dz = 2) — nazwy w podpowiedzi liczby */
+    const big=p===1?gxRows(c).filter(r=>r.dz===1&&gxNum(r.in24)&&!W.includes(r.name)).sort((a,b)=>Math.abs(b.in24)-Math.abs(a.in24)).map(r=>r.name):[];
+    const wl=wyl?{txt:`<span title="${escH(W.filter(x=>typeof x==='string').join(typeof sepL==='function'?sepL():', '))}">${t('gx349.c.k.wyl',{n:nfmt(wyl,0)})}</span>`,cls:'neu'}:null;
+    T.push(gxTile(t('gx349.c.k.f'+p),gxNum(v)?gxSig(v,true):'—',gxTone(v),gxNum(v)?[{txt:t('gx349.c.k.fn',{n:nfmt(Z['n_'+k],0)})},wl,big.length?{txt:t('cr359.gx.dz1',{l:gxList(big,3)}),cls:'neu'}:null]:[old?{txt:t('gx349.old'),cls:'na'}:gap],when));}
   return T.join('');
 }
 /* wiersz giełdy: nazwa z saldem i obrotem spot, słupek rozbieżny (plus w prawo, minus w lewo; skala z giełd bez podejrzanego skoku), wartość wybranego okresu i dwa pozostałe */
@@ -10951,8 +10959,8 @@ function gxCexBody(D,old){
   const H=(Array.isArray(D.hist)?D.hist:[]).filter(r=>Array.isArray(r)&&gxIsDay(r[0])&&gxNum(r[1])&&r[1]>0).map(r=>[r[0],r[1]]);
   h+=H.length>=3?`<div class="gx-h"><b>${t('gx349.c.hist.h')}</b></div>${gxSpark(H,gxMag)}<p class="pnote">${t('gx349.c.hist.n',{d:gxDayTxt(H[0][0]),n:nfmt(H.length,0)})}</p>`
     :H.length?`<p class="pnote">${t('gx349.c.hist.wait',{d:gxDayTxt(H[0][0])})}</p>`:'';
-  const gap=gxRows(c).filter(r=>!(gxNum(r.bal)&&r.bal>0)&&gxNum(r.spot)).slice(0,6).map(r=>escH(r.name));
-  if(gap.length)h+=`<p class="pnote">${t('gx349.c.gap',{list:gap.join(typeof sepL==='function'?sepL():', ')})}</p>`;
+  const gap=gxRows(c).filter(r=>!(gxNum(r.bal)&&r.bal>0)&&gxNum(r.spot)).sort((a,b)=>b.spot-a.spot).map(r=>r.name);   /* v359 (CR-M11-04): wg obrotu spot malejąco, reszta jako „+N” */
+  if(gap.length)h+=`<p class="pnote">${t('gx349.c.gap',{list:gxList(gap,6)})}</p>`;
   return h;
 }
 function renderGxCex(){
@@ -11042,7 +11050,7 @@ function renderGxOi(){
   const open=typeof el.querySelectorAll==='function'?[...el.querySelectorAll('details')].map(x=>[x.id,!!x.open]).filter(x=>x[0]):[];
   el.innerHTML=`<div class="etfh"><div><h2>${icoWrap(gxI('glyph','chart','sm'))}${t('gx349.o.t')}</h2><p class="pnote">${t('gx349.o.sub')}</p></div><div class="etfb"><span class="live ${live?'on':'off'}"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`
     +gxOiBody(o)
-    +`<details class="etfd" id="gxo-not"><summary>${t('eng.notsays')}</summary>${[1,2,3].map(i=>`<p class="pnote">${t('gx349.o.not'+i)}</p>`).join('')}</details>`
+    +`<details class="etfd" id="gxo-not"><summary>${t('eng.notsays')}</summary>${[1,2,3].map(i=>`<p class="pnote">${t('gx349.o.not'+i)}</p>`).join('')}<p class="pnote">${t('cr359.oi.not4')}</p></details>`
     +`<p class="pfoot">${t('inst.file',{t:engDate(D.at)})} · ${t('gx349.o.foot')} ${t('eng.disclaimer')}</p>`;
   open.forEach(([id,x])=>{const e=el.querySelector('#'+id);if(e)e.open=x;});
   el.hidden=false;
@@ -11726,6 +11734,9 @@ const MC_ISO={AT:'AUT',BE:'BEL',BG:'BGR',CY:'CYP',CZ:'CZE',DE:'DEU',DK:'DNK',EE:
 const mcPart=(j,k)=>gxObj(j&&j[k])&&gxNum(j[k].n)&&j[k].n>0&&Array.isArray(j[k].kraje)&&j[k].kraje.some(r=>Array.isArray(r)&&typeof r[0]==='string'&&gxNum(r[1]));
 function mcOk(j){return !!(gxObj(j)&&j.v===1&&typeof j.at==='string'&&isFinite(Date.parse(j.at))&&(mcPart(j,'casp')||mcPart(j,'emt')));}
 const mcKr=P=>P.kraje.filter(r=>Array.isArray(r)&&typeof r[0]==='string'&&gxNum(r[1])&&r[1]>0);
+/* v359 (CR-M11-06): pierwsze n krajów plus kraje z remisem na granicy (nie ucinamy remisu jak rankingu; gdy remis dodałby ponad 10 wierszy — samo n); reszta ma linię z liczbą krajów i zakresem */
+function mcCut(K,n){if(K.length<=n)return K;const lim=K[n-1][1],V=K.filter((r,i)=>i<n||r[1]===lim);return V.length<=n+10?V:K.slice(0,n);}
+function mcRest(K,n){const R=K.slice(mcCut(K,n).length);if(!R.length)return '';const a=Math.max(...R.map(r=>r[1])),b=Math.min(...R.map(r=>r[1]));return `<p class="pnote">${t('cr359.mc.more',{n:nfmt(R.length,0),r:a===b?nfmt(a,0):nfmt(b,0)+'–'+nfmt(a,0)})}</p>`;}
 function mcCty(c){const i3=MC_ISO[c];return {fl:i3&&typeof gmFl==='function'?gmFl(i3):'',nm:escH(i3&&typeof bilCty==='function'?bilCty(i3):String(c))};}
 const mcPct=(a,b)=>{const p=a/b*100;return nfmt(p,p<10?1:0);};
 function mcMon(ym){return /^\d{4}-\d{2}$/.test(ym)?new Date(Date.UTC(+ym.slice(0,4),+ym.slice(5,7)-1,1)).toLocaleDateString(LOCALE[LANG]||'pl-PL',{month:'short',year:'numeric',timeZone:'UTC'}):'—';}
@@ -11744,9 +11755,9 @@ function mcCaspBody(C,when){
   if(gxNum(C.nowe30))T.push(gxTile(t('mc355.k.new'),C.nowe30>0?'+'+nfmt(C.nowe30,0):nfmt(0,0),C.nowe30>0?'pos':'neu',gxNum(C.nowe90)?[{txt:t('mc355.k.new90',{n:nfmt(C.nowe90,0)})}]:[],when));
   if(K.length){const c=mcCty(K[0][0]);T.push(gxTile(t('mc355.k.top'),c.fl+c.nm,'',[{txt:t('mc355.k.top.sub',{n:nfmt(K[0][1],0),p:mcPct(K[0][1],tot)})}],when));}
   let h=`<div class="etfkpis">${T.join('')}</div>`;
-  if(K.length>=3)h+=`<div class="gx-h"><b>${t('mc355.h.cty')}</b></div><div class="gxs">${K.slice(0,MC_TOP).map(r=>{const c=mcCty(r[0]);return gxShare(c.fl+c.nm,r[1]/mx*100,`${nfmt(r[1],0)} · ${mcPct(r[1],tot)}%`,'');}).join('')}</div>`;
+  if(K.length>=3)h+=`<div class="gx-h"><b>${t('mc355.h.cty')}</b></div><div class="gxs">${mcCut(K,MC_TOP).map(r=>{const c=mcCty(r[0]);return gxShare(c.fl+c.nm,r[1]/mx*100,`${nfmt(r[1],0)} · ${mcPct(r[1],tot)}%`,'');}).join('')}</div>${mcRest(K,MC_TOP)}`;
   const sp=mcSpark(C.seria);
-  if(sp)h+=`<div class="gx-h"><b>${t('mc355.h.seria')}</b></div>${sp}<p class="pnote">${t('mc355.seria.n')}</p>`;
+  if(sp)h+=`<div class="gx-h"><b>${t('mc355.h.seria')}</b></div>${sp}<p class="pnote">${t('mc355.seria.n')}${gxNum(C.zle_daty)&&C.zle_daty>0?' '+t('cr359.mc.zd',{n:nfmt(C.zle_daty,0)}):''}</p>`;
   const US=gxObj(C.uslugi)?[...MC_US].map(k=>[k,C.uslugi[k]]).filter(r=>gxNum(r[1])&&r[1]>0).sort((a,b)=>b[1]-a[1]):[];
   if(US.length>=3)h+=`<div class="gx-h"><b>${t('mc355.h.us')}</b></div><div class="gxs">${US.map(r=>gxShare(escH(t('mc355.s.'+r[0])),r[1]/C.n*100,`${nfmt(r[1],0)} · ${mcPct(r[1],C.n)}%`,'cur')).join('')}</div><p class="pnote">${t('mc355.us.n')}</p>`;
   return h;
@@ -11754,8 +11765,8 @@ function mcCaspBody(C,when){
 function mcEmtBody(E,when){
   const K=mcKr(E),mx=Math.max(1,...K.map(r=>r[1]));
   let h=`<div class="etfkpis">${gxTile(t('mc355.k.emt'),nfmt(E.n,0),'',[{txt:t('mc355.k.emt.sub',{k:nfmt(K.length,0),b:gxNum(E.ksiegi)?nfmt(E.ksiegi,0):'—'})}],when)}</div>`;
-  if(K.length>=2)h+=`<div class="gx-h"><b>${t('mc355.h.emt')}</b></div><div class="gxs">${K.slice(0,6).map(r=>{const c=mcCty(r[0]);return gxShare(c.fl+c.nm,r[1]/mx*100,nfmt(r[1],0),'oth');}).join('')}</div>`;
-  if(gxNum(E.kredytowe)&&gxNum(E.emi))h+=`<p class="pnote">${t('mc355.emt.n',{k:nfmt(E.kredytowe,0),e:nfmt(E.emi,0)})}</p>`;
+  if(K.length>=2)h+=`<div class="gx-h"><b>${t('mc355.h.emt')}</b></div><div class="gxs">${mcCut(K,6).map(r=>{const c=mcCty(r[0]);return gxShare(c.fl+c.nm,r[1]/mx*100,nfmt(r[1],0),'oth');}).join('')}</div>${mcRest(K,6)}`;
+  if(gxNum(E.kredytowe)&&gxNum(E.emi))h+=`<p class="pnote">${t('mc355.emt.n',{k:nfmt(E.kredytowe,0),e:nfmt(E.emi,0)})}${gxNum(E.n)&&E.n-E.kredytowe-E.emi>0?' '+t('cr359.mc.emto',{o:nfmt(E.n-E.kredytowe-E.emi,0)}):''}</p>`;
   return h;
 }
 function renderMica(){
@@ -13729,7 +13740,7 @@ arcLoad();arcAuto();try{new MutationObserver(()=>renderArc()).observe(document.d
    Nazwy giełd są przedmiotem danych (dozwolone); nazw dostawców tu nie ma. Część starsza niż LEV_MAXAGE — pomijana jak brak. */
 const LEV={data:null,timer:null};
 const LEV_MAXAGE=4*864e5,LEV_PARTS=['hl','bn','dr','okx','kr','cb','dy'],LEV_COINS=['BTC','ETH'];
-const LEV_LIVE=['hl','okx','kr','cb','cde','dy'],LEV_SUMAGE=6*3600e3,LEV_NAME={hl:'Hyperliquid',okx:'OKX',kr:'Kraken',cb:'Coinbase',cde:'Coinbase USA',dy:'dYdX',bn:'Binance'};   /* v345 (C-08): + Coinbase USA (cde, od v343 zastępca wstrzymanego „cb”) — wiersz z tabeli giełd jest też w sumie i średniej finansowania (te same pozycje wieczyste co u pozostałych giełd); zestaw giełd w historii zapisuje zbieracz (LEV_LIVE) */   /* v109: giełdy z bieżącym stanem — do sumy wchodzą wiersze młodsze niż 6 h; Binance (plik z poprzedniego dnia) poza sumą */
+const LEV_LIVE=['hl','okx','kr','cb','cde','dy','dr'],LEV_SUMAGE=6*3600e3,LEV_NAME={hl:'Hyperliquid',okx:'OKX',kr:'Kraken',cb:'Coinbase',cde:'Coinbase USA',dy:'dYdX',dr:'Deribit',bn:'Binance'};   /* v359 (CR-M11-03): + wieczysty Deribit (wiersz z fut.perp, levDrRow) — opcje i kontrakty z datą rozliczenia poza sumą; zestaw giełd w historii zapisuje zbieracz (LEV_LIVE) */   /* v345 (C-08): + Coinbase USA (cde, od v343 zastępca wstrzymanego „cb”) — wiersz z tabeli giełd jest też w sumie i średniej finansowania (te same pozycje wieczyste co u pozostałych giełd); zestaw giełd w historii zapisuje zbieracz (LEV_LIVE) */   /* v109: giełdy z bieżącym stanem — do sumy wchodzą wiersze młodsze niż 6 h; Binance (plik z poprzedniego dnia) poza sumą */
 const levNum=v=>typeof v==='number'&&isFinite(v);
 const levObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
 function levI(f,...a){try{const g={coin:typeof coinImg==='function'?coinImg:null,exch:typeof exchImg==='function'?exchImg:null,glyph:typeof glyphImg==='function'?glyphImg:null}[f];return g?g(...a):'';}catch(e){return '';}}   /* ikony tylko, gdy są pomocniki (testy uruchamiają blok bez nich) */
@@ -13756,11 +13767,13 @@ function levHist(key,days){
   if(!old||!(old[key]>0))return null;
   return {pct:(last[key]/old[key]-1)*100,n:Math.round((t0-Date.parse(old.d+'T00:00:00Z'))/864e5),d:old.d};   /* v334 (CR8-07): d — dzień wpisu-kotwicy (ostatni odczyt tej doby UTC) do podpisu */
 }
+/* v359 (CR-M11-03): wieczysty Deribit jako wiersz giełdy do sumy: oi_usd i f_y z fut.perp, czas odczytu fut.t; brak → null (opcje i kontrakty z datą rozliczenia poza sumą) */
+function levDrRow(c){const D=levPart('dr'),f=D&&levObj(D[c])&&levObj(D[c].fut)?D[c].fut:null,p=f&&levObj(f.perp)?f.perp:null;return p&&typeof f.t==='string'?{oi_usd:p.oi_usd,f_y:p.f_y,t:f.t}:null;}
 /* v109: wiersze monety z giełd z bieżącym stanem — wiersz młodszy niż 6 h wg własnego czasu (t) albo czasu części; brak liczby → null, nie zero */
 function levLive(c){
   const out=[];
   for(const k of LEV_LIVE){const P=levPart(k);if(!P)continue;
-    const r=k==='hl'?(levObj(P.rows)&&levObj(P.rows[c])?P.rows[c]:null):(levObj(P[c])?P[c]:null);if(!r)continue;
+    const r=k==='hl'?(levObj(P.rows)&&levObj(P.rows[c])?P.rows[c]:null):k==='dr'?levDrRow(c):(levObj(P[c])?P[c]:null);if(!r)continue;
     const at=k!=='hl'&&typeof r.t==='string'&&r.t?r.t:levAt(k),ms=Date.parse(at||'');
     if(!isFinite(ms)||Date.now()-ms>LEV_SUMAGE)continue;
     out.push({k,name:k==='cde'?t('f1z3.cde'):LEV_NAME[k],f_y:levNum(r.f_y)?r.f_y:null,oi_usd:levNum(r.oi_usd)&&r.oi_usd>0?r.oi_usd:null,at});}
@@ -13777,7 +13790,7 @@ function levHistAll(c,days,sum,ven){
 /* v109: wszystkie giełdy razem — suma otwartych pozycji w USD i stawka finansowania ważona pozycjami; podpis mówi, ile giełd i które (Binance poza sumą — dzień wcześniej);
    „—” z powodem, gdy żadna giełda nie ma stanu z ostatnich 6 h; data = najstarsze zdjęcie stanu wśród zsumowanych */
 function levAll(){
-  if(!LEV_LIVE.some(k=>levPart(k)))return '';
+  if(!LEV_LIVE.some(k=>k==='dr'?LEV_COINS.some(c=>levDrRow(c)):levPart(k)))return '';   /* v359: Deribit bez kontraktu wieczystego nie otwiera rzędu „razem” */
   const gl=levI('glyph','globe','sm'),fileWhen=levWhen(LEV.data.at),out=[];
   for(const c of LEV_COINS){const L=levLive(c).filter(r=>r.oi_usd!==null),ic=gl+levI('coin',c,'sm'),lb=t('lev.k.oiall',{c});
     if(!L.length){out.push(levGap(ic,lb,fileWhen,t('lev.nosum')));continue;}
@@ -13790,7 +13803,8 @@ function levAll(){
     if(!L.length){out.push(levGap(ic,lb,fileWhen,t('lev.nosum')));continue;}
     const w=L.reduce((a,r)=>a+r.oi_usd,0),avg=L.reduce((a,r)=>a+r.f_y*r.oi_usd,0)/w,names=L.map(r=>r.name).join((typeof sepL==='function'?sepL():', ')),oldest=L.map(r=>r.at).sort()[0];
     out.push(levTile(ic,lb,fPct(avg,1),levTone(avg,1),t('lev.wof',{n:L.length,v:names}),'',levWhen(oldest)));}
-  return `<h3 class="mtxt">${levIco(gl,levI('coin','BTC','sm'),levI('coin','ETH','sm'))}<b>${t('lev.h.all')}</b></h3><p class="pnote">${t('lev.all.sub')}</p><div class="etfkpis">${out.join('')}</div>`;
+  const drIn=LEV_COINS.some(c=>levLive(c).some(r=>r.k==='dr'&&r.oi_usd!==null));   /* v359 (CR-M11-03): zdanie o Deribit tylko, gdy wchodzi do sumy */
+  return `<h3 class="mtxt">${levIco(gl,levI('coin','BTC','sm'),levI('coin','ETH','sm'))}<b>${t('lev.h.all')}</b></h3><p class="pnote">${t('lev.all.sub')}</p>${drIn?`<p class="pnote">${t('cr359.lev.dr')}</p>`:''}<div class="etfkpis">${out.join('')}</div>`;
 }
 function levHl(){
   const H=levPart('hl'),R=H&&levObj(H.rows)?H.rows:null;if(!R)return '';
@@ -13804,7 +13818,7 @@ function levHl(){
       const parts=[h1,h7&&(!h1||h7.n!==h1.n)?h7:null].filter(Boolean).map(h=>`<span class="${levTone(h.pct,1)}">${t('c334.lev.vs',{d:levDay(h.d),v:fPct(h.pct,1)})}</span>`);   /* v345 (C-03): jak v334 w kaflu „razem” — wpis historii to ostatni odczyt doby UTC, więc „w 1 dn.” bywało 8 godzinami; podpis podaje dzień kotwicy */
       out.push(levTile(ic,lb,levMld(r.oi_usd),'',parts.length?parts.join('<br>'):t('lev.nohist'),'',when));}
     else out.push(levGap(ic,lb,when));}
-  return `<h3 class="mtxt">${levIco(hl,levI('coin','BTC','sm'),levI('coin','ETH','sm'))}<b>${t('lev.h.hl')}</b></h3><p class="pnote">${t('lev.hl.sub')}</p><div class="etfkpis">${out.join('')}</div>`;
+  return `<h3 class="mtxt">${levIco(hl,levI('coin','BTC','sm'),levI('coin','ETH','sm'))}<b>${t('lev.h.hl')}</b></h3><p class="pnote">${t('lev.hl.sub')}</p><p class="pnote">${t('cr359.lev.hl')}</p><div class="etfkpis">${out.join('')}</div>`;
 }
 function levBn(){
   const B=levPart('bn');if(!B||typeof B.day!=='string')return '';
@@ -14700,7 +14714,8 @@ function wkCT10(){
       return {l:escH(x.sym),lv:escH(t10Mc(x.mc).replace(/\s*USD$/,'')),v:x.mc,nm:x.name,id:x.id,cls:p===null?'na':wkTone(Math.round(p*10)/10),st:p===null?'':wkA(p,8),tip:x.name+' ('+x.sym+') · '+nm+wkK()+t10Mc(x.mc)+' · 24 h'+wkK()+(p===null?t('eng.gap'):wkPct(p))+wkAt(engDate(x.upd||D.at))};})};}).filter(g=>g.v>0);
   if(!G.length)return {s:t('wk.c.t10.s'),na:t('wk.na.none')};
   const n=new Set(G.flatMap(g=>g.kids.map(k=>k.id))).size,big=G.flatMap(g=>g.kids).sort((a,b)=>b.v-a.v)[0];
-  return {s:t('wk.c.t10.s')+' · '+t('a293c.wk.t10.rwa'),k:'p',d:t10When(D.at),ch:wkTree(G,{ar:1.6,aria:t('wk.c.t10.a',{n:nfmt(n,0),g:nfmt(G.length,0),a:big.nm})})};
+  const dup=G.reduce((a,g)=>a+g.kids.length,0)>n;   /* v359 (CR-M11-05): ta sama moneta w kilku grupach — pola grup liczą ją po razy */
+  return {s:t('wk.c.t10.s')+' · '+t('a293c.wk.t10.rwa')+(dup?' · '+t('cr359.t10.dup'):''),k:'p',d:t10When(D.at),ch:wkTree(G,{ar:1.6,aria:t('wk.c.t10.a',{n:nfmt(n,0),g:nfmt(G.length,0),a:big.nm})})};
 }
 /* CRYPTO 7: wieloryby — salda ogłoszonych portfeli giełd na Ethereum w USD (USDT, USDC i ETH po kursie z chwili odczytu); tylko tokeny,
    które giełda ma na liście (np. OKX — sam USDC). Giełda, której któregoś salda nie da się podać w USD (np. brak kursu ETH), nie ma sumy
@@ -14742,7 +14757,7 @@ function wkCPrm(){
   const ch=L.map((l,i)=>{const d=arcWin(l.d,PRM.per),p=d[d.length-1];if(p[0]>last)last=p[0];
     return `<div><p class="wk-sub"><i class="wk-sq ${i?'s2':'s1'}"></i>${escH(l.name)} · <b class="${prmToneN(p[1],l.cls==='l1'?PRM_NOISE_KR:PRM_NOISE)}">${escH(prmPct(p[1]))}</b></p>`+wkLines([{n:l.name,cls:i?'s2':'s1',d:d.map(x=>[wkMs(x[0]),x[1]])}],
       {fmt:x=>prmPct(x),dt:ms=>wkDay(ms,1),dx:ms=>wkDay(ms),aria:t('wk.c.prm.a',{l:l.name,v:prmPct(p[1]),d:wkDay(wkMs(p[0]),1),n:d.length})})+'</div>';}).join('');
-  return {s:t('wk.c.prm.s',{n:PRM.per}),k:'p',d:last?escH(last)+gAgeNote(last):'',ch:`<div class="wk-pair">${ch}</div>`};
+  return {s:t('wk.c.prm.s',{n:PRM.per}),k:'p',d:last?(typeof dayLoc==='function'?dayLoc(last):escH(last))+gAgeNote(last):''   /* v359 (CR-M11-10): „Dane: 13.10.2026”, nie „2026-10-13” */,ch:`<div class="wk-pair">${ch}</div>`};
 }
 /* v356: CRYPTO — trzy kafle paneli v349 (te same dane i reguły co karty #c-gieldy, #c-dex, #c-kontrakty; ładowanie i przerysowanie przez obserwator kafli na id karty) */
 /* CRYPTO 11: giełdy scentralizowane — przepływ netto 8 największych (wg salda) w oknie z przełącznika karty; plus = więcej wpłat niż wypłat. Giełda z flagą skoku listy portfeli

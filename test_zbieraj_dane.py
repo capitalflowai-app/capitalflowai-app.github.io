@@ -9977,7 +9977,7 @@ class DzwigniaV109(unittest.TestCase):
         self.assertEqual(o['ok'], {k: True for k in ('hl', 'bn', 'dr', 'okx', 'kr', 'cb', 'dy', 'cde')}); self.assertEqual(sorted(o['part_at']), sorted(zd.LEV_PX)); self.assertEqual(zd.META['errors'], [])   # v343 (F1Z3): + cde
         self.assertEqual(o['kr']['BTC']['sym'], 'PF_XBTUSD'); self.assertEqual(o['cb']['ETH']['oi'], 17069.0224); self.assertEqual(o['dy']['ETH']['f_hours'], 1); self.assertEqual(o['cb']['t'], zd.NOW)
         exp = round(37688.30372 * 83895.0) + 2395706136 + round(2175.3188 * 84005.90053859816) + round(1075.7102 * 84012.9) + round(190.2829 * 83979.10208)
-        self.assertEqual(o['hist'][-1]['all_btc'], exp + round(o['cde']['BTC']['oi_usd']), 'suma z sześciu giełd z bieżącym stanem (bez Binance; v345, C-08: + Coinbase USA)'); self.assertEqual(o['hist'][-1]['all_btc_v'], 'cb,cde,dy,hl,kr,okx'); self.assertIn('all_eth', o['hist'][-1])
+        self.assertEqual(o['hist'][-1]['all_btc'], exp + round(o['cde']['BTC']['oi_usd']) + round(o['dr']['BTC']['fut']['perp']['oi_usd']), 'suma z giełd z bieżącym stanem (bez Binance; v345: + Coinbase USA; v359: + wieczysty Deribit)'); self.assertEqual(o['hist'][-1]['all_btc_v'], 'cb,cde,dr,dy,hl,kr,okx'); self.assertIn('all_eth', o['hist'][-1])
         self.assertNotIn('all_btc', o['hist'][0], 'wiersz dnia pliku Binance bez sumy')
         # plik sprzed v109 (cztery części, młody — sprzed 3 h): dobierane tylko nowe części, zdrowe zostają z własnym czasem i wchodzą do sumy w historii
         t0 = (datetime.datetime.fromisoformat(zd.NOW) - datetime.timedelta(hours=3)).isoformat()
@@ -10036,8 +10036,8 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_page_and_constants(self):
         html = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html'), encoding='utf-8').read()
-        self.assertIn("LEV_PARTS=['hl','bn','dr','okx','kr','cb','dy']", html); self.assertIn("LEV_LIVE=['hl','okx','kr','cb','cde','dy'],LEV_SUMAGE=6*3600e3", html, 'v345 (C-08): + cde (Coinbase USA) w sumie'); self.assertIn('function levAll(){', html)
-        self.assertEqual(zd.LEV_LIVE, ['hl', 'okx', 'kr', 'cb', 'cde', 'dy'], 'v345 (C-08): + cde (Coinbase USA)'); self.assertEqual(zd.LEV_SUMAGE, 6 * 3600); self.assertEqual(zd.LEV_HOURS, {'kr': 1, 'cb': 1, 'dy': 1})
+        self.assertIn("LEV_PARTS=['hl','bn','dr','okx','kr','cb','dy']", html); self.assertIn("LEV_LIVE=['hl','okx','kr','cb','cde','dy", html, 'v345 (C-08): + cde (Coinbase USA) w sumie'); self.assertIn('function levAll(){', html)
+        self.assertEqual(zd.LEV_LIVE[:6], ['hl', 'okx', 'kr', 'cb', 'cde', 'dy'], 'v345 (C-08): + cde (Coinbase USA)'); self.assertEqual(zd.LEV_SUMAGE, 6 * 3600); self.assertEqual(zd.LEV_HOURS, {'kr': 1, 'cb': 1, 'dy': 1})
         self.assertEqual(sorted(zd.LEV_PX), ['bn', 'cb', 'cde', 'dr', 'dy', 'hl', 'kr', 'okx']); self.assertEqual(zd.LEV_TIMEOUT, 20)   # v343 (F1Z3): + cde (Coinbase USA)
 
 
@@ -45781,7 +45781,7 @@ class DzwigniaF1Z3(unittest.TestCase):
 
     def test_stale_ustawienia(self):
         self.assertEqual(sorted(zd.LEV_PX), ['bn', 'cb', 'cde', 'dr', 'dy', 'hl', 'kr', 'okx']); self.assertEqual(zd.LEV_PX['cde'], 'Coinbase USA')
-        self.assertEqual(zd.LEV_LIVE, ['hl', 'okx', 'kr', 'cb', 'cde', 'dy'], 'v345 (C-08): + cde (Coinbase USA)'); self.assertEqual((zd.DR_FUT_MIN_DNI, zd.DR_OPT_TERMS, zd.DR_OPT_WEEK_N, zd.CDE_PAGES, zd.CDE_MIN_OI_USD), (7.0, 10, 3, 2, 1e6))
+        self.assertEqual(zd.LEV_LIVE[:6], ['hl', 'okx', 'kr', 'cb', 'cde', 'dy'], 'v345 (C-08): + cde (Coinbase USA)'); self.assertEqual((zd.DR_FUT_MIN_DNI, zd.DR_OPT_TERMS, zd.DR_OPT_WEEK_N, zd.CDE_PAGES, zd.CDE_MIN_OI_USD), (7.0, 10, 3, 2, 1e6))
 
 
 class DzwigniaKontrolaF1Z3(unittest.TestCase):
@@ -46011,7 +46011,7 @@ class DzwigniaV345(unittest.TestCase):
                 'cde': {'BTC': {'oi_usd': 140803491.0, 't': cde_t or f}, 'ETH': {'oi_usd': 61191886.0, 't': cde_t or f}}}
 
     def test_lev_live_ma_coinbase_usa_wstrzymane_cb_odpada_samo(self):
-        self.assertEqual(zd.LEV_LIVE, ['hl', 'okx', 'kr', 'cb', 'cde', 'dy'])
+        self.assertEqual(zd.LEV_LIVE[:6], ['hl', 'okx', 'kr', 'cb', 'cde', 'dy'])
         r = zd.lev_all(self.out())
         self.assertEqual(r['BTC'], {'usd': 5140803491, 'v': 'cde,hl,okx'}, 'Coinbase USA w sumie; Coinbase International (stan PAUSED, czas sprzed 10 dni) odpada przez wiek')
         self.assertEqual(r['ETH'], {'usd': 3061191886, 'v': 'cde,hl,okx'})
@@ -48889,3 +48889,53 @@ class PlynnoscV357(unittest.TestCase):
         blk = src[a:b]
         self.assertNotIn("R['bledy']", blk); self.assertNotIn("'❌'", blk)   # najwyżej ⚠️
         self.assertLess(src.index("T_ = plynnosc_kontrola("), src.index('# 3d. v115: zgodność liczb'), 'przed zgodnością liczb')
+
+
+# ===================== v359: AUDYT CRYPTO m11 — WIECZYSTY DERIBIT W SUMIE „WSZYSTKIE GIEŁDY RAZEM” =====================
+class DzwigniaDeribitV359(unittest.TestCase):
+    """v359 (CR-M11-03): wieczysty Deribit (fut.perp: oi_usd, czas fut.t) wchodzi do sumy „wszystkie giełdy razem” i do zestawu giełd zapisanego w historii dziennej;
+    opcje i kontrakty z datą rozliczenia nie; wiersz starszy niż 6 h albo bez kontraktu wieczystego odpada jak każda giełda. Zegar przypięty."""
+
+    FRESH = '2026-10-13T16:12:16+00:00'
+
+    def setUp(self):
+        self.enterContext(mock.patch.object(zd, 'NOW', '2026-10-13T16:20:00+00:00'))
+
+    def out(self, dr_t=None, perp=True, eth_perp=True):
+        t = self.FRESH
+        fut_b = {'t': dr_t or t, 'perp': {'mark': 83414.94, 'oi_usd': 857142350.0, 'vol_usd': 2149611720.0, 'f8': 8.689e-05, 'f_y': 9.514}} if perp else {'t': dr_t or t, 'terms': []}
+        fut_e = {'t': dr_t or t, 'perp': {'oi_usd': 241618648.0, 'f_y': 3.2}} if eth_perp else {'t': dr_t or t}
+        return {'ok': {'hl': True, 'okx': True, 'dr': True}, 'part_at': {'hl': zd.NOW, 'okx': zd.NOW, 'dr': zd.NOW},
+                'hl': {'rows': {'BTC': {'oi_usd': 3e9, 'f_y': 1.0}, 'ETH': {'oi_usd': 2e9, 'f_y': 1.0}}},
+                'okx': {'BTC': {'oi_usd': 2e9, 't': t}, 'ETH': {'oi_usd': 1e9, 't': t}},
+                'dr': {'BTC': {'opt': {'oi': 1.0}, 'fut': fut_b}, 'ETH': {'opt': {'oi': 1.0}, 'fut': fut_e}}}
+
+    def test_zestaw_gield_ma_deribit_na_koncu_i_zgadza_sie_ze_strona(self):
+        import re
+        self.assertEqual(zd.LEV_LIVE[-1], 'dr')
+        self.assertEqual(zd.LEV_LIVE[:6], ['hl', 'okx', 'kr', 'cb', 'cde', 'dy'])
+        html = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html'), encoding='utf-8').read()
+        m = re.search(r"const LEV_LIVE=\[([^\]]*)\]", html)
+        self.assertEqual([x.strip().strip("'") for x in m.group(1).split(',')], zd.LEV_LIVE, 'zestaw strony = zestaw zbieracza (porównanie dzień do dnia)')
+        self.assertIn("dr:'Deribit'", html); self.assertIn('function levDrRow(c){', html)
+
+    def test_suma_liczy_tylko_kontrakt_wieczysty(self):
+        r = zd.lev_all(self.out())
+        self.assertEqual(r['BTC'], {'usd': 3000000000 + 2000000000 + 857142350, 'v': 'dr,hl,okx'}, 'BTC: Hyperliquid + OKX + wieczysty Deribit')
+        self.assertEqual(r['ETH'], {'usd': 2000000000 + 1000000000 + 241618648, 'v': 'dr,hl,okx'})
+        self.assertEqual(zd.lev_dr_wiersz({'opt': {'oi': 5}, 'fut': {'t': self.FRESH, 'perp': {'oi_usd': 7.0}, 'terms': [{'oi_usd': 1e12}]}}), {'oi_usd': 7.0, 't': self.FRESH}, 'terminy z datą nie wchodzą')
+
+    def test_brak_kontraktu_wieczystego_stary_wiersz_i_zero_odpadaja(self):
+        self.assertEqual(zd.lev_all(self.out(perp=False))['BTC'], {'usd': 5000000000, 'v': 'hl,okx'}, 'bez fut.perp — poza sumą')
+        self.assertEqual(zd.lev_all(self.out(eth_perp=False))['ETH'], {'usd': 3000000000, 'v': 'hl,okx'})
+        self.assertEqual(zd.lev_all(self.out(dr_t='2026-10-13T08:00:00+00:00'))['BTC'], {'usd': 5000000000, 'v': 'hl,okx'}, 'wiersz sprzed 8 h (> 6 h) — poza sumą')
+        o = self.out(); o['dr']['BTC']['fut']['perp']['oi_usd'] = 0
+        self.assertEqual(zd.lev_all(o)['BTC']['v'], 'hl,okx', 'zero to brak, nie składnik')
+        for zle in (None, 'x', {}, {'fut': None}, {'fut': {'t': self.FRESH}}, {'fut': {'perp': {'oi_usd': 1.0}}}, {'fut': {'t': 5, 'perp': {'oi_usd': 1.0}}}):
+            self.assertIsNone(zd.lev_dr_wiersz(zle), zle)
+
+    def test_historia_dzienna_zapisuje_zestaw_z_deribit(self):
+        h = zd.lev_hist([], self.out(), datetime.date(2026, 10, 13))
+        row = h[-1]
+        self.assertEqual((row['d'], row['all_btc'], row['all_btc_v'], row['all_eth'], row['all_eth_v']),
+                         ('2026-10-13', 5857142350, 'dr,hl,okx', 3241618648, 'dr,hl,okx'))

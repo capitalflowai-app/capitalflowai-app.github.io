@@ -22819,7 +22819,7 @@ test('v343 (F1Z3): styl i miejsce w kodzie — kolory serii z zmiennych motywu, 
   assert.ok(c0 > 0 && !/#[0-9a-fA-F]{3,8}\b|rgb\(\d|rgba\(\d/.test(css), 'tylko zmienne motywu (żadnych kolorów na sztywno)');
   assert.ok(html.indexOf('/* v343 (F1Z3): krzywa terminowa') > html.indexOf('#c-dzwignia .lqw-r{grid-template-columns:minmax(0,64px) minmax(0,1fr) 88px'), 'wstawka stylu po dotychczasowych stylach panelu');
   assert.ok(html.includes('levTab()+levFut()+levVol()+levOpt():\'\''), 'nowe bloki między tabelą kontraktów a opcjami wg terminu wygaśnięcia');
-  assert.ok(html.includes("LEV_PARTS=['hl','bn','dr','okx','kr','cb','dy']") && html.includes("LEV_LIVE=['hl','okx','kr','cb','cde','dy'],LEV_SUMAGE=6*3600e3"), 'sumy „wszystkie giełdy razem” (v345, C-08: + Coinbase USA — dawniej poza sumą; LEV_PARTS bez zmian)');
+  assert.ok(html.includes("LEV_PARTS=['hl','bn','dr','okx','kr','cb','dy']") && html.includes("LEV_LIVE=['hl','okx','kr','cb','cde','dy"), 'sumy „wszystkie giełdy razem” (v345, C-08: + Coinbase USA — dawniej poza sumą; LEV_PARTS bez zmian)');
   assert.ok(html.includes("for(const k of ['kr','cb','cde','dy'])") && html.includes('const LEV_FUT_MAXAGE=12*3600e3;'), 'wiersz Coinbase USA w tabeli giełd; dane starsze niż 12 h pomijane');
   assert.ok(!f1z3.blk.includes('fetch(') && !/srvJSON\('(dzwignia-|krzywa)/.test(f1z3.blk), 'żadnych nowych pobrań: dane z tego samego pliku dzwignia.json');
 });
@@ -23136,7 +23136,7 @@ test('v345 (C-08): „Wszystkie giełdy razem” liczy też Coinbase USA (cde) �
   /* wiersz ma stary czas — odpada z sumy (jak każda giełda) */
   const old = new Date(Date.now() - 7 * 3600e3).toISOString(), j2 = lev109.fix(); j2.cde = {t: old, f_hours: 1, BTC: Object.assign(row(4.38, 140803491, old), {terms: []})}; j2.ok.cde = true; j2.part_at.cde = old;
   const f2 = lev104.mk({}); f2.levApply(j2); assert.ok(f2.el.innerHTML.includes('lev.sumof{n=5,v=' + lev109.VEN + '}'), 'Coinbase USA sprzed 7 h — poza sumą');
-  assert.ok(html.includes("const LEV_LIVE=['hl','okx','kr','cb','cde','dy'],LEV_SUMAGE=6*3600e3,LEV_NAME={hl:'Hyperliquid',okx:'OKX',kr:'Kraken',cb:'Coinbase',cde:'Coinbase USA',dy:'dYdX',bn:'Binance'};") && html.includes("LEV_PARTS=['hl','bn','dr','okx','kr','cb','dy']"), 'kod: LEV_LIVE ma cde (LEV_PARTS bez zmian — część cde ma własne bloki)');
+  assert.ok(html.includes("const LEV_LIVE=['hl','okx','kr','cb','cde','dy") && html.includes("cde:'Coinbase USA',dy:'dYdX'") && html.includes("LEV_PARTS=['hl','bn','dr','okx','kr','cb','dy']"), 'kod: LEV_LIVE ma cde (LEV_PARTS bez zmian — część cde ma własne bloki)');
 });
 
 test('v345 (C-10): dzień danych w stylu liczbowym czasu pliku — plakietka ETF, Coin Metrics, Wykresy; zakres, miesiąc i kwartał bez zmian; bez pomocników (piaskownice) — jak dotąd', () => {
@@ -24716,7 +24716,7 @@ test('v355 ZWIAD_WDROZ: karta MiCA — kafle z liczbami firm i emitentów, kraje
   const zh = zw355.sp(zw355.mk('pl', zw355.files(undefined, Zu)).els['#c-mica'].innerHTML); assert.ok(!zh.includes('prowadzenie platformy obrotu') && !zh.includes('oferowanie (plasowanie)'), 'usługa z zerem albo brakiem pominięta, nie pokazana jako 0');
   assert.ok(h.includes('<svg class="gx-sp"') && h.includes('Licencje narastająco') && /359<\/span>/.test(h), 'wykres narastający kończy się liczbą firm z datą');
   assert.ok(h.includes('Emitenci stablecoinów wg kraju') && h.includes('Wśród emitentów: banki — 4, instytucje pieniądza elektronicznego — 19.'));
-  assert.ok(h.includes('<details class="etfd" id="mc355-not"><summary>')); assert.equal((h.match(/<p class="pnote">/g) || []).length, 8, 'opis, trzy noty pod wykresami i cztery „czego te dane nie mówią”');
+  assert.ok(h.includes('<details class="etfd" id="mc355-not"><summary>')); assert.equal((h.match(/<p class="pnote">/g) || []).length, 8 + (h.match(/Pozostałe kraje:/g) || []).length, 'opis, trzy noty pod wykresami i cztery „czego te dane nie mówią” (+ linia o pozostałych krajach, v359)');
   assert.ok(/pfoot/.test(h) && tx.includes('Oficjalne wykazy nadzorcy'));
   assert.ok(!/ESMA|ECB|EBC|Binance|Coinbase|Bitpanda|Bybit/.test(tx), 'bez nazw urzędu i firm');
   assert.ok(!/undefined|NaN|mc355\./.test(tx), tx);
@@ -25281,4 +25281,140 @@ test('v358: nowy słownik (upd.br, inst.tgb.sel, inst.tgb.rest) — czysty JSON 
   for (const lg of v358.LG.slice(1)) assert.equal(keys.filter(k => D[lg][k] === D.pl[k]).length, 0, lg + ': tłumaczenia, nie kopie polskiego');
   assert.ok(/[а-яё]/i.test(D.ru['upd.br']) && /[一-鿿]/.test(D.zh['upd.br']) && /[぀-ヿ]/.test(D.ja['upd.br']), 'alfabety języków');
   assert.equal(D.pl['inst.tgb.rest'], 'Pozostałe kraje ({n})');
+});
+
+
+/* ===================== v359: poprawki audytu CRYPTO m11 ===================== */
+test('v359 CR-M11-08: gxPct — zaokrąglenie po wartości bezwzględnej (−2,15 → −2,2% jak +2,15 → +2,2%); mały ułamek bez znaku', () => {
+  const P = gx349.mk('pl', gx349.files()).api.gxPct, s = gx349.sp;
+  assert.equal(s(P(-2.15)), '−2,2%'); assert.equal(s(P(2.15)), '+2,2%'); assert.equal(s(P(-0.25)), '−0,3%'); assert.equal(s(P(0.25)), '+0,3%');
+  assert.equal(s(P(-2.14)), '−2,1%'); assert.equal(s(P(2.14)), '+2,1%'); assert.equal(s(P(0.04)), '0,0%'); assert.equal(s(P(-0.04)), '0,0%'); assert.equal(s(P(0)), '0,0%'); assert.equal(P(null), '—');
+  assert.equal((html.match(/Math\.sign\(v\)\*Math\.round\(Math\.abs\(v\)\*10\)\/10/g) || []).length, 2, 'gxPct i gxPcTone');
+  const ds = gx349.mk('pl', gx349.files(undefined, Object.assign(gx349.clone(GX349_D), {oi: Object.assign(gx349.clone(GX349_D.oi), {chg: -2.15})})));
+  assert.ok(gx349.txt(ds.els['#c-kontrakty'].innerHTML).includes('−2,2%'), 'karta Kontrakty na łańcuchu: −2,15 pokazane jako −2,2%');
+});
+
+test('v359 CR-M11-01/04: giełdy — kafel 24 h nazywa giełdy z flagą dz = 1 (zostają w sumie), podpowiedź liczby wykluczonych ma nazwy; lista giełd bez salda wg obrotu i „+N”', () => {
+  const G = gx349.clone(GX349_G), po = G.cex.rows.find(r => r.name === 'Poloniex');
+  po.in24 = -380141820; po.dz = 1;
+  const K = gx349.mk('pl', gx349.files(G)), T = gx349.tiles(K.els['#c-gieldy'].innerHTML);
+  assert.ok(T[1].raw.includes('w sumie, mimo dużego przepływu względem salda: Poloniex'), 'doba: ' + T[1].raw);
+  assert.ok(!T[2].raw.includes('mimo dużego przepływu') && !T[3].raw.includes('mimo dużego przepływu'), 'tylko kafel doby');
+  assert.ok(T[1].raw.includes('<span title="Bitstamp">bez giełd z podejrzanym skokiem listy portfeli: 1</span>'), 'nazwy wykluczonych w podpowiedzi: ' + T[1].raw);
+  assert.ok(T[2].raw.includes('title="Bitstamp, BloFin, BitKan, Gate US"'), 'okno 7 dni: cztery nazwy');
+  assert.ok(!gx349.sp(K.els['#c-gieldy'].innerHTML).includes('mimo dużego przepływu względem salda: Bitstamp'), 'wykluczona giełda nie jest „w sumie”');
+  const K0 = gx349.mk('pl', gx349.files()), T0 = gx349.tiles(K0.els['#c-gieldy'].innerHTML);
+  assert.ok(!T0[1].raw.includes('mimo dużego przepływu'), 'bez wiersza dz = 1 — bez zdania');
+  const G3 = gx349.clone(GX349_G); G3.cex.rows.filter(r => /^(Gate|Bitget|MEXC|HTX)$/.test(r.name)).forEach((r, i) => { r.dz = 1; r.in24 = -1e9 * (i + 1); });
+  const T3 = gx349.tiles(gx349.mk('pl', gx349.files(G3)).els['#c-gieldy'].innerHTML);
+  assert.ok(T3[1].raw.includes('mimo dużego przepływu względem salda: HTX, MEXC, Bitget +1'), 'trzy największe wg |przepływu| i „+1”: ' + T3[1].raw);
+  const Gx = gx349.clone(GX349_G), p2 = Gx.cex.rows.find(r => r.name === 'Poloniex'); p2.in24 = -380141820; p2.dz = 1; Gx.cex.razem.wyl = ['Poloniex'];
+  assert.ok(!gx349.tiles(gx349.mk('pl', gx349.files(Gx)).els['#c-gieldy'].innerHTML)[1].raw.includes('mimo dużego przepływu'), 'giełda już wykluczona z sumy nie jest „w sumie”');
+  const h = gx349.txt(K0.els['#c-gieldy'].innerHTML);
+  assert.ok(h.includes('(saldo „—”): BTCC, Coinbase, Upbit, Bithumb, Deepcoin, Coinone +2.'), 'obrót malejąco, dwie pominięte jako „+2”: ' + h.slice(h.indexOf('Giełdy bez ujawnionych'), h.indexOf('Giełdy bez ujawnionych') + 200));
+  const G4 = gx349.clone(GX349_G); G4.cex.rows = G4.cex.rows.filter(r => !/^(Upbit|bitFlyer)$/.test(r.name));
+  assert.ok(gx349.txt(gx349.mk('pl', gx349.files(G4)).els['#c-gieldy'].innerHTML).includes('Bithumb, Deepcoin, Coinone, Coincheck. Nie wiemy'), 'sześć giełd — bez „+N”');
+});
+
+test('v359 CR-M11-02: nota o różnicy metod — karta Kontrakty na łańcuchu i sekcja Hyperliquid w Dźwigni; w 10 językach', () => {
+  const K = gx349.mk('pl', gx349.files());
+  assert.ok(gx349.txt(K.els['#c-kontrakty'].innerHTML).includes('Ta sama giełda może mieć tu inną liczbę niż w sekcji o dźwigni i pozycjach (np. Hyperliquid)'), 'karta kontraktów');
+  const f = lev104.mk({}); f.levApply(lev109.fix());
+  assert.ok(f.el.innerHTML.includes('lev.hl.sub</p><p class="pnote">cr359.lev.hl</p>'), 'sekcja Hyperliquid: zdanie zaraz pod podtytułem');
+  const I = v143Final(html);
+  for (const l of Object.keys(I)) for (const k of ['cr359.oi.not4', 'cr359.lev.hl']) { assert.ok(I[l][k] && I[l][k].includes('Hyperliquid'), l + ' ' + k); if (l !== 'en') assert.notEqual(I[l][k], I.en[k], l + ' ' + k); }
+});
+
+test('v359 CR-M11-03: Dźwignia, „wszystkie giełdy razem” — wieczysty Deribit w sumie i średniej finansowania, zdanie o kontrakcie wieczystym; odpada przy starym wierszu albo braku kontraktu', () => {
+  const now = lev104.now, perp = (oi, f) => ({t: now, perp: {mark: 1, oi_usd: oi, vol_usd: 1, f8: 0, f_y: f}});
+  const j = lev109.fix(); j.dr.BTC.fut = perp(857142350, 9.514); j.dr.ETH.fut = perp(241618648, 3.2); j.part_at.dr = now;
+  const f = lev104.mk({}); f.levApply(j); const h = f.el.innerHTML;
+  const S = j.hl.rows.BTC.oi_usd + j.okx.BTC.oi_usd + j.kr.BTC.oi_usd + j.cb.BTC.oi_usd + j.dy.BTC.oi_usd + 857142350, V6 = lev109.VEN + ', Deribit';
+  assert.ok(h.includes('lev.k.oiall{c=BTC}</span><b>' + (S / 1e9).toFixed(2) + ' <small class="mtxt">lev.u.mld</small> <small>lev.sumof{n=6,v=' + V6 + '}'), 'suma BTC z sześciu giełd: ' + h.slice(h.indexOf('lev.k.oiall{c=BTC}'), h.indexOf('lev.k.oiall{c=BTC}') + 260));
+  assert.ok(h.includes('lev.wof{n=6,v=' + V6 + '}'), 'średnia finansowania — też z Deribit');
+  assert.ok(h.includes('lev.all.sub</p><p class="pnote">cr359.lev.dr</p>'), 'zdanie o kontrakcie wieczystym pod podtytułem sumy');
+  assert.ok(h.includes('lev.diffn'), 'historia sprzed v359 liczyła inny zestaw giełd — bez porównania, z powodem');
+  const old = new Date(Date.now() - 7 * 3600e3).toISOString(), jo = lev109.fix(); jo.dr.BTC.fut = Object.assign(perp(857142350, 9.5), {t: old}); jo.dr.ETH.fut = perp(241618648, 3.2);
+  const ho = (() => { const g = lev104.mk({}); g.levApply(jo); return g.el.innerHTML; })();
+  assert.ok(ho.includes('lev.k.oiall{c=BTC}') && ho.includes('lev.sumof{n=5,v=' + lev109.VEN + '}') && ho.includes('lev.sumof{n=6,v=' + V6 + '}'), 'BTC: wiersz sprzed 7 h poza sumą (5 giełd), ETH ze świeżym Deribit (6)');
+  const jn = lev109.fix(); jn.dr.BTC.fut = {t: now, terms: []}; jn.dr.ETH.fut = {t: now, terms: []};
+  const hn = (() => { const g = lev104.mk({}); g.levApply(jn); return g.el.innerHTML; })();
+  assert.ok(hn.includes('lev.sumof{n=5,v=' + lev109.VEN + '}') && !hn.includes('cr359.lev.dr') && !hn.includes('Deribit}'), 'bez kontraktu wieczystego — jak dotąd, bez zdania');
+  assert.ok(!hn.includes('lev.sumof{n=6'), 'liczba giełd w podpisie zgodna z sumą');
+  assert.ok(html.includes("LEV_LIVE=['hl','okx','kr','cb','cde','dy','dr'],LEV_SUMAGE=6*3600e3") && html.includes("dr:'Deribit',bn:'Binance'}"), 'kod: LEV_LIVE ma dr');
+});
+
+test('v359 CR-M11-05: Wykresy, Top 10 w grupach — podtytuł z ostrzeżeniem o powtórzeniach monet tylko wtedy, gdy powtórzenia są', () => {
+  const N = v157C(null, {T10: {data: null, st: 'ok'}}).t10Norm(v157.fix('top10')), seen = new Set();
+  for (const k of Object.keys(N.g)) if (N.g[k] && Array.isArray(N.g[k].c)) N.g[k].c = N.g[k].c.filter(x => !seen.has(x.id) && seen.add(x.id));
+  const dup = v157.t('cr359.t10.dup'), rw = v157.t('a293c.wk.t10.rwa');
+  assert.equal(v157C(null, {T10: {data: N, st: 'ok'}}).wkCT10().s, v157.t('wk.c.t10.s') + ' · ' + rw, 'bez powtórzeń — bez ostrzeżenia');
+  const ks = Object.keys(N.g).filter(k => N.g[k] && Array.isArray(N.g[k].c) && N.g[k].c.length), D = JSON.parse(JSON.stringify(N));
+  D.g[ks[1]].c.push(Object.assign({}, D.g[ks[0]].c[0]));
+  assert.equal(v157C(null, {T10: {data: D, st: 'ok'}}).wkCT10().s, v157.t('wk.c.t10.s') + ' · ' + rw + ' · ' + dup, 'ta sama moneta w dwóch grupach — ostrzeżenie');
+  assert.ok(dup.includes('HYPE') && dup.includes('nie sumują się do rynku'));
+});
+
+test('v359 CR-M11-06/07: MiCA — remis na granicy pokazany razem, reszta krajów policzona; nota o firmach bez daty zezwolenia i „Pozostałe” przy emitentach', () => {
+  const rowsOf = (h, from, to) => [...h.slice(h.indexOf(from), h.indexOf(to, h.indexOf(from))).matchAll(/class="gxs-r"><span class="gxs-n">\[f:(\w+)\]/g)].map(m => m[1]);
+  const K = zw355.mk('pl', zw355.files()), h = zw355.sp(K.els['#c-mica'].innerHTML), tx = zw355.txt(h);
+  const cas = rowsOf(h, 'Firmy z licencją wg kraju siedziby', 'Licencje narastająco');
+  assert.deepEqual(cas, ['DEU', 'FRA', 'NLD', 'CYP', 'MLT', 'ESP', 'LUX', 'CZE', 'IRL', 'LIE', 'LVA'], 'dziesięć + Łotwa z remisu po 12');
+  assert.ok(tx.includes('Pozostałe kraje: 16. Liczba firm w każdym z nich: 1–11.'), 'reszta: ' + tx.slice(tx.indexOf('Pozostałe kraje'), tx.indexOf('Pozostałe kraje') + 90));
+  const emt = rowsOf(h, 'Emitenci stablecoinów', 'Wśród emitentów');
+  assert.equal(emt.length, ZW355_M.emt.kraje.length, 'emitenci: wszystkie kraje (remis po 1) — Polska widoczna'); assert.ok(emt.includes('POL'));
+  assert.ok(tx.includes('Firmy bez prawidłowej daty zezwolenia (' + ZW355_M.casp.zle_daty + ') nie są na wykresie.'), 'nota pod szeregiem');
+  const o = ZW355_M.emt.n - ZW355_M.emt.kredytowe - ZW355_M.emt.emi;
+  assert.equal(tx.includes('Pozostałe: ' + o + '.'), o > 0, 'pozostałe emitenci = n − kredytowe − emi');
+  const Z0 = zw355.clone(ZW355_M); Z0.casp.zle_daty = 0; Z0.emt.n = Z0.emt.kredytowe + Z0.emt.emi;
+  const t0 = zw355.txt(zw355.mk('pl', zw355.files(undefined, Z0)).els['#c-mica'].innerHTML);
+  assert.ok(!t0.includes('bez prawidłowej daty') && !t0.includes('Pozostałe:'), 'bez zer dopisków nie ma');
+  const Zk = zw355.clone(ZW355_M); Zk.casp.kraje = Zk.casp.kraje.slice(0, 12); Zk.casp.kraje[10][1] = 11; Zk.casp.kraje[11][1] = 10;
+  const tk = zw355.txt(zw355.mk('pl', zw355.files(undefined, Zk)).els['#c-mica'].innerHTML);
+  assert.ok(tk.includes('Pozostałe kraje: 2. Liczba firm w każdym z nich: 10–11.'), 'dwa pozostałe: zakres 10–11');
+  const Zt = zw355.clone(ZW355_M), cc = ['DE', 'FR', 'NL', 'CY', 'MT', 'ES', 'LU', 'CZ', 'IE', 'LI', 'LV', 'AT', 'IT', 'DK', 'HR', 'LT', 'NO', 'SK', 'BG', 'FI', 'SI', 'GR', 'EE', 'BE', 'IS', 'PT', 'SE'];
+  Zt.casp.kraje = cc.map((c, i) => [c, i < 9 ? 60 - i : 5]);
+  const ht = zw355.sp(zw355.mk('pl', zw355.files(undefined, Zt)).els['#c-mica'].innerHTML);
+  assert.equal(rowsOf(ht, 'Firmy z licencją wg kraju siedziby', 'Licencje narastająco').length, 10, 'remis obejmujący 18 krajów nie rozciąga wykresu — dziesięć wierszy');
+  assert.ok(zw355.txt(ht).includes('Pozostałe kraje: 17. Liczba firm w każdym z nich: 5.'), 'reszta po dużym remisie');
+  const Zr = zw355.clone(ZW355_M); Zr.casp.kraje = Zr.casp.kraje.slice(0, 10);
+  assert.ok(!zw355.txt(zw355.mk('pl', zw355.files(undefined, Zr)).els['#c-mica'].innerHTML).includes('Pozostałe kraje'), 'dokładnie dziesięć krajów — bez reszty');
+});
+
+test('v359 CR-M11-09: przyciski zoomu kamery (CRYPTO i mapa GLOBAL) mają podpowiedź obok aria-label', () => {
+  for (const id of ['z-in', 'z-out', 'z-reset', 'gz-in', 'gz-out', 'gz-reset', 'gz-full', 'z-full', 'z-t10']) {
+    const m = new RegExp('<button id="' + id + '"[^>]*>').exec(html); assert.ok(m, id);
+    const a = /data-i18n-aria="([^"]+)"/.exec(m[0]), t = /data-i18n-title="([^"]+)"/.exec(m[0]); assert.ok(a && t && a[1] === t[1], id + ': ' + m[0].slice(0, 120));
+  }
+  const D = v143Final(html);
+  for (const l of Object.keys(D)) for (const k of ['zoom.in', 'zoom.out', 'zoom.reset', 'zoom.full']) assert.ok(D[l][k], l + ' ' + k);
+});
+
+test('v359 CR-M11-10: daty „stan z …”, „pomiar przepływu · …” i „Dane: …” w zapisie polskim i zależnym od języka (instFootL / dayLoc), zakresy i miesiące bez zmian', () => {
+  assert.ok(html.includes("asof?t('stc.day',{d:(typeof instFootL==='function'?instFootL:instFoot)(asof)}):''") && html.includes("t('stc.day',{d:(typeof instFootL==='function'?instFootL:instFoot)(H.asof)})"), 'panel stablecoinów: stan z dnia');
+  assert.ok(html.includes("${d?' · '+(typeof instFootL==='function'?instFootL:instFoot)(d):''}</small></p>`;"), 'bilans przepływu: dzień pomiaru');
+  assert.ok(html.includes("d:last?(typeof dayLoc==='function'?dayLoc(last):escH(last))+gAgeNote(last):''"), 'kafel premii: Dane');
+  const fns = new Function('LOCALE', 'LANG', 'escH', 'gAgeNote', 'instFoot', html.slice(html.indexOf('function dayLoc(d){'), html.indexOf('\n/* v345 (C-11)')) + '\nreturn {dayLoc, instFootL};');
+  const pl = fns({pl: 'pl-PL', en: 'en-US'}, 'pl', cmEsc, d => ' · wiek(' + d + ')', d => 'F(' + d + ')'), en = fns({pl: 'pl-PL', en: 'en-US'}, 'en', cmEsc, d => '', d => 'F(' + d + ')');
+  assert.equal(pl.instFootL('2026-10-12'), '12.10.2026 · wiek(2026-10-12)'); assert.equal(en.instFootL('2026-10-12'), '10/12/26'); assert.equal(pl.instFootL('2026-10'), 'F(2026-10)');
+  assert.equal(pl.dayLoc('2026-10-13'), '13.10.2026');
+});
+
+test('v359: słownik w czystym JSON po linii for, 10 języków, te same klucze i zmienne, tłumaczenia (nie kopie), bez nazw dostawców', () => {
+  const mm = [...html.matchAll(/^for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/gm)];
+  const mine = mm.find(m => html.includes('const ' + m[1] + '={"pl":{"cr359.gx.dz1"'));
+  assert.ok(mine, 'słownik v359 ma własną linię for'); assert.equal(mm.filter(m => m[1] === mine[1]).length, 1, 'jedna linia nakładania');
+  const i0 = html.indexOf('const ' + mine[1] + '='), i1 = html.indexOf(';\nfor(const l in ' + mine[1] + ')', i0), D = JSON.parse(html.slice(i0 + ('const ' + mine[1] + '=').length, i1));
+  assert.ok(html.slice(0, i0).trimEnd().endsWith('*/') && html.slice(html.lastIndexOf('\n', i0 - 2), i0).includes('v359'), 'komentarz nagłówkowy nad słownikiem');
+  const LG = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']; assert.deepEqual(Object.keys(D), LG);
+  const keys = Object.keys(D.pl); assert.equal(keys.length, 8); assert.ok(keys.every(k => /^cr359\./.test(k)), 'tylko klucze v359');
+  const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join();
+  for (const lg of LG) {
+    assert.deepEqual(Object.keys(D[lg]), keys, lg + ': te same klucze w tej samej kolejności');
+    for (const k of keys) { assert.ok(typeof D[lg][k] === 'string' && D[lg][k].trim(), lg + ' ' + k); assert.equal(ph(D[lg][k]), ph(D.pl[k]), lg + ' ' + k + ': zmienne'); }
+  }
+  for (const lg of LG.slice(1)) { assert.deepEqual(keys.filter(k => D[lg][k] === D.pl[k]), [], lg + ': tłumaczenie, nie kopia polskiego'); if (lg !== 'en') assert.deepEqual(keys.filter(k => D[lg][k] === D.en[k]), [], lg + ': tłumaczenie, nie kopia angielskiego'); }
+  assert.ok(/[а-яё]/i.test(D.ru['cr359.lev.dr']) && /[一-鿿]/.test(D.zh['cr359.lev.dr']) && /[぀-ヿ]/.test(D.ja['cr359.lev.dr']), 'alfabety języków');
+  for (const lg of LG) for (const k of keys) assert.ok(!/\bESMA\b|CoinGecko|DefiLlama|Llama|CoinMarketCap|Coinglass|Amberdata|Tiingo/.test(D[lg][k]), 'zero nazw dostawców: ' + lg + ' ' + k);
+  for (const lg of LG) assert.ok(D[lg]['cr359.oi.not4'].includes('Hyperliquid') && D[lg]['cr359.lev.hl'].includes('Hyperliquid') && D[lg]['cr359.lev.dr'].includes('Deribit'), lg + ': nazwy giełd (przedmiot danych) zostają');
 });
