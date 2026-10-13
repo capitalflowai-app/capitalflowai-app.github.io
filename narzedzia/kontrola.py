@@ -5875,6 +5875,223 @@ def rosja_kontrola(files, R):
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v361 (F3Z2): Polska na rynku dziennie (data/polska-rynek.json) ----------------------------------------------------------------
+# Świeżość trzech części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️. Progi z testu wstecznego na historii WIG20 z nagrania 10.10.2026 (kanał wykresów giełdy,
+# 1 445 przerw między sesjami od 2021): największy wiek dnia danych tuż przed spodziewaną publikacją następnej sesji (16:45 UTC) = 88,75 godz. roboczych (Boże Narodzenie:
+# sesja we wtorek 23.12, następna w poniedziałek 29.12; kolejne: 64,75 godz. przy Wielkanocy i Nowym Roku; 95. percentyl 16,75 godz.) → próg ⚠️ 100 godz. roboczych dla
+# indeksów i krzywej. Raport przepływów funduszy: dzień danych = koniec miesiąca, nowy plik ok. 11. dnia drugiego miesiąca po nim (plik za sierpień był na liście raportów
+# 10.10.2026, czyli 41 dni po końcu miesiąca) → próg ⚠️ 60 dni od końca miesiąca danych. ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (daty nie rosną, wartość spoza
+# skali, stałe terminy krzywej ≠ przeliczenie z serii, suma typów funduszy ≠ razem, netto ≠ wpływy − wypływy, miesiące niekolejne). Porównania (najwyżej ⚠️, ℹ️):
+# (1) WIG20 z kanału wykresów giełdy a WIG20 z pliku indeksy.json (drugi dostawca) w tym samym dniu: 09.10.2026 4 185,52 = 4 185,52 → ⚠️ powyżej 0,3% różnicy;
+# (2) dzienna zmiana indeksu o ponad 10% (WIG20: −12% w marcu 2020, w ostatnich 400 dniach największa poniżej 5%) = ⚠️; (3) średnia dzienna zmiana rentowności
+# obligacji o ponad 0,5 pp (typowo 0,02–0,10 pp; zbieracz odrzuca dzień powyżej 1,5 pp) = ⚠️; (4) rentowność „10 lat” minus „2 lata” poza [−2; +5] pp = ⚠️;
+# (5) różnica „10 lat” do 10-latek Niemiec (plik rynki.json) poza [0,3; 6,0] pp = ⚠️ (09.10.2026: 6,27 − 3,50 = 2,77 pp).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'polska-rynek')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['polska-rynek'] = 180   # plik zapisywany co przebieg (części mają własny rytm); wiek dnia danych każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'polska_rynek_' + p: 'Polska na rynku — część z błędem zostaje z datą (v361); wiek danych w wierszach świeżości' for p in ('gpw', 'krzywa', 'fundusze')})
+PLR_K_ETYKIETA = {'gpw': 'Polska: indeksy giełdy w Warszawie (dziennie)', 'krzywa': 'Polska: krzywa rentowności obligacji skarbowych (dziennie)',
+                  'fundusze': 'Polska: przepływy do funduszy inwestycyjnych (miesięcznie)'}
+PLR_K_PROG_GODZ = {'gpw': 100, 'krzywa': 100}    # godziny robocze od końca dnia danych
+PLR_K_PROG_DNI_FUND = 60                          # dni od końca miesiąca danych
+PLR_K_IDX = ('WIG', 'WIG20', 'mWIG40', 'sWIG80', 'TBSP')
+PLR_K_WIG20_TOL = 0.003
+PLR_K_SKOK = 0.10
+PLR_K_KRZYWA_SKOK_PP = 0.5
+PLR_K_NACHYLENIE = (-2.0, 5.0)
+PLR_K_BUND = (0.3, 6.0)
+PLR_K_TOL_MLN = 5.0
+
+
+def _plr_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))
+
+
+def _plr_k_f(x, d=2):
+    return f'{x:.{d}f}'.replace('.', ',')
+
+
+def _plr_k_dzien(s):
+    try:
+        return dt.date.fromisoformat(str(s)) if re.fullmatch(r'\d{4}-\d{2}-\d{2}', str(s)) else None
+    except ValueError:
+        return None
+
+
+def plr_k_cm(p):
+    """Niezależne przeliczenie stałych terminów 2, 5 i 10 lat z serii [[lata, rentowność, kod], …] (rosnąco): [y2, y5, y10, lata serii „10 lat” albo None]."""
+    def interp(T):
+        for a, b in zip(p, p[1:]):
+            if a[0] <= T <= b[0]:
+                return round(a[1] + (b[1] - a[1]) * (T - a[0]) / (b[0] - a[0]), 2) if b[0] > a[0] else round(a[1], 2)
+        return None
+    y = [interp(2.0), interp(5.0), interp(10.0)]
+    l10 = None
+    if y[2] is None and p and 9.0 <= p[-1][0] < 10.0:
+        y[2], l10 = round(p[-1][1], 2), round(p[-1][0], 1)
+    return y + [l10]
+
+
+def polska_rynek_swiezosc(j, now=None):
+    """Wiersze świeżości trzech części pliku polska-rynek.json w kształcie wierszy swiezosc(): (etykieta, status, wiek min, data danych, uwaga). Najwyżej ⚠️, nigdy ❌;
+    brak pliku albo inna wersja = brak wierszy; część bez daty danych — '?' (część, której plik jeszcze nie ma, bo źródło ani razu nie odpowiedziało)."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p, label in PLR_K_ETYKIETA.items():
+        e = j.get(p) if isinstance(j.get(p), dict) else {}
+        txt = e.get('asof')
+        if not txt:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        if p == 'fundusze':
+            w = wiek_danych(str(txt)[:7], 'month', 'm', now)
+            prog = PLR_K_PROG_DNI_FUND * 1440
+            opis = f'próg {PLR_K_PROG_DNI_FUND} dni od końca miesiąca danych — najwyżej uwaga (nowy raport ok. 11. dnia drugiego miesiąca po miesiącu danych)'
+        else:
+            w = wiek_danych(txt, 'day', 'd', now)
+            prog = PLR_K_PROG_GODZ[p] * 60
+            opis = f'próg {PLR_K_PROG_GODZ[p]} godz. roboczych — najwyżej uwaga (święta bez sesji wydłużają przerwę do ok. 89 godz.)'
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        rows.append((label, st, w, str(txt), opis if st == '⚠️' else ''))
+    return rows
+
+
+def polska_rynek_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w danych o Polsce na rynku) → lista opisów."""
+    zle = []
+    G = j.get('gpw') if isinstance(j.get('gpw'), dict) else None
+    if G and isinstance(G.get('idx'), dict):
+        for n in PLR_K_IDX:
+            d = (G['idx'].get(n) or {}).get('d') if isinstance(G['idx'].get(n), dict) else None
+            if not isinstance(d, list) or not d:
+                zle.append(f'gpw.{n}: brak serii'); continue
+            if any(not (isinstance(x, list) and len(x) == 2 and _plr_k_dzien(x[0]) and _plr_k_num(x[1]) and x[1] > 0) for x in d):
+                zle.append(f'gpw.{n}: wiersz spoza układu [dzień, zamknięcie > 0]'); continue
+            if [x[0] for x in d] != sorted({x[0] for x in d}):
+                zle.append(f'gpw.{n}: dni nie rosną albo się powtarzają')
+            if min(x[0] for x in [d[-1]]) < (G.get('asof') or ''):
+                zle.append(f'gpw.{n}: ostatni dzień {d[-1][0]} wcześniejszy niż dzień danych {G.get("asof")}')
+    K = j.get('krzywa') if isinstance(j.get('krzywa'), dict) else None
+    if K and isinstance(K.get('k'), dict) and K['k']:
+        if K.get('asof') != max(K['k']):
+            zle.append(f'krzywa: dzień danych {K.get("asof")} ≠ ostatni dzień szeregu {max(K["k"])}')
+        for dz, e in K['k'].items():
+            p = e.get('p') if isinstance(e, dict) else None
+            if not (_plr_k_dzien(dz) and isinstance(p, list) and len(p) >= 8 and all(isinstance(x, list) and len(x) == 3 and _plr_k_num(x[0]) and _plr_k_num(x[1]) for x in p)):
+                zle.append(f'krzywa {dz}: układ serii'); continue
+            if any(a[0] >= b[0] for a, b in zip(p, p[1:])):
+                zle.append(f'krzywa {dz}: lata do wykupu nie rosną')
+            if any(not 0.3 <= x[1] <= 15 for x in p):
+                zle.append(f'krzywa {dz}: rentowność poza 0,3–15%')
+            cm = e.get('cm')
+            if not (isinstance(cm, list) and len(cm) == 4) or any(a != b and not (a is not None and b is not None and abs(a - b) <= 0.011) for a, b in zip(cm, plr_k_cm(p))):
+                zle.append(f'krzywa {dz}: stałe terminy {cm} ≠ przeliczenie z serii {plr_k_cm(p)}')
+    F = j.get('fundusze') if isinstance(j.get('fundusze'), dict) else None
+    if F and isinstance(F.get('m'), list) and F['m']:
+        m = F['m']
+        if any(not (isinstance(x, list) and len(x) == 5 and re.fullmatch(r'\d{4}-\d{2}', str(x[0])) and all(_plr_k_num(v) for v in x[1:])) for x in m):
+            zle.append('fundusze.m: wiersz spoza układu [miesiąc, aktywa, wpływy, wypływy, netto]')
+        else:
+            n = [int(x[0][:4]) * 12 + int(x[0][5:]) for x in m]
+            if any(b - a != 1 for a, b in zip(n, n[1:])):
+                zle.append('fundusze.m: miesiące niekolejne')
+            if m[-1][0] != str(F.get('asof'))[:7]:
+                zle.append(f'fundusze: dzień danych {F.get("asof")} ≠ ostatni miesiąc szeregu {m[-1][0]}')
+            for x in m:
+                if abs(x[2] - x[3] - x[4]) > 0.006:
+                    zle.append(f'fundusze {x[0]}: netto {x[4]} ≠ wpływy − wypływy {round(x[2] - x[3], 3)} mld zł'); break
+            p = F.get('p')
+            if isinstance(p, list) and p and all(isinstance(x, list) and len(x) == 3 and _plr_k_num(x[1]) and _plr_k_num(x[2]) for x in p):
+                if abs(sum(x[1] for x in p) - m[-1][1] * 1000) > PLR_K_TOL_MLN:
+                    zle.append(f'fundusze: suma aktywów typów {round(sum(x[1] for x in p))} mln ≠ razem {round(m[-1][1] * 1000)} mln zł')
+                if abs(sum(x[2] for x in p) - m[-1][4] * 1000) > PLR_K_TOL_MLN:
+                    zle.append(f'fundusze: suma netto typów {round(sum(x[2] for x in p), 1)} mln ≠ razem {round(m[-1][4] * 1000, 1)} mln zł')
+            else:
+                zle.append('fundusze.p: brak typów funduszy albo zły układ')
+    return zle
+
+
+def polska_rynek_porownania(j, files):
+    """Porównania z innymi danymi i z drugim dostawcą (najwyżej ⚠️): {'wiersze': [(opis, znak)], 'uwagi': [...]}."""
+    wier, uw = [], []
+    G = j.get('gpw') if isinstance(j.get('gpw'), dict) else None
+    ix = files.get('indeksy') if isinstance(files, dict) else None
+    try:
+        w20 = {r[0]: r[1] for r in G['idx']['WIG20']['d']}
+        dr = {r[0]: r[1] for r in ix['ix']['WIG20']['d'] if isinstance(r, list) and len(r) >= 2 and _plr_k_num(r[1])}
+    except (KeyError, TypeError, IndexError, AttributeError):
+        w20, dr = {}, {}
+    wsp = sorted(set(w20) & set(dr))
+    if wsp:
+        d = wsp[-1]
+        roz = abs(w20[d] / dr[d] - 1)
+        s = '✅' if roz <= PLR_K_WIG20_TOL else '⚠️'
+        wier.append((f'WIG20 {d}: giełda {_plr_k_f(w20[d])} ↔ drugi dostawca {_plr_k_f(dr[d])} (różnica {_plr_k_f(roz * 100, 2)}%)', s))
+        if s == '⚠️':
+            uw.append(f'Polska: WIG20 {d} z giełdy ({_plr_k_f(w20[d])}) ≠ z indeksy.json ({_plr_k_f(dr[d])}) — różnica {_plr_k_f(roz * 100, 2)}% powyżej {_plr_k_f(PLR_K_WIG20_TOL * 100, 1)}% — najwyżej uwaga')
+    elif G and w20:
+        wier.append(('WIG20: brak wspólnego dnia z indeksy.json do porównania', 'ℹ️'))
+    if G and isinstance(G.get('idx'), dict):
+        for n in PLR_K_IDX:
+            d = (G['idx'].get(n) or {}).get('d') if isinstance(G['idx'].get(n), dict) else None
+            if isinstance(d, list) and len(d) > 1 and all(isinstance(x, list) and len(x) == 2 and _plr_k_num(x[1]) and x[1] > 0 for x in d[-30:]):
+                r = d[-30:]
+                z = max(((abs(b[1] / a[1] - 1), b[0]) for a, b in zip(r, r[1:])), default=(0, ''))
+                if z[0] > PLR_K_SKOK:
+                    wier.append((f'{n}: dzienna zmiana {_plr_k_f(z[0] * 100, 1)}% ({z[1]})', '⚠️'))
+                    uw.append(f'Polska: {n} zmienił się o {_plr_k_f(z[0] * 100, 1)}% w dniu {z[1]} (próg {_plr_k_f(PLR_K_SKOK * 100, 0)}%) — sprawdź, czy to nie błąd skali — najwyżej uwaga')
+    K = j.get('krzywa') if isinstance(j.get('krzywa'), dict) else None
+    if K and isinstance(K.get('k'), dict) and K['k']:
+        dni = sorted(K['k'])
+        e = K['k'][dni[-1]]
+        cm = e.get('cm') if isinstance(e, dict) else None
+        if isinstance(cm, list) and len(cm) == 4 and _plr_k_num(cm[0]) and _plr_k_num(cm[2]):
+            nach = cm[2] - cm[0]
+            s = '✅' if PLR_K_NACHYLENIE[0] <= nach <= PLR_K_NACHYLENIE[1] else '⚠️'
+            wier.append((f'krzywa {dni[-1]}: „10 lat” minus „2 lata” = {_plr_k_f(nach)} pp', s))
+            if s == '⚠️':
+                uw.append(f'Polska: różnica rentowności 10 lat − 2 lata {_plr_k_f(nach)} pp ({dni[-1]}) poza pasmem {PLR_K_NACHYLENIE[0]}–{PLR_K_NACHYLENIE[1]} pp — najwyżej uwaga')
+            ry = files.get('rynki') if isinstance(files, dict) else None
+            try:
+                bund = {r[0]: r[1] for r in ry['buba'] if isinstance(r, list) and len(r) >= 2 and _plr_k_num(r[1])}
+            except (KeyError, TypeError, IndexError):
+                bund = {}
+            if _plr_k_num(cm[2]) and dni[-1] in bund:
+                roz = cm[2] - bund[dni[-1]]
+                sb = '✅' if PLR_K_BUND[0] <= roz <= PLR_K_BUND[1] else '⚠️'
+                wier.append((f'krzywa {dni[-1]}: „10 lat” minus 10 lat Niemiec ({_plr_k_f(bund[dni[-1]])}%) = {_plr_k_f(roz)} pp', sb))
+                if sb == '⚠️':
+                    uw.append(f'Polska: różnica rentowności do Niemiec {_plr_k_f(roz)} pp ({dni[-1]}) poza pasmem {PLR_K_BUND[0]}–{PLR_K_BUND[1]} pp — najwyżej uwaga')
+        if len(dni) > 1:
+            a, b = K['k'][dni[-2]], K['k'][dni[-1]]
+            try:
+                A, B = {x[2]: x[1] for x in a['p']}, {x[2]: x[1] for x in b['p']}
+                wsp = sorted(set(A) & set(B))
+                if len(wsp) >= 5:
+                    sk = sum(abs(A[k] - B[k]) for k in wsp) / len(wsp)
+                    s = '✅' if sk <= PLR_K_KRZYWA_SKOK_PP else '⚠️'
+                    wier.append((f'krzywa {dni[-2]} → {dni[-1]}: średnia zmiana rentowności serii {_plr_k_f(sk)} pp', s))
+                    if s == '⚠️':
+                        uw.append(f'Polska: średnia zmiana rentowności obligacji {_plr_k_f(sk)} pp między {dni[-2]} a {dni[-1]} (próg {_plr_k_f(PLR_K_KRZYWA_SKOK_PP)} pp) — najwyżej uwaga')
+            except (KeyError, TypeError, IndexError):
+                pass
+    return {'wiersze': wier, 'uwagi': uw}
+
+
+def polska_rynek_kontrola(files, R):
+    """Kontrola pliku polska-rynek.json bez sieci: sprzeczności w pliku (❌ = BŁĄD) i porównania (najwyżej ⚠️). Brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('polska-rynek') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle = polska_rynek_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'polska-rynek.json: sprzeczność w pliku — {z}')
+    P = polska_rynek_porownania(j, files)
+    R['uwagi'] += P['uwagi']
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- v341 (F5Z3): zboża dziennie i koszt transportu (data/zboza-dzien.json) ----------------------------------------------------------------
 # Świeżość każdej z pięciu części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠ — pole next pliku mówi, kiedy spodziewana jest publikacja.
 # Progi z testu wstecznego na modelu kalendarza publikacji i prawdziwych datach wierszy z nagrań 10–11.10.2026 (ws53/v341-zboza-dz/bt/bt_swiezosc.py, sprawdzenia
@@ -7648,6 +7865,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-plr. v361 (F3Z2): Polska na rynku dziennie (data/polska-rynek.json) — świeżość każdej z trzech części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in polska_rynek_swiezosc(files.get('polska-rynek')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c-gx. v349 (F6Z1): giełdy scentralizowane i DEX (data/gieldy.json, data/dex.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in gx_swiezosc(files.get('gieldy'), files.get('dex')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
@@ -8003,6 +8227,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['rosja'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Rosja: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v361 (F3Z2): Polska na rynku dziennie — sprzeczności w pliku (❌), WIG20 z giełdy a z drugiego dostawcy, skoki indeksów i rentowności, różnica do Niemiec (najwyżej ⚠️), z plików strony, bez zapytań
+    try:
+        Z['polska-rynek'] = polska_rynek_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['polska-rynek'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Polska na rynku: kontrola przerwana ({str(e)[:80]})')
     # 3g. v341 (F5Z3): zboża dziennie i koszt transportu — sprzeczności w pliku (❌), skoki, korelacje zmian miesięcznych z innymi danymi i tabela źródła (najwyżej ⚠️), z plików strony, bez zapytań
     try:
         Z['zboza-dzien'] = zboza_kontrola(files.get('zboza-dzien'), files, R)
@@ -8379,6 +8609,11 @@ def raport_md(R):
             L.append('- Rosja (z pliku strony): ' + (f'? kontrola przerwana ({rsz["blad"]})' if rsz.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(rsz['spojnosc'][:3]) + ' ❌ · ' if rsz.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in rsz.get('wiersze') or []) or '—') + '.')
+        rpz = Z.get('polska-rynek')   # v361: Polska na rynku dziennie — sprzeczności w pliku i porównania (WIG20 z drugim dostawcą, skoki, różnica do Niemiec); brak pliku = bez linii
+        if rpz:
+            L.append('- Polska na rynku: giełda, obligacje, fundusze (z pliku strony): ' + (f'? kontrola przerwana ({rpz["blad"]})' if rpz.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(rpz['spojnosc'][:3]) + ' ❌ · ' if rpz.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in rpz.get('wiersze') or []) or '—') + '.')
         gdz = Z.get('gieldy-dex')   # v349: giełdy scentralizowane i DEX — sprzeczności w plikach i informacje (flagi skoku listy portfeli, znak przepływu, stosunek DEX do giełd); brak plików = bez linii
         if gdz:
             L.append('- Giełdy scentralizowane, DEX i kontrakty na łańcuchu (z plików strony): ' + (f'? kontrola przerwana ({gdz["blad"]})' if gdz.get('blad') else

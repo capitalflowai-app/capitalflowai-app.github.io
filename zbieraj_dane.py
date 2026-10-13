@@ -144,6 +144,7 @@ ZRODLA_META = {
     'target': 'ecb', 'mica': 'esma',   # v355: salda TARGET (to samo źródło co kursy i M3 — liczba źródeł bez zmian) i rejestry MiCA (+1 źródło)
     'soma_sklad': 'ny-fed', 'eurosystem': 'ecb', 'hedge': 'ofr',   # v357: skład portfela Fed, pozycje bilansu Eurosystemu, fundusze hedgingowe — te same trzy instytucje co dotąd (NY Fed, EBC, OFR): liczba źródeł bez zmian
     'etf_zapas': 'ishares',   # v360: zapas przepływów ETF krypto z plików emitenta (IBIT, ETHA) — ten sam wydawca co fundusze (iShares): liczba źródeł bez zmian
+    'polska_rynek_gpw': 'gpw', 'polska_rynek_krzywa': 'bondspot', 'polska_rynek_fundusze': 'izfia',   # v361: Polska na rynku dziennie — giełda w Warszawie, rynek obligacji skarbowych, izba funduszy: trzy nowe źródła
     # --- własne wyliczenia z innych plików (bez zapytań do sieci) ---
     'trendy': None, 'zloto-krypto': None,
 }
@@ -30665,6 +30666,22 @@ def main():
         META['errors'].append(mask(f'metale: {e}')[:200]); META['ok']['metale'] = False
         if isinstance(prev_mt, dict):
             save('metale', prev_mt)
+    # v361 (F3Z2): POLSKA NA RYNKU DZIENNIE (data/polska-rynek.json; GLOBAL, blok „Polska: giełda, obligacje i fundusze”) — dzienne zamknięcia WIG, WIG20, mWIG40, sWIG80 i indeksu
+    # obligacji skarbowych (giełda w Warszawie), dzienna krzywa rentowności obligacji skarbowych (drugi fixing dnia; 2, 5 i 10 lat) i przepływy do funduszy inwestycyjnych w Polsce
+    # (raport miesięczny); każda część z własnym rytmem, bramką i poprzednią wersją przy awarii; nowa historia krzywej po najwyżej 3 zapytania na przebieg.
+    # META ok: polska_rynek_gpw, polska_rynek_krzywa, polska_rynek_fundusze (klucze jawne — test tabeli źródeł liczy je bez generatora).
+    prev_plr = previous('polska-rynek')
+    try:
+        plr_ = build_polska_rynek(prev_plr, run_t0=_RUN_T0[0])
+        save('polska-rynek', plr_)
+        META['ok']['polska_rynek_gpw'] = plr_['ok'].get('gpw', False)
+        META['ok']['polska_rynek_krzywa'] = plr_['ok'].get('krzywa', False)
+        META['ok']['polska_rynek_fundusze'] = plr_['ok'].get('fundusze', False)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Polska rynek: {e}')[:200])
+        META['ok']['polska_rynek_gpw'] = META['ok']['polska_rynek_krzywa'] = META['ok']['polska_rynek_fundusze'] = False
+        if isinstance(prev_plr, dict):
+            save('polska-rynek', prev_plr)
     # v104: dźwignia i pozycje w krypto (bez klucza) — co godzinę od pełnej budowy; młody plik z częścią z błędem: dobieramy tylko tę część (strona Źródła: dzwignia)
     # v126: część `cz` (wszystkie duże giełdy, sekret COINALYZE_KEY — tylko nagłówek zapytań, maskowany w błędach). Bez klucza plik jak dotąd (notatka).
     # Z kluczem: młody zdrowy plik z zaległymi zadaniami tej części = dobierana tylko ona (co przebieg, w budżecie wywołań); jej awaria nigdy nie
@@ -31992,6 +32009,487 @@ def etf_zapas_czesc(etf=None):
         if prev:
             save('etf-zapas', {**prev, 'proba': NOW})
         return False
+
+
+# ===================== v361 (F3Z2): POLSKA NA RYNKU DZIENNIE — data/polska-rynek.json (GLOBAL, blok „Polska: giełda, obligacje i fundusze”) =====================
+# Trzy części jednego pliku, każda z własnym rytmem i własną bramką; awaria części = jej poprzednia wersja z datą (ok False), nigdy zero:
+#  (1) gpw — dzienne zamknięcia pięciu indeksów giełdy w Warszawie (WIG, WIG20, mWIG40, sWIG80 i indeks obligacji skarbowych TBSP): jedno zapytanie o ostatnie
+#      ~400 dni (przy pełnej budowie) albo o dni od ostatniego zapisu minus 10 dni; odpowiedź to JSON poprzedzony białymi znakami (obcinamy do pierwszego „[”),
+#      „t” = północ czasu warszawskiego (dzień sesji = data po dodaniu 3 godzin do chwili UTC — działa w czasie letnim i zimowym). Sesja, która mogła jeszcze trwać
+#      (dzień przebiegu przed 16:45 UTC), nie jest zapisywana. Zapytanie dopiero po spodziewanym zamknięciu następnej sesji (dzień roboczy po dniu danych, 16:45 UTC),
+#      potem co 55 min przez 3 godziny, dalej co 3 godziny (święto bez sesji) — aż przyjdzie nowy dzień.
+#  (2) krzywa — dzienny fixing obligacji skarbowych (drugi fixing dnia): strona HTML na jeden dzień; z serii o stałym kuponie i zerokuponowej (OK, PS, DS, WS)
+#      z podaną rentownością powstaje krzywa „lata do wykupu → rentowność” (termin z kodu serii: miesiąc i rok, wykup 25. dnia — stały zwyczaj emisji) i stałe
+#      terminy 2, 5 i 10 lat (interpolacja między sąsiednimi seriami; 10 lat bez serii o takim terminie = najdłuższa seria od 9 lat, z jej terminem w polu). Historia do 90 dni
+#      dociągana po najwyżej PLR_BS_NA_PRZEBIEG dniach na przebieg (dzień bez fixingu — święto — zapamiętany w polu brak; ostateczny dopiero po 2 dniach od dnia).
+#  (3) fundusze — przepływy netto do funduszy inwestycyjnych w Polsce (raport miesięczny izby funduszy; plik .xlsx szukany po nazwie, nie po tytule): suma wg miesięcy
+#      (aktywa, wpływy, wypływy, netto; ostatnie 25 miesięcy) i podział ostatniego miesiąca na typy funduszy (profile), historia profili narasta o miesiąc przy
+#      każdym nowym pliku (pole ph). Nowy plik ok. 11. dnia drugiego miesiąca po dniu danych; przed tym terminem lista raportów co 48 h, po nim co 3 godziny.
+# Bramki: układ odpowiedzi, skala i zakresy, skok dzienny, ciągłość miesięcy, tożsamość sum (suma profili = razem, netto = wpływy − wypływy). Rozmiar odpowiedzi ≤ 3 MB.
+PLR_V = 1
+PLR_PARTS = ('gpw', 'krzywa', 'fundusze')
+PLR_GPW_URL = 'https://www.gpw.pl/chart-json.php?req='
+PLR_GPW_ISIN = (('WIG', 'PL9999999995'), ('WIG20', 'PL9999999987'), ('mWIG40', 'PL9999999912'), ('sWIG80', 'PL9999999979'), ('TBSP', 'PL9999999474'))
+PLR_GPW_DNI = 400                  # historia indeksów (dni kalendarzowe)
+PLR_GPW_MIN = 100                  # najmniej sesji na indeks w opublikowanym pliku (przy 400 dniach ok. 275)
+PLR_GPW_SKOK = 0.25                # dzienna zmiana indeksu o więcej niż 25% = błąd skali (rekord WIG20: −12% w marcu 2020)
+PLR_GPW_ZAKRES = {'WIG': (20000, 600000), 'WIG20': (500, 20000), 'mWIG40': (1000, 60000), 'sWIG80': (3000, 150000), 'TBSP': (500, 10000)}
+PLR_DUE = (16, 45)                 # godzina i minuta UTC, po której sesja dnia jest zamknięta i opublikowana (17:20 zimą = 16:20 UTC; zapas na publikację)
+PLR_MAX_BAJTOW = 3_000_000         # odpowiedź większa = nie ten plik (indeksy 5 × 400 dni ≈ 0,15 MB, fixing 21 KB, raport .xlsx 26 KB, lista raportów 48 KB)
+PLR_BS_URL = 'https://www.bondspot.pl/fixing_obligacji?date={d}&month={m}&year={y}&type=2'
+PLR_BS_DNI = 90                    # historia krzywej (dni kalendarzowe)
+PLR_BS_NA_PRZEBIEG = 3             # najwyżej tyle stron fixingu na jeden przebieg (dzień bieżący i zaległości od najnowszych)
+PLR_BS_SLEEP = 1.2                 # s odstępu między stronami fixingu
+PLR_BS_MIN_SERII = 8               # najmniej serii z rentownością w dniu (zwykle 20–22)
+PLR_BS_RENT = (0.3, 15.0)          # rentowność poza tym zakresem (%) = błąd skali
+PLR_BS_SKOK_PP = 1.5               # średnia zmiana rentowności wspólnych serii między kolejnymi dniami o więcej niż 1,5 pp = nie przyjmujemy dnia
+PLR_BS_DLUGA_MIN = 9.0             # lata do wykupu najdłuższej serii, od których zastępuje „10 lat”, gdy żadna seria nie ma 10+ lat
+PLR_BS_KODY = ('OK', 'PS', 'DS', 'WS')   # zerokuponowa 1-roczna oraz stałokuponowe 5-, 7- i 10-letnie (zmiennokuponowe WZ, NZ i indeksowane IZ nie mają rentowności)
+PLR_BS_ODRZ_H = 12                 # dzień odrzucony przez bramkę skoku: ponowna próba nie częściej niż co tyle godzin
+PLR_BS_PONOW_H = 3                 # dzień bez tabeli: ponowienie nie częściej niż co tyle godzin, dopóki dzień nie jest „ostateczny”
+PLR_BS_OSTATECZNY_DNI = 2
+PLR_IZ_URL = 'https://www.izfa.pl'
+PLR_IZ_LISTA = PLR_IZ_URL + '/raporty'
+PLR_IZ_MIES = 25                   # miesięcy sumy w pliku
+PLR_IZ_MIN_MIES = 12
+PLR_IZ_PH = 36                     # miesięcy historii profili (narasta)
+PLR_IZ_TOL = 5e6                   # zł: tolerancja tożsamości sum
+PLR_IZ_DUE_DZIEN = 11              # nowy raport za miesiąc M ukazuje się ok. 11. dnia miesiąca M+2
+PLR_IZ_DUE = (8, 0)
+
+
+def _plr_dt(s):
+    """ISO → data ze strefą UTC albo None."""
+    try:
+        t = datetime.datetime.fromisoformat(str(s))
+    except ValueError:
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)
+
+
+def _plr_dzien(s):
+    """'2026-10-09' → ta sama data (datetime.date), gdy to prawdziwa data zapisana RRRR-MM-DD; inaczej None."""
+    try:
+        return datetime.date.fromisoformat(str(s)) if re.fullmatch(r'\d{4}-\d{2}-\d{2}', str(s)) else None
+    except ValueError:
+        return None
+
+
+def _plr_liczba(x):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and abs(x) != float('inf')
+
+
+def _plr_get(url, timeout=45):
+    st, body = get(url, timeout=timeout)
+    if len(body) > PLR_MAX_BAJTOW:
+        raise RuntimeError(f'odpowiedź ma {len(body)} B (limit {PLR_MAX_BAJTOW}) — to nie ten plik')
+    return body
+
+
+def _plr_nast_sesja(asof):
+    """Spodziewane zamknięcie następnej sesji po dniu danych: najbliższy dzień roboczy po asof, PLR_DUE UTC (datetime ze strefą UTC) albo None."""
+    d = _plr_dzien(asof)
+    if d is None:
+        return None
+    d += datetime.timedelta(days=1)
+    while d.weekday() >= 5:
+        d += datetime.timedelta(days=1)
+    return datetime.datetime(d.year, d.month, d.day, PLR_DUE[0], PLR_DUE[1], tzinfo=datetime.timezone.utc)
+
+
+def _plr_ostatnia_sesja(now_t):
+    """Najpóźniejszy dzień roboczy, którego sesja jest już zamknięta i opublikowana (dzień przebiegu po PLR_DUE UTC, inaczej poprzedni) — datetime.date."""
+    d = now_t.date()
+    if (now_t.hour, now_t.minute) < PLR_DUE:
+        d -= datetime.timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= datetime.timedelta(days=1)
+    return d
+
+
+def _plr_odstep_min(now_t, due_t, pierwsze=55, pozniej=180, przed=24 * 60):
+    """Odstęp między zapytaniami (min): przed spodziewanym wydaniem — rzadko (ubezpieczenie), 3 godziny od wydania — pierwsze, potem pozniej."""
+    if now_t < due_t:
+        return przed
+    return pierwsze if (now_t - due_t).total_seconds() < 3 * 3600 else pozniej
+
+
+def _plr_pytac(czesc, now_t, due_t, **kw):
+    """Czy pytać źródło: brak części albo dnia danych = tak; inaczej od ostatniej próby (późniejsza z at i proba) musi minąć odstęp rytmu."""
+    if not isinstance(czesc, dict) or not czesc.get('asof') or due_t is None:
+        return True
+    ost = max([x for x in (_plr_dt(czesc.get('at')), _plr_dt(czesc.get('proba'))) if x is not None], default=None)
+    if ost is None:
+        return True
+    return (now_t - ost).total_seconds() >= _plr_odstep_min(now_t, due_t, **kw) * 60
+
+
+# ------------------------------------------------------------------ (1) indeksy giełdy w Warszawie ------------------------------------------------------------------
+def plr_gpw_url(od, do):
+    """Adres jednego zapytania o wszystkie indeksy w zakresie dat (RRRR-MM-DD); parametr req kodowany procentowo."""
+    req = [{'isin': isin, 'mode': 'RANGE', 'from': str(od), 'to': str(do)} for _, isin in PLR_GPW_ISIN]
+    return PLR_GPW_URL + urllib.parse.quote(json.dumps(req, separators=(',', ':')), safe='')
+
+
+def plr_parse_gpw(txt):
+    """Odpowiedź kanału wykresów → {indeks: [[dzień, zamknięcie], …] rosnąco}. Wpis bez liczby (t, c) jest pomijany (brak ≠ zero); nieznany ISIN pomijany."""
+    i = str(txt).find('[')
+    if i < 0:
+        raise RuntimeError('giełda: odpowiedź bez listy indeksów')
+    try:
+        j = json.loads(str(txt)[i:])
+    except ValueError as e:
+        raise RuntimeError(f'giełda: odpowiedź nie jest poprawnym JSON ({str(e)[:60]})')
+    if not isinstance(j, list):
+        raise RuntimeError('giełda: odpowiedź nie jest listą')
+    nazwy = {isin: n for n, isin in PLR_GPW_ISIN}
+    out = {}
+    for x in j:
+        n = nazwy.get(x.get('isin')) if isinstance(x, dict) else None
+        if n is None or not isinstance(x.get('data'), list):
+            continue
+        wiersze = {}
+        for r in x['data']:
+            if not isinstance(r, dict):
+                continue
+            t, c = r.get('t'), r.get('c')
+            if _plr_liczba(t) and _plr_liczba(c) and c > 0:
+                d = (datetime.datetime.fromtimestamp(t, datetime.timezone.utc) + datetime.timedelta(hours=3)).date().isoformat()
+                wiersze[d] = round(float(c), 2)
+        out[n] = [[d, wiersze[d]] for d in sorted(wiersze)]
+    return out
+
+
+def plr_gpw_bramka(idx):
+    """Bramka scalonych serii: wszystkie pięć indeksów, ≥ PLR_GPW_MIN sesji, rosnące dni, zakres wartości, skok dzienny ≤ PLR_GPW_SKOK. Zwraca dzień danych
+    (najstarszy z ostatnich dni indeksów — wszystkie mają tę sesję)."""
+    ost = []
+    for n, _ in PLR_GPW_ISIN:
+        d = idx.get(n)
+        if not isinstance(d, list) or len(d) < PLR_GPW_MIN:
+            raise RuntimeError(f'giełda: indeks {n} ma {len(d) if isinstance(d, list) else 0} sesji (min. {PLR_GPW_MIN})')
+        lo, hi = PLR_GPW_ZAKRES[n]
+        for a, b in zip(d, d[1:]):
+            if not a[0] < b[0]:
+                raise RuntimeError(f'giełda: indeks {n} — dni nie rosną ({a[0]} → {b[0]})')
+            if abs(b[1] / a[1] - 1) > PLR_GPW_SKOK:
+                raise RuntimeError(f'giełda: indeks {n} — skok {a[0]} → {b[0]} o więcej niż {PLR_GPW_SKOK:.0%}')
+        if not all(lo <= r[1] <= hi for r in d):
+            raise RuntimeError(f'giełda: indeks {n} poza zakresem {lo}–{hi}')
+        ost.append(d[-1][0])
+    return min(ost)
+
+
+def plr_czesc_gpw(prev, now_t):
+    """→ (część, stan, błąd). stan True = zbudowana, 'cached' = poprzednia wystarcza. Brak nowego dnia w odpowiedzi = poprzednia część z nową chwilą (at)."""
+    if isinstance(prev, dict) and prev.get('idx'):
+        a_ = _plr_dzien(prev.get('asof'))
+        if a_ is not None and (a_ >= _plr_ostatnia_sesja(now_t) or not _plr_pytac(prev, now_t, _plr_nast_sesja(prev['asof']))):
+            return prev, 'cached', None   # dzień danych jest najnowszą zamkniętą sesją albo odstęp rytmu jeszcze nie minął
+    stare = {n: [list(r) for r in prev['idx'][n]['d']] for n, _ in PLR_GPW_ISIN
+             if isinstance(prev, dict) and isinstance(prev.get('idx'), dict) and isinstance(prev['idx'].get(n), dict) and isinstance(prev['idx'][n].get('d'), list)}
+    pelna = len(stare) < len(PLR_GPW_ISIN) or any(len(v) < PLR_GPW_MIN for v in stare.values())
+    ostatni = min((v[-1][0] for v in stare.values() if v), default=None)
+    if pelna or ostatni is None:
+        od = now_t.date() - datetime.timedelta(days=PLR_GPW_DNI)
+    else:
+        od = _plr_dzien(ostatni) - datetime.timedelta(days=10)
+    nowe = plr_parse_gpw(_plr_get(plr_gpw_url(od.isoformat(), now_t.date().isoformat()), 60))
+    dzis, czesc_dnia = now_t.date().isoformat(), (now_t.hour, now_t.minute) < PLR_DUE
+    idx = {}
+    for n, _ in PLR_GPW_ISIN:
+        m = {r[0]: r[1] for r in stare.get(n, [])}
+        for d, c in nowe.get(n, []):
+            if d >= dzis and czesc_dnia:
+                continue   # sesja dnia przebiegu przed zamknięciem — nie zapisujemy
+            m[d] = c
+        od_ms = (now_t.date() - datetime.timedelta(days=PLR_GPW_DNI)).isoformat()
+        idx[n] = {'d': [[d, m[d]] for d in sorted(m) if d >= od_ms]}
+    asof = plr_gpw_bramka({n: v['d'] for n, v in idx.items()})
+    if isinstance(prev, dict) and prev.get('asof') and prev['asof'] > asof:
+        META['notes'].append(f'Polska rynek: giełda pokazuje {asof}, a poprzedni plik ma {prev["asof"]} — zostaje poprzedni')
+        return {**prev, 'at': NOW, 'proba': None}, True, None
+    return {'at': NOW, 'asof': asof, 'idx': idx}, True, None
+
+
+# ------------------------------------------------------------------ (2) krzywa rentowności obligacji skarbowych ------------------------------------------------------------------
+PLR_FIX_RE = re.compile(r'(\d+) ([A-Z]{2}\d{4}) (PL\d{10}) ([\d.]+|-) ([\d.]+|-) ([\d.]+|-) ([\d.]+|-) ([\d.]+|-) ([\d.]+|-)')
+
+
+def plr_lata(kod, dzien):
+    """Lata do wykupu serii o kodzie XXMMRR w dniu `dzien` (datetime.date); wykup 25. dnia miesiąca. Zły kod albo seria już wykupiona = None."""
+    m = re.fullmatch(r'[A-Z]{2}(\d{2})(\d{2})', str(kod))
+    if not m or not 1 <= int(m.group(1)) <= 12:
+        return None
+    try:
+        wykup = datetime.date(2000 + int(m.group(2)), int(m.group(1)), 25)
+    except ValueError:
+        return None
+    dni = (wykup - dzien).days
+    return round(dni / 365.25, 3) if dni > 0 else None
+
+
+def plr_parse_fixing(htm, dzien):
+    """Strona fixingu → [[kod, rentowność %], …] (serie z rentownością, w kolejności strony) albo None, gdy w tym dniu nie było fixingu (strona z kalendarzem bez
+    tabeli). Zmieniony układ (nagłówek nie ten, inny dzień, inny fixing) = wyjątek."""
+    t = re.sub(r'<script.*?</script>|<style.*?</style>', '', str(htm), flags=re.S)
+    t = _html.unescape(re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', t)))
+    j = t.find('BondSpot SA - FIXING')
+    if j < 0:
+        if 'Fixing obligacji' in t:
+            return None
+        raise RuntimeError('fixing obligacji: nieznany układ strony')
+    h = re.match(r'BondSpot SA - FIXING (\w+) SPW, Data: (\d{4}-\d{2}-\d{2})', t[j:])
+    if not h or h.group(1) != 'DRUGI' or h.group(2) != dzien:
+        raise RuntimeError(f'fixing obligacji: nagłówek „{t[j:j + 60]}” zamiast drugiego fixingu z dnia {dzien}')
+    k = t.find('KURS NIEOKRESLONY', j)
+    cialo = t[j:k if k > 0 else len(t)]
+    out = []
+    for _, kod, _isin, _ck, _cs, _rk, _rs, _cf, rf in PLR_FIX_RE.findall(cialo):
+        if kod[:2] in PLR_BS_KODY and rf != '-':
+            out.append([kod, float(rf)])
+    return out
+
+
+def plr_cm(p):
+    """p: [[lata, rentowność, kod], …] rosnąco po latach → [rentowność 2 lata, 5 lat, 10 lat, lata do wykupu serii „10 lat” albo None]. Termin między dwiema sąsiednimi
+    seriami = interpolacja liniowa; poza zakresem serii = None; 10 lat poniżej najdłuższej serii, gdy ta ma ≥ PLR_BS_DLUGA_MIN lat = jej rentowność z jej terminem (ostatni element)."""
+    def interp(T):
+        for a, b in zip(p, p[1:]):
+            if a[0] <= T <= b[0]:
+                return round(a[1] + (b[1] - a[1]) * (T - a[0]) / (b[0] - a[0]), 2) if b[0] > a[0] else round(a[1], 2)
+        return None
+    y2, y5, y10 = interp(2.0), interp(5.0), interp(10.0)
+    l10 = None
+    if y10 is None and p and PLR_BS_DLUGA_MIN <= p[-1][0] < 10.0:
+        y10, l10 = round(p[-1][1], 2), round(p[-1][0], 1)
+    return [y2, y5, y10, l10]
+
+
+def plr_krzywa_dnia(wiersze, dzien):
+    """[[kod, rentowność], …] + dzień → {'p': [[lata, rentowność, kod], …] rosnąco po latach, 'cm': plr_cm}; seria wykupiona albo o złym kodzie pomijana. Bramka dnia:
+    ≥ PLR_BS_MIN_SERII serii, rentowność w PLR_BS_RENT, lata różne (rosnące)."""
+    p = []
+    for kod, r in wiersze:
+        l = plr_lata(kod, dzien)
+        if l is not None and _plr_liczba(r):
+            p.append([l, round(float(r), 2), kod])
+    p.sort(key=lambda x: (x[0], x[2]))
+    if len(p) < PLR_BS_MIN_SERII:
+        raise RuntimeError(f'fixing obligacji {dzien}: tylko {len(p)} serii z rentownością (min. {PLR_BS_MIN_SERII})')
+    if not all(PLR_BS_RENT[0] <= x[1] <= PLR_BS_RENT[1] for x in p):
+        raise RuntimeError(f'fixing obligacji {dzien}: rentowność poza zakresem {PLR_BS_RENT[0]}–{PLR_BS_RENT[1]}%')
+    if any(a[0] >= b[0] for a, b in zip(p, p[1:])):
+        raise RuntimeError(f'fixing obligacji {dzien}: dwie serie z tym samym terminem')
+    return {'p': p, 'cm': plr_cm(p)}
+
+
+def plr_krzywa_skok(nowa, stara):
+    """Średnia bezwzględna zmiana rentowności serii wspólnych (po kodzie) dwóch dni (pp) albo None, gdy wspólnych jest mniej niż 5."""
+    a, b = {x[2]: x[1] for x in nowa['p']}, {x[2]: x[1] for x in stara['p']}
+    wsp = sorted(set(a) & set(b))
+    return round(sum(abs(a[k] - b[k]) for k in wsp) / len(wsp), 3) if len(wsp) >= 5 else None
+
+
+def plr_czesc_krzywa(prev, now_t, run_t0=None):
+    """→ (część, stan, błąd). Dni do pobrania: dni robocze z ostatnich PLR_BS_DNI dni do ostatniej zamkniętej sesji, których nie ma w k i które nie są w brak
+    (ostateczny — 2 dni po dniu — albo sprawdzony niedawno). Najnowsze pierwsze, najwyżej PLR_BS_NA_PRZEBIEG stron na przebieg (1 w długim przebiegu)."""
+    prev = prev if isinstance(prev, dict) else {}
+    k = {d: v for d, v in (prev.get('k') or {}).items() if _plr_dzien(d) and isinstance(v, dict) and isinstance(v.get('p'), list)}
+    brak = {d: t for d, t in (prev.get('brak') or {}).items() if _plr_dzien(d)}
+    odrz = {d: t for d, t in (prev.get('odrz') or {}).items() if _plr_dzien(d)}
+    ost = _plr_ostatnia_sesja(now_t)
+    od = ost - datetime.timedelta(days=PLR_BS_DNI)
+    kandydaci, d = [], ost
+    while d >= od:
+        ds = d.isoformat()
+        if d.weekday() < 5 and ds not in k:
+            odrzucono = _plr_dt(odrz.get(ds))
+            sprawdzono = _plr_dt(brak.get(ds))
+            if odrzucono is not None:   # dzień odrzucony przez bramkę skoku — ponowna próba najwcześniej po PLR_BS_ODRZ_H godzinach (nie blokuje starszych dni)
+                if (now_t - odrzucono).total_seconds() >= PLR_BS_ODRZ_H * 3600:
+                    kandydaci.append(d)
+            elif sprawdzono is None:
+                kandydaci.append(d)
+            else:
+                ostateczny = (sprawdzono.date() - d).days >= PLR_BS_OSTATECZNY_DNI
+                if not ostateczny and (now_t - sprawdzono).total_seconds() >= PLR_BS_PONOW_H * 3600:
+                    kandydaci.append(d)
+        d -= datetime.timedelta(days=1)
+    if not kandydaci:
+        return prev, 'cached', None
+    spozniony = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
+    limit = 1 if spozniony else PLR_BS_NA_PRZEBIEG
+    blad, nowe = None, 0
+    for i, d in enumerate(kandydaci[:limit]):
+        if i:
+            time.sleep(PLR_BS_SLEEP)
+        try:
+            htm = _plr_get(PLR_BS_URL.format(d=d.strftime('%Y%m%d'), m=d.month, y=d.year), 30)
+            wiersze = plr_parse_fixing(htm, d.isoformat())
+            if wiersze is None:
+                brak[d.isoformat()] = NOW
+                continue
+            kr = plr_krzywa_dnia(wiersze, d)
+            sasiedzi = [max((x for x in k if x < d.isoformat()), default=None), min((x for x in k if x > d.isoformat()), default=None)]
+            zly = next(((plr_krzywa_skok(kr, k[sas]), sas) for sas in sasiedzi if sas and (plr_krzywa_skok(kr, k[sas]) or 0) > PLR_BS_SKOK_PP), None)
+            if zly:   # dzień nieprzyjęty, ale starsze zaległe dni idą dalej; błąd raportowany (ok False), ponowna próba najwcześniej po PLR_BS_ODRZ_H godzinach
+                odrz[d.isoformat()] = NOW
+                blad = f'fixing obligacji {d}: średnia zmiana rentowności {zly[0]} pp względem {zly[1]} (próg {PLR_BS_SKOK_PP} pp) — dzień nieprzyjęty'
+                continue
+            k[d.isoformat()] = kr
+            brak.pop(d.isoformat(), None); odrz.pop(d.isoformat(), None)
+            nowe += 1
+        except Exception as e:  # noqa
+            blad = str(e)[:150]
+            break
+    od_s = (ost - datetime.timedelta(days=PLR_BS_DNI)).isoformat()
+    k = {d: v for d, v in k.items() if d >= od_s}
+    brak = {d: t for d, t in brak.items() if d >= od_s}
+    odrz = {d: t for d, t in odrz.items() if d >= od_s}
+    if not k:
+        if blad:
+            raise RuntimeError(blad)
+        return (dict(prev, at=NOW), 'cached', None) if prev else ({'at': NOW, 'asof': None, 'k': {}, 'brak': brak}, True, 'brak fixingu w sprawdzonych dniach')
+    nowa = {'at': NOW if not blad else prev.get('at') or NOW, 'asof': max(k), 'k': k, 'brak': brak}
+    if odrz:
+        nowa['odrz'] = odrz
+    if blad:
+        nowa['proba'] = NOW
+    return nowa, (False if blad else True), blad
+
+
+# ------------------------------------------------------------------ (3) fundusze inwestycyjne w Polsce (raport miesięczny) ------------------------------------------------------------------
+PLR_IZ_LINK = re.compile(r'href=["\'](?:https://www\.izfa\.pl)?(/sites/default/files/\d{4}-\d{2}/IZFiA_dane_przeplywy_(\d{8})\.xlsx)["\']')
+
+
+def plr_iz_lista(htm):
+    """Strona z listą raportów → (ścieżka, RRRRMMDD) najnowszego pliku przepływów albo wyjątek. Tylko ścieżki własnego serwisu (adres składany z domeny stałej)."""
+    c = sorted({(m.group(2), m.group(1)) for m in PLR_IZ_LINK.finditer(str(htm)) if _plr_dzien(f'{m.group(2)[:4]}-{m.group(2)[4:6]}-{m.group(2)[6:]}')})
+    if not c:
+        raise RuntimeError('fundusze: na liście raportów brak pliku przepływów')
+    return c[-1][1], c[-1][0]
+
+
+def _plr_serial(v):
+    x = _num(v)
+    if x is None or not 20000 < x < 80000:
+        return None
+    return datetime.date(1899, 12, 30) + datetime.timedelta(days=int(x))
+
+
+def plr_parse_fundusze(data):
+    """Plik .xlsx przepływów → {'asof', 'm': [[RRRR-MM, aktywa, wpływy, wypływy, netto]] (mld zł), 'p': [[typ, aktywa, netto]] (mln zł)}. Arkusze 01T (razem) i 03T (typy).
+    Bramka: nagłówki, miesiące po kolei, ostatni miesiąc = dzień danych, netto = wpływy − wypływy, suma typów = razem (aktywa i netto)."""
+    r1 = _xlsx_rows(data, '01T')
+    asof = _plr_serial((r1.get(1) or {}).get(2))
+    if (r1.get(1) or {}).get(1) != 'Data danych' or asof is None or (asof + datetime.timedelta(days=1)).day != 1:
+        raise RuntimeError('fundusze: arkusz 01T — brak dnia danych albo to nie koniec miesiąca')
+    hw = next((k for k in sorted(r1) if (r1[k].get(1), r1[k].get(2), r1[k].get(5)) == ('Date', 'NAV', 'FlowNet')), None)
+    if hw is None:
+        raise RuntimeError('fundusze: arkusz 01T — zmieniony nagłówek')
+    m = []
+    for k in sorted(r1):
+        if k <= hw:
+            continue
+        d, nav, fi, fo, fn = _plr_serial(r1[k].get(1)), *(_num(r1[k].get(c)) for c in (2, 3, 4, 5))
+        if d is None or None in (nav, fi, fo, fn):
+            continue
+        m.append((f'{d.year:04d}-{d.month:02d}', nav, fi, fo, fn))
+    if len(m) < PLR_IZ_MIN_MIES:
+        raise RuntimeError(f'fundusze: tylko {len(m)} miesięcy sumy (min. {PLR_IZ_MIN_MIES})')
+    ym = [x[0] for x in m]
+    kolejne = all((int(b[:4]) * 12 + int(b[5:]) - 1) - (int(a[:4]) * 12 + int(a[5:]) - 1) == 1 for a, b in zip(ym, ym[1:]))
+    if not kolejne or ym[-1] != f'{asof.year:04d}-{asof.month:02d}':
+        raise RuntimeError('fundusze: miesiące sumy nie są kolejne albo ostatni nie jest dniem danych')
+    for x in m:
+        if not 1e10 <= x[1] <= 5e12 or abs(x[2] - x[3] - x[4]) > PLR_IZ_TOL or abs(x[4]) > 0.2 * x[1]:
+            raise RuntimeError(f'fundusze: miesiąc {x[0]} — skala albo netto ≠ wpływy − wypływy')
+    r3 = _xlsx_rows(data, '03T')
+    h3 = next((k for k in sorted(r3) if (r3[k].get(1), r3[k].get(2), r3[k].get(6)) == ('Date', 'Profile', 'FlowNet')), None)
+    if h3 is None:
+        raise RuntimeError('fundusze: arkusz 03T — zmieniony nagłówek')
+    p = []
+    for k in sorted(r3):
+        if k <= h3 or not r3[k].get(2):
+            continue
+        d, nav, net = _plr_serial(r3[k].get(1)), _num(r3[k].get(3)), _num(r3[k].get(6))
+        if d != asof or nav is None or net is None:
+            raise RuntimeError(f'fundusze: arkusz 03T — wiersz „{r3[k].get(2)}” z innego dnia albo bez liczb')
+        p.append((r3[k][2], nav, net))
+    if len(p) < 8:
+        raise RuntimeError(f'fundusze: arkusz 03T ma {len(p)} typów (min. 8)')
+    if abs(sum(x[1] for x in p) - m[-1][1]) > PLR_IZ_TOL or abs(sum(x[2] for x in p) - m[-1][4]) > PLR_IZ_TOL:
+        raise RuntimeError('fundusze: suma typów funduszy różni się od sumy ogółem (aktywa albo netto)')
+    return {'asof': asof.isoformat(), 'm': [[x[0], round(x[1] / 1e9, 3), round(x[2] / 1e9, 3), round(x[3] / 1e9, 3), round(x[4] / 1e9, 3)] for x in m[-PLR_IZ_MIES:]],
+            'p': [[n, round(a / 1e6, 1), round(f / 1e6, 1)] for n, a, f in p]}
+
+
+def _plr_due_fundusze(asof):
+    """Spodziewane wydanie następnego raportu: 11. dnia drugiego miesiąca po miesiącu dnia danych (dzień danych = koniec miesiąca M → raport za M+1 ok. 11. M+2)."""
+    d = _plr_dzien(asof)
+    if d is None:
+        return None
+    n = d.year * 12 + d.month - 1 + 2
+    return datetime.datetime(n // 12, n % 12 + 1, PLR_IZ_DUE_DZIEN, PLR_IZ_DUE[0], PLR_IZ_DUE[1], tzinfo=datetime.timezone.utc)
+
+
+def plr_czesc_fundusze(prev, now_t):
+    """→ (część, stan, błąd). Lista raportów: przed spodziewanym wydaniem co 48 h, po nim co 3 godziny (po 2 dobach co 6 godzin); nowy plik tylko gdy jego data jest
+    późniejsza niż w poprzedniej części."""
+    prev = prev if isinstance(prev, dict) else {}
+    due = _plr_due_fundusze(prev.get('asof'))
+    if prev.get('m') and due is not None:
+        po = 180 if (now_t - due).total_seconds() < 48 * 3600 else 360
+        if not _plr_pytac(prev, now_t, due, pierwsze=po, pozniej=po, przed=48 * 60):
+            return prev, 'cached', None
+    sciezka, data = plr_iz_lista(_plr_get(PLR_IZ_LISTA, 45))
+    if prev.get('plik') and data <= prev['plik']:
+        return dict(prev, at=NOW, proba=None), True, None
+    dane = get_bytes(PLR_IZ_URL + sciezka, timeout=60)
+    if len(dane) > PLR_MAX_BAJTOW:
+        raise RuntimeError(f'fundusze: plik ma {len(dane)} B (limit {PLR_MAX_BAJTOW}) — to nie ten raport')
+    p = plr_parse_fundusze(dane)
+    if prev.get('asof') and p['asof'] <= prev['asof']:
+        return dict(prev, at=NOW, proba=None), True, None
+    ph = {k: v for k, v in (prev.get('ph') or {}).items() if re.fullmatch(r'\d{4}-\d{2}', str(k)) and isinstance(v, list)}
+    ph[p['asof'][:7]] = p['p']
+    ph = {k: ph[k] for k in sorted(ph)[-PLR_IZ_PH:]}
+    return {'at': NOW, 'asof': p['asof'], 'plik': data, 'm': p['m'], 'p': p['p'], 'ph': ph}, True, None
+
+
+# ------------------------------------------------------------------ plik ------------------------------------------------------------------
+def build_polska_rynek(prev=None, run_t0=None, now=None):
+    """data/polska-rynek.json = {v, at, ok: {gpw, krzywa, fundusze}, gpw, krzywa, fundusze}. Każda część osobno: awaria = jej poprzednia wersja (z chwilą próby w polu proba)
+    i błąd w meta; część bez poprzedniej wersji i bez danych nie wchodzi do pliku. Wyjątek tylko wtedy, gdy plik nie miałby żadnej części."""
+    now_t = _plr_dt(now or NOW) or datetime.datetime.now(datetime.timezone.utc)
+    prev = prev if isinstance(prev, dict) and prev.get('v') == PLR_V else {}
+    out, ok = {'v': PLR_V, 'at': NOW, 'ok': {}}, {}
+    etyk = {'gpw': 'Polska rynek (indeksy giełdy)', 'krzywa': 'Polska rynek (krzywa obligacji)', 'fundusze': 'Polska rynek (fundusze)'}
+    fun = {'gpw': lambda p: plr_czesc_gpw(p, now_t), 'krzywa': lambda p: plr_czesc_krzywa(p, now_t, run_t0), 'fundusze': lambda p: plr_czesc_fundusze(p, now_t)}
+    for n in PLR_PARTS:
+        pc = prev.get(n) if isinstance(prev.get(n), dict) else None
+        try:
+            nowa, stan, blad = fun[n](pc)
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{etyk[n]}: {e}')[:200])
+            ok[n] = False
+            if pc:
+                out[n] = dict(pc, proba=NOW)
+            continue
+        if blad:
+            META['errors'].append(mask(f'{etyk[n]}: {blad}')[:200])
+        ok[n] = stan
+        if nowa and (nowa.get('idx') or nowa.get('k') or nowa.get('m')):
+            out[n] = nowa
+        elif pc:
+            out[n] = pc
+        elif stan is not False:
+            ok[n] = False
+    out['ok'] = ok
+    if not any(n in out for n in PLR_PARTS):
+        raise RuntimeError('żadna część pliku nie ma danych')
+    return out
 
 
 if __name__ == '__main__':
