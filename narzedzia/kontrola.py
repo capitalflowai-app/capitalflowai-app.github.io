@@ -5880,6 +5880,198 @@ def zboza_kontrola(j, files, R):
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v349: giełdy scentralizowane, DEX i otwarte pozycje (data/gieldy.json, data/dex.json) ----------------------------------------------------------------
+# Pliki w PLIKI (przed plikami krypto dziennie; wiek pliku wg rytmu: zapis co przebieg, część giełd co 55 min, otwarte pozycje co 55 min → 3 h) i wiersze świeżości
+# (lista SWIEZOSC bez zmian), najwyżej ⚠️: salda i przepływy giełd — wiek odczytu źródła (czas z nagłówków odpowiedzi: Date − Age, nie później niż Last-Modified)
+# do 4 h (źródło odświeża co ok. 30 min, my co 55 min, ponowienie po błędzie co 25 min); obrót DEX — doba danych (ostatnia pełna doba UTC, zwykle gotowa ok. 03:00 UTC
+# następnego dnia → normalny wiek 3–27 h) do 60 h (jedna opuszczona doba); otwarte pozycje — jak giełdy (4 h).
+# ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (suma sald ≠ suma wierszy, wiersze nie malejąco, migawka dobowa ≠ odczyt, udziały sieci ≠ 100%, suma
+# największych protokołów ponad sumę, suma rodzajów otwartych pozycji ≠ suma). Informacje ℹ️ w raporcie (nigdy ⚠️/❌, bo progi NIE mają testu wstecznego):
+# * podejrzany skok listy portfeli — przepływ 24 h > 10% salda i większy niż cały obrót spot giełdy (dz = 2 w pliku; litera planu F6Z1 „obrót < 1% salda” jest
+#   podzbiorem i nie łapie przykładu planu — Bitstamp 10.10.2026) oraz przepływ > 10% salda przy saldzie ≥ 100 mln USD w innym układzie obrotu (dz = 1).
+#   Historii obrotu spot źródło nie daje, więc próg nie ma testu wstecznego; z historii sald (nagrania 10.10.2026) dzienna zmiana salda o ponad 10%
+#   zdarzała się w 2,6% dób Bitstamp i 0,7% dób OKX — dlatego tylko informacja;
+# * znak przepływu 7 dni wszystkich giełd (bez wykluczonych) wobec znaku sumy przepływów BTC + ETH z drugiego źródła (cm.json, ostatnie 7 dób) — OBA ZBIORY RÓŻNE
+#   (inne portfele, wszystkie aktywa wobec dwóch monet, inne okno), więc rozbieżność znaku to tylko informacja, nigdy błąd i nigdy jedna liczba;
+# * przepływ okna 7 dni ponad 25% salda i okna 30 dni ponad 50% salda przy saldzie ≥ 10 mln USD (flagi dz7 i dz30 = 2: giełda poza sumą tego okna; źródło nie daje obrotu z tych
+#   okien, więc tylko próg względem salda; odczyt 13.10.2026: Bitstamp +1,27 mld w 7 dni po skoku z 9–10.10, Bitvavo −0,37 mld w 30 dni przy saldzie 0,26 mld) — informacja;
+# * skok sumy sald o ponad 15% między dwiema kolejnymi dobami migawki (zmiana listy portfeli albo krach) — informacja;
+# * obrót DEX wobec obrotu spot giełd scentralizowanych poza przedziałem 0,03–0,60 (dwa odczyty: 0,09 przy sobocie 10.10 i 0,16 przy dniu roboczym 13.10 wobec
+#   okna kroczącego 24 h) — informacja; doba szacunkowa (brak punktu szeregu zgodnego z podsumowaniem) — informacja.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'gieldy')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['gieldy'] = 180
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'dex')      # v349: DEX i otwarte pozycje — przed plikami krypto dziennie
+LIMIT_MIN['dex'] = 180
+AW_BEZ_BLEDU.update({k: 'giełdy i DEX — część z błędem zostaje z datą (v349); wiek danych w wierszach świeżości' for k in ('gieldy', 'dex', 'dex_oi')})
+GX_K_ETYKIETA = {'cex': 'Giełdy: salda i przepływy netto giełd scentralizowanych (szacunek z portfeli)',
+                 'dex': 'DEX: obrót ostatniej pełnej doby UTC', 'oi': 'Kontrakty na łańcuchu: otwarte pozycje'}
+GX_K_PROG = {'cex': ('ts', 240), 'dex': ('day', 3600), 'oi': ('ts', 240)}
+GX_K_SKOK_SUMY = 15.0        # % — zmiana sumy sald między dwiema kolejnymi dobami migawki (informacja)
+GX_K_DEX_CEX = (0.03, 0.60)  # obrót DEX doby ÷ obrót spot giełd scentralizowanych (okno kroczące 24 h) — informacja
+GX_K_TOL_UDZIAL = 0.6        # pkt proc. — suma udziałów sieci wobec 100 (zaokrąglenia do 0,01 × 11 pozycji)
+
+
+def _gx_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))
+
+
+def gx_swiezosc(gx, dx, now=None):
+    """Wiersze świeżości trzech części: (etykieta, status, wiek min, data danych, uwaga). Najwyżej ⚠️, nigdy ❌; plik albo część bez daty — '?' (brak pliku
+    = brak wierszy, plik jest już w PLIKI i raport pokaże „plik nie wczytany”)."""
+    now = now or NOW
+    zr = {'cex': ((gx or {}).get('cex') or {}).get('src_at') if isinstance(gx, dict) else None,
+          'dex': ((dx or {}).get('dex') or {}).get('day') if isinstance(dx, dict) else None,
+          'oi': ((dx or {}).get('oi') or {}).get('src_at') if isinstance(dx, dict) else None}
+    rows = []
+    for p, label in GX_K_ETYKIETA.items():
+        pl = gx if p == 'cex' else dx
+        if not isinstance(pl, dict) or pl.get('v') != 1:
+            continue
+        txt = zr[p]
+        if not isinstance(txt, str) or not txt:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        kind, prog = GX_K_PROG[p]
+        w = wiek_danych(txt, kind, 'k', now)
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        note = f'próg {fmt_wiek(prog)} — najwyżej uwaga' if st == '⚠️' else ''
+        err = (pl.get('err') or {}).get(p) if isinstance(pl.get('err'), dict) else None
+        if err and st == '⚠️':
+            note += f'; ostatni błąd pobrania: {str(err)[:80]}'
+        rows.append((label, st, w, txt, note))
+    return rows
+
+
+def gx_spojnosc(gx, dx):
+    """Sprzeczności wewnątrz plików (jedyny powód ❌ w giełdach i DEX) → lista opisów."""
+    zle = []
+    c = gx.get('cex') if isinstance(gx, dict) and isinstance(gx.get('cex'), dict) else None
+    if c is not None:
+        R = [r for r in (c.get('rows') or []) if isinstance(r, dict)]
+        z = c.get('razem') if isinstance(c.get('razem'), dict) else {}
+        B = [r['bal'] for r in R if _gx_k_num(r.get('bal')) and r['bal'] > 0]
+        if _gx_k_num(z.get('bal')) and abs(sum(B) - z['bal']) > len(B):
+            zle.append(f'giełdy: suma sald {z["bal"]} ≠ suma wierszy {sum(B)}')
+        if z.get('n') != len(R) or z.get('n_bal') != len(B):
+            zle.append(f'giełdy: liczby giełd w sumach ({z.get("n")}, {z.get("n_bal")}) ≠ wiersze ({len(R)}, {len(B)})')
+        if B != sorted(B, reverse=True):
+            zle.append('giełdy: wiersze nie malejąco wg salda')
+        h = gx.get('hist') if isinstance(gx.get('hist'), list) else []
+        ds = [str(x[0]) for x in h if isinstance(x, list) and x]
+        if ds != sorted(set(ds)):
+            zle.append('giełdy: migawka dobowa — doby nie rosną albo się powtarzają')
+        if h and isinstance(h[-1], list) and len(h[-1]) >= 3 and (str(h[-1][0]) != str(c.get('src_at'))[:10] or h[-1][1] != z.get('bal')):
+            zle.append(f'giełdy: ostatnia migawka dobowa {h[-1][:2]} ≠ odczyt ({str(c.get("src_at"))[:10]}, {z.get("bal")})')
+    d = dx.get('dex') if isinstance(dx, dict) and isinstance(dx.get('dex'), dict) else None
+    if d is not None:
+        if _gx_k_num(d.get('s24')) and d['s24'] > 0:
+            T = [r for r in (d.get('top') or []) if isinstance(r, list) and len(r) >= 4 and _gx_k_num(r[1])]
+            if sum(r[1] for r in T) > d['s24'] * 1.001:
+                zle.append('DEX: suma największych protokołów większa niż suma doby')
+            if any(_gx_k_num(r[3]) and abs(r[3] - r[1] / d['s24'] * 100) > 0.011 for r in T):
+                zle.append('DEX: udział protokołu ≠ wartość ÷ suma doby')
+        S = d.get('sieci')
+        if isinstance(S, list) and S:
+            sh = sum(r[3] for r in S if isinstance(r, list) and len(r) >= 4 and _gx_k_num(r[3]))
+            if abs(sh - 100) > GX_K_TOL_UDZIAL:
+                zle.append(f'DEX: udziały sieci sumują się do {sh:.2f}%')
+            if _gx_k_num(d.get('sieci_sum')) and _gx_k_num(d.get('s30')) and abs(d['sieci_sum'] / d['s30'] - 1) > 0.011:
+                zle.append('DEX: suma sieci ≠ suma 30 dób')
+        h = dx.get('hist') if isinstance(dx.get('hist'), list) else []
+        ds = [str(x[0]) for x in h if isinstance(x, list) and x]
+        if ds != sorted(set(ds)):
+            zle.append('DEX: szereg dobowy — doby nie rosną albo się powtarzają')
+        L = [x for x in h if isinstance(x, list) and len(x) >= 3 and x[0] == d.get('day')]
+        if h and (not L or L[0][1] != d.get('s24')):
+            zle.append(f'DEX: szereg dobowy nie ma doby {d.get("day")} z sumą odczytu')
+        if _gx_k_num(d.get('n')) and _gx_k_num(d.get('n_act')) and d['n_act'] > d['n']:
+            zle.append('DEX: protokołów z obrotem więcej niż protokołów')
+    o = dx.get('oi') if isinstance(dx, dict) and isinstance(dx.get('oi'), dict) else None
+    if o is not None and _gx_k_num(o.get('on')):
+        T = [r for r in (o.get('top') or []) if isinstance(r, list) and len(r) >= 3 and _gx_k_num(r[2])]
+        if sum(r[2] for r in T) > o['on'] * 1.001:
+            zle.append('kontrakty: suma największych protokołów większa niż suma na łańcuchu')
+        if [r[2] for r in T] != sorted((r[2] for r in T), reverse=True):
+            zle.append('kontrakty: protokoły nie malejąco')
+        K = o.get('kinds') if isinstance(o.get('kinds'), dict) else {}
+        if K and abs(sum(v for v in K.values() if _gx_k_num(v)) - o['on']) > (o.get('n_on') or 0) + len(K):
+            zle.append('kontrakty: suma rodzajów ≠ suma na łańcuchu')
+    return zle
+
+
+def gx_cm_znak(cm, asof_max=7):
+    """Suma przepływów netto BTC + ETH w USD z ostatnich 7 wierszy każdego aktywa w cm.json (kolumna net_usd) → (suma, ostatnia doba) albo None."""
+    if not isinstance(cm, dict) or not isinstance(cm.get('assets'), dict) or not isinstance(cm.get('cols'), list) or 'net_usd' not in cm['cols']:
+        return None
+    i = cm['cols'].index('net_usd')
+    s, last = 0.0, None
+    for a in ('btc', 'eth'):
+        d = (cm['assets'].get(a) or {}).get('d') if isinstance(cm['assets'].get(a), dict) else None
+        V = [r for r in (d or []) if isinstance(r, list) and len(r) > i and _gx_k_num(r[i])][-asof_max:]
+        if len(V) < asof_max:
+            return None
+        s += sum(r[i] for r in V)
+        last = max(last or '', str(V[-1][0]))
+    return s, last
+
+
+def gx_porownania(gx, dx, cm):
+    """Informacje ℹ️ (bez ⚠️/❌, progi bez testu wstecznego) → {'wiersze': [(opis, znak)]}."""
+    W = []
+    c = gx.get('cex') if isinstance(gx, dict) and isinstance(gx.get('cex'), dict) else None
+    if c is not None:
+        R = [r for r in (c.get('rows') or []) if isinstance(r, dict)]
+        s2 = [r['name'] for r in R if r.get('dz') == 2]
+        s1 = [r['name'] for r in R if r.get('dz') == 1]
+        W.append((('podejrzany skok listy portfeli (przepływ 24 h > 10% salda i większy niż obrót spot): ' + ', '.join(s2[:5]) + ' — wykluczone z sum przepływów') if s2
+                  else 'podejrzany skok listy portfeli (próg planu F6Z1): brak', 'ℹ️' if s2 else '✅'))
+        if s1:
+            W.append(('przepływ 24 h ponad 10% salda (saldo ≥ 100 mln USD): ' + ', '.join(s1[:5]) + ' — do sprawdzenia, czy to nie zmiana listy portfeli', 'ℹ️'))
+        for p_, nm_, lim_ in (('dz7', '7 dni', 25), ('dz30', '30 dni', 50)):
+            sw = [r['name'] for r in R if r.get(p_) == 2 and r.get('dz') != 2]
+            if sw:
+                W.append((f'przepływ {nm_} ponad {lim_}% salda (saldo ≥ 10 mln USD): ' + ', '.join(sw[:6]) + (f' (+{len(sw) - 6})' if len(sw) > 6 else '') + f' — poza sumą {nm_}', 'ℹ️'))
+        z = c.get('razem') if isinstance(c.get('razem'), dict) else {}
+        h = gx.get('hist') if isinstance(gx.get('hist'), list) else []
+        if len(h) >= 2 and all(isinstance(x, list) and len(x) >= 2 and _gx_k_num(x[1]) and x[1] > 0 for x in h[-2:]):
+            ch = (h[-1][1] / h[-2][1] - 1) * 100
+            W.append((f'suma sald między dobami {h[-2][0]} → {h[-1][0]}: {ch:+.1f}%'.replace('.', ','),
+                      'ℹ️' if abs(ch) > GX_K_SKOK_SUMY else '✅'))
+        zc = gx_cm_znak(cm)
+        if zc and _gx_k_num(z.get('in7')):
+            a, b = z['in7'], zc[0]
+            W.append((f'znak przepływu 7 dni: giełdy z listy (wszystkie aktywa) {"plus" if a > 0 else "minus" if a < 0 else "zero"}; BTC + ETH z drugiego źródła '
+                      f'(do {zc[1]}) {"plus" if b > 0 else "minus" if b < 0 else "zero"} (inne zbiory portfeli i aktywów — tylko informacja)',
+                      '✅' if (a > 0) == (b > 0) or a == 0 or b == 0 else 'ℹ️'))
+    d = dx.get('dex') if isinstance(dx, dict) and isinstance(dx.get('dex'), dict) else None
+    if d is not None:
+        if d.get('est'):
+            W.append((f'DEX: doba {d.get("day")} szacunkowa (brak punktu szeregu zgodnego z podsumowaniem odpowiedzi)', 'ℹ️'))
+        sp = ((gx or {}).get('cex') or {}).get('razem', {}).get('spot') if isinstance(gx, dict) and isinstance(gx.get('cex'), dict) else None
+        if _gx_k_num(d.get('s24')) and _gx_k_num(sp) and sp > 0:
+            r = d['s24'] / sp
+            W.append((f'obrót DEX doby ÷ obrót spot giełd scentralizowanych (kroczące 24 h): {r:.2f}'.replace('.', ','), 'ℹ️' if not GX_K_DEX_CEX[0] <= r <= GX_K_DEX_CEX[1] else '✅'))
+    return {'wiersze': W}
+
+
+def gx_kontrola(files, R):
+    """Kontrola plików gieldy.json i dex.json bez sieci: sprzeczności w plikach (❌ = BŁĄD) i informacje ℹ️. Brak obu plików = None (raport bez linii)."""
+    gx, dx = files.get('gieldy'), files.get('dex')
+    gx = gx if isinstance(gx, dict) and gx.get('v') == 1 else None
+    dx = dx if isinstance(dx, dict) and dx.get('v') == 1 else None
+    if gx is None and dx is None:
+        return None
+    zle = gx_spojnosc(gx, dx)
+    for z in zle[:5]:
+        R['bledy'].append(f'giełdy i DEX: sprzeczność w pliku — {z}')
+    P = gx_porownania(gx, dx, files.get('cm'))
+    nie = []
+    for pl in (gx, dx):
+        ok = pl.get('ok') if pl else None
+        if isinstance(ok, dict):
+            nie += sorted(k for k, v in ok.items() if v is False)
+    return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- v320: surowce — raporty miesięczne (data/surowce-raporty.json) i drugi kanał pozycji CFTC ----------------------------------------------------------------
 # Świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️; data danych = dzień wydania raportu (ropa, zboża) albo koniec
 # miesiąca ceny (uran). Progi z testu wstecznego (ws53/v320-surowce46/bt/bt_swiezosc.py, 10.10.2026; wiek jak wiek_danych, kontrola co godzinę
@@ -6668,6 +6860,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-gx. v349 (F6Z1): giełdy scentralizowane i DEX (data/gieldy.json, data/dex.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in gx_swiezosc(files.get('gieldy'), files.get('dex')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c-sr. v320: raporty miesięczne o surowcach (data/surowce-raporty.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in surowce_raporty_swiezosc(files.get('surowce-raporty')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
@@ -6988,6 +7187,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['zboza-dzien'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'zboża dziennie: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v349 (F6Z1): giełdy scentralizowane i DEX — sprzeczności w plikach (❌) i informacje (ℹ️; progi bez testu wstecznego), z plików strony, bez zapytań
+    try:
+        Z['gieldy-dex'] = gx_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['gieldy-dex'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'giełdy i DEX: kontrola przerwana ({str(e)[:80]})')
     # 3g. v320: raporty miesięczne o surowcach — sprzeczności w pliku (❌) i porównania (uran z funduszu vs średnia branżowa — ℹ️), z plików strony, bez zapytań
     try:
         Z['surowce-raporty'] = surowce_raporty_kontrola(files, R)
@@ -7330,6 +7535,11 @@ def raport_md(R):
             L.append('- Gaz i LNG (z pliku strony): ' + (f'? kontrola przerwana ({lgz["blad"]})' if lgz.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(lgz['spojnosc'][:3]) + ' ❌ · ' if lgz.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in lgz.get('wiersze') or []) or '—') + '.')
+        gdz = Z.get('gieldy-dex')   # v349: giełdy scentralizowane i DEX — sprzeczności w plikach i informacje (flagi skoku listy portfeli, znak przepływu, stosunek DEX do giełd); brak plików = bez linii
+        if gdz:
+            L.append('- Giełdy scentralizowane, DEX i kontrakty na łańcuchu (z plików strony): ' + (f'? kontrola przerwana ({gdz["blad"]})' if gdz.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(gdz['spojnosc'][:3]) + ' ❌ · ' if gdz.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in gdz.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

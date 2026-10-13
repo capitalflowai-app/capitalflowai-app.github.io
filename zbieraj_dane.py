@@ -127,6 +127,7 @@ ZRODLA_META = {
     'dzwignia_cb': 'coinbase', 'dzwignia_dy': 'dydx', 'dzwignia_cde': 'coinbase', 'dzwignia_cz': 'coinalyze',
     'premie_cb': 'coinbase', 'premie_bn': 'binance', 'premie_up': 'upbit', 'premie_fx': 'ecb',
     'rwa': 'defillama', 'rwa-lancuch': (_Z_WEZLY, 'tether'),
+    'gieldy': 'defillama', 'dex': 'defillama', 'dex_oi': 'defillama',   # v349: salda giełd, DEX i otwarte pozycje — ta sama usługa co stablecoiny i RWA = jedno źródło
     'rwa-emitenci': ('spiko', 'securitize', 'hastra', 'openeden', 'matrixdock', 'centrifuge', 'ondo', 'backed'),
     # --- surowce, Polska, szlaki, gaz, zboża, metale ---
     'surowce': 'cftc', 'surowce_ceny': ('eia', 'twelvedata', 'sprott', 'acer', 'spdr-gold', 'fmp'), 'surowce_zapasy': 'eia',
@@ -29425,6 +29426,535 @@ def build_polska(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
     return out
 
 
+# ===================== v349: GIEŁDY I DEX — data/gieldy.json i data/dex.json (CRYPTO; zadanie F6Z1) =====================
+# Trzy odpowiedzi publicznego API (bez klucza, ten sam serwis co stablecoiny i RWA = jedno źródło w tabeli ZRODLA_META: 'defillama'):
+#   * /cexs (ok. 30 KB, 88 giełd scentralizowanych, BEZ pola czasu — wiek z nagłówków Date, Age i Last-Modified): na każdą giełdę saldo wszystkich
+#     aktywów w USD BEZ własnego tokena giełdy (cleanAssetsTvl), przepływ netto 24 h / 7 dni / 30 dni (inflows_*; plus = więcej wpłat niż wypłat), obrót
+#     spot 24 h, otwarte pozycje i obrót pochodnych. To SZACUNEK ze znanych portfeli giełd (giełda sama ujawnia, które portfele są jej) — zmiana listy
+#     portfeli wygląda jak wpłata albo wypłata. Giełdy bez ujawnionych portfeli (Coinbase, Upbit … — pole null, wcześniej 0) = saldo „—”, nigdy zero.
+#     Plik gieldy.json: wszystkie wiersze, sumy (przepływy bez wierszy z podejrzanym skokiem listy portfeli — flaga dz = 2), własna migawka dobowa
+#     (hist: doba UTC danych → suma sald, liczba giełd z saldem, suma przepływu 24 h, liczba wykluczonych; 400 dób) i salda 25 największych giełd z
+#     ostatnich 35 dób (bh) — do kontroli skoków salda bez przepływu. Rytm: co GX_CEX_MIN (55) min; błąd = poprzednia część z jej datą (ok False).
+#   * /overview/dexs (ok. 2,2 MB, 430 KB po spakowaniu gzip; zbieracz MUSI wysłać Accept-Encoding: gzip), filtr category == „Dexs” (ok. 1 040 z 1 540
+#     pozycji; reszta to rynki predykcyjne, mosty, aplikacje, interfejsy — nie giełdy): suma total24h = OSTATNIA PEŁNA DOBA UTC (data: punkty szeregu
+#     dobowego odpowiedzi wokół doby zgodne z liczbami podsumowania, gx_dex_dzien), doba wcześniej, 7 i 30 dób (+ poprzednie okresy), wartość sprzed 7 i 30 dób
+#     (te same protokoły), największe protokoły i PODZIAŁ WG SIECI Z 30 DÓB (breakdown30d — suma sieci = suma 30 dób z dokładnością do 0,1%; pole
+#     breakdown24h ma INNE okno niż total24h (rolling 24 h, suma 5,98 mld wobec 5,43 mld doby 9.10.2026) i nie jest używane). Plik raz na dobę po GX_DEX_H
+#     (3) h UTC — wcześniejszy odczyt dopiero co zamkniętej doby bywa niepełny; ponowienie co 60 min, po 6 h spóźnienia co 6 h; nigdy w długim przebiegu.
+#   * /overview/open-interest (ok. 170 KB, 141 protokołów): wartość OTWARTYCH POZYCJI (stan, nie obrót; nominalna wartość kontraktów z dźwignią, nie wartość
+#     zabezpieczeń) protokołów na łańcuchu: pole total24h protokołu = stan z chwili odczytu (suma protokołów bez kategorii Interface = ostatni punkt szeregu
+#     odpowiedzi; sprawdzone 13.10.2026: 17 423 643 535 wobec 17 423 641 298); kategoria Interface (nakładki na rynki innych protokołów, np. tradeXYZ na
+#     Hyperliquid) NIE wchodzi do sumy — źródło też jej nie liczy w podsumowaniu; protokoły poza łańcuchem (sieć „Off Chain”: Kalshi, Aster, Antarctic …)
+#     liczone osobno (nie są „kontraktami na łańcuchu”). Rytm: co GX_OI_MIN (55) min.
+# Bramki per źródło (kształt, liczby, spójność), limity rozmiaru odpowiedzi (po rozpakowaniu i na łączu) i czasu; kody HTTP 402/403/429 (część rozmiaru
+# usług źródła przeniesiono do planu płatnego) = błąd z kodem, nie zero. Część z błędem = poprzednia część z własną datą, ok False, krótki błąd w
+# meta (notatka — kontrola dzienna ocenia wiek części, najwyżej ⚠️). Ryzyko licencyjne źródła (regulamin: zakaz ponownej publikacji bez zgody)
+# przyjął właściciel 11.10.2026; nazwy źródła nie ma na stronie (tylko tu i w polu src pliku, którego strona nie pokazuje).
+# Próg wiarygodności (plan F6Z1): przepływ 24 h większy niż 10% salda przy obrocie spot mniejszym niż 1% salda = „podejrzany skok listy portfeli”.
+# Plan podaje jako przykład Bitstamp (+1,18 mld USD w 24 h przy saldzie 4,71 mld, odczyt 10.10.2026), ale obrót spot Bitstamp to 0,16 mld = 3,4% salda — litera
+# reguły go NIE łapie. Dlatego ostrożniej (dz = 2): przepływ większy niż 10% salda ORAZ większy niż cały obrót spot tej giełdy z doby, saldo ≥ 10 mln USD
+# (litera planu jest podzbiorem tej reguły); przepływ ponad 10% salda przy saldzie ≥ 100 mln USD w innym układzie obrotu = dz 1 (informacja, tylko w kontroli).
+# Test wsteczny progu jest NIEMOŻLIWY (źródło nie ma historii obrotu spot giełd): z historii sald (api.llama.fi/protocol/{giełda}, nagrania 10.10.2026) dzienna
+# zmiana salda o ponad 10% zdarzała się w 2,6% dób Bitstamp (29 z 1 110) i 0,7% dób OKX (10 z 1 383) — łącznie ze zmianami cen. Dlatego próg jest ostrożny i
+# informacyjny: na stronie znak ostrzegawczy bez liczby progu (giełda poza sumami przepływów), w kontroli dziennej tylko ℹ️. Odczyt 13.10.2026: bez flagi dz = 2
+# (Bitstamp już bez skoku; Poloniex −0,38 mld = −30% salda przy obrocie 0,85 mld → dz = 1).
+import email.utils as _gx_eu           # v349: Date / Age / Last-Modified odpowiedzi (biblioteka standardowa)
+import gzip as _gx_gzip
+import math as _gx_math
+
+GX_V = 1
+GX_API = 'https://api.llama.fi'
+GX_URL = {'cex': GX_API + '/cexs',
+          'dex': GX_API + '/overview/dexs?excludeTotalDataChartBreakdown=true',   # z szeregiem dobowym (data doby): +100 KB wobec wersji bez szeregu
+          'oi': GX_API + '/overview/open-interest?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true'}
+GX_LABEL = 'Giełdy i DEX'
+GX_CEX_MIN, GX_OI_MIN = 55, 55         # min — odświeżenie części
+GX_RETRY = 25                          # min — ponowienie po nieudanej próbie (try_at)
+GX_DEX_H = 3                           # h UTC po północy: wcześniej doba dopiero co zamknięta bywa niepełna
+GX_DEX_RETRY, GX_DEX_RETRY_LATE, GX_DEX_LATE_H = 60, 360, 6   # min / min / h spóźnienia, od którego ponawiamy rzadko
+GX_LIMIT_S = {'cex': 25, 'oi': 30, 'dex': 60}
+GX_MAKS_B = {'cex': 2_000_000, 'oi': 4_000_000, 'dex': 14_000_000}     # po rozpakowaniu (dzisiaj 0,03 / 0,17 / 2,3 MB)
+GX_GZ_B = {'cex': 2_000_000, 'oi': 2_000_000, 'dex': 5_000_000}        # na łączu (dzisiaj 0,03 / 0,03 / 0,43 MB)
+GX_NAME_MAX = 40
+GX_MAX_USD = 1e13
+GX_MIN_CEX, GX_MIN_CEX_BAL = 40, 30
+GX_SUM_BAL = (2e10, 3e12)              # USD — suma sald giełd (dzisiaj 2,7e11)
+GX_SUM_SKOK = (0.4, 2.5)               # stosunek sumy sald do poprzedniej (wiersz zmienił się jak lista, nie jak rynek) — odrzucenie odpowiedzi
+GX_SKOK_PCT, GX_SKOK_OBROT = 0.10, 0.01
+GX_SKOK_MIN2, GX_SKOK_MIN1 = 1e7, 1e8
+GX_OKNO_PCT = {'in7': 0.25, 'in30': 0.50}   # przepływ 7 / 30 dni większy niż tyle salda (saldo ≥ GX_SKOK_MIN2) = nietypowy: wiersz poza sumą tego okna (dz7 / dz30 = 2)
+GX_HIST_DNI, GX_BH_DNI, GX_BH_TOP = 400, 35, 25
+GX_MIN_DEX_ALL, GX_MIN_DEX = 500, 400
+GX_SUM_DEX = (1e8, 1e12)               # USD — obrót kategorii Dexs w dobie (dzisiaj 5–11 mld)
+GX_DEX_DZIEN_TOL = 0.005               # punkt szeregu = podsumowanie odpowiedzi z dokładnością 0,5% (zaobserwowane 0,0001%)
+GX_DEX_TOP, GX_DEX_SIECI = 12, 10
+GX_MIN_OI = 60
+GX_SUM_OI = (1e9, 1e12)                # USD (dzisiaj 1,7e10)
+GX_OI_TOP = 15
+GX_OI_KIND = {'Derivatives': 'perp', 'Synthetics': 'perp', 'Trading App': 'perp', 'Options': 'opt', 'Prediction Market': 'pred',
+              'Interest Rate Derivatives': 'irs'}   # inna kategoria = 'oth'; 'Interface' pomijana
+GX_SLUG = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,59}$')
+GX_SIECI = {'ethereum': 'Ethereum', 'solana': 'Solana', 'base': 'Base', 'bsc': 'BNB Chain', 'arbitrum': 'Arbitrum', 'polygon': 'Polygon',
+            'avax': 'Avalanche', 'optimism': 'OP Mainnet', 'hyperliquid': 'Hyperliquid', 'robinhood': 'Robinhood Chain', 'sui': 'Sui', 'tron': 'Tron',
+            'monad': 'Monad', 'starknet': 'Starknet', 'thorchain': 'THORChain', 'spark': 'Spark', 'xdai': 'Gnosis', 'sonic': 'Sonic', 'era': 'zkSync Era',
+            'linea': 'Linea', 'scroll': 'Scroll', 'mantle': 'Mantle', 'blast': 'Blast', 'unichain': 'Unichain', 'ton': 'TON', 'near': 'NEAR',
+            'aptos': 'Aptos', 'sei': 'Sei', 'celo': 'Celo', 'xlayer': 'X Layer', 'plasma': 'Plasma', 'fraxtal': 'Fraxtal', 'ink': 'Ink',
+            'wc': 'World Chain', 'op_bnb': 'opBNB', 'cronos': 'Cronos', 'stable': 'Stable', 'arc': 'Arc', 'tempo': 'Tempo', 'megaeth': 'MegaETH',
+            'berachain': 'Berachain', 'cardano': 'Cardano', 'ripple': 'XRP Ledger', 'bitcoin': 'Bitcoin', 'zora': 'Zora',
+            'soneium': 'Soneium', 'hemi': 'Hemi', 'rsk': 'Rootstock', 'filecoin': 'Filecoin', 'xdc': 'XDC', 'goat': 'GOAT Network'}
+GX_INNE = '_inne'
+
+
+def _gx_num(v, lo=None, hi=GX_MAX_USD):
+    """Liczba skończona (nie bool, nie tekst) w granicach; inaczej None — brak, nigdy zero."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not _gx_math.isfinite(v):
+        return None
+    if (lo is not None and v < lo) or (hi is not None and abs(v) > hi):
+        return None
+    return float(v)
+
+
+def _gx_usd(v):
+    return None if v is None else int(round(v))
+
+
+def _gx_dt(iso):
+    try:
+        d = datetime.datetime.fromisoformat(str(iso).replace('Z', '+00:00'))
+        return d if d.tzinfo else d.replace(tzinfo=datetime.timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def _gx_wiek_min(iso, now):
+    d = _gx_dt(iso)
+    if d is None:
+        return float('inf')
+    m = (now - d).total_seconds() / 60
+    return m if m > -10 else float('inf')
+
+
+def _gx_dzien(s):
+    try:
+        return datetime.date.fromisoformat(s) if isinstance(s, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', s) else None
+    except ValueError:
+        return None
+
+
+def gx_gunzip(raw, maks):
+    """gzip (bajty 1f8b) → bajty z limitem po rozpakowaniu; bajty bez gzip bez zmian (też z limitem)."""
+    if raw[:2] != b'\x1f\x8b':
+        if len(raw) > maks:
+            raise ValueError('odpowiedź większa niż limit')
+        return raw
+    with _gx_gzip.GzipFile(fileobj=io.BytesIO(raw)) as g:
+        out = g.read(maks + 1)
+    if len(out) > maks:
+        raise ValueError('odpowiedź po rozpakowaniu większa niż limit')
+    return out
+
+
+def gx_pobierz(url, limit_s, maks, gz_maks):
+    """GET z identyfikatorem zbieracza i Accept-Encoding: gzip → (bajty po rozpakowaniu, nagłówki {Date, Age, Last-Modified}). Jedyne miejsce sieci tych
+    źródeł (testy je łatają). Czytanie kawałkami: po limit_s s = TimeoutError (limit czasu jednego żądania nie przedłuża przebiegu przy wolnym przesyle).
+    Kod HTTP 402 (plan płatny), 403 (ochrona przed botami — nie obchodzimy) i 429 → błąd z kodem."""
+    t_end = time.monotonic() + limit_s
+    buf = bytearray()
+    try:
+        with _otworz(url, {'Accept-Encoding': 'gzip', 'Accept': 'application/json'}, min(limit_s, 30)) as r:
+            hdr = {k: r.headers.get(k) for k in ('Date', 'Age', 'Last-Modified')}
+            enc = str(r.headers.get('Content-Encoding') or '').lower()
+            while chunk := r.read(1 << 16):
+                buf += chunk
+                if len(buf) > gz_maks:
+                    raise ValueError('odpowiedź większa niż limit')
+                if time.monotonic() > t_end:
+                    raise TimeoutError('limit czasu pobierania')
+    except Exception as e:  # noqa
+        kod = getattr(e, 'code', None)   # odpowiedź z kodem HTTP (błąd protokołu): kod w komunikacie; inne wyjątki (czas, limit, sieć) bez zmian
+        if isinstance(kod, int) and not isinstance(kod, bool) and 400 <= kod < 600:
+            raise RuntimeError(f'HTTP {kod}' + (' (plan płatny)' if kod == 402 else ' (ochrona przed botami — nie obchodzimy)' if kod == 403 else
+                                              ' (limit zapytań)' if kod == 429 else '')) from None
+        raise
+    raw = bytes(buf)
+    if 'gzip' in enc and raw[:2] != b'\x1f\x8b':
+        raise ValueError('nagłówek gzip, a treść nie jest gzip')
+    return gx_gunzip(raw, maks), hdr
+
+
+def gx_czas(hdr, now):
+    """Czas danych odpowiedzi BEZ pola czasu → (ISO UTC, wiek w sekundach z nagłówka Age albo None). Czas = Date − Age; gdy jest Last-Modified (czas
+    odświeżenia pliku u źródła, nie późniejszy niż Date) — wcześniejszy z dwóch (ostrożnie: nie młodsze, niż jest). Brak Date albo zegar serwera
+    rozjechany o ponad 6 h = czas przebiegu."""
+    hdr = hdr if isinstance(hdr, dict) else {}
+
+    def pd(s):
+        try:
+            d = _gx_eu.parsedate_to_datetime(str(s))
+            return d.astimezone(datetime.timezone.utc) if d.tzinfo else d.replace(tzinfo=datetime.timezone.utc)
+        except (TypeError, ValueError, IndexError):
+            return None
+    d = pd(hdr.get('Date')) if hdr.get('Date') else None
+    if d is None or abs((d - now).total_seconds()) > 6 * 3600:
+        d = now
+    a = str(hdr.get('Age') or '').strip()
+    age = int(a) if a.isdigit() and int(a) < 86400 * 7 else None
+    t = d - datetime.timedelta(seconds=age or 0)
+    lm = pd(hdr.get('Last-Modified')) if hdr.get('Last-Modified') else None
+    if lm is not None and lm <= d + datetime.timedelta(seconds=60):
+        t = min(t, lm)
+    return t.replace(microsecond=0).isoformat(), age
+
+
+# ---------------------------------------------------------------- giełdy scentralizowane ----------------------------------------------------------------
+def gx_skok(r):
+    """Flaga wiarygodności wiersza: 2 = podejrzany skok listy portfeli (przepływ 24 h większy niż 10% salda i większy niż CAŁY obrót spot giełdy z tej doby,
+    saldo ≥ 10 mln USD; reguła planu „obrót < 1% salda” jest podzbiorem — przy przepływie > 10% salda obrót poniżej 1% salda jest zawsze mniejszy od przepływu),
+    1 = przepływ 24 h > 10% salda przy saldzie ≥ 100 mln USD, a obrotu spot brak albo większy niż przepływ (informacja), 0 = nic. Bez salda albo bez przepływu = 0."""
+    b, i, s = r.get('bal'), r.get('in24'), r.get('spot')
+    if not b or i is None or abs(i) <= GX_SKOK_PCT * b:
+        return 0
+    if s is not None and abs(i) > s and b >= GX_SKOK_MIN2:
+        return 2
+    return 1 if b >= GX_SKOK_MIN1 else 0
+
+
+def gx_skok_okna(r):
+    """Flagi okien 7 i 30 dni → (dz7, dz30), każda 0 albo 2: przepływ okna większy niż GX_OKNO_PCT salda (saldo ≥ 10 mln USD) — zmiana listy portfeli sprzed kilku dni
+    wisi w oknie 7 i 30 dni jeszcze długo po tym, jak flaga doby (dz) zgasła (odczyt 13.10.2026: Bitstamp +1,27 mld w 7 dni = 27% salda — po skoku z 9–10.10; Bitvavo −0,37 mld
+    w 30 dni przy saldzie 0,26 mld — odpływ większy niż saldo). Źródło nie podaje obrotu z tych okien, więc tylko próg względem salda."""
+    b = r.get('bal')
+    f = lambda k: 2 if (b and b >= GX_SKOK_MIN2 and r.get(k) is not None and abs(r[k]) > GX_OKNO_PCT[k] * b) else 0   # noqa: E731
+    return f('in7'), f('in30')
+
+
+def parse_gieldy(j):
+    """Odpowiedź /cexs → lista wierszy {name, slug, bal, in24, in7, in30, spot, oi, deriv, dz, dz7, dz30} malejąco wg salda (bez salda na końcu). Saldo ≤ 0 albo null
+    = brak (None), przepływy giełdy bez salda = None (bez sensu bez salda). Nazwy giełd to przedmiot danych."""
+    L = j.get('cexs') if isinstance(j, dict) else None
+    if not isinstance(L, list):
+        raise ValueError('brak listy giełd (nieznany kształt odpowiedzi)')
+    rows, seen = [], set()
+    for c in L:
+        if not isinstance(c, dict) or not isinstance(c.get('name'), str):
+            continue
+        nm = ' '.join(c['name'].split())[:GX_NAME_MAX]
+        if not nm or nm in seen:
+            continue
+        seen.add(nm)
+        b = _gx_num(c.get('cleanAssetsTvl'))
+        b = b if b is not None and b > 0 else None
+        r = {'name': nm, 'slug': c['slug'] if isinstance(c.get('slug'), str) and GX_SLUG.match(c['slug']) else None, 'bal': _gx_usd(b)}
+        for k, f in (('in24', 'inflows_24h'), ('in7', 'inflows_1w'), ('in30', 'inflows_1m')):
+            v = _gx_num(c.get(f))
+            r[k] = _gx_usd(v) if (v is not None and b is not None) else None
+        for k, f in (('spot', 'spotVolume'), ('oi', 'oi'), ('deriv', 'derivVolume')):
+            v = _gx_num(c.get(f), lo=0)
+            r[k] = _gx_usd(v) if v else None
+        r['dz'] = gx_skok(r)
+        r['dz7'], r['dz30'] = gx_skok_okna(r)
+        rows.append(r)
+    rows.sort(key=lambda r: (r['bal'] is None, -(r['bal'] or 0), r['name']))
+    return rows
+
+
+def gx_razem(rows):
+    """Sumy po wierszach: saldo, przepływy (bez wierszy z flagą skoku: doba — dz = 2 wyklucza z każdego okna, okno 7 dni — także dz7, okno 30 dni — także dz30),
+    obrót spot, otwarte pozycje; liczby wierszy użytych w każdej sumie (n_*); wyl, wyl7, wyl30 — nazwy wykluczonych z danego okna."""
+    B = [r for r in rows if r.get('bal')]
+    o = {'n': len(rows), 'n_bal': len(B), 'bal': sum(r['bal'] for r in B)}
+    for k, fl, nm in (('in24', (), 'wyl'), ('in7', ('dz7',), 'wyl7'), ('in30', ('dz30',), 'wyl30')):
+        ex = {id(r) for r in B if r.get('dz') == 2 or any(r.get(f) == 2 for f in fl)}
+        V = [r[k] for r in B if id(r) not in ex and r.get(k) is not None]
+        o[k] = sum(V) if V else None
+        o['n_' + k] = len(V)
+        o[nm] = [r['name'] for r in B if id(r) in ex]
+    for k in ('spot', 'oi', 'deriv'):
+        V = [r[k] for r in rows if r.get(k)]
+        o[k] = sum(V) if V else None
+        o['n_' + k] = len(V)
+    return o
+
+
+def gx_bramka_cex(rows, prev_razem=None):
+    """Bramka źródła /cexs: liczba giełd i giełd z saldem, suma sald w granicach, skok sumy sald wobec poprzedniego odczytu (lista zmienia się jak rynek,
+    nie o rząd wielkości). Zła odpowiedź = wyjątek (poprzednia część zostaje)."""
+    z = gx_razem(rows)
+    if z['n'] < GX_MIN_CEX or z['n_bal'] < GX_MIN_CEX_BAL:
+        raise ValueError(f'za mało giełd: {z["n"]} (z saldem {z["n_bal"]}), potrzeba {GX_MIN_CEX} i {GX_MIN_CEX_BAL}')
+    if not GX_SUM_BAL[0] <= z['bal'] <= GX_SUM_BAL[1]:
+        raise ValueError('suma sald poza zakresem')
+    pb = prev_razem.get('bal') if isinstance(prev_razem, dict) else None
+    if isinstance(pb, (int, float)) and not isinstance(pb, bool) and pb > 0 and not GX_SUM_SKOK[0] <= z['bal'] / pb <= GX_SUM_SKOK[1]:
+        raise ValueError(f'suma sald zmieniła się {z["bal"] / pb:.2f} raza wobec poprzedniego odczytu — odpowiedź odrzucona')
+    return z
+
+
+def gx_hist_cex(hist, day, z):
+    """Migawka dobowa: wiersz [doba UTC danych, suma sald, giełd z saldem, suma przepływu 24 h (bez wykluczonych), liczba wykluczonych]; ostatni odczyt
+    doby zastępuje wcześniejszy; rosnąco, najwyżej GX_HIST_DNI dób."""
+    H = {r[0]: r for r in (hist if isinstance(hist, list) else []) if isinstance(r, list) and len(r) >= 5 and _gx_dzien(r[0])}
+    H[day] = [day, z['bal'], z['n_bal'], z['in24'], len(z['wyl'])]
+    return [H[k] for k in sorted(H)][-GX_HIST_DNI:]
+
+
+def gx_bh(bh, day, rows):
+    """Salda 25 największych giełd (mln USD, całkowite) z ostatnich GX_BH_DNI dób: {doba: {slug albo nazwa: mln}}."""
+    B = {k: v for k, v in (bh if isinstance(bh, dict) else {}).items() if _gx_dzien(k) and isinstance(v, dict)}
+    B[day] = {(r['slug'] or r['name']): int(round(r['bal'] / 1e6)) for r in rows[:GX_BH_TOP] if r.get('bal')}
+    return {k: B[k] for k in sorted(B)[-GX_BH_DNI:]}
+
+
+def gx_cex_krok(prev, now):
+    """Pobranie i zbudowanie części 'cex' → słownik części i pary (doba, wiersze) albo wyjątek."""
+    raw, hdr = gx_pobierz(GX_URL['cex'], GX_LIMIT_S['cex'], GX_MAKS_B['cex'], GX_GZ_B['cex'])
+    rows = parse_gieldy(json.loads(raw))
+    z = gx_bramka_cex(rows, (prev or {}).get('razem') if isinstance(prev, dict) else None)
+    src_at, age = gx_czas(hdr, now)
+    return {'src_at': src_at, 'age_s': age, 'n': z['n'], 'rows': rows, 'razem': z}
+
+
+# ---------------------------------------------------------------- DEX i otwarte pozycje ----------------------------------------------------------------
+def _gx_suma(L, key):
+    V = [_gx_num(p.get(key), lo=0) for p in L]
+    V = [v for v in V if v is not None]
+    return sum(V) if V else None
+
+
+def gx_dex_dzien(j, src_dzien):
+    """Doba UTC, której dotyczy total24h (ostatnia pełna doba w podsumowaniu odpowiedzi). Szereg dobowy odpowiedzi (ts co 86 400 s) bywa starszy od podsumowania
+    (13.10.2026: doba 12.10 w szeregu 7 561 mln, w podsumowaniu 8 345 mln), więc doby nie szukamy po wartości doby, tylko po dniach WOKÓŁ niej: doba D jest tą
+    z podsumowania, gdy punkt D−1 zgadza się z total48hto24h, a punkt D−7 z total7DaysAgo (obie liczby źródło podaje z szeregu; zgodność 1%; sprawdzone
+    10.10.2026: D = 9.10 i 13.10.2026: D = 12.10, w obu różnica poniżej 0,15%); kandydaci: 3 ostatnie punkty szeregu (ostatni to doba bieżąca, niepełna).
+    Zapas: punkt szeregu zgodny z samym total24h (0,5%). Brak zgodności = (src_dzien − 1, True): doba szacunkowa (flaga est)."""
+    ch = j.get('totalDataChart')
+    P = {}
+    for p in (ch if isinstance(ch, list) else []):
+        if isinstance(p, list) and len(p) == 2 and _gx_num(p[0], lo=0) is not None and int(p[0]) % 86400 == 0 and _gx_num(p[1], lo=0) is not None:
+            P[int(p[0]) // 86400] = float(p[1])
+    day = lambda k: datetime.datetime.fromtimestamp(k * 86400, datetime.timezone.utc).date().isoformat()   # noqa: E731
+    near = lambda k, ref, tol: ref is not None and k in P and abs(P[k] - ref) <= tol * ref   # noqa: E731
+    if P:
+        last = max(P)
+        s48, a7, tot = _gx_num(j.get('total48hto24h'), lo=1), _gx_num(j.get('total7DaysAgo'), lo=1), _gx_num(j.get('total24h'), lo=1)
+        for k in (last, last - 1, last - 2):
+            if near(k - 1, s48, 0.01) and near(k - 7, a7, 0.01):
+                return day(k), False
+        for k in (last, last - 1):
+            if near(k, tot, GX_DEX_DZIEN_TOL):
+                return day(k), False
+    return (src_dzien - datetime.timedelta(days=1)).isoformat(), True
+
+
+def parse_dex(j, src_dzien):
+    """Odpowiedź /overview/dexs → część 'dex': doba, sumy kategorii Dexs (doba, doba wcześniej, 7 i 30 dób, poprzednie okresy, sprzed 7 i 30 dób),
+    największe protokoły i podział wg sieci z 30 dób. Zła lista (mało pozycji, brak kategorii Dexs, suma poza zakresem) = wyjątek."""
+    P = j.get('protocols') if isinstance(j, dict) else None
+    if not isinstance(P, list) or len(P) < GX_MIN_DEX_ALL:
+        raise ValueError('lista protokołów niepełna albo w nieznanym kształcie')
+    D = [p for p in P if isinstance(p, dict) and p.get('category') == 'Dexs']
+    if len(D) < GX_MIN_DEX:
+        raise ValueError(f'kategoria Dexs: {len(D)} pozycji (oczekiwano co najmniej {GX_MIN_DEX} — zmiana nazwy kategorii?)')
+    s = {k: _gx_suma(D, f) for k, f in (('s24', 'total24h'), ('s48', 'total48hto24h'), ('s7', 'total7d'), ('s7p', 'total14dto7d'), ('s30', 'total30d'),
+                                         ('s30p', 'total60dto30d'), ('d7', 'total7DaysAgo'), ('d30', 'total30DaysAgo'))}
+    if s['s24'] is None or not GX_SUM_DEX[0] <= s['s24'] <= GX_SUM_DEX[1]:
+        raise ValueError('suma doby poza zakresem')
+    day, est = gx_dex_dzien(j, src_dzien)
+    top = []
+    for p in D:
+        v = _gx_num(p.get('total24h'), lo=0)
+        if v and isinstance(p.get('name'), str):
+            v0 = _gx_num(p.get('total48hto24h'), lo=0)
+            top.append([' '.join(p['name'].split())[:GX_NAME_MAX], _gx_usd(v), round((v / v0 - 1) * 100, 1) if v0 else None])
+    top.sort(key=lambda r: (-r[1], r[0]))
+    nact = len(top)
+    top = [r + [round(r[1] / s['s24'] * 100, 2)] for r in top[:GX_DEX_TOP]]
+    # podział wg sieci z 30 dób
+    ch, sieci = {}, None
+    for p in D:
+        b = p.get('breakdown30d')
+        for c, m in (b.items() if isinstance(b, dict) else ()):
+            if isinstance(c, str) and isinstance(m, dict):
+                for v in m.values():
+                    v = _gx_num(v, lo=0)
+                    if v:
+                        ch[c] = ch.get(c, 0.0) + v
+    tot = sum(ch.values())
+    if s['s30'] and tot and abs(tot / s['s30'] - 1) <= 0.01:
+        R = sorted(ch.items(), key=lambda x: (-x[1], x[0]))
+        sieci = [[c, GX_SIECI.get(c) or c.replace('_', ' ').title(), _gx_usd(v), round(v / tot * 100, 2)] for c, v in R[:GX_DEX_SIECI]]
+        rest = sum(v for _, v in R[GX_DEX_SIECI:])
+        if rest > 0:
+            sieci.append([GX_INNE, None, _gx_usd(rest), round(rest / tot * 100, 2)])
+    o = {'day': day, 'est': est, 'n': len(D), 'n_act': nact, 'chains_n': len(ch), 'top': top, 'sieci': sieci, 'sieci_sum': _gx_usd(tot) if sieci else None}
+    for k, v in s.items():
+        o[k] = _gx_usd(v)
+    return o
+
+
+def gx_hist_dex(hist, d):
+    """Szereg dobowy sumy Dexs: [doba, wartość, rodzaj]; rodzaj 'd' = własny odczyt ostatniej pełnej doby, 's' = wartość referencyjna z tego samego odczytu
+    (doba wcześniej, sprzed 7 i 30 dób; te same protokoły) — własny odczyt zastępuje 's', 's' nie zastępuje 'd'. Rosnąco, najwyżej GX_HIST_DNI."""
+    H = {r[0]: r for r in (hist if isinstance(hist, list) else []) if isinstance(r, list) and len(r) >= 3 and _gx_dzien(r[0]) and r[2] in ('d', 's')}
+    day = _gx_dzien(d['day'])
+    for k, v in ((1, d.get('s48')), (7, d.get('d7')), (30, d.get('d30'))):
+        key = (day - datetime.timedelta(days=k)).isoformat()
+        if v and (key not in H or H[key][2] == 's'):
+            H[key] = [key, v, 's']
+    H[d['day']] = [d['day'], d['s24'], 'd']
+    return [H[k] for k in sorted(H)][-GX_HIST_DNI:]
+
+
+def gx_dex_krok(prev, now):
+    raw, hdr = gx_pobierz(GX_URL['dex'], GX_LIMIT_S['dex'], GX_MAKS_B['dex'], GX_GZ_B['dex'])
+    src_at, age = gx_czas(hdr, now)
+    d = parse_dex(json.loads(raw), _gx_dt(src_at).date())
+    pd_ = (prev or {}).get('day') if isinstance(prev, dict) else None
+    if pd_ and d['day'] < pd_:
+        raise ValueError(f'odpowiedź z doby {d["day"]} starszej niż poprzednia {pd_}')
+    d['src_at'], d['age_s'] = src_at, age
+    return d
+
+
+def parse_oi(j):
+    """Odpowiedź /overview/open-interest → część 'oi': otwarte pozycje protokołów NA ŁAŃCUCHU (bez kategorii Interface i bez sieci „Off Chain”), poza
+    łańcuchem osobno, podział na rodzaje i największe protokoły."""
+    P = j.get('protocols') if isinstance(j, dict) else None
+    if not isinstance(P, list) or len(P) < GX_MIN_OI:
+        raise ValueError('lista protokołów niepełna albo w nieznanym kształcie')
+    on, off, kinds, rows, nval, iface = 0.0, 0.0, {}, [], 0, 0.0
+    pv, pv0 = 0.0, 0.0   # zmiana sumy tylko na parach (wartość teraz i 24 h wcześniej u tego samego protokołu)
+    for p in P:
+        if not isinstance(p, dict) or not isinstance(p.get('name'), str):
+            continue
+        v = _gx_num(p.get('total24h'), lo=0)
+        if v is None:
+            continue
+        if p.get('category') == 'Interface':
+            iface += v
+            continue
+        nval += 1
+        ch = [c for c in (p.get('chains') or []) if isinstance(c, str)] if isinstance(p.get('chains'), list) else []
+        if ch == ['Off Chain']:
+            off += v
+            continue
+        v0 = _gx_num(p.get('total48hto24h'), lo=0)
+        on += v
+        if v0:
+            pv, pv0 = pv + v, pv0 + v0
+        kd = GX_OI_KIND.get(p.get('category'), 'oth')
+        kinds[kd] = kinds.get(kd, 0.0) + v
+        rows.append([' '.join(p['name'].split())[:GX_NAME_MAX], kd, _gx_usd(v), round((v / v0 - 1) * 100, 1) if v0 else None,
+                     (ch[0] + (f' +{len(ch) - 1}' if len(ch) > 1 else '')) if ch else None])
+    if not GX_SUM_OI[0] <= on + off <= GX_SUM_OI[1] or on <= 0:
+        raise ValueError('suma otwartych pozycji poza zakresem')
+    rows.sort(key=lambda r: (-r[2], r[0]))
+    return {'n': len(P), 'n_val': nval, 'n_on': len(rows), 'on': _gx_usd(on), 'chg': round((pv / pv0 - 1) * 100, 2) if pv0 else None, 'off': _gx_usd(off),
+            'iface': _gx_usd(iface), 'kinds': {k: _gx_usd(v) for k, v in sorted(kinds.items(), key=lambda x: -x[1])}, 'top': rows[:GX_OI_TOP]}
+
+
+def gx_oi_krok(prev, now):
+    raw, hdr = gx_pobierz(GX_URL['oi'], GX_LIMIT_S['oi'], GX_MAKS_B['oi'], GX_GZ_B['oi'])
+    o = parse_oi(json.loads(raw))
+    o['src_at'], o['age_s'] = gx_czas(hdr, now)
+    return o
+
+
+# ---------------------------------------------------------------- budowniczowie plików ----------------------------------------------------------------
+def gx_dex_oczekiwana(now):
+    """Najnowsza doba, której odczytu oczekujemy: (teraz − GX_DEX_H h) − 1 dzień (do 03:00 UTC jeszcze poprzednia)."""
+    return ((now - datetime.timedelta(hours=GX_DEX_H)).date() - datetime.timedelta(days=1)).isoformat()
+
+
+def gx_dex_due(prev_dex, try_at, now):
+    """Czy pora na odczyt doby: brak poprzedniej doby (pierwszy odczyt, próba co GX_RETRY min) albo doba starsza niż oczekiwana; ponowienie co 60 min,
+    po 6 h spóźnienia co 6 h."""
+    exp = gx_dex_oczekiwana(now)
+    day = prev_dex.get('day') if isinstance(prev_dex, dict) else None
+    if not _gx_dzien(day):
+        return _gx_wiek_min(try_at, now) >= GX_RETRY
+    if day >= exp:
+        return False
+    od = datetime.datetime.combine(_gx_dzien(exp) + datetime.timedelta(days=1), datetime.time(GX_DEX_H), tzinfo=datetime.timezone.utc)
+    late_h = (now - od).total_seconds() / 3600
+    return _gx_wiek_min(try_at, now) >= (GX_DEX_RETRY_LATE if late_h >= GX_DEX_LATE_H else GX_DEX_RETRY)
+
+
+def _gx_prev(prev):
+    return prev if isinstance(prev, dict) and prev.get('v') == GX_V else None
+
+
+def build_gieldy(prev, now=None, run_t0=None):
+    """data/gieldy.json → (plik albo None, stan części 'cex': True / False / 'cached'). Co GX_CEX_MIN min (próba po błędzie co GX_RETRY); błąd =
+    poprzednia część z jej datą (ok False, krótki błąd w err). Bez poprzedniego pliku i z błędem: (None, False)."""
+    now = now or _now_utc()
+    prev = _gx_prev(prev)
+    pc = prev.get('cex') if prev and isinstance(prev.get('cex'), dict) else None
+    pat = (prev.get('part_at') or {}).get('cex') if prev and isinstance(prev.get('part_at'), dict) else None
+    tat = (prev.get('try_at') or {}).get('cex') if prev and isinstance(prev.get('try_at'), dict) else None
+    due = pc is None or (_gx_wiek_min(pat, now) >= GX_CEX_MIN and _gx_wiek_min(tat, now) >= GX_RETRY)
+    if not due:
+        return prev, ('cached' if (prev.get('ok') or {}).get('cex') is True else False)
+    out = {'v': GX_V, 'at': prev['at'] if prev else now.replace(microsecond=0).isoformat(), 'src': 'zbiorcze dane publicznej usługi (salda ujawnionych portfeli giełd)',
+           'ok': dict(prev.get('ok') or {}) if prev else {}, 'part_at': dict(prev.get('part_at') or {}) if prev else {},
+           'try_at': dict(prev.get('try_at') or {}) if prev else {}, 'err': dict(prev.get('err') or {}) if prev else {},
+           'cex': pc, 'hist': prev.get('hist') if prev else [], 'bh': prev.get('bh') if prev else {}}
+    out['try_at']['cex'] = now.replace(microsecond=0).isoformat()
+    try:
+        c = gx_cex_krok(pc, now)
+        day = c['src_at'][:10]
+        out['cex'] = c
+        out['hist'] = gx_hist_cex(out['hist'], day, c['razem'])
+        out['bh'] = gx_bh(out['bh'], day, c['rows'])
+        out['ok']['cex'] = True
+        out['part_at']['cex'] = out['at'] = now.replace(microsecond=0).isoformat()
+        out['err'].pop('cex', None)
+        return out, True
+    except Exception as e:  # noqa
+        out['ok']['cex'] = False
+        out['err']['cex'] = mask(str(e) or type(e).__name__)[:120]
+        return (out if pc is not None else None), False
+
+
+def build_dex(prev, now=None, run_t0=None):
+    """data/dex.json → (plik albo None, {'dex': stan, 'oi': stan}; stan: True / False / 'cached'). Część 'dex' raz na dobę po GX_DEX_H h UTC (nie w długim
+    przebiegu), część 'oi' co GX_OI_MIN min; każda z własną datą, własnym błędem i próbą (try_at)."""
+    now = now or _now_utc()
+    prev = _gx_prev(prev)
+    late = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
+    P = lambda k: (prev.get(k) if prev and isinstance(prev.get(k), dict) else None)   # noqa: E731
+    pd_, po = P('dex'), P('oi')
+    pat, tat = (P('part_at') or {}), (P('try_at') or {})
+    due_dex = not late and gx_dex_due(pd_, tat.get('dex'), now)
+    due_oi = po is None or (_gx_wiek_min(pat.get('oi'), now) >= GX_OI_MIN and _gx_wiek_min(tat.get('oi'), now) >= GX_RETRY)
+    ok0 = P('ok') or {}
+    stan = {k: ('cached' if ok0.get(k) is True else False) for k in ('dex', 'oi')}
+    if not due_dex and not due_oi:
+        return prev, stan
+    out = {'v': GX_V, 'at': prev['at'] if prev else now.replace(microsecond=0).isoformat(), 'src': 'zbiorcze dane publicznej usługi (obrót protokołów DEX, otwarte pozycje)',
+           'ok': dict(ok0), 'part_at': dict(pat), 'try_at': dict(tat), 'err': dict(P('err') or {}), 'dex': pd_, 'oi': po, 'hist': prev.get('hist') if prev else []}
+    t = now.replace(microsecond=0).isoformat()
+    for k, due, fn, prv in (('dex', due_dex, gx_dex_krok, pd_), ('oi', due_oi, gx_oi_krok, po)):
+        if not due:
+            continue
+        out['try_at'][k] = t
+        try:
+            out[k] = fn(prv, now)
+            out['ok'][k] = True
+            out['part_at'][k] = out['at'] = t
+            out['err'].pop(k, None)
+            stan[k] = True
+            if k == 'dex':
+                out['hist'] = gx_hist_dex(out['hist'], out['dex'])
+        except Exception as e:  # noqa
+            out['ok'][k] = False
+            out['err'][k] = mask(str(e) or type(e).__name__)[:120]
+            stan[k] = False
+    if out['dex'] is None and out['oi'] is None:
+        return None, stan
+    return out, stan
+
+
 def main():
     SAVED.clear()      # v89: TRENDY liczone tylko z plików tego przebiegu
     _DEADLINE[0] = time.monotonic() + SOSO_BUDGET
@@ -29749,6 +30279,37 @@ def main():
     except Exception as e:
         META['errors'].append(mask(f'Wieloryby: {e}')); META['ok']['wieloryby'] = False
         if prev_wh: save('wieloryby', prev_wh)
+    # v349 (F6Z1): giełdy scentralizowane (salda i przepływy netto 88 giełd, własna migawka dobowa; data/gieldy.json) oraz DEX (obrót ostatniej pełnej
+    # doby UTC, podział wg sieci) i otwarte pozycje protokołów na łańcuchu (data/dex.json) — publiczne zestawienia bez klucza, ta sama usługa co stablecoiny
+    # i RWA (jedno źródło w ZRODLA_META). Giełdy i otwarte pozycje co 55 min (próba po błędzie co 25 min), DEX raz na dobę po 03:00 UTC i nigdy w długim
+    # przebiegu; część z błędem = poprzednia część z własną datą (ok False, krótki błąd w pliku i notatka), awaria budowniczego = poprzedni plik i błąd.
+    # META ok: gieldy, dex, dex_oi.
+    prev_gx = previous('gieldy')
+    try:
+        gx_, gx_st = build_gieldy(prev_gx, run_t0=_RUN_T0[0])
+        META['ok']['gieldy'] = gx_st
+        if gx_ is not None:
+            save('gieldy', gx_)
+        if gx_st is False:
+            META['notes'].append(mask(f'krypto (giełdy scentralizowane): {((gx_ or {}).get("err") or {}).get("cex") or "brak danych — pierwsza próba nieudana"}')[:200])
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'krypto (giełdy scentralizowane): {e}')[:200]); META['ok']['gieldy'] = False
+        if prev_gx:
+            save('gieldy', prev_gx)
+    prev_dx = previous('dex')
+    try:
+        dx_, dx_st = build_dex(prev_dx, run_t0=_RUN_T0[0])
+        META['ok']['dex'] = dx_st['dex']
+        META['ok']['dex_oi'] = dx_st['oi']
+        if dx_ is not None:
+            save('dex', dx_)
+        for k_, nm_ in (('dex', 'obrót DEX'), ('oi', 'otwarte pozycje')):
+            if dx_st[k_] is False:
+                META['notes'].append(mask(f'krypto (DEX): {nm_} — {((dx_ or {}).get("err") or {}).get(k_) or "brak danych"}')[:200])
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'krypto (DEX i otwarte pozycje): {e}')[:200]); META['ok']['dex'] = False; META['ok']['dex_oi'] = False
+        if prev_dx:
+            save('dex', prev_dx)
     # v121: ceny krypto — dzienne zamknięcia 10 par USDT z publicznych plików giełdy (bez klucza): pełna budowa najwyżej co godzinę
     # (KC_EVERY, liczone od full_at — ponowienie jednej pary odświeża `at`, ale nie zegar pełnej budowy); młody plik z parą bez powodzenia
     # (błąd albo przerwane dopełnienie) = dobierana tylko ta para; awaria całości = poprzedni plik i błąd

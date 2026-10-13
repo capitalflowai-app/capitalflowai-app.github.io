@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -346,7 +346,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -534,7 +534,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -624,7 +624,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -757,7 +757,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1116,7 +1116,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1360,7 +1360,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1597,7 +1597,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1828,7 +1828,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2341,7 +2341,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3093,7 +3093,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3220,7 +3220,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3255,7 +3255,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3631,7 +3631,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -4116,7 +4116,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -8765,7 +8765,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                  'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         for s in stubs:
             s.start()
         try:
@@ -9162,7 +9162,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True, 'cde': True}, 'hl': {'rows': {}}}   # v343 (F1Z3): + cde (osiem części)
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True, 'cde': True}, 'hl': {'rows': {}}}
@@ -10019,7 +10019,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -25620,7 +25620,7 @@ class PoPrzegladzieV211(unittest.TestCase):
         self.assertEqual((Z['bledy'], Z['uwagi'], len(Z['trwa'])), ([], [], 3)); self.assertTrue(all(x['bez'] for x in Z['trwa']))
         md = self.k.raport_md({'at': t(0.2), 'wynik': 'OK', 'meta': {}, 'awarie': Z, 'uwagi': [], 'bledy': []})
         self.assertIn('jpx od 02.10.2026, 02:00 (4 dni 4 godz., nieudanych przebiegów: 500) ℹ️ (Japonia — tydzień czeka na publikację giełdy)', md)
-        self.assertEqual(set(self.k.AW_BEZ_BLEDU) - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
+        self.assertEqual(set(self.k.AW_BEZ_BLEDU) - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
                                                     'surowce_fundusze', 'surowce_banki'}, 'v215: snb — zwykła ocena; v295: + surowce; v298: + etap 3')   # v320: świadomie odjęte części raportów miesięcznych surowców (surowce_raporty_*) — też bez czerwieni z serii awarii
 
     def test_czas_do_ostatniego_przebiegu_i_pamiec_od(self):
@@ -25714,7 +25714,7 @@ class PoPrzegladzieV215(unittest.TestCase):
         Z = k.awarie_ocena({'at': t(0), 'awarie': aw}, datetime.datetime(2026, 10, 6, 4, 10, tzinfo=datetime.timezone.utc))
         self.assertEqual(len(Z['bledy']), 1); self.assertIn('„snb”', Z['bledy'][0]); self.assertEqual(Z['uwagi'], [])
         self.assertEqual(sorted(x['czesc'] for x in Z['trwa'] if x['bez']), ['ici', 'jpx', 'wycena_bg'])
-        self.assertEqual(set(k.AW_BEZ_BLEDU) - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
+        self.assertEqual(set(k.AW_BEZ_BLEDU) - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
                                                'surowce_fundusze', 'surowce_banki'})   # v295: + części surowców; v298: + etap 3; v320: świadomie odjęte części raportów miesięcznych (surowce_raporty_*)
         self.assertIn('z założenia bez czerwieni', k.AW_BEZ_BLEDU['ici'])
 
@@ -32161,7 +32161,7 @@ class SurowceV295(unittest.TestCase):
             'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
             'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
             'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
             'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
         for zm, want_new in (({'eia'}, True), (set(), False)):
             saved.clear(); calls.clear()
@@ -33584,7 +33584,7 @@ class SurowceEtap3V298(unittest.TestCase):
             'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
             'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
             'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
             'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
         for s in stubs:
             s.start()
@@ -39474,7 +39474,7 @@ class StopySurowceV325(unittest.TestCase):
                 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
                 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
                 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia',
+                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_ici', 'build_nastroj', 'build_dzwignia',
                 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa',
                 'build_surowce', 'build_energia')]
             for s in stubs:
@@ -46454,3 +46454,591 @@ class LicznikKontrolaV348(unittest.TestCase):
         self.assertIn('count.js HTTP 404', next(x for x in md.splitlines() if x.startswith('- Pliki danych (wiek):')))
         R2, _, _, _ = self._przebieg('maly')
         self.assertIn('count.js: HTTP 200, 5 B', R2['uwagi'], 'prawie pusty plik = uwaga (jak robots.txt)')
+
+
+# ===================== v349: GIEŁDY I DEX — data/gieldy.json i data/dex.json (zbieracz), kontrola dzienna, przebieg główny =====================
+# Nagrania publicznych odpowiedzi (sieć nie jest używana: odpowiedzi zaślepione z nagrań), małe fixtury z prawdziwymi sumami:
+#   * /cexs z 13.10.2026 (88 giełd; saldo Binance 145 399 072 826 USD, 79 giełd z saldem, 62 z obrotem spot; Coinbase, Upbit i inne bez ujawnionych portfeli = null),
+#   * /overview/dexs z 10.10.2026 14:08 UTC (30 największych protokołów kategorii Dexs + wypełniacze niosące resztę sum; doba 9.10.2026: 5 426 515 349 USD
+#     kategorii Dexs, szereg dobowy z dniem bieżącym niepełnym; podział wg sieci z 30 dób: suma 260 675 907 963 USD),
+#   * /overview/open-interest z 13.10.2026 (22 największe protokoły na łańcuchu + wypełniacze, kategoria Interface i sieć „Off Chain” osobno).
+GX349_CEX = '{"cexs":[{"name":"Binance","slug":"Binance-CEX","cleanAssetsTvl":145399072826,"inflows_24h":886679656,"inflows_1w":-941926700,"inflows_1m":-427847491,"spotVolume":12130155029,"oi":33534195282,"derivVolume":73821132699},{"name":"OKX","slug":"okx","cleanAssetsTvl":29647706026,"inflows_24h":-54175762,"inflows_1w":286117310,"inflows_1m":277609984,"spotVolume":2561858025,"oi":7790081882,"derivVolume":26631277994},{"name":"Bitfinex","slug":"bitfinex","cleanAssetsTvl":15054588647,"inflows_24h":41198890,"inflows_1w":453947509,"inflows_1m":1185530912,"spotVolume":351912781,"oi":866192859,"derivVolume":49973817},{"name":"Robinhood","slug":"robinhood","cleanAssetsTvl":15004780448,"inflows_24h":1169,"inflows_1w":14871,"inflows_1m":116040},{"name":"Gemini","slug":"gemini","cleanAssetsTvl":5487510494,"inflows_24h":-4566459,"inflows_1w":1347505,"inflows_1m":-15154093,"spotVolume":29830192},{"name":"Bybit","slug":"Bybit","cleanAssetsTvl":15365037006,"inflows_24h":-43524260,"inflows_1w":-187602423,"inflows_1m":-102958292,"spotVolume":2024427592,"oi":12914832817,"derivVolume":17105081365},{"name":"Crypto.com","slug":"Crypto-com","cleanAssetsTvl":2446977260,"inflows_24h":-6421709,"inflows_1w":-46988265,"inflows_1m":-46900986,"spotVolume":821878342,"oi":1837538022,"derivVolume":581586325},{"name":"HTX","slug":"htx","cleanAssetsTvl":4128207549,"inflows_24h":3264064,"inflows_1w":10852,"inflows_1m":411197387,"spotVolume":899529749,"oi":2544231074,"derivVolume":1816080507},{"name":"KuCoin","slug":"kucoin","cleanAssetsTvl":2880429770,"inflows_24h":-7778177,"inflows_1w":-44829499,"inflows_1m":-114482963,"spotVolume":1331126667,"oi":3209535479,"derivVolume":2433597106},{"name":"Bitstamp","slug":"bitstamp","cleanAssetsTvl":4728362382,"inflows_24h":-11346952,"inflows_1w":1272184758,"inflows_1m":-103299638,"spotVolume":383970283},{"name":"Deribit","slug":"deribit","cleanAssetsTvl":3928009082,"inflows_24h":5270018,"inflows_1w":-83364790,"inflows_1m":-1496295062,"spotVolume":912347072,"oi":2266982781,"derivVolume":7750099002},{"name":"Bitkub","slug":"bitkub","cleanAssetsTvl":1522477284,"inflows_24h":2511806,"inflows_1w":12458234,"inflows_1m":12834544,"spotVolume":43402854},{"name":"Gate","slug":"Gate","cleanAssetsTvl":6124804249,"inflows_24h":36286380,"inflows_1w":27201280,"inflows_1m":106704524,"spotVolume":2091282311,"oi":13677632662,"derivVolume":16313266129},{"name":"Bitget","slug":"bitget","cleanAssetsTvl":5705991005,"inflows_24h":36550906,"inflows_1w":-25300465,"inflows_1m":342787067,"spotVolume":1041988209,"oi":8493551649,"derivVolume":9530483807},{"name":"MEXC","slug":"mexc","cleanAssetsTvl":4763421389,"inflows_24h":7995133,"inflows_1w":9718938,"inflows_1m":-25441472,"spotVolume":1380718199,"oi":11549850892,"derivVolume":12642204427},{"name":"Bitmex","slug":"bitmex","cleanAssetsTvl":736092716,"inflows_24h":10,"inflows_1w":2633183,"inflows_1m":-45207122,"oi":0,"derivVolume":0},{"name":"SwissBorg","slug":"swissborg","cleanAssetsTvl":914265582,"inflows_24h":-251298,"inflows_1w":-1842007,"inflows_1m":215543},{"name":"Korbit","slug":"korbit","cleanAssetsTvl":514268939,"inflows_24h":-3973568,"inflows_1w":-3221938,"inflows_1m":-2753437,"spotVolume":75473135},{"name":"Phemex","slug":"phemex","cleanAssetsTvl":284609051,"inflows_24h":-506241,"inflows_1w":-3671103,"inflows_1m":4313106,"spotVolume":833644417,"oi":2250551928,"derivVolume":1185799698},{"name":"ProBit Global","slug":"probit-global","cleanAssetsTvl":12874139,"inflows_24h":0,"inflows_1w":0,"inflows_1m":0},{"name":"WOO X","slug":"woo-x","cleanAssetsTvl":2296794,"inflows_24h":23578,"inflows_1w":-71984,"inflows_1m":-516105,"spotVolume":149638},{"name":"Bake.io","slug":"bake.io","cleanAssetsTvl":257,"inflows_24h":0,"inflows_1w":0,"inflows_1m":0},{"name":"BingX","slug":"bingx","cleanAssetsTvl":635455936,"inflows_24h":1946470,"inflows_1w":-8844354,"inflows_1m":10778934,"spotVolume":598721037},{"name":"Coinsquare","slug":"coinsquare","cleanAssetsTvl":3497469,"inflows_24h":0,"inflows_1w":-11339,"inflows_1m":32259},{"name":"Toobit","slug":"toobit","cleanAssetsTvl":72824249,"inflows_24h":0,"inflows_1w":0,"inflows_1m":0,"spotVolume":1909697974},{"name":"CoinW","slug":"coinw","cleanAssetsTvl":21018,"inflows_24h":0,"inflows_1w":0,"inflows_1m":-185373,"spotVolume":1493235010},{"name":"CoinDCX","slug":"coindcx","cleanAssetsTvl":182170024,"inflows_24h":-25,"inflows_1w":-145685,"inflows_1m":-379730,"spotVolume":910852},{"name":"Fastex","slug":"fastex","cleanAssetsTvl":96258,"inflows_24h":0,"inflows_1w":0,"inflows_1m":-41327},{"name":"NBX","slug":"nbx","cleanAssetsTvl":1287752,"inflows_24h":8968,"inflows_1w":-45740,"inflows_1m":529357,"spotVolume":33483},{"name":"Okcoin","slug":"okcoin","cleanAssetsTvl":19695886,"inflows_24h":-11072,"inflows_1w":-18592,"inflows_1m":-29868},{"name":"BitVenus","slug":"bitvenus","cleanAssetsTvl":20017258,"inflows_24h":1457562,"inflows_1w":736617,"inflows_1m":-5125533},{"name":"Coinstore","slug":"coinstore","cleanAssetsTvl":57744544,"inflows_24h":2908,"inflows_1w":62180,"inflows_1m":-116029,"spotVolume":268279752},{"name":"Coin8","slug":"coin8","cleanAssetsTvl":50459163,"inflows_24h":8493,"inflows_1w":100934,"inflows_1m":813876},{"name":"Exmo","slug":"exmo","cleanAssetsTvl":14456,"inflows_24h":0,"inflows_1w":0,"inflows_1m":14440,"spotVolume":3592},{"name":"Flipster","slug":"flipster","cleanAssetsTvl":26509330,"inflows_24h":-17520,"inflows_1w":-286395,"inflows_1m":-1820189},{"name":"NonKYC","slug":"nonkyc","cleanAssetsTvl":2049892,"inflows_24h":-54671,"inflows_1w":-255681,"inflows_1m":331024,"spotVolume":29390758},{"name":"Bitrue","slug":"bitrue","cleanAssetsTvl":160936457,"inflows_24h":-1162061,"inflows_1w":-1201828,"inflows_1m":-1767897,"spotVolume":531108242,"oi":1799572295,"derivVolume":3653276652},{"name":"Latoken","slug":"latoken","cleanAssetsTvl":355117,"inflows_24h":0,"inflows_1w":76,"inflows_1m":3122,"spotVolume":55720329},{"name":"BitMart","slug":"bitMart","cleanAssetsTvl":5106839,"inflows_24h":-48620,"inflows_1w":-220979,"inflows_1m":-330648,"oi":0,"derivVolume":0},{"name":"BTSE","slug":"btse","cleanAssetsTvl":1653555,"inflows_24h":0,"inflows_1w":0,"inflows_1m":0,"spotVolume":91589415},{"name":"HashKey Exchange","slug":"hashkey-exchange","cleanAssetsTvl":1605608329,"inflows_24h":2369426,"inflows_1w":-19521842,"inflows_1m":-69803658},{"name":"Biconomy.com","slug":"biconomy.com","cleanAssetsTvl":105299289,"inflows_24h":-17902,"inflows_1w":0,"inflows_1m":82796714},{"name":"Pionex","slug":"pionex","cleanAssetsTvl":125372944,"inflows_24h":-127048,"inflows_1w":-471104,"inflows_1m":926832,"spotVolume":3481203090},{"name":"Bitunix","slug":"bitunix","cleanAssetsTvl":232759695,"inflows_24h":839492,"inflows_1w":2158854,"inflows_1m":-26771249,"spotVolume":375696558,"oi":1730941686,"derivVolume":6462092460},{"name":"BloFin","slug":"blofin","cleanAssetsTvl":71358823,"inflows_24h":-6981997,"inflows_1w":-30118550,"inflows_1m":-27815044},{"name":"Backpack","slug":"backpack","cleanAssetsTvl":567885259,"inflows_24h":-348307,"inflows_1w":-4775267,"inflows_1m":-10104650},{"name":"Hotcoin","slug":"hotcoin","cleanAssetsTvl":1687092,"inflows_24h":-334016,"inflows_1w":-192075,"inflows_1m":21063},{"name":"Ourbit","slug":"ourbit","cleanAssetsTvl":117863055,"inflows_24h":-234458,"inflows_1w":-1029123,"inflows_1m":44569586,"spotVolume":1832518198},{"name":"Indodax","slug":"indodax","cleanAssetsTvl":515471842,"inflows_24h":-893699,"inflows_1w":4722905,"inflows_1m":2125156,"spotVolume":15583338},{"name":"Tothemoon","slug":"tothemoon","cleanAssetsTvl":2619335,"inflows_24h":-1844126,"inflows_1w":-3025186,"inflows_1m":-1378065},{"name":"HashKey Global","slug":"hashkey-global","cleanAssetsTvl":9817910,"inflows_24h":-510297,"inflows_1w":-382427,"inflows_1m":-1256404,"spotVolume":305113},{"name":"P2PB2B","slug":"p2pb2b","cleanAssetsTvl":5478146,"inflows_24h":0,"inflows_1w":0,"inflows_1m":-1458,"spotVolume":228691764},{"name":"OrangeX","slug":"orangex","cleanAssetsTvl":41791735,"inflows_24h":0,"inflows_1w":0,"inflows_1m":-849976,"spotVolume":1759104219},{"name":"BigONE","slug":"bigone","cleanAssetsTvl":45670487,"inflows_24h":-37258,"inflows_1w":8598,"inflows_1m":9431302,"spotVolume":803406454},{"name":"Arkham Exchange","slug":"arkham-exchange","cleanAssetsTvl":5185,"inflows_24h":0,"inflows_1w":0,"inflows_1m":0},{"name":"Hibt","slug":"hibt","cleanAssetsTvl":17604899,"inflows_24h":-7681,"inflows_1w":323772,"inflows_1m":86449,"spotVolume":597897439},{"name":"LBank","slug":"lbank","cleanAssetsTvl":9427270,"inflows_24h":-31359,"inflows_1w":-1213575,"inflows_1m":-2843447,"spotVolume":2486918983},{"name":"TradeOgre","slug":"tradeogre","cleanAssetsTvl":68067,"inflows_24h":0,"inflows_1w":0,"inflows_1m":0},{"name":"BiTomato","slug":"bitomato","cleanAssetsTvl":2050,"inflows_24h":0,"inflows_1w":0,"inflows_1m":0},{"name":"Zoomex","slug":"zoomex","cleanAssetsTvl":45961654,"inflows_24h":11251670,"inflows_1w":10250297,"inflows_1m":11057292,"spotVolume":474220729},{"name":"CoinEx","slug":"coinex","cleanAssetsTvl":24837960,"inflows_24h":-13578,"inflows_1w":-3359726,"inflows_1m":-118030447,"oi":0,"derivVolume":0},{"name":"Coinbase","spotVolume":1762266972},{"name":"Coinone","spotVolume":165874295},{"name":"NEXO","slug":"nexo","cleanAssetsTvl":12272611,"inflows_24h":266806,"inflows_1w":1978944,"inflows_1m":-3976552},{"name":"Coincheck","spotVolume":39630835},{"name":"Bithumb","spotVolume":620456383},{"name":"Poloniex","slug":"poloniex","cleanAssetsTvl":1255850493,"inflows_24h":-373620667,"inflows_1w":-395675947,"inflows_1m":-316851538,"spotVolume":847145415},{"name":"Upbit","spotVolume":1411039562},{"name":"bitFlyer","spotVolume":27437702,"oi":0,"derivVolume":94362824},{"name":"BTCC","spotVolume":7558628527},{"name":"Deepcoin","spotVolume":669365143},{"name":"CEX.IO","slug":"cex.io","cleanAssetsTvl":1121828,"inflows_24h":-2151546,"inflows_1w":-1420406,"inflows_1m":-2835018,"spotVolume":50924829},{"name":"Bitlo","slug":"bitlo","cleanAssetsTvl":14943371,"inflows_24h":486,"inflows_1w":3668,"inflows_1m":38046,"spotVolume":2065447},{"name":"VALR","slug":"valr","cleanAssetsTvl":110315445,"inflows_24h":-18495839,"inflows_1w":-16824369,"inflows_1m":-13437282,"spotVolume":20604541},{"name":"BitKan","slug":"bitkan","cleanAssetsTvl":31313631,"inflows_24h":2001557,"inflows_1w":-38677,"inflows_1m":-4019078,"spotVolume":128041385},{"name":"Voyager","slug":"voyager","cleanAssetsTvl":0,"inflows_24h":0,"inflows_1w":0,"inflows_1m":0},{"name":"Gate US","slug":"gate-us","cleanAssetsTvl":14822070,"inflows_24h":728624,"inflows_1w":5311383,"inflows_1m":-40411446,"spotVolume":18837},{"name":"LeveX","slug":"levex","cleanAssetsTvl":8277290,"inflows_24h":21084,"inflows_1w":-67043,"inflows_1m":-673723,"spotVolume":22900461,"oi":326049250,"derivVolume":190913322},{"name":"WEEX","slug":"weex","cleanAssetsTvl":187250560,"inflows_24h":-980407,"inflows_1w":-1901751,"inflows_1m":5875382,"spotVolume":2566602408},{"name":"BYDFi","slug":"bydfi","cleanAssetsTvl":74675133,"inflows_24h":1035,"inflows_1w":-6042743,"inflows_1m":-15783060,"spotVolume":688783610,"oi":105904265,"derivVolume":408454725},{"name":"OSL Exchange","slug":"osl-exchange","cleanAssetsTvl":748583034,"inflows_24h":3400757,"inflows_1w":-14370835,"inflows_1m":7825379,"spotVolume":85021134},{"name":"Byte Exchange","slug":"byte-exchange","cleanAssetsTvl":44329919,"inflows_24h":0,"inflows_1w":0,"inflows_1m":0,"spotVolume":82923710},{"name":"GroveX","slug":"grovex","cleanAssetsTvl":3688,"inflows_24h":0,"inflows_1w":0,"inflows_1m":0,"spotVolume":1187500947},{"name":"Bitvavo","slug":"bitvavo","cleanAssetsTvl":263200201,"inflows_24h":6847583,"inflows_1w":44101142,"inflows_1m":-366786980,"spotVolume":313273289},{"name":"SCLiTE","slug":"sclite","cleanAssetsTvl":17600,"inflows_24h":0,"inflows_1w":0},{"name":"Webot","slug":"webot","cleanAssetsTvl":3208551,"inflows_24h":-16384,"inflows_1w":-54637,"inflows_1m":-221339,"spotVolume":11018631},{"name":"Niza","slug":"niza","cleanAssetsTvl":50340954,"inflows_24h":0,"inflows_1w":0,"inflows_1m":-22112185},{"name":"Websea","slug":"websea","cleanAssetsTvl":3973,"inflows_24h":-11039,"inflows_1w":-15968,"inflows_1m":-13941338,"spotVolume":179251495}]}'
+GX349_DEX = '{"total24h":7320059255.560001,"total48hto24h":10672217588.89,"total7DaysAgo":10861525792.63,"totalDataChart":[[1790640000,11743526797.499998],[1790726400,10921981392.040005],[1790812800,10199348719.039999],[1790899200,10861525792.63],[1790985600,6269616147.119999],[1791072000,6319784423.689998],[1791158400,8146278702.01],[1791244800,9877701173.87],[1791331200,9291080192.640001],[1791417600,10672217588.89],[1791504000,7320054376.560001],[1791590400,6754662412.270001]],"protocols":[{"name":"Uniswap V4","category":"Dexs","total24h":878750385,"total48hto24h":1427882244,"total7d":8764631634,"total14dto7d":9700469016,"total30d":41964760366,"total60dto30d":33508072891,"total7DaysAgo":1740510038,"total30DaysAgo":1509999046,"breakdown30d":{"zora":{"Uniswap V4":29},"celo":{"Uniswap V4":62189},"ink":{"Uniswap V4":7714771},"tempo":{"Uniswap V4":31975070},"arc":{"Uniswap V4":857728655},"wc":{"Uniswap V4":1102276},"megaeth":{"Uniswap V4":50219},"blast":{"Uniswap V4":108190},"xlayer":{"Uniswap V4":116945901},"avax":{"Uniswap V4":34502661},"soneium":{"Uniswap V4":1788753},"optimism":{"Uniswap V4":664358773},"polygon":{"Uniswap V4":1991129953},"unichain":{"Uniswap V4":130272247},"arbitrum":{"Uniswap V4":762786223},"monad":{"Uniswap V4":735975910},"ethereum":{"Uniswap V4":14905068721},"base":{"Uniswap V4":3442234054},"bsc":{"Uniswap V4":2452547336},"robinhood":{"Uniswap V4":15828408435}}},{"name":"Uniswap V3","category":"Dexs","total24h":669489322,"total48hto24h":1716554619,"total7d":6908600842,"total14dto7d":9265931250,"total30d":41432947674,"total60dto30d":39085550254,"total7DaysAgo":1326652456,"total30DaysAgo":1634491476,"breakdown30d":{"sonic":{"Uniswap V3":3813053},"etlk":{"Uniswap V3":3341939},"hemi":{"Uniswap V3":136272},"plasma":{"Uniswap V3":154614522},"xdai":{"Uniswap V3":84128859},"linea":{"Uniswap V3":106462},"tempo":{"Uniswap V3":736},"ink":{"Uniswap V3":10027981},"goat":{"Uniswap V3":1363989},"sei":{"Uniswap V3":530211},"boba":{"Uniswap V3":861564},"era":{"Uniswap V3":921088},"monad":{"Uniswap V3":94538597},"xlayer":{"Uniswap V3":673288625},"mantle":{"Uniswap V3":136178},"bob":{"Uniswap V3":171438},"xdc":{"Uniswap V3":7625131},"polygon":{"Uniswap V3":716240892},"arbitrum":{"Uniswap V3":3489754504},"wc":{"Uniswap V3":13719993},"bsc":{"Uniswap V3":1383131093},"optimism":{"Uniswap V3":141933285},"rsk":{"Uniswap V3":11847672},"ethereum":{"Uniswap V3":10479695669},"nibiru":{"Uniswap V3":355},"avax":{"Uniswap V3":355389405},"scroll":{"Uniswap V3":102839},"base":{"Uniswap V3":5839051345},"0g":{"Uniswap V3":1799907},"unichain":{"Uniswap V3":201626595},"robinhood":{"Uniswap V3":17258017794},"blast":{"Uniswap V3":49216},"celo":{"Uniswap V3":35417490},"filecoin":{"Uniswap V3":8107920},"arc":{"Uniswap V3":461453062},"rbn":{"Uniswap V3":1992}}},{"name":"Aerodrome Slipstream","category":"Dexs","total24h":405056734,"total48hto24h":627505406,"total7d":3433494220,"total14dto7d":3954668520,"total30d":14187519136,"total60dto30d":13427129300,"total7DaysAgo":693590638,"total30DaysAgo":570118484,"breakdown30d":{"base":{"Aerodrome Slipstream":14187519136}}},{"name":"PumpSwap","category":"Dexs","total24h":389880050,"total48hto24h":364570780,"total7d":2444303366,"total14dto7d":2315825407,"total30d":11382459062,"total60dto30d":20498245922,"total7DaysAgo":321134539,"total30DaysAgo":340962649,"breakdown30d":{"solana":{"PumpSwap":11382459062}}},{"name":"PancakeSwap AMM V3","category":"Dexs","total24h":382391282,"total48hto24h":679845365,"total7d":3205181467,"total14dto7d":4245252755,"total30d":17966666687,"total60dto30d":20335279111,"total7DaysAgo":691681142,"total30DaysAgo":764005218,"breakdown30d":{"linea":{"PancakeSwap AMM V3":718385},"era":{"PancakeSwap AMM V3":590488},"op_bnb":{"PancakeSwap AMM V3":119439},"bsc":{"PancakeSwap AMM V3":13918999037},"solana":{"PancakeSwap AMM V3":477961405},"robinhood":{"PancakeSwap AMM V3":49880686},"ethereum":{"PancakeSwap AMM V3":159165142},"monad":{"PancakeSwap AMM V3":37416258},"arbitrum":{"PancakeSwap AMM V3":241251148},"base":{"PancakeSwap AMM V3":3080564699}}},{"name":"BisonFi","category":"Dexs","total24h":258653853,"total48hto24h":297206847,"total7d":1649351781,"total14dto7d":2102004091,"total30d":9676340698,"total60dto30d":8337788271,"total7DaysAgo":347773873,"total30DaysAgo":402765962,"breakdown30d":{"solana":{"BisonFi":9676340698}}},{"name":"Orca DEX","category":"Dexs","total24h":172890590,"total48hto24h":350683776,"total7d":1758802201,"total14dto7d":2439142172,"total30d":8317687154,"total60dto30d":7117891636,"total7DaysAgo":415956329,"total30DaysAgo":169534709,"breakdown30d":{"solana":{"Orca DEX":8317687154}}},{"name":"Tessera V","category":"Dexs","total24h":167571545,"total48hto24h":244174997,"total7d":1349323980,"total14dto7d":1474565736,"total30d":6132231929,"total60dto30d":3687318234,"total7DaysAgo":281771598,"total30DaysAgo":301348672,"breakdown30d":{"solana":{"Tessera V":3800528177},"bsc":{"Tessera V":659203319},"base":{"Tessera V":1089902339},"robinhood":{"Tessera V":582598094}}},{"name":"PancakeSwap Infinity","category":"Dexs","total24h":134612564,"total48hto24h":187757758,"total7d":1279899841,"total14dto7d":1804563482,"total30d":6145303444,"total60dto30d":6364627464,"total7DaysAgo":291344863,"total30DaysAgo":322899273,"breakdown30d":{"base":{"PancakeSwap Infinity":75305486},"bsc":{"PancakeSwap Infinity":6069997958}}},{"name":"Raydium AMM","category":"Dexs","total24h":119089266,"total48hto24h":233184592,"total7d":1263402595,"total14dto7d":1803542198,"total30d":8817002635,"total60dto30d":5207516379,"total7DaysAgo":267938197,"total30DaysAgo":435129726,"breakdown30d":{"solana":{"Raydium AMM":8817002635}}},{"name":"Meteora DLMM","category":"Dexs","total24h":110702771,"total48hto24h":215943395,"total7d":1014984143,"total14dto7d":1297443533,"total30d":5688044645,"total60dto30d":5235934987,"total7DaysAgo":180659747,"total30DaysAgo":322249810,"breakdown30d":{"solana":{"Meteora DLMM":5688044645}}},{"name":"Hyperliquid Spot Orderbook","category":"Dexs","total24h":103229118,"total48hto24h":151404499,"total7d":814008931,"total14dto7d":890577713,"total30d":4559513408,"total60dto30d":4708003958,"total7DaysAgo":171834644,"total30DaysAgo":143340641,"breakdown30d":{"hyperliquid":{"Hyperliquid Spot Orderbook":4559513408}}},{"name":"Metric V1","category":"Dexs","total24h":90294275,"total48hto24h":80409291,"total7d":531238862,"total14dto7d":325412192,"total30d":1198114411,"total60dto30d":910874460,"total7DaysAgo":44526641,"total30DaysAgo":31146847,"breakdown30d":{"robinhood":{"Metric V1":319756356},"ethereum":{"Metric V1":70231936},"arbitrum":{"Metric V1":104435508},"base":{"Metric V1":612863280},"monad":{"Metric V1":1339945},"hyperliquid":{"Metric V1":370261},"polygon":{"Metric V1":25961100},"bsc":{"Metric V1":62476062},"avax":{"Metric V1":679963}}},{"name":"Fluid DEX","category":"Dexs","total24h":84053599,"total48hto24h":169576163,"total7d":775676006,"total14dto7d":1081497398,"total30d":3763060375,"total60dto30d":3105362548,"total7DaysAgo":190105969,"total30DaysAgo":101361855,"breakdown30d":{"plasma":{"Fluid DEX":49542672},"polygon":{"Fluid DEX":840279},"base":{"Fluid DEX":18358385},"ethereum":{"Fluid DEX":3330069752},"arbitrum":{"Fluid DEX":364249290}}},{"name":"Manifest Trade","category":"Dexs","total24h":80021979,"total48hto24h":172327053,"total7d":798577466,"total14dto7d":981608447,"total30d":3763898161,"total60dto30d":3866691972,"total7DaysAgo":183357571,"total30DaysAgo":151966240,"breakdown30d":{"solana":{"Manifest Trade":3763898161}}},{"name":"GoonFi","category":"Dexs","total24h":75149863,"total48hto24h":111244356,"total7d":510593590,"total14dto7d":543308029,"total30d":2440126915,"total60dto30d":1489479732,"total7DaysAgo":89794203,"total30DaysAgo":90597249,"breakdown30d":{"solana":{"GoonFi":2440126915}}},{"name":"Scorch","category":"Dexs","total24h":71438549,"total48hto24h":92512930,"total7d":424543693,"total14dto7d":726030987,"total30d":2413783445,"total60dto30d":2889099128,"total7DaysAgo":106598085,"total30DaysAgo":90575026,"breakdown30d":{"solana":{"Scorch":2413783445}}},{"name":"Flashnet","category":"Dexs","total24h":63425593,"total48hto24h":105487484,"total7d":497259493,"total14dto7d":599152156,"total30d":2615894200,"total60dto30d":2442469020,"total7DaysAgo":93329926,"total30DaysAgo":74238829,"breakdown30d":{"spark":{"Flashnet":2615894200}}},{"name":"THORChain DEX","category":"Dexs","total24h":61363838,"total48hto24h":44321542,"total7d":227086383,"total14dto7d":1284309198,"total30d":2423857874,"total60dto30d":663545748,"total7DaysAgo":17862327,"total30DaysAgo":50797737,"breakdown30d":{"thorchain":{"THORChain DEX":2423857874}}},{"name":"Jupiterz","category":"Dexs","total24h":46729214,"total48hto24h":106047691,"total7d":386287485,"total14dto7d":459596196,"total30d":1792712610,"total60dto30d":1520380129,"total7DaysAgo":86957176,"total30DaysAgo":59765939,"breakdown30d":{"solana":{"Jupiterz":1792712610}}},{"name":"Ekubo","category":"Dexs","total24h":45626831,"total48hto24h":45909442,"total7d":234656004,"total14dto7d":162008571,"total30d":885576746,"total60dto30d":1249328382,"total7DaysAgo":28527394,"total30DaysAgo":55819622,"breakdown30d":{"ethereum":{"Ekubo":426954840},"robinhood":{"Ekubo":42187522},"starknet":{"Ekubo":416434384}}},{"name":"FermiSwap","category":"Dexs","total24h":42763524,"total48hto24h":72182037,"total7d":317858734,"total14dto7d":241470491,"total30d":1257510177,"total60dto30d":2115465474,"total7DaysAgo":55361916,"total30DaysAgo":38865557,"breakdown30d":{"ethereum":{"FermiSwap":1257510177}}},{"name":"Deriverse","category":"Dexs","total24h":38674921,"total48hto24h":58421960,"total7d":303170072,"total14dto7d":327779912,"total30d":1446859710,"total60dto30d":1184075319,"total7DaysAgo":48478003,"total30DaysAgo":46657278,"breakdown30d":{"solana":{"Deriverse":1446859710}}},{"name":"Pharaoh V3","category":"Dexs","total24h":36330238,"total48hto24h":60575839,"total7d":371033972,"total14dto7d":436553301,"total30d":1614980528,"total60dto30d":886799303,"total7DaysAgo":73385585,"total30DaysAgo":41954961,"breakdown30d":{"avax":{"Pharaoh V3":1614980528}}},{"name":"HumidiFi","category":"Dexs","total24h":35960162,"total48hto24h":54506835,"total7d":205825607,"total14dto7d":299365886,"total30d":3381707562,"total60dto30d":2343198064,"total7DaysAgo":54618931,"total30DaysAgo":285639061,"breakdown30d":{"solana":{"HumidiFi":3381707562}}},{"name":"Fables","category":"Dexs","total24h":33248381,"total48hto24h":105479562,"total7d":476635283,"total14dto7d":713177317,"total30d":2404035348,"total60dto30d":357694726,"total7DaysAgo":123342793,"total30DaysAgo":44441683,"breakdown30d":{"robinhood":{"Fables":2404035348}}},{"name":"Aquifer","category":"Dexs","total24h":32476199,"total48hto24h":23947555,"total7d":82272143,"total14dto7d":0,"total30d":82272143,"total60dto30d":1156654932,"total7DaysAgo":0,"total30DaysAgo":0,"breakdown30d":{"solana":{"Aquifer":82272143}}},{"name":"PancakeSwap AMM","category":"Dexs","total24h":30745317,"total48hto24h":36936289,"total7d":270131437,"total14dto7d":317171728,"total30d":1550320140,"total60dto30d":2549058277,"total7DaysAgo":61203808,"total30DaysAgo":113895341,"breakdown30d":{"linea":{"PancakeSwap AMM":224},"era":{"PancakeSwap AMM":24998},"arbitrum":{"PancakeSwap AMM":149098},"robinhood":{"PancakeSwap AMM":287917},"ethereum":{"PancakeSwap AMM":3388263},"base":{"PancakeSwap AMM":5953437},"bsc":{"PancakeSwap AMM":1539028512},"op_bnb":{"PancakeSwap AMM":105786},"aptos":{"PancakeSwap AMM":1381905}}},{"name":"AlphaQ","category":"Dexs","total24h":30300407,"total48hto24h":43721165,"total7d":224552615,"total14dto7d":281542561,"total30d":1357384333,"total60dto30d":1511765237,"total7DaysAgo":45575969,"total30DaysAgo":85348561,"breakdown30d":{"solana":{"AlphaQ":1357384333}}},{"name":"Ramses CL V2","category":"Dexs","total24h":29811400,"total48hto24h":49347004,"total7d":497195258,"total14dto7d":499905017,"total30d":2599718773,"total60dto30d":1816942132,"total7DaysAgo":65695829,"total30DaysAgo":101052546,"breakdown30d":{"arbitrum":{"Ramses CL V2":829769},"hyperliquid":{"Ramses CL V2":329727130},"robinhood":{"Ramses CL V2":1521179401},"polygon":{"Ramses CL V2":747982473}}},{"name":"Wypełniacz 01","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"0g":{"x":18049732},"citrea":{"x":1110526},"icon":{"x":2069},"zeta":{"x":5748}}},{"name":"Wypełniacz 02","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"abstract":{"x":28976050},"conflux":{"x":848589},"icp":{"x":16450785},"off_chain":{"x":203486957},"sophon":{"x":3297},"zigchain":{"x":19224601}}},{"name":"Wypełniacz 03","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"aleo":{"x":21533229},"core":{"x":108040},"igra":{"x":2452069},"zilliqa":{"x":1325}}},{"name":"Wypełniacz 04","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"alephium":{"x":15452},"coti":{"x":344231},"stable":{"x":2883},"zircuit":{"x":10}}},{"name":"Wypełniacz 05","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"algorand":{"x":17450328},"cronos":{"x":84219308},"initia":{"x":5419086},"stacks":{"x":111703777},"zklighter":{"x":283620797}}},{"name":"Wypełniacz 06","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"alphasec":{"x":103800410},"cronos_zkevm":{"x":179066},"injective":{"x":371682007},"optimism":{"x":597594038},"starknet":{"x":5004995},"zora":{"x":320}}},{"name":"Wypełniacz 07","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"althea":{"x":7},"defichain":{"x":268032},"ink":{"x":78436505},"orai":{"x":268826},"stellar":{"x":98201506}}},{"name":"Wypełniacz 08","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"apechain":{"x":1213357},"defichain_evm":{"x":687},"iotaevm":{"x":8966656},"osmosis":{"x":30173038},"sty":{"x":6745}}},{"name":"Wypełniacz 09","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"aptos":{"x":183221303},"derive_v3":{"x":507557},"iotex":{"x":392704},"paradex":{"x":1866651},"sui":{"x":1523528593}}},{"name":"Wypełniacz 10","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"arbitrum":{"x":682814862},"dexalot":{"x":1474610610},"peaq":{"x":2298758},"supra":{"x":336823}}},{"name":"Wypełniacz 11","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"arbitrum_nova":{"x":472},"doma":{"x":140398642},"karura":{"x":3519},"plasma":{"x":28345225}}},{"name":"Wypełniacz 12","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"arc":{"x":104843499},"kasplex":{"x":4134926},"plume_mainnet":{"x":261011},"tac":{"x":488}}},{"name":"Wypełniacz 13","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"assetchain":{"x":61746},"edgex":{"x":1239771213},"katana":{"x":16570803},"polygon":{"x":1379489768},"taiko":{"x":6993}}},{"name":"Wypełniacz 14","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"astar":{"x":408},"elrond":{"x":8511306},"kava":{"x":1628989},"proton":{"x":62506599},"telos":{"x":1117}}},{"name":"Wypełniacz 15","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"aurora":{"x":10540108},"energyweb":{"x":8},"kcc":{"x":39679},"pulse":{"x":126155670},"tempo":{"x":18353854}}},{"name":"Wypełniacz 16","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"avax":{"x":1993116097},"eni":{"x":3179541},"klaytn":{"x":13363638},"qiev3":{"x":42},"terra":{"x":148727}}},{"name":"Wypełniacz 17","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"base":{"x":1900524273},"eos":{"x":169646455},"linea":{"x":9222158},"quai":{"x":91902},"terra2":{"x":6635116}}},{"name":"Wypełniacz 18","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"bcypher":{"x":234872},"era":{"x":12305141},"lisk":{"x":77789},"radixdlt":{"x":40963},"tezos":{"x":15452}}},{"name":"Wypełniacz 19","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"berachain":{"x":24836234},"ethereum":{"x":11593684322},"lyra":{"x":4642034},"rbn":{"x":6246},"thorchain":{"x":6089371}}},{"name":"Wypełniacz 20","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"bfc":{"x":454303},"etlk":{"x":66585},"manta":{"x":63318},"tomochain":{"x":7761}}},{"name":"Wypełniacz 21","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"bifrost":{"x":48471},"fantom":{"x":430702},"mantle":{"x":94997420},"ripple":{"x":214011873},"ton":{"x":140175588}}},{"name":"Wypełniacz 22","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"bitcoin":{"x":13615743},"map":{"x":645},"rise":{"x":17890},"tron":{"x":1689850199}}},{"name":"Wypełniacz 23","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"bitcoincash":{"x":1157814},"flare":{"x":181344358},"massa":{"x":10605},"rls":{"x":685},"ultron":{"x":7181}}},{"name":"Wypełniacz 24","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"flow":{"x":16892850},"robinhood":{"x":3584936100},"unichain":{"x":7753931}}},{"name":"Wypełniacz 25","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"bitkub":{"x":83266},"fluent":{"x":1914491},"megaeth":{"x":13239710},"unit0":{"x":6032}}},{"name":"Wypełniacz 26","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"bittorrent":{"x":12},"fogo":{"x":479454},"merlin":{"x":17597},"ronin":{"x":20487417},"valuechain":{"x":49260098}}},{"name":"Wypełniacz 27","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"blast":{"x":4531986},"fraxtal":{"x":7747319},"meter":{"x":29351},"rsk":{"x":1850487},"vana":{"x":324}}},{"name":"Wypełniacz 28","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"bob":{"x":29002},"fuel":{"x":8794614},"metis":{"x":3021459},"scroll":{"x":11316322},"vara":{"x":44751}}},{"name":"Wypełniacz 29","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"boba":{"x":48078},"fuse":{"x":547735},"mezo":{"x":2621251},"sei":{"x":266987200},"vechain":{"x":468139}}},{"name":"Wypełniacz 30","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"bot":{"x":59209917},"gala":{"x":4623092},"mode":{"x":293499},"shape":{"x":269695},"venom":{"x":17826}}},{"name":"Wypełniacz 31","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"bsc":{"x":2034000561},"gatelayer":{"x":1600028},"monad":{"x":2092529266},"shibarium":{"x":620},"vinu":{"x":414}}},{"name":"Wypełniacz 32","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"btr":{"x":1108},"morph":{"x":17548406},"shido":{"x":298247},"wan":{"x":1154624}}},{"name":"Wypełniacz 33","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"gravity":{"x":340546},"move":{"x":260349},"waves":{"x":133566}}},{"name":"Wypełniacz 34","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"canton":{"x":677539949},"hedera":{"x":113067021},"native_core":{"x":1113960241},"wax":{"x":655482}}},{"name":"Wypełniacz 35","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"carbon":{"x":1398},"hela":{"x":169},"near":{"x":1127290688},"solana":{"x":5207191600}}},{"name":"Wypełniacz 36","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"cardano":{"x":40217214},"hemi":{"x":4109174},"neo":{"x":96153},"somnia":{"x":15075973},"wchain":{"x":19969}}},{"name":"Wypełniacz 37","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"celo":{"x":24501919},"hotstuff":{"x":158},"neon_evm":{"x":279},"soneium":{"x":9161250},"xdai":{"x":37108284}}},{"name":"Wypełniacz 38","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"chainflip":{"x":559458839},"hydradx":{"x":54611281},"songbird":{"x":23449},"xdc":{"x":23308360}}},{"name":"Wypełniacz 39","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"chromia":{"x":90542},"hydragon":{"x":3804},"sonic":{"x":44721131},"xlayer":{"x":78371343}}},{"name":"Wypełniacz 40","category":"Dexs","total24h":17644589,"total48hto24h":36165057,"total7d":226031311,"total14dto7d":263603738,"total30d":1185340442,"total60dto30d":1160546103,"total7DaysAgo":35436791,"total30DaysAgo":46306715,"breakdown30d":{"chz":{"x":1352193},"hyperliquid":{"x":2870104019},"obyte":{"x":34527},"xrplevm":{"x":5}}},{"name":"Polymarket International","category":"Prediction Market","total24h":66143428,"total48hto24h":57157636,"total7d":519657000,"total14dto7d":490430811,"total30d":2171182245,"total60dto30d":2282344289,"total7DaysAgo":69341141,"total30DaysAgo":80779812},{"name":"pump.fun","category":"Launchpad","total24h":175615418,"total48hto24h":158813405,"total7d":1235668165,"total14dto7d":1178673466,"total30d":3947265517,"total60dto30d":2623941081,"total7DaysAgo":177556550,"total30DaysAgo":99089943},{"name":"Unit","category":"Bridge","total24h":50850105,"total48hto24h":74659930,"total7d":348522082,"total14dto7d":352357016,"total30d":1942482130,"total60dto30d":1792047891,"total7DaysAgo":78051950,"total30DaysAgo":41324781},{"name":"Axiom","category":"Trading App","total24h":68840301,"total48hto24h":89175209,"total7d":812338222,"total14dto7d":779724314,"total30d":3113686851,"total60dto30d":2374366270,"total7DaysAgo":139309918,"total30DaysAgo":105997831},{"name":"NEAR Intents","category":"Bridge","total24h":255697796,"total48hto24h":256069392,"total7d":1015874963,"total14dto7d":1018037809,"total30d":4759604836,"total60dto30d":3459810144,"total7DaysAgo":124137317,"total30DaysAgo":198864845},{"name":"Kalshi","category":"Prediction Market","total24h":463569511,"total48hto24h":434347730,"total7d":2264478809,"total14dto7d":3447695772,"total30d":13020189183,"total60dto30d":11526314064,"total7DaysAgo":481547487,"total30DaysAgo":369242695},{"name":"fomo Wallet","category":"Trading App","total24h":78250087,"total48hto24h":99919153,"total7d":821524478,"total14dto7d":1131600071,"total30d":4902113141,"total60dto30d":6355331509,"total7DaysAgo":159732675,"total30DaysAgo":331445155},{"name":"Polymarket US","category":"Prediction Market","total24h":102662493,"total48hto24h":72731881,"total7d":709974757,"total14dto7d":702195443,"total30d":2848239905,"total60dto30d":1577999825,"total7DaysAgo":92285471,"total30DaysAgo":72380879}]}'
+GX349_OI = '{"protocols":[{"name":"Hyperliquid Perps","category":"Derivatives","chains":["Hyperliquid L1"],"total24h":8015225586,"total48hto24h":7861371215},{"name":"Derive V3 Options","category":"Options","chains":["Derive V3"],"total24h":1689744492,"total48hto24h":1631620341},{"name":"Variational","category":"Derivatives","chains":["Arbitrum"],"total24h":1036624566,"total48hto24h":1088267402},{"name":"Lighter Perps","category":"Derivatives","chains":["zkLighter","Robinhood Chain"],"total24h":537382839,"total48hto24h":574424290},{"name":"Grvt Perps","category":"Derivatives","chains":["GRVT"],"total24h":443759430,"total48hto24h":460692728},{"name":"Polymarket International","category":"Prediction Market","chains":["Polygon"],"total24h":341316020,"total48hto24h":343158129},{"name":"Lighter Robinhood Perps","category":"Derivatives","chains":["Robinhood Chain"],"total24h":216930467,"total48hto24h":232108450},{"name":"edgeX V2","category":"Derivatives","chains":["edgeX L1"],"total24h":214365879,"total48hto24h":217538531},{"name":"SoDEX Perps","category":"Derivatives","chains":["ValueChain"],"total24h":139131522,"total48hto24h":133793863},{"name":"GMX Solana","category":"Derivatives","chains":["Solana"],"total24h":105352283,"total48hto24h":107169335},{"name":"Boros","category":"Interest Rate Derivatives","chains":["Arbitrum"],"total24h":100007245,"total48hto24h":102993785},{"name":"Extended Perps","category":"Derivatives","chains":["Ethereum","Starknet"],"total24h":99271320,"total48hto24h":104835243},{"name":"Arcus Perps","category":"Derivatives","chains":["Robinhood Chain"],"total24h":99042968,"total48hto24h":105065644},{"name":"Paradex Options","category":"Options","chains":["Paradex"],"total24h":97826419,"total48hto24h":96945630},{"name":"Derive V3 Perps","category":"Derivatives","chains":["Derive V3"],"total24h":78277191,"total48hto24h":79756191},{"name":"Apex Omni","category":"Derivatives","chains":["Ethereum"],"total24h":76945680,"total48hto24h":79391351},{"name":"Veranta","category":"Derivatives","chains":["Base"],"total24h":63028548,"total48hto24h":65109329},{"name":"Primit Perps","category":"Derivatives","chains":["Avalanche"],"total24h":60387857,"total48hto24h":67347780},{"name":"GMX V2 Perps","category":"Derivatives","chains":["Arbitrum","Avalanche","MegaETH"],"total24h":59175216,"total48hto24h":62410427},{"name":"dYdX V4","category":"Derivatives","chains":["dYdX"],"total24h":46708860,"total48hto24h":41690511},{"name":"Nado Perps","category":"Derivatives","chains":["Ink"],"total24h":42551974,"total48hto24h":46173041},{"name":"PopDEX Perps","category":"Derivatives","chains":["Morph_tachyon"],"total24h":37385858,"total48hto24h":38432430},{"name":"Wypełniacz 01","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 02","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 03","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 04","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 05","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 06","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 07","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 08","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 09","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 10","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 11","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 12","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 13","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 14","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 15","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 16","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 17","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 18","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 19","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 20","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 21","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 22","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 23","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 24","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 25","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 26","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 27","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 28","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 29","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 30","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 31","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 32","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 33","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 34","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 35","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 36","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 37","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 38","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 39","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"Wypełniacz 40","category":"Derivatives","chains":["Test chain"],"total24h":7097515,"total48hto24h":7084933},{"name":"tradeXYZ","category":"Interface","chains":["Hyperliquid L1"],"total24h":3684918824,"total48hto24h":3632403217},{"name":"Aster Perps","category":"Derivatives","chains":["Off Chain"],"total24h":1304711380,"total48hto24h":1352322188},{"name":"Kalshi","category":"Prediction Market","chains":["Off Chain"],"total24h":1197776431,"total48hto24h":1749208595},{"name":"Antarctic","category":"Derivatives","chains":["Off Chain"],"total24h":326795995,"total48hto24h":333543653},{"name":"Polymarket US","category":"Prediction Market","chains":["Off Chain"],"total24h":184359614,"total48hto24h":209633968},{"name":"QFEX","category":"Derivatives","chains":["Off Chain"],"total24h":142335442,"total48hto24h":141860861}]}'
+
+
+class GieldyDexV349(unittest.TestCase):
+    """v349 (F6Z1): giełdy scentralizowane (salda, przepływy netto, flaga skoku listy portfeli, migawka dobowa), DEX (doba UTC z szeregu odpowiedzi, sumy kategorii
+    Dexs, podział wg sieci z 30 dób, gałąź doby wcześniej), otwarte pozycje na łańcuchu; bramki per źródło, limity, czas z nagłówków, harmonogram z przypiętym
+    czasem, część z błędem zostaje z datą, przebieg główny (zaślepki), kontrola dzienna. Bez sieci i bez zegara."""
+    U = datetime.timezone.utc
+    NOW = datetime.datetime(2026, 10, 13, 4, 12, tzinfo=U)
+    NOW_DEX = datetime.datetime(2026, 10, 10, 14, 12, tzinfo=U)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self.cex = json.loads(GX349_CEX); self.dex = json.loads(GX349_DEX); self.oi = json.loads(GX349_OI)
+        self.pat = [mock.patch.object(zd, 'GX_MIN_DEX_ALL', 20), mock.patch.object(zd, 'GX_MIN_DEX', 10), mock.patch.object(zd, 'GX_MIN_OI', 20)]
+        for p in self.pat:
+            p.start()
+            self.addCleanup(p.stop)
+
+    HDR = {'Date': 'Tue, 13 Oct 2026 04:10:15 GMT', 'Age': None, 'Last-Modified': 'Tue, 13 Oct 2026 03:49:06 GMT'}
+    HDR10 = {'Date': 'Sat, 10 Oct 2026 14:10:00 GMT', 'Age': None, 'Last-Modified': 'Sat, 10 Oct 2026 13:49:06 GMT'}
+
+    def net(self, cex=None, dex=None, oi=None, hdr=None, boom=(), log=None):
+        """Zaślepka gx_pobierz(url, limit_s, maks, gz_maks) → (bajty, nagłówki); boom — fragment adresu, który ma rzucić."""
+        def f(url, limit_s, maks, gz_maks):
+            if log is not None:
+                log.append(url)
+            for b in boom:
+                if b in url:
+                    raise RuntimeError('HTTP 503')
+            k = 'cex' if '/cexs' in url else 'dex' if 'overview/dexs' in url else 'oi' if 'open-interest' in url else None
+            if k is None:
+                raise AssertionError('nieznany adres: ' + url)
+            j = {'cex': cex if cex is not None else self.cex, 'dex': dex if dex is not None else self.dex, 'oi': oi if oi is not None else self.oi}[k]
+            return json.dumps(j).encode(), dict(hdr or self.HDR)
+        return f
+
+    # ---------------- czas z nagłówków ----------------
+    def test_czas_z_naglowkow_date_age_last_modified(self):
+        t, a = zd.gx_czas(self.HDR, self.NOW)
+        self.assertEqual((t, a), ('2026-10-13T03:49:06+00:00', None), 'Last-Modified wcześniejszy niż Date − Age = czas odświeżenia u źródła')
+        now = datetime.datetime(2026, 10, 10, 14, 0, tzinfo=self.U)
+        t, a = zd.gx_czas({'Date': 'Sat, 10 Oct 2026 13:58:37 GMT', 'Age': '152', 'Last-Modified': 'Sat, 10 Oct 2026 14:30:00 GMT'}, now)
+        self.assertEqual((t, a), ('2026-10-10T13:56:05+00:00', 152), 'Date − Age; Last-Modified późniejszy niż Date jest ignorowany')
+        t, a = zd.gx_czas({'Date': 'Sat, 10 Oct 2026 13:58:37 GMT', 'Age': '152', 'Last-Modified': 'Sat, 10 Oct 2026 13:49:32 GMT'}, now)
+        self.assertEqual(t, '2026-10-10T13:49:32+00:00', 'wcześniejszy z dwóch czasów (ostrożnie)')
+        for h in (None, {}, {'Date': 'wczoraj', 'Age': 'x', 'Last-Modified': '??'}, {'Date': 'Mon, 01 Jan 2001 00:00:00 GMT'}):
+            t, a = zd.gx_czas(h, now)
+            self.assertEqual((t, a), (now.isoformat(), None), 'brak albo zły Date / zegar rozjechany o ponad 6 h = czas przebiegu')
+
+    # ---------------- parser giełd ----------------
+    def test_parse_gieldy_na_nagraniu(self):
+        R = zd.parse_gieldy(self.cex)
+        self.assertEqual(len(R), 88); self.assertEqual(R[0]['name'], 'Binance')
+        self.assertEqual((R[0]['bal'], R[0]['in24'], R[0]['in7'], R[0]['in30']), (145399072826, 886679656, -941926700, -427847491))
+        self.assertEqual(R[0]['slug'], 'Binance-CEX'); self.assertEqual(R[0]['spot'], 12130155029)
+        B = [r['bal'] for r in R if r['bal']]
+        self.assertEqual(B, sorted(B, reverse=True), 'malejąco wg salda'); self.assertEqual(len(B), 79)
+        gap = [r for r in R if r['bal'] is None]
+        self.assertEqual(len(gap), 9); self.assertTrue(all(r['in24'] is None and r['in7'] is None and r['in30'] is None for r in gap), 'giełda bez salda: przepływy to None, nigdy zero')
+        cb = next(r for r in R if r['name'] == 'Coinbase')
+        self.assertIsNone(cb['bal']); self.assertIsNotNone(cb['spot'], 'obrót spot zostaje mimo braku salda'); self.assertEqual([r['name'] for r in R][-9:], sorted(r['name'] for r in gap))
+        z = zd.gx_razem(R)
+        self.assertEqual((z['n'], z['n_bal'], z['bal']), (88, 79, 272258799476)); self.assertEqual(z['n_spot'], 62); self.assertEqual(z['wyl'], [])
+        self.assertEqual(z['wyl7'], ['Bitstamp', 'Poloniex', 'BloFin', 'Gate US'], 'przepływ 7 dni ponad 25% salda (skok z 9–10.10, odpływ Poloniex …) poza sumą 7 dni')
+        self.assertEqual(z['wyl30'], ['Bitvavo', 'Biconomy.com', 'CoinEx', 'Gate US'], 'przepływ 30 dni ponad 50% salda (Bitvavo: odpływ większy niż saldo) poza sumą 30 dni')
+        self.assertEqual((z['in7'], z['n_in7'], z['in30'], z['n_in30']), (-566658852, 75, -489559713, 74), 'sumy 7 i 30 dni bez wykluczonych (z nimi: +285 mln i −932 mln — znak 7 dni by się odwrócił)')
+        self.assertEqual(z['in24'], sum(r['in24'] for r in R if r['in24'] is not None)); self.assertEqual(z['n_in24'], 79)
+
+    def test_parse_gieldy_zle_wartosci_nigdy_zero(self):
+        L = [{'name': 'A', 'cleanAssetsTvl': 5e9, 'inflows_24h': 'abc', 'inflows_1w': True, 'inflows_1m': float('nan'), 'spotVolume': -5, 'oi': 0, 'derivVolume': 1e14},
+             {'name': 'B', 'cleanAssetsTvl': -5, 'inflows_24h': 1e6}, {'name': 'C', 'cleanAssetsTvl': 0.0, 'inflows_24h': 0.0}, {'name': ' D  x ', 'slug': 'zły slug!'},
+             {'name': 'A'}, {'noname': 1}, 'tekst', None, {'name': 123}]
+        R = zd.parse_gieldy({'cexs': L})
+        self.assertEqual([r['name'] for r in R], ['A', 'B', 'C', 'D x'], 'powtórzona nazwa, wpis bez nazwy i nie-słowniki pominięte; nazwa ze spacjami uporządkowana')
+        a = R[0]
+        self.assertEqual((a['bal'], a['in24'], a['in7'], a['in30'], a['spot'], a['oi'], a['deriv']), (5000000000, None, None, None, None, None, None))
+        self.assertIsNone(R[1]['bal']); self.assertIsNone(R[1]['in24'], 'saldo ujemne = brak, przepływ bez salda = brak'); self.assertIsNone(R[2]['bal']); self.assertIsNone(R[2]['in24'])
+        self.assertIsNone(R[3]['slug'])
+        for zle in (None, [], {}, {'cexs': 'x'}, {'cexs': None}, 5):
+            with self.assertRaises(ValueError):
+                zd.parse_gieldy(zle)
+
+    def test_flaga_skoku_listy_portfeli_zasada_planu(self):
+        f = lambda **k: zd.gx_skok(dict({'bal': 4_710_000_000, 'in24': 1_180_000_000, 'spot': 160_000_000}, **k))
+        self.assertEqual(f(), 2, 'przykład planu (Bitstamp 10.10: przepływ 25% salda, obrót spot 3,4% salda) — literą planu (obrót < 1% salda) niełapany, nasza reguła: przepływ większy niż cały obrót')
+        self.assertEqual(f(spot=40_000_000), 2, 'litera planu (obrót spot < 1% salda) jest podzbiorem reguły')
+        self.assertEqual(f(spot=1_500_000_000), 1, 'obrót większy niż przepływ — tylko informacja (saldo ≥ 100 mln)'); self.assertEqual(f(spot=1_180_000_000), 1, 'obrót równy przepływowi nie jest „mniejszy”')
+        self.assertEqual(f(spot=None), 1, 'brak obrotu spot — nie wiadomo, informacja')
+        self.assertEqual(f(in24=-1_180_000_000), 2, 'odpływ także')
+        self.assertEqual(f(in24=470_000_000), 0, 'dokładnie 10% salda nie przekracza progu'); self.assertEqual(f(in24=472_000_000, spot=100_000_000), 2); self.assertEqual(f(in24=472_000_000, spot=500_000_000), 1)
+        self.assertEqual(zd.gx_skok({'bal': 5e6, 'in24': 4e6, 'spot': 1.0}), 0, 'saldo poniżej 10 mln USD — bez flagi (szum małych giełd)')
+        self.assertEqual(zd.gx_skok({'bal': 5e7, 'in24': 4e7, 'spot': 1.0}), 2); self.assertEqual(zd.gx_skok({'bal': 5e7, 'in24': 4e7, 'spot': None}), 0, 'saldo < 100 mln i brak obrotu — bez flagi')
+        for r in ({'bal': None, 'in24': 1e9, 'spot': 1}, {'bal': 1e10, 'in24': None, 'spot': 1}, {}):
+            self.assertEqual(zd.gx_skok(r), 0)
+        R = {r['name']: r['dz'] for r in zd.parse_gieldy(self.cex)}
+        self.assertEqual(R['Poloniex'], 1, 'odczyt 13.10.2026: Poloniex −30% salda przy obrocie większym niż przepływ — informacja'); self.assertEqual(sum(1 for v in R.values() if v == 2), 0)
+
+    def test_flagi_okien_7_i_30_dni(self):
+        r = {'bal': 4_710_000_000, 'in7': 1_190_000_000, 'in30': 2_300_000_000}
+        self.assertEqual(zd.gx_skok_okna(r), (2, 0)); self.assertEqual(zd.gx_skok_okna(dict(r, in30=2_400_000_000)), (2, 2)); self.assertEqual(zd.gx_skok_okna(dict(r, in7=1_177_500_000, in30=2_355_000_000)), (0, 0), 'dokładnie 25% i 50% nie przekracza progu')
+        self.assertEqual(zd.gx_skok_okna(dict(r, in7=-1_200_000_000, in30=-2_400_000_000)), (2, 2), 'odpływ także'); self.assertEqual(zd.gx_skok_okna(dict(r, in7=None, in30=None)), (0, 0))
+        self.assertEqual(zd.gx_skok_okna({'bal': 5e6, 'in7': 9e6, 'in30': 9e6}), (0, 0), 'saldo poniżej 10 mln USD — bez flagi'); self.assertEqual(zd.gx_skok_okna({'bal': None, 'in7': 1e9}), (0, 0))
+        R = zd.parse_gieldy(self.cex)
+        self.assertTrue(all('dz7' in x and 'dz30' in x for x in R))
+        z = zd.gx_razem(R); bs = next(x for x in R if x['name'] == 'Bitstamp')
+        self.assertEqual((bs['dz'], bs['dz7'], bs['dz30']), (0, 2, 0))
+        R2 = [dict(x, dz7=0) if x['name'] == 'Bitstamp' else x for x in R]; z2 = zd.gx_razem(R2)
+        self.assertEqual(z2['in7'], z['in7'] + bs['in7'], 'wiersz bez flagi okna wchodzi do sumy 7 dni'); self.assertEqual(z2['in30'], z['in30'], 'flaga 7 dni nie dotyczy sumy 30 dni')
+        R3 = [dict(x, dz=2) if x['name'] == 'Bitstamp' else x for x in R]; z3 = zd.gx_razem(R3)
+        self.assertEqual((z3['in24'], z3['in30']), (z['in24'] - bs['in24'], z['in30'] - bs['in30']), 'flaga doby wyklucza giełdę z każdego okna'); self.assertEqual(z3['wyl'], ['Bitstamp'])
+
+    def test_sumy_pomijaja_wiersze_z_flaga_2(self):
+        R = zd.parse_gieldy(self.cex)
+        R2 = [dict(r) for r in R]
+        bs = next(r for r in R2 if r['name'] == 'Gate'); bs.update(in24=900_000_000, spot=10_000_000, dz=2)
+        z0, z = zd.gx_razem(R), zd.gx_razem(R2)
+        self.assertEqual(z['wyl'], ['Gate']); self.assertEqual(z['n_in24'], z0['n_in24'] - 1)
+        self.assertEqual(z['in24'], z0['in24'] - R[next(i for i, r in enumerate(R) if r['name'] == 'Gate')]['in24'], 'suma przepływu 24 h bez wykluczonej giełdy')
+        self.assertEqual(z['in7'], z0['in7'] - next(r['in7'] for r in R if r['name'] == 'Gate'), 'wykluczona giełda wypada ze wszystkich sum przepływów')
+        self.assertEqual(z['bal'], z0['bal'], 'sumy sald liczą wszystkie giełdy z saldem')
+
+    def test_bramka_giełd_liczba_suma_i_skok_wzgledem_poprzedniego(self):
+        R = zd.parse_gieldy(self.cex)
+        z = zd.gx_bramka_cex(R, None); self.assertEqual(z['n'], 88)
+        with self.assertRaisesRegex(ValueError, 'za mało giełd'):
+            zd.gx_bramka_cex(R[:30], None)
+        with self.assertRaisesRegex(ValueError, 'za mało giełd'):
+            zd.gx_bramka_cex([dict(r, bal=None) for r in R], None)
+        with self.assertRaisesRegex(ValueError, 'poza zakresem'):
+            zd.gx_bramka_cex([dict(r, bal=(r['bal'] or 0) // 1000 or None) for r in R], None)
+        with self.assertRaisesRegex(ValueError, 'odrzucona'):
+            zd.gx_bramka_cex(R, {'bal': z['bal'] * 3})
+        with self.assertRaisesRegex(ValueError, 'odrzucona'):
+            zd.gx_bramka_cex(R, {'bal': z['bal'] // 3})
+        zd.gx_bramka_cex(R, {'bal': z['bal'] * 1.2}); zd.gx_bramka_cex(R, {'bal': 'x'}); zd.gx_bramka_cex(R, {})
+
+    def test_migawka_dobowa_i_salda_top(self):
+        z = {'bal': 100, 'n_bal': 5, 'in24': 7, 'wyl': ['X']}
+        H = zd.gx_hist_cex([], '2026-10-12', z); self.assertEqual(H, [['2026-10-12', 100, 5, 7, 1]])
+        H = zd.gx_hist_cex(H, '2026-10-13', dict(z, bal=110)); H = zd.gx_hist_cex(H, '2026-10-13', dict(z, bal=120, wyl=[]))
+        self.assertEqual(H, [['2026-10-12', 100, 5, 7, 1], ['2026-10-13', 120, 5, 7, 0]], 'ostatni odczyt doby zastępuje wcześniejszy')
+        H = zd.gx_hist_cex(H, '2026-10-11', z); self.assertEqual([r[0] for r in H], ['2026-10-11', '2026-10-12', '2026-10-13'], 'rosnąco')
+        H = zd.gx_hist_cex([['2025-01-01', 1, 1, 1, 0]] * 3 + ['śmieć', None, ['zła', 1]], '2026-10-13', z)
+        self.assertEqual([r[0] for r in H], ['2025-01-01', '2026-10-13'], 'wiersze bez poprawnej doby pominięte, doby bez powtórzeń')
+        H = []
+        d0 = datetime.date(2025, 9, 1)
+        for i in range(450):
+            H = zd.gx_hist_cex(H, (d0 + datetime.timedelta(days=i)).isoformat(), z)
+        self.assertEqual(len(H), zd.GX_HIST_DNI); self.assertEqual(H[-1][0], (d0 + datetime.timedelta(days=449)).isoformat())
+        R = zd.parse_gieldy(self.cex)
+        B = zd.gx_bh({}, '2026-10-13', R); self.assertEqual(len(B['2026-10-13']), zd.GX_BH_TOP); self.assertEqual(B['2026-10-13']['Binance-CEX'], 145399)
+        for i in range(40):
+            B = zd.gx_bh(B, (datetime.date(2026, 11, 1) + datetime.timedelta(days=i)).isoformat(), R)
+        self.assertEqual(len(B), zd.GX_BH_DNI); self.assertEqual(sorted(B), list(B), 'rosnąco i tylko ostatnie doby')
+
+    # ---------------- pobieranie ----------------
+    def test_pobierz_naglowki_gzip_limity_i_kody_http(self):
+        class Odp:
+            def __init__(s, body, hdr, enc=''):
+                s.b, s.i, s.headers = body, 0, dict(hdr, **({'Content-Encoding': enc} if enc else {}))
+                s.headers = type('H', (), {'get': lambda self, k, d=None, h=s.headers: h.get(k, d)})()
+            def __enter__(s): return s
+            def __exit__(s, *a): return False
+            def read(s, n):
+                c = s.b[s.i:s.i + n]; s.i += n; return c
+        import gzip as gz
+        body = json.dumps({'cexs': []}).encode()
+        h = {'Date': 'x', 'Age': '5', 'Last-Modified': 'y'}
+        seen = {}
+        def op(raw, enc=''):
+            def f(url, headers=None, timeout=30):
+                seen.update(url=url, headers=headers, timeout=timeout); return Odp(raw, h, enc)
+            return f
+        with mock.patch.object(zd, '_otworz', op(gz.compress(body), 'gzip')):
+            b, hd = zd.gx_pobierz('https://x/y', 20, 1000, 1000)
+        self.assertEqual(b, body); self.assertEqual(hd, h); self.assertEqual(seen['headers']['Accept-Encoding'], 'gzip'); self.assertEqual(seen['timeout'], 20)
+        with mock.patch.object(zd, '_otworz', op(body)):
+            self.assertEqual(zd.gx_pobierz('https://x/y', 20, 1000, 1000)[0], body, 'odpowiedź bez gzip też przyjęta')
+        with mock.patch.object(zd, '_otworz', op(gz.compress(b'a' * 5000), 'gzip')), self.assertRaisesRegex(ValueError, 'po rozpakowaniu większa niż limit'):
+            zd.gx_pobierz('https://x/y', 20, 1000, 1000)
+        with mock.patch.object(zd, '_otworz', op(b'b' * 3000)), self.assertRaisesRegex(ValueError, 'większa niż limit'):
+            zd.gx_pobierz('https://x/y', 20, 5000, 1000)
+        with mock.patch.object(zd, '_otworz', op(b'nie gzip', 'gzip')), self.assertRaisesRegex(ValueError, 'nagłówek gzip'):
+            zd.gx_pobierz('https://x/y', 20, 1000, 1000)
+        for kod, frag in ((402, 'plan płatny'), (403, 'nie obchodzimy'), (429, 'limit zapytań'), (503, 'HTTP 503')):
+            class Blad(zd.urllib.error.HTTPError):   # bez prawdziwego pliku tymczasowego odpowiedzi (HTTPError(url, kod, …, None) tworzy go i zgłasza ResourceWarning)
+                def __init__(self, code):
+                    Exception.__init__(self, 'HTTP Error %d' % code); self.code = code
+
+            def boom(url, headers=None, timeout=30, kod=kod):
+                raise Blad(kod)
+            with mock.patch.object(zd, '_otworz', boom), self.assertRaisesRegex(RuntimeError, 'HTTP %d' % kod) as cm:
+                zd.gx_pobierz('https://x/y', 20, 1000, 1000)
+            self.assertIn(frag, str(cm.exception))
+        t = iter([0.0, 0.0, 0.5, 99.0, 99.0, 99.0])
+        with mock.patch.object(zd, '_otworz', op(b'c' * 200000)), mock.patch.object(zd.time, 'monotonic', lambda: next(t)), self.assertRaises(TimeoutError):
+            zd.gx_pobierz('https://x/y', 10, 10 ** 6, 10 ** 6)
+
+    # ---------------- build_gieldy ----------------
+    def test_build_gieldy_pierwszy_odczyt_i_ksztalt_pliku(self):
+        with mock.patch.object(zd, 'gx_pobierz', self.net()):
+            g, st = zd.build_gieldy(None, now=self.NOW)
+        self.assertIs(st, True); self.assertEqual(g['v'], 1); self.assertEqual(g['ok'], {'cex': True}); self.assertEqual(g['err'], {})
+        self.assertEqual(g['cex']['src_at'], '2026-10-13T03:49:06+00:00'); self.assertEqual(g['at'], self.NOW.isoformat()); self.assertEqual(g['part_at']['cex'], g['at'])
+        self.assertEqual(g['hist'], [['2026-10-13', 272258799476, 79, g['cex']['razem']['in24'], 0]]); self.assertEqual(list(g['bh']), ['2026-10-13'])
+        self.assertEqual(g['cex']['n'], 88); self.assertEqual(len(g['cex']['rows']), 88)
+        self.assertLess(len(json.dumps(g, separators=(',', ':'))), 60_000, 'plik kilkadziesiąt KB')
+        self.assertNotRegex(json.dumps(g, ensure_ascii=False), r'(?i)llama|defi', 'nazwy usługi nie ma w pliku (strona jej nie pokazuje; pole src opisowe)')
+
+    def test_build_gieldy_rytm_i_ponowienie_po_bledzie(self):
+        log = []
+        with mock.patch.object(zd, 'gx_pobierz', self.net(log=log)):
+            g, st = zd.build_gieldy(None, now=self.NOW)
+            g2, st2 = zd.build_gieldy(g, now=self.NOW + datetime.timedelta(minutes=54))
+            self.assertIs(g2, g); self.assertEqual(st2, 'cached'); self.assertEqual(len(log), 1, 'młodszy niż 55 min — bez zapytania')
+            g3, st3 = zd.build_gieldy(g, now=self.NOW + datetime.timedelta(minutes=55)); self.assertIs(st3, True); self.assertEqual(len(log), 2)
+        # błąd: poprzednia część z datą, ok False, krótki błąd; kolejna próba dopiero po GX_RETRY
+        t1 = self.NOW + datetime.timedelta(minutes=120)
+        with mock.patch.object(zd, 'gx_pobierz', self.net(boom=('/cexs',))):
+            b, sb = zd.build_gieldy(g3, now=t1)
+        self.assertIs(sb, False); self.assertEqual(b['ok'], {'cex': False}); self.assertEqual(b['err']['cex'], 'HTTP 503')
+        self.assertEqual(b['cex'], g3['cex'], 'część z poprzedniego odczytu'); self.assertEqual(b['part_at']['cex'], g3['part_at']['cex'], 'własna data części bez zmiany'); self.assertEqual(b['at'], g3['at'])
+        self.assertEqual(b['try_at']['cex'], t1.isoformat()); self.assertEqual(b['hist'], g3['hist'])
+        log2 = []
+        with mock.patch.object(zd, 'gx_pobierz', self.net(log=log2)):
+            c, sc = zd.build_gieldy(b, now=t1 + datetime.timedelta(minutes=24)); self.assertEqual(log2, []); self.assertIs(sc, False, 'w przerwie między próbami stan nadal „błąd”')
+            d, sd = zd.build_gieldy(b, now=t1 + datetime.timedelta(minutes=25)); self.assertEqual(len(log2), 1); self.assertIs(sd, True)
+        self.assertEqual(d['ok'], {'cex': True}); self.assertEqual(d['err'], {}); self.assertEqual(d['part_at']['cex'], (t1 + datetime.timedelta(minutes=25)).isoformat())
+        # pierwszy odczyt nieudany: brak pliku (nie pustka)
+        with mock.patch.object(zd, 'gx_pobierz', self.net(boom=('/cexs',))):
+            self.assertEqual(zd.build_gieldy(None, now=self.NOW), (None, False))
+        # plik innej wersji = jak brak
+        with mock.patch.object(zd, 'gx_pobierz', self.net()):
+            e, se = zd.build_gieldy({'v': 99, 'at': 'x'}, now=self.NOW); self.assertIs(se, True); self.assertEqual(e['v'], 1)
+
+    def test_build_gieldy_bramka_odrzuca_zla_odpowiedz_i_zachowuje_poprzednia(self):
+        with mock.patch.object(zd, 'gx_pobierz', self.net()):
+            g, _ = zd.build_gieldy(None, now=self.NOW)
+        bad = {'cexs': self.cex['cexs'][:10]}
+        with mock.patch.object(zd, 'gx_pobierz', self.net(cex=bad)):
+            b, st = zd.build_gieldy(g, now=self.NOW + datetime.timedelta(hours=2))
+        self.assertIs(st, False); self.assertEqual(b['cex'], g['cex']); self.assertIn('za mało giełd', b['err']['cex'])
+        trojka = {'cexs': [dict(c, cleanAssetsTvl=(c.get('cleanAssetsTvl') or 0) * 3) for c in self.cex['cexs']]}
+        with mock.patch.object(zd, 'gx_pobierz', self.net(cex=trojka)):
+            b2, st2 = zd.build_gieldy(g, now=self.NOW + datetime.timedelta(hours=2))
+        self.assertIs(st2, False); self.assertIn('odrzucona', b2['err']['cex']); self.assertEqual(b2['hist'], g['hist'])
+
+    # ---------------- DEX ----------------
+    def test_parse_dex_doba_sumy_sieci_i_top(self):
+        d = zd.parse_dex(self.dex, datetime.date(2026, 10, 10))
+        self.assertEqual((d['day'], d['est']), ('2026-10-09', False), 'doba z punktu szeregu zgodnego z podsumowaniem (nie ostatni, niepełny punkt 10.10)')
+        self.assertAlmostEqual(d['s24'] / 1e9, 5.4265153, 5); self.assertAlmostEqual(d['s48'] / 1e9, 9.37627, 4); self.assertAlmostEqual(d['s30'] / 1e9, 260.6759, 3)
+        self.assertGreater(d['s7p'], 0); self.assertGreater(d['s30p'], 0); self.assertGreater(d['d7'], d['s24']); self.assertGreater(d['d30'], d['s24'])
+        self.assertEqual(d['n'], 70); self.assertEqual(d['n_act'], 70)
+        self.assertEqual([r[0] for r in d['top'][:3]], ['Uniswap V4', 'Uniswap V3', 'Aerodrome Slipstream']); self.assertEqual(len(d['top']), zd.GX_DEX_TOP)
+        self.assertEqual(d['top'][0][1:3], [878750385, -38.5]); self.assertAlmostEqual(d['top'][0][3], 16.19, 2)
+        S = d['sieci']; self.assertEqual([r[0] for r in S[:3]], ['solana', 'ethereum', 'robinhood']); self.assertEqual(S[0][1], 'Solana'); self.assertEqual(S[-1][0], '_inne'); self.assertIsNone(S[-1][1])
+        self.assertAlmostEqual(sum(r[3] for r in S), 100, delta=0.06); self.assertLessEqual(len(S), zd.GX_DEX_SIECI + 1)
+        self.assertAlmostEqual(S[0][3], 26.87, 1); self.assertAlmostEqual(d['sieci_sum'] / d['s30'], 1, 4)
+        self.assertEqual(S[1][2], max(r[2] for r in S[1:-1]), 'malejąco')
+
+    def test_parse_dex_doba_szacunkowa_gdy_szereg_niezgodny(self):
+        j = self.dex
+        j2 = dict(j, totalDataChart=[[ts, v * 2] for ts, v in j['totalDataChart']])
+        d = zd.parse_dex(j2, datetime.date(2026, 10, 10)); self.assertEqual((d['day'], d['est']), ('2026-10-09', True), 'brak zgodnego punktu = doba źródła − 1 dzień, flaga')
+        j3 = dict(j); del j3['totalDataChart']
+        self.assertEqual(zd.parse_dex(j3, datetime.date(2026, 10, 12))['day'], '2026-10-11')
+        j4 = dict(j, totalDataChart=[[ts + 7, v] for ts, v in j['totalDataChart']])
+        self.assertTrue(zd.parse_dex(j4, datetime.date(2026, 10, 10))['est'], 'znacznik czasu nie na północy UTC = nie punkt dobowy')
+        # zapas: punkt szeregu zgodny z samym total24h, gdy dni wokół nie zgadzają się z podsumowaniem (0,5%)
+        j4b = dict(j); del j4b['total7DaysAgo']
+        self.assertEqual(zd.gx_dex_dzien(j4b, datetime.date(2026, 10, 12)), ('2026-10-09', False))
+        # nowa doba: dopisany punkt zgodny z nowym podsumowaniem (doba D−1 zgodna z total48hto24h, D−7 z total7DaysAgo)
+        P = {ts // 86400: v for ts, v in j['totalDataChart']}
+        ts10 = j['totalDataChart'][-1][0]
+        j5 = json.loads(json.dumps(j)); j5['total24h'] = 7_000_000_000.0; j5['total48hto24h'] = P[ts10 // 86400 - 1]; j5['total7DaysAgo'] = P[ts10 // 86400 - 7]
+        j5['totalDataChart'] = j5['totalDataChart'][:-1] + [[ts10, 7_000_000_000.0], [ts10 + 86400, 100.0]]
+        self.assertEqual(zd.gx_dex_dzien(j5, datetime.date(2026, 10, 12)), ('2026-10-10', False), 'ostatni punkt szeregu (doba bieżąca, niepełna) nie jest dobą z podsumowania')
+        # szereg starszy od podsumowania (13.10.2026: doba 12.10 w szeregu 7 561 mln, w podsumowaniu 8 345 mln): doba z sąsiadów, nie z wartości doby
+        j6 = json.loads(json.dumps(j5)); j6['total24h'] = 7_000_000_000.0 * 1.1
+        self.assertEqual(zd.gx_dex_dzien(j6, datetime.date(2026, 10, 12)), ('2026-10-10', False))
+        # sąsiedzi niezgodni z podsumowaniem i wartość doby też niezgodna = szacunek
+        j7 = json.loads(json.dumps(j6)); j7['total48hto24h'] = 1.0
+        self.assertEqual(zd.gx_dex_dzien(j7, datetime.date(2026, 10, 12)), ('2026-10-11', True))
+
+    def test_parse_dex_bramka_lista_kategoria_suma_i_siec(self):
+        j = self.dex
+        with mock.patch.object(zd, 'GX_MIN_DEX_ALL', 500), self.assertRaisesRegex(ValueError, 'niepełna'):
+            zd.parse_dex(j, datetime.date(2026, 10, 10))
+        for zle in (None, {}, {'protocols': 'x'}):
+            with self.assertRaisesRegex(ValueError, 'niepełna'):
+                zd.parse_dex(zle, datetime.date(2026, 10, 10))
+        jn = dict(j, protocols=[dict(p, category='DEX') if p['category'] == 'Dexs' else p for p in j['protocols']])
+        with self.assertRaisesRegex(ValueError, 'zmiana nazwy kategorii'):
+            zd.parse_dex(jn, datetime.date(2026, 10, 10))
+        jz = dict(j, protocols=[dict(p, total24h=1.0) if p['category'] == 'Dexs' else p for p in j['protocols']])
+        with self.assertRaisesRegex(ValueError, 'poza zakresem'):
+            zd.parse_dex(jz, datetime.date(2026, 10, 10))
+        # podział wg sieci niezgodny z sumą 30 dób (> 1%) = brak podziału, reszta pliku działa
+        js = json.loads(json.dumps(j))
+        for p in js['protocols']:
+            for m in (p.get('breakdown30d') or {}).values():
+                for k in m:
+                    m[k] = m[k] * 2
+        d = zd.parse_dex(js, datetime.date(2026, 10, 10)); self.assertIsNone(d['sieci']); self.assertIsNone(d['sieci_sum']); self.assertGreater(d['s24'], 0)
+
+    def test_szereg_dobowy_dex_ziarno_i_wlasny_odczyt(self):
+        d = zd.parse_dex(self.dex, datetime.date(2026, 10, 10))
+        H = zd.gx_hist_dex([], d)
+        self.assertEqual([r[0] for r in H], ['2026-09-09', '2026-10-02', '2026-10-08', '2026-10-09']); self.assertEqual([r[2] for r in H], ['s', 's', 's', 'd'])
+        self.assertEqual(H[-1][1], d['s24']); self.assertEqual(H[2][1], d['s48']); self.assertEqual(H[1][1], d['d7']); self.assertEqual(H[0][1], d['d30'])
+        # kolejna doba: własny odczyt zastępuje ziarno z poprzedniego odczytu, a ziarno nie zastępuje własnego
+        d2 = dict(d, day='2026-10-10', s24=6_000_000_000, s48=d['s24'], d7=1, d30=2)
+        H2 = zd.gx_hist_dex(H, d2)
+        self.assertEqual({r[0]: (r[1], r[2]) for r in H2}['2026-10-09'], (d['s24'], 'd'), 'własny odczyt 9.10 nie jest nadpisany ziarnem z odczytu 10.10')
+        self.assertEqual({r[0]: r[2] for r in H2}['2026-10-10'], 'd')
+        d3 = dict(d, day='2026-10-08', s24=9_400_000_000)
+        self.assertEqual({r[0]: (r[1], r[2]) for r in zd.gx_hist_dex(H, d3)}['2026-10-08'], (9_400_000_000, 'd'), 'własny odczyt zastępuje ziarno')
+        self.assertEqual(zd.gx_hist_dex(['śmieć', ['zła', 1, 's'], ['2026-10-01', 5, 'x']], d)[0][0], '2026-09-09', 'zepsute wiersze pominięte')
+
+    def test_harmonogram_dex_czas_przypiety(self):
+        T = lambda *a: datetime.datetime(2026, 10, *a, tzinfo=self.U)
+        self.assertEqual(zd.gx_dex_oczekiwana(T(13, 2, 59)), '2026-10-11', 'do 03:00 UTC oczekiwana jeszcze poprzednia doba (dopiero co zamknięta bywa niepełna)')
+        self.assertEqual(zd.gx_dex_oczekiwana(T(13, 3, 0)), '2026-10-12'); self.assertEqual(zd.gx_dex_oczekiwana(T(13, 23, 59)), '2026-10-12')
+        p = {'day': '2026-10-12'}
+        self.assertFalse(zd.gx_dex_due(p, None, T(13, 3, 0)), 'doba już jest'); self.assertFalse(zd.gx_dex_due(p, None, T(13, 23, 0)))
+        self.assertFalse(zd.gx_dex_due(p, None, T(13, 2, 0)))
+        self.assertTrue(zd.gx_dex_due(p, None, T(14, 3, 0)), 'nowa doba po 03:00 UTC')
+        self.assertFalse(zd.gx_dex_due(p, T(14, 3, 0).isoformat(), T(14, 3, 59)), 'ponowienie najwcześniej po 60 min'); self.assertTrue(zd.gx_dex_due(p, T(14, 3, 0).isoformat(), T(14, 4, 0)))
+        # po 6 h spóźnienia (od 09:00 UTC) ponowienie co 6 h
+        self.assertFalse(zd.gx_dex_due(p, T(14, 9, 0).isoformat(), T(14, 14, 59))); self.assertTrue(zd.gx_dex_due(p, T(14, 9, 0).isoformat(), T(14, 15, 0)))
+        self.assertTrue(zd.gx_dex_due(p, T(14, 6, 0).isoformat(), T(14, 8, 0)), 'przed 6 h spóźnienia co godzinę')
+        # bez poprzedniej doby: pierwszy odczyt od razu, potem próba najwyżej co 25 min
+        self.assertTrue(zd.gx_dex_due(None, None, T(13, 5, 0))); self.assertFalse(zd.gx_dex_due({}, T(13, 5, 0).isoformat(), T(13, 5, 24))); self.assertTrue(zd.gx_dex_due({'day': 'zły'}, T(13, 5, 0).isoformat(), T(13, 5, 25)))
+
+    def test_build_dex_czesci_niezalezne_pierwszy_odczyt(self):
+        log = []
+        with mock.patch.object(zd, 'gx_pobierz', self.net(log=log, hdr=self.HDR10)):
+            d, st = zd.build_dex(None, now=self.NOW_DEX)
+        self.assertEqual(st, {'dex': True, 'oi': True}); self.assertEqual(len(log), 2)
+        self.assertEqual(d['ok'], {'dex': True, 'oi': True}); self.assertEqual(d['dex']['day'], '2026-10-09'); self.assertEqual(d['dex']['src_at'], '2026-10-10T13:49:06+00:00')
+        self.assertEqual(d['oi']['src_at'], '2026-10-10T13:49:06+00:00'); self.assertEqual(len(d['hist']), 4)
+        self.assertEqual(d['part_at'], {'dex': self.NOW_DEX.isoformat(), 'oi': self.NOW_DEX.isoformat()})
+        self.assertNotRegex(json.dumps(d, ensure_ascii=False), r'(?i)llama|defi')
+        # kilka minut później: nic do zrobienia
+        with mock.patch.object(zd, 'gx_pobierz', self.net(log=log, hdr=self.HDR10)):
+            d2, st2 = zd.build_dex(d, now=self.NOW_DEX + datetime.timedelta(minutes=10))
+        self.assertIs(d2, d); self.assertEqual(st2, {'dex': 'cached', 'oi': 'cached'}); self.assertEqual(len(log), 2)
+        # po 55 min tylko otwarte pozycje; doba DEX bez zapytania
+        log.clear()
+        with mock.patch.object(zd, 'gx_pobierz', self.net(log=log, hdr=self.HDR10)):
+            d3, st3 = zd.build_dex(d, now=self.NOW_DEX + datetime.timedelta(minutes=56))
+        self.assertEqual(st3, {'dex': 'cached', 'oi': True}); self.assertEqual(len(log), 1); self.assertIn('open-interest', log[0]); self.assertEqual(d3['dex'], d['dex'])
+        self.assertEqual(d3['part_at']['dex'], d['part_at']['dex']); self.assertEqual(d3['part_at']['oi'], (self.NOW_DEX + datetime.timedelta(minutes=56)).isoformat())
+
+    def test_build_dex_nowa_doba_blad_jednej_czesci_i_dlugi_przebieg(self):
+        with mock.patch.object(zd, 'gx_pobierz', self.net()):
+            d, _ = zd.build_dex(None, now=self.NOW_DEX)
+        t = datetime.datetime(2026, 10, 11, 3, 5, tzinfo=self.U)
+        # (a) długi przebieg: DEX pomijany bez błędu, otwarte pozycje idą
+        log = []
+        with mock.patch.object(zd, 'gx_pobierz', self.net(log=log)), mock.patch.object(zd.time, 'monotonic', lambda: 10_000.0):
+            a, sa = zd.build_dex(d, now=t, run_t0=100.0)
+        self.assertEqual(sa, {'dex': 'cached', 'oi': True}); self.assertEqual(len(log), 1); self.assertNotIn('dex', a['err'])
+        # (b) odczyt doby nie padł, ale źródło jeszcze bez nowej doby: te same dane, ponowienie dopiero po godzinie
+        log.clear()
+        with mock.patch.object(zd, 'gx_pobierz', self.net(log=log)):
+            b, sb = zd.build_dex(d, now=t)
+            self.assertEqual(sb['dex'], True); self.assertEqual(b['dex']['day'], '2026-10-09')
+            n = len(log)
+            c, sc = zd.build_dex(b, now=t + datetime.timedelta(minutes=30)); self.assertEqual(len(log), n, 'doba nadal stara, ale ponowienie najwcześniej po 60 min')
+            e, se = zd.build_dex(b, now=t + datetime.timedelta(minutes=61)); self.assertGreater(len(log), n)
+        # (c) błąd doby: poprzednia część z datą, otwarte pozycje niezależnie
+        with mock.patch.object(zd, 'gx_pobierz', self.net(boom=('overview/dexs',))):
+            f, sf = zd.build_dex(d, now=t)
+        self.assertEqual(sf, {'dex': False, 'oi': True}); self.assertEqual(f['ok'], {'dex': False, 'oi': True}); self.assertEqual(f['dex'], d['dex']); self.assertEqual(f['err'], {'dex': 'HTTP 503'})
+        self.assertEqual(f['part_at']['dex'], d['part_at']['dex']); self.assertEqual(f['hist'], d['hist'])
+        # (d) odpowiedź ze starszą dobą niż poprzednia — odrzucona
+        jold = json.loads(json.dumps(self.dex)); jold['totalDataChart'] = jold['totalDataChart'][:-2] + jold['totalDataChart'][-1:]; jold['total24h'] = jold['totalDataChart'][-2][1]
+        for p in jold['protocols']:
+            if p['category'] == 'Dexs':
+                p['total24h'] = p['total48hto24h']
+        d_new = json.loads(json.dumps(d)); d_new['dex']['day'] = '2026-10-10'
+        with mock.patch.object(zd, 'gx_pobierz', self.net(dex=jold)):
+            g, sg = zd.build_dex(d_new, now=datetime.datetime(2026, 10, 12, 5, 0, tzinfo=self.U))
+        self.assertIs(sg['dex'], False); self.assertIn('starszej niż poprzednia', g['err']['dex']); self.assertEqual(g['dex']['day'], '2026-10-10')
+        # (e) nic nie zadziałało i brak poprzedniego pliku = brak pliku
+        with mock.patch.object(zd, 'gx_pobierz', self.net(boom=('overview', 'open-interest'))):
+            self.assertEqual(zd.build_dex(None, now=self.NOW_DEX), (None, {'dex': False, 'oi': False}))
+
+    # ---------------- otwarte pozycje ----------------
+    def test_parse_oi_interface_poza_lancuchem_rodzaje(self):
+        o = zd.parse_oi(self.oi)
+        self.assertEqual(o['n'], len(self.oi['protocols'])); self.assertGreater(o['iface'], 3_000_000_000, 'tradeXYZ (Interface) poza sumą')
+        self.assertGreater(o['off'], 3_000_000_000, 'Kalshi, Aster … poza łańcuchem — osobno'); self.assertEqual(o['top'][0][0], 'Hyperliquid Perps'); self.assertEqual(o['top'][0][1], 'perp')
+        self.assertLessEqual(abs(sum(o['kinds'].values()) - o['on']), len(o['kinds']), 'rodzaje sumują się do sumy na łańcuchu (zaokrąglenia do 1 USD)')
+        self.assertEqual(list(o['kinds']), sorted(o['kinds'], key=lambda k: -o['kinds'][k])); self.assertIn('opt', o['kinds'])
+        self.assertEqual([r[2] for r in o['top']], sorted((r[2] for r in o['top']), reverse=True)); self.assertEqual(len(o['top']), zd.GX_OI_TOP)
+        self.assertNotIn('tradeXYZ', [r[0] for r in o['top']]); self.assertNotIn('Kalshi', [r[0] for r in o['top']])
+        self.assertTrue(all(isinstance(r[3], float) or r[3] is None for r in o['top']))
+        self.assertIsInstance(o['chg'], float)
+        r = next(r for r in o['top'] if r[0] == 'Lighter Perps')
+        self.assertEqual(r[4], 'zkLighter +1', 'pierwsza sieć i liczba pozostałych')
+
+    def test_parse_oi_bramka_i_zle_wartosci(self):
+        for zle in (None, {}, {'protocols': 'x'}, {'protocols': []}):
+            with self.assertRaisesRegex(ValueError, 'niepełna'):
+                zd.parse_oi(zle)
+        mala = [dict(p, total24h=1.0, total48hto24h=1.0) for p in self.oi['protocols']]
+        with self.assertRaisesRegex(ValueError, 'poza zakresem'):
+            zd.parse_oi({'protocols': mala})
+        bad = json.loads(json.dumps(self.oi)); bad['protocols'][0]['total24h'] = 'x'; bad['protocols'][1]['total24h'] = None; bad['protocols'][2]['total24h'] = -5
+        o = zd.parse_oi(bad); self.assertEqual(o['n_val'], len([p for p in bad['protocols'] if isinstance(p.get('total24h'), (int, float)) and p['total24h'] >= 0 and p['category'] != 'Interface']))
+
+    # ---------------- plik, tabela źródeł, przebieg główny ----------------
+    def test_tabela_zrodel_jedno_zrodlo_i_klucze_meta(self):
+        for k in ('gieldy', 'dex', 'dex_oi'):
+            self.assertEqual(zd.ZRODLA_META[k], 'defillama', k + ': to samo źródło co stablecoiny i RWA — liczba źródeł nie rośnie')
+        self.assertEqual(zd.zrodla_meta({'krypto.stabh': True, 'rwa': True, 'gieldy': True, 'dex': True, 'dex_oi': False}), {'n': 1, 'ok': 1})
+        self.assertEqual(zd.zrodla_meta({'rwa': True, 'gieldy': True, 'dex': 'cached', 'dex_oi': 'cached'}), zd.zrodla_meta({'rwa': True}))
+        self.assertEqual(zd.zrodla_meta({'gieldy': False, 'dex': False, 'dex_oi': False}), {'n': 1, 'ok': 0})
+
+    def test_main_krok_przed_cenami_krypto_i_zaslepki(self):
+        with open(zd.__file__, encoding='utf-8') as fh:
+            src = fh.read()
+        m = src[src.index('def main():'):]
+        i, j = m.index('    # v349 (F6Z1): giełdy scentralizowane'), m.index('    # v121: ceny krypto — dzienne zamknięcia 10 par USDT')
+        self.assertLess(m.index('prev_wh = previous(\'wieloryby\')'), i, 'po wielorybach, przed cenami krypto')
+        blk = src[src.index('# ===================== v349: GIEŁDY I DEX'):src.index('\ndef main():')]
+        for zakazane in ('KEY', 'os.environ', 'print(', 'get_json(', 'klucz(', 'Authorization', 'Bearer', 'urllib'):
+            self.assertNotIn(zakazane, blk, 'źródła bez klucza i bez uwierzytelniania: ' + zakazane)
+        code = compile('\n'.join(x[4:] for x in m[i:j].split('\n')), 'main-gx', 'exec')
+        with mock.patch.object(zd, 'gx_pobierz', self.net(cex=self.cex)):
+            g, _ = zd.build_gieldy(None, now=self.NOW)
+            d, _ = zd.build_dex(None, now=self.NOW)
+        saved = {}
+        pr = {'gieldy': g, 'dex': d}
+        with mock.patch.object(zd, 'previous', lambda n: pr.get(n)), mock.patch.object(zd, 'save', lambda n, x: saved.__setitem__(n, x)), \
+                mock.patch.object(zd, 'build_gieldy', return_value=(dict(g, ok={'cex': False}, err={'cex': 'HTTP 503'}), False)) as b1, \
+                mock.patch.object(zd, 'build_dex', return_value=(dict(d, ok={'dex': 'cached', 'oi': False}, err={'oi': 'HTTP 503'}), {'dex': 'cached', 'oi': False})) as b2:
+            exec(code, vars(zd), {})
+        b1.assert_called_once(); b2.assert_called_once()
+        self.assertEqual({k: zd.META['ok'][k] for k in ('gieldy', 'dex', 'dex_oi')}, {'gieldy': False, 'dex': 'cached', 'dex_oi': False})
+        self.assertEqual(sorted(saved), ['dex', 'gieldy']); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(zd.META['notes'], ['krypto (giełdy scentralizowane): HTTP 503', 'krypto (DEX): otwarte pozycje — HTTP 503'])
+        # awaria budowniczego = poprzedni plik i błąd
+        saved.clear(); zd.META['notes'].clear()
+        with mock.patch.object(zd, 'previous', lambda n: pr.get(n)), mock.patch.object(zd, 'save', lambda n, x: saved.__setitem__(n, x)), \
+                mock.patch.object(zd, 'build_gieldy', side_effect=ValueError('test')), mock.patch.object(zd, 'build_dex', side_effect=ValueError('test2')):
+            exec(code, vars(zd), {})
+        self.assertIs(saved['gieldy'], g); self.assertIs(saved['dex'], d)
+        self.assertEqual(zd.META['errors'], ['krypto (giełdy scentralizowane): test', 'krypto (DEX i otwarte pozycje): test2'])
+        self.assertEqual({k: zd.META['ok'][k] for k in ('gieldy', 'dex', 'dex_oi')}, {'gieldy': False, 'dex': False, 'dex_oi': False})
+        # pierwszy odczyt nieudany: nic nie zapisujemy, notatka „brak danych”
+        saved.clear(); zd.META['errors'].clear(); zd.META['notes'].clear()
+        with mock.patch.object(zd, 'previous', lambda n: None), mock.patch.object(zd, 'save', lambda n, x: saved.__setitem__(n, x)), \
+                mock.patch.object(zd, 'build_gieldy', return_value=(None, False)), mock.patch.object(zd, 'build_dex', return_value=(None, {'dex': False, 'oi': False})):
+            exec(code, vars(zd), {})
+        self.assertEqual(saved, {}); self.assertEqual(len(zd.META['notes']), 3); self.assertIn('brak danych', zd.META['notes'][0])
+
+    def test_krotki_zaslepek_zawieraja_build_gieldy_i_build_dex(self):
+        with open(__file__, encoding='utf-8') as fh:
+            me = fh.read()
+        T = [m.group(0) for m in re.finditer(r"\(\s*'build_\w+'(?:\s*,\s*'build_\w+')+\s*\)", me) if "'build_wieloryby'" in m.group(0)]
+        self.assertGreaterEqual(len(T), 20)
+        self.assertEqual([t[:60] for t in T if "'build_gieldy'" not in t or "'build_dex'" not in t], [], 'każda krotka zaślepek zawiera build_gieldy i build_dex (brak = prawdziwe zapytania w teście z main())')
+
+    # ---------------- kontrola dzienna ----------------
+    def kt(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v349', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    def pliki(self):
+        with mock.patch.object(zd, 'gx_pobierz', self.net(hdr=self.HDR10)):
+            g, _ = zd.build_gieldy(None, now=self.NOW_DEX)
+            d, _ = zd.build_dex(None, now=self.NOW_DEX)
+        return json.loads(json.dumps(g)), json.loads(json.dumps(d))
+
+    def test_kontrola_pliki_w_PLIKI_limity_i_awarie(self):
+        k = self.kt()
+        for n in ('gieldy', 'dex'):
+            self.assertIn(n, k.PLIKI); self.assertEqual(k.LIMIT_MIN[n], 180)
+            self.assertLess(k.PLIKI.index(n), k.PLIKI.index('krypto-dzien'), 'przed plikami krypto dziennie')
+        self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik'])
+        self.assertTrue({'gieldy', 'dex', 'dex_oi'} <= set(k.AW_BEZ_BLEDU)); self.assertIn('zostaje z datą', k.AW_BEZ_BLEDU['dex_oi'])
+        self.assertEqual(len(k.PLIKI), len(set(k.PLIKI)))
+
+    def test_kontrola_swiezosc_wiersze_i_progi(self):
+        k = self.kt(); g, d = self.pliki()
+        now = datetime.datetime(2026, 10, 10, 14, 30, tzinfo=self.U)
+        R = k.gx_swiezosc(g, d, now)
+        self.assertEqual(len(R), 3); self.assertEqual([r[1] for r in R], ['✅', '✅', '✅'])
+        self.assertEqual(R[0][3], '2026-10-10T13:49:06+00:00'); self.assertEqual(R[1][3], '2026-10-09'); self.assertEqual(R[0][2], 40)
+        late = datetime.datetime(2026, 10, 10, 18, 30, tzinfo=self.U)
+        R2 = k.gx_swiezosc(g, d, late); self.assertEqual([r[1] for r in R2], ['⚠️', '✅', '⚠️'], 'giełdy i otwarte pozycje: wiek odczytu źródła ponad 4 h; doba DEX 18 h po końcu jest w normie')
+        self.assertIn('najwyżej uwaga', R2[0][4])
+        late2 = datetime.datetime(2026, 10, 11, 6, 0, tzinfo=self.U); self.assertEqual(k.gx_swiezosc(g, d, late2)[1][1], '✅', 'doba 9.10 po 1 dniu i 6 h od jej końca')
+        late3 = datetime.datetime(2026, 10, 12, 12, 1, tzinfo=self.U); self.assertEqual(k.gx_swiezosc(g, d, late3)[1][1], '⚠️', 'doba DEX starsza niż 60 h od końca (jedna opuszczona doba)')
+        self.assertEqual(k.gx_swiezosc(g, d, datetime.datetime(2026, 10, 12, 11, 59, tzinfo=self.U))[1][1], '✅')
+        for r in k.gx_swiezosc(g, d, datetime.datetime(2027, 1, 1, tzinfo=self.U)):
+            self.assertNotEqual(r[1], '❌', 'najwyżej ⚠️')
+        self.assertEqual(k.gx_swiezosc(None, None, now), []); self.assertEqual(len(k.gx_swiezosc(g, None, now)), 1); self.assertEqual(k.gx_swiezosc({'v': 9}, {'v': 9}, now), [])
+        g2 = json.loads(json.dumps(g)); g2['cex']['src_at'] = None
+        self.assertEqual(k.gx_swiezosc(g2, d, now)[0][1], '?')
+        g3 = json.loads(json.dumps(g)); g3['cex']['src_at'] = '2026-10-09T00:00:00+00:00'; g3['err'] = {'cex': 'HTTP 503'}
+        self.assertIn('HTTP 503', k.gx_swiezosc(g3, d, now)[0][4])
+
+    def test_kontrola_spojnosc_wykrywa_sprzecznosci_w_plikach(self):
+        k = self.kt(); g, d = self.pliki()
+        self.assertEqual(k.gx_spojnosc(g, d), [], 'pliki z budowniczego są spójne')
+        def zmien(f, ob='g'):
+            gg, dd = json.loads(json.dumps(g)), json.loads(json.dumps(d)); f(gg, dd); return k.gx_spojnosc(gg, dd)
+        self.assertTrue(any('suma sald' in z for z in zmien(lambda a, b: a['cex']['razem'].__setitem__('bal', a['cex']['razem']['bal'] + 10_000_000))))
+        self.assertTrue(any('nie malejąco' in z for z in zmien(lambda a, b: a['cex']['rows'].reverse())))
+        self.assertTrue(any('liczby giełd' in z for z in zmien(lambda a, b: a['cex']['rows'].pop())))
+        self.assertTrue(any('migawka dobowa' in z for z in zmien(lambda a, b: a['hist'].__setitem__(-1, [a['hist'][-1][0], 5, 1, 1, 0]))))
+        self.assertTrue(any('doby nie rosną' in z for z in zmien(lambda a, b: a['hist'].insert(0, ['2027-01-01', 1, 1, 1, 0]))))
+        self.assertTrue(any('udziały sieci' in z for z in zmien(lambda a, b: b['dex']['sieci'][0].__setitem__(3, 60.0))))
+        self.assertTrue(any('suma sieci' in z for z in zmien(lambda a, b: b['dex'].__setitem__('sieci_sum', b['dex']['s30'] * 2))))
+        self.assertTrue(any('największych protokołów większa' in z for z in zmien(lambda a, b: b['dex']['top'][0].__setitem__(1, b['dex']['s24'] * 2))))
+        self.assertTrue(any('szereg dobowy nie ma doby' in z for z in zmien(lambda a, b: b['hist'].__setitem__(-1, [b['dex']['day'], 1, 'd']))))
+        self.assertTrue(any('suma rodzajów' in z for z in zmien(lambda a, b: b['oi']['kinds'].__setitem__('perp', b['oi']['kinds']['perp'] * 2))))
+        self.assertTrue(any('nie malejąco' in z for z in zmien(lambda a, b: b['oi']['top'].reverse())))
+        self.assertTrue(any('większa niż suma na łańcuchu' in z for z in zmien(lambda a, b: b['oi'].__setitem__('on', 1000))))
+
+    def test_kontrola_informacje_flagi_znak_i_stosunek_dex(self):
+        k = self.kt(); g, d = self.pliki()
+        cm = {'cols': ['date', 'in', 'out', 'net', 'in_usd', 'out_usd', 'net_usd'], 'assets': {a: {'d': [['2026-10-%02d' % (4 + i), 0, 0, 0, 0, 0, v] for i, v in enumerate([-1e8] * 7)]} for a in ('btc', 'eth')}}
+        P = k.gx_porownania(g, d, cm)['wiersze']
+        tx = ' | '.join(o for o, z in P)
+        self.assertIn('podejrzany skok listy portfeli (próg planu F6Z1): brak', tx); self.assertNotIn('⚠', ' '.join(z for o, z in P))
+        zn = next(z for o, z in P if o.startswith('znak przepływu 7 dni')); self.assertEqual(zn, 'ℹ️' if g['cex']['razem']['in7'] > 0 else '✅', 'plus (giełdy) wobec minus (BTC + ETH) = tylko informacja')
+        r = next((z for o, z in P if o.startswith('obrót DEX doby ÷')), None); self.assertIn(r, ('✅', 'ℹ️'))
+        self.assertEqual([z for o, z in P if 'suma sald między dobami' in o], [], 'jedna doba migawki — bez porównania doba do doby')
+        # flaga 2 → informacja z nazwą giełdy i wykluczeniem
+        g2 = json.loads(json.dumps(g)); row = g2['cex']['rows'][5]; row['dz'] = 2
+        P2 = k.gx_porownania(g2, d, None)['wiersze']; self.assertTrue(any(row['name'] in o and 'wykluczone z sum przepływów' in o and z == 'ℹ️' for o, z in P2))
+        g3 = json.loads(json.dumps(g)); g3['cex']['rows'][6]['dz'] = 1
+        self.assertTrue(any(g3['cex']['rows'][6]['name'] in o and 'zmiana listy portfeli' in o for o, z in k.gx_porownania(g3, d, None)['wiersze']))
+        tx7 = [o for o, z in P if o.startswith('przepływ 7 dni ponad 25% salda')]; tx30 = [o for o, z in P if o.startswith('przepływ 30 dni ponad 50% salda')]
+        self.assertEqual(len(tx7), 1); self.assertIn('Bitstamp', tx7[0]); self.assertIn('poza sumą 7 dni', tx7[0]); self.assertEqual(len(tx30), 1); self.assertIn('Bitvavo', tx30[0])
+        self.assertTrue(all(z == 'ℹ️' for o, z in P if o.startswith('przepływ 7 dni') or o.startswith('przepływ 30 dni')), 'tylko informacja')
+        # skok sumy sald między dobami
+        g4 = json.loads(json.dumps(g)); g4['hist'] = [['2026-10-12', 100, 70, 1, 0], ['2026-10-13', 130, 70, 1, 0]]
+        W = k.gx_porownania(g4, d, None)['wiersze']; self.assertTrue(any('+30,0%' in o and z == 'ℹ️' for o, z in W))
+        g5 = json.loads(json.dumps(g)); g5['hist'] = [['2026-10-12', 100, 70, 1, 0], ['2026-10-13', 105, 70, 1, 0]]
+        self.assertTrue(any('+5,0%' in o and z == '✅' for o, z in k.gx_porownania(g5, d, None)['wiersze']))
+        # doba szacunkowa
+        d2 = json.loads(json.dumps(d)); d2['dex']['est'] = True
+        self.assertTrue(any('szacunkowa' in o and z == 'ℹ️' for o, z in k.gx_porownania(g, d2, None)['wiersze']))
+        # stosunek DEX / spot poza przedziałem — informacja
+        g6 = json.loads(json.dumps(g)); g6['cex']['razem']['spot'] = d['dex']['s24'] * 100
+        self.assertTrue(any(o.startswith('obrót DEX doby ÷') and z == 'ℹ️' for o, z in k.gx_porownania(g6, d, None)['wiersze']))
+        # znaki różne: giełdy minus (7 dni po wykluczeniach), BTC + ETH plus — tylko informacja ℹ️
+        cmp_ = json.loads(json.dumps(cm))
+        for a in ('btc', 'eth'):
+            for r in cmp_['assets'][a]['d']:
+                r[6] = 1e8
+        zr = next(z for o, z in k.gx_porownania(g, d, cmp_)['wiersze'] if o.startswith('znak przepływu 7 dni'))
+        self.assertEqual(zr, 'ℹ️' if g['cex']['razem']['in7'] < 0 else '✅', 'różny znak = ℹ️ (nigdy ⚠️ ani ❌)')
+        g7 = json.loads(json.dumps(g)); g7['cex']['razem']['in7'] = 5e8
+        self.assertEqual(next(z for o, z in k.gx_porownania(g7, d, cmp_)['wiersze'] if o.startswith('znak przepływu 7 dni')), '✅', 'ten sam znak = ✅')
+        # cm bez kolumny albo za krótki = bez wiersza znaku
+        self.assertIsNone(k.gx_cm_znak({'cols': ['date'], 'assets': {}})); self.assertIsNone(k.gx_cm_znak(None))
+        self.assertAlmostEqual(k.gx_cm_znak(cm)[0], -1.4e9); self.assertIsNone(k.gx_cm_znak(dict(cm, assets={'btc': {'d': [['2026-10-01', 0, 0, 0, 0, 0, 1]] * 3}, 'eth': cm['assets']['eth']})))
+
+    def test_kontrola_gx_kontrola_wpisuje_bledy_tylko_przy_sprzecznosci(self):
+        k = self.kt(); g, d = self.pliki()
+        R = {'bledy': [], 'uwagi': []}
+        Z = k.gx_kontrola({'gieldy': g, 'dex': d, 'cm': None}, R)
+        self.assertEqual(R['bledy'], []); self.assertEqual(Z['spojnosc'], []); self.assertTrue(Z['wiersze'])
+        self.assertIsNone(k.gx_kontrola({}, {'bledy': [], 'uwagi': []})); self.assertIsNone(k.gx_kontrola({'gieldy': {'v': 7}, 'dex': 'x'}, {'bledy': [], 'uwagi': []}))
+        g2 = json.loads(json.dumps(g)); g2['cex']['rows'].reverse(); g2['ok'] = {'cex': False}
+        R2 = {'bledy': [], 'uwagi': []}; Z2 = k.gx_kontrola({'gieldy': g2, 'dex': d}, R2)
+        self.assertTrue(R2['bledy'] and R2['bledy'][0].startswith('giełdy i DEX: sprzeczność w pliku')); self.assertEqual(Z2['czesci_bez_odpowiedzi'], ['cex'])
