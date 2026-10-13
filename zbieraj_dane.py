@@ -111,6 +111,7 @@ ZRODLA_META = {
     'kursy': 'ecb', 'rynki_fx': 'ecb', 'rynki_buba': 'bundesbank', 'snb': 'snb', 'ue': 'eurostat',
     'kanada': 'statcan', 'korea': 'fss-korea', 'spw': 'mf-polska', 'meksyk': 'banxico', 'safe': 'safe-chiny', 'jpx': 'jpx',
     'dolar': 'dolarapi',
+    'rosja': ('eurostat', 'bis', 'imf'), 'rosja_ue': 'eurostat', 'rosja_bis': 'bis', 'rosja_imts': 'imf', 'rosja_rez': 'imf',   # v353: Rosja z otwartych źródeł międzynarodowych (te same trzy źródła co dotąd — liczba źródeł nie rośnie)
     'obce': ('nsdl', 'twse', 'hkex', 'bcb', 'tcmb', 'thaibma'), 'obce_in': 'nsdl', 'obce_tw': 'twse', 'obce_hk': 'hkex', 'obce_br': 'bcb',
     'obce_tr': 'tcmb', 'obce_th': 'thaibma',
     # --- fundusze i indeksy ---
@@ -26280,6 +26281,319 @@ def build_lng(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
     return out
 
 
+# ===================== v353: ROSJA — data/rosja.json (GLOBAL, karta regionu „Rosja”; zadanie v353) =====================
+# Decyzja właściciela 11.10: wszystkie DARMOWE i LEGALNE dane o Rosji. Mieszka w Niemczech (sankcje UE i USA), więc BEZ giełdy moskiewskiej i podmiotów
+# z list sankcyjnych (jej instytucje rozliczeniowe i depozytowe, bank centralny Rosji bezpośrednio) — wyłącznie otwarte źródła MIĘDZYNARODOWE, bez klucza:
+#   ue   — handel UE27 z Rosją, miesięcznie (urzędowa statystyka UE, wszystkie towary; licencja CC BY 4.0): import, eksport, saldo, ten sam miesiąc rok
+#          wcześniej, sumy 12 miesięcy i średnia miesięczna z 2021 r. (przed 2022); wartości w mln EUR, 1 zapytanie ok. 8 KB;
+#   bis  — należności banków świata wobec Rosji, kwartalnie (statystyki lokalizacyjne banków; wszystkie kraje raportujące razem + 6 największych): wartość
+#          jak publikowana (mln USD) i zmiany po korekcie PRZERW w szeregu (kwartał z przerwą liczony od wartości sprzed przerwy), 1 zapytanie ok. 40 KB;
+#   imts — handel Rosji wg partnerów jako KONTROLA, miesięcznie (dwustronny handel towarami, dane zgłoszone przez Rosję; MFW): świat, UE, Chiny, Indie,
+#          Turcja — eksport (FOB), import (CIF), saldo; mld USD; różni się od liczb UE (kraj pochodzenia a kraj wysyłki, CIF a FOB, USD a EUR);
+#   rez  — rezerwy walutowe Rosji (MFW, tabela płynności międzynarodowej; mld USD): razem, bez złota, waluty obce, złoto = razem − bez złota (wyliczenie);
+#          Rosja publikuje tam z dużym opóźnieniem (10.10.2026: do 2025-11) — data i wiek zawsze przy liczbie;
+#   zloto — złoto banku centralnego w tonach: kopia z pliku surowce.json z tego przebiegu (MFW, tabela IRFCL; BEZ nowych zapytań), data danych w polu asof.
+# Stopa banku Rosji (BIS), kurs efektywny i bilans płatniczy strona ma już w kartach regionu — tu ich nie powtarzamy.
+# Bramki: ue — gdy spodziewany miesiąc (publikacja ok. 15. dnia, dane sprzed 2 miesięcy: 15.09.2026 lipiec) jeszcze nie przyszedł — co godzinę, poza tym co 12 h
+# (poprawki wstecz); bis, imts, rez — raz na dobę; po błędzie najwcześniej po 60 min; część z błędem zostaje z datą i z krótkim zamaskowanym opisem (err).
+# Budżet czasu budowniczego RU_BUDZET_S s; brak = None, nigdy 0.
+RU_V = 1
+RU_PARTS = ('ue', 'bis', 'imts', 'rez')
+RU_ESTAT = ('https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/ext_st_eu27_2020sitc?format=JSON&lang=EN&partner=RU&sitc06=TOTAL'
+            '&freq=M&geo=EU27_2020&indic_et=TRD_VAL&sinceTimePeriod=2021-01')
+RU_IMF = 'https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/'
+RU_BIS_URL = 'https://stats.bis.org/api/v2/data/dataflow/BIS/WS_LBS_D_PUB/1.0/Q.S.C.A.TO1.A.5J.A...RU.N?lastNObservations=9&format=csv'
+RU_IMTS_PART = ('G001', 'G998', 'CHN', 'IND', 'TUR')    # świat, Unia Europejska, Chiny, Indie, Turcja (G998 = grupa „UE” w tabeli krajów MFW)
+RU_IMTS_URL = RU_IMF + 'IMTS/+/RUS.*.' + '+'.join(RU_IMTS_PART) + '.M?lastNObservations=14'
+RU_IL_URL = RU_IMF + 'IL/+/RUS.TRGMV_REVS+RXF11_REVS+RXF11FX_REVS.USD.M?lastNObservations=13'
+RU_URL = {'ue': RU_ESTAT, 'bis': RU_BIS_URL, 'imts': RU_IMTS_URL, 'rez': RU_IL_URL}
+RU_LIMIT_S = {'ue': 25, 'bis': 40, 'imts': 40, 'rez': 25}
+RU_MAKS_B = {'ue': 400_000, 'bis': 800_000, 'imts': 400_000, 'rez': 100_000}
+RU_BUDZET_S = 110
+RU_UE_GODZ, RU_RZADKO_MIN, RU_DOBA_MIN, RU_PO_BLEDZIE_MIN = 12, 720, 1440, 60
+RU_UE_OD = '2021-01'
+RU_UE_H = 26            # miesięcy szeregu w pliku (2 lata + zapas)
+RU_BIS_TOP = 6
+_RU_MIES = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+_RU_KW = re.compile(r'^\d{4}-Q[1-4]$')
+
+
+def _ru_ok(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))
+
+
+def _ru_kw_przes(q, k):
+    """'2026-Q1' przesunięty o k kwartałów."""
+    t = int(q[:4]) * 4 + int(q[6]) - 1 + k
+    return f'{t // 4:04d}-Q{t % 4 + 1}'
+
+
+def parse_ru_ue(j):
+    """Eurostat (ext_st_eu27_2020sitc, partner RU, wszystkie towary, UE27, wartość w mln EUR) → część ue. Miesiąc liczy się, gdy ma import I eksport;
+    saldo z pliku (BAL_RT) musi zgadzać się z eksport − import (±2 mln EUR), inaczej błąd (zmiana układu zbioru). Sumy 12 miesięcy tylko z kompletu
+    12 kolejnych miesięcy; średnia 2021 tylko z 12 miesięcy 2021 — brak = None."""
+    vals, ids, _fl = parse_jsonstat(j)
+    pos = {d: i for i, d in enumerate(ids)}
+    for d in ('stk_flow', 'indic_et', 'time', 'partner', 'geo'):
+        if d not in pos:
+            raise RuntimeError(f'brak wymiaru {d}')
+    M = {}
+    for lab, v in vals.items():
+        if lab[pos['indic_et']] != 'TRD_VAL' or lab[pos['partner']] != 'RU' or lab[pos['geo']] != 'EU27_2020':
+            continue
+        t, f = lab[pos['time']], lab[pos['stk_flow']]
+        if _RU_MIES.match(t) and f in ('IMP', 'EXP', 'BAL_RT') and _ru_ok(v):
+            M.setdefault(t, {})[f] = float(v)
+    B = {t: (x['IMP'], x['EXP']) for t, x in M.items() if 'IMP' in x and 'EXP' in x}
+    if len(B) < 14:
+        raise RuntimeError('za mało miesięcy z importem i eksportem')
+    asof = max(B)
+    imp, exp = B[asof]
+    if not (100.0 <= imp <= 100000.0 and 100.0 <= exp <= 100000.0):
+        raise RuntimeError(f'import/eksport {asof} poza zakresem ({imp:.0f}/{exp:.0f} mln EUR)')
+    bal = M[asof].get('BAL_RT')
+    if bal is not None and abs(bal - (exp - imp)) > 2.0:
+        raise RuntimeError(f'saldo {bal:.1f} ≠ eksport − import {exp - imp:.1f} mln EUR')
+
+    def suma(od, n, k):
+        mm = [_imf_month_add(od, i) for i in range(n)]
+        return round(sum(B[m][k] for m in mm), 1) if all(m in B for m in mm) else None
+    r1 = lambda v: None if v is None else round(v, 1)   # noqa: E731
+    rok = B.get(_imf_month_add(asof, -12))
+    s21 = [suma(RU_UE_OD, 12, 0), suma(RU_UE_OD, 12, 1)]
+    return {'asof': asof, 'u': 'mln EUR', 'imp': r1(imp), 'exp': r1(exp), 'bal': r1(exp - imp),
+            'imp_r': r1(rok[0]) if rok else None, 'exp_r': r1(rok[1]) if rok else None,
+            'imp12': suma(_imf_month_add(asof, -11), 12, 0), 'exp12': suma(_imf_month_add(asof, -11), 12, 1),
+            'imp12_p': suma(_imf_month_add(asof, -23), 12, 0), 'exp12_p': suma(_imf_month_add(asof, -23), 12, 1),
+            'imp21': None if s21[0] is None else round(s21[0] / 12, 1), 'exp21': None if s21[1] is None else round(s21[1] / 12, 1),
+            'h': [[m, r1(B[m][0]), r1(B[m][1])] for m in sorted(B)][-RU_UE_H:]}
+
+
+def parse_ru_bis(text):
+    """BIS, statystyki lokalizacyjne (LBS), należności (C) wszystkich banków (A) wobec Rosji (RU), wszystkie sektory (N), mln USD → część bis.
+    razem = suma wszystkich krajów raportujących (5A; obejmuje kraje, których dane dwustronne są poufne — jest większa niż suma wierszy krajów);
+    zmiany kwartał do kwartału po korekcie przerw w szeregu (kwartał ze statusem B liczony od wartości sprzed przerwy, jeśli ją podano), zmiana
+    4 kwartałów = iloczyn czterech takich zmian (None, gdy któregoś brak). top = kraje z wartością w ostatnim kwartale (bez NaN), malejąco."""
+    rd = csv.DictReader(io.StringIO(text))
+    need = {'L_MEASURE', 'L_POSITION', 'L_REP_CTY', 'L_CP_SECTOR', 'L_CP_COUNTRY', 'TIME_PERIOD', 'OBS_VALUE', 'OBS_STATUS', 'UNIT_MULT'}
+    if not need <= set(rd.fieldnames or ()):
+        raise RuntimeError('brak kolumn ' + ', '.join(sorted(need - set(rd.fieldnames or ())))[:120])
+    S = {}
+    for r in rd:
+        if r['L_CP_COUNTRY'] != 'RU' or r['L_CP_SECTOR'] != 'N' or r['L_MEASURE'] != 'S' or r['L_POSITION'] != 'C' or r['UNIT_MULT'] != '6':
+            continue
+        q = r['TIME_PERIOD']
+        v = _num(r['OBS_VALUE'])
+        if not _RU_KW.match(q) or v is None or not _ru_ok(v) or v < 0:
+            continue
+        pre = _num(r.get('OBS_PRE_BREAK') or '')
+        S.setdefault(r['L_REP_CTY'], {})[q] = (v, r['OBS_STATUS'] == 'B', pre if pre is not None and _ru_ok(pre) else None)
+    A = S.get('5A')
+    if not A or len(A) < 5:
+        raise RuntimeError('brak szeregu sumy wszystkich krajów raportujących (5A)')
+    qs = sorted(A)
+    asof = qs[-1]
+    if any(_ru_kw_przes(qs[i], 1) != qs[i + 1] for i in range(len(qs) - 1)):
+        raise RuntimeError('kwartały sumy nie są kolejne')
+    if not 500.0 <= A[asof][0] <= 500000.0:
+        raise RuntimeError(f'suma {asof} poza zakresem ({A[asof][0]:.0f} mln USD)')
+
+    def zm(q):   # zmiana kwartał do kwartału po korekcie przerwy: ułamek albo None
+        p = _ru_kw_przes(q, -1)
+        if q not in A or p not in A or not A[p][0]:
+            return None
+        v, brk, pre = A[q]
+        return (pre if brk and pre is not None else v) / A[p][0] - 1
+    zk = zm(asof)
+    zs = [zm(q) for q in qs[1:]]
+    chain = lambda L: None if not L or any(x is None for x in L) else round((math.prod(1 + x for x in L) - 1) * 100, 1)   # noqa: E731
+    top = []
+    for c, ser in S.items():
+        if c != '5A' and asof in ser:
+            ya = ser.get(_ru_kw_przes(asof, -4))
+            top.append([c, round(ser[asof][0], 1), None if ya is None else round(ya[0], 1)])
+    top.sort(key=lambda x: (-x[1], x[0]))
+    return {'asof': asof, 'u': 'mln USD', 'razem': [[q, round(A[q][0], 1), 1 if A[q][1] else 0] for q in qs],
+            'zm_k': None if zk is None else round(zk * 100, 1), 'zm_r': chain(zs[-4:]) if len(zs) >= 4 else None,
+            'zm_od': chain(zs), 'od': qs[0], 'brk': 1 if A[asof][1] else 0,
+            'top': top[:RU_BIS_TOP], 'n': len(top)}
+
+
+def parse_ru_imts(j):
+    """MFW IMTS (dwustronny handel towarami; Rosja jako zgłaszający) → część imts: dla świata, UE, Chin, Indii i Turcji w ostatnim miesiącu, w którym
+    świat ma i eksport (FOB), i import (CIF): x eksport Rosji, m import Rosji, b saldo (x − m; zgodne z wskaźnikiem salda ±0,02 mld USD), x12 / m12
+    — ten sam miesiąc rok wcześniej, h — 13 miesięcy [miesiąc, x, m] (brak = None). Partner bez obu wartości w tym miesiącu pominięty (strona: „—”);
+    brak świata albo UE = błąd."""
+    ser = parse_imf_sdmx(j)
+    S = lambda ind, cp: dict(ser.get(('RUS', ind, cp, 'M')) or [])   # noqa: E731
+    mld = lambda v: round(v / 1e9, 3)   # noqa: E731
+    wx, wm = S('XG_FOB_USD', 'G001'), S('MG_CIF_USD', 'G001')
+    wsp = sorted(set(wx) & set(wm))
+    if not wsp:
+        raise RuntimeError('brak miesiąca z eksportem i importem świata')
+    asof = wsp[-1]
+    if not 5e9 <= wx[asof] <= 400e9:
+        raise RuntimeError(f'eksport Rosji {asof} poza zakresem ({wx[asof] / 1e9:.1f} mld USD)')
+    P = {}
+    for cp in RU_IMTS_PART:
+        x, m, tb = S('XG_FOB_USD', cp), S('MG_CIF_USD', cp), S('TBG_USD', cp)
+        if asof not in x or asof not in m:
+            continue
+        b = mld(x[asof] - m[asof])
+        if asof in tb and abs(mld(tb[asof]) - b) > 0.02:
+            raise RuntimeError(f'saldo {cp} {asof} ≠ eksport − import')
+        y = _imf_month_add(asof, -12)
+        P[cp] = {'x': mld(x[asof]), 'm': mld(m[asof]), 'b': b,
+                 'x12': mld(x[y]) if y in x else None, 'm12': mld(m[y]) if y in m else None,
+                 'h': [[ym, mld(x[ym]) if ym in x else None, mld(m[ym]) if ym in m else None]
+                       for ym in (_imf_month_add(asof, i) for i in range(-12, 1))]}
+    if 'G001' not in P or 'G998' not in P:
+        raise RuntimeError('brak świata albo UE w ostatnim miesiącu')
+    return {'asof': asof, 'u': 'mld USD', 'p': P}
+
+
+def parse_ru_rez(j):
+    """MFW IL, Rosja: rezerwy razem ze złotem po cenie rynkowej (TRGMV), bez złota (RXF11) i waluty obce (RXF11FX), mld USD, ostatni miesiąc z sumą.
+    zloto_war = razem − bez złota (wyliczenie strony; wartość rynkowa złota). Suma poza [100, 3000] mld USD = błąd (skala)."""
+    ser = parse_imf_sdmx(j)
+    g = lambda code: dict(ser.get(('RUS', code, 'USD', 'M')) or [])   # noqa: E731
+    tot, exg, fx = g('TRGMV_REVS'), g('RXF11_REVS'), g('RXF11FX_REVS')
+    if not tot:
+        raise RuntimeError('brak rezerw razem')
+    asof = max(tot)
+    if not 100e9 <= tot[asof] <= 3000e9:
+        raise RuntimeError(f'rezerwy {asof} poza zakresem ({tot[asof] / 1e9:.0f} mld USD)')
+    r1 = lambda v: None if v is None else round(v / 1e9, 1)   # noqa: E731
+    p1, p12, e = tot.get(_imf_month_add(asof, -1)), tot.get(_imf_month_add(asof, -12)), exg.get(asof)
+    return {'asof': asof, 'u': 'mld USD', 'razem': r1(tot[asof]), 'bez_zlota': r1(e), 'waluty': r1(fx.get(asof)),
+            'zloto_war': None if e is None else r1(tot[asof] - e),
+            'd1m': None if p1 is None else r1(tot[asof] - p1), 'd12m': None if p12 is None else r1(tot[asof] - p12)}
+
+
+def ru_zloto(su):
+    """Złoto banku centralnego Rosji w tonach z pliku surowce.json (banki.kr.RU.d, szereg miesięczny) → {asof, t, m1, m12} albo None. Zmiany liczone
+    z szeregu: miesiąc i 12 miesięcy wcześniej (brak miesiąca = None). Bez zapytań."""
+    try:
+        d = su['banki']['kr']['RU']['d']
+        D = {r[0]: float(r[1]) for r in d if isinstance(r, list) and len(r) >= 2 and isinstance(r[0], str) and _RU_MIES.match(r[0]) and _ru_ok(r[1])}
+    except (KeyError, TypeError, IndexError, ValueError):
+        return None
+    if not D:
+        return None
+    a = max(D)
+    if not 100.0 <= D[a] <= 20000.0:
+        return None
+    dm = lambda k: round(D[a] - D[_imf_month_add(a, k)], 1) if _imf_month_add(a, k) in D else None   # noqa: E731
+    return {'asof': a, 't': round(D[a], 1), 'm1': dm(-1), 'm12': dm(-12)}
+
+
+def _ru_oczek_ue(now):
+    """Miesiąc, który powinien już być w Eurostacie: publikacja ok. 15. dnia (15.09.2026 — lipiec), więc od 16. dnia miesiąca M — miesiąc M−2, wcześniej M−3."""
+    m = now.year * 12 + now.month - 1 - (2 if now.day >= 16 else 3)
+    return f'{m // 12:04d}-{m % 12 + 1:02d}'
+
+
+def _ru_due(src, z, now, part):
+    """Czy pobrać źródło w tym przebiegu (patrz opis bloku)."""
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    if tr < RU_PO_BLEDZIE_MIN:
+        return False
+    if at == float('inf'):
+        return True
+    if src == 'ue':
+        asof = part.get('asof') if isinstance(part, dict) else None
+        return str(asof or '') < _ru_oczek_ue(now) or at >= RU_RZADKO_MIN
+    return at >= RU_DOBA_MIN
+
+
+def _ru_next(src, z, part, now):
+    """Spodziewana następna zmiana źródła (ISO UTC): ue — gdy spodziewany miesiąc nie przyszedł: za godzinę od ostatniej próby, inaczej 12 h od pobrania."""
+    t = _aw_t(z.get('at')) or now
+    if src == 'ue' and str((part or {}).get('asof') or '') < _ru_oczek_ue(now):
+        t = _aw_t(z.get('try')) or t
+        return (t + datetime.timedelta(minutes=RU_PO_BLEDZIE_MIN)).isoformat()
+    return (t + datetime.timedelta(minutes=RU_RZADKO_MIN if src == 'ue' else RU_DOBA_MIN)).isoformat()
+
+
+def _ru_pobierz(url, timeout, maks=None):
+    """GET z identyfikatorem zbieracza; BIS — CSV, MFW — JSON; odpowiedź dłuższa niż maks = błąd."""
+    h = {'Accept': 'text/csv'} if 'stats.bis.org' in url else {'Accept': 'application/json'}
+    return get_bytes_maks(url, h, timeout, maks)
+
+
+def build_rosja(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None, su=None):
+    """v353: data/rosja.json. Każde źródło z własną bramką (_ru_due) i budżetem czasu; źródło z błędem — poprzednia część z datą (ok False, krótki
+    zamaskowany błąd err); część bez próby — 'cached' (z danymi) albo False (jeszcze nie pobrana). Plik innej wersji = start od zera. Złoto (zloto)
+    kopiowane z su (surowce.json tego przebiegu) bez zapytań."""
+    now = now or _now_utc()
+    now_iso = now.replace(microsecond=0).isoformat()
+    prev = prev if isinstance(prev, dict) and prev.get('v') == RU_V else {}
+    st = json.loads(json.dumps(prev.get('st'))) if isinstance(prev.get('st'), dict) else {}
+    fetch = fetch or _ru_pobierz
+    budzet = RU_BUDZET_S if budzet_s is None else budzet_s
+    t0 = time.monotonic()
+    late = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
+    PARSE = {'ue': lambda b: parse_ru_ue(json.loads(b)), 'bis': lambda b: parse_ru_bis(b.decode('utf-8', 'replace')),
+             'imts': lambda b: parse_ru_imts(json.loads(b)), 'rez': lambda b: parse_ru_rez(json.loads(b))}
+    parts, proby, zle, pominiete = {}, {p: 0 for p in RU_PARTS}, {}, []
+    for src in RU_PARTS:
+        z = st.setdefault(src, {})
+        if not _ru_due(src, z, now, prev.get(src)):
+            continue
+        if late:
+            pominiete.append(f'{src} (długi przebieg)'); continue
+        left = budzet - (time.monotonic() - t0)
+        if left < 5:
+            pominiete.append(f'{src} (budżet czasu)'); continue
+        z['try'] = now_iso
+        proby[src] = 1
+        try:
+            raw = fetch(RU_URL[src], min(RU_LIMIT_S[src], round(left, 1)), RU_MAKS_B[src])
+            if len(raw) > RU_MAKS_B[src]:
+                raise RuntimeError(f'odpowiedź większa niż {RU_MAKS_B[src]} B (limit)')
+            part = PARSE[src](raw)
+        except Exception as e:
+            msg = mask(f'{src}: {e}')[:160]
+            z['err'] = msg; zle[src] = msg
+            continue
+        parts[src] = part
+        z['at'] = now_iso; z['asof'] = part['asof']; z.pop('err', None)
+    out = {'v': RU_V, 'at': None, 'src': 'CapitalFlowAI — Rosja z otwartych źródeł międzynarodowych (kody części: ue, bis, imts, rez, zloto — pełne nazwy na stronie Źródła)'}
+    pat = dict(prev.get('part_at') or {}) if isinstance(prev.get('part_at'), dict) else {}
+    perr = dict(prev.get('err') or {}) if isinstance(prev.get('err'), dict) else {}
+    ok = {}
+    for p in RU_PARTS:
+        if p in parts:
+            out[p] = parts[p]; pat[p] = now_iso
+        elif isinstance(prev.get(p), dict):
+            out[p] = prev[p]
+        if zle.get(p):
+            ok[p] = False; perr[p] = zle[p]
+        elif proby[p]:
+            ok[p] = True; perr.pop(p, None)
+        else:
+            ok[p] = False if (perr.get(p) or not isinstance(out.get(p), dict)) else 'cached'
+            if not isinstance(out.get(p), dict) and p not in perr:
+                perr[p] = 'brak danych (źródło jeszcze nie pobrane)'
+    zl = ru_zloto(su)
+    if zl:
+        out['zloto'] = zl
+        if zl != prev.get('zloto') or not pat.get('zloto'):
+            pat['zloto'] = now_iso   # chwila zmiany kopii (bez zmiany — plik nie wygląda na świeższy)
+    elif isinstance(prev.get('zloto'), dict):
+        out['zloto'] = prev['zloto']
+    out['part_at'] = {p: pat[p] for p in RU_PARTS + ('zloto',) if pat.get(p) and isinstance(out.get(p), dict)}
+    out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
+    out.update({'ok': ok, 'err': {p: perr[p] for p in RU_PARTS if perr.get(p)},
+                'next': {p: _ru_next(p, st.get(p, {}), out.get(p), now) for p in RU_PARTS}, 'st': st})
+    for p in RU_PARTS:
+        if zle.get(p):
+            META['errors'].append(mask('Rosja ' + zle[p])[:200])
+    if pominiete:
+        META['notes'].append('Rosja: pominięte w tym przebiegu — ' + ', '.join(pominiete))
+    return out
+
+
 # ===================== v305: SZLAKI HANDLOWE I ŁAŃCUCHY DOSTAW — data/szlaki.json (dział SUROWCE, etapy 4 i 9 — część) =====================
 # Osobny plik i osobny budowniczy (surowce.json bez zmian). Trzy części, każda z part_at / ok / next / err jak w surowce.json:
 #   cies   — ruch statków przez 8 cieśnin i kanałów (Ormuz, Bab el-Mandeb, Kanał Sueski, Bosfor, Kanał Panamski, Malakka, Gibraltar, Przylądek
@@ -30254,6 +30568,22 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'MFW rezerwy: {e}')); META['ok']['imf'] = False
             if prev_res: save('rezerwy', rezerwy_chiny_safe(prev_res, _SU_RUN.get('su'))); print('MFW zawiódł — zachowano poprzedni rezerwy.json z', prev_res.get('at'))
+    # v353: ROSJA (data/rosja.json; karta regionu „Rosja” na mapie GLOBAL) — handel UE z Rosją (miesięcznie), należności banków świata wobec Rosji
+    # (kwartalnie), handel Rosji wg partnerów jako kontrola i rezerwy walutowe Rosji (MFW), złoto w tonach z surowce.json tego przebiegu (bez zapytań);
+    # tylko otwarte źródła międzynarodowe, bez giełdy moskiewskiej i podmiotów z list sankcyjnych; części z własnymi bramkami i budżetem czasu
+    # (zwykle 0–2 zapytania w przebiegu); awaria budowniczego = poprzedni plik. META ok: rosja_ue, rosja_bis, rosja_imts, rosja_rez.
+    prev_ru = previous('rosja')
+    try:
+        ru_ = build_rosja(prev_ru, run_t0=_RUN_T0[0], su=_SU_RUN.get('su'))
+        save('rosja', ru_)
+        META['ok']['rosja_ue'] = ru_['ok']['ue']
+        META['ok']['rosja_bis'] = ru_['ok']['bis']
+        META['ok']['rosja_imts'] = ru_['ok']['imts']
+        META['ok']['rosja_rez'] = ru_['ok']['rez']
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Rosja: {e}')[:200]); META['ok']['rosja'] = False
+        if prev_ru:
+            save('rosja', prev_ru)
     # v341 (F5Z3): ZBOŻA DZIENNIE I KOSZT TRANSPORTU (data/zboza-dzien.json) — dzienny indeks zbóż i nasion oleistych z pięcioma podindeksami od 2000,
     # tygodniowy indeks frachtu zbóż (7 tras), pięć podindeksów żywności z pliku, który i tak pobrały surowce (zero nowych zapytań), ceny zbóż, rzepaku,
     # śruty i oleju w Polsce, Francji, Niemczech i Rumunii oraz nawozy w UE; części z własnymi bramkami wg terminów publikacji (zwykle bez zapytań)

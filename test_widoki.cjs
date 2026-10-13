@@ -24389,3 +24389,164 @@ test('v352: kod panelu — plik tylko w zmLoad (po rozwinięciu), bez bezpośred
   const prev = [...html.matchAll(/^const EXTRA(\d+)=/gm)].map(m => +m[1]).filter(x => x < n);
   assert.ok(prev.length > 100 && html.indexOf('for(const l in EXTRA' + Math.max(...prev) + ')') < dm.index, 'nakładany po wszystkich wcześniejszych słownikach');
 });
+
+// ===================== v353: karta regionu „Rosja” na mapie GLOBAL (data/rosja.json) =====================
+// Fixtura: plik rosja.json zbudowany przez build_rosja z nagrań 11.10.2026 (handel UE z Rosją, należności banków, handel Rosji wg partnerów, rezerwy, złoto).
+const v353 = (() => {
+  const RJ = JSON.parse('{"v":1,"at":"2026-10-11T07:00:00+00:00","src":"CapitalFlowAI \u2014 Rosja z otwartych \u017ar\u00f3de\u0142 mi\u0119dzynarodowych (kody cz\u0119\u015bci: ue, bis, imts, rez, zloto \u2014 pe\u0142ne nazwy na stronie \u0179r\u00f3d\u0142a)","ue":{"asof":"2026-07","u":"mln EUR","imp":2011.9,"exp":2620.0,"bal":608.1,"imp_r":2139.8,"exp_r":2628.9,"imp12":23909.8,"exp12":30127.0,"imp12_p":33452.4,"exp12_p":30625.4,"imp21":13637.2,"exp21":7430.8,"h":[["2024-06",2531.9,2429.1],["2024-07",3012.8,3026.2],["2024-08",2643.9,2496.3],["2024-09",3158.9,2637.7],["2024-10",3132.6,2879.3],["2024-11",2953.3,2889.3],["2024-12",3351.9,2085.1],["2025-01",3428.1,2336.3],["2025-02",2941.7,2500.6],["2025-03",2673.3,2787.6],["2025-04",2233.4,2608.4],["2025-05",2470.5,2322.7],["2025-06",2325.0,2453.2],["2025-07",2139.8,2628.9],["2025-08",1905.0,2328.8],["2025-09",1597.8,2488.1],["2025-10",2050.2,3045.4],["2025-11",1886.5,2686.8],["2025-12",2270.6,2148.6],["2026-01",1686.6,2138.2],["2026-02",1564.4,2561.3],["2026-03",2234.7,2959.7],["2026-04",2216.0,2452.3],["2026-05",2209.1,2121.2],["2026-06",2277.0,2576.6],["2026-07",2011.9,2620.0]]},"bis":{"asof":"2026-Q1","u":"mln USD","razem":[["2024-Q1",28484.3,1],["2024-Q2",27203.7,1],["2024-Q3",26964.9,1],["2024-Q4",23004.8,1],["2025-Q1",22178.7,0],["2025-Q2",22553.7,0],["2025-Q3",21645.6,0],["2025-Q4",20050.7,0],["2026-Q1",19409.8,1]],"zm_k":-3.2,"zm_r":-12.5,"zm_od":-31.5,"od":"2024-Q1","brk":1,"top":[["GB",1768.0,1955.0],["LU",1053.8,1063.6],["FR",1025.0,1197.0],["JP",866.0,1250.6],["IT",227.4,478.0],["TW",217.3,218.6]],"n":17},"imts":{"asof":"2026-06","u":"mld USD","p":{"G001":{"x":47.119,"m":21.413,"b":25.706,"x12":34.81,"m12":21.152,"h":[["2025-06",34.81,21.152],["2025-07",37.061,19.97],["2025-08",35.438,19.982],["2025-09",36.361,18.834],["2025-10",40.722,20.418],["2025-11",38.829,20.412],["2025-12",42.296,19.263],["2026-01",31.964,18.533],["2026-02",32.481,17.371],["2026-03",40.032,20.476],["2026-04",47.846,20.288],["2026-05",46.472,21.07],["2026-06",47.119,21.413]]},"G998":{"x":2.315,"m":6.94,"b":-4.625,"x12":2.444,"m12":7.137,"h":[["2025-06",2.444,7.137],["2025-07",2.228,6.508],["2025-08",1.941,6.549],["2025-09",1.684,6.421],["2025-10",2.156,6.934],["2025-11",1.893,7.075],["2025-12",2.325,5.478],["2026-01",1.812,5.885],["2026-02",1.674,6.352],["2026-03",2.341,6.691],["2026-04",2.326,7.116],["2026-05",2.238,7.684],["2026-06",2.315,6.94]]},"CHN":{"x":11.282,"m":4.287,"b":6.995,"x12":8.14,"m12":4.534,"h":[["2025-06",8.14,4.534],["2025-07",8.783,4.726],["2025-08",8.17,4.591],["2025-09",9.568,4.35],["2025-10",9.604,4.401],["2025-11",9.462,4.485],["2025-12",11.076,4.894],["2026-01",9.416,4.634],["2026-02",8.705,2.96],["2026-03",11.149,3.852],["2026-04",11.824,3.997],["2026-05",11.116,4.081],["2026-06",11.282,4.287]]},"IND":{"x":7.573,"m":0.289,"b":7.283,"x12":4.955,"m12":0.23,"h":[["2025-06",4.955,0.23],["2025-07",5.075,0.286],["2025-08",5.063,0.307],["2025-09",4.884,0.243],["2025-10",5.067,0.244],["2025-11",5.068,0.273],["2025-12",4.357,0.293],["2026-01",2.996,0.274],["2026-02",3.491,0.283],["2026-03",4.395,0.301],["2026-04",7.695,0.249],["2026-05",7.851,0.289],["2026-06",7.573,0.289]]},"TUR":{"x":3.363,"m":0.329,"b":3.034,"x12":3.037,"m12":0.333,"h":[["2025-06",3.037,0.333],["2025-07",3.26,0.343],["2025-08",3.008,0.308],["2025-09",2.967,0.34],["2025-10",3.398,0.362],["2025-11",2.864,0.416],["2025-12",3.482,0.364],["2026-01",2.819,0.322],["2026-02",2.287,0.355],["2026-03",3.215,0.36],["2026-04",4.052,0.332],["2026-05",3.441,0.403],["2026-06",3.363,0.329]]}}},"rez":{"asof":"2025-11","u":"mld USD","razem":736.7,"bez_zlota":423.2,"waluty":394.3,"zloto_war":313.5,"d1m":11.4,"d12m":120.2},"zloto":{"asof":"2026-08","t":2270.6,"m1":-6.2,"m12":-56.0},"part_at":{"ue":"2026-10-11T07:00:00+00:00","bis":"2026-10-11T07:00:00+00:00","imts":"2026-10-11T07:00:00+00:00","rez":"2026-10-11T07:00:00+00:00","zloto":"2026-10-11T07:00:00+00:00"},"ok":{"ue":true,"bis":true,"imts":true,"rez":true},"err":{},"next":{"ue":"2026-10-11T19:00:00+00:00","bis":"2026-10-12T07:00:00+00:00","imts":"2026-10-12T07:00:00+00:00","rez":"2026-10-12T07:00:00+00:00"}}');
+  const a = html.indexOf('/* ===================== v353: karta regionu „Rosja”'), b = html.indexOf('/* v353: koniec */', a);
+  assert.ok(a > 0 && b > a, 'blok v353 w stronie');
+  const make = (opt = {}) => {
+    const S = {now: opt.now || Date.parse('2026-10-11T07:00:00Z'), srv: [], det: 0};
+    const L = opt.lang || 'pl', dec = ['en', 'zh', 'ja'].includes(L) ? '.' : ',';
+    const nfmt = (v, d = 0) => (v == null || (typeof v === 'number' && !isFinite(v))) ? '—' : (+v).toFixed(d).replace('.', dec);
+    const deps = {t: v96src.tFor(L), nfmt, escH: v96src.escH, gAgeNote: d => ' · wiek(' + d + ')', gmFl: c => '[f:' + c + ']', gmCty: c => '[c:' + c + ']', ueCty: c => 'N(' + c + ')',
+      srvJSON: n => { S.srv.push(n); return opt.srvFail ? Promise.reject(new Error('x')) : Promise.resolve(opt.srv === undefined ? RJ : opt.srv); },
+      gst: opt.gst || {sel: null}, gRenderDetail: () => { S.det++; }, Date: {now: () => S.now}};
+    const k = Object.keys(deps);
+    const api = new Function(...k, html.slice(a, b) + '\nreturn {RU353,ru353Load,ru353Region,ru353Am,ru353Sg,ru353Pc,ru353Sn,ru353Rez,ru353Ue,ru353Bis,ru353Im,ru353Ok};')(...k.map(x => deps[x]));
+    return Object.assign(api, {S, deps});
+  };
+  const tick = () => Promise.resolve().then(() => {}).then(() => {}).then(() => {});   /* mikrozadania (bez zegara; pod jsc też) */
+  const loaded = (opt) => { const X = make(opt); X.RU353.j = JSON.parse(JSON.stringify(opt && opt.j ? opt.j : RJ)); X.RU353.at = X.S.now; return X; };
+  return {RJ, make, loaded, tick, src: html.slice(a, b)};
+})();
+
+test('v353: wpięcie — linia regionu zaraz po linii v342 w szczegółach regionu, blok po bloku v342, słownik po ostatnim słowniku', () => {
+  const r = "          ${typeof f342Region==='function'?f342Region(s.id):''}\n          ${typeof ru353Region==='function'?ru353Region(s.id):''}\n";
+  assert.equal(html.split(r).length - 1, 1, 'ru353Region po f342Region w szczegółach regionu');
+  assert.ok(html.indexOf('/* ===================== v353: karta regionu „Rosja”') > html.indexOf('/* v342 (F1Z2): koniec */'));
+  assert.ok(html.includes('"ru353.eq.t"'), 'słownik v353 w stronie');
+  assert.ok(!/<style|<table|nowrap|width:\s*\d+px/.test(v353.src), 'bez nowych stylów, tabel i stałych szerokości (telefon 390 px: tekst zawija się w zwykłej linii regionu)');
+  for (const p of ['Eurostat', 'Comext', 'IMTS', 'MFW', 'IMF', 'BIS', 'LBS', 'MOEX', 'Moskiewsk'])
+    assert.ok(!v353.src.replace(/\/\*[\s\S]*?\*\//g, '').includes(p), 'bez nazwy dostawcy ani giełdy w kodzie: ' + p);
+});
+
+test('v353: region inny niż Rosja — pusty wynik, bez wczytania; Rosja — powód pustej wartości rynku akcji od razu, wczytanie dopiero po wyborze regionu', async () => {
+  const X = v353.make({gst: {sel: {type: 'node', id: 'rus'}}});
+  for (const id of ['usa', 'eur', 'chn', 'mea', 'crypto', '']) assert.equal(X.ru353Region(id), '', id);
+  assert.deepEqual(X.S.srv, [], 'bez wczytania');
+  const h = X.ru353Region('rus');
+  assert.ok(h.includes('<dt>Wartość rynku akcji</dt><dd><b class="na">—</b> · Nie pobieramy notowań rosyjskiej giełdy ani danych jej instytucji, bo są objęte sankcjami UE i USA.'), h);
+  assert.ok(h.includes('<dt>Dane o Rosji</dt><dd>Wczytywanie danych o Rosji…</dd>')); assert.deepEqual(X.S.srv, ['rosja']);
+  await v353.tick();
+  assert.equal(X.S.det, 1, 'po wczytaniu — przerysowanie szczegółów'); assert.ok(X.RU353.j);
+  const h2 = X.ru353Region('rus'); assert.ok(h2.includes('Rezerwy i złoto banku centralnego') && !h2.includes('Wczytywanie')); assert.deepEqual(X.S.srv, ['rosja'], 'plik świeży — bez ponownego wczytania');
+  X.S.now += 31 * 60e3; X.ru353Region('rus'); assert.equal(X.S.srv.length, 2, 'po 30 min — odświeżenie, rysujemy to, co jest');
+  /* błąd: komunikat, ponowienie po 2 min, powód pustej wartości nadal widoczny */
+  const Y = v353.make({srvFail: true, gst: {sel: {type: 'node', id: 'rus'}}});
+  Y.ru353Region('rus'); await v353.tick();
+  assert.equal(Y.S.det, 1); const e = Y.ru353Region('rus'); assert.ok(e.includes('Nie udało się wczytać danych o Rosji') && e.includes('Wartość rynku akcji')); assert.equal(Y.S.srv.length, 1, 'błąd — bez pętli');
+  Y.S.now += 121e3; Y.ru353Region('rus'); assert.equal(Y.S.srv.length, 2, 'po 2 min — ponowienie');
+  /* plik nie do użytku (zła wersja) = błąd, nie wyświetlanie */
+  const Z = v353.make({srv: {v: 2, at: 'x'}, gst: {sel: {type: 'node', id: 'rus'}}}); Z.ru353Region('rus'); await v353.tick(); assert.equal(Z.RU353.j, null); assert.equal(Z.RU353.err, true);
+  /* dwa wywołania w trakcie wczytania — jedno pobranie, oba przerysowania */
+  const W = v353.make({gst: {sel: {type: 'node', id: 'rus'}}}); W.ru353Region('rus'); W.ru353Region('rus'); await v353.tick(); assert.equal(W.S.srv.length, 1); assert.equal(W.S.det, 2);
+  /* wybrany inny region w chwili końca wczytania — bez przerysowania cudzej karty */
+  const V = v353.make({gst: {sel: {type: 'node', id: 'chn'}}}); V.ru353Region('rus'); await v353.tick(); assert.equal(V.S.det, 0);
+});
+
+test('v353: rezerwy i złoto — kwoty z datą i wiekiem, zmiany w kolorze kierunku, brak = „—”', () => {
+  const X = v353.loaded();
+  const h = X.ru353Rez(X.RU353.j);
+  assert.ok(h.includes('<dt>Rezerwy i złoto banku centralnego</dt>'));
+  assert.ok(h.includes('Rezerwy razem: <b>736,7 mld USD</b> (w tym złoto wg cen rynkowych: 313,5 mld USD) · 2025-11 · wiek(2025-11)<br>zmiana: miesiąc <b class="pos">+11,4 mld USD</b> · 12 mies. <b class="pos">+120,2 mld USD</b>'), h);
+  assert.ok(h.includes('Złoto banku centralnego: <b>2270,6</b> t · 2026-08 · wiek(2026-08)<br>zmiana: miesiąc <b class="neg">−6,2</b> t · 12 mies. <b class="neg">−56,0</b> t'), h);
+  assert.ok(h.includes('<small class="mtxt">Rosja podaje rezerwy w dolarach z dużym opóźnieniem'));
+  const J = JSON.parse(JSON.stringify(v353.RJ)); J.rez.d1m = null; J.rez.zloto_war = null; J.zloto.m1 = 0; J.zloto.m12 = 0.04;
+  const g = X.ru353Rez(J);
+  assert.ok(g.includes('(w tym złoto wg cen rynkowych: —)') && g.includes('miesiąc <b class="na">—</b> · 12 mies. <b class="pos">+120,2 mld USD</b>'), g);
+  assert.ok(g.includes('miesiąc <b class="neu">0,0</b> t · 12 mies. <b class="neu">0,0</b> t'), 'zero (także 0,04 po zaokrągleniu) żółte, bez znaku: ' + g);
+  delete J.zloto; assert.ok(!X.ru353Rez(J).includes('Złoto banku centralnego:')); delete J.rez; assert.equal(X.ru353Rez(J), '', 'bez obu części — bez linii');
+  const B = JSON.parse(JSON.stringify(v353.RJ)); B.rez.asof = '2025-13'; B.zloto.t = 'x'; assert.equal(X.ru353Rez(B), '', 'zły miesiąc albo nie-liczba — nie pokazujemy');
+});
+
+test('v353: handel UE z Rosją — import, eksport i saldo z miesiącem i wiekiem, rok wcześniej, 12 miesięcy, średnia z 2021 r.; kolory zmian ze znaku', () => {
+  const X = v353.loaded(), h = X.ru353Ue(X.RU353.j);
+  assert.ok(h.includes('<dt>Handel UE z Rosją (miesięcznie)</dt>'));
+  assert.ok(h.includes('2026-07: import UE z Rosji <b>2,0 mld EUR</b> · eksport UE do Rosji <b>2,6 mld EUR</b> · saldo UE <b class="pos">+608 mln EUR</b> · wiek(2026-07)'), h);
+  assert.ok(h.includes('Ten sam miesiąc rok wcześniej: import 2,1 mld EUR, eksport 2,6 mld EUR — zmiana importu <b class="neg">−6,0%</b>, eksportu <b class="neg">−0,3%</b>'), h);
+  assert.ok(h.includes('Ostatnie 12 miesięcy: import 23,9 mld EUR, eksport 30,1 mld EUR — wobec 12 miesięcy wcześniej: import <b class="neg">−28,5%</b>, eksport <b class="neg">−1,6%</b>'), h);
+  assert.ok(h.includes('Średnio miesięcznie w 2021 r. (przed 2022): import 13,6 mld EUR, eksport 7,4 mld EUR'), h);
+  const J = JSON.parse(JSON.stringify(v353.RJ)); J.ue.imp_r = null; J.ue.imp12_p = null; J.ue.imp21 = null; J.ue.exp = 2000.0; J.ue.imp = 2000.0;
+  const g = X.ru353Ue(J);
+  assert.ok(g.includes('saldo UE <b class="neu">0 mln EUR</b>') && !g.includes('Ten sam miesiąc rok wcześniej') && !g.includes('Średnio miesięcznie'), g);
+  assert.ok(g.includes('wobec 12 miesięcy wcześniej: import <b class="na">—</b>, eksport <b class="neg">−1,6%</b>'), 'brak miesięcy porównawczych = „—”, nie zero: ' + g);
+  J.ue.exp = 1900.0; assert.ok(X.ru353Ue(J).includes('saldo UE <b class="neg">−100 mln EUR</b>'));
+  J.ue.asof = 'x'; assert.equal(X.ru353Ue(J), '');
+});
+
+test('v353: należności banków świata wobec Rosji — suma, zmiany po korekcie przerw, najwięksi z flagami i nazwami w języku strony, uwaga o poufnych danych', () => {
+  const X = v353.loaded(), h = X.ru353Bis(X.RU353.j);
+  assert.ok(h.includes('<dt>Należności banków świata wobec Rosji (kwartalnie)</dt>'));
+  assert.ok(h.includes('<b>19,4 mld USD</b> · 2026-Q1 · kwartał do kwartału <b class="neg">−3,2%</b> · rok do roku <b class="neg">−12,5%</b> · od 2024-Q1 <b class="neg">−31,5%</b> · wiek(2026-Q1)'), h);
+  assert.ok(h.includes('Największe kraje banków-wierzycieli: <span class="gcty">[f:GB]N(GB)</span> 1,8 mld USD · <span class="gcty">[f:LU]N(LU)</span> 1,1 mld USD · <span class="gcty">[f:FR]N(FR)</span> 1,0 mld USD · '), h);
+  assert.equal((h.match(/class="gcty"/g) || []).length, 6);
+  assert.ok(h.includes('<small class="mtxt">„Razem” obejmuje też kraje, których dane dwustronne są poufne'));
+  const J = JSON.parse(JSON.stringify(v353.RJ)); J.bis.zm_k = 0.03; J.bis.zm_r = null; J.bis.top = [['GB', 0.2, null], ['xx', 5, null], ['<b>', 9, 1], ['LU', 'a', 1]];
+  const g = X.ru353Bis(J);
+  assert.ok(g.includes('kwartał do kwartału <b class="neu">0,0%</b> · rok do roku <b class="na">—</b>'), g);
+  assert.ok(g.includes('[f:GB]N(GB)</span> <1 mln USD') && (g.match(/class="gcty"/g) || []).length === 1, 'kraj z małą kwotą „<1 mln”, zły kod i nie-liczba odrzucone: ' + g);
+  J.bis.razem = [['2025-Q4', 1, 0]]; assert.equal(X.ru353Bis(J), '', 'brak ostatniego kwartału w szeregu — bez linii');
+});
+
+test('v353: handel Rosji wg partnerów — eksport, import i saldo z miesiącem i wiekiem; kontrola z danymi UE (te same miesiące, dwie pary liczb, wyjaśnienie różnicy)', () => {
+  const X = v353.loaded(), h = X.ru353Im(X.RU353.j);
+  assert.ok(h.includes('<dt>Handel Rosji według partnerów (dane zgłoszone przez Rosję — kontrola)</dt>'));
+  assert.ok(h.includes('Miesiąc 2026-06 · eksport w cenach FOB, import w cenach CIF · wiek(2026-06)<br><b>Świat</b>: eksport 47,1 mld USD · import 21,4 mld USD · saldo <b class="pos">+25,7 mld USD</b>'), h);
+  assert.ok(h.includes('<b>[f:eu]Unia Europejska</b>: eksport 2,3 mld USD · import 6,9 mld USD · saldo <b class="neg">−4,6 mld USD</b>'), h);
+  assert.ok(h.includes('<b>[c:CHN]</b>: eksport 11,3 mld USD · import 4,3 mld USD · saldo <b class="pos">+7,0 mld USD</b>'), h);
+  assert.ok(h.indexOf('[c:CHN]') < h.indexOf('[c:IND]') && h.indexOf('[c:IND]') < h.indexOf('[c:TUR]'));
+  assert.ok(h.includes('Kontrola z danymi UE (2026-06): import UE z Rosji 2,3 mld EUR (UE) wobec eksportu Rosji do UE 2,3 mld USD (Rosja); eksport UE do Rosji 2,6 mld EUR (UE) wobec importu Rosji z UE 6,9 mld USD (Rosja). Liczby się różnią'), h);
+  assert.ok(h.includes('dlatego ich nie sumujemy.</small>'));
+  /* brak miesiąca w szeregu UE albo UE w partnerach — bez kontroli, reszta zostaje; partner bez liczb pominięty */
+  const J = JSON.parse(JSON.stringify(v353.RJ)); J.ue.h = J.ue.h.filter(r => r[0] !== '2026-06'); delete J.imts.p.TUR.x;
+  const g = X.ru353Im(J); assert.ok(!g.includes('Kontrola z danymi UE') && !g.includes('[c:TUR]') && g.includes('[c:IND]'), g);
+  J.imts.p = {}; assert.equal(X.ru353Im(J), ''); J.imts = null; assert.equal(X.ru353Im(J), '');
+});
+
+test('v353: kwoty — poniżej 1 mld w mln, poniżej 0,5 mln „<1 mln”, zero „0 mln”, brak „—”; kolor kierunku z zaokrąglenia; znak minus typograficzny', () => {
+  const X = v353.make();
+  assert.equal(X.ru353Am(null, 'USD'), '—'); assert.equal(X.ru353Am(undefined, 'USD'), '—'); assert.equal(X.ru353Am(NaN, 'USD'), '—');
+  assert.equal(X.ru353Am(12.34, 'EUR'), '12,3 mld EUR'); assert.equal(X.ru353Am(0.4567, 'EUR'), '457 mln EUR'); assert.equal(X.ru353Am(0.0004, 'EUR'), '<1 mln EUR'); assert.equal(X.ru353Am(0, 'EUR'), '0 mln EUR');
+  assert.equal(X.ru353Am(0.9996, 'USD'), '1,0 mld USD', 'zaokrąglenie do 1000 mln przechodzi do mld'); assert.equal(X.ru353Am(-2.5, 'USD', true), '−2,5 mld USD'); assert.equal(X.ru353Am(2.5, 'USD', true), '+2,5 mld USD');
+  assert.equal(X.ru353Sg(0, 'EUR'), '<b class="neu">0 mln EUR</b>'); assert.equal(X.ru353Sg(0.0002, 'EUR'), '<b class="neu"><1 mln EUR</b>'); assert.equal(X.ru353Sg(-0.0002, 'EUR'), '<b class="neu"><1 mln EUR</b>');
+  assert.equal(X.ru353Sg(0.25, 'EUR'), '<b class="pos">+250 mln EUR</b>'); assert.equal(X.ru353Sg(-3, 'EUR'), '<b class="neg">−3,0 mld EUR</b>'); assert.equal(X.ru353Sg(null, 'EUR'), '<b class="na">—</b>');
+  assert.equal(X.ru353Pc(0.04), '<b class="neu">0,0%</b>'); assert.equal(X.ru353Pc(-0.04), '<b class="neu">0,0%</b>'); assert.equal(X.ru353Pc(0.06), '<b class="pos">+0,1%</b>'); assert.equal(X.ru353Pc(-12.56), '<b class="neg">−12,6%</b>'); assert.equal(X.ru353Pc(null), '<b class="na">—</b>');
+  assert.equal(X.ru353Sn(-6.24), '<b class="neg">−6,2</b>'); assert.equal(X.ru353Sn(0), '<b class="neu">0,0</b>'); assert.equal(X.ru353Sn(NaN), '<b class="na">—</b>');
+});
+
+test('v353: wszystkie części puste — „Brak danych”, powód pustej wartości rynku akcji zostaje; wstrzyknięcie znaków w polach tekstowych jest zabezpieczone', async () => {
+  const X = v353.loaded({j: {v: 1, at: '2026-10-11T07:00:00+00:00'}, gst: {sel: {type: 'node', id: 'rus'}}});
+  const h = X.ru353Region('rus'); assert.ok(h.includes('Brak danych o Rosji w pliku') && h.includes('Wartość rynku akcji'), h);
+  const J = JSON.parse(JSON.stringify(v353.RJ)); J.ue.asof = '2026-07'; J.bis.asof = '2026-Q1';
+  J.imts.asof = '2026-06<img src=x onerror=alert(1)>'; assert.equal(X.ru353Im(J), '', 'zły zapis miesiąca odrzucony przed wstawieniem do strony');
+  J.bis.od = '<script>x</script>'; assert.ok(!X.ru353Bis(J).includes('<script>'), 'okres porównawczy spoza wzorca RRRR-Qn zastąpiony „—”');
+  J.bis.top = [['GB', 1000, 1]]; assert.ok(!/onerror|<script/.test(X.ru353Bis(J)));
+});
+
+test('v353: słownik — wszystkie klucze karty w 10 językach, te same pola {x}, każdy klucz użyty w kodzie, zero nazw dostawców i znaków niewidocznych; liczby w formacie języka (de, ja); wyrenderowana karta bez surowych kluczy', () => {
+  const D = v96src.I18N, keys = Object.keys(D.pl).filter(k => k.startsWith('ru353.'));
+  assert.equal(keys.length, 30, 'klucze: ' + keys.length);
+  const code = v353.src;
+  for (const k of keys) {
+    const ph = s => (String(s).match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+    for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+      assert.equal(typeof D[L][k], 'string', L + ' ' + k); assert.ok(D[L][k].length > 0, L + ' ' + k); assert.equal(ph(D[L][k]), ph(D.pl[k]), L + ' ' + k + ': pola {x}');
+      assert.ok(!/[​-‏⁠﻿️­]/.test(D[L][k]), L + ' ' + k + ': znak niewidoczny');
+      assert.ok(!/eurostat|comext|\bimf\b|\bbis\b|mfw|imts|\bLBS\b|moex|moscow|moskiew|москов|莫斯科|モスクワ/i.test(D[L][k]), L + ' ' + k + ': nazwa dostawcy albo giełdy');
+    }
+    assert.ok(code.includes("'" + k + "'"), 'klucz bez użycia w kodzie: ' + k);
+  }
+  for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) assert.notEqual(D[L]['ru353.eq'], D.pl['ru353.eq'], L + ': prawdziwe tłumaczenie, nie kopia polskiego');
+  for (const L of ['de', 'ja', 'en', 'ru', 'zh', 'pt', 'es', 'fr', 'it']) {
+    const X = v353.loaded({lang: L, gst: {sel: {type: 'node', id: 'rus'}}}), h = X.ru353Region('rus');
+    assert.ok(h.length > 2000 && !/ru353\./.test(h), L + ': brak surowych kluczy'); assert.ok(!/\{[a-z0-9]+\}/.test(h), L + ': wszystkie pola podstawione');
+  }
+  const de = v353.loaded({lang: 'de'}).ru353Rez(v353.RJ); assert.ok(de.includes('Reserven insgesamt: <b>736,7 Mrd. USD</b>'), de);
+  const ja = v353.loaded({lang: 'ja'}).ru353Rez(v353.RJ); assert.ok(ja.includes('準備高合計：<b>736.7十億 USD</b>'), ja);
+  const en = v353.loaded({lang: 'en'}).ru353Ue(v353.RJ); assert.ok(en.includes('EU imports from Russia <b>2.0 B EUR</b>'), en);
+  const mm = [...html.matchAll(/^for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/gm)];
+  assert.ok(mm.length > 20 && html.includes('"ru353.eq.t"'), 'słownik nałożony jedną linią for');
+  const dict = html.slice(html.indexOf('"ru353.eq.t"') - 500, html.indexOf('"ru353.eq.t"')); assert.ok(/const EXTRA\d+=\{"pl":\{$/.test(dict.slice(-30)) || dict.includes('const EXTRA'), 'czysty JSON w linii const EXTRA…');
+});

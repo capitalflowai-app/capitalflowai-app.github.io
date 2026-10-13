@@ -5593,6 +5593,193 @@ def lng_kontrola(j, R):
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v353: Rosja (data/rosja.json) ----------------------------------------------------------------
+# Świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️ — pole next pliku mówi, kiedy spodziewana jest zmiana. Progi wieku danych
+# (dni od końca miesiąca albo kwartału danych) z obserwacji na nagraniach 11.10.2026 + zapas: handel UE (publikacja ok. 15. dnia, dane sprzed 2 miesięcy:
+# 15.09.2026 lipiec = 46 dni; najstarszy wiek tuż przed kolejną publikacją ok. 76 dni) → próg 95 dni; handel Rosji (MFW): 11.10.2026 czerwiec = 103 dni
+# → próg 150 dni; należności banków (kwartalnie): 11.10.2026 pierwszy kwartał = 194 dni → próg 240 dni; rezerwy Rosji w MFW: 11.10.2026 listopad 2025 = 315 dni
+# (Rosja publikuje tam z dużym opóźnieniem) → próg 400 dni; złoto w tonach (kopia z pliku surowce): 11.10.2026 sierpień = 41 dni → próg 90 dni.
+# ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (saldo ≠ eksport − import, szereg nie kończy się na ostatnim okresie, kolejność kwartałów, kraje
+# razem większe niż suma wszystkich, UE większe niż świat, złoto w rezerwach większe niż całość…). Porównania danych (najwyżej ⚠️, ℹ️):
+# (1) import UE z Rosji (statystyka UE, mln EUR) a eksport Rosji do UE (dane zgłoszone przez Rosję, MFW, mld USD) w tym samym miesiącu: iloraz USD/EUR
+#     w 13 miesiącach z nagrania 11.10.2026: 1,003 – 1,074 → pasmo ⚠️ [0,80; 1,35] (kurs euro plus różnice terminów); (2) eksport UE do Rosji a import Rosji
+#     z UE: iloraz 2,26 – 3,62 (znana duża różnica metod: kraj pochodzenia a wysyłki, ceny CIF i FOB, przesyłki przez kraje trzecie) → tylko ℹ️, ⚠️ poza
+#     [1,2; 6,0]; (3) cena uncji wynikająca z wartości złota w rezerwach (MFW) i tonażu z pliku surowce w tym samym miesiącu poza [500; 20 000] USD = ⚠️
+#     (listopad 2025: ok. 4 190 USD); (4) kopia złota w rosja.json starsza niż źródło w surowce.json albo z inną wartością = ⚠️.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'rosja')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['rosja'] = 30 * 60
+AW_BEZ_BLEDU.update({k: 'Rosja — część z błędem zostaje z datą (v353); wiek danych w wierszach świeżości' for k in ('rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez')})
+RU_K_ETYKIETA = {'ue': 'Rosja: handel UE z Rosją (miesięcznie)', 'bis': 'Rosja: należności banków świata (kwartalnie)',
+                 'imts': 'Rosja: handel Rosji wg partnerów (miesięcznie)', 'rez': 'Rosja: rezerwy walutowe (miesięcznie)',
+                 'zloto': 'Rosja: złoto banku centralnego w tonach (miesięcznie)'}
+RU_K_PROG_DNI = {'ue': 95, 'bis': 240, 'imts': 150, 'rez': 400, 'zloto': 90}
+RU_K_IMP_PASMO = (0.80, 1.35)    # eksport Rosji do UE (mld USD × 1000) / import UE z Rosji (mln EUR)
+RU_K_EKSP_PASMO = (1.2, 6.0)     # import Rosji z UE / eksport UE do Rosji — znana duża różnica metod, tylko ostrzeżenie poza pasmem
+RU_K_CENA_PASMO = (500.0, 20000.0)   # USD za uncję trojańską
+RU_K_UNCJA_T = 32150.7466        # uncji trojańskich w tonie
+
+
+def _ru_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))
+
+
+def _ru_k_f(x, d=2):
+    return f'{x:.{d}f}'.replace('.', ',')
+
+
+def _ru_k_mies(txt):
+    """'RRRR-MM' → ten sam; 'RRRR-Qn' → ostatni miesiąc kwartału; inny zapis → None."""
+    s = str(txt or '')
+    if re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', s):
+        return s
+    m = re.fullmatch(r'(\d{4})-Q([1-4])', s)
+    return f'{m.group(1)}-{int(m.group(2)) * 3:02d}' if m else None
+
+
+def rosja_swiezosc(j, now=None):
+    """Wiersze świeżości części pliku rosja.json w kształcie wierszy swiezosc(): (etykieta, status, wiek min, data danych, uwaga). Najwyżej ⚠️, nigdy ❌;
+    brak pliku albo inna wersja = brak wierszy; część bez daty danych — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    nx = j.get('next') if isinstance(j.get('next'), dict) else {}
+    rows = []
+    for p, label in RU_K_ETYKIETA.items():
+        e = j.get(p) if isinstance(j.get(p), dict) else {}
+        txt = e.get('asof')
+        mm = _ru_k_mies(txt)
+        if mm is None:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        w = wiek_danych(mm, 'month', 'm', now)
+        prog = RU_K_PROG_DNI[p] * 1440
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        note = ''
+        if st == '⚠️':
+            nt = nx.get(p); pt = _aw_t(nt) if isinstance(nt, str) else None
+            note = f'próg {fmt_wiek(prog)} — najwyżej uwaga' + (
+                f'; spodziewana zmiana {czas_pl(nt)}' + (' — zaległa (przerwa u źródła?)' if pt and pt < now else '') if pt else '')
+        rows.append((label, st, w, str(txt), note))
+    return rows
+
+
+def rosja_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w danych o Rosji) → lista opisów."""
+    zle = []
+    U = j.get('ue') if isinstance(j.get('ue'), dict) else None
+    if U:
+        h = U.get('h') if isinstance(U.get('h'), list) else []
+        ms = [str(x[0]) for x in h if isinstance(x, list) and len(x) == 3]
+        if ms != sorted(set(ms)):
+            zle.append('ue.h: miesiące nie rosną albo się powtarzają')
+        if h and (not isinstance(h[-1], list) or h[-1][0] != U.get('asof')):
+            zle.append(f'ue: asof {U.get("asof")} ≠ ostatni miesiąc szeregu')
+        if any(not (_ru_k_num(x[1]) and _ru_k_num(x[2]) and x[1] >= 0 and x[2] >= 0) for x in h if isinstance(x, list) and len(x) == 3):
+            zle.append('ue.h: wartość ujemna albo nie-liczba')
+        if all(_ru_k_num(U.get(k)) for k in ('imp', 'exp', 'bal')) and abs(U['bal'] - (U['exp'] - U['imp'])) > 0.25:
+            zle.append(f'ue: saldo {U["bal"]} ≠ eksport − import {round(U["exp"] - U["imp"], 1)} mln EUR')
+        if h and isinstance(h[-1], list) and len(h[-1]) == 3 and _ru_k_num(U.get('imp')) and (h[-1][1] != U['imp'] or h[-1][2] != U['exp']):
+            zle.append('ue: import/eksport ≠ ostatni wiersz szeregu')
+    B = j.get('bis') if isinstance(j.get('bis'), dict) else None
+    if B:
+        R = [x for x in (B.get('razem') or []) if isinstance(x, list) and len(x) >= 2]
+        qs = [str(x[0]) for x in R]
+        if qs != sorted(set(qs)) or not all(re.fullmatch(r'\d{4}-Q[1-4]', q) for q in qs):
+            zle.append('bis.razem: kwartały nie rosną albo mają zły zapis')
+        if R and (R[-1][0] != B.get('asof')):
+            zle.append(f'bis: asof {B.get("asof")} ≠ ostatni kwartał szeregu')
+        if any(not (_ru_k_num(x[1]) and x[1] >= 0) for x in R):
+            zle.append('bis.razem: wartość ujemna albo nie-liczba')
+        T = [x for x in (B.get('top') or []) if isinstance(x, list) and len(x) >= 2]
+        if [x[1] for x in T] != sorted((x[1] for x in T), reverse=True):
+            zle.append('bis.top: kraje nie są posortowane malejąco')
+        if R and T and _ru_k_num(R[-1][1]) and sum(x[1] for x in T if _ru_k_num(x[1])) > R[-1][1] * 1.02:
+            zle.append('bis: suma największych krajów większa niż suma wszystkich krajów raportujących')
+    I = j.get('imts') if isinstance(j.get('imts'), dict) else None
+    if I and isinstance(I.get('p'), dict):
+        P = I['p']
+        for k, p in P.items():
+            if not isinstance(p, dict) or not all(_ru_k_num(p.get(f)) for f in ('x', 'm', 'b')):
+                zle.append(f'imts.{k}: brak eksportu, importu albo salda'); continue
+            if abs(p['b'] - (p['x'] - p['m'])) > 0.005:
+                zle.append(f'imts.{k}: saldo {p["b"]} ≠ eksport − import {round(p["x"] - p["m"], 3)} mld USD')
+            if isinstance(p.get('h'), list) and p['h'] and (p['h'][-1][0] != I.get('asof') or p['h'][-1][1] != p['x'] or p['h'][-1][2] != p['m']):
+                zle.append(f'imts.{k}: ostatni wiersz szeregu ≠ eksport/import')
+        w = P.get('G001')
+        if isinstance(w, dict) and _ru_k_num(w.get('x')) and _ru_k_num(w.get('m')):
+            for k, p in P.items():
+                if k != 'G001' and isinstance(p, dict) and _ru_k_num(p.get('x')) and _ru_k_num(p.get('m')) and (p['x'] > w['x'] + 0.01 or p['m'] > w['m'] + 0.01):
+                    zle.append(f'imts.{k}: wartość większa niż świata razem')
+    Z = j.get('rez') if isinstance(j.get('rez'), dict) else None
+    if Z and all(_ru_k_num(Z.get(k)) for k in ('razem', 'bez_zlota')):
+        if Z['bez_zlota'] > Z['razem'] + 0.05:
+            zle.append('rez: rezerwy bez złota większe niż rezerwy razem')
+        if _ru_k_num(Z.get('waluty')) and Z['waluty'] > Z['bez_zlota'] + 0.05:
+            zle.append('rez: waluty obce większe niż rezerwy bez złota')
+        if _ru_k_num(Z.get('zloto_war')) and abs(Z['zloto_war'] - (Z['razem'] - Z['bez_zlota'])) > 0.15:
+            zle.append('rez: złoto ≠ razem − bez złota')
+    G = j.get('zloto') if isinstance(j.get('zloto'), dict) else None
+    if G and not (_ru_k_num(G.get('t')) and 100 <= G['t'] <= 20000 and _ru_k_mies(G.get('asof'))):
+        zle.append('zloto: tonaż poza zakresem albo zły miesiąc')
+    return zle
+
+
+def rosja_porownania(j, files):
+    """Porównania z innymi danymi i z drugim źródłem (najwyżej ⚠️): {'wiersze': [(opis, znak)], 'uwagi': [...]}."""
+    wier, uw = [], []
+    U, I = j.get('ue'), j.get('imts')
+    if isinstance(U, dict) and isinstance(I, dict) and isinstance(I.get('p'), dict) and isinstance(I['p'].get('G998'), dict):
+        E = I['p']['G998']
+        h = {x[0]: x for x in (U.get('h') or []) if isinstance(x, list) and len(x) == 3}
+        r = h.get(I.get('asof'))
+        if r and r[1] and r[2] and _ru_k_num(E.get('x')) and _ru_k_num(E.get('m')):
+            a, b = E['x'] * 1000 / r[1], E['m'] * 1000 / r[2]
+            sa = '⚠️' if not RU_K_IMP_PASMO[0] <= a <= RU_K_IMP_PASMO[1] else '✅'
+            sb = '⚠️' if not RU_K_EKSP_PASMO[0] <= b <= RU_K_EKSP_PASMO[1] else 'ℹ️'
+            wier.append((f'import UE z Rosji (UE, EUR) ↔ eksport Rosji do UE (Rosja, USD) {I["asof"]}: iloraz {_ru_k_f(a)}', sa))
+            wier.append((f'eksport UE do Rosji ↔ import Rosji z UE {I["asof"]}: iloraz {_ru_k_f(b)} (inna metoda — informacja)', sb))
+            if sa == '⚠️':
+                uw.append(f'Rosja: iloraz eksportu Rosji do UE (USD) do importu UE z Rosji (EUR) {_ru_k_f(a)} poza pasmem {_ru_k_f(RU_K_IMP_PASMO[0])}–{_ru_k_f(RU_K_IMP_PASMO[1])} ({I["asof"]}) — najwyżej uwaga')
+            if sb == '⚠️':
+                uw.append(f'Rosja: iloraz importu Rosji z UE do eksportu UE do Rosji {_ru_k_f(b)} poza pasmem {_ru_k_f(RU_K_EKSP_PASMO[0])}–{_ru_k_f(RU_K_EKSP_PASMO[1])} ({I["asof"]}) — najwyżej uwaga')
+    su = files.get('surowce') if isinstance(files, dict) else None
+    try:
+        d = {r[0]: float(r[1]) for r in su['banki']['kr']['RU']['d'] if isinstance(r, list) and len(r) >= 2 and _ru_k_num(r[1])}
+    except (KeyError, TypeError, IndexError, ValueError):
+        d = {}
+    Z, G = j.get('rez'), j.get('zloto')
+    if isinstance(Z, dict) and _ru_k_num(Z.get('zloto_war')) and Z.get('asof') in d:
+        cena = Z['zloto_war'] * 1e9 / (d[Z['asof']] * RU_K_UNCJA_T)
+        sc = '✅' if RU_K_CENA_PASMO[0] <= cena <= RU_K_CENA_PASMO[1] else '⚠️'
+        wier.append((f'cena uncji z wartości złota w rezerwach i tonażu {Z["asof"]}: {cena:,.0f} USD'.replace(',', ' '), sc))
+        if sc == '⚠️':
+            uw.append(f'Rosja: cena uncji z rezerw ({cena:,.0f} USD, {Z["asof"]}) poza {RU_K_CENA_PASMO[0]:.0f}–{RU_K_CENA_PASMO[1]:.0f} USD — sprawdź jednostki'.replace(',', ' '))
+    if isinstance(G, dict) and d:
+        a = max(d)
+        if str(G.get('asof') or '') < a:
+            wier.append((f'kopia złota (rosja.json {G.get("asof")}) starsza niż źródło ({a})', '⚠️'))
+            uw.append(f'Rosja: kopia złota w rosja.json ({G.get("asof")}) starsza niż źródło w surowce.json ({a}) — najwyżej uwaga')
+        elif G.get('asof') == a and _ru_k_num(G.get('t')) and abs(G['t'] - d[a]) > 0.15:
+            wier.append((f'kopia złota {a}: {G["t"]} t ≠ źródło {round(d[a], 1)} t', '⚠️'))
+            uw.append(f'Rosja: kopia złota w rosja.json ({G["t"]} t) ≠ źródło w surowce.json ({round(d[a], 1)} t) dla {a} — najwyżej uwaga')
+        else:
+            wier.append((f'kopia złota zgodna ze źródłem {a}', '✅'))
+    return {'wiersze': wier, 'uwagi': uw}
+
+
+def rosja_kontrola(files, R):
+    """Kontrola pliku rosja.json bez sieci: sprzeczności w pliku (❌ = BŁĄD) i porównania (najwyżej ⚠️). Brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('rosja') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle = rosja_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'rosja.json: sprzeczność w pliku — {z}')
+    P = rosja_porownania(j, files)
+    R['uwagi'] += P['uwagi']
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- v341 (F5Z3): zboża dziennie i koszt transportu (data/zboza-dzien.json) ----------------------------------------------------------------
 # Świeżość każdej z pięciu części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠ — pole next pliku mówi, kiedy spodziewana jest publikacja.
 # Progi z testu wstecznego na modelu kalendarza publikacji i prawdziwych datach wierszy z nagrań 10–11.10.2026 (ws53/v341-zboza-dz/bt/bt_swiezosc.py, sprawdzenia
@@ -6867,6 +7054,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-ru. v353: Rosja (data/rosja.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in rosja_swiezosc(files.get('rosja')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c-gx. v349 (F6Z1): giełdy scentralizowane i DEX (data/gieldy.json, data/dex.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in gx_swiezosc(files.get('gieldy'), files.get('dex')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
@@ -7188,6 +7382,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['lng'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'gaz i LNG: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v353: Rosja — sprzeczności w pliku (❌), porównania handlu UE z danymi zgłoszonymi przez Rosję, cena uncji z rezerw i kopia złota (najwyżej ⚠️), z plików strony, bez zapytań
+    try:
+        Z['rosja'] = rosja_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['rosja'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Rosja: kontrola przerwana ({str(e)[:80]})')
     # 3g. v341 (F5Z3): zboża dziennie i koszt transportu — sprzeczności w pliku (❌), skoki, korelacje zmian miesięcznych z innymi danymi i tabela źródła (najwyżej ⚠️), z plików strony, bez zapytań
     try:
         Z['zboza-dzien'] = zboza_kontrola(files.get('zboza-dzien'), files, R)
@@ -7542,6 +7742,11 @@ def raport_md(R):
             L.append('- Gaz i LNG (z pliku strony): ' + (f'? kontrola przerwana ({lgz["blad"]})' if lgz.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(lgz['spojnosc'][:3]) + ' ❌ · ' if lgz.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in lgz.get('wiersze') or []) or '—') + '.')
+        rsz = Z.get('rosja')   # v353: Rosja — sprzeczności w pliku i porównania (iloraz handlu UE do danych zgłoszonych przez Rosję, cena uncji z rezerw, kopia złota); brak pliku = bez linii
+        if rsz:
+            L.append('- Rosja (z pliku strony): ' + (f'? kontrola przerwana ({rsz["blad"]})' if rsz.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(rsz['spojnosc'][:3]) + ' ❌ · ' if rsz.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in rsz.get('wiersze') or []) or '—') + '.')
         gdz = Z.get('gieldy-dex')   # v349: giełdy scentralizowane i DEX — sprzeczności w plikach i informacje (flagi skoku listy portfeli, znak przepływu, stosunek DEX do giełd); brak plików = bez linii
         if gdz:
             L.append('- Giełdy scentralizowane, DEX i kontrakty na łańcuchu (z plików strony): ' + (f'? kontrola przerwana ({gdz["blad"]})' if gdz.get('blad') else
