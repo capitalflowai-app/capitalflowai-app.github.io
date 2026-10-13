@@ -143,6 +143,7 @@ ZRODLA_META = {
     'metale': ('westmetall', 'shfe', 'cochilco'), 'metale_lme': 'westmetall', 'metale_sh': 'shfe', 'metale_shd': 'shfe', 'metale_shw': 'shfe', 'metale_cu': 'cochilco',
     'target': 'ecb', 'mica': 'esma',   # v355: salda TARGET (to samo źródło co kursy i M3 — liczba źródeł bez zmian) i rejestry MiCA (+1 źródło)
     'soma_sklad': 'ny-fed', 'eurosystem': 'ecb', 'hedge': 'ofr',   # v357: skład portfela Fed, pozycje bilansu Eurosystemu, fundusze hedgingowe — te same trzy instytucje co dotąd (NY Fed, EBC, OFR): liczba źródeł bez zmian
+    'etf_zapas': 'ishares',   # v360: zapas przepływów ETF krypto z plików emitenta (IBIT, ETHA) — ten sam wydawca co fundusze (iShares): liczba źródeł bez zmian
     # --- własne wyliczenia z innych plików (bez zapytań do sieci) ---
     'trendy': None, 'zloto-krypto': None,
 }
@@ -30394,15 +30395,22 @@ def main():
     etf_szybkie = etf_brakujace(prev_etf, _now_utc()) if (soso_key and prev_etf) else set()   # v279/v282: monety bez oczekiwanego dnia w swoim oknie
     if soso_key and prev_etf and fresh(etf_pelne, 55) and not (etf_szybkie and not fresh(prev_etf, ETF_SZYBKO_MIN)):
         save('etf', prev_etf); META['ok']['sosovalue'] = 'cached'; print('ETF: dane z', prev_etf.get('at'), '— młodsze niż 55 min, bez zapytań do SoSoValue')
+    elif soso_key and prev_etf and etf_blokada_swieza(prev_etf):
+        # v360: poprzedni przebieg: 403 u wszystkich monet (reguła hosta) — bez zapytań przez ETF_BLOK_MIN min od ostatniej próby; dane i ich wiek bez zmian
+        save('etf', prev_etf); META['ok']['sosovalue'] = False
+        META['errors'].append(f'SoSoValue: blokada HTTP 403 od {prev_etf["soso_blok"].get("od")} — kolejna próba najwcześniej {ETF_BLOK_MIN} min po ostatniej ({prev_etf["soso_blok"].get("ost")})')
+        print('ETF: blokada 403 — bez zapytań do źródła głównego, dane z', prev_etf.get('at'))
     elif soso_key:
         try:
             etf_tylko = etf_szybkie if (prev_etf and fresh(etf_pelne, 55)) else None   # v282: pełna budowa co godzinę; w oknie — tylko brakujące monety
             save('etf', build_etf(soso_key, cg_key, prev_etf, etf_tylko)); META['ok']['sosovalue'] = True
         except Exception as e:
             META['errors'].append(mask(f'SoSoValue: {e}')); META['ok']['sosovalue'] = False
-            if prev_etf: save('etf', prev_etf); print('SoSoValue zawiódł — zachowano poprzedni etf.json z', prev_etf.get('at'))
+            if prev_etf: save('etf', etf_znacznik_blokady(prev_etf, META['errors'], NOW)); print('SoSoValue zawiódł — zachowano poprzedni etf.json z', prev_etf.get('at'))   # v360: 403 u wszystkich monet = znacznik blokady
     else:
         META['errors'].append('brak SOSOVALUE_KEY'); META['ok']['sosovalue'] = False
+    # v360 (ETF_ZAPAS): zapas dziennych przepływów ETF krypto z plików emitenta (IBIT, ETHA) — data/etf-zapas.json; źródło główne zostaje pierwsze
+    META['ok']['etf_zapas'] = etf_zapas_czesc(SAVED.get('etf') or prev_etf)
     # DZIŚ (Finnhub, klucz właściciela) — decyzja właściciela 24.09 wieczór
     if fh_key:
         try:
@@ -31845,6 +31853,144 @@ def plyn_czesc(nazwa, etykieta, budowa, due, przed_min, po_min):
         META['errors'].append(mask(f'{etykieta}: {e}')[:200])
         if prev:
             save(nazwa, {**prev, 'proba': NOW})
+        return False
+
+
+# ===================== v360 (ETF_ZAPAS): zapas dziennych przepływów ETF krypto z plików emitenta + wstrzymanie po blokadzie 403 =====================
+# 13.10.2026 ok. 14:45 UTC główne źródło dziennych przepływów ETF krypto zaczęło odpowiadać HTTP 403 (wyzwanie Cloudflare „Attention Required” — ta sama strona także
+# dla zapytania bez klucza z innej sieci, więc to reguła hosta, a nie klucz ani limit). Zabezpieczeń nie obchodzimy. Dwie zmiany:
+#  (1) po przebiegu, w którym KAŻDA moneta dostała 403, plik etf.json dostaje znacznik 'soso_blok' {od, ost, n}, a kolejna próba dopiero po ETF_BLOK_MIN minutach od ostatniej
+#      (dawniej co przebieg, ok. 5 zapytań co 10 min do hosta, który i tak odmawia); sukces buduje plik od nowa — znacznika już nie ma. Pole 'at' pliku bez zmian (wiek danych prawdziwy).
+#  (2) data/etf-zapas.json: przepływ dnia D funduszy IBIT (BTC) i ETHA (ETH) z plików samych emitentów (hosty działające z GitHuba — te same pliki co kontrola dzienna i fundusze):
+#      (jednostki z wiersza D+1 − jednostki z wiersza D) × NAV z dnia D, tak jak w kontroli v130 (zgodne ze stroną co do 0,0 mln USD na 5 sesjach). To TYLKO część rynku: udział funduszu w
+#      aktywach ETF-ów monety liczony z etf.json (pole pct, z datą), SOL i XRP bez zapasu. Przepływ dnia D pojawia się po wierszu D+1 pliku, czyli około doby później niż u źródła głównego.
+#      Źródło główne zostaje pierwsze (strona pokazuje zapas tylko wtedy, gdy jest NOWSZY niż dane główne i główne milczy ponad 3 h). ARKB świadomie pominięty: jego plik ma jeden dzień,
+#      a zgodność jego wzoru ze stroną kontrola v355 dopiero zbiera (jeszcze bez porównania).
+ETF_BLOK_MIN = 55          # min — po 403 u wszystkich monet następna próba najwcześniej tyle po ostatniej (znacznik 'soso_blok' w etf.json)
+ETFZ_FUNDS = (('btc', 'IBIT', '333011'), ('eth', 'ETHA', '337614'))   # moneta w etf.json, symbol funduszu, numer pliku funduszu (jak EM_FUNDS w kontroli v130)
+ETFZ_ODSW_MIN = 360        # min — plik zapasu odświeżany co 6 h także przy sprawnym źródle głównym (żeby miał bieżący wiek i udział funduszu)
+ETFZ_AWARIA_MIN = 55       # min — gdy źródło główne zawiodło w tym przebiegu: co godzinę
+ETFZ_DNI = 30              # tyle ostatnich sesji przepływów w pliku
+ETFZ_NAV_SKOK = 30.0       # % — większy skok NAV między sąsiednimi wierszami = podział jednostek albo błąd pliku: dzień pominięty (jak EM_NAV_SKOK w kontroli)
+ETFZ_JEDN_SKOK = 25.0      # % — większa zmiana liczby jednostek w jednej sesji = błąd pliku: dzień pominięty
+ETFZ_PRZERWA = 5           # dni — następny wiersz dalej niż to = dzień pominięty (jak EM_PRZERWA w kontroli)
+ETFZ_TIMEOUT = 60          # s na plik (ok. 250 KB)
+ETFZ_PAUZA = 1.0           # s przerwy między dwoma plikami tego samego serwera
+_ETFZ_MONETA = re.compile(r'^SoSoValue (?:BTC|ETH|SOL|XRP): ')
+
+
+def etf_blok403(errors):
+    """v360: czy błędy tego przebiegu to wyłącznie 403 u wszystkich monet — SoSoValue BTC/ETH/SOL/XRP: HTTP Error 403 (inny kod u którejkolwiek monety albo brak błędów monet = nie)."""
+    coin = [e for e in errors if isinstance(e, str) and _ETFZ_MONETA.match(e)]
+    return bool(coin) and all('HTTP Error 403' in e for e in coin)
+
+
+def etf_znacznik_blokady(prev, errors, now_iso):
+    """v360: poprzedni etf.json (jego 'at' bez zmian) ze znacznikiem blokady 'soso_blok' {od, ost, n}, gdy ten przebieg był wyłącznie 403; inaczej ten sam obiekt bez znacznika
+    (inny błąd to nie blokada — nie wstrzymujemy kolejnych prób). Nie zmienia przekazanego słownika."""
+    if not isinstance(prev, dict):
+        return prev
+    if not etf_blok403(errors):
+        if 'soso_blok' not in prev:
+            return prev
+        return {k: v for k, v in prev.items() if k != 'soso_blok'}
+    b = prev.get('soso_blok') if isinstance(prev.get('soso_blok'), dict) else {}
+    od = b.get('od') if isinstance(b.get('od'), str) and _ix_dt(b.get('od')) is not None else now_iso
+    n = b.get('n') if isinstance(b.get('n'), int) and not isinstance(b.get('n'), bool) and b['n'] >= 0 else 0
+    return {**prev, 'soso_blok': {'od': od, 'ost': now_iso, 'n': n + 1}}
+
+
+def etf_blokada_swieza(prev, now=None):
+    """v360: czy poprzedni etf.json ma znacznik blokady z ostatnią próbą młodszą niż ETF_BLOK_MIN min (wtedy bez zapytań do źródła głównego). Zły znacznik = nie."""
+    b = prev.get('soso_blok') if isinstance(prev, dict) else None
+    t = _ix_dt(b.get('ost')) if isinstance(b, dict) and isinstance(b.get('ost'), str) else None
+    if t is None:
+        return False
+    s = ((now or _now_utc()) - t).total_seconds()
+    return 0 <= s < ETF_BLOK_MIN * 60
+
+
+def etfz_przeplywy(h):
+    """v360: historia funduszu [[data, NAV, jednostki]] rosnąco → [[ts dnia D, przepływ mln USD]] — (jednostki z wiersza D+1 − jednostki z wiersza D) × NAV z D (jak kontrola v130:
+    wiersz „As Of” D+1 zawiera jednostki utworzone w sesji D). Para pominięta: wiersze dalej niż ETFZ_PRZERWA dni, liczba nie dodatnia, skok NAV ponad ETFZ_NAV_SKOK % (podział
+    jednostek) albo zmiana jednostek ponad ETFZ_JEDN_SKOK % w sesji. Ostatnie ETFZ_DNI sesji."""
+    out = []
+    for a, b in zip(h, h[1:]):
+        try:
+            da, db = datetime.date.fromisoformat(a[0]), datetime.date.fromisoformat(b[0])
+            n0, n1, u0, u1 = float(a[1]), float(b[1]), float(a[2]), float(b[2])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if not 0 < (db - da).days <= ETFZ_PRZERWA or min(n0, n1, u0, u1) <= 0 or not all(_etf_math.isfinite(x) for x in (n0, n1, u0, u1)):
+            continue
+        if abs(n1 / n0 - 1) * 100 > ETFZ_NAV_SKOK or abs(u1 / u0 - 1) * 100 > ETFZ_JEDN_SKOK:
+            continue
+        out.append([ts(a[0]), round((u1 - u0) * n0 / 1e6, 6)])
+    return out[-ETFZ_DNI:]
+
+
+def etfz_udzial(etf, coin, tick):
+    """v360: udział funduszu w aktywach ETF-ów monety (%, jedno miejsce) z etf.json: aktywa funduszu z listy / aktywa monety; (udział, dzień danych) albo (None, None)
+    — moneta oznaczona 'stale', brak funduszu na liście albo brak aktywów = brak (nie zero)."""
+    a = ((etf or {}).get('assets') or {}).get(coin) if isinstance(etf, dict) else None
+    if not isinstance(a, dict) or a.get('stale') or not isinstance(a.get('asof'), str):
+        return None, None
+    ok = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and _etf_math.isfinite(v) and v > 0  # noqa: E731
+    f = next((x for x in (a.get('funds') if isinstance(a.get('funds'), list) else []) if isinstance(x, dict) and x.get('t') == tick), None)
+    if not f or not ok(f.get('aum')) or not ok(a.get('aum')) or f['aum'] > a['aum'] * 1.001:
+        return None, None
+    return round(f['aum'] / a['aum'] * 100, 1), a['asof']
+
+
+def build_etf_zapas(prev=None, etf=None):
+    """v360: data/etf-zapas.json {v, at, src, coins: {btc|eth: {t, asof, row_to, day, d1, pct, pct_asof, at}}, ok: {moneta: bool}}. Plik funduszu, który zawiódł, zostaje z poprzedniego
+    pliku (własne 'at'), błąd do META['errors']; wszystkie zawiodły = wyjątek (main zostawia poprzedni plik)."""
+    pc = prev.get('coins') if isinstance(prev, dict) and prev.get('v') == 1 and isinstance(prev.get('coins'), dict) else {}
+    coins, okc = {}, {}
+    for i, (coin, tick, pid) in enumerate(ETFZ_FUNDS):
+        if i:
+            time.sleep(ETFZ_PAUZA)
+        try:
+            h = parse_ishares_hist(get_bytes(FUND_ISH_DOC.format(pid=pid), timeout=ETFZ_TIMEOUT))
+            if h[-1][0] > (_now_utc().date() + datetime.timedelta(days=1)).isoformat():
+                raise ValueError('ostatni wiersz pliku z przyszłości')
+            fl = etfz_przeplywy(h)
+            if not fl:
+                raise ValueError('brak przepływów w pliku')
+            old = pc.get(coin) if isinstance(pc.get(coin), dict) and pc[coin].get('t') == tick else {}
+            pct, pct_d = etfz_udzial(etf, coin, tick)
+            if pct is None and isinstance(old.get('pct'), (int, float)) and not isinstance(old.get('pct'), bool):
+                pct, pct_d = old['pct'], old.get('pct_asof')   # udział z poprzedniego pliku — z własną datą
+            coins[coin] = {'t': tick, 'asof': datetime.datetime.fromtimestamp(fl[-1][0], datetime.timezone.utc).date().isoformat(), 'row_to': h[-1][0], 'day': fl,
+                           'd1': fl[-1][1], 'pct': pct, 'pct_asof': pct_d, 'at': NOW}
+            okc[coin] = True
+        except Exception as e:   # noqa — jeden fundusz nie psuje drugiego
+            META['errors'].append(mask(f'ETF zapas {tick}: {e}')[:200])
+            okc[coin] = False
+            if pc.get(coin):
+                coins[coin] = pc[coin]
+    if not any(okc.values()):
+        raise RuntimeError('pliki funduszy niedostępne')
+    return {'v': 1, 'at': NOW, 'src': 'pliki emitentów funduszy (liczba jednostek × cena jednostki)', 'coins': coins, 'ok': okc}
+
+
+def etf_zapas_czesc(etf=None):
+    """v360: część przebiegu → wartość dla META['ok'] (True = zbudowana w całości, 'cached' = poprzedni plik wystarcza, False = awaria całości albo któregoś funduszu).
+    Odświeżenie co ETFZ_ODSW_MIN min, a gdy źródło główne zawiodło w tym przebiegu — co ETFZ_AWARIA_MIN min; nieudana próba przesuwa następną (pole 'proba'), plik zostaje."""
+    prev = previous('etf-zapas')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == 1 else None
+    prog = ETFZ_AWARIA_MIN if META['ok'].get('sosovalue') is False else ETFZ_ODSW_MIN
+    if prev and (fresh(prev, prog) or fresh({'at': prev.get('proba')}, prog)):
+        save('etf-zapas', prev)
+        return 'cached'
+    try:
+        obj = build_etf_zapas(prev, etf)
+        save('etf-zapas', obj)
+        return all(obj['ok'].values())
+    except Exception as e:
+        META['errors'].append(mask(f'ETF zapas: {e}')[:200])
+        if prev:
+            save('etf-zapas', {**prev, 'proba': NOW})
         return False
 
 

@@ -6976,6 +6976,8 @@ PLIKI.insert(PLIKI.index('krypto-dzien'), 'target')   # przed plikami krypto dzi
 LIMIT_MIN['target'] = 48 * 60   # zapis co przebieg (a sprawdzenie źródła raz na dobę) — wiek pliku; wiek miesiąca danych ocenia wiersz świeżości
 PLIKI.insert(PLIKI.index('krypto-dzien'), 'mica')
 LIMIT_MIN['mica'] = 48 * 60
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'etf-zapas')   # v360: zapas przepływów ETF krypto z plików emitenta — przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['etf-zapas'] = 12 * 60   # odświeżany co 6 h (co godzinę, gdy źródło główne ETF milczy); wiek dnia danych ocenia wiersz „ETF krypto” w świeżości
 AW_BEZ_BLEDU.update({'target': 'TARGET (EBC) — część z błędem zostaje z datą (v355); wiek danych w wierszu świeżości',
                      'mica': 'rejestry MiCA — część z błędem zostaje z datą (v355); wiek danych w wierszach świeżości'})
 TG_K_ETYKIETA = 'TARGET: salda krajów strefy euro (EBC, miesięcznie)'

@@ -25418,3 +25418,104 @@ test('v359: słownik w czystym JSON po linii for, 10 języków, te same klucze i
   for (const lg of LG) for (const k of keys) assert.ok(!/\bESMA\b|CoinGecko|DefiLlama|Llama|CoinMarketCap|Coinglass|Amberdata|Tiingo/.test(D[lg][k]), 'zero nazw dostawców: ' + lg + ' ' + k);
   for (const lg of LG) assert.ok(D[lg]['cr359.oi.not4'].includes('Hyperliquid') && D[lg]['cr359.lev.hl'].includes('Hyperliquid') && D[lg]['cr359.lev.dr'].includes('Deribit'), lg + ': nazwy giełd (przedmiot danych) zostają');
 });
+
+/* ===================== v360 (ETF_ZAPAS): panel ETF, gdy główne źródło przepływów milczy — zapas z plików funduszy (IBIT, ETHA) ===================== */
+const v360 = (() => {
+  const P = v96src.tFor('pl'), l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const fmt = html.slice(html.indexOf('const etfM=v=>{'), html.indexOf('/* ---------- render ---------- */'));   // etfM, etfA, etfP, etfCls, etfBars — prawdziwe funkcje strony
+  const dl = html.slice(html.indexOf('function dayLoc(d){'), html.indexOf('\n', html.indexOf('function dayLoc(d){')));
+  const zap = html.slice(html.indexOf('function etfZapHtml(D,kompakt){'), html.indexOf('/* v57: bilans przepływu kapitału'));
+  const mk = (ETF, lang) => new Function('ETF', 't', 'escH', 'LOCALE', 'LANG', 'gAgeNote', 'cCoins', fmt + '\n' + dl + '\n' + zap + '\nreturn etfZapHtml;')(
+    ETF, lang ? v96src.tFor(lang) : P, v96src.escH, LOC, lang || 'pl', d => ' · wiek(' + d + ')', s => '<i data-c="' + s.join() + '"></i>');
+  const D = () => ({asof: '2026-10-12', assets: {btc: {sym: 'BTC', asof: '2026-10-12'}, eth: {sym: 'ETH', asof: '2026-10-12'}}});
+  const day = (v, n) => { const o = []; for (let i = 0; i < (n || 5); i++) o.push([1790899200 + i * 86400, i === (n || 5) - 1 ? v : 10 * (i % 2 ? -1 : 1)]); return o; };
+  const Z = () => ({v: 1, at: '2026-10-14T20:10:00+00:00', coins: {
+    btc: {t: 'IBIT', asof: '2026-10-13', row_to: '2026-10-14', day: day(-65.401), d1: -65.401, pct: 62.6, pct_asof: '2026-10-12'},
+    eth: {t: 'ETHA', asof: '2026-10-12', row_to: '2026-10-13', day: day(-75), d1: -75, pct: 54.7, pct_asof: '2026-10-12'}}});
+  const META = () => ({at: '2026-10-14T20:10:00+00:00', ok: {sosovalue: false}, awarie: {sosovalue: {od: '2026-10-13T14:44:57+00:00', ost: '2026-10-14T20:10:00+00:00', n: 99, do: null}}});
+  return {P, mk, D, Z, META, LOC};
+})();
+
+test('v360: zapas ETF — wiersz tylko dla monety, której zapas jest NOWSZY niż dane główne; kwota z kolorem pokazanej liczby, udział funduszu, data i wiek, słupki, notka o części rynku', () => {
+  const ETF = {zap: v360.Z(), meta: v360.META()}, f = v360.mk(ETF), h = f(v360.D());
+  assert.ok(h.startsWith('<div class="etfz">') && h.includes('<b>Zapas: część przepływów z plików funduszy</b>'), 'nagłówek');
+  assert.ok(/Główne źródło dziennych przepływów nie odpowiada od \d{1,2}\.\d{2}\.\d{4}, \d{1,2}:\d{2}\. Pokazane są ostatnie jego dane — z 12\.10\.2026 · wiek\(2026-10-12\)\./.test(h), h.slice(0, 500));
+  assert.equal((h.match(/class="pnote etfz-r"/g) || []).length, 1, 'ETH: zapas z tego samego dnia co dane główne — bez wiersza');
+  assert.ok(h.includes('<b>BTC</b> · fundusz IBIT (63% aktywów ETF-ów tej monety): <b class="mono neg">−65 mln USD</b> · za sesję z 13.10.2026 · wiek(2026-10-13)'), h);
+  assert.ok(!h.includes('ETHA') && !h.includes('<b>ETH</b>'), 'bez ETH');
+  assert.ok(h.includes('<svg class="etfbars"') && h.includes('Dla SOL i XRP zapasu nie ma') && h.includes('To tylko część rynku, nie suma wszystkich funduszy') && h.includes('Gdy źródło główne wróci, znów ono jest pierwsze'), 'słupki i notka');
+  assert.ok(!/SoSoValue|iShares|BlackRock|ishares|NaN|undefined|null/.test(h), 'bez nazw dostawców i napisów-błędów');
+  /* prawy panel CRYPTO: bez słupków i bez notki */
+  const k = f(v360.D(), true);
+  assert.ok(k.includes('fundusz IBIT') && !k.includes('<svg') && !k.includes('Dla SOL i XRP') && !k.includes('To tylko część rynku'), k);
+});
+
+test('v360: zapas ETF — kolor ze znaku POKAZANEJ kwoty (zielony, czerwony, żółty dla „0”; „<0,1” z widocznym znakiem), obie monety, tylko dni nowsze, brak udziału = „—”, dane z pliku escapowane', () => {
+  const run = (v, mut) => { const z = v360.Z(); z.coins.btc.day = [[1790899200, v]]; z.coins.btc.asof = '2026-10-13'; if (mut) mut(z); const ETF = {zap: z, meta: v360.META()}; return v360.mk(ETF)(v360.D()); };
+  assert.ok(run(22.38).includes('<b class="mono pos">+22 mln USD</b>'));
+  assert.ok(run(-0.03).includes('<b class="mono neg">−<0,1 mln USD</b>') && run(0.03).includes('<b class="mono pos">+<0,1 mln USD</b>'), 'poniżej 0,1 mln — znak jest widoczny, więc kolor ze znaku (jak w tabeli ETF): ' + run(-0.03).slice(-300));
+  assert.ok(run(0).includes('<b class="mono neu">0 mln USD</b>'), 'zero żółte');
+  assert.ok(run(1234.5).includes('<b class="mono pos">+1,23 mld USD</b>'), 'mld po zaokrągleniu');
+  const both = run(22.38, z => { z.coins.eth.asof = '2026-10-13'; z.coins.eth.day = [[1790899200, -75.07]]; });
+  assert.equal((both.match(/class="pnote etfz-r"/g) || []).length, 2); assert.ok(both.includes('fundusz ETHA (55% aktywów ETF-ów tej monety): <b class="mono neg">−75 mln USD</b>'), both);
+  assert.ok(run(5, z => { delete z.coins.btc.pct; }).includes('fundusz IBIT (—% aktywów') || run(5, z => { delete z.coins.btc.pct; }).includes('fundusz IBIT (— aktywów'), 'brak udziału = „—”, nie 0%');
+  assert.ok(!run(5, z => { z.coins.btc.t = '<img src=x>'; }).includes('<img src=x>'), 'escapowanie');
+  for (const bad of [null, undefined, NaN, 'x', Infinity]) assert.ok(!/etfz-r/.test(run(bad)), 'zła kwota — bez wiersza: ' + bad);
+  assert.ok(!/etfz-r/.test(run(5, z => { z.coins.btc.asof = '2026-10-12'; })), 'dzień nie nowszy niż główny — bez wiersza');
+  assert.ok(!/etfz-r/.test(run(5, z => { z.coins.btc.day = []; })), 'pusta lista dni');
+});
+
+test('v360: zapas ETF — bez nowszej sesji: tylko zdanie o źródle głównym i „zapas nie ma jeszcze nowszej sesji”; bez pliku zapasu samo zdanie; bez ETF.zap pusto (panel jak dotąd)', () => {
+  const z = v360.Z(); z.coins.btc.asof = '2026-10-12';
+  const h = v360.mk({zap: z, meta: v360.META()})(v360.D());
+  assert.ok(h.includes('Zapas z plików funduszy nie ma jeszcze nowszej sesji niż dane główne.') && !/etfz-r/.test(h), h);
+  const h0 = v360.mk({zap: {v: 0}, meta: v360.META()})(v360.D());
+  assert.ok(h0.includes('Główne źródło dziennych przepływów nie odpowiada od') && !h0.includes('nowszej sesji') && !/etfz-r/.test(h0), h0);
+  const m = v360.META(); delete m.awarie;
+  const h1 = v360.mk({zap: {v: 0}, meta: m})(v360.D());
+  assert.ok(h1.includes('Główne źródło dziennych przepływów nie odpowiada. Pokazane są ostatnie jego dane — z 12.10.2026'), 'bez czasu awarii w meta — zdanie bez „od …”: ' + h1);
+  assert.equal(v360.mk({meta: v360.META()})(v360.D()), '', 'bez ETF.zap pusto'); assert.equal(v360.mk({zap: null})(v360.D()), '');
+  assert.equal(v360.mk({zap: v360.Z()})(null), '', 'bez danych głównych pusto');
+});
+
+test('v360: zapas ETF — okablowanie: panel GLOBAL pod tabelą monet, prawy panel CRYPTO w wersji skróconej, plik wczytywany tylko gdy źródło główne milczy ponad 3 h i meta zgłasza jego błąd', () => {
+  assert.ok(html.includes("</tbody></table></div>\n      ${typeof etfZapHtml==='function'?etfZapHtml(D):''}${fundTables}"), 'GLOBAL: po tabeli monet, przed tabelami funduszy');
+  assert.ok(html.includes("${typeof etfZapHtml==='function'?etfZapHtml(D,true):''}\n      <p class=\"pnote\" style=\"margin:8px 0 0\">${t('etf.k.cum')}"), 'CRYPTO: przed sumami');
+  assert.ok(html.includes('.etfz{') && html.includes('.etfz-r{display:block'), 'styl');
+  const src = v312.cut('function etfLoad(cb){', '\nfunction etfAuto(){');
+  const mk = (meta, atAgoH, zapFile) => {
+    const ev = [], ETF = {mcap: {}}, at = new Date(Date.now() - atAgoH * 3600e3).toISOString();
+    const files = {etf: {at, mcap: {btc: 1}, assets: {btc: {day: [[1, 2]]}}}, meta, 'etf-zapas': zapFile};
+    const F = new Function('srvJSON', 'ETF', 'renderEtf', 'renderWhy', 'etfKey', 'etfFromSnap', 'LOCALE', 'LANG', src + '\nreturn etfLoad;')(
+      n => { ev.push('srvJSON(' + n + ')'); return v312.SP.resolve(files[n] === undefined ? null : files[n]); }, ETF, () => ev.push('renderEtf'), () => ev.push('renderWhy'), () => '', () => ({snap: true}), {pl: 'pl-PL'}, 'pl');
+    F(); return {ev, ETF};
+  };
+  const bad = {at: 'x', ok: {sosovalue: false}}, z = {v: 1, coins: {}};
+  const A = mk(bad, 5, z); assert.ok(A.ev.includes('srvJSON(etf-zapas)') && A.ETF.stale === true && A.ETF.zap && A.ETF.zap.v === 1, 'milczy 5 h + błąd w meta: plik zapasu wczytany');
+  const B = mk(bad, 1, z); assert.ok(!B.ev.includes('srvJSON(etf-zapas)') && !B.ETF.zap, 'dane główne młodsze niż 3 h — bez zapasu (nie straszymy chwilowym błędem)');
+  const C = mk({at: 'x', ok: {sosovalue: true}}, 5, z); assert.ok(!C.ev.includes('srvJSON(etf-zapas)') && !C.ETF.zap, 'meta bez błędu źródła głównego — bez zapasu');
+  const E = mk(bad, 5, null); assert.deepEqual(E.ETF.zap, {v: 0}, 'brak pliku zapasu (404) — znacznik „brak”: samo zdanie o źródle głównym');
+  const F2 = mk(bad, 5, {v: 7, coins: {}}); assert.deepEqual(F2.ETF.zap, {v: 0}, 'nieznana wersja pliku — jak brak');
+  const G = mk(null, 5, z); assert.ok(!G.ev.includes('srvJSON(etf-zapas)'), 'bez pliku meta — bez zapasu');
+});
+
+test('v360: słownik ez360.* w 10 językach — te same znaczniki co po polsku, prawdziwe tłumaczenia, bez nazw dostawców; numer słownika wolny, jedna linia nakładania', () => {
+  const I = v143Final(html), KEYS = ['ez360.h', 'ez360.down', 'ez360.down0', 'ez360.row', 'ez360.for', 'ez360.wait', 'ez360.note', 'ez360.none'];
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) for (const k of KEYS) {
+    assert.ok(typeof I[l][k] === 'string' && I[l][k].length > 5, l + ' ' + k);
+    const ph = s => (s.match(/\{\w\}/g) || []).sort().join(); assert.equal(ph(I[l][k]), ph(I.pl[k]), l + ' ' + k + ': te same znaczniki co po polsku');
+    if (l !== 'pl') assert.notEqual(I[l][k], I.pl[k], l + ' ' + k + ': prawdziwe tłumaczenie');
+    assert.ok(!/SoSoValue|iShares|BlackRock|Cloudflare/i.test(I[l][k]), 'bez nazw dostawców: ' + l + ' ' + k);
+  }
+  const mm = [...html.matchAll(/^const EXTRA(\d+)=\{"pl":\{"ez360\.h"/gm)];
+  assert.equal(mm.length, 1, 'jeden słownik v360'); const n = mm[0][1];
+  assert.equal([...html.matchAll(new RegExp('^for\\(const l in EXTRA' + n + '\\)if\\(I18N\\[l\\]\\)Object\\.assign\\(I18N\\[l\\],EXTRA' + n + '\\[l\\]\\);$', 'gm'))].length, 1, 'jedna linia nakładania');
+  /* wszystkie klucze ez360.* użyte w kodzie istnieją w słowniku */
+  const used = new Set([...html.slice(html.indexOf('function etfZapHtml(D,kompakt){'), html.indexOf('/* v57: bilans przepływu kapitału')).matchAll(/'(ez360\.[a-z0-9]+)'/g)].map(x => x[1]));
+  assert.deepEqual([...used].sort(), [...KEYS].sort(), 'kod używa dokładnie tych kluczy');
+});
+
+test('v360: zapas ETF — telefon 390 px: wiersz to zwykły akapit (zawija się), brak sztywnych szerokości poza słupkami 120 px, bez poziomego przewijania', () => {
+  const css = html.slice(html.indexOf('.etfz{'), html.indexOf('\n', html.indexOf('.etfz{')));
+  assert.ok(/\.etfz\{[^}]*margin:/.test(css) && /\.etfz-r\{display:block/.test(css) && !/\bwidth:\s*\d{3,}px/.test(css) && !/white-space:nowrap/.test(css) && !/min-width/.test(css), css);
+});
