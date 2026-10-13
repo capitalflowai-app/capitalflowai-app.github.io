@@ -25153,3 +25153,132 @@ test('v357 ZRODLA3: słownik w czystym JSON po linii for słownika, 10 języków
     '@media (max-width:620px){#inst .lq-bars .secrow{grid-template-columns:minmax(0,3fr) minmax(28px,1fr) auto}#inst .lq-spl{flex-wrap:wrap}}']) assert.ok(html.includes(r), r);
   assert.ok(!/class="[^"]*\bneg\b[^"]*"[^>]*>\s*—/.test(lq357.sp(lq357.mk('pl', lq357.files()).api.lqBlock('soma'))), 'brak liczby nie dostaje koloru kierunku');
 });
+
+/* ===================== v358 (audyt G11: GLOBAL) — zapis dat Aktywa, panel sald TARGET, „Ostatnia aktualizacja”, teksty (10 języków). Testy bez zegara i bez sieci. ===================== */
+const v358 = (() => {
+  const {cut, LOC, tk, num} = v336, LG = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const dictOf = key => {   /* słownik (JSON) z linią, w której występuje klucz — wszystkie 10 języków */
+    const i = html.indexOf('"' + key + '":'), ls = html.lastIndexOf('\n', i) + 1, le = html.indexOf('\n', i), m = /^const (EXTRA\d+)=(\{.*\});$/.exec(html.slice(ls, le));
+    assert.ok(m, 'słownik z kluczem ' + key); assert.equal(html.split('"' + key + '":').length, 11, key + ': dokładnie 10 języków'); return {name: m[1], D: JSON.parse(m[2])};
+  };
+  const NAZWY = /NY Fed|New York|ECB|EBC|EZB|BCE\b|ЕЦБ|欧洲央行|OFR|FINRA|Eurostat|Bundesbank|FRED|St\. Louis|IMF|BIS\b|CoinGecko|DefiLlama|Binance|Coinbase|Yahoo|Stooq|TradingView/;
+  /* panel sald TARGET: kod wycinka (TG, tgOk, tgLoad, tgRows, tgbPanel) z zaślepką pobierania — plik podany wprost, bez sieci */
+  const tgCode = cut('const TG={j:null', 'const tgMld=');
+  const lista = [['DE', 1071765.29, 1037116.1], ['ES', -442554.69, -430474.26], ['IT', -344949.42, -331168.67], ['LU', 195149.05, 210952.65], ['FR', -181336.52, -182480.77], ['AT', -123507.04, -113780.32],
+    ['BE', 106577.36, 119874.98], ['GR', -105423.93, -106788.65], ['PT', -89435.76, -88985.05], ['IE', 81764.53, 85068.88], ['NL', 62220.09, 36451.57], ['BG', 22198.39, 21264.66], ['LT', 16856.98, 17397.2],
+    ['FI', 13665.3, 10311.23], ['CY', 13541.15, 13193.48], ['SI', 13082.21, 12919.67], ['MT', 3276.47, 2418.57], ['EE', 2002.43, 1790.52], ['LV', -5671.19, -6218.89], ['SK', -6179.53, -5440.7], ['HR', -9939.62, -10447.57]];
+  const ym = k => { const d = new Date(Date.UTC(2025, 7 + k, 1)); return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0'); };   /* k = 0…12: 2025-08 … 2026-08 */
+  const plik = () => { const k = {}; for (const [c, v, prev] of lista) { const s = []; for (let i = 0; i <= 12; i++) s.push([ym(i), i === 12 ? v : i === 11 ? prev : i === 0 ? Math.round(v * 90) / 100 : Math.round((prev + (v - prev) * i / 12) * 100) / 100]); k[c] = c === 'BG' ? s.slice(5) : s; }
+    return {v: 1, at: '2026-10-13T15:00:00+00:00', asof: '2026-08', k, st: {}}; };
+  const mkTg = (odp) => { const log = {render: 0, ask: 0};
+    const F = new Function('srvJSON', 'renderInst', tgCode + '\nreturn {TG, TG_ISO, tgbPanel, tgbRr};')(() => { log.ask++; return {then: (ok, bad) => { if (odp === null) bad(new Error('x')); else ok(odp); }}; }, () => { log.render++; });
+    return {F, log}; };
+  const inst = (INSTd, tgbPanel, TG_ISO) => { const N = num('pl'), helpers = cut('function instMld(mln,dec){', '\nconst FRED={data:null};') + '\n' + cut('function instRow(label,value,exact,note){', '\nfunction instFoot(') + '\n' + v336.line('const engNum=');
+    const ri = cut('function renderInst(){', '\n/* v96-gt: ikony w tabelach GLOBAL'), el = {innerHTML: '', hidden: true};
+    new Function('$', 'INST', 'FRED', 'REZ', 'COF', 'engDate', 'spBlock', 'zagBlock', 'fredCustKpis', 'fredCustTable', 'INST_TGB', 'bopSum', 'bopMld', 'rezHtml', 'cofHtml', 't', 'escH', 'instFoot', 'nfmt', 'LANG', 'LOCALE', 'tgbPanel', 'bilCty', 'TG_ISO',
+      helpers + '\n' + ri + '\nrenderInst();')(q => (q === '#inst' ? el : null), {data: INSTd, at: INSTd.at}, {data: null}, {data: null}, {data: null}, s => 'D(' + s + ')', () => '', () => '', () => '', () => '',
+      ['DE', 'IT', 'ES', 'NL', 'FR', 'IE', 'PT', 'GR', 'LU'], () => null, v => String(v), () => '', () => '', tk, s => String(s), d => 'F(' + d + ')', N.nfmt, 'pl', LOC, tgbPanel, c => 'N:' + c, TG_ISO || {});
+    return el.innerHTML; };
+  return {cut, LOC, tk, num, LG, dictOf, NAZWY, tgCode, lista, plik, mkTg, inst};
+})();
+
+test('v358 (G11-1): Aktywa — dzień stablecoinów i szacunku akcji jak w sąsiednich wierszach („12 paź 2026”), nie RRRR-MM-DD; wiek zostaje; bez gFreshTxt (wycinki innych testów) — jak dotąd', () => {
+  const NOW = Date.parse('2026-10-13T10:00:00Z'), now0 = Date.now; Date.now = () => NOW;
+  try {
+    const P = v96src.tFor('pl'), e0 = html.indexOf('const engDate=iso=>'), engDate = new Function('LOCALE', 'LANG', html.slice(e0, html.indexOf('\n', e0)) + '\nreturn engDate;')(v358.LOC, 'pl');
+    const fgi = html.slice(html.indexOf('const fgIso=s=>'), html.indexOf('\n', html.indexOf('const fgIso=s=>'))), fgl = html.slice(html.indexOf('function fgLong(iso){'), html.indexOf('\n', html.indexOf('function fgLong(iso){')));
+    const GF = new Function('t', 'engDate', 'LOCALE', 'LANG', fgi + '\n' + fgl + '\n' + html.slice(html.indexOf('function gAgeNote(fresh){'), html.indexOf('\nfunction gRenderKpi(){')) + '\nreturn {gAgeNote, gFreshTxt};')(P, engDate, v358.LOC, 'pl');
+    const GL = {fx: null, irlt: {}, stab: null, est: {d: '2026-10-12', r: {eur: {v: 120}, jpn: {v: 60}, usa: {v: 250}}}};
+    const KP = [{k: 'g.k.stab', v: 313, d: 1.26, fresh: '2026-10-12'}, {k: 'g.k.eq', v: 430, fresh: '2026-10-09'}];
+    const g = pgEnv({GLIVE: GL, gStabDelta: () => [3.9, 1.26, 313], GKPI: KP, gAgeNote: GF.gAgeNote, gFreshTxt: GF.gFreshTxt, t: P}); g.f.renderAssets();
+    const row = k => g.el.innerHTML.split('<tr>').find(r => r.includes(P(k))) || '';
+    assert.ok(row('as.stab').includes('12 paź 2026') && row('as.stab').includes(' · dane sprzed 1 dnia'), 'stablecoiny: ' + row('as.stab'));
+    assert.ok(row('as.eq').includes('szacunek wartości na 12 paź 2026'), 'akcje: ' + row('as.eq'));
+    assert.ok(!/\d{4}-\d{2}-\d{2}/.test(g.el.innerHTML), 'w tabeli Aktywa nie ma dnia w zapisie RRRR-MM-DD: ' + (g.el.innerHTML.match(/.{0,50}\d{4}-\d{2}-\d{2}.{0,20}/) || [''])[0]);
+    const g0 = pgEnv({GLIVE: GL, gStabDelta: () => [3.9, 1.26, 313], GKPI: KP}); g0.f.renderAssets();
+    assert.ok(g0.el.innerHTML.includes('pg.daily · 2026-10-12') && g0.el.innerHTML.includes('a293g.k.est{"d":"2026-10-12"}'), 'bez gFreshTxt — jak dotąd (surowy dzień)');
+    /* gEqNote (podpis kafla „Rynki akcji”): dzień szacunku w zapisie czytelnika */
+    const n0 = html.indexOf('function gEqNote(EQ,fr){'), nSrc = html.slice(n0, html.indexOf('\nfunction renderAssets(', n0));
+    const note2 = new Function('t', 'escH', 'gFreshTxt', nSrc + '\nreturn gEqNote;')((k, o) => k + (o ? JSON.stringify(o) : ''), v96src.escH, GF.gFreshTxt);
+    assert.equal(note2({n: 11, v: 1, est: '2026-10-08'}, '2026-10-12'), 'a293g.k.est{"d":"8 paź 2026"}', 'podpis kafla: dzień szacunku jak w tabelach');
+    assert.equal(note2({n: 11, v: 1, est: '2026-10-12'}, '2026-10-12T20:00:00.000Z'), 'a293g.k.est0', 'ten sam dzień — „szacunek wartości” bez drugiego zapisu dnia');
+    assert.ok(html.includes("t('a293g.k.est',{d:escH(typeof gFreshTxt==='function'?gFreshTxt(EQ.est):EQ.est)})") && !html.includes("t('a293g.k.est',{d:escH(EQ.est)})"), 'kod: oba miejsca przez gFreshTxt');
+    assert.ok(html.includes("(sdD?escH(typeof gFreshTxt==='function'?gFreshTxt(sdD):sdD)+gAgeNote(sdD):noD())"), 'kod: dzień stablecoinów przez gFreshTxt');
+  } finally { Date.now = now0; }
+});
+
+test('v358 (G11-2): panel sald TARGET — 10 krajów o największych saldach na wierzchu (z Austrią i Belgią), reszta w rozwinięciu; do wczytania pliku i przy błędzie — 9 krajów z uwagą „wybrane kraje”', () => {
+  const I = {at: '2026-10-10T20:00:00+00:00', tgb: {asof: '2026-08', q: {DE: [['2026-07', 1037116.1], ['2026-08', 1071765.29]], IT: [['2026-07', -331168.67], ['2026-08', -344949.42]]}}};
+  const A = v358.mkTg(v358.plik()), P = A.F.tgbPanel();
+  assert.ok(P && P.asof === '2026-08', 'plik sald TARGET wczytany');
+  assert.deepEqual(P.top.map(r => r.c), ['DE', 'LU', 'BE', 'IE', 'PT', 'GR', 'AT', 'FR', 'IT', 'ES'], '10 największych (wartość bezwzględna), od wierzyciela do dłużnika — jest Austria i Belgia');
+  assert.deepEqual(P.rest.map(r => r.c), ['NL', 'BG', 'LT', 'FI', 'CY', 'SI', 'MT', 'EE', 'LV', 'SK', 'HR'], 'pozostałe 11, tak samo posortowane');
+  assert.equal(P.top[0].last[1], 1071765.29); assert.equal(P.top[0].last[0], '2026-08');
+  assert.ok(Math.abs(P.top[0].d12 - 1071765.29 * 0.1) < 0.02, 'zmiana w 12 miesięcy to różnica względem sierpnia 2025 (tu 90% poziomu), nie miesiąca wcześniej: ' + P.top[0].d12); assert.ok(P.top.every(r => r.d12 != null) && P.rest.find(r => r.c === 'BG').d12 == null, 'BG ma za krótką historię — brak zmiany (null), nie zero');
+  assert.equal(A.log.ask, 1, 'jedno pobranie'); assert.ok(A.log.render >= 1, 'po wczytaniu panel jest przerysowany');
+  A.F.tgbPanel(); assert.equal(A.log.ask, 1, 'plik świeży (< 30 min) — bez drugiego pobrania');
+  const h = v358.inst(Object.assign({}, I, {tgb: Object.assign({}, I.tgb, {asof: '2026-07'})}), A.F.tgbPanel, A.F.TG_ISO), body = h.slice(h.indexOf('inst.tgb.t'), h.indexOf('inst.tgb.unit'));
+  assert.ok(!body.includes('inst.tgb.sel'), 'z pełną listą — bez uwagi o wybranych krajach');
+  const top = body.slice(0, body.indexOf('<details')), det = body.slice(body.indexOf('<details'));
+  assert.equal((top.match(/<tr><td>/g) || []).length, 10, '10 wierszy na wierzchu'); assert.equal((det.match(/<tr><td>/g) || []).length, 11, '11 w rozwinięciu');
+  assert.ok(top.includes('N:AUT') && top.includes('N:BEL') && top.indexOf('inst.cc.DE') < top.indexOf('N:AUT') && !top.includes('inst.cc.NL') && det.includes('inst.cc.NL') && det.includes('N:BGR'), 'nazwy: dotychczasowe z inst.cc., nowe z nazwy kraju w języku widza');
+  assert.ok(det.includes('inst.tgb.rest{"n":11}') && det.includes('id="inst-tgb-rest"'), 'rozwinięcie z licznikiem');
+  assert.ok(/N:BGR[\s\S]*?<span class="cell mono">—<\/span><\/td><\/tr>/.test(det), 'BG: brak zmiany rocznej = „—”');
+  assert.ok(h.includes('inst.asof') && h.includes('F(2026-08)') && !h.includes('F(2026-07)'), 'stopka: miesiąc pliku sald (nie pliku instytucji)');
+  /* do czasu wczytania (zaślepka bez odpowiedzi) i przy błędzie: dotychczasowe kraje + uwaga */
+  for (const odp of [null, {v: 2}, {v: 1, at: 'x', asof: '2026-08', k: {DE: [['2026-08', 1]]}}]) {
+    const B = v358.mkTg(odp); assert.equal(B.F.tgbPanel(), null, 'plik zły albo za krótki (< 10 krajów) — brak listy pełnej');
+    const h2 = v358.inst(I, B.F.tgbPanel); assert.ok(h2.includes('inst.tgb.sel') && !h2.includes('<details class="etfd" id="inst-tgb-rest"') && (h2.match(/<tr><td>/g) || []).length === 2, 'dotychczasowa tabela z uwagą: ' + h2.slice(h2.indexOf('inst.tgb.t'), h2.indexOf('inst.tgb.t') + 200));
+    assert.ok(h2.includes('F(2026-08)'), 'stopka z miesiącem pliku instytucji');
+  }
+  assert.ok(v358.inst(I).includes('inst.tgb.sel'), 'bez funkcji tgbPanel (wycinki innych testów) — jak dotąd, z uwagą');
+});
+
+test('v358 (G11-2): tgbPanel — jedno oczekujące przerysowanie, bez pętli; panel w kodzie strony przed kartą regionu TARGET', () => {
+  const cb = [], F = new Function('srvJSON', 'renderInst', v358.tgCode + '\nreturn {TG, tgbPanel, tgbRr};')(() => ({then: () => {}}), () => {});
+  F.TG.busy = true; F.tgbPanel(); F.tgbPanel(); F.tgbPanel();
+  assert.equal(F.TG.cb.filter(f => f === F.tgbRr).length, 1, 'wiele rysowań w trakcie pobierania — jedna kolejka przerysowania');
+  assert.ok(html.indexOf('function tgbPanel(){') > html.indexOf('function tgRows(J){') && html.indexOf('function tgbPanel(){') < html.indexOf('const tgMld='), 'po tgRows, przed formatowaniem karty regionu');
+  assert.ok(html.includes("const tgbA=typeof tgbPanel==='function'?tgbPanel():null;"), 'panel pyta o pełną listę tylko gdy funkcja istnieje');
+});
+
+test('v358 (G11-6): lewa kolumna „Ostatnia aktualizacja” — czas ostatniego przebiegu automatu z wiekiem; bez pliku stanu chwila pobrania z dopiskiem; brak obu — „—”', () => {
+  const code = v358.cut('function gUpdTxt(){', 'function gUpdAt(){');
+  const mk = (G, eng) => new Function('GLIVE', 'engDate', 'gAgeNote', 't', 'LOCALE', 'LANG', code + '\nreturn gUpdTxt;')(G, eng, s => ' · wiek(' + s + ')', v358.tk, {pl: 'pl-PL'}, 'pl');
+  const E = s => 'D(' + s + ')', AT = '2026-10-13T16:46:56+00:00', TMS = Date.parse('2026-10-13T16:58:00Z');
+  assert.equal(mk({meta: {at: AT}, tms: TMS}, E)(), 'D(' + AT + ') · wiek(' + AT + ')', 'z pliku stanu (nie z chwili pobrania w karcie), z wiekiem');
+  for (const bad of [null, {}, {at: 5}, {at: 'wczoraj'}, {at: '2026-10-13'}, {at: '2026-13-45T99:99:00Z'}]) {
+    const s = mk({meta: bad, tms: TMS}, E)(); assert.ok(s.endsWith(' · upd.br') && !s.includes('D('), 'zły albo brakujący plik stanu ' + JSON.stringify(bad) + ' → chwila pobrania z dopiskiem: ' + s);
+  }
+  assert.equal(mk({meta: null, tms: 0}, E)(), '—', 'brak obu — „—”, nigdy zmyślony czas'); assert.equal(mk({tms: 0}, E)(), '—');
+  assert.ok(mk({meta: {at: AT}, tms: TMS}, undefined)().endsWith(' · upd.br'), 'bez engDate (wycinek) — chwila pobrania');
+  assert.ok(html.includes("const u=$('[data-i18n=\"upd.v\"]');if(u)u.textContent=gUpdTxt();"), 'gRenderRefresh używa gUpdTxt');
+  assert.ok(html.includes('try{updSrc();}catch(e){}try{gUpdAt();}catch(e){}try{srvStale();}catch(e){}') && html.includes("if(typeof gUpdAt==='function')gUpdAt();"), 'po wczytaniu pliku stanu i po zmianie języka (także na CRYPTO)');
+});
+
+test('v358 (G11-3/4/5/7): teksty w 10 językach — złoto Eurosystemu raz na kwartał, kolor zmiany = kierunek (zmienność), kopia strony w pamięci przeglądarki, średnia niezaokrąglonych składników; bez nazw dostawców', () => {
+  const RE = {
+    'lq357.ebc.note': [/raz na kwartał/, /once a quarter/, /einmal im Quartal/, /una vez por trimestre/, /une fois par trimestre/, /una volta a trimestre/, /uma vez por trimestre/, /раз в квартал/, /每季度/, /四半期に一度/],
+    'zm352.read': [/kierunek.*nie ocenę/, /direction.*not a judgement/, /Richtung.*keine Bewertung/, /dirección.*no una valoración/, /sens.*pas un jugement/, /direzione.*non un giudizio/, /direção.*não um juízo/, /направление.*а не оценку/, /方向.*而不是好坏评价/, /方向.*評価ではありません/],
+    'set.priv.2': [/kopię strony.*nie Twoje dane/, /copy of the page.*not your data/, /Kopie der Seite.*keine Daten von Ihnen/, /copia de la página.*no tus datos/, /copie de la page.*pas vos données/, /copia della pagina.*non tuoi/, /cópia da página.*não os seus dados/, /копию страницы.*а не ваши данные/, /页面.*副本.*不是您的数据/, /コピーを保存.*データではなく/],
+    'fg.meth.g': [/niezaokrąglonych.*o 1/, /unrounded.*by 1/, /ungerundeten.*um 1/, /sin redondear.*en 1/, /non arrondies.*de 1/, /non arrotondate.*di 1/, /sem arredondar.*em 1/, /неокруглённым.*на 1/, /未四舍五入.*相差 1/, /丸める前.*1だけ/],
+  };
+  for (const key in RE) { const {D} = v358.dictOf(key); v358.LG.forEach((lg, i) => { const s = D[lg][key]; assert.ok(RE[key][i].test(s), key + ' ' + lg + ': ' + s.slice(-200)); assert.ok(!v358.NAZWY.test(s), 'zero nazw dostawców: ' + key + ' ' + lg); }); }
+  const pr = v358.dictOf('set.priv.2').D;
+  assert.ok(!pr.pl['set.priv.2'].startsWith('W pamięci Twojej przeglądarki zostają tylko:') && pr.pl['set.priv.2'].startsWith('Z Twoich danych w pamięci przeglądarki zostają tylko:'), 'zdanie „tylko” zawężone do danych użytkownika');
+  assert.ok(pr.en['set.priv.2'].startsWith('Of your data, your browser keeps only:'), 'en: jak wyżej');
+  const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join();
+  for (const key of Object.keys(RE)) { const {D} = v358.dictOf(key); for (const lg of v358.LG) assert.equal(ph(D[lg][key]), ph(D.pl[key]), key + ' ' + lg + ': zmienne'); }
+});
+
+test('v358: nowy słownik (upd.br, inst.tgb.sel, inst.tgb.rest) — czysty JSON z własną linią for, 10 języków, te same zmienne, tłumaczenia (nie kopie), bez nazw dostawców', () => {
+  const {name, D} = v358.dictOf('upd.br'), keys = ['upd.br', 'inst.tgb.sel', 'inst.tgb.rest'];
+  assert.deepEqual(Object.keys(D), v358.LG); assert.equal(html.split('const ' + name + '=').length, 2, 'jeden słownik o tym numerze');
+  assert.equal(html.split('\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);').length, 2, 'własna linia for');
+  const i0 = html.indexOf('const ' + name + '='); assert.ok(html.slice(0, i0).trimEnd().endsWith('*/') && html.slice(html.lastIndexOf('\n', i0 - 2), i0).includes('v358'), 'komentarz nagłówkowy');
+  const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join();
+  for (const lg of v358.LG) { assert.deepEqual(Object.keys(D[lg]), keys, lg + ': klucze'); for (const k of keys) { assert.ok(typeof D[lg][k] === 'string' && D[lg][k].trim(), lg + ' ' + k); assert.equal(ph(D[lg][k]), ph(D.pl[k]), lg + ' ' + k); assert.ok(!v358.NAZWY.test(D[lg][k]), lg + ' ' + k); } }
+  for (const lg of v358.LG.slice(1)) assert.equal(keys.filter(k => D[lg][k] === D.pl[k]).length, 0, lg + ': tłumaczenia, nie kopie polskiego');
+  assert.ok(/[а-яё]/i.test(D.ru['upd.br']) && /[一-鿿]/.test(D.zh['upd.br']) && /[぀-ヿ]/.test(D.ja['upd.br']), 'alfabety języków');
+  assert.equal(D.pl['inst.tgb.rest'], 'Pozostałe kraje ({n})');
+});
