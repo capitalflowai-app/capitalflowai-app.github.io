@@ -7295,6 +7295,158 @@ def arkb_linia(E):
     return s + (f' (brak odczytu: {E["blad"]})' if E.get('blad') else '')
 
 
+# ---------------------------------------------------------------- v357 (zwiad 3): skład portfela Fed, pozycje bilansu Eurosystemu, fundusze hedgingowe ----------------------------------------------------------------
+# Trzy pliki zbieracza (data/soma-sklad.json, data/eurosystem.json, data/hedge.json): kontrola dzienna czyta je z plików strony (bez zapytań do sieci) i sprawdza
+# (1) wiek dnia danych — portfel Fed (stan na środę, wydanie w czwartek) nie starszy niż PL_K_SOMA_DNI dni (w nagraniu 1214 tygodni od 2003: największa przerwa między
+#     dniami danych 8 dni, więc przed wydaniem następnego tygodnia wiek sięga ok. 10 dni; 11 dni = 0 fałszywych ostrzeżeń na całej historii, jedno pominięte wydanie = ⚠️);
+#     bilans Eurosystemu (stan na piątek, wydanie we wtorek) nie starszy niż PL_K_EBC_DNI dni (56 kolejnych tygodni w nagraniu 13.10.2026, bez luk; największy wiek
+#     tuż przed wydaniem ok. 10,5 dnia); fundusze hedgingowe (kwartalnie) nie starsze niż PL_K_HF_DNI dni od końca dnia danych (dane za II kwartał 2026 były 13.10.2026,
+#     105 dni po końcu; jedno wydanie w nagraniach, więc próg szeroki — 150 dni, bez dłuższego testu wstecznego);
+# (2) spójność w pliku: dni rosnące i bez powtórzeń, ostatni dzień = dzień danych pliku, suma grup portfela = razem (do PL_K_SUMA_MLN mln z zaokrągleń), szczyt portfela
+#     nie mniejszy od ostatniej wartości, aktywa brutto funduszy ≥ netto, pozycje bilansu cząstkowe ≤ suma;
+# (3) zgodność z plikiem instytucje.json (panel „dane urzędowe”: portfel Fed razem i aktywa Eurosystemu razem — to samo źródło, osobne zapytanie): ten sam dzień = ta sama
+#     liczba (różnica ponad PL_K_ZGODA_MLN mln = uwaga; inne dni nie są porównywane — pliki odświeżają się niezależnie).
+# Najwyżej ⚠️ (nigdy błąd przebiegu); brak pliku zgłasza pętla PLIKI.
+for _n_ in ('soma-sklad', 'eurosystem', 'hedge'):
+    PLIKI.insert(PLIKI.index('krypto-dzien'), _n_)   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+    LIMIT_MIN[_n_] = 48 * 60   # zapis co przebieg, odpytanie źródła najwyżej raz na dobę (przed wydaniem) — wiek pliku; wiek dnia danych ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'soma_sklad': 'skład portfela Fed — część z błędem zostaje z datą (v357); wiek danych w wierszu świeżości',
+                     'eurosystem': 'bilans Eurosystemu — część z błędem zostaje z datą (v357); wiek danych w wierszu świeżości',
+                     'hedge': 'fundusze hedgingowe — część z błędem zostaje z datą (v357); wiek danych w wierszu świeżości'})
+PL_K_ETYKIETA = {'soma-sklad': 'Portfel papierów Fed: skład (tygodniowo, stan na środę)', 'eurosystem': 'Bilans Eurosystemu: główne pozycje (tygodniowo, stan na piątek)',
+                 'hedge': 'Fundusze hedgingowe w USA: aktywa (kwartalnie)'}
+PL_K_SOMA_DNI, PL_K_EBC_DNI, PL_K_HF_DNI = 11, 14, 150
+PL_K_SUMA_MLN = 5.0     # mln: suma pięciu grup portfela a „razem” (każda liczba zaokrąglona do miliona; w danych 7.10.2026: 0)
+PL_K_ZGODA_MLN = 1.0    # mln: ten sam dzień w dwóch plikach tego samego źródła (zaokrąglenie do miliona: różnica 0)
+
+
+def _pl_k_num(v):
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float('inf') else None
+
+
+def _pl_k_dzien(s):
+    try:
+        return dt.date.fromisoformat(s).isoformat() if isinstance(s, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', s) else None
+    except ValueError:
+        return None
+
+
+def _pl_k_wiersz(out, nazwa, asof, limit_dni):
+    """Dodaje wiersz świeżości (wiek od końca dnia danych); zwraca status."""
+    lab = PL_K_ETYKIETA[nazwa]
+    d = _pl_k_dzien(asof)
+    if d is None:
+        out['rows'].append((lab, '?', None, None, 'brak dnia danych w pliku'))
+        out['uwagi'].append(f'{lab}: brak dnia danych w pliku')
+        return '?'
+    w = wiek_danych(d, 'day', 'k', out['_now'])
+    st = '⚠️' if (w is not None and w > limit_dni * 1440) else '✅'
+    note = '' if st == '✅' else f'dzień danych starszy niż {limit_dni} dni — źródło spóźnia się z publikacją albo plik przestał się odświeżać; najwyżej uwaga'
+    out['rows'].append((lab, st, w, d, note))
+    if st == '⚠️':
+        out['uwagi'].append(f'{lab}: dane z {d} — {fmt_wiek(w)} temu ({note})')
+    return st
+
+
+def _pl_k_seria_dni(S, zle, nazwa):
+    """Dni rosnące, bez powtórzeń i prawdziwe daty; zwraca listę dni albo None."""
+    dni = [r[0] for r in S if isinstance(r, list) and r and _pl_k_dzien(r[0])]
+    if len(dni) != len(S) or dni != sorted(set(dni)):
+        zle.append(f'{nazwa}: dni nie rosną, powtarzają się albo nie są datami')
+        return None
+    return dni
+
+
+def plynnosc_kontrola(soma, eu, hf, inst=None, now=None):
+    """Pliki v357 → {'rows': [(etykieta, status, wiek min, dzień, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = brak
+    wiersza (wiek pliku i brak pliku zgłasza pętla PLIKI). Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': [], '_now': now}
+    zle = []
+    I = inst if isinstance(inst, dict) else {}
+    # ---- portfel Fed ----
+    if isinstance(soma, dict) and soma.get('v') == 1 and isinstance(soma.get('d'), list) and soma['d']:
+        _pl_k_wiersz(out, 'soma-sklad', soma.get('asof'), PL_K_SOMA_DNI)
+        D = soma['d']
+        dni = _pl_k_seria_dni(D, zle, 'portfel Fed')
+        if dni and dni[-1] != soma.get('asof'):
+            zle.append('portfel Fed: ostatni dzień serii ≠ dzień danych pliku')
+        for r in D:
+            v = [_pl_k_num(x) for x in r[1:]] if isinstance(r, list) and len(r) == 7 else None
+            if v is None or any(x is None for x in v):
+                zle.append('portfel Fed: nieczytelny wiersz serii'); break
+            if abs(sum(v[1:]) - v[0]) > PL_K_SUMA_MLN:
+                zle.append(f'portfel Fed {r[0]}: suma grup {sum(v[1:]):.0f} ≠ razem {v[0]:.0f} mln USD'); break
+        pk = soma.get('peak')
+        if not (isinstance(pk, list) and len(pk) == 2 and _pl_k_num(pk[1]) is not None and _pl_k_dzien(pk[0])):
+            zle.append('portfel Fed: brak szczytu')
+        elif isinstance(D[-1], list) and _pl_k_num(D[-1][1]) is not None and pk[1] < D[-1][1]:
+            zle.append('portfel Fed: szczyt mniejszy od ostatniej wartości')
+        W = ((I.get('soma') or {}).get('d')) if isinstance(I.get('soma'), dict) else None
+        if isinstance(W, list) and isinstance(D[-1], list):
+            mine = {r[0]: _pl_k_num(r[1]) for r in D if isinstance(r, list) and len(r) >= 2}
+            por = [(r[0], mine[r[0]], _pl_k_num(r[1])) for r in W if isinstance(r, list) and len(r) >= 2 and r[0] in mine and mine[r[0]] is not None and _pl_k_num(r[1]) is not None]
+            if por:
+                roz = [d for d, a, b in por if abs(a - b) > PL_K_ZGODA_MLN]
+                out['wiersze'].append((f'portfel Fed razem: zgodność z panelem „dane urzędowe” ({len(por)} wspólnych tygodni)', '⚠️' if roz else '✅'))
+                if roz:
+                    out['uwagi'].append('portfel Fed: soma-sklad.json różni się od instytucje.json (to samo źródło) w dniach ' + ', '.join(roz[:4]))
+    # ---- bilans Eurosystemu ----
+    if isinstance(eu, dict) and eu.get('v') == 1 and isinstance(eu.get('k'), dict) and eu['k']:
+        _pl_k_wiersz(out, 'eurosystem', eu.get('asof'), PL_K_EBC_DNI)
+        K = eu['k']
+        ost = {}
+        for k, S in K.items():
+            if not isinstance(S, list) or not S:
+                zle.append(f'bilans Eurosystemu {k}: pusta seria'); continue
+            dni = _pl_k_seria_dni(S, zle, f'bilans Eurosystemu {k}')
+            if dni is None:
+                continue
+            vs = [_pl_k_num(r[1]) if len(r) >= 2 else None for r in S]
+            if any(x is None for x in vs):
+                zle.append(f'bilans Eurosystemu {k}: nieczytelny punkt serii'); continue
+            ost[k] = (dni[-1], vs[-1])
+        if 'total' not in ost:
+            zle.append('bilans Eurosystemu: brak sumy aktywów')
+        else:
+            if ost['total'][0] != eu.get('asof'):
+                zle.append('bilans Eurosystemu: ostatni dzień sumy ≠ dzień danych pliku')
+            tot = ost['total'][1]
+            for grupa in (('qe', 'zloto', 'kredyt'), ('banknoty', 'depozyty', 'rachunki', 'rzady')):
+                s = sum(ost[k][1] for k in grupa if k in ost and ost[k][0] == ost['total'][0])
+                if s > tot * 1.001:
+                    zle.append(f'bilans Eurosystemu: pozycje {"+".join(grupa)} większe od sumy bilansu')
+        W = ((I.get('ilm') or {}).get('d')) if isinstance(I.get('ilm'), dict) else None
+        if isinstance(W, list) and isinstance(K.get('total'), list):
+            mine = {r[0]: _pl_k_num(r[1]) for r in K['total'] if isinstance(r, list) and len(r) >= 2}
+            por = [(r[0], mine[r[0]], _pl_k_num(r[1])) for r in W if isinstance(r, list) and len(r) >= 2 and r[0] in mine and mine[r[0]] is not None and _pl_k_num(r[1]) is not None]
+            if por:
+                roz = [d for d, a, b in por if abs(a - b) > PL_K_ZGODA_MLN]
+                out['wiersze'].append((f'aktywa Eurosystemu razem: zgodność z panelem „dane urzędowe” ({len(por)} wspólnych tygodni)', '⚠️' if roz else '✅'))
+                if roz:
+                    out['uwagi'].append('bilans Eurosystemu: eurosystem.json różni się od instytucje.json (to samo źródło) w dniach ' + ', '.join(roz[:4]))
+    # ---- fundusze hedgingowe ----
+    if isinstance(hf, dict) and hf.get('v') == 1 and isinstance(hf.get('d'), list) and hf['d']:
+        _pl_k_wiersz(out, 'hedge', hf.get('asof'), PL_K_HF_DNI)
+        D = hf['d']
+        dni = _pl_k_seria_dni(D, zle, 'fundusze hedgingowe')
+        if dni and dni[-1] != hf.get('asof'):
+            zle.append('fundusze hedgingowe: ostatni dzień serii ≠ dzień danych pliku')
+        for r in D:
+            g, n = (_pl_k_num(r[1]), _pl_k_num(r[2])) if isinstance(r, list) and len(r) == 3 else (None, None)
+            if g is None or n is None or n <= 0:
+                zle.append('fundusze hedgingowe: nieczytelny wiersz serii'); break
+            if g < n or g / n > 10:
+                zle.append(f'fundusze hedgingowe {r[0]}: aktywa brutto {g:.0f} i netto {n:.0f} mln USD niespójne'); break
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'płynność i fundusze (v357): {z}')
+    if out['rows']:
+        out['wiersze'].append(('spójność plików (dni rosnące, sumy grup, szczyt, brutto ≥ netto)', '⚠️' if zle else '✅'))
+    del out['_now']
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -7635,6 +7787,17 @@ def kontrola():
         except Exception as e:  # noqa
             R['zgodnosc'][nm_] = {'blad': str(e)[:120]}
             R['uwagi'].append(f'{nm_}: kontrola przerwana ({str(e)[:80]})')
+    # 3c-v357. skład portfela Fed, pozycje bilansu Eurosystemu i fundusze hedgingowe (data/soma-sklad.json, eurosystem.json, hedge.json): wiek dnia danych, spójność i zgodność
+    # z panelem „dane urzędowe” (instytucje.json) — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        T_ = plynnosc_kontrola(files.get('soma-sklad'), files.get('eurosystem'), files.get('hedge'), files.get('instytucje'))
+        for label, st, w, txt, note in T_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += T_['uwagi']
+        R['zgodnosc']['plynnosc'] = {'spojnosc': T_['spojnosc'], 'wiersze': T_['wiersze']} if (T_['rows'] or T_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['plynnosc'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'płynność i fundusze (v357): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -8225,6 +8388,11 @@ def raport_md(R):
                 L.append(tyt_ + (f'? kontrola przerwana ({tz_["blad"]})' if tz_.get('blad') else
                          ('niespójności w pliku: ' + '; '.join(tz_['spojnosc'][:3]) + ' ⚠️ · ' if tz_.get('spojnosc') else '')
                          + ' · '.join(f'{o} {zn}' for o, zn in tz_.get('wiersze') or []) or '—') + '.')
+        pz_ = Z.get('plynnosc')   # v357: skład portfela Fed, bilans Eurosystemu, fundusze hedgingowe — brak plików = bez linii
+        if pz_:
+            L.append('- Płynność dolara i euro oraz fundusze hedgingowe (z plików strony; porównanie z panelem „dane urzędowe”): ' + (f'? kontrola przerwana ({pz_["blad"]})' if pz_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(pz_['spojnosc'][:3]) + ' ⚠️ · ' if pz_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in pz_.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

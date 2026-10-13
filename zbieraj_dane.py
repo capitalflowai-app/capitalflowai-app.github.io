@@ -142,6 +142,7 @@ ZRODLA_META = {
     'zboza_dzien_ue': 'komisja-europejska', 'zboza_dzien_nawozy': 'komisja-europejska',
     'metale': ('westmetall', 'shfe', 'cochilco'), 'metale_lme': 'westmetall', 'metale_sh': 'shfe', 'metale_shd': 'shfe', 'metale_shw': 'shfe', 'metale_cu': 'cochilco',
     'target': 'ecb', 'mica': 'esma',   # v355: salda TARGET (to samo źródło co kursy i M3 — liczba źródeł bez zmian) i rejestry MiCA (+1 źródło)
+    'soma_sklad': 'ny-fed', 'eurosystem': 'ecb', 'hedge': 'ofr',   # v357: skład portfela Fed, pozycje bilansu Eurosystemu, fundusze hedgingowe — te same trzy instytucje co dotąd (NY Fed, EBC, OFR): liczba źródeł bez zmian
     # --- własne wyliczenia z innych plików (bez zapytań do sieci) ---
     'trendy': None, 'zloto-krypto': None,
 }
@@ -31245,6 +31246,11 @@ def main():
             META['errors'].append(mask(f'{ZM_LABEL}: {e}')); META['ok']['zmiennosc'] = False
             if isinstance(prev_zm, dict):
                 save('zmiennosc', prev_zm)
+    # v357 (zwiad 3): skład portfela Fed (NY Fed, tygodniowo), główne pozycje bilansu Eurosystemu (EBC, tygodniowo) i aktywa funduszy hedgingowych (OFR, kwartalnie) — każda
+    # część z własnym rytmem publikacji (plyn_pytac); awaria = poprzedni plik z jego datą i błąd; nieudana próba przesuwa następną (pole proba)
+    META['ok']['soma_sklad'] = plyn_czesc('soma-sklad', 'NY Fed portfel Fed (skład)', lambda p: build_soma_sklad(p), SK_DUE, SK_PRZED, SK_PO)
+    META['ok']['eurosystem'] = plyn_czesc('eurosystem', 'EBC bilans Eurosystemu (pozycje)', lambda p: build_eurosystem(p), EU_DUE, EU_PRZED, EU_PO)
+    META['ok']['hedge'] = plyn_czesc('hedge', 'OFR fundusze hedgingowe', lambda p: build_hedge(p), HF_DUE, HF_PRZED, HF_PO)
     # v355 (zwiad 2): salda TARGET krajów strefy euro (EBC, miesięcznie): najwyżej raz na dobę; awaria albo bramka (suma sald ≠ 0) = poprzedni plik i błąd
     prev_tg = previous('target')
     if prev_tg and fresh(prev_tg, TG_EVERY):
@@ -31559,6 +31565,277 @@ def build_mica(prev=None):
     out['ok'] = ok
     out['bledy'] = bl
     return out
+
+
+# ===================== v357 (zwiad 3): płynność dolara i euro oraz fundusze hedgingowe — skład portfela Fed, główne pozycje bilansu Eurosystemu, aktywa funduszy hedgingowych =====================
+# Trzy NOWE pliki obok sum, które strona już ma (data/instytucje.json: portfel Fed razem i aktywa Eurosystemu razem; tamte części zostają bez zmian):
+#  (1) data/soma-sklad.json — portfel papierów Fed (NY Fed, tygodniowo, stan na środę, publikacja w czwartek): z czego się składa (obligacje i noty, papiery
+#      hipoteczne, bony, papiery indeksowane inflacją, reszta) w ostatnich 105 tygodniach oraz szczyt z całej historii (od 2003) — odchudzanie bilansu (QT) od szczytu.
+#      Suma pól składowych = pole „total” źródła (źródło podaje osobno wyrównanie inflacyjne TIPS — nie wchodzi do sumy; „reszta” = total − cztery główne grupy =
+#      FRN + agencje + CMBS, w danych 7.10.2026: 29,7 mld USD, sprawdzana z tymi trzema polami).
+#  (2) data/eurosystem.json — osiem głównych pozycji tygodniowego sprawozdania Eurosystemu (EBC, ILM, stan na piątek, publikacja we wtorek): aktywa razem, papiery
+#      kupione w ramach polityki pieniężnej (QE/QT), złoto, pożyczki dla banków; banknoty, depozyty banków w EBC, rachunki bieżące banków, depozyty rządów; 56 tygodni.
+#      Złoto jest wyceniane po cenie rynkowej (zmiana to głównie cena, nie zakupy) — opisane na stronie.
+#  (3) data/hedge.json — aktywa brutto i netto kwalifikowanych funduszy hedgingowych w USA (OFR, kwartalnie, opóźnienie ok. 3 miesięcy): 54 kwartały od 2013;
+#      dźwignia brutto = aktywa brutto ÷ aktywa netto (liczona, opisana jako przybliżona).
+# Rytm publikacji: każde źródło ma własny zegar — plik jest sprawdzany najwyżej raz na dobę (ubezpieczenie od zmiany rytmu), a od chwili spodziewanego wydania
+# nowych danych (dzień danych + PLYN_*_DUE) co 3 godziny (HF: co 12) aż do skutku; nieudana próba przesuwa następną o ten sam okres (pole „proba”), więc źródło
+# w awarii nie dostaje zapytań co przebieg. Bramki: układ pliku, skala, ciągłość dat, spójność sum, skok tygodniowy, rozmiar odpowiedzi; plik ze starszym dniem danych
+# niż poprzedni nie cofa pliku. Awaria = poprzedni plik z jego datą (strona pokazuje wiek) i błąd w meta.
+SK_URL = SOMA_URL                       # ten sam adres co część „soma” (sumy); tu czytamy skład
+SK_N = 105                              # tygodni w pliku (ok. 2 lata)
+SK_MIN = 52                             # najmniej tygodni w odpowiedzi, żeby plik był publikowany
+SK_SKOK = 0.20                          # tygodniowa zmiana portfela o więcej niż 20% = błąd skali (w ostatnich 105 tygodniach największa 0,5%; od 2010 największa 10,0% — kwiecień 2020; bramka ma łapać błąd skali, nie realny kryzys)
+SK_RESZTA_MAX = 0.05                    # „reszta” (total − cztery grupy) większa niż 5% portfela albo ujemna = pole źródła zmieniło znaczenie
+SK_ZGODA_MLN = 5.0                      # mln USD: reszta vs FRN + agencje + CMBS z pól źródła
+SK_RANGE = (1e5, 2e7)                   # mln USD: portfel poza 0,1–20 bln = błąd skali
+PLYN_MAX_BAJTOW = 3_000_000             # odpowiedź większa niż 3 MB = nie ten plik (SOMA: 0,32 MB, ILM: 0,13 MB, OFR: 2 KB)
+SK_DUE = (1, 20, 30)                    # (dni po dniu danych, godzina, minuta UTC): czwartek 16:30 czasu nowojorskiego (letnio) — spodziewane wydanie następnej środy
+SK_PRZED, SK_PO = 24 * 60, 3 * 60       # min: odstęp między zapytaniami przed spodziewanym wydaniem i po nim
+EU_URL_BAZA = 'https://data-api.ecb.europa.eu/service/data/ILM/W.U2.C.'
+EU_POZ = {   # klucz → (pozycja sprawozdania, kraj kontrahenta, waluta) — bez dwukropków i skrótów kont; opis po polsku jest na stronie
+    'total': ('T000000', 'Z5', 'Z01'), 'qe': ('A070100', 'U2', 'EUR'), 'zloto': ('A010000', 'Z5', 'Z0Z'), 'kredyt': ('A050000', 'U2', 'EUR'),
+    'banknoty': ('L010000', 'Z5', 'EUR'), 'depozyty': ('L020200', 'U2', 'EUR'), 'rachunki': ('L020100', 'U2', 'EUR'), 'rzady': ('L050100', 'U2', 'EUR')}
+EU_URL = (EU_URL_BAZA + '+'.join(sorted({v[0] for v in EU_POZ.values()})) + '.U2+Z5.EUR+Z0Z+Z01?lastNObservations=56&format=csvdata')
+EU_N = 56                               # tygodni na serię
+EU_MIN = 40                             # najmniej tygodni serii „total” i „qe”
+EU_SKOK = 0.25                          # tygodniowa zmiana sumy aktywów o więcej niż 25% = błąd skali (w ostatnich 56 tygodniach największa 2,6%; realne skoki kryzysowe mieszczą się poniżej)
+EU_DUE = (4, 10, 30)                    # wtorek 10:30 UTC po piątku danych (EBC publikuje we wtorek przed 11:30 czasu środkowoeuropejskiego)
+EU_PRZED, EU_PO = 24 * 60, 3 * 60
+HF_URL = 'https://data.financialresearch.gov/hf/v1/series/timeseries?mnemonic={m}'
+HF_GAV, HF_NAV = 'FPF-ALLQHF_GAV_SUM', 'FPF-ALLQHF_NAV_SUM'
+HF_MIN = 12                             # najmniej kwartałów wspólnych dla aktywów brutto i netto
+HF_DZIEN_MAX = 400                      # dzień danych starszy o więcej dni niż tyle od chwili przebiegu = plik nie jest publikowany (zwykle 90–180)
+HF_DUE = (80, 6, 0)                     # 80 dni po końcu kwartału (opóźnienie źródła ok. 3 miesięcy; dane za II kw. 2026 były 13.10.2026, 105 dni po końcu)
+HF_PRZED, HF_PO = 24 * 60, 12 * 60
+HF_DZWIGNIA_MAX = 10.0                  # aktywa brutto ÷ netto poza 1–10 = błąd (w danych od 2013: 2,2–2,9)
+
+
+def _plyn_dt(s):
+    d = _ix_dt(s)
+    return d
+
+
+def plyn_pytac(prev, now, due, przed_min, po_min):
+    """Czy pytać źródło w tym przebiegu. Brak poprzedniego pliku (albo bez dnia danych) = tak. due = (dni po dniu danych, godzina, minuta UTC) — spodziewane wydanie
+    następnych danych. Od ostatniej próby (późniejsze z at i proba) musi minąć przed_min (przed wydaniem) albo po_min (po wydaniu, aż przyjdą nowe dane)."""
+    if not isinstance(prev, dict):
+        return True
+    try:
+        asof = datetime.date.fromisoformat(str(prev.get('asof'))[:10])
+    except ValueError:
+        return True
+    t_now = _plyn_dt(now)
+    ostatnia = max([x for x in (_plyn_dt(prev.get('at')), _plyn_dt(prev.get('proba'))) if x is not None], default=None)
+    if t_now is None or ostatnia is None:
+        return True
+    due_t = datetime.datetime(asof.year, asof.month, asof.day, due[1], due[2], tzinfo=datetime.timezone.utc) + datetime.timedelta(days=due[0])
+    odstep = po_min if t_now >= due_t else przed_min
+    return (t_now - ostatnia).total_seconds() >= odstep * 60
+
+
+def _plyn_get(url, timeout=60):
+    """Treść odpowiedzi (jedno zapytanie, bez ponawiania); odpowiedź większa niż PLYN_MAX_BAJTOW = błąd."""
+    st, body = get(url, timeout=timeout)
+    if len(body) > PLYN_MAX_BAJTOW:
+        raise RuntimeError(f'odpowiedź ma {len(body)} B (limit {PLYN_MAX_BAJTOW}) — to nie ten plik')
+    return body
+
+
+def _plyn_dzien(s):
+    """'2026-10-07' → ten sam napis, gdy to prawdziwa data; inaczej None."""
+    try:
+        return datetime.date.fromisoformat(str(s)).isoformat() if re.fullmatch(r'\d{4}-\d{2}-\d{2}', str(s)) else None
+    except ValueError:
+        return None
+
+
+# ------------------------------------------------------------------ (1) skład portfela Fed ------------------------------------------------------------------
+def parse_soma_sklad(j):
+    """NY Fed (summary.json): {'d': [[dzień, razem, obligacje i noty, hipoteczne, bony, TIPS, reszta]] (mln USD, ostatnie SK_N tygodni, rosnąco), 'peak': [dzień, razem],
+    'n': liczba tygodni w źródle}; wiersz bez któregoś z pól głównych jest pomijany (brak ≠ zero); suma pól = razem (reszta wyliczona i sprawdzona — tylko w tygodniach,
+    które trafiają do pliku; dawna historia służy wyłącznie do wyznaczenia szczytu)."""
+    rows = (j.get('soma') or {}).get('summary') if isinstance(j, dict) else None
+    if not isinstance(rows, list) or not rows:
+        raise RuntimeError('NY Fed SOMA: brak wierszy')
+    wsz, szczyt = [], None
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        d = _plyn_dzien(r.get('asOfDate'))
+        tot = _num(r.get('total'))
+        if d is None or tot is None or tot != tot or tot <= 0:
+            continue
+        wsz.append((d, tot / 1e6, r))
+    if not wsz:
+        raise RuntimeError('NY Fed SOMA: brak wierszy z sumą')
+    wsz.sort(key=lambda x: x[0])
+    if len({x[0] for x in wsz}) != len(wsz):
+        raise RuntimeError('NY Fed SOMA: powtórzone dni')
+    mx = max(wsz, key=lambda x: x[1])
+    szczyt = [mx[0], round(mx[1])]
+    out = []
+    for d, t, r in wsz[-SK_N:]:
+        g = [_num(r.get(k)) for k in ('notesbonds', 'mbs', 'bills', 'tips')]
+        if any(x is None or x != x for x in g):
+            continue
+        g = [x / 1e6 for x in g]
+        reszta = t - sum(g)
+        inne = [_num(r.get(k)) for k in ('frn', 'cmbs', 'agencies')]
+        if all(x is not None for x in inne) and abs(reszta - sum(inne) / 1e6) > SK_ZGODA_MLN:
+            raise RuntimeError(f'NY Fed SOMA: skład z dnia {d} nie zgadza się z sumą ({reszta:.1f} vs {sum(inne) / 1e6:.1f} mln USD reszty)')
+        if reszta < -SK_ZGODA_MLN or reszta > SK_RESZTA_MAX * t:
+            raise RuntimeError(f'NY Fed SOMA: „reszta” z dnia {d} = {reszta:.0f} mln USD (poza 0–{SK_RESZTA_MAX:.0%} portfela)')
+        out.append([d, round(t)] + [round(x) for x in g] + [round(max(reszta, 0.0))])
+    if not out:
+        raise RuntimeError('NY Fed SOMA: brak wierszy ze składem')
+    return {'d': out, 'peak': szczyt, 'n': len(wsz)}
+
+
+def soma_sklad_bramka(p, now=None):
+    """Bramka: dość tygodni, portfel w sensownym zakresie, brak skoku tygodniowego powyżej SK_SKOK, szczyt nie mniejszy od ostatniej wartości."""
+    d = p['d']
+    if len(d) < SK_MIN:
+        raise RuntimeError(f'NY Fed SOMA: tylko {len(d)} tygodni (min. {SK_MIN})')
+    for r in d:
+        if not (SK_RANGE[0] <= r[1] <= SK_RANGE[1]):
+            raise RuntimeError(f'NY Fed SOMA: portfel {r[1]} mln USD z dnia {r[0]} poza zakresem')
+    for a, b in zip(d, d[1:]):
+        if abs(b[1] / a[1] - 1) > SK_SKOK:
+            raise RuntimeError(f'NY Fed SOMA: skok portfela {a[0]} → {b[0]} o więcej niż {SK_SKOK:.0%}')
+    if p['peak'][1] < d[-1][1]:
+        raise RuntimeError('NY Fed SOMA: szczyt mniejszy od ostatniej wartości')
+    return d[-1][0]
+
+
+def build_soma_sklad(prev=None):
+    """data/soma-sklad.json. Awaria sieci albo bramki = wyjątek (main zostawia poprzedni plik); źródło ze starszym dniem niż poprzedni plik = poprzedni plik bez zmian."""
+    p = parse_soma_sklad(json.loads(_plyn_get(SK_URL)))
+    asof = soma_sklad_bramka(p)
+    if isinstance(prev, dict) and isinstance(prev.get('asof'), str) and prev['asof'] > asof:
+        META['notes'].append(f'NY Fed portfel Fed (skład): źródło pokazuje {asof}, a poprzedni plik ma {prev["asof"]} — zostaje poprzedni')
+        return {**prev, 'at': NOW, 'proba': None}
+    return {'v': 1, 'at': NOW, 'src': 'Federal Reserve Bank of New York — SOMA holdings (summary)', 'url': 'https://www.newyorkfed.org/markets/soma-holdings',
+            'unit': 'mln USD', 'asof': asof, 'cols': ['date', 'total', 'notes', 'mbs', 'bills', 'tips', 'other'], 'd': p['d'], 'peak': p['peak'], 'n_hist': p['n']}
+
+
+# ------------------------------------------------------------------ (2) pozycje bilansu Eurosystemu ------------------------------------------------------------------
+def parse_eurosystem(txt):
+    """CSV EBC (ILM, SDMX) → {'k': {klucz: [[piątek tygodnia, mln EUR, tydzień ISO]]}}; tylko tygodniowe, strefa euro, sektor C, skala miliony; brak wartości = brak punktu."""
+    rd = csv.DictReader(io.StringIO(str(txt).lstrip('\ufeff')))
+    need = {'FREQ', 'REF_AREA', 'BS_REP_SECTOR', 'BS_ITEM', 'COUNT_AREA', 'CURRENCY_TRANS', 'TIME_PERIOD', 'OBS_VALUE', 'UNIT_MULT'}
+    if not need <= set(rd.fieldnames or ()):
+        raise RuntimeError('EBC ILM: nieznany układ pliku (brak kolumn)')
+    idx = {v: k for k, v in EU_POZ.items()}
+    ser = {}
+    for r in rd:
+        k = idx.get(((r.get('BS_ITEM') or '').strip(), (r.get('COUNT_AREA') or '').strip(), (r.get('CURRENCY_TRANS') or '').strip()))
+        if k is None or (r.get('FREQ') or '').strip() != 'W' or (r.get('REF_AREA') or '').strip() != 'U2' or (r.get('BS_REP_SECTOR') or '').strip() != 'C':
+            continue
+        if (r.get('UNIT_MULT') or '').strip() != '6':
+            raise RuntimeError(f'EBC ILM: skala niezgodna (UNIT_MULT {r.get("UNIT_MULT")})')
+        per, v = (r.get('TIME_PERIOD') or '').strip(), _num(r.get('OBS_VALUE'))
+        dzien = _iso_week_end(per)
+        if dzien is None or v is None or v != v:
+            continue
+        ser.setdefault(k, {})[per] = [dzien, int(round(v)), per]
+    if not ser:
+        raise RuntimeError('EBC ILM: brak serii')
+    return {'k': {k: sorted(s.values(), key=lambda r: r[0])[-EU_N:] for k, s in ser.items()}}
+
+
+def eurosystem_bramka(p):
+    """Bramka: seria „total” i „qe” z dość tygodni i tym samym ostatnim dniem; skok tygodniowy sumy aktywów ≤ EU_SKOK; pozycje cząstkowe (te z aktywów i te z pasywów
+    osobno) nie przekraczają sumy. Zwraca ostatni dzień danych."""
+    K = p['k']
+    for k in ('total', 'qe'):
+        if k not in K or len(K[k]) < EU_MIN:
+            raise RuntimeError(f'EBC ILM: brak serii „{k}” albo za mało tygodni (min. {EU_MIN})')
+    last = K['total'][-1][0]
+    if K['qe'][-1][0] != last:
+        raise RuntimeError('EBC ILM: ostatni tydzień sumy i papierów polityki pieniężnej się różnią')
+    for a, b in zip(K['total'], K['total'][1:]):
+        if abs(b[1] / a[1] - 1) > EU_SKOK:
+            raise RuntimeError(f'EBC ILM: skok sumy aktywów {a[0]} → {b[0]} o więcej niż {EU_SKOK:.0%}')
+    tot = K['total'][-1][1]
+    for grupa in (('qe', 'zloto', 'kredyt'), ('banknoty', 'depozyty', 'rachunki', 'rzady')):
+        s = sum(K[k][-1][1] for k in grupa if k in K and K[k][-1][0] == last)
+        if s > tot * 1.001:
+            raise RuntimeError(f'EBC ILM: pozycje {"+".join(grupa)} ({s}) większe od sumy bilansu ({tot})')
+    return last
+
+
+def build_eurosystem(prev=None):
+    """data/eurosystem.json (jedno zapytanie CSV). Awaria sieci albo bramki = wyjątek; starszy dzień niż w poprzednim pliku = poprzedni plik bez zmian."""
+    p = parse_eurosystem(_plyn_get(EU_URL))
+    last = eurosystem_bramka(p)
+    if isinstance(prev, dict) and isinstance(prev.get('asof'), str) and prev['asof'] > last:
+        META['notes'].append(f'EBC bilans Eurosystemu: źródło pokazuje {last}, a poprzedni plik ma {prev["asof"]} — zostaje poprzedni')
+        return {**prev, 'at': NOW, 'proba': None}
+    return {'v': 1, 'at': NOW, 'src': 'European Central Bank — Eurosystem weekly financial statement (ILM), main items', 'url': 'https://data.ecb.europa.eu/data/datasets/ILM',
+            'unit': 'mln EUR', 'asof': last, 'period': p['k']['total'][-1][2], 'k': p['k']}
+
+
+# ------------------------------------------------------------------ (3) fundusze hedgingowe ------------------------------------------------------------------
+def parse_hedge(gav, nav):
+    """OFR: dwie serie [[dzień końca kwartału, USD]] → {'d': [[dzień, aktywa brutto, aktywa netto]] (mln USD) dla wspólnych kwartałów, rosnąco}; wpis nie będący parą
+    [dzień, liczba] jest pomijany (brak ≠ zero)."""
+    def seria(x, nazwa):
+        if not isinstance(x, list):
+            raise RuntimeError(f'OFR fundusze hedgingowe: {nazwa} nie jest listą')
+        o = {}
+        for r in x:
+            if isinstance(r, list) and len(r) == 2 and _plyn_dzien(r[0]) and isinstance(r[1], (int, float)) and not isinstance(r[1], bool) and r[1] == r[1] and r[1] > 0:
+                o[r[0]] = r[1] / 1e6
+        return o
+    g, n = seria(gav, 'aktywa brutto'), seria(nav, 'aktywa netto')
+    wsp = sorted(set(g) & set(n))
+    return {'d': [[d, round(g[d]), round(n[d])] for d in wsp]}
+
+
+def hedge_bramka(p, now=None):
+    """Bramka: dość kwartałów, aktywa brutto ≥ netto, dźwignia 1–HF_DZWIGNIA_MAX, dzień danych nie starszy niż HF_DZIEN_MAX dni. Zwraca ostatni dzień."""
+    d = p['d']
+    if len(d) < HF_MIN:
+        raise RuntimeError(f'OFR fundusze hedgingowe: tylko {len(d)} wspólnych kwartałów (min. {HF_MIN})')
+    for r in d:
+        if r[2] > r[1] or not (1.0 <= r[1] / r[2] <= HF_DZWIGNIA_MAX):
+            raise RuntimeError(f'OFR fundusze hedgingowe: aktywa brutto {r[1]} i netto {r[2]} mln USD z dnia {r[0]} niespójne')
+    t = _plyn_dt(now or NOW)
+    if t is not None and (t.date() - datetime.date.fromisoformat(d[-1][0])).days > HF_DZIEN_MAX:
+        raise RuntimeError(f'OFR fundusze hedgingowe: ostatni kwartał {d[-1][0]} starszy niż {HF_DZIEN_MAX} dni')
+    return d[-1][0]
+
+
+def build_hedge(prev=None):
+    """data/hedge.json (dwa lekkie zapytania JSON). Awaria któregokolwiek albo bramki = wyjątek (main zostawia poprzedni plik)."""
+    gav = json.loads(_plyn_get(HF_URL.format(m=HF_GAV), 45))
+    nav = json.loads(_plyn_get(HF_URL.format(m=HF_NAV), 45))
+    p = parse_hedge(gav, nav)
+    last = hedge_bramka(p)
+    if isinstance(prev, dict) and isinstance(prev.get('asof'), str) and prev['asof'] > last:
+        META['notes'].append(f'OFR fundusze hedgingowe: źródło pokazuje {last}, a poprzedni plik ma {prev["asof"]} — zostaje poprzedni')
+        return {**prev, 'at': NOW, 'proba': None}
+    return {'v': 1, 'at': NOW, 'src': 'Office of Financial Research — Hedge Fund Monitor (Form PF, qualifying hedge funds)', 'url': 'https://www.financialresearch.gov/hedge-fund-monitor/',
+            'unit': 'mln USD', 'asof': last, 'cols': ['date', 'gross', 'net'], 'd': p['d']}
+
+
+def plyn_czesc(nazwa, etykieta, budowa, due, przed_min, po_min):
+    """Jedna część przebiegu v357 z własnym rytmem → wartość dla META['ok'] (True = zbudowana, 'cached' = poprzedni plik wystarcza, False = awaria). Poprzedni plik
+    wystarcza, dopóki plyn_pytac mówi „nie” (zapis bez zmian); inaczej budowa(prev). Awaria = błąd w meta (bez klucza) i poprzedni plik z nową chwilą próby (proba) —
+    następne zapytanie dopiero po odstępie rytmu, nie w następnym przebiegu."""
+    prev = previous(nazwa)
+    if prev and not plyn_pytac(prev, NOW, due, przed_min, po_min):
+        save(nazwa, prev)
+        return 'cached'
+    try:
+        save(nazwa, budowa(prev))
+        return True
+    except Exception as e:
+        META['errors'].append(mask(f'{etykieta}: {e}')[:200])
+        if prev:
+            save(nazwa, {**prev, 'proba': NOW})
+        return False
 
 
 if __name__ == '__main__':
