@@ -141,6 +141,7 @@ ZRODLA_META = {
     'zboza_dzien': ('igc', 'fao', 'komisja-europejska'), 'zboza_dzien_goi': 'igc', 'zboza_dzien_fracht': 'igc', 'zboza_dzien_fao': 'fao',
     'zboza_dzien_ue': 'komisja-europejska', 'zboza_dzien_nawozy': 'komisja-europejska',
     'metale': ('westmetall', 'shfe', 'cochilco'), 'metale_lme': 'westmetall', 'metale_sh': 'shfe', 'metale_shd': 'shfe', 'metale_shw': 'shfe', 'metale_cu': 'cochilco',
+    'target': 'ecb', 'mica': 'esma',   # v355: salda TARGET (to samo źródło co kursy i M3 — liczba źródeł bez zmian) i rejestry MiCA (+1 źródło)
     # --- własne wyliczenia z innych plików (bez zapytań do sieci) ---
     'trendy': None, 'zloto-krypto': None,
 }
@@ -31244,6 +31245,28 @@ def main():
             META['errors'].append(mask(f'{ZM_LABEL}: {e}')); META['ok']['zmiennosc'] = False
             if isinstance(prev_zm, dict):
                 save('zmiennosc', prev_zm)
+    # v355 (zwiad 2): salda TARGET krajów strefy euro (EBC, miesięcznie): najwyżej raz na dobę; awaria albo bramka (suma sald ≠ 0) = poprzedni plik i błąd
+    prev_tg = previous('target')
+    if prev_tg and fresh(prev_tg, TG_EVERY):
+        save('target', prev_tg); META['ok']['target'] = 'cached'
+    else:
+        try:
+            save('target', build_target(prev_tg)); META['ok']['target'] = True
+        except Exception as e:
+            META['errors'].append(mask(f'EBC TARGET: {e}')[:200]); META['ok']['target'] = False
+            if prev_tg: save('target', prev_tg)
+    # v355 (zwiad 2): rejestry MiCA (wykazy firm CASP i emitentów EMT; dwa pliki CSV): najwyżej raz na dobę (plik niepełny — po 55 min); część, która zawiodła,
+    # zostaje z poprzedniego pliku do MC_ZAPAS_DNI dni; awaria całości = poprzedni plik i błąd
+    prev_mc = previous('mica')
+    if prev_mc and fresh_pelny(prev_mc, MC_EVERY):
+        save('mica', prev_mc); META['ok']['mica'] = 'cached'
+    else:
+        try:
+            mc_ = build_mica(prev_mc); save('mica', mc_)
+            META['errors'].extend(mc_.get('bledy') or []); META['ok']['mica'] = not plik_niepelny(mc_)
+        except Exception as e:
+            META['errors'].append(mask(f'ESMA MiCA: {e}')[:200]); META['ok']['mica'] = False
+            if prev_mc: save('mica', prev_mc)
     # v295c: CRYPTO „Złoto i surowce a krypto” (data/zloto-krypto.json) — wyliczenia z plików zapisanych w tym przebiegu (SAVED: surowce,
     # ceny krypto, wycena, RWA, ETF, cmc), bez zapytań do sieci; część bez wejść = poprzednia z jej czasem; awaria = błąd i poprzedni plik
     prev_zk = previous('zloto-krypto')
@@ -31304,6 +31327,238 @@ def main():
     save('meta', META)
     print('błędy:', META['errors'] or 'brak')
     return 0
+
+
+import email.utils   # v355: Last-Modified odpowiedzi (ponowny import jest nieszkodliwy)
+# ===================== v355 (zwiad 2): salda TARGET krajów strefy euro (data/target.json) i rejestry MiCA (data/mica.json) =====================
+# TARGET (EBC, dane miesięczne, bez klucza): saldo końca miesiąca każdego z 21 krajów strefy euro w systemie płatniczym banków centralnych (plus = kraj jest
+# wierzycielem reszty, minus = dłużnikiem; wskaźnik ucieczki kapitału między krajami strefy), 13 ostatnich miesięcy; EBC (4F) i banki spoza strefy (U4)
+# osobno. Suma wszystkich sald jest równa zeru (system dwustronnie zamknięty: 10.2026 suma 21 krajów + 4F + U4 = −0,00001 mln EUR) — plik, w którym tak
+# nie jest, nie jest publikowany (bramka). Dziewięć krajów jest też w data/instytucje.json (panel „dane urzędowe”); ten plik dodaje pozostałe dwanaście
+# i okno 13 miesięcy dla wszystkich, a kontrola dzienna porównuje wspólne kraje między plikami.
+# MiCA (ESMA, dwa pliki CSV, bez klucza): firmy z licencją na usługi kryptoaktywów (CASP) wg kraju siedziby i emitenci tokenów powiązanych z walutą (EMT,
+# stablecoiny). Liczymy firmy po numerze LEI (jeden wiersz = jedno zezwolenie, firma może mieć kilka); daty zezwoleń spoza okna obowiązywania MiCA
+# (30.06.2024 – dzień pliku) są odrzucane i policzone (zle_daty). Plik wykazu ESMA ma literówki w datach (np. rok 2028), dlatego daty „ostatniej zmiany” nie
+# są pokazywane; czas pliku to nagłówek Last-Modified odpowiedzi.
+TG_URL = 'https://data-api.ecb.europa.eu/service/data/TGB?lastNObservations=13&format=csvdata'
+TG_EURO = ('AT', 'BE', 'BG', 'CY', 'DE', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PT', 'SI', 'SK')
+TG_MIN_KRAJOW = 15          # najmniej krajów z ostatnim miesiącem w pliku
+TG_SUMA_BRAMKA = 1000.0     # mln EUR — suma wszystkich sald większa co do modułu = plik uszkodzony (w danych 10.2026: 0,00001)
+TG_MAX_SALDO = 5e6          # mln EUR (5 bln) — saldo większe co do modułu = błąd skali
+TG_EVERY = 24 * 60          # min — plik miesięczny, jedno lekkie zapytanie na dobę
+MC_CASP_URL = 'https://www.esma.europa.eu/sites/default/files/2024-12/CASPS.csv'
+MC_EMT_URL = 'https://www.esma.europa.eu/sites/default/files/2024-12/EMTWP.csv'
+MC_EVERY = 24 * 60          # min — wykaz zmienia się co kilka dni
+MC_START = '2024-06-30'     # wcześniejsza data zezwolenia = błąd w pliku (MiCA dla CASP obowiązuje od 30.12.2024)
+MC_MIN_CASP, MC_MIN_EMT = 100, 5
+MC_SPADEK = 0.30            # lista skurczona o więcej niż 30% wobec poprzedniego pliku = odrzucona
+MC_USLUGI = 'abcdefghij'    # kody usług z art. 3 ust. 1 pkt 16 MiCA
+MC_ZAPAS_DNI = 14           # część, która zawiodła, zostaje z poprzedniego pliku najwyżej tyle dni
+
+
+def _tg_ym(s):
+    s = str(s or '').strip()
+    return s if re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', s) else None
+
+
+def parse_target(txt):
+    """Plik CSV EBC (zbiór TGB, SDMX) → {'k': {kraj: [[RRRR-MM, mln EUR]]}, 'ecb': […], 'ne': […], 'st': {kraj: litera statusu ostatniego miesiąca}}; tylko
+    saldo końca miesiąca (E), pozycja A094T, w EUR; skala inna niż miliony = błąd; brak wartości = brak punktu (nigdy 0)."""
+    rd = csv.DictReader(io.StringIO(str(txt).lstrip('\ufeff')))
+    need = {'REF_AREA', 'BS_ITEM', 'TIME_PERIOD', 'OBS_VALUE', 'TIME_PER_COLLECT', 'CURRENCY_TRANS', 'UNIT_MULT'}
+    if not need <= set(rd.fieldnames or ()):
+        raise RuntimeError('EBC TARGET: nieznany układ pliku (brak kolumn)')
+    ser, st = {}, {}
+    for r in rd:
+        if (r.get('BS_ITEM') or '').strip() != 'A094T' or (r.get('TIME_PER_COLLECT') or '').strip() != 'E' or (r.get('CURRENCY_TRANS') or '').strip() != 'EUR':
+            continue
+        if (r.get('UNIT_MULT') or '').strip() != '6':
+            raise RuntimeError(f'EBC TARGET: skala niezgodna (UNIT_MULT {r.get("UNIT_MULT")})')
+        a, m, v = (r.get('REF_AREA') or '').strip(), _tg_ym(r.get('TIME_PERIOD')), _num(r.get('OBS_VALUE'))
+        if not a or not m or v is None or v != v or abs(v) > TG_MAX_SALDO:
+            continue
+        ser.setdefault(a, {})[m] = round(v, 2)
+        st.setdefault(a, {})[m] = (r.get('OBS_STATUS') or '').strip()
+    if not ser:
+        raise RuntimeError('EBC TARGET: brak serii sald')
+    def rows(a):
+        return [[m, v] for m, v in sorted(ser[a].items())][-13:]
+    out = {'k': {a: rows(a) for a in TG_EURO if a in ser}, 'st': {}}
+    for a, key in (('4F', 'ecb'), ('U4', 'ne')):
+        if a in ser:
+            out[key] = rows(a)
+    for a in out['k']:
+        out['st'][a] = st[a].get(out['k'][a][-1][0], '')
+    return out
+
+
+def target_bramka(p):
+    """Bramka publikacji pliku TARGET: dość krajów z tym samym ostatnim miesiącem i zerowa suma wszystkich sald tego miesiąca (21 krajów + EBC + banki spoza
+    strefy). Zwraca (ostatni miesiąc, suma mln EUR albo None); wyjątek = plik nie jest publikowany."""
+    K = p.get('k') or {}
+    last = max((s[-1][0] for s in K.values() if s), default=None)
+    if not last:
+        raise RuntimeError('EBC TARGET: brak miesiąca danych')
+    ile = sum(1 for s in K.values() if s and s[-1][0] == last)
+    if ile < TG_MIN_KRAJOW:
+        raise RuntimeError(f'EBC TARGET: tylko {ile} krajów z miesiącem {last} (min. {TG_MIN_KRAJOW})')
+    suma = None
+    vals = [dict(s) for s in K.values()] + [dict(p[k]) for k in ('ecb', 'ne') if p.get(k)]
+    if ile == len(TG_EURO) and p.get('ecb') and p.get('ne') and all(last in d for d in vals):
+        suma = round(sum(d[last] for d in vals), 4)
+        if abs(suma) > TG_SUMA_BRAMKA:
+            raise RuntimeError(f'EBC TARGET: suma sald {last} = {suma:+.1f} mln EUR zamiast zera — plik odrzucony')
+    return last, suma
+
+
+def build_target(prev=None):
+    """data/target.json: 13 miesięcy sald końca miesiąca 21 krajów strefy euro. Awaria sieci albo bramki = wyjątek (main zostawia poprzedni plik);
+    plik starszy miesiącem niż poprzedni = poprzedni plik bez zmian (notatka)."""
+    p = parse_target(get(TG_URL, timeout=45)[1])
+    last, suma = target_bramka(p)
+    if isinstance(prev, dict) and isinstance(prev.get('asof'), str) and prev['asof'] > last:
+        META['notes'].append(f'EBC TARGET: źródło pokazuje {last}, a poprzedni plik ma {prev["asof"]} — zostaje poprzedni')
+        return {**prev, 'at': NOW}   # sprawdzone teraz — kolejne zapytanie za TG_EVERY, nie co przebieg
+    out = {'v': 1, 'at': NOW, 'src': 'European Central Bank — TARGET balances (TGB), end-of-month positions', 'url': 'https://data.ecb.europa.eu/data/datasets/TGB',
+           'unit': 'mln EUR', 'asof': last, 'k': p['k'], 'st': p['st']}
+    for k in ('ecb', 'ne'):
+        if p.get(k):
+            out[k] = p[k]
+    if suma is not None:
+        out['suma'] = suma
+    return out
+
+
+def _get_lm(url, timeout=60):
+    """Treść pliku i nagłówek Last-Modified (ISO UTC albo None); bez omijania zabezpieczeń — odpowiedź inna niż 200 to wyjątek."""
+    with _otworz(url, None, timeout) as r:
+        body = r.read().decode('utf-8-sig', 'replace')
+        lm = r.headers.get('Last-Modified')
+    try:
+        t = email.utils.parsedate_to_datetime(lm) if lm else None
+        iso = t.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat() if t else None
+    except Exception:
+        iso = None
+    return body, iso
+
+
+def _mc_data(s):
+    """'31/08/2026' → '2026-08-31' (prawdziwa data) albo None."""
+    m = re.fullmatch(r'\s*(\d{2})/(\d{2})/(\d{4})\s*', str(s or ''))
+    if not m:
+        return None
+    try:
+        return datetime.date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat()
+    except ValueError:
+        return None
+
+
+def _mc_wiersze(txt, kolumny):
+    rd = csv.DictReader(io.StringIO(str(txt).lstrip('\ufeff')))
+    if not set(kolumny) <= set(rd.fieldnames or ()):
+        raise RuntimeError('ESMA: nieznany układ pliku (brak kolumn)')
+    return [r for r in rd if (r.get('ae_homeMemberState') or '').strip()]
+
+
+def parse_mica_casp(txt, plik_dzien, dzis):
+    """Wykaz CASP → {'n': firm z aktualnym zezwoleniem (po LEI), 'wiersze', 'wygaslo', 'kraje': [[kraj, n]] malejąco, 'uslugi': {a..j: firm},
+    'nowe30', 'nowe90', 'seria': [[RRRR-MM, firm narastająco wg daty zezwolenia]], 'zle_daty'}; plik_dzien — dzień pliku (Last-Modified) albo dzis."""
+    rows = _mc_wiersze(txt, ('ae_lei', 'ae_homeMemberState', 'ac_authorisationNotificationDate', 'ac_authorisationEndDate', 'ac_serviceCode'))
+    gora = max(plik_dzien or dzis, dzis)
+    firmy, zle, wyg = {}, 0, set()
+    for r in rows:
+        klucz = (r.get('ae_lei') or '').strip().upper() or (r.get('ae_lei_name') or '').strip().lower()
+        if not klucz:
+            continue
+        kraj = r['ae_homeMemberState'].strip().upper()[:2]
+        end = _mc_data(r.get('ac_authorisationEndDate'))
+        if (r.get('ac_authorisationEndDate') or '').strip() and (end is None or end <= dzis):
+            wyg.add(klucz); continue   # zezwolenie wygasłe (albo data końca nieczytelna — nie liczymy jako aktualnego)
+        d = _mc_data(r.get('ac_authorisationNotificationDate'))
+        if d is not None and not (MC_START <= d <= gora):
+            d = None
+        if d is None:
+            zle += 1
+        f = firmy.setdefault(klucz, {'kraj': kraj, 'd': None, 'us': set()})
+        if d and (f['d'] is None or d < f['d']):
+            f['d'] = d
+        for c in str(r.get('ac_serviceCode') or '').split('|'):
+            c = c.strip()[:1].lower()
+            if c and c in MC_USLUGI:
+                f['us'].add(c)
+    if not firmy:
+        raise RuntimeError('ESMA CASP: brak firm z aktualnym zezwoleniem')
+    kr = {}
+    for f in firmy.values():
+        kr[f['kraj']] = kr.get(f['kraj'], 0) + 1
+    us = {c: sum(1 for f in firmy.values() if c in f['us']) for c in MC_USLUGI}
+    daty = sorted(f['d'] for f in firmy.values() if f['d'])
+    def od(dni):
+        t = (datetime.date.fromisoformat(dzis) - datetime.timedelta(days=dni)).isoformat()
+        return sum(1 for d in daty if d >= t)
+    seria, cum = [], 0
+    for m in sorted({d[:7] for d in daty}):
+        cum += sum(1 for d in daty if d[:7] == m)
+        seria.append([m, cum])
+    return {'n': len(firmy), 'wiersze': len(rows), 'wygaslo': len(wyg - set(firmy)), 'kraje': sorted(([k, n] for k, n in kr.items()), key=lambda x: (-x[1], x[0])),
+            'uslugi': us, 'nowe30': od(30), 'nowe90': od(90), 'seria': seria[-24:], 'z_data': len(daty), 'zle_daty': zle}
+
+
+def parse_mica_emt(txt, dzis):
+    """Wykaz białych ksiąg EMT → {'n': emitentów z aktualnym zezwoleniem (po LEI), 'ksiegi': liczba wierszy (białych ksiąg), 'kraje': [[kraj, n]],
+    'kredytowe': emitentów będących bankami, 'emi': instytucji pieniądza elektronicznego}; bez nazw emitentów (na stronie tylko liczby)."""
+    rows = _mc_wiersze(txt, ('ae_lei', 'ae_homeMemberState', 'ac_authorisationEndDate', 'ae_authorisation_other_emt'))
+    em = {}
+    for r in rows:
+        klucz = (r.get('ae_lei') or '').strip().upper() or (r.get('ae_lei_name') or '').strip().lower()
+        if not klucz:
+            continue
+        if (r.get('ac_authorisationEndDate') or '').strip():
+            end = _mc_data(r['ac_authorisationEndDate'])
+            if end is None or end <= dzis:
+                continue
+        e = em.setdefault(klucz, {'kraj': r['ae_homeMemberState'].strip().upper()[:2], 'rodzaj': '', 'ks': 0})
+        e['ks'] += 1
+        tp = (r.get('ae_authorisation_other_emt') or '').strip().lower()
+        if 'credit' in tp:
+            e['rodzaj'] = 'k'
+        elif 'electronic money' in tp and e['rodzaj'] != 'k':
+            e['rodzaj'] = 'e'
+    if not em:
+        raise RuntimeError('ESMA EMT: brak emitentów z aktualnym zezwoleniem')
+    kr = {}
+    for e in em.values():
+        kr[e['kraj']] = kr.get(e['kraj'], 0) + 1
+    return {'n': len(em), 'ksiegi': sum(e['ks'] for e in em.values()), 'kraje': sorted(([k, n] for k, n in kr.items()), key=lambda x: (-x[1], x[0])),
+            'kredytowe': sum(1 for e in em.values() if e['rodzaj'] == 'k'), 'emi': sum(1 for e in em.values() if e['rodzaj'] == 'e')}
+
+
+def build_mica(prev=None):
+    """data/mica.json: wykazy CASP i EMT (każdy z własnym plik_at = Last-Modified i part_at = chwila pobrania). Część, która zawiodła, zostaje z poprzedniego
+    pliku najwyżej MC_ZAPAS_DNI dni (ok False → ponowienie po 55 min); lista skurczona o ponad MC_SPADEK = odrzucona jak awaria. Obie części bez danych = wyjątek."""
+    dzis = NOW[:10]
+    out, ok, bl = {'v': 1, 'at': NOW, 'src': 'ESMA — MiCA interim register: CASPs and white papers for EMTs', 'url': 'https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/markets-crypto-assets-regulation-mica',
+                   'part_at': {}}, {}, []
+    for nazwa, url, parser, minimum in (('casp', MC_CASP_URL, parse_mica_casp, MC_MIN_CASP), ('emt', MC_EMT_URL, parse_mica_emt, MC_MIN_EMT)):
+        try:
+            txt, lm = _get_lm(url)
+            d = parser(txt, lm[:10] if lm else None, dzis) if nazwa == 'casp' else parser(txt, dzis)
+            if d['n'] < minimum:
+                raise RuntimeError(f'ESMA {nazwa.upper()}: tylko {d["n"]} firm (min. {minimum})')
+            po = prev.get(nazwa) if isinstance(prev, dict) and isinstance(prev.get(nazwa), dict) else None
+            if po and isinstance(po.get('n'), int) and po['n'] > 0 and d['n'] < po['n'] * (1 - MC_SPADEK):
+                raise RuntimeError(f'ESMA {nazwa.upper()}: lista skurczona z {po["n"]} do {d["n"]} — odrzucona')
+            d['plik_at'] = lm
+            out[nazwa] = d; ok[nazwa] = True; out['part_at'][nazwa] = NOW
+        except Exception as e:
+            bl.append(mask(f'ESMA {nazwa.upper()}: {e}')[:200]); ok[nazwa] = False
+            if not (isinstance(prev, dict) and _czesc_z_zapasem(out, prev, nazwa, max_h=MC_ZAPAS_DNI * 24)):
+                out.setdefault('brak', []).append(nazwa)
+    if 'casp' not in out and 'emt' not in out:
+        raise RuntimeError('; '.join(bl) or 'ESMA: brak danych')
+    out['ok'] = ok
+    out['bledy'] = bl
+    return out
 
 
 if __name__ == '__main__':

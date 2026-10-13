@@ -24413,8 +24413,9 @@ const v353 = (() => {
 })();
 
 test('v353: wpięcie — linia regionu zaraz po linii v342 w szczegółach regionu, blok po bloku v342, słownik po ostatnim słowniku', () => {
-  const r = "          ${typeof f342Region==='function'?f342Region(s.id):''}\n          ${typeof ru353Region==='function'?ru353Region(s.id):''}\n";
-  assert.equal(html.split(r).length - 1, 1, 'ru353Region po f342Region w szczegółach regionu');
+  /* v355 (integracja): między linią v342 a linią v353 może stać linia TARGET (tgRegion) — kolejność v342, [v355], v353 */
+  const r = "          ${typeof f342Region==='function'?f342Region(s.id):''}\n          ${typeof tgRegion==='function'?tgRegion(s.id):''}\n          ${typeof ru353Region==='function'?ru353Region(s.id):''}\n";
+  assert.equal(html.split(r).length - 1, 1, 'ru353Region po f342Region (i tgRegion) w szczegółach regionu');
   assert.ok(html.indexOf('/* ===================== v353: karta regionu „Rosja”') > html.indexOf('/* v342 (F1Z2): koniec */'));
   assert.ok(html.includes('"ru353.eq.t"'), 'słownik v353 w stronie');
   assert.ok(!/<style|<table|nowrap|width:\s*\d+px/.test(v353.src), 'bez nowych stylów, tabel i stałych szerokości (telefon 390 px: tekst zawija się w zwykłej linii regionu)');
@@ -24576,4 +24577,200 @@ test('v354: docs/ — sumy SHA-256 dokumentów rejestracji zgadzają się z plik
   // powiązania zadań, od których zależy commit aktywności (mutacje z recenzji v354)
   for (const linia of ['        id: straznik\n        continue-on-error: true\n', '      aktywnosc: ${{ steps.straznik.outputs.aktywnosc }}\n      dni: ${{ steps.straznik.outputs.dni }}\n',
     "    needs: straznik\n    if: always() && needs.straznik.outputs.aktywnosc == 'tak'\n", '          persist-credentials: false\n']) assert.ok(y.includes(linia), linia);
+});
+
+/* ===================== v355 ZWIAD_WDROZ: salda TARGET krajów strefy euro (region Europa na mapie GLOBAL) i karta rejestrów MiCA w CRYPTO (#c-mica) =====================
+   ZW355_T i ZW355_M — pliki zbieracza v355 (build_target, build_mica): salda końca sierpnia 2026 z nagrania zwiadu (21 krajów + EBC + banki spoza strefy, suma zero) z syntetycznymi
+   wcześniejszymi miesiącami; wykazy CASP i EMT z nagrania 11.10.2026 przetworzone przez parse_mica_casp i parse_mica_emt (365 firm po LEI, 24 emitentów). Zegar przypięty
+   (2026-10-13 06:00 UTC), srvJSON — odpowiedź od razu (liczone wywołania). Testy nie zależą od numeru słownika. */
+const ZW355_T = {"v":1,"at":"2026-10-13T06:00:00+00:00","src":"European Central Bank — TARGET balances (TGB), end-of-month positions","url":"https://data.ecb.europa.eu/data/datasets/TGB","unit":"mln EUR","asof":"2026-08","k":{"AT":[["2025-08",-123507.04],["2025-09",-123507.04],["2025-10",-123507.04],["2025-11",-123507.04],["2025-12",-123507.04],["2026-01",-123507.04],["2026-02",-123507.04],["2026-03",-123507.04],["2026-04",-123507.04],["2026-05",-123507.04],["2026-06",-123507.04],["2026-07",-123507.04],["2026-08",-123507.04]],"BE":[["2025-08",105377.36],["2025-09",105477.36],["2025-10",105577.36],["2025-11",105677.36],["2025-12",105777.36],["2026-01",105877.36],["2026-02",105977.36],["2026-03",106077.36],["2026-04",106177.36],["2026-05",106277.36],["2026-06",106377.36],["2026-07",106477.36],["2026-08",106577.36]],"BG":[["2025-08",22198.39],["2025-09",22198.39],["2025-10",22198.39],["2025-11",22198.39],["2025-12",22198.39],["2026-01",22198.39],["2026-02",22198.39],["2026-03",22198.39],["2026-04",22198.39],["2026-05",22198.39],["2026-06",22198.39],["2026-07",22198.39],["2026-08",22198.39]],"CY":[["2025-08",13541.15],["2025-09",13541.15],["2025-10",13541.15],["2025-11",13541.15],["2025-12",13541.15],["2026-01",13541.15],["2026-02",13541.15],["2026-03",13541.15],["2026-04",13541.15],["2026-05",13541.15],["2026-06",13541.15],["2026-07",13541.15],["2026-08",13541.15]],"DE":[["2025-08",1070565.29],["2025-09",1070665.29],["2025-10",1070765.29],["2025-11",1070865.29],["2025-12",1070965.29],["2026-01",1071065.29],["2026-02",1071165.29],["2026-03",1071265.29],["2026-04",1071365.29],["2026-05",1071465.29],["2026-06",1071565.29],["2026-07",1071665.29],["2026-08",1071765.29]],"EE":[["2025-08",2002.43],["2025-09",2002.43],["2025-10",2002.43],["2025-11",2002.43],["2025-12",2002.43],["2026-01",2002.43],["2026-02",2002.43],["2026-03",2002.43],["2026-04",2002.43],["2026-05",2002.43],["2026-06",2002.43],["2026-07",2002.43],["2026-08",2002.43]],"ES":[["2025-08",-441354.69],["2025-09",-441454.69],["2025-10",-441554.69],["2025-11",-441654.69],["2025-12",-441754.69],["2026-01",-441854.69],["2026-02",-441954.69],["2026-03",-442054.69],["2026-04",-442154.69],["2026-05",-442254.69],["2026-06",-442354.69],["2026-07",-442454.69],["2026-08",-442554.69]],"FI":[["2025-08",13665.3],["2025-09",13665.3],["2025-10",13665.3],["2025-11",13665.3],["2025-12",13665.3],["2026-01",13665.3],["2026-02",13665.3],["2026-03",13665.3],["2026-04",13665.3],["2026-05",13665.3],["2026-06",13665.3],["2026-07",13665.3],["2026-08",13665.3]],"FR":[["2025-08",-180136.52],["2025-09",-180236.52],["2025-10",-180336.52],["2025-11",-180436.52],["2025-12",-180536.52],["2026-01",-180636.52],["2026-02",-180736.52],["2026-03",-180836.52],["2026-04",-180936.52],["2026-05",-181036.52],["2026-06",-181136.52],["2026-07",-181236.52],["2026-08",-181336.52]],"GR":[["2025-08",-105423.93],["2025-09",-105423.93],["2025-10",-105423.93],["2025-11",-105423.93],["2025-12",-105423.93],["2026-01",-105423.93],["2026-02",-105423.93],["2026-03",-105423.93],["2026-04",-105423.93],["2026-05",-105423.93],["2026-06",-105423.93],["2026-07",-105423.93],["2026-08",-105423.93]],"HR":[["2025-08",-9939.62],["2025-09",-9939.62],["2025-10",-9939.62],["2025-11",-9939.62],["2025-12",-9939.62],["2026-01",-9939.62],["2026-02",-9939.62],["2026-03",-9939.62],["2026-04",-9939.62],["2026-05",-9939.62],["2026-06",-9939.62],["2026-07",-9939.62],["2026-08",-9939.62]],"IE":[["2025-08",81764.53],["2025-09",81764.53],["2025-10",81764.53],["2025-11",81764.53],["2025-12",81764.53],["2026-01",81764.53],["2026-02",81764.53],["2026-03",81764.53],["2026-04",81764.53],["2026-05",81764.53],["2026-06",81764.53],["2026-07",81764.53],["2026-08",81764.53]],"IT":[["2025-08",-343749.42],["2025-09",-343849.42],["2025-10",-343949.42],["2025-11",-344049.42],["2025-12",-344149.42],["2026-01",-344249.42],["2026-02",-344349.42],["2026-03",-344449.42],["2026-04",-344549.42],["2026-05",-344649.42],["2026-06",-344749.42],["2026-07",-344849.42],["2026-08",-344949.42]],"LT":[["2025-08",16856.98],["2025-09",16856.98],["2025-10",16856.98],["2025-11",16856.98],["2025-12",16856.98],["2026-01",16856.98],["2026-02",16856.98],["2026-03",16856.98],["2026-04",16856.98],["2026-05",16856.98],["2026-06",16856.98],["2026-07",16856.98],["2026-08",16856.98]],"LU":[["2025-08",193949.05],["2025-09",194049.05],["2025-10",194149.05],["2025-11",194249.05],["2025-12",194349.05],["2026-01",194449.05],["2026-02",194549.05],["2026-03",194649.05],["2026-04",194749.05],["2026-05",194849.05],["2026-06",194949.05],["2026-07",195049.05],["2026-08",195149.05]],"LV":[["2025-08",-5671.19],["2025-09",-5671.19],["2025-10",-5671.19],["2025-11",-5671.19],["2025-12",-5671.19],["2026-01",-5671.19],["2026-02",-5671.19],["2026-03",-5671.19],["2026-04",-5671.19],["2026-05",-5671.19],["2026-06",-5671.19],["2026-07",-5671.19],["2026-08",-5671.19]],"MT":[["2025-08",3276.47],["2025-09",3276.47],["2025-10",3276.47],["2025-11",3276.47],["2025-12",3276.47],["2026-01",3276.47],["2026-02",3276.47],["2026-03",3276.47],["2026-04",3276.47],["2026-05",3276.47],["2026-06",3276.47],["2026-07",3276.47],["2026-08",3276.47]],"NL":[["2025-08",62220.09],["2025-09",62220.09],["2025-10",62220.09],["2025-11",62220.09],["2025-12",62220.09],["2026-01",62220.09],["2026-02",62220.09],["2026-03",62220.09],["2026-04",62220.09],["2026-05",62220.09],["2026-06",62220.09],["2026-07",62220.09],["2026-08",62220.09]],"PT":[["2025-08",-89435.76],["2025-09",-89435.76],["2025-10",-89435.76],["2025-11",-89435.76],["2025-12",-89435.76],["2026-01",-89435.76],["2026-02",-89435.76],["2026-03",-89435.76],["2026-04",-89435.76],["2026-05",-89435.76],["2026-06",-89435.76],["2026-07",-89435.76],["2026-08",-89435.76]],"SI":[["2025-08",13082.21],["2025-09",13082.21],["2025-10",13082.21],["2025-11",13082.21],["2025-12",13082.21],["2026-01",13082.21],["2026-02",13082.21],["2026-03",13082.21],["2026-04",13082.21],["2026-05",13082.21],["2026-06",13082.21],["2026-07",13082.21],["2026-08",13082.21]],"SK":[["2025-08",-6179.53],["2025-09",-6179.53],["2025-10",-6179.53],["2025-11",-6179.53],["2025-12",-6179.53],["2026-01",-6179.53],["2026-02",-6179.53],["2026-03",-6179.53],["2026-04",-6179.53],["2026-05",-6179.53],["2026-06",-6179.53],["2026-07",-6179.53],["2026-08",-6179.53]]},"st":{"AT":"P","BE":"P","BG":"P","CY":"P","DE":"P","EE":"P","ES":"P","FI":"P","FR":"P","GR":"P","HR":"P","IE":"P","IT":"P","LT":"P","LU":"P","LV":"P","MT":"P","NL":"P","PT":"P","SI":"P","SK":"P"},"ecb":[["2025-08",-293620.68],["2025-09",-293620.68],["2025-10",-293620.68],["2025-11",-293620.68],["2025-12",-293620.68],["2026-01",-293620.68],["2026-02",-293620.68],["2026-03",-293620.68],["2026-04",-293620.68],["2026-05",-293620.68],["2026-06",-293620.68],["2026-07",-293620.68],["2026-08",-293620.68]],"ne":[["2025-08",519.12],["2025-09",519.12],["2025-10",519.12],["2025-11",519.12],["2025-12",519.12],["2026-01",519.12],["2026-02",519.12],["2026-03",519.12],["2026-04",519.12],["2026-05",519.12],["2026-06",519.12],["2026-07",519.12],["2026-08",519.12]],"suma":-0.01};
+const ZW355_M = {"v":1,"at":"2026-10-11T09:30:00+00:00","src":"x","url":"x","part_at":{"casp":"2026-10-11T09:30:00+00:00","emt":"2026-10-11T09:30:00+00:00"},"casp":{"n":365,"wiersze":370,"wygaslo":2,"kraje":[["DE",100],["FR",36],["NL",28],["CY",24],["MT",23],["ES",15],["LU",13],["CZ",12],["IE",12],["LI",12],["LV",12],["AT",11],["IT",9],["DK",7],["HR",6],["LT",6],["NO",6],["SK",6],["BG",5],["FI",5],["SI",5],["GR",4],["EE",3],["BE",2],["IS",1],["PT",1],["SE",1]],"uslugi":{"a":211,"b":21,"c":171,"d":141,"e":203,"f":33,"g":82,"h":37,"i":48,"j":198},"nowe30":14,"nowe90":59,"seria":[["2024-12",4],["2025-01",11],["2025-02",13],["2025-03",16],["2025-04",23],["2025-05",34],["2025-06",43],["2025-07",51],["2025-08",57],["2025-09",68],["2025-10",84],["2025-11",105],["2025-12",149],["2026-01",157],["2026-02",171],["2026-03",185],["2026-04",197],["2026-05",215],["2026-06",290],["2026-07",323],["2026-08",340],["2026-09",356],["2026-10",359]],"z_data":359,"zle_daty":6,"plik_at":"2026-10-07T13:00:09+00:00"},"emt":{"n":24,"ksiegi":47,"kraje":[["FR",6],["NL",3],["LT",2],["LU",2],["MT",2],["CZ",1],["DE",1],["DK",1],["FI",1],["IS",1],["LV",1],["PL",1],["PT",1],["SI",1]],"kredytowe":4,"emi":19,"plik_at":"2026-10-07T13:02:24+00:00"},"ok":{"casp":true,"emt":true},"bledy":[]};
+const zw355 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const gxCode = gx349.code, code = cut('/* ===================== v355 (zwiad 2): SALDA TARGET', '/* v355: koniec */');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-13T06:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/\u00a0|\u202f/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const NAZWY = {DEU: 'Niemcy', FRA: 'Francja', NLD: 'Holandia', ESP: 'Hiszpania', ITA: 'Włochy', LUX: 'Luksemburg', BEL: 'Belgia', AUT: 'Austria', CYP: 'Cypr', MLT: 'Malta'};
+  const mk = (L, files, opt) => {
+    opt = opt || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const mkEl = () => ({innerHTML: '', hidden: true, open: [], querySelectorAll(q) { return q === 'details' ? this.open.map(id => ({id, open: true})) : []; }, querySelector() { return null; }});
+    const els = {'#c-mica': mkEl(), '#c-gieldy': mkEl(), '#c-dex': mkEl(), '#c-kontrakty': mkEl()};
+    const calls = [], clicks = [], ivs = [], store = {}, det = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined ? null : clone(v)); return this; }}; };
+    const SRV_GR = {'ceny-krypto': 'c'}, SRV_LD = {c: [function srvLiveStart() {}]};
+    const doc = {addEventListener: (e, f, c) => clicks.push([e, f, c]), querySelector: () => null, documentElement: {}, hidden: false};
+    const gst = {sel: {id: 'eur'}};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'lnAgo', 'srvJSON', 'SRV_GR', 'SRV_LD', 'glyphImg', 'icoWrap', 'sepL', 'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date',
+      'gmFl', 'bilCty', 'flagImg', 'instFoot', 'gst', 'gRenderDetail',
+      "'use strict';\n" + gxCode + '\n' + code + '\nreturn {TG, MC, tgOk, tgLoad, tgYm, tgRows, tgMld, tgTone, tgSig, tgU, tgRow, tgRegion, mcOk, mcPart, mcCty, mcPct, mcSpark, renderMica, mcApply, mcLoad};')(
+      q => els[q] || null, v96src.tFor(L), v96src.escH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, s => ' · temu(' + s + ')', srv, SRV_GR, SRV_LD,
+      (n, s) => '[g:' + n + ']', i => i ? '<span class="icos">' + i + '</span>' : '', () => ', ', {getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; }}, doc,
+      function () { this.observe = () => {}; }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD,
+      c => '[f:' + c + ']', c => NAZWY[c] || c, (c) => '[eu]', d => d + ' · stan(' + d + ')', gst, () => { det.push('r'); });
+    return {api, els, calls, clicks, ivs, SRV_GR, SRV_LD, store, doc, det};
+  };
+  const files = (t, m) => ({target: t === undefined ? ZW355_T : t, mica: m === undefined ? ZW355_M : m});
+  const tiles = gx349.tiles;
+  return {mk, files, clone, sp, txt, code, tiles, NOW};
+})();
+
+test('v355 ZWIAD_WDROZ: rejestr grupy „c” (mica) i ładowanie — karta po panelu stablecoinów, plik mica dopiero w ładowarce, plik target dopiero po wyborze regionu Europa', () => {
+  const K = zw355.mk('pl', zw355.files());
+  assert.equal(K.SRV_GR.mica, 'c'); assert.equal(K.SRV_GR['ceny-krypto'], 'c', 'stary wpis bez zmian');
+  assert.equal(K.SRV_LD.c[K.SRV_LD.c.length - 1].name, 'mcLoad', 'ładowarka dopisana do rejestru grupy „c”');
+  assert.deepEqual(K.calls.filter(n => n !== 'gieldy' && n !== 'dex'), ['mica'], 'przy starcie modułu tylko ładowarka mica (w stronie bramka srvJSON wstrzymuje ją do otwarcia CRYPTO); target nie jest pobierany');
+  assert.ok(html.includes("SRV_GR.mica='c';SRV_LD.c.push(mcLoad);"), 'rejestr dopisany po deklaracjach');
+  assert.ok(html.indexOf("SRV_GR.mica='c'") < html.indexOf('\nmcLoad();try{'), 'rejestr przed pierwszym wywołaniem ładowarki');
+  assert.ok(html.indexOf("SRV_GR.mica='c'") > html.indexOf('const SRV_GR='), 'po deklaracji rejestru');
+  const i0 = html.indexOf('id="eng-defillama-stablecoins"'), i1 = html.indexOf('id="c-mica"'), i2 = html.indexOf('id="c-rwa"');
+  assert.ok(i0 > 0 && i1 > i0 && i2 > i1, 'karta MiCA tuż po panelu stablecoinów, przed tokenizowanymi aktywami');
+  assert.equal(html.split('id="c-mica"').length, 2, 'jedna karta');
+  assert.equal(html.split("srvJSON('target')").length, 2, 'plik target czyta jedna funkcja'); assert.ok(html.indexOf("srvJSON('target')") > html.indexOf('function tgLoad('));
+  assert.ok(!/SRV_GR=\{[^}]*target/.test(html) && !html.includes("SRV_GR.target"), 'target nie należy do grupy CRYPTO — to GLOBAL');
+  assert.ok(html.includes("${typeof f342Region==='function'?f342Region(s.id):''}\n          ${typeof tgRegion==='function'?tgRegion(s.id):''}"), 'region Europa: panel zaraz po funduszach regionu');
+  // plik target dopiero przy pierwszym rysowaniu regionu Europa; inne regiony — nic
+  const R = zw355.mk('pl', zw355.files());
+  assert.equal(R.api.tgRegion('usa'), ''); assert.ok(!R.calls.includes('target'), 'inny region nie pobiera pliku');
+  R.api.tgRegion('eur'); assert.ok(R.calls.includes('target'), 'wybór Europy pobiera plik');
+  const n = R.calls.length; R.api.tgRegion('eur'); R.api.tgRegion('eur'); assert.equal(R.calls.length, n, 'kolejne rysowania z pamięci (30 min)');
+});
+
+test('v355 ZWIAD_WDROZ: salda TARGET — trzech wierzycieli i trzech dłużników, wszystkie kraje w zwijanym panelu, kolory z pokazanej liczby, zmiana m/m i 12 mies. tylko z sąsiednich miesięcy', () => {
+  const K = zw355.mk('pl', zw355.files()); K.api.tgRegion('eur');
+  const h = K.api.tgRegion('eur'), s = zw355.sp(h), tx = zw355.txt(h);
+  assert.ok(s.includes('<dt>Salda TARGET: kto pożycza od reszty strefy euro</dt>'), 'tytuł');
+  const rows = [...s.matchAll(/<div class="secrow"><span class="sname">\[f:(\w+)\]<span>([^<]*)<\/span><\/span><span class="sbar (p|n)" aria-hidden="true"><i style="width:([\d.]+)%"><\/i><\/span><span class="sval (\w+)">([^<]*)<\/span><span class="ssub"><span>(.*?)<\/span><\/span><\/div>/g)];
+  assert.equal(rows.length, 6 + 21, 'sześć w skrócie + 21 w panelu wszystkich krajów');
+  assert.deepEqual(rows.slice(0, 3).map(m => m[1]), ['DEU', 'LUX', 'BEL'], 'wierzyciele malejąco: Niemcy, Luksemburg, Belgia'); assert.deepEqual(rows.slice(3, 6).map(m => m[1]), ['ESP', 'ITA', 'FRA'], 'dłużnicy od najbardziej ujemnego: Hiszpania, Włochy, Francja');
+  const de = rows[0]; assert.equal(de[3], 'p'); assert.equal(de[5], 'pos'); assert.equal(zw355.sp(de[6]), '+1072 mld EUR'); assert.equal(de[4], '100.0', 'największe saldo = pełny pasek');
+  const es = rows[3]; assert.equal(es[3], 'n'); assert.equal(es[5], 'neg'); assert.equal(zw355.sp(es[6]), '−443 mld EUR');
+  assert.ok(zw355.txt(de[7]).includes('w miesiącu: +0,1 mld EUR') && zw355.txt(de[7]).includes('w 12 miesięcy: +1,2 mld EUR'), zw355.txt(de[7]));
+  assert.ok(zw355.txt(es[7]).includes('w miesiącu: −0,1 mld EUR'), 'minus czerwony: ' + zw355.txt(es[7]));
+  assert.ok(/<b class="pos">\+0,1 mld EUR<\/b>/.test(zw355.sp(de[7])) && /<b class="neg">−0,1 mld EUR<\/b>/.test(zw355.sp(es[7])));
+  assert.ok(s.includes('<details class="etfd" id="tg355-det"><summary>Wszystkie kraje strefy euro (21)</summary>') && !s.includes('id="tg355-det" open'), 'panel zwinięty');
+  assert.ok(tx.includes('Dane wstępne') && tx.includes('stan 2026-08'), 'dane wstępne opisane; data danych i wiek przy liczbach: ' + tx.slice(-160));
+  assert.ok(!/undefined|NaN|tg355\./.test(tx), tx);
+  // pojedyncze funkcje: kierunek z pokazanej liczby (poniżej 50 mln EUR = „0” żółte, nigdy zero z braku danych)
+  const A = K.api;
+  assert.deepEqual([60, -60, 49, -49, 0, 50, 149, 1000, -1000, 100000, 1071765].map(A.tgSig).map(zw355.sp), ['+0,1', '−0,1', '<0,1', '<0,1', '0', '+0,1', '+0,1', '+1,0', '−1,0', '+100', '+1072'], 'format w mld (pl: cztery cyfry bez separatora)');
+  assert.deepEqual([60, -60, 49, -49, 0, null, NaN, undefined].map(A.tgTone), ['pos', 'neg', 'neu', 'neu', 'neu', 'na', 'na', 'na']);
+  assert.equal(A.tgU(null), '—'); assert.equal(A.tgU(NaN), '—'); assert.equal(zw355.sp(A.tgU(-182000)), '−182 mld EUR');
+  assert.equal(A.tgYm('2026-01', -1), '2025-12'); assert.equal(A.tgYm('2026-08', -12), '2025-08'); assert.equal(A.tgYm('2026-12', 1), '2027-01');
+});
+
+test('v355 ZWIAD_WDROZ: salda TARGET — luka w serii to „—” (nigdy zero), kraj bez ostatniego miesiąca pominięty, zły plik = komunikat, rozwinięcie panelu przeżywa przerysowanie, ponowienie po błędzie', () => {
+  const T = zw355.clone(ZW355_T);
+  T.k.DE = T.k.DE.filter(r => r[0] !== '2026-07'); T.k.IT = T.k.IT.filter(r => r[0] !== '2025-08'); T.k.ES = T.k.ES.slice(0, -1);
+  T.st = {};
+  const K = zw355.mk('pl', zw355.files(T)); K.api.tgRegion('eur');
+  const h = zw355.sp(K.api.tgRegion('eur')), rows = [...h.matchAll(/<div class="secrow"><span class="sname">\[f:(\w+)\].*?<span class="ssub"><span>(.*?)<\/span><\/span><\/div>/g)];
+  assert.equal(rows.length, 6 + 20, 'Hiszpania bez ostatniego miesiąca pominięta (nie zero)');
+  const de = rows.find(m => m[1] === 'DEU'), it = rows.find(m => m[1] === 'ITA');
+  assert.ok(zw355.txt(de[2]).includes('w miesiącu: — ') && /<b class="na">—<\/b>/.test(de[2]), 'brak lipca = brak zmiany miesięcznej: ' + zw355.txt(de[2]));
+  assert.ok(zw355.txt(de[2]).includes('w 12 miesięcy: +1,2'), '12 miesięcy z sierpnia 2025 bez zmian');
+  assert.ok(zw355.txt(it[2]).endsWith('w 12 miesięcy: —') || zw355.txt(it[2]).includes('w 12 miesięcy: —'), 'brak sierpnia 2025 = brak zmiany rocznej: ' + zw355.txt(it[2]));
+  assert.ok(!h.includes('Dane wstępne'), 'bez statusu P w pliku — bez noty');
+  // za mało krajów z ostatnim miesiącem = komunikat zamiast częściowej listy
+  const T2 = zw355.clone(ZW355_T); for (const c of Object.keys(T2.k).slice(0, 14)) T2.k[c] = T2.k[c].slice(0, -1);
+  const K2 = zw355.mk('pl', zw355.files(T2)); K2.api.tgRegion('eur'); assert.ok(zw355.txt(K2.api.tgRegion('eur')).includes('chwilowo niedostępne'));
+  // zły plik: brak wersji / miesiąca / kraje nie-obiekt
+  for (const bad of [null, {}, {v: 2, at: 'x', asof: '2026-08', k: {}}, Object.assign(zw355.clone(ZW355_T), {asof: '2026-13'}), Object.assign(zw355.clone(ZW355_T), {k: []}), Object.assign(zw355.clone(ZW355_T), {at: 5})]) {
+    const Kb = zw355.mk('pl', zw355.files(bad)); Kb.api.tgRegion('eur'); const hb = zw355.txt(Kb.api.tgRegion('eur'));
+    assert.ok(hb.includes('chwilowo niedostępne') && !/secrow/.test(Kb.api.tgRegion('eur')), JSON.stringify(bad).slice(0, 40));
+    const n = Kb.calls.length; Kb.api.tgRegion('eur'); assert.equal(Kb.calls.length, n, 'po błędzie ponowienie nie wcześniej niż po 2 min');
+  }
+  // rozwinięcie panelu: nasłuch fazy przechwytywania, stan w TG.open, następne rysowanie ma „open”
+  const K3 = zw355.mk('pl', zw355.files()); K3.api.tgRegion('eur');
+  const lis = K3.clicks.filter(c => c[0] === 'toggle'); assert.equal(lis.length, 1); assert.equal(lis[0][2], true, 'toggle nie bąbelkuje — przechwytywanie');
+  lis[0][1]({target: {id: 'inny', open: true}}); assert.equal(K3.api.TG.open, false, 'obce szczegóły ignorowane');
+  lis[0][1]({target: {id: 'tg355-det', open: true}}); assert.equal(K3.api.TG.open, true); assert.ok(zw355.sp(K3.api.tgRegion('eur')).includes('id="tg355-det" open>'));
+  lis[0][1]({target: {id: 'tg355-det', open: false}}); assert.ok(!zw355.sp(K3.api.tgRegion('eur')).includes('id="tg355-det" open'));
+});
+
+test('v355 ZWIAD_WDROZ: karta MiCA — kafle z liczbami firm i emitentów, kraje, usługi, szereg narastający, notatki; data wykazu z wiekiem; bez nazw urzędu i firm', () => {
+  const K = zw355.mk('pl', zw355.files()); const el = K.els['#c-mica'];
+  assert.equal(el.hidden, false); const h = zw355.sp(el.innerHTML), tx = zw355.txt(h);
+  const T = zw355.tiles(el.innerHTML);
+  const by = l => T.find(x => x.label === l);
+  assert.equal(by('Firmy z licencją (CASP)').val, '365'); assert.ok(by('Firmy z licencją (CASP)').raw.includes('w ' + ZW355_M.casp.kraje.length + ' krajach'), 'liczba krajów z listy');
+  assert.equal(by('Nowe licencje, 30 dni').val, '+14'); assert.ok(/class="pos"/.test(by('Nowe licencje, 30 dni').cls) && by('Nowe licencje, 30 dni').raw.includes('90 dni: 59'));
+  assert.ok(by('Najwięcej firm').val.includes('Niemcy') && by('Najwięcej firm').raw.includes('100 · 27% firm'), by('Najwięcej firm').raw);
+  assert.equal(by('Emitenci stablecoinów (EMT)').val, '24'); assert.ok(by('Emitenci stablecoinów (EMT)').raw.includes('w 14 krajach · białe księgi: 47'));
+  assert.ok(by('Firmy z licencją (CASP)').when.includes('wykaz z D:2026-10-07T13:00:09+00:00'), 'data wykazu z wiekiem: ' + by('Firmy z licencją (CASP)').when);
+  assert.ok(tx.includes('wiek(') || tx.includes('temu('), 'wiek przy dacie');
+  // kraje: słupki udziałów malejąco, wartość i procent z sumy; flagi
+  assert.ok(h.includes('Firmy z licencją wg kraju siedziby')); const cr = [...h.matchAll(/<div class="gxs-r"><span class="gxs-n">\[f:(\w+)\]([^<]*)<\/span><span class="gxs-b"><span class="gxs-t" aria-hidden="true"><i style="width:([\d.]+)%"><\/i><\/span><span class="gxs-v">([^<]*)<\/span>/g)];
+  assert.deepEqual(cr.slice(0, 3).map(m => [m[1], m[2], m[3], m[4]]), [['DEU', 'Niemcy', '100.00', '100 · 27%'], ['FRA', 'Francja', '36.00', '36 · 9,9%'], ['NLD', 'Holandia', '28.00', '28 · 7,7%']]);
+  assert.ok(h.includes('Jakie usługi oferują firmy') && h.includes('przechowywanie i administrowanie kryptoaktywami</span><span class="gxs-b"><span class="gxs-t" aria-hidden="true"><i class="cur" style="width:57.81%"></i></span><span class="gxs-v">211 · 58%</span>'), 'usługi: pasek = udział firm oferujących usługę (cały pasek = wszystkie firmy)');
+  assert.ok(h.includes('Firma może oferować kilka usług, więc udziały nie sumują się do 100%.'));
+  const si = h.indexOf('Jakie usługi oferują firmy'), sv = [...h.slice(si, h.indexOf('Firma może oferować')).matchAll(/class="gxs-v">(\d+) ·/g)].map(m => +m[1]);
+  assert.equal(sv.length, 10, 'dziesięć usług'); assert.deepEqual(sv, sv.slice().sort((x, y) => y - x), 'usługi malejąco wg liczby firm'); assert.equal(sv[0], ZW355_M.casp.uslugi.a);
+  const Zu = zw355.clone(ZW355_M); Zu.casp.uslugi.b = 0; Zu.casp.uslugi.f = null;
+  const zh = zw355.sp(zw355.mk('pl', zw355.files(undefined, Zu)).els['#c-mica'].innerHTML); assert.ok(!zh.includes('prowadzenie platformy obrotu') && !zh.includes('oferowanie (plasowanie)'), 'usługa z zerem albo brakiem pominięta, nie pokazana jako 0');
+  assert.ok(h.includes('<svg class="gx-sp"') && h.includes('Licencje narastająco') && /359<\/span>/.test(h), 'wykres narastający kończy się liczbą firm z datą');
+  assert.ok(h.includes('Emitenci stablecoinów wg kraju') && h.includes('Wśród emitentów: banki — 4, instytucje pieniądza elektronicznego — 19.'));
+  assert.ok(h.includes('<details class="etfd" id="mc355-not"><summary>')); assert.equal((h.match(/<p class="pnote">/g) || []).length, 8, 'opis, trzy noty pod wykresami i cztery „czego te dane nie mówią”');
+  assert.ok(/pfoot/.test(h) && tx.includes('Oficjalne wykazy nadzorcy'));
+  assert.ok(!/ESMA|ECB|EBC|Binance|Coinbase|Bitpanda|Bybit/.test(tx), 'bez nazw urzędu i firm');
+  assert.ok(!/undefined|NaN|mc355\./.test(tx), tx);
+});
+
+test('v355 ZWIAD_WDROZ: karta MiCA — brak = „—”/ukryta karta (nigdy zero), części niezależne, stary plik chowa kartę, chwilowy błąd nie zasłania wczytanych danych, 10 języków', () => {
+  // wykaz starszy niż 7 dni od zapisu pliku = ukryta karta
+  const O = zw355.clone(ZW355_M); O.at = '2026-10-01T00:00:00+00:00'; const KO = zw355.mk('pl', zw355.files(undefined, O)); assert.equal(KO.els['#c-mica'].hidden, true); assert.equal(KO.els['#c-mica'].innerHTML, '');
+  const F = zw355.mk('pl', zw355.files()); assert.ok(zw355.sp(F.els['#c-mica'].innerHTML).includes('class="live off"'), 'plik sprzed 44 godzin: znacznik off (próg 36 h)');
+  const L = zw355.clone(ZW355_M); L.at = '2026-10-13T04:00:00+00:00'; assert.ok(zw355.sp(zw355.mk('pl', zw355.files(undefined, L)).els['#c-mica'].innerHTML).includes('class="live on"'));
+  // tylko EMT (CASP nie odpowiedział i nie ma zapasu): brak kafli firm i brak zer
+  const E = zw355.clone(ZW355_M); delete E.casp; const KE = zw355.mk('pl', zw355.files(undefined, E)); const eh = zw355.sp(KE.els['#c-mica'].innerHTML);
+  assert.equal(KE.els['#c-mica'].hidden, false); assert.ok(eh.includes('Emitenci stablecoinów (EMT)')); assert.deepEqual(zw355.tiles(KE.els['#c-mica'].innerHTML).map(x => x.label), ['Emitenci stablecoinów (EMT)'], 'bez kafli firm'); assert.equal((eh.match(/<p class="pnote">/g) || []).length, 4, 'opis, uwaga o bankach i dwie noty ogólne');
+  // tylko CASP, bez pól nowe30/nowe90/seria/usług/kraje: kafel z brakiem pominięty, nie zero
+  const C = zw355.clone(ZW355_M); delete C.emt; C.casp.nowe30 = null; C.casp.nowe90 = null; C.casp.seria = []; delete C.casp.uslugi;
+  const KC = zw355.mk('pl', zw355.files(undefined, C)); const ch = zw355.sp(KC.els['#c-mica'].innerHTML), tc = zw355.tiles(KC.els['#c-mica'].innerHTML).map(x => x.label);
+  assert.deepEqual(tc, ['Firmy z licencją (CASP)', 'Najwięcej firm']); assert.ok(!ch.includes('Licencje narastająco') && !ch.includes('Jakie usługi') && !ch.includes('Emitenci stablecoinów'), 'bez wykresów z pustych danych');
+  // zero nowych licencji to żółte „0”, nie brak
+  const Z = zw355.clone(ZW355_M); Z.casp.nowe30 = 0; const zt = zw355.tiles(zw355.mk('pl', zw355.files(undefined, Z)).els['#c-mica'].innerHTML).find(x => x.label === 'Nowe licencje, 30 dni'); assert.equal(zt.val, '0'); assert.ok(/neu/.test(zt.cls));
+  // zły plik: ukryta karta; chwilowy błąd po wczytaniu nie zasłania danych
+  for (const bad of [null, {}, {v: 2, at: ZW355_M.at, casp: ZW355_M.casp}, {v: 1, at: 'x', casp: ZW355_M.casp}, {v: 1, at: ZW355_M.at, casp: {n: 0, kraje: []}}, {v: 1, at: ZW355_M.at, casp: {n: 5, kraje: 'x'}}]) {
+    const Kb = zw355.mk('pl', zw355.files(undefined, bad)); assert.equal(Kb.els['#c-mica'].hidden, true, JSON.stringify(bad).slice(0, 40));
+  }
+  const K = zw355.mk('pl', zw355.files()); K.api.mcApply(null); assert.equal(K.els['#c-mica'].hidden, false, 'błąd pobrania nie zasłania wczytanych danych'); K.api.mcApply({v: 3}); assert.equal(K.els['#c-mica'].hidden, false);
+  // rozwinięte „Czego te dane nie mówią” zostaje po odświeżeniu
+  K.els['#c-mica'].open = ['mc355-not']; K.api.renderMica(); assert.ok(K.els['#c-mica'].hidden === false);
+  // odświeżanie co 30 min i obserwator języka
+  assert.ok(K.ivs.some(([f, ms]) => ms === 30 * 60 * 1000), 'plik raz na dobę — pytanie co 30 min'); const nc = K.calls.length; K.ivs.find(([f, ms]) => ms === 30 * 60 * 1000)[0](); assert.equal(K.calls.length, nc + 1);
+  // 10 języków: żadnego brakującego klucza ani „undefined” w obu częściach
+  for (const lg of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const Kl = zw355.mk(lg, zw355.files()); const hl = zw355.txt(Kl.els['#c-mica'].innerHTML); assert.ok(hl.length > 400 && !/undefined|NaN|mc355\.|tg355\./.test(hl), lg + ': ' + hl.slice(0, 120));
+    Kl.api.tgRegion('eur'); const tl = zw355.txt(Kl.api.tgRegion('eur')); assert.ok(tl.length > 300 && !/undefined|NaN|tg355\./.test(tl), lg + ': ' + tl.slice(0, 120));
+  }
+  assert.ok(zw355.txt(zw355.mk('en', zw355.files()).els['#c-mica'].innerHTML).includes('Licensed firms (CASPs)') && zw355.txt(zw355.mk('de', zw355.files()).els['#c-mica'].innerHTML).includes('Lizenzierte Firmen (CASP)'));
+});
+
+test('v355 ZWIAD_WDROZ: słownik w czystym JSON po linii for słownika o najwyższym numerze, 10 języków, te same klucze i zmienne, bez nazw dostawców; CSS karty', () => {
+  const mm = [...html.matchAll(/^for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/gm)];
+  const mine = mm.find(m => html.includes('const ' + m[1] + '={"pl":{"tg355.t"'));
+  assert.ok(mine, 'słownik v355 ma własną linię for');
+  const num = n => +n[1].replace('EXTRA', ''); assert.equal(num(mine), Math.max(...mm.map(num)), 'najwyższy numer');
+  const i0 = html.indexOf('const ' + mine[1] + '='), i1 = html.indexOf(';\nfor(const l in ' + mine[1] + ')', i0), D = JSON.parse(html.slice(i0 + ('const ' + mine[1] + '=').length, i1));
+  assert.ok(html.slice(0, i0).trimEnd().endsWith('*/') && html.slice(html.lastIndexOf('\n', i0 - 2), i0).includes('v355'), 'komentarz nagłówkowy nad słownikiem');
+  const LG = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']; assert.deepEqual(Object.keys(D), LG);
+  const keys = Object.keys(D.pl); assert.ok(keys.length >= 40 && keys.every(k => /^(tg355|mc355)\./.test(k)), 'tylko klucze v355: ' + keys.length);
+  const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join();
+  for (const lg of LG) {
+    assert.deepEqual(Object.keys(D[lg]), keys, lg + ': te same klucze w tej samej kolejności');
+    for (const k of keys) { assert.ok(typeof D[lg][k] === 'string' && D[lg][k].trim(), lg + ' ' + k); assert.equal(ph(D[lg][k]), ph(D.pl[k]), lg + ' ' + k + ': zmienne'); }
+  }
+  for (const lg of LG.slice(1)) { const same = keys.filter(k => D[lg][k] === D.pl[k]); assert.ok(same.length <= 3, lg + ': tłumaczenia, nie kopie polskiego: ' + same.join()); }
+  assert.ok(/[а-яё]/i.test(D.ru['mc355.t']) && /[一-鿿]/.test(D.zh['mc355.t']) && /[぀-ヿ]/.test(D.ja['mc355.t']) && /Registers|register/i.test(D.en['mc355.t']), 'alfabety języków');
+  for (const lg of LG) for (const k of keys) assert.ok(!/ESMA|ECB|EBC|EZB|BCE\b|ЕЦБ|欧洲央行|Eurostat|Bundesbank|CoinGecko|DefiLlama|Binance|Coinbase/.test(D[lg][k]), 'zero nazw dostawców: ' + lg + ' ' + k);
+  for (const r of ['#c-mica .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}', '#c-mica .gxs-b{display:grid;', '#c-mica .gx-sp{display:block;', '@media (max-width:760px){#c-mica .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}', '#c-mica .pos{color:var(--gr-tx)}', '#c-mica .neu{color:var(--yl-tx)}']) assert.ok(html.includes(r), r);
+  const code = zw355.code; assert.ok(!/ESMA|European Central|Europejski Bank|EBC\b|\bECB\b/.test(code), 'kod modułu bez nazw dostawców (także w komentarzach)');
+  assert.ok(!/\bdocument\.write\b|\beval\(|innerHTML\s*=\s*[^`'"]*\bj\./.test(code), 'bez niebezpiecznych wzorców');
+  assert.ok(!html.includes('rejestry MiCA: firmy'), 'Źródła i Metodologia („Jak czytać liczby” w 10 językach, test v146) bez zmian — liczba źródeł z pliku stanu, wiersz TARGET już jest');
 });

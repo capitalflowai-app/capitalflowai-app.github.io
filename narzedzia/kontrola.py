@@ -6953,6 +6953,344 @@ def zk_kontrola(j, R, now=None):
 
 
 # ---------------------------------------------------------------- kontrola ----------------------------------------------------------------
+# ---------------------------------------------------------------- v355 (zwiad 2): TARGET krajów strefy euro, rejestry MiCA, druga kontrola ETF ARKB ----------------------------------------------------------------
+# (1) data/target.json (EBC, miesięcznie): miesiąc danych nie starszy niż TG_K_OKRES_DNI dni od końca miesiąca (publikacja ok. 31 dni po końcu miesiąca: dane
+#     za sierpień 2026 — Last-Modified 1.10.2026; kolejne wydania wypadają więc ok. 1. dnia drugiego miesiąca po miesiącu danych; ponad 50 dni = źródło spóźnione
+#     o 19 dni — bez dłuższego testu wstecznego, bo w nagraniach jest jedno wydanie); suma sald wszystkich krajów, EBC i banków spoza strefy = 0 (w danych
+#     2026-08: −0,00001 mln EUR; uwaga dopiero od TG_K_SUMA mln EUR); ten sam miesiąc i kraj w data/instytucje.json (panel „dane urzędowe”, 9 krajów, to samo
+#     źródło, inne zapytanie) — różnica ponad TG_K_ZGODNE mln EUR = uwaga. Najwyżej ⚠️, nigdy ❌ ani BŁĄD.
+# (2) data/mica.json (rejestry MiCA): wiek pliku wykazu (nagłówek Last-Modified) nie większy niż MC_K_PLIK_DNI dni (w nagraniach 11.10.2026: plik z 7.10, najnowsze
+#     wpisy z końca sierpnia — wykaz zmienia się nieregularnie, więc próg szeroki); spójność: suma firm w krajach = liczba firm, liczba firm ≤ liczba wierszy,
+#     usługi ≤ liczba firm, szereg narastający kończy się liczbą firm z poprawną datą; udział wierszy z błędną datą ≤ MC_K_ZLE_PCT %. Najwyżej ⚠️.
+# (3) ARKB (druga, niezależna kontrola przepływów ETF bitcoina; BEZ nowej liczby na stronie): plik emitenta ma tylko jeden dzień (liczba BTC w funduszu i wartość),
+#     więc każdy przebieg zapisuje go w kontrola/ark-arkb.csv razem z przepływem ARKB pokazanym na stronie (etf.json). Przepływ dnia D = (BTC[D] − BTC[poprzedni
+#     zapisany dzień]) × cena BTC z pliku [D] — porównanie z przepływem strony z dnia D albo z sesji poprzedzającej D (do zbadania, z którym dniem emitent zgłasza
+#     zmianę; do czasu zebrania historii obie możliwości są zgodne). Zgodne, gdy różnica ≤ max(ARK_TOL_MLN; ARK_TOL_PCT % |wyliczenia|). ⚠️ dopiero przy ≥ ARK_MIN_POR
+#     porównaniach z ostatnich ARK_OKNO i większości poza progiem; pojedyncza różnica to ℹ️. Plik nieaktualny (ostatni dzień o ponad ARK_PLIK_DNI dni przed ostatnią
+#     sesją strony) = ⚠️. Zapis dni: ARK_DNI. Najwyżej ⚠️ (nigdy ❌ ani BŁĄD); w raporcie tylko różnice i daty (bez liczb emitenta).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'target')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['target'] = 48 * 60   # zapis co przebieg (a sprawdzenie źródła raz na dobę) — wiek pliku; wiek miesiąca danych ocenia wiersz świeżości
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'mica')
+LIMIT_MIN['mica'] = 48 * 60
+AW_BEZ_BLEDU.update({'target': 'TARGET (EBC) — część z błędem zostaje z datą (v355); wiek danych w wierszu świeżości',
+                     'mica': 'rejestry MiCA — część z błędem zostaje z datą (v355); wiek danych w wierszach świeżości'})
+TG_K_ETYKIETA = 'TARGET: salda krajów strefy euro (EBC, miesięcznie)'
+TG_K_OKRES_DNI = 50
+TG_K_SUMA = 50.0      # mln EUR — uwaga, gdy suma sald różni się od zera o więcej (w danych 0,00001; bramka zbieracza 1000)
+TG_K_ZGODNE = 0.5     # mln EUR — dwa pliki tego samego źródła (zaokrąglenie do 2 miejsc: różnica 0)
+MC_K_ETYKIETA = {'casp': 'Rejestry MiCA: wykaz firm z licencją CASP (plik zmieniany nieregularnie)',
+                 'emt': 'Rejestry MiCA: wykaz emitentów tokenów powiązanych z walutą (EMT)'}
+MC_K_PLIK_DNI = 45
+MC_K_ZLE_PCT = 10.0   # % wierszy z datą spoza okna obowiązywania MiCA (w nagraniu 11.10.2026: 5 z 370 = 1,4%)
+ARK_URL = 'https://assets.ark-funds.com/fund-documents/funds-etf-csv/ARK_21SHARES_BITCOIN_ETF_ARKB_HOLDINGS.csv'
+ARK_CSV = 'ark-arkb.csv'
+ARK_KOL = ['date', 'btc', 'usd', 'site_flow_musd', 'read_at']   # pusta komórka = brak (nigdy 0)
+ARK_DNI = 60
+ARK_OKNO = 5
+ARK_MIN_POR = 3
+ARK_TOL_MLN, ARK_TOL_PCT = 1.0, 10.0
+ARK_PRZERWA = 5        # dni — dwa zapisane dni dalej od siebie nie tworzą pary
+ARK_PLIK_DNI = 4
+ARK_TIMEOUT = 30
+ARK_LIMIT = 300000     # bajtów odczytu (plik ma ok. 4 KB)
+
+
+def _tg_k_ym_koniec(ym):
+    y, m = int(ym[:4]), int(ym[5:7])
+    return dt.datetime(y + (m == 12), m % 12 + 1, 1, tzinfo=dt.timezone.utc)
+
+
+def _tg_k_num(v):
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float('inf') else None
+
+
+def target_kontrola(j, inst=None, now=None):
+    """data/target.json → {'rows': [(etykieta, status, wiek min, miesiąc, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku
+    albo inna wersja = puste (wiek pliku i brak pliku zgłasza pętla PLIKI). Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1 or not isinstance(j.get('k'), dict) or not j['k']:
+        return out
+    asof = j.get('asof') if isinstance(j.get('asof'), str) and re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', j['asof']) else None
+    if not asof:
+        out['rows'].append((TG_K_ETYKIETA, '?', None, None, 'brak miesiąca danych w pliku'))
+        out['uwagi'].append(f'{TG_K_ETYKIETA}: brak miesiąca danych w pliku')
+        return out
+    w = wiek_danych(asof, 'month', 'm', now)
+    st = '⚠️' if (w is not None and w > TG_K_OKRES_DNI * 1440) else '✅'
+    note = '' if st == '✅' else f'miesiąc danych starszy niż {TG_K_OKRES_DNI} dni od końca — źródło spóźnia się z publikacją (zwykle ok. 31 dni); najwyżej uwaga'
+    out['rows'].append((TG_K_ETYKIETA, st, w, asof, note))
+    if st == '⚠️':
+        out['uwagi'].append(f'{TG_K_ETYKIETA}: dane z {asof} — {fmt_wiek(w)} temu ({note})')
+    # spójność w pliku
+    zle = []
+    S = {a: s for a, s in j['k'].items() if isinstance(s, list)}
+    for a in ('ecb', 'ne'):
+        if isinstance(j.get(a), list):
+            S[a] = j[a]
+    last = {}
+    for a, s in S.items():
+        ms = [r[0] for r in s if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str)]
+        vs = [_tg_k_num(r[1]) for r in s if isinstance(r, list) and len(r) == 2]
+        if len(ms) != len(s) or any(v is None for v in vs):
+            zle.append(f'{a}: nieczytelny punkt serii'); continue
+        if ms != sorted(set(ms)):
+            zle.append(f'{a}: miesiące nie rosną')
+        if ms:
+            last[a] = (ms[-1], vs[-1])
+    pozno = sorted(a for a, (m, _) in last.items() if a in j['k'] and m != asof)
+    if pozno:
+        zle.append('miesiąc ostatniego punktu ≠ miesiąc danych pliku: ' + ', '.join(pozno[:5]))
+    if all(a in last and last[a][0] == asof for a in S) and 'ecb' in S and 'ne' in S:
+        suma = sum(v for _, v in last.values())
+        if abs(suma) > TG_K_SUMA:
+            zle.append(f'suma sald {asof} = {suma:+.1f} mln EUR zamiast zera')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'TARGET (target.json): {z}')
+    out['wiersze'].append(('spójność pliku (miesiące rosnące, suma sald = 0)', '⚠️' if zle else '✅'))
+    # ten sam miesiąc i kraj w panelu „dane urzędowe” (instytucje.json → tgb.q) — to samo źródło, osobne zapytanie
+    Q = ((inst or {}).get('tgb') or {}).get('q') if isinstance(inst, dict) else None
+    if isinstance(Q, dict):
+        roz, ile = [], 0
+        for a, s in Q.items():
+            if a not in j['k'] or not isinstance(s, list) or not s:
+                continue
+            mine = {r[0]: _tg_k_num(r[1]) for r in j['k'][a] if isinstance(r, list) and len(r) == 2}
+            for r in s[-3:]:
+                if isinstance(r, list) and len(r) >= 2 and r[0] in mine and mine[r[0]] is not None and _tg_k_num(r[1]) is not None:
+                    ile += 1
+                    if abs(mine[r[0]] - r[1]) > TG_K_ZGODNE:
+                        roz.append(f'{a} {r[0]}')
+        if ile:
+            out['wiersze'].append((f'zgodność z panelem „dane urzędowe” ({ile} porównań kraj-miesiąc)', '⚠️' if roz else '✅'))
+            if roz:
+                out['uwagi'].append('TARGET: target.json różni się od instytucje.json (to samo źródło): ' + ', '.join(roz[:5]))
+    return out
+
+
+def mica_kontrola(j, now=None):
+    """data/mica.json → {'rows', 'uwagi', 'wiersze', 'spojnosc'} jak target_kontrola; wiek pliku wykazu z Last-Modified."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    for k in ('casp', 'emt'):
+        P = j.get(k) if isinstance(j.get(k), dict) else None
+        lab = MC_K_ETYKIETA[k]
+        if not P:
+            out['rows'].append((lab, '?', None, None, 'brak tej części w pliku'))
+            out['uwagi'].append(f'{lab}: brak tej części w pliku'); continue
+        pa = P.get('plik_at')
+        w = wiek_danych(pa, 'ts', 'k', now) if isinstance(pa, str) else None
+        if w is None:
+            out['rows'].append((lab, '?', None, None, 'brak czasu pliku wykazu (nagłówek Last-Modified)'))
+        else:
+            st = '⚠️' if w > MC_K_PLIK_DNI * 1440 else '✅'
+            note = '' if st == '✅' else f'plik wykazu starszy niż {MC_K_PLIK_DNI} dni — urząd przestał go odświeżać albo adres się zmienił; najwyżej uwaga'
+            out['rows'].append((lab, st, w, pa[:10], note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab}: plik z {pa[:10]} — {fmt_wiek(w)} temu ({note})')
+        n = P.get('n')
+        K = [r for r in (P.get('kraje') or []) if isinstance(r, list) and len(r) == 2 and isinstance(r[1], int)]
+        if not isinstance(n, int) or n < 1:
+            zle.append(f'{k}: brak liczby firm'); continue
+        if sum(r[1] for r in K) != n:
+            zle.append(f'{k}: suma firm w krajach {sum(r[1] for r in K)} ≠ liczba firm {n}')
+        if isinstance(P.get('wiersze'), int) and n > P['wiersze']:
+            zle.append(f'{k}: firm {n} więcej niż wierszy {P["wiersze"]}')
+        if k == 'casp':
+            us = P.get('uslugi') or {}
+            if any(not isinstance(v, int) or v > n for v in us.values()):
+                zle.append('casp: usługa u większej liczby firm niż wszystkich firm')
+            se = P.get('seria') or []
+            if se and (se[-1][1] != P.get('z_data') or any(b[1] < a[1] for a, b in zip(se, se[1:]))):
+                zle.append('casp: szereg narastający nie kończy się liczbą firm z poprawną datą albo maleje')
+            if isinstance(P.get('zle_daty'), int) and isinstance(P.get('wiersze'), int) and P['wiersze'] and P['zle_daty'] / P['wiersze'] * 100 > MC_K_ZLE_PCT:
+                zle.append(f'casp: {P["zle_daty"]} z {P["wiersze"]} wierszy ma datę spoza okna obowiązywania MiCA (ponad {MC_K_ZLE_PCT:g}%)')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'MiCA (mica.json): {z}')
+    if j.get('casp') or j.get('emt'):
+        out['wiersze'].append(('spójność pliku (sumy w krajach, usługi, szereg)', '⚠️' if zle else '✅'))
+    return out
+
+
+def ark_odczyt(body):
+    """Plik emitenta ARKB (CSV: date, fund, company, ticker, cusip, shares, market value ($), weight (%) + stopka z zastrzeżeniami) → (dzień ISO, BTC, wartość USD)
+    z wiersza ARKB / BTC. Zła postać, zerowe albo nieskończone liczby, dzień z przyszłości = wyjątek (brak, nie zero)."""
+    txt = body.decode('utf-8-sig', 'replace') if isinstance(body, bytes) else str(body)
+    rd = csv.reader(txt.splitlines())
+    head = None
+    for row in rd:
+        if head is None:
+            low = [c.strip().lower() for c in row]
+            if 'date' in low and 'ticker' in low and 'shares' in low and any(c.startswith('market value') for c in low):
+                head = (low.index('date'), low.index('fund') if 'fund' in low else None, low.index('ticker'), low.index('shares'),
+                        next(i for i, c in enumerate(low) if c.startswith('market value')))
+            continue
+        if len(row) <= max(h for h in head if h is not None):
+            continue
+        if row[head[2]].strip().upper() != 'BTC' or (head[1] is not None and row[head[1]].strip().upper() != 'ARKB'):
+            continue
+        m = re.fullmatch(r'\s*(\d{2})/(\d{2})/(\d{4})\s*', row[head[0]])
+        if not m:
+            raise ValueError('ARKB: zła data wiersza')
+        d = dt.date(int(m.group(3)), int(m.group(1)), int(m.group(2)))
+        btc, usd = _em_liczba(row[head[3]].replace('$', '')), _em_liczba(row[head[4]].replace('$', ''))
+        if btc is None or usd is None:
+            raise ValueError('ARKB: brak liczby BTC albo wartości')
+        if d > NOW.date() + dt.timedelta(days=1):
+            raise ValueError('ARKB: dzień z przyszłości')
+        return d.isoformat(), btc, usd
+    raise ValueError('ARKB: brak wiersza BTC (plik zmienił układ?)')
+
+
+def ark_zapis(path):
+    """kontrola/ark-arkb.csv → {dzień: {'btc', 'usd', 'flow', 'at'}}; brak = None; inny nagłówek = zapis od nowa."""
+    rows = {}
+    if not os.path.exists(path):
+        return rows
+    with open(path, encoding='utf-8', newline='') as f:
+        r = csv.reader(f)
+        if next(r, None) != ARK_KOL:
+            return rows
+        for row in r:
+            if len(row) < 5:
+                continue
+            try:
+                d = dt.date.fromisoformat(row[0]).isoformat()
+            except ValueError:
+                continue
+            def num(x):
+                try:
+                    return _em_skonczona(float(x)) if x != '' else None
+                except ValueError:
+                    return None
+            rows[d] = {'btc': num(row[1]), 'usd': num(row[2]), 'flow': num(row[3]), 'at': row[4] or None}
+    return rows
+
+
+def ark_zapis_zapisz(path, rows):
+    with open(path, 'w', encoding='utf-8', newline='') as f:
+        w = csv.writer(f, lineterminator='\n'); w.writerow(ARK_KOL)
+        for d in sorted(rows)[-ARK_DNI:]:
+            x = rows[d]
+            def fm(v):
+                return ('%.6f' % (round(v, 6) + 0.0)).rstrip('0').rstrip('.') if v is not None else ''
+            w.writerow([d, fm(x['btc']), fm(x['usd']), fm(x['flow']), x['at'] or ''])
+
+
+def ark_przeplywy(rows, sesje=()):
+    """{dzień D: wyliczony przepływ w mln USD} = (BTC[D] − BTC[poprzedni zapisany dzień P]) × cena z pliku w D; para tylko, gdy D − P ≤ ARK_PRZERWA dni
+    i między P a D nie ma sesji strony (brak zapisu z tej sesji). → (wyliczenia, {D: powód pominięcia})."""
+    ds = sorted(d for d, x in rows.items() if x.get('btc') and x.get('usd'))
+    ss = sorted(sesje)
+    out, pom = {}, {}
+    for p, d in zip(ds, ds[1:]):
+        if (dt.date.fromisoformat(d) - dt.date.fromisoformat(p)).days > ARK_PRZERWA or any(p < s < d for s in ss):
+            pom[d] = f'brak zapisanej sesji między {p} a {d}'; continue
+        out[d] = (rows[d]['btc'] - rows[p]['btc']) * rows[d]['usd'] / rows[d]['btc'] / 1e6
+    return out, pom
+
+
+def ark_porownanie(rows, sesje=()):
+    """Porównanie wyliczeń (ark_przeplywy) z przepływem strony: dzień D albo sesja poprzedzająca D (zapis przepływu strony: rows[d]['flow']). Okno = ostatnie
+    ARK_OKNO par. → słownik: status (✅ wszystkie zgodne; ⚠️ ≥ ARK_MIN_POR par i większość poza progiem; ℹ️ inaczej, w tym brak par), pary, roznice (dzień, różnica mln,
+    strona_zero), pominiete."""
+    est, pom = ark_przeplywy(rows, sesje)
+    dni = sorted(set(rows) | set(sesje))
+    pary, roz, pomin = [], [], [{'data': d, 'powod': p} for d, p in sorted(pom.items())][-3:]
+    for d in sorted(est)[-ARK_OKNO:]:
+        prev = max((s for s in dni if s < d), default=None)
+        a0 = (rows.get(d) or {}).get('flow')
+        a1 = (rows.get(prev) or {}).get('flow') if prev else None
+        if a0 is None and a1 is None:
+            pomin.append({'data': d, 'powod': 'brak przepływu strony z tego dnia'}); continue
+        e = est[d]
+        tol = max(ARK_TOL_MLN, ARK_TOL_PCT / 100 * abs(e))
+        pary.append(d)
+        if not any(a is not None and abs(a - e) <= tol for a in (a0, a1)):
+            a = a0 if a0 is not None else a1
+            roz.append({'data': d, 'roznica_mln': round(a - e, 1) + 0.0, 'strona_zero': a == 0})
+    st = 'ℹ️'
+    if pary and not roz:
+        st = '✅'
+    elif len(pary) >= ARK_MIN_POR and len(roz) * 2 > len(pary):
+        st = '⚠️'
+    return {'status': st, 'porownane': len(pary), 'od': pary[0] if pary else None, 'do': pary[-1] if pary else None, 'roznice': roz, 'pominiete': pomin}
+
+
+def arkb_kontrola(files, R):
+    """Krok 3e': drugi, niezależny odczyt przepływów ETF bitcoina — plik emitenta ARKB (1 zapytanie, bez ponawiania) i przepływ ARKB ze strony (etf.json); zapis
+    w kontrola/ark-arkb.csv; wynik do R['zgodnosc']['arkb']; uwagi do R['uwagi'] (nigdy do listy błędów)."""
+    path = os.path.join(OUT_DIR, ARK_CSV)
+    rows = ark_zapis(path)
+    etf = files.get('etf')
+    A = ((etf.get('assets') if isinstance(etf, dict) else None) or {}).get('btc')
+    A = A if isinstance(A, dict) else {}
+    at = etf.get('at') if isinstance(etf, dict) and isinstance(etf.get('at'), str) else None
+    sesje = emitent_sesje(etf, 'btc')
+    asof = None
+    try:
+        asof = dt.date.fromisoformat(str(A.get('asof'))[:10]).isoformat()
+    except ValueError:
+        pass
+    f = next((x for x in (A.get('funds') if isinstance(A.get('funds'), list) else []) if isinstance(x, dict) and x.get('t') == 'ARKB'), None)
+    v = _em_skonczona(f.get('d1')) if f else None
+    if asof and v is not None:
+        x = rows.setdefault(asof, {'btc': None, 'usd': None, 'flow': None, 'at': None})
+        x['flow'] = v; x['at'] = at or x['at']
+    E = {'status': '?', 'bez_funduszu': bool(asof and f is None)}   # fundusz spoza listy strony: tylko zapis pliku wydawcy, bez porównania (informacja w linii raportu, bez uwagi)
+    try:
+        st, body, ms = get(ARK_URL, timeout=ARK_TIMEOUT, limit=ARK_LIMIT)
+        d, btc, usd = ark_odczyt(body)
+        x = rows.setdefault(d, {'btc': None, 'usd': None, 'flow': None, 'at': None})
+        x['btc'], x['usd'] = btc, usd
+        x['at'] = x['at'] or (at or NOW.isoformat())
+        E['plik_do'] = d
+    except Exception as e:  # noqa
+        E['blad'] = (str(e) or type(e).__name__)[:120]
+        R['uwagi'].append(f'ARKB (druga kontrola przepływów ETF bitcoina): plik wydawcy funduszu — brak odczytu ({E["blad"]}); kontrola pominięta')
+    try:
+        ark_zapis_zapisz(path, rows)
+    except Exception as e:  # noqa
+        R['uwagi'].append(f'{ARK_CSV}: nie zapisano ({str(e)[:80]})')
+    E.update(ark_porownanie(rows, sesje))
+    E['zapis_dni'] = len(rows)
+    E['plik_do'] = E.get('plik_do') or max((d for d, x in rows.items() if x.get('btc')), default=None)
+    if E.get('blad') and not E['porownane']:
+        E['status'] = '?'
+    nowy = bool(E['plik_do'] and asof and (dt.date.fromisoformat(asof) - dt.date.fromisoformat(E['plik_do'])).days > ARK_PLIK_DNI)
+    E['nieaktualny'] = nowy
+    if nowy:
+        E['status'] = '⚠️'
+        R['uwagi'].append(f'ARKB (druga kontrola przepływów ETF bitcoina): plik wydawcy kończy się na {E["plik_do"]}, a strona ma już sesję {asof} — plik nieaktualny (próg {ARK_PLIK_DNI} dni), nowsze sesje bez kontroli')
+    elif E['status'] == '⚠️':
+        R['uwagi'].append('ARKB (druga kontrola przepływów ETF bitcoina): przepływ na stronie ≠ zmiana liczby BTC w pliku wydawcy w większości z ostatnich ' + f'{E["porownane"]} sesji (próg max {ARK_TOL_MLN:g} mln USD / {ARK_TOL_PCT:g}%) — '
+                          + '; '.join(f'{x["data"]}: {x["roznica_mln"]:+.1f} mln USD' for x in E['roznice'][-3:]))
+    return E
+
+
+def arkb_linia(E):
+    """Linia raportu: status, liczba porównanych sesji, daty różnic (z kwotami różnic, bez liczb emitenta), ostatni dzień pliku; brak = „—”."""
+    if not E:
+        return '—'
+    if E.get('porownane'):
+        okr = E['od'] if E['od'] == E['do'] else f'{E["od"]} – {E["do"]}'
+        s = f'{E["status"]} porównane sesje: {E["porownane"]} ({okr}), różnic ponad próg: {len(E["roznice"])}' + (
+            ' — ' + '; '.join(f'{x["data"]}: {x["roznica_mln"]:+.1f} mln USD' + (' (strona pokazywała 0.0)' if x.get('strona_zero') else '') for x in E['roznice'][-3:]) if E['roznice'] else '')
+    else:
+        s = f'{E.get("status", "?")} jeszcze bez porównania (zapisanych dni: {E.get("zapis_dni", 0)}; para wymaga dwóch kolejnych dni pliku emitenta)'
+    if E.get('pominiete'):
+        s += '; pominięte: ' + ', '.join(f'{x["data"]} ({x["powod"]})' for x in E['pominiete'][-3:])
+    s += f'; plik emitenta do {E.get("plik_do") or "—"}' + (f' — plik nieaktualny (próg {ARK_PLIK_DNI} dni)' if E.get('nieaktualny') else '')
+    if E.get('bez_funduszu'):
+        s += '; ARKB nie jest na liście funduszy strony (etf.json) — tylko zapis pliku, bez porównania'
+    return s + (f' (brak odczytu: {E["blad"]})' if E.get('blad') else '')
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -7282,6 +7620,17 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-v355. TARGET krajów strefy euro (data/target.json) i rejestry MiCA (data/mica.json): wiek danych i spójność z plików strony, bez zapytań; najwyżej ⚠️
+    for nm_, fn_, args_ in (('target', target_kontrola, (files.get('target'), files.get('instytucje'))), ('mica', mica_kontrola, (files.get('mica'),))):
+        try:
+            T_ = fn_(*args_)
+            for label, st, w, txt, note in T_['rows']:
+                R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            R['uwagi'] += T_['uwagi']
+            R['zgodnosc'][nm_] = {'spojnosc': T_['spojnosc'], 'wiersze': T_['wiersze']} if (T_['rows'] or T_['wiersze']) else None
+        except Exception as e:  # noqa
+            R['zgodnosc'][nm_] = {'blad': str(e)[:120]}
+            R['uwagi'].append(f'{nm_}: kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -7425,6 +7774,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['etf_emitent'] = {'status': '?', 'blad': str(e)[:120], 'fundusze': {}}
         R['uwagi'].append(f'ETF u źródła (pliki emitenta): kontrola przerwana ({str(e)[:80]})')
+    # 3e'. v355: druga, niezależna kontrola przepływów ETF bitcoina — plik emitenta ARKB (1 zapytanie, bez ponawiania; najwyżej ⚠️; bez nowej liczby na stronie)
+    try:
+        Z['arkb'] = arkb_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['arkb'] = {'status': '?', 'blad': str(e)[:120]}
+        R['uwagi'].append(f'ARKB (druga kontrola przepływów ETF bitcoina): kontrola przerwana ({str(e)[:80]})')
     # 3e. v128: zgodność premii krypto (bez sieci: plik premie i wczytany rynki) — tylko uwagi, nigdy błąd (dziwny rynek to nie awaria strony)
     Z['premie'] = premie_porownanie(files.get('premie'), files.get('rynki'))
     R['uwagi'] += Z['premie']['uwagi']
@@ -7812,6 +8167,10 @@ def raport_md(R):
         cz = [emitent_linia(t, F) for t, F in (em.get('fundusze') or {}).items()]
         L.append(f'- ETF krypto u źródła — przepływy funduszy na stronie vs wyliczenie z plików emitenta (dzień D = zmiana liczby jednostek D → D+1 × NAV z D; '
                  f'próg max {EM_TOL_MLN:g} mln USD / {EM_TOL_PCT:g}%): ' + (' · '.join(cz) if cz else (f'? kontrola przerwana ({em["blad"]})' if em.get('blad') else '—')) + '.')
+        ak = Z.get('arkb')   # v355: druga kontrola przepływów ETF bitcoina (ARKB) — tylko różnice i daty; brak = bez linii
+        if ak:
+            L.append(f'- ETF bitcoina — druga, niezależna kontrola przepływu ARKB (zmiana liczby BTC w pliku emitenta × cena z pliku vs przepływ na stronie; '
+                     f'próg max {ARK_TOL_MLN:g} mln USD / {ARK_TOL_PCT:g}%): ' + arkb_linia(ak) + '.')
         dz = Z.get('dolar')   # v136: Argentyna — tylko różnice w % i daty (bez kursów); brak pliku = bez linii
         if dz:
             L.append('- Argentyna — dwa odczyty tych samych kursów: ' + (dz.get('opis') or (f'? kontrola przerwana ({dz["blad"]})' if dz.get('blad') else '—')) + '.')
@@ -7856,6 +8215,12 @@ def raport_md(R):
             L.append('- Giełdy scentralizowane, DEX i kontrakty na łańcuchu (z plików strony): ' + (f'? kontrola przerwana ({gdz["blad"]})' if gdz.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(gdz['spojnosc'][:3]) + ' ❌ · ' if gdz.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in gdz.get('wiersze') or []) or '—') + '.')
+        for nm_, tyt_ in (('target', '- Salda TARGET krajów strefy euro (z pliku strony; porównanie z panelem „dane urzędowe”): '), ('mica', '- Rejestry MiCA (z pliku strony): ')):
+            tz_ = Z.get(nm_)   # v355: brak pliku = bez linii
+            if tz_:
+                L.append(tyt_ + (f'? kontrola przerwana ({tz_["blad"]})' if tz_.get('blad') else
+                         ('niespójności w pliku: ' + '; '.join(tz_['spojnosc'][:3]) + ' ⚠️ · ' if tz_.get('spojnosc') else '')
+                         + ' · '.join(f'{o} {zn}' for o, zn in tz_.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else
