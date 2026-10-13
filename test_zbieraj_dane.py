@@ -50697,3 +50697,120 @@ class KontrolaStableEmitenciV363(unittest.TestCase):
         i1, i2, i3 = s.index("T_ = ste_kontrola(files.get('stable-emitenci'), files.get('cmc'), ste_rows, ste_dzis)"), s.index('# 3d. v115: zgodność liczb'), s.index("sez_ = Z.get('stable-emitenci')")
         self.assertTrue(i1 < i2 < i3, 'blok przed zgodnością liczb 3d, linia raportu osobno')
         self.assertIn('kontrola/stable-emitenci.csv', y); self.assertIn("if ste_rows.get(ste_dzis):", s)
+
+
+# ===================== v364: xSTOCKS — DOPEŁNIENIE LISTY OD NAJMNIEJSZYCH (naprawa awarii od 13.10.2026 18:32 UTC) =====================
+class XstocksDopelnienieV364(unittest.TestCase):
+    """v364: lista emitenta (ponad 1450 tokenów) dłuższa niż strona odpowiedzi (1000 od największych; dalsze strony — błąd serwera emitenta): górna
+    granica reszty rosła z liczbą tokenów i 13.10.2026 przekroczyła 0,5% sumy (5,09 mln USD; poprzedni odczyt 4,51 mln) — cały produkt odpadał.
+    Naprawa: gdy granica reszty jest zbyt duża, drugie zapytanie o tę samą listę od najmniejszych (strona 0) — razem obie listy obejmują do dwóch
+    stron tokenów, wspólne symbole liczone raz, reszta (jeśli jest) nadal z górną granicą. Błąd dopełnienia = ten sam błąd co dotąd, z dopiskiem."""
+
+    FX = {'d': '2026-10-13', 'rates': {'HKD': 7.78, 'GBP': 0.75}}
+    AT = '2026-10-05T06:00:00Z'
+
+    def _glowna(self, n_duze=2, n_male=10, male_usd=1000000, wszystkich=283):
+        N = [_rwe170_xn(f'B{i}x', 1000000, 10000, 'USD', self.AT) for i in range(n_duze)]   # 100 mln USD każdy
+        N += [_rwe170_xn(f'S{i}x', 1, male_usd * 100, 'USD', self.AT) for i in range(n_male)]
+        j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 25, 'totalNodes': wszystkich}
+        return j, N
+
+    def _ogon(self, k, od=0, usd=100):
+        return _rwe170_xs([_rwe170_xn(f'T{i}x', 1, usd * 100, 'USD', self.AT) for i in range(od, od + k)])
+
+    def test_dopelnienie_zamyka_liste(self):
+        j, N = self._glowna()   # 12 tokenów na stronie, wszystkich 283: reszta 271 × 1 mln × 2 ≫ 0,5% sumy (210 mln)
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 12}):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_xs_parse(j, self.FX)
+            self.assertIn('górna granica reszty listy', str(c.exception), 'bez dopełnienia — błąd jak dotąd')
+            calls = []
+            r = zd.rwe_xs_parse(j, self.FX, dop=lambda: calls.append(1) or self._ogon(271))
+        self.assertEqual(len(calls), 1)
+        self.assertNotIn('ogon', r, 'cała lista odczytana — brak reszty')
+        self.assertEqual(r['n'], 283)
+        self.assertAlmostEqual(r['v'], 2 * 100000000 + 10 * 1000000 + 271 * 100, places=2)
+
+    def test_wspolne_symbole_liczone_raz_a_reszta_ma_granice(self):
+        j, N = self._glowna(9, 60, 389, wszystkich=340)   # 900 mln + 60 × 389; reszta 271
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 69}), mock.patch.object(zd, 'RWE_XS_OGON_PROC', 0.01):   # 0,01% sumy = 90 tys. USD
+            with self.assertRaises(ValueError):
+                zd.rwe_xs_parse(j, self.FX)
+            D = self._ogon(260)
+            D['data']['tokens']['nodes'] += [dict(N[0]), dict(N[69 - 1])]   # dwa symbole z głównej listy w odpowiedzi dopełniającej
+            r = zd.rwe_xs_parse(j, self.FX, dop=lambda: D)
+        self.assertEqual(r['n'], 69 + 260, 'symbole wspólne obu list — raz')
+        self.assertEqual(r['ogon'], {'n': 11, 'max_usd': 8558}, 'reszta 340 − 329 = 11 tokenów × 389 USD × 2 (zapas z głównej listy)')
+        self.assertAlmostEqual(r['v'], 9 * 100000000 + 60 * 389 + 260 * 100, places=2)
+
+    def test_dopelnienie_tylko_gdy_trzeba(self):
+        j, N = self._glowna(9, 60, 389, wszystkich=340)
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 69}):
+            r = zd.rwe_xs_parse(j, self.FX, dop=lambda: self.fail('granica mieści się w 0,5% — bez drugiego zapytania'))
+        self.assertEqual(r['ogon'], {'n': 271, 'max_usd': 210838})
+        j, N = self._glowna(wszystkich=12)   # lista mieści się na stronie
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 13}):
+            self.assertNotIn('ogon', zd.rwe_xs_parse(j, self.FX, dop=lambda: self.fail('cała lista na stronie')))
+        j, N = self._glowna(); del j['data']['tokens']['page']
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 12}):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_xs_parse(j, self.FX, dop=lambda: self.fail('bez liczby wszystkich tokenów reszty nie da się policzyć'))
+        self.assertIn('bez liczby wszystkich tokenów', str(c.exception))
+
+    def test_blad_dopelnienia_zostawia_stary_blad_z_dopiskiem(self):
+        j, N = self._glowna()
+        bad = [lambda: (_ for _ in ()).throw(TimeoutError('brak czasu w budżecie kroku (35 s)')), lambda: {'errors': [{'message': 'Internal server error'}]},
+               lambda: None, lambda: {'data': {'tokens': {'nodes': []}}}, lambda: {'data': {'tokens': {'nodes': [1, 2]}}},
+               lambda: self._ogon(3)]   # ostatnie: za mało, żeby zbić granicę reszty
+        for d in bad:
+            with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 12}):
+                with self.assertRaises(ValueError) as c:
+                    zd.rwe_xs_parse(j, self.FX, dop=d)
+            self.assertIn('górna granica reszty listy', str(c.exception)); self.assertIn('dopełnienie', str(c.exception))
+            self.assertLess(len(str(c.exception)), 150, 'opis błędu w pliku jest ucinany do 160 znaków razem z nazwą wyjątku')
+
+    def test_inny_blad_nie_wywoluje_dopelnienia(self):
+        j, N = self._glowna()
+        N[3]['proofOfReserves']['sharesHeld'] = [{'quantity': '-1'}]
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 12}):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_xs_parse(j, self.FX, dop=lambda: self.fail('błąd danych tokenu — nie błąd reszty listy'))
+        self.assertIn('zła liczba akcji', str(c.exception))
+
+    def test_zapytanie_dopelnienia_to_ta_sama_lista_od_najmniejszych(self):
+        V = zd.rwe_xs_var_dop()
+        self.assertEqual(V['orderBy'], {'field': 'aum', 'direction': 'asc'})
+        self.assertEqual({k: x for k, x in V.items() if k != 'orderBy'}, {k: x for k, x in zd.RWE_XS_VAR.items() if k != 'orderBy'})
+        self.assertEqual(zd.RWE_XS_VAR['orderBy']['direction'], 'desc')
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 77}):
+            self.assertEqual(zd.rwe_xs_var_dop()['pageSize'], 77)
+
+    def test_odczyt_calosci_dwoma_zapytaniami(self):
+        j, N = self._glowna(wszystkich=1450)
+        j['data']['tokens']['nodes'] = [_rwe170_xn(f'B{i}x', 1000000, 10000, 'USD', self.AT) for i in range(2)] \
+            + [_rwe170_xn(f'S{i}x', 1, 1000000 * 100, 'USD', self.AT) for i in range(998)]
+        asc = self._ogon(450)
+        asc['data']['tokens']['nodes'] += [dict(n) for n in j['data']['tokens']['nodes'][-550:]]   # dopełnienie zachodzi na główną listę
+        sent = []
+        g0, p0 = _rwe170_net()
+
+        def post(url, obj, timeout=60):
+            if url == zd.RWE_XS:
+                sent.append(obj['variables']['orderBy']['direction'])
+                if obj['variables']['orderBy']['direction'] == 'asc':
+                    assert obj['variables'] == zd.rwe_xs_var_dop() and obj['query'] == zd.RWE_XS_Q and 0 < timeout <= zd.RWE_TIMEOUT
+                    return asc
+                return j
+            return p0(url, obj, timeout)
+        now = datetime.datetime(2026, 10, 5, 8, 0, tzinfo=datetime.timezone.utc)
+        with mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')):
+            rd = zd.rwe_odczyt(now, fx=zd.rwe_fx(_RWE170_S, now), get=g0, post=post, sleep=lambda s: None)
+        x = rd['r']['xstocks']
+        self.assertNotIn('err', x, x); self.assertEqual(sent, ['desc', 'asc'], 'drugie zapytanie tylko po zbyt dużej granicy reszty')
+        self.assertEqual((x['n'], 'ogon' in x), (1450, False))
+        self.assertAlmostEqual(x['v'], 2 * 100000000 + 998 * 1000000 + 450 * 100, places=2)
+        sent.clear(); asc2 = {'errors': [{'message': 'Internal server error'}]}
+        asc.clear(); asc.update(asc2)
+        rd = zd.rwe_odczyt(now, fx=zd.rwe_fx(_RWE170_S, now), get=g0, post=post, sleep=lambda s: None)
+        self.assertIn('górna granica reszty listy', rd['r']['xstocks']['err']); self.assertIn('dopełnienie', rd['r']['xstocks']['err'])
+        self.assertTrue(all('err' not in v for k, v in rd['r'].items() if k != 'xstocks'), 'pozostałe produkty bez zmian')
