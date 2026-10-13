@@ -100,7 +100,7 @@ _Z_WEZLY = 'wezly-lancuchow'
 ZRODLA_META = {
     # --- dzień i ceny (klucze właściciela) ---
     'sosovalue': 'sosovalue', 'coingecko': 'coingecko', 'finnhub': 'finnhub', 'twelvedata': 'twelvedata', 'coinmarketcap': 'coinmarketcap',
-    'fred': 'fred', 'nastroj': 'fred',
+    'fred': 'fred', 'nastroj': 'fred', 'zmiennosc': 'fred',   # v352: zmienność rynków — te same serie FRED (źródło już liczone)
     # --- instytucje i urzędy USA ---
     'tic': 'skarb-usa', 'aukcje': 'skarb-usa', 'rynki_ust': 'skarb-usa', 'cftc': 'cftc', 'eia': 'eia', 'bls': 'bls', 'bea': 'bea',
     'insider': 'sec', 'stres': ('ofr', 'cboe'), 'ici': 'ici', 'fed': 'kalshi',
@@ -1626,6 +1626,82 @@ def build_nastroj(key, S=None, prev=None):
     if errs:
         META['errors'].append(mask(f'{NS_LABEL}: ' + '; '.join(errs)[:400]))
     return out
+
+
+# ===================== v352: ZMIENNOŚĆ RYNKÓW (data/zmiennosc.json) =====================
+# Decyzja właściciela 11.10.2026: ryzyko licencyjne przyjęte (zabezpieczeń technicznych nie obchodzimy) — struktura zmienności z FRED tym samym
+# zapytaniem i kluczem FRED_KEY co build_nastroj (klucz tylko w adresie zapytania, maskowany w błędach):
+#   VIXCLS — VIX (S&P 500, 30 dni) · VXVCLS — VIX 3M (S&P 500, 3 miesiące) · VXNCLS — Nasdaq 100 · VXEEMCLS — rynki wschodzące (fundusz ETF) ·
+#   OVXCLS — ropa (fundusz ETF) · GVZCLS — złoto (fundusz ETF). Wszystkie: dzienne zamknięcia sesji w USA, publikowane z ok. 1 dniem opóźnienia.
+# Plik: s[k] = {date, v, d1 (zmiana wobec poprzedniej sesji), p (percentyl 12 miesięcy: 100 × (mniejsze + ½ równe) / n z ostatnich 252 sesji, min. 240), n, hist
+# (ZM_HIST sesji)}; ratio = VIX / VIX 3M na wspólnych dniach historii (powyżej 1 = odwrócenie struktury: bliższe wahania wyceniane drożej niż dalsze —
+# informacja o oczekiwaniach, nie prognoza; ocenę z zaokrąglonej liczby robi strona); ok[k], part_at[k]. Seria z błędem zostaje z poprzedniego pliku z WŁASNĄ
+# datą (ok False); wszystkie serie bez odpowiedzi = wyjątek (przebieg główny zostawia poprzedni plik). Brak liczby nigdy nie jest zerem.
+ZM_SERIES = (('vix', 'VIXCLS'), ('vix3m', 'VXVCLS'), ('vxn', 'VXNCLS'), ('vxeem', 'VXEEMCLS'), ('ovx', 'OVXCLS'), ('gvz', 'GVZCLS'))
+ZM_KEYS = tuple(k for k, _ in ZM_SERIES)
+ZM_LIMIT = 300         # obserwacji na serię (z dniami „.”): 252 sesje okna percentyla + święta
+ZM_HIST = 130          # sesji historii w pliku (pół roku) — wykres strony
+ZM_WIN = 252           # okno percentyla: 12 miesięcy sesji
+ZM_WIN_MIN = 240       # mniej obserwacji w oknie = brak percentyla (None), nie percentyl z połowy roku
+ZM_EVERY = 6 * 60      # min — serie dzienne; młodszy plik bez zapytań
+ZM_RETRY = 60          # min — plik z serią z błędem ponawiany po godzinie
+ZM_RATIO_GAP_D = 5     # dni: wspólny dzień starszy od nowszej serii o więcej = brak ilorazu (nie porównujemy różnych chwil)
+ZM_LABEL = 'Zmienność'
+ZM_SRC = ('CapitalFlowAI — dzienne wskaźniki zmienności implikowanej z cen opcji (S&P 500 na 30 dni i 3 miesiące, Nasdaq 100, rynki wschodzące, ropa, złoto) '
+          'i ich iloraz VIX / VIX 3M; zamknięcia sesji w USA, publiczne serie dzienne')
+
+
+def zm_seria(rows):
+    """[[dzień, v > 0]] rosnąco → {'date', 'v', 'd1', 'p', 'n', 'hist'}: ostatnia sesja, zmiana wobec poprzedniej, percentyl 12 miesięcy (None przy < ZM_WIN_MIN sesji),
+    liczba sesji okna, ostatnie ZM_HIST sesji."""
+    last = rows[-1]
+    win = [v for _d_, v in rows[-ZM_WIN:]]
+    return {'date': last[0], 'v': round(last[1], 2), 'd1': round(last[1] - rows[-2][1], 2) if len(rows) > 1 else None,
+            'p': int(round(ns_pct(win, last[1]))) if len(win) >= ZM_WIN_MIN else None, 'n': len(win),
+            'hist': [[d, round(v, 2)] for d, v in rows[-ZM_HIST:]]}
+
+
+def zm_ratio(a, b):
+    """VIX (a) wobec VIX 3M (b) na dniach wspólnych historii obu serii → {'date', 'v' (a / b, 4 miejsca), 'd1', 'hist': [[dzień, iloraz]]} albo None
+    (brak wspólnego dnia, zły kształt serii albo wspólny dzień starszy o więcej niż ZM_RATIO_GAP_D dni od nowszej serii)."""
+    def rows(s):
+        return {r[0]: r[1] for r in (s.get('hist') if isinstance(s, dict) and isinstance(s.get('hist'), list) else [])
+                if isinstance(r, list) and len(r) >= 2 and isinstance(r[0], str) and _isnum(r[1]) and r[1] > 0}
+    ha, hb = rows(a), rows(b)
+    ds = sorted(set(ha) & set(hb))
+    if not ds or not isinstance(a.get('date'), str) or not isinstance(b.get('date'), str):
+        return None
+    if (_d(max(a['date'], b['date'])) - _d(ds[-1])).days > ZM_RATIO_GAP_D:
+        return None
+    out = [[d, round(ha[d] / hb[d], 4)] for d in ds]
+    return {'date': ds[-1], 'v': out[-1][1], 'd1': round(out[-1][1] - out[-2][1], 4) if len(out) > 1 else None, 'hist': out}
+
+
+def build_zmiennosc(key, prev=None):
+    """data/zmiennosc.json (opis — nagłówek sekcji). Błąd serii: ta seria z poprzedniego pliku (z częścią part_at), ok[k] = False; błąd każdej serii albo brak
+    klucza = wyjątek (przebieg główny zostawia poprzedni plik). Klucz tylko w adresie zapytania."""
+    if not key:
+        raise RuntimeError('brak klucza FRED')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == 1 else {}
+    ps = prev.get('s') if isinstance(prev.get('s'), dict) else {}
+    pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    s, ok, part_at, errs = {}, {}, {}, []
+    for i, (k, sid) in enumerate(ZM_SERIES):
+        if i:
+            time.sleep(FRED_SLEEP)
+        try:
+            s[k] = zm_seria(ns_rows(get_json(f'{FRED}?series_id={sid}&api_key={key}&file_type=json&sort_order=desc&limit={ZM_LIMIT}'), sid))
+            ok[k] = True; part_at[k] = NOW
+        except Exception as e:  # noqa — seria z błędem: poprzednia z własną datą, pozostałe liczone dalej
+            errs.append(mask(f'{sid}: {e}')); ok[k] = False
+            if isinstance(ps.get(k), dict):
+                s[k] = ps[k]; part_at[k] = pat.get(k) or prev.get('at')
+    if not any(ok.values()):
+        raise RuntimeError('żadna seria nie odpowiedziała' + (': ' + '; '.join(errs)[:300] if errs else ''))
+    if errs:
+        META['errors'].append(mask(f'{ZM_LABEL}: ' + '; '.join(errs)[:400]))
+    return {'at': NOW, 'v': 1, 'src': ZM_SRC, 'ids': dict(ZM_SERIES), 'ok': ok, 'part_at': part_at, 's': s,
+            'ratio': zm_ratio(s.get('vix'), s.get('vix3m')) if 'vix' in s and 'vix3m' in s else None}
 
 
 def parse_deriv(j):
@@ -17890,7 +17966,20 @@ PC_TEMPO = 0.3       # s między zapytaniami
 PC_TIMEOUT = 15
 PC_USTALONY = 2      # dni: brak pliku (403/404 z XML magazynu plików — pc_brak_pliku) dla dnia starszego niż tyle dni = dzień bez sesji (zapamiętany, nie pytamy ponownie); młodszy — plik może dopiero powstać
 PC_NAZWY = {'TOTAL PUT/CALL RATIO': 'total', 'EQUITY PUT/CALL RATIO': 'equity', 'INDEX PUT/CALL RATIO': 'index'}
-PC_ZGODA = os.environ.get('CBOE_ZGODA', '').strip()   # pisemna zgoda giełdy (treść dowolna, np. data i numer umowy); pusta = część put/call wyłączona
+PC_ZGODA_WLASCICIEL = 'decyzja właściciela 11.10.2026: ryzyko licencyjne przyjęte; zabezpieczeń technicznych nie obchodzimy'
+
+
+def pc_zgoda(raw):
+    """v352: zgoda na część put/call. Zmienna CBOE_ZGODA pusta = decyzja właściciela z 11.10.2026 (część włączona); wartość „nie” (albo off) = część
+    wyłączona jak dawniej; inna treść = zgoda wpisana ręcznie (np. data i numer umowy). Ochrony przed botami nigdy nie omijamy (403 z inną treścią niż
+    XML magazynu plików = błąd i koniec części w przebiegu, bez zapisu dnia jako dnia bez sesji — pc_brak_pliku)."""
+    raw = (raw or '').strip()
+    if raw.lower() in ('nie', 'off', 'wylaczone', 'wyłączone'):
+        return ''
+    return raw or PC_ZGODA_WLASCICIEL
+
+
+PC_ZGODA = pc_zgoda(os.environ.get('CBOE_ZGODA', ''))   # v352: domyślnie włączone decyzją właściciela (11.10.2026); „nie” w CBOE_ZGODA wyłącza
 STRES_EVERY = 6 * 60   # min — oba źródła są dzienne; co 6 h wystarczy
 STRES_RETRY = 60       # min — część z błędem ponawiana po godzinie
 
@@ -18057,12 +18146,13 @@ def build_stres(prev=None, now=None):
     jest wyłączona (pc_off = True, w pliku nie ma klucza 'pc'), dopóki właściciel nie wpisze zgody do zmiennej środowiskowej CBOE_ZGODA
     (np. w strona.yml: CBOE_ZGODA: ${{ vars.CBOE_ZGODA }} — treść dowolna, np. data i numer umowy); bez zgody stare dane put/call
     z poprzedniego pliku też nie są przepisywane, a strona pokazuje wersję samego indeksu (tytuł, opis i nota bez put/call, bez żadnej noty
-    o wyłączeniu). Po zgodzie: dopisać podpis giełdy na stronie Źródła (zrCredits), jeśli umowa go wymaga."""
+    o wyłączeniu). Po zgodzie: dopisać podpis giełdy na stronie Źródła (zrCredits), jeśli umowa go wymaga.
+    v352: od 11.10.2026 zgoda = decyzja właściciela (ryzyko licencyjne przyjęte; pc_zgoda) — CBOE_ZGODA pusta włącza część, „nie” wyłącza."""
     now = now or _now_utc()
     prev = prev if isinstance(prev, dict) else {}
     pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
     out = {'at': NOW, 'src': 'Dzienny indeks stresu finansowego liczony z cen rynkowych (urząd badawczy przy Skarbie USA, plik CSV, domena publiczna)'
-                            + ('; dzienne wskaźniki put/call z giełdy opcji USA (plik JSON) — za pisemną zgodą giełdy' if PC_ZGODA else ''),
+                            + ('; dzienne wskaźniki put/call z giełdy opcji USA (plik JSON)' if PC_ZGODA else ''),
            'ok': {}, 'part_at': {}, 'pc_off': not PC_ZGODA}
     errs = []
 
@@ -30808,6 +30898,22 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'{NS_LABEL}: {e}')); META['ok']['nastroj'] = False
             if prev_ns: save('nastroj', prev_ns)
+    # v352: zmienność rynków (VIX, VIX 3M, Nasdaq, rynki wschodzące, ropa, złoto; data/zmiennosc.json) — te same zapytania FRED i klucz co nastroje; co 6 h,
+    # plik z serią z błędem ponawiany po godzinie; bez klucza albo przy awarii — poprzedni plik bez zmian (błąd w meta.json)
+    prev_zm = previous('zmiennosc')
+    pok_zm = prev_zm.get('ok') if isinstance(prev_zm, dict) and isinstance(prev_zm.get('ok'), dict) else {}
+    if not fred_key:
+        if isinstance(prev_zm, dict):
+            save('zmiennosc', prev_zm)
+    elif isinstance(prev_zm, dict) and prev_zm.get('v') == 1 and fresh(prev_zm, ZM_EVERY) and (all(pok_zm.get(k) is True for k in ZM_KEYS) or fresh(prev_zm, ZM_RETRY)):
+        save('zmiennosc', prev_zm); META['ok']['zmiennosc'] = 'cached'
+    else:
+        try:
+            zm_ = build_zmiennosc(fred_key, prev_zm); save('zmiennosc', zm_); META['ok']['zmiennosc'] = all(zm_['ok'].get(k) is True for k in ZM_KEYS)
+        except Exception as e:
+            META['errors'].append(mask(f'{ZM_LABEL}: {e}')); META['ok']['zmiennosc'] = False
+            if isinstance(prev_zm, dict):
+                save('zmiennosc', prev_zm)
     # v295c: CRYPTO „Złoto i surowce a krypto” (data/zloto-krypto.json) — wyliczenia z plików zapisanych w tym przebiegu (SAVED: surowce,
     # ceny krypto, wycena, RWA, ETF, cmc), bez zapytań do sieci; część bez wejść = poprzednia z jej czasem; awaria = błąd i poprzedni plik
     prev_zk = previous('zloto-krypto')

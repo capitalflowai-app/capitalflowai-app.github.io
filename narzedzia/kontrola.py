@@ -6860,6 +6860,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-zm. v352: zmienność rynków (data/zmiennosc.json), put/call i indeks stresu (data/stres.json) — świeżość każdej części osobnym wierszem; najwyżej ⚠️
+    for label, st, w, txt, note in zm_swiezosc(files.get('zmiennosc'), files.get('stres')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c-gx. v349 (F6Z1): giełdy scentralizowane i DEX (data/gieldy.json, data/dex.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in gx_swiezosc(files.get('gieldy'), files.get('dex')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
@@ -7654,6 +7661,46 @@ def main():
             f.write(md)
     print('::notice title=kontrola::' + (R['wynik'] + ' — ' + '; '.join(R['bledy'] + R['uwagi'])[:900]).replace('%', '%25').replace('\n', '%0A'))
     sys.exit(1 if R['bledy'] else 0)
+
+
+# --- v352: zmienność rynków (data/zmiennosc.json) oraz put/call i indeks stresu (data/stres.json) — świeżość w dniach roboczych (kontrola dzienna) ---
+# Seria dzienna z zamknięcia sesji w USA jest publikowana z ok. 1 dniem opóźnienia; dzień danych liczony do końca doby, wiek w godzinach roboczych (bez sobót
+# i niedziel). Próg 4 doby robocze (96 h) mieści opóźnienie publikacji i jedno święto giełdowe w USA; indeks stresu ma opóźnienie 2 dni robocze — próg 5 dób.
+# Najwyżej ⚠️ (nigdy ❌). Plik stres jest już w PLIKI (limit 24 h) — dochodzą tylko wiersze dat put/call i indeksu stresu. Czerwień z serii awarii ('stres', 'zmiennosc')
+# zostaje taka jak dla innych części z cached (wzór v211: trwała awaria > 48 h = błąd) — np. trwała blokada sieci giełdy opcji nie jest chowana.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'zmiennosc')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['zmiennosc'] = 26 * 60
+ZM_K_ETYKIETA = {'vix': 'zmienność: VIX (S&P 500, 30 dni; dni robocze USA)', 'vix3m': 'zmienność: VIX 3M (S&P 500, 3 miesiące; dni robocze USA)',
+                 'vxn': 'zmienność: Nasdaq 100 (dni robocze USA)', 'vxeem': 'zmienność: rynki wschodzące (dni robocze USA)',
+                 'ovx': 'zmienność: ropa (dni robocze USA)', 'gvz': 'zmienność: złoto (dni robocze USA)'}
+ZM_K_PROG = 96 * 60
+ST_K_ETYKIETA = {'pc': 'put/call: wskaźniki dzienne giełdy opcji USA (sesje USA)', 'fsi': 'indeks stresu finansowego USA (dni robocze, opóźnienie 2 dni)'}
+ST_K_PROG = {'pc': 96 * 60, 'fsi': 120 * 60}
+
+
+def zm_swiezosc(j, st=None, now=None):
+    """Wiersze świeżości w kształcie wierszy swiezosc(): (etykieta, status, wiek min, data danych, uwaga). zmiennosc.json — 6 serii; stres.json — put/call
+    (tylko gdy część jest w pliku) i indeks stresu. Najwyżej ⚠️, nigdy ❌; brak pliku albo innej wersji zmiennosc = brak wierszy; seria bez daty — '?'."""
+    now = now or NOW
+    rows = []
+
+    def wiersz(label, txt, prog):
+        if not isinstance(txt, str) or not re.match(r'^\d{4}-\d{2}-\d{2}', txt):
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); return
+        w = wiek_danych(txt, 'day', 'd', now)
+        s_ = '?' if w is None else ('⚠️' if w > prog else '✅')
+        rows.append((label, s_, w, txt[:10], f'próg {fmt_wiek(prog)} roboczych — najwyżej uwaga' if s_ == '⚠️' else ''))
+    if isinstance(j, dict) and j.get('v') == 1:
+        S_ = j.get('s') if isinstance(j.get('s'), dict) else {}
+        for k, label in ZM_K_ETYKIETA.items():
+            e = S_.get(k)
+            wiersz(label, e.get('date') if isinstance(e, dict) else None, ZM_K_PROG)
+    if isinstance(st, dict):
+        for k, label in ST_K_ETYKIETA.items():
+            e = st.get(k)
+            if isinstance(e, dict) and not (k == 'pc' and st.get('pc_off') is True):
+                wiersz(label, e.get('date'), ST_K_PROG[k])
+    return rows
 
 
 if __name__ == '__main__':

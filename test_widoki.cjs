@@ -24257,3 +24257,135 @@ test('v351 (strona): pasek „zapisana kopia” — data i wiek kopii (nic nie u
   for (const q of ['#sw-offline{position:fixed;left:8px;right:64px;', '#sw-offline[hidden]{display:none}', 'overflow-wrap:anywhere', 'color:var(--yl-tx)']) assert.ok(html.includes(q), 'CSS: ' + q);
   assert.ok(!/#sw-offline[^{}]*\{[^}]*\bcolor:#[0-9a-f]{3,6}/i.test(html), 'kolor paska z zmiennych (motyw jasny i ciemny)');
 });
+
+const zm352 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const code = cut('/* ===================== v121: STRES FINANSOWY USA I NASTROJE NA OPCJACH', '/* ===================== v121: AUKCJE PAPIERÓW SKARBOWYCH USA');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-13T10:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/ | /g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-zmiennosc': el, '#g-stres': {innerHTML: '', hidden: true, querySelectorAll() { return []; }}};
+    const calls = [], hnd = [], ivs = [], wl = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'flagImg', 'document', 'MutationObserver', 'setInterval', 'wkLines', 'wkMs', 'wkDay', 'Date',
+      "'use strict';\n" + code + '\nreturn {ZM, zmLoad, renderZm, zmOk, zmSer, zmRatio};')(
+      q => els[q] || null, v96src.tFor(L), v96src.escH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, () => '', i => i, () => '', doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (Ls, o) => { wl.push({L: Ls, o}); return '<chart n=' + Ls.map(l => l.n + ':' + l.d.length).join(',') + ' aria="' + o.aria + '">'; },
+      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), FD);
+    /* silnik kart zwijanych (zw): karta zwinięta = zw-on + zw; rozwinięta = zw-on bez zw; zmiana klasy budzi obserwatora karty */
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, hnd, ivs, wl, mos, expand, collapse, html: () => sp(els['#g-zmiennosc'].innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({label: m[1], val: txt(m[3].split('<small')[0]), raw: m[3], when: txt(m[4])}));
+  const S = (date, v, d1, p, hist) => ({date, v, d1, p, n: 252, hist: hist || [['2026-10-08', v - 1], ['2026-10-09', v - 0.5], [date, v]]});
+  const J = () => ({at: '2026-10-13T04:12:00+00:00', v: 1, ok: {vix: true, vix3m: true, vxn: true, vxeem: true, ovx: true, gvz: true}, part_at: {}, s: {
+    vix: S('2026-10-12', 16.44, 0.52, 74), vix3m: S('2026-10-12', 18.1, -0.2, 55), vxn: S('2026-10-12', 21.37, 0, 61), vxeem: S('2026-10-12', 17.5, 0.3, 33),
+    ovx: S('2026-10-12', 38.2, -1.1, 88), gvz: S('2026-10-12', 15.9, 0.004, 47)},
+    ratio: {date: '2026-10-12', v: 0.9083, d1: 0.0214, hist: [['2026-10-08', 0.88], ['2026-10-09', 0.887], ['2026-10-12', 0.9083]]}});
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {zmiennosc: true}} : meta, zmiennosc: j === undefined ? J() : j});
+  return {mk, tiles, files, J, S, sp, txt, code, clone, LOC};
+})();
+
+test('v352: karta „Zmienność rynków” w GLOBAL — nagłówek od razu, plik dopiero po rozwinięciu karty; 7 kafli (6 serii i iloraz) z wartością, zmianą 1 sesji w kolorach kierunku, datą, wiekiem i percentylem', () => {
+  const K = zm352.mk('pl', zm352.files());
+  assert.equal(K.els['#g-zmiennosc'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>Zmienność rynków</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Wskaźniki zostaną wczytane po rozwinięciu panelu.') && zm352.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['stres', 'meta'], 'przy starcie: tylko stres (stary panel) i meta — bez zmiennosc'); assert.equal(K.calls.filter(c => c === 'zmiennosc').length, 0);
+  K.expand();
+  assert.equal(K.calls.filter(c => c === 'zmiennosc').length, 1, 'plik po rozwinięciu karty'); h = K.html();
+  const T = zm352.tiles(h);
+  assert.deepEqual(T.map(x => x.label.replace(/&amp;/g, '&')), ['S&P 500, 30 dni (VIX)', 'S&P 500, 3 miesiące (VIX 3M)', 'Nasdaq 100, 30 dni (VXN)', 'Rynki wschodzące, 30 dni (VXEEM)', 'Ropa naftowa, 30 dni (OVX)', 'Złoto, 30 dni (GVZ)', 'VIX wobec VIX 3M']);
+  assert.deepEqual(T.map(x => x.val), ['16,44', '18,10', '21,37', '17,50', '38,20', '15,90', '0,91']);
+  assert.ok(T[0].raw.includes('<small class="pos">▲ +0,52 1 dzień</small>'), T[0].raw); assert.ok(T[1].raw.includes('<small class="neg">▼ −0,20 1 dzień</small>'), T[1].raw);
+  assert.ok(T[2].raw.includes('<small class="neu">• 0,00 1 dzień</small>'), 'zero = żółte'); assert.ok(T[5].raw.includes('<small class="neu">• 0,00 1 dzień</small>'), '0,004 po zaokrągleniu = zero');
+  assert.ok(T[6].raw.includes('<small class="pos">▲ +0,02 1 dzień</small>'));
+  assert.ok(T[0].when.includes('wiek(2026-10-12)') && T[0].when.includes('wyżej niż w 74% sesji z 12 miesięcy'), T[0].when);
+  assert.ok(!T[6].when.includes('wyżej niż'), 'iloraz bez percentyla');
+  assert.ok(h.includes('<p class="pnote">VIX jest niższy niż VIX 3M — zwykły układ'), 'zwykły układ bez koloru');
+  assert.equal(K.wl.length, 2); assert.deepEqual(K.wl[0].L.map(l => l.n + ':' + l.d.length), ['VIX:3', 'VIX 3M:3']); assert.equal(K.wl[0].o.zero, false);
+  assert.deepEqual(K.wl[1].o.zones, [{a: 1, b: 100, cls: 'z-n'}]); assert.deepEqual(K.wl[1].o.dom, [0.8, 1.1]);
+  assert.ok(h.includes('<chart n=VIX:3,VIX 3M:3') && h.includes('Wykres liniowy: VIX i VIX 3M od'), 'wykresy z opisem dla czytników');
+  assert.ok(h.includes('Dane z zamknięcia sesji w USA') && h.includes('D:2026-10-13T04:12:00+00:00'), 'opis i data pliku');
+  assert.ok(!/FRED|Cboe|CBOE/i.test(h), 'zero nazw dostawców na stronie');
+  K.expand(); assert.equal(K.calls.filter(c => c === 'zmiennosc').length, 1, 'plik świeży — bez drugiego pobrania');
+  /* zegar 30 min: odświeżenie przy rozwiniętym bloku */
+  const iv = K.ivs.find(x => x[1] === 30 * 60 * 1000); assert.ok(iv); iv[0](); assert.equal(K.calls.filter(c => c === 'zmiennosc').length, 2, 'odświeżenie wymuszone zegarem');
+  K.collapse(); iv[0](); assert.equal(K.calls.filter(c => c === 'zmiennosc').length, 2, 'zwinięta karta — zegar nie pobiera');
+  /* karta rozwinięta już na starcie (zapamiętany wybór czytelnika): pobranie od razu po rysowaniu */
+  const KO = zm352.mk('pl', zm352.files(), {open: true}); assert.equal(KO.calls.filter(c => c === 'zmiennosc').length, 1); assert.equal(zm352.tiles(KO.html()).length, 7);
+  /* zwinięta karta ze starego zapisu: bez pobrania */
+  const KZ = zm352.mk('pl', zm352.files()); KZ.collapse(); assert.equal(KZ.calls.filter(c => c === 'zmiennosc').length, 0);
+});
+
+test('v352: odwrócenie (VIX powyżej VIX 3M) i równość po zaokrągleniu — żółta informacja, nie prognoza; brak ilorazu = „—” z powodem; seria bez danych = „—”, nigdy 0', () => {
+  const J = zm352.J(); J.ratio = {date: '2026-10-12', v: 1.0625, d1: 0.2625, hist: [['2026-10-09', 0.8], ['2026-10-12', 1.0625]]};
+  let K = zm352.mk('pl', zm352.files(J)); K.expand(); let h = K.html();
+  assert.ok(h.includes('<p class="pnote neu">VIX jest wyższy niż VIX 3M — odwrócenie') && h.includes('To informacja o oczekiwaniach, nie prognoza.'));
+  assert.equal(zm352.tiles(h)[6].val, '1,06');
+  J.ratio.v = 1.004; K = zm352.mk('pl', zm352.files(J)); K.expand(); h = K.html(); assert.ok(h.includes('<p class="pnote neu">VIX i VIX 3M są na tym samym poziomie'), '1,004 → 1,00');
+  J.ratio = null; delete J.s.gvz; K = zm352.mk('pl', zm352.files(J)); K.expand(); h = K.html(); const T = zm352.tiles(h);
+  assert.equal(T[6].val, '—'); assert.ok(h.includes('Brak wspólnego dnia obu wskaźników'));
+  assert.equal(T[5].val, '—'); assert.ok(T[5].raw.includes('<small class="na">brak danych</small>')); assert.ok(!/<b>0[,.]00/.test(h), 'brak to nie zero');
+  assert.equal(K.wl.length, 1, 'bez ilorazu — tylko wykres VIX');
+  const Z = zm352.J(); Z.s.vix.v = 0; Z.s.vxn.v = null; Z.s.ovx.date = 'wczoraj'; const K2 = zm352.mk('pl', zm352.files(Z)); K2.expand();
+  const T2 = zm352.tiles(K2.html()); assert.deepEqual([T2[0].val, T2[2].val, T2[4].val], ['—', '—', '—'], 'zero, null i zła data = brak');
+});
+
+test('v352: panel ukryty bez części w meta; błąd pobrania — komunikat bez pętli zapytań; plik niepoprawny nie zasłania wczytanych danych', () => {
+  const K0 = zm352.mk('pl', zm352.files(undefined, {ok: {fred: true}})); assert.equal(K0.els['#g-zmiennosc'].hidden, true); assert.equal(K0.els['#g-zmiennosc'].innerHTML, '');
+  const K1 = zm352.mk('pl', zm352.files(undefined, null)); assert.equal(K1.els['#g-zmiennosc'].hidden, true, 'brak meta.json = ukryty');
+  const K = zm352.mk('pl', zm352.files(null)); K.expand();
+  assert.ok(K.html().includes('Nie udało się wczytać wskaźników')); K.expand(); K.expand();
+  assert.equal(K.calls.filter(c => c === 'zmiennosc').length, 1, 'po błędzie ta sama minuta — bez kolejnych zapytań');
+  const bad = zm352.J(); bad.v = 2; assert.equal(K.api.zmOk(bad), false); bad.v = 1; bad.s = {}; assert.equal(K.api.zmOk(bad), false); assert.equal(K.api.zmOk(null), false); assert.equal(K.api.zmOk(zm352.J()), true);
+});
+
+test('v352: słownik — 22 klucze w 10 językach, te same pola {x}, każdy klucz użyty w kodzie, zero nazw dostawców i znaków niewidocznych; liczby w formacie języka; telefon bez przewijania w bok (reguły CSS), kolory ze zmiennych motywu', () => {
+  const D = v96src.I18N, keys = Object.keys(D.pl).filter(k => k.startsWith('zm352.'));
+  assert.equal(keys.length, 22, 'klucze: ' + keys.length);
+  const ph = s => (String(s).match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  for (const k of keys) {
+    for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+      assert.equal(typeof D[L][k], 'string', L + ' ' + k); assert.ok(D[L][k].length > 0, L + ' ' + k); assert.equal(ph(D[L][k]), ph(D.pl[k]), L + ' ' + k + ': pola {x}');
+      assert.ok(!/[​-‏⁠﻿️  ]/.test(D[L][k]), L + ' ' + k + ': znak niewidoczny'); assert.ok(!/fred|cboe|st\. louis/i.test(D[L][k]), L + ' ' + k + ': nazwa dostawcy');
+    }
+    assert.ok(zm352.code.includes("'" + k + "'"), 'klucz bez użycia w kodzie: ' + k);
+  }
+  assert.ok(D.pl['zm352.r.inv'].includes('nie prognoza') && D.en['zm352.r.inv'].includes('not a forecast'), 'odwrócenie opisane jako informacja, nie prognoza');
+  assert.ok(D.pl['zm352.read'].includes('nie są sygnałem kupna ani sprzedaży'));
+  for (const L of ['de', 'en', 'ja', 'ru', 'zh', 'fr']) {
+    const K = zm352.mk(L, zm352.files()); K.expand(); const h = K.html();
+    assert.ok(h.length > 1500 && !/zm352\./.test(h), L + ': brak surowych kluczy'); assert.ok(zm352.tiles(h).length === 7, L + ': 7 kafli');
+  }
+  assert.equal(zm352.tiles((() => { const K = zm352.mk('de', zm352.files()); K.expand(); return K.html(); })())[0].val, '16,44', 'de: przecinek');
+  assert.equal(zm352.tiles((() => { const K = zm352.mk('en', zm352.files()); K.expand(); return K.html(); })())[0].val, '16.44', 'en: kropka');
+  for (const q of ['#g-zmiennosc .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}', '@media (max-width:620px){#g-zmiennosc .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}', '#g-zmiennosc .etfk>span{white-space:normal;overflow-wrap:anywhere}', '#g-zmiennosc .etfk>small.mtxt{font-size:10.5px;line-height:1.35}',
+    '#g-zmiennosc .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3}', '<section class="panel pcard" id="g-zmiennosc" hidden></section>'])
+    assert.ok(html.includes(q), 'CSS/HTML: ' + q);
+  assert.ok(html.indexOf('id="g-zmiennosc"') > html.indexOf('id="g-stres"'), 'pod panelem stresu');
+  const css = html.slice(html.indexOf('/* v352: zmienność rynków'), html.indexOf('/* v352: zmienność rynków') + 1400);
+  assert.ok(!/#[0-9a-f]{3,6}\b/i.test(css.slice(0, css.indexOf('@media (max-width:620px){#g-zmiennosc') + 120)), 'kolory tylko ze zmiennych motywu');
+});
+
+test('v352: kod panelu — plik tylko w zmLoad (po rozwinięciu), bez bezpośredniego pobrania i bez nazw dostawców poza komentarzem; słownik nakładany po ostatnim istniejącym', () => {
+  const code = zm352.code.slice(zm352.code.indexOf('/* ===================== v352'), zm352.code.indexOf('/* ---------- koniec bloku zmienności rynków (v352)')), nc = code.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.equal((nc.match(/srvJSON\('zmiennosc'\)/g) || []).length, 1); assert.ok(/function zmLoad\(f\)\{[^\n]*\n[^\n]*srvJSON\('zmiennosc'\)/.test(nc), 'jedyny odczyt w zmLoad');
+  assert.ok(!/fetch\(|data\/zmiennosc/.test(nc) && !/FRED|Cboe|CBOE/i.test(nc), 'bez fetch i nazw dostawców');
+  const dm = /^const EXTRA(\d+)=\{"pl":\{"zm352\.t"/m.exec(html); assert.ok(dm, 'słownik v352 obecny'); const n = +dm[1];
+  const fl = 'for(const l in EXTRA' + n + ')if(I18N[l])Object.assign(I18N[l],EXTRA' + n + '[l]);';
+  assert.equal(html.split(fl).length - 1, 1, 'jedna linia nakładania'); assert.ok(html.indexOf(fl) > dm.index, 'nakładanie po definicji');
+  const prev = [...html.matchAll(/^const EXTRA(\d+)=/gm)].map(m => +m[1]).filter(x => x < n);
+  assert.ok(prev.length > 100 && html.indexOf('for(const l in EXTRA' + Math.max(...prev) + ')') < dm.index, 'nakładany po wszystkich wcześniejszych słownikach');
+});
