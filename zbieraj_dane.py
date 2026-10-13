@@ -146,6 +146,7 @@ ZRODLA_META = {
     'etf_zapas': 'ishares',   # v360: zapas przepływów ETF krypto z plików emitenta (IBIT, ETHA) — ten sam wydawca co fundusze (iShares): liczba źródeł bez zmian
     'polska_rynek_gpw': 'gpw', 'polska_rynek_krzywa': 'bondspot', 'polska_rynek_fundusze': 'izfia',   # v361: Polska na rynku dziennie — giełda w Warszawie, rynek obligacji skarbowych, izba funduszy: trzy nowe źródła
     'krzywe_us': 'skarb-usa', 'krzywe_de': 'bundesbank', 'krzywe_jp': 'mof-japonii', 'krzywe_ea': 'ecb', 'krzywe_ca': 'bank-kanady',   # v362: krzywe rentowności — te same pięć instytucji co dotąd (Skarb USA, Bundesbank, MF Japonii, EBC, Bank Kanady): liczba źródeł bez zmian
+    'emit_llama': 'defillama', 'emit_tether': 'tether', 'emit_circle': 'circle',   # v363: emitenci stablecoinów — lista monet (ta sama usługa co podaż stablecoinów), raport Tether (jak karta XAUT) i raport Circle (+1 źródło)
     # --- własne wyliczenia z innych plików (bez zapytań do sieci) ---
     'trendy': None, 'zloto-krypto': None,
 }
@@ -5452,7 +5453,7 @@ def build_krypto(cg_key, prev=None):
             ('mk', lambda: parse_mk([get_json(CG + f'/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page={p}'
                                              '&price_change_percentage=24h,7d,30d,1y', hdr) for p in (1, 2)])),
             ('stabh', lambda: parse_stabh(get_json('https://stablecoins.llama.fi/stablecoincharts/all'))),
-            ('stabc', lambda: parse_stabc(get_json('https://stablecoins.llama.fi/stablecoins?includePrices=true')))]   # v58: per sieć
+            ('stabc', lambda: parse_stabc(ste_llama_zapamietaj(get_json('https://stablecoins.llama.fi/stablecoins?includePrices=true'))))]   # v58: per sieć
     udane = 0
     for name, job in jobs:
         try:
@@ -31130,6 +31131,8 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'krypto: {e}')); META['ok']['krypto'] = False
             if prev_kr: save('krypto', prev_kr); print('rynek krypto zawiódł — zachowano poprzedni krypto.json z', prev_kr.get('at'))
+    # v363 (F2Z3): emitenci stablecoinów — data/stable-emitenci.json; lista monet z tej samej odpowiedzi, co panel podaży (bez drugiego pobrania), raporty emitentów USDT i USDC
+    META['ok']['emit_llama'], META['ok']['emit_tether'], META['ok']['emit_circle'] = ste_czesc()
     # v140: TOP 10 monet w 8 sektorach sceny CRYPTO (klucz CoinGecko w nagłówku): najwyżej co 55 min, skład kategorii co 6 h (reszta: jedno zapytanie
     # o ceny); oba pliki zapisywane w każdym przebiegu (strona składana od zera); awaria = poprzednie pliki i błąd „krypto top 10: …” (brak ≠ zero)
     prev_t10, prev_t10l = previous('krypto-top10'), previous('krypto-top10-logo')
@@ -32851,6 +32854,246 @@ def krz_meta_ok(ok, z_pamieci=False):
     META['ok']['krzywe_jp'] = f('jp')
     META['ok']['krzywe_ea'] = f('ea')
     META['ok']['krzywe_ca'] = f('ca')
+
+
+# ===================== v363 (F2Z3): EMITENCI STABLECOINÓW — data/stable-emitenci.json =====================
+# Kto wypuszcza stablecoiny i ile ich jest: (1) lista monet (ta SAMA odpowiedź, co panel podaży stablecoinów — build_krypto zostawia ją w STE_LLAMA, więc bez drugiego pobrania
+# 559 KB): udział każdej monety dolarowej w podaży, zmiana 1/7/30 dni, sposób zabezpieczenia (rezerwa w walucie i papierach / kryptowaluty / algorytm — wg klasyfikacji w danych,
+# literówka u źródła „crytpo-backed” naprawiona), stablecoiny w innych walutach (wartość w USD = sztuki × cena z listy); (2) karta przejrzystości Tether (plik już pobierany
+# dla XAUT, v160): zobowiązania, aktywa, kapitał i USDT według 19 sieci — wybite / w skarbcu (niewydane) / w kwarantannie / w obiegu (wybite − skarbiec − kwarantanna; suma sieci =
+# zobowiązania z dokładnością do grosza: 12.10.2026 184,1997 mld = 184,1997 mld); migawka dobowa, czas z pola id (sekundy UTC); (3) Circle: USDC (39 sieci) i EURC (9 sieci), czas
+# aktualizacji z pola updateDate (limit źródła 1 zapytanie/min/IP — przebieg pyta raz na ~55 min, błąd 429 = część zostaje z poprzedniego pliku z własną datą).
+# Własna historia dobowa USDT (zobowiązania) i USDC/EURC (łączna podaż): zmiana 7 i 30 dni tylko z punktu DOKŁADNIE tyle dni wcześniej (luka w serii = brak, nigdy zero).
+# Część, która zawiodła, zostaje z poprzedniego pliku z czasem pobrania w 'part_at' (lista monet i Circle — najwyżej 3 h, Tether — 36 h; dłużej znika: brak ≠ zero).
+STE_URL_LLAMA = 'https://stablecoins.llama.fi/stablecoins?includePrices=true'
+STE_URL_TETHER = 'https://app.tether.to/transparency.json'
+STE_URL_CIRCLE = 'https://api.circle.com/v1/stablecoins'
+STE_ODSW_MIN = 55          # min — jak plik krypto.json (lista monet pobierana raz na ~55 min)
+STE_TOP = 12               # tyle największych monet dolarowych w tabeli (reszta jedną linią 'inne')
+STE_SIECI = 10             # tyle największych sieci USDC i EURC (reszta: 'inne')
+STE_HIST_DNI = 100         # tyle ostatnich dób własnej historii
+STE_MAX_H = {'llama': 3, 'circle': 3, 'tether': 36}   # godziny — starsza część poprzedniego pliku nie zostaje
+STE_MIN_DOLAR = 1e10       # USD — podaż stablecoinów dolarowych poniżej tego to błąd odczytu, nie rynek
+STE_SPOJ_PCT = 1.0         # % — suma sieci a łączna liczba w raporcie emitenta: większa różnica = błąd odczytu
+STE_CENA = (1e-5, 1e3)     # USD za sztukę — cena poza przedziałem (np. zepsuta) = moneta pominięta w stablecoinach w innych walutach
+STE_MECH = {'fiat-backed': 'f', 'crypto-backed': 'c', 'crytpo-backed': 'c', 'algorithmic': 'a'}   # u źródła literówka „crytpo-backed” (1 moneta)
+STE_WAL = {'REAL': 'BRL'}  # kod rodzaju powiązania u źródła → kod waluty
+STE_LLAMA = {}             # {'j': odpowiedź listy monet, 'at': chwila przebiegu} — ustawia build_krypto (tylko w tym przebiegu)
+STE_TETHER_SIECI = {'algo': 'Algorand', 'aptos': 'Aptos', 'ava': 'Avalanche', 'bnb': 'BNB Chain', 'celo': 'Celo', 'cosmos': 'Cosmos', 'eth': 'Ethereum', 'eos': 'EOS',
+                    'kaia': 'Kaia', 'liq': 'Liquid', 'near': 'NEAR', 'omni': 'Omni', 'sol': 'Solana', 'slp': 'Bitcoin Cash (SLP)', 'statemine': 'Kusama', 'statemint': 'Polkadot',
+                    'tezos': 'Tezos', 'ton': 'TON', 'tron': 'Tron'}
+
+
+def ste_llama_zapamietaj(j):
+    """v363: odpowiedź listy monet z build_krypto zostaje do budowy pliku emitentów w tym samym przebiegu (bez drugiego pobrania); zwraca ją bez zmian."""
+    STE_LLAMA['j'] = j
+    STE_LLAMA['at'] = NOW
+    return j
+
+
+def _ste_liczba(v, min_=None):
+    """v363: skończona liczba (nie wartość logiczna, nie tekst) albo None; min_ — wartość mniejsza = None."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not _etf_math.isfinite(v):
+        return None
+    return float(v) if (min_ is None or v >= min_) else None
+
+
+def _ste_zm(items, i):
+    """v363: suma zmian (bieżąca − wcześniejsza) po monetach, które mają OBIE wartości; żadna = None (brak, nigdy zero). items: słowniki {'cur', 'p': [d1, d7, d30]}."""
+    v = [x['cur'] - x['p'][i] for x in items if x['p'][i] is not None]
+    return round(sum(v)) if v else None
+
+
+def parse_ste_llama(j):
+    """v363: odpowiedź /stablecoins → {'total', 'n', 'rows': [[symbol, nazwa, podaż, zm. 1, 7, 30 dni, zabezp. f|c|a|None]], 'inne': [podaż, zm.1, zm.7, zm.30, liczba], 'mech': {f|c|a|x:
+    [podaż, zm.7, zm.30, liczba]}, 'wal': {'total', 'n', 'rows': [[kod, wartość USD, liczba monet]]}}. Monety dolarowe (pegType peggedUSD) z dodatnią podażą; zmiana monety =
+    podaż − wcześniejsza (brak wcześniejszej = None); sumy zmian tylko z monet z obiema wartościami."""
+    A = j.get('peggedAssets') if isinstance(j, dict) else None
+    if not isinstance(A, list) or not A:
+        raise RuntimeError('stablecoiny: brak peggedAssets')
+    usd, wal = [], {}
+    for a in A:
+        if not isinstance(a, dict):
+            continue
+        pt, sy = a.get('pegType'), str(a.get('symbol') or '').strip()[:12]
+        c = a.get('circulating') if isinstance(a.get('circulating'), dict) else {}
+        if pt == 'peggedUSD':
+            cur = _ste_liczba(c.get('peggedUSD'))
+            if cur is None or cur <= 0 or not sy:
+                continue
+            p = []
+            for f in ('circulatingPrevDay', 'circulatingPrevWeek', 'circulatingPrevMonth'):
+                o = a.get(f) if isinstance(a.get(f), dict) else {}
+                p.append(_ste_liczba(o.get('peggedUSD'), 0))
+            usd.append({'sym': sy, 'name': str(a.get('name') or sy).strip()[:40], 'cur': cur, 'p': p, 'm': STE_MECH.get(a.get('pegMechanism'))})
+        elif isinstance(pt, str) and pt.startswith('pegged') and pt != 'peggedVAR':
+            kod = STE_WAL.get(pt[6:], pt[6:])
+            szt, cena = _ste_liczba(c.get(pt)), _ste_liczba(a.get('price'))
+            if re.fullmatch(r'[A-Z]{3,4}', kod) and szt and szt > 0 and cena and STE_CENA[0] <= cena <= STE_CENA[1]:
+                w = wal.setdefault(kod, [0.0, 0])
+                w[0] += szt * cena
+                w[1] += 1
+    if not usd:
+        raise RuntimeError('stablecoiny: brak monet dolarowych')
+    usd.sort(key=lambda x: -x['cur'])
+    total = sum(x['cur'] for x in usd)
+    if total < STE_MIN_DOLAR:
+        raise RuntimeError(f'stablecoiny: podaż dolarowa {total / 1e9:.1f} mld USD — za mało na prawdziwy odczyt')
+    top, rest = usd[:STE_TOP], usd[STE_TOP:]
+    rows = [[x['sym'], x['name'], round(x['cur'])] + [(round(x['cur'] - q) if q is not None else None) for q in x['p']] + [x['m']] for x in top]
+    mech = {}
+    for k in ('f', 'c', 'a', None):
+        g = [x for x in usd if x['m'] == k]
+        if g:
+            mech[k or 'x'] = [round(sum(x['cur'] for x in g)), _ste_zm(g, 1), _ste_zm(g, 2), len(g)]
+    wr_ = sorted(([k, round(v[0]), v[1]] for k, v in wal.items() if v[0] > 0), key=lambda r: -r[1])
+    out = {'total': round(total), 'n': len(usd), 'rows': rows, 'mech': mech,
+           'wal': {'total': sum(r[1] for r in wr_), 'n': len(wr_), 'rows': wr_[:8]}}
+    if rest:
+        out['inne'] = [round(sum(x['cur'] for x in rest)), _ste_zm(rest, 0), _ste_zm(rest, 1), _ste_zm(rest, 2), len(rest)]
+    return out
+
+
+def parse_ste_tether(j):
+    """v363: karta przejrzystości → {'t': czas migawki ISO (z pola id), 'asof': dzień, 'liab', 'assets', 'eq' (USD), 'nets': [[sieć, wybite, w skarbcu, w kwarantannie, w obiegu]] malejąco wg
+    obiegu}. Suma obiegu sieci musi zgadzać się z zobowiązaniami (STE_SPOJ_PCT) — inaczej błąd odczytu (zmieniony układ pliku), nie cicha liczba."""
+    d = j.get('data') if isinstance(j, dict) else None
+    u = d.get('usdt') if isinstance(d, dict) else None
+    if not isinstance(u, dict):
+        raise RuntimeError('Tether: brak bloku usdt')
+    tid = _ste_liczba(u.get('id'))
+    if tid is None or not 1.6e9 <= tid <= _now_utc().timestamp() + 86400:
+        raise RuntimeError('Tether: zły czas migawki (pole id)')
+    t = datetime.datetime.fromtimestamp(int(tid), datetime.timezone.utc)
+    liab, ass, eq = (_num(u.get(k)) for k in ('total_liabilities', 'total_assets', 'shareholder_eq'))
+    if liab is None or liab < 1e10 or ass is None or eq is None:
+        raise RuntimeError('Tether: brak zobowiązań, aktywów albo kapitału')
+    nets = []
+    for k in u:
+        if not (isinstance(k, str) and k.startswith('totaltokens_')):
+            continue
+        s = k[len('totaltokens_'):]
+        tot, res, q = _num(u.get(k)), _num(u.get('reserve_balance_' + s)), _num(u.get('quarantined_' + s))
+        if tot is None or tot <= 0:
+            continue
+        res, q = res or 0.0, q or 0.0
+        nets.append([STE_TETHER_SIECI.get(s, s.upper()[:20]), round(tot), round(res), round(q), round(tot - res - q)])
+    if not nets:
+        raise RuntimeError('Tether: brak sieci')
+    nets.sort(key=lambda r: -r[4])
+    suma = sum(r[4] for r in nets)
+    if abs(suma - liab) / liab * 100 > STE_SPOJ_PCT:
+        raise RuntimeError(f'Tether: suma obiegu sieci {suma / 1e9:.2f} mld różni się od zobowiązań {liab / 1e9:.2f} mld o ponad {STE_SPOJ_PCT:g}%')
+    return {'t': t.isoformat().replace('+00:00', 'Z'), 'asof': t.date().isoformat(), 'liab': round(liab), 'assets': round(ass), 'eq': round(eq), 'nets': nets}
+
+
+def parse_ste_circle(j):
+    """v363: /v1/stablecoins → {'usdc': {...}, 'eurc': {...}}; moneta: {'tot': łączna podaż (sztuki), 'upd': najnowszy czas aktualizacji sieci ISO, 'n': liczba sieci, 'rows': [[sieć, podaż]]
+    największe STE_SIECI, 'inne': [suma, liczba]}. USDC wymagany (suma sieci = łączna podaż w STE_SPOJ_PCT), EURC opcjonalny."""
+    D = j.get('data') if isinstance(j, dict) else None
+    if not isinstance(D, list):
+        raise RuntimeError('Circle: brak listy monet')
+    out = {}
+    for it in D:
+        sy = it.get('symbol') if isinstance(it, dict) else None
+        if sy not in ('USDC', 'EURC'):
+            continue
+        tot, ch, upd = _num(it.get('totalAmount')), [], []
+        for c in (it.get('chains') if isinstance(it.get('chains'), list) else []):
+            a = _num(c.get('amount')) if isinstance(c, dict) else None
+            if a is None or a < 0 or not isinstance(c.get('chain'), str):
+                continue
+            ch.append([c['chain'][:20], a])
+            if isinstance(c.get('updateDate'), str) and _ix_dt(c['updateDate']) is not None:
+                upd.append(_ix_dt(c['updateDate']))
+        if tot is None or tot <= 0 or not ch or not upd:
+            raise RuntimeError(f'Circle: {sy} bez łącznej podaży, sieci albo czasu aktualizacji')
+        if abs(sum(a for _, a in ch) - tot) / tot * 100 > STE_SPOJ_PCT:
+            raise RuntimeError(f'Circle: suma sieci {sy} różni się od łącznej podaży o ponad {STE_SPOJ_PCT:g}%')
+        ch.sort(key=lambda r: -r[1])
+        m = {'tot': round(tot), 'upd': max(upd).replace(microsecond=0).isoformat().replace('+00:00', 'Z'), 'n': len(ch), 'rows': [[n, round(a)] for n, a in ch[:STE_SIECI]]}
+        if len(ch) > STE_SIECI:
+            m['inne'] = [round(sum(a for _, a in ch[STE_SIECI:])), len(ch) - STE_SIECI]
+        out[sy.lower()] = m
+    if 'usdc' not in out or out['usdc']['tot'] < 1e9:
+        raise RuntimeError('Circle: brak USDC')
+    return out
+
+
+def ste_zmiany(pts):
+    """v363: {'7': zmiana, '30': zmiana} z własnej serii [[dzień, wartość]] — punkt DOKŁADNIE 7 / 30 dni przed ostatnim; luka w serii = None."""
+    if not pts:
+        return {'7': None, '30': None}
+    P = {p[0]: p[1] for p in pts}
+    last = max(P)
+    try:
+        d0 = datetime.date.fromisoformat(last)
+    except ValueError:
+        return {'7': None, '30': None}
+    return {str(n): (round(P[last] - P[(d0 - datetime.timedelta(days=n)).isoformat()]) if (d0 - datetime.timedelta(days=n)).isoformat() in P else None) for n in (7, 30)}
+
+
+def ste_historia(h, seria, dzien, wartosc):
+    """v363: seria [[dzień, wartość]] z jednym punktem na dzień (późniejszy odczyt tego dnia zastępuje wcześniejszy), ostatnie STE_HIST_DNI dób."""
+    pts = [p for p in (h.get(seria) or []) if isinstance(p, list) and len(p) == 2 and p[0] != dzien]
+    pts.append([dzien, wartosc])
+    pts.sort(key=lambda p: p[0])
+    h[seria] = pts[-STE_HIST_DNI:]
+
+
+def build_stable_emitenci(prev=None, llama=None):
+    """v363: data/stable-emitenci.json {v, at, src, part_at, ok, emit, tether, circle, hist, zm}. llama — odpowiedź listy monet z tego przebiegu (None = własne pobranie). Część, która zawiodła,
+    zostaje z poprzedniego pliku (STE_MAX_H godzin od jej pobrania), błąd do META['errors']; wszystkie zawiodły = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == 1 else {}
+    out = {'v': 1, 'at': NOW, 'src': 'lista stablecoinów i raporty ich emitentów (Tether, Circle)', 'part_at': {}, 'ok': {}}
+    jobs = (('llama', 'emit', lambda: parse_ste_llama(llama if llama is not None else get_json(STE_URL_LLAMA, timeout=60))),
+            ('tether', 'tether', lambda: parse_ste_tether(get_json(STE_URL_TETHER))),
+            ('circle', 'circle', lambda: parse_ste_circle(get_json(STE_URL_CIRCLE))))
+    for part, key, job in jobs:
+        try:
+            out[key] = job()
+            out['ok'][part] = True
+            out['part_at'][part] = NOW
+        except Exception as e:   # noqa — jedno źródło nie psuje pozostałych
+            META['errors'].append(mask(f'Emitenci stablecoinów {part}: {e}')[:200])
+            out['ok'][part] = False
+            old, t_old = pv.get(key), _zapas_czas(pv, part)
+            tk, tn = _ix_dt(t_old), _ix_dt(NOW)
+            if isinstance(old, dict) and tk is not None and tn is not None and 0 <= (tn - tk).total_seconds() <= STE_MAX_H[part] * 3600:
+                out[key] = old
+                out['part_at'][part] = t_old
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadne źródło emitentów stablecoinów nie odpowiedziało')
+    h = {k: v for k, v in (pv.get('hist') if isinstance(pv.get('hist'), dict) else {}).items() if k in ('usdt', 'usdc', 'eurc') and isinstance(v, list)}
+    if out['ok'].get('tether'):
+        ste_historia(h, 'usdt', out['tether']['asof'], out['tether']['liab'])
+    if out['ok'].get('circle'):
+        for k in ('usdc', 'eurc'):
+            if isinstance(out['circle'].get(k), dict):
+                ste_historia(h, k, out['circle'][k]['upd'][:10], out['circle'][k]['tot'])
+    out['hist'] = h
+    out['zm'] = {k: ste_zmiany(v) for k, v in h.items()}
+    return out
+
+
+def ste_czesc():
+    """v363: część przebiegu → krotka wartości dla META['ok'] (lista monet, Tether, Circle): True = odpowiedziała, 'cached' = poprzedni plik wystarcza, False = zawiodła. Plik budowany od nowa, gdy
+    build_krypto zostawił w tym przebiegu listę monet (jedna wspólna odpowiedź), a inaczej dopiero po STE_ODSW_MIN min od poprzedniego; nieudana budowa zostawia poprzedni plik."""
+    prev = previous('stable-emitenci')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == 1 else None
+    llama = STE_LLAMA.get('j') if STE_LLAMA.get('at') == NOW else None
+    if prev and llama is None and fresh(prev, STE_ODSW_MIN):
+        save('stable-emitenci', prev)
+        return ('cached', 'cached', 'cached')
+    try:
+        obj = build_stable_emitenci(prev, llama)
+        save('stable-emitenci', obj)
+        return (obj['ok'].get('llama', False), obj['ok'].get('tether', False), obj['ok'].get('circle', False))
+    except Exception as e:
+        META['errors'].append(mask(f'Emitenci stablecoinów: {e}')[:200])
+        if prev:
+            save('stable-emitenci', prev)
+        return (False, False, False)
 
 
 if __name__ == '__main__':

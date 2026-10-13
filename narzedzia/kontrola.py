@@ -7786,6 +7786,162 @@ def krzywe_kontrola(kr, ry=None, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v363 (F2Z3): EMITENCI STABLECOINÓW (data/stable-emitenci.json) --------------------------------------------------
+# Plik: lista monet dolarowych (udziały, zmiany), raport Tether (zobowiązania, sieci) i raport Circle (USDC, EURC). Wiek (wiersze świeżości, najwyżej ⚠️): raport Tether — migawka dobowa
+# o 23:30 UTC, więc wiek ≤ STE_K_TETHER_H h (doba + 6 h zapasu); aktualizacja USDC u Circle — ≤ STE_K_CIRCLE_H h (plik odświeżany co ~55 min, część po błędzie zostaje najwyżej 3 h).
+# Spójność w pliku (⚠️): obieg Tether w sieciach = zobowiązania, kapitał = aktywa − zobowiązania, sieci Circle + reszta = podaż, monety + reszta = suma, zabezpieczenie = suma.
+# Porównania (TYLKO informacja, najwyżej ⚠️ — nigdy ❌ ani BŁĄD): (a) suma emitentów (lista monet) a podaż stablecoinów z drugiego źródła (cmc.json: stable_mcap; różne definicje monet — stała różnica
+# ok. +10%: 13.10.2026 suma emitentów +10,5%, a cała podaż z historii dziennej +9,8% — zob. STAB_ZOLTE), (b) USDC u Circle a USDC na liście monet, (c) zobowiązania Tether a USDT na liście monet. Ocena = odchylenie dzisiejszej różnicy od mediany ostatnich ZG_DNI dni
+# (kontrola/stable-emitenci.csv, jak zgodnosc.csv); do zebrania ZG_MIN dni historii — tylko informacja. Próg (b) i (c): STE_K_ZOLTE pkt proc. — test wsteczny na 365 dobach (stablecoincharts,
+# 13.10.2026): dzienna zmiana podaży USDT p99 0,60% (max 0,89%), USDC p99 1,45% (max 2,84%); raport Tether jest o 0–24 h starszy niż lista monet, USDC u Circle o godziny — odchylenie od mediany
+# powyżej 1 pkt proc. to więcej niż zwykła dobowa zmiana USDT i niż 3 h zmian USDC. Próg (a): STAB_ZOLTE (pokrewna seria — cała podaż z historii dziennej a to samo drugie źródło, 8 dni: odchylenie od mediany najwyżej 0,18 pkt proc.).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'stable-emitenci')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['stable-emitenci'] = 3 * 60   # zapis co przebieg lub co ~55 min — wiek pliku; wiek raportów emitentów ocenia wiersz świeżości
+STE_K_TETHER_H = 30     # h — wiek migawki raportu Tether (pole id = 23:30 UTC dnia)
+STE_K_CIRCLE_H = 2      # h — wiek najnowszej aktualizacji USDC u Circle
+STE_K_ZOLTE = 1.0       # pkt proc. — odchylenie różnicy emitent ↔ lista monet od mediany = ⚠️ (nigdy ❌)
+STE_K_OKNO_H = 3.0      # h — raport Circle i lista monet pobrane dalej od siebie = bez porównania (informacja)
+STE_K_SPOJ_PCT = 0.5    # % — zgodność sum w pliku (zaokrąglenia do pełnych USD są o rzędy mniejsze)
+STE_K_KOL = ['date', 'emit_cmc_pct', 'usdc_pct', 'usdt_pct']   # kontrola/stable-emitenci.csv: tylko różnice procentowe; puste pole = brak odczytu
+STE_K_ETYKIETA = {'tether': 'Stablecoiny — raport Tether (zobowiązania, sieci)', 'circle': 'Stablecoiny — raport Circle (USDC, EURC)'}
+
+
+def ste_k_csv(path):
+    """{dzień: {'emc': %, 'usdc': %, 'usdt': %}} — pusta komórka albo brak pliku = brak (klucz pominięty)."""
+    rows = {}
+    if os.path.exists(path):
+        with open(path, encoding='utf-8', newline='') as f:
+            r = csv.reader(f); next(r, None)
+            for row in r:
+                if len(row) >= 2 and row[0] != 'date':
+                    rec = {}
+                    for i, kk in ((1, 'emc'), (2, 'usdc'), (3, 'usdt')):
+                        try:
+                            rec[kk] = float(row[i])
+                        except (ValueError, IndexError):
+                            pass
+                    rows[row[0]] = rec
+    return rows
+
+
+def ste_k_zapisz(path, rows):
+    with open(path, 'w', encoding='utf-8', newline='') as f:
+        wtr = csv.writer(f, lineterminator='\n'); wtr.writerow(STE_K_KOL)
+        for d in sorted(rows):
+            wtr.writerow([d] + [('%.3f' % rows[d][kk]) if isinstance(rows[d].get(kk), (int, float)) else '' for kk in ('emc', 'usdc', 'usdt')])
+
+
+def _ste_k_l(v):
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float('inf') else None
+
+
+def ste_kontrola(j, cmc, rows, today, now=None):
+    """data/stable-emitenci.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste.
+    rows — historia różnic z kontrola/stable-emitenci.csv (uzupełniana o dzisiejsze różnice w rows[today]). Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    E, T, C = (j.get(k) if isinstance(j.get(k), dict) else None for k in ('emit', 'tether', 'circle'))
+    pat = j.get('part_at') if isinstance(j.get('part_at'), dict) else {}
+    # ---- wiek raportów emitentów ----
+    for k, P, t, lim in (('tether', T, T.get('t') if T else None, STE_K_TETHER_H), ('circle', C, (C.get('usdc') or {}).get('upd') if C else None, STE_K_CIRCLE_H)):
+        lab = STE_K_ETYKIETA[k]
+        if P is None:
+            out['rows'].append((lab, '?', None, None, 'brak tej części w pliku'))
+            out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od ponad {"36" if k == "tether" else "3"} h)')
+            continue
+        w = wiek_danych(t, 'ts', 'k', now) if isinstance(t, str) else None
+        if w is None:
+            out['rows'].append((lab, '?', None, None, 'brak czasu raportu'))
+            continue
+        st = '⚠️' if w > lim * 60 else '✅'
+        note = '' if st == '✅' else f'raport starszy niż {lim} h — emitent nie odświeża pliku albo adres się zmienił; najwyżej uwaga'
+        out['rows'].append((lab, st, w, str(t)[:16].replace('T', ' ') + ' UTC', note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: raport z {str(t)[:16].replace("T", " ")} UTC — {fmt_wiek(w)} temu ({note})')
+    # ---- spójność w pliku ----
+    if T:
+        nets = [r for r in (T.get('nets') or []) if isinstance(r, list) and len(r) == 5 and all(_ste_k_l(x) is not None for x in r[1:])]
+        liab = _ste_k_l(T.get('liab'))
+        if not nets or not liab or liab <= 0:
+            zle.append('Tether: brak sieci albo zobowiązań')
+        else:
+            if abs(sum(r[4] for r in nets) - liab) / liab * 100 > STE_K_SPOJ_PCT:
+                zle.append('Tether: suma obiegu w sieciach różni się od zobowiązań')
+            if any(r[4] < 0 or abs(r[1] - r[2] - r[3] - r[4]) > 2 for r in nets):
+                zle.append('Tether: w sieci wybite − skarbiec − kwarantanna ≠ w obiegu')
+            a, e = _ste_k_l(T.get('assets')), _ste_k_l(T.get('eq'))
+            if a is None or e is None or abs(a - e - liab) / liab * 100 > STE_K_SPOJ_PCT:
+                zle.append('Tether: aktywa − kapitał ≠ zobowiązania')
+    if C:
+        for k in ('usdc', 'eurc'):
+            M = C.get(k) if isinstance(C.get(k), dict) else None
+            if M is None:
+                continue
+            tot, rw = _ste_k_l(M.get('tot')), [r for r in (M.get('rows') or []) if isinstance(r, list) and len(r) == 2 and _ste_k_l(r[1]) is not None]
+            s = sum(r[1] for r in rw) + (_ste_k_l((M.get('inne') or [0])[0]) or 0)
+            if not tot or tot <= 0 or abs(s - tot) / tot * 100 > STE_K_SPOJ_PCT:
+                zle.append(f'Circle {k.upper()}: suma sieci różni się od łącznej podaży')
+    if E:
+        rw = [r for r in (E.get('rows') or []) if isinstance(r, list) and len(r) == 7 and _ste_k_l(r[2]) is not None]
+        tot = _ste_k_l(E.get('total'))
+        s = sum(r[2] for r in rw) + (_ste_k_l((E.get('inne') or [0])[0]) or 0)
+        if not tot or tot <= 0 or abs(s - tot) / tot * 100 > STE_K_SPOJ_PCT:
+            zle.append('lista monet: suma monet i reszty różni się od sumy podaży')
+        mh = E.get('mech') if isinstance(E.get('mech'), dict) else {}
+        if tot and mh and abs(sum(_ste_k_l(v[0]) or 0 for v in mh.values() if isinstance(v, list) and v) - tot) / tot * 100 > STE_K_SPOJ_PCT:
+            zle.append('lista monet: podział wg zabezpieczenia nie sumuje się do całości')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'emitenci stablecoinów (stable-emitenci.json): {z}')
+    if T or C or E:
+        out['wiersze'].append(('spójność pliku (sieci, kapitał, sumy, zabezpieczenie)', '⚠️' if zle else '✅'))
+    # ---- porównania z drugim źródłem ----
+    def cz(k):
+        t = _ix_dt_k(pat.get(k) or j.get('at'))
+        return t
+
+    def norma(med, n, fm='{:+.2f}%'):
+        return f' (norma {fm.format(med)}, mediana {n} dni)' if med is not None and n else ''
+
+    r1 = {r[0]: r for r in (E.get('rows') if E else []) if isinstance(r, list) and len(r) == 7}
+    cmc_v = _ste_k_l(cmc.get('stable_mcap')) if isinstance(cmc, dict) else None
+    tl, tc = cz('llama'), _ix_dt_k(cmc.get('at') if isinstance(cmc, dict) else None)
+    por = []
+    if E and _ste_k_l(E.get('total')) and cmc_v and cmc_v > 0:
+        h = abs((tl - tc).total_seconds()) / 3600 if tl and tc else None
+        por.append(('emc', 'suma emitentów a podaż z drugiego źródła', round((E['total'] - cmc_v) / cmc_v * 100, 3) if h is not None and h <= STAB_MAX_H else None, STAB_ZOLTE,
+                    f'pliki pobrane w odstępie {h:.1f} h' if h is not None else 'brak czasu pobrania'))
+    if C and 'USDC' in r1 and _ste_k_l((C.get('usdc') or {}).get('tot')):
+        tu = _ix_dt_k((C.get('usdc') or {}).get('upd'))
+        h = abs((tl - tu).total_seconds()) / 3600 if tl and tu else None
+        por.append(('usdc', 'USDC: raport Circle a lista monet', round((C['usdc']['tot'] - r1['USDC'][2]) / r1['USDC'][2] * 100, 3) if h is not None and h <= STE_K_OKNO_H else None, STE_K_ZOLTE,
+                    f'odstęp czasu {h:.1f} h' if h is not None else 'brak czasu'))
+    if T and 'USDT' in r1 and _ste_k_l(T.get('liab')):
+        por.append(('usdt', 'USDT: zobowiązania w raporcie Tether a lista monet', round((T['liab'] - r1['USDT'][2]) / r1['USDT'][2] * 100, 3), STE_K_ZOLTE, ''))
+    for kk, opis, gap, zolte, powod in por:
+        if gap is None:
+            out['wiersze'].append((f'{opis}: bez porównania ({powod})', 'ℹ️'))
+            continue
+        rows.setdefault(today, {})[kk] = gap
+        st, med, n, op = mediana_ocena(rows, kk, gap, today, zolte, None)
+        out['wiersze'].append((f'{opis}: różnica dziś {gap:+.2f}%{norma(med, n)} — {op}', st))
+        if st == '⚠️':
+            out['uwagi'].append(f'emitenci stablecoinów: {opis} — różnica dziś {gap:+.2f}% wobec normy {med:+.2f}% ({op}); sprawdzić, czy któreś źródło nie pominęło sieci albo monety (tylko informacja)')
+    return out
+
+
+def _ix_dt_k(s):
+    """Czas ISO → datetime UTC; brak albo zepsuty = None."""
+    try:
+        d = dt.datetime.fromisoformat(str(s).replace('Z', '+00:00'))
+        return d if d.tzinfo else d.replace(tzinfo=dt.timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -8144,6 +8300,21 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['plynnosc'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'płynność i fundusze (v357): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v363. emitenci stablecoinów (data/stable-emitenci.json): wiek raportów Tether i Circle, spójność w pliku, porównania z drugim źródłem — z plików strony, bez zapytań; TYLKO informacja, najwyżej ⚠️
+    try:
+        os.makedirs(OUT_DIR, exist_ok=True)
+        ste_path, ste_dzis = os.path.join(OUT_DIR, 'stable-emitenci.csv'), NOW.date().isoformat()
+        ste_rows = ste_k_csv(ste_path)
+        T_ = ste_kontrola(files.get('stable-emitenci'), files.get('cmc'), ste_rows, ste_dzis)
+        for label, st, w, txt, note in T_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += T_['uwagi']
+        R['zgodnosc']['stable-emitenci'] = {'spojnosc': T_['spojnosc'], 'wiersze': T_['wiersze']} if (T_['rows'] or T_['wiersze']) else None
+        if ste_rows.get(ste_dzis):
+            ste_k_zapisz(ste_path, ste_rows)
+    except Exception as e:  # noqa
+        R['zgodnosc']['stable-emitenci'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'emitenci stablecoinów (v363): kontrola przerwana ({str(e)[:80]})')
     # 3c-v362. krzywe rentowności (data/krzywe.json): wiek dnia danych każdej krzywej, spójność i zgodność 10L USA i Niemiec z rynki.json — z plików strony, bez zapytań; najwyżej ⚠
     try:
         T_ = krzywe_kontrola(files.get('krzywe'), files.get('rynki'))
@@ -8755,6 +8926,11 @@ def raport_md(R):
                 L.append(tyt_ + (f'? kontrola przerwana ({tz_["blad"]})' if tz_.get('blad') else
                          ('niespójności w pliku: ' + '; '.join(tz_['spojnosc'][:3]) + ' ⚠️ · ' if tz_.get('spojnosc') else '')
                          + ' · '.join(f'{o} {zn}' for o, zn in tz_.get('wiersze') or []) or '—') + '.')
+        sez_ = Z.get('stable-emitenci')   # v363: emitenci stablecoinów — brak pliku = bez linii
+        if sez_:
+            L.append('- Emitenci stablecoinów (z pliku strony; porównania z drugim źródłem tylko informacyjnie): ' + (f'? kontrola przerwana ({sez_["blad"]})' if sez_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(sez_['spojnosc'][:3]) + ' ⚠️ · ' if sez_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in sez_.get('wiersze') or []) or '—') + '.')
         pz_ = Z.get('plynnosc')   # v357: skład portfela Fed, bilans Eurosystemu, fundusze hedgingowe — brak plików = bez linii
         if pz_:
             L.append('- Płynność dolara i euro oraz fundusze hedgingowe (z plików strony; porównanie z panelem „dane urzędowe”): ' + (f'? kontrola przerwana ({pz_["blad"]})' if pz_.get('blad') else

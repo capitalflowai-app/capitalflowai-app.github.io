@@ -25920,3 +25920,165 @@ test('v362 (F2Z1): słownik yc362.* — 30 kluczy w 10 językach, te same pola {
   assert.ok(html.indexOf('const STR_COLS=') > 0 && html.indexOf('const STR_COLS=') < html.indexOf('/* ===================== v362 (F2Z1): KRZYWE RENTOWNOŚCI'), 'moduł po narzędziach panelu stresu (strTile, strDelta, strDay, strVal)');
   assert.ok(!/TradingView|tradingview/.test(yc362.code), 'widgety TradingView usunięte ze strony — bez nowych');
 });
+
+/* ===================== v363 (F2Z3): emitenci stablecoinów — karta #c-emit w CRYPTO =====================
+   ST363_F — plik zbieracza v363 (build_stable_emitenci) zbudowany z nagrań z 13.10.2026 (lista 340 monet dolarowych, karta przejrzystości emitenta USDT, raport emitenta USDC i EURC; przycięty do kilku sieci
+   i 12 największych monet) z syntetyczną historią własnej serii (USDT: 7 i 30 dni, USDC: tylko 7 dni, EURC: brak). Zegar przypięty (2026-10-13 21:00 UTC), srvJSON — odpowiedź od razu (liczone wywołania). */
+const ST363_F = {"v":1,"at":"2026-10-13T20:20:00+00:00","src":"lista stablecoinów i raporty ich emitentów (Tether, Circle)","part_at":{"llama":"2026-10-13T20:20:00+00:00","tether":"2026-10-13T20:20:00+00:00","circle":"2026-10-13T20:20:00+00:00"},"ok":{"llama":true,"tether":true,"circle":true},"emit":{"total":313065936055,"n":340,"rows":[["USDT","Tether",184065007166,-18650605,23978207,662807200,"f"],["USDC","USD Coin",72968836953,-102086806,-1346403996,-1431474369,"f"],["USDS","Sky Dollar",7144667926,228287816,364659001,708092801,"c"],["USDe","Ethena USDe",4756090665,-3308805,-199281841,152106604,"c"],["DAI","Dai",4732657907,-16439681,-67826294,-62316318,"c"],["USD1","World Liberty Financial USD",4222849453,-52058794,-218816952,-100488727,"f"],["USDG","Global Dollar",3016857909,-23530040,-66940773,-228264935,"f"],["PYUSD","PayPal USD",2853455624,-45405144,-51409571,90786170,"f"],["RLUSD","Ripple USD",2406433663,-41170408,-89854304,-17010728,"f"],["USYC","Circle USYC",2384575084,98172,-22531745,-226363857,"f"],["USDY","Ondo US Dollar Yield",2345920951,26881798,140403950,109765334,"f"],["BUIDL","BlackRock USD",2201941868,887862,-43856102,-531822209,"f"]],"mech":{"f":[283962595758,-1664298340,-1807929787,95],"c":[28439172428,1137290876,2500545593,223],"a":[664167870,-4060842,-991822,22]},"wal":{"total":989421259,"n":17,"rows":[["EUR",867771701,16],["CHF",53702662,2],["GBP",38595941,3],["SGD",10190089,1],["AUD",9754335,3],["BRL",4843239,3],["CAD",3021402,3],["JPY",973997,4]]},"inne":[19966640886,726236353,1046812113,1565807019,328]},"tether":{"t":"2026-10-12T23:30:03Z","asof":"2026-10-12","liab":184199691343,"assets":189666639769,"eq":5466948426,"nets":[["Tron",94249445256,1004997274,0,93244447981],["Ethereum",88302633056,1989161385,0,86313471671],["Solana",3839919000,1015812773,3698541,2820407686],["TON",1429976003,879188008,0,550787994],["Aptos",1229832922,798152981,0,431679941],["Avalanche",1847205574,1542919646,0,304285928],["Kaia",249900001,65899621,0,184000380],["Celo",470000001,386110495,0,83889506],["Omni",887961972,775616131,32303805,80042036],["Cosmos",159997865,111997985,0,47999880],["Polkadot",77998643,41001021,0,36997622],["NEAR",525944121,489044182,0,36899939],["Liquid",97561100,63849950,0,33711150],["Tezos",141000001,113722091,0,27277910],["EOS",85251000,83527152,0,1723849],["Bitcoin Cash (SLP)",5987526,5001001,0,986525],["Algorand",841596,0,0,841596],["Kusama",3499744,3259995,0,239749]]},"circle":{"eurc":{"tot":439046340,"upd":"2026-10-13T18:13:01Z","n":9,"rows":[["ETH",318103744],["SOL",52398929],["BASE",50715286],["ARC",7766330],["AVAX",4815061],["XLM",4275812],["WORLDCHAIN",587270],["CRONOS",227361],["PLASMA",156546]]},"usdc":{"tot":72676903051,"upd":"2026-10-13T18:13:01Z","n":39,"rows":[["ETH",48240339211],["SOL",6687227869],["HYPEREVM",6684367769],["BASE",4399371848],["ARB",2662945463],["POLY",600286931],["ARC",524859469],["XLM",402779018],["AVAX",389996235],["SUI",313615501]],"inne":[1771113736,29]}},"hist":{"usdt":[["2026-09-12",183839691343],["2026-09-13",183859691343],["2026-09-14",183879691343],["2026-09-15",183899691343],["2026-09-16",183919691343],["2026-09-17",183939691343],["2026-09-18",183959691343],["2026-09-19",183979691343],["2026-09-20",183999691343],["2026-09-21",184019691343],["2026-09-22",184039691343],["2026-09-23",184059691343],["2026-09-24",184079691343],["2026-09-25",184099691343],["2026-09-26",184119691343],["2026-09-27",184139691343],["2026-09-28",184159691343],["2026-09-29",184179691343],["2026-09-30",184199691343],["2026-10-01",184109000000],["2026-10-02",184118000000],["2026-10-03",184127000000],["2026-10-04",184136000000],["2026-10-05",184145000000],["2026-10-06",184154000000],["2026-10-07",184163000000],["2026-10-08",184172000000],["2026-10-09",184181000000],["2026-10-10",184190000000],["2026-10-11",184199000000],["2026-10-12",184199691343]],"usdc":[["2026-10-06",72590000000],["2026-10-07",72605000000],["2026-10-08",72620000000],["2026-10-09",72635000000],["2026-10-10",72650000000],["2026-10-11",72665000000],["2026-10-12",72680000000],["2026-10-13",72676903051]],"eurc":[["2026-10-13",439046340]]},"zm":{"usdt":{"7":54691343,"30":360000000},"usdc":{"7":86903051,"30":null},"eurc":{"7":null,"30":null}}};
+const st363 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const code = cut('/* ===================== v363 (F2Z3): EMITENCI STABLECOINÓW', '/* v363: koniec */');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-13T21:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/ | /g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mk = (L, file) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const mkEl = () => ({innerHTML: '', hidden: true, open: [], querySelectorAll(q) { return q === 'details' ? this.open.map(id => ({id, open: true})) : []; }, querySelector() { return null; }});
+    const els = {'#c-emit': mkEl(), '#c-gieldy': mkEl(), '#c-dex': mkEl(), '#c-kontrakty': mkEl()};
+    const calls = [], ivs = [], store = {}, obs = [];
+    const srv = n => { calls.push(n); const v = n === 'stable-emitenci' ? file : null; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const SRV_GR = {'ceny-krypto': 'c'}, SRV_LD = {c: [function srvLiveStart() {}]};
+    const doc = {addEventListener: () => {}, querySelector: () => null, documentElement: {}, hidden: false};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'lnAgo', 'srvJSON', 'SRV_GR', 'SRV_LD', 'glyphImg', 'icoWrap', 'sepL', 'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date',
+      'coinImg', 'netImg', 'ccyIco',
+      "'use strict';\n" + gx349.code + '\n' + code + '\nreturn {STE, renderSte, steApply, steLoad, steOk, steEmit, steTeth, steCirc, stePc, steEur, steChain, steRows};')(
+      q => els[q] || null, v96src.tFor(L), v96src.escH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, s => ' · temu(' + s + ')', srv, SRV_GR, SRV_LD,
+      (n, s) => '[g:' + n + ']', i => i ? '<span class="icos">' + i + '</span>' : '', () => ', ', {getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; }}, doc,
+      function () { this.observe = (...a) => obs.push(a); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD,
+      s => '[c:' + s + ']', n => '[n:' + n + ']', c => '[x:' + c + ']');
+    return {api, els, calls, ivs, SRV_GR, SRV_LD, obs};
+  };
+  return {mk, clone, sp, txt, code, NOW, LOC};
+})();
+
+const st363tiles = h => [...st363.sp(h).matchAll(/<div class="etfk"><span>([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({label: m[1], cls: m[2], val: st363.txt(m[3].split('<small')[0]), sub: st363.txt((m[3].match(/<small[^>]*>(.*?)<\/small>/) || [])[1] || ''), when: st363.txt(m[4])}));
+const st363rows = h => [...st363.sp(h).matchAll(/<div class="ste-r"><span class="ste-n"><b>(.*?)<\/b>(?:<small>(.*?)<\/small>)?<span class="ste-b" aria-hidden="true"><i style="width:([\d.]+)%"><\/i><\/span><\/span><span class="ste-v">(.*?)<small>(.*?)<\/small><\/span><span class="ste-c" data-l="([^"]*)">(.*?)<\/span><span class="ste-c" data-l="([^"]*)">(.*?)<\/span><\/div>/g)]
+  .map(m => ({sym: st363.txt(m[1]), name: m[2] || '', w: +m[3], sup: st363.txt(m[4]), share: st363.txt(m[5]), d7: m[7], d30: m[9], l7: m[6], l30: m[8]}));
+
+test('v363: rejestr grupy „c” (stable-emitenci) i ładowanie — karta zaraz po panelu podaży stablecoinów, przed MiCA; plik tylko przez srvJSON w ładowarce, odświeżanie co 10 min', () => {
+  const K = st363.mk('pl', ST363_F);
+  assert.equal(K.SRV_GR['stable-emitenci'], 'c'); assert.equal(K.SRV_GR['ceny-krypto'], 'c', 'stary wpis bez zmian');
+  assert.equal(K.SRV_LD.c[K.SRV_LD.c.length - 1].name, 'steLoad'); assert.ok(K.calls.includes('stable-emitenci'));
+  assert.ok(K.ivs.filter(([f, ms]) => ms === 10 * 60e3).length >= 2, 'odświeżanie karty co 10 min (plik zbieracza co ~55 min)');
+  assert.ok(html.includes("SRV_GR['stable-emitenci']='c';SRV_LD.c.push(steLoad);"), 'rejestr dopisany po deklaracjach');
+  assert.ok(html.indexOf("SRV_GR['stable-emitenci']='c'") < html.indexOf('\nsteLoad();try{') && html.indexOf("SRV_GR['stable-emitenci']='c'") > html.indexOf('const SRV_GR='), 'rejestr przed pierwszym wywołaniem ładowarki, po deklaracji');
+  const i0 = html.indexOf('id="eng-defillama-stablecoins"'), i1 = html.indexOf('id="c-emit"'), i2 = html.indexOf('id="c-mica"');
+  assert.ok(i0 > 0 && i1 > i0 && i2 > i1, 'karta emitentów tuż po panelu podaży stablecoinów, przed MiCA'); assert.equal(html.split('id="c-emit"').length, 2, 'jedna karta');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])stable-emitenci\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.ok(K.els['#c-emit'].hidden === false, 'z plikiem karta widoczna');
+});
+
+test('v363: karta — kafle, pasek skumulowany udziałów z legendą, tabela monet ze zmianą 7 i 30 dni, zabezpieczenie, waluty, raporty emitentów; data i wiek; kolory z pokazanej liczby; bez nazw dostawców', () => {
+  const K = st363.mk('pl', ST363_F), h = st363.sp(K.els['#c-emit'].innerHTML), T = st363tiles(h);
+  assert.equal(K.els['#c-emit'].hidden, false);
+  assert.ok(h.includes('<h2>') && h.includes('Emitenci stablecoinów') && h.includes('class="live on"'), 'nagłówek i znacznik (plik sprzed 40 min)');
+  assert.deepEqual(T.slice(0, 4).map(x => [x.label, x.val]), [['Stablecoiny dolarowe razem', '313,1 mld USD'], ['Największa moneta', '[c:USDT] USDT 58,8%'], ['Dwie największe razem', '82,1%'], ['Stablecoiny w innych walutach', '989 mln USD']]);
+  assert.equal(T[0].sub, '340 monet'); assert.equal(T[1].sub, 'Tether'); assert.equal(T[2].sub, 'USDT + USDC'); assert.equal(T[3].sub, '17 walut · wartość w USD');
+  assert.ok(T[0].when.includes('stan z D:2026-10-13T20:20:00+00:00') && T[0].when.includes('temu(2026-10-13T20:20:00+00:00)'), 'data i wiek: ' + T[0].when);
+  /* pasek skumulowany: 6 pozycji + reszta, szerokości sumują się do 100% */
+  const seg = [...h.matchAll(/<div class="ste-pc" aria-hidden="true">(.*?)<\/div>/g)][0][1], W = [...seg.matchAll(/width:([\d.]+)%/g)].map(m => +m[1]);
+  assert.equal(W.length, 7); assert.ok(Math.abs(W.reduce((a, b) => a + b, 0) - 100) < 0.05, 'suma udziałów 100%: ' + W.join());
+  const leg = st363.txt([...h.matchAll(/<div class="ste-leg">(.*?)<\/div>/g)][0][1]);
+  assert.equal(leg, 'USDT 58,8% USDC 23,3% USDS 2,3% USDe 1,5% DAI 1,5% USD1 1,3% Pozostałe 11,2%');
+  /* tabela: 6 największych na wierzchu, kolejne w rozwinięciu; zmiana z kolorem pokazanej liczby */
+  const R = st363rows(h); assert.equal(R.length, 6 + 6 + 1, '6 + 6 w rozwinięciu + reszta');
+  assert.deepEqual(R.slice(0, 2).map(r => [r.sym, r.name, r.sup, r.share]), [['[c:USDT] USDT', 'Tether', '184,1 mld USD', '58,8%'], ['[c:USDC] USDC', 'USD Coin', '73,0 mld USD', '23,3%']]);
+  assert.equal(R[0].d7, '<span class="pos">+24,0 mln USD</span>'); assert.equal(R[0].d30, '<span class="pos">+663 mln USD</span>');
+  assert.equal(R[1].d7, '<span class="neg">−1,35 mld USD</span>'); assert.equal(R[1].l7, '7 dni'); assert.equal(R[1].l30, '30 dni');
+  assert.ok(R[0].w > R[1].w && R[1].w > R[5].w, 'słupek = udział względem największej monety');
+  assert.ok(R[12].sym.startsWith('Pozostałe monety (328)') && R[12].share === '6,4%' && R[12].d7 === '<span class="pos">+1,05 mld USD</span>', JSON.stringify(R[12]));
+  assert.ok(h.includes('<details class="etfd" id="ste363-all"><summary>Kolejne monety (6) i reszta</summary>'));
+  /* zabezpieczenie: trzy części z całością 100% */
+  const M = [...h.matchAll(/<span class="gxs-n">(Rezerwa w walucie i papierach skarbowych|Kryptowaluty|Algorytm \(bez pełnej rezerwy\))<small class="ste-sm">(.*?)<\/small><\/span><span class="gxs-b">.*?<span class="gxs-v">(.*?)<\/span>/g)].map(m => [m[1], st363.txt(m[2]), m[3]]);
+  assert.deepEqual(M.map(x => x[2]), ['284,0 mld USD · 90,7%', '28,4 mld USD · 9,1%', '664 mln USD · 0,2%']);
+  assert.equal(M[0][1], '7 dni −1,66 mld USD · 30 dni −1,81 mld USD'); assert.ok(h.includes('<span class="neg">−1,66 mld USD</span>') && h.includes('<span class="pos">+1,14 mld USD</span>'));
+  /* waluty po rozwinięciu: wartość w USD, liczba monet, nazwa waluty w języku widza */
+  assert.ok(h.includes('<details class="etfd" id="ste363-wal"><summary>Stablecoiny w innych walutach: 17 walut, razem 989 mln USD (wartość w USD)</summary>'));
+  assert.ok(/<b>EUR<\/b> <small>euro<\/small>.*?868 mln USD · monet: 16/.test(h), 'euro: 868 mln USD, 16 monet');
+  /* raport emitenta USDT */
+  assert.ok(T.some(x => x.label === 'USDT w obiegu' && x.val === '[c:USDT] 184,2 mld USD' && x.sub === 'zobowiązania emitenta' && x.when.startsWith('raport z D:2026-10-12T23:30:03Z') && x.when.includes('temu(2026-10-12T23:30:03Z)')), JSON.stringify(T));
+  assert.ok(T.some(x => x.label === 'Aktywa emitenta' && x.val === '189,7 mld USD')); assert.ok(T.some(x => x.label === 'Kapitał własny emitenta' && x.val === '5,47 mld USD' && x.sub === '3,0% zobowiązań'));
+  assert.ok(h.includes('USDT w obiegu — zmiana z własnej serii: 7 dni <span class="pos">+54,7 mln USD</span> · 30 dni <span class="pos">+360 mln USD</span>'));
+  assert.ok(h.includes('USDT: raport emitenta 184,2 mld USD, lista monet 184,1 mld USD (<span class="pos">+0,1%</span>).'), 'zgodność raportu z listą monet (dwie liczby i różnica)');
+  assert.ok(st363.txt(h).includes('Tron 93,2 mld USD · 50,6%') && st363.txt(h).includes('Ethereum 86,3 mld USD · 46,9%'), 'sieci według emitenta: udział w obiegu');
+  assert.ok(h.includes('wybite 94,2 mld USD · w skarbcu 1,00 mld USD · w kwarantannie 0') && h.includes('<details class="etfd" id="ste363-tn"><summary>Wszystkie sieci (18): wybite, w skarbcu, w kwarantannie</summary>'));
+  assert.ok(/Algorand<\/b> · [^<]*<small class="ste-sm">wybite [^<]*· w skarbcu 0 · w kwarantannie 0/.test(h), 'prawdziwe zero skarbca to „0”, nie „<1 mln”');
+  /* raport emitenta USDC i EURC */
+  assert.ok(T.some(x => x.label === 'USDC w obiegu' && x.val === '[c:USDC] 72,7 mld USD' && x.sub === 'sieci: 39' && x.when.startsWith('aktualizacja D:2026-10-13T18:13:01Z')), JSON.stringify(T));
+  assert.ok(T.some(x => x.label === 'EURC w obiegu' && x.val === '439 mln EUR' && x.sub === 'sieci: 9'));
+  assert.ok(h.includes('USDC w obiegu — zmiana z własnej serii: 7 dni <span class="pos">+86,9 mln USD</span> · 30 dni <span class="na">—</span>'), 'brak punktu sprzed 30 dni = „—”, nigdy zero');
+  assert.ok(h.includes('USDC: raport emitenta 72,7 mld USD, lista monet 73,0 mld USD (<span class="neg">−0,4%</span>).'));
+  assert.ok(st363.txt(h).includes('Ethereum 48,2 mld USD · 66,4%') && h.includes('<details class="etfd" id="ste363-cn"><summary>Wszystkie sieci (39)</summary>'));
+  const dn = h.slice(h.indexOf('id="ste363-cn"')), dnTxt = st363.txt(dn.slice(0, dn.indexOf('</details>')));
+  assert.ok(!/kwarantann|skarbc|wybite/.test(dnTxt), 'lista sieci USDC bez podziału z karty USDT (dane emitenta USDC go nie mają)');
+  assert.ok(dnTxt.includes('Pozostałe sieci (29)') && !dnTxt.includes('Pozostałe monety'), 'reszta listy sieci USDC (39 minus 10 pokazanych) to sieci, nie monety');
+  /* uczciwość i zasady strony */
+  assert.ok(h.includes('<details class="etfd" id="ste363-not"><summary>Czego te dane nie mówią</summary>') && h.includes('To nie jest porada inwestycyjna'), 'notatki');
+  assert.ok(!/DefiLlama|CoinGecko|CoinMarketCap|SoSoValue|Coin Metrics|\b(undefined|NaN|null)\b|Infinity/.test(h), 'bez nazw dostawców i napisów-błędów');
+  assert.ok(!/<span class="(pos|neg)">0 /.test(h), 'zero nie ma koloru kierunku');
+});
+
+test('v363: brak = „—”/ukryta karta (nigdy zero), części niezależne i starzeją się osobno, stary plik chowa kartę, chwilowy błąd nie zasłania wczytanych danych, zdanie o serii bez punktów', () => {
+  const C = st363.clone, ok = f => st363.mk('pl', f).els['#c-emit'];
+  assert.equal(ok(null).hidden, true); assert.equal(ok({v: 1, at: '2026-10-13T20:20:00+00:00'}).hidden, true, 'plik bez części'); assert.equal(ok({v: 2, at: ST363_F.at, emit: ST363_F.emit}).hidden, true, 'inna wersja');
+  const onlyT = C(ST363_F); delete onlyT.emit; delete onlyT.circle; const el = ok(onlyT); assert.equal(el.hidden, false);
+  assert.ok(!el.innerHTML.includes('Stablecoiny dolarowe razem') && !el.innerHTML.includes('USDC w obiegu') && el.innerHTML.includes('USDT w obiegu'), 'tylko raport USDT');
+  const onlyE = C(ST363_F); delete onlyE.tether; delete onlyE.circle; assert.ok(!ok(onlyE).innerHTML.includes('Raporty samych emitentów') && ok(onlyE).innerHTML.includes('Stablecoiny dolarowe razem'), 'sama lista monet');
+  /* starzenie osobno: lista monet i USDC po 6 h, raport USDT po 48 h (od czasu raportu) */
+  const stL = C(ST363_F); stL.part_at.llama = '2026-10-13T14:00:00+00:00'; const eL = ok(stL).innerHTML; assert.ok(!eL.includes('Stablecoiny dolarowe razem') && eL.includes('USDT w obiegu') && eL.includes('USDC w obiegu'), 'lista monet starsza niż 6 h znika');
+  const stC = C(ST363_F); stC.circle.usdc.upd = '2026-10-13T14:00:00+00:00'; assert.ok(!ok(stC).innerHTML.includes('USDC w obiegu') && ok(stC).innerHTML.includes('USDT w obiegu'), 'raport USDC starszy niż 6 h znika');
+  const stT = C(ST363_F); stT.tether.t = '2026-10-11T20:00:00Z'; assert.ok(!ok(stT).innerHTML.includes('Aktywa emitenta') && ok(stT).innerHTML.includes('USDC w obiegu'), 'raport USDT starszy niż 48 h znika');
+  const all = C(ST363_F); all.part_at.llama = '2026-10-13T01:00:00+00:00'; all.circle.usdc.upd = '2026-10-13T01:00:00Z'; all.tether.t = '2026-10-10T01:00:00Z'; assert.equal(ok(all).hidden, true, 'wszystkie części stare = karta ukryta');
+  /* brak zmian w tabeli = „—” bez koloru, zero = „0” żółte */
+  const nul = C(ST363_F); nul.emit.rows[1][4] = null; nul.emit.rows[1][5] = null; nul.emit.rows[2][4] = 0; const hn = st363.sp(ok(nul).innerHTML), Rn = st363rows(hn);
+  assert.equal(Rn[1].d7, '<span class="na">—</span>'); assert.equal(Rn[1].d30, '<span class="na">—</span>'); assert.equal(Rn[2].d7, '<span class="neu">0 mln USD</span>', 'zero = żółte');
+  /* seria własna bez żadnego punktu porównawczego: zdanie od kiedy seria istnieje */
+  const nz = C(ST363_F); nz.zm = {usdt: {'7': null, '30': null}, usdc: {'7': null, '30': null}, eurc: {'7': null, '30': null}}; const hz = st363.txt(ok(nz).innerHTML);
+  assert.ok(hz.includes('Zmiany 7 i 30 dni z własnej serii dobowej pojawią się po zebraniu tylu dób (seria od 12 wrz 2026); do tego czasu „—”.'), hz.slice(hz.indexOf('Zmiany 7'), hz.indexOf('Zmiany 7') + 160));
+  const nh = C(nz); delete nh.hist; assert.ok(st363.txt(ok(nh).innerHTML).includes('(seria od —)'), 'bez historii: „—”, nie data zero');
+  /* chwilowy błąd pobrania nie zasłania wczytanych danych; zły plik nie zastępuje dobrego */
+  const K = st363.mk('pl', ST363_F); K.api.steApply(null); assert.equal(K.els['#c-emit'].hidden, false); K.api.steApply({v: 1, at: 'zły'}); assert.equal(K.els['#c-emit'].hidden, false);
+  const K0 = st363.mk('pl', null); assert.equal(K0.els['#c-emit'].hidden, true); K0.api.steApply(C(ST363_F)); assert.equal(K0.els['#c-emit'].hidden, false, 'późniejszy dobry plik pokazuje kartę');
+  /* plik sprzed 4 h: znacznik „off” */
+  const old = C(ST363_F); old.at = '2026-10-13T16:00:00+00:00'; assert.ok(ok(old).innerHTML.includes('class="live off"'));
+  /* pomocnicze: jednostki euro i procenty */
+  const A = st363.mk('pl', ST363_F).api; assert.equal(A.steEur(2.5e9), '2,50 mld EUR'); assert.equal(A.steEur(439e6), '439 mln EUR'); assert.equal(A.steEur(4e5), '<1 mln EUR'); assert.equal(A.steEur(null), '—');
+  assert.equal(A.stePc(0.01), '<0,1%'); assert.equal(A.stePc(58.84), '58,8%'); assert.equal(A.stePc(null), '—'); assert.equal(A.steChain('ETH'), 'Ethereum'); assert.equal(A.steChain('NOWYSIEC'), 'Nowysiec');
+});
+
+test('v363: 10 języków — brak surowych kluczy i napisów-błędów, ten sam komplet znaczników; słownik dopisany raz po linii for najwyższego słownika; bez nazw dostawców', () => {
+  const m = [...html.matchAll(/^const EXTRA(\d+)=(\{.*\});$/gm)].filter(x => x[2].includes('"st363.t"'));
+  assert.equal(m.length, 1, 'jeden słownik v363'); const n = m[0][1], D = JSON.parse(m[0][2]);
+  assert.ok(html.includes(`const EXTRA${n}=`) && html.includes(`for(const l in EXTRA${n})if(I18N[l])Object.assign(I18N[l],EXTRA${n}[l]);`), 'linia nakładania');
+  const L = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']; assert.deepEqual(Object.keys(D).sort(), L.slice().sort());
+  const ph = s => (String(s).match(/\{\w+\}/g) || []).sort().join();
+  for (const l of L) {
+    assert.deepEqual(Object.keys(D[l]).sort(), Object.keys(D.pl).sort(), l + ': komplet kluczy');
+    for (const k of Object.keys(D.pl)) { assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k + ': znaczniki'); assert.ok(String(D[l][k]).length > 0 && !/Tether|Circle|DefiLlama|CoinGecko|CoinMarketCap/i.test(D[l][k]), l + ' ' + k); }
+    if (l !== 'pl') assert.notEqual(D[l]['st363.sub'], D.pl['st363.sub'], l + ': prawdziwe tłumaczenie');
+    const K = st363.mk(l, ST363_F), h = st363.sp(K.els['#c-emit'].innerHTML);
+    assert.ok(h.includes(D[l]['st363.t']) && h.includes(D[l]['st363.h.rep']) && h.includes(D[l]['st363.h.mech']), l + ': teksty w języku');
+    assert.ok(!/st363\.|\b(undefined|NaN|null)\b|\{[a-z]\}/.test(h), l + ': ' + (h.match(/st363\.[\w.]+|\b(undefined|NaN)\b|\{[a-z]\}/) || [''])[0]);
+    assert.ok(!/DefiLlama|CoinGecko|CoinMarketCap/.test(h), l);
+    assert.ok(h.includes('<summary>' + D[l]['st363.nets.cnt'].replace('{n}', '39') + '</summary>') && st363.txt(h).includes(D[l]['st363.rest.n'].replace('{n}', '29')), l + ': podpisy listy sieci USDC');
+    if (l !== 'pl') assert.ok(D[l]['st363.nets.cnt'] !== D.pl['st363.nets.cnt'] && D[l]['st363.rest.n'] !== D.pl['st363.rest.n'], l + ': prawdziwe tłumaczenie podpisów sieci');
+  }
+  assert.ok(D.zh['st363.u.m'] === '百万欧元' && D.ja['st363.u.b'] === '十億ユーロ' && D.de['st363.u.m'] === 'Mio. EUR', 'jednostki euro w językach');
+  const E = st363.mk('en', ST363_F), he = st363.txt(E.els['#c-emit'].innerHTML); assert.ok(he.includes('439 M EUR') && he.includes('Stablecoin issuers') && he.includes('7 days'), he.slice(0, 200));
+  const U = st363.mk('de', ST363_F), hd = st363.txt(U.els['#c-emit'].innerHTML); assert.ok(hd.includes('439 Mio. EUR') && hd.includes('313,1 Mrd. USD'), 'liczby i jednostki w języku widza');
+});
+
+test('v363: telefon 390 px bez przewijania w bok — kafle po dwa, tabela monet w dwóch kolumnach z podpisami zmian, tylko własne reguły karty; kolory kierunku ze zmiennych motywu', () => {
+  const css = html.slice(html.indexOf('/* v363 (F2Z3): karta „Emitenci stablecoinów”'), html.indexOf('/* v355 (zwiad 2): karta MiCA w CRYPTO'));
+  assert.ok(css.length > 1500); assert.ok(css.split('\n').filter(l => l.trim() && !l.startsWith('/*')).every(l => /^(#c-emit|@media|\s|\})/.test(l) || l.startsWith('  #c-emit')), 'każda reguła zawężona do #c-emit');
+  assert.ok(/@media \(max-width:760px\)\{#c-emit \.etfkpis\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}\}/.test(css), 'kafle po dwa');
+  const tel = css.slice(css.indexOf('@media (max-width:560px){'));
+  assert.ok(tel.includes('#c-emit .ste-r{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"n v" "c1 c2"') && tel.includes('#c-emit .ste-hd{display:none}') && tel.includes('content:attr(data-l)'), 'tabela na telefonie');
+  assert.ok(/#c-emit \.pos\{color:var\(--gr-tx\)\}/.test(css) && /#c-emit \.neg\{color:var\(--rd-tx\)\}/.test(css) && /#c-emit \.neu\{color:var\(--yl-tx\)\}/.test(css), 'kolory kierunku ze zmiennych motywu');
+  assert.ok(/#c-emit \.etfk b\{[^}]*white-space:normal;overflow-wrap:anywhere/.test(css) && /#c-emit \.gxs-n\{[^}]*overflow-wrap:anywhere/.test(css), 'długie nazwy się łamią');
+  assert.ok(!/(^|[^-\w])(#[0-9a-f]{3,8})\b/i.test(css.replace(/rgba?\([^)]*\)/g, '')), 'żadnych kolorów na sztywno poza zmiennymi motywu');
+});
