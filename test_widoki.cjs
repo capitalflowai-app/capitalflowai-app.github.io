@@ -8026,14 +8026,15 @@ test('v139: strach i chciwość — panele: CRYPTO w pasku (bez pliku krypto ukr
   X.fgApplyG(fg139.N); const g = elG.innerHTML;
   assert.ok(elG.hidden === false && g.startsWith('<div class="etfh"><div><h2><span class="icos">') && g.includes('fg.t.g<button type="button" class="mini-i fg-i" data-fg-how="fg-how-g" aria-controls="fg-how-g" title="fg.meth.g" aria-label="fg.how">i</button></h2>'), 'tytuł z ikonami i przyciskiem (i) do „Jak liczymy”');
   assert.ok(g.includes('<p class="pnote">fg.g.sub</p>') && g.includes('<p class="fg-cap fg-own">fg.g.cap</p>') && g.includes('inst.file{"t":"D(2026-09-27T23:30:00+00:00)"}'), 'opis, podpis „wskaźnik własny (nie pomiar)”, czas pliku');
-  assert.ok(g.includes('>62</text></svg>') && g.includes('<span class="sg-d">fg.upd{"d":"Sep 25, 2026 · age(2026-09-25)"}</span>') && g.includes('title="fg.h.s1: 60 — fg.s.g · Sep 24, 2026"'), 'wynik, dzień z wiekiem jak dawniej, poprzednia sesja (v321: karta fgCard)');
+  /* v350 (zlecenie 13.10.2026): półkole, dzień z wiekiem i kółka 1D / 1T / 1M są tylko w prawej kolumnie GLOBAL (gRailRender, test v350) — karta „Karty” bez drugiego półkola */
+  assert.ok(!g.includes('sg-svg') && !g.includes('class="sg-hs') && !g.includes('class="sg"') && !g.includes('>62</text>'), 'v350: karta GLOBAL bez półkola i kółek (wskaźnik w prawej kolumnie)');
   assert.ok(g.includes('<h3 class="mtxt">fg.h.parts</h3>') && g.includes('<th>fg.col.c</th><th>fg.col.s</th><th>fg.col.d</th>') && g.includes('<details class="etfd" id="fg-how-g"><summary>fg.how</summary><p class="pnote">fg.meth.g</p><p class="pnote">fg.not</p></details>'), 'tabela składników i „Jak liczymy”');
   assert.ok(g.endsWith('eng.disclaimer</p>') && !g.includes('pnote neu'), 'komplet składników — bez noty o brakach');
   assert.ok(!/undefined|NaN|\[object/.test(c + g));
   X.fgApplyG(null); assert.ok(elG.hidden === false && elG.innerHTML === g, 'chwilowy błąd pobrania nie zasłania wczytanych danych');
   const N3 = Object.assign({}, fg139.N, {now: null, d: [], c: {hy: fg139.N.c.hy}, miss: ['vix', 'spx', 'sb'], why: {vix: 'fetch', spx: 'fetch', sb: 'short'}});
   X.fgApplyG(N3); const g3 = elG.innerHTML;
-  assert.ok(g3.includes('>—</text>') && g3.includes('fg.none{"n":1,"c":"fg.comp.vix (fg.why.fetch); fg.comp.spx (fg.why.fetch); fg.comp.sb (fg.why.short)"}') && !g3.includes('class="sg-d"'), 'mniej niż 3 składniki: „—”, nazwane braki, bez daty wyniku');
+  assert.ok(/* v350: półkole tylko w prawej kolumnie (test v350) */ g3.includes('fg.none{"n":1,"c":"fg.comp.vix (fg.why.fetch); fg.comp.spx (fg.why.fetch); fg.comp.sb (fg.why.short)"}') && !g3.includes('class="sg-d"'), 'mniej niż 3 składniki: „—”, nazwane braki, bez daty wyniku');
 });
 
 test('v139: strach i chciwość — (i) przy tytule to przycisk: dotknięcie, klawiatura albo mysz rozwija „Jak liczymy” swojego panelu (CRYPTO i GLOBAL), przewija do niego i daje mu fokus; kliknięcie gdzie indziej bez reakcji', () => {
@@ -8733,13 +8734,13 @@ test('v140: etykiety grup — miejsca nad, pod, po zewnętrznej i wewnętrznej s
 });
 test('v140: strona — przyciski „Top 10” i pełny ekran obok przybliż / oddal / widok domyślny (komputer: druga kolumna, telefon: rząd na dole), ten sam znak co GLOBAL; zaczepy w silniku sceny; plik serwera', () => {
   const z0 = html.indexOf('<button id="z-in"'), zr = html.indexOf('<button id="z-reset"'), zt = html.indexOf('<button id="z-t10"'), zf = html.indexOf('<button id="z-full"'), zc = html.indexOf('</div>', z0);
-  assert.ok(z0 > 0 && zr > z0 && zt > zr && zf > zt && zc > zf, 'kolejność w .zoom sceny CRYPTO: +, −, ⟲, Top 10, pełny ekran');
+  assert.ok(z0 > 0 && zr > z0 && zf > zr && zt > zf && zc > zt, 'v350: kolejność w .zoom sceny CRYPTO: +, −, ⟲, pełny ekran, TOP 10 (jedna kolumna)');
   assert.equal(html.split('id="z-t10"').length, 2); assert.equal(html.split('id="z-full"').length, 2);
   assert.ok(html.includes('<button id="z-t10" data-i18n-aria="c10.btn" data-i18n-title="c10.btn" aria-pressed="true">'), 'Top 10 domyślnie pokazane, opis w języku strony');
   assert.ok(html.includes('<button id="z-full" data-i18n-aria="c10.full" data-i18n-title="c10.full" aria-pressed="false">'), 'pełny ekran sceny: własny opis');
   const svg = id => { const i = html.indexOf('<button id="' + id + '"'); return html.slice(html.indexOf('<svg', i), html.indexOf('</svg>', i) + 6); };
   assert.ok(svg('z-full').length > 100 && svg('z-full') === svg('gz-full'), 'znak pełnego ekranu jak w GLOBAL');
-  for (const s of ['#stage .zoom{direction:rtl;display:grid;grid-template-rows:repeat(3,34px);grid-auto-flow:column;grid-auto-columns:34px;gap:6px}', '#stage .zoom button{direction:ltr}', '@media (max-width:620px){#stage .zoom{top:auto;bottom:12px;direction:ltr;grid-template-rows:34px;grid-auto-flow:column}.stage3d.full #why{max-height:48%;bottom:58px}}',
+  for (const s of ['#stage .zoom{display:flex;flex-direction:column;gap:6px}', '#stage .zoom button{direction:ltr}', '@media (max-width:620px){#stage .zoom{top:auto;bottom:12px;flex-direction:row}.stage3d.full #why{max-height:48%;bottom:58px}}',   /* v350: jedna kolumna przycisków (dawniej dwie kolumny v140) */
     '#z-full[aria-pressed="true"] .ic-close{display:block}', '#z-t10[aria-pressed="true"]{color:var(--bl);', '.stage3d.full,.stage3d:fullscreen{position:fixed;inset:0;z-index:50;height:auto!important;',
     '.stage3d.full #why{position:absolute;', 'body.cfull{overflow:hidden}', '.t10-tip{position:absolute;', '.t10-tip dd.dn{color:var(--rd-tx)}'])
     assert.equal(html.split(s).length, 2, 'styl: ' + s);
@@ -8989,7 +8990,7 @@ const t10B = (() => {
   const z0 = html.indexOf('<div class="zoom">', html.indexOf('id="stage"')), nb = (html.slice(z0, html.indexOf('</div>', z0)).match(/<button/g) || []).length;
   /* blok przycisków z CSS strony: komputer — kolumny (12 px od prawej i od góry); telefon (okno ≤ 620 px, płótno o ok. 32 px węższe) — reguła z @media, jeśli jest */
   const zr = /#stage \.zoom\{[^}]*grid-template-rows:repeat\((\d+),34px\)[^}]*\}/.exec(html), rows = zr ? +zr[1] : nb, cols = Math.ceil(nb / rows);
-  const ph = /@media \(max-width:620px\)\{#stage \.zoom\{top:auto;bottom:12px;[^}]*grid-template-rows:34px;grid-auto-flow:column\}/.test(html);
+  const ph = /@media \(max-width:620px\)\{#stage \.zoom\{top:auto;bottom:12px;(?:[^}]*grid-template-rows:34px;grid-auto-flow:column|flex-direction:row)\}/.test(html);   /* v350: także nowa postać (jedna kolumna, na telefonie rząd) */
   const ZB = {nb, rows, cols, w: cols * 34 + (cols - 1) * 6, h: rows * 34 + (rows - 1) * 6, phoneRow: ph};
   const zbox = (W, H) => ph && W + 32 <= 620 ? {x0: W - 12 - (nb * 34 + (nb - 1) * 6), y0: H - 12 - 34, x1: W - 12, y1: H - 12} : {x0: W - 12 - ZB.w, y0: 12, x1: W - 12, y1: 12 + ZB.h};
   const rect = (x, y, w, h) => ({x, y, left: x, top: y, width: w, height: h, right: x + w, bottom: y + h});
@@ -12292,7 +12293,8 @@ test('v157: kafel — tytuł, rodzaj liczb, podtytuł, data z wiekiem, „Szczeg
   assert.ok(n.includes('<p class="wk-na"><b>brak danych</b> — w danych nie ma liczb do pokazania</p>') && !n.includes('wk-ch') && !n.includes('wk-kd'), 'brak danych z powodem, bez wykresu i bez rodzaju');
   const e = K.wkTileHtml({tt: 'ix.t', go: 'g-indeksy', b: () => { throw new TypeError('x'); }});
   assert.ok(e.includes('<b>brak danych</b> — nie udało się narysować wykresu'), 'wyjątek budowniczego — kafel z powodem');
-  assert.deepEqual(K.WK_T.global.map(T => T.id), ['g-reg', 'g-prob', 'g-fg', 'g-ix', 'g-str', 'g-fund', 'g-tic', 'g-fed', 'g-dl']);
+  /* v350 (zlecenie 13.10.2026): kafla strachu i chciwości GLOBAL nie ma — wskaźnik w prawej kolumnie GLOBAL; siatka nadal pełna (asercja niżej) */
+  assert.deepEqual(K.WK_T.global.map(T => T.id), ['g-reg', 'g-prob', 'g-ix', 'g-str', 'g-fund', 'g-tic', 'g-fed', 'g-dl']);
   assert.deepEqual(K.WK_T.crypto.map(T => T.id), ['c-flow', 'c-etf', 'c-t10', 'c-stab', 'c-cap', 'c-lev', 'c-prm', 'c-rwa', 'c-fg', 'c-wh']);
   const cells = L => L.reduce((a, T) => a + (T.w ? 2 : 1) * (T.r ? 2 : 1), 0);
   assert.deepEqual([cells(K.WK_T.global) % 3, cells(K.WK_T.crypto) % 3], [0, 0], 'siatka 3 kolumn bez pustych pól');
@@ -12486,7 +12488,7 @@ test('v157: strona w atrapie (dane wbudowane strażnika, 27.09) — „Wykresy�
   R.fireMOs([{type: 'attributes', attributeName: 'data-theme'}]);   /* atrapa nie zgłasza zmian treści — przerysowanie kafli po wczytaniu danych jak po zmianie motywu */
   assert.deepEqual(R.ERR, [], 'bez błędów strony');
   const box = id => R.CAP.filter(c => c.k === 'html' && c.id === id).map(c => c.v).pop() || '';
-  for (const [id, n] of [['wk-global', 9], ['wk-crypto', 10]]) {
+  for (const [id, n] of [['wk-global', 8 /* v350: bez kafla strachu i chciwości GLOBAL */], ['wk-crypto', 10]]) {
     const h = box(id);
     assert.equal((h.match(/<article class="wk-t panel/g) || []).length, n, id + ': kafle');
     for (const tile of h.split('<article ').slice(1)) assert.ok(/class="wk-ch /.test(tile) || /<p class="wk-na"><b>brak danych<\/b> — [^<]{8,}<\/p>/.test(tile), id + ': wykres albo brak z powodem: ' + tile.slice(0, 120));
@@ -19218,15 +19220,15 @@ const v321Btn = (k, sel) => ({closest: s => (s === (sel || '#side-fg [data-sfg],
 
 test('v321: lewa kolumna — para pasująca do zakładki: GLOBAL i TRENDY „global” — „Pokrycie danych GLOBAL” i zaraz pod nim „Strach i chciwość GLOBAL”; TRENDY „krypto” — „Pokrycie danych” i „Strach i chciwość — krypto”; CRYPTO — nic (oba w prawej kolumnie); telefon: para GLOBAL pod mapą (#g-sg)', () => {
   const kr = {fng: fg139.F}, g = fg139.N;
-  const G = v321Kol({mode: 'global', kr, g}), h = G.els['#side-fg'].innerHTML;
-  assert.equal(G.els['#side-fg'].hidden, false);
+  const G = v321Kol({mode: 'global', kr, g}), h = G.els['#g-sg'].innerHTML;   /* v350: GLOBAL — para tylko pod mapą (telefon, tablet); komputer: prawa kolumna #g-rail, lewa bez wskaźników */
+  assert.ok(G.els['#side-fg'].hidden === true && G.els['#side-fg'].innerHTML === '', 'v350: GLOBAL — lewa kolumna bez wskaźników');
   assert.deepEqual([...h.matchAll(/<button type="button" class="sg-k" data-sfg="([a-z-]+)"/g)].map(m => m[1]), ['cov-g', 'global'], 'GLOBAL: pokrycie, zaraz pod nim strach i chciwość');
   assert.ok(h.startsWith('<button type="button" class="sg-k" data-sfg="cov-g" title="w321.cov.miss{&quot;r&quot;:&quot;g.n.rus&quot;} · w321.cov.tip{&quot;n&quot;:11,&quot;m&quot;:12,&quot;x&quot;:92,&quot;p&quot;:&quot;g.per.1M&quot;}"><span class="sg-t">w321.cov.t</span><span class="sg">COV</span></button>'), 'karta pokrycia: braki i opis miary w podpowiedzi (niski ekran chowa zdanie pod półkolem)');
   assert.ok(h.includes('<button type="button" class="sg-k" data-sfg="global" title="fg.g.cap"><span class="sg-t">fg.t.g</span><span class="sg"><svg class="sg-svg"') && h.includes('>62</text>'), 'karta wskaźnika GLOBAL (fgCard)');
   assert.equal((h.match(/<span class="sg-h" /g) || []).length, 3, 'kółka 1D / 1T / 1M z dniami zostają');
   assert.ok(h.includes('<b class="fg-c fg-g">60</b><i>w321.h.1d</i>') && h.includes('<small>Sep 18</small>') && h.includes('<small>Aug 26</small>'), 'wartości wstecz z dniami (przegląd: skróty ze słownika)');
   assert.ok(!h.includes('data-sfg="crypto"') && !h.includes('fg.t.c'), 'GLOBAL bez wskaźnika krypto');
-  assert.equal(G.els['#g-sg'].innerHTML, h, 'telefon: ta sama para pod mapą'); assert.equal(G.els['#g-sg'].hidden, false);
+  assert.equal(G.els['#g-sg'].hidden, false, 'telefon i tablet: para pod mapą');
   const C = v321Kol({mode: 'crypto', kr, g});
   assert.ok(C.els['#side-fg'].hidden === true && C.els['#side-fg'].innerHTML === '', 'CRYPTO: lewa kolumna bez wskaźników (oba w prawej kolumnie)');
   assert.ok(C.els['#g-sg'].innerHTML.includes('data-sfg="cov-g"'), '#g-sg zawsze z parą GLOBAL (widoczny tylko na telefonie w GLOBAL)');
@@ -19238,7 +19240,7 @@ test('v321: lewa kolumna — para pasująca do zakładki: GLOBAL i TRENDY „glo
   assert.deepEqual([...TG.els['#side-fg'].innerHTML.matchAll(/data-sfg="([a-z-]+)"/g)].map(m => m[1]), ['cov-g', 'global'], 'TRENDY global: para GLOBAL');
   assert.deepEqual([v321Kol({mode: 'trendy', trdIsC: undefined, trdv: 'crypto'}).F.sgPara(), v321Kol({mode: 'trendy', trdIsC: undefined}).F.sgPara(), v321Kol({mode: 'crypto'}).F.sgPara()], ['c', 'g', ''], 'bez trdIsC — widok z ustawień');
   /* bez danych: „—” i „brak danych”, nigdy zero */
-  const E = v321Kol({mode: 'global', kr: null, g: null, cov: null}), e = E.els['#side-fg'].innerHTML;
+  const E = v321Kol({mode: 'global', kr: null, g: null, cov: null}), e = E.els['#g-sg'].innerHTML;   /* v350: para GLOBAL pod mapą */
   assert.ok(e.includes('data-sfg="cov-g"><span class="sg-t">w321.cov.t</span>') && !e.includes('title="w321.cov.tip') && e.includes('>—</text>') && e.includes('<span class="sg-st">fg.na</span>') && !/>0<\/text>/.test(e), 'bez danych: „—”');
   const Ek = v321Kol({mode: 'trendy', kr: null, trdIsC: () => true}).els['#side-fg'].innerHTML;
   assert.ok(Ek.includes('<span class="lv sora warn">eng.gap</span>') && Ek.includes('rel.descOff') && (Ek.match(/>—<\/text>/g) || []).length === 2, 'TRENDY krypto bez danych na żywo i bez pliku krypto — „—” w obu');
@@ -19279,7 +19281,7 @@ test('v321: lewa kolumna — karta to przycisk: zakładka i karta ze szczegóła
   assert.deepEqual(P.MO.map(m => m.o), [[['#c-fg', '{"childList":true}'], ['#g-fg', '{"childList":true}'], ['#g-q', '{"childList":true}'], ['#gauge', '{"childList":true}'], ['#trendy', '{"childList":true}']],
     [['#tab-global', '{"attributes":true,"attributeFilter":["aria-selected"]}'], ['#tab-crypto', '{"attributes":true,"attributeFilter":["aria-selected"]}'], ['#tab-trendy', '{"attributes":true,"attributeFilter":["aria-selected"]}']]],
   'odświeżanie: panele wskaźników, karty pokrycia (dane, język, okres), TRENDY (widok) i zmiana zakładki');
-  const R = v321Kol({mode: 'global', g: fg139.N}), el = R.els['#side-fg'];
+  const R = v321Kol({mode: 'trendy', trdIsC: () => false, g: fg139.N}), el = R.els['#side-fg'];   /* v350: GLOBAL nie ma pary w lewej kolumnie — zachowanie sprawdzone na TRENDACH „global” */
   el.innerHTML = 'bez zmian'; R.F.fgRenderSide(); assert.equal(el.innerHTML, 'bez zmian', 'ten sam tekst — bez przerysowania (fokus i podpowiedź zostają)');
   R.st.mode = 'crypto'; R.F.fgRenderSide(); assert.ok(el.hidden === true && el.innerHTML === '', 'zmiana zakładki — nowa treść');
 });
@@ -19294,7 +19296,7 @@ test('v321: lewa kolumna — miejsce (pod menu, nad „Ostatnią aktualizacją�
   const c0 = html.indexOf('/* v321 (decyzja właściciela 10.10.2026): wspólny wskaźnik-półkole'), c1 = html.indexOf('/* v321 (decyzja właściciela 10.10): kolory kierunku', c0), css = html.slice(c0, c1);
   assert.ok(c0 > 0 && c1 > c0 && c1 < html.indexOf('</style>'), 'styl w arkuszu strony');
   assert.ok(!/#[0-9a-fA-F]{3,6}\b|rgba?\(\d/.test(css), 'tylko zmienne motywu (oba motywy)');
-  assert.ok(css.includes('@media (max-width:900px){.side-fg{display:none!important}}') && css.includes('@media (min-width:901px){#g-sg{display:none!important}}'), 'telefon: lewej kolumny nie ma, para pod mapą; komputer odwrotnie');
+  assert.ok(css.includes('@media (max-width:900px){.side-fg{display:none!important}}') && css.includes('@media (min-width:1241px){#global{grid-column:2}#g-sg{display:none!important}}'), 'telefon i tablet (do 1240 px): para pod mapą; komputer: prawa kolumna GLOBAL (v350)');
   assert.ok(!html.includes('#c-fg:not(.pokaz)'), 'panel krypto zawsze w prawej kolumnie (dawniej v156 chował go na komputerze)');
   /* v321 (przegląd 10.10): strach i chciwość w lewej kolumnie WIĘKSZE niż dawniej — półkole 150 px (od 1000 px wysokości okna 156 px), liczba pod kółkiem osi
      38 jednostek półkola „wysokiego” × 150 / 200 ≈ 28 px (dawniej 22 px obok stanu, w pierwszej wersji v321 ok. 16 px); „Pokrycie danych” poniżej 1000 px
@@ -19585,7 +19587,7 @@ test('v321 (przegląd): lewa kolumna i para pod mapą — półkole „wysokie�
   for (const n of [12, 11, 7, 0]) { const [a, b] = num(v321Cov(v321Map((id, i) => i < n)).f.gCovCard()); assert.ok(a === b && /^\d+%$/.test(a), 'pokrycie GLOBAL: ' + a + ' / ' + b); }
   { const [a, b] = num(v321Cov(null).f.gCovCard()); assert.ok(a === '—' && b === '—', 'bez danych — „—” w obu miejscach (nigdy 0%)'); }
   for (const live of [{cover: .875, src: 'srv', err: ''}, null]) { const [a, b] = num(v321Kol({mode: 'trendy', trdIsC: () => true, live}).F.sgCovC()); assert.ok(a === b && (live ? a === '88%' : a === '—'), 'pokrycie krypto (TRENDY): ' + a + ' / ' + b); }
-  assert.ok(html.includes("${sgSvg(has?X.v:null,SG_FG,has?fgInt(X.v):'—',aria,!long)}${long?'':`<b class=\"sg-n\" aria-hidden=\"true\">${has?fgInt(X.v):'—'}</b>`}"), 'karta: wąska kolumna — półkole wysokie i liczba tekstem; panel — jak dawniej');
+  assert.ok(html.includes("${sgSvg(has?X.v:null,SG_FG,has?fgInt(X.v):'—',aria,!long||ab)}${long&&!ab?'':`<b class=\"sg-n\" aria-hidden=\"true\">${has?fgInt(X.v):'—'}</b>`}"), 'karta: wąska kolumna — półkole wysokie i liczba tekstem; panel — jak dawniej (v350: także 4. argument ab — prawa kolumna GLOBAL)');
 });
 
 test('v321 (przegląd): kółka wartości wstecz — w wąskiej kolumnie skróty 1D / 1T / 1M w języku strony (dawniej na stałe po polsku), pełna nazwa w podpowiedzi; w panelach GLOBAL i CRYPTO nazwy jak przed v321 nad kółkiem („Poprzednia sesja” / „Wczoraj”, „Tydzień temu”, „Miesiąc temu”), pod kółkiem stan i dzień', () => {
@@ -23974,4 +23976,67 @@ test('v349 (przegląd): polska forma „liczba dób: N” bez błędnej odmiany;
 test('v349b: giełdy — małe przepływy: zero „0 mln USD”, różne od zera poniżej 0,5 mln „<1 mln USD” (żółte), 0,5–1 mln z jednym miejscem', () => {
   assert.ok(html.includes("if(tn==='neu')return (v===0?'0 ':'<1 ')+t('u.m');"), 'gxSig: zero i „<1”');
   assert.ok(html.includes("if(a>=5e5)return nfmt(a/1e6,1)+' '+t('u.m');"), 'gxMag: 0,5–1 mln z jednym miejscem');
+});
+
+/* ===================== v350 (zlecenie właściciela 13.10.2026): GLOBAL jak CRYPTO — prawa kolumna #g-rail; scena CRYPTO — jedna kolumna przycisków ===================== */
+function v350Rail(o) {
+  o = o || {};
+  const a = html.indexOf('function gRailRender(){'), b = html.indexOf("\n(function(){const r=$('#g-rail')", a);
+  assert.ok(a > 0 && b > a, 'blok gRailRender w kodzie strony');
+  const el = {hidden: true, _h: '', writes: 0};
+  Object.defineProperty(el, 'innerHTML', {get() { return this._h; }, set(v) { this._h = String(v); this.writes++; }});
+  const X = fg139.mk();
+  const F = new Function('$', 't', 'FG', 'fgGlobal', 'fgHead', 'fgCard', 'gCovCard', 'gst', html.slice(a, b) + '\nreturn gRailRender;')(
+    q => (q === '#g-rail' ? el : null), v321.T, {g: o.g === undefined ? fg139.N : o.g}, X.fgGlobal, X.fgHead, X.fgCard, () => '<span class="sg">COV</span>', {period: '1M'});
+  return {F, el, X};
+}
+
+test('v350: prawa kolumna GLOBAL (#g-rail) — „Strach i chciwość GLOBAL” (półkole, kółka 1D / 1T / 1M z dniami) i zaraz pod nim „Pokrycie danych GLOBAL”; ten sam tekst — bez przerysowania; brak pliku — „—” i „brak danych”, nigdy zero', () => {
+  const R = v350Rail(); R.F(); const h = R.el.innerHTML;
+  assert.deepEqual([...h.matchAll(/<section class="panel (?:fg|gauge)" id="(g-r[a-z]+)"/g)].map(m => m[1]), ['g-rfg', 'g-rcov'], 'kolejność: strach i chciwość, zaraz pod nim pokrycie');
+  assert.ok(h.startsWith('<section class="panel fg" id="g-rfg"><h2><span>fg.t.g</span><button type="button" class="mini-i fg-i" data-fg-how="fg-how-g"'), 'tytuł z przyciskiem (i) do „Jak liczymy”');
+  assert.ok(h.includes('>62</text>') && h.includes('<b class="sg-n" aria-hidden="true">62</b>'), 'liczba w półkolu i tekstem (układ zwarty niskiego okna)');
+  assert.ok(h.includes('viewBox="0 0 200 148"'), 'półkole „wysokie” (przycinane w układzie zwartym)');
+  assert.equal((h.match(/<span class="sg-h" /g) || []).length, 3, 'kółka 1D / 1T / 1M z dniami zostają');
+  assert.deepEqual([...h.matchAll(/<\/b><i>([^<]*)<\/i>/g)].map(m => m[1]), ['w321.h.1d', 'w321.h.1w', 'w321.h.1m'], 'skróty 1D / 1T / 1M w panelu');
+  assert.ok(h.includes('<small>Sep 18</small>') && h.includes('<small>Aug 26</small>'), 'dni wartości wstecz zostają');
+  assert.ok(h.includes('<p class="fg-cap">fg.g.cap</p>'), 'podpis: wskaźnik własny (nie pomiar)');
+  assert.ok(h.endsWith('<section class="panel gauge" id="g-rcov"><h2>w321.cov.t</h2><span class="sg">COV</span></section>'), 'pokrycie danych GLOBAL zaraz pod wskaźnikiem');
+  assert.equal(R.el.writes, 1); R.F(); assert.equal(R.el.writes, 1, 'ten sam tekst — bez przerysowania');
+  /* panel (długie etykiety) bez 4. argumentu — jak dotąd: nazwy z dawnego słownika, bez liczby tekstem */
+  const G = R.X.fgGlobal(fg139.N), L = R.X.fgCard(G, 'T', true);
+  assert.deepEqual([...L.matchAll(/<\/b><i>([^<]*)<\/i>/g)].map(m => m[1]), ['fg.h.s1', 'fg.h.w1', 'fg.h.m1']); assert.ok(!L.includes('<b class="sg-n"'));
+  const E = v350Rail({g: null}); E.F(); const e = E.el.innerHTML;
+  assert.ok(e.includes('<span class="sg-st">fg.na</span>') && e.includes('>—</text>') && !/>0<\/text>/.test(e) && !e.includes('class="sg-hs'), 'bez pliku: „—” i „brak danych”, nigdy zero');
+  assert.ok(!/undefined|NaN|\[object/.test(h + e));
+});
+
+test('v350: układ — kolumna #g-rail tuż przed sekcją GLOBAL, środek GLOBAL w kolumnie 2, tablet i telefon: para pod mapą; niskie okno: zwarte karty; widoczność z zakładką; styl tylko ze zmiennych motywu', () => {
+  assert.equal(html.split('id="g-rail"').length, 2);
+  const r = html.indexOf('<aside class="rail" id="g-rail" hidden></aside>'), g = html.indexOf('<section class="global" id="global" role="tabpanel"');
+  assert.ok(r > 0 && g > r && g - r < 400, 'kolumna tuż przed sekcją GLOBAL (kolumna 3 siatki jak #rail)');
+  const c0 = html.indexOf('/* v350 (zlecenie właściciela 13.10.2026: GLOBAL jak CRYPTO)'), c1 = html.indexOf('#g-rfg .fg-cap{display:none}', c0), css = html.slice(c0, c1 + 40);
+  assert.ok(c0 > 0 && c1 > c0 && c1 < html.indexOf('</style>'), 'styl v350 w arkuszu strony');
+  for (const s of ['@media (min-width:1241px){#global{grid-column:2}#g-sg{display:none!important}}', '@media (max-width:1240px){#g-rail{display:none!important}}',
+    '@media (min-width:1241px) and (max-width:1499px){.gkpis{grid-template-columns:repeat(3,minmax(0,1fr))}}', '@media (max-height:860px){', '@media (max-height:699px){',
+    '#g-rcov .sg-tx{display:none}', '#g-rfg .sg-tx{display:none}'])
+    assert.ok(css.includes(s), 'styl: ' + s);
+  assert.ok(!/#[0-9a-fA-F]{3,6}\b|rgba?\(\d/.test(css.replace(/\/\*[\s\S]*?\*\//g, '')), 'tylko zmienne motywu (oba motywy)');
+  assert.ok(html.includes('@media (min-width:1241px){.app>.rail{position:sticky;top:min(0px,calc(100vh - var(--rail-h,0px)));align-self:start}}'), 'kolumna przyklejona jak w CRYPTO (v166)');
+  assert.ok(html.includes("{const gr=$('#g-rail');if(gr)gr.hidden=!(ov&&st.mode==='global');}"), 'kolumna widoczna tylko w GLOBAL (przegląd)');
+  assert.ok(html.includes("if(typeof gRailRender==='function')gRailRender();"), 'odświeżanie razem z lewą kolumną i parą pod mapą');
+  assert.ok(html.includes("const r=$('#g-rail');if(!r||typeof railH!=='function')return;railH(r);"), 'wysokość kolumny dla przyklejenia (--rail-h)');
+  /* lewa kolumna GLOBAL bez wskaźników, TRENDY bez zmian */
+  assert.ok(html.includes("P=typeof st==='object'&&st&&st.mode==='global'?'':sgPara();"), 'lewa kolumna: GLOBAL pusta, TRENDY jak dotąd');
+  /* scena CRYPTO: jedna kolumna przycisków +, −, ⟲, pełny ekran, TOP 10 */
+  const ids = [...html.slice(html.indexOf('<div class="zoom">', html.indexOf('id="stage"'))).slice(0, 2500).matchAll(/<button id="(z-[a-z0-9]+)"/g)].map(m => m[1]).slice(0, 5);
+  assert.deepEqual(ids, ['z-in', 'z-out', 'z-reset', 'z-full', 'z-t10'], 'kolejność przycisków sceny');
+  assert.ok(!/#stage \.zoom\{[^}]*grid-auto-flow:column/.test(html.slice(0, html.indexOf('</style>')).replace(/\/\*[\s\S]*?\*\//g, '')), 'scena: bez układu w dwóch kolumnach');
+});
+
+test('v350: „Wykresy” GLOBAL — kafel liniowy strachu i chciwości zdjęty (wskaźnik w prawej kolumnie), siatka 3 kolumn nadal pełna; karta „Karty” bez drugiego półkola', () => {
+  const K = v157.run(v157.KIT, v157.ENV(), 'WK_T'), cells = L => L.reduce((a, T) => a + (T.w ? 2 : 1) * (T.r ? 2 : 1), 0);
+  assert.ok(!K.WK_T.global.some(T => T.id === 'g-fg' || T.go === 'g-fg'), 'brak kafla g-fg');
+  assert.equal(cells(K.WK_T.global) % 3, 0, 'siatka 3 kolumn bez pustych pól'); assert.equal(cells(K.WK_T.global) % 2, 0, 'siatka 2 kolumn bez pustych pól');
+  assert.ok(html.includes('C.note+   /* v350: półkole tylko w prawej kolumnie (jeden wskaźnik na zakładkę) */'), 'karta GLOBAL bez fgCard');
 });

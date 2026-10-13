@@ -222,7 +222,7 @@ td .cell .logo-img{width:34px;height:34px}
 /* v140: grupy top 10 w scenie CRYPTO — przyciski „Top 10” i pełny ekran (jak mapa GLOBAL): komputer — druga kolumna po lewej (dotychczasowe trzy przyciski bez
    zmiany miejsca); telefon (≤ 620 px) — wszystkie pięć w rzędzie na dole sceny, gdzie nie ma etykiet ani monet (podpowiedź sceny jest tam ukryta); panel szczegółów
    w pełnym ekranie nad rzędem; podpowiedź monety; kolory grup w skrypcie (T10_COL, oba motywy) */
-#stage .zoom{direction:rtl;display:grid;grid-template-rows:repeat(3,34px);grid-auto-flow:column;grid-auto-columns:34px;gap:6px}
+#stage .zoom{display:flex;flex-direction:column;gap:6px}   /* v350 (zlecenie 13.10.2026): jedna kolumna od gory: +, −, obrot (⟲), pelny ekran, TOP 10 (dawniej dwie kolumny v140) */
 #stage .zoom button{direction:ltr}
 #z-t10 .t10-ic{display:flex;flex-direction:column;align-items:center;line-height:1;font-family:"Sora",sans-serif;font-weight:700;font-size:12px}
 #z-t10 .t10-ic small{font-size:7.5px;font-weight:600;letter-spacing:.6px;margin-bottom:1px}
@@ -239,7 +239,7 @@ td .cell .logo-img{width:34px;height:34px}
 .stage3d.full #why .d-grid .wide{grid-column:span 2}
 .stage3d.full #why h2{font-size:14px;margin-bottom:8px}
 body.cfull{overflow:hidden}
-@media (max-width:620px){#stage .zoom{top:auto;bottom:12px;direction:ltr;grid-template-rows:34px;grid-auto-flow:column}.stage3d.full #why{max-height:48%;bottom:58px}}
+@media (max-width:620px){#stage .zoom{top:auto;bottom:12px;flex-direction:row}.stage3d.full #why{max-height:48%;bottom:58px}}
 .t10-tip{position:absolute;z-index:4;pointer-events:none;width:max-content;max-width:min(270px,calc(100% - 12px));padding:9px 11px;border-radius:10px;
   background:var(--panel-2);border:1px solid var(--line-2);box-shadow:0 12px 32px rgba(0,0,0,.35);color:var(--tx);font-size:12px;line-height:1.45}
 .t10-tip[hidden]{display:none}
@@ -1449,7 +1449,36 @@ td .cell .logo-img{width:34px;height:34px}
 #g-sg[hidden]{display:none}
 #g-sg .sg-k{background:var(--panel-2)}
 #g-sg .sg-svg{max-width:150px}
-@media (min-width:901px){#g-sg{display:none!important}}
+/* v350 (zlecenie właściciela 13.10.2026: GLOBAL jak CRYPTO): od 1241 px prawa kolumna #g-rail (jak .rail CRYPTO — przyklejona, zawsze widoczna): duży
+   „Strach i chciwość GLOBAL” i zaraz pod nim „Pokrycie danych GLOBAL”; lewa kolumna bez wskaźników; środek GLOBAL w kolumnie 2 (nie 2/4), kafelki
+   KPI po 3 w rzędzie do 1499 px. Do 1240 px (tablet, telefon) kolumny nie ma — para pod mapą (#g-sg), jak dotąd na telefonie. */
+@media (min-width:1241px){#global{grid-column:2}#g-sg{display:none!important}}
+@media (min-width:1241px) and (max-width:1499px){.gkpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:1240px){#g-rail{display:none!important}}
+/* niskie okno: „Pokrycie danych GLOBAL” zwarte od 860 px wysokości okna w dół (półkole obok liczby, jak dawna lewa kolumna), „Strach i chciwość GLOBAL”
+   od 699 px (np. 1280 × 640) — oba wskaźniki mieszczą się w oknie bez przewijania (1600 × 725, 1280 × 720: duże półkole strachu i chciwości
+   i zwarte pokrycie); wyższe okna — oba duże jak w CRYPTO */
+@media (max-height:860px){
+  #g-rail{gap:10px}
+  #g-rcov h2{margin-bottom:6px}
+  #g-rcov .sg{display:grid;grid-template-columns:106px minmax(0,1fr);column-gap:8px;row-gap:1px;align-items:center;text-align:center}
+  #g-rcov .sg-svg{width:106px;height:58px;max-width:none}
+  #g-rcov .sg-tx{display:none}
+  #g-rcov .sg-n{display:block;justify-self:center;font-size:26px}
+  #g-rcov .sg-nl{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;column-gap:6px;min-width:0}
+  #g-rcov .lv{font-size:14px}
+  #g-rcov .sg-p,#g-rcov .sg-d{grid-column:1/-1}
+}
+@media (max-height:699px){
+  #g-rfg h2{margin-bottom:6px}
+  #g-rfg .sg{display:grid;grid-template-columns:106px minmax(0,1fr);column-gap:8px;row-gap:1px;align-items:center;text-align:center}
+  #g-rfg .sg-svg{width:106px;height:58px;max-width:none}
+  #g-rfg .sg-tx{display:none}
+  #g-rfg .sg-n{display:block;justify-self:center;font-size:32px}
+  #g-rfg .sg-st,#g-rfg .sg-d,#g-rfg .sg-hs{grid-column:1/-1;justify-self:center}
+  #g-rfg .sg-hs{margin-top:3px}
+  #g-rfg .fg-cap{display:none}
+}
 #c-fg .sg{margin-top:4px}
 #g-fg .sg{margin:6px 0 4px}
 /* v321 (decyzja właściciela 10.10): kolory kierunku w GLOBAL i na stronie Aktywa — wzrost / plus / ▲ zielony, spadek / minus / ▼ czerwony, bez zmian / informacja
@@ -1786,8 +1815,8 @@ td .cell .logo-img{width:34px;height:34px}
             <button id="z-in" data-i18n-aria="zoom.in">+</button>
             <button id="z-out" data-i18n-aria="zoom.out">−</button>
             <button id="z-reset" data-i18n-aria="zoom.reset">⟲</button>
-            <button id="z-t10" data-i18n-aria="c10.btn" data-i18n-title="c10.btn" aria-pressed="true"><span class="t10-ic" aria-hidden="true"><small>TOP</small>10</span></button>
             <button id="z-full" data-i18n-aria="c10.full" data-i18n-title="c10.full" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path class="ic-open" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><path class="ic-close" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>
+            <button id="z-t10" data-i18n-aria="c10.btn" data-i18n-title="c10.btn" aria-pressed="true"><span class="t10-ic" aria-hidden="true"><small>TOP</small>10</span></button>
           </div>
         </div>
         <div class="chips" id="chips"></div>
@@ -1879,6 +1908,7 @@ td .cell .logo-img{width:34px;height:34px}
   <section class="page" id="page-sources" hidden></section>
   <section class="page" id="page-method" hidden></section>
 
+  <aside class="rail" id="g-rail" hidden></aside><!-- v350: prawa kolumna GLOBAL (jak #rail CRYPTO): „Strach i chciwość GLOBAL” i pod nim „Pokrycie danych GLOBAL” -->
   <section class="global" id="global" role="tabpanel" aria-labelledby="tab-global" hidden>
     <div class="head-row">
       <div>
@@ -4232,14 +4262,14 @@ function sgSvg(v,segs,txt,aria,big){
    Przegląd 10.10: w panelach nad kółkami nazwy jak dawniej („Poprzednia sesja” / „Wczoraj”, „Tydzień temu”, „Miesiąc temu” — w języku strony); w wąskiej kolumnie
    skróty ze słownika (FG_AB), pełna nazwa w podpowiedzi; wąska kolumna — półkole „wysokie” i liczba także tekstem (.sg-n, widoczna tylko w układzie zwartym) */
 const FG_AB=['w321.h.1d','w321.h.1w','w321.h.1m'];   /* v321 (przegląd 10.10): skróty pod kółkami w wąskiej kolumnie ze słownika (pl 1D / 1T / 1M, en 1D / 1W / 1M …) */
-function fgCard(X,title,long){
+function fgCard(X,title,long,ab){   /* v350: ab — w panelu etykiety skrótami 1D / 1T / 1M, półkole „wysokie” i liczba tekstem (prawa kolumna GLOBAL) */
   const has=!!X&&fgNum(X.v),s=has?X.s:null,sn=has?(s?t('fg.s.'+s):'—'):t('fg.na');
   const aria=has?t('fg.aria',{t:title,v:fgInt(X.v),s:sn}):title+(typeof sepK==='function'?sepK():': ')+t('fg.na');
   const H=X&&Array.isArray(X.hist)?X.hist.slice(1,4):[];
   const hist=H.map(([lab,row],i)=>{const ok=!!row&&fgNum(row[1]),q=ok?X.stOf(row):null,qn=ok?(q?t('fg.s.'+q):'—'):t('fg.na');
     return `<span class="sg-h" title="${escH(t(lab)+(typeof sepK==='function'?sepK():': ')+(ok?fgInt(row[1])+' — '+qn+' · '+fgLong(row[0]):t('fg.na')))}">`+
-      `<b class="fg-c fg-${q||'na'}">${ok?fgInt(row[1]):'—'}</b><i>${long?t(lab):t(FG_AB[i])}</i><em>${escH(qn)}</em><small>${ok?escH(fgShort(row[0])):'—'}</small></span>`;}).join('');
-  return `<span class="sg">${sgSvg(has?X.v:null,SG_FG,has?fgInt(X.v):'—',aria,!long)}${long?'':`<b class="sg-n" aria-hidden="true">${has?fgInt(X.v):'—'}</b>`}`+
+      `<b class="fg-c fg-${q||'na'}">${ok?fgInt(row[1]):'—'}</b><i>${long&&!ab?t(lab):t(FG_AB[i])}</i><em>${escH(qn)}</em><small>${ok?escH(fgShort(row[0])):'—'}</small></span>`;}).join('');
+  return `<span class="sg">${sgSvg(has?X.v:null,SG_FG,has?fgInt(X.v):'—',aria,!long||ab)}${long&&!ab?'':`<b class="sg-n" aria-hidden="true">${has?fgInt(X.v):'—'}</b>`}`+
     `<span class="sg-st${s?' fg-'+s:''}">${s?'<i class="fg-dot"></i>':''}${escH(sn)}</span>`+
     (has&&fgIso(X.date)?(long?`<span class="sg-d">${t('fg.upd',{d:fgLong(X.date)+gAgeNote(X.date)})}</span>`:   /* panel: jak dawniej „Dane z dnia … · wiek” */
       `<span class="sg-d" title="${escH(t('fg.upd',{d:fgLong(X.date)}))}">${escH(fgShort(X.date)+gAgeNote(X.date))}</span>`):'')+(hist?`<span class="sg-hs${long?' sg-hl':''}">${hist}</span>`:'')+`</span>`;
@@ -4322,7 +4352,7 @@ function fgRenderG(){
   const open=typeof el.querySelectorAll==='function'?[...el.querySelectorAll('details[open]')].map(d=>d.id).filter(Boolean):[];
   el.innerHTML=`<div class="etfh"><div><h2>${ico}${title}${fgHead(t('fg.meth.g'),'fg-how-g')}</h2><p class="pnote">${t('fg.g.sub')}</p></div>`+
     `<div class="etfb">${tz}<span class="live on"><i></i>${t('inst.file',{t:engDate(N.at)})}</span></div></div><p class="fg-cap fg-own">${t('fg.g.cap')}</p>`+
-    fgCard(X,title,true)+C.note+   /* v321: wspólna karta wskaźnika (jak w lewej kolumnie; dzień danych jak dawniej) */
+    C.note+   /* v350: półkole tylko w prawej kolumnie (jeden wskaźnik na zakładkę) */   /* v321: wspólna karta wskaźnika (jak w lewej kolumnie; dzień danych jak dawniej) */
     `<h3 class="mtxt">${t('fg.h.parts')}</h3><div class="list-wrap"><table class="etft"><thead><tr><th>${t('fg.col.c')}</th><th>${t('fg.col.s')}</th><th>${t('fg.col.d')}</th></tr></thead><tbody>${C.rows}</tbody></table></div>${C.sx||''}`+
     `<details class="etfd" id="fg-how-g"><summary>${t('fg.how')}</summary><p class="pnote">${t('fg.meth.g')}</p><p class="pnote">${t('fg.not')}</p></details>`+
     `<p class="pfoot">${t('inst.file',{t:engDate(N.at)})} · ${t('eng.disclaimer')}</p>`;
@@ -9691,6 +9721,7 @@ function applyVis(){
   $('#settings').hidden=page!=='settings';
   $('#crypto').hidden=!(ov&&st.mode==='crypto');
   $('#rail').hidden=!(ov&&st.mode==='crypto');
+  {const gr=$('#g-rail');if(gr)gr.hidden=!(ov&&st.mode==='global');}   /* v350: prawa kolumna GLOBAL */
   $('#global').hidden=!(ov&&st.mode==='global');
   $('#trendy').hidden=!(ov&&st.mode==='trendy');
   PAGES.forEach(k=>{const el=$('#page-'+k);if(el)el.hidden=page!==k;});
@@ -9765,7 +9796,7 @@ function sgCovC(){
 function sgCard(k,title,body,tip){return `<button type="button" class="sg-k" data-sfg="${k}"${tip?` title="${escH(tip)}"`:''}><span class="sg-t">${escH(title)}</span>${body}</button>`;}
 function fgRenderSide(){
   const el=$('#side-fg'),ph=$('#g-sg');if(!el&&!ph)return;
-  const D=typeof KR==='object'&&KR?KR.data:null,P=sgPara();
+  const D=typeof KR==='object'&&KR?KR.data:null,P=typeof st==='object'&&st&&st.mode==='global'?'':sgPara();   /* v350: GLOBAL — wskaźniki w prawej kolumnie (#g-rail), lewa bez nich */
   const pair=k=>{
     if(k==='c')return sgCard('cov-c',t('rail.rel'),sgCovC(),sgCovCD())+sgCard('crypto',t('fg.t.c'),fgCard(D&&typeof D==='object'?fgCrypto(D.fng):null,t('fg.t.c')),t('fg.c.cap'));
     const C=typeof gCover==='function'&&typeof gst==='object'?gCover(gst.period):null;
@@ -9773,6 +9804,7 @@ function fgRenderSide(){
     return sgCard('cov-g',t('w321.cov.t'),typeof gCovCard==='function'?gCovCard():'',tip)+sgCard('global',t('fg.t.g'),fgCard(FG.g?fgGlobal(FG.g):null,t('fg.t.g')),t('fg.g.cap'));};
   if(el){const h=P?pair(P):'';if(el._sg!==h){el._sg=h;el.innerHTML=h;}el.hidden=!h;}   /* ten sam tekst — bez przerysowania (fokus i podpowiedź zostają) */
   if(ph){const h=pair('g');if(ph._sg!==h){ph._sg=h;ph.innerHTML=h;}ph.hidden=false;}
+  if(typeof gRailRender==='function')gRailRender();   /* v350: prawa kolumna GLOBAL — ten sam obieg odświeżania */
 }
 (function(){
   const go=()=>{try{fgRenderSide();}catch(e){}};   /* lewa kolumna nigdy nie psuje strony */
@@ -9790,6 +9822,19 @@ function fgRenderSide(){
     setTimeout(()=>p.scrollIntoView({behavior:st.anim?'smooth':'auto',block:'start'}),60);});
   go();
 })();   /* v321: koniec lewej kolumny wskaźników */
+/* v350 (zlecenie właściciela 13.10.2026): GLOBAL jak CRYPTO — prawa kolumna #g-rail (komputer > 1240 px, zawsze widoczna, przyklejona jak #rail): duży
+   „Strach i chciwość GLOBAL” (półkole, kółka 1D / 1T / 1M z dniami — fgCard w panelu) i zaraz pod nim „Pokrycie danych GLOBAL” (gCovCard, to samo co
+   w parze pod mapą). Liniowy wykres strachu i chciwości z „Wykresów” i półkole z karty „Karty” zdjęte — jeden wskaźnik na zakładkę. (i) przy tytule
+   otwiera „Jak liczymy” karty ze składnikami (fgHowOpen). Odświeżanie: fgRenderSide (dane, język, okres, zakładka). Bez nowych tekstów — klucze v139 / v321. */
+function gRailRender(){
+  const el=$('#g-rail');if(!el)return;
+  const title=t('fg.t.g'),X=FG.g?fgGlobal(FG.g):null;
+  const h=`<section class="panel fg" id="g-rfg"><h2><span>${title}</span>${fgHead(t('fg.meth.g'),'fg-how-g')}</h2>${fgCard(X,title,true,true)}<p class="fg-cap">${t('fg.g.cap')}</p></section>`+
+    `<section class="panel gauge" id="g-rcov"><h2>${t('w321.cov.t')}</h2>${typeof gCovCard==='function'&&typeof gst==='object'?gCovCard():''}</section>`;
+  if(el._sg!==h){el._sg=h;el.innerHTML=h;}   /* ten sam tekst — bez przerysowania */
+}
+(function(){const r=$('#g-rail');if(!r||typeof railH!=='function')return;railH(r);
+  if(typeof ResizeObserver==='function'){try{new ResizeObserver(()=>{try{railH(r);}catch(e){}}).observe(r);}catch(e){}}})();   /* wysokość kolumny dla przyklejenia (CSS .app>.rail) */
 /* v154: sekcje do wyboru (cel właściciela 04.10: „strona za długa — czytelnik ma sam wybierać”) — w GLOBAL i CRYPTO każda karta z nagłówkiem
    (.etfh) startuje zwinięta do tytułu, jednej linii opisu i znaczka świeżości; kliknięcie nagłówka (poza jego przyciskami i linkami) albo strzałki
    = rozwiń / zwiń; rozwinięte karty zapamiętane w tej przeglądarce (cfai.zw); nad kartami „Rozwiń wszystkie / Zwiń wszystkie”. Karty rysowane od
@@ -14165,8 +14210,7 @@ function wkCFg(){
 const WK_T={
   global:[
     {id:'g-reg',tt:'wk.g.reg.t',go:'gmap',src:['g-kpis'],b:wkGReg},
-    {id:'g-prob',tt:'g.pr.t',go:'g-prob',src:['g-prob'],b:wkGProb},
-    {id:'g-fg',tt:'fg.t.g',go:'g-fg',src:['g-fg'],b:wkGFg},
+    {id:'g-prob',tt:'g.pr.t',go:'g-prob',w:1,src:['g-prob'],b:wkGProb},   /* v350: kafla strachu i chciwości GLOBAL nie ma (wskaźnik w prawej kolumnie); szerszy kafel regionów — siatka 3 kolumn pełna */
     {id:'g-ix',tt:'ix.t',go:'g-indeksy',r:1,src:['g-indeksy'],b:wkGIx},
     {id:'g-str',tt:'st.t.fsi',go:'g-stres',w:1,src:['g-stres'],b:wkGStr},
     {id:'g-fund',tt:'wk.g.fund.t',go:'g-fund',w:1,src:['g-fund'],b:wkGFund},
