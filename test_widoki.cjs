@@ -4704,7 +4704,7 @@ test('v121: insiderzy — słownik EXTRA112 w 10 językach (te same klucze, miej
   assert.ok(v96src.tFor('pl')('ins.not').includes('nie zero') && v96src.tFor('en')('ins.not').includes('not zero'), 'brak ≠ zero w nocie');
   assert.equal(html.split('<section class="panel pcard" id="g-insider" hidden></section>').length, 2, 'jedno miejsce sekcji');
   const u = html.indexOf('<section class="panel pcard" id="g-archiwum" hidden></section>'), x = html.indexOf('<section class="panel pcard" id="g-insider" hidden></section>');
-  assert.ok(x > u && x < u + 400, 'po panelu archiwum (zakładka GLOBAL)');
+  assert.ok(x > u && x < u + 1000, 'po panelu archiwum (zakładka GLOBAL)');
   assert.ok(html.includes("srvJSON('insider')") && html.includes('/* v121 insiderzy */') && html.includes('#g-insider .etft{min-width:0;width:100%}') && html.includes('#g-insider .ins-bar{'), 'plik, styl');
   assert.ok(html.includes('for(const l in EXTRA112)if(I18N[l])Object.assign(I18N[l],EXTRA112[l]);'), 'słownik dołączony');
   assert.ok(html.includes('if(!ok&&INS.data)return;') && html.includes('INS.timer=setInterval(()=>{if(!document.hidden)insLoad();},60*60*1000)'), 'odświeżanie co 60 min, błąd nie zasłania danych');
@@ -26709,4 +26709,173 @@ test('v367 (F5Z2): słownik — czysty JSON w 10 językach, te same klucze i mie
   /* język bez tłumaczenia schodzi do angielskiego, nie do surowego klucza; każdy język renderuje blok bez NaN */
   for (const L of LANGS) { const K = prd367.full(L), hh = K.api.prdBody(); assert.ok(!/prd367\./.test(hh) && !/NaN|undefined/.test(hh), L + ': blok bez surowych kluczy i NaN'); }
   const ja = prd367.full('ja').api.prdBody(); assert.ok(ja.includes('PLN/MWh') && ja.includes('€/t'));
+});
+
+// ===================== v368 (F8Z4): stres i niepewność w GLOBAL (data/niepewnosc.json: CISS 14 obszarów, EPU, GPR) =====================
+// Fixtura: plik niepewnosc.json w układzie, jaki buduje zbieracz (wartości CISS i ogony EPU i GPR z 13.10.2026; wykresy skrócone do kilku punktów).
+const np368 = (() => {
+  const a0 = html.indexOf('/* ===================== v368 (F8Z4): STRES I NIEPEWNOŚĆ'), a1 = html.indexOf('/* ---------- koniec bloku stresu i niepewności (v368) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v368 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-13T10:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[\u00a0\u202f]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-niepewnosc': el};
+    const calls = [], hnd = [], ivs = [], wl = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'flagImg', 'document', 'MutationObserver', 'setInterval', 'wkLines', 'wkMs', 'wkIso', 'wkDay', 'ueCty', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {NPZ, npzLoad, renderNpz, npzOk, npzAr, npzDay, npzPLine};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, () => '', i => i, a => '[' + a + ']', doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (Ls, o) => { wl.push({L: Ls, o}); return '<chart n=' + Ls.map(l => l.n + ':' + l.d.length).join(',') + ' aria="' + o.aria + '">'; },
+      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), ms => new Date(ms).toISOString().slice(0, 10), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), a => (a === 'US' ? 'USA' : a === 'GB' ? 'Wielka Brytania' : a === 'CN' ? 'Chiny' : 'k-' + a), FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, hnd, ivs, wl, mos, expand, collapse, html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({label: m[1], val: txt(m[3].split('<small')[0]), raw: m[3], when: txt(m[4])}));
+  const hist = (d0, v) => v.map((x, i) => [new Date(Date.parse(d0 + 'T12:00:00Z') + 86400000 * i).toISOString().slice(0, 10), x]);
+  const A = (v, d1, p, extra) => Object.assign({date: '2026-10-09', v, d1, p, n: 1300, from: '2021-10-22'}, extra || {});
+  const Hc = v => hist('2026-10-07', [v * 1.1, v * 1.05, v]);
+  const J = () => ({v: 1, at: '2026-10-13T16:12:00+00:00', ok: {ciss: true, epu: true, gpr: true}, part_at: {}, lm: {}, errs: {}, src: 'x',
+    ciss: {date: '2026-10-09', unit: 'x', a: {
+      U2: A(0.0146, -0.0022, 13.2, {hist: Hc(0.0146)}), US: A(0.0073, 0.0004, 9.1, {hist: Hc(0.0073)}), GB: A(0.0114, 0, 37.1, {hist: Hc(0.0114)}), CN: A(0.0013, 0.001, 0.2, {hist: Hc(0.0013), from: '2021-10-19'}),
+      AT: A(0.019, -0.004, 23.3), BE: A(0.0494, 0.0021, 35.7), DE: A(0.0197, -0.0013, 39.8), ES: A(0.0046, -0.0013, 13.2), FI: A(0.005, -0.001, 12.2), FR: A(0.0507, -0.0004, 99.8),
+      IE: A(0.0126, -0.0035, 28.1), IT: A(0.0171, -0.0039, 21.1), NL: A(0.0032, -0.0016, 8.3), PT: A(0.0134, -0.0025, 17.6)}},
+    epu: {date: '2026-10-12', v: 155.29, ma30: 251.81, d30: -18.63, p: 66.9, n: 1826, from: '2021-10-13', hist: hist('2026-10-10', [251.4, 252.2, 251.81])},
+    gpr: {date: '2026-10-13', v: 342.4, ma30: 177.9, d30: 39.48, p: 86.7, n: 1826, from: '2021-10-14', hist: hist('2026-10-11', [170.5, 172.3, 177.9])}});
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {niepewnosc_ciss: true, niepewnosc_epu: true, niepewnosc_gpr: 'cached'}} : meta, niepewnosc: j === undefined ? J() : j});
+  return {mk, tiles, files, J, sp, txt, code, helpers, clone, LOC};
+})();
+
+test('v368 (F8Z4): stres i niepewność — nagłówek od razu, plik dopiero po rozwinięciu karty; 6 kafli (4 obszary stresu, EPU, GPR) z wartością, zmianą w kolorach kierunku, położeniem na tle historii z opisem okresu, datą i wiekiem', () => {
+  const K = np368.mk('pl', np368.files());
+  assert.equal(K.els['#g-niepewnosc'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Stres i niepewność</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Wskaźniki zostaną wczytane po rozwinięciu panelu.') && np368.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku niepewnosc'); assert.equal(K.calls.filter(c => c === 'niepewnosc').length, 0);
+  K.expand();
+  assert.equal(K.calls.filter(c => c === 'niepewnosc').length, 1, 'plik po rozwinięciu karty'); h = K.html();
+  const T = np368.tiles(h);
+  assert.deepEqual(T.map(x => x.label), ['Stres rynków finansowych: strefa euro', 'Stres rynków finansowych: USA', 'Stres rynków finansowych: Wielka Brytania', 'Stres rynków finansowych: Chiny', 'Niepewność polityki USA (EPU, średnia 30 dni)', 'Ryzyko geopolityczne (GPR, średnia 30 dni)']);
+  assert.deepEqual(T.map(x => x.val), ['0,015', '0,007', '0,011', '0,001', '252', '178']);
+  assert.ok(T[0].raw.includes('<small class="neg">▼ −0,002 1 dzień</small>'), T[0].raw); assert.ok(T[1].raw.includes('<small class="neu">• 0,000 1 dzień</small>'), 'zmiana 0,0004 po zaokrągleniu do 3 miejsc = zero = żółte: ' + T[1].raw);
+  assert.ok(T[2].raw.includes('<small class="neu">• 0,000 1 dzień</small>'), 'zero = żółte'); assert.ok(T[3].raw.includes('<small class="pos">▲ +0,001 1 dzień</small>'), T[3].raw);
+  assert.ok(T[4].raw.includes('<small class="neg">▼ −19 wobec 30 dni temu</small>'), T[4].raw); assert.ok(T[5].raw.includes('<small class="pos">▲ +39 wobec 30 dni temu</small>'), T[5].raw);
+  assert.ok(/<small class="pc">wyżej niż w 13% dni od [^<]*2021<\/small>/.test(T[0].raw), 'percentyl z opisem okresu: ' + T[0].raw);
+  assert.ok(/<small class="pc">wyżej niż w 67% dni od [^<]*2021<\/small>/.test(T[4].raw) && /<small class="pc">wyżej niż w 87% dni od [^<]*2021<\/small>/.test(T[5].raw), 'EPU i GPR: percentyl średniej 30 dni, z początkiem okna');
+  assert.ok(T[4].raw.includes('<small class="pc">wartość z ostatniego dnia: 155</small>') && T[5].raw.includes('<small class="pc">wartość z ostatniego dnia: 342</small>'), 'wartość ostatniego dnia osobno');
+  assert.ok(T[0].when.includes('wiek(2026-10-09)') && T[4].when.includes('wiek(2026-10-12)') && T[5].when.includes('wiek(2026-10-13)'), 'data i wiek każdej części');
+  assert.ok(T[3].raw.includes('najniżej od'), 'percentyl poniżej 0,5 = najniżej od: ' + T[3].raw);
+  assert.ok(h.includes('Jak to czytać: CISS to wskaźnik od 0 (spokój) do 1 (silny stres)') && h.includes('nie są radą inwestycyjną'), 'opis i brak porady');
+  assert.ok(h.includes('D:2026-10-13T16:12:00+00:00'), 'data pliku');
+  assert.ok(!/ECB|EBC|Baker|Bloom|Davis|Iacoviello|Caldara|policyuncertainty|matteoiacoviello|data-api/i.test(h), 'zero nazw dostawców na stronie');
+  K.expand(); assert.equal(K.calls.filter(c => c === 'niepewnosc').length, 1, 'plik świeży — bez drugiego pobrania');
+  const iv = K.ivs.find(x => x[1] === 30 * 60 * 1000); assert.ok(iv); iv[0](); assert.equal(K.calls.filter(c => c === 'niepewnosc').length, 2, 'odświeżenie wymuszone zegarem');
+  K.collapse(); iv[0](); assert.equal(K.calls.filter(c => c === 'niepewnosc').length, 2, 'zwinięta karta — zegar nie pobiera');
+  const KO = np368.mk('pl', np368.files(), {open: true}); assert.equal(KO.calls.filter(c => c === 'niepewnosc').length, 1); assert.equal(np368.tiles(KO.html()).length, 6);
+  const KZ = np368.mk('pl', np368.files()); KZ.collapse(); assert.equal(KZ.calls.filter(c => c === 'niepewnosc').length, 0);
+});
+
+test('v368 (F8Z4): wykresy 1 roku (stres: 4 obszary; EPU i GPR: średnia 30 dni) i tabela krajów strefy euro od najwyższego stresu — kolumny, flagi, daty z wiekiem', () => {
+  const K = np368.mk('pl', np368.files()); K.expand(); const h = K.html();
+  assert.equal(K.wl.length, 3); assert.deepEqual(K.wl[0].L.map(l => l.n + ':' + l.d.length + ':' + l.cls), ['strefa euro:3:npz1', 'USA:3:npz2', 'Wielka Brytania:3:npz3', 'Chiny:3:npz4']);
+  assert.equal(K.wl[1].L.length, 1); assert.equal(K.wl[1].L[0].d.length, 3); assert.equal(K.wl[2].L[0].d.length, 3);
+  assert.ok(h.includes('Stres rynków finansowych (0–1), ostatni rok') && h.includes('Niepewność polityki USA, średnia 30 dni, ostatni rok') && h.includes('Ryzyko geopolityczne, średnia 30 dni, ostatni rok'));
+  assert.ok(K.wl[0].o.aria.startsWith('Stres rynków finansowych (0–1), ostatni rok: wykres liniowy od ') && K.wl[1].o.aria.includes('wykres liniowy od'), 'opis wykresu dla czytników');
+  assert.ok(h.includes('<chart n=strefa euro:3,USA:3,Wielka Brytania:3,Chiny:3'), 'wykres stresu z czterema liniami');
+  const tb = h.slice(h.indexOf('<details class="etfd">'), h.indexOf('</details>'));
+  assert.ok(tb.includes('Strefa euro: stres w poszczególnych krajach') && tb.includes('<th>Kraj</th><th>Stres (0–1)</th><th>Wyżej niż (% dni)</th><th>Dane z dnia</th>'));
+  const rows = [...tb.matchAll(/<tr><td><span class="cell">\[([a-z]+)\]<span>([^<]*)<\/span><\/span><\/td><td><span class="cell mono"><span>([^<]*)<\/span><\/span><\/td><td><span class="cell mono"><span>([^<]*)<\/span><\/span><\/td><td>(.*?)<\/td><\/tr>/g)];
+  assert.equal(rows.length, 10, '10 krajów strefy euro'); assert.deepEqual(rows.map(r => r[2]), ['k-FR', 'k-BE', 'k-DE', 'k-AT', 'k-IT', 'k-PT', 'k-IE', 'k-FI', 'k-ES', 'k-NL'], 'od najwyższego stresu'); assert.deepEqual(rows.map(r => r[1]), ['fr', 'be', 'de', 'at', 'it', 'pt', 'ie', 'fi', 'es', 'nl'], 'flagi');
+  assert.deepEqual(rows.map(r => r[3]), ['0,051', '0,049', '0,020', '0,019', '0,017', '0,013', '0,013', '0,005', '0,005', '0,003']); assert.deepEqual(rows.slice(0, 3).map(r => r[4]), ['100%', '36%', '40%']);
+  assert.ok(rows.every(r => r[5].includes('wiek(2026-10-09)')), 'data i wiek w ostatniej kolumnie');
+  assert.ok(/#g-niepewnosc \.etft th:last-child,#g-niepewnosc \.etft td:last-child\{text-align:left;white-space:normal\}/.test(html), 'ostatnia kolumna zawija się — telefon bez przewijania w bok');
+});
+
+test('v368 (F8Z4): percentyl z opisem okresu — skrajne i brakujące wartości; brak danych = „—” (nigdy zero); niepoprawne części odrzucone', () => {
+  const K = np368.mk('pl', np368.files()); const api = K.api;
+  const S = (p, from) => ({p, from}); const l = o => { const r = api.npzPLine(o); return r ? r.txt : null; };
+  assert.ok(/^wyżej niż w 50% dni od /.test(l(S(50, '2021-10-22')))); assert.ok(/^najniżej od /.test(l(S(0.3, '2021-10-22')))); assert.ok(/^najwyżej od /.test(l(S(99.6, '2021-10-22'))));
+  assert.ok(/^wyżej niż w 1% dni od /.test(l(S(0.6, '2021-10-22'))), '0,6 → 1% (nie „najniżej”)'); assert.ok(/^wyżej niż w 100% dni od /.test(l(S(99.5, '2021-10-22'))));
+  assert.equal(l(S(null, '2021-10-22')), null, 'brak percentyla = bez linii'); assert.equal(l(S(50, undefined)), null, 'bez początku okna nie ma opisu okresu — bez linii'); assert.equal(l(S(130, '2021-10-22')), null); assert.equal(l(S(-1, '2021-10-22')), null); assert.equal(l(null), null);
+  const Z = np368.J(); Z.ciss.a.US.v = 2; Z.ciss.a.GB.date = 'wczoraj'; delete Z.ciss.a.CN; Z.epu.ma30 = 0; Z.gpr.ma30 = null; delete Z.ciss.a.DE;
+  const K2 = np368.mk('pl', np368.files(Z)); K2.expand(); const T = np368.tiles(K2.html());
+  assert.deepEqual(T.map(x => x.val), ['0,015', '—', '—', '—', '—', '—'], 'liczba poza 0–1, zła data, brak obszaru, zero i null = brak');
+  assert.ok(T[1].raw.includes('<small class="na">brak danych</small>') && !/<b>0[,.]00/.test(K2.html()), 'brak to nie zero');
+  assert.ok(!K2.html().includes('k-DE') && K2.html().includes('k-FR'), 'kraj bez danych — bez wiersza w tabeli');
+  const Z2 = np368.J(); Z2.ciss.a.U2.p = null; Z2.ciss.a.U2.d1 = null; Z2.epu.d30 = null; Z2.epu.v = null;
+  const T2 = np368.tiles((() => { const k = np368.mk('pl', np368.files(Z2)); k.expand(); return k.html(); })());
+  assert.ok(!T2[0].raw.includes('class="pc"') && T2[0].raw.includes('<small class="na">— 1 dzień</small>'), 'brak zmiany i percentyla: „—”, bez linii percentyla');
+  assert.ok(T2[4].raw.includes('<small class="na">— wobec 30 dni temu</small>') && !T2[4].raw.includes('wartość z ostatniego dnia'), 'brak wartości dnia — bez linii');
+});
+
+test('v368 (F8Z4): panel ukryty bez części w meta; błąd pobrania — komunikat bez pętli zapytań; plik niepoprawny nie zasłania wczytanych danych', () => {
+  const K0 = np368.mk('pl', np368.files(undefined, {ok: {fred: true}})); assert.equal(K0.els['#g-niepewnosc'].hidden, true); assert.equal(K0.els['#g-niepewnosc'].innerHTML, '');
+  const K1 = np368.mk('pl', np368.files(undefined, null)); assert.equal(K1.els['#g-niepewnosc'].hidden, true, 'brak meta.json = ukryty');
+  const K3 = np368.mk('pl', np368.files(undefined, {ok: {niepewnosc_gpr: false}})); assert.equal(K3.els['#g-niepewnosc'].hidden, false, 'wystarczy jedna część w meta');
+  const K = np368.mk('pl', np368.files(null)); K.expand();
+  assert.ok(K.html().includes('Nie udało się wczytać wskaźników')); K.expand(); K.expand();
+  assert.equal(K.calls.filter(c => c === 'niepewnosc').length, 1, 'po błędzie ta sama minuta — bez kolejnych zapytań');
+  const bad = np368.J(); bad.v = 2; assert.equal(K.api.npzOk(bad), false); bad.v = 1; bad.ciss = {}; delete bad.epu; delete bad.gpr; assert.equal(K.api.npzOk(bad), false); assert.equal(K.api.npzOk(null), false); assert.equal(K.api.npzOk(np368.J()), true);
+  const part = np368.J(); delete part.ciss; delete part.gpr; assert.equal(K.api.npzOk(part), true, 'wystarczy jedna część z liczbą'); const kp = np368.mk('pl', np368.files(part)); kp.expand();
+  assert.deepEqual(np368.tiles(kp.html()).map(x => x.val), ['—', '—', '—', '—', '252', '—']);
+  const bt = np368.J(); bt.at = 'nie-czas'; assert.equal(K.api.npzOk(bt), false);
+});
+
+test('v368 (F8Z4): słownik — 24 klucze w 10 językach, te same pola {x}, każdy klucz użyty w kodzie, zero nazw dostawców i znaków niewidocznych; liczby w formacie języka; telefon bez przewijania w bok (reguły CSS), kolory ze zmiennych motywu', () => {
+  const D = v96src.I18N, keys = Object.keys(D.pl).filter(k => k.startsWith('np368.'));
+  assert.equal(keys.length, 24, 'klucze: ' + keys.length);
+  const ph = s => (String(s).match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  for (const k of keys) {
+    for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+      assert.equal(typeof D[L][k], 'string', L + ' ' + k); assert.ok(D[L][k].length > 0, L + ' ' + k); assert.equal(ph(D[L][k]), ph(D.pl[k]), L + ' ' + k + ': pola {x}');
+      assert.ok(!/[\u200b-\u200f\u2060\ufeff\ufe0f\u00a0\u202f]/.test(D[L][k]), L + ' ' + k + ': znak niewidoczny'); assert.ok(!/\becb\b|\bebc\b|\bezb\b|\bbce\b|baker|bloom|iacoviello|caldara|policyuncertainty|federal reserve/i.test(D[L][k]), L + ' ' + k + ': nazwa dostawcy');
+    }
+    assert.ok(np368.code.includes("'" + k + "'"), 'klucz bez użycia w kodzie: ' + k);
+  }
+  assert.ok(D.pl['np368.read'].includes('nie są radą inwestycyjną') && D.en['np368.read'].includes('not investment advice'), 'opis bez porady');
+  assert.ok(D.pl['np368.p'].includes('{p}%') && D.pl['np368.p'].includes('{d}'), 'percentyl zawsze z opisem okresu (od {d})');
+  for (const L of ['de', 'en', 'ja', 'ru', 'zh', 'fr', 'es', 'it', 'pt']) {
+    const K = np368.mk(L, np368.files()); K.expand(); const h = K.html();
+    assert.ok(h.length > 2500 && !/np368\./.test(h), L + ': brak surowych kluczy'); assert.ok(np368.tiles(h).length === 6, L + ': 6 kafli');
+    for (const k of ['np368.k.epu', 'np368.k.gpr', 'np368.read']) assert.ok(h.includes(D[L][k]), L + ' ' + k + ' użyte w widoku');
+    assert.ok(h.includes(D[L]['np368.c.t']), L + ': tabela krajów');
+  }
+  assert.equal(np368.tiles((() => { const K = np368.mk('de', np368.files()); K.expand(); return K.html(); })())[0].val, '0,015', 'de: przecinek');
+  assert.equal(np368.tiles((() => { const K = np368.mk('en', np368.files()); K.expand(); return K.html(); })())[0].val, '0.015', 'en: kropka');
+  for (const q of ['#g-niepewnosc .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}', '@media (max-width:620px){#g-niepewnosc .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}', '#g-niepewnosc .etfk>span{white-space:normal;overflow-wrap:anywhere}',
+    '#g-niepewnosc .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3}', '#g-niepewnosc .etft{min-width:0;width:100%}', '<section class="panel pcard" id="g-niepewnosc" hidden></section>'])
+    assert.ok(html.includes(q), 'CSS/HTML: ' + q);
+  assert.ok(html.indexOf('id="g-niepewnosc"') > html.indexOf('id="g-zmiennosc"'), 'obok zmienności rynków (zaraz po niej)');
+  const between = html.slice(html.indexOf('id="g-zmiennosc"'), html.indexOf('id="g-niepewnosc"')); assert.ok(!/id="g-(insider|dolar)"/.test(between), 'zaraz po panelu zmienności');
+  const css = html.slice(html.indexOf('/* v368: stres i niepewność'), html.indexOf('/* v368: stres i niepewność') + 1700);
+  assert.ok(!/#[0-9a-f]{3,6}\b/i.test(css.slice(0, css.indexOf('@media (max-width:620px){#g-niepewnosc') + 120)), 'kolory tylko ze zmiennych motywu');
+  assert.ok(css.includes('small.neg{color:var(--rd-tx)}') && css.includes('small.pos{color:var(--gr-tx)}') && css.includes('small.neu{color:var(--yl-tx)}'), 'kolory kierunku: zielony wzrost, czerwony spadek, żółte zero');
+});
+
+test('v368 (F8Z4): kod panelu — plik tylko w npzLoad (po rozwinięciu), bez bezpośredniego pobrania i bez nazw dostawców poza komentarzem; słownik nakładany po ostatnim istniejącym', () => {
+  const code = np368.code, nc = code.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.equal((nc.match(/srvJSON\('niepewnosc'\)/g) || []).length, 1); assert.ok(/function npzLoad\(f\)\{[^\n]*\n[^\n]*srvJSON\('niepewnosc'\)/.test(nc), 'jedyny odczyt w npzLoad');
+  assert.ok(!/fetch\(|data\/niepewnosc/.test(nc) && !/ECB|EBC|Iacoviello|Caldara|Baker|policyuncertainty/i.test(nc), 'bez fetch i nazw dostawców');
+  const dm = /^const EXTRA(\d+)=\{"pl":\{"np368\.t"/m.exec(html); assert.ok(dm, 'słownik v368 obecny'); const n = +dm[1];
+  const fl = 'for(const l in EXTRA' + n + ')if(I18N[l])Object.assign(I18N[l],EXTRA' + n + '[l]);';
+  assert.equal(html.split(fl).length - 1, 1, 'jedna linia nakładania'); assert.ok(html.indexOf(fl) > dm.index, 'nakładanie po definicji');
+  const prev = [...html.matchAll(/^const EXTRA(\d+)=/gm)].map(m => +m[1]).filter(x => x < n);
+  assert.ok(prev.length > 100 && html.indexOf('for(const l in EXTRA' + Math.max(...prev) + ')') < dm.index, 'nakładany po wszystkich wcześniejszych słownikach');
+  assert.ok(html.indexOf('/* v357: koniec */') < html.indexOf('/* ===================== v368 (F8Z4): STRES I NIEPEWNOŚĆ'), 'moduł po znaczniku końca modułu v357 (poza wycinkami starszych testów)');
+  assert.ok(!/TradingView|tradingview/i.test(code), 'żadnych widgetów TradingView');
+  assert.ok(/zero:false/.test(nc) === false, 'wykresy od zera — bez przycinania osi');
 });

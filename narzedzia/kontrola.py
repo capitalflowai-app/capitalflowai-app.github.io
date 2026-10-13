@@ -8438,6 +8438,164 @@ def prad_kontrola(files, now=None):
     return {'spojnosc': prad_spojnosc(j), 'wiersze': P['wiersze'], 'uwagi': P['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v368 (F8Z4): stres i niepewność (data/niepewnosc.json) ----------------------------------------------------------------
+# Trzy części jednego pliku zbieracza: ciss (złożony wskaźnik stresu systemowego, 14 obszarów, dni robocze), epu (niepewność polityki gospodarczej USA, wszystkie dni kalendarza) i gpr
+# (ryzyko geopolityczne, wszystkie dni kalendarza); dla epu i gpr strona pokazuje średnią 30 dni. Kontrola czyta plik ze strony (bez zapytań do sieci) i sprawdza:
+# (1) wiek dnia danych każdej części osobnym wierszem (godziny robocze, bez sobót i niedziel). Stan 13.10.2026: CISS ukazuje się z opóźnieniem 2 dni roboczych (we wtorek wieczorem najnowszy
+#     jest piątek, ok. 46 godzin roboczych), EPU i GPR z opóźnieniem do 1 dnia. Progi z kalendarza publikacji, nie z testu wstecznego (źródła nie udostępniają dat wydań): CISS 144 h roboczych
+#     (3 dni zwykłego opóźnienia + 2 dni przerwy w święta EBC, np. Wielki Piątek i Poniedziałek Wielkanocny, + zapas), EPU i GPR 96 h roboczych; ⚠ = źródło spóźnia się albo część przestała się
+#     odświeżać (najwyżej uwaga, nigdy błąd przebiegu);
+# (2) spójność w pliku z progami z ROZKŁADU HISTORII (test wsteczny na całych danych źródeł, 13.10.2026): największy dzienny skok CISS w 5 latach 14 obszarów to 0,112 (próg 0,2), największa
+#     dzienna zmiana średniej 30 dni w latach 1985–2026 to 29,1 (EPU) i 33,1 (GPR) — progi 45 i 50 (1,5 raza więcej), zmiana średniej 30 dni wobec średniej sprzed 30 dni nie większa niż 600 (EPU; maksimum historii 386) i 900 (GPR; maksimum 618) — prawdziwe kryzysy (wrzesień 2001, kwiecień 2020) NIE są alarmem,
+#     dzienna wartość nie większa niż 1,5 raza historyczne maksimum (ok. 1050 → 1600),
+#     średnia 30 dni w granicach obejmujących całą historię z marginesem (co najwyżej 0,6 minimum i co najmniej 1,4 maksimum: EPU 33,6–585,8 → 15–900; GPR 39,1–681,7 → 20–1000). W całej historii obu serii takie progi dają 0 alarmów — także dla zmiany 30 dni (zob. test i bt_progi.py), a błąd
+#     skali, przesunięta kolumna albo wartość utknięta (30 dni tych samych liczb) i tak je przekroczą. Do tego: dni rosnące bez powtórzeń, ostatni punkt wykresu = pola date i v/ma30, percentyle 0–100,
+#     cztery główne obszary CISS z wykresem, komplet 14 obszarów, daty głównych obszarów nie rozjeżdżają się o więcej niż 5 dni;
+# (3) TYLKO INFORMACJA: CISS USA a indeks stresu USA z pliku stres.json (inne źródło): korelacja poziomów na wspólnych dniach (13.10.2026: 0,75 na 400 dniach; w oknach 120-dniowych od −0,2 do 0,87,
+#     więc żaden próg nie byłby uczciwy — podajemy liczbę, bez oceny).
+# Najwyżej ⚠ (nigdy błąd przebiegu); brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'niepewnosc')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['niepewnosc'] = 12 * 60   # odpytanie co 6 h (część z błędem: co godzinę) — wiek pliku; wiek dnia danych ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'niepewnosc_' + p_: 'stres i niepewność — część z błędem zostaje z datą (v368); wiek danych w wierszach świeżości' for p_ in ('ciss', 'epu', 'gpr')})
+NP_K_PROG = {'ciss': 144 * 60, 'epu': 96 * 60, 'gpr': 96 * 60}   # min roboczych — wiek dnia danych (kalendarz publikacji wyżej)
+NP_K_ETYKIETA = {'ciss': 'Stres i niepewność: stres systemowy CISS (strefa euro; dni robocze)', 'epu': 'Stres i niepewność: niepewność polityki USA (EPU)',
+                 'gpr': 'Stres i niepewność: ryzyko geopolityczne (GPR)'}
+NP_K_SKOK_CISS = 0.2              # dzienna zmiana CISS (test wsteczny: maksimum 0,112)
+NP_K_SKOK_MA = {'epu': 45.0, 'gpr': 50.0}                 # dzienna zmiana średniej 30 dni (maksimum 1985–2026: 29,1 i 33,1)
+NP_K_D30 = {'epu': 600.0, 'gpr': 900.0}                 # zmiana średniej 30 dni wobec średniej sprzed 30 dni (maksimum 1985–2026: EPU 386, GPR 618 — próg ponad maksimum z marginesem ≥ 1,4 raza)
+NP_K_DZIEN_MAX = 1600.0           # dzienna wartość EPU / GPR (maksimum 1985–2026: ok. 1050)
+NP_K_MA_ZAKRES = {'epu': (15.0, 900.0), 'gpr': (20.0, 1000.0)}   # średnia 30 dni (historia: EPU 33,6–585,8; GPR 39,1–681,7)
+NP_K_OBSZARY = ('U2', 'US', 'GB', 'CN', 'AT', 'BE', 'DE', 'ES', 'FI', 'FR', 'IE', 'IT', 'NL', 'PT')
+NP_K_GLOWNE = ('U2', 'US', 'GB', 'CN')
+NP_K_ROZJAZD_D = 5                # dni — rozjazd dat głównych obszarów CISS
+NP_K_UTKNIETA = 30                # tyle takich samych liczb z rzędu w wykresie = wartość utknięta
+
+
+def _np_k_num(v):
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float('inf') else None
+
+
+def _np_k_dzien(s):
+    return dt.date.fromisoformat(s) if isinstance(s, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', s) else None
+
+
+def _np_k_hist(h, nazwa, zakres, skok, zle, minlen):
+    """wykres [[dzień, liczba], …]: dni ściśle rosnące, liczby w zakresie, dzienne zmiany nie większe niż skok, wartość nie utknięta; zwraca ostatnią parę albo None"""
+    if not isinstance(h, list) or len(h) < minlen:
+        zle.append(f'{nazwa}: wykres krótszy niż {minlen} dni'); return None
+    prev = None
+    run = 1
+    for i, p in enumerate(h):
+        if not (isinstance(p, list) and len(p) == 2 and _np_k_dzien(p[0]) and _np_k_num(p[1]) is not None):
+            zle.append(f'{nazwa}: zły punkt wykresu'); return None
+        if prev is not None:
+            if p[0] <= prev[0]:
+                zle.append(f'{nazwa}: dni wykresu nie rosną'); return None
+            if abs(p[1] - prev[1]) > skok:
+                zle.append(f'{nazwa}: skok {abs(p[1] - prev[1]):.3f} między {prev[0]} a {p[0]} ponad progiem {skok}'); return None
+            run = run + 1 if p[1] == prev[1] else 1
+            if run >= NP_K_UTKNIETA:
+                zle.append(f'{nazwa}: {run} takich samych liczb z rzędu (wartość utknięta)'); return None
+        if not zakres[0] <= p[1] <= zakres[1]:
+            zle.append(f'{nazwa}: liczba {p[1]} poza zakresem'); return None
+        prev = p
+    return h[-1]
+
+
+def niepewnosc_kontrola(np_, stres=None, now=None):
+    """Plik data/niepewnosc.json (+ stres.json) → {'rows': [(etykieta, status, wiek min, dzień, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna
+    wersja = brak wierszy (wiek pliku i brak pliku zgłasza pętla PLIKI). Część bez danych w pliku = wiersz '?'. Najwyżej ⚠."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    zle = out['spojnosc']
+    if not (isinstance(np_, dict) and np_.get('v') == 1):
+        return out
+    # ---- ciss ----
+    C = np_.get('ciss') if isinstance(np_.get('ciss'), dict) else None
+    ar = C.get('a') if C and isinstance(C.get('a'), dict) else None
+    if ar:
+        brak = [a for a in NP_K_OBSZARY if a not in ar]
+        if brak:
+            zle.append('CISS: brak obszarów ' + ', '.join(brak))
+        dni = []
+        for a, o in ar.items():
+            if a not in NP_K_OBSZARY or not isinstance(o, dict):
+                zle.append(f'CISS {a}: nieznany obszar albo zły wiersz'); continue
+            v, d1, p = _np_k_num(o.get('v')), _np_k_num(o.get('d1')), _np_k_num(o.get('p'))
+            if v is None or not 0 <= v <= 1 or _np_k_dzien(o.get('date')) is None:
+                zle.append(f'CISS {a}: zła liczba albo dzień'); continue
+            if d1 is not None and abs(d1) > NP_K_SKOK_CISS:
+                zle.append(f'CISS {a}: dzienna zmiana {d1} ponad progiem {NP_K_SKOK_CISS}')
+            if o.get('p') is not None and (p is None or not 0 <= p <= 100):
+                zle.append(f'CISS {a}: percentyl poza 0–100')
+            if a in NP_K_GLOWNE:
+                dni.append(o['date'])
+                last = _np_k_hist(o.get('hist'), f'CISS {a}', (0.0, 1.0), NP_K_SKOK_CISS, zle, 200)
+                if last is not None and (last[0] != o['date'] or abs(last[1] - v) > 1e-9):
+                    zle.append(f'CISS {a}: ostatni punkt wykresu różni się od pól date/v')
+        if len(dni) == len(NP_K_GLOWNE) and (max(map(_np_k_dzien, dni)) - min(map(_np_k_dzien, dni))).days > NP_K_ROZJAZD_D:
+            zle.append(f'CISS: daty głównych obszarów rozjeżdżają się o więcej niż {NP_K_ROZJAZD_D} dni')
+        u2 = ar.get('U2') if isinstance(ar.get('U2'), dict) else {}
+        txt = u2.get('date')
+        if txt is None:
+            out['rows'].append((NP_K_ETYKIETA['ciss'], '?', None, None, 'brak strefy euro w pliku'))
+        else:
+            w = wiek_danych(txt, 'day', 'd', now)
+            st = '?' if w is None else ('⚠\ufe0f' if w > NP_K_PROG['ciss'] else '✅')
+            note = f'próg {fmt_wiek(NP_K_PROG["ciss"])} roboczych — źródło spóźnia się albo część przestała się odświeżać; najwyżej uwaga' if st == '⚠\ufe0f' else ''
+            out['rows'].append((NP_K_ETYKIETA['ciss'], st, w, txt, note))
+            if st == '⚠\ufe0f':
+                out['uwagi'].append(f'{NP_K_ETYKIETA["ciss"]}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+    else:
+        out['rows'].append((NP_K_ETYKIETA['ciss'], '?', None, None, 'brak części w pliku'))
+    # ---- epu i gpr ----
+    for k in ('epu', 'gpr'):
+        P = np_.get(k) if isinstance(np_.get(k), dict) else None
+        if not P:
+            out['rows'].append((NP_K_ETYKIETA[k], '?', None, None, 'brak części w pliku')); continue
+        v, m, d30, p = (_np_k_num(P.get(x)) for x in ('v', 'ma30', 'd30', 'p'))
+        zk = NP_K_MA_ZAKRES[k]
+        if v is None or not 0 < v <= NP_K_DZIEN_MAX or m is None or not zk[0] <= m <= zk[1] or _np_k_dzien(P.get('date')) is None:
+            zle.append(f'{k.upper()}: wartość dnia albo średnia 30 dni poza zakresem')
+        else:
+            last = _np_k_hist(P.get('hist'), k.upper(), zk, NP_K_SKOK_MA[k], zle, 300)
+            if last is not None and (last[0] != P['date'] or abs(last[1] - m) > 0.006):
+                zle.append(f'{k.upper()}: ostatni punkt wykresu różni się od pól date/ma30')
+        if P.get('p') is None or p is None or not 0 <= p <= 100:
+            zle.append(f'{k.upper()}: brak percentyla albo poza 0–100')
+        if d30 is not None and abs(d30) > NP_K_D30[k]:
+            zle.append(f'{k.upper()}: zmiana 30 dni {d30} ponad progiem {NP_K_D30[k]} (większa niż w całej historii 1985–2026)')
+        txt = P.get('date')
+        w = wiek_danych(txt, 'day', 'd', now) if _np_k_dzien(txt) else None
+        st = '?' if w is None else ('⚠\ufe0f' if w > NP_K_PROG[k] else '✅')
+        note = f'próg {fmt_wiek(NP_K_PROG[k])} roboczych — źródło spóźnia się albo część przestała się odświeżać; najwyżej uwaga' if st == '⚠\ufe0f' else ('brak dnia danych w pliku' if st == '?' else '')
+        out['rows'].append((NP_K_ETYKIETA[k], st, w, txt if _np_k_dzien(txt) else None, note))
+        if st == '⚠\ufe0f':
+            out['uwagi'].append(f'{NP_K_ETYKIETA[k]}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+    # ---- tylko informacja: CISS USA a indeks stresu USA ----
+    try:
+        us = ar.get('US') if ar else None
+        fh = ((stres or {}).get('fsi') or {}).get('hist') if isinstance(stres, dict) else None
+        if isinstance(us, dict) and isinstance(us.get('hist'), list) and isinstance(fh, list):
+            a = {r[0]: r[1] for r in us['hist'] if isinstance(r, list) and len(r) >= 2 and _np_k_num(r[1]) is not None}
+            b = {r[0]: r[1] for r in fh if isinstance(r, list) and len(r) >= 2 and isinstance(r[0], str) and _np_k_num(r[1]) is not None}
+            wsp = sorted(set(a) & set(b))
+            if len(wsp) >= 100:
+                x, y = [float(a[d]) for d in wsp], [float(b[d]) for d in wsp]
+                mx, my = sum(x) / len(x), sum(y) / len(y)
+                sxx, syy = sum((i - mx) ** 2 for i in x), sum((i - my) ** 2 for i in y)
+                if sxx > 0 and syy > 0:
+                    r = sum((i - mx) * (j - my) for i, j in zip(x, y)) / (sxx * syy) ** 0.5
+                    out['wiersze'].append((f'CISS USA a indeks stresu USA (plik stres): korelacja poziomów {r:.2f} na {len(wsp)} wspólnych dniach — tylko informacja', 'ℹ\ufe0f'))
+    except Exception as e:  # noqa
+        zle.append(f'porównanie CISS USA z indeksem stresu: {str(e)[:60]}')
+    for z in zle[:4]:
+        out['uwagi'].append(f'stres i niepewność (v368): {z}')
+    if out['rows']:
+        out['wiersze'].append(('spójność pliku (zakresy, skoki dzienne, wykresy, percentyle, komplet obszarów)', '⚠\ufe0f' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -8855,6 +9013,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['prad'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'prąd i CO2 (v367): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v368. stres i niepewność (data/niepewnosc.json): wiek dnia danych CISS, EPU i GPR osobnymi wierszami, spójność z progami z rozkładu historii, CISS USA a indeks stresu (tylko informacja) — z plików strony, bez zapytań; najwyżej ⚠
+    try:
+        T_ = niepewnosc_kontrola(files.get('niepewnosc'), files.get('stres'))
+        for label, st, w, txt, note in T_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += T_['uwagi']
+        R['zgodnosc']['niepewnosc'] = {'spojnosc': T_['spojnosc'], 'wiersze': T_['wiersze']} if (T_['rows'] or T_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['niepewnosc'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'stres i niepewność (v368): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -9492,6 +9660,11 @@ def raport_md(R):
             L.append('- Prąd i CO2 (z pliku strony): ' + (f'? kontrola przerwana ({prz["blad"]})' if prz.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(prz['spojnosc'][:3]) + ' ❌ · ' if prz.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in prz.get('wiersze') or []) or '—') + '.')
+        np_ = Z.get('niepewnosc')   # v368: stres i niepewność (CISS, EPU, GPR) — sprzeczności w pliku i CISS USA a indeks stresu (tylko informacja); brak pliku = bez linii
+        if np_:
+            L.append('- Stres i niepewność (CISS, EPU, GPR; z pliku strony; CISS USA a indeks stresu USA tylko informacyjnie): ' + (f'? kontrola przerwana ({np_["blad"]})' if np_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(np_['spojnosc'][:3]) + ' ⚠\ufe0f · ' if np_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in np_.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

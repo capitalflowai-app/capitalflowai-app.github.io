@@ -148,6 +148,7 @@ ZRODLA_META = {
     'polska_rynek_gpw': 'gpw', 'polska_rynek_krzywa': 'bondspot', 'polska_rynek_fundusze': 'izfia',   # v361: Polska na rynku dziennie — giełda w Warszawie, rynek obligacji skarbowych, izba funduszy: trzy nowe źródła
     'krzywe_us': 'skarb-usa', 'krzywe_de': 'bundesbank', 'krzywe_jp': 'mof-japonii', 'krzywe_ea': 'ecb', 'krzywe_ca': 'bank-kanady',   # v362: krzywe rentowności — te same pięć instytucji co dotąd (Skarb USA, Bundesbank, MF Japonii, EBC, Bank Kanady): liczba źródeł bez zmian
     'emit_llama': 'defillama', 'emit_tether': 'tether', 'emit_circle': 'circle',   # v363: emitenci stablecoinów — lista monet (ta sama usługa co podaż stablecoinów), raport Tether (jak karta XAUT) i raport Circle (+1 źródło)
+    'niepewnosc_ciss': 'ecb', 'niepewnosc_epu': 'policyuncertainty', 'niepewnosc_gpr': 'gpr',   # v368 (F8Z4): stres systemowy (EBC — już liczony), niepewność polityki USA i ryzyko geopolityczne: dwa nowe źródła
     # --- własne wyliczenia z innych plików (bez zapytań do sieci) ---
     'trendy': None, 'zloto-krypto': None,
 }
@@ -31389,6 +31390,29 @@ def main():
             META['errors'].append(mask(f'{ZM_LABEL}: {e}')); META['ok']['zmiennosc'] = False
             if isinstance(prev_zm, dict):
                 save('zmiennosc', prev_zm)
+    # v368 (F8Z4): STRES I NIEPEWNOŚĆ (data/niepewnosc.json: CISS 14 obszarów, EPU, GPR; trzy części z własnym ok / part_at / lm) — co NP_EVERY min, plik z częścią nieudaną ponawiany po NIEPELNY_MIN min
+    # (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok: niepewnosc_ciss, niepewnosc_epu, niepewnosc_gpr (EBC + dwa nowe źródła: liczba źródeł rośnie o 2).
+    prev_np = previous('niepewnosc')
+    if isinstance(prev_np, dict) and prev_np.get('v') == 1 and fresh_pelny(prev_np, NP_EVERY):
+        save('niepewnosc', prev_np)
+        stan_np = {}
+        for k_np in NP_PARTS:
+            if _dict(prev_np.get('ok')).get(k_np) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{NP_PX} {NP_LABEL[k_np]}: {str(_dict(prev_np.get('errs')).get(k_np) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_np[k_np] = False
+            else:
+                stan_np[k_np] = 'cached'
+    else:
+        try:
+            np_ = build_niepewnosc(prev_np); save('niepewnosc', np_)
+            stan_np = {k_np: np_['ok'].get(k_np) is True for k_np in NP_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{NP_PX}: {e}')[:200])
+            stan_np = {k_np: False for k_np in NP_PARTS}
+            if isinstance(prev_np, dict):
+                save('niepewnosc', prev_np)
+    META['ok']['niepewnosc_ciss'] = stan_np['ciss']; META['ok']['niepewnosc_epu'] = stan_np['epu']; META['ok']['niepewnosc_gpr'] = stan_np['gpr']
+    # v368: koniec bloku stresu i niepewności
     # v357 (zwiad 3): skład portfela Fed (NY Fed, tygodniowo), główne pozycje bilansu Eurosystemu (EBC, tygodniowo) i aktywa funduszy hedgingowych (OFR, kwartalnie) — każda
     # część z własnym rytmem publikacji (plyn_pytac); awaria = poprzedni plik z jego datą i błąd; nieudana próba przesuwa następną (pole proba)
     META['ok']['soma_sklad'] = plyn_czesc('soma-sklad', 'NY Fed portfel Fed (skład)', lambda p: build_soma_sklad(p), SK_DUE, SK_PRZED, SK_PO)
@@ -34018,6 +34042,281 @@ def build_prad(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
             META['errors'].append(mask('surowce (prąd i CO2) ' + x)[:200])
     if pominiete:
         META['notes'].append('prąd i CO2: pominięte w tym przebiegu — ' + ', '.join(pominiete))
+    return out
+
+
+# ===================== v368 (F8Z4): STRES I NIEPEWNOŚĆ — data/niepewnosc.json (trzy dzienne wskaźniki napięcia, bez kont i kluczy) =====================
+# Trzy części jednego pliku, każda z własnym ok / part_at / lm (Last-Modified) i własną poprzednią wersją przy błędzie:
+#   ciss — złożony wskaźnik stresu systemowego banku centralnego strefy euro (dziennie, 0–1; 14 obszarów: strefa euro, USA, Wielka Brytania, Chiny i 10 krajów euro).
+#          Jedno zapytanie o ostatnie NP_CISS_N obserwacji (ok. 5 lat dni roboczych, ok. 0,7 MB; detail=dataonly bez atrybutów), przez _ecb_json (odstęp i ponowienie jak
+#          przy innych zapytaniach do tego serwera). Dla każdego obszaru: ostatni dzień, wartość, zmiana wobec poprzedniej obserwacji, percentyl w oknie NP_CISS_WIN
+#          obserwacji (ns_pct; okno krótsze niż NP_CISS_WIN_MIN = brak percentyla) i data początku okna; dla czterech głównych obszarów dodatkowo NP_CISS_HIST ostatnich dni (wykres 1 rok).
+#   epu  — dzienny indeks niepewności polityki gospodarczej USA (plik CSV, od 1985, wszystkie dni kalendarza) — częstość artykułów prasowych o niepewności polityki.
+#   gpr  — dzienny indeks ryzyka geopolitycznego (plik .xls BIFF8 3,3 MB, od 1985, wszystkie dni kalendarza; 100 = średnia z lat 1985–2019; czyta go ici_xls) — częstość artykułów o wojnach, groźbach i terroryzmie.
+# Dla epu i gpr dzienne wartości są bardzo skokowe, więc podajemy średnią 30 dni (30 dni kalendarza, co najmniej NP_MA_MIN z wartością): wartość, zmiana wobec średniej sprzed 30 dni,
+# percentyl tej średniej w oknie NP_DAILY_WIN dni (ok. 5 lat; krótsze niż NP_DAILY_WIN_MIN = brak) i NP_DAILY_HIST ostatnich dni średniej (wykres 1 rok); wartość z ostatniego dnia osobno.
+# Pliki są duże, więc zapytanie dostaje If-Modified-Since (zapisany Last-Modified części): 304 = poprzednia wersja bez zmian (ok True, part_at = teraz, bo sprawdzenie się udało).
+# Bramki części (błąd = poprzednia wersja części z jej datą, nigdy zero): ciss — cztery główne obszary z co najmniej NP_CISS_WIN_MIN obserwacji, liczby 0–1 (poza nimi pominięte),
+# dzień danych nie cofa się; epu i gpr — nagłówek, daty rosnące, liczby w (0, NP_VAL_MAX], co najmniej NP_MIN_ROWS wierszy (odpowiedź obcięta = błąd), ostatni dzień ma średnią 30 dni,
+# dzień danych nie cofa się; gpr dodatkowo: nasza średnia 30 dni zgodna (NP_GPR_TOL) ze średnią 30 dni z kolumny pliku w ostatnim wierszu (inna definicja = błąd, nie liczba pod złą nazwą).
+# Brak = brak (nigdy zero): wartość 0 w pliku GPR (są dwa takie dni, 1997 i 2025) to brak dnia. To NIE jest porada inwestycyjna ani sygnał — opis zjawiska; reguły TRENDY to osobne zadanie.
+# Dzień niepełny (GPR): gdy plik GPR zmieniono DZIŚ (Last-Modified, UTC), wiersz z dzisiejszą datą trwa (13.10.2026: zmiana o 15:45 GMT, wartość dnia 342 przy średniej 178) i jest pomijany —
+# pokazujemy ostatni zamknięty dzień ze znacznikiem bez_dnia; po końcu doby pełne pobranie (bez 304). EPU powstaje o 23:55, więc go to nie dotyczy.
+# Źródła: EBC (już w tabeli ZRODLA_META jako 'ecb') + dwa nowe (policyuncertainty, gpr) — liczba źródeł na stronie rośnie o 2.
+NP_CISS_URL = ('https://data-api.ecb.europa.eu/service/data/CISS/D..Z0Z.4F.EC.SS_CIN.IDX?lastNObservations=1310&format=jsondata&detail=dataonly')
+NP_EPU_URL = 'https://www.policyuncertainty.com/media/All_Daily_Policy_Data.csv'
+NP_GPR_URL = 'https://www.matteoiacoviello.com/gpr_files/data_gpr_daily_recent.xls'
+NP_PARTS = ('ciss', 'epu', 'gpr')
+NP_LABEL = {'ciss': 'CISS', 'epu': 'EPU', 'gpr': 'GPR'}
+NP_PX = 'Niepewność'     # początek komunikatu błędu (nie „Stres…”: stary test panelu stresu sprawdza, że żaden błąd przebiegu nie zaczyna się od „Stres”)
+NP_EVERY = 6 * 60                # min — wskaźniki dzienne; część z błędem: ponowienie po NIEPELNY_MIN (fresh_pelny)
+NP_TIMEOUT = 90                  # s — plik GPR ma 3,3 MB
+NP_MAX_B = 8_000_000             # B — większa odpowiedź to nie ten plik
+NP_CISS_MAIN = ('U2', 'US', 'GB', 'CN')
+NP_CISS_KRAJE = ('AT', 'BE', 'DE', 'ES', 'FI', 'FR', 'IE', 'IT', 'NL', 'PT')
+NP_CISS_AREAS = NP_CISS_MAIN + NP_CISS_KRAJE
+NP_CISS_WIN = 1300               # obserwacji okna percentyla (ok. 5 lat dni roboczych)
+NP_CISS_WIN_MIN = 1200           # krótsze okno = brak percentyla (None)
+NP_CISS_HIST = 260               # dni w wykresie (ok. 1 rok dni roboczych)
+NP_CISS_KEY = ('Z0Z', '4F', 'EC', 'SS_CIN', 'IDX')
+NP_DAILY_WIN = 1826              # dni okna percentyla średniej 30 dni (5 lat kalendarza)
+NP_DAILY_WIN_MIN = 1700
+NP_DAILY_HIST = 365
+NP_MA = 30                       # dni średniej
+NP_MA_MIN = 27                   # co najmniej tyle dni z wartością w oknie średniej
+NP_VAL_MAX = 5000.0              # górna granica dziennej wartości (w danych od 1985: ok. 1050)
+NP_MIN_ROWS = 5000               # wierszy w pliku (w 2026: ok. 15,3 tys.)
+NP_GPR_TOL = 0.01                # względna zgodność naszej średniej 30 dni ze średnią z pliku
+NP_EPU_HEAD = 'day,month,year,daily_policy_index'
+NP_SRC = ('CapitalFlowAI — dzienny złożony wskaźnik stresu systemowego (14 obszarów), dzienny indeks niepewności polityki gospodarczej USA i dzienny indeks ryzyka geopolitycznego; '
+          'średnie 30 dni, percentyle w oknie ok. 5 lat, publiczne serie dzienne')
+NP_CISS_MAIN_NAZWY = {'U2': 'strefa euro', 'US': 'USA', 'GB': 'Wielka Brytania', 'CN': 'Chiny'}
+
+
+def np_ciss_parse(j):
+    """SDMX-JSON zbioru CISS (parse_ecb_multi) → {obszar: [[dzień, wskaźnik 0–1]]} rosnąco; tylko znane obszary NP_CISS_AREAS i klucz serii dzienny / bez waluty / dostawca 4F / wskaźnik
+    SS_CIN / indeks; liczby spoza 0–1 i złe daty pominięte (brak, nie zero)."""
+    out = {}
+    for key, rows in parse_ecb_multi(j).items():
+        p = key.split('.')
+        if len(p) != 7 or p[0] != 'D' or tuple(p[2:]) != NP_CISS_KEY or p[1] not in NP_CISS_AREAS:
+            continue
+        good = [[d, round(float(v), 6)] for d, v in rows if _d(d) is not None and _isnum(v) and 0 <= v <= 1]
+        if good:
+            out[p[1]] = good
+    return out
+
+
+def np_ciss_czesc(j, prev=None):
+    """Odpowiedź CISS → część 'ciss' {date, unit, a: {obszar: {date, v, d1, p, n, from[, hist]}}}; cztery główne obszary wymagane (z co najmniej NP_CISS_WIN_MIN obserwacji),
+    kraje euro opcjonalne (brak obszaru w odpowiedzi = brak jego wiersza). Dzień danych strefy euro starszy niż w poprzedniej wersji = wyjątek."""
+    ser = np_ciss_parse(j)
+    for a in NP_CISS_MAIN:
+        if a not in ser or len(ser[a]) < NP_CISS_WIN_MIN:
+            raise RuntimeError(f'CISS {a}: brak serii albo za krótka ({len(ser.get(a) or [])} obserwacji)')
+    areas = {}
+    for a in NP_CISS_AREAS:
+        rows = ser.get(a)
+        if not rows:
+            continue
+        win = rows[-NP_CISS_WIN:]
+        last = rows[-1]
+        o = {'date': last[0], 'v': round(last[1], 4), 'd1': round(last[1] - rows[-2][1], 4) if len(rows) > 1 else None,
+             'p': round(ns_pct([v for _d_, v in win], last[1]), 1) if len(win) >= NP_CISS_WIN_MIN else None, 'n': len(win), 'from': win[0][0]}
+        if a in NP_CISS_MAIN:
+            o['hist'] = [[d, round(v, 4)] for d, v in rows[-NP_CISS_HIST:]]
+        areas[a] = o
+    date = max(areas[a]['date'] for a in NP_CISS_MAIN)
+    pd_ = prev.get('a', {}).get('U2', {}).get('date') if isinstance(prev, dict) and isinstance(prev.get('a'), dict) and isinstance(prev['a'].get('U2'), dict) else None
+    if isinstance(pd_, str) and areas['U2']['date'] < pd_:
+        raise RuntimeError(f'CISS: dzień danych strefy euro {areas["U2"]["date"]} starszy niż w poprzedniej wersji ({pd_})')
+    return {'date': date, 'unit': 'indeks 0–1 (0 = spokój, 1 = silny stres)', 'a': areas}
+
+
+def np_dzienny(rows):
+    """[(dzień ISO, wartość albo None)] rosnąco (wszystkie dni kalendarza; wartość ≤ 0 albo spoza zakresu = None) → część dzienna {date, v, ma30, d30, p, from, n, hist}.
+    ma30 = średnia z NP_MA dni kalendarza kończących się w danym dniu, gdy co najmniej NP_MA_MIN z nich ma wartość; ostatni dzień z wartością musi mieć ma30 (inaczej wyjątek);
+    d30 = ma30 − ma30 sprzed 30 dni (brak = None); p = percentyl ma30 w ostatnich NP_DAILY_WIN dniach (okno krótsze niż NP_DAILY_WIN_MIN = None); hist = ostatnie NP_DAILY_HIST średnich."""
+    val = {}
+    for d, v in rows:
+        o = _d(d)
+        if o is not None and _isnum(v) and 0 < v <= NP_VAL_MAX:
+            val[o.toordinal()] = float(v)
+    if not val:
+        raise RuntimeError('brak dni z wartością')
+    last = max(val)
+    lo = last - NP_DAILY_WIN - NP_MA - 5
+    pre_s, pre_c = {}, {}   # sumy narastające (po dniach kalendarza od lo)
+    s = c = 0
+    for x in range(lo - 1, last + 1):
+        v = val.get(x)
+        if v is not None:
+            s += v; c += 1
+        pre_s[x] = s; pre_c[x] = c
+
+    def ma(x):
+        if x - NP_MA < lo - 1:
+            return None
+        n = pre_c[x] - pre_c[x - NP_MA]
+        return (pre_s[x] - pre_s[x - NP_MA]) / n if n >= NP_MA_MIN else None
+    m_last = ma(last)
+    if m_last is None:
+        raise RuntimeError(f'ostatni dzień nie ma średniej {NP_MA} dni (za mało dni z wartością)')
+    ser = []
+    for x in range(last - NP_DAILY_WIN + 1, last + 1):
+        m = ma(x)
+        if m is not None:
+            ser.append((x, m))
+    m_prev = ma(last - 30)
+    return {'date': datetime.date.fromordinal(last).isoformat(), 'v': round(val[last], 2), 'ma30': round(m_last, 2),
+            'd30': round(m_last - m_prev, 2) if m_prev is not None else None,
+            'p': round(ns_pct([m for _x, m in ser], m_last), 1) if len(ser) >= NP_DAILY_WIN_MIN else None, 'n': len(ser),
+            'from': datetime.date.fromordinal(ser[0][0]).isoformat(),
+            'hist': [[datetime.date.fromordinal(x).isoformat(), round(m, 2)] for x, m in ser[-NP_DAILY_HIST:]]}
+
+
+def np_epu_rows(text):
+    """Plik CSV EPU → [(dzień ISO, wartość)] rosnąco. Nagłówek dokładnie NP_EPU_HEAD, daty ściśle rosnące, mniej niż NP_MIN_ROWS wierszy = odpowiedź obcięta (wyjątek);
+    pusta wartość, tekst i liczba spoza (0, NP_VAL_MAX] = brak dnia."""
+    lines = [l.strip() for l in str(text).lstrip('\ufeff').splitlines() if l.strip()]
+    if not lines or lines[0].replace(' ', '').lower() != NP_EPU_HEAD:
+        raise ValueError('nagłówek pliku EPU inny niż oczekiwany')
+    out, prev = [], None
+    for l in lines[1:]:
+        p = l.split(',')
+        if len(p) != 4:
+            raise ValueError('zły wiersz pliku EPU')
+        try:
+            d = datetime.date(int(p[2]), int(p[1]), int(p[0]))
+        except ValueError:
+            raise ValueError('zła data w pliku EPU') from None
+        if prev is not None and d <= prev:
+            raise ValueError('daty w pliku EPU nie rosną')
+        prev = d
+        out.append((d.isoformat(), _num(p[3])))
+    if len(out) < NP_MIN_ROWS:
+        raise ValueError(f'plik EPU obcięty ({len(out)} wierszy)')
+    return out
+
+
+def np_gpr_rows(raw, bez_dnia=None):
+    """Plik GPR (.xls BIFF8) → ([(dzień ISO, wartość)] rosnąco, średnia 30 dni z kolumny pliku w ostatnim wierszu albo None). Kolumny po nazwach z nagłówka (DAY, GPRD, GPRD_MA30);
+    dzień to napis RRRRMMDD (albo liczba), daty ściśle rosnące, mniej niż NP_MIN_ROWS wierszy = odpowiedź obcięta; wartość ≤ 0 albo spoza zakresu = brak dnia.
+    bez_dnia (RRRR-MM-DD) = dzień, który trwa (plik zmieniony tego samego dnia): wiersz z tą datą (dzień niepełny) jest pomijany, a średnia z kolumny pliku to średnia poprzedniego wiersza."""
+    g = ici_arkusz(raw)
+    head = [str(x).strip() if x is not None else '' for x in g[0]]
+    try:
+        cd, cv = head.index('DAY'), head.index('GPRD')
+    except ValueError:
+        raise ValueError('w pliku GPR brak kolumn DAY i GPRD') from None
+    cm = head.index('GPRD_MA30') if 'GPRD_MA30' in head else None
+    out, fmas, prev = [], [], None
+    for r in g[1:]:
+        raw_d = r[cd] if cd < len(r) else None
+        if raw_d is None or raw_d == '':
+            continue
+        s = str(int(raw_d)) if isinstance(raw_d, float) else str(raw_d).strip()
+        if not re.fullmatch(r'\d{8}', s):
+            raise ValueError('zły dzień w pliku GPR')
+        try:
+            d = datetime.date(int(s[:4]), int(s[4:6]), int(s[6:]))
+        except ValueError:
+            raise ValueError('zła data w pliku GPR') from None
+        if prev is not None and d <= prev:
+            raise ValueError('daty w pliku GPR nie rosną')
+        prev = d
+        v = r[cv] if cv < len(r) else None
+        out.append((d.isoformat(), float(v) if _isnum(v) and 0 < v <= NP_VAL_MAX else None))
+        fmas.append(float(r[cm]) if cm is not None and cm < len(r) and _isnum(r[cm]) else None)
+    if len(out) < NP_MIN_ROWS:
+        raise ValueError(f'plik GPR obcięty ({len(out)} wierszy)')
+    while bez_dnia and out and out[-1][0] >= bez_dnia:   # dzień niepełny (plik zmieniony dziś, a ostatni wiersz to dziś) — nie pokazujemy go jako dnia danych
+        out.pop(); fmas.pop()
+    return out, (fmas[-1] if fmas else None)
+
+
+def np_gpr_dzien_niepelny(lm):
+    """Last-Modified pliku GPR → dzień (RRRR-MM-DD, UTC), jeśli plik zmieniono DZIŚ (dzień danych z tej daty może być niepełny: 13.10.2026 plik zmieniony o 15:45 GMT miał w ostatnim wierszu
+    13.10 z wartością dwa razy wyższą od średniej); inaczej None (wszystkie dni w pliku są zamknięte). Dzień pomijany jest do końca doby UTC — potem plik pobieramy pełnym zapytaniem."""
+    try:
+        d = email.utils.parsedate_to_datetime(lm).astimezone(datetime.timezone.utc).date().isoformat()
+    except Exception:  # noqa
+        return None
+    return d if d == str(NOW)[:10] else None
+
+
+def np_http(url, lm=None):
+    """Jedno zapytanie GET (jedyne miejsce sieci części epu i gpr — testy je łatają) → (status, treść w bajtach, Last-Modified). If-Modified-Since, gdy znamy datę pliku;
+    304 (urllib: HTTPError) = (304, b'', lm) — plik bez zmian. Inne kody HTTP = wyjątek. Odpowiedź większa niż NP_MAX_B = ValueError. Bez obchodzenia blokad: 403 to błąd części."""
+    h = {'User-Agent': 'CapitalFlowAI-collector/1.0', 'Accept': '*/*'}
+    if lm:
+        h['If-Modified-Since'] = lm
+    try:
+        with _otworz(url, h, NP_TIMEOUT) as r:
+            body = r.read(NP_MAX_B + 1)
+            if len(body) > NP_MAX_B:
+                raise ValueError('odpowiedź większa niż oczekiwany plik')
+            return r.status, body, r.headers.get('Last-Modified')
+    except urllib.error.HTTPError as e:
+        if e.code == 304:
+            return 304, b'', lm
+        raise
+
+
+def np_dzienny_czesc(k, rows, fma, prev=None):
+    """Część epu / gpr z wierszy dziennych; dla gpr: zgodność naszej średniej 30 dni ze średnią z pliku (jeśli plik ją ma); dzień danych nie cofa się względem poprzedniej wersji."""
+    o = np_dzienny(rows)
+    if k == 'gpr' and fma is not None and abs(o['ma30'] - fma) > NP_GPR_TOL * max(abs(fma), 1.0):
+        raise RuntimeError(f'średnia {NP_MA} dni z pliku ({fma:.2f}) różni się od naszej ({o["ma30"]:.2f})')
+    pd_ = prev.get('date') if isinstance(prev, dict) else None
+    if isinstance(pd_, str) and o['date'] < pd_:
+        raise RuntimeError(f'dzień danych {o["date"]} starszy niż w poprzedniej wersji ({pd_})')
+    return o
+
+
+def build_niepewnosc(prev=None):
+    """Plik data/niepewnosc.json (v368): trzy części (ciss, epu, gpr) z własnym ok / part_at / lm; część z błędem zostaje z poprzedniego pliku z własną chwilą (nigdy zera);
+    żadna część nie odpowiedziała = wyjątek (przebieg główny zostawia poprzedni plik). epu i gpr z If-Modified-Since: 304 = poprzednia wersja, sprawdzenie udane."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == 1 else {}
+    pat, plm, perr = _dict(prev.get('part_at')), _dict(prev.get('lm')), _dict(prev.get('errs'))
+    out = {'v': 1, 'at': NOW, 'src': NP_SRC, 'ok': {}, 'part_at': {}, 'lm': {}, 'errs': {}}
+    for k in NP_PARTS:
+        pk = prev.get(k) if isinstance(prev.get(k), dict) else None
+        try:
+            if k == 'ciss':
+                out[k] = np_ciss_czesc(_ecb_json(NP_CISS_URL), pk)
+            else:
+                url = NP_EPU_URL if k == 'epu' else NP_GPR_URL
+                lm0 = plm.get(k) if pk is not None and isinstance(plm.get(k), str) and _dict(prev.get('ok')).get(k) is True else None   # IMS tylko przy dobrej poprzedniej wersji
+                if lm0 and k == 'gpr' and isinstance(pk.get('bez_dnia'), str) and pk['bez_dnia'] < str(NOW)[:10]:
+                    lm0 = None   # pominięty dzień niepełny już się zakończył — pełne pobranie, nie 304
+                st, body, lm = np_http(url, lm0)
+                if st == 304:
+                    if pk is None:
+                        raise RuntimeError('304 bez poprzedniej wersji')
+                    out[k] = pk
+                else:
+                    bez = None
+                    if k == 'epu':
+                        rows, fma = np_epu_rows(body.decode('utf-8', 'replace')), None
+                    else:
+                        bez = np_gpr_dzien_niepelny(lm)
+                        rows, fma = np_gpr_rows(body, bez)
+                    out[k] = np_dzienny_czesc(k, rows, fma, pk)
+                    if bez:
+                        out[k]['bez_dnia'] = bez   # dzień, którego nie pokazujemy, bo trwa (znacznik do ponownego pobrania po zakończeniu doby)
+                if isinstance(lm, str) and lm:
+                    out['lm'][k] = lm
+            out['ok'][k] = True; out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część z błędem: poprzednia wersja z własną chwilą, nigdy zero
+            msg = mask(f'{e}')[:160]
+            META['errors'].append(mask(f'{NP_PX} {NP_LABEL[k]}: {msg}')[:220]); out['ok'][k] = False; out['errs'][k] = msg
+            if pk is not None:
+                out[k] = pk; out['part_at'][k] = pat.get(k) or prev.get('at')
+                if isinstance(plm.get(k), str):
+                    out['lm'][k] = plm[k]
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
     return out
 
 

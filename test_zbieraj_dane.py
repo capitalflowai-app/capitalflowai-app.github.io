@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -182,7 +182,7 @@ class MainFlow(unittest.TestCase):
             zd.main()
         self.assertIn('meta', self.saved)
         # v353: świadoma zmiana — przedrostek Rosja w filtrze błędów meta (zaślepka build_rosja)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'surowce', 'szlaki', 'metale', 'Rosja', 'Polska rynek', 'Coin Metrics', 'MFW', 'EBC kursy', 'NY Fed portfel Fed', 'EBC bilans Eurosystemu', 'OFR fundusze hedgingowe', 'ETF zapas', 'Emitenci stablecoinów', 'Polska kapitał', 'EBC TARGET', 'ESMA MiCA', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Nastroje', 'Rynki', 'Wieloryby', 'Dźwignia', 'Premie krypto', 'Sieć Bitcoin', 'Wycena BTC', 'Aukcje', 'Insiderzy', 'Fundusze USA', 'Szwajcaria', 'Ameryka Łacińska', 'Japonia giełda', 'Świat dziennie', 'Dziennik świata', 'Inflacja r/r', 'Koniunktura', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],   # v339 (metale): świadoma zmiana — przedrostek metale (zaślepka build_metale)
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'surowce', 'szlaki', 'metale', 'Rosja', 'Polska rynek', 'Coin Metrics', 'MFW', 'EBC kursy', 'NY Fed portfel Fed', 'EBC bilans Eurosystemu', 'OFR fundusze hedgingowe', 'ETF zapas', 'Emitenci stablecoinów', 'Polska kapitał', 'EBC TARGET', 'ESMA MiCA', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Nastroje', 'Rynki', 'Wieloryby', 'Dźwignia', 'Premie krypto', 'Sieć Bitcoin', 'Wycena BTC', 'Aukcje', 'Insiderzy', 'Fundusze USA', 'Szwajcaria', 'Ameryka Łacińska', 'Japonia giełda', 'Świat dziennie', 'Dziennik świata', 'Inflacja r/r', 'Koniunktura', 'Niepewność', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],   # v339 (metale): świadoma zmiana — przedrostek metale (zaślepka build_metale)
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY', 'brak EIA_KEY', 'brak BEA_KEY'])
 
 
@@ -347,7 +347,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -535,7 +535,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -625,7 +625,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -758,7 +758,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1117,7 +1117,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1361,7 +1361,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1598,7 +1598,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1829,7 +1829,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2342,7 +2342,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3094,7 +3094,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3221,7 +3221,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3256,7 +3256,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3632,7 +3632,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -4117,7 +4117,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -8766,7 +8766,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                  'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         for s in stubs:
             s.start()
         try:
@@ -9163,7 +9163,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True, 'cde': True}, 'hl': {'rows': {}}}   # v343 (F1Z3): + cde (osiem części)
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True, 'cde': True}, 'hl': {'rows': {}}}
@@ -10020,7 +10020,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -25624,7 +25624,7 @@ class PoPrzegladzieV211(unittest.TestCase):
         md = self.k.raport_md({'at': t(0.2), 'wynik': 'OK', 'meta': {}, 'awarie': Z, 'uwagi': [], 'bledy': []})
         self.assertIn('jpx od 02.10.2026, 02:00 (4 dni 4 godz., nieudanych przebiegów: 500) ℹ️ (Japonia — tydzień czeka na publikację giełdy)', md)
         # v353: świadoma zmiana — części rosja* też bez czerwieni z serii awarii
-        self.assertEqual({x for x in set(self.k.AW_BEZ_BLEDU) if not x.startswith('polska_kapital_') and not x.startswith('prad')} - {'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'} - {'target', 'mica'} - {'soma_sklad', 'eurosystem', 'hedge'} - {'polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze'} - {'krzywe_us', 'krzywe_de', 'krzywe_jp', 'krzywe_ea', 'krzywe_ca'} - {'inflacja', 'koniunktura'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
+        self.assertEqual({x for x in set(self.k.AW_BEZ_BLEDU) if not x.startswith('polska_kapital_') and not x.startswith('prad')} - {'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'} - {'target', 'mica'} - {'soma_sklad', 'eurosystem', 'hedge'} - {'polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze'} - {'krzywe_us', 'krzywe_de', 'krzywe_jp', 'krzywe_ea', 'krzywe_ca'} - {'inflacja', 'koniunktura'} - {'niepewnosc_ciss', 'niepewnosc_epu', 'niepewnosc_gpr'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
                                                     'surowce_fundusze', 'surowce_banki'}, 'v215: snb — zwykła ocena; v295: + surowce; v298: + etap 3')   # v320: świadomie odjęte części raportów miesięcznych surowców (surowce_raporty_*) — też bez czerwieni z serii awarii
 
     def test_czas_do_ostatniego_przebiegu_i_pamiec_od(self):
@@ -25719,7 +25719,7 @@ class PoPrzegladzieV215(unittest.TestCase):
         self.assertEqual(len(Z['bledy']), 1); self.assertIn('„snb”', Z['bledy'][0]); self.assertEqual(Z['uwagi'], [])
         self.assertEqual(sorted(x['czesc'] for x in Z['trwa'] if x['bez']), ['ici', 'jpx', 'wycena_bg'])
         # v353: świadoma zmiana — części rosja* też bez czerwieni z serii awarii
-        self.assertEqual({x for x in set(k.AW_BEZ_BLEDU) if not x.startswith('polska_kapital_') and not x.startswith('prad')} - {'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'} - {'target', 'mica'} - {'soma_sklad', 'eurosystem', 'hedge'} - {'polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze'} - {'krzywe_us', 'krzywe_de', 'krzywe_jp', 'krzywe_ea', 'krzywe_ca'} - {'inflacja', 'koniunktura'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
+        self.assertEqual({x for x in set(k.AW_BEZ_BLEDU) if not x.startswith('polska_kapital_') and not x.startswith('prad')} - {'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'} - {'target', 'mica'} - {'soma_sklad', 'eurosystem', 'hedge'} - {'polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze'} - {'krzywe_us', 'krzywe_de', 'krzywe_jp', 'krzywe_ea', 'krzywe_ca'} - {'inflacja', 'koniunktura'} - {'niepewnosc_ciss', 'niepewnosc_epu', 'niepewnosc_gpr'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
                                                'surowce_fundusze', 'surowce_banki'})   # v295: + części surowców; v298: + etap 3; v320: świadomie odjęte części raportów miesięcznych (surowce_raporty_*)
         self.assertIn('z założenia bez czerwieni', k.AW_BEZ_BLEDU['ici'])
 
@@ -32166,7 +32166,7 @@ class SurowceV295(unittest.TestCase):
             'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
             'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
             'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
             'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
         for zm, want_new in (({'eia'}, True), (set(), False)):
             saved.clear(); calls.clear()
@@ -33589,7 +33589,7 @@ class SurowceEtap3V298(unittest.TestCase):
             'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
             'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
             'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
             'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
         for s in stubs:
             s.start()
@@ -39479,7 +39479,7 @@ class StopySurowceV325(unittest.TestCase):
                 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
                 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
                 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia',
+                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_niepewnosc', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_polska_kapital', 'build_stable_emitenci', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_szlaki', 'build_zboza_dzien', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia',
                 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa',
                 'build_surowce', 'build_energia')]
             for s in stubs:
@@ -51993,7 +51993,9 @@ class PradV367(unittest.TestCase):
     def test_blok_bez_kluczy_i_bez_nazw_dostawcow(self):
         with open(zd.__file__, encoding='utf-8') as fh:
             src = fh.read()
-        blk = src[src.index('# ===================== v367 (F5Z2): PRĄD I CO2'):src.index("\n\nif __name__ == '__main__':")]
+        i0 = src.index('# ===================== v367 (F5Z2): PRĄD I CO2')
+        i1 = min([k for k in (src.find('\n# ===================== v', i0 + 10), src.index("\n\nif __name__ == '__main__':")) if k > 0])
+        blk = src[i0:i1]
         for zakazane in ('KEY', 'os.environ', 'print(', 'Authorization', 'token', 'TOKEN'):
             self.assertNotIn(zakazane, blk, 'publiczne zapytania GET bez uwierzytelnienia: ' + zakazane)
         o = self.pelny(3)
@@ -52092,3 +52094,528 @@ class PradV367(unittest.TestCase):
         self.assertIn("prz = Z.get('prad')", src)
         self.assertLess(src.index("for label, st, w, txt, note in prad_swiezosc(files.get('prad')):"), src.index('# 3d. v115: zgodność liczb — kapitalizacja'))
         k = self.kt(); self.assertIsNotNone(k.prad_kontrola)
+
+
+# ===================== v368 (F8Z4): STRES I NIEPEWNOŚĆ — data/niepewnosc.json (CISS 14 obszarów, EPU, GPR) =====================
+class NiepewnoscV368(unittest.TestCase):
+    """v368 (F8Z4): trzy dzienne wskaźniki napięcia w jednym pliku — CISS (14 obszarów; percentyl w oknie 1300 obserwacji z datą początku), EPU i GPR (średnia 30 dni, zmiana
+    wobec 30 dni temu, percentyl w oknie 5 lat, wykres 1 roku); każda część z własnym ok / part_at / lm, If-Modified-Since (304 = poprzednia wersja), bramki części, brak ≠ zero,
+    dzień danych nie cofa się, tabela źródeł (+2 źródła), kontrola dzienna z progami z rozkładu historii. Ogony 60 dni EPU i GPR oraz trzy ostatnie wartości CISS — dosłownie z plików
+    źródeł z 13.10.2026; wcześniejsza historia syntetyczna (deterministyczna). Bez sieci i bez zegara (NOW i dzień przypięte)."""
+    U = datetime.timezone.utc
+    NOW = '2026-10-13T22:30:00+00:00'
+    EPU_TAIL = [216.4, 173.09, 305.67, 154.0, 211.22, 132.93, 222.5, 153.01, 173.77, 257.1, 344.33, 171.99, 265.2, 166.87, 179.83, 102.7, 260.31, 266.29, 196.02, 240.0, 245.61, 198.62, 633.74, 700.84,
+                451.1, 249.93, 270.52, 466.83, 485.35, 217.14, 415.21, 194.44, 243.09, 178.22, 354.24, 246.77, 144.24, 183.11, 177.31, 121.42, 178.98, 279.82, 303.66, 192.33, 443.44, 157.11, 191.02, 165.1,
+                156.75, 159.92, 484.14, 236.69, 403.6, 583.45, 291.63, 301.87, 246.07, 141.14, 224.1, 155.29]   # 2026-08-14 … 2026-10-12
+    GPR_TAIL = [38.5182, 46.7877, 156.7236, 200.5656, 97.0479, 168.5455, 159.3219, 127.4065, 46.7877, 154.2437, 166.7157, 155.5805, 157.4414, 148.3239, 91.1716, 69.7383, 150.5713, 174.3457, 216.037,
+                171.9987, 171.3397, 122.6877, 92.7182, 166.5047, 111.0723, 209.0773, 162.0278, 190.0134, 108.4472, 120.8966, 198.1878, 211.7311, 226.0174, 109.0557, 121.5621, 128.1849, 148.7915, 172.2848,
+                184.0315, 210.9916, 144.0247, 228.2281, 157.429, 140.9603, 191.5702, 198.4488, 156.4993, 177.459, 265.7833, 161.0762, 137.6413, 159.119, 201.8946, 116.8333, 160.0611, 179.9584, 162.7971,
+                122.6877, 221.3467, 342.4048]   # 2026-08-15 … 2026-10-13
+    GPR_MA_PLIK = 177.90203857421875   # kolumna GPRD_MA30 pliku w ostatnim wierszu
+    CISS3 = {"AT": [0.026626, 0.023046, 0.019002], "BE": [0.036407, 0.04729, 0.049382], "CN": [0.000613, 0.000345, 0.001299], "DE": [0.021971, 0.020984, 0.019707], "ES": [0.0069, 0.005752, 0.004452],
+             "FI": [0.007452, 0.006043, 0.005012], "FR": [0.044621, 0.051082, 0.050652], "GB": [0.012549, 0.014409, 0.011361], "IE": [0.014794, 0.016084, 0.012553], "IT": [0.023482, 0.020987, 0.017112],
+             "NL": [0.004015, 0.004797, 0.003187], "PT": [0.019009, 0.01588, 0.013442], "U2": [0.016715, 0.016749, 0.014532], "US": [0.006748, 0.007673, 0.007272]}   # 2026-10-07 … 2026-10-09
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        for p in (mock.patch.object(zd, 'NOW', self.NOW), mock.patch.object(zd.time, 'sleep')):
+            p.start(); self.addCleanup(p.stop)
+
+    # ---------------- nagrania (układ pól jak u źródeł) ----------------
+    @staticmethod
+    def dni(n, koniec):
+        k = datetime.date.fromisoformat(koniec)
+        return [(k - datetime.timedelta(days=n - 1 - i)).isoformat() for i in range(n)]
+
+    @staticmethod
+    def roboczy(n, koniec):
+        """n kolejnych dni roboczych kończących się w `koniec` (sob. i niedz. pominięte)"""
+        k, out = datetime.date.fromisoformat(koniec), []
+        while len(out) < n:
+            if k.weekday() < 5:
+                out.append(k.isoformat())
+            k -= datetime.timedelta(days=1)
+        return out[::-1]
+
+    def seria_dzienna(self, ogon, n=5200, koniec='2026-10-12'):
+        """n dni kalendarza kończących się w `koniec`: wcześniej deterministyczne 120…279, ostatnie 60 dni = ogon źródła"""
+        d = self.dni(n, koniec)
+        v = [120.0 + (i * 7919) % 160 for i in range(n)]
+        v[-len(ogon):] = ogon
+        return list(zip(d, v))
+
+    def epu_csv(self, rows, naglowek='day,month,year,daily_policy_index'):
+        w = [naglowek]
+        for d, v in rows:
+            y, m, dd = d.split('-')
+            w.append(f'{int(dd)},{int(m)},{y},' + ('' if v is None else f'{v:.2f}'))
+        return '\n'.join(w) + '\n'
+
+    def gpr_xls(self, rows, ma_last=None, kolejnosc=('N10D', 'GPRD_MA30', 'DAY', 'GPRD'), bez=None):
+        """plik .xls GPR w układzie źródła (kolumny po nazwach, w odmiennej kolejności); GPRD_MA30 = średnia z 30 ostatnich wierszy"""
+        vals = [v if v is not None else 0.0 for _d, v in rows]
+        cols = {'N10D': lambda i: 300.0 + i % 50, 'DAY': lambda i: rows[i][0].replace('-', ''), 'GPRD': lambda i: vals[i],
+                'GPRD_MA30': lambda i: sum(vals[max(0, i - 29):i + 1]) / len(vals[max(0, i - 29):i + 1])}
+        kol = [c for c in kolejnosc if c != bez]
+        out = [list(kol)]
+        for i in range(len(rows)):
+            r = [cols[c](i) for c in kol]
+            if ma_last is not None and i == len(rows) - 1 and 'GPRD_MA30' in kol:
+                r[kol.index('GPRD_MA30')] = ma_last
+            out.append(r)
+        return _ici_xls(out)
+
+    def gpr_xls_zly_dzien(self, rows):
+        """plik .xls z jednym dniem w złym zapisie (nie RRRRMMDD)"""
+        vals = [v if v is not None else 0.0 for _d, v in rows]
+        out = [['DAY', 'GPRD']] + [[d.replace('-', '') if i != 10 else 'wczoraj', vals[i]] for i, (d, _v) in enumerate(rows)]
+        return _ici_xls(out)
+
+    def ciss_json(self, n=1310, ost=None, bez=(), z_none=('DE', 'ES'), dodatkowe=0, freq='D', koniec='2026-10-09'):
+        """SDMX-JSON zbioru CISS (detail=dataonly): 14 obszarów, n dni roboczych kończących się w `koniec`; okres po `koniec` (12.10) z brakiem wartości dla `z_none` — jak w odpowiedzi z 13.10.2026"""
+        ost = self.CISS3 if ost is None else ost
+        obsz = sorted(a for a in self.CISS3 if a not in bez)
+        per = self.roboczy(n, koniec) + ['2026-10-12']
+        ser, series = {}, {}
+        for k, a in enumerate(obsz):
+            ob = {}
+            for i in range(n):
+                v = ost[a][i - (n - 3)] if i >= n - 3 else 0.02 + 0.015 * (1 + __import__('math').sin(i / 37.0 + k)) / 2
+                ob[str(i)] = [v]
+            if a in z_none:
+                ob[str(n)] = [None]
+            series[f'0:{k}:0:0:0:0:0'] = {'observations': ob}
+        dims = {'series': [{'id': 'FREQ', 'values': [{'id': freq}]}, {'id': 'REF_AREA', 'values': [{'id': a} for a in obsz]}, {'id': 'CURRENCY', 'values': [{'id': 'Z0Z'}]},
+                           {'id': 'PROVIDER_FM', 'values': [{'id': '4F'}]}, {'id': 'INSTRUMENT_FM', 'values': [{'id': 'EC'}]}, {'id': 'PROVIDER_FM_ID', 'values': [{'id': 'SS_CIN'}]},
+                           {'id': 'DATA_TYPE_FM', 'values': [{'id': 'IDX'}]}],
+                'observation': [{'id': 'TIME_PERIOD', 'values': [{'id': p} for p in per]}]}
+        return {'structure': {'dimensions': dims}, 'dataSets': [{'series': series}]}
+
+    @staticmethod
+    def pct(win, x):
+        return 100.0 * (sum(1 for v in win if v < x) + 0.5 * sum(1 for v in win if v == x)) / len(win)
+
+    # ---------------- CISS ----------------
+    def test_ciss_czesc_wartosci_percentyl_okno_i_wykres_tylko_glownych(self):
+        c = zd.np_ciss_czesc(self.ciss_json())
+        self.assertEqual(set(c['a']), set(zd.NP_CISS_AREAS)); self.assertEqual(len(c['a']), 14)
+        self.assertEqual(c['date'], '2026-10-09')
+        u2 = c['a']['U2']
+        self.assertEqual((u2['date'], u2['v'], u2['n']), ('2026-10-09', 0.0145, 1300)); self.assertEqual(u2['d1'], round(0.014532 - 0.016749, 4))
+        dni = self.roboczy(1310, '2026-10-09'); self.assertEqual(u2['from'], dni[-1300], 'początek okna 1300 obserwacji')
+        win = [round(0.02 + 0.015 * (1 + __import__('math').sin(i / 37.0 + sorted(self.CISS3).index('U2'))) / 2, 6) for i in range(1310 - 3)] + self.CISS3['U2']
+        self.assertEqual(u2['p'], round(self.pct(win[-1300:], 0.014532), 1))
+        for a in zd.NP_CISS_MAIN:
+            h = c['a'][a]['hist']; self.assertEqual(len(h), 260); self.assertEqual(h[-1], [c['a'][a]['date'], c['a'][a]['v']]); self.assertEqual([r[0] for r in h], sorted(r[0] for r in h))
+        for a in zd.NP_CISS_KRAJE:
+            self.assertNotIn('hist', c['a'][a], 'kraje bez wykresu — plik nie rośnie')
+        # DE i ES mają w odpowiedzi dzień 12.10 bez wartości — ostatnia liczba z 9.10, nigdy zero
+        self.assertEqual((c['a']['DE']['date'], c['a']['DE']['v']), ('2026-10-09', 0.0197)); self.assertEqual(c['a']['ES']['v'], 0.0045)
+        self.assertLess(len(json.dumps(c, separators=(',', ':'))), 40000, 'część CISS zostaje mała')
+
+    def test_ciss_okno_krotkie_brak_percentyla_i_bramki(self):
+        c = zd.np_ciss_czesc(self.ciss_json(n=1250))
+        self.assertEqual((c['a']['U2']['n'], c['a']['US']['n']), (1250, 1250)); self.assertIsNotNone(c['a']['U2']['p'], 'okno 1250 ≥ 1200 obserwacji — percentyl jest, z krótszego okna')
+        c2 = zd.np_ciss_czesc(self.ciss_json(n=1210)); self.assertEqual(c2['a']['U2']['n'], 1210)
+        j0 = self.ciss_json()   # kraj z krótką serią (1110 obserwacji): wiersz jest, ale bez percentyla (None, nie zero)
+        at = [k_ for k_ in j0['dataSets'][0]['series'] if k_.split(':')[1] == '0'][0]
+        for i in range(200):
+            del j0['dataSets'][0]['series'][at]['observations'][str(i)]
+        c0 = zd.np_ciss_czesc(j0); self.assertIsNone(c0['a']['AT']['p']); self.assertEqual(c0['a']['AT']['n'], 1110); self.assertIsNotNone(c0['a']['U2']['p'])
+        with self.assertRaisesRegex(RuntimeError, 'za krótka'):
+            zd.np_ciss_czesc(self.ciss_json(n=1150))
+        with self.assertRaisesRegex(RuntimeError, r'CISS GB'):
+            zd.np_ciss_czesc(self.ciss_json(bez=('GB',)))
+        c3 = zd.np_ciss_czesc(self.ciss_json(bez=('AT', 'PT')))
+        self.assertNotIn('AT', c3['a']); self.assertNotIn('PT', c3['a']); self.assertEqual(len(c3['a']), 12, 'brak kraju euro = brak jego wiersza, część nadal poprawna')
+        self.assertEqual(zd.np_ciss_parse(self.ciss_json(freq='M')), {}, 'inna częstotliwość serii — pominięta')
+        j = self.ciss_json()
+        j['dataSets'][0]['series']['0:0:0:0:0:0:0']['observations']['5'] = [1.7]; j['dataSets'][0]['series']['0:0:0:0:0:0:0']['observations']['6'] = [-0.2]
+        a0 = sorted(self.CISS3)[0]; ser = zd.np_ciss_parse(j)[a0]
+        self.assertEqual(len(ser), 1308, 'wartości spoza 0–1 pominięte (brak, nie zero)'); self.assertTrue(all(0 <= v <= 1 for _d, v in ser))
+
+    def test_ciss_dzien_danych_nie_cofa_sie(self):
+        c = zd.np_ciss_czesc(self.ciss_json(koniec='2026-10-09'))
+        starsza = self.ciss_json(koniec='2026-10-08')
+        with self.assertRaisesRegex(RuntimeError, 'starszy niż w poprzedniej'):
+            zd.np_ciss_czesc(starsza, c)
+        nowsza = zd.np_ciss_czesc(self.ciss_json(koniec='2026-10-12', z_none=()), c); self.assertEqual(nowsza['date'], '2026-10-12')
+
+    # ---------------- EPU / GPR: średnia 30 dni, zmiana, percentyl, wykres ----------------
+    def test_dzienny_sredniaje_zmiana_percentyl_okno_i_wykres(self):
+        rows = self.seria_dzienna(self.EPU_TAIL)
+        o = zd.np_dzienny(rows)
+        t30 = self.EPU_TAIL[-30:]; t0 = self.EPU_TAIL[-60:-30]
+        self.assertEqual(o['date'], '2026-10-12'); self.assertEqual(o['v'], 155.29)
+        self.assertEqual(o['ma30'], round(sum(t30) / 30, 2)); self.assertEqual(o['ma30'], 251.81, 'tyle liczy plik źródła z 13.10.2026')
+        self.assertEqual(o['d30'], round(sum(t30) / 30 - sum(t0) / 30, 2)); self.assertEqual(o['d30'], -18.63)
+        # percentyl: niezależne przeliczenie średnich kroczących z całej serii
+        v = [x for _d, x in rows]
+        ma = [sum(v[i - 29:i + 1]) / 30 for i in range(29, len(v))]
+        win = ma[-1826:]
+        self.assertEqual((o['n'], o['from']), (1826, rows[-1826][0])); self.assertEqual(o['p'], round(self.pct(win, ma[-1]), 1))
+        self.assertEqual(len(o['hist']), 365); self.assertEqual(o['hist'][-1], ['2026-10-12', 251.81]); self.assertEqual(o['hist'][0][0], rows[-365][0])
+        self.assertEqual(o['hist'][-2], [rows[-2][0], round(ma[-2], 2)])
+
+    def test_dzienny_luki_ostatni_dzien_zera_i_krotkie_okno(self):
+        rows = self.seria_dzienna(self.EPU_TAIL)
+        r2 = list(rows)
+        for i in (-3, -10):
+            r2[i] = (r2[i][0], None)
+        o = zd.np_dzienny(r2); v = [x for _d, x in r2[-30:] if x is not None]
+        self.assertEqual(o['ma30'], round(sum(v) / len(v), 2), '28 dni z wartością ≥ 27 — średnia z tych dni')
+        r3 = list(rows)
+        for i in range(-30, -26):
+            r3[i] = (r3[i][0], None)
+        with self.assertRaisesRegex(RuntimeError, 'nie ma średniej'):
+            zd.np_dzienny(r3)
+        r4 = list(rows); r4[-1] = (r4[-1][0], None)
+        o4 = zd.np_dzienny(r4); self.assertEqual(o4['date'], rows[-2][0], 'ostatni dzień bez wartości — bierzemy poprzedni dzień z liczbą')
+        r5 = list(rows); r5[-1] = (r5[-1][0], 0.0); r5[-2] = (r5[-2][0], -4.0); r5[-3] = (r5[-3][0], 9000.0)
+        o5 = zd.np_dzienny(r5); self.assertEqual(o5['date'], rows[-4][0], 'zero, ujemna i ponad granicę = brak dnia, nigdy zero')
+        kr = zd.np_dzienny(rows[-1700:])
+        self.assertIsNone(kr['p']); self.assertEqual(kr['n'], 1700 - 26, 'średnia od 27. dnia serii (≥ 27 dni z liczbą); za krótkie okno (< 1700 średnich) = brak percentyla'); self.assertEqual(len(kr['hist']), 365)
+        with self.assertRaisesRegex(RuntimeError, 'brak dni'):
+            zd.np_dzienny([(d, None) for d, _v in rows[-40:]])
+        self.assertIsNone(zd.np_dzienny(rows[-45:])['d30'], 'bez średniej sprzed 30 dni — brak zmiany, nie zero')
+
+    def test_epu_csv_naglowek_kolejnosc_obciecie_i_wartosci(self):
+        rows = self.seria_dzienna(self.EPU_TAIL)
+        p = zd.np_epu_rows(self.epu_csv(rows)); self.assertEqual(len(p), 5200); self.assertEqual(p[-1], ('2026-10-12', 155.29))
+        with self.assertRaisesRegex(ValueError, 'nagłówek'):
+            zd.np_epu_rows(self.epu_csv(rows, naglowek='day,month,year,policy'))
+        with self.assertRaisesRegex(ValueError, 'obcięty'):
+            zd.np_epu_rows(self.epu_csv(rows[-4000:]))
+        with self.assertRaisesRegex(ValueError, 'nie rosną'):
+            zd.np_epu_rows(self.epu_csv(rows[:100] + rows[99:]))
+        zl = self.epu_csv(rows).split('\n'); zl[5] = '31,2,2012,100.00'
+        with self.assertRaisesRegex(ValueError, 'zła data'):
+            zd.np_epu_rows('\n'.join(zl))
+        txt = self.epu_csv(rows[:-2] + [(rows[-2][0], None), (rows[-1][0], None)])
+        q = zd.np_epu_rows(txt); self.assertEqual((q[-1][1], q[-2][1]), (None, None), 'puste pole = brak dnia, nie zero')
+        self.assertEqual(zd.np_epu_rows('\ufeff' + self.epu_csv(rows))[-1], ('2026-10-12', 155.29), 'BOM na początku pliku')
+
+    def test_gpr_xls_kolumny_po_nazwach_zero_to_brak_i_zgodnosc_sredniej(self):
+        """Prawdziwy czytnik .xls (ici_xls) na małym pliku w układzie źródła (do ~64 KB — tyle obsługuje pomocnik OLE testów): NP_MIN_ROWS obniżone do 500, żeby sprawdzić resztę bramek."""
+        rows = self.seria_dzienna(self.GPR_TAIL, n=600, koniec='2026-10-13')
+        with mock.patch.object(zd, 'NP_MIN_ROWS', 500):
+            r0 = list(rows); r0[300] = (r0[300][0], 0.0)   # dwa takie dni są w pliku źródła (1997 i 2025): zero = brak dnia
+            p, fma = zd.np_gpr_rows(self.gpr_xls(r0)); self.assertEqual(len(p), 600)
+            self.assertEqual((p[-1][0], p[-1][1]), ('2026-10-13', 342.4048)); self.assertIsNone(p[300][1], 'zero w pliku = brak dnia')
+            o = zd.np_dzienny_czesc('gpr', p, fma)
+            self.assertEqual(o['ma30'], 177.9, 'tyle liczy kolumna GPRD_MA30 pliku źródła z 13.10.2026'); self.assertEqual(o['date'], '2026-10-13'); self.assertEqual(o['v'], 342.4)
+            self.assertEqual(o['d30'], round(sum(self.GPR_TAIL[-30:]) / 30 - sum(self.GPR_TAIL[-60:-30]) / 30, 2)); self.assertIsNone(o['p'], 'plik 600 dni — okno krótsze niż 1700, brak percentyla')
+            # zgodność z kolumną pliku: inna definicja (np. 7 dni) = błąd części, nie liczba pod złą nazwą
+            p2, f2 = zd.np_gpr_rows(self.gpr_xls(rows, ma_last=186.58416748046875))
+            with self.assertRaisesRegex(RuntimeError, 'różni się'):
+                zd.np_dzienny_czesc('gpr', p2, f2)
+            zd.np_dzienny_czesc('gpr', p2, 177.9 * 1.005)   # w granicach 1%
+            with self.assertRaisesRegex(ValueError, 'brak kolumn'):
+                zd.np_gpr_rows(self.gpr_xls(rows, bez='GPRD'))
+            p3, f3 = zd.np_gpr_rows(self.gpr_xls(rows, kolejnosc=('N10D', 'DAY', 'GPRD'))); self.assertIsNone(f3, 'bez kolumny średniej pliku — bez porównania'); zd.np_dzienny_czesc('gpr', p3, f3)
+            with self.assertRaisesRegex(ValueError, 'nie rosną'):
+                zd.np_gpr_rows(self.gpr_xls(rows[:200] + rows[199:]))
+            with self.assertRaisesRegex(ValueError, 'zły dzień'):
+                zd.np_gpr_rows(self.gpr_xls_zly_dzien(rows))
+        with self.assertRaisesRegex(ValueError, 'obcięty'):
+            zd.np_gpr_rows(self.gpr_xls(rows[-300:]))   # domyślny NP_MIN_ROWS = 5000
+        with self.assertRaises(ValueError):
+            zd.np_gpr_rows(b'nie jest plikiem xls')
+
+    # ---------------- budowniczy pliku ----------------
+    def build(self, prev=None, ciss=None, epu=None, gpr=None, lm_epu='Mon, 12 Oct 2026 23:55:08 GMT', lm_gpr='Mon, 12 Oct 2026 23:50:12 GMT', zapytania=None, blad=()):
+        """build_niepewnosc z zaślepkami sieci: CISS przez _ecb_json, EPU i GPR przez np_http; zapytania → lista (url, If-Modified-Since). Plik .xls GPR ma 3,3 MB, a pomocnik OLE testów
+        obsługuje pliki do ok. 64 KB, więc odpowiedź GPR to znacznik, a wiersze podaje zaślepka np_gpr_rows (czytnik .xls sprawdza test_gpr_xls_*; tu gpr = None → nagranie, 304 albo lista wierszy)."""
+        ciss = self.ciss_json() if ciss is None else ciss
+        epu = self.epu_csv(self.seria_dzienna(self.EPU_TAIL)) if epu is None else epu
+        gpr_rows = self.seria_dzienna(self.GPR_TAIL, koniec='2026-10-13') if gpr is None else gpr
+        gpr = gpr if gpr == 304 else b'GPR-TEST'
+        zap = [] if zapytania is None else zapytania
+
+        def http(url, lm=None):
+            zap.append((url.rsplit('/', 1)[-1], lm))
+            if 'policyuncertainty' in url:
+                if 'epu' in blad:
+                    raise RuntimeError('HTTP Error 503')
+                if epu == 304:
+                    return 304, b'', lm
+                return 200, epu.encode('utf-8'), lm_epu
+            if 'gpr' in blad:
+                raise RuntimeError('HTTP Error 403')
+            if gpr == 304:
+                return 304, b'', lm
+            return 200, gpr, lm_gpr
+
+        def ecb(url):
+            zap.append(('ecb', None))
+            if 'ciss' in blad:
+                raise RuntimeError('HTTP Error 500')
+            return ciss
+        with mock.patch.object(zd, 'np_http', side_effect=http), mock.patch.object(zd, '_ecb_json', side_effect=ecb), \
+                mock.patch.object(zd, 'np_gpr_rows', side_effect=lambda raw, bez=None: ([r for r in gpr_rows if not bez or r[0] < bez], self.GPR_MA_PLIK if not bez and raw == b'GPR-TEST' and gpr_rows[-1][0] == '2026-10-13' and len(gpr_rows) == 5200 else None)):
+            return zd.build_niepewnosc(prev)
+
+    def test_build_trzy_czesci_z_lm_part_at_i_zapytaniami(self):
+        zap = []
+        j = self.build(zapytania=zap)
+        self.assertEqual((j['v'], j['at']), (1, self.NOW)); self.assertEqual(j['ok'], {'ciss': True, 'epu': True, 'gpr': True}); self.assertEqual(j['part_at'], {k: self.NOW for k in zd.NP_PARTS})
+        self.assertEqual(j['lm'], {'epu': 'Mon, 12 Oct 2026 23:55:08 GMT', 'gpr': 'Mon, 12 Oct 2026 23:50:12 GMT'}); self.assertEqual(j['errs'], {})
+        self.assertEqual(zap, [('ecb', None), ('All_Daily_Policy_Data.csv', None), ('data_gpr_daily_recent.xls', None)], 'pierwszy przebieg: trzy zapytania, bez If-Modified-Since')
+        self.assertEqual((j['ciss']['date'], j['epu']['date'], j['gpr']['date']), ('2026-10-09', '2026-10-12', '2026-10-13')); self.assertEqual((j['epu']['ma30'], j['gpr']['ma30']), (251.81, 177.9))
+        self.assertEqual(zd.META['errors'], []); self.assertNotIn('klucz', json.dumps(j).lower())
+        self.assertLess(len(json.dumps(j, separators=(',', ':'))), 60000)
+        self.assertTrue(zd.NP_CISS_URL.startswith('https://data-api.ecb.europa.eu/') and 'detail=dataonly' in zd.NP_CISS_URL and 'lastNObservations=1310' in zd.NP_CISS_URL)
+        self.assertEqual((zd.NP_EPU_URL, zd.NP_GPR_URL), ('https://www.policyuncertainty.com/media/All_Daily_Policy_Data.csv', 'https://www.matteoiacoviello.com/gpr_files/data_gpr_daily_recent.xls'))
+
+    def test_build_304_zostawia_poprzednia_wersje_a_if_modified_since_idzie_z_zapisanym_lm(self):
+        prev = json.loads(json.dumps(self.build()))
+        zap = []
+        j = self.build(prev=prev, epu=304, gpr=304, zapytania=zap)
+        self.assertEqual(zap[1:], [('All_Daily_Policy_Data.csv', prev['lm']['epu']), ('data_gpr_daily_recent.xls', prev['lm']['gpr'])], 'If-Modified-Since z zapisanym Last-Modified')
+        self.assertEqual((j['epu'], j['gpr']), (prev['epu'], prev['gpr'])); self.assertEqual(j['ok'], {'ciss': True, 'epu': True, 'gpr': True})
+        self.assertEqual(j['part_at']['epu'], self.NOW, '304 = sprawdzenie udane (chwila części = teraz)'); self.assertEqual(j['lm'], prev['lm'])
+        with mock.patch.object(zd, 'np_http', return_value=(304, b'', None)), mock.patch.object(zd, '_ecb_json', return_value=self.ciss_json()):
+            j2 = zd.build_niepewnosc({'v': 1, 'at': 'x', 'ok': {}, 'ciss': prev['ciss']})
+        self.assertFalse(j2['ok']['epu']); self.assertIn('304 bez poprzedniej wersji', j2['errs']['epu'], '304 bez poprzednich danych = błąd, nie pusta część')
+        prev2 = json.loads(json.dumps(prev)); prev2['ok']['epu'] = False   # poprzednia wersja po błędzie: bez If-Modified-Since, pełne pobranie
+        zap = []
+        self.build(prev=prev2, zapytania=zap); self.assertEqual(zap[1], ('All_Daily_Policy_Data.csv', None))
+
+    def test_build_czesc_z_bledem_zostaje_z_poprzedniego_pliku_z_wlasna_data(self):
+        prev = json.loads(json.dumps(self.build()))
+        prev['part_at']['gpr'] = '2026-10-13T10:00:00+00:00'
+        j = self.build(prev=prev, blad=('gpr',))
+        self.assertEqual(j['ok'], {'ciss': True, 'epu': True, 'gpr': False}); self.assertEqual(j['gpr'], prev['gpr']); self.assertEqual(j['part_at']['gpr'], '2026-10-13T10:00:00+00:00', 'część z błędem zostaje z własną chwilą')
+        self.assertEqual(j['lm']['gpr'], prev['lm']['gpr']); self.assertIn('403', j['errs']['gpr'])
+        self.assertEqual(zd.META['errors'], ['Niepewność GPR: HTTP Error 403'], 'błąd z przyczyną, bez adresów')
+        zd.META['errors'].clear()
+        j2 = self.build(blad=('epu',)); self.assertNotIn('epu', j2); self.assertEqual(j2['ok']['epu'], False); self.assertIn('ciss', j2)   # bez poprzedniego pliku część po prostu nie istnieje (brak, nie zero)
+        zd.META['errors'].clear()
+        with self.assertRaisesRegex(RuntimeError, 'żadna część'):
+            self.build(blad=('ciss', 'epu', 'gpr'))
+        # wadliwa odpowiedź (bramka części): obcięty plik EPU = błąd, poprzednia wersja zostaje
+        zd.META['errors'].clear()
+        j3 = self.build(prev=prev, epu=self.epu_csv(self.seria_dzienna(self.EPU_TAIL)[-3000:]))
+        self.assertEqual(j3['epu'], prev['epu']); self.assertFalse(j3['ok']['epu']); self.assertIn('obcięty', j3['errs']['epu'])
+        # starszy dzień danych niż w poprzedniej wersji = błąd części
+        zd.META['errors'].clear()
+        j4 = self.build(prev=prev, epu=self.epu_csv(self.seria_dzienna(self.EPU_TAIL, koniec='2026-10-10')))
+        self.assertEqual(j4['epu'], prev['epu']); self.assertIn('starszy niż w poprzedniej', j4['errs']['epu'])
+
+    def test_tabela_zrodel_plus_dwa_zrodla(self):
+        self.assertEqual((zd.ZRODLA_META['niepewnosc_ciss'], zd.ZRODLA_META['niepewnosc_epu'], zd.ZRODLA_META['niepewnosc_gpr']), ('ecb', 'policyuncertainty', 'gpr'))
+        baza = zd.zrodla_meta({'kursy': True})
+        self.assertEqual(baza, {'n': 1, 'ok': 1})
+        nowe = zd.zrodla_meta({'kursy': True, 'niepewnosc_ciss': True, 'niepewnosc_epu': True, 'niepewnosc_gpr': 'cached'})
+        self.assertEqual(nowe, {'n': 3, 'ok': 3}, 'EBC już był (kursy) — dochodzą dwa nowe źródła')
+        self.assertEqual(zd.zrodla_meta({'kursy': True, 'niepewnosc_ciss': True, 'niepewnosc_epu': False, 'niepewnosc_gpr': True}), {'n': 3, 'ok': 2}, 'EPU milczy')
+
+    def test_okablowanie_main_i_zaslepki(self):
+        import inspect, pathlib
+        src = inspect.getsource(zd.main)
+        a = src.index("    prev_np = previous('niepewnosc')")
+        self.assertLess(src.index("    prev_zm = previous('zmiennosc')"), a); self.assertLess(a, src.index("    save('meta', META)"))
+        b = src.index('    # v368: koniec bloku stresu i niepewności')
+        self.assertLess(a, b)
+        blk = src[a:b]
+        for s in ("fresh_pelny(prev_np, NP_EVERY)", "np_ = build_niepewnosc(prev_np); save('niepewnosc', np_)", "stan_np[k_np] = 'cached'", "stan_np = {k_np: np_['ok'].get(k_np) is True for k_np in NP_PARTS}",
+                  "META['ok']['niepewnosc_ciss'] = stan_np['ciss']; META['ok']['niepewnosc_epu'] = stan_np['epu']; META['ok']['niepewnosc_gpr'] = stan_np['gpr']"):
+            self.assertIn(s, blk, s)
+        self.assertIn("save('niepewnosc', prev_np)", blk, 'awaria budowniczego = poprzedni plik')
+        import re as _re
+        t = pathlib.Path(os.path.abspath(__file__)).read_text(encoding='utf-8')
+        T = [m.group(0) for m in _re.finditer(r"\(\s*'build_\w+'(?:\s*,\s*'build_\w+')+\s*,?\s*\)", t) if "'build_pip'" in m.group(0) and "'build_gieldy'" in m.group(0)]
+        self.assertGreaterEqual(len(T), 10)
+        self.assertEqual([x[:40] for x in T if "'build_niepewnosc'" not in x], [], 'każda krotka zaślepek zna nowego budowniczego')
+
+    def test_blok_main_cache_przebudowa_i_awaria(self):
+        """Blok main() wykonany wprost: młody plik = bez zapytań (cached); część z jawnym błędem = nadal błąd z przyczyną z pliku; stary plik = budowa; awaria = poprzedni plik."""
+        import inspect, textwrap
+        src = inspect.getsource(zd.main)
+        blk = textwrap.dedent(src[src.index("    prev_np = previous('niepewnosc')"):src.index('    # v368: koniec bloku stresu i niepewności')])
+        pn = json.loads(json.dumps(self.build()))
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+        saved, calls = {}, []
+        def run(prevs, build=None, fresh_=True):
+            zd.META['ok'].clear(); zd.META['errors'].clear(); saved.clear(); calls.clear()
+            def bn(p):
+                calls.append('np')
+                if build is None:
+                    raise RuntimeError('offline')
+                return build
+            with mock.patch.object(zd, 'previous', side_effect=lambda n: prevs.get(n)), mock.patch.object(zd, 'save', side_effect=lambda n, o: saved.__setitem__(n, o)), \
+                    mock.patch.object(zd, 'fresh_pelny', return_value=fresh_), mock.patch.object(zd, 'build_niepewnosc', side_effect=bn):
+                try:
+                    exec(compile(blk, 'blok_v368', 'exec'), zd.__dict__)
+                finally:
+                    for n_ in ('prev_np', 'np_', 'k_np', 'stan_np', 'e'):
+                        zd.__dict__.pop(n_, None)
+        run({'niepewnosc': pn})
+        self.assertEqual(calls, []); self.assertEqual(saved, {'niepewnosc': pn}); self.assertEqual(zd.META['ok'], {'niepewnosc_ciss': 'cached', 'niepewnosc_epu': 'cached', 'niepewnosc_gpr': 'cached'}); self.assertEqual(zd.META['errors'], [])
+        pn2 = json.loads(json.dumps(pn)); pn2['ok']['gpr'] = False; pn2['errs'] = {'gpr': 'HTTP Error 403'}
+        run({'niepewnosc': pn2})
+        self.assertEqual(zd.META['ok'], {'niepewnosc_ciss': 'cached', 'niepewnosc_epu': 'cached', 'niepewnosc_gpr': False}); self.assertEqual(zd.META['errors'], ['Niepewność GPR: HTTP Error 403'])
+        run({'niepewnosc': pn}, build=pn, fresh_=False)
+        self.assertEqual(calls, ['np']); self.assertEqual(zd.META['ok'], {'niepewnosc_ciss': True, 'niepewnosc_epu': True, 'niepewnosc_gpr': True}); self.assertEqual(zd.META['errors'], [])
+        pn3 = json.loads(json.dumps(pn)); pn3['ok']['epu'] = False
+        run({'niepewnosc': pn}, build=pn3, fresh_=False); self.assertEqual(zd.META['ok']['niepewnosc_epu'], False)
+        run({'niepewnosc': pn}, fresh_=False)
+        self.assertEqual(saved, {'niepewnosc': pn}, 'awaria budowniczego: poprzedni plik zostaje'); self.assertEqual(zd.META['ok'], {'niepewnosc_ciss': False, 'niepewnosc_epu': False, 'niepewnosc_gpr': False})
+        self.assertEqual(zd.META['errors'], ['Niepewność: offline'])
+        run({}, fresh_=False); self.assertEqual(saved, {}, 'bez poprzedniego pliku i bez budowy nie ma czego zapisać')
+        run({'niepewnosc': {'v': 2, 'at': 'x'}}, build=pn, fresh_=True); self.assertEqual(calls, ['np'], 'plik innej wersji nie jest „świeży” — przebudowa')
+
+    # ---------------- kontrola dzienna ----------------
+    @staticmethod
+    def kt():
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola-v368-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}, clear=False):
+            spec = importlib.util.spec_from_file_location('v368_kontrola', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    def plik(self):
+        return json.loads(json.dumps(self.build()))
+
+    def test_kontrola_pliki_limity_i_awarie(self):
+        import pathlib
+        k = self.kt()
+        self.assertIn('niepewnosc', k.PLIKI); self.assertLess(k.PLIKI.index('niepewnosc'), k.PLIKI.index('krypto-dzien')); self.assertEqual(k.LIMIT_MIN['niepewnosc'], 12 * 60)
+        for p in ('ciss', 'epu', 'gpr'):
+            self.assertIn('zostaje z datą', k.AW_BEZ_BLEDU['niepewnosc_' + p])
+        self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik']); self.assertEqual(len(k.PLIKI), len(set(k.PLIKI)))
+        self.assertEqual(k.pliki_bez_nadzoru(pathlib.Path(zd.__file__).read_text(encoding='utf-8')), [], 'nowy plik jest w PLIKI')
+        self.assertEqual(k.NP_K_PROG, {'ciss': 144 * 60, 'epu': 96 * 60, 'gpr': 96 * 60})
+        self.assertEqual((k.NP_K_SKOK_CISS, k.NP_K_SKOK_MA, k.NP_K_DZIEN_MAX), (0.2, {'epu': 45.0, 'gpr': 50.0}, 1600.0))
+        self.assertEqual(k.NP_K_D30, {'epu': 600.0, 'gpr': 900.0})
+
+    def test_kontrola_wiek_wiersze_i_spojnosc_zielona_na_nagraniach(self):
+        k = self.kt(); np_ = self.plik()
+        now = datetime.datetime(2026, 10, 13, 22, 40, tzinfo=self.U)
+        R = k.niepewnosc_kontrola(np_, None, now)
+        self.assertEqual([r[1] for r in R['rows']], ['✅', '✅', '✅'], R['rows']); self.assertEqual(R['uwagi'], [], R['uwagi']); self.assertEqual(R['spojnosc'], [], R['spojnosc'])
+        self.assertEqual([r[3] for r in R['rows']], ['2026-10-09', '2026-10-12', '2026-10-13'])
+        self.assertEqual(R['rows'][0][2], 24 * 60 + 22 * 60 + 40, 'piątek 9.10 → wtorek 13.10 22:40: godziny robocze bez soboty i niedzieli (poniedziałek 24 h + wtorek 22 h 40 min)')
+        self.assertEqual(dict(R['wiersze'])['spójność pliku (zakresy, skoki dzienne, wykresy, percentyle, komplet obszarów)'], '✅')
+        for l in ('Stres i niepewność: stres systemowy CISS (strefa euro; dni robocze)', 'Stres i niepewność: niepewność polityki USA (EPU)', 'Stres i niepewność: ryzyko geopolityczne (GPR)'):
+            self.assertIn(l, [r[0] for r in R['rows']])
+        # wiek: ponad progi (144 h roboczych CISS, 96 h EPU i GPR) = ⚠ (nigdy błąd); dzień przed progiem ✅
+        późno = datetime.datetime(2026, 10, 22, 6, 0, tzinfo=self.U)
+        R5 = k.niepewnosc_kontrola(np_, None, późno)
+        self.assertEqual([r[1] for r in R5['rows']], ['⚠\ufe0f', '⚠\ufe0f', '⚠\ufe0f']); self.assertEqual(len([u for u in R5['uwagi'] if u.startswith('Stres i niepewność:')]), 3)
+        ok = datetime.datetime(2026, 10, 15, 12, 0, tzinfo=self.U)   # CISS z piątku 9.10: poniedziałek–czwartek 12:00 = 3 doby + 12 h = 84 h ≤ 144 h; EPU z 12.10 = 60 h ≤ 96 h
+        self.assertEqual([r[1] for r in k.niepewnosc_kontrola(np_, None, ok)['rows']], ['✅', '✅', '✅'])
+        gr = datetime.datetime(2026, 10, 19, 6, 0, tzinfo=self.U)   # CISS (od 10.10): 5 dni robocze + 6 h = 126 h ≤ 144 h ✅; EPU (od 13.10): 4 dni + 1 dzień pn. + 6 h = 102 h > 96 h ⚠; GPR (od 14.10): 78 h ≤ 96 h ✅
+        self.assertEqual([r[1] for r in k.niepewnosc_kontrola(np_, None, gr)['rows']], ['✅', '⚠\ufe0f', '✅'])
+        # brak plików / inna wersja = brak wierszy
+        R = k.niepewnosc_kontrola(None, None, now); self.assertEqual((R['rows'], R['wiersze'], R['uwagi']), ([], [], []))
+        R = k.niepewnosc_kontrola({'v': 2}, None, now); self.assertEqual(R['rows'], [])
+        R = k.niepewnosc_kontrola({'v': 1, 'at': 'x'}, None, now); self.assertEqual([r[1] for r in R['rows']], ['?', '?', '?'], 'plik bez części: wiersze „?”, nie zero')
+
+    def test_kontrola_sprzecznosci_i_progi_z_rozkladu_historii(self):
+        k = self.kt(); now = datetime.datetime(2026, 10, 13, 22, 40, tzinfo=self.U)
+
+        def zle(mut):
+            n = self.plik(); mut(n); R = k.niepewnosc_kontrola(n, None, now)
+            self.assertEqual(dict(R['wiersze'])['spójność pliku (zakresy, skoki dzienne, wykresy, percentyle, komplet obszarów)'], '⚠\ufe0f')
+            self.assertLessEqual(len([u for u in R['uwagi'] if 'v368' in u]), 4)
+            return ' | '.join(R['spojnosc'])
+        def m1(n): n['ciss']['a']['U2']['v'] = 1.5
+        self.assertIn('CISS U2: zła liczba', zle(m1))
+        def m2(n): n['ciss']['a']['US']['d1'] = 0.35
+        self.assertIn('dzienna zmiana 0.35 ponad progiem 0.2', zle(m2))
+        def m3(n): del n['ciss']['a']['DE']
+        self.assertIn('CISS: brak obszarów DE', zle(m3))
+        def m4(n): n['ciss']['a']['GB']['hist'][100][1] = 0.9
+        self.assertIn('CISS GB: skok', zle(m4))
+        def m5(n): n['ciss']['a']['CN']['hist'][-1][1] = 0.1
+        self.assertIn('CISS CN: ostatni punkt wykresu różni się od pól date/v', zle(m5))
+        def m6(n): n['ciss']['a']['IT']['p'] = 130.0
+        self.assertIn('CISS IT: percentyl poza 0–100', zle(m6))
+        def m7(n): n['ciss']['a']['US']['date'] = '2026-09-20'; n['ciss']['a']['US']['hist'][-1][0] = '2026-09-20'
+        self.assertIn('rozjeżdżają się', zle(m7))
+        def m8(n): n['epu']['ma30'] = 5000.0
+        self.assertIn('EPU: wartość dnia albo średnia 30 dni poza zakresem', zle(m8))
+        def m9(n): n['gpr']['hist'][200][1] += 90.0
+        self.assertIn('GPR: skok', zle(m9))
+        def m10(n):
+            for r in n['epu']['hist'][-40:]:
+                r[1] = n['epu']['ma30']
+        self.assertIn('EPU: 30 takich samych liczb z rzędu (wartość utknięta)', zle(m10))
+        def m11(n): n['gpr']['p'] = None
+        self.assertIn('GPR: brak percentyla albo poza 0–100', zle(m11))
+        def m12(n): n['epu']['hist'] = n['epu']['hist'][-100:]
+        self.assertIn('EPU: wykres krótszy niż 300 dni', zle(m12))
+        def m13(n): n['gpr']['hist'][-1][0] = '2026-10-12'
+        self.assertIn('GPR: dni wykresu nie rosną', zle(m13))
+        # zmiana 30 dni: prawdziwe kryzysy z historii (EPU +386 w 2001/2020, GPR +618 we wrześniu 2001) NIE są alarmem; liczba ponad historię jest
+        def m14(n): n['epu']['d30'] = 386.09; n['gpr']['d30'] = -617.56
+        n14 = self.plik(); m14(n14); R14 = k.niepewnosc_kontrola(n14, None, now); self.assertNotIn('zmiana 30 dni', ' | '.join(R14['spojnosc']), 'maksima historii: bez fałszywego alarmu')
+        def m15(n): n['epu']['d30'] = 650.0
+        self.assertIn('EPU: zmiana 30 dni 650.0 ponad progiem 600.0', zle(m15))
+        def m16(n): n['gpr']['d30'] = -950.0
+        self.assertIn('GPR: zmiana 30 dni -950.0 ponad progiem 900.0', zle(m16))
+        # progi z rozkładu historii: stałe zgodne z opisem testu wstecznego (maksima 0,112; 29,1; 33,1; ok. 1050) i z marginesem ≥ 1,5 raza
+        self.assertGreaterEqual(k.NP_K_SKOK_CISS / 0.1119, 1.5); self.assertGreaterEqual(k.NP_K_SKOK_MA['epu'] / 29.09, 1.5); self.assertGreaterEqual(k.NP_K_SKOK_MA['gpr'] / 33.09, 1.5)
+        self.assertGreaterEqual(k.NP_K_DZIEN_MAX / 1048.95, 1.5)
+        self.assertGreaterEqual(k.NP_K_D30['epu'] / 386.09, 1.4); self.assertGreaterEqual(k.NP_K_D30['gpr'] / 617.56, 1.4)   # maksima zmiany 30 dni w całej historii 1985–2026 (test wsteczny, bt_progi.py)
+        for kk, (mn, mx) in (('epu', (33.6, 585.8)), ('gpr', (39.1, 681.7))):   # zakres średniej 30 dni obejmuje całą historię (1985–2026) z marginesem: dolna granica ≤ 0,6 minimum, górna ≥ 1,4 maksimum
+            self.assertTrue(k.NP_K_MA_ZAKRES[kk][0] <= 0.6 * mn and k.NP_K_MA_ZAKRES[kk][1] >= 1.4 * mx, kk)
+
+    def test_kontrola_brak_alarmow_w_zywej_historii_na_oknach_wykresu(self):
+        """Test wsteczny w skali testu: okna wykresu (365 dni) przesuwane po całej syntetycznej historii z ogonem źródła — 0 alarmów; wartość utknięta i skok są wykrywane."""
+        k = self.kt(); rows = self.seria_dzienna(self.EPU_TAIL)
+        o = zd.np_dzienny(rows); zle = []
+        k._np_k_hist(o['hist'], 'EPU', k.NP_K_MA_ZAKRES['epu'], k.NP_K_SKOK_MA['epu'], zle, 300); self.assertEqual(zle, [])
+        h2 = [list(r) for r in o['hist']]; h2[50][1] += 80.0
+        k._np_k_hist(h2, 'EPU', k.NP_K_MA_ZAKRES['epu'], k.NP_K_SKOK_MA['epu'], zle, 300); self.assertTrue(zle and 'skok' in zle[0], zle)
+
+    def test_gpr_dzien_niepelny_pomijany_gdy_plik_zmieniony_dzis(self):
+        """13.10.2026 plik GPR zmieniono o 15:45 GMT, a ostatni wiersz to 13.10 (wartość 342 przy średniej 178): dzień trwa — pokazujemy poprzedni zamknięty dzień."""
+        lm = 'Tue, 13 Oct 2026 15:45:32 GMT'
+        self.assertEqual(zd.np_gpr_dzien_niepelny(lm), '2026-10-13'); self.assertIsNone(zd.np_gpr_dzien_niepelny('Mon, 12 Oct 2026 23:50:12 GMT'))
+        self.assertIsNone(zd.np_gpr_dzien_niepelny(None)); self.assertIsNone(zd.np_gpr_dzien_niepelny('nie data'))
+        # prawdziwy czytnik .xls: ostatni wiersz odcięty, średnia z kolumny pliku to średnia poprzedniego wiersza i zgadza się z naszą
+        rows = self.seria_dzienna(self.GPR_TAIL, n=600, koniec='2026-10-13')
+        with mock.patch.object(zd, 'NP_MIN_ROWS', 500):
+            raw = self.gpr_xls(rows)
+            p0, f0 = zd.np_gpr_rows(raw); p1, f1 = zd.np_gpr_rows(raw, '2026-10-13')
+            self.assertEqual((p0[-1][0], p1[-1][0], len(p1)), ('2026-10-13', '2026-10-12', len(p0) - 1)); self.assertNotEqual(f0, f1)
+            o = zd.np_dzienny_czesc('gpr', p1, f1); self.assertEqual(o['date'], '2026-10-12')
+            self.assertEqual(zd.np_gpr_rows(raw, '2026-10-12')[0][-1][0], '2026-10-11', 'odcinamy wszystko od tej daty wzwyż')
+            self.assertEqual(zd.np_gpr_rows(raw, '2026-10-14')[0][-1][0], '2026-10-13', 'dzień późniejszy niż plik — nic nie odcinamy')
+        # budowniczy: część gpr z dniem zamkniętym, znacznik bez_dnia; EPU bez znacznika
+        j = self.build(lm_gpr=lm)
+        self.assertEqual(j['gpr']['date'], '2026-10-12'); self.assertEqual(j['gpr']['bez_dnia'], '2026-10-13'); self.assertNotIn('bez_dnia', j['epu'])
+        w = zd.np_dzienny(self.seria_dzienna(self.GPR_TAIL, koniec='2026-10-13')[:-1]); self.assertEqual((j['gpr']['ma30'], j['gpr']['v']), (w['ma30'], w['v']))
+        self.assertNotEqual(j['gpr']['ma30'], 177.9); self.assertEqual(j['lm']['gpr'], lm)
+        # ten sam dzień, plik bez zmian (304): poprzednia wersja i znacznik zostają, zapytanie z If-Modified-Since
+        zap = []; j2 = self.build(prev=json.loads(json.dumps(j)), gpr=304, lm_gpr=lm, zapytania=zap)
+        self.assertEqual(zap[2], ('data_gpr_daily_recent.xls', lm)); self.assertEqual(j2['gpr'], j['gpr'])
+        # następnego dnia: pominięty dzień jest zamknięty — pełne pobranie (bez If-Modified-Since) i dzień 13.10 w danych
+        zap = []
+        with mock.patch.object(zd, 'NOW', '2026-10-14T06:00:00+00:00'):
+            j3 = self.build(prev=json.loads(json.dumps(j)), lm_gpr=lm, zapytania=zap)
+        self.assertEqual(zap[2], ('data_gpr_daily_recent.xls', None), 'po zakończeniu doby bez 304'); self.assertEqual(j3['gpr']['date'], '2026-10-13'); self.assertNotIn('bez_dnia', j3['gpr'])
+        self.assertEqual(j3['gpr']['ma30'], 177.9)
+
+    def test_kontrola_ciss_usa_a_indeks_stresu_tylko_informacja(self):
+        k = self.kt(); np_ = self.plik(); now = datetime.datetime(2026, 10, 13, 22, 40, tzinfo=self.U)
+        h = np_['ciss']['a']['US']['hist']
+        stres = {'fsi': {'hist': [[d, 100 * v - 3.0] for d, v in h]}}   # liniowo zależny od CISS USA → korelacja 1,00
+        R = k.niepewnosc_kontrola(np_, stres, now)
+        info = [(o, z) for o, z in R['wiersze'] if o.startswith('CISS USA a indeks stresu USA')]
+        self.assertEqual(len(info), 1); self.assertIn('korelacja poziomów 1.00 na 260 wspólnych dniach', info[0][0]); self.assertIn('tylko informacja', info[0][0]); self.assertEqual(info[0][1], 'ℹ\ufe0f')
+        st2 = {'fsi': {'hist': [[d, -100 * v] for d, v in h]}}   # odwrotnie: −1,00 — nadal tylko informacja, nigdy ⚠
+        R2 = k.niepewnosc_kontrola(np_, st2, now); self.assertTrue(any('−1.00' in o or '-1.00' in o for o, _z in R2['wiersze'])); self.assertEqual(R2['uwagi'], [])
+        R3 = k.niepewnosc_kontrola(np_, {'fsi': {'hist': h[:50]}}, now); self.assertFalse([o for o, _z in R3['wiersze'] if o.startswith('CISS USA a indeks')], 'mniej niż 100 wspólnych dni — bez porównania')
+        R4 = k.niepewnosc_kontrola(np_, None, now); self.assertFalse([o for o, _z in R4['wiersze'] if o.startswith('CISS USA a indeks')])
+
+    def test_kontrola_okablowanie_raport(self):
+        import pathlib
+        src = pathlib.Path(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py').read_text(encoding='utf-8')
+        self.assertIn("T_ = niepewnosc_kontrola(files.get('niepewnosc'), files.get('stres'))", src)
+        self.assertIn("R['zgodnosc']['niepewnosc']", src); self.assertIn("np_ = Z.get('niepewnosc')", src)
+        self.assertLess(src.index("T_ = niepewnosc_kontrola("), src.index('# 3d. v115: zgodność liczb — kapitalizacja'))
+        self.assertLess(src.index("np_ = Z.get('niepewnosc')"), src.index("srz = Z.get('surowce-raporty')"))
