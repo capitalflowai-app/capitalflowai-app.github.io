@@ -100,6 +100,12 @@ jobs:
           test -f _site/img/monety/aave.webp            #   (osobne linie: w liście „&&” błąd pierwszego członu nie przerywa kroku)
           cp count.js _site/count.js                    # v348: licznik odwiedzin — skrypt z tej samej strony (nie z obcej domeny); treść przypięta skrótem SHA-256 w teście
           test -f _site/count.js                        # brak skryptu licznika = przerwij publikację (osobna linia, jak wyżej)
+          # v351 (F4Z4): Service Worker — wersja wydania = skrót zawartości złożonej strony (nowe wydanie = nowa pamięć w przeglądarce, stare czyszczone)
+          cp sw.js _site/sw.js                          # własny Service Worker z tej samej strony; strategie i wyłączniki opisane w sw.js i README
+          W=$(sha256sum _site/index.html | cut -c1-16)   # skrót ostatecznej strony (po podziale słowników)
+          sed -i "s/__WYDANIE__/$W/" _site/sw.js
+          test -f _site/sw.js                           # brak Service Workera = przerwij publikację (osobna linia, jak wyżej)
+          if grep -q '__WYDANIE__' _site/sw.js; then echo "::error title=sw.js::znacznik wydania nie został podstawiony"; exit 1; fi   # wykrzyknik przed grep nie przerwałby kroku przy bash -e
           cp data/*.json _site/data/ 2>/dev/null || true
           cp data/widoki/*.json _site/data/widoki/ 2>/dev/null || true   # widoki silnika (v35), gdy już będą
           test -f _site/fonts/fonts.css                 # brak czcionek = przerwij publikację

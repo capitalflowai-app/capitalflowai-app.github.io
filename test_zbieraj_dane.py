@@ -13895,7 +13895,7 @@ class KontrolaEmitentV130(unittest.TestCase):
                 return J(ETF)
             if '/data/' in url:
                 return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
-            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js', 'sw.js')):
                 return Resp(b'x' * 100)
             if url == self.k.CG_GLOBAL:
                 return J({'data': {'total_market_cap': {'usd': 4.0e12}}})
@@ -17432,7 +17432,7 @@ class DolarV136(unittest.TestCase):
                     return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
                 if url.startswith('https://api.bcra.gob.ar/'):
                     return J(DL_BCRA_J)
-                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
+                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js', 'sw.js')):
                     return Resp(b'x' * 100)
                 if url.startswith('https://api.github.com/'):
                     return J({'workflow_runs': []})
@@ -19819,7 +19819,7 @@ class JpxV137(unittest.TestCase):
                     return J(dict(inst, at=(NOW - datetime.timedelta(minutes=20)).isoformat()))
                 if '/data/' in url:
                     return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
-                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
+                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js', 'sw.js')):
                     return Resp(b'x' * 100)
                 if url.startswith('https://api.github.com/'):
                     return J({'workflow_runs': []})
@@ -22772,7 +22772,7 @@ class KontrolaDziennikowV162(unittest.TestCase):
                     return J(dict(sw, at=(NOW - datetime.timedelta(minutes=17)).isoformat()))
                 if '/data/' in url:
                     return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
-                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
+                if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js', 'sw.js')):
                     return Resp(b'x' * 100)
                 if url.startswith('https://api.github.com/'):
                     return J({'workflow_runs': []})
@@ -23771,7 +23771,7 @@ class KontrolaWylaczoneV171(unittest.TestCase):
                 raise k.urllib.error.HTTPError(url, 404, 'Not Found', {}, io.BytesIO(b''))
             if '/data/' in url:
                 return J({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()})
-            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js', 'sw.js')):
                 return Resp(b'x' * 100)
             if url.startswith('https://api.github.com/'):
                 return J({'workflow_runs': []})
@@ -24074,7 +24074,7 @@ class JakoscV176(unittest.TestCase):
                                         'powod': 'brak adresu kontaktowego wymaganego przez urząd (sekret SEC_CONTACT) — część wyłączona'}).encode())
             if '/data/' in url:
                 return Resp(json.dumps({'at': (NOW - datetime.timedelta(minutes=20)).isoformat()}).encode())
-            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js', 'sw.js')):
                 return Resp(b'x' * 100)
             if url.startswith('https://api.github.com/'):
                 return Resp(b'{"workflow_runs": []}')
@@ -24117,7 +24117,7 @@ class KontrolaPrzebiegiV177(unittest.TestCase):
                 return Resp(b'<html>const EXTRA126={};' + b' ' * 1_000_100)
             if '/data/' in url:
                 return Resp(json.dumps({'at': (NOW - datetime.timedelta(minutes=8)).isoformat(), 'ok': {'etf': True}, 'errors': [], 'notes': []}).encode())
-            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js', 'sw.js')):
                 return Resp(b'x' * 100)
             if url.startswith('https://api.github.com/'):
                 urls.append(url)
@@ -24329,7 +24329,7 @@ class PoPrzegladzieV181(unittest.TestCase):
                 return Resp(b'<html>const EXTRA126={};' + b' ' * 1_000_100)
             if '/data/' in url:
                 return Resp(json.dumps({'at': (NOW - datetime.timedelta(minutes=8)).isoformat(), 'ok': {'etf': True}, 'errors': [], 'notes': []}).encode())
-            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js')):
+            if any(f + '?' in url for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js', 'sw.js')):
                 return Resp(b'x' * 100)
             if '/actions/workflows/strona.yml/runs' in url:
                 r = strona(int(url.split('&page=')[1].split('&')[0]))
@@ -40014,7 +40014,7 @@ class KontrolaV327(unittest.TestCase):
             self.assertTrue(md.startswith('# Kontrola strony — 06.10.2026, 21:50 (czas polski)\n\n**Wynik: BŁĄD**'), md[:120])
             site = [u for u, _ in calls if u.startswith(k.SITE)]
             self.assertLessEqual(len(site), 4, 'strona: 2 próby strony głównej, 2 pliku stanu — potem reszta pominięta')
-            self.assertIn('pominięto plików strony: ', md); self.assertIn(f'pominięto plików strony: {len(k.PLIKI) + 3} (strona nie odpowiada w czasie — 3 kolejne przekroczenia czasu) — etf, trendy, oecd, rynki, dzwignia, wieloryby …', md)   # v348: + count.js — czwarty plik strony po robots.txt, sitemap.xml i pliku Google (było + 2)   # v339 (metale): liczba z len(k.PLIKI) (było stałe 65; jak v340/v342)   # v337 (F2Z4): świadoma zmiana 64 → 65 — nowy plik data/pip.json w liście PLIKI kontroli
+            self.assertIn('pominięto plików strony: ', md); self.assertRegex(md, r'pominięto plików strony: \d+ \(strona nie odpowiada w czasie — 3 kolejne przekroczenia czasu\) — etf, trendy, oecd, rynki, dzwignia, wieloryby …'); self.assertGreaterEqual(int(re.search(r'pominięto plików strony: (\d+)', md).group(1)), len(k.PLIKI) + 3)   # v351: ogólna postać (liczba rośnie z plikami strony: doszedł sw.js)   # v348: + count.js — czwarty plik strony po robots.txt, sitemap.xml i pliku Google (było + 2)   # v339 (metale): liczba z len(k.PLIKI) (było stałe 65; jak v340/v342)   # v337 (F2Z4): świadoma zmiana 64 → 65 — nowy plik data/pip.json w liście PLIKI kontroli
             self.assertTrue(os.path.exists(os.path.join(d, 'kontrola', 'historia.json')))
             self.assertTrue(all(isinstance(t, (int, float)) and t <= 45 for _, t in calls), 'każde zapytanie z limitem')
 
@@ -46380,7 +46380,7 @@ class LicznikV348(unittest.TestCase):
     def test_kontrola_sprawdza_count_js(self):
         with open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
             k = f.read()
-        self.assertIn("for f in ('robots.txt', 'sitemap.xml', 'google433f7c24524100a9.html', 'count.js'):", k)
+        self.assertRegex(k, r"for f in \('robots\.txt', 'sitemap\.xml', 'google433f7c24524100a9\.html', 'count\.js'(?:, '[A-Za-z0-9_.-]+')*\):")   # v351: ogólna postać (doszedł sw.js)
 
 
 class LicznikKontrolaV348(unittest.TestCase):
@@ -47042,3 +47042,136 @@ class GieldyDexV349(unittest.TestCase):
         g2 = json.loads(json.dumps(g)); g2['cex']['rows'].reverse(); g2['ok'] = {'cex': False}
         R2 = {'bledy': [], 'uwagi': []}; Z2 = k.gx_kontrola({'gieldy': g2, 'dex': d}, R2)
         self.assertTrue(R2['bledy'] and R2['bledy'][0].startswith('giełdy i DEX: sprzeczność w pliku')); self.assertEqual(Z2['czesci_bez_odpowiedzi'], ['cex'])
+
+
+# ===================== v351 (F4Z4): SERVICE WORKER — sw.js na stronie, wersja wydania w publikacji, kontrola dzienna =====================
+class ServiceWorkerV351(unittest.TestCase):
+    """v351 (F4Z4): własny Service Worker. sw.js leży w repozytorium strony i jest kopiowany do _site/ w kroku „Złóż stronę” (osobna linia „test -f”);
+    publikacja podstawia pod znacznik wydania skrót zawartości złożonej strony (nowe wydanie = nowa pamięć w przeglądarce) i przerywa, gdy znacznik został;
+    kontrola dzienna sprawdza, że sw.js na żywej stronie odpowiada (HTTP 200). Logikę strategii (sieć najpierw, wersjonowanie, wyłącznik, brak obcych domen)
+    sprawdza test_widoki.cjs na atrapie przeglądarki. Bez zegara i bez sieci."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    def _czytaj(self, *p):
+        with open(os.path.join(self.ROOT, *p), encoding='utf-8') as f:
+            return f.read()
+
+    def test_sw_js_na_miejscu_i_bez_obcych_domen(self):
+        t = self._czytaj('sw.js')
+        self.assertTrue(t.startswith('/* CF-SW v351'), 'nagłówek z opisem zasad i wyłączników')
+        self.assertEqual(t.count("'__WYDANIE__'"), 1, 'jeden znacznik wydania do podstawienia w publikacji')
+        self.assertIn('const WYLACZONY = false;', t, 'wyłącznik dla wszystkich: domyślnie wyłączony (czyli Service Worker działa)')
+        kod = re.sub(r'/\*.*?\*/', '', t, flags=re.S)
+        self.assertEqual(re.findall(r'https?://', kod), [], 'w kodzie żadnego adresu: tylko ta sama domena')
+        for zakazane in ('importScripts', 'eval(', 'new Function', 'XMLHttpRequest', 'WebSocket', 'sendBeacon'):
+            self.assertNotIn(zakazane, kod, zakazane)
+        self.assertEqual(re.findall(r'\bfetch\([^)]*\)', kod), ['fetch(req)', 'fetch(req)', 'fetch(ZAKRES.href)'])
+        for opis in ('?sw=off', 'WYLACZONY', 'cf-sw-off', 'stale-while-revalidate'):
+            self.assertIn(opis, t.split("'use strict'")[0], 'wyłączniki i strategie opisane w nagłówku sw.js: ' + opis)
+        self.assertFalse(re.search(r'[\u200b-\u200f\u2060\ufeff\ufe0f]', t), 'bez znaków niewidocznych')
+
+    def test_publikacja_kopiuje_sw_js_z_wydaniem_i_wymaga_go(self):
+        w = self._czytaj('.github', 'workflows', 'strona.yml')
+        cp = re.search(r'^ +cp sw\.js _site/sw\.js(?: +#.*)?$', w, re.M)
+        st = re.search(r'^ +sed -i "s/__WYDANIE__/\$W/" _site/sw\.js(?: +#.*)?$', w, re.M)
+        tf = re.search(r'^ +test -f _site/sw\.js(?: +#.*)?$', w, re.M)
+        self.assertIsNotNone(cp, 'kopiowanie sw.js do _site'); self.assertIsNotNone(st, 'podstawienie wydania'); self.assertIsNotNone(tf, 'osobna linia „test -f _site/sw.js”')
+        self.assertRegex(w, r'(?m)^ +W=\$\(sha256sum _site/index\.html \| cut -c1-16\)')
+        self.assertIn("if grep -q '__WYDANIE__' _site/sw.js; then", w, 'nieobsadzony znacznik przerywa publikację (wykrzyknik przed grep nie przerywa kroku przy bash -e)')
+        self.assertTrue(cp.start() < st.start() < tf.start())
+        a, b, c = w.index('- name: Złóż stronę'), w.index('- name: Straż kluczy'), w.index('cp count.js _site/count.js')
+        self.assertTrue(a < c < cp.start() < b, 'w kroku „Złóż stronę”, po licznik, przed strażą kluczy')
+        self.assertLess(w.index('odchudz_strone.py --poprzednie'), cp.start(), 'skrót liczony po ostatecznym złożeniu index.html')
+        self.assertNotRegex(w, r'test -f _site/sw\.js *&&|&& *test -f _site/sw\.js')
+        self.assertTrue(os.path.isfile(os.path.join(self.ROOT, 'sw.js')))
+
+    def test_podstawienie_wydania_dziala_jak_w_publikacji(self):
+        import hashlib
+        t = self._czytaj('sw.js'); skrot = hashlib.sha256(b'<html>strona</html>').hexdigest()[:16]
+        z = t.replace('__WYDANIE__', skrot, 1)
+        self.assertNotIn('__WYDANIE__', z); self.assertIn("const WYDANIE = '" + skrot + "';", z)
+        self.assertRegex(skrot, r'^[0-9a-f]{16}$')
+
+    def test_strona_rejestruje_sw_w_head_i_ma_wylacznik(self):
+        h = self._czytaj('index.html')
+        i = h.index('<script id="cf-sw">')
+        self.assertEqual(h.count('<script id="cf-sw">'), 1); self.assertLess(i, h.index('</head>')); self.assertGreater(i, h.index('<script async src="count.js"'))
+        kod = h[i:h.index('</script>', i)]
+        for q in ("S.register('sw.js',{scope:'./',updateViaCache:'none'})", "get('sw')", "KEY='cf-sw-off'", "q==='off'", "q==='on'", "indexOf('cf-')===0", 'getRegistrations()'):
+            self.assertIn(q, kod, q)
+        self.assertIn('?sw=off', h[:i + len(kod)], 'wyłącznik opisany w komentarzu przy skrypcie')
+        self.assertNotIn('worker-src', h[:h.index('</head>')]); self.assertNotIn('sw.js', re.search(r'connect-src[^"]*', h).group(0))
+        self.assertTrue(h.startswith('<!doctype html>') or h.lstrip().lower().startswith('<!doctype html>'))
+
+    def test_readme_opisuje_service_workera_i_wylacznik(self):
+        r = self._czytaj('README.md')
+        for q in ('Service Worker', '?sw=off', 'WYLACZONY', 'cf-sw-off', 'sw.js'):
+            self.assertIn(q, r, q)
+
+    def test_kontrola_sprawdza_sw_js(self):
+        k = self._czytaj('narzedzia', 'kontrola.py')
+        self.assertRegex(k, r"for f in \('robots\.txt', 'sitemap\.xml', 'google433f7c24524100a9\.html', 'count\.js', 'sw\.js'(?:, '[A-Za-z0-9_.-]+')*\):")
+
+
+class SwKontrolaV351(unittest.TestCase):
+    """v351: kontrola dzienna — sw.js sprawdzany jak count.js (tylko kod HTTP i niepusta treść); brak pliku to uwaga, nigdy BŁĄD. Zaślepiona sieć i przypięty zegar."""
+    NOW = KontrolaEmitentV130.NOW
+    ETF = KontrolaEmitentV130.ETF
+    IBIT = KontrolaEmitentV130.IBIT
+    ETHA = KontrolaEmitentV130.ETHA
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    xml = staticmethod(KontrolaEmitentV130.xml)
+    _kontrola = KontrolaEmitentV130._kontrola
+    SW_TRYB = 'ok'
+
+    @classmethod
+    def setUpClass(cls):
+        KontrolaEmitentV130.setUpClass.__func__(cls)
+
+    def _siec(self, emitent, etf=None):
+        import io
+        urlopen, calls = KontrolaEmitentV130._siec(self, emitent, etf)
+        tryb, k = self.SW_TRYB, self.k
+
+        class Odp:
+            status = 200
+
+            def __init__(self, b):
+                self.b = b
+
+            def read(self):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def inny(req, timeout=None):
+            url = req.full_url
+            if tryb != 'ok' and '/sw.js?' in url:
+                calls.append((url, req.get_header('User-agent'), timeout))
+                if tryb == '404':
+                    raise k.urllib.error.HTTPError(url, 404, 'Not Found', {}, io.BytesIO(b''))
+                return Odp(b'x' * 5)
+            return urlopen(req, timeout)
+        return inny, calls
+
+    def _przebieg(self, tryb):
+        self.SW_TRYB = tryb
+        return self._kontrola({'333011': self.xml(self.IBIT), '337614': self.xml(self.ETHA)})
+
+    def test_sw_js_odpowiada(self):
+        R, md, calls, _ = self._przebieg('ok')
+        zap = [u for u, _, _ in calls if '/sw.js?' in u]
+        self.assertEqual(len(zap), 1); self.assertRegex(zap[0], r'^https://[^/]+/sw\.js\?nc=\d+$')
+        self.assertEqual(R['pliki']['sw.js'], {'http': 200, 'bajty': 100}); self.assertFalse([u for u in R['uwagi'] if 'sw.js' in u])
+        wiersz = next(x for x in md.splitlines() if x.startswith('- Pliki danych (wiek):'))
+        self.assertIn('sw.js HTTP 200', wiersz); self.assertLess(wiersz.index('count.js'), wiersz.index('sw.js'))
+
+    def test_brak_sw_js_to_uwaga_nigdy_blad(self):
+        R, md, _, _ = self._przebieg('404')
+        self.assertEqual(R['pliki']['sw.js'], {'http': 404}); self.assertIn('sw.js: HTTP 404', R['uwagi'])
+        self.assertFalse([b for b in R['bledy'] if 'sw.js' in b]); self.assertNotEqual(R['wynik'], 'BŁĄD')
+        R2, _, _, _ = self._przebieg('maly'); self.assertIn('sw.js: HTTP 200, 5 B', R2['uwagi'])

@@ -24040,3 +24040,220 @@ test('v350: „Wykresy” GLOBAL — kafel liniowy strachu i chciwości zdjęty 
   assert.equal(cells(K.WK_T.global) % 3, 0, 'siatka 3 kolumn bez pustych pól'); assert.equal(cells(K.WK_T.global) % 2, 0, 'siatka 2 kolumn bez pustych pól');
   assert.ok(html.includes('C.note+   /* v350: półkole tylko w prawej kolumnie (jeden wskaźnik na zakładkę) */'), 'karta GLOBAL bez fgCard');
 });
+
+// ===================== v351 (F4Z4): SERVICE WORKER (sw.js) — strategie, wersjonowanie, wyłącznik, brak obcych domen; rejestracja i pasek na stronie =====================
+// Logikę sw.js uruchamia node (jak w GitHub Actions) na atrapie przeglądarki: pamięć, sieć, zdarzenia i zegar są zaślepione (zegar przypięty). Pod jsc readFileSync zwraca zawsze index.html — tam te testy się pomijają.
+const sw351 = (() => { try { return fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8'); } catch (e) { return ''; } })();
+const sw351Real = sw351.startsWith('/* CF-SW v351') && typeof Response === 'function' && typeof Request === 'function' && typeof Headers === 'function';
+const sw351Env = (opt = {}) => {
+  const o = Object.assign({ wydanie: 'abcdef0123456789', wylaczony: false, scope: 'https://x.test/' }, opt);
+  const T0 = Date.parse('2026-10-13T10:00:00Z');
+  const env = { now: T0, store: new Map(), log: { fetch: [], skip: 0, claim: 0, unregister: 0 }, siec: () => { throw new TypeError('Failed to fetch'); }, karty: [] };
+  const listeners = {};
+  const Dat = class extends Date { constructor(...a) { super(...(a.length ? a : [env.now])); } static now() { return env.now; } };
+  const kl = k => (typeof k === 'string' ? k : k.url);
+  const caches = {
+    open: async (n) => { if (!env.store.has(n)) env.store.set(n, new Map()); const m = env.store.get(n);
+      return { put: async (k, r) => { m.set(kl(k), r); }, match: async (k) => { const r = m.get(kl(k)); return r ? r.clone() : undefined; }, delete: async (k) => m.delete(kl(k)) }; },
+    keys: async () => [...env.store.keys()], delete: async (n) => env.store.delete(n),
+  };
+  const fetchMock = async (req) => { const u = typeof req === 'string' ? req : req.url; env.log.fetch.push(u); return env.siec(u, req); };
+  const selfMock = { registration: { scope: o.scope, unregister: async () => { env.log.unregister++; return true; } }, location: new URL(o.scope + 'sw.js'),
+    skipWaiting: () => { env.log.skip++; }, clients: { claim: async () => { env.log.claim++; }, matchAll: async () => env.karty },
+    addEventListener: (t, f) => { (listeners[t] = listeners[t] || []).push(f); } };
+  const src = sw351.replace("'__WYDANIE__'", "'" + o.wydanie + "'").replace('const WYLACZONY = false;', 'const WYLACZONY = ' + o.wylaczony + ';');
+  new Function('self', 'caches', 'fetch', 'Date', src)(selfMock, caches, fetchMock, Dat);
+  env.fire = async (typ, init = {}) => {
+    const waits = []; const e = Object.assign({ waitUntil: (p) => waits.push(p), respondWith: (p) => { e.odp = p; } }, init);
+    for (const f of listeners[typ] || []) f(e);
+    let res, blad;
+    if (e.odp) { try { res = await e.odp; } catch (x) { blad = x; } }
+    for (let i = 0; i < waits.length; i++) await waits[i];
+    return { e, res, blad };
+  };
+  env.pobierz = (url, init) => env.fire('fetch', { request: new Request(url, init) });
+  env.kopia = (n, k) => { const m = env.store.get(n); return m ? m.get(k) : undefined; };
+  return env;
+};
+const sw351Ok = (body, ct) => new Response(body, { status: 200, headers: { 'content-type': ct } });
+
+test('v351 (sw.js): wersja wydania — nowa pamięć „cf-<skrót>”, stare „cf-*” czyszczone, cudzych pamięci nie ruszamy; kopia strony przy instalacji; bez podstawienia „cf-dev”', async () => {
+  if (!sw351Real) return;
+  const A = sw351Env({ wydanie: 'aaaaaaaaaaaaaaaa' });
+  A.store.set('cf-stare1', new Map()); A.store.set('cf-bbbbbbbbbbbbbbbb', new Map()); A.store.set('cudza', new Map());
+  A.siec = () => sw351Ok('<html>strona</html>', 'text/html; charset=utf-8');
+  await A.fire('install'); await A.fire('activate');
+  assert.deepEqual([...A.store.keys()].sort(), ['cf-aaaaaaaaaaaaaaaa', 'cudza']);
+  assert.equal(A.log.skip, 1); assert.equal(A.log.claim, 1);
+  assert.deepEqual(A.log.fetch, ['https://x.test/'], 'instalacja: jedno zapytanie o własną stronę');
+  assert.ok(A.kopia('cf-aaaaaaaaaaaaaaaa', 'https://x.test/index.html'), 'kopia strony zapisana przy instalacji');
+  const D = sw351Env({ wydanie: '__WYDANIE__' }); D.siec = () => sw351Ok('{}', 'application/json');
+  await D.pobierz('https://x.test/data/etf.json?t=1');
+  assert.deepEqual([...D.store.keys()], ['cf-dev'], 'bez podstawienia wydania (kopia robocza) pamięć „cf-dev”');
+  const N = sw351Env({ wydanie: 'cccccccccccccccc' }); N.siec = () => { throw new TypeError('offline'); };
+  await N.fire('install');
+  assert.equal(N.log.skip, 1, 'brak sieci przy instalacji nie psuje instalacji'); assert.equal(N.kopia('cf-cccccccccccccccc', 'https://x.test/index.html'), undefined);
+});
+
+test('v351 (sw.js): strona i data/*.json — zawsze najpierw z sieci (nowsza odpowiedź wygrywa), kopia z pamięci tylko bez sieci; klucz bez ?t=…; stan i powiadomienie o kopii', async () => {
+  if (!sw351Real) return;
+  const B = sw351Env({ wydanie: 'bbbbbbbbbbbbbbbb' });
+  B.siec = () => sw351Ok('{"v":1}', 'application/json');
+  let r = await B.pobierz('https://x.test/data/etf.json?t=1');
+  assert.equal(await r.res.text(), '{"v":1}');
+  const k = B.kopia('cf-bbbbbbbbbbbbbbbb', 'https://x.test/data/etf.json');
+  assert.ok(k, 'klucz bez zapytania'); assert.equal(k.headers.get('x-cf-zapisano'), '2026-10-13T10:00:00.000Z'); assert.equal(await k.clone().text(), '{"v":1}');
+  B.siec = () => sw351Ok('{"v":2}', 'application/json');
+  r = await B.pobierz('https://x.test/data/etf.json?t=2');
+  assert.equal(await r.res.text(), '{"v":2}', 'kopia z pamięci nie wyprzedza sieci (świeżość danych bez pogorszenia)');
+  assert.equal(await B.kopia('cf-bbbbbbbbbbbbbbbb', 'https://x.test/data/etf.json').clone().text(), '{"v":2}', 'pamięć odświeżona');
+  assert.equal(B.log.fetch.length, 2, 'każde żądanie najpierw poszło do sieci');
+  B.now += 3 * 3600e3; B.karty.push({ postMessage: (m) => (B.karty.got = (B.karty.got || []).concat([m])) });
+  B.siec = () => { throw new TypeError('Failed to fetch'); };
+  r = await B.pobierz('https://x.test/data/etf.json?t=3');
+  assert.equal(await r.res.text(), '{"v":2}', 'bez sieci: ostatnia zapisana kopia');
+  assert.deepEqual(B.karty.got, [{ typ: 'z-pamieci', data: '2026-10-13T10:00:00.000Z' }], 'karty dostają datę kopii (nie godzinę wejścia)');
+  const got = []; await B.fire('message', { data: { typ: 'stan' }, source: { postMessage: (m) => got.push(m) } });
+  assert.deepEqual(got, [{ typ: 'z-pamieci', data: '2026-10-13T10:00:00.000Z' }], 'nowa karta pyta o stan i dostaje datę kopii');
+  B.siec = () => sw351Ok('<html>ok</html>', 'text/html'); await B.pobierz('https://x.test/');
+  const got2 = []; await B.fire('message', { data: { typ: 'stan' }, source: { postMessage: (m) => got2.push(m) } });
+  assert.deepEqual(got2, [], 'strona pobrana z sieci kasuje stan „kopia”');
+  B.siec = () => { throw new TypeError('Failed to fetch'); }; B.now += 60e3;
+  r = await B.pobierz('https://x.test/index.html'); assert.equal(await r.res.text(), '<html>ok</html>', 'strona bez sieci: zapisana kopia (adres / i index.html to jeden klucz)');
+  await B.fire('message', { data: { typ: 'wyczysc' } });
+  const got3 = []; await B.fire('message', { data: { typ: 'stan' }, source: { postMessage: (m) => got3.push(m) } }); assert.deepEqual(got3, [], 'wyczyść stan po powrocie sieci');
+});
+
+test('v351 (sw.js): błąd HTTP serwera, zły typ treści i brak kopii — nic nie jest podstawiane ani zapisywane; przerwanie przez stronę to nie brak sieci', async () => {
+  if (!sw351Real) return;
+  const C = sw351Env({ wydanie: 'dddddddddddddddd' });
+  C.siec = () => sw351Ok('{"v":1}', 'application/json'); await C.pobierz('https://x.test/data/etf.json?t=1');
+  C.siec = () => new Response('awaria', { status: 500, headers: { 'content-type': 'text/plain' } });
+  let r = await C.pobierz('https://x.test/data/etf.json?t=2'); assert.equal(r.res.status, 500, 'odpowiedź serwera z błędem nie jest zastępowana kopią');
+  C.siec = () => new Response('brak', { status: 404, headers: { 'content-type': 'text/plain' } });
+  r = await C.pobierz('https://x.test/data/nowy.json?t=1'); assert.equal(r.res.status, 404); assert.equal(C.kopia('cf-dddddddddddddddd', 'https://x.test/data/nowy.json'), undefined);
+  C.siec = () => sw351Ok('<html>zaloguj się do sieci</html>', 'text/html');
+  r = await C.pobierz('https://x.test/data/portal.json?t=1'); assert.equal(r.res.status, 200); assert.equal(C.kopia('cf-dddddddddddddddd', 'https://x.test/data/portal.json'), undefined, 'strona logowania sieci hotelowej nie trafia do pamięci jako JSON');
+  C.siec = () => sw351Ok('{"a":1}', 'application/json');
+  r = await C.pobierz('https://x.test/'); assert.equal(C.kopia('cf-dddddddddddddddd', 'https://x.test/index.html'), undefined, 'JSON w miejscu strony nie jest zapisywany jako strona');
+  C.siec = () => { throw new TypeError('Failed to fetch'); };
+  r = await C.pobierz('https://x.test/data/brak.json?t=1'); assert.ok(r.blad instanceof TypeError, 'brak sieci i brak kopii: błąd jak bez Service Workera'); assert.equal(r.res, undefined);
+  C.siec = () => { const e = new Error('przerwane'); e.name = 'AbortError'; throw e; };
+  r = await C.pobierz('https://x.test/data/etf.json?t=9'); assert.equal(r.blad && r.blad.name, 'AbortError', 'limit czasu strony nie podstawia kopii');
+});
+
+test('v351 (sw.js): czcionki, obrazki, słowniki i count.js — z pamięci od razu, odświeżane w tle po godzinie', async () => {
+  if (!sw351Real) return;
+  const E = sw351Env({ wydanie: 'eeeeeeeeeeeeeeee' });
+  E.siec = () => sw351Ok('v1', 'font/woff2');
+  let r = await E.pobierz('https://x.test/fonts/a.woff2'); assert.equal(await r.res.text(), 'v1'); assert.equal(E.log.fetch.length, 1);
+  E.siec = () => sw351Ok('v2', 'font/woff2');
+  r = await E.pobierz('https://x.test/fonts/a.woff2'); assert.equal(await r.res.text(), 'v1'); assert.equal(E.log.fetch.length, 1, 'młoda kopia: bez zapytania do sieci');
+  E.now += 2 * 3600e3;
+  r = await E.pobierz('https://x.test/fonts/a.woff2'); assert.equal(await r.res.text(), 'v1', 'stara kopia podana od razu'); assert.equal(E.log.fetch.length, 2, '…a w tle odświeżona');
+  r = await E.pobierz('https://x.test/fonts/a.woff2'); assert.equal(await r.res.text(), 'v2', 'następne wejście ma już nową wersję');
+  for (const u of ['https://x.test/img/flagi/pl.svg', 'https://x.test/i18n/de.0123abcd.js', 'https://x.test/count.js', 'https://x.test/fonts/fonts.css']) {
+    E.siec = () => sw351Ok('x', 'application/octet-stream'); r = await E.pobierz(u); assert.ok(r.e.odp, u + ': obsługiwane');
+  }
+  E.siec = () => sw351Ok('<html>portal</html>', 'text/html'); await E.pobierz('https://x.test/img/loga/portal.webp');
+  assert.equal(E.kopia('cf-eeeeeeeeeeeeeeee', 'https://x.test/img/loga/portal.webp'), undefined, 'HTML pod nazwą obrazka nie trafia do pamięci');
+  E.siec = () => { throw new TypeError('Failed to fetch'); };
+  r = await E.pobierz('https://x.test/img/flagi/xx.svg'); assert.ok(r.blad, 'brak w pamięci i brak sieci: błąd jak bez Service Workera');
+});
+
+test('v351 (sw.js): obcych domen i spraw spoza listy nie przechwytuje (źródła danych, licznik odwiedzin, archiwum, kontrola, ten plik); POST i zakres bajtów też nie', async () => {
+  if (!sw351Real) return;
+  const F = sw351Env({ wydanie: 'ffffffffffffffff' }); F.siec = () => sw351Ok('{}', 'application/json');
+  for (const u of ['https://api.coingecko.com/api/v3/ping', 'https://capitalflowai.goatcounter.com/count?p=1', 'https://api.llama.fi/x', 'https://x.test.evil.com/data/etf.json', 'https://x.test/sw.js',
+    'https://x.test/robots.txt', 'https://x.test/sitemap.xml', 'https://x.test/archiwum/seria.json?t=1', 'https://x.test/kontrola/ostatnia.md', 'https://x.test/data/etf.json.bak', 'https://x.test/data/../index.html.js']) {
+    const r = await F.pobierz(u); assert.equal(r.e.odp, undefined, u + ': nieprzechwycone');
+  }
+  assert.equal((await F.pobierz('https://x.test/data/etf.json', { method: 'POST', body: 'x' })).e.odp, undefined, 'POST');
+  assert.equal((await F.pobierz('https://x.test/fonts/a.woff2', { headers: { range: 'bytes=0-9' } })).e.odp, undefined, 'zakres bajtów');
+  assert.deepEqual(F.log.fetch, [], 'żadnych zapytań z Service Workera');
+  assert.ok(!/https?:\/\//.test(sw351.replace(/\/\*[\s\S]*?\*\//g, '')), 'w kodzie sw.js żadnego adresu z obcą domeną');
+  assert.deepEqual(sw351.replace(/\/\*[\s\S]*?\*\//g, '').match(/\bfetch\([^)]*\)/g), ['fetch(req)', 'fetch(req)', 'fetch(ZAKRES.href)'], 'jedyne zapytania: własna strona i przekazane żądania tej samej domeny');
+  assert.ok(!/importScripts|eval\(|new Function|XMLHttpRequest|WebSocket|sendBeacon/.test(sw351), 'żadnych dodatkowych dróg sieciowych');
+  assert.equal(sw351.split("'__WYDANIE__'").length - 1, 1, 'jeden znacznik wydania dla podstawienia w publikacji');
+});
+
+test('v351 (sw.js): wyłącznik awaryjny WYLACZONY — bez przechwytywania, kasuje wszystkie pamięci „cf-*” i wyrejestrowuje się', async () => {
+  if (!sw351Real) return;
+  assert.ok(sw351.includes('const WYLACZONY = false;'), 'domyślnie włączony');
+  const W = sw351Env({ wydanie: '1111111111111111', wylaczony: true }); W.store.set('cf-1111111111111111', new Map()); W.store.set('cf-stara', new Map()); W.store.set('cudza', new Map());
+  W.siec = () => sw351Ok('{}', 'application/json');
+  await W.fire('install'); assert.deepEqual(W.log.fetch, [], 'wyłączony: nawet kopii strony nie pobiera');
+  await W.fire('activate'); assert.deepEqual([...W.store.keys()], ['cudza']); assert.equal(W.log.unregister, 1); assert.equal(W.log.claim, 0);
+  const r = await W.pobierz('https://x.test/data/etf.json?t=1'); assert.equal(r.e.odp, undefined); assert.deepEqual(W.log.fetch, []);
+});
+
+test('v351 (strona): rejestracja w <head> po załadowaniu strony, wyłącznik ?sw=off (wyrejestrowanie + kasowanie pamięci + zapamiętanie wyboru), ?sw=on, brak obsługi i błędy pamięci bez wyjątków', async () => {
+  const i0 = html.indexOf('<script id="cf-sw">'), i1 = html.indexOf('</script>', i0);
+  assert.ok(i0 > 0 && i1 > i0 && html.indexOf('</head>') > i1 && html.split('<script id="cf-sw">').length === 2, 'jeden skrypt rejestracji w <head>');
+  const kod = html.slice(i0 + 19, i1);
+  const mk = (o = {}) => {
+    const env = { reg: [], unreg: 0, deleted: [], ls: Object.assign({}, o.ls || {}), lsThrow: !!o.lsThrow, listeners: {}, swL: {}, posted: [], timers: [] };
+    const S = o.bezSw ? undefined : { controller: o.kontroler ? { postMessage: (m) => env.posted.push(m) } : null,
+      register: (u, c) => { env.reg.push([u, c]); return Promise.resolve({}); }, getRegistrations: () => Promise.resolve([{ unregister: () => { env.unreg++; } }, { unregister: () => { env.unreg++; } }]),
+      addEventListener: (t, f) => { env.swL[t] = f; } };
+    const localStorage = { getItem: (k) => { if (env.lsThrow) throw new Error('blokada'); return k in env.ls ? env.ls[k] : null; }, setItem: (k, v) => { if (env.lsThrow) throw new Error('blokada'); env.ls[k] = String(v); }, removeItem: (k) => { if (env.lsThrow) throw new Error('blokada'); delete env.ls[k]; } };
+    const window = { caches: { keys: () => Promise.resolve(['cf-aaa', 'cf-bbb', 'inna']), delete: (n) => { env.deleted.push(n); return Promise.resolve(true); } }, addEventListener: (t, f) => { env.listeners[t] = f; } };
+    const document = { addEventListener: (t, f) => { env.listeners['doc-' + t] = f; } };
+    new Function('navigator', 'window', 'document', 'location', 'localStorage', 'caches', 'URLSearchParams', 'setTimeout', kod)(
+      { serviceWorker: S }, window, document, { search: o.search || '' }, localStorage, window.caches, URLSearchParams, (f) => env.timers.push(f));
+    env.window = window; return env;
+  };
+  const tick = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
+  let e = mk(); e.listeners.load(); assert.equal(e.timers.length, 1, 'rejestracja z opóźnieniem po załadowaniu strony'); e.timers[0]();
+  assert.deepEqual(e.reg, [['sw.js', { scope: './', updateViaCache: 'none' }]]); assert.equal(e.unreg, 0); assert.ok(e.swL.message, 'nasłuch komunikatów od Service Workera');
+  e = mk({ search: '?sw=off' }); await tick();
+  assert.equal(e.ls['cf-sw-off'], '1', 'wybór zapamiętany'); assert.equal(e.unreg, 2, 'wyrejestrowanie'); assert.deepEqual(e.deleted, ['cf-aaa', 'cf-bbb'], 'kasuje tylko własne pamięci cf-*');
+  e.listeners.load(); e.timers.forEach((f) => f()); await tick(); assert.deepEqual(e.deleted, ['cf-aaa', 'cf-bbb', 'cf-aaa', 'cf-bbb'], 'po załadowaniu strony drugie sprzątanie (stary Service Worker mógł jeszcze zapisać pliki)');
+  assert.deepEqual(e.reg, [], 'bez rejestracji'); assert.equal(e.swL.message, undefined);
+  e = mk({ ls: { 'cf-sw-off': '1' } }); await tick(); assert.equal(e.unreg, 2); e.listeners.load(); e.timers.forEach((f) => f()); await tick(); assert.deepEqual(e.reg, [], 'zapamiętane wyłączenie: nie rejestruje się ponownie');
+  e = mk({ ls: { 'cf-sw-off': '1' }, search: '?x=1&sw=on' }); assert.equal(e.ls['cf-sw-off'], undefined, '?sw=on kasuje wybór'); e.listeners.load(); e.timers[0](); assert.equal(e.reg.length, 1, 'i rejestruje');
+  e = mk({ bezSw: true }); assert.deepEqual(Object.keys(e.listeners), [], 'bez obsługi Service Workera — nic się nie dzieje');
+  e = mk({ lsThrow: true }); assert.ok(e.listeners.load, 'pamięć przeglądarki zablokowana: rejestracja działa'); e = mk({ lsThrow: true, search: '?sw=off' }); await tick(); assert.equal(e.unreg, 2, 'a ?sw=off działa w tej wizycie');
+  e = mk({ kontroler: true }); e.listeners['doc-DOMContentLoaded'](); assert.deepEqual(e.posted, [{ typ: 'stan' }], 'karta pyta Service Workera o stan kopii');
+  let ile = 0; e = mk(); e.window.cfSwPokaz = () => { ile++; }; e.swL.message({ data: { typ: 'z-pamieci', data: '2026-10-13T07:00:00.000Z' } });
+  assert.deepEqual(e.window.__cfSw.p, { data: '2026-10-13T07:00:00.000Z' }); assert.equal(ile, 1); e.swL.message({ data: { typ: 'cos-innego' } }); assert.equal(ile, 1);
+  assert.ok(!/document\.cookie|XMLHttpRequest|importScripts|https?:\/\//.test(kod), 'skrypt rejestracji bez ciasteczek i bez adresów');
+  assert.ok(html.includes("<meta http-equiv=\"Content-Security-Policy\"") && !/worker-src/.test(html.slice(0, html.indexOf('</head>'))), 'polityka treści bez zmian: skrypt Service Workera z własnej domeny dozwolony przez default-src self');
+});
+
+test('v351 (strona): pasek „zapisana kopia” — data i wiek kopii (nic nie udaje świeżych danych), znika po powrocie sieci; słownik 10 języków; CSS bez przewijania w bok', async () => {
+  const a = html.indexOf('/* v351 (F4Z4): pasek'), b = html.indexOf('})();}catch(e){}', a);
+  assert.ok(a > 0 && b > a, 'blok paska w skrypcie strony'); const kod = html.slice(a, b + 16);
+  const NOWMS = Date.parse('2026-10-13T10:00:00Z');
+  const run = (stan, lang = 'en') => {
+    const env = { posted: [], listeners: {}, bar: null, btn: {}, reloaded: 0 };
+    const Dat = class extends Date { constructor(...x) { super(...(x.length ? x : [NOWMS])); } static now() { return NOWMS; } };
+    const document = { body: { appendChild: (n) => { env.bar = n; } }, documentElement: {}, createElement: () => ({ hidden: true, setAttribute() {}, querySelector: () => env.btn, set innerHTML(v) { this._h = v; }, get innerHTML() { return this._h; } }) };
+    const window = { __cfSw: { p: stan }, addEventListener: (t, f) => { env.listeners[t] = f; } };
+    const navigator = { serviceWorker: { controller: { postMessage: (m) => env.posted.push(m) } } };
+    new Function('navigator', 'document', 'window', 'LANG', 't', 'escH', 'Date', 'MutationObserver', 'location', kod)(navigator, document, window, lang,
+      (k, v) => k + (v ? JSON.stringify(v) : ''), (s) => String(s), Dat, undefined, { reload: () => { env.reloaded++; } });
+    env.window = window; return env;
+  };
+  let e = run({ data: '2026-10-13T07:00:00.000Z' });
+  assert.ok(e.bar && e.bar.hidden === false && e.bar.id === 'sw-offline', 'pasek widoczny');
+  assert.ok(e.bar.innerHTML.includes('sw351.off{') && /"w":"[^"]*3[^"]*"/.test(e.bar.innerHTML) && /"d":"[^"]+"/.test(e.bar.innerHTML), 'data kopii i jej wiek (3 godz.): ' + e.bar.innerHTML);
+  assert.ok(e.bar.innerHTML.includes('sw351.btn'), 'przycisk „Odśwież”'); assert.equal(typeof e.btn.onclick, 'function'); e.btn.onclick(); assert.equal(e.reloaded, 1, 'przycisk przeładowuje stronę');
+  e = run({ data: 'nie-data' }); assert.ok(e.bar.innerHTML.includes('sw351.off0') && !e.bar.innerHTML.includes('sw351.off{'), 'kopia bez daty: tekst bez daty');
+  e = run(null); assert.equal(e.bar, null, 'bez kopii pasek się nie pojawia');
+  e = run({ data: '2026-10-13T09:59:00.000Z' }); assert.ok(e.bar && e.bar.hidden === false); e.listeners.online();
+  assert.equal(e.bar.hidden, true, 'po powrocie sieci pasek znika'); assert.equal(e.window.__cfSw.p, null); assert.deepEqual(e.posted, [{ typ: 'wyczysc' }], 'Service Worker dostaje polecenie wyczyszczenia stanu');
+  const nowy = new Function('navigator', 'document', 'window', 'LANG', 't', 'escH', kod);
+  nowy({}, { body: {} }, { __cfSw: { p: { data: 'x' } }, addEventListener() {} }, 'pl', () => '', (s) => s);   // bez serviceWorker: nic się nie dzieje, żadnego wyjątku
+  const mD = html.match(/^const EXTRA\d+=(\{[^\n]*"sw351\.off"[^\n]*\});$/m); assert.ok(mD, 'słownik z kluczami sw351.*');
+  const D = JSON.parse(mD[1]);
+  const ph = (s) => (String(s).match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    assert.deepEqual(Object.keys(D[L]).sort(), ['sw351.btn', 'sw351.off', 'sw351.off0'], L);
+    for (const k of Object.keys(D[L])) { assert.ok(D[L][k].length > 1, L + ' ' + k); assert.equal(ph(D[L][k]), ph(D.pl[k]), L + ' ' + k + ': pola {x}'); assert.ok(!/[\u200b-\u200f\u2060\ufeff\ufe0f]/.test(D[L][k]), L + ' ' + k + ': znak niewidoczny'); assert.ok(!/llama|defi|coingecko|coinmetrics|goatcounter/i.test(D[L][k]), L + ' ' + k + ': nazwa dostawcy'); }
+    assert.equal(ph(D[L]['sw351.off']), '{d},{w}'); assert.equal(ph(D[L]['sw351.off0']), '');
+    if (L !== 'pl' && L !== 'en') assert.notEqual(D[L]['sw351.off'], D.en['sw351.off'], L + ': prawdziwe tłumaczenie'); }
+  assert.ok(D.pl['sw351.btn'] === 'Odśwież' && /Brak połączenia/.test(D.pl['sw351.off']));
+  for (const q of ['#sw-offline{position:fixed;left:8px;right:64px;', '#sw-offline[hidden]{display:none}', 'overflow-wrap:anywhere', 'color:var(--yl-tx)']) assert.ok(html.includes(q), 'CSS: ' + q);
+  assert.ok(!/#sw-offline[^{}]*\{[^}]*\bcolor:#[0-9a-f]{3,6}/i.test(html), 'kolor paska z zmiennych (motyw jasny i ciemny)');
+});

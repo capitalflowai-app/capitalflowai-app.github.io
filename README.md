@@ -13,3 +13,20 @@ Nowa wersja strony: uruchom `opublikuj-strone.command` w katalogu CapitalFlowAI 
 Adres strony od 24.09.2026: https://capitalflowai-app.github.io/ (repozytorium przeniesione na konto `capitalflowai-app`
 i nazwane `capitalflowai-app.github.io`, więc jest to strona użytkownika bez ścieżki w adresie). Stary adres
 `cryptoportalpwpw.github.io/capitalflowai` już nie działa.
+
+## Service Worker (v351)
+
+Plik `sw.js` (kopiowany do `_site/` w kroku „Złóż stronę”, rejestrowany w `index.html`) przyspiesza powroty na stronę:
+czcionki, obrazki, słowniki języków i skrypt licznika wchodzą z pamięci przeglądarki (w tle odświeżane po godzinie).
+Strona (HTML) i pliki `data/*.json` są zawsze pobierane najpierw z sieci — świeżość danych jest taka sama jak bez Service Workera;
+kopia z pamięci pojawia się tylko wtedy, gdy sieć w ogóle nie odpowiada, a strona pokazuje wtedy pasek z datą i wiekiem kopii.
+Service Worker nie dotyka obcych domen (źródeł danych ani licznika odwiedzin) i niczego nie wysyła.
+Wydanie: publikacja podstawia pod `__WYDANIE__` skrót zawartości złożonej strony; pamięć nazywa się `cf-<skrót>`, stare pamięci `cf-*` są kasowane.
+
+Wyłączniki awaryjne:
+- u jednego widza: adres strony z dopiskiem `?sw=off` (wyrejestrowuje Service Workera, kasuje pamięć `cf-*` i zapamiętuje wybór w kluczu `cf-sw-off`);
+  `?sw=on` przywraca;
+- dla wszystkich: w `sw.js` zmienić `WYLACZONY` na `true` i opublikować (przeglądarki sprawdzają ten plik przy każdym wejściu;
+  wyłączony Service Worker nie przechwytuje niczego, kasuje pamięci `cf-*` i sam się wyrejestrowuje).
+
+Kontrola dzienna sprawdza, że `sw.js` na żywej stronie odpowiada (HTTP 200).
