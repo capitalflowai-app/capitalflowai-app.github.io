@@ -8918,6 +8918,7 @@ class RynkiV101(unittest.TestCase):
         zd.META['errors'].clear()
 
 
+@mock.patch.object(zd, 'LEV9', ())   # v369 (F6Z2): bez nowych giełd w testach dotychczasowych części
 class DzwigniaV104(unittest.TestCase):
     """v104: dźwignia i pozycje w krypto — brak ≠ zero, plik dzienny Binance z dnia wcześniej przy 404, część z błędem = poprzednia wersja
     z własnym czasem, historia dzienna, harmonogram co godzinę. Odpowiedzi to skrócone nagrania prawdziwych (26.09.2026)."""
@@ -9857,6 +9858,7 @@ class IndeksyV106(unittest.TestCase):
         self.assertNotIn('EODHD', html[html.index('const EXTRA100='):html.index('\n', html.index('const EXTRA100='))], 'nazwa dostawcy nie w słowniku panelu')
 
 
+@mock.patch.object(zd, 'LEV9', ())   # v369 (F6Z2): bez nowych giełd w testach dotychczasowych części
 class DzwigniaV109(unittest.TestCase):
     # v109 (dzwignia2): Kraken Futures, Coinbase International, dYdX — okresy finansowania z dokumentacji (co godzinę), stawka bezwzględna Kraken → względna,
     # wiersze zepsute → brak (nie zero), suma giełd z bieżącym stanem (do 6 h, bez Binance), dobieranie nowych części do pliku sprzed v109.
@@ -9974,7 +9976,7 @@ class DzwigniaV109(unittest.TestCase):
         gb = lambda url, headers=None, timeout=60: V.zip_bytes(V.CSV.replace('BTCUSDT', 'ETHUSDT') if 'ETHUSDT' in url else V.CSV)
         with mock.patch.object(zd, 'hl_post', side_effect=V.hl_post), mock.patch.object(zd, 'get_bytes', side_effect=gb), mock.patch.object(zd, 'get_json', side_effect=V.get_json):
             o = zd.build_dzwignia(None, today=V.TODAY)
-        self.assertEqual(o['ok'], {k: True for k in ('hl', 'bn', 'dr', 'okx', 'kr', 'cb', 'dy', 'cde')}); self.assertEqual(sorted(o['part_at']), sorted(zd.LEV_PX)); self.assertEqual(zd.META['errors'], [])   # v343 (F1Z3): + cde
+        self.assertEqual(o['ok'], {k: True for k in ('hl', 'bn', 'dr', 'okx', 'kr', 'cb', 'dy', 'cde')}); self.assertEqual(sorted(o['part_at']), sorted(zd.lev_px_aktywne())); self.assertEqual(zd.META['errors'], [])   # v343 (F1Z3): + cde
         self.assertEqual(o['kr']['BTC']['sym'], 'PF_XBTUSD'); self.assertEqual(o['cb']['ETH']['oi'], 17069.0224); self.assertEqual(o['dy']['ETH']['f_hours'], 1); self.assertEqual(o['cb']['t'], zd.NOW)
         exp = round(37688.30372 * 83895.0) + 2395706136 + round(2175.3188 * 84005.90053859816) + round(1075.7102 * 84012.9) + round(190.2829 * 83979.10208)
         self.assertEqual(o['hist'][-1]['all_btc'], exp + round(o['cde']['BTC']['oi_usd']) + round(o['dr']['BTC']['fut']['perp']['oi_usd']), 'suma z giełd z bieżącym stanem (bez Binance; v345: + Coinbase USA; v359: + wieczysty Deribit)'); self.assertEqual(o['hist'][-1]['all_btc_v'], 'cb,cde,dr,dy,hl,kr,okx'); self.assertIn('all_eth', o['hist'][-1])
@@ -10038,7 +10040,7 @@ class DzwigniaV109(unittest.TestCase):
         html = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html'), encoding='utf-8').read()
         self.assertIn("LEV_PARTS=['hl','bn','dr','okx','kr','cb','dy']", html); self.assertIn("LEV_LIVE=['hl','okx','kr','cb','cde','dy", html, 'v345 (C-08): + cde (Coinbase USA) w sumie'); self.assertIn('function levAll(){', html)
         self.assertEqual(zd.LEV_LIVE[:6], ['hl', 'okx', 'kr', 'cb', 'cde', 'dy'], 'v345 (C-08): + cde (Coinbase USA)'); self.assertEqual(zd.LEV_SUMAGE, 6 * 3600); self.assertEqual(zd.LEV_HOURS, {'kr': 1, 'cb': 1, 'dy': 1})
-        self.assertEqual(sorted(zd.LEV_PX), ['bn', 'cb', 'cde', 'dr', 'dy', 'hl', 'kr', 'okx']); self.assertEqual(zd.LEV_TIMEOUT, 20)   # v343 (F1Z3): + cde (Coinbase USA)
+        self.assertEqual(sorted(zd.lev_px_aktywne()), ['bn', 'cb', 'cde', 'dr', 'dy', 'hl', 'kr', 'okx']); self.assertEqual(zd.LEV_TIMEOUT, 20)   # v343 (F1Z3): + cde (Coinbase USA)
 
 
 class Wieloryby2V108(WielorybyV105):
@@ -10172,6 +10174,7 @@ class V110ObrazyWezlow(unittest.TestCase):
             self.assertIn('img/wezly/', f.read())
 
 
+@mock.patch.object(zd, 'LEV9', ())   # v369 (F6Z2): bez nowych giełd w testach dotychczasowych części
 class DzwigniaV109_1(unittest.TestCase):
     """v109.1: budżet czasu budowniczego dźwigni — po jego wyczerpaniu pozostałe części zostają z poprzedniego przebiegu, nigdy zera."""
     def test_deadline_keeps_previous_parts(self):
@@ -10181,8 +10184,8 @@ class DzwigniaV109_1(unittest.TestCase):
         def mono():
             clock[0] += 12.0   # każde spojrzenie na zegar = 12 s (cztery spojrzenia = 48 s > LEV_LIMIT)
             return clock[0]
-        prev = {'at': '2026-09-25T10:00:00+00:00', 'part_at': {k: '2026-09-25T10:00:00+00:00' for k in zd.LEV_PX},
-                'ok': {k: True for k in zd.LEV_PX}, 'hl': {'rows': {'BTC': {'oi': 1.0}}}, 'bn': {'day': '2026-09-24', 'BTC': {'x': 1}}, 'dr': {'BTC': {'dvol': 30.0}},
+        prev = {'at': '2026-09-25T10:00:00+00:00', 'part_at': {k: '2026-09-25T10:00:00+00:00' for k in zd.lev_px_aktywne()},
+                'ok': {k: True for k in zd.lev_px_aktywne()}, 'hl': {'rows': {'BTC': {'oi': 1.0}}}, 'bn': {'day': '2026-09-24', 'BTC': {'x': 1}}, 'dr': {'BTC': {'dvol': 30.0}},
                 'okx': {'BTC': {'oi': 1.0}}, 'kr': {'BTC': {'oi': 1.0}}, 'cb': {'BTC': {'oi': 1.0}}, 'dy': {'BTC': {'oi': 1.0}}}
         with mock.patch.object(zd.time, 'monotonic', side_effect=mono), mock.patch.object(zd, 'get_json', side_effect=RuntimeError('offline')), \
                 mock.patch.object(zd, 'get_bytes', side_effect=RuntimeError('offline')), mock.patch.object(zd, 'hl_post', side_effect=RuntimeError('offline')), \
@@ -10207,6 +10210,7 @@ class DzwigniaV109_1(unittest.TestCase):
         zd._LEV_TERMIN[0] = None
 
 
+@mock.patch.object(zd, 'LEV9', ())   # v369 (F6Z2): bez nowych giełd w testach dotychczasowych części
 class DzwigniaCoinalyzeV126(unittest.TestCase):
     """v126: część `cz` pliku dzwignia.json — wszystkie duże giełdy kontraktów dla 10 monet przez jednego pośrednika (klucz COINALYZE_KEY
     wyłącznie w nagłówku api_key). Nagrania w kształcie specyfikacji pośrednika i sondy z GitHub 27.09.2026 (symbole BTCUSDT_PERP.A, BTCUSDT.6,
@@ -10662,31 +10666,31 @@ class DzwigniaCoinalyzeV126(unittest.TestCase):
 
     def test_build_without_key_unchanged_with_key_extra_part_and_failure_isolated(self):
         o = self.build()
-        self.assertEqual(sorted(o['ok']), sorted(zd.LEV_PX)); self.assertEqual(sorted(o['part_at']), sorted(zd.LEV_PX)); self.assertNotIn('cz', o)
+        self.assertEqual(sorted(o['ok']), sorted(zd.lev_px_aktywne())); self.assertEqual(sorted(o['part_at']), sorted(zd.lev_px_aktywne())); self.assertNotIn('cz', o)
         self.assertEqual(self.calls, [], 'bez klucza — żadnego zapytania do pośrednika')
         k = self.build(cz_key=self.KEY)
         self.assertIs(k['ok']['cz'], True); self.assertEqual(k['part_at']['cz'], self.NOW); self.assertEqual(k['cz']['q']['mk'], self.NOW)
-        self.assertEqual({x: k['ok'][x] for x in zd.LEV_PX}, {x: o['ok'][x] for x in zd.LEV_PX}, 'pozostałe części jak bez klucza')
+        self.assertEqual({x: k['ok'][x] for x in zd.lev_px_aktywne()}, {x: o['ok'][x] for x in zd.lev_px_aktywne()}, 'pozostałe części jak bez klucza')
         self.assertNotIn('cz', zd.LEV_PX, 'część dodatkowa poza LEV_PX (harmonogram pełnej budowy bez zmian)')
         self.assertFalse(any(key.startswith('cz') for h in k['hist'] for key in h), 'historia dzienna bez nowych kluczy (pomysł na później)')
         zd.META['errors'].clear()
         with mock.patch.object(zd, 'lev_cz', side_effect=zd.CzStop('HTTP 401 — klucz odrzucony albo blokada')):
             f = self.build(k, cz_key=self.KEY)
         self.assertIs(f['ok']['cz'], False); self.assertEqual(f['cz'], k['cz']); self.assertEqual(f['part_at']['cz'], self.NOW)
-        self.assertTrue(all(f['ok'][x] is k['ok'][x] for x in zd.LEV_PX), 'awaria pośrednika nie rusza pozostałych części')
+        self.assertTrue(all(f['ok'][x] is k['ok'][x] for x in zd.lev_px_aktywne()), 'awaria pośrednika nie rusza pozostałych części')
         self.assertIn(f'Dźwignia: {zd.CZ_PX}: HTTP 401 — klucz odrzucony albo blokada', zd.META['errors'])
         young = dict(k, full_at='2026-09-27T16:00:00+00:00')
         with mock.patch.object(zd, 'NOW', '2026-09-27T16:40:00+00:00'):
             g = self.build(young, only={'cz'}, cz_key=self.KEY)
         self.assertEqual(g['full_at'], '2026-09-27T16:00:00+00:00', 'dobranie części nie przesuwa pełnej budowy')
-        self.assertEqual({x: g['part_at'][x] for x in zd.LEV_PX}, {x: k['part_at'][x] for x in zd.LEV_PX}, 'zdrowe części z własnym czasem')
+        self.assertEqual({x: g['part_at'][x] for x in zd.lev_px_aktywne()}, {x: k['part_at'][x] for x in zd.lev_px_aktywne()}, 'zdrowe części z własnym czasem')
         self.assertEqual(g['part_at']['cz'], '2026-09-27T16:40:00+00:00')
 
     def test_main_key_paths(self):
         saved, calls = {}, []
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in sorted(dir(zd)) if f.startswith('build_') and f != 'build_dzwignia' and callable(getattr(zd, f))]   # każdy budowniczy poza dźwignią (także dodany później) — bez sieci
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR', 'COINALYZE_KEY')}
-        ok7 = {k: True for k in zd.LEV_PX}
+        ok7 = {k: True for k in zd.lev_px_aktywne()}
         fresh_cz = {'mk_at': zd.NOW, 'q': {'mk': zd.NOW}}   # lista rynków bez monet — nic zaległego
         young = {'at': _iso(10), 'full_at': _iso(10), 'ok': dict(ok7, cz=True), 'hl': {'rows': {}}, 'cz': fresh_cz}   # „młody” wg prawdziwego zegara (fresh), zadania cz wg NOW
         built = {'at': zd.NOW, 'ok': dict(ok7, cz=True)}
@@ -45443,6 +45447,7 @@ _F1Z3_PLIK = json.loads("{\"at\":\"2026-10-11T06:10:00+00:00\",\"ok\":{\"dr\":tr
 _F1Z3_T0 = '2026-10-11T06:10:00+00:00'
 
 
+@mock.patch.object(zd, 'LEV9', ())   # v369 (F6Z2): bez nowych giełd w testach dotychczasowych części
 class DzwigniaF1Z3(unittest.TestCase):
     """v343 (F1Z3): kontrakty z datą Deribit (basis, krzywa terminowa), pełniejsze opcje (zmienność ATM, skos, max pain, ściany, obrót put/call), kontrakty z datą OKX
     (do kontroli), Coinbase USA (lista kontraktów z limitem rozmiaru odpowiedzi), historia basis 3M. Zegar przypięty (NOW), sieć zablokowana — zaślepki."""
@@ -45780,7 +45785,7 @@ class DzwigniaF1Z3(unittest.TestCase):
         self.assertTrue(any('kontrakty z datą BTC: 503' in e for e in zd.META['errors']), zd.META['errors'])
 
     def test_stale_ustawienia(self):
-        self.assertEqual(sorted(zd.LEV_PX), ['bn', 'cb', 'cde', 'dr', 'dy', 'hl', 'kr', 'okx']); self.assertEqual(zd.LEV_PX['cde'], 'Coinbase USA')
+        self.assertEqual(sorted(zd.lev_px_aktywne()), ['bn', 'cb', 'cde', 'dr', 'dy', 'hl', 'kr', 'okx']); self.assertEqual(zd.LEV_PX['cde'], 'Coinbase USA')
         self.assertEqual(zd.LEV_LIVE[:6], ['hl', 'okx', 'kr', 'cb', 'cde', 'dy'], 'v345 (C-08): + cde (Coinbase USA)'); self.assertEqual((zd.DR_FUT_MIN_DNI, zd.DR_OPT_TERMS, zd.DR_OPT_WEEK_N, zd.CDE_PAGES, zd.CDE_MIN_OI_USD), (7.0, 10, 3, 2, 1e6))
 
 
@@ -45994,6 +45999,7 @@ class BankiBramkaCfgV344(unittest.TestCase):
         self.assertEqual(json.loads(json.dumps(out))['st']['imf_il']['cfg'], out['st']['imf_il']['cfg'])
 
 
+@mock.patch.object(zd, 'LEV9', ())   # v369 (F6Z2): bez nowych giełd w testach dotychczasowych części
 class DzwigniaV345(unittest.TestCase):
     """v345 (C-08, audyt m10): Coinbase USA (część cde) w „wszystkie giełdy razem” — suma otwartych pozycji i zestaw giełd w historii dziennej (testy bez zegara: NOW przypięte)."""
 
@@ -46163,7 +46169,7 @@ class LiczbaZrodelV347(unittest.TestCase):
                   'SR': lambda: {'surowce_raporty_' + p for p in zd.SR_PARTS}, 'SZ': lambda: {'szlaki_' + p for p in zd.SZ_PARTS},
                   'LNG': lambda: {'lng_' + p for p in zd.LNG_PARTS}, 'ZD': lambda: {'zboza_dzien_' + p for p in zd.ZD_PARTS},
                   'MT': lambda: {'metale_' + p for p in zd.MT_PARTS}, 'RYNKI': lambda: {f'rynki_{k}' for k in zd.RYNKI_PX},
-                  'LEV': lambda: {f'dzwignia_{k}' for k in zd.LEV_PX}, 'PR': lambda: {f'premie_{k}' for k in zd.PR_PARTS},
+                  'LEV': lambda: {f'dzwignia_{k}' for k in zd.lev_px_aktywne()}, 'PR': lambda: {f'premie_{k}' for k in zd.PR_PARTS},
                   'IX': lambda: {'indeksy_' + k for k in zd.IX_PARTS}}
         return czesci[g]()
 
@@ -46266,7 +46272,7 @@ class LiczbaZrodelV347(unittest.TestCase):
         self.assertEqual(zd.zrodla_meta({'wieloryby': True}), {'n': 1, 'ok': 1})
         self.assertEqual(zd.zrodla_meta({'wieloryby': False}), {'n': 1, 'ok': 0})
         self.assertEqual(zd.zrodla_meta({'wieloryby': True, 'rwa-lancuch': False}), {'n': 2, 'ok': 1}, 'węzły odpowiedziały w innej części — nie milczą')
-        for i in ('bybit', 'kucoin', 'bitfinex'):
+        for i in ('bybit', 'bitfinex'):   # v369: KuCoin jest od v369 także źródłem (własne API pochodnych), jak OKX i Binance wcześniej
             self.assertFalse(any(i in ((v,) if isinstance(v, str) else (v or ())) for v in zd.ZRODLA_META.values()), i)
 
     def test_czesc_wielozrodlowa_bez_wiedzy_o_zrodle_ma_jedno_milczace(self):
@@ -48892,6 +48898,7 @@ class PlynnoscV357(unittest.TestCase):
 
 
 # ===================== v359: AUDYT CRYPTO m11 — WIECZYSTY DERIBIT W SUMIE „WSZYSTKIE GIEŁDY RAZEM” =====================
+@mock.patch.object(zd, 'LEV9', ())   # v369 (F6Z2): bez nowych giełd w testach dotychczasowych części
 class DzwigniaDeribitV359(unittest.TestCase):
     """v359 (CR-M11-03): wieczysty Deribit (fut.perp: oi_usd, czas fut.t) wchodzi do sumy „wszystkie giełdy razem” i do zestawu giełd zapisanego w historii dziennej;
     opcje i kontrakty z datą rozliczenia nie; wiersz starszy niż 6 h albo bez kontraktu wieczystego odpada jak każda giełda. Zegar przypięty."""
@@ -52619,3 +52626,321 @@ class NiepewnoscV368(unittest.TestCase):
         self.assertIn("R['zgodnosc']['niepewnosc']", src); self.assertIn("np_ = Z.get('niepewnosc')", src)
         self.assertLess(src.index("T_ = niepewnosc_kontrola("), src.index('# 3d. v115: zgodność liczb — kapitalizacja'))
         self.assertLess(src.index("np_ = Z.get('niepewnosc')"), src.index("srz = Z.get('surowce-raporty')"))
+
+
+# ===================== v369 (F6Z2): pięć dalszych giełd w sumie „wszystkie giełdy razem” (Bitget, Gate, KuCoin, MEXC, HTX) =====================
+# Nagrania publicznych odpowiedzi giełd z 13–14.10.2026 (skrócone do BTC i ETH oraz pól używanych przez zbieracz; Gate: 25 godzin statystyk, ostatnia niepełna).
+_L9_BG = '{"code":"00000","msg":"success","requestTime":1791929354963,"data":[{"symbol":"BTCUSDT","lastPr":"83388","askPr":"83388","bidPr":"83387.9","bidSz":"0.1272","askSz":"6.6719","high24h":"84137.7","low24h":"80990.5","ts":"1791929354964","change24h":"0.00797","baseVolume":"37256.3741","quoteVolume":"3089986929.84787","usdtVolume":"3089986929.84787","openUtc":"81815.3","changeUtc24h":"0.01922","indexPrice":"83427.6105","fundingRate":"0.000024","holdingAmount":"32018.7305999999756","deliveryStartTime":null,"deliveryTime":null,"deliveryStatus":"","open24h":"82728.4","markPrice":"83388"},{"symbol":"ETHUSDT","lastPr":"2508.72","askPr":"2508.64","bidPr":"2508.63","bidSz":"12.49","askSz":"85.11","high24h":"2538.65","low24h":"2407.45","ts":"1791929354964","change24h":"0.00473","baseVolume":"804313.73","quoteVolume":"2001670231.6407","usdtVolume":"2001670231.6407","openUtc":"2445.83","changeUtc24h":"0.02578","indexPrice":"2510.0515","fundingRate":"0.000064","holdingAmount":"750584.85999999997","deliveryStartTime":null,"deliveryTime":null,"deliveryStatus":"","open24h":"2496.92","markPrice":"2508.88"}]}'
+_L9_BG_F = '{"BTC":{"code":"00000","msg":"success","requestTime":1791929366249,"data":[{"symbol":"BTCUSDT","fundingRate":"0.000024","fundingRateInterval":"8","nextUpdate":"1791936000000","minFundingRate":"-0.003","maxFundingRate":"0.003"}]},"ETH":{"code":"00000","msg":"success","requestTime":1791929336228,"data":[{"symbol":"ETHUSDT","fundingRate":"0.000064","fundingRateInterval":"8","nextUpdate":"1791936000000","minFundingRate":"-0.003","maxFundingRate":"0.003"}]}}'
+_L9_GT = '{"BTC":{"name":"BTC_USDT","status":"trading","in_delisting":false,"position_size":256891332,"quanto_multiplier":"0.0001","mark_price":"83385.07","funding_rate":"0.00002","funding_interval":28800,"index_price":"83427.59"},"ETH":{"name":"ETH_USDT","status":"trading","in_delisting":false,"position_size":39282903,"quanto_multiplier":"0.01","mark_price":"2508.92","funding_rate":"0.000048","funding_interval":28800,"index_price":"2510.21"}}'
+_L9_GT_STATS = '[{"time":1791842400,"long_liq_usd":64219.455706,"short_liq_usd":0,"open_interest_usd":4269168234.598624,"mark_price":82311.53},{"time":1791846000,"long_liq_usd":3437438.2575,"short_liq_usd":42922.4575,"open_interest_usd":4199323613.264,"mark_price":81835},{"time":1791849600,"long_liq_usd":4081733.79765,"short_liq_usd":74198.24865,"open_interest_usd":4151404073.1504,"mark_price":81384.5},{"time":1791853200,"long_liq_usd":0,"short_liq_usd":63483.60617,"open_interest_usd":4278264973.925936,"mark_price":82392.74},{"time":1791856800,"long_liq_usd":0,"short_liq_usd":362912.74006,"open_interest_usd":4343050099.2944,"mark_price":82943.9},{"time":1791860400,"long_liq_usd":9969.15465,"short_liq_usd":2744132.66205,"open_interest_usd":4376592013.2948,"mark_price":83284.5},{"time":1791864000,"long_liq_usd":0,"short_liq_usd":14909.08396,"open_interest_usd":4462453655.11648,"mark_price":83430.8},{"time":1791867600,"long_liq_usd":0,"short_liq_usd":460667.84142,"open_interest_usd":4494997047.28032,"mark_price":83633.1},{"time":1791871200,"long_liq_usd":66.98864,"short_liq_usd":19058.26808,"open_interest_usd":4532294896.93696,"mark_price":83735.8},{"time":1791874800,"long_liq_usd":8.38727,"short_liq_usd":124014.17422,"open_interest_usd":4574056204.09552,"mark_price":83872.7},{"time":1791878400,"long_liq_usd":227798.841204,"short_liq_usd":15397.235634,"open_interest_usd":4578538572.336608,"mark_price":83589.77},{"time":1791882000,"long_liq_usd":23031.50616,"short_liq_usd":752.1174,"open_interest_usd":4565114280.3528,"mark_price":83568.6},{"time":1791885600,"long_liq_usd":22315.93605,"short_liq_usd":0,"open_interest_usd":4523344509.5496,"mark_price":83299.5},{"time":1791889200,"long_liq_usd":75069.96,"short_liq_usd":73920.42,"open_interest_usd":4437483496.32,"mark_price":83300},{"time":1791892800,"long_liq_usd":26486.064209,"short_liq_usd":249.94713,"open_interest_usd":4402322466.58124,"mark_price":83315.71},{"time":1791896400,"long_liq_usd":31273.78989,"short_liq_usd":91591.68739,"open_interest_usd":4365959375.50304,"mark_price":83197.1},{"time":1791900000,"long_liq_usd":12125.5794,"short_liq_usd":460613.34915,"open_interest_usd":4396288080.7884,"mark_price":83509.5},{"time":1791903600,"long_liq_usd":71710.57947,"short_liq_usd":83.3747,"open_interest_usd":4379302073.63464,"mark_price":83374.7},{"time":1791907200,"long_liq_usd":0,"short_liq_usd":8895.16287,"open_interest_usd":4362287177.14632,"mark_price":83366.1},{"time":1791910800,"long_liq_usd":193549.36812,"short_liq_usd":0,"open_interest_usd":4342142934.44256,"mark_price":83029.2},{"time":1791914400,"long_liq_usd":2842.64757,"short_liq_usd":0,"open_interest_usd":4307045810.76784,"mark_price":83118.35},{"time":1791918000,"long_liq_usd":0,"short_liq_usd":2714.246986,"open_interest_usd":4311466706.118352,"mark_price":83259.11},{"time":1791921600,"long_liq_usd":0,"short_liq_usd":425.285379,"open_interest_usd":4286425784.462544,"mark_price":83389.29},{"time":1791925200,"long_liq_usd":0,"short_liq_usd":192.01504,"open_interest_usd":4291933331.28448,"mark_price":83484.8},{"time":1791928800,"long_liq_usd":0,"short_liq_usd":0,"open_interest_usd":4296040850.23232,"mark_price":83484.8}]'
+_L9_KC = '{"code":"200000","data":[{"symbol":"XBTUSDTM","status":"Open","isInverse":false,"settleCurrency":"USDT","expireDate":null,"multiplier":0.001,"openInterest":"9655527","markPrice":83387.9,"fundingFeeRate":8.5e-05,"currentFundingRateGranularity":28800000,"fundingRateGranularity":28800000,"turnoverOf24h":381479370.6996,"type":"FFWCSX"},{"symbol":"ETHUSDTM","status":"Open","isInverse":false,"settleCurrency":"USDT","expireDate":null,"multiplier":0.01,"openInterest":"15386420","markPrice":2508.8,"fundingFeeRate":8.7e-05,"currentFundingRateGranularity":28800000,"fundingRateGranularity":28800000,"turnoverOf24h":290959765.9364,"type":"FFWCSX"},{"symbol":"XBTUSDM","status":"Open","isInverse":true,"settleCurrency":"XBT","expireDate":null,"multiplier":-1.0,"openInterest":"51375504","markPrice":83339.6,"fundingFeeRate":-0.000725,"currentFundingRateGranularity":28800000,"fundingRateGranularity":28800000,"turnoverOf24h":129.17082978,"type":"FFWCSX"}]}'
+_L9_MX = '{"success":true,"code":0,"data":[{"symbol":"BTC_USDT","holdVol":446537574,"fairPrice":83386.8,"fundingRate":7e-06,"timestamp":1791929359858,"amount24":3041449972.87229,"lastPrice":83386.7},{"symbol":"ETH_USDT","holdVol":94165470,"fairPrice":2508.6,"fundingRate":6.1e-05,"timestamp":1791929359859,"amount24":1828996866.029,"lastPrice":2508.61}]}'
+_L9_MX_D = '{"BTC":{"success":true,"code":0,"data":{"symbol":"BTC_USDT","contractSize":0.0001,"state":0}},"ETH":{"success":true,"code":0,"data":{"symbol":"ETH_USDT","contractSize":0.01,"state":0}}}'
+_L9_MX_F = '{"BTC":{"success":true,"code":0,"data":{"symbol":"BTC_USDT","fundingRate":8e-06,"maxFundingRate":0.0018,"minFundingRate":-0.0018,"collectCycle":8,"nextSettleTime":1791936000000,"timestamp":1791929334987,"idxPrice":83436.6,"fairPrice":83393.8}},"ETH":{"success":true,"code":0,"data":{"symbol":"ETH_USDT","fundingRate":6.1e-05,"maxFundingRate":0.0018,"minFundingRate":-0.0018,"collectCycle":8,"nextSettleTime":1791936000000,"timestamp":1791929363096,"idxPrice":2509.62,"fairPrice":2508.2}}}'
+_L9_HX = '{"status":"ok","ts":1791929363961,"data":[{"volume":21683527,"amount":21683.527,"symbol":"BTC","value":1808180643.1192,"contract_code":"BTC-USDT","trade_amount":5655.098,"trade_volume":5655098,"trade_turnover":469258431.0008,"business_type":"swap","pair":"BTC-USDT","contract_type":"swap","trade_partition":"USDT"},{"volume":15754533,"amount":157545.33,"symbol":"ETH","value":395361581.0883,"contract_code":"ETH-USDT","trade_amount":383997.5,"trade_volume":38399750,"trade_turnover":956200541.151,"business_type":"swap","pair":"ETH-USDT","contract_type":"swap","trade_partition":"USDT"}]}'
+_L9_HX_F = '{"BTC":{"status":"ok","data":{"estimated_rate":null,"funding_rate":"0.000002902279907512","contract_code":"BTC-USDT","symbol":"BTC","fee_asset":"USDT","funding_time":"1791936000000","next_funding_time":null,"trade_partition":"USDT"},"ts":1791929836916},"ETH":{"status":"ok","data":{"estimated_rate":null,"funding_rate":"0.000100000000000000","contract_code":"ETH-USDT","symbol":"ETH","fee_asset":"USDT","funding_time":"1791936000000","next_funding_time":null,"trade_partition":"USDT"},"ts":1791929365460}}'
+
+
+class PiecGieldiV369(unittest.TestCase):
+    """v369 (F6Z2): Bitget, Gate, KuCoin, MEXC, HTX — jednostki kontraktów na USD wg specyfikacji giełdy (z testem na nagraniach), okres finansowania z odpowiedzi giełdy,
+    likwidacje godzinowe Gate (tylko pełne godziny), część z błędem = poprzednia z własnym czasem, brak ≠ zero, suma bez podwójnego liczenia."""
+    NOW = '2026-10-13T22:30:00+00:00'   # po ostatniej pełnej godzinie statystyk Gate (21:00–22:00), przed końcem bieżącej (22:00–23:00)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.enterContext(mock.patch.object(zd, 'NOW', self.NOW))
+        self.enterContext(mock.patch.object(zd, 'cde_get', side_effect=lambda u: json.loads(_F1Z3_CDE)))
+        self.bg, self.gt, self.stats = json.loads(_L9_BG), json.loads(_L9_GT), json.loads(_L9_GT_STATS)
+        self.kc, self.mx, self.hx = json.loads(_L9_KC), json.loads(_L9_MX), json.loads(_L9_HX)
+
+    def route(self, url):
+        J = json.loads
+        c = 'BTC' if ('BTC' in url or 'XBT' in url) else 'ETH'
+        if url.startswith(zd.BG_URL + 'tickers'): return self.bg
+        if url.startswith(zd.BG_URL + 'current-fund-rate'): return J(_L9_BG_F)[c]
+        if url.startswith(zd.GT_URL + 'contract_stats'): return self.stats
+        if url.startswith(zd.GT_URL + 'contracts/'): return self.gt[c]
+        if url == zd.KC_URL: return self.kc
+        if url == zd.MX_URL + 'ticker': return self.mx
+        if url.startswith(zd.MX_URL + 'detail'): return J(_L9_MX_D)[c]
+        if url.startswith(zd.MX_URL + 'funding_rate/'): return J(_L9_MX_F)[c]
+        if url == zd.HX_URL + 'swap_open_interest': return self.hx
+        if url.startswith(zd.HX_URL + 'swap_funding_rate'): return J(_L9_HX_F)[c]
+        raise AssertionError('nieznany adres ' + url)
+
+    def net(self):
+        return mock.patch.object(zd, 'l9_get', side_effect=self.route)
+
+    def fy(self, rate, hours):
+        return round(rate / hours * 24 * 365 * 100, 3)
+
+    def test_stala_lista_i_nazwy(self):
+        self.assertEqual(zd.LEV9, ('bg', 'gt', 'kc', 'mx', 'hx')); self.assertEqual([zd.LEV_PX[k] for k in zd.LEV9], ['Bitget', 'Gate', 'KuCoin', 'MEXC', 'HTX'])
+        self.assertEqual(len(zd.LEV_LIVE) + len(zd.LEV9), len(set(zd.LEV_LIVE) | set(zd.LEV9)), 'żadna giełda dwa razy w sumie (LEV_LIVE + LEV9)')
+        self.assertNotIn('bn', zd.LEV_LIVE + list(zd.LEV9), 'Binance (plik z poprzedniego dnia) nadal poza sumą'); self.assertEqual(zd.lev_px_aktywne(), list(zd.LEV_PX) if zd.LEV9 else [k for k in zd.LEV_PX if k not in zd.L9_NAZWY])
+        with mock.patch.object(zd, 'LEV9', ()):
+            self.assertEqual(sorted(zd.lev_px_aktywne()), ['bn', 'cb', 'cde', 'dr', 'dy', 'hl', 'kr', 'okx'], 'z pustym LEV9 — tylko dotychczasowe części')
+        import re
+        h = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html'), encoding='utf-8').read()
+        self.assertIn("const LEV_P9=[" + ','.join("'%s'" % k for k in zd.LEV9) + "];", h, 'strona dopisuje do sumy te same giełdy w tej samej kolejności')
+        n = re.search(r"const n=\{([^}]*)\};for\(const k of LEV_P9\)", h); self.assertIsNotNone(n)
+        self.assertEqual({a.strip(): b.strip().strip("'") for a, b in (x.split(':') for x in n.group(1).split(','))}, {k: zd.LEV_PX[k] for k in zd.LEV9}, 'nazwy giełd strony = nazwy zbieracza')
+        for k in zd.LEV9:
+            self.assertEqual(sorted(zd.L9_SYM[k]), ['BTC', 'ETH'], k)
+
+    def test_jednostki_otwartych_pozycji_na_usd(self):
+        with self.net():
+            bg, gt, kc, mx, hx = zd.lev_bg(), zd.lev_gt(), zd.lev_kc(), zd.lev_mx(), zd.lev_hx()
+        for c in ('BTC', 'ETH'):
+            b = next(r for r in self.bg['data'] if r['symbol'] == c + 'USDT')
+            self.assertEqual(bg[c]['oi_usd'], round(float(b['holdingAmount']) * float(b['markPrice'])), 'Bitget: monety × cena znacznikowa')
+            d = self.gt[c]
+            self.assertEqual(gt[c]['oi_usd'], round(float(d['position_size']) * float(d['quanto_multiplier']) * float(d['mark_price'])), 'Gate: kontrakty jednej strony × mnożnik × cena')
+            k = next(r for r in self.kc['data'] if r['symbol'] == {'BTC': 'XBTUSDTM', 'ETH': 'ETHUSDTM'}[c])
+            self.assertEqual(kc[c]['oi_usd'], round(float(k['openInterest']) * k['multiplier'] * k['markPrice']), 'KuCoin: kontrakty × mnożnik × cena')
+            m = next(r for r in self.mx['data'] if r['symbol'] == c + '_USDT'); sz = json.loads(_L9_MX_D)[c]['data']['contractSize']
+            self.assertEqual(mx[c]['oi_usd'], round(m['holdVol'] * sz * m['fairPrice']), 'MEXC: kontrakty × rozmiar z opisu kontraktu × cena znacznikowa')
+            h = next(r for r in self.hx['data'] if r['contract_code'] == c + '-USDT')
+            self.assertEqual(hx[c]['oi_usd'], round(h['value']), 'HTX: wartość pozycji w USDT'); self.assertAlmostEqual(hx[c]['oi'], h['amount'], 4)
+        # Gate: pozycje ze statystyk liczą OBIE strony — jedna strona z opisu kontraktu to ok. połowa (±3 %)
+        self.assertLess(abs(gt['BTC']['oi_usd'] / (self.stats[-2]['open_interest_usd'] / 2) - 1), 0.03, 'Gate: opis kontraktu ≈ połowa pozycji obu stron ze statystyk')
+        for o in (bg, gt, kc, mx, hx):
+            self.assertTrue(3e8 < o['BTC']['oi_usd'] < 6e9, 'rząd wielkości otwartych pozycji BTC na jednej giełdzie'); self.assertTrue(5e7 < o['ETH']['oi_usd'] < 3e9)
+        self.assertEqual(zd.META['errors'], [])
+
+    def test_okres_finansowania_z_odpowiedzi_giełdy(self):
+        with self.net():
+            bg, gt, kc, mx, hx = zd.lev_bg(), zd.lev_gt(), zd.lev_kc(), zd.lev_mx(), zd.lev_hx()
+        bf = json.loads(_L9_BG_F)['BTC']['data'][0]
+        self.assertEqual((bg['BTC']['f_hours'], bg['BTC']['f_y']), (8.0, self.fy(float(bf['fundingRate']), 8.0)))
+        self.assertEqual((gt['BTC']['f_hours'], gt['BTC']['f_y']), (8.0, self.fy(float(self.gt['BTC']['funding_rate']), 8.0)), 'Gate: funding_interval 28 800 s')
+        k = self.kc['data'][0]; self.assertEqual((kc['BTC']['f_hours'], kc['BTC']['f_y']), (8.0, self.fy(k['fundingFeeRate'], 8.0)), 'KuCoin: granularność 28 800 000 ms')
+        mf = json.loads(_L9_MX_F)['BTC']['data']; self.assertEqual((mx['BTC']['f_hours'], mx['BTC']['f_y']), (8.0, self.fy(mf['fundingRate'], 8.0)), 'MEXC: collectCycle')
+        hf = json.loads(_L9_HX_F)['BTC']['data']; self.assertEqual((hx['BTC']['f_hours'], hx['BTC']['f_y']), (8, self.fy(float(hf['funding_rate']), 8)), 'HTX: 8 h z dokumentacji, czas rozliczenia na siatce 8 h')
+        self.assertEqual(int(hf['funding_time']) % (8 * 3600 * 1000), 0)
+        # okres 1 h (Bitget zmienia okres przy skrajnych stawkach) — stawka roczna z faktycznego okresu, nie z 8 h
+        j = json.loads(_L9_BG_F)['BTC']; j['data'][0]['fundingRateInterval'] = '1'
+        r = zd.bg_parse(self.bg, {'BTC': (float(j['data'][0]['fundingRate']), zd.l9_hours(j['data'][0]['fundingRateInterval']))})
+        self.assertEqual(r['BTC']['f_y'], self.fy(float(j['data'][0]['fundingRate']), 1.0))
+
+    def test_brak_okresu_to_brak_stawki_rocznej_nie_zero(self):
+        fh = json.loads(_L9_HX_F)['BTC']; fh['data']['funding_time'] = str(int(fh['data']['funding_time']) + 3600 * 1000)   # poza siatką 8 h
+        orig = self.route
+        def r2(url):
+            if url.startswith(zd.HX_URL + 'swap_funding_rate') and 'BTC' in url: return fh
+            if url.startswith(zd.BG_URL + 'current-fund-rate') and 'ETH' in url: raise zd.urllib.error.HTTPError(url, 403, 'Forbidden', {}, None)
+            return orig(url)
+        with mock.patch.object(zd, 'l9_get', side_effect=r2):
+            hx, bg = zd.lev_hx(), zd.lev_bg()
+        self.assertIsNone(hx['BTC']['f_y']); self.assertIsNone(hx['BTC']['f_h']); self.assertTrue(hx['BTC']['oi_usd'] > 0, 'pozycje zostają bez stawki')
+        self.assertIsNotNone(hx['ETH']['f_y'])
+        self.assertIsNone(bg['ETH']['f_y'], 'brak odpowiedzi o stawce = brak stawki (nie 0 i nie założone 8 h)'); self.assertTrue(bg['ETH']['oi_usd'] > 0)
+        self.assertTrue(any(e.startswith('Dźwignia: Bitget: finansowanie ETH') for e in zd.META['errors']), zd.META['errors'])
+        for o in (hx, bg):
+            for c in ('BTC', 'ETH'):
+                self.assertNotEqual(o[c]['f_y'], 0)
+
+    def test_zle_ksztalty_i_pulapki_kontraktow(self):
+        # Bitget: kontrakt z datą dostawy, zły kod odpowiedzi
+        b = json.loads(_L9_BG); next(r for r in b['data'] if r['symbol'] == 'BTCUSDT')['deliveryTime'] = '1795000000000'
+        self.assertNotIn('BTC', zd.bg_parse(b)); self.assertIn('ETH', zd.bg_parse(b))
+        with self.assertRaises(ValueError): zd.bg_parse({'code': '40001', 'data': []})
+        # Gate: rynek wycofywany
+        d = dict(self.gt['BTC'], in_delisting=True)
+        with self.assertRaises(ValueError): zd.gt_parse(d)
+        with self.assertRaises(ValueError): zd.gt_parse(dict(self.gt['BTC'], status='delisting'))
+        # KuCoin: odwrotny kontrakt XBTUSDM i wstrzymany rynek nie zastępują liniowego XBTUSDTM; kontrakt z datą rozliczenia pominięty
+        k = json.loads(json.dumps(self.kc)); k['data'][0]['status'] = 'Paused'
+        r = zd.kuc_parse(k); self.assertNotIn('BTC', r); self.assertIn('ETH', r)
+        k = json.loads(json.dumps(self.kc)); k['data'][0]['isInverse'] = True
+        self.assertNotIn('BTC', zd.kuc_parse(k))
+        k = json.loads(json.dumps(self.kc)); k['data'][0]['expireDate'] = 1795000000000
+        self.assertNotIn('BTC', zd.kuc_parse(k))
+        inv = next(x for x in self.kc['data'] if x['symbol'] == 'XBTUSDM'); self.assertIs(inv['isInverse'], True, 'nagranie ma odwrotny kontrakt jako pułapkę')
+        # MEXC: bez rozmiaru kontraktu moneta pominięta (nie zgadujemy), zła odpowiedź
+        r = zd.mx_parse(self.mx, {'ETH': 0.01}, {}); self.assertEqual(sorted(r), ['ETH'])
+        with self.assertRaises(ValueError): zd.mx_parse({'success': False, 'data': []})
+        # HTX: tylko kontrakt wieczysty (business_type swap); drugi wiersz o tym samym kodzie, ale z datą, nie nadpisuje
+        h = json.loads(json.dumps(self.hx)); extra = dict(h['data'][0], business_type='futures', value=1.0, amount=1.0)
+        h['data'].insert(0, extra)
+        self.assertEqual(zd.hx_parse(h)['BTC']['oi_usd'], zd.hx_parse(self.hx)['BTC']['oi_usd'])
+        h['data'] = [x for x in h['data'] if x['business_type'] == 'futures']
+        self.assertNotIn('BTC', zd.hx_parse(h))
+        with self.assertRaises(ValueError): zd.hx_parse({'status': 'error', 'data': []})
+
+    def test_likwidacje_gate_tylko_pelne_godziny(self):
+        now_s = int(datetime.datetime.fromisoformat(self.NOW).timestamp())
+        q = zd.gt_liq(self.stats, now_s)
+        full = [r for r in self.stats if r['time'] + 3600 <= now_s]
+        self.assertEqual(len(self.stats), 25); self.assertEqual(len(full), 24, 'bieżąca niepełna godzina odrzucona'); self.assertEqual(q['n'], 24)
+        self.assertEqual(q['l'], round(sum(r['long_liq_usd'] for r in full))); self.assertEqual(q['s'], round(sum(r['short_liq_usd'] for r in full)))
+        self.assertEqual(len(q['h']), 24); self.assertEqual(q['h'][-1][0], full[-1]['time']); self.assertEqual(q['t'], '2026-10-13T22:00:00+00:00', 'koniec ostatniej pełnej godziny')
+        self.assertEqual(sum(h[1] for h in q['h']) + sum(h[2] for h in q['h']) - q['l'] - q['s'] <= 24, True, 'zaokrąglenia godzin do pełnych USD')
+        # po końcu bieżącej godziny wchodzi do okna i ona (dokładnie 24 ostatnie pełne)
+        q2 = zd.gt_liq(self.stats, now_s + 3600); self.assertEqual(q2['t'], '2026-10-13T23:00:00+00:00'); self.assertEqual(q2['h'][0][0], full[1]['time'])
+        # luka w godzinach, brak liczby, ujemna liczba, za mało godzin → brak (nie zero)
+        gap = [r for r in self.stats if r['time'] != self.stats[10]['time']]; self.assertIsNone(zd.gt_liq(gap, now_s))
+        bad = json.loads(json.dumps(self.stats)); bad[3]['long_liq_usd'] = None; self.assertIsNone(zd.gt_liq(bad, now_s))
+        bad = json.loads(json.dumps(self.stats)); bad[3]['short_liq_usd'] = -5; self.assertIsNone(zd.gt_liq(bad, now_s))
+        self.assertIsNone(zd.gt_liq(self.stats[:12], now_s)); self.assertIsNone(zd.gt_liq(None, now_s)); self.assertIsNone(zd.gt_liq([], now_s))
+        with self.net():
+            gt = zd.lev_gt()
+        self.assertEqual(gt['BTC']['liq'], q); self.assertEqual(gt['ETH']['liq']['n'], 24)
+
+    def test_czesc_z_bledem_zostaje_poprzednia_z_wlasnym_czasem(self):
+        with self.net():
+            kc = zd.lev_kc()
+        # moneta bez nowego wiersza → poprzedni wiersz (z własnym czasem) i wpis w błędach
+        k = json.loads(json.dumps(self.kc)); k['data'][1]['status'] = 'Paused'
+        prev = {'BTC': kc['BTC'], 'ETH': dict(kc['ETH'], t='2026-10-13T20:00:00+00:00')}
+        with mock.patch.object(zd, 'l9_get', return_value=k):
+            o = zd.lev_kc(prev)
+        self.assertEqual(o['ETH'], prev['ETH']); self.assertEqual(o['ETH']['t'], '2026-10-13T20:00:00+00:00'); self.assertEqual(o['t'], self.NOW)
+        self.assertTrue(any('KuCoin: brak wiersza ETHUSDTM' in e for e in zd.META['errors']), zd.META['errors'])
+        # nic nowego → wyjątek (decyzję o zachowaniu poprzedniej części podejmuje build_dzwignia)
+        with mock.patch.object(zd, 'l9_get', side_effect=OSError('offline')):
+            with self.assertRaises(OSError): zd.lev_kc(prev)
+        k = json.loads(json.dumps(self.kc)); k['data'] = []
+        with mock.patch.object(zd, 'l9_get', return_value=k):
+            with self.assertRaises(ValueError): zd.lev_kc(None)
+        # Gate: likwidacje bez nowego odczytu zostają poprzednie (z własnym czasem t), a stare pozycje nie są przepisywane
+        with self.net():
+            gt = zd.lev_gt()
+        orig = self.route
+        def r2(url):
+            if 'contract_stats' in url: raise OSError('offline')
+            return orig(url)
+        zd.META['errors'].clear()
+        with mock.patch.object(zd, 'l9_get', side_effect=r2):
+            g2 = zd.lev_gt(gt)
+        self.assertEqual(g2['BTC']['liq'], gt['BTC']['liq']); self.assertTrue(any('Gate: likwidacje BTC' in e for e in zd.META['errors']), zd.META['errors'])
+        with mock.patch.object(zd, 'l9_get', side_effect=r2):
+            g3 = zd.lev_gt(None)
+        self.assertNotIn('liq', g3['BTC'], 'bez poprzednich i bez nowych — brak likwidacji, nie zero')
+
+    def test_dlugi_przebieg_pomija_duze_odpowiedzi(self):
+        with mock.patch.object(zd, '_RUN_T0', [zd.time.monotonic() - zd.BACK_LATE - 5]), mock.patch.object(zd, 'l9_get', side_effect=AssertionError('nie powinno pobierać')):
+            for f in (zd.lev_bg, zd.lev_gt, zd.lev_kc, zd.lev_mx, zd.lev_hx):
+                self.assertIsNone(f({'BTC': {'t': 'x'}}))
+        self.assertEqual(len([n for n in zd.META['notes'] if 'pominięte' in n]), 5)
+
+    def build(self, prev=None, **kw):
+        V = DzwigniaV104('test_num_never_zero_for_missing')
+        gb = lambda url, headers=None, timeout=60: V.zip_bytes(V.CSV.replace('BTCUSDT', 'ETHUSDT') if 'ETHUSDT' in url else V.CSV)
+        with mock.patch.object(zd, 'hl_post', side_effect=V.hl_post), mock.patch.object(zd, 'get_bytes', side_effect=gb), mock.patch.object(zd, 'get_json', side_effect=V.get_json), self.net():
+            return zd.build_dzwignia(prev, today=V.TODAY, **kw), V
+
+    def test_build_trzynascie_czesci_suma_bez_podwojnego_liczenia(self):
+        o, V = self.build()
+        self.assertEqual(o['ok'], {k: True for k in zd.LEV_PX if k != 'cz'}); self.assertEqual(len(o['ok']), 13); self.assertEqual(zd.META['errors'], [])
+        self.assertTrue(all(o['part_at'][k] == self.NOW for k in zd.LEV9))
+        h = o['hist'][-1]
+        for c in ('btc', 'eth'):
+            v = h['all_' + c + '_v'].split(',')
+            self.assertEqual(len(v), len(set(v)), 'żadna giełda dwa razy'); self.assertTrue(set(zd.LEV9) <= set(v), v)
+            exp = 0
+            for k in v:
+                r = o['hl']['rows'][c.upper()] if k == 'hl' else zd.lev_dr_wiersz(o['dr'][c.upper()]) if k == 'dr' else o[k][c.upper()]
+                exp += r['oi_usd']
+            self.assertEqual(h['all_' + c], round(exp), c)
+        s = zd.lev_all(o)['BTC']; self.assertEqual(s['usd'], h['all_btc']); self.assertEqual(s['v'], h['all_btc_v'])
+        self.assertGreater(s['usd'], sum(o[k]['BTC']['oi_usd'] for k in zd.LEV9), 'suma obejmuje także dotychczasowe giełdy')
+        self.assertNotIn('bn', s['v'].split(','))
+
+    def test_build_awaria_jednej_nowej_giełdy_nie_rusza_pozostalych(self):
+        o, V = self.build()
+        orig = self.route
+        def r2(url):
+            if url == zd.KC_URL: raise zd.urllib.error.HTTPError(url, 403, 'Forbidden', {}, None)
+            return orig(url)
+        zd.META['errors'].clear()
+        prev = dict(o, part_at=dict(o['part_at'], kc='2026-10-13T20:00:00+00:00'), kc=dict(o['kc'], t='2026-10-13T20:00:00+00:00'))
+        with mock.patch.object(zd, 'l9_get', side_effect=r2):
+            o2, _ = self.build_bez_sieci(prev)
+        self.assertIs(o2['ok']['kc'], False); self.assertEqual(o2['kc'], prev['kc']); self.assertEqual(o2['part_at']['kc'], '2026-10-13T20:00:00+00:00', 'poprzednia część z własnym czasem')
+        self.assertTrue(all(o2['ok'][k] is True for k in zd.LEV_PX if k not in ('kc', 'cz')))
+        self.assertTrue(any(e.startswith('Dźwignia: KuCoin:') for e in zd.META['errors']), zd.META['errors'])
+
+    def build_bez_sieci(self, prev):
+        V = DzwigniaV104('test_num_never_zero_for_missing')
+        gb = lambda url, headers=None, timeout=60: V.zip_bytes(V.CSV.replace('BTCUSDT', 'ETHUSDT') if 'ETHUSDT' in url else V.CSV)
+        with mock.patch.object(zd, 'hl_post', side_effect=V.hl_post), mock.patch.object(zd, 'get_bytes', side_effect=gb), mock.patch.object(zd, 'get_json', side_effect=V.get_json):
+            return zd.build_dzwignia(prev, today=V.TODAY), V
+
+    def test_zrodla_pieciu_gieldi_licza_sie_jako_pieciu_dostawcow(self):
+        base = {'dzwignia': True, **{'dzwignia_' + k: True for k in ('hl', 'bn', 'dr', 'okx', 'kr', 'cb', 'dy', 'cde')}}
+        all13 = dict(base, **{'dzwignia_' + k: True for k in zd.LEV9})
+        a, b = zd.zrodla_meta(base), zd.zrodla_meta(all13)
+        self.assertEqual(b['n'] - a['n'], 5, 'pięć giełd = pięć źródeł więcej'); self.assertEqual(b['ok'] - a['ok'], 5)
+        down = dict(all13, dzwignia_gt=False); self.assertEqual(zd.zrodla_meta(down)['ok'], b['ok'] - 1, 'milcząca giełda to milczące źródło')
+        for k in zd.LEV9:
+            self.assertIn('dzwignia_' + k, zd.ZRODLA_META); self.assertIn('dzwignia_' + k, zd.ZRODLA_SKLADOWE['dzwignia'])
+
+
+class PiecGieldiKontrolaV369(unittest.TestCase):
+    """v369 (F6Z2): kontrola dzienna — wiek odczytu pięciu giełd, kompletność BTC/ETH, suma otwartych pozycji wobec poprzedniego zestawu giełd (TYLKO informacja)."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        cls.tmp = tempfile.mkdtemp(prefix='kontrola369-')
+        os.environ['KONTROLA_DIR'] = os.path.join(cls.tmp, 'kontrola'); os.environ['KONTROLA_ARCH'] = os.path.join(cls.tmp, 'archiwum')
+        spec = importlib.util.spec_from_file_location('v369_k', os.path.join(cls.ROOT, 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    T0 = '2026-10-13T21:10:00+00:00'
+
+    def now(self, minutes=20):
+        return self.k.dt.datetime(2026, 10, 13, 21, 10, tzinfo=self.k.dt.timezone.utc) + self.k.dt.timedelta(minutes=minutes)
+
+    def plik(self):
+        row = lambda usd: {'oi_usd': usd, 'f_y': 5.0, 't': self.T0}
+        P = lambda a, b: {'t': self.T0, 'BTC': row(a), 'ETH': row(b)}
+        gt = P(2.1e9, 1.0e9)
+        for c in ('BTC', 'ETH'):
+            gt[c]['liq'] = {'t': '2026-10-13T21:00:00+00:00', 'n': 24, 'l': 1, 's': 1, 'h': []}
+        return {'bg': P(2.8e9, 1.2e9), 'gt': gt, 'kc': P(8e8, 4e8), 'mx': P(3.7e9, 1.5e9), 'hx': P(1.8e9, 4e8),
+                'hist': [{'d': '2026-10-11', 'all_btc': 5.7e9, 'all_btc_v': 'cb,dy,hl,kr,okx', 'all_eth': 4.6e9, 'all_eth_v': 'cb,dy,hl,kr,okx'},
+                         {'d': '2026-10-12', 'all_btc': 5.8e9, 'all_btc_v': 'cb,dy,hl,kr,okx', 'all_eth': 4.7e9, 'all_eth_v': 'cb,dy,hl,kr,okx'},
+                         {'d': '2026-10-13', 'all_btc': 1.9e10, 'all_btc_v': 'bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx', 'all_eth': 1.2e10, 'all_eth_v': 'bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx'}]}
+
+    def test_plik_zgodny_piec_wierszy_i_suma_jako_informacja(self):
+        R = self.k.dzw9_kontrola(self.plik(), self.now())
+        self.assertEqual([r[0] for r in R['rows']], list(self.k.DZW9_ETYKIETA.values()) + [self.k.DZW9_SUMA])
+        self.assertEqual([r[1] for r in R['rows']], [self.k.DZW_OK] * 6); self.assertEqual(R['uwagi'], [])
+        self.assertEqual(R['rows'][0][2], 20, 'wiek z czasu odczytu, minuty w dół')
+        S = R['suma']['BTC']; self.assertEqual((S['n'], S['poprz']['n'], S['poprz']['d']), (11, 5, '2026-10-12'), 'poprzedni zestaw: ostatni wpis z innym zestawem giełd')
+        txt = R['rows'][-1][3]; self.assertIn('BTC: 11 giełd 19.00 mld USD (2026-10-13), poprzednio 5 giełd 5.80 mld USD (2026-10-12)', txt); self.assertIn('ETH: 11 giełd 12.00 mld USD', txt)
+
+    def test_suma_nigdy_nie_daje_ostrzezenia_nawet_przy_duzej_roznicy(self):
+        j = self.plik(); j['hist'][-1]['all_btc'] = 1.0e6   # absurdalnie mała suma nowego zestawu
+        R = self.k.dzw9_kontrola(j, self.now())
+        self.assertEqual(R['rows'][-1][1], self.k.DZW_OK); self.assertEqual(R['uwagi'], [], 'tylko informacja, bez progu')
+        j['hist'].append(dict(j['hist'][-1], d='2026-10-14', all_btc=1.8e10)); R = self.k.dzw9_kontrola(j, self.now())
+        self.assertEqual(R['suma']['BTC']['poprz']['d'], '2026-10-12', 'poprzednia suma INNEGO zestawu giełd (nie wpis z tym samym zestawem sprzed dnia)'); self.assertEqual(R['suma']['BTC']['d'], '2026-10-14')
+        j['hist'] = [j['hist'][-1]]; R = self.k.dzw9_kontrola(j, self.now())
+        self.assertIn('brak sumy z innego zestawu giełd', R['rows'][-1][3]); self.assertEqual(R['rows'][-1][1], self.k.DZW_OK)
+        j['hist'] = []; R = self.k.dzw9_kontrola(j, self.now()); self.assertEqual(R['rows'][-1][1], '?'); self.assertEqual(R['uwagi'], [])
+
+    def test_wiek_brak_czesci_i_brak_pozycji(self):
+        R = self.k.dzw9_kontrola(self.plik(), self.now(minutes=200))
+        self.assertEqual([r[1] for r in R['rows'][:5]], [self.k.DZW_W] * 5); self.assertEqual(len(R['uwagi']), 5); self.assertIn('starszy niż 180 min', R['rows'][0][4])
+        R = self.k.dzw9_kontrola(self.plik(), self.now(minutes=179)); self.assertEqual([r[1] for r in R['rows'][:5]], [self.k.DZW_OK] * 5)
+        j = self.plik(); del j['mx']; del j['kc']['ETH']['oi_usd']
+        R = self.k.dzw9_kontrola(j, self.now())
+        d = {r[0]: r for r in R['rows']}
+        self.assertEqual(d[self.k.DZW9_ETYKIETA['mx']][1], '?'); self.assertEqual(d[self.k.DZW9_ETYKIETA['kc']][1], self.k.DZW_W); self.assertIn('ETH', d[self.k.DZW9_ETYKIETA['kc']][4])
+        self.assertEqual(len(R['uwagi']), 1, 'brak całej części to pytajnik bez uwagi (giełda mogła zablokować serwery GitHub)')
+        j = self.plik(); j['gt']['BTC'].pop('liq'); j['gt']['ETH'].pop('liq')
+        R = self.k.dzw9_kontrola(j, self.now()); self.assertEqual(R['rows'][1][1], self.k.DZW_W); self.assertIn('brak likwidacji', R['rows'][1][4])
+        j = self.plik(); j['gt']['BTC']['liq']['t'] = '2026-10-13T10:00:00+00:00'
+        R = self.k.dzw9_kontrola(j, self.now()); self.assertIn('likwidacje starsze niż 360 min', R['rows'][1][4])
+        self.assertEqual(self.k.dzw9_kontrola(None, self.now()), {'rows': [], 'uwagi': [], 'suma': {}}, 'brak pliku zgłasza pętla PLIKI')
+
+    def test_okablowanie_w_raporcie(self):
+        import pathlib
+        src = pathlib.Path(self.ROOT, 'narzedzia', 'kontrola.py').read_text(encoding='utf-8')
+        self.assertIn("P_dzw9 = dzw9_kontrola(files.get('dzwignia'))", src); self.assertIn("R['uwagi'] += P_dzw9['uwagi']", src)
+        self.assertLess(src.index("P_dzw = dzw_kontrola("), src.index("P_dzw9 = dzw9_kontrola(")); self.assertLess(src.index("P_dzw9 = dzw9_kontrola("), src.index('# 3d. v115: zgodność liczb — kapitalizacja'))

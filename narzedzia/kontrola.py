@@ -583,6 +583,87 @@ def dzw_kontrola(j, now=None):
 
 
 
+# v369 (F6Z2): dźwignia — pięć dalszych giełd (Bitget, Gate, KuCoin, MEXC, HTX) w sumie „wszystkie giełdy razem”. Osobne wiersze (lista SWIEZOSC bez zmian):
+# wiek odczytu każdej giełdy (czas z jej odpowiedzi albo przebiegu zbieracza, próg DZW_WIEK_MIN), kompletność BTC i ETH (otwarte pozycje w USD) oraz — TYLKO INFORMACJA,
+# bez progu i bez ostrzeżenia — suma otwartych pozycji z historii dziennej wobec sumy z poprzedniego zestawu giełd (przed dołączeniem tych pięciu: 4 giełdy).
+# Najwyżej ostrzeżenie, nigdy błąd krytyczny ani BŁĄD. Część nieobecna w pliku to '?' bez uwagi (giełda mogła zablokować serwery GitHub albo część jeszcze się nie pojawiła).
+DZW9_ETYKIETA = {'bg': 'Dźwignia — Bitget (BTC, ETH)', 'gt': 'Dźwignia — Gate (BTC, ETH, likwidacje)', 'kc': 'Dźwignia — KuCoin (BTC, ETH)',
+                 'mx': 'Dźwignia — MEXC (BTC, ETH)', 'hx': 'Dźwignia — HTX (BTC, ETH)'}
+DZW9_SUMA = 'Dźwignia — suma otwartych pozycji, wobec poprzedniego zestawu giełd (informacja)'
+DZW9_LIQ_MIN = 360     # minuty: likwidacje Gate (okno kończy się na pełnej godzinie) starsze niż tyle — uwaga w wierszu Gate
+
+
+def _dzw9_oi(r):
+    v = r.get('oi_usd') if isinstance(r, dict) else None
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 else None
+
+
+def dzw9_suma(j):
+    """Historia dzienna (hist) → {'BTC': {...}, 'ETH': {...}}: ostatnia suma otwartych pozycji (all_<moneta>, zestaw all_<moneta>_v) i ostatnia suma INNEGO zestawu giełd
+    sprzed niej; brak historii albo tylko jeden zestaw → bez porównania. Tylko informacja."""
+    H = [h for h in (j.get('hist') if isinstance(j, dict) and isinstance(j.get('hist'), list) else []) if isinstance(h, dict) and isinstance(h.get('d'), str)]
+    H.sort(key=lambda h: h['d'])
+    out = {}
+    for c in ('btc', 'eth'):
+        k = 'all_' + c
+        L = [h for h in H if isinstance(h.get(k), (int, float)) and not isinstance(h.get(k), bool) and h[k] > 0 and isinstance(h.get(k + '_v'), str)]
+        if not L:
+            continue
+        cur = L[-1]
+        e = {'d': cur['d'], 'usd': float(cur[k]), 'n': len([x for x in cur[k + '_v'].split(',') if x]), 'v': cur[k + '_v']}
+        prev = next((h for h in reversed(L[:-1]) if h[k + '_v'] != cur[k + '_v']), None)
+        if prev:
+            e['poprz'] = {'d': prev['d'], 'usd': float(prev[k]), 'n': len([x for x in prev[k + '_v'].split(',') if x])}
+        out[c.upper()] = e
+    return out
+
+
+def dzw9_kontrola(j, now=None):
+    """data/dzwignia.json → {'rows': [(etykieta, status, wiek min, data, uwaga)], 'uwagi': [...], 'suma': {...}}; brak pliku = bez wierszy.
+    status: zgodne / ostrzeżenie (odczyt starszy niż DZW_WIEK_MIN albo brak pozycji w USD dla monety) / '?' (części nie ma w pliku)."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'suma': {}}
+    if not isinstance(j, dict):
+        return out
+    for k, lab in DZW9_ETYKIETA.items():
+        P = j.get(k) if isinstance(j.get(k), dict) else None
+        ts = [_dzw_t(P[c].get('t')) for c in ('BTC', 'ETH') if P and isinstance(P.get(c), dict)]
+        ts = [t for t in ts if t is not None]
+        if not ts:
+            out['rows'].append((lab, '?', None, None, 'brak części w pliku (giełda mogła zablokować serwery GitHub albo część jeszcze się nie pojawiła)'))
+            continue
+        t0 = min(ts)
+        w = int((now - t0).total_seconds() // 60)
+        brak = [c for c in ('BTC', 'ETH') if _dzw9_oi(P.get(c)) is None]
+        notes = []
+        if w > DZW_WIEK_MIN:
+            notes.append(f'odczyt starszy niż {DZW_WIEK_MIN} min (zbieracz odświeża co ok. 55 min)')
+        if brak:
+            notes.append('brak otwartych pozycji w USD: ' + ', '.join(brak))
+        if k == 'gt':
+            lq = [_dzw_t((P.get(c) or {}).get('liq', {}).get('t')) for c in ('BTC', 'ETH') if isinstance(P.get(c), dict) and isinstance(P[c].get('liq'), dict)]
+            lq = [t for t in lq if t is not None]
+            if not lq:
+                notes.append('brak likwidacji godzinowych')
+            elif int((now - min(lq)).total_seconds() // 60) > DZW9_LIQ_MIN:
+                notes.append(f'likwidacje starsze niż {DZW9_LIQ_MIN} min')
+        st = DZW_W if notes else DZW_OK
+        out['rows'].append((lab, st, w, t0.isoformat(), '; '.join(notes)))
+        if st == DZW_W:
+            out['uwagi'].append(f'{lab}: dane z {t0.isoformat()} — {fmt_wiek(w)} temu ({"; ".join(notes)})')
+    S = dzw9_suma(j)
+    out['suma'] = S
+    if S:
+        parts = []
+        for c, e in S.items():
+            p = e.get('poprz')
+            parts.append(f'{c}: {e["n"]} giełd {e["usd"] / 1e9:.2f} mld USD ({e["d"]})' + (f', poprzednio {p["n"]} giełd {p["usd"] / 1e9:.2f} mld USD ({p["d"]})' if p else ', brak sumy z innego zestawu giełd'))
+        out['rows'].append((DZW9_SUMA, DZW_OK, None, '; '.join(parts), ''))
+    else:
+        out['rows'].append((DZW9_SUMA, '?', None, None, 'brak historii sum w pliku'))
+    return out
+
+
 def pliki_bez_nadzoru(src):
     """v327 (KON-08): nazwy plików data/*.json zapisywanych przez zbieracz (save('nazwa', …) i pętla budowniczych z kluczem w main()) bez wpisu w PLIKI
     i bez powodu w PLIKI_BEZ — test pilnuje, żeby nowy plik nie został bez kontroli wieku."""
@@ -8850,6 +8931,12 @@ def kontrola():
     for label, st, w, txt, note in P_dzw['rows']:
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
     R['uwagi'] += P_dzw['uwagi']
+    # 3c-dzw9. v369 (F6Z2): dźwignia — pięć dalszych giełd (Bitget, Gate, KuCoin, MEXC, HTX): wiek odczytu, kompletność BTC/ETH i — tylko informacja — suma wobec poprzedniego
+    # zestawu giełd; osobne wiersze (lista SWIEZOSC bez zmian); najwyżej ostrzeżenie, nigdy błąd krytyczny ani BŁĄD
+    P_dzw9 = dzw9_kontrola(files.get('dzwignia'))
+    for label, st, w, txt, note in P_dzw9['rows']:
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+    R['uwagi'] += P_dzw9['uwagi']
     # 3c-mt. v339 (F4Z1+F4Z2): metale przemysłowe (data/metale.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in metale_swiezosc(files.get('metale')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})

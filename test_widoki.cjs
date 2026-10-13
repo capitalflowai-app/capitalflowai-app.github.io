@@ -26879,3 +26879,117 @@ test('v368 (F8Z4): kod panelu — plik tylko w npzLoad (po rozwinięciu), bez be
   assert.ok(!/TradingView|tradingview/i.test(code), 'żadnych widgetów TradingView');
   assert.ok(/zero:false/.test(nc) === false, 'wykresy od zera — bez przycinania osi');
 });
+
+// ===================== v369 (F6Z2): dźwignia — pięć dalszych giełd w sumie „wszystkie giełdy razem”, udział giełd (wykres), likwidacje Gate =====================
+// Plik z dalszymi giełdami to nagranie F1Z3_PLIK (11.10.2026 06:10 UTC) dopełnione pięcioma częściami (bg, gt, kc, mx, hx) z wartościami rzędu zbieranych 13.10.2026; zegar przypięty jak w v343.
+const p9 = (() => {
+  const T = '2026-10-11T06:10:00+00:00', row = (usd, f, extra) => Object.assign({f_h: f / 8760, f_y: f, f_hours: 8, oi: usd / 80000, oi_usd: usd, px: 80000, vol_usd: 5e8, t: T}, extra || {});
+  const part = (b, e, x) => ({t: T, BTC: row(b, 5.5, x), ETH: row(e, 7.2)});
+  const liq = (l, s) => ({t: '2026-10-11T06:00:00+00:00', n: 24, l: l * 24, s: s * 24, h: Array.from({length: 24}, (_, i) => [1760126400 + i * 3600, l * (1 + (i % 5)), s * (1 + (i % 3))])});
+  const fix = () => {
+    const j = f1z3.fix();
+    Object.assign(j.ok, {bg: true, gt: true, kc: true, mx: true, hx: true});
+    for (const k of ['bg', 'gt', 'kc', 'mx', 'hx']) j.part_at[k] = T;
+    j.bg = part(2.8e9, 1.2e9); j.gt = part(2.1e9, 1.0e9, {liq: liq(60000, 40000)}); j.gt.ETH.liq = liq(30000, 50000); j.kc = part(8e8, 4e8); j.mx = part(3.7e9, 1.5e9); j.hx = part(1.8e9, 4e8);
+    return j;
+  };
+  const NEW = [['Bitget', 2.8e9], ['Gate', 2.1e9], ['KuCoin', 8e8], ['MEXC', 3.7e9], ['HTX', 1.8e9]];
+  return {fix, NEW, T};
+})();
+const p9Sec = h => { const i = h.indexOf('<b>Udział giełd w sumie otwartych pozycji</b>'); return i < 0 ? '' : h.slice(i, h.indexOf('<b>', i + 20) < 0 ? undefined : h.indexOf('<b>', i + 20)); };
+
+test('v369 (F6Z2): suma „wszystkie giełdy razem” z pięcioma dalszymi giełdami — liczba giełd w podpisie, kafle zgodne z danymi, tabela według giełd z nowymi wierszami', () => {
+  const f = f1z3.mk(), j = p9.fix(); f.levApply(j);
+  const h = f.el.innerHTML;
+  assert.ok(!f.el.hidden && h.includes('Wszystkie giełdy razem'));
+  const fresh = [j.okx.BTC, j.cde.BTC, j.dr.BTC.fut.perp, ...['bg', 'gt', 'kc', 'mx', 'hx'].map(k => j[k].BTC)].filter(r => r && r.oi_usd > 0);
+  const sum = fresh.reduce((a, r) => a + r.oi_usd, 0), n = fresh.length;
+  assert.ok(n >= 7, 'co najmniej siedem giełd w danych: ' + n);
+  assert.ok(h.includes('giełdy w sumie (' + n + '):'), 'liczba giełd w podpisie sumy BTC: ' + n);
+  for (const [name] of p9.NEW) assert.ok(h.slice(h.indexOf('giełdy w sumie (' + n + '):'), h.indexOf('giełdy w sumie (' + n + '):') + 400).includes(name), name + ' w podpisie sumy');
+  const nf = v => v.toLocaleString('pl-PL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  assert.ok(h.includes('<b>' + nf(sum / 1e9).replace(/ /g, ' ') + ' <small class="mtxt">mld USD</small>'), 'kafel sumy BTC = suma otwartych pozycji z danych: ' + nf(sum / 1e9));
+  // tabela według giełd: po dwa wiersze (BTC, ETH) dla każdej z pięciu nowych giełd, z ikoną, stawką roczną i godziną odczytu
+  const T = h.slice(h.indexOf('<b>Według giełd</b>'), h.indexOf('</table>', h.indexOf('<b>Według giełd</b>')));
+  for (const [name] of p9.NEW) assert.equal((T.match(new RegExp('<span class="cell">(?:<span class="icos">.*?</span>)?' + name + '</span>', 'g')) || []).length, 2, name + ': wiersze BTC i ETH w tabeli');
+  assert.ok(T.includes('<span class="cell mono pos">+5,5%</span>') && T.includes('<span class="cell mono">2,10</span>'), 'stawka roczna (plus zielony) i pozycje w mld USD');
+  assert.ok(h.includes('Gate liczy pozycje obu stron — pokazujemy jedną'), 'przypis o źródłach pozycji pod tabelą');
+  assert.ok(!h.includes('NaN') && !h.includes('undefined') && !/Coinalyze|CoinGecko|CoinPaprika|CoinMarketCap|DefiLlama|Glassnode|Etherscan|SoSoValue|Farside|Finnhub/.test(h), 'bez NaN i bez nazw dostawców danych');
+});
+
+test('v369 (F6Z2): udział giełd — wykres słupkowy na monetę, malejąco, największa = pełny słupek, udziały sumują się do 100%, przygaszone przeterminowane giełdy znikają z udziału', () => {
+  const f = f1z3.mk(), j = p9.fix(); f.levApply(j);
+  const S = p9Sec(f.el.innerHTML);
+  assert.ok(S.includes('Słupek porównuje giełdę z największą') && S.includes('a nie w całym rynku'), 'opis wykresu: udział w naszej sumie, nie w rynku');
+  const blocks = S.split('<div class="lvo">').slice(1); assert.equal(blocks.length, 2, 'blok BTC i blok ETH');
+  const B = blocks[0];
+  assert.ok(B.includes('BTC: giełd w sumie —'), 'nagłówek monety z liczbą giełd');
+  const rows = [...B.matchAll(/<div class="lvo-r"><span class="lvo-n">(.*?)<\/span><span class="lvo-b" aria-hidden="true"><i style="width:([\d.]+)%"><\/i><\/span><span class="lvo-v">([\d,<]+)%<small>([\d  ,]+) mld USD<\/small>/g)];
+  assert.ok(rows.length >= 7, 'wiersz na każdą giełdę z bieżącym stanem: ' + rows.length);
+  const w = rows.map(r => parseFloat(r[2])), pc = rows.map(r => parseFloat(r[3].replace(',', '.')));
+  assert.equal(w[0], 100, 'największa giełda = pełny słupek'); assert.deepEqual([...w].sort((a, b) => b - a), w, 'malejąco');
+  assert.ok(Math.abs(pc.reduce((a, b) => a + b, 0) - 100) < 1.5, 'udziały sumują się do 100%: ' + pc.join('+'));
+  assert.ok(rows[0][1].includes('MEXC') && rows[1][1].includes('Bitget'), 'kolejność wg otwartych pozycji (MEXC 3,7 mld, Bitget 2,8 mld)');
+  const names = rows.map(r => r[1].replace(/<[^>]*>/g, '')); assert.equal(new Set(names).size, names.length, 'żadna giełda dwa razy');
+  // giełda z odczytem starszym niż 6 h wypada z udziału (jak z sumy)
+  const j2 = p9.fix(); j2.mx.BTC.t = '2026-10-10T20:00:00+00:00'; j2.mx.ETH.t = j2.mx.BTC.t; j2.part_at.mx = j2.mx.BTC.t;
+  const f2 = f1z3.mk(); f2.levApply(j2); assert.ok(!p9Sec(f2.el.innerHTML).includes('MEXC'), 'przeterminowana giełda poza wykresem udziału');
+  assert.ok(!/MEXC/.test(f2.el.innerHTML.slice(f2.el.innerHTML.indexOf('giełdy w sumie'), f2.el.innerHTML.indexOf('giełdy w sumie') + 300)), 'i poza podpisem sumy');
+  // brak nowych części: wykres udziału z dotychczasowych giełd, nic nie pęka
+  const f3 = f1z3.mk(); f3.levApply(f1z3.fix()); assert.ok(!f3.el.innerHTML.includes('NaN') && !f3.el.innerHTML.includes('undefined'));
+});
+
+test('v369 (F6Z2): likwidacje Gate — 24 słupki godzinowe na monetę, długie czerwone / krótkie zielone, suma i udział stron, szczyt, data i wiek; stare dane znikają', () => {
+  const f = f1z3.mk(), j = p9.fix(); f.levApply(j);
+  const h = f.el.innerHTML, i = h.indexOf('<b>Likwidacje na Gate: godzina po godzinie</b>');
+  assert.ok(i > 0, 'blok likwidacji Gate'); const B = h.slice(i, h.indexOf('<b>', i + 20));
+  assert.equal((B.match(/class="lv9-c"/g) || []).length, 48, '24 godziny × BTC i ETH');
+  assert.equal((B.match(/<div class="lqw-r/g) || []).length, 2, 'dwa wiersze: BTC i ETH');
+  assert.ok(B.includes('<i class="lqw-l"></i>długie (na wzrost)') && B.includes('<i class="lqw-s"></i>krótkie (na spadek)'), 'legenda: czerwone długie, zielone krótkie');
+  assert.ok(/<i class="lqw-l" style="flex:\d+ 1 0"><\/i><i class="lqw-s" style="flex:\d+ 1 0"><\/i>/.test(B), 'słupek godziny: długie nad krótkimi');
+  assert.ok(B.includes('To tempo na jednej giełdzie, nie cały rynek'), 'zastrzeżenie: jedna giełda, nie cały rynek');
+  assert.ok(B.includes('60% / 40%') && B.includes('38% / 62%'), 'udział stron: BTC 60/40 (1,44 mln długich / 0,96 mln krótkich), ETH 38/62: ' + B.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 500));
+  assert.ok(B.includes('2,4 <small') || B.includes('2,4 mln USD'), 'suma 24 h BTC = 2,4 mln USD');
+  assert.ok(/szczyt o \d\d:00 UTC: [\d,<]+ mln USD/.test(B), 'szczytowa godzina');
+  assert.ok(/title="\d\d:00 UTC: długie [\d,<]+ mln USD · krótkie [\d,<]+ mln USD"/.test(B), 'podpowiedź godziny');
+  assert.ok(!B.includes('NaN') && !B.includes('undefined'));
+  assert.equal((B.match(/class="lv9-c" style="height:100\.0%"/g) || []).length, 2, 'najwyższa godzina każdej monety = pełna wysokość wykresu');
+  const j5 = p9.fix(); j5.gt.BTC.liq.h[3] = [j5.gt.BTC.liq.h[3][0], 100, 0]; const f5 = f1z3.mk(); f5.levApply(j5);
+  assert.ok(f5.el.innerHTML.includes('class="lv9-c" style="height:4.0%"'), 'godzina z drobną sumą ma słupek co najmniej 4% (widoczny, nie zero)');
+  const j6 = p9.fix(); j6.gt.BTC.liq.h[3] = [j6.gt.BTC.liq.h[3][0], 0, 0]; const f6 = f1z3.mk(); f6.levApply(j6);
+  assert.ok(f6.el.innerHTML.includes('class="lv9-c" style="height:0%"') && !f6.el.innerHTML.includes('NaN'), 'godzina bez likwidacji — pusty słupek, nie zero udawane widocznym');
+  // dane starsze niż 12 h — blok znika (nie zero); brak likwidacji w pliku — bez bloku; ujemna liczba — wiersz pominięty
+  const j2 = p9.fix(); j2.gt.BTC.liq.t = j2.gt.ETH.liq.t = '2026-10-10T12:00:00+00:00';
+  const f2 = f1z3.mk(); f2.levApply(j2); assert.ok(!f2.el.innerHTML.includes('Likwidacje na Gate'), 'stare likwidacje poza stroną');
+  const j3 = p9.fix(); delete j3.gt.BTC.liq; delete j3.gt.ETH.liq; const f3 = f1z3.mk(); f3.levApply(j3); assert.ok(!f3.el.innerHTML.includes('Likwidacje na Gate'));
+  const j4 = p9.fix(); j4.gt.BTC.liq.l = -1; const f4 = f1z3.mk(); f4.levApply(j4); const h4 = f4.el.innerHTML; assert.equal((h4.slice(h4.indexOf('Likwidacje na Gate')).match(/<div class="lqw-r/g) || []).length, 1, 'wiersz z błędną liczbą pominięty');
+});
+
+test('v369 (F6Z2): kod strony — dalsze giełdy dopisane do listy sumy bez zmiany istniejących list, ikony MEXC i HTX, CSS wykresu godzinowego bez przewijania na telefonie', () => {
+  assert.ok(html.includes("const LEV_P9=['bg','gt','kc','mx','hx'];") && html.includes('LEV_LIVE.push(k)') && html.includes('LEV_NAME[k]=n[k]'), 'lista sumy rozszerzona w jednym miejscu');
+  assert.ok(html.includes("Object.assign(EXCH_MONO,{mexc:'MX',htx:'HTX'})"), 'skróty ikon giełd bez logo');
+  assert.ok(html.includes('${typeof lev9Sh===\'function\'?lev9Sh():\'\'}') && html.includes("(typeof LEV_P9!=='undefined'?LEV_P9:[])"), 'haki: udział giełd pod kaflami sumy, wiersze w tabeli według giełd');
+  assert.ok(/#c-dzwignia \.lv9-h\{display:flex;align-items:flex-end;gap:2px;height:34px;[^}]*min-width:0\}/.test(html) && /#c-dzwignia \.lv9-c\{flex:1 1 0;[^}]*min-width:0/.test(html), 'wykres godzinowy: elastyczne słupki, min-width:0 (telefon 390 px bez przewijania w bok)');
+  assert.ok(html.includes('function lev9Lq(){') && html.includes('function lev9Sh(){') && html.includes('function lev9Note(){'));
+  assert.ok(!/lev9[A-Za-z]*\([^)]*\)[^;]*Coinalyze/.test(html));
+});
+
+test('v369 (F6Z2): słownik w czystym JSON po linii for, 10 języków, te same klucze i zmienne, tłumaczenia (nie kopie), nazwy giełd zostają', () => {
+  const mm = [...html.matchAll(/^for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);$/gm)];
+  const mine = mm.find(m => html.includes('const ' + m[1] + '={"pl":{"p9.sh.h"'));
+  assert.ok(mine, 'słownik v369 ma własną linię for'); assert.equal(mm.filter(m => m[1] === mine[1]).length, 1, 'jedna linia nakładania');
+  const i0 = html.indexOf('const ' + mine[1] + '='), i1 = html.indexOf(';\nfor(const l in ' + mine[1] + ')', i0), D = JSON.parse(html.slice(i0 + ('const ' + mine[1] + '=').length, i1));
+  assert.ok(html.slice(0, i0).trimEnd().endsWith('*/') && html.slice(html.lastIndexOf('\n', i0 - 2), i0).includes('v369'), 'komentarz nagłówkowy nad słownikiem');
+  const LG = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']; assert.deepEqual(Object.keys(D), LG);
+  const keys = Object.keys(D.pl); assert.equal(keys.length, 8); assert.ok(keys.every(k => /^p9\./.test(k)), 'tylko klucze v369');
+  const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join();
+  for (const lg of LG) {
+    assert.deepEqual(Object.keys(D[lg]), keys, lg + ': te same klucze w tej samej kolejności');
+    for (const k of keys) { assert.ok(typeof D[lg][k] === 'string' && D[lg][k].trim(), lg + ' ' + k); assert.equal(ph(D[lg][k]), ph(D.pl[k]), lg + ' ' + k + ': zmienne'); assert.ok(!/[<>]/.test(D[lg][k]), lg + ' ' + k + ': bez znaczników'); }
+  }
+  for (const lg of LG.slice(1)) assert.deepEqual(keys.filter(k => D[lg][k] === D.pl[k]), [], lg + ': tłumaczenie, nie kopia polskiego');
+  assert.ok(/[а-яё]/i.test(D.ru['p9.lq.h']) && /[一-鿿]/.test(D.zh['p9.lq.h']) && /[぀-ヿ]/.test(D.ja['p9.lq.h']), 'alfabety języków');
+  assert.ok(!/[぀-ヿ]/.test(JSON.stringify(D.zh)), 'zh bez kany');
+  for (const lg of LG) assert.ok(D[lg]['p9.lq.h'].includes('Gate') && ['Bitget', 'Gate', 'KuCoin', 'MEXC', 'HTX'].every(n => D[lg]['p9.ven.note'].includes(n)), lg + ': nazwy giełd (przedmiot danych) zostają');
+  assert.ok(D.pl['p9.sh.sub'].includes('bez Binance i Bybit') && D.pl['p9.lq.sub'].includes('nie cały rynek'));
+});

@@ -15170,6 +15170,319 @@ def lev_cde(prev=None):
     return out
 
 
+# ===================== v369 (F6Z2): dźwignia — pięć dalszych giełd (Bitget, Gate, KuCoin, MEXC, HTX) w sumie „wszystkie giełdy razem” =====================
+# Tylko giełdy, które w sondzie z serwera GitHub (13.10.2026) odpowiedziały 200 na publiczne zapytanie bez klucza; Binance i Bybit blokują serwery w USA
+# i zostają poza sumą (jak dotąd). Każda giełda to osobna część pliku data/dzwignia.json (bg, gt, kc, mx, hx) na zasadach całego bloku: część z błędem =
+# poprzednia z własnym czasem `t`, brak liczby = None (nigdy zero), moneta bez wiersza = jej poprzedni wiersz. Wiersz ma ten sam kształt co Kraken/dYdX
+# (lev_row), więc suma `lev_all`, historia i strona liczą je bez zmian.
+# JEDNOSTKI OTWARTYCH POZYCJI (sprawdzone na żywych odpowiedziach 13–14.10.2026, USD = liczba monet × cena znacznikowa):
+#   Bitget — `holdingAmount` w monetach (zgodne z osobnym zapytaniem open-interest), cena `markPrice`;
+#   Gate — `position_size` z opisu kontraktu to liczba kontraktów JEDNEJ strony (suma `total_size` z tickerów i `open_interest_usd` ze statystyk liczą OBIE strony, a więc ×2:
+#     wynik 2,14 mld USD zgodny z połową 4,29 mld ze statystyk); moneta = kontrakty × `quanto_multiplier`;
+#   KuCoin — `openInterest` w kontraktach × `multiplier` (BTC 0,001, ETH 0,01); tylko liniowe kontrakty USDT (XBTUSDTM, ETHUSDTM) — nie odwrotne XBTUSDM ani kwartalne;
+#   MEXC — `holdVol` w kontraktach × `contractSize` z opisu kontraktu (BTC 0,0001, ETH 0,01) pobieranego za każdym razem, cena `fairPrice` (znacznikowa);
+#   HTX — `value` to wartość pozycji w USDT, `amount` w monetach (cena = value / amount); tylko kontrakty wieczyste `business_type` = swap.
+# OKRES FINANSOWANIA bierze się z odpowiedzi giełdy (Bitget fundingRateInterval, Gate funding_interval, KuCoin currentFundingRateGranularity, MEXC collectCycle);
+# HTX nie podaje okresu — przyjmujemy 8 godzin z dokumentacji giełdy tylko wtedy, gdy czas rozliczenia leży na siatce 8-godzinnej UTC; bez potwierdzenia okresu
+# stawka roczna to „—”. Likwidacje godzinowe Gate (long/short, USD) z contract_stats: tylko pełne godziny (bieżąca niepełna odrzucona), 24 kolejne godziny albo brak.
+# Likwidacje jednej giełdy to TEMPO, nie cały rynek (strona to mówi). Każda giełda ≈ 1 do 5 małych zapytań na godzinę (KuCoin 1,4 MB, MEXC 0,6 MB, Bitget 0,4 MB w jednym).
+BG_URL = 'https://api.bitget.com/api/v2/mix/market/'
+GT_URL = 'https://api.gateio.ws/api/v4/futures/usdt/'
+KC_URL = 'https://api-futures.kucoin.com/api/v1/contracts/active'
+MX_URL = 'https://contract.mexc.com/api/v1/contract/'
+HX_URL = 'https://api.hbdm.com/linear-swap-api/v1/'
+L9_MAXB = 4_000_000                       # limit rozmiaru jednej odpowiedzi (bajty; KuCoin ≈ 1,4 MB) — większa to błąd, nie wczytujemy jej w całości
+L9_NAZWY = {'bg': 'Bitget', 'gt': 'Gate', 'kc': 'KuCoin', 'mx': 'MEXC', 'hx': 'HTX'}
+LEV9 = ('bg', 'gt', 'kc', 'mx', 'hx')     # kolejność = kolejność pobierania w build_dzwignia i w sumie
+L9_SYM = {'bg': {'BTC': 'BTCUSDT', 'ETH': 'ETHUSDT'}, 'gt': {'BTC': 'BTC_USDT', 'ETH': 'ETH_USDT'}, 'kc': {'BTC': 'XBTUSDTM', 'ETH': 'ETHUSDTM'},
+          'mx': {'BTC': 'BTC_USDT', 'ETH': 'ETH_USDT'}, 'hx': {'BTC': 'BTC-USDT', 'ETH': 'ETH-USDT'}}
+L9_LIQ_H = 24                             # godzin likwidacji Gate w jednym oknie (pełne, kolejne)
+LEV_PX.update(L9_NAZWY)                   # początek komunikatu błędu (strona Źródła) i klucze META ok.dzwignia_*
+# Do sumy „wszystkie giełdy razem” wchodzą LEV_LIVE oraz LEV9 (lev_all); dotychczasowa lista LEV_LIVE bez zmian (strona ma ją dosłownie i dopisuje LEV_P9 w jednym miejscu).
+ZRODLA_META.update({'dzwignia_bg': 'bitget', 'dzwignia_gt': 'gate', 'dzwignia_kc': 'kucoin', 'dzwignia_mx': 'mexc', 'dzwignia_hx': 'htx'})   # v369: 5 giełd = 5 źródeł więcej (liczy je część składowa)
+ZRODLA_SKLADOWE['dzwignia'] = ZRODLA_SKLADOWE['dzwignia'] + tuple(f'dzwignia_{k}' for k in LEV9)
+
+
+def lev_px_aktywne():
+    """Części dźwigni pobierane w tym wydaniu: dotychczasowe zawsze, pięć giełd v369 tylko z LEV9 (testy dotychczasowych części podmieniają LEV9 na pustą krotkę).
+    Z tej listy korzysta main(): części do dobrania (lv_bad) i klucze META ok.dzwignia_*."""
+    return [k for k in LEV_PX if k not in L9_NAZWY or k in LEV9]
+
+
+def l9_get(url):
+    """Pięć giełd v369: GET z limitem czasu zapytania (lev_tmo) i rozmiaru odpowiedzi (L9_MAXB) → obiekt JSON."""
+    with _otworz(url, {'Accept': 'application/json'}, lev_tmo()) as r:
+        b = r.read(L9_MAXB + 1)
+    if len(b) > L9_MAXB:
+        raise ValueError(f'odpowiedź większa niż {L9_MAXB // 1000} KB')
+    return json.loads(b.decode('utf-8', 'replace'))
+
+
+def l9_iso(ms):
+    """Czas w milisekundach z odpowiedzi giełdy → ISO UTC; brak albo nieprawdopodobny czas → None (wiersz dostanie czas przebiegu)."""
+    x = lev_num(ms)
+    return lev_dt(x).isoformat() if x is not None and 1.5e12 < x < 4.1e12 else None
+
+
+def l9_hours(h):
+    """Okres finansowania w godzinach: tylko 0 < h ≤ 24 (inaczej None — bez okresu nie liczymy stawki rocznej)."""
+    h = lev_num(h)
+    return h if h is not None and 0 < h <= 24 else None
+
+
+def l9_late(nazwa):
+    """Długi przebieg (jak przy Coinbase USA) — duże odpowiedzi poczekają na następny przebieg; True = pominąć (część zostaje z poprzedniego przebiegu)."""
+    if _RUN_T0[0] is not None and time.monotonic() - _RUN_T0[0] > BACK_LATE:
+        META['notes'].append(f'Dźwignia: {nazwa} pominięte — przebieg trwa już {time.monotonic() - _RUN_T0[0]:.0f} s (granica {BACK_LATE} s), poprzednia część zostaje')
+        return True
+    return False
+
+
+def l9_finish(nazwa, k, rows, fails, prev):
+    """Wspólne zakończenie części: moneta bez nowego wiersza → poprzedni (z własnym czasem t); żadnego nowego wiersza → błąd części (decyzja o zachowaniu poprzedniej wyżej)."""
+    prev = prev if isinstance(prev, dict) else {}
+    out = {'t': NOW}
+    out.update(rows)
+    new = len(rows)
+    for c in L9_SYM[k]:
+        if c not in out and isinstance(prev.get(c), dict):
+            out[c] = prev[c]; fails.append(f'brak wiersza {L9_SYM[k][c]} — zostaje poprzedni')
+    if not new:
+        raise ValueError('; '.join(fails) or 'brak danych')
+    if fails:
+        META['errors'].append(mask(f'Dźwignia: {nazwa}: ' + '; '.join(fails)))
+    return out
+
+
+# --- Bitget: jedno zapytanie o wszystkie kontrakty USDT-M (≈ 0,4 MB) + stawka z okresem osobno dla BTC i ETH ---
+def bg_parse(j, fund=None):
+    """tickers → wiersze BTC/ETH: `holdingAmount` (monety) × `markPrice`, obrót `usdtVolume`; fund = {moneta: (stawka, okres w godzinach)} z current-fund-rate
+    (brak → pozycje bez stawki). Kontrakt z datą dostawy (deliveryTime) i wiersz bez liczb — pominięte; brak obu monet → pusty wynik."""
+    d = j.get('data') if isinstance(j, dict) else None
+    if not isinstance(j, dict) or str(j.get('code')) != '00000' or not isinstance(d, list):
+        raise ValueError('zły kształt odpowiedzi')
+    by = {r.get('symbol'): r for r in d if isinstance(r, dict)}
+    out = {}
+    for c, sym in L9_SYM['bg'].items():
+        r = by.get(sym)
+        if not isinstance(r, dict) or r.get('deliveryTime'):
+            continue
+        f, h = (fund or {}).get(c) or (None, None)
+        row = lev_row(f, h, lev_num(r.get('holdingAmount')), lev_num(r.get('markPrice')), None, lev_num(r.get('usdtVolume')), l9_iso(r.get('ts')))
+        if row:
+            out[c] = row
+    return out
+
+
+def bg_fund(c):
+    j = l9_get(f'{BG_URL}current-fund-rate?symbol={L9_SYM["bg"][c]}&productType=USDT-FUTURES')
+    d = j.get('data') if isinstance(j, dict) and str(j.get('code')) == '00000' else None
+    r = d[0] if isinstance(d, list) and d and isinstance(d[0], dict) else None
+    if r is None:
+        raise ValueError('zły kształt odpowiedzi')
+    return lev_num(r.get('fundingRate')), l9_hours(r.get('fundingRateInterval'))
+
+
+def lev_bg(prev=None):
+    if l9_late('Bitget'):
+        return None
+    j = l9_get(BG_URL + 'tickers?productType=USDT-FUTURES')
+    fails, fund = [], {}
+    for c in L9_SYM['bg']:
+        try:
+            fund[c] = bg_fund(c)
+        except Exception as e:  # noqa
+            fails.append(f'finansowanie {c}: {e}')
+    return l9_finish('Bitget', 'bg', bg_parse(j, fund), fails, prev)
+
+
+# --- Gate: opis kontraktu (pozycje JEDNEJ strony, stawka, okres) + godzinowe statystyki z likwidacjami ---
+def gt_parse(d):
+    """contracts/{BTC_USDT} → wiersz: `position_size` (kontrakty jednej strony) × `quanto_multiplier` = monety, cena `mark_price`, stawka `funding_rate` za okres
+    `funding_interval` (sekundy). Rynek wycofywany albo nie handlujący → błąd (nie wiersz)."""
+    if not isinstance(d, dict) or d.get('in_delisting') or str(d.get('status') or 'trading') != 'trading':
+        raise ValueError('rynek nieaktywny albo zły kształt odpowiedzi')
+    q, pos = lev_num(d.get('quanto_multiplier')), lev_num(d.get('position_size'))
+    iv = lev_num(d.get('funding_interval'))
+    oi = pos * q if pos is not None and q is not None and q > 0 else None
+    row = lev_row(lev_num(d.get('funding_rate')), l9_hours(iv / 3600) if iv else None, oi, lev_num(d.get('mark_price')), None, None, None)
+    if not row:
+        raise ValueError('brak liczb')
+    return row
+
+
+def gt_liq(rows, now_s):
+    """contract_stats (godzinowe, rosnąco) → {'t': koniec ostatniej pełnej godziny (ISO), 'n': 24, 'l': USD długich, 's': USD krótkich, 'h': [[początek godziny, długie, krótkie], …]}
+    z DWUDZIESTU CZTERECH pełnych kolejnych godzin; bieżąca niepełna godzina (początek + 3600 s > teraz) odrzucona; luka, ujemna albo brakująca liczba → None."""
+    H = {}
+    for r in rows if isinstance(rows, list) else []:
+        if not isinstance(r, dict):
+            continue
+        t = lev_num(r.get('time'))
+        if t is None or t + 3600 > now_s:
+            continue
+        H[int(t)] = (lev_num(r.get('long_liq_usd')), lev_num(r.get('short_liq_usd')))
+    ks = sorted(H)[-L9_LIQ_H:]
+    if len(ks) < L9_LIQ_H or any(b - a != 3600 for a, b in zip(ks, ks[1:])) or any(x is None or x < 0 for k in ks for x in H[k]):
+        return None
+    return {'t': lev_dt((ks[-1] + 3600) * 1000).isoformat(), 'n': L9_LIQ_H, 'l': round(sum(H[k][0] for k in ks)), 's': round(sum(H[k][1] for k in ks)),
+            'h': [[k, round(H[k][0]), round(H[k][1])] for k in ks]}
+
+
+def lev_gt(prev=None):
+    prev = prev if isinstance(prev, dict) else {}
+    if l9_late('Gate'):
+        return None
+    rows, fails = {}, []
+    now_s = int(datetime.datetime.fromisoformat(NOW).timestamp())
+    for c, sym in L9_SYM['gt'].items():
+        try:
+            rows[c] = gt_parse(l9_get(f'{GT_URL}contracts/{sym}'))
+        except Exception as e:  # noqa
+            fails.append(f'{c}: {e}'); continue
+        try:   # likwidacje: osobne zapytanie; bez nowych zostają poprzednie (niżej), każde ze swoim czasem t
+            q = gt_liq(l9_get(f'{GT_URL}contract_stats?contract={sym}&interval=1h&limit={L9_LIQ_H + 1}'), now_s)
+            if q:
+                rows[c]['liq'] = q
+            else:
+                fails.append(f'likwidacje {c}: za mało pełnych godzin')
+        except Exception as e:  # noqa
+            fails.append(f'likwidacje {c}: {e}')
+        pl = prev.get(c, {}).get('liq') if isinstance(prev.get(c), dict) else None
+        if 'liq' not in rows[c] and isinstance(pl, dict):
+            rows[c]['liq'] = pl   # bez nowych likwidacji zostają poprzednie — z własnym czasem t (strona liczy ich wiek)
+    return l9_finish('Gate', 'gt', rows, fails, prev)
+
+
+# --- KuCoin: lista aktywnych kontraktów (≈ 1,4 MB, jedno zapytanie) ---
+def kuc_parse(j):
+    """contracts/active → wiersze BTC (XBTUSDTM) i ETH (ETHUSDTM): `openInterest` (kontrakty) × `multiplier`, cena `markPrice`, stawka `fundingFeeRate` za okres
+    `currentFundingRateGranularity` (ms), obrót `turnoverOf24h`. Tylko wieczyste, liniowe kontrakty w USDT, status Open."""
+    d = j.get('data') if isinstance(j, dict) else None
+    if not isinstance(j, dict) or str(j.get('code')) != '200000' or not isinstance(d, list):
+        raise ValueError('zły kształt odpowiedzi')
+    by = {r.get('symbol'): r for r in d if isinstance(r, dict)}
+    out = {}
+    for c, sym in L9_SYM['kc'].items():
+        r = by.get(sym)
+        if not isinstance(r, dict) or r.get('status') != 'Open' or r.get('isInverse') is not False or r.get('settleCurrency') != 'USDT' or r.get('expireDate'):
+            continue
+        m, oi = lev_num(r.get('multiplier')), lev_num(r.get('openInterest'))
+        g = lev_num(r.get('currentFundingRateGranularity')) or lev_num(r.get('fundingRateGranularity'))
+        row = lev_row(lev_num(r.get('fundingFeeRate')), l9_hours(g / 3600000) if g else None, oi * m if oi is not None and m is not None and m > 0 else None,
+                      lev_num(r.get('markPrice')), None, lev_num(r.get('turnoverOf24h')), None)
+        if row:
+            out[c] = row
+    return out
+
+
+def lev_kc(prev=None):
+    if l9_late('KuCoin'):
+        return None
+    return l9_finish('KuCoin', 'kc', kuc_parse(l9_get(KC_URL)), [], prev)
+
+
+# --- MEXC: ticker wszystkich kontraktów + rozmiar kontraktu i okres finansowania osobno dla BTC i ETH ---
+def mx_parse(j, size=None, fund=None):
+    """ticker → wiersze BTC/ETH: `holdVol` (kontrakty) × `contractSize` (size = {moneta: rozmiar z opisu kontraktu}; bez rozmiaru moneta pominięta — nie zgadujemy),
+    cena `fairPrice` (znacznikowa), obrót `amount24` (USDT), czas `timestamp`; fund = {moneta: (stawka, okres w godzinach)} z funding_rate."""
+    d = j.get('data') if isinstance(j, dict) else None
+    if not isinstance(j, dict) or j.get('success') is not True or not isinstance(d, list):
+        raise ValueError('zły kształt odpowiedzi')
+    by = {r.get('symbol'): r for r in d if isinstance(r, dict)}
+    out = {}
+    for c, sym in L9_SYM['mx'].items():
+        r, sz = by.get(sym), lev_num((size or {}).get(c))
+        if not isinstance(r, dict) or sz is None or sz <= 0:
+            continue
+        f, h = (fund or {}).get(c) or (None, None)
+        hv = lev_num(r.get('holdVol'))
+        row = lev_row(f, h, hv * sz if hv is not None else None, lev_num(r.get('fairPrice')), None, lev_num(r.get('amount24')), l9_iso(r.get('timestamp')))
+        if row:
+            out[c] = row
+    return out
+
+
+def mx_size(c):
+    j = l9_get(f'{MX_URL}detail?symbol={L9_SYM["mx"][c]}')
+    r = j.get('data') if isinstance(j, dict) and j.get('success') is True else None
+    s = lev_num(r.get('contractSize')) if isinstance(r, dict) and r.get('symbol') == L9_SYM['mx'][c] else None
+    if s is None or s <= 0:
+        raise ValueError('brak rozmiaru kontraktu')
+    return s
+
+
+def mx_fund(c):
+    j = l9_get(f'{MX_URL}funding_rate/{L9_SYM["mx"][c]}')
+    r = j.get('data') if isinstance(j, dict) and j.get('success') is True else None
+    if not isinstance(r, dict):
+        raise ValueError('zły kształt odpowiedzi')
+    return lev_num(r.get('fundingRate')), l9_hours(r.get('collectCycle'))
+
+
+def lev_mx(prev=None):
+    if l9_late('MEXC'):
+        return None
+    j = l9_get(MX_URL + 'ticker')
+    fails, size, fund = [], {}, {}
+    for c in L9_SYM['mx']:
+        try:
+            size[c] = mx_size(c)
+        except Exception as e:  # noqa
+            fails.append(f'rozmiar kontraktu {c}: {e}'); continue
+        try:
+            fund[c] = mx_fund(c)
+        except Exception as e:  # noqa
+            fails.append(f'finansowanie {c}: {e}')
+    return l9_finish('MEXC', 'mx', mx_parse(j, size, fund), fails, prev)
+
+
+# --- HTX: otwarte pozycje wszystkich kontraktów wieczystych USDT (≈ 0,1 MB) + stawka osobno dla BTC i ETH ---
+HX_OKRES_MS = 8 * 3600 * 1000
+
+
+def hx_parse(j, fund=None):
+    """swap_open_interest → wiersze BTC/ETH: `amount` (monety), `value` (USDT; cena = value / amount), obrót `trade_turnover`, czas `ts`. Tylko kontrakt wieczysty
+    (`business_type` = swap); fund = {moneta: (stawka, okres)}."""
+    d = j.get('data') if isinstance(j, dict) else None
+    if not isinstance(j, dict) or j.get('status') != 'ok' or not isinstance(d, list):
+        raise ValueError('zły kształt odpowiedzi')
+    out = {}
+    for c, sym in L9_SYM['hx'].items():
+        r = next((x for x in d if isinstance(x, dict) and x.get('contract_code') == sym and x.get('business_type') == 'swap'), None)
+        if r is None:
+            continue
+        a, v = lev_num(r.get('amount')), lev_num(r.get('value'))
+        f, h = (fund or {}).get(c) or (None, None)
+        row = lev_row(f, h, a, v / a if a is not None and v is not None and a > 0 and v > 0 else None, None, lev_num(r.get('trade_turnover')), l9_iso(j.get('ts')))
+        if row:
+            out[c] = row
+    return out
+
+
+def hx_fund(c):
+    """swap_funding_rate → (stawka, okres): HTX nie podaje okresu, więc 8 godzin z dokumentacji giełdy TYLKO gdy czas rozliczenia leży na siatce 8-godzinnej UTC."""
+    j = l9_get(f'{HX_URL}swap_funding_rate?contract_code={L9_SYM["hx"][c]}')
+    r = j.get('data') if isinstance(j, dict) and j.get('status') == 'ok' else None
+    if not isinstance(r, dict):
+        raise ValueError('zły kształt odpowiedzi')
+    ft = lev_num(r.get('funding_time'))
+    return lev_num(r.get('funding_rate')), (8 if ft is not None and ft > 0 and ft % HX_OKRES_MS == 0 else None)
+
+
+def lev_hx(prev=None):
+    if l9_late('HTX'):
+        return None
+    j = l9_get(HX_URL + 'swap_open_interest')
+    fails, fund = [], {}
+    for c in L9_SYM['hx']:
+        try:
+            fund[c] = hx_fund(c)
+        except Exception as e:  # noqa
+            fails.append(f'finansowanie {c}: {e}')
+    return l9_finish('HTX', 'hx', hx_parse(j, fund), fails, prev)
+
+
 def lev_b3m(fut, day=None):
     """Basis roczny (%) kontraktu najbliższego trzem miesiącom (45–135 dni; najbliżej 90) z krzywej Deribit; (wartość, data rozliczenia) albo (None, None).
     Do historii dziennej: ten sam sposób wyboru co dzień, choć sam kontrakt zmienia się z biegiem czasu (wyliczenie, nie jeden szereg cen)."""
@@ -15200,7 +15513,7 @@ def lev_all(out, now=None):
     res = {}
     for c in ('BTC', 'ETH'):
         tot, ven = 0.0, []
-        for k in LEV_LIVE:
+        for k in (*LEV_LIVE, *LEV9):   # v369 (F6Z2): + Bitget, Gate, KuCoin, MEXC, HTX (strona dopisuje je do swojej listy tak samo)
             P = out.get(k)
             if not isinstance(P, dict):
                 continue
@@ -15853,6 +16166,8 @@ def build_dzwignia(prev=None, today=None, only=None, cz_key=None):
     part('cb', lambda: lev_cb(prev.get('cb')))
     part('dy', lambda: lev_dy(prev.get('dy')))
     part('cde', lambda: lev_cde(prev.get('cde')))   # v343 (F1Z3): Coinbase USA — w miejsce wstrzymanego Coinbase International
+    for k9 in LEV9:   # v369 (F6Z2): Bitget, Gate, KuCoin, MEXC, HTX — na końcu (budżet czasu przebiegu najpierw dla dotychczasowych części); te same zasady co wyżej
+        part(k9, lambda k9=k9: globals()['lev_' + k9](prev.get(k9)))
     if not any(out['ok'].get(k) for k in LEV_PX):   # v126: liczą się tylko odczyty bezpośrednie — sama część cz nie może odświeżyć pliku
         raise RuntimeError('żadna część nie odpowiedziała')   # (wszystkie bezpośrednie padły: poprzedni plik zostaje, kontrola to widzi; bez zapytań cz)
     if cz_key:   # v126: część dodatkowa tylko z kluczem — ostatnia, by porównać stawki z bieżącymi odczytami bezpośrednimi (hl, kr, cb, dy, okx)
@@ -30801,21 +31116,21 @@ def main():
     cz_kw = {'cz_key': cz_key} if cz_key else {}
     prev_lv = previous('dzwignia')
     lv_ok = prev_lv.get('ok') if isinstance(prev_lv, dict) and isinstance(prev_lv.get('ok'), dict) else {}
-    lv_bad = [k for k in LEV_PX if lv_ok.get(k) is not True]
+    lv_bad = [k for k in lev_px_aktywne() if lv_ok.get(k) is not True]   # v369: + pięć giełd z LEV9
     lv_young = isinstance(prev_lv, dict) and fresh({'at': prev_lv.get('full_at') or prev_lv.get('at')}, LEV_EVERY)
     lv_cz = bool(cz_key) and cz_due(prev_lv.get('cz') if isinstance(prev_lv, dict) else None)
     if lv_young and not lv_bad and not lv_cz:
         save('dzwignia', prev_lv); META['ok']['dzwignia'] = 'cached'
-        for k in LEV_PX: META['ok'][f'dzwignia_{k}'] = 'cached'
+        for k in lev_px_aktywne(): META['ok'][f'dzwignia_{k}'] = 'cached'
         if cz_key: META['ok']['dzwignia_cz'] = 'cached'
     else:
         try:
             lv = build_dzwignia(prev_lv, only=(set(lv_bad) | ({'cz'} if lv_cz else set())) if lv_young else None, **cz_kw); save('dzwignia', lv); META['ok']['dzwignia'] = True
-            for k in LEV_PX: META['ok'][f'dzwignia_{k}'] = lv['ok'].get(k, False)
+            for k in lev_px_aktywne(): META['ok'][f'dzwignia_{k}'] = lv['ok'].get(k, False)
             if cz_key: META['ok']['dzwignia_cz'] = lv['ok'].get('cz', False)
         except Exception as e:
             META['errors'].append(mask(f'Dźwignia: {e}')); META['ok']['dzwignia'] = False
-            for k in LEV_PX: META['ok'][f'dzwignia_{k}'] = False
+            for k in lev_px_aktywne(): META['ok'][f'dzwignia_{k}'] = False
             if cz_key: META['ok']['dzwignia_cz'] = False
             if prev_lv: save('dzwignia', prev_lv)
     # v128: premie cenowe krypto (bez klucza) — co przebieg, bez pamięci (wartość na żywo jest celem): giełda z błędem = jej poprzedni odczyt
