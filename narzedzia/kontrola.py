@@ -7666,6 +7666,126 @@ def plynnosc_kontrola(soma, eu, hf, inst=None, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v362 (F2Z1): krzywe rentowności (USA, Niemcy, Japonia, strefa euro, Kanada) ----------------------------------------------------------------
+# Plik zbieracza data/krzywe.json: kontrola dzienna czyta go z pliku strony (bez zapytań do sieci) i sprawdza
+# (1) wiek dnia danych każdej krzywej w godzinach roboczych (bez sobót i niedziel; od końca dnia danych). Progi z testu wstecznego — największy wiek tuż przed ukazaniem się
+#     kolejnego dnia danych (publikacja: USA ok. 21:00 UTC tego dnia, Niemcy ok. 10:10 UTC tego dnia, Japonia ok. 23:30 UTC tego dnia, EBC i Kanada następnego dnia rano/w południe):
+#     USA 45 h (444 dni od 2025), Niemcy 82 h (274 dni od 2025; przerwa świąteczna 23–29 grudnia), Japonia 119,5 h (1403 dni od 2021; Nowy Rok 30 grudnia–6 stycznia),
+#     strefa euro 82 h (1478 dni od 2021), Kanada 84 h (1438 dni od 2021) — progi 72 / 96 / 144 / 96 / 96 h dają 0 fałszywych ⚠ w całej historii; ⚠ = źródło spóźnia się albo plik
+#     nie odświeża się;
+# (2) spójność w pliku: dzień danych jest datą, „miesiąc temu” wcześniejszy o 20–45 dni (dzień roboczy sprzed daty − 1 miesiąc), liczby są liczbami w granicach, 2L i 10L w każdej
+#     krzywej nominalnej, różnice (inflacja oczekiwana, premia strefy euro) = różnica krzywych z tych samych dni (do KR_K_ZGODA pp z zaokrągleń);
+# (3) zgodność z plikiem rynki.json (to samo źródło, osobne zapytanie): rentowność 10L USA i 10L Niemiec w tych samych dniach = te same liczby (do KR_K_ZGODA pp).
+# Najwyżej ⚠ (nigdy błąd przebiegu); brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'krzywe')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['krzywe'] = 8 * 60   # zapis co przebieg, odpytanie źródeł co ok. 170 min (część z błędem: co godzinę) — wiek pliku; wiek dnia danych ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'krzywe_' + _k_: 'krzywe rentowności — część z błędem zostaje z datą (v362); wiek danych w wierszach świeżości' for _k_ in ('us', 'de', 'jp', 'ea', 'ca')})
+KR_K_ETYKIETA = {'us': 'Krzywa rentowności USA (dni robocze)', 'de': 'Krzywa rentowności Niemiec (dni robocze)', 'jp': 'Krzywa rentowności Japonii (dni robocze)',
+                 'ea': 'Krzywa rentowności strefy euro (dni robocze)', 'ca': 'Krzywa rentowności Kanady (dni robocze)'}
+KR_K_PROG = {'us': 72 * 60, 'de': 96 * 60, 'jp': 144 * 60, 'ea': 96 * 60, 'ca': 96 * 60}   # minuty roboczych godzin (test wsteczny wyżej)
+KR_K_ZGODA = 0.0051     # pp: ta sama rentowność w dwóch plikach tego samego źródła (źródła podają 2 miejsca po przecinku; w danych 13.10.2026 różnica 0)
+KR_K_PREV_DNI = (20, 45)   # dni między „miesiąc temu” a dniem danych (miesiąc kalendarzowy 28–31 dni + do KRZ_OKNO_PREV dni wstecz do dnia roboczego)
+KR_K_ZAKRES = (-2.0, 25.0)
+
+
+def _kr_k_num(v):
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float('inf') else None
+
+
+def _kr_k_dzien(s):
+    try:
+        return dt.date.fromisoformat(s) if isinstance(s, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', s) else None
+    except ValueError:
+        return None
+
+
+def krzywe_kontrola(kr, ry=None, now=None):
+    """Plik data/krzywe.json (+ rynki.json) → {'rows': [(etykieta, status, wiek min, dzień, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna
+    wersja = brak wierszy (wiek pliku i brak pliku zgłasza pętla PLIKI). Najwyżej ⚠."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not (isinstance(kr, dict) and kr.get('v') == 1 and isinstance(kr.get('c'), dict)):
+        return out
+    C = kr['c']
+    zle = out['spojnosc']
+    # ---- wiek dnia danych ----
+    for k, lab in KR_K_ETYKIETA.items():
+        o = C.get(k)
+        asof = o.get('asof') if isinstance(o, dict) else None
+        if _kr_k_dzien(asof) is None:
+            out['rows'].append((lab, '?', None, None, 'brak krzywej w pliku'))
+            out['uwagi'].append(f'{lab}: brak krzywej w pliku')
+            continue
+        w = wiek_danych(asof, 'day', 'd', now)
+        prog = KR_K_PROG[k]
+        st = '?' if w is None else ('\u26a0\ufe0f' if w > prog else '✅')
+        note = f'dzień danych starszy niż {fmt_wiek(prog)} roboczych — źródło spóźnia się z publikacją albo plik przestał się odświeżać; najwyżej uwaga' if st == '\u26a0\ufe0f' else ''
+        out['rows'].append((lab, st, w, asof, note))
+        if st == '\u26a0\ufe0f':
+            out['uwagi'].append(f'{lab}: dane z {asof} — {fmt_wiek(w)} temu ({note})')
+    # ---- spójność w pliku ----
+    for key, o in C.items():
+        if not isinstance(o, dict):
+            zle.append(f'krzywe {key}: nie jest obiektem'); continue
+        a, p = _kr_k_dzien(o.get('asof')), o.get('pasof')
+        if a is None:
+            zle.append(f'krzywe {key}: zły dzień danych'); continue
+        if p is not None:
+            pd = _kr_k_dzien(p)
+            if pd is None or not (KR_K_PREV_DNI[0] <= (a - pd).days <= KR_K_PREV_DNI[1]):
+                zle.append(f'krzywe {key}: dzień „miesiąc temu” {p} nie jest 20–45 dni przed {a}')
+        elif o.get('prev') is not None:
+            zle.append(f'krzywe {key}: „miesiąc temu” bez dnia')
+        for w_ in ('now', 'prev'):
+            v = o.get(w_)
+            if v is None and w_ == 'prev':
+                continue
+            if not isinstance(v, dict) or not v:
+                zle.append(f'krzywe {key}: pusta krzywa {w_}'); continue
+            bad = [l for l, x in v.items() if _kr_k_num(x) is None or (not key.endswith(('_be', '_prem', '_de')) and not KR_K_ZAKRES[0] <= x <= KR_K_ZAKRES[1])]
+            if bad:
+                zle.append(f'krzywe {key}: zła liczba w {w_} ({", ".join(bad[:3])})')
+        if key in KR_K_ETYKIETA and isinstance(o.get('now'), dict) and not all(_kr_k_num(o['now'].get(l)) is not None for l in ('2Y', '10Y')):
+            zle.append(f'krzywe {key}: brak 2L albo 10L')
+
+    def licz(nom, rea, be, lab):
+        """różnica nom − rea w tych samych dniach = be (do KR_K_ZGODA); dni różne = pomijamy (liczone w zbieraczu ze wspólnych dni wierszy, których tu nie ma w całości)"""
+        N, R_, B = C.get(nom), C.get(rea), C.get(be)
+        if not (isinstance(N, dict) and isinstance(R_, dict) and isinstance(B, dict)):
+            return
+        for w_, da in (('now', 'asof'), ('prev', 'pasof')):
+            if B.get(da) and N.get(da) == B.get(da) == R_.get(da) and isinstance(B.get(w_), dict) and isinstance(N.get(w_), dict) and isinstance(R_.get(w_), dict):
+                for l, x in B[w_].items():
+                    a_, b_ = _kr_k_num(N[w_].get(l)), _kr_k_num(R_[w_].get(l))
+                    if a_ is not None and b_ is not None and abs((a_ - b_) - x) > KR_K_ZGODA:
+                        zle.append(f'{lab} {l} ({B[da]}): zapisana różnica {x} ≠ {a_ - b_:.3f}')
+    licz('us', 'us_real', 'us_be', 'inflacja oczekiwana USA')
+    licz('ea', 'ea_aaa', 'ea_prem', 'premia strefy euro')
+    licz('ca', 'ca_real', 'ca_be', 'inflacja oczekiwana Kanady')
+    # ---- zgodność z rynki.json (10L USA i Niemiec) ----
+    R = ry if isinstance(ry, dict) else {}
+    for kraj, klucz, lab in (('us', 'ust', 'USA'), ('de', 'buba', 'Niemcy')):
+        O, S = C.get(kraj), R.get(klucz)
+        if not (isinstance(O, dict) and isinstance(S, list) and S):
+            continue
+        sv = {r[0]: _kr_k_num(r[1]) for r in S if isinstance(r, list) and len(r) >= 2 and isinstance(r[0], str)}
+        por = []
+        for w_, da in (('now', 'asof'), ('prev', 'pasof')):
+            d, x = O.get(da), (O.get(w_) or {}).get('10Y') if isinstance(O.get(w_), dict) else None
+            if isinstance(d, str) and _kr_k_num(x) is not None and sv.get(d) is not None:
+                por.append((d, x, sv[d]))
+        if por:
+            roz = [d for d, a, b in por if abs(a - b) > KR_K_ZGODA]
+            out['wiersze'].append((f'rentowność 10L {lab}: zgodność z plikiem rynki ({len(por)} wspólne dni)', '\u26a0\ufe0f' if roz else '✅'))
+            if roz:
+                out['uwagi'].append(f'krzywe: 10L {lab} różni się od rynki.json (to samo źródło) w dniach ' + ', '.join(roz[:4]))
+    for z in zle[:4]:
+        out['uwagi'].append(f'krzywe rentowności (v362): {z}')
+    if out['rows']:
+        out['wiersze'].append(('spójność pliku (dni, „miesiąc temu”, liczby, różnice nominalna − realna, wszyscy − AAA)', '\u26a0\ufe0f' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -8024,6 +8144,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['plynnosc'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'płynność i fundusze (v357): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v362. krzywe rentowności (data/krzywe.json): wiek dnia danych każdej krzywej, spójność i zgodność 10L USA i Niemiec z rynki.json — z plików strony, bez zapytań; najwyżej ⚠
+    try:
+        T_ = krzywe_kontrola(files.get('krzywe'), files.get('rynki'))
+        for label, st, w, txt, note in T_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += T_['uwagi']
+        R['zgodnosc']['krzywe'] = {'spojnosc': T_['spojnosc'], 'wiersze': T_['wiersze']} if (T_['rows'] or T_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['krzywe'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'krzywe rentowności (v362): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -8630,6 +8760,11 @@ def raport_md(R):
             L.append('- Płynność dolara i euro oraz fundusze hedgingowe (z plików strony; porównanie z panelem „dane urzędowe”): ' + (f'? kontrola przerwana ({pz_["blad"]})' if pz_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(pz_['spojnosc'][:3]) + ' ⚠️ · ' if pz_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in pz_.get('wiersze') or []) or '—') + '.')
+        kz_ = Z.get('krzywe')   # v362: krzywe rentowności — sprzeczności w pliku i zgodność 10L USA i Niemiec z rynki.json; brak pliku = bez linii
+        if kz_:
+            L.append('- Krzywe rentowności (z plików strony; porównanie 10L USA i Niemiec z rynki.json): ' + (f'? kontrola przerwana ({kz_["blad"]})' if kz_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(kz_['spojnosc'][:3]) + ' \u26a0\ufe0f · ' if kz_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in kz_.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

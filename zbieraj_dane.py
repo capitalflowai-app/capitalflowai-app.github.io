@@ -145,6 +145,7 @@ ZRODLA_META = {
     'soma_sklad': 'ny-fed', 'eurosystem': 'ecb', 'hedge': 'ofr',   # v357: skład portfela Fed, pozycje bilansu Eurosystemu, fundusze hedgingowe — te same trzy instytucje co dotąd (NY Fed, EBC, OFR): liczba źródeł bez zmian
     'etf_zapas': 'ishares',   # v360: zapas przepływów ETF krypto z plików emitenta (IBIT, ETHA) — ten sam wydawca co fundusze (iShares): liczba źródeł bez zmian
     'polska_rynek_gpw': 'gpw', 'polska_rynek_krzywa': 'bondspot', 'polska_rynek_fundusze': 'izfia',   # v361: Polska na rynku dziennie — giełda w Warszawie, rynek obligacji skarbowych, izba funduszy: trzy nowe źródła
+    'krzywe_us': 'skarb-usa', 'krzywe_de': 'bundesbank', 'krzywe_jp': 'mof-japonii', 'krzywe_ea': 'ecb', 'krzywe_ca': 'bank-kanady',   # v362: krzywe rentowności — te same pięć instytucji co dotąd (Skarb USA, Bundesbank, MF Japonii, EBC, Bank Kanady): liczba źródeł bez zmian
     # --- własne wyliczenia z innych plików (bez zapytań do sieci) ---
     'trendy': None, 'zloto-krypto': None,
 }
@@ -30653,6 +30654,20 @@ def main():
             META['errors'].append(mask(f'Rynki: {e}'))
             for k in RYNKI_PX: META['ok'][f'rynki_{k}'] = False
             if prev_ry: save('rynki', prev_ry)
+    # v362 (F2Z1): KRZYWE RENTOWNOŚCI (data/krzywe.json) — USA (nominalna i realna), Niemcy, Japonia, strefa euro, Kanada; raz na KRZ_EVERY min (krzywe zmieniają się raz na dobę),
+    # plik z częścią nieudaną najwyżej NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik. META ok: krzywe_<kraj> (strona Źródła).
+    prev_kr = previous('krzywe')
+    if prev_kr and fresh_pelny(prev_kr, KRZ_EVERY):
+        save('krzywe', prev_kr); krz_meta_ok(_dict(prev_kr.get('ok')), True)
+        for k_ in [k_ for k_ in KRZ_PX if _dict(prev_kr.get('ok')).get(k_) is False]:   # część z jawnym błędem zostaje widoczna (krz_meta_ok: False) z przyczyną z pliku, nie „cached”
+            META['errors'].append(mask(f"{KRZ_PX[k_]}: {str(_dict(prev_kr.get('errs')).get(k_) or 'błąd w ostatnim pobraniu')[:160]}"))
+    else:
+        try:
+            kr_ = build_krzywe(prev_kr); save('krzywe', kr_); krz_meta_ok(kr_['ok'])
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'Rynki krzywe: {e}')[:200]); krz_meta_ok({})
+            if prev_kr:
+                save('krzywe', prev_kr)
     # v339 (F4Z1+F4Z2): METALE PRZEMYSŁOWE (data/metale.json) — ceny i zapasy giełdy w Londynie, ceny i zapasy w Szanghaju, tygodniowy raport
     # o zapasach miedzi; części z własnymi bramkami wg uczonych okien publikacji i budżetem czasu (build_metale); kursy USD/CNY z rynki.json
     # TEGO przebiegu (blok wyżej); awaria budowniczego = poprzedni plik. META ok: metale_<część> (strona Źródła).
@@ -32490,6 +32505,352 @@ def build_polska_rynek(prev=None, run_t0=None, now=None):
     if not any(n in out for n in PLR_PARTS):
         raise RuntimeError('żadna część pliku nie ma danych')
     return out
+
+
+# ===================== v362 (F2Z1): krzywe rentowności obligacji rządowych — USA (nominalna i realna), Niemcy, Japonia, strefa euro, Kanada =====================
+# Plik data/krzywe.json: dla każdego kraju krzywa z OSTATNIEGO dnia danych i krzywa sprzed miesiąca (ostatni dzień nie późniejszy niż dzień danych minus miesiąc, nie dalej
+# niż KRZ_OKNO_PREV dni od tej daty — inaczej brak, nigdy podstawienie). Wszystkie pięć hostów już działa z GitHuba (rynki.json, TIC, instytucje): Skarb USA (XML, miesiąc
+# na zapytanie: krzywa nominalna i realna TIPS), Bundesbank (SDMX-JSON, 30 zapadalności jednym zapytaniem), Ministerstwo Finansów Japonii (CSV w Shift_JIS; plik bieżący
+# obejmuje tylko bieżący miesiąc, więc wiersze sprzed miesiąca zostają w pliku z poprzednich przebiegów, a gdy ich brak — raz na dobę najwyżej pobierany jest plik historyczny
+# ok. 1,2 MB), EBC (SDMX-JSON: krzywa stóp spot wszystkich emitentów i emitentów z ratingiem AAA — różnica to premia za ryzyko krajów strefy euro) i Bank Kanady (JSON Valet).
+# Wartości w % rocznie, trzy miejsca po przecinku; etykiety zapadalności w KRZ_LAB (+ 'L' = długie obligacje Kanady, powyżej 10 lat). Różnice (inflacja oczekiwana przez
+# rynek = nominalna − realna, premia strefy euro = wszyscy − AAA, USA − Niemcy 10L) są LICZONE tu z wierszy tego samego dnia i opisane na stronie jako wyliczenie.
+# Brak = brak klucza (nigdy zero). Część z błędem zostaje z poprzedniego pliku z własną chwilą (part_at) i przyczyną (errs); dzień danych nie cofa się.
+KRZ_EVERY = 170          # min — krzywe zmieniają się raz na dobę; częściej nie ma po co (część z błędem: ponowienie po NIEPELNY_MIN, jak fresh_pelny)
+KRZ_LAB = ('3M', '1Y', '2Y', '3Y', '5Y', '7Y', '10Y', '20Y', '30Y')    # zapadalności w pliku i na wykresie
+KRZ_DL = 'L'             # Kanada: długie obligacje (powyżej 10 lat) i długie realne (RRB)
+KRZ_MIN, KRZ_MAX = -2.0, 25.0   # % — rentowność poza przedziałem = błąd skali albo znaczenia pola (w danych od 1974: Japonia −0,3…, Turcja poza zakresem nie wchodzi)
+KRZ_OKNO_PREV = 8        # dni — tyle dni przed datą „miesiąc temu” akceptujemy najbliższy wcześniejszy dzień danych (weekend + święta; dalej = brak odniesienia)
+KRZ_JP_H_MAX = 4_000_000  # bajty — plik historyczny Japonii (ok. 1,2 MB); większy = nie ten plik
+KRZ_JP_H_MIN = 20 * 60   # min — plik historyczny pobierany najwyżej raz na dobę
+KRZ_PX = {'us': 'Rynki krzywa USA', 'de': 'Rynki krzywa Niemcy', 'jp': 'Rynki krzywa Japonia', 'ea': 'Rynki krzywa strefa euro', 'ca': 'Rynki krzywa Kanada'}   # początek komunikatu błędu
+KRZ_CZESCI = {'us': ('us', 'us_real', 'us_be'), 'de': ('de',), 'jp': ('jp',), 'ea': ('ea', 'ea_aaa', 'ea_prem'), 'ca': ('ca', 'ca_real', 'ca_be')}
+KRZ_UST_N = ('https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve'
+             '&field_tdr_date_value_month={ym}')
+KRZ_UST_R = ('https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_real_yield_curve'
+             '&field_tdr_date_value_month={ym}')
+KRZ_UST_MAP = {'BC_3MONTH': '3M', 'BC_1YEAR': '1Y', 'BC_2YEAR': '2Y', 'BC_3YEAR': '3Y', 'BC_5YEAR': '5Y', 'BC_7YEAR': '7Y', 'BC_10YEAR': '10Y', 'BC_20YEAR': '20Y', 'BC_30YEAR': '30Y'}
+KRZ_UST_R_MAP = {'TC_5YEAR': '5Y', 'TC_7YEAR': '7Y', 'TC_10YEAR': '10Y', 'TC_20YEAR': '20Y', 'TC_30YEAR': '30Y'}
+KRZ_BE_US = ('5Y', '7Y', '10Y', '20Y', '30Y')   # zapadalności, w których Skarb USA podaje obie krzywe
+KRZ_DE_URL = 'https://api.statistiken.bundesbank.de/rest/data/BBSIS/D.I.ZAR.ZI.EUR.S1311.B.A604..R.A.A._Z._Z.A?startPeriod={f}&format=json'
+KRZ_JP_URL = 'https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcme.csv'
+KRZ_JP_HURL = 'https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/historical/jgbcme_all.csv'
+KRZ_EA_URL = ('https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A+G_N_C.SV_C_YM.' + '+'.join('SR_' + _l for _l in KRZ_LAB)
+              + '?startPeriod={f}&format=jsondata&detail=dataonly')
+KRZ_CA_URL = 'https://www.bankofcanada.ca/valet/observations/group/bond_yields_benchmark/json?recent=35'
+KRZ_CA_MAP = {'BD.CDN.2YR.DQ.YLD': '2Y', 'BD.CDN.3YR.DQ.YLD': '3Y', 'BD.CDN.5YR.DQ.YLD': '5Y', 'BD.CDN.7YR.DQ.YLD': '7Y', 'BD.CDN.10YR.DQ.YLD': '10Y', 'BD.CDN.LONG.DQ.YLD': KRZ_DL}
+KRZ_CA_REAL = 'BD.CDN.RRB.DQ.YLD'
+
+
+def krz_x(v):
+    """Rentowność w % z tekstu albo liczby (trzy miejsca po przecinku); brak ('-', puste), bool, NaN i wartość poza KRZ_MIN…KRZ_MAX → None (brak nigdy nie staje się zerem)."""
+    if v is None or isinstance(v, bool):
+        return None
+    try:
+        x = float(str(v).strip())
+    except ValueError:
+        return None
+    return round(x, 3) if x == x and KRZ_MIN <= x <= KRZ_MAX else None
+
+
+def krz_dzien(s):
+    """Prawdziwy dzień RRRR-MM-DD albo None."""
+    s = str(s or '')[:10]
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    return s if _d(s) is not None else None
+
+
+def krz_ust_wiersze(xml_text, mapa):
+    """XML Skarbu USA (jeden miesiąc) → {dzień: {zapadalność: rentowność}}; kolumny spoza mapy pominięte, brak liczby = brak klucza."""
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(xml_text)
+    loc = lambda e: e.tag.rsplit('}', 1)[-1]  # noqa: E731
+    out = {}
+    for ent in root.iter():
+        if loc(ent) != 'entry':
+            continue
+        d, r = None, {}
+        for e in ent.iter():
+            n = loc(e)
+            if n == 'NEW_DATE':
+                d = krz_dzien(e.text)
+            elif n in mapa:
+                x = krz_x(e.text)
+                if x is not None:
+                    r[mapa[n]] = x
+        if d and r:
+            out[d] = r
+    return out
+
+
+def krz_jp_tekst(b):
+    """Bajty pliku Ministerstwa Finansów Japonii → tekst (Shift_JIS; błędne bajty komentarza pod tabelą zastąpione)."""
+    return b.decode('shift_jis', 'replace') if isinstance(b, (bytes, bytearray)) else str(b)
+
+
+def krz_jp_wiersze(tekst, od=None):
+    """CSV Japonii („Date,1Y,2Y,…”, daty R/M/D, ‘-’ = brak, na końcu puste wiersze i komentarz) → {dzień: {zapadalność z KRZ_LAB: rentowność}}; od = najwcześniejszy dzień."""
+    import csv
+    import io
+    out, kol = {}, None
+    for c in csv.reader(io.StringIO(str(tekst or '').lstrip('\ufeff'))):
+        if not c:
+            continue
+        if c[0].strip() == 'Date':
+            kol = [x.strip() for x in c[1:]]
+            continue
+        m = re.fullmatch(r'(\d{4})/(\d{1,2})/(\d{1,2})', c[0].strip())
+        if not m or kol is None:
+            continue
+        d = krz_dzien(f'{int(m.group(1)):04d}-{int(m.group(2)):02d}-{int(m.group(3)):02d}')
+        if not d or (od and d < od):
+            continue
+        r = {}
+        for k, v in zip(kol, c[1:]):
+            x = krz_x(v) if k in KRZ_LAB else None
+            if x is not None:
+                r[k] = x
+        if r:
+            out[d] = r
+    return out
+
+
+def _krz_sdmx(j):
+    o = j.get('data') if isinstance(j, dict) and isinstance(j.get('data'), dict) else j
+    return o['structure']['dimensions'], o['dataSets'][0]['series']
+
+
+def krz_de_wiersze(j):
+    """SDMX-JSON Bundesbanku (30 serii, wymiar BBK_SEIS_MATURITY: R01XX…R30XX) → {dzień: {zapadalność z KRZ_LAB: rentowność}}."""
+    dim, ser = _krz_sdmx(j)
+    sd = dim['series']
+    im = next((i for i, d in enumerate(sd) if d.get('id') == 'BBK_SEIS_MATURITY'), None)
+    if im is None:
+        raise ValueError('brak wymiaru zapadalności')
+    mats = [v['id'] for v in sd[im]['values']]
+    T = [v['id'] for v in dim['observation'][0]['values']]
+    out = {}
+    for key, s in ser.items():
+        m = re.fullmatch(r'R(\d{2})XX', str(mats[int(key.split(':')[im])]))
+        lab = f'{int(m.group(1))}Y' if m else None
+        if lab not in KRZ_LAB:
+            continue
+        for k, v in s['observations'].items():
+            d, x = krz_dzien(T[int(k)]), krz_x(v[0] if isinstance(v, list) and v else None)
+            if d and x is not None:
+                out.setdefault(d, {})[lab] = x
+    return out
+
+
+def krz_ea_wiersze(j):
+    """SDMX-JSON EBC (zbiór YC: stopy spot, model Svenssona) → {'G_N_C': wiersze wszystkich emitentów, 'G_N_A': wiersze emitentów AAA}, każde {dzień: {zapadalność: rentowność}}."""
+    dim, ser = _krz_sdmx(j)
+    sd = dim['series']
+    ii = next((i for i, d in enumerate(sd) if d.get('id') == 'INSTRUMENT_FM'), None)
+    it = next((i for i, d in enumerate(sd) if d.get('id') == 'DATA_TYPE_FM'), None)
+    if ii is None or it is None:
+        raise ValueError('brak wymiaru instrumentu albo zapadalności')
+    inst = [v['id'] for v in sd[ii]['values']]
+    typ = [v['id'] for v in sd[it]['values']]
+    T = [v['id'] for v in dim['observation'][0]['values']]
+    out = {'G_N_C': {}, 'G_N_A': {}}
+    for key, s in ser.items():
+        p = key.split(':')
+        i, ty = inst[int(p[ii])], str(typ[int(p[it])])
+        lab = ty[3:] if ty.startswith('SR_') else None
+        if i not in out or lab not in KRZ_LAB:
+            continue
+        for k, v in s['observations'].items():
+            d, x = krz_dzien(T[int(k)]), krz_x(v[0] if isinstance(v, list) and v else None)
+            if d and x is not None:
+                out[i].setdefault(d, {})[lab] = x
+    return out
+
+
+def krz_ca_wiersze(j):
+    """JSON Valet Banku Kanady (grupa bond_yields_benchmark; obserwacje {d, seria: {v: tekst}}) → (nominalne {dzień: {2Y…10Y, 'L'}}, realne długie {dzień: {'L'}})."""
+    nom, rea = {}, {}
+    for o in j['observations']:
+        d = krz_dzien(o.get('d'))
+        if not d:
+            continue
+        for s, lab in KRZ_CA_MAP.items():
+            x = krz_x((o.get(s) or {}).get('v') if isinstance(o.get(s), dict) else None)
+            if x is not None:
+                nom.setdefault(d, {})[lab] = x
+        x = krz_x((o.get(KRZ_CA_REAL) or {}).get('v') if isinstance(o.get(KRZ_CA_REAL), dict) else None)
+        if x is not None:
+            rea[d] = {KRZ_DL: x}
+    return nom, rea
+
+
+def krz_poprzedni(rows, asof, klucze):
+    """Dzień „miesiąc temu”: ostatni dzień z kompletem kluczy nie późniejszy niż asof − 1 miesiąc i nie dalej niż KRZ_OKNO_PREV dni od tej daty; inaczej None."""
+    cel = months_back(_d(asof), 1)
+    dni = [d for d, r in rows.items() if d <= cel.isoformat() and all(k in r for k in klucze)]
+    if not dni:
+        return None
+    d = max(dni)
+    return d if (cel - _d(d)).days <= KRZ_OKNO_PREV else None
+
+
+def krz_porzadek(r):
+    return {k: r[k] for k in KRZ_LAB + (KRZ_DL,) if k in r}
+
+
+def krz_obraz(rows, today, klucze=('2Y', '10Y'), min_n=5):
+    """Wiersze {dzień: {zapadalność: rentowność}} → {'asof', 'pasof', 'now', 'prev'}: ostatni dzień z kompletem kluczy i dzień sprzed miesiąca (pasof/prev = None, gdy brak).
+    Błąd: brak dnia z kompletem kluczy, dzień danych z przyszłości (dalej niż jutro), mniej niż min_n zapadalności."""
+    dni = sorted(d for d, r in rows.items() if all(k in r for k in klucze))
+    if not dni:
+        raise ValueError('brak dnia z rentownościami ' + ' i '.join(klucze))
+    asof = dni[-1]
+    if _d(asof) > today + datetime.timedelta(days=1):
+        raise ValueError(f'dzień danych {asof} z przyszłości')
+    now = krz_porzadek(rows[asof])
+    if len(now) < min_n:
+        raise ValueError(f'tylko {len(now)} zapadalności w dniu {asof} (minimum {min_n})')
+    pd = krz_poprzedni(rows, asof, klucze)
+    return {'asof': asof, 'pasof': pd, 'now': now, 'prev': krz_porzadek(rows[pd]) if pd else None}
+
+
+def krz_roznica(a, b, klucze):
+    """Różnica a − b (punkty procentowe) w zapadalnościach `klucze`, liczona z wierszy TEGO SAMEGO dnia: ostatni dzień wspólny i ostatni wspólny dzień sprzed miesiąca
+    (jak krz_poprzedni). Brak wspólnego dnia = None; zapadalność bez obu liczb w danym dniu — brak klucza."""
+    wsp = sorted(d for d in a if d in b and any(k in a[d] and k in b[d] for k in klucze))
+    if not wsp:
+        return None
+    wz = lambda d: {k: round(a[d][k] - b[d][k], 3) for k in klucze if k in a[d] and k in b[d]}  # noqa: E731
+    asof = wsp[-1]
+    cel = months_back(_d(asof), 1).isoformat()
+    pr = [d for d in wsp if d <= cel]
+    pd = pr[-1] if pr and (_d(cel) - _d(pr[-1])).days <= KRZ_OKNO_PREV else None
+    return {'asof': asof, 'pasof': pd, 'now': wz(asof), 'prev': wz(pd) if pd else None}
+
+
+def build_krzywe(prev=None, today=None):
+    """Plik data/krzywe.json (v362): pięć części (us, de, jp, ea, ca) z własnym ok/part_at/errs; część z błędem zostaje z poprzedniego pliku. Zapytania: Skarb USA (miesiące wstecz od
+    bieżącego, aż znajdzie się dzień „miesiąc temu” — zwykle dwa × dwie krzywe), Bundesbank 1, Japonia 1 (+ plik historyczny najwyżej raz na dobę, gdy brak odniesienia), EBC 1 (z przerwą ECB_SLEEP), Bank Kanady 1."""
+    today = today or datetime.datetime.now(datetime.timezone.utc).date()
+    prev = prev if isinstance(prev, dict) else {}
+    pat, pc = _dict(prev.get('part_at')), _dict(prev.get('c'))
+    out = {'v': 1, 'at': NOW, 'unit': '%', 'lab': list(KRZ_LAB), 'ok': {}, 'part_at': {}, 'c': {}}
+    od = (months_back(today, 1) - datetime.timedelta(days=KRZ_OKNO_PREV + 3)).isoformat()   # początek okna wierszy (miesiąc temu z zapasem na weekend i święta)
+    jr0 = {d: r for d, r in _dict(prev.get('jp_rows')).items() if krz_dzien(d) and d >= od and isinstance(r, dict)}
+    out['jp_rows'] = jr0
+    if prev.get('jp_hist_at'):
+        out['jp_hist_at'] = prev['jp_hist_at']
+    rows = {}
+
+    def part(k, fn):
+        try:
+            v = fn()
+            if not v:
+                raise ValueError('pusta odpowiedź')
+            for ck, obj in list(v.items()):   # dzień danych nie cofa się: źródło pokazujące starszy dzień niż poprzedni plik nie nadpisuje go
+                p = pc.get(ck)
+                if isinstance(p, dict) and isinstance(p.get('asof'), str) and obj.get('asof', '') < p['asof']:
+                    v[ck] = p
+                    META['notes'].append(mask(f'{KRZ_PX[k]}: źródło pokazuje {obj.get("asof")}, a poprzedni plik ma {p["asof"]} — zostaje poprzedni')[:200])
+            out['c'].update(v); out['ok'][k] = True; out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część z błędem: poprzednia wersja z własnym czasem, nigdy zera
+            META['errors'].append(mask(f'{KRZ_PX[k]}: {e}')[:200]); out['ok'][k] = False
+            out.setdefault('errs', {})[k] = mask(str(e))[:160]
+            have = [ck for ck in KRZ_CZESCI[k] if isinstance(pc.get(ck), dict)]
+            for ck in have:
+                out['c'][ck] = pc[ck]
+            if have:
+                out['part_at'][k] = pat.get(k) or prev.get('at')
+
+    def us():   # miesiące od bieżącego wstecz — tylko tyle, ile trzeba, by znaleźć dzień „miesiąc temu” (najwyżej trzy)
+        y, m, nom, rea, n = today.year, today.month, {}, {}, 0
+        while True:
+            ym = f'{y}{m:02d}'
+            nom.update(krz_ust_wiersze(get(KRZ_UST_N.format(ym=ym), timeout=60)[1], KRZ_UST_MAP))
+            rea.update(krz_ust_wiersze(get(KRZ_UST_R.format(ym=ym), timeout=60)[1], KRZ_UST_R_MAP))
+            n += 1
+            dni = sorted(d for d, r in nom.items() if '2Y' in r and '10Y' in r)
+            if n >= 3 or (dni and (krz_poprzedni(nom, dni[-1], ('2Y', '10Y')) or f'{y}-{m:02d}-01' <= (months_back(_d(dni[-1]), 1) - datetime.timedelta(days=KRZ_OKNO_PREV)).isoformat())):
+                break
+            y, m = (y, m - 1) if m > 1 else (y - 1, 12)
+        rows['us'] = nom
+        o = {'us': krz_obraz(nom, today)}
+        if rea:
+            o['us_real'] = krz_obraz(rea, today, ('10Y',), 3)
+            b = krz_roznica(nom, rea, KRZ_BE_US)
+            if b:
+                o['us_be'] = b
+        return o
+
+    def de():
+        r = krz_de_wiersze(get_json(KRZ_DE_URL.format(f=od), timeout=60))
+        rows['de'] = r
+        return {'de': krz_obraz(r, today, min_n=6)}
+
+    def jp():
+        jr = dict(jr0)
+        jr.update(krz_jp_wiersze(krz_jp_tekst(get_bytes(KRZ_JP_URL, timeout=60)), od))
+        o = krz_obraz(jr, today)
+        if o['pasof'] is None and not _zapas_wiek_ok(prev.get('jp_hist_at'), KRZ_JP_H_MIN / 1440):   # brak odniesienia sprzed miesiąca: plik historyczny, najwyżej raz na dobę
+            try:
+                hb = get_bytes(KRZ_JP_HURL, timeout=120)
+                if len(hb) > KRZ_JP_H_MAX:
+                    raise ValueError(f'plik historyczny większy niż {KRZ_JP_H_MAX} B')
+                jr.update(krz_jp_wiersze(krz_jp_tekst(hb), od))
+                out['jp_hist_at'] = NOW
+                o = krz_obraz(jr, today)
+            except Exception as e:  # noqa — bez historii krzywa bieżąca nadal jest (miesiąc temu: brak)
+                META['notes'].append(mask(f'{KRZ_PX["jp"]}: plik historyczny niedostępny: {str(e)[:80]}')[:200])
+        out['jp_rows'] = jr
+        return {'jp': o}
+
+    def ea():
+        time.sleep(ECB_SLEEP)   # EBC blokuje serie szybkich zapytań
+        r = krz_ea_wiersze(get_json(KRZ_EA_URL.format(f=od), timeout=60))
+        o = {'ea': krz_obraz(r['G_N_C'], today)}
+        if r['G_N_A']:
+            o['ea_aaa'] = krz_obraz(r['G_N_A'], today)
+            b = krz_roznica(r['G_N_C'], r['G_N_A'], KRZ_LAB)
+            if b:
+                o['ea_prem'] = b
+        return o
+
+    def ca():
+        nom, rea = krz_ca_wiersze(get_json(KRZ_CA_URL, timeout=60))
+        o = {'ca': krz_obraz(nom, today)}
+        if rea:
+            o['ca_real'] = krz_obraz(rea, today, (KRZ_DL,), 1)
+            b = krz_roznica(nom, rea, (KRZ_DL,))
+            if b:
+                o['ca_be'] = b
+        return o
+
+    part('us', us); part('de', de); part('jp', jp); part('ea', ea); part('ca', ca)
+    if rows.get('us') and rows.get('de'):   # różnica USA − Niemcy (10L) z wierszy tego samego dnia; gdy któraś część zawiodła — poprzednia różnica
+        try:
+            b = krz_roznica(rows['us'], rows['de'], ('10Y',))
+            if b:
+                out['c']['us_de'] = b
+        except Exception as e:  # noqa
+            META['notes'].append(mask(f'Rynki krzywe: różnica USA − Niemcy: {str(e)[:80]}')[:200])
+    if 'us_de' not in out['c'] and isinstance(pc.get('us_de'), dict):
+        out['c']['us_de'] = pc['us_de']
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+def krz_meta_ok(ok, z_pamieci=False):
+    """Części META ok (strona Źródła): jedna na kraj. Z pamięci (przebieg bez zapytań) 'cached' dla części, która w ostatnim odczycie nie zawiodła; po budowie True/False."""
+    def f(k):
+        v = ok.get(k)
+        return ('cached' if v is not False else False) if z_pamieci else v is True
+    META['ok']['krzywe_us'] = f('us')
+    META['ok']['krzywe_de'] = f('de')
+    META['ok']['krzywe_jp'] = f('jp')
+    META['ok']['krzywe_ea'] = f('ea')
+    META['ok']['krzywe_ca'] = f('ca')
 
 
 if __name__ == '__main__':

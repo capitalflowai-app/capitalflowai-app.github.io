@@ -25744,3 +25744,179 @@ test('v361: miejsce w kodzie i zasady — moduł zaraz za blokiem Polska, blok z
   assert.ok(!/\bGPW\b|BondSpot|IZFiA|izfa\.pl|gpw\.pl|bondspot\.pl/.test(c + html.slice(html.indexOf('#g-surowce .su-plr .wk-ch .plr1'), html.indexOf('#g-surowce .su-plr .wk-ch .plr1') + 600)), 'bez nazw wydawców w kodzie strony');
   assert.ok(c.includes("const PLR_P=['gpw','krzywa','fundusze'];") && c.includes('function plrOk(j){return !!(suObj(j)&&j.v===1&&'), 'plik wersji 1 z którąkolwiek częścią');
 });
+
+
+// ===================== v362 (F2Z1): karta „Krzywe rentowności” w GLOBAL =====================
+const yc362 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const helpers = cut('const STR_COLS=', '/* część fsi: kafel');   /* strNum, strVal, strDelta, strDay, strTile (narzędzia panelu stresu) */
+  const code = cut('/* ===================== v362 (F2Z1): KRZYWE RENTOWNOŚCI', '/* ---------- koniec bloku krzywych rentowności (v362) ---------- */');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-13T20:30:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/\u00a0|\u202f/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const cls = new Set((opt && opt.open) ? ['zw-on'] : []);
+    const el = {innerHTML: '', hidden: true, classList: {contains: c => cls.has(c)}, handlers: {}, addEventListener(e, f) { (this.handlers[e] = this.handlers[e] || []).push(f); },
+      querySelector(q) { const m = /data-yck="(\w+)"/.exec(q); return m ? {focus: () => { el.focused = m[1]; }} : null; }};
+    const els = {'#g-krzywe': el};
+    const calls = [], ivs = [], wl = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {documentElement: {}, hidden: false};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'flagImg', 'document', 'MutationObserver', 'setInterval', 'wkLines', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {YC, ycLoad, renderYc, ycOk, ycCur, ycSlope, ycLab};')(
+      q => els[q] || null, v96src.tFor(L), v96src.escH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, () => '', i => i, c => '<flag ' + c + '>', doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (Ls, o) => { wl.push({L: Ls, o}); return '<chart n=' + Ls.map(l => l.n + ':' + l.d.length).join(',') + ' aria="' + o.aria + '">'; }, FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { cls.add('zw-on'); cls.delete('zw'); fire(); };
+    const collapse = () => { cls.add('zw-on'); cls.add('zw'); fire(); };
+    const click = k => { const b = {getAttribute: () => k}; const ev = {target: {closest: () => b}}; el.handlers.click.forEach(f => f(ev)); };
+    return {api, el, calls, ivs, wl, mos, expand, collapse, click, html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(.*?)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({label: txt(m[1]), val: txt(m[3].split('<small')[0]), raw: m[3], when: txt(m[4])}));
+  const FX = {"v":1,"at":"2026-10-13T20:30:00+00:00","unit":"%","lab":["3M","1Y","2Y","3Y","5Y","7Y","10Y","20Y","30Y"],"ok":{"us":true,"de":true,"jp":true,"ea":true,"ca":true},"part_at":{"us":"2026-10-13T20:30:00+00:00","de":"2026-10-13T20:30:00+00:00","jp":"2026-10-13T20:30:00+00:00","ea":"2026-10-13T20:30:00+00:00","ca":"2026-10-13T20:30:00+00:00"},"c":{"us":{"asof":"2026-10-09","pasof":"2026-09-09","now":{"3M":4.25,"1Y":4.47,"2Y":4.8,"3Y":4.89,"5Y":5.02,"7Y":5.13,"10Y":5.24,"20Y":5.65,"30Y":5.6},"prev":{"3M":3.95,"1Y":4.17,"2Y":4.43,"3Y":4.49,"5Y":4.61,"7Y":4.71,"10Y":4.83,"20Y":5.28,"30Y":5.28}},"us_real":{"asof":"2026-10-09","pasof":"2026-09-09","now":{"5Y":2.68,"7Y":2.79,"10Y":2.91,"20Y":3.17,"30Y":3.32},"prev":{"5Y":2.2,"7Y":2.32,"10Y":2.46,"20Y":2.79,"30Y":2.98}},"us_be":{"asof":"2026-10-09","pasof":"2026-09-09","now":{"5Y":2.34,"7Y":2.34,"10Y":2.33,"20Y":2.48,"30Y":2.28},"prev":{"5Y":2.41,"7Y":2.39,"10Y":2.37,"20Y":2.49,"30Y":2.3}},"de":{"asof":"2026-10-13","pasof":"2026-09-11","now":{"1Y":2.95,"2Y":3.09,"3Y":3.13,"5Y":3.2,"7Y":3.3,"10Y":3.46,"20Y":3.71,"30Y":3.79},"prev":{"1Y":3.01,"2Y":3.17,"3Y":3.19,"5Y":3.26,"7Y":3.37,"10Y":3.53,"20Y":3.79,"30Y":3.88}},"jp":{"asof":"2026-10-09","pasof":"2026-09-09","now":{"1Y":1.647,"2Y":1.911,"3Y":2.052,"5Y":2.366,"7Y":2.604,"10Y":3.027,"20Y":3.853,"30Y":4.085},"prev":{"1Y":1.557,"2Y":1.833,"3Y":1.963,"5Y":2.243,"7Y":2.469,"10Y":2.891,"20Y":3.713,"30Y":3.956}},"ea":{"asof":"2026-10-12","pasof":"2026-09-11","now":{"3M":2.702,"1Y":3.066,"2Y":3.278,"3Y":3.403,"5Y":3.624,"7Y":3.838,"10Y":4.109,"20Y":4.508,"30Y":4.45},"prev":{"3M":2.614,"1Y":3.03,"2Y":3.228,"3Y":3.325,"5Y":3.507,"7Y":3.705,"10Y":3.971,"20Y":4.42,"30Y":4.425}},"ea_aaa":{"asof":"2026-10-12","pasof":"2026-09-11","now":{"3M":2.553,"1Y":2.909,"2Y":3.066,"3Y":3.118,"5Y":3.205,"7Y":3.321,"10Y":3.499,"20Y":3.8,"30Y":3.76},"prev":{"3M":2.525,"1Y":2.952,"2Y":3.128,"3Y":3.171,"5Y":3.235,"7Y":3.343,"10Y":3.523,"20Y":3.844,"30Y":3.803}},"ea_prem":{"asof":"2026-10-12","pasof":"2026-09-11","now":{"3M":0.149,"1Y":0.157,"2Y":0.212,"3Y":0.285,"5Y":0.419,"7Y":0.517,"10Y":0.61,"20Y":0.708,"30Y":0.69},"prev":{"3M":0.089,"1Y":0.078,"2Y":0.1,"3Y":0.154,"5Y":0.272,"7Y":0.362,"10Y":0.448,"20Y":0.576,"30Y":0.622}},"ca":{"asof":"2026-10-09","pasof":"2026-09-09","now":{"2Y":3.18,"3Y":3.29,"5Y":3.54,"7Y":3.62,"10Y":3.86,"L":4.23},"prev":{"2Y":3.16,"3Y":3.25,"5Y":3.48,"7Y":3.61,"10Y":3.84,"L":4.21}},"ca_real":{"asof":"2026-10-09","pasof":"2026-09-09","now":{"L":1.93},"prev":{"L":1.87}},"ca_be":{"asof":"2026-10-09","pasof":"2026-09-09","now":{"L":2.3},"prev":{"L":2.34}},"us_de":{"asof":"2026-10-09","pasof":"2026-09-09","now":{"10Y":1.74},"prev":{"10Y":1.42}}},"jp_rows":{"2026-10-01":{"1Y":1.668,"2Y":1.939,"3Y":2.077,"5Y":2.407,"7Y":2.657,"10Y":3.092,"20Y":3.91,"30Y":4.122},"2026-10-02":{"1Y":1.65,"2Y":1.919,"3Y":2.065,"5Y":2.397,"7Y":2.657,"10Y":3.097,"20Y":3.925,"30Y":4.148},"2026-10-08":{"1Y":1.657,"2Y":1.936,"3Y":2.084,"5Y":2.414,"7Y":2.669,"10Y":3.089,"20Y":3.916,"30Y":4.136},"2026-10-09":{"1Y":1.647,"2Y":1.911,"3Y":2.052,"5Y":2.366,"7Y":2.604,"10Y":3.027,"20Y":3.853,"30Y":4.085},"2026-09-08":{"1Y":1.557,"2Y":1.848,"3Y":1.972,"5Y":2.258,"7Y":2.476,"10Y":2.896,"20Y":3.717,"30Y":3.961},"2026-09-09":{"1Y":1.557,"2Y":1.833,"3Y":1.963,"5Y":2.243,"7Y":2.469,"10Y":2.891,"20Y":3.713,"30Y":3.956},"2026-09-10":{"1Y":1.55,"2Y":1.823,"3Y":1.954,"5Y":2.244,"7Y":2.481,"10Y":2.92,"20Y":3.754,"30Y":3.995},"2026-09-30":{"1Y":1.6,"2Y":1.9,"3Y":2.0,"5Y":2.3,"7Y":2.5,"10Y":3.0,"20Y":3.8,"30Y":4.0}},"jp_hist_at":"2026-10-13T20:30:00+00:00"};
+  const J = () => clone(FX);
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {krzywe_us: true}} : meta, krzywe: j === undefined ? J() : j});
+  return {mk, tiles, files, J, sp, txt, code, clone, LOC};
+})();
+
+test('v362 (F2Z1): karta „Krzywe rentowności” w GLOBAL — nagłówek od razu, plik dopiero po rozwinięciu; 5 kafli nachylenia (10 lat minus 2 lata) z dniem danych, wiekiem i zmianą wobec miesiąca temu w kolorach kierunku', () => {
+  const K = yc362.mk('pl', yc362.files());
+  assert.equal(K.el.hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('Krzywe rentowności obligacji rządowych</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Dane wczytają się po rozwinięciu karty.') && yc362.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku krzywe'); assert.equal(K.calls.filter(c => c === 'krzywe').length, 0);
+  K.expand();
+  assert.equal(K.calls.filter(c => c === 'krzywe').length, 1, 'plik po rozwinięciu karty'); h = K.html();
+  const T = yc362.tiles(h), S = T.slice(0, 5);
+  assert.deepEqual(S.map(x => x.label), ['Stany Zjednoczone', 'Niemcy', 'Japonia', 'Strefa euro', 'Kanada'], 'nazwy krajów w języku czytelnika (Intl), strefa euro ze słownika');
+  assert.deepEqual(S.map(x => x.val), ['0,44 pp', '0,37 pp', '1,12 pp', '0,83 pp', '0,68 pp'], '10L − 2L w punktach procentowych (USA 5,24 − 4,80; Japonia 3,027 − 1,911)');
+  assert.ok(S[0].raw.includes('<small class="pos">▲ +0,04 wobec miesiąca temu</small>'), S[0].raw); assert.ok(S[2].raw.includes('<small class="pos">▲ +0,06 wobec miesiąca temu</small>'), 'Japonia 1,116 − 1,058');
+  assert.ok(S[4].raw.includes('<small class="neu">• 0,00 wobec miesiąca temu</small>'), 'Kanada: bez zmiany = żółte');
+  assert.ok(S[0].when.includes('2 lata: 4,80% · 10 lat: 5,24%') && S[0].when.includes('wiek(2026-10-09)') && S[1].when.includes('wiek(2026-10-13)') && S[3].when.includes('wiek(2026-10-12)'), 'każdy kraj ze swoim dniem danych i wiekiem');
+  assert.ok(!/odwrócon/.test(S.map(x => x.raw).join('')), 'krzywe rosnące — bez odwrócenia');
+  assert.ok(h.includes('<flag us>') && h.includes('<flag eu>') && h.includes('<flag jp>'), 'flagi krajów (strefa euro = flaga UE)');
+  assert.ok(!/FRED|Skarb|Treasury|Bundesbank|Bank of|EBC|ECB|Ministerstw|TradingView/i.test(h), 'zero nazw dostawców na stronie');
+  assert.ok(h.includes('D:2026-10-13T20:30:00+00:00'), 'data pliku'); assert.ok(!/NaN|undefined|null/.test(h));
+  K.expand(); assert.equal(K.calls.filter(c => c === 'krzywe').length, 1, 'plik świeży — bez drugiego pobrania');
+  /* zegar 30 min: odświeżenie przy rozwiniętym bloku; zwinięta karta nie pobiera */
+  const iv = K.ivs.find(x => x[1] === 30 * 60 * 1000); assert.ok(iv); iv[0](); assert.equal(K.calls.filter(c => c === 'krzywe').length, 2, 'odświeżenie wymuszone zegarem');
+  K.collapse(); iv[0](); assert.equal(K.calls.filter(c => c === 'krzywe').length, 2, 'zwinięta karta — zegar nie pobiera');
+  const KO = yc362.mk('pl', yc362.files(), {open: true}); assert.equal(KO.calls.filter(c => c === 'krzywe').length, 1, 'karta rozwinięta już na starcie: pobranie od razu'); assert.equal(yc362.tiles(KO.html()).length, 10);
+  const KZ = yc362.mk('pl', yc362.files(), {open: false}); assert.equal(KZ.calls.filter(c => c === 'krzywe').length, 0);
+});
+
+test('v362 (F2Z1): wykres krzywej wybranego kraju (dziś i miesiąc temu), przełącznik kraju z fokusem, etykiety zapadalności w języku czytelnika, wykres inflacji oczekiwanej USA', () => {
+  const K = yc362.mk('pl', yc362.files()); K.expand();
+  assert.equal(K.wl.length, 2, 'krzywa kraju i inflacja oczekiwana USA');
+  const w = K.wl[0];
+  assert.deepEqual(w.L.map(l => [l.n, l.cls, l.d.length]), [['9 wrz 2026', 's2', 9], ['9 paź 2026', 's1', 9]], 'miesiąc temu pomarańczowy, dzień danych niebieski; legenda = daty');
+  assert.deepEqual(w.L[1].d.map(r => r[0]), [0, 1, 2, 3, 4, 5, 6, 7, 8], 'oś = kolejne zapadalności w równych odstępach'); assert.deepEqual(w.L[1].d.map(r => r[1]), [4.25, 4.47, 4.8, 4.89, 5.02, 5.13, 5.24, 5.65, 5.6]);
+  assert.equal(w.o.dt(0), '3 mies.'); assert.equal(w.o.dt(2), '2 lata'); assert.equal(w.o.dx(8), '30 lat'); assert.equal(w.o.dx(6), '10 lat'); assert.equal(w.o.fmt(5.24), '5,24%'); assert.equal(w.o.zero, false);
+  assert.ok(w.o.aria.includes('Krzywa rentowności Stany Zjednoczone') && w.o.aria.includes('9 paź 2026') && w.o.aria.includes('9 wrz 2026'));
+  const b = K.wl[1]; assert.deepEqual(b.L[1].d.map(r => r[1]), [2.34, 2.34, 2.33, 2.48, 2.28], 'inflacja oczekiwana USA = nominalna − realna (5, 7, 10, 20, 30 lat)'); assert.equal(b.o.dt(0), '5 lat'); assert.equal(b.o.dt(4), '30 lat');
+  let h = K.html(); assert.ok(h.includes('data-yck="us" aria-pressed="true"') && h.includes('data-yck="de" aria-pressed="false"') && (h.match(/data-yck=/g) || []).length === 5);
+  assert.ok(h.includes('<b>Krzywa rentowności: Stany Zjednoczone</b><small>rentowność, % rocznie</small>'), 'jednostka pod tytułem wykresu (telefon: bez łamania w połowie zdania)');
+  /* wybór Niemiec: nowa krzywa (bez 3 miesięcy — Niemcy nie podają tej zapadalności), fokus wraca na przycisk */
+  K.click('de'); h = K.html(); assert.ok(h.includes('data-yck="de" aria-pressed="true"') && h.includes('data-yck="us" aria-pressed="false"')); assert.equal(K.el.focused, 'de');
+  const d = K.wl[K.wl.length - 2]; assert.deepEqual(d.L[1].d.map(r => r[0]), [1, 2, 3, 4, 5, 6, 7, 8], 'brak 3M = przerwa na osi, nie zero'); assert.equal(d.L[1].d[0][1], 2.95); assert.ok(d.o.aria.includes('Niemcy'));
+  const nw = K.wl.length; K.click('de'); assert.equal(K.wl.length, nw, 'ten sam kraj — bez przerysowania'); K.click('xx'); assert.equal(K.wl.length, nw, 'nieznany kraj ignorowany');
+  K.click('jp'); assert.ok(K.html().includes('<b>Krzywa rentowności: Japonia</b>')); assert.equal(K.wl[K.wl.length - 2].L[1].d.length, 8);
+  assert.equal(K.calls.filter(c => c === 'krzywe').length, 1, 'zmiana kraju nie pobiera pliku ponownie');
+  /* język zmienia etykiety zapadalności (jednostki z Intl) */
+  const nsp = s => yc362.sp(s).replace(/[\s.]+/g, '');   /* silniki (node, jsc) różnie wstawiają spacje i kropki w jednostkach (ja: „3か月” albo „3 か月”, ru: „3 мес.” albo „3 мес”) */
+  for (const [L, a, b2] of [['en', '3mths', '10yrs'], ['de', '3Mon', '10J'], ['ja', '3か月', '10年'], ['ru', '3мес', '10л']]) {
+    const X = yc362.mk(L, yc362.files()); X.expand(); const o = X.wl[0].o; assert.equal(nsp(o.dt(0)), a, L); assert.equal(nsp(o.dx(6)), b2, L);
+  }
+});
+
+test('v362 (F2Z1): inflacja oczekiwana (nominalna − realna, opisana jako wyliczenie), różnice USA − Niemcy i premia strefy euro, tabela rentowności — liczby, kierunek, daty; brak = „—”, nigdy zero', () => {
+  const K = yc362.mk('pl', yc362.files()); K.expand(); const h = K.html(), T = yc362.tiles(h);
+  assert.deepEqual(T.slice(5, 8).map(x => [x.label, x.val]), [['Stany Zjednoczone · 5 lat', '2,34%'], ['Stany Zjednoczone · 10 lat', '2,33%'], ['Kanada · długie (ponad 10 lat)', '2,30%']]);
+  assert.ok(T[6].raw.includes('<small class="neg">▼ −0,04 wobec miesiąca temu</small>'), '2,37 → 2,33'); assert.ok(T[5].raw.includes('<small class="neg">▼ −0,07 wobec miesiąca temu</small>'));
+  assert.ok(h.includes('To nasze wyliczenie: rentowność zwykłej obligacji minus rentowność obligacji indeksowanej inflacją') && h.includes('nie jest prognozą inflacji'), 'opis: wyliczenie i przybliżenie');
+  assert.deepEqual(T.slice(8).map(x => [x.label, x.val]), [['USA minus Niemcy, 10 lat', '1,74 pp'], ['Strefa euro: premia za ryzyko krajów, 10 lat', '0,61 pp']]);
+  assert.ok(T[8].raw.includes('<small class="pos">▲ +0,32 wobec miesiąca temu</small>')); assert.ok(T[9].raw.includes('<small class="pos">▲ +0,16 wobec miesiąca temu</small>'));
+  assert.ok(T[8].when.includes('wiek(2026-10-09)') && T[9].when.includes('wiek(2026-10-12)'), 'różnica z dnia wspólnego, strefa euro z dnia EBC');
+  assert.ok(h.includes('Różnice liczymy z notowań z tego samego dnia.') && h.includes('Kraje liczą krzywe różnymi metodami'));
+  /* tabela: wiersze zapadalności × kraje; Niemcy bez 3M, Japonia bez 3M, Kanada tylko od 2 lat — „—”, w tym wiersz „długie” tylko gdy Kanada je ma */
+  const rows = [...yc362.sp(h).matchAll(/<tr><td><span class="cell">([^<]*)<\/span><\/td>(.*?)<\/tr>/g)].map(m => [m[1], [...m[2].matchAll(/<span class="cell mono( na)?">([^<]*)<\/span>/g)].map(x => x[2])]);
+  assert.deepEqual(rows.map(r => r[0]), ['3 mies.', '1 rok', '2 lata', '3 lata', '5 lat', '7 lat', '10 lat', '20 lat', '30 lat', 'długie (ponad 10 lat)']);
+  assert.deepEqual(rows[0][1], ['4,25', '—', '—', '2,70', '—']); assert.deepEqual(rows[6][1], ['5,24', '3,46', '3,03', '4,11', '3,86']); assert.deepEqual(rows[9][1], ['—', '—', '—', '—', '4,23']);
+  assert.ok(!/<span class="cell mono">0[,.]00<\/span>/.test(h), 'brak to nie zero');
+  const hth = [...yc362.sp(h).matchAll(/<th(?: [^>]*)?>(.*?)<\/th>/g)].map(m => yc362.txt(m[1]));   assert.ok(h.includes('<th title="Niemcy" aria-label="Niemcy, 13 paź 2026">'), 'nagłówek kolumny ma nazwę kraju dla czytników (nazwa widoczna tylko na szerokim ekranie)'); assert.ok(hth.includes('Stany Zjednoczone 9 paź 2026') && hth.includes('Niemcy 13 paź 2026'), hth.join('|'));
+  /* bez części: Kanada bez realnej (brak inflacji Kanady), bez strefy euro, bez różnicy USA − Niemcy → kafle „—”, wiersz „długie” bez Kanady zniknie z tabeli */
+  const J = yc362.J(); delete J.c.ca_real; delete J.c.ca_be; delete J.c.us_de; delete J.c.ea; delete J.c.ea_aaa; delete J.c.ea_prem; delete J.c.ca;
+  const K2 = yc362.mk('pl', yc362.files(J)); K2.expand(); const T2 = yc362.tiles(K2.html());
+  assert.equal(T2[4].val, '—', 'Kanada bez krzywej: nachylenie „—”'); assert.ok(T2[4].raw.includes('<small class="na">brak danych</small>'));
+  assert.deepEqual([T2[7].val, T2[8].val, T2[9].val], ['—', '—', '—']); assert.ok(!K2.html().includes('długie (ponad 10 lat)</span></td>'), 'bez Kanady brak wiersza „długie”');
+  assert.equal((K2.html().match(/data-yck=/g) || []).length, 3, 'przełącznik tylko krajów, które mają krzywą w pliku');
+});
+
+test('v362 (F2Z1): odwrócenie krzywej = żółta informacja po zaokrągleniu do dwóch miejsc; brak miesiąca temu = „—”; zero po zaokrągleniu = żółte; wybrany kraj bez krzywej → pierwszy z plikiem', () => {
+  const J = yc362.J(); J.c.us.now['2Y'] = 5.5; J.c.de.now['10Y'] = 3.0912; J.c.jp.prev = null; J.c.jp.pasof = null; J.c.ea.now['10Y'] = 3.2849;   // USA: 5,24 − 5,50 = −0,26; Niemcy 3,0912 − 3,09 = 0,0012 → 0,00; strefa euro 3,2849 − 3,278 = 0,0069 → 0,01
+  const K = yc362.mk('pl', yc362.files(J)); K.expand(); const T = yc362.tiles(K.html());
+  assert.equal(T[0].val, '−0,26 pp'); assert.ok(T[0].raw.includes('<small class="neu">krzywa odwrócona</small>'), 'USA odwrócona'); assert.ok(T[0].raw.includes('<small class="neg">▼ −0,66 wobec miesiąca temu</small>'));
+  assert.equal(T[1].val, '0,00 pp'); assert.ok(!T[1].raw.includes('odwrócona'), 'po zaokrągleniu 0,00 to nie odwrócenie'); assert.ok(T[1].raw.includes('<small class="pos">▲ +0,00') === false);
+  for (const [v10, v2, val] of [[3.09, 3.09, '0,00 pp'], [3.086, 3.09, '0,00 pp'], [3.084, 3.09, '−0,01 pp']]) {   /* zero i −0,004 po zaokrągleniu to nie odwrócenie; −0,006 (−0,01) już tak */
+    const Jz = yc362.J(); Jz.c.de.now['10Y'] = v10; Jz.c.de.now['2Y'] = v2; const Kz = yc362.mk('pl', yc362.files(Jz)); Kz.expand(); const Tz = yc362.tiles(Kz.html());
+    assert.equal(Tz[1].val, val, String(v10)); assert.equal(Tz[1].raw.includes('krzywa odwrócona'), val.startsWith('−'), 'odwrócenie wg liczby pokazanej: ' + val);
+  }
+  assert.equal(T[2].val, '1,12 pp'); assert.ok(T[2].raw.includes('<small class="na">— wobec miesiąca temu</small>'), 'Japonia bez miesiąca temu: „—”'); assert.ok(!T[2].raw.includes('NaN'));
+  assert.equal(K.wl[0].L.length, 2, 'USA ma obie serie');
+  const J2 = yc362.J(); delete J2.c.us; J2.c.us_real && delete J2.c.us_real;
+  const K2 = yc362.mk('pl', yc362.files(J2)); K2.expand(); assert.ok(K2.html().includes('data-yck="de" aria-pressed="true"'), 'USA bez krzywej → pierwszy kraj z krzywą');
+  const J3 = yc362.J(); J3.c.jp.pasof = null; J3.c.jp.prev = null; const K3 = yc362.mk('pl', yc362.files(J3)); K3.expand(); K3.click('jp'); assert.equal(K3.wl[K3.wl.length - 2].L.length, 1, 'jedna seria, gdy brak miesiąca temu'); 
+});
+
+test('v362 (F2Z1): panel ukryty bez części w meta; błąd pobrania — komunikat bez pętli zapytań; plik niepoprawny nie zasłania wczytanych danych', () => {
+  const K0 = yc362.mk('pl', yc362.files(undefined, {ok: {fred: true}})); assert.equal(K0.el.hidden, true); assert.equal(K0.el.innerHTML, '');
+  const K1 = yc362.mk('pl', yc362.files(undefined, null)); assert.equal(K1.el.hidden, true, 'brak meta.json = ukryty');
+  const K = yc362.mk('pl', yc362.files(null)); K.expand();
+  assert.ok(K.html().includes('Dane chwilowo niedostępne')); K.expand(); K.expand();
+  assert.equal(K.calls.filter(c => c === 'krzywe').length, 1, 'po błędzie ta sama minuta — bez kolejnych zapytań');
+  const bad = yc362.J(); bad.v = 2; assert.equal(K.api.ycOk(bad), false); bad.v = 1; bad.c = {}; assert.equal(K.api.ycOk(bad), false); assert.equal(K.api.ycOk(null), false); assert.equal(K.api.ycOk(yc362.J()), true);
+  const nan = yc362.J(); nan.c.us.now = {'10Y': null, '2Y': 'x'}; assert.equal(K.api.ycCur(nan, 'us'), null, 'żadnej liczby = brak krzywej'); nan.c.us.now = {'10Y': 5, '2Y': 4}; nan.c.us.asof = 'wczoraj'; assert.equal(K.api.ycCur(nan, 'us'), null, 'zły dzień danych');
+  assert.equal(K.api.ycSlope({now: {'10Y': 5.24, '2Y': 4.8}}, 'now'), 0.44); assert.equal(K.api.ycSlope({now: {'10Y': 5.24}}, 'now'), null); assert.equal(K.api.ycSlope(null, 'prev'), null);
+  /* plik raz poprawny, potem uszkodzony przy odświeżeniu: dane zostają */
+  const files = yc362.files(); const X = yc362.mk('pl', files); X.expand(); const before = X.html(); files.krzywe = {v: 1, at: 'x'}; X.api.ycLoad(1); assert.equal(X.html(), before, 'uszkodzony plik nie zasłania wczytanych danych');
+});
+
+test('v362 (F2Z1): słownik yc362.* — 30 kluczy w 10 językach, te same pola {x}, każdy klucz użyty w kodzie, zero nazw dostawców i znaków niewidocznych; prawdziwe tłumaczenia; liczby w formacie języka; telefon bez przewijania w bok (reguły CSS), kolory ze zmiennych motywu; miejsce karty', () => {
+  const D = v96src.I18N, keys = Object.keys(D.pl).filter(k => k.startsWith('yc362.'));
+  assert.equal(keys.length, 30, 'klucze: ' + keys.length);
+  const ph = s => (String(s).match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  for (const k of keys) {
+    for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+      assert.equal(typeof D[L][k], 'string', L + ' ' + k); assert.ok(D[L][k].length > 0, L + ' ' + k); assert.equal(ph(D[L][k]), ph(D.pl[k]), L + ' ' + k + ': pola {x}');
+      assert.ok(!/[\u200b-\u200f\u2060\ufeff\ufe0f\u00a0\u202f]/.test(D[L][k]), L + ' ' + k + ': znak niewidoczny'); assert.ok(!/fred|treasury|bundesbank|ministry|bank of canada|\becb\b|\bebc\b|tradingview/i.test(D[L][k]), L + ' ' + k + ': nazwa dostawcy');
+      if (L !== 'pl' && L !== 'en' && D.pl[k].length > 12) assert.notEqual(D[L][k], D.en[k], L + ' ' + k + ': prawdziwe tłumaczenie');
+    }
+    assert.ok(yc362.code.includes("'" + k + "'"), 'klucz bez użycia w kodzie: ' + k);
+  }
+  assert.ok(D.pl['yc362.read'].includes('nie prognoza ani porada') && D.en['yc362.read'].includes('neither a forecast nor advice'), 'odwrócenie opisane jako opis stanu, nie prognoza ani porada');
+  assert.ok(D.pl['yc362.be.note'].includes('nie jest prognozą inflacji') && D.pl['yc362.h.be'].includes('wyliczenie'), 'inflacja oczekiwana opisana jako wyliczenie');
+  for (const L of ['de', 'en', 'ja', 'ru', 'zh', 'fr', 'es', 'it', 'pt']) {
+    const K = yc362.mk(L, yc362.files()); K.expand(); const h = K.html();
+    assert.ok(h.length > 3000 && !/yc362\./.test(h), L + ': brak surowych kluczy'); assert.equal(yc362.tiles(h).length, 10, L + ': 10 kafli');
+  }
+  assert.equal(yc362.tiles((() => { const K = yc362.mk('de', yc362.files()); K.expand(); return K.html(); })())[0].val, '0,44 Prozentpunkte', 'de: przecinek');
+  assert.equal(yc362.tiles((() => { const K = yc362.mk('en', yc362.files()); K.expand(); return K.html(); })())[0].val, '0.44 pp', 'en: kropka');
+  for (const q of ['#g-krzywe .etfkpis{grid-template-columns:repeat(5,minmax(0,1fr))}', '#g-krzywe .etfk>span{white-space:normal;overflow-wrap:anywhere}', '#g-krzywe .etfk>small.mtxt{font-size:10.5px;line-height:1.35}', '#g-krzywe .etft{min-width:0;width:100%}',
+    '#g-krzywe .wk-ch .s1{--k:var(--bl)}#g-krzywe .wk-ch .s2{--k:var(--or)}', '#g-krzywe .etft th .yc-nm2{display:none}', '#g-krzywe .etfk b small.neu{color:var(--yl-tx)}', '#g-krzywe .seg button[aria-pressed="false"] .yc-nm{display:none}']) assert.ok(html.includes(q), 'CSS: ' + q);
+  const css = html.slice(html.indexOf('/* v362 (F2Z1): krzywe rentowności (panel zwijany'), html.indexOf('/* v352: zmienność rynków (panel zwijany'));
+  assert.ok(css.length > 800 && !/#[0-9a-fA-F]{3,6}\b/.test(css) && !/(?<![\w-])(width|min-width):\s*\d{3,}px/.test(css), 'kolory ze zmiennych motywu, bez sztywnych szerokości'); assert.ok(/@media \(max-width:620px\)\{#g-krzywe \.etfkpis,#g-krzywe \.etfkpis\.k3\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/.test(css), 'telefon: dwie kolumny kafli');
+  /* miejsce karty: sekcja w GLOBAL tuż przed aukcjami papierów skarbowych, moduł po bloku zmienności, jedna sekcja i jeden słownik */
+  assert.equal((html.match(/id="g-krzywe"/g) || []).length, 1); const a = html.indexOf('id="g-krzywe"'), b = html.indexOf('id="g-q"');
+  assert.ok(html.indexOf('<section class="panel pcard" id="g-fed" hidden></section>\n    <section class="panel pcard" id="g-krzywe" hidden></section>') > 0 && a > 0 && b > a && b - a < 200, 'karta tuż po Fedzie, przed kartami jakości danych');
+  assert.ok(html.indexOf('id="global"') < a && a < html.indexOf('id="trendy"'), 'karta w zakładce GLOBAL');
+  const mm = [...html.matchAll(/^const EXTRA(\d+)=\{"pl":\{"yc362\.t"/gm)]; assert.equal(mm.length, 1, 'jeden słownik v362'); const n = mm[0][1];
+  assert.equal([...html.matchAll(new RegExp('^for\\(const l in EXTRA' + n + '\\)if\\(I18N\\[l\\]\\)Object\\.assign\\(I18N\\[l\\],EXTRA' + n + '\\[l\\]\\);$', 'gm'))].length, 1, 'jedna linia nakładania');
+  assert.ok(html.indexOf('const STR_COLS=') > 0 && html.indexOf('const STR_COLS=') < html.indexOf('/* ===================== v362 (F2Z1): KRZYWE RENTOWNOŚCI'), 'moduł po narzędziach panelu stresu (strTile, strDelta, strDay, strVal)');
+  assert.ok(!/TradingView|tradingview/.test(yc362.code), 'widgety TradingView usunięte ze strony — bez nowych');
+});
