@@ -32420,14 +32420,22 @@ def etfz_udzial(etf, coin, tick):
     return round(f['aum'] / a['aum'] * 100, 1), a['asof']
 
 
-def build_etf_zapas(prev=None, etf=None):
+def build_etf_zapas(prev=None, etf=None, tylko=None):
     """v360: data/etf-zapas.json {v, at, src, coins: {btc|eth: {t, asof, row_to, day, d1, pct, pct_asof, at}}, ok: {moneta: bool}}. Plik funduszu, który zawiódł, zostaje z poprzedniego
-    pliku (własne 'at'), błąd do META['errors']; wszystkie zawiodły = wyjątek (main zostawia poprzedni plik)."""
+    pliku (własne 'at'), błąd do META['errors']; wszystkie zawiodły = wyjątek (main zostawia poprzedni plik).
+    v370: `tylko` = lista monet do ponowienia (zawiedzione w poprzednim pliku): reszta zostaje z poprzedniego pliku z własną datą i bez zapytania, a wyjątek, gdy zawiodły wszystkie PONAWIANE."""
     pc = prev.get('coins') if isinstance(prev, dict) and prev.get('v') == 1 and isinstance(prev.get('coins'), dict) else {}
     coins, okc = {}, {}
-    for i, (coin, tick, pid) in enumerate(ETFZ_FUNDS):
-        if i:
+    pytane = 0
+    for coin, tick, pid in ETFZ_FUNDS:
+        if tylko is not None and coin not in tylko:   # v370: udany fundusz zostaje z poprzedniego pliku (brak wpisu = brak danych, nie zero)
+            okc[coin] = bool(pc.get(coin))
+            if pc.get(coin):
+                coins[coin] = pc[coin]
+            continue
+        if pytane:
             time.sleep(ETFZ_PAUZA)
+        pytane += 1
         try:
             h = parse_ishares_hist(get_bytes(FUND_ISH_DOC.format(pid=pid), timeout=ETFZ_TIMEOUT))
             if h[-1][0] > (_now_utc().date() + datetime.timedelta(days=1)).isoformat():
@@ -32447,22 +32455,27 @@ def build_etf_zapas(prev=None, etf=None):
             okc[coin] = False
             if pc.get(coin):
                 coins[coin] = pc[coin]
-    if not any(okc.values()):
+    if not any(v for c, v in okc.items() if tylko is None or c in tylko):
         raise RuntimeError('pliki funduszy niedostępne')
     return {'v': 1, 'at': NOW, 'src': 'pliki emitentów funduszy (liczba jednostek × cena jednostki)', 'coins': coins, 'ok': okc}
 
 
 def etf_zapas_czesc(etf=None):
     """v360: część przebiegu → wartość dla META['ok'] (True = zbudowana w całości, 'cached' = poprzedni plik wystarcza, False = awaria całości albo któregoś funduszu).
-    Odświeżenie co ETFZ_ODSW_MIN min, a gdy źródło główne zawiodło w tym przebiegu — co ETFZ_AWARIA_MIN min; nieudana próba przesuwa następną (pole 'proba'), plik zostaje."""
+    Odświeżenie co ETFZ_ODSW_MIN min, a gdy źródło główne zawiodło w tym przebiegu — co ETFZ_AWARIA_MIN min; nieudana próba przesuwa następną (pole 'proba'), plik zostaje.
+    v370: plik z zawiedzionym funduszem (pole 'ok', jak plik_niepelny z v328) też co ETFZ_AWARIA_MIN min — dawniej przy sprawnym źródle głównym dopiero po 6 h — i wtedy tylko zawiedziony
+    fundusz (drugi zostaje z poprzedniego pliku), o ile plik nie jest starszy niż ETFZ_ODSW_MIN; inaczej budowa obu."""
     prev = previous('etf-zapas')
     prev = prev if isinstance(prev, dict) and prev.get('v') == 1 else None
-    prog = ETFZ_AWARIA_MIN if META['ok'].get('sosovalue') is False else ETFZ_ODSW_MIN
+    pok = prev.get('ok') if prev and isinstance(prev.get('ok'), dict) else {}
+    zle = [c for c, _, _ in ETFZ_FUNDS if pok.get(c) is False]
+    prog = ETFZ_AWARIA_MIN if META['ok'].get('sosovalue') is False or zle else ETFZ_ODSW_MIN
     if prev and (fresh(prev, prog) or fresh({'at': prev.get('proba')}, prog)):
         save('etf-zapas', prev)
         return 'cached'
+    tylko = zle if prev and zle and len(zle) < len(ETFZ_FUNDS) and fresh(prev, ETFZ_ODSW_MIN) else None
     try:
-        obj = build_etf_zapas(prev, etf)
+        obj = build_etf_zapas(prev, etf, tylko=tylko) if tylko else build_etf_zapas(prev, etf)
         save('etf-zapas', obj)
         return all(obj['ok'].values())
     except Exception as e:

@@ -52944,3 +52944,77 @@ class PiecGieldiKontrolaV369(unittest.TestCase):
         src = pathlib.Path(self.ROOT, 'narzedzia', 'kontrola.py').read_text(encoding='utf-8')
         self.assertIn("P_dzw9 = dzw9_kontrola(files.get('dzwignia'))", src); self.assertIn("R['uwagi'] += P_dzw9['uwagi']", src)
         self.assertLess(src.index("P_dzw = dzw_kontrola("), src.index("P_dzw9 = dzw9_kontrola(")); self.assertLess(src.index("P_dzw9 = dzw9_kontrola("), src.index('# 3d. v115: zgodność liczb — kapitalizacja'))
+
+
+class EtfZapasPonowienieV370(unittest.TestCase):
+    """v370 (drobne, v360): plik zapasu z zawiedzionym funduszem jest ponawiany po ETFZ_AWARIA_MIN min także przy sprawnym źródle głównym (dawniej po 6 h) i TYLKO dla
+    zawiedzionego funduszu (drugi zostaje z własną datą); nieudana próba przesuwa następną (pole 'proba'), a plik zostaje."""
+    setUp = EtfZapasV360.setUp
+    tearDown = EtfZapasV360.tearDown
+    _bytes = EtfZapasV360._bytes
+
+    def _czesc(self, prev, sosovalue_ok=True, build=None):
+        import copy
+        saved = {}
+        zd.META['ok'].clear(); zd.META['errors'].clear()
+        zd.META['ok']['sosovalue'] = sosovalue_ok
+
+        def fresh_(p, minutes):
+            try:
+                return (_V360_NOW - datetime.datetime.fromisoformat(p['at'])).total_seconds() < minutes * 60
+            except Exception:
+                return False
+        with mock.patch.object(zd, 'previous', lambda n: copy.deepcopy(prev) if n == 'etf-zapas' else None), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+             mock.patch.object(zd, 'build_etf_zapas', build or mock.Mock(side_effect=AssertionError('nie wolno pytać'))), mock.patch.object(zd, 'fresh', fresh_):
+            res = zd.etf_zapas_czesc(_V360_ETF)
+        return res, saved
+
+    def test_budowa_tylko_zawiedzionego_funduszu_na_nagraniach(self):
+        with self._bytes(kl={'337614': OSError('HTTP Error 503')}):
+            o1 = zd.build_etf_zapas(None, _V360_ETF)
+        self.assertEqual(o1['ok'], {'btc': True, 'eth': False}); self.assertEqual(set(o1['coins']), {'btc'})
+        zapytane = []
+        pauzy = []
+        with mock.patch.object(zd.time, 'sleep', pauzy.append), mock.patch.object(zd, 'get_bytes', lambda url, headers=None, timeout=60: (zapytane.append(url), _v360_xml(_V360_ETHA))[1]):
+            o2 = zd.build_etf_zapas(o1, _V360_ETF, tylko=['eth'])
+        self.assertEqual(pauzy, [], 'jedno zapytanie — bez przerwy między plikami')
+        self.assertEqual(len(zapytane), 1, 'jedno zapytanie — plik ETHA; IBIT nie jest pobierany ponownie'); self.assertIn('portfolioId=337614&', zapytane[0])
+        self.assertEqual(o2['ok'], {'btc': True, 'eth': True}); self.assertEqual(o2['coins']['btc'], o1['coins']['btc'], 'udany fundusz bez zmian, z własną datą')
+        self.assertEqual(o2['coins']['eth']['t'], 'ETHA'); self.assertEqual(o2['coins']['eth']['at'], _V360_NOW.isoformat())
+        # ponowienie nieudane: wyjątek (main zostawia poprzedni plik), mimo że drugi fundusz jest „ok” w poprzednim pliku
+        with self._bytes(kl={'337614': OSError('HTTP Error 503')}):
+            with self.assertRaises(RuntimeError):
+                zd.build_etf_zapas(o1, _V360_ETF, tylko=['eth'])
+        # bez argumentu `tylko` — jak dotąd oba pliki
+        zapytane.clear()
+        with mock.patch.object(zd.time, 'sleep', pauzy.append), mock.patch.object(zd, 'get_bytes', lambda url, headers=None, timeout=60: (zapytane.append(url), _v360_xml(_V360_IBIT if 'portfolioId=333011&' in url else _V360_ETHA))[1]):
+            o3 = zd.build_etf_zapas(o1, _V360_ETF)
+        self.assertEqual(len(zapytane), 2); self.assertEqual(o3['ok'], {'btc': True, 'eth': True}); self.assertEqual(pauzy, [zd.ETFZ_PAUZA], 'przerwa między dwoma plikami tego samego serwera — jak dotąd')
+
+    def test_rytm_pliku_z_zawiedzionym_funduszem(self):
+        ago = lambda m: (_V360_NOW - datetime.timedelta(minutes=m)).isoformat()   # noqa: E731
+        czesc = lambda m, **k: dict({'v': 1, 'at': ago(m), 'coins': {'btc': {'t': 'IBIT'}}, 'ok': {'btc': True, 'eth': False}}, **k)   # noqa: E731
+        nowy = {'v': 1, 'at': 'nowy', 'coins': {}, 'ok': {'btc': True, 'eth': True}}
+        res, saved = self._czesc(czesc(30)); self.assertEqual(res, 'cached', 'młodszy niż 55 min — bez zapytań')
+        b = mock.Mock(return_value=nowy)
+        res, saved = self._czesc(czesc(60), build=b)
+        self.assertIs(res, True, 'źródło główne sprawne, a fundusz zawiódł godzinę temu: ponowienie (dawniej dopiero po 6 h)'); self.assertEqual(b.call_args.kwargs.get('tylko'), ['eth'])
+        b = mock.Mock(return_value=nowy)
+        res, saved = self._czesc(czesc(400), build=b)
+        self.assertIs(res, True); self.assertIsNone(b.call_args.kwargs.get('tylko'), 'plik starszy niż 6 h — budowa obu funduszy')
+        b = mock.Mock(return_value=nowy)
+        res, saved = self._czesc(czesc(60), sosovalue_ok=False, build=b)
+        self.assertEqual(b.call_args.kwargs.get('tylko'), ['eth'], 'źródło główne milczy: też tylko zawiedziony fundusz')
+        # oba zawiodły w poprzednim pliku: budowa obu
+        both = czesc(60); both['ok'] = {'btc': False, 'eth': False}
+        b = mock.Mock(return_value=nowy); self._czesc(both, build=b); self.assertIsNone(b.call_args.kwargs.get('tylko'))
+        # plik pełny: bez zmian względem v360 — do 6 h wystarcza
+        pelny = czesc(100); pelny['ok'] = {'btc': True, 'eth': True}
+        res, saved = self._czesc(pelny); self.assertEqual(res, 'cached')
+        # ponowienie nieudane: dane i ich wiek bez zmian, 'proba' przesuwa następne zapytanie o kolejne 55 min
+        bad = mock.Mock(side_effect=RuntimeError('pliki funduszy niedostępne'))
+        res, saved = self._czesc(czesc(60), build=bad)
+        self.assertIs(res, False); self.assertEqual(saved['etf-zapas']['at'], ago(60)); self.assertEqual(saved['etf-zapas']['proba'], _V360_NOW.isoformat())
+        res, saved = self._czesc(czesc(120, proba=ago(10))); self.assertEqual(res, 'cached', 'świeża próba — bez ponawiania w następnym przebiegu')
+        b = mock.Mock(return_value=nowy)
+        res, saved = self._czesc(czesc(180, proba=ago(60)), build=b); self.assertIs(res, True); b.assert_called_once()

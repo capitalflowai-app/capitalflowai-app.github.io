@@ -18539,7 +18539,7 @@ test('v318 (recenzja CRYPTO fali 7): GLOBAL — gBuild i kafel „Podaż stablec
   pe.f.renderAssets(); const ra = pe.el.innerHTML.split('<tr>').find(r => r.includes('as.stab')) || '';
   assert.ok(ra.includes('0.83%<small class="mtxt"> · dr318.k.dn{"n":"30"}</small>') && ra.includes('2026-10-09'), ra);
   pe.f.renderSectorsPage(); const rs = pe.el.innerHTML.split('<div class="secrow">').find(r => r.includes('a293c.pg.n.crypto<')) || '';
-  assert.ok(rs.includes('<span>pg.sub.crypto · dr318.k.dn{"n":"30"}</span>'), rs);
+  assert.ok(/<span>pg\.sub\.crypto · (?:dr318\.k\.dn\{"n":"30"\}|c315\.stc\.z30\{"d":"2026-10-09"\})<\/span>/.test(rs), rs);
   const p0e = pgEnv(); p0e.f.renderSectorsPage();
   assert.ok((p0e.el.innerHTML.split('<div class="secrow">').find(r => r.includes('a293c.pg.n.crypto<')) || '').includes('<span>pg.sub.crypto</span>'), 'bez okna — podpis jak dotąd');
 });
@@ -24655,7 +24655,7 @@ test('v355 ZWIAD_WDROZ: salda TARGET — trzech wierzycieli i trzech dłużnikó
   assert.ok(zw355.txt(es[7]).includes('w miesiącu: −0,1 mld EUR'), 'minus czerwony: ' + zw355.txt(es[7]));
   assert.ok(/<b class="pos">\+0,1 mld EUR<\/b>/.test(zw355.sp(de[7])) && /<b class="neg">−0,1 mld EUR<\/b>/.test(zw355.sp(es[7])));
   assert.ok(s.includes('<details class="etfd" id="tg355-det"><summary>Wszystkie kraje strefy euro (21)</summary>') && !s.includes('id="tg355-det" open'), 'panel zwinięty');
-  assert.ok(tx.includes('Dane wstępne') && tx.includes('stan 2026-08'), 'dane wstępne opisane; data danych i wiek przy liczbach: ' + tx.slice(-160));
+  assert.ok(tx.includes('Dane wstępne') && /stan (?:2026-08|sie 2026)/.test(tx), 'dane wstępne opisane; data danych i wiek przy liczbach: ' + tx.slice(-160));
   assert.ok(!/undefined|NaN|tg355\./.test(tx), tx);
   // pojedyncze funkcje: kierunek z pokazanej liczby (poniżej 50 mln EUR = „0” żółte, nigdy zero z braku danych)
   const A = K.api;
@@ -25318,7 +25318,7 @@ test('v359 CR-M11-01/04: giełdy — kafel 24 h nazywa giełdy z flagą dz = 1 (
 
 test('v359 CR-M11-02: nota o różnicy metod — karta Kontrakty na łańcuchu i sekcja Hyperliquid w Dźwigni; w 10 językach', () => {
   const K = gx349.mk('pl', gx349.files());
-  assert.ok(gx349.txt(K.els['#c-kontrakty'].innerHTML).includes('Ta sama giełda może mieć tu inną liczbę niż w sekcji o dźwigni i pozycjach (np. Hyperliquid)'), 'karta kontraktów');
+  assert.ok(/Ta sama giełda (?:może mieć|ma) tu inną liczbę niż w sekcji o dźwigni i pozycjach \(np\. Hyperliquid\)/.test(gx349.txt(K.els['#c-kontrakty'].innerHTML)), 'karta kontraktów');
   const f = lev104.mk({}); f.levApply(lev109.fix());
   assert.ok(f.el.innerHTML.includes('lev.hl.sub</p><p class="pnote">cr359.lev.hl</p>'), 'sekcja Hyperliquid: zdanie zaraz pod podtytułem');
   const I = v143Final(html);
@@ -26992,4 +26992,61 @@ test('v369 (F6Z2): słownik w czystym JSON po linii for, 10 języków, te same k
   assert.ok(!/[぀-ヿ]/.test(JSON.stringify(D.zh)), 'zh bez kany');
   for (const lg of LG) assert.ok(D[lg]['p9.lq.h'].includes('Gate') && ['Bitget', 'Gate', 'KuCoin', 'MEXC', 'HTX'].every(n => D[lg]['p9.ven.note'].includes(n)), lg + ': nazwy giełd (przedmiot danych) zostają');
   assert.ok(D.pl['p9.sh.sub'].includes('bez Binance i Bybit') && D.pl['p9.lq.sub'].includes('nie cały rynek'));
+});
+
+/* ===================== v370 (drobne): stopka sald TARGET z miesiącem po polsku, nota Hyperliquid (zakres), okno stablecoinów na stronie Sektory z dniem końca, Aktywa ~1024 px (strzałka nie zawija się od liczby) ===================== */
+const d370 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const sp = h => String(h).replace(/ | /g, ' ');
+  const mon = (L, ym, age) => new Function('LOCALE', 'LANG', 'escH', 'gAgeNote', 'instFoot', cut('function tgMonFoot(', '\n/* v370: koniec tgMonFoot */') + '\nreturn tgMonFoot;')(LOC, L, s => String(s), d => age ? ' · wiek(' + d + ')' : '', d => 'F(' + d + ')')(ym);
+  const win = mode => new Function('t', 'instFootL', 'instFoot', 'escH', cut('function gStabWin(', '\n/* v370: koniec gStabWin */') + '\nreturn gStabWin;')(
+    (k, p) => k + JSON.stringify(p || {}), mode === 'L' ? d => 'L(' + d + ')' : undefined, mode === 'L' || mode === 'F' ? d => 'F(' + d + ')' : undefined, s => 'E(' + s + ')');
+  const dictLine = n => { const i = html.indexOf('const EXTRA' + n + '='); return JSON.parse(html.slice(i + ('const EXTRA' + n + '=').length, html.indexOf('\n', i)).replace(/;$/, '')); };
+  return {cut, LOC, sp, mon, win, dictLine};
+})();
+
+test('v370: stopka sald TARGET — miesiąc słownie w języku widza (nie „2026-08”) z wiekiem; zły zapis albo zakres trafia do dotychczasowej stopki', () => {
+  assert.equal(d370.sp(d370.mon('pl', '2026-08', true)), 'sie 2026 · wiek(2026-08)', 'pl: krótki miesiąc i rok, wiek od końca miesiąca');
+  assert.ok(/^Aug 2026/.test(d370.sp(d370.mon('en', '2026-08', false))) && d370.sp(d370.mon('de', '2026-08', false)).includes('2026') && !d370.sp(d370.mon('ja', '2026-08', false)).includes('2026-08'), 'inne języki: zapis języka widza');
+  for (const bad of ['2026-8', '2026-13x', '', null, undefined, 'x']) assert.equal(d370.mon('pl', bad, true), 'F(' + bad + ')', 'poza RRRR-MM — dotychczasowa stopka');
+  assert.equal(d370.mon('pl', '2026-07 – 2026-08', true), 'F(2026-07 – 2026-08)', 'zakres bez zmian');
+  assert.ok(html.includes('/* v370: koniec tgMonFoot */'), 'znacznik końca wycinka');
+});
+
+test('v370: stopka sald TARGET na karcie regionu Europa i w panelu danych urzędowych używa tgMonFoot; stare pliki bez funkcji (wycinki testów) — instFoot', () => {
+  const K = zw355.mk('pl', zw355.files()); K.api.tgRegion('eur');
+  const tx = zw355.txt(K.api.tgRegion('eur'));
+  assert.ok(/stan sie 2026 · wiek\(2026-08\)/.test(tx) && !tx.includes('stan 2026-08'), 'karta regionu: miesiąc po polsku: ' + tx.slice(-120));
+  assert.ok(html.includes("const asof=typeof tgMonFoot==='function'?tgMonFoot(J.asof):"), 'karta regionu');
+  assert.ok(html.includes("${t('inst.asof')} ${typeof tgMonFoot==='function'?tgMonFoot(tgbA?tgbA.asof:tgb.asof):instFoot(tgbA?tgbA.asof:tgb.asof)}</p>`;"), 'panel danych urzędowych (sam miesiąc pliku sald, jak v358)');
+  assert.equal(html.split('function tgMonFoot(').length, 2, 'jedna funkcja');
+});
+
+test('v370: nota Hyperliquid na karcie kontraktów na łańcuchu — zakres kontra zakres (cały protokół a BTC i ETH), bez „mogą się różnić”; 10 języków', () => {
+  const i = html.indexOf('"cr359.oi.not4":'), a = html.lastIndexOf('const EXTRA', i), n = html.slice(a + 'const EXTRA'.length, html.indexOf('=', a));
+  const D = d370.dictLine(n), L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  for (const l of L10) {
+    const s = D[l]['cr359.oi.not4']; assert.ok(s.includes('Hyperliquid') && s.includes('BTC') && s.includes('ETH'), l + ': nazwa giełdy (przedmiot danych) i dwie monety');
+    if (l !== 'en') assert.notEqual(s, D.en['cr359.oi.not4'], l + ': prawdziwe tłumaczenie'); assert.ok(!/[​-‏⁠﻿️  ]/.test(s), l);
+  }
+  assert.ok(!/mogą się różnić|may differ|können abweichen/.test(D.pl['cr359.oi.not4'] + D.en['cr359.oi.not4'] + D.de['cr359.oi.not4']), 'zdanie mówi, czym liczby się różnią, nie że „mogą”');
+  assert.ok(D.pl['cr359.oi.not4'].includes('wszystkich rynków protokołu') && D.pl['cr359.oi.not4'].includes('tylko BTC i ETH'), 'pl: zakres');
+  assert.ok(html.includes("LEV_COINS=['BTC','ETH']"), 'sekcja dźwigni pokazuje Hyperliquid właśnie dla BTC i ETH — treść noty zależy od tej listy');
+  assert.equal(html.split('"cr359.oi.not4":').length, 11, 'jeden klucz w 10 językach — bez martwych duplikatów');
+});
+
+test('v370: strona Sektory — okno pełnych dób stablecoinów ma dzień końca (jak karta stablecoinów), Aktywa bez zmian', () => {
+  assert.equal(d370.win('L')(null), ''); assert.equal(d370.win('L')({k: '7', do: '2026-10-09'}), 'c315.stc.z7{"d":"L(2026-10-09)"}');
+  assert.equal(d370.win('L')({k: '30', do: '2026-10-09'}), 'c315.stc.z30{"d":"L(2026-10-09)"}', 'miesiąc: 30 pełnych dób');
+  assert.equal(d370.win('F')({k: '7', do: '2026-10-09'}), 'c315.stc.z7{"d":"F(2026-10-09)"}', 'bez instFootL — instFoot');
+  assert.equal(d370.win('E')({k: '30', do: '2026-10-09'}), 'c315.stc.z30{"d":"E(2026-10-09)"}', 'wycinki testów bez obu funkcji — sam dzień');
+  assert.ok(html.includes("win:gStabWin(GDATA[gst.period].crypto[2]?GDATA[gst.period].cryP:null)}]:[]);"), 'węzeł krypto: okno z dniem');
+  assert.ok(html.includes("t('dr318.k.dn',{n:q.k})") && html.includes("${t('dr318.k.dn',{n:q.k})}</small>"), 'kolumna Aktywa: krótki dopisek bez dnia (dzień jest w nagłówku kolumny i kafelkach)');
+});
+
+test('v370: Aktywa ~1024 px — zmiana w komórce nie zawija strzałki od liczby: nowy wiersz tylko dla dopisku okna', () => {
+  const m = html.match(/#page-assets td \.cell\.pos,#page-assets td \.cell\.neg,#page-assets td \.cell\.neu\{([^}]*)\}#page-assets td \.cell\.pos small,#page-assets td \.cell\.neg small,#page-assets td \.cell\.neu small\{([^}]*)\}/);
+  assert.ok(m, 'reguły CSS'); assert.ok(/white-space:nowrap/.test(m[1]) && /flex-wrap:wrap/.test(m[1]), m[1]); assert.ok(/white-space:normal/.test(m[2]), m[2]);
+  assert.ok(html.indexOf(m[0]) > html.indexOf('#page-assets .cell.na,#page-sectors .sval.na'), 'po regule koloru braku danych');
 });
