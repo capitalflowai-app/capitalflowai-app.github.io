@@ -6092,6 +6092,176 @@ def polska_rynek_kontrola(files, R):
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v365 (F3Z3): Polska — kapitał z zagranicy i wypłaty UE (data/polska-kapital.json) ----------------------------------------------------------------
+# Świeżość każdej z dwóch części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️, nigdy ❌. Progi: (a) inwestycje bezpośrednie według kraju (kwartalnie): wiek = dni od końca
+# ostatniego kwartału danych. Obserwacja 13.10.2026: dane za II kwartał (koniec 30.06) pojawiły się 02.10, czyli 94 dni po końcu kwartału; następny kwartał dojdzie po kolejnych ~92 dniach →
+# największy wiek tuż przed nową publikacją ≈ 186 dni; próg ⚠️ 200 dni od końca kwartału (14 dni zapasu). Test wsteczny: źródło nie publikuje kalendarza wydań, więc próg opiera się na
+# jednej obserwowanej publikacji i rytmie kwartalnym — do weryfikacji po następnej publikacji (styczeń 2027).
+# (b) wypłaty UE (zbiór odświeżany w dni robocze rano; w styczniu 2025 źródło ogłosiło zawieszenie odświeżania na czas testów nowego systemu księgowego): wiek = od chwili ostatniej
+# aktualizacji zbioru (nagłówek odpowiedzi); typowa przerwa to weekend (3 dni), z świętami do ok. 5 dni → próg ⚠️ 10 dni (informacja: zawieszenie po stronie źródła, nie awaria automatu).
+# ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (kwartały nie kolejne, świat ≠ UE27 + poza UE27, długości serii, suma funduszy lub programów ≠ razem, wypłaty > plan + 2%,
+# skumulowane lata maleją, historia sumy nie kończy się dniem danych). Porównanie (najwyżej ⚠️, ℹ️): kwartalny świat z plikiem miesięcznym (ue.json, pasywa i aktywa bezpośrednie):
+# suma trzech miesięcy ostatniego kwartału vs wartość kwartalna. Test wsteczny na 50 kwartałach (2014-Q1…2026-Q2): mediana różnicy 12 mln EUR, najwięcej 2 178 mln EUR (II kw. 2026, dane
+# miesięczne wstępne), znak różny tylko w jednym kwartale przy wartości kwartalnej 482 mln EUR → ⚠️ dopiero przy różnicy ponad 5 000 mln EUR albo przy różnym znaku i wartości
+# kwartalnej powyżej 1 000 mln EUR (0 przekroczeń w 50 kwartałach).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'polska-kapital')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['polska-kapital'] = 180   # plik zapisywany co przebieg (części mają własny rytm); wiek danych każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'polska_kapital_' + p: 'Polska — kapitał z zagranicy i wypłaty UE: część z błędem zostaje z datą (v365); wiek danych w wierszach świeżości' for p in ('fdi', 'ue')})
+PK_K_ETYKIETA = {'fdi': 'Polska: inwestycje bezpośrednie według kraju (kwartalnie)', 'ue': 'Polska: wypłaty z budżetu UE 2021–2027 (dziennie w dni robocze)'}
+PK_K_PROG_DNI_FDI = 200      # dni od końca kwartału danych
+PK_K_PROG_DNI_UE = 10        # dni od ostatniej aktualizacji zbioru
+PK_K_TOL_MLN, PK_K_TOL_PCT = 1.0, 0.5   # świat = UE27 + poza UE27 (jak w zbieraczu)
+PK_K_MIES_ROZ, PK_K_MIES_ZNAK = 5000.0, 1000.0
+
+
+def _pk_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))
+
+
+def _pk_k_f(x, d=1):
+    return f'{x:,.{d}f}'.replace(',', ' ').replace('.', ',')
+
+
+def _pk_k_kw(s):
+    m = re.fullmatch(r'(\d{4})-Q([1-4])', str(s))
+    return int(m.group(1)) * 4 + int(m.group(2)) - 1 if m else None
+
+
+def polska_kapital_swiezosc(j, now=None):
+    """Wiersze świeżości dwóch części pliku polska-kapital.json (etykieta, status, wiek min, data danych, uwaga). Najwyżej ⚠️; brak pliku albo inna wersja = brak wierszy;
+    część bez daty danych — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p, label in PK_K_ETYKIETA.items():
+        e = j.get(p) if isinstance(j.get(p), dict) else {}
+        txt = e.get('asof')
+        if not txt:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        if p == 'fdi':
+            w, prog = wiek_danych(str(txt), 'day', 'k', now), PK_K_PROG_DNI_FDI * 1440
+            opis = f'próg {PK_K_PROG_DNI_FDI} dni od końca kwartału danych — najwyżej uwaga (kwartał pojawia się ok. 94 dni po jego końcu)'
+        else:
+            w, prog = wiek_danych(str(e.get('t') or txt), 'ts', 'k', now), PK_K_PROG_DNI_UE * 1440
+            opis = f'próg {PK_K_PROG_DNI_UE} dni od ostatniej aktualizacji zbioru — najwyżej uwaga (źródło potrafi zawiesić odświeżanie; w styczniu 2025 ogłosiło przerwę na czas testów nowego systemu księgowego)'
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        rows.append((label, st, w, str(txt), opis if st == '⚠️' else ''))
+    return rows
+
+
+def polska_kapital_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w danych o kapitale w Polsce) → lista opisów."""
+    zle = []
+    F = j.get('fdi') if isinstance(j.get('fdi'), dict) else None
+    if F:
+        q = F.get('q')
+        qi = [_pk_k_kw(x) for x in q] if isinstance(q, list) else []
+        if len(qi) < 6 or None in qi or any(b - a != 1 for a, b in zip(qi, qi[1:])):
+            zle.append('fdi: kwartały nie są kolejne albo jest ich mniej niż 6')
+        else:
+            if F.get('last') != q[-1]:
+                zle.append(f'fdi: ostatni kwartał {F.get("last")} ≠ ostatni z listy {q[-1]}')
+            for kier in ('in', 'out'):
+                B = F.get(kier) if isinstance(F.get(kier), dict) else None
+                if not B:
+                    zle.append(f'fdi.{kier}: brak bloku'); continue
+                for k in ('w', 'eu', 'x'):
+                    s = B.get(k)
+                    if not (isinstance(s, list) and len(s) == len(q) and all(x is None or _pk_k_num(x) for x in s)):
+                        zle.append(f'fdi.{kier}.{k}: układ serii'); break
+                else:
+                    if B['w'][-1] is None:
+                        zle.append(f'fdi.{kier}: świat nie ma wartości w ostatnim kwartale')
+                    for i, qq in enumerate(q):
+                        a, b, c = B['w'][i], B['eu'][i], B['x'][i]
+                        if None not in (a, b, c) and abs(a - (b + c)) > max(PK_K_TOL_MLN, abs(a) * PK_K_TOL_PCT / 100):
+                            zle.append(f'fdi.{kier} {qq}: świat {_pk_k_f(a)} ≠ UE27 {_pk_k_f(b)} + poza UE27 {_pk_k_f(c)}'); break
+                C = B.get('c')
+                if not (isinstance(C, dict) and C and all(isinstance(r, list) and len(r) == len(q) and all(x is None or _pk_k_num(x) for x in r) for r in C.values())):
+                    zle.append(f'fdi.{kier}.c: układ krajów')
+    U = j.get('ue') if isinstance(j.get('ue'), dict) else None
+    if U:
+        tot, plan = U.get('total'), U.get('plan')
+        if not (_pk_k_num(tot) and _pk_k_num(plan) and plan > 0 and tot >= 0):
+            zle.append('ue: suma wypłat albo plan spoza układu')
+        else:
+            if tot > plan * 1.02:
+                zle.append(f'ue: wypłaty {_pk_k_f(tot)} mln EUR > plan {_pk_k_f(plan)} mln EUR + 2%')
+            for k, i in (('funds', 1), ('prog', 1)):
+                L = U.get(k)
+                if not (isinstance(L, list) and L and all(isinstance(r, list) and len(r) == 3 and _pk_k_num(r[1]) and _pk_k_num(r[2]) for r in L)):
+                    zle.append(f'ue.{k}: układ listy'); continue
+                if abs(sum(r[1] for r in L) - tot) > 0.1 * len(L) + 0.1:
+                    zle.append(f'ue.{k}: suma wypłat {_pk_k_f(sum(r[1] for r in L))} ≠ razem {_pk_k_f(tot)}')
+                if abs(sum(r[2] for r in L) - plan) > 0.1 * len(L) + 0.1:
+                    zle.append(f'ue.{k}: suma planu {_pk_k_f(sum(r[2] for r in L))} ≠ razem {_pk_k_f(plan)}')
+            yd = U.get('ydr')
+            if isinstance(yd, dict):
+                v = [yd[k] for k in sorted(yd)]
+                if not all(_pk_k_num(x) for x in v) or any(b < a * 0.99 for a, b in zip(v, v[1:] + [tot])):
+                    zle.append('ue.ydr: suma skumulowana maleje między latami')
+            else:
+                zle.append('ue.ydr: brak')
+            h = U.get('hist')
+            if isinstance(h, list) and h:
+                if [r[0] for r in h] != sorted({r[0] for r in h}):
+                    zle.append('ue.hist: dni nie rosną albo się powtarzają')
+                if h[-1][0] != U.get('asof') or abs(h[-1][1] - tot) > 0.15:
+                    zle.append('ue.hist: ostatni punkt ≠ dzień danych i suma')
+            if str(U.get('t') or '')[:10] != U.get('asof'):
+                zle.append(f'ue: dzień danych {U.get("asof")} ≠ dzień chwili aktualizacji {U.get("t")}')
+    return zle
+
+
+def polska_kapital_porownania(j, files):
+    """Porównanie kwartalnego świata z sumą trzech miesięcy z pliku miesięcznego (ue.json); najwyżej ⚠️: {'wiersze': [(opis, znak)], 'uwagi': [...]}."""
+    wier, uw = [], []
+    F = j.get('fdi') if isinstance(j.get('fdi'), dict) else None
+    ue = files.get('ue') if isinstance(files, dict) else None
+    try:
+        S = ue['rows']['PL']['s']
+    except (KeyError, TypeError):
+        S = None
+    if not F or not S or not isinstance(F.get('q'), list) or not F['q']:
+        return {'wiersze': wier, 'uwagi': uw}
+    q = F['q'][-1]
+    i = _pk_k_kw(q)
+    if i is None:
+        return {'wiersze': wier, 'uwagi': uw}
+    y, k = i // 4, i % 4
+    mies = [f'{y}-{k * 3 + n:02d}' for n in (1, 2, 3)]
+    for kier, klucz, nazwa in (('in', 'in_d', 'do Polski'), ('out', 'out_d', 'z Polski')):
+        try:
+            M = {r[0]: r[1] for r in S[klucz] if isinstance(r, list) and len(r) >= 2 and _pk_k_num(r[1])}
+            qv = F[kier]['w'][-1]
+        except (KeyError, TypeError):
+            continue
+        if not _pk_k_num(qv) or not all(m in M for m in mies):
+            wier.append((f'{q} {nazwa}: brak trzech miesięcy w pliku miesięcznym do porównania', 'ℹ️')); continue
+        s = sum(M[m] for m in mies)
+        roz = s - qv
+        zle = abs(roz) > PK_K_MIES_ROZ or (s * qv < 0 and abs(qv) > PK_K_MIES_ZNAK)
+        wier.append((f'{q} {nazwa}: kwartał {_pk_k_f(qv, 0)} mln EUR ↔ suma 3 miesięcy z pliku miesięcznego {_pk_k_f(s, 0)} mln EUR (różnica {_pk_k_f(roz, 0)})', '⚠️' if zle else '✅'))
+        if zle:
+            uw.append(f'Polska kapitał: {q} {nazwa} — kwartalnie {_pk_k_f(qv, 0)} mln EUR, a suma 3 miesięcy z ue.json {_pk_k_f(s, 0)} mln EUR (różnica {_pk_k_f(roz, 0)}, próg {_pk_k_f(PK_K_MIES_ROZ, 0)}) — najwyżej uwaga')
+    return {'wiersze': wier, 'uwagi': uw}
+
+
+def polska_kapital_kontrola(files, R):
+    """Kontrola pliku polska-kapital.json bez sieci: sprzeczności w pliku (❌ = BŁĄD) i porównanie (najwyżej ⚠️). Brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('polska-kapital') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle = polska_kapital_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'polska-kapital.json: sprzeczność w pliku — {z}')
+    P = polska_kapital_porownania(j, files)
+    R['uwagi'] += P['uwagi']
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- v341 (F5Z3): zboża dziennie i koszt transportu (data/zboza-dzien.json) ----------------------------------------------------------------
 # Świeżość każdej z pięciu części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠ — pole next pliku mówi, kiedy spodziewana jest publikacja.
 # Progi z testu wstecznego na modelu kalendarza publikacji i prawdziwych datach wierszy z nagrań 10–11.10.2026 (ws53/v341-zboza-dz/bt/bt_swiezosc.py, sprawdzenia
@@ -8148,6 +8318,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-pk. v365 (F3Z3): Polska — kapitał z zagranicy i wypłaty UE (data/polska-kapital.json) — świeżość każdej z dwóch części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in polska_kapital_swiezosc(files.get('polska-kapital')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c-gx. v349 (F6Z1): giełdy scentralizowane i DEX (data/gieldy.json, data/dex.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in gx_swiezosc(files.get('gieldy'), files.get('dex')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
@@ -8534,6 +8711,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['polska-rynek'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Polska na rynku: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v365 (F3Z3): Polska — kapitał z zagranicy i wypłaty UE — sprzeczności w pliku (❌), porównanie kwartalnego świata z plikiem miesięcznym (najwyżej ⚠️), z plików strony, bez zapytań
+    try:
+        Z['polska-kapital'] = polska_kapital_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['polska-kapital'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Polska kapitał: kontrola przerwana ({str(e)[:80]})')
     # 3g. v341 (F5Z3): zboża dziennie i koszt transportu — sprzeczności w pliku (❌), skoki, korelacje zmian miesięcznych z innymi danymi i tabela źródła (najwyżej ⚠️), z plików strony, bez zapytań
     try:
         Z['zboza-dzien'] = zboza_kontrola(files.get('zboza-dzien'), files, R)
@@ -8915,6 +9098,11 @@ def raport_md(R):
             L.append('- Polska na rynku: giełda, obligacje, fundusze (z pliku strony): ' + (f'? kontrola przerwana ({rpz["blad"]})' if rpz.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(rpz['spojnosc'][:3]) + ' ❌ · ' if rpz.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in rpz.get('wiersze') or []) or '—') + '.')
+        rpk = Z.get('polska-kapital')   # v365: Polska — kapitał z zagranicy i wypłaty UE — sprzeczności w pliku i porównanie z plikiem miesięcznym; brak pliku = bez linii
+        if rpk:
+            L.append('- Polska: kapitał z zagranicy i wypłaty UE (z pliku strony): ' + (f'? kontrola przerwana ({rpk["blad"]})' if rpk.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(rpk['spojnosc'][:3]) + ' ❌ · ' if rpk.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in rpk.get('wiersze') or []) or '—') + '.')
         gdz = Z.get('gieldy-dex')   # v349: giełdy scentralizowane i DEX — sprzeczności w plikach i informacje (flagi skoku listy portfeli, znak przepływu, stosunek DEX do giełd); brak plików = bez linii
         if gdz:
             L.append('- Giełdy scentralizowane, DEX i kontrakty na łańcuchu (z plików strony): ' + (f'? kontrola przerwana ({gdz["blad"]})' if gdz.get('blad') else

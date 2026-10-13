@@ -144,6 +144,7 @@ ZRODLA_META = {
     'target': 'ecb', 'mica': 'esma',   # v355: salda TARGET (to samo źródło co kursy i M3 — liczba źródeł bez zmian) i rejestry MiCA (+1 źródło)
     'soma_sklad': 'ny-fed', 'eurosystem': 'ecb', 'hedge': 'ofr',   # v357: skład portfela Fed, pozycje bilansu Eurosystemu, fundusze hedgingowe — te same trzy instytucje co dotąd (NY Fed, EBC, OFR): liczba źródeł bez zmian
     'etf_zapas': 'ishares',   # v360: zapas przepływów ETF krypto z plików emitenta (IBIT, ETHA) — ten sam wydawca co fundusze (iShares): liczba źródeł bez zmian
+    'polska_kapital_fdi': 'eurostat', 'polska_kapital_ue': 'komisja-europejska',   # v365: kapitał z zagranicy do Polski (inwestycje według kraju) i wypłaty UE — oba źródła już liczone, bez zmiany liczby źródeł
     'polska_rynek_gpw': 'gpw', 'polska_rynek_krzywa': 'bondspot', 'polska_rynek_fundusze': 'izfia',   # v361: Polska na rynku dziennie — giełda w Warszawie, rynek obligacji skarbowych, izba funduszy: trzy nowe źródła
     'krzywe_us': 'skarb-usa', 'krzywe_de': 'bundesbank', 'krzywe_jp': 'mof-japonii', 'krzywe_ea': 'ecb', 'krzywe_ca': 'bank-kanady',   # v362: krzywe rentowności — te same pięć instytucji co dotąd (Skarb USA, Bundesbank, MF Japonii, EBC, Bank Kanady): liczba źródeł bez zmian
     'emit_llama': 'defillama', 'emit_tether': 'tether', 'emit_circle': 'circle',   # v363: emitenci stablecoinów — lista monet (ta sama usługa co podaż stablecoinów), raport Tether (jak karta XAUT) i raport Circle (+1 źródło)
@@ -30744,6 +30745,19 @@ def main():
         META['ok']['polska_rynek_gpw'] = META['ok']['polska_rynek_krzywa'] = META['ok']['polska_rynek_fundusze'] = False
         if isinstance(prev_plr, dict):
             save('polska-rynek', prev_plr)
+    # v365 (F3Z3): POLSKA — KAPITAŁ Z ZAGRANICY I WYPŁATY UE (data/polska-kapital.json; GLOBAL, blok „Polska: kapitał z zagranicy i wypłaty UE”) — inwestycje bezpośrednie według kraju
+    # (kwartalnie) i wypłaty z budżetu UE dla Polski (codziennie); każda część z własnym rytmem, bramką i poprzednią wersją przy awarii. META ok: polska_kapital_fdi, polska_kapital_ue.
+    prev_pk = previous('polska-kapital')
+    try:
+        pk_ = build_polska_kapital(prev_pk, run_t0=_RUN_T0[0])
+        save('polska-kapital', pk_)
+        META['ok']['polska_kapital_fdi'] = pk_['ok'].get('fdi', False)
+        META['ok']['polska_kapital_ue'] = pk_['ok'].get('ue', False)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Polska kapitał: {e}')[:200])
+        META['ok']['polska_kapital_fdi'] = META['ok']['polska_kapital_ue'] = False
+        if isinstance(prev_pk, dict):
+            save('polska-kapital', prev_pk)
     # v104: dźwignia i pozycje w krypto (bez klucza) — co godzinę od pełnej budowy; młody plik z częścią z błędem: dobieramy tylko tę część (strona Źródła: dzwignia)
     # v126: część `cz` (wszystkie duże giełdy, sekret COINALYZE_KEY — tylko nagłówek zapytań, maskowany w błędach). Bez klucza plik jak dotąd (notatka).
     # Z kluczem: młody zdrowy plik z zaległymi zadaniami tej części = dobierana tylko ona (co przebieg, w budżecie wywołań); jej awaria nigdy nie
@@ -33140,6 +33154,281 @@ def ste_czesc():
         if prev:
             save('stable-emitenci', prev)
         return (False, False, False)
+
+
+# ===================== v365 (F3Z3): POLSKA — KAPITAŁ Z ZAGRANICY I ŚRODKI UE — data/polska-kapital.json =====================
+# Dwie niezależne części jednego pliku, każda z własnym rytmem, bramką i poprzednią wersją przy awarii (część po błędzie zostaje z poprzedniego pliku; ok False):
+#  (1) fdi — kto inwestuje w Polskę: kwartalny bilans płatniczy z podziałem na kraj partnerski (bezpośrednie inwestycje zagraniczne, przepływy netto w mln EUR; kierunek LIAB =
+#      kapitał zagraniczny w Polsce, ASS = polskie inwestycje za granicą). Jedno zapytanie na kierunek (geo=PL, wszyscy partnerzy naraz, ok. 8 KB — bez luźnego filtru, który daje HTTP 413
+#      przy wielu krajach). Plik odświeżany najwyżej raz na PK_FDI_H godzin; zapytanie o kierunek LIAB niesie pole `updated` — gdy się nie zmieniło, drugiego zapytania nie ma.
+#      Okno: ostatnie PK_KW kwartały do ostatniego kwartału, który ma świat w OBU kierunkach. Kraj to bezpośredni kontrahent (nie zawsze właściciel końcowy). Brak wartości kraju w kwartale = None
+#      (suma 12 miesięcy tylko z kompletu 4 kwartałów — na stronie), nigdy zero. Bramka: kwartały kolejne, świat = UE27 + poza UE27 (tolerancja PK_SPOJ_MLN lub PK_SPOJ_PCT), liczby skończone.
+#  (2) ue — wypłaty z budżetu UE dla Polski na lata 2021–2027 (polityka spójności, rozwój wsi, rybołówstwo, sprawy wewnętrzne): rekordy programów, kwoty skumulowane od początku okresu
+#      (rok bieżący = stan do dnia ostatniej aktualizacji zbioru, lata wcześniejsze = stan na koniec roku). Zbiór odświeżany przez źródło w dni robocze rano; zbieracz pyta raz na dobę po
+#      PK_UE_PO UTC (196 KB). Dzień danych = dzień nagłówka Last-Modified odpowiedzi (UTC); własna historia dobowa sumy (PK_HIST_DNI dni) — przyrost w 30 dni tylko z punktu dokładnie tyle
+#      dni wcześniej. Bramka: sumy zgodne (fundusze, programy), skumulowane lata nie maleją (spadek poniżej 99% roku poprzedniego = błąd odczytu), wypłaty ≤ plan + 2%, dzień nie cofa się.
+PK_V = 1
+PK_ES_URL = ('https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/bop_c6_q?format=JSON&lang=EN&currency=MIO_EUR&bop_item=FA__D__F&sector10=S1&sectpart=S1'
+             '&geo=PL&stk_flow={sf}&sinceTimePeriod={od}')
+PK_COH_URL = 'https://cohesiondata.ec.europa.eu/resource/pbbz-hmfu.json?ms=PL&$limit=5000'
+PK_KW = 8                  # tyle ostatnich kwartałów w pliku
+PK_FDI_H = 22              # godz. — odstęp odświeżenia części fdi (źródło publikuje kwartalnie, ok. 3 miesiące po kwartale)
+PK_UE_PO = (6, 15)         # godzina i minuta UTC, po której pytamy o zbiór wypłat (źródło odświeża zbiór ok. 05:50 UTC)
+PK_UE_MAX_H = 30           # godz. — część ue starsza niż tyle jest odświeżana niezależnie od pory
+PK_PONOW_H = 3             # godz. — po błędzie części ponowienie nie częściej
+PK_HIST_DNI = 130          # dni własnej historii sumy wypłat
+PK_MAX_BAJTOW = 1_500_000  # odpowiedzi: Eurostat 8 KB, zbiór wypłat 196 KB; większa = nie ta odpowiedź
+PK_SPOJ_MLN, PK_SPOJ_PCT = 1.0, 0.5   # świat = UE27 + poza UE27: tolerancja w mln EUR albo % wartości
+PK_KW_MIN = 6              # najmniej kolejnych kwartałów w oknie
+PK_KRAJ_MIN = 15           # najmniej krajów z danymi w ostatnim kwartale
+PK_WART_MAX = 5e5          # mln EUR — wartość spoza ±5e5 to błąd skali
+PK_PLAN_ZAKRES = (1e4, 5e5)        # mln EUR — plan wypłat na lata 2021–2027 dla Polski (81,5 mld EUR 13.10.2026)
+PK_UE_RODZ = {'ERDF': 'erdf', 'CF': 'cf', 'ESF+': 'esf', 'JTF': 'jtf', 'EAFRD': 'eafrd', 'EMFAF': 'emfaf', 'AMIF': 'home', 'BMVI': 'home', 'ISF': 'home'}   # fundusz → grupa na stronie; inny = 'other'
+PK_AGREG = ('WRL_REST', 'EU27_2020', 'EXT_EU27_2020')   # świat, UE27 i poza UE27 (świat = UE27 + poza UE27)
+PK_KRAJE_SPEC = ('CN_X_HK', 'OFFSHO')      # Chiny bez Hongkongu i centra finansowe offshore — jedyne kody partnerów poza dwuliterowymi, które pokazujemy
+
+
+def pk_kw_i(s):
+    """'2026-Q2' → liczba kolejna kwartału (rok × 4 + kwartał − 1) albo None."""
+    m = re.fullmatch(r'(\d{4})-Q([1-4])', str(s))
+    return int(m.group(1)) * 4 + int(m.group(2)) - 1 if m else None
+
+
+def pk_kw_lab(i):
+    return f'{i // 4}-Q{i % 4 + 1}'
+
+
+def pk_kw_koniec(s):
+    """Ostatni dzień kwartału 'RRRR-Qn' (RRRR-MM-DD) albo None."""
+    i = pk_kw_i(s)
+    if i is None:
+        return None
+    y, q = i // 4, i % 4 + 1
+    return (datetime.date(y + (q == 4), q * 3 % 12 + 1, 1) - datetime.timedelta(days=1)).isoformat()
+
+
+def pk_fdi_parse(j):
+    """Odpowiedź JSON-stat → (chwila publikacji ISO UTC, {partner: {kwartał: wartość}}) dla jednej serii (jeden kierunek). Wartości mln EUR, 1 miejsce po przecinku."""
+    if not isinstance(j, dict) or not isinstance(j.get('updated'), str):
+        raise RuntimeError('Eurostat: brak pola updated')
+    u = _plr_dt(j['updated'])
+    if u is None:
+        raise RuntimeError('Eurostat: zła chwila publikacji')
+    vals, ids, _fl = parse_jsonstat(j)
+    for d in ('partner', 'time'):
+        if d not in ids:
+            raise RuntimeError(f'Eurostat: brak wymiaru {d}')
+    ip, it = ids.index('partner'), ids.index('time')
+    out = {}
+    for k, v in vals.items():
+        if not _plr_liczba(v) or abs(v) > PK_WART_MAX:
+            raise RuntimeError('Eurostat: wartość poza zakresem')
+        if pk_kw_i(k[it]) is None:
+            continue
+        out.setdefault(k[ip], {})[k[it]] = round(float(v), 1)
+    return u.astimezone(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'), out
+
+
+def pk_fdi_zloz(liab, ass):
+    """Dwa kierunki → część fdi albo wyjątek. Okno PK_KW kolejnych kwartałów do ostatniego, który ma świat w OBU kierunkach."""
+    (u1, L), (u2, A) = liab, ass
+    for n, S in (('LIAB', L), ('ASS', A)):
+        if not all(p in S for p in PK_AGREG):
+            raise RuntimeError(f'Eurostat {n}: brak świata albo UE27')
+    wsp = sorted(set(L['WRL_REST']) & set(A['WRL_REST']), key=pk_kw_i)
+    if not wsp:
+        raise RuntimeError('Eurostat: brak wspólnych kwartałów świata w obu kierunkach')
+    last = wsp[-1]
+    li = pk_kw_i(last)
+    kw = [pk_kw_lab(i) for i in range(li - PK_KW + 1, li + 1)]
+
+    def blok(S, nazwa):
+        o = {'w': [S['WRL_REST'].get(q) for q in kw], 'eu': [S['EU27_2020'].get(q) for q in kw], 'x': [S['EXT_EU27_2020'].get(q) for q in kw], 'c': {}}
+        for p, ser in S.items():
+            if p in PK_AGREG or p == 'PL' or not (re.fullmatch(r'[A-Z]{2}', p) or p in PK_KRAJE_SPEC):
+                continue
+            r = [ser.get(q) for q in kw]
+            if any(x is not None for x in r):
+                o['c'][p] = r
+        if sum(1 for r in o['c'].values() if r[-1] is not None) < PK_KRAJ_MIN:
+            raise RuntimeError(f'Eurostat {nazwa}: za mało krajów z danymi w {last}')
+        if sum(1 for x in o['w'] if x is not None) < PK_KW_MIN or o['w'][-1] is None:
+            raise RuntimeError(f'Eurostat {nazwa}: świat nie ma kolejnych kwartałów do {last}')
+        for i, q in enumerate(kw):
+            a, b, c = o['w'][i], o['eu'][i], o['x'][i]
+            if None not in (a, b, c) and abs(a - (b + c)) > max(PK_SPOJ_MLN, abs(a) * PK_SPOJ_PCT / 100):
+                raise RuntimeError(f'Eurostat {nazwa}: świat {a} ≠ UE27 {b} + poza UE27 {c} w {q}')
+        return o
+    return {'at': NOW, 'upd': max(u1, u2), 'upd_l': u1, 'last': last, 'asof': pk_kw_koniec(last), 'q': kw, 'in': blok(L, 'LIAB'), 'out': blok(A, 'ASS')}
+
+
+def pk_pora(prev_at, proba, now_t, sched=None):
+    """Czy część jest do odświeżenia: prev_at — chwila ostatniego sprawdzenia (None = nigdy), proba — chwila ostatniej nieudanej próby, sched — spodziewana chwila nowej publikacji
+    (część z pliku sprzed tej chwili jest do odświeżenia, gdy sched ≤ teraz). Po błędzie ponowienie nie częściej niż co PK_PONOW_H godzin."""
+    pr = _plr_dt(proba) if proba else None
+    if pr is not None and (now_t - pr) < datetime.timedelta(hours=PK_PONOW_H):
+        return False
+    pa = _plr_dt(prev_at) if prev_at else None
+    if pa is None:
+        return True
+    if sched is not None:
+        return pa < sched <= now_t or (now_t - pa) >= datetime.timedelta(hours=PK_UE_MAX_H)
+    return (now_t - pa) >= datetime.timedelta(hours=PK_FDI_H)
+
+
+def pk_czesc_fdi(prev, prev_at, proba, now_t):
+    """→ (część, stan, błąd, sprawdzono). stan True = zbudowana, 'cached' = poprzednia wystarcza (odstęp nie minął albo `updated` bez zmian)."""
+    if isinstance(prev, dict) and prev.get('q') and not pk_pora(prev_at, proba, now_t):
+        return prev, 'cached', None, False
+    if not (isinstance(prev, dict) and prev.get('q')) and not pk_pora(prev_at, proba, now_t):
+        return None, False, 'ponowienie dopiero po przerwie po błędzie', False
+    od = f'{now_t.year - 2}-Q1'
+    liab = pk_fdi_parse(json.loads(_plr_get(PK_ES_URL.format(sf='LIAB', od=od), 45)))
+    if isinstance(prev, dict) and prev.get('q') and prev.get('upd_l') == liab[0]:
+        return prev, 'cached', None, True    # publikacja bez zmian — drugiego zapytania nie ma
+    ass = pk_fdi_parse(json.loads(_plr_get(PK_ES_URL.format(sf='ASS', od=od), 45)))
+    return pk_fdi_zloz(liab, ass), True, None, True
+
+
+def pk_get_coh(url, timeout=60):
+    """→ (treść, nagłówek Last-Modified albo None). Odpowiedź większa niż PK_MAX_BAJTOW = nie ten zbiór."""
+    _zuz_licz(url, None)
+    with _otworz(url, {'Accept': 'application/json'}, timeout) as r:
+        body = r.read(PK_MAX_BAJTOW + 1)
+        lm = r.headers.get('Last-Modified')
+    if len(body) > PK_MAX_BAJTOW:
+        raise RuntimeError('zbiór wypłat większy niż limit — to nie ten zbiór')
+    return body.decode('utf-8', 'replace'), lm
+
+
+def pk_ue_nazwa(t):
+    """Nazwa programu bez dopisku '- PL - fundusze' i bez twardych spacji: 'Śląskie - PL - ERDF/ESF+/JTF' → 'Śląskie'; 'Poland - EMFAF' bez zmian."""
+    s = re.sub(r'\s+', ' ', str(t).replace('\xa0', ' ')).strip()
+    return re.sub(r'\s+-\s+PL\s+-\s+.*$', '', s)[:60]
+
+
+def pk_ue_parse(body, lm):
+    """Zbiór wypłat → część ue (patrz opis bloku). Wyjątek RuntimeError przy każdej niezgodności układu (nie zgadujemy)."""
+    try:
+        R = json.loads(body)
+    except ValueError:
+        raise RuntimeError('zbiór wypłat: to nie JSON') from None
+    if not isinstance(R, list) or not R:
+        raise RuntimeError('zbiór wypłat: pusta lista')
+    t = None
+    try:
+        t = _zd_email.parsedate_to_datetime(lm) if lm else None
+    except (TypeError, ValueError):
+        t = None
+    if t is None or t.tzinfo is None:
+        raise RuntimeError('zbiór wypłat: brak daty ostatniej aktualizacji w odpowiedzi')
+    t = t.astimezone(datetime.timezone.utc)
+    rek = []
+    for r in R:
+        if not isinstance(r, dict) or r.get('ms') != 'PL':
+            raise RuntimeError('zbiór wypłat: rekord spoza Polski albo bez kraju')
+        y, pay, plan = r.get('year'), _num(r.get('total_net_payments')), _num(r.get('actual_plan_eu_amt_latest_adop'))
+        if not (isinstance(y, str) and re.fullmatch(r'20\d\d', y)) or pay is None or plan is None or not isinstance(r.get('title'), str) or not isinstance(r.get('fund'), str):
+            raise RuntimeError('zbiór wypłat: rekord bez roku, kwoty, planu, nazwy albo funduszu')
+        rek.append((int(y), pay / 1e6, plan / 1e6, pk_ue_nazwa(r['title']), r['fund'], r.get('is_latest_period') == 'Y'))
+    lat = [x for x in rek if x[5]]
+    yrs = sorted({x[0] for x in lat})
+    if len(yrs) != 1 or not lat:
+        raise RuntimeError('zbiór wypłat: oznaczenie bieżącego okresu niejednoznaczne')
+    yr = yrs[0]
+    if any(x[0] > yr for x in rek):
+        raise RuntimeError('zbiór wypłat: rekord nowszy niż bieżący okres')
+    cum = {}
+    for x in rek:
+        cum[x[0]] = cum.get(x[0], 0.0) + x[1]
+    total, plan = cum[yr], sum(x[2] for x in lat)
+    if not PK_PLAN_ZAKRES[0] <= plan <= PK_PLAN_ZAKRES[1] or not 100 <= total <= plan * 1.02:
+        raise RuntimeError(f'zbiór wypłat: suma wypłat {total:.0f} mln EUR albo plan {plan:.0f} mln EUR poza zakresem')
+    ydr = {str(y): round(v, 1) for y, v in sorted(cum.items()) if y < yr}
+    pw = [v for _y, v in sorted(cum.items()) if _y < yr]
+    if any(b < a * 0.99 for a, b in zip(pw, pw[1:] + [total])):
+        raise RuntimeError('zbiór wypłat: suma skumulowana maleje między latami (niepełny odczyt)')
+    fund, prog = {}, {}
+    for x in lat:
+        g = PK_UE_RODZ.get(x[4], 'other')
+        f = fund.setdefault(g, [0.0, 0.0]); f[0] += x[1]; f[1] += x[2]
+        p = prog.setdefault(x[3], [0.0, 0.0]); p[0] += x[1]; p[1] += x[2]
+    ful = sorted(([g, round(v[0], 1), round(v[1], 1)] for g, v in fund.items()), key=lambda r: -r[1])
+    prl = sorted(([n, round(v[0], 1), round(v[1], 1)] for n, v in prog.items()), key=lambda r: -r[1])
+    return {'at': NOW, 'asof': t.date().isoformat(), 't': t.isoformat().replace('+00:00', 'Z'), 'yr': yr, 'total': round(total, 1), 'plan': round(plan, 1), 'ydr': ydr,
+            'funds': ful, 'prog': prl, 'n': len(prl)}
+
+
+def pk_czesc_ue(prev, prev_at, proba, now_t):
+    """→ (część, stan, błąd, sprawdzono). Dzień danych nie cofa się; historia dobowa sumy rośnie o dzień danych (jeden punkt na dzień)."""
+    sched = datetime.datetime(now_t.year, now_t.month, now_t.day, PK_UE_PO[0], PK_UE_PO[1], tzinfo=datetime.timezone.utc)
+    if sched > now_t:
+        sched -= datetime.timedelta(days=1)
+    if isinstance(prev, dict) and prev.get('asof') and not pk_pora(prev_at, proba, now_t, sched):
+        return prev, 'cached', None, False
+    if not (isinstance(prev, dict) and prev.get('asof')) and not pk_pora(prev_at, proba, now_t, sched):
+        return None, False, 'ponowienie dopiero po przerwie po błędzie', False
+    body, lm = pk_get_coh(PK_COH_URL)
+    nowa = pk_ue_parse(body, lm)
+    hist = [list(r) for r in (prev.get('hist') if isinstance(prev, dict) and isinstance(prev.get('hist'), list) else []) if isinstance(r, list) and len(r) == 2 and _plr_dzien(r[0]) and _plr_liczba(r[1])]
+    if isinstance(prev, dict) and prev.get('asof') and nowa['asof'] < prev['asof']:
+        META['notes'].append(f'Polska kapitał: wypłaty UE pokazują dzień {nowa["asof"]}, a poprzedni plik ma {prev["asof"]} — zostaje poprzedni')
+        return prev, 'cached', None, True
+    hist = [r for r in hist if r[0] != nowa['asof']] + [[nowa['asof'], nowa['total']]]
+    od = (_plr_dzien(nowa['asof']) - datetime.timedelta(days=PK_HIST_DNI)).isoformat()
+    nowa['hist'] = sorted((r for r in hist if r[0] >= od), key=lambda r: r[0])
+    if isinstance(prev, dict) and _plr_liczba(prev.get('total')) and prev.get('yr') == nowa['yr'] and nowa['total'] < prev['total'] * 0.999:
+        META['notes'].append(f'Polska kapitał: suma wypłat UE spadła z {prev["total"]:.1f} do {nowa["total"]:.1f} mln EUR (korekta w zbiorze źródła)')
+    return nowa, True, None, True
+
+
+def build_polska_kapital(prev=None, run_t0=None, now=None):
+    """data/polska-kapital.json = {v, at, ok: {fdi, ue}, part_at: {fdi, ue}, proba: {…}, fdi, ue}. Każda część osobno: awaria = jej poprzednia wersja i błąd w meta; część bez poprzedniej
+    wersji i bez danych nie wchodzi do pliku. Wyjątek tylko wtedy, gdy plik nie miałby żadnej części."""
+    now_t = _plr_dt(now or NOW) or datetime.datetime.now(datetime.timezone.utc)
+    prev = prev if isinstance(prev, dict) and prev.get('v') == PK_V else {}
+    out, ok, pat, pro = {'v': PK_V, 'at': NOW}, {}, {}, {}
+    teraz = now_t.replace(microsecond=0).isoformat()   # chwila sprawdzenia i próby (zegar przebiegu)
+    pat0 = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    pro0 = prev.get('proba') if isinstance(prev.get('proba'), dict) else {}
+    etyk = {'fdi': 'Polska kapitał (inwestycje bezpośrednie według kraju)', 'ue': 'Polska kapitał (wypłaty UE)'}
+    fun = {'fdi': pk_czesc_fdi, 'ue': pk_czesc_ue}
+    for n in ('fdi', 'ue'):
+        pc = prev.get(n) if isinstance(prev.get(n), dict) else None
+        pa, pr = pat0.get(n) or (pc.get('at') if pc else None), pro0.get(n)
+        try:
+            nowa, stan, blad, spr = fun[n](pc, pa, pr, now_t)
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{etyk[n]}: {e}')[:200])
+            ok[n] = False
+            pro[n] = teraz
+            if pa:
+                pat[n] = pa
+            if pc:
+                out[n] = pc
+            continue
+        if blad:
+            ok[n] = False
+            pro[n] = pro0.get(n) or teraz
+            if pa:
+                pat[n] = pa
+            if pc:
+                out[n] = pc
+            continue
+        ok[n] = stan
+        if nowa:
+            out[n] = nowa
+            pat[n] = teraz if spr else (pa or teraz)
+            if spr:
+                pro.pop(n, None)
+            elif pr:
+                ok[n], pro[n] = False, pr   # poprzednia próba zawiodła, a ponowienie jeszcze nie minęło — część nadal z błędem (nie 'cached')
+    out['ok'], out['part_at'] = ok, pat
+    if pro:
+        out['proba'] = pro
+    if not any(n in out for n in ('fdi', 'ue')):
+        raise RuntimeError('żadna część pliku nie ma danych')
+    return out
 
 
 if __name__ == '__main__':

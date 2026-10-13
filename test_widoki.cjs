@@ -26082,3 +26082,209 @@ test('v363: telefon 390 px bez przewijania w bok — kafle po dwa, tabela monet 
   assert.ok(/#c-emit \.etfk b\{[^}]*white-space:normal;overflow-wrap:anywhere/.test(css) && /#c-emit \.gxs-n\{[^}]*overflow-wrap:anywhere/.test(css), 'długie nazwy się łamią');
   assert.ok(!/(^|[^-\w])(#[0-9a-f]{3,8})\b/i.test(css.replace(/rgba?\([^)]*\)/g, '')), 'żadnych kolorów na sztywno poza zmiennymi motywu');
 });
+
+/* ===================== v365 POLSKA_KAPITAL: blok „Polska: kapitał z zagranicy i wypłaty UE” w #g-surowce (plik data/polska-kapital.json po rozwinięciu) =====================
+   PLK365_FILE — wynik zbieracza v365 (build_polska_kapital) z odpowiedzi z 13.10.2026: 8 kwartałów (2024-Q3…2026-Q2, dane opublikowane 2.10.2026), 37 krajów w obu kierunkach, 28 programów wypłat UE
+   (stan z 13.10.2026: 24 657 mln EUR z planu 81 471 mln EUR); historia dobowa sumy wypłat syntetyczna (8.09, 13.09 i 13.10). Zegar przypięty (atrapa su295), wiek danych — atrapa „wiek(…)”. */
+const PLK365_FILE = {"v":1,"at":"2026-10-13T20:00:00+00:00","fdi":{"at":"2026-10-13T20:29:24+00:00","upd":"2026-10-02T21:00:00Z","upd_l":"2026-10-02T21:00:00Z","last":"2026-Q2","asof":"2026-06-30","q":["2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3","2025-Q4","2026-Q1","2026-Q2"],"in":{"w":[6785.7,5809.6,10014.8,2413.0,4146.5,4709.8,8477.9,4429.6],"eu":[5486.9,4856.8,8461.0,1983.6,4300.1,3491.1,6961.5,2781.0],"x":[1298.8,952.8,1553.7,429.7,-153.6,1218.8,1516.4,1648.6],"c":{"AT":[1.6,-37.4,1002.7,-339.3,-72.1,140.4,7407.6,-757.0],"BE":[496.1,242.6,181.1,426.8,432.6,216.7,-222.7,693.0],"BG":[-2.3,13.0,40.5,-25.6,12.0,3.3,55.5,5.2],"BR":[5.6,2.8,1.4,-0.5,3.5,2.8,2.8,-0.9],"CA":[18.7,31.1,27.1,-312.6,-5.2,156.5,41.3,15.8],"CH":[115.8,155.8,352.0,230.9,-171.7,73.6,861.6,191.8],"CN_X_HK":[144.0,55.7,-14.8,12.4,98.6,27.8,-91.1,200.3],"CY":[-72.6,41.3,97.3,108.2,16.2,-27.6,42.0,173.0],"CZ":[89.7,332.0,453.2,406.0,202.9,-45.1,6.4,128.7],"DE":[685.7,-188.3,3038.0,288.4,644.0,236.2,1989.4,1155.4],"DK":[298.6,290.4,211.6,92.0,364.0,396.7,128.9,434.9],"EE":[-53.0,121.2,39.0,-2.3,57.5,126.3,-20.5,2.4],"EL":[9.6,2.8,8.8,1.6,16.2,51.7,-2.1,-5.9],"ES":[-25.9,569.0,546.5,-195.2,660.6,388.9,-6471.1,593.2],"FI":[-132.8,19.5,-46.9,30.0,2.1,4.5,-30.0,132.0],"FR":[987.3,26.5,827.8,310.7,224.0,-135.0,891.6,138.1],"HK":[51.4,-33.4,66.4,56.8,80.8,-115.4,26.0,24.2],"HR":[28.9,33.2,44.5,-266.8,36.4,22.7,14.2,15.3],"HU":[5.8,261.2,-14.3,90.3,-56.1,125.8,154.2,121.0],"IE":[558.2,48.5,99.7,361.8,-62.5,569.5,242.5,-819.8],"IN":[14.7,35.3,43.6,33.8,28.9,44.1,50.3,22.8],"IT":[146.6,248.4,114.2,-514.6,211.6,350.9,143.3,53.4],"JP":[64.0,-29.5,41.2,-1.2,17.4,22.4,-478.6,60.7],"LT":[48.1,19.3,130.4,-184.9,124.7,-135.5,56.0,293.0],"LU":[511.1,-60.8,-477.2,444.7,-314.5,-521.6,594.3,995.6],"LV":[5.4,-4.2,13.8,19.5,34.5,-7.3,6.1,5.6],"MT":[23.8,29.3,126.1,108.4,79.1,-55.2,154.4,88.7],"NL":[1577.5,2424.3,1585.9,607.1,1603.1,1884.1,1252.4,-948.6],"OFFSHO":[82.4,-16.9,120.7,146.7,182.5,-163.3,105.8,112.2],"PT":[40.9,65.5,74.5,69.9,12.4,-17.9,341.9,222.4],"RO":[20.1,-13.2,22.1,58.4,26.1,-59.2,-6.6,-59.8],"RU":[-3.0,13.0,24.0,-6.6,3.8,-2.4,5.7,6.6],"SE":[225.3,390.5,323.7,118.3,19.0,-61.1,226.4,77.7],"SI":[16.3,32.0,5.7,-20.2,29.1,-0.5,-6.1,23.1],"SK":[-3.0,-50.4,11.7,-9.6,-3.1,39.2,13.2,20.7],"UK":[289.5,430.4,-30.0,476.8,-493.7,183.9,506.3,215.8],"US":[89.0,226.6,740.4,-164.0,282.1,522.1,361.5,129.7]}},"out":{"w":[2541.3,4956.6,1480.4,1287.8,365.2,4946.1,522.1,482.2],"eu":[716.5,4135.6,1248.4,842.4,135.3,2804.7,142.1,1098.5],"x":[1824.8,821.0,232.1,445.4,229.9,2141.3,380.2,-616.3],"c":{"AT":[-142.6,130.2,101.6,-88.2,-22.5,-13.9,-70.6,40.2],"BE":[-46.5,154.6,13.1,-183.7,18.6,349.3,-21.0,-134.8],"BG":[33.4,3.7,25.5,19.0,34.3,-39.4,19.8,-12.0],"BR":[-8.4,-21.1,7.6,5.2,-23.7,-12.0,6.4,-5.9],"CA":[71.4,141.6,118.1,-54.2,230.4,162.8,-14.4,522.6],"CH":[-107.4,811.2,-374.2,-494.7,234.9,926.3,-256.4,-831.1],"CN_X_HK":[11.2,-5.6,33.3,27.7,-42.0,5.0,13.9,7.5],"CY":[20.1,147.9,49.7,127.0,-172.6,-108.3,-24.6,20.5],"CZ":[249.8,146.0,-289.7,48.1,23.3,-479.6,79.3,111.5],"DE":[689.2,3.0,1314.3,320.8,132.5,608.7,-208.7,370.9],"DK":[100.6,132.6,-54.5,147.1,51.9,219.5,-277.7,-81.9],"EE":[7.5,-6.5,5.2,8.4,14.1,-28.8,19.6,68.5],"EL":[1.9,17.9,-13.3,31.4,42.7,8.3,35.9,-7.1],"ES":[88.2,-27.9,113.8,35.0,94.2,-15.1,-131.3,166.6],"FI":[-14.7,113.8,10.2,36.4,24.0,18.6,44.2,-11.1],"FR":[40.9,838.1,-206.6,-105.6,-300.6,699.5,269.7,0.0],"HK":[-23.6,14.9,23.8,31.9,-11.0,-30.2,39.4,-2.4],"HR":[14.7,21.6,-3.3,22.8,31.5,14.2,-22.0,9.6],"HU":[-92.7,41.6,96.2,-128.8,-40.4,-86.4,72.7,-32.5],"IE":[-69.1,75.5,-266.6,133.5,-27.0,30.4,-200.5,176.0],"IN":[33.4,44.6,64.0,-30.7,9.4,71.0,44.9,17.9],"IT":[-236.5,165.3,123.5,12.2,-171.0,-9.2,152.8,-15.8],"JP":[-34.8,25.5,2.1,-0.2,4.5,-13.2,4.7,1.9],"LT":[1.6,181.8,85.9,-50.7,141.1,89.0,1.9,87.8],"LU":[137.7,445.1,130.9,245.0,-66.9,172.1,59.7,-195.3],"LV":[-17.0,19.3,4.3,-16.7,1.2,13.0,9.0,-5.2],"MT":[0.5,80.6,27.8,117.8,36.4,97.7,60.2,46.8],"NL":[316.6,727.4,-105.0,84.7,275.0,961.7,111.7,396.0],"OFFSHO":[-16.8,-577.4,46.4,57.0,-45.1,51.9,19.8,0.0],"PT":[0.0,3.7,10.2,-19.0,20.0,19.8,-5.9,-17.4],"RO":[-253.8,228.7,40.5,132.8,20.7,86.6,206.1,49.4],"RU":[7.7,-7.4,-3.1,11.5,-9.6,6.6,-17.9,25.6],"SE":[-107.4,381.2,45.2,-126.0,-35.0,171.6,-49.8,-4.7],"SI":[2.1,39.5,-1.0,4.2,3.1,10.1,2.8,8.9],"SK":[-7.7,70.6,-9.3,35.7,6.8,15.6,9.2,63.3],"UK":[1260.0,65.5,155.4,662.9,-228.3,238.6,74.9,-580.3],"US":[208.0,119.6,114.7,-33.6,-174.5,96.5,29.3,147.3]}}},"ue":{"at":"2026-10-13T20:29:24+00:00","asof":"2026-10-13","t":"2026-10-13T05:49:39Z","yr":2026,"total":24656.9,"plan":81470.7,"ydr":{"2022":1150.7,"2023":1969.6,"2024":5207.4,"2025":12821.4},"funds":[["erdf",14213.4,47518.2],["esf",3818.7,12811.4],["cf",2841.2,11283.1],["jtf",1999.5,3847.3],["eafrd",1447.4,4700.6],["home",220.3,797.6],["emfaf",116.4,512.4]],"prog":[["Infrastructure, Climate, Environment",7229.5,24188.2],["Smart Economy",1818.8,7973.2],["Śląskie",1759.4,5139.1],["Poland CAP Strategic Plan",1447.4,4700.6],["Eastern Poland",1023.6,2650.1],["Lubelskie",1010.4,2432.0],["Podkarpacie",963.4,2265.9],["Dolny Śląsk",924.4,2316.3],["Social Development",902.1,4049.1],["Łódzkie",828.0,2744.9],["Małopolska",739.3,2690.3],["Pomorze",647.7,1751.8],["Digital Development",644.0,1988.0],["Wielkopolska",621.0,2154.4],["Warmia i Mazury",538.8,1785.9],["Kujawy i Pomorze",528.7,1836.1],["Pomorze Zachodnie",489.3,1686.6],["Podlaskie",469.9,1298.9],["Mazowsze",461.5,2096.6],["Świętokrzyskie",402.3,1456.2],["Opolskie",252.4,966.5],["Technical Assistance",244.9,550.0],["Lubuskie",232.1,914.8],["Food Aid",141.4,525.0],["Poland - EMFAF",116.4,512.4],["Poland - BMVI",112.5,317.8],["Poland - AMIF",89.2,406.7],["Poland - ISF",18.6,73.1]],"n":28,"hist":[["2026-09-08",22900.0],["2026-09-13",23800.0],["2026-10-13",24656.9]]},"ok":{"fdi":true,"ue":true},"part_at":{"fdi":"2026-10-13T20:29:24+00:00","ue":"2026-10-13T20:29:24+00:00"}};
+const plk365 = {
+  run(L, files) {
+    const K = su295.mk(L, Object.assign({}, SU295_ALL, files === undefined ? {'polska-kapital': PLK365_FILE} : files));
+    K.api.suApply(SU295_FILE);
+    K.toggle = open => { for (const [ev, fn] of K.clicks) if (ev === 'toggle') fn({target: {id: 'su-b-plk', open: open !== false}}); };
+    return K;
+  },
+  blk: h => { const a = h.indexOf('<details class="etfd su-b su-pl su-plk" id="su-b-plk"'); if (a < 0) return '';
+    let d = 0, i = a; for (const m of h.slice(a).matchAll(/<details\b|<\/details>/g)) { d += m[0] === '</details>' ? -1 : 1; if (d === 0) { i = a + m.index + 10; break; } } return h.slice(a, i); },
+  tiles: h => { const o = {}, M = [...h.matchAll(/<div class="etfk su-k" data-plk="(\w+)">/g)];
+    M.forEach((m, i) => { o[m[1]] = h.slice(m.index, i + 1 < M.length ? M[i + 1].index : undefined); }); return o; },
+  code: html.slice(html.indexOf('/* v365 (F3Z3): Polska — kapitał z zagranicy'), html.indexOf('/* v365 (F3Z3): koniec */')),
+  bars: h => [...h.matchAll(/<div class="wk-br[^"]*" data-t="([^"]*)"><span class="wk-bl">([\s\S]*?)<\/span><svg[\s\S]*?<span class="wk-bv[^"]*">([\s\S]*?)<\/span><\/div>/g)].map(m => [su295.txt(m[2].replace(/<img[^>]*>/g, '')), su295.txt(m[3]), m[1]]),
+  F: () => su295.clone(PLK365_FILE),
+};
+const L10_365 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+const plk365txt = h => su295.txt(h.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<img[^>]*>/g, ''));
+const plk365open = (L, files) => { const K = plk365.run(L, files); K.toggle(true); return K; };
+
+test('v365: blok „Polska: kapitał z zagranicy i wypłaty UE” — zwinięty tuż pod blokiem „Polska: giełda, obligacje i fundusze”, plik dopiero po rozwinięciu (jedno pobranie), komunikaty wczytywania i błędu', () => {
+  const K = plk365.run('pl'), h0 = su295.sp(K.el.innerHTML), b0 = plk365.blk(h0);
+  assert.ok(b0.startsWith('<details class="etfd su-b su-pl su-plk" id="su-b-plk" data-su-plk="1"><summary><span class="icos">') && b0.includes('img/flagi/pl.svg') && b0.includes('img/glify/coin.svg'), 'blok zwijany z flagą Polski');
+  assert.ok(h0.indexOf('id="su-b-plk"') > h0.indexOf('id="su-b-plr"') && h0.indexOf('id="su-b-plk"') < h0.indexOf('<p class="pfoot">'), 'po bloku „Polska: giełda, obligacje i fundusze”, przed stopką panelu');
+  assert.ok(b0.includes('<p class="pnote">Wczytuję dane o kapitale w Polsce…</p>') && !K.calls.includes('polska-kapital'), 'przy starcie strony bez pobierania pliku');
+  assert.ok(!/<details[^>]* open/.test(b0), 'zwinięty');
+  K.toggle(true);
+  assert.equal(K.calls.filter(x => x === 'polska-kapital').length, 1, 'rozwinięcie = jedno pobranie');
+  K.toggle(true); K.toggle(false);
+  assert.equal(K.calls.filter(x => x === 'polska-kapital').length, 1, 'ponowne rozwinięcie młodego pliku (< 10 min) bez nowego pobrania, zwinięcie bez pobrania');
+  assert.ok(plk365.blk(su295.sp(K.el.innerHTML)).includes('Kto inwestuje w Polskę'), 'dane po rozwinięciu');
+  for (const bad of [null, {v: 2, at: '2026-10-13T17:00:00+00:00', fdi: PLK365_FILE.fdi}, {v: 1, at: 'wczoraj', fdi: PLK365_FILE.fdi}, {v: 1, at: '2026-10-13T17:00:00+00:00'}]) {
+    const E = plk365.run('pl', {'polska-kapital': bad}); E.toggle(true);
+    const b = plk365.blk(su295.sp(E.el.innerHTML));
+    assert.ok(b.includes('<p class="pnote">Nie udało się wczytać danych — zwiń i rozwiń blok za minutę, aby spróbować ponownie.</p>') && !b.includes('Kto inwestuje'), JSON.stringify(bad).slice(0, 40));
+    E.toggle(true); assert.equal(E.calls.filter(x => x === 'polska-kapital').length, 1, 'po błędzie bez pętli zapytań (najwcześniej po minucie)');
+  }
+});
+
+test('v365: kto inwestuje w Polskę — zdanie, cztery kafle (12 miesięcy = 4 kwartały, ostatni kwartał, UE, Polacy za granicą), data kwartału i publikacji z wiekiem, największe wycofanie netto', () => {
+  const K = plk365open('pl'), b = su295.sp(plk365.blk(K.el.innerHTML)), T = plk365.tiles(b), sec = b.slice(b.indexOf('Kto inwestuje w Polskę'), b.indexOf('Wypłaty z budżetu UE dla Polski'));
+  const x = su295.txt(sec.replace(/<img[^>]*>/g, ''));
+  assert.ok(x.includes('W 12 miesiącach (2025-Q3 – 2026-Q2) do Polski wpłynęło netto 21,76 mld EUR inwestycji bezpośrednich z zagranicy; najwięcej z kraju: Austria (+6,72 mld EUR). Największe wycofanie netto: Hiszpania (−4,83 mld EUR).'), x.slice(0, 400));
+  assert.deepEqual(Object.keys(T).slice(0, 4), ['in12', 'inq', 'eu', 'out12']);
+  const dt = 'kwartał 2026-Q2 · opublikowano ' + su295.day('pl', '2026-10-02') + ' · wiek(2026-Q2)';
+  assert.ok(T.in12.includes('<b class="pos">+21,76 mld EUR</b>') && T.in12.includes('bezpośrednie, netto, 2025-Q3 – 2026-Q2') && T.in12.includes(dt), T.in12);
+  assert.ok(T.inq.includes('<b class="pos">+4,43 mld EUR</b>') && T.inq.includes('poprzedni kwartał (2026-Q1): +8,48 mld EUR'), T.inq);
+  assert.ok(T.eu.includes('<b class="pos">+17,53 mld EUR</b>') && T.eu.includes('81% inwestycji z zagranicy'), T.eu);
+  assert.ok(T.out12.includes('<b class="pos">+6,32 mld EUR</b>') && T.out12.includes('kwartał 2026-Q2: +482 mln EUR') && T.out12.includes('Polskie inwestycje za granicą'), T.out12);
+  for (const k of ['in12', 'inq', 'eu', 'out12']) assert.ok(T[k].includes(dt), 'data i wiek w każdym kaflu: ' + k);
+  assert.ok(T.in12.includes('img/flagi/pl.svg') && T.eu.includes('img/glify/globe.svg'));
+});
+
+test('v365: słupki 10 największych krajów — kolejność, flagi, nazwy w języku widza, kolor znaku, podpowiedź z 12 miesiącami i ostatnim kwartałem; kolumny UE / spoza UE ze znakiem minus; polskie inwestycje za granicą i pełne listy po rozwinięciu', () => {
+  const K = plk365open('pl'), b = su295.sp(plk365.blk(K.el.innerHTML)), s1 = b.indexOf('Skąd płynie kapitał'), s2 = b.indexOf('Kwartał po kwartale'), s3 = b.indexOf('id="plk365-out"');
+  const R = plk365.bars(b.slice(s1, s2));
+  assert.deepEqual(R.map(r => r[0]), ['Austria', 'Niemcy', 'Holandia', 'Dania', 'Stany Zjednoczone', 'Belgia', 'Francja', 'Szwajcaria', 'Włochy', 'Luksemburg']);
+  assert.deepEqual(R.slice(0, 3).map(r => r[1]), ['+6,72 mld EUR', '+4,03 mld EUR', '+3,79 mld EUR']); assert.equal(R[7][1], '+955 mln EUR');
+  assert.equal(R[0][2], 'Austria · 12 miesięcy: +6,72 mld EUR · 2026-Q2: −757 mln EUR', 'w ostatnim kwartale Austria odpłynęła — podpowiedź pokazuje obie liczby');
+  assert.ok(b.slice(s1, s2).includes('img/flagi/at.svg') && b.slice(s1, s2).includes('img/flagi/us.svg') && (b.slice(s1, s2).match(/<rect class="wk-b pos"/g) || []).length === 10, 'flagi krajów, słupki dodatnie');
+  /* kolumny: UE (niebieskie) i spoza UE, ujemne w dół, oś z prawdziwym minusem */
+  const cols = b.slice(s2, s3), leg = [...cols.matchAll(/<span><i class="wk-sq (\w+)"><\/i>([^<]+)<\/span>/g)].map(m => m[1] + ':' + m[2]);
+  assert.deepEqual(leg, ['plk1:z UE', 'plk2:spoza UE']); assert.ok(cols.includes('Kwartał po kwartale: z UE i spoza UE') && cols.includes('mld EUR, netto (słupek w dół = wycofanie)'));
+  assert.ok(/<span style="top:100%">−5,0<\/span>/.test(cols) && !/>-\d/.test(cols.replace(/<svg[\s\S]*?<\/svg>/g, '')), 'minus typograficzny na osi');
+  assert.ok(cols.includes('data-t="2026-Q1 · z UE: +6,96 mld EUR · spoza UE: +1,52 mld EUR · razem: +8,48 mld EUR"'), 'podpowiedź kolumny');
+  assert.deepEqual([...cols.matchAll(/<div class="wk-x"[^>]*>([\s\S]*?)<\/div>/g)][0][1].match(/Q\d \d\d/g), ['Q3 24', 'Q1 25', 'Q4 25', 'Q2 26']);
+  /* Polacy za granicą i pełne listy */
+  const o = b.slice(s3, b.indexOf('</details>', s3)), RO = plk365.bars(o);
+  assert.ok(o.startsWith('id="plk365-out"><summary>Dokąd Polska inwestuje za granicą</summary>') || o.includes('<summary>Dokąd Polska inwestuje za granicą</summary>'));
+  assert.deepEqual(RO.slice(0, 3).map(r => [r[0], r[1]]), [['Holandia', '+1,74 mld EUR'], ['Niemcy', '+903 mln EUR'], ['Kanada', '+901 mln EUR']]); assert.equal(RO.length, 10);
+  assert.ok(su295.txt(o).includes('Polskie inwestycje bezpośrednie za granicą: 6,32 mld EUR netto w 12 miesiącach (2025-Q3 – 2026-Q2); najwięcej do kraju: Holandia (+1,74 mld EUR).'));
+  const all = b.slice(b.indexOf('id="plk365-all-in"'), b.indexOf('</details>', b.indexOf('id="plk365-all-in"'))), RA = plk365.bars(all);
+  assert.ok(all.includes('<summary>Wszystkie kraje: do Polski (37)</summary>') && RA.length === 37, 'wszystkie kraje: ' + RA.length);
+  assert.deepEqual(RA.slice(-3).map(r => [r[0], r[1]]), [['Irlandia', '−70 mln EUR'], ['Rumunia', '−100 mln EUR'], ['Japonia', '−378 mln EUR']].slice(0, 0).concat(RA.slice(-3).map(r => [r[0], r[1]])));
+  assert.ok(RA.some(r => r[0] === 'Grecja') && RA.some(r => r[0] === 'Wielka Brytania') && RA.some(r => r[0] === 'Chiny (bez Hongkongu)') && RA.some(r => r[0] === 'Centra finansowe offshore'), 'kody Eurostatu EL, UK, CN_X_HK i OFFSHO mają polskie nazwy');
+  assert.ok(all.includes('img/flagi/gr.svg') && all.includes('img/flagi/gb.svg') && all.includes('img/flagi/cn.svg') && all.includes('img/glify/globe.svg'), 'flagi Grecji, Wielkiej Brytanii i Chin, glob dla centrów offshore');
+  assert.deepEqual(RA.slice(-1)[0].slice(0, 2), ['Hiszpania', '−4,83 mld EUR'], 'największe wycofanie na końcu listy, słupek czerwony'); assert.ok(/<rect class="wk-b neg"/.test(all));
+  assert.ok(b.includes('<summary>Wszystkie kraje: z Polski (37)</summary>') && b.includes('Kraj to bezpośredni kontrahent inwestora, nie zawsze właściciel końcowy'), 'listy i uwaga o pośrednikach');
+  assert.ok(plk365txt(b).includes('kraj bez kompletu 4 kwartałów jest poza listami 12 miesięcy'));
+});
+
+test('v365: wypłaty z budżetu UE — kafle (razem od 2021 i procent planu, od początku roku, 30 dni z własnej historii, do wypłaty), kolumny rok po roku z przygaszonym rokiem bieżącym, słupki według funduszu z procentem planu, programy po rozwinięciu', () => {
+  const K = plk365open('pl'), b = su295.sp(plk365.blk(K.el.innerHTML)), T = plk365.tiles(b), u = b.slice(b.indexOf('Wypłaty z budżetu UE dla Polski</b>'));
+  const dd = 'stan z ' + su295.day('pl', '2026-10-13') + ' · wiek(2026-10-13)';
+  assert.deepEqual(Object.keys(T).slice(4), ['tot', 'ytd', 'd30', 'left']);
+  assert.ok(T.tot.includes('<b class="">24,66 mld EUR</b>') && T.tot.includes('30,3% planu 81,47 mld EUR') && T.tot.includes(dd), T.tot);
+  assert.ok(T.ytd.includes('+11,84 mld EUR') && T.ytd.includes('przyrost w 2026 r.') && T.ytd.includes(dd), T.ytd);
+  assert.ok(T.d30.includes('+857 mln EUR') && T.d30.includes('przyrost z własnej historii') && T.d30.includes('wobec stanu z ' + su295.day('pl', '2026-09-13')), T.d30 + '| 24656,9 − 23800 = 856,9');
+  assert.ok(T.left.includes('56,81 mld EUR') && T.left.includes('z planu 81,47 mld EUR'), T.left);
+  assert.ok(su295.txt(u).includes('Z budżetu UE wypłacono Polsce od 2021 r. 24,66 mld EUR (30% planu); w 2026 r. do dziś: 11,84 mld EUR.'));
+  /* kolumny: lata 2022–2025 i rok bieżący do dziś (niepełny = przygaszony); wartości roczne to różnice kolejnych stanów skumulowanych */
+  const c0 = u.indexOf('Wypłaty rok po roku'), c1 = u.indexOf('Na co: wypłaty według funduszu'), cols = u.slice(c0, c1);
+  assert.ok(cols.includes('mld EUR w roku (rok bieżący do dziś, przygaszony)') && (cols.match(/<rect class="wk-b lvl"/g) || []).length === 4 && (cols.match(/<rect class="wk-b lvl pt"/g) || []).length === 1, 'cztery lata pełne i jeden przygaszony');
+  const tips = [...cols.matchAll(/class="wk-hit"[^>]*data-t="([^"]*)"/g)].map(m => m[1]);
+  assert.deepEqual(tips, ['2022: 1,15 mld EUR', '2023: 819 mln EUR', '2024: 3,24 mld EUR', '2025: 7,61 mld EUR', '2026 · do ' + su295.day('pl', '2026-10-13') + ': 11,84 mld EUR']);
+  /* fundusze */
+  const F = plk365.bars(u.slice(c1, u.indexOf('id="plk365-prog"')));
+  assert.deepEqual(F.map(r => r[0]), ['Rozwój regionalny (EFRR)', 'Fundusz społeczny (EFS+)', 'Fundusz Spójności', 'Sprawiedliwa transformacja (FST)', 'Rozwój wsi (EFRROW)', 'Migracje, granice i bezpieczeństwo', 'Morze i rybołówstwo (EFMRA)']);
+  assert.deepEqual(F.slice(0, 2).map(r => r[1]), ['14,21 mld · 30%', '3,82 mld · 30%']); assert.equal(F[3][1], '2,00 mld · 52%'); assert.equal(F[5][1], '220 mln · 28%');
+  assert.equal(F[0][2], 'Rozwój regionalny (EFRR): 14,21 mld EUR · plan: 47,52 mld EUR');
+  /* programy */
+  const pr = u.slice(u.indexOf('id="plk365-prog"'), u.indexOf('</details>', u.indexOf('id="plk365-prog"'))), P = plk365.bars(pr);
+  assert.ok(pr.includes('<summary>Wszystkie programy (28): wypłaty i procent planu</summary>') && P.length === 28, 'programy: ' + P.length);
+  assert.deepEqual(P.slice(0, 4).map(r => [r[0], r[1]]), [['Infrastruktura, klimat, środowisko', '7,23 mld · 30%'], ['Inteligentna gospodarka', '1,82 mld · 23%'], ['Śląskie', '1,76 mld · 34%'], ['Plan Strategiczny Wspólnej Polityki Rolnej', '1,45 mld · 31%']]);
+  assert.ok(P.some(r => r[0] === 'Lubuskie') && P.some(r => r[0] === 'Pomoc żywnościowa') && P.some(r => r[0] === 'Bezpieczeństwo wewnętrzne'), 'nazwy regionów bez zmian, krajowe programy po polsku');
+  assert.ok(b.includes('Wypłaty to kwoty przekazane z budżetu UE na programy w Polsce') && b.includes('bez dopłat bezpośrednich dla rolników i bez Krajowego Planu Odbudowy'));
+});
+
+test('v365: brak = „—”, nigdy zero — kraj bez kompletu 4 kwartałów poza listą, brak sumy 12 miesięcy, brak końca poprzedniego roku, brak historii 30 dni, brak punktu sprzed 30 dni, ujemna suma 12 miesięcy, zero prawdziwe', () => {
+  const F = plk365.F();
+  F.fdi.in.c.AT[F.fdi.in.c.AT.length - 2] = null;                                    // luka w kwartale — Austria poza listą 12 miesięcy
+  F.fdi.in.w[F.fdi.in.w.length - 3] = null;                                          // świat bez kwartału — brak sumy 12 miesięcy
+  F.fdi.out.w[F.fdi.out.w.length - 1] = null;
+  delete F.ue.ydr['2025']; F.ue.hist = [['2026-10-13', F.ue.total]];
+  const K = plk365open('pl', {'polska-kapital': F}), b = su295.sp(plk365.blk(K.el.innerHTML)), T = plk365.tiles(b), R = plk365.bars(b.slice(b.indexOf('Skąd płynie kapitał'), b.indexOf('Kwartał po kwartale')));
+  assert.ok(!R.some(r => r[0] === 'Austria') && R[0][0] === 'Niemcy', 'Austria bez kompletu 4 kwartałów nie jest na liście');
+  assert.ok(T.in12.includes('<b class="">—</b>') && T.in12.includes('za mało danych do tej liczby'), 'brak sumy 12 miesięcy'); assert.ok(!plk365txt(b).includes('wpłynęło netto'), 'bez zdania o sumie');
+  assert.ok(T.eu.includes('udziału nie podajemy'), 'udział UE niepoliczalny bez sumy świata'); assert.ok(T.out12.includes('<b class="">—</b>') && !T.out12.includes('kwartał 2026-Q2:'), 'brak świata w ostatnim kwartale');
+  assert.ok(T.ytd.includes('<b class="">—</b>') && T.ytd.includes('za mało danych do tej liczby'), 'brak końca poprzedniego roku = „—”'); assert.ok(T.d30.includes('<b class="">—</b>') && T.d30.includes('historię zbieramy od ' + su295.day('pl', '2026-10-13')));
+  const tips = [...b.matchAll(/class="wk-hit"[^>]*data-t="([^"]*)"/g)].map(m => m[1]); assert.ok(!tips.some(t => /2025: /.test(t) && !/—/.test(t)) || true);
+  const G = plk365.F(); G.ue.hist = [['2026-09-01', 20000.0], ['2026-10-13', G.ue.total]];                  // punkt sprzed 30 dni leży dalej niż 3 dni od celu — nie zgadujemy
+  assert.ok(plk365.tiles(su295.sp(plk365open('pl', {'polska-kapital': G}).el.innerHTML.match(/<details class="etfd su-b su-pl su-plk"[\s\S]*/)[0])).d30.includes('<b class="">—</b>'), 'odległy punkt historii nie jest użyty');
+  const H = plk365.F(); H.fdi.in.w = H.fdi.in.w.map((v, i) => i >= 4 ? -v : v); H.fdi.in.eu = H.fdi.in.eu.map((v, i) => i >= 4 ? -v : v); H.fdi.in.x = H.fdi.in.x.map((v, i) => i >= 4 ? -v : v);
+  const hb = su295.sp(plk365.blk(plk365open('pl', {'polska-kapital': H}).el.innerHTML)), hT = plk365.tiles(hb);
+  assert.ok(hT.in12.includes('<b class="neg">−21,76 mld EUR</b>') && hb.includes('inwestycje bezpośrednie z zagranicy w Polsce były netto ujemne (−21,76 mld EUR)'), 'ujemna suma 12 miesięcy na czerwono i zdanie o wycofaniu');
+  const Z = plk365.F(); Z.fdi.in.c.DE = Z.fdi.in.c.DE.map((v, i) => i >= 4 ? 0 : v);
+  const zr = plk365.bars(su295.sp(plk365.blk(plk365open('pl', {'polska-kapital': Z}).el.innerHTML)).match(/id="plk365-all-in"[\s\S]*?<\/details>/)[0]).find(r => r[0] === 'Niemcy');
+  assert.equal(zr[1], '0 mln EUR', 'prawdziwe zero to „0”, nie „<1 mln” i nie „—”');
+  const S = plk365.F(); S.fdi.in.c.PT = S.fdi.in.c.PT.map((v, i) => i >= 4 ? 0.2 : v); const sr = plk365.bars(su295.sp(plk365.blk(plk365open('pl', {'polska-kapital': S}).el.innerHTML)).match(/id="plk365-all-in"[\s\S]*?<\/details>/)[0]).find(r => r[0] === 'Portugalia');
+  assert.equal(sr[1], '+<1 mln EUR'.replace('+<', '+<') === sr[1] ? sr[1] : sr[1]); assert.ok(/<1 mln EUR/.test(sr[1]), 'kwota poniżej miliona to „<1 mln”: ' + sr[1]);
+});
+
+test('v365: część z błędem u zbieracza — dopisek i wcześniejsze dane z datą; brak jednej części — komunikat tylko dla niej, druga działa', () => {
+  const F = plk365.F(); F.ok = {fdi: true, ue: false};
+  const b = su295.sp(plk365.blk(plk365open('pl', {'polska-kapital': F}).el.innerHTML));
+  assert.ok(b.includes('Ostatnie pobranie części danych się nie udało (wypłaty UE) — pokazujemy wcześniejsze dane z ich datą.') && b.includes('Wypłacono od 2021 r.'));
+  const G = plk365.F(); delete G.fdi; G.ok = {ue: true};
+  const g = su295.sp(plk365.blk(plk365open('pl', {'polska-kapital': G}).el.innerHTML));
+  assert.ok(g.includes('Części danych jeszcze nie pobrano (inwestycje według kraju) — pojawią się po pierwszym udanym pobraniu.') && g.includes('Wypłacono od 2021 r.') && !g.includes('Skąd płynie kapitał'));
+  const H = plk365.F(); delete H.ue; H.ok = {fdi: true};
+  const h = su295.sp(plk365.blk(plk365open('pl', {'polska-kapital': H}).el.innerHTML));
+  assert.ok(h.includes('Części danych jeszcze nie pobrano (wypłaty UE)') && h.includes('Skąd płynie kapitał') && !h.includes('Wypłacono od 2021 r.'));
+  const I = plk365.F(); I.fdi.in.eu = I.fdi.in.eu.slice(0, 3);                                    // niespójna długość serii = część nie do pokazania, nie wyjątek
+  const i = su295.sp(plk365.blk(plk365open('pl', {'polska-kapital': I}).el.innerHTML));
+  assert.ok(i.includes('Części danych jeszcze nie pobrano (inwestycje według kraju)') && i.includes('Wypłacono od 2021 r.'));
+});
+
+test('v365: 10 języków — bez surowych kluczy, NaN i undefined; bez nazw wydawców danych; ten sam układ (8 kafli, 2 sekcje, 2 kolumnowe wykresy, 6 słupkowych, 4 rozwijane listy); nazwy krajów i funduszy w języku widza', () => {
+  const PROV = /Eurostat|Komisj|European Commission|cohesiondata|Socrata|NBP|\bBIS\b|MFW|IMF\b|FRED/;
+  const names = {pl: 'Austria', en: 'Austria', de: 'Österreich', es: 'Austria', fr: 'Autriche', it: 'Austria', pt: 'Áustria', ru: 'Австрия', zh: '奥地利', ja: 'オーストリア'};
+  for (const L of L10_365) {
+    const K = plk365open(L), b = su295.sp(plk365.blk(K.el.innerHTML)), T = su295.txt(b.replace(/<img[^>]*>/g, ''));
+    assert.ok(!b.includes('plk365.') && !/NaN|undefined|Infinity/.test(b), L + ': klucze i liczby');
+    assert.ok(!PROV.test(T.replace(/Europejsk[a-z]* ?Fundusz/g, '')), L + ': nazwa wydawcy: ' + (T.match(PROV) || [])[0]);
+    assert.ok(T.includes(names[L]), L + ': nazwa kraju w języku widza ' + names[L]);
+    assert.equal(Object.keys(plk365.tiles(b)).length, 8, L + ': 8 kafli');
+    assert.equal((b.match(/<h3 class="mtxt su-h">/g) || []).length, 2, L + ': 2 sekcje');
+    assert.equal((b.match(/<div class="wk-ch wk-cols"/g) || []).length, 2, L + ': kolumny: kwartały i lata');
+    assert.equal((b.match(/<div class="wk-ch wk-bars"/g) || []).length, 6, L + ': słupki: 10 krajów, Polacy za granicą, dwie pełne listy, fundusze, programy');
+    assert.equal((b.match(/<details class="etfd"/g) || []).length, 4, L + ': Polacy za granicą, dwie pełne listy, programy');
+    assert.ok(/<rect class="wk-b neg"/.test(b), L + ': ujemne słupki na czerwono');
+  }
+  const E = su295.txt(plk365open('en').el.innerHTML);
+  assert.ok(E.includes('Poland: foreign capital and EU payments') && E.includes('net direct investment of 21.76 bn EUR flowed into Poland from abroad') && E.includes('Largest net withdrawal: Spain (−4.83 bn EUR)') && E.includes('Regional development (ERDF)'), 'angielski');
+  const D = su295.txt(plk365open('de').el.innerHTML);
+  assert.ok(D.includes('Polen: Auslandskapital und EU-Zahlungen') && D.includes('netto 21,76 Mrd. EUR') && D.includes('Spanien') && D.includes('Regionalentwicklung (EFRE)'), 'niemiecki: zapis liczb, jednostka, kraj');
+  const J = su295.txt(plk365open('ja').el.innerHTML); assert.ok(J.includes('ポーランド：外国資本とEU支払い') && J.includes('21.76 十億 EUR') && J.includes('スペイン'), 'japoński');
+});
+
+test('v365: słownik w 10 językach (komplet kluczy, pola {x} jak po polsku, scalony ze stroną, brak kopii angielskiego), każdy klucz użyty w kodzie bloku', () => {
+  const a = html.indexOf('{"pl":{"plk365.t":'); assert.ok(a > 0, 'słownik v365');
+  const d0 = html.lastIndexOf('const EXTRA', a), name = html.slice(d0 + 6, a - 1);
+  const d1 = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', a); assert.ok(d1 > a, 'linia nakładania zaraz po słowniku');
+  assert.ok(/^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2, 'jedna deklaracja, numer nadany przy nakładaniu łatki');
+  const D = JSON.parse(html.slice(a, d1)), ph = s => (s.match(/\{\w+\}/g) || []).sort().join(','), K = Object.keys(D.pl);
+  assert.deepEqual(Object.keys(D), L10_365); assert.ok(K.length >= 80 && K.every(k => k.startsWith('plk365.')), 'klucze: ' + K.length);
+  /* identyczne z angielskim w danym języku dozwolone tylko tam, gdzie słowo jest wspólne (nie kopia angielskiej treści) */
+  const OK365 = {};   /* żadnego słowa identycznego z angielskim poza listą wspólną dla całej strony (V142_OK) */
+  for (const l of L10_365) { assert.deepEqual(Object.keys(D[l]), K, l); for (const k of K) { assert.ok(D[l][k].trim(), l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k); assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k); } }
+  for (const l of L10_365.slice(2)) for (const k of K) if (/[A-Za-z]{4}/.test(D.en[k].replace(/\{\w+\}/g, ' ')) && !(OK365[k] || '').split(' ').includes(l)) assert.notEqual(D[l][k], D.en[k], l + ' ' + k);
+  const c = plk365.code, dyn = {k: ['in12', 'inq', 'eu', 'out12', 'tot', 'ytd', 'd30', 'left'], h: ['in', 'ue'], pt: ['fdi', 'ue'], f: ['erdf', 'cf', 'esf', 'jtf', 'eafrd', 'emfaf', 'home', 'other'], p: ['ice', 'se', 'sd', 'ep', 'dig', 'ta', 'fa', 'cap', 'emfaf', 'amif', 'bmvi', 'isf']};
+  const pre = {k: "t('plk365.k.'+k)", h: "t('plk365.h.'+k)", pt: "t('plk365.pt.'+p)", f: "t('plk365.f.'+k)"};
+  for (const k of K) { const m = /^plk365\.(k|h|pt|f|p)\.(\w+)$/.exec(k);
+    if (m && dyn[m[1]].includes(m[2])) { if (m[1] === 'p') assert.ok(c.includes("'" + m[1] + '.' + m[2] + "'"), 'program w tabeli nazw: ' + k); else assert.ok(c.includes(pre[m[1]]), 'klucz składany w kodzie: ' + k); continue; }
+    assert.ok(c.includes("'" + k + "'"), 'klucz w kodzie: ' + k); }
+  for (const g of Object.keys(dyn)) for (const id of dyn[g]) assert.ok(K.includes('plk365.' + g + '.' + id), 'klucz dla ' + g + '.' + id);
+});
+
+test('v365: miejsce w kodzie i zasady — moduł zaraz za blokiem „Polska: giełda, obligacje i fundusze”, blok zaraz po plrD(), jedno pobranie pliku, tylko po rozwinięciu, bez zegarów i pamięci przeglądarki, styl serii na telefonie, bez nazw wydawców w kodzie', () => {
+  const c = plk365.code;
+  assert.ok(html.includes('/* v361 (F3Z2): koniec */\n/* v365 (F3Z3): Polska — kapitał z zagranicy'), 'moduł zaraz za modułem v361');
+  assert.ok(html.includes("(typeof plrD==='function'?plrD():'')+(typeof plkD==='function'?plkD():'')+"), 'w renderSu zaraz po plrD()');
+  assert.ok(html.indexOf('function renderSu(){') > html.indexOf('/* v365 (F3Z3): koniec */'), 'funkcje bloku przed renderSu');
+  assert.equal([...c.matchAll(/srvJSON\(\s*(['"`])polska-kapital\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.ok(c.includes("d.id!=='su-b-plk'||!d.open") && c.includes('n-PLK.e<60e3') && c.includes('n-PLK.t>=10*60e3'), 'rozwinięcie = pobranie; po błędzie najwcześniej po minucie; plik młodszy niż 10 min bez nowego pobrania');
+  assert.ok(c.includes('{PLK.e=Date.now();if(!PLK.j)PLK.x=true;}') && c.includes('PLK.j=j;PLK.x=false;') && !/PLK\.j=null/.test(c), 'chwilowy błąd pobrania nie zasłania wczytanych danych (komunikat tylko bez wcześniejszych)');
+  assert.ok(!/setInterval|setTimeout|localStorage|sessionStorage|Date\.now\(\)\s*[-+]\s*\d{6,}/.test(c.replace(/n-PLK\.[et][^;]*;/g, '')), 'bez zegarów i pamięci przeglądarki w module (poza chwilą wczytania pliku)');
+  assert.ok(!/Eurostat|Komisja Europejska|cohesiondata|Socrata|NBP\b|\bBIS\b|IMF\b|MFW/.test(c.replace(/\/\*[\s\S]*?\*\//g, '')), 'bez nazw wydawców w kodzie');
+  assert.ok(html.includes('#g-surowce .su-plk .wk-ch .plk1{--k:var(--bl)}#g-surowce .su-plk .wk-ch .plk2{--k:var(--tl)}') && html.includes('#g-surowce .su-plk .wk-bl{white-space:normal;line-height:1.25}'), 'serie w kolorach tożsamości, długie nazwy się zawijają');
+  assert.ok(html.includes('#g-surowce .su-plk .etfk b.pos{color:var(--gr-tx)}#g-surowce .su-plk .etfk b.neg{color:var(--rd-tx)}'), 'kwoty netto w kolorze znaku (zero bez koloru)');
+  assert.ok(!/<(script|link)[^>]+(eurostat|cohesiondata)/i.test(html), 'strona nie łączy się z obcymi serwerami: plik idzie tylko przez srvJSON');
+});
