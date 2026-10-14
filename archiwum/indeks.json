@@ -1,5 +1,5 @@
 {
- "at": "2026-10-14T01:40:24+00:00",
+ "at": "2026-10-14T01:51:34+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,13 +22,13 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-10-14T01:40:24+00:00",
+   "at": "2026-10-14T01:51:34+00:00",
    "rows": 247,
    "first": "2026-09-26",
    "last": "2026-10-14",
-   "added": 13,
-   "revised": 0,
-   "revisions_total": 130,
+   "added": 0,
+   "revised": 13,
+   "revisions_total": 143,
    "fetched": 13
   },
   "stablecoiny-eth": {
@@ -44,13 +44,13 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-10-14T01:40:24+00:00",
+   "at": "2026-10-14T01:51:34+00:00",
    "rows": 38,
    "first": "2026-09-26",
    "last": "2026-10-14",
-   "added": 2,
-   "revised": 0,
-   "revisions_total": 11,
+   "added": 0,
+   "revised": 1,
+   "revisions_total": 12,
    "fetched": 2
   },
   "plynnosc": {
@@ -68,11 +68,11 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-14T01:40:24+00:00",
+   "at": "2026-10-14T01:51:34+00:00",
    "rows": 760,
    "first": "2023-09-26",
    "last": "2026-10-13",
-   "added": 1,
+   "added": 0,
    "revised": 0,
    "revisions_total": 758,
    "fetched": 760
@@ -92,7 +92,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-10-14T01:40:24+00:00",
+   "at": "2026-10-14T01:51:34+00:00",
    "rows": 8778,
    "first": "2023-02",
    "last": "2026-07",
@@ -118,7 +118,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-10-14T01:40:24+00:00",
+   "at": "2026-10-14T01:51:34+00:00",
    "rows": 1060,
    "first": "2024-10-01",
    "last": "2026-10-06",
@@ -140,11 +140,11 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-14T01:40:24+00:00",
+   "at": "2026-10-14T01:51:34+00:00",
    "rows": 529,
    "first": "2024-09-26",
    "last": "2026-10-13",
-   "added": 1,
+   "added": 0,
    "revised": 0,
    "revisions_total": 2,
    "fetched": 517
@@ -170,12 +170,12 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-14T01:40:24+00:00",
+   "at": "2026-10-14T01:51:34+00:00",
    "rows": 150,
    "first": "2026-09-28",
    "last": "2026-10-12",
-   "added": 10,
-   "revised": 10,
+   "added": 0,
+   "revised": 0,
    "revisions_total": 130,
    "fetched": 150
   },
@@ -200,12 +200,12 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-14T01:40:24+00:00",
+   "at": "2026-10-14T01:51:34+00:00",
    "rows": 308,
    "first": "2026-10-05",
    "last": "2026-10-13",
-   "added": 44,
-   "revised": 44,
+   "added": 0,
+   "revised": 0,
    "revisions_total": 176,
    "fetched": 308
   },
@@ -240,7 +240,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-10-14T01:40:24+00:00",
+   "at": "2026-10-14T01:51:34+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -273,19 +273,53 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-10-14T01:40:24+00:00",
+   "at": "2026-10-14T01:51:34+00:00",
    "rows": 27,
    "first": "2026-10-08",
    "last": "2026-10-14",
-   "added": 12,
-   "revised": 13,
-   "revisions_total": 37,
+   "added": 0,
+   "revised": 4,
+   "revisions_total": 41,
    "fetched": 27
+  },
+  "ng-dziennik": {
+   "file": "ng-dziennik.csv",
+   "src": "Obliczenia własne CapitalFlowAI: dziennik kart reguł „w cieniu” nowych grup danych (rejestracja z góry 14.10.2026: fundusze regionów i sektorów, fundusz Polski, indeksy giełdy w Warszawie, zapasy miedzi, indeks zbóż) zapisanych przed granicą karty — 9:00 w Nowym Jorku; g = głos, z = odchylenie wejścia, y = wynik sesji w %, dd = dzień danych wejścia",
+   "cols": [
+    "date",
+    "line",
+    "sym",
+    "g",
+    "state",
+    "z",
+    "saved_at",
+    "y",
+    "dd",
+    "v",
+    "reg"
+   ],
+   "key": [
+    "date",
+    "line",
+    "sym",
+    "v",
+    "reg"
+   ],
+   "ok": true,
+   "at": "2026-10-14T01:51:34+00:00",
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "added": 0,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 0
   }
  },
  "errors": [],
  "notes": [
-  "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania"
+  "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania",
+  "ng-dziennik: brak pliku dziennika nowych grup na stronie (404) — nic do zapisania"
  ],
  "seria": {
   "plyn.net": 400,
