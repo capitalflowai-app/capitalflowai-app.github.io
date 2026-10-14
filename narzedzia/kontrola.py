@@ -6343,6 +6343,148 @@ def polska_kapital_kontrola(files, R):
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v371 (F3Z1): Polska — kto trzyma dług skarbowy i sprzedaż obligacji detalicznych (data/polska-dlug.json) ----------------------------------------------------------------
+# Świeżość każdej z dwóch części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️, nigdy ❌: oba pliki wydawcy są miesięczne, więc wiek liczymy od końca miesiąca danych i oceniamy
+# według RYTMU PUBLIKACJI, nie dnia (plik miesięczny nie może dawać alarmu przez cały miesiąc).
+# (a) struktura posiadaczy (miesiąc M): plik pojawia się ok. 28. dnia miesiąca M+1 (obserwacja 13.10.2026: plik za sierpień zmieniony 28.09, czyli 28 dni po końcu sierpnia); następny
+# dojdzie ok. 28 dni po końcu września, więc wiek danych tuż przed nową publikacją to ok. 58–62 dni od końca miesiąca (z weekendem i ostatnim dniem roboczym do ok. 62). Próg ⚠️ 70 dni od
+# końca miesiąca danych = ten sam próg, którego zbieracz używa dla pliku nierezydentów tego samego wydawcy i tej samej strony (SPW_STALE) — 8 dni zapasu.
+# (b) sprzedaż obligacji detalicznych (miesiąc M): plik zmieniony 09.10.2026 (dziewiąty dzień miesiąca) z danymi za wrzesień; następny ok. 9.11, czyli wiek danych tuż przed nową
+# publikacją ok. 40 dni od końca miesiąca (ze świętami i weekendem do ok. 42). Próg ⚠️ 55 dni (ok. 13 dni zapasu, publikacja po 22. dniu miesiąca dopiero daje uwagę).
+# Obie publikacje znamy z jednej obserwacji na część plus rytmu miesięcznego — źródło nie ma kalendarza wydań; do weryfikacji po kolejnych publikacjach (listopad–grudzień 2026).
+# ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (miesiące nie kolejne, długości serii, suma grup ≠ „Razem”, zamiana > sprzedaż, sumy według typów ≠ suma miesięcy).
+# Porównanie (najwyżej ⚠️, ℹ️): udział inwestorów zagranicznych w strukturze posiadaczy a plik nierezydentów (spw.json, ten sam wydawca): kwoty tych samych miesięcy (do 25) muszą się
+# zgadzać z dokładnością do zaokrągleń — pierwotny odczyt 10.10.2026: 25 z 25 miesięcy bez różnicy; ⚠️ dopiero przy różnicy ponad 1,5 mln zł w którymkolwiek wspólnym miesiącu.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'polska-dlug')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['polska-dlug'] = 180   # plik zapisywany co przebieg (części mają własny rytm); wiek danych każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'polska_dlug_' + p: 'Polska — kto trzyma dług skarbowy i obligacje detaliczne: część z błędem zostaje z datą (v371); wiek danych w wierszach świeżości' for p in ('pos', 'det')})
+PD_K_ETYKIETA = {'pos': 'Polska: kto trzyma dług skarbowy (struktura posiadaczy, miesięcznie)', 'det': 'Polska: sprzedaż obligacji detalicznych (miesięcznie)'}
+PD_K_PROG_DNI = {'pos': 70, 'det': 55}      # dni od końca miesiąca danych
+PD_K_TOL_MLN = 1.5                          # suma grup = „Razem”: 1 mln zł zbieracza + zaokrąglenia do 0,1 mln zł w 10 liczbach
+PD_K_ZAGR_MLN = 1.5                         # zagranica w obu plikach tego samego wydawcy
+
+
+def _pd_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))
+
+
+def _pd_k_f(x, d=1):
+    return f'{x:,.{d}f}'.replace(',', ' ').replace('.', ',')
+
+
+def _pd_k_mi(m):
+    x = re.fullmatch(r'(\d{4})-(0[1-9]|1[0-2])', str(m))
+    return int(x.group(1)) * 12 + int(x.group(2)) - 1 if x else None
+
+
+def polska_dlug_swiezosc(j, now=None):
+    """Wiersze świeżości dwóch części pliku polska-dlug.json (etykieta, status, wiek min, data danych, uwaga). Najwyżej ⚠️; brak pliku albo inna wersja = brak wierszy; część bez daty danych — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p, label in PD_K_ETYKIETA.items():
+        e = j.get(p) if isinstance(j.get(p), dict) else {}
+        txt = e.get('asof')
+        if not (isinstance(txt, str) and _pd_k_mi(txt) is not None):
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        w, prog = wiek_danych(txt, 'month', 'k', now), PD_K_PROG_DNI[p] * 1440
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        rows.append((label, st, w, txt, f'próg {PD_K_PROG_DNI[p]} dni od końca miesiąca danych — najwyżej uwaga (plik miesięczny, rytm publikacji opisany w kodzie kontroli)' if st == '⚠️' else ''))
+    return rows
+
+
+def polska_dlug_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w danych o długu w Polsce) → lista opisów."""
+    zle = []
+    P = j.get('pos') if isinstance(j.get('pos'), dict) else None
+    if P:
+        m, s = P.get('m'), P.get('s')
+        mi = [_pd_k_mi(x) for x in m] if isinstance(m, list) else []
+        if len(mi) < 24 or None in mi or any(b - a != 1 for a, b in zip(mi, mi[1:])):
+            zle.append('pos: miesiące nie są kolejne albo jest ich mniej niż 24')
+        elif P.get('asof') != m[-1]:
+            zle.append(f'pos: miesiąc danych {P.get("asof")} ≠ ostatni z listy {m[-1]}')
+        kl = ('banki', 'zagr', 'ubez', 'emer', 'inwe', 'gosp', 'przed', 'inst', 'inne')
+        if not (isinstance(s, dict) and all(isinstance(s.get(k), list) and len(s[k]) == len(mi) and all(x is None or (_pd_k_num(x) and x >= 0) for x in s[k]) for k in kl + ('razem',))):
+            zle.append('pos.s: układ serii (długości, wartości ujemne)')
+        elif mi and None not in mi:
+            if any(x is None for x in s['razem']):
+                zle.append('pos.s.razem: brak wartości')
+            else:
+                for i, mm in enumerate(m):
+                    a = sum(s[k][i] for k in kl if s[k][i] is not None)
+                    if abs(a - s['razem'][i]) > PD_K_TOL_MLN:
+                        zle.append(f'pos {mm}: suma grup {_pd_k_f(a)} ≠ razem {_pd_k_f(s["razem"][i])} mln zł'); break
+            if any(s[k][-1] is None for k in kl):
+                zle.append('pos: brak wartości grupy w ostatnim miesiącu')
+    D = j.get('det') if isinstance(j.get('det'), dict) else None
+    if D:
+        m, b, z = D.get('m'), D.get('b'), D.get('z')
+        mi = [_pd_k_mi(x) for x in m] if isinstance(m, list) else []
+        if len(mi) < 24 or None in mi or any(y - x != 1 for x, y in zip(mi, mi[1:])):
+            zle.append('det: miesiące nie są kolejne albo jest ich mniej niż 24')
+        else:
+            if D.get('asof') != m[-1]:
+                zle.append(f'det: miesiąc danych {D.get("asof")} ≠ ostatni z listy {m[-1]}')
+            if not (isinstance(b, list) and isinstance(z, list) and len(b) == len(z) == len(m) and all(_pd_k_num(x) and x > 0 for x in b) and all(_pd_k_num(x) and x >= 0 for x in z)):
+                zle.append('det: układ serii sprzedaży i zamiany')
+            else:
+                if any(zz > bb + 0.05 for bb, zz in zip(b, z)):
+                    zle.append('det: zamiana większa od sprzedaży łącznej')
+                T = D.get('t')
+                if isinstance(T, dict) and T:
+                    ok = all(isinstance(r, list) and len(r) == 4 and all(_pd_k_num(x) and x >= 0 for x in r) for r in T.values())
+                    if not ok:
+                        zle.append('det.t: układ typów')
+                    else:
+                        for k, nm in ((0, 'sprzedaż 12 mies.'), (1, 'zamiana 12 mies.'), (2, 'sprzedaż poprzednich 12 mies.'), (3, 'zamiana poprzednich 12 mies.')):
+                            ref = sum((b if k % 2 == 0 else z)[-12:] if k < 2 else (b if k % 2 == 0 else z)[-24:-12])
+                            if abs(sum(r[k] for r in T.values()) - ref) > 0.1 * len(T) + 0.1:
+                                zle.append(f'det.t: suma według typów ({nm}) ≠ suma miesięcy'); break
+                else:
+                    zle.append('det.t: brak podziału według typów')
+    return zle
+
+
+def polska_dlug_porownania(j, files):
+    """Zagranica w strukturze posiadaczy a plik nierezydentów (spw.json): {'wiersze': [(opis, znak)], 'uwagi': [...]}. Najwyżej ⚠️."""
+    wier, uw = [], []
+    P = j.get('pos') if isinstance(j.get('pos'), dict) else None
+    S = files.get('spw') if isinstance(files, dict) else None
+    if not P or not isinstance(S, dict) or not isinstance(S.get('m'), list) or not isinstance(P.get('m'), list) or not isinstance((P.get('s') or {}).get('zagr'), list):
+        return {'wiersze': wier, 'uwagi': uw}
+    zg = dict(zip(P['m'], P['s']['zagr']))
+    roz, n = [], 0
+    for r in S['m']:
+        if isinstance(r, list) and len(r) >= 2 and isinstance(r[0], str) and _pd_k_num(r[1]) and _pd_k_num(zg.get(r[0])):
+            n += 1
+            roz.append((abs(zg[r[0]] - r[1]), r[0], zg[r[0]], r[1]))
+    if n < 3:
+        wier.append(('Zagranica: za mało wspólnych miesięcy z plikiem nierezydentów do porównania', 'ℹ️'))
+        return {'wiersze': wier, 'uwagi': uw}
+    mx = max(roz)
+    zle = mx[0] > PD_K_ZAGR_MLN
+    wier.append((f'Zagranica: {n} wspólnych miesięcy z plikiem nierezydentów, największa różnica {_pd_k_f(mx[0], 2)} mln zł ({mx[1]}: struktura {_pd_k_f(mx[2])} ↔ nierezydenci {_pd_k_f(mx[3])})', '⚠️' if zle else '✅'))
+    if zle:
+        uw.append(f'Polska dług: inwestorzy zagraniczni {mx[1]} — {_pd_k_f(mx[2])} mln zł w strukturze posiadaczy, a {_pd_k_f(mx[3])} mln zł w pliku nierezydentów (różnica {_pd_k_f(mx[0])}, próg {_pd_k_f(PD_K_ZAGR_MLN)}) — najwyżej uwaga')
+    return {'wiersze': wier, 'uwagi': uw}
+
+
+def polska_dlug_kontrola(files, R):
+    """Kontrola pliku polska-dlug.json bez sieci: sprzeczności w pliku (❌ = BŁĄD) i porównanie (najwyżej ⚠️). Brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('polska-dlug') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle = polska_dlug_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'polska-dlug.json: sprzeczność w pliku — {z}')
+    P = polska_dlug_porownania(j, files)
+    R['uwagi'] += P['uwagi']
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- v341 (F5Z3): zboża dziennie i koszt transportu (data/zboza-dzien.json) ----------------------------------------------------------------
 # Świeżość każdej z pięciu części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠ — pole next pliku mówi, kiedy spodziewana jest publikacja.
 # Progi z testu wstecznego na modelu kalendarza publikacji i prawdziwych datach wierszy z nagrań 10–11.10.2026 (ws53/v341-zboza-dz/bt/bt_swiezosc.py, sprawdzenia
@@ -8890,6 +9032,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-pd. v371 (F3Z1): Polska — kto trzyma dług skarbowy i sprzedaż obligacji detalicznych (data/polska-dlug.json) — świeżość każdej z dwóch części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in polska_dlug_swiezosc(files.get('polska-dlug')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c-gx. v349 (F6Z1): giełdy scentralizowane i DEX (data/gieldy.json, data/dex.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in gx_swiezosc(files.get('gieldy'), files.get('dex')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
@@ -9325,6 +9474,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['polska-kapital'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Polska kapitał: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v371 (F3Z1): Polska — kto trzyma dług skarbowy i sprzedaż obligacji detalicznych — sprzeczności w pliku (❌), porównanie zagranicy z plikiem nierezydentów (najwyżej ⚠️), z plików strony, bez zapytań
+    try:
+        Z['polska-dlug'] = polska_dlug_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['polska-dlug'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Polska dług: kontrola przerwana ({str(e)[:80]})')
     # 3g. v341 (F5Z3): zboża dziennie i koszt transportu — sprzeczności w pliku (❌), skoki, korelacje zmian miesięcznych z innymi danymi i tabela źródła (najwyżej ⚠️), z plików strony, bez zapytań
     try:
         Z['zboza-dzien'] = zboza_kontrola(files.get('zboza-dzien'), files, R)
@@ -9711,6 +9866,11 @@ def raport_md(R):
             L.append('- Polska: kapitał z zagranicy i wypłaty UE (z pliku strony): ' + (f'? kontrola przerwana ({rpk["blad"]})' if rpk.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(rpk['spojnosc'][:3]) + ' ❌ · ' if rpk.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in rpk.get('wiersze') or []) or '—') + '.')
+        rpd = Z.get('polska-dlug')   # v371: Polska — kto trzyma dług skarbowy i sprzedaż obligacji detalicznych — sprzeczności w pliku i porównanie zagranicy z plikiem nierezydentów; brak pliku = bez linii
+        if rpd:
+            L.append('- Polska: dług skarbowy i obligacje detaliczne (z pliku strony): ' + (f'? kontrola przerwana ({rpd["blad"]})' if rpd.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(rpd['spojnosc'][:3]) + ' ❌ · ' if rpd.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in rpd.get('wiersze') or []) or '—') + '.')
         gdz = Z.get('gieldy-dex')   # v349: giełdy scentralizowane i DEX — sprzeczności w plikach i informacje (flagi skoku listy portfeli, znak przepływu, stosunek DEX do giełd); brak plików = bez linii
         if gdz:
             L.append('- Giełdy scentralizowane, DEX i kontrakty na łańcuchu (z plików strony): ' + (f'? kontrola przerwana ({gdz["blad"]})' if gdz.get('blad') else

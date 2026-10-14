@@ -145,6 +145,7 @@ ZRODLA_META = {
     'soma_sklad': 'ny-fed', 'eurosystem': 'ecb', 'hedge': 'ofr',   # v357: skład portfela Fed, pozycje bilansu Eurosystemu, fundusze hedgingowe — te same trzy instytucje co dotąd (NY Fed, EBC, OFR): liczba źródeł bez zmian
     'etf_zapas': 'ishares',   # v360: zapas przepływów ETF krypto z plików emitenta (IBIT, ETHA) — ten sam wydawca co fundusze (iShares): liczba źródeł bez zmian
     'polska_kapital_fdi': 'eurostat', 'polska_kapital_ue': 'komisja-europejska',   # v365: kapitał z zagranicy do Polski (inwestycje według kraju) i wypłaty UE — oba źródła już liczone, bez zmiany liczby źródeł
+    'polska_dlug_pos': 'mf-polska', 'polska_dlug_det': 'mf-polska',   # v371: kto trzyma dług skarbowy i sprzedaż obligacji detalicznych — ten sam wydawca co plik nierezydentów (spw), bez zmiany liczby źródeł
     'polska_rynek_gpw': 'gpw', 'polska_rynek_krzywa': 'bondspot', 'polska_rynek_fundusze': 'izfia',   # v361: Polska na rynku dziennie — giełda w Warszawie, rynek obligacji skarbowych, izba funduszy: trzy nowe źródła
     'krzywe_us': 'skarb-usa', 'krzywe_de': 'bundesbank', 'krzywe_jp': 'mof-japonii', 'krzywe_ea': 'ecb', 'krzywe_ca': 'bank-kanady',   # v362: krzywe rentowności — te same pięć instytucji co dotąd (Skarb USA, Bundesbank, MF Japonii, EBC, Bank Kanady): liczba źródeł bez zmian
     'emit_llama': 'defillama', 'emit_tether': 'tether', 'emit_circle': 'circle',   # v363: emitenci stablecoinów — lista monet (ta sama usługa co podaż stablecoinów), raport Tether (jak karta XAUT) i raport Circle (+1 źródło)
@@ -31104,6 +31105,19 @@ def main():
         META['ok']['polska_kapital_fdi'] = META['ok']['polska_kapital_ue'] = False
         if isinstance(prev_pk, dict):
             save('polska-kapital', prev_pk)
+    # v371 (F3Z1): POLSKA — KTO TRZYMA DŁUG SKARBOWY I SPRZEDAŻ OBLIGACJI DETALICZNYCH (data/polska-dlug.json; GLOBAL, blok „Polska: kto pożycza państwu”) — struktura posiadaczy (miesięcznie)
+    # i sprzedaż obligacji detalicznych (miesięcznie); każda część z własnym rytmem, bramką i poprzednią wersją przy awarii. META ok: polska_dlug_pos, polska_dlug_det.
+    prev_pd = previous('polska-dlug')
+    try:
+        pd_ = build_polska_dlug(prev_pd, run_t0=_RUN_T0[0])
+        save('polska-dlug', pd_)
+        META['ok']['polska_dlug_pos'] = pd_['ok'].get('pos', False)
+        META['ok']['polska_dlug_det'] = pd_['ok'].get('det', False)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Polska dług: {e}')[:200])
+        META['ok']['polska_dlug_pos'] = META['ok']['polska_dlug_det'] = False
+        if isinstance(prev_pd, dict):
+            save('polska-dlug', prev_pd)
     # v104: dźwignia i pozycje w krypto (bez klucza) — co godzinę od pełnej budowy; młody plik z częścią z błędem: dobieramy tylko tę część (strona Źródła: dzwignia)
     # v126: część `cz` (wszystkie duże giełdy, sekret COINALYZE_KEY — tylko nagłówek zapytań, maskowany w błędach). Bez klucza plik jak dotąd (notatka).
     # Z kluczem: młody zdrowy plik z zaległymi zadaniami tej części = dobierana tylko ona (co przebieg, w budżecie wywołań); jej awaria nigdy nie
@@ -34645,6 +34659,345 @@ def build_niepewnosc(prev=None):
                     out['lm'][k] = plm[k]
     if not any(out['ok'].values()):
         raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+# ===================== v371 (F3Z1): POLSKA — KTO TRZYMA DŁUG SKARBOWY I ILE OSZCZĘDNOŚCI PŁYNIE DO OBLIGACJI DETALICZNYCH — data/polska-dlug.json =====================
+# Dwie niezależne części jednego pliku (strony tego samego wydawcy co SPW nierezydentów, v87 — liczba źródeł bez zmian), każda z własnym rytmem, bramką i poprzednią wersją przy awarii
+# (część po błędzie zostaje z poprzedniego pliku; ok False):
+#  (1) pos — struktura posiadaczy skarbowych papierów wartościowych emitowanych na rynku krajowym (obligacje i bony razem, wartość nominalna, koniec miesiąca, mln zł) od 2004-06:
+#      banki, inwestorzy zagraniczni, zakłady ubezpieczeniowe, fundusze emerytalne i inwestycyjne, gospodarstwa domowe, przedsiębiorstwa niefinansowe, instytucje rządowe i samorządowe
+#      (osobno dopiero od 2020-09; wcześniej w „innych”) i inne podmioty. Plik .xls (arkusz „Razem(A)”), czytany czytnikiem projektu (ici_xls, biblioteka standardowa); kolumny po NAZWACH
+#      nagłówków (nie po pozycji). Adres pliku zmienia się co miesiąc (identyfikator w adresie): codziennie jedno zapytanie o stronę (ok. 70 KB), plik (0,65 MB) tylko przy nowym
+#      identyfikatorze albo raz na PD_ODSW_DNI dni. Bramka: miesiące kolejne, suma 9 grup = „Razem” (±PD_SUMA_MLN mln zł) w KAŻDYM miesiącu, ten sam wynik z arkuszy Obligacje(A) + Bony(A)
+#      w ostatnich PD_POS_OKNO miesiącach, komplet grup w tym oknie, wartości w zakresie.
+#  (2) det — sprzedaż obligacji detalicznych (oszczędnościowych, kupowanych przez osoby prywatne) od 1999, plik .xls z 13 arkuszami typów (OTS, ROR, DOR, TOS, COI, EDO, ROS, ROD…);
+#      sprzedaż łączna (mln zł), w tym zamiana (obligacje już posiadane zamieniane na nowe — to nie są nowe pieniądze), miesiąc = miesiąc początku sprzedaży serii (seria trwa miesiąc).
+#      „Sprzedaż bez zamiany” = sprzedaż łączna − zamiana (wykupy NIE są odjęte). Miesiąc wchodzi do pliku dopiero, gdy wszystkie jego serie mają kwotę i zakończyły sprzedaż przed dniem
+#      pliku (Last-Modified): nowa seria bez kwoty albo trwająca sprzedaż = miesiąc niepełny, pomijany (nigdy zero). Okno PD_DET_OKNO miesięcy; ostatnie 12 i poprzednie 12 miesięcy
+#      także według typu. Bramka: miesiące kolejne w oknie, rdzeń typów (ROR, DOR, TOS, COI, EDO) obecny, 0 ≤ zamiana ≤ sprzedaż, sprzedaż w zakresie.
+# Rytm: źródło publikuje raz w miesiącu (struktura posiadaczy ok. 28. dnia miesiąca za miesiąc poprzedni, sprzedaż detaliczna ok. 9. dnia za miesiąc poprzedni); zbieracz pyta raz na dobę
+# (PD_H godzin), po błędzie ponawia najwcześniej po PD_PONOW_H godzinach.
+PD_V = 1
+PD_PAGE = {'pos': SPW_PAGE, 'det': 'https://www.gov.pl/web/finanse/obligacje-detaliczne1'}
+PD_NAZWA = {'pos': re.compile(r'(?<![A-Za-z0-9_])Portfele\d{2}\.xls(?!x)'), 'det': re.compile(r'Dane_dotyczace_obligacji_detalicznych\.xls(?!x)')}
+PD_TYTUL = {'pos': 'Struktura podmiotowa zadłużenia w SPW emitowanych na rynku krajowym', 'det': 'Dane dotyczące obligacji detalicznych'}
+PD_H = 20                   # godz. — odstęp sprawdzenia strony każdej części (źródło publikuje raz w miesiącu)
+PD_PONOW_H = 3              # godz. — po błędzie części ponowienie nie częściej
+PD_ODSW_DNI = 8             # dni — ten sam identyfikator pliku: ponowne pobranie najwyżej raz na tyle dni (zabezpieczenie przed podmianą treści pod tym samym adresem)
+PD_MAX_BAJTOW = 8_000_000   # plik: pos 0,65 MB, det 1,0 MB; większa odpowiedź = nie ten plik
+PD_MAX_STRONA = 3_000_000   # strona z odnośnikami: ok. 70 KB
+PD_WART_MAX = 1e7           # mln zł — wartość spoza 0…1e7 to błąd skali
+PD_SUMA_MLN = 1.0           # suma 9 grup = „Razem” (±1 mln zł) w każdym miesiącu
+PD_POS_MIN = 200            # najmniej miesięcy w pliku posiadaczy (jest 267)
+PD_POS_OKNO = 24            # ostatnie miesiące z kompletem grup i sprawdzeniem Obligacje + Bony = Razem
+PD_DET_OKNO = 48            # miesięcy sprzedaży detalicznej w pliku (12 + 12 do porównania r/r + zapas na wykres)
+PD_DET_MIN_SERII = 5        # najmniej serii w każdym miesiącu okna (jest 8)
+PD_DET_MAX_MLN = 5e4        # mln zł — sprzedaż miesięczna ponad 50 mld zł to błąd skali
+PD_GRUPY = (('banki', 'banki'), ('zagr', 'inwestorzy zagraniczni'), ('ubez', 'zakłady ubezpieczeniowe'), ('emer', 'fundusze emerytalne'), ('inwe', 'fundusze inwestycyjne'),
+            ('gosp', 'gospodarstwa domowe'), ('przed', 'przedsiębiorstwa niefinansowe'), ('inst', 'instytucje rządowe i samorządowe'), ('inne', 'inne podmioty'))
+PD_DET_TYPY = ('OTS', 'ROR', 'DOR', 'TOS', 'COI', 'EDO', 'ROS', 'ROD', 'KOS', 'POS', 'DOS', 'TOZ', 'SP')
+PD_DET_RDZEN = ('ROR', 'DOR', 'TOS', 'COI', 'EDO')
+
+
+def _pd_norm(v):
+    """Nagłówek komórki: spacje (także twarde i znaki podziału wiersza) zwinięte, małe litery."""
+    return re.sub(r'\s+', ' ', str(v).replace('\xa0', ' ').replace('\u200b', '')).strip().lower()
+
+
+def _pd_liczba(v):
+    """Komórka liczbowa (nie logiczna, skończona) albo None."""
+    return float(v) if isinstance(v, float) and v == v and abs(v) != float('inf') else None
+
+
+def _pd_dzien(v):
+    """Liczba seryjna Excela → data (datetime.date) w rozsądnym zakresie (1998–2100) albo None."""
+    v = _pd_liczba(v)
+    if v is None or not 35800 < v < 73000:
+        return None
+    return datetime.date(1899, 12, 30) + datetime.timedelta(days=int(v))
+
+
+def _pd_mi(m):
+    """'2026-08' → liczba kolejna miesiąca (rok × 12 + miesiąc − 1) albo None."""
+    x = re.fullmatch(r'(\d{4})-(0[1-9]|1[0-2])', str(m))
+    return int(x.group(1)) * 12 + int(x.group(2)) - 1 if x else None
+
+
+def _pd_ml(i):
+    return f'{i // 12:04d}-{i % 12 + 1:02d}'
+
+
+def pd_arkusz(wb, nazwa):
+    """Arkusz po nazwie bez względu na wielkość liter i spacje wokół; brak = None."""
+    cel = re.sub(r'\s+', '', nazwa).lower()
+    for k, v in wb.items():
+        if re.sub(r'\s+', '', str(k)).lower() == cel and isinstance(v, dict) and v:
+            return v
+    return None
+
+
+def pd_pos_arkusz(C, nazwa):
+    """Arkusz struktury posiadaczy → (wiersze {miesiąc: {grupa: liczba|None, 'razem': liczba|None}}, ostatni dzień danych). Kolumny po NAZWACH nagłówków (każda dokładnie raz)."""
+    hr, nm = None, {}
+    for r in range(0, 4):
+        n = {}
+        for (rr, c), v in C.items():
+            if rr == r and isinstance(v, str):
+                n.setdefault(_pd_norm(v), []).append(c)
+        if 'banki' in n:
+            hr, nm = r, n
+            break
+    if hr is None:
+        raise RuntimeError(f'MF portfele: w arkuszu „{nazwa}” brak nagłówka z kolumną „Banki”')
+    kol = {}
+    for k, nz in PD_GRUPY + (('razem', 'razem'), ('data', 'data')):
+        c = nm.get(nz) or []
+        if len(c) != 1:
+            raise RuntimeError(f'MF portfele: w arkuszu „{nazwa}” kolumna „{nz}” występuje {len(c)} razy (powinna raz)')
+        kol[k] = c[0]
+    out, last = {}, None
+    for r in sorted({rr for (rr, _c) in C if rr > hr}):
+        d = _pd_dzien(C.get((r, kol['data'])))
+        if d is None:
+            continue
+        if d.day < 25:
+            raise RuntimeError(f'MF portfele: w arkuszu „{nazwa}” data {d.isoformat()} nie jest końcem miesiąca')
+        m = d.isoformat()[:7]
+        if m in out:
+            raise RuntimeError(f'MF portfele: w arkuszu „{nazwa}” miesiąc {m} występuje dwa razy')
+        row = {}
+        for k in [g for g, _n in PD_GRUPY] + ['razem']:
+            v = _pd_liczba(C.get((r, kol[k])))
+            if v is not None and not 0 <= v <= PD_WART_MAX:
+                raise RuntimeError(f'MF portfele: w arkuszu „{nazwa}” wartość poza zakresem ({m}, {k})')
+            row[k] = v
+        out[m] = row
+        last = d
+    return out, last
+
+
+def pd_pos_zloz(wb):
+    """Skoroszyt „Portfele” → część pos albo wyjątek (patrz opis bloku)."""
+    A = {k: pd_arkusz(wb, n) for k, n in (('r', 'Razem(A)'), ('o', 'Obligacje(A)'), ('b', 'Bony Skarbowe(A)'))}
+    if not all(A.values()):
+        raise RuntimeError('MF portfele: brak arkusza Razem(A), Obligacje(A) albo Bony Skarbowe(A)')
+    R, last = pd_pos_arkusz(A['r'], 'Razem(A)')
+    O, _ = pd_pos_arkusz(A['o'], 'Obligacje(A)')
+    B, _ = pd_pos_arkusz(A['b'], 'Bony Skarbowe(A)')
+    ms = sorted(R)
+    if len(ms) < PD_POS_MIN:
+        raise RuntimeError(f'MF portfele: {len(ms)} miesięcy (najmniej {PD_POS_MIN})')
+    ix = [_pd_mi(m) for m in ms]
+    if any(b - a != 1 for a, b in zip(ix, ix[1:])):
+        raise RuntimeError('MF portfele: miesiące nie są kolejne')
+    kl = [g for g, _n in PD_GRUPY]
+    for m in ms:
+        r = R[m]
+        if r['razem'] is None:
+            raise RuntimeError(f'MF portfele: brak sumy „Razem” w {m}')
+        s = sum(r[k] for k in kl if r[k] is not None)
+        if abs(s - r['razem']) > PD_SUMA_MLN:
+            raise RuntimeError(f'MF portfele: suma grup {s:.1f} ≠ „Razem” {r["razem"]:.1f} w {m}')
+    for m in ms[-PD_POS_OKNO:]:
+        if any(R[m][k] is None for k in kl):
+            raise RuntimeError(f'MF portfele: brak wartości grupy w {m} (okno ostatnich {PD_POS_OKNO} miesięcy musi być pełne)')
+        for k in kl + ['razem']:
+            ob, bo = (O.get(m) or {}).get(k), (B.get(m) or {}).get(k)
+            if ob is None or bo is None or abs(ob + bo - R[m][k]) > PD_SUMA_MLN:
+                raise RuntimeError(f'MF portfele: obligacje + bony ≠ razem ({m}, {k})')
+    return {'asof': ms[-1], 'od': ms[0], 'dzien': last.isoformat(), 'm': ms,
+            's': {k: [None if R[m][k] is None else round(R[m][k], 1) for m in ms] for k in kl + ['razem']}}
+
+
+def pd_det_zloz(wb, dzien_pliku):
+    """Skoroszyt sprzedaży obligacji detalicznych → część det albo wyjątek; dzien_pliku (datetime.date) — dzień pliku (Last-Modified): seria, która kończy sprzedaż w tym dniu albo później,
+    jest niepełna."""
+    rek, wid = [], []
+    for typ in PD_DET_TYPY:
+        C = pd_arkusz(wb, typ)
+        if C is None:
+            if typ in PD_DET_RDZEN:
+                raise RuntimeError(f'MF obligacje detaliczne: brak arkusza {typ}')
+            continue
+        hr, kol = None, {}
+        for r in range(0, 3):
+            n = {}
+            for (rr, c), v in C.items():
+                if rr == r and isinstance(v, str):
+                    n.setdefault(_pd_norm(v), []).append(c)
+            st = [c for k, cs in n.items() if k.startswith('początek sprzedaży') for c in cs]
+            sp = [c for k, cs in n.items() if k.startswith('sprzedaż łączna') for c in cs]
+            if st and sp:
+                hr = r
+                zm = [c for k, cs in n.items() if k.startswith('w tym zamiana') for c in cs]
+                ko = [c for k, cs in n.items() if k.startswith('koniec sprzedaży') for c in cs]
+                if len(st) != 1 or len(sp) != 1 or len(zm) > 1 or len(ko) > 1:
+                    raise RuntimeError(f'MF obligacje detaliczne: arkusz {typ} ma niejednoznaczne kolumny nagłówka')
+                kol = {'st': st[0], 'sp': sp[0], 'zm': zm[0] if zm else None, 'ko': ko[0] if ko else None}
+                break
+        if hr is None:
+            if typ in PD_DET_RDZEN:
+                raise RuntimeError(f'MF obligacje detaliczne: w arkuszu {typ} brak kolumn „Początek sprzedaży” i „Sprzedaż łączna”')
+            continue
+        wid.append(typ)
+        for r in sorted({rr for (rr, _c) in C if rr > hr}):
+            d = _pd_dzien(C.get((r, kol['st'])))
+            if d is None:
+                continue
+            sp = _pd_liczba(C.get((r, kol['sp'])))
+            zm = _pd_liczba(C.get((r, kol['zm']))) if kol['zm'] is not None else None
+            ko = _pd_dzien(C.get((r, kol['ko']))) if kol['ko'] is not None else None
+            if ko is None:
+                ko = (datetime.date(d.year + (d.month == 12), d.month % 12 + 1, 1) - datetime.timedelta(days=1))   # brak końca sprzedaży: koniec miesiąca początku
+            for v in (sp, zm):
+                if v is not None and not 0 <= v <= PD_DET_MAX_MLN:
+                    raise RuntimeError(f'MF obligacje detaliczne: wartość poza zakresem ({typ}, {d.isoformat()[:7]})')
+            rek.append((typ, d.isoformat()[:7], ko, sp, zm))
+    if not rek:
+        raise RuntimeError('MF obligacje detaliczne: brak serii')
+    po_m = {}
+    for typ, m, ko, sp, zm in rek:
+        po_m.setdefault(m, []).append((typ, ko, sp, zm))
+    pelny = lambda m: all(sp is not None and ko < dzien_pliku for _t, ko, sp, _z in po_m[m])
+    L = next((m for m in sorted(po_m, reverse=True) if pelny(m)), None)
+    if L is None:
+        raise RuntimeError('MF obligacje detaliczne: żaden miesiąc nie jest pełny')
+    li = _pd_mi(L)
+    ms = [_pd_ml(i) for i in range(li - PD_DET_OKNO + 1, li + 1)]
+    for m in ms:
+        if m not in po_m or not pelny(m):
+            raise RuntimeError(f'MF obligacje detaliczne: miesiąc {m} z okna {PD_DET_OKNO} miesięcy brakuje albo jest niepełny')
+        if len(po_m[m]) < PD_DET_MIN_SERII:
+            raise RuntimeError(f'MF obligacje detaliczne: w {m} tylko {len(po_m[m])} serii (najmniej {PD_DET_MIN_SERII})')
+    b, z, t = [], [], {}
+    for m in ms:
+        bm = sum(sp for _t, _k, sp, _z in po_m[m])
+        zmm = sum(zm or 0.0 for _t, _k, _s, zm in po_m[m])
+        if not (0 < bm <= PD_DET_MAX_MLN) or not 0 <= zmm <= bm:
+            raise RuntimeError(f'MF obligacje detaliczne: sprzedaż {bm:.1f} albo zamiana {zmm:.1f} mln zł poza zakresem w {m}')
+        b.append(round(bm, 1)); z.append(round(zmm, 1))
+    for typ in PD_DET_TYPY:
+        o = [0.0, 0.0, 0.0, 0.0]
+        for i, m in enumerate(ms[-24:]):
+            k = 0 if i >= 12 else 2
+            for tp, _ko, sp, zm in po_m[m]:
+                if tp == typ:
+                    o[k] += sp; o[k + 1] += zm or 0.0
+        if any(o):
+            t[typ] = [round(x, 1) for x in o]
+    return {'asof': L, 'od': ms[0], 'm': ms, 'b': b, 'z': z, 't': t, 'arkusze': wid}
+
+
+def pd_get(url, timeout=90, maks=PD_MAX_BAJTOW):
+    """Jedyne miejsce sieci tej części (testy je łatają): GET → (bajty, nagłówek Last-Modified albo None). Odpowiedź większa niż maks = nie ten plik."""
+    _zuz_licz(url, None)
+    with _otworz(url, None, timeout) as r:
+        body = r.read(maks + 1)
+        lm = r.headers.get('Last-Modified')
+    if len(body) > maks:
+        raise RuntimeError(f'odpowiedź większa niż {maks} B — to nie ten plik')
+    return body, lm
+
+
+def pd_lm(lm):
+    """Nagłówek Last-Modified → datetime UTC albo None."""
+    try:
+        t = _zd_email.parsedate_to_datetime(lm) if lm else None
+    except (TypeError, ValueError):
+        return None
+    return t.astimezone(datetime.timezone.utc) if t is not None and t.tzinfo is not None else None
+
+
+def pd_link(page, rodzaj):
+    """Odnośnik do pliku na stronie wydawcy → (adres, identyfikator) albo None. Najpierw po nazwie pliku (znaki zerowej szerokości usunięte), potem po tytule."""
+    po_nazwie = po_tytule = None
+    for href, txt in SPW_A.findall(page):
+        z = re.sub(r'\s+', ' ', _html.unescape(re.sub(r'<[^>]+>', ' ', txt)).replace('\u200b', '')).strip()
+        if po_nazwie is None and PD_NAZWA[rodzaj].search(z):
+            po_nazwie = href
+        if po_tytule is None and (z == PD_TYTUL[rodzaj] or z.startswith(PD_TYTUL[rodzaj] + ' ')):
+            po_tytule = href
+    h = po_nazwie or po_tytule
+    return (SPW_BASE + h, h.rsplit('/', 1)[-1]) if h else None
+
+
+def pd_pora(prev_at, proba, now_t):
+    """Czy część jest do sprawdzenia: po błędzie ponowienie nie częściej niż co PD_PONOW_H godzin; bez poprzedniego sprawdzenia — tak; inaczej po PD_H godzinach."""
+    pr = _plr_dt(proba) if proba else None
+    if pr is not None and (now_t - pr) < datetime.timedelta(hours=PD_PONOW_H):
+        return False
+    pa = _plr_dt(prev_at) if prev_at else None
+    return pa is None or (now_t - pa) >= datetime.timedelta(hours=PD_H)
+
+
+def pd_czesc(rodzaj, prev, prev_at, proba, now_t):
+    """→ (część, stan, błąd, sprawdzono). stan True = zbudowana, 'cached' = poprzednia wystarcza (odstęp nie minął albo ten sam plik)."""
+    mam = isinstance(prev, dict) and bool(prev.get('asof'))
+    if not pd_pora(prev_at, proba, now_t):
+        return (prev, 'cached', None, False) if mam else (None, False, 'ponowienie dopiero po przerwie po błędzie', False)
+    strona = pd_get(PD_PAGE[rodzaj], 60, PD_MAX_STRONA)[0].decode('utf-8', 'replace')
+    lk = pd_link(strona, rodzaj)
+    if lk is None:
+        raise RuntimeError('na stronie wydawcy nie ma odnośnika do pliku')
+    url, uid = lk
+    dl = _plr_dt(prev.get('dl')) if mam else None
+    if mam and prev.get('uid') == uid and dl is not None and (now_t - dl) < datetime.timedelta(days=PD_ODSW_DNI):
+        return prev, 'cached', None, True      # ten sam plik — bez pobierania
+    raw, lm = pd_get(url, 120, PD_MAX_BAJTOW)
+    lt = pd_lm(lm)
+    wb = ici_xls(raw)
+    nowa = pd_pos_zloz(wb) if rodzaj == 'pos' else pd_det_zloz(wb, (lt or now_t).date())
+    if mam and nowa['asof'] < prev['asof']:
+        META['notes'].append(f'Polska dług ({rodzaj}): plik pokazuje {nowa["asof"]}, a poprzedni ma {prev["asof"]} — zostaje poprzedni')
+        return prev, 'cached', None, True
+    nowa.update({'at': NOW, 'uid': uid, 'dl': now_t.replace(microsecond=0).isoformat(), 'lm': lt.isoformat().replace('+00:00', 'Z') if lt else None})
+    return nowa, True, None, True
+
+
+def build_polska_dlug(prev=None, run_t0=None, now=None):
+    """data/polska-dlug.json = {v, at, ok: {pos, det}, part_at: {pos, det}, proba: {…}, pos, det}. Każda część osobno: awaria = jej poprzednia wersja i błąd w meta; część bez poprzedniej
+    wersji i bez danych nie wchodzi do pliku. Wyjątek tylko wtedy, gdy plik nie miałby żadnej części."""
+    now_t = _plr_dt(now or NOW) or datetime.datetime.now(datetime.timezone.utc)
+    prev = prev if isinstance(prev, dict) and prev.get('v') == PD_V else {}
+    out, ok, pat, pro = {'v': PD_V, 'at': NOW}, {}, {}, {}
+    teraz = now_t.replace(microsecond=0).isoformat()
+    pat0 = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    pro0 = prev.get('proba') if isinstance(prev.get('proba'), dict) else {}
+    etyk = {'pos': 'Polska dług (struktura posiadaczy)', 'det': 'Polska dług (obligacje detaliczne)'}
+    for n in ('pos', 'det'):
+        pc = prev.get(n) if isinstance(prev.get(n), dict) else None
+        pa, pr = pat0.get(n) or (pc.get('at') if pc else None), pro0.get(n)
+        try:
+            nowa, stan, blad, spr = pd_czesc(n, pc, pa, pr, now_t)
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{etyk[n]}: {e}')[:200])
+            ok[n] = False
+            pro[n] = teraz
+            if pa:
+                pat[n] = pa
+            if pc:
+                out[n] = pc
+            continue
+        if blad:
+            ok[n] = False
+            pro[n] = pro0.get(n) or teraz
+            if pa:
+                pat[n] = pa
+            if pc:
+                out[n] = pc
+            continue
+        ok[n] = stan
+        if nowa:
+            out[n] = nowa
+            pat[n] = teraz if spr else (pa or teraz)
+            if not spr and pr:
+                ok[n], pro[n] = False, pr      # poprzednia próba zawiodła, a ponowienie jeszcze nie minęło — część nadal z błędem (nie 'cached'); udane sprawdzenie nie przenosi próby (plik bez pola proba)
+    out['ok'], out['part_at'] = ok, pat
+    if pro:
+        out['proba'] = pro
+    if not any(n in out for n in ('pos', 'det')):
+        raise RuntimeError('żadna część pliku nie ma danych')
     return out
 
 
