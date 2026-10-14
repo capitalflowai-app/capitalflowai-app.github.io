@@ -10077,10 +10077,16 @@ def build_trendy(S):
     except Exception as e:
         _SUT_LOG[1] = None                 # awaria bloku nie rusza reszty pliku; poprzedni dziennik zostaje (main)
         META['notes'].append(mask(f'trendy surowce (w cieniu): {e}'))
+    ng_td = None
+    try:                                  # v373: nowe grupy — blok reguł „w cieniu” TD_SH_NG (dziennik _NGT_LOG; strona: opis, licznik, data rejestracji)
+        ng_td = _ngt_build(S)
+    except Exception as e:
+        _NGT_LOG[1] = None                 # awaria bloku nie rusza reszty pliku; poprzedni dziennik zostaje (main)
+        META['notes'].append(mask(f'trendy nowe grupy (w cieniu): {e}'))
     return {'at': NOW, 'v': 1, 'src': 'CapitalFlowAI — obliczenia z plików tej strony (fundusze, obce, meksyk, instytucje, kursy, etf, cm, krypto, cftc, surowce, ceny)',
             'rules': {'base_min': TR_BASE_MIN, 'base_max': TR_BASE_MAX, 'dir': TR_DIR, 'all': TR_ALL, 'floor': TR_FLOOR, 'strong': TR_STRONG,
                       'exc': TR_EXC, 'day_z': TR_DAY_Z, 'span': TR_SPAN, 'px_min': TR_PX_MIN, 'cr_typ': TR_CR_TYP},
-            'f': flows, 'p': prices, 'b': base, **daily, **({'su': su_td} if su_td else {})}   # v303: su tylko, gdy blok policzony
+            'f': flows, 'p': prices, 'b': base, **daily, **({'su': su_td} if su_td else {}), **({'ng': ng_td} if ng_td else {})}   # v303: su tylko, gdy blok policzony
 
 
 # ===================== v303: SUROWCE w TRENDACH — blok „w cieniu” TD_SH_SU (dział SUROWCE, etap 7) =====================
@@ -10523,6 +10529,407 @@ def _sut_build(S):
                 META['notes'].append('Dziennik surowców (TRENDY): nowy dziennik — pierwszy zapis (archiwum jeszcze go nie miało)')
     _SUT_LOG[1] = _sut_log(log0, S, now_utc)
     return _sut_summary(_SUT_LOG[1])
+
+
+# ===================== v373: nowe grupy w TRENDACH — blok „w cieniu” TD_SH_NG (F1Z2 i F5Z4 planu źródeł) =====================
+# Rejestracja z góry: docs/REGULY_NOWE_GRUPY_2026-10-14_PL.md (suma SHA-256 dokumentu w NGT_SHA) — lista zamknięta 14.10.2026, przed jakimkolwiek wynikiem.
+# Sześć linii: przepływ do funduszy regionów i krajów (rg.f), do trzech nowych funduszy sektorowych (sk.f) i do funduszu Polski (pl.f); zmiana indeksów giełdy
+# w Warszawie → fundusz Polski (pl.ix); zmiana zapasów miedzi w magazynach giełdy metali (kierunek odwrotny) → fundusz miedzi (me.cu); zmiana dziennego
+# indeksu zbóż → fundusz surowców rolnych (zb.goi). Mechanika jak w bloku SUROWCE (TD_SH_SU), tylko sesje NYSE: karta sesji jest liczona w każdym przebiegu PRZED
+# granicą 09:00 NY z danych, które w tej chwili są w plikach strony, i zamrażana na granicy (saved_at); karta, której przed granicą nie było, trafia do dziennika
+# „po czasie” (bez głosu); dzień danych głosuje najwyżej raz w linii i symbolu (najnowszy, którego wcześniejsza karta nie użyła; za stary — wcale). Progi wyłącznie
+# ze stałych reguł głównych (TD_LB, TD_MIN, TD_Z1, TD_FLOOR, TD_GAP); własny Bonferroni: m = 6 linii × 3 oceny = 18; punkty kontrolne 100/200/400 sesji
+# z sygnałem zamrażane raz. Strona pokazuje tylko opis, datę rejestracji i licznik sesji z sygnałem do najbliższej oceny — NIC nie jest ujawniane (pole 'ok'
+# nie istnieje). Wejścia pochodzą z plików tego przebiegu (fundusze, polska-rynek, metale, zboza-dzien), wyniki z cen sesji funduszy w plikach swiat-dzien i ng-ceny
+# (14 dodatkowych funduszy zbiera build_ng_ceny: WD_NG_PX); bez zapytań do sieci. Reguły głównych sygnałów i bloku SUROWCE bez zmian.
+NGT_V = 1                       # wersja bloku (zmiana linii albo reguły = nowa rejestracja, nowa wersja; stare oceny zostają w 'prev')
+NGT_REG = '2026-10-14'          # data rejestracji (dokument z sumą SHA-256)
+NGT_SINCE = '2026-10-15'        # najwcześniejsza data karty w dzienniku (pierwsza sesja docelowa po dniu rejestracji)
+# SHA-256 pliku docs/REGULY_NOWE_GRUPY_2026-10-14_PL.md (dokument rejestracji zapisany przed kodem i przed jakimkolwiek wynikiem)
+NGT_SHA = '79dfa4a6f07c4fd9f2a26b59768793f907f75aa5c14a2d5c10a4a131533ec41e'
+NGT_RG = ('EWC', 'EWW', 'ECH', 'ILF', 'KSA', 'UAE', 'QAT', 'KWT', 'TUR', 'EIS', 'EZA', 'EWS', 'EIDO', 'THD', 'EWM', 'EPHE', 'EWA')   # regiony i kraje (rg.f)
+NGT_SK = ('XLB', 'XLRE', 'XLC')                                   # sektory spoza reguł głównych (sk.f)
+NGT_IX = ('WIG20', 'WIG', 'mWIG40', 'sWIG80')                     # indeksy giełdy w Warszawie (pl.ix)
+TD_SH_NG = (('rg.f', 'fl', 1, TD_Z1), ('sk.f', 'fl', 1, TD_Z1), ('pl.f', 'fl', 1, TD_Z1), ('pl.ix', 'ix', 1, TD_Z1), ('me.cu', 'cu', -1, TD_Z1),
+            ('zb.goi', 'goi', 1, TD_Z1))
+#           (nazwa, wejście, kierunek z góry, próg |z|) — lista zamknięta 14.10.2026; sesja NYSE, wynik: otwarcie → zamknięcie funduszu
+NGT_SYMS = {'rg.f': NGT_RG, 'sk.f': NGT_SK, 'pl.f': ('EPOL',), 'pl.ix': NGT_IX, 'me.cu': ('cu',), 'zb.goi': ('goi',)}   # symbole wejścia każdej linii
+NGT_OUT = {'pl.ix': 'EPOL', 'me.cu': 'CPER', 'zb.goi': 'DBA'}     # fundusz wyniku; pozostałe linie: sam fundusz wejścia
+NGT_OUTS = tuple(sorted({NGT_OUT.get(n, s) for n, ss in NGT_SYMS.items() for s in ss}))   # wszystkie fundusze wyniku (muszą mieć ceny w swiat-dzien)
+NGT_M = len(TD_SH_NG) * len(TD_W_LOOKS)                                  # 18 prób naraz (6 linii × 3 oceny) — także linie jeszcze bez danych
+NGT_ZL = statistics.NormalDist().inv_cdf(1 - 0.025 / NGT_M)              # 2,9913
+NGT_CLL = round(100 - 5 / NGT_M, 1)                                      # 99.7
+NGT_ZW = 1        # sesje NYSE: pierwsza sesja, w której wejście mogło głosować (po publikacji), najwyżej tyle sesji przed sesją karty (dostępność danych)
+# publikacja wejścia z datą d: (dni po d, minuty po północy, strefa); w tygodniu ze świętem NYSE — ostrożnie dzień roboczy później. Pliki iShares: 23:59 NY dnia d;
+# State Street: ok. 06:00 UTC następnego dnia roboczego (zapas do 08:00); zamknięcie sesji w Warszawie ok. 15:05 UTC (zapas do 18:00); zapasy w magazynach metali
+# — wieczór dnia d, w plikach najpóźniej ok. 01:00 UTC następnego dnia (zapas do 06:00); dzienny indeks zbóż — rano następnego dnia (zapas do 10:00 UTC)
+NGT_PUB = {'ishares': (0, 1439, 'ny'), 'ssga': (1, 480, 'utc'), 'gpw': (0, 1080, 'utc'), 'lme': (1, 360, 'utc'), 'igc': (1, 600, 'utc')}
+NGT_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'archiwum', 'ng-dziennik.csv')   # kopia dzienna (narzedzia/archiwum.py)
+NGT_CSV_COLS = ['date', 'line', 'sym', 'g', 'state', 'z', 'saved_at', 'y', 'dd', 'v', 'reg']
+NGT_JST = ('ok', 'late')        # stany wiersza: ok — karta przed granicą (głos albo spokój), late — po czasie (bez głosu)
+_NGT_LOG = [None, None]         # [poprzedni dziennik (main, przed trendami), nowy dziennik (_ngt_build)]
+
+
+def _ngt_out(line, sym):
+    """Fundusz wyniku wiersza (linia, symbol wejścia)."""
+    return NGT_OUT.get(line, sym)
+
+
+def _ngt_pub(kind, d):
+    """Chwila publikacji (UTC, 'YYYY-MM-DDTHH:MM:SS') wejścia rodzaju `kind` z datą d. Dzień bez sesji NYSE (TD_NYSE_CLOSED) w (d, dzień publikacji] albo
+    publikacja w sobotę/niedzielę — dzień roboczy później (ostrożnie, nigdy wcześniej)."""
+    dd, m, tz = NGT_PUB[kind]
+    p = _d(d) + datetime.timedelta(days=dd)
+    if dd:
+        if any((_d(d) + datetime.timedelta(days=k)).isoformat() in TD_NYSE_CLOSED for k in range(1, dd + 1)):
+            p += datetime.timedelta(days=1)
+        while p.weekday() >= 5 or p.isoformat() in TD_NYSE_CLOSED:
+            p += datetime.timedelta(days=1)
+    if tz == 'utc':
+        return p.isoformat() + 'T%02d:%02d:00' % divmod(m, 60)
+    return _tdw_at(p.isoformat(), m)
+
+
+def _ngt_sesja_pub(kind, d):
+    """Pierwsza sesja NYSE, w której karta (granica 09:00 NY) może użyć wejścia `kind` z datą d — pierwsza sesja z granicą po publikacji."""
+    pub = _ngt_pub(kind, d)
+    s = pub[:10] if _d(pub[:10]).weekday() < 5 and pub[:10] not in TD_NYSE_CLOSED else _tdw_next(pub[:10])
+    return s if _tdw_cut(s) > pub else _tdw_next(s)
+
+
+def _ngt_wejscia(S):
+    """Wejścia linii z plików tego przebiegu → {(linia, symbol): ([(dzień, zmiana | przepływ | None)], demean, rodzaj publikacji)}. Brak pliku albo serii =
+    brak wpisu (linia czeka). Przepływ: wiersze wydawcy [dzień, NAV, jednostki] z pliku fundusze (te same funkcje co reguły główne); zmiana: zamknięcie
+    indeksu (podział jednostek = brak), zapasy metalu (bez filtra podziału), indeks zbóż."""
+    out = {}
+    fu = S.get('fundusze') if isinstance(S.get('fundusze'), dict) else {}
+    F = fu.get('f') if isinstance(fu.get('f'), dict) else {}
+    for line, syms in (('rg.f', NGT_RG), ('sk.f', NGT_SK), ('pl.f', ('EPOL',))):
+        for sym in syms:
+            e = F.get(sym) if isinstance(F.get(sym), dict) else {}
+            f = _sut_fl(e.get('h')) if isinstance(e.get('h'), list) else []
+            if f:
+                out[(line, sym)] = (f, True, ('ssga' if e.get('iss') == 'ssga' else 'ishares',))
+    pr = S.get('polska-rynek') if isinstance(S.get('polska-rynek'), dict) else {}
+    idx = ((pr.get('gpw') or {}).get('idx') or {}) if isinstance(pr.get('gpw'), dict) else {}
+    for sym in NGT_IX:
+        ser = _sut_ser((idx.get(sym) or {}).get('d') if isinstance(idx.get(sym), dict) else None, 1)
+        if len(ser) > 1:
+            out[('pl.ix', sym)] = (_sut_zm(ser, split=True), False, ('gpw',))
+    mt = S.get('metale') if isinstance(S.get('metale'), dict) else {}
+    cu = (((mt.get('lme') or {}).get('m') or {}).get('cu') or {}) if isinstance(mt.get('lme'), dict) else {}
+    ser = _sut_ser(cu.get('d') if isinstance(cu, dict) else None, 3)
+    if len(ser) > 1:
+        out[('me.cu', 'cu')] = (_sut_zm(ser), False, ('lme',))
+    zd = S.get('zboza-dzien') if isinstance(S.get('zboza-dzien'), dict) else {}
+    g = (((zd.get('goi') or {}).get('s') or {}).get('goi') or {}) if isinstance(zd.get('goi'), dict) else {}
+    ser = _sut_ser(g.get('d') if isinstance(g, dict) else None, 1)
+    if len(ser) > 1:
+        out[('zb.goi', 'goi')] = (_sut_zm(ser, split=True), False, ('igc',))
+    return out
+
+
+def _ngt_karta(ch, demean, thr, kinds, cel, prev_dd):
+    """Karta linii dla sesji `cel` z serii wejścia ch → (głos przed kierunkiem, z, dzień danych) albo None (brak karty). Dzień danych = najnowszy dzień serii
+    przed sesją, którego publikacja jest przed granicą karty (09:00 NY); zużyty przez wcześniejszą kartę (≤ prev_dd) albo za stary (pierwsza sesja, w której mógł
+    głosować, wcześniejsza niż NGT_ZW sesji przed kartą) = brak karty. z z najwyżej TD_LB poprzednich wartości serii (_td_z; ruch bez odejmowania średniej,
+    przepływ ze średnią i dolną granicą rozrzutu). Tylko dni ≤ dzień danych — nic z dni późniejszych."""
+    cut = _tdw_cut(cel)
+
+    def wolno(d):
+        return d < cel and all(_ngt_pub(k, d) < cut for k in kinds)
+    i = len(ch) - 1
+    while i >= 0 and not wolno(ch[i][0]):
+        i -= 1
+    if i < 0:
+        return None
+    d = ch[i][0]
+    lo = cel
+    for _ in range(NGT_ZW):
+        lo = _wd_prev_session(lo)
+    first = max(_ngt_sesja_pub(k, d) for k in kinds)
+    if first < lo or (prev_dd and d <= prev_dd):
+        return None
+    z = _td_z([x for _, x in ch], i, demean)
+    if z is None:
+        return None
+    return ((1 if z > 0 else -1) if abs(z) >= thr else 0), z, d
+
+
+def _ngt_valid(log):
+    return isinstance(log, dict) and isinstance(log.get('rows'), list) and 'v' in log and 'reg' in log
+
+
+def _ngt_rows(log):
+    """Poprawne wiersze dziennika: [dzień, linia, symbol, głos, stan, z, zapisano, y, dzień danych]."""
+    return [list(r) for r in ((log or {}).get('rows') or []) if isinstance(r, list) and len(r) == 9 and isinstance(r[0], str) and _d(r[0])
+            and r[1] in NGT_SYMS and r[2] in NGT_SYMS[r[1]] and r[4] in NGT_JST]
+
+
+def _ngt_ut_w(wd, name):
+    """Udział sesji wzrostowych w TD_W_UT sesjach przed parą (b0t, jak reguły świata) z pliku swiat-dzien → {symbol wejścia: {sesja: udział}}."""
+    cal = [c for c in ((wd or {}).get('cal') or []) if isinstance(c, str)]
+    if not cal:
+        return None
+    by = _sut_oc(wd, tuple({_ngt_out(name, s) for s in NGT_SYMS[name]}))
+    ser = [{'id': s, 'dates': cal, 'y': [by[_ngt_out(name, s)].get(c) for c in cal]} for s in NGT_SYMS[name] if by[_ngt_out(name, s)]]
+    return _tdw_ut(ser)
+
+
+def _ngt_cp(log, rows, today, iso, wd):
+    """Punkty kontrolne 100/200/400 sesji z sygnałem (wiersze dojrzałe: ≥ TD_W_SETTLE dni) przy z = NGT_ZL:
+    [c, k, n, b0, h1, h2, lo, hi, vd, dzień c, zapisano, b0t, próg] — zapis raz, nigdy liczone od nowa (jak _sut_cp)."""
+    cp = {k: [list(x) for x in v if isinstance(x, list) and len(x) == 13] for k, v in ((log or {}).get('cp') or {}).items()}
+    for name, *_ in TD_SH_NG:
+        pr, ys = _sut_pary(rows, name, NGT_SINCE, (today - datetime.timedelta(days=TD_W_SETTLE)).isoformat())
+        pr = sorted(pr); ds = sorted({p[0] for p in pr}); have = {x[0] for x in cp.get(name, [])}
+        ut = None
+        for c in TD_W_LOOKS:
+            if c in have or len(ds) < c:
+                continue
+            q = [p for p in pr if p[0] <= ds[c - 1]]
+            ut = ut if ut is not None else (_ngt_ut_w(wd, name) or {})
+            S_ = _tdw_stat(q, ys, NGT_ZL, ut)
+            ne = S_['ne']; b0t = None if S_['b0t'] is None else round(S_['b0t'], 1)
+            bm = S_['bm']
+            thr = round(bm + 100 * NGT_ZL * math.sqrt(bm / 100 * (1 - bm / 100) / ne), 1) if ne else None
+            cp.setdefault(name, []).append([c, S_['k'], S_['n'], None if S_['b0'] is None else round(S_['b0'], 1), S_['h1'], S_['h2'],
+                                            S_['ca'][0], S_['ca'][1], S_['vd'], ds[c - 1], iso, b0t, thr])
+    return {k: sorted(v) for k, v in cp.items() if v}
+
+
+def _ngt_log(log, S, now_utc):
+    """Dziennik bloku: karty liczone na żywo przed granicą (nadpisywane do granicy, potem zamrożone), karta bez wiersza przed granicą → „po czasie” (bez głosu,
+    tylko gdy dziennik istniał przed tą granicą), wyniki dopisywane raz, punkty kontrolne raz, postęp (pg). Inna wersja albo rejestracja → nowy dziennik, stare
+    oceny w 'prev'. Nie zmienia S."""
+    log = log if _ngt_valid(log) else {}
+    prevs = [x for x in (log.get('prev') or []) if isinstance(x, dict)] if isinstance(log.get('prev'), list) else []
+    if log and (log.get('v') != NGT_V or log.get('reg') != NGT_REG):
+        prevs = prevs + [{'v': log.get('v'), 'reg': log.get('reg'), 'cp': log.get('cp') or {}, 'n': len(log.get('rows') or [])}]
+        log = {}
+    iso = _sut_iso(now_utc); n19 = iso[:19]; today = _d(iso)
+    was = log.get('at') if isinstance(log.get('at'), str) else None
+    R = {(r[0], r[1], r[2]): r for r in _ngt_rows(log)}
+    W = _ngt_wejscia(S)
+    cel = _sut_cel('w', now_utc); pc = _sut_poprz('w', cel)
+
+    def zuzyty(name, sym, przed):
+        return max((r[8] for (d, ln, s), r in R.items() if ln == name and s == sym and d < przed and r[4] == 'ok' and isinstance(r[8], str)),
+                   default=None)
+    for name, inp, dr, thr in TD_SH_NG:
+        for (ln, sym), (ch, dm, kinds) in W.items():
+            if ln != name:
+                continue
+            if cel >= NGT_SINCE:
+                k = _ngt_karta(ch, dm, thr, kinds, cel, zuzyty(name, sym, cel))
+                if k:
+                    R[(cel, name, sym)] = [cel, name, sym, k[0] * dr, 'ok', _tdw_rz(k[1]), iso, None, k[2]]
+            if (pc >= NGT_SINCE and (pc, name, sym) not in R and was and was[:19] < _tdw_cut(pc) <= n19 < _tdw_end(pc)):
+                k = _ngt_karta(ch, dm, thr, kinds, pc, zuzyty(name, sym, pc))
+                if k:
+                    R[(pc, name, sym)] = [pc, name, sym, 0, 'late', None, iso, None, k[2]]
+    wd0 = S.get('swiat-dzien') if isinstance(S.get('swiat-dzien'), dict) else {}
+    nc = S.get('ng-ceny') if isinstance(S.get('ng-ceny'), dict) else {}
+    wd = {'cal': wd0.get('cal'), 'px': {**(wd0.get('px') or {}), **(nc.get('px') or {})}}   # ceny wyników: plik świat dziennie + plik ng-ceny (14 funduszy)
+    oc = None
+    for key, r in R.items():
+        if r[7] is not None:
+            continue
+        if r[0] < today.isoformat() or n19 >= _tdw_at(r[0], TD_W_CLOSE):
+            oc = oc if oc is not None else _sut_oc(wd, NGT_OUTS)
+            y = (oc.get(_ngt_out(r[1], r[2])) or {}).get(r[0])
+            if y is not None:
+                r[7] = round(y, 4)
+    rows = [R[k] for k in sorted(R)]
+    out = {'at': iso, 'v': NGT_V, 'reg': NGT_REG, 'sha': NGT_SHA, 'since': NGT_SINCE, 'cut': {'w': TD_W_CUT}, 'rows': rows, 'cp': {}}
+    out['cp'] = _ngt_cp(log, rows, today, iso, wd)
+    pg = {}
+    for name, *_ in TD_SH_NG:
+        od = min((r[0] for r in rows if r[1] == name), default=None)
+        a, _ = _sut_pary(rows, name, NGT_SINCE, (today - datetime.timedelta(days=TD_W_SETTLE)).isoformat())
+        b, _ = _sut_pary(rows, name, NGT_SINCE)
+        g = _td_pg({name: a}, {name: b}, [(name, name)], TD_W_LOOKS, out['cp'], od, today, TD_W_SETTLE)['l'][name]
+        pg[name] = g + [od]                                     # [n, c, szacunek, dni dojrzałe, pierwsza karta]
+    out['pg'] = pg
+    if prevs:
+        out['prev'] = prevs
+    return out
+
+
+def _ngt_from_csv(path=None):
+    """Kopia dzienna dziennika (archiwum/ng-dziennik.csv, narzedzia/archiwum.py) → (dziennik, 'ok') z wierszami TEJ wersji i rejestracji (punkty kontrolne
+    policzy od nowa _ngt_log z tych samych wierszy); (None, 'none') — brak pliku albo wierszy tej wersji; (None, 'bad') — plik jest, ale nieczytelny."""
+    path = path or NGT_CSV
+    try:
+        with open(path, encoding='utf-8', newline='') as f:
+            rd = csv.reader(f)
+            if next(rd, None) != NGT_CSV_COLS:
+                return None, 'bad'
+            raw = list(rd)
+    except FileNotFoundError:
+        return None, 'none'
+    except (OSError, csv.Error, UnicodeDecodeError):
+        return None, 'bad'
+    rows = []
+    num = lambda x: float(x) if x != '' else None   # noqa: E731 — puste pole = brak, nigdy 0
+    for r in raw:
+        if len(r) != len(NGT_CSV_COLS):
+            continue
+        d = dict(zip(NGT_CSV_COLS, r))
+        try:
+            if int(d['v'] or 0) != NGT_V or d['reg'] != NGT_REG or not _d(d['date']):
+                continue
+            rows.append([d['date'], d['line'], d['sym'], int(d['g']), d['state'], num(d['z']), d['saved_at'], num(d['y']), d['dd'] or None])
+        except (TypeError, ValueError):
+            continue
+    rows = [r for r in rows if r in _ngt_rows({'rows': [r]})]
+    if not rows:
+        return None, 'none'
+    return {'at': None, 'v': NGT_V, 'reg': NGT_REG, 'since': NGT_SINCE, 'rows': sorted(rows), 'cp': {}}, 'ok'
+
+
+def _ngt_summary(log):
+    """Dziennik → pole 'ng' pliku trendy.json: wersja, data rejestracji, suma dokumentu, m, poziom, punkty kontrolne, stan dziennika i postęp linii
+    (l: [n, c, szacunek, dni dojrzałe, pierwsza karta]). Żadnych liczb ocen i żadnego ujawnienia (nie ma pola 'ok')."""
+    pg = log.get('pg') if isinstance(log.get('pg'), dict) else {}
+    L = {}
+    for name, *_ in TD_SH_NG:
+        g = pg.get(name)
+        L[name] = g if isinstance(g, list) and len(g) == 5 else [0, TD_W_LOOKS[0], None, 0, None]
+    return {'v': NGT_V, 'reg': NGT_REG, 'sha': NGT_SHA, 'm': NGT_M, 'cll': NGT_CLL, 'looks': list(TD_W_LOOKS), 'at': log.get('at'), 'l': L}
+
+
+def _ngt_arch_byl(path=None):
+    """Czy archiwum miało już kiedyś kopię dziennika: archiwum/indeks.json z wpisem ng-dziennik o co najmniej jednym wierszu → True; indeks bez takiego wpisu
+    → False (pierwsze wdrożenie); brak albo nieczytelny indeks → None (wtedy ostrożnie reguła daty)."""
+    path = path or os.path.join(os.path.dirname(NGT_CSV), 'indeks.json')
+    try:
+        with open(path, encoding='utf-8') as f:
+            ix = json.load(f)
+    except (OSError, ValueError):
+        return None
+    fl = ix.get('files') if isinstance(ix, dict) else None
+    if not isinstance(fl, dict):
+        return None
+    e = fl.get('ng-dziennik')
+    return isinstance(e, dict) and _isnum(e.get('rows')) and e['rows'] > 0
+
+
+def _ngt_build(S):
+    """v373: blok „w cieniu” nowych grup → pole 'ng' pliku trendy.json albo None (bez gotowego pliku swiat-dzien albo bez żadnego wejścia linii — bez pola). Dziennik:
+    _NGT_LOG[0] (poprzedni) → _NGT_LOG[1] (nowy); brak → odtworzenie z archiwum/ng-dziennik.csv; nieczytelne archiwum → błąd w meta, licznik wstrzymany,
+    nic nie zapisujemy; brak pliku i kopii → błąd w meta tylko wtedy, gdy dziennik już był (wpis w archiwum/indeks.json; bez czytelnego indeksu — po 4 dniach od
+    NGT_SINCE), a przy pierwszym wdrożeniu — uwaga. Liczone tylko z plików tego przebiegu, bez sieci."""
+    S = S if isinstance(S, dict) else {}
+    rd = lambda k: isinstance(S.get(k), dict) and S[k].get('ready') is True   # noqa: E731
+    log0 = _NGT_LOG[0] if _ngt_valid(_NGT_LOG[0]) else None
+    if log0 is None and not (rd('swiat-dzien') and _ngt_wejscia(S)):
+        return None
+    now_utc = _now_utc()
+    if log0 is None:
+        log0, why = _ngt_from_csv()
+        if why == 'bad':
+            META['errors'].append('Dziennik nowych grup (TRENDY): brak poprzedniego pliku, a kopia w archiwum jest nieczytelna — licznik wstrzymany, '
+                                  'nic nie nadpisano')
+            return None
+        if log0 is not None:
+            META['notes'].append(f"Dziennik nowych grup (TRENDY): odtworzony z archiwum ({len(log0['rows'])} wierszy do {log0['rows'][-1][0]})")
+        else:
+            byl = _ngt_arch_byl()
+            if byl or (byl is None and now_utc.date() > _d(NGT_SINCE) + datetime.timedelta(days=4)):
+                META['errors'].append('Dziennik nowych grup (TRENDY): brak poprzedniego pliku i brak jego kopii w archiwum — nowy dziennik, licznik od zera')
+            else:                              # pierwsze wdrożenie: dziennika nie było ani na stronie, ani w archiwum
+                META['notes'].append('Dziennik nowych grup (TRENDY): nowy dziennik — pierwszy zapis (archiwum jeszcze go nie miało)')
+    _NGT_LOG[1] = _ngt_log(log0, S, now_utc)
+    return _ngt_summary(_NGT_LOG[1])
+
+
+# ===================== v373: ceny dodatkowych funduszy dla bloku TD_SH_NG (osobny plik data/ng-ceny.json) =====================
+# Wyniki linii bloku „w cieniu” nowych grup (otwarcie → zamknięcie sesji NYSE) potrzebują cen 14 funduszy, których nie ma w pliku świat dziennie (44 rynki
+# reguł głównych + 7 funduszy surowcowych): EPOL, EWW, ECH, UAE, QAT, KWT, EWS, EIDO, THD, EWM, EPHE, XLB, XLRE, XLC. Osobny plik, żeby nie ruszać pliku
+# świat dziennie (gotowość, karty i testy reguł głównych bez zmian): ta sama publiczna droga bez klucza (Nasdaq), ten sam kalendarz sesji (z pliku świat dziennie),
+# ta sama zasada „pierwsza publikacja z czasem zapisu”, seria wstępna ok. 420 dni. Ceny dnia — w pierwszym przebiegu po tym, jak plik świat dziennie dopisze sesję,
+# brakujące najwyżej co 55 min, po 48 h „miss” (brak na stałe, nigdy 0). Awaria = poprzednie dane i uwaga w meta (nie błąd strony). +14 zapytań na dobę.
+WD_NG_PX = ('EPOL', 'EWW', 'ECH', 'UAE', 'QAT', 'KWT', 'EWS', 'EIDO', 'THD', 'EWM', 'EPHE', 'XLB', 'XLRE', 'XLC')
+NGC_V = 1
+NGC_SEED_DNI = 420                      # dni kalendarzowych serii wstępnej (≈ 290 sesji — z zapasem na udział sesji wzrostowych w 250 sesjach przed parą)
+NGC_T = 60                              # s — cały budowniczy (zapytania: 14 funduszy równolegle, limit zapytania WD_TIMEOUT)
+NGC_KEEP = 520                          # sesji w pliku (≈ 2 lata)
+NGC_SRC = 'ceny: otwarcie i zamknięcie sesji w USA (jak plik świat dziennie) dodatkowych funduszy linii reguł w cieniu'
+
+
+def _ngc_build(prev, saved):
+    """v373: data/ng-ceny.json = {at, v, src, px: {fundusz: {d: [[dzień, otwarcie, zamknięcie, seen]], miss, seed, se}}, rv, rvd, try, bledy}. Kalendarz
+    sesji z pliku świat dziennie (SAVED, gotowy) — bez niego plik zostaje bez zmian (poprzednie dane + wpis w bledy). Jedna droga zapytań (_wd_fetch_px) i jedno
+    scalanie (_wd_merge_px) z plikiem świat dziennie; seria wstępna najwyżej raz na WD_SEED_BACK_M min po porażce."""
+    now = _now_utc(); iso = _wd_iso(); ny = _wd_ny(now)
+    prev = prev if isinstance(prev, dict) and prev.get('v') == NGC_V and isinstance(prev.get('px'), dict) else {}
+    cp = lambda k: json.loads(json.dumps(prev.get(k) or {}))  # noqa: E731
+    out = {'at': NOW, 'v': NGC_V, 'src': NGC_SRC, 'px': cp('px'), 'rv': {}, 'rvd': cp('rvd'), 'try': prev.get('try'), 'bledy': {}}
+    wd0 = (saved or {}).get('swiat-dzien') if isinstance(saved, dict) else None
+    cal = [c for c in (wd0.get('cal') or []) if isinstance(c, str) and _d(c)] if isinstance(wd0, dict) and wd0.get('ready') is True else []
+    if not cal:
+        out['bledy']['kalendarz'] = 'brak kalendarza sesji (plik świat dziennie jeszcze niegotowy)'
+        return out
+    wd = {'cal': cal, 'px': out['px'], 'rv': out['rv'], 'rvd': out['rvd']}
+    for t in WD_NG_PX:
+        out['px'].setdefault(t, {'d': [], 'miss': []})
+    today_ny = ny.date().isoformat()
+    stop = False
+    # (1) ceny dnia dla funduszy z serią wstępną: sesja kalendarza (cal[-1]) bez wiersza → najwyżej co WD_RETRY_M min
+    try:
+        lack = [t for t in WD_NG_PX if out['px'][t].get('seed') and not any(r[0] == cal[-1] for r in out['px'][t]['d'][-3:])
+                and cal[-1] not in (out['px'][t].get('miss') or [])]
+        if lack and _wd_nq_ok(wd0, iso) and (not out['try'] or out['try'][:19] <= _wd_plus(iso, -WD_RETRY_M)[:19]):
+            a = (_d(today_ny) - datetime.timedelta(days=20)).isoformat()
+            got, err = _wd_fetch_px(lack, a, today_ny, 15, now); out['try'] = iso
+            _wd_merge_px(wd, got, iso, True)
+            if err:
+                out['bledy']['px'] = _wd_esum(err)
+        end = datetime.datetime.fromisoformat(_tdw_at(cal[-1], TD_W_CLOSE))
+        if (now.astimezone(datetime.timezone.utc).replace(tzinfo=None) - end).total_seconds() > WD_GAP_H * 3600:
+            for t in lack:
+                P = out['px'][t]
+                if not any(r[0] == cal[-1] for r in P['d']) and cal[-1] not in P.setdefault('miss', []):
+                    P['miss'].append(cal[-1])
+    except WdBudget:
+        stop = True
+    except Exception as e:  # noqa
+        out['bledy']['px'] = mask(str(e))[:140]
+    # (2) seria wstępna (po cenach dnia): porażka → przerwa WD_SEED_BACK_M min; odpowiedź bez żadnej ceny = jak błąd
+    try:
+        pend = [t for t in WD_NG_PX if not out['px'][t].get('seed') and not _wd_seed_skip(out['px'][t], iso)]
+        if pend and not stop and _wd_nq_ok(wd0, iso):
+            a = (_d(today_ny) - datetime.timedelta(days=NGC_SEED_DNI)).isoformat()
+            got, err = _wd_fetch_px(pend, a, today_ny, 9999, now); at = _wd_iso()
+            for t in [x for x in got if not got[x][0]]:
+                del got[t]; err[t] = 'brak wierszy cen'
+            _wd_merge_px(wd, got, at)
+            for t in got:
+                out['px'][t]['seed'] = True; out['px'][t].pop('se', None)
+            for t, e in err.items():
+                se = out['px'][t].setdefault('se', {'n': 0, 'at': None}); se['n'] += 1; se['at'] = at; se['why'] = e
+            if err:
+                out['bledy']['seed_px'] = _wd_esum(err)
+    except WdBudget:
+        pass
+    except Exception as e:  # noqa
+        out['bledy']['seed'] = mask(str(e))[:140]
+    for P in out['px'].values():                       # przycięcie do ostatnich NGC_KEEP sesji kalendarza
+        P['d'] = P['d'][-NGC_KEEP:]
+        P['miss'] = [d for d in P.get('miss') or [] if d >= cal[max(0, len(cal) - NGC_KEEP)]]
+    return out
+
+
+def build_ng_ceny(prev=None, saved=None):
+    """v373: wrapper — własny limit czasu budowniczego (NGC_T s) na wspólnej drodze zapytań pliku świat dziennie (_WD_TERMIN / _WD_CUT); poprzedni stan
+    limitu przywrócony po zakończeniu."""
+    old = _WD_TERMIN[0]
+    _WD_TERMIN[0] = time.monotonic() + NGC_T; _WD_CUT[0] = False
+    try:
+        return _ngc_build(prev, saved)
+    finally:
+        _WD_TERMIN[0] = old
 
 
 # ===================== v295: SUROWCE v2 — dział SUROWCE, etapy 1–2 (dane) =====================
@@ -31672,6 +32079,18 @@ def main():
     except Exception as e:
         META['errors'].append(mask(f'{WD_LABEL}: {e}')); META['ok']['swiat-dzien'] = False
         if prev_wd: save('swiat-dzien', prev_wd)
+    # v373: ceny 14 dodatkowych funduszy (wyniki linii bloku „w cieniu” TD_SH_NG; plik data/ng-ceny.json) — po pliku świat dziennie (jego kalendarz sesji);
+    # awaria = uwaga w meta i poprzedni plik (dane reguł w cieniu, nie liczby strony)
+    prev_nc = previous('ng-ceny')
+    try:
+        nc_ = build_ng_ceny(prev_nc, SAVED)
+        save('ng-ceny', nc_)
+        if nc_.get('bledy'):
+            META['notes'].append(mask(f"ceny dodatkowych funduszy (TRENDY, reguły w cieniu): {nc_['bledy']}")[:300])
+    except Exception as e:  # noqa
+        META['notes'].append(mask(f'ceny dodatkowych funduszy (TRENDY, reguły w cieniu): {e}')[:200])
+        if isinstance(prev_nc, dict):
+            save('ng-ceny', prev_nc)
     _W_LOG[0] = previous('swiat-dziennik'); _W_LOG[1] = None   # v127: dziennik kart świata — nowszy (pole at) z pamięci Actions i ze strony
     # v97: dane rządu USA — EIA (energia, co 6 h), BLS (makro, co 6 h; bez klucza — mniejszy limit), BEA (bilans płatniczy, raz na dobę);
     # każde źródło osobno, awaria zostawia poprzedni plik (brak nie jest zerem)
@@ -31784,6 +32203,7 @@ def main():
             save('zloto-krypto', prev_zk)
     _CR_LOG[0] = previous('krypto-dziennik'); _CR_LOG[1] = None   # v125: dziennik kart krypto — źródło licznika „od wdrożenia”
     _SUT_LOG[0] = previous('surowce-dziennik'); _SUT_LOG[1] = None   # v303: dziennik reguł „w cieniu” SUROWCE — licznik od rejestracji
+    _NGT_LOG[0] = previous('ng-dziennik'); _NGT_LOG[1] = None   # v373: dziennik reguł „w cieniu” nowych grup — licznik od rejestracji
     # v89: TRENDY — z plików zapisanych w tym przebiegu, bez zapytań do sieci; awaria = błąd w meta, pozostałe pliki bez zmian
     try:
         save('trendy', build_trendy(SAVED)); META['ok']['trendy'] = True
@@ -31801,6 +32221,10 @@ def main():
         save('surowce-dziennik', _SUT_LOG[1])
     elif _sut_valid(_SUT_LOG[0]):                                 # blok bez dziennika w tym przebiegu (awaria trendów): poprzedni bez zmian
         save('surowce-dziennik', _SUT_LOG[0])
+    if _NGT_LOG[1]:                                                 # v373: dziennik reguł „w cieniu” nowych grup zbudowany w tym przebiegu
+        save('ng-dziennik', _NGT_LOG[1])
+    elif _ngt_valid(_NGT_LOG[0]):                                 # blok bez dziennika w tym przebiegu (awaria trendów): poprzedni bez zmian
+        save('ng-dziennik', _NGT_LOG[0])
     # v372 (F9Z1): KALENDARZ (data/kalendarz.json: terminarze Fed, BEA, Census, Eurostatu i EBC; pięć części z własnym ok / part_at / errs) — co KAL_EVERY min, plik z częścią nieudaną ponawiany
     # po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok: kalendarz_bc_us, kalendarz_pkb_us, kalendarz_sprz_us, kalendarz_stat_eu,
     # kalendarz_bc_eu (dwa nowe źródła: terminarz Rezerwy Federalnej i urzędu statystycznego USA; BEA, Eurostat i EBC już liczone — liczba źródeł rośnie o 2).

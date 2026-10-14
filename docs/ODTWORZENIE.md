@@ -91,7 +91,7 @@ Zawsze po kolei, od najprostszego. W razie wątpliwości nic nie usuwaj — dane
 ## 8. Jak przywrócić dane i projekt z archiwum
 
 - Pojedynczy plik danych zniknął lub jest zepsuty: nic nie trzeba robić — następny przebieg (za ok. 10 minut) pobiera go od nowa ze źródła; wykresy historyczne korzystają z `archiwum/`.
-  Zgubiony dziennik sygnałów zbieracz odtwarza sam z `archiwum/krypto-dziennik.csv`, `swiat-dziennik.csv`, `swiat-dziennik-pk.csv` i `surowce-dziennik.csv`.
+  Zgubiony dziennik sygnałów zbieracz odtwarza sam z `archiwum/krypto-dziennik.csv`, `swiat-dziennik.csv`, `swiat-dziennik-pk.csv`, `surowce-dziennik.csv` i `ng-dziennik.csv`.
 - Zły commit w repozytorium: na stronie GitHub otwórz commit → „Revert”; powstaje nowy commit przywracający poprzedni stan i automat publikuje stronę ponownie.
   Historia plików (w tym `archiwum/` i `kontrola/`) jest w całej historii repozytorium — każdą wersję pliku można otworzyć z listy commitów.
 - Archiwum z wybranego dnia: w repozytorium otwórz `archiwum/<plik>.csv` → History → wybrany commit → „View file” → Raw. CSV otwiera się w arkuszu kalkulacyjnym.

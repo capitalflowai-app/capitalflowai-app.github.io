@@ -27467,3 +27467,83 @@ test('v372 (F9Z1): kalendarz — słownik 10 języków pełny, tabela kodów jak
   // ostrzeżenie o niedziałającym zegarze: moduł używa Date.now() (pinowanie w testach) i własnej reguły czasu, nie toLocale…({timeZone:'Europe/Warsaw'})
   assert.ok(!/timeZone:\s*'Europe\/Warsaw'/.test(kal372.code) && kal372.code.includes('Date.now()'), 'czas polski z własnej reguły, zegar z Date.now()');
 });
+
+/* ---------- v373 (F1Z2/F5Z4): nowe grupy danych w TRENDACH — zwinięty blok reguł „w cieniu” (rejestracja z góry 14.10.2026): do końca okresu cienia tylko opis,
+   data rejestracji i licznik sesji z sygnałem do najbliższej oceny; żadnych ocen, procentów ani ujawnienia (plik trendy.json nie ma pola ok) ---------- */
+const v373 = (() => {
+  const dict = v142Dicts(html).find(d => d.obj.pl && d.obj.pl['ng373.t']);
+  const ng = (o = {}) => Object.assign({v: 1, reg: '2026-10-14', sha: 'a'.repeat(64), m: 18, cll: 99.7, looks: [100, 200, 400], at: '2026-10-16T12:59:00Z',
+    l: {'rg.f': [12, 100, '2027-03-01', 9, '2026-10-15'], 'sk.f': [0, 100, null, 0, null], 'pl.f': [3, 100, null, 0, '2026-10-15'], 'pl.ix': [0, 100, null, 0, null],
+      'me.cu': [0, 100, null, 0, null], 'zb.goi': [0, 100, null, 0, null]}}, o);
+  const view = (data, trdv, ico) => { const st = {mode: 'trendy', trdv: trdv || 'global'}, f = trdV96.make(st, ico); f.trdApply(data); return f.el.innerHTML; };
+  const panel = h => { const a = h.indexOf('<details class="etfd" id="trd-ng">'); return a < 0 ? '' : h.slice(a, h.indexOf('</details>', a) + 10); };
+  return {dict, ng, view, panel};
+})();
+
+test('v373: słownik nowych grup — 10 języków, te same klucze i pola, prawdziwe tłumaczenia, bez nazw dostawców', () => {
+  const {dict} = v373;
+  assert.ok(dict, 'słownik z kluczem ng373.t');
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], K = Object.keys(dict.obj.pl);
+  assert.deepEqual(Object.keys(dict.obj), L10);
+  assert.ok(K.every(k => k.startsWith('ng373.')), 'przedrostek zadania');
+  for (const line of ['rg.f', 'sk.f', 'pl.f', 'pl.ix', 'me.cu', 'zb.goi']) assert.ok(K.includes('ng373.l.' + line) && K.includes('ng373.d.' + line), line);
+  assert.equal(K.length, 16);
+  const ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  const PROV = /\b(CFTC|EIA|LBMA|GLD|SPDR|Sprott|iShares|State Street|Nasdaq|Twelve|FMP|Tiingo|BlackRock|Invesco|Westmetall|LME|GPW|IGC|Stooq|Yahoo|Bloomberg)\b/;
+  for (const l of L10) {
+    assert.deepEqual(Object.keys(dict.obj[l]), K, 'te same klucze: ' + l);
+    for (const k of K) {
+      assert.ok(typeof dict.obj[l][k] === 'string' && dict.obj[l][k].trim().length > 0, l + ' ' + k);
+      assert.equal(ph(dict.obj[l][k]), ph(dict.obj.pl[k]), 'pola ' + l + ' ' + k);
+      assert.ok(!PROV.test(dict.obj[l][k]), 'bez nazw dostawców: ' + l + ' ' + k);
+      if (!['pl', 'en'].includes(l)) assert.notEqual(dict.obj[l][k], dict.obj.en[k], 'nie kopia angielskiego: ' + l + ' ' + k);
+    }
+  }
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(dict.name + ' ')), [], 'strażnik v142');
+  assert.ok(!/\d \{|\} (日|件|回|セッション)|\d (日|件|回)/.test(Object.values(dict.obj.ja).join('|')), 'ja: bez spacji przed licznikiem');
+  assert.equal(dict.obj.pl['ng373.l.pl.f'], 'Fundusz Polski — napływ pieniędzy');
+  assert.ok(dict.obj.pl['ng373.sub'].includes('nie pokazujemy wyników ani ocen') && dict.obj.en['ng373.sub'].includes('we show no results or grades'), 'opis wprost: bez wyników');
+  assert.ok(dict.obj.pl['ng373.how'].includes('reguł {r} × 3 oceny = {m} prób naraz'), 'bez odmiany liczebnika');
+});
+
+test('v373: blok nowych grup — zwinięty, opis, data rejestracji, licznik sesji z sygnałem; tylko widok global; bez wyników i ocen', () => {
+  const {ng, view, panel} = v373, {data} = trdV96;
+  const p = panel(view(Object.assign({}, data, {ng: ng()}), 'global'));
+  assert.ok(p.startsWith('<details class="etfd" id="trd-ng"><summary>') && p.includes('ng373.t</summary>'), 'blok zwinięty (bez open), id trd-ng');
+  assert.ok(p.includes('ng373.sub{"j":200}') && p.includes('ng373.reg{"d":"14.10.2026"}') && p.includes('ng373.how{"r":6,"m":18}'), p.slice(0, 500));
+  assert.ok(p.includes('<b>ng373.l.rg.f</b> — ng373.d.rg.f<br><span class="mtxt">td303.n.w{"n":12,"c":100} · td303.est{"d":'), 'licznik sesji z sygnałem i szacunek');
+  assert.ok(p.includes('<b>ng373.l.pl.f</b> — ng373.d.pl.f<br><span class="mtxt">td303.n.w{"n":3,"c":100}</span>'), 'licznik bez szacunku');
+  assert.equal(p.split('td303.wait').length - 1, 4, 'linie bez pierwszej karty (sk.f, pl.ix, me.cu, zb.goi) czekają na dane');
+  assert.deepEqual([...p.matchAll(/<b>ng373\.l\.([\w.]+)<\/b>/g)].map(x => x[1]), ['rg.f', 'sk.f', 'pl.f', 'pl.ix', 'me.cu', 'zb.goi'], 'kolejność z rejestracji');
+  assert.ok(p.includes('td303.at{"t":"2026-10-16T12:59:00Z"}') && p.includes('eng.disclaimer'), 'stan dziennika z datą');
+  assert.ok(!/td303\.(ok|wyc)|dr318\.su\.(ok|wyc)|\d+(\.\d)?%|"k":|"vd"|edge/.test(p), 'bez ocen, procentów i liczb trafień');
+  assert.equal(panel(view(Object.assign({}, data, {ng: ng()}), 'crypto')), '', 'widok krypto bez bloku (reguły dotyczą sesji w USA)');
+  assert.equal(panel(view(data, 'global')), '', 'bez pola ng — bez bloku (pliki sprzed v373)');
+  assert.equal(panel(view(Object.assign({}, data, {ng: {reg: 'x', l: {}}}), 'global')), '', 'zła data rejestracji — bez bloku');
+  assert.equal(panel(view(Object.assign({}, data, {ng: {reg: '2026-02-30', l: {}}}), 'global')), '', 'nieistniejąca data — bez bloku');
+  assert.equal(panel(view(Object.assign({}, data, {ng: ng({l: null})}), 'global')), '', 'bez listy linii — bez bloku');
+  const n = ng(); n.l['rg.f'] = [130, 100, null, 101, '2026-10-15'];
+  assert.ok(panel(view(Object.assign({}, data, {ng: n}), 'global')).includes('td303.n.w{"n":100,"c":100} · td303.soon'), 'licznik nie przekracza punktu kontrolnego');
+  const d = ng(); d.l['rg.f'] = [500, null, null, 500, '2026-10-15'];
+  assert.ok(panel(view(Object.assign({}, data, {ng: d}), 'global')).includes('<span class="mtxt">td303.done</span>'));
+  const z = ng(); z.l['pl.f'] = ['x', 0, 'zła', -1, 'zła data'];
+  assert.ok(panel(view(Object.assign({}, data, {ng: z}), 'global')).includes('<b>ng373.l.pl.f</b> — ng373.d.pl.f<br><span class="mtxt">td303.wait</span>'), 'zły wpis linii — czeka, nic nie psuje');
+  const w = panel(view(Object.assign({}, data, {ng: ng()}), 'global'));
+  assert.equal(w.split('<li>').length - 1, 6); assert.ok(!/NaN|undefined|null/.test(w), 'brak śmieci w bloku');
+});
+
+test('v373: nic nie jest ujawniane — dodatkowe pola oceny w pliku nie zmieniają bloku; kod bloku nie czyta ocen ani nie pobiera plików', () => {
+  const {ng, view, panel} = v373, {data} = trdV96;
+  const bez = panel(view(Object.assign({}, data, {ng: ng()}), 'global'));
+  const z = panel(view(Object.assign({}, data, {ng: ng({ok: [['rg.f', 200, 'edge', '2027-09-01']], jawne: 200, cp: {'rg.f': [[200, 130, 200, 51, 55, 60, 52, 70, 'edge', '2027-09-01', 'x', 50, 55]]}, vd: 'edge'})}), 'global'));
+  assert.equal(z, bez, 'ocena w pliku (której kod nie wytwarza) niczego nie ujawnia');
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */'), f0 = html.indexOf('function trdNg(D){');
+  assert.ok(b0 < f0 && f0 < b1, 'blok w części TRENDY');
+  const kod = html.slice(f0, html.indexOf('\nfunction renderTrendy(){', f0));
+  assert.ok(!kod.includes('srvJSON(') && !/\bfetch\(|XMLHttpRequest/.test(kod), 'bez nowych plików danych (dane z trendy.json)');
+  assert.ok(!/S\.ok|S\.cp|\.vd\b|jawne|edge|wyc/.test(kod), 'kod bloku nie czyta ocen');
+  assert.equal(html.split('trdNg(D)').length - 1, 2, 'definicja i jedno wywołanie (widok global)');
+  assert.ok(html.includes("trdBase(B)+trdSu(D)+(typeof trdNg==='function'?trdNg(D):'')"), 'po bloku surowców, tylko w widoku global');
+  assert.ok(html.includes('.trd-su{margin:8px 0;padding-left:18px;font-size:12.5px;line-height:1.45}'), 'styl listy bez stałych szerokości (telefon 390 px)');
+});
+

@@ -3724,6 +3724,83 @@ def su_fundusze_swiezosc(wd, now=None):
     return rows
 
 
+# v373: nowe grupy w TRENDACH — dziennik reguł „w cieniu” TD_SH_NG (data/ng-dziennik.json; wiersz [dzień, linia, symbol, głos, stan, z, zapisano, y,
+# dzień danych], rejestracja 14.10.2026) i ceny 14 dodatkowych funduszy wyników (data/ng-ceny.json). Oba pliki są przepisywane w każdym przebiegu (wiek pliku
+# zawsze mały), więc tu: najnowszy dzień z wynikiem w dzienniku i najnowszy dzień z ceną w każdym z funduszy. Wynik sesji pojawia się wieczorem tej samej sesji
+# (tak jak cena funduszu w pliku świat dziennie), więc próg i kategoria jak w v309 (ceny funduszy surowcowych): 60 godzin roboczych, kategoria 'd' — test wsteczny
+# v309 (sesje NYSE 2004–2026 z zamknięciami nadzwyczajnymi; ceny zaobserwowane 00:58–02:05 UTC D+1, model pesymistyczny 13:00 UTC D+1; kontrola codziennie o 06:20 UTC
+# i — górna granica — co godzinę): fałszywych ⚠️ najwyżej 0,024% kontroli dziennych i 0,201% godzinnych. Najwyżej ⚠️, nigdy ❌ ani BŁĄD; przed startem
+# dziennika albo w pierwszych dniach bez wyniku — „—”. Dziennik bez żadnego wyniku po 14 dniach od startu — ⚠️ (linie bez cen funduszy nie dają wyników).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'ng-dziennik')   # v373: dziennik reguł „w cieniu” nowych grup — przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['ng-dziennik'] = 180
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'ng-ceny')   # v373: ceny 14 dodatkowych funduszy wyników
+LIMIT_MIN['ng-ceny'] = 180
+NGK_PROG = 60 * 60              # min = 60 godzin roboczych (kategoria 'd')
+NGK_START_DNI = 14              # dziennik bez wyniku dłużej niż tyle dni od startu — uwaga
+NGK_PX = ('EPOL', 'EWW', 'ECH', 'UAE', 'QAT', 'KWT', 'EWS', 'EIDO', 'THD', 'EWM', 'EPHE', 'XLB', 'XLRE', 'XLC')   # = WD_NG_PX w zbieraj_dane.py (test pilnuje zgodności)
+NGK_DZ = ('ng-dziennik', 'TRENDY nowe grupy — ostatni dzień z wynikiem reguł w cieniu')
+NGK_CZ = ('TRENDY nowe grupy — ceny 14 funduszy wyników (sesja w USA; reguły w cieniu)', NGK_PX)
+
+
+def ng_dziennik_swiezosc(j, now=None):
+    """v373: wiersz świeżości dziennika reguł „w cieniu” nowych grup w kształcie wierszy swiezosc(): (etykieta, status, wiek min, dzień, uwaga) albo None
+    (brak pliku albo plik bez listy wierszy). Wynik = liczba skończona w polu y (indeks 7; bool, None, NaN — nie)."""
+    if not isinstance(j, dict) or not isinstance(j.get('rows'), list):
+        return None
+    lab = NGK_DZ[1]
+    now = now or NOW
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))  # noqa: E731
+    dni = [r[0] for r in j['rows'] if isinstance(r, list) and len(r) == 9 and isinstance(r[0], str) and _DZ_DZIEN.match(r[0]) and num(r[7])]
+    since = j.get('since') if isinstance(j.get('since'), str) and _DZ_DZIEN.match(j['since']) else None
+    if not dni:
+        if since and now.date().isoformat() <= since:
+            return (lab, '—', None, None, f'dziennik rusza {since} — pierwsze wyniki po pierwszym sprawdzeniu')
+        okres = (now.date() - dt.date.fromisoformat(since)).days if since else None
+        if okres is not None and okres <= NGK_START_DNI:
+            return (lab, '—', None, None, f'dziennik od {since} — czekamy na pierwsze wyniki')
+        return (lab, '⚠️', None, None, 'brak dnia z wynikiem w dzienniku' + (f' (od {since})' if since else '') + ' (tylko uwaga)')
+    d = max(dni)
+    w = wiek_danych(d, 'day', 'd', now)
+    if w is None:
+        return (lab, '?', None, d, 'zły zapis dnia')
+    if w <= NGK_PROG:
+        return (lab, '✅', w, d, '')
+    return (lab, '⚠️', w, d, f'próg {fmt_wiek(NGK_PROG)} (godziny robocze) — wyniki reguł w cieniu przestały dochodzić (tylko uwaga)')
+
+
+def ng_ceny_swiezosc(nc, now=None):
+    """v373: wiersz świeżości cen 14 funduszy wyników w pliku ng-ceny w kształcie wierszy swiezosc(); brak pliku — [] (brak pliku zgłasza pętla wieku plików).
+    Najnowszy dzień funduszu = największa data wiersza z liczbą (zamknięcie); status i wiek z najstarszego z tych dni (zalegający fundusz wymieniony w uwadze);
+    fundusz bez serii — „?” z nazwą (pierwsze pobranie po wdrożeniu albo awaria), bez progu."""
+    if not isinstance(nc, dict):
+        return []
+    lab, syms = NGK_CZ
+    now = now or NOW
+    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and 0 < v < float('inf')  # noqa: E731
+    P = nc.get('px') if isinstance(nc.get('px'), dict) else {}
+    ost = {}
+    for s in syms:
+        e = P.get(s) if isinstance(P.get(s), dict) else {}
+        ds = [r[0] for r in (e.get('d') if isinstance(e.get('d'), list) else []) if isinstance(r, list) and len(r) >= 3 and isinstance(r[0], str)
+              and _DZ_DZIEN.match(r[0]) and num(r[2])]
+        if ds:
+            ost[s] = max(ds)
+    brak = [s for s in syms if s not in ost]
+    if not ost:
+        return [(lab, '?', None, None, 'brak serii w pliku: ' + ', '.join(brak) + ' (pierwsze pobranie po wdrożeniu albo awaria — tylko uwaga)')]
+    d = min(ost.values())
+    w = wiek_danych(d, 'day', 'd', now)
+    if w is None:
+        return [(lab, '?', None, d, 'zły zapis dnia')]
+    st, u = ('⚠️' if w > NGK_PROG else '✅'), []
+    if st == '⚠️':
+        u.append(f'próg {fmt_wiek(NGK_PROG)} (godziny robocze) — dane przestały dochodzić: ' + ', '.join(sorted(s for s, x in ost.items() if x == d)) + ' (tylko uwaga)')
+    if brak:
+        u.append('brak serii w pliku: ' + ', '.join(brak))
+        st = '⚠️' if st == '⚠️' else '?'
+    return [(lab, st, w, d, '; '.join(u))]
+
+
 def dolar_swiezosc(j, now=None):
     """Wiersz świeżości kursów dolara (data/dolar.json → najnowsza z part_at.ar/ve/bo) w kształcie wierszy swiezosc(): (etykieta, status, wiek min,
     data, uwaga); brak pliku = None (brak pliku zgłasza pętla wieku plików). Najwyżej ⚠️ — nieoficjalny serwis kursów to nie awaria strony."""
@@ -9306,6 +9383,14 @@ def kontrola():
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
         if st == '⚠️':
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
+    # 3c-ng373. v373: nowe grupy w TRENDACH — dziennik reguł „w cieniu” (ostatni dzień z wynikiem) i ceny 14 funduszy wyników; osobne wiersze, najwyżej ⚠️
+    ngz = ng_dziennik_swiezosc(files.get('ng-dziennik'))
+    for label, st, w, txt, note in ([ngz] if ngz else []) + ng_ceny_swiezosc(files.get('ng-ceny')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: ostatni wynik z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
     # 3c''. v133: tokenizowane aktywa RWA (data/rwa.json) — świeżość listy osobnym wierszem tabeli (lista SWIEZOSC bez zmian); najwyżej ⚠️,

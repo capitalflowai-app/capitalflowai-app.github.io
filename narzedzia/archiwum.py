@@ -23,6 +23,8 @@ Pliki CSV (UTF-8, przecinek, kropka dziesiętna, nagłówek po angielsku bez pol
                        z nimi odtworzony dziennik zachowuje punkty kontrolne i listę poprzednich wersji
   surowce-dziennik.csv dzień × linia × symbol — dziennik kart reguł „w cieniu” działu SUROWCE (v303; obliczenie własne zbieracza: karta
                        liczona przed granicą 09:00 NY / 05:30 UTC, i wynik); zbieracz odtwarza z niej zgubiony dziennik
+  ng-dziennik.csv      dzień × linia × symbol — dziennik kart reguł „w cieniu” nowych grup danych (v373; obliczenie własne zbieracza: karta liczona przed granicą
+                       9:00 NY, i wynik); zbieracz odtwarza z niej zgubiony dziennik
 Zasady: operacja idempotentna (jeden wiersz na klucz; ponowne uruchomienie tego samego dnia nadpisuje ten sam dzień); brak danych
 danego dnia = brak wiersza, nigdy zero; rewizje (np. FRED) nadpisywane najnowszą wartością i zliczane w `archiwum/indeks.json`.
 Każde źródło osobno: awaria jednego nie blokuje pozostałych; kod wyjścia 1 gdy którekolwiek zawiodło (e-mail z GitHuba).
@@ -75,6 +77,9 @@ FILES = {
     'surowce-dziennik': {'file': 'surowce-dziennik.csv', 'cols': ['date', 'line', 'sym', 'g', 'state', 'z', 'saved_at', 'y', 'dd', 'v', 'reg'],
                          'key': ['date', 'line', 'sym', 'v', 'reg'], 'back': None,
                          'src': 'Obliczenia własne CapitalFlowAI: dziennik kart reguł „w cieniu” działu SUROWCE (rejestracja z góry 08.10.2026) zapisanych przed granicą karty — 9:00 w Nowym Jorku (sesja) albo 05:30 UTC (doba krypto); g = głos, z = odchylenie wejścia, y = wynik w %, dd = dzień danych wejścia'},
+    'ng-dziennik': {'file': 'ng-dziennik.csv', 'cols': ['date', 'line', 'sym', 'g', 'state', 'z', 'saved_at', 'y', 'dd', 'v', 'reg'],
+                    'key': ['date', 'line', 'sym', 'v', 'reg'], 'back': None,
+                    'src': 'Obliczenia własne CapitalFlowAI: dziennik kart reguł „w cieniu” nowych grup danych (rejestracja z góry 14.10.2026: fundusze regionów i sektorów, fundusz Polski, indeksy giełdy w Warszawie, zapasy miedzi, indeks zbóż) zapisanych przed granicą karty — 9:00 w Nowym Jorku; g = głos, z = odchylenie wejścia, y = wynik sesji w %, dd = dzień danych wejścia'},
 }
 TIC_OD = '2020-01'
 STABLE = {'USDT': zd.WH_USDT, 'USDC': zd.WH_USDC}   # oba po 6 miejsc
@@ -462,6 +467,30 @@ def src_surowce_dziennik():
     return out
 
 
+def src_ng_dziennik():
+    """v373: data/ng-dziennik.json ze strony (obliczenie własne zbieracza: karty reguł „w cieniu” nowych grup zapisane przed granicą karty, i wynik) → wiersze
+    [dzień, linia, symbol, głos, stan, z, zapisano, y, dzień danych, wersja, rejestracja]; brak liczby = puste pole. 404 (pierwsze godziny po wdrożeniu) albo
+    dziennik bez wierszy → brak wierszy i uwaga, nie błąd. Plik bez listy wierszy, wersji albo daty rejestracji, niepusta lista bez poprawnego wiersza albo inny
+    błąd HTTP → wyjątek (to źródło pada osobno). Zbieracz odtwarza z tej kopii zgubiony dziennik (_ngt_from_csv)."""
+    try:
+        d = zd.get_json(f'{SITE}/data/ng-dziennik.json?t={int(time.time())}', timeout=60)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            NOTES.append('brak pliku dziennika nowych grup na stronie (404) — nic do zapisania')
+            return []
+        raise
+    rows = d.get('rows') if isinstance(d, dict) else None
+    if not isinstance(rows, list) or not isinstance(d.get('v'), int) or isinstance(d.get('v'), bool) or not isinstance(d.get('reg'), str):
+        raise RuntimeError('plik dziennika nowych grup bez wierszy, wersji albo daty rejestracji')
+    if not rows:
+        NOTES.append(f"dziennik nowych grup wersji {d['v']} z rejestracji {d['reg']} jeszcze bez wierszy — nic do zapisania")
+        return []
+    out = [list(r) + [d['v'], d['reg']] for r in rows if isinstance(r, list) and len(r) == 9]
+    if not out:
+        raise RuntimeError('dziennik nowych grup bez poprawnych wierszy')
+    return out
+
+
 def src_swiat_dziennik_pk():
     """v127 (przegląd): data/swiat-dziennik.json ze strony → zamrożone punkty kontrolne licznika „od wdrożenia” każdej wersji reguły
     (kind cp) i sumy poprzednich wersji (kind oos, c = 0) — wiersze [od, wersja, linia, rodzaj, c, k, n, sesje, b0, h1, h2, lo, hi, ocena,
@@ -649,7 +678,7 @@ def main():
     idx = run({'wieloryby': src_wieloryby, 'stablecoiny-eth': src_stable, 'plynnosc': lambda: src_plynnosc(key), 'tic': src_tic,
                'cftc-krypto': src_cftc, 'rentownosci': src_rentownosci,
                'krypto-dziennik': src_krypto_dziennik, 'swiat-dziennik': src_swiat_dziennik, 'swiat-dziennik-pk': src_swiat_dziennik_pk,
-               'surowce-dziennik': src_surowce_dziennik}, prev_index=prev)
+               'surowce-dziennik': src_surowce_dziennik, 'ng-dziennik': src_ng_dziennik}, prev_index=prev)
     summ = os.environ.get('GITHUB_STEP_SUMMARY')
     lines = [f'## Archiwum własne — {NOW.isoformat()}', '', '| plik | wiersze | od | do | nowe | rewizje | stan |', '|---|---|---|---|---|---|---|']
     for n, r in idx['files'].items():
