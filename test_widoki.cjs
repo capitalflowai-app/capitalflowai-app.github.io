@@ -11463,7 +11463,7 @@ const V151_PROV = ['CoinGecko', 'CoinMarketCap', 'CoinPaprika', 'DefiLlama', 'Co
   'New York Fed', 'FRED/St. Louis Fed', 'Eurostat', 'BIS', 'MFW/IMF', 'OECD', 'Bank Światowy', 'Bundesbank', 'HKEX', 'TWSE', 'NSDL', 'Banxico/SIE (jako podpis)', 'MOF Japonii',
   'Statistics Canada', 'EBC/ECB'];
 const V151_GONE = ["Finnhub", "New York Fed"];   /* nazwy, które v151 usunął ze słowników w całości — nie wolno im wrócić w żadnym wpisie */
-const V151_SUBJ = {'sp.cc.XM': ['EBC/ECB']};   /* „Strefa euro (EBC)” — bank centralny jako ustalający stopę, jak „USA (Fed)” i „Polska (NBP)” */
+const V151_SUBJ = {/* v372 */'kal372.e.eu_stopy': ['EBC/ECB'], 'kal372.p.bc_eu': ['EBC/ECB'], 'kal372.n2': ['EBC/ECB'], 'sp.cc.XM': ['EBC/ECB']};   /* „Strefa euro (EBC)” — bank centralny jako ustalający stopę, jak „USA (Fed)” i „Polska (NBP)” */
 const V151_ZASL = 0;   /* v152: wpisów zasłoniętych już nie ma — postać ścisła: nazwy z V151_PROV nie ma w ŻADNYM wpisie żadnego słownika (poza przedmiotem z V151_SUBJ); dawniej 659 */
 const v151Names = s => {
   let x = String(s); for (const [re] of G126_NAMES.ALLOW) x = x.replace(re, ' ~ ');
@@ -27241,4 +27241,229 @@ test('v371: miejsce w kodzie i zasady — moduł zaraz za modułem v365, blok za
   assert.ok(html.includes('#g-surowce .su-pld .su-k>small.pos{color:var(--gr-tx)}#g-surowce .su-pld .su-k>small.neg{color:var(--rd-tx)}#g-surowce .su-pld .su-k>small.neu{color:var(--yl-tx)}'), 'zmiany r/r w kolorze znaku (zero żółte)');
   assert.ok(!/<(script|link)[^>]+(gov\.pl)/i.test(html), 'strona nie łączy się z obcymi serwerami: plik idzie tylko przez srvJSON');
   assert.ok(!c.includes('wkNice(') && !/wkCols\([^)]*dom:/.test(c), 'bez zmian we wspólnych funkcjach wykresów');
+});
+
+// ===================== v372 (F9Z1): kalendarz „Najbliższe 14 dni” w GLOBAL (data/kalendarz.json: Fed, BEA, Census, Eurostat, EBC) =====================
+// Fixtura: plik kalendarz.json w układzie, jaki buduje zbieracz (terminy z terminarzy z 10–13.10.2026, czas w UTC). Czas przypięty (Date.now), bez zegara.
+const kal372 = (() => {
+  const a0 = html.indexOf('/* ===================== v372 (F9Z1): KALENDARZ'), a1 = html.indexOf('/* ---------- koniec bloku kalendarza (v372) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v372 w stronie');
+  const code = html.slice(a0, a1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[\u00a0\u202f]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const NOW = Date.parse((opt && opt.now) || '2026-10-28T19:30:00Z');
+    class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-kalendarz': el};
+    const calls = [], hnd = [], ivs = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'LOCALE', 'LANG', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'flagImg', 'document', 'MutationObserver', 'setInterval', 'Date',
+      "'use strict';\n" + code + '\nreturn {KALZ, kalLoad, renderKal, kalOk, kalEv, kalDays, kalOff, kalPl, kalMs, kalPer, kalOstNd, KAL_KODY};')(
+      q => els[q] || null, T, EH, LOC, L, s => 'D:' + s, srv, n => '<glyph ' + n + '>', i => i, (a, c) => '[' + a + ']', doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    const click = min => { const h = hnd.find(x => x[0] === 'click'); assert.ok(h, 'obsługa kliknięcia filtra'); const b = {getAttribute: n => (n === 'data-kal-min' ? String(min) : null)}; h[1]({target: {closest: s => (s === '#g-kalendarz [data-kal-min]' ? b : null)}}); };
+    return {api, els, calls, hnd, ivs, mos, expand, collapse, click, html: () => sp(el.innerHTML), el};
+  };
+  // wiersze listy: dzień (nagłówek), godzina, flaga, nazwa, okres, minione, waga
+  const rows = h => {
+    const out = []; let day = null;
+    for (const m of sp(h).matchAll(/<div class="kal-day">(.*?)<\/div>|<li class="kal-e w(\d)( kal-past)?"><span class="kal-h">([^<]*)<\/span><span class="kal-fl">(.*?)<\/span><span class="kal-t">(.*?)<\/span><span class="kal-d" role="img" aria-label="([^"]*)"/g)) {
+      if (m[1] !== undefined) day = txt(m[1]);
+      else { const small = [...m[6].matchAll(/<small class="(kal-p|kal-m)">([^<]*)<\/small>/g)].map(x => [x[1], x[2]]); out.push({day, w: +m[2], past: !!m[3], hm: m[4], flag: m[5], title: txt(m[6].replace(/<small.*$/, '')), per: (small.find(x => x[0] === 'kal-p') || [])[1] || '', mark: (small.find(x => x[0] === 'kal-m') || [])[1] || '', aria: m[7]}); }
+    }
+    return out;
+  };
+  const E = (t, k, extra) => Object.assign({t, k, r: k.startsWith('eu_') || k === 'eu_stopy' ? 'eu' : 'us', w: 1, g: 'z'}, extra || {});
+  const J = () => ({v: 1, at: '2026-10-28T12:00:00+00:00', src: 'x', od: '2026-10-27', do: '2026-11-27', ok: {bc_us: true, pkb_us: true, sprz_us: true, stat_eu: true, bc_eu: true}, part_at: {}, errs: {},
+    n: {}, brak: ['pl_bank', 'uk_bank', 'jp_bank', 'pl_dane', 'us_praca'],
+    e: {bc_us: [E('2026-10-28T18:00Z', 'fomc', {w: 3}), E('2026-11-05T21:30Z', 'h41'), E('2026-11-02T19:00Z', 'beige'), E('2026-11-18T19:00Z', 'fomc_min', {w: 2})],
+        pkb_us: [E('2026-10-29T12:30Z', 'us_pkb', {w: 3}), E('2026-10-29T12:30Z', 'us_pce', {w: 3})],
+        sprz_us: [E('2026-11-02T13:30Z', 'us_sprzedaz', {w: 2, p: '2026-10'}), E('2026-11-03T13:30Z', 'us_budowy', {p: '2026-Q3'})],
+        stat_eu: [E('2026-10-29T10:00Z', 'eu_esi', {g: 'r', p: '2026-10'}), E('2026-10-30T10:00Z', 'eu_pkb_flash', {w: 3, g: 'r', p: '2026-Q3'})],
+        bc_eu: [E('2026-10-29T13:15Z', 'eu_stopy', {w: 3, g: 'r'})]}});
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {kalendarz_bc_us: true, kalendarz_pkb_us: true, kalendarz_sprz_us: 'cached', kalendarz_stat_eu: true, kalendarz_bc_eu: true}} : meta, kalendarz: j === undefined ? J() : j});
+  const KODY = ['beige', 'eu_bezrob', 'eu_cpi', 'eu_cpi_flash', 'eu_esi', 'eu_handel', 'eu_pkb', 'eu_pkb_flash', 'eu_prod', 'eu_stopy', 'fomc', 'fomc_min', 'g17', 'h41', 'us_bop', 'us_budowy', 'us_handel', 'us_iip', 'us_pce', 'us_pkb', 'us_sprzedaz', 'us_trwale', 'z1'];
+  return {mk, rows, files, J, E, sp, txt, code, clone, LOC, KODY};
+})();
+
+test('v372 (F9Z1): kalendarz — czas polski własną regułą zmiany czasu UE (25.10.2026) zgodny z bazą stref przeglądarki w latach 2025–2028 i z literalnymi wartościami', () => {
+  const K = kal372.mk('pl', kal372.files()).api;
+  assert.deepEqual([2025, 2026, 2027, 2028].map(y => new Date(K.kalOstNd(y, 2)).toISOString().slice(0, 10)), ['2025-03-30', '2026-03-29', '2027-03-28', '2028-03-26']);
+  assert.deepEqual([2025, 2026, 2027, 2028].map(y => new Date(K.kalOstNd(y, 9)).toISOString().slice(0, 10)), ['2025-10-26', '2026-10-25', '2027-10-31', '2028-10-29']);
+  const pl = s => { const o = K.kalPl(Date.parse(s)); return o.day + ' ' + o.hm; };
+  assert.equal(pl('2026-10-24T22:59:00Z'), '2026-10-25 00:59'); assert.equal(pl('2026-10-25T00:59:00Z'), '2026-10-25 02:59', 'tuż przed zmianą: czas letni (+2)');
+  assert.equal(pl('2026-10-25T01:00:00Z'), '2026-10-25 02:00', 'o 01:00 UTC godzina 03:00 letnia staje się 02:00 zimową (+1)'); assert.equal(pl('2026-10-25T01:30:00Z'), '2026-10-25 02:30');
+  assert.equal(pl('2026-03-29T00:59:00Z'), '2026-03-29 01:59'); assert.equal(pl('2026-03-29T01:00:00Z'), '2026-03-29 03:00', 'wiosną 01:59 → 03:00');
+  assert.equal(pl('2027-10-31T00:59:00Z'), '2027-10-31 02:59'); assert.equal(pl('2027-10-31T01:00:00Z'), '2027-10-31 02:00'); assert.equal(pl('2028-03-26T01:00:00Z'), '2028-03-26 03:00');
+  assert.equal(pl('2026-12-31T23:30:00Z'), '2027-01-01 00:30', 'przełom roku w czasie polskim');
+  // te same godziny USA/Europy po obu stronach zmian (chwile z pliku: UTC)
+  assert.equal(pl('2026-10-23T18:00:00Z'), '2026-10-23 20:00', 'FOMC 14:00 EDT w piątek przed zmianą w Europie: 20:00');
+  assert.equal(pl('2026-10-28T18:00:00Z'), '2026-10-28 19:00', 'FOMC 14:00 EDT po zmianie w Europie (USA jeszcze latem): 19:00');
+  assert.equal(pl('2026-11-03T19:00:00Z'), '2026-11-03 20:00', 'po zmianie w USA: 14:00 EST = 20:00'); assert.equal(pl('2026-11-02T13:30:00Z'), '2026-11-02 14:30', '8:30 EST = 14:30');
+  assert.equal(pl('2026-10-30T12:30:00Z'), '2026-10-30 13:30', '8:30 EDT = 13:30 (tydzień z różnicą 5 h)'); assert.equal(pl('2026-10-22T09:00:00Z'), '2026-10-22 11:00'); assert.equal(pl('2026-10-27T10:00:00Z'), '2026-10-27 11:00');
+  assert.equal(pl('2026-10-29T13:15:00Z'), '2026-10-29 14:15', 'decyzja EBC o 14:15');
+  // zgodność z bazą stref przeglądarki co 30 minut przez cztery lata (gdy silnik ją ma)
+  let fmt = null; try { fmt = new Intl.DateTimeFormat('en-GB', {timeZone: 'Europe/Warsaw', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'}); if (fmt.format(Date.parse('2026-07-01T10:00:00Z')).indexOf('12:00') < 0) fmt = null; } catch (e) { fmt = null; }
+  if (fmt) {
+    let n = 0;
+    for (let ms = Date.UTC(2025, 0, 1); ms < Date.UTC(2029, 0, 1); ms += 30 * 60e3) {
+      const o = K.kalPl(ms), p = Object.fromEntries(fmt.formatToParts(ms).map(x => [x.type, x.value]));
+      if (o.day !== p.year + '-' + p.month + '-' + p.day || o.hm !== p.hour + ':' + p.minute) { assert.fail('różnica z bazą stref dla ' + new Date(ms).toISOString() + ': ' + o.day + ' ' + o.hm + ' ≠ ' + p.year + '-' + p.month + '-' + p.day + ' ' + p.hour + ':' + p.minute); }
+      n++;
+    }
+    assert.ok(n > 70000);
+  }
+});
+
+test('v372 (F9Z1): kalendarz — odczyt terminów z pliku: znane kody, poprawny czas, region i waga z tabeli (nie z pliku), bez dubli, sortowanie; 14 dni polskich także na styku doby i zmiany czasu', () => {
+  const K = kal372.mk('pl', kal372.files()).api;
+  assert.equal(K.kalMs('2026-10-28T18:00Z'), Date.UTC(2026, 9, 28, 18, 0)); for (const s of ['2026-02-31T10:00Z', '2026-10-28 18:00', '2026-10-28T18:00:00Z', '', null, 5, '2026-13-01T00:00Z', '2026-10-28T25:00Z']) assert.ok(Number.isNaN(K.kalMs(s)), String(s));
+  const j = kal372.J();
+  j.e.bc_us.push(kal372.E('2026-11-07T10:00Z', 'g17', {w: 3, r: 'eu'}), kal372.E('2026-10-28T18:00Z', 'fomc', {w: 1, r: 'eu'}), kal372.E('2026-10-28T18:00Z', 'nieznany'), kal372.E('2026-10-28T18:00Z', 'constructor'), kal372.E('2026-10-28T18:00Z', '__proto__'), kal372.E('zle', 'h41'), {t: '2026-10-28T18:00Z'}, null, 'x', {k: 'h41'});
+  j.e.wirus = [kal372.E('2026-10-28T18:00Z', 'g17')];
+  const ev = K.kalEv(j);
+  assert.equal(ev.length, 4 + 1 + 2 + 2 + 2 + 1, 'tylko znane kody z poprawnym czasem; część spoza listy pominięta; dubel fomc scalony');
+  const g17 = ev.find(e => e.k === 'g17'); assert.deepEqual([g17.r, g17.w], ['us', 1], 'region i waga z tabeli kodów także dla terminu, którego plik opisuje inaczej (w: 3, r: eu)');
+  const f = ev.find(e => e.k === 'fomc'); assert.deepEqual([f.r, f.w, f.g], ['us', 3, 'z'], 'region i waga z tabeli kodów, nie z pliku');
+  assert.deepEqual(ev.map(e => e.ms), ev.map(e => e.ms).slice().sort((a, b) => a - b), 'rosnąco po czasie');
+  const tie = ev.filter(e => e.ms === Date.UTC(2026, 9, 29, 12, 30)).map(e => e.k); assert.deepEqual(tie, ['us_pce', 'us_pkb'], 'remis: ta sama waga — alfabetycznie');
+  assert.deepEqual(K.kalEv(null), []); assert.deepEqual(K.kalEv({e: 'x'}), []); assert.deepEqual(K.kalEv({e: {bc_us: 'x'}}), []);
+  assert.equal(K.kalOk(kal372.J()), true); for (const bad of [null, {}, {v: 2}, Object.assign(kal372.J(), {at: 'x'}), Object.assign(kal372.J(), {e: []}), Object.assign(kal372.J(), {e: {wirus: []}})]) assert.equal(K.kalOk(bad), false);
+  // 14 dni polskich od dnia, w którym jest chwila
+  const dn = s => K.kalDays(Date.parse(s));
+  assert.equal(dn('2026-10-28T19:30:00Z').length, 14); assert.equal(dn('2026-10-28T19:30:00Z')[0], '2026-10-28'); assert.equal(dn('2026-10-28T19:30:00Z')[13], '2026-11-10');
+  assert.equal(dn('2026-10-28T22:59:00Z')[0], '2026-10-28', 'zima: 23:59 w Polsce to jeszcze 28.10'); assert.equal(dn('2026-10-28T23:00:00Z')[0], '2026-10-29', 'zima: północ w Polsce');
+  assert.equal(dn('2026-10-24T22:30:00Z')[0], '2026-10-25', 'lato: 00:30 w dniu zmiany czasu'); assert.equal(dn('2026-10-25T22:30:00Z')[0], '2026-10-25', 'po zmianie: 23:30 w Polsce to jeszcze 25.10'); assert.equal(dn('2026-10-25T23:30:00Z')[0], '2026-10-26');
+  assert.deepEqual(dn('2026-10-20T10:00:00Z').slice(4, 8), ['2026-10-24', '2026-10-25', '2026-10-26', '2026-10-27'], 'dni ciągłe przez dzień zmiany czasu (25 października ma 25 godzin)');
+  assert.equal(dn('2026-12-28T10:00:00Z')[13], '2027-01-10', 'okno przez przełom roku');
+  assert.equal(K.kalPer('2026-09'), K.kalPer('2026-09').trim()); assert.ok(/wrze/i.test(K.kalPer('2026-09')) && K.kalPer('2026-09').includes('2026')); assert.equal(K.kalPer('2026-Q3'), 'Q3 2026');
+  for (const bad of ['', null, '2026', '2026-13', '2026-Q5', 'x', undefined, 5]) assert.equal(K.kalPer(bad), '', String(bad));
+});
+
+test('v372 (F9Z1): kalendarz — karta: nagłówek od razu, plik dopiero po rozwinięciu; pasek 14 dni, dni z terminami, godzina czasu polskiego, flaga, nazwa po polsku z okresem, waga kropkami, minione oznaczone, znak ~ przy godzinie z reguły', () => {
+  const K = kal372.mk('pl', kal372.files());
+  assert.equal(K.els['#g-kalendarz'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2><glyph kalendarz>Kalendarz: najbliższe 14 dni</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart');
+  assert.ok(h.includes('Terminy zostaną wczytane po rozwinięciu panelu.') && kal372.rows(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku kalendarza');
+  K.expand(); assert.equal(K.calls.filter(c => c === 'kalendarz').length, 1, 'plik po rozwinięciu karty'); h = K.html();
+  const R = kal372.rows(h);
+  assert.equal(R.length, 10, '10 terminów w oknie 28.10–10.11 (protokół z 18.11 poza oknem)');
+  const dl = R.map(r => r.hm); assert.deepEqual(R.map(r => r.day.split(/[ ,]/)[0]), ['środa', 'czwartek', 'czwartek', 'czwartek', 'czwartek', 'piątek', 'poniedziałek', 'poniedziałek', 'wtorek', 'czwartek']);
+  assert.deepEqual(dl, ['19:00', '~11:00', '13:30', '13:30', '~14:15', '~11:00', '14:30', '20:00', '14:30', '22:30'], 'godziny czasu polskiego: ~ przy godzinie z zasady publikacji (g = r); 8:30 w USA = 13:30 do 1.11 (USA latem, Europa zimą) i 14:30 po 1.11');
+  assert.deepEqual(R.map(r => r.title), ['Decyzja Fed o stopach procentowych (FOMC)', 'Nastroje gospodarcze w strefie euro', 'Inflacja PCE i wydatki Amerykanów', 'PKB USA', 'Decyzja EBC o stopach procentowych', 'PKB strefy euro: szybki szacunek',
+    'Sprzedaż detaliczna w USA', 'Beżowa Księga Fed: stan gospodarki USA', 'Budowy domów w USA', 'Bilans Fed (cotygodniowy)'], 'przy remisie godziny ważniejsze, potem alfabetycznie po kodzie');
+  assert.deepEqual(R.map(r => r.flag), ['[us]', '[eu]', '[us]', '[us]', '[eu]', '[eu]', '[us]', '[us]', '[us]', '[us]'], 'flaga regionu: USA albo UE');
+  assert.deepEqual(R.map(r => r.w), [3, 1, 3, 3, 3, 3, 2, 1, 1, 1]);
+  assert.ok(R.every(r => /^Waga \d z 3: .* znaczenie dla rynków$/.test(r.aria) && r.aria.startsWith('Waga ' + r.w + ' z 3')), 'opis wagi dla czytników');
+  assert.deepEqual(R.map(r => r.per), ['', 'październik 2026', '', '', '', 'Q3 2026', 'październik 2026', '', 'Q3 2026', ''], 'okres, którego dotyczy publikacja (miesiąc z rokiem albo kwartał)');
+  assert.deepEqual(R.map(r => r.past), [true, false, false, false, false, false, false, false, false, false], 'minione: tylko decyzja Fed z dziś o 19:00 (teraz 20:30 czasu polskiego)');
+  assert.equal(R[0].mark, 'już było'); assert.ok(R.slice(1).every(r => r.mark === ''));
+  const days = [...h.matchAll(/<div class="kal-day">(.*?)<\/div>/g)].map(m => kal372.txt(m[1]));
+  assert.equal(days.length, 6); assert.ok(days[0].includes('28 października') && days[0].endsWith('dziś') && days[1].includes('29 października') && days[1].endsWith('jutro'), days.join('|')); assert.ok(!days[2].includes('dziś') && !days[2].includes('jutro'));
+  // pasek 14 dni: 14 komórek, dziś obramowane, wysokość = największa waga dnia
+  const cells = [...h.matchAll(/<div class="kal-c h(\d)( td)?( we)?" title="([^"]*)"><b>(\d+)<\/b><i><\/i><\/div>/g)];
+  assert.equal(cells.length, 14); assert.deepEqual(cells.map(c => +c[5]), [28, 29, 30, 31, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]); assert.deepEqual(cells.map(c => +c[1]), [3, 3, 3, 0, 0, 2, 1, 0, 1, 0, 0, 0, 0, 0], 'wysokość słupka = największa waga dnia (2.11: sprzedaż detaliczna 2 i Beżowa Księga 1)');
+  assert.deepEqual(cells.map(c => !!c[2]), cells.map((c, i) => i === 0), 'dziś obramowane'); assert.deepEqual(cells.map(c => !!c[3]), [false, false, false, true, true, false, false, false, false, false, true, true, false, false], 'weekendy przygaszone');
+  assert.ok(/terminów: 1, największa waga: 3/.test(cells[0][4]) && /terminów: 4, największa waga: 3/.test(cells[1][4]) && /brak terminów/.test(cells[3][4]), cells.map(c => c[4]).join('|'));
+  assert.ok(h.includes('role="img" aria-label="Wykres 14 dni od ') && h.includes('łącznie terminów: 10.'), 'opis wykresu dla czytników');
+  // godziny: nie ma nic poza kodem w pliku, nazw dostawców brak
+  assert.ok(!/Federal|Eurostat|Census|\bBEA\b|europa\.eu|bea\.gov|federalreserve|census\.gov|ecb\./i.test(h), 'zero nazw dostawców na stronie');
+  assert.ok(h.includes('Godziny w czasie polskim (zimą CET, latem CEST).') && h.includes('Znak ~ przy godzinie') && h.includes('Waga 1–3 to nasza ocena') && h.includes('To nie jest porada inwestycyjna'), 'objaśnienia: czas, znak ~, waga, brak porady');
+  assert.ok(h.includes('D:2026-10-28T12:00:00+00:00'), 'data pliku'); assert.ok(h.includes('Jeszcze bez: posiedzenia NBP (Polska), posiedzenia Banku Anglii, posiedzenia Banku Japonii, inflacja i PKB Polski, inflacja CPI i zatrudnienie w USA.'), 'czego jeszcze nie ma w kalendarzu');
+  K.expand(); assert.equal(K.calls.filter(c => c === 'kalendarz').length, 1, 'plik świeży — bez drugiego pobrania');
+  const iv = K.ivs.find(x => x[1] === 30 * 60 * 1000); assert.ok(iv); iv[0](); assert.equal(K.calls.filter(c => c === 'kalendarz').length, 2, 'odświeżenie wymuszone zegarem');
+  const iv5 = K.ivs.find(x => x[1] === 5 * 60 * 1000); assert.ok(iv5); const c0 = K.calls.length; iv5[0](); assert.equal(K.calls.length, c0, 'odświeżanie oznaczeń minionych bez pobierania');
+  K.collapse(); iv[0](); assert.equal(K.calls.filter(c => c === 'kalendarz').length, 2, 'zwinięta karta — zegar nie pobiera'); iv5[0]();
+  const KO = kal372.mk('pl', kal372.files(), {open: true}); assert.equal(KO.calls.filter(c => c === 'kalendarz').length, 1); assert.equal(kal372.rows(KO.html()).length, 10);
+  const KZ = kal372.mk('pl', kal372.files()); KZ.collapse(); assert.equal(KZ.calls.filter(c => c === 'kalendarz').length, 0, 'zwinięta karta — bez pobrania');
+});
+
+test('v372 (F9Z1): kalendarz — zmiana czasu w oknie 14 dni: Europa 25.10.2026 i USA 1.11.2026 (ta sama godzina w Nowym Jorku daje inną godzinę w Polsce w trzech tygodniach)', () => {
+  const j = kal372.J(); j.e = {bc_us: [kal372.E('2026-10-23T18:00Z', 'fomc', {w: 3}), kal372.E('2026-10-28T18:00Z', 'fomc', {w: 3}), kal372.E('2026-11-03T19:00Z', 'fomc', {w: 3})],
+    pkb_us: [kal372.E('2026-10-23T12:30Z', 'us_pkb', {w: 3}), kal372.E('2026-10-30T12:30Z', 'us_pkb', {w: 3}), kal372.E('2026-11-02T13:30Z', 'us_pkb', {w: 3})],
+    stat_eu: [kal372.E('2026-10-22T09:00Z', 'eu_cpi', {w: 2, g: 'r'}), kal372.E('2026-10-27T10:00Z', 'eu_cpi', {w: 2, g: 'r'})], bc_eu: [kal372.E('2026-10-22T12:15Z', 'eu_stopy', {w: 3, g: 'r'}), kal372.E('2026-10-29T13:15Z', 'eu_stopy', {w: 3, g: 'r'})]};
+  const K = kal372.mk('pl', kal372.files(j), {now: '2026-10-22T07:00:00Z', open: true}); const R = kal372.rows(K.html());
+  assert.equal(R.length, 10, 'okno 22.10–4.11 obejmuje obie zmiany czasu');
+  const by = k => R.filter(r => r.title === k).map(r => r.day.split(' ').slice(1, 3).join(' ') + ' ' + r.hm);
+  assert.deepEqual(by('Decyzja Fed o stopach procentowych (FOMC)'), ['23 października 20:00', '28 października 19:00', '3 listopada 20:00'], '14:00 w USA: 20:00, potem 19:00 (tydzień różnicy 5 h), potem znów 20:00');
+  assert.deepEqual(by('PKB USA'), ['23 października 14:30', '30 października 13:30', '2 listopada 14:30'], '8:30 w USA: 14:30, 13:30, 14:30');
+  assert.deepEqual(by('Inflacja w strefie euro: odczyt końcowy'), ['22 października ~11:00', '27 października ~11:00'], '11:00 czasu polskiego po obu stronach zmiany czasu w Europie');
+  assert.deepEqual(by('Decyzja EBC o stopach procentowych'), ['22 października ~14:15', '29 października ~14:15'], '14:15 po obu stronach zmiany');
+  // te same chwile oglądane po zmianie czasu: dzień „dziś” liczony w czasie polskim
+  const K2 = kal372.mk('pl', kal372.files(j), {now: '2026-10-25T22:30:00Z', open: true}); const R2 = kal372.rows(K2.html());
+  assert.deepEqual(R2.map(r => r.day.split(/,? /).slice(1, 3).join(' ') + ' ' + r.hm), ['27 października ~11:00', '28 października 19:00', '29 października ~14:15', '30 października 13:30', '2 listopada 14:30', '3 listopada 20:00'], 'o 23:30 czasu polskiego 25.10 okno zaczyna się 25.10; terminy sprzed okna (22–23.10) nie są pokazane');
+  const cells = [...K2.html().matchAll(/<div class="kal-c h\d( td)?[^"]*" title="[^"]*"><b>(\d+)<\/b>/g)]; assert.equal(cells.length, 14); assert.equal(cells.findIndex(c => c[1]), 0, 'dziś (pierwsza komórka) obramowane'); assert.equal(cells[0][2], '25', 'o 23:30 czasu polskiego 25.10 to jeszcze 25.10');
+});
+
+test('v372 (F9Z1): kalendarz — filtr ważności, brak terminów, część z błędem, błąd pobrania bez pętli, zmiana języka bez surowych kluczy', () => {
+  const K = kal372.mk('pl', kal372.files(), {open: true}); let R = kal372.rows(K.html());
+  assert.equal(R.length, 10); assert.ok(K.html().includes('<button type="button" data-kal-min="1" aria-pressed="true">Wszystkie</button><button type="button" data-kal-min="2" aria-pressed="false">Ważniejsze (waga 2–3)</button>'));
+  K.click(2); R = kal372.rows(K.html()); assert.deepEqual(R.map(r => r.w), [3, 3, 3, 3, 3, 2], 'tylko waga 2–3'); assert.ok(K.html().includes('data-kal-min="2" aria-pressed="true"') && K.html().includes('data-kal-min="1" aria-pressed="false"'));
+  const cs = [...K.html().matchAll(/<div class="kal-c h(\d)/g)].map(c => +c[1]); assert.equal(cs.length, 14, 'pasek pokazuje wszystkie terminy niezależnie od filtra'); assert.equal(cs[6], 1);
+  K.click(1); assert.equal(kal372.rows(K.html()).length, 10);
+  K.click('x'); assert.equal(kal372.rows(K.html()).length, 10, 'zła wartość filtra = wszystkie');
+  const j2 = kal372.J(); Object.keys(j2.e).forEach(k => { j2.e[k] = []; });
+  const KE = kal372.mk('pl', kal372.files(j2), {open: true}); assert.ok(KE.html().includes('W tych dniach nie ma terminów o wybranej ważności.') && kal372.rows(KE.html()).length === 0);
+  assert.ok(![...KE.html().matchAll(/<div class="kal-c h(\d)/g)].some(c => c[1] !== '0'), 'pasek bez terminów: puste słupki');
+  // część z błędem: informacja bez nazw dostawców
+  const j3 = kal372.J(); j3.ok.pkb_us = false; j3.ok.bc_eu = false;
+  const KB = kal372.mk('pl', kal372.files(j3), {open: true}); assert.ok(KB.html().includes('Część terminów pochodzi z poprzedniego pobrania: PKB i inflacja PCE w USA, posiedzenia EBC.'), KB.html().slice(-900));
+  assert.ok(!K.html().includes('poprzedniego pobrania'), 'wszystkie części ok — bez informacji');
+  const j4 = kal372.J(); j4.brak = []; assert.ok(!kal372.mk('pl', kal372.files(j4), {open: true}).html().includes('Jeszcze bez'), 'pusta lista braków — bez zdania'); j4.brak = ['x', 'pl_bank']; assert.ok(kal372.mk('pl', kal372.files(j4), {open: true}).html().includes('Jeszcze bez: posiedzenia NBP (Polska).'), 'nieznane kody pomijane');
+  // błąd pobrania: komunikat, bez pętli (nowa próba po minucie), wczytane dane nie znikają
+  const KX = kal372.mk('pl', kal372.files(null), {open: true}); assert.ok(KX.html().includes('Nie udało się wczytać kalendarza.') && KX.calls.filter(c => c === 'kalendarz').length === 1);
+  KX.expand(); assert.equal(KX.calls.filter(c => c === 'kalendarz').length, 1, 'po błędzie nowa próba najwcześniej po minucie');
+  const KI = kal372.mk('pl', kal372.files({v: 2}), {open: true}); assert.ok(KI.html().includes('Nie udało się wczytać kalendarza.'), 'plik innej wersji = błąd');
+  const KM = kal372.mk('pl', kal372.files(undefined, {ok: {niepewnosc_ciss: true}})); assert.equal(KM.els['#g-kalendarz'].hidden, true, 'meta bez części kalendarza — panel ukryty'); assert.equal(KM.html(), '');
+  const KN = kal372.mk('pl', kal372.files(undefined, null)); assert.equal(KN.els['#g-kalendarz'].hidden, true, 'brak meta — panel ukryty');
+  // zmiana języka: etykiety, kolejność dni, brak surowych kluczy
+  for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const KL = kal372.mk(L, kal372.files(), {open: true}), h = KL.html(), RL = kal372.rows(h);
+    assert.equal(RL.length, 10, L); assert.ok(!/kal372\./.test(h), L + ': surowy klucz'); assert.ok(RL.every(r => r.title.length > 3), L);
+    assert.deepEqual(RL.map(r => r.hm), ['19:00', '~11:00', '13:30', '13:30', '~14:15', '~11:00', '14:30', '20:00', '14:30', '22:30'], L + ': te same godziny w każdym języku');
+    assert.ok(!/Federal|Eurostat|Census|\bBEA\b|europa\.eu|federalreserve/i.test(h), L + ': zero nazw dostawców');
+  }
+  const KJ = kal372.mk('ja', kal372.files(), {open: true}); assert.ok(kal372.rows(KJ.html())[0].title.includes('FRB'), 'japoński: nazwa wydarzenia po japońsku'); assert.ok(KJ.html().includes('カレンダー：今後14日間'));
+  const KD = kal372.mk('de', kal372.files(), {open: true}); assert.ok(KD.html().includes('Kalender: die nächsten 14 Tage') && kal372.rows(KD.html())[0].title === 'Zinsentscheid der Fed (FOMC)');
+});
+
+test('v372 (F9Z1): kalendarz — słownik 10 języków pełny, tabela kodów jak w zbieraczu, karta w stronie po panelu stresu, glif, style tylko ze zmiennych motywu i bez przewijania w bok na telefonie', () => {
+  const K = kal372.mk('pl', kal372.files()).api;
+  assert.deepEqual(Object.keys(K.KAL_KODY).sort(), kal372.KODY, 'lista kodów jak w teście zbieracza (KODY)');
+  assert.ok(Object.values(K.KAL_KODY).every(([r, w]) => (r === 'us' || r === 'eu') && w >= 1 && w <= 3));
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const T = v96src.tFor(L);
+    for (const k of kal372.KODY) { const v = T('kal372.e.' + k); assert.ok(v && v !== 'kal372.e.' + k, L + ' ' + k); }
+    for (const p of ['bc_us', 'pkb_us', 'sprz_us', 'stat_eu', 'bc_eu']) assert.ok(T('kal372.p.' + p) !== 'kal372.p.' + p, L + ' ' + p);
+    for (const c of ['pl_bank', 'uk_bank', 'jp_bank', 'pl_dane', 'us_praca']) assert.ok(T('kal372.brak.' + c) !== 'kal372.brak.' + c, L + ' ' + c);
+    for (const k of ['t', 'sub', 'lazy', 'err', 'today', 'tomorrow', 'past', 'f.all', 'f.imp', 'f.aria', 'w.1', 'w.2', 'w.3', 'strip.aria', 'strip.day', 'strip.none', 'empty', 'n1', 'n2', 'n3', 'brak', 'errp']) assert.ok(T('kal372.' + k) !== 'kal372.' + k, L + ' ' + k);
+    assert.ok(T('kal372.strip.day', {d: 'D', n: 2, w: 3}).includes('D') && !/\{[a-z]\}/.test(T('kal372.strip.day', {d: 'D', n: 2, w: 3})), L + ': pola {x}');
+  }
+  const i0 = html.indexOf('<section class="panel pcard" id="g-niepewnosc" hidden></section>\n    <section class="panel pcard" id="g-kalendarz" hidden></section>\n');
+  assert.ok(i0 > 0, 'karta kalendarza zaraz po panelu stresu i niepewności w GLOBAL'); assert.equal(html.split('id="g-kalendarz"').length - 1, 1);
+  if (typeof process !== 'undefined' && process && process.versions && process.versions.node) {   // pod jsc (bez node) odczyt plików jest podmieniony — glif sprawdza tylko node
+    const svg = fs.readFileSync(path.join(__dirname, 'img', 'glify', 'kalendarz.svg'), 'utf8');
+    assert.ok(svg.startsWith('<svg') && svg.includes('viewBox="0 0 24 24"') && !/<script|http:\/\/(?!www\.w3\.org)/.test(svg), 'glif kalendarza');
+  }
+  const c0 = html.indexOf('/* v372 (F9Z1): kalendarz „Najbliższe 14 dni” (panel #g-kalendarz)'); assert.ok(c0 > 0); const css = html.slice(c0, html.indexOf('/* v114 archiwum własne', c0));
+  const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]); assert.ok(rules.length >= 18);
+  assert.ok(rules.every(([sel, body]) => !/#[0-9a-fA-F]{3,8}\b/.test(body)), 'kolory tylko ze zmiennych motywu (var(--…))');
+  assert.ok(rules.every(([sel]) => sel.split(',').every(s => s.trim().startsWith('#g-kalendarz'))), 'wszystkie reguły ograniczone do karty');
+  const strip = css.match(/\.kal-strip\{([^}]*)\}/)[1]; assert.ok(strip.includes('grid-template-columns:repeat(14,minmax(0,1fr))'), 'pasek 14 dni w siatce bez stałej szerokości');
+  const row = css.match(/\.kal-e\{([^}]*)\}/)[1]; assert.ok(row.includes('grid-template-columns:46px 20px minmax(0,1fr) 34px'), 'wiersz: stałe wąskie kolumny i elastyczna nazwa'); const fix = [...row.matchAll(/(\d+)px/g)].map(m => +m[1]);
+  assert.ok(46 + 20 + 34 + 3 * 8 + 2 * 2 < 150, 'stałe kolumny zajmują mało miejsca (telefon 390 px)'); assert.ok(css.includes('.kal-t{') && /\.kal-t\{[^}]*overflow-wrap:anywhere[^}]*min-width:0/.test(css), 'długie nazwy zawijane');
+  assert.ok(!/min-width:\s*\d{3,}px|width:\s*\d{3,}px/.test(css), 'brak stałych szerokości powyżej 100 px');
+  // blok bez nazw dostawców (kod strony)
+  assert.ok(!/\b(Federal ?Reserve|FOMC Calendar|Eurostat|Census|BEA|federalreserve|bea\.gov|census\.gov|europa\.eu|ecb\.)\b/i.test(kal372.code.replace(/\bFOMC\b/g, '')), 'zero nazw dostawców w kodzie bloku');
+  // ostrzeżenie o niedziałającym zegarze: moduł używa Date.now() (pinowanie w testach) i własnej reguły czasu, nie toLocale…({timeZone:'Europe/Warsaw'})
+  assert.ok(!/timeZone:\s*'Europe\/Warsaw'/.test(kal372.code) && kal372.code.includes('Date.now()'), 'czas polski z własnej reguły, zegar z Date.now()');
 });

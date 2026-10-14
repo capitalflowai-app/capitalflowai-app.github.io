@@ -31801,6 +31801,31 @@ def main():
         save('surowce-dziennik', _SUT_LOG[1])
     elif _sut_valid(_SUT_LOG[0]):                                 # blok bez dziennika w tym przebiegu (awaria trendów): poprzedni bez zmian
         save('surowce-dziennik', _SUT_LOG[0])
+    # v372 (F9Z1): KALENDARZ (data/kalendarz.json: terminarze Fed, BEA, Census, Eurostatu i EBC; pięć części z własnym ok / part_at / errs) — co KAL_EVERY min, plik z częścią nieudaną ponawiany
+    # po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok: kalendarz_bc_us, kalendarz_pkb_us, kalendarz_sprz_us, kalendarz_stat_eu,
+    # kalendarz_bc_eu (dwa nowe źródła: terminarz Rezerwy Federalnej i urzędu statystycznego USA; BEA, Eurostat i EBC już liczone — liczba źródeł rośnie o 2).
+    prev_kal = previous('kalendarz')
+    if isinstance(prev_kal, dict) and prev_kal.get('v') == 1 and fresh_pelny(prev_kal, KAL_EVERY):
+        save('kalendarz', prev_kal)
+        stan_kal = {}
+        for k_kal in KAL_PARTS:
+            if _dict(prev_kal.get('ok')).get(k_kal) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{KAL_PX} {KAL_LABEL[k_kal]}: {str(_dict(prev_kal.get('errs')).get(k_kal) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_kal[k_kal] = False
+            else:
+                stan_kal[k_kal] = 'cached'
+    else:
+        try:
+            kal_ = build_kalendarz(prev_kal, run_t0=_RUN_T0[0]); save('kalendarz', kal_)
+            stan_kal = {k_kal: kal_['ok'].get(k_kal) is True for k_kal in KAL_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{KAL_PX}: {e}')[:200])
+            stan_kal = {k_kal: False for k_kal in KAL_PARTS}
+            if isinstance(prev_kal, dict):
+                save('kalendarz', prev_kal)
+    META['ok']['kalendarz_bc_us'] = stan_kal['bc_us']; META['ok']['kalendarz_pkb_us'] = stan_kal['pkb_us']; META['ok']['kalendarz_sprz_us'] = stan_kal['sprz_us']
+    META['ok']['kalendarz_stat_eu'] = stan_kal['stat_eu']; META['ok']['kalendarz_bc_eu'] = stan_kal['bc_eu']
+    # v372: koniec bloku kalendarza
     # v367 (F5Z2): PRĄD I CO2 (data/prad.json; dział SUROWCE, blok „Prąd i CO2”) — Polska: cena energii w 96 kwadransach dziś i jutro, cena uprawnień do emisji CO2 oraz ceny
     # dnia następnego w 15 strefach Europy (jedno zapytanie na przebieg — limit źródła); części z własnymi bramkami wg terminów publikacji i budżetem czasu; awaria
     # budowniczego = poprzedni plik. META ok: prad_pl, prad_co2, prad_str (dwa nowe źródła: operator sieci przesyłowej i interfejs danych o energii).
@@ -34999,6 +35024,369 @@ def build_polska_dlug(prev=None, run_t0=None, now=None):
     if not any(n in out for n in ('pos', 'det')):
         raise RuntimeError('żadna część pliku nie ma danych')
     return out
+
+
+# ===================== v372 (F9Z1): KALENDARZ „NAJBLIŻSZE 14 DNI” — data/kalendarz.json (terminarze urzędów i banków centralnych, bez kont i kluczy) =====================
+# Pięć części jednego pliku, każda z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie (nigdy puste zamiast starych terminów):
+#   fed      — terminarz Rezerwy Federalnej (plik JSON ~0,5 MB, godziny w czasie wschodnim USA): decyzja FOMC (dzień drugi posiedzenia, 14:00), protokół z posiedzenia, Beżowa Księga,
+#              produkcja przemysłowa (G.17), bilans Fed (H.4.1, tygodniowo), rachunki finansowe USA (Z.1). Przemówienia i seria dziennych tabel są pomijane (szum).
+#   bea      — terminarz urzędu analiz gospodarczych USA (JSON, chwile w UTC): PKB, dochody i wydatki (inflacja PCE), handel zagraniczny, bilans płatniczy, pozycja inwestycyjna.
+#   census   — terminarz urzędu statystycznego USA (HTML, tabela z kluczem RRRRMMDDGGMM w czasie wschodnim): sprzedaż detaliczna, dobra trwałe, budowy domów. Strona roku bieżącego jest
+#              wymagana, strona roku następnego (gdy okno sięga stycznia) — dodatkowa: jej brak nie jest błędem.
+#   eurostat — terminarz publikacji statystyk strefy euro (JSON kalendarza, daty bez godziny): szybki szacunek inflacji i PKB, inflacja końcowa, bezrobocie, nastroje, produkcja, handel.
+#              Statystyki wskaźnikowe publikowane są o 11:00 czasu środkowoeuropejskiego (godzina „z reguły”, g = 'r').
+#   ecb      — terminarz posiedzeń Rady Prezesów EBC (HTML, pary data–opis, kilka lat naprzód): decyzja o stopach w drugim dniu posiedzenia, zwykle o 14:15 czasu środkowoeuropejskiego
+#              (godzina „z reguły”, g = 'r').
+# Czas w pliku zawsze w UTC (RRRR-MM-DDTGG:MMZ). Zamiana godziny lokalnej na UTC robi własna, mała reguła zmiany czasu (bez bazy stref): UE — od ostatniej niedzieli marca 01:00 UTC do ostatniej
+# niedzieli października 01:00 UTC (zmiana 25.10.2026), USA — od drugiej niedzieli marca 02:00 do pierwszej niedzieli listopada 02:00 czasu lokalnego (zmiana 1.11.2026). Dlatego ta sama
+# godzina w Nowym Jorku dla czytelnika w Polsce przez tydzień (25.10–1.11.2026) różni się od zwykłej o godzinę — i plik, i strona liczą to z reguły, nie ze stałej różnicy.
+# Okno pliku: od KAL_WSTECZ dni wstecz do KAL_PRZOD dni naprzód (UTC). Bramki części: odpowiedź za mała (obcięta) albo żadnego rozpoznanego terminu w oknie = błąd części (zmiana układu źródła
+# ma wywołać alarm, a nie pusty kalendarz). Nie jest to porada inwestycyjna — kalendarz mówi KIEDY, nie CO się stanie.
+# POMINIĘTE (sonda z GitHuba F9Z1 nie obejmowała ich albo odpowiedź była blokadą): posiedzenia NBP, Banku Anglii i Banku Japonii, inflacja i PKB Polski, inflacja CPI i zatrudnienie USA
+# (urząd pracy USA blokuje skrypty — 403, bez obchodzenia). Lista jest w pliku (pole brak) i widać ją na stronie jako „jeszcze bez …”.
+import html as _kal_html
+import urllib.parse as _kal_parse
+
+KAL_URL_FED = 'https://www.federalreserve.gov/json/calendar.json'
+KAL_URL_BEA = 'https://apps.bea.gov/API/signup/release_dates.json'
+KAL_URL_CENSUS = 'https://www.census.gov/economic-indicators/calendar-listview-{y}.html'
+KAL_URL_EUROSTAT = 'https://ec.europa.eu/eurostat/o/calendars/eventsJson?start={a}&end={b}'
+KAL_URL_ECB = 'https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html'
+KAL_PARTS = ('bc_us', 'pkb_us', 'sprz_us', 'stat_eu', 'bc_eu')
+KAL_LABEL = {'bc_us': 'Fed', 'pkb_us': 'BEA', 'sprz_us': 'Census', 'stat_eu': 'Eurostat', 'bc_eu': 'EBC'}
+KAL_PX = 'Kalendarz'
+KAL_EVERY = 6 * 60               # min — terminarze zmieniają się rzadko; część z błędem: ponowienie po NIEPELNY_MIN (fresh_pelny)
+KAL_PRZOD = 30                   # dni naprzód w pliku (strona pokazuje 14, reszta to zapas na dni bez odświeżenia i kontrola „czy terminarz sięga dalej”)
+KAL_WSTECZ = 1                   # dni wstecz w pliku
+KAL_TIMEOUT = 25                 # s — jedno zapytanie
+KAL_BUDZET = 110                 # s — łączny czas budowy pliku; część, na którą zabrakło czasu, zostaje z poprzedniej wersji
+KAL_MAX_B = 3_000_000            # B — większa odpowiedź to nie ten terminarz
+KAL_GODZ_REGULA = {'bc_eu': (14, 15), 'stat_eu': (11, 0)}   # godzina czasu środkowoeuropejskiego (Frankfurt / Luksemburg = czas polski), gdy terminarz podaje tylko dzień
+KAL_BRAMKA = {'bc_us': (10, 1), 'pkb_us': (10, 1), 'sprz_us': (8, 1), 'stat_eu': (3, 1), 'bc_eu': (3, 0)}   # (rozpoznanych terminów w całej odpowiedzi co najmniej, w oknie pliku co najmniej)
+KAL_MIN_WPISOW = {'bc_us': 400, 'pkb_us': 10, 'sprz_us': 30, 'stat_eu': 10, 'bc_eu': 10}   # wpisów strukturalnie poprawnych w odpowiedzi (mniej = odpowiedź obcięta)
+KAL_BRAK = ('pl_bank', 'uk_bank', 'jp_bank', 'pl_dane', 'us_praca')   # obszary bez terminarza w pliku (zob. wyżej)
+# kod terminu → (region, waga 1–3): waga to nasza ocena wpływu na rynki (3 = decyzja banku centralnego, inflacja, PKB), nie prognoza
+KAL_KODY = {
+    'fomc': ('us', 3), 'fomc_min': ('us', 2), 'beige': ('us', 1), 'g17': ('us', 1), 'h41': ('us', 1), 'z1': ('us', 1),
+    'us_pkb': ('us', 3), 'us_pce': ('us', 3), 'us_handel': ('us', 1), 'us_bop': ('us', 1), 'us_iip': ('us', 1),
+    'us_sprzedaz': ('us', 2), 'us_trwale': ('us', 1), 'us_budowy': ('us', 1),
+    'eu_cpi_flash': ('eu', 3), 'eu_cpi': ('eu', 2), 'eu_pkb_flash': ('eu', 3), 'eu_pkb': ('eu', 2), 'eu_bezrob': ('eu', 2), 'eu_esi': ('eu', 1), 'eu_prod': ('eu', 1), 'eu_handel': ('eu', 1),
+    'eu_stopy': ('eu', 3),
+}
+KAL_FED_REG = (('FOMC', r'FOMC Meeting$', 'fomc'), ('FOMC', r'FOMC Minutes$', 'fomc_min'), ('Beige', r'Beige Book$', 'beige'), ('Stat', r'G\.17\b', 'g17'),
+               ('Stat', r'H\.4\.1\b', 'h41'), ('Stat', r'Z\.1\b', 'z1'))
+KAL_BEA_REG = {'Gross Domestic Product': 'us_pkb', 'Personal Income and Outlays': 'us_pce', 'U.S. International Trade in Goods and Services': 'us_handel',
+               'U.S. International Transactions': 'us_bop', 'U.S. International Transactions and Investment Position': 'us_bop', 'U.S. International Investment Position': 'us_iip'}
+KAL_CENSUS_REG = ((r'Advance Monthly Sales for Retail and Food Services$', 'us_sprzedaz'), (r'Advance Report on Durable Goods\b', 'us_trwale'),
+                  (r'New Residential Construction\b', 'us_budowy'))
+KAL_EUROSTAT_REG = ((r'flash estimate inflation euro area$', 'eu_cpi_flash'), (r'inflation \(hicp\)$', 'eu_cpi'), (r'(?:preliminary )?flash estimate gdp\b|\bgdp\b.*\bflash estimate\b', 'eu_pkb_flash'),
+                    (r'gdp main aggregates\b', 'eu_pkb'), (r'unemployment$', 'eu_bezrob'), (r'economic sentiment indicator\b', 'eu_esi'), (r'industrial production$', 'eu_prod'),
+                    (r'retail trade$', 'eu_handel'))
+KAL_MIESIACE = {m: i for i, m in enumerate(('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'), 1)}
+KAL_SRC = ('CapitalFlowAI — kalendarz posiedzeń banków centralnych i publikacji danych (USA, strefa euro) z terminarzy urzędów; czas w UTC, godziny USA przeliczone regułą zmiany czasu, '
+           'godziny „z reguły” (EBC 14:15, statystyki strefy euro 11:00) oznaczone g = r')
+
+
+# ---------- czas: własna reguła zmiany czasu (bez bazy stref) ----------
+def kal_ost_nd(y, m):
+    """Ostatnia niedziela miesiąca o 31 dniach (marzec, październik)."""
+    d = datetime.date(y, m, 31)
+    return d - datetime.timedelta(days=(d.weekday() + 1) % 7)
+
+
+def kal_nd(y, m, n):
+    """n-ta niedziela miesiąca (n od 1)."""
+    d = datetime.date(y, m, 1)
+    d += datetime.timedelta(days=(6 - d.weekday()) % 7)
+    return d + datetime.timedelta(weeks=n - 1)
+
+
+def kal_na_utc(strefa, y, mo, d, h, mi):
+    """Godzina ścienna w strefie → datetime w UTC. strefa 'PL' (czas środkowoeuropejski: UE, +1 h zimą, +2 h latem; lato od ostatniej niedzieli marca 02:00 czasu zimowego do ostatniej niedzieli
+    października 03:00 czasu letniego) albo 'ET' (wschodnie USA: −5 h zimą, −4 h latem; lato od drugiej niedzieli marca 02:00 do pierwszej niedzieli listopada 02:00 czasu letniego).
+    Godzina w przerwie wiosennej (nieistniejąca) i w powtórzonej godzinie jesiennej liczona jako letnia (pierwsze wystąpienie) — terminarze nie ustawiają tam publikacji."""
+    wall = datetime.datetime(y, mo, d, h, mi)
+    if strefa == 'PL':
+        a = datetime.datetime.combine(kal_ost_nd(y, 3), datetime.time(2, 0))
+        b = datetime.datetime.combine(kal_ost_nd(y, 10), datetime.time(3, 0))
+        off = -2 if a <= wall < b else -1
+    elif strefa == 'ET':
+        a = datetime.datetime.combine(kal_nd(y, 3, 2), datetime.time(2, 0))
+        b = datetime.datetime.combine(kal_nd(y, 11, 1), datetime.time(2, 0))
+        off = 4 if a <= wall < b else 5
+    else:
+        raise ValueError('nieznana strefa ' + str(strefa))
+    return (wall + datetime.timedelta(hours=off)).replace(tzinfo=datetime.timezone.utc)
+
+
+def kal_iso(u):
+    return u.strftime('%Y-%m-%dT%H:%MZ')
+
+
+def kal_godz_12(s):
+    """„2:00 p.m.” → (14, 0); „12:00 a.m.” → (0, 0); inaczej None."""
+    m = re.fullmatch(r'(\d{1,2}):(\d{2}) ([ap])\.m\.', str(s or '').strip())
+    if not m or not 1 <= int(m.group(1)) <= 12 or int(m.group(2)) > 59:
+        return None
+    return int(m.group(1)) % 12 + (12 if m.group(3) == 'p' else 0), int(m.group(2))
+
+
+def kal_okres(s):
+    """„September 2026” → „2026-09”, „Q2/2026” → „2026-Q2”; inaczej None."""
+    s = str(s or '').strip()
+    m = re.fullmatch(r'([A-Z][a-z]+) (\d{4})', s)
+    if m and m.group(1) in KAL_MIESIACE:
+        return f'{m.group(2)}-{KAL_MIESIACE[m.group(1)]:02d}'
+    m = re.fullmatch(r'Q([1-4])/(\d{4})', s)
+    return f'{m.group(2)}-Q{m.group(1)}' if m else None
+
+
+def kal_zdarzenie(u, kod, g='z', p=None):
+    r, w = KAL_KODY[kod]
+    e = {'t': kal_iso(u), 'k': kod, 'r': r, 'w': w, 'g': g}
+    if p:
+        e['p'] = p
+    return e
+
+
+def kal_w_oknie(u, od, do):
+    return od <= u.date() <= do
+
+
+def kal_koniec(ev):
+    """Lista zdarzeń → bez dubli (ten sam czas i kod), rosnąco po czasie, przy remisie ważniejsze pierwsze."""
+    seen, out = set(), []
+    for e in ev:
+        k = (e['t'], e['k'])
+        if k not in seen:
+            seen.add(k); out.append(e)
+    out.sort(key=lambda e: (e['t'], -e['w'], e['k']))
+    return out
+
+
+# ---------- sieć (jedyne miejsce zapytań budowniczego kalendarza — testy je łatają) ----------
+def kal_http(url):
+    """Jedno zapytanie GET → treść w bajtach. Odpowiedź większa niż KAL_MAX_B, pusta albo kod inny niż 2xx = wyjątek (urllib zgłasza HTTPError dla 4xx/5xx). Bez obchodzenia blokad."""
+    with _otworz(url, {'Accept': '*/*'}, KAL_TIMEOUT) as r:
+        body = r.read(KAL_MAX_B + 1)
+    if len(body) > KAL_MAX_B:
+        raise ValueError('odpowiedź większa niż oczekiwany terminarz')
+    if not body.strip():
+        raise ValueError('pusta odpowiedź')
+    return body
+
+
+# ---------- parsery części ----------
+def kal_fed(j, od, do):
+    """Terminarz Fed (JSON) → (zdarzenia w oknie, rozpoznanych w całym pliku). Wpis: type, title, month „RRRR-MM”, days „1, 8, 15”, time „2:00 p.m.” (czas wschodni USA)."""
+    ev = j.get('events') if isinstance(j, dict) else None
+    if not isinstance(ev, list):
+        raise ValueError('odpowiedź bez listy events')
+    zn = [e for e in ev if isinstance(e, dict) and e.get('title') and e.get('month') and e.get('days')]
+    if len(zn) < KAL_MIN_WPISOW['bc_us']:
+        raise ValueError(f'odpowiedź obcięta ({len(zn)} wpisów)')
+    out, rozp = [], 0
+    for e in zn:
+        kod = next((k for typ, wz, k in KAL_FED_REG if e.get('type') == typ and re.match(wz, str(e['title']).strip())), None)
+        m = re.fullmatch(r'(\d{4})-(\d{2})', str(e['month']))
+        hm = kal_godz_12(e.get('time'))
+        if not kod or not m or not hm:
+            continue
+        for dd in str(e['days']).split(','):
+            dd = dd.strip()
+            if not dd.isdigit():
+                continue
+            try:
+                u = kal_na_utc('ET', int(m.group(1)), int(m.group(2)), int(dd), hm[0], hm[1])
+            except ValueError:
+                continue
+            rozp += 1
+            if kal_w_oknie(u, od, do):
+                out.append(kal_zdarzenie(u, kod))
+    return kal_koniec(out), rozp
+
+
+def kal_bea(j, od, do):
+    """Terminarz BEA (JSON {nazwa publikacji: {release_dates: [chwile ISO z przesunięciem]}}) → (zdarzenia w oknie, rozpoznanych w całym pliku)."""
+    if not isinstance(j, dict):
+        raise ValueError('odpowiedź nie jest słownikiem')
+    if sum(1 for v in j.values() if isinstance(v, dict)) < KAL_MIN_WPISOW['pkb_us']:
+        raise ValueError('odpowiedź obcięta (za mało publikacji)')
+    out, rozp = [], 0
+    for nazwa, kod in KAL_BEA_REG.items():
+        v = j.get(nazwa)
+        L = v.get('release_dates') if isinstance(v, dict) else None
+        if not isinstance(L, list):
+            continue
+        for s in L:
+            try:
+                u = datetime.datetime.fromisoformat(str(s))
+            except ValueError:
+                continue
+            if u.tzinfo is None:
+                continue   # chwila bez strefy — nie zgadujemy
+            u = u.astimezone(datetime.timezone.utc)
+            rozp += 1
+            if kal_w_oknie(u, od, do):
+                out.append(kal_zdarzenie(u, kod))
+    return kal_koniec(out), rozp
+
+
+_KAL_CENSUS_WIERSZ = re.compile(r'<tr[^>]*>\s*<td[^>]*>(.*?)</td>\s*<td sorttable_customkey="(\d{12})">([^<]*)</td>\s*<td>([^<]*)</td>\s*<td>([^<]*)</td>', re.S)
+
+
+def kal_census(tekst, od, do):
+    """Strona terminarza Census (HTML) → (zdarzenia w oknie, rozpoznanych w tej stronie). Wiersz: tytuł, klucz RRRRMMDDGGMM (czas wschodni), tekst daty, godzina, okres; wiersz, w którym klucz
+    nie zgadza się z tekstem daty i godziny, jest odrzucany; ponad 10% odrzuconych = zmieniony układ tabeli (wyjątek)."""
+    wiersze = _KAL_CENSUS_WIERSZ.findall(tekst)
+    if len(wiersze) < KAL_MIN_WPISOW['sprz_us']:
+        raise ValueError(f'tabela terminarza obcięta albo zmieniona ({len(wiersze)} wierszy)')
+    out, rozp, zle = [], 0, 0
+    for tyt, klucz, dtxt, gtxt, okres in wiersze:
+        try:
+            y, mo, d, h, mi = int(klucz[:4]), int(klucz[4:6]), int(klucz[6:8]), int(klucz[8:10]), int(klucz[10:12])
+            dd = datetime.datetime.strptime(dtxt.strip(), '%B %d, %Y')
+            gg = datetime.datetime.strptime(gtxt.strip(), '%I:%M %p')
+            if (dd.year, dd.month, dd.day) != (y, mo, d) or (gg.hour, gg.minute) != (h, mi):
+                raise ValueError
+            kal_na_utc('ET', y, mo, d, h, mi)
+        except ValueError:
+            zle += 1
+            continue
+        nazwa = re.sub(r'\s+', ' ', _kal_html.unescape(re.sub(r'<[^>]+>', ' ', tyt))).strip()
+        kod = next((k for wz, k in KAL_CENSUS_REG if re.match(wz, nazwa)), None)
+        if not kod:
+            continue
+        u = kal_na_utc('ET', y, mo, d, h, mi)
+        rozp += 1
+        if kal_w_oknie(u, od, do):
+            out.append(kal_zdarzenie(u, kod, 'z', kal_okres(_kal_html.unescape(okres))))
+    if zle * 10 > len(wiersze):
+        raise ValueError(f'{zle} z {len(wiersze)} wierszy terminarza z niezgodnym kluczem czasu')
+    return kal_koniec(out), rozp
+
+
+def kal_eurostat(j, od, do):
+    """Kalendarz Eurostatu (JSON FullCalendar: lista wpisów title, start „RRRR-MM-DDT11:00Z”, allDay, period, types[].label) → (zdarzenia w oknie, rozpoznanych). Brane tylko wpisy typu
+    „Data release”, całodniowe; godzina to 11:00 czasu środkowoeuropejskiego (z reguły, g = r) — pole start ma tylko dzień."""
+    if not isinstance(j, list):
+        raise ValueError('odpowiedź nie jest listą wpisów')
+    wp = [e for e in j if isinstance(e, dict) and isinstance(e.get('title'), str) and isinstance(e.get('start'), str)]
+    if len(wp) < KAL_MIN_WPISOW['stat_eu']:
+        raise ValueError(f'odpowiedź obcięta ({len(wp)} wpisów)')
+    out, rozp = [], 0
+    for e in wp:
+        typy = [t.get('label') for t in e.get('types') or [] if isinstance(t, dict)]
+        m = re.match(r'(\d{4})-(\d{2})-(\d{2})T', e['start'])
+        tyt = re.sub(r'\s+', ' ', e['title']).strip().lower()
+        kod = next((k for wz, k in KAL_EUROSTAT_REG if re.match(wz, tyt)), None)
+        if not kod or not m or 'Data release' not in typy or e.get('allDay') is not True:
+            continue
+        try:
+            u = kal_na_utc('PL', int(m.group(1)), int(m.group(2)), int(m.group(3)), *KAL_GODZ_REGULA['stat_eu'])
+        except ValueError:
+            continue
+        rozp += 1
+        if kal_w_oknie(u, od, do):
+            out.append(kal_zdarzenie(u, kod, 'r', kal_okres(e.get('period'))))
+    return kal_koniec(out), rozp
+
+
+_KAL_ECB_PARA = re.compile(r'<dt>\s*(\d{2})/(\d{2})/(\d{4})\s*</dt>\s*<dd>(.*?)</dd>', re.S)
+
+
+def kal_ecb(tekst, od, do):
+    """Terminarz Rady Prezesów EBC (HTML, pary dt = data DD/MM/RRRR i dd = opis) → (zdarzenia w oknie, decyzji w całej stronie). Decyzja o stopach = drugi dzień posiedzenia w sprawie polityki
+    pieniężnej („monetary policy meeting … (Day 2)”), godzina 14:15 czasu środkowoeuropejskiego (z reguły, g = r)."""
+    pary = _KAL_ECB_PARA.findall(tekst)
+    if len(pary) < KAL_MIN_WPISOW['bc_eu']:
+        raise ValueError(f'terminarz obcięty albo zmieniony ({len(pary)} wpisów)')
+    out, rozp = [], 0
+    for dd, mm, rr, opis in pary:
+        txt = re.sub(r'\s+', ' ', _kal_html.unescape(re.sub(r'<[^>]+>', ' ', opis))).strip()
+        if not (re.search(r'monetary policy meeting', txt, re.I) and re.search(r'\(Day 2\)', txt)):
+            continue
+        try:
+            u = kal_na_utc('PL', int(rr), int(mm), int(dd), *KAL_GODZ_REGULA['bc_eu'])
+        except ValueError:
+            continue
+        rozp += 1
+        if kal_w_oknie(u, od, do):
+            out.append(kal_zdarzenie(u, 'eu_stopy', 'r'))
+    return kal_koniec(out), rozp
+
+
+def kal_eurostat_adres(od, do):
+    """Adres zapytania o kalendarz Eurostatu: daty z przesunięciem strefy (proste daty dają pusty plik); przesunięcie dla każdej z dat z reguły czasu środkowoeuropejskiego."""
+    def f(d):
+        u = kal_na_utc('PL', d.year, d.month, d.day, 0, 0)
+        off = (datetime.datetime(d.year, d.month, d.day) - u.replace(tzinfo=None)).seconds // 3600
+        return f'{d.isoformat()}T00:00:00' + _kal_parse.quote('+%02d:00' % off, safe=':')
+    return KAL_URL_EUROSTAT.format(a=f(od), b=f(do))
+
+
+def kal_czesc(k, od, do):
+    """Jedna część pliku → (zdarzenia, [rozpoznanych w całej odpowiedzi, w oknie]); bramki KAL_BRAMKA: za mało rozpoznanych albo brak terminów w oknie = wyjątek."""
+    if k == 'bc_us':
+        ev, rozp = kal_fed(json.loads(kal_http(KAL_URL_FED).decode('utf-8-sig')), od, do)
+    elif k == 'pkb_us':
+        ev, rozp = kal_bea(json.loads(kal_http(KAL_URL_BEA).decode('utf-8-sig')), od, do)
+    elif k == 'sprz_us':
+        ev, rozp = [], 0
+        for i, y in enumerate(sorted({od.year, do.year})):
+            try:
+                e_, r_ = kal_census(kal_http(KAL_URL_CENSUS.format(y=y)).decode('latin-1'), od, do)
+            except Exception:  # noqa — strona roku następnego bywa jeszcze nieopublikowana; wymagana jest tylko pierwsza
+                if i == 0:
+                    raise
+                continue
+            ev += e_; rozp += r_
+        ev = kal_koniec(ev)
+    elif k == 'stat_eu':
+        ev, rozp = kal_eurostat(json.loads(kal_http(kal_eurostat_adres(od, do)).decode('utf-8-sig')), od, do)
+    elif k == 'bc_eu':
+        ev, rozp = kal_ecb(kal_http(KAL_URL_ECB).decode('utf-8', 'replace'), od, do)
+    else:
+        raise ValueError('nieznana część ' + str(k))
+    mn_r, mn_o = KAL_BRAMKA[k]
+    if rozp < mn_r:
+        raise RuntimeError(f'rozpoznano {rozp} terminów (co najmniej {mn_r}) — zmieniony układ źródła?')
+    if len(ev) < mn_o:
+        raise RuntimeError(f'brak terminów w oknie {od} … {do} — zmieniony układ źródła albo pusty terminarz')
+    return ev, [rozp, len(ev)]
+
+
+def build_kalendarz(prev=None, run_t0=None):
+    """Plik data/kalendarz.json (v372): pięć części (fed, bea, census, eurostat, ecb) z własnym ok / part_at / errs; część z błędem zostaje z poprzedniego pliku (zdarzenia w oknie) z własną
+    chwilą, nigdy pusta zamiast starych terminów; żadna część nie odpowiedziała = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == 1 else {}
+    pat = _dict(prev.get('part_at'))
+    dzis = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc).date()
+    od, do = dzis - datetime.timedelta(days=KAL_WSTECZ), dzis + datetime.timedelta(days=KAL_PRZOD)
+    out = {'v': 1, 'at': NOW, 'src': KAL_SRC, 'od': od.isoformat(), 'do': do.isoformat(), 'ok': {}, 'part_at': {}, 'errs': {}, 'e': {}, 'n': {}, 'brak': list(KAL_BRAK)}
+    t0 = time.monotonic()
+    for k in KAL_PARTS:
+        try:
+            if time.monotonic() - t0 > KAL_BUDZET:
+                raise RuntimeError('limit czasu budowy kalendarza')
+            out['e'][k], out['n'][k] = kal_czesc(k, od, do)
+            out['ok'][k] = True; out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część z błędem: poprzednie terminy (w oknie) z własną chwilą
+            msg = mask(f'{e}')[:160]
+            META['errors'].append(mask(f'{KAL_PX} {KAL_LABEL[k]}: {msg}')[:220]); out['ok'][k] = False; out['errs'][k] = msg
+            pe = _dict(prev.get('e')).get(k)
+            if isinstance(pe, list):
+                out['e'][k] = [x for x in pe if isinstance(x, dict) and re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}Z', str(x.get('t'))) and od.isoformat() <= x['t'][:10] <= do.isoformat()]
+                out['part_at'][k] = pat.get(k) or prev.get('at')
+                pn = _dict(prev.get('n')).get(k)
+                if isinstance(pn, list):
+                    out['n'][k] = pn
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+ZRODLA_META.update({'kalendarz_bc_us': 'fed-board', 'kalendarz_pkb_us': 'bea', 'kalendarz_sprz_us': 'census', 'kalendarz_stat_eu': 'eurostat', 'kalendarz_bc_eu': 'ecb'})   # v372: terminarz Fed i urzędu statystycznego USA (+2 źródła); BEA, Eurostat i EBC już liczone
 
 
 if __name__ == '__main__':

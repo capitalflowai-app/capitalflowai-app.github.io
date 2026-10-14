@@ -8819,6 +8819,169 @@ def niepewnosc_kontrola(np_, stres=None, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v372 (F9Z1): kalendarz „Najbliższe 14 dni” (data/kalendarz.json) ----------------------------------------------------------------
+# Plik: e (terminy każdej z pięciu części: fed, bea, census, eurostat, ecb; czas w UTC, kod, region, waga 1–3, g = z terminarza / z reguły), n (po części: [rozpoznanych w całej odpowiedzi,
+# w oknie pliku]), ok / part_at / errs, od / do (okno pliku: wczoraj … +30 dni UTC), brak (obszary bez terminarza). Kontrola czyta plik ze strony (bez zapytań do sieci):
+# (1) świeżość pobrania każdej części osobnym wierszem (odświeżanie co 6 h, część z błędem co godzinę): starsza niż KAL_K_PROG_MIN = ⚠ (najwyżej uwaga);
+# (2) TERMINARZ PUSTY ALBO PRZETERMINOWANY (⚠ z opisem): brak jakiegokolwiek terminu w następnych 14 dniach, plik starszy niż KAL_K_PLIK_MIN, terminy kończą się wcześniej niż za 14 dni,
+#     część, która w całej odpowiedzi rozpoznała mniej terminów niż próg (parser zgubił tabelę), część fed/bea/census/eurostat bez żadnego terminu w oknie pliku;
+# (3) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zły czas / kod / region / waga (waga i region muszą zgadzać się z tabelą kodów), dubel, terminy poza oknem pliku od–do, terminy w części
+#     nie rosną, liczba w oknie w n ≠ liczbie terminów (część z ok True), wersja inna niż 1 pomijana (brak wierszy);
+# (4) TYLKO UWAGA ⚠: data decyzji FOMC w terminarzu różni się od posiedzenia na rynku zakładów (plik fed: ks.meetings[].date) — obie daty w następnych 30 dniach muszą się pokrywać.
+# Najwyżej ⚠ poza (3). Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'kalendarz')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['kalendarz'] = 12 * 60   # plik zapisywany co ok. 6 h (część z błędem: co godzinę) — wiek pobrania każdej części ocenia osobny wiersz
+AW_BEZ_BLEDU.update({'kalendarz_' + p_: 'kalendarz — część z błędem zostaje ze starymi terminami i datą (v372); wiek pobrania w wierszach świeżości' for p_ in ('bc_us', 'pkb_us', 'sprz_us', 'stat_eu', 'bc_eu')})
+KAL_K_PROG_MIN = 24 * 60          # min — wiek pobrania części (odświeżanie co 6 h)
+KAL_K_PLIK_MIN = 48 * 60          # min — plik starszy = terminarz przeterminowany
+KAL_K_OKNO_DNI = 14               # okno strony
+KAL_K_FOMC_DNI = 30               # dni — porównanie z rynkiem zakładów
+KAL_K_PARTS = ('bc_us', 'pkb_us', 'sprz_us', 'stat_eu', 'bc_eu')
+KAL_K_ROZP_MIN = {'bc_us': 10, 'pkb_us': 10, 'sprz_us': 8, 'stat_eu': 3, 'bc_eu': 3}   # progi parsera (jak bramki zbieracza)
+KAL_K_BEZ_OKNA = ('bc_us', 'pkb_us', 'sprz_us', 'stat_eu')   # części, które muszą mieć termin w oknie pliku (ECB ma posiedzenia co ok. 6 tygodni)
+KAL_K_NAZWA = {'bc_us': 'Fed', 'pkb_us': 'BEA', 'sprz_us': 'Census', 'stat_eu': 'Eurostat', 'bc_eu': 'EBC'}   # nazwy części w komunikatach kontroli (raport wewnętrzny, nie strona)
+KAL_K_ETYKIETA = {'bc_us': 'Kalendarz: terminarz Rezerwy Federalnej (pobranie)', 'pkb_us': 'Kalendarz: terminarz PKB i inflacji PCE USA (pobranie)',
+                  'sprz_us': 'Kalendarz: terminarz sprzedaży i budownictwa USA (pobranie)', 'stat_eu': 'Kalendarz: terminarz statystyk strefy euro (pobranie)',
+                  'bc_eu': 'Kalendarz: terminarz posiedzeń EBC (pobranie)'}
+KAL_K_KODY = {
+    'fomc': ('us', 3), 'fomc_min': ('us', 2), 'beige': ('us', 1), 'g17': ('us', 1), 'h41': ('us', 1), 'z1': ('us', 1),
+    'us_pkb': ('us', 3), 'us_pce': ('us', 3), 'us_handel': ('us', 1), 'us_bop': ('us', 1), 'us_iip': ('us', 1),
+    'us_sprzedaz': ('us', 2), 'us_trwale': ('us', 1), 'us_budowy': ('us', 1),
+    'eu_cpi_flash': ('eu', 3), 'eu_cpi': ('eu', 2), 'eu_pkb_flash': ('eu', 3), 'eu_pkb': ('eu', 2), 'eu_bezrob': ('eu', 2), 'eu_esi': ('eu', 1), 'eu_prod': ('eu', 1), 'eu_handel': ('eu', 1),
+    'eu_stopy': ('eu', 3),
+}
+
+
+def _kal_k_czas(s):
+    """„RRRR-MM-DDTGG:MMZ” → datetime w UTC albo None."""
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}Z', s):
+        return None
+    try:
+        return dt.datetime.strptime(s, '%Y-%m-%dT%H:%MZ').replace(tzinfo=dt.timezone.utc)
+    except ValueError:
+        return None
+
+
+def kalendarz_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w kalendarzu) → lista opisów."""
+    zle = []
+    e = j.get('e') if isinstance(j.get('e'), dict) else None
+    if e is None:
+        return ['brak pola e (terminów)']
+    od, do = j.get('od'), j.get('do')
+    for k, L in e.items():
+        if k not in KAL_K_PARTS or not isinstance(L, list):
+            zle.append(f'{k}: nieznana część albo zła lista'); continue
+        prev, widziane = None, set()
+        for x in L:
+            u = _kal_k_czas(x.get('t')) if isinstance(x, dict) else None
+            tab = KAL_K_KODY.get(x.get('k')) if isinstance(x, dict) else None
+            if u is None or tab is None:
+                zle.append(f'{k}: zły czas albo nieznany kod terminu ({str(x)[:60]})'); continue
+            if (x.get('r'), x.get('w')) != tab:
+                zle.append(f'{k} {x["k"]}: region/waga {x.get("r")}/{x.get("w")} ≠ tabela {tab[0]}/{tab[1]}')
+            if x.get('g') not in ('z', 'r'):
+                zle.append(f'{k} {x["k"]}: pole g ≠ z/r')
+            if (x['t'], x['k']) in widziane:
+                zle.append(f'{k}: dubel {x["t"]} {x["k"]}')
+            widziane.add((x['t'], x['k']))
+            if prev is not None and x['t'] < prev:
+                zle.append(f'{k}: terminy nie rosną ({prev} przed {x["t"]})')
+            prev = x['t']
+            if isinstance(od, str) and isinstance(do, str) and not od <= x['t'][:10] <= do:
+                zle.append(f'{k}: termin {x["t"]} poza oknem pliku {od} … {do}')
+        n = (j.get('n') or {}).get(k) if isinstance(j.get('n'), dict) else None
+        if (j.get('ok') or {}).get(k) is True and isinstance(n, list) and len(n) == 2 and n[1] != len(L):
+            zle.append(f'{k}: n[1] = {n[1]} ≠ liczba terminów {len(L)}')
+    return zle[:12]
+
+
+def kalendarz_swiezosc(j, now=None):
+    """Wiersze świeżości pobrania pięciu części (etykieta, status, wiek min, chwila pobrania, uwaga); brak pliku albo inna wersja = brak wierszy; część bez chwili — '?'. Najwyżej ⚠."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p in KAL_K_PARTS:
+        txt = (j.get('part_at') or {}).get(p) if isinstance(j.get('part_at'), dict) else None
+        if not txt:
+            rows.append((KAL_K_ETYKIETA[p], '?', None, None, 'brak chwili pobrania tej części w pliku')); continue
+        w = wiek_danych(str(txt), 'ts', 'k', now)
+        ok = (j.get('ok') or {}).get(p) if isinstance(j.get('ok'), dict) else None
+        st = '?' if w is None else ('⚠\ufe0f' if w > KAL_K_PROG_MIN else '✅')
+        note = ''
+        if st == '⚠\ufe0f':
+            note = f'pobranie starsze niż {fmt_wiek(KAL_K_PROG_MIN)} (odświeżanie co 6 h) — terminy mogą być nieaktualne; najwyżej uwaga'
+        elif ok is False:
+            note = 'ostatnie pobranie nieudane — terminy z poprzedniego pobrania'
+        rows.append((KAL_K_ETYKIETA[p], st, w, str(txt), note))
+    return rows
+
+
+def kalendarz_uwagi(j, fed=None, now=None):
+    """Uwagi ⚠ (nigdy ❌): terminarz pusty albo przeterminowany, parser, FOMC a rynek zakładów. → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    now = now or NOW
+    out = {'wiersze': [], 'uwagi': []}
+    e = j.get('e') if isinstance(j.get('e'), dict) else {}
+    wszystkie = []   # (chwila, część, termin)
+    for k, L in e.items():
+        for x in L if isinstance(L, list) else []:
+            u = _kal_k_czas(x.get('t')) if isinstance(x, dict) else None
+            if u is not None:
+                wszystkie.append((u, k, x))
+    koniec = now + dt.timedelta(days=KAL_K_OKNO_DNI)
+    w14 = [t for t in wszystkie if now <= t[0] < koniec]
+    st = '✅' if w14 else '⚠\ufe0f'
+    out['wiersze'].append((f'terminy w następnych {KAL_K_OKNO_DNI} dniach: {len(w14)}' + (f' (w tym wagi 3: {sum(1 for t in w14 if t[2].get("w") == 3)})' if w14 else ' — terminarz pusty'), st))
+    if not w14:
+        out['uwagi'].append(f'Kalendarz: terminarz pusty — żadnego terminu w następnych {KAL_K_OKNO_DNI} dniach (źródła nie zwróciły terminów albo plik przeterminowany)')
+    at = j.get('at')
+    w = wiek_danych(str(at), 'ts', 'k', now) if at else None
+    if w is not None and w > KAL_K_PLIK_MIN:
+        out['uwagi'].append(f'Kalendarz: terminarz przeterminowany — plik sprzed {fmt_wiek(w)} (próg {fmt_wiek(KAL_K_PLIK_MIN)})')
+        out['wiersze'].append((f'wiek pliku {fmt_wiek(w)} — terminarz przeterminowany', '⚠\ufe0f'))
+    if wszystkie:
+        ost = max(t[0] for t in wszystkie)
+        if ost < koniec:
+            out['uwagi'].append(f'Kalendarz: terminy kończą się {ost.date().isoformat()} — wcześniej niż za {KAL_K_OKNO_DNI} dni (terminarz przeterminowany albo część źródeł bez terminów)')
+            out['wiersze'].append((f'ostatni termin w pliku {ost.date().isoformat()} — za wcześnie', '⚠\ufe0f'))
+    n = j.get('n') if isinstance(j.get('n'), dict) else {}
+    for p in KAL_K_PARTS:
+        nn = n.get(p)
+        if isinstance(nn, list) and len(nn) == 2 and all(isinstance(v, int) for v in nn):
+            if nn[0] < KAL_K_ROZP_MIN[p]:
+                out['uwagi'].append(f'Kalendarz {KAL_K_NAZWA[p]}: rozpoznano tylko {nn[0]} terminów (próg {KAL_K_ROZP_MIN[p]}) — zmieniony układ źródła?')
+            elif p in KAL_K_BEZ_OKNA and nn[1] < 1:
+                out['uwagi'].append(f'Kalendarz {KAL_K_NAZWA[p]}: żadnego terminu w oknie pliku — zmieniony układ źródła albo pusty terminarz')
+        elif (j.get('ok') or {}).get(p) is True:
+            out['uwagi'].append(f'Kalendarz {KAL_K_NAZWA[p]}: brak liczników n w pliku')
+    # ---- FOMC a rynek zakładów (tylko uwaga) ----
+    try:
+        ms = ((fed or {}).get('ks') or {}).get('meetings') if isinstance(fed, dict) else None
+        daty_rynku = sorted({m['date'] for m in ms if isinstance(m, dict) and isinstance(m.get('date'), str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', m['date'])}) if isinstance(ms, list) else []
+        gr = (now + dt.timedelta(days=KAL_K_FOMC_DNI)).date().isoformat()
+        rynek = [d for d in daty_rynku if now.date().isoformat() <= d <= gr]
+        nasze = sorted({t[0].date().isoformat() for t in wszystkie if t[1] == 'bc_us' and t[2].get('k') == 'fomc' and now.date().isoformat() <= t[0].date().isoformat() <= gr})
+        if rynek and (j.get('ok') or {}).get('bc_us') is True:
+            zg = rynek == nasze
+            out['wiersze'].append((f'decyzja FOMC: terminarz {", ".join(nasze) or "—"} a rynek zakładów {", ".join(rynek)}', '✅' if zg else '⚠\ufe0f'))
+            if not zg:
+                out['uwagi'].append(f'Kalendarz: data decyzji FOMC w terminarzu ({", ".join(nasze) or "brak"}) ≠ posiedzenie na rynku zakładów ({", ".join(rynek)})')
+    except Exception as ex:  # noqa
+        out['uwagi'].append(f'Kalendarz: porównanie FOMC z rynkiem zakładów przerwane ({str(ex)[:60]})')
+    return out
+
+
+def kalendarz_kontrola(files, now=None):
+    """Kontrola pliku kalendarz.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('kalendarz') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    U = kalendarz_uwagi(j, files.get('fed'), now)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': kalendarz_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -9259,6 +9422,24 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['niepewnosc'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'stres i niepewność (v368): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v372. kalendarz (data/kalendarz.json): świeżość pobrania pięciu części osobnymi wierszami (lista SWIEZOSC bez zmian), terminarz pusty / przeterminowany / parser zgubił tabelę (najwyżej ⚠),
+    # sprzeczności w pliku (❌) i data decyzji FOMC a rynek zakładów (⚠) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in kalendarz_swiezosc(files.get('kalendarz')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠\ufe0f':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_kal = kalendarz_kontrola(files)
+        if T_kal:
+            for z_ in T_kal['spojnosc'][:5]:
+                R['bledy'].append(f'kalendarz.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_kal['uwagi']
+        R['zgodnosc']['kalendarz'] = {k_: T_kal[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_kal else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['kalendarz'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'kalendarz (v372): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -9912,6 +10093,11 @@ def raport_md(R):
             L.append('- Stres i niepewność (CISS, EPU, GPR; z pliku strony; CISS USA a indeks stresu USA tylko informacyjnie): ' + (f'? kontrola przerwana ({np_["blad"]})' if np_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(np_['spojnosc'][:3]) + ' ⚠\ufe0f · ' if np_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in np_.get('wiersze') or []) or '—') + '.')
+        krz = Z.get('kalendarz')   # v372: kalendarz — sprzeczności w pliku, terminarz pusty / przeterminowany i FOMC a rynek zakładów; brak pliku = bez linii
+        if krz:
+            L.append('- Kalendarz (z pliku strony): ' + (f'? kontrola przerwana ({krz["blad"]})' if krz.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(krz['spojnosc'][:3]) + ' ❌ · ' if krz.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in krz.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else
