@@ -54764,3 +54764,48 @@ class NoweGrupyV373(unittest.TestCase):
             self.assertRaises(urllib.error.HTTPError, A.src_ng_dziennik)
         src = open(os.path.join(self.ROOT, 'narzedzia', 'archiwum.py'), encoding='utf-8').read()
         self.assertIn("'ng-dziennik': src_ng_dziennik}", src)
+
+
+class TestV374StrazJawnyKontakt(unittest.TestCase):
+    """v374 (14.10.2026): SEC_CONTACT równy jawnemu adresowi projektu (na stronie od v347) nie przerywa publikacji — od wpisania sekretu
+    każdy przebieg kończył się na straży kluczy (adres w index.html). Inny adres (np. prywatny) straż nadal pilnuje jak klucza."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    def _s(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v374_straz', os.path.join(self.ROOT, 'narzedzia', 'straz_kluczy.py'))
+        s = importlib.util.module_from_spec(spec); spec.loader.exec_module(s); return s
+
+    def _strona(self, tresc):
+        import tempfile
+        tmp = tempfile.mkdtemp(prefix='v374-straz-'); os.makedirs(os.path.join(tmp, '_site'))
+        with open(os.path.join(tmp, '_site', 'index.html'), 'w', encoding='utf-8') as f:
+            f.write(tresc)
+        return tmp
+
+    def test_jawny_adres_pominiety_inny_pilnowany(self):
+        s = self._s(); jawny = s.JAWNE['SEC_CONTACT'][0]; inny = 'prywatny-adres@example.org'
+        with open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8') as f:
+            self.assertIn(jawny, f.read(), 'strona pokazuje adres kontaktowy projektu (v347)')
+        for v in (jawny, ' ' + jawny + '\n', jawny.upper()):
+            self.assertEqual(s.sekrety({'SEC_CONTACT': v})[0], {}, 'jawny adres projektu nie jest sekretem')
+        self.assertEqual(sorted(s.sekrety({'SEC_CONTACT': inny})[0]), ['SEC_CONTACT'], 'inny adres — pilnowany jak klucz')
+        self.assertEqual(sorted(s.sekrety({'FRED_KEY': jawny})[0]), ['FRED_KEY'], 'wyjątek tylko dla SEC_CONTACT')
+        tmp = self._strona('<a href="mailto:' + jawny + '">' + jawny + '</a> ' + inny)
+        self.assertEqual(s.skanuj(s.sekrety({'SEC_CONTACT': jawny})[0], tmp)[0], [])
+        self.assertEqual(len(s.skanuj(s.sekrety({'SEC_CONTACT': inny})[0], tmp)[0]), 1)
+
+    def test_main_kod_wyjscia_i_komunikat_bez_wartosci(self):
+        import contextlib, io
+        s = self._s(); jawny = s.JAWNE['SEC_CONTACT'][0]
+        for wartosc, kod in ((jawny, 0), ('prywatny-adres@example.org', 1)):
+            tmp = self._strona('kontakt: ' + jawny + ' / prywatny-adres@example.org')
+            env = {k: '' for k in s.NAZWY}; env.update({'SEC_CONTACT': wartosc, 'STRAZ_ROOT': tmp})
+            out = io.StringIO()
+            with mock.patch.dict(os.environ, env, clear=False), contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
+                s.main()
+            self.assertEqual(e.exception.code, kod, wartosc)
+            self.assertNotIn(wartosc, out.getvalue(), 'wartość sekretu nigdy w logu')
+            if kod == 0:
+                self.assertIn('jawne (adres projektu widoczny na stronie): SEC_CONTACT', out.getvalue())
+                self.assertIn('— czysto', out.getvalue())
