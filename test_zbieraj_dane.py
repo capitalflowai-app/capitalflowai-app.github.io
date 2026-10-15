@@ -39200,7 +39200,8 @@ class V324pSondaFala0(unittest.TestCase):
         S = self._S()
         names = [g.__name__ for g in S.GROUPS]
         pz = tuple(n for n in names if n.startswith('g_pz_'))
-        self.assertEqual(len(pz), 11); self.assertEqual(pz, S.PZ_TYLKO); self.assertEqual(S.TYLKO, S.PZ_TYLKO, 'ten przebieg: tylko fala 0 armii')
+        self.assertEqual(len(pz), 11); self.assertEqual(pz, S.PZ_TYLKO)   # v379p: TYLKO zmienia się co sondę (teraz F11S1) — jak w testach v272p, v288p i v294p
+        self.assertTrue(S.TYLKO and all(any(g.__name__ == n for g in S.GROUPS) for n in S.TYLKO), 'TYLKO = istniejące grupy')
         self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertEqual(len(set(names)), len(names), 'każda grupa raz')
         src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'), encoding='utf-8').read()
         self.assertNotIn('moex', src.lower(), 'Rosja (MOEX) bez sondy — decyzja D3')
@@ -56123,3 +56124,132 @@ class TestV378InsiderGzip403(unittest.TestCase):
         self.assertEqual((o['day'], o['done']), ('2026-09-21', True))
         self.assertIn('2026-09-19', o['skipped']); self.assertIn('2026-09-20', o['skipped'])
         self.assertEqual([u.rsplit('.', 2)[-2] for u in calls], ['20260919', '20260920', '20260921'], 'każdy dzień raz, bez ponownych zapytań')
+
+
+class V379pSondaF11(unittest.TestCase):
+    """v379p: sonda F11S1 planu tygodnia źródeł — 15 grup g_f11_* (109 adresów kandydatów zwiadu 4) przed g_nasdaq, TYLKO = te grupy;
+    z atrapą http: tylko GET, nagłówek zbieracza (urząd papierów wartościowych — z publicznym adresem projektu), https bez kluczy, każda
+    etykieta i adres raz, duże pliki z Range, spacje w adresie zakodowane, data pliku giełdy = ostatni dzień roboczy, żadnego adresu
+    ani treści w wyniku, bez Rosji; znacznik „dane=tak/nie” odróżnia dane od strony blokady (także gzip i 200 ze stroną wyzwania);
+    sondy.yml przenosi wiersze „f11-…” do adnotacji (ściśnięte), a wierszy innych sond nadal nie."""
+    DZIS = datetime.date(2026, 10, 15)       # czwartek → ostatni dzień roboczy = środa 14.10
+
+    def _S(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('sondy_v379p', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'))
+        S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
+        return S
+
+    def test_grupy_i_tylko(self):
+        import re
+        S = self._S()
+        names = [g.__name__ for g in S.GROUPS]
+        f = tuple(n for n in names if n.startswith('g_f11_'))
+        self.assertEqual(len(f), 15); self.assertEqual(f, S.F11_TYLKO); self.assertEqual(S.TYLKO, S.F11_TYLKO, 'ten przebieg: tylko sonda F11S1')
+        self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertEqual(len(set(names)), len(names), 'każda grupa raz')
+        self.assertEqual([g.__name__ for g in S.F11_GRUPY], list(S.F11_TYLKO))
+        self.assertEqual(len(S.F11_ADRESY), 109)
+        self.assertEqual(len({t[1] for t in S.F11_ADRESY}), 109, 'każda etykieta raz'); self.assertEqual(len({t[2] for t in S.F11_ADRESY}), 109, 'każdy adres raz')
+        self.assertTrue(all(t[4] in ('json', 'csv', 'zip', 'html', 'xml') for t in S.F11_ADRESY))
+        self.assertTrue(all(re.match(r'(F11Z\d+|DB1)_', t[1]) for t in S.F11_ADRESY), 'etykieta = zadanie planu')
+        self.assertLessEqual(max(sum(1 for t in S.F11_ADRESY if t[0] == g) for g in {t[0] for t in S.F11_ADRESY}), 11, 'grupa jedzie po kolei — krótka, by zmieścić się w 240 s')
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'sondy.py'), encoding='utf-8').read()
+        self.assertNotIn('moex', src.lower(), 'Rosja bez sondy — decyzja D3')
+
+    def test_atrapa_tylko_get_bez_adresow(self):
+        import io as _io, re
+        S = self._S()
+        calls, snu = [], []
+
+        def http(url, method='GET', body=None, headers=None):
+            calls.append((url, method, body, dict(headers or {})))
+            return 200, b'{}', 5, None
+        out = _io.StringIO()
+        with mock.patch.object(S, 'http', http), mock.patch.object(S.time, 'sleep', lambda s: snu.append(s)), \
+                mock.patch.object(S, '_utc_today', lambda: self.DZIS), mock.patch('sys.stdout', out):
+            for g in S.F11_GRUPY:
+                g()
+        txt = out.getvalue()
+        lines = [l for l in txt.splitlines() if l.startswith('f11-')]
+        labels = [l.split('|')[2].strip() for l in lines]
+        urls = [u for u, _, _, _ in calls]
+        self.assertEqual(len(calls), 109); self.assertEqual(len(lines), 109, 'jeden wiersz na zapytanie, bez ponowień')
+        self.assertEqual(len(labels), len(set(labels))); self.assertEqual(len(urls), len(set(urls)))
+        self.assertTrue(all(m == 'GET' and b is None for _, m, b, _ in calls), 'tylko GET bez treści')
+        sec = [h for u, _, _, h in calls if u.split('/')[2] in ('www.sec.gov', 'efts.sec.gov')]
+        self.assertEqual(len(sec), 3)
+        self.assertTrue(all(h['User-Agent'] == S.F11_SEC_UA['User-Agent'] and '@' in h['User-Agent'] for h in sec), 'urząd: adres kontaktowy projektu')
+        inni = [h for u, _, _, h in calls if u.split('/')[2] not in ('www.sec.gov', 'efts.sec.gov')]
+        self.assertTrue(all(h.get('User-Agent') == 'CapitalFlowAI-collector/1.0' for h in inni), 'nagłówek zbieracza, bez adresu')
+        self.assertTrue(all(u.startswith('https://') for u in urls)); self.assertFalse([u for u in urls if ' ' in u], 'spacje zakodowane')
+        self.assertFalse([u for u in urls if re.search(r'(?i)(api[_-]?key|apikey|token=|access_key|moex)', u)], 'bez kluczy i bez Rosji')
+        hr = [h['Range'] for _, _, _, h in calls if 'Range' in h]
+        self.assertEqual(len(hr), sum(1 for t in S.F11_ADRESY if t[3]), 'Range tylko tam, gdzie tabela go wskazuje')
+        self.assertTrue(all(re.fullmatch(r'bytes=0-\d+', r) for r in hr) and all(int(r.split('-')[1]) <= 65535 for r in hr))
+        self.assertNotIn('http', txt, 'żadnego adresu w wyniku')
+        self.assertEqual(sum(1 for u in urls if '14102026' in u), 3, 'pliki giełdy: ostatni dzień roboczy'); self.assertFalse([u for u in urls if '@LW@' in u])
+        self.assertTrue(snu and all(0.5 <= s <= 1.0 for s in snu), 'odstęp 0,5–1 s'); self.assertEqual(len(snu), 109 - 15)
+        self.assertTrue(all('dane=' in l for l in lines))
+
+    def test_znacznik_dane_czy_blokada(self):
+        import gzip
+        S = self._S(); z = S._f11_znacznik
+        self.assertEqual(z('json', b'{"a":1,"b":2}', 200), 'dane=tak json n=2')
+        self.assertEqual(z('json', b'{"x":', 206), 'dane=tak json_poczatek')
+        self.assertEqual(z('json', b'<html><body>tekst</body></html>' + b'x' * 7000, 200), 'dane=nie nie-json')
+        self.assertEqual(z('json', b'<html>Just a moment...</html>', 403), 'dane=nie blok=cloudflare')
+        self.assertEqual(z('json', b'<!DOCTYPE html><html><head><title>Just a moment...</title></head><body>' + b'x' * 9000 + b'</body></html>', 200),
+                         'dane=nie blok=cloudflare', '200 ze stroną wyzwania to nie dane')
+        self.assertEqual(z('html', b'<html><body>Access Denied. Reference #18.1a2b akamai</body></html>', 403), 'dane=nie blok=akamai')
+        self.assertEqual(z('json', b'{"error":"x"}', 404), 'dane=nie')
+        self.assertEqual(z('json', b'', 429), 'dane=nie'); self.assertEqual(z('json', None, None), 'dane=nie')
+        self.assertEqual(z('csv', b'a,b\n1,2\n', 206), 'dane=tak wiersze=2')
+        self.assertEqual(z('csv', b'<html><body>x</body></html>' + b' ' * 7000, 200), 'dane=nie html')
+        self.assertEqual(z('zip', b'PK\x03\x04abc', 206), 'dane=tak zip_sig'); self.assertEqual(z('zip', b'<html>x</html>', 200), 'dane=nie zip_sig=nie')
+        self.assertEqual(z('xml', b'<?xml version="1.0"?><a/>', 200), 'dane=tak xml')
+        zwykla = b'<!DOCTYPE html><html><head><title>Notowania</title></head><body>' + b'<div>g</div>' * 800 + b'<script src="recaptcha.js">captcha</script></body></html>'
+        self.assertEqual(z('html', zwykla, 200), 'dane=tak html kB=%d' % (len(zwykla) // 1024), 'zwykła strona z formularzem captcha to nie blokada')
+        self.assertEqual(z('html', b'<html>x</html>', 200), 'dane=nie krotka')
+        self.assertEqual(z('json', gzip.compress(b'<html>Your Request Originates from an Undeclared Automated Tool</html>'), 403), 'dane=nie blok=sec-ua')
+        self.assertEqual(z('json', gzip.compress(b'<html>Request Rate Threshold Exceeded</html>'), 403), 'dane=nie blok=limit')
+        self.assertEqual(z('json', b'\x1f\x8b\x08\x00 uszkodzone', 403), 'dane=nie', 'uszkodzony gzip nie wywraca sondy')
+        for r in (z('json', b'<html>Just a moment... sekret-tresc</html>', 403), z('json', b'{"klucz":"sekret-tresc"}', 200)):
+            self.assertNotIn('sekret', r, 'znacznik nigdy nie zawiera treści')
+
+    def test_url_i_wynik_bez_tresci(self):
+        import io as _io
+        S = self._S()
+        u = S._f11_url('https://api.uktradeinfo.com/OTS?$filter=CommodityId eq 71081200 and MonthId ge 202601')
+        self.assertNotIn(' ', u); self.assertIn('$filter=CommodityId%20eq%2071081200', u)
+        self.assertEqual(S._f11_url('https://x.org/a?b%5B0%5D=1&c[]=2'), 'https://x.org/a?b%5B0%5D=1&c[]=2', 'zakodowane i nawiasy bez zmian')
+        out = _io.StringIO()
+        with mock.patch.object(S, 'http', lambda *a, **k: (403, b'<html>Just a moment... tajny-adres https://x.example/q?k=1</html>', 7, None)), \
+                mock.patch('sys.stdout', out):
+            S._f11_sonda('f11-test', 'F11Z0_proba', 'https://x.example/sekret?k=1', '0-65535', 'json')
+        w = out.getvalue()
+        self.assertIn('f11-test', w); self.assertIn('F11Z0_proba', w); self.assertIn('HTTP 403', w); self.assertIn('dane=nie blok=cloudflare', w)
+        self.assertNotIn('x.example', w); self.assertNotIn('sekret', w); self.assertNotIn('tajny', w); self.assertNotIn('http', w)
+        out = _io.StringIO()
+        with mock.patch.object(S, 'http', lambda *a, **k: (None, None, 0, 'TimeoutError')), mock.patch('sys.stdout', out):
+            S._f11_sonda('f11-test', 'F11Z0_czas', 'https://x.example/a', '', 'csv')
+        self.assertIn('ERR', out.getvalue()); self.assertIn('TimeoutError', out.getvalue()); self.assertIn('dane=nie', out.getvalue())
+
+    def test_adnotacja_z_wierszami_f11(self):
+        import subprocess, sys, tempfile, textwrap
+        sy = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.github', 'workflows', 'sondy.yml'), encoding='utf-8').read()
+        a = sy.index('python3 -c "\n') + len('python3 -c "\n'); b = sy.index('\n          "\n', a)
+        code = textwrap.dedent(sy[a:b])
+        f = [f'f11-krypto-a    | env=-                         | F11Z11_x{i:03d}                      | HTTP 200 |     12 ms |       345 B | dane=tak json n=1'
+             for i in range(109)]
+        lines = ['summary f11-krypto-a     http200 15/15'] + f + ['deribit        | env=- | y', 'coinalyze      | env=- | x']
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, 'sondy.txt'), 'w', encoding='utf-8') as fh:
+                fh.write('\n'.join(lines) + '\n')
+            r = subprocess.run([sys.executable, '-c', code], cwd=d, capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        notes = [l for l in r.stdout.splitlines() if l.startswith('::notice title=sondy')]
+        joined = '%0A'.join(notes)
+        self.assertTrue(2 <= len(notes) <= 9, len(notes)); self.assertTrue(all(len(n) < 4300 for n in notes))
+        for i in (0, 54, 108):
+            self.assertIn(f'f11-krypto-a | env=- | F11Z11_x{i:03d} | HTTP 200 | 12 ms | 345 B | dane=tak json n=1', joined, 'wiersz f11 ściśnięty, w adnotacji')
+        self.assertIn('coinalyze', joined); self.assertNotIn('deribit', joined, 'wiersze innych sond nie trafiają do adnotacji')

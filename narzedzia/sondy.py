@@ -2908,7 +2908,238 @@ for _g in PZ_GRUPY:
     GROUPS.insert(GROUPS.index(g_nasdaq), _g)       # g_nasdaq zostaje ostatnia (test v127)
 PZ_TYLKO = tuple(g.__name__ for g in PZ_GRUPY)       # w sondy.py: TYLKO = PZ_TYLKO — przebieg tylko tej sondy
 
-TYLKO = PZ_TYLKO   # v324p: ten przebieg — tylko fala 0 armii (v294p: g_su_*; v288p: g_jse2; v272p: g_ix_fmp, g_ix_massive; pusta krotka = wszystkie)
+# --------------------------------------------------------------------------- v379p: sonda F11S1 (plan tygodnia źródeł 17–23.10.2026)
+# Jeden przebieg z serwera GitHub dla adresów kandydatów zwiadu 4 (109 adresów, 15 grup „f11-…”): tylko GET z nagłówkiem zbieracza
+# (trzy adresy urzędu papierów wartościowych — z publicznym adresem kontaktowym projektu, którego urząd wymaga), duże pliki z Range
+# (tylko początek), 0,6 s przerwy między zapytaniami jednej grupy, bez kluczy, bez POST, bez obchodzenia ochrony — 403/429/451/strona
+# wyzwania to wynik, nie powód do ponowienia. Wypisuje tylko: grupę, etykietę zadania (np. F11Z5_…), kod HTTP, ms, bajty i krótki
+# znacznik „dane=tak/nie” (czy treść to dane, a nie strona blokady) z typem blokady — nigdy adresu, nagłówka ani treści.
+import zlib
+
+F11_SEC_UA = {"User-Agent": "CapitalFlowAI/1.0 badania-niekomercyjne (cryptoportal.pw@gmail.com)"}   # adres publiczny (stopka strony)
+F11_SEC_HOSTS = ("www.sec.gov", "efts.sec.gov")
+F11_PRZERWA = 0.6
+# (grupa, etykieta, adres, Range albo "", rodzaj treści: json / csv / zip / html / xml); @LW@ = ostatni dzień roboczy DDMMRRRR
+F11_ADRESY = (
+    ("bis", "F11Z5_stats_bis_org", "https://stats.bis.org/api/v2/structure/dataflow/BIS/WS_GLI/1.0?references=all", "", "xml"),
+    ("bis", "F11Z5_stats_bis_org_2", "https://stats.bis.org/api/v2/data/dataflow/BIS/WS_LBS_D_PUB/1.0/Q.S.C.A.TO1.A.5J.A.CN+IN+BR+TR+ZA+MX+KR+ID+TH.N?lastNObservations=2&format=csv", "", "csv"),
+    ("bis", "F11Z5_stats_bis_org_3", "https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBTA/1.0/M.JP+US+GB.B.USD._Z.B?lastNObservations=1&format=csv", "", "csv"),
+    ("bis", "DB1_www_stat_search_boj_or_j", "https://www.stat-search.boj.or.jp/api/v1/getDataCode?format=json&lang=en&db=BS01&code=MABJMTA&startDate=202601", "", "json"),
+    ("bis", "F11Z5_stats_bis_org_4", "https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CREDIT_GAP/1.0/Q.CN+IN+BR+TR+ZA+MX+KR+ID+TH+HK+SG.P.A.C?lastNObservations=1&format=csv", "", "csv"),
+    ("bis", "F11Z5_stats_bis_org_5", "https://stats.bis.org/api/v2/data/dataflow/BIS/WS_DEBT_SEC2_PUB/1.0/Q.4T+4Y+4U+4W+1C+US+GB+CN+IN+BR+PL+TR+ZA+MX.3P.1.1.C.A.A.TO1.A.A.A.A.A.G+C+I?lastNObservations=6&format=csv", "", "csv"),
+    ("bis", "F11Z5_stats_bis_org_6", "https://stats.bis.org/api/v2/data/dataflow/BIS/WS_GLI/1.0/*?lastNObservations=8&format=csv", "", "csv"),
+    ("krypto-a", "F11Z11_fapi_binance_com", "https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=BTCUSDT&period=1d&limit=2", "", "json"),
+    ("krypto-a", "F11Z11_api_bybit_com", "https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=BTCUSDT&period=1d&limit=2", "", "json"),
+    ("krypto-a", "F11Z17_data_binance_vision", "https://data.binance.vision/data/futures/um/daily/metrics/BTCUSDT/BTCUSDT-metrics-2026-10-13.zip", "0-2047", "zip"),
+    ("krypto-a", "F11Z17_www_deribit_com", "https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=BTC&start_timestamp=1792000000000&end_timestamp=1792800000000&resolution=1D", "", "json"),
+    ("krypto-a", "F11Z11_www_okx_com", "https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy=BTC&period=1D", "", "json"),
+    ("krypto-a", "F11Z11_api_pub_bitfinex_com", "https://api-pub.bitfinex.com/v2/stats1/pos.size:1m:tBTCUSD:long/last", "", "json"),
+    ("krypto-a", "F11Z33_futures_kraken_com", "https://futures.kraken.com/derivatives/api/v3/tickers", "0-65535", "json"),
+    ("krypto-a", "F11Z34_stats_data_hyperliquid_x", "https://stats-data.hyperliquid.xyz/Mainnet/leaderboard", "0-65535", "json"),
+    ("krypto-a", "F11Z34_api_v3_aave_com", "https://api.v3.aave.com/graphql", "", "json"),
+    ("krypto-b", "F11Z15_stablecoins_llama_fi", "https://stablecoins.llama.fi/stablecoinprices", "0-65535", "json"),
+    ("krypto-b", "F11Z15_yields_llama_fi", "https://yields.llama.fi/pools", "0-65535", "json"),
+    ("krypto-b", "F11Z16_ethereum_beacon_api_publ", "https://ethereum-beacon-api.publicnode.com/eth/v1/beacon/states/head/pending_deposits", "0-65535", "json"),
+    ("krypto-b", "F11Z15_api_llama_fi", "https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true", "0-65535", "json"),
+    ("krypto-b", "F11Z15_api_llama_fi_2", "https://api.llama.fi/overview/options?excludeTotalDataChartBreakdown=true", "0-65535", "json"),
+    ("krypto-b", "F11Z16_ultrasound_money", "https://ultrasound.money/api/v2/fees/burn-sums", "", "json"),
+    ("krypto-b", "F11Z16_api_growthepie_xyz", "https://api.growthepie.xyz/v1/fundamentals.json", "0-65535", "json"),
+    ("krypto-b", "F11Z16_l2beat_com", "https://l2beat.com/api/scaling/summary", "0-65535", "json"),
+    ("krypto-b", "F11Z25_api_coingecko_com", "https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin", "", "json"),
+    ("pred", "F11Z36_gamma_api_polymarket_com", "https://gamma-api.polymarket.com/events?tag_slug=crypto&active=true&closed=false&limit=5", "", "json"),
+    ("pred", "F11Z36_external_api_kalshi_com", "https://external-api.kalshi.com/trade-api/v2/events?series_ticker=KXBTCD&status=open&with_nested_markets=true&limit=1", "", "json"),
+    ("pred", "F11Z36_wikimedia_org", "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Bitcoin/daily/20260901/20261015", "", "json"),
+    ("pred", "F11Z36_api_upbit_com", "https://api.upbit.com/v1/ticker/all?quote_currencies=KRW", "", "json"),
+    ("pred", "F11Z36_pro_api_coinmarketcap_co", "https://pro-api.coinmarketcap.com/public-api/v1/altcoin-season-index/historical?limit=30", "", "json"),
+    ("azja", "F11Z12_nsearchives_nseindia_com", "https://nsearchives.nseindia.com/content/indices/ind_close_all_@LW@.csv", "", "csv"),
+    ("azja", "F11Z12_nsearchives_nseindia_com_2", "https://nsearchives.nseindia.com/content/nsccl/fao_participant_vol_@LW@.csv", "", "csv"),
+    ("azja", "F11Z12_nsearchives_nseindia_com_3", "https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_@LW@.csv", "0-65535", "csv"),
+    ("azja", "F11Z13_www_chinamoney_com_cn", "https://www.chinamoney.com.cn/ags/ms/cm-u-bk-currency/ClsYldCurvHis?lang=en&reference=1,2,3&bondType=CYCC000", "", "json"),
+    ("azja", "F11Z13_openapi_taifex_com_tw", "https://openapi.taifex.com.tw/v1/PutCallRatio", "", "json"),
+    ("azja", "F11Z13_www_hkex_com_hk", "https://www.hkex.com.hk/eng/stat/smstat/ssturnover/ncms/ASHTMAIN.HTM", "", "html"),
+    ("azja", "F11Z13_www_csindex_com_cn", "https://www.csindex.com.cn/csindex-home/perf/index-perf?indexCode=000300&startDate=20261001&endDate=20261014", "", "json"),
+    ("azja", "F11Z23_www_jpx_co_jp", "https://www.jpx.co.jp/english/markets/statistics-equities/misc/02.html", "", "html"),
+    ("usa-dane", "F11Z6_agtransport_usda_gov", "https://agtransport.usda.gov/resource/wnn7-29tu.json?$limit=5&$order=date%20DESC", "", "json"),
+    ("usa-dane", "F11Z9_ir_eia_gov", "https://ir.eia.gov/wpsr/table8.csv", "", "csv"),
+    ("usa-dane", "F11Z38_www_sca_isr_umich_edu", "https://www.sca.isr.umich.edu/", "", "html"),
+    ("usa-dane", "F11Z38_www_newyorkfed_org", "https://www.newyorkfed.org/medialibrary/interactives/sce/sce/downloads/data/frbny-sce-data.xlsx", "0-65535", "zip"),
+    ("usa-dane", "F11Z38_www_finra_org", "https://www.finra.org/sites/default/files/2021-03/margin-statistics.xlsx", "0-65535", "zip"),
+    ("usa-dane", "F11Z31_www_newyorkfed_org", "https://www.newyorkfed.org/medialibrary/interactives/householdcredit/data/xls/HHD_C_Report_2026Q2.xlsx", "0-65535", "zip"),
+    ("usa-dane", "F11Z31_www_freddiemac_com", "https://www.freddiemac.com/pmms/docs/PMMS_history.csv", "0-65535", "csv"),
+    ("usa-dane", "F11Z31_www_policyuncertainty_co", "https://www.policyuncertainty.com/media/Trade_Uncertainty_Data.xlsx", "0-65535", "zip"),
+    ("usa-dane", "F11Z31_data_bts_gov", "https://data.bts.gov/resource/bw6n-ddqk.json?$limit=24&$order=obs_date DESC", "", "json"),
+    ("usa-dane", "F11Z31_www_federalregister_gov", "https://www.federalregister.gov/api/v1/documents.json?conditions[term]=tariff&conditions[type][]=RULE&order=newest&per_page=20", "", "json"),
+    ("usa-plyn", "F11Z3_markets_newyorkfed_org", "https://markets.newyorkfed.org/api/rates/secured/sofr/last/5.json", "", "json"),
+    ("usa-plyn", "F11Z3_data_financialresearch_g", "https://data.financialresearch.gov/v1/series/full?mnemonic=REPO-DVP_AR_OO-P", "", "json"),
+    ("usa-plyn", "F11Z4_api_fiscaldata_treasury_", "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/dts/deposits_withdrawals_operating_cash?page%5Bsize%5D=2&sort=-record_date", "", "json"),
+    ("usa-plyn", "F11Z3_markets_newyorkfed_org_2", "https://markets.newyorkfed.org/api/rates/secured/sofr/last/30.json", "", "json"),
+    ("usa-plyn", "F11Z3_markets_newyorkfed_org_3", "https://markets.newyorkfed.org/api/rates/all/latest.json", "", "json"),
+    ("usa-plyn", "F11Z4_api_fiscaldata_treasury__2", "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/buybacks_operations", "", "json"),
+    ("usa-plyn", "F11Z26_www_federalreserve_gov", "https://www.federalreserve.gov/releases/h8/data/FRB_h8_xml.zip", "0-65535", "zip"),
+    ("usa-plyn", "F11Z26_www_federalreserve_gov_2", "https://www.federalreserve.gov/releases/scoos/data/FRB_SCOOS_xml.zip", "0-65535", "zip"),
+    ("usa-plyn", "F11Z26_www_federalreserve_gov_3", "https://www.federalreserve.gov/releases/cp/data/FRB_CP_xml.zip", "0-65535", "zip"),
+    ("fundusze", "F11Z23_api_nasdaq_com", "https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=25&offset=0&download=true", "", "json"),
+    ("fundusze", "F11Z18_www_ishares_com", "https://www.ishares.com/varnish-api/blk-product-screener-server/api/v1/product-screener/product-data?country=gb&language=en&siteName=ishares-uk&userType=individual", "0-65535", "json"),
+    ("fundusze", "F11Z24_www_ice_com", "https://www.ice.com/publicdocs/abu_dhabi/IFADCOTHist2026.csv", "0-65535", "csv"),
+    ("fundusze", "F11Z24_www_ice_com_2", "https://www.ice.com/marketdata/reports/234", "", "html"),
+    ("fundusze", "F11Z35_api_frankfurter_dev", "https://api.frankfurter.dev/v2/rates?base=USD", "", "json"),
+    ("fundusze", "F11Z35_www_cftc_gov", "https://www.cftc.gov/dea/newcot/FinFutWk.txt", "", "csv"),
+    ("eu-pl", "F11Z1_gpwbenchmark_pl", "https://gpwbenchmark.pl/dane-opoznione", "", "html"),
+    ("eu-pl", "F11Z1_stat_gov_pl", "https://stat.gov.pl/banki-i-bazy-danych/sdds/dane-gospodarcze-i-finansowe-dla-polski", "", "html"),
+    ("eu-pl", "F11Z1_www_knf_gov_pl", "https://www.knf.gov.pl/?articleId=56224&p_id=18", "", "html"),
+    ("eu-pl", "F11Z2_data_api_ecb_europa_eu", "https://data-api.ecb.europa.eu/service/data/IVF/M.U2.N..L30.A.0.Z5.0000.Z01.E?lastNObservations=2&format=csvdata", "", "csv"),
+    ("eu-pl", "F11Z1_static_nbp_pl", "https://static.nbp.pl/dane/rynek-nieruchomosci/ceny_mieszkan.xlsx", "0-65535", "zip"),
+    ("eu-pl", "F11Z2_ec_europa_eu", "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nasq_10_f_tr?format=JSON&lang=EN&sector=S14_S15&finpos=ASS&na_item=F52&unit=MIO_EUR&geo=PL&geo=DE&sinceTimePeriod=2025-Q1", "", "json"),
+    ("eu-pl", "F11Z27_www_gpw_pl", "https://www.gpw.pl/udzial-czlonkow-gieldy-w-obrotach", "", "html"),
+    ("eu-pl", "F11Z29_ec_europa_eu", "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nrg_stk_oilm?format=JSON&lang=EN&geo=PL&lastTimePeriod=12", "", "json"),
+    ("eu-pl", "F11Z38_data_api_ecb_europa_eu", "https://data-api.ecb.europa.eu/service/data/CES/M.Z18.ALL.T.C1120+C1220+E2020.NUM_VAR.WM?lastNObservations=24&format=jsondata", "", "json"),
+    ("premie", "F11Z8_api_btcturk_com", "https://api.btcturk.com/api/v2/ticker?pairSymbol=USDT_TRY", "", "json"),
+    ("premie", "F11Z8_api_mercadobitcoin_net", "https://api.mercadobitcoin.net/api/v4/tickers?symbols=USDT-BRL", "", "json"),
+    ("premie", "F11Z8_api_luno_com", "https://api.luno.com/api/1/ticker?pair=USDTZAR", "", "json"),
+    ("premie", "F11Z8_indodax_com", "https://indodax.com/api/ticker/usdtidr", "", "json"),
+    ("premie", "F11Z8_www_zebapi_com", "https://www.zebapi.com/pro/v1/market/USDT-INR/ticker", "", "json"),
+    ("premie", "F11Z8_api_bitso_com", "https://api.bitso.com/v3/ticker/?book=usd_mxn", "", "json"),
+    ("pogoda", "F11Z7_services9_arcgis_com", "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Ports_Data/FeatureServer/0/query?where=ISO3%3D%27CHN%27&outFields=*&resultRecordCount=3&f=json", "", "json"),
+    ("pogoda", "F11Z40_usdmdataservices_unl_edu", "https://usdmdataservices.unl.edu/api/USStatistics/GetDroughtSeverityStatisticsByAreaPercent?aoi=us&startdate=10/1/2026&enddate=10/13/2026&statisticsType=1", "", "json"),
+    ("pogoda", "F11Z9_ftp_cpc_ncep_noaa_gov", "https://ftp.cpc.ncep.noaa.gov/htdocs/degree_days/weighted/daily_data/2026/Population.Heating.txt", "", "csv"),
+    ("pogoda", "F11Z40_www_cpc_ncep_noaa_gov", "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt", "", "csv"),
+    ("pogoda", "F11Z40_www_pegelonline_wsv_de", "https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations/KAUB/W/currentmeasurement.json", "", "json"),
+    ("pogoda", "F11Z40_api_open_meteo_com", "https://api.open-meteo.com/v1/forecast?latitude=41.5&longitude=-93.5&daily=precipitation_sum,temperature_2m_max&forecast_days=7", "", "json"),
+    ("pogoda", "F11Z40_climatereanalyzer_org", "https://climatereanalyzer.org/clim/t2_daily/json/era5_world_t2_day.json", "0-65535", "json"),
+    ("pogoda", "F11Z40_www_nhc_noaa_gov", "https://www.nhc.noaa.gov/index-at.xml", "", "xml"),
+    ("banki-a", "F11Z14_api_bcra_gob_ar", "https://api.bcra.gob.ar/estadisticas/v4.0/monetarias/1?desde=2026-10-01&hasta=2026-10-14&limit=10", "", "json"),
+    ("banki-a", "F11Z14_api_hkma_gov_hk", "https://api.hkma.gov.hk/public/market-data-and-statistics/daily-monetary-statistics/daily-figures-interbank-liquidity?pagesize=3&sortby=end_of_date&sortorder=desc", "", "json"),
+    ("banki-a", "F11Z14_api_bcb_gov_br", "https://api.bcb.gov.br/dados/serie/bcdata.sgs.13621/dados/ultimos/20?formato=json", "", "json"),
+    ("banki-a", "F11Z14_www_mof_go_jp", "https://www.mof.go.jp/english/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv", "0-65535", "csv"),
+    ("banki-a", "F11Z14_olinda_bcb_gov_br", "https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/ExpectativasMercadoAnuais?$top=100&$orderby=Data%20desc&$format=json", "", "json"),
+    ("europa", "F11Z10_api_energy_charts_info", "https://api.energy-charts.info/public_power?country=de&start=2026-10-12&end=2026-10-13", "", "json"),
+    ("europa", "F11Z10_api_carbonintensity_org_", "https://api.carbonintensity.org.uk/generation", "", "json"),
+    ("europa", "F11Z28_www_fca_org_uk", "https://www.fca.org.uk/publication/documents/aggregated-current-net-short-positions.csv", "", "csv"),
+    ("europa", "F11Z28_www_fi_se", "https://www.fi.se/en/our-registers/net-short-positions/", "", "html"),
+    ("europa", "F11Z29_www_jodidata_org", "https://www.jodidata.org/_resources/files/downloads/oil-data/annual-csv/primary/primaryyear2026.csv", "0-65535", "csv"),
+    ("europa", "F11Z32_api_uktradeinfo_com", "https://api.uktradeinfo.com/OTS?$filter=CommodityId eq 71081200 and MonthId ge 202601 and FlowTypeId eq 1", "", "json"),
+    ("banki-b", "F11Z14_www_bankofcanada_ca", "https://www.bankofcanada.ca/valet/observations/group/OFFICIAL_INT_RES/json?recent=26", "", "json"),
+    ("banki-b", "F11Z19_www_bankofcanada_ca", "https://www.bankofcanada.ca/valet/observations/group/AUC_BOND_RESULTS/json?start_date=2024-01-01", "", "json"),
+    ("banki-b", "F11Z19_www_bankofcanada_ca_2", "https://www.bankofcanada.ca/valet/observations/group/G4_WEEKLY/json?recent=52", "", "json"),
+    ("banki-b", "F11Z19_www_cer_rec_gc_ca", "https://www.cer-rec.gc.ca/open/energy/throughput-capacity/keystone-throughput-and-capacity.csv", "0-65535", "csv"),
+    ("banki-b", "F11Z19_www_bankofcanada_ca_3", "https://www.bankofcanada.ca/valet/observations/group/B2_WEEKLY/json?recent=52", "", "json"),
+    ("banki-b", "F11Z39_custom_resbank_co_za", "https://custom.resbank.co.za/SarbWebApi/WebIndicators/HomePageRates", "", "json"),
+    ("banki-b", "F11Z39_www_rbi_org_in", "https://www.rbi.org.in/Scripts/BS_ViewMMO.aspx", "", "html"),
+    ("banki-b", "F11Z39_edge_boi_gov_il", "https://edge.boi.gov.il/FusionEdgeServer/sdmx/v2/data/dataflow/BOI.STATISTICS/MF/1.0?lastNObservations=24&format=csvdata", "0-65535", "csv"),
+    ("banki-b", "F11Z39_api_worldbank_org", "https://api.worldbank.org/v2/country/IN;MX;PH;EG;PK;BD;NG/indicator/BX.TRF.PWKR.CD.DT?format=json&mrv=1", "", "json"),
+    ("sec", "F11Z37_www_sec_gov", "https://www.sec.gov/files/datastandardsinnovation/data/form-13f-data-sets/01jun2026-31aug2026_form13f.zip", "0-65535", "zip"),
+    ("sec", "F11Z37_www_sec_gov_2", "https://www.sec.gov/files/data/fails-deliver-data/cnsfails202609b.zip", "0-65535", "zip"),
+    ("sec", "F11Z25_efts_sec_gov", "https://efts.sec.gov/LATEST/search-index?q=%22spot%20bitcoin%22&forms=S-1&dateRange=custom&startdt=2026-09-01&enddt=2026-10-14", "", "json"),
+)
+
+F11_BLOK = (
+    ("cloudflare", ("just a moment", "cf-chl", "challenge-platform", "cloudflare ray id", "attention required", "cf-browser-verification")),
+    ("sec-ua", ("undeclared automated tool",)),
+    ("limit", ("rate threshold", "too many requests", "rate limit")),
+    ("imperva", ("pardon our interruption", "incapsula", "request unsuccessful")),
+    ("akamai", ("akamai", "edgesuite")),
+    ("captcha", ("captcha",)),
+    ("geo", ("unavailable for legal reasons", "restricted location", "not available in your")),
+    ("odmowa", ("access denied", "forbidden")),
+)
+
+
+def _f11_txt(raw, n=65536):
+    """Początek treści jako tekst (rozpakowanie gzip: niektóre urzędy kompresują także treść błędu) — tylko do rozpoznania, nigdy do wypisania."""
+    b = (raw or b"")
+    if b[:2] == b"\x1f\x8b":
+        try:
+            b = zlib.decompressobj(16 + zlib.MAX_WBITS).decompress(b[:200000], n)
+        except Exception:
+            pass
+    return b[:n].decode("utf-8", "replace")
+
+
+def _f11_blok(txt, dlugosc, ok):
+    """Typ blokady rozpoznany w treści; przy 200/206 tylko krótka treść albo tytuł strony (zwykłe strony mają „captcha” w formularzach)."""
+    low = txt.lower()
+    if ok:
+        m = re.search(r"<title[^>]*>(.*?)</title>", low, re.S)
+        low = (m.group(1) if m else "") + (" " + low if dlugosc < 6000 else "")
+    for typ, slowa in F11_BLOK:
+        if any(s in low for s in slowa):
+            return typ
+    return ""
+
+
+def _f11_znacznik(rodzaj, raw, status):
+    """Krótki znacznik bez treści: dane=tak/nie, typ blokady, liczba elementów albo wierszy."""
+    raw = raw or b""
+    ok = status in (200, 206)
+    txt = _f11_txt(raw)
+    blok = _f11_blok(txt, len(raw), ok)
+    if not ok:
+        return "dane=nie" + (f" blok={blok}" if blok else "")
+    if blok:
+        return f"dane=nie blok={blok}"
+    glowa = txt.lstrip()[:200].lower()
+    html = glowa.startswith("<!doctype html") or glowa.startswith("<html")
+    if not raw:
+        return "dane=nie pusta"
+    if rodzaj == "json":
+        try:
+            o = json.loads(raw)
+            return f"dane=tak json n={len(o) if isinstance(o, (list, dict)) else 0}"
+        except Exception:
+            pass
+        return "dane=tak json_poczatek" if (txt.lstrip()[:1] in ("{", "[") and not html) else "dane=nie nie-json"
+    if rodzaj == "zip":
+        return "dane=tak zip_sig" if raw[:2] == b"PK" else "dane=nie zip_sig=nie"
+    if rodzaj == "xml":
+        return "dane=tak xml" if (glowa.startswith("<") and not html) else "dane=nie nie-xml"
+    if rodzaj == "csv":
+        return "dane=nie html" if html else f"dane=tak wiersze={txt.count(chr(10))}"
+    return f"dane=tak html kB={len(raw) // 1024}" if len(raw) > 500 else "dane=nie krotka"
+
+
+def _f11_url(u):
+    """Spacje i znaki spoza ASCII w adresie zakodowane (reszta bez zmian — adresy planu są już zakodowane tam, gdzie trzeba)."""
+    return urllib.parse.quote(u, safe=":/?&=$,;+[]%@!*()~#-._|")
+
+
+def _f11_sonda(prov, lab, url, rng, rodzaj):
+    sec = (urllib.parse.urlsplit(url).hostname or "") in F11_SEC_HOSTS
+    h = dict(F11_SEC_UA if sec else PZ_UA)
+    if rng:
+        h["Range"] = f"bytes={rng}"
+    status, raw, ms, err = http(_f11_url(url), "GET", None, h)
+    try:
+        info = _f11_znacznik(rodzaj, raw, status)
+    except Exception as e:
+        info = "dane=? " + type(e).__name__
+    report(prov, None, lab, status, raw, ms, err, info)
+
+
+def _f11_grupa(grupa):
+    lw = _last_weekday(1)
+    n = 0
+    for g, lab, url, rng, rodzaj in F11_ADRESY:
+        if g != grupa:
+            continue
+        if n:
+            time.sleep(F11_PRZERWA)
+        n += 1
+        _f11_sonda("f11-" + grupa, lab, url.replace("@LW@", f"{lw:%d%m%Y}"), rng, rodzaj)
+
+
+def _f11_fabryka(grupa):
+    def g():
+        _f11_grupa(grupa)
+    g.__name__ = "g_f11_" + grupa.replace("-", "_")
+    return g
+
+
+F11_GRUPY = tuple(_f11_fabryka(x) for x in dict.fromkeys(t[0] for t in F11_ADRESY))
+for _g in F11_GRUPY:
+    GROUPS.insert(GROUPS.index(g_nasdaq), _g)       # g_nasdaq zostaje ostatnia (test v127)
+F11_TYLKO = tuple(g.__name__ for g in F11_GRUPY)     # w sondy.py: TYLKO = F11_TYLKO — przebieg tylko tej sondy
+
+TYLKO = F11_TYLKO   # v379p: ten przebieg — tylko sonda F11S1 (v324p: PZ_TYLKO; v294p: g_su_*; v288p: g_jse2; v272p: g_ix_fmp, g_ix_massive; pusta krotka = wszystkie)
 
 
 # --------------------------------------------------------------------------- main
