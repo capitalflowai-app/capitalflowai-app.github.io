@@ -1,5 +1,5 @@
 {
- "at": "2026-10-14T01:51:34+00:00",
+ "at": "2026-10-15T01:41:48+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,12 +22,12 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-10-14T01:51:34+00:00",
-   "rows": 247,
+   "at": "2026-10-15T01:41:48+00:00",
+   "rows": 260,
    "first": "2026-09-26",
-   "last": "2026-10-14",
-   "added": 0,
-   "revised": 13,
+   "last": "2026-10-15",
+   "added": 13,
+   "revised": 0,
    "revisions_total": 143,
    "fetched": 13
   },
@@ -44,12 +44,12 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-10-14T01:51:34+00:00",
-   "rows": 38,
+   "at": "2026-10-15T01:41:48+00:00",
+   "rows": 40,
    "first": "2026-09-26",
-   "last": "2026-10-14",
-   "added": 0,
-   "revised": 1,
+   "last": "2026-10-15",
+   "added": 2,
+   "revised": 0,
    "revisions_total": 12,
    "fetched": 2
   },
@@ -68,14 +68,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-14T01:51:34+00:00",
-   "rows": 760,
+   "at": "2026-10-15T01:41:48+00:00",
+   "rows": 761,
    "first": "2023-09-26",
-   "last": "2026-10-13",
-   "added": 0,
+   "last": "2026-10-14",
+   "added": 1,
    "revised": 0,
    "revisions_total": 758,
-   "fetched": 760
+   "fetched": 761
   },
   "tic": {
    "file": "tic.csv",
@@ -92,7 +92,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-10-14T01:51:34+00:00",
+   "at": "2026-10-15T01:41:48+00:00",
    "rows": 8778,
    "first": "2023-02",
    "last": "2026-07",
@@ -118,7 +118,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-10-14T01:51:34+00:00",
+   "at": "2026-10-15T01:41:48+00:00",
    "rows": 1060,
    "first": "2024-10-01",
    "last": "2026-10-06",
@@ -140,11 +140,11 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-14T01:51:34+00:00",
-   "rows": 529,
+   "at": "2026-10-15T01:41:48+00:00",
+   "rows": 530,
    "first": "2024-09-26",
-   "last": "2026-10-13",
-   "added": 0,
+   "last": "2026-10-14",
+   "added": 1,
    "revised": 0,
    "revisions_total": 2,
    "fetched": 517
@@ -170,14 +170,14 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-14T01:51:34+00:00",
-   "rows": 150,
+   "at": "2026-10-15T01:41:48+00:00",
+   "rows": 160,
    "first": "2026-09-28",
-   "last": "2026-10-12",
-   "added": 0,
-   "revised": 0,
-   "revisions_total": 130,
-   "fetched": 150
+   "last": "2026-10-13",
+   "added": 10,
+   "revised": 10,
+   "revisions_total": 140,
+   "fetched": 160
   },
   "swiat-dziennik": {
    "file": "swiat-dziennik.csv",
@@ -200,14 +200,14 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-14T01:51:34+00:00",
-   "rows": 308,
+   "at": "2026-10-15T01:41:48+00:00",
+   "rows": 352,
    "first": "2026-10-05",
-   "last": "2026-10-13",
-   "added": 0,
-   "revised": 0,
-   "revisions_total": 176,
-   "fetched": 308
+   "last": "2026-10-14",
+   "added": 44,
+   "revised": 44,
+   "revisions_total": 220,
+   "fetched": 352
   },
   "swiat-dziennik-pk": {
    "file": "swiat-dziennik-pk.csv",
@@ -240,7 +240,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-10-14T01:51:34+00:00",
+   "at": "2026-10-15T01:41:48+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -273,14 +273,14 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-10-14T01:51:34+00:00",
-   "rows": 27,
+   "at": "2026-10-15T01:41:48+00:00",
+   "rows": 38,
    "first": "2026-10-08",
-   "last": "2026-10-14",
-   "added": 0,
-   "revised": 4,
-   "revisions_total": 41,
-   "fetched": 27
+   "last": "2026-10-15",
+   "added": 11,
+   "revised": 14,
+   "revisions_total": 55,
+   "fetched": 38
   },
   "ng-dziennik": {
    "file": "ng-dziennik.csv",
@@ -306,20 +306,19 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-10-14T01:51:34+00:00",
-   "rows": 0,
-   "first": null,
-   "last": null,
-   "added": 0,
+   "at": "2026-10-15T01:41:48+00:00",
+   "rows": 27,
+   "first": "2026-10-15",
+   "last": "2026-10-15",
+   "added": 27,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 0
+   "fetched": 27
   }
  },
  "errors": [],
  "notes": [
-  "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania",
-  "ng-dziennik: brak pliku dziennika nowych grup na stronie (404) — nic do zapisania"
+  "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania"
  ],
  "seria": {
   "plyn.net": 400,
@@ -337,12 +336,12 @@
   "cftc.eth.lev": 106,
   "cftc.eth.am": 106,
   "cftc.eth.dealer": 106,
-  "stab.usdt": 19,
-  "stab.usdc": 19,
-  "wh.Binance": 19,
-  "wh.Bitfinex": 19,
-  "wh.Bybit": 19,
-  "wh.KuCoin": 19,
-  "wh.OKX": 19
+  "stab.usdt": 20,
+  "stab.usdc": 20,
+  "wh.Binance": 20,
+  "wh.Bitfinex": 20,
+  "wh.Bybit": 20,
+  "wh.KuCoin": 20,
+  "wh.OKX": 20
  }
 }
