@@ -56077,3 +56077,49 @@ class KontrolaUsdtSkarbiecV377(unittest.TestCase):
         i1, i2, i3, i4 = s.index("U_ = usk_kontrola(files.get('usdt-skarbiec'), files.get('stable-emitenci'))"), s.index('# 3d. v115: zgodność liczb'), s.index("suk_ = Z.get('usdt-skarbiec')"), s.index("sez_ = Z.get('stable-emitenci')")
         self.assertTrue(i1 < i2 and i3 < i4, 'blok przed zgodnością liczb 3d, linia raportu osobno')
         self.assertIn("R['zgodnosc']['usdt-skarbiec'] = {'spojnosc': U_['spojnosc'], 'wiersze': U_['wiersze']} if (U_['rows'] or U_['wiersze']) else None", s)
+
+
+class TestV378InsiderGzip403(unittest.TestCase):
+    """v378 (15.10.2026): urząd odpowiada na brak indeksu (weekend) HTTP 403 z treścią magazynu „AccessDenied” SKOMPRESOWANĄ
+    (Content-Encoding: gzip, także bez Accept-Encoding — sprawdzone 15.10.2026 dla form.20260919.idx). Bez rozpakowania sobota 19.09
+    była „blokadą” i część stała od 14.10 19:46 UTC (ponad 100 przebiegów z błędem „indeks 2026-09-19: HTTP 403 (odmowa dostępu)”)."""
+    XML = (b'<?xml version="1.0" encoding="UTF-8"?>\n<Error><Code>AccessDenied</Code><Message>Access Denied</Message>'
+           b'<RequestId>BVQW9Z7M0C59ED9F</RequestId></Error>')
+    C = 'kontakt-testowy@example.org'
+
+    def _e(self, body, code=403):
+        return urllib.error.HTTPError('https://www.sec.gov/x', code, 'Forbidden', {'Content-Encoding': 'gzip'}, io.BytesIO(body))
+
+    def test_rozpakowanie_tresci_403(self):
+        import gzip
+        self.assertEqual(zd._ins_err(self._e(gzip.compress(self.XML))), ('brak', 'HTTP 403 (brak pliku)'))
+        self.assertEqual(zd._ins_err(self._e(self.XML))[0], 'brak', 'treść nieskompresowana — jak dotąd')
+        self.assertEqual(zd._ins_err(self._e(gzip.compress(b'<html>Your Request Originates from an Undeclared Automated Tool</html>'))),
+                         ('blok', 'HTTP 403 (nieznany program: User-Agent bez kontaktu)'))
+        self.assertEqual(zd._ins_err(self._e(gzip.compress(b'<html>Request Rate Threshold Exceeded</html>'))),
+                         ('blok', 'HTTP 403 (przekroczony limit zapytań)'))
+        self.assertEqual(zd._ins_err(self._e(b'\x1f\x8b\x08\x00 uszkodzone'))[0], 'blok', 'uszkodzona treść = nieznana = blokada, nie brak pliku')
+        self.assertEqual(zd._ins_err(self._e(gzip.compress(self.XML)[:25]))[0], 'blok', 'ucięta treść bez znacznika = blokada')
+
+    def test_weekend_pominiety_dzien_roboczy_odczytany(self):
+        import gzip
+        idx = ('Description:           Daily Index of EDGAR Dissemination Feed by Form Type\n\n'
+               'Form Type   Company Name                                                  CIK       Date Filed  File Name\n'
+               '---------------------------------------------------------------------------------------------------------------\n')
+        calls = []
+
+        def fake(url, ua):
+            calls.append(url)
+            if '20260921' in url:
+                return 200, idx
+            raise urllib.error.HTTPError(url, 403, 'Forbidden', {'Content-Encoding': 'gzip'}, io.BytesIO(gzip.compress(self.XML)))
+        prev = {'day': '2026-09-18', 'done': True, 'checked': '2026-09-18', 'hist': [], 'skipped': []}
+        now = datetime.datetime(2026, 9, 22, 6, 0, tzinfo=datetime.timezone.utc)
+        with mock.patch.object(zd, 'META', {'errors': [], 'notes': []}), mock.patch.object(zd, '_ins_get', side_effect=fake):
+            o = zd.build_insider(prev, now=now, budget=60, contact=self.C)
+            errs = list(zd.META['errors'])
+        self.assertEqual(errs, [], 'weekend to nie błąd')
+        self.assertEqual(o['ok'], {'sec': True})
+        self.assertEqual((o['day'], o['done']), ('2026-09-21', True))
+        self.assertIn('2026-09-19', o['skipped']); self.assertIn('2026-09-20', o['skipped'])
+        self.assertEqual([u.rsplit('.', 2)[-2] for u in calls], ['20260919', '20260920', '20260921'], 'każdy dzień raz, bez ponownych zapytań')

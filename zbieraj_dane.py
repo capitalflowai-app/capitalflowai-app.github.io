@@ -18359,6 +18359,7 @@ def build_ceny_krypto(prev=None, only=None, today=None):
 # maskowany w komunikatach, pilnowany przez straż kluczy); bez sekretu część jest wyłączona z notatką.
 # Odpowiedzi 403 urzędu mają dwa znaczenia: brak pliku (weekend, święto; treść magazynu „<Code>AccessDenied</Code>”) albo blokada
 # (strona „Undeclared Automated Tool” / „Request Rate Threshold Exceeded” — zły User-Agent albo przekroczony limit). Rozróżnia je _ins_err.
+import zlib as _ins_zlib   # v378: rozpakowanie treści błędu 403 (biblioteka standardowa; ponowny import jest nieszkodliwy)
 INS_IDX_URL = 'https://www.sec.gov/Archives/edgar/daily-index/{y}/QTR{q}/form.{d}.idx'
 INS_DOC_URL = 'https://www.sec.gov/Archives/{f}'
 INS_UA = 'CapitalFlowAI/1.0 ({})'   # wymagany przez SEC: nazwa programu i kontakt — kontakt z sekretu SEC_CONTACT (ins_ua)
@@ -18512,7 +18513,12 @@ def _ins_err(e):
             return 'brak', f'HTTP {e.code}'
         if e.code == 403:
             try:
-                body = (e.read(4000) or b'').decode('utf-8', 'replace')
+                raw = e.read(4000) or b''
+                if raw[:2] == b'\x1f\x8b':   # v378: urząd wysyła treść błędu skompresowaną (Content-Encoding: gzip) także bez prośby —
+                    # bez rozpakowania brak indeksu w weekend wyglądał na blokadę (sprawdzone 15.10.2026: form.20260919.idx);
+                    # uszkodzona albo ucięta treść = wyjątek = treść nieznana = blokada, nigdy „brak pliku”
+                    raw = _ins_zlib.decompressobj(16 + _ins_zlib.MAX_WBITS).decompress(raw, 20000)
+                body = raw.decode('utf-8', 'replace')
             except Exception:  # noqa — treść nieczytelna = nieznana
                 body = ''
             if 'AccessDenied' in body or 'NoSuchKey' in body:
