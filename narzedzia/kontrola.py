@@ -9384,6 +9384,118 @@ def nowcasty_kontrola(files, now=None):
     return {'spojnosc': nowcasty_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v377 (F6Z4): USDT NA ŻYWO — SKARBIEC EMITENTA (data/usdt-skarbiec.json) --------------------------------------------------
+# Plik: dwa odczyty sieci (Ethereum, Tron) — saldo skarbca emitenta USDT, dobowe sumy emisji i umorzeń z 30 dób, ostatnia emisja i umorzenie, własna historia salda. Wiek (wiersze świeżości, najwyżej ⚠️):
+# odczyt każdej sieci ≤ USK_K_H h (plik odświeżany co ~25 min, część po błędzie zostaje najwyżej 6 h — dłuższy brak odczytu to usterka źródła). Spójność w pliku (⚠️): saldo ≥ 0, w Ethereum saldo ≤ podaż
+# w sieci, 30 kolejnych dób kończących się dobą odczytu, kwoty ≥ 0, liczba zdarzeń = 0 dokładnie wtedy, gdy kwota = 0, „ostatnia emisja / umorzenie” nie starsza niż najnowsza doba z tym zdarzeniem i nie
+# z przyszłości, suma historii „razem” = Ethereum + Tron z tej samej doby.
+# Porównanie z raportem emitenta (plik stable-emitenci.json, część Tether) — WYŁĄCZNIE informacja (nigdy ⚠️, ❌ ani BŁĄD): raport to migawka z końca doby UTC, odczyt sieci jest późniejszy, więc różnica
+# salda skarbca to ruch po raporcie (13.10.2026: raport 1,96 mld, sieć 2,11 mld po wpłacie 150 mln z godziny 03:35 UTC); podaż Ethereum = „wybite” w raporcie, dopóki po raporcie nie było emisji ani
+# umorzenia (13.10.2026 zgodne co do 1 USD). Progu ostrzeżenia dla porównania nie ma celowo — raport emitenta nie ma historii do testu wstecznego, a ruchy skarbca bywają duże i prawidłowe.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'usdt-skarbiec')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['usdt-skarbiec'] = 3 * 60   # zapis co przebieg lub co ~25 min — wiek pliku; wiek odczytu każdej sieci ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({k_: 'USDT skarbiec — sieć z błędem zostaje z datą (v377); wiek odczytu w wierszach świeżości' for k_ in ('usdt_eth', 'usdt_tron')})
+USK_K_H = 3        # h — wiek odczytu sieci
+USK_K_DNI = 30     # tyle dób w druku
+USK_K_ETYKIETA = {'eth': 'USDT skarbiec — odczyt sieci Ethereum', 'tron': 'USDT skarbiec — odczyt sieci Tron'}
+USK_K_SIEC = {'eth': 'Ethereum', 'tron': 'Tron'}
+
+
+def _usk_k_kw(v):
+    """Kwota USD do raportu: mld z 2 miejscami albo mln bez miejsc (przecinek dziesiętny)."""
+    a = abs(v)
+    s = f'{a / 1e9:.2f} mld' if a >= 1e9 else f'{a / 1e6:.0f} mln'
+    return ('−' if v < 0 else '') + s.replace('.', ',')
+
+
+def usk_kontrola(j, ste, now=None):
+    """data/usdt-skarbiec.json (+ stable-emitenci.json do porównania) → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]};
+    brak pliku albo inna wersja = puste. Najwyżej ⚠️; porównanie z raportem emitenta tylko ℹ️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    tn = None
+    for k in ('eth', 'tron'):
+        lab, C = USK_K_ETYKIETA[k], (j.get(k) if isinstance(j.get(k), dict) else None)
+        if C is None:
+            out['rows'].append((lab, '?', None, None, 'brak tej części w pliku'))
+            out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od ponad 6 h)')
+            continue
+        t = C.get('t')
+        w = wiek_danych(t, 'ts', 'k', now) if isinstance(t, str) else None
+        if w is None:
+            out['rows'].append((lab, '?', None, None, 'brak czasu odczytu'))
+            continue
+        st = '⚠️' if w > USK_K_H * 60 else '✅'
+        note = '' if st == '✅' else f'odczyt starszy niż {USK_K_H} h — źródło nie odpowiada albo adres się zmienił; najwyżej uwaga'
+        out['rows'].append((lab, st, w, str(t)[:16].replace('T', ' ') + ' UTC', note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: odczyt z {str(t)[:16].replace("T", " ")} UTC — {fmt_wiek(w)} temu ({note})')
+        S = USK_K_SIEC[k]
+        bal, sup = _ste_k_l(C.get('bal')), _ste_k_l(C.get('sup'))
+        if bal is None or bal < 0:
+            zle.append(f'{S}: brak salda skarbca')
+        elif k == 'eth' and (sup is None or bal > sup):
+            zle.append(f'{S}: saldo skarbca większe niż podaż w sieci albo brak podaży')
+        dzien = str(t)[:10]
+        dni = [r for r in (C.get('dni') or []) if isinstance(r, list) and len(r) == 5]
+        if len(dni) != USK_K_DNI or len(C.get('dni') or []) != USK_K_DNI:
+            zle.append(f'{S}: druk ma {len(C.get("dni") or [])} dób zamiast {USK_K_DNI}')
+            dni = []
+        else:
+            d0 = _ix_dt_k(dzien + 'T00:00:00Z')
+            ocz = [(d0 - dt.timedelta(days=USK_K_DNI - 1 - i)).date().isoformat() for i in range(USK_K_DNI)] if d0 else []
+            if [r[0] for r in dni] != ocz:
+                zle.append(f'{S}: doby druku nie są kolejnymi 30 dobami do dnia odczytu')
+            for r in dni:
+                a, b, ni, nr = (_ste_k_l(x) for x in r[1:])
+                if None in (a, b, ni, nr) or a < 0 or b < 0 or ni < 0 or nr < 0 or (a > 0) != (ni > 0) or (b > 0) != (nr > 0):
+                    zle.append(f'{S}: doba {r[0]} — kwota i liczba zdarzeń niezgodne')
+                    break
+        ost = C.get('ost') if isinstance(C.get('ost'), dict) else {}
+        for rk, idx, nm in (('i', 1, 'emisji'), ('r', 2, 'umorzenia')):
+            o = ost.get(rk)
+            if o is not None and not (isinstance(o, list) and len(o) == 2 and _ix_dt_k(o[0]) is not None and _ste_k_l(o[1]) is not None and o[1] >= 0):
+                zle.append(f'{S}: ostatnie zdarzenie {nm} ma zły kształt')
+                continue
+            tz = _ix_dt_k(t)
+            if o is not None and tz is not None and _ix_dt_k(o[0]) > tz + dt.timedelta(hours=1):
+                zle.append(f'{S}: ostatnie zdarzenie {nm} z przyszłości względem odczytu')
+            ostatni_dzien = max((r[0] for r in dni if _ste_k_l(r[idx]) and r[idx] > 0), default=None)
+            if ostatni_dzien and (o is None or str(o[0])[:10] < ostatni_dzien):
+                zle.append(f'{S}: w druku jest zdarzenie {nm} z {ostatni_dzien}, a „ostatnie” jest starsze albo go brak')
+        if k == 'eth':
+            tn = _ix_dt_k(t)
+    H = j.get('hist') if isinstance(j.get('hist'), dict) else {}
+    P = {k: {p[0]: p[1] for p in (H.get(k) or []) if isinstance(p, list) and len(p) == 2} for k in ('eth', 'tron', 'skarb')}
+    for d, v in P['skarb'].items():
+        if d in P['eth'] and d in P['tron'] and _ste_k_l(v) is not None and abs(v - P['eth'][d] - P['tron'][d]) > 1:
+            zle.append(f'historia: skarbiec razem {d} ≠ Ethereum + Tron')
+            break
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'USDT skarbiec (usdt-skarbiec.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in ('eth', 'tron')):
+        out['wiersze'].append(('spójność pliku (saldo, podaż, 30 dób, zdarzenia, historia)', '⚠️' if zle else '✅'))
+    # ---- porównanie z raportem emitenta: TYLKO informacja ----
+    T = ste.get('tether') if isinstance(ste, dict) and isinstance(ste.get('tether'), dict) else None
+    tr = _ix_dt_k(T.get('t')) if T else None
+    nets = {r[0]: r for r in (T.get('nets') or []) if isinstance(r, list) and len(r) == 5} if T else {}
+    for k in ('eth', 'tron'):
+        C, S = (j.get(k) if isinstance(j.get(k), dict) else None), USK_K_SIEC[k]
+        r = nets.get('Ethereum' if k == 'eth' else 'Tron')
+        if not C or not r or tr is None or _ste_k_l(C.get('bal')) is None or _ste_k_l(r[2]) is None:
+            continue
+        opis = f'{S}: skarbiec w sieci {_usk_k_kw(C["bal"])}, w raporcie emitenta {_usk_k_kw(r[2])} (z {str(T.get("t"))[:10]}), różnica {_usk_k_kw(C["bal"] - r[2])} — ruch po raporcie'
+        if k == 'eth' and _ste_k_l(C.get('sup')) is not None and _ste_k_l(r[1]) and r[1] > 0:
+            po = any(isinstance(o, list) and len(o) == 2 and _ix_dt_k(o[0]) is not None and _ix_dt_k(o[0]) > tr for o in (C.get('ost') or {}).values())
+            opis += f'; podaż w sieci {_usk_k_kw(C["sup"])} a „wybite” w raporcie {_usk_k_kw(r[1])} ({(C["sup"] - r[1]) / r[1] * 100:+.3f}%'.replace('.', ',') + (', po raporcie była emisja lub umorzenie)' if po else ', bez emisji i umorzeń po raporcie)')
+        out['wiersze'].append((opis, 'ℹ️'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -9785,6 +9897,17 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['stable-emitenci'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'emitenci stablecoinów (v363): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v377. USDT na żywo, skarbiec emitenta (data/usdt-skarbiec.json): wiek odczytu każdej sieci, spójność w pliku, porównanie z raportem emitenta (stable-emitenci.json) — z plików strony, bez zapytań;
+    # porównanie TYLKO informacja (ℹ️), reszta najwyżej ⚠️
+    try:
+        U_ = usk_kontrola(files.get('usdt-skarbiec'), files.get('stable-emitenci'))
+        for label, st, w, txt, note in U_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += U_['uwagi']
+        R['zgodnosc']['usdt-skarbiec'] = {'spojnosc': U_['spojnosc'], 'wiersze': U_['wiersze']} if (U_['rows'] or U_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['usdt-skarbiec'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'USDT skarbiec (v377): kontrola przerwana ({str(e)[:80]})')
     # 3c-v362. krzywe rentowności (data/krzywe.json): wiek dnia danych każdej krzywej, spójność i zgodność 10L USA i Niemiec z rynki.json — z plików strony, bez zapytań; najwyżej ⚠
     try:
         T_ = krzywe_kontrola(files.get('krzywe'), files.get('rynki'))
@@ -10508,6 +10631,11 @@ def raport_md(R):
                 L.append(tyt_ + (f'? kontrola przerwana ({tz_["blad"]})' if tz_.get('blad') else
                          ('niespójności w pliku: ' + '; '.join(tz_['spojnosc'][:3]) + ' ⚠️ · ' if tz_.get('spojnosc') else '')
                          + ' · '.join(f'{o} {zn}' for o, zn in tz_.get('wiersze') or []) or '—') + '.')
+        suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
+        if suk_:
+            L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(suk_['spojnosc'][:3]) + ' ⚠️ · ' if suk_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in suk_.get('wiersze') or []) or '—') + '.')
         sez_ = Z.get('stable-emitenci')   # v363: emitenci stablecoinów — brak pliku = bez linii
         if sez_:
             L.append('- Emitenci stablecoinów (z pliku strony; porównania z drugim źródłem tylko informacyjnie): ' + (f'? kontrola przerwana ({sez_["blad"]})' if sez_.get('blad') else

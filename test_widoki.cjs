@@ -27849,3 +27849,181 @@ test('v376 (F9Z2): nowcasty — słownik w czystym JSON w 10 językach, bez nazw
   assert.ok(css.includes('.wk-l.ncz2{stroke-width:1.2;stroke-dasharray:4 3}'), 'odczyt linią przerywaną'); assert.ok(css.includes('small.neg{color:var(--rd-tx)}') && css.includes('small.pos{color:var(--gr-tx)}') && css.includes('small.neu{color:var(--yl-tx)}'), 'kolory kierunku');
   assert.ok(css.includes('#g-nowcasty .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3}'), 'długie podpisy zawijane');
 });
+
+/* ===================== v377 (F6Z4): druk USDT i skarbiec emitenta — blok #usk w karcie #c-emit (CRYPTO) =====================
+   USK377_F — plik zbieracza v377 (build_usdt_skarbiec) w kształcie z nagrań z 15.10.2026 (skarbiec Ethereum 2,11 mld, Tron 1,17 mld; podaż USDT w Ethereum 88,30 mld) z syntetycznymi zdarzeniami:
+   Ethereum — emisja 1 mld (12.10) i umorzenie 500 mln (05.10), Tron — emisja 2 mld i umorzenie 300 mln (13.10). Zegar przypięty (2026-10-15 04:00 UTC), srvJSON — odpowiedź od razu. */
+const usk377 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const code = cut('/* ===================== v377 (F6Z4): DRUK USDT I SKARBIEC EMITENTA', '/* v377: koniec */');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-15T04:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/ | /g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const dni = (z) => { const o = []; for (let i = 0; i < 30; i++) { const d = new Date(Date.parse('2026-09-16T12:00:00Z') + i * 864e5).toISOString().slice(0, 10); o.push([d, 0, 0, 0, 0]); } (z || []).forEach(([d, a, b, c, e]) => { o.find(r => r[0] === d).splice(1, 4, a, b, c, e); }); return o; };
+  const file = () => ({v: 1, at: '2026-10-15T03:50:00+00:00', src: 'x', part_at: {eth: '2026-10-15T03:50:00+00:00', tron: '2026-10-15T03:50:00+00:00'}, ok: {eth: true, tron: true},
+    eth: {bal: 2109852401, sup: 88302633056, t: '2026-10-15T03:50:00+00:00', dni: dni([['2026-10-05', 0, 500000000, 0, 1], ['2026-10-12', 1000000000, 0, 1, 0]]), ost: {i: ['2026-10-12T03:00:00Z', 1000000000], r: ['2026-10-05T04:00:00Z', 500000000]}},
+    tron: {bal: 1171852227, sup: null, t: '2026-10-15T03:50:00+00:00', dni: dni([['2026-10-13', 2000000000, 300000000, 1, 1]]), ost: {i: ['2026-10-13T04:00:00Z', 2000000000], r: ['2026-10-13T01:00:00Z', 300000000]}},
+    hist: {skarb: [['2026-10-08', 3100000000], ['2026-10-14', 3200000000], ['2026-10-15', 3281704628]], eth: [['2026-10-15', 2109852401]], tron: [['2026-10-15', 1171852227]]},
+    zm: {skarb: {'1': 81704628, '7': 181704628, '30': null}, eth: {'1': null, '7': null, '30': null}, tron: {'1': null, '7': null, '30': null}}});
+  const mk = (L, usk, card) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const mkEl = () => ({innerHTML: '', hidden: true, open: [], querySelectorAll(q) { return q === 'details' ? this.open.map(id => ({id, open: true})) : []; }, querySelector() { return null; }});
+    const els = {'#c-emit': mkEl(), '#usk': mkEl(), '#c-gieldy': mkEl(), '#c-dex': mkEl(), '#c-kontrakty': mkEl()};
+    const calls = [], ivs = [], store = {}, obs = [];
+    const srv = n => { calls.push(n); const v = n === 'usdt-skarbiec' ? usk : n === 'stable-emitenci' ? card : null; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const SRV_GR = {'ceny-krypto': 'c'}, SRV_LD = {c: [function srvLiveStart() {}]};
+    const doc = {addEventListener: () => {}, querySelector: () => null, documentElement: {}, hidden: false};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'lnAgo', 'srvJSON', 'SRV_GR', 'SRV_LD', 'glyphImg', 'icoWrap', 'sepL', 'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date',
+      'coinImg', 'netImg', 'ccyIco',
+      "'use strict';\n" + gx349.code + '\n' + st363.code + '\n' + code + '\nreturn {USK, STE, renderUsk, renderSte, uskApply, uskLoad, steApply, uskCh, uskDays, uskChart, uskLast, uskZm, uskBody};')(
+      q => els[q] || null, v96src.tFor(L), v96src.escH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, s => ' · temu(' + s + ')', srv, SRV_GR, SRV_LD,
+      (n, s) => '[g:' + n + ']', i => i ? '<span class="icos">' + i + '</span>' : '', () => ', ', {getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; }}, doc,
+      function () { this.observe = (...a) => obs.push(a); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD,
+      s => '[c:' + s + ']', n => '[n:' + n + ']', c => '[x:' + c + ']');
+    return {api, els, calls, ivs, SRV_GR, SRV_LD, obs};
+  };
+  return {mk, clone, sp, txt, code, file, dni, NOW, LOC};
+})();
+const usk377tiles = h => [...usk377.sp(h).matchAll(/<div class="etfk"><span>([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)]
+  .map(m => ({label: m[1], cls: (m[2].match(/class="([^"]*)"/) || [, ''])[1], val: usk377.txt(m[3].split('<small')[0]), sub: usk377.txt((m[3].match(/<small[^>]*>(.*?)<\/small>/) || [])[1] || ''), when: usk377.txt(m[4])}));
+
+test('v377: rejestr grupy „c” (usdt-skarbiec), ładowanie i odświeżanie co 10 min; plik tylko przez srvJSON w ładowarce; kontener #usk w karcie emitentów pod raportem USDT, przed raportem USDC', () => {
+  const K = usk377.mk('pl', usk377.file());
+  assert.equal(K.SRV_GR['usdt-skarbiec'], 'c'); assert.equal(K.SRV_GR['ceny-krypto'], 'c', 'stary wpis bez zmian');
+  assert.equal(K.SRV_LD.c[K.SRV_LD.c.length - 1].name, 'uskLoad'); assert.ok(K.calls.includes('usdt-skarbiec'));
+  assert.ok(K.ivs.filter(([f, ms]) => ms === 10 * 60e3).length >= 2, 'odświeżanie co 10 min (plik zbieracza co ~25 min)');
+  assert.ok(html.includes("SRV_GR['usdt-skarbiec']='c';SRV_LD.c.push(uskLoad);"), 'rejestr dopisany po deklaracjach');
+  assert.ok(html.indexOf("SRV_GR['usdt-skarbiec']='c'") < html.indexOf('\nuskLoad();') && html.indexOf("SRV_GR['usdt-skarbiec']='c'") > html.indexOf('const SRV_GR='), 'rejestr przed pierwszym wywołaniem ładowarki, po deklaracji');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])usdt-skarbiec\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.equal(html.split('<div id="usk"></div>').length, 2, 'jeden kontener w szablonie karty');
+  const i0 = html.indexOf('(T?steTethBody(D,T,E)+\'<div id="usk"></div>\':\'\')'), i1 = html.indexOf('(C?steCircBody(D,C,E):\'\')', i0);
+  assert.ok(i0 > 0 && i1 > i0, 'kontener bezpośrednio po raporcie USDT, przed raportem USDC');
+  const hk = html.indexOf("if(typeof renderUsk==='function'){try{renderUsk();}catch(e){}}"), hj = html.indexOf("open.forEach(([id,o])=>{const x=el.querySelector('#'+id);if(x)x.open=o;});\n  el.hidden=false;\n}\nfunction steApply(", hk);
+  assert.ok(hk > 0 && hj > hk && hj - hk < 300, 'renderUsk w renderSte tuż przed przywróceniem otwartych rozwijanych');
+  assert.ok(K.els['#usk'].innerHTML.includes('Druk USDT'), 'z plikiem blok wypełniony');
+});
+
+test('v377: kafle — emisje, umorzenia, netto z 30 dób i skarbiec razem; kolory z pokazanej liczby; liczby zdarzeń; data i wiek odczytu', () => {
+  const K = usk377.mk('pl', usk377.file()), h = usk377.sp(K.els['#usk'].innerHTML), T = usk377tiles(h);
+  assert.deepEqual(T.map(x => [x.label, x.cls, x.val]), [['Emisje USDT, 30 dób', 'pos', '+3,00 mld USD'], ['Umorzenia USDT, 30 dób', 'neg', '−800 mln USD'], ['Netto, 30 dób', 'pos', '+2,20 mld USD'], ['Skarbiec razem', '', '3,28 mld USD']]);
+  assert.deepEqual(T.map(x => x.sub), ['zdarzeń: 2', 'zdarzeń: 2', 'emisje minus umorzenia', 'wyemitowane, ale nie w obiegu']);
+  assert.ok(T.every(x => x.when.startsWith('odczyt sieci D:2026-10-15T03:50:00+00:00') && x.when.includes('temu(2026-10-15T03:50:00+00:00)')), 'data i wiek: ' + T[0].when);
+  assert.ok(h.includes('<h2>') === false && h.includes('Druk USDT: emisje i umorzenia') && h.includes('Co emitent USDT stworzył lub zniszczył'));
+  /* zero w obu sieciach: prawdziwe „0” żółte, nie „—” */
+  const z = usk377.file(); z.eth.dni = usk377.dni(); z.tron.dni = usk377.dni(); z.eth.ost = {i: null, r: null}; z.tron.ost = {i: null, r: null};
+  const Z = usk377tiles(usk377.mk('pl', z).els['#usk'].innerHTML);
+  assert.deepEqual(Z.slice(0, 3).map(x => [x.cls, x.val]), [['neu', '0 mln USD'], ['neu', '0 mln USD'], ['neu', '0 mln USD']]); assert.deepEqual(Z.slice(0, 2).map(x => x.sub), ['zdarzeń: 0', 'zdarzeń: 0']);
+  /* poniżej 0,5 mln USD: „<1 mln” żółte (zasada strony) */
+  const m = usk377.file(); m.eth.dni = usk377.dni([['2026-10-12', 300000, 0, 1, 0]]); m.tron.dni = usk377.dni(); const M = usk377tiles(usk377.mk('pl', m).els['#usk'].innerHTML);
+  assert.deepEqual([M[0].cls, M[0].val, M[2].cls, M[2].val], ['neu', '<1 mln USD', 'neu', '<1 mln USD']);
+});
+
+test('v377: wykres netto dzień po dniu — słupek na dobę z ruchem, kolor z pokazanej liczby, skala do największego, daty krańców; bez ruchu = linia zera i zdanie; opisy w <title>', () => {
+  const K = usk377.mk('pl', usk377.file()), h = usk377.sp(K.els['#usk'].innerHTML);
+  const svg = h.slice(h.indexOf('<svg class="usk-ch"'), h.indexOf('</svg>') + 6), R = [...svg.matchAll(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" fill="var\((--\w+)\)" opacity="\.85"><title>(.*?)<\/title><\/rect>/g)];
+  assert.equal(R.length, 3, 'doby 05.10 (−500 mln), 12.10 (+1 mld), 13.10 (+1,7 mld)'); assert.deepEqual(R.map(r => r[5]), ['--rd', '--gr', '--gr'].map((c, i) => R[i][5]));
+  assert.deepEqual(R.map(r => r[5]), ['--rd', '--gr', '--gr']);
+  assert.ok(R[0][6].includes('5 paź 2026') && R[0][6].endsWith('−500 mln USD'), R[0][6]); assert.ok(R[2][6].endsWith('+1,70 mld USD'), R[2][6]);
+  assert.ok(+R[2][4] > +R[1][4] && +R[1][4] > +R[0][4], 'wysokość słupka = |netto| / największy'); assert.ok(Math.abs(+R[2][4] - 33) < 0.1, 'największy słupek ma wysokość mid − 3'); assert.ok(+R[0][2] < 36 || +R[0][2] > 36 - 0.01);
+  assert.ok(+R[0][2] === 36 && +R[2][2] < 36, 'ujemny słupek od linii zera w dół, dodatni w górę');
+  const ax = usk377.txt(h.slice(h.indexOf('<div class="usk-ax">'), h.indexOf('</div>', h.indexOf('<div class="usk-ax">')))); assert.equal(ax, '16.09 najwyższy słupek 1,70 mld USD 15.10');
+  assert.ok(svg.includes('viewBox="0 0 300 72"') && svg.includes('role="img"') && svg.includes('aria-label="Dzień po dniu: emisje minus umorzenia (obie sieci)"'));
+  assert.ok(!h.includes('nie było ani emisji, ani umorzeń'), 'zdanie o braku ruchu tylko bez ruchu');
+  assert.ok(usk377.txt(h).includes('Doba 15 paź 2026 (od północy UTC): emisje 0 mln USD · umorzenia 0 mln USD'), 'ostatnia doba osobno (od północy UTC) — tu bez ruchu');
+  const dz = usk377.file(); dz.tron.dni = usk377.dni([['2026-10-15', 400000000, 900000000, 1, 1]]); const tdz = usk377.txt(usk377.mk('pl', dz).els['#usk'].innerHTML);
+  assert.ok(tdz.includes('Doba 15 paź 2026 (od północy UTC): emisje +400 mln USD · umorzenia −900 mln USD'), tdz.slice(tdz.indexOf('Doba'), tdz.indexOf('Doba') + 120));
+  const z = usk377.file(); z.eth.dni = usk377.dni(); z.tron.dni = usk377.dni(); const hz = usk377.sp(usk377.mk('pl', z).els['#usk'].innerHTML);
+  assert.ok(!hz.includes('<rect') && hz.includes('<line x1="0" y1="36"') && hz.includes('W ostatnich 30 dobach nie było ani emisji, ani umorzeń USDT.'), 'bez ruchu: tylko linia zera i zdanie');
+  assert.ok(!usk377.txt(hz.slice(hz.indexOf('<div class="usk-ax">'), hz.indexOf('</div>', hz.indexOf('<div class="usk-ax">')))).includes('najwyższy'), 'bez skali, gdy nie ma słupków');
+  /* doba netto zerowa przy emisji równej umorzeniu: słupek nie powstaje z fałszywą wysokością */
+  const e = usk377.file(); e.eth.dni = usk377.dni([['2026-10-12', 700000000, 700000000, 1, 1]]); e.tron.dni = usk377.dni(); assert.ok(!usk377.mk('pl', e).els['#usk'].innerHTML.includes('<rect'), 'emisja = umorzenie = netto 0 → brak słupka');
+});
+
+test('v377: ostatnia emisja i ostatnie umorzenie (z obu sieci, nowsze wygrywa) z datą, wiekiem, kwotą i siecią; brak = zdanie „brak w ostatnich 800 dniach”', () => {
+  const K = usk377.mk('pl', usk377.file()), t = usk377.txt(K.els['#usk'].innerHTML);
+  assert.ok(t.includes('Ostatnia emisja: D:2026-10-13T04:00:00Z · temu(2026-10-13T04:00:00Z) · 2,00 mld USD · Tron'), t.slice(t.indexOf('Ostatnia emisja'), t.indexOf('Ostatnia emisja') + 120));
+  assert.ok(t.includes('Ostatnie umorzenie: D:2026-10-13T01:00:00Z · temu(2026-10-13T01:00:00Z) · 300 mln USD · Tron'));
+  const e = usk377.file(); e.tron.ost = {i: null, r: null}; const te = usk377.txt(usk377.mk('pl', e).els['#usk'].innerHTML);
+  assert.ok(te.includes('Ostatnia emisja: D:2026-10-12T03:00:00Z · temu(2026-10-12T03:00:00Z) · 1,00 mld USD · Ethereum') && te.includes('Ostatnie umorzenie: D:2026-10-05T04:00:00Z') && te.includes('· 500 mln USD · Ethereum'), 'tylko Ethereum ma zdarzenia → Ethereum');
+  const n = usk377.file(); n.eth.ost = {i: null, r: null}; n.tron.ost = {i: null, r: null}; n.eth.dni = usk377.dni(); n.tron.dni = usk377.dni(); const tn = usk377.txt(usk377.mk('pl', n).els['#usk'].innerHTML);
+  assert.ok(tn.includes('Ostatnia emisja: brak w ostatnich 800 dniach') && tn.includes('Ostatnie umorzenie: brak w ostatnich 800 dniach'));
+  const b = usk377.file(); b.eth.ost = {i: ['zły', 5], r: [1, 2]}; b.tron.ost = {i: ['2026-10-13T04:00:00Z', -1], r: null}; const tb = usk377.txt(usk377.mk('pl', b).els['#usk'].innerHTML);
+  assert.ok(tb.includes('Ostatnia emisja: brak w ostatnich 800 dniach') && !/NaN|undefined|Invalid/.test(tb), 'zepsute wpisy = brak, nie napis-błąd');
+});
+
+test('v377: skarbiec według sieci (udział, kwota), zmiana razem z własnej serii (doba / 7 / 30) albo zdanie od kiedy seria istnieje; kolory z pokazanej liczby', () => {
+  const K = usk377.mk('pl', usk377.file()), h = usk377.sp(K.els['#usk'].innerHTML), t = usk377.txt(h);
+  assert.ok(t.includes('Skarbiec emitenta: wyemitowane, ale nie w obiegu') && t.includes('[n:Ethereum] Ethereum 2,11 mld USD · 64,3%') && t.includes('[n:Tron] Tron 1,17 mld USD · 35,7%'), t.slice(t.indexOf('Skarbiec emitenta'), t.indexOf('Skarbiec emitenta') + 200));
+  const W = [...h.matchAll(/<i class="cur" style="width:([\d.]+)%"><\/i>/g)].map(m => +m[1]); assert.equal(W.length, 2); assert.ok(Math.abs(W[0] + W[1] - 100) < 0.05);
+  assert.ok(h.includes('Zmiana skarbca (obie sieci razem): 1 dzień <span class="pos">+81,7 mln USD</span> · 7 dni <span class="pos">+182 mln USD</span> · 30 dni <span class="na">—</span>'), 'brak punktu sprzed 30 dób = „—”, nigdy zero');
+  const n = usk377.file(); n.zm = {skarb: {'1': -150000000, '7': -3, '30': 0}}; const hn = usk377.sp(usk377.mk('pl', n).els['#usk'].innerHTML);
+  assert.ok(hn.includes('1 dzień <span class="neg">−150 mln USD</span>') && hn.includes('7 dni <span class="neu"><1 mln USD</span>') && hn.includes('30 dni <span class="neu">0 mln USD</span>'), 'minus czerwony, poniżej 0,5 mln „<1 mln” żółte, zero żółte');
+  const z = usk377.file(); z.zm = {skarb: {'1': null, '7': null, '30': null}}; const tz = usk377.txt(usk377.mk('pl', z).els['#usk'].innerHTML);
+  assert.ok(tz.includes('Zmiany skarbca z własnej serii dobowej pojawią się po zebraniu tylu dób (seria od 8 paź 2026); do tego czasu „—”.'), tz.slice(tz.indexOf('Zmiany skarbca'), tz.indexOf('Zmiany skarbca') + 150));
+  const s = usk377.file(); s.hist.skarb = [['2026-10-11', 3000000000]]; assert.ok(usk377.txt(usk377.mk('pl', s).els['#usk'].innerHTML).includes('Zmiany skarbca z własnej serii dobowej pojawią się'), 'seria sprzed ponad 2 dób = nie pokazujemy starej zmiany');
+  const nh = usk377.file(); delete nh.hist; delete nh.zm; assert.ok(usk377.txt(usk377.mk('pl', nh).els['#usk'].innerHTML).includes('(seria od —)'), 'bez historii: „—”');
+});
+
+test('v377: jedna sieć bez świeżego odczytu = suma „—” i zdanie o braku; obie nieświeże albo brak pliku = blok pusty; chwilowy błąd pobrania nie zasłania wczytanych danych', () => {
+  const stary = usk377.file(); stary.tron.t = '2026-10-14T20:00:00+00:00';   // 8 h przed zegarem
+  const K = usk377.mk('pl', stary), h = usk377.sp(K.els['#usk'].innerHTML), T = usk377tiles(h);
+  assert.deepEqual(T.map(x => [x.cls, x.val]), [['na', '—'], ['na', '—'], ['na', '—'], ['na', '—']]); assert.ok(T.every(x => x.sub === 'Brak świeżego odczytu sieci: Tron.'));
+  assert.ok(!h.includes('<svg') && !h.includes('Ostatnia emisja') && !h.includes('Zmiana skarbca'), 'bez wykresu, ostatnich zdarzeń i zmiany skarbca');
+  const t = usk377.txt(h); assert.ok(t.includes('[n:Ethereum] Ethereum 2,11 mld USD') && !t.includes('Tron 1,17') && !t.includes('%'), 'skarbiec tylko dostępnej sieci, bez udziału w całości');
+  const oba = usk377.file(); oba.eth.t = '2026-10-14T20:00:00+00:00'; oba.tron.t = '2026-10-14T20:00:00+00:00'; assert.equal(usk377.mk('pl', oba).els['#usk'].innerHTML, '');
+  assert.equal(usk377.mk('pl', null).els['#usk'].innerHTML, ''); assert.equal(usk377.mk('pl', {v: 2, at: '2026-10-15T03:50:00+00:00', eth: usk377.file().eth}).els['#usk'].innerHTML, '', 'inna wersja pliku');
+  const krotki = usk377.file(); krotki.eth.dni = krotki.eth.dni.slice(1); const Tk = usk377tiles(usk377.mk('pl', krotki).els['#usk'].innerHTML); assert.deepEqual(Tk.map(x => x.val), ['—', '—', '—', '—'], 'sieć z 29 dobami = nieważna; druga sama nie wystarcza do sum'); assert.ok(Tk.every(x => x.sub === 'Brak świeżego odczytu sieci: Ethereum.'));
+  const zle = usk377.file(); zle.eth.dni[3][1] = -5; assert.deepEqual(usk377tiles(usk377.mk('pl', zle).els['#usk'].innerHTML).map(x => x.val), ['—', '—', '—', '—'], 'zepsuty wiersz doby odrzucony → sieć nieważna, reszta bez sum');
+  const F = usk377.mk('pl', usk377.file()); F.api.uskApply(null); assert.ok(F.els['#usk'].innerHTML.includes('Druk USDT'), 'błąd pobrania (null) nie zasłania'); F.api.uskApply({v: 1, at: 'zły'}); assert.ok(F.els['#usk'].innerHTML.includes('Druk USDT'));
+  const F0 = usk377.mk('pl', null); assert.equal(F0.els['#usk'].innerHTML, ''); F0.api.uskApply(usk377.clone(usk377.file())); assert.ok(F0.els['#usk'].innerHTML.includes('Druk USDT'), 'późniejszy dobry plik wypełnia blok');
+  /* stan rozwijanej sekcji przetrwa przerysowanie */
+  const O = usk377.mk('pl', usk377.file()); O.els['#usk'].open = ['usk-not']; O.api.renderUsk(); assert.ok(O.els['#usk'].innerHTML.includes('id="usk-not"'));
+});
+
+test('v377: karta emitentów — kontener #usk wstawiony pod raportem USDT i wypełniany po każdym przerysowaniu karty (zmiana języka też); karta ukryta = blok pusty', () => {
+  const kartaSw = () => { const c = usk377.clone(ST363_F); c.at = '2026-10-15T03:30:00+00:00'; c.part_at = {llama: c.at, tether: c.at, circle: c.at}; c.tether.t = '2026-10-14T23:30:00Z'; c.circle.usdc.upd = '2026-10-15T03:20:00Z'; if (c.circle.eurc) c.circle.eurc.upd = '2026-10-15T03:20:00Z'; return c; };
+  const K = usk377.mk('pl', usk377.file(), kartaSw());
+  assert.equal(K.els['#c-emit'].hidden, false); const c = usk377.sp(K.els['#c-emit'].innerHTML);
+  assert.equal(c.split('<div id="usk"></div>').length, 2); assert.ok(c.indexOf('USDT według sieci (w obiegu)') < c.indexOf('<div id="usk"></div>') && c.indexOf('<div id="usk"></div>') < c.indexOf('USDC i EURC — raport emitenta'), 'pod raportem USDT, przed raportem USDC');
+  assert.ok(K.els['#usk'].innerHTML.includes('Druk USDT') && K.els['#usk'].innerHTML.length > 500, 'renderSte wywołuje renderUsk');
+  K.els['#usk'].innerHTML = ''; K.api.renderSte(); assert.ok(K.els['#usk'].innerHTML.includes('Druk USDT'), 'ponowne przerysowanie karty (np. zmiana języka) odtwarza blok');
+  const bezT = kartaSw(); delete bezT.tether; const B = usk377.mk('pl', usk377.file(), bezT); assert.ok(!B.els['#c-emit'].innerHTML.includes('id="usk"'), 'bez raportu USDT nie ma kontenera');
+  const bezK = usk377.mk('pl', usk377.file(), null); assert.equal(bezK.els['#c-emit'].hidden, true); assert.ok(bezK.els['#usk'].innerHTML.includes('Druk USDT'), 'sam blok działa niezależnie (kontener istnieje tylko w otwartej karcie)');
+});
+
+test('v377: 10 języków — brak surowych kluczy i napisów-błędów, ten sam komplet znaczników; słownik dopisany raz po linii for najwyższego słownika; bez nazw dostawców i raportów emitenta jako źródeł', () => {
+  const m = [...html.matchAll(/^const EXTRA(\d+)=(\{.*\});$/gm)].filter(x => x[2].includes('"usk.h"'));
+  assert.equal(m.length, 1, 'jeden słownik v377'); const n = m[0][1], D = JSON.parse(m[0][2]);
+  assert.ok(html.includes(`const EXTRA${n}=`) && html.includes(`for(const l in EXTRA${n})if(I18N[l])Object.assign(I18N[l],EXTRA${n}[l]);`), 'linia nakładania');
+  const L = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']; assert.deepEqual(Object.keys(D).sort(), L.slice().sort());
+  const ph = s => (String(s).match(/\{\w+\}/g) || []).sort().join();
+  for (const l of L) {
+    assert.deepEqual(Object.keys(D[l]).sort(), Object.keys(D.pl).sort(), l + ': komplet kluczy'); assert.equal(Object.keys(D[l]).length, 26);
+    for (const k of Object.keys(D.pl)) { assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k + ': znaczniki'); assert.ok(String(D[l][k]).length > 0 && !/Blockscout|TronGrid|Etherscan|Tronscan|DefiLlama|CoinGecko|CoinMarketCap/i.test(D[l][k]), l + ' ' + k); }
+    if (l !== 'pl') { assert.notEqual(D[l]['usk.sub'], D.pl['usk.sub'], l + ': prawdziwe tłumaczenie'); assert.notEqual(D[l]['usk.not1'], D.pl['usk.not1'], l + ': prawdziwe tłumaczenie'); }
+    const K = usk377.mk(l, usk377.file()), h = usk377.sp(K.els['#usk'].innerHTML);
+    assert.ok(h.includes(D[l]['usk.h']) && h.includes(D[l]['usk.tre.h']) && h.includes(D[l]['usk.ch.h']), l + ': teksty w języku');
+    assert.ok(!/usk\.|\b(undefined|NaN|null)\b|\{[a-z]\}/.test(h), l + ': ' + (h.match(/usk\.[\w.]+|\b(undefined|NaN)\b|\{[a-z]\}/) || [''])[0]);
+    assert.ok(!/Blockscout|TronGrid|Etherscan|Tronscan|DefiLlama|CoinGecko|CoinMarketCap/i.test(h), l);
+  }
+  const E = usk377.mk('en', usk377.file()), he = usk377.txt(E.els['#usk'].innerHTML); assert.ok(he.includes('USDT issuance: mints and redemptions') && he.includes('Last mint') && he.includes('Treasury in total'), he.slice(0, 200));
+  const Z = usk377.mk('zh', usk377.file()), hz = usk377.txt(Z.els['#usk'].innerHTML); assert.ok(hz.includes('最近一次增发') && hz.includes('金库合计'));
+});
+
+test('v377: telefon i zasady strony — wykres i kafle bez przewijania w bok, bez nazw dostawców, bez szarych strzałek i bez nowych widgetów; notatka „Czego te dane nie mówią” i uwaga o inwestycjach', () => {
+  const css = html.slice(html.indexOf('#c-emit .usk-ch{'), html.indexOf('@media (max-width:760px){#c-emit .etfkpis'));
+  assert.ok(/#c-emit \.usk-ch\{[^}]*width:100%/.test(css) && /display:block/.test(css), 'wykres na całą szerokość'); assert.ok(!/(^|[^-\w])width:\s*\d{3,}px/.test(css), 'bez stałych szerokości w px');
+  assert.ok(/#c-emit \.usk-l\{[^}]*overflow-wrap:anywhere/.test(css) && /#c-emit \.usk-ax\{[^}]*display:flex/.test(css));
+  assert.ok(html.includes('@media (max-width:760px){#c-emit .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}'), 'kafle po dwa na wąskim ekranie (istniejąca reguła karty)');
+  const K = usk377.mk('pl', usk377.file()), h = usk377.sp(K.els['#usk'].innerHTML), t = usk377.txt(h);
+  assert.ok(h.includes('<details class="etfd" id="usk-not"><summary>Czego te dane nie mówią</summary>') && t.includes('To nie jest porada inwestycyjna'), 'notatki');
+  assert.ok(t.includes('nie zmienia podaży, więc nic nie jest liczone dwa razy') && t.includes('w zmianie łącznej przelewy między skarbcami się znoszą') === false, 'uwaga o przelewach wewnętrznych; zdanie o łącznej zmianie w innej wielkości liter');
+  assert.ok(t.includes('W zmianie łącznej przelewy między skarbcami się znoszą'));
+  assert.ok(!/Blockscout|TronGrid|Etherscan|Tronscan|\b(undefined|NaN|null)\b|Infinity/.test(h), 'bez nazw dostawców i napisów-błędów'); assert.ok(!/<span class="(pos|neg)">0 /.test(h), 'zero nie ma koloru kierunku');
+  assert.ok(!/class="[^"]*\b(gr|grey|gray)\b/.test(h) && !/[▲▼]/.test(h), 'żadnych szarych strzałek');
+  const mod = usk377.code; assert.ok(!/localStorage|sessionStorage|tradingview/i.test(mod) && !/\bfetch\(|XMLHttpRequest/.test(mod), 'blok nie czyta sieci ani pamięci przeglądarki sam (tylko przez srvJSON)');
+});

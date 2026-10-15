@@ -31960,6 +31960,8 @@ def main():
             if prev_kr: save('krypto', prev_kr); print('rynek krypto zawiódł — zachowano poprzedni krypto.json z', prev_kr.get('at'))
     # v363 (F2Z3): emitenci stablecoinów — data/stable-emitenci.json; lista monet z tej samej odpowiedzi, co panel podaży (bez drugiego pobrania), raporty emitentów USDT i USDC
     META['ok']['emit_llama'], META['ok']['emit_tether'], META['ok']['emit_circle'] = ste_czesc()
+    # v377 (F6Z4): USDT na żywo — data/usdt-skarbiec.json; saldo skarbca emitenta i zdarzenia emisji / umorzeń z sieci Ethereum i Tron (publiczne zapytania, bez klucza), co USK_EVERY_MIN min
+    META['ok']['usdt_eth'], META['ok']['usdt_tron'] = usk_czesc()
     # v140: TOP 10 monet w 8 sektorach sceny CRYPTO (klucz CoinGecko w nagłówku): najwyżej co 55 min, skład kategorii co 6 h (reszta: jedno zapytanie
     # o ceny); oba pliki zapisywane w każdym przebiegu (strona składana od zera); awaria = poprzednie pliki i błąd „krypto top 10: …” (brak ≠ zero)
     prev_t10, prev_t10l = previous('krypto-top10'), previous('krypto-top10-logo')
@@ -36493,6 +36495,280 @@ def build_nowcasty(prev=None, run_t0=None):
 
 
 ZRODLA_META.update({'nowcasty_pkb': 'fed-atlanta', 'nowcasty_cpi': 'fed-cleveland'})   # v376: dwa nowe źródła (kanał szacunku PKB i strona szacunku inflacji) — liczba źródeł rośnie o 2
+
+
+# ===================== v377 (F6Z4): USDT NA ŻYWO — SKARBIEC EMITENTA I DRUK USDT — data/usdt-skarbiec.json =====================
+# Dwie niezależne części jednego pliku (każda z własnym czasem, ok i poprzednią wersją przy awarii): Ethereum (publiczny eksplorator łańcucha, bez klucza) i Tron (publiczny interfejs węzła, bez klucza).
+# Z każdej sieci: (a) saldo USDT portfela skarbca emitenta = „wyemitowane, ale nie w obiegu” (token rozpoznawany po ADRESIE kontraktu — w saldzie portfela są dziesiątki fałszywych „USDT”),
+# (b) zdarzenia Issue (emisja) i Redeem (umorzenie) kontraktu USDT z ostatnich USK_OKNO_DNI dni: dobowe sumy z USK_DNI ostatnich dób UTC (druk) i ostatnia emisja / ostatnie umorzenie z kwotą
+# i czasem. Liczone są WYŁĄCZNIE zdarzenia emisji i umorzenia zapisane w kontrakcie, a nie przelewy: przelew między portfelami emitenta (np. skarbiec w Ethereum → skarbiec w Tron) nie zmienia
+# podaży, więc nic nie jest liczone dwa razy. Własna historia dobowa salda skarbca (ostatni odczyt doby; ste_historia trzyma STE_HIST_DNI ostatnich dób) osobno dla sieci i razem — zmiana razem znosi przelewy między skarbcami.
+# Rytm: co USK_EVERY_MIN min (7 zapytań na przebieg, odstęp USK_SLEEP s; limit eksploratora to 180 zapytań w oknie). Część po błędzie zostaje z poprzedniego pliku najwyżej USK_MAX_H godzin.
+# Bramki: kontrakt zgodny z adresem, saldo skarbca ≤ podaż w sieci (Ethereum), kwoty skończone, nieujemne i ≤ USK_PLAUZ_MAX, zdarzenie z właściwą nazwą / tematem, brak ucięcia listy zdarzeń.
+USK_V = 1
+USK_EVERY_MIN = 25
+USK_ETH = 'https://eth.blockscout.com'
+USK_ETH_USDT = '0xdAC17F958D2ee523a2206206994597C13D831ec7'
+USK_ETH_SKARB = '0x5754284f345afc66a98fbB0a0Afe71e0F007B949'
+USK_TR = 'https://api.trongrid.io'
+USK_TR_USDT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
+USK_TR_SKARB = 'TKHuVq1oKVruCGLvqVexFs6dawKv6fQgFs'
+USK_TEMAT = {'i': '0xcb8241adb0c3fdb35b70c24ce35c5eb0c17af7431c99f827d44a445ca624176a', 'r': '0x702d5967f45f6513a38ffc42d6ba9bf230bd40e8f53b16363c7eb4fd2deb9a44'}   # Issue(uint256), Redeem(uint256)
+USK_NAZWA = {'i': 'Issue', 'r': 'Redeem'}
+USK_DNI = 30              # dób w wykresie druku
+USK_OKNO_DNI = 800        # tyle dni wstecz szukamy zdarzeń (ostatnia emisja / umorzenie starsze = brak)
+USK_MAX_H = 6             # h — część po błędzie zostaje z poprzedniego pliku najwyżej tyle
+USK_SLEEP = 0.4           # s — odstęp między zapytaniami
+USK_LISTA_MAX = 1000      # tyle wpisów zwraca eksplorator na zapytanie — pełna lista = ucięta = błąd, nie cicha liczba
+USK_TR_STRONA = 200       # zdarzeń na stronę (maksimum interfejsu węzła)
+USK_TR_STRON = 4          # tyle stron na rodzaj zdarzenia
+USK_PLAUZ_MAX = 1e11      # USD — pojedyncza emisja / umorzenie / saldo powyżej tego to błąd odczytu
+USK_PODAZ = (1e10, 1e12)  # USD — podaż USDT w sieci poza przedziałem = błąd odczytu
+
+
+def _usk_kwota(v, dec=6):
+    """v377: kwota w USD z liczby całkowitej w jednostkach tokena (tekst dziesiętny albo szesnastkowy 0x…, 6 miejsc po przecinku); nieliczba, ujemna albo > USK_PLAUZ_MAX = błąd."""
+    if isinstance(v, bool):
+        raise ValueError('kwota: wartość logiczna')
+    if isinstance(v, int):
+        n = v
+    elif isinstance(v, str):
+        s = v.strip()
+        try:
+            n = int(s, 16) if s.lower().startswith('0x') else int(s, 10)
+        except ValueError:
+            raise ValueError('kwota: nie liczba całkowita') from None
+    else:
+        raise ValueError('kwota: zły typ')
+    usd = n / 10 ** dec
+    if not 0 <= usd <= USK_PLAUZ_MAX:
+        raise ValueError('kwota poza zakresem')
+    return usd
+
+
+def parse_usk_blok(j):
+    """v377: odpowiedź getblocknobytime → numer bloku (liczba dodatnia)."""
+    r = j.get('result') if isinstance(j, dict) else None
+    try:
+        n = int((r or {}).get('blockNumber'))
+    except (TypeError, ValueError, AttributeError):
+        raise RuntimeError('Ethereum: brak numeru bloku') from None
+    if n <= 0:
+        raise RuntimeError('Ethereum: zły numer bloku')
+    return n
+
+
+def parse_usk_eth_saldo(j):
+    """v377: lista sald tokenów portfela skarbca → {'bal': USD, 'sup': podaż USDT w sieci (USD)}. USDT = WYŁĄCZNIE kontrakt USK_ETH_USDT (adres bez rozróżniania wielkości liter, 6 miejsc po przecinku)."""
+    if not isinstance(j, list):
+        raise RuntimeError('Ethereum: lista sald ma zły kształt')
+    for x in j:
+        tk = x.get('token') if isinstance(x, dict) else None
+        if not isinstance(tk, dict) or str(tk.get('address_hash') or '').lower() != USK_ETH_USDT.lower():
+            continue
+        if str(tk.get('decimals')) != '6':
+            raise RuntimeError('Ethereum: USDT ma inną liczbę miejsc po przecinku')
+        bal, sup = _usk_kwota(x.get('value')), _usk_kwota(tk.get('total_supply'))
+        if not USK_PODAZ[0] <= sup <= USK_PODAZ[1]:
+            raise RuntimeError('Ethereum: podaż USDT poza zakresem')
+        if bal > sup:
+            raise RuntimeError('Ethereum: saldo skarbca większe niż podaż')
+        return {'bal': round(bal), 'sup': round(sup)}
+    raise RuntimeError('Ethereum: w portfelu skarbca nie ma USDT')
+
+
+def parse_usk_eth_logi(j, rodzaj):
+    """v377: getLogs → lista (czas unix, USD) zdarzeń Issue ('i') albo Redeem ('r') bez powtórzeń. Brak wpisów („No logs found”) = pusta lista; pełna lista (USK_LISTA_MAX) = błąd."""
+    if not isinstance(j, dict):
+        raise RuntimeError('Ethereum: zdarzenia mają zły kształt')
+    r = j.get('result')
+    if not isinstance(r, list):
+        raise RuntimeError('Ethereum: zdarzenia — ' + str(j.get('message'))[:60])
+    if not r and str(j.get('message')) != 'No logs found' and str(j.get('status')) != '1':
+        raise RuntimeError('Ethereum: zdarzenia — ' + str(j.get('message'))[:60])
+    if len(r) >= USK_LISTA_MAX:
+        raise RuntimeError('Ethereum: lista zdarzeń ucięta')
+    seen, out = set(), []
+    for x in r:
+        if not isinstance(x, dict):
+            raise RuntimeError('Ethereum: zdarzenie ma zły kształt')
+        tp = x.get('topics')
+        if str(x.get('address') or '').lower() != USK_ETH_USDT.lower() or not isinstance(tp, list) or not tp or str(tp[0]).lower() != USK_TEMAT[rodzaj]:
+            raise RuntimeError('Ethereum: zdarzenie z innego kontraktu albo tematu')
+        key = (x.get('transactionHash'), x.get('logIndex'))
+        if key in seen:
+            continue
+        seen.add(key)
+        ts = int(str(x.get('timeStamp')), 16)
+        if not 1.5e9 <= ts <= 4e9:
+            raise RuntimeError('Ethereum: zły czas zdarzenia')
+        out.append((ts, _usk_kwota(x.get('data'))))
+    return out
+
+
+def parse_usk_tron_saldo(j):
+    """v377: konto skarbca w Tron → {'bal': USD}; USDT po adresie kontraktu USK_TR_USDT (lista trc20: słowniki {adres: saldo}). Brak USDT = błąd (skarbiec nie jest pusty)."""
+    d = j.get('data') if isinstance(j, dict) else None
+    if not (isinstance(j, dict) and j.get('success') is True and isinstance(d, list) and len(d) == 1 and isinstance(d[0], dict)):
+        raise RuntimeError('Tron: odpowiedź konta ma zły kształt')
+    for e in d[0].get('trc20') or []:
+        if isinstance(e, dict) and USK_TR_USDT in e:
+            return {'bal': round(_usk_kwota(e[USK_TR_USDT]))}
+    raise RuntimeError('Tron: w portfelu skarbca nie ma USDT')
+
+
+def parse_usk_tron_zd(j, rodzaj):
+    """v377: strona zdarzeń kontraktu USDT w Tron → lista (czas unix, USD, klucz) o nazwie USK_NAZWA[rodzaj]; strona pusta = pusta lista."""
+    d = j.get('data') if isinstance(j, dict) else None
+    if not (isinstance(j, dict) and j.get('success') is True and isinstance(d, list)):
+        raise RuntimeError('Tron: zdarzenia mają zły kształt')
+    out = []
+    for x in d:
+        if not isinstance(x, dict) or x.get('event_name') != USK_NAZWA[rodzaj] or x.get('contract_address') != USK_TR_USDT:
+            raise RuntimeError('Tron: zdarzenie o innej nazwie albo z innego kontraktu')
+        ms = x.get('block_timestamp')
+        if isinstance(ms, bool) or not isinstance(ms, int) or not 1.5e12 <= ms <= 4e12:
+            raise RuntimeError('Tron: zły czas zdarzenia')
+        res = x.get('result')
+        out.append((ms // 1000, _usk_kwota((res or {}).get('amount') if isinstance(res, dict) else None), (x.get('transaction_id'), x.get('event_index'))))
+    return out
+
+
+def _usk_t0():
+    return int(_ix_dt(NOW).timestamp())
+
+
+def _usk_dzien(ts):
+    return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).date().isoformat()
+
+
+def usk_zdarzenia(ev):
+    """v377: ev = {'i': [(czas, USD)], 'r': [...]} → {'dni': [[dzień, emisje USD, umorzenia USD, liczba emisji, liczba umorzeń]] za USK_DNI ostatnich dób UTC do dnia przebiegu (dobowa suma 0 = w tej
+    dobie nic nie było), 'ost': {'i': [czas ISO, USD] albo None, 'r': ...}} — ostatnie zdarzenie z całego okna zdarzeń."""
+    dzis = datetime.date.fromisoformat(NOW[:10])
+    acc = {(dzis - datetime.timedelta(days=USK_DNI - 1 - i)).isoformat(): [0.0, 0.0, 0, 0] for i in range(USK_DNI)}
+    ost = {}
+    for k, (ik, ic) in (('i', (0, 2)), ('r', (1, 3))):
+        L = sorted(ev[k])
+        ost[k] = [datetime.datetime.fromtimestamp(L[-1][0], datetime.timezone.utc).replace(tzinfo=None).isoformat() + 'Z', round(L[-1][1])] if L else None
+        for ts, usd in L:
+            a = acc.get(_usk_dzien(ts))
+            if a is not None:
+                a[ik] += usd
+                a[ic] += 1
+    return {'dni': [[d, round(a[0]), round(a[1]), a[2], a[3]] for d, a in sorted(acc.items())], 'ost': ost}
+
+
+def usk_eth():
+    """v377: część Ethereum (4 zapytania): blok sprzed okna, saldo skarbca i podaż, zdarzenia Issue i Redeem od tego bloku."""
+    t0 = _usk_t0()
+    blk = parse_usk_blok(get_json(f'{USK_ETH}/api?module=block&action=getblocknobytime&timestamp={t0 - USK_OKNO_DNI * 86400}&closest=before', timeout=30))
+    time.sleep(USK_SLEEP)
+    s = parse_usk_eth_saldo(get_json(f'{USK_ETH}/api/v2/addresses/{USK_ETH_SKARB}/token-balances', timeout=45))
+    ev = {}
+    for k in ('i', 'r'):
+        time.sleep(USK_SLEEP)
+        ev[k] = parse_usk_eth_logi(get_json(f'{USK_ETH}/api?module=logs&action=getLogs&fromBlock={blk}&toBlock=latest&address={USK_ETH_USDT}&topic0={USK_TEMAT[k]}', timeout=60), k)
+    return {'bal': s['bal'], 'sup': s['sup'], 't': NOW, **usk_zdarzenia(ev)}
+
+
+def usk_tron_zdarzenia(k, t0):
+    """v377: wszystkie zdarzenia rodzaju k z okna USK_OKNO_DNI (strony po USK_TR_STRONA od najnowszych, bez powtórzeń); pełne USK_TR_STRON stron = błąd."""
+    url = (f'{USK_TR}/v1/contracts/{USK_TR_USDT}/events?event_name={USK_NAZWA[k]}&only_confirmed=true&limit={USK_TR_STRONA}&order_by=block_timestamp,desc'
+           f'&min_block_timestamp={(t0 - USK_OKNO_DNI * 86400) * 1000}')
+    seen, out, fp = set(), [], None
+    for _ in range(USK_TR_STRON):
+        time.sleep(USK_SLEEP)
+        j = get_json(url + (f'&fingerprint={fp}' if fp else ''), timeout=45)
+        rows = parse_usk_tron_zd(j, k)
+        for ts, usd, key in rows:
+            if key not in seen:
+                seen.add(key)
+                out.append((ts, usd))
+        meta = j.get('meta') if isinstance(j.get('meta'), dict) else {}
+        fp = meta.get('fingerprint')
+        if len(rows) < USK_TR_STRONA or not fp:
+            return out
+    raise RuntimeError('Tron: zbyt wiele zdarzeń (lista ucięta)')
+
+
+def usk_tron():
+    """v377: część Tron (3 zapytania): saldo skarbca, zdarzenia Issue i Redeem."""
+    t0 = _usk_t0()
+    s = parse_usk_tron_saldo(get_json(f'{USK_TR}/v1/accounts/{USK_TR_SKARB}', timeout=45))
+    ev = {k: usk_tron_zdarzenia(k, t0) for k in ('i', 'r')}
+    return {'bal': s['bal'], 'sup': None, 't': NOW, **usk_zdarzenia(ev)}
+
+
+def usk_zmiany(pts):
+    """v377: {'1','7','30'}: zmiana ostatniego odczytu wobec odczytu DOKŁADNIE tyle dób wcześniej (brak punktu w serii = None, nigdy zero)."""
+    out = {'1': None, '7': None, '30': None}
+    P = {p[0]: p[1] for p in pts or [] if isinstance(p, list) and len(p) == 2}
+    if not P:
+        return out
+    last = max(P)
+    try:
+        d0 = datetime.date.fromisoformat(last)
+    except ValueError:
+        return out
+    for n in (1, 7, 30):
+        w = (d0 - datetime.timedelta(days=n)).isoformat()
+        if w in P:
+            out[str(n)] = round(P[last] - P[w])
+    return out
+
+
+def build_usdt_skarbiec(prev=None):
+    """v377: data/usdt-skarbiec.json {v, at, src, part_at, ok, eth, tron, hist, zm}. Część, która zawiodła, zostaje z poprzedniego pliku (USK_MAX_H godzin od jej pobrania), błąd do META['errors'];
+    obie zawiodły = wyjątek (main zostawia poprzedni plik). Historia dobowa salda: 'eth', 'tron' (każda z własnego odczytu) i 'skarb' (suma — tylko gdy obie sieci odczytane w tym przebiegu)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == USK_V else {}
+    out = {'v': USK_V, 'at': NOW, 'src': 'zdarzenia emisji i umorzeń oraz saldo skarbca USDT odczytane z sieci Ethereum i Tron', 'part_at': {}, 'ok': {}}
+    for part, job in (('eth', usk_eth), ('tron', usk_tron)):
+        try:
+            out[part] = job()
+            out['ok'][part] = True
+            out['part_at'][part] = NOW
+        except Exception as e:   # noqa — jedna sieć nie psuje drugiej
+            META['errors'].append(mask(f'USDT skarbiec {part}: {e}')[:200])
+            out['ok'][part] = False
+            old, t_old = pv.get(part), _zapas_czas(pv, part)
+            tk, tn = _ix_dt(t_old), _ix_dt(NOW)
+            if isinstance(old, dict) and tk is not None and tn is not None and 0 <= (tn - tk).total_seconds() <= USK_MAX_H * 3600:
+                out[part] = old
+                out['part_at'][part] = t_old
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna sieć USDT nie odpowiedziała')
+    h = {k: v for k, v in (pv.get('hist') if isinstance(pv.get('hist'), dict) else {}).items() if k in ('eth', 'tron', 'skarb') and isinstance(v, list)}
+    for part in ('eth', 'tron'):
+        if out['ok'][part]:
+            ste_historia(h, part, NOW[:10], out[part]['bal'])
+    if out['ok']['eth'] and out['ok']['tron']:
+        ste_historia(h, 'skarb', NOW[:10], out['eth']['bal'] + out['tron']['bal'])
+    out['hist'] = h
+    out['zm'] = {k: usk_zmiany(v) for k, v in h.items()}
+    return out
+
+
+def usk_czesc():
+    """v377: część przebiegu → krotka wartości dla META['ok'] (Ethereum, Tron): True = odpowiedziała, 'cached' = poprzedni plik jeszcze świeży (USK_EVERY_MIN min), False = zawiodła. Nieudana budowa
+    zostawia poprzedni plik."""
+    prev = previous('usdt-skarbiec')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == USK_V else None
+    if prev and fresh(prev, USK_EVERY_MIN):
+        save('usdt-skarbiec', prev)
+        return ('cached', 'cached')
+    try:
+        obj = build_usdt_skarbiec(prev)
+        save('usdt-skarbiec', obj)
+        return (obj['ok'].get('eth', False), obj['ok'].get('tron', False))
+    except Exception as e:
+        META['errors'].append(mask(f'USDT skarbiec: {e}')[:200])
+        if prev:
+            save('usdt-skarbiec', prev)
+        return (False, False)
+
+
+ZRODLA_META.update({'usdt_eth': 'blockscout', 'usdt_tron': 'trongrid'})   # v377: publiczny eksplorator Ethereum (+1 źródło) i publiczny interfejs węzła Tron (+1 źródło)
 
 
 if __name__ == '__main__':
