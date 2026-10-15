@@ -9159,6 +9159,231 @@ def kalendarz2_kontrola(files):
     return {'spojnosc': kalendarz2_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v376 (F9Z2): nowcasty — szacunek na bieżąco PKB i inflacji USA (data/nowcasty.json) ----------------------------------------------------------------
+# Plik: pkb {q, v, date, prev_v, prev_date, next, hist}, cpi {m, mm, yy, core_mm, core_yy, date, prev_mm, prev_date, hist, akt, json_try, json_err}, ok / part_at / errs. Kontrola czyta pliki ze strony (bez zapytań
+# do sieci). RYTM PUBLIKACJI (szacunek PKB — kilka razy w miesiącu, inflacji — każdego dnia roboczego) i progi z testu wstecznego (ws53/v376-nowcasty/bt_progi.py):
+#   inflacja: odstępy między dniami aktualizacji 2013-07…2026-10 (3300 dni; 1 d: 2576, 2 d: 36, 3 d: 594, 4 d: 92, 5 d: 1) → ⚠ dopiero przy wieku daty szacunku > NC_K_CPI_DNI = 5 dni (0 fałszywych ⚠ w 4803 dniach);
+#   PKB: odstępy 1–8 dni (15 wpisów 3.08–8.10.2026 + daty z opisów), zapowiedź „następna aktualizacja” spełniona co do dnia we wszystkich 13 przypadkach → ⚠, gdy dzień jest późniejszy niż zapowiedź + NC_K_PKB_ZAPAS = 3 dni
+#   (0 fałszywych ⚠); bez zapowiedzi w pliku → ⚠ przy wieku > NC_K_PKB_BEZ = 10 dni (najdłuższy odstęp 8 dni).
+# (1) świeżość pobrania każdej części (odświeżanie co 3 h; starsze niż doba = ⚠) i wiersze rytmu publikacji (wiek daty szacunku względem powyższych progów, najwyżej ⚠);
+# (2) ❌ wyłącznie przy sprzeczności wewnątrz pliku: liczba poza zakresem, zły format dnia / okresu, historia nie rośnie albo ma dubel dnia, ostatni punkt historii ≠ bieżący szacunek, data szacunku późniejsza
+#     niż pobranie części + 2 dni, poprzedni szacunek nie wcześniejszy niż bieżący; część z ok False zostaje ze starymi danymi (też sprawdzana);
+# (3) TYLKO UWAGA ⚠: kwartał szacunku PKB a ostatni odczyt (bilans-usa.gdp) — szacunek ma dotyczyć kwartału PO ostatnim odczycie (kwartał wcześniejszy niż ostatni odczyt albo luka dłuższa niż 1 kwartał = uwaga;
+#     ten sam kwartał nie jest uwagą: w dniu odczytu pliki odświeżają się w różnych godzinach); miesiąc szacunku inflacji a ostatni odczyt (usa-makro.s.cpi.yoy) — jak wyżej; skok r/r o więcej niż NC_K_SKOK_RR = 1,5 pp
+#     względem ostatniego odczytu; brak ostatniego odczytu urzędowego miesiąca (akt) po co najmniej 2 dniach od zmiany miesiąca szacunku; krótka historia (< 10 dni) przy błędzie pobrania pliku wykresów.
+# Najwyżej ⚠ poza (2). Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'nowcasty')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['nowcasty'] = 12 * 60   # plik zapisywany co ok. 3 h (część z błędem: co godzinę) — wiek pobrania każdej części ocenia osobny wiersz
+AW_BEZ_BLEDU.update({'nowcasty_' + p_: 'nowcasty — część z błędem zostaje z ostatnim szacunkiem i datą (v376); wiek pobrania i rytm aktualizacji w wierszach świeżości' for p_ in ('pkb', 'cpi')})
+NC_K_PARTS = ('pkb', 'cpi')
+NC_K_NAZWA = {'pkb': 'PKB', 'cpi': 'CPI'}   # nazwy części w komunikatach kontroli (raport wewnętrzny, nie strona)
+NC_K_ETYKIETA = {'pkb': 'Nowcasty: szacunek PKB USA (pobranie)', 'cpi': 'Nowcasty: szacunek inflacji CPI USA (pobranie)'}
+NC_K_RYTM = {'pkb': 'Nowcasty: szacunek PKB USA (rytm aktualizacji)', 'cpi': 'Nowcasty: szacunek inflacji CPI USA (rytm aktualizacji)'}
+NC_K_PROG_MIN = 24 * 60           # min — wiek pobrania części (odświeżanie co 3 h)
+NC_K_CPI_DNI = 5                  # dni — wiek daty szacunku inflacji (bt_progi.py: najdłuższy odstęp między aktualizacjami 5 dni)
+NC_K_PKB_ZAPAS = 3                # dni po zapowiedzianej aktualizacji szacunku PKB
+NC_K_PKB_BEZ = 10                 # dni — wiek daty szacunku PKB, gdy plik nie zna zapowiedzi (najdłuższy odstęp 8 dni)
+NC_K_SKOK_RR = 1.5                # pp — skok szacunku inflacji r/r względem ostatniego odczytu
+NC_K_HIST_MIN = 10                # dni z szacunkiem w ostatnich 60 dniach
+
+
+def _nc_k_dzien(s):
+    """„RRRR-MM-DD” → date albo None."""
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return dt.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _nc_k_sciezka(x, *klucze):
+    """Zagnieżdżony słownik → wartość pod kluczami albo None (każdy poziom niebędący słownikiem = None, bez wyjątku)."""
+    for a in klucze:
+        x = x.get(a) if isinstance(x, dict) else None
+    return x
+
+
+def _nc_k_num(x, lo, hi):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and lo <= x <= hi
+
+
+def nowcasty_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w nowcastach) → lista opisów."""
+    zle = []
+    pa = j.get('part_at') if isinstance(j.get('part_at'), dict) else {}
+    for k in NC_K_PARTS:
+        P = j.get(k)
+        if P is None:
+            continue
+        if not isinstance(P, dict):
+            zle.append(f'{k}: część nie jest słownikiem'); continue
+        if k == 'pkb':
+            wk, lo, hi, okr, pk = 'v', -30, 30, r'\d{4}-Q[1-4]', 'q'
+        else:
+            wk, lo, hi, okr, pk = 'mm', -3, 3, r'\d{4}-\d{2}', 'm'
+        okn = P.get(wk)
+        d = _nc_k_dzien(P.get('date'))
+        if not _nc_k_num(P.get(wk), lo, hi):
+            zle.append(f'{k}: szacunek poza zakresem albo brak ({str(P.get(wk))[:20]})')
+        if d is None:
+            zle.append(f'{k}: zły dzień szacunku ({str(P.get("date"))[:20]})')
+        if not isinstance(P.get(pk), str) or not re.fullmatch(okr, P[pk]):
+            zle.append(f'{k}: zły okres szacunku ({str(P.get(pk))[:20]})')
+        pw = P.get('prev_v' if k == 'pkb' else 'prev_mm')
+        pd = _nc_k_dzien(P.get('prev_date'))
+        if pw is not None and not _nc_k_num(pw, lo, hi):
+            zle.append(f'{k}: poprzedni szacunek poza zakresem')
+        if P.get('prev_date') is not None and (pd is None or (d is not None and pd >= d)):
+            zle.append(f'{k}: dzień poprzedniego szacunku {str(P.get("prev_date"))[:12]} nie wcześniejszy niż bieżący')
+        h = P.get('hist')
+        if not isinstance(h, list) or not h:
+            zle.append(f'{k}: brak historii'); continue
+        ost, widziane = None, set()
+        for r in h:
+            if not (isinstance(r, list) and len(r) == 3 and _nc_k_dzien(r[0]) is not None and _nc_k_num(r[1], lo, hi) and isinstance(r[2], str) and re.fullmatch(okr, r[2])):
+                zle.append(f'{k}: zły wiersz historii ({str(r)[:40]})'); continue
+            if r[0] in widziane:
+                zle.append(f'{k}: dubel dnia {r[0]} w historii')
+            elif ost is not None and r[0] < ost:
+                zle.append(f'{k}: historia nie rośnie ({ost} przed {r[0]})')
+            widziane.add(r[0]); ost = r[0]
+        if isinstance(h[-1], list) and len(h[-1]) == 3 and d is not None and okn is not None and (h[-1][0] != P.get('date') or h[-1][1] != okn or h[-1][2] != P.get(pk)):
+            zle.append(f'{k}: ostatni punkt historii {h[-1]} ≠ bieżący szacunek [{P.get("date")}, {okn}, {P.get(pk)}]')
+        pt = _nc_k_dzien(str(pa.get(k) or '')[:10])
+        if d is not None and pt is not None and d > pt + dt.timedelta(days=2):
+            zle.append(f'{k}: dzień szacunku {P.get("date")} późniejszy niż pobranie części {pa.get(k)}')
+        if k == 'cpi' and P.get('akt') is not None:
+            a = P['akt']
+            if not (isinstance(a, dict) and isinstance(a.get('m'), str) and re.fullmatch(r'\d{4}-\d{2}', a['m']) and _nc_k_num(a.get('mm'), -3, 3) and _nc_k_dzien(a.get('date')) is not None):
+                zle.append('cpi: zły ostatni odczyt (akt)')
+    return zle[:12]
+
+
+def nowcasty_swiezosc(j, now=None):
+    """Wiersze: pobranie każdej części (etykieta, status, wiek min, chwila, uwaga) i rytm aktualizacji szacunku (wiek daty szacunku względem progów z testu wstecznego); brak pliku albo inna wersja = brak wierszy.
+    Część bez chwili pobrania — '?'. Najwyżej ⚠."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p in NC_K_PARTS:
+        txt = (j.get('part_at') or {}).get(p) if isinstance(j.get('part_at'), dict) else None
+        if not isinstance(j.get(p), dict):
+            continue
+        if not txt:
+            rows.append((NC_K_ETYKIETA[p], '?', None, None, 'brak chwili pobrania tej części w pliku')); continue
+        w = wiek_danych(str(txt), 'ts', 'k', now)
+        ok = (j.get('ok') or {}).get(p) if isinstance(j.get('ok'), dict) else None
+        st = '?' if w is None else ('⚠\ufe0f' if w > NC_K_PROG_MIN else '✅')
+        note = ''
+        if st == '⚠\ufe0f':
+            note = f'pobranie starsze niż {fmt_wiek(NC_K_PROG_MIN)} (odświeżanie co 3 h) — szacunek może być nieaktualny; najwyżej uwaga'
+        elif ok is False:
+            note = 'ostatnie pobranie nieudane — szacunek z poprzedniego pobrania'
+        rows.append((NC_K_ETYKIETA[p], st, w, str(txt), note))
+        d = _nc_k_dzien((j[p] or {}).get('date'))
+        if d is None:
+            continue
+        dzis = now.date()
+        wiek = (dzis - d).days
+        wd = wiek_danych(d.isoformat(), 'day', 'k', now)
+        if p == 'cpi':
+            zle = wiek > NC_K_CPI_DNI
+            note = f'szacunek z {d.isoformat()} — sprzed {wiek} dni (aktualizacja w każdy dzień roboczy; najdłuższy odstęp w historii 5 dni)' if zle else ''
+        else:
+            nx = _nc_k_dzien((j[p] or {}).get('next'))
+            if nx is not None and nx >= d:
+                zle = dzis > nx + dt.timedelta(days=NC_K_PKB_ZAPAS)
+                note = f'zapowiedziana aktualizacja {nx.isoformat()} nie nastąpiła (+{NC_K_PKB_ZAPAS} dni zapasu); ostatni szacunek z {d.isoformat()}' if zle else ''
+            else:
+                zle = wiek > NC_K_PKB_BEZ
+                note = f'szacunek z {d.isoformat()} — sprzed {wiek} dni, bez zapowiedzi następnej aktualizacji (najdłuższy odstęp w historii 8 dni)' if zle else ''
+        rows.append((NC_K_RYTM[p], '⚠\ufe0f' if zle else '✅', wd, d.isoformat(), note))
+    return rows
+
+
+def _nc_k_kw(q):
+    m = re.fullmatch(r'(\d{4})-Q([1-4])', str(q))
+    return int(m.group(1)) * 4 + int(m.group(2)) - 1 if m else None
+
+
+def _nc_k_mc(m):
+    mm = re.fullmatch(r'(\d{4})-(\d{2})', str(m))
+    return int(mm.group(1)) * 12 + int(mm.group(2)) - 1 if mm else None
+
+
+def nowcasty_uwagi(j, files=None, now=None):
+    """Uwagi ⚠ (nigdy ❌): szacunek a ostatni odczyt w innych plikach, brak ostatniego odczytu miesiąca, krótka historia. → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    now = now or NOW
+    files = files if isinstance(files, dict) else {}
+    out = {'wiersze': [], 'uwagi': []}
+    P, C = j.get('pkb') if isinstance(j.get('pkb'), dict) else None, j.get('cpi') if isinstance(j.get('cpi'), dict) else None
+    # ---- PKB: kwartał szacunku a ostatni odczyt ----
+    try:
+        g = files.get('bilans-usa')
+        gl = _nc_k_sciezka(g, 'gdp')
+        rows = [r for r in (gl if isinstance(gl, list) else []) if isinstance(r, list) and len(r) == 2 and _nc_k_kw(r[0]) is not None and _nc_k_num(r[1], -50, 50)]
+        if P and rows and _nc_k_kw(P.get('q')) is not None:
+            ost = max(rows, key=lambda r: _nc_k_kw(r[0]))
+            roz = _nc_k_kw(P['q']) - _nc_k_kw(ost[0])
+            zg = roz == 0 or roz == 1
+            out['wiersze'].append((f'PKB: szacunek dla {P["q"]} ({P.get("v")}%) a ostatni odczyt {ost[0]} ({ost[1]}%)', '✅' if zg else '⚠\ufe0f'))
+            if not zg:
+                out['uwagi'].append(f'Nowcasty: szacunek PKB dotyczy {P["q"]}, a ostatni odczyt jest za {ost[0]} — oczekiwano kwartału następnego po odczycie (plik bilans-usa nieaktualny albo szacunek dotyczy wcześniejszego kwartału)')
+    except Exception as ex:  # noqa
+        out['uwagi'].append(f'Nowcasty: porównanie PKB z ostatnim odczytem przerwane ({str(ex)[:60]})')
+    # ---- CPI: miesiąc szacunku a ostatni odczyt, skok r/r ----
+    try:
+        yy = _nc_k_sciezka(files.get('usa-makro'), 's', 'cpi', 'yoy')
+        rows = [r for r in (yy if isinstance(yy, list) else []) if isinstance(r, list) and len(r) == 2 and _nc_k_mc(r[0]) is not None and _nc_k_num(r[1], -20, 50)]
+        if C and rows and _nc_k_mc(C.get('m')) is not None:
+            ost = max(rows, key=lambda r: _nc_k_mc(r[0]))
+            roz = _nc_k_mc(C['m']) - _nc_k_mc(ost[0])
+            zg = roz in (0, 1)
+            out['wiersze'].append((f'CPI: szacunek dla {C["m"]} a ostatni odczyt {ost[0]} ({ost[1]}% r/r)', '✅' if zg else '⚠\ufe0f'))
+            if not zg:
+                out['uwagi'].append(f'Nowcasty: szacunek CPI dotyczy {C["m"]}, a ostatni odczyt jest za {ost[0]} — oczekiwano miesiąca następnego po odczycie (plik usa-makro nieaktualny albo szacunek dotyczy wcześniejszego miesiąca)')
+            if roz == 1 and _nc_k_num(C.get('yy'), -5, 30):
+                sk = abs(C['yy'] - ost[1])
+                out['wiersze'].append((f'CPI r/r: szacunek {C["yy"]}% a ostatni odczyt {ost[1]}% (różnica {sk:.2f} pp)', '✅' if sk <= NC_K_SKOK_RR else '⚠\ufe0f'))
+                if sk > NC_K_SKOK_RR:
+                    out['uwagi'].append(f'Nowcasty: szacunek inflacji r/r ({C["yy"]}%) różni się od ostatniego odczytu ({ost[1]}%) o {sk:.2f} pp (próg {NC_K_SKOK_RR} pp) — sprawdź tabelę źródła')
+    except Exception as ex:  # noqa
+        out['uwagi'].append(f'Nowcasty: porównanie CPI z ostatnim odczytem przerwane ({str(ex)[:60]})')
+    # ---- CPI: ostatni odczyt miesiąca (oczekiwanie kontra wynik) i długość historii ----
+    try:
+        if C and _nc_k_mc(C.get('m')) is not None and isinstance(C.get('hist'), list):
+            hh = [r for r in C['hist'] if isinstance(r, list) and len(r) == 3]
+            d0 = min((_nc_k_dzien(r[0]) for r in hh if r[2] == C['m'] and _nc_k_dzien(r[0]) is not None), default=None)
+            a = C.get('akt') if isinstance(C.get('akt'), dict) else None
+            ostatni = f'{(_nc_k_mc(C["m"]) - 1) // 12}-{(_nc_k_mc(C["m"]) - 1) % 12 + 1:02d}'
+            if a is None or a.get('m') != ostatni:
+                if d0 is not None and (now.date() - d0).days >= 2:
+                    out['uwagi'].append(f'Nowcasty: brak ostatniego odczytu urzędowego za {ostatni} (jest: {a.get("m") if a else "—"}) mimo {(now.date() - d0).days} dni od zmiany miesiąca szacunku'
+                                        + (f'; plik wykresów: {C["json_err"]}' if C.get('json_err') else ''))
+                    out['wiersze'].append((f'CPI: brak ostatniego odczytu za {ostatni}', '⚠\ufe0f'))
+            else:
+                out['wiersze'].append((f'CPI: ostatni odczyt {a["m"]} {a["mm"]}% m/m (szacunek przed odczytem {a.get("nc")}%)', '✅'))
+            od = (now.date() - dt.timedelta(days=60)).isoformat()
+            n60 = len({r[0] for r in hh if isinstance(r[0], str) and r[0] >= od})
+            if n60 < NC_K_HIST_MIN and C.get('json_err'):
+                out['uwagi'].append(f'Nowcasty: historia szacunków CPI ma {n60} dni (< {NC_K_HIST_MIN}) — plik wykresów niedostępny: {C["json_err"]}')
+    except Exception as ex:  # noqa
+        out['uwagi'].append(f'Nowcasty: kontrola historii CPI przerwana ({str(ex)[:60]})')
+    return out
+
+
+def nowcasty_kontrola(files, now=None):
+    """Kontrola pliku nowcasty.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('nowcasty') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    U = nowcasty_uwagi(j, files, now)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': nowcasty_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -9642,6 +9867,24 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['kalendarz2'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'kalendarz 2 (v375): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v376. nowcasty (data/nowcasty.json): świeżość pobrania dwóch części i rytm aktualizacji szacunków osobnymi wierszami (lista SWIEZOSC bez zmian), szacunek a ostatni odczyt (⚠),
+    # brak ostatniego odczytu miesiąca i krótka historia (⚠) oraz sprzeczności w pliku (❌) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in nowcasty_swiezosc(files.get('nowcasty')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠\ufe0f':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_nc = nowcasty_kontrola(files)
+        if T_nc:
+            for z_ in T_nc['spojnosc'][:5]:
+                R['bledy'].append(f'nowcasty.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_nc['uwagi']
+        R['zgodnosc']['nowcasty'] = {k_: T_nc[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_nc else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['nowcasty'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'nowcasty (v376): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -10305,6 +10548,11 @@ def raport_md(R):
             L.append('- Kalendarz 2 (z pliku strony): ' + (f'? kontrola przerwana ({krz2["blad"]})' if krz2.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(krz2['spojnosc'][:3]) + ' ❌ · ' if krz2.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in krz2.get('wiersze') or []) or '—') + '.')
+        knc = Z.get('nowcasty')   # v376: nowcasty — sprzeczności w pliku, szacunek a ostatni odczyt, rytm aktualizacji; brak pliku = bez linii
+        if knc:
+            L.append('- Nowcasty (z pliku strony): ' + (f'? kontrola przerwana ({knc["blad"]})' if knc.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(knc['spojnosc'][:3]) + ' ❌ · ' if knc.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in knc.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

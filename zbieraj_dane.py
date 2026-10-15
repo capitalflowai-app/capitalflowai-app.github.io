@@ -32250,6 +32250,29 @@ def main():
     META['ok']['kalendarz_bc_us'] = stan_kal['bc_us']; META['ok']['kalendarz_pkb_us'] = stan_kal['pkb_us']; META['ok']['kalendarz_sprz_us'] = stan_kal['sprz_us']
     META['ok']['kalendarz_stat_eu'] = stan_kal['stat_eu']; META['ok']['kalendarz_bc_eu'] = stan_kal['bc_eu']
     # v372: koniec bloku kalendarza
+    # v376 (F9Z2): NOWCASTY (data/nowcasty.json: szacunek na bieżąco realnego PKB i inflacji CPI USA; dwie części z własnym ok / part_at / errs) — co NC_EVERY min, plik z częścią nieudaną ponawiany
+    # po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok: nowcasty_pkb, nowcasty_cpi (dwa nowe źródła — liczba źródeł rośnie o 2).
+    prev_nc = previous('nowcasty')
+    if isinstance(prev_nc, dict) and prev_nc.get('v') == 1 and fresh_pelny(prev_nc, NC_EVERY):
+        save('nowcasty', prev_nc)
+        stan_nc = {}
+        for k_nc in NC_PARTS:
+            if _dict(prev_nc.get('ok')).get(k_nc) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{NC_PX} {NC_LABEL[k_nc]}: {str(_dict(prev_nc.get('errs')).get(k_nc) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_nc[k_nc] = False
+            else:
+                stan_nc[k_nc] = 'cached'
+    else:
+        try:
+            nc_ = build_nowcasty(prev_nc, run_t0=_RUN_T0[0]); save('nowcasty', nc_)
+            stan_nc = {k_nc: nc_['ok'].get(k_nc) is True for k_nc in NC_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{NC_PX}: {e}')[:200])
+            stan_nc = {k_nc: False for k_nc in NC_PARTS}
+            if isinstance(prev_nc, dict):
+                save('nowcasty', prev_nc)
+    META['ok']['nowcasty_pkb'] = stan_nc['pkb']; META['ok']['nowcasty_cpi'] = stan_nc['cpi']
+    # v376: koniec bloku nowcastów
     # v375 (F9Z1, część 2): KALENDARZ 2 (data/kalendarz2.json: inflacja i zatrudnienie USA z kalendarza wydań FRED, kalendarz danych Polski, decyzje banków Anglii i Japonii; cztery części z własnym
     # ok / part_at / errs) — co KAL_EVERY min, plik z częścią nieudaną ponawiany po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok:
     # kalendarz2_cpi_praca_us (FRED już liczony), kalendarz2_dane_pl, kalendarz2_bc_uk, kalendarz2_bc_jp (urząd statystyczny Polski, Bank Anglii i Bank Japonii: +3 źródła).
@@ -36137,6 +36160,339 @@ def build_kalendarz2(prev=None, key=None, run_t0=None):
 
 
 ZRODLA_META.update({'kalendarz2_cpi_praca_us': 'fred', 'kalendarz2_dane_pl': 'gus', 'kalendarz2_bc_uk': 'bank-anglii', 'kalendarz2_bc_jp': 'bank-japonii'})   # v375: FRED już liczony; urząd statystyczny Polski, Bank Anglii i Bank Japonii (+3 źródła)
+
+
+# ===================== v376 (F9Z2): NOWCASTY — SZACUNEK NA BIEŻĄCO PKB I INFLACJI USA (data/nowcasty.json; publiczne pliki bez kont i kluczy) =====================
+# Dwie części jednego pliku, każda z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie (nigdy puste zamiast ostatniego szacunku):
+#   pkb — szacunek bieżącego kwartału realnego PKB USA (zmiana kw/kw w skali roku, po wyrównaniu sezonowym), kanał RSS ~16 KB: ostatnie ~15 wpisów, każdy z liczbą, datą szacunku
+#         („is 3.6 percent on October 8”), poprzednim szacunkiem („down from 3.7 percent on October 6” / „unchanged from …”) i zapowiedzią następnej aktualizacji. Wpisy są czytane z OPISU,
+#         nie z tytułu: tytuł bywa o jeden wpis spóźniony (16.09.2026: tytuł 4,7, opis 5,1), a data publikacji bywa wcześniejsza niż data szacunku w opisie (3.09 w opisie wpisu z 1.09).
+#         Kanał pomija niektóre aktualizacje (14.08.2026 jest tylko w opisie następnego wpisu) — historia w pliku ma więc dziury, których wykres nie zasłania.
+#   cpi — szacunek inflacji CPI USA na pierwszy jeszcze nieopublikowany miesiąc: strona z tabelami (HTML ~200 KB, „Updated MM/DD”): zmiana m/m po wyrównaniu sezonowym i r/r, ogółem i bazowa.
+#         Wiersz miesiąca z pustą komórką CPI = odczyt już opublikowany; nowcast dotyczy PIERWSZEGO wiersza z liczbą (do dnia odczytu września to wrzesień, potem październik).
+#         Strona pokazuje tylko wartość z dziś, więc historię (ostatnie NC_OKNO dni, po jednym punkcie na dzień aktualizacji) dopisujemy sami z poprzedniego pliku. Przy pierwszym przebiegu
+#         i gdy brakuje ostatniego odczytu miesiąca, JEDNORAZOWO (najwyżej raz na NC_JSON_PAUZA min) pobieramy plik wykresów miesięcznych (~7,6 MB, ten sam, który czyta wykres na stronie
+#         źródła): z niego historia dziennych szacunków i ostatni odczyt urzędowy (m/m po wyrównaniu sezonowym) razem z ostatnim szacunkiem przed odczytem — „oczekiwanie kontra wynik”.
+# Czas: daty w pliku to dni (RRRR-MM-DD) z samych źródeł (bez godzin i stref; godzina publikacji nie jest potrzebna); pobranie części — part_at (UTC). Zakresy wartości i układ źródła pilnują bramki
+# (zmieniony układ = błąd części i alarm, nie pusta karta). To szacunki modeli, nie wyniki ani porada inwestycyjna.
+import html as _nc_html
+
+NC_URL_PKB = 'https://www.atlantafed.org/rss/GDPNow'
+NC_URL_CPI = 'https://www.clevelandfed.org/indicators-and-data/inflation-nowcasting'
+NC_URL_CPI_JSON = 'https://www.clevelandfed.org/-/media/files/webcharts/inflationnowcasting/nowcast_month.json'
+NC_PARTS = ('pkb', 'cpi')
+NC_LABEL = {'pkb': 'PKB', 'cpi': 'CPI'}
+NC_PX = 'Nowcasty'
+NC_EVERY = 3 * 60                # min — szacunki zmieniają się kilka razy w miesiącu (PKB) albo raz na dzień roboczy (CPI); część z błędem: ponowienie po NIEPELNY_MIN (fresh_pelny)
+NC_TIMEOUT = 25                  # s — jedno zapytanie
+NC_TIMEOUT_JSON = 75             # s — plik wykresów (~7,6 MB)
+NC_MAX_B = 1_500_000             # B — większa odpowiedź to nie ta strona ani ten kanał
+NC_MAX_JSON = 16_000_000         # B — plik wykresów miesięcznych (dziś 7,6 MB, rośnie o ~50 KB na miesiąc)
+NC_OKNO = 70                     # dni historii w pliku (strona pokazuje 60)
+NC_OKNO_STRONY = 60
+NC_HIST_MIN = 20                 # dni z szacunkiem w ostatnich 60 dniach; mniej = historia z pliku wykresów
+NC_JSON_PAUZA = 12 * 60          # min — najwyżej jedna próba pobrania pliku wykresów na 12 h (udana albo nie)
+NC_WIEK_MAX = 90                 # dni — najnowszy szacunek starszy niż to = źródło martwe (błąd części)
+NC_MIES = {m: i for i, m in enumerate(('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'), 1)}
+NC_KW = {'first': 1, 'second': 2, 'third': 3, 'fourth': 4}
+NC_SRC = ('CapitalFlowAI — szacunki na bieżąco (nowcasty) realnego PKB i inflacji CPI USA z publicznych kanałów banków Rezerwy Federalnej; daty szacunków z samych źródeł, '
+          'pobranie części w part_at (UTC); szacunek modelu, nie oficjalny wynik')
+NC_LICZBA = r'[-−]?\d+(?:\.\d+)?'
+NC_RE_PKB = re.compile(
+    r'real\s+GDP\s+growth\s*\(seasonally\s+adjusted\s+annual\s+rate\)\s+in\s+the\s+(first|second|third|fourth)\s+quarter\s+of\s+(\d{4})\s+is\s+(' + NC_LICZBA + r')\s+percent\s*on\s+'
+    r'([A-Z][a-z]+)\s+(\d{1,2})(?:,\s+(?:(?:up|down)\s+from\s+(' + NC_LICZBA + r')\s+percent\s*on|unchanged\s+from)\s+([A-Z][a-z]+)\s+(\d{1,2}))?')
+NC_RE_NEXT = re.compile(r'next\s+GDPNow\s+update\s+is\s+(?:[A-Z][a-z]+day,?\s+)?([A-Z][a-z]+)\s+(\d{1,2})')
+
+
+def nc_http(url, max_b=NC_MAX_B, timeout=NC_TIMEOUT):
+    """Jedno zapytanie GET → treść w bajtach. Odpowiedź większa niż max_b, pusta albo kod inny niż 2xx = wyjątek (urllib zgłasza HTTPError dla 4xx/5xx). Bez obchodzenia blokad."""
+    with _otworz(url, {'Accept': '*/*'}, timeout) as r:
+        body = r.read(max_b + 1)
+    if len(body) > max_b:
+        raise ValueError('odpowiedź większa niż oczekiwana')
+    if not body.strip():
+        raise ValueError('pusta odpowiedź')
+    return body
+
+
+def nc_liczba(s):
+    """Tekst liczby (także z minusem typograficznym) → float; pusty → None; inny → ValueError."""
+    s = str(s).strip().replace('−', '-')
+    if not s:
+        return None
+    if not re.fullmatch(r'-?\d+(?:\.\d+)?', s):
+        raise ValueError(f'zła liczba {s[:20]!r}')
+    return float(s)
+
+
+def nc_mies(nazwa):
+    """Nazwa miesiąca angielska (pełna albo trzy litery) → numer 1–12; inna = ValueError."""
+    n = str(nazwa)
+    m = NC_MIES.get(n) or (next((v for k, v in NC_MIES.items() if k[:3] == n), None) if len(n) == 3 else None)
+    if not m:
+        raise ValueError(f'zły miesiąc {n[:12]!r}')
+    return m
+
+
+def nc_dzien(mies, dzien, ref):
+    """Miesiąc i dzień bez roku → data: rok z `ref` albo poprzedni (przełom roku), nie później niż 3 dni po `ref`."""
+    m = nc_mies(mies)
+    for y in (ref.year, ref.year - 1):
+        try:
+            c = datetime.date(y, m, int(dzien))
+        except ValueError:
+            continue
+        if c <= ref + datetime.timedelta(days=3):
+            return c
+    raise ValueError('zła data szacunku')
+
+
+def nc_okno(hist, dzis, dni=NC_OKNO):
+    """Poprawne wiersze historii [dzień, liczba, okres] z ostatnich `dni` dni, rosnąco, bez dubli dnia (ostatni wygrywa); zepsute wiersze pomijane."""
+    by = {}
+    for r in hist if isinstance(hist, list) else []:
+        if (isinstance(r, list) and len(r) == 3 and isinstance(r[0], str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', r[0]) and isinstance(r[1], (int, float)) and not isinstance(r[1], bool)
+                and math.isfinite(r[1]) and isinstance(r[2], str) and re.fullmatch(r'\d{4}-(?:Q[1-4]|\d{2})', r[2])):
+            by[r[0]] = [r[0], r[1], r[2]]
+    od = (dzis - datetime.timedelta(days=dni)).isoformat()
+    return [by[d] for d in sorted(by) if d >= od]
+
+
+def nc_scal(stare, nowe, dzis):
+    """Historia = poprzednia + nowe punkty (nowy punkt tego samego dnia zastępuje stary), okno NC_OKNO dni."""
+    return nc_okno(list(nc_okno(stare, dzis)) + list(nowe), dzis)
+
+
+def nc_pkb(tekst, dzis):
+    """Kanał RSS → {q, v, date, prev_v, prev_date, next, hist}; q = „RRRR-Qn”. Bramki: co najmniej 3 wpisy z rozpoznanym opisem i co najmniej połowa wszystkich, wartość −30…30,
+    najnowszy szacunek nie starszy niż NC_WIEK_MAX dni. Wpisy tego samego dnia: pierwszy w kanale (najnowszy)."""
+    wpisy = re.findall(r'<item>(.*?)</item>', tekst, re.S)
+    if len(wpisy) < 3:
+        raise ValueError(f'kanał ma {len(wpisy)} wpisów (co najmniej 3) — zmieniony układ źródła?')
+    pts, rozp = [], 0
+    for w in wpisy:
+        pub = re.search(r'<pubDate>[^<]*?(\d{1,2})\s+([A-Z][a-z]{2})\s+(\d{4})', w)
+        op = re.search(r'<description>(.*?)</description>', w, re.S)
+        if not pub or not op:
+            continue
+        try:
+            ref = datetime.date(int(pub.group(3)), nc_mies(pub.group(2)), int(pub.group(1)))
+        except ValueError:
+            continue
+        txt = re.sub(r'\s+', ' ', _nc_html.unescape(re.sub(r'<!\[CDATA\[|\]\]>|<[^>]+>', ' ', op.group(1)))).strip()
+        m = NC_RE_PKB.search(txt)
+        if not m:
+            continue
+        v = nc_liczba(m.group(3))
+        if v is None or not -30 <= v <= 30:
+            raise ValueError(f'szacunek PKB poza zakresem: {v}')
+        d = nc_dzien(m.group(4), m.group(5), ref)
+        pv = pd = None
+        if m.group(7):
+            pd = nc_dzien(m.group(7), m.group(8), d)
+            pv = nc_liczba(m.group(6)) if m.group(6) else v   # „unchanged from … after rounding” = ta sama liczba
+        nx = NC_RE_NEXT.search(txt)
+        nd = None
+        if nx:
+            try:
+                nm = nc_mies(nx.group(1))
+                nd = datetime.date(d.year, nm, int(nx.group(2)))
+                if nd < d:
+                    nd = datetime.date(d.year + 1, nm, int(nx.group(2)))
+            except ValueError:
+                nd = None
+        pts.append({'d': d, 'v': v, 'q': f'{m.group(2)}-Q{NC_KW[m.group(1).lower()]}', 'pv': pv, 'pd': pd, 'nx': nd})
+        rozp += 1
+    if rozp < 3 or rozp * 2 < len(wpisy):
+        raise ValueError(f'rozpoznano {rozp} z {len(wpisy)} wpisów — zmieniony układ źródła?')
+    uniq = {}
+    for p in pts:
+        uniq.setdefault(p['d'], p)   # kanał jest od najnowszego: pierwszy wpis dnia
+    ost = uniq[max(uniq)]
+    if (dzis - ost['d']).days > NC_WIEK_MAX:
+        raise ValueError(f'najnowszy szacunek z {ost["d"]} — kanał nieaktualny')
+    pv, pd = ost['pv'], ost['pd']
+    if pv is None:   # wpis bez zdania „from …”: poprzedni = drugi najnowszy dzień
+        poprz = [uniq[d] for d in sorted(uniq) if d < ost['d']]
+        if poprz:
+            pv, pd = poprz[-1]['v'], poprz[-1]['d']
+    return {'q': ost['q'], 'v': ost['v'], 'date': ost['d'].isoformat(), 'prev_v': pv, 'prev_date': pd.isoformat() if pd else None,
+            'next': ost['nx'].isoformat() if ost['nx'] else None,
+            'hist': [[p['d'].isoformat(), p['v'], p['q']] for p in sorted(uniq.values(), key=lambda x: x['d'])]}
+
+
+def nc_tabela(tekst, podpis):
+    """Tabela strony nowcastu inflacji o podanym podpisie → wiersze [miesiąc, CPI, CPI bazowa, PCE, PCE bazowa, Updated] (teksty). Zmieniony nagłówek kolumn = wyjątek."""
+    m = re.search(r'<caption>\s*' + re.escape(podpis) + r'\s*</caption>(.*?)</table>', tekst, re.S)
+    if not m:
+        raise ValueError(f'brak tabeli „{podpis}” — zmieniony układ źródła?')
+    kol = [re.sub(r'\s+', ' ', _nc_html.unescape(re.sub(r'<[^>]+>', '', x))).strip() for x in re.findall(r'<th[^>]*>(.*?)</th>', m.group(1), re.S)]
+    if kol[1:6] != ['CPI', 'Core CPI', 'PCE', 'Core PCE', 'Updated'] or len(kol) != 6:
+        raise ValueError(f'tabela „{podpis}”: inne kolumny ({kol[:7]})')
+    tb = re.search(r'<tbody>(.*?)</tbody>', m.group(1), re.S)
+    out = []
+    for tr in re.findall(r'<tr[^>]*>(.*?)</tr>', tb.group(1) if tb else '', re.S):
+        c = [re.sub(r'\s+', ' ', _nc_html.unescape(re.sub(r'<[^>]+>', '', x))).strip() for x in re.findall(r'<td[^>]*>(.*?)</td>', tr, re.S)]
+        if len(c) == 6:
+            out.append(c)
+    return out
+
+
+def nc_miesiac(s):
+    """„October 2026” → „2026-10” (ValueError dla innego tekstu)."""
+    m = re.fullmatch(r'([A-Z][a-z]+) (\d{4})', s.strip())
+    if not m or m.group(1) not in NC_MIES:
+        raise ValueError(f'zły miesiąc {s[:20]!r}')
+    return f'{m.group(2)}-{NC_MIES[m.group(1)]:02d}'
+
+
+def nc_mmdd(s, dzis):
+    """„10/14” → data: rok dzisiejszy albo poprzedni (nie później niż 2 dni po dzisiaj)."""
+    m = re.fullmatch(r'(\d{1,2})/(\d{1,2})', s.strip())
+    if not m:
+        raise ValueError(f'zła data aktualizacji {s[:12]!r}')
+    for y in (dzis.year, dzis.year - 1):
+        try:
+            c = datetime.date(y, int(m.group(1)), int(m.group(2)))
+        except ValueError:
+            continue
+        if c <= dzis + datetime.timedelta(days=2):
+            return c
+    raise ValueError('zła data aktualizacji')
+
+
+def nc_cpi_html(tekst, dzis):
+    """Strona nowcastu inflacji → {m, mm, yy, core_mm, core_yy, date}: PIERWSZY miesiąc (rosnąco), którego komórka CPI ma liczbę (pusta = odczyt opublikowany). Bramki: tabele m/m i r/r,
+    zakresy (m/m −3…3, r/r −5…30), data aktualizacji; brak r/r dla miesiąca = yy None (to nie błąd części, ale kontrola zgłasza uwagę)."""
+    mm_t = nc_tabela(tekst, 'Inflation, month-over-month percent change')
+    yy_t = nc_tabela(tekst, 'Inflation, year-over-year percent change')
+    czek = sorted((nc_miesiac(r[0]), r) for r in mm_t if nc_liczba(r[1]) is not None)
+    if not czek:
+        raise ValueError('żaden miesiąc nie ma szacunku CPI — zmieniony układ źródła?')
+    m, r = czek[0]
+    mm, core_mm = nc_liczba(r[1]), nc_liczba(r[2])
+    if not -3 <= mm <= 3 or (core_mm is not None and not -3 <= core_mm <= 3):
+        raise ValueError(f'szacunek CPI m/m poza zakresem: {mm}')
+    ry = next((x for x in yy_t if nc_miesiac(x[0]) == m), None)
+    yy = nc_liczba(ry[1]) if ry else None
+    core_yy = nc_liczba(ry[2]) if ry else None
+    for v in (yy, core_yy):
+        if v is not None and not -5 <= v <= 30:
+            raise ValueError(f'szacunek CPI r/r poza zakresem: {v}')
+    d = nc_mmdd(r[5], dzis)
+    return {'m': m, 'mm': round(mm, 2), 'yy': None if yy is None else round(yy, 2), 'core_mm': None if core_mm is None else round(core_mm, 2),
+            'core_yy': None if core_yy is None else round(core_yy, 2), 'date': d.isoformat()}
+
+
+def nc_json(j, dzis):
+    """Plik wykresów miesięcznych → (punkty historii [dzień, m/m, miesiąc], ostatni odczyt urzędowy albo None). Dla każdego dnia punkt z PIERWSZEGO miesiąca (rosnąco), który ma tego dnia szacunek —
+    ta sama reguła co na stronie (do odczytu września dzienny szacunek dotyczy września). Ostatni odczyt: najnowszy wykres z niepustą serią odczytu → {m, mm, core_mm, nc (ostatni szacunek
+    przed odczytem), date}. Układ inny niż oczekiwany albo plik bez bieżącego miesiąca = wyjątek."""
+    if not isinstance(j, list) or len(j) < 12:
+        raise ValueError('plik wykresów: za mało miesięcy')
+    ser, akt, ost_m = {}, None, None
+    for c in j[-6:]:
+        ch = c.get('chart') if isinstance(c, dict) else None
+        sub = re.fullmatch(r'(\d{4})-(\d{1,2})', str((ch or {}).get('subcaption') or ''))
+        if not sub:
+            raise ValueError('plik wykresów: brak miesiąca wykresu')
+        y, mo = int(sub.group(1)), int(sub.group(2))
+        lab = [str(x.get('label')) for x in c['categories'][0]['category'] if isinstance(x, dict) and re.fullmatch(r'\d\d/\d\d', str(x.get('label')))]
+        ds = {d['seriesname']: [x.get('value') for x in d['data']] for d in c['dataset'] if isinstance(d, dict)}
+        sz, od, ob = ds.get('CPI Inflation'), ds.get('Actual CPI Inflation'), ds.get('Actual Core CPI Inflation')
+        if sz is None or od is None or len(sz) != len(lab) or len(od) != len(lab):
+            raise ValueError('plik wykresów: układ serii inny niż oczekiwany')
+        dni = [datetime.date(y if int(l[:2]) >= mo else y + 1, int(l[:2]), int(l[3:])) for l in lab]
+        pts = {d: round(float(v), 2) for d, v in zip(dni, sz) if v not in ('', None)}
+        ser[(y, mo)] = pts
+        ost_m = (y, mo)
+        for i, v in enumerate(od):
+            if v not in ('', None):
+                prz = [pts[d] for d in sorted(pts) if d < dni[i]]
+                akt = {'m': f'{y}-{mo:02d}', 'mm': round(float(v), 2), 'core_mm': round(float(ob[i]), 2) if ob and i < len(ob) and ob[i] not in ('', None) else None,
+                       'nc': prz[-1] if prz else None, 'date': dni[i].isoformat()}
+    if ost_m is None or (dzis.year * 12 + dzis.month) - (ost_m[0] * 12 + ost_m[1]) > 2:
+        raise ValueError('plik wykresów nieaktualny')
+    wyb = {}
+    for (y, mo) in sorted(ser):
+        for d, v in ser[(y, mo)].items():
+            wyb.setdefault(d, (v, f'{y}-{mo:02d}'))
+    return [[d.isoformat(), v, m] for d, (v, m) in sorted(wyb.items())], akt
+
+
+def nc_akt_ok(a):
+    return (isinstance(a, dict) and isinstance(a.get('m'), str) and re.fullmatch(r'\d{4}-\d{2}', a['m']) and isinstance(a.get('mm'), (int, float)) and not isinstance(a.get('mm'), bool)
+            and isinstance(a.get('date'), str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', a['date']))
+
+
+def nc_poprz(hist, v, okres, dzien, dec=2):
+    """Poprzedni RÓŻNY szacunek tego samego okresu przed dniem `dzien` → (wartość, dzień ostatniego notowania starej wartości); brak = (None, None)."""
+    for d, x, o in reversed(hist):
+        if d < dzien and o == okres and round(x, dec) != round(v, dec):
+            return x, d
+    return None, None
+
+
+def nc_miesiac_przed(m):
+    y, mo = int(m[:4]), int(m[5:7])
+    return f'{y - (mo == 1)}-{(mo - 2) % 12 + 1:02d}'
+
+
+def nc_czesc(k, prev, dzis):
+    """Jedna część pliku → słownik części (pkb albo cpi) z historią scaloną z poprzednim plikiem. Błąd = wyjątek (część zostaje z poprzedniego pliku)."""
+    pp = prev if isinstance(prev, dict) else {}
+    if k == 'pkb':
+        c = nc_pkb(nc_http(NC_URL_PKB).decode('utf-8', 'replace'), dzis)
+        c['hist'] = nc_scal(pp.get('hist'), c['hist'], dzis)
+        return c
+    c = nc_cpi_html(nc_http(NC_URL_CPI).decode('utf-8', 'replace'), dzis)
+    hist = nc_okno(pp.get('hist'), dzis)
+    akt = pp.get('akt') if nc_akt_ok(pp.get('akt')) else None
+    proba = pp.get('json_try') if isinstance(pp.get('json_try'), str) else None
+    blad = None
+    n60 = len({r[0] for r in hist if r[0] >= (dzis - datetime.timedelta(days=NC_OKNO_STRONY)).isoformat()})
+    trzeba = n60 < NC_HIST_MIN or not akt or akt['m'] != nc_miesiac_przed(c['m'])
+    t_pr = _ix_dt(proba)
+    if trzeba and (t_pr is None or (_ix_dt(NOW) - t_pr).total_seconds() >= NC_JSON_PAUZA * 60):
+        proba = NOW
+        try:
+            pts, a = nc_json(json.loads(nc_http(NC_URL_CPI_JSON, NC_MAX_JSON, NC_TIMEOUT_JSON).decode('utf-8-sig')), dzis)
+            hist = nc_scal(hist, pts, dzis)
+            if a:
+                akt = a
+        except Exception as e:  # noqa — historia i ostatni odczyt są dodatkiem: błąd nie psuje bieżącego szacunku, ślad w polu json_err
+            blad = mask(f'{e}')[:120]
+    elif trzeba:
+        blad = pp.get('json_err') if isinstance(pp.get('json_err'), str) else None   # pauza między próbami: poprzedni błąd zostaje widoczny
+    hist = nc_scal(hist, [[c['date'], c['mm'], c['m']]], dzis)
+    pv, pd = nc_poprz(hist, c['mm'], c['m'], c['date'])
+    c.update({'prev_mm': pv, 'prev_date': pd, 'hist': hist, 'akt': akt, 'json_try': proba, 'json_err': blad})
+    return c
+
+
+def build_nowcasty(prev=None, run_t0=None):
+    """Plik data/nowcasty.json (v376): dwie części (pkb, cpi) z własnym ok / part_at / errs; część z błędem zostaje z poprzedniego pliku z własną chwilą, nigdy pusta zamiast
+    ostatniego szacunku; żadna część nie odpowiedziała = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == 1 else {}
+    pat = _dict(prev.get('part_at'))
+    dzis = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc).date()
+    out = {'v': 1, 'at': NOW, 'src': NC_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    for k in NC_PARTS:
+        try:
+            out[k] = nc_czesc(k, prev.get(k), dzis)
+            out['ok'][k] = True; out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część z błędem: poprzedni szacunek z własną chwilą
+            msg = mask(f'{e}')[:160]
+            META['errors'].append(mask(f'{NC_PX} {NC_LABEL[k]}: {msg}')[:220]); out['ok'][k] = False; out['errs'][k] = msg
+            if isinstance(prev.get(k), dict):
+                out[k] = prev[k]
+                out['part_at'][k] = pat.get(k) or prev.get('at')
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+ZRODLA_META.update({'nowcasty_pkb': 'fed-atlanta', 'nowcasty_cpi': 'fed-cleveland'})   # v376: dwa nowe źródła (kanał szacunku PKB i strona szacunku inflacji) — liczba źródeł rośnie o 2
 
 
 if __name__ == '__main__':

@@ -9792,7 +9792,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {/* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {/* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
 /* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
@@ -27676,4 +27676,176 @@ test('v375 (F9Z1): kalendarz 2 — słownik 10 języków pełny, tabela kodów i
   }
   const KJ = kal375.mk('ja', kal375.files(kal375.J2()), {open: true}); assert.ok(KJ.html().includes('イングランド銀行の政策金利決定') && KJ.html().includes('日本銀行の政策金利決定'));
   const KD = kal375.mk('de', kal375.files(kal375.J2()), {open: true}); assert.ok(KD.html().includes('Zinsentscheid der Bank of England') && KD.html().includes('US-Arbeitsmarktbericht'));
+});
+
+// ===================== v376 (F9Z2): szacunek na bieżąco vs ostatni odczyt w GLOBAL (data/nowcasty.json + ostatnie odczyty z usa-makro i bilans-usa) =====================
+// Fixtura: plik nowcasty.json w układzie, jaki buduje zbieracz (szacunek PKB 3,6% z 8.10.2026, szacunek inflacji z 14.10.2026, ostatni odczyt wrześniowy). Czas przypięty (Date.now), bez zegara.
+const nc376 = (() => {
+  const a0 = html.indexOf('/* ===================== v376 (F9Z2): SZACUNEK NA BIEŻĄCO'), a1 = html.indexOf('/* ---------- koniec bloku nowcastów (v376) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v376 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-15T10:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[\u00a0\u202f]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const day = (L, d) => new Date(Date.parse(d + 'T12:00:00Z')).toLocaleDateString(LOC[L] || 'pl-PL', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
+  const mon = (L, m) => new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7) - 1, 15)).toLocaleDateString(LOC[L] || 'pl-PL', {month: 'long', year: 'numeric', timeZone: 'UTC'});
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-nowcasty': el};
+    const calls = [], hnd = [], ivs = [], wl = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkLines', 'wkMs', 'wkIso', 'wkDay', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {NCZ, nczLoad, renderNcz, nczOk, nczPkb, nczCpi, nczHist, nczGdp, nczOff, nczBody, nczPrev};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, () => '', i => i, doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (Ls, o) => { wl.push({L: Ls, o}); return '<chart n=' + Ls.map(l => l.n + ':' + l.d.length).join(',') + ' aria="' + o.aria + '">'; },
+      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), ms => new Date(ms).toISOString().slice(0, 10), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, hnd, ivs, wl, mos, expand, collapse, html: () => sp(el.innerHTML)};
+  };
+  // kafle: etykieta, wartość, linie (klasa + tekst), data i wiek
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), lines: [...m[3].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const hist = (d0, v, per) => v.map((x, i) => [new Date(Date.parse(d0 + 'T12:00:00Z') + 86400000 * i).toISOString().slice(0, 10), x, typeof per === 'function' ? per(i) : per]);
+  const J = () => ({v: 1, at: '2026-10-15T09:00:00+00:00', src: 'x', ok: {pkb: true, cpi: true}, part_at: {pkb: '2026-10-15T09:00:00+00:00', cpi: '2026-10-15T09:00:00+00:00'}, errs: {},
+    pkb: {q: '2026-Q3', v: 3.6, date: '2026-10-08', prev_v: 3.7, prev_date: '2026-10-06', next: '2026-10-15', hist: hist('2026-10-01', [3.7, 3.7, 3.7, 3.7, 3.7, 3.7, 3.6, 3.6], '2026-Q3')},
+    cpi: {m: '2026-10', mm: 0.28, yy: 3.78, core_mm: 0.21, core_yy: 2.48, date: '2026-10-14', prev_mm: 0.27, prev_date: '2026-10-13', json_try: '2026-10-15T09:00:00+00:00', json_err: null,
+      akt: {m: '2026-09', mm: 0.65, core_mm: 0.33, nc: 0.53, date: '2026-10-14'},
+      hist: hist('2026-10-01', [0.53, 0.53, 0.53, 0.53, 0.53, 0.53, 0.53, 0.53, 0.53, 0.27, 0.27, 0.28], i => (i < 9 ? '2026-09' : '2026-10'))}});
+  const OFF = {'usa-makro': {s: {cpi: {yoy: [['2026-07', 3.4], ['2026-08', 3.4], ['2026-09', 3.7]]}}}, 'bilans-usa': {gdp: [['2026-Q1', 2.5], ['2026-Q2', 2.2]]}};
+  const files = (j, meta, off) => Object.assign({meta: meta === undefined ? {ok: {nowcasty_pkb: true, nowcasty_cpi: 'cached'}} : meta, nowcasty: j === undefined ? J() : j}, off === undefined ? OFF : off);
+  return {mk, tiles, files, J, OFF, sp, txt, code, helpers, clone, LOC, day, mon, hist};
+})();
+
+test('v376 (F9Z2): nowcasty — nagłówek od razu, plik dopiero po rozwinięciu karty (razem z ostatnimi odczytami), kafle PKB i inflacji z wartością, datą i wiekiem, zmianą w kolorach kierunku, ostatnim odczytem i różnicą', () => {
+  const K = nc376.mk('pl', nc376.files());
+  assert.equal(K.els['#g-nowcasty'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Szacunek na bieżąco vs ostatni odczyt</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Szacunki zostaną wczytane po rozwinięciu panelu.') && nc376.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez plików nowcastów'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'nowcasty', 'usa-makro', 'bilans-usa'], 'po rozwinięciu: plik nowcastów i dwa pliki ostatnich odczytów, każdy raz'); h = K.html();
+  const T = nc376.tiles(h); assert.equal(T.length, 2);
+  const [p, c] = T, D = d => nc376.day('pl', d);
+  assert.equal(p.label, 'PKB USA, Q3 2026 — szacunek (w skali roku)'); assert.equal(p.val, '3,6%');
+  assert.deepEqual(p.lines, [['neg', '▼ −0,1 pp wobec szacunku z ' + D('2026-10-06')], ['pc', 'Ostatni odczyt: Q2 2026 — 2,2%'], ['pos', '▲ +1,4 pp wobec ostatniego odczytu']]);
+  assert.equal(p.when, D('2026-10-08') + ' · wiek(2026-10-08) · następna aktualizacja ' + D('2026-10-15'), 'data szacunku, wiek i zapowiedź następnej aktualizacji (dziś = dzień zapowiedzi)');
+  assert.equal(c.label, 'Inflacja CPI USA, ' + nc376.mon('pl', '2026-10') + ' — szacunek (m/m)'); assert.equal(c.val, '0,28%');
+  assert.deepEqual(c.lines, [['pos', '▲ +0,01 pp wobec szacunku z ' + D('2026-10-13')], ['pc', 'W skali roku: 3,78% · bazowa: 2,48%'], ['pc', 'Ostatni odczyt: ' + nc376.mon('pl', '2026-09') + ' — 0,65% m/m, 3,7% r/r'],
+    ['pos', '▲ +0,1 pp wobec ostatniego odczytu'], ['pc', 'Poprzednio: szacunek 0,53%, odczyt 0,65% (' + nc376.mon('pl', '2026-09') + ')']], 'oczekiwanie kontra wynik: szacunek przed odczytem a odczyt');
+  assert.equal(c.when, D('2026-10-14') + ' · wiek(2026-10-14)');
+  assert.ok(h.includes('To wyniki modeli') && h.includes('PKB: zmiana kwartał do kwartału') && h.includes('Linia przerywana') && h.includes('D:2026-10-15T09:00:00+00:00'), 'trzy noty i data pliku');
+  assert.ok(h.includes('Nie są to oficjalne liczby ani porada inwestycyjna'), 'zastrzeżenie: szacunek modelu, nie porada');
+  assert.equal(K.calls.filter(x => x === 'nowcasty').length, 1); K.expand(); assert.equal(K.calls.filter(x => x === 'nowcasty').length, 1, 'ponowne rozwinięcie w ciągu 10 min bez nowego pobrania');
+  // kolory kierunku „wg tego co widać”: wzrost zielony (pos), spadek czerwony (neg), brak zmiany żółty (neu)
+  const J0 = nc376.J(); J0.pkb.v = 3.7; J0.cpi.mm = 0.27;
+  const T0 = nc376.tiles((() => { const K0 = nc376.mk('pl', nc376.files(J0)); K0.expand(); return K0.html(); })());
+  assert.deepEqual(T0[0].lines[0], ['neu', '• 0,0 pp wobec szacunku z ' + D('2026-10-06')], 'bez zmiany — żółty punkt'); assert.equal(T0[1].lines[0][0], 'neu');
+});
+
+test('v376 (F9Z2): nowcasty — wykresy 60 dni z linią ostatniego odczytu, przerwa przy zmianie okresu, brak ostatnich odczytów i brak części = „—”, nigdy zero', () => {
+  const K = nc376.mk('pl', nc376.files()); K.expand();
+  assert.equal(K.wl.length, 2, 'dwa wykresy'); const [wp, wc] = K.wl;
+  assert.deepEqual(wp.L.map(l => [l.n, l.cls, l.d.length]), [['Szacunek', 'ncz1', 8], ['Ostatni odczyt', 'ncz2', 8]]); assert.ok(wp.L[1].d.every(r => r[1] === 2.2), 'linia przerywana = ostatni odczyt PKB (2,2) na całej osi');
+  assert.ok(wp.o.aria.includes('Wykres „PKB: szacunek w ostatnich 60 dniach”') && wp.o.aria.includes('punktów: 8') && wp.o.zero === false);
+  assert.equal(wp.o.fmt(3.65), '3,7%'); assert.equal(wp.o.fmt(-0.4), '−0,4%');
+  // inflacja: dziennie, zmiana miesiąca szacunku (wrzesień → październik) = przerwa (punkt bez liczby), linia przerywana = odczyt miesiąca (0,65)
+  assert.deepEqual(wc.L.map(l => [l.n, l.d.length]), [['Szacunek', 13], ['Ostatni odczyt', 12]], 'jeden dodatkowy punkt-przerwa w serii szacunku'); assert.equal(wc.L[0].d.filter(r => r[1] === null).length, 1);
+  assert.ok(wc.L[1].d.every(r => r[1] === 0.65)); assert.ok(K.html().includes('Przerwa w linii oznacza zmianę okresu'), 'wyjaśnienie przerwy');
+  assert.equal(K.html().includes('Przerwa w linii'), true);
+  const K1 = nc376.mk('pl', nc376.files(undefined, undefined, {})); K1.expand();   // brak plików ostatnich odczytów
+  const t1 = nc376.tiles(K1.html()); assert.ok(t1[0].lines.some(l => l[1] === 'Ostatni odczyt: —') && t1[1].lines.some(l => l[1] === 'Ostatni odczyt: —'), 'brak odczytu = „—”');
+  assert.ok(!t1[0].lines.some(l => /wobec ostatniego odczytu/.test(l[1])) && !t1[1].lines.some(l => /wobec ostatniego odczytu/.test(l[1])), 'bez odczytu nie liczymy różnicy'); assert.ok(!/NaN|undefined|Infinity/.test(K1.html()));
+  assert.equal(K1.wl[0].L.length, 1, 'bez odczytu wykres bez linii przerywanej');
+  // brak ostatniego odczytu urzędowego miesiąca w pliku (akt) — bez wiersza „poprzednio” i bez linii przerywanej inflacji
+  const J2 = nc376.J(); J2.cpi.akt = null; const K2 = nc376.mk('pl', nc376.files(J2)); K2.expand();
+  const t2 = nc376.tiles(K2.html()); assert.deepEqual(t2[1].lines.map(l => l[0]), ['pos', 'pc', 'pc', 'pos']); assert.ok(t2[1].lines[2][1].endsWith('3,7% r/r') && !t2[1].lines[2][1].includes('m/m')); assert.equal(K2.wl[1].L.length, 1);
+  // zła wartość odczytu w akt / inny miesiąc niż poprzedni → pomijany
+  const J3 = nc376.J(); J3.cpi.akt.m = '2026-07'; const K3 = nc376.mk('pl', nc376.files(J3)); K3.expand(); assert.equal(K3.wl[1].L.length, 1); assert.ok(!nc376.tiles(K3.html())[1].lines.some(l => l[1].startsWith('Poprzednio')));
+  // historia za krótka: komunikat zamiast wykresu
+  const J4 = nc376.J(); J4.cpi.hist = J4.cpi.hist.slice(-1); const K4 = nc376.mk('pl', nc376.files(J4)); K4.expand();
+  assert.equal(K4.wl.length, 1); assert.ok(K4.html().includes('Historia szacunków dopiero się zbiera'));
+  // okno 60 dni liczone od ostatniego punktu; zepsute wiersze pomijane
+  const A = nc376.mk('pl', nc376.files()).api, Pz = {hist: nc376.hist('2026-06-01', Array.from({length: 120}, (_, i) => i / 10), '2026-Q2').concat([['zły', 1, '2026-Q2'], ['2026-10-02', 'x', '2026-Q3'], ['2026-10-03', 1, 'inny']])};
+  const r = A.nczHist(Pz, /^\d{4}-Q[1-4]$/); assert.equal(r.length, 61); assert.equal(r[r.length - 1][0], '2026-09-28'); assert.equal(r[0][0], '2026-07-30');
+  // brak poprzedniego szacunku tego okresu (dzień zmiany miesiąca): wiersz zmiany z „—” i wyjaśnieniem, nie zero
+  const J9 = nc376.J(); J9.cpi.prev_mm = null; J9.cpi.prev_date = null; J9.pkb.prev_v = null; const t9 = nc376.tiles((() => { const K9 = nc376.mk('pl', nc376.files(J9)); K9.expand(); return K9.html(); })());
+  assert.deepEqual(t9[1].lines[0], ['na', 'Zmiana: — (brak poprzedniego szacunku tego okresu)']); assert.deepEqual(t9[0].lines[0], ['na', 'Zmiana: — (brak poprzedniego szacunku tego okresu)']);
+  // miesiąc ostatniego odczytu = miesiąc szacunku (odczyt już jest): bez różnicy r/r i bez linii „poprzednio”; zapowiedź aktualizacji z przeszłości nie jest pokazywana
+  const J8 = nc376.J(), O8 = nc376.clone(nc376.OFF); O8['usa-makro'].s.cpi.yoy.push(['2026-10', 3.8]); J8.pkb.next = '2026-10-10';
+  const K8 = nc376.mk('pl', nc376.files(J8, undefined, O8)); K8.expand(); const t8 = nc376.tiles(K8.html());
+  assert.ok(!t8[1].lines.some(l => /wobec ostatniego odczytu/.test(l[1])) && !t8[1].lines.some(l => l[1].startsWith('Poprzednio')), 'odczyt tego samego miesiąca co szacunek: brak różnicy r/r'); assert.ok(!/następna aktualizacja/.test(t8[0].when), 'zapowiedź z przeszłości pominięta');
+  // ostatni odczyt oficjalny sprzed dwóch miesięcy (w pliku brak odczytu wrześniowego): wiersz „poprzednio” i m/m tylko dla miesiąca bezpośrednio przed miesiącem szacunku
+  const O10 = nc376.clone(nc376.OFF); O10['usa-makro'].s.cpi.yoy = [['2026-07', 3.4], ['2026-08', 3.5]]; const J10 = nc376.J(); J10.cpi.akt.m = '2026-08';
+  const t10 = nc376.tiles((() => { const K10 = nc376.mk('pl', nc376.files(J10, undefined, O10)); K10.expand(); return K10.html(); })())[1];
+  assert.ok(!t10.lines.some(l => l[1].startsWith('Poprzednio')) && !t10.lines.some(l => /m\/m, /.test(l[1])), 'odczyt m/m tylko dla miesiąca bezpośrednio przed szacunkiem');
+  // zły okres szacunku w pliku = brak części (null), nie liczba z błędnym opisem
+  const J11 = nc376.J(); J11.pkb.q = '2026-3'; assert.equal(nc376.mk('pl', nc376.files(J11)).api.nczPkb(J11), null);
+  // część pliku uszkodzona = „—” (brak), druga działa; plik bez żadnej poprawnej części = błąd wczytania
+  const J5 = nc376.J(); J5.pkb.v = 'x'; const t5 = nc376.tiles((() => { const K5 = nc376.mk('pl', nc376.files(J5)); K5.expand(); return K5.html(); })());
+  assert.equal(t5[0].val, '—'); assert.deepEqual(t5[0].lines, [['na', 'brak danych']]); assert.equal(t5[1].val, '0,28%');
+  const J6 = nc376.J(); J6.pkb.v = 'x'; J6.cpi.mm = null; const K6 = nc376.mk('pl', nc376.files(J6)); K6.expand(); assert.ok(K6.html().includes('Nie udało się wczytać szacunków.') && nc376.tiles(K6.html()).length === 0);
+  const J7 = nc376.J(); J7.ok.pkb = false; const K7 = nc376.mk('pl', nc376.files(J7)); K7.expand(); assert.ok(K7.html().includes('Ostatnie pobranie nieudane (PKB)') && K7.html().includes('class="pnote neu"'));
+});
+
+test('v376 (F9Z2): nowcasty — karta ukryta bez wpisu w meta, błąd pobrania bez pętli, odświeżanie co 30 min, zmiana języka, 10 języków bez surowych kluczy i NaN', () => {
+  const KM = nc376.mk('pl', nc376.files(undefined, {ok: {kalendarz_bc_us: true}})); assert.equal(KM.els['#g-nowcasty'].hidden, true, 'meta bez części nowcastów — panel ukryty'); assert.equal(KM.els['#g-nowcasty'].innerHTML, '');
+  const KN = nc376.mk('pl', nc376.files(undefined, null)); assert.equal(KN.els['#g-nowcasty'].hidden, true, 'brak meta — panel ukryty');
+  const KP = nc376.mk('pl', nc376.files(undefined, {ok: {nowcasty_cpi: false}})); assert.equal(KP.els['#g-nowcasty'].hidden, false, 'wystarczy jedna część w meta');
+  // brak pliku po rozwinięciu: komunikat błędu, ponowna próba najwcześniej po minucie
+  const KE = nc376.mk('pl', nc376.files(null)); KE.expand(); assert.ok(KE.html().includes('Nie udało się wczytać szacunków.')); const n1 = KE.calls.filter(c => c === 'nowcasty').length; KE.expand(); KE.expand();
+  assert.equal(KE.calls.filter(c => c === 'nowcasty').length, n1, 'bez pętli zapytań po błędzie');
+  assert.ok(!KE.calls.includes('usa-makro'), 'ostatnie odczyty tylko po poprawnym pliku nowcastów');
+  // odświeżanie zegarem co 30 min przy rozwiniętej karcie
+  const KZ = nc376.mk('pl', nc376.files(), {open: true}); const iv = KZ.ivs.find(x => x[1] === 30 * 60 * 1000); assert.ok(iv, 'zegar 30 min'); const c0 = KZ.calls.filter(c => c === 'nowcasty').length; iv[0]();
+  assert.equal(KZ.calls.filter(c => c === 'nowcasty').length, c0 + 1, 'odświeżenie wymuszone zegarem'); KZ.collapse(); const c1 = KZ.calls.filter(c => c === 'nowcasty').length; iv[0](); assert.equal(KZ.calls.filter(c => c === 'nowcasty').length, c1, 'zwinięta karta nie odświeża');
+  // 10 języków: liczby w lokalnym formacie, żadnych surowych kluczy ani NaN
+  const LANGS = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  for (const L of LANGS) {
+    const K = nc376.mk(L, nc376.files()); K.expand(); const hh = K.html();
+    assert.ok(!/nc376\.|NaN|undefined|Infinity|\{[a-z]+\}/.test(hh), L + ': blok bez surowych kluczy, NaN i niepodstawionych pól'); assert.equal(nc376.tiles(hh).length, 2, L);
+  }
+  assert.equal(nc376.tiles((() => { const K = nc376.mk('en', nc376.files()); K.expand(); return K.html(); })())[0].val, '3.6%', 'en: kropka');
+  assert.equal(nc376.tiles((() => { const K = nc376.mk('de', nc376.files()); K.expand(); return K.html(); })())[1].val, '0,28%', 'de: przecinek');
+  assert.ok(nc376.tiles((() => { const K = nc376.mk('ja', nc376.files()); K.expand(); return K.html(); })())[0].label.startsWith('米国GDP'), 'ja: etykieta po japońsku');
+  // zmiana języka (atrybut lang) = nowe etykiety bez ponownego pobierania
+  const KL = nc376.mk('pl', nc376.files(), {open: true}); const lm = KL.mos.filter(m => m.tg !== KL.els['#g-nowcasty']); assert.ok(lm.length >= 1, 'obserwator języka'); const before = KL.calls.length; lm.forEach(m => m.cb()); assert.equal(KL.calls.length, before);
+});
+
+test('v376 (F9Z2): nowcasty — słownik w czystym JSON w 10 językach, bez nazw dostawców; karta po kalendarzu; CSS ograniczony do karty (zmienne motywu, telefon 390 px bez przewijania w bok)', () => {
+  const LANGS = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const mm = [...html.matchAll(/\/\* v376 \(F9Z2\)[^\n]*\*\/\nconst (EXTRA\d+)=(\{[^\n]*\});\n/g)]; assert.equal(mm.length, 1, 'jeden słownik v376 w jednej linii');
+  const n = mm[0][1], D = JSON.parse(mm[0][2]); assert.deepEqual(Object.keys(D), LANGS); const keys = Object.keys(D.pl); assert.ok(keys.length >= 28 && keys.every(k => k.startsWith('nc376.')));
+  for (const L of LANGS) {
+    assert.deepEqual(Object.keys(D[L]), keys, L + ': te same klucze');
+    for (const k of keys) {
+      const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(','); assert.equal(ph(D[L][k]), ph(D.pl[k]), `${L} ${k}: te same pola {x}`); assert.ok(!/[<>]/.test(D[L][k]), `${L} ${k}: bez znaczników HTML`);
+      assert.ok(D[L][k].trim().length > 0 && !/\b(Atlanta|Cleveland|GDPNow|Federal Reserve|Fed|FRB|BEA|BLS)\b/i.test(D[L][k]), `${L} ${k}: niepusty, bez nazw dostawców`);
+    }
+  }
+  assert.ok(D.pl['nc376.t'] !== D.en['nc376.t'] && D.de['nc376.t'] !== D.en['nc376.t'] && D.ja['nc376.n1'] !== D.en['nc376.n1'] && D.ru['nc376.n2'] !== D.en['nc376.n2'], 'prawdziwe tłumaczenia');
+  const used = new Set([...nc376.code.matchAll(/'(nc376\.[a-z0-9.]+)'/gi)].map(m => m[1]).filter(k => !k.endsWith('.'))); for (const p of ['pkb', 'cpi']) used.add('nc376.p.' + p); for (const k of used) assert.ok(keys.includes(k), 'klucz użyty w kodzie, brak w słowniku: ' + k);
+  for (const k of keys) assert.ok(used.has(k), 'klucz słownika nieużyty w kodzie: ' + k);
+  assert.ok(html.includes('for(const l in ' + n + ')if(I18N[l])Object.assign(I18N[l],' + n + '[l]);\n') && html.indexOf('const ' + n + '=') < html.indexOf('for(const l in ' + n + ')'), 'linia for po słowniku');
+  assert.ok(!/[\u200b-\u200f\u2060\ufeff\ufe0f\u00a0\u202f]/.test(mm[0][0]), 'znaki niewidoczne tylko jako ucieczki');
+  assert.ok(!/\b(Atlanta|Cleveland|GDPNow|clevelandfed|atlantafed)\b/i.test(nc376.code), 'w kodzie karty brak nazw dostawców');
+  // karta: po kalendarzu w GLOBAL, jedna na stronie
+  assert.ok(html.includes('<section class="panel pcard" id="g-kalendarz" hidden></section>\n    <section class="panel pcard" id="g-nowcasty" hidden></section>\n'), 'karta nowcastów zaraz po kalendarzu'); assert.equal(html.split('id="g-nowcasty"').length - 1, 1);
+  // CSS: tylko reguły karty, tylko zmienne motywu, telefon w jednej kolumnie, linia przerywana odczytu
+  const c0 = html.indexOf('/* v376 (F9Z2): szacunek na bieżąco vs ostatni odczyt (panel #g-nowcasty)'); assert.ok(c0 > 0); const css = html.slice(c0, html.indexOf('/* v372 (F9Z1): kalendarz „Najbliższe 14 dni” (panel #g-kalendarz)', c0));
+  const body = css.replace(/\/\*[\s\S]*?\*\//g, ''); const rules = [...body.replace(/@media[^{]*\{/g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]); assert.ok(rules.length >= 12);
+  assert.ok(rules.every(([sel, b]) => !/#[0-9a-fA-F]{3,8}\b/.test(b)), 'kolory tylko ze zmiennych motywu (var(--…))'); assert.ok(rules.every(([sel]) => sel.split(',').every(s => s.trim().startsWith('#g-nowcasty'))), 'wszystkie reguły ograniczone do karty');
+  assert.ok(css.includes('.ncz-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))') && css.includes('@media (max-width:620px){#g-nowcasty .ncz-g{grid-template-columns:minmax(0,1fr)}}'), 'dwie kolumny, na telefonie jedna (bez przewijania w bok)');
+  assert.ok(css.includes('.wk-l.ncz2{stroke-width:1.2;stroke-dasharray:4 3}'), 'odczyt linią przerywaną'); assert.ok(css.includes('small.neg{color:var(--rd-tx)}') && css.includes('small.pos{color:var(--gr-tx)}') && css.includes('small.neu{color:var(--yl-tx)}'), 'kolory kierunku');
+  assert.ok(css.includes('#g-nowcasty .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3}'), 'długie podpisy zawijane');
 });
