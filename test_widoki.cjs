@@ -27547,3 +27547,133 @@ test('v373: nic nie jest ujawniane — dodatkowe pola oceny w pliku nie zmieniaj
   assert.ok(html.includes('.trd-su{margin:8px 0;padding-left:18px;font-size:12.5px;line-height:1.45}'), 'styl listy bez stałych szerokości (telefon 390 px)');
 });
 
+
+// ===================== v375 (F9Z1, część 2): kalendarz 2 — inflacja i praca USA, dane Polski, decyzje banków Anglii i Japonii (data/kalendarz2.json) =====================
+// Fixtura: plik kalendarz2.json w układzie, jaki buduje zbieracz (czas w UTC, wszystkie godziny „z reguły”: g = r); plik kalendarz.json (v372) bez zmian. Czas przypięty (Date.now), bez zegara.
+const kal375 = (() => {
+  const code = kal372.code, LOC = kal372.LOC, clone = kal372.clone, sp = kal372.sp;
+  const mk = (L, files, opt) => {
+    const NOW = Date.parse((opt && opt.now) || '2026-10-28T19:30:00Z');
+    class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-kalendarz': el};
+    const calls = [], hnd = [], ivs = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'LOCALE', 'LANG', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'flagImg', 'document', 'MutationObserver', 'setInterval', 'Date',
+      "'use strict';\n" + code + '\nreturn {KALZ, kalLoad, kal2Load, kal2Ok, renderKal, kalEv, KAL_KODY, KAL2_KODY, KAL2_PARTS, KAL2_BRAK};')(
+      q => els[q] || null, T, EH, LOC, L, s => 'D:' + s, srv, n => '<glyph ' + n + '>', i => i, (a, c) => '[' + a + ']', doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    return {api, els, calls, ivs, expand, html: () => sp(el.innerHTML), el};
+  };
+  const E = (t, k, r, w, extra) => Object.assign({t, k, r, w, g: 'r'}, extra || {});
+  const J2 = () => ({v: 1, at: '2026-10-28T12:00:00+00:00', src: 'x', od: '2026-10-27', do: '2026-11-27', ok: {cpi_praca_us: true, dane_pl: true, bc_uk: true, bc_jp: true}, part_at: {}, errs: {}, n: {},
+    brak: ['pl_bank', 'pl_szybki'],
+    e: {cpi_praca_us: [E('2026-11-06T13:30Z', 'us_praca', 'us', 3), E('2026-11-10T13:30Z', 'us_cpi', 'us', 3)],
+        dane_pl: [E('2026-10-30T09:00Z', 'pl_prod', 'pl', 1, {p: '2026-09'}), E('2026-11-09T09:00Z', 'pl_cpi', 'pl', 2, {p: '2026-10'}), E('2026-11-30T09:00Z', 'pl_pkb', 'pl', 2, {p: '2026-Q3'})],
+        bc_uk: [E('2026-11-05T12:00Z', 'uk_stopy', 'gb', 3)], bc_jp: [E('2026-10-30T03:00Z', 'jp_stopy', 'jp', 3)]}});
+  const files = (j2, j) => ({meta: {ok: {kalendarz_bc_us: true, kalendarz_pkb_us: true, kalendarz_sprz_us: 'cached', kalendarz_stat_eu: true, kalendarz_bc_eu: true, kalendarz2_cpi_praca_us: true}},
+    kalendarz: j === undefined ? kal372.J() : j, kalendarz2: j2});
+  const KODY = ['jp_stopy', 'pl_cpi', 'pl_pkb', 'pl_praca', 'pl_prod', 'uk_stopy', 'us_cpi', 'us_praca'];
+  const PARTS = ['cpi_praca_us', 'dane_pl', 'bc_uk', 'bc_jp'];
+  return {mk, files, J2, E, KODY, PARTS};
+})();
+
+test('v375 (F9Z1): kalendarz 2 — drugi plik dopiero po rozwinięciu karty, nowe terminy z godziną czasu polskiego, flagą, wagą i znakiem ~; pierwsze 10 terminów bez zmian', () => {
+  const K = kal375.mk('pl', kal375.files(kal375.J2()));
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta');
+  K.expand(); assert.equal(K.calls.filter(c => c === 'kalendarz').length, 1); assert.equal(K.calls.filter(c => c === 'kalendarz2').length, 1, 'drugi plik po wczytaniu pierwszego, raz');
+  const R = kal372.rows(K.html()), by = t => R.filter(r => r.title === t);
+  assert.equal(R.length, 16, '10 terminów z pliku podstawowego + 6 z uzupełnienia w oknie 28.10–10.11 (PKB Polski 30.11 poza oknem)');
+  const nowe = (t, hm, flag, w, per, dzien) => { const r = by(t); assert.equal(r.length, 1, t); assert.deepEqual([r[0].hm, r[0].flag, r[0].w, r[0].per, r[0].day.split(/[ ,]/)[0]], [hm, flag, w, per || '', dzien], t); };
+  nowe('Decyzja Banku Japonii o stopach procentowych', '~04:00', '[jp]', 3, '', 'piątek');
+  nowe('Produkcja przemysłowa w Polsce', '~10:00', '[pl]', 1, 'wrzesień 2026', 'piątek');
+  nowe('Decyzja Banku Anglii o stopach procentowych', '~13:00', '[gb]', 3, '', 'czwartek');
+  nowe('Rynek pracy USA: zatrudnienie i bezrobocie', '~14:30', '[us]', 3, '', 'piątek');
+  nowe('Inflacja w Polsce (odczyt pełny)', '~10:00', '[pl]', 2, 'październik 2026', 'poniedziałek');
+  nowe('Inflacja CPI w USA (ceny konsumpcyjne)', '~14:30', '[us]', 3, '', 'wtorek');
+  assert.deepEqual(R.filter(r => !['[gb]', '[jp]', '[pl]'].includes(r.flag) && !/CPI|Rynek pracy USA/.test(r.title)).map(r => r.hm), ['19:00', '~11:00', '13:30', '13:30', '~14:15', '~11:00', '14:30', '20:00', '14:30', '22:30'], 'dawne godziny bez zmian');
+  assert.ok(!K.html().includes('Decyzja Banku Anglii o stopach procentowych <small class="kal-m">'), 'przyszłe terminy bez oznaczenia „już było”');
+  assert.ok(K.html().includes('Znak ~ dotyczy też: inflacji i pracy w USA (8:30 czasu nowojorskiego)'), 'objaśnienie godzin z reguły');
+  assert.ok(K.html().includes('Kiedy decydują banki centralne (USA, strefa euro, Wielka Brytania, Japonia) i kiedy wychodzą ważne dane z USA, strefy euro i Polski.') && !K.html().includes('z USA i strefy euro. Godziny'), 'podtytuł karty obejmuje nowe kraje dopiero z plikiem uzupełnienia');
+  // odświeżanie co 30 min pobiera oba pliki; zegar 5 min — żadnych zapytań
+  const iv = K.ivs.find(x => x[1] === 30 * 60 * 1000); iv[0](); assert.equal(K.calls.filter(c => c === 'kalendarz').length, 2); assert.equal(K.calls.filter(c => c === 'kalendarz2').length, 2);
+  const iv5 = K.ivs.find(x => x[1] === 5 * 60 * 1000), c0 = K.calls.length; iv5[0](); assert.equal(K.calls.length, c0);
+  // bez pliku uzupełnienia (albo inna wersja): strona jak w v372, 10 terminów i dawna lista braków
+  for (const j2 of [undefined, null, {v: 2}, {v: 1, at: 'zła', e: {}}, {v: 1, at: '2026-10-28T12:00:00+00:00', e: {x: []}}]) {
+    const KN = kal375.mk('pl', kal375.files(j2), {open: true}), h = KN.html();
+    assert.equal(kal372.rows(h).length, 10, JSON.stringify(j2)); assert.ok(h.includes('Jeszcze bez: posiedzenia NBP (Polska), posiedzenia Banku Anglii, posiedzenia Banku Japonii, inflacja i PKB Polski, inflacja CPI i zatrudnienie w USA.'), 'dawna lista braków');
+    assert.ok(!h.includes('Znak ~ dotyczy też') && !h.includes('kal375.'), JSON.stringify(j2));
+  }
+  assert.ok(kal375.mk('pl', kal375.files(kal375.J2()), {open: true}).api.kal2Ok(kal375.J2()) === true);
+});
+
+test('v375 (F9Z1): kalendarz 2 — pole brak z przyczynami (RPP, szybki szacunek inflacji), część z błędem ze starymi terminami i część bez terminów', () => {
+  const h0 = kal375.mk('pl', kal375.files(kal375.J2()), {open: true}).html();
+  assert.ok(h0.includes('Jeszcze bez: posiedzenia NBP (Polska), szybki szacunek inflacji w Polsce.'), 'lista braków z pliku uzupełnienia zastępuje dawną');
+  assert.ok(h0.includes('Terminy posiedzeń RPP: strona banku centralnego Polski jest chroniona przed automatycznym odczytem, a zabezpieczeń nie omijamy.'));
+  assert.ok(h0.includes('Szybki szacunek inflacji w Polsce (ostatni dzień miesiąca) nie ma oficjalnego kalendarza'));
+  assert.ok(!h0.includes('Część źródeł chwilowo nie odpowiedziała') && !h0.includes('poprzedniego pobrania'));
+  // część z błędem i starymi terminami: informacja z nazwą części
+  const j1 = kal375.J2(); j1.ok.bc_uk = false; j1.ok.dane_pl = false;
+  const h1 = kal375.mk('pl', kal375.files(j1), {open: true}).html();
+  assert.ok(h1.includes('Część terminów pochodzi z poprzedniego pobrania: dane z Polski, decyzje Banku Anglii.'), h1.slice(-1200));
+  assert.equal(kal372.rows(h1).length, 16, 'stare terminy nadal widoczne');
+  // część bez terminów trafia do braków z jednym zdaniem o przyczynie
+  const j2 = kal375.J2(); j2.ok.bc_jp = false; j2.e.bc_jp = []; j2.brak = ['pl_bank', 'pl_szybki', 'jp_bank', 'x'];
+  const h2 = kal375.mk('pl', kal375.files(j2), {open: true}).html();
+  assert.ok(h2.includes('Jeszcze bez: posiedzenia NBP (Polska), szybki szacunek inflacji w Polsce, posiedzenia Banku Japonii.') && h2.includes('Część źródeł chwilowo nie odpowiedziała'), 'nieznany kod pominięty');
+  assert.equal(h2.split('Część źródeł chwilowo nie odpowiedziała').length, 2, 'zdanie o przyczynie raz');
+  assert.equal(kal372.rows(h2).length, 15); assert.ok(!h2.includes('poprzedniego pobrania'), 'część bez terminów nie ma „starych terminów” — tylko w brakach');
+  const j3 = kal375.J2(); j3.brak = []; assert.ok(!kal375.mk('pl', kal375.files(j3), {open: true}).html().includes('Jeszcze bez'), 'pusta lista braków — bez zdania');
+  // błąd pobrania uzupełnienia nie zasłania pierwszego pliku i nie powoduje pętli (nowa próba po minucie)
+  const KX = kal375.mk('pl', kal375.files(null), {open: true}); assert.equal(kal372.rows(KX.html()).length, 10); assert.equal(KX.calls.filter(c => c === 'kalendarz2').length, 1);
+  KX.expand(); assert.equal(KX.calls.filter(c => c === 'kalendarz2').length, 1, 'po błędzie nowa próba najwcześniej po minucie');
+  KX.api.kal2Load(); KX.api.kal2Load(1); assert.equal(KX.calls.filter(c => c === 'kalendarz2').length, 1, 'także wywołanie wprost (i wymuszone zegarem) — bez pętli zapytań w ciągu minuty');
+});
+
+test('v375 (F9Z1): kalendarz 2 — zmiana czasu w oknie: Londyn i Polska zmieniają czas tego samego dnia (13:00 przez cały rok), Tokio bez zmiany (05:00 → 04:00 w Polsce), USA 8:30 = 13:30 do 1.11 i 14:30 po nim', () => {
+  const j = kal375.J2(), E = kal375.E;
+  j.e = {cpi_praca_us: [E('2026-10-22T12:30Z', 'us_cpi', 'us', 3), E('2026-10-30T12:30Z', 'us_praca', 'us', 3), E('2026-11-02T13:30Z', 'us_cpi', 'us', 3)],
+         dane_pl: [E('2026-10-23T08:00Z', 'pl_prod', 'pl', 1), E('2026-11-13T09:00Z', 'pl_cpi', 'pl', 2)],
+         bc_uk: [E('2026-10-22T11:00Z', 'uk_stopy', 'gb', 3), E('2026-11-05T12:00Z', 'uk_stopy', 'gb', 3)], bc_jp: [E('2026-10-22T03:00Z', 'jp_stopy', 'jp', 3), E('2026-10-30T03:00Z', 'jp_stopy', 'jp', 3)]};
+  const R = kal372.rows(kal375.mk('pl', kal375.files(j, Object.assign(kal372.J(), {e: {bc_us: []}})), {open: true, now: '2026-10-21T10:00:00Z'}).html());
+  const f = (t, d) => R.filter(r => r.title === t && r.day.includes(d)).map(r => r.hm);
+  assert.deepEqual(f('Decyzja Banku Anglii o stopach procentowych', '22'), ['~13:00'], 'BST: 12:00 = 11:00 UTC = 13:00 CEST');
+  assert.deepEqual(f('Decyzja Banku Japonii o stopach procentowych', '22'), ['~05:00'], 'JST: 12:00 = 03:00 UTC = 05:00 CEST (przed zmianą)');
+  assert.deepEqual(f('Inflacja CPI w USA (ceny konsumpcyjne)', '22'), ['~14:30'], '8:30 EDT = 12:30 UTC = 14:30 CEST');
+  assert.deepEqual(f('Produkcja przemysłowa w Polsce', '23'), ['~10:00'], '10:00 CEST = 08:00 UTC');
+  const R2 = kal372.rows(kal375.mk('pl', kal375.files(j, Object.assign(kal372.J(), {e: {bc_us: []}})), {open: true, now: '2026-10-29T10:00:00Z'}).html());
+  const g = (t, d) => R2.filter(r => r.title === t && r.day.includes(d)).map(r => r.hm);
+  assert.deepEqual(g('Decyzja Banku Japonii o stopach procentowych', '30'), ['~04:00'], 'po zmianie czasu w Europie (25.10): 12:00 JST = 04:00 CET');
+  assert.deepEqual(g('Rynek pracy USA: zatrudnienie i bezrobocie', '30'), ['~13:30'], 'tydzień z różnicą 5 h: 8:30 EDT = 13:30 CET');
+  assert.deepEqual(g('Inflacja CPI w USA (ceny konsumpcyjne)', '2'), ['~14:30'], 'po zmianie czasu w USA (1.11): 8:30 EST = 13:30 UTC = 14:30 CET');
+  assert.deepEqual(g('Decyzja Banku Anglii o stopach procentowych', '5'), ['~13:00'], 'GMT: 12:00 = 12:00 UTC = 13:00 CET — ta sama godzina w Polsce co latem');
+  const R3 = kal372.rows(kal375.mk('pl', kal375.files(j, Object.assign(kal372.J(), {e: {bc_us: []}})), {open: true, now: '2026-11-05T10:00:00Z'}).html());
+  assert.deepEqual(R3.filter(r => r.title === 'Inflacja w Polsce (odczyt pełny)').map(r => r.hm), ['~10:00'], '10:00 CET = 09:00 UTC (zimą)');
+});
+
+test('v375 (F9Z1): kalendarz 2 — słownik 10 języków pełny, tabela kodów i części jak w zbieraczu, te same godziny w każdym języku, bez nazw dostawców i surowych kluczy', () => {
+  const K = kal375.mk('pl', kal375.files(kal375.J2())).api;
+  assert.deepEqual(Object.keys(K.KAL2_KODY).sort(), kal375.KODY, 'lista kodów jak w teście zbieracza (KODY)'); assert.deepEqual(K.KAL2_PARTS, kal375.PARTS);
+  assert.ok(Object.values(K.KAL2_KODY).every(([r, w]) => ['us', 'pl', 'gb', 'jp'].includes(r) && w >= 1 && w <= 3));
+  assert.deepEqual(Object.keys(K.KAL_KODY).sort(), kal372.KODY, 'tabela kodów v372 bez zmian'); assert.ok(!Object.keys(K.KAL2_KODY).some(k => k in K.KAL_KODY));
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const T = v96src.tFor(L);
+    for (const k of kal375.KODY) { const v = T('kal375.e.' + k); assert.ok(v && v !== 'kal375.e.' + k, L + ' ' + k); }
+    for (const p of kal375.PARTS) { const v = T('kal375.p.' + p); assert.ok(v && v !== 'kal375.p.' + p, L + ' ' + p); }
+    for (const k of ['sub', 'brak.pl_szybki', 'why.pl_bank', 'why.pl_szybki', 'why.err', 'n4']) { const v = T('kal375.' + k); assert.ok(v && v !== 'kal375.' + k && v.length > 6, L + ' ' + k); }
+  }
+  for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const j2 = kal375.J2(); j2.ok.bc_jp = false; j2.e.bc_jp = []; j2.brak.push('jp_bank');
+    const h = kal375.mk(L, kal375.files(j2), {open: true}).html(), R = kal372.rows(h);
+    assert.equal(R.length, 15, L); assert.ok(!/kal37[25]\./.test(h), L + ': surowy klucz'); assert.ok(R.every(r => r.title.length > 3), L);
+    assert.deepEqual(R.filter(r => ['[gb]', '[pl]'].includes(r.flag)).map(r => r.hm).sort(), ['~10:00', '~10:00', '~13:00'], L + ': te same godziny w każdym języku');
+    assert.ok(!/stlouisfed|FRED|stat\.gov|bankofengland\.co|boj\.or\.jp/i.test(h), L + ': zero nazw dostawców');
+  }
+  const KJ = kal375.mk('ja', kal375.files(kal375.J2()), {open: true}); assert.ok(KJ.html().includes('イングランド銀行の政策金利決定') && KJ.html().includes('日本銀行の政策金利決定'));
+  const KD = kal375.mk('de', kal375.files(kal375.J2()), {open: true}); assert.ok(KD.html().includes('Zinsentscheid der Bank of England') && KD.html().includes('US-Arbeitsmarktbericht'));
+});

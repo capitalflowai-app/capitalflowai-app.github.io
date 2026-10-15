@@ -9059,6 +9059,106 @@ def kalendarz_kontrola(files, now=None):
     return {'spojnosc': kalendarz_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v375 (F9Z1, część 2): kalendarz 2 (data/kalendarz2.json) ----------------------------------------------------------------
+# Plik: e (terminy czterech części: cpi_praca_us, dane_pl, bc_uk, bc_jp; czas w UTC, kod, region, waga 1–3, g = r), n (po części: [rozpoznanych w całej odpowiedzi, w oknie pliku]), ok / part_at / errs,
+# od / do, brak (obszary bez terminarza). Kontrola czyta plik ze strony (bez zapytań do sieci): (1) świeżość pobrania każdej części osobnym wierszem (najwyżej ⚠); (2) parser: część, która w całej
+# odpowiedzi rozpoznała mniej terminów niż próg, albo część cpi_praca_us / dane_pl bez terminu w oknie pliku (⚠); (3) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zły czas / kod / region / waga
+# (muszą zgadzać się z tabelą kodów), dubel, termin poza oknem od–do, terminy w części nie rosną, n[1] ≠ liczbie terminów. Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'kalendarz2')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['kalendarz2'] = 12 * 60   # plik zapisywany co ok. 6 h (część z błędem: co godzinę) — wiek pobrania każdej części ocenia osobny wiersz
+AW_BEZ_BLEDU.update({'kalendarz2_' + p_: 'kalendarz 2 — część z błędem zostaje ze starymi terminami i datą (v375); wiek pobrania w wierszach świeżości' for p_ in ('cpi_praca_us', 'dane_pl', 'bc_uk', 'bc_jp')})
+KAL2_K_PARTS = ('cpi_praca_us', 'dane_pl', 'bc_uk', 'bc_jp')
+KAL2_K_ROZP_MIN = {'cpi_praca_us': 6, 'dane_pl': 20, 'bc_uk': 6, 'bc_jp': 8}   # progi parsera (jak bramki zbieracza)
+KAL2_K_BEZ_OKNA = ('cpi_praca_us', 'dane_pl')   # części, które muszą mieć termin w oknie pliku (decyzje banków są co kilka tygodni)
+KAL2_K_NAZWA = {'cpi_praca_us': 'FRED', 'dane_pl': 'GUS', 'bc_uk': 'BoE', 'bc_jp': 'BoJ'}   # nazwy części w komunikatach kontroli (raport wewnętrzny, nie strona)
+KAL2_K_ETYKIETA = {'cpi_praca_us': 'Kalendarz 2: terminy inflacji i zatrudnienia USA (pobranie)', 'dane_pl': 'Kalendarz 2: kalendarz danych Polski (pobranie)',
+                   'bc_uk': 'Kalendarz 2: terminy decyzji banku Anglii (pobranie)', 'bc_jp': 'Kalendarz 2: terminy posiedzeń banku Japonii (pobranie)'}
+KAL2_K_KODY = {'us_cpi': ('us', 3), 'us_praca': ('us', 3), 'pl_cpi': ('pl', 2), 'pl_pkb': ('pl', 2), 'pl_prod': ('pl', 1), 'pl_praca': ('pl', 1), 'uk_stopy': ('gb', 3), 'jp_stopy': ('jp', 3)}
+
+
+def kalendarz2_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w kalendarzu 2) → lista opisów."""
+    zle = []
+    e = j.get('e') if isinstance(j.get('e'), dict) else None
+    if e is None:
+        return ['brak pola e (terminów)']
+    od, do = j.get('od'), j.get('do')
+    for k, L in e.items():
+        if k not in KAL2_K_PARTS or not isinstance(L, list):
+            zle.append(f'{k}: nieznana część albo zła lista'); continue
+        prev, widziane = None, set()
+        for x in L:
+            u = _kal_k_czas(x.get('t')) if isinstance(x, dict) else None
+            tab = KAL2_K_KODY.get(x.get('k')) if isinstance(x, dict) else None
+            if u is None or tab is None:
+                zle.append(f'{k}: zły czas albo nieznany kod terminu ({str(x)[:60]})'); continue
+            if (x.get('r'), x.get('w')) != tab:
+                zle.append(f'{k} {x["k"]}: region/waga {x.get("r")}/{x.get("w")} ≠ tabela {tab[0]}/{tab[1]}')
+            if x.get('g') not in ('z', 'r'):
+                zle.append(f'{k} {x["k"]}: pole g ≠ z/r')
+            if (x['t'], x['k']) in widziane:
+                zle.append(f'{k}: dubel {x["t"]} {x["k"]}')
+            widziane.add((x['t'], x['k']))
+            if prev is not None and x['t'] < prev:
+                zle.append(f'{k}: terminy nie rosną ({prev} przed {x["t"]})')
+            prev = x['t']
+            if isinstance(od, str) and isinstance(do, str) and not od <= x['t'][:10] <= do:
+                zle.append(f'{k}: termin {x["t"]} poza oknem pliku {od} … {do}')
+        n = (j.get('n') or {}).get(k) if isinstance(j.get('n'), dict) else None
+        if (j.get('ok') or {}).get(k) is True and isinstance(n, list) and len(n) == 2 and n[1] != len(L):
+            zle.append(f'{k}: n[1] = {n[1]} ≠ liczba terminów {len(L)}')
+    return zle[:12]
+
+
+def kalendarz2_swiezosc(j, now=None):
+    """Wiersze świeżości pobrania czterech części (etykieta, status, wiek min, chwila pobrania, uwaga); brak pliku albo inna wersja = brak wierszy. Najwyżej ⚠ (próg jak w kalendarzu: KAL_K_PROG_MIN)."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p in KAL2_K_PARTS:
+        txt = (j.get('part_at') or {}).get(p) if isinstance(j.get('part_at'), dict) else None
+        if not txt:
+            rows.append((KAL2_K_ETYKIETA[p], '?', None, None, 'brak chwili pobrania tej części w pliku')); continue
+        w = wiek_danych(str(txt), 'ts', 'k', now)
+        ok = (j.get('ok') or {}).get(p) if isinstance(j.get('ok'), dict) else None
+        st = '?' if w is None else ('⚠️' if w > KAL_K_PROG_MIN else '✅')
+        note = ''
+        if st == '⚠️':
+            note = f'pobranie starsze niż {fmt_wiek(KAL_K_PROG_MIN)} (odświeżanie co 6 h) — terminy mogą być nieaktualne; najwyżej uwaga'
+        elif ok is False:
+            note = 'ostatnie pobranie nieudane — terminy z poprzedniego pobrania'
+        rows.append((KAL2_K_ETYKIETA[p], st, w, str(txt), note))
+    return rows
+
+
+def kalendarz2_uwagi(j):
+    """Uwagi ⚠ (nigdy ❌): parser zgubił tabelę albo część bez terminu w oknie → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    out = {'wiersze': [], 'uwagi': []}
+    n = j.get('n') if isinstance(j.get('n'), dict) else {}
+    for p in KAL2_K_PARTS:
+        nn = n.get(p)
+        if isinstance(nn, list) and len(nn) == 2 and all(isinstance(v, int) for v in nn):
+            if nn[0] < KAL2_K_ROZP_MIN[p]:
+                out['uwagi'].append(f'Kalendarz 2 {KAL2_K_NAZWA[p]}: rozpoznano tylko {nn[0]} terminów (próg {KAL2_K_ROZP_MIN[p]}) — zmieniony układ źródła?')
+            elif p in KAL2_K_BEZ_OKNA and nn[1] < 1:
+                out['uwagi'].append(f'Kalendarz 2 {KAL2_K_NAZWA[p]}: żadnego terminu w oknie pliku — zmieniony układ źródła albo pusty terminarz')
+        elif (j.get('ok') or {}).get(p) is True:
+            out['uwagi'].append(f'Kalendarz 2 {KAL2_K_NAZWA[p]}: brak liczników n w pliku')
+    out['wiersze'].append(('terminy: ' + ', '.join(f'{KAL2_K_NAZWA[p]} {len((j.get("e") or {}).get(p) or [])}' for p in KAL2_K_PARTS), '⚠️' if out['uwagi'] else '✅'))
+    return out
+
+
+def kalendarz2_kontrola(files):
+    """Kontrola pliku kalendarz2.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('kalendarz2') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    U = kalendarz2_uwagi(j)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': kalendarz2_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -9525,6 +9625,23 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['kalendarz'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'kalendarz (v372): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v375. kalendarz 2 (data/kalendarz2.json): świeżość pobrania czterech części osobnymi wierszami, parser (najwyżej ⚠) i sprzeczności w pliku (❌) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in kalendarz2_swiezosc(files.get('kalendarz2')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_kal2 = kalendarz2_kontrola(files)
+        if T_kal2:
+            for z_ in T_kal2['spojnosc'][:5]:
+                R['bledy'].append(f'kalendarz2.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_kal2['uwagi']
+        R['zgodnosc']['kalendarz2'] = {k_: T_kal2[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_kal2 else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['kalendarz2'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'kalendarz 2 (v375): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -10183,6 +10300,11 @@ def raport_md(R):
             L.append('- Kalendarz (z pliku strony): ' + (f'? kontrola przerwana ({krz["blad"]})' if krz.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(krz['spojnosc'][:3]) + ' ❌ · ' if krz.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in krz.get('wiersze') or []) or '—') + '.')
+        krz2 = Z.get('kalendarz2')   # v375: kalendarz 2 — sprzeczności w pliku i parser; brak pliku = bez linii
+        if krz2:
+            L.append('- Kalendarz 2 (z pliku strony): ' + (f'? kontrola przerwana ({krz2["blad"]})' if krz2.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(krz2['spojnosc'][:3]) + ' ❌ · ' if krz2.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in krz2.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

@@ -32250,6 +32250,31 @@ def main():
     META['ok']['kalendarz_bc_us'] = stan_kal['bc_us']; META['ok']['kalendarz_pkb_us'] = stan_kal['pkb_us']; META['ok']['kalendarz_sprz_us'] = stan_kal['sprz_us']
     META['ok']['kalendarz_stat_eu'] = stan_kal['stat_eu']; META['ok']['kalendarz_bc_eu'] = stan_kal['bc_eu']
     # v372: koniec bloku kalendarza
+    # v375 (F9Z1, część 2): KALENDARZ 2 (data/kalendarz2.json: inflacja i zatrudnienie USA z kalendarza wydań FRED, kalendarz danych Polski, decyzje banków Anglii i Japonii; cztery części z własnym
+    # ok / part_at / errs) — co KAL_EVERY min, plik z częścią nieudaną ponawiany po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok:
+    # kalendarz2_cpi_praca_us (FRED już liczony), kalendarz2_dane_pl, kalendarz2_bc_uk, kalendarz2_bc_jp (urząd statystyczny Polski, Bank Anglii i Bank Japonii: +3 źródła).
+    prev_kal2 = previous('kalendarz2')
+    if isinstance(prev_kal2, dict) and prev_kal2.get('v') == 1 and fresh_pelny(prev_kal2, KAL_EVERY):
+        save('kalendarz2', prev_kal2)
+        stan_kal2 = {}
+        for k_kal2 in KAL2_PARTS:
+            if _dict(prev_kal2.get('ok')).get(k_kal2) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{KAL2_PX} {KAL2_LABEL[k_kal2]}: {str(_dict(prev_kal2.get('errs')).get(k_kal2) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_kal2[k_kal2] = False
+            else:
+                stan_kal2[k_kal2] = 'cached'
+    else:
+        try:
+            kal2_ = build_kalendarz2(prev_kal2, fred_key, run_t0=_RUN_T0[0]); save('kalendarz2', kal2_)
+            stan_kal2 = {k_kal2: kal2_['ok'].get(k_kal2) is True for k_kal2 in KAL2_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{KAL2_PX}: {e}')[:200])
+            stan_kal2 = {k_kal2: False for k_kal2 in KAL2_PARTS}
+            if isinstance(prev_kal2, dict):
+                save('kalendarz2', prev_kal2)
+    META['ok']['kalendarz2_cpi_praca_us'] = stan_kal2['cpi_praca_us']; META['ok']['kalendarz2_dane_pl'] = stan_kal2['dane_pl']
+    META['ok']['kalendarz2_bc_uk'] = stan_kal2['bc_uk']; META['ok']['kalendarz2_bc_jp'] = stan_kal2['bc_jp']
+    # v375: koniec bloku kalendarza 2
     # v367 (F5Z2): PRĄD I CO2 (data/prad.json; dział SUROWCE, blok „Prąd i CO2”) — Polska: cena energii w 96 kwadransach dziś i jutro, cena uprawnień do emisji CO2 oraz ceny
     # dnia następnego w 15 strefach Europy (jedno zapytanie na przebieg — limit źródła); części z własnymi bramkami wg terminów publikacji i budżetem czasu; awaria
     # budowniczego = poprzedni plik. META ok: prad_pl, prad_co2, prad_str (dwa nowe źródła: operator sieci przesyłowej i interfejs danych o energii).
@@ -35811,6 +35836,307 @@ def build_kalendarz(prev=None, run_t0=None):
 
 
 ZRODLA_META.update({'kalendarz_bc_us': 'fed-board', 'kalendarz_pkb_us': 'bea', 'kalendarz_sprz_us': 'census', 'kalendarz_stat_eu': 'eurostat', 'kalendarz_bc_eu': 'ecb'})   # v372: terminarz Fed i urzędu statystycznego USA (+2 źródła); BEA, Eurostat i EBC już liczone
+
+
+# ===================== v375 (F9Z1, część 2): KALENDARZ 2 — data/kalendarz2.json (uzupełnienie kalendarza „Najbliższe 14 dni” z v372; bez nowych kont, klucz tylko FRED_KEY już w sekretach) =====================
+# Cztery części jednego pliku, każda z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie (jak w pliku kalendarz.json; ta sama strona czyta oba pliki):
+#   cpi_praca_us — daty publikacji inflacji CPI (wydanie 10) i raportu o zatrudnieniu (wydanie 50) z interfejsu „release dates” FRED (klucz FRED_KEY tylko w adresie, maskowany w błędach); urząd
+#                  statystyczny rynku pracy USA blokuje skrypty (403), więc daty bierzemy z kalendarza wydań FRED. Godzina stała 8:30 czasu Nowego Jorku (z reguły, g = r), przeliczona regułą zmiany
+#                  czasu USA (1.11.2026); nazwa wydania jest sprawdzana (zmiana numeru wydania = błąd części, nie cudze daty).
+#   dane_pl      — oficjalny kalendarz upowszechniania danych Polski (arkusz xlsx rocznika, strona statystyczna kraju): inflacja (odczyt pełny), PKB (kwartalne rachunki narodowe), produkcja przemysłowa,
+#                  zatrudnienie i płace w sektorze przedsiębiorstw; godzina 10:00 czasu polskiego z reguły (g = r) — kalendarz podaje tylko dzień. Szybkiego szacunku inflacji (ostatni dzień miesiąca)
+#                  w kalendarzu NIE MA — zostaje w polu brak.
+#   bc_uk        — terminy decyzji Komitetu Polityki Pieniężnej Banku Anglii (strona z terminami na bieżący i następny rok), godzina 12:00 czasu londyńskiego (z reguły, g = r).
+#   bc_jp        — posiedzenia Banku Japonii (tabela rocznych terminów): decyzja w drugim dniu posiedzenia, godzina nieogłaszana — około południa czasu tokijskiego (z reguły, g = r).
+# POMINIĘTE: posiedzenia RPP (strona NBP jest chroniona przed skryptami — 403 i wyzwanie przeglądarkowe; bez obchodzenia blokad) — pole brak, razem z szybkim szacunkiem inflacji Polski. Część, która
+# nie odpowie (np. blokada z serwera zbieracza), zostaje ze starymi terminami albo — gdy ich nie ma — trafia do pola brak. Czas w pliku zawsze w UTC (RRRR-MM-DDTGG:MMZ); strefy: USA, Polska i
+# Wielka Brytania własną regułą zmiany czasu (bez bazy stref), Japonia bez zmiany czasu (UTC+9). Nie jest to porada inwestycyjna — kalendarz mówi KIEDY, nie CO się stanie.
+import html as _kal2_html
+
+KAL2_URL_FRED = 'https://api.stlouisfed.org/fred/release/dates?release_id={rid}&api_key={key}&file_type=json&include_release_dates_with_no_data=true&sort_order=desc&limit=100'
+KAL2_URL_FRED_NAZWA = 'https://api.stlouisfed.org/fred/release?release_id={rid}&api_key={key}&file_type=json'
+KAL2_URL_GUS = 'https://stat.gov.pl/download/gfx/portalinformacyjny/pl/defaultstronaopisowa/6610/3/1/sdds_kalendarz_upowszechniania_danych_w_{y}_r.xlsx'
+KAL2_URL_BOE = 'https://www.bankofengland.co.uk/monetary-policy/upcoming-mpc-dates'
+KAL2_URL_BOJ = 'https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm'
+KAL2_PARTS = ('cpi_praca_us', 'dane_pl', 'bc_uk', 'bc_jp')
+KAL2_LABEL = {'cpi_praca_us': 'FRED', 'dane_pl': 'GUS', 'bc_uk': 'BoE', 'bc_jp': 'BoJ'}
+KAL2_PX = 'Kalendarz 2'
+KAL2_BUDZET = 100                # s — łączny czas budowy pliku; część, na którą zabrakło czasu, zostaje z poprzedniej wersji
+KAL2_FRED = (('us_cpi', 10, r'Consumer Price Index'), ('us_praca', 50, r'Employment Situation'))   # (kod terminu, numer wydania FRED, wzorzec nazwy wydania)
+KAL2_FRED_MIN = 3                # dat każdego z dwóch wydań FRED w odpowiedzi co najmniej (obie serie są miesięczne)
+KAL2_BRAMKA = {'cpi_praca_us': (6, 1), 'dane_pl': (20, 1), 'bc_uk': (6, 0), 'bc_jp': (8, 0)}   # (rozpoznanych terminów w całej odpowiedzi co najmniej, w oknie pliku co najmniej)
+KAL2_BRAK_STALE = ('pl_bank', 'pl_szybki')   # obszary bez maszynowego terminarza (zob. wyżej); części, które zawiodą bez żadnych terminów, dochodzą do listy dynamicznie
+KAL2_BRAK_CZESC = {'cpi_praca_us': 'us_praca', 'dane_pl': 'pl_dane', 'bc_uk': 'uk_bank', 'bc_jp': 'jp_bank'}
+# kod terminu → (region, waga 1–3): waga to nasza ocena wpływu na rynki, nie prognoza
+KAL2_KODY = {'us_cpi': ('us', 3), 'us_praca': ('us', 3), 'pl_cpi': ('pl', 2), 'pl_pkb': ('pl', 2), 'pl_prod': ('pl', 1), 'pl_praca': ('pl', 1), 'uk_stopy': ('gb', 3), 'jp_stopy': ('jp', 3)}
+KAL2_GODZ = {'us': ('ET', 8, 30), 'pl': ('PL', 10, 0), 'uk': ('UK', 12, 0), 'jp': ('JP', 12, 0)}   # godzina „z reguły” w czasie lokalnym (strefa, godzina, minuta)
+KAL2_GUS_REG = ((r'Wskaźniki cen towarów i usług konsumpcyjnych$', 'pl_cpi'), (r'Rachunki narodowe$', 'pl_pkb'), (r'Indeks produkcji$', 'pl_prod'), (r'Pracujący$', 'pl_praca'))
+KAL2_MIESIACE3 = {m: i for i, m in enumerate(('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'), 1)}
+KAL2_DNI3 = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
+KAL2_SRC = ('CapitalFlowAI — uzupełnienie kalendarza: inflacja i zatrudnienie USA (kalendarz wydań), oficjalny kalendarz danych Polski, terminy decyzji banków centralnych Wielkiej Brytanii i Japonii; '
+            'czas w UTC, godziny przeliczone regułą zmiany czasu, godziny „z reguły” oznaczone g = r')
+
+
+# ---------- czas: reguły zmiany czasu dla Wielkiej Brytanii i Japonii (USA i Polska — kal_na_utc z v372) ----------
+def kal2_na_utc(strefa, y, mo, d, h, mi):
+    """Godzina ścienna w strefie → datetime w UTC. 'UK' (Londyn: UTC zimą, UTC+1 latem; lato od ostatniej niedzieli marca 01:00 czasu zimowego do ostatniej niedzieli października 02:00 czasu
+    letniego), 'JP' (Tokio: UTC+9 przez cały rok), pozostałe ('PL', 'ET') — reguły z v372. Godzina w przerwie wiosennej i w powtórzonej godzinie jesiennej liczona jako letnia."""
+    if strefa == 'JP':
+        return (datetime.datetime(y, mo, d, h, mi) - datetime.timedelta(hours=9)).replace(tzinfo=datetime.timezone.utc)
+    if strefa == 'UK':
+        wall = datetime.datetime(y, mo, d, h, mi)
+        a = datetime.datetime.combine(kal_ost_nd(y, 3), datetime.time(1, 0))
+        b = datetime.datetime.combine(kal_ost_nd(y, 10), datetime.time(2, 0))
+        return (wall - datetime.timedelta(hours=1 if a <= wall < b else 0)).replace(tzinfo=datetime.timezone.utc)
+    return kal_na_utc(strefa, y, mo, d, h, mi)
+
+
+def kal2_zdarzenie(u, kod, p=None):
+    """Termin w układzie pliku; godzina zawsze „z reguły” (g = r) — żaden z terminarzy tej części nie podaje godziny w pliku."""
+    r, w = KAL2_KODY[kod]
+    e = {'t': kal_iso(u), 'k': kod, 'r': r, 'w': w, 'g': 'r'}
+    if p:
+        e['p'] = p
+    return e
+
+
+def kal2_http(url):
+    """Jedno zapytanie GET → treść w bajtach (jedyne miejsce zapytań tego budowniczego — testy je łatają). Odpowiedź większa niż KAL_MAX_B, pusta albo kod inny niż 2xx = wyjątek. Bez obchodzenia blokad."""
+    with _otworz(url, {'Accept': '*/*'}, KAL_TIMEOUT) as r:
+        body = r.read(KAL_MAX_B + 1)
+    if len(body) > KAL_MAX_B:
+        raise ValueError('odpowiedź większa niż oczekiwany terminarz')
+    if not body.strip():
+        raise ValueError('pusta odpowiedź')
+    return body
+
+
+# ---------- parsery części ----------
+def kal2_fred_nazwa(j, wzor):
+    """Odpowiedź „release” FRED → nazwa wydania zgodna ze wzorcem, inaczej wyjątek (zmieniony numer wydania nie może podstawić cudzych dat)."""
+    L = j.get('releases') if isinstance(j, dict) else None
+    nazwa = str(L[0].get('name') or '') if isinstance(L, list) and L and isinstance(L[0], dict) else ''
+    if not re.match(wzor, nazwa.strip()):
+        raise ValueError(f'nazwa wydania „{nazwa[:40]}” nie pasuje do oczekiwanej')
+
+
+def kal2_fred_daty(j, kod, od, do):
+    """Odpowiedź „release/dates” FRED (release_dates: [{release_id, date}]) → (terminy w oknie, rozpoznanych w całej odpowiedzi); 8:30 czasu Nowego Jorku z reguły."""
+    L = j.get('release_dates') if isinstance(j, dict) else None
+    if not isinstance(L, list):
+        raise ValueError('odpowiedź bez listy release_dates')
+    out, rozp = [], 0
+    strefa, gg, mm = KAL2_GODZ['us']
+    for x in L:
+        m = re.fullmatch(r'(\d{4})-(\d{2})-(\d{2})', str(x.get('date'))) if isinstance(x, dict) else None
+        if not m:
+            continue
+        try:
+            u = kal2_na_utc(strefa, int(m.group(1)), int(m.group(2)), int(m.group(3)), gg, mm)
+        except ValueError:
+            continue
+        rozp += 1
+        if kal_w_oknie(u, od, do):
+            out.append(kal2_zdarzenie(u, kod))
+    return kal_koniec(out), rozp
+
+
+def kal2_okres_gus(s):
+    """„06 2026” → „2026-06”; „Q2 2026” albo „2 kw. 2026” → „2026-Q2”; inaczej None."""
+    s = str(s or '').strip()
+    m = re.fullmatch(r'(\d{2}) (\d{4})', s)
+    if m and 1 <= int(m.group(1)) <= 12:
+        return f'{m.group(2)}-{m.group(1)}'
+    m = re.fullmatch(r'(?:Q([1-4])|([1-4]) kw\.) (\d{4})', s)
+    return f'{m.group(3)}-Q{m.group(1) or m.group(2)}' if m else None
+
+
+def kal2_gus(dane, od, do):
+    """Arkusz „Sektor podstawowy” kalendarza upowszechniania danych (xlsx; wiersz = kategoria, kolumny od trzeciej = miesiące publikacji, komórka = jedna lub kilka dat „DD.MM.RRRR (okres)”)
+    → (terminy w oknie, rozpoznanych w całej odpowiedzi). Brak któregokolwiek z czterech wierszy kategorii albo nagłówka „Kategorie” = zmieniony układ (wyjątek)."""
+    wiersze = _xlsx_rows(dane, 'Sektor podstawowy')
+    if not any(str(c.get(1, '')).strip() == 'Kategorie' for c in wiersze.values()):
+        raise ValueError('arkusz bez nagłówka „Kategorie” — zmieniony układ')
+    znalezione, out, rozp = set(), [], 0
+    strefa, gg, mm = KAL2_GODZ['pl']
+    for r in sorted(wiersze):
+        nazwa = re.sub(r'\s+', ' ', str(wiersze[r].get(1, ''))).strip()
+        kod = next((k for wz, k in KAL2_GUS_REG if re.match(wz, nazwa)), None)
+        if not kod:
+            continue
+        znalezione.add(kod)
+        for kol, tekst in wiersze[r].items():
+            if kol < 3:
+                continue
+            for dd, mo, rr, okres in re.findall(r'(\d{2})\.(\d{2})\.(\d{4})\s*\(([^)]*)\)', str(tekst)):
+                try:
+                    u = kal2_na_utc(strefa, int(rr), int(mo), int(dd), gg, mm)
+                except ValueError:
+                    continue
+                rozp += 1
+                if kal_w_oknie(u, od, do):
+                    out.append(kal2_zdarzenie(u, kod, kal2_okres_gus(okres)))
+    if len(znalezione) < len(KAL2_GUS_REG):
+        raise ValueError('w arkuszu brak wierszy: ' + ', '.join(sorted(k for _, k in KAL2_GUS_REG if k not in znalezione)))
+    return kal_koniec(out), rozp
+
+
+def kal2_czysty_tekst(tekst):
+    """HTML → zwykły tekst (bez skryptów i stylów, encje i twarde spacje rozwinięte, białe znaki sklejone)."""
+    t = re.sub(r'(?is)<(script|style)\b.*?</\1>', ' ', tekst)
+    t = _kal2_html.unescape(re.sub(r'<[^>]+>', ' ', t)).replace('\xa0', ' ')
+    return re.sub(r'\s+', ' ', t).strip()
+
+
+_KAL2_BOE_ROK = re.compile(r'(20\d{2}) confirmed dates', re.I)
+_KAL2_BOE_DZIEN = re.compile(r'(Monday|Tuesday|Wednesday|Thursday|Friday) (\d{1,2}) (January|February|March|April|May|June|July|August|September|October|November|December)\b')
+_KAL2_MIES_PELNE = {m: i for i, m in enumerate(('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'), 1)}
+
+
+def kal2_boe(tekst, od, do):
+    """Strona z terminami Komitetu Polityki Pieniężnej Banku Anglii → (terminy w oknie, rozpoznanych w całej stronie). Sekcje „RRRR confirmed dates”; wpis „Thursday 5 November”; dzień tygodnia
+    musi zgadzać się z datą (inaczej wpis odrzucony; ponad 10% odrzuconych = zmieniony układ). Decyzja o 12:00 czasu londyńskiego (z reguły)."""
+    t = kal2_czysty_tekst(tekst)
+    sek = list(_KAL2_BOE_ROK.finditer(t))
+    if not sek:
+        raise ValueError('strona bez sekcji „confirmed dates” — zmieniony układ')
+    out, rozp, zle = [], 0, 0
+    strefa, gg, mm = KAL2_GODZ['uk']
+    for i, s in enumerate(sek):
+        koniec = sek[i + 1].start() if i + 1 < len(sek) else s.end() + 2500
+        for dz, dd, mn in _KAL2_BOE_DZIEN.findall(t[s.end():koniec]):
+            try:
+                d = datetime.date(int(s.group(1)), _KAL2_MIES_PELNE[mn], int(dd))
+            except ValueError:
+                zle += 1
+                continue
+            if d.weekday() != ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday').index(dz):
+                zle += 1
+                continue
+            u = kal2_na_utc(strefa, d.year, d.month, d.day, gg, mm)
+            rozp += 1
+            if kal_w_oknie(u, od, do):
+                out.append(kal2_zdarzenie(u, 'uk_stopy'))
+    if zle * 10 > rozp + zle:
+        raise ValueError(f'{zle} z {rozp + zle} wpisów z niezgodnym dniem tygodnia')
+    return kal_koniec(out), rozp
+
+
+_KAL2_BOJ_TAB = re.compile(r'(?is)<table\b[^>]*>(.*?)</table>')
+_KAL2_BOJ_MPM = re.compile(r'^([A-Za-z]{3,5})\.? (\d{1,2}) \(([A-Za-z]{3,6})\.?\), (?:([A-Za-z]{3,5})\.? )?(\d{1,2}) \(([A-Za-z]{3,6})\.?\)')
+
+
+def kal2_boj(tekst, od, do):
+    """Tabele terminów posiedzeń Banku Japonii (po jednej na rok: podpis „Table : RRRR”, pierwsza kolumna = dwa dni posiedzenia, np. „Oct. 29 (Thurs.), 30 (Fri.)”) → (terminy w oknie, rozpoznanych
+    w całej stronie). Decyzja = drugi dzień; dzień tygodnia musi zgadzać się z datą (inaczej wpis odrzucony; ponad 10% odrzuconych = zmieniony układ). Godzina nieogłaszana — około 12:00 czasu tokijskiego."""
+    out, rozp, zle, tabel = [], 0, 0, 0
+    strefa, gg, mm = KAL2_GODZ['jp']
+    for body in _KAL2_BOJ_TAB.findall(tekst):
+        cap = re.search(r'(?is)<caption[^>]*>(.*?)</caption>', body)
+        rok = re.search(r'(20\d{2})', kal2_czysty_tekst(cap.group(1))) if cap else None
+        if not rok:
+            continue
+        tabel += 1
+        for pierwsza in re.findall(r'(?is)<tr[^>]*>\s*<td[^>]*>(.*?)</td>', body):
+            m = _KAL2_BOJ_MPM.match(kal2_czysty_tekst(pierwsza))
+            if not m:
+                continue
+            m1, d1, w1, m2, d2, w2 = m.groups()
+            mn1, mn2 = KAL2_MIESIACE3.get(m1[:3].lower()), KAL2_MIESIACE3.get((m2 or m1)[:3].lower())
+            try:
+                dA, dB = datetime.date(int(rok.group(1)), mn1, int(d1)), datetime.date(int(rok.group(1)), mn2, int(d2))
+            except (TypeError, ValueError):
+                zle += 1
+                continue
+            if KAL2_DNI3[dA.weekday()] != w1[:3].lower() or KAL2_DNI3[dB.weekday()] != w2[:3].lower() or not 0 < (dB - dA).days <= 3:
+                zle += 1
+                continue
+            u = kal2_na_utc(strefa, dB.year, dB.month, dB.day, gg, mm)
+            rozp += 1
+            if kal_w_oknie(u, od, do):
+                out.append(kal2_zdarzenie(u, 'jp_stopy'))
+    if not tabel:
+        raise ValueError('strona bez tabel terminów posiedzeń — zmieniony układ')
+    if zle * 10 > rozp + zle:
+        raise ValueError(f'{zle} z {rozp + zle} wierszy z niezgodnym dniem tygodnia')
+    return kal_koniec(out), rozp
+
+
+def kal2_czesc(k, od, do, key):
+    """Jedna część pliku → (zdarzenia, [rozpoznanych w całej odpowiedzi, w oknie]); bramki KAL2_BRAMKA: za mało rozpoznanych albo brak terminów w oknie = wyjątek."""
+    if k == 'cpi_praca_us':
+        if not key:
+            raise RuntimeError('brak klucza FRED_KEY')
+        ev, rozp = [], 0
+        for i, (kod, rid, wzor) in enumerate(KAL2_FRED):
+            if i:
+                time.sleep(FRED_SLEEP)
+            kal2_fred_nazwa(json.loads(kal2_http(KAL2_URL_FRED_NAZWA.format(rid=rid, key=key)).decode('utf-8-sig')), wzor)
+            time.sleep(FRED_SLEEP)
+            e_, r_ = kal2_fred_daty(json.loads(kal2_http(KAL2_URL_FRED.format(rid=rid, key=key)).decode('utf-8-sig')), kod, od, do)
+            if r_ < KAL2_FRED_MIN:
+                raise RuntimeError(f'wydanie {rid}: rozpoznano {r_} dat (co najmniej {KAL2_FRED_MIN}) — zmieniony układ źródła?')
+            ev += e_; rozp += r_
+        ev = kal_koniec(ev)
+    elif k == 'dane_pl':
+        ev, rozp = [], 0
+        for i, y in enumerate(sorted({od.year, do.year})):
+            try:
+                e_, r_ = kal2_gus(kal2_http(KAL2_URL_GUS.format(y=y)), od, do)
+            except Exception:  # noqa — plik roku następnego bywa jeszcze nieopublikowany; wymagany jest tylko pierwszy
+                if i == 0:
+                    raise
+                continue
+            ev += e_; rozp += r_
+        ev = kal_koniec(ev)
+    elif k == 'bc_uk':
+        ev, rozp = kal2_boe(kal2_http(KAL2_URL_BOE).decode('utf-8', 'replace'), od, do)
+    elif k == 'bc_jp':
+        ev, rozp = kal2_boj(kal2_http(KAL2_URL_BOJ).decode('utf-8', 'replace'), od, do)
+    else:
+        raise ValueError('nieznana część ' + str(k))
+    mn_r, mn_o = KAL2_BRAMKA[k]
+    if rozp < mn_r:
+        raise RuntimeError(f'rozpoznano {rozp} terminów (co najmniej {mn_r}) — zmieniony układ źródła?')
+    if len(ev) < mn_o:
+        raise RuntimeError(f'brak terminów w oknie {od} … {do} — zmieniony układ źródła albo pusty terminarz')
+    return ev, [rozp, len(ev)]
+
+
+def build_kalendarz2(prev=None, key=None, run_t0=None):
+    """Plik data/kalendarz2.json (v375): cztery części z własnym ok / part_at / errs; część z błędem zostaje z poprzedniego pliku (terminy w oknie) z własną chwilą, nigdy pusta zamiast starych
+    terminów; brak = obszary bez terminarza (stałe: posiedzenia RPP, szybki szacunek inflacji Polski) i części, które zawiodły bez żadnych terminów; żadna część nie odpowiedziała = wyjątek
+    (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == 1 else {}
+    pat = _dict(prev.get('part_at'))
+    dzis = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc).date()
+    od, do = dzis - datetime.timedelta(days=KAL_WSTECZ), dzis + datetime.timedelta(days=KAL_PRZOD)
+    out = {'v': 1, 'at': NOW, 'src': KAL2_SRC, 'od': od.isoformat(), 'do': do.isoformat(), 'ok': {}, 'part_at': {}, 'errs': {}, 'e': {}, 'n': {}, 'brak': []}
+    t0 = time.monotonic()
+    for k in KAL2_PARTS:
+        try:
+            if time.monotonic() - t0 > KAL2_BUDZET:
+                raise RuntimeError('limit czasu budowy kalendarza')
+            out['e'][k], out['n'][k] = kal2_czesc(k, od, do, key)
+            out['ok'][k] = True; out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część z błędem: poprzednie terminy (w oknie) z własną chwilą
+            msg = mask(f'{e}')[:160]
+            META['errors'].append(mask(f'{KAL2_PX} {KAL2_LABEL[k]}: {msg}')[:220]); out['ok'][k] = False; out['errs'][k] = msg
+            pe = _dict(prev.get('e')).get(k)
+            if isinstance(pe, list):
+                out['e'][k] = [x for x in pe if isinstance(x, dict) and re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}Z', str(x.get('t'))) and x.get('k') in KAL2_KODY
+                               and od.isoformat() <= x['t'][:10] <= do.isoformat()]
+                out['part_at'][k] = pat.get(k) or prev.get('at')
+                pn = _dict(prev.get('n')).get(k)
+                if isinstance(pn, list):
+                    out['n'][k] = pn
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    out['brak'] = list(KAL2_BRAK_STALE) + [KAL2_BRAK_CZESC[k] for k in KAL2_PARTS if out['ok'].get(k) is False and not out['e'].get(k)]
+    return out
+
+
+ZRODLA_META.update({'kalendarz2_cpi_praca_us': 'fred', 'kalendarz2_dane_pl': 'gus', 'kalendarz2_bc_uk': 'bank-anglii', 'kalendarz2_bc_jp': 'bank-japonii'})   # v375: FRED już liczony; urząd statystyczny Polski, Bank Anglii i Bank Japonii (+3 źródła)
 
 
 if __name__ == '__main__':
