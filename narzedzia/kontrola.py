@@ -11741,6 +11741,190 @@ def indie_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v400 (F11Z13): CHINY, TAJWAN, HONGKONG (data/chiny-tw.json) ----------------------------------------------------------------
+# Plik: cn {asof, now {3M…30Y}, pasof, prev, h [[dzień, 2Y, 5Y, 10Y, 30Y]]}, sh {asof, h [[dzień, O/N … 1Y]]}, tw {pc {asof, h [[dzień, sprzedaż, kupno, otwarte sprzedaż, otwarte kupno]]}, in {asof, g, h}},
+# hk {asof, h [[dzień, akcje, ETP, obrót, papiery]], try}, csi {asof, h [[dzień, zamknięcie, zmiana %]]}, ok / part_at / errs, od (dzień założenia pliku). Kontrola czyta pliki ze strony (bez zapytań do sieci).
+# RYTM PUBLIKACJI i progi (test wsteczny — ws53/v400-chiny-tw/bt/bt_progi.py na indeksie CSI 300 z lat 2021–2026, 1400 sesji, i na podsumowaniach giełdy Tajwanu): najdłuższe przerwy między sesjami Chin to 11 dni (28.09.2023, 08.02.2024,
+# 13.02.2026; Złoty Tydzień i Nowy Rok księżycowy; poza nimi do 10) — wiek ostatniej sesji od końca jej dnia przy przerwie 11 dni to do 12 dni, przy progu CTK_K_CN = 16 dni nie ma fałszywego ⚠️ nawet
+# z dobą opóźnienia źródła (12 + 1 = 13); Tajwan (dzienne podsumowania giełdy za sty–mar 2021–2026, 331 sesji): najdłuższe przerwy 13 dni (17.01 → 30.01.2023) i po 12 dni (2021, 2022, 2025, 2026) — Nowy Rok
+# księżycowy; wiek od końca ostatniego dnia do 14 dni → ten sam próg 16, zapas 2 dni. Hongkong: kalendarza sesji nie mamy w danych — najdłuższe przerwy giełdy to ok. 5 dni (Wielkanoc: czwartek → wtorek,
+# Nowy Rok księżycowy) → próg CTK_K_HK = 10 dni z kalendarza i zapasu, nie z pliku (przerwy dłuższe niż 10 dni w Hongkongu nie zdarzały się nawet przy tajfunach).
+# Pobranie części (part_at; odczyt co 2 h, plik co ok. 30–55 min, bez przerw w weekendy): ⚠ przy wieku > CTK_PROG_MIN = 12 h dla cn / sh / tw / csi; hk ma odczyt tylko w oknie dnia roboczego Hongkongu,
+# więc ocenia go wyłącznie wiek ostatniej sesji. Przed pierwszym odczytem Hongkongu (pole od) — ✅ do CTK_K_HK dni od założenia pliku.
+# (1) wiersze świeżości (najwyżej ⚠️): pobranie i rytm sesji każdej części; (2) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zły dzień, dni nie rosną albo się powtarzają, liczba poza zakresem wiarygodności
+#     (te same co w zbieraczu), krzywa bez któregoś terminu, akcje + fundusze ETP > obrót, udział krótkiej sprzedaży > 60 %; (3) TYLKO UWAGA ⚠: zamknięcie CSI 300 niezgodne ze zmianą % między kolejnymi sesjami
+#     (wiersze tego samego okna źródła; dopuszczalne 0,05 p. proc.) i część z ok False (zostaje z danymi sprzed błędu). Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'chiny-tw')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['chiny-tw'] = 6 * 60   # plik zapisywany co ok. 30–55 min (część z błędem: co godzinę) — wiek pobrania każdej części ocenia osobny wiersz
+AW_BEZ_BLEDU.update({'chtw_' + p_: 'Chiny / Tajwan / Hongkong — część z błędem zostaje z ostatnimi danymi i datą (v400); wiek pobrania i rytm sesji w wierszach świeżości' for p_ in ('cn', 'sh', 'tw', 'hk', 'csi')})
+CTK_PARTS = ('cn', 'sh', 'tw', 'hk', 'csi')
+CTK_ETYKIETA = {'cn': 'Chiny: krzywa rentowności', 'sh': 'Chiny: Shibor', 'tw': 'Tajwan: put/call i pozycje', 'hk': 'Hongkong: krótka sprzedaż', 'csi': 'Chiny: indeks CSI 300'}
+CTK_PROG_MIN = 12 * 60        # min — wiek pobrania części (odczyt co 2 h)
+CTK_K_CN = 16                 # doby — wiek ostatniej sesji Chin i Tajwanu (test wsteczny: najdłuższa przerwa 11–12 dni)
+CTK_K_HK = 10                 # doby — wiek ostatniej sesji Hongkongu (najdłuższa przerwa ok. 5 dni)
+CTK_LAB = ('3M', '1Y', '2Y', '3Y', '5Y', '7Y', '10Y', '20Y', '30Y')
+CTK_SHIBOR = 8
+CTK_Y = (0.0, 12.0)
+CTK_CSI_TOL = 0.05            # p. proc. — zamknięcie a zmiana % w wierszu
+
+
+def _ctk_dzien(s):
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return dt.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _ctk_num(x, lo, hi):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and lo <= x <= hi
+
+
+def _ctk_wiersze(zle, co, h, n, chk, dzis):
+    """Historia wierszy [dzień, n liczb]: dni poprawne, rosnące bez powtórzeń, nie z przyszłości, liczby przez chk; pierwsza usterka → opis w zle i False."""
+    if not isinstance(h, list):
+        zle.append(f'{co}: historia nie jest listą')
+        return False
+    ost = None
+    for r in h:
+        d = _ctk_dzien(r[0]) if isinstance(r, list) and len(r) == n + 1 else None
+        if d is None or not all(chk(i, x) for i, x in enumerate(r[1:])):
+            zle.append(f'{co}: zły wiersz {str(r)[:60]}')
+            return False
+        if d > dzis + dt.timedelta(days=1) or (ost is not None and d <= ost):
+            zle.append(f'{co}: dni nie rosną albo z przyszłości ({d})')
+            return False
+        ost = d
+    return True
+
+
+def chtw_spojnosc(j, now=None):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w Chinach / Tajwanie / Hongkongu) → lista opisów."""
+    now = now or NOW
+    dzis = now.date()
+    zle = []
+    P = j.get('cn')
+    if P is not None:
+        if not isinstance(P, dict):
+            zle.append('cn: część nie jest słownikiem')
+        else:
+            if _ctk_dzien(P.get('asof')) is None or not isinstance(P.get('now'), dict) or set(P['now']) != set(CTK_LAB) or not all(_ctk_num(v, *CTK_Y) for v in P['now'].values()):
+                zle.append('cn: krzywa dnia ma zły dzień, brak terminu albo rentowność poza zakresem')
+            if P.get('prev') is not None and (_ctk_dzien(P.get('pasof')) is None or not isinstance(P['prev'], dict) or set(P['prev']) != set(CTK_LAB) or not all(_ctk_num(v, *CTK_Y) for v in P['prev'].values())):
+                zle.append('cn: krzywa sprzed miesiąca ma zły dzień, brak terminu albo rentowność poza zakresem')
+            _ctk_wiersze(zle, 'cn', P.get('h'), 4, lambda i, x: _ctk_num(x, *CTK_Y), dzis)
+    P = j.get('sh')
+    if P is not None:
+        if not isinstance(P, dict) or _ctk_dzien(P.get('asof')) is None:
+            zle.append('sh: część bez poprawnego dnia')
+        else:
+            _ctk_wiersze(zle, 'sh', P.get('h'), CTK_SHIBOR, lambda i, x: _ctk_num(x, *CTK_Y), dzis)
+    P = j.get('tw')
+    if P is not None:
+        if not isinstance(P, dict) or not isinstance(P.get('pc'), dict) or not isinstance(P.get('in'), dict):
+            zle.append('tw: część bez put/call albo pozycji')
+        else:
+            _ctk_wiersze(zle, 'tw put/call', P['pc'].get('h'), 4, lambda i, x: _ctk_num(x, 0, 5e8), dzis)
+            for r in P['pc'].get('h') or []:
+                if isinstance(r, list) and len(r) == 5 and (r[2] == 0 or r[4] == 0):
+                    zle.append(f'tw put/call {r[0]}: zero opcji kupna')
+                    break
+            _ctk_wiersze(zle, 'tw pozycje', P['in'].get('h'), 3, lambda i, x: _ctk_num(x, -2e7, 2e7), dzis)
+            g = P['in'].get('g')
+            if not (isinstance(g, dict) and set(g) == {'d', 't', 'f'} and all(isinstance(v, list) and len(v) == 6 and all(_ctk_num(x, -2e7, 2e7) for x in v) for v in g.values())):
+                zle.append('tw pozycje: grupy inwestorów mają zły kształt')
+            elif any(abs(v[2] - v[3] - v[1]) > 1 for v in g.values()):
+                zle.append('tw pozycje: netto ≠ długie − krótkie')
+    P = j.get('hk')
+    if P is not None:
+        if not isinstance(P, dict):
+            zle.append('hk: część nie jest słownikiem')
+        elif _ctk_wiersze(zle, 'hk', P.get('h'), 4, lambda i, x: _ctk_num(x, 0, 3e6), dzis):
+            for r in P['h']:
+                if (r[1] + r[2]) > r[3] * 0.6 or r[3] < 2000 or not isinstance(r[4], int) or not 0 < r[4] <= 4000:
+                    zle.append(f'hk {r[0]}: krótka sprzedaż większa niż 60 % obrotu, razem ponad obrót albo zła liczba papierów')
+                    break
+    P = j.get('csi')
+    if P is not None:
+        if not isinstance(P, dict) or _ctk_dzien(P.get('asof')) is None:
+            zle.append('csi: część bez poprawnego dnia')
+        else:
+            _ctk_wiersze(zle, 'csi', P.get('h'), 2, lambda i, x: _ctk_num(x, 500, 20000) if i == 0 else _ctk_num(x, -15, 15), dzis)
+    return zle
+
+
+def chtw_swiezosc(j, now=None):
+    """Wiersze: pobranie każdej części i rytm sesji (etykieta, status, wiek min, chwila, uwaga); brak pliku albo inna wersja = brak wierszy. Najwyżej ⚠️; część bez chwili pobrania — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    dzis = now.date()
+    for p in CTK_PARTS:
+        P = j.get(p)
+        txt = (j.get('part_at') or {}).get(p) if isinstance(j.get('part_at'), dict) else None
+        ok = (j.get('ok') or {}).get(p) if isinstance(j.get('ok'), dict) else None
+        if p != 'hk':
+            if not isinstance(P, dict):
+                continue
+            if not txt:
+                rows.append((CTK_ETYKIETA[p] + ' (pobranie)', '?', None, None, 'brak chwili pobrania tej części w pliku'))
+            else:
+                w = wiek_danych(str(txt), 'ts', 'k', now)
+                st = '?' if w is None else ('⚠️' if w > CTK_PROG_MIN else '✅')
+                note = f'pobranie starsze niż {fmt_wiek(CTK_PROG_MIN)} (odczyt co 2 h) — dane mogą być nieaktualne; najwyżej uwaga' if st == '⚠️' else ('ostatnie pobranie nieudane — dane z poprzedniego pobrania' if ok is False else '')
+                rows.append((CTK_ETYKIETA[p] + ' (pobranie)', st, w, str(txt), note))
+        if p == 'tw' and isinstance(P, dict):
+            ds = [(_ctk_dzien((P.get(k) or {}).get('asof')), nm) for k, nm in (('pc', 'put/call'), ('in', 'pozycje')) if isinstance(P.get(k), dict)]
+        elif isinstance(P, dict):
+            ds = [(_ctk_dzien(P.get('asof')), None)]
+        else:
+            ds = [(None, None)]
+        for d, nm in ds:
+            prog = CTK_K_HK if p == 'hk' else CTK_K_CN
+            lab = CTK_ETYKIETA[p] + (f' — {nm}' if nm else '') + ' (rytm sesji)'
+            if d is None:
+                if p == 'hk':
+                    od = _ctk_dzien(j.get('od'))
+                    zle = od is None or (dzis - od).days > prog
+                    rows.append((lab, '⚠️' if zle else '✅', None, None, (f'brak odczytów od {(dzis - od).days if od else "?"} dni — plik z Hongkongu nie został odczytany' if zle else 'jeszcze bez pierwszego odczytu sesji')))
+                continue
+            wd = wiek_danych(d.isoformat(), 'day', 'k', now)
+            zle = wd is not None and wd > prog * 1440
+            note = f'ostatnia sesja {d.isoformat()} sprzed {fmt_wiek(wd)} (najdłuższa przerwa w kalendarzu giełdy: {"ok. 5" if p == "hk" else "11–13"} dni; próg {prog} dni)' if zle else ''
+            rows.append((lab, '⚠️' if zle else '✅', wd, d.isoformat(), note))
+    return rows
+
+
+def chtw_uwagi(j):
+    """Uwagi ⚠ (nigdy ❌): zamknięcie CSI 300 a zmiana % między kolejnymi sesjami w pliku i części z ok False. → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    out = {'wiersze': [], 'uwagi': []}
+    P = j.get('csi') if isinstance(j.get('csi'), dict) else None
+    if P and isinstance(P.get('h'), list):
+        zle = []
+        for a, b in zip(P['h'], P['h'][1:]):
+            try:
+                if isinstance(a, list) and isinstance(b, list) and len(a) == len(b) == 3 and a[1] > 0 and abs((b[1] / a[1] - 1) * 100 - b[2]) > CTK_CSI_TOL:
+                    zle.append(b[0])
+            except TypeError:
+                pass
+        out['wiersze'].append(('CSI 300: zamknięcie a zmiana % w kolejnych sesjach', '⚠️' if zle else '✅'))
+        if zle:
+            out['uwagi'].append(f'Chiny / Tajwan / Hongkong (chiny-tw.json): CSI 300 — zamknięcie nie zgadza się ze zmianą % w {len(zle)} sesji (np. {zle[-1]}); wiersze mogą pochodzić z różnych okien źródła')
+    return out
+
+
+def chtw_kontrola(files, now=None):
+    """Kontrola pliku chiny-tw.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('chiny-tw') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    U = chtw_uwagi(j)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': chtw_spojnosc(j, now), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -12397,6 +12581,23 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['energia-usa'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'energia USA (v395): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v400. Chiny / Tajwan / Hongkong (data/chiny-tw.json): świeżość pobrania pięciu części i rytm sesji osobnymi wierszami (lista SWIEZOSC bez zmian), uwagi ⚠ oraz sprzeczności w pliku (❌) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in chtw_swiezosc(files.get('chiny-tw')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_ctw = chtw_kontrola(files)
+        if T_ctw:
+            for z_ in T_ctw['spojnosc'][:5]:
+                R['bledy'].append(f'chiny-tw.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_ctw['uwagi']
+        R['zgodnosc']['chiny-tw'] = {k_: T_ctw[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_ctw else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['chiny-tw'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Chiny / Tajwan / Hongkong (v400): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -13142,6 +13343,11 @@ def raport_md(R):
             L.append('- Energia USA, rafinerie, zapasy, import ropy i stopniodni (z pliku strony): ' + (f'? kontrola przerwana ({keu["blad"]})' if keu.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(keu['spojnosc'][:3]) + ' ❌ · ' if keu.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in keu.get('wiersze') or []) or '—') + '.')
+        kct = Z.get('chiny-tw')   # v400: Chiny / Tajwan / Hongkong — sprzeczności w pliku, uwagi, rytm sesji; brak pliku = bez linii
+        if kct:
+            L.append('- Chiny, Tajwan, Hongkong: obligacje, Shibor, CSI 300, put/call, krótka sprzedaż (z pliku strony): ' + (f'? kontrola przerwana ({kct["blad"]})' if kct.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(kct['spojnosc'][:3]) + ' ❌ · ' if kct.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in kct.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

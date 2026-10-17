@@ -9792,7 +9792,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {/* v395 */"en395.norm": "es pt", "en395.pr.propan": "fr", "en395.r.p2": "fr it", "en395.r.p4": "de", "en395.s.norm": "es pt", /* v392 */"ux392.c.CN": "de es pt", /* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {/* v400 */"ct400.p.sh": "*", "ct400.p.tw": "de it pt", "ct400.p.hk": "es fr it pt", /* v395 */"en395.norm": "es pt", "en395.pr.propan": "fr", "en395.r.p2": "fr it", "en395.r.p4": "de", "en395.s.norm": "es pt", /* v392 */"ux392.c.CN": "de es pt", /* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
 /* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
@@ -30463,4 +30463,170 @@ test('v399: kod bloku — jedno pobranie pliku, bez magazynu przeglądarki, bez 
   const css = html.slice(html.indexOf('#g-surowce .su-inx .wk-ch .ix1{'), html.indexOf('/* v399 (F11Z12): blok Indie'));
   assert.ok(css.includes('.ix2{--k:var(--or)}') && css.includes('.ix3{--k:var(--tl)}') && css.includes('@media (max-width:620px)') && !/#[0-9a-fA-F]{3,6}\b/.test(css), 'kolory tożsamości z palety strony, układ telefonu');
   assert.ok(css.includes('.su-k>small.pos') && css.includes('var(--gr-tx)') && css.includes('var(--rd-tx)') && css.includes('var(--yl-tx)'), 'zmiany w kolorach znaku: zielony, czerwony, żółty');
+});
+// ===================== v400 (F11Z13): Chiny, Tajwan, Hongkong w GLOBAL (data/chiny-tw.json) =====================
+// Fixtura CT400_FILE: plik chiny-tw.json zbudowany przez zbieracz na nagraniach z 17.10.2026 (krzywa i Shibor, Tajwan, CSI 300 do 16.10.2026; Hongkong: dwa wiersze wpisane na potrzeby testu). Czas przypięty (Date.now), bez zegara.
+const CT400_FILE = {"v":1,"at":"2026-10-17T12:00:00+00:00","od":"2026-10-17","src":"x","ok":{"cn":true,"sh":true,"tw":true,"hk":true,"csi":true},"part_at":{"cn":"2026-10-17T12:00:00+00:00","sh":"2026-10-17T12:00:00+00:00","tw":"2026-10-17T12:00:00+00:00","csi":"2026-10-17T12:00:00+00:00","hk":"2026-10-16T09:10:00+00:00"},"errs":{},"cn":{"asof":"2026-10-16","now":{"3M":1.1568,"1Y":1.1794,"2Y":1.2529,"3Y":1.2724,"5Y":1.3813,"7Y":1.4702,"10Y":1.6486,"20Y":2.0593,"30Y":2.061},"pasof":"2026-09-16","prev":{"3M":1.1805,"1Y":1.2303,"2Y":1.244,"3Y":1.2516,"5Y":1.4105,"7Y":1.5219,"10Y":1.6855,"20Y":2.1282,"30Y":2.138},"h":[["2026-10-16",1.2529,1.3813,1.6486,2.061]]},"sh":{"asof":"2026-10-16","h":[["2026-09-20",1.365,1.41,1.445,1.424,1.431,1.45,1.47,1.48],["2026-09-21",1.364,1.4063,1.449,1.4234,1.43,1.45,1.47,1.48],["2026-09-22",1.364,1.3893,1.435,1.4233,1.43,1.451,1.471,1.481],["2026-09-23",1.3613,1.384,1.43,1.4253,1.43,1.4501,1.4701,1.4801],["2026-09-24",1.364,1.4,1.418,1.426,1.43,1.45,1.47,1.48],["2026-09-28",1.361,1.3893,1.399,1.4266,1.43,1.45,1.47,1.48],["2026-09-29",1.3451,1.383,1.3839,1.4237,1.43,1.45,1.47,1.48],["2026-09-30",1.362,1.371,1.398,1.421,1.43,1.45,1.47,1.48],["2026-10-08",1.3756,1.39,1.3878,1.42,1.43,1.45,1.47,1.48],["2026-10-09",1.313,1.341,1.363,1.418,1.43,1.45,1.47,1.48],["2026-10-10",1.2933,1.331,1.3513,1.4178,1.43,1.45,1.47,1.48],["2026-10-12",1.296,1.346,1.35,1.414,1.43,1.45,1.469,1.479],["2026-10-13",1.288,1.341,1.35,1.4125,1.43,1.45,1.469,1.478],["2026-10-14",1.269,1.3484,1.353,1.4108,1.43,1.448,1.4649,1.4748],["2026-10-15",1.266,1.346,1.3493,1.4111,1.43,1.4478,1.463,1.474],["2026-10-16",1.264,1.339,1.35,1.409,1.43,1.447,1.4605,1.4705]]},"tw":{"pc":{"asof":"2026-10-16","h":[["2026-09-16",375087,352656,31098,37215],["2026-09-17",204410,190616,58457,76415],["2026-09-18",329902,332047,35415,46401],["2026-09-21",156156,124823,59117,61452],["2026-09-22",244784,241413,76931,88093],["2026-09-23",342337,357206,38859,48680],["2026-09-24",125974,104015,59603,69848],["2026-09-29",291089,322025,47553,63148],["2026-09-30",342714,345481,41366,51342],["2026-10-01",151488,166271,63998,77538],["2026-10-02",298761,335069,41414,51228],["2026-10-05",169815,166886,67328,73226],["2026-10-06",174220,161456,87176,91317],["2026-10-07",299525,316721,50633,61560],["2026-10-08",130442,149694,70195,87550],["2026-10-12",344631,336728,57681,68037],["2026-10-13",204511,230410,77121,111852],["2026-10-14",337868,326539,50695,68105],["2026-10-15",191704,255629,77287,127036],["2026-10-16",396499,446741,55093,81497]]},"in":{"asof":"2026-10-16","g":{"d":[-288727,-214115,132412,346527,-16507,27399],"t":[88186,805024,831958,26934,34526,-4430],"f":[-579265,-1135715,284820,1420535,48197,19739]},"h":[["2026-10-16",-214115,805024,-1135715]]}},"csi":{"asof":"2026-10-16","h":[["2026-08-03",4543.18,-0.98],["2026-08-04",4600.93,1.27],["2026-08-05",4658.15,1.24],["2026-08-06",4651.31,-0.15],["2026-08-07",4694.44,0.93],["2026-08-10",4702.02,0.16],["2026-08-11",4663.79,-0.81],["2026-08-12",4690.92,0.58],["2026-08-13",4663.95,-0.57],["2026-08-14",4665.88,0.04],["2026-08-17",4741.1,1.61],["2026-08-18",4725.81,-0.32],["2026-08-19",4588.7,-2.9],["2026-08-20",4592.75,0.09],["2026-08-21",4618.9,0.57],["2026-08-24",4563.13,-1.21],["2026-08-25",4552.03,-0.24],["2026-08-26",4590.79,0.85],["2026-08-27",4630.28,0.86],["2026-08-28",4609.18,-0.46],["2026-08-31",4625.09,0.35],["2026-09-01",4611.44,-0.3],["2026-09-02",4547.96,-1.38],["2026-09-03",4552.58,0.1],["2026-09-04",4548.05,-0.1],["2026-09-07",4575.02,0.59],["2026-09-08",4558.74,-0.36],["2026-09-09",4572.6,0.3],["2026-09-10",4548.39,-0.53],["2026-09-11",4510.16,-0.84],["2026-09-14",4480.08,-0.67],["2026-09-15",4450.04,-0.67],["2026-09-16",4480.27,0.68],["2026-09-17",4460.16,-0.45],["2026-09-18",4507.39,1.06],["2026-09-21",4539.57,0.71],["2026-09-22",4544.59,0.11],["2026-09-23",4517.28,-0.6],["2026-09-24",4439.14,-1.73],["2026-09-28",4340.76,-2.22],["2026-09-29",4345.21,0.1],["2026-09-30",4357.62,0.29],["2026-10-08",4310.28,-1.09],["2026-10-09",4317.25,0.16],["2026-10-12",4287.98,-0.68],["2026-10-13",4275.68,-0.29],["2026-10-14",4217.68,-1.36],["2026-10-15",4166.01,-1.23],["2026-10-16",4170.61,0.11]]},"hk":{"asof":"2026-10-16","h":[["2026-10-15",29100,4800,221000,790],["2026-10-16",29750,4956,232788,800]],"try":["2026-10-16",1]}};
+const ct400 = (() => {
+  const a0 = html.indexOf('/* ===================== v400 (F11Z13): CHINY, TAJWAN, HONGKONG'), a1 = html.indexOf('/* ---------- koniec bloku Chiny / Tajwan / Hongkong (v400) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v400 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-17T13:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[  ]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const US = {c: {us: {asof: '2026-10-16', now: {'10Y': 5.09, '2Y': 4.74}, pasof: '2026-09-16', prev: {'10Y': 5.01, '2Y': 4.74}}}};
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-chinatw': el};
+    const calls = [], hnd = [], ivs = [], bars = [], lines = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkBars', 'wkLines', 'wkMs', 'wkDay', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {CTW, ctwLoad, renderCtw, ctwOk, ctwCn, ctwSh, ctwTw, ctwHk, ctwCsi, ctwBody, ctwUsOf, ctwLab, ctwRows};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, () => '', c => '<f:' + c + '>', i => i, doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (R, o) => { bars.push({R, o}); return '<bars>'; },
+      (Ls, o) => { lines.push({L: Ls, o}); return '<lines n=' + Ls[0].d.length + ' aria="' + o.aria + '">'; },
+      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, hnd, ivs, bars, lines, mos, expand, collapse, html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), raw: m[3].split('<small')[0], lines: [...m[3].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const files = (j, meta, us) => ({meta: meta === undefined ? {ok: {chtw_cn: true, chtw_sh: true, chtw_tw: true, chtw_hk: 'cached', chtw_csi: true}} : meta, 'chiny-tw': j === undefined ? clone(CT400_FILE) : j, krzywe: us === undefined ? clone(US) : us});
+  const J = () => clone(CT400_FILE);
+  return {mk, tiles, files, J, sp, txt, code, helpers, clone, LOC, US};
+})();
+
+test('v400 (F11Z13): Chiny, Tajwan, Hongkong — nagłówek od razu, plik dopiero po rozwinięciu karty, 18 kafli z liczbą, zmianą w kolorach kierunku, datą i wiekiem', () => {
+  const K = ct400.mk('pl', ct400.files());
+  assert.equal(K.els['#g-chinatw'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Chiny, Hongkong i Tajwan: obligacje, indeks i nastroje</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Dane wczytają się po rozwinięciu panelu.') && ct400.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku Chin'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'chiny-tw', 'krzywe'], 'po rozwinięciu jedno pobranie pliku i krzywej USA (dodatek)'); h = K.html();
+  const T = ct400.tiles(h), P = Object.fromEntries(T.map(x => [x.label, x]));
+  assert.equal(T.length, 18, T.map(x => x.label).join('|'));
+  assert.deepEqual([P['Rentowność 10 lat'].val, P['Rentowność 10 lat'].lines, P['Rentowność 10 lat'].when], ['1,65%', [['neg', '▼ −0,04 wobec miesiąca temu']], 'dzień 16 paź 2026 · wiek(2026-10-16)']);
+  assert.deepEqual([P['Rentowność 2 lata'].val, P['Rentowność 2 lata'].lines], ['1,25%', [['pos', '▲ +0,01 wobec miesiąca temu']]]);
+  assert.deepEqual([P['Nachylenie: 10 lat minus 2 lata'].val, P['Nachylenie: 10 lat minus 2 lata'].lines], ['0,40 pp', [['neg', '▼ −0,05 wobec miesiąca temu']]]);
+  const U = P['Różnica 10 lat: Chiny minus USA'];
+  assert.deepEqual([U.val, U.lines], ['−3,44 pp', [['neg', '▼ −0,12 wobec miesiąca temu']]]);
+  assert.equal(U.when, 'Chiny 16 paź 2026 · USA 16 paź 2026 · wiek(2026-10-16)', 'dwie daty — każda część ma swój dzień');
+  assert.deepEqual([P['Shibor na noc'].val, P['Shibor na noc'].lines], ['1,26%', [['neg', '▼ −0,002 pp do poprzedniej sesji']]], 'Shibor zmienia się o tysięczne części punktu — trzy miejsca');
+  assert.equal(P['Shibor 3 miesiące'].val, '1,43%'); assert.deepEqual(P['Shibor 3 miesiące'].lines, [['neu', '• 0,000 pp do poprzedniej sesji']], 'zero po zaokrągleniu = żółte');
+  assert.deepEqual([P['CSI 300: zamknięcie'].val.replace(/\s/g, ''), P['CSI 300: zamknięcie'].lines], ['4170,61', [['pos', '▲ +0,11 % do poprzedniej sesji']]]);
+  const hh = ct400.J().csi.h, nn = hh.length, num = s => parseFloat(String(s).replace(/[^\d,−-]/g, '').replace('−', '-').replace(',', '.'));
+  for (const [lab, k] of [['Zmiana w 5 sesji', 5], ['Zmiana w 30 sesji', 30]]) { const exp = (hh[nn - 1][1] / hh[nn - 1 - k][1] - 1) * 100; assert.ok(Math.abs(num(P[lab].val) - exp) < 0.006, lab + ': ' + P[lab].val + ' vs ' + exp); assert.equal(P[lab].lines.length, 1); assert.equal(P[lab].lines[0][0], exp > 0 ? 'pos' : 'neg'); assert.ok(Math.abs(num(P[lab].lines[0][1]) - exp) < 0.006, lab); }
+  assert.deepEqual([P['Put/call: obrót'].val, P['Put/call: obrót'].lines], ['88,8%', [['pos', '▲ +13,8 pp do poprzedniej sesji']]]); assert.equal(P['Put/call: otwarte pozycje'].val, '67,6%');
+  assert.deepEqual([P['Zagraniczni inwestorzy'].val, P['Zagraniczni inwestorzy'].lines], ['−1136 mld TWD', [['na', '— mld TWD do poprzedniej sesji'], ['pc', 'długie 285 · krótkie 1421 mld']]], 'brak poprzedniej sesji = „—”, nigdy zero');
+  assert.equal(P['Krajowe fundusze'].val, '805 mld TWD'); assert.equal(P['Dealerzy'].val, '−214 mld TWD');
+  assert.deepEqual([P['Krótka sprzedaż: udział w obrocie'].val, P['Krótka sprzedaż: udział w obrocie'].lines], ['14,9%', [['neg', '▼ −0,4 pp do poprzedniej sesji']]]);
+  assert.equal(P['Akcje (bez funduszy ETP)'].val, '12,8%'); assert.equal(P['Fundusze ETP'].val, '2,1%');
+  assert.deepEqual([P['Wartość krótkiej sprzedaży'].val, P['Wartość krótkiej sprzedaży'].lines], ['34,7 mld HKD', [['pos', '▲ +0,8 mld HKD do poprzedniej sesji'], ['pc', 'obrót giełdy 233 mld HKD']]]);
+  for (const x of T) { assert.ok(/dzień|Chiny \d/.test(x.when) && /wiek\(2026-10-1\d\)/.test(x.when), x.label + ': data i wiek'); assert.ok(!/NaN|undefined|null/.test(x.val + JSON.stringify(x.lines)), x.label); }
+  assert.ok(ct400.txt(h).includes('Dnia 16 paź 2026 rentowność 10-letnich obligacji skarbowych Chin wynosiła 1,65%, a w USA 5,09% (dzień 16 paź 2026) — różnica 3,44 pp, w Chinach niżej.'), 'zdanie z dwiema datami');
+  assert.ok(ct400.txt(h).includes('Dnia 16 paź 2026 na każde 100 opcji kupna (call) przypadało 88,8 opcji sprzedaży (put) w obrocie i 67,6 w otwartych pozycjach.') && ct400.txt(h).includes('To miara nastrojów, nie prognoza.'));
+  assert.ok(ct400.txt(h).includes('Dnia 16 paź 2026 krótka sprzedaż stanowiła 14,9% obrotu giełdy w Hongkongu (800 papierów wartościowych).'));
+  assert.ok(ct400.txt(h).includes('Obserwacja, nie prognoza. To nie jest porada inwestycyjna ani rekomendacja.') && ct400.txt(h).includes('Plik z D:2026-10-17T12:00:00+00:00'), 'stopka z czasem pliku i zastrzeżeniem');
+  K.lines.length = 0; K.api.renderCtw(); const Ls = K.lines;   // jedno czyste rysowanie (wcześniejsze: przed krzywą USA)
+  assert.equal(Ls.length, 5, 'krzywa, Shibor, CSI, put/call i krótka sprzedaż (rentowności od uruchomienia i Hongkong po drugiej sesji — z jedną sesją historii bez wykresu)');
+  assert.deepEqual(Ls[0].L.map(s => [s.cls, s.d.length]), [['s2', 9], ['s1', 9]], 'krzywa dziś i miesiąc temu'); assert.equal(Ls[0].o.dt(0), '3 mies.'); assert.equal(Ls[0].o.fmt(1.6486), '1,65%'); assert.equal(Ls[0].o.zero, false);
+  assert.ok(Ls[0].o.aria.includes('16 wrz 2026') && Ls[0].o.aria.includes('16 paź 2026'));
+  assert.deepEqual(Ls[1].L.map(s => [s.n, s.cls, s.d.length]), [['na noc', 's1', 16], ['3 mies.', 's2', 16], ['1 rok', 's3', 16]]); assert.equal(Ls[1].L[0].d[15][1], 1.264);
+  assert.deepEqual(Ls[2].L.map(s => [s.cls, s.d.length]), [['s1', 49]]); assert.deepEqual(Ls[3].L.map(s => [s.n, s.d.length]), [['obrót', 20], ['otwarte pozycje', 20]]); assert.equal(Ls[3].L[0].d[19][1], 396499 / 446741 * 100);
+  assert.deepEqual(Ls[4].L.map(s => [s.cls, s.d.length]), [['s1', 2]]);
+  assert.ok(h.includes('Historia rentowności zbiera się od uruchomienia panelu'), 'jeden dzień historii rentowności = zapowiedź zamiast wykresu');
+});
+
+test('v400: plik z brakami — jedna część, wiersze zepsute odrzucone, „—” zamiast zera, nieobecna krzywa USA, część z ok false nazwana', () => {
+  const only = k => { const j = ct400.J(); for (const p of ['cn', 'sh', 'tw', 'hk', 'csi']) if (p !== k) delete j[p]; return j; };
+  let K = ct400.mk('pl', ct400.files(only('csi')), {open: true}); let h = K.html();
+  assert.equal(ct400.tiles(h).length, 3, 'tylko CSI 300'); assert.ok(h.includes('Brak krzywej rentowności Chin.') && h.includes('Brak odczytu Shibor.') && h.includes('Brak odczytu put/call z Tajwanu.') && h.includes('Brak odczytu pozycji inwestorów z Tajwanu.') && h.includes('Plik dnia z Hongkongu pojawia się po zamknięciu sesji'));
+  K = ct400.mk('pl', ct400.files(only('cn'), undefined, null), {open: true}); h = K.html(); const P = Object.fromEntries(ct400.tiles(h).map(x => [x.label, x]));
+  assert.equal(P['Różnica 10 lat: Chiny minus USA'].val, '—', 'bez krzywej USA różnica to „—”'); assert.deepEqual(P['Różnica 10 lat: Chiny minus USA'].lines, [['na', 'brak krzywej USA']]);
+  assert.ok(!h.includes('w Chinach niżej') && !/NaN|undefined/.test(h), 'bez USA bez zdania o różnicy');
+  const j = ct400.J(); j.csi.h[5] = ['2026-08-10', NaN, 0.1]; j.csi.h[6] = ['zły', 4000, 0.1]; j.csi.h[7] = ['2026-08-12', 4000, 'x']; j.csi.h[8] = ['2026-08-13', 4000, 99]; j.csi.h.push('x', null, ['2026-08-14']);
+  const r = ct400.mk('pl', ct400.files(j)).api.ctwCsi(j); assert.equal(r.h.length, 45, 'NaN, zła data, tekst, zmiana 99 % i wiersze o złym kształcie odrzucone');
+  const q = ct400.J(); q.cn.now['7Y'] = null; assert.equal(ct400.mk('pl', null).api.ctwCn(q), null, 'krzywa bez terminu = brak (nie z zerem)'); q.cn.now['7Y'] = 99; assert.equal(ct400.mk('pl', null).api.ctwCn(q), null, 'rentowność 99 % poza zakresem');
+  const w = ct400.J(); w.cn.prev['2Y'] = 'x'; assert.equal(ct400.mk('pl', null).api.ctwCn(w).prev, null, 'zła krzywa sprzed miesiąca = brak jej, krzywa dnia zostaje');
+  const s = ct400.J(); s.sh.asof = '2026-10-15'; assert.equal(ct400.mk('pl', null).api.ctwSh(s), null, 'dzień części ≠ dzień ostatniego wiersza = odrzucone');
+  const t = ct400.J(); t.tw.pc.h[19][2] = 0; assert.equal(ct400.mk('pl', null).api.ctwTw(t).pc, null, 'zero opcji kupna = brak put/call'); assert.ok(ct400.mk('pl', null).api.ctwTw(t).inn, 'pozycje zostają');
+  const u = ct400.J(); u.tw.in.g.f = [1, 2, 3]; assert.equal(ct400.mk('pl', null).api.ctwTw(u).inn, null);
+  const v = ct400.J(); v.hk.h = [['2026-10-16', 29750, 4956, 232788, 800], ['2026-10-15', 1e9, 1, 1, 1], ['2026-10-14', 50000, 50000, 100000, 5]]; assert.equal(ct400.mk('pl', null).api.ctwHk(v).h.length, 1, 'wiersz z krótką sprzedażą ponad 60 % obrotu i z obrotem poniżej progu odrzucony');
+  const x = ct400.J(); x.ok.sh = false; x.ok.hk = 'cached'; K = ct400.mk('pl', ct400.files(x), {open: true}); h = ct400.txt(K.html());
+  assert.ok(h.includes('Część danych nie została odświeżona (Shibor) — widać ostatnie poprawne odczyty z ich datą.'), 'część z błędem nazwana, jej dane z datą zostają'); assert.ok(ct400.tiles(K.html()).length === 18);
+  for (const zly of [null, undefined, 5, 'x', [], {}, {v: 2, at: '2026-10-17T12:00:00+00:00', csi: ct400.J().csi}, {v: 1, at: 'zły', csi: ct400.J().csi}, {v: 1, at: '2026-10-17T12:00:00+00:00'}, {v: 1, at: '2026-10-17T12:00:00+00:00', csi: {asof: '2026-10-16', h: []}}])
+    assert.equal(ct400.mk('pl', null).api.ctwOk(zly), false, JSON.stringify(zly));
+  assert.equal(ct400.mk('pl', null).api.ctwOk(ct400.J()), true);
+});
+
+test('v400: Hongkong i CSI 300 na granicy — jedna sesja bez wykresu i z „—” zamiast zmian, brak pliku dnia z zapowiedzią', () => {
+  const j = ct400.J(); j.hk.h = [['2026-10-16', 29750, 4956, 232788, 800]]; j.csi.h = j.csi.h.slice(-2); const K = ct400.mk('pl', ct400.files(j), {open: true}); const h = K.html(), P = Object.fromEntries(ct400.tiles(h).map(x => [x.label, x]));
+  assert.deepEqual(P['Krótka sprzedaż: udział w obrocie'].lines, [['na', '— pp do poprzedniej sesji']], 'jedna sesja = brak zmiany („—”, nie zero)');
+  assert.ok(ct400.txt(h).includes('Wykres pojawi się po drugiej sesji — historia zbiera się od uruchomienia panelu.'));
+  assert.equal(P['Zmiana w 5 sesji'].val, '—'); assert.deepEqual(P['Zmiana w 5 sesji'].lines, [['na', '— %']]); assert.equal(P['Zmiana w 30 sesji'].val, '—');
+  assert.equal(K.lines.filter(l => l.o.aria.includes('krótk')).length, 0, 'bez wykresu krótkiej sprzedaży');
+  const z = ct400.J(); delete z.hk; const H0 = ct400.mk('pl', ct400.files(z), {open: true}).html(); assert.ok(ct400.txt(H0).includes('Plik dnia z Hongkongu pojawia się po zamknięciu sesji (po 16:40 czasu Hongkongu) — jeszcze brak odczytu.') && ct400.tiles(H0).length === 14);
+});
+
+test('v400: pobieranie — bez pętli zapytań po błędzie, zwinięcie i rozwinięcie, odświeżanie co 30 min tylko przy rozwiniętej karcie, język przerysowuje kartę', () => {
+  const K = ct400.mk('pl', ct400.files(null), {open: true});
+  assert.deepEqual(K.calls, ['meta', 'chiny-tw'], 'plik nieudany: jedno zapytanie, krzywej USA nie pobieramy'); assert.ok(K.html().includes('Nie udało się wczytać danych tego panelu.'));
+  K.expand(); K.collapse(); K.expand(); assert.deepEqual(K.calls, ['meta', 'chiny-tw'], 'po błędzie ponowna próba najwcześniej po minucie (czas przypięty — bez nowych zapytań)');
+  const G = ct400.mk('pl', ct400.files(), {open: true}); G.api.renderCtw(); G.expand(); assert.equal(G.calls.filter(c => c === 'chiny-tw').length, 1, 'po wczytaniu pliku ponowne rysowanie i rozwijanie nie pobiera drugi raz');
+  assert.equal(G.ivs.length, 1); assert.equal(G.ivs[0][1], 30 * 60 * 1000); G.ivs[0][0](); assert.equal(G.calls.filter(c => c === 'chiny-tw').length, 2, 'odświeżenie zegarem przy rozwiniętej karcie');
+  const C = ct400.mk('pl', ct400.files()); C.ivs[0][0](); assert.equal(C.calls.filter(c => c === 'chiny-tw').length, 0, 'zwinięta karta nie pobiera');
+  const N = ct400.mk('pl', ct400.files(undefined, {ok: {kursy: true}})); assert.equal(N.els['#g-chinatw'].hidden, true, 'meta nie zna części — karta schowana'); assert.equal(N.html(), '');
+  assert.ok(G.mos.length >= 2, 'obserwator klasy karty i języka');
+  const dPierwszy = G.api.CTW.j.at; assert.equal(dPierwszy, '2026-10-17T12:00:00+00:00');
+});
+
+test('v400: 10 języków — słownik w czystym JSON dopisany raz po linii for najwyższego słownika, komplet kluczy, te same znaczniki, prawdziwe tłumaczenia, bez nazw dostawców, karta w każdym języku bez surowych kluczy', () => {
+  const m = [...html.matchAll(/^const EXTRA(\d+)=(\{.*\});$/gm)].filter(x => x[2].includes('"ct400.t"'));
+  assert.equal(m.length, 1, 'jeden słownik v400'); const n = m[0][1], D = JSON.parse(m[0][2]);
+  assert.ok(html.includes(`const EXTRA${n}=`) && html.includes(`for(const l in EXTRA${n})if(I18N[l])Object.assign(I18N[l],EXTRA${n}[l]);`), 'linia nakładania');
+  const L = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']; assert.deepEqual(Object.keys(D).sort(), L.slice().sort());
+  const ph = s => (String(s).match(/\{\w+\}/g) || []).sort().join(); const PROV = /ChinaMoney|CFETS|TAIFEX|HKEX|Hong Kong Exchanges|China Securities Index|csindex|chinamoney|taifex|hkex|Bloomberg|Refinitiv|LSEG/i;
+  const used = new Set([...ct400.code.matchAll(/ct400\.[A-Za-z0-9_.]+/g)].map(x => x[0])); ['cn', 'sh', 'tw', 'hk', 'csi'].forEach(p => used.add('ct400.p.' + p)); used.delete('ct400.p.');
+  const nk = Object.keys(D.pl).length;
+  for (const l of L) {
+    assert.deepEqual(Object.keys(D[l]).sort(), Object.keys(D.pl).sort(), l + ': komplet kluczy'); assert.equal(Object.keys(D[l]).length, nk);
+    for (const u of used) assert.ok(u in D[l], l + ': brak klucza ' + u);
+    for (const k of Object.keys(D.pl)) { assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k + ': znaczniki'); assert.ok(String(D[l][k]).length > 0 && !PROV.test(D[l][k]), l + ' ' + k); }
+    if (l !== 'pl') for (const k of ['ct400.t', 'ct400.sub', 'ct400.n.cn', 'ct400.n.tf', 'ct400.n.hk', 'ct400.s.cn', 'ct400.s.tw', 'ct400.s.hk', 'ct400.h.cn', 'ct400.k.tf']) assert.notEqual(D[l][k], D.pl[k], l + ' ' + k + ': prawdziwe tłumaczenie');
+    const K = ct400.mk(l, ct400.files(), {open: true}), h = ct400.sp(K.html());
+    assert.ok(h.includes(D[l]['ct400.t']) && h.includes(D[l]['ct400.h.cn']) && h.includes(D[l]['ct400.h.tw']) && h.includes(D[l]['ct400.h.hk']) && h.includes(D[l]['ct400.h.csi']), l + ': teksty w języku');
+    assert.ok(!/ct400\.|\b(undefined|NaN|null)\b|\{[a-z]\}/.test(h), l + ': ' + (h.match(/ct400\.[\w.]+|\b(undefined|NaN)\b|\{[a-z]\}/) || [''])[0]); assert.ok(!PROV.test(h), l);
+    assert.equal(ct400.tiles(K.html()).length, 18, l + ': 18 kafli'); K.lines.length = 0; K.api.renderCtw(); assert.equal(K.lines.length, 5, l + ': 5 wykresów');
+  }
+  const E = ct400.mk('en', ct400.files(), {open: true}), he = ct400.txt(E.html()); assert.ok(he.includes('China, Hong Kong and Taiwan: bonds, index and sentiment') && he.includes('10-year yield 1.65%') && he.includes('Foreign investors −1,136 bn TWD'), he.slice(0, 300));
+  const Z = ct400.mk('zh', ct400.files(), {open: true}), hz = ct400.txt(Z.html()); assert.ok(hz.includes('中国、香港与台湾') && hz.includes('外资') && hz.includes('十亿新台币'));
+  assert.ok(ct400.txt(ct400.mk('de', ct400.files(), {open: true}).html()).includes('Rendite 10 Jahre 1,65%'));
+});
+
+test('v400: zasady strony i telefon — miejsce sekcji, bez nazw dostawców, bez zapisu w przeglądarce i sieci poza srvJSON, bez widgetów TradingView, notatki i uwaga o inwestycjach, reguły CSS bez stałych szerokości', () => {
+  const i1 = html.indexOf('id="g-insider"'), i2 = html.indexOf('<section class="panel pcard" id="g-chinatw" hidden></section>'), i3 = html.indexOf('id="g-dolar"');
+  assert.ok(i1 > 0 && i2 > i1 && i3 > i2, 'panel po karcie insiderów, przed kursami dolara (koniec GLOBAL: dolar, inst, ETF bez zmian)'); assert.equal(html.split('id="g-chinatw"').length, 2, 'jedno miejsce sekcji');
+  const K = ct400.mk('pl', ct400.files(), {open: true}), h = ct400.sp(K.html()), t = ct400.txt(h);
+  assert.ok(t.includes('Zagraniczni inwestorzy często trzymają krótkie kontrakty jako zabezpieczenie posiadanych akcji, więc sama liczba nie oznacza zakładu na spadek.') && t.includes('Krótka sprzedaż to sprzedaż pożyczonych akcji') && t.includes('Historia pozycji zbiera się od uruchomienia panelu.'), 'ograniczenia nazwane wprost');
+  assert.ok(!/ChinaMoney|CFETS|TAIFEX|HKEX|Hong Kong Exchanges|China Securities|csindex|chinamoney|taifex|hkex/i.test(h), 'bez nazw dostawców'); assert.ok(t.includes('Shibor') && t.includes('CSI 300'), 'nazwy przedmiotu danych (stawka, indeks) zostają');
+  const mod = ct400.code; assert.ok(!/localStorage|sessionStorage|tradingview/i.test(mod) && !/\bfetch\(|XMLHttpRequest/.test(mod), 'blok nie czyta sieci ani pamięci przeglądarki sam (tylko przez srvJSON)');
+  const c0 = html.indexOf('#g-chinatw .etfkpis{'), css = html.slice(c0, html.indexOf('\n#g-dolar', c0) > 0 ? c0 + 2400 : c0 + 2400);
+  assert.ok(c0 > 0 && css.includes('#g-chinatw .etfkpis.k4{grid-template-columns:repeat(4,minmax(0,1fr))}') && css.includes('@media (max-width:620px){#g-chinatw .etfkpis,#g-chinatw .etfkpis.k4{grid-template-columns:repeat(2,minmax(0,1fr))}}'), 'kafle w trzech i czterech kolumnach, na telefonie po dwa');
+  assert.ok(/#g-chinatw \.etfk b\{[^}]*overflow-wrap:anywhere/.test(css) && /#g-chinatw \.etfk>span\{white-space:normal;overflow-wrap:anywhere\}/.test(css), 'długie etykiety łamane, nie ucinane');
+  assert.ok(/#g-chinatw \.etfk b small\.pos\{color:var\(--gr-tx\)\}/.test(css) && /small\.neg\{color:var\(--rd-tx\)\}/.test(css) && /small\.neu\{color:var\(--yl-tx\)\}/.test(css), 'plus zielony, minus czerwony, zero żółte; żadnych szarych zmian');
+  assert.ok(!/(^|[^-\w])width:\s*\d{3,}px/.test(css) && !/#[0-9a-fA-F]{3,6}\b/.test(css.slice(0, css.indexOf('@media'))), 'bez stałych szerokości i bez stałych kolorów (tylko zmienne motywu)');
+  assert.ok(!/\.toFixed\(/.test(mod) && !/Math\.round\([^)]*\)\s*\/\s*100/.test(mod), 'liczby przez wspólny zapis (nfmt / strVal)');
+  assert.equal([...h.matchAll(/<small class="([a-z]+)">/g)].filter(x => !['pos', 'neg', 'neu', 'na', 'pc', 'mtxt'].includes(x[1])).length, 0, 'klasy zmian tylko z zestawu kolorów kierunku');
 });

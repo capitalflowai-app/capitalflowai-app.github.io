@@ -33292,6 +33292,29 @@ def main():
                 save('energia-usa', prev_eu)
     META['ok']['energia_wpsr'] = stan_eu['wpsr']; META['ok']['energia_pogoda'] = stan_eu['pogoda']
     # v395: koniec bloku energii USA
+    # v400 (F11Z13): CHINY, TAJWAN, HONGKONG (data/chiny-tw.json: krzywa rentowności i Shibor, put/call i pozycje inwestorów, krótka sprzedaż, CSI 300; pięć części z własnym ok / part_at / errs) — co CTW_EVERY_MIN min
+    # (plik z częścią nieudaną: NIEPELNY_MIN, fresh_pelny); części mają własne rytmy (odczyt co 2 h, Hongkong w oknie dnia); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok: chtw_* (cached = odczyt jeszcze niepotrzebny).
+    prev_ctw = previous('chiny-tw')
+    if isinstance(prev_ctw, dict) and prev_ctw.get('v') == CTW_V and fresh_pelny(prev_ctw, CTW_EVERY_MIN):
+        save('chiny-tw', prev_ctw)
+        stan_ctw = {}
+        for k_ctw in CTW_PARTS:
+            if _dict(prev_ctw.get('ok')).get(k_ctw) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{CTW_PX} {CTW_LABEL[k_ctw]}: {str(_dict(prev_ctw.get('errs')).get(k_ctw) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_ctw[k_ctw] = False
+            else:
+                stan_ctw[k_ctw] = 'cached'
+    else:
+        try:
+            ctw_ = build_chiny_tw(prev_ctw, run_t0=_RUN_T0[0]); save('chiny-tw', ctw_)
+            stan_ctw = {k_ctw: ctw_['ok'].get(k_ctw, 'cached') for k_ctw in CTW_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{CTW_PX}: {e}')[:200])
+            stan_ctw = {k_ctw: False for k_ctw in CTW_PARTS}
+            if isinstance(prev_ctw, dict):
+                save('chiny-tw', prev_ctw)
+    META['ok']['chtw_cn'] = stan_ctw['cn']; META['ok']['chtw_sh'] = stan_ctw['sh']; META['ok']['chtw_tw'] = stan_ctw['tw']; META['ok']['chtw_hk'] = stan_ctw['hk']; META['ok']['chtw_csi'] = stan_ctw['csi']
+    # v400: koniec bloku Chiny / Tajwan / Hongkong
     prev_pr = previous('prad')
     try:
         pr_ = build_prad(prev_pr, run_t0=_RUN_T0[0], rozsz=True)
@@ -41564,6 +41587,500 @@ def in_czesc():
 
 
 ZRODLA_META.update({'indie_ind': 'nse', 'indie_fao': 'nse', 'indie_dl': 'nse'})   # v399: giełda w Indiach (+1 źródło)
+
+
+# ===================== v400 (F11Z13): CHINY, TAJWAN, HONGKONG — krzywa rentowności i Shibor, put/call i pozycje inwestorów, krótka sprzedaż, CSI 300 (data/chiny-tw.json) =====================
+# Pięć niezależnych części jednego pliku, każda z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie (nigdy puste zamiast ostatnich danych); publiczne zapytania GET bez klucza,
+# nagłówek zbieracza, odstęp CTW_SLEEP s, limit czasu i rozmiaru KAŻDEGO zapytania (serwery w Chinach bywają wolne: jedna odpowiedź najwyżej CTW_TIMEOUT s i CTW_MAXB bajtów, cała budowa CTW_LIMIT_S s).
+#   cn  — krzywa rentowności obligacji skarbowych Chin (rentowność do wykupu; 3M, 1Y, 2Y, 3Y, 5Y, 7Y, 10Y, 20Y, 30Y) z ostatniego dnia notowań i sprzed miesiąca (najbliższy dzień nie późniejszy niż 30 dni wcześniej);
+#          historia 2/5/10/30 lat zbiera się od dnia wdrożenia (źródło nie podaje szeregu jednego terminu — jeden dzień to 54 wiersze w czterech stronach po 15). Zapytań: 1 (najnowszy dzień w oknie 10 dni);
+#          nowy dzień = jeszcze 3 strony dnia i 4 zapytania o dzień sprzed miesiąca. Strona 4 (terminy powyżej 41 lat) nie jest potrzebna. Okno zapytania źródła to najwyżej miesiąc.
+#   sh  — Shibor (stawka międzybankowa Szanghaju) dla ośmiu terminów (O/N, 1W, 2W, 1M, 3M, 6M, 9M, 1Y): jedno zapytanie o ostatnie 28 dni, historia dokładana wg dnia (260 dni).
+#   tw  — Tajwan, giełda kontraktów terminowych i opcji: (a) put/call — wolumen i otwarte pozycje opcji sprzedaży i kupna z ostatnich 20 sesji (źródło trzyma okno kroczące; my dokładamy wg dnia do 260 dni),
+#          (b) pozycje trzech grup inwestorów w kontraktach terminowych razem (dealerzy, krajowe fundusze, zagraniczni): źródło daje tylko ostatnią sesję, historia zbiera się od dnia wdrożenia.
+#   hk  — Hongkong, krótka sprzedaż akcji (Main Board): plik dnia po zamknięciu sesji (do północy czasu Hongkongu tego dnia; przed publikacją źródło daje zdanie „będzie dostępny po zamknięciu” — to nie dane,
+#          a nie błąd); w pliku tylko sumy dnia (akcje bez funduszy ETP, fundusze ETP, obrót całego rynku, liczba papierów), bez listy spółek; historia od dnia wdrożenia. Pobieranie tylko w dni robocze
+#          Hongkongu od 16:40 do 23:55 czasu Hongkongu, do CTW_HK_PROB prób na dobę, nigdy gdy dzień jest już zapisany.
+#   csi — indeks CSI 300 (akcje A z Szanghaju i Shenzhen): okno 75 dni, wiersze [dzień, zamknięcie, zmiana %]; wiersz z dnia świątecznego powtórzony ze źródła (okno zaczyna się w święto: źródło podstawia dane
+#          następnej sesji) jest odrzucany, dzisiejszy wiersz przed 16:30 czasu Chin też (sesja trwa), łańcuch zamknięć musi się zgadzać ze zmianą podaną w wierszu.
+# Bramki: każda liczba skończona i w zakresie wiarygodności, daty istniejące, nie z przyszłości i rosnące, spójność wewnątrz odpowiedzi (stosunek put/call = opcje sprzedaży / kupna, pozycja netto = długa − krótka,
+# akcje + fundusze ETP = razem, udział = razem krótka sprzedaż / obrót ± 1 p. proc. wobec podanego w pliku, zamknięcie − poprzednie = zmiana); inny kształt albo nazwy = błąd części (nigdy cicha zmiana liczb).
+CTW_V = 1
+CTW_PARTS = ('cn', 'sh', 'tw', 'hk', 'csi')
+CTW_LABEL = {'cn': 'krzywa rentowności Chin', 'sh': 'Shibor', 'tw': 'Tajwan (put/call, pozycje)', 'hk': 'Hongkong (krótka sprzedaż)', 'csi': 'indeks CSI 300'}
+CTW_PX = 'Chiny/Tajwan/Hongkong'
+CTW_EVERY_MIN = 30             # min — plik budowany najwyżej co tyle (plik z nieudaną częścią: NIEPELNY_MIN), części mają własne rytmy poniżej
+CTW_INT = {'cn': 120, 'sh': 120, 'tw': 120, 'csi': 120}   # min — odstęp między odczytami części (hk: okno dnia, nie odstęp)
+CTW_TIMEOUT = 20               # s — jedno zapytanie (serwery w Chinach bywają wolne)
+CTW_SLEEP = 1.0                # s — odstęp między zapytaniami
+CTW_LIMIT_S = 150              # s — budżet czasu budowy pliku; po nim kolejne części zgłaszają błąd limitu (poprzednie dane zostają)
+CTW_MAXB = {'cm': 40000, 'tw': 60000, 'hk': 700000, 'csi': 250000}   # B — największa dopuszczalna odpowiedź (dłuższa = błąd; zmierzone: 3 KB / 3 KB / 50 KB / 4 KB na 75 dni)
+CTW_KEEP = 260                 # wierszy historii w części (ok. rok sesji)
+CTW_CM = 'https://www.chinamoney.com.cn/ags/ms/'
+CTW_CM_KRZYWA = CTW_CM + 'cm-u-bk-currency/ClsYldCurvHis?lang=en&reference=1,2,3&bondType=CYCC000&startDate={a}&endDate={b}&termId=1&pageNum={p}&pageSize=15'
+CTW_CM_SHIBOR = CTW_CM + 'cm-u-bk-shibor/ShiborHis?lang=en&startDate={a}&endDate={b}'
+CTW_TW_PC = 'https://openapi.taifex.com.tw/v1/PutCallRatio'
+CTW_TW_INST = 'https://openapi.taifex.com.tw/v1/MarketDataOfMajorInstitutionalTradersGeneralBytheDate'
+CTW_HK_URL = 'https://www.hkex.com.hk/eng/stat/smstat/ssturnover/ncms/ASHTMAIN.HTM'
+CTW_CSI_URL = 'https://www.csindex.com.cn/csindex-home/perf/index-perf?indexCode=000300&startDate={a}&endDate={b}'
+CTW_LAB = (('3M', 0.25), ('1Y', 1.0), ('2Y', 2.0), ('3Y', 3.0), ('5Y', 5.0), ('7Y', 7.0), ('10Y', 10.0), ('20Y', 20.0), ('30Y', 30.0))
+CTW_SHIBOR = ('ON', '1W', '2W', '1M', '3M', '6M', '9M', '1Y')
+CTW_CN_STARE = 20              # dni — ostatnia sesja krzywej / Shibor starsza = błąd części (z historii CSI 2021–2026 najdłuższa przerwa między sesjami to 11 dni: Złoty Tydzień, Nowy Rok księżycowy)
+CTW_CSI_STARE = 20
+CTW_TW_STARE = 20              # dni — ostatnia sesja Tajwanu (najdłuższa przerwa: Nowy Rok księżycowy, 12 dni z weekendami)
+CTW_STRONY = 3                 # strony dnia krzywej (terminy do 41 lat; 30 lat jest na stronie 3)
+CTW_Y = (0.0, 12.0)            # % — rentowność / Shibor poza przedziałem = błąd odczytu (Chiny 2021–2026: 0,6–4 %)
+CTW_TW_INST_NAZWY = {'自營商': 'd', '投信': 't', '外資及陸資': 'f'}   # dealerzy, krajowe fundusze (investment trust), zagraniczni i z Chin kontynentalnych
+CTW_TW_MAX = 2e7               # mln TWD — wartość pozycji jednej grupy poza ±tym = błąd odczytu (zmierzone: do 1,4 bln TWD = 1,4e6 mln)
+CTW_HK_PROB = 16               # prób pobrania pliku dnia na dobę (okno ma 7 h, rytm co ok. 30–40 min)
+CTW_HK_OKNO = (16 * 60 + 40, 23 * 60 + 55)   # minuty doby czasu Hongkongu (UTC+8): od 16:40 do 23:55
+CTW_HK_OBROT = (2e9, 3e12)     # HKD — obrót rynku w dniu poza przedziałem = błąd odczytu (dzień typowy 0,1–0,4 bln)
+CTW_HK_MAXUDZ = 0.6            # udział krótkiej sprzedaży w obrocie powyżej = błąd odczytu (zmierzone ok. 10–20 %)
+CTW_SRC = ('CapitalFlowAI — Chiny: krzywa rentowności obligacji skarbowych i Shibor; Tajwan: put/call i pozycje inwestorów w kontraktach; Hongkong: udział krótkiej sprzedaży w obrocie; '
+           'indeks CSI 300; publiczne dane urzędowe i giełdowe, dzień danych przy każdej części')
+ZRODLA_META.update({'chtw_cn': 'chinamoney', 'chtw_sh': 'chinamoney', 'chtw_tw': 'taifex', 'chtw_hk': 'hkex', 'chtw_csi': 'csindex'})   # v400: HKEX jest już źródłem (Stock Connect); +3 źródła: rynek międzybankowy Chin, giełda kontraktów Tajwanu, dostawca indeksów Chin
+import zlib as _ctw_zlib   # v400: rozpakowanie odpowiedzi skompresowanej mimo braku prośby (biblioteka standardowa; ponowny import jest nieszkodliwy)
+_CTW_T0 = [None]
+_CTW_MIES = {m: i + 1 for i, m in enumerate(('JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'))}
+_CTW_DNI = ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY')
+
+
+def ctw_get(url, maks):
+    """Jedno zapytanie GET (publiczne, bez klucza) z odstępem CTW_SLEEP, limitem czasu (CTW_TIMEOUT, nie więcej niż reszta budżetu budowy) i limitem rozmiaru `maks` B (dłuższa odpowiedź = błąd);
+    odpowiedź skompresowana (gzip) bez prośby jest rozpakowywana z tym samym limitem."""
+    t0 = _CTW_T0[0]
+    lim = CTW_TIMEOUT
+    if t0 is not None:
+        left = CTW_LIMIT_S - (time.monotonic() - t0)
+        if left < 3:
+            raise RuntimeError(f'limit czasu budowy ({CTW_LIMIT_S} s)')
+        lim = max(3, min(CTW_TIMEOUT, left))
+    time.sleep(CTW_SLEEP)
+    b = get_bytes_maks(url, timeout=lim, maks=maks)
+    if b[:2] == b'\x1f\x8b':
+        d = _ctw_zlib.decompressobj(16 + _ctw_zlib.MAX_WBITS)
+        b = d.decompress(b, maks + 1)
+        if len(b) > maks:
+            raise RuntimeError(f'odpowiedź dłuższa niż {maks} B (limit)')
+        if not d.eof:
+            raise RuntimeError('odpowiedź skompresowana jest ucięta albo uszkodzona')
+    return b
+
+
+def ctw_json(raw):
+    """Odpowiedź → obiekt JSON; HTML (strona błędu / odmowy) albo ucięty tekst = ValueError."""
+    try:
+        return json.loads(raw.decode('utf-8') if isinstance(raw, (bytes, bytearray)) else raw)
+    except ValueError:
+        raise ValueError('odpowiedź nie jest JSON (strona błędu albo odmowa)') from None
+
+
+def ctw_liczba(x, lo, hi, co):
+    """Liczba skończona z liczby albo tekstu dziesiętnego (bez przecinków tysięcy) w przedziale [lo, hi]; wartość logiczna, brak („---”, pusty tekst), NaN i poza przedziałem = ValueError."""
+    if isinstance(x, bool):
+        raise ValueError(f'{co}: wartość logiczna')
+    try:
+        v = float(x.strip()) if isinstance(x, str) else float(x)
+    except (TypeError, ValueError, AttributeError):
+        raise ValueError(f'{co}: nie liczba ({str(x)[:12]!r})') from None
+    if v != v or v in (float('inf'), float('-inf')) or not lo <= v <= hi:
+        raise ValueError(f'{co}: poza zakresem ({v})')
+    return v
+
+
+def ctw_dzien(s, fmt, dzis, co):
+    """Dzień z tekstu w układzie fmt ('iso' RRRR-MM-DD albo 'cyfry' RRRRMMDD) → date; zły zapis, nieistniejący dzień albo więcej niż dzień po dniu przebiegu = ValueError."""
+    ok = isinstance(s, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}' if fmt == 'iso' else r'\d{8}', s)
+    if not ok:
+        raise ValueError(f'{co}: zły dzień {str(s)[:12]!r}')
+    try:
+        d = datetime.date.fromisoformat(s if fmt == 'iso' else f'{s[:4]}-{s[4:6]}-{s[6:]}')
+    except ValueError:
+        raise ValueError(f'{co}: nieistniejący dzień {s[:10]!r}') from None
+    if d > dzis + datetime.timedelta(days=1):
+        raise ValueError(f'{co}: dzień {d} z przyszłości')
+    return d
+
+
+def ctw_scal(stare, nowe, ile=None):
+    """Historia wierszy [dzień, …]: wiersze `nowe` zastępują stare z tym samym dniem, wynik rosnąco wg dnia, najwyżej `ile` ostatnich (domyślnie CTW_KEEP); wiersz o złym kształcie jest pomijany."""
+    m = {}
+    for r in list(stare or []) + list(nowe or []):
+        if isinstance(r, (list, tuple)) and r and isinstance(r[0], str):
+            m[r[0]] = list(r)
+    return [m[k] for k in sorted(m)][-(ile or CTW_KEEP):]
+
+
+# ---------------------------------------------------------------- cn, sh: rynek międzybankowy Chin ----------------------------------------------------------------
+def ctw_cm_strona(raw, dzis):
+    """Strona wyników krzywej → (lista (dzień, termin w latach, rentowność albo None), liczba wierszy razem). Zły kształt albo kod odpowiedzi ≠ 200 = ValueError. Rentowność „---” = None."""
+    j = ctw_json(raw)
+    h = j.get('head') if isinstance(j, dict) else None
+    d = j.get('data') if isinstance(j, dict) else None
+    rec = j.get('records') if isinstance(j, dict) else None
+    if not (isinstance(h, dict) and str(h.get('rep_code')) == '200' and isinstance(d, dict) and isinstance(rec, list)):
+        raise ValueError('krzywa Chin: odpowiedź ma zły kształt')
+    tot = d.get('total')
+    if not (isinstance(tot, int) and not isinstance(tot, bool) and 0 <= tot <= 20000):
+        raise ValueError('krzywa Chin: zła liczba wierszy')
+    out = []
+    for r in rec:
+        if not isinstance(r, dict):
+            raise ValueError('krzywa Chin: wiersz ma zły kształt')
+        dz = ctw_dzien(r.get('newDateValueCN'), 'iso', dzis, 'krzywa Chin')
+        tm = ctw_liczba(r.get('yearTermStr'), 0.01, 60, 'krzywa Chin: termin')
+        yr = r.get('maturityYieldStr')
+        y = None if isinstance(yr, str) and yr.strip() in ('---', '') else ctw_liczba(yr, CTW_Y[0], CTW_Y[1], 'krzywa Chin: rentowność')
+        out.append((dz, tm, y))
+    return out, tot
+
+
+def ctw_cm_najnowsza(dzis, dni_wstecz, koniec=None):
+    """Najnowszy dzień z danymi krzywej w oknie [koniec − dni_wstecz, koniec] (koniec domyślnie dzień przebiegu): jedno zapytanie, pierwsza strona (źródło sortuje dni malejąco); okno bez danych = ValueError."""
+    koniec = koniec or dzis
+    a = koniec - datetime.timedelta(days=dni_wstecz)
+    rows, tot = ctw_cm_strona(ctw_get(CTW_CM_KRZYWA.format(a=a.isoformat(), b=koniec.isoformat(), p=1), CTW_MAXB['cm']), dzis)
+    if not rows or tot <= 0:
+        raise ValueError(f'krzywa Chin: brak danych w oknie {a}…{koniec}')
+    d = max(r[0] for r in rows)
+    if d != rows[0][0] or d > koniec:
+        raise ValueError('krzywa Chin: pierwsza strona nie zaczyna się od najnowszego dnia')
+    return d
+
+
+def ctw_cm_doba(d, dzis):
+    """Krzywa jednego dnia → {etykieta: rentowność %} dla terminów CTW_LAB: trzy strony po 15 wierszy tego dnia (terminy rosnące bez powtórzeń, razem co najmniej 45 wierszy); brak terminu albo rentowności = ValueError."""
+    terminy = {}
+    ost = 0.0
+    for p in range(1, CTW_STRONY + 1):
+        rows, tot = ctw_cm_strona(ctw_get(CTW_CM_KRZYWA.format(a=d.isoformat(), b=d.isoformat(), p=p), CTW_MAXB['cm']), dzis)
+        if tot < 15 * CTW_STRONY or len(rows) != 15:
+            raise ValueError(f'krzywa Chin {d}: strona {p} ma {len(rows)} wierszy z {tot}')
+        for dz, tm, y in rows:
+            if dz != d:
+                raise ValueError(f'krzywa Chin {d}: wiersz z dnia {dz}')
+            if tm <= ost:
+                raise ValueError(f'krzywa Chin {d}: terminy nie rosną ({ost} → {tm})')
+            ost = tm
+            terminy[tm] = y
+    o = {}
+    for lab, tm in CTW_LAB:
+        y = terminy.get(tm)
+        if y is None:
+            raise ValueError(f'krzywa Chin {d}: brak rentowności {lab}')
+        o[lab] = round(y, 4)
+    if abs(o['10Y'] - o['2Y']) > 5:
+        raise ValueError(f'krzywa Chin {d}: nachylenie 10 lat − 2 lata poza zakresem')
+    return o
+
+
+def ctw_cn(pk, now):
+    """Część cn: krzywa najnowszego dnia i sprzed miesiąca + historia 2/5/10/30 lat. Bez nowego dnia w źródle — jedno zapytanie i poprzednia część."""
+    dzis = now.date()
+    L = ctw_cm_najnowsza(dzis, 10)
+    if (dzis - L).days > CTW_CN_STARE:
+        raise ValueError(f'krzywa Chin: ostatni dzień {L} sprzed {(dzis - L).days} dni (źródło stoi)')
+    pk = pk if isinstance(pk, dict) else {}
+    if pk.get('asof') == L.isoformat() and isinstance(pk.get('now'), dict) and set(pk['now']) == {l for l, _ in CTW_LAB}:
+        return pk
+    now_c = ctw_cm_doba(L, dzis)
+    pas, prev_c = None, None
+    try:
+        P = ctw_cm_najnowsza(dzis, 10, koniec=L - datetime.timedelta(days=30))
+        prev_c = ctw_cm_doba(P, dzis)
+        pas = P.isoformat()
+    except Exception as e:  # noqa — krzywa sprzed miesiąca jest dodatkiem: bez niej krzywa dnia zostaje, wiek poprzedniej oceni strona
+        META['notes'].append(mask(f'{CTW_PX}: krzywa sprzed miesiąca niedostępna ({str(e)[:100]})')[:200])
+        if isinstance(pk.get('prev'), dict) and isinstance(pk.get('pasof'), str) and (L - datetime.date.fromisoformat(pk['pasof'])).days <= 45:
+            prev_c, pas = pk['prev'], pk['pasof']
+    h = ctw_scal(pk.get('h'), [[L.isoformat(), now_c['2Y'], now_c['5Y'], now_c['10Y'], now_c['30Y']]])
+    return {'asof': L.isoformat(), 'now': now_c, 'pasof': pas, 'prev': prev_c, 'h': h}
+
+
+def ctw_sh(pk, now):
+    """Część sh: Shibor ośmiu terminów z ostatnich 28 dni (jedno zapytanie), historia dokładana wg dnia."""
+    dzis = now.date()
+    a = dzis - datetime.timedelta(days=28)
+    j = ctw_json(ctw_get(CTW_CM_SHIBOR.format(a=a.isoformat(), b=dzis.isoformat()), CTW_MAXB['cm']))
+    hd = j.get('head') if isinstance(j, dict) else None
+    rec = j.get('records') if isinstance(j, dict) else None
+    if not (isinstance(hd, dict) and str(hd.get('rep_code')) == '200' and isinstance(rec, list) and rec):
+        raise ValueError('Shibor: odpowiedź ma zły kształt albo jest pusta')
+    nowe, widziane = [], set()
+    for r in rec:
+        if not isinstance(r, dict):
+            raise ValueError('Shibor: wiersz ma zły kształt')
+        dz = ctw_dzien(r.get('showDateCN'), 'iso', dzis, 'Shibor')
+        if dz in widziane:
+            raise ValueError(f'Shibor: dzień {dz} powtórzony')
+        widziane.add(dz)
+        nowe.append([dz.isoformat()] + [round(ctw_liczba(r.get(k), CTW_Y[0], CTW_Y[1], f'Shibor {k}'), 4) for k in CTW_SHIBOR])
+    nowe.sort()
+    L = datetime.date.fromisoformat(nowe[-1][0])
+    if (dzis - L).days > CTW_CN_STARE:
+        raise ValueError(f'Shibor: ostatni dzień {L} sprzed {(dzis - L).days} dni (źródło stoi)')
+    pk = pk if isinstance(pk, dict) else {}
+    return {'asof': L.isoformat(), 'h': ctw_scal(pk.get('h'), nowe)}
+
+
+# ---------------------------------------------------------------- tw: Tajwan ----------------------------------------------------------------
+def ctw_tw_pc(raw, dzis):
+    """Put/call z odpowiedzi giełdy kontraktów → wiersze [dzień, wolumen opcji sprzedaży, wolumen opcji kupna, otwarte pozycje sprzedaży, otwarte pozycje kupna] rosnąco wg dnia.
+    Co najmniej 10 sesji, dni bez powtórzeń, liczby całkowite ≥ 0, opcji kupna > 0, podane stosunki (%) = sprzedaż / kupno ± 0,06 p. proc. — inaczej ValueError."""
+    j = ctw_json(raw)
+    if not (isinstance(j, list) and len(j) >= 10):
+        raise ValueError('Tajwan put/call: odpowiedź ma zły kształt albo mało sesji')
+    out, widziane = [], set()
+    for r in j:
+        if not isinstance(r, dict):
+            raise ValueError('Tajwan put/call: wiersz ma zły kształt')
+        d = ctw_dzien(r.get('Date'), 'cyfry', dzis, 'Tajwan put/call')
+        if d in widziane:
+            raise ValueError(f'Tajwan put/call: dzień {d} powtórzony')
+        widziane.add(d)
+        pv, cv, po, co = (int(ctw_liczba(r.get(k), 0, 5e8, f'Tajwan {k}')) for k in ('PutVolume', 'CallVolume', 'PutOI', 'CallOI'))
+        if cv <= 0 or co <= 0:
+            raise ValueError(f'Tajwan put/call {d}: zero opcji kupna')
+        for rep, a, b, nm in (('PutCallVolumeRatio%', pv, cv, 'wolumen'), ('PutCallOIRatio%', po, co, 'otwarte pozycje')):
+            if abs(ctw_liczba(r.get(rep), 0, 1e5, f'Tajwan {rep}') - a / b * 100) > 0.06:
+                raise ValueError(f'Tajwan put/call {d}: stosunek ({nm}) nie zgadza się z liczbami')
+        out.append([d.isoformat(), pv, cv, po, co])
+    out.sort()
+    return out
+
+
+def ctw_tw_inst(raw, dzis):
+    """Pozycje trzech grup inwestorów w kontraktach terminowych razem (jedna sesja) → (dzień, {grupa: [pozycja netto w kontraktach, netto wartość otwartych pozycji, wartość długich, wartość krótkich, netto wartość obrotu,
+    netto kontrakty obrotu]}) w kontraktach i mln TWD. Nazwy grup muszą być dokładnie trzy znane, jeden dzień; netto = długie − krótkie (± 1) — inaczej ValueError."""
+    j = ctw_json(raw)
+    if not (isinstance(j, list) and len(j) == 3 and all(isinstance(r, dict) for r in j)):
+        raise ValueError('Tajwan pozycje: odpowiedź ma zły kształt')
+    dni = {r.get('Date') for r in j}
+    if len(dni) != 1:
+        raise ValueError('Tajwan pozycje: wiersze z różnych dni')
+    d = ctw_dzien(next(iter(dni)), 'cyfry', dzis, 'Tajwan pozycje')
+    g = {}
+    for r in j:
+        k = CTW_TW_INST_NAZWY.get(r.get('Item'))
+        if k is None or k in g:
+            raise ValueError('Tajwan pozycje: nieznana albo powtórzona grupa inwestorów')
+        v = {n: int(ctw_liczba(r.get(n), -CTW_TW_MAX, CTW_TW_MAX, f'Tajwan {n}')) for n in (
+            'TradingVolume(Long)', 'TradingVolume(Short)', 'TradingVolume(Net)', 'TradingValue(Long)(Millions)', 'TradingValue(Short)(Millions)', 'TradingValue(Net)(Millions)',
+            'OpenInterest(Long)', 'OpenInterest(Short)', 'OpenInterest(Net)', 'ContractValueOfOpenInterest(Long)(Millions)', 'ContractValueOfOpenInterest(Short)(Millions)',
+            'ContractValueOfOpenInterest(Net)(Millions)')}
+        for a, b, c in (('TradingVolume(Long)', 'TradingVolume(Short)', 'TradingVolume(Net)'), ('TradingValue(Long)(Millions)', 'TradingValue(Short)(Millions)', 'TradingValue(Net)(Millions)'),
+                        ('OpenInterest(Long)', 'OpenInterest(Short)', 'OpenInterest(Net)'),
+                        ('ContractValueOfOpenInterest(Long)(Millions)', 'ContractValueOfOpenInterest(Short)(Millions)', 'ContractValueOfOpenInterest(Net)(Millions)')):
+            if abs(v[a] - v[b] - v[c]) > 1:
+                raise ValueError(f'Tajwan pozycje {k}: netto ≠ długie − krótkie ({c})')
+        g[k] = [v['OpenInterest(Net)'], v['ContractValueOfOpenInterest(Net)(Millions)'], v['ContractValueOfOpenInterest(Long)(Millions)'],
+                v['ContractValueOfOpenInterest(Short)(Millions)'], v['TradingValue(Net)(Millions)'], v['TradingVolume(Net)']]
+    return d, g
+
+
+def ctw_tw(pk, now):
+    """Część tw: put/call (20 sesji, historia dokładana wg dnia) i pozycje trzech grup inwestorów (ostatnia sesja + historia od wdrożenia)."""
+    dzis = now.date()
+    pk = pk if isinstance(pk, dict) else {}
+    pc = ctw_tw_pc(ctw_get(CTW_TW_PC, CTW_MAXB['tw']), dzis)
+    di, g = ctw_tw_inst(ctw_get(CTW_TW_INST, CTW_MAXB['tw']), dzis)
+    L = datetime.date.fromisoformat(pc[-1][0])
+    if (dzis - L).days > CTW_TW_STARE or (dzis - di).days > CTW_TW_STARE:
+        raise ValueError(f'Tajwan: ostatnia sesja {min(L, di)} sprzed {(dzis - min(L, di)).days} dni (źródło stoi)')
+    pi = pk.get('in') if isinstance(pk.get('in'), dict) else {}
+    ph = pk.get('pc') if isinstance(pk.get('pc'), dict) else {}
+    return {'pc': {'asof': L.isoformat(), 'h': ctw_scal(ph.get('h'), pc)},
+            'in': {'asof': di.isoformat(), 'g': g, 'h': ctw_scal(pi.get('h'), [[di.isoformat(), g['d'][1], g['t'][1], g['f'][1]]])}}
+
+
+# ---------------------------------------------------------------- hk: Hongkong, krótka sprzedaż ----------------------------------------------------------------
+def ctw_hk_okno(now):
+    """Czas przebiegu (UTC) → dzień Hongkongu (date), gdy trwa okno pobierania pliku dnia (dzień roboczy Hongkongu, 16:40–23:55 jego czasu, UTC+8), inaczej None."""
+    hk = now.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
+    m = hk.hour * 60 + hk.minute
+    return hk.date() if hk.weekday() < 5 and CTW_HK_OKNO[0] <= m <= CTW_HK_OKNO[1] else None
+
+
+def _ctw_hk_blok(linie, i0, i1, co):
+    """Blok (A), (B) albo (C) pliku: akcje (liczba, wartość w HKD), obrót rynku i podany udział w % — każda pozycja dokładnie raz, inaczej ValueError."""
+    t = '\n'.join(linie[i0:i1])
+    out = []
+    for rx in (r'Short Selling Turnover Total Shares \(SH\)\s*:\s*([\d,]+)', r'Short Selling Turnover Total Value \(\$\)\s*:\s*HKD\s*([\d,]+)',
+               r'Total market turnover\s*:\s*HKD\s*([\d,]+)', r'as % total turnover\s*:\s*(\d{1,3})%'):
+        m = re.findall(rx, t)
+        if len(m) != 1:
+            raise ValueError(f'krótka sprzedaż {co}: pozycja „{rx[:40]}” {len(m)} razy zamiast raz')
+        out.append(int(m[0].replace(',', '')))
+    return out
+
+
+def parse_ctw_hk(raw, dzien_hk):
+    """Plik dnia krótkiej sprzedaży (HTML z tekstem stałej szerokości) → None, gdy pliku dnia jeszcze nie ma (zdanie „będzie dostępny po zamknięciu” albo plik z wcześniejszego dnia), albo wiersz
+    [dzień, akcje bez ETP mln HKD, fundusze ETP mln HKD, obrót rynku mln HKD, liczba papierów]. Zmieniony układ, dzień z przyszłości, zły dzień tygodnia, sumy niezgodne (akcje + ETP = razem, udział
+    = razem / obrót ± 1 p. proc.) albo liczby poza zakresem = ValueError."""
+    text = raw.decode('latin-1') if isinstance(raw, (bytes, bytearray)) else str(raw)
+    m = re.search(r'TRADING DATE\s*:\s*(\d{1,2}) ([A-Z]{3}) (\d{4}) \(([A-Z]+)\)', text)
+    if not m:
+        if 'will be available after' in text and 'SHORTSELL REPORT' not in text:
+            return None
+        raise ValueError('krótka sprzedaż: brak daty sesji i brak zdania o dostępności (zmieniony układ?)')
+    if 'Short Selling Turnover (Main Board) up to day close today' not in text:
+        raise ValueError('krótka sprzedaż: inny tytuł pliku')
+    try:
+        d = datetime.date(int(m.group(3)), _CTW_MIES[m.group(2)], int(m.group(1)))
+    except (KeyError, ValueError):
+        raise ValueError('krótka sprzedaż: zła data sesji') from None
+    if _CTW_DNI[d.weekday()] != m.group(4):
+        raise ValueError('krótka sprzedaż: dzień tygodnia nie zgadza się z datą')
+    if d > dzien_hk:
+        raise ValueError(f'krótka sprzedaż: sesja {d} z przyszłości')
+    if d < dzien_hk:
+        return None
+    L = text.split('\n')
+    idx = {}
+    for i, s in enumerate(L):
+        mm = re.match(r'\(([ABC])\) Short Selling of ', s)
+        if mm:
+            if mm.group(1) in idx:
+                raise ValueError('krótka sprzedaż: powtórzony blok')
+            idx[mm.group(1)] = i
+    if set(idx) != {'A', 'B', 'C'} or not idx['A'] < idx['B'] < idx['C']:
+        raise ValueError('krótka sprzedaż: brak bloków (A), (B), (C)')
+    kon = next((i for i in range(idx['C'] + 1, len(L)) if L[i].startswith('*Total No.')), len(L))
+    A = _ctw_hk_blok(L, idx['A'], idx['B'], '(A)')
+    B = _ctw_hk_blok(L, idx['B'], idx['C'], '(B)')
+    C = _ctw_hk_blok(L, idx['C'], kon, '(C)')
+    if not (A[2] == B[2] == C[2] and CTW_HK_OBROT[0] <= A[2] <= CTW_HK_OBROT[1]):
+        raise ValueError('krótka sprzedaż: obrót rynku różny w blokach albo poza zakresem')
+    if A[1] < 0 or B[1] < 0 or abs(A[1] + B[1] - C[1]) > max(1000, C[1] * 1e-4):
+        raise ValueError('krótka sprzedaż: akcje + fundusze ETP ≠ razem')
+    tot = A[2]
+    if C[1] > tot * CTW_HK_MAXUDZ or abs(C[1] / tot * 100 - C[3]) > 1.0 or abs(A[1] / tot * 100 - A[3]) > 1.0 or abs(B[1] / tot * 100 - B[3]) > 1.0:
+        raise ValueError('krótka sprzedaż: udział w obrocie nie zgadza się z podanym')
+    n = re.findall(r'Total No\. of all Securities recording Short Selling\s*:\s*(\d+)', text)
+    if len(n) != 1 or not 0 < int(n[0]) <= 4000:
+        raise ValueError('krótka sprzedaż: liczba papierów z krótką sprzedażą')
+    return [d.isoformat(), round(A[1] / 1e6), round(B[1] / 1e6), round(tot / 1e6), int(n[0])]
+
+
+def ctw_hk(pk, now):
+    """Część hk: w oknie dnia Hongkongu jedno zapytanie o plik dnia (najwyżej CTW_HK_PROB prób na dobę); plik jeszcze niegotowy = część bez zmian z zapisaną próbą (to nie błąd)."""
+    pk = pk if isinstance(pk, dict) else {}
+    dz = ctw_hk_okno(now)
+    h = [r for r in (pk.get('h') or []) if isinstance(r, list)]
+    prob = pk.get('try') if isinstance(pk.get('try'), list) and len(pk['try']) == 2 else [None, 0]
+    if dz is None or (h and h[-1][0] == dz.isoformat()):
+        return pk if pk else {'asof': None, 'h': [], 'try': [None, 0]}
+    n = prob[1] + 1 if prob[0] == dz.isoformat() else 1
+    if n > CTW_HK_PROB:
+        return pk
+    w = parse_ctw_hk(ctw_get(CTW_HK_URL, CTW_MAXB['hk']), dz)
+    return {'asof': (w[0] if w else pk.get('asof')), 'h': ctw_scal(h, [w] if w else []), 'try': [dz.isoformat(), n]}
+
+
+# ---------------------------------------------------------------- csi: indeks CSI 300 ----------------------------------------------------------------
+def parse_ctw_csi(raw, now):
+    """Odpowiedź o indeksie CSI 300 → wiersze [dzień, zamknięcie, zmiana %] rosnąco: okno zaczynające się w święto podstawia w pierwszym wierszu dane następnej sesji — ciąg wierszy o tych samych
+    cenach i wolumenie zostawia ostatni; dzisiejszy wiersz przed 16:30 czasu Chin (sesja trwa) odpada; zamknięcie − poprzednie zamknięcie = zmiana w wierszu (± 0,02 p. proc. po zaokrągleniu).
+    Zły kod, inny indeks, ceny niespójne (niskie ≤ otwarcie, zamknięcie ≤ wysokie) albo poza zakresem, mało sesji — ValueError."""
+    dzis = now.date()
+    j = ctw_json(raw)
+    d = j.get('data') if isinstance(j, dict) else None
+    if not (isinstance(j, dict) and str(j.get('code')) == '200' and isinstance(d, list) and len(d) >= 20):
+        raise ValueError('CSI 300: odpowiedź ma zły kształt albo mało sesji')
+    rows, widziane = [], set()
+    for r in d:
+        if not isinstance(r, dict) or r.get('indexCode') != '000300':
+            raise ValueError('CSI 300: inny indeks albo zły wiersz')
+        dz = ctw_dzien(r.get('tradeDate'), 'cyfry', dzis, 'CSI 300')
+        if dz in widziane:
+            raise ValueError(f'CSI 300: dzień {dz} powtórzony')
+        widziane.add(dz)
+        o, h, l, c = (ctw_liczba(r.get(k), 500, 20000, f'CSI 300 {k}') for k in ('open', 'high', 'low', 'close'))
+        if not (l <= min(o, c) and max(o, c) <= h):
+            raise ValueError(f'CSI 300 {dz}: ceny niespójne')
+        vol = ctw_liczba(r.get('tradingVol'), 1e8, 1e12, 'CSI 300 wolumen')
+        rows.append((dz, (o, h, l, c, vol), c, ctw_liczba(r.get('changePct'), -15, 15, 'CSI 300 zmiana %')))
+    rows.sort(key=lambda x: x[0])
+    sc = []
+    for r in rows:   # ciąg tych samych cen i wolumenu = podstawienie na początku okna w święto: zostaje ostatni wiersz ciągu (prawdziwa sesja)
+        if sc and sc[-1][1] == r[1]:
+            sc[-1] = r
+        else:
+            sc.append(r)
+    cst = now.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
+    if sc and sc[-1][0] == cst.date() and cst.hour * 60 + cst.minute < 16 * 60 + 30:
+        sc.pop()
+    if len(sc) < 15:
+        raise ValueError('CSI 300: za mało sesji po oczyszczeniu')
+    for a, b in zip(sc, sc[1:]):
+        if abs((b[2] / a[2] - 1) * 100 - b[3]) > 0.02:
+            raise ValueError(f'CSI 300 {b[0]}: zamknięcie nie zgadza się ze zmianą w wierszu')
+    return [[r[0].isoformat(), round(r[2], 2), round(r[3], 2)] for r in sc]
+
+
+def ctw_csi(pk, now):
+    """Część csi: okno 75 dni jednym zapytaniem, wiersze dokładane wg dnia (nowe zastępują stare)."""
+    dzis = now.date()
+    a = dzis - datetime.timedelta(days=75)
+    nowe = parse_ctw_csi(ctw_get(CTW_CSI_URL.format(a=a.strftime('%Y%m%d'), b=dzis.strftime('%Y%m%d')), CTW_MAXB['csi']), now)
+    L = datetime.date.fromisoformat(nowe[-1][0])
+    if (dzis - L).days > CTW_CSI_STARE:
+        raise ValueError(f'CSI 300: ostatnia sesja {L} sprzed {(dzis - L).days} dni (źródło stoi)')
+    pk = pk if isinstance(pk, dict) else {}
+    return {'asof': L.isoformat(), 'h': ctw_scal(pk.get('h'), nowe)}
+
+
+# ---------------------------------------------------------------- budowa pliku ----------------------------------------------------------------
+CTW_BUDOWA = {'cn': ctw_cn, 'sh': ctw_sh, 'tw': ctw_tw, 'hk': ctw_hk, 'csi': ctw_csi}
+
+
+def ctw_wymagana(k, pk, pok, pat, now):
+    """Czy część k wymaga odczytu: hk — tylko w oknie dnia Hongkongu i bez zapisanego dnia; pozostałe — brak części, poprzedni błąd albo odczyt starszy niż CTW_INT[k] min."""
+    if k == 'hk':
+        dz = ctw_hk_okno(now)
+        h = pk.get('h') if isinstance(pk, dict) and isinstance(pk.get('h'), list) else []
+        return dz is not None and not (h and isinstance(h[-1], list) and h[-1][0] == dz.isoformat())
+    if not isinstance(pk, dict) or pok.get(k) is False:
+        return True
+    t = _ix_dt(pat.get(k))
+    return t is None or (now - t).total_seconds() >= CTW_INT[k] * 60
+
+
+def build_chiny_tw(prev=None, run_t0=None):
+    """Plik data/chiny-tw.json (v400): pięć części (cn, sh, tw, hk, csi) z własnym ok / part_at / errs; część z błędem zostaje z poprzedniego pliku z własną chwilą, nigdy pusta zamiast ostatnich danych;
+    część, której odczyt nie jest jeszcze potrzebny (rytm, okno Hongkongu), zostaje bez zmian z ok 'cached'. Żadna część nie ma danych = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == CTW_V else {}
+    pat, pok = _dict(prev.get('part_at')), _dict(prev.get('ok'))
+    now = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc)
+    out = {'v': CTW_V, 'at': NOW, 'od': prev.get('od') if isinstance(prev.get('od'), str) else now.date().isoformat(), 'src': CTW_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    _CTW_T0[0] = time.monotonic()
+    try:
+        for k in CTW_PARTS:
+            pk = prev.get(k) if isinstance(prev.get(k), dict) else None
+            if not ctw_wymagana(k, pk, pok, pat, now):
+                if pk is not None:
+                    out[k] = pk
+                    out['part_at'][k] = pat.get(k) or prev.get('at')
+                out['ok'][k] = 'cached'
+                continue
+            try:
+                out[k] = CTW_BUDOWA[k](pk, now)
+                out['ok'][k] = True
+                out['part_at'][k] = NOW
+            except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
+                msg = mask(f'{e}')[:160]
+                META['errors'].append(mask(f'{CTW_PX} {CTW_LABEL[k]}: {msg}')[:220])
+                out['ok'][k] = False
+                out['errs'][k] = msg
+                if pk is not None:
+                    out[k] = pk
+                    out['part_at'][k] = pat.get(k) or prev.get('at')
+    finally:
+        _CTW_T0[0] = None
+    if not any(isinstance(out.get(k), dict) for k in CTW_PARTS):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
 
 
 if __name__ == '__main__':
