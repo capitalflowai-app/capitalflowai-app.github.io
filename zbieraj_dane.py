@@ -32926,6 +32926,30 @@ def main():
     # v367 (F5Z2): PRĄD I CO2 (data/prad.json; dział SUROWCE, blok „Prąd i CO2”) — Polska: cena energii w 96 kwadransach dziś i jutro, cena uprawnień do emisji CO2 oraz ceny
     # dnia następnego w 15 strefach Europy (jedno zapytanie na przebieg — limit źródła); części z własnymi bramkami wg terminów publikacji i budżetem czasu; awaria
     # budowniczego = poprzedni plik. META ok: prad_pl, prad_co2, prad_str (dwa nowe źródła: operator sieci przesyłowej i interfejs danych o energii).
+    # v395 (F11Z9): ENERGIA USA (data/energia-usa.json: raport ropy — rafinerie, zapasy produktów, import ropy wg kraju, bilans handlu, dostawy; stopniodni ogrzewania i chłodzenia; dwie części z własnym ok / part_at / errs) —
+    # co EU_EVERY_MIN min, plik z częścią nieudaną ponawiany po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok: energia_wpsr (to samo źródło co zapasy ropy
+    # w surowcach), energia_pogoda (nowe źródło — liczba źródeł +1).
+    prev_eu = previous('energia-usa')
+    if isinstance(prev_eu, dict) and prev_eu.get('v') == EU_V and fresh_pelny(prev_eu, EU_EVERY_MIN):
+        save('energia-usa', prev_eu)
+        stan_eu = {}
+        for k_eu in EU_PARTS:
+            if _dict(prev_eu.get('ok')).get(k_eu) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{EU_PX} {EU_LABEL[k_eu]}: {str(_dict(prev_eu.get('errs')).get(k_eu) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_eu[k_eu] = False
+            else:
+                stan_eu[k_eu] = 'cached'
+    else:
+        try:
+            eu_ = build_energia_usa(prev_eu, run_t0=_RUN_T0[0]); save('energia-usa', eu_)
+            stan_eu = {k_eu: eu_['ok'].get(k_eu) is True for k_eu in EU_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{EU_PX}: {e}')[:200])
+            stan_eu = {k_eu: False for k_eu in EU_PARTS}
+            if isinstance(prev_eu, dict):
+                save('energia-usa', prev_eu)
+    META['ok']['energia_wpsr'] = stan_eu['wpsr']; META['ok']['energia_pogoda'] = stan_eu['pogoda']
+    # v395: koniec bloku energii USA
     prev_pr = previous('prad')
     try:
         pr_ = build_prad(prev_pr, run_t0=_RUN_T0[0])
@@ -39821,6 +39845,444 @@ def pst_czesc():
         if prev:
             save('premie-stable', prev)
         return (False,) * len(PST_KODY)
+
+
+# ===================== v395 (F11Z9): ENERGIA USA — RAFINERIE, IMPORT ROPY WG KRAJU, ZAPASY PRODUKTÓW, STOPNIODNIE (data/energia-usa.json; publiczne zapytania GET bez klucza) =====================
+# Dwie części jednego pliku, każda z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie (nigdy puste zamiast ostatnich danych):
+#   wpsr   — tygodniowy raport ropy i produktów naftowych USA (tabele 2, 3, 5, 6, 7, 8 i 9 pliku raportu; tabela 1 i zapasy ropy są już w surowcach): przerób ropy i wykorzystanie mocy rafinerii
+#            wg pięciu okręgów naftowych (PADD), produkcja paliw, zapasy benzyny / oleju napędowego i opałowego / paliwa lotniczego / mazutu / propanu (USA i okręgi), import ropy wg kraju pochodzenia
+#            (największe kraje), bilans handlu ropą i produktami, wydobycie, dostawy produktów na rynek (popyt pośredni). Stan na piątek, raport w środę 10:30 czasu USA (po święcie dzień później).
+#            Tabela 2 jest sprawdzana przy każdym przebiegu (jedno zapytanie): ten sam tydzień co w pliku = reszta bez zmian, pełne pobranie siedmiu tabel najwyżej raz na dobę.
+#   pogoda — dzienne stopniodni ogrzewania i chłodzenia USA (średnia ważona liczbą ludności, °F) z plików tekstowych z kolumnami oddzielonymi znakiem „|”, oraz normy z lat 1981–2010 dla każdego
+#            dnia roku (pobierane raz, trzymane w pliku). Stopniodzień = o ile °F średnia temperatura doby jest niższa (ogrzewanie) albo wyższa (chłodzenie) niż 65 °F. W pliku ostatnie 60 dni.
+# Bramki: nagłówki tabel (daty: tydzień, tydzień wcześniej, rok wcześniej, średnia z 4 tygodni) i nazwy wierszy muszą się zgadzać (inny układ = błąd części, nie cicha zmiana liczb), suma okręgów
+# = USA, wykorzystanie mocy = przerób brutto / moc, import − eksport = bilans, część rozbita = całość; pliki stopniodni: nagłówek produktu, kolejne dni od 1 stycznia, równe wiersze dziewięciu
+# regionów i USA, liczby całkowite w zakresach, ten sam ostatni dzień w obu plikach i niewiele dni wstecz.
+EU_V = 1
+EU_EVERY_MIN = 180            # min — raport tygodniowy sprawdzany tabelą 2, stopniodni dziennie; część z błędem: ponowienie po NIEPELNY_MIN (fresh_pelny)
+EU_PARTS = ('wpsr', 'pogoda')
+EU_LABEL = {'wpsr': 'raport ropy', 'pogoda': 'stopniodni'}
+EU_PX = 'Energia USA'
+EU_WPSR_URL = 'https://ir.eia.gov/wpsr/table{n}.csv'
+EU_WPSR_TABELE = (2, 3, 5, 6, 7, 8, 9)
+EU_NOAA_URL = 'https://ftp.cpc.ncep.noaa.gov/htdocs/degree_days/weighted/daily_data'
+EU_TIMEOUT = 45               # s — jedno zapytanie
+EU_SLEEP = 1.0                # s — odstęp między zapytaniami do jednego serwera
+EU_PELNE_H = 24               # godz. — pełne pobranie tabel najwyżej raz na dobę, gdy tydzień raportu ten sam
+EU_OKNO_DNI = 60              # dni stopniodni w pliku
+EU_WIEK_MAX_DNI = 10          # dni — ostatni dzień stopniodni starszy = błąd części (plik stoi)
+EU_HDD_MAX, EU_CDD_MAX = 120, 60   # stopniodnie na dobę (USA ważone ludnością: ogrzewanie do ok. 60, chłodzenie do ok. 25); region może być wyższy
+EU_NORMA_DNI = 366
+EU_UTIL = (0.0, 110.0)        # % wykorzystania mocy rafinerii
+EU_KBD = (-30000.0, 40000.0)  # tys. baryłek dziennie (bilans handlu może być ujemny)
+EU_MB = (0.0, 2500.0)         # mln baryłek (zapasy)
+EU_TOL_KBD = 6                # tys. b/d — zaokrąglenia między tabelą a sumą jej wierszy
+EU_TOL_MB = 0.06              # mln bbl
+EU_TOL_PCT = 0.15             # p. proc. — wykorzystanie mocy względem przerobu brutto i mocy
+EU_PADD = ('us', 'p1', 'p2', 'p3', 'p4', 'p5')
+EU_PADD_NAZWY = ('East Coast (PADD 1)', 'Midwest (PADD 2)', 'Gulf Coast (PADD 3)', 'Rocky Mountain (PADD 4)', 'West Coast (PADD 5)')
+EU_DEST_NAZWY = ('East Coast (PADD 1)', 'New England (PADD 1A)', 'Central Atlantic (PADD 1B)', 'Lower Atlantic (PADD 1C)', 'Midwest (PADD 2)', 'Gulf Coast (PADD 3)',
+                 'Rocky Mountain (PADD 4)', 'West Coast (PADD 5)')
+EU_PROD_NAZWY = (('benz', 'Finished Motor Gasoline'), ('benz_bk', 'Finished Motor Gasoline (excl. Adjustment)'), ('nafta', 'Kerosene-Type Jet Fuel'), ('dest', 'Distillate Fuel Oil'),
+                 ('mazut', 'Residual Fuel Oil'), ('propan', 'Propane/Propylene'))
+EU_POPYT_NAZWY = (('razem', 'Total Product Supplied'), ('benz', 'Finished Motor Gasoline'), ('nafta', 'Kerosene-Type Jet Fuel'), ('dest', 'Distillate Fuel Oil'),
+                  ('mazut', 'Residual Fuel Oil'), ('propan', 'Propane/Propylene'), ('inne', 'Other Oils'))
+# układ nagłówka każdej tabeli: S — kolumna nazwy (STUB), D — data, x — kolumna różnicy / zmiany procentowej / udziału; role: indeksy kolumn tydzień (cur), tydzień wcześniej (prev),
+# rok wcześniej (yago), średnia z 4 tygodni (avg4) i jej odpowiednik rok wcześniej (avg4y), udział w imporcie roku (share)
+EU_UKLAD = {2: ('SSDDxDxDxDDx', {'cur': 2, 'prev': 3, 'yago': 5, 'avg4': 9, 'avg4y': 10}),
+            3: ('SSDDxDxDxDDx', {'cur': 2, 'prev': 3, 'yago': 5, 'avg4': 9, 'avg4y': 10}),
+            5: ('SSDDxDxDx', {'cur': 2, 'prev': 3, 'yago': 5}),
+            6: ('SDDxDxDx', {'cur': 1, 'prev': 2, 'yago': 4}),
+            7: ('SDDxDxDxDDx', {'cur': 1, 'prev': 2, 'yago': 4, 'avg4': 8, 'avg4y': 9}),
+            8: ('SSxDDxDxDxDDx', {'share': 2, 'cur': 3, 'prev': 4, 'yago': 6, 'avg4': 10, 'avg4y': 11}),
+            9: ('SSDDDDDD', {'cur': 2, 'prev': 3, 'yago': 4, 'avg4': 6, 'avg4y': 7})}
+EU_KRAJE = {'Canada': 'CA', 'Mexico': 'MX', 'Saudi Arabia': 'SA', 'Guyana': 'GY', 'Brazil': 'BR', 'Colombia': 'CO', 'Iraq': 'IQ', 'Venezuela': 'VE', 'Nigeria': 'NG', 'Argentina': 'AR',
+            'Ecuador': 'EC', 'Libya': 'LY', 'United Kingdom': 'GB', 'Norway': 'NO', 'Kuwait': 'KW', 'Angola': 'AO', 'Trinidad and Tobago': 'TT', 'Russia': 'RU', 'Algeria': 'DZ',
+            'United Arab Emirates': 'AE', 'Oman': 'OM', 'Ghana': 'GH', 'Egypt': 'EG', 'Peru': 'PE', 'Bahamas': 'BS', 'Netherlands': 'NL', 'Azerbaijan': 'AZ', 'Kazakhstan': 'KZ',
+            'Gabon': 'GA', 'Chad': 'TD', 'Cameroon': 'CM', 'Bolivia': 'BO', 'Congo (Brazzaville)': 'CG', 'Equatorial Guinea': 'GQ', 'Denmark': 'DK', 'Belgium': 'BE'}
+EU_SRC = ('CapitalFlowAI — tygodniowy raport ropy i produktów naftowych USA (przerób, zapasy produktów, import wg kraju, bilans handlu, dostawy) i dzienne stopniodnie ogrzewania i chłodzenia USA '
+          'ważone liczbą ludności z normami 1981–2010; daty z samych źródeł, pobranie części w part_at (UTC)')
+
+
+def eu_liczba(x):
+    """Komórka tabeli → liczba (przecinek tysięcy usuwany) albo None (puste, „–” z błędnym kodowaniem, tekst); wartość logiczna i inny typ = None."""
+    if not isinstance(x, str):
+        return None
+    s = x.strip().replace(',', '')
+    return float(s) if re.fullmatch(r'-?\d+(?:\.\d+)?', s) else None
+
+
+def eu_data(s):
+    """„10/9/26” → date (miesiąc/dzień/rok dwucyfrowy); inny zapis albo nieistniejący dzień = None."""
+    m = re.fullmatch(r'(\d{1,2})/(\d{1,2})/(\d{2})', s.strip()) if isinstance(s, str) else None
+    if not m:
+        return None
+    try:
+        return datetime.date(2000 + int(m.group(3)), int(m.group(1)), int(m.group(2)))
+    except ValueError:
+        return None
+
+
+def eu_pobierz(url):
+    """Jedno zapytanie GET (publiczne, bez klucza, z identyfikatorem zbieracza) z odstępem EU_SLEEP; tekst odpowiedzi (nieczytelne bajty zamieniane)."""
+    time.sleep(EU_SLEEP)
+    st, body = get(url, timeout=EU_TIMEOUT)
+    if st != 200 or not isinstance(body, str) or len(body) < 100:
+        raise RuntimeError(f'odpowiedź bez treści (HTTP {st})')
+    return body
+
+
+def eu_tabela(tekst, n):
+    """Tabela n raportu → (role {cur, prev, ... → data}, wiersze [[nazwa 1, nazwa 2 albo None, komórki…]]). Nagłówek musi mieć układ z EU_UKLAD: kolumny nazw, daty i kolumny zmian we właściwych
+    miejscach; tydzień wcześniej = 7 dni przed tygodniem, rok wcześniej 360–372 dni, średnia z 4 tygodni kończy się tym samym dniem co tydzień (a jej odpowiednik rok wcześniej — dniem roku wcześniej);
+    tydzień kończy się w piątek. Inny układ = RuntimeError."""
+    wz = list(csv.reader(io.StringIO(tekst.lstrip(chr(0xFEFF)))))
+    if len(wz) < 4:
+        raise RuntimeError(f'tabela {n}: za mało wierszy')
+    uklad, role = EU_UKLAD[n]
+    h = [c.strip() for c in wz[0]]
+    if len(h) != len(uklad):
+        raise RuntimeError(f'tabela {n}: nagłówek ma {len(h)} kolumn zamiast {len(uklad)}')
+    daty = {}
+    for i, (znak, c) in enumerate(zip(uklad, h)):
+        d = eu_data(c)
+        if znak == 'D' and d is None or znak != 'D' and d is not None:
+            raise RuntimeError(f'tabela {n}: kolumna {i} nagłówka ({c[:20]!r}) w złym układzie')
+        if znak == 'S' and not c.startswith('STUB'):
+            raise RuntimeError(f'tabela {n}: kolumna {i} nagłówka nie jest nazwą')
+        daty[i] = d
+    r = {k: daty.get(i) for k, i in role.items() if k not in ('share',)}
+    cur = r['cur']
+    if cur.weekday() != 4:
+        raise RuntimeError(f'tabela {n}: tydzień kończy się {cur} — nie w piątek')
+    if (cur - r['prev']).days != 7 or not 360 <= (cur - r['yago']).days <= 372:
+        raise RuntimeError(f'tabela {n}: daty kolumn ({cur}, {r["prev"]}, {r["yago"]}) poza układem tydzień / tydzień wcześniej / rok wcześniej')
+    if 'avg4' in r and (r['avg4'] != cur or r['avg4y'] != r['yago']):
+        raise RuntimeError(f'tabela {n}: średnia z 4 tygodni kończy się {r["avg4"]} / {r["avg4y"]}')
+    nS = uklad.count('S')
+    out = []
+    for w in wz[1:]:
+        if not w or not any(c.strip() for c in w) or len(w) == 1:
+            continue   # pusty wiersz albo przypis pod tabelą (jedna komórka)
+        if len(w) != len(uklad):
+            raise RuntimeError(f'tabela {n}: wiersz {w[0][:30]!r} ma {len(w)} kolumn zamiast {len(uklad)}')
+        out.append([w[0].strip(), w[1].strip() if nS > 1 else None] + [c for c in w[nS:]])
+    return r, out, role, nS
+
+
+def eu_znajdz(wz, s1, s2, od=0):
+    for i in range(od, len(wz)):
+        if wz[i][0] == s1 and wz[i][1] == s2:
+            return i
+    raise RuntimeError(f'brak wiersza {s1}/{s2}')
+
+
+def eu_seria(w, role, nS, klucze, zakres, co, nd=0, wym=1):
+    """Wiersz → lista [tydzień, tydzień wcześniej, rok wcześniej, (średnia 4 tyg., jej odpowiednik rok wcześniej)] (None = brak liczby w źródle); pierwsze `wym` liczb muszą istnieć, wszystkie w zakresie."""
+    out = []
+    for i, k in enumerate(klucze):
+        v = eu_liczba(w[role[k] - nS + 2]) if k in role else None
+        if v is not None and not zakres[0] <= v <= zakres[1]:
+            raise RuntimeError(f'{co}: {k} poza zakresem ({v})')
+        if i < wym and v is None:
+            raise RuntimeError(f'{co}: brak liczby ({k})')
+        out.append(None if v is None else (int(round(v)) if nd == 0 else round(v, nd)))
+    return out
+
+
+def eu_grupa(wz, i, nazwy, kol, co):
+    """Wiersz sumy i następne wiersze regionów: nazwy regionów (kolumna kol) muszą być dokładnie takie jak oczekiwane, w tej kolejności."""
+    for k, n in enumerate(nazwy, 1):
+        if i + k >= len(wz) or wz[i + k][kol] != n:
+            raise RuntimeError(f'{co}: po wierszu sumy oczekiwano regionu {n!r}')
+    return range(i, i + 1 + len(nazwy))
+
+
+def eu_t2(tekst):
+    r, wz, role, nS = eu_tabela(tekst, 2)
+    K4 = ('cur', 'prev', 'yago', 'avg4', 'avg4y')
+
+    def ser(i, zak, co, nd=0):
+        return eu_seria(wz[i], role, nS, K4, zak, co, nd)
+    st1 = 'Refiner Inputs and Utilization'
+    wej = [ser(i, EU_KBD, 'przerób ropy') for i in eu_grupa(wz, eu_znajdz(wz, st1, 'Crude Oil Inputs'), EU_PADD_NAZWY, 1, 'przerób ropy')]
+    bru = ser(eu_znajdz(wz, st1, 'Gross Inputs'), EU_KBD, 'przerób brutto')
+    moc = ser(eu_znajdz(wz, st1, 'Operable Capacity'), EU_KBD, 'moc')
+    util = [ser(i, EU_UTIL, 'wykorzystanie mocy', 1) for i in eu_grupa(wz, eu_znajdz(wz, st1, 'Percent Utilization'), EU_PADD_NAZWY, 1, 'wykorzystanie mocy')]
+    if abs(sum(s[0] for s in wej[1:]) - wej[0][0]) > EU_TOL_KBD:
+        raise RuntimeError('przerób ropy: suma okręgów ≠ USA')
+    for k in (0, 1):   # wykorzystanie mocy (zaokrąglone do 0,1) = przerób brutto / moc operacyjna — dla tygodnia i tygodnia wcześniej
+        if moc[k] and bru[k] and util[0][k] is not None and abs(util[0][k] - bru[k] / moc[k] * 100) > EU_TOL_PCT:
+            raise RuntimeError(f'wykorzystanie mocy {util[0][k]}% ≠ przerób brutto / moc ({round(bru[k] / moc[k] * 100, 2)}%)')
+    prod = {k: ser(eu_znajdz(wz, 'Refiner and Blender Net Production', n), EU_KBD, 'produkcja ' + k) for k, n in EU_PROD_NAZWY}
+    prod['etanol'] = ser(eu_znajdz(wz, 'Ethanol Plant Production', 'Fuel Ethanol'), EU_KBD, 'produkcja etanolu')
+    return r, {'wej': wej, 'bru': bru, 'moc': moc, 'util': util, 'prod': prod}
+
+
+def eu_t3(tekst):
+    r, wz, role, nS = eu_tabela(tekst, 3)
+    K4 = ('cur', 'prev', 'yago', 'avg4', 'avg4y')
+    return r, {'raf': eu_seria(wz[eu_znajdz(wz, 'Refiner Net Production', 'Finished Motor Gasoline')], role, nS, K4, EU_KBD, 'benzyna z rafinerii'),
+               'mie': eu_seria(wz[eu_znajdz(wz, 'Blender Net Production', 'Finished Motor Gasoline')], role, nS, K4, EU_KBD, 'benzyna z mieszalni')}
+
+
+def eu_t5(tekst):
+    r, wz, role, nS = eu_tabela(tekst, 5)
+    K3 = ('cur', 'prev', 'yago')
+    i = eu_znajdz(wz, 'Motor Gasoline', 'Total Motor Gasoline')
+    benz = [eu_seria(wz[j], role, nS, K3, EU_MB, 'zapas benzyny', 3) for j in eu_grupa(wz, i, EU_PADD_NAZWY, 1, 'zapas benzyny')]
+    if abs(sum(s[0] for s in benz[1:]) - benz[0][0]) > EU_TOL_MB:
+        raise RuntimeError('zapas benzyny: suma okręgów ≠ USA')
+    return r, {'benz': benz, 'etanol': eu_seria(wz[eu_znajdz(wz, 'Fuel Ethanol', 'Fuel Ethanol')], role, nS, K3, EU_MB, 'zapas etanolu', 3)}
+
+
+def eu_t6(tekst):
+    r, wz, role, nS = eu_tabela(tekst, 6)
+    K3 = ('cur', 'prev', 'yago')
+
+    def ser(s1, co):
+        return eu_seria(wz[eu_znajdz(wz, s1, None)], role, nS, K3, EU_MB, co, 3)
+    i = eu_znajdz(wz, 'Distillate Fuel Oil', None)
+    for k, n in enumerate(EU_DEST_NAZWY, 1):
+        if i + k >= len(wz) or wz[i + k][0] != n:
+            raise RuntimeError(f'zapas destylatów: po wierszu sumy oczekiwano regionu {n!r}')
+    dest = [eu_seria(wz[j], role, nS, K3, EU_MB, 'zapas destylatów', 3) for j in range(i, i + 1 + len(EU_DEST_NAZWY))]   # USA, PADD 1, 1A, 1B, 1C, 2, 3, 4, 5
+    if abs(sum(dest[k][0] for k in (1, 5, 6, 7, 8)) - dest[0][0]) > EU_TOL_MB or abs(sum(dest[k][0] for k in (2, 3, 4)) - dest[1][0]) > EU_TOL_MB:
+        raise RuntimeError('zapas destylatów: suma okręgów ≠ USA albo podokręgi ≠ PADD 1')
+    return r, {'dest': dest, 'nafta': ser('Kerosene-Type Jet Fuel', 'zapas paliwa lotniczego'), 'mazut': ser('Residual Fuel Oil', 'zapas mazutu'), 'propan': ser('Propane/Propylene', 'zapas propanu')}
+
+
+def eu_t7(tekst):
+    r, wz, role, nS = eu_tabela(tekst, 7)
+    K4 = ('cur', 'prev', 'yago', 'avg4', 'avg4y')
+    nm = [w[0] for w in wz]
+
+    def idx(nazwa, od=0):
+        if nazwa not in nm[od:]:
+            raise RuntimeError(f'bilans handlu: brak wiersza {nazwa!r}')
+        return nm.index(nazwa, od)
+    net, imp = idx('Net Imports (Incl. SPR)'), idx('Imports (Incl. SPR)')
+    exp = idx('Exports', imp)
+    rn = idx('Crude Oil Net Imports (Incl. SPR)', exp)
+    rk = idx('Commercial', rn)
+    sp1, sp2 = idx('Imports by SPR', rk), idx('Imports into SPR by Others', rk)
+    rex = idx('Exports', sp2)
+    pn = idx('Total Products Net Imports', rex)
+    pi = idx('Imports', pn)
+    pe = len(nm) - 1 - nm[::-1].index('Exports')
+    if not (net < imp < exp < rn < rk < sp1 < sp2 < rex < pn < pi < pe):
+        raise RuntimeError('bilans handlu: wiersze w nieoczekiwanym porządku')
+    S = {k: eu_seria(wz[i], role, nS, K4, EU_KBD, 'bilans ' + k, 0, 2) for k, i in (('net', net), ('imp', imp), ('exp', exp), ('rop_net', rn), ('rop_imp', rk), ('rop_spr', sp1), ('rop_spr2', sp2),
+                                                                           ('rop_exp', rex), ('prod_net', pn), ('prod_imp', pi), ('prod_exp', pe))}
+    for k in (0, 1):
+        s = lambda a: S[a][k]   # noqa: E731
+        if abs(s('net') - (s('imp') - s('exp'))) > EU_TOL_KBD or abs(s('rop_net') - (s('rop_imp') + (s('rop_spr') or 0) + (s('rop_spr2') or 0) - s('rop_exp'))) > EU_TOL_KBD \
+                or abs(s('prod_net') - (s('prod_imp') - s('prod_exp'))) > EU_TOL_KBD or abs(s('net') - (s('rop_net') + s('prod_net'))) > EU_TOL_KBD \
+                or abs(s('imp') - (s('rop_imp') + (s('rop_spr') or 0) + (s('rop_spr2') or 0) + s('prod_imp'))) > EU_TOL_KBD or abs(s('exp') - (s('rop_exp') + s('prod_exp'))) > EU_TOL_KBD:
+            raise RuntimeError('bilans handlu: import − eksport ≠ bilans albo ropa + produkty ≠ razem')
+    return r, S
+
+
+def eu_t8(tekst):
+    r, wz, role, nS = eu_tabela(tekst, 8)
+    K5 = ('cur', 'prev', 'yago', 'avg4', 'avg4y')
+    rows = [w for w in wz if w[0] == 'Crude Imports By Country of Origin']
+    if not 8 <= len(rows) <= 25 or len(rows) != len(wz):
+        raise RuntimeError(f'import wg kraju: {len(rows)} wierszy kraju z {len(wz)} (oczekiwano 8–25 i tylko kraje)')
+    out, widziane = [], set()
+    for w in rows:
+        nazwa = w[1]
+        if not nazwa or nazwa in widziane:
+            raise RuntimeError('import wg kraju: pusty albo powtórzony kraj')
+        widziane.add(nazwa)
+        udz = eu_liczba(w[role['share'] - nS + 2])
+        if udz is None or not 0 <= udz <= 100:
+            raise RuntimeError(f'import wg kraju: zły udział {nazwa!r}')
+        kod = EU_KRAJE.get(nazwa)
+        out.append([kod, None if kod else nazwa[:40], round(udz, 1)] + eu_seria(w, role, nS, K5, (0.0, 20000.0), 'import ' + nazwa[:20]))
+    if sum(x[2] for x in out) > 100.5:
+        raise RuntimeError('import wg kraju: udziały razem ponad 100%')
+    return r, out
+
+
+def eu_t9(tekst):
+    r, wz, role, nS = eu_tabela(tekst, 9)
+    K4 = ('cur', 'prev', 'yago', 'avg4', 'avg4y')
+    popyt = {k: eu_seria(wz[eu_znajdz(wz, 'Product Supplied', n)], role, nS, K4, (0.0, 60000.0), 'dostawy ' + k, 0, 2) for k, n in EU_POPYT_NAZWY}
+    wyd = {k: eu_seria(wz[eu_znajdz(wz, 'Crude Oil Production', n)], role, nS, K4, (0.0, 30000.0), 'wydobycie ' + k, 0, 2) for k, n in (('kraj', 'Domestic Production'), ('alaska', 'Alaska'), ('l48', 'Lower 48'))}
+    net = eu_seria(wz[eu_znajdz(wz, 'Net Imports (Incl SPR)', 'Total')], role, nS, K4, EU_KBD, 'bilans (tabela 9)', 0, 2)
+    for k in (0, 1):
+        if abs(sum(popyt[x][k] for x, _ in EU_POPYT_NAZWY[1:]) - popyt['razem'][k]) > EU_TOL_KBD or abs(wyd['alaska'][k] + wyd['l48'][k] - wyd['kraj'][k]) > EU_TOL_KBD:
+            raise RuntimeError('dostawy produktów albo wydobycie: części ≠ razem')
+    return r, {'popyt': popyt, 'wyd': wyd, 'net9': net}
+
+
+def eu_wpsr_buduj(teksty):
+    """Siedem tabel raportu → część „wpsr”. Wszystkie tabele z tego samego tygodnia; spójność między tabelami: benzyna rafinerii + mieszalni = produkcja benzyny bez korekty (tabela 2),
+    bilans handlu z tabeli 9 = z tabeli 7, import ropy wg kraju (największe kraje) nie większy niż import ropy ogółem."""
+    p = {2: eu_t2(teksty[2]), 3: eu_t3(teksty[3]), 5: eu_t5(teksty[5]), 6: eu_t6(teksty[6]), 7: eu_t7(teksty[7]), 8: eu_t8(teksty[8]), 9: eu_t9(teksty[9])}
+    cur = {n: p[n][0]['cur'] for n in p}
+    if len(set(cur.values())) != 1:
+        raise RuntimeError('tabele z różnych tygodni: ' + ', '.join(f'{n}: {d}' for n, d in sorted(cur.items())))
+    yg = {n: p[n][0]['yago'] for n in p}
+    if len(set(yg.values())) != 1:
+        raise RuntimeError('tabele z różnym dniem sprzed roku')
+    asof = cur[2]
+    t2, t3, t5, t6, t7, t8, t9 = (p[n][1] for n in (2, 3, 5, 6, 7, 8, 9))
+    for k in (0, 1):
+        if abs(t3['raf'][k] + t3['mie'][k] - t2['prod']['benz_bk'][k]) > EU_TOL_KBD:
+            raise RuntimeError('benzyna: rafinerie + mieszalnie ≠ produkcja bez korekty (tabela 2)')
+        if abs(t9['net9'][k] - t7['net'][k]) > EU_TOL_KBD:
+            raise RuntimeError('bilans handlu w tabeli 9 ≠ w tabeli 7')
+    if sum(x[3] for x in t8) > t7['rop_imp'][0] + (t7['rop_spr'][0] or 0) + (t7['rop_spr2'][0] or 0) + EU_TOL_KBD * 2:
+        raise RuntimeError('import wg kraju (suma największych) ponad import ropy ogółem')
+    return {'asof': asof.isoformat(), 'ref': {'prev': (asof - datetime.timedelta(days=7)).isoformat(), 'yago': p[2][0]['yago'].isoformat()},
+            'rafin': {'util': t2['util'], 'wej': t2['wej'], 'bru': t2['bru'], 'moc': t2['moc']}, 'prod': t2['prod'], 'benz_split': t3,
+            'zap': {'benz': t5['benz'], 'etanol': t5['etanol'], 'dest': t6['dest'], 'nafta': t6['nafta'], 'mazut': t6['mazut'], 'propan': t6['propan']},
+            'imp': t8, 'bilans': {k: t7[k] for k in ('net', 'imp', 'exp', 'rop_net', 'rop_imp', 'rop_exp', 'prod_net', 'prod_imp', 'prod_exp')}, 'popyt': t9['popyt'], 'wyd': t9['wyd']}
+
+
+def eu_wpsr_czesc(prev):
+    """Część raportu: tabela 2 (sprawdzenie tygodnia); ten sam tydzień i pełne pobranie młodsze niż EU_PELNE_H = poprzednia część z nową chwilą sprawdzenia, bez sześciu zapytań."""
+    t2 = eu_pobierz(EU_WPSR_URL.format(n=2))
+    cur = eu_tabela(t2, 2)[0]['cur'].isoformat()
+    if isinstance(prev, dict) and prev.get('asof') == cur and isinstance(prev.get('rafin'), dict):
+        pf = datetime.datetime.fromisoformat(str(prev.get('full_at') or '2000-01-01T00:00:00+00:00'))
+        if (datetime.datetime.fromisoformat(NOW) - pf).total_seconds() < EU_PELNE_H * 3600:
+            out = dict(prev)
+            out['t'] = NOW
+            return out
+    teksty = {2: t2}
+    for n in EU_WPSR_TABELE[1:]:
+        teksty[n] = eu_pobierz(EU_WPSR_URL.format(n=n))
+    out = eu_wpsr_buduj(teksty)
+    out['t'] = NOW
+    out['full_at'] = NOW
+    return out
+
+
+# ---------- stopniodni ----------
+def eu_hdd_plik(tekst, produkt, rok=None):
+    """Plik stopniodni (dzienne wartości; kolumny po „|”) → {data: wartość USA} (rok podany) albo, dla normy (kolumny MMDD, rok None), {MMDD: wartość USA}. Nagłówek: produkt, regiony (dziewięć podziałów spisu + USA),
+    ważenie ludnością; wiersze „1”…„9” i „CONUS” (USA bez Alaski i Hawajów) w tej kolejności i z równą liczbą liczb całkowitych. Inny układ albo liczba poza zakresem = RuntimeError."""
+    L = [x.rstrip('\r') for x in tekst.split('\n')]
+    L = [x for x in L if x.strip()]
+    if len(L) != 4 + 10 or L[0] != f'Product: Daily {produkt} Degree Days' or 'CensusDivisions' not in L[1] or L[2] != 'Weights: Population' or not L[3].startswith('Region|'):
+        raise RuntimeError(f'stopniodni {produkt}: nagłówek pliku w innym układzie ({len(L)} wierszy)')
+    kol = [c for c in L[3].split('|')[1:] if c != '']
+    if rok is not None:
+        try:
+            dni = [datetime.datetime.strptime(c, '%Y%m%d').date() for c in kol]
+        except ValueError:
+            raise RuntimeError(f'stopniodni {produkt}: zła data w nagłówku') from None
+        if not dni or dni[0] != datetime.date(rok, 1, 1) or any((b - a).days != 1 for a, b in zip(dni, dni[1:])):
+            raise RuntimeError(f'stopniodni {produkt}: dni nie idą kolejno od 1 stycznia {rok}')
+        klucze = dni
+    else:
+        wzor = [(datetime.date(2000, 1, 1) + datetime.timedelta(days=i)).strftime('%m%d') for i in range(EU_NORMA_DNI)]
+        if kol != wzor:
+            raise RuntimeError(f'stopniodni {produkt}: kolumny normy nie są kolejnymi dniami roku (366)')
+        klucze = kol
+    gora = EU_HDD_MAX if produkt == 'Heating' else EU_CDD_MAX
+    out = None
+    for k, etykieta in enumerate([str(i) for i in range(1, 10)] + ['CONUS']):
+        w = L[4 + k].split('|')
+        if w and w[-1] == '':
+            w = w[:-1]
+        if w[0] != etykieta or len(w) - 1 != len(klucze):
+            raise RuntimeError(f'stopniodni {produkt}: wiersz {w[0][:8]!r} ma {len(w) - 1} liczb zamiast {len(klucze)} albo zły region')
+        try:
+            v = [int(x) for x in w[1:]]
+        except ValueError:
+            raise RuntimeError(f'stopniodni {produkt}: wartość nie jest liczbą całkowitą w regionie {etykieta}') from None
+        if any(not 0 <= x <= gora * (1.5 if etykieta != 'CONUS' else 1) for x in v):
+            raise RuntimeError(f'stopniodni {produkt}: wartość poza zakresem w regionie {etykieta}')
+        if etykieta == 'CONUS':
+            out = dict(zip(klucze, v))
+    return out
+
+
+def eu_pogoda_buduj(h, c, nh, nc, dzis):
+    """Stopniodnie z plików (słowniki data → wartość USA), normy (MMDD → wartość) → część „pogoda”: ostatnie EU_OKNO_DNI dni (ciągłe), sumy 7 i 30 dni z normą, normy roku."""
+    if not h or not c:
+        raise RuntimeError('stopniodni: pusty plik')
+    asof = max(h)
+    if asof != max(c):
+        raise RuntimeError(f'stopniodni: ostatni dzień ogrzewania {asof} ≠ chłodzenia {max(c)}')
+    if asof > dzis or (dzis - asof).days > EU_WIEK_MAX_DNI:
+        raise RuntimeError(f'stopniodni: ostatni dzień {asof} poza oknem ({EU_WIEK_MAX_DNI} dni od {dzis})')
+    dni = [asof - datetime.timedelta(days=EU_OKNO_DNI - 1 - i) for i in range(EU_OKNO_DNI)]
+    if any(d not in h or d not in c for d in dni):
+        raise RuntimeError('stopniodni: luka w ostatnich 60 dniach')
+    mm = lambda d: d.strftime('%m%d')   # noqa: E731
+    d = [[x.isoformat(), h[x], c[x], nh[mm(x)], nc[mm(x)]] for x in dni]
+
+    def suma(n):
+        w = d[-n:]
+        return {'h': [sum(r[1] for r in w), sum(r[3] for r in w)], 'c': [sum(r[2] for r in w), sum(r[4] for r in w)]}
+    k = sorted(nh)
+    return {'asof': asof.isoformat(), 'd': d, 's7': suma(7), 's30': suma(30), 'nrm': {'h': [nh[x] for x in k], 'c': [nc[x] for x in k]}}
+
+
+def eu_norma_z_pliku(prev):
+    """Normy z poprzedniego pliku (dwie listy po 366 liczb) → ({MMDD: wartość}, {MMDD: wartość}) albo None, gdy ich nie ma / są uszkodzone."""
+    n = prev.get('nrm') if isinstance(prev, dict) else None
+    if not (isinstance(n, dict) and all(isinstance(n.get(x), list) and len(n[x]) == EU_NORMA_DNI and all(isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= EU_HDD_MAX for v in n[x]) for x in 'hc')):
+        return None
+    k = [(datetime.date(2000, 1, 1) + datetime.timedelta(days=i)).strftime('%m%d') for i in range(EU_NORMA_DNI)]
+    return dict(zip(k, n['h'])), dict(zip(k, n['c']))
+
+
+def eu_pogoda_czesc(prev, dzis):
+    lata = sorted({dzis.year, (dzis - datetime.timedelta(days=EU_OKNO_DNI + EU_WIEK_MAX_DNI)).year})
+    h, c = {}, {}
+    for rok in lata:
+        for produkt, cel in (('Heating', h), ('Cooling', c)):
+            try:
+                tekst = eu_pobierz(f'{EU_NOAA_URL}/{rok}/Population.{produkt}.txt')
+            except urllib.error.HTTPError as e:
+                if e.code == 404 and rok == dzis.year and rok > lata[0] and dzis.month == 1 and dzis.day <= EU_WIEK_MAX_DNI:
+                    continue   # pierwsze dni stycznia: plik nowego roku pojawia się z pierwszymi danymi (dwie doby spóźnienia) — do tego czasu tylko poprzedni rok
+                raise
+            cel.update(eu_hdd_plik(tekst, produkt, rok))
+    n = eu_norma_z_pliku(prev)
+    if n is None:
+        n = tuple(eu_hdd_plik(eu_pobierz(f'{EU_NOAA_URL}/climatology/1981-2010/Population.{produkt}.txt'), produkt) for produkt in ('Heating', 'Cooling'))
+    return eu_pogoda_buduj(h, c, n[0], n[1], dzis)
+
+
+def eu_czesc(k, prev_part, dzis):
+    out = eu_wpsr_czesc(prev_part) if k == 'wpsr' else eu_pogoda_czesc(prev_part, dzis)
+    out['t'] = NOW
+    return out
+
+
+def build_energia_usa(prev=None, run_t0=None):
+    """Plik data/energia-usa.json (v395): dwie części (wpsr, pogoda) z własnym ok / part_at / errs; część z błędem zostaje z poprzedniego pliku z własną chwilą, nigdy pusta zamiast ostatnich
+    danych; żadna część nie odpowiedziała = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == EU_V else {}
+    pat = _dict(prev.get('part_at'))
+    dzis = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc).date()
+    out = {'v': EU_V, 'at': NOW, 'src': EU_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    for k in EU_PARTS:
+        try:
+            out[k] = eu_czesc(k, prev.get(k), dzis)
+            out['ok'][k] = True
+            out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
+            msg = mask(f'{e}')[:160]
+            META['errors'].append(mask(f'{EU_PX} {EU_LABEL[k]}: {msg}')[:220])
+            out['ok'][k] = False
+            out['errs'][k] = msg
+            if isinstance(prev.get(k), dict):
+                out[k] = prev[k]
+                out['part_at'][k] = pat.get(k) or prev.get('at')
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+ZRODLA_META.update({'energia_wpsr': 'eia', 'energia_pogoda': 'noaa-cpc'})   # v395: pliki raportu ropy to to samo źródło co zapasy ropy w surowcach; stopniodni — nowe źródło (liczba źródeł +1)
 
 
 if __name__ == '__main__':

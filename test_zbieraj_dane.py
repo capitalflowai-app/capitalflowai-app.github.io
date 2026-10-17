@@ -145,7 +145,7 @@ class MainFlow(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -182,7 +182,7 @@ class MainFlow(unittest.TestCase):
             zd.main()
         self.assertIn('meta', self.saved)
         # v353: świadoma zmiana — przedrostek Rosja w filtrze błędów meta (zaślepka build_rosja)
-        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'premie stable', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'surowce', 'szlaki', 'porty', 'metale', 'Rosja', 'Polska rynek', 'Coin Metrics', 'MFW', 'EBC kursy', 'NY Fed portfel Fed', 'EBC bilans Eurosystemu', 'OFR fundusze hedgingowe', 'ETF zapas', 'Emitenci stablecoinów', 'Skarb USA', 'Eksport zbóż USA', 'Polska kapitał', 'Polska dług', 'USDT skarbiec', 'Polska 2', 'Płynność USA', 'EBC TARGET', 'ESMA MiCA', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Nastroje', 'Rynki', 'Wieloryby', 'Dźwignia', 'Premie krypto', 'Sieć Bitcoin', 'Wycena BTC', 'Aukcje', 'Insiderzy', 'Fundusze USA', 'Szwajcaria', 'Ameryka Łacińska', 'Japonia giełda', 'Świat dziennie', 'Dziennik świata', 'Inflacja r/r', 'Koniunktura', 'Niepewność', 'Kalendarz', 'Nowcasty', 'Europa fundusze', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],   # v339 (metale): świadoma zmiana — przedrostek metale (zaślepka build_metale)
+        self.assertEqual([e for e in self.saved['meta']['errors'] if not e.startswith(('instytucje', 'Stres', 'Fed', 'premie stable', 'poprzedni', 'krypto', 'TIC', 'BIS', 'CFTC', 'surowce', 'szlaki', 'porty', 'metale', 'Rosja', 'Polska rynek', 'Coin Metrics', 'MFW', 'EBC kursy', 'NY Fed portfel Fed', 'EBC bilans Eurosystemu', 'OFR fundusze hedgingowe', 'ETF zapas', 'Emitenci stablecoinów', 'Energia USA', 'Skarb USA', 'Eksport zbóż USA', 'Polska kapitał', 'Polska dług', 'USDT skarbiec', 'Polska 2', 'Płynność USA', 'EBC TARGET', 'ESMA MiCA', 'obce', 'NSDL', 'TWSE', 'SAFE', 'Eurostat', 'Statistics Canada', 'FSS', 'MF SPW', 'Banxico', 'fundusze', 'BLS', 'OECD', 'Indeksy', 'Nastroje', 'Rynki', 'Wieloryby', 'Dźwignia', 'Premie krypto', 'Sieć Bitcoin', 'Wycena BTC', 'Aukcje', 'Insiderzy', 'Fundusze USA', 'Szwajcaria', 'Ameryka Łacińska', 'Japonia giełda', 'Świat dziennie', 'Dziennik świata', 'Inflacja r/r', 'Koniunktura', 'Niepewność', 'Kalendarz', 'Nowcasty', 'Europa fundusze', 'Ceny krypto', 'Krypto dziennie', 'Dziennik krypto'))],   # v339 (metale): świadoma zmiana — przedrostek metale (zaślepka build_metale)
                          ['brak SOSOVALUE_KEY', 'brak FINNHUB_KEY', 'brak TWELVEDATA_KEY', 'brak COINMARKETCAP_KEY', 'brak FRED_KEY', 'brak EIA_KEY', 'brak BEA_KEY'])
 
 
@@ -347,7 +347,7 @@ class MainFlowPrices(unittest.TestCase):
         self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -535,7 +535,7 @@ class MainFlowInstytucje(unittest.TestCase):
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -625,7 +625,7 @@ class MainFlowFred(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -758,7 +758,7 @@ class MainFlowKrypto(unittest.TestCase):
         self.p_inst = mock.patch.object(zd, 'build_instytucje', side_effect=RuntimeError('offline')); self.p_inst.start()
         self.p_kr = mock.patch.object(zd, 'build_krypto', side_effect=RuntimeError('offline')); self.p_kr.start()
         self.p_tic = mock.patch.object(zd, 'build_tic', side_effect=RuntimeError('offline')); self.p_tic.start()
-        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.p_v50 = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_v50]   # v50: nowe źródła w testach przepływu głównego bez sieci
 
     def tearDown(self):
@@ -1117,7 +1117,7 @@ class MainFlowBis(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.p_save = mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj)); self.p_save.start()
         self.p_off = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
-                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                      for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.p_off]
 
     def tearDown(self):
@@ -1361,7 +1361,7 @@ class MainFlowCftc(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -1598,7 +1598,7 @@ class MainFlowCm(unittest.TestCase):
         self.patches = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         for fn in ('build_instytucje', 'build_krypto', 'build_tic'):
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline')))
-        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
+        for fn in ('build_aukcje', 'build_bis', 'build_cftc', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie'):   # pozostałe źródła v50 (mogą jeszcze nie istnieć); v95.3: bez pobierania funduszy i surowców w teście
             self.patches.append(mock.patch.object(zd, fn, side_effect=RuntimeError('offline'), create=True))
         for p in self.patches:
             p.start()
@@ -1829,7 +1829,7 @@ class MainFlowRezerwyV50(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); self.saved = {}
         self.ps = [mock.patch.object(zd, 'save', lambda name, obj: self.saved.__setitem__(name, obj))]
         self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline')) for f in ('build_instytucje', 'build_krypto', 'build_tic')]
-        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        self.ps += [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_bis', 'build_cftc', 'build_cm', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in self.ps]
 
     def tearDown(self):
@@ -2342,7 +2342,7 @@ class BilansV70(unittest.TestCase):
         prev = {'at': _iso(26 * 60), 'asof_max': '2026-Q1', 'rows': {}, 'order': []}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3094,7 +3094,7 @@ class ReviewV77(unittest.TestCase):
         prev = dict(out, at=_iso(30))   # v80: część z błędem ponawiana po 60 min
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3221,7 +3221,7 @@ class ReviewV80(unittest.TestCase):
         saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         try:
             with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3256,7 +3256,7 @@ class UeFormatV80(unittest.TestCase):
             new = {'at': zd.NOW, 'unit': 'S121', 'rows': {}, 'order': []}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -3632,7 +3632,7 @@ class MeksykFormatV882(unittest.TestCase):
             new = {'at': zd.NOW, 'd': [row + [None] * (6 - len(row))]}
             offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                     for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                              'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
             [p.start() for p in offs]
             try:
                 with mock.patch.dict(os.environ, {'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
@@ -4117,7 +4117,7 @@ class TrendyV89(unittest.TestCase):
         zd.META['errors'].clear(); zd.META['ok'].clear(); saved = {}
         offs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True)
                 for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy',
-                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                          'build_kursy', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         [p.start() for p in offs]
         def fake_save(name, obj):
             saved[name] = obj; zd.SAVED[name] = obj
@@ -8766,7 +8766,7 @@ class UsaV97(unittest.TestCase):
         env = {'EIA_KEY': 'k1', 'BLS_KEY': '', 'BEA_KEY': ''}
         stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce',
                   'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk',
-                  'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+                  'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc', 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         for s in stubs:
             s.start()
         try:
@@ -9164,7 +9164,7 @@ class DzwigniaV104(unittest.TestCase):
 
     def test_main_schedule_hourly_and_fallback(self):
         saved = {}
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         fresh_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True, 'cde': True}, 'hl': {'rows': {}}}   # v343 (F1Z3): + cde (osiem części)
         stale_prev = {'at': _iso(10), 'ok': {'hl': True, 'bn': False, 'dr': True, 'okx': True, 'kr': True, 'cb': True, 'dy': True, 'cde': True}, 'hl': {'rows': {}}}
@@ -10022,7 +10022,7 @@ class DzwigniaV109(unittest.TestCase):
 
     def test_main_first_run_after_upgrade_fetches_only_new_parts(self):
         saved, calls = {}, []
-        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
+        stubs = [mock.patch.object(zd, f, side_effect=RuntimeError('offline'), create=True) for f in ('build_aukcje', 'build_instytucje', 'build_krypto', 'build_tic', 'build_bis', 'build_cftc', 'build_cm', 'build_rezerwy', 'build_stopy', 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw', 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_surowce', 'build_energia', 'build_usa_makro', 'build_bilans_usa', 'build_oecd', 'build_rynki', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar', 'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_indeksy', 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie')]
         env = {k: '' for k in ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY', 'SITE_URL', 'CACHE_DIR')}
         prev = {'at': _iso(10), 'full_at': _iso(10), 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True}, 'hl': {'rows': {}}}   # plik sprzed v109: młody, bez nowych części
         built = {'at': zd.NOW, 'ok': {'hl': True, 'bn': True, 'dr': True, 'okx': True, 'kr': True, 'cb': False, 'dy': True}}
@@ -25628,7 +25628,7 @@ class PoPrzegladzieV211(unittest.TestCase):
         md = self.k.raport_md({'at': t(0.2), 'wynik': 'OK', 'meta': {}, 'awarie': Z, 'uwagi': [], 'bledy': []})
         self.assertIn('jpx od 02.10.2026, 02:00 (4 dni 4 godz., nieudanych przebiegów: 500) ℹ️ (Japonia — tydzień czeka na publikację giełdy)', md)
         # v353: świadoma zmiana — części rosja* też bez czerwieni z serii awarii
-        self.assertEqual({x for x in set(self.k.AW_BEZ_BLEDU) if not x.startswith('premie_st_') and not x.startswith('polska2_') and not x.startswith('polska_dlug_') and not x.startswith('polska_kapital_') and not x.startswith('prad') and not x.startswith('porty_') and not x.startswith('kalendarz') and not x.startswith('bis2_') and not x.startswith('skarb_') and not x.startswith('usda_') and not x.startswith('plusa_') and not x.startswith('usdt_') and not x.startswith('nowcasty') and not x.startswith('europa_fundusze')} - {'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'} - {'target', 'mica'} - {'soma_sklad', 'eurosystem', 'hedge'} - {'polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze'} - {'krzywe_us', 'krzywe_de', 'krzywe_jp', 'krzywe_ea', 'krzywe_ca'} - {'inflacja', 'koniunktura'} - {'niepewnosc_ciss', 'niepewnosc_epu', 'niepewnosc_gpr'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
+        self.assertEqual({x for x in set(self.k.AW_BEZ_BLEDU) if not x.startswith('premie_st_') and not x.startswith('polska2_') and not x.startswith('polska_dlug_') and not x.startswith('polska_kapital_') and not x.startswith('prad') and not x.startswith('porty_') and not x.startswith('kalendarz') and not x.startswith('energia_') and not x.startswith('bis2_') and not x.startswith('skarb_') and not x.startswith('usda_') and not x.startswith('plusa_') and not x.startswith('usdt_') and not x.startswith('nowcasty') and not x.startswith('europa_fundusze')} - {'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'} - {'target', 'mica'} - {'soma_sklad', 'eurosystem', 'hedge'} - {'polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze'} - {'krzywe_us', 'krzywe_de', 'krzywe_jp', 'krzywe_ea', 'krzywe_ca'} - {'inflacja', 'koniunktura'} - {'niepewnosc_ciss', 'niepewnosc_epu', 'niepewnosc_gpr'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
                                                     'surowce_fundusze', 'surowce_banki'}, 'v215: snb — zwykła ocena; v295: + surowce; v298: + etap 3')   # v320: świadomie odjęte części raportów miesięcznych surowców (surowce_raporty_*) — też bez czerwieni z serii awarii
 
     def test_czas_do_ostatniego_przebiegu_i_pamiec_od(self):
@@ -25723,7 +25723,7 @@ class PoPrzegladzieV215(unittest.TestCase):
         self.assertEqual(len(Z['bledy']), 1); self.assertIn('„snb”', Z['bledy'][0]); self.assertEqual(Z['uwagi'], [])
         self.assertEqual(sorted(x['czesc'] for x in Z['trwa'] if x['bez']), ['ici', 'jpx', 'wycena_bg'])
         # v353: świadoma zmiana — części rosja* też bez czerwieni z serii awarii
-        self.assertEqual({x for x in set(k.AW_BEZ_BLEDU) if not x.startswith('premie_st_') and not x.startswith('polska2_') and not x.startswith('polska_dlug_') and not x.startswith('polska_kapital_') and not x.startswith('prad') and not x.startswith('porty_') and not x.startswith('kalendarz') and not x.startswith('bis2_') and not x.startswith('skarb_') and not x.startswith('usda_') and not x.startswith('plusa_') and not x.startswith('usdt_') and not x.startswith('nowcasty') and not x.startswith('europa_fundusze')} - {'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'} - {'target', 'mica'} - {'soma_sklad', 'eurosystem', 'hedge'} - {'polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze'} - {'krzywe_us', 'krzywe_de', 'krzywe_jp', 'krzywe_ea', 'krzywe_ca'} - {'inflacja', 'koniunktura'} - {'niepewnosc_ciss', 'niepewnosc_epu', 'niepewnosc_gpr'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
+        self.assertEqual({x for x in set(k.AW_BEZ_BLEDU) if not x.startswith('premie_st_') and not x.startswith('polska2_') and not x.startswith('polska_dlug_') and not x.startswith('polska_kapital_') and not x.startswith('prad') and not x.startswith('porty_') and not x.startswith('kalendarz') and not x.startswith('energia_') and not x.startswith('bis2_') and not x.startswith('skarb_') and not x.startswith('usda_') and not x.startswith('plusa_') and not x.startswith('usdt_') and not x.startswith('nowcasty') and not x.startswith('europa_fundusze')} - {'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'} - {'target', 'mica'} - {'soma_sklad', 'eurosystem', 'hedge'} - {'polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze'} - {'krzywe_us', 'krzywe_de', 'krzywe_jp', 'krzywe_ea', 'krzywe_ca'} - {'inflacja', 'koniunktura'} - {'niepewnosc_ciss', 'niepewnosc_epu', 'niepewnosc_gpr'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
                                                'surowce_fundusze', 'surowce_banki'})   # v295: + części surowców; v298: + etap 3; v320: świadomie odjęte części raportów miesięcznych (surowce_raporty_*)
         self.assertIn('z założenia bez czerwieni', k.AW_BEZ_BLEDU['ici'])
 
@@ -32170,7 +32170,7 @@ class SurowceV295(unittest.TestCase):
             'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
             'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
             'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
             'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
         for zm, want_new in (({'eia'}, True), (set(), False)):
             saved.clear(); calls.clear()
@@ -33593,7 +33593,7 @@ class SurowceEtap3V298(unittest.TestCase):
             'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
             'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
             'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
+            'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia', 'build_ceny_krypto', 'build_krypto_dzien',
             'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa')]
         for s in stubs:
             s.start()
@@ -39484,7 +39484,7 @@ class StopySurowceV325(unittest.TestCase):
                 'build_kursy', 'build_obce', 'build_eer', 'build_cofer', 'build_bilans', 'build_safe', 'build_ue', 'build_kanada', 'build_korea', 'build_spw',
                 'build_meksyk', 'build_fundusze', 'build_fundusze_x', 'build_swiat_dzien', 'build_trendy', 'build_fred', 'build_etf', 'build_day', 'build_prices', 'build_cmc',
                 'build_oecd', 'build_rynki', 'build_indeksy', 'build_stres', 'build_lancuch', 'build_wycena', 'build_snb', 'build_fed', 'build_dolar',
-                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia',
+                'build_jpx', 'build_rwa', 'build_wieloryby', 'build_su_raporty', 'build_pip', 'build_ng_ceny', 'build_niepewnosc', 'build_kalendarz', 'build_energia_usa', 'build_skarb_dts', 'build_nowcasty', 'build_plusa', 'build_europa_fundusze', 'build_kalendarz2', 'build_inflacja', 'build_koniunktura', 'build_krzywe', 'build_polska_rynek', 'build_soma_sklad', 'build_eurosystem', 'build_hedge', 'build_bis2', 'build_polska_dlug', 'build_polska2', 'build_polska_kapital', 'build_stable_emitenci', 'build_usdt_skarbiec', 'build_premie_stable', 'build_etf_zapas', 'build_target', 'build_mica', 'build_metale', 'build_polska', 'build_gieldy', 'build_dex', 'build_porty', 'build_szlaki', 'build_zboza_dzien', 'build_usda_eksport', 'build_lng', 'build_prad', 'build_rosja', 'build_ici', 'build_nastroj', 'build_zmiennosc', 'build_dzwignia',
                 'build_ceny_krypto', 'build_krypto_dzien', 'build_krypto_top10', 'build_insider', 'build_premie', 'build_usa_makro', 'build_bilans_usa',
                 'build_surowce', 'build_energia')]
             for s in stubs:
@@ -60830,3 +60830,867 @@ class KontrolaPremieStableV394(unittest.TestCase):
                            ('koszyk nadmiar', lambda p: p['kosz'].append(['2026-10-13', 1.0, 6]))):
             o = blad(mut, not nazwa.startswith('koszyk')); self.assertTrue(o['spojnosc'], nazwa); self.assertEqual(o['wiersze'][0][1], '⚠️', nazwa); self.assertTrue(o['uwagi'], nazwa)
             self.assertNotIn('❌', json.dumps(o, ensure_ascii=False), nazwa)
+
+
+_EU395_NAGRANIA = {
+    't2': ('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'),
+    't3': ('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'),
+    't5': ('eNrtV0tvE0EMviPxH6KeQCLueN5zBAqckBAPcURRu20jwi5qUxD/Hr8S2rIbsRLcuHQm3l177O+z5+vRu/cfnn3CoydHsvG0QXfcjn3Wndfdyf'
+        'r8vLvq+tNOzfwk0fZNd3Xa9dvF88tVf7F7hsc+/v7s4YOj18N2uFq8Wl0Pm3XfLeid98N2tVnctZPZuwo+e9lFKJHdBUhY2YIVqhxqGaE6JyYP'
+        'uRU2eUAyjcZ6sbqmwwz899GbpycnC3xM1kR+U9FNiYF9OMDK/lOGFDjkMkGQQKmShTdL2kzFeb0++97tg3gOEj14OXJEiMgOHFQUQ4bYuJLLBl'
+        '5ixAQ5Si5lOsarm835nVwChykVXGUsSwIXUYrmIjstDQKyYYmQJUzJ4KNUGOJUlLfD6ecfhM5Nv12te4sUORJVpjlZc4tWM8ebAii4UYGc0zdC'
+        'DnKSPBXmY3cPmMQhfCF0i21S1iAuCgUoG+8UGC2aT9AwSfwwFeblul9fX3Znv9MNiWNSHQzQ3A4e6QUCowgY2SLRK1ESatORxplGWNQkaxCQKB'
+        '3fsiCQNXrdZQNVqpqnazZCMjq7UItWX6xcWLT0Uq0dJET0wHbKeh6/ErVKlA+pQfnAEGKWc1pDUgbKrkis5iL5A7BPs4urn3QV9nImMlIclFp1'
+        'FuxhavpCnMcuPnqRNe2bXsBAqEEMPlsQekXJhnigVbrz4erLzWa17c7kYE4w4BV1dVlXnR/oDAwGSWpYZZjN4BN7iPdWN/Fb57pa/pRPt7//83'
+        'UGnf5igENc+mtBxpnEEAcDstyF2poC92x1KG0dp0fH86H/RpfmeuhXG51MuUYdO7U0pby4x/01cXsyiUVvkpmTSW+LUMq9ySQj+M5k8jr//0+m'
+        'fzaZxCOPHbv1vPav3Yc8mcpuMjnN7oDsebbp+rN1f0GRvnwdeiLXNX/aWPeIk8bJRAG3iDvvAmBsqrAsUiNShagKq81UWFSC4nUTRBzQrBU+pD'
+        '0hslSJLMTqkFUOhTkMq6Rv+LtQIFZtR53jJL1qSTZyjQJofFzWaQ5MKCxPqPCJy84/mgKiJ7EqNVAFFpKebPIGzidagiKnTqR9khGtmp4qphet'
+        'ZHSD7ag/T2BR0TPqJqDWDFVfcREFl2D4expZIlP3uvflTbdZvNiSth82oq5u/db2aiovd7KaL1guh6eh4qumpr5JHBfVbhO+x3lViJFNKtJQWR'
+        'UEGur5bIUxBVqS1/fH3Y/wqZkaYKFpWg29GlRYoxWGXgw6lvO486l5pbd+pAZQ0rimE7gKAsEZulRGOTxh1MYDHBpWIaAVxm4kp8FCbtYRwaZV'
+        'kKx+Nff9KBMUAkyCKfhUjaUKMv2zpjon2mj3+wy1r38CFbtH6A=='),
+    't6': ('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'
+        'TPq3'),
+    't7': ('eNqVVstu3EYQvAfIPxA62QBJTc+bFwOxpBhO4FiQZeQYbLSUTYQihX0k0ccZ+aT8QrqrucuNow2kwy7nxZqe6uoanny4/vj6FzopT8icNqc2as'
+        'tq67y7vW1X7XDT6rDMBG5etqubdtgUZ58Xw6fdHJ1af2RuBj6C8O03Jz+1m+Lt3f242qyLF2+Hm74uPlxeveS1lS9dctoITt6maLVrfcMNW8t/'
+        '5UpPMm5zPU2TNzphY5aJWCfZ6vFtUhmSEJFLZ7BbchbDlhI/PTZJjCmjsTboRdJnjnjF8c68wcWf2EAipbLxQgvZMjsJosqN1wkfI3AtqClDwL'
+        'jTPpUpGG0Q4gh1FOiz1XbZFu+7vjhOGEMn8FKaJHRVoQH9pQky7Jpau95EAFtdGxuMNo2w4Pi4st14d8ep6ha9HLo04DuWWYlNWBrKgJw2dZh6'
+        'DXoeS4mivhqlbxT2YrHm3I/y/+Lyu/PzgiTugGiTkYUVASWmiI6yH5BGQsAhIw/gv/JKzrtu+Ue7x7Qvca6EbPITaWQo9CJeNzV0wXzpAZSJ6J'
+        'O+kb2CI+Y32/72XzE75dohPcTHVvwGUFnidqEmXeORB4JquJuVakOyvYtMFW9wNd789lC8G7fDZtEN0yYexEApNiIxoEclmqPGH1VRDiR5K2Pe'
+        'oK2C/7n9iu4gqBlFRWV0msyQMIhaMrV2onZ0oUkavvUQO00a2Ynw1wcRoLD69a9+pDX1Dt7vhs0oCAL0fvO5Xa2fjzVXHnsFwvVlimFOjJ/Kzu'
+        'JMbBEWZ1MheBZ40qcajlFdXY+bRV9crsbl9oYDPag8VFeZAwwn7uwgZB13SMLff30p+KeWlJHyg6HI/mJ0uY3mYG5mZpKXyszDaYIKKKIAKzKT'
+        'sCIh7IDs8Vq1mjI1SCqliaT/qz4NhuCzEbVbRcBFB+wGkg5AjAHz+Wj1kXoaCRjcj6A1DkQ6iC5atMnqtD2w0ccrzmsZODAAUnxUBRDaXhOHZO'
+        'PaiQb5t42GebzM4Ow4JWzSqFfCLyS4YFBfDgMe63nLo+VlkRurakM0AXE4vTtco1HFWusZfgFTYqUyJULouBlXxZvFeuy7oUUEiIP0epOm8uWR'
+        'oIDTMnnYLBuYpJsSDx+4am/H1d22X2za5fNr62wcfuc7uxsH3AaAtsqt5oEQXmWt3i8gyyXt6AIXJ7kGAXzdt8OyGz4xdyz0gbFRuHYmhFAtHv'
+        'RVmuBg1GYjCtihELzPE28wpO+3bV9cbPjTYuyff8wf29W4boe2un64b4sfuNYFT0SBI0gDpq4myBafUfJCht7dwc1cBFJvP+/Wm64X4oEmFzgw'
+        'wv6Qqn8omQuq2RcDqZTJ6r+ZXZ1CcX9/V6y5SrarYjEsi4/Dsl0B18+4acZtJiigk5qE1aUQkKblVTEhsx0HYw42eQKZ0DySkVXEr/YYDGfN0/'
+        'AUwczgNA8A879AdLDyCVm+atfdcsuufpgOOItNuhmMkNROdlyhcL1e6intc+ScMsc3xP1iaE/l+cDilpptRA24R8FxRgVrfslPRIVdOakncGqg'
+        'Y1yCEtu6QHnjxsp7L518jbTg9aNFaoBmM8eBKutVhPPlmPiL2uNbd7roYqNft0wr4nP4ZvNOlY7Tp+lLKk2fkQ3M7x95oo+f'),
+    't8': ('eNqVVMtu2zAQvBfoPwg+RzKXFCnqGCtAkUMfQNpeC9amFQGO1LIWUOffin5Sf6HaWRVOgAaQD6KWD+3szCy1uvv4afOFVlcrBHoKtNI2yz7EtI'
+        '39MbQxm9ZIreu1dhJpiW66/T6m2G+jLPOOncL5y6y5D337b4/Wunxh75z4hQyvX62aNO5idvvwbUjHH9nmlDXD2B/TKRv22fvUtV3PVTahD7sw'
+        'Bc4UjGauKkt4+5rfOZVKll3FUzWfsoanrpCz1sshj7JyNx1aXMHb+LPbDkgGKckwM8+JNGOUjpdza4qaZwoIZVUwa6p5NN5irS7Mcti7MO667D'
+        'qFrx3TL8FLO8+j9kBCNaijLMCPSlGkgPgVvjBcVa6rSYnF2G/G0yQ7ZxQ1kddYZAfsn9+//jtqeHNeWYy4SeGxOwCR1ZxNVeKw4wke0CQpxENv'
+        'Q6IzM3bqEoGb4TA8iLgGbaItp6rEXrG6RAwgrbFRiq/EzpOBr2QuaafbFL5zOiRVTx5QzkkJyerZDD2HXsq9K6rlaJ9jHx/HeAiA5CwlWDotre'
+        'LQszx4YwohNbcNrLfQmhSO0UX6vuvamDoBhqe4ihWuh3H2uaUAzWuSzgUcLCV9Cdvr1E7/mK4XUJohiHBB5aWVeSrsuQRfo7U8etwA9S9RR09P'),
+    't9': ('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'),
+    'h': ('eNrlmd+u3MYNh+/3KfwIGnL++ta+6FVrpCh6HbQH7gECu4jtAAH08J0h+UnaTZwYiYsCKVbew5VGlOab33DI8Zvv3//z0z8+vnzx+tvn73588a'
+        'enbz8+v3v74vXT2++fnubJHz/cvnl6+/z+3YeXL169efXyJb9evnp69+HTh9fPPzx/WCduf396fvuvj7PZm/f//vTddPP+Xdy6yyZ1S1vCEAzF'
+        'yBgFo2I0jI4xwkgbBp4TnhOeE54TnhOeE54TnhOeBc+CZ8Gz4FnwLHgWPAueBc+CZ8WzhmfZDkMwFCNjFIyK0TA6RjxCwCJgEbAIWAQsAhYBi4'
+        'BFwCJgEbAIWAQsAhYBi4BFwCJgEbAofVf6rvRd6bvSd6XvSt91O/zEGyp9V/qu9F3pu9J3pe9K35W+K31X+q70Xem70nel70rflb4rfVf6rkff'
+        'kYQiCUUSeTsMwVCMjFEwKkbD6BjxiAyWDJYMlgyWDJYMlgyWDJYMlgyWDJYMlgyWDJYMlgyWDJYMlgyWDJYMlgKNAo0CjQKNAo0CjQKNAo0CjQ'
+        'KNAo0CjQKNAo0CjQKNAo0CjQKNAo0CjQKNAo0CjQKNAo0CjQKNAo1y0EAkdTsMwVCMjFEwKkbD6BjxiAqWCpYKlgqWCpYKlgqWCpYKlgqWCpYK'
+        'lgqWCpYKlgqWCpYKlgqWCpYKlgaNBo0GjQaNBo0GjQaNBo0GjQaNBo0GjQaNBo0GjQaNBo0GjQaNBo0GjQaNBo0GjQaNBo0GjQaNBo120EAkfT'
+        'sMwVCMjFEwKkbD6BjxiA6WDpYOlg6WDpYOlg6WDpYOlg6WDpYOlg6WDpYOlg6WDpYOlg6WDpYOlg6WsR2GYChGxigYFaNhdIx4xADLAMsAywDL'
+        'AMsAywDLAMsAywDLAMsAywDLAMsAywDLAMsAywDLAMsILGkLGtMQDMXIGAWjYjSMjjHCSHhOeE54TnhOeE7llvY8j7bnsme177TrvD72+Y7rNf'
+        'uuuq/Rm8+cV+fJeaauI+6aZ8Ze2l7yXsQONXueKevI1Zr5d1vHOjn2nHE1wok2+2mPm++wjmptZgPZtVgDM5a3bM3Sar8Ap30O4BzeNXppNVsn'
+        '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'),
+    'c': ('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'
+        'lEcF4OFEe2xjxO5nq6H4l8vwDqb6Sa'),
+    'nh': ('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'),
+    'nc': ('eNrtmdtu3DYQhu/3KfwImuFhyNwm123Qouh10BquASMu4qRAAD989WlXEg/SZpMCCWwXJP6VuJrdz9rhz6H89sP9n5/++Pjq6s2727vPV6/v7+'
+        '9u399cvbm++XB9PQ5+fjj8cn1ze//+4dXVfPDq9fX7h08Pb27/uX1g4PD79e3NXx/HK97e//3p7t3HcfAU9TjIIIgiDvFIQCJiSELyKDIgRAgR'
+        'QoQQIUQIEUKEECFEKBFKhBKhRCgRSoQSoUQoEUqEI8KNETpMoohDPBKQiBiSkDFMQVPQFDQFTUFT0BQ0BU1BU9AUNAVNQVPQFDQFTUFT0BQ0Bc'
+        '0B5AByADmAHEAOIAeQA8gB5AByADmAHEAOIAeQA8gB5AByADmAHEAOIAeQA8gB5AByADmA3ATEvXLcKz9MoohDPBKQiBiSkDHMg+ZB86B50Dxo'
+        'HjQPmgfNg+ZB86B50DxoHjQPmgfNg+ZB86B50DxoAaoAVYAqQBWgClAFqAJUAaoAVYAqQBWgClAFqAJUAaoAVYAqQBWgClAFqAJUAaoAVYAqQB'
+        'WgChMVNywOkyjiEI8EJCKGJGQMi6BF0CJoEbQIWgQtghZBi6BF0CJoEbQIWgQtghZBi6BF0CJoEbQImkFlUBlUBpVBZVAZVAaVQWVQGVQGlUFl'
+        'UBlUBpVBZVAZVAaVQWVQGVQGlUFlUBlUBpVBZRMVNywNkyjiEI8EJCKGJGQMS6Al0BJoCbQEWgItgZZAS6Al0BJoCbQEWgItgZZAS6Al0BJoCb'
+        'QEWgItD5Mo4hCPBCQihiRkDMugZdAyaBm0DFoGLYOWQcugZdAyaBm0DFoGLYOWQcugZdAyaBm0PKLJMFKNoohDPBKQiBiSkDyKECFECBFChBAh'
+        'RAgRQoQQIUQoEUqEEqFEKBFKhBKhRCgRSsRENd4wwfQF0xdMXzB9wfQF0xdMXzB9wfQF0xdMXzB9wfQF0xdMXzB9wfQF0xdMXzB9wfQF0xdMXz'
+        'B9wfQF0xdMXzB9wfQF0xf8XvB7we8Fvxf8XvB7we8Fvxf8XvB7we8Fvxf8XvB7we8Fvxf8XvB7we8Fvxf8XvB7we8Fvxf8XvB7we8Fvxf8fuQm'
+        'wslh/On/bztNlte56amVI+405ormx3Z8RcNjHFuYRv34ejyPjza1+fx4lh/T6ciWq+LSbHyXFpeYuBwfz+ZvXknCMqYFrS4j0vxFa3vyv+BBX2'
+        'jeysbIcbT/lbXKCD9lhZzOfdFC0+bMq7N1zdE05nI+vXc8xg1Hmz4dz9ekomHlxyus+Jz6eJ1LM4dNI6Ginds6E+Ys1y7f+/v0ZHL/4F6A/66/'
+        'zLCT131Ol9ktS36vTiin82Pe1Hm0uvOczfv5XWbnmr1zfluR27bErLNizmcrWsmwcrTZHXbye81yOdueSn77Z+vPslFfbFcd+46tnXuXOeErt7'
+        'Yqo8oczk2GTil8TOWl52pI6j7shFQDhfWfviI1Myk1ZGmphWJR59ROv9Y1bqM6e8I1zSHs0stGJkkzuhW7XwN8fdMLMnI7R11TK7tNX+trjVhV'
+        'zXUW7+dtm6rHrlvdFQd9X8Z90cPc/c542LpmM+TMeInRj/d/RcncTdNlKlYjyxxPVSvXpPI3qH+ddbfju/1H3fYzo63MLpnLF7VDfHJrw+Xz9N'
+        'IZ186wfnZZVe9s1eTfMqX0bHq6/TTv393r/fWbc/f8zO4v0Hr2NGtgLlpdHcaqVis9rs//S3P4x6w/1tXg3+M5Szly+VpU39U6/9unM/3q4qs1'
+        'JjRVflm357KAqXK/nwd76RzOLhLxgm47PRW9Of3anufev7X3jWnn4gZ+WeTC1lTeXNWqKdhuqNbHAqF4LFC++s2FqC8Yy6MvT0jZ2KReOrXSs9'
+        'jCyDcvUPvln/9C+WdNAVhuvnNTAsrWYvW1C1S/UPRLSnOw1zeXzaErzoatsixXxZl1S07sHs+FaqN0rgg7l+8/bvuTX9TjWvmGufVfisB2jsWN'
+        'Ns8u22lp971+fO/Ty0dccecxrmsKqXrkkpKqvas/fnP/+ueffvv12bm9bP6r7JI14Nx60OZo/e8z6x4EpKZMG5oHT9XeV/b7Jfa9GSLd5w9be6'
+        'huJ9E/P16fibUTadvm94qd/T23XFTqfKdJc/gXtEcNLg=='),
+}
+
+
+# ===================== v395 (F11Z9): ENERGIA USA — RAFINERIE, IMPORT ROPY, ZAPASY PALIW, STOPNIODNIE (data/energia-usa.json) =====================
+class EnergiaUsaV395(unittest.TestCase):
+    """v395 (F11Z9): dwie części jednego pliku (wpsr, pogoda) z własnym ok / part_at / errs. Odpowiedzi — NAGRANIA prawdziwych odpowiedzi z 17.10.2026 (siedem tabel tygodniowego raportu ropy za tydzień do 9.10.2026,
+    pliki stopniodni ogrzewania i chłodzenia USA do 15.10.2026 i normy z lat 1981–2010; w _EU395_NAGRANIA skompresowane) oraz syntetyczne pliki stopniodni do przypadków brzegowych (przełom roku, luki, złe układy).
+    Bez sieci i bez zegara (NOW przypięte)."""
+    NOW = '2026-10-17T12:00:00+00:00'
+    DZIS = datetime.date(2026, 10, 17)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        for p in (mock.patch.object(zd, 'NOW', self.NOW), mock.patch.object(zd, 'EU_SLEEP', 0)):
+            p.start(); self.addCleanup(p.stop)
+
+    # ---------------- nagrania ----------------
+    @staticmethod
+    def nagr(k):
+        import base64, zlib
+        return zlib.decompress(base64.b64decode(_EU395_NAGRANIA[k])).decode('utf-8')
+
+    def tabele(self, zm=None):
+        T = {n: self.nagr('t%d' % n) for n in zd.EU_WPSR_TABELE}
+        for n, f in (zm or {}).items():
+            T[n] = f(T[n])
+        return T
+
+    @staticmethod
+    def zamien(a, b, n=1, nr=0):
+        """Zamienia nr-te (od 0) wystąpienie napisu a na b; brak wystąpienia = błąd testu (zła mutacja)."""
+        def f(s):
+            i = -1
+            for _ in range(nr + 1):
+                i = s.find(a, i + 1)
+                assert i >= 0, f'mutacja: brak {a!r} (wystąpienie {nr})'
+            return s[:i] + b + s[i + len(a):]
+        return f
+
+    @staticmethod
+    def przesun_tydzien(s):
+        """Nagłówek tabeli (pierwszy wiersz) z datami przesuniętymi o 7 dni: tydzień 16.10.2026 jako bieżący (inny tydzień raportu); dane bez zmian."""
+        a, b = s.split('\n', 1)
+        for x, y in (('10/9/26', '#1'), ('10/2/26', '#2'), ('10/10/25', '#3'), ('10/11/24', '#4')):
+            a = a.replace(x, y)
+        for x, y in (('#1', '10/16/26'), ('#2', '10/9/26'), ('#3', '10/17/25'), ('#4', '10/18/24')):
+            a = a.replace(x, y)
+        return a + '\n' + b
+
+    def pliki_hdd(self):
+        r = lambda k, p, rok=None: zd.eu_hdd_plik(self.nagr(k), p, rok)   # noqa: E731
+        return r('h', 'Heating', 2026), r('c', 'Cooling', 2026), r('nh', 'Heating'), r('nc', 'Cooling')
+
+    def zle_wpsr(self, zm, regex):
+        with self.assertRaisesRegex(RuntimeError, regex):
+            zd.eu_wpsr_buduj(self.tabele(zm))
+
+    # ---------------- raport ropy na nagraniach ----------------
+    def test_wpsr_nagrania_wartosci_z_siedmiu_tabel(self):
+        W = zd.eu_wpsr_buduj(self.tabele())
+        self.assertEqual((W['asof'], W['ref']), ('2026-10-09', {'prev': '2026-10-02', 'yago': '2025-10-10'}))
+        R = W['rafin']
+        self.assertEqual(R['util'][0], [93.5, 92.7, 85.7, 93.2, 90.6]); self.assertEqual([s[0] for s in R['util']], [93.5, 81.1, 89.7, 96.3, 94.6, 93.2])
+        self.assertEqual(R['wej'][0], [16615, 16480, 15130, 16541, 16018]); self.assertEqual([s[0] for s in R['wej'][1:]], [732, 3835, 9414, 618, 2017])
+        self.assertEqual((R['bru'], R['moc']), ([16871, 16712, 15568, 16801, 16458], [18044, 18027, 18160, 18031, 18160]))
+        self.assertEqual(W['prod']['benz'], [9232, 9349, 9359, 9410, 9541]); self.assertEqual(W['prod']['dest'], [5189, 5290, 4592, 5160, 4926]); self.assertEqual(W['prod']['nafta'][0], 1866)
+        self.assertEqual(W['prod']['etanol'], [1065, 1053, 1074, 1038, 1041]); self.assertEqual(W['prod']['benz_bk'][0], 9388)
+        self.assertEqual(W['benz_split'], {'raf': [1280, 1223, 1133, 1247, 1154], 'mie': [8108, 8119, 8345, 8173, 8318]})
+        Z = W['zap']
+        self.assertEqual(Z['benz'][0], [208.262, 204.744, 218.826]); self.assertEqual([s[0] for s in Z['benz'][1:]], [53.557, 42.226, 78.081, 6.59, 27.807])
+        self.assertEqual(Z['dest'][0], [102.611, 105.138, 117.03]); self.assertEqual(Z['dest'][1], [21.513, 21.687, 27.688], 'Wschodnie Wybrzeże (PADD 1)')
+        self.assertEqual(Z['dest'][2], [2.491, 2.461, 4.202], 'Nowa Anglia (PADD 1A)'); self.assertEqual([s[0] for s in Z['dest'][5:]], [25.688, 42.065, 3.346, 10.0])
+        self.assertEqual((Z['nafta'], Z['mazut'], Z['propan'], Z['etanol']), ([42.795, 42.504, 44.414], [24.167, 23.881, 21.424], [106.375, 107.846, 102.376], [23.942, 23.743, 22.628]))
+        K = W['imp']
+        self.assertEqual(len(K), 10); self.assertEqual(K[0], ['CA', None, 63.4, 3751, 3891, 3767, 3580, 3826]); self.assertEqual([x[0] for x in K], ['CA', 'MX', 'SA', 'GY', 'BR', 'CO', 'IQ', 'VE', 'NG', 'AR'])
+        self.assertEqual(K[3], ['GY', None, 3.4, 314, 354, None, 251, None], 'brak liczby u źródła (rok wcześniej) = None, nie zero')
+        B = W['bilans']
+        self.assertEqual(B['net'], [-4373, -4535, -4249, -4140, -3268]); self.assertEqual(B['rop_imp'], [6049, 6840, 5525, 6116, 6064]); self.assertEqual(B['rop_exp'], [4570, 4765, 4466, 4047, 4073])
+        self.assertEqual((B['prod_net'][0], B['prod_imp'][0], B['prod_exp'][0], B['imp'][0], B['exp'][0]), (-5852, 1522, 7374, 7571, 11944))
+        self.assertEqual(W['popyt']['razem'], [21361, 20396, 19726, 21077, 20669]); self.assertEqual(W['popyt']['dest'][0], 4323); self.assertEqual(W['wyd']['kraj'], [13679, 13979, 13636, 13888, 13568])
+        self.assertEqual([k for k in W], ['asof', 'ref', 'rafin', 'prod', 'benz_split', 'zap', 'imp', 'bilans', 'popyt', 'wyd'])
+        self.assertTrue(all(isinstance(v, int) for s in R['wej'] for v in s if v is not None), 'przepływy jako liczby całkowite (bez „.0”)')
+
+    def test_wpsr_zapasy_zgodne_z_historia_w_surowcach(self):
+        """Kolumny tabel czytane dobrze: zapasy z tabel 5 i 6 za tydzień, tydzień wcześniej i rok wcześniej = wartości tabeli 1 już zapisane w surowcach (hist: us_gasoline, us_dist, us_jet)."""
+        W = zd.eu_wpsr_buduj(self.tabele())
+        self.assertEqual((W['zap']['benz'][0], W['zap']['dest'][0], W['zap']['nafta']), ([208.262, 204.744, 218.826], [102.611, 105.138, 117.03], [42.795, 42.504, 44.414]))
+
+    # ---------------- bramki układu ----------------
+    def test_wpsr_bramki_naglowka(self):
+        z = self.zamien
+        self.zle_wpsr({2: z('"10/9/26","10/2/26"', '"10/8/26","10/1/26"')}, 'nie w piątek')
+        self.zle_wpsr({2: z('"10/2/26"', '"10/1/26"')}, 'daty kolumn')
+        self.zle_wpsr({5: z('"10/10/25"', '"10/10/24"')}, 'daty kolumn')
+        self.zle_wpsr({2: z('"STUB_1","STUB_2",', '"STUB_1",')}, 'kolumn zamiast')
+        self.zle_wpsr({7: z('"Percent Change","10/9/26","10/10/25"', '"Percent Change","10/2/26","10/10/25"')}, 'średnia z 4 tygodni')
+        self.zle_wpsr({9: z('"STUB_2"', '"10/9/26"')}, 'w złym układzie')
+        self.zle_wpsr({3: lambda s: '\n'.join(s.split('\n')[:2])}, 'za mało wierszy')
+        # tabela z innego tygodnia: wszystkie daty nagłówka tabeli 6 przesunięte o 7 dni
+        self.zle_wpsr({6: self.przesun_tydzien}, 'z różnych tygodni')
+        with self.assertRaises(RuntimeError):
+            zd.eu_tabela('', 2)
+        self.assertEqual(zd.eu_tabela(chr(0xFEFF) + self.nagr('t2'), 2)[0]['cur'], datetime.date(2026, 10, 9), 'znacznik kolejności bajtów na początku pliku nie psuje nagłówka')
+        with self.assertRaises(RuntimeError):
+            zd.eu_tabela(self.nagr('t2').replace('"10/9/26"', '"10-9-26"', 1), 2)
+
+    def test_wpsr_bramki_wierszy_i_sum(self):
+        z = self.zamien
+        self.zle_wpsr({7: z('"Net Imports (Incl. SPR)"', '"Net Imports"')}, 'brak wiersza')
+        self.zle_wpsr({2: z('"Midwest (PADD 2)"', '"Gulf Coast (PADD 3)"')}, 'oczekiwano regionu')
+        self.zle_wpsr({2: z('"Gulf Coast (PADD 3)","9,414"', '"Gulf Coast (PADD 3)","9,914"')}, 'suma okręgów')
+        self.zle_wpsr({5: z('"Total Motor Gasoline","208.262"', '"Total Motor Gasoline","210.262"')}, 'zapas benzyny')
+        self.zle_wpsr({6: z('"Distillate Fuel Oil","102.611"', '"Distillate Fuel Oil","112.611"')}, 'zapas destylatów')
+        self.zle_wpsr({6: z('"Central Atlantic (PADD 1B)","8.922"', '"Central Atlantic (PADD 1B)","9.922"')}, 'podokręgi')
+        self.zle_wpsr({2: z('"Percent Utilization","93.5"', '"Percent Utilization","95.0"')}, 'wykorzystanie mocy')
+        self.zle_wpsr({2: z('"Percent Utilization","93.5"', '"Percent Utilization","150.0"')}, 'poza zakresem')
+        self.zle_wpsr({2: z('"Gross Inputs","16,871"', '"Gross Inputs","�"')}, 'brak liczby')
+        self.zle_wpsr({7: z('"Net Imports (Incl. SPR)","-4,373"', '"Net Imports (Incl. SPR)","-4,000"')}, 'import − eksport')
+        self.zle_wpsr({7: z('"Crude Oil Net Imports (Incl. SPR)","1,479"', '"Crude Oil Net Imports (Incl. SPR)","1,979"')}, 'import − eksport')
+        self.zle_wpsr({9: z('"Total Product Supplied","21,361"', '"Total Product Supplied","22,361"')}, 'części ≠ razem')
+        self.zle_wpsr({9: z('"Alaska","465"', '"Alaska","565"')}, 'części ≠ razem')
+        self.zle_wpsr({3: z('"Blender Net Production ","Finished Motor Gasoline","8,108"', '"Blender Net Production ","Finished Motor Gasoline","7,108"')}, 'rafinerie \\+ mieszalnie')
+        self.zle_wpsr({9: z('"Total","-4,373"', '"Total","-3,373"')}, 'tabeli 9')
+        self.zle_wpsr({8: z('"Canada","63.4"', '"Canada","99.0"')}, 'ponad 100%')
+        self.zle_wpsr({8: z('"Canada","63.4","3,751"', '"Canada","63.4","6,751"')}, 'ponad import ropy ogółem')
+        self.zle_wpsr({8: lambda s: '\n'.join(s.split('\n')[:5])}, 'wierszy kraju')
+        self.zle_wpsr({8: lambda s: s + '"Crude Imports By Country of Origin ","Canada","1.0","1","1","0","1","0.0","1","0.0","1","1","0.0"\n'}, 'powtórzony kraj')
+        self.zle_wpsr({8: z('"Crude Imports By Country of Origin ","Canada"', '"Gasoline Imports By Country of Origin ","Canada"')}, 'wierszy kraju')
+
+    def test_wpsr_przypis_pod_tabela_nie_psuje_odczytu(self):
+        W = zd.eu_wpsr_buduj(self.tabele({5: lambda s: s.rstrip('\n') + '\n"Note: NA = not available."\n\n'}))
+        self.assertEqual(W['zap']['benz'][0], [208.262, 204.744, 218.826])
+
+    def test_wpsr_nieznany_kraj_zostaje_pod_nazwa_bez_bledu(self):
+        W = zd.eu_wpsr_buduj(self.tabele({8: self.zamien('"Guyana"', '"Narnia"')}))
+        self.assertEqual(W['imp'][3][:3], [None, 'Narnia', 3.4], 'nowy kraj w pierwszej dziesiątce nie psuje części: kod None, nazwa w pliku')
+
+    def test_liczby_i_daty_komorek(self):
+        self.assertEqual([zd.eu_liczba(x) for x in ('16,615', '1,506.999', '-4,373', '0', '93.5', ' 12 ')], [16615.0, 1506.999, -4373.0, 0.0, 93.5, 12.0])
+        self.assertEqual([zd.eu_liczba(x) for x in ('', '�', '� �', '-', 'NA', 'W', '1,2,3x', None, 7, True)], [None] * 10)
+        self.assertEqual(zd.eu_data('10/9/26'), datetime.date(2026, 10, 9)); self.assertEqual(zd.eu_data(' 1/2/27 '), datetime.date(2027, 1, 2))
+        self.assertEqual([zd.eu_data(x) for x in ('2/30/26', '10-9-26', '10/9/2026', 'Difference', '', None)], [None] * 6)
+
+    # ---------------- stopniodnie na nagraniach i syntetyczne ----------------
+    def test_pogoda_nagrania_okno_sumy_normy(self):
+        h, c, nh, nc = self.pliki_hdd()
+        P = zd.eu_pogoda_buduj(h, c, nh, nc, self.DZIS)
+        self.assertEqual((P['asof'], len(P['d']), P['d'][0], P['d'][-1]), ('2026-10-15', 60, ['2026-08-17', 0, 12, 0, 11], ['2026-10-15', 4, 4, 8, 2]))
+        self.assertEqual((P['s7'], P['s30']), ({'h': [28, 53], 'c': [28, 14]}, {'h': [90, 149], 'c': [148, 102]}))
+        self.assertEqual((len(P['nrm']['h']), len(P['nrm']['c']), P['nrm']['h'][:3]), (366, 366, [27, 27, 27]))
+        ds = [datetime.date.fromisoformat(r[0]) for r in P['d']]
+        self.assertTrue(all((b - a).days == 1 for a, b in zip(ds, ds[1:])), 'dni kolejno')
+        for r in P['d']:   # norma dnia z listy norm roku (dzień roku w roku przestępnym)
+            i = (datetime.date(2000, int(r[0][5:7]), int(r[0][8:])) - datetime.date(2000, 1, 1)).days
+            self.assertEqual((r[3], r[4]), (P['nrm']['h'][i], P['nrm']['c'][i]), r[0])
+        self.assertEqual(sum(r[1] for r in P['d'][-7:]), 28); self.assertEqual(sum(r[4] for r in P['d'][-30:]), 102)
+        self.assertEqual(zd.eu_norma_z_pliku(P)[0]['1015'], nh['1015']); self.assertIsNone(zd.eu_norma_z_pliku({})); self.assertIsNone(zd.eu_norma_z_pliku({'nrm': {'h': [1], 'c': [1]}}))
+
+    @staticmethod
+    def plik_hdd(produkt, rok, do, f=lambda d, r: 5, norma=False, naglowek=None, popraw=None):
+        """Syntetyczny plik stopniodni w układzie źródła: 4 wiersze nagłówka, regiony 1–9 i USA, dni od 1 stycznia do `do` (albo 366 dni MMDD dla normy)."""
+        if norma:
+            dni = [datetime.date(2000, 1, 1) + datetime.timedelta(days=i) for i in range(366)]
+            kol = [d.strftime('%m%d') for d in dni]
+        else:
+            dni = [datetime.date(rok, 1, 1) + datetime.timedelta(days=i) for i in range((do - datetime.date(rok, 1, 1)).days + 1)]
+            kol = [d.strftime('%Y%m%d') for d in dni]
+        L = [naglowek or f'Product: Daily {produkt} Degree Days', 'Regions: ' + ('Regions::CensusDivisions' if norma else 'CPC::Regions::CensusDivisions'), 'Weights: Population', 'Region|' + '|'.join(kol)]
+        for r in [str(i) for i in range(1, 10)] + ['CONUS']:
+            L.append(r + '|' + '|'.join(str(f(d, r)) for d in dni) + '|')
+        if popraw:
+            L = popraw(L)
+        return '\n'.join(L)
+
+    def test_pogoda_plik_bramki(self):
+        H = datetime.date(2026, 10, 15)
+        ok = zd.eu_hdd_plik(self.plik_hdd('Heating', 2026, H), 'Heating', 2026)
+        self.assertEqual((len(ok), ok[datetime.date(2026, 1, 1)], max(ok)), (288, 5, H))
+        def bl(regex, prod='Heating', rok=2026, **kw):
+            with self.assertRaisesRegex(RuntimeError, regex):
+                zd.eu_hdd_plik(self.plik_hdd(prod, 2026, H, **kw), prod, rok)
+        bl('nagłówek pliku', naglowek='Product: Daily Cooling Degree Days')
+        bl('nagłówek pliku', popraw=lambda L: L[:-1])
+        bl('nagłówek pliku', popraw=lambda L: [L[0], L[1], 'Weights: Area'] + L[3:])
+        bl('nie idą kolejno', popraw=lambda L: [L[0], L[1], L[2], L[3].replace('|20260105|', '|20260106|')] + L[4:])
+        bl('nie idą kolejno', rok=2025)
+        bl('zły region', popraw=lambda L: L[:4] + ['X' + L[4][1:]] + L[5:])
+        bl('liczb zamiast', popraw=lambda L: L[:-1] + [L[-1].replace('|5|5|', '|5|', 1)])
+        bl('nie jest liczbą całkowitą', popraw=lambda L: L[:-1] + [L[-1].replace('|5|', '|5.5|', 1)])
+        bl('nie jest liczbą całkowitą', popraw=lambda L: L[:-1] + [L[-1].replace('|5|', '|-|', 1)])
+        bl('poza zakresem', f=lambda d, r: 121 if r == 'CONUS' else 5)
+        bl('poza zakresem', f=lambda d, r: -1)
+        bl('poza zakresem', prod='Cooling', f=lambda d, r: 61 if r == 'CONUS' else 5)
+        zd.eu_hdd_plik(self.plik_hdd('Heating', 2026, H, f=lambda d, r: 100 if r == '5' else 5), 'Heating', 2026)   # region może mieć więcej niż USA (do 150% progu)
+        # normy: 366 kolumn MMDD
+        n = zd.eu_hdd_plik(self.plik_hdd('Heating', None, None, norma=True), 'Heating')
+        self.assertEqual((len(n), n['0229'], n['1231']), (366, 5, 5))
+        with self.assertRaisesRegex(RuntimeError, 'kolumny normy'):
+            zd.eu_hdd_plik(self.plik_hdd('Heating', None, None, norma=True, popraw=lambda L: [L[0], L[1], L[2], L[3].replace('|0229|', '|0301|')] + L[4:]), 'Heating')
+
+    def test_pogoda_poczatek_stycznia_plik_nowego_roku_jeszcze_nie_istnieje(self):
+        dzis = datetime.date(2027, 1, 2)
+        adresy = []
+
+        def pobierz(url):
+            adresy.append(url)
+            if '/2027/' in url:
+                raise urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+            prod = 'Heating' if 'Heating' in url else 'Cooling'
+            if '/2026/' in url:
+                return self.plik_hdd(prod, 2026, datetime.date(2026, 12, 31), f=lambda d, reg: d.day % 7)
+            return self.plik_hdd(prod, None, None, norma=True, f=lambda d, reg: 4)
+        with mock.patch.object(zd, 'eu_pobierz', side_effect=pobierz):
+            P = zd.eu_pogoda_czesc(None, dzis)
+            self.assertEqual((P['asof'], P['d'][0][0], len(P['d'])), ('2026-12-31', '2026-11-02', 60), 'tylko poprzedni rok do czasu pojawienia się pliku nowego')
+            def zle(url):
+                if '/2026/' in url:
+                    raise urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+                return pobierz(url)
+            with mock.patch.object(zd, 'eu_pobierz', side_effect=zle):
+                with self.assertRaises(urllib.error.HTTPError):
+                    zd.eu_pogoda_czesc(None, dzis)   # brak pliku poprzedniego roku to błąd, nie „nowy rok”
+            def srodek_roku(url):
+                raise urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+            with mock.patch.object(zd, 'eu_pobierz', side_effect=srodek_roku):
+                with self.assertRaises(urllib.error.HTTPError):
+                    zd.eu_pogoda_czesc(None, datetime.date(2026, 10, 17))   # 404 poza początkiem stycznia = błąd części
+            with mock.patch.object(zd, 'eu_pobierz', side_effect=pobierz):
+                with self.assertRaises(urllib.error.HTTPError):
+                    zd.eu_pogoda_czesc(None, datetime.date(2027, 1, 13))   # po 10 dniach stycznia brak pliku nowego roku to błąd części (plik stoi)
+
+    def test_pogoda_bramki_okna(self):
+        h, c, nh, nc = self.pliki_hdd()
+        buduj = lambda hh=h, cc=c, dzis=self.DZIS: zd.eu_pogoda_buduj(hh, cc, nh, nc, dzis)
+        with self.assertRaisesRegex(RuntimeError, 'pusty'):
+            buduj({})
+        with self.assertRaisesRegex(RuntimeError, 'ostatni dzień ogrzewania'):
+            buduj(cc={k: v for k, v in c.items() if k < max(c)})
+        with self.assertRaisesRegex(RuntimeError, 'poza oknem'):
+            buduj(dzis=datetime.date(2026, 10, 26))
+        with self.assertRaisesRegex(RuntimeError, 'poza oknem'):
+            buduj(dzis=datetime.date(2026, 10, 14))
+        self.assertEqual(buduj(dzis=datetime.date(2026, 10, 25))['asof'], '2026-10-15', 'dziewięć dni wstecz to jeszcze świeże')
+        with self.assertRaisesRegex(RuntimeError, 'luka'):
+            buduj(hh={k: v for k, v in h.items() if k != datetime.date(2026, 9, 20)})
+        self.assertEqual(buduj(hh={k: v for k, v in h.items() if k != datetime.date(2026, 6, 20)})['asof'], '2026-10-15', 'luka starsza niż okno nie szkodzi')
+
+    def test_pogoda_przelom_roku_dwa_pliki_i_normy_z_pliku(self):
+        now = '2027-01-20T12:00:00+00:00'
+        dzis = datetime.date(2027, 1, 20)
+        adresy = []
+
+        def pobierz(url):
+            adresy.append(url)
+            rok = re.search(r'/(\d{4})/Population', url)
+            prod = 'Heating' if 'Heating' in url else 'Cooling'
+            if rok:
+                r = int(rok.group(1))
+                return self.plik_hdd(prod, r, datetime.date(r, 12, 31) if r == 2026 else datetime.date(2027, 1, 18), f=lambda d, reg: (d.day + (3 if prod == 'Heating' else 0)))
+            return self.plik_hdd(prod, None, None, norma=True, f=lambda d, reg: 7 if prod == 'Heating' else 2)
+        with mock.patch.object(zd, 'NOW', now), mock.patch.object(zd, 'eu_pobierz', side_effect=pobierz):
+            P = zd.eu_pogoda_czesc(None, dzis)
+            self.assertEqual(len(adresy), 6, 'dwa lata × dwa produkty + normy ogrzewania i chłodzenia')
+            self.assertEqual(sorted(re.search(r'/(\d{4})/Population\.(\w+)\.txt', a).groups() for a in adresy[:4]), [('2026', 'Cooling'), ('2026', 'Heating'), ('2027', 'Cooling'), ('2027', 'Heating')])
+            self.assertTrue(all('climatology/1981-2010' in a for a in adresy[4:]))
+            self.assertEqual((P['asof'], len(P['d']), P['d'][0][0], P['d'][-1][0]), ('2027-01-18', 60, '2026-11-20', '2027-01-18'))
+            self.assertEqual(P['d'][-1][1:], [18 + 3, 18, 7, 2]); self.assertTrue(all(P['d'][i][0] < P['d'][i + 1][0] for i in range(59)))
+            adresy.clear()
+            P2 = zd.eu_pogoda_czesc(P, dzis)
+            self.assertEqual(len(adresy), 4, 'normy z poprzedniego pliku — bez ponownego pobrania'); self.assertEqual(P2['nrm'], P['nrm'])
+            adresy.clear()
+            bez_norm = dict(P); bez_norm['nrm'] = {'h': [1] * 5, 'c': [1] * 5}
+            zd.eu_pogoda_czesc(bez_norm, dzis); self.assertEqual(len(adresy), 6, 'uszkodzone normy w poprzednim pliku = ponowne pobranie')
+
+    # ---------------- budowa pliku ----------------
+    def odp(self, url):
+        m = re.fullmatch(r'https://ir\.eia\.gov/wpsr/table(\d)\.csv', url)
+        if m:
+            return 200, self.nagr('t' + m.group(1))
+        m = re.fullmatch(r'https://ftp\.cpc\.ncep\.noaa\.gov/htdocs/degree_days/weighted/daily_data/(2026|climatology/1981-2010)/Population\.(Heating|Cooling)\.txt', url)
+        if m:
+            return 200, self.nagr(('n' if m.group(1) != '2026' else '') + ('h' if m.group(2) == 'Heating' else 'c'))
+        raise AssertionError('nieznany adres ' + url)
+
+    def build(self, prev=None, odp=None, now=None):
+        calls = []
+
+        def g(url, headers=None, timeout=30):
+            calls.append((url, headers, timeout))
+            return (odp or self.odp)(url)
+        with mock.patch.object(zd, 'get', side_effect=g), mock.patch.object(zd, 'NOW', now or self.NOW):
+            o = zd.build_energia_usa(prev)
+        self.calls = calls
+        return json.loads(json.dumps(o))
+
+    def test_plik_komplet_pol_jedenascie_zapytan_bez_klucza_i_bez_nazw_dostawcow(self):
+        o = self.build()
+        self.assertEqual((o['v'], o['at']), (1, self.NOW)); self.assertEqual(o['ok'], {'wpsr': True, 'pogoda': True}); self.assertEqual(o['errs'], {}); self.assertEqual(o['part_at'], {k: self.NOW for k in zd.EU_PARTS})
+        self.assertEqual((o['wpsr']['t'], o['wpsr']['full_at'], o['pogoda']['t']), (self.NOW, self.NOW, self.NOW))
+        self.assertEqual(len(self.calls), 11, 'tabela 2 (sprawdzenie) + 6 pozostałych tabel + 2 pliki stopniodni + 2 pliki norm')
+        self.assertEqual([c[0] for c in self.calls[:7]], ['https://ir.eia.gov/wpsr/table%d.csv' % n for n in (2, 3, 5, 6, 7, 8, 9)])
+        for url, h, to in self.calls:
+            self.assertIsNone(h, 'bez nagłówków kluczy'); self.assertEqual(to, zd.EU_TIMEOUT); self.assertNotRegex(url.lower(), r'key|token|secret|apikey|password')
+            self.assertTrue(url.startswith(('https://ir.eia.gov/wpsr/', 'https://ftp.cpc.ncep.noaa.gov/htdocs/degree_days/weighted/daily_data/')), url)
+        tekst = json.dumps(o, ensure_ascii=False)
+        for zabronione in ('eia.gov', 'EIA', 'NOAA', 'noaa', 'CPC', 'ncep', 'Weather', 'PADD', 'STUB_'):
+            self.assertNotIn(zabronione, tekst, 'w pliku (a więc na stronie) tylko liczby, daty i kody krajów — bez nazw dostawców')
+        self.assertLess(len(tekst), 12000, 'plik ma kilka KB')
+        self.assertEqual(o['wpsr']['asof'], '2026-10-09'); self.assertEqual(o['pogoda']['asof'], '2026-10-15')
+
+    def test_ten_sam_tydzien_to_jedno_zapytanie_o_raport_pelne_pobranie_raz_na_dobe(self):
+        pk = self.build()
+        self.assertEqual(len(self.calls), 11)
+        # po 3 godzinach: tabela 2 (ten sam tydzień) + pliki stopniodni; normy z poprzedniego pliku
+        o = self.build(prev=pk, now='2026-10-17T15:00:00+00:00')
+        self.assertEqual([c[0] for c in self.calls if 'ir.eia.gov' in c[0]], ['https://ir.eia.gov/wpsr/table2.csv']); self.assertEqual(len(self.calls), 3)
+        self.assertEqual(o['wpsr'], dict(pk['wpsr'], t='2026-10-17T15:00:00+00:00')); self.assertEqual(o['wpsr']['full_at'], self.NOW, 'chwila pełnego pobrania bez zmian')
+        self.assertEqual(o['part_at'], {k: '2026-10-17T15:00:00+00:00' for k in zd.EU_PARTS}); self.assertEqual(o['pogoda']['nrm'], pk['pogoda']['nrm'])
+        # po dobie: pełne pobranie wszystkich siedmiu tabel (poprawki raportu), normy nadal z pliku
+        o = self.build(prev=pk, now='2026-10-18T12:00:01+00:00')
+        self.assertEqual(len([c for c in self.calls if 'ir.eia.gov' in c[0]]), 7); self.assertEqual(len(self.calls), 9); self.assertEqual(o['wpsr']['full_at'], '2026-10-18T12:00:01+00:00')
+        # nowy tydzień w tabeli 2 (inny dzień w nagłówku) → pełne pobranie; tabele spoza tego tygodnia = błąd części, poprzednie dane zostają
+        nowy = self.przesun_tydzien(self.nagr('t2'))
+        o = self.build(prev=pk, odp=lambda url: (200, nowy) if url.endswith('table2.csv') else self.odp(url))
+        self.assertEqual(len([c for c in self.calls if 'ir.eia.gov' in c[0]]), 7)
+        self.assertFalse(o['ok']['wpsr']); self.assertTrue(o['ok']['pogoda']); self.assertEqual(o['wpsr'], pk['wpsr']); self.assertIn('tabele z różnych tygodni', o['errs']['wpsr'])
+        self.assertTrue(zd.META['errors'][0].startswith('Energia USA raport ropy: '))
+
+    def test_czesc_z_bledem_zostaje_z_poprzednimi_danymi_i_wlasna_chwila(self):
+        pk = self.build()
+        stara = '2026-10-16T06:00:00+00:00'
+        pk['at'] = stara; pk['part_at'] = {k: stara for k in zd.EU_PARTS}; pk['wpsr']['full_at'] = stara
+
+        def bez_pogody(url):
+            if 'noaa' in url:
+                raise RuntimeError('HTTP Error 503')
+            return self.odp(url)
+        o = self.build(prev=pk, odp=bez_pogody)
+        self.assertEqual(o['ok'], {'wpsr': True, 'pogoda': False}); self.assertEqual(o['pogoda'], pk['pogoda'], 'poprzednie dane części')
+        self.assertEqual((o['part_at']['pogoda'], o['part_at']['wpsr']), (stara, self.NOW)); self.assertEqual(o['errs']['pogoda'], 'HTTP Error 503')
+        self.assertEqual(zd.META['errors'], ['Energia USA stopniodni: HTTP Error 503'])
+        zd.META['errors'].clear()
+        o = self.build(prev=None, odp=bez_pogody)
+        self.assertNotIn('pogoda', o); self.assertEqual(o['ok']['pogoda'], False); self.assertIn('wpsr', o)
+
+        def zly_uklad(url):
+            if url.endswith('table8.csv'):
+                return 200, self.nagr('t8').replace('"Canada"', '"Canada ", "x"', 1)
+            return self.odp(url)
+        o = self.build(prev=pk, odp=zly_uklad)
+        self.assertFalse(o['ok']['wpsr']); self.assertEqual(o['wpsr'], pk['wpsr']); self.assertIn('kolumn zamiast', o['errs']['wpsr'])
+
+        def pusty(url):
+            return (200, 'x') if 'ir.eia.gov' in url else self.odp(url)
+        o = self.build(prev=pk, odp=pusty)
+        self.assertFalse(o['ok']['wpsr']); self.assertIn('odpowiedź bez treści', o['errs']['wpsr'])
+        o = self.build(prev=pk, odp=lambda url: (404, '') if 'ir.eia.gov' in url else self.odp(url))
+        self.assertIn('HTTP 404', o['errs']['wpsr'])
+
+    def test_zadna_czesc_nie_odpowiedziala_wyjatek(self):
+        with mock.patch.object(zd, 'get', side_effect=RuntimeError('offline')):
+            with self.assertRaises(RuntimeError):
+                zd.build_energia_usa(None)
+        self.assertEqual(len(zd.META['errors']), 2)
+
+    def test_tabela_zrodel_raport_to_zrodlo_zapasow_ropy_pogoda_nowe_zrodlo(self):
+        self.assertEqual({k: zd.ZRODLA_META[k] for k in ('energia_wpsr', 'energia_pogoda')}, {'energia_wpsr': 'eia', 'energia_pogoda': 'noaa-cpc'})
+        self.assertEqual(zd.ZRODLA_META['surowce_zapasy'], 'eia')
+        baza = zd.zrodla_meta({'kursy': True, 'surowce_zapasy': True})
+        raport = zd.zrodla_meta({'kursy': True, 'surowce_zapasy': True, 'energia_wpsr': 'cached'})
+        pogoda = zd.zrodla_meta({'kursy': True, 'surowce_zapasy': True, 'energia_wpsr': True, 'energia_pogoda': True})
+        self.assertEqual((raport['n'] - baza['n'], raport['ok'] - baza['ok']), (0, 0), 'ten sam urząd co zapasy ropy — liczba źródeł bez zmian')
+        self.assertEqual((pogoda['n'] - baza['n'], pogoda['ok'] - baza['ok']), (1, 1), 'stopniodnie to nowe źródło')
+        self.assertEqual(zd.zrodla_meta({'energia_pogoda': False, 'energia_wpsr': True}), {'n': 2, 'ok': 1})
+
+    def test_okablowanie_main_przed_blokiem_pradu(self):
+        import inspect, pathlib
+        src = inspect.getsource(zd.main)
+        a = src.index("    prev_eu = previous('energia-usa')"); b = src.index('    # v395: koniec bloku energii USA')
+        self.assertLess(a, b); self.assertLess(b, src.index("    prev_pr = previous('prad')"), 'przed blokiem prądu (test v367 wycina kod od niego do zapisu czasu przebiegu)')
+        self.assertLess(b, src.index("    save('meta', META)"))
+        blk = src[a:b]
+        for s in ("fresh_pelny(prev_eu, EU_EVERY_MIN)", "eu_ = build_energia_usa(prev_eu, run_t0=_RUN_T0[0]); save('energia-usa', eu_)", "stan_eu[k_eu] = 'cached'",
+                  "META['ok']['energia_wpsr'] = stan_eu['wpsr']", "META['ok']['energia_pogoda'] = stan_eu['pogoda']"):
+            self.assertIn(s, blk, s)
+        self.assertIn("save('energia-usa', prev_eu)", blk, 'awaria budowniczego = poprzedni plik')
+        t = pathlib.Path(os.path.abspath(__file__)).read_text(encoding='utf-8')
+        T = [m.group(0) for m in re.finditer(r"\(\s*'build_\w+'(?:\s*,\s*'build_\w+')+\s*,?\s*\)", t) if "'build_niepewnosc'" in m.group(0) and "'build_gieldy'" in m.group(0)]
+        self.assertGreaterEqual(len(T), 10)
+        self.assertEqual([x[:40] for x in T if "'build_energia_usa'" not in x], [], 'każda krotka zaślepek zna nowego budowniczego (inaczej testy robiłyby prawdziwe zapytania)')
+
+    def test_blok_main_cache_przebudowa_i_awaria(self):
+        """Blok main() wykonany wprost: młody plik = bez zapytań (cached); część z jawnym błędem = nadal błąd z przyczyną z pliku; stary plik = budowa; awaria = poprzedni plik."""
+        import inspect, textwrap
+        src = inspect.getsource(zd.main)
+        blk = textwrap.dedent(src[src.index("    prev_eu = previous('energia-usa')"):src.index('    # v395: koniec bloku energii USA')])
+        pk = self.build()
+        saved, calls = {}, []
+
+        def run(prevs, build=None, fresh_=True):
+            zd.META['ok'].clear(); zd.META['errors'].clear(); saved.clear(); calls.clear()
+
+            def bs(p, run_t0=None):
+                calls.append('eu')
+                if build is None:
+                    raise RuntimeError('offline')
+                return build
+            with mock.patch.object(zd, 'previous', side_effect=lambda n: prevs.get(n)), mock.patch.object(zd, 'save', side_effect=lambda n, o: saved.__setitem__(n, o)), \
+                    mock.patch.object(zd, 'fresh_pelny', return_value=fresh_), mock.patch.object(zd, 'build_energia_usa', side_effect=bs):
+                try:
+                    exec(compile(blk, 'blok_v395', 'exec'), zd.__dict__)
+                finally:
+                    for n_ in ('prev_eu', 'eu_', 'k_eu', 'stan_eu', 'e'):
+                        zd.__dict__.pop(n_, None)
+        wszystkie = lambda v: {'energia_' + k: v for k in zd.EU_PARTS}   # noqa: E731
+        run({'energia-usa': pk})
+        self.assertEqual(calls, []); self.assertEqual(saved, {'energia-usa': pk}); self.assertEqual(zd.META['ok'], wszystkie('cached')); self.assertEqual(zd.META['errors'], [])
+        pk2 = json.loads(json.dumps(pk)); pk2['ok']['pogoda'] = False; pk2['errs'] = {'pogoda': 'HTTP Error 503'}
+        run({'energia-usa': pk2})
+        self.assertEqual(zd.META['ok'], dict(wszystkie('cached'), energia_pogoda=False)); self.assertEqual(zd.META['errors'], ['Energia USA stopniodni: HTTP Error 503'])
+        run({'energia-usa': pk}, build=pk, fresh_=False)
+        self.assertEqual(calls, ['eu']); self.assertEqual(zd.META['ok'], wszystkie(True)); self.assertEqual(zd.META['errors'], [])
+        run({'energia-usa': pk}, fresh_=False)
+        self.assertEqual(saved, {'energia-usa': pk}, 'awaria budowniczego: poprzedni plik zostaje'); self.assertEqual(zd.META['ok'], wszystkie(False)); self.assertEqual(zd.META['errors'], ['Energia USA: offline'])
+        run({}, fresh_=False); self.assertEqual(saved, {}, 'bez poprzedniego pliku i bez budowy nie ma czego zapisać')
+        run({'energia-usa': {'v': 2, 'at': 'x'}}, build=pk, fresh_=True); self.assertEqual(calls, ['eu'], 'plik innej wersji nie jest „świeży” — przebudowa')
+
+    # ---------------- kontrola dzienna ----------------
+    @staticmethod
+    def kt():
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola-v395-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}, clear=False):
+            spec = importlib.util.spec_from_file_location('v395_kontrola', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    def teraz(self, s='2026-10-17T13:00:00+00:00'):
+        return datetime.datetime.fromisoformat(s)
+
+    SUROWCE = {'zapasy': {'us_gasoline': {'d': [['2026-10-02', 204.744], ['2026-10-09', 208.262]]}, 'us_dist': {'d': [['2026-10-02', 105.138], ['2026-10-09', 102.611]]},
+                          'us_jet': {'d': [['2026-10-02', 42.504], ['2026-10-09', 42.795]]}, 'us_crude': {'d': [['2026-10-09', 415.577]]}}}
+
+    def test_kontrola_pliki_limity_i_progi_z_testu_wstecznego(self):
+        import pathlib
+        k = self.kt()
+        self.assertIn('energia-usa', k.PLIKI); self.assertLess(k.PLIKI.index('energia-usa'), k.PLIKI.index('krypto-dzien')); self.assertEqual(k.LIMIT_MIN['energia-usa'], 12 * 60)
+        self.assertIn('energia', k.PLIKI, 'stary plik energia.json zostaje osobno')
+        for p in zd.EU_PARTS:
+            self.assertIn('ostatnimi danymi', k.AW_BEZ_BLEDU['energia_' + p])
+        self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik']); self.assertEqual(len(k.PLIKI), len(set(k.PLIKI)))
+        self.assertEqual(k.pliki_bez_nadzoru(pathlib.Path(zd.__file__).read_text(encoding='utf-8')), [], 'nowy plik jest w PLIKI')
+        self.assertEqual(tuple(k.EUK_PARTS), zd.EU_PARTS)
+        # progi z testu wstecznego (ws53/v395-energia-usa/bt_progi.py): raport — 315 tygodni bez luki, największy wiek pliku tuż przed następnym raportem 12,65 doby; stopniodni — zwykle 2–3 doby
+        self.assertEqual((k.EUK_K_WPSR, k.EUK_K_POGODA, k.EUK_PROG_MIN, k.EUK_K_ZAPAS), (15, 6, 24 * 60, 0.05))
+        self.assertEqual((k.EUK_HDD, k.EUK_CDD), (zd.EU_HDD_MAX, zd.EU_CDD_MAX), 'zakresy kontroli = zakresy zbieracza')
+
+    def test_kontrola_zielona_na_swiezym_pliku(self):
+        k = self.kt(); o = self.build(); now = self.teraz()
+        rows = k.energia_swiezosc(o, now)
+        self.assertEqual([r[0] for r in rows], [k.EUK_ETYKIETA['wpsr'], k.EUK_RYTM['wpsr'], k.EUK_ETYKIETA['pogoda'], k.EUK_RYTM['pogoda']])
+        self.assertEqual({r[1] for r in rows}, {'✅'}, rows)
+        K = k.energia_kontrola({'energia-usa': o, 'surowce': self.SUROWCE}, now)
+        self.assertEqual((K['spojnosc'], K['uwagi'], K['czesci_bez_odpowiedzi']), ([], [], []))
+        self.assertEqual(K['wiersze'], [('zapas benz a surowce (us_gasoline)', '✅'), ('zapas dest a surowce (us_dist)', '✅'), ('zapas nafta a surowce (us_jet)', '✅'), ('tydzień raportu a surowce', '✅')])
+        self.assertIsNone(k.energia_kontrola({}, now)); self.assertIsNone(k.energia_kontrola({'energia-usa': {'v': 2}}, now)); self.assertEqual(k.energia_swiezosc({'v': 2}, now), [])
+        K = k.energia_kontrola({'energia-usa': o}, now); self.assertEqual((K['uwagi'], K['spojnosc'], K['wiersze']), ([], [], []), 'bez surowców porównania z nimi nie robimy')
+
+    def test_kontrola_rytm_publikacji_progi_bez_falszywych_alarmow(self):
+        k = self.kt(); o = self.build()
+        r = lambda now, p=o: {x[0]: x for x in k.energia_swiezosc(p, self.teraz(now))}   # noqa: E731
+        # raport za tydzień do piątku 9.10: wiek liczony od końca tego dnia (10.10 00:00 UTC); plik trzyma ten tydzień do publikacji następnego raportu w środę 21.10 15:30 UTC (11,65 doby), a po święcie
+        # dzień później (22.10 15:30 UTC = 12,65 doby); ⚠ dopiero po 15 dobach = 25.10 00:00 UTC
+        self.assertEqual(r('2026-10-22T16:00:00+00:00')[k.EUK_RYTM['wpsr']][1], '✅', 'najgorszy wiek z modelu (12,65 doby) to jeszcze zielono')
+        self.assertEqual(r('2026-10-24T23:00:00+00:00')[k.EUK_RYTM['wpsr']][1], '✅')
+        w = r('2026-10-25T01:00:00+00:00')[k.EUK_RYTM['wpsr']]
+        self.assertEqual(w[1], '⚠️'); self.assertIn('tydzień raportu do 2026-10-09', w[4])
+        # stopniodni: ostatni dzień 15.10; 6 dób od końca = 22.10 00:00; 17.10 (2 doby) i 20.10 zielono
+        self.assertEqual(r('2026-10-21T23:00:00+00:00')[k.EUK_RYTM['pogoda']][1], '✅')
+        w = r('2026-10-22T01:00:00+00:00')[k.EUK_RYTM['pogoda']]
+        self.assertEqual(w[1], '⚠️'); self.assertIn('ostatni dzień stopniodni 2026-10-15', w[4])
+        # pobranie starsze niż doba; część z błędem zostaje z komunikatem; brak chwili pobrania = '?'
+        o2 = json.loads(json.dumps(o)); o2['part_at']['wpsr'] = '2026-10-16T09:00:00+00:00'; o2['ok']['pogoda'] = False; o2['part_at'].pop('pogoda')
+        rows = {x[0]: x for x in k.energia_swiezosc(o2, self.teraz())}
+        self.assertEqual(rows[k.EUK_ETYKIETA['wpsr']][1], '⚠️'); self.assertIn('starsze niż', rows[k.EUK_ETYKIETA['wpsr']][4]); self.assertEqual(rows[k.EUK_ETYKIETA['pogoda']][1], '?')
+        o3 = json.loads(json.dumps(o)); o3['ok']['wpsr'] = False
+        self.assertIn('nieudane', {x[0]: x for x in k.energia_swiezosc(o3, self.teraz())}[k.EUK_ETYKIETA['wpsr']][4])
+        self.assertEqual(k.energia_kontrola({'energia-usa': o3}, self.teraz())['czesci_bez_odpowiedzi'], ['wpsr'])
+        # część bez danych (nigdy nie pobrana): brak wierszy
+        o4 = json.loads(json.dumps(o)); del o4['pogoda']
+        self.assertEqual(len(k.energia_swiezosc(o4, self.teraz())), 2)
+
+    def test_kontrola_sprzecznosci_w_pliku_to_blad(self):
+        k = self.kt(); o = self.build()
+        self.assertEqual(k.energia_spojnosc(o), [])
+
+        def zm(f):
+            p = json.loads(json.dumps(o)); f(p); return k.energia_spojnosc(p)
+        self.assertTrue(any('nie kończy się w piątek' in z for z in zm(lambda p: p['wpsr'].update(asof='2026-10-08'))))
+        self.assertTrue(any('dni odniesienia' in z for z in zm(lambda p: p['wpsr']['ref'].update(prev='2026-10-01'))))
+        self.assertTrue(any('późniejszy niż pobranie' in z for z in zm(lambda p: p['part_at'].__setitem__('wpsr', '2026-10-01T00:00:00+00:00'))))
+        self.assertTrue(any('wykorzystanie mocy' in z for z in zm(lambda p: p['wpsr']['rafin']['util'][0].__setitem__(0, 99.0))))
+        self.assertTrue(any('przerób ropy' in z for z in zm(lambda p: p['wpsr']['rafin']['wej'][3].__setitem__(0, 9999))))
+        self.assertTrue(any('zła seria' in z for z in zm(lambda p: p['wpsr']['rafin']['util'][2].__setitem__(0, 150.0))))
+        self.assertTrue(any('zła seria' in z for z in zm(lambda p: p['wpsr']['prod']['benz'].__setitem__(0, None))))
+        self.assertTrue(any('zła seria' in z for z in zm(lambda p: p['wpsr']['bilans']['net'].pop())))
+        self.assertTrue(any('benzyna rafinerii' in z for z in zm(lambda p: p['wpsr']['benz_split']['mie'].__setitem__(0, 7000))))
+        self.assertTrue(any('zapas benzyny' in z for z in zm(lambda p: p['wpsr']['zap']['benz'][3].__setitem__(0, 90.0))))
+        self.assertTrue(any('zapas destylatów' in z for z in zm(lambda p: p['wpsr']['zap']['dest'][3].__setitem__(0, 20.0))))
+        self.assertTrue(any('podokręgi' in z or 'suma okręgów' in z for z in zm(lambda p: p['wpsr']['zap']['dest'][2].__setitem__(0, 9.0))))
+        self.assertTrue(any('import − eksport' in z for z in zm(lambda p: p['wpsr']['bilans']['exp'].__setitem__(0, 9000))))
+        self.assertTrue(any('dostawy produktów' in z for z in zm(lambda p: p['wpsr']['popyt']['razem'].__setitem__(0, 30000))))
+        self.assertTrue(any('udziały krajów' in z or 'zły wiersz importu' in z for z in zm(lambda p: p['wpsr']['imp'][0].__setitem__(2, 99.0))))
+        self.assertTrue(any('zły wiersz importu' in z for z in zm(lambda p: p['wpsr']['imp'][1].__setitem__(0, 'Mexico'))))
+        self.assertTrue(any('import wg kraju w złym kształcie' in z for z in zm(lambda p: p['wpsr'].__setitem__('imp', []))))
+        self.assertTrue(any('brak pola' in z for z in zm(lambda p: p['wpsr'].pop('zap'))))
+        self.assertTrue(any('dni nie idą kolejno' in z for z in zm(lambda p: p['pogoda']['d'].__setitem__(5, p['pogoda']['d'][4]))))
+        self.assertTrue(any('zły wiersz serii' in z for z in zm(lambda p: p['pogoda']['d'][3].__setitem__(1, 2.5))))
+        self.assertTrue(any('zły wiersz serii' in z for z in zm(lambda p: p['pogoda']['d'][3].__setitem__(2, 61))))
+        self.assertTrue(any('asof' in z for z in zm(lambda p: p['pogoda'].update(asof='2026-10-14'))))
+        self.assertTrue(any('norma dnia' in z for z in zm(lambda p: p['pogoda']['d'][10].__setitem__(3, p['pogoda']['d'][10][3] + 1))))
+        self.assertTrue(any('lista norm' in z for z in zm(lambda p: p['pogoda']['nrm']['h'].pop())))
+        self.assertTrue(any('suma 7 dni' in z for z in zm(lambda p: p['pogoda']['s7']['h'].__setitem__(0, 99))))
+        self.assertTrue(any('suma 30 dni' in z for z in zm(lambda p: p['pogoda']['s30']['c'].__setitem__(1, 1))))
+        self.assertTrue(any('późniejszy niż pobranie' in z for z in zm(lambda p: p['part_at'].__setitem__('pogoda', '2026-10-01T00:00:00+00:00'))))
+        self.assertTrue(any('seria dni' in z for z in zm(lambda p: p['pogoda'].__setitem__('d', p['pogoda']['d'][:50]))))
+        p = json.loads(json.dumps(o)); p['wpsr'] = 'x'; p['pogoda'] = []
+        self.assertEqual(sorted(k.energia_spojnosc(p)), ['pogoda: część nie jest słownikiem', 'wpsr: część nie jest słownikiem'])
+        p = json.loads(json.dumps(o)); del p['wpsr']; del p['pogoda']; self.assertEqual(k.energia_spojnosc(p), [], 'części bez danych (brak) nie są sprzecznością')
+        p = json.loads(json.dumps(o)); p['wpsr']['imp'][3][5] = None; p['wpsr']['imp'][3][7] = None; p['wpsr']['zap']['dest'][1][2] = None
+        self.assertEqual(k.energia_spojnosc(p), [], 'brak liczby za rok wcześniej (None) nie jest sprzecznością')
+
+    def test_kontrola_uwagi_zapasy_a_surowce_tylko_ostrzezenia(self):
+        k = self.kt(); o = self.build(); now = self.teraz()
+        U = lambda p=o, inne=None: k.energia_uwagi(p, {'surowce': self.SUROWCE} if inne is None else inne, now)   # noqa: E731
+        self.assertEqual(U()['uwagi'], [])
+        zle = json.loads(json.dumps(self.SUROWCE)); zle['zapasy']['us_dist']['d'][-1][1] = 103.0
+        u = U(inne={'surowce': zle})
+        self.assertEqual(len(u['uwagi']), 1); self.assertIn('us_dist', u['uwagi'][0]); self.assertIn(('zapas dest a surowce (us_dist)', '⚠️'), u['wiersze'])
+        zgodne = json.loads(json.dumps(self.SUROWCE)); zgodne['zapasy']['us_jet']['d'][-1][1] = 42.84
+        self.assertEqual(U(inne={'surowce': zgodne})['uwagi'], [], 'różnica 0,045 mln bbl to jeszcze zgodność')
+        # surowce o tydzień dalej niż plik energii
+        nowsze = json.loads(json.dumps(self.SUROWCE)); nowsze['zapasy']['us_crude']['d'].append(['2026-10-16', 400.0]); nowsze['zapasy']['us_gasoline']['d'].append(['2026-10-16', 199.0])
+        u = U(inne={'surowce': nowsze}); self.assertEqual(len(u['uwagi']), 1); self.assertIn('o tydzień za surowcami', u['uwagi'][0]); self.assertIn(('tydzień raportu a surowce', '⚠️'), u['wiersze'])
+        # inny tydzień w surowcach (brak tego samego dnia) — zapasów nie porównujemy; brak zapasów w surowcach — bez wierszy
+        inny = json.loads(json.dumps(self.SUROWCE)); inny['zapasy']['us_gasoline']['d'] = [['2026-10-02', 204.744]]
+        self.assertNotIn('zapas benz a surowce (us_gasoline)', [w for w, z in U(inne={'surowce': inny})['wiersze']])
+        self.assertEqual(U(inne={'surowce': {'zapasy': 'x'}}), {'wiersze': [], 'uwagi': []}); self.assertEqual(U(inne={}), {'wiersze': [], 'uwagi': []})
+        self.assertEqual(U(p={'v': 1}), {'wiersze': [], 'uwagi': []})
+
+    def test_kontrola_hook_w_kontrola_i_raporcie(self):
+        import pathlib
+        src = pathlib.Path(os.path.join(os.path.dirname(os.path.abspath(zd.__file__)), 'narzedzia', 'kontrola.py')).read_text(encoding='utf-8')
+        a = src.index("T_eu = energia_kontrola(files)")
+        self.assertLess(a, src.index('# 3d. v115: zgodność liczb — kapitalizacja')); self.assertLess(src.index("for label, st, w, txt, note in energia_swiezosc(files.get('energia-usa'))"), a)
+        for s in ("R['bledy'].append(f'energia-usa.json: sprzeczność w pliku — {z_}')", "R['zgodnosc']['energia-usa']", "keu = Z.get('energia-usa')", "L.append('- Energia USA, rafinerie, zapasy, import ropy i stopniodni (z pliku strony): '"):
+            self.assertIn(s, src, s)
+        self.assertLess(src.index("keu = Z.get('energia-usa')"), src.index("srz = Z.get('surowce-raporty')"))

@@ -11068,6 +11068,281 @@ def pst_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v395 (F11Z9): energia USA — rafinerie, import ropy, zapasy produktów, stopniodni (data/energia-usa.json) ----------------------------------------------------------------
+# Plik: wpsr {asof, ref, rafin {util, wej, bru, moc}, prod, benz_split, zap, imp, bilans, popyt, wyd, t, full_at}, pogoda {asof, d: [[dzień, ogrzewanie, chłodzenie, norma ogrzewania, norma chłodzenia]], s7, s30, nrm, t},
+# ok / part_at / errs. Kontrola czyta pliki ze strony (bez zapytań do sieci). RYTM PUBLIKACJI i progi (ws53/v395-energia-usa/bt_progi.py):
+#   raport ropy: stan na piątek, raport w środę 10:30 czasu USA (5 dni po piątku); po święcie federalnym w poniedziałek–środę tego tygodnia dzień później (model z kalendarza świąt 2020–2026 — dokładnych
+#   godzin publikacji w danych nie mamy). Plik trzyma tydzień do następnego raportu, więc jego wiek (od końca piątku) rośnie do 11,65 doby, a po święcie do 12,65 (np. po Dniu Kolumba w tym roku);
+#   315 tygodni zapasów w surowcach od 2.10.2020 bez ani jednej luki (każdy odstęp 7 dni, każdy tydzień kończy się w piątek) → ⚠ dopiero przy wieku piątku tygodnia raportu > EUK_K_WPSR = 15 doby od końca
+#   tego dnia (0 fałszywych ⚠ w 314 tygodniach; zapas 2,35 doby ponad najgorsze opóźnienie z modelu, czyli zatrzymany raport wykryty po ok. 3 dobach spóźnienia);
+#   stopniodni: plik odświeżany codziennie rano (UTC), z danymi do dwóch dni wstecz (zmierzone 17.10.2026: zmiana pliku 8:07 UTC, ostatni dzień 15.10); brak historii publikacji → próg z obserwacji i marginesu
+#   na weekendy i awarie: ⚠ przy wieku ostatniego dnia > EUK_K_POGODA = 6 dób od końca tego dnia (zwykle 2–3).
+# (1) świeżość pobrania każdej części (odświeżanie co 3 h; starsze niż doba = ⚠) i wiersze rytmu publikacji (najwyżej ⚠);
+# (2) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zły dzień albo liczba poza zakresem, tydzień nie kończy się w piątek, wykorzystanie mocy ≠ przerób brutto / moc, suma okręgów ≠ USA, import − eksport ≠ bilans,
+#     dostawy produktów ≠ suma części, benzyna rafinerii + mieszalni ≠ produkcja bez korekty, dni stopniodni nie idą kolejno, norma dnia ≠ lista norm roku, sumy 7 i 30 dni ≠ przeliczone z dni (część z ok False
+#     zostaje ze starymi danymi — też sprawdzana);
+# (3) TYLKO UWAGA ⚠: zapasy benzyny, destylatów i paliwa lotniczego w tym pliku a te same zapasy w surowcach (tabela 1 tego samego raportu) — różnica ponad 0,05 mln baryłek w tym samym tygodniu;
+#     tydzień raportu w pliku o tydzień albo więcej starszy niż w surowcach.
+# Najwyżej ⚠ poza (2). Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'energia-usa')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['energia-usa'] = 12 * 60   # plik zapisywany co ok. 3 h (część z błędem: co godzinę) — wiek pobrania każdej części ocenia osobny wiersz
+AW_BEZ_BLEDU.update({'energia_' + p_: 'energia USA — część z błędem zostaje z ostatnimi danymi i datą (v395); wiek pobrania i rytm publikacji w wierszach świeżości' for p_ in ('wpsr', 'pogoda')})
+EUK_PARTS = ('wpsr', 'pogoda')
+EUK_ETYKIETA = {'wpsr': 'Energia USA: raport ropy (pobranie)', 'pogoda': 'Energia USA: stopniodni (pobranie)'}
+EUK_RYTM = {'wpsr': 'Energia USA: raport ropy (rytm publikacji)', 'pogoda': 'Energia USA: stopniodni (rytm publikacji)'}
+EUK_PROG_MIN = 24 * 60            # min — wiek pobrania części (odświeżanie co 3 h)
+EUK_K_WPSR = 15                   # doby — wiek piątku tygodnia raportu (bt_progi.py: najwyżej 12,65 doby tuż przed następnym raportem opóźnionym przez święto)
+EUK_K_POGODA = 6                  # doby — wiek ostatniego dnia stopniodni (zwykle 2–3)
+EUK_K_ZAPAS = 0.05                # mln baryłek — zgodność zapasów z surowcami w tym samym tygodniu
+EUK_HDD, EUK_CDD = 120, 60        # jak EU_HDD_MAX, EU_CDD_MAX w zbieraczu
+EUK_OKNO = 60
+EUK_SR = {'benz': 'us_gasoline', 'dest': 'us_dist', 'nafta': 'us_jet'}   # zapas w tym pliku → zapas w surowcach (tabela 1 raportu)
+
+
+def _euk_dzien(s):
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return dt.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _euk_num(x, lo, hi):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and lo <= x <= hi
+
+
+def _euk_ser(zle, co, s, n, lo, hi, wymagane=1):
+    """Seria tygodniowa: lista n liczb (albo None poza pierwszymi `wymagane`) w zakresie; zły kształt → opis w zle i False."""
+    if not (isinstance(s, list) and len(s) == n and all((x is None and i >= wymagane) or _euk_num(x, lo, hi) for i, x in enumerate(s))):
+        zle.append(f'{co}: zła seria ({str(s)[:50]})')
+        return False
+    return True
+
+
+def energia_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w energii USA) → lista opisów."""
+    zle = []
+    W = j.get('wpsr')
+    if W is not None:
+        if not isinstance(W, dict):
+            zle.append('wpsr: część nie jest słownikiem')
+        else:
+            zle += _euk_wpsr(W, j)
+    P = j.get('pogoda')
+    if P is not None:
+        if not isinstance(P, dict):
+            zle.append('pogoda: część nie jest słownikiem')
+        else:
+            zle += _euk_pogoda(P, j)
+    return zle[:12]
+
+
+def _euk_wpsr(W, j):
+    zle = []
+    asof = _euk_dzien(W.get('asof'))
+    if asof is None or asof.weekday() != 4:
+        return [f'wpsr: tydzień {str(W.get("asof"))[:12]} nie kończy się w piątek albo zły dzień']
+    ref = W.get('ref') if isinstance(W.get('ref'), dict) else {}
+    if _euk_dzien(ref.get('prev')) != asof - dt.timedelta(days=7) or _euk_dzien(ref.get('yago')) is None or not 360 <= (asof - _euk_dzien(ref.get('yago'))).days <= 372:
+        zle.append(f'wpsr: dni odniesienia {ref} poza układem tydzień wcześniej (7 dni) / rok wcześniej (360–372 dni)')
+    pa = j.get('part_at') if isinstance(j.get('part_at'), dict) else {}
+    pt = _euk_dzien(str(pa.get('wpsr') or '')[:10])
+    if pt is not None and asof > pt:
+        zle.append(f'wpsr: tydzień {asof} późniejszy niż pobranie części {pa.get("wpsr")}')
+    try:
+        R = W['rafin']
+        ok = all(isinstance(R.get(k), list) and len(R[k]) == 6 for k in ('util', 'wej')) and _euk_ser(zle, 'wpsr bru', R.get('bru'), 5, 0, 40000) and _euk_ser(zle, 'wpsr moc', R.get('moc'), 5, 0, 40000)
+        if not ok:
+            zle.append('wpsr: rafinerie w złym kształcie')
+        else:
+            for k, lo, hi in (('util', 0, 110), ('wej', -30000, 40000)):
+                for s in R[k]:
+                    if not _euk_ser(zle, 'wpsr ' + k, s, 5, lo, hi):
+                        break
+            if not zle:
+                if abs(sum(s[0] for s in R['wej'][1:]) - R['wej'][0][0]) > 6:
+                    zle.append('wpsr: przerób ropy — suma okręgów ≠ USA')
+                for i in (0, 1):
+                    if R['moc'][i] and R['bru'][i] and R['util'][0][i] is not None and abs(R['util'][0][i] - R['bru'][i] / R['moc'][i] * 100) > 0.15:
+                        zle.append(f'wpsr: wykorzystanie mocy {R["util"][0][i]}% ≠ przerób brutto / moc ({round(R["bru"][i] / R["moc"][i] * 100, 2)}%)')
+        pr = W['prod']
+        for k in ('benz', 'benz_bk', 'nafta', 'dest', 'mazut', 'propan', 'etanol'):
+            _euk_ser(zle, 'wpsr prod ' + k, pr.get(k), 5, 0, 40000)
+        sp = W['benz_split']
+        if _euk_ser(zle, 'wpsr benzyna z rafinerii', sp.get('raf'), 5, 0, 40000) and _euk_ser(zle, 'wpsr benzyna z mieszalni', sp.get('mie'), 5, 0, 40000) and not zle:
+            for i in (0, 1):
+                if abs(sp['raf'][i] + sp['mie'][i] - pr['benz_bk'][i]) > 6:
+                    zle.append('wpsr: benzyna rafinerii + mieszalni ≠ produkcja bez korekty')
+        Z = W['zap']
+        for k in ('benz', 'dest'):
+            L = Z.get(k)
+            n = 6 if k == 'benz' else 9
+            if not (isinstance(L, list) and len(L) == n and all(_euk_ser(zle, 'wpsr zapas ' + k, s, 3, 0, 2500) for s in L)):
+                zle.append(f'wpsr: zapas {k} w złym kształcie')
+        for k in ('etanol', 'nafta', 'mazut', 'propan'):
+            _euk_ser(zle, 'wpsr zapas ' + k, Z.get(k), 3, 0, 2500)
+        if not zle:
+            if abs(sum(s[0] for s in Z['benz'][1:]) - Z['benz'][0][0]) > 0.06:
+                zle.append('wpsr: zapas benzyny — suma okręgów ≠ USA')
+            d = Z['dest']
+            if abs(sum(d[k][0] for k in (1, 5, 6, 7, 8)) - d[0][0]) > 0.06 or abs(d[2][0] + d[3][0] + d[4][0] - d[1][0]) > 0.06:
+                zle.append('wpsr: zapas destylatów — suma okręgów ≠ USA albo podokręgi ≠ PADD 1')
+        B = W['bilans']
+        for k in ('net', 'imp', 'exp', 'rop_net', 'rop_imp', 'rop_exp', 'prod_net', 'prod_imp', 'prod_exp'):
+            _euk_ser(zle, 'wpsr bilans ' + k, B.get(k), 5, -30000, 40000, 2)
+        if not zle:
+            for i in (0, 1):
+                s = lambda a: B[a][i]   # noqa: E731
+                if abs(s('net') - (s('imp') - s('exp'))) > 6 or abs(s('prod_net') - (s('prod_imp') - s('prod_exp'))) > 6 or abs(s('net') - (s('rop_net') + s('prod_net'))) > 6 or abs(s('exp') - (s('rop_exp') + s('prod_exp'))) > 6:
+                    zle.append('wpsr: import − eksport ≠ bilans albo ropa + produkty ≠ razem')
+                    break
+        po = W['popyt']
+        for k in ('razem', 'benz', 'nafta', 'dest', 'mazut', 'propan', 'inne'):
+            _euk_ser(zle, 'wpsr dostawy ' + k, po.get(k), 5, 0, 60000, 2)
+        wy = W['wyd']
+        for k in ('kraj', 'alaska', 'l48'):
+            _euk_ser(zle, 'wpsr wydobycie ' + k, wy.get(k), 5, 0, 30000, 2)
+        if not zle:
+            for i in (0, 1):
+                if abs(sum(po[k][i] for k in ('benz', 'nafta', 'dest', 'mazut', 'propan', 'inne')) - po['razem'][i]) > 6 or abs(wy['alaska'][i] + wy['l48'][i] - wy['kraj'][i]) > 6:
+                    zle.append('wpsr: dostawy produktów albo wydobycie — części ≠ razem')
+                    break
+        K = W['imp']
+        if not (isinstance(K, list) and 8 <= len(K) <= 25):
+            zle.append('wpsr: import wg kraju w złym kształcie')
+        else:
+            udz = 0
+            for x in K:
+                if not (isinstance(x, list) and len(x) == 8 and (x[0] is None or (isinstance(x[0], str) and re.fullmatch(r'[A-Z]{2}', x[0]))) and (x[0] is not None or isinstance(x[1], str)) and _euk_num(x[2], 0, 100)
+                        and _euk_ser(zle, 'wpsr import ' + str(x[0]), x[3:], 5, 0, 20000)):
+                    zle.append(f'wpsr: zły wiersz importu wg kraju ({str(x)[:40]})')
+                    break
+                udz += x[2]
+            if udz > 100.5:
+                zle.append('wpsr: udziały krajów ponad 100%')
+    except (KeyError, TypeError, IndexError):
+        zle.append('wpsr: brak pola albo zły kształt w pliku')
+    return zle
+
+
+def _euk_pogoda(P, j):
+    zle = []
+    asof = _euk_dzien(P.get('asof'))
+    d = P.get('d')
+    if asof is None or not isinstance(d, list) or len(d) != EUK_OKNO:
+        return [f'pogoda: asof {str(P.get("asof"))[:12]} albo seria dni ({len(d) if isinstance(d, list) else "—"} zamiast {EUK_OKNO})']
+    ost = None
+    for r in d:
+        if not (isinstance(r, list) and len(r) == 5 and _euk_dzien(r[0]) is not None and _euk_num(r[1], 0, EUK_HDD) and _euk_num(r[2], 0, EUK_CDD) and _euk_num(r[3], 0, EUK_HDD) and _euk_num(r[4], 0, EUK_CDD)
+                and all(isinstance(r[i], int) for i in range(1, 5))):
+            return [f'pogoda: zły wiersz serii ({str(r)[:40]})']
+        if ost is not None and (_euk_dzien(r[0]) - ost).days != 1:
+            return [f'pogoda: dni nie idą kolejno ({ost} przed {r[0]})']
+        ost = _euk_dzien(r[0])
+    if ost != asof:
+        zle.append(f'pogoda: asof {asof} ≠ ostatni dzień serii {ost}')
+    pa = j.get('part_at') if isinstance(j.get('part_at'), dict) else {}
+    pt = _euk_dzien(str(pa.get('pogoda') or '')[:10])
+    if pt is not None and asof > pt:
+        zle.append(f'pogoda: dzień danych {asof} późniejszy niż pobranie części {pa.get("pogoda")}')
+    n = P.get('nrm')
+    if not (isinstance(n, dict) and all(isinstance(n.get(x), list) and len(n[x]) == 366 and all(isinstance(v, int) and 0 <= v <= EUK_HDD for v in n[x]) for x in 'hc')):
+        zle.append('pogoda: lista norm roku w złym kształcie')
+    else:
+        for r in d:
+            i = (dt.date(2000, _euk_dzien(r[0]).month, _euk_dzien(r[0]).day) - dt.date(2000, 1, 1)).days
+            if r[3] != n['h'][i] or r[4] != n['c'][i]:
+                zle.append(f'pogoda: norma dnia {r[0]} ({r[3]}, {r[4]}) ≠ lista norm roku ({n["h"][i]}, {n["c"][i]})')
+                break
+    for k, m in (('s7', 7), ('s30', 30)):
+        S = P.get(k)
+        w = d[-m:]
+        ocz = {'h': [sum(r[1] for r in w), sum(r[3] for r in w)], 'c': [sum(r[2] for r in w), sum(r[4] for r in w)]}
+        if S != ocz:
+            zle.append(f'pogoda: suma {m} dni {str(S)[:50]} ≠ przeliczona z dni {ocz}')
+    return zle
+
+
+def energia_swiezosc(j, now=None):
+    """Wiersze: pobranie każdej części (etykieta, status, wiek min, chwila, uwaga) i rytm publikacji (wiek piątku tygodnia raportu albo ostatniego dnia stopniodni względem progów z bt_progi.py);
+    brak pliku albo inna wersja = brak wierszy. Część bez chwili pobrania — '?'. Najwyżej ⚠."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p in EUK_PARTS:
+        P = j.get(p)
+        if not isinstance(P, dict):
+            continue
+        txt = (j.get('part_at') or {}).get(p) if isinstance(j.get('part_at'), dict) else None
+        if not txt:
+            rows.append((EUK_ETYKIETA[p], '?', None, None, 'brak chwili pobrania tej części w pliku'))
+            continue
+        w = wiek_danych(str(txt), 'ts', 'k', now)
+        ok = (j.get('ok') or {}).get(p) if isinstance(j.get('ok'), dict) else None
+        st = '?' if w is None else ('⚠️' if w > EUK_PROG_MIN else '✅')
+        note = ''
+        if st == '⚠️':
+            note = f'pobranie starsze niż {fmt_wiek(EUK_PROG_MIN)} (odświeżanie co 3 h) — dane mogą być nieaktualne; najwyżej uwaga'
+        elif ok is False:
+            note = 'ostatnie pobranie nieudane — dane z poprzedniego pobrania'
+        rows.append((EUK_ETYKIETA[p], st, w, str(txt), note))
+        d = _euk_dzien(P.get('asof'))
+        if d is None:
+            continue
+        wd = wiek_danych(d.isoformat(), 'day', 'k', now)
+        prog = EUK_K_WPSR if p == 'wpsr' else EUK_K_POGODA
+        zle = wd is not None and wd > prog * 1440
+        if p == 'wpsr':
+            note = (f'tydzień raportu do {d.isoformat()} sprzed {fmt_wiek(wd)} (raport ukazuje się w środę 5 dni po piątku, po święcie dzień później; plik trzyma tydzień aż do następnego raportu, najwyżej ok. 12,7 doby)' if zle else '')
+        else:
+            note = (f'ostatni dzień stopniodni {d.isoformat()} sprzed {fmt_wiek(wd)} (plik odświeżany codziennie, zwykle z danymi sprzed 2–3 dób)' if zle else '')
+        rows.append((EUK_RYTM[p], '⚠️' if zle else '✅', wd, d.isoformat(), note))
+    return rows
+
+
+def energia_uwagi(j, files=None, now=None):
+    """Uwagi ⚠ (nigdy ❌): zapasy w tym pliku a te same zapasy w surowcach (tabela 1 tego samego raportu) i tydzień raportu a tydzień w surowcach. → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    files = files if isinstance(files, dict) else {}
+    out = {'wiersze': [], 'uwagi': []}
+    W = j.get('wpsr') if isinstance(j.get('wpsr'), dict) else None
+    su = files.get('surowce')
+    Zs = su.get('zapasy') if isinstance(su, dict) and isinstance(su.get('zapasy'), dict) else None
+    if not W or not Zs:
+        return out
+    try:
+        asof = W.get('asof')
+        for k, sk in EUK_SR.items():
+            ser = (Zs.get(sk) or {}).get('d') if isinstance(Zs.get(sk), dict) else None
+            wiersze = {r[0]: r[1] for r in ser if isinstance(r, list) and len(r) >= 2 and isinstance(r[0], str) and _euk_num(r[1], 0, 3000)} if isinstance(ser, list) else {}
+            mine = W['zap'][k][0][0] if k in ('benz', 'dest') else W['zap'][k][0]
+            if asof in wiersze:
+                roz = abs(mine - wiersze[asof])
+                if roz > EUK_K_ZAPAS:
+                    out['uwagi'].append(f'energia USA: zapas {k} z tygodnia {asof}: {mine} mln bbl w tym pliku, {wiersze[asof]} w surowcach ({sk}) — różnica {round(roz, 3)}')
+                out['wiersze'].append((f'zapas {k} a surowce ({sk})', '⚠️' if roz > EUK_K_ZAPAS else '✅'))
+        ostatnie = max((r[0] for sk in EUK_SR.values() if isinstance(Zs.get(sk), dict) for r in (Zs[sk].get('d') or []) if isinstance(r, list) and r and isinstance(r[0], str)), default=None)
+        if ostatnie and _euk_dzien(ostatnie) and _euk_dzien(asof) and (_euk_dzien(ostatnie) - _euk_dzien(asof)).days >= 7:
+            out['uwagi'].append(f'energia USA: tydzień raportu w pliku {asof}, w surowcach już {ostatnie} — plik o tydzień za surowcami')
+            out['wiersze'].append(('tydzień raportu a surowce', '⚠️'))
+        elif ostatnie:
+            out['wiersze'].append(('tydzień raportu a surowce', '✅'))
+    except Exception:  # noqa
+        pass
+    return out
+
+
+def energia_kontrola(files, now=None):
+    """Kontrola pliku energia-usa.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('energia-usa') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    U = energia_uwagi(j, files, now)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': energia_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -11686,6 +11961,24 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['usda-eksport'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'eksport zbóż USA (v392): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v395. energia USA (data/energia-usa.json): świeżość pobrania dwóch części i rytm publikacji (tydzień raportu ropy, ostatni dzień stopniodni) osobnymi wierszami (lista SWIEZOSC bez zmian), zgodność zapasów
+    # z surowcami (⚠) oraz sprzeczności w pliku (❌) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in energia_swiezosc(files.get('energia-usa')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_eu = energia_kontrola(files)
+        if T_eu:
+            for z_ in T_eu['spojnosc'][:5]:
+                R['bledy'].append(f'energia-usa.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_eu['uwagi']
+        R['zgodnosc']['energia-usa'] = {k_: T_eu[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_eu else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['energia-usa'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'energia USA (v395): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -12416,6 +12709,11 @@ def raport_md(R):
             L.append('- Eksport zbóż i soi z USA wg kraju kupującego (z pliku strony): ' + (f'? kontrola przerwana ({kus["blad"]})' if kus.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(kus['spojnosc'][:3]) + ' ❌ · ' if kus.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in kus.get('wiersze') or []) or '—') + '.')
+        keu = Z.get('energia-usa')   # v395: energia USA — sprzeczności w pliku, zapasy a surowce, rytm publikacji; brak pliku = bez linii
+        if keu:
+            L.append('- Energia USA, rafinerie, zapasy, import ropy i stopniodni (z pliku strony): ' + (f'? kontrola przerwana ({keu["blad"]})' if keu.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(keu['spojnosc'][:3]) + ' ❌ · ' if keu.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in keu.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

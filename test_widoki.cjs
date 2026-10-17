@@ -9792,7 +9792,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {/* v392 */"ux392.c.CN": "de es pt", /* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {/* v395 */"en395.norm": "es pt", "en395.pr.propan": "fr", "en395.r.p2": "fr it", "en395.r.p4": "de", "en395.s.norm": "es pt", /* v392 */"ux392.c.CN": "de es pt", /* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
 /* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
@@ -29716,4 +29716,175 @@ test('v394: zasady strony i telefon — bez nazw dostawców, bez zapisu w przegl
   assert.ok(html.includes('#c-premie .prs-h{margin:16px 0 4px;font-size:13px}')); const css = html.slice(html.indexOf('#c-premie .prs-h{'), html.indexOf('\n', html.indexOf('#c-premie .prs-h{')));
   assert.ok(!/(^|[^-\w])width:\s*\d{3,}px/.test(css), 'bez stałych szerokości w px'); assert.ok(html.includes('#c-premie .etfkpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}'), 'kafle w siatce karty (telefon: po dwa)');
   assert.ok(!/class="[^"]*\bgr\b/.test(h) && !/\.toFixed\(/.test(mod), 'liczby przez wspólny zapis (nfmt)');
+});
+
+// ===================== v395 (F11Z9): Energia USA — rafinerie, import ropy, zapasy paliw, dostawy, stopniodnie w GLOBAL (data/energia-usa.json) =====================
+// Fixtura EN395_FILE: plik energia-usa.json zbudowany przez zbieracz na nagraniach z 17.10.2026 (tydzień raportu ropy do 9.10.2026, stopniodnie do 15.10.2026). Czas przypięty (Date.now), bez zegara.
+const EN395_FILE = {"v":1,"at":"2026-10-17T12:00:00+00:00","src":"x","ok":{"wpsr":true,"pogoda":true},"part_at":{"wpsr":"2026-10-17T12:00:00+00:00","pogoda":"2026-10-17T12:00:00+00:00"},"errs":{},"wpsr":{"asof":"2026-10-09","ref":{"prev":"2026-10-02","yago":"2025-10-10"},"rafin":{"util":[[93.5,92.7,85.7,93.2,90.6],[81.1,77.9,93.4,82.7,89.2],[89.7,88.2,85.5,88.1,92.3],[96.3,95.0,87.1,95.9,91.3],[94.6,98.8,89.5,96.5,95.9],[93.2,95.2,77.3,94.1,84.3]],"wej":[[16615,16480,15130,16541,16018],[732,720,828,761,794],[3835,3777,3589,3765,3901],[9414,9263,8271,9343,8646],[618,644,575,630,614],[2017,2075,1866,2043,2063]],"bru":[16871,16712,15568,16801,16458],"moc":[18044,18027,18160,18031,18160]},"prod":{"benz":[9232,9349,9359,9410,9541],"benz_bk":[9388,9342,9478,9420,9471],"nafta":[1866,1863,1715,1862,1773],"dest":[5189,5290,4592,5160,4926],"mazut":[339,374,278,356,289],"propan":[2898,2904,2809,2926,2864],"etanol":[1065,1053,1074,1038,1041]},"benz_split":{"raf":[1280,1223,1133,1247,1154],"mie":[8108,8119,8345,8173,8318]},"zap":{"benz":[[208.262,204.744,218.826],[53.557,53.743,56.538],[42.226,41.41,46.495],[78.081,75.041,79.311],[6.59,6.694,7.162],[27.807,27.856,29.32]],"etanol":[23.942,23.743,22.628],"dest":[[102.611,105.138,117.03],[21.513,21.687,27.688],[2.491,2.461,4.202],[8.922,9.725,13.298],[10.101,9.502,10.188],[25.688,26.205,28.365],[42.065,43.857,44.688],[3.346,3.453,3.564],[10.0,9.937,12.724]],"nafta":[42.795,42.504,44.414],"mazut":[24.167,23.881,21.424],"propan":[106.375,107.846,102.376]},"imp":[["CA",null,63.4,3751,3891,3767,3580,3826],["MX",null,6.2,213,186,462,195,385],["SA",null,4.4,268,228,216,174,239],["GY",null,3.4,314,354,null,251,null],["BR",null,3.2,140,301,0,315,196],["CO",null,3.1,255,73,214,117,135],["IQ",null,2.9,0,0,40,13,95],["VE",null,2.3,455,624,49,554,109],["NG",null,2.2,11,376,0,109,96],["AR",null,2.1,0,112,203,89,158]],"bilans":{"net":[-4373,-4535,-4249,-4140,-3268],"imp":[7571,8303,7217,7610,7863],"exp":[11944,12838,11466,11750,11132],"rop_net":[1479,2075,1059,2069,1991],"rop_imp":[6049,6840,5525,6116,6064],"rop_exp":[4570,4765,4466,4047,4073],"prod_net":[-5852,-6610,-5309,-6210,-5260],"prod_imp":[1522,1463,1691,1494,1799],"prod_exp":[7374,8073,7000,7703,7059]},"popyt":{"razem":[21361,20396,19726,21077,20669],"benz":[8408,8769,8455,8678,8713],"nafta":[1625,1696,1691,1695,1657],"dest":[4323,3650,4233,3974,3983],"mazut":[184,306,220,265,262],"propan":[1209,773,495,958,849],"inne":[5613,5202,4632,5507,5204]},"wyd":{"kraj":[13679,13979,13636,13888,13568],"alaska":[465,489,432,469,428],"l48":[13214,13490,13204,13419,13140]},"t":"2026-10-17T12:00:00+00:00","full_at":"2026-10-17T12:00:00+00:00"},"pogoda":{"asof":"2026-10-15","d":[["2026-08-17",0,12,0,11],["2026-08-18",0,11,0,10],["2026-08-19",0,14,0,10],["2026-08-20",0,11,0,9],["2026-08-21",0,11,0,9],["2026-08-22",0,11,0,9],["2026-08-23",0,10,0,9],["2026-08-24",0,9,0,9],["2026-08-25",0,8,0,9],["2026-08-26",0,12,0,9],["2026-08-27",0,10,0,10],["2026-08-28",0,10,0,10],["2026-08-29",0,9,1,9],["2026-08-30",0,10,0,9],["2026-08-31",0,11,1,9],["2026-09-01",1,12,1,8],["2026-09-02",1,12,1,8],["2026-09-03",1,12,1,8],["2026-09-04",1,12,1,8],["2026-09-05",0,11,1,7],["2026-09-06",1,9,1,7],["2026-09-07",1,8,1,8],["2026-09-08",0,9,1,7],["2026-09-09",0,11,1,7],["2026-09-10",0,11,1,7],["2026-09-11",0,10,1,7],["2026-09-12",1,8,1,6],["2026-09-13",1,10,1,6],["2026-09-14",2,8,2,6],["2026-09-15",2,7,2,6],["2026-09-16",1,7,2,5],["2026-09-17",1,8,2,5],["2026-09-18",1,9,2,5],["2026-09-19",2,7,2,5],["2026-09-20",2,7,3,5],["2026-09-21",2,6,3,5],["2026-09-22",3,5,3,5],["2026-09-23",3,5,3,4],["2026-09-24",4,4,4,4],["2026-09-25",4,4,4,4],["2026-09-26",4,4,4,4],["2026-09-27",3,4,4,4],["2026-09-28",3,3,4,4],["2026-09-29",2,4,4,3],["2026-09-30",2,5,5,3],["2026-10-01",1,6,5,3],["2026-10-02",2,6,5,3],["2026-10-03",3,5,5,3],["2026-10-04",4,4,6,3],["2026-10-05",3,5,6,3],["2026-10-06",5,4,6,3],["2026-10-07",4,4,7,3],["2026-10-08",3,4,7,2],["2026-10-09",4,4,7,2],["2026-10-10",4,3,7,2],["2026-10-11",5,3,7,2],["2026-10-12",4,4,8,2],["2026-10-13",4,5,8,2],["2026-10-14",3,5,8,2],["2026-10-15",4,4,8,2]],"s7":{"h":[28,53],"c":[28,14]},"s30":{"h":[90,149],"c":[148,102]},"nrm":{"h":[27,27,27,27,28,28,28,29,29,29,29,28,28,29,29,30,30,29,30,30,30,30,28,28,28,29,29,28,28,28,28,27,27,27,28,29,29,28,28,27,27,27,28,28,26,25,25,25,24,24,22,22,22,22,23,24,24,24,24,23,23,22,22,23,21,21,21,21,21,21,20,20,19,18,18,18,18,18,18,18,18,18,18,17,16,15,15,15,14,14,14,14,14,13,13,14,14,14,13,13,13,13,12,12,11,10,10,10,10,9,9,9,9,9,9,8,8,8,8,8,7,7,7,7,7,6,6,6,6,5,5,5,5,5,5,4,4,4,4,4,4,4,4,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,4,4,4,4,4,4,5,5,5,5,6,6,6,7,7,7,7,7,8,8,8,8,8,9,9,9,10,10,10,11,10,11,11,11,11,12,12,12,12,12,14,14,14,15,15,15,15,16,16,17,17,17,17,17,18,18,18,18,19,19,20,20,21,20,20,20,21,21,22,23,23,23,24,25,25,25,25,25,25,26,26,26,26,26,27,27,28,28,28,28,28,28,30,30,29,27,27,27,27],"c":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,1,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,6,6,6,6,5,6,6,6,7,7,7,7,7,7,8,8,8,8,8,8,8,9,9,9,9,9,10,10,10,9,9,9,9,10,10,11,10,10,11,11,11,11,11,11,11,11,11,12,12,12,12,12,11,11,11,11,11,11,11,11,11,11,11,11,12,12,11,11,10,10,11,11,10,10,10,10,10,10,11,10,10,9,9,9,9,9,9,9,10,10,9,9,9,8,8,8,8,7,7,8,7,7,7,7,6,6,6,6,5,5,5,5,5,5,5,4,4,4,4,4,4,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"t":"2026-10-17T12:00:00+00:00"}};
+const en395 = (() => {
+  const a0 = html.indexOf('/* ===================== v395 (F11Z9): ENERGIA USA'), a1 = html.indexOf('/* ---------- koniec bloku energii USA (v395) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v395 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-17T13:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[  ]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-energiausa': el};
+    const calls = [], hnd = [], ivs = [], bars = [], lines = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkBars', 'wkLines', 'wkMs', 'wkDay', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {ENU, enuLoad, renderEnu, enuOk, enuW, enuP, enuBody, enuCty};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, () => '', c => '<f:' + c + '>', i => i, doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (R, o) => { bars.push({R, o}); return '<bars n=' + R.length + ' aria="' + o.aria + '">'; },
+      (Ls, o) => { lines.push({L: Ls, o}); return '<lines n=' + Ls[0].d.length + ' aria="' + o.aria + '">'; },
+      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, hnd, ivs, bars, lines, mos, expand, collapse, html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), raw: m[3].split('<small')[0], lines: [...m[3].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {energia_wpsr: true, energia_pogoda: 'cached'}} : meta, 'energia-usa': j === undefined ? clone(EN395_FILE) : j});
+  const J = () => clone(EN395_FILE);
+  return {mk, tiles, files, J, sp, txt, code, helpers, clone, LOC};
+})();
+
+test('v395 (F11Z9): Energia USA — nagłówek od razu, plik dopiero po rozwinięciu karty, 16 kafli z liczbą, zmianą w kolorach kierunku, datą i wiekiem', () => {
+  const K = en395.mk('pl', en395.files());
+  assert.equal(K.els['#g-energiausa'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Energia USA: rafinerie, import ropy i pogoda</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Dane zostaną wczytane po rozwinięciu panelu.') && en395.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku energii'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'energia-usa'], 'po rozwinięciu jedno pobranie pliku'); h = K.html();
+  const T = en395.tiles(h); assert.equal(T.length, 16, 'rafinerie 4, import i bilans 4, zapasy 4, pogoda 4');
+  const [util, wej, benz, dest, imp, exp, net, wyd, zb, zd, zn, zp, h7, c7, h30, c30] = T;
+  assert.equal(util.label, 'Wykorzystanie mocy rafinerii'); assert.equal(util.val, '93,5%');
+  assert.deepEqual(util.lines, [['pos', '▲ +0,8 p. proc. wobec tygodnia wcześniej'], ['pos', '▲ +7,8 p. proc. wobec roku temu']]);
+  assert.ok(util.when.includes('tydzień do 9 paź 2026') && util.when.includes('wiek(2026-10-09)'), 'data danych i wiek: ' + util.when);
+  assert.equal(wej.val, '16,6 mln b/d'); assert.deepEqual(wej.lines, [['pos', '▲ +135 tys. b/d wobec tygodnia wcześniej'], ['pos', '▲ +9,8 % wobec roku temu']]);
+  assert.equal(benz.val, '9,23 mln b/d'); assert.deepEqual(benz.lines, [['neg', '▼ −117 tys. b/d wobec tygodnia wcześniej'], ['neg', '▼ −1,4 % wobec roku temu']], 'spadek czerwony, minus typograficzny');
+  assert.equal(dest.val, '5,19 mln b/d'); assert.deepEqual(dest.lines[1], ['pos', '▲ +13,0 % wobec roku temu']);
+  assert.equal(imp.label, 'Import ropy'); assert.equal(imp.val, '6,05 mln b/d'); assert.deepEqual(imp.lines, [['neg', '▼ −791 tys. b/d wobec tygodnia wcześniej'], ['pos', '▲ +9,5 % wobec roku temu']]);
+  assert.equal(exp.val, '4,57 mln b/d'); assert.deepEqual(exp.lines[1], ['pos', '▲ +2,3 % wobec roku temu']);
+  assert.equal(net.label, 'Bilans handlu ropą i paliwami'); assert.equal(net.val, '−4,37 mln b/d', 'ujemny bilans z minusem typograficznym, bez koloru poziomu');
+  assert.ok(!/class="(pos|neg)"/.test(net.raw), 'sam poziom bilansu bez koloru; kolory tylko zmian'); assert.deepEqual(net.lines, [['pos', '▲ +162 tys. b/d wobec tygodnia wcześniej'], ['neg', '▼ −124 tys. b/d wobec roku temu']]);
+  assert.equal(wyd.val, '13,7 mln b/d'); assert.deepEqual(wyd.lines, [['neg', '▼ −300 tys. b/d wobec tygodnia wcześniej'], ['pos', '▲ +0,3 % wobec roku temu']]);
+  assert.equal(zb.label, 'Zapas benzyny'); assert.equal(zb.val, '208,3 mln bbl'); assert.deepEqual(zb.lines, [['pos', '▲ +3,52 mln bbl wobec tygodnia wcześniej'], ['neg', '▼ −4,8 % wobec roku temu']]);
+  assert.equal(zd.val, '102,6 mln bbl'); assert.deepEqual(zd.lines, [['neg', '▼ −2,53 mln bbl wobec tygodnia wcześniej'], ['neg', '▼ −12,3 % wobec roku temu']]);
+  assert.equal(zn.val, '42,8 mln bbl'); assert.deepEqual(zn.lines[0], ['pos', '▲ +0,29 mln bbl wobec tygodnia wcześniej']); assert.equal(zp.val, '106,4 mln bbl'); assert.deepEqual(zp.lines[1], ['pos', '▲ +3,9 % wobec roku temu']);
+  assert.equal(h7.label, 'Ogrzewanie, ostatnie 7 dni'); assert.equal(h7.val, '28 stopniodni');
+  assert.deepEqual(h7.lines, [['neg', '▼ −25 stopniodni wobec normy'], ['neg', '▼ −47,2 % wobec normy'], ['pc', 'norma: 53']], 'zimniej/cieplej: kolor z pokazanej liczby');
+  assert.ok(h7.when.includes('dane z dnia 15 paź 2026') && h7.when.includes('wiek(2026-10-15)'), h7.when);
+  assert.deepEqual(c7.lines, [['pos', '▲ +14 stopniodni wobec normy'], ['pc', 'norma: 14']], 'norma poniżej 20 stopniodni: bez procentu (zaokrąglona norma)');
+  assert.deepEqual(h30.lines, [['neg', '▼ −59 stopniodni wobec normy'], ['neg', '▼ −39,6 % wobec normy'], ['pc', 'norma: 149']]); assert.deepEqual(c30.lines[1], ['pos', '▲ +45,1 % wobec normy']);
+  assert.ok(h.includes('porada inwestycyjna'), 'zastrzeżenie: to nie jest porada inwestycyjna');
+});
+
+test('v395 (F11Z9): Energia USA — wykresy: wykorzystanie mocy wg regionu, import wg kraju (flagi, nazwy w języku widza), zapasy wg regionu, dostawy, stopniodnie 60 dni z normą', () => {
+  const K = en395.mk('pl', en395.files(), {open: true}); const h = K.html();
+  assert.equal(K.bars.length, 5, 'wykorzystanie mocy, import, zapas benzyny, zapas oleju napędowego, dostawy'); assert.equal(K.lines.length, 2);
+  const [u, im, zb, zd, po] = K.bars;
+  assert.deepEqual(u.R.map(r => r.l), ['USA razem', 'Wschód (PADD 1)', 'Środkowy Zachód (PADD 2)', 'Wybrzeże Zatoki (PADD 3)', 'Góry Skaliste (PADD 4)', 'Zachód (PADD 5)']);
+  assert.deepEqual(u.R[0].vs, [93.5, 85.7]); assert.deepEqual(u.R[3].vs, [96.3, 87.1]); assert.equal(u.R[3].vt, '96,3%'); assert.deepEqual(u.o.dom, [0, 100]); assert.deepEqual(u.o.ser.map(s => s.cls), ['s1', 's2']);
+  assert.equal(u.R[1].tip, 'Wschód (PADD 1): 81,1% (rok wcześniej 93,4%)'); assert.deepEqual(u.o.ser.map(s => s.n), ['Ostatni tydzień', 'Rok wcześniej']);
+  assert.equal(im.R.length, 10); assert.equal(im.R[0].l, '<f:ca>Kanada'); assert.deepEqual(im.R[0].vs, [3580, 3826]); assert.equal(im.R[0].vt, '3580');
+  assert.ok(im.R[0].tip.includes('Kanada: średnia z 4 tygodni 3580 tys. b/d (rok wcześniej 3826); ostatni tydzień 3751; udział w imporcie ropy w 2025 roku 63,4%'), im.R[0].tip);
+  assert.deepEqual(im.R[3].vs, [251, null], 'brak liczby za rok wcześniej = null (pasek tylko bieżący), nie zero'); assert.deepEqual(im.o.ser.map(s => s.n), ['Średnia z 4 tygodni', 'Średnia z 4 tygodni rok wcześniej']);
+  assert.deepEqual(zb.R.map(r => r.l), ['Wschód (PADD 1)', 'Środkowy Zachód (PADD 2)', 'Wybrzeże Zatoki (PADD 3)', 'Góry Skaliste (PADD 4)', 'Zachód (PADD 5)']); assert.deepEqual(zb.R[0].vs, [53.557, 56.538]); assert.equal(zb.R[0].vt, '53,6');
+  assert.deepEqual(zd.R.map(r => r.vs[0]), [21.513, 25.688, 42.065, 3.346, 10], 'olej napędowy: PADD 1, 2, 3, 4, 5 (podokręgi 1A–1C poza wykresem)'); assert.equal(zd.R[3].vt, '3,35', 'poniżej 10 — dwa miejsca');
+  assert.deepEqual(po.R.map(r => r.l), ['Benzyna', 'Paliwo lotnicze', 'Olej napędowy i opałowy', 'Mazut', 'Propan', 'Pozostałe produkty']); assert.deepEqual(po.R[0].vs, [8678, 8713]);
+  assert.ok(po.R[4].tip.includes('Propan: średnia z 4 tygodni 958 tys. b/d (rok wcześniej 849); ostatni tydzień 1209'));
+  const [lh, lc] = K.lines; assert.equal(lh.L[0].d.length, 60); assert.deepEqual(lh.L.map(l => l.cls), ['enu-a', 'enu-n']); assert.deepEqual(lh.L.map(l => l.n), ['Rzeczywiste', 'Norma 1981–2010']);
+  assert.deepEqual(lh.L[0].d[59], [Date.parse('2026-10-15T12:00:00Z'), 4]); assert.deepEqual(lh.L[1].d[59], [Date.parse('2026-10-15T12:00:00Z'), 8]); assert.deepEqual(lc.L[0].d[59], [Date.parse('2026-10-15T12:00:00Z'), 4]); assert.deepEqual(lc.L[1].d[59], [Date.parse('2026-10-15T12:00:00Z'), 2]);
+  assert.ok(h.includes('Stopniodnie ogrzewania, 60 dni') && h.includes('Stopniodnie chłodzenia, 60 dni') && h.includes('Zapas benzyny wg regionu'));
+  assert.ok(h.includes('W tygodniu do 9 paź 2026 rafinerie przerabiały 16,6 mln baryłek ropy dziennie i pracowały na 93,5% mocy (rok wcześniej 85,7%). Najwięcej przerabia wybrzeże Zatoki Meksykańskiej: 9,41 mln baryłek dziennie przy 96,3% mocy.'));
+  assert.ok(h.includes('Benzynę wytwarzają rafinerie (1280 tys. b/d) oraz mieszalnie, które łączą komponenty i etanol w gotowe paliwo (8108 tys. b/d, czyli 86% produkcji).'), 'udział mieszalni 8108/9388');
+  assert.ok(h.includes('Największy dostawca ropy do USA to Kanada: 63% importu w 2025 roku, a w ostatnich 4 tygodniach 3580 tys. b/d.'));
+  assert.ok(h.includes('Zapas oleju napędowego i opałowego na Wschodnim Wybrzeżu (tu zużywa się go najwięcej zimą) wynosi 21,5 mln bbl (−22% wobec roku temu), w tym w Nowej Anglii 2,49 mln bbl (−41%).'));
+  assert.ok(h.includes('Łączne dostawy paliw na rynek USA: średnio 21,1 mln b/d w ostatnich 4 tygodniach wobec 20,7 mln rok wcześniej (+2,0%).'));
+  assert.ok(h.includes('W ostatnich 7 dniach do 15 paź 2026 w USA było 28 stopniodni ogrzewania (norma 53) i 28 stopniodni chłodzenia (norma 14).'));
+  assert.ok(h.includes('PADD to pięć okręgów naftowych USA'), 'objaśnienie okręgów'); assert.ok(h.includes('Stopniodzień to o ile °F'), 'objaśnienie stopniodni i normy');
+});
+
+test('v395 (F11Z9): Energia USA — odporność: brak części = „—” i zdanie o braku (nigdy zero), zły podblok pomijany, zły plik odrzucony, błąd części z poprzednimi danymi, jedno ponowienie na minutę', () => {
+  const na = 'Brak odczytu tej części.';
+  let j = en395.J(); delete j.wpsr; j.ok.wpsr = false;
+  let K = en395.mk('pl', en395.files(j), {open: true}); let h = K.html();
+  assert.equal(en395.tiles(h).length, 4, 'tylko pogoda'); assert.equal(h.split(na).length - 1, 4, 'cztery bloki raportu: brak odczytu'); assert.equal(K.bars.length, 0); assert.equal(K.lines.length, 2);
+  assert.ok(h.includes('Ostatnie pobranie nie udało się (raport ropy); pokazujemy poprzednie dane z ich datą.'));
+  j = en395.J(); delete j.pogoda; j.ok.pogoda = false; K = en395.mk('pl', en395.files(j), {open: true}); h = K.html();
+  assert.equal(en395.tiles(h).length, 12); assert.equal(h.split(na).length - 1, 1); assert.equal(K.lines.length, 0); assert.ok(h.includes('Ostatnie pobranie nie udało się (stopniodnie)'));
+  // zły podblok: wykorzystanie mocy 150% — blok rafinerii znika, reszta zostaje
+  j = en395.J(); j.wpsr.rafin.util[0][0] = 150; K = en395.mk('pl', en395.files(j), {open: true}); h = K.html();
+  assert.equal(en395.tiles(h).length, 12); assert.equal(h.split(na).length - 1, 1); assert.ok(!/NaN|undefined|null|Infinity/.test(h));
+  j = en395.J(); j.wpsr.zap.dest[1][0] = -3; K = en395.mk('pl', en395.files(j), {open: true}); assert.equal(en395.tiles(K.html()).length, 12, 'zapas poza zakresem: blok zapasów pominięty');
+  j = en395.J(); j.wpsr.imp = []; j.wpsr.bilans.net = [1, 2]; j.wpsr.wyd.kraj = 'x'; K = en395.mk('pl', en395.files(j), {open: true}); h = K.html();
+  assert.equal(en395.tiles(h).length, 12, 'bez importu, bilansu i wydobycia — blok importu: brak odczytu'); assert.equal(K.bars.length, 4);
+  // brak liczby za rok wcześniej / tydzień wcześniej: „—” w linii zmiany, nie zero ani NaN
+  j = en395.J(); j.wpsr.rafin.util[0][2] = null; j.wpsr.rafin.wej[0][1] = null; j.wpsr.zap.benz[0][2] = null; K = en395.mk('pl', en395.files(j), {open: true}); const T = en395.tiles(K.html());
+  assert.deepEqual(T[0].lines[1], ['na', '— p. proc. wobec roku temu']); assert.deepEqual(T[1].lines[0], ['na', '— tys. b/d wobec tygodnia wcześniej']); assert.deepEqual(T[8].lines[1], ['na', '— % wobec roku temu']);
+  assert.ok(!/NaN|undefined|null|Infinity/.test(K.html()));
+  // pogoda: norma sumy 0 (np. chłodzenie zimą): bez procentu i bez dzielenia przez zero
+  j = en395.J(); j.pogoda.s7.c = [0, 0]; K = en395.mk('pl', en395.files(j), {open: true}); const T2 = en395.tiles(K.html());
+  assert.equal(T2[13].val, '0 stopniodni'); assert.deepEqual(T2[13].lines, [['neu', '• 0 stopniodni wobec normy'], ['pc', 'norma: 0']], 'zero = żółte, brak procentu');
+  // zły plik: wersja, brak czasu, dni w złej kolejności, liczby poza zakresem, ostatni dzień ≠ asof
+  const api = en395.mk('pl', en395.files()).api, ok = x => api.enuOk(x);
+  assert.equal(ok(en395.J()), true); assert.equal(ok(null), false); assert.equal(ok([]), false); assert.equal(ok(Object.assign(en395.J(), {v: 2})), false); assert.equal(ok(Object.assign(en395.J(), {at: 'x'})), false);
+  const zm = f => { const x = en395.J(); f(x); return x; };
+  assert.equal(api.enuP(zm(x => { x.pogoda.asof = '2026-10-14'; })), null, 'asof ≠ ostatni dzień'); assert.equal(api.enuP(zm(x => { x.pogoda.d[5][0] = x.pogoda.d[4][0]; })), null, 'powtórzony dzień');
+  assert.equal(api.enuP(zm(x => { x.pogoda.d[7][1] = 130; })), null, 'ogrzewanie poza zakresem'); assert.equal(api.enuP(zm(x => { x.pogoda.d[7][2] = 1.5 + 0.2; })).d.length, 60, 'liczba niecałkowita dozwolona w kształcie (kontrola dzienna ją odrzuca)');
+  assert.equal(api.enuP(zm(x => { x.pogoda.d = x.pogoda.d.slice(0, 10); })), null, 'za mało dni'); assert.equal(api.enuP(zm(x => { x.pogoda.s7.h = [1]; })).s7, null, 'zły podblok sum: kafle pogody znikają, wykresy nie');
+  assert.equal(api.enuW(zm(x => { delete x.wpsr.zap; delete x.wpsr.rafin; delete x.wpsr.bilans; delete x.wpsr.popyt; x.wpsr.imp = []; })), null, 'żaden podblok poprawny = brak części');
+  assert.equal(api.enuW(zm(x => { x.wpsr.asof = '2026-13-45'; })), null); assert.equal(api.enuW(zm(x => { x.wpsr.imp[0][0] = 'canada'; })).imp.length, 9, 'zły wiersz kraju odrzucony, reszta zostaje');
+  assert.equal(api.enuW(zm(x => { x.wpsr.imp[2] = [null, 'Narnia', 4.4, 268, 228, 216, 174, 239]; })).imp.length, 10, 'nieznany kraj (kod null, nazwa) zostaje');
+  assert.equal(api.enuW(zm(x => { x.wpsr.popyt.razem[0] = null; })).pop, null);
+  assert.equal(api.enuCty(null, '<b>Narnia</b>'), '&lt;b&gt;Narnia&lt;/b&gt;', 'nazwa kraju z pliku przechodzi przez escH'); assert.equal(api.enuCty('CA', null), 'Kanada'); assert.equal(api.enuCty('XX', null), 'XX');
+  // zły plik przy pierwszym pobraniu: komunikat; kolejna próba (zwinięcie i rozwinięcie) dopiero po minucie
+  const K2 = en395.mk('pl', en395.files(Object.assign(en395.J(), {v: 9}))); K2.expand();
+  assert.ok(K2.html().includes('Nie udało się wczytać danych. Spróbuj za chwilę.')); const n0 = K2.calls.length; K2.collapse(); K2.expand(); assert.equal(K2.calls.length, n0, 'bez pętli zapytań w ciągu minuty');
+  // chwilowy błąd po udanym wczytaniu nie zasłania danych; odświeżanie zegarem co 30 min tylko przy rozwiniętej karcie
+  const K3 = en395.mk('pl', en395.files()); K3.expand(); assert.equal(en395.tiles(K3.html()).length, 16);
+  assert.ok(K3.ivs.some(x => x[1] === 30 * 60 * 1000), 'zegar 30 min');
+  const K4 = en395.mk('pl', en395.files()); K4.ivs.forEach(x => x[0]()); assert.deepEqual(K4.calls, ['meta'], 'zegar przy zwiniętej karcie nic nie pobiera');
+  const K5 = en395.mk('pl', {meta: {ok: {kursy: true}}, 'energia-usa': en395.J()}); assert.equal(K5.els['#g-energiausa'].hidden, true, 'meta nie zna części energii — karta schowana'); assert.equal(K5.html(), '');
+});
+
+test('v395 (F11Z9): Energia USA — słownik 10 języków bez surowych kluczy, pól i nazw dostawców, kraje w języku widza, brak szarych strzałek', () => {
+  const miejscowe = {pl: 'Kanada', en: 'Canada', de: 'Kanada', es: 'Canadá', fr: 'Canada', it: 'Canada', pt: 'Canadá', ru: 'Канада', zh: '加拿大', ja: 'カナダ'};
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const K = en395.mk(L, en395.files(), {open: true}); const h = K.html(), t = en395.txt(h);
+    assert.ok(h.length > 5000 && !/en395\./.test(h) && !/\{[a-z]+\}/.test(h) && !/NaN|undefined|Infinity/.test(h), L + ': brak surowych kluczy i pól: ' + (h.match(/en395\.[a-z0-9.]+|\{[a-z]+\}/) || [''])[0]);
+    assert.ok(!/EIA|Energy Information|NOAA|National Weather|Climate Prediction|ir\.eia|ncep/i.test(h), L + ': bez nazw dostawców i urzędów-źródeł');
+    assert.ok(!/class="[^"]*\b(gr|grey|gray)\b/.test(h), L + ': bez szarych klas');
+    assert.equal(K.bars[1].R[0].l, '<f:ca>' + miejscowe[L], L + ': nazwa kraju w języku widza (Intl)');
+    assert.ok(en395.tiles(h).length === 16, L + ': 16 kafli');
+  }
+  const h = en395.mk('pl', en395.files(), {open: true}).html(); assert.ok(!/<small class="na">[▲▼]/.test(h), 'brak szarych strzałek');
+});
+
+test('v395 (F11Z9): Energia USA — style: telefon 390 px bez przewijania w bok (kafle w 2 kolumnach, wykresy jeden pod drugim, długie napisy łamane), tylko zmienne motywu, sekcja po panelu surowców, blok nie czyta sieci ani pamięci przeglądarki', () => {
+  const c0 = html.indexOf('/* v395 (F11Z9): Energia USA'), css = html.slice(c0, c0 + 3300);
+  assert.ok(c0 > 0 && css.includes('@media (max-width:620px){#g-energiausa .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}#g-energiausa .enu-g{grid-template-columns:minmax(0,1fr)}}'), 'dwie kolumny kafli i jedna kolumna wykresów na telefonie');
+  assert.ok(/#g-energiausa \.enu-g\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/.test(css) && /#g-energiausa \.enu-c\{min-width:0\}/.test(css) && /#g-energiausa \.etfk b\{[^}]*overflow-wrap:anywhere/.test(css), 'siatka z minmax(0,…), min-width:0 i łamanie');
+  assert.ok(/#g-energiausa \.wk-bl\{white-space:normal;line-height:1\.25;overflow-wrap:anywhere\}/.test(css), 'nazwy regionów i krajów łamane, nie ucinane');
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgb\(/.test(css.slice(0, css.indexOf('@media (max-width:620px)') + 80)), 'kolory tylko ze zmiennych motywu');
+  assert.ok(/#g-energiausa \.etfk b small\.pos\{color:var\(--gr-tx\)\}/.test(css) && /small\.neg\{color:var\(--rd-tx\)\}/.test(css) && /small\.neu\{color:var\(--yl-tx\)\}/.test(css), 'plus zielony, minus czerwony, zero żółty');
+  const i1 = html.indexOf('<section class="panel pcard" id="g-insider" hidden></section>'), i2 = html.indexOf('<section class="panel pcard" id="g-energiausa" hidden></section>'), i3 = html.indexOf('<section class="panel pcard" id="g-dolar" hidden></section>');
+  assert.ok(i1 > 0 && i2 > i1 && i2 - i1 < 140 && i3 > i2, 'panel po karcie insiderów, przed kursami dolara (koniec GLOBAL: dolar, inst, ETF bez zmian)');
+  assert.equal(html.split('id="g-energiausa"').length, 2, 'jedno miejsce sekcji');
+  assert.ok(!/[\w$\])]\.dd\b(?![-\w])/.test(en395.code) && !html.includes('"en395.dd"'), 'klucze słownika nie kończą się na .dd (test v124 szuka pola dd w skrypcie strony)');
+  assert.ok(!/localStorage|sessionStorage|tradingview/i.test(en395.code) && !/\bfetch\(|XMLHttpRequest/.test(en395.code), 'blok czyta tylko przez srvJSON');
+  assert.equal(html.split("srvJSON('energia-usa')").length, 2, 'jedno miejsce pobrania pliku (enuLoad)');
 });
