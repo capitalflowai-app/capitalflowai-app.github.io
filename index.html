@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="dark light">
 <!-- v45: polityka bezpieczeństwa treści (audyt B7): połączenia tylko do wymienionych źródeł i własnych plików; skrypty tylko własne;
      bez ramek (v321: widgety zewnętrzne usunięte — decyzja właściciela 10.10); bez wtyczek; obrazy z danych źródeł przez https -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self'; frame-src 'none'; connect-src 'self' https://api.coingecko.com https://api.coinpaprika.com https://sdmx.oecd.org https://stablecoins.llama.fi https://api.llama.fi https://home.treasury.gov https://stats.bis.org https://openapi.sosovalue.com https://api.twelvedata.com https://api.statistiken.bundesbank.de https://api.frankfurter.dev https://finnhub.io https://capitalflowai.goatcounter.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self'; frame-src 'none'; connect-src 'self' https://api.coingecko.com https://api.coinpaprika.com https://sdmx.oecd.org https://stablecoins.llama.fi https://api.llama.fi https://home.treasury.gov https://stats.bis.org https://openapi.sosovalue.com https://api.twelvedata.com https://api.statistiken.bundesbank.de https://api.frankfurter.dev https://finnhub.io https://capitalflowai.goatcounter.com https://docs.google.com">
 <meta name="referrer" content="no-referrer">
 <!-- v141: miejsce ładowarki słownika języka — przy publikacji narzedzia/odchudz_strone.py wstawia tu skrypt, który przed skryptem strony wczytuje i18n/<język>.<skrót>.js (języki spoza pl i en) -->
 <title>CapitalFlowAI — Gdzie płynie kapitał?</title>
@@ -884,7 +884,26 @@ td .cell .logo-img{width:34px;height:34px}
 #page-sources .zr-n b{font-weight:700;font-variant-numeric:tabular-nums}
 #page-sources .zr-nm{color:var(--mut);font-size:13px}
 #page-sources .zr-kont{font-size:13px}
-#page-sources .zr-kont a,#page-method .pgc a[href^="mailto:"]{color:var(--bl);text-decoration:underline;text-underline-offset:2px}   /* v347: adres projektu w kolorze odsyłaczy strony (Apple), nie domyślny #0000EE */
+/* v406: kontakt — przycisk i formularz w stylu strony (tokeny kolorów, oba motywy; pola 16 px, żeby telefon nie powiększał strony) */
+.kt-btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:6px 14px;margin:2px 4px;border-radius:999px;border:1px solid var(--bl);background:rgba(var(--bl-rgb),.14);color:var(--tx);font-size:13px;font-weight:600;line-height:1.2;cursor:pointer;vertical-align:middle}
+.kt-btn:hover{background:rgba(var(--bl-rgb),.24)}
+.kt-btn:focus-visible,.kt-f:focus-visible,.kt-st a:focus-visible{outline:2px solid var(--bl);outline-offset:2px}
+.kt-btn[disabled]{opacity:.55;cursor:default}
+.kt-btn.kt-no{border-color:var(--line-2);background:var(--panel-2)}
+.kt-form{display:grid;gap:10px;margin-top:10px;max-width:560px}
+.kt-l{display:grid;gap:4px;font-size:13px;color:var(--mut)}
+.kt-f{width:100%;box-sizing:border-box;border:1px solid var(--line-2);border-radius:9px;background:var(--panel-2);color:var(--tx);padding:9px 10px;font-size:16px;font-family:inherit;line-height:1.4}
+textarea.kt-f{min-height:110px;resize:vertical}
+.kt-cnt{margin-top:-6px;font-size:12px;color:var(--dim);text-align:right;font-variant-numeric:tabular-nums}
+.kt-note{margin:0;font-size:12.5px;line-height:1.45;color:var(--mut)}
+.kt-row{display:flex;flex-wrap:wrap;gap:8px}
+.kt-row .kt-btn{margin:0}
+.kt-hp{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+.kt-st{margin:8px 0 0;font-size:13px;font-weight:600;line-height:1.45}
+.kt-st.ok{color:var(--gr-tx)}.kt-st.bad{color:var(--rd-tx)}.kt-st.warn{color:var(--yl-tx)}
+.kt-st a{color:var(--bl);text-decoration:underline;text-underline-offset:2px}
+@media (max-width:620px){.kt-form{max-width:none}.kt-row .kt-btn{flex:1 1 40%}}
+/* v406: koniec stylów kontaktu */
 @media (max-width:620px){#page-sources .zr-live{padding:18px 14px;gap:10px}}
 /* v104 dzwignia: kafelki i tabele panelu „Dźwignia i pozycje w krypto” — ikony w linii z podpisem, kolory zmian widoczne, brak szary */
 #c-dzwignia .etfk span.icos{display:inline-flex;vertical-align:-3px;margin-right:6px;font-size:inherit;color:inherit;line-height:1}
@@ -3242,6 +3261,9 @@ for(const l in EXTRA275)if(I18N[l])Object.assign(I18N[l],EXTRA275[l]);
 /* v405 (W1B): podpowiedź nagłówków „największe napływy / odpływy” w CRYPTO (zamiast słowa „szacunek”) — 10 języków */
 const EXTRA276={"pl":{"w405.rail.est":"To szacunek modelu, liczony ze zmian wartości elementów sceny — nie zmierzone przelewy."},"en":{"w405.rail.est":"A model estimate, calculated from changes in the value of the scene elements — not measured transfers."},"de":{"w405.rail.est":"Schätzung des Modells, berechnet aus den Wertänderungen der Szenenelemente — keine gemessenen Überweisungen."},"es":{"w405.rail.est":"Estimación del modelo, calculada a partir de los cambios de valor de los elementos de la escena; no son transferencias medidas."},"fr":{"w405.rail.est":"Estimation du modèle, calculée à partir des variations de valeur des éléments de la scène — pas des transferts mesurés."},"it":{"w405.rail.est":"Stima del modello, calcolata dalle variazioni di valore degli elementi della scena — non trasferimenti misurati."},"pt":{"w405.rail.est":"Estimativa do modelo, calculada a partir das variações de valor dos elementos da cena — não são transferências medidas."},"ru":{"w405.rail.est":"Оценка модели, рассчитанная по изменению стоимости элементов сцены, а не измеренные переводы."},"zh":{"w405.rail.est":"这是模型估算，根据场景中各元素价值的变化计算，并非实测转账。"},"ja":{"w405.rail.est":"モデルによる推計で、シーン内の各要素の価値の変化から算出しています。実測の送金ではありません。"}};
 for(const l in EXTRA276)if(I18N[l])Object.assign(I18N[l],EXTRA276[l]);
+/* v406: kontakt — przycisk i formularz zamiast adresu e-mail — 10 języków */
+const EXTRA277={"pl":{"kt.btn":"Skontaktuj się","kt.msg":"Wiadomość","kt.mail":"E-mail do odpowiedzi (nie jest wymagany)","kt.send":"Wyślij","kt.cancel":"Zamknij","kt.sending":"Wysyłanie…","kt.ok":"Dziękujemy — wiadomość została wysłana.","kt.err":"Nie udało się wysłać wiadomości. Spróbuj za chwilę albo użyj formularza w nowej karcie:","kt.link":"Otwórz formularz","kt.empty":"Napisz wiadomość (co najmniej 3 znaki).","kt.badmail":"Adres e-mail wygląda na niepoprawny — popraw go albo zostaw pole puste.","kt.wait":"Poczekaj chwilę przed wysłaniem kolejnej wiadomości.","kt.note":"Wiadomość trafia do właściciela projektu. Nie wpisuj haseł ani innych danych poufnych. Adres e-mail podaj tylko wtedy, gdy chcesz dostać odpowiedź."},"en":{"kt.btn":"Contact us","kt.msg":"Message","kt.mail":"Email for a reply (optional)","kt.send":"Send","kt.cancel":"Close","kt.sending":"Sending…","kt.ok":"Thank you — your message has been sent.","kt.err":"The message could not be sent. Try again in a moment or use the form in a new tab:","kt.link":"Open the form","kt.empty":"Write a message (at least 3 characters).","kt.badmail":"The email address looks invalid — correct it or leave the field empty.","kt.wait":"Please wait a moment before sending another message.","kt.note":"Your message goes to the owner of the project. Do not enter passwords or other confidential data. Give an email address only if you want a reply."},"de":{"kt.btn":"Kontakt aufnehmen","kt.msg":"Nachricht","kt.mail":"E-Mail für die Antwort (optional)","kt.send":"Senden","kt.cancel":"Schließen","kt.sending":"Wird gesendet…","kt.ok":"Danke – Ihre Nachricht wurde gesendet.","kt.err":"Die Nachricht konnte nicht gesendet werden. Versuchen Sie es gleich noch einmal oder nutzen Sie das Formular in einem neuen Tab:","kt.link":"Formular öffnen","kt.empty":"Schreiben Sie eine Nachricht (mindestens 3 Zeichen).","kt.badmail":"Die E-Mail-Adresse sieht ungültig aus – korrigieren Sie sie oder lassen Sie das Feld leer.","kt.wait":"Bitte warten Sie einen Moment, bevor Sie die nächste Nachricht senden.","kt.note":"Ihre Nachricht geht an den Inhaber des Projekts. Geben Sie keine Passwörter oder andere vertrauliche Daten ein. Nennen Sie eine E-Mail-Adresse nur, wenn Sie eine Antwort möchten."},"es":{"kt.btn":"Contáctanos","kt.msg":"Mensaje","kt.mail":"Correo para la respuesta (opcional)","kt.send":"Enviar","kt.cancel":"Cerrar","kt.sending":"Enviando…","kt.ok":"Gracias: tu mensaje se ha enviado.","kt.err":"No se pudo enviar el mensaje. Inténtalo de nuevo en un momento o usa el formulario en una pestaña nueva:","kt.link":"Abrir el formulario","kt.empty":"Escribe un mensaje (al menos 3 caracteres).","kt.badmail":"El correo electrónico parece no válido: corrígelo o deja el campo vacío.","kt.wait":"Espera un momento antes de enviar otro mensaje.","kt.note":"Tu mensaje llega al propietario del proyecto. No escribas contraseñas ni otros datos confidenciales. Indica un correo solo si quieres recibir respuesta."},"fr":{"kt.btn":"Nous contacter","kt.msg":"Votre message","kt.mail":"E-mail pour la réponse (facultatif)","kt.send":"Envoyer","kt.cancel":"Fermer","kt.sending":"Envoi en cours…","kt.ok":"Merci : votre message a été envoyé.","kt.err":"Le message n’a pas pu être envoyé. Réessayez dans un instant ou utilisez le formulaire dans un nouvel onglet :","kt.link":"Ouvrir le formulaire","kt.empty":"Écrivez un message (au moins 3 caractères).","kt.badmail":"L’adresse e-mail semble invalide : corrigez-la ou laissez le champ vide.","kt.wait":"Patientez un instant avant d’envoyer un autre message.","kt.note":"Votre message est transmis au propriétaire du projet. Ne saisissez ni mot de passe ni autre donnée confidentielle. Indiquez une adresse e-mail seulement si vous souhaitez une réponse."},"it":{"kt.btn":"Contattaci","kt.msg":"Messaggio","kt.mail":"E-mail per la risposta (facoltativa)","kt.send":"Invia","kt.cancel":"Chiudi","kt.sending":"Invio in corso…","kt.ok":"Grazie: il messaggio è stato inviato.","kt.err":"Impossibile inviare il messaggio. Riprova tra un momento o usa il modulo in una nuova scheda:","kt.link":"Apri il modulo","kt.empty":"Scrivi un messaggio (almeno 3 caratteri).","kt.badmail":"L’indirizzo e-mail sembra non valido: correggilo o lascia il campo vuoto.","kt.wait":"Attendi un momento prima di inviare un altro messaggio.","kt.note":"Il messaggio arriva al proprietario del progetto. Non inserire password o altri dati riservati. Indica un indirizzo e-mail solo se vuoi ricevere una risposta."},"pt":{"kt.btn":"Contacte-nos","kt.msg":"Mensagem","kt.mail":"E-mail para resposta (opcional)","kt.send":"Enviar","kt.cancel":"Fechar","kt.sending":"A enviar…","kt.ok":"Obrigado — a mensagem foi enviada.","kt.err":"Não foi possível enviar a mensagem. Tente novamente daqui a pouco ou use o formulário num novo separador:","kt.link":"Abrir o formulário","kt.empty":"Escreva uma mensagem (pelo menos 3 caracteres).","kt.badmail":"O endereço de e-mail parece inválido — corrija-o ou deixe o campo vazio.","kt.wait":"Aguarde um momento antes de enviar outra mensagem.","kt.note":"A mensagem chega ao proprietário do projeto. Não introduza palavras-passe nem outros dados confidenciais. Indique um e-mail apenas se quiser receber resposta."},"ru":{"kt.btn":"Связаться с нами","kt.msg":"Сообщение","kt.mail":"Адрес эл. почты для ответа (необязательно)","kt.send":"Отправить","kt.cancel":"Закрыть","kt.sending":"Отправка…","kt.ok":"Спасибо — сообщение отправлено.","kt.err":"Не удалось отправить сообщение. Попробуйте ещё раз чуть позже или воспользуйтесь формой в новой вкладке:","kt.link":"Открыть форму","kt.empty":"Напишите сообщение (не короче 3 символов).","kt.badmail":"Адрес эл. почты выглядит неверным — исправьте его или оставьте поле пустым.","kt.wait":"Подождите немного перед отправкой следующего сообщения.","kt.note":"Сообщение попадает владельцу проекта. Не вводите пароли и другие конфиденциальные данные. Указывайте адрес эл. почты, только если хотите получить ответ."},"zh":{"kt.btn":"联系我们","kt.msg":"留言","kt.mail":"回复用电子邮箱（选填）","kt.send":"发送","kt.cancel":"关闭","kt.sending":"发送中…","kt.ok":"谢谢，您的留言已发送。","kt.err":"留言未能发送。请稍后再试，或在新标签页中使用表单：","kt.link":"打开表单","kt.empty":"请写下留言（至少 3 个字符）。","kt.badmail":"电子邮箱地址似乎无效——请更正或将此栏留空。","kt.wait":"请稍等片刻再发送下一条留言。","kt.note":"留言会发送给项目所有者。请勿填写密码或其他机密信息。只有希望收到回复时才填写电子邮箱。"},"ja":{"kt.btn":"お問い合わせ","kt.msg":"メッセージ","kt.mail":"返信用メールアドレス（任意）","kt.send":"送信","kt.cancel":"閉じる","kt.sending":"送信中…","kt.ok":"ありがとうございます。メッセージを送信しました。","kt.err":"メッセージを送信できませんでした。しばらくしてからもう一度お試しいただくか、新しいタブでフォームをご利用ください：","kt.link":"フォームを開く","kt.empty":"メッセージを入力してください（3文字以上）。","kt.badmail":"メールアドレスが正しくないようです。修正するか、空欄のままにしてください。","kt.wait":"次のメッセージを送る前に、少しお待ちください。","kt.note":"メッセージはプロジェクトの運営者に届きます。パスワードなどの機密情報は入力しないでください。返信が必要な場合のみメールアドレスを入力してください。"}};
+for(const l in EXTRA277)if(I18N[l])Object.assign(I18N[l],EXTRA277[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -8072,6 +8094,83 @@ function updSrc(){const el=document.getElementById('upd-n');if(!el)return;   /* 
 /* v347: koniec liczby źródeł */
 /* bieżąca data i godzina jak w zegarze paska (tickClock dopisuje je co sekundę do #zr-clock) */
 function zrNow(){const d=new Date();return d.toLocaleDateString(LOCALE[LANG],{day:'2-digit',month:'2-digit',year:'numeric'})+', '+d.toLocaleTimeString(LOCALE[LANG],{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+/* ===================== v406: KONTAKT — przycisk „Skontaktuj się” zamiast adresu e-mail (Źródła i Metodologia) =====================
+   Adresu e-mail nie ma nigdzie w stronie. Własny formularz w stylu strony (wiadomość + opcjonalny e-mail do odpowiedzi) wysyła jedno żądanie POST
+   do formularza właściciela: fetch(…, {method:'POST', mode:'no-cors'}) — odpowiedź jest nieprzezroczysta, więc „wysłano” znaczy: żądanie sieciowe
+   zakończyło się bez błędu. Błąd sieci = komunikat i odsyłacz do tego samego formularza w nowej karcie. Zabezpieczenia: pole-pułapka na boty
+   (wypełnione = udajemy sukces i niczego nie wysyłamy), limit długości, odstęp 30 s między wiadomościami, brak ponownego wysłania w trakcie wysyłki.
+   Stan (otwarte, wpisany tekst, komunikat) żyje w KT, więc odświeżenie strony danymi nie kasuje tego, co ktoś pisze (ktSnap/ktRestore w renderPage). */
+const KT_URL='https://docs.google.com/forms/d/e/1FAIpQLSdIWVyOnwdDJmTGctbegZ3NIvdrOnzgPmCfvl_J4Cv7mWBilw/formResponse';
+const KT_VIEW='https://docs.google.com/forms/d/e/1FAIpQLSdIWVyOnwdDJmTGctbegZ3NIvdrOnzgPmCfvl_J4Cv7mWBilw/viewform';
+const KT_E_MSG='entry.777401386',KT_E_MAIL='entry.1818401413';
+const KT_MAX=2000,KT_MIN=3,KT_MAIL_MAX=120,KT_COOL=30000,KT_TIMEOUT=15000;
+const KT_MAIL_RE=/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]{2,}$/;
+const KT={open:false,msg:'',mail:'',st:'',busy:false,last:0};   /* st: '' | sending | ok | err | empty | badmail | wait */
+function ktBtn(){return `<button type="button" class="kt-btn" data-kt="toggle" aria-expanded="${KT.open?'true':'false'}">${escH(t('kt.btn'))}</button>`;}
+function ktStatus(){
+  if(!KT.st)return '';
+  if(KT.st==='err')return `<p class="kt-st bad" role="alert">${escH(t('kt.err'))} <a href="${KT_VIEW}" target="_blank" rel="noopener noreferrer">${escH(t('kt.link'))}</a></p>`;
+  const cls=KT.st==='ok'?'ok':'warn';
+  return `<p class="kt-st ${cls}" role="status">${escH(t('kt.'+KT.st))}</p>`;
+}
+function ktInner(){
+  if(!KT.open)return ktStatus();
+  return `<form class="kt-form" data-kt="form" novalidate autocomplete="off">
+   <label class="kt-l"><span>${escH(t('kt.msg'))}</span><textarea class="kt-f" data-kt-f="msg" name="msg" rows="5" maxlength="${KT_MAX}" required>${escH(KT.msg)}</textarea></label>
+   <div class="kt-cnt" data-kt="cnt">${KT.msg.length} / ${KT_MAX}</div>
+   <label class="kt-l"><span>${escH(t('kt.mail'))}</span><input class="kt-f" data-kt-f="mail" name="mail" type="email" inputmode="email" maxlength="${KT_MAIL_MAX}" autocomplete="off" value="${escH(KT.mail)}"></label>
+   <div class="kt-hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off" data-kt-f="hp"></label></div>
+   <p class="kt-note">${escH(t('kt.note'))}</p>
+   <div class="kt-row"><button type="submit" class="kt-btn kt-go"${KT.busy?' disabled':''}>${escH(t(KT.busy?'kt.sending':'kt.send'))}</button><button type="button" class="kt-btn kt-no" data-kt="close">${escH(t('kt.cancel'))}</button></div>
+   ${ktStatus()}
+  </form>`;
+}
+function ktForm(){return `<div class="kt-wrap">${ktInner()}</div>`;}
+function ktPaint(){
+  if(typeof document==='undefined'||!document.querySelectorAll)return;
+  document.querySelectorAll('.kt-wrap').forEach(w=>{w.innerHTML=ktInner();});
+  document.querySelectorAll('[data-kt="toggle"]').forEach(b=>{b.setAttribute('aria-expanded',KT.open?'true':'false');});
+}
+function ktSnap(){   /* pole w trakcie pisania przed odświeżeniem strony: nazwa i zaznaczenie */
+  if(typeof document==='undefined'||!KT.open)return null;
+  const a=document.activeElement;if(!a||!a.getAttribute)return null;
+  const f=a.getAttribute('data-kt-f');if(!f||f==='hp')return null;
+  return {f,s:a.selectionStart,e:a.selectionEnd};
+}
+function ktRestore(sn){
+  if(!sn||typeof document==='undefined'||!document.querySelectorAll)return;
+  const el=[...document.querySelectorAll('[data-kt-f="'+sn.f+'"]')].find(x=>x.offsetParent!==null);if(!el)return;
+  try{el.focus({preventScroll:true});if(sn.s!=null&&el.setSelectionRange&&el.type!=='email')el.setSelectionRange(sn.s,sn.e);}catch(e){}
+}
+function ktInput(field,val){
+  if(field==='msg'){KT.msg=String(val).slice(0,KT_MAX);}
+  else if(field==='mail'){KT.mail=String(val).slice(0,KT_MAIL_MAX);}
+  else return;
+  if(KT.st&&KT.st!=='sending'&&KT.st!=='err'){KT.st='';}
+  if(field==='msg'&&typeof document!=='undefined'&&document.querySelectorAll)document.querySelectorAll('[data-kt="cnt"]').forEach(c=>{c.textContent=KT.msg.length+' / '+KT_MAX;});
+}
+function ktToggle(open){KT.open=open==null?!KT.open:!!open;if(KT.open&&KT.st==='ok')KT.st='';ktPaint();}
+async function ktSend(hp){
+  if(KT.busy)return 'busy';
+  if(hp){KT.st='ok';KT.open=false;KT.msg='';KT.mail='';ktPaint();return 'bot';}   /* pole-pułapka wypełnione: udajemy sukces, niczego nie wysyłamy */
+  const msg=KT.msg.trim().slice(0,KT_MAX),mail=KT.mail.trim();
+  if(msg.length<KT_MIN){KT.st='empty';ktPaint();return 'empty';}
+  if(mail&&(mail.length>KT_MAIL_MAX||!KT_MAIL_RE.test(mail))){KT.st='badmail';ktPaint();return 'badmail';}
+  if(KT.last&&Date.now()-KT.last<KT_COOL){KT.st='wait';ktPaint();return 'wait';}
+  KT.busy=true;KT.st='sending';ktPaint();
+  let wynik='ok',to=0;
+  try{
+    if(typeof fetch!=='function')throw new Error('fetch');
+    const body=new URLSearchParams();body.set(KT_E_MSG,msg);if(mail)body.set(KT_E_MAIL,mail);
+    const ac=typeof AbortController==='function'?new AbortController():null;if(ac)to=setTimeout(()=>ac.abort(),KT_TIMEOUT);
+    const r=await fetch(KT_URL,{method:'POST',mode:'no-cors',credentials:'omit',referrerPolicy:'no-referrer',cache:'no-store',body,signal:ac?ac.signal:undefined});
+    if(r&&r.type&&r.type!=='opaque'&&r.ok===false)throw new Error('http');   /* przy no-cors odpowiedź jest zawsze nieprzezroczysta; inna i błędna = błąd */
+    KT.last=Date.now();KT.msg='';KT.mail='';KT.open=false;
+  }catch(e){wynik='err';}
+  finally{if(to)clearTimeout(to);}
+  KT.busy=false;KT.st=wynik;ktPaint();return wynik;
+}
+/* v406: koniec kontaktu */
 function renderSources(){
   const w=$('#page-sources');if(!w)return;
   const m=(typeof GLIVE!=='undefined'&&GLIVE&&GLIVE.meta&&typeof GLIVE.meta==='object')?GLIVE.meta:null;   /* wczytany plik stanu; null = jeszcze nie pobrany */
@@ -8093,7 +8192,7 @@ function renderSources(){
     <p class="zr-legal">${iL}${t('zr2.legal')}</p>
     <p class="mtxt">${t('zr2.note')}</p>
     <p class="mtxt zr-lic">${t('v404.licz')}</p>
-    <p class="mtxt zr-kont">${t('kont.t',{m:'<a href="mailto:cryptoportal.pw@gmail.com">cryptoportal.pw@gmail.com</a>'})}</p>
+    <p class="mtxt zr-kont">${t('kont.t',{m:ktBtn()})}</p>${ktForm()}
    </section>`;
 }
 function renderMethod(){
@@ -8117,15 +8216,22 @@ function renderMethod(){
        : `<div class="calv">—</div><div class="calt">${t('pg.cal.none')}</div>`}</div></section>
    <section class="panel pgc"><h2>${t('pg.m6')}</h2><p class="mtxt">${t('g.cf.m')}</p><p class="mtxt">${t('g.cf.l')}</p></section>
    <section class="panel pgc"><h2>${t('pg.m7')}</h2><p class="mtxt">${t('etf.m')}</p><p class="mtxt">${t('g.help.etf')}</p></section>
-   <section class="panel pgc"><h2>${t('pg.m5')}</h2><p class="mtxt">${t('g.help.limd')}</p></section><section class="panel pgc"><p class="mtxt">${t('kont.t',{m:'<a href="mailto:cryptoportal.pw@gmail.com">cryptoportal.pw@gmail.com</a>'})}</p></section>${txtJakCzytac()}`;
+   <section class="panel pgc"><h2>${t('pg.m5')}</h2><p class="mtxt">${t('g.help.limd')}</p></section><section class="panel pgc"><p class="mtxt">${t('kont.t',{m:ktBtn()})}</p>${ktForm()}</section>${txtJakCzytac()}`;
 }
 function renderPage(){
+  const kf=typeof ktSnap==='function'?ktSnap():null;   /* v406: pole formularza kontaktu w trakcie pisania przeżywa odświeżenie strony */
   if(page==='flows')renderFlows();
   else if(page==='assets')renderAssets();
   else if(page==='sectors')renderSectorsPage();
   else if(page==='sources')renderSources();
   else if(page==='method')renderMethod();
+  ktRestore(kf);
 }
+/* v406: kontakt — zdarzenia (jedno miejsce, delegowane: strony Źródła i Metodologia rysują się od nowa) */
+document.addEventListener('click',e=>{const b=e.target&&e.target.closest?e.target.closest('[data-kt="toggle"],[data-kt="close"]'):null;if(!b)return;e.preventDefault();ktToggle(b.getAttribute('data-kt')==='close'?false:null);});
+document.addEventListener('input',e=>{const f=e.target&&e.target.getAttribute?e.target.getAttribute('data-kt-f'):null;if(!f||f==='hp')return;ktInput(f,e.target.value);});
+document.addEventListener('submit',e=>{const f=e.target&&e.target.closest?e.target.closest('form[data-kt="form"]'):null;if(!f)return;e.preventDefault();const h=f.querySelector('[data-kt-f="hp"]');ktSend(h?h.value:'');});
+/* v406: koniec zdarzeń kontaktu */
 /* ===================== ETF → KRYPTO =====================
    Napływy netto do funduszy ETF na kryptowaluty (spot). Nie na mapie —
    osobny panel: ilość, skala, procenty.

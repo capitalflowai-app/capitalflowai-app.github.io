@@ -2916,7 +2916,7 @@ PZ_TYLKO = tuple(g.__name__ for g in PZ_GRUPY)       # w sondy.py: TYLKO = PZ_TY
 # znacznik „dane=tak/nie” (czy treść to dane, a nie strona blokady) z typem blokady — nigdy adresu, nagłówka ani treści.
 import zlib
 
-F11_SEC_UA = {"User-Agent": "CapitalFlowAI/1.0 badania-niekomercyjne (cryptoportal.pw@gmail.com)"}   # adres publiczny (stopka strony)
+F11_SEC_UA = {"User-Agent": "CapitalFlowAI/1.0 badania-niekomercyjne (" + ((os.environ.get("SEC_CONTACT") or "").strip() or "https://capitalflowai-app.github.io/") + ")"}   # v406: adres z sekretu SEC_CONTACT, nie z kodu
 F11_SEC_HOSTS = ("www.sec.gov", "efts.sec.gov")
 F11_PRZERWA = 0.6
 # (grupa, etykieta, adres, Range albo "", rodzaj treści: json / csv / zip / html / xml); @LW@ = ostatni dzień roboczy DDMMRRRR

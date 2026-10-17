@@ -8,7 +8,7 @@ Dokument dla każdego, także dla osoby, która nie programuje. Stan na 13.10.20
   (służy tylko do pracy nad nowymi wersjami; wyłączony nic nie zatrzymuje).
 - Automat sam się pilnuje: zegar zapasowy uruchamia przebieg, gdy harmonogram GitHuba stoi, kontrola co dzień sprawdza stronę i dane, a strażnik raz
   w tygodniu dba o to, żeby GitHub nie wyłączył harmonogramów z powodu braku aktywności (po 60 dniach bez żadnego commitu GitHub wyłącza takie przepływy).
-- Adres strony: https://capitalflowai-app.github.io/ — repozytorium: `capitalflowai-app/capitalflowai-app.github.io` (publiczne). Kontakt projektu: cryptoportal.pw@gmail.com.
+- Adres strony: https://capitalflowai-app.github.io/ — repozytorium: `capitalflowai-app/capitalflowai-app.github.io` (publiczne). Kontakt: przycisk „Skontaktuj się” w zakładkach Źródła i Metodologia (wiadomość trafia do formularza właściciela; adresu e-mail nie ma w żadnym pliku strony).
 
 ## 2. Przepływy (katalog `.github/workflows/`) i ich rytm
 

@@ -14,10 +14,8 @@ MIN_DL = 8
 _ZLY = re.compile(r'[\x00-\x20\x7f]')   # v272: spacja, tabulator, nowa linia i inne znaki sterujące
 _NAZWA = re.compile(r'[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_(?:KEY|TOKEN|SECRET)')   # v281: nazwa zmiennej (jak w maskowaniu zbieracza, v278)
 KATALOGI = ('_site', 'data')
-# v374: adres kontaktowy projektu jest jawny — strona pokazuje go od v347 (Źródła, Metodologia), a 14.10 właściciel wpisał go jako
-# SEC_CONTACT (urząd wymaga adresu w zapytaniu). Jego wystąpienie w plikach strony nie jest wyciekiem i nie może przerywać publikacji;
-# każdy inny adres (np. prywatny) straż nadal pilnuje jak klucza.
-JAWNE = {'SEC_CONTACT': ('cryptoportal.pw@gmail.com',)}
+# v406: dawny wyjątek v374 (jawny adres projektu na stronie) usunięty — strona nie pokazuje już żadnego adresu e-mail (przycisk „Skontaktuj się”
+# i formularz), więc SEC_CONTACT (adres do nagłówka zapytań urzędu) jest pilnowany jak każdy klucz: jego wartość w pliku strony albo danych przerywa publikację.
 
 
 def sekrety(env=None):
@@ -27,8 +25,6 @@ def sekrety(env=None):
     for n in NAZWY:
         v = (env.get(n) or '').strip()
         if not v:
-            continue
-        if v.lower() in JAWNE.get(n, ()):   # v374: jawny adres projektu — nie sekret
             continue
         if len(v) < MIN_DL:
             krotkie.append(n); continue
@@ -72,9 +68,7 @@ def skanuj(sek, root='.', katalogi=KATALOGI):
 def main():
     sek, krotkie = sekrety()
     tr, n = skanuj(sek, os.environ.get('STRAZ_ROOT', '.'))
-    jawne = [k for k in JAWNE if (os.environ.get(k) or '').strip().lower() in JAWNE[k]]   # v374: tylko nazwy, nigdy wartości
     msg = f'straż kluczy: {n} plików, {len(sek)} sekretów sprawdzonych' + (f', pominięte (za krótkie): {", ".join(krotkie)}' if krotkie else '')
-    msg += f', jawne (adres projektu widoczny na stronie): {", ".join(jawne)}' if jawne else ''
     if tr:
         for nazwa, p, i in tr:
             print(f'::error title=straż kluczy::wartość sekretu {nazwa} w pliku {p} (pozycja {i}) — publikacja przerwana')

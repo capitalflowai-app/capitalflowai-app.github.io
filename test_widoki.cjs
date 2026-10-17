@@ -3448,7 +3448,7 @@ test('v103-zrodla (v126.2): strona Źródła = sama karta stanu — bez sekcji �
   const out = v103zr.render('pl', {at: v103zr.FRESH, ok: {fred: true, sosovalue: 'cached'}}).out;
   const PROV = /Etherscan|EODHD|Tiingo|SoSoValue|Twelve Data|Finnhub|OECD|Bundesbank|CoinMarketCap|DefiLlama|CoinPaprika|CoinGecko|Coin ?Metrics|FRED|Massive|Alpha Vantage|FMP|CryptoPanic|PublicNode|Frankfurter|Eurostat|Coinalyze|Binance|Trading ?View|Statistics Canada|New York Fed|Banco de México|Alternative\.me|\bSNB\b|EVDS|\bBIS\b|\bMFW\b|\bIMF\b|Creative Commons|CC BY|country-flag-icons|web3icons|cryptocurrency-icons/;
   assert.ok(!PROV.test(out), 'strona Źródła bez nazw: ' + (out.match(PROV) || [''])[0]);
-  assert.ok(!out.includes('zr-attr2') && !out.includes('<h2>') && !out.replace(/<a href="mailto:cryptoportal\.pw@gmail\.com">cryptoportal\.pw@gmail\.com<\/a>/g, '').includes('<a ') && !out.includes('<br>'), 'bez sekcji podpisów i bez linków (v347: poza adresem projektu)');
+  assert.ok(!out.includes('zr-attr2') && !out.includes('<h2>') && !out.includes('<a ') && !out.includes('<br>'), 'bez sekcji podpisów i bez linków (v406: kontakt to przycisk, nie odsyłacz)');
   assert.ok(out.includes('NA ŻYWO') && out.includes('id="zr-clock"') && out.includes('Źródła danych bez błędu: 2 z 2') && out.includes(v103zr.dict.pl['zr2.legal']), 'karta stanu zostaje');
   for (const L of v103zr.L10) { const o = v103zr.render(L, {at: v103zr.FRESH, ok: {a: true}}).out; assert.ok(!PROV.test(o) && !o.includes('zr-attr2'), L + ': ' + (o.match(PROV) || [''])[0]); }
   for (const s of ['function zrCredits(', 'const SNB_CREDIT=', 'function snbCredit(', 'const TR_CREDIT=', 'function trCredit(', 'zr-attr2', 'https://www.banxico.org.mx/', 'evds3.tcmb.gov.tr', 'data.snb.ch/en', 'data.binance.vision', 'https://coinalyze.net'])
@@ -10185,7 +10185,9 @@ function v146Method(L) {
   const a = html.indexOf('function renderMethod(){'), b = html.indexOf('\nfunction renderPage(){', a);
   assert.ok(a > 0 && b > a, 'renderMethod w stronie');
   const w = {innerHTML: ''}, R = v96src.render(L, false, null);
-  new Function('$', 'gMemStats', 't', 'txtJakCzytac', html.slice(a, b) + '\nrenderMethod();')(q => q === '#page-method' ? w : null, () => null, v96src.tFor(L), R.txtJakCzytac);
+  const k0 = html.indexOf('/* ===================== v406: KONTAKT'), k1 = html.indexOf('/* v406: koniec kontaktu */', k0);   // v406: przycisk kontaktu w Metodologii
+  assert.ok(k0 > 0 && k1 > k0, 'moduł kontaktu w stronie');
+  new Function('$', 'gMemStats', 't', 'txtJakCzytac', 'escH', html.slice(k0, k1) + '\n' + html.slice(a, b) + '\nrenderMethod();')(q => q === '#page-method' ? w : null, () => null, v96src.tFor(L), R.txtJakCzytac, v96src.escH);
   return w.innerHTML;
 }
 const v146Txt = s => s.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
@@ -23527,21 +23529,18 @@ test('v347: zakładka Źródła — „Dane z N źródeł” na górze karty z w
   }
 });
 
-test('v347: kontakt — „Uwagi, błędy i propozycje: cryptoportal.pw@gmail.com” (mailto) w Metodologii i w Źródłach, 10 języków, tylko adres projektu', () => {
-  const MAIL = 'cryptoportal.pw@gmail.com', A = `<a href="mailto:${MAIL}">${MAIL}</a>`, at = v347z.FRESH;
+test('v347 (v406): kontakt — zdanie „Uwagi, błędy i propozycje: {m}” w 10 językach (w {m} przycisk „Skontaktuj się”); adresu e-mail w stronie nie ma', () => {
+  const at = v347z.FRESH;
   for (const L of v347z.L10) {
     const d = v96src.I18N[L]['kont.t'];
-    assert.ok(typeof d === 'string' && d.includes('{m}') && (L === 'pl' || L === 'en' || d !== v96src.I18N.en['kont.t']), L + ': własne tłumaczenie z polem na adres');
-    const method = v146Method(L), src = v347src(L, {at, ok: {a: true}, zrodla: {n: 74, ok: 70}});
-    assert.equal(method.split(A).length, 2, L + ': Metodologia — jeden odsyłacz'); assert.equal(src.split(A).length, 2, L + ': Źródła — jeden odsyłacz');
-    assert.ok(method.includes(d.replace('{m}', A)) && src.includes(d.replace('{m}', A)), L + ': całe zdanie z odsyłaczem');
+    assert.ok(typeof d === 'string' && d.includes('{m}') && (L === 'pl' || L === 'en' || d !== v96src.I18N.en['kont.t']), L + ': własne tłumaczenie z polem na przycisk');
+    assert.ok(v347src(L, {at, ok: {a: true}, zrodla: {n: 74, ok: 70}}).includes('data-kt="toggle"') && v146Method(L).includes('data-kt="toggle"'), L + ': przycisk w Źródłach i w Metodologii');
   }
   assert.equal(v96src.I18N.pl['kont.t'], 'Uwagi, błędy i propozycje: {m}'); assert.equal(v96src.I18N.en['kont.t'], 'Comments, errors and suggestions: {m}');
-  const mails = new Set(html.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g) || []);
-  assert.deepEqual([...mails], [MAIL], 'w stronie tylko adres projektu (nigdy prywatny adres właściciela)');
+  assert.deepEqual(html.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g) || [], [], 'w stronie żadnego adresu e-mail');
   assert.ok(!/wyrtki|peeter/i.test(html), 'żadnego prywatnego adresu ani nazwiska w stronie');
-  assert.equal(html.split('href="mailto:').length - 1, 2, 'dwa miejsca na stronie: Metodologia i Źródła (odsyłacz w kodzie; selektor stylu ma href^=)');
-  assert.ok(!v347src('pl', {at, ok: {a: true}}).includes('{m}') && v347src('pl', null).includes(A), 'kontakt jest także bez pliku stanu');
+  assert.equal(html.split('<button type="button" class="kt-btn" data-kt="toggle"').length - 1, 1, 'przycisk budowany w jednym miejscu kodu (ktBtn)');
+  assert.ok(!v347src('pl', {at, ok: {a: true}}).includes('{m}') && v347src('pl', null).includes('data-kt="toggle"'), 'kontakt jest także bez pliku stanu');
 });
 
 test('v347: słownik v347 — 10 języków, pola, brak kopii angielskiego i spacji przed licznikiem po japońsku; strażnik: żadnych nazw dostawców danych w słownikach (poza przedmiotem danych)', () => {
@@ -23583,7 +23582,7 @@ test('v347: Fed — domyślnie bez nazwy rynku („Rynek zakładów w USA”); h
 });
 
 test('v347: adres projektu ma kolor odsyłaczy strony (Apple), nie domyślny niebieski przeglądarki; zdanie o liczbie źródeł podaje datę i wiek przebiegu', () => {
-  assert.ok(html.includes('#page-sources .zr-kont a,#page-method .pgc a[href^="mailto:"]{color:var(--bl);text-decoration:underline;'), 'styl odsyłacza mailto w Źródłach i w Metodologii');
+  assert.ok(html.includes('.kt-btn{display:inline-flex;') && !html.includes('mailto:'), 'v406: przycisk kontaktu w kolorach strony (tokeny), bez odsyłacza mailto');
   assert.ok(!/const FED_VENUE_SHOW=false;[^\n]*\n\s*\/\* false: podpis kolumn/.test(html), 'Fed: bez osieroconego komentarza pod przełącznikiem');
   assert.equal((html.match(/const FED_VENUE_SHOW=/g) || []).length, 1);
   const at = '2026-10-11T08:49:00+00:00';
@@ -31315,4 +31314,149 @@ test('v405 (W1B, pkt 16): nagłówki „największe napływy / odpływy” (Kapi
   assert.equal(I.pl['rail.in'], 'Największe napływy'); assert.equal(I.pl['rail.out'], 'Największe odpływy');
   assert.ok(html.includes("$$('[data-i18n-title]').forEach(el=>el.title=t(el.dataset.i18nTitle));"), 'podpowiedzi z data-i18n-title ustawia ta sama funkcja co dotąd');
   assert.ok(!/szacunek/.test(I.pl['w405.rail.est'].replace(/^To szacunek modelu/, '')), 'jeden raz, w podpowiedzi');
+});
+
+/* ===================== v406: kontakt — przycisk „Skontaktuj się” i formularz zamiast adresu e-mail ===================== */
+const v406 = (() => {
+  const a = html.indexOf('/* ===================== v406: KONTAKT'), b = html.indexOf('/* v406: koniec kontaktu */', a);
+  assert.ok(a > 0 && b > a, 'moduł kontaktu w stronie');
+  const code = html.slice(a, b);
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const MAIL = 'cryptoportal' + '.pw@' + 'gmail.com';
+  const mk = (L, o = {}) => {
+    const wrap = {innerHTML: ''}, tog = {attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }}, cnt = {textContent: ''};
+    const doc = {querySelectorAll: s => s === '.kt-wrap' ? [wrap] : s === '[data-kt="toggle"]' ? [tog] : s === '[data-kt="cnt"]' ? [cnt] : []};
+    const calls = [], timers = {set: 0, cleared: 0};
+    class USP { constructor() { this.m = []; } set(k, v) { this.m.push([k, v]); } get(k) { const x = this.m.find(p => p[0] === k); return x ? x[1] : null; } toString() { return this.m.map(p => p.join('=')).join('&'); } }
+    class AC { constructor() { this.signal = {}; } abort() { this.aborted = true; } }
+    const fetchWrap = (url, init) => { calls.push({url, init}); return o.fetch ? o.fetch(url, init) : Promise.resolve({type: 'opaque', ok: false, status: 0}); };
+    const F = new Function('t', 'escH', 'document', 'fetch', 'AbortController', 'URLSearchParams', 'setTimeout', 'clearTimeout',
+      code + '\nreturn {KT, ktBtn, ktForm, ktInner, ktSend, ktToggle, ktInput, ktPaint, ktSnap, ktRestore, KT_URL, KT_VIEW, KT_MAX, KT_COOL};')(
+      v96src.tFor(L), v96src.escH, doc, o.nofetch ? undefined : fetchWrap, AC, USP, () => { timers.set++; return 7; }, () => { timers.cleared++; });
+    return Object.assign(F, {wrap, tog, cnt, calls, timers});
+  };
+  return {code, L10, MAIL, mk};
+})();
+
+test('v406: w stronie nie ma adresu e-mail ani mailto; CSP otwiera tylko host formularza i tylko w connect-src', () => {
+  assert.ok(!html.toLowerCase().includes(v406.MAIL) && !html.includes('mailto:'), 'ani adresu projektu, ani odsyłacza mailto');
+  assert.deepEqual(html.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g) || [], [], 'żadnego adresu e-mail w stronie');
+  assert.ok(!/wyrtki|peeter/i.test(html), 'żadnego prywatnego adresu ani nazwiska w stronie');
+  const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/)[1];
+  const dir = n => (csp.split(';').map(x => x.trim()).find(x => x.startsWith(n + ' ')) || '').slice(n.length + 1).split(/\s+/);
+  assert.equal(dir('connect-src').filter(x => x === 'https://docs.google.com').length, 1, 'host formularza raz w connect-src');
+  assert.deepEqual(csp.match(/https:\/\/docs\.google\.com\S*/g), ['https://docs.google.com'], 'tylko host, bez ścieżki, i tylko raz w całej polityce');
+  assert.deepEqual(dir('script-src'), ["'self'", "'unsafe-inline'"]); assert.deepEqual(dir('frame-src'), ["'none'"]); assert.deepEqual(dir('form-action'), ["'self'"]);
+  assert.ok(html.includes("const KT_E_MSG='entry.777401386',KT_E_MAIL='entry.1818401413';") && html.includes("mode:'no-cors'"), 'pola formularza i tryb no-cors');
+  assert.equal((html.match(/https:\/\/docs\.google\.com\/forms\/d\/e\/1FAIpQLSdIWVyOnwdDJmTGctbegZ3NIvdrOnzgPmCfvl_J4Cv7mWBilw\/(?:formResponse|viewform)/g) || []).length, 2, 'adres wysyłki i odsyłacz zapasowy');
+});
+
+test('v406: słownik kontaktu — 13 kluczy w 10 językach, własne tłumaczenia, bez nazw dostawców i adresu', () => {
+  const D = v96src.I18N, K = ['kt.btn', 'kt.msg', 'kt.mail', 'kt.send', 'kt.cancel', 'kt.sending', 'kt.ok', 'kt.err', 'kt.link', 'kt.empty', 'kt.badmail', 'kt.wait', 'kt.note'];
+  for (const L of v406.L10) for (const k of K) assert.ok(typeof D[L][k] === 'string' && D[L][k].length >= 2, L + ' ' + k);
+  for (const L of ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) for (const k of K) assert.notEqual(D[L][k], D.en[k], L + ' ' + k + ': tłumaczenie, nie kopia angielskiego');
+  assert.equal(D.pl['kt.btn'], 'Skontaktuj się'); assert.equal(D.en['kt.btn'], 'Contact us');
+  for (const L of v406.L10) for (const k of K) assert.ok(!/\{[a-z]+\}|@|google|gmail/i.test(D[L][k]), 'bez pól, adresu i nazw: ' + L + ' ' + k);
+  assert.ok(/3/.test(D.pl['kt.empty']) && D.pl['kt.err'].endsWith(':'), 'komunikat błędu kończy się dwukropkiem przed odsyłaczem');
+});
+
+test('v406: Źródła i Metodologia — przycisk „Skontaktuj się” w zdaniu kont.t, zamknięty formularz, 10 języków, bez adresu', () => {
+  const at = v347z.FRESH;
+  for (const L of v406.L10) {
+    const tf = v96src.tFor(L), btn = `<button type="button" class="kt-btn" data-kt="toggle" aria-expanded="false">${v96src.escH(tf('kt.btn'))}</button>`;
+    const s = v347src(L, {at, ok: {a: true}, zrodla: {n: 74, ok: 70}}), m = v146Method(L);
+    for (const [nm, out] of [['Źródła', s], ['Metodologia', m]]) {
+      assert.equal(out.split(btn).length, 2, L + ' ' + nm + ': jeden przycisk');
+      assert.ok(out.includes(tf('kont.t', {m: btn})), L + ' ' + nm + ': zdanie kont.t z przyciskiem');
+      assert.equal(out.split('<div class="kt-wrap"></div>').length, 2, L + ' ' + nm + ': miejsce formularza (zamknięte)');
+      assert.ok(!out.includes('mailto:') && !out.includes('@') && !out.includes('<form'), L + ' ' + nm + ': bez adresu, odsyłacza i otwartego formularza');
+    }
+  }
+});
+
+test('v406: formularz otwarty — pole wiadomości z limitem, opcjonalny e-mail, pole-pułapka ukryte przed czytnikami i klawiaturą, przyciski, bez adresu', () => {
+  for (const L of v406.L10) {
+    const K = v406.mk(L); K.ktToggle(true);
+    const h = K.wrap.innerHTML, tf = v96src.tFor(L);
+    assert.ok(K.KT.open && K.tog.attrs['aria-expanded'] === 'true', L + ': stan otwarty i aria-expanded');
+    assert.ok(h.includes('<textarea class="kt-f" data-kt-f="msg" name="msg" rows="5" maxlength="2000" required>') && h.includes('type="email"') && h.includes('maxlength="120"'), L + ': pola z limitami');
+    assert.ok(h.includes('<div class="kt-hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off" data-kt-f="hp"></label></div>'), L + ': pole-pułapka');
+    assert.ok(h.includes(v96src.escH(tf('kt.send'))) && h.includes(v96src.escH(tf('kt.cancel'))) && h.includes(v96src.escH(tf('kt.note'))) && h.includes(v96src.escH(tf('kt.mail'))), L + ': teksty');
+    assert.ok(h.includes('<div class="kt-cnt" data-kt="cnt">0 / 2000</div>') && h.includes('novalidate') && !h.includes('<a ') && !h.includes('@'), L + ': licznik, brak linku przed błędem');
+    K.ktToggle(false); assert.equal(K.wrap.innerHTML, '', L + ': zamknięcie chowa formularz'); assert.equal(K.tog.attrs['aria-expanded'], 'false');
+  }
+});
+
+test('v406: wysyłka — poprawna wiadomość = jedno POST no-cors z polami formularza; puste, zły e-mail, pułapka, odstęp i podwójne kliknięcie nie wysyłają', async () => {
+  const T0 = 1800000000000, realNow = Date.now; let T = T0; Date.now = () => T;
+  try {
+    const K = v406.mk('pl'); K.ktToggle(true);
+    assert.equal(await K.ktSend(''), 'empty'); assert.equal(K.KT.st, 'empty'); assert.equal(K.calls.length, 0);
+    K.ktInput('msg', '  ab  '); assert.equal(await K.ktSend(''), 'empty', 'poniżej 3 znaków po przycięciu');
+    K.ktInput('msg', 'Dzień dobry — uwaga do wykresu.'); K.ktInput('mail', 'zly adres');
+    assert.equal(await K.ktSend(''), 'badmail'); assert.equal(K.calls.length, 0); assert.ok(K.wrap.innerHTML.includes('kt-st warn') && K.wrap.innerHTML.includes('poprawny'));
+    K.ktInput('mail', 'x'.repeat(130) + '@example.org'); assert.equal(K.KT.mail.length, 120, 'e-mail przycięty do limitu'); assert.equal(await K.ktSend(''), 'badmail');
+    assert.equal(await K.ktSend('http://spam.example'), 'bot', 'pole-pułapka'); assert.equal(K.calls.length, 0, 'bot: nic nie wysłano'); assert.equal(K.KT.st, 'ok'); assert.equal(K.KT.open, false);
+    K.ktToggle(true); K.ktInput('msg', 'Dzień dobry — uwaga do wykresu.'); K.ktInput('mail', 'czytelnik@example.org');
+    assert.equal(await K.ktSend(''), 'ok');
+    assert.equal(K.calls.length, 1); const c = K.calls[0];
+    assert.equal(c.url, K.KT_URL); assert.ok(c.url.endsWith('/formResponse') && c.url.startsWith('https://docs.google.com/forms/d/e/'));
+    assert.equal(c.init.method, 'POST'); assert.equal(c.init.mode, 'no-cors'); assert.equal(c.init.credentials, 'omit'); assert.equal(c.init.referrerPolicy, 'no-referrer');
+    assert.equal(c.init.body.get('entry.777401386'), 'Dzień dobry — uwaga do wykresu.'); assert.equal(c.init.body.get('entry.1818401413'), 'czytelnik@example.org');
+    assert.deepEqual(c.init.body.m.map(p => p[0]).sort(), ['entry.1818401413', 'entry.777401386'], 'tylko dwa pola');
+    assert.ok(K.timers.set === 1 && K.timers.cleared === 1, 'limit czasu ustawiony i zdjęty');
+    assert.equal(K.KT.st, 'ok'); assert.equal(K.KT.msg, ''); assert.equal(K.KT.mail, ''); assert.equal(K.KT.open, false); assert.equal(K.KT.busy, false);
+    assert.ok(K.wrap.innerHTML.includes('<p class="kt-st ok" role="status">Dziękujemy — wiadomość została wysłana.</p>'), 'komunikat sukcesu po zamknięciu formularza');
+    K.ktToggle(true); K.ktInput('msg', 'Druga wiadomość od razu'); assert.equal(await K.ktSend(''), 'wait', 'odstęp 30 s'); assert.equal(K.calls.length, 1);
+    T = T0 + K.KT_COOL - 1; assert.equal(await K.ktSend(''), 'wait');
+    T = T0 + K.KT_COOL + 1; assert.equal(await K.ktSend(''), 'ok', 'po odstępie'); assert.equal(K.calls.length, 2); assert.equal(K.calls[1].init.body.get('entry.1818401413'), null, 'bez e-maila pole nie jest wysyłane');
+    // limit długości: wklejony tekst dłuższy niż limit zostaje przycięty do 2000
+    T += 10 * K.KT_COOL; K.ktToggle(true); K.ktInput('msg', 'z'.repeat(2500)); assert.equal(K.KT.msg.length, 2000); assert.equal(await K.ktSend(''), 'ok'); assert.equal(K.calls[2].init.body.get('entry.777401386').length, 2000);
+    // podwójne kliknięcie w trakcie wysyłki
+    // drugie żądanie (gdyby powstało) kończy się od razu — test nie wisi
+    let ok, nf = 0; const K2 = v406.mk('pl', {fetch: () => new Promise(r => { if (nf++ === 0) ok = r; else r({type: 'opaque', ok: false}); })}); K2.ktToggle(true); K2.ktInput('msg', 'Wiadomość w locie');
+    const p1 = K2.ktSend(''); assert.equal(K2.KT.busy, true); assert.ok(K2.wrap.innerHTML.includes('disabled') && K2.wrap.innerHTML.includes('Wysyłanie…'));
+    assert.equal(await K2.ktSend(''), 'busy'); assert.equal(K2.calls.length, 1, 'jedno żądanie'); ok({type: 'opaque', ok: false}); assert.equal(await p1, 'ok'); assert.equal(K2.KT.busy, false);
+  } finally { Date.now = realNow; }
+});
+
+test('v406: błąd sieci — komunikat i odsyłacz do formularza w nowej karcie, tekst zostaje, można spróbować ponownie; odpowiedź inna niż nieprzezroczysta i błędna też jest błędem', async () => {
+  const realNow = Date.now; Date.now = () => 1800000000000;
+  try {
+    for (const L of v406.L10) {
+      const K = v406.mk(L, {fetch: () => Promise.reject(new TypeError('Failed to fetch'))}); K.ktToggle(true); K.ktInput('msg', 'Treść do zachowania'); K.ktInput('mail', 'a@example.org');
+      assert.equal(await K.ktSend(''), 'err', L);
+      const h = K.wrap.innerHTML, tf = v96src.tFor(L);
+      assert.ok(K.KT.open && K.KT.msg === 'Treść do zachowania' && K.KT.mail === 'a@example.org' && K.KT.busy === false && K.KT.last === 0, L + ': tekst zostaje, bez blokady odstępu');
+      assert.ok(h.includes('<p class="kt-st bad" role="alert">' + v96src.escH(tf('kt.err')) + ' <a href="' + K.KT_VIEW + '" target="_blank" rel="noopener noreferrer">' + v96src.escH(tf('kt.link')) + '</a></p>'), L + ': komunikat z odsyłaczem');
+      assert.ok(K.KT_VIEW.endsWith('/viewform') && h.includes('value="a@example.org"') && h.includes('>Treść do zachowania</textarea>'), L + ': tekst nadal w polach');
+      assert.equal(K.timers.cleared, 1, L + ': limit czasu zdjęty także po błędzie');
+    }
+    const K = v406.mk('pl', {fetch: () => Promise.resolve({type: 'basic', ok: false, status: 500})}); K.ktToggle(true); K.ktInput('msg', 'abc def'); assert.equal(await K.ktSend(''), 'err', 'błędna odpowiedź jawna');
+    const N = v406.mk('pl', {nofetch: true}); N.ktToggle(true); N.ktInput('msg', 'abc def'); assert.equal(await N.ktSend(''), 'err', 'bez fetch w przeglądarce');
+    const R = v406.mk('pl'); R.ktToggle(true); R.ktInput('msg', 'abc def'); R.KT.st = 'err'; assert.equal(await R.ktSend(''), 'ok', 'ponowna próba po błędzie działa'); assert.equal(R.calls.length, 1);
+  } finally { Date.now = realNow; }
+});
+
+test('v406: stan przeżywa odświeżenie strony — ktSnap/ktRestore, wpisywanie czyści stare ostrzeżenie, licznik znaków; zdarzenia i style w stronie', () => {
+  const K = v406.mk('pl'); K.ktToggle(true); K.ktInput('msg', 'Pierwsze zdanie');
+  assert.ok(K.ktInner().includes('>Pierwsze zdanie</textarea>') && K.ktInner().includes('15 / 2000'), 'tekst z stanu po ponownym narysowaniu');
+  assert.equal(K.cnt.textContent, '15 / 2000', 'licznik aktualizowany bez przerysowania pola');
+  K.KT.st = 'empty'; K.ktInput('msg', 'Pierwsze zdanie, drugie'); assert.equal(K.KT.st, '', 'ostrzeżenie znika po poprawie');
+  K.ktInput('msg', '<b>x</b> "q"'); assert.ok(K.ktInner().includes('&lt;b&gt;x&lt;/b&gt; &quot;q&quot;</textarea>') && !K.ktInner().includes('<b>x</b>'), 'tekst użytkownika zawsze zabezpieczony');
+  K.ktInput('hp', 'x'); K.ktInput('inne', 'x'); assert.equal(K.KT.msg, '<b>x</b> "q"', 'nieznane pola ignorowane');
+  // brak document.activeElement w atrapie: nic nie przywracamy, bez błędu
+  assert.equal(K.ktSnap(), null); K.ktRestore(null);
+  assert.ok(html.includes("function renderPage(){\n  const kf=typeof ktSnap==='function'?ktSnap():null;") && html.includes('ktRestore(kf);'), 'renderPage zachowuje pole w trakcie pisania');
+  for (const s of ["document.addEventListener('click',e=>{const b=e.target&&e.target.closest?e.target.closest('[data-kt=\"toggle\"],[data-kt=\"close\"]')", "document.addEventListener('input',", "document.addEventListener('submit',", 'ktSend(h?h.value:\'\')']) assert.ok(html.includes(s), s);
+  const c0 = html.indexOf('/* v406: kontakt — przycisk i formularz w stylu strony'), c1 = html.indexOf('/* v406: koniec stylów kontaktu */', c0), css = html.slice(c0, c1);
+  assert.ok(c0 > 0 && c1 > c0 && !/#[0-9a-fA-F]{3,8}\b/.test(css.replace(/\/\*.*?\*\//g, '')), 'style tylko z tokenów kolorów (oba motywy)');
+  assert.ok(css.includes('.kt-f{width:100%;box-sizing:border-box;') && css.includes('font-size:16px') && css.includes('@media (max-width:620px)') && css.includes('.kt-hp{position:absolute;left:-9999px'), 'pola 16 px (telefon nie powiększa), układ 390 px, pułapka poza ekranem');
+  assert.ok(css.includes('.kt-st.ok{color:var(--gr-tx)}.kt-st.bad{color:var(--rd-tx)}.kt-st.warn{color:var(--yl-tx)}'), 'kolory: sukces zielony, błąd czerwony, ostrzeżenie żółty');
+});
+
+test('v406: wiadomość i e-mail z odstępami wokół są przycinane przed wysyłką', async () => {
+  const K = v406.mk('pl'); K.ktToggle(true); K.ktInput('msg', '  przycięty tekst \n'); K.ktInput('mail', ' czytelnik@example.org ');
+  assert.equal(await K.ktSend(''), 'ok');
+  assert.equal(K.calls[0].init.body.get('entry.777401386'), 'przycięty tekst'); assert.equal(K.calls[0].init.body.get('entry.1818401413'), 'czytelnik@example.org');
 });

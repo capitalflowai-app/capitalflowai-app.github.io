@@ -48010,7 +48010,7 @@ class StraznikV354(unittest.TestCase):
         import glob
         import re
         t = self.rd('docs', 'ODTWORZENIE.md')
-        self.assertEqual(sorted(set(re.findall(r'[\w.+-]+@[\w-]+(?:\.[\w-]+)+', t))), ['cryptoportal.pw@gmail.com'], 'jedyny adres to adres projektu')
+        self.assertEqual(sorted(set(re.findall(r'[\w.+-]+@[\w-]+(?:\.[\w-]+)+', t))), [], 'v406: w opisie odtworzenia nie ma adresów e-mail')
         self.assertIsNone(re.search(r'ghp_|github_pat_|sk-[A-Za-z0-9]{20}|[0-9a-f]{32,}', t), 'żadnych wartości kluczy')
         for fr in ('Service Worker', 'wyłącznik', 'GoatCounter', 'archiwum/', 'kontrola/ostatnia.md', '60 dni', 'Enable workflow', 'git push --mirror', 'To nie jest porada inwestycyjna'):
             self.assertIn(fr, t)
@@ -54787,9 +54787,11 @@ class NoweGrupyV373(unittest.TestCase):
 
 
 class TestV374StrazJawnyKontakt(unittest.TestCase):
-    """v374 (14.10.2026): SEC_CONTACT równy jawnemu adresowi projektu (na stronie od v347) nie przerywa publikacji — od wpisania sekretu
-    każdy przebieg kończył się na straży kluczy (adres w index.html). Inny adres (np. prywatny) straż nadal pilnuje jak klucza."""
+    """v374 (14.10.2026), zmieniony w v406 (17.10.2026): dawny wyjątek JAWNE (adres projektu widoczny na stronie nie był sekretem) usunięty —
+    od v406 adresu e-mail nie ma w żadnym pliku strony (przycisk „Skontaktuj się” i formularz), więc SEC_CONTACT jest pilnowany jak każdy klucz:
+    jego wartość w pliku strony albo danych przerywa publikację. Wartość w testach to adres zmyślony (przykładowa domena), nigdy prawdziwy."""
     ROOT = os.path.dirname(os.path.abspath(__file__))
+    ADRES = 'kontakt-projektu@example.org'
 
     def _s(self):
         import importlib.util
@@ -54803,32 +54805,30 @@ class TestV374StrazJawnyKontakt(unittest.TestCase):
             f.write(tresc)
         return tmp
 
-    def test_jawny_adres_pominiety_inny_pilnowany(self):
-        s = self._s(); jawny = s.JAWNE['SEC_CONTACT'][0]; inny = 'prywatny-adres@example.org'
-        with open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8') as f:
-            self.assertIn(jawny, f.read(), 'strona pokazuje adres kontaktowy projektu (v347)')
-        for v in (jawny, ' ' + jawny + '\n', jawny.upper()):
-            self.assertEqual(s.sekrety({'SEC_CONTACT': v})[0], {}, 'jawny adres projektu nie jest sekretem')
-        self.assertEqual(sorted(s.sekrety({'SEC_CONTACT': inny})[0]), ['SEC_CONTACT'], 'inny adres — pilnowany jak klucz')
-        self.assertEqual(sorted(s.sekrety({'FRED_KEY': jawny})[0]), ['FRED_KEY'], 'wyjątek tylko dla SEC_CONTACT')
-        tmp = self._strona('<a href="mailto:' + jawny + '">' + jawny + '</a> ' + inny)
-        self.assertEqual(s.skanuj(s.sekrety({'SEC_CONTACT': jawny})[0], tmp)[0], [])
-        self.assertEqual(len(s.skanuj(s.sekrety({'SEC_CONTACT': inny})[0], tmp)[0]), 1)
+    def test_adres_kontaktowy_pilnowany_jak_klucz(self):
+        s = self._s()
+        self.assertFalse(hasattr(s, 'JAWNE'), 'v406: bez wyjątku dla jawnego adresu — strona go już nie pokazuje')
+        for v in (self.ADRES, ' ' + self.ADRES + '\n'):
+            self.assertEqual(sorted(s.sekrety({'SEC_CONTACT': v})[0]), ['SEC_CONTACT'], 'każdy adres w SEC_CONTACT jest sekretem')
+        self.assertEqual(sorted(s.sekrety({'FRED_KEY': self.ADRES})[0]), ['FRED_KEY'])
+        tmp = self._strona('<p>kontakt: ' + self.ADRES + '</p>')
+        self.assertEqual(len(s.skanuj(s.sekrety({'SEC_CONTACT': self.ADRES})[0], tmp)[0]), 1, 'adres w pliku strony = znalezisko')
+        tmp = self._strona('<button>Skontaktuj się</button>')
+        self.assertEqual(s.skanuj(s.sekrety({'SEC_CONTACT': self.ADRES})[0], tmp)[0], [], 'strona bez adresu — czysto')
 
     def test_main_kod_wyjscia_i_komunikat_bez_wartosci(self):
         import contextlib, io
-        s = self._s(); jawny = s.JAWNE['SEC_CONTACT'][0]
-        for wartosc, kod in ((jawny, 0), ('prywatny-adres@example.org', 1)):
-            tmp = self._strona('kontakt: ' + jawny + ' / prywatny-adres@example.org')
-            env = {k: '' for k in s.NAZWY}; env.update({'SEC_CONTACT': wartosc, 'STRAZ_ROOT': tmp})
+        s = self._s()
+        for tresc, kod in (('kontakt: ' + self.ADRES, 1), ('kontakt: przycisk', 0)):
+            tmp = self._strona(tresc)
+            env = {k: '' for k in s.NAZWY}; env.update({'SEC_CONTACT': self.ADRES, 'STRAZ_ROOT': tmp})
             out = io.StringIO()
             with mock.patch.dict(os.environ, env, clear=False), contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
                 s.main()
-            self.assertEqual(e.exception.code, kod, wartosc)
-            self.assertNotIn(wartosc, out.getvalue(), 'wartość sekretu nigdy w logu')
-            if kod == 0:
-                self.assertIn('jawne (adres projektu widoczny na stronie): SEC_CONTACT', out.getvalue())
-                self.assertIn('— czysto', out.getvalue())
+            self.assertEqual(e.exception.code, kod, tresc)
+            self.assertNotIn(self.ADRES, out.getvalue(), 'wartość sekretu nigdy w logu')
+            self.assertNotIn('jawne', out.getvalue(), 'v406: komunikat bez wzmianki o jawnym adresie')
+            self.assertIn('— ZNALEZIONO' if kod else '— czysto', out.getvalue())
 
 
 class KalendarzV375(unittest.TestCase):
@@ -56197,7 +56197,7 @@ class V379pSondaF11(unittest.TestCase):
         self.assertTrue(all(m == 'GET' and b is None for _, m, b, _ in calls), 'tylko GET bez treści')
         sec = [h for u, _, _, h in calls if u.split('/')[2] in ('www.sec.gov', 'efts.sec.gov')]
         self.assertEqual(len(sec), 3)
-        self.assertTrue(all(h['User-Agent'] == S.F11_SEC_UA['User-Agent'] and '@' in h['User-Agent'] for h in sec), 'urząd: adres kontaktowy projektu')
+        self.assertTrue(all(h['User-Agent'] == S.F11_SEC_UA['User-Agent'] and h['User-Agent'].startswith('CapitalFlowAI/1.0 badania-niekomercyjne (') for h in sec), 'urząd: nagłówek programu z kontaktem z sekretu (v406: bez adresu w kodzie)')
         inni = [h for u, _, _, h in calls if u.split('/')[2] not in ('www.sec.gov', 'efts.sec.gov')]
         self.assertTrue(all(h.get('User-Agent') == 'CapitalFlowAI-collector/1.0' for h in inni), 'nagłówek zbieracza, bez adresu')
         self.assertTrue(all(u.startswith('https://') for u in urls)); self.assertFalse([u for u in urls if ' ' in u], 'spacje zakodowane')
@@ -65964,3 +65964,63 @@ class ObrazGieldyV405(unittest.TestCase):
             html = f.read()
         self.assertEqual(html.count("exch:'img/wezly/gieldy.jpg'"), 1)
         self.assertEqual(html.count('gieldy.jpg'), 1, 'jedno miejsce użycia logo giełd w index.html')
+
+
+class TestV406KontaktBezAdresu(unittest.TestCase):
+    """v406 (17.10.2026): przycisk „Skontaktuj się” i własny formularz zamiast adresu e-mail. W żadnym pliku repozytorium (strona, dokumenty, narzędzia,
+    przepływy, testy) nie ma adresu projektu — pisanym w teście w dwóch kawałkach, żeby sam test go nie zawierał; CSP otwiera jeden host więcej."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    ADRES = 'cryptoportal' + '.pw@' + 'gmail.com'
+
+    def _pliki(self):
+        out = []
+        for p in ('index.html', 'README.md', 'zbieraj_dane.py', 'test_zbieraj_dane.py', 'test_widoki.cjs', 'sw.js', 'count.js'):
+            out.append(os.path.join(self.ROOT, p))
+        for d in ('docs', 'narzedzia', os.path.join('.github', 'workflows')):
+            for dd, _, fs in os.walk(os.path.join(self.ROOT, d)):
+                if '__pycache__' in dd:
+                    continue
+                out += [os.path.join(dd, f) for f in sorted(fs) if f.endswith(('.py', '.md', '.yml', '.js', '.json', '.sh', '.txt'))]
+        return [p for p in out if os.path.isfile(p)]
+
+    def test_adresu_nie_ma_w_zadnym_pliku(self):
+        pliki = self._pliki()
+        self.assertGreater(len(pliki), 20)
+        for p in pliki:
+            with open(p, encoding='utf-8', errors='replace') as f:
+                t = f.read()
+            self.assertNotIn(self.ADRES, t.lower(), os.path.relpath(p, self.ROOT))
+        with open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8') as f:
+            h = f.read()
+        self.assertNotIn('mailto:', h)
+        self.assertEqual(re.findall(r'[\w.+-]+@[\w-]+(?:\.[\w-]+)+', h), [], 'żadnego adresu e-mail w stronie')
+
+    def test_formularz_i_csp_w_stronie(self):
+        with open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8') as f:
+            h = f.read()
+        csp = re.search(r'<meta http-equiv="Content-Security-Policy" content="([^"]+)">', h).group(1)
+        con = re.search(r'connect-src ([^;]+)', csp).group(1).split()
+        self.assertEqual(con.count('https://docs.google.com'), 1)
+        self.assertEqual([x for x in re.findall(r'https://docs\.google\.com\S*', csp)], ['https://docs.google.com'], 'tylko host, bez ścieżki, tylko w connect-src')
+        self.assertIn("form-action 'self'", csp)
+        self.assertEqual(h.count("const KT_URL='https://docs.google.com/forms/d/e/"), 1)
+        self.assertIn("const KT_E_MSG='entry.777401386',KT_E_MAIL='entry.1818401413';", h)
+        self.assertIn("mode:'no-cors'", h)
+        self.assertEqual(len(re.findall(r"https://docs\.google\.com/forms/d/e/[\w-]+/(?:formResponse|viewform)", h)), 2, 'adres wysyłki i odsyłacz zapasowy')
+
+    def test_sondy_bez_adresu_w_kodzie(self):
+        with open(os.path.join(self.ROOT, 'narzedzia', 'sondy.py'), encoding='utf-8') as f:
+            t = f.read()
+        self.assertNotIn(self.ADRES, t)
+        self.assertIn('os.environ.get("SEC_CONTACT")', t)
+
+    def test_sondy_naglowek_urzedu_z_sekretu_albo_adres_strony(self):
+        import importlib.util
+        for env, ma_at in (('', False), ('osoba@example.org', True)):
+            with mock.patch.dict(os.environ, {'SEC_CONTACT': env}):
+                spec = importlib.util.spec_from_file_location('v406_sondy', os.path.join(self.ROOT, 'narzedzia', 'sondy.py'))
+                m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+            ua = m.F11_SEC_UA['User-Agent']
+            self.assertEqual('@' in ua, ma_at, ua)
+            self.assertTrue(ua.startswith('CapitalFlowAI/1.0 badania-niekomercyjne ('), ua)
+            self.assertTrue(ua.endswith('capitalflowai-app.github.io/)') if not env else env in ua, ua)
