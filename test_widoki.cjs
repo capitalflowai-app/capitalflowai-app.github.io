@@ -19615,7 +19615,7 @@ test('v321 (przegląd): kółka wartości wstecz — w wąskiej kolumnie skróty
 });
 
 test('v321 (przegląd): ostatnie szare zmiany w GLOBAL w kolorze — banki centralne (Polska: zmiana w miesiącu i w 12 miesięcy), BIS (wkład banków w wypływ), rezerwy (procent zmiany 12 mies. w nawiasie), nota o dwóch wydaniach bilansu USA; liczby bez zmian', () => {
-  assert.ok(html.includes("a:gS(su3S(pl.m1,2,su3T())),b:gS(su3S(pl.m12,2,su3T()))") && html.includes("const gS=x=>typeof gtSg==='function'?gtSg(x):x,li=a=>a.map(r=>`${r.n} (${gS(su3S(r.v,1,su3T()))})`).join(', ')"), 'Polska: zmiany złota w kolorze, jak zakupy innych banków');
+  assert.ok(html.includes("a:gS(su3S(pl.m1,2,su3T())),b:gS(su3S(pl.m12,2,su3T()))") && html.includes("const gS=x=>typeof gtSg==='function'?gtSg(x):x,li=a=>a.map(r=>`${r.n} (${su3Tiny(r.v,1)?") && html.includes("`:gS(su3S(r.v,1,su3T()))})`).join(', ')"), 'Polska: zmiany złota w kolorze, jak zakupy innych banków');
   assert.ok(html.includes("${rq.map(x=>`${I('f',x[0],'sm')}${escH(x[0])} ${I('w',x[1],mld(x[1]))}`).join('; ')}"), 'BIS: wkład banków w wypływ w kolorze');
   assert.ok(html.includes("<small class=\"mtxt\">(${I('w',x.p12m,rezD(x.p12m)+'%')})</small>"), 'rezerwy: procent w nawiasie w kolorze (nawias zostaje szary)');
   assert.ok(html.includes("a:g(bopMld(r.t)+u),b:g(bopMld(x[1])+u),d:g(bopMld(r.t-x[1])+u)"), 'bilans USA: kwoty ze znakiem w kolorze, jak w tabeli');
@@ -27742,7 +27742,7 @@ test('v376 (F9Z2): nowcasty — nagłówek od razu, plik dopiero po rozwinięciu
   assert.equal(p.when, D('2026-10-08') + ' · wiek(2026-10-08) · następna aktualizacja ' + D('2026-10-15'), 'data szacunku, wiek i zapowiedź następnej aktualizacji (dziś = dzień zapowiedzi)');
   assert.equal(c.label, 'Inflacja CPI USA, ' + nc376.mon('pl', '2026-10') + ' — szacunek (m/m)'); assert.equal(c.val, '0,28%');
   assert.deepEqual(c.lines, [['pos', '▲ +0,01 pp wobec szacunku z ' + D('2026-10-13')], ['pc', 'W skali roku: 3,78% · bazowa: 2,48%'], ['pc', 'Ostatni odczyt: ' + nc376.mon('pl', '2026-09') + ' — 0,65% m/m, 3,7% r/r'],
-    ['pos', '▲ +0,1 pp wobec ostatniego odczytu'], ['pc', 'Poprzednio: szacunek 0,53%, odczyt 0,65% (' + nc376.mon('pl', '2026-09') + ')']], 'oczekiwanie kontra wynik: szacunek przed odczytem a odczyt');
+    ['neg', '▼ −0,37 pp m/m wobec ostatniego odczytu'], ['pos', '▲ +0,1 pp r/r wobec ostatniego odczytu'], ['pc', 'Poprzednio: szacunek 0,53%, odczyt 0,65% (' + nc376.mon('pl', '2026-09') + ')']], 'oczekiwanie kontra wynik: szacunek przed odczytem a odczyt');
   assert.equal(c.when, D('2026-10-14') + ' · wiek(2026-10-14)');
   assert.ok(h.includes('To wyniki modeli') && h.includes('PKB: zmiana kwartał do kwartału') && h.includes('Linia przerywana') && h.includes('D:2026-10-15T09:00:00+00:00'), 'trzy noty i data pliku');
   assert.ok(h.includes('Nie są to oficjalne liczby ani porada inwestycyjna'), 'zastrzeżenie: szacunek modelu, nie porada');
@@ -28650,8 +28650,8 @@ test('v383 (F11Z4): Skarb USA — nagłówek od razu, plik dopiero po rozwinięc
   const [cla, pod, iss, red, net, bb, bb30] = T;
   assert.equal(cla.label, 'Cła i opłaty celne'); assert.equal(cla.val, '351 mln USD', 'ostatni dzień (13.10): 300 + 51');
   assert.deepEqual(cla.lines[0], ['pc', 'od początku miesiąca do 13 paź 2026: 2538 mln USD']);
-  assert.deepEqual(cla.lines[1], ['pos', '▲ +4,8 % wobec tych samych dni poprzedniego miesiąca'], 'zmiana wobec tego samego okresu: (2538−2421)/2421 = +4,8% — plus zielony');
-  assert.deepEqual(pod.lines[1], ['pos', '▲ +13,8 % wobec tych samych dni poprzedniego miesiąca']);
+  assert.deepEqual(cla.lines[1], ['pos', '▲ +4,8% wobec tych samych dni poprzedniego miesiąca'], 'zmiana wobec tego samego okresu: (2538−2421)/2421 = +4,8% — plus zielony');
+  assert.deepEqual(pod.lines[1], ['pos', '▲ +13,8% wobec tych samych dni poprzedniego miesiąca']);
   assert.equal(pod.label, 'Podatki od płac i dochodów (u źródła)');
   assert.ok(cla.when.includes('13 paź 2026') && cla.when.includes('wiek(2026-10-13)'), 'data danych i wiek: ' + cla.when);
   assert.equal(iss.val, '314653 mln USD'); assert.equal(iss.lines[0][1], 'bony: 314653 mln USD · obligacje: 0 mln USD'); assert.equal(red.val, '278095 mln USD');
@@ -28682,9 +28682,9 @@ test('v383 (F11Z4): Skarb USA — kolory netto z POKAZANEJ liczby: plus zielony,
   assert.ok(!/NaN|undefined|null|Infinity/.test(sk383.mk('pl', sk383.files(mkj(j => { j.wplywy.por = null; })), {open: true}).html()));
   // spadek wobec poprzedniego miesiąca: czerwony, ujemny
   const s = sk383.tiles(sk383.mk('pl', sk383.files(mkj(j => { j.wplywy.por.cla = [2000, 2421]; })), {open: true}).html());
-  assert.deepEqual(s[0].lines[1], ['neg', '▼ −17,4 % wobec tych samych dni poprzedniego miesiąca']);
+  assert.deepEqual(s[0].lines[1], ['neg', '▼ −17,4% wobec tych samych dni poprzedniego miesiąca']);
   const n = sk383.tiles(sk383.mk('pl', sk383.files(mkj(j => { j.wplywy.por.cla = [2421, 0]; })), {open: true}).html());
-  assert.deepEqual(n[0].lines[1], ['na', '— % wobec tych samych dni poprzedniego miesiąca'], 'poprzedni miesiąc zero = brak procentu, nie nieskończoność');
+  assert.deepEqual(n[0].lines[1], ['na', '— wobec tych samych dni poprzedniego miesiąca'], 'poprzedni miesiąc zero = brak procentu, nie nieskończoność');
 });
 
 test('v383 (F11Z4): Skarb USA — brak części pliku = „—” i zdanie o braku, nigdy zero; zły plik odrzucony; błąd części z poprzednimi danymi; jedno ponowienie na minutę', () => {
@@ -28917,7 +28917,7 @@ test('v384: wszystkie teksty bloku w 10 językach (komplet kluczy, prawdziwe tł
 
 test('v384: strona — słownik v384 jest ostatnim, czysty JSON z jedną linią nakładania; jeden hook w panelu GLOBAL, moduł w zakresie panelu, plik pobierany tylko po rozwinięciu', () => {
   const mm = [...html.matchAll(/^const EXTRA(\d+)=(\{.*\});\nfor\(const l in EXTRA\1\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],EXTRA\1\[l\]\);$/gm)], mine = mm.filter(m => m[2].includes('"bs2.t"'));
-  assert.equal(mine.length, 1); assert.equal(mm[mm.length - 1][1], mine[0][1], 'słownik v384 liczony jako kolejny po najwyższym (ostatni linia nakładania)');
+  assert.equal(mine.length, 1); assert.ok(+mm[mm.length - 1][1] >= +mine[0][1], 'słownik v384 liczony jako kolejny po najwyższym; kolejne słowniki mają wyższe numery');
   const D = JSON.parse(mine[0][2]); assert.deepEqual(Object.keys(D).sort(), [...L10_384].sort()); assert.equal(Object.keys(D.pl).length, 108); assert.ok(Object.keys(D.pl).every(k => k.startsWith('bs2.')));
   assert.equal(html.split("(typeof bs2D==='function'?bs2D():'')+szBlk()+").length, 2, 'hook raz, przed sektorami');
   assert.ok(html.indexOf('/* v384 (F11Z5): BIS — kredyt, obsługa długu') > html.indexOf('/* v371 (F3Z1): koniec */') && html.indexOf('/* v384 (F11Z5): koniec */') < html.indexOf('\nsuLoad();suAuto();'), 'moduł w zakresie panelu surowców (cięcie testów)');
@@ -28928,4 +28928,119 @@ test('v384: strona — słownik v384 jest ostatnim, czysty JSON z jedną linią 
   assert.ok(!/BIS|Bank for International/.test(vis), 'kod bez nazw dostawców poza komentarzami');
   const css = html.slice(html.indexOf('#g-surowce .su-bs2 .wk-ch .bs1'), html.indexOf('#g-surowce .su-pld .wk-ch .pld1'));
   assert.ok(css.includes('@media (max-width:620px){#g-surowce .su-bs2 .wk-br{grid-template-columns:minmax(0,1fr) auto') && css.includes('--k:var(--bl)') && css.includes('var(--gr-tx)') && css.includes('var(--rd-tx)') && css.includes('var(--yl-tx)'), 'telefon: etykieta i wartość w jednym wierszu, kolory systemowe');
+});
+
+// ===================== v387 (GLOBAL_M12): poprawki GLOBAL z audytu m12 (GLOBAL-1 … GLOBAL-8) =====================
+test('v387 (GLOBAL-1): szacunek inflacji CPI — dwie miary jawnie (m/m z odczytem m/m i r/r), bez odczytu m/m tylko r/r z nazwą miary, kolory z pokazanej liczby; PKB bez zmian', () => {
+  const K = nc376.mk('pl', nc376.files()); K.expand(); const T = nc376.tiles(K.html()), c = T[1], p = T[0], L = c.lines.map(x => x[1]);
+  const im = L.indexOf('▼ −0,37 pp m/m wobec ostatniego odczytu'), iy = L.indexOf('▲ +0,1 pp r/r wobec ostatniego odczytu');
+  assert.ok(im > 0 && iy === im + 1, 'różnica m/m (0,28 − 0,65) i r/r (3,78 − 3,7), obie z nazwaną miarą: ' + L.join(' | '));
+  assert.ok(im > L.findIndex(x => x.startsWith('Ostatni odczyt:')), 'różnice pod linią ostatniego odczytu');
+  assert.deepEqual(c.lines.filter(x => /ostatniego odczytu/.test(x[1])).map(x => x[0]), ['neg', 'pos'], 'spadek m/m czerwony, wzrost r/r zielony');
+  assert.ok(!L.some(x => /^[▲▼•] [+−]?[\d,]+ pp wobec ostatniego odczytu$/.test(x)), 'żadnej różnicy bez nazwy miary pod nagłówkiem m/m');
+  assert.deepEqual(p.lines[2], ['pos', '▲ +1,4 pp wobec ostatniego odczytu'], 'PKB: ta sama miara — etykieta bez zmian');
+  const mod = f => { const J0 = nc376.J(); f(J0); const K0 = nc376.mk('pl', nc376.files(J0)); K0.expand(); return nc376.tiles(K0.html())[1].lines.map(x => x[1]); };
+  let l = mod(J0 => { J0.cpi.mm = 0.65; });
+  assert.ok(l.includes('• 0,00 pp m/m wobec ostatniego odczytu'), 'zero po zaokrągleniu — żółty punkt: ' + l.join(' | '));
+  l = mod(J0 => { J0.cpi.mm = 0.8; });
+  assert.ok(l.includes('▲ +0,15 pp m/m wobec ostatniego odczytu'), l.join(' | '));
+  l = mod(J0 => { delete J0.cpi.akt; });
+  assert.ok(l.includes('▲ +0,1 pp r/r wobec ostatniego odczytu') && !l.some(x => /pp m\/m/.test(x)), 'bez odczytu m/m — tylko r/r z nazwą miary: ' + l.join(' | '));
+  l = mod(J0 => { J0.cpi.akt.m = '2026-08'; });
+  assert.ok(!l.some(x => /pp m\/m/.test(x)) && l.some(x => /pp r\/r/.test(x)), 'odczyt m/m nie z miesiąca bezpośrednio przed szacunkiem — bez różnicy m/m');
+  const off = nc376.clone(nc376.OFF); off['usa-makro'].s.cpi.yoy = [['2026-07', 3.4], ['2026-08', 3.4]];   /* ostatni odczyt r/r z sierpnia, odczyt m/m z września: różne miesiące */
+  const Ko = nc376.mk('pl', nc376.files(undefined, undefined, off)); Ko.expand(); l = nc376.tiles(Ko.html())[1].lines.map(x => x[1]);
+  assert.ok(!l.some(x => /pp m\/m/.test(x)) && l.includes('▲ +0,4 pp r/r wobec ostatniego odczytu'), 'odczyt m/m innego miesiąca niż odczyt r/r — bez różnicy m/m: ' + l.join(' | '));
+  l = mod(J0 => { J0.cpi.yy = null; });
+  assert.ok(l.some(x => /pp m\/m/.test(x)) && !l.some(x => /pp r\/r/.test(x)), 'brak szacunku r/r — bez różnicy r/r, m/m zostaje');
+  const E = nc376.mk('en', nc376.files()); E.expand(); const en = nc376.tiles(E.html())[1].lines.map(x => x[1]);
+  assert.ok(en.some(x => /pp m\/m vs the latest reading$/.test(x)) && en.some(x => /pp y\/y vs the latest reading$/.test(x)), 'angielski: ' + en.join(' | '));
+});
+
+test('v387 (GLOBAL-3): stopy realne — ujemna inflacja z minusem typograficznym w tabeli i w podpowiedzi wykresu, nie zwykłym myślnikiem', () => {
+  const K = rl366.mk('pl'); K.api.spApply(rl366.clone(rl366.STO)); const inf = rl366.clone(rl366.INF); inf.c.ZZ = rl366.cpi('2026-08', -0.59); K.api.RL.i = inf; K.api.RL.n = rl366.clone(rl366.KON);
+  const h = rl366.sp(K.api.spBlock()), R = Object.fromEntries(rl366.rows(h).map(r => [/\[f:([A-Z]+)\]/.exec(r)[1], [...r.matchAll(/<td>(.*?)<\/td>/g)].map(m => m[1])]));
+  assert.ok(rl366.txt(R.ZZ[6]).includes('inflacja −0,59% · 2026-08'), rl366.txt(R.ZZ[6])); assert.ok(!/inflacja -0/.test(R.ZZ[6]), 'bez zwykłego myślnika');
+  const tip = K.bars[0].rows.find(r => /\[f:ZZ\]/.test(r.l)).tip;
+  assert.ok(rl366.sp(tip).includes('inflacja −0,59% (2026-08)') && !tip.includes('inflacja -'), tip);
+  assert.ok(rl366.txt(R.US[6]).includes('inflacja 3,40%'), 'dodatnia bez zmian');
+  assert.ok(html.includes("nfmt(x.i,2).replace(/^-/,'−')") && !/\{v:nfmt\(x\.i,2\),m:instFoot/.test(html), 'kod: obie miejsca z zamianą znaku');
+});
+
+test('v387 (GLOBAL-4): Skarb USA — procent przy liczbie bez spacji we wszystkich językach, brak porównania „— wobec…”; osie wykresów: liczba całkowita bez „,0”', () => {
+  const K = sk383.mk('pl', sk383.files()); K.expand(); const T = sk383.tiles(K.html());
+  assert.deepEqual(T[0].lines[1], ['pos', '▲ +4,8% wobec tych samych dni poprzedniego miesiąca']); assert.deepEqual(T[1].lines[1], ['pos', '▲ +13,8% wobec tych samych dni poprzedniego miesiąca']);
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const E = sk383.mk(L, sk383.files()); E.expand(); const t = sk383.tiles(E.html()), v = t[0].lines[1][1];
+    assert.ok(/[▲▼]/.test(v) && /\d%/.test(v) && !/\d[\s  ]%/.test(v), L + ': ' + v);
+  }
+  assert.equal((html.match(/"sk383\.vsp":"%/g) || []).length, 0, 'słownik: etykieta porównania bez wiodącego „%” (znak % stoi przy liczbie)');
+  const ax = v157.run(v157.KIT, v157.ENV(), 'wkAx');
+  assert.deepEqual([0, 5e9, 1e10, 1.5e10, 2e10].map(v => ax.wkAx(v)), ['0', '5 mld', '10 mld', '15 mld', '20 mld'], 'oś 0 / 5 / 10 / 15 / 20 mld jednolicie');
+  assert.deepEqual([2.5e9, 7.5e9, 1e12, 1.5e12, 5e6, 7.5e6, 1e7, -5e9, -2.5e9].map(v => ax.wkAx(v)), ['2,5 mld', '7,5 mld', '1 bln', '1,5 bln', '5 mln', '7,5 mln', '10 mln', '−5 mld', '−2,5 mld'], 'ułamek zostaje, całość bez „,0”');
+  const nul = sk383.J(); nul.wplywy.por.cla = [100, 0];
+  const E0 = sk383.mk('pl', sk383.files(nul)); E0.expand(); assert.deepEqual(sk383.tiles(E0.html())[0].lines[1], ['na', '— wobec tych samych dni poprzedniego miesiąca'], 'poprzedni miesiąc zero: „—”, nie nieskończoność ani „— %”');
+});
+
+test('v387 (GLOBAL-5): Aktywa — wiersz 10-latki Japonii ma opis różnicy (średnia z miesiąca, dzienny odczyt w krzywych rentowności); USA i Niemcy bez zmian', () => {
+  const GL = {fx: null, irlt: {USA: [['2026-07', 4.2], ['2026-08', 4.35]], DEU: [['2026-07', 2.6], ['2026-08', 2.55]], JPN: [['2026-07', 2.79], ['2026-08', 2.94]]}, stab: null,
+    est: {d: '2026-10-06', r: {eur: {v: 120}, jpn: {v: 60}, usa: {v: 250}}}};
+  const g = pgEnv({GLIVE: GL, GBACK: {'1D': 0, '1T': 0, '1M': 1, '1Q': 3, '1R': 12}, gStabDelta: () => [3.9, 1.26, 313],
+    GKPI: [{k: 'g.k.stab', v: 313, d: 1.26, fresh: '2026-10-07'}, {k: 'g.k.eq', v: 430, fresh: '2026-10-06'}]});
+  g.f.renderAssets();
+  const h = g.el.innerHTML, row = k => h.split('<tr>').find(r => r.includes('<b>' + k + '</b>')) || '';
+  assert.ok(row('as.jp10').includes('2.94%') && row('as.jp10').includes('pg.monthly · 2026-08') && row('as.jp10').includes(' · as387.jp'), row('as.jp10'));
+  assert.ok(!row('as.us10').includes('as387.jp') && !row('as.de10').includes('as387.jp'), 'opis tylko przy Japonii');
+});
+
+test('v387 (GLOBAL-6): złoto banków centralnych — zmiana mniejsza niż 0,1 t: strzałka kierunku i „<0,1 t” bez znaku przed „<”, w słupkach i w zdaniu; zwykłe zmiany bez zmian', () => {
+  const F = su298.file(); F.banki.kr.CZ.m1 = 0.03; F.banki.kr.KZ.m1 = -0.04;
+  const K = su298.mk('pl', su298.files(F)); K.api.suApply(F);
+  const B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-bk'), c = x => su298.cty('pl', x), R = su298.rows(B);
+  const cz = R.find(r => r[0].startsWith(c('CZ'))), kz = R.find(r => r[0].startsWith(c('KZ')));
+  assert.ok(cz[1].startsWith('▲ <0,1 t ') && kz[1].startsWith('▼ <0,1 t '), cz[1] + ' | ' + kz[1]); assert.ok(!/[+−]<0,1/.test(su298.txt(B)), 'żadnego „+<0,1” ani „−<0,1”');
+  assert.ok(R.find(r => r[0].startsWith(c('CN')))[1].startsWith('+20,2 t ') && R.find(r => r[0].startsWith(c('IN')))[1].startsWith('0,0 t '), 'zwykła zmiana i zero — jak dotąd');
+  assert.equal(su298.sp(cz[3]).includes('+0,03 t'), true, 'podpowiedź zachowuje dokładną wartość (2 miejsca): ' + cz[3]);
+  const G = su298.file(); for (const k in G.banki.kr) G.banki.kr[k].m1 = 0; G.banki.kr.PL.m1 = 0.02; G.banki.kr.TR.m1 = 0.04;
+  const Q = su298.mk('pl'); Q.api.suApply(G); const S = su298.txt(su298.blk(su298.sp(Q.el.innerHTML), 'su-b-bk'));
+  assert.ok(S.includes(`dokupiły: ${c('TR')} (▲ <0,1 t), ${c('PL')} (▲ <0,1 t).`), 'zdanie z kolorowaną strzałką: ' + S.slice(S.indexOf('dokupiły') - 60, S.indexOf('dokupiły') + 120));
+  assert.ok(Q.el.innerHTML.includes('<span class="pos">▲ &lt;0,1 t</span>'), 'zielony kolor kierunku w zdaniu');
+});
+
+test('v387 (GLOBAL-7): WIRON / POLSTR — stopa składana 3M z innego dnia niż O/N ma własną datę; z tego samego dnia — bez daty', () => {
+  const K = pl2t.open('pl'), T = pl2t.tiles(pl2t.sec(su295.sp(pl2t.blk(K.el.innerHTML)), 'Ile kosztuje pieniądz', 'Ceny mieszkań w miastach')), d15 = su295.day('pl', '2026-10-15');
+  assert.ok(T.won.includes('stopa składana 3M: 3,13% (' + d15 + ')') && T.pol.includes('stopa składana 3M: 3,55% (' + d15 + ')'), 'data 15.10 przy składanej (kafel O/N z 14.10): ' + T.won);
+  assert.ok(T.won.includes('dane za: ' + su295.day('pl', '2026-10-14')), 'data kafla bez zmian');
+  const F = pl2t.F(); F.wiron.sk.d[F.wiron.sk.d.length - 1] = '2026-10-14';
+  const T2 = pl2t.tiles(pl2t.sec(su295.sp(pl2t.blk(pl2t.open('pl', {'polska-2': F}).el.innerHTML)), 'Ile kosztuje pieniądz', 'Ceny mieszkań w miastach'));
+  assert.ok(T2.won.includes('stopa składana 3M: 3,13%</small>') && !T2.won.includes('3,13% ('), 'ten sam dzień — bez daty: ' + T2.won);
+});
+
+test('v387 (GLOBAL-8): prąd — kafle Polski podpisane „rynek bilansujący”; lista Europy z jednym zdaniem o cenie giełdowej Polski (€/MWh i zł/MWh po kursie z CO2) i o różnicy rynków; bez kursu — bez przeliczenia', () => {
+  const K = prd367.full(), h = K.api.prdBody(), nf = K.F.nfmt, tx = prd367.txt(h);
+  assert.ok(prd367.txt(prd367.tile(h, 'today')).includes('rynek bilansujący') && prd367.txt(prd367.tile(h, 'tom')).includes('rynek bilansujący'), 'oba kafle Polski');
+  assert.ok(!prd367.txt(prd367.tile(h, 'co2')).includes('rynek bilansujący') && !prd367.txt(prd367.tile(h, 'mar')).includes('rynek bilansujący'), 'kafle CO2 i marży bez dopisku');
+  const C = PRAD367.co2.d, c = C[C.length - 1], e = PRAD367.str.z.PL.d['2026-10-14'][0], zl = prd367.sp(nf(e * c[2] / c[1], 1)), eu = prd367.sp(nf(e, 1));
+  assert.ok(tx.includes(`Polska: ${eu} €/MWh to cena giełdowa ustalona dzień przed dostawą (≈ ${zl} zł/MWh po kursie z notowania CO2). Kafle wyżej pokazują rynek bilansujący — to inny rynek, więc liczby się różnią.`), 'zdanie z przeliczeniem: ' + tx.slice(tx.indexOf('Polska jest'), tx.indexOf('Polska jest') + 420));
+  assert.ok(tx.indexOf('Polska jest na') < tx.indexOf('Polska: ' + eu) && eu === '136,6' && zl === '598,4', 'po zdaniu o miejscu Polski; 136,6 €/MWh ≈ 598,4 zł/MWh');
+  const G = prd367.clone(PRAD367); delete G.co2; const KG = prd367.full('pl', {file: G}), tg = prd367.txt(KG.api.prdBody());
+  assert.ok(tg.includes(`Polska: ${eu} €/MWh to cena giełdowa ustalona dzień przed dostawą. Kafle wyżej`) && !tg.includes('zł/MWh po kursie'), 'bez notowania CO2 — bez przeliczenia na zł');
+  const H = prd367.clone(PRAD367); delete H.str.z.PL; const th = prd367.txt(prd367.full('pl', {file: H}).api.prdBody());
+  assert.ok(!th.includes('cena giełdowa ustalona') && !th.includes('Polska jest na'), 'Polski nie ma w strefach — bez zdania');
+  for (const L of ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const E = prd367.full(L), x = prd367.txt(E.api.prdBody());
+    assert.ok(!/prd387\.|\{[a-z]+\}/.test(x) && x.includes('PLN/') , L + ': tłumaczenie bez surowych kluczy i pól, z PLN'); assert.ok(E.t('prd387.bal') !== 'prd387.bal', L);
+  }
+});
+
+test('v387 (GLOBAL_M12): słownik — czysty JSON w 10 językach, te same klucze i pola, bez znaczników i nazw dostawców, linia for po poprzednim słowniku; zmienione klucze v383', () => {
+  const m = /\/\* v387 \(GLOBAL_M12\)[^\n]*\*\/\nconst EXTRA(\d+)=(\{[^\n]*\});\nfor\(const l in EXTRA\1\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],EXTRA\1\[l\]\);\n/.exec(html);
+  assert.ok(m, 'komentarz, czysty JSON i linia for'); const D = JSON.parse(m[2]), Ls = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(D), Ls); const keys = Object.keys(D.pl).sort();
+  assert.deepEqual(keys, ['as387.jp', 'nc387.vslm', 'nc387.vsly', 'prd387.bal', 'prd387.str.pl', 'prd387.str.pl0']);
+  const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join();
+  for (const L of Ls) { assert.deepEqual(Object.keys(D[L]).sort(), keys, L); for (const k of keys) { const s = D[L][k]; assert.ok(typeof s === 'string' && s.length > 2 && ph(s) === ph(D.pl[k]) && !/[<>]/.test(s), L + ' ' + k); } }
+  for (const k of keys) for (const L of Ls.slice(2)) assert.notEqual(D[L][k], D.en[k], L + ' ' + k + ': prawdziwe tłumaczenie, nie kopia angielskiego');
+  assert.ok(!/(?:GUS|FRED|BIS|NBP|OECD|Fiscal|Eurostat|ENTSO|TGE|PSE)/.test(JSON.stringify(D)), 'bez nazw dostawców');
+  const n = +m[1], prev = new RegExp('^for\\(const l in EXTRA' + (n - 1) + '\\)', 'm').exec(html); assert.ok(prev && prev.index < m.index, 'po słowniku o numer niższym');
 });

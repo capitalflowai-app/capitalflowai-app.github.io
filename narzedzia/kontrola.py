@@ -5854,7 +5854,8 @@ def lng_kontrola(j, R):
 # (dni od końca miesiąca albo kwartału danych) z obserwacji na nagraniach 11.10.2026 + zapas: handel UE (publikacja ok. 15. dnia, dane sprzed 2 miesięcy:
 # 15.09.2026 lipiec = 46 dni; najstarszy wiek tuż przed kolejną publikacją ok. 76 dni) → próg 95 dni; handel Rosji (MFW): 11.10.2026 czerwiec = 103 dni
 # → próg 150 dni; należności banków (kwartalnie): 11.10.2026 pierwszy kwartał = 194 dni → próg 240 dni; rezerwy Rosji w MFW: 11.10.2026 listopad 2025 = 315 dni
-# (Rosja publikuje tam z dużym opóźnieniem) → próg 400 dni; złoto w tonach (kopia z pliku surowce): 11.10.2026 sierpień = 41 dni → próg 90 dni.
+# (Rosja publikuje tam z dużym opóźnieniem; v387: próg obniżony z 400 do 180 dni — przy 400 zastój tej części nie zostałby zgłoszony jeszcze przez ok. 80 dni,
+# a druga tabela tego samego źródła miała już sierpień 2026; ⚠️ dostaje dopisek o opóźnieniu źródła międzynarodowego) → próg 180 dni; złoto w tonach (kopia z pliku surowce): 11.10.2026 sierpień = 41 dni → próg 90 dni.
 # ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (saldo ≠ eksport − import, szereg nie kończy się na ostatnim okresie, kolejność kwartałów, kraje
 # razem większe niż suma wszystkich, UE większe niż świat, złoto w rezerwach większe niż całość…). Porównania danych (najwyżej ⚠️, ℹ️):
 # (1) import UE z Rosji (statystyka UE, mln EUR) a eksport Rosji do UE (dane zgłoszone przez Rosję, MFW, mld USD) w tym samym miesiącu: iloraz USD/EUR
@@ -5868,7 +5869,9 @@ AW_BEZ_BLEDU.update({k: 'Rosja — część z błędem zostaje z datą (v353); w
 RU_K_ETYKIETA = {'ue': 'Rosja: handel UE z Rosją (miesięcznie)', 'bis': 'Rosja: należności banków świata (kwartalnie)',
                  'imts': 'Rosja: handel Rosji wg partnerów (miesięcznie)', 'rez': 'Rosja: rezerwy walutowe (miesięcznie)',
                  'zloto': 'Rosja: złoto banku centralnego w tonach (miesięcznie)'}
-RU_K_PROG_DNI = {'ue': 95, 'bis': 240, 'imts': 150, 'rez': 400, 'zloto': 90}
+RU_K_PROG_DNI = {'ue': 95, 'bis': 240, 'imts': 150, 'rez': 180, 'zloto': 90}
+RU_K_REZ_UWAGA = ('źródło międzynarodowe publikuje rezerwy Rosji z dużym opóźnieniem (nowy miesiąc zależy od Rosji, nie od zbieracza) — '
+                  'ostatni miesiąc w tabeli międzynarodowej widać w kolumnie daty')
 RU_K_IMP_PASMO = (0.80, 1.35)    # eksport Rosji do UE (mld USD × 1000) / import UE z Rosji (mln EUR)
 RU_K_EKSP_PASMO = (1.2, 6.0)     # import Rosji z UE / eksport UE do Rosji — znana duża różnica metod, tylko ostrzeżenie poza pasmem
 RU_K_CENA_PASMO = (500.0, 20000.0)   # USD za uncję trojańską
@@ -5914,6 +5917,8 @@ def rosja_swiezosc(j, now=None):
             nt = nx.get(p); pt = _aw_t(nt) if isinstance(nt, str) else None
             note = f'próg {fmt_wiek(prog)} — najwyżej uwaga' + (
                 f'; spodziewana zmiana {czas_pl(nt)}' + (' — zaległa (przerwa u źródła?)' if pt and pt < now else '') if pt else '')
+        if p == 'rez' and st == '⚠️':
+            note += ('; ' if note else '') + RU_K_REZ_UWAGA
         rows.append((label, st, w, str(txt), note))
     return rows
 

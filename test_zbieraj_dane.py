@@ -47672,10 +47672,10 @@ class RosjaV353(unittest.TestCase):
         self.assertTrue({'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} <= set(k.AW_BEZ_BLEDU)); self.assertIn('zostaje z datą', k.AW_BEZ_BLEDU['rosja_ue'])
         o = self.plik(); U = self.U
         rows = k.rosja_swiezosc(o, datetime.datetime(2026, 10, 11, 8, 0, tzinfo=U))
-        self.assertEqual([r[3] for r in rows], ['2026-07', '2026-Q1', '2026-06', '2025-11', '2026-08']); self.assertEqual([r[1] for r in rows], ['✅'] * 5)
+        self.assertEqual([r[3] for r in rows], ['2026-07', '2026-Q1', '2026-06', '2025-11', '2026-08']); self.assertEqual([r[1] for r in rows], ['✅', '✅', '✅', '⚠️', '✅'], 'v387: rezerwy z 2025-11 (314 dni) przekraczają próg 180 dni')
         self.assertEqual(rows[0][2] // 1440, 71, 'handel UE: koniec lipca → 11.10: 72 dni (8 h przed 72. dniem)'); self.assertEqual(rows[1][2] // 1440, 193, 'kwartał: koniec marca → 11.10')
-        # progi: UE 95 dni, banki 240, handel Rosji 150, rezerwy 400, złoto 90
-        for dni, oczek in ((20, ['✅'] * 5), (30, ['⚠️', '✅', '✅', '✅', '✅']), (50, ['⚠️', '⚠️', '⚠️', '✅', '⚠️']), (90, ['⚠️'] * 5)):
+        # progi: UE 95 dni, banki 240, handel Rosji 150, rezerwy 180 (v387; dawniej 400), złoto 90
+        for dni, oczek in ((20, ['✅', '✅', '✅', '⚠️', '✅']), (30, ['⚠️', '✅', '✅', '⚠️', '✅']), (50, ['⚠️', '⚠️', '⚠️', '⚠️', '⚠️']), (90, ['⚠️'] * 5)):
             now = datetime.datetime(2026, 10, 11, 8, 0, tzinfo=U) + datetime.timedelta(days=dni)
             self.assertEqual([r[1] for r in k.rosja_swiezosc(o, now)], oczek, dni)
         r = k.rosja_swiezosc(o, datetime.datetime(2026, 12, 20, tzinfo=U))[0]
@@ -59035,3 +59035,59 @@ class KontrolaUsdtTron429V386(unittest.TestCase):
         self.assertTrue(i1 < i2 < i3, 'błąd zastoju w bloku 3c (przed zgodnością liczb 3d), liczba do historii w kroku 5')
         self.assertIn("'bledy_zbieracza': n_err", s)
         self.assertEqual(self.k.USK_K_SWIEZE_H, 2); self.assertEqual(self.k.USK_K_BLAD_H, 6)
+
+
+class TestV387KontrolaRosjaRezerwy(unittest.TestCase):
+    """v387 (GLOBAL-2, audyt m12): rezerwy Rosji (miesięczna część pliku rosja.json) — próg ⚠️ 180 dni zamiast 400. Źródło międzynarodowe stoi na listopadzie 2025
+    (17.10.2026: 320 dni), a druga tabela tego samego źródła ma już sierpień 2026 — przy 400 dniach zastój nie zostałby zgłoszony jeszcze przez ok. 80 dni.
+    ⚠️ dostaje dopisek o opóźnieniu źródła międzynarodowego (to nie awaria zbieracza). Test wsteczny: zwykłe opóźnienie publikacji do 150 dni po końcu miesiąca = ✅."""
+    U = datetime.timezone.utc
+
+    def kt(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v387', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    def rez(self, k, asof, now, czesc='rez'):
+        rows = k.rosja_swiezosc({'v': 1, czesc: {'asof': asof}}, now)
+        return [r for r in rows if r[0] == k.RU_K_ETYKIETA[czesc]][0]
+
+    def test_progi_i_stan_z_17_10_2026(self):
+        k = self.kt()
+        self.assertEqual(k.RU_K_PROG_DNI, {'ue': 95, 'bis': 240, 'imts': 150, 'rez': 180, 'zloto': 90}, 'zmieniony tylko próg rezerw')
+        r = self.rez(k, '2025-11', datetime.datetime(2026, 10, 17, 12, 0, tzinfo=self.U))
+        self.assertEqual(r[1], '⚠️'); self.assertEqual(r[2] // 1440, 320); self.assertEqual(r[3], '2025-11')
+        self.assertIn('próg 180 d', r[4]); self.assertIn('najwyżej uwaga', r[4]); self.assertIn('opóźnieniem', r[4]); self.assertIn('nie od zbieracza', r[4])
+        self.assertNotIn('❌', r[1], 'najwyżej ⚠️')
+
+    def test_granica_180_dni_i_test_wsteczny_zwyklego_opoznienia(self):
+        k = self.kt()
+        koniec = datetime.datetime(2026, 5, 1, tzinfo=self.U)   # koniec kwietnia 2026
+        self.assertEqual(self.rez(k, '2026-04', koniec + datetime.timedelta(days=180))[1], '✅', 'dokładnie 180 dni — jeszcze ✅')
+        self.assertEqual(self.rez(k, '2026-04', koniec + datetime.timedelta(days=180, minutes=1))[1], '⚠️', 'minuta po progu — ⚠️')
+        # test wsteczny: każdy miesiąc danych z lat 2023–2026 przy zwykłym opóźnieniu publikacji 31…150 dni po końcu miesiąca — bez ostrzeżenia
+        falszywe = []
+        for rok in (2023, 2024, 2025, 2026):
+            for mies in range(1, 13):
+                if (rok, mies) > (2026, 8):
+                    break
+                nastepny = datetime.datetime(rok + (mies == 12), mies % 12 + 1, 1, tzinfo=self.U)
+                for lag in (31, 62, 93, 124, 150):
+                    r = self.rez(k, f'{rok}-{mies:02d}', nastepny + datetime.timedelta(days=lag))
+                    if r[1] != '✅':
+                        falszywe.append((rok, mies, lag, r[1]))
+        self.assertEqual(falszywe, [], 'zwykłe opóźnienie ≤ 150 dni nie daje ostrzeżenia')
+        for lag in (181, 240, 320):
+            self.assertEqual(self.rez(k, '2026-04', koniec + datetime.timedelta(days=lag))[1], '⚠️', lag)
+
+    def test_dopisek_tylko_przy_rezerwach(self):
+        k = self.kt()
+        now = datetime.datetime(2026, 10, 17, 12, 0, tzinfo=self.U)
+        z = self.rez(k, '2026-01', now, 'zloto')   # złoto: próg 90 dni, stan sprzed ~260 dni → ⚠️ bez dopisku o opóźnieniu źródła międzynarodowego
+        self.assertEqual(z[1], '⚠️'); self.assertNotIn('opóźnieniem', z[4]); self.assertNotIn(k.RU_K_REZ_UWAGA, z[4])
+        ok = self.rez(k, '2026-08', now)
+        self.assertEqual(ok[1], '✅'); self.assertEqual(ok[4], '', 'bez ostrzeżenia — bez uwagi')
+        with open(k.__file__, encoding='utf-8') as fh:
+            src = fh.read()
+        self.assertEqual(src.count("RU_K_REZ_UWAGA = ("), 1); self.assertEqual(src.count("note += ('; ' if note else '') + RU_K_REZ_UWAGA"), 1)
