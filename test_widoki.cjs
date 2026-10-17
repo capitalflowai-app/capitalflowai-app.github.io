@@ -9792,7 +9792,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {/* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {/* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
 /* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
@@ -28235,4 +28235,179 @@ test('v380: zasady strony — zero nazw dostawców danych w tekstach i kodzie bl
     assert.ok(css.includes(c), 'CSS: ' + c);
   assert.ok(!/pl2[1-5]\{--k:var\(--(gr|rd|yl)/.test(css), 'serie wykresów nie w kolorach kierunku');
   for (const L of ['pl', 'ja']) { const b = su295.sp(pl2t.blk(pl2t.open(L).el.innerHTML)); assert.ok(!/style="[^"]*(width|min-width):\s*\d{3,}px/.test(b), L + ': brak stałych szerokości w pikselach'); }
+});
+
+// ===================== v381 (F11Z2): Oszczędności i fundusze w Europie w GLOBAL (data/europa-fundusze.json) =====================
+// Fixtura: plik europa-fundusze.json w układzie, jaki buduje zbieracz (26 miesięcy funduszy do 2026-08, 12 kwartałów gospodarstw domowych do 2026-Q2). Czas przypięty (Date.now), bez zegara.
+const ef381 = (() => {
+  const a0 = html.indexOf('/* ===================== v381 (F11Z2): OSZCZĘDNOŚCI I FUNDUSZE W EUROPIE'), a1 = html.indexOf('/* ---------- koniec bloku Europa: fundusze i oszczędności (v381) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v381 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-15T10:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[\u00a0\u202f]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mon = (L, m) => new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7) - 1, 15)).toLocaleDateString(LOC[L] || 'pl-PL', {month: 'long', year: 'numeric', timeZone: 'UTC'});
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-eufund': el};
+    const calls = [], hnd = [], ivs = [], bars = [], cols = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false, querySelector: () => null};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'flagImg', 'ueCty', 'document', 'MutationObserver', 'setInterval', 'wkBars', 'wkCols', 'wkK', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {EFZ, efzLoad, renderEfz, efzOk, efzIvf, efzHh, efzEur, efzBody, efzDelta};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, n => '<g:' + n + '>', i => i ? '<i>' + i + '</i>' : '', (c, cls) => '<f:' + c + '>', c => 'N:' + c, doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (rows, o) => { bars.push({rows, o}); return '<bars n=' + rows.length + ' aria="' + o.aria + '">'; }, (X, o) => { cols.push({X, o}); return '<cols n=' + X.length + ' aria="' + o.aria + '">'; }, () => ': ', FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    const click = c => { const h = hnd.find(x => x[0] === 'click'); h[1]({target: {closest: s => s.includes('data-efz-c') ? {getAttribute: () => c} : null}}); };
+    return {api, els, calls, hnd, ivs, bars, cols, mos, expand, collapse, click, html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), cls: (/class="efz-v ([a-z]+)"/.exec(m[3]) || [])[1], lines: [...m[3].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const months = (n, y, m) => { const o = []; for (let i = 0; i < n; i++) { o.push(y + '-' + String(m).padStart(2, '0')); m--; if (m === 0) { y--; m = 12; } } return o.reverse(); };
+  const TY = ['10', '20', '30', '40', '50', '60'];
+  const BASE = [10000, 5000, 2000, 100, 300, -500], PREV = [12000, 6000, 1000, 200, 100, -300], LAST = [40000, 20000, -1000, 800, 2500, -2300];   // razem: 16900 / 19000 / 60000
+  const ser = (f) => months(26, 2026, 8).map((m, i) => [m, f(i)]);
+  const euro = () => { const o = {}; TY.forEach((s, j) => { o[s] = ser(i => i === 25 ? LAST[j] : i === 24 ? PREV[j] : BASE[j]); }); o.T0 = ser(i => (i === 25 ? LAST : i === 24 ? PREV : BASE).reduce((a, b) => a + b, 0)); o.TE = ser(i => i === 25 ? 44000 : i === 24 ? 9000 : 8000); return o; };
+  const kraj = k => ({T0: ser(i => (i === 25 ? 10000 : 2000) * k), '10': ser(i => (i === 25 ? 5000 : 1000) * k), '20': ser(i => 500 * k), '30': ser(i => 100 * k)});
+  const qs = [...Array(12).keys()].map(i => { const k = 2026 * 4 + 1 - 11 + i; return Math.floor(k / 4) + '-Q' + (k % 4 + 1); });
+  const hser = (g, it) => qs.map((q, i) => [q, (i === 11 ? [12000, -400, 1600, 2372.1, 4677.4] : i === 10 ? [11000, 150, -1200, 2523.8, 598] : [9000, 100, 100, 2000, 1500])[['F2', 'F3', 'F51', 'F52', 'F6'].indexOf(it)] * (g === 'DE' ? 3 : 1)]);
+  const hh = () => { const o = {}; for (const g of ['PL', 'DE', 'FR', 'IT', 'ES', 'NL', 'EA21']) { o[g] = {}; for (const it of ['F2', 'F3', 'F51', 'F52', 'F6']) o[g][it] = hser(g, it); } return o; };
+  const J = () => ({v: 1, at: '2026-10-15T09:00:00+00:00', src: 'x', ok: {ivf: true, hh: true}, part_at: {ivf: '2026-10-15T09:00:00+00:00', hh: '2026-10-15T09:00:00+00:00'}, errs: {},
+    ivf: {asof: '2026-08', unit: 'mln EUR', prov: ['2026-08'], typy: TY, euro: euro(), kraje: {DE: kraj(1), FR: kraj(2), IE: kraj(5), LU: kraj(3), NL: kraj(-1)}},
+    hh: {asof: '2026-Q2', unit: 'mln EUR', poz: ['F2', 'F3', 'F51', 'F52', 'F6'], kraje: hh(), bez_kraju: []}});
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {europa_fundusze_ivf: true, europa_fundusze_hh: 'cached'}} : meta, 'europa-fundusze': j === undefined ? J() : j});
+  return {mk, tiles, files, J, sp, txt, code, helpers, clone, LOC, mon, months, TY};
+})();
+
+test('v381 (F11Z2): Europa — nagłówek od razu, plik dopiero po rozwinięciu karty, kafle funduszy z wartością, datą i wiekiem, zmianą w kolorach kierunku i oznaczeniem danych wstępnych', () => {
+  const K = ef381.mk('pl', ef381.files());
+  assert.equal(K.els['#g-eufund'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Oszczędności i fundusze w Europie</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Dane zostaną wczytane po rozwinięciu panelu.') && ef381.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku danych'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'europa-fundusze'], 'po rozwinięciu: jeden plik, raz'); h = K.html();
+  const T = ef381.tiles(h); assert.equal(T.length, 8, 'trzy kafle funduszy i pięć kafli gospodarstw domowych');
+  const [a, b, c] = T, M = ef381.mon('pl', '2026-08');
+  assert.equal(a.label, 'Napływy netto do funduszy, ' + M); assert.equal(a.val, '+60,0 mld EUR'); assert.equal(a.cls, 'pos');
+  assert.deepEqual(a.lines, [['pos', '▲ +41,0 mld EUR wobec poprzedniego miesiąca'], ['neu', 'dane wstępne, mogą się zmienić']]); assert.equal(a.when, M + ' · wiek(2026-08)');
+  assert.equal(b.label, '12 miesięcy razem'); assert.equal(b.val, '+248 mld EUR'); assert.deepEqual(b.lines, [['pos', '▲ +45,2 mld EUR wobec poprzednich 12 miesięcy'], ['pc', 'Poprzednie 12 miesięcy: +203 mld EUR']]);
+  assert.equal(b.when, ef381.mon('pl', '2025-09') + ' – ' + M + ' · wiek(2026-08)', 'okres 12 miesięcy, data i wiek');
+  assert.equal(c.label, 'W tym fundusze ETF, ' + M); assert.equal(c.val, '+44,0 mld EUR'); assert.deepEqual(c.lines, [['pos', '▲ +35,0 mld EUR wobec poprzedniego miesiąca'], ['pc', '12 miesięcy: +133 mld EUR']]);
+  assert.ok(h.includes('Opóźnienie: dane o funduszach ukazują się ok. 5–6 tygodni') && h.includes('Typ „ETF” jest częścią wymienionych typów') && h.includes('D:2026-10-15T09:00:00+00:00'), 'noty i data pliku');
+  assert.equal(K.calls.filter(x => x === 'europa-fundusze').length, 1); K.expand(); assert.equal(K.calls.filter(x => x === 'europa-fundusze').length, 1, 'ponowne rozwinięcie w ciągu 10 min bez nowego pobrania');
+  // kolory kierunku „wg tego co widać”: odpływ czerwony (neg), brak zmiany żółty (neu), wzrost zielony (pos)
+  const J0 = ef381.J(); J0.ivf.euro.T0[25][1] = -5000; const T0 = ef381.tiles((() => { const K0 = ef381.mk('pl', ef381.files(J0)); K0.expand(); return K0.html(); })());
+  assert.equal(T0[0].val, '−5,0 mld EUR'); assert.equal(T0[0].cls, 'neg'); assert.equal(T0[0].lines[0][0], 'neg'); assert.ok(T0[0].lines[0][1].startsWith('▼ −24,0 mld EUR'));
+  const J1 = ef381.J(); J1.ivf.prov = []; J1.ivf.euro.T0[25][1] = 19000; const T1 = ef381.tiles((() => { const K1 = ef381.mk('pl', ef381.files(J1)); K1.expand(); return K1.html(); })());
+  assert.deepEqual(T1[0].lines, [['neu', '• 0 mln EUR wobec poprzedniego miesiąca']], 'bez zmiany — żółty punkt; bez znacznika „wstępne” przy miesiącu zatwierdzonym');
+  const J2 = ef381.J(); J2.ivf.euro.T0[25][1] = 0; const T2 = ef381.tiles((() => { const K2 = ef381.mk('pl', ef381.files(J2)); K2.expand(); return K2.html(); })()); assert.equal(T2[0].val, '0 mln EUR'); assert.equal(T2[0].cls, 'neu', 'zero — żółty, nie zielony');
+  const api = K.api; assert.equal(api.efzEur(0.4, true), '+<1 mln EUR'); assert.equal(api.efzEur(0), '0 mln EUR'); assert.equal(api.efzEur(null), '—'); assert.equal(api.efzEur(-1234, true), '−1,2 mld EUR'); assert.equal(api.efzEur(999.6), '1,0 mld EUR'); assert.equal(api.efzEur(855), '855 mln EUR');
+  assert.equal(api.efzDelta(0.4).txt, '▲ +<1 mln EUR'); assert.equal(api.efzDelta(-0.4).cls, 'neg'); assert.equal(api.efzDelta(null).txt, '—');
+});
+
+test('v381 (F11Z2): Europa — słupki według typu, kolumny 24 miesięcy skumulowane, słupki krajów, zdanie podsumowujące i gospodarstwa domowe (wybór kraju, kafle, kolumny, słupki funduszy)', () => {
+  const K = ef381.mk('pl', ef381.files()); K.expand();
+  const [bt, kr, hb] = K.bars; assert.equal(K.bars.length, 3, 'słupki: typy, kraje, fundusze gospodarstw domowych');
+  assert.deepEqual(bt.rows.map(r => [r.l, r.v]), [['Fundusze akcyjne', 40000], ['Fundusze obligacyjne', 20000], ['Fundusze mieszane', -1000], ['Fundusze nieruchomości', 800], ['Fundusze hedgingowe', 2500], ['Pozostałe fundusze', -2300], ['ETF (część powyższych)', 44000]]);
+  assert.equal(bt.rows[0].vt, '+40,0 mld EUR'); assert.equal(bt.rows[2].vt, '−1,0 mld EUR'); assert.ok(bt.rows[3].tip.includes('poprzedni miesiąc: +200 mln EUR') && bt.rows[3].tip.includes('12 miesięcy razem'));
+  assert.ok(bt.o.aria.includes('Napływy netto do funduszy strefy euro według typu') && bt.o.fmt(1500) === '+1,5 mld EUR');
+  assert.equal(K.cols.length, 2, 'kolumny: fundusze i gospodarstwa domowe'); const [cf, ch] = K.cols;
+  assert.equal(cf.X.length, 24, '24 miesiące'); assert.equal(cf.o.stack, true); assert.deepEqual(cf.o.ser.map(s => s.cls), ['efz1', 'efz2', 'efz3', 'efz4', 'efz5', 'efz6']); assert.deepEqual(cf.X[23].vs, [40000, 20000, -1000, 800, 2500, -2300]);
+  assert.equal(cf.X[23].part, true, 'ostatni miesiąc oznaczony jako wstępny'); assert.equal(cf.X[22].part, false); assert.ok(cf.X[23].tip.includes('dane wstępne, mogą się zmienić') && cf.X[23].tip.includes('razem: +60,0 mld EUR'));
+  assert.equal(cf.X[0].x.length > 0, true);
+  assert.deepEqual(kr.rows.map(r => r.v), [10000, 20000, 50000, 30000, -10000], 'DE, FR, IE, LU, NL — razem w ostatnim miesiącu; ujemny odpływ'); assert.ok(kr.rows[0].l.includes('<f:de>') && kr.rows[0].l.includes('N:DE'), 'flaga i nazwa kraju');
+  assert.ok(kr.rows[0].tip.includes('Fundusze akcyjne: +5,0 mld EUR'));
+  const h = K.html(); assert.ok(h.includes('Saldo napływów netto do funduszy w strefie euro, ' + ef381.mon('pl', '2026-08') + ': +60,0 mld EUR. Najsilniej: Fundusze akcyjne (+40,0 mld EUR); najsłabiej: Pozostałe fundusze (−2,3 mld EUR).'));
+  // gospodarstwa domowe: kraj domyślny PL, pięć kafli z kwartałem, zmianą i 4 kwartałami razem
+  const T = ef381.tiles(h).slice(3), Q = 'Q2 2026'; assert.deepEqual(T.map(t => t.label), ['Depozyty i gotówka', 'Obligacje', 'Akcje i udziały', 'Fundusze inwestycyjne', 'Ubezpieczenia i emerytury']);
+  assert.deepEqual(T.map(t => t.val), ['+12,0 mld EUR', '−400 mln EUR', '+1,6 mld EUR', '+2,4 mld EUR', '+4,7 mld EUR']); assert.deepEqual(T.map(t => t.cls), ['pos', 'neg', 'pos', 'pos', 'pos']);
+  assert.deepEqual(T[0].lines, [['pos', '▲ +1,0 mld EUR wobec poprzedniego kwartału'], ['pc', '4 kwartały razem: +41,0 mld EUR']]); assert.equal(T[0].when, Q + ' · wiek(2026-Q2)');
+  assert.deepEqual(T[1].lines[0], ['neg', '▼ −550 mln EUR wobec poprzedniego kwartału'], 'zmiana poniżej 1 mld w mln EUR'); assert.equal(T[1].lines[1][1], '4 kwartały razem: −50 mln EUR');
+  assert.ok(h.includes('W ' + Q + ' gospodarstwa domowe (N:PL) skierowały najwięcej nowych środków do: Depozyty i gotówka (+12,0 mld EUR); największy odpływ: Obligacje (−400 mln EUR).'), 'najmniejsza pozycja ujemna = odpływ, nie „najmniej”');
+  assert.ok(!h.includes('; najmniej: '));
+  const Jn = ef381.J(); Jn.hh.kraje.PL.F3[11][1] = 500; const Hn = (() => { const Kn = ef381.mk('pl', ef381.files(Jn)); Kn.expand(); return Kn.html(); })(); assert.ok(Hn.includes('; najmniej: Obligacje (+500 mln EUR).') && !Hn.includes('największy odpływ'), 'najmniejsza pozycja dodatnia = „najmniej”');
+  assert.deepEqual([...h.matchAll(/data-efz-c="([A-Z0-9]+)" aria-pressed="(true|false)"/g)].map(m => m[1] + ':' + m[2]), ['PL:true', 'DE:false', 'FR:false', 'IT:false', 'ES:false', 'NL:false', 'EA21:false'], 'siedem przycisków, wybrany PL');
+  assert.ok(h.includes('N:EA21') === false && h.includes('Strefa euro'), 'strefa euro z własnej nazwy, nie z listy krajów');
+  assert.equal(ch.X.length, 12); assert.deepEqual(ch.o.ser.map(s => s.n), ['Depozyty i gotówka', 'Obligacje', 'Akcje i udziały', 'Fundusze inwestycyjne', 'Ubezpieczenia i emerytury']); assert.deepEqual(ch.X[11].vs, [12000, -400, 1600, 2372.1, 4677.4]);
+  assert.equal(hb.rows.length, 6, 'sześć krajów bez strefy euro (kwoty bezwzględne)'); assert.deepEqual(hb.rows.map(r => r.v)[0], 2000 * 2 + 2523.8 + 2372.1 + 0, 'PL: cztery kwartały razem (2×2000 + 2523,8 + 2372,1)');
+  // zmiana kraju kliknięciem: DE ×3, bez nowego pobrania pliku
+  const n = K.calls.length; K.click('DE'); const h2 = K.html(); assert.equal(K.calls.length, n, 'zmiana kraju bez pobrania');
+  assert.ok(h2.includes('data-efz-c="DE" aria-pressed="true"') && h2.includes('data-efz-c="PL" aria-pressed="false"')); assert.equal(ef381.tiles(h2)[3].val, '+36,0 mld EUR'); K.click('XX'); assert.ok(K.html().includes('data-efz-c="DE" aria-pressed="true"'), 'nieznany kraj ignorowany');
+});
+
+test('v381 (F11Z2): Europa — brak części = „—” i komunikat, część z błędem pobrania zostaje z ostatnimi danymi, kraj bez kwartału kotwicy pominięty, karta ukryta bez wpisu w meta, błąd bez pętli, zegar 30 min, 10 języków', () => {
+  const KM = ef381.mk('pl', ef381.files(undefined, {ok: {kalendarz_bc_us: true}})); assert.equal(KM.els['#g-eufund'].hidden, true, 'meta bez części funduszy — panel ukryty'); assert.equal(KM.els['#g-eufund'].innerHTML, '');
+  assert.equal(ef381.mk('pl', ef381.files(undefined, null)).els['#g-eufund'].hidden, true, 'brak meta — panel ukryty'); assert.equal(ef381.mk('pl', ef381.files(undefined, {ok: {europa_fundusze_hh: false}})).els['#g-eufund'].hidden, false, 'wystarczy jedna część w meta');
+  // brak części hh w pliku: tylko fundusze i komunikat; brak ivf: tylko gospodarstwa
+  const Jh = ef381.J(); delete Jh.hh; const Kh = ef381.mk('pl', ef381.files(Jh)); Kh.expand(); assert.equal(ef381.tiles(Kh.html()).length, 3); assert.ok(Kh.html().includes('Brak danych: oszczędności gospodarstw domowych.') && !Kh.html().includes('Gospodarstwa domowe: gdzie trafiają oszczędności'));
+  const Ji = ef381.J(); Ji.ivf.euro['20'] = Ji.ivf.euro['20'].slice(0, 5); const Ki = ef381.mk('pl', ef381.files(Ji)); Ki.expand(); assert.equal(ef381.tiles(Ki.html()).length, 5, 'niekompletna seria typu = cała część funduszy jako brak (nie połowiczny wykres)');
+  assert.ok(Ki.html().includes('Brak danych: napływy do funduszy.'));
+  const Jl = ef381.J(); Jl.ivf.euro['10'].pop(); assert.equal(ef381.mk('pl', ef381.files(Jl)).api.efzIvf(Jl), null, 'ostatni miesiąc serii ≠ miesiąc danych = brak części');
+  // część z jawnym błędem pobrania zostaje z danymi, ale z ostrzeżeniem
+  const Je = ef381.J(); Je.ok.hh = false; const Ke = ef381.mk('pl', ef381.files(Je)); Ke.expand(); assert.ok(Ke.html().includes('Nie udało się odświeżyć: oszczędności gospodarstw domowych. Widać ostatnio wczytane dane.') && Ke.html().includes('class="pnote neu"') && ef381.tiles(Ke.html()).length === 8);
+  // kraj, którego ostatni kwartał jest inny, nie trafia na listę przycisków; PL zawsze jest pierwszy
+  const Jk = ef381.J(); Jk.hh.kraje.IT.F3 = Jk.hh.kraje.IT.F3.slice(0, 11); const Kk = ef381.mk('pl', ef381.files(Jk)); Kk.expand(); assert.ok(!/data-efz-c="IT"/.test(Kk.html()) && /data-efz-c="ES"/.test(Kk.html()));
+  const Jn = ef381.J(); delete Jn.hh.kraje.PL; const Kn = ef381.mk('pl', ef381.files(Jn)); Kn.expand(); assert.ok(/data-efz-c="DE" aria-pressed="true"/.test(Kn.html()), 'bez PL wybrany pierwszy dostępny kraj');
+  // zły plik: komunikat, ponowna próba najwcześniej po minucie (bez pętli zapytań)
+  for (const bad of [null, {v: 2, at: '2026-10-15T09:00:00+00:00'}, Object.assign(ef381.J(), {ivf: null, hh: null})]) {
+    const KE = ef381.mk('pl', ef381.files(bad)); KE.expand(); assert.ok(KE.html().includes('Nie udało się wczytać danych.')); const n1 = KE.calls.filter(c => c === 'europa-fundusze').length; KE.expand(); KE.expand();
+    assert.equal(KE.calls.filter(c => c === 'europa-fundusze').length, n1, 'bez pętli zapytań po błędzie');
+  }
+  // odświeżanie zegarem co 30 min przy rozwiniętej karcie
+  const KZ = ef381.mk('pl', ef381.files(), {open: true}); const iv = KZ.ivs.find(x => x[1] === 30 * 60 * 1000); assert.ok(iv, 'zegar 30 min'); const c0 = KZ.calls.filter(c => c === 'europa-fundusze').length; iv[0]();
+  assert.equal(KZ.calls.filter(c => c === 'europa-fundusze').length, c0 + 1, 'odświeżenie wymuszone zegarem'); KZ.collapse(); const c1 = KZ.calls.filter(c => c === 'europa-fundusze').length; iv[0](); assert.equal(KZ.calls.filter(c => c === 'europa-fundusze').length, c1, 'zwinięta karta nie odświeża');
+  // 10 języków: liczby w lokalnym formacie, żadnych surowych kluczy ani NaN
+  const LANGS = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  for (const L of LANGS) {
+    const K = ef381.mk(L, ef381.files()); K.expand(); const hh = K.html();
+    assert.ok(!/efz\.|NaN|undefined|Infinity|\{[a-z]+\}/.test(hh), L + ': blok bez surowych kluczy, NaN i niepodstawionych pól'); assert.equal(ef381.tiles(hh).length, 8, L);
+  }
+  assert.equal(ef381.tiles((() => { const K = ef381.mk('en', ef381.files()); K.expand(); return K.html(); })())[0].val, '+60.0 bn EUR', 'en: kropka');
+  assert.equal(ef381.tiles((() => { const K = ef381.mk('de', ef381.files()); K.expand(); return K.html(); })())[0].val, '+60,0 Mrd. EUR', 'de: przecinek');
+  assert.ok(ef381.tiles((() => { const K = ef381.mk('ja', ef381.files()); K.expand(); return K.html(); })())[0].label.startsWith('ファンドへの純流入'), 'ja: etykieta po japońsku');
+  // zmiana języka (atrybut lang) = nowe etykiety bez ponownego pobierania
+  const KL = ef381.mk('pl', ef381.files(), {open: true}); const lm = KL.mos.filter(m => m.tg !== KL.els['#g-eufund']); assert.ok(lm.length >= 1, 'obserwator języka'); const before = KL.calls.length; lm.forEach(m => m.cb()); assert.equal(KL.calls.length, before, 'zmiana języka bez nowego pobrania');
+});
+
+test('v381 (F11Z2): Europa — słownik w czystym JSON w 10 językach, bez nazw dostawców; karta po nowcastach; CSS ograniczony do karty (zmienne motywu, telefon 390 px bez przewijania w bok)', () => {
+  const LANGS = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const mm = [...html.matchAll(/\/\* v381 \(F11Z2\)[^\n]*\*\/\nconst (EXTRA\d+)=(\{[^\n]*\});\n/g)]; assert.equal(mm.length, 1, 'jeden słownik v381 w jednej linii');
+  const n = mm[0][1], D = JSON.parse(mm[0][2]); assert.deepEqual(Object.keys(D), LANGS); const keys = Object.keys(D.pl); assert.ok(keys.length >= 55 && keys.every(k => k.startsWith('efz.')));
+  for (const L of LANGS) {
+    assert.deepEqual(Object.keys(D[L]), keys, L + ': te same klucze');
+    for (const k of keys) {
+      const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(','); assert.equal(ph(D[L][k]), ph(D.pl[k]), `${L} ${k}: te same pola {x}`); assert.ok(!/[<>]/.test(D[L][k]), `${L} ${k}: bez znaczników HTML`);
+      assert.ok(D[L][k].trim().length > 0 && !/\b(Eurostat|EBC|ECB|European Central Bank|Europäische Zentralbank|Banco Central Europeo|Banque centrale européenne|Банк)\b/i.test(D[L][k]), `${L} ${k}: niepusty, bez nazw dostawców`);
+    }
+  }
+  assert.ok(D.pl['efz.t'] !== D.en['efz.t'] && D.de['efz.t'] !== D.en['efz.t'] && D.ja['efz.n1'] !== D.en['efz.n1'] && D.ru['efz.n2'] !== D.en['efz.n2'], 'prawdziwe tłumaczenia');
+  const used = new Set([...ef381.code.matchAll(/'(efz\.[a-z0-9.]+)'/gi)].map(m => m[1]).filter(k => !k.endsWith('.'))); const dyn = {'efz.h.': ['ivf', 'hh'], 'efz.hp.': ['F2', 'F3', 'F51', 'F52', 'F6'], 'efz.p.': ['ivf', 'hh'], 'efz.ty.': [...ef381.TY, 'TE']};
+  for (const [p, v] of Object.entries(dyn)) for (const x of v) used.add(p + x); used.add('efz.err'); used.add('efz.lazy');
+  for (const k of used) assert.ok(keys.includes(k), 'klucz użyty w kodzie, brak w słowniku: ' + k); for (const k of keys) assert.ok(used.has(k), 'klucz słownika nieużyty w kodzie: ' + k);
+  assert.ok(html.includes('for(const l in ' + n + ')if(I18N[l])Object.assign(I18N[l],' + n + '[l]);\n') && html.indexOf('const ' + n + '=') < html.indexOf('for(const l in ' + n + ')'), 'linia for po słowniku');
+  assert.ok(!/[\u200b-\u200f\u2060\ufeff\ufe0f\u00a0\u202f]/.test(mm[0][0]), 'znaki niewidoczne tylko jako ucieczki');
+  assert.ok(!/\b(Eurostat|ECB|ecb\.europa|europa\.eu|nasq_10)\b/i.test(ef381.code.replace(/\/\*[\s\S]*?\*\//g, '')) && !/\bIVF\b/.test(ef381.code.replace(/\/\*[\s\S]*?\*\//g, '')), 'w kodzie karty (poza komentarzami) brak nazw dostawców i adresów');
+  // karta: po nowcastach w GLOBAL, jedna na stronie
+  assert.ok(html.includes('<section class="panel pcard" id="g-nowcasty" hidden></section>\n    <section class="panel pcard" id="g-eufund" hidden></section>\n'), 'karta funduszy zaraz po nowcastach'); assert.equal(html.split('id="g-eufund"').length - 1, 1);
+  // CSS: tylko reguły karty, kolory ze zmiennych motywu albo z palety tożsamości serii wykresów, telefon w dwóch kolumnach
+  const c0 = html.indexOf('/* v381 (F11Z2): Oszczędności i fundusze w Europie (panel #g-eufund)'); assert.ok(c0 > 0); const cEnd = ['/* v382 (F11Z3)', '/* v376 (F9Z2): szacunek na bieżąco vs ostatni odczyt (panel #g-nowcasty)'].map(a_ => html.indexOf(a_, c0)).filter(i_ => i_ > 0); assert.ok(cEnd.length >= 1); const css = html.slice(c0, Math.min(...cEnd));
+  assert.ok(css.length > 500 && css.length < 4000, 'blok CSS ograniczony anchorami');
+  const body = css.replace(/\/\*[\s\S]*?\*\//g, ''); const rules = [...body.replace(/@media[^{]*\{/g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]); assert.ok(rules.length >= 14);
+  assert.ok(rules.every(([sel, b]) => !/#[0-9a-fA-F]{3,8}\b/.test(b.replace(/#g-eufund/g, ''))), 'kolory tylko ze zmiennych motywu (także serie tożsamości wykresów: zmienne i ich mieszanki)');
+  assert.ok(rules.every(([sel]) => sel.split(',').every(s => s.trim().startsWith('#g-eufund'))), 'wszystkie reguły ograniczone do karty');
+  assert.ok(css.includes('#g-eufund .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}') && css.includes('@media (max-width:620px){#g-eufund .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}'), 'trzy kolumny, na telefonie dwie (bez przewijania w bok)');
+  assert.ok(css.includes('.efz-seg{display:flex;flex-wrap:wrap;max-width:100%'), 'wybór kraju zawija się'); assert.ok(css.includes('small.neg{color:var(--rd-tx)}') && css.includes('small.pos{color:var(--gr-tx)}') && css.includes('small.neu{color:var(--yl-tx)}') && css.includes('.efz-v.neg{color:var(--rd-tx)}'), 'kolory kierunku');
+  assert.ok(css.includes('#g-eufund .wk-ch .pos{--k:var(--gr)}') && css.includes('#g-eufund .wk-ch .neg{--k:var(--rd)}'), 'słupki: napływ zielony, odpływ czerwony');
+  assert.ok(css.includes('#g-eufund .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3}'), 'długie podpisy zawijane');
 });

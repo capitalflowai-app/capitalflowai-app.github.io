@@ -9666,6 +9666,177 @@ def usk_kontrola(j, ste, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v381 (F11Z2): Europa — fundusze i oszczędności (data/europa-fundusze.json) ----------------------------------------------------------------
+# Plik: ivf {asof, unit, prov, typy, euro {sektor: [[miesiąc, mln EUR]]}, kraje {kraj: {sektor: [[miesiąc, mln EUR]]}}}, hh {asof, unit, poz, kraje {kraj: {pozycja: [[kwartał, mln EUR]]}}, bez_kraju},
+# ok / part_at / errs. Kontrola czyta pliki ze strony (bez zapytań do sieci). RYTM PUBLIKACJI i progi: dane o funduszach są publikowane miesięcznie z opóźnieniem ok. 5–6 tygodni (kolejny miesiąc
+# po ok. 70 dniach od końca poprzedniego), transakcje gospodarstw domowych — kwartalnie z opóźnieniem ok. 3,5 miesiąca (dane za II kw. 2026 były 13.10.2026, 105 dni po końcu kwartału; kolejny kwartał po ok. 105 dniach).
+# Progi ⚠ mają ponad połowę cyklu zapasu, więc nie ma alarmu przy normalnym opóźnieniu: fundusze — wiek końca ostatniego miesiąca > EF_K_IVF_DNI = 90 dni, gospodarstwa — wiek końca ostatniego kwartału
+# > EF_K_HH_DNI = 150 dni. (Zapowiedzi publikacji źródła nie czytamy; progi wyznaczono z cyklu publikacji, a nie z historii wydań — wydania nie są w danych.)
+# (1) świeżość pobrania każdej części (odświeżanie co 6 h; starsze niż doba i pół = ⚠) i wiersze rytmu publikacji (najwyżej ⚠);
+# (2) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zły format okresu, liczba poza zakresem, seria nie rośnie / ma lukę / dubel, ostatni miesiąc różny między seriami albo kraje inne niż strefa euro,
+#     suma sześciu typów funduszy ≠ „razem”, ostatni kwartał gospodarstw domowych różny między pozycjami i krajami, asof ≠ ostatni punkt, brak wymaganych krajów (PL, DE), wstępne miesiące spoza serii;
+# (3) TYLKO UWAGA ⚠: część z ostatnim pobraniem nieudanym (dane zostają z poprzedniego pobrania), kraj pominięty w danych gospodarstw domowych, część z ok False bez danych.
+# Najwyżej ⚠ poza (2). Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'europa-fundusze')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['europa-fundusze'] = 24 * 60   # plik zapisywany co ok. 6 h (część z błędem: co godzinę) — wiek pobrania każdej części ocenia osobny wiersz
+AW_BEZ_BLEDU.update({'europa_fundusze_' + p_: 'Europa fundusze — część z błędem zostaje z ostatnimi danymi i datą (v381); wiek pobrania i rytm publikacji w wierszach świeżości' for p_ in ('ivf', 'hh')})
+EF_K_PARTS = ('ivf', 'hh')
+EF_K_ETYKIETA = {'ivf': 'Europa fundusze: napływy do funduszy (pobranie)', 'hh': 'Europa fundusze: oszczędności gospodarstw domowych (pobranie)'}
+EF_K_RYTM = {'ivf': 'Europa fundusze: napływy do funduszy (rytm publikacji)', 'hh': 'Europa fundusze: oszczędności gospodarstw domowych (rytm publikacji)'}
+EF_K_PROG_MIN = 36 * 60           # min — wiek pobrania części (odświeżanie co 6 h)
+EF_K_IVF_DNI = 90                 # dni od końca ostatniego miesiąca (kolejny miesiąc po ok. 70 dniach)
+EF_K_HH_DNI = 150                 # dni od końca ostatniego kwartału (kolejny kwartał po ok. 105 dniach)
+EF_K_TYPY = ('10', '20', '30', '40', '50', '60')
+EF_K_ZAKRES_IVF = 600000.0
+EF_K_ZAKRES_HH = 1000000.0
+EF_K_POZ = ('F2', 'F3', 'F51', 'F52', 'F6')
+EF_K_WYMAGANE = ('PL', 'DE')
+
+
+def _ef_k_num(x, lim):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and abs(x) <= lim
+
+
+def _ef_k_mc(s):
+    return int(s[:4]) * 12 + int(s[5:7]) - 1 if isinstance(s, str) and re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', s) else None
+
+
+def _ef_k_kw(s):
+    return int(s[:4]) * 4 + int(s[6]) - 1 if isinstance(s, str) and re.fullmatch(r'\d{4}-Q[1-4]', s) else None
+
+
+def _ef_k_koniec_kw(q):
+    r, k = int(q[:4]), int(q[6])
+    return dt.date(r + k // 4, (k * 3) % 12 + 1, 1) - dt.timedelta(days=1)
+
+
+def _ef_k_seria(zle, nazwa, s, f, lim, min_len=8):
+    """Seria [[okres, liczba]]: wiersze poprawne, okresy rosnące co 1, bez dubli, liczby w zakresie. → ostatni okres albo None (przy błędzie wpis do zle)."""
+    if not isinstance(s, list) or len(s) < min_len:
+        zle.append(f'{nazwa}: seria za krótka albo nie jest listą'); return None
+    ost = None
+    for r in s:
+        if not (isinstance(r, list) and len(r) == 2 and f(r[0]) is not None and _ef_k_num(r[1], lim)):
+            zle.append(f'{nazwa}: zły wiersz ({str(r)[:40]})'); return None
+        if ost is not None and f(r[0]) - f(ost) != 1:
+            zle.append(f'{nazwa}: okres {r[0]} po {ost} (nie rośnie co jeden, luka albo dubel)'); return None
+        ost = r[0]
+    return ost
+
+
+def europa_fundusze_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌) → lista opisów."""
+    zle = []
+    P = j.get('ivf')
+    if isinstance(P, dict):
+        last = P.get('asof')
+        euro = P.get('euro') if isinstance(P.get('euro'), dict) else {}
+        for s in EF_K_TYPY + ('T0', 'TE'):
+            o = _ef_k_seria(zle, f'ivf euro {s}', euro.get(s), _ef_k_mc, EF_K_ZAKRES_IVF, 20)
+            if o is not None and o != last:
+                zle.append(f'ivf: ostatni miesiąc euro/{s} ({o}) ≠ asof ({last})')
+        if all(isinstance(euro.get(s), list) and euro[s] for s in EF_K_TYPY + ('T0',)):
+            try:
+                idx = {s: dict((r[0], r[1]) for r in euro[s]) for s in EF_K_TYPY}
+                for m, tot in euro['T0']:
+                    sm = sum(idx[s].get(m, 0.0) for s in EF_K_TYPY)
+                    if any(m not in idx[s] for s in EF_K_TYPY) or abs(sm - tot) > max(5.0, 0.0005 * abs(tot)):
+                        zle.append(f'ivf: suma typów funduszy ({sm:.0f}) ≠ razem ({tot:.0f}) w {m}'); break
+            except Exception:  # noqa
+                zle.append('ivf: suma typów nie do policzenia')
+        kr = P.get('kraje') if isinstance(P.get('kraje'), dict) else {}
+        for c in ('DE', 'FR', 'IE', 'LU', 'NL'):
+            if not isinstance(kr.get(c), dict):
+                zle.append(f'ivf: brak kraju {c}'); continue
+            for s in ('10', '20', '30', 'T0'):
+                o = _ef_k_seria(zle, f'ivf {c} {s}', kr[c].get(s), _ef_k_mc, EF_K_ZAKRES_IVF, 20)
+                if o is not None and o != last:
+                    zle.append(f'ivf: ostatni miesiąc {c}/{s} ({o}) ≠ asof ({last})')
+        ms = {r[0] for r in euro.get('T0', []) if isinstance(r, list) and r}
+        if any(m not in ms for m in (P.get('prov') or [])) or not isinstance(P.get('prov', []), list):
+            zle.append('ivf: wstępny miesiąc spoza serii')
+    H = j.get('hh')
+    if isinstance(H, dict):
+        last = H.get('asof')
+        kr = H.get('kraje') if isinstance(H.get('kraje'), dict) else {}
+        for g in EF_K_WYMAGANE:
+            if g not in kr:
+                zle.append(f'hh: brak wymaganego kraju {g}')
+        for g, poz in kr.items():
+            for it in EF_K_POZ:
+                o = _ef_k_seria(zle, f'hh {g} {it}', (poz or {}).get(it) if isinstance(poz, dict) else None, _ef_k_kw, EF_K_ZAKRES_HH)
+                if o is not None and o != last:
+                    zle.append(f'hh: ostatni kwartał {g}/{it} ({o}) ≠ asof ({last})')
+    for k, P_ in (('ivf', P), ('hh', H)):
+        if P_ is not None and not isinstance(P_, dict):
+            zle.append(f'{k}: część nie jest słownikiem')
+    return zle[:12]
+
+
+def europa_fundusze_swiezosc(j, now=None):
+    """Wiersze: pobranie każdej części (etykieta, status, wiek min, chwila, uwaga) i rytm publikacji (wiek końca ostatniego okresu względem progów); brak pliku albo inna wersja = brak wierszy. Najwyżej ⚠."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p in EF_K_PARTS:
+        txt = (j.get('part_at') or {}).get(p) if isinstance(j.get('part_at'), dict) else None
+        P = j.get(p)
+        if not isinstance(P, dict):
+            continue
+        if not txt:
+            rows.append((EF_K_ETYKIETA[p], '?', None, None, 'brak chwili pobrania tej części w pliku')); continue
+        w = wiek_danych(str(txt), 'ts', 'k', now)
+        ok = (j.get('ok') or {}).get(p) if isinstance(j.get('ok'), dict) else None
+        st = '?' if w is None else ('⚠\ufe0f' if w > EF_K_PROG_MIN else '✅')
+        note = ''
+        if st == '⚠\ufe0f':
+            note = f'pobranie starsze niż {fmt_wiek(EF_K_PROG_MIN)} (odświeżanie co 6 h) — dane mogą być nieaktualne; najwyżej uwaga'
+        elif ok is False:
+            note = 'ostatnie pobranie nieudane — dane z poprzedniego pobrania'
+        rows.append((EF_K_ETYKIETA[p], st, w, str(txt), note))
+        a = P.get('asof')
+        if p == 'ivf' and _ef_k_mc(a) is not None:
+            wd = wiek_danych(a, 'month', 'k', now)
+            zle = wd is not None and wd > EF_K_IVF_DNI * 1440
+            note = f'ostatni miesiąc {a} — od jego końca minęło {fmt_wiek(wd)} (publikacja ok. 5–6 tygodni po miesiącu; kolejny miesiąc po ok. 70 dniach, próg {EF_K_IVF_DNI} dni)' if zle else ''
+            rows.append((EF_K_RYTM[p], '⚠\ufe0f' if zle else ('?' if wd is None else '✅'), wd, a, note))
+        elif p == 'hh' and _ef_k_kw(a) is not None:
+            wd = wiek_danych(_ef_k_koniec_kw(a).isoformat(), 'day', 'k', now)
+            zle = wd is not None and wd > EF_K_HH_DNI * 1440
+            note = f'ostatni kwartał {a} — od jego końca minęło {fmt_wiek(wd)} (publikacja ok. 3,5 miesiąca po kwartale; kolejny kwartał po ok. 105 dniach, próg {EF_K_HH_DNI} dni)' if zle else ''
+            rows.append((EF_K_RYTM[p], '⚠\ufe0f' if zle else ('?' if wd is None else '✅'), wd, a, note))
+    return rows
+
+
+def europa_fundusze_uwagi(j):
+    """Uwagi ⚠ (nigdy ❌): kraj pominięty w danych gospodarstw domowych, część bez danych z ok False. → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    out = {'wiersze': [], 'uwagi': []}
+    H = j.get('hh') if isinstance(j.get('hh'), dict) else None
+    if H is not None:
+        bez = [g for g in (H.get('bez_kraju') or []) if isinstance(g, str)]
+        if bez:
+            out['wiersze'].append((f'gospodarstwa domowe: pominięte kraje {", ".join(bez)} (inny ostatni kwartał niż PL)', '⚠\ufe0f'))
+            out['uwagi'].append(f'Europa fundusze: w danych gospodarstw domowych brak krajów {", ".join(bez)} — ich ostatni kwartał jest inny niż w Polsce albo seria jest za krótka (strona pokazuje tylko kraje z tym samym kwartałem)')
+        else:
+            out['wiersze'].append((f'gospodarstwa domowe: {len(H.get("kraje") or {})} krajów z kwartałem {H.get("asof")}', '✅'))
+    P = j.get('ivf') if isinstance(j.get('ivf'), dict) else None
+    if P is not None and isinstance(P.get('euro'), dict) and isinstance(P['euro'].get('T0'), list) and P['euro']['T0']:
+        r = P['euro']['T0'][-1]
+        out['wiersze'].append((f'fundusze: razem w strefie euro {r[0]} = {r[1]} mln EUR' + (' (wstępnie)' if r[0] in (P.get('prov') or []) else ''), '✅'))
+    return out
+
+
+def europa_fundusze_kontrola(files):
+    """Kontrola pliku europa-fundusze.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('europa-fundusze') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    U = europa_fundusze_uwagi(j)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': europa_fundusze_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -10185,6 +10356,23 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['nowcasty'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'nowcasty (v376): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v381. Europa — fundusze i oszczędności (data/europa-fundusze.json): świeżość pobrania dwóch części i rytm publikacji osobnymi wierszami (lista SWIEZOSC bez zmian), uwagi ⚠ i sprzeczności w pliku (❌) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in europa_fundusze_swiezosc(files.get('europa-fundusze')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠\ufe0f':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_ef = europa_fundusze_kontrola(files)
+        if T_ef:
+            for z_ in T_ef['spojnosc'][:5]:
+                R['bledy'].append(f'europa-fundusze.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_ef['uwagi']
+        R['zgodnosc']['europa-fundusze'] = {k_: T_ef[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_ef else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['europa-fundusze'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Europa fundusze (v381): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -10868,6 +11056,11 @@ def raport_md(R):
             L.append('- Nowcasty (z pliku strony): ' + (f'? kontrola przerwana ({knc["blad"]})' if knc.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(knc['spojnosc'][:3]) + ' ❌ · ' if knc.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in knc.get('wiersze') or []) or '—') + '.')
+        kef = Z.get('europa-fundusze')   # v381: Europa — fundusze i oszczędności: sprzeczności w pliku, rytm publikacji, kraje pominięte; brak pliku = bez linii
+        if kef:
+            L.append('- Europa: fundusze i oszczędności domowe (z pliku strony): ' + (f'? kontrola przerwana ({kef["blad"]})' if kef.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(kef['spojnosc'][:3]) + ' ❌ · ' if kef.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in kef.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

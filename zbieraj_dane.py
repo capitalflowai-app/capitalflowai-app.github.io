@@ -32298,6 +32298,30 @@ def main():
                 save('nowcasty', prev_nc)
     META['ok']['nowcasty_pkb'] = stan_nc['pkb']; META['ok']['nowcasty_cpi'] = stan_nc['cpi']
     # v376: koniec bloku nowcastów
+    # v381 (F11Z2): EUROPA — FUNDUSZE I OSZCZĘDNOŚCI (data/europa-fundusze.json: przepływy netto do funduszy inwestycyjnych strefy euro i pięciu krajów oraz transakcje finansowe gospodarstw domowych w sześciu krajach i strefie euro;
+    # dwie części z własnym ok / part_at / errs) — co EF_EVERY min, plik z częścią nieudaną ponawiany po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json).
+    # META ok: europa_fundusze_ivf, europa_fundusze_hh (te same dwie instytucje co dotąd — liczba źródeł bez zmian).
+    prev_ef = previous('europa-fundusze')
+    if isinstance(prev_ef, dict) and prev_ef.get('v') == 1 and fresh_pelny(prev_ef, EF_EVERY):
+        save('europa-fundusze', prev_ef)
+        stan_ef = {}
+        for k_ef in EF_PARTS:
+            if _dict(prev_ef.get('ok')).get(k_ef) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{EF_PX} {EF_LABEL[k_ef]}: {str(_dict(prev_ef.get('errs')).get(k_ef) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_ef[k_ef] = False
+            else:
+                stan_ef[k_ef] = 'cached'
+    else:
+        try:
+            ef_ = build_europa_fundusze(prev_ef); save('europa-fundusze', ef_)
+            stan_ef = {k_ef: ef_['ok'].get(k_ef) is True for k_ef in EF_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{EF_PX}: {e}')[:200])
+            stan_ef = {k_ef: False for k_ef in EF_PARTS}
+            if isinstance(prev_ef, dict):
+                save('europa-fundusze', prev_ef)
+    META['ok']['europa_fundusze_ivf'] = stan_ef['ivf']; META['ok']['europa_fundusze_hh'] = stan_ef['hh']
+    # v381: koniec bloku Europa — fundusze i oszczędności
     # v375 (F9Z1, część 2): KALENDARZ 2 (data/kalendarz2.json: inflacja i zatrudnienie USA z kalendarza wydań FRED, kalendarz danych Polski, decyzje banków Anglii i Japonii; cztery części z własnym
     # ok / part_at / errs) — co KAL_EVERY min, plik z częścią nieudaną ponawiany po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok:
     # kalendarz2_cpi_praca_us (FRED już liczony), kalendarz2_dane_pl, kalendarz2_bc_uk, kalendarz2_bc_jp (urząd statystyczny Polski, Bank Anglii i Bank Japonii: +3 źródła).
@@ -37439,6 +37463,275 @@ def build_polska2(prev=None, now=None):
     if not any(n in out for n in P2_CZESCI):
         raise RuntimeError('żadna część pliku nie ma danych')
     return out
+
+
+# ---------------------------------------------------------------- v381 (F11Z2): Europa — dokąd płyną oszczędności domowe i fundusze (data/europa-fundusze.json) ----------------------------------------------------------------
+# Dwie niezależne części z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie:
+#   ivf — przepływy NETTO do funduszy inwestycyjnych (emisja minus umorzenia jednostek, mln EUR, miesięcznie, bez wyrównania sezonowego): strefa euro według typu funduszu (akcyjne 10, obligacyjne 20, mieszane 30,
+#         nieruchomości 40, hedgingowe 50, pozostałe 60, razem T0 i ETF TE — ETF to podzbiór, nie dodatkowa pozycja) oraz DE, FR, IE, LU, NL (akcyjne, obligacyjne, mieszane, razem). Statystyka funduszy banku
+#         centralnego (publiczny interfejs SDMX, CSV, bez klucza): 2 zapytania. Ostatni miesiąc jest zwykle WSTĘPNY (OBS_STATUS P) — plik zapisuje, które miesiące są wstępne.
+#   hh  — transakcje finansowe gospodarstw domowych (kwartalnie, mln EUR, aktywa): depozyty F2, obligacje F3, akcje F51, fundusze F52, ubezpieczenia i emerytury F6 dla PL, DE, FR, IT, ES, NL i strefy euro (EA21).
+#         Statystyka urzędu statystycznego UE (JSON-stat, bez klucza): 5 zapytań (po jednym na pozycję; jedno zapytanie na pozycję z siedmioma krajami — luźniejszy filtr kończy się HTTP 413).
+# Nie ma fabrykowania: brak serii/miesiąca = brak (nie zero); kraj, którego ostatni kwartał nie zgadza się z kwartałem PL w którejkolwiek pozycji, jest pomijany (lista w polu 'bez_kraju'); PL i DE są wymagane.
+EF_PARTS = ('ivf', 'hh')
+EF_LABEL = {'ivf': 'napływy do funduszy', 'hh': 'oszczędności gospodarstw domowych'}
+EF_PX = 'Europa fundusze'
+EF_EVERY = 6 * 60                 # min — dane miesięczne / kwartalne; część z błędem: ponowienie po NIEPELNY_MIN (fresh_pelny)
+EF_TIMEOUT = 45                   # s — jedno zapytanie
+EF_MAX_B = 2_000_000              # B — większa odpowiedź to nie ten plik (dziś: 0,11–0,26 MB CSV i 5 KB JSON)
+EF_IVF_BAZA = 'https://data-api.ecb.europa.eu/service/data/IVF/'
+EF_IVF_POZ = 'L30.A.0.Z5.0000.Z01.E'              # pozycja bilansu (udziały/jednostki funduszy), wszystkie waluty, bez podziału kontrahentów
+EF_TYPY = ('10', '20', '30', '40', '50', '60')    # typ funduszu: akcyjne, obligacyjne, mieszane, nieruchomości, hedgingowe, pozostałe
+EF_TYPY_KRAJ = ('10', '20', '30', 'T0')
+EF_SEKTORY_EURO = EF_TYPY + ('T0', 'TE')
+EF_KRAJE = ('DE', 'FR', 'IE', 'LU', 'NL')
+EF_IVF_N = 26                     # miesięcy na serię (ponad dwa lata)
+EF_IVF_URL_EURO = EF_IVF_BAZA + 'M.U2.N.' + '+'.join(EF_SEKTORY_EURO) + '.' + EF_IVF_POZ + '?lastNObservations=%d&format=csvdata' % EF_IVF_N
+EF_IVF_URL_KRAJE = EF_IVF_BAZA + 'M.' + '+'.join(EF_KRAJE) + '.N.' + '+'.join(EF_TYPY_KRAJ) + '.' + EF_IVF_POZ + '?lastNObservations=%d&format=csvdata' % EF_IVF_N
+EF_IVF_MIN = 20                   # najmniej miesięcy w serii
+EF_IVF_ZAKRES = 600_000.0         # mln EUR — miesięczny przepływ poza ±0,6 bln = błąd skali (największy w danych od 2024: ok. 0,1 bln)
+EF_IVF_SUMA_ABS = 5.0             # mln EUR — suma sześciu typów a „razem”: dozwolona różnica (zaokrąglenia; w danych od 2024 najwyżej 0,2 mln)
+EF_IVF_SUMA_REL = 0.0005
+EF_IVF_WIEK_MAX = 130             # dni od końca ostatniego miesiąca — starsze = źródło nie jest już publikowane (zwykle ok. 35–70 dni)
+EF_HH_URL = ('https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nasq_10_f_tr?format=JSON&lang=EN&sector=S14_S15&finpos=ASS&na_item={it}&unit=MIO_EUR&'
+             + '&'.join('geo=' + g for g in ('PL', 'DE', 'FR', 'IT', 'ES', 'NL', 'EA21')) + '&sinceTimePeriod={od}')
+EF_HH_POZ = ('F2', 'F3', 'F51', 'F52', 'F6')      # depozyty, obligacje, akcje, fundusze, ubezpieczenia i emerytury
+EF_HH_GEO = ('PL', 'DE', 'FR', 'IT', 'ES', 'NL', 'EA21')
+EF_HH_WYMAGANE = ('PL', 'DE')
+EF_HH_ZAKRES = 1_000_000.0        # mln EUR — kwartalna transakcja poza ±1 bln = błąd skali (największa w danych od 2023: 0,19 bln, strefa euro)
+EF_HH_MIN = 8                     # najmniej kwartałów w serii
+EF_HH_N = 12                      # kwartałów w pliku
+EF_HH_WIEK_MAX = 260              # dni od końca ostatniego kwartału (zwykle ok. 100–130; dane za kwartał pojawiają się po ok. 3,5 miesiąca)
+EF_SRC = ('CapitalFlowAI — przepływy netto do funduszy inwestycyjnych w strefie euro i wybranych krajach (statystyka funduszy banku centralnego strefy euro) oraz kwartalne transakcje '
+          'finansowe gospodarstw domowych (urząd statystyczny UE); daty i okresy z samych źródeł, ostatni miesiąc funduszy zwykle wstępny')
+EF_RE_M = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+EF_RE_Q = re.compile(r'^\d{4}-Q[1-4]$')
+
+
+def ef_http(url, max_b=EF_MAX_B, timeout=EF_TIMEOUT):
+    """Jedno zapytanie GET → treść w bajtach. Odpowiedź większa niż max_b, pusta albo kod inny niż 2xx = wyjątek (urllib zgłasza HTTPError dla 4xx/5xx). Bez obchodzenia blokad."""
+    with _otworz(url, {'Accept': '*/*'}, timeout) as r:
+        body = r.read(max_b + 1)
+    if len(body) > max_b:
+        raise ValueError('odpowiedź większa niż oczekiwana')
+    if not body.strip():
+        raise ValueError('pusta odpowiedź')
+    return body
+
+
+def ef_mc(s):
+    """„RRRR-MM” → numer miesiąca (rok·12 + miesiąc − 1) albo None."""
+    return int(s[:4]) * 12 + int(s[5:7]) - 1 if isinstance(s, str) and EF_RE_M.match(s) else None
+
+
+def ef_kw(s):
+    """„RRRR-Qk” → numer kwartału (rok·4 + k − 1) albo None."""
+    return int(s[:4]) * 4 + int(s[6]) - 1 if isinstance(s, str) and EF_RE_Q.match(s) else None
+
+
+def ef_koniec_mc(m):
+    r, mm = int(m[:4]), int(m[5:7])
+    return datetime.date(r + mm // 12, mm % 12 + 1, 1) - datetime.timedelta(days=1)
+
+
+def ef_koniec_kw(q):
+    r, k = int(q[:4]), int(q[6])
+    return datetime.date(r + k // 4, (k * 3) % 12 + 1, 1) - datetime.timedelta(days=1)
+
+
+def ef_ivf_parse(txt):
+    """CSV statystyki funduszy (SDMX csvdata) → {(obszar, sektor): {miesiąc: (liczba mln EUR, status)}}. Tylko miesięczne, bez wyrównania sezonowego, pozycja EF_IVF_POZ; brak wartości = brak punktu
+    (nie zero); skala inna niż miliony, zły układ pliku albo powtórzony miesiąc = wyjątek."""
+    rd = csv.DictReader(io.StringIO(str(txt).lstrip('\ufeff')))
+    need = {'FREQ', 'REF_AREA', 'ADJUSTMENT', 'IVF_REP_SECTOR', 'IVF_ITEM', 'TIME_PERIOD', 'OBS_VALUE', 'OBS_STATUS', 'UNIT_MULT'}
+    if not need <= set(rd.fieldnames or ()):
+        raise RuntimeError('statystyka funduszy: nieznany układ pliku (brak kolumn)')
+    out = {}
+    for r in rd:
+        if (r.get('FREQ') or '').strip() != 'M' or (r.get('ADJUSTMENT') or '').strip() != 'N' or (r.get('IVF_ITEM') or '').strip() != 'L30':
+            continue
+        if (r.get('UNIT_MULT') or '').strip() != '6':
+            raise RuntimeError(f'statystyka funduszy: skala niezgodna (UNIT_MULT {r.get("UNIT_MULT")})')
+        per, v = (r.get('TIME_PERIOD') or '').strip(), _num(r.get('OBS_VALUE'))
+        if ef_mc(per) is None or v is None or v != v:
+            continue
+        k = ((r.get('REF_AREA') or '').strip(), (r.get('IVF_REP_SECTOR') or '').strip())
+        d = out.setdefault(k, {})
+        if per in d:
+            raise RuntimeError(f'statystyka funduszy: powtórzony miesiąc {per} w serii {k[0]}/{k[1]}')
+        d[per] = (v, (r.get('OBS_STATUS') or '').strip())
+    if not out:
+        raise RuntimeError('statystyka funduszy: brak serii')
+    return out
+
+
+def ef_ivf_seria(S, k, n=EF_IVF_N):
+    """Seria miesięczna [[miesiąc, mln EUR]] rosnąco, ostatnie n punktów; seria ma być ciągła (bez luk miesięcy) — luka w środku = wyjątek (brak nie jest zerem, ale dziura w danych źródła to zmiana układu)."""
+    d = S.get(k)
+    if not d:
+        raise RuntimeError(f'statystyka funduszy: brak serii {k[0]}/{k[1]}')
+    ms = sorted(d)[-n:]
+    if len(ms) < EF_IVF_MIN:
+        raise RuntimeError(f'statystyka funduszy: seria {k[0]}/{k[1]} ma {len(ms)} miesięcy (min. {EF_IVF_MIN})')
+    for a, b in zip(ms, ms[1:]):
+        if ef_mc(b) - ef_mc(a) != 1:
+            raise RuntimeError(f'statystyka funduszy: luka w serii {k[0]}/{k[1]} ({a} → {b})')
+    for m in ms:
+        if abs(d[m][0]) > EF_IVF_ZAKRES:
+            raise RuntimeError(f'statystyka funduszy: przepływ {d[m][0]:.0f} mln EUR ({k[0]}/{k[1]}, {m}) poza zakresem')
+    return [[m, round(d[m][0], 1)] for m in ms], [m for m in ms if d[m][1] != 'A']
+
+
+def ef_ivf_zloz(Se, Sk, dzis):
+    """Dwa pliki CSV (strefa euro i kraje) → część 'ivf' z bramkami: wszystkie sektory euro z tym samym ostatnim miesiącem, suma sześciu typów = „razem” (EF_IVF_SUMA_*), każdy kraj ma cztery serie
+    z tym samym ostatnim miesiącem co strefa euro, źródło nie starsze niż EF_IVF_WIEK_MAX dni od końca ostatniego miesiąca."""
+    euro, prov = {}, set()
+    for s in EF_SEKTORY_EURO:
+        euro[s], p = ef_ivf_seria(Se, ('U2', s))
+        prov.update(p)
+    last = euro['T0'][-1][0]
+    for s, ser in euro.items():
+        if ser[-1][0] != last:
+            raise RuntimeError(f'statystyka funduszy: ostatni miesiąc serii {s} ({ser[-1][0]}) ≠ ostatni miesiąc sumy ({last})')
+    idx = {s: dict(euro[s]) for s in EF_TYPY}
+    for m, tot in euro['T0']:
+        sm = sum(idx[s].get(m, 0.0) for s in EF_TYPY)
+        if any(m not in idx[s] for s in EF_TYPY) or abs(sm - tot) > max(EF_IVF_SUMA_ABS, EF_IVF_SUMA_REL * abs(tot)):
+            raise RuntimeError(f'statystyka funduszy: suma typów funduszy ({sm:.0f}) ≠ razem ({tot:.0f}) w {m}')
+    kraje = {}
+    for c in EF_KRAJE:
+        kraje[c] = {}
+        for s in EF_TYPY_KRAJ:
+            kraje[c][s], p = ef_ivf_seria(Sk, (c, s))
+            prov.update(p)
+            if kraje[c][s][-1][0] != last:
+                raise RuntimeError(f'statystyka funduszy: ostatni miesiąc {c}/{s} ({kraje[c][s][-1][0]}) ≠ strefa euro ({last})')
+    if (dzis - ef_koniec_mc(last)).days > EF_IVF_WIEK_MAX:
+        raise RuntimeError(f'statystyka funduszy: ostatni miesiąc {last} starszy niż {EF_IVF_WIEK_MAX} dni — źródło nie jest już publikowane?')
+    return {'asof': last, 'unit': 'mln EUR', 'prov': sorted(m for m in prov if m >= euro['T0'][-6][0]), 'typy': list(EF_TYPY), 'euro': euro, 'kraje': kraje}
+
+
+def ef_hh_parse(j, poz):
+    """JSON-stat urzędu statystycznego (jedna pozycja, kilka krajów) → {kraj: [[kwartał, mln EUR]]} rosnąco; układ wymiarów (freq, unit, sector, finpos, na_item, geo, time) i ich kody sprawdzane; wartość
+    pusta = brak punktu (nie zero). Zły układ = wyjątek."""
+    if not isinstance(j, dict) or not isinstance(j.get('dimension'), dict):
+        raise RuntimeError('transakcje gospodarstw domowych: odpowiedź nie jest zbiorem JSON-stat')
+    ids, size = j.get('id'), j.get('size')
+    if ids != ['freq', 'unit', 'sector', 'finpos', 'na_item', 'geo', 'time'] or not isinstance(size, list) or len(size) != 7:
+        raise RuntimeError('transakcje gospodarstw domowych: zmieniony układ wymiarów')
+
+    def kody(d):
+        ix = (j['dimension'].get(d) or {}).get('category', {}).get('index')
+        if isinstance(ix, list):
+            ix = {c: i for i, c in enumerate(ix)}
+        if not isinstance(ix, dict):
+            raise RuntimeError(f'transakcje gospodarstw domowych: brak indeksu wymiaru {d}')
+        return ix
+    for d, kod in (('freq', 'Q'), ('unit', 'MIO_EUR'), ('sector', 'S14_S15'), ('finpos', 'ASS'), ('na_item', poz)):
+        if list(kody(d)) != [kod]:
+            raise RuntimeError(f'transakcje gospodarstw domowych: wymiar {d} = {list(kody(d))[:3]} zamiast {kod}')
+    geo, tm = kody('geo'), kody('time')
+    if len(geo) != size[5] or len(tm) != size[6]:
+        raise RuntimeError('transakcje gospodarstw domowych: rozmiary wymiarów nie zgadzają się z indeksami')
+    val = j.get('value')
+    if isinstance(val, list):
+        val = {str(i): v for i, v in enumerate(val)}
+    if not isinstance(val, dict):
+        raise RuntimeError('transakcje gospodarstw domowych: brak wartości')
+    out = {}
+    for g, gi in geo.items():
+        rows = []
+        for q, qi in sorted(tm.items(), key=lambda x: x[1]):
+            v = val.get(str(gi * size[6] + qi))
+            if ef_kw(q) is None:
+                raise RuntimeError(f'transakcje gospodarstw domowych: zły kwartał {q!r}')
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v:
+                rows.append([q, round(float(v), 1)])
+        rows.sort(key=lambda r: r[0])
+        out[g] = rows
+    return out
+
+
+def ef_hh_zloz(P, dzis):
+    """{pozycja: {kraj: [[kwartał, mln EUR]]}} → część 'hh': PL i DE wymagane (każda pozycja, ≥ EF_HH_MIN kwartałów, ciągłe, bez dubli), kwartał kotwica = ostatni kwartał PL; wszystkie wymagane pozycje PL i DE
+    mają ten sam ostatni kwartał; kraj, który w którejkolwiek pozycji nie ma tego kwartału albo ma serię poza zakresem, jest pomijany (lista bez_kraju); źródło nie starsze niż EF_HH_WIEK_MAX dni."""
+    for it in EF_HH_POZ:
+        if it not in P:
+            raise RuntimeError(f'transakcje gospodarstw domowych: brak pozycji {it}')
+    last = None
+    for g in EF_HH_WYMAGANE:
+        for it in EF_HH_POZ:
+            rows = P[it].get(g) or []
+            if len(rows) < EF_HH_MIN:
+                raise RuntimeError(f'transakcje gospodarstw domowych: {g}/{it} ma {len(rows)} kwartałów (min. {EF_HH_MIN})')
+            if last is None:
+                last = rows[-1][0] if g == 'PL' else None
+            if last is not None and rows[-1][0] != last:
+                raise RuntimeError(f'transakcje gospodarstw domowych: ostatni kwartał {g}/{it} ({rows[-1][0]}) ≠ PL ({last})')
+    if (dzis - ef_koniec_kw(last)).days > EF_HH_WIEK_MAX:
+        raise RuntimeError(f'transakcje gospodarstw domowych: ostatni kwartał {last} starszy niż {EF_HH_WIEK_MAX} dni — źródło nie jest już publikowane?')
+    kraje, bez = {}, []
+    for g in EF_HH_GEO:
+        try:
+            k = {}
+            for it in EF_HH_POZ:
+                rows = P[it].get(g) or []
+                if not rows or rows[-1][0] != last or len(rows) < EF_HH_MIN:
+                    raise RuntimeError('brak kwartału lub za krótka seria')
+                for a, b in zip(rows, rows[1:]):
+                    if ef_kw(b[0]) - ef_kw(a[0]) != 1:
+                        raise RuntimeError('luka w serii')
+                if any(abs(r[1]) > EF_HH_ZAKRES for r in rows):
+                    raise RuntimeError('wartość poza zakresem')
+                k[it] = rows[-EF_HH_N:]
+            kraje[g] = k
+        except RuntimeError as e:
+            if g in EF_HH_WYMAGANE:
+                raise RuntimeError(f'transakcje gospodarstw domowych: {g}: {e}')
+            bez.append(g)
+    return {'asof': last, 'unit': 'mln EUR', 'poz': list(EF_HH_POZ), 'kraje': kraje, 'bez_kraju': bez}
+
+
+def ef_czesc(k, prev, dzis):
+    """Jedna część pliku → słownik części. Błąd = wyjątek (część zostaje z poprzedniego pliku). Źródło z ostatnim okresem wcześniejszym niż w poprzednim pliku = poprzednia część bez zmian (notatka)."""
+    if k == 'ivf':
+        c = ef_ivf_zloz(ef_ivf_parse(ef_http(EF_IVF_URL_EURO).decode('utf-8-sig', 'replace')), ef_ivf_parse(ef_http(EF_IVF_URL_KRAJE).decode('utf-8-sig', 'replace')), dzis)
+    else:
+        od = f'{dzis.year - 3}-Q1'
+        P = {}
+        for it in EF_HH_POZ:
+            P[it] = ef_hh_parse(json.loads(ef_http(EF_HH_URL.format(it=it, od=od)).decode('utf-8-sig')), it)
+        c = ef_hh_zloz(P, dzis)
+    if isinstance(prev, dict) and isinstance(prev.get('asof'), str) and prev['asof'] > c['asof']:
+        META['notes'].append(f'{EF_PX} {EF_LABEL[k]}: źródło pokazuje {c["asof"]}, a poprzedni plik ma {prev["asof"]} — zostaje poprzednia część')
+        return prev
+    return c
+
+
+def build_europa_fundusze(prev=None):
+    """Plik data/europa-fundusze.json (v381): dwie części (ivf, hh) z własnym ok / part_at / errs; część z błędem zostaje z poprzedniego pliku z własną chwilą, nigdy pusta zamiast ostatnich danych;
+    żadna część nie odpowiedziała = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == 1 else {}
+    pat = _dict(prev.get('part_at'))
+    dzis = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc).date()
+    out = {'v': 1, 'at': NOW, 'src': EF_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    for k in EF_PARTS:
+        try:
+            out[k] = ef_czesc(k, prev.get(k), dzis)
+            out['ok'][k] = True
+            out['part_at'][k] = NOW if out[k] is not prev.get(k) else (pat.get(k) or prev.get('at') or NOW)
+        except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
+            msg = mask(f'{e}')[:160]
+            META['errors'].append(mask(f'{EF_PX} {EF_LABEL[k]}: {msg}')[:220]); out['ok'][k] = False; out['errs'][k] = msg
+            if isinstance(prev.get(k), dict):
+                out[k] = prev[k]
+                out['part_at'][k] = pat.get(k) or prev.get('at')
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+ZRODLA_META.update({'europa_fundusze_ivf': 'ecb', 'europa_fundusze_hh': 'eurostat'})   # v381: te same dwie instytucje co dotąd (bank centralny strefy euro i urząd statystyczny UE) — liczba źródeł bez zmian
 
 
 if __name__ == '__main__':
