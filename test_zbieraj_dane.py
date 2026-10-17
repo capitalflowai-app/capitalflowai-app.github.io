@@ -55791,7 +55791,7 @@ class UsdtSkarbiecV377(unittest.TestCase):
 
     def setUp(self):
         zd.META['errors'].clear(); zd.META['ok'].clear()
-        self.p = [mock.patch.object(zd, '_now_utc', lambda: _V377_NOW), mock.patch.object(zd, 'NOW', _V377_NOW.isoformat()), mock.patch.object(zd, 'USK_SLEEP', 0)]
+        self.p = [mock.patch.object(zd, '_now_utc', lambda: _V377_NOW), mock.patch.object(zd, 'NOW', _V377_NOW.isoformat()), mock.patch.object(zd, 'USK_SLEEP', 0), mock.patch.object(zd, 'USK_RETRY_DOM_S', 0)]   # v386: bez czekania przed ponowieniem po 429
         [p.start() for p in self.p]
 
     def tearDown(self):
@@ -58823,3 +58823,215 @@ class RwaXstocksOdpornoscV385(unittest.TestCase):
         self.assertEqual((Z['bledy'], Z['uwagi'], Z['trwa'][0]['bez']), ([], [], True), 'części z AW_BEZ_BLEDU — bez zmian, zawsze informacja')
         txt = ' '.join(x[1] for x in k.CO_ZROBIC)
         self.assertIn('od ponad doby', txt); self.assertNotIn('od ponad 2 dni', txt)
+
+
+def _v386_serwer(zle=(), retry=None, od=None):
+    """v386: zaślepka get_json — zapytania do Tron o numerach `zle` (od 1, w kolejności wysyłania) albo wszystkie od numeru `od` kończą się HTTP 429 (nagłówek Retry-After = retry, gdy podany);
+    reszta jak _v377_get. Zwraca (get_json, stan) — stan['tron'] = liczba zapytań do Tron, stan['calls'] = wszystkie adresy."""
+    baza, st = _v377_get(), {'tron': 0, 'calls': []}
+
+    def get_json(url, headers=None, timeout=30):
+        st['calls'].append(url)
+        if 'trongrid' in url:
+            st['tron'] += 1
+            if st['tron'] in zle or (od is not None and st['tron'] >= od):
+                raise urllib.error.HTTPError(url, 429, 'Too Many Requests', ({'Retry-After': retry} if retry is not None else {}), None)
+        return baza(url, headers, timeout)
+    return get_json, st
+
+
+class TestV386TronLimit(unittest.TestCase):
+    """v386 (17.10.2026): publiczny interfejs Tron odpowiadał HTTP 429 w seriach 1–3 przebiegów (od 15.10), a błąd w meta.json w chwili kontroli dawał czerwień „błędy zbieracza w 3 kolejnych dniach”.
+    Tron najwyżej raz na USK_TR_CO_MIN min, po błędzie przerwa USK_TR_PO_BLEDZIE_MIN min, jedno ponowienie po 429 z Retry-After, poprzedni odczyt z datą (najwyżej 6 h)."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+        self.sl = []
+        self.p = [mock.patch.object(zd, '_now_utc', lambda: _V377_NOW), mock.patch.object(zd, 'NOW', _V377_NOW.isoformat()), mock.patch.object(zd, 'USK_SLEEP', 0),
+                  mock.patch.object(zd, 'USK_RETRY_DOM_S', 4), mock.patch.object(zd.time, 'sleep', lambda s: self.sl.append(s))]
+        [p.start() for p in self.p]
+
+    def tearDown(self):
+        [p.stop() for p in self.p]
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def _bud(self, prev, minuty, get):
+        t = _V377_NOW + datetime.timedelta(minutes=minuty)
+        with mock.patch.object(zd, 'NOW', t.isoformat()), mock.patch.object(zd, '_now_utc', lambda: t), mock.patch.object(zd, 'get_json', get):
+            return zd.build_usdt_skarbiec(prev)
+
+    def _pelny(self):
+        g, st = _v386_serwer()
+        o = self._bud(None, 0, g)
+        self.assertEqual(o['ok'], {'eth': True, 'tron': True}); self.assertEqual(st['tron'], 3, 'jeden odczyt Tron = 3 zapytania (konto, Issue, Redeem)')
+        return o
+
+    def test_plan_tron(self):
+        self.assertEqual((zd.USK_TR_CO_MIN, zd.USK_TR_PO_BLEDZIE_MIN, zd.USK_RETRY_MAX_S), (55, 45, 15))
+        t = _V377_NOW; iso = lambda m: (t - datetime.timedelta(minutes=m)).isoformat()   # noqa: E731
+        pv = lambda czesc, proba=None: {'v': 1, 'at': iso(5), 'tron': {'bal': 1}, 'part_at': {'tron': iso(czesc)}, **({'proba': {'tron': iso(proba)}} if proba is not None else {})}   # noqa: E731
+        self.assertEqual(zd.usk_tron_plan(pv(30), t.isoformat()), 'rytm'); self.assertEqual(zd.usk_tron_plan(pv(54), t.isoformat()), 'rytm')
+        self.assertEqual(zd.usk_tron_plan(pv(55), t.isoformat()), 'pobierz'); self.assertEqual(zd.usk_tron_plan(pv(200), t.isoformat()), 'pobierz')
+        self.assertEqual(zd.usk_tron_plan(pv(200, 10), t.isoformat()), 'blok', 'ostatnia próba (nieudana) sprzed 10 min'); self.assertEqual(zd.usk_tron_plan(pv(200, 44), t.isoformat()), 'blok')
+        self.assertEqual(zd.usk_tron_plan(pv(200, 45), t.isoformat()), 'pobierz')
+        self.assertEqual(zd.usk_tron_plan({}, t.isoformat()), 'pobierz'); self.assertEqual(zd.usk_tron_plan(None, t.isoformat()), 'pobierz')
+        self.assertEqual(zd.usk_tron_plan({'v': 1, 'at': iso(5), 'proba': {'tron': iso(5)}}, t.isoformat()), 'blok', 'bez odczytu, ale z niedawną nieudaną próbą')
+        self.assertEqual(zd.usk_tron_plan(pv(-10), t.isoformat()), 'pobierz', 'odczyt z przyszłości = nie wierz, pobierz'); self.assertEqual(zd.usk_tron_plan(pv(30), 'zły'), 'pobierz')
+
+    def test_rytm_tron_bez_zapytan_i_bez_nowego_punktu_historii(self):
+        o0 = self._pelny()
+        o0['tron']['bal'] = 777   # odczyt Tron z poprzedniego pliku — jego saldo nie może trafić do historii z nową datą
+        g, st = _v386_serwer()
+        o1 = self._bud(o0, 30, g)
+        self.assertEqual(st['tron'], 0, 'Tron młodszy niż 55 min — ani jednego zapytania'); self.assertEqual(sum('blockscout' in c for c in st['calls']), 4)
+        self.assertEqual(o1['ok'], {'eth': True, 'tron': 'cached'}); self.assertEqual(o1['tron'], o0['tron']); self.assertEqual(o1['part_at']['tron'], o0['part_at']['tron'], 'data odczytu Tron zostaje')
+        self.assertEqual(o1['part_at']['eth'], (_V377_NOW + datetime.timedelta(minutes=30)).isoformat()); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(o1['hist']['tron'], [['2026-10-15', 1171852227]]); self.assertEqual(o1['hist']['skarb'], o0['hist']['skarb'], 'suma „razem” tylko gdy obie sieci odczytane w tym przebiegu')
+        g, st = _v386_serwer()
+        o2 = self._bud(o1, 56, g)
+        self.assertEqual((st['tron'], o2['ok']), (3, {'eth': True, 'tron': True})); self.assertEqual(o2['part_at']['tron'], (_V377_NOW + datetime.timedelta(minutes=56)).isoformat())
+        g, st = _v386_serwer()
+        self._bud(o1, 54, g); self.assertEqual(st['tron'], 0, '54 min od odczytu — jeszcze rytm')
+
+    def test_jedno_ponowienie_po_429_z_retry_after(self):
+        g, st = _v386_serwer(zle={1}, retry='2')
+        o = self._bud(None, 0, g)
+        self.assertEqual(o['ok'], {'eth': True, 'tron': True}); self.assertEqual(st['tron'], 4, '429 przy koncie + ponowienie + 2 listy zdarzeń'); self.assertEqual(zd.META['errors'], [])
+        self.assertIn(2, self.sl); self.assertEqual(o['tron']['bal'], 1171852227)
+        # brak nagłówka: czekanie domyślne USK_RETRY_DOM_S
+        self.sl.clear(); g, st = _v386_serwer(zle={2})
+        o = self._bud(None, 0, g)
+        self.assertEqual((o['ok']['tron'], st['tron']), (True, 4)); self.assertIn(4, self.sl)
+        # Retry-After jako data HTTP (od chwili zegara przebiegu): 7 s
+        self.sl.clear(); g, st = _v386_serwer(zle={1}, retry='Thu, 15 Oct 2026 04:00:07 GMT')
+        o = self._bud(None, 0, g)
+        self.assertTrue(o['ok']['tron']); self.assertIn(7, self.sl)
+
+    def test_po_drugim_429_albo_dlugim_retry_after_czesc_zostaje_z_data(self):
+        o0 = self._pelny()
+        g, st = _v386_serwer(od=1, retry='2')
+        o = self._bud(o0, 60, g)
+        self.assertEqual(st['tron'], 2, 'zapytanie i jedno ponowienie — dalej nic'); self.assertEqual(o['ok'], {'eth': True, 'tron': False}); self.assertEqual(o['tron'], o0['tron']); self.assertEqual(o['part_at']['tron'], o0['part_at']['tron'])
+        self.assertEqual(len(zd.META['errors']), 1); self.assertTrue(zd.META['errors'][0].startswith('USDT skarbiec tron:') and '429' in zd.META['errors'][0])
+        self.assertEqual(o['proba'], {'tron': (_V377_NOW + datetime.timedelta(minutes=60)).isoformat()})
+        zd.META['errors'].clear(); self.sl.clear()
+        g, st = _v386_serwer(od=1, retry='120')
+        o = self._bud(o0, 60, g)
+        self.assertEqual(st['tron'], 1, 'Retry-After 120 s > 15 s — bez ponowienia'); self.assertNotIn(120, self.sl); self.assertFalse(o['ok']['tron'])
+        # najwyżej jedno ponowienie na odczyt: 429 przy Issue (ponowione, udane), potem 429 przy Redeem — bez drugiego ponowienia
+        zd.META['errors'].clear()
+        g, st = _v386_serwer(zle={2, 4}, retry='1')
+        o = self._bud(o0, 60, g)
+        self.assertEqual(st['tron'], 4); self.assertFalse(o['ok']['tron'])
+        # inny błąd HTTP (500) nie jest ponawiany
+        base = _v377_get(); n = []
+
+        def g500(url, headers=None, timeout=30):
+            if 'trongrid' in url:
+                n.append(url); raise urllib.error.HTTPError(url, 500, 'Err', {}, None)
+            return base(url, headers, timeout)
+        zd.META['errors'].clear()
+        o = self._bud(o0, 60, g500)
+        self.assertEqual(len(n), 1); self.assertFalse(o['ok']['tron'])
+
+    def test_przerwa_po_bledzie_i_liczba_zapytan_w_awarii(self):
+        o = self._pelny(); t_zap = 0; wszystkie = []
+        for m in range(30, 391, 30):   # przebiegi pliku co 30 min, od 60. minuty Tron odpowiada 429 bez przerwy
+            g, st = _v386_serwer(od=(1 if m >= 60 else None), retry='1')
+            zd.META['errors'].clear()
+            o = self._bud(o, m, g)
+            wszystkie.append((m, st['tron'], o['ok']['tron'], len(zd.META['errors'])))
+        self.assertEqual([w[1] for w in wszystkie], [0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0], 'próba najwyżej co ~godzinę, w każdej 2 zapytania (zapytanie + jedno ponowienie)')
+        self.assertEqual([w[2] for w in wszystkie][:3], ['cached', False, False]); self.assertEqual([w[3] for w in wszystkie][:3], [0, 1, 0], 'przerwa po błędzie: bez nowego błędu')
+        self.assertEqual(sum(w[1] for w in wszystkie), 12, 'dotąd 3 zapytania przy każdym odświeżeniu pliku (~co 30 min): 11 × 3 = 33')
+        self.assertNotIn('tron', o, 'po 6 h bez odczytu część znika (390. minuta od odczytu o 0)'); self.assertIn('eth', o)
+
+    def test_blok_wznawia_sie_po_przerwie(self):
+        o0 = self._pelny()
+        g, st = _v386_serwer(od=1, retry='1'); o1 = self._bud(o0, 60, g)
+        g, st = _v386_serwer(); o2 = self._bud(o1, 70, g)
+        self.assertEqual((st['tron'], o2['ok']['tron']), (0, False), 'przerwa 45 min od nieudanej próby'); self.assertEqual(o2['proba'], o1['proba'], 'czas próby nie przesuwa się przy przerwie')
+        g, st = _v386_serwer(); o3 = self._bud(o2, 106, g)
+        self.assertEqual((st['tron'], o3['ok']['tron']), (3, True)); self.assertEqual(o3['part_at']['tron'], (_V377_NOW + datetime.timedelta(minutes=106)).isoformat())
+        self.assertNotIn('proba', o3, 'udany odczyt kasuje ślad nieudanej próby')
+        self.assertEqual(o3['hist']['skarb'][-1][1], 2109852401 + 1171852227)
+
+    def test_czesc_przebiegu_przepuszcza_cached(self):
+        zapis = {}
+        nowy = {'v': 1, 'at': 'x', 'ok': {'eth': True, 'tron': 'cached'}}
+        with mock.patch.object(zd, 'previous', lambda n: None), mock.patch.object(zd, 'save', lambda n, o: zapis.__setitem__(n, o)), mock.patch.object(zd, 'build_usdt_skarbiec', lambda p: nowy):
+            self.assertEqual(zd.usk_czesc(), (True, 'cached'))
+        self.assertEqual(zd.zrodla_meta({'usdt_eth': True, 'usdt_tron': 'cached'}), {'n': 2, 'ok': 2}, '„cached” to źródło, które odpowiedziało (odczyt jeszcze świeży)')
+
+
+class KontrolaUsdtTron429V386(unittest.TestCase):
+    """v386: kontrola — pojedyncze 429 USDT skarbiec przy świeżym odczycie (< 2 h) nie liczy się do czerwieni „3 kolejne dni”; zastój odczytu sieci > 6 h albo brak części = BŁĄD."""
+    NOW = datetime.datetime(2026, 10, 17, 7, 5, tzinfo=datetime.timezone.utc)
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola386-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v386_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    def _j(self, eth_h=0.3, tron_h=0.3, tron=True):
+        t = lambda h: (self.NOW - datetime.timedelta(hours=h)).isoformat().replace('+00:00', 'Z')   # noqa: E731
+        j = {'v': 1, 'at': t(0.1), 'eth': {'t': t(eth_h), 'bal': 1}, 'tron': {'t': t(tron_h), 'bal': 1}}
+        if not tron:
+            del j['tron']
+        return j
+    E429 = 'USDT skarbiec tron: HTTP Error 429: Too Many Requests'
+
+    def test_zastoj_odczytu_to_blad(self):
+        k = self.k
+        self.assertEqual(k.usk_bledy(self._j(), self.NOW), []); self.assertEqual(k.usk_bledy(self._j(tron_h=5.9), self.NOW), [], 'do 6 h tylko uwaga z wiersza świeżości (> 3 h)')
+        b = k.usk_bledy(self._j(tron_h=6.2), self.NOW)
+        self.assertEqual(len(b), 1); self.assertIn('Tron', b[0]); self.assertIn('6 h', b[0]); self.assertTrue(b[0].startswith('USDT skarbiec: '))
+        b = k.usk_bledy(self._j(eth_h=7, tron=False), self.NOW)
+        self.assertEqual(len(b), 2); self.assertIn('Ethereum', b[0]); self.assertIn('brak odczytu sieci Tron', b[1])
+        for brak in (None, {}, {'v': 2, 'eth': {'t': 'x'}}, 'zły'):
+            self.assertEqual(k.usk_bledy(brak, self.NOW), [])
+        j = self._j(); j['tron']['t'] = 'zły'
+        self.assertEqual(k.usk_bledy(j, self.NOW), [], 'zły czas: wiersz świeżości pokazuje „?”, to nie zastój')
+        co = next((x for r, x in k.CO_ZROBIC if r.search(b[0])), k.CO_ZROBIC_INNE)
+        self.assertNotEqual(co, k.CO_ZROBIC_INNE); self.assertIn('USDT skarbiec', co)
+        self.assertEqual(next((x for r, x in k.CO_ZROBIC if r.search('część automatu „x” nie działa')), None), next(x for r, x in k.CO_ZROBIC if r.pattern.startswith('^część automatu')), 'stare dopasowania bez zmian')
+
+    def test_pojedyncze_429_przy_swiezym_odczycie_nie_liczy_sie(self):
+        k = self.k
+        self.assertTrue(k.usk_blad_swiezy(self.E429, self._j(tron_h=1.0), self.NOW)); self.assertTrue(k.usk_blad_swiezy(self.E429, self._j(tron_h=1.99), self.NOW))
+        self.assertFalse(k.usk_blad_swiezy(self.E429, self._j(tron_h=2.0), self.NOW), '2 h i więcej — liczy się'); self.assertFalse(k.usk_blad_swiezy(self.E429, self._j(tron_h=4), self.NOW))
+        self.assertFalse(k.usk_blad_swiezy(self.E429, self._j(tron=False), self.NOW), 'brak części = nie świeży')
+        self.assertFalse(k.usk_blad_swiezy(self.E429, None, self.NOW)); self.assertFalse(k.usk_blad_swiezy(self.E429, {'v': 2}, self.NOW))
+        self.assertTrue(k.usk_blad_swiezy('USDT skarbiec tron: HTTP Error 429: Too Many Requests'.lower().replace('usdt', 'USDT'), self._j(tron_h=0.5), self.NOW))
+        # inny błąd tej części albo inne źródło — nadal liczy się
+        for e in ('USDT skarbiec tron: Tron: odpowiedź konta ma zły kształt', 'USDT skarbiec tron: HTTP Error 500: Server Error', 'USDT skarbiec: żadna sieć USDT nie odpowiedziała',
+                  'rwa-emitenci: HTTP Error 429: Too Many Requests', 'USDT skarbiec tron: timed out'):
+            self.assertFalse(k.usk_blad_swiezy(e, self._j(tron_h=0.3), self.NOW), e)
+        # błąd sieci eth ocenia wiek odczytu ETH, nie Tron
+        self.assertFalse(k.usk_blad_swiezy('USDT skarbiec eth: HTTP Error 429: Too Many Requests', self._j(eth_h=3, tron_h=0.2), self.NOW))
+        self.assertTrue(k.usk_blad_swiezy('USDT skarbiec eth: HTTP Error 429: Too Many Requests', self._j(eth_h=0.2, tron_h=3), self.NOW))
+
+    def test_liczba_bledow_do_historii_i_czerwien_3_dni(self):
+        k = self.k
+        F = {'usdt-skarbiec': self._j(tron_h=1.1)}
+        self.assertEqual(k.bledy_zbieracza_liczba([self.E429], F, self.NOW), 0)
+        self.assertEqual(k.bledy_zbieracza_liczba([self.E429, 'rwa-emitenci: x'], F, self.NOW), 1, 'inny błąd zostaje')
+        self.assertEqual(k.bledy_zbieracza_liczba([self.E429], {'usdt-skarbiec': self._j(tron_h=2.5)}, self.NOW), 1)
+        self.assertEqual(k.bledy_zbieracza_liczba([self.E429], {}, self.NOW), 1); self.assertEqual(k.bledy_zbieracza_liczba(None, F, self.NOW), 0); self.assertEqual(k.bledy_zbieracza_liczba([self.E429], None, self.NOW), 1)
+        # 15., 16., 17.10: w chwili kontroli stał tylko ten błąd 429 (dowód: kontrola/ostatnia.json) — przed zmianą czerwień, po zmianie nie
+        def hist(n):
+            return [{'at': f'2026-10-{d}T07:0{d % 10}:00+00:00', 'bledy_zbieracza': n} for d in (15, 16, 17)]
+        self.assertTrue(k.czerwone_z_historii(hist(1)), 'stary sposób liczenia: 3 dni z błędem = czerwone')
+        self.assertFalse(k.czerwone_z_historii(hist(k.bledy_zbieracza_liczba([self.E429], F, self.NOW))))
+        self.assertTrue(k.czerwone_z_historii(hist(k.bledy_zbieracza_liczba([self.E429], {'usdt-skarbiec': self._j(tron_h=3)}, self.NOW))), 'to samo 429 przy odczycie sprzed 3 h liczy się jak dotąd')
+
+    def test_wpiecie_w_kontrole(self):
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
+            s = f.read()
+        i1, i2, i3 = s.index("R['bledy'] += usk_bledy(files.get('usdt-skarbiec'))"), s.index('# 3d. v115: zgodność liczb'), s.index("n_err = bledy_zbieracza_liczba(R['meta'].get('errors'), files, NOW)")
+        self.assertTrue(i1 < i2 < i3, 'błąd zastoju w bloku 3c (przed zgodnością liczb 3d), liczba do historii w kroku 5')
+        self.assertIn("'bledy_zbieracza': n_err", s)
+        self.assertEqual(self.k.USK_K_SWIEZE_H, 2); self.assertEqual(self.k.USK_K_BLAD_H, 6)

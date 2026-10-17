@@ -9712,6 +9712,49 @@ USK_K_H = 3        # h — wiek odczytu sieci
 USK_K_DNI = 30     # tyle dób w druku
 USK_K_ETYKIETA = {'eth': 'USDT skarbiec — odczyt sieci Ethereum', 'tron': 'USDT skarbiec — odczyt sieci Tron'}
 USK_K_SIEC = {'eth': 'Ethereum', 'tron': 'Tron'}
+# v386: błąd części USDT skarbiec (np. HTTP 429 publicznego interfejsu Tron) przy odczycie tej sieci młodszym niż USK_K_SWIEZE_H h NIE liczy się do czerwieni „błędy zbieracza w 3 kolejnych dniach” (zostaje
+# uwagą ⚠️ z treścią błędu): zbieracz pyta Tron raz na ~55 min i po błędzie zostawia poprzedni odczyt z datą, więc pojedyncze 429 nie psuje danych. Zastój odczytu sieci dłuższy niż USK_K_BLAD_H h albo brak
+# części w pliku (zbieracz trzyma część najwyżej 6 h) = BŁĄD ❌ (źródło nie odpowiada, a nie pojedyncze ograniczenie). Progi sprawdzone na 3 kontrolach z plikiem (15–17.10): odczyty 0 h 03–0 h 27, serie 429 po 1–3 przebiegi.
+USK_K_SWIEZE_H = 2
+USK_K_BLAD_H = 6
+USK_K_429 = re.compile(r'^USDT skarbiec (eth|tron): .*(?:HTTP\D{0,7}429\b|too many requests)', re.I)
+CO_ZROBIC = CO_ZROBIC + ((re.compile(r'^USDT skarbiec: '),
+                         'Odczyt salda skarbca USDT z jednej sieci (Ethereum albo Tron) nie działa od ponad 6 godzin — publiczne źródło odrzuca zapytania albo zmieniło odpowiedź. '
+                         'Strona pokazuje wtedy „—” zamiast starej liczby. Napisz do Claude: „sprawdź USDT skarbiec z kontroli”.'),)
+
+
+def usk_wiek_czesci_h(j, k, now=None):
+    """v386: wiek odczytu sieci k ('eth' / 'tron') w godzinach (pole t części pliku data/usdt-skarbiec.json v1); brak pliku, części albo czasu = None."""
+    C = j.get(k) if isinstance(j, dict) and j.get('v') == 1 else None
+    t = _ix_dt_k(C.get('t')) if isinstance(C, dict) else None
+    return None if t is None else ((now or NOW) - t).total_seconds() / 3600
+
+
+def usk_bledy(j, now=None):
+    """v386: BŁĘDY zastoju USDT skarbiec → lista opisów: sieć bez części w pliku (zbieracz usuwa część po USK_MAX_H = 6 h bez odczytu) albo odczyt starszy niż USK_K_BLAD_H h. Brak pliku / inna wersja = []."""
+    if not (isinstance(j, dict) and j.get('v') == 1):
+        return []
+    out = []
+    for k in ('eth', 'tron'):
+        S, w = USK_K_SIEC[k], usk_wiek_czesci_h(j, k, now)
+        if not isinstance(j.get(k), dict):
+            out.append(f'USDT skarbiec: brak odczytu sieci {S} (źródło nie odpowiada od ponad {USK_K_BLAD_H} godz.)')
+        elif w is not None and w > USK_K_BLAD_H:
+            out.append(f'USDT skarbiec: odczyt sieci {S} sprzed {fmt_wiek(int(w * 60))} (źródło nie odpowiada od ponad {USK_K_BLAD_H} godz.)')
+    return out
+
+
+def usk_blad_swiezy(err, j, now=None):
+    """v386: czy błąd zbieracza to HTTP 429 części USDT skarbiec, której odczyt w pliku jest młodszy niż USK_K_SWIEZE_H h (pojedyncze ograniczenie przy świeżych danych — tylko ⚠️)."""
+    m = USK_K_429.match(str(err))
+    w = usk_wiek_czesci_h(j, m.group(1).lower(), now) if m else None
+    return w is not None and -1 <= w < USK_K_SWIEZE_H
+
+
+def bledy_zbieracza_liczba(errors, files, now=None):
+    """v386: liczba błędów zbieracza do czerwieni „3 kolejne dni” (kontrola/historia.json): bez pojedynczych 429 USDT skarbiec przy świeżym odczycie (usk_blad_swiezy)."""
+    j = files.get('usdt-skarbiec') if isinstance(files, dict) else None
+    return sum(1 for e in (errors or []) if not usk_blad_swiezy(e, j, now))
 
 
 def _usk_k_kw(v):
@@ -10888,6 +10931,7 @@ def kontrola():
         for label, st, w, txt, note in U_['rows']:
             R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
         R['uwagi'] += U_['uwagi']
+        R['bledy'] += usk_bledy(files.get('usdt-skarbiec'))   # v386: zastój odczytu sieci > 6 h albo brak części = BŁĄD
         R['zgodnosc']['usdt-skarbiec'] = {'spojnosc': U_['spojnosc'], 'wiersze': U_['wiersze']} if (U_['rows'] or U_['wiersze']) else None
     except Exception as e:  # noqa
         R['zgodnosc']['usdt-skarbiec'] = {'blad': str(e)[:120]}
@@ -11433,7 +11477,7 @@ def kontrola():
     # 5. v115: historia — błędy zbieracza w 3 kolejnych przebiegach kontroli = czerwone
     if _TERMIN['przekroczony']:   # v327 (KON-04): po terminie całej kontroli część zapytań nie wyszła — raport częściowy
         R['bledy'].append(kontrola_przerwana_opis(KoniecCzasu()))
-    n_err = len(R['meta'].get('errors') or []) if isinstance(R['meta'], dict) else 0
+    n_err = bledy_zbieracza_liczba(R['meta'].get('errors'), files, NOW) if isinstance(R['meta'], dict) else 0   # v386: bez pojedynczych 429 USDT skarbiec przy świeżym odczycie
     hist = historia(os.path.join(OUT_DIR, 'historia.json'), {'at': R['at'], 'bledy_zbieracza': n_err, 'uwagi': len(R['uwagi']), 'bledy': len(R['bledy']),
                                                            'przegl': (R.get('przegladarka') or {}).get('stan')})   # v248: stan przeglądarki
     if czerwone_z_historii(hist):

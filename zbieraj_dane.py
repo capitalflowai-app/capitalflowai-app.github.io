@@ -36619,6 +36619,8 @@ ZRODLA_META.update({'nowcasty_pkb': 'fed-atlanta', 'nowcasty_cpi': 'fed-clevelan
 # i czasem. Liczone są WYŁĄCZNIE zdarzenia emisji i umorzenia zapisane w kontrakcie, a nie przelewy: przelew między portfelami emitenta (np. skarbiec w Ethereum → skarbiec w Tron) nie zmienia
 # podaży, więc nic nie jest liczone dwa razy. Własna historia dobowa salda skarbca (ostatni odczyt doby; ste_historia trzyma STE_HIST_DNI ostatnich dób) osobno dla sieci i razem — zmiana razem znosi przelewy między skarbcami.
 # Rytm: co USK_EVERY_MIN min (7 zapytań na przebieg, odstęp USK_SLEEP s; limit eksploratora to 180 zapytań w oknie). Część po błędzie zostaje z poprzedniego pliku najwyżej USK_MAX_H godzin.
+# v386: Tron (3 zapytania; publiczny interfejs bez klucza odpowiadał HTTP 429 w seriach 1–3 przebiegów) jest pytany najwyżej raz na USK_TR_CO_MIN min i po błędzie najwcześniej po USK_TR_PO_BLEDZIE_MIN min
+# (pole 'proba' pliku = czas ostatniej NIEUDANEJ próby); jedno ponowienie po 429 z nagłówkiem Retry-After (do USK_RETRY_MAX_S s), potem część zostaje z poprzedniego odczytu i jego datą. ok[tron] = 'cached': odczyt młodszy niż rytm, bez zapytań.
 # Bramki: kontrakt zgodny z adresem, saldo skarbca ≤ podaż w sieci (Ethereum), kwoty skończone, nieujemne i ≤ USK_PLAUZ_MAX, zdarzenie z właściwą nazwą / tematem, brak ucięcia listy zdarzeń.
 USK_V = 1
 USK_EVERY_MIN = 25
@@ -36639,6 +36641,10 @@ USK_TR_STRONA = 200       # zdarzeń na stronę (maksimum interfejsu węzła)
 USK_TR_STRON = 4          # tyle stron na rodzaj zdarzenia
 USK_PLAUZ_MAX = 1e11      # USD — pojedyncza emisja / umorzenie / saldo powyżej tego to błąd odczytu
 USK_PODAZ = (1e10, 1e12)  # USD — podaż USDT w sieci poza przedziałem = błąd odczytu
+USK_TR_CO_MIN = 55         # v386: min — Tron odpytywany najwyżej raz na tyle (plik odświeża się częściej: Ethereum ~co 30 min; saldo skarbca i druk zmieniają się wolniej)
+USK_TR_PO_BLEDZIE_MIN = 45  # v386: min — po nieudanej próbie (np. HTTP 429) kolejna najwcześniej po tylu minutach; część zostaje z poprzedniego odczytu
+USK_RETRY_MAX_S = 15       # v386: s — najdłuższe Retry-After, na które czekamy (jedno ponowienie na odczyt części); dłuższe = rezygnacja do następnej próby
+USK_RETRY_DOM_S = 5        # v386: s — czekanie przed ponowieniem po 429 bez nagłówka Retry-After
 
 
 def _usk_kwota(v, dec=6):
@@ -36787,14 +36793,47 @@ def usk_eth():
     return {'bal': s['bal'], 'sup': s['sup'], 't': NOW, **usk_zdarzenia(ev)}
 
 
-def usk_tron_zdarzenia(k, t0):
+def _usk_tr_get(url, timeout, stan=None):
+    """v386: zapytanie do Tron; HTTP 429 → jedno ponowienie na cały odczyt części (stan['ponow']) po Retry-After (brak nagłówka = USK_RETRY_DOM_S s), o ile czekanie nie przekracza USK_RETRY_MAX_S s;
+    inny błąd albo drugie 429 → wyjątek (część zostaje z poprzedniego odczytu)."""
+    try:
+        return get_json(url, timeout=timeout)
+    except urllib.error.HTTPError as e:
+        if e.code != 429 or not isinstance(stan, dict) or stan.get('ponow', 0) < 1:
+            raise
+        h = e.headers.get('Retry-After') if e.headers is not None else None
+        s = _pr_retry_s(h, _ix_dt(NOW) or datetime.datetime.now(datetime.timezone.utc))
+        s = USK_RETRY_DOM_S if s is None else s
+        if s > USK_RETRY_MAX_S:
+            raise
+        stan['ponow'] -= 1
+        time.sleep(s)
+        return get_json(url, timeout=timeout)
+
+
+def usk_tron_plan(pv, now_iso):
+    """v386: czy w tym przebiegu pytać Tron → 'pobierz' | 'rytm' (poprzedni odczyt młodszy niż USK_TR_CO_MIN min — bez zapytań) | 'blok' (ostatnia próba, nieudana, młodsza niż USK_TR_PO_BLEDZIE_MIN min).
+    pv = poprzedni plik (słownik) albo {}; brak poprzedniego odczytu, zły czas albo czas z przyszłości = pobierz."""
+    tn = _ix_dt(now_iso)
+    pv = pv if isinstance(pv, dict) else {}
+    tk = _ix_dt(_zapas_czas(pv, 'tron')) if isinstance(pv.get('tron'), dict) else None
+    if tn is not None and tk is not None and 0 <= (tn - tk).total_seconds() < USK_TR_CO_MIN * 60:
+        return 'rytm'
+    pr = pv.get('proba') if isinstance(pv.get('proba'), dict) else {}
+    tp = _ix_dt(pr.get('tron'))
+    if tn is not None and tp is not None and 0 <= (tn - tp).total_seconds() < USK_TR_PO_BLEDZIE_MIN * 60:
+        return 'blok'
+    return 'pobierz'
+
+
+def usk_tron_zdarzenia(k, t0, stan=None):
     """v377: wszystkie zdarzenia rodzaju k z okna USK_OKNO_DNI (strony po USK_TR_STRONA od najnowszych, bez powtórzeń); pełne USK_TR_STRON stron = błąd."""
     url = (f'{USK_TR}/v1/contracts/{USK_TR_USDT}/events?event_name={USK_NAZWA[k]}&only_confirmed=true&limit={USK_TR_STRONA}&order_by=block_timestamp,desc'
            f'&min_block_timestamp={(t0 - USK_OKNO_DNI * 86400) * 1000}')
     seen, out, fp = set(), [], None
     for _ in range(USK_TR_STRON):
         time.sleep(USK_SLEEP)
-        j = get_json(url + (f'&fingerprint={fp}' if fp else ''), timeout=45)
+        j = _usk_tr_get(url + (f'&fingerprint={fp}' if fp else ''), 45, stan)
         rows = parse_usk_tron_zd(j, k)
         for ts, usd, key in rows:
             if key not in seen:
@@ -36810,8 +36849,9 @@ def usk_tron_zdarzenia(k, t0):
 def usk_tron():
     """v377: część Tron (3 zapytania): saldo skarbca, zdarzenia Issue i Redeem."""
     t0 = _usk_t0()
-    s = parse_usk_tron_saldo(get_json(f'{USK_TR}/v1/accounts/{USK_TR_SKARB}', timeout=45))
-    ev = {k: usk_tron_zdarzenia(k, t0) for k in ('i', 'r')}
+    stan = {'ponow': 1}   # v386: jedno ponowienie po 429 na cały odczyt części
+    s = parse_usk_tron_saldo(_usk_tr_get(f'{USK_TR}/v1/accounts/{USK_TR_SKARB}', 45, stan))
+    ev = {k: usk_tron_zdarzenia(k, t0, stan) for k in ('i', 'r')}
     return {'bal': s['bal'], 'sup': None, 't': NOW, **usk_zdarzenia(ev)}
 
 
@@ -36838,28 +36878,42 @@ def build_usdt_skarbiec(prev=None):
     obie zawiodły = wyjątek (main zostawia poprzedni plik). Historia dobowa salda: 'eth', 'tron' (każda z własnego odczytu) i 'skarb' (suma — tylko gdy obie sieci odczytane w tym przebiegu)."""
     pv = prev if isinstance(prev, dict) and prev.get('v') == USK_V else {}
     out = {'v': USK_V, 'at': NOW, 'src': 'zdarzenia emisji i umorzeń oraz saldo skarbca USDT odczytane z sieci Ethereum i Tron', 'part_at': {}, 'ok': {}}
+    proba = dict(pv['proba']) if isinstance(pv.get('proba'), dict) else {}   # v386: czas ostatniej nieudanej próby Tron
+
+    def zostaw(part):   # część z poprzedniego pliku z własną datą, najwyżej USK_MAX_H godzin od jej pobrania
+        old, t_old = pv.get(part), _zapas_czas(pv, part)
+        tk, tn = _ix_dt(t_old), _ix_dt(NOW)
+        if isinstance(old, dict) and tk is not None and tn is not None and 0 <= (tn - tk).total_seconds() <= USK_MAX_H * 3600:
+            out[part] = old
+            out['part_at'][part] = t_old
     for part, job in (('eth', usk_eth), ('tron', usk_tron)):
+        plan = usk_tron_plan(pv, NOW) if part == 'tron' else 'pobierz'
+        if plan != 'pobierz':   # v386: rytm Tron (odczyt jeszcze świeży: 'cached') albo przerwa po błędzie (False — seria awarii trwa, bez nowego błędu)
+            out['ok'][part] = 'cached' if plan == 'rytm' else False
+            zostaw(part)
+            continue
         try:
             out[part] = job()
             out['ok'][part] = True
             out['part_at'][part] = NOW
+            proba.pop(part, None)   # udany odczyt kasuje ślad nieudanej próby
         except Exception as e:   # noqa — jedna sieć nie psuje drugiej
             META['errors'].append(mask(f'USDT skarbiec {part}: {e}')[:200])
             out['ok'][part] = False
-            old, t_old = pv.get(part), _zapas_czas(pv, part)
-            tk, tn = _ix_dt(t_old), _ix_dt(NOW)
-            if isinstance(old, dict) and tk is not None and tn is not None and 0 <= (tn - tk).total_seconds() <= USK_MAX_H * 3600:
-                out[part] = old
-                out['part_at'][part] = t_old
+            if part == 'tron':
+                proba['tron'] = NOW
+            zostaw(part)
     if not any(out['ok'].values()):
         raise RuntimeError('żadna sieć USDT nie odpowiedziała')
     h = {k: v for k, v in (pv.get('hist') if isinstance(pv.get('hist'), dict) else {}).items() if k in ('eth', 'tron', 'skarb') and isinstance(v, list)}
     for part in ('eth', 'tron'):
-        if out['ok'][part]:
+        if out['ok'][part] is True:   # v386: 'cached' (odczyt z poprzedniego pliku) nie dostaje punktu historii z nową datą
             ste_historia(h, part, NOW[:10], out[part]['bal'])
-    if out['ok']['eth'] and out['ok']['tron']:
+    if out['ok']['eth'] is True and out['ok']['tron'] is True:
         ste_historia(h, 'skarb', NOW[:10], out['eth']['bal'] + out['tron']['bal'])
     out['hist'] = h
+    if proba:
+        out['proba'] = proba
     out['zm'] = {k: usk_zmiany(v) for k, v in h.items()}
     return out
 
