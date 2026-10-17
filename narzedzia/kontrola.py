@@ -4906,6 +4906,17 @@ def rwe_porownanie(j, now=None):
                 Z['status'] = '⚠️'
                 Z['uwagi'].append(f'tokenizowane aktywa (dane emitentów): {nm(s)} — pominięte tokeny bez dowodu rezerw mogą być warte do {kw} ({pr:.3f}% '
                                   'wartości produktu): emitent może nie publikować dowodu dla tokenów w obiegu; produkt dalej w sumach (tylko uwaga)')
+    for s, p in sorted(P.items()):   # v398: tokeny z rezerwą, których ceny emitent nie podaje (wycena po jego stronie kończy się błędem) — nie wliczone, z górną granicą wartości — informacja
+        nc = p.get('nc') if isinstance(p, dict) and isinstance(p.get('nc'), dict) else None
+        if nc and num(nc.get('n')) and nc['n'] >= 1 and num(nc.get('max_usd')) and nc['max_usd'] >= 0:
+            x, nb = nc['max_usd'], int(nc['n'])
+            kw = (f'{x / 1e6:.2f} mln USD' if round(x / 1e3, 1) >= 1000 else f'{x / 1e3:.1f} tys. USD' if round(x) >= 1000 else f'{x:.0f} USD')
+            pr = x / p['v'] * 100 if num(p.get('v')) and p['v'] > 0 else None
+            sy = [y for y in (nc['sym'] if isinstance(nc.get('sym'), list) else []) if isinstance(y, str)][:3]
+            cz.append(f"{nm(s)}: tokeny z rezerwą bez ceny u emitenta (jego wycena kończy się błędem) — {nb} {_odm(nb, 'token', 'tokeny', 'tokenów')}"
+                      + (f" (np. {', '.join(sy)})" if sy else '') + f' — nie wliczone, szacunkowo najwyżej {kw}'
+                      + ((f' ({pr:.3f}% wartości)' if pr >= 0.001 else ' (<0.001% wartości)') if pr is not None else '')
+                      + (f", odczyt {p['read'][:16].replace('T', ' ')} UTC" if isinstance(p.get('read'), str) else '') + ' ℹ️')
     bnn = [(nm(s), p['bn']) for s, p in sorted(P.items()) if isinstance(p, dict) and p.get('bn') in ('gm', 'okno')]
     if bnn:   # v311: ostatni odczyt bez nowych danych (nie błąd — w sumach poprzedni odczyt z jego stanem) — informacja
         cz.append('bez nowych danych w ostatnim odczycie (to nie błąd, w sumach poprzedni odczyt): ' + '; '.join(
