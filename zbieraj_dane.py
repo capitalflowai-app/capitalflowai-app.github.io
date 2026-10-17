@@ -25614,13 +25614,13 @@ RWE_MIN_SHARE = 0.01      # część produktu (klasa, token) poniżej 1% wartoś
 RWE_XS_OGON_K = 50        # v265/v267: xStocks — tyle ostatnich tokenów z rezerwą na stronie wyznacza wartość tokenu z dalszej części listy
 RWE_XS_OGON_ZAPAS = 2     # v267 (przegląd v265): zapas — kolejność emitenta wg jego „aum”, nie wg rezerwa × cena (FCNCAx 5,5× sąsiadów, HKD jak USD)
 RWE_XS_OGON_PROC = 0.5    # v265: % — górna granica pominiętej reszty listy do tylu procent sumy = odczyt przyjęty (pole 'ogon'); więcej = błąd
-RWE_XS_BEZ_MAX = 100      # v311: xStocks — najwyżej tyle tokenów z dowodem rezerw null (na stronie odpowiedzi) pomijamy, każdy z górną granicą
+RWE_XS_BEZ_MAX = 250      # v391: było 100 (17.10.2026: 116 tokenów bez dowodu, razem granica 0,05% sumy — próg 0,5% sumy nadal ogranicza wartość). v311: xStocks — najwyżej tyle tokenów z dowodem rezerw null (na stronie odpowiedzi) pomijamy, każdy z górną granicą
                           #       wartości z liczby tokenów w obiegu (10.10.2026: 58 z 1318 tokenów emitenta; 05.10: 0 z 1000); więcej = błąd
 RWE_XS_DOP_TMO = 40       # v385: s — zapytanie dopelniajace liste xStocks ma WLASNY limit czasu (nie resztke budzetu kroku: 16.10.2026 po glownym zapytaniu
                           #       zostawalo kilka sekund i dopelnienie konczylo sie TimeoutError); budzet kroku rosnie o tyle, gdy dopelnienie jest potrzebne
-RWE_ERR_MAX = 220         # v385: znakow opisu bledu produktu w pliku (razem z nazwa wyjatku; dotad 160 — diagnostyka v385 jest dluzsza)
+RWE_ERR_MAX = 280         # v391: było 220 (dopisek o dopełnieniu listy xStocks jest dłuższy). v385: znakow opisu bledu produktu w pliku (razem z nazwa wyjatku; dotad 160 — diagnostyka v385 jest dluzsza)
 RWE_XS_BEZ_SYM = 5        # v311: tyle symboli pominiętych tokenów zapisujemy w pliku (kontrola: „np. …”)
-RWE_XS_OBIEG_W = 6        # v311: zapytania o liczbę tokenów w obiegu równolegle (tylko tokeny bez dowodu; 10.10: 58 zapytań po ok. 0,2 s)
+RWE_XS_OBIEG_W = 3        # v391: było 6 (17.10.2026: przy 4 równoległych 8 ze 116 zapytań dostało HTTP 500, przy 2 żadne). v311: zapytania o liczbę tokenów w obiegu równolegle (tylko tokeny bez dowodu; 10.10: 58 zapytań po ok. 0,2 s)
 RWE_SEC_OKNO = (19 * 60, 21 * 60)   # v311: min doby UTC [od, do) — znane okno pustej listy kanału agenta transferowego (_rwe_bez_nowych)
 RWE_SEC_OKNO_PV_H = 36   # v315 (recenzja v311): okno tylko, gdy poprzedni odczyt (pv: read) ma najwyżej tyle godzin (max_h produktów kanału)
 RWE_OTHER_MAX = 0.005     # cfg: tokeny w pulach innej waluty (bez kursu): do 0,5% wartości pominięte z notatką, więcej = produkt bez wyceny
@@ -25892,6 +25892,18 @@ def rwe_xs_var_dop():
     odwrócony: pierwsza strona od NAJMNIEJSZYCH. Dalsze strony zapytania głównego kończą się błędem serwera emitenta, a pierwsza strona jednego i drugiego
     kierunku obejmuje razem do 2 × rozmiar strony tokenów (13.10.2026: ok. 1450 wobec 1000)."""
     return dict(RWE_XS_VAR, orderBy=dict(RWE_XS_ORDER_ASC))
+RWE_XS_Q_DOP = ('query Reserves($page:Int!,$pageSize:Int!,$where:TokensWhereInput,$orderBy:TokenSortInput){ tokens(page:$page,pageSize:$pageSize,where:$where,'
+                'orderBy:$orderBy){ nodes{ symbol proofOfReserves{ at sharesHeld{ quantity } } } page{ totalPages totalNodes } } }')   # v391: ta sama lista BEZ pola ceny
+RWE_XS_CENY_PACZKA = 500   # v391: tokenów w jednym zapytaniu o ceny (razem najwyżej 2 paczki)
+
+
+def rwe_xs_var_ceny(symbole):
+    """v391: zmienne zapytania o ceny wybranych tokenów xStocks (`symbole`) — jak RWE_XS_VAR (ten sam filtr, ceny najwyżej 3 dni), ale lista ograniczona do symboli i rozmiar strony = ich liczba.
+    Powód: 17.10.2026 wycena JEDNEGO tokenu (BEZ.GBx, rezerwa zero) kończyła się błędem serwera emitenta i psuła każde zapytanie o stronę z nim — cen nie pytamy tokenom bez rezerwy."""
+    S = list(symbole)
+    return dict(RWE_XS_VAR, page=0, pageSize=len(S), where={'businessLine': {'equals': 'xStocks'}, 'symbol': {'in': S}})
+
+
 RWE_MAX_HTML = 5_000_000   # bajtów — strona Ondo (05.10: 672 KB)
 RWE_GM_ZGODA = 0.02        # v302: punkt dnia wykresu emitenta (gmTvlHistory) a liczba z nagłówka strony (gmTvl, bez daty) — najwyżej 2% różnicy
                            # (pełność punktu; test wsteczny 36 kopii strony 05–10.2026: od 25.09 0–1,48%, niepełne punkty −5…−17%)
@@ -26003,10 +26015,53 @@ def rwe_ondo_gm_parse(s, read=None):
     return {'v': y, 'as_of': d, 'n': len(H), 'hl': round(hl, 2)}
 
 
+def _rwe_xs_gql_blad(j):
+    """v391: opis odpowiedzi z błędem — z pierwszym komunikatem serwera emitenta (17.10.2026: 'Internal server error', data: null)."""
+    e = j.get('errors') if isinstance(j, dict) else None
+    m = e[0].get('message') if isinstance(e, list) and e and isinstance(e[0], dict) else None
+    return 'odpowiedź z błędem albo nie obiekt' + (f' ({m[:40]})' if isinstance(m, str) and m else '')
+
+
+def _rwe_xs_ceny(extra, ceny):
+    """v391: węzły dopełnienia bez pola ceny (zapytanie RWE_XS_Q_DOP) → te same węzły z `tokenCollaterals` tam, gdzie cena jest potrzebna: akcje w rezerwie > 0 albo dowód rezerw null
+    (jego wartość ogranicza _rwe_xs_bez z ceną). Token z rezerwą zero i zła liczba akcji ceny nie dostają (wartość zero / błąd zgłosi _rwe_xs_licz). `ceny(symbole)` → odpowiedź
+    zapytania o ceny (rwe_xs_var_ceny) w paczkach po RWE_XS_CENY_PACZKA; błąd serwera, zły kształt albo brak symbolu w odpowiedzi = wyjątek. Węzły z ceną (inne zapytanie) bez zmian."""
+    pot = []
+    for n in extra:
+        por = n.get('proofOfReserves')
+        Q = por.get('sharesHeld') if isinstance(por, dict) else None
+        if n.get('tokenCollaterals') is not None:
+            continue
+        if isinstance(Q, list):
+            q = [_rwc_rez_num(x.get('quantity')) if isinstance(x, dict) else None for x in Q]
+            if any(x is None or x < 0 for x in q) or sum(q) == 0:
+                continue
+        sym = str(n.get('symbol'))
+        if not _RWE_XS_SYM.match(sym):
+            raise ValueError(f'zły symbol tokenu {sym[:12]}')
+        pot.append(sym)
+    if not pot:
+        return extra
+    if len(pot) > 2 * RWE_XS_CENY_PACZKA:
+        raise ValueError(f'tokenów do wyceny {len(pot)} — więcej niż {2 * RWE_XS_CENY_PACZKA}')
+    mam = {}
+    for i in range(0, len(pot), RWE_XS_CENY_PACZKA):
+        try:
+            for n in _rwe_xs_dop(ceny(pot[i:i + RWE_XS_CENY_PACZKA]), set()):
+                mam[str(n.get('symbol'))] = n.get('tokenCollaterals')
+        except Exception as e:  # noqa — opis etapu: dopełnienie składa się z dwóch zapytań
+            raise ValueError(f'ceny: {e}' if isinstance(e, ValueError) else f'ceny: {type(e).__name__}: {e}') from None
+    for s in pot:
+        if mam.get(s) is None:
+            raise ValueError(f'ceny: {s} bez ceny w odpowiedzi')
+    ps = set(pot)
+    return [dict(n, tokenCollaterals=mam[str(n.get('symbol'))]) if str(n.get('symbol')) in ps else n for n in extra]
+
+
 def _rwe_xs_dop(j, symbole):
     """v364: odpowiedź zapytania dopełniającego → tokeny, których symbolu nie ma w głównej liście (`symbole`); zły kształt, błąd serwera albo pusta lista = wyjątek."""
     if not isinstance(j, dict) or j.get('errors'):
-        raise ValueError('odpowiedź z błędem albo nie obiekt')
+        raise ValueError(_rwe_xs_gql_blad(j))   # v391: z komunikatem serwera
     data = j.get('data') if isinstance(j.get('data'), dict) else {}
     N = data['tokens'].get('nodes') if isinstance(data.get('tokens'), dict) else None
     if not isinstance(N, list) or not N or any(not isinstance(n, dict) for n in N):
@@ -26014,7 +26069,7 @@ def _rwe_xs_dop(j, symbole):
     return [n for n in N if str(n.get('symbol')) not in symbole]
 
 
-def rwe_xs_parse(j, fx, obieg=None, dop=None):
+def rwe_xs_parse(j, fx, obieg=None, dop=None, ceny=None):
     """v364: xStocks — jak _rwe_xs_licz; gdy reszta listy poza stroną odpowiedzi ma zbyt dużą górną granicę (`dop` podane), jedno zapytanie dopełniające
     `dop()` → odpowiedź z listą od NAJMNIEJSZYCH tokenów (rwe_xs_var_dop): tokeny o symbolach spoza głównej listy liczone dokładnie, jak te z głównej, a reszta
     (totalNodes − obie listy) dalej tylko z górną granicą (pole 'ogon'). 13.10.2026 granica reszty (450+ tokenów) przekroczyła 0,5% sumy i produkt odpadał z
@@ -26026,6 +26081,8 @@ def rwe_xs_parse(j, fx, obieg=None, dop=None):
             raise
         try:
             extra = _rwe_xs_dop(dop(), {str(n.get('symbol')) for n in j['data']['tokens']['nodes']})
+            if ceny is not None:   # v391: lista dopełnienia bez cen (RWE_XS_Q_DOP) — ceny osobnym zapytaniem, tylko tokenom, które ich potrzebują
+                extra = _rwe_xs_ceny(extra, ceny)
             return _rwe_xs_licz(j, fx, obieg, extra)
         except Exception as e1:  # noqa — dopełnienie jest dodatkiem: jego błąd nie zmienia przyczyny (reszta listy za duża), tylko ją uzupełnia
             txt = 'reszta po dopełnieniu nadal za duża' if getattr(e1, 'ogon', False) else f'{type(e1).__name__}: {e1}'
@@ -26043,7 +26100,7 @@ def _rwe_xs_licz(j, fx, obieg=None, extra=()):
     03:40 xStocks poza sumami): token z dowodem null nie przerywa odczytu — _rwe_xs_bez ogranicza jego wartość z góry liczbą tokenów w obiegu
     (`obieg(symbole)`, publiczne API emitenta) i przyjmuje odczyt z polem 'bez', gdy mieści się w limitach; bez `obieg` — wyjątek jak w v268."""
     if not isinstance(j, dict) or j.get('errors'):
-        raise ValueError('odpowiedź z błędem albo nie obiekt')
+        raise ValueError(_rwe_xs_gql_blad(j))   # v391: z komunikatem serwera
     data = j.get('data') if isinstance(j.get('data'), dict) else {}
     N = data['tokens'].get('nodes') if isinstance(data.get('tokens'), dict) else None
     if not isinstance(N, list) or not N:
@@ -26220,7 +26277,7 @@ def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, 
     def tmo_dop():   # v385: dopełnienie listy xStocks — własny limit czasu; budżet kroku rośnie o tyle samo (dalsze zapytania o obieg też dostają czas)
         with lock:
             req[0] += 1
-            ext[0] = RWE_XS_DOP_TMO
+            ext[0] = min(ext[0] + RWE_XS_DOP_TMO, 2 * RWE_XS_DOP_TMO)   # v391: dopełnienie to dwa zapytania (lista bez cen, ceny)
         return RWE_XS_DOP_TMO
 
     pages, plock = {}, _rwa_thr.Lock()
@@ -26252,7 +26309,8 @@ def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, 
         if k == 'xs':   # v311: liczba tokenów w obiegu tylko dla tokenów bez dowodu rezerw (GET, ten sam budżet kroku)
             return rwe_xs_parse(post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q, 'variables': RWE_XS_VAR}, timeout=tmo()), fx,
                                 obieg=lambda S: rwe_xs_obieg(S, tmo, get, sleep),   # v315: ponowna próba z tym samym `sleep`
-                                dop=lambda: post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q, 'variables': rwe_xs_var_dop()}, timeout=tmo_dop()))   # v364; v385: własny limit czasu
+                                dop=lambda: post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q_DOP, 'variables': rwe_xs_var_dop()}, timeout=tmo_dop()),   # v364; v385: własny limit czasu; v391: bez cen
+                                ceny=lambda S: post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q, 'variables': rwe_xs_var_ceny(S)}, timeout=tmo_dop()))   # v391
         raise ValueError(f'nieznany rodzaj {k}')
 
     def one(slug):

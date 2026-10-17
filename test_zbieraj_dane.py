@@ -37227,15 +37227,15 @@ class XstocksBezDowoduV311(unittest.TestCase):
                              'zero w obiegu — granica jednej akcji (zaokrąglenie), nie zero')
 
     def test_limit_liczby_tokenow(self):
-        N = self._N() + [_xs311_null(f'Z{i}x', 100) for i in range(100)]
+        N = self._N() + [_xs311_null(f'Z{i}x', 100) for i in range(zd.RWE_XS_BEZ_MAX)]   # v391: limit z stałej (było 100)
         r = zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob())
-        self.assertEqual((r['bez']['n'], r['bez']['sym'], r['bez']['max_usd']), (100, ['Z0x', 'Z1x', 'Z2x', 'Z3x', 'Z4x'], 300))
+        self.assertEqual((r['bez']['n'], r['bez']['sym'], r['bez']['max_usd']), (zd.RWE_XS_BEZ_MAX, ['Z0x', 'Z1x', 'Z2x', 'Z3x', 'Z4x'], 3 * zd.RWE_XS_BEZ_MAX))
         calls = []
         with self.assertRaises(ValueError) as c:
-            zd.rwe_xs_parse(_rwe170_xs(N + [_xs311_null('Z100x', 100)]), self.FX, obieg=self._ob(calls=calls))
-        self.assertEqual(str(c.exception), 'tokenów bez dowodu rezerw 101 (np. Z0x) — więcej niż 100')
+            zd.rwe_xs_parse(_rwe170_xs(N + [_xs311_null(f'Z{zd.RWE_XS_BEZ_MAX}x', 100)]), self.FX, obieg=self._ob(calls=calls))
+        self.assertEqual(str(c.exception), f'tokenów bez dowodu rezerw {zd.RWE_XS_BEZ_MAX + 1} (np. Z0x) — więcej niż {zd.RWE_XS_BEZ_MAX}')
         self.assertEqual(calls, [], 'ponad limit liczby — bez zapytań o liczbę w obiegu')
-        self.assertEqual(zd.RWE_XS_BEZ_MAX, 100)
+        self.assertGreaterEqual(zd.RWE_XS_BEZ_MAX, 136)   # v391: 17.10.2026 było 116 tokenów bez dowodu rezerw
 
     def test_brak_liczby_w_obiegu_ceny_kursu_albo_zly_symbol(self):
         N = self._N() + [_xs311_null('RACEx', 45000), _xs311_null('NTESx', 11772)]
@@ -50806,7 +50806,7 @@ class XstocksDopelnienieV364(unittest.TestCase):
             if url == zd.RWE_XS:
                 sent.append(obj['variables']['orderBy']['direction'])
                 if obj['variables']['orderBy']['direction'] == 'asc':
-                    assert obj['variables'] == zd.rwe_xs_var_dop() and obj['query'] == zd.RWE_XS_Q and 0 < timeout <= zd.RWE_XS_DOP_TMO   # v385: własny limit dopełnienia
+                    assert obj['variables'] == zd.rwe_xs_var_dop() and obj['query'] == zd.RWE_XS_Q_DOP and 0 < timeout <= zd.RWE_XS_DOP_TMO   # v385: własny limit dopełnienia
                     return asc
                 return j
             return p0(url, obj, timeout)
@@ -59402,3 +59402,152 @@ class TestV390KalendarzBrakPowod(unittest.TestCase):
         # plik zbudowany tuż przed zmianą czasu w Polsce (NOW = 24.10 22:30 UTC = 25.10 00:30 czasu polskiego): okno liczone w dniach UTC, bez przesunięcia o dzień
         o = self.build()
         self.assertEqual((o['od'], o['do']), ('2026-10-23', '2026-11-23'))
+
+
+# ===================== v391: xSTOCKS — DOPEŁNIENIE LISTY BEZ TOKENU Z BŁĘDNĄ CENĄ (LISTA BEZ CEN + CENY WYBRANYCH TOKENÓW) =====================
+_V391_BLAD = {"errors": [{"message": "Internal server error", "extensions": {"type": "LocalInternalError", "reference": "WV9RS1I8"}}], "data": None}   # nagranie 17.10.2026 (po 25 s)
+
+
+class RwaXstocksCenyV391(unittest.TestCase):
+    """v391: 17.10.2026 serwer emitenta odpowiadał {"errors":[{"message":"Internal server error"}],"data":null} na każde zapytanie, w którego stronie był token BEZ.GBx (rezerwa zero,
+    wycena 'price' kończy się błędem serwera po ok. 22 s) — także na dopełnienie od najmniejszych, więc xStocks odpadał z sum. Teraz dopełnienie = lista bez cen + ceny tylko tokenów
+    z rezerwą albo bez dowodu. Zaślepka serwera niżej zachowuje się jak nagrany: strona 1000 od największych działa, zapytanie z ceną BEZ.GBx kończy się nagranym błędem."""
+
+    AT = '2026-10-17T10:50:00Z'
+    # kolejność listy emitenta (wg „aum” malejąco): 2 duże, 10 po 1 mln USD, 10 małych po 1000 USD, token bez dowodu, token z rezerwą zero (cena działa), token z rezerwą zero (cena psuje zapytanie)
+    LISTA = ([(f'B{i}x', ['1000000'], 10000.0) for i in range(2)] + [(f'S{i}x', ['1'], 100000000.0) for i in range(10)]
+             + [(f'T{i}x', ['10'], 10000.0) for i in range(10)] + [('N0x', None, 5000.0), ('GRG.GBx', [], 228100.0), ('BEZ.GBx', [], 'BLAD')])
+
+    def _serwer(self, zapytania=None):
+        L = self.LISTA
+
+        def post(url, obj, timeout=60):
+            assert url == zd.RWE_XS and obj['operationName'] == 'Reserves'
+            v, q = obj['variables'], obj['query']
+            rows = list(reversed(L)) if v['orderBy']['direction'] == 'asc' else list(L)
+            sel = (v.get('where') or {}).get('symbol', {}).get('in')
+            if sel is not None:
+                rows = [r for r in rows if r[0] in sel]
+            tn = len(rows)
+            rows = rows[v['page'] * v['pageSize']:(v['page'] + 1) * v['pageSize']]
+            if zapytania is not None:
+                zapytania.append((q, v, [r[0] for r in rows], timeout))
+            cena = 'price(' in q
+            if cena and any(r[2] == 'BLAD' for r in rows):
+                return json.loads(json.dumps(_V391_BLAD))   # wycena BEZ.GBx psuje całą stronę (nagranie)
+            N = []
+            for s, sh, px in rows:
+                n = {'symbol': s, 'proofOfReserves': None if sh is None else {'at': self.AT, 'sharesHeld': [{'quantity': x} for x in sh]}}
+                if cena:
+                    n['tokenCollaterals'] = [{'collateral': {'price': px, 'priceCurrency': 'GBX' if s.endswith('GBx') else 'USD'}}]
+                N.append(n)
+            return {'data': {'tokens': {'nodes': N, 'page': {'totalPages': 3, 'totalNodes': tn}}}}
+        return post
+
+    FX = {'d': '2026-10-16', 'rates': {'GBP': 0.75}}
+    # lista wszystkich 25 tokenów; strona główna 14 (2 duże + 10 po 1 mln + T0, T1)
+    SUMA = 2 * 100000000 + 10 * 1000000 + 10 * 1000.0
+
+    def _odczyt(self, zap, obieg=3):
+        post = self._serwer(zap)
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 14}):
+            j = post(zd.RWE_XS, {'operationName': 'Reserves', 'query': zd.RWE_XS_Q, 'variables': zd.RWE_XS_VAR})
+            return zd.rwe_xs_parse(j, self.FX, obieg=lambda S: {s: obieg for s in S},
+                                   dop=lambda: post(zd.RWE_XS, {'operationName': 'Reserves', 'query': zd.RWE_XS_Q_DOP, 'variables': zd.rwe_xs_var_dop()}, 40),
+                                   ceny=lambda S: post(zd.RWE_XS, {'operationName': 'Reserves', 'query': zd.RWE_XS_Q, 'variables': zd.rwe_xs_var_ceny(S)}, 40))
+
+    def test_zaslepka_zachowuje_sie_jak_nagranie(self):
+        post = self._serwer()
+        v = dict(zd.RWE_XS_VAR, pageSize=25)
+        self.assertEqual(post(zd.RWE_XS, {'operationName': 'Reserves', 'query': zd.RWE_XS_Q, 'variables': v}), _V391_BLAD, 'strona z BEZ.GBx i ceną = nagrany błąd')
+        r = post(zd.RWE_XS, {'operationName': 'Reserves', 'query': zd.RWE_XS_Q_DOP, 'variables': zd.rwe_xs_var_dop()})
+        self.assertEqual(len(r['data']['tokens']['nodes']), 25, 'ta sama lista bez pola ceny działa')
+        self.assertNotIn('price', zd.RWE_XS_Q_DOP); self.assertIn('price(', zd.RWE_XS_Q)
+
+    def test_dopelnienie_dwoma_zapytaniami_omija_token_z_zepsuta_cena(self):
+        zap = []
+        r = self._odczyt(zap)
+        self.assertNotIn('ogon', r, 'lista zamknięta: 14 + 11 tokenów z dopełnienia = 25 = totalNodes')
+        self.assertAlmostEqual(r['v'], self.SUMA, places=2, msg='T0, T1 z głównej listy + T2…T9 z dopełnienia, każdy token raz; token z rezerwą zero i bez dowodu bez wartości')
+        self.assertEqual(r['n'], 22)
+        self.assertEqual((r['bez']['n'], r['bez']['obieg'], r['bez']['max_usd'], r['bez']['sym']), (1, 3.0, 350, ['N0x']), '(2 × 3 + 1) × 50 USD')
+        self.assertEqual([z[0] for z in zap], [zd.RWE_XS_Q, zd.RWE_XS_Q_DOP, zd.RWE_XS_Q], 'główne, lista bez cen, ceny')
+        pyt = ['N0x'] + [f'T{i}x' for i in range(9, 1, -1)]
+        self.assertEqual(zap[2][1]['where'], {'businessLine': {'equals': 'xStocks'}, 'symbol': {'in': pyt}}, 'ceny tylko tokenów z rezerwą albo bez dowodu — bez BEZ.GBx i GRG.GBx')
+        self.assertEqual(sorted(zap[2][2]), sorted(pyt), 'odpowiedź o ceny obejmuje dokładnie te tokeny')
+        self.assertEqual((zap[2][1]['pageSize'], zap[2][1]['page'], zap[2][1]['maxAge']), (9, 0, zd.RWE_XS_VAR['maxAge']))
+
+    def test_blad_wyceny_tokenu_z_rezerwa_daje_opis_etapu(self):
+        L = type(self).LISTA
+        try:
+            type(self).LISTA = [r for r in L if r[0] != 'T3x'] + [('T3x', ['10'], 'BLAD')]   # token z rezerwą ma zepsutą cenę — nie da się go pominąć
+            with self.assertRaises(ValueError) as c:
+                self._odczyt([])
+        finally:
+            type(self).LISTA = L
+        m = str(c.exception)
+        self.assertIn('dopełnienie: ValueError: ceny: odpowiedź z błędem albo nie obiekt (Internal server error)', m)
+        self.assertIn('tn=25', m); self.assertLessEqual(len('ValueError: ' + m), zd.RWE_ERR_MAX)
+
+    def test_brak_symbolu_w_odpowiedzi_o_ceny_to_blad(self):
+        n = [{'symbol': 'AAx', 'proofOfReserves': {'at': self.AT, 'sharesHeld': [{'quantity': '5'}]}}, {'symbol': 'ZERx', 'proofOfReserves': {'at': self.AT, 'sharesHeld': []}},
+             {'symbol': 'BADx', 'proofOfReserves': {'at': self.AT, 'sharesHeld': [{'quantity': 'x'}]}}]
+        wyslane = []
+        r = zd._rwe_xs_ceny(n, lambda S: wyslane.append(S) or {'data': {'tokens': {'nodes': [{'symbol': 'AAx', 'tokenCollaterals': [{'collateral': {'price': 1, 'priceCurrency': 'USD'}}]}]}}})
+        self.assertEqual(wyslane, [['AAx']], 'cena tylko dla tokenu z rezerwą > 0 (zero akcji i zła liczba — nie)')
+        self.assertEqual([('tokenCollaterals' in x) for x in r], [True, False, False]); self.assertNotIn('tokenCollaterals', n[0], 'węzły wejściowe nietknięte')
+        with self.assertRaises(ValueError) as c:
+            zd._rwe_xs_ceny(n, lambda S: {'data': {'tokens': {'nodes': [{'symbol': 'INNEx', 'tokenCollaterals': []}]}}})
+        self.assertIn('AAx bez ceny w odpowiedzi', str(c.exception))
+        with self.assertRaises(ValueError) as c:
+            zd._rwe_xs_ceny(n, lambda S: (_ for _ in ()).throw(TimeoutError('The read operation timed out')))
+        self.assertIn('ceny: TimeoutError: The read operation timed out', str(c.exception))
+        with self.assertRaises(ValueError):
+            zd._rwe_xs_ceny([{'symbol': 'ŹLE x', 'proofOfReserves': None}], lambda S: self.fail('zły symbol — bez zapytania'))
+        pelne = [{'symbol': 'AAx', 'tokenCollaterals': [{'collateral': {'price': 1, 'priceCurrency': 'USD'}}], 'proofOfReserves': None}]
+        self.assertIs(zd._rwe_xs_ceny(pelne, lambda S: self.fail('węzły z ceną (inne zapytanie dopełnienia) — bez drugiego zapytania')), pelne)
+
+    def test_ceny_w_paczkach_i_limit(self):
+        n = [{'symbol': f'T{i}x', 'proofOfReserves': None} for i in range(2 * zd.RWE_XS_CENY_PACZKA)]
+        wyslane = []
+
+        def ceny(S):
+            wyslane.append(len(S))
+            return {'data': {'tokens': {'nodes': [{'symbol': s, 'tokenCollaterals': [{'collateral': {'price': 1, 'priceCurrency': 'USD'}}]} for s in S]}}}
+        r = zd._rwe_xs_ceny(n, ceny)
+        self.assertEqual(wyslane, [zd.RWE_XS_CENY_PACZKA] * 2); self.assertTrue(all('tokenCollaterals' in x for x in r))
+        with self.assertRaises(ValueError):
+            zd._rwe_xs_ceny(n + [{'symbol': 'ExtraX', 'proofOfReserves': None}], lambda S: self.fail('ponad limit — bez zapytań'))
+
+    def test_pelny_przebieg_rwe_odczyt_z_nagraniem_bledu(self):
+        zap = []
+        post0 = self._serwer(zap)
+        g0, p0 = _rwe170_net()
+        t = [0.0]
+        obieg = []
+
+        def g(url, headers=None, timeout=60):
+            if url.startswith('https://api.xstocks.fi/'):
+                obieg.append(url); return b'{"value":3}'
+            return g0(url, headers, timeout)
+
+        def post(url, obj, timeout=60):
+            if url == zd.RWE_XS:
+                t[0] += 5.0 if len(zap) == 0 else 3.0
+                return post0(url, obj, timeout)
+            return p0(url, obj, timeout)
+        now = datetime.datetime(2026, 10, 17, 11, 0, tzinfo=datetime.timezone.utc)
+        with mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')), mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 14}):
+            rd = zd.rwe_odczyt(now, fx=zd.rwe_fx(_RWE170_S, now), clock=lambda: t[0], get=g, post=post, sleep=lambda s: None)
+        x = rd['r']['xstocks']
+        self.assertNotIn('err', x, x); self.assertEqual((x['n'], x['bez']['n']), (22, 1)); self.assertNotIn('ogon', x)
+        self.assertEqual([z[0] for z in zap], [zd.RWE_XS_Q, zd.RWE_XS_Q_DOP, zd.RWE_XS_Q]); self.assertEqual(zap[1][3], zd.RWE_XS_DOP_TMO); self.assertEqual(zap[2][3], zd.RWE_XS_DOP_TMO)
+        self.assertEqual(len(obieg), 1, 'obieg tylko dla tokenu bez dowodu')
+
+    def test_stale_v391(self):
+        self.assertGreaterEqual(zd.RWE_XS_BEZ_MAX, 116 + 20, '17.10.2026: 116 tokenów bez dowodu rezerw')
+        self.assertLessEqual(zd.RWE_XS_OBIEG_W, 3, 'przy 4 równoległych zapytaniach o obieg 8 ze 116 dostało HTTP 500')
+        self.assertGreaterEqual(zd.RWE_ERR_MAX, 280)
+        self.assertEqual(zd.rwe_xs_var_ceny(['AAx'])['pageSize'], 1)
+        self.assertEqual(zd._rwe_xs_gql_blad(_V391_BLAD), 'odpowiedź z błędem albo nie obiekt (Internal server error)')
+        self.assertEqual(zd._rwe_xs_gql_blad([]), 'odpowiedź z błędem albo nie obiekt'); self.assertEqual(zd._rwe_xs_gql_blad({'errors': [1]}), 'odpowiedź z błędem albo nie obiekt')
