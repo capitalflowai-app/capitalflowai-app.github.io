@@ -28411,3 +28411,178 @@ test('v381 (F11Z2): Europa — słownik w czystym JSON w 10 językach, bez nazw 
   assert.ok(css.includes('#g-eufund .wk-ch .pos{--k:var(--gr)}') && css.includes('#g-eufund .wk-ch .neg{--k:var(--rd)}'), 'słupki: napływ zielony, odpływ czerwony');
   assert.ok(css.includes('#g-eufund .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3}'), 'długie podpisy zawijane');
 });
+
+// ===================== v382 (F11Z3): płynność USA w GLOBAL (data/plynnosc-usa.json: SOFR z percentylami, operacje repo Fed, wolumeny rynku repo) =====================
+// Fixtura: plik plynnosc-usa.json w układzie, jaki buduje zbieracz (SOFR z 25 dni roboczych kończących się 14.10.2026, korytarz 3,75–4,00%, stałe i odwrotne repo z 30 dni, osiem serii wolumenów i stóp). Czas przypięty (Date.now).
+const usl382 = (() => {
+  const a0 = html.indexOf('/* ===================== v382 (F11Z3): PŁYNNOŚĆ USA'), a1 = html.indexOf('/* ---------- koniec bloku płynności USA (v382) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v382 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const u0 = html.indexOf('function wkUsd('), u1 = html.indexOf('/* kwota krótko do słupków', u0), n0 = html.indexOf('const wkNum=');
+  assert.ok(u0 > 0 && u1 > u0 && n0 > 0, 'wkUsd i wkNum w stronie');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-15T22:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[  ]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const day = (L, d) => new Date(Date.parse(d + 'T12:00:00Z')).toLocaleDateString(LOC[L] || 'pl-PL', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-usl': el};
+    const calls = [], hnd = [], ivs = [], wl = [], wc = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const wk = new Function('t', 'nfmt', 'return (()=>{' + html.slice(n0, html.indexOf('\n', n0)) + '\n' + html.slice(u0, u1) + '\nreturn {wkNum, wkUsd};})();')(T, F.nfmt);
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkLines', 'wkCols', 'wkUsd', 'wkMs', 'wkDay', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {USL, uslLoad, renderUsl, uslOk, uslSofr, uslSrf, uslRrp, uslOfr, uslTarget, uslAvg, uslRate, uslBody};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, () => '', i => i, doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (Ls, o) => { wl.push({L: Ls, o}); return '<chart n=' + Ls.map(l => l.n + ':' + l.d.length).join(',') + ' aria="' + o.aria + '">'; },
+      (X, o) => { wc.push({X, o}); return '<cols n=' + X.length + ' aria="' + o.aria + '">'; }, wk.wkUsd,
+      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, hnd, ivs, wl, wc, mos, expand, collapse, html: () => sp(el.innerHTML)};
+  };
+  // kafle: etykieta, wartość, linie (klasa + tekst), data i wiek
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), lines: [...m[3].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const bd = (n, end) => { const out = []; let d = new Date(Date.parse(end + 'T12:00:00Z')); while (out.length < n) { if (d.getUTCDay() % 6 && d.toISOString().slice(0, 10) !== '2026-10-12') out.push(d.toISOString().slice(0, 10)); d = new Date(d.getTime() - 86400000); } return out.reverse(); };
+  const REAL = {'2026-10-14': [3.88, 3.83, 3.86, 3.93, 3.97, 2974], '2026-10-13': [3.89, 3.83, 3.88, 3.94, 3.98, 3000], '2026-10-09': [3.87, 3.82, 3.85, 3.92, 3.95, 2961]};
+  const J = () => {
+    const days = bd(25, '2026-10-14'), srf = bd(30, '2026-10-15'), vol = bd(30, '2026-10-13');
+    const top = d => d < '2026-09-17' ? 3.75 : 4.0;   // granica korytarza zmieniona 17.09 (jak w nagraniach)
+    const sofr = days.map((d, i) => { const r = REAL[d] || (d < '2026-09-17' ? [3.6, 3.55, 3.58, 3.65, i === 3 || i === 4 ? 4.02 : i === 5 ? 3.9 : 3.70, 2950] : [3.85, 3.80, 3.83, 3.90, 3.94, 2950]); return [d, r[0], r[1], r[2], r[3], r[4], r[5]]; });
+    const mln = {'2026-09-30': 1200, '2026-10-14': 1, '2026-10-15': 110};
+    const ser = (f, n) => bd(n || 30, '2026-10-13').map((d, i) => [d, f(i)]);
+    return {v: 1, at: '2026-10-15T21:00:00+00:00', src: 'x', ok: {stopy: true, repo: true, wol: true}, part_at: {stopy: '2026-10-15T21:00:00+00:00', repo: '2026-10-15T21:00:00+00:00', wol: '2026-10-15T21:00:00+00:00'}, errs: {},
+      stopy: {sofr, rates: {SOFR: sofr[sofr.length - 1], EFFR: ['2026-10-14', 3.88, 3.80, 3.87, 3.88, 3.89, 111], OBFR: ['2026-10-14', 3.88, 3.80, 3.87, 3.88, 3.93, 229], TGCR: ['2026-10-14', 3.86, 3.79, 3.86, 3.87, 3.90, 1189], BGCR: ['2026-10-14', 3.86, 3.79, 3.86, 3.87, 3.91, 1228]},
+        target: [3.75, 4.0], avg: {d: '2026-10-15', a30: 3.866, a90: 3.728, a180: 3.696}},
+      repo: {srf: srf.map(d => [d, mln[d] || 0, mln[d] || 0, d === '2026-10-15' ? 1 : 2, top(d)]), srf_rate: 4.0, rrp: srf.map(d => [d, d === '2026-10-14' ? 201 : d === '2026-10-15' ? 1201 : 275, 3.75])},
+      wol: {dvp_v: ser(i => 2800 + i), tri_v: bd(30, '2026-10-09').map((d, i) => [d, 2200 + i]), gcf_v: ser(() => 254.6), dvp_r: ser(() => 3.9), tri_r: bd(30, '2026-10-09').map(d => [d, 3.91]), gcf_r: ser(() => 3.94),
+        sofr_r: ser(() => 3.89), sofr_v: ser(() => 3000)}};
+  };
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {plusa_stopy: true, plusa_repo: 'cached', plusa_wol: true}} : meta, 'plynnosc-usa': j === undefined ? J() : j});
+  return {mk, tiles, files, J, sp, txt, code, helpers, clone, LOC, day, bd};
+})();
+
+test('v382 (F11Z3): płynność USA — nagłówek od razu, plik dopiero po rozwinięciu karty, pięć kafli z wartością, datą i wiekiem, zmianą w kolorach kierunku i liczbą dni z napięciem', () => {
+  const K = usl382.mk('pl', usl382.files());
+  assert.equal(K.els['#g-usl'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Płynność USA</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Dane zostaną wczytane po rozwinięciu panelu.') && usl382.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'plynnosc-usa'], 'po rozwinięciu: jeden plik, raz'); h = K.html();
+  const T = usl382.tiles(h); assert.equal(T.length, 5);
+  const [s, p, r, q, v] = T, D = d => usl382.day('pl', d);
+  assert.equal(s.label, 'SOFR — stopa jednodniowych pożyczek pod zastaw obligacji'); assert.equal(s.val, '3,88%');
+  assert.deepEqual(s.lines, [['neg', '▼ −0,01 pp wobec dnia ' + D('2026-10-13')], ['pc', 'Rozrzut transakcji (percentyle 1–99): 3,83% – 3,97%'], ['pc', 'Środek rozrzutu (percentyle 25–75): 3,86% – 3,93%'], ['pc', 'Korytarz docelowy Fed: 3,75% – 4,00%'],
+    ['neu', 'Dni z 99. percentylem powyżej ówczesnej górnej granicy korytarza: 3 z 25 (dni ze znaną granicą)'], ['pc', 'Średnia SOFR z 30 / 90 / 180 dni: 3,87% / 3,73% / 3,70%']]);
+  assert.equal(s.when, D('2026-10-14') + ' · wiek(2026-10-14)', 'data odczytu i wiek');
+  assert.equal(p.label, 'SOFR minus stopa funduszy federalnych (EFFR)'); assert.equal(p.val, '0,00 pp');
+  assert.deepEqual(p.lines, [['neu', 'SOFR bez różnicy względem EFFR'], ['pc', 'Fundusze federalne (EFFR): 3,88%'], ['pc', 'Repo pod obligacje skarbowe (TGCR): 3,86%'], ['pc', 'Repo szerokie (BGCR): 3,86%'], ['pc', 'Pożyczki międzybankowe, szerzej (OBFR): 3,88%']]);
+  assert.equal(r.label, 'Stałe repo Fed (SRF) — ostatni pełny dzień'); assert.equal(r.val, '110 mln USD');
+  assert.deepEqual(r.lines, [['pc', 'Zgłoszone: 110 mln USD · operacji: 1'], ['pc', 'Stopa: 4,00%'], ['pc', 'Średnio dziennie z 30 dni: 43,7 mln USD'], ['pc', 'Najwięcej w 30 dniach: 1,20 mld USD (' + D('2026-09-30') + ')']]);
+  assert.equal(r.when, D('2026-10-15') + ' · wiek(2026-10-15)');
+  assert.equal(q.label, 'Odwrotne repo Fed (RRP) — ostatni dzień'); assert.equal(q.val, '1,20 mld USD'); assert.deepEqual(q.lines, [['pc', 'Stopa: 3,75%'], ['pc', 'Średnio dziennie z 30 dni: 303 mln USD']]);
+  assert.equal(v.label, 'Wolumen rynku repo, usługa DVP (dzień danych)'); assert.equal(v.val, '2,83 bln USD', 'ostatnia wartość serii DVP (2829 mld USD) w bilionach');
+  assert.deepEqual(v.lines, [['pc', 'Tri-party bez operacji Fed: 2,23 bln USD (' + D('2026-10-09') + ')'], ['pc', 'Repo GCF: 255 mld USD (' + D('2026-10-13') + ')'], ['pc', 'Średnie stopy: DVP 3,90% · tri-party 3,91% · GCF 3,94%']]);
+  assert.equal(v.when, D('2026-10-13') + ' · wiek(2026-10-13)', 'serie wolumenów mają własny dzień');
+  assert.ok(h.includes('SOFR to stopa jednodniowych pożyczek gotówki') && h.includes('Stałe repo (SRF) to oferta Fed') && h.includes('pochodzą z danych wstępnych'), 'trzy noty');
+  assert.ok(h.includes('D:2026-10-15T21:00:00+00:00') && h.includes('To dane rynkowe, nie rekomendacja.'), 'data pliku i zastrzeżenie');
+  assert.equal(K.calls.filter(x => x === 'plynnosc-usa').length, 1); K.expand(); assert.equal(K.calls.filter(x => x === 'plynnosc-usa').length, 1, 'ponowne rozwinięcie w ciągu 10 min bez nowego pobrania');
+  // kolory kierunku „wg tego co widać”: wzrost zielony (pos), spadek czerwony (neg), brak zmiany żółty (neu); spread plus = zielony, minus = czerwony
+  const J1 = usl382.J(); J1.stopy.sofr[J1.stopy.sofr.length - 1][1] = 3.9; J1.stopy.rates.SOFR[1] = 3.9;
+  const K1 = usl382.mk('pl', usl382.files(J1)); K1.expand(); const T1 = usl382.tiles(K1.html());
+  assert.equal(T1[0].lines[0][0], 'pos'); assert.ok(T1[0].lines[0][1].startsWith('▲ +0,01 pp')); assert.equal(T1[1].val, '+0,02 pp'); assert.equal(T1[1].lines[0][0], 'pos'); assert.ok(T1[1].lines[0][1].startsWith('SOFR powyżej EFFR'));
+  const J2 = usl382.J(); J2.stopy.rates.SOFR[1] = 3.8; const K2 = usl382.mk('pl', usl382.files(J2)); K2.expand(); const T2 = usl382.tiles(K2.html());
+  assert.equal(T2[1].val, '−0,08 pp'); assert.equal(T2[1].lines[0][0], 'neg'); assert.ok(T2[1].lines[0][1].startsWith('SOFR poniżej EFFR'));
+  const J3 = usl382.J(); J3.stopy.sofr[J3.stopy.sofr.length - 1][1] = 3.89; const K3 = usl382.mk('pl', usl382.files(J3)); K3.expand(); assert.deepEqual(usl382.tiles(K3.html())[0].lines[0], ['neu', '• 0,00 pp wobec dnia ' + D('2026-10-13')], 'bez zmiany — żółty punkt');
+});
+
+test('v382 (F11Z3): płynność USA — wykresy (rozrzut SOFR, kolumny repo, wolumeny, stopy), brak = „—”, zero tylko prawdziwe, kwota poniżej 1 mln, uszkodzone wiersze pomijane', () => {
+  const K = usl382.mk('pl', usl382.files()); K.expand();
+  assert.equal(K.wl.length, 3, 'trzy wykresy liniowe: rozrzut SOFR, wolumeny, stopy'); assert.equal(K.wc.length, 2, 'dwa wykresy kolumnowe: stałe i odwrotne repo');
+  const [ws, wv, wr] = K.wl;
+  assert.deepEqual(ws.L.map(l => [l.n, l.cls, l.d.length]), [['1. percentyl', 'usl1', 25], ['25. percentyl', 'usl2', 25], ['SOFR (mediana)', 'usl3', 25], ['75. percentyl', 'usl2', 25], ['99. percentyl', 'usl1', 25], ['Górna granica korytarza', 'usl4', 25]]);
+  assert.equal(ws.L[5].d.length, 25); assert.deepEqual([...new Set(ws.L[5].d.map(r => r[1]))], [3.75, 4], 'górna granica korytarza z każdego dnia (schodek 17.09), nie dzisiejsza na całej osi'); assert.ok(ws.L[5].d.filter(r => r[1] === 3.75).length === 6); assert.ok(ws.o.aria.includes('od ') && ws.o.aria.includes('25 dni roboczych') && ws.o.zero === false); assert.equal(ws.o.fmt(3.876), '3,88%'); assert.equal(ws.o.fmt(-0.4), '−0,40%');
+  assert.deepEqual(wv.L.map(l => [l.n, l.d.length]), [['DVP', 30], ['Tri-party (bez Fed)', 30], ['GCF', 30]]); assert.equal(wv.o.fmt(2869.8), '2870');
+  assert.deepEqual(wr.L.map(l => [l.n, l.d.length]), [['DVP', 30], ['Tri-party (bez Fed)', 30], ['GCF', 30], ['SOFR (mediana)', 25]], 'stopy repo obok SOFR');
+  const [cs, cr] = K.wc; assert.equal(cs.X.length, 30); assert.equal(cs.o.tone, 'lvl'); assert.equal(cs.X[cs.X.length - 1].v, 110); assert.ok(cs.X[cs.X.length - 1].tip.includes('110 mln USD')); assert.equal(cr.X[cr.X.length - 1].v, 1201);
+  assert.ok(!/NaN|undefined|Infinity|usl382\./.test(K.html()));
+  // zero i kwota poniżej 1 mln: prawdziwe zero to „0 mln”, 0,3 mln to „<1 mln”, nigdy puste
+  const J1 = usl382.J(); J1.repo.srf[J1.repo.srf.length - 1] = ['2026-10-15', 0, 0, 2, 4.0]; J1.repo.srf[J1.repo.srf.length - 2] = ['2026-10-14', 0.3, 0.3, 2, 4.0];
+  const K1 = usl382.mk('pl', usl382.files(J1)); K1.expand(); const t1 = usl382.tiles(K1.html())[2]; assert.equal(t1.val, '0 mln USD'); assert.ok(t1.lines[0][1].startsWith('Zgłoszone: 0 mln USD'));
+  assert.ok(K1.wc[0].X[K1.wc[0].X.length - 2].tip.includes('<1 mln USD'), 'kwota poniżej 1 mln w podpowiedzi słupka');
+  const J1b = usl382.J(); J1b.repo.srf[J1b.repo.srf.length - 1] = ['2026-10-15', 0.3, 0.3, 2, 4.0]; const K1b = usl382.mk('pl', usl382.files(J1b)); K1b.expand(); assert.equal(usl382.tiles(K1b.html())[2].val, '<1 mln USD');
+  // brak stopy w pliku = „Stopa: —” (nie zero, nie pominięta linia)
+  const Jn = usl382.J(); Jn.repo.srf_rate = null; Jn.repo.rrp[Jn.repo.rrp.length - 1][2] = null; const Kn = usl382.mk('pl', usl382.files(Jn)); Kn.expand(); const tn = usl382.tiles(Kn.html());
+  assert.ok(tn[2].lines.some(l => l[1] === 'Stopa: —') && tn[3].lines.some(l => l[1] === 'Stopa: —') && !/Stopa: 0/.test(Kn.html()));
+  // brak części = „—”, nie zero; reszta działa
+  const J2 = usl382.J(); delete J2.repo; delete J2.wol; const K2 = usl382.mk('pl', usl382.files(J2)); K2.expand(); const t2 = usl382.tiles(K2.html());
+  assert.equal(t2.length, 5); assert.deepEqual([t2[2].val, t2[3].val, t2[4].val], ['—', '—', '—']); assert.deepEqual(t2[2].lines, [['na', 'Brak danych']]); assert.equal(t2[0].val, '3,88%'); assert.equal(K2.wl.length, 1, 'bez serii wolumenów tylko rozrzut SOFR (wolumeny i stopy repo — komunikat)');
+  assert.ok(K2.html().includes('Za mało punktów, by narysować wykres.'), 'brak serii = komunikat zamiast pustego wykresu'); assert.ok(!/NaN|undefined|Infinity/.test(K2.html()));
+  // bez korytarza: brak linii granicy, brak „dni z napięciem”, brak odległości
+  const J3 = usl382.J(); J3.stopy.target = null; J3.stopy.avg = null; J3.repo.srf.forEach(r => { r[4] = null; }); const K3 = usl382.mk('pl', usl382.files(J3)); K3.expand(); const t3 = usl382.tiles(K3.html());
+  assert.ok(!t3[0].lines.some(l => /Korytarz|Dni z 99/.test(l[1])) && !t3[0].lines.some(l => /Średnia SOFR/.test(l[1]))); assert.equal(K3.wl[0].L.length, 5);
+  // uszkodzone wiersze: percentyle nie rosną, zły dzień, liczba jako tekst, zła długość — pomijane (nie rysowane), reszta zostaje
+  const J4 = usl382.J(); J4.stopy.sofr[0][3] = 9; J4.stopy.sofr[1][0] = '2026-13-40'; J4.stopy.sofr[2][1] = 'x'; J4.stopy.sofr[3].pop(); const A = usl382.mk('pl', usl382.files(J4)).api;
+  assert.equal(A.uslSofr(J4).length, 21); assert.ok(A.uslSofr(J4).every((r, i, a) => !i || a[i - 1][0] < r[0]), 'rosnąco');
+  assert.deepEqual(A.uslSrf({repo: {srf: [['2026-10-14', 5, 4, 1, null], ['2026-10-15', 1, 1, 0, null], ['2026-10-16', 'a', 1, 1, null], ['x', 1, 1, 1, null], ['2026-10-17', 1, 1, 1.5, null], ['2026-10-18', 1, 1, 1, 'x'], ['2026-10-19', 1, 1, 1], ['2026-10-20', 1, 1, 1, 4]]}}).map(r => r[0]), ['2026-10-14', '2026-10-20'], 'liczba operacji ≥ 1 całkowita, kwoty liczbowe, stopa dnia liczba albo null, wiersz bez stopy odrzucony (stara postać)');
+  assert.equal(A.uslTarget({stopy: {target: [4, 3.75]}}), null); assert.equal(A.uslTarget({stopy: {target: [3.75, 4]}}).length, 2); assert.equal(A.uslAvg({stopy: {avg: {d: '2026-10-15', a30: 3, a90: 3, a180: 'x'}}}), null);
+  assert.deepEqual(A.uslRrp({repo: {rrp: [['2026-10-14', 5, null], ['2026-10-15', -1, 3.75]]}}).map(r => r[0]), ['2026-10-14'], 'stopa może być null, kwota nie ujemna');
+  // za krótka seria: komunikat zamiast wykresu
+  const J5 = usl382.J(); J5.repo.srf = J5.repo.srf.slice(-1); const K5 = usl382.mk('pl', usl382.files(J5)); K5.expand(); assert.equal(K5.wc.length, 1); assert.ok(K5.html().includes('Za mało punktów'));
+  // część pliku z błędem: komunikat z nazwą części, kolor żółty
+  const J6 = usl382.J(); J6.ok.wol = false; const K6 = usl382.mk('pl', usl382.files(J6)); K6.expand(); assert.ok(K6.html().includes('Część danych (wolumeny repo) nie odpowiedziała') && K6.html().includes('class="pnote neu"'));
+});
+
+test('v382 (F11Z3): płynność USA — karta ukryta bez wpisu w meta, błąd pobrania bez pętli, odświeżanie co 30 min, 10 języków bez surowych kluczy i NaN, wszystkie klucze w słowniku', () => {
+  const KM = usl382.mk('pl', usl382.files(undefined, {ok: {kalendarz_bc_us: true}})); assert.equal(KM.els['#g-usl'].hidden, true, 'meta bez części płynności — panel ukryty'); assert.equal(KM.els['#g-usl'].innerHTML, '');
+  const KN = usl382.mk('pl', usl382.files(undefined, null)); assert.equal(KN.els['#g-usl'].hidden, true, 'brak meta — panel ukryty');
+  const KP = usl382.mk('pl', usl382.files(undefined, {ok: {plusa_repo: false}})); assert.equal(KP.els['#g-usl'].hidden, false, 'wystarczy jedna część w meta');
+  const KE = usl382.mk('pl', usl382.files(null)); KE.expand(); assert.ok(KE.html().includes('Nie udało się wczytać danych.')); const n1 = KE.calls.filter(c => c === 'plynnosc-usa').length; KE.expand(); KE.expand();
+  assert.equal(KE.calls.filter(c => c === 'plynnosc-usa').length, n1, 'bez pętli zapytań po błędzie');
+  const J0 = usl382.J(); J0.stopy.sofr = []; J0.repo.srf = []; J0.repo.rrp = []; J0.wol.dvp_v = []; const KB = usl382.mk('pl', usl382.files(J0)); KB.expand(); assert.ok(KB.html().includes('Nie udało się wczytać danych.'), 'plik bez żadnej poprawnej części = błąd wczytania');
+  const J9 = usl382.J(); J9.v = 2; const K9 = usl382.mk('pl', usl382.files(J9)); K9.expand(); assert.ok(K9.html().includes('Nie udało się wczytać danych.'), 'inna wersja pliku');
+  const KZ = usl382.mk('pl', usl382.files(), {open: true}); const iv = KZ.ivs.find(x => x[1] === 30 * 60 * 1000); assert.ok(iv, 'zegar 30 min'); const c0 = KZ.calls.filter(c => c === 'plynnosc-usa').length; iv[0]();
+  assert.equal(KZ.calls.filter(c => c === 'plynnosc-usa').length, c0 + 1, 'odświeżenie wymuszone zegarem'); KZ.collapse(); const c1 = KZ.calls.filter(c => c === 'plynnosc-usa').length; iv[0](); assert.equal(KZ.calls.filter(c => c === 'plynnosc-usa').length, c1, 'zwinięta karta — bez odświeżania');
+  const LANGS = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  for (const L of LANGS) {
+    const K = usl382.mk(L, usl382.files()); K.expand(); const hh = K.html();
+    assert.ok(!/usl382\.|NaN|undefined|Infinity|\{[a-z]+\}/.test(hh + K.wl.map(w => w.o.aria + w.L.map(l => l.n).join()).join() + K.wc.map(w => w.o.aria).join()), L + ': blok bez surowych kluczy, NaN i niepodstawionych pól'); assert.equal(usl382.tiles(hh).length, 5, L);
+  }
+  const en = usl382.tiles((() => { const K = usl382.mk('en', usl382.files()); K.expand(); return K.html(); })()); assert.equal(en[0].val, '3.88%', 'en: kropka'); assert.ok(en[0].label.startsWith('SOFR — overnight rate'));
+  assert.equal(usl382.tiles((() => { const K = usl382.mk('de', usl382.files()); K.expand(); return K.html(); })())[0].val, '3,88%', 'de: przecinek');
+  assert.ok(usl382.tiles((() => { const K = usl382.mk('ja', usl382.files()); K.expand(); return K.html(); })())[4].label.startsWith('レポ市場'), 'ja: etykieta po japońsku');
+  // każdy klucz użyty w module (także składany: stopy, części) istnieje w słowniku każdego języka i nie jest pusty
+  const keys = new Set([...usl382.code.matchAll(/'(usl382\.[A-Za-z0-9.]*[A-Za-z0-9])'/g)].map(m => m[1])); ['EFFR', 'TGCR', 'BGCR', 'OBFR'].forEach(k => keys.add('usl382.r.' + k)); ['stopy', 'repo', 'wol'].forEach(k => keys.add('usl382.p.' + k));
+  assert.ok(keys.size >= 50, 'zebrano klucze modułu');
+  for (const L of LANGS) { const T = v96src.tFor(L); for (const k of keys) { const s = T(k, {}); assert.ok(s && s !== k && s.length > 0, L + ': brak klucza ' + k); } }
+});
+
+test('v382 (F11Z3): płynność USA — miejsce karty w GLOBAL (po nowcastach), telefon 390 px bez przewijania w bok, kolory kierunku i tylko zmienne motywu, zero nazw dostawców w module i słowniku', () => {
+  const i0 = html.indexOf('id="g-nowcasty"'), i1 = html.indexOf('id="g-usl"'), i2 = html.indexOf('id="g-insider"');
+  assert.ok(i0 > 0 && i1 > i0 && i2 > i1, 'karta po nowcastach, przed insiderami (kalendarz i nowcasty zostają obok siebie)'); assert.equal(html.split('id="g-usl"').length - 1, 1, 'jeden panel');
+  const c0 = html.indexOf('/* v382 (F11Z3): płynność USA (panel #g-usl)'), c1 = html.indexOf('@media (max-width:620px){#g-usl .usl-g{grid-template-columns:minmax(0,1fr)}}', c0);
+  assert.ok(c0 > 0 && c1 > c0, 'styl panelu'); const css = html.slice(c0, c1 + 100);
+  assert.ok(/#g-usl \.etfkpis\{grid-template-columns:repeat\(auto-fit,minmax\(220px,1fr\)\)\}/.test(css), 'kafle: tyle kolumn, ile mieści się po 220 px — na telefonie jedna'); assert.ok(css.includes('#g-usl .usl-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))'));
+  assert.ok(!/white-space:\s*nowrap/.test(css) && !/overflow-x/.test(css) && !/(^|[^-])width:\s*\d{3,}px/.test(css), 'nic, co wymusza przewijanie w bok'); assert.ok(css.includes('min-width:0') && css.includes('overflow-wrap:anywhere'));
+  assert.ok(css.includes('small.pos{color:var(--gr-tx)}') && css.includes('small.neg{color:var(--rd-tx)}') && css.includes('small.neu{color:var(--yl-tx)}'), 'kolory kierunku: zielony, czerwony, żółty');
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgb\(/.test(css), 'tylko zmienne motywu, bez stałych kolorów'); assert.ok(!/gr(e|a)y|--gy\b/.test(css.replace(/--dim|--mut/g, '')), 'bez szarych strzałek');
+  // dwa tryby i telefon: ostatni media przy 620 px zamienia siatkę wykresów na jedną kolumnę
+  assert.ok(css.includes('@media (max-width:620px){#g-usl .usl-g{grid-template-columns:minmax(0,1fr)}}'));
+  const a0 = html.indexOf('/* ===================== v382 (F11Z3): PŁYNNOŚĆ USA'), a1 = html.indexOf('/* ---------- koniec bloku płynności USA (v382) ---------- */'), m0 = html.indexOf('/* v382: płynność USA (GLOBAL) — 10 języków */');
+  assert.ok(m0 > 0, 'słownik v382 w stronie'); const slow = html.slice(m0, html.indexOf('\n/*', m0 + 10) > 0 ? html.indexOf('\n/*', m0 + 10) : m0 + 60000);
+  const zle = /new york fed|ny fed|federal reserve bank|financialresearch|newyorkfed|\bOFR\b|office of financial research|SIFMA|Bloomberg|Refinitiv|FRED|Treasury Direct/i;
+  assert.ok(!zle.test(html.slice(a0, a1)), 'moduł bez nazw dostawców'); assert.ok(!zle.test(slow.replace(/Treasury|Treasuries/g, 'T')), 'słownik bez nazw dostawców');
+  assert.ok(!/<script|javascript:|on(error|click|load)=/i.test(html.slice(a0, a1)), 'bez wstrzykiwanego kodu');
+  assert.ok(/#g-usl|g-usl/.test(html.slice(a0, a1)), 'moduł używa swojego panelu');
+});

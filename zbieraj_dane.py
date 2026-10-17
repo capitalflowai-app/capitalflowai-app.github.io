@@ -32347,6 +32347,29 @@ def main():
     META['ok']['kalendarz2_cpi_praca_us'] = stan_kal2['cpi_praca_us']; META['ok']['kalendarz2_dane_pl'] = stan_kal2['dane_pl']
     META['ok']['kalendarz2_bc_uk'] = stan_kal2['bc_uk']; META['ok']['kalendarz2_bc_jp'] = stan_kal2['bc_jp']
     # v375: koniec bloku kalendarza 2
+    # v382 (F11Z3): PŁYNNOŚĆ USA (data/plynnosc-usa.json: SOFR z percentylami, operacje repo Fed, wolumeny rynku repo; trzy części z własnym ok / part_at / errs) — co PLUSA_EVERY min, plik z częścią nieudaną
+    # ponawiany po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok: plusa_stopy, plusa_repo, plusa_wol (NY Fed i OFR — źródła już liczone).
+    prev_plusa = previous('plynnosc-usa')
+    if isinstance(prev_plusa, dict) and prev_plusa.get('v') == 1 and fresh_pelny(prev_plusa, PLUSA_EVERY):
+        save('plynnosc-usa', prev_plusa)
+        stan_plusa = {}
+        for k_plusa in PLUSA_PARTS:
+            if _dict(prev_plusa.get('ok')).get(k_plusa) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{PLUSA_PX} {PLUSA_LABEL[k_plusa]}: {str(_dict(prev_plusa.get('errs')).get(k_plusa) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_plusa[k_plusa] = False
+            else:
+                stan_plusa[k_plusa] = 'cached'
+    else:
+        try:
+            plusa_ = build_plusa(prev_plusa, run_t0=_RUN_T0[0]); save('plynnosc-usa', plusa_)
+            stan_plusa = {k_plusa: plusa_['ok'].get(k_plusa) is True for k_plusa in PLUSA_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{PLUSA_PX}: {e}')[:200])
+            stan_plusa = {k_plusa: False for k_plusa in PLUSA_PARTS}
+            if isinstance(prev_plusa, dict):
+                save('plynnosc-usa', prev_plusa)
+    META['ok']['plusa_stopy'] = stan_plusa['stopy']; META['ok']['plusa_repo'] = stan_plusa['repo']; META['ok']['plusa_wol'] = stan_plusa['wol']
+    # v382: koniec bloku płynności USA
     # v367 (F5Z2): PRĄD I CO2 (data/prad.json; dział SUROWCE, blok „Prąd i CO2”) — Polska: cena energii w 96 kwadransach dziś i jutro, cena uprawnień do emisji CO2 oraz ceny
     # dnia następnego w 15 strefach Europy (jedno zapytanie na przebieg — limit źródła); części z własnymi bramkami wg terminów publikacji i budżetem czasu; awaria
     # budowniczego = poprzedni plik. META ok: prad_pl, prad_co2, prad_str (dwa nowe źródła: operator sieci przesyłowej i interfejs danych o energii).
@@ -37732,6 +37755,238 @@ def build_europa_fundusze(prev=None):
 
 
 ZRODLA_META.update({'europa_fundusze_ivf': 'ecb', 'europa_fundusze_hh': 'eurostat'})   # v381: te same dwie instytucje co dotąd (bank centralny strefy euro i urząd statystyczny UE) — liczba źródeł bez zmian
+
+
+# ===================== v382 (F11Z3): PŁYNNOŚĆ USA — SOFR Z PERCENTYLAMI, OPERACJE REPO, WOLUMENY REPO (data/plynnosc-usa.json; publiczne interfejsy dwóch urzędów, bez kont i kluczy) =====================
+# Trzy części jednego pliku, każda z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie (nigdy puste zamiast ostatniego odczytu):
+#   stopy — stopy referencyjne banku Rezerwy Federalnej w Nowym Jorku: SOFR z ostatnich 60 dni roboczych (stopa, percentyle 1 / 25 / 75 / 99, wolumen w mld USD), najnowszy odczyt EFFR, OBFR, TGCR, BGCR
+#           (te same pola) oraz korytarz docelowy stóp z wiersza EFFR i średnie SOFR z 30 / 90 / 180 dni. Dwa zapytania; błąd któregokolwiek = błąd części.
+#   repo  — operacje Fed na rynku repo: stałe repo (SRF, kupno papierów z przyrzeczeniem odsprzedaży — kwoty dzienne w mln USD z ostatnich 30 dni, suma operacji tego dnia, stopa minimalna dnia = górna granica korytarza tego dnia) i odwrotne repo (RRP;
+#           kwota dzienna i stopa). Dzień dzisiejszy UTC bez końcowych operacji (przed PLUSA_SRF_GODZ) jest pomijany — suma niepełnego dnia wyglądałaby na „zerowe korzystanie”.
+#   wol   — urząd badań finansowych (OFR): wolumeny i średnie stopy rynku repo z serii wstępnych (usługa DVP, tri-party bez operacji Fed, GCF) oraz lustro SOFR (stopa i wolumen) do kontroli zgodności
+#           ze stopami banku nowojorskiego. Jedno zapytanie na 8 serii od PLUSA_OFR_OKNO dni wstecz. Serie mają własne daty (usługi opóźniają się o 2–4 dni robocze; to nie błąd).
+# Czas: daty w pliku to dni (RRRR-MM-DD) z samych źródeł; pobranie części — part_at (UTC). Zakresy wartości i układ źródeł pilnują bramki (zmieniony układ = błąd części i alarm, nie pusta karta).
+# To dane rynkowe z urzędów, nie porada inwestycyjna.
+PLUSA_URL_SOFR = 'https://markets.newyorkfed.org/api/rates/secured/sofr/last/60.json'
+PLUSA_URL_ALL = 'https://markets.newyorkfed.org/api/rates/all/latest.json'
+PLUSA_URL_SRF = 'https://markets.newyorkfed.org/api/rp/repo/all/results/last/60.json'
+PLUSA_URL_RRP = 'https://markets.newyorkfed.org/api/rp/reverserepo/all/results/last/30.json'
+PLUSA_URL_OFR = 'https://data.financialresearch.gov/v1/series/multifull?mnemonics={m}&start_date={d}'
+PLUSA_PARTS = ('stopy', 'repo', 'wol')
+PLUSA_LABEL = {'stopy': 'stopy', 'repo': 'repo', 'wol': 'wolumeny'}
+PLUSA_PX = 'Płynność USA'
+PLUSA_EVERY = 120                # min — stopy raz na dzień roboczy, operacje 1–2 razy dziennie, serie urzędu raz dziennie; część z błędem: ponowienie po NIEPELNY_MIN (fresh_pelny)
+PLUSA_TIMEOUT = 25               # s — jedno zapytanie
+PLUSA_MAX_B = 2_000_000          # B — większa odpowiedź to nie ten interfejs (SOFR 60 dni ~14 KB, operacje ~46 KB, serie OFR ~30 KB)
+PLUSA_SOFR_N = 60                # wierszy SOFR w pliku (dni robocze)
+PLUSA_SRF_DNI = 30               # dni z operacjami w pliku
+PLUSA_SRF_GODZ = 20              # godzina UTC: przed nią dzień dzisiejszy nie ma jeszcze końcowych operacji stałego repo (po południu czasu Nowego Jorku)
+PLUSA_OFR_N = 60                 # punktów każdej serii urzędu badań w pliku
+PLUSA_OFR_OKNO = 130             # dni wstecz w zapytaniu o serie urzędu badań (≈ 90 dni roboczych)
+PLUSA_MIN_WIERSZY = 20           # najmniej punktów SOFR i serii urzędu badań (brak = zmieniony układ źródła)
+PLUSA_WIEK_STOPY = 14            # dni — najnowszy SOFR starszy niż to = źródło nieaktualne (błąd części)
+PLUSA_WIEK_REPO = 14             # dni — jw. dla operacji
+PLUSA_WIEK_OFR = 30              # dni — najnowszy punkt każdej serii urzędu badań starszy niż to = błąd części
+PLUSA_SERIE_OFR = {'dvp_v': 'REPO-DVP_TV_TOT-P', 'tri_v': 'REPO-TRIV1_TV_TOT-P', 'gcf_v': 'REPO-GCF_TV_TOT-P', 'dvp_r': 'REPO-DVP_AR_TOT-P', 'tri_r': 'REPO-TRIV1_AR_TOT-P',
+                   'gcf_r': 'REPO-GCF_AR_TOT-P', 'sofr_r': 'FNYR-SOFR-A', 'sofr_v': 'FNYR-SOFR_UV-A'}
+PLUSA_STOPY_TYPY = ('SOFR', 'EFFR', 'OBFR', 'TGCR', 'BGCR')
+PLUSA_SRC = ('CapitalFlowAI — płynność rynku pieniężnego USA z publicznych interfejsów banku Rezerwy Federalnej w Nowym Jorku (stopy referencyjne, operacje repo) i urzędu badań finansowych (wolumeny '
+             'rynku repo); daty z samych źródeł, pobranie części w part_at (UTC); dane rynkowe, nie porada inwestycyjna')
+
+
+def plusa_http(url, max_b=PLUSA_MAX_B, timeout=PLUSA_TIMEOUT):
+    """Jedno zapytanie GET → obiekt JSON. Odpowiedź większa niż max_b, pusta, nie-JSON albo kod inny niż 2xx = wyjątek. Treść skompresowana (gzip, także bez prośby) jest rozpakowana z limitem; bez obchodzenia blokad."""
+    with _otworz(url, {'Accept': 'application/json'}, timeout) as r:
+        body = r.read(max_b + 1)
+    if len(body) > max_b:
+        raise ValueError('odpowiedź większa niż oczekiwana')
+    if body[:2] == b'\x1f\x8b':
+        import zlib as _plusa_zlib
+        body = _plusa_zlib.decompressobj(16 + _plusa_zlib.MAX_WBITS).decompress(body, max_b + 1)
+        if len(body) > max_b:
+            raise ValueError('odpowiedź większa niż oczekiwana')
+    if not body.strip():
+        raise ValueError('pusta odpowiedź')
+    return json.loads(body.decode('utf-8-sig'))
+
+
+def plusa_liczba(x, lo, hi, nazwa):
+    """Liczba (nie tekst, nie bool, skończona) w zakresie lo…hi albo ValueError."""
+    if isinstance(x, bool) or not isinstance(x, (int, float)) or not math.isfinite(x) or not lo <= x <= hi:
+        raise ValueError(f'{nazwa} poza zakresem albo brak ({str(x)[:20]})')
+    return float(x)
+
+
+def plusa_dzien(s):
+    """„RRRR-MM-DD…” → date; zły format = ValueError."""
+    if not isinstance(s, str) or not re.match(r'\d{4}-\d{2}-\d{2}', s):
+        raise ValueError(f'zła data {str(s)[:12]!r}')
+    return datetime.date.fromisoformat(s[:10])
+
+
+def plusa_wiek(d, dzis, max_dni, nazwa):
+    if (dzis - d).days > max_dni:
+        raise ValueError(f'{nazwa}: najnowszy odczyt z {d} — źródło nieaktualne')
+    if (d - dzis).days > 2:
+        raise ValueError(f'{nazwa}: data odczytu {d} z przyszłości')
+
+
+def plusa_stopa(r, nazwa):
+    """Wiersz stopy referencyjnej → [dzień, stopa, p1, p25, p75, p99, wolumen mld USD]. Percentyle muszą rosnąć (p1 ≤ p25 ≤ p75 ≤ p99), stopa 0…20%, wolumen 0…50 000 mld."""
+    d = plusa_dzien(r.get('effectiveDate'))
+    v = plusa_liczba(r.get('percentRate'), 0, 20, f'{nazwa} stopa')
+    p = [plusa_liczba(r.get('percentPercentile' + k), 0, 20, f'{nazwa} percentyl {k}') for k in ('1', '25', '75', '99')]
+    if not p[0] <= p[1] <= p[2] <= p[3]:
+        raise ValueError(f'{nazwa}: percentyle nie rosną ({p})')
+    vol = plusa_liczba(r.get('volumeInBillions'), 0, 50000, f'{nazwa} wolumen')
+    return [d.isoformat(), round(v, 3), round(p[0], 3), round(p[1], 3), round(p[2], 3), round(p[3], 3), round(vol, 1)]
+
+
+def plusa_stopy(sofr, wszystkie, dzis):
+    """Odpowiedzi banku nowojorskiego → część „stopy”: {sofr: [wiersze], rates: {typ: wiersz}, target: [od, do] albo None, avg: {d, a30, a90, a180} albo None}. Bramki: ≥ PLUSA_MIN_WIERSZY wierszy SOFR,
+    każdy z percentylami, najnowszy nie starszy niż PLUSA_WIEK_STOPY dni; w najnowszym odczycie wszystkich stóp musi być SOFR."""
+    lista = sofr.get('refRates') if isinstance(sofr, dict) else None
+    if not isinstance(lista, list):
+        raise ValueError('SOFR: brak listy refRates — zmieniony układ źródła?')
+    by = {}
+    for r in lista:
+        if isinstance(r, dict) and r.get('type') == 'SOFR':
+            w = plusa_stopa(r, 'SOFR')
+            by[w[0]] = w
+    rows = [by[d] for d in sorted(by)][-PLUSA_SOFR_N:]
+    if len(rows) < PLUSA_MIN_WIERSZY:
+        raise ValueError(f'SOFR: {len(rows)} wierszy (co najmniej {PLUSA_MIN_WIERSZY}) — zmieniony układ źródła?')
+    plusa_wiek(plusa_dzien(rows[-1][0]), dzis, PLUSA_WIEK_STOPY, 'SOFR')
+    lista2 = wszystkie.get('refRates') if isinstance(wszystkie, dict) else None
+    if not isinstance(lista2, list):
+        raise ValueError('stopy: brak listy refRates — zmieniony układ źródła?')
+    rates, target, avg = {}, None, None
+    for r in lista2:
+        if not isinstance(r, dict):
+            continue
+        typ = r.get('type')
+        if typ in PLUSA_STOPY_TYPY and typ not in rates:
+            rates[typ] = plusa_stopa(r, typ)
+            if typ == 'EFFR' and r.get('targetRateFrom') is not None:
+                a, b = plusa_liczba(r.get('targetRateFrom'), 0, 20, 'korytarz od'), plusa_liczba(r.get('targetRateTo'), 0, 20, 'korytarz do')
+                if not a < b:
+                    raise ValueError(f'korytarz stóp: {a} nie jest mniejsze niż {b}')
+                target = [round(a, 3), round(b, 3)]
+        elif typ == 'SOFRAI' and avg is None:
+            avg = {'d': plusa_dzien(r.get('effectiveDate')).isoformat(), 'a30': round(plusa_liczba(r.get('average30day'), 0, 20, 'średnia SOFR 30 dni'), 3),
+                   'a90': round(plusa_liczba(r.get('average90day'), 0, 20, 'średnia SOFR 90 dni'), 3), 'a180': round(plusa_liczba(r.get('average180day'), 0, 20, 'średnia SOFR 180 dni'), 3)}
+    if 'SOFR' not in rates:
+        raise ValueError('stopy: brak SOFR w najnowszym odczycie — zmieniony układ źródła?')
+    return {'sofr': rows, 'rates': rates, 'target': target, 'avg': avg}
+
+
+def plusa_repo(srf, rrp, dzis, teraz):
+    """Odpowiedzi banku nowojorskiego o operacjach → część „repo”: {srf: [[dzień, przyjęte mln USD, zgłoszone mln USD, liczba operacji, stopa minimalna dnia albo None]], srf_rate: stopa minimalna, rrp: [[dzień, przyjęte mln USD, stopa]]}.
+    Stałe repo: wiersze operationType „Repo” z wynikami, sumy dzienne; dzień dzisiejszy UTC przed PLUSA_SRF_GODZ pominięty (niepełny). Odwrotne repo: jedna operacja dziennie."""
+    ops = (srf.get('repo') or {}).get('operations') if isinstance(srf, dict) else None
+    if not isinstance(ops, list):
+        raise ValueError('stałe repo: brak listy operations — zmieniony układ źródła?')
+    dni, stopa, stopa_d, stopy_dnia = {}, None, None, {}
+    for o in ops:
+        if not isinstance(o, dict) or o.get('operationType') != 'Repo' or o.get('auctionStatus') != 'Results':
+            continue
+        d = plusa_dzien(o.get('operationDate'))
+        a = plusa_liczba(o.get('totalAmtAccepted'), 0, 1e13, 'stałe repo przyjęte')
+        s = plusa_liczba(o.get('totalAmtSubmitted'), 0, 1e13, 'stałe repo zgłoszone')
+        x = dni.setdefault(d.isoformat(), [0.0, 0.0, 0])
+        x[0] += a; x[1] += s; x[2] += 1
+        det = o.get('details')
+        if isinstance(det, list) and det and isinstance(det[0], dict) and det[0].get('percentOfferingRate') is not None:
+            sd = round(plusa_liczba(det[0].get('percentOfferingRate'), 0, 20, 'stopa stałego repo'), 3)
+            stopy_dnia[d.isoformat()] = max(sd, stopy_dnia.get(d.isoformat(), sd))   # stopa minimalna dnia = górna granica korytarza w tym dniu (zmienia się w dniach decyzji o stopach)
+            if stopa_d is None or d.isoformat() >= stopa_d:
+                stopa, stopa_d = sd, d.isoformat()
+    if teraz.hour < PLUSA_SRF_GODZ:
+        dni.pop(dzis.isoformat(), None)
+    s_rows = [[d, round(dni[d][0] / 1e6, 1), round(dni[d][1] / 1e6, 1), dni[d][2], stopy_dnia.get(d)] for d in sorted(dni)][-PLUSA_SRF_DNI:]   # mln USD z jednym miejscem (0,0 tylko dla kwot poniżej 50 tys. USD); stopa dnia albo None
+    ops2 = (rrp.get('repo') or {}).get('operations') if isinstance(rrp, dict) else None
+    if not isinstance(ops2, list):
+        raise ValueError('odwrotne repo: brak listy operations — zmieniony układ źródła?')
+    by = {}
+    for o in ops2:
+        if not isinstance(o, dict) or o.get('operationType') != 'Reverse Repo' or o.get('auctionStatus') not in (None, 'Results'):
+            continue
+        d = plusa_dzien(o.get('operationDate'))
+        a = plusa_liczba(o.get('totalAmtAccepted'), 0, 1e14, 'odwrotne repo przyjęte')
+        det = o.get('details')
+        r = None
+        if isinstance(det, list) and det and isinstance(det[0], dict):
+            r = det[0].get('percentAwardRate') if det[0].get('percentAwardRate') is not None else det[0].get('percentOfferingRate')
+        by[d.isoformat()] = [d.isoformat(), round(a / 1e6, 1), None if r is None else round(plusa_liczba(r, 0, 20, 'stopa odwrotnego repo'), 3)]
+    r_rows = [by[d] for d in sorted(by)][-PLUSA_SRF_DNI:]
+    if len(s_rows) < 5 or len(r_rows) < 5:
+        raise ValueError(f'operacje repo: {len(s_rows)} dni stałego i {len(r_rows)} dni odwrotnego repo (co najmniej 5) — zmieniony układ źródła?')
+    plusa_wiek(plusa_dzien(s_rows[-1][0]), dzis, PLUSA_WIEK_REPO, 'stałe repo')
+    plusa_wiek(plusa_dzien(r_rows[-1][0]), dzis, PLUSA_WIEK_REPO, 'odwrotne repo')
+    return {'srf': s_rows, 'srf_rate': stopa, 'rrp': r_rows}
+
+
+def plusa_ofr(j, dzis):
+    """Odpowiedź urzędu badań (multifull) → część „ofr”: {klucz: [[dzień, wartość]]} dla 8 serii (wolumeny w mld USD, stopy w %). Każda seria: ≥ PLUSA_MIN_WIERSZY punktów, wartości w zakresach, najnowszy punkt nie starszy niż
+    PLUSA_WIEK_OFR dni; brak którejkolwiek serii = zmieniony układ źródła."""
+    if not isinstance(j, dict):
+        raise ValueError('urząd badań: odpowiedź nie jest słownikiem')
+    out = {}
+    for k, mn in PLUSA_SERIE_OFR.items():
+        s = ((j.get(mn) or {}).get('timeseries') or {}).get('aggregation') if isinstance(j.get(mn), dict) else None
+        if not isinstance(s, list):
+            raise ValueError(f'urząd badań: brak serii {k} — zmieniony układ źródła?')
+        by = {}
+        for p in s:
+            if not (isinstance(p, list) and len(p) == 2) or p[1] is None:
+                continue
+            d = plusa_dzien(p[0]).isoformat()
+            if k.endswith('_v'):
+                by[d] = round(plusa_liczba(p[1], 1e9, 5e13, f'seria {k}') / 1e9, 1)   # USD → mld USD
+            else:
+                by[d] = round(plusa_liczba(p[1], 0, 20, f'seria {k}'), 3)
+        rows = [[d, by[d]] for d in sorted(by)][-PLUSA_OFR_N:]
+        if len(rows) < PLUSA_MIN_WIERSZY:
+            raise ValueError(f'urząd badań: seria {k} ma {len(rows)} punktów (co najmniej {PLUSA_MIN_WIERSZY}) — zmieniony układ źródła?')
+        plusa_wiek(plusa_dzien(rows[-1][0]), dzis, PLUSA_WIEK_OFR, f'seria {k}')
+        out[k] = rows
+    return out
+
+
+def plusa_czesc(k, dzis, teraz):
+    """Jedna część pliku (zapytania + bramki). Błąd = wyjątek (część zostaje z poprzedniego pliku)."""
+    if k == 'stopy':
+        return plusa_stopy(plusa_http(PLUSA_URL_SOFR), plusa_http(PLUSA_URL_ALL), dzis)
+    if k == 'repo':
+        return plusa_repo(plusa_http(PLUSA_URL_SRF), plusa_http(PLUSA_URL_RRP), dzis, teraz)
+    od = (dzis - datetime.timedelta(days=PLUSA_OFR_OKNO)).isoformat()
+    return plusa_ofr(plusa_http(PLUSA_URL_OFR.format(m=','.join(PLUSA_SERIE_OFR.values()), d=od)), dzis)
+
+
+def build_plusa(prev=None, run_t0=None):
+    """Plik data/plynnosc-usa.json (v382): trzy części (stopy, repo, wol) z własnym ok / part_at / errs; część z błędem zostaje z poprzedniego pliku z własną chwilą, nigdy pusta zamiast ostatniego odczytu;
+    żadna część nie odpowiedziała = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == 1 else {}
+    pat = _dict(prev.get('part_at'))
+    teraz = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc)
+    dzis = teraz.date()
+    out = {'v': 1, 'at': NOW, 'src': PLUSA_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    for k in PLUSA_PARTS:
+        try:
+            out[k] = plusa_czesc(k, dzis, teraz)
+            out['ok'][k] = True; out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część z błędem: poprzedni odczyt z własną chwilą
+            msg = mask(f'{e}')[:160]
+            META['errors'].append(mask(f'{PLUSA_PX} {PLUSA_LABEL[k]}: {msg}')[:220]); out['ok'][k] = False; out['errs'][k] = msg
+            if isinstance(prev.get(k), dict):
+                out[k] = prev[k]
+                out['part_at'][k] = pat.get(k) or prev.get('at')
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+ZRODLA_META.update({'plusa_stopy': 'ny-fed', 'plusa_repo': 'ny-fed', 'plusa_wol': 'ofr'})   # v382: NY Fed i urząd badań finansowych (OFR) są już liczone — liczba źródeł bez zmian
 
 
 if __name__ == '__main__':

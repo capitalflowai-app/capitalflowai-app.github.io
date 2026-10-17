@@ -9837,6 +9837,249 @@ def europa_fundusze_kontrola(files):
     return {'spojnosc': europa_fundusze_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v382 (F11Z3): płynność USA — SOFR z percentylami, operacje repo, wolumeny repo (data/plynnosc-usa.json) ----------------------------------------
+# Plik: stopy {sofr: [[dzień, stopa, p1, p25, p75, p99, wolumen mld USD]], rates: {SOFR, EFFR, OBFR, TGCR, BGCR: wiersz}, target: [od, do], avg}, repo {srf: [[dzień, przyjęte mln, zgłoszone mln, operacji, stopa minimalna dnia]], srf_rate,
+# rrp: [[dzień, przyjęte mln, stopa]]}, wol {dvp_v, tri_v, gcf_v (mld USD), dvp_r, tri_r, gcf_r (%), sofr_r (%), sofr_v (mld USD): [[dzień, wartość]]}, ok / part_at / errs. Kontrola czyta pliki ze strony (bez zapytań do sieci).
+# RYTM PUBLIKACJI i progi z testu wstecznego (ws53/v382-plynnosc/bt_progi.py, pełne serie urzędu badań od 2018, pobrane 15.10.2026):
+#   SOFR i operacje Fed: odstępy między kolejnymi dniami 2018-04…2026-10 (2131 dni; 1 d: 1659, 2 d: 26, 3 d: 375, 4 d: 70, najdłuższy 4 dni) + jeden dzień na publikację rano następnego dnia roboczego
+#   → ⚠ dopiero przy wieku najnowszego dnia > PLUSA_K_NYF_DNI = 5 dni (0 fałszywych ⚠ w 2131 dniach);
+#   serie urzędu badań: ten sam kalendarz (najdłuższy odstęp 4 dni; tri-party od 2014 — 5 dni, jednorazowo 9 w styczniu 2015) i opóźnienie publikacji (obserwowane 15.10.2026: 2 dni DVP i GCF, 6 dni tri-party po święcie)
+#   → ⚠ przy wieku najnowszego dnia serii > PLUSA_K_OFR_DNI = 10 dni (opóźnienia nie da się sprawdzić wstecz — brak zapisów wersji; próg do sprawdzenia na własnej historii pliku).
+# (1) świeżość pobrania każdej z trzech części (odświeżanie co 2 h; starsze niż doba = ⚠) i wiersze rytmu (wiek najnowszego dnia SOFR, operacji i serii urzędu badań; najwyżej ⚠);
+# (2) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zły wiersz albo format dnia, historia nie rośnie albo ma dubel dnia, percentyle nie rosną, SOFR poza percentylami 1–99, przyjęte kwoty stałego repo większe niż zgłoszone,
+#     liczby poza zakresem, korytarz stóp odwrócony;
+# (3) TYLKO UWAGA ⚠: zgodność SOFR banku nowojorskiego z lustrem urzędu badań (stopa i wolumen, ten sam dzień — różnica > 0,011 pp albo > 1 mld USD), SOFR z listy i z najnowszego odczytu wszystkich stóp (ten sam dzień, inna
+#     liczba), stopa stałego repo i odwrotnego repo a korytarz docelowy (stałe repo = górna granica, odwrotne repo = dolna; różnica > 0,01 pp), EFFR poza korytarzem, wiek najnowszego dnia ponad progi.
+# Najwyżej ⚠ poza (2). Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'plynnosc-usa')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['plynnosc-usa'] = 12 * 60   # plik zapisywany co ok. 2 h (część z błędem: co godzinę) — wiek pobrania każdej części ocenia osobny wiersz
+AW_BEZ_BLEDU.update({'plusa_' + p_: 'płynność USA — część z błędem zostaje z ostatnim odczytem i datą (v382); wiek pobrania i rytm publikacji w wierszach świeżości' for p_ in ('stopy', 'repo', 'wol')})
+PLUSA_K_PARTS = ('stopy', 'repo', 'wol')
+PLUSA_K_NAZWA = {'stopy': 'stopy', 'repo': 'repo', 'wol': 'wolumeny'}   # nazwy części w komunikatach kontroli = etykiety zbieracza
+PLUSA_K_ETYKIETA = {'stopy': 'Płynność USA: stopy SOFR (pobranie)', 'repo': 'Płynność USA: operacje repo Fed (pobranie)', 'wol': 'Płynność USA: wolumeny repo (pobranie)'}
+PLUSA_K_RYTM = {'stopy': 'Płynność USA: SOFR (najnowszy dzień)', 'repo': 'Płynność USA: operacje repo (najnowszy dzień)', 'wol': 'Płynność USA: wolumeny repo (najnowszy dzień)'}
+PLUSA_K_PROG_MIN = 24 * 60        # min — wiek pobrania części (odświeżanie co 2 h)
+PLUSA_K_NYF_DNI = 5               # dni — wiek najnowszego dnia SOFR i operacji (bt_progi.py: najdłuższy odstęp 4 dni + dzień na publikację)
+PLUSA_K_OFR_DNI = 10              # dni — wiek najnowszego dnia serii urzędu badań (odstęp do 5 dni + opóźnienie publikacji do ~5 dni)
+PLUSA_K_ZGODA_PP = 0.011          # pp — dopuszczalna różnica stopy SOFR między źródłami (zaokrąglenie do 2 miejsc)
+PLUSA_K_ZGODA_MLD = 1.0           # mld USD — dopuszczalna różnica wolumenu SOFR między źródłami
+PLUSA_K_KORYTARZ_PP = 0.01        # pp — stopy operacji a granice korytarza
+
+
+def _plusa_k_dzien(s):
+    """„RRRR-MM-DD” → date albo None."""
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return dt.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _plusa_k_num(x, lo, hi):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and lo <= x <= hi
+
+
+def _plusa_k_wiersze(zle, nazwa, h, dlugosc, spr):
+    """Wspólne sprawdzenie szeregu: lista list o danej długości, dni poprawne i rosnące bez dubli, wiersz przechodzi `spr` (zwraca opis błędu albo None)."""
+    if not isinstance(h, list) or not h:
+        zle.append(f'{nazwa}: brak wierszy'); return
+    ost = None
+    for r in h:
+        if not (isinstance(r, list) and len(r) == dlugosc and _plusa_k_dzien(r[0]) is not None):
+            zle.append(f'{nazwa}: zły wiersz ({str(r)[:40]})'); continue
+        if ost is not None and r[0] == ost:
+            zle.append(f'{nazwa}: dubel dnia {r[0]}')
+        elif ost is not None and r[0] < ost:
+            zle.append(f'{nazwa}: szereg nie rośnie ({ost} przed {r[0]})')
+        ost = r[0]
+        b = spr(r)
+        if b:
+            zle.append(f'{nazwa}: {b} ({r[0]})')
+
+
+def _plusa_k_stopa(r):
+    if not all(_plusa_k_num(x, 0, 20) for x in r[1:6]) or not _plusa_k_num(r[6], 0, 50000):
+        return 'liczba poza zakresem albo brak'
+    if not r[2] <= r[3] <= r[4] <= r[5]:
+        return 'percentyle nie rosną'
+    if not r[2] <= r[1] <= r[5]:
+        return 'stopa poza percentylami 1–99'
+    return None
+
+
+def plusa_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w płynności USA) → lista opisów."""
+    zle = []
+    S, R, O = j.get('stopy'), j.get('repo'), j.get('wol')
+    if S is not None:
+        if not isinstance(S, dict):
+            zle.append('stopy: część nie jest słownikiem')
+        else:
+            _plusa_k_wiersze(zle, 'SOFR', S.get('sofr'), 7, _plusa_k_stopa)
+            rt = S.get('rates')
+            if not isinstance(rt, dict) or 'SOFR' not in rt:
+                zle.append('stopy: brak SOFR w najnowszym odczycie stóp')
+            else:
+                for typ, r in rt.items():
+                    if not (isinstance(r, list) and len(r) == 7 and _plusa_k_dzien(r[0]) is not None):
+                        zle.append(f'stopy {typ}: zły wiersz ({str(r)[:40]})')
+                    elif _plusa_k_stopa(r):
+                        zle.append(f'stopy {typ}: {_plusa_k_stopa(r)} ({r[0]})')
+            t = S.get('target')
+            if t is not None and not (isinstance(t, list) and len(t) == 2 and _plusa_k_num(t[0], 0, 20) and _plusa_k_num(t[1], 0, 20) and t[0] < t[1]):
+                zle.append(f'stopy: korytarz docelowy odwrócony albo zły ({str(t)[:30]})')
+            a = S.get('avg')
+            if a is not None and not (isinstance(a, dict) and _plusa_k_dzien(a.get('d')) is not None and all(_plusa_k_num(a.get(k), 0, 20) for k in ('a30', 'a90', 'a180'))):
+                zle.append('stopy: złe średnie SOFR')
+    if R is not None:
+        if not isinstance(R, dict):
+            zle.append('repo: część nie jest słownikiem')
+        else:
+            def srf(r):
+                if not (_plusa_k_num(r[1], 0, 1e7) and _plusa_k_num(r[2], 0, 1e7) and isinstance(r[3], int) and not isinstance(r[3], bool) and r[3] >= 1):
+                    return 'kwota albo liczba operacji poza zakresem'
+                if not (r[4] is None or _plusa_k_num(r[4], 0, 20)):
+                    return 'stopa dnia poza zakresem'
+                return 'przyjęte większe niż zgłoszone' if r[1] > r[2] else None
+            _plusa_k_wiersze(zle, 'stałe repo', R.get('srf'), 5, srf)
+            _plusa_k_wiersze(zle, 'odwrotne repo', R.get('rrp'), 3, lambda r: None if _plusa_k_num(r[1], 0, 1e8) and (r[2] is None or _plusa_k_num(r[2], 0, 20)) else 'kwota albo stopa poza zakresem')
+            if R.get('srf_rate') is not None and not _plusa_k_num(R['srf_rate'], 0, 20):
+                zle.append('repo: stopa stałego repo poza zakresem')
+    if O is not None:
+        if not isinstance(O, dict):
+            zle.append('wol: część nie jest słownikiem')
+        else:
+            for k in ('dvp_v', 'tri_v', 'gcf_v', 'dvp_r', 'tri_r', 'gcf_r', 'sofr_r', 'sofr_v'):
+                hi = 50000 if k.endswith('_v') else 20
+                lo = 1 if k.endswith('_v') else 0
+                _plusa_k_wiersze(zle, f'seria {k}', O.get(k), 2, lambda r, lo=lo, hi=hi: None if _plusa_k_num(r[1], lo, hi) else 'wartość poza zakresem')
+    return zle[:12]
+
+
+def _plusa_k_ostatni(h):
+    """Najnowszy dzień szeregu (lista wierszy z dniem na początku) jako date albo None."""
+    ds = [_plusa_k_dzien(r[0]) for r in h if isinstance(r, list) and r]
+    ds = [d for d in ds if d is not None]
+    return max(ds) if ds else None
+
+
+def plusa_swiezosc(j, now=None):
+    """Wiersze: pobranie każdej części (etykieta, status, wiek min, chwila, uwaga) i rytm publikacji (wiek najnowszego dnia względem progów z testu wstecznego); brak pliku albo inna wersja = brak wierszy.
+    Część bez chwili pobrania — '?'. Najwyżej ⚠."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p in PLUSA_K_PARTS:
+        P = j.get(p)
+        if not isinstance(P, dict):
+            continue
+        txt = (j.get('part_at') or {}).get(p) if isinstance(j.get('part_at'), dict) else None
+        if not txt:
+            rows.append((PLUSA_K_ETYKIETA[p], '?', None, None, 'brak chwili pobrania tej części w pliku')); continue
+        w = wiek_danych(str(txt), 'ts', 'k', now)
+        ok = (j.get('ok') or {}).get(p) if isinstance(j.get('ok'), dict) else None
+        st = '?' if w is None else ('⚠\ufe0f' if w > PLUSA_K_PROG_MIN else '✅')
+        note = ''
+        if st == '⚠\ufe0f':
+            note = f'pobranie starsze niż {fmt_wiek(PLUSA_K_PROG_MIN)} (odświeżanie co 2 h) — dane mogą być nieaktualne; najwyżej uwaga'
+        elif ok is False:
+            note = 'ostatnie pobranie nieudane — dane z poprzedniego pobrania'
+        rows.append((PLUSA_K_ETYKIETA[p], st, w, str(txt), note))
+        if p == 'stopy':
+            d, prog, kto = _plusa_k_ostatni(P.get('sofr') if isinstance(P.get('sofr'), list) else []), PLUSA_K_NYF_DNI, 'SOFR'
+        elif p == 'repo':
+            ds = [_plusa_k_ostatni(P.get(k) if isinstance(P.get(k), list) else []) for k in ('srf', 'rrp')]
+            d, prog, kto = (min(x for x in ds if x) if all(ds) else None), PLUSA_K_NYF_DNI, 'operacje'
+        else:
+            ds = [_plusa_k_ostatni(P.get(k) if isinstance(P.get(k), list) else []) for k in ('dvp_v', 'tri_v', 'gcf_v', 'dvp_r', 'tri_r', 'gcf_r')]
+            d, prog, kto = (min(x for x in ds if x) if all(ds) else None), PLUSA_K_OFR_DNI, 'serie'
+        if d is None:
+            continue
+        wiek = (now.date() - d).days
+        zle = wiek > prog
+        note = (f'{kto}: najnowszy dzień {d.isoformat()} — sprzed {wiek} dni (najdłuższy normalny odstęp w historii 4 dni; próg {prog} dni)') if zle else ''
+        rows.append((PLUSA_K_RYTM[p], '⚠\ufe0f' if zle else '✅', wiek_danych(d.isoformat(), 'day', 'k', now), d.isoformat(), note))
+    return rows
+
+
+def plusa_uwagi(j, now=None):
+    """Uwagi ⚠ (nigdy ❌): zgodność SOFR z lustrem urzędu badań, spójność odczytów, stopy operacji a korytarz. → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    out = {'wiersze': [], 'uwagi': []}
+    S = j.get('stopy') if isinstance(j.get('stopy'), dict) else None
+    R = j.get('repo') if isinstance(j.get('repo'), dict) else None
+    O = j.get('wol') if isinstance(j.get('wol'), dict) else None
+    try:   # SOFR banku nowojorskiego a lustro urzędu badań: stopa i wolumen w tych samych dniach (wszystkie wspólne dni z ostatnich 10 wierszy)
+        if S and O and isinstance(S.get('sofr'), list) and isinstance(O.get('sofr_r'), list) and isinstance(O.get('sofr_v'), list):
+            nf = {r[0]: r for r in S['sofr'] if isinstance(r, list) and len(r) == 7}
+            ofr_r = {r[0]: r[1] for r in O['sofr_r'] if isinstance(r, list) and len(r) == 2}
+            ofr_v = {r[0]: r[1] for r in O['sofr_v'] if isinstance(r, list) and len(r) == 2}
+            wsp = sorted(d for d in nf if d in ofr_r)[-10:]
+            if wsp:
+                zle = [d for d in wsp if not (_plusa_k_num(ofr_r[d], 0, 20) and abs(nf[d][1] - ofr_r[d]) <= PLUSA_K_ZGODA_PP)]
+                zlev = [d for d in wsp if d in ofr_v and _plusa_k_num(ofr_v[d], 0, 50000) and abs(nf[d][6] - ofr_v[d]) > PLUSA_K_ZGODA_MLD]
+                ost = wsp[-1]
+                out['wiersze'].append((f'SOFR: bank nowojorski {nf[ost][1]}% / lustro urzędu badań {ofr_r.get(ost)}% ({ost}; zgodność w {len(wsp) - len(zle)} z {len(wsp)} dni)', '⚠\ufe0f' if zle or zlev else '✅'))
+                if zle:
+                    out['uwagi'].append(f'Płynność USA: SOFR banku nowojorskiego różni się od lustra urzędu badań o więcej niż {PLUSA_K_ZGODA_PP} pp w dniach: {", ".join(zle[-4:])} — sprawdź, czy któryś z plików nie jest po rewizji')
+                if zlev:
+                    out['uwagi'].append(f'Płynność USA: wolumen SOFR różni się między źródłami o więcej niż {PLUSA_K_ZGODA_MLD} mld USD w dniach: {", ".join(zlev[-4:])}')
+            else:
+                out['wiersze'].append(('SOFR: brak wspólnego dnia z lustrem urzędu badań (zgodności nie sprawdzono)', '⚠\ufe0f'))
+                out['uwagi'].append('Płynność USA: brak wspólnego dnia SOFR w obu źródłach — zgodności nie da się sprawdzić')
+    except Exception as ex:  # noqa
+        out['uwagi'].append(f'Płynność USA: porównanie SOFR ze źródłem lustrzanym przerwane ({str(ex)[:60]})')
+    try:   # SOFR z listy a SOFR z najnowszego odczytu wszystkich stóp; EFFR w korytarzu; SOFR a EFFR
+        if S and isinstance(S.get('sofr'), list) and S['sofr'] and isinstance(S.get('rates'), dict) and isinstance(S['rates'].get('SOFR'), list):
+            a, b = S['sofr'][-1], S['rates']['SOFR']
+            if a[0] == b[0]:
+                zg = abs(a[1] - b[1]) < 1e-9
+                out['wiersze'].append((f'SOFR: lista {a[1]}% i najnowszy odczyt stóp {b[1]}% ({a[0]})', '✅' if zg else '⚠\ufe0f'))
+                if not zg:
+                    out['uwagi'].append(f'Płynność USA: SOFR z listy ({a[1]}%) i z najnowszego odczytu stóp ({b[1]}%) w dniu {a[0]} różnią się — możliwa rewizja źródła')
+        t = S.get('target') if S else None
+        e = (S.get('rates') or {}).get('EFFR') if S else None
+        if t and isinstance(e, list) and len(e) == 7 and _plusa_k_num(e[1], 0, 20) and _plusa_k_num(t[0], 0, 20) and _plusa_k_num(t[1], 0, 20):
+            w = t[0] - 0.005 <= e[1] <= t[1] + 0.005
+            out['wiersze'].append((f'EFFR {e[1]}% a korytarz docelowy {t[0]}–{t[1]}% ({e[0]})', '✅' if w else '⚠\ufe0f'))
+            if not w:
+                out['uwagi'].append(f'Płynność USA: EFFR ({e[1]}%) poza korytarzem docelowym {t[0]}–{t[1]}% — zmiana korytarza, której plik jeszcze nie zna, albo błąd danych')
+        so = (S.get('rates') or {}).get('SOFR') if S else None
+        if isinstance(so, list) and len(so) == 7 and isinstance(e, list) and len(e) == 7 and _plusa_k_num(so[1], 0, 20) and _plusa_k_num(e[1], 0, 20):
+            roz = round(so[1] - e[1], 3)
+            out['wiersze'].append((f'SOFR − EFFR: {roz:+.2f} pp (informacyjnie; duży rozstęp bywa prawdziwym napięciem rynku, nie błędem danych)', '✅' if abs(roz) <= 0.5 else '⚠\ufe0f'))
+    except Exception as ex:  # noqa
+        out['uwagi'].append(f'Płynność USA: kontrola stóp przerwana ({str(ex)[:60]})')
+    try:   # stopy operacji Fed a korytarz: stałe repo = górna granica, odwrotne repo = dolna
+        t = S.get('target') if S else None
+        if R and t and _plusa_k_num(t[0], 0, 20) and _plusa_k_num(t[1], 0, 20):
+            if _plusa_k_num(R.get('srf_rate'), 0, 20):
+                zg = abs(R['srf_rate'] - t[1]) <= PLUSA_K_KORYTARZ_PP
+                out['wiersze'].append((f'stałe repo: stopa minimalna {R["srf_rate"]}% a górna granica korytarza {t[1]}%', '✅' if zg else '⚠\ufe0f'))
+                if not zg:
+                    out['uwagi'].append(f'Płynność USA: stopa stałego repo ({R["srf_rate"]}%) różni się od górnej granicy korytarza ({t[1]}%) — zmiana stóp, której jedna z części jeszcze nie zna, albo zmieniona zasada operacji')
+            rr = [r for r in (R.get('rrp') or []) if isinstance(r, list) and len(r) == 3 and _plusa_k_num(r[2], 0, 20)]
+            if rr:
+                zg = abs(rr[-1][2] - t[0]) <= PLUSA_K_KORYTARZ_PP
+                out['wiersze'].append((f'odwrotne repo: stopa {rr[-1][2]}% a dolna granica korytarza {t[0]}% ({rr[-1][0]})', '✅' if zg else '⚠\ufe0f'))
+                if not zg:
+                    out['uwagi'].append(f'Płynność USA: stopa odwrotnego repo ({rr[-1][2]}%) różni się od dolnej granicy korytarza ({t[0]}%) — zmiana stóp, której jedna z części jeszcze nie zna')
+    except Exception as ex:  # noqa
+        out['uwagi'].append(f'Płynność USA: porównanie stóp operacji z korytarzem przerwane ({str(ex)[:60]})')
+    return out
+
+
+def plusa_kontrola(files, now=None):
+    """Kontrola pliku plynnosc-usa.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('plynnosc-usa') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    U = plusa_uwagi(j, now)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': plusa_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -10373,6 +10616,24 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['europa-fundusze'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Europa fundusze (v381): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v382. płynność USA (data/plynnosc-usa.json): świeżość pobrania trzech części i rytm publikacji osobnymi wierszami (lista SWIEZOSC bez zmian), zgodność SOFR ze źródłem lustrzanym, stopy operacji a korytarz (⚠)
+    # oraz sprzeczności w pliku (❌) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in plusa_swiezosc(files.get('plynnosc-usa')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠\ufe0f':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_pl = plusa_kontrola(files)
+        if T_pl:
+            for z_ in T_pl['spojnosc'][:5]:
+                R['bledy'].append(f'plynnosc-usa.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_pl['uwagi']
+        R['zgodnosc']['plynnosc-usa'] = {k_: T_pl[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_pl else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['plynnosc-usa'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'płynność USA (v382): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -11061,6 +11322,11 @@ def raport_md(R):
             L.append('- Europa: fundusze i oszczędności domowe (z pliku strony): ' + (f'? kontrola przerwana ({kef["blad"]})' if kef.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(kef['spojnosc'][:3]) + ' ❌ · ' if kef.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in kef.get('wiersze') or []) or '—') + '.')
+        kpl = Z.get('plynnosc-usa')   # v382: płynność USA — sprzeczności w pliku, zgodność SOFR ze źródłem lustrzanym, rytm publikacji; brak pliku = bez linii
+        if kpl:
+            L.append('- Płynność USA (z pliku strony): ' + (f'? kontrola przerwana ({kpl["blad"]})' if kpl.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(kpl['spojnosc'][:3]) + ' ❌ · ' if kpl.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in kpl.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else
