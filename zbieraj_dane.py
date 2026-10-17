@@ -32490,6 +32490,9 @@ def main():
     META['ok']['emit_llama'], META['ok']['emit_tether'], META['ok']['emit_circle'] = ste_czesc()
     # v377 (F6Z4): USDT na żywo — data/usdt-skarbiec.json; saldo skarbca emitenta i zdarzenia emisji / umorzeń z sieci Ethereum i Tron (publiczne zapytania, bez klucza), co USK_EVERY_MIN min
     META['ok']['usdt_eth'], META['ok']['usdt_tron'] = usk_czesc()
+    # v397 (F11Z11): dźwignia krypto 2 — data/dzwignia2.json; nastroje detalu i kredyt marżowy (OKX: konta i najwięksi gracze long/short, wolumen agresora, pożyczki marżowe; Bitfinex: pozycje marżowe, pożyczki USD),
+    # publiczne zapytania bez klucza, co D2_EVERY_MIN min; nic z tego pliku nie wchodzi do sumy „wszystkie giełdy razem” (dzwignia.json)
+    META['ok']['dzwignia2_okx'], META['ok']['dzwignia2_bfx'] = d2_czesc()
     # v394 (F11Z8): premie lokalnych stablecoinów USDT wobec kursu referencyjnego — data/premie-stable.json; zapytania tylko w oknie po opublikowaniu kursu (raz na dzień roboczy), poza nim sam zapis pliku
     META['ok']['premie_st_tr'], META['ok']['premie_st_br'], META['ok']['premie_st_za'], META['ok']['premie_st_id'], META['ok']['premie_st_in'], META['ok']['premie_st_mx'] = pst_czesc()
     # v140: TOP 10 monet w 8 sektorach sceny CRYPTO (klucz CoinGecko w nagłówku): najwyżej co 55 min, skład kategorii co 6 h (reszta: jedno zapytanie
@@ -40632,6 +40635,254 @@ def build_energia_usa(prev=None, run_t0=None):
 
 
 ZRODLA_META.update({'energia_wpsr': 'eia', 'energia_pogoda': 'noaa-cpc'})   # v395: pliki raportu ropy to to samo źródło co zapasy ropy w surowcach; stopniodni — nowe źródło (liczba źródeł +1)
+
+
+# ===================== v397 (F11Z11): DŹWIGNIA KRYPTO 2 — NASTROJE DETALU I KREDYT MARŻOWY (OKX, Bitfinex) — data/dzwignia2.json =====================
+# Dwie niezależne części jednego pliku (każda z własnym czasem, ok i poprzednią wersją przy awarii), publiczne zapytania GET bez klucza, nagłówek zbieracza:
+#  (1) okx — statystyki dzienne giełdy (rubik) dla BTC i ETH, cztery szeregi na monetę: 'ls' = stosunek liczby kont long do short (kontrakty terminowe i wieczyste łącznie; punkt dzienny),
+#      'top' = stosunek pozycji long do short NAJWIĘKSZYCH graczy (5 % kont z największą wartością pozycji; kontrakt wieczysty USDT), 'tk' = wolumen zleceń agresora (taker) w USD: [dzień, sprzedaż, kupno]
+#      (kolejność pól w odpowiedzi giełdy: ts, sellVol, buyVol — sprawdzone w dokumentacji giełdy), 'lr' = wskaźnik pożyczek marżowych (łączna kwota pożyczek w walucie kwotowanej do pożyczek w bazowej).
+#      Szereg po błędzie zostaje z poprzedniego pliku z własnym czasem najwyżej D2_MAX_H godzin. Stosunek kont ('ls') jest też w pliku dzwignia.json (część okx) — tu dochodzi historia; do sumy
+#      „wszystkie giełdy razem” NIC z tego pliku nie wchodzi (to wskaźniki nastrojów, nie otwarte pozycje) — giełdy nie są liczone drugi raz.
+#  (2) bfx — Bitfinex: stan pozycji marżowych long i short na BTC i ETH (w monetach), łączna kwota aktywnych pożyczek USD (podaż) i część wykorzystana w pozycjach; własna historia dobowa
+#      (ostatni odczyt doby UTC, D2_BFX_HIST dób) — zmiany po zebraniu historii. Pozycje marżowe tej giełdy to inny rynek niż kontrakty OKX — też poza sumą otwartych pozycji.
+# Dzień punktu = data UTC znacznika czasu giełdy (znaczniki dzienne OKX przypadają na 16:00 UTC = północ UTC+8). Szereg dzienny = tylko punkty z ostatnich D2_HIST (D2_TK_DNI dla wolumenu) dób,
+# rosnąco, bez powtórzeń; wartość poza pasmem wiarygodności (D2_PASMO) albo ostatni punkt starszy niż D2_STARE_DNI dób = błąd szeregu (poprzedni zostaje), nigdy cicha liczba.
+# Rytm: co D2_EVERY_MIN min (około 13 zapytań, odstęp D2_SLEEP s, budżet D2_LIMIT s; limit giełdy OKX to 5 zapytań na 2 s).
+D2_V = 1
+D2_EVERY_MIN = 60
+D2_MAX_H = 6               # h — szereg / grupa po błędzie zostaje z poprzedniego pliku najwyżej tyle
+D2_SLEEP = 0.5             # s — odstęp między zapytaniami
+D2_LIMIT = 40              # s — budżet czasu budowy pliku (milcząca giełda nie blokuje przebiegu)
+D2_TIMEOUT = 12            # s na zapytanie
+D2_COINS = ('BTC', 'ETH')
+D2_HIST = 90               # dób w szeregach stosunków i wskaźnika pożyczek
+D2_TK_DNI = 30             # dób wolumenu agresora
+D2_BFX_HIST = 90           # dób własnej historii Bitfinex
+D2_STARE_DNI = 3           # ostatni punkt dzienny starszy niż tyle dób = szereg nieświeży (błąd)
+D2_PASMO = {'ls': (0.1, 20.0), 'top': (0.1, 20.0), 'lr': (0.5, 500.0)}   # pasma wiarygodności; z 180 dób: konta BTC 0,55–2,74, ETH 0,87–3,49; pożyczki BTC 2,6–16,4, ETH 4,1–40,2
+D2_VOL_MAX = 1e12          # USD — wolumen dobowy powyżej tego to błąd odczytu (z 72 dób: najwyżej 9,9 mld)
+D2_OKX = (('ls', 'contracts/long-short-account-ratio?ccy={c}&period=1D'),
+          ('top', 'contracts/long-short-position-ratio-contract-top-trader?instId={c}-USDT-SWAP&period=1D'),
+          ('tk', 'taker-volume?ccy={c}&instType=CONTRACTS&period=1D'),
+          ('lr', 'margin/loan-ratio?ccy={c}&period=1D'))
+D2_BFX_URL = 'https://api-pub.bitfinex.com/v2/stats1/'
+D2_BFX_SYM = {'BTC': 'tBTCUSD', 'ETH': 'tETHUSD'}
+D2_BFX_POS_MAX = {'BTC': 1e7, 'ETH': 1e8}   # monet — stan pozycji powyżej tego to błąd odczytu (BTC: ok. 90 tys., ETH: ok. 360 tys.)
+D2_BFX_FUND = (1e8, 1e11)                   # USD — kwota aktywnych pożyczek poza przedziałem = błąd odczytu (ok. 5,9 mld)
+D2_BFX_STARE_MIN = 30                       # min — odczyt Bitfinex starszy niż tyle (czas wg giełdy) = błąd (statystyka minutowa)
+_D2_TERMIN = [None]
+
+
+def d2_czas():
+    """Zapytanie mieści się w budżecie czasu budowy (D2_LIMIT s od startu) — limit jednego zapytania; po budżecie wyjątek."""
+    if _D2_TERMIN[0] is None:
+        return D2_TIMEOUT
+    left = _D2_TERMIN[0] - time.monotonic()
+    if left < 1:
+        raise RuntimeError(f'limit czasu budowy ({D2_LIMIT} s)')
+    return max(1, min(D2_TIMEOUT, left))
+
+
+def d2_okx_get(path):
+    """OKX rubik: wiersze 'data' (lista list) przy kodzie 0; pusta odpowiedź albo zły kształt = wyjątek."""
+    time.sleep(D2_SLEEP)
+    j = get_json(OKX_URL + 'rubik/stat/' + path, timeout=d2_czas())
+    if not isinstance(j, dict) or str(j.get('code')) != '0' or not isinstance(j.get('data'), list) or not j['data']:
+        raise ValueError(f'{path.split("?")[0]}: {(j.get("msg") or "pusta odpowiedź") if isinstance(j, dict) else "zły kształt"}')
+    return j['data']
+
+
+def d2_dzien(ms):
+    return datetime.datetime.fromtimestamp(ms / 1000, datetime.timezone.utc).strftime('%Y-%m-%d')
+
+
+def d2_punkty(rows, ile, ncol):
+    """Wiersze [ts, wartość…] (ncol liczb po znaczniku) → {dzień: (ts, [liczby])} bez powtórzeń i bez przyszłości; zły wiersz pomijany. Ostatnie `ile` dób, rosnąco."""
+    teraz = (_ix_dt(NOW) or datetime.datetime.now(datetime.timezone.utc)).timestamp() * 1000
+    P = {}
+    for r in rows:
+        if not (isinstance(r, (list, tuple)) and len(r) >= 1 + ncol and str(r[0]).isdigit()):
+            continue
+        ts = int(r[0])
+        v = [lev_num(x) for x in r[1:1 + ncol]]
+        if None in v or ts > teraz + 86400000:
+            continue
+        P[d2_dzien(ts)] = (ts, v)
+    return dict(sorted(P.items())[-ile:])
+
+
+def d2_swiezy(P):
+    """Ostatni punkt nie starszy niż D2_STARE_DNI dób wobec chwili przebiegu."""
+    teraz = (_ix_dt(NOW) or datetime.datetime.now(datetime.timezone.utc)).timestamp() * 1000
+    return bool(P) and teraz - max(ts for ts, _ in P.values()) <= D2_STARE_DNI * 86400000
+
+
+def d2_okx_stosunek(rows, klucz):
+    """'ls' / 'top' / 'lr': {'t': czas pobrania, 'd': [[dzień, wartość], …]} z pasmem wiarygodności D2_PASMO."""
+    lo, hi = D2_PASMO[klucz]
+    P = d2_punkty(rows, D2_HIST, 1)
+    if not P or not d2_swiezy(P):
+        raise ValueError('brak świeżych punktów dziennych')
+    zle = [d for d, (_, v) in P.items() if not lo <= v[0] <= hi]
+    if zle:
+        raise ValueError(f'wartość poza pasmem {lo}–{hi} ({zle[-1]})')
+    return {'t': NOW, 'd': [[d, round(v[0], 4)] for d, (_, v) in P.items()]}
+
+
+def d2_okx_taker(rows, klucz='tk'):
+    """'tk': {'t', 'd': [[dzień, sprzedaż USD, kupno USD], …]} — kolejność pól giełdy: ts, sellVol, buyVol; wolumeny nieujemne, suma dobowa > 0 i ≤ D2_VOL_MAX."""
+    P = d2_punkty(rows, D2_TK_DNI, 2)
+    if not P or not d2_swiezy(P):
+        raise ValueError('brak świeżych punktów dziennych')
+    zle = [d for d, (_, v) in P.items() if v[0] < 0 or v[1] < 0 or v[0] + v[1] <= 0 or v[0] > D2_VOL_MAX or v[1] > D2_VOL_MAX]
+    if zle:
+        raise ValueError(f'wolumen poza przedziałem ({zle[-1]})')
+    return {'t': NOW, 'd': [[d, round(v[0]), round(v[1])] for d, (_, v) in P.items()]}
+
+
+def d2_seria_wiek_ok(S):
+    """Szereg z poprzedniego pliku (słownik z czasem 't') nie starszy niż D2_MAX_H godzin wobec NOW."""
+    tk, tn = _ix_dt(S.get('t')) if isinstance(S, dict) else None, _ix_dt(NOW)
+    return tk is not None and tn is not None and 0 <= (tn - tk).total_seconds() <= D2_MAX_H * 3600
+
+
+def d2_okx(prev=None):
+    """Część okx: {BTC: {ls, top, tk, lr}, ETH: {…}}; szereg, który zawiódł, zostaje z poprzedniego pliku (D2_MAX_H h), błąd do META['errors']; żaden nowy = wyjątek."""
+    prev = prev if isinstance(prev, dict) else {}
+    out, fails, nowe = {}, [], 0
+    for c in D2_COINS:
+        o, pc = {}, (prev.get(c) if isinstance(prev.get(c), dict) else {})
+        for k, path in D2_OKX:
+            try:
+                rows = d2_okx_get(path.format(c=c))
+                o[k] = d2_okx_taker(rows) if k == 'tk' else d2_okx_stosunek(rows, k)
+                nowe += 1
+            except Exception as e:  # noqa — jeden szereg nie psuje reszty
+                fails.append(f'{c} {k}: {e}')
+                if d2_seria_wiek_ok(pc.get(k)):
+                    o[k] = pc[k]
+        if o:
+            out[c] = o
+    if not nowe:
+        raise ValueError('; '.join(fails) or 'brak danych')
+    if fails:
+        META['errors'].append(mask('Dźwignia 2: OKX: ' + '; '.join(fails))[:300])
+    return out
+
+
+def d2_bfx_get(klucz):
+    """Bitfinex stats1 '<klucz>/last' → (czas ms, wartość); zły kształt, wartość ujemna albo odczyt starszy niż D2_BFX_STARE_MIN min = wyjątek."""
+    time.sleep(D2_SLEEP)
+    j = get_json(D2_BFX_URL + klucz + '/last', timeout=d2_czas())
+    ms, v = (lev_num(j[0]), lev_num(j[1])) if isinstance(j, list) and len(j) == 2 else (None, None)
+    if ms is None or v is None or v < 0:
+        raise ValueError(f'{klucz.split(":")[0]}: zły kształt odpowiedzi')
+    tn = _ix_dt(NOW)
+    if tn is not None and tn.timestamp() * 1000 - ms > D2_BFX_STARE_MIN * 60000:
+        raise ValueError(f'{klucz.split(":")[0]}: odczyt giełdy sprzed {round((tn.timestamp() * 1000 - ms) / 60000)} min')
+    return int(ms), float(v)
+
+
+def d2_bfx_grupa(g):
+    """Jedna grupa odczytów Bitfinex → słownik z czasem pobrania 't' i czasem danych 'at' (najstarszy z odczytów): 'BTC' / 'ETH' = {long, short}, 'usd' = {size, used}."""
+    if g in D2_COINS:
+        sym, lim = D2_BFX_SYM[g], D2_BFX_POS_MAX[g]
+        r = {s: d2_bfx_get(f'pos.size:1m:{sym}:{s}') for s in ('long', 'short')}
+        if any(v > lim for _, v in r.values()) or r['long'][1] + r['short'][1] <= 0:
+            raise ValueError(f'pozycje {g} poza przedziałem')
+        o = {'long': r['long'][1], 'short': r['short'][1]}
+    else:
+        r = {'size': d2_bfx_get('funding.size:1m:fUSD'), 'used': d2_bfx_get('credits.size:1m:fUSD')}
+        lo, hi = D2_BFX_FUND
+        if not lo <= r['size'][1] <= hi or r['used'][1] > r['size'][1] * 1.05:
+            raise ValueError('pożyczki USD poza przedziałem albo wykorzystane > podaż')
+        o = {'size': r['size'][1], 'used': r['used'][1]}
+    o['at'] = datetime.datetime.fromtimestamp(min(ms for ms, _ in r.values()) / 1000, datetime.timezone.utc).replace(microsecond=0).isoformat()
+    o['t'] = NOW
+    return o
+
+
+def d2_bfx_historia(hist, grupy, dzien):
+    """Historia dobowa Bitfinex: wpis doby = ostatni odczyt doby UTC ({'d', 'BTC': [long, short], 'ETH': […], 'usd': [podaż, wykorzystane]}); grupa bez odczytu w tym przebiegu — bez klucza;
+    najwyżej D2_BFX_HIST dób, rosnąco; wpis doby zastępowany nowszym odczytem tej samej grupy, ale grupy z wcześniejszych odczytów doby zostają."""
+    H = [h for h in (hist or []) if isinstance(h, dict) and isinstance(h.get('d'), str)]
+    cur = next((h for h in H if h['d'] == dzien), None)
+    if cur is None:
+        cur = {'d': dzien}
+        H.append(cur)
+    for g, o in grupy.items():
+        cur[g] = [o['long'], o['short']] if g in D2_COINS else [o['size'], o['used']]
+    return sorted(H, key=lambda h: h['d'])[-D2_BFX_HIST:]
+
+
+def d2_bfx(prev=None):
+    """Część bfx: grupy BTC, ETH, usd z własnymi czasami; grupa, która zawiodła, zostaje z poprzedniego pliku (D2_MAX_H h); historia dobowa; żadna nowa = wyjątek."""
+    prev = prev if isinstance(prev, dict) else {}
+    out, fails, nowe = {}, [], {}
+    for g in (*D2_COINS, 'usd'):
+        try:
+            nowe[g] = out[g] = d2_bfx_grupa(g)
+        except Exception as e:  # noqa
+            fails.append(f'{g}: {e}')
+            if d2_seria_wiek_ok(prev.get(g)):
+                out[g] = prev[g]
+    if not nowe:
+        raise ValueError('; '.join(fails) or 'brak danych')
+    out['hist'] = d2_bfx_historia(prev.get('hist'), nowe, NOW[:10])
+    if fails:
+        META['errors'].append(mask('Dźwignia 2: Bitfinex: ' + '; '.join(fails))[:300])
+    return out
+
+
+def build_dzwignia2(prev=None):
+    """v397: data/dzwignia2.json {v, at, src, part_at, ok, okx, bfx}. Część, która zawiodła, zostaje z poprzedniego pliku (szeregi i grupy z własnymi czasami), błąd do META['errors'];
+    obie zawiodły = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == D2_V else {}
+    out = {'v': D2_V, 'at': NOW, 'src': 'statystyki dzienne giełdy OKX (konta i najwięksi gracze long/short, wolumen agresora, pożyczki marżowe) i stany Bitfinex (pozycje marżowe, pożyczki USD)',
+           'part_at': {}, 'ok': {}}
+    _D2_TERMIN[0] = time.monotonic() + D2_LIMIT
+    try:
+        for part, job in (('okx', d2_okx), ('bfx', d2_bfx)):
+            try:
+                out[part] = job(pv.get(part))
+                out['ok'][part] = True
+                out['part_at'][part] = NOW
+            except Exception as e:  # noqa — jedna giełda nie psuje drugiej
+                META['errors'].append(mask(f'Dźwignia 2: {part}: {e}')[:200])
+                out['ok'][part] = False
+                old, t_old = pv.get(part), _zapas_czas(pv, part)
+                tk, tn = _ix_dt(t_old), _ix_dt(NOW)
+                if isinstance(old, dict) and tk is not None and tn is not None and 0 <= (tn - tk).total_seconds() <= D2_MAX_H * 3600:
+                    out[part] = old
+                    out['part_at'][part] = t_old
+    finally:
+        _D2_TERMIN[0] = None
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna giełda nie odpowiedziała')
+    return out
+
+
+def d2_czesc():
+    """v397: część przebiegu → krotka wartości dla META['ok'] (okx, bfx): True = odpowiedziała, 'cached' = poprzedni plik jeszcze świeży (D2_EVERY_MIN min), False = zawiodła.
+    Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('dzwignia2')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == D2_V else None
+    if prev and fresh_pelny(prev, D2_EVERY_MIN):
+        save('dzwignia2', prev)
+        return ('cached', 'cached')
+    try:
+        obj = build_dzwignia2(prev)
+        save('dzwignia2', obj)
+        return (obj['ok'].get('okx', False), obj['ok'].get('bfx', False))
+    except Exception as e:
+        META['errors'].append(mask(f'Dźwignia 2: {e}')[:200])
+        if prev:
+            save('dzwignia2', prev)
+        return (False, False)
+
+
+ZRODLA_META.update({'dzwignia2_okx': 'okx', 'dzwignia2_bfx': 'bitfinex'})   # v397: OKX już jest źródłem (dzwignia_okx); Bitfinex = +1 źródło
 
 
 if __name__ == '__main__':

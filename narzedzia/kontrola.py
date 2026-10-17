@@ -11469,6 +11469,128 @@ def energia_kontrola(files, now=None):
     return {'spojnosc': energia_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v397 (F11Z11): DŹWIGNIA KRYPTO 2 — NASTROJE DETALU I KREDYT MARŻOWY (data/dzwignia2.json) --------------------------------------------------
+# Plik: część okx (BTC i ETH po cztery szeregi dzienne: konta long/short, najwięksi gracze, wolumen agresora, pożyczki marżowe) i część bfx (pozycje marżowe long/short na BTC i ETH, pożyczki USD, historia dobowa).
+# Wiek (wiersze świeżości, najwyżej ⚠️): najstarszy szereg części okx i najstarsza grupa części bfx ≤ D2_K_H h (plik odświeżany co ~60 min, szereg po błędzie zostaje najwyżej 6 h).
+# Spójność w pliku (⚠️): doby szeregu rosnące i bez powtórzeń, wartości w pasmach wiarygodności (te same co w zbieraczu: konta i najwięksi gracze 0,1–20, pożyczki 0,5–500, z 180 dób historii giełdy
+# konta BTC 0,55–2,74, ETH 0,87–3,49; pożyczki BTC 2,6–16,4, ETH 4,1–40,2), wolumen agresora nieujemny z sumą dobową > 0, ostatni punkt szeregu nie starszy niż 3 doby wobec jego odczytu, pozycje Bitfinex
+# nieujemne, wykorzystane pożyczki ≤ podaż (z 5 % marginesu), historia Bitfinex rosnąca. Porównanie ostatniego stosunku kont z plikiem dzwignia.json (to samo zapytanie giełdy w innym przebiegu) — TYLKO ℹ️:
+# statystyka dzienna giełdy jest stała w ciągu doby (sprawdzone 17.10.2026: dwa odczyty w odstępie godziny dały tę samą wartość), ale nie ma historii obu plików do progu, więc różnicy nie karzemy.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'dzwignia2')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['dzwignia2'] = 4 * 60   # zapis co przebieg lub co ~60 min — wiek pliku; wiek części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({k_: 'Dźwignia 2 — szereg z błędem zostaje z datą (v397); wiek odczytu w wierszach świeżości' for k_ in ('dzwignia2_okx', 'dzwignia2_bfx')})
+D2_K_H = 4         # h — wiek części
+D2_K_PASMO = {'ls': (0.1, 20.0), 'top': (0.1, 20.0), 'lr': (0.5, 500.0)}
+D2_K_ETYKIETA = {'okx': 'Dźwignia 2 — odczyt statystyk dziennych giełdy OKX', 'bfx': 'Dźwignia 2 — odczyt stanów Bitfinex'}
+
+
+def d2_k_dni(S, klucz):
+    """Szereg dzienny: lista [dzień, …] rosnąca, bez powtórzeń; zwraca opis usterki albo ''."""
+    if not isinstance(S, dict) or not isinstance(S.get('d'), list) or not S['d']:
+        return 'brak punktów'
+    dni = [r[0] if isinstance(r, list) and r else None for r in S['d']]
+    if any(not isinstance(d, str) or _ix_dt_k(d + 'T00:00:00Z') is None for d in dni) or dni != sorted(set(dni)):
+        return 'doby nie rosną albo się powtarzają'
+    n = 3 if klucz == 'tk' else 2
+    if any(len(r) != n for r in S['d']) or any(_ste_k_l(x) is None for r in S['d'] for x in r[1:]):
+        return 'zły kształt punktu'
+    if klucz == 'tk':
+        if any(r[1] < 0 or r[2] < 0 or r[1] + r[2] <= 0 for r in S['d']):
+            return 'wolumen ujemny albo zerowy'
+    else:
+        lo, hi = D2_K_PASMO[klucz]
+        if any(not lo <= r[1] <= hi for r in S['d']):
+            return f'wartość poza pasmem {lo}–{hi}'
+    t = _ix_dt_k(S.get('t'))
+    d1 = _ix_dt_k(dni[-1] + 'T00:00:00Z')
+    if t is not None and d1 is not None and (t - d1).total_seconds() > 4 * 86400:
+        return 'ostatni punkt starszy niż 3 doby wobec odczytu'
+    return ''
+
+
+def d2_kontrola(j, dz, now=None):
+    """data/dzwignia2.json (+ dzwignia.json do porównania) → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna
+    wersja = puste. Najwyżej ⚠️; porównanie z dzwignia.json tylko ℹ️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    czasy = {'okx': [], 'bfx': []}
+    O = j.get('okx') if isinstance(j.get('okx'), dict) else None
+    if O is not None:
+        for c in ('BTC', 'ETH'):
+            C = O.get(c) if isinstance(O.get(c), dict) else None
+            if C is None:
+                zle.append(f'OKX {c}: brak monety w pliku')
+                continue
+            for k in ('ls', 'top', 'tk', 'lr'):
+                if not isinstance(C.get(k), dict):
+                    zle.append(f'OKX {c}: brak szeregu {k}')
+                    continue
+                czasy['okx'].append(C[k].get('t'))
+                z = d2_k_dni(C[k], k)
+                if z:
+                    zle.append(f'OKX {c} {k}: {z}')
+    B = j.get('bfx') if isinstance(j.get('bfx'), dict) else None
+    if B is not None:
+        for g in ('BTC', 'ETH', 'usd'):
+            G = B.get(g) if isinstance(B.get(g), dict) else None
+            if G is None:
+                zle.append(f'Bitfinex: brak grupy {g}')
+                continue
+            czasy['bfx'].append(G.get('t'))
+            if g == 'usd':
+                a, b = _ste_k_l(G.get('size')), _ste_k_l(G.get('used'))
+                if a is None or b is None or a <= 0 or b < 0 or b > a * 1.05:
+                    zle.append('Bitfinex: pożyczki USD — wykorzystane większe niż podaż albo brak liczby')
+            else:
+                a, b = _ste_k_l(G.get('long')), _ste_k_l(G.get('short'))
+                if a is None or b is None or a < 0 or b < 0 or a + b <= 0:
+                    zle.append(f'Bitfinex {g}: pozycje long/short — brak liczby albo wartość ujemna')
+        H = B.get('hist') if isinstance(B.get('hist'), list) else []
+        dni = [h.get('d') for h in H if isinstance(h, dict)]
+        if dni != sorted(set(dni)) or len(H) > 90:
+            zle.append('Bitfinex: historia dobowa nie rośnie albo ma więcej niż 90 dób')
+    for part in ('okx', 'bfx'):
+        lab = D2_K_ETYKIETA[part]
+        if not isinstance(j.get(part), dict):
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab, '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (giełda nie odpowiada od ponad 6 h)')
+            continue
+        ts = [t for t in czasy[part] if isinstance(t, str)]
+        w = max((wiek_danych(t, 'ts', 'k', now) for t in ts), default=None) if ts else None
+        if w is None:
+            out['rows'].append((lab, '?', None, None, 'brak czasu odczytu'))
+            continue
+        st = '⚠️' if w > D2_K_H * 60 else '✅'
+        note = '' if st == '✅' else f'najstarszy odczyt starszy niż {D2_K_H} h — giełda nie odpowiada albo zmieniła odpowiedź; najwyżej uwaga'
+        najstarszy = sorted(ts)[0]
+        out['rows'].append((lab, st, w, str(najstarszy)[:16].replace('T', ' ') + ' UTC', note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: najstarszy odczyt z {str(najstarszy)[:16].replace("T", " ")} UTC — {fmt_wiek(w)} temu ({note})')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Dźwignia 2 (dzwignia2.json): {z}')
+    if O is not None or B is not None:
+        out['wiersze'].append(('spójność pliku (doby, pasma, wolumeny, pozycje, historia)', '⚠️' if zle else '✅'))
+    # ---- porównanie stosunku kont z dzwignia.json: TYLKO informacja ----
+    if O is not None and isinstance(dz, dict) and isinstance(dz.get('okx'), dict):
+        roz, por = [], 0
+        for c in ('BTC', 'ETH'):
+            S = ((O.get(c) or {}).get('ls') or {}).get('d') if isinstance(O.get(c), dict) else None
+            R = dz['okx'].get(c) if isinstance(dz['okx'].get(c), dict) else None
+            if not S or not R or _ste_k_l(R.get('ls')) is None or not isinstance(R.get('ls_t'), str) or str(R['ls_t'])[:10] != S[-1][0]:
+                continue
+            por += 1
+            if abs(S[-1][1] - R['ls']) > 0.011:
+                roz.append(f'{c}: {S[-1][1]} i {R["ls"]}'.replace('.', ','))
+        if por:
+            out['wiersze'].append(('stosunek kont long/short zgodny z dzwignia.json' if not roz else 'stosunek kont long/short różni się od dzwignia.json (' + '; '.join(roz) + ')', '✅' if not roz else 'ℹ️'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -11896,6 +12018,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['usdt-skarbiec'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'USDT skarbiec (v377): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v397. Dźwignia krypto 2 (data/dzwignia2.json): wiek części, spójność w pliku, porównanie stosunku kont z dzwignia.json — z plików strony, bez zapytań; porównanie TYLKO informacja (ℹ️), reszta najwyżej ⚠️
+    try:
+        D2_ = d2_kontrola(files.get('dzwignia2'), files.get('dzwignia'))
+        for label, st, w, txt, note in D2_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += D2_['uwagi']
+        R['zgodnosc']['dzwignia2'] = {'spojnosc': D2_['spojnosc'], 'wiersze': D2_['wiersze']} if (D2_['rows'] or D2_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['dzwignia2'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Dźwignia 2 (v397): kontrola przerwana ({str(e)[:80]})')
     # 3c-v394. Premie USDT na lokalnych giełdach (data/premie-stable.json): wiek ostatniego wiersza każdego kraju, spójność w pliku i koszyka — z plików strony, bez zapytań; najwyżej ⚠️
     try:
         P_ = pst_kontrola(files.get('premie-stable'))
@@ -12760,6 +12892,11 @@ def raport_md(R):
             L.append('- BIS: kredyt, obsługa długu, wierzyciele i płynność (z pliku strony): ' + (f'? kontrola przerwana ({rb2["blad"]})' if rb2.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(rb2['spojnosc'][:3]) + ' ❌ · ' if rb2.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in rb2.get('wiersze') or []) or '—') + '.')
+        sd2_ = Z.get('dzwignia2')   # v397: dźwignia krypto 2 — brak pliku = bez linii
+        if sd2_:
+            L.append('- Dźwignia krypto 2, nastroje detalu i kredyt marżowy (z pliku strony; porównanie z dzwignia.json tylko informacyjnie): ' + (f'? kontrola przerwana ({sd2_["blad"]})' if sd2_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(sd2_['spojnosc'][:3]) + ' ⚠️ · ' if sd2_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in sd2_.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else

@@ -30094,3 +30094,196 @@ test('v396 (F11Z10): kolory serii — kolory tożsamości źródła energii (bez
   for (const c of ['atom', 'bio', 'imp']) assert.ok(new RegExp(':root\\[data-theme="light"\\] #g-surowce \\.wk-ch \\.pm-' + c + '\\{--k:').test(reg), 'jasny motyw: ' + c);
   assert.ok(/#g-surowce \.prd-b \.wk-bl\{white-space:normal/.test(reg + html.slice(html.indexOf('#g-surowce .prd-h2{'), html.indexOf('#g-surowce .prd-h2{') + 300)), 'etykiety krajów mogą się zawijać (telefon)');
 });
+
+/* ===================== v397 (F11Z11): dźwignia krypto 2 — blok #lev-sent w panelu „Dźwignia i pozycje w krypto” (CRYPTO) =====================
+   L397_F — plik zbieracza v397 (build_dzwignia2) w kształcie z nagrań z 17.10.2026 (OKX: konta BTC 1,79, najwięksi gracze 0,946, pożyczki 16,25, wolumen agresora 2,85 mld sprzedaż / 2,69 mld kupno;
+   Bitfinex: BTC long 89 619 / short 322; pożyczki USD 5,87 mld, wykorzystane 5,80 mld) z syntetycznymi wcześniejszymi dobami. Zegar przypięty (2026-10-17 11:00 UTC), srvJSON — odpowiedź od razu. */
+const l397 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const code = cut('/* ===================== v397 (F11Z11): DŹWIGNIA KRYPTO 2', '/* v397: koniec */');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-17T11:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/ | /g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const T = '2026-10-17T10:50:00+00:00', TG = '2026-10-17T10:59:00+00:00';
+  const dayOf = i => new Date(Date.parse('2026-10-16T12:00:00Z') - i * 864e5).toISOString().slice(0, 10);   /* i = 0: ostatni znacznik giełdy (16.10) */
+  /* szereg z wartości od najnowszej: [[dzień, …]] rosnąco */
+  const ser = (vals, t) => ({t: t || T, d: vals.map((v, i) => [dayOf(i)].concat(Array.isArray(v) ? v : [v])).reverse()});
+  const TK_B = [[2849518370, 2692529792], [5276187024, 5019962001], [3556422449, 3539670461], [3847514294, 3746993424], [2833654093, 2710052917], [939972655, 982595399], [1072525483, 1181789311], [1000000000, 1000000000], [900000000, 1100000000]];
+  const okxCoin = (o) => Object.assign({
+    ls: ser([1.79, 1.73, 1.67, 1.62, 1.26, 1.49, 1.51, 1.5, 1.42, 1.7]), top: ser([0.946, 0.95, 0.962, 0.956, 0.999, 0.967, 0.973, 0.97, 0.96, 0.95]),
+    tk: ser(TK_B), lr: ser([16.2464, 16.3192, 15.6078, 16.0601, 16.4288, 15.71, 15.7994, 15.5141, 16.0577, 12.6555])}, o || {});
+  const file = () => ({v: 1, at: T, src: 'x', part_at: {okx: T, bfx: T}, ok: {okx: true, bfx: true},
+    okx: {BTC: okxCoin(), ETH: okxCoin({ls: ser([2.19, 2.2, 2.1, 2.0, 2.0, 2.0, 2.0, 2.0]), top: ser([1.276, 1.2, 1.11, 1.07, 0.9, 1.04, 1.08, 1.0]),
+      tk: ser([[3075000000, 3075000000], [3000000000, 3100000000], [3000000000, 3000000000]]), lr: ser([16.5, 16.4, 16.3, 16.2, 16.1, 16.0, 15.9, 15.8])})},
+    bfx: {BTC: {long: 89619.22288489, short: 322.00800346, at: TG, t: T}, ETH: {long: 362538.83237475, short: 6866.15267717, at: TG, t: T}, usd: {size: 5872291755.09, used: 5803101689.5, at: TG, t: T},
+      hist: [{d: '2026-10-09', BTC: [87000, 500], usd: [5300000000, 5200000000]}, {d: '2026-10-10', BTC: [88000, 400], ETH: [350000, 7000], usd: [5500000000, 5400000000]}, {d: '2026-10-16', BTC: [89000, 330], usd: [5800000000, 5700000000]}]}});
+  const mk = (L, data, opt) => {
+    opt = opt || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const mkEl = () => { const e = {innerHTML: '', hidden: true, openIds: [], querySelector(q) { return q === '#lev-sent' && e.openIds.length ? {get open() { return true; }, set open(v) { e.openIds.push('set'); }} : null; }}; return e; };
+    const els = {'#lev2': mkEl()};
+    const calls = [], ivs = [], charts = [];
+    const srv = n => { calls.push(n); const v = n === 'dzwignia2' ? data : null; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const SRV_GR = {'ceny-krypto': 'c'}, SRV_LD = {c: [function srvLiveStart() {}]};
+    const doc = {hidden: false};
+    const wk = opt.nowk ? undefined : (Ls, o) => { charts.push({L: Ls, o}); return '[CHART:' + o.aria + '|' + Ls.map(l => l.n + ':' + l.d.length).join(',') + ']'; };
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'SRV_GR', 'SRV_LD', 'document', 'setInterval', 'Date', 'wkLines', 'levI',
+      "'use strict';\n" + code + '\nreturn {LEV2, l2Ok, l2Ser, l2Back, l2Usd, lev2Html, renderLev2, lev2Apply, lev2Load, L2_COINS};')(
+      q => els[q] || null, v96src.tFor(L), v96src.escH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, SRV_GR, SRV_LD, doc, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD,
+      wk, opt.ico ? ((f, ...a) => '[' + f + ':' + a[0] + ']') : undefined);
+    return {api, els, calls, ivs, SRV_GR, SRV_LD, charts};
+  };
+  return {mk, clone, sp, txt, code, file, ser, dayOf, okxCoin, TK_B, NOW, LOC, T, TG};
+})();
+const l397tiles = h => [...l397.sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)]
+  .map(m => ({label: m[1], cls: (m[2].match(/class="([^"]*)"/) || [, ''])[1], val: l397.txt(m[3].split('<small')[0]), sub: l397.txt((m[3].match(/<small[^>]*>(.*)<\/small>/) || [])[1] || ''), subHtml: (m[3].match(/<small[^>]*>(.*)<\/small>/) || [])[1] || '', when: l397.txt(m[4])}));
+const l397dayPl = d => new Date(Date.parse(d + 'T12:00:00Z')).toLocaleDateString('pl-PL', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
+
+test('v397: rejestr grupy „c” (dzwignia2), ładowanie i odświeżanie co 10 min; kontener #lev2 w szablonie panelu; hook renderLev2 w renderLev tuż przed przywróceniem otwartych rozwijanych', () => {
+  const K = l397.mk('pl', l397.file());
+  assert.equal(K.SRV_GR.dzwignia2, 'c'); assert.equal(K.SRV_GR['ceny-krypto'], 'c', 'stary wpis bez zmian');
+  assert.equal(K.SRV_LD.c[K.SRV_LD.c.length - 1].name, 'lev2Load'); assert.ok(K.calls.includes('dzwignia2'));
+  assert.ok(K.ivs.some(([f, ms]) => ms === 10 * 60e3), 'odświeżanie co 10 min (plik zbieracza co ~60 min)');
+  assert.ok(html.includes("SRV_GR.dzwignia2='c';SRV_LD.c.push(lev2Load);"), 'rejestr dopisany po deklaracjach');
+  assert.ok(html.indexOf("SRV_GR.dzwignia2='c'") > html.indexOf('const SRV_GR=') && html.indexOf("SRV_GR.dzwignia2='c'") < html.indexOf('\nlev2Load();'), 'rejestr przed pierwszym wywołaniem ładowarki');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])dzwignia2\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.equal(html.split('<div id="lev2"></div>').length, 2, 'jeden kontener w szablonie panelu');
+  const hk = html.indexOf("if(typeof renderLev2==='function'){try{renderLev2();}catch(e){}}"), hj = html.indexOf("open.forEach(id=>{const d=el.querySelector('#'+id);if(d)d.open=true;});\n  el.hidden=false;\n}\nfunction levApply(j){", hk);
+  assert.ok(hk > 0 && hj > hk && hj - hk < 300, 'renderLev2 w renderLev tuż przed przywróceniem otwartych rozwijanych');
+  const rl = html.indexOf('function renderLev(){'), rl2 = html.indexOf('function levApply(j){', rl);
+  assert.ok(html.slice(rl, rl2).includes('${body}<div id="lev2"></div>`+'), 'kontener w szablonie panelu zaraz po treści (poza body — panel bez danych dzwignia.json pozostaje ukryty)'); assert.ok(html.slice(rl, rl2).includes("levVol()+levOpt():''"), 'treść panelu bez zmian');
+  assert.ok(K.els['#lev2'].innerHTML.includes('id="lev-sent"') && K.els['#lev2'].innerHTML.includes('Nastroje detalu i kredyt marżowy'), 'z plikiem blok wypełniony');
+});
+
+test('v397: bez podwójnego liczenia giełd — blok nie dotyka sumy „wszystkie giełdy razem” (levAll / levLive / LEV_LIVE) ani listy części LEV_PARTS', () => {
+  const c = l397.code;
+  for (const w of ['levLive', 'LEV_LIVE', 'LEV_PARTS', 'levAll', 'LEV.data']) assert.ok(!c.includes(w), 'blok v397 nie używa: ' + w);
+  const a0 = html.indexOf('function levAll(){'), a1 = html.indexOf('\nfunction ', a0 + 10);
+  assert.ok(!/LEV2|dzwignia2|lev2|l2[A-Z]/.test(html.slice(a0, a1)), 'levAll bez odwołań do v397');
+  assert.ok(html.includes("const LEV_LIVE=['hl','okx','kr','cb','cde','dy','dr']"), 'lista giełd w sumie bez zmian');
+});
+
+test('v397: kafle — 4 na monetę z OKX (konta, najwięksi gracze, agresor, pożyczki), 2 pozycje i pożyczki USD z Bitfinex; wartości, kolory z pokazanej liczby, 7 dni temu, data i wiek', () => {
+  const K = l397.mk('pl', l397.file()), h = l397.sp(K.els['#lev2'].innerHTML), Tl = l397tiles(h), F = K.api;
+  assert.equal(Tl.length, 11);
+  assert.deepEqual(Tl.map(x => x.label), ['Konta long/short, BTC', 'Najwięksi gracze long/short, BTC', 'Kupno w wolumenie agresora, BTC', 'Pożyczki marżowe, BTC', 'Konta long/short, ETH', 'Najwięksi gracze long/short, ETH',
+    'Kupno w wolumenie agresora, ETH', 'Pożyczki marżowe, ETH', 'Pozycje long na Bitfinex, BTC', 'Pozycje long na Bitfinex, ETH', 'Pożyczki USD na Bitfinex']);
+  const g = Tl[0]; assert.deepEqual([g.cls, g.val, g.sub], ['pos', '1,79', 'przewaga long · 7 dni temu: 1,50'], 'konta BTC: 1,79 > 1 zielone; 7 dób wcześniej (09.10) 1,50');
+  assert.deepEqual([Tl[1].cls, Tl[1].val, Tl[1].sub], ['neg', '0,95', 'przewaga short · 7 dni temu: 0,97'], 'najwięksi gracze BTC: 0,946 → 0,95 < 1 czerwone');
+  const buy = TK => TK[1] / (TK[0] + TK[1]) * 100, sh = buy(l397.TK_B[0]), L7 = l397.TK_B.slice(0, 7), s7 = L7.reduce((a, x) => a + x[1], 0) / L7.reduce((a, x) => a + x[0] + x[1], 0) * 100;
+  assert.equal(Tl[2].cls, 'neg');
+  assert.equal(Tl[2].val, sh.toFixed(1).replace('.', ',') + '%'); assert.ok(Tl[2].val === '48,6%', Tl[2].val);
+  assert.equal(Tl[2].sub, 'kupno 2,69 mld USD · sprzedaż 2,85 mld USD · 7 ostatnich dób: ' + s7.toFixed(1).replace('.', ',') + '%');
+  assert.deepEqual([Tl[3].cls, Tl[3].val, Tl[3].sub], ['', '16,2', 'pożyczki w dolarach do pożyczek w BTC · 7 dni temu: 15,5'], 'pożyczki: poziom bez kierunku — bez koloru');
+  assert.equal(Tl[4].cls, 'pos'); assert.equal(Tl[4].val, '2,19'); assert.equal(Tl[5].cls, 'pos'); assert.equal(Tl[5].val, '1,28'); assert.equal(Tl[6].cls, 'neu', 'ETH: 3,00 mld i 3,00 mld = 50,0% żółte'); assert.equal(Tl[6].val, '50,0%');
+  assert.ok(!Tl[6].sub.includes('7 ostatnich dób'), 'ETH agresor ma 3 doby — bez średniej z 7');
+  assert.equal(Tl[7].val, '16,5');
+  /* dane i wiek przy każdym kaflu */
+  for (const x of Tl.slice(0, 8)) assert.ok(x.when === 'stan z ' + l397dayPl('2026-10-16') + ' · odczyt D:' + l397.T + ' · wiek(' + l397.T + ')', x.label + ': ' + x.when);
+  /* Bitfinex */
+  const share = 89619.22288489 / (89619.22288489 + 322.00800346) * 100, old = 88000 / 88400 * 100, d = share - old;
+  assert.deepEqual([Tl[8].cls, Tl[8].val], ['', share.toFixed(1).replace('.', ',') + '%']); assert.equal(Tl[8].val, '99,6%');
+  assert.ok(Tl[8].sub.startsWith('89 619 BTC long · 322 BTC short · zmiana w 7 dni: +0,1 pkt proc.'), Tl[8].sub); assert.ok(Tl[8].subHtml.includes('<span class="pos">zmiana w 7 dni: +0,1 pkt proc.</span>'), 'zmiana zielona');
+  assert.ok(d > 0.05 && d < 0.15);
+  assert.equal(Tl[9].val, '98,1%'); assert.ok(Tl[9].sub.startsWith('362 539 ETH long · 6866 ETH short'), Tl[9].sub); assert.ok(Tl[9].sub.includes('zmiana w 7 dni'), 'ETH: wpis z 10.10 ma ETH — jest porównanie');
+});
+
+test('v397: Bitfinex — pożyczki USD: podaż w mld USD, część wykorzystana i zmiana 7 dni z własnej historii; brak historii = bez zmiany; kolor zmiany z pokazanej liczby', () => {
+  const Tl = l397tiles(l397.mk('pl', l397.file()).els['#lev2'].innerHTML), u = Tl[10];
+  assert.equal(u.val, '5,87 mld USD'); assert.equal(u.cls, ''); assert.ok(u.sub.startsWith('wykorzystane w pozycjach: 98,8% · zmiana w 7 dni: +6,8%'), u.sub); assert.ok(u.subHtml.includes('<span class="pos">zmiana w 7 dni: +6,8%</span>'));
+  assert.equal(u.when, 'odczyt giełdy D:' + l397.TG + ' · wiek(' + l397.TG + ')');
+  const f = l397.file(); f.bfx.hist = [{d: '2026-10-10', usd: [5872291755.09, 5400000000]}];   /* ta sama podaż co teraz → zero, żółte, bez znaku */
+  const z = l397tiles(l397.mk('pl', f).els['#lev2'].innerHTML)[10]; assert.ok(z.subHtml.includes('<span class="neu">zmiana w 7 dni: 0,0%</span>'), z.subHtml);
+  const g = l397.file(); g.bfx.hist = [{d: '2026-10-16', usd: [5800000000, 5700000000]}, {d: '2026-10-17', usd: [5872291755.09, 5803101689.5]}];   /* wpisy młodsze niż 7 dób — brak porównania */
+  const n = l397tiles(l397.mk('pl', g).els['#lev2'].innerHTML)[10]; assert.equal(n.sub, 'wykorzystane w pozycjach: 98,8%');
+  const m = l397.file(); m.bfx.hist = [{d: '2026-09-20', usd: [5000000000, 4000000000]}];   /* wpis starszy niż 9 dób — luka w historii = brak porównania */
+  assert.equal(l397tiles(l397.mk('pl', m).els['#lev2'].innerHTML)[10].sub, 'wykorzystane w pozycjach: 98,8%');
+  const k = l397.file(); k.bfx.hist = [{d: '2026-10-10', usd: [6500000000, 6000000000]}];   /* spadek podaży → czerwone ze znakiem − */
+  assert.ok(l397tiles(l397.mk('pl', k).els['#lev2'].innerHTML)[10].subHtml.includes('<span class="neg">zmiana w 7 dni: −9,7%</span>'));
+});
+
+test('v397: brak danych to „—”, nigdy zero — szereg bez wpisu, za stary odczyt, ostatni punkt starszy niż 4 doby, zły kształt, nierosnące doby, zerowy wolumen; blok bez żadnej serii i grupy = pusty', () => {
+  const od = (f) => { const x = l397.file(); f(x); return l397tiles(l397.mk('pl', x).els['#lev2'].innerHTML); };
+  const gap = (x, label) => { assert.equal(x.label, label); assert.deepEqual([x.cls, x.val, x.sub, x.when], ['na', '—', 'brak danych — to nie zero', '']); };
+  gap(od(x => delete x.okx.BTC.ls)[0], 'Konta long/short, BTC');
+  gap(od(x => { x.okx.BTC.top.t = '2026-10-17T03:00:00+00:00'; })[1], 'Najwięksi gracze long/short, BTC');      /* odczyt sprzed 8 h > 7 h */
+  assert.equal(od(x => { x.okx.BTC.top.t = '2026-10-17T04:30:00+00:00'; })[1].val, '0,95', 'odczyt sprzed 6,5 h (szereg po błędzie zostaje do 6 h) jeszcze pokazany');
+  gap(od(x => { x.okx.BTC.tk = l397.ser(l397.TK_B.map(r => r), l397.T); x.okx.BTC.tk.d = x.okx.BTC.tk.d.map(r => [new Date(Date.parse(r[0] + 'T12:00:00Z') - 5 * 864e5).toISOString().slice(0, 10), r[1], r[2]]); })[2], 'Kupno w wolumenie agresora, BTC');   /* ostatni punkt z 11.10 */
+  gap(od(x => { x.okx.BTC.lr.d[3] = ['x', 5]; })[3], 'Pożyczki marżowe, BTC');
+  gap(od(x => { x.okx.ETH.ls.d.push(x.okx.ETH.ls.d[0]); })[4], 'Konta long/short, ETH');                      /* doby nie rosną */
+  gap(od(x => { x.okx.ETH.top.d[2] = ['2026-10-12', 'a']; })[5], 'Najwięksi gracze long/short, ETH');         /* wartość nie jest liczbą */
+  gap(od(x => { x.okx.ETH.tk.d[x.okx.ETH.tk.d.length - 1] = [x.okx.ETH.tk.d[x.okx.ETH.tk.d.length - 1][0], 0, 0]; })[6], 'Kupno w wolumenie agresora, ETH');   /* suma 0 */
+  gap(od(x => { delete x.bfx.BTC; })[8], 'Pozycje long na Bitfinex, BTC');
+  gap(od(x => { x.bfx.ETH.long = null; })[9], 'Pozycje long na Bitfinex, ETH');
+  gap(od(x => { x.bfx.usd.t = '2026-10-17T02:00:00+00:00'; })[10], 'Pożyczki USD na Bitfinex');
+  gap(od(x => { x.bfx.usd.size = 0; })[10], 'Pożyczki USD na Bitfinex');
+  gap(od(x => { x.bfx.BTC.long = 0; x.bfx.BTC.short = 0; })[8], 'Pozycje long na Bitfinex, BTC');
+  /* zero z odczytem to prawdziwe 0 (nie brak): short 0 → udział long 100,0% */
+  const zero = od(x => { x.bfx.BTC.short = 0; })[8]; assert.equal(zero.val, '100,0%'); assert.ok(zero.sub.includes('322') === false && zero.sub.startsWith('89 619 BTC long · 0 BTC short'), zero.sub);
+  /* cały blok: bez okx i bfx — nic; bez okx — tylko Bitfinex; bez bfx — tylko OKX */
+  for (const bez of [x => { delete x.okx; delete x.bfx; }]) { const x = l397.file(); bez(x); assert.equal(l397.mk('pl', x).els['#lev2'].innerHTML, ''); }
+  const bezOkx = l397.file(); delete bezOkx.okx; const Bo = l397.mk('pl', bezOkx).els['#lev2'].innerHTML; assert.ok(Bo.includes('id="lev-sent"') && l397tiles(Bo).slice(0, 8).every(x => x.val === '—'));
+  const bezBfx = l397.file(); delete bezBfx.bfx; const Bb = l397.mk('pl', bezBfx).els['#lev2'].innerHTML; assert.ok(Bb.includes('id="lev-sent"') && l397tiles(Bb).slice(8).every(x => x.val === '—'));   assert.ok(!Bb.includes('Bitfinex to stany pozycji'), 'notatka o Bitfinex tylko z odczytem Bitfinex'); assert.ok(Bo.includes('Bitfinex to stany pozycji'));
+  /* plik zły: bez wersji / bez at / bez części */
+  for (const zly of [null, {}, {v: 2, at: l397.T, okx: {}}, {v: 1, okx: {}}, {v: 1, at: 'x', okx: {}}, {v: 1, at: l397.T}, 'x']) assert.equal(l397.mk('pl', zly).els['#lev2'].innerHTML, '', JSON.stringify(zly));
+});
+
+test('v397: wykresy — cztery wykresy liniowe BTC i ETH (konta, najwięksi gracze, udział kupna agresora, pożyczki) z podpowiedzią dnia; jeden wykres wymaga co najmniej 3 punktów; bez wk-wykresów blok działa', () => {
+  const K = l397.mk('pl', l397.file()), h = K.els['#lev2'].innerHTML;
+  assert.equal(K.charts.length, 4);
+  assert.deepEqual(K.charts.map(c => c.L.map(l => l.n + ':' + l.d.length + ':' + l.cls)), [['BTC:10:c-btc', 'ETH:8:c-eth'], ['BTC:10:c-btc', 'ETH:8:c-eth'], ['BTC:9:c-btc', 'ETH:3:c-eth'], ['BTC:10:c-btc', 'ETH:8:c-eth']]);
+  const tk = K.charts[2].L[0].d; assert.equal(tk[tk.length - 1][0], Date.parse('2026-10-16T12:00:00Z')); assert.ok(Math.abs(tk[tk.length - 1][1] - 2692529792 / (2849518370 + 2692529792) * 100) < 1e-9, 'udział kupna agresora');
+  assert.deepEqual(K.charts.map(c => c.o.fmt(1.234) + '|' + c.o.zero), ['1,23|false', '1,23|false', '1,2%|false', '1,2|false']);
+  assert.ok(K.charts[0].o.dt(Date.parse('2026-10-16T12:00:00Z')).includes('2026') && K.charts[0].o.dx(Date.parse('2026-10-16T12:00:00Z')).length > 0);
+  assert.ok(h.includes('[CHART:Wykres liniowy: Stosunek kont long/short: BTC i ETH, 10 dób|BTC:10,ETH:8]'), 'aria: tytuł i liczba dób najdłuższej serii');
+  assert.ok(h.includes('Udział kupna w wolumenie agresora, %: BTC i ETH'));
+  const f = l397.file(); f.okx.ETH.ls.d = f.okx.ETH.ls.d.slice(-2); f.okx.BTC.lr.d = f.okx.BTC.lr.d.slice(-2); const K2 = l397.mk('pl', f);
+  assert.deepEqual(K2.charts[0].L.map(l => l.n), ['BTC'], 'seria ETH ma 2 punkty — poza wykresem'); assert.equal(K2.charts.length, 4); assert.deepEqual(K2.charts[3].L.map(l => l.n), ['ETH'], 'pożyczki: BTC 2 punkty — poza');
+  const K3 = l397.mk('pl', l397.file(), {nowk: true}); assert.ok(K3.els['#lev2'].innerHTML.includes('id="lev-sent"') && !K3.els['#lev2'].innerHTML.includes('[CHART'), 'bez wk-wykresów blok działa');
+});
+
+test('v397: rozwijany blok #lev-sent — zwinięty domyślnie, otwarty stan zachowany przy ponownym rysowaniu; kontener niezmieniany w podglądzie; apply: chwilowy błąd nie zasłania wczytanych danych', () => {
+  const K = l397.mk('pl', l397.file());
+  assert.ok(/<details class="etfd" id="lev-sent"><summary>/.test(K.els['#lev2'].innerHTML) && !K.els['#lev2'].innerHTML.includes('id="lev-sent" open'), 'zwinięty');
+  K.els['#lev2'].openIds = ['x']; K.api.renderLev2(); assert.ok(K.els['#lev2'].openIds.includes('set'), 'otwarty stan przywrócony');
+  const before = K.els['#lev2'].innerHTML; K.api.lev2Apply(null); assert.equal(K.els['#lev2'].innerHTML, before, 'null nie zasłania'); K.api.lev2Apply({v: 2}); assert.equal(K.els['#lev2'].innerHTML, before);
+  assert.equal(l397.mk('pl', l397.file()).api.l2Ok(l397.file()), true); assert.equal(l397.mk('pl', null).api.l2Ok({v: 1, at: 'x', okx: {}}), false);
+  const K0 = l397.mk('pl', null); K0.api.renderLev2(); assert.equal(K0.els['#lev2'].innerHTML, '', 'bez pliku pusty'); const sk = l397.mk('pl', l397.file()); sk.els['#lev2'] = null; sk.api.renderLev2();
+});
+
+test('v397: l2Back i l2Usd — porównanie tylko z punktem sprzed 7 dób bez dziury większej niż 2 doby; kwoty USD „<1 mln”, mln, mld po zaokrągleniu', () => {
+  const A = l397.mk('pl', null).api, P = l397.ser([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).d;
+  assert.deepEqual(A.l2Back(P, 7), [l397.dayOf(7), 8]); assert.equal(A.l2Back(P.slice(-6), 7), null, 'za krótki szereg');
+  assert.equal(A.l2Back([[l397.dayOf(20), 1], [l397.dayOf(0), 2]], 7), null, 'dziura: najbliższy punkt dalej niż 9 dób'); assert.deepEqual(A.l2Back([[l397.dayOf(9), 1], [l397.dayOf(0), 2]], 7), [l397.dayOf(9), 1]);
+  const cases = [[0, '0 mln USD'], [4e5, '<1 mln USD'], [5e5, '1 mln USD'], [999.4e6, '999 mln USD'], [999.6e6, '1,00 mld USD'], [2692529792, '2,69 mld USD'], [5872291755, '5,87 mld USD'], [12.34e9, '12,3 mld USD']];
+  for (const [v, s] of cases) assert.equal(l397.txt(A.l2Usd(v)), s, String(v));
+  assert.equal(A.l2Usd(null), '—'); assert.equal(A.l2Usd(NaN), '—');
+});
+
+test('v397: słownik l2.* — 32 klucze w 10 językach, te same znaczniki, bez nazw dostawców danych; blok w każdym języku bez brakujących kluczy, „undefined” i „NaN”; polski poprawny, bez rekomendacji', () => {
+  const I = v96src.I18N, ks = Object.keys(I.pl).filter(k => k.startsWith('l2.')), ph = s => (String(s).match(/\{[a-z]+\}/g) || []).sort().join();
+  assert.equal(ks.length, 32);
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    assert.deepEqual(Object.keys(I[L]).filter(k => k.startsWith('l2.')), ks, L + ': te same klucze');
+    for (const k of ks) { assert.ok(typeof I[L][k] === 'string' && I[L][k].trim().length > 1, L + ' ' + k); assert.equal(ph(I[L][k]), ph(I.pl[k]), L + ' ' + k + ': znaczniki'); }
+    if (L !== 'pl' && L !== 'en') for (const k of ['l2.t', 'l2.sub', 'l2.n3']) assert.notEqual(I[L][k], I.en[k], L + ' ' + k + ': prawdziwe tłumaczenie, nie kopia angielskiego');
+    const h = l397.sp(l397.mk(L, l397.file()).els['#lev2'].innerHTML);
+    assert.ok(!/undefined|NaN|\bl2\.|\[object/.test(h), L + ': ' + (h.match(/undefined|NaN|l2\.[a-z.0-9]+|\[object/) || [''])[0]);
+    assert.ok(h.includes(I[L]['l2.t']) && h.includes(I[L]['l2.n6']), L);
+    assert.equal(l397tiles(h).length, 11, L + ': 11 kafli');
+  }
+  const all = JSON.stringify(ks.map(k => v96src.I18N.pl[k]));
+  for (const w of ['SoSoValue', 'DefiLlama', 'CoinMarketCap', 'CoinPaprika', 'Coin Metrics', 'OECD', 'Finnhub', 'Twelve Data', 'TradingView', 'CoinGecko', 'Etherscan', 'Glassnode']) assert.ok(!all.includes(w) && !l397.code.includes(w), 'bez nazwy dostawcy danych: ' + w);
+  assert.ok(!/\b(kup|sprzedaj)(?![a-ząćęłńóśźż])|polecamy|rekomend/i.test(all), 'bez rekomendacji'); assert.ok(v96src.I18N.pl['l2.n6'].includes('To nie jest porada inwestycyjna'));
+});
+
+test('v397: telefon 390 px — kafle w siatce panelu (.etfkpis), bez własnej szerokości; wykresy w kontenerach wk-ch; blok nie wprowadza stałych szerokości ani poziomego przewijania', () => {
+  const c = l397.code;
+  assert.ok(!/width\s*:\s*\d{3,}px|min-width\s*:\s*\d{3,}px|overflow-x/.test(c), 'bez stałych szerokości w bloku');
+  assert.ok(c.includes('<div class="etfkpis">') && c.includes('class="etfd" id="lev-sent"'));
+  assert.ok(html.includes('#c-dzwignia .etfkpis') || html.includes('.etfkpis{'), 'siatka kafli panelu istnieje');
+});
