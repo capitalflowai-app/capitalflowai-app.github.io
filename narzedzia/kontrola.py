@@ -5694,6 +5694,211 @@ def szlaki_kontrola(j, R):
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v393 (F11Z7): porty świata (data/porty.json) ----------------------------------------------------------------
+# Dwie części pliku (świat wg ładunku: sw; 20 dużych portów: pt), każda z osobnym wierszem świeżości (lista SWIEZOSC bez zmian), najwyżej ⚠️ — pole next mówi, kiedy spodziewana jest publikacja.
+# Próg wieku danych 18 dni (⚠️, nigdy ❌): model kalendarza jak w v305 (testy wsteczne ws53/v393-porty/bt/bt_swiezosc.py, kontrola co godzinę 2025-01-01 – 2026-10-17) — paczka tygodniowa we
+# wtorek, ostatni dzień portów = piątek poprzedniego tygodnia (odczyt z 17.10.2026: warstwa edytowana w czwartek 15.10 11:11 UTC po święcie, ostatni dzień piątek 09.10), publikacja spóźniona
+# o 0–3 dni: najwyższy wiek danych tuż przed następną paczką 13 d 12 h (próg 18 dni zostawia pięć dni zapasu na święta i przerwy u wydawcy), 0 ⚠️ w modelu; pominięta paczka tygodniowa
+# (20 d) jest już prawdziwym ⚠️.
+# ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (daty nie rosną, wartość ujemna, średnia 7 dni ≠ ostatni punkt wykresu, zmiana ≠ s / r, suma trzech ładunków większa niż wszystkie
+# statki, przeładunek ≠ wyładunek + załadunek). Progi ⚠️ danych (ws53/v393-porty/bt/bt_progi.py na historii z nagrań 17.10.2026: świat 2019-01-01 – 2026-10-09 = 2839 dni, 2065 portów
+# każdego dnia; 20 portów 2024-01-01 – 2026-10-09 = 20 260 wierszy): zmiana rok do roku 7-dniowych średnich świata (wyładunek, załadunek, zawinięcia, od 2021-01) — wszystkie statki
+# −18,2 … +20,7%, poszczególne ładunki −35,5 … +39,7% → progi 30% i 45%; średnia wyładunku świata 15–60 mln t dziennie (w historii 21,9–49,7 mln dziennych), zawinięcia 3000–7500 dziennie
+# (3438–6338); liczba portów ≥ 2000 (zawsze 2065), dzień z niepełną paczką — 0; porty: zmiana przeładunku rok do roku (średnie 7 dni, rok wcześniej ≥ 1000 t dziennie, 12 800 punktów 2025-01 –
+# 2026-10) −70,3 … +165,0% → próg −90 … +250%, zawinięć −88,0 … +180,6% → −95 … +300%; przeładunek jednego portu dziennie ≤ 6 mln t (w historii najwyżej 4,63 mln), zawinięć ≤ 300 (najwyżej 224);
+# ładunki większe niż suma u źródła — 0 z 20 260 wierszy. Ostatnie dni u źródła bywają poprawiane wstecz (stąd odświeżanie raz na 3 dni) — poprawka nie jest błędem.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'porty')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['porty'] = 5 * 24 * 60   # v393: odczyt części najwyżej co 3 dni (poprawki wstecz), w oknie publikacji co 2 h — wiek pliku; wiek danych każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'porty_' + p: 'porty świata — część z błędem zostaje z datą (v393); wiek danych w wierszach świeżości' for p in ('sw', 'pt')})
+PRT_K_ETYKIETA = {'sw': 'porty: świat wg ładunku (dziennie, publ. raz w tygodniu)', 'pt': 'porty: 20 dużych portów (dziennie, publ. raz w tygodniu)'}
+PRT_K_PROG_MIN = 18 * 24 * 60
+PRT_K_OPOZN = 7            # dni — ostatni dzień portu starszy niż najnowszy dzień części (pt.asof) o więcej = ⚠️ w wierszu świeżości (w historii: wszystkie porty te same dni)
+PRT_K_ZM_ALL = 30.0        # % — zmiana rok do roku (wyładunek, załadunek, zawinięcia) wszystkich statków na świecie; w historii od 2021 najwyżej 20,7
+PRT_K_ZM_GR = 45.0         # % — to samo dla kontenerowców, masowców i tankowców; w historii najwyżej 39,7
+PRT_K_I7 = (15e6, 60e6)    # t dziennie — średnia 7 dni wyładunku na świecie (w historii dobowo 21,9–49,7 mln)
+PRT_K_C7 = (3000, 7500)    # zawinięć dziennie na świecie (w historii 3438–6338)
+PRT_K_N_MIN = 2000         # portów w ostatnim dniu (w historii zawsze 2065)
+PRT_K_PT_T = (-90.0, 250.0)   # % — zmiana przeładunku portu rok do roku (w historii −70,3 … +165,0)
+PRT_K_PT_C = (-95.0, 300.0)   # % — zmiana zawinięć portu rok do roku (w historii −88,0 … +180,6)
+PRT_K_PT_MAX_T = 6e6       # t dziennie — przeładunek jednego portu (w historii dobowo najwyżej 4,63 mln)
+PRT_K_PT_MAX_C = 300       # zawinięć dziennie w jednym porcie (w historii najwyżej 224)
+PRT_K_TOL = 0.011          # tolerancja zaokrągleń zmiany w % (2 miejsca po przecinku)
+PRT_K_GR = {'all': 'wszystkie statki', 'kon': 'kontenerowce', 'mas': 'masowce suche', 'tan': 'tankowce'}
+PRT_K_NAZWY = {'singapur': 'Singapur', 'szanghaj': 'Szanghaj', 'yangshan': 'Szanghaj (Yangshan)', 'ningbo': 'Ningbo', 'tianjin': 'Tianjin', 'qingdao': 'Qingdao', 'shekou': 'Shenzhen (Shekou)',
+               'hongkong': 'Hongkong', 'busan': 'Busan', 'portklang': 'Port Klang', 'nhavasheva': 'Nhava Sheva', 'porthedland': 'Port Hedland', 'rotterdam': 'Rotterdam', 'antwerpia': 'Antwerpia',
+               'hamburg': 'Hamburg', 'algeciras': 'Algeciras', 'gdansk': 'Gdańsk', 'losangeles': 'Los Angeles i Long Beach', 'houston': 'Houston', 'santos': 'Santos'}
+
+
+def _prt_k_pl(v, dec=1):
+    return f'{v:.{dec}f}'.replace('.', ',')
+
+
+def _prt_k_opozn(P):
+    """Porty, których ostatni dzień (p.<id>.asof) jest o ponad PRT_K_OPOZN dni starszy niż najnowszy dzień części (asof), bez daty albo nieobecne w pliku → lista opisów."""
+    a = _sz_k_dzien(P.get('asof')) if isinstance(P, dict) else None
+    K = P.get('p') if isinstance(P, dict) else None
+    if a is None or not isinstance(K, dict) or not K:
+        return []
+    out = []
+    for cid, nazwa in PRT_K_NAZWY.items():
+        e = K.get(cid)
+        d = _sz_k_dzien(e.get('asof')) if isinstance(e, dict) else None
+        if not isinstance(e, dict):
+            out.append(f'{nazwa} — brak w pliku')
+        elif d is None:
+            out.append(f'{nazwa} — brak daty ostatniego dnia')
+        elif (a - d).days > PRT_K_OPOZN:
+            out.append(f'{nazwa} — ostatni dzień {d.isoformat()}, {(a - d).days} dni wcześniej')
+    return out
+
+
+def porty_swiezosc(j, now=None):
+    """Wiersze świeżości części pliku porty.json w kształcie wierszy swiezosc(): (etykieta, status, wiek min, data danych, uwaga). Najwyżej ⚠️, nigdy ❌; brak pliku albo inna wersja = brak
+    wierszy; część bez daty danych — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    nx = j.get('next') if isinstance(j.get('next'), dict) else {}
+    rows = []
+    for p, label in PRT_K_ETYKIETA.items():
+        P = j.get(p) if isinstance(j.get(p), dict) else {}
+        txt = P.get('asof') if isinstance(P.get('asof'), str) else None
+        if not txt:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        w = wiek_danych(txt, 'day', 'w', now)
+        st = '?' if w is None else ('⚠️' if w > PRT_K_PROG_MIN else '✅')
+        note = ''
+        if st == '⚠️':
+            nt = nx.get(p); pt = _aw_t(nt) if isinstance(nt, str) else None
+            note = f'próg {fmt_wiek(PRT_K_PROG_MIN)} — najwyżej uwaga' + (
+                f'; spodziewana publikacja {czas_pl(nt)}' + (' — zaległa (przerwa u źródła?)' if pt and pt < now else '') if pt else '')
+        if p == 'pt' and st != '?':   # jeden port w tyle (pt.asof = max ze wszystkich) — najwyżej ⚠️
+            op = _prt_k_opozn(P)
+            if op:
+                st = '⚠️'
+                note = '; '.join(x for x in (note, f'porty w tyle za najnowszym dniem ({txt}): ' + ', '.join(op) + f' (próg {PRT_K_OPOZN} dni; w historii 2024–2026: 0) — najwyżej uwaga') if x)
+        rows.append((label, st, w, txt, note))
+    return rows
+
+
+def porty_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w portach) → lista opisów."""
+    zle = []
+    S = j.get('sw') if isinstance(j.get('sw'), dict) else {}
+    G = S.get('g') if isinstance(S.get('g'), dict) else {}
+    for gid, e in G.items():
+        if not isinstance(e, dict):
+            continue
+        nm = f'sw.{PRT_K_GR.get(gid, gid)}'
+        for fld in ('m7', 'y7'):
+            d = _sz_k_wiersze({'d': e.get(fld)})
+            ds = [str(x[0]) for x in d]
+            if ds != sorted(set(ds)):
+                zle.append(f'{nm}: daty {fld} nie rosną albo się powtarzają')
+            if any(x[1] is not None and not (_sz_k_num(x[1]) and x[1] >= 0) for x in d):
+                zle.append(f'{nm}: {fld} ujemne albo nie-liczba (brak ma być null)')
+        m = _sz_k_wiersze({'d': e.get('m7')})
+        if m and _sz_k_num(e.get('i7')) and str(m[-1][0]) == S.get('asof') and _sz_k_num(m[-1][1]) and abs(m[-1][1] - e['i7']) > 1:
+            zle.append(f'{nm}: średnia 7 dni {e["i7"]} ≠ ostatni punkt wykresu {m[-1][1]}')
+        for z, s, r in (('chgi', 'i7', 'ri7'), ('chge', 'e7', 're7'), ('chgc', 'c7', 'rc7')):
+            if _sz_k_num(e.get(z)) and _sz_k_num(e.get(s)) and _sz_k_num(e.get(r)) and e[r] > 0 and abs((e[s] / e[r] - 1) * 100 - e[z]) > PRT_K_TOL:
+                zle.append(f'{nm}: zmiana {e[z]}% ≠ {(e[s] / e[r] - 1) * 100:.2f}% z {s} / {r}')
+    a = G.get('all') if isinstance(G.get('all'), dict) else None
+    if a:
+        for s in ('i7', 'e7', 'c7'):
+            r = [G[g].get(s) for g in ('kon', 'mas', 'tan') if isinstance(G.get(g), dict)]
+            if _sz_k_num(a.get(s)) and len(r) == 3 and all(_sz_k_num(v) for v in r) and sum(r) > a[s] * 1.001 + 1:
+                zle.append(f'sw: kontenerowce + masowce + tankowce ({s} = {sum(r):g}) więcej niż wszystkie statki ({a[s]:g})')
+    P = j.get('pt') if isinstance(j.get('pt'), dict) else {}
+    K = P.get('p') if isinstance(P.get('p'), dict) else {}
+    for cid, e in K.items():
+        if not isinstance(e, dict):
+            continue
+        nm = f'pt.{PRT_K_NAZWY.get(cid, cid)}'
+        d = _sz_k_wiersze({'d': e.get('m7')})
+        ds = [str(x[0]) for x in d]
+        if ds != sorted(set(ds)):
+            zle.append(f'{nm}: daty nie rosną albo się powtarzają')
+        if any(x[1] is not None and not (_sz_k_num(x[1]) and x[1] >= 0) for x in d):
+            zle.append(f'{nm}: przeładunek ujemny albo nie-liczba (brak ma być null)')
+        s7, i7, e7 = e.get('s7'), e.get('i7'), e.get('e7')
+        if all(_sz_k_num(v) for v in (s7, i7, e7)) and abs(s7 - (i7 + e7)) > 1.01:
+            zle.append(f'{nm}: przeładunek {s7} ≠ wyładunek {i7} + załadunek {e7}')
+        if d and _sz_k_num(s7) and str(d[-1][0]) == e.get('asof') and _sz_k_num(d[-1][1]) and abs(d[-1][1] - s7) > 1:
+            zle.append(f'{nm}: przeładunek 7 dni {s7} ≠ ostatni punkt wykresu {d[-1][1]}')
+        for k, tot in (('ki', i7), ('ke', e7)):
+            v = e.get(k)
+            if isinstance(v, list) and len(v) == 3 and all(_sz_k_num(x) for x in v) and _sz_k_num(tot) and sum(v) > tot * 1.001 + 3:
+                zle.append(f'{nm}: kontenery + masowce + tankowce ({k}) {sum(v):g} więcej niż {tot:g}')
+        for z, s, r in (('chg', 's7', 'rs7'), ('chgc', 'c7', 'rc7')):
+            if _sz_k_num(e.get(z)) and _sz_k_num(e.get(s)) and _sz_k_num(e.get(r)) and e[r] > 0 and abs((e[s] / e[r] - 1) * 100 - e[z]) > PRT_K_TOL:
+                zle.append(f'{nm}: zmiana {e[z]}% ≠ {(e[s] / e[r] - 1) * 100:.2f}% z {s} / {r}')
+    return zle
+
+
+def porty_porownania(j):
+    """Progi z testów wstecznych (najwyżej ⚠️): zmiany rok do roku i zakresy świata oraz portów, liczba portów w paczce, niezgodne wiersze u źródła. → {'wiersze': [(opis, znak)], 'uwagi': [...]}."""
+    W, U = [], []
+    S = j.get('sw') if isinstance(j.get('sw'), dict) else {}
+    G = S.get('g') if isinstance(S.get('g'), dict) else {}
+    if G:
+        zle = []
+        for gid, e in G.items():
+            if not isinstance(e, dict):
+                continue
+            lim = PRT_K_ZM_ALL if gid == 'all' else PRT_K_ZM_GR
+            for z, nm in (('chgi', 'wyładunek'), ('chge', 'załadunek'), ('chgc', 'zawinięcia')):
+                if _sz_k_num(e.get(z)) and abs(e[z]) > lim:
+                    zle.append(f'porty: {PRT_K_GR.get(gid, gid)} — {nm} {e[z]:+.1f}% rok do roku (próg ±{lim:g}%; w historii od 2021 najwyżej '
+                               f'{"20,7" if gid == "all" else "39,7"}%) — sprawdzić'.replace('.', ','))
+        a = G.get('all') if isinstance(G.get('all'), dict) else {}
+        if _sz_k_num(a.get('i7')) and not (PRT_K_I7[0] <= a['i7'] <= PRT_K_I7[1]):
+            zle.append(f'porty: wyładunek na świecie {a["i7"] / 1e6:.1f} mln t dziennie — poza zakresem {PRT_K_I7[0] / 1e6:g}–{PRT_K_I7[1] / 1e6:g} (w historii 21,9–49,7) — sprawdzić'.replace('.', ','))
+        if _sz_k_num(a.get('c7')) and not (PRT_K_C7[0] <= a['c7'] <= PRT_K_C7[1]):
+            zle.append(f'porty: zawinięcia na świecie {a["c7"]:.0f} dziennie — poza zakresem {PRT_K_C7[0]}–{PRT_K_C7[1]} (w historii 3438–6338) — sprawdzić')
+        if _sz_k_num(S.get('n')) and S['n'] < PRT_K_N_MIN:
+            zle.append(f'porty: w ostatnim dniu {int(S["n"])} portów (próg {PRT_K_N_MIN}; w historii zawsze 2065) — sprawdzić')
+        if _sz_k_num(S.get('odrz')) and S['odrz'] > 0:
+            zle.append(f'porty: {int(S["odrz"])} {_odm(int(S["odrz"]), "dzień", "dni", "dni")} z niepełną paczką portów pominięty (w historii: 0) — sprawdzić')
+        U += zle[:4]
+        W.append(('świat wg ładunku: zmiany i zakres', '⚠️' if zle else '✅'))
+    P = j.get('pt') if isinstance(j.get('pt'), dict) else {}
+    K = P.get('p') if isinstance(P.get('p'), dict) else {}
+    if K:
+        zle = []
+        nz = P.get('nz')
+        if _sz_k_num(nz) and nz > 0:
+            zle.append(f'porty: {int(nz)} {_odm(int(nz), "wiersz", "wiersze", "wierszy")} źródła z ładunkami większymi niż suma — sprawdzić (w historii 2024–2026: 0 z 20 260)')
+        for cid, e in K.items():
+            if not isinstance(e, dict):
+                continue
+            nm = PRT_K_NAZWY.get(cid, cid)
+            if _sz_k_num(e.get('chg')) and not (PRT_K_PT_T[0] <= e['chg'] <= PRT_K_PT_T[1]):
+                zle.append(f'porty: {nm} — przeładunek {e["chg"]:+.0f}% rok do roku (zakres {PRT_K_PT_T[0]:g} … +{PRT_K_PT_T[1]:g}%; w historii −70 … +165) — sprawdzić'.replace('.', ','))
+            if _sz_k_num(e.get('chgc')) and not (PRT_K_PT_C[0] <= e['chgc'] <= PRT_K_PT_C[1]):
+                zle.append(f'porty: {nm} — zawinięcia {e["chgc"]:+.0f}% rok do roku (zakres {PRT_K_PT_C[0]:g} … +{PRT_K_PT_C[1]:g}%; w historii −88 … +181) — sprawdzić'.replace('.', ','))
+            if _sz_k_num(e.get('s7')) and e['s7'] > PRT_K_PT_MAX_T:
+                zle.append(f'porty: {nm} — przeładunek {e["s7"] / 1e6:.1f} mln t dziennie (próg {PRT_K_PT_MAX_T / 1e6:g}; w historii najwyżej 4,63) — sprawdzić'.replace('.', ','))
+            if _sz_k_num(e.get('c7')) and e['c7'] > PRT_K_PT_MAX_C:
+                zle.append(f'porty: {nm} — {e["c7"]:.0f} zawinięć dziennie (próg {PRT_K_PT_MAX_C}; w historii najwyżej 224) — sprawdzić')
+        U += zle[:4]
+        W.append(('porty: zmiany i zakres', '⚠️' if zle else '✅'))
+    return {'wiersze': W, 'uwagi': U}
+
+
+def porty_kontrola(j, R):
+    """Kontrola pliku porty.json bez sieci: sprzeczności w pliku (❌ = BŁĄD) i progi z testów wstecznych (najwyżej ⚠️). Brak pliku albo inna wersja = None (raport bez linii)."""
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle = porty_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'porty.json: sprzeczność w pliku — {z}')
+    P = porty_porownania(j)
+    R['uwagi'] += P['uwagi']
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- v340: gaz i LNG (data/lng.json) ----------------------------------------------------------------
 # Świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️ — pole next pliku mówi, kiedy spodziewana jest zmiana.
 # Progi z testu wstecznego (ws53/v340-lng/bt/, historia 2023-01-01 – 2026-10-10: 1379 dób, 30 punktów wejścia, nagrania 11.10.2026):
@@ -10959,6 +11164,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-prt. v393: porty świata (data/porty.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in porty_swiezosc(files.get('porty')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c-lng. v340: gaz i LNG (data/lng.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in lng_swiezosc(files.get('lng')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
@@ -11566,6 +11778,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['szlaki'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'szlaki: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v393: porty świata — sprzeczności w pliku (❌) i progi z testów wstecznych (najwyżej ⚠️), z pliku strony, bez zapytań
+    try:
+        Z['porty'] = porty_kontrola(files.get('porty'), R)
+    except Exception as e:  # noqa
+        Z['porty'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'porty: kontrola przerwana ({str(e)[:80]})')
     # 3g. v339: metale przemysłowe — sprzeczności w pliku (❌) i porównania (raport tygodniowy o miedzi vs dane giełd, kwity, średnie miesięczne vs
     # Bank Światowy; najwyżej ⚠️), z plików strony, bez zapytań
     try:
@@ -11976,6 +12194,11 @@ def raport_md(R):
             L.append('- Szlaki handlowe i łańcuchy dostaw (z pliku strony): ' + (f'? kontrola przerwana ({szl["blad"]})' if szl.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(szl['spojnosc'][:3]) + ' ❌ · ' if szl.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in szl.get('wiersze') or []) or '—') + '.')
+        prz = Z.get('porty')   # v393: porty świata — sprzeczności w pliku i progi (zmiany rok do roku, zakresy, liczba portów); brak pliku = bez linii
+        if prz:
+            L.append('- Porty świata (z pliku strony): ' + (f'? kontrola przerwana ({prz["blad"]})' if prz.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(prz['spojnosc'][:3]) + ' ❌ · ' if prz.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in prz.get('wiersze') or []) or '—') + '.')
         mtz = Z.get('metale')   # v339: metale przemysłowe — sprzeczności w pliku i porównania; brak pliku = bez linii
         if mtz:
             L.append('- Metale przemysłowe (z plików strony): ' + (f'? kontrola przerwana ({mtz["blad"]})' if mtz.get('blad') else

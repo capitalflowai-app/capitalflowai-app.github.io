@@ -137,6 +137,7 @@ ZRODLA_META = {
     'polska_zloto': 'nbp', 'polska_hurt': 'orlen', 'polska_energia': 'tge', 'polska_stacje': 'komisja-europejska', 'polska_pszenica': 'komisja-europejska',
     'surowce_raporty': ('eia', 'usda', 'cameco'), 'surowce_raporty_ropa': 'eia', 'surowce_raporty_zboza': 'usda', 'surowce_raporty_uran': 'cameco',
     'szlaki': ('imf', 'ny-fed', 'bank-kanady'), 'szlaki_cies': 'imf', 'szlaki_presja': 'ny-fed', 'szlaki_bcpi': 'bank-kanady',
+    'porty': 'imf', 'porty_sw': 'imf', 'porty_pt': 'imf',   # v393 (F11Z7): porty świata — ta sama warstwa PortWatch co cieśniny (liczba źródeł bez zmian)
     'lng': ('entsog', 'eurostat'), 'lng_dz': 'entsog', 'lng_skad': 'eurostat', 'lng_zapasy': 'eurostat',
     'zboza_dzien': ('igc', 'fao', 'komisja-europejska'), 'zboza_dzien_goi': 'igc', 'zboza_dzien_fracht': 'igc', 'zboza_dzien_fao': 'fao',
     'zboza_dzien_ue': 'komisja-europejska', 'zboza_dzien_nawozy': 'komisja-europejska',
@@ -27890,6 +27891,419 @@ def build_szlaki(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
     return out
 
 
+# ===================== v393 (F11Z7): PORTY ŚWIATA — data/porty.json (dział SUROWCE, obok szlaków handlowych) =====================
+# Osobny plik i osobny budowniczy (szlaki.json bez zmian). Dzienne dane o ruchu w portach świata z tej samej warstwy ArcGIS co cieśniny (v305): dla ok. 2065 portów
+# liczba zawinięć statków oraz SZACOWANE tony wyładowane (import) i załadowane (export), w tym osobno kontenerowce, masowce suche i tankowce. Szacunek, nie pomiar —
+# oblicza go wydawca z sygnałów pozycji statków (AIS), nośności i zanurzenia. Dwie niezależne części, każda z part_at / ok / next / err jak w szlaki.json:
+#   sw — świat wg ładunku: JEDNO zapytanie statystyczne po stronie serwera (suma po wszystkich portach, grupowanie po dniu) — 4 grupy (wszystkie statki, kontenerowce,
+#        masowce suche, tankowce): 90 dni, średnia 7 ostatnich dni (zawinięcia, import, export w t/dzień) wobec tych samych 7 dni tygodnia rok wcześniej (364 dni
+#        wstecz), zmiana w %; m7 — średnia krocząca 7 dni importu do każdego dnia wykresu, y7 — ta sama średnia sprzed 364 dni na osi bieżącej. Dzień, w którym warstwa ma
+#        mniej niż PRT_N_MIN × mediany liczby portów z okna (paczka niepełna), jest odrzucany; średnie tylko z KOMPLETU 7 kolejnych dni (brak dnia = null);
+#   pt — 20 portów (lista stała PRT_PORTY: identyfikator u źródła + fragment nazwy sprawdzany przy każdym pobraniu — zmiana numeracji u źródła = brak portu, nie zły port):
+#        średnia 7 dni zawinięć i ton (import, export, razem = przeładunek), podział importu i exportu wg ładunku, zmiana przeładunku wobec tych samych 7 dni rok
+#        wcześniej, m7 — średnia krocząca 7 dni przeładunku z 90 dni. Zapytania stronicowane (resultOffset, stała kolejność date,portid), najwyżej PRT_STRON stron.
+# Kod źródła (stan st): pw — PortWatch (ArcGIS, bez klucza; ten sam wydawca co cieśniny — liczba źródeł na stronie bez zmian, ZRODLA_META: imf). Licencja: strona danych wydawcy
+# (17.10.2026) nie podaje osobnej licencji (CC BY nie znaleziono) i odsyła do ogólnych warunków instytucji (adres warunków odpowiada naszemu zbieraczowi „403” — nie obchodzone);
+# licencje drugorzędne (decyzja właściciela 11.10); nazwy wydawcy na stronie poza „Źródła” nie ma. Bramka wg terminu publikacji (_prt_oczek): aktualizacja tygodniowa we wtorek rano
+# czasu wschodnich USA (komunikaty strony wydawcy: wtorek 9:00 ET, przy święcie środa) ≈ 12:10–13:00 UTC, ale warstwa portów bywa uzupełniona o dzień-dwa później niż cieśniny
+# (sprawdzone 17.10.2026: warstwa cieśnin edytowana w środę 14.10 12:39 UTC, portów w czwartek 15.10 11:11 UTC, ostatni dzień 09.10, 2065 portów) — dlatego oczekiwany najnowszy dzień
+# to wtorek − PRT_OCZEK_DNI (10) dni, a zaległość dopiero po tej luce. W oknie publikacji, dopóki nowych danych nie ma:
+# co PRT_CZESTO min (po PRT_ZALEGLE_H h — co 6 h); poza nim co PRT_RZADKO min (poprawki wstecz). Źródło z błędem = poprzednia część z datą; brak = null, nigdy 0.
+# Zapytanie statystyczne ma twardą granicę długości adresu (IIS: 2048 znaków — dłuższy adres kończy się „404”; sprawdzone 17.10.2026) — adres sprawdzany przed wysłaniem.
+PRT_V = 1
+PRT_PARTS = ('sw', 'pt')
+PRT_URL = 'https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Ports_Data/FeatureServer/0/query'
+PRT_LIMIT_S = {'sw': 40, 'pt': 40}      # s — limit jednego zapytania (17.10.2026: statystyka 100–200 dni 1–26 s, strona 1000 wierszy 2–14 s)
+PRT_ZAPYTANIA = {'sw': 2, 'pt': 3}      # okno bieżące + rok wcześniej (sw); 3 strony okna bieżącego (20 portów × ok. 111 dni) + rok wcześniej (pt) — strony ponad to z reszty budżetu
+PRT_BUDZET_S = 170
+PRT_CZESTO, PRT_RZADKO, PRT_ZALEGLE_H = 120, 3 * 24 * 60, 72
+PRT_OCZEK_DNI = 10                       # dni — oczekiwany najnowszy dzień = dzień wtorkowej publikacji − tyle
+PRT_D, PRT_OKNO, PRT_ROK, PRT_OPOZN = 90, 7, 364, 21
+PRT_N_MIN = 0.9                          # dzień z mniejszą liczbą portów niż tyle × mediana okna = paczka niepełna (odrzucony)
+PRT_R_MIN = {'sw': 1.0, 'pt': 1000.0}    # t/dzień rok wcześniej — mniej = zmiana w % bez sensu (null); zawinięć dziennie: PRT_RC_MIN
+PRT_RC_MIN = 0.5
+PRT_ADRES_MAX = 2000                     # znaków — granica serwera 2048
+PRT_STRONA, PRT_STRON = 1000, 4          # wierszy na stronę (limit warstwy: 1000); najwięcej stron w zapytaniu
+PRT_GR = ('all', 'kon', 'mas', 'tan')    # grupy części sw: wszystkie statki, kontenerowce, masowce suche, tankowce
+PRT_POLA_SW = ('portcalls', 'portcalls_container', 'portcalls_dry_bulk', 'portcalls_tanker',
+               'import', 'import_container', 'import_dry_bulk', 'import_tanker',
+               'export', 'export_container', 'export_dry_bulk', 'export_tanker')   # s0 … s11: zawinięcia (4), import (4), export (4)
+PRT_POLA_PT = ('portcalls', 'import', 'export', 'import_container', 'import_dry_bulk', 'import_tanker', 'export_container', 'export_dry_bulk', 'export_tanker')
+PRT_PORTY = (   # id strony, identyfikator u źródła, fragment nazwy u źródła (małymi literami)
+    ('singapur', 'port1201', 'singapore'), ('szanghaj', 'port1188', 'shanghai'), ('yangshan', 'port2027', 'yangshan'), ('ningbo', 'port824', 'ningbo'),
+    ('tianjin', 'port1297', 'tianjin'), ('qingdao', 'port1069', 'qingdao'), ('shekou', 'port1189', 'shekou'), ('hongkong', 'port474', 'hong kong'),
+    ('busan', 'port1065', 'busan'), ('portklang', 'port960', 'klang'), ('nhavasheva', 'port776', 'nhava'), ('porthedland', 'port955', 'hedland'),
+    ('rotterdam', 'port1114', 'rotterdam'), ('antwerpia', 'port57', 'antwerp'), ('hamburg', 'port446', 'hamburg'), ('algeciras', 'port31', 'algeciras'),
+    ('gdansk', 'port380', 'gdansk'), ('losangeles', 'port664', 'los angeles'), ('houston', 'port481', 'houston'), ('santos', 'port1160', 'santos'))
+PRT_STAT = json.dumps([{'statisticType': 'sum', 'onStatisticField': f, 'outStatisticFieldName': f's{i}'} for i, f in enumerate(PRT_POLA_SW)]
+                      + [{'statisticType': 'count', 'onStatisticField': 'ObjectId', 'outStatisticFieldName': 'n'}], separators=(',', ':'))
+
+
+def _prt_dzien(v):
+    """Data dnia: 'RRRR-MM-DD' (pole DateOnly) albo milisekundy UTC (pole Date) → 'RRRR-MM-DD'; inaczej None."""
+    if isinstance(v, str) and re.match(r'^\d{4}-\d{2}-\d{2}', v):
+        try:
+            return datetime.date.fromisoformat(v[:10]).isoformat()
+        except ValueError:
+            return None
+    if _isnum(v) and not isinstance(v, bool):
+        try:
+            return datetime.datetime.fromtimestamp(v / 1000, datetime.timezone.utc).date().isoformat()
+        except (OverflowError, OSError, ValueError):
+            return None
+    return None
+
+
+def _prt_t(v):
+    """Tony / zawinięcia z odpowiedzi: liczba ≥ 0 (suma po serwerze bywa zmiennoprzecinkowa) → liczba całkowita; inaczej None (brak, nigdy 0)."""
+    if _isnum(v) and not isinstance(v, bool) and v >= 0 and v == v and v != float('inf'):
+        return int(round(v))
+    return None
+
+
+def prt_url_sw(od, do=None):
+    """Zapytanie statystyczne: sumy po wszystkich portach, grupowanie po dniu (bez sortowania po stronie serwera — adres krótszy), dni od `od` (do `do` włącznie)."""
+    w = f"date >= DATE '{od}'" + (f" AND date <= DATE '{do}'" if do else '')
+    u = PRT_URL + '?' + urllib.parse.urlencode([('where', w), ('groupByFieldsForStatistics', 'date'), ('outStatistics', PRT_STAT), ('f', 'json')])
+    if len(u) > PRT_ADRES_MAX:
+        raise RuntimeError(f'adres zapytania za długi ({len(u)} znaków, granica serwera 2048)')
+    return u
+
+
+def prt_url_pt(od, do=None, offset=0):
+    """Zapytanie o wiersze 20 portów, dni od `od` (do `do` włącznie), rosnąco po dniu i identyfikatorze (stała kolejność stron)."""
+    ids = ','.join(f"'{p}'" for _, p, _ in PRT_PORTY)
+    w = f"portid IN ({ids}) AND date >= DATE '{od}'" + (f" AND date <= DATE '{do}'" if do else '')
+    q = [('where', w), ('outFields', 'date,portid,portname,' + ','.join(PRT_POLA_PT)), ('orderByFields', 'date,portid'), ('returnGeometry', 'false'),
+         ('resultOffset', str(int(offset))), ('resultRecordCount', str(PRT_STRONA)), ('f', 'json')]
+    return PRT_URL + '?' + urllib.parse.urlencode(q)
+
+
+def _prt_features(j):
+    if not isinstance(j, dict):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    if j.get('error'):
+        e = j['error']
+        raise RuntimeError('błąd warstwy: ' + str(e.get('message') or e.get('code') if isinstance(e, dict) else e)[:120])
+    F = j.get('features')
+    if not isinstance(F, list):
+        raise RuntimeError('nieznany kształt odpowiedzi')
+    return F
+
+
+def parse_prt_sw(j):
+    """Odpowiedź statystyczna → ({dzień: (12 sum…)}, {dzień: liczba portów}, liczba odrzuconych wierszy). Wiersz z dniem nieczytelnym albo sumą nie-liczbą / ujemną —
+    odrzucony (nigdy 0). Trzy grupy ładunku (kontenerowce, masowce suche, tankowce) razem nie mogą przekroczyć sumy wszystkich (reszta: drobnicowce, ro-ro): niezgodność —
+    wiersz odrzucony."""
+    F = _prt_features(j)
+    if j.get('exceededTransferLimit'):
+        raise RuntimeError('odpowiedź ucięta (limit warstwy)')
+    R, N, zle = {}, {}, 0
+    for f in F:
+        a = f.get('attributes') if isinstance(f, dict) else None
+        d = _prt_dzien(a.get('date')) if isinstance(a, dict) else None
+        V = [_prt_t(a.get(f's{i}')) for i in range(len(PRT_POLA_SW))] if d else []
+        n = a.get('n') if d else None
+        if not d or any(v is None for v in V) or not (_isnum(n) and n > 0):
+            zle += 1; continue
+        if any(V[b + 1] + V[b + 2] + V[b + 3] > V[b] * 1.001 + 1 for b in (0, 4, 8)):
+            zle += 1; continue
+        R[d] = tuple(V); N[d] = int(n)
+    return R, N, zle
+
+
+def parse_prt_pt(j):
+    """Odpowiedź warstwy portów → ({id: {dzień: (zawinięcia, import, export, import: kontenery, masowce, tankowce, export: kontenery, masowce, tankowce)}}, niezgodne wiersze,
+    złe identyfikatory, jest dalsza strona). Identyfikator z nazwą inną niż oczekiwana — pominięty (lista złych); pole nie-liczba albo < 0 = brak wiersza (nigdy 0). Wiersz,
+    w którym trzy ładunki razem przekraczają sumę, zostaje (źródło podaje sumy), liczony w niezgodnych (kontrola: ⚠️)."""
+    F = _prt_features(j)
+    pid = {p: (cid, nm) for cid, p, nm in PRT_PORTY}
+    out, nz, zle = {}, 0, set()
+    for f in F:
+        a = f.get('attributes') if isinstance(f, dict) else None
+        if not isinstance(a, dict) or a.get('portid') not in pid:
+            continue
+        cid, nm = pid[a['portid']]
+        if nm not in str(a.get('portname') or '').lower():
+            zle.add(a['portid']); continue
+        d = _prt_dzien(a.get('date'))
+        V = [_prt_t(a.get(k)) for k in PRT_POLA_PT]
+        if not d or any(v is None for v in V):
+            continue
+        if V[3] + V[4] + V[5] > V[1] * 1.001 + 1 or V[6] + V[7] + V[8] > V[2] * 1.001 + 1:
+            nz += 1
+        out.setdefault(cid, {})[d] = tuple(V)
+    return out, nz, sorted(zle), bool(j.get('exceededTransferLimit'))
+
+
+def _prt_okno(rows, end, k):
+    """Wartości (pole k krotki) z PRT_OKNO kolejnych dni kończących się w dniu end; brak któregoś dnia albo pola = None."""
+    e = datetime.date.fromisoformat(end)
+    V = []
+    for i in range(PRT_OKNO - 1, -1, -1):
+        r = rows.get((e - datetime.timedelta(days=i)).isoformat())
+        if r is None or r[k] is None:
+            return None
+        V.append(r[k])
+    return V
+
+
+def _prt_mean(V, dec=1):
+    """Średnia z kompletu liczb (brak liczby w komplecie albo pusty komplet = None); dec 0 — liczba całkowita (tony), inaczej zaokrąglona."""
+    if not V or not all(_isnum(v) for v in V):
+        return None
+    r = round(sum(V) / len(V), dec)
+    return int(r) if dec == 0 else r
+
+
+def _prt_chg(s, r, rmin):
+    return round((s / r - 1) * 100, 2) if _isnum(s) and _isnum(r) and r >= rmin and r > 0 else None
+
+
+def _prt_dni(od, do):
+    return (datetime.date.fromisoformat(do) - datetime.date.fromisoformat(od)).days
+
+
+def prt_dni_pelne(R, N):
+    """Dni z pełną paczką portów: liczba portów ≥ PRT_N_MIN × mediany z okna → ({dzień: sumy}, odrzucone dni)."""
+    if not R:
+        return {}, []
+    L = sorted(N[d] for d in R)
+    med = L[len(L) // 2]
+    ok = {d: v for d, v in R.items() if N[d] >= PRT_N_MIN * med}
+    return ok, sorted(d for d in R if d not in ok)
+
+
+def prt_sw(R, Y, n, odrz=0):
+    """Część sw z wierszy okna bieżącego R i okna sprzed roku Y ({dzień: 12 sum}); n — liczba portów w ostatnim dniu."""
+    if not R:
+        raise RuntimeError('brak dni z pełną paczką portów')
+    last = max(R)
+    d0 = (datetime.date.fromisoformat(last) - datetime.timedelta(days=PRT_D - 1)).isoformat()
+    ry = (datetime.date.fromisoformat(last) - datetime.timedelta(days=PRT_ROK)).isoformat()
+    rya = (datetime.date.fromisoformat(ry) - datetime.timedelta(days=PRT_OKNO - 1)).isoformat()
+    a = (datetime.date.fromisoformat(last) - datetime.timedelta(days=PRT_OKNO - 1)).isoformat()
+    dni = sorted(d for d in R if d >= d0)
+    G = {}
+    for gi, gid in enumerate(PRT_GR):
+        kc, ki, ke = gi, 4 + gi, 8 + gi
+        e = {'m7': [], 'y7': []}
+        for d in dni:
+            e['m7'].append([d, _prt_mean(_prt_okno(R, d, ki) or [], 0)])
+            yd = (datetime.date.fromisoformat(d) - datetime.timedelta(days=PRT_ROK)).isoformat()
+            e['y7'].append([d, _prt_mean(_prt_okno(Y, yd, ki) or [], 0)])
+        c7, i7, e7 = (_prt_mean(_prt_okno(R, last, k) or [], 1 if k == kc else 0) for k in (kc, ki, ke))
+        rc7, ri7, re7 = (_prt_mean(_prt_okno(Y, ry, k) or [], 1 if k == kc else 0) for k in (kc, ki, ke))
+        e.update({'c7': c7, 'i7': i7, 'e7': e7, 'rc7': rc7, 'ri7': ri7, 're7': re7,
+                  'chgc': _prt_chg(c7, rc7, PRT_RC_MIN), 'chgi': _prt_chg(i7, ri7, PRT_R_MIN['sw']), 'chge': _prt_chg(e7, re7, PRT_R_MIN['sw'])})
+        G[gid] = e
+    return {'asof': last, 'n': n, 'u': 't/dzień', 'okno': [a, last], 'rok': [rya, ry], 'odrz': odrz, 'g': G}
+
+
+def prt_pt(R, Y, nz=0):
+    """Część pt z wierszy okna bieżącego R i okna sprzed roku Y ({id: {dzień: 9 pól}})."""
+    P = {}
+    for cid, _p, _n in PRT_PORTY:
+        rows = R.get(cid) or {}
+        if not rows:
+            continue
+        last = max(rows)
+        d0 = (datetime.date.fromisoformat(last) - datetime.timedelta(days=PRT_D - 1)).isoformat()
+        tot = {d: ((r[1] + r[2]),) for d, r in rows.items()}   # przeładunek = wyładunek + załadunek
+        yr = (Y or {}).get(cid) or {}
+        ytot = {d: ((r[1] + r[2]),) for d, r in yr.items()}
+        ry = (datetime.date.fromisoformat(last) - datetime.timedelta(days=PRT_ROK)).isoformat()
+        e = {'asof': last, 'm7': [[d, _prt_mean(_prt_okno(tot, d, 0) or [], 0)] for d in sorted(x for x in rows if x >= d0)]}
+        c7, i7, e7 = (_prt_mean(_prt_okno(rows, last, k) or [], 1 if k == 0 else 0) for k in (0, 1, 2))
+        ki = [_prt_mean(_prt_okno(rows, last, k) or [], 0) for k in (3, 4, 5)]
+        ke = [_prt_mean(_prt_okno(rows, last, k) or [], 0) for k in (6, 7, 8)]
+        s7 = _prt_mean(_prt_okno(tot, last, 0) or [], 0)
+        rs7 = _prt_mean(_prt_okno(ytot, ry, 0) or [], 0)
+        rc7 = _prt_mean(_prt_okno(yr, ry, 0) or [], 1)
+        e.update({'c7': c7, 'i7': i7, 'e7': e7, 's7': s7, 'ki': ki, 'ke': ke, 'rs7': rs7, 'rc7': rc7,
+                  'chg': _prt_chg(s7, rs7, PRT_R_MIN['pt']), 'chgc': _prt_chg(c7, rc7, PRT_RC_MIN)})
+        P[cid] = e
+    if not P:
+        raise RuntimeError('brak danych portów')
+    last = max(e['asof'] for e in P.values())
+    a = (datetime.date.fromisoformat(last) - datetime.timedelta(days=PRT_OKNO - 1)).isoformat()
+    ry = (datetime.date.fromisoformat(last) - datetime.timedelta(days=PRT_ROK)).isoformat()
+    rya = (datetime.date.fromisoformat(ry) - datetime.timedelta(days=PRT_OKNO - 1)).isoformat()
+    return {'asof': last, 'u': 't/dzień', 'okno': [a, last], 'rok': [rya, ry], 'nz': nz, 'p': P}
+
+
+# ---- kalendarz i bramki ----
+def _prt_oczek(now):
+    """(najnowszy dzień danych spodziewany według kalendarza, chwila publikacji): ostatni wtorek 12:10 UTC; dane do (wtorek − PRT_OCZEK_DNI) dni."""
+    for back in range(8):
+        d = (now - datetime.timedelta(days=back)).date()
+        if d.weekday() == 1 and _sz_utc(d, 12, 10) <= now:
+            return (d - datetime.timedelta(days=PRT_OCZEK_DNI)).isoformat(), _sz_utc(d, 12, 10)
+    raise ValueError('kalendarz: porty')
+
+
+def _prt_due(z, now):
+    """Czy część trzeba pobrać w tym przebiegu: pierwsze pobranie — co godzinę do skutku; spodziewane dane jeszcze nie przyszły — co PRT_CZESTO min (po PRT_ZALEGLE_H h
+    od publikacji — co 6 h); poza tym co PRT_RZADKO min (poprawki wstecz); po błędzie — najwcześniej po 60 min."""
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    if at == float('inf'):
+        return tr >= 60
+    exp, pub = _prt_oczek(now)
+    if str(z.get('asof') or '') < exp:
+        return tr >= (PRT_CZESTO if (now - pub).total_seconds() <= PRT_ZALEGLE_H * 3600 else 360)
+    return at >= PRT_RZADKO and tr >= 60
+
+
+def _prt_next(asof, now):
+    """Najbliższa spodziewana publikacja (ISO, UTC); termin w przeszłości = publikacja zaległa (opóźnienie u źródła)."""
+    exp, pub = _prt_oczek(now)
+    if str(asof or '') < exp:
+        return pub.isoformat()
+    return (pub + datetime.timedelta(days=7)).isoformat()
+
+
+# ---- pobrania ----
+def _prt_get(ctx, url, src):
+    """Jedno zapytanie z limitem części, nie dłuższym niż reszta budżetu budowniczego (reszta < 5 s = błąd; ponowienie później)."""
+    lim = PRT_LIMIT_S[src]
+    if ctx.get('t0') is not None and ctx.get('budzet') is not None:
+        left = ctx['budzet'] - (time.monotonic() - ctx['t0'])
+        if left < 5:
+            raise RuntimeError('budżet czasu budowniczego wyczerpany')
+        lim = min(lim, left)
+    return ctx['fetch'](url, lim)
+
+
+def _prt_pobierz_sw(ctx):
+    now = ctx['now']
+    od = (now.date() - datetime.timedelta(days=PRT_D + PRT_OKNO - 1 + PRT_OPOZN)).isoformat()
+    R0, N0, z1 = parse_prt_sw(json.loads(_prt_get(ctx, prt_url_sw(od), 'sw')))
+    R, odrz = prt_dni_pelne(R0, N0)
+    if not R:
+        raise RuntimeError('brak dni z pełną paczką portów')
+    last = max(R)
+    a = (datetime.date.fromisoformat(last) - datetime.timedelta(days=PRT_ROK + PRT_D + PRT_OKNO - 2)).isoformat()
+    b = (datetime.date.fromisoformat(last) - datetime.timedelta(days=PRT_ROK)).isoformat()
+    Y0, YN, z2 = parse_prt_sw(json.loads(_prt_get(ctx, prt_url_sw(a, b), 'sw')))
+    Y, _o = prt_dni_pelne(Y0, YN)
+    if z1 + z2:
+        ctx['uwagi'].append(f'sw: {z1 + z2} {_sz_odm(z1 + z2, "wiersz", "wiersze", "wierszy")} odrzucony (pusta lub niezgodna suma)')
+    if odrz:
+        ctx['uwagi'].append(f'sw: {len(odrz)} {_sz_odm(len(odrz), "dzień", "dni", "dni")} z niepełną paczką portów pominięty')
+    part = prt_sw(R, Y, N0[last], len(odrz))
+    ctx['parts']['sw'] = part
+    return part['asof']
+
+
+def _prt_pt_zap(ctx, od, do):
+    """Zapytanie z kolejnymi stronami (najwyżej PRT_STRON) → (wiersze, niezgodne, złe identyfikatory)."""
+    R, nz, zle, off = {}, 0, set(), 0
+    for _ in range(PRT_STRON):
+        j = json.loads(_prt_get(ctx, prt_url_pt(od, do, off), 'pt'))
+        r, n, z, dalej = parse_prt_pt(j)
+        for cid, rows in r.items():
+            R.setdefault(cid, {}).update(rows)
+        nz += n; zle.update(z)
+        if not dalej:
+            return R, nz, zle
+        off += len(j.get('features') or [])
+    raise RuntimeError(f'więcej niż {PRT_STRON} strony wyników')
+
+
+def _prt_pobierz_pt(ctx):
+    now = ctx['now']
+    od = (now.date() - datetime.timedelta(days=PRT_D + PRT_OKNO - 1 + PRT_OPOZN)).isoformat()
+    R, nz, zle = _prt_pt_zap(ctx, od, None)
+    if not R:
+        raise RuntimeError('brak wierszy portów' + (f' (zmieniona numeracja: {", ".join(sorted(zle))})' if zle else ''))
+    last = max(max(r) for r in R.values())
+    a = (datetime.date.fromisoformat(last) - datetime.timedelta(days=PRT_ROK + PRT_OKNO - 1)).isoformat()
+    b = (datetime.date.fromisoformat(last) - datetime.timedelta(days=PRT_ROK)).isoformat()
+    Y, nz2, zle2 = _prt_pt_zap(ctx, a, b)
+    zle |= zle2
+    if zle:
+        ctx['bledy'].append('pt: identyfikatory z inną nazwą (pominięte): ' + ', '.join(sorted(zle)))
+    braki = [cid for cid, _p, _n in PRT_PORTY if cid not in R]
+    if braki:
+        ctx['bledy'].append('pt: brak portów: ' + ', '.join(braki))
+    if nz + nz2:
+        n = nz + nz2
+        ctx['uwagi'].append(f'pt: {n} {_sz_odm(n, "wiersz", "wiersze", "wierszy")} z ładunkami większymi niż suma')
+    part = prt_pt(R, Y, nz + nz2)
+    ctx['parts']['pt'] = part
+    return part['asof']
+
+
+PRT_POBIERZ = {'sw': _prt_pobierz_sw, 'pt': _prt_pobierz_pt}
+
+
+def build_porty(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
+    """v393: data/porty.json. Każda część z własną bramką (_prt_due) i budżetem czasu; część z błędem — poprzednia część z datą (ok False, krótki zamaskowany błąd err); część bez
+    próby — 'cached' (z danymi) albo False (jeszcze nie pobrana). Plik innej wersji = start od zera. Błąd częściowy (źródło odpowiedziało, ale czegoś zabrakło — np. jednego portu)
+    — ok False i pole cz = {część: True} (tylko w przebiegu z taką próbą): strona mówi „część danych niedostępna”, nie „pobranie się nie udało”."""
+    now = now or _now_utc()
+    now_iso = now.replace(microsecond=0).isoformat()
+    prev = prev if isinstance(prev, dict) and prev.get('v') == PRT_V else {}
+    st = json.loads(json.dumps(prev.get('st'))) if isinstance(prev.get('st'), dict) else {}
+    ctx = {'now': now, 'bledy': [], 'uwagi': [], 'parts': {}, 't0': time.monotonic(),
+           'budzet': PRT_BUDZET_S if budzet_s is None else budzet_s,
+           'fetch': fetch or (lambda url, timeout, headers=None: get_bytes(url, headers, timeout=timeout))}
+    late = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
+    proby, zle, pominiete, czesc = {p: 0 for p in PRT_PARTS}, {}, [], set()
+    for part in PRT_PARTS:
+        z = st.setdefault(part, {})
+        if not _prt_due(z, now):
+            continue
+        if late:
+            pominiete.append(f'{part} (długi przebieg)'); continue
+        if time.monotonic() - ctx['t0'] + PRT_ZAPYTANIA[part] * PRT_LIMIT_S[part] > ctx['budzet']:
+            pominiete.append(f'{part} (budżet czasu)'); continue
+        nb = len(ctx['bledy'])
+        z['try'] = now_iso
+        proby[part] += 1
+        try:
+            asof = PRT_POBIERZ[part](ctx)
+        except Exception as e:
+            msg = mask(f'{part}: {e}')[:160]
+            z['err'] = msg; zle.setdefault(part, []).append(msg)
+            continue
+        z['at'] = now_iso; z['asof'] = asof; z.pop('err', None)
+        if len(ctx['bledy']) > nb:
+            zle.setdefault(part, []).extend(mask(x)[:160] for x in ctx['bledy'][nb:])
+            czesc.add(part)
+    out = {'v': PRT_V, 'at': None, 'src': 'CapitalFlowAI — porty świata (kod źródła: pw — pełna nazwa na stronie Źródła)'}
+    pat = dict(prev.get('part_at') or {}) if isinstance(prev.get('part_at'), dict) else {}
+    perr = dict(prev.get('err') or {}) if isinstance(prev.get('err'), dict) else {}
+    ok = {}
+    for p in PRT_PARTS:
+        if p in ctx['parts']:
+            out[p] = ctx['parts'][p]; pat[p] = now_iso
+        elif isinstance(prev.get(p), dict):
+            out[p] = prev[p]
+        if zle.get(p):
+            ok[p] = False; perr[p] = '; '.join(zle[p])[:240]
+        elif proby[p]:
+            ok[p] = True; perr.pop(p, None)
+        else:
+            ok[p] = 'cached' if isinstance(out.get(p), dict) else False
+            if not isinstance(out.get(p), dict) and p not in perr:
+                perr[p] = 'brak danych (źródło jeszcze nie pobrane)'
+    out['part_at'] = {p: pat[p] for p in PRT_PARTS if pat.get(p) and isinstance(out.get(p), dict)}
+    out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
+    out.update({'ok': ok, 'err': {p: perr[p] for p in PRT_PARTS if perr.get(p)},
+                'next': {p: _prt_next((out.get(p) or {}).get('asof'), now) for p in PRT_PARTS}, 'st': st})
+    if czesc:
+        out['cz'] = {p: True for p in PRT_PARTS if p in czesc}
+    for x in ctx['uwagi']:
+        META['notes'].append(mask('porty: ' + x)[:200])
+    for p in PRT_PARTS:
+        for x in zle.get(p, []):
+            META['errors'].append(mask('porty ' + x)[:200])
+    if pominiete:
+        META['notes'].append('porty: pominięte w tym przebiegu — ' + ', '.join(pominiete))
+    return out
+
+
 # ===================== v339 (F4Z1+F4Z2): METALE PRZEMYSŁOWE — data/metale.json (plan źródeł, fala 4; dział SUROWCE) =====================
 # Osobny plik i osobny budowniczy (surowce.json bez zmian). Sześć metali giełdy w Londynie: miedź (cu), aluminium (al), nikiel (ni), cynk (zn),
 # ołów (pb), cyna (sn). Pięć części, każda z part_at / ok / next / err jak w szlaki.json:
@@ -31354,6 +31768,18 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'CFTC: {e}')); META['ok']['cftc'] = False
             if prev_cftc: save('cftc', prev_cftc); print('CFTC zawiódł — zachowano poprzedni cftc.json z', prev_cftc.get('at'))
+    # v393 (F11Z7): PORTY ŚWIATA (data/porty.json) — zawinięcia i szacowane tony importu / exportu: świat wg ładunku (zapytanie statystyczne) i 20 portów; części z własnymi
+    # bramkami wg terminu publikacji i budżetem czasu (zwykle bez zapytań — dane tygodniowe); awaria budowniczego = poprzedni plik. META ok: porty_sw, porty_pt.
+    prev_prt = previous('porty')
+    try:
+        prt = build_porty(prev_prt, run_t0=_RUN_T0[0])
+        save('porty', prt)
+        META['ok']['porty_sw'] = prt['ok']['sw']
+        META['ok']['porty_pt'] = prt['ok']['pt']
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'porty: {e}')[:200]); META['ok']['porty'] = False
+        if prev_prt:
+            save('porty', prev_prt)
     # v295: SUROWCE v2 — części z własnymi bramkami źródeł (ceny, zapasy, mies, markets = CFTC v92; dawna bramka całego pliku co 6 h usunięta),
     # budżet czasu w budowniczym; historia data/surowce-hist.json z pamięci Actions, gdy to ta sama wersja co surowce.json (bez pobierania
     # ok. 0,3 MB ze strony co przebieg); awaria budowniczego = poprzednie pliki. META ok: 'surowce' = część CFTC (jak dotąd), surowce_ceny,

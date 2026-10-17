@@ -29352,3 +29352,202 @@ test('v392 (F11Z6): eksport USA — kolor sprzedaży netto z POKAZANEJ liczby (m
   const J3 = ux392.J(); delete J3.tow.soja.ser.CN; J3.tow.soja.top = J3.tow.soja.top.filter(r => r[0] !== 'CN');
   const K3 = ux392.mk('pl', ux392.files(J3), {open: true}); K3.expand(); assert.ok(K3.html().includes('<b>Egipt: zakupy tydzień po tygodniu</b>'), 'bez Chin w seriach — największy z rankingu');
 });
+
+/* ===================== v393 (F11Z7): PORTY ŚWIATA — blok zwijany panelu #g-surowce, po bloku szlaków (plik automatu data/porty.json) =====================
+   Dane testowe PRT393_FILE: build_porty (zbieracz v393) na odpowiedziach warstwy z 17.10.2026 (zapytanie statystyczne świata wg ładunku i 20 portów, 2065 portów, ostatni
+   dzień 09.10.2026), wykresy przycięte do 14 ostatnich dni. Panel = atrapa (#g-surowce z blokiem szlaków i stopką) — blok wstawia obserwator zmian panelu (renderSu bez zmian).
+   Zegar przypięty (2026-10-17 12:00 UTC), wiek danych — atrapa „· wiek(…)”; srvJSON — odpowiedź od razu (liczone wywołania). Testy nie zależą od numeru słownika (szukany po kluczu). */
+const PRT393_FILE = {"v":1,"at":"2026-10-17T12:00:00+00:00","src":"CapitalFlowAI — porty świata (kod źródła: pw — pełna nazwa na stronie Źródła)","sw":{"asof":"2026-10-09","n":2065,"u":"t/dzień","okno":["2026-10-03","2026-10-09"],"rok":["2025-10-04","2025-10-10"],"odrz":0,"g":{"all":{"m7":[["2026-09-26",32023379],["2026-09-27",32451611],["2026-09-28",33276450],["2026-09-29",32643053],["2026-09-30",32668310],["2026-10-01",33284972],["2026-10-02",33356742],["2026-10-03",33719069],["2026-10-04",33390552],["2026-10-05",32932268],["2026-10-06",33495965],["2026-10-07",33531102],["2026-10-08",33118299],["2026-10-09",33122412]],"y7":[["2026-09-26",34496948],["2026-09-27",34613636],["2026-09-28",35179256],["2026-09-29",35964257],["2026-09-30",35830160],["2026-10-01",35383927],["2026-10-02",35226152],["2026-10-03",35188849],["2026-10-04",34509820],["2026-10-05",34427253],["2026-10-06",34183835],["2026-10-07",34386903],["2026-10-08",34050796],["2026-10-09",34359249]],"c7":4680.6,"i7":33122412,"e7":29488599,"rc7":4860.9,"ri7":34359249,"re7":34297887,"chgc":-3.71,"chgi":-3.6,"chge":-14.02},"kon":{"m7":[["2026-09-26",9092419],["2026-09-27",9362659],["2026-09-28",9759008],["2026-09-29",9414363],["2026-09-30",9665090],["2026-10-01",9780066],["2026-10-02",10013918],["2026-10-03",9960084],["2026-10-04",10222593],["2026-10-05",10044372],["2026-10-06",10277515],["2026-10-07",10275811],["2026-10-08",10421745],["2026-10-09",10181180]],"y7":[["2026-09-26",9340406],["2026-09-27",9216594],["2026-09-28",9397723],["2026-09-29",9505341],["2026-09-30",9408881],["2026-10-01",9512854],["2026-10-02",9607771],["2026-10-03",9743866],["2026-10-04",9526706],["2026-10-05",9556685],["2026-10-06",9328037],["2026-10-07",9427381],["2026-10-08",9709988],["2026-10-09",9711072]],"c7":1231.6,"i7":10181180,"e7":9321482,"rc7":1286.3,"ri7":9711072,"re7":9225106,"chgc":-4.25,"chgi":4.84,"chge":1.04},"mas":{"m7":[["2026-09-26",12616082],["2026-09-27",12778704],["2026-09-28",12816208],["2026-09-29",12691044],["2026-09-30",12570211],["2026-10-01",12751010],["2026-10-02",12721194],["2026-10-03",12793594],["2026-10-04",12405414],["2026-10-05",12367061],["2026-10-06",12329676],["2026-10-07",12438717],["2026-10-08",12078599],["2026-10-09",12143650]],"y7":[["2026-09-26",14139520],["2026-09-27",14140844],["2026-09-28",14508137],["2026-09-29",15142256],["2026-09-30",14924325],["2026-10-01",14288550],["2026-10-02",14231584],["2026-10-03",13975378],["2026-10-04",13629335],["2026-10-05",13640198],["2026-10-06",13684387],["2026-10-07",13867751],["2026-10-08",13727224],["2026-10-09",13665377]],"c7":691.6,"i7":12143650,"e7":11595556,"rc7":767.3,"ri7":13665377,"re7":13419984,"chgc":-9.87,"chgi":-11.14,"chge":-13.59},"tan":{"m7":[["2026-09-26",9355196],["2026-09-27",9331126],["2026-09-28",9697320],["2026-09-29",9505192],["2026-09-30",9411497],["2026-10-01",9719739],["2026-10-02",9584228],["2026-10-03",9919411],["2026-10-04",9738588],["2026-10-05",9519785],["2026-10-06",9905462],["2026-10-07",9834553],["2026-10-08",9648610],["2026-10-09",9831734]],"y7":[["2026-09-26",9976883],["2026-09-27",10185325],["2026-09-28",10177280],["2026-09-29",10192016],["2026-09-30",10359819],["2026-10-01",10461601],["2026-10-02",10267948],["2026-10-03",10369223],["2026-10-04",10278030],["2026-10-05",10170379],["2026-10-06",10136438],["2026-10-07",10070280],["2026-10-08",9602008],["2026-10-09",9979993]],"c7":1487.6,"i7":9831734,"e7":7664891,"rc7":1535.0,"ri7":9979993,"re7":10710295,"chgc":-3.09,"chgi":-1.49,"chge":-28.43}}},"pt":{"asof":"2026-10-09","u":"t/dzień","okno":["2026-10-03","2026-10-09"],"rok":["2025-10-04","2025-10-10"],"nz":0,"p":{"singapur":{"asof":"2026-10-09","m7":[["2026-09-26",2167014],["2026-09-27",2155610],["2026-09-28",2196414],["2026-09-29",2230228],["2026-09-30",2320629],["2026-10-01",2319447],["2026-10-02",2248675],["2026-10-03",2282044],["2026-10-04",2350814],["2026-10-05",2327135],["2026-10-06",2313012],["2026-10-07",2296758],["2026-10-08",2389917],["2026-10-09",2345759]],"c7":120.6,"i7":1298888,"e7":1046871,"s7":2345759,"ki":[716660,35642,538323],"ke":[731938,2124,305619],"rs7":2562728,"rc7":133.9,"chg":-8.47,"chgc":-9.93},"szanghaj":{"asof":"2026-10-09","m7":[["2026-09-26",1252537],["2026-09-27",1290877],["2026-09-28",1198904],["2026-09-29",1193345],["2026-09-30",1171531],["2026-10-01",1118887],["2026-10-02",1046493],["2026-10-03",1044804],["2026-10-04",1013970],["2026-10-05",1021750],["2026-10-06",954622],["2026-10-07",976188],["2026-10-08",1021304],["2026-10-09",1137099]],"c7":71.4,"i7":750827,"e7":386272,"s7":1137099,"ki":[474196,203477,59150],"ke":[288422,61698,15939],"rs7":1710339,"rc7":116.0,"chg":-33.52,"chgc":-38.45},"yangshan":{"asof":"2026-10-09","m7":[["2026-09-26",859420],["2026-09-27",863089],["2026-09-28",871058],["2026-09-29",824697],["2026-09-30",783784],["2026-10-01",722807],["2026-10-02",602323],["2026-10-03",712680],["2026-10-04",676304],["2026-10-05",696174],["2026-10-06",704670],["2026-10-07",841308],["2026-10-08",886795],["2026-10-09",855004]],"c7":12.9,"i7":310055,"e7":544949,"s7":855004,"ki":[309539,0,516],"ke":[532895,0,12054],"rs7":853652,"rc7":15.0,"chg":0.16,"chgc":-14.0},"ningbo":{"asof":"2026-10-09","m7":[["2026-09-26",2191957],["2026-09-27",2331221],["2026-09-28",2597842],["2026-09-29",2306252],["2026-09-30",2413355],["2026-10-01",2419874],["2026-10-02",2606205],["2026-10-03",2577707],["2026-10-04",2495843],["2026-10-05",2577037],["2026-10-06",2768943],["2026-10-07",2643607],["2026-10-08",2584454],["2026-10-09",2342759]],"c7":47.6,"i7":1454628,"e7":888132,"s7":2342759,"ki":[1081480,187429,184796],"ke":[814614,39696,29264],"rs7":2322952,"rc7":58.7,"chg":0.85,"chgc":-18.91},"tianjin":{"asof":"2026-10-09","m7":[["2026-09-26",1197021],["2026-09-27",1243152],["2026-09-28",1387011],["2026-09-29",1317011],["2026-09-30",1412166],["2026-10-01",1434853],["2026-10-02",1418777],["2026-10-03",1447388],["2026-10-04",1367720],["2026-10-05",1340113],["2026-10-06",1391748],["2026-10-07",1318812],["2026-10-08",1579319],["2026-10-09",1575831]],"c7":26.9,"i7":891980,"e7":683851,"s7":1575831,"ki":[467206,387590,33149],"ke":[497939,165932,12121],"rs7":1162868,"rc7":25.0,"chg":35.51,"chgc":7.6},"qingdao":{"asof":"2026-10-09","m7":[["2026-09-26",1175239],["2026-09-27",1345442],["2026-09-28",1337956],["2026-09-29",1465484],["2026-09-30",1428585],["2026-10-01",1431331],["2026-10-02",1546564],["2026-10-03",1450032],["2026-10-04",1684434],["2026-10-05",1780313],["2026-10-06",1717169],["2026-10-07",1792216],["2026-10-08",1721891],["2026-10-09",1790753]],"c7":29.1,"i7":1116508,"e7":674245,"s7":1790753,"ki":[916026,131554,65974],"ke":[616831,28899,23616],"rs7":1557232,"rc7":33.1,"chg":15.0,"chgc":-12.08},"shekou":{"asof":"2026-10-09","m7":[["2026-09-26",646269],["2026-09-27",735700],["2026-09-28",773935],["2026-09-29",775699],["2026-09-30",763931],["2026-10-01",765725],["2026-10-02",750257],["2026-10-03",697415],["2026-10-04",668003],["2026-10-05",632173],["2026-10-06",528879],["2026-10-07",520553],["2026-10-08",558434],["2026-10-09",565176]],"c7":8.4,"i7":9508,"e7":555668,"s7":565176,"ki":[4061,4559,0],"ke":[555544,58,0],"rs7":614509,"rc7":9.4,"chg":-8.03,"chgc":-10.64},"hongkong":{"asof":"2026-10-09","m7":[["2026-09-26",612606],["2026-09-27",638925],["2026-09-28",598993],["2026-09-29",572425],["2026-09-30",591346],["2026-10-01",594248],["2026-10-02",613078],["2026-10-03",602829],["2026-10-04",586450],["2026-10-05",582816],["2026-10-06",602803],["2026-10-07",621010],["2026-10-08",640248],["2026-10-09",610144]],"c7":39.0,"i7":324087,"e7":286057,"s7":610144,"ki":[232529,11194,79421],"ke":[277920,700,6021],"rs7":518159,"rc7":41.7,"chg":17.75,"chgc":-6.47},"busan":{"asof":"2026-10-09","m7":[["2026-09-26",393745],["2026-09-27",391437],["2026-09-28",379202],["2026-09-29",366696],["2026-09-30",416791],["2026-10-01",418871],["2026-10-02",435116],["2026-10-03",429967],["2026-10-04",441321],["2026-10-05",441534],["2026-10-06",451039],["2026-10-07",410513],["2026-10-08",441033],["2026-10-09",449977]],"c7":45.3,"i7":218631,"e7":231346,"s7":449977,"ki":[190844,6305,13516],"ke":[212365,3878,11836],"rs7":362715,"rc7":49.3,"chg":24.06,"chgc":-8.11},"portklang":{"asof":"2026-10-09","m7":[["2026-09-26",270581],["2026-09-27",270441],["2026-09-28",270246],["2026-09-29",270799],["2026-09-30",284215],["2026-10-01",298060],["2026-10-02",286204],["2026-10-03",283487],["2026-10-04",287503],["2026-10-05",311298],["2026-10-06",314551],["2026-10-07",297725],["2026-10-08",310859],["2026-10-09",311591]],"c7":32.4,"i7":177702,"e7":133888,"s7":311591,"ki":[102790,36908,34661],"ke":[112965,4689,13793],"rs7":355616,"rc7":38.0,"chg":-12.38,"chgc":-14.74},"nhavasheva":{"asof":"2026-10-09","m7":[["2026-09-26",394896],["2026-09-27",432178],["2026-09-28",429472],["2026-09-29",401145],["2026-09-30",403895],["2026-10-01",421014],["2026-10-02",400964],["2026-10-03",413488],["2026-10-04",390328],["2026-10-05",389929],["2026-10-06",401917],["2026-10-07",381424],["2026-10-08",377359],["2026-10-09",405316]],"c7":26.4,"i7":239278,"e7":166038,"s7":405316,"ki":[110069,41113,77718],"ke":[131943,1354,30396],"rs7":342976,"rc7":10.7,"chg":18.18,"chgc":146.73},"porthedland":{"asof":"2026-10-09","m7":[["2026-09-26",1564201],["2026-09-27",1456922],["2026-09-28",1479639],["2026-09-29",1468644],["2026-09-30",1507898],["2026-10-01",1414405],["2026-10-02",1410818],["2026-10-03",1369095],["2026-10-04",1391945],["2026-10-05",1362357],["2026-10-06",1380241],["2026-10-07",1353544],["2026-10-08",1414614],["2026-10-09",1428706]],"c7":8.4,"i7":156,"e7":1428550,"s7":1428706,"ki":[0,0,0],"ke":[0,1417957,10284],"rs7":1546989,"rc7":9.7,"chg":-7.65,"chgc":-13.4},"rotterdam":{"asof":"2026-10-09","m7":[["2026-09-26",991066],["2026-09-27",938953],["2026-09-28",938002],["2026-09-29",877274],["2026-09-30",848021],["2026-10-01",859922],["2026-10-02",879777],["2026-10-03",911927],["2026-10-04",928309],["2026-10-05",924863],["2026-10-06",967108],["2026-10-07",979111],["2026-10-08",962312],["2026-10-09",883939]],"c7":84.0,"i7":642245,"e7":241695,"s7":883939,"ki":[191360,66776,375372],"ke":[100528,9114,116305],"rs7":830175,"rc7":70.4,"chg":6.48,"chgc":19.32},"antwerpia":{"asof":"2026-10-09","m7":[["2026-09-26",653252],["2026-09-27",628561],["2026-09-28",589907],["2026-09-29",629745],["2026-09-30",657153],["2026-10-01",752678],["2026-10-02",765968],["2026-10-03",758134],["2026-10-04",798066],["2026-10-05",869926],["2026-10-06",813420],["2026-10-07",806096],["2026-10-08",717274],["2026-10-09",671826]],"c7":51.9,"i7":351510,"e7":320317,"s7":671826,"ki":[235064,30377,79490],"ke":[243659,17378,51733],"rs7":427812,"rc7":40.0,"chg":57.04,"chgc":29.75},"hamburg":{"asof":"2026-10-09","m7":[["2026-09-26",316994],["2026-09-27",363364],["2026-09-28",367833],["2026-09-29",356761],["2026-09-30",378567],["2026-10-01",395161],["2026-10-02",408672],["2026-10-03",386914],["2026-10-04",360375],["2026-10-05",392847],["2026-10-06",409437],["2026-10-07",393146],["2026-10-08",345541],["2026-10-09",320545]],"c7":15.9,"i7":158261,"e7":162283,"s7":320545,"ki":[90427,56058,9562],"ke":[145034,9265,2165],"rs7":295249,"rc7":14.4,"chg":8.57,"chgc":10.42},"algeciras":{"asof":"2026-10-09","m7":[["2026-09-26",200402],["2026-09-27",205994],["2026-09-28",189548],["2026-09-29",176636],["2026-09-30",182645],["2026-10-01",191011],["2026-10-02",215283],["2026-10-03",197895],["2026-10-04",192803],["2026-10-05",198473],["2026-10-06",208822],["2026-10-07",210687],["2026-10-08",221662],["2026-10-09",200739]],"c7":15.7,"i7":100043,"e7":100695,"s7":200739,"ki":[45463,2491,51716],"ke":[51303,19169,29295],"rs7":274162,"rc7":17.3,"chg":-26.78,"chgc":-9.25},"gdansk":{"asof":"2026-10-09","m7":[["2026-09-26",215429],["2026-09-27",189429],["2026-09-28",160043],["2026-09-29",210346],["2026-09-30",194069],["2026-10-01",174162],["2026-10-02",173935],["2026-10-03",211105],["2026-10-04",223607],["2026-10-05",235153],["2026-10-06",207522],["2026-10-07",231489],["2026-10-08",244310],["2026-10-09",272447]],"c7":9.4,"i7":206141,"e7":66306,"s7":272447,"ki":[58467,32301,112239],"ke":[58126,3960,1302],"rs7":225315,"rc7":9.7,"chg":20.92,"chgc":-3.09},"losangeles":{"asof":"2026-10-09","m7":[["2026-09-26",569553],["2026-09-27",593203],["2026-09-28",668573],["2026-09-29",627935],["2026-09-30",709618],["2026-10-01",649554],["2026-10-02",694762],["2026-10-03",599054],["2026-10-04",521383],["2026-10-05",447060],["2026-10-06",504679],["2026-10-07",413060],["2026-10-08",428231],["2026-10-09",402435]],"c7":9.0,"i7":279658,"e7":122777,"s7":402435,"ki":[216826,13893,47261],"ke":[105074,15331,1209],"rs7":402155,"rc7":7.4,"chg":0.07,"chgc":21.62},"houston":{"asof":"2026-10-09","m7":[["2026-09-26",648820],["2026-09-27",684897],["2026-09-28",738262],["2026-09-29",797535],["2026-09-30",745755],["2026-10-01",683909],["2026-10-02",679515],["2026-10-03",590941],["2026-10-04",588370],["2026-10-05",558885],["2026-10-06",550408],["2026-10-07",589445],["2026-10-08",583634],["2026-10-09",590627]],"c7":19.6,"i7":123789,"e7":466838,"s7":590627,"ki":[56843,9637,56571],"ke":[48869,14930,401178],"rs7":593279,"rc7":20.0,"chg":-0.45,"chgc":-2.0},"santos":{"asof":"2026-10-09","m7":[["2026-09-26",435415],["2026-09-27",416952],["2026-09-28",395697],["2026-09-29",450803],["2026-09-30",521719],["2026-10-01",528047],["2026-10-02",493380],["2026-10-03",429522],["2026-10-04",412223],["2026-10-05",430919],["2026-10-06",382826],["2026-10-07",374791],["2026-10-08",368348],["2026-10-09",419468]],"c7":15.1,"i7":128559,"e7":290909,"s7":419468,"ki":[85107,15375,25709],"ke":[72069,190301,21688],"rs7":392523,"rc7":13.7,"chg":6.86,"chgc":10.22}}},"part_at":{"sw":"2026-10-17T12:00:00+00:00","pt":"2026-10-17T12:00:00+00:00"},"ok":{"sw":true,"pt":true},"err":{},"next":{"sw":"2026-10-20T12:10:00+00:00","pt":"2026-10-20T12:10:00+00:00"},"st":{"sw":{"at":"2026-10-17T12:00:00+00:00","try":"2026-10-17T12:00:00+00:00","asof":"2026-10-09"},"pt":{"at":"2026-10-17T12:00:00+00:00","try":"2026-10-17T12:00:00+00:00","asof":"2026-10-09"}}};
+/* strażnik tłumaczeń v142 (kategoria c — nazwa własna albo wyraz pisany w tym języku tak samo jak po angielsku): nazwy portów i skrót „k t” */
+Object.assign(V142_OK, {"prt393.pt.pt": "fr", "prt393.n.singapur": "it", "prt393.n.szanghaj": "fr it", "prt393.n.yangshan": "fr it", "prt393.n.ningbo": "de es fr it pt", "prt393.n.tianjin": "de es fr it pt", "prt393.n.qingdao": "de es fr it pt", "prt393.n.shekou": "de es fr it pt", "prt393.n.hongkong": "es fr it pt", "prt393.n.busan": "de es fr it pt", "prt393.n.portklang": "de fr it pt", "prt393.n.nhavasheva": "de it", "prt393.n.porthedland": "de es fr it pt", "prt393.n.rotterdam": "de fr it", "prt393.n.hamburg": "de", "prt393.n.algeciras": "de es it pt", "prt393.n.houston": "de es fr it pt", "prt393.n.santos": "de es fr it pt"});
+const prt393 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const arc = cut('function arcMs(d){', '\n/* v293 (audyt G2)'), wk = cut('const wkNum=v=>', '\n/* pierścień: udziały'), wk2 = cut('const wkMs=d=>', '\nconst WK_FGZ=');
+  const blk = cut('/* ===================== v295g: SUROWCE', '\nsuLoad();suAuto();');
+  const code = cut('/* ===================== v393 (F11Z7): PORTY ŚWIATA', '/* ---------- koniec bloku portów (v393) ---------- */');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const fPct=', f0));
+  const NOW = Date.parse('2026-10-17T12:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o)), sp = su295.sp, txt = su295.txt;
+  const BODY = "'use strict';\n" + arc + '\n' + wk + '\n' + wk2 + '\n' + blk + '\n' + code + '\nreturn {PRT, prtOk, prtInner, prtBody, prtApply, prtLoad, prtInject, prtRender, prtT, prtC};';
+  const SZ = '<details class="etfd su-b sz-b" id="su-b-sz">', BASE = '<div class="etfh"><h2>Surowce</h2></div>' + SZ + '<summary>Szlaki</summary></details><p class="pfoot">stopka</p>';
+  const mk = (L, files, opt) => {
+    opt = opt || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt, sg, fPct};')(L, LOC);
+    /* atrapa panelu: HTML jako tekst; querySelector — kontener portów (#prt-w), blok szlaków (wstawianie za nim) i stopka (wstawianie przed nią) */
+    const el = {html: opt.base || BASE, hidden: !!opt.hidden};
+    const W0 = '<div id="prt-w" class="prt-w">', szEnd = () => { const a = el.html.indexOf(SZ); return a < 0 ? -1 : el.html.indexOf('</details>', a) + 10; };
+    el.querySelector = q => {
+      if (q === '#prt-w') { const i = el.html.indexOf(W0); if (i < 0) return null;
+        return {set innerHTML(v) { const j = el.html.indexOf('</details></div>', i) + 16; el.html = el.html.slice(0, i) + W0 + v + '</div>' + el.html.slice(j); }}; }
+      if (q === '#su-b-sz') { const e = szEnd(); return e < 0 ? null : {insertAdjacentHTML(pos, h) { assert.equal(pos, 'afterend'); el.html = el.html.slice(0, e) + h + el.html.slice(e); }}; }
+      const at = q === '.pfoot' ? el.html.indexOf('<p class="pfoot">') : -1;
+      return at < 0 ? null : {insertAdjacentHTML(pos, h) { assert.equal(pos, 'beforebegin'); el.html = el.html.slice(0, at) + h + el.html.slice(at); }};
+    };
+    const calls = [], lis = [], ivs = [], obs = [], ls = Object.assign({}, opt.ls || {});
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => lis.push([e, f, c]), querySelector: () => null, hidden: false};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'sg', 'fPct', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'flagsHtml', 'sepK', 'sepL',
+      'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date', 'renderUsa', BODY)(
+      q => (q === '#g-surowce' ? el : null), v96src.tFor(L), v96src.escH, F.nfmt, F.sg, F.fPct, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv,
+      v96src.H.glyphImg, v96src.H.flagImg, undefined, () => ': ', () => ', ', {getItem: k => (k in ls ? ls[k] : null), setItem: (k, v) => { ls[k] = String(v); }}, doc,
+      function (cb) { obs.push(cb); this.observe = () => {}; }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD, undefined);
+    return {api, el, calls, lis, ivs, obs, ls};
+  };
+  const mine = f => String(f).includes('prt');
+  /* zdarzenia: kliknięcie nagłówka bloku (rozwija zwinięty), przełączenie (toggle) */
+  const click = (K, open) => K.lis.filter(l => l[0] === 'click' && mine(l[1])).forEach(([, f]) => f({target: {closest: s => (s === '#prt-w details>summary' ? {parentNode: {id: 'su-b-prt', open: !!open}} : null)}}));
+  const toggle = (K, open) => K.lis.filter(l => l[0] === 'toggle').forEach(([, f]) => f({target: {id: 'su-b-prt', open}}));
+  const box = K => { const h = sp(K.el.html), i = h.indexOf('<div id="prt-w" class="prt-w">'); return i < 0 ? '' : h.slice(i, h.indexOf('<p class="pfoot">') >= 0 ? h.indexOf('<p class="pfoot">') : h.length); };
+  const loaded = (L, F) => { const K = mk(L, {porty: F === undefined ? PRT393_FILE : F}); click(K); return {K, B: box(K)}; };
+  /* kafle: data-prt="id" → fragment HTML kafla (do następnego kafla albo końca siatki) */
+  const tiles = B => { const o = {}, M = [...B.matchAll(/<div class="etfk su-k prt-k" data-prt="(\w+)">/g)];
+    M.forEach((m, i) => { o[m[1]] = B.slice(m.index, i + 1 < M.length ? M[i + 1].index : B.indexOf('</div><p class="pnote">', m.index) + 6); }); return o; };
+  return {mk, click, toggle, box, loaded, tiles, clone, sp, txt, code, mine, NOW};
+})();
+
+
+test('v393: porty — blok zwinięty za blokiem szlaków (po każdym rysowaniu panelu); plik dopiero po kliknięciu nagłówka (raz), nieudane pobranie bez pętli, kliknięcie = nowa próba, odświeżanie co 30 min', () => {
+  const K = prt393.mk('pl', {porty: PRT393_FILE});
+  let B = prt393.box(K), h = prt393.sp(K.el.html);
+  assert.ok(B && h.indexOf('id="su-b-sz"') < h.indexOf('id="prt-w"') && h.indexOf('id="prt-w"') < h.indexOf('<p class="pfoot">'), 'kontener za blokiem szlaków, przed stopką');
+  assert.equal(B, '<div id="prt-w" class="prt-w"><details class="etfd su-b prt-b" id="su-b-prt"><summary>Porty świata: ruch statków i ładunki</summary><p class="pnote">Wczytujemy dane…</p></details></div>');
+  assert.deepEqual(K.calls, [], 'przy starcie — bez pobrania data/porty.json'); assert.equal(html.split("srvJSON('porty')").length, 2, 'jedno miejsce pobrania (prtLoad)');
+  /* rysowanie panelu od nowa (renderSu) — obserwator wstawia blok raz; panel schowany — nic; bez bloku szlaków — przed stopką */
+  assert.equal(K.obs.length, 1); K.el.html = '<p>nowy</p><details class="etfd su-b sz-b" id="su-b-sz"><summary>x</summary></details><p class="pfoot">x</p>';
+  K.obs[0](); K.obs[0](); assert.equal(prt393.sp(K.el.html).split('<div id="prt-w"').length, 2, 'jeden kontener');
+  K.el.html = '<p class="pfoot">x</p>'; K.obs[0](); assert.ok(prt393.sp(K.el.html).startsWith('<div id="prt-w"'), 'bez bloku szlaków — przed stopką');
+  assert.equal(prt393.box(prt393.mk('pl', {porty: PRT393_FILE}, {hidden: true})), '', 'panel schowany — bez bloku');
+  /* kliknięcie nagłówka rozwijające blok — jedno pobranie, blok rozwinięty po wczytaniu; zwinięcie (kliknięcie otwartego) — bez pobrania */
+  prt393.click(K); assert.deepEqual(K.calls, ['porty']);
+  B = prt393.box(K); assert.ok(B.includes('<details class="etfd su-b prt-b" id="su-b-prt" open>'), 'rozwinięty po wczytaniu'); assert.equal(Object.keys(prt393.tiles(B)).length, 24, '4 kafle świata + 20 portów');
+  prt393.toggle(K, false); prt393.click(K, true); K.el.html = '<p class="pfoot">x</p>'; K.obs[0](); assert.deepEqual(K.calls, ['porty']);
+  assert.ok(!prt393.box(K).includes('id="su-b-prt" open'), 'zwinięcie zapamiętane'); assert.ok(prt393.box(K).includes('data-prt="singapur"'), 'dane z pamięci, bez nowego pobrania');
+  prt393.toggle(K, true); K.el.html = '<p class="pfoot">x</p>'; K.obs[0](); assert.ok(prt393.box(K).includes('id="su-b-prt" open'), 'rozwinięcie przetrwa rysowanie panelu');
+  /* odświeżanie: co 30 min, tylko gdy plik był wczytany */
+  const I = K.ivs.filter(x => prt393.mine(x[0])); assert.equal(I.length, 1); assert.equal(I[0][1], 30 * 60 * 1000); I[0][0](); assert.deepEqual(K.calls, ['porty', 'porty']);
+  const K0 = prt393.mk('pl', {porty: PRT393_FILE}); K0.ivs.filter(x => prt393.mine(x[0]))[0][0](); assert.deepEqual(K0.calls, [], 'blok nigdy nierozwinięty — zegar nic nie pobiera');
+  /* nieudane pobranie: zdanie z prośbą, bez pętli przy rysowaniu; kliknięcie — nowa próba; chwilowy błąd po wczytaniu nie zasłania danych */
+  const F = {}, K2 = prt393.mk('pl', F); prt393.click(K2); assert.deepEqual(K2.calls, ['porty']);
+  assert.ok(prt393.box(K2).includes('<p class="pnote">Nie udało się wczytać danych — zwiń i rozwiń blok, aby spróbować ponownie.</p>'));
+  prt393.toggle(K2, true); K2.el.html = '<p class="pfoot">x</p>'; K2.obs[0](); K2.obs[0](); assert.deepEqual(K2.calls, ['porty'], 'bez pętli');
+  F.porty = PRT393_FILE; prt393.toggle(K2, false); prt393.click(K2); assert.deepEqual(K2.calls, ['porty', 'porty']); assert.ok(prt393.box(K2).includes('data-prt="santos"'));
+  delete F.porty; K2.ivs.filter(x => prt393.mine(x[0]))[0][0](); assert.ok(prt393.box(K2).includes('data-prt="santos"'), 'chwilowy błąd nie zasłania danych');
+  for (const bad of [Object.assign(prt393.clone(PRT393_FILE), {v: 2}), {v: 1, at: 'x', sw: {}}, {v: 1, at: '2026-10-17T12:00:00+00:00'}]) {
+    const K3 = prt393.mk('pl', {porty: bad}); prt393.click(K3); assert.ok(prt393.box(K3).includes('Nie udało się wczytać danych'), JSON.stringify(bad).slice(0, 60));
+  }
+});
+
+test('v393: porty — świat wg ładunku: 4 kafle (wyładunek z jednostką i zmianą rok do roku w kolorze kierunku, załadunek, zawinięcia, mini-wykres, okno średniej i wiek) i 4 wykresy wyładunku z rokiem wcześniejszym', () => {
+  const {B} = prt393.loaded('pl'), T = prt393.tiles(B), t = prt393.txt;
+  assert.deepEqual(Object.keys(T).slice(0, 4), ['all', 'kon', 'mas', 'tan']);
+  assert.ok(B.includes('<p class="wk-sub"><b>Świat według rodzaju ładunku</b></p><div class="etfkpis su-kpis prt-kpis">'), 'siatka kafli jak szlaki (4 kolumny, telefon 2 — reguła .su-kpis)');
+  assert.ok(T.all.includes('<b>33,1 mln t <small class="mtxt">wyładunek dziennie</small> <small class="neg">▼ −3,6% rok do roku</small></b>'), T.all.slice(0, 600));
+  assert.ok(T.all.includes('<small class="mtxt">załadunek: 29,5 mln t <small class="neg">▼ −14,0% rok do roku</small></small>') && T.all.includes('<small class="mtxt">zawinięcia: 4681 dziennie <small class="neg">▼ −3,7% rok do roku</small></small>'));
+  assert.ok(t(T.all).endsWith('średnia 7 dni: 3 paź 2026 – 9 paź 2026 · wiek(2026-10-09)') && T.all.includes('<polyline class="arc-l l1"'), 'okno średniej, wiek ostatniego dnia, mini-wykres');
+  assert.ok(T.kon.includes('<b>10,2 mln t <small class="mtxt">wyładunek dziennie</small> <small class="pos">▲ +4,8% rok do roku</small></b>') && T.kon.includes('załadunek: 9,32 mln t <small class="pos">▲ +1,0% rok do roku</small>'), 'plus zielony, mln z dwoma miejscami poniżej 10');
+  assert.ok(T.kon.includes('zawinięcia: 1232 dziennie <small class="neg">▼ −4,2% rok do roku</small>')); assert.ok(T.tan.includes('<b>9,83 mln t '));
+  assert.ok(T.all.includes('img/glify/globe.svg') && T.tan.includes('img/glify/oil.svg') && !T.kon.includes('<img') && !T.mas.includes('<img'), 'glif tylko tam, gdzie ma sens — bez cudzej ikony');
+  /* wykresy: cztery, każdy z legendą „ostatnie 90 dni” i „te same dni rok wcześniej” (dwie linie s1 / s2) i podpisem grupy */
+  const ch = [...B.matchAll(/<p class="wk-sub"><b>([^<]+): wyładunek, ostatnie 90 dni i rok wcześniej<\/b><\/p><div class="wk-ch wk-lines"/g)].map(m => m[1]);
+  assert.deepEqual(ch, ['Wszystkie statki', 'Kontenerowce', 'Masowce suche', 'Tankowce']);
+  assert.equal(B.split('<span><i class="wk-sq s1"></i>ostatnie 90 dni</span><span><i class="wk-sq s2"></i>te same dni rok wcześniej</span>').length, 5);
+  assert.ok(B.includes('aria-label="Wykres wyładunku w portach świata, 14 dni"')); assert.equal(B.split('<polyline class="wk-l s2"').length, 5, 'rok wcześniej — druga linia w każdym wykresie');
+  /* brak roku wcześniej: jedna linia, bez legendy; grupa bez średniej — „—” z powodem, nie zero */
+  const F = prt393.clone(PRT393_FILE); F.sw.g.kon.y7 = F.sw.g.kon.y7.map(r => [r[0], null]); F.sw.g.mas.i7 = null; F.sw.g.mas.chgi = null;
+  const B2 = prt393.loaded('pl', F).B, T2 = prt393.tiles(B2);
+  assert.ok(T2.mas.includes('<b class="na">—</b><small class="mtxt">brak danych — to nie zero</small>')); assert.equal(B2.split('<polyline class="wk-l s2"').length, 4, 'bez roku wcześniej dla kontenerowców');
+  assert.equal(B2.split('<span><i class="wk-sq s1"></i>').length, 4);
+  const F3 = prt393.clone(PRT393_FILE); F3.sw.g.tan.chgi = null; F3.sw.g.tan.chge = 0; F3.sw.g.tan.chgc = null;
+  const T3 = prt393.tiles(prt393.loaded('pl', F3).B); assert.ok(T3.tan.includes('<b>9,83 mln t <small class="mtxt">wyładunek dziennie</small></b>'), 'brak zmiany — nic, nigdy 0%');
+  assert.ok(T3.tan.includes('załadunek: 7,66 mln t <small class="neu">• 0,0% rok do roku</small>'), 'zmiana równa zero — żółta kropka');
+});
+
+test('v393: porty — 20 dużych portów od największego: flaga, przeładunek dziennie z jednostką, zmiana rok do roku w kolorze kierunku, wyładunek i załadunek, kontenery / masowce / tankowce, zawinięcia, mini-wykres, dzień i wiek; zero ton to pomiar, brak to „—”', () => {
+  const {B} = prt393.loaded('pl'), T = prt393.tiles(B), t = prt393.txt, ids = Object.keys(T).slice(4);
+  assert.deepEqual(ids, ['singapur', 'ningbo', 'qingdao', 'tianjin', 'porthedland', 'szanghaj', 'rotterdam', 'yangshan', 'antwerpia', 'hongkong', 'houston', 'shekou', 'busan', 'santos', 'nhavasheva',
+    'losangeles', 'hamburg', 'portklang', 'gdansk', 'algeciras'], 'od największego przeładunku (średnia 7 dni)');
+  const s = ids.map(id => PRT393_FILE.pt.p[id].s7); assert.deepEqual(s, s.slice().sort((a, b) => b - a));
+  assert.ok(B.includes('<p class="wk-sub"><b>Wybrane duże porty</b></p><div class="etfkpis su-kpis prt-kpis">'));
+  assert.ok(T.singapur.startsWith('<div class="etfk su-k prt-k" data-prt="singapur"><span><span class="icos"><img class="ico sm" src="img/flagi/sg.svg" alt="" title="SG"'), 'flaga kraju');
+  assert.ok(T.singapur.includes('<b>2,35 mln t <small class="mtxt">przeładunek dziennie</small> <small class="neg">▼ −8,5% rok do roku</small></b>'));
+  assert.ok(t(T.singapur).includes('wyładunek 1,30 mln t · załadunek 1,05 mln t') && t(T.singapur).includes('kontenery 1,45 mln t · masowce 37,8 tys. t · tankowce 844 tys. t') && t(T.singapur).includes('zawinięcia: 121 dziennie ▼ −9,9% rok do roku'));
+  assert.ok(t(T.singapur).endsWith('9 paź 2026 · wiek(2026-10-09)'));
+  assert.ok(T.ningbo.includes('<small class="pos">▲ +0,9% rok do roku</small>') && T.tianjin.includes('<small class="pos">▲ +35,5% rok do roku</small>'), 'plus zielony');
+  assert.ok(t(T.porthedland).includes('wyładunek 0,2 tys. t · załadunek 1,43 mln t') && t(T.porthedland).includes('kontenery 0 t · masowce 1,42 mln t · tankowce 10,3 tys. t') && T.porthedland.includes('flagi/au.svg'), 'zero ton kontenerów to pomiar');
+  assert.ok(T.gdansk.includes('flagi/pl.svg') && T.losangeles.includes('flagi/us.svg') && T.houston.includes('flagi/us.svg') && T.hongkong.includes('flagi/hk.svg') && T.yangshan.includes('flagi/cn.svg'));
+  assert.ok(/<b>[\d,]+ (mln|tys\.) t <small class="mtxt">przeładunek dziennie<\/small>/.test(T.algeciras) && T.algeciras.includes('201 tys. t'), T.algeciras.slice(0, 300));
+  /* brak portu, port bez średniej i bez zmiany: „—”, nigdy zero; reszta bez zmian */
+  const F = prt393.clone(PRT393_FILE); delete F.pt.p.houston; F.pt.p.santos.s7 = null; F.pt.p.busan.chg = null; F.pt.p.busan.chgc = null; F.pt.p.hamburg.ki = [null, 1, 2];
+  const B2 = prt393.loaded('pl', F).B, T2 = prt393.tiles(B2);
+  assert.ok(T2.houston.includes('<b class="na">—</b><small class="mtxt">brak danych — to nie zero</small>') && T2.santos.includes('<b class="na">—</b>'), 'brak portu / średniej');
+  assert.equal(Object.keys(T2).length, 24, 'kafel jest dla każdego portu z listy'); assert.deepEqual(Object.keys(T2).slice(-2), ['houston', 'santos'], 'bez średniej — na końcu listy');
+  assert.ok(!T2.busan.includes('rok do roku'), 'bez zmiany przeładunku i zawinięć — nic przy liczbach');
+  assert.ok(!t(T2.hamburg).includes('kontenery'), 'niepełny podział na ładunki — bez wiersza');
+  /* jednostki tonażu: od prawie miliona mln t, niżej tys. t, poniżej 50 t „<0,1 tys. t”, zero „0 t”, brak „—” */
+  const K = prt393.mk('pl', {}), P = K.api.prtT, C = K.api.prtC;
+  assert.deepEqual([P(1_234_567), P(12_345_678), P(999_499), P(999_500), P(850_000), P(99_400), P(1_500), P(49), P(0), P(null), P(-1), P(NaN)],
+    ['1,23 mln t', '12,3 mln t', '999 tys. t', '1,00 mln t', '850 tys. t', '99,4 tys. t', '1,5 tys. t', '<0,1 tys. t', '0 t', '—', '—', '—']);
+  assert.deepEqual([C(120.6), C(99.94), C(8.4), C(null), C(4680.6)], ['121', '99,9', '8,4', '—', '4681']);
+});
+
+test('v393: porty — błąd części z danymi („pokazujemy wcześniejsze dane”), część bez danych („jeszcze nie pobrano”), błąd częściowy („część danych niedostępna”); brak całej części — bez jej sekcji', () => {
+  const mk = (f) => { const F = prt393.clone(PRT393_FILE); f(F); return prt393.txt(prt393.loaded('pl', F).B); };
+  let T = mk(F => { F.ok = {sw: false, pt: true}; });
+  assert.ok(T.includes('Ostatnie pobranie części danych się nie udało (świat według ładunku) — pokazujemy wcześniejsze dane z ich datą.') && T.includes('Wybrane duże porty') && T.includes('Świat według rodzaju ładunku'));
+  T = mk(F => { F.ok = {sw: true, pt: false}; F.cz = {pt: true}; });
+  assert.ok(T.includes('Część danych jest niedostępna (porty) — nie było jej w ostatnim pobraniu.') && !T.includes('Ostatnie pobranie części danych'));
+  T = mk(F => { F.ok = {sw: false, pt: 'cached'}; delete F.sw; });
+  assert.ok(T.includes('Części danych jeszcze nie pobrano (świat według ładunku) — pojawią się po pierwszym udanym pobraniu.') && !T.includes('Świat według rodzaju ładunku') && T.includes('Wybrane duże porty'));
+  T = mk(F => { delete F.pt; });
+  assert.ok(!T.includes('Wybrane duże porty') && T.includes('Świat według rodzaju ładunku') && !T.includes('undefined') && !T.includes('NaN'));
+  assert.ok(mk(F => { F.ok = {sw: true, pt: true}; }).includes('Plik z D:2026-10-17T12:00:00+00:00'), 'czas pliku');
+});
+
+test('v393: porty — 10 języków, bez surowych kluczy, bez nazw wydawców i serwisów; słownik czystym JSON-em, te same klucze i pola {x}, każdy klucz użyty w kodzie', () => {
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const PROV = /PortWatch|Port Watch|ArcGIS|arcgis|\bMFW\b|\bIMF\b|Monetary Fund|Währungsfonds|Fondo Monetario|Fonds monétaire|Fondo monetario|Fundo Monetário|Международный валютный|国际货币基金|国際通貨基金|Oxford|UN Global Platform/;
+  const names = G126_NAMES.HIDE.concat(G126_NAMES.BOTH);
+  for (const L of L10) {
+    const {B} = prt393.loaded(L), T = prt393.txt(B);
+    assert.ok(!B.includes('prt393.') && !B.includes('su295g.') && !B.includes('undefined') && !B.includes('NaN'), L + ': klucze i liczby');
+    assert.ok(!PROV.test(T), L + ': nazwa: ' + (T.match(PROV) || [])[0]);
+    for (const [n, re] of names) assert.ok(!re.test(T), L + ': ' + n);
+    assert.equal(Object.keys(prt393.tiles(B)).length, 24, L); assert.ok(/img\/flagi\/sg\.svg/.test(B), L);
+  }
+  const E = prt393.loaded('en').B;
+  assert.ok(E.includes('<summary>World ports: ship traffic and cargo</summary>') && E.includes('<b>33.1 mn t <small class="mtxt">unloading per day</small> <small class="neg">▼ −3.6% year on year</small></b>'), E.slice(0, 700));
+  const a = html.indexOf('{"pl":{"prt393.b":'); assert.ok(a > 0, 'słownik v393');
+  const d0 = html.lastIndexOf('const EXTRA', a), name = html.slice(d0 + 6, a - 1);
+  const d1 = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', a); assert.ok(d1 > a, 'linia nakładania zaraz po słowniku');
+  assert.ok(/^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2);
+  const D = JSON.parse(html.slice(a, d1)), ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  assert.deepEqual(Object.keys(D), L10); const K = Object.keys(D.pl);
+  assert.ok(K.length >= 40 && K.every(k => k.startsWith('prt393.')), 'klucze: ' + K.length);
+  for (const l of L10) { assert.deepEqual(Object.keys(D[l]), K, l); for (const k of K) { assert.ok(D[l][k].trim(), l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k); assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k); } }
+  for (const l of L10.slice(2)) for (const k of K) if (/[A-Za-z]{4}/.test(D.en[k].replace(/\{\w+\}/g, ' ')) && !(V142_OK[k] || '').split(' ').includes(l)) assert.notEqual(D[l][k], D.en[k], l + ' ' + k);
+  const c = prt393.code, sk = {n: "t('prt393.n.'+", g: "t('prt393.g.'+", pt: "t('prt393.pt.'+"};
+  for (const k of K) { const m = /^prt393\.(n|g|pt)\.(\w+)$/.exec(k);
+    if (m) { assert.ok(c.includes(sk[m[1]]), 'klucz składany w kodzie: ' + k); continue; }
+    assert.ok(c.includes("'" + k + "'"), 'klucz w kodzie: ' + k); }
+  for (const [id] of [['singapur'], ['szanghaj'], ['yangshan'], ['ningbo'], ['tianjin'], ['qingdao'], ['shekou'], ['hongkong'], ['busan'], ['portklang'], ['nhavasheva'], ['porthedland'], ['rotterdam'], ['antwerpia'], ['hamburg'], ['algeciras'], ['gdansk'], ['losangeles'], ['houston'], ['santos']])
+    assert.ok(D.pl['prt393.n.' + id] && c.includes("['" + id + "',["), 'port z listy ma nazwę i flagę: ' + id);
+  assert.equal([...c.matchAll(/\['(\w+)',\[['\w,]+\]\]/g)].length, 20, 'dokładnie 20 portów na liście strony');
+});
+
+test('v393: porty — miejsce w kodzie: blok po bloku metali (przed archiwum), poza wycinkami bloków v295g i v305g, renderSu i blok szlaków bez zmian; styl: kafle w siatce pulsu (telefon 2 kolumny), data przygaszona; bez zegarów jednorazowych', () => {
+  const m0 = html.indexOf('/* ---------- koniec bloku metali (v339) ---------- */'), p0 = html.indexOf('/* ===================== v393 (F11Z7): PORTY ŚWIATA'), p1 = html.indexOf('/* ---------- koniec bloku portów (v393) ---------- */');
+  assert.ok(m0 > 0 && p0 > m0 && p1 > p0 && html.indexOf('/* ===================== v114: ARCHIWUM WŁASNE') > p1, 'blok po metalach, przed archiwum');
+  assert.ok(p0 > html.indexOf('\nsuLoad();suAuto();') && !html.slice(html.indexOf('/* ===================== v295g: SUROWCE'), html.indexOf('\nsuLoad();suAuto();')).includes('prt393'), 'poza wycinkiem bloku v295g');
+  const sz0 = html.indexOf('/* ===================== v305g: SZLAKI'), sz1 = html.indexOf('/* ===================== v320: SUROWCE — RAPORTY MIESIĘCZNE: bloki');
+  assert.ok(sz0 > 0 && sz1 > sz0 && !html.slice(sz0, sz1).includes('prt'), 'blok szlaków bez zmian');
+  assert.ok(html.includes("+szBlk()+`<p class=\"pfoot\">") && !/renderSu[^\n]*prt/.test(html), 'renderSu bez zmian');
+  const code = html.slice(p0, p1);
+  assert.equal(code.split('new MutationObserver(prtInject)').length, 2, 'jeden obserwator'); assert.equal(code.split('setInterval(').length, 2, 'jeden zegar (co 30 min)');
+  assert.equal(code.split("document.addEventListener('click'").length, 2); assert.equal(code.split("document.addEventListener('toggle'").length, 2);
+  assert.ok(!/\bsetTimeout\b/.test(code), 'bez zegarów jednorazowych');
+  assert.ok(html.includes('#g-surowce .prt-k>small.su-d{color:var(--mut)}') && /@media \(max-width:620px\)\{#g-surowce \.su-kpis\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/.test(html), 'kafle: reguła siatki pulsu (telefon 2 kolumny) i przygaszona data');
+  const css = html.slice(html.indexOf('/* v393 (F11Z7): porty świata'), html.indexOf('\n', html.indexOf('#g-surowce .prt-k>small.su-d')) + 1);
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgb\(/.test(css.replace(/#g-surowce/g, '')), 'tylko zmienne motywu — bez stałych kolorów');
+});
