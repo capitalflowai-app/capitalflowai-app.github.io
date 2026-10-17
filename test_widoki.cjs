@@ -1884,8 +1884,8 @@ test('v96: Ustawienia bez pola kluczy, logo prowadzi do GLOBAL, ruchome tło w l
   assert.ok(html.includes('etfLoad();etfAuto();engLoad();') && !html.includes('cgPing();engLoad'));
   assert.ok(html.includes('<a class="logo" id="logo-home" href="./" data-i18n-aria="nav.home">'));
   assert.ok(html.includes("$('#logo-home').addEventListener('click',e=>{if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button)return;e.preventDefault();page='overview';setMode('global');"));
-  assert.ok(html.includes('.side{grid-row:1/3;grid-column:1;background:transparent;') && html.includes('.nav::before{content:"";position:absolute;z-index:-1;'), 'tło pod „Metodologia” widoczne');
-  assert.ok(html.includes('  .nav::before{display:none}'), 'na telefonie pasek jest poziomy — panel jak dotąd');
+  assert.ok(html.includes('.side{grid-row:1/3;grid-column:1;background:transparent;') && !html.includes('.nav::before'), 'v404: lewy pasek bez ciemnej, rozmytej płyty — tło jak reszta strony');
+  assert.ok(html.includes('padding:8px 10px;background:transparent}') && !html.includes('padding:8px 10px;background:var(--panel)'), 'v404: na telefonie pasek poziomy też bez płyty');
   assert.ok(html.includes('--yl:#FFD60A;') && html.includes('--yl:#FFCC00;') && html.includes('--gr-tx:#248A3D; --rd-tx:#D70015;'), 'żółty Apple i czytelne odcienie w jasnym motywie');
   assert.ok(html.includes('.neu{--c:var(--yl);color:var(--yl-tx)}') && html.includes(".live.off{color:var(--yl-tx);"));
   const a = 'const EXTRA87=', x0 = html.indexOf(a), D = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
@@ -8024,11 +8024,11 @@ test('v139: strach i chciwość — panele: CRYPTO w pasku (bez pliku krypto ukr
   X.fgRenderG(); assert.ok(elG.hidden === true && elG.innerHTML === '', 'GLOBAL bez pliku — ukryta');
   X.fgApplyG({at: 'zły', d: []}); assert.equal(elG.hidden, true); X.fgApplyG({at: '2026-09-27T23:30:00+00:00'}); assert.equal(elG.hidden, true, 'plik bez listy d — odrzucony');
   X.fgApplyG(fg139.N); const g = elG.innerHTML;
-  assert.ok(elG.hidden === false && g.startsWith('<div class="etfh"><div><h2><span class="icos">') && g.includes('fg.t.g<button type="button" class="mini-i fg-i" data-fg-how="fg-how-g" aria-controls="fg-how-g" title="fg.meth.g" aria-label="fg.how">i</button></h2>'), 'tytuł z ikonami i przyciskiem (i) do „Jak liczymy”');
-  assert.ok(g.includes('<p class="pnote">fg.g.sub</p>') && g.includes('<p class="fg-cap fg-own">fg.g.cap</p>') && g.includes('inst.file{"t":"D(2026-09-27T23:30:00+00:00)"}'), 'opis, podpis „wskaźnik własny (nie pomiar)”, czas pliku');
+  assert.ok(elG.hidden === false && g.startsWith('<div class="etfh"><div><h2><span class="icos">') && g.includes('fg.t.g<button type="button" class="mini-i fg-i" data-fg-how="fg-how-g" aria-controls="fg-how-g" title="fg.g.cap. fg.meth.g" aria-label="fg.how">i</button></h2>'), 'tytuł z ikonami i przyciskiem (i) do „Jak liczymy”');
+  assert.ok(g.includes('<p class="pnote">fg.g.sub</p>') && !g.includes('fg-own') && !g.includes('<p class="fg-cap') && g.includes('inst.file{"t":"D(2026-09-27T23:30:00+00:00)"}'), 'opis, podpis „wskaźnik własny (nie pomiar)”, czas pliku');
   /* v350 (zlecenie 13.10.2026): półkole, dzień z wiekiem i kółka 1D / 1T / 1M są tylko w prawej kolumnie GLOBAL (gRailRender, test v350) — karta „Karty” bez drugiego półkola */
   assert.ok(!g.includes('sg-svg') && !g.includes('class="sg-hs') && !g.includes('class="sg"') && !g.includes('>62</text>'), 'v350: karta GLOBAL bez półkola i kółek (wskaźnik w prawej kolumnie)');
-  assert.ok(g.includes('<h3 class="mtxt">fg.h.parts</h3>') && g.includes('<th>fg.col.c</th><th>fg.col.s</th><th>fg.col.d</th>') && g.includes('<details class="etfd" id="fg-how-g"><summary>fg.how</summary><p class="pnote">fg.meth.g</p><p class="pnote">fg.not</p></details>'), 'tabela składników i „Jak liczymy”');
+  assert.ok(g.includes('<h3 class="mtxt">fg.h.parts</h3>') && g.includes('<th>fg.col.c</th><th>fg.col.s</th><th>fg.col.d</th>') && g.includes('<details class="etfd" id="fg-how-g"><summary>fg.how</summary><p class="pnote">fg.g.cap</p><p class="pnote">fg.meth.g</p><p class="pnote">fg.not</p></details>'), 'tabela składników i „Jak liczymy” (v404: z informacją, że wskaźnik jest własny, nie pomiar)');
   assert.ok(g.endsWith('eng.disclaimer</p>') && !g.includes('pnote neu'), 'komplet składników — bez noty o brakach');
   assert.ok(!/undefined|NaN|\[object/.test(c + g));
   X.fgApplyG(null); assert.ok(elG.hidden === false && elG.innerHTML === g, 'chwilowy błąd pobrania nie zasłania wczytanych danych');
@@ -12445,7 +12445,8 @@ test('v157: podpowiedź i klawiatura — wartość ze znacznika, podświetlenie,
 test('v157: strona — pasek nad kartami z przełącznikiem (GLOBAL i CRYPTO), kontener kafli ukryty, karty na miejscu (v321: bez widgetów TradingView); styl bez stałych kolorów; blok przed startem GLOBAL; zaczep top 10', () => {
   const SEL = '<span class="wk-hint" data-i18n="wk.hint"></span><span class="wk-sel" role="group" data-i18n-aria="wk.view"><span class="wk-lab" data-i18n="wk.view"></span><span class="wk-seg"><button type="button" class="wk-v" data-wk-v="karty" aria-pressed="true" data-i18n="wk.cards"></button><button type="button" class="wk-v" data-wk-v="wykresy" aria-pressed="false" data-i18n="wk.charts"></button></span></span>';
   for (const [tab, first, tv] of [['global', 'g-prob', 'tv-markets'], ['crypto', 'eng-coinmetrics-exchange-flows', 'tv-heatmap']]) {   /* v321: g-etf na samym dole GLOBAL — pierwsza karta pod paskiem to „Gdzie warunki sprzyjają” */
-    const bar = `<div class="zw-bar" data-zw="${tab}"><span class="zw-hint" data-i18n="zw.hint"></span>${SEL}<span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span></div><!-- v154: sekcje do wyboru -->\n    <div class="wk-dash" id="wk-${tab}" hidden></div>`;
+    const FOLD = tab === 'global' ? ['<button type="button" class="zw-fb" id="zw-fb-global" aria-expanded="false" aria-controls="zw-rest-global" data-i18n="wk.view"></button><span class="zw-rest" id="zw-rest-global" hidden>', '</span>'] : ['', ''];   /* v404 */
+    const bar = `<div class="zw-bar" data-zw="${tab}">${FOLD[0]}<span class="zw-hint" data-i18n="zw.hint"></span>${SEL}<span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span>${FOLD[1]}</div><!-- v154: sekcje do wyboru -->\n    <div class="wk-dash" id="wk-${tab}" hidden></div>`;
     const b = html.indexOf(bar);
     assert.ok(b > html.indexOf(`id="${tab}" role="tabpanel"`) && b < html.indexOf(`id="${first}"`), tab + ': pasek v154 z przełącznikiem, kafle zaraz pod nim, przed pierwszą kartą');
     assert.ok(html.indexOf(`id="${tv}"`) < 0, tab + ': v321 — widgety TradingView usunięte');
@@ -12513,7 +12514,7 @@ test('v163: telefon — zwinięta karta „CapitalFlowAI Strach & Chciwość” 
   X.fgApplyG(fg139.N); const g = elG.innerHTML;
   const tz = (g.match(/<span class="fg-tz">.*?<\/span><span class="live on">/) || [''])[0];
   assert.ok(/^<span class="fg-tz"><b>62<\/b><i class="fg-dot fg-[a-z]+"><\/i>fg\.s\.[a-z]+ · Sep 25 · age\(2026-09-25\)<\/span><span class="live on">$/.test(tz), tz || g.slice(0, 600));
-  assert.ok(g.indexOf('<span class="fg-tz">') > g.indexOf('<div class="etfb">') && g.indexOf('<span class="fg-tz">') < g.indexOf('</div></div><p class="fg-cap fg-own">'), 'w nagłówku karty (widoczny po zwinięciu)');
+  assert.ok(g.indexOf('<span class="fg-tz">') > g.indexOf('<div class="etfb">') && g.indexOf('<span class="fg-tz">') < g.indexOf('<h3 class="mtxt">'), 'w nagłówku karty (widoczny po zwinięciu)');
   const N0 = Object.assign({}, fg139.N, {now: null, d: []}); X.fgApplyG(N0);
   assert.ok(!elG.innerHTML.includes('fg-tz'), 'bez liczby — bez linii w nagłówku (nigdy zero)');
   const c0 = html.indexOf('/* v163: zwinięta karta „CapitalFlowAI Strach & Chciwość” na telefonie'), css = html.slice(c0, html.indexOf('</style>', c0));
@@ -13441,23 +13442,6 @@ test('v208: nauka sygnałów — pasek „n z c dni z sygnałem”, szacunek (mi
 });
 
 
-/* ---------- v210: Ustawienia — karta „Prywatność” ---------- */
-test('v210: Ustawienia — karta „Prywatność” przed przyciskiem „Gotowe”: nagłówek i trzy akapity z data-i18n, bez nazw dostawców; słownik w 10 językach (v348: pl + 9)', () => {
-  const s0 = html.indexOf('<section class="settings" id="settings" hidden>'), s1 = html.indexOf('</section>\n\n  <section class="page" id="page-flows"', s0), S = html.slice(s0, s1);
-  const c0 = S.indexOf('<section class="panel set-card set-priv">');
-  assert.ok(c0 > S.indexOf('id="set-scene"') && c0 < S.indexOf('id="set-done"'), 'ostatnia karta, przed „Gotowe”');
-  assert.ok(S.includes('<h2 data-i18n="set.priv.t"></h2>\n      <p data-i18n="set.priv.1"></p>\n      <p data-i18n="set.priv.2"></p>\n      <p data-i18n="set.priv.3"></p>'), 'nagłówek i trzy akapity');
-  const d0 = html.indexOf('const EXTRA176='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA176='.length, d1));
-  assert.deepEqual(Object.keys(D), ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']); assert.deepEqual(Object.keys(D.pl), ['set.priv.t', 'set.priv.1', 'set.priv.2', 'set.priv.3', 'set.priv.skip', 'set.priv.skip.y', 'set.priv.skip.n']);   /* v348: dziesięć języków i wiersz „Nie licz moich odwiedzin” */
-  assert.ok(html.slice(d1, d1 + 80).includes('for(const l in EXTRA176)if(I18N[l])Object.assign(I18N[l],EXTRA176[l]);'), 'jedna linia for po słowniku');
-  const T = Object.values(D.pl).join(' ');
-  for (const w of ['TradingView', 'GitHub', 'CoinGecko', 'CoinPaprika', 'DefiLlama', 'BIS', 'Google']) assert.ok(!T.includes(w), 'bez nazwy: ' + w);
-  assert.ok(T.includes('Liczymy odwiedziny bez ciasteczek i bez danych osobowych') && !T.includes('nie zapisuje ciasteczek') && T.includes('nie są nigdzie wysyłane') && T.includes('nie wczytuje skryptów, ramek ani widgetów firm zewnętrznych') && !T.includes('zgod') && T.includes('Obraz tła'), 'kluczowe zdania (v215: o wysyłaniu; v321: bez widgetów i zgody na nie)');
-  for (const k of Object.keys(D.pl)) assert.equal(v96src.tFor('pl')(k), D.pl[k], 'wpis widoczny w słowniku strony: ' + k);
-  assert.ok(html.includes("$$('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));"), 'teksty jako zwykły tekst (bez HTML)');
-  const c = html.slice(html.indexOf('/* v210: Ustawienia — karta „Prywatność”'), html.indexOf('\n', html.indexOf('.set-priv p{')));
-  assert.ok(c.includes('.set-priv p{') && !/#[0-9a-fA-F]{3,6}\b/.test(c), 'styl: tylko zmienne motywu');
-});
 
 
 /* ---------- v211: pasek nauki — licznik do punktu kontrolnego, „ocena w ciągu kilku dni”, nagłówek wg stanu ---------- */
@@ -13540,11 +13524,6 @@ test('v214/v219: Szwajcaria — linia jak wykresy archiwum: podpisy w HTML, punk
 });
 
 
-/* ---------- v215: karta „Prywatność” — zdanie o tym, co wychodzi z urządzenia ---------- */
-test('v215: Prywatność — zapisy nie są wysyłane; wybrany język decyduje o pliku języka (v321: widgetów już nie ma)', () => {
-  const D = v96src.I18N.pl['set.priv.2'];
-  assert.ok(D.includes('Te zapisy nie są nigdzie wysyłane') && D.includes('jedynie wybrany język decyduje, który plik języka pobiera strona') && !D.includes('Nic z tego nie opuszcza'), D);
-});
 
 
 /* ---------- v216: reguły „w cieniu” — zdanie w bloku „Nauka” ---------- */
@@ -19100,8 +19079,6 @@ test('v321: na stronie nie ma już TradingView (decyzja właściciela 10.10.2026
   for (const d of v151Dicts(html)) for (const l in d.obj) assert.ok(!Object.keys(d.obj[l]).some(k => k.startsWith('tv.')), d.name + ' ' + l + ': bez tekstów tv.*');
   assert.equal(html.split("try{localStorage.removeItem('cfai.tv.ok');}catch(e){}").length, 2, 'dawna zgoda usuwana raz, przy wczytaniu strony');
   assert.ok(!/getItem\('cfai\.tv\.ok'\)|setItem\('cfai\.tv\.ok'/.test(html), 'nikt jej już nie czyta ani nie zapisuje');
-  const P = v96src.I18N.pl;
-  assert.ok(P['set.priv.3'].includes('Strona nie wczytuje skryptów, ramek ani widgetów firm zewnętrznych.') && !/zgod/.test(P['set.priv.2'] + P['set.priv.3']), 'Prywatność: bez widgetów i zgody na nie');
   /* zakładki kończą się danymi strony: GLOBAL — panel krypto (g-etf), CRYPTO — panele rynku */
   const secs = (a, b) => [...html.slice(html.indexOf(a), html.indexOf(b, html.indexOf(a))).matchAll(/<section [^>]*id="([^"]+)"/g)].map(m => m[1]);
   assert.deepEqual(secs('<section class="global" id="global"', '<section class="global" id="trendy"').slice(-3), ['g-dolar', 'inst', 'g-etf']);
@@ -23626,7 +23603,7 @@ const v348 = (() => {
   const dir = n => (csp.split(';').map(s => s.trim()).find(s => s.startsWith(n + ' ')) || '').split(/\s+/).slice(1);
   const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
   /* przycisk „Nie licz moich odwiedzin” — słownik znajdowany po kluczu (nie po numerze EXTRA) */
-  const dict = v142Dicts(html).find(d => d.obj.pl && 'set.priv.skip' in d.obj.pl);
+  const dict = v142Dicts(html).find(d => d.obj.pl && 'v404.licz' in d.obj.pl);
   /* bramka z <head>: wynik = window.goatcounter ustawione przed załadowaniem skryptu licznika */
   const bramka = o => { const win = {}; new Function('window', 'navigator', 'location', gate)(win, {webdriver: o.webdriver, userAgent: o.ua}, {hostname: o.host}); return win.goatcounter; };
   return {block, gate, tag, csp, dir, L10, dict, bramka, HOST: 'https://capitalflowai.goatcounter.com', ADRES: 'https://capitalflowai.goatcounter.com/count'};
@@ -23722,67 +23699,6 @@ test('v348: count.js (zachowanie na przypiętym pliku; node) — zwykła wizyta 
   for (const r of [S1, W, P, F, N]) { assert.equal(r.cookie, 0, 'żadnego dostępu do document.cookie'); assert.ok(r.ls.every(k => k === 'skipgc'), 'z pamięci przeglądarki czytany tylko znacznik skipgc: ' + r.ls); }
   for (const r of [S1, W, F, N]) for (const u of r.beacons.concat(r.imgs)) assert.ok(u.startsWith(v348.ADRES + '?'), 'każde zapytanie tylko pod adres licznika: ' + u);
   assert.ok(src.includes("localStorage.getItem('skipgc') === 't'"), 'ten sam znacznik zapisuje przełącznik w Ustawieniach');
-});
-
-test('v348: Prywatność — po polsku dokładnie „Liczymy odwiedziny bez ciasteczek i bez danych osobowych”; dziesięć języków z prawdziwymi tłumaczeniami; stare „bez statystyk odwiedzin / nie zapisuje ciasteczek” nigdzie nie zostało', () => {
-  const I = v96src.I18N, L10 = v348.L10;
-  assert.equal(I.pl['set.priv.1'], 'Strona nie ma kont, formularzy ani reklam. Liczymy odwiedziny bez ciasteczek i bez danych osobowych.');
-  const ZD = {pl: 'Liczymy odwiedziny bez ciasteczek i bez danych osobowych', en: 'We count visits without cookies and without personal data', de: 'Wir zählen Besuche ohne Cookies und ohne personenbezogene Daten',
-    es: 'Contamos las visitas sin cookies y sin datos personales', fr: 'Nous comptons les visites sans cookies et sans données personnelles', it: 'Contiamo le visite senza cookie e senza dati personali',
-    pt: 'Contamos as visitas sem cookies e sem dados pessoais', ru: 'Мы считаем посещения без файлов cookie и без персональных данных', zh: '我们统计访问量时不使用 Cookie，也不收集个人数据',
-    ja: 'Cookie を使わず、個人データも取得せずに集計しています'};
-  const K = ['set.priv.t', 'set.priv.1', 'set.priv.2', 'set.priv.3', 'set.priv.skip', 'set.priv.skip.y', 'set.priv.skip.n'];
-  for (const L of L10) {
-    assert.ok(I[L]['set.priv.1'].includes(ZD[L]), L + ': zdanie o liczeniu odwiedzin');
-    for (const k of K) assert.ok(typeof I[L][k] === 'string' && I[L][k].trim(), L + ' ' + k);
-    if (L !== 'pl') for (const k of K.slice(0, 5)) assert.notEqual(I[L][k], I.pl[k], L + ' ' + k + ': nie kopia polskiego');
-    if (L !== 'en' && L !== 'pl') for (const k of K.slice(0, 5)) assert.notEqual(I[L][k], I.en[k], L + ' ' + k + ': nie kopia angielskiego');
-    const T = K.map(k => I[L][k]).join(' ');
-    assert.ok(!/goatcounter|zgo\.at|github|cloudflare|google/i.test(T), L + ': bez nazw dostawców');
-    assert.ok(!/\{[a-z0-9]+\}/.test(T), L + ': bez pól {x}');
-    assert.ok(/count|odwiedz|Besuch|visit|visita|visite|посещ|访问|訪問|Cookie|cookie/i.test(I[L]['set.priv.1']), L);
-    assert.ok(!/statystyk odwiedzin|nie zapisuje ciasteczek|nie zbiera danych osobowych|bez śledzenia|nie śledzi/i.test(Object.values(I[L]).join('\n')), L + ': stare twierdzenie o braku statystyk / ciasteczek nie może zostać w żadnym tekście');
-  }
-  assert.ok(!/no (visit )?(statistics|analytics|tracking)|(does not|doesn.t) track/i.test(Object.values(I.en).join('\n')));
-  assert.ok(/[\u0400-\u04ff]/.test(I.ru['set.priv.1']) && /[\u4e00-\u9fff]/.test(I.zh['set.priv.1']) && !/[\u3040-\u30ff]/.test(I.zh['set.priv.1']) && /[\u3040-\u30ff]/.test(I.ja['set.priv.1']), 'ru: cyrylica, zh: znaki bez kany, ja: kana');
-  assert.ok(I.pl['set.priv.2'].includes('wybór „Nie licz moich odwiedzin”') && I.pl['set.priv.2'].includes('Te zapisy nie są nigdzie wysyłane'), 'pamięć przeglądarki: także wybór „nie licz mnie”');
-  assert.ok(I.pl['set.priv.3'].includes('do licznika odwiedzin adres i tytuł strony') && I.pl['set.priv.3'].includes('nie zapisuje adresu IP') && I.pl['set.priv.3'].includes('Strona nie wczytuje skryptów, ramek ani widgetów firm zewnętrznych.')
-    && I.pl['set.priv.3'].includes('Skrypt licznika leży na naszym serwerze.'), 'co wychodzi do licznika i gdzie leży jego skrypt');
-  for (const L of L10) for (const k of ['set.priv.2', 'set.priv.3']) assert.ok(I[L][k].length > (L === 'zh' ? 120 : L === 'ja' ? 180 : 250), L + ' ' + k + ': pełny akapit, nie skrót');
-});
-
-test('v348: słownik karty Prywatność — czysty JSON w 10 językach z tymi samymi kluczami, jedna linia for zaraz po nim; wiersz ustawienia w karcie po trzech akapitach', () => {
-  const d = v348.dict;
-  assert.ok(d, 'słownik z kluczem set.priv.skip');
-  const K = Object.keys(d.obj.pl);
-  assert.deepEqual(Object.keys(d.obj), v348.L10); for (const L of v348.L10) assert.deepEqual(Object.keys(d.obj[L]), K, L + ': te same klucze w tej samej kolejności');
-  assert.ok(html.slice(d.e, d.e + 160).startsWith(';\nfor(const l in ' + d.name + ')if(I18N[l])Object.assign(I18N[l],' + d.name + '[l]);'), 'jedna linia for zaraz po słowniku');
-  assert.equal(html.split('const ' + d.name + '=').length, 2); assert.equal(html.split('for(const l in ' + d.name + ')').length, 2);
-  const s0 = html.indexOf('<section class="settings" id="settings" hidden>'), s1 = html.indexOf('</section>\n\n  <section class="page" id="page-flows"', s0), S = html.slice(s0, s1);
-  const c0 = S.indexOf('<section class="panel set-card set-priv">'), c1 = S.indexOf('</section>', c0);
-  const R = '<div class="set-row"><span data-i18n="set.priv.skip"></span><div class="dd" id="dd-skipgc"></div></div>';
-  assert.ok(S.slice(c0, c1).includes('<p data-i18n="set.priv.3"></p>\n      ' + R), 'wiersz po trzecim akapicie, w karcie Prywatność');
-  assert.equal(html.split('id="dd-skipgc"').length, 2);
-});
-
-test('v348: Ustawienia — „Nie licz moich odwiedzin na tym urządzeniu”: lista rozwijana jak pozostałe, zapis tego samego znacznika (skipgc = t), który czyta skrypt licznika; brak pamięci przeglądarki nie wywraca strony', () => {
-  const a = html.indexOf('const cfSkipGet='), b = html.indexOf('\n', html.indexOf("dropdown($('#dd-skipgc')", a)) + 1;
-  assert.ok(a > html.indexOf("dropdown($('#dd-size')") && b > a, 'kod zaraz po liście rozmiaru sceny');
-  const code = html.slice(a, b);
-  const mk = (ls) => { const cfg = []; new Function('localStorage', 'dropdown', '$', code)(ls, (h, c) => cfg.push([h, c]), s => s); return cfg; };
-  const mem = {}, ls = {getItem: k => mem[k] === undefined ? null : mem[k], setItem: (k, v) => { mem[k] = v; }, removeItem: k => { delete mem[k]; }};
-  const [[host, cfg]] = mk(ls), g = cfg.groups[0];
-  assert.equal(host, '#dd-skipgc'); assert.equal(cfg.right, true); assert.equal(cfg.groups.length, 1); assert.equal(g.key, 'skipgc');
-  assert.deepEqual(g.items, [{v: '0', l: 'set.priv.skip.n'}, {v: '1', l: 'set.priv.skip.y'}]);
-  assert.equal(g.get(), '0', 'domyślnie liczymy odwiedziny');
-  g.set('1'); assert.deepEqual(mem, {skipgc: 't'}, 'ten sam znacznik i wartość, które czyta count.js'); assert.equal(g.get(), '1');
-  g.set('0'); assert.deepEqual(mem, {}, 'wyłączenie usuwa znacznik'); assert.equal(g.get(), '0');
-  const psuje = {getItem() { throw new Error('zablokowane'); }, setItem() { throw new Error('zablokowane'); }, removeItem() { throw new Error('zablokowane'); }};
-  const [[, c2]] = mk(psuje), g2 = c2.groups[0];
-  assert.equal(g2.get(), '0'); g2.set('1'); g2.set('0');   /* bez wyjątku */
-  for (const L of v348.L10) for (const k of ['set.priv.skip', 'set.priv.skip.y', 'set.priv.skip.n']) assert.ok(v96src.I18N[L][k], L + ' ' + k);
-  assert.equal(v96src.I18N.pl['set.priv.skip'], 'Nie licz moich odwiedzin na tym urządzeniu'); assert.equal(v96src.I18N.en['set.priv.skip'], 'Don’t count my visits on this device');
-  assert.equal(html.split("localStorage.setItem('skipgc','t')").length, 2); assert.equal(html.split("localStorage.getItem('skipgc')==='t'").length, 2);
 });
 
 /* ===================== v349: GIEŁDY I DEX — trzy karty CRYPTO (#c-gieldy, #c-dex, #c-kontrakty; pliki data/gieldy.json i data/dex.json) =====================
@@ -24001,7 +23917,7 @@ test('v350: prawa kolumna GLOBAL (#g-rail) — „Strach i chciwość GLOBAL” 
   assert.equal((h.match(/<span class="sg-h" /g) || []).length, 3, 'kółka 1D / 1T / 1M z dniami zostają');
   assert.deepEqual([...h.matchAll(/<\/b><i>([^<]*)<\/i>/g)].map(m => m[1]), ['w321.h.1d', 'w321.h.1w', 'w321.h.1m'], 'skróty 1D / 1T / 1M w panelu');
   assert.ok(h.includes('<small>Sep 18</small>') && h.includes('<small>Aug 26</small>'), 'dni wartości wstecz zostają');
-  assert.ok(h.includes('<p class="fg-cap">fg.g.cap</p>'), 'podpis: wskaźnik własny (nie pomiar)');
+  assert.ok(!h.includes('fg-cap') && h.includes('title="fg.g.cap. fg.meth.g"'), 'v404: bez podpisu pod wskaźnikiem; informacja „wskaźnik własny (nie pomiar)” w podpowiedzi (i)');
   assert.ok(h.endsWith('<section class="panel gauge" id="g-rcov"><h2>w321.cov.t</h2><span class="sg">COV</span></section>'), 'pokrycie danych GLOBAL zaraz pod wskaźnikiem');
   assert.equal(R.el.writes, 1); R.F(); assert.equal(R.el.writes, 1, 'ten sam tekst — bez przerysowania');
   /* panel (długie etykiety) bez 4. argumentu — jak dotąd: nazwy z dawnego słownika, bez liczby tekstem */
@@ -25260,13 +25176,9 @@ test('v358 (G11-3/4/5/7): teksty w 10 językach — złoto Eurosystemu raz na kw
   const RE = {
     'lq357.ebc.note': [/raz na kwartał/, /once a quarter/, /einmal im Quartal/, /una vez por trimestre/, /une fois par trimestre/, /una volta a trimestre/, /uma vez por trimestre/, /раз в квартал/, /每季度/, /四半期に一度/],
     'zm352.read': [/kierunek.*nie ocenę/, /direction.*not a judgement/, /Richtung.*keine Bewertung/, /dirección.*no una valoración/, /sens.*pas un jugement/, /direzione.*non un giudizio/, /direção.*não um juízo/, /направление.*а не оценку/, /方向.*而不是好坏评价/, /方向.*評価ではありません/],
-    'set.priv.2': [/kopię strony.*nie Twoje dane/, /copy of the page.*not your data/, /Kopie der Seite.*keine Daten von Ihnen/, /copia de la página.*no tus datos/, /copie de la page.*pas vos données/, /copia della pagina.*non tuoi/, /cópia da página.*não os seus dados/, /копию страницы.*а не ваши данные/, /页面.*副本.*不是您的数据/, /コピーを保存.*データではなく/],
     'fg.meth.g': [/niezaokrąglonych.*o 1/, /unrounded.*by 1/, /ungerundeten.*um 1/, /sin redondear.*en 1/, /non arrondies.*de 1/, /non arrotondate.*di 1/, /sem arredondar.*em 1/, /неокруглённым.*на 1/, /未四舍五入.*相差 1/, /丸める前.*1だけ/],
   };
   for (const key in RE) { const {D} = v358.dictOf(key); v358.LG.forEach((lg, i) => { const s = D[lg][key]; assert.ok(RE[key][i].test(s), key + ' ' + lg + ': ' + s.slice(-200)); assert.ok(!v358.NAZWY.test(s), 'zero nazw dostawców: ' + key + ' ' + lg); }); }
-  const pr = v358.dictOf('set.priv.2').D;
-  assert.ok(!pr.pl['set.priv.2'].startsWith('W pamięci Twojej przeglądarki zostają tylko:') && pr.pl['set.priv.2'].startsWith('Z Twoich danych w pamięci przeglądarki zostają tylko:'), 'zdanie „tylko” zawężone do danych użytkownika');
-  assert.ok(pr.en['set.priv.2'].startsWith('Of your data, your browser keeps only:'), 'en: jak wyżej');
   const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join();
   for (const key of Object.keys(RE)) { const {D} = v358.dictOf(key); for (const lg of v358.LG) assert.equal(ph(D[lg][key]), ph(D.pl[key]), key + ' ' + lg + ': zmienne'); }
 });
@@ -31301,4 +31213,73 @@ test('v403: zasady modułu — bez localStorage i sieci poza srvJSON, brak zer w
     '#c-eth .etfk b span.pos{color:var(--gr-tx)}', '#c-eth .etfk b span.neg{color:var(--rd-tx)}', '#c-eth .etfk b span.neu{color:var(--yl-tx)}', '#c-eth .wk-ch .eth-in{--k:var(--gr)}', '#c-eth .wk-ch .eth-out{--k:var(--rd)}']) assert.ok(css.includes(w), 'CSS: ' + w);
   assert.ok(!/#c-eth[^{]*\{[^}]*\b(width|min-width):\s*\d{3,}px/.test(css), 'telefon 390 px: bez stałych szerokości powyżej 99 px');
   function cut403(a, b) { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'CSS: ' + a); return html.slice(i, j + b.length); }
+});
+
+
+/* ===================== v404 W1A (17.10.2026): paczka W1 — lewy pasek, wskaźnik GLOBAL, Ustawienia bez Prywatności, pasek „Widok” ===================== */
+test('v404 W1A: lewy pasek bez ciemnej płyty (spadające cyfry zostają); GLOBAL bez podpisu pod wskaźnikiem (informacja w podpowiedzi i „Jak liczymy”)', () => {
+  assert.ok(html.includes('/* v404: lewy pasek bez ciemnej, rozmytej płyty'), 'komentarz zmiany');
+  assert.ok(!html.includes('.nav::before') && !html.includes('backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);-webkit-mask-image'), 'żadnej płyty z rozmyciem pod menu');
+  assert.ok(html.includes('#hex{position:fixed;inset:0;') && html.includes('const HEXC=') && html.includes('<canvas id="hex" aria-hidden="true"></canvas>'), 'efekt spadających cyfr zostaje');
+  assert.equal(html.split("fgHead(t('fg.g.cap')+'. '+t('fg.meth.g'),'fg-how-g')").length - 1, 2, 'podpowiedź (i) GLOBAL: najpierw charakter wskaźnika, potem metoda — karta i prawa kolumna');
+  assert.ok(!html.includes("<p class=\"fg-cap fg-own\">") && !html.includes("<p class=\"fg-cap\">${t('fg.g.cap')}</p>"), 'żadnego podpisu pod wskaźnikiem GLOBAL');
+  assert.ok(html.includes("<p class=\"fg-cap\">${t('fg.c.cap')}</p>"), 'podpis krypto — poza zakresem tej paczki, bez zmian');
+  assert.ok(html.includes("<summary>${t('fg.how')}</summary><p class=\"pnote\">${t('fg.g.cap')}</p><p class=\"pnote\">${t('fg.meth.g')}</p>"), '„Jak liczymy” zawiera informację, że wskaźnik jest własny');
+  assert.equal(v96src.I18N.pl['fg.g.cap'], 'Wskaźnik własny CapitalFlowAI (nie pomiar)');
+  assert.ok(!html.includes('.fg-cap.fg-own{'), 'martwy styl usunięty');
+});
+
+test('v404 W1A: Ustawienia bez sekcji Prywatność (karta, styl, teksty, przełącznik); licznik działa dalej; zdanie o liczeniu odwiedzin w Źródłach w 10 językach', () => {
+  const s0 = html.indexOf('<section class="settings" id="settings" hidden>'), s1 = html.indexOf('</section>\n\n  <section class="page" id="page-flows"', s0), S = html.slice(s0, s1);
+  assert.ok(s0 > 0 && s1 > s0 && !S.includes('set-priv') && !S.includes('set.priv') && !S.includes('dd-skipgc'), 'Ustawienia: karty Prywatność nie ma');
+  assert.ok(S.includes('id="set-scene"') && S.includes('id="set-done"') && S.includes('id="dd-size"') && S.includes('id="dd-view"'), 'pozostałe ustawienia bez zmian');
+  for (const k of ['set-priv', 'set.priv.', 'dd-skipgc', 'cfSkipGet', 'cfSkipSet']) assert.ok(!html.includes(k), 'w stronie nie ma: ' + k);
+  assert.ok(html.includes('<script async src="count.js" data-goatcounter="https://capitalflowai.goatcounter.com/count"></script>') && html.includes('id="cf-licznik"'), 'licznik działa dalej (skrypt i bramka w <head>)');
+  const I = v96src.I18N, L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const d = v142Dicts(html).find(x => x.obj.pl && 'v404.licz' in x.obj.pl);
+  assert.ok(d, 'słownik z kluczem v404.licz');
+  assert.deepEqual(Object.keys(d.obj), L10); for (const L of L10) assert.deepEqual(Object.keys(d.obj[L]), ['v404.licz'], L);
+  assert.ok(html.slice(d.e, d.e + 160).startsWith(';\nfor(const l in ' + d.name + ')if(I18N[l])Object.assign(I18N[l],' + d.name + '[l]);'), 'jedna linia for zaraz po słowniku');
+  assert.equal(html.split('const ' + d.name + '=').length, 2); assert.equal(html.split('for(const l in ' + d.name + ')').length, 2);
+  assert.equal(I.pl['v404.licz'], 'Liczymy odwiedziny bez ciasteczek i bez danych osobowych.');
+  const ZD = {pl: 'Liczymy odwiedziny bez ciasteczek i bez danych osobowych', en: 'We count visits without cookies and without personal data', de: 'Wir zählen Besuche ohne Cookies und ohne personenbezogene Daten',
+    es: 'Contamos las visitas sin cookies y sin datos personales', fr: 'Nous comptons les visites sans cookies et sans données personnelles', it: 'Contiamo le visite senza cookie e senza dati personali',
+    pt: 'Contamos as visitas sem cookies e sem dados pessoais', ru: 'Мы считаем посещения без файлов cookie и без персональных данных', zh: '我们统计访问量时不使用 Cookie，也不收集个人数据',
+    ja: 'Cookie を使わず、個人データも取得せずに'};
+  for (const L of L10) {
+    const s = I[L]['v404.licz'];
+    assert.ok(typeof s === 'string' && s.includes(ZD[L]), L + ': zdanie o liczeniu odwiedzin');
+    if (L !== 'pl') assert.notEqual(s, I.pl['v404.licz'], L + ': nie kopia polskiego');
+    if (L !== 'en' && L !== 'pl') assert.notEqual(s, I.en['v404.licz'], L + ': nie kopia angielskiego');
+    assert.ok(!/goatcounter|zgo\.at|github|cloudflare|google/i.test(s) && !/\{[a-z0-9]+\}/.test(s), L + ': bez nazw dostawców i pól');
+  }
+  assert.ok(/[Ѐ-ӿ]/.test(I.ru['v404.licz']) && /[一-鿿]/.test(I.zh['v404.licz']) && !/[぀-ヿ]/.test(I.zh['v404.licz']) && /[぀-ヿ]/.test(I.ja['v404.licz']), 'ru: cyrylica, zh: znaki bez kany, ja: kana');
+  assert.ok(!/no (visit )?(statistics|analytics|tracking)|(does not|doesn.t) track/i.test(Object.values(I.en).join('\n')), 'en: bez twierdzenia o braku statystyk');
+  assert.ok(!/statystyk odwiedzin|nie zapisuje ciasteczek|nie zbiera danych osobowych|bez śledzenia|nie śledzi/i.test(Object.values(I.pl).join('\n')), 'pl: stare twierdzenia nie wróciły');
+  assert.ok(html.includes("    <p class=\"mtxt\">${t('zr2.note')}</p>\n    <p class=\"mtxt zr-lic\">${t('v404.licz')}</p>\n    <p class=\"mtxt zr-kont\">"), 'Źródła: zdanie po zdaniu o dacie i wieku, przed adresem projektu');
+  assert.equal(html.split("t('v404.licz')").length - 1, 1);
+});
+
+test('v404 W1A: pod mapą GLOBAL na starcie tylko „Widok”; kliknięcie rozwija Karty / Wykresy i Rozwiń / Zwiń wszystkie (i zwija z powrotem); funkcje bez zmian; CRYPTO bez zmian', () => {
+  const g = html.indexOf('<div class="zw-bar" data-zw="global">'), e = html.indexOf('</div><!-- v154: sekcje do wyboru -->', g), B = html.slice(g, e);
+  assert.ok(g > html.indexOf('id="gmap"') && B.startsWith('<div class="zw-bar" data-zw="global"><button type="button" class="zw-fb" id="zw-fb-global" aria-expanded="false" aria-controls="zw-rest-global" data-i18n="wk.view"></button><span class="zw-rest" id="zw-rest-global" hidden>'), 'przycisk „Widok” pierwszy, reszta ukryta na starcie');
+  const R = B.slice(B.indexOf('<span class="zw-rest"'));
+  for (const s of ['data-wk-v="karty"', 'data-wk-v="wykresy"', 'data-zw-all="1"', 'data-zw-all="0"', 'class="wk-hint"', 'class="zw-hint"']) assert.ok(R.includes(s) && !B.slice(0, B.indexOf('<span class="zw-rest"')).includes(s), 'w ukrytej części: ' + s);
+  assert.ok(B.endsWith('</span></span>') && (B.match(/<button /g) || []).length === 5 && B.split('data-zw="global"').length === 2, 'pięć przycisków: Widok, Karty, Wykresy, Rozwiń, Zwiń');
+  const c = html.indexOf('<div class="zw-bar" data-zw="crypto">');
+  assert.ok(html.slice(c, html.indexOf('</div><!-- v154', c)).startsWith('<div class="zw-bar" data-zw="crypto"><span class="zw-hint" data-i18n="zw.hint"></span>'), 'CRYPTO: pasek jak dotąd');
+  const c0 = html.indexOf('/* v404: GLOBAL — pasek pod mapą'), c1 = html.indexOf('@media (prefers-reduced-motion: reduce){.zw-fb::after{transition:none}}', c0), css = html.slice(c0, c1);
+  assert.ok(c0 > 0 && c1 > c0 && !/#[0-9a-fA-F]{3,6}\b/.test(css), 'styl: tylko zmienne motywu');
+  for (const s of ['.zw-rest{display:contents}', '.zw-rest[hidden]{display:none}', '.zw-fb:focus-visible{outline:2px solid var(--bl);outline-offset:2px}', '.zw-fb[aria-expanded="true"]::after{']) assert.ok(css.includes(s), 'styl: ' + s);
+  const a = html.indexOf('/* v404: pasek pod mapą GLOBAL'), b = html.indexOf('\n', html.indexOf("b.setAttribute('aria-expanded'", a)) + 1, code = html.slice(a, b);
+  assert.ok(a > 0 && b > a && code.split('\n').length === 3, 'obsługa w jednej linii po komentarzu');
+  let h; const rest = {hidden: true}, doc = {addEventListener: (t, f) => { assert.equal(t, 'click'); h = f; }, getElementById: id => (id === 'zw-rest-global' ? rest : null)};
+  const btn = {getAttribute: k => (k === 'aria-controls' ? 'zw-rest-global' : null), setAttribute(k, v) { this[k] = v; }};
+  new Function('document', code)(doc);
+  const klik = el => h({target: {closest: s => (s === '.zw-fb' ? el : null)}});
+  klik(btn); assert.equal(rest.hidden, false); assert.equal(btn['aria-expanded'], 'true', 'kliknięcie rozwija');
+  klik(btn); assert.equal(rest.hidden, true); assert.equal(btn['aria-expanded'], 'false', 'drugie kliknięcie zwija');
+  let blad = null; try { h({target: {closest: () => null}}); h({target: null}); h({target: {}}); klik({getAttribute: () => 'nie-ma-takiego', setAttribute() {}}); } catch (x) { blad = x; }
+  assert.equal(blad, null, 'inne kliknięcia i brak elementu — bez wyjątku');
+  assert.equal(rest.hidden, true);
 });
