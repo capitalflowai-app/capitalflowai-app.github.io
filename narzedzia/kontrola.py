@@ -10608,6 +10608,179 @@ def skarb_kontrola(files, now=None):
     return {'spojnosc': skarb_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v392 (F11Z6): eksport zbóż i soi z USA wg kraju kupującego (data/usda-eksport.json) ----------------------------------------------------------------
+# Plik: asof (ostatni tydzień sprawozdawczy, czwartek), upd (czas załadowania zbioru u źródła), nw, nie (nazwy krajów bez kodu), tow {pszenica|kukurydza|soja: {my, out, w: [[tydzień, sprzedaż netto, wysyłki, zakontraktowane razem,
+# wysłane narastająco]] (56 tygodni, tony), top: [[kraj, sprzedaż netto 52 tyg., wysyłki 52 tyg., sprzedaż netto 4 tyg., zakontraktowane, wysłane narastająco]], ser: {kraj: [56 liczb albo null]}}}, ok / part_at / errs.
+# Kontrola czyta pliki ze strony (bez zapytań do sieci). PROGI Z TESTU WSTECZNEGO (ws53/v392-usda-eksport/bt_progi.py, jedno zapytanie o sumy tygodniowe całego zbioru: 4325 grup, 1426 tygodni od 1999):
+#   rytm: tygodnie zawsze w czwartki i co 7 dni bez jednej przerwy (1425 odstępów po 7 dni) → brak tygodnia w serii = ❌ (sprzeczność w pliku); zbiór ładuje się w całości w czwartek ok. 16:05 UTC (tydzień po końcu tygodnia
+#   sprawozdawczego): najstarszy odczyt tuż przed kolejnym załadowaniem ma 13,7 doby od końca dnia danych → ⚠ dopiero przy wieku ostatniego tygodnia > UKD_K_DNI = 17 dób (3,3 doby zapasu na przesunięcia świąteczne
+#   i opóźnienie synchronizacji; historii czasów załadowania zbiór nie przechowuje — ładowany w całości — więc próg wynika z kalendarza wydań, nie z pomiaru); 
+#   tożsamość wysyłek: przyrost wysłanych narastająco między tygodniami tego samego roku handlowego = wysyłki tygodnia — odchylenie 0,00% w 4156 tygodniach (3 towary, 26 lat) poza jednym: pszenica 14.05.2026, 29%
+#   (pojedynczy wiersz źródła z 07.05, 67 tys. t) → ⚠ przy odchyleniu > UKD_K_ID = 2% (względem większej z wysyłek tygodnia i 100 tys. t) w ostatnich UKD_ID_TYG = 8 tygodniach (na nagraniu z 17.10.2026 okno 8 tygodni: 0 odchyleń; jedyne odchylenie, z 14.05.2026, leży poza oknem). Tygodnie zmiany roku (stan narastający zaczyna od nowa) pomijamy.
+# (1) świeżość pobrania (odświeżanie co 3 h; starsze niż doba = ⚠) i rytm publikacji (najwyżej ⚠);
+# (2) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zły tydzień, liczba poza zakresem, tygodnie nie rosną co 7 dni albo nie kończą się na asof, kolejność rankingu, suma serii kraju ≠ jego sumie 52 tygodni
+#     albo 4 tygodni, suma rankingu większa od sumy krajowej (wysyłki, zakontraktowane, wysłane), brak Chin w seriach soi;
+# (3) TYLKO UWAGA ⚠: tożsamość wysyłek (ostatnie 8 tygodni) i nazwy krajów bez kodu. Najwyżej ⚠ poza (2). Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'usda-eksport')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['usda-eksport'] = 12 * 60   # plik zapisywany co ok. 3 h (część z błędem: co godzinę) — wiek pobrania ocenia osobny wiersz
+AW_BEZ_BLEDU.update({'usda_eksport': 'eksport zbóż USA — błąd zostaje z ostatnimi danymi i datą (v392); wiek pobrania i rytm publikacji w wierszach świeżości'})
+UKD_TOW = ('pszenica', 'kukurydza', 'soja')
+UKD_ETYKIETA = 'Eksport zbóż USA (pobranie)'
+UKD_RYTM = 'Eksport zbóż USA (rytm publikacji tygodniowej)'
+UKD_PROG_MIN = 24 * 60            # min — wiek pobrania (odświeżanie co 3 h)
+UKD_K_DNI = 17                    # doby od końca ostatniego tygodnia sprawozdawczego (kalendarz wydań: najwyżej 13,7)
+UKD_K_ID = 0.02                   # tożsamość wysyłek: dopuszczalne odchylenie (bt_progi.py: 0 w 26 latach poza jednym wierszem źródła)
+UKD_ID_TYG = 8                    # tygodni w oknie tożsamości
+UKD_TYG, UKD_TYG52, UKD_TOP = 56, 52, 10
+UKD_Z = {'ns': (-5e6, 2e7), 'wk': (0, 1.5e7), 'os': (0, 1e8), 'acc': (0, 3e8), 'osc': (0, 1e8)}   # jak USD_Z w zbieraczu
+UKD_ZK = {'ns': (-5e6, 1.5e7), 'osc': (0, 1e8), 'acc': (0, 3e8)}
+UKD_ZK52 = (-3e7, 1.5e8)
+UKD_RE_KOD = re.compile(r'^[A-Z]{2}$')
+UKD_RE_MY = re.compile(r'^\d{4}/\d{4}$')
+
+
+def _ukd_dzien(s):
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return dt.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _ukd_num(x, zak):
+    return isinstance(x, int) and not isinstance(x, bool) and zak[0] <= x <= zak[1]
+
+
+def usda_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w eksporcie zbóż USA) → lista opisów."""
+    zle = []
+    asof = _ukd_dzien(j.get('asof'))
+    if asof is None or asof.weekday() != 3:
+        zle.append(f'asof {str(j.get("asof"))[:12]} nie jest czwartkiem')
+        return zle
+    T = j.get('tow')
+    if not isinstance(T, dict) or set(T) != set(UKD_TOW):
+        return zle + ['brak któregoś z towarów (pszenica, kukurydza, soja)']
+    if not isinstance(j.get('nie'), list) or not all(isinstance(x, str) for x in j['nie']):
+        zle.append('nie: zły kształt listy nazw krajów bez kodu')
+    for tow in UKD_TOW:
+        X = T[tow]
+        if not isinstance(X, dict):
+            zle.append(f'{tow}: towar nie jest słownikiem'); continue
+        if not (isinstance(X.get('my'), str) and UKD_RE_MY.match(X['my'])) or not _ukd_num(X.get('out'), (0, 1e8)):
+            zle.append(f'{tow}: zły rok handlowy albo zakontraktowane ({str(X.get("my"))[:12]}, {str(X.get("out"))[:12]})'); continue
+        W = X.get('w')
+        if not (isinstance(W, list) and len(W) == UKD_TYG):
+            zle.append(f'{tow}: seria tygodniowa ma {len(W) if isinstance(W, list) else "zły kształt"} wierszy zamiast {UKD_TYG}'); continue
+        ok, ost = True, None
+        for i, r in enumerate(W):
+            d = _ukd_dzien(r[0]) if isinstance(r, list) and len(r) == 5 else None
+            if d is None or not all(_ukd_num(r[k + 1], UKD_Z[c]) for k, c in enumerate(('ns', 'wk', 'os', 'acc'))):
+                zle.append(f'{tow}: zły wiersz tygodnia {i} ({str(r)[:50]})'); ok = False; break
+            if ost is not None and (d - ost).days != 7:
+                zle.append(f'{tow}: tygodnie nie idą co 7 dni ({ost} → {d})'); ok = False; break
+            ost = d
+        if not ok:
+            continue
+        if ost != asof:
+            zle.append(f'{tow}: ostatni tydzień serii {ost} ≠ asof {asof}'); continue
+        top, ser = X.get('top'), X.get('ser')
+        if not (isinstance(top, list) and 1 <= len(top) <= UKD_TOP and isinstance(ser, dict)):
+            zle.append(f'{tow}: zły ranking kupujących albo serie'); continue
+        if tow == 'soja' and 'CN' not in ser:
+            zle.append('soja: brak Chin w seriach tygodniowych')
+        for k, v in ser.items():
+            if not (UKD_RE_KOD.match(str(k)) and isinstance(v, list) and len(v) == UKD_TYG and all(x is None or _ukd_num(x, UKD_ZK['ns']) for x in v)):
+                zle.append(f'{tow}: zła seria kraju {str(k)[:6]}'); ok = False; break
+        if not ok:
+            continue
+        pn, kody, sw, so, sa = None, set(), 0, 0, 0
+        for r in top:
+            if not (isinstance(r, list) and len(r) == 6 and UKD_RE_KOD.match(str(r[0])) and _ukd_num(r[1], UKD_ZK52) and _ukd_num(r[2], (0, 1.5e8)) and _ukd_num(r[3], UKD_ZK52)
+                    and all(x is None or _ukd_num(x, UKD_ZK['osc']) for x in (r[4], r[5]))):
+                zle.append(f'{tow}: zły wiersz rankingu ({str(r)[:50]})'); ok = False; break
+            if r[1] <= 0 or r[0] in kody or (pn is not None and r[1] > pn) or r[0] not in ser:
+                zle.append(f'{tow}: ranking nie jest malejący, powtarza kraj albo ma kraj bez serii ({r[0]})'); ok = False; break
+            pn = r[1]; kody.add(r[0])
+            s52 = sum(x for x in ser[r[0]][-UKD_TYG52:] if x is not None); s4 = sum(x for x in ser[r[0]][-4:] if x is not None)
+            if s52 != r[1] or s4 != r[3]:
+                zle.append(f'{tow} {r[0]}: sumy z serii ({s52}; {s4}) ≠ w rankingu ({r[1]}; {r[3]})'); ok = False; break
+            sw += r[2]; so += r[4] or 0; sa += r[5] or 0
+        if not ok:
+            continue
+        sw_t, sa_t = sum(x[2] for x in W[-UKD_TYG52:]), W[-1][4]
+        if sw > sw_t + 1 or so > X['out'] + 1 or sa > sa_t + 1:
+            zle.append(f'{tow}: suma rankingu (wysyłki {sw}, zakontraktowane {so}, wysłane {sa}) większa od sumy krajowej ({sw_t}, {X["out"]}, {sa_t})')
+    return zle
+
+
+def usda_swiezosc(j, now=None):
+    """Wiersze: pobranie (etykieta, status, wiek min, chwila, uwaga) i rytm publikacji (wiek ostatniego tygodnia sprawozdawczego względem progu z kalendarza wydań); brak pliku albo inna wersja = brak wierszy."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    txt = (j.get('part_at') or {}).get('eksport') if isinstance(j.get('part_at'), dict) else None
+    if not txt:
+        rows.append((UKD_ETYKIETA, '?', None, None, 'brak chwili pobrania w pliku'))
+    else:
+        w = wiek_danych(str(txt), 'ts', 'k', now)
+        ok = (j.get('ok') or {}).get('eksport') if isinstance(j.get('ok'), dict) else None
+        st = '?' if w is None else ('⚠️' if w > UKD_PROG_MIN else '✅')
+        note = ''
+        if st == '⚠️':
+            note = f'pobranie starsze niż {fmt_wiek(UKD_PROG_MIN)} (odświeżanie co 3 h) — dane mogą być nieaktualne; najwyżej uwaga'
+        elif ok is False:
+            note = 'ostatnie pobranie nieudane — dane z poprzedniego pobrania'
+        rows.append((UKD_ETYKIETA, st, w, str(txt), note))
+    d = _ukd_dzien(j.get('asof'))
+    if d is not None:
+        wd = wiek_danych(d.isoformat(), 'day', 'k', now)
+        zle = wd is not None and wd > UKD_K_DNI * 1440
+        note = (f'ostatni tydzień sprawozdawczy zakończony {d.isoformat()} sprzed {fmt_wiek(wd)} (zbiór ładuje się raz w tygodniu, w czwartek; zwykle najwyżej 13,7 doby) — źródło spóźnione' if zle else '')
+        rows.append((UKD_RYTM, '⚠️' if zle else '✅', wd, d.isoformat(), note))
+    return rows
+
+
+def usda_uwagi(j):
+    """Uwagi ⚠ (nigdy ❌): tożsamość wysyłek w ostatnich UKD_ID_TYG tygodniach i nazwy krajów bez kodu. → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    out = {'wiersze': [], 'uwagi': []}
+    try:
+        zle, ile = [], 0
+        for tow in UKD_TOW:
+            W = j['tow'][tow]['w'][-(UKD_ID_TYG + 1):]
+            for a, b in zip(W, W[1:]):
+                if b[4] < a[4]:
+                    continue   # zmiana roku handlowego: stan narastający zaczyna od nowa
+                ile += 1
+                odch = ((b[4] - a[4]) - b[2]) / max(b[2], 1e5)
+                if abs(odch) > UKD_K_ID:
+                    zle.append(f'{tow} {b[0]} (przyrost wysłanych {b[4] - a[4]} t, wysyłki tygodnia {b[2]} t)')
+        if ile:
+            if zle:
+                out['uwagi'].append('eksport zbóż USA: przyrost wysłanych narastająco ≠ wysyłkom tygodnia — ' + '; '.join(zle[:3]))
+            out['wiersze'].append((f'tożsamość wysyłek ({ile} tygodni)', '⚠️' if zle else '✅'))
+    except Exception:  # noqa
+        pass
+    nie = j.get('nie')
+    if isinstance(nie, list) and nie:
+        out['uwagi'].append(f'eksport zbóż USA: {len(nie)} nazw krajów bez kodu w sumach ({", ".join(str(x)[:30] for x in nie[:3])}) — dopisać do tabeli krajów')
+        out['wiersze'].append(('nazwy krajów bez kodu', '⚠️'))
+    return out
+
+
+def usda_kontrola(files, now=None):
+    """Kontrola pliku usda-eksport.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('usda-eksport') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    sp = usda_spojnosc(j)
+    U = usda_uwagi(j) if not sp else {'wiersze': [], 'uwagi': []}
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': sp, 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -11191,6 +11364,24 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['skarb-usa'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'skarb USA (v383): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v392. eksport zbóż i soi z USA (data/usda-eksport.json): świeżość pobrania i rytm publikacji tygodniowej osobnymi wierszami (lista SWIEZOSC bez zmian), tożsamość wysyłek i nazwy krajów bez kodu (⚠) oraz
+    # sprzeczności w pliku (❌) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in usda_swiezosc(files.get('usda-eksport')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_us = usda_kontrola(files)
+        if T_us:
+            for z_ in T_us['spojnosc'][:5]:
+                R['bledy'].append(f'usda-eksport.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_us['uwagi']
+        R['zgodnosc']['usda-eksport'] = {k_: T_us[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_us else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['usda-eksport'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'eksport zbóż USA (v392): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -11900,6 +12091,11 @@ def raport_md(R):
             L.append('- Skarb USA, wpływy i dług dzienne, wykupy (z pliku strony): ' + (f'? kontrola przerwana ({ksk["blad"]})' if ksk.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(ksk['spojnosc'][:3]) + ' ❌ · ' if ksk.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in ksk.get('wiersze') or []) or '—') + '.')
+        kus = Z.get('usda-eksport')   # v392: eksport zbóż i soi z USA — sprzeczności w pliku, tożsamość wysyłek, rytm publikacji; brak pliku = bez linii
+        if kus:
+            L.append('- Eksport zbóż i soi z USA wg kraju kupującego (z pliku strony): ' + (f'? kontrola przerwana ({kus["blad"]})' if kus.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(kus['spojnosc'][:3]) + ' ❌ · ' if kus.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in kus.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

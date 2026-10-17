@@ -32473,6 +32473,28 @@ def main():
                 save('plynnosc-usa', prev_plusa)
     META['ok']['plusa_stopy'] = stan_plusa['stopy']; META['ok']['plusa_repo'] = stan_plusa['repo']; META['ok']['plusa_wol'] = stan_plusa['wol']
     # v382: koniec bloku płynności USA
+    # v392 (F11Z6): EKSPORT ZBÓŻ I SOI Z USA (data/usda-eksport.json: tygodniowa sprzedaż pszenicy, kukurydzy i soi wg kraju kupującego; jedna część z własnym ok / part_at / errs) — co USD_EVERY_MIN min
+    # (maleńkie zapytanie o ostatni tydzień i czas załadowania zbioru; trzy zapytania tylko po zmianie), plik z błędem ponawiany po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian
+    # (błąd w meta.json). META ok: usda_eksport (ten sam urząd co raporty zbóż — liczba źródeł bez zmian).
+    prev_usd = previous('usda-eksport')
+    if isinstance(prev_usd, dict) and prev_usd.get('v') == USD_V and fresh_pelny(prev_usd, USD_EVERY_MIN):
+        save('usda-eksport', prev_usd)
+        if _dict(prev_usd.get('ok')).get('eksport') is False:   # błąd zostaje widoczny z przyczyną z pliku, nie „cached”
+            META['errors'].append(mask(f"{USD_PX}: {str(_dict(prev_usd.get('errs')).get('eksport') or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+            stan_usd = False
+        else:
+            stan_usd = 'cached'
+    else:
+        try:
+            usd_ = build_usda_eksport(prev_usd, run_t0=_RUN_T0[0]); save('usda-eksport', usd_)
+            stan_usd = usd_['ok'].get('eksport') is True
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{USD_PX}: {e}')[:200])
+            stan_usd = False
+            if isinstance(prev_usd, dict):
+                save('usda-eksport', prev_usd)
+    META['ok']['usda_eksport'] = stan_usd
+    # v392: koniec bloku eksportu zbóż USA
     # v367 (F5Z2): PRĄD I CO2 (data/prad.json; dział SUROWCE, blok „Prąd i CO2”) — Polska: cena energii w 96 kwadransach dziś i jutro, cena uprawnień do emisji CO2 oraz ceny
     # dnia następnego w 15 strefach Europy (jedno zapytanie na przebieg — limit źródła); części z własnymi bramkami wg terminów publikacji i budżetem czasu; awaria
     # budowniczego = poprzedni plik. META ok: prad_pl, prad_co2, prad_str (dwa nowe źródła: operator sieci przesyłowej i interfejs danych o energii).
@@ -38809,6 +38831,328 @@ def bis2_czesc():
 
 
 ZRODLA_META.update({'bis2_' + n: 'bis' for n in BIS2_PARTS})   # v384: te same statystyki co dotąd (stopy, kursy efektywne, należności) — liczba źródeł bez zmian
+
+
+# ===================== v392 (F11Z6): EKSPORT ZBÓŻ I SOI Z USA WG KRAJU KUPUJĄCEGO (data/usda-eksport.json; publiczne zapytania GET bez klucza) =====================
+# Tygodniowa sprzedaż eksportowa USA (pszenica, kukurydza, soja) wg kraju kupującego z publicznego zbioru danych urzędu rolnictwa USA (zbiór liczony po stronie serwera: sumy, bez pobierania całych tabel).
+# Dzień danych = koniec tygodnia sprawozdawczego (zawsze czwartek, 1426 tygodni bez przerwy od 1999; zbiór odświeżany w całości raz w tygodniu, w czwartek ok. 16:05 UTC, tydzień po zakończeniu tygodnia
+# sprawozdawczego). Plik ma dla każdego towaru: 56 tygodni sum krajowych (sprzedaż netto = nowe umowy minus anulowania, wysyłki, zakontraktowane niewysłane, wysyłki narastająco od początku roku
+# handlowego), 10 największych kupujących z ostatnich 52 tygodni (sprzedaż netto, wysyłki, ostatnie 4 tygodnie, zakontraktowane i wysłane narastająco) i tygodniowe serie sprzedaży netto tych krajów
+# (u soi zawsze także Chiny). Czy tydzień ma wiersz kraju: brak wiersza = brak zgłoszonych umów (w pliku null, nie zero).
+# Rok handlowy: kukurydza i soja od września, pszenica od czerwca. Zmiana roku w źródle (sprawdzone na całej historii 1999-2026, bt_progi.py) ma dwa układy: (A) tydzień kończący rok ma tylko wiersze „kończące” albo tydzień
+# początku nowego roku ma tylko wiersze „rozpoczynające” (pełny zwykły tydzień — tak było dla kukurydzy i soi w latach 2000, 2006, 2017, 2023, dla pszenicy w 2001, 2007, 2012, 2018); (B) tydzień obejmujący 1 września albo
+# 1 czerwca ma oba rodzaje wierszy kraju: sprzedaż netto jest w nich ta sama (wiersz kończący pokazuje sprzedaż na nowy rok jako „następny rok”, rozpoczynający jako „bieżący”) — bierzemy ją z kończącego, a WYSYŁKI są
+# podzielone między rok stary i nowy (wiersz kończący = do końca roku, rozpoczynający = po nim) — dodajemy je. Stany (wysłane narastająco, zakontraktowane) w tygodniu (B) i (A: początek roku) bierzemy z wiersza rozpoczynającego.
+# Pojedynczy wiersz rozpoczynający w zwykłym tygodniu (jeden taki w historii: pszenica 07.05.2026, 67 tys. t) to szum źródła: pomijamy go w przepływach i stanach.
+# Zapytania na przebieg (co USD_EVERY_MIN min): jedno maleńkie o ostatni tydzień i czas załadowania zbioru (te same dwie wartości co w poprzednim pliku = bez dalszych zapytań), a po zmianie cztery:
+# sumy tygodniowe (1), sumy wg krajów z 52 tygodni (2), wiersze rozpoczynające rok wg tygodnia (3, kilkadziesiąt wierszy), serie wybranych krajów (4). Bramki: czwartek, 56 kolejnych tygodni bez dziur, towary kompletne, liczby w zakresach z historii 1999-2026, suma krajów
+# z zapytania (2) = suma krajowa z (1) co do tony (także kraje bez znanego kodu), suma serii kraju z 52 tygodni = jego suma z (2), najwyżej USD_NIEZNANE nazw krajów bez kodu (pomijane w rankingu).
+USD_V = 1
+USD_EVERY_MIN = 180           # min — zbiór zmienia się raz w tygodniu; sprawdzenie (maleńkie zapytanie) co 3 h, a część z błędem: ponowienie po NIEPELNY_MIN (fresh_pelny)
+USD_URL = 'https://agtransport.usda.gov/resource/wnn7-29tu.json'
+USD_PX = 'Eksport zbóż USA'
+USD_TOW = {'Wheat': 'pszenica', 'Corn': 'kukurydza', 'Soybeans': 'soja'}
+USD_TOWL = tuple(USD_TOW.values())
+USD_TIMEOUT = 60              # s — jedno zapytanie
+USD_SLEEP = 0.6               # s — odstęp między zapytaniami
+USD_LIMIT = 20000             # wierszy na odpowiedź — pełna odpowiedź = lista ucięta = błąd
+USD_TYG = 56                  # tygodni w pliku (52 pokazywane + 4 sprzed roku do porównania ostatnich 4 tygodni z tymi samymi sprzed roku)
+USD_TYG52 = 52
+USD_TOP = 10
+USD_MIN_KRAJOW = 5            # tyle krajów z dodatnią sprzedażą netto musi mieć każdy towar (dziś: pszenica 59, kukurydza 50, soja 47 w 52 tygodniach)
+USD_MIN_WIERSZY = 15          # wierszy sprawozdawczych na tydzień i towar (5 lat: kukurydza 27–57, soja 31–53, pszenica 75–154)
+USD_NIEZNANE = 6              # tyle nazw krajów bez kodu (w sumach, bez miejsca w rankingu) jeszcze akceptujemy; więcej = źródło zmieniło nazwy, błąd
+# zakresy z historii 1999-2026 (bt_progi.py: sprzedaż netto −0,6…7,5 mln t, wysyłki do 5,1 mln t, zakontraktowane do 37 mln t, narastające do 85 mln t) z zapasem
+USD_Z = {'ns': (-5e6, 2e7), 'wk': (0, 1.5e7), 'os': (0, 1e8), 'acc': (0, 3e8), 'osc': (0, 1e8)}
+USD_ZK = {'ns': (-5e6, 1.5e7), 'wk': (0, 1e7), 'os': (0, 1e8), 'acc': (0, 3e8), 'osc': (0, 1e8)}   # jeden kraj, 52 tygodnie: sumy do 4 razy większe
+USD_ZK52 = (-3e7, 1.5e8)      # suma sprzedaży netto jednego kraju z 52 tygodni
+USD_SRC = ('CapitalFlowAI — tygodniowa sprzedaż eksportowa pszenicy, kukurydzy i soi z USA wg kraju kupującego z publicznych danych urzędowych; dzień danych = koniec tygodnia sprawozdawczego (czwartek), '
+           'pobranie w part_at (UTC), czas załadowania zbioru w upd')
+# nazwy krajów w źródle → kod ISO 3166-1 alfa-2; grupy bez kraju: ZZ nieznane miejsce przeznaczenia, BX Belgia i Luksemburg, WA Afryka Zachodnia (gdzie indziej niewymieniona),
+# LW Wyspy Nawietrzne i Zawietrzne, FW Francuskie Indie Zachodnie, AN Antyle Holenderskie — nazwy grup ze słownika strony
+USD_KRAJE = {
+    'ALGERIA': 'DZ', 'ANGOLA': 'AO', 'AUSTRALIA': 'AU', 'BANGLADESH': 'BD', 'BARBADOS': 'BB', 'BELIZE': 'BZ', 'BRAZIL': 'BR', 'BURMA': 'MM', 'CAMBODIA': 'KH', 'CANADA': 'CA', 'CHILE': 'CL',
+    'CHINA, PEOPLES REPUBLIC OF': 'CN', 'COLOMBIA': 'CO', 'COSTA RICA': 'CR', "COTE D'IVOIRE": 'CI', 'CUBA': 'CU', 'CYPRUS': 'CY', 'DOMINICAN REPUBLIC': 'DO', 'ECUADOR': 'EC', 'EGYPT': 'EG',
+    'EL SALVADOR': 'SV', 'FRANCE': 'FR', 'GERMANY': 'DE', 'GHANA': 'GH', 'GREECE': 'GR', 'GUATEMALA': 'GT', 'GUINEA': 'GN', 'GUYANA': 'GY', 'HAITI': 'HT', 'HONDURAS': 'HN', 'HONG KONG': 'HK',
+    'INDONESIA': 'ID', 'IRAQ': 'IQ', 'IRELAND': 'IE', 'ISRAEL': 'IL', 'ITALY': 'IT', 'JAMAICA': 'JM', 'JAPAN': 'JP', 'JORDAN': 'JO', 'KENYA': 'KE', 'KOREA, REPUBLIC OF': 'KR', 'KUWAIT': 'KW',
+    'LAOS': 'LA', 'LEBANON': 'LB', 'LIBYA': 'LY', 'MALAYSIA': 'MY', 'MAURITANIA': 'MR', 'MAURITIUS AND DEPENDENTS': 'MU', 'MEXICO': 'MX', 'MOROCCO': 'MA', 'MOZAMBIQUE': 'MZ', 'NAMIBIA': 'NA',
+    'NEPAL': 'NP', 'NETHERLANDS': 'NL', 'NEW ZEALAND': 'NZ', 'NICARAGUA': 'NI', 'NIGERIA': 'NG', 'NORWAY': 'NO', 'PAKISTAN': 'PK', 'PANAMA': 'PA', 'PAPUA NEW GUINEA': 'PG', 'PERU': 'PE',
+    'PHILIPPINES': 'PH', 'PORTUGAL': 'PT', 'QATAR': 'QA', 'SAUDI ARABIA': 'SA', 'SENEGAL': 'SN', 'SINGAPORE': 'SG', 'SOMALIA': 'SO', 'SOUTH AFRICA, REPUBLIC OF': 'ZA', 'SPAIN': 'ES',
+    'SRI LANKA': 'LK', 'SURINAM': 'SR', 'SWITZERLAND': 'CH', 'TAIWAN': 'TW', 'TANZANIA, UNITED REPUBLIC OF': 'TZ', 'THAILAND': 'TH', 'TRINIDAD AND TOBAGO': 'TT', 'TUNISIA': 'TN', 'TURKEY': 'TR',
+    'UNITED ARAB EMIRATES': 'AE', 'UNITED KINGDOM': 'GB', 'VENEZUELA': 'VE', 'VIETNAM': 'VN', 'YEMEN': 'YE',
+    'UNKNOWN': 'ZZ', 'BELGIUM-LUXEMBOURG': 'BX', 'WESTERN AFRICA, NEC': 'WA', 'LEEWARD-WINDWARD ISLANDS': 'LW', 'FRENCH WEST INDIES': 'FW', 'NETHERLANDS ANTILLES': 'AN'}
+USD_KOD = {}
+for _n_, _k_ in USD_KRAJE.items():
+    USD_KOD.setdefault(_k_, []).append(_n_)
+del _n_, _k_
+USD_RE_KOD = re.compile(r'^[A-Z]{2}$')
+USD_RE_MY = re.compile(r'^\d{4}/\d{4}$')
+USD_RE_UPD = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$')
+
+
+def usd_dzien(s):
+    """„RRRR-MM-DDT00:00:00.000” (dzień ze źródła) → date; inny zapis, godzina inna niż północ albo nieistniejący dzień = ValueError."""
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}T00:00:00(?:\.0+)?', s):
+        raise ValueError(f'zły dzień {str(s)[:30]!r}')
+    try:
+        return datetime.date.fromisoformat(s[:10])
+    except ValueError:
+        raise ValueError(f'zły dzień {s[:10]!r}') from None
+
+
+def usd_liczba(x, zak, co):
+    """Liczba z odpowiedzi (tekst dziesiętny albo liczba) w zakresie zak → int (tony; źródło podaje całe tony); „null”, pusty tekst, wartość logiczna, nie-liczba, NaN i poza zakresem = ValueError."""
+    if isinstance(x, bool):
+        raise ValueError(f'{co}: wartość logiczna')
+    if isinstance(x, (int, float)):
+        v = float(x)
+    elif isinstance(x, str):
+        try:
+            v = float(x.strip())
+        except ValueError:
+            raise ValueError(f'{co}: nie liczba ({x[:12]!r})') from None
+    else:
+        raise ValueError(f'{co}: zły typ')
+    if v != v or not zak[0] <= v <= zak[1]:
+        raise ValueError(f'{co}: poza zakresem ({v})')
+    return int(round(v))
+
+
+def usd_tygodnie(asof):
+    """56 kolejnych czwartków kończących się na ostatnim tygodniu sprawozdawczym (rosnąco)."""
+    return [asof - datetime.timedelta(days=7 * k) for k in range(USD_TYG - 1, -1, -1)]
+
+
+def parse_usd_meta(j, dzis):
+    """Odpowiedź o ostatnim tygodniu i czasie załadowania zbioru → (dzień ostatniego tygodnia, czas załadowania, liczba wierszy). Tydzień nie kończy się w czwartek albo wyprzedza dzień przebiegu = błąd."""
+    if not (isinstance(j, list) and len(j) == 1 and isinstance(j[0], dict)):
+        raise RuntimeError('odpowiedź o ostatnim tygodniu ma zły kształt')
+    r = j[0]
+    asof = usd_dzien(r.get('d'))
+    if asof.weekday() != 3:
+        raise RuntimeError(f'ostatni tydzień {asof} nie kończy się w czwartek')
+    if asof > dzis or (dzis - asof).days > 400:
+        raise RuntimeError(f'ostatni tydzień {asof} poza oknem')
+    u = r.get('u')
+    if not isinstance(u, str) or not USD_RE_UPD.match(u):
+        raise RuntimeError('zły czas załadowania zbioru')
+    return asof, u, usd_liczba(r.get('n'), (1e5, 1e8), 'liczba wierszy zbioru')
+
+
+def parse_usd_sumy(rows, dni):
+    """Sumy tygodniowe wszystkich krajów → {towar: {'w': [[dzień, sprzedaż netto, wysyłki, zakontraktowane razem, wysłane narastająco]] (56 tygodni, rosnąco, tony), 'my': rok handlowy, 'out': zakontraktowane niewysłane
+    w roku bieżącym, 'kind': {dzień: rodzaj tygodnia}}}. Rodzaje: zw — zwykły (albo kończący rok bez rozpoczynającego); zm — zmiana roku w jednym tygodniu (oba wiersze: sprzedaż netto z kończącego, wysyłki z obu, stany
+    z rozpoczynającego); po — początek nowego roku (tylko wiersz rozpoczynający = zwykły tydzień); sz — zwykły tydzień z pojedynczym wierszem rozpoczynającym (szum, pomijany). Brak tygodnia, powtórzony wiersz, mało
+    wierszy, zły znacznik roku handlowego, liczby poza zakresem = błąd. Towary spoza listy pomijamy."""
+    ocz, g = set(dni), {}
+    for r in rows:
+        if not isinstance(r, dict):
+            raise RuntimeError('sumy: wiersz ma zły kształt')
+        tow = USD_TOW.get(r.get('commodity'))
+        if tow is None:
+            continue
+        d = usd_dzien(r.get('date'))
+        if d not in ocz:
+            raise RuntimeError(f'sumy {tow}: tydzień {d} poza oknem')
+        my = r.get('my')
+        if my not in (None, 'ENDING MY', 'STARTING MY'):
+            raise RuntimeError(f'sumy {tow}: nieznany znacznik roku handlowego {str(my)[:20]!r}')
+        typ = 'p' if my == 'STARTING MY' else ('e' if my == 'ENDING MY' else 'f')
+        a = g.setdefault((tow, d), {})
+        if typ in a or (typ in 'ef' and (a.get('e') or a.get('f'))):
+            raise RuntimeError(f'sumy {tow}: powtórzony wiersz {d}')
+        mr = r.get('myear')
+        if not isinstance(mr, str) or not USD_RE_MY.match(mr):
+            raise RuntimeError(f'sumy {tow}: zły rok handlowy {str(mr)[:12]!r}')
+        a[typ] = {c: usd_liczba(r.get(c), USD_Z[c], f'sumy {tow} {c}') for c in ('ns', 'wk', 'os', 'acc', 'osc')}
+        a[typ]['n'] = usd_liczba(r.get('n'), (0, 1e6), f'sumy {tow} liczba wierszy')
+        a[typ]['my'] = mr
+    out = {}
+    for tow in USD_TOWL:
+        w, st, kind = [], None, {}
+        for d in dni:
+            a = g.get((tow, d))
+            if not a:
+                raise RuntimeError(f'sumy {tow}: brak tygodnia {d}')
+            if 'f' in a or 'e' in a:
+                fl = a.get('f') or a['e']
+                rodz = 'zm' if ('p' in a and 'e' in a) else ('sz' if 'p' in a else 'zw')
+            else:
+                fl, rodz = a['p'], 'po'
+            if fl['n'] < USD_MIN_WIERSZY:
+                raise RuntimeError(f'sumy {tow}: tydzień {d} ma tylko {fl["n"]} wierszy (min. {USD_MIN_WIERSZY})')
+            st = a['p'] if rodz in ('zm', 'po') else fl
+            kind[d] = rodz
+            w.append([d.isoformat(), fl['ns'], fl['wk'] + (a['p']['wk'] if rodz == 'zm' else 0), fl['os'], st['acc']])
+        out[tow] = {'w': w, 'my': st['my'], 'out': st['osc'], 'kind': kind}
+    return out
+
+
+def usd_kod(nazwa):
+    """Nazwa kraju ze źródła → kod (USD_KRAJE) albo None."""
+    return USD_KRAJE.get(nazwa) if isinstance(nazwa, str) else None
+
+
+def parse_usd_kraje(rows, rows_p, sumy):
+    """Sumy 52 tygodni wg kraju (sprzedaż netto, wysyłki) → ({towar: {kod: [sprzedaż netto, wysyłki]}}, {nazwy krajów bez kodu}). rows — wiersze zwykłe i kończące rok; rows_p — wiersze rozpoczynające rok wg tygodnia:
+    w tygodniu zmiany roku (zm) dokładamy z nich tylko wysyłki, w tygodniu początku roku (po) także sprzedaż netto, w pozostałych (szum) pomijamy. Bramka: suma wszystkich krajów (także bez kodu) każdego towaru
+    = suma krajowa z 52 ostatnich tygodni sum tygodniowych co do tony."""
+    kr, nie, tot = {t: {} for t in USD_TOWL}, set(), {t: [0, 0] for t in USD_TOWL}
+
+    def dodaj(tow, r, ns, wk):
+        tot[tow][0] += ns
+        tot[tow][1] += wk
+        kod = usd_kod(r.get('country'))
+        if kod is None:
+            nie.add(str(r.get('country'))[:40])
+            return
+        a = kr[tow].setdefault(kod, [0, 0])
+        a[0] += ns
+        a[1] += wk
+    for r in rows:
+        if not isinstance(r, dict):
+            raise RuntimeError('kraje: wiersz ma zły kształt')
+        tow = USD_TOW.get(r.get('commodity'))
+        if tow is None:
+            continue
+        dodaj(tow, r, usd_liczba(r.get('ns'), USD_ZK52, f'kraje {tow} sprzedaż'), usd_liczba(r.get('wk'), (0, 1.5e8), f'kraje {tow} wysyłki'))
+    for r in rows_p:
+        if not isinstance(r, dict):
+            raise RuntimeError('kraje: wiersz rozpoczynający rok ma zły kształt')
+        tow = USD_TOW.get(r.get('commodity'))
+        if tow is None:
+            continue
+        rodz = sumy[tow]['kind'].get(usd_dzien(r.get('date')))
+        if rodz not in ('zm', 'po'):
+            continue   # szum (pojedynczy wiersz rozpoczynający w zwykłym tygodniu) albo tydzień poza oknem 52 tygodni
+        ns, wk = usd_liczba(r.get('ns'), USD_ZK52, f'kraje {tow} sprzedaż (nowy rok)'), usd_liczba(r.get('wk'), (0, 1.5e8), f'kraje {tow} wysyłki (nowy rok)')
+        dodaj(tow, r, ns if rodz == 'po' else 0, wk)
+    for tow in USD_TOWL:
+        w = sumy[tow]['w'][-USD_TYG52:]
+        if abs(tot[tow][0] - sum(x[1] for x in w)) > 1 or abs(tot[tow][1] - sum(x[2] for x in w)) > 1:
+            raise RuntimeError(f'kraje {tow}: suma krajów ({tot[tow][0]}; {tot[tow][1]}) ≠ suma krajowa 52 tygodni ({sum(x[1] for x in w)}; {sum(x[2] for x in w)})')
+    if len(nie) > USD_NIEZNANE:
+        raise RuntimeError(f'kraje: {len(nie)} nazw bez kodu (źródło zmieniło nazwy?): {sorted(nie)[:3]}')
+    return kr, nie
+
+
+def usd_wybor(kr):
+    """Dziesięciu największych kupujących każdego towaru wg sprzedaży netto z 52 tygodni (tylko dodatnia; remis: kod); soja dodatkowo Chiny w seriach. → {towar: [kody]}."""
+    out = {}
+    for tow in USD_TOWL:
+        L = sorted(((v[0], k) for k, v in kr[tow].items() if v[0] > 0), key=lambda x: (-x[0], x[1]))
+        if len(L) < USD_MIN_KRAJOW:
+            raise RuntimeError(f'kraje {tow}: tylko {len(L)} krajów z dodatnią sprzedażą netto (min. {USD_MIN_KRAJOW})')
+        out[tow] = [k for _, k in L[:USD_TOP]]
+    return out
+
+
+def parse_usd_serie(rows, sumy, kr, wybor, asof):
+    """Serie tygodniowe wybranych krajów (sprzedaż netto) i stany z ostatniego tygodnia → {towar: {'top': [[kod, sprzedaż 52 tyg., wysyłki 52 tyg., sprzedaż 4 tyg., zakontraktowane, wysłane narastająco]], 'ser': {kod: [56 liczb
+    albo null]}}}. Tydzień bez wiersza kraju = null (brak zgłoszonych umów, nie zero). Bramka: suma serii kraju z 52 tygodni = jego suma z zapytania o kraje."""
+    dni = [x[0] for x in sumy[USD_TOWL[0]]['w']]
+    ix = {d: i for i, d in enumerate(dni)}
+    ser = {t: {k: [None] * USD_TYG for k in (wybor[t] + (['CN'] if t == 'soja' and 'CN' not in wybor[t] else []))} for t in USD_TOWL}
+    kon = {t: {} for t in USD_TOWL}   # kod → {'e': zwykły/kończący, 'p': rozpoczynający} w ostatnim tygodniu
+    wid = set()
+    for r in rows:
+        if not isinstance(r, dict):
+            raise RuntimeError('serie: wiersz ma zły kształt')
+        tow = USD_TOW.get(r.get('commodity'))
+        kod = usd_kod(r.get('country'))
+        if tow is None or kod not in ser[tow]:
+            continue
+        d = usd_dzien(r.get('date')).isoformat()
+        if d not in ix:
+            raise RuntimeError(f'serie {tow}: tydzień {d} poza oknem')
+        my = r.get('my')
+        if my not in (None, 'ENDING MY', 'STARTING MY'):
+            raise RuntimeError(f'serie {tow}: nieznany znacznik roku handlowego {str(my)[:20]!r}')
+        kl = (tow, kod, d, my)
+        if kl in wid:
+            raise RuntimeError(f'serie {tow}: powtórzony wiersz {kod} {d}')
+        wid.add(kl)
+        v = {c: usd_liczba(r.get(c), USD_ZK[c], f'serie {tow} {kod} {c}') for c in ('ns', 'wk', 'osc', 'acc')}
+        if my != 'STARTING MY' or sumy[tow]['kind'][datetime.date.fromisoformat(d)] == 'po':   # wiersz rozpoczynający: sprzedaż netto tylko w tygodniu początku roku (poza nim to powtórzenie sprzedaży z wiersza kończącego)
+            ser[tow][kod][ix[d]] = (ser[tow][kod][ix[d]] or 0) + v['ns']
+        if d == asof:
+            kon[tow].setdefault(kod, {})['p' if my == 'STARTING MY' else 'e'] = v
+    out = {}
+    for tow in USD_TOWL:
+        top = []
+        for k in wybor[tow]:
+            s52 = sum(x for x in ser[tow][k][-USD_TYG52:] if x is not None)
+            if s52 != kr[tow][k][0]:
+                raise RuntimeError(f'serie {tow} {k}: suma serii z 52 tygodni ({s52}) ≠ suma z zapytania o kraje ({kr[tow][k][0]})')
+            a = kon[tow].get(k) or {}
+            st = a.get('p') if sumy[tow]['kind'][datetime.date.fromisoformat(asof)] in ('zm', 'po') else a.get('e')   # stany: w tygodniu zmiany i początku roku — wiersz rozpoczynający; poza nim zwykły (pojedynczy rozpoczynający = szum)
+            top.append([k, kr[tow][k][0], kr[tow][k][1], sum(x for x in ser[tow][k][-4:] if x is not None), st['osc'] if st else None, st['acc'] if st else None])
+        out[tow] = {'top': top, 'ser': ser[tow]}
+    return out
+
+
+def usd_zapytanie(**p):
+    """Jedno zapytanie GET (publiczne, bez klucza) z odstępem USD_SLEEP; zbyt pełna odpowiedź (USD_LIMIT) = lista ucięta."""
+    qs = '&'.join(f'${k}=' + urllib.parse.quote(str(v), safe='') for k, v in p.items())
+    time.sleep(USD_SLEEP)
+    j = get_json(f'{USD_URL}?{qs}', timeout=USD_TIMEOUT)
+    if not isinstance(j, list):
+        raise RuntimeError('odpowiedź ma zły kształt')
+    if len(j) >= USD_LIMIT:
+        raise RuntimeError(f'lista ucięta (limit {USD_LIMIT} wierszy)')
+    return j
+
+
+def usd_czesc(prev, dzis):
+    """Pobranie i rozbiór: zapytanie o ostatni tydzień i czas załadowania; bez zmian względem poprzedniego pliku — jego dane; inaczej trzy zapytania i pełny rozbiór."""
+    asof, upd, nw = parse_usd_meta(usd_zapytanie(select='max(date) as d,max(:updated_at) as u,count(*) as n'), dzis)
+    if isinstance(prev, dict) and prev.get('v') == USD_V and (prev.get('asof'), prev.get('upd'), prev.get('nw')) == (asof.isoformat(), upd, nw) \
+            and isinstance(prev.get('tow'), dict) and set(prev['tow']) == set(USD_TOWL):
+        return {k: prev[k] for k in ('asof', 'upd', 'nw', 'tow', 'nie')}, False
+    dni = usd_tygodnie(asof)
+    od56, od52 = dni[0].isoformat(), dni[-USD_TYG52].isoformat()
+    sumy = parse_usd_sumy(usd_zapytanie(
+        select='date,commodity,my,myear,sum(net_sales_total) as ns,sum(wkexportscmy) as wk,sum(outstanding_sales_total) as os,sum(accexportscmy) as acc,sum(outsalescmy) as osc,count(*) as n',
+        where=f"date>='{od56}'", group='date,commodity,my,myear', limit=USD_LIMIT), dni)
+    kr, nie = parse_usd_kraje(usd_zapytanie(
+        select='commodity,country,sum(net_sales_total) as ns,sum(wkexportscmy) as wk',
+        where=f"date>='{od52}' and (my is null or my!='STARTING MY')", group='commodity,country', limit=USD_LIMIT), usd_zapytanie(
+        select='date,commodity,country,sum(net_sales_total) as ns,sum(wkexportscmy) as wk',
+        where=f"date>='{od52}' and my='STARTING MY'", group='date,commodity,country', limit=USD_LIMIT), sumy)
+    wybor = usd_wybor(kr)
+    nazwy = sorted({n for t in USD_TOWL for k in wybor[t] + (['CN'] if t == 'soja' else []) for n in USD_KOD.get(k, ())})
+    lista = ','.join("'" + n.replace("'", "''") + "'" for n in nazwy)
+    serie = parse_usd_serie(usd_zapytanie(
+        select='date,commodity,country,my,sum(net_sales_total) as ns,sum(wkexportscmy) as wk,sum(outsalescmy) as osc,sum(accexportscmy) as acc',
+        where=f"date>='{od56}' and country in({lista})", group='date,commodity,country,my', limit=USD_LIMIT), sumy, kr, wybor, asof.isoformat())
+    tow = {t: {'my': sumy[t]['my'], 'out': sumy[t]['out'], 'w': sumy[t]['w'], 'top': serie[t]['top'], 'ser': serie[t]['ser']} for t in USD_TOWL}
+    return {'asof': asof.isoformat(), 'upd': upd, 'nw': nw, 'tow': tow, 'nie': sorted(nie)}, True
+
+
+def build_usda_eksport(prev=None, run_t0=None):
+    """Plik data/usda-eksport.json (v392): jedna część (eksport) z własnym ok / part_at / errs; błąd zostawia dane z poprzedniego pliku z jego chwilą pobrania, nigdy pustkę zamiast ostatnich danych;
+    błąd bez poprzedniego pliku = wyjątek (przebieg główny nic nie zapisuje)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == USD_V else {}
+    dzis = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc).date()
+    out = {'v': USD_V, 'at': NOW, 'src': USD_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    try:
+        czesc, _zmiana = usd_czesc(prev, dzis)
+        out.update(czesc)
+        out['ok']['eksport'] = True
+        out['part_at']['eksport'] = NOW
+    except Exception as e:  # noqa — błąd: poprzednie dane z własną chwilą
+        msg = mask(f'{e}')[:160]
+        META['errors'].append(mask(f'{USD_PX}: {msg}')[:220])
+        if not isinstance(prev.get('tow'), dict):
+            raise RuntimeError(msg) from None
+        out.update({k: prev[k] for k in ('asof', 'upd', 'nw', 'tow', 'nie') if k in prev})
+        out['ok']['eksport'] = False
+        out['errs']['eksport'] = msg
+        out['part_at']['eksport'] = _dict(prev.get('part_at')).get('eksport') or prev.get('at')
+    return out
+
+
+ZRODLA_META.update({'usda_eksport': 'usda'})   # v392: ten sam urząd co raporty zbóż (WASDE) — liczba źródeł bez zmian
 
 
 if __name__ == '__main__':

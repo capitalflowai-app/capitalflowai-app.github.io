@@ -9792,7 +9792,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {/* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {/* v392 */"ux392.c.CN": "de es pt", /* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
 /* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
@@ -29164,4 +29164,191 @@ test('v389 (TRENDY-3): blok rejestracji reguł „w cieniu” wychodzi ze „Szc
   assert.ok(a.w.kids.indexOf(a.sec) === a.w.kids.indexOf(det) + 1, 'panel zaraz pod „Szczegółami”');
   a = run(false);
   assert.deepEqual(a.w.kids.find(c => c.id === 'trd-wiecej').kids[1].kids.map(k => k.n), ['x1', 'section', 'x2'], 'bez bloku rejestracji (widok krypto) — wszystko w „Szczegółach” jak dotąd');
+});
+
+// ===================== v392 (F11Z6): Kto kupuje amerykańskie zboże — eksport USA wg kraju kupującego w GLOBAL (data/usda-eksport.json) =====================
+// Fixtura: plik usda-eksport.json w układzie, jaki buduje zbieracz (ostatni tydzień sprawozdawczy 1.10.2026, 56 tygodni, 10 kupujących na towar, Chiny z lukami bez wpisu). Czas przypięty (Date.now), bez zegara.
+const ux392 = (() => {
+  const a0 = html.indexOf('/* ===================== v392 (F11Z6): KTO KUPUJE'), a1 = html.indexOf('/* ---------- koniec bloku eksportu zbóż USA (v392) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v392 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-09T10:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[  ]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-usaeksport': el};
+    const calls = [], hnd = [], ivs = [], cols = [], bars = [], mos = [], foc = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false, querySelector: q => ({focus() { foc.push(q); }})};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkCols', 'wkBars', 'wkMs', 'wkDay', 'ENG_DN', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {UXP, uxpLoad, renderUxp, uxpOk, uxpTow, uxpBody, uxpT, uxpName};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, n => '<g:' + n + '>', (c, cls) => '<f:' + c + '>', i => i, doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (X, o) => { cols.push({X, o}); return '<cols n=' + X.length + ' first=' + X[0].x + ' last=' + X[X.length - 1].x + ' ser=' + (o.ser ? o.ser.length : 0) + ' aria="' + o.aria + '">'; },
+      (R, o) => { bars.push({R, o}); return '<bars n=' + R.length + ' aria="' + o.aria + '">'; },
+      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), {}, FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    const click = c => { const b = {getAttribute: a => (a === 'data-uxp-c' ? c : null)}; hnd.filter(h => h[0] === 'click').forEach(h => h[1]({target: {closest: s => (/button\[data-uxp-c\]/.test(s) ? b : null)}})); };
+    return {api, els, calls, hnd, ivs, cols, bars, mos, foc, expand, collapse, click, html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), raw: m[3].split('<small')[0], lines: [...m[3].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const thursdays = n => { const out = []; const ms = Date.parse('2026-10-01T12:00:00Z'); for (let i = n - 1; i >= 0; i--) out.push(new Date(ms - i * 7 * 864e5).toISOString().slice(0, 10)); return out; };
+  const KR = {soja: ['CN', 'EG', 'MX', 'ID', 'JP', 'ZZ', 'VN', 'DE', 'TW', 'DZ'], kukurydza: ['MX', 'JP', 'CO', 'KR', 'ES', 'TW', 'VE', 'VN', 'HN', 'GT'], pszenica: ['MX', 'PH', 'JP', 'KR', 'TW', 'NG', 'TH', 'ID', 'VN', 'BD']};
+  const tow = (kody, soja) => {
+    const dd = thursdays(56), last = dd.length - 1;
+    const w = dd.map((d, i) => [d, i === last ? 549377 : 400000 + 1000 * i, i === last ? 1379657 : 600000 + 2000 * i, i === last ? 18851394 : 5000000 + 100000 * i, i === last ? 3934835 : 300000 + 60000 * i]);
+    const ser = {}, top = [];
+    kody.forEach((c, ci) => {
+      ser[c] = dd.map((d, i) => (soja && c === 'CN' && [0, 9, 20, 31, 42].includes(i)) ? null : 10000 * (10 - ci) + 100 * i);
+      const s = ser[c], sum = a => a.reduce((x, y) => x + (y === null ? 0 : y), 0);
+      top.push([c, sum(s.slice(-52)), 400000 * (10 - ci), sum(s.slice(-4)), 300000 * (10 - ci), 200000 * (10 - ci)]);
+    });
+    return {my: '2026/2027', out: 12141511, w, top, ser};
+  };
+  const J = () => ({v: 1, at: '2026-10-09T09:00:00+00:00', src: 'x', ok: {eksport: true}, part_at: {eksport: '2026-10-09T09:00:00+00:00'}, errs: {}, asof: '2026-10-01', upd: '2026-10-08T16:05:08.474Z', nw: 327637, nie: [],
+    tow: {pszenica: tow(KR.pszenica, false), kukurydza: tow(KR.kukurydza, false), soja: tow(KR.soja, true)}});
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {usda_eksport: 'cached'}} : meta, 'usda-eksport': j === undefined ? J() : j});
+  return {mk, tiles, files, J, sp, txt, code, helpers, clone, LOC, KR};
+})();
+
+test('v392 (F11Z6): eksport USA — nagłówek od razu, plik dopiero po rozwinięciu karty, cztery kafle z tonami, datą i wiekiem, zmianą r/r w kolorach kierunku, wykresy i ranking z flagami', () => {
+  const K = ux392.mk('pl', ux392.files());
+  assert.equal(K.els['#g-usaeksport'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Kto kupuje amerykańskie zboże i soję</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Dane zostaną wczytane po rozwinięciu panelu.') && ux392.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku eksportu'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'usda-eksport'], 'po rozwinięciu jedno pobranie pliku'); h = K.html();
+  const T = ux392.tiles(h); assert.equal(T.length, 4, 'sprzedaż netto, wysyłki, zakontraktowane, wysłane narastająco');
+  const [ns, wk, out, acc] = T;
+  assert.equal(ns.label, 'Sprzedaż netto w tygodniu'); assert.equal(ns.val, '+549 tys. t'); assert.ok(ns.raw.includes('<span class="pos">+549 tys. t</span>'), 'dodatnia sprzedaż netto zielona');
+  assert.deepEqual(ns.lines[0], ['pc', 'ostatnie 4 tygodnie: +1,91 mln t']);
+  assert.deepEqual(ns.lines[1], ['pos', '▲ +18,8 % wobec tych samych 4 tygodni przed rokiem'], '(452+453+454+549,377 tys.) wobec (400+401+402+403 tys.): +18,8% — plus zielony');
+  assert.ok(ns.when.includes('1 paź 2026') && ns.when.includes('wiek(2026-10-01)'), 'data danych i wiek: ' + ns.when);
+  assert.equal(wk.label, 'Wysyłki w tygodniu'); assert.equal(wk.val, '1,38 mln t'); assert.deepEqual(wk.lines[0], ['pc', 'ostatnie 4 tygodnie: 3,50 mln t']); assert.deepEqual(wk.lines[1], ['pos', '▲ +45,0 % wobec tych samych 4 tygodni przed rokiem']);
+  assert.equal(out.label, 'Zakontraktowane, jeszcze niewysłane (z następnym rokiem)'); assert.equal(out.val, '18,9 mln t'); assert.deepEqual(out.lines[0], ['pc', 'w tym bieżący rok handlowy 2026/2027: 12,1 mln t']);
+  assert.deepEqual(out.lines[1], ['pos', '▲ +255,7 % wobec tego samego tygodnia przed rokiem'], '(18,85−5,30)/5,30 mln t');
+  assert.equal(acc.label, 'Wysłane od początku roku handlowego'); assert.equal(acc.val, '3,93 mln t'); assert.deepEqual(acc.lines[0], ['pc', 'rok handlowy 2026/2027']); assert.deepEqual(acc.lines[1], ['pos', '▲ +719,8 % wobec tego samego tygodnia przed rokiem']);
+  assert.ok(T.every(x => x.when === ns.when), 'ten sam dzień danych przy każdym kaflu');
+  assert.ok(h.includes('tydzień zakończony 1 paź 2026 · wiek(2026-10-01)'), 'nagłówek z datą tygodnia i wiekiem');
+  // wykresy: tygodniowy (52 tygodnie, dwie serie), ranking (10 krajów), Chiny (52 tygodnie)
+  assert.equal(K.cols.length, 2); const c1 = K.cols[0], c2 = K.cols[1];
+  assert.equal(c1.X.length, 52); assert.equal(c1.o.ser.length, 2); assert.deepEqual(c1.o.ser.map(s => s.cls), ['s1', 's2']); assert.equal(c1.X[51].vs[0], 549.377); assert.equal(c1.X[51].vs[1], 1379.657, 'w tys. t');
+  assert.equal(c1.X[51].tip, '2026-10-01 · sprzedaż netto +549 tys. t · wysyłki 1,38 mln t');
+  assert.equal(K.bars.length, 1); const B = K.bars[0].R; assert.equal(B.length, 10);
+  assert.ok(B[0].l.startsWith('<f:cn>') && B[0].l.includes('Chiny') && B[1].l.includes('Egipt') && B[5].l === 'Miejsce przeznaczenia nieznane', 'flaga i polska nazwa kraju z Intl, grupa ze słownika bez flagi: ' + B[5].l);
+  assert.ok(B.every((r, i) => i === 0 || r.v <= B[i - 1].v), 'malejąco'); assert.equal(B[0].vt.replace(/\s/g, ' '), nfmt0(B[0].v));
+  assert.ok(B[0].tip.includes('Chiny · sprzedaż netto 52 tyg.:') && B[0].tip.includes('ostatnie 4 tyg.:') && B[0].tip.includes('zakontraktowane: 3,00 mln t'), B[0].tip);
+  // Chiny w soi: 52 tygodnie, tydzień bez wpisu = null (pusta kreska), nie zero
+  assert.equal(c2.X.length, 52); assert.equal(c2.X.filter(x => x.v === null).length, 4, 'cztery tygodnie bez wpisu w ostatnich 52'); assert.ok(c2.X.filter(x => x.v === null).every(x => x.tip.endsWith('brak zgłoszonych umów')));
+  assert.ok(h.includes('<f:cn><b>Chiny: zakupy tydzień po tygodniu</b>'));
+  assert.ok(h.includes('Chiny: w ostatnich 4 tygodniach sprzedaż netto +421 tys. t (rok wcześniej w tych samych tygodniach: +301 tys. t); w ostatnich 52 tygodniach'), ux392.txt(h).slice(ux392.txt(h).indexOf('Chiny: w ostatnich'), 400));
+  assert.ok(h.includes('w 4 z 52 tygodni brak zgłoszonych umów.'));   // luki w tygodniach 9, 20, 31, 42 (tydzień 0 leży poza ostatnimi 52)
+  function nfmt0(v) { return Math.round(v).toLocaleString('pl-PL').replace(/\s/g, ' '); }
+});
+
+test('v392 (F11Z6): eksport USA — przełącznik towaru (soja, kukurydza, pszenica) bez nowego pobrania, kupujący i największy kupujący zależą od towaru', () => {
+  const K = ux392.mk('pl', ux392.files(), {open: true}); K.expand();
+  let h = K.html();
+  assert.ok(/data-uxp-c="soja" aria-pressed="true"/.test(h) && /data-uxp-c="kukurydza" aria-pressed="false"/.test(h) && /data-uxp-c="pszenica" aria-pressed="false"/.test(h), 'domyślnie soja');
+  const n0 = K.calls.length; K.click('kukurydza'); h = K.html();
+  assert.ok(/data-uxp-c="kukurydza" aria-pressed="true"/.test(h) && /data-uxp-c="soja" aria-pressed="false"/.test(h)); assert.equal(K.calls.length, n0, 'przełączenie towaru bez nowego pobrania');
+  const B = K.bars[K.bars.length - 1].R; assert.ok(B[0].l.includes('Meksyk') && B[1].l.includes('Japonia') && B[2].l.includes('Kolumbia') && B[3].l.includes('Korea Południowa'), B.map(r => r.l).join('|'));
+  assert.ok(h.includes('Meksyk: zakupy tydzień po tygodniu') && !h.includes('Chiny'), 'u kukurydzy największy kupujący, nie Chiny');
+  assert.equal(K.cols[K.cols.length - 1].X.filter(x => x.v === null).length, 0, 'Meksyk ma wpis w każdym tygodniu');
+  K.click('pszenica'); assert.ok(K.html().includes('Meksyk: zakupy tydzień po tygodniu')); assert.ok(/data-uxp-c="pszenica" aria-pressed="true"/.test(K.html()));
+  const m = K.bars[K.bars.length - 1].R; assert.ok(m[1].l.includes('Filipiny'), m[1].l);
+  K.click('pszenica'); const n1 = K.cols.length; K.click('nie-ma'); assert.equal(K.cols.length, n1, 'ten sam albo nieznany towar = bez przerysowania'); assert.ok(K.foc.length >= 2, 'fokus wraca na wciśnięty przycisk');
+});
+
+test('v392 (F11Z6): eksport USA — brak towaru = „—” i zdanie o braku, nigdy zero; zły plik odrzucony; błąd z poprzednimi danymi; jedno ponowienie na minutę; zegar 30 min', () => {
+  const j = ux392.J(); delete j.tow.soja; j.ok.eksport = false;
+  const K = ux392.mk('pl', ux392.files(j), {open: true}); K.expand(); let h = K.html(), T = ux392.tiles(h);
+  assert.equal(K.api.UXP.c, 'kukurydza', 'domyślny towar zastąpiony pierwszym dostępnym');
+  assert.equal(T.length, 4); assert.ok(h.includes('Ostatnie pobranie nie udało się; pokazujemy poprzednie dane z ich datą.'));
+  K.click('soja'); h = K.html(); T = ux392.tiles(h); assert.equal(T.length, 1); assert.equal(T[0].val, '—'); assert.equal(T[0].lines[0][1], 'Brak odczytu tego towaru.'); assert.ok(!/NaN|undefined/.test(h));
+  // zły plik: wersja, brak czasu, zły dzień, tygodnie nie co 7 dni, liczby poza zakresem, ranking z krajem bez serii
+  const api = ux392.mk('pl', ux392.files()).api, zm = f => { const x = ux392.J(); f(x); return x; };
+  assert.equal(api.uxpOk(ux392.J()), true); assert.equal(api.uxpOk(null), false); assert.equal(api.uxpOk([]), false); assert.equal(api.uxpOk(Object.assign(ux392.J(), {v: 2})), false); assert.equal(api.uxpOk(Object.assign(ux392.J(), {at: 'x'})), false);
+  assert.equal(api.uxpOk(zm(x => { x.asof = 'jutro'; })), false);
+  assert.equal(api.uxpTow(zm(x => { x.tow.soja.w[10][1] = 1e9; }), 'soja'), null, 'sprzedaż poza zakresem — brak towaru, nie zero');
+  assert.equal(api.uxpTow(zm(x => { x.tow.soja.w[10][0] = '2025-12-02'; }), 'soja'), null, 'tygodnie nie co 7 dni');
+  assert.equal(api.uxpTow(zm(x => { x.tow.soja.w.pop(); }), 'soja'), null); assert.equal(api.uxpTow(zm(x => { x.tow.soja.my = '2026'; }), 'soja'), null);
+  assert.equal(api.uxpTow(zm(x => { x.tow.soja.w[3][4] = 1.5; }), 'soja'), null, 'liczba niecałkowita');
+  assert.equal(api.uxpTow(zm(x => { x.tow.soja.top[2][0] = 'XX'; }), 'soja').top.length, 9, 'wiersz rankingu bez serii odrzucony, reszta zostaje');
+  assert.equal(api.uxpTow(zm(x => { x.tow.soja.ser.CN[5] = 'a'; }), 'soja').top.length, 9, 'zła seria kraju odrzucona razem z jego wierszem');
+  assert.equal(api.uxpOk(zm(x => { delete x.tow.soja; delete x.tow.kukurydza; delete x.tow.pszenica; })), false, 'żaden towar poprawny = plik odrzucony');
+  // zły plik przy pierwszym pobraniu: komunikat; kolejna próba (zwinięcie i rozwinięcie) dopiero po minucie
+  const K2 = ux392.mk('pl', ux392.files(Object.assign(ux392.J(), {v: 9}))); K2.expand();
+  assert.ok(K2.html().includes('Nie udało się wczytać danych. Spróbuj za chwilę.')); const n0 = K2.calls.length; K2.collapse(); K2.expand(); assert.equal(K2.calls.length, n0, 'bez pętli zapytań w ciągu minuty');
+  // karta bez części w meta jest schowana
+  const K4 = ux392.mk('pl', ux392.files(undefined, {ok: {kursy: true}})); assert.equal(K4.els['#g-usaeksport'].hidden, true);
+  // zegar 30 min tylko przy rozwiniętej karcie; chwilowy błąd po udanym wczytaniu nie zasłania danych
+  const K3 = ux392.mk('pl', ux392.files()); K3.expand(); assert.equal(ux392.tiles(K3.html()).length, 4); assert.ok(K3.ivs.some(x => x[1] === 30 * 60 * 1000), 'zegar 30 min');
+});
+
+test('v392 (F11Z6): eksport USA — kraje w języku widza, słownik 10 języków bez surowych kluczy i bez nazw dostawców, tony, brak szarych strzałek', () => {
+  const D = ux392.mk('pl', ux392.files()).api;
+  assert.equal(D.uxpT(1500000), '1,50 mln t'); assert.equal(D.uxpT(12141511), '12,1 mln t'); assert.equal(D.uxpT(549377, true), '+549 tys. t'); assert.equal(D.uxpT(-50000, true), '−50 tys. t'); assert.equal(D.uxpT(800), '800 t');
+  assert.equal(D.uxpT(0, true), '0 t'); assert.equal(D.uxpT(999999), '1,00 mln t'); assert.equal(D.uxpT(null), '—'); assert.equal(D.uxpT(NaN), '—');
+  assert.equal(D.uxpName('MX'), 'Meksyk'); assert.equal(D.uxpName('CN'), 'Chiny', 'nazwa Chin ze słownika, niezależna od wersji danych przeglądarki'); assert.equal(D.uxpName('ZZ'), 'Miejsce przeznaczenia nieznane'); assert.equal(D.uxpName('BX'), 'Belgia i Luksemburg'); assert.equal(D.uxpName('XX'), 'XX');
+  assert.equal(ux392.mk('en', ux392.files()).api.uxpName('MX'), 'Mexico'); assert.equal(ux392.mk('de', ux392.files()).api.uxpName('KR'), 'Südkorea'); assert.equal(ux392.mk('ja', ux392.files()).api.uxpName('KR'), '韓国'); assert.ok(ux392.mk('zh', ux392.files()).api.uxpName('JP') === '日本');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const K = ux392.mk(L, ux392.files(), {open: true}); K.expand(); let h = K.html();
+    for (const c of ['kukurydza', 'pszenica', 'soja']) {
+      K.click(c); h = K.html(); const t = ux392.txt(h);
+      assert.ok(h.length > 1500 && !/ux392\./.test(h) && !/\{[a-z]+\}/.test(h) && !/NaN|undefined|Infinity/.test(h), L + '/' + c + ': brak surowych kluczy i pól: ' + (h.match(/ux392\.[a-z.]+|\{[a-z]+\}/) || [''])[0]);
+      assert.ok(!/USDA|agtransport|Socrata|Foreign Agricultural|FAS\b/i.test(h), L + ': bez nazw dostawców');
+      assert.ok(!/class="[^"]*\b(gr|grey|gray)\b/.test(h), L + ': bez szarych klas'); assert.ok(!/<small class="na">[▲▼]/.test(h), 'brak szarych strzałek');
+      assert.equal(ux392.tiles(h).length, 4, L + '/' + c);
+    }
+  }
+  const h = ux392.mk('pl', ux392.files(), {open: true}).html(); assert.ok(!/<small class="na">[▲▼]/.test(h));
+});
+
+test('v392 (F11Z6): eksport USA — style: telefon 390 px bez przewijania w bok (kafle jeden pod drugim, długie napisy łamane), tylko zmienne motywu, karta po panelu USA (po surowcach), blok nie czyta sieci ani pamięci przeglądarki', () => {
+  const i0 = html.indexOf('/* v392 (F11Z6): eksport zbóż i soi z USA'), css = html.slice(i0, i0 + 3000);
+  assert.ok(i0 > 0 && css.includes('@media (max-width:620px){#g-usaeksport .etfkpis{grid-template-columns:minmax(0,1fr)}}'), 'jedna kolumna kafli na telefonie');
+  assert.ok(/#g-usaeksport \.etfkpis\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/.test(css) && /#g-usaeksport \.etfk b\{[^}]*overflow-wrap:anywhere/.test(css) && /#g-usaeksport \.uxp-top\{display:flex;flex-wrap:wrap/.test(css), 'siatka z minmax(0,…) i łamanie');
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgb\(/.test(css.slice(0, css.indexOf('@media (max-width:620px)') + 80)), 'kolory tylko ze zmiennych motywu');
+  assert.ok(/#g-usaeksport \.etfk b small\.pos,#g-usaeksport \.etfk b span\.pos\{color:var\(--gr-tx\)\}/.test(css) && /small\.neg,#g-usaeksport \.etfk b span\.neg\{color:var\(--rd-tx\)\}/.test(css) && /span\.neu\{color:var\(--yl-tx\)\}/.test(css), 'plus zielony, minus czerwony, zero żółty');
+  const i1 = html.indexOf('<section class="panel pcard" id="g-usa" hidden></section>'), i2 = html.indexOf('<section class="panel pcard" id="g-usaeksport" hidden></section>');
+  assert.ok(i1 > 0 && i2 > i1 && i2 - i1 < 200 && html.indexOf('id="g-surowce"') < i1, 'karta zaraz po panelu USA, który stoi po panelu surowców');
+  assert.ok(!/localStorage|sessionStorage|tradingview/i.test(ux392.code) && !/\bfetch\(|XMLHttpRequest/.test(ux392.code), 'blok czyta tylko przez srvJSON');
+  assert.ok(/#g-usaeksport button\[data-uxp-c\]/.test(ux392.code) && ux392.code.includes("type=\"button\""), 'przyciski towaru jako button');
+});
+
+test('v392 (F11Z6): eksport USA — cztery tygodnie bez żadnego wpisu kraju = „brak zgłoszonych umów”, nie „0 t”; liczba tygodni bez wpisu w zdaniu', () => {
+  const J = ux392.J(); J.tow.soja.ser.CN = J.tow.soja.ser.CN.map((x, i) => (i < 4 ? null : x));   // rok wcześniej Chiny nie kupowały w tych czterech tygodniach
+  const K = ux392.mk('pl', ux392.files(J), {open: true}); K.expand(); const t = ux392.txt(K.html());
+  assert.ok(t.includes('rok wcześniej w tych samych tygodniach: brak zgłoszonych umów)'), 'cztery puste tygodnie sprzed roku: ' + t.slice(t.indexOf('Chiny: w ostatnich'), t.indexOf('Chiny: w ostatnich') + 260));
+  assert.ok(!/tygodniach: \+?0 t/.test(t), 'bez „0 t”');
+  const j2 = ux392.J(); const K2 = ux392.mk('pl', ux392.files(j2), {open: true}); K2.expand(); const t2 = ux392.txt(K2.html());
+  assert.ok(t2.includes('rok wcześniej w tych samych tygodniach: +301 tys. t)'), 'z jednym wpisem w czterech tygodniach — suma: ' + t2.slice(t2.indexOf('Chiny: w ostatnich'), t2.indexOf('Chiny: w ostatnich') + 260));
+  const J3 = ux392.J(); J3.tow.soja.ser.CN = J3.tow.soja.ser.CN.map((x, i) => (i >= 52 ? null : x)); const K3 = ux392.mk('pl', ux392.files(J3), {open: true}); K3.expand();
+  assert.ok(ux392.txt(K3.html()).includes('w ostatnich 4 tygodniach sprzedaż netto brak zgłoszonych umów (rok'), 'ostatnie cztery tygodnie bez wpisu');
+});
+
+test('v392 (F11Z6): eksport USA — kolor sprzedaży netto z POKAZANEJ liczby (minus czerwony, zero żółte), największy kupujący soi to Chiny także gdy ranking ma inną kolejność', () => {
+  const J = ux392.J(); const w = J.tow.soja.w; w[w.length - 1][1] = -100000;
+  let T = ux392.tiles(ux392.mk('pl', ux392.files(J), {open: true}).html()); const K0 = ux392.mk('pl', ux392.files(J), {open: true}); K0.expand(); T = ux392.tiles(K0.html());
+  assert.equal(T[0].val, '−100 tys. t'); assert.ok(T[0].raw.includes('<span class="neg">−100 tys. t</span>'), 'minus czerwony');
+  w[w.length - 1][1] = 0; const K1 = ux392.mk('pl', ux392.files(J), {open: true}); K1.expand(); T = ux392.tiles(K1.html());
+  assert.equal(T[0].val, '0 t'); assert.ok(T[0].raw.includes('<span class="neu">0 t</span>'), 'zero żółte');
+  const J2 = ux392.J(); const top = J2.tow.soja.top; [top[0], top[1]] = [top[1], top[0]];
+  const K2 = ux392.mk('pl', ux392.files(J2), {open: true}); K2.expand(); const h = K2.html();
+  assert.ok(h.includes('<b>Chiny: zakupy tydzień po tygodniu</b>') && !h.includes('Egipt: zakupy'), 'u soi Chiny, nie pierwszy z rankingu');
+  const J3 = ux392.J(); delete J3.tow.soja.ser.CN; J3.tow.soja.top = J3.tow.soja.top.filter(r => r[0] !== 'CN');
+  const K3 = ux392.mk('pl', ux392.files(J3), {open: true}); K3.expand(); assert.ok(K3.html().includes('<b>Egipt: zakupy tydzień po tygodniu</b>'), 'bez Chin w seriach — największy z rankingu');
 });
