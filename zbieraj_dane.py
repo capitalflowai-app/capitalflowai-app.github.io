@@ -32832,6 +32832,9 @@ def main():
     # v397 (F11Z11): dźwignia krypto 2 — data/dzwignia2.json; nastroje detalu i kredyt marżowy (OKX: konta i najwięksi gracze long/short, wolumen agresora, pożyczki marżowe; Bitfinex: pozycje marżowe, pożyczki USD),
     # publiczne zapytania bez klucza, co D2_EVERY_MIN min; nic z tego pliku nie wchodzi do sumy „wszystkie giełdy razem” (dzwignia.json)
     META['ok']['dzwignia2_okx'], META['ok']['dzwignia2_bfx'] = d2_czesc()
+    # v403 (F11Z16): Ethereum i warstwa 2 — data/eth-lancuch.json; kolejki wpłat i wyjść walidatorów (odpowiedzi węzła czytane strumieniowo), podaż i spalanie ETH, aktywność sieci L2, kontrola TVL drugim źródłem;
+    # cztery części z własnym rytmem (wal 6 h, spal 1 h, l2 i tvs 3 h), publiczne zapytania bez klucza
+    META['ok']['eth_wal'], META['ok']['eth_spal'], META['ok']['eth_l2'], META['ok']['eth_tvs'] = eth_czesc()
     # v402 (F11Z15): DeFi 2 — data/defi2.json; opłaty i przychody protokołów, ceny stablecoinów, włamania, opcje na DEX; publiczne zapytania bez klucza, każda część raz na dobę UTC (ta sama usługa co stablecoiny i DEX)
     META['ok']['defi2_fees'], META['ok']['defi2_peg'], META['ok']['defi2_hacks'], META['ok']['defi2_opt'] = df2_czesc()
     # v394 (F11Z8): premie lokalnych stablecoinów USDT wobec kursu referencyjnego — data/premie-stable.json; zapytania tylko w oknie po opublikowaniu kursu (raz na dzień roboczy), poza nim sam zapis pliku
@@ -43022,6 +43025,524 @@ def df2_czesc():
 
 
 ZRODLA_META.update({'defi2_' + n: 'defillama' for n in DF2_PARTS})   # v402: ta sama usługa co stablecoiny, RWA, giełdy i DEX — liczba źródeł bez zmian
+
+
+# ===================== v403 (F11Z16): ETHEREUM I WARSTWA 2 — KOLEJKI STAKINGU, PODAŻ I SPALANIE, SIECI L2 (data/eth-lancuch.json; publiczne zapytania GET bez klucza) =====================
+# Cztery części jednego pliku, każda z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie (nigdy puste zamiast ostatnich danych):
+#   wal  — publiczny węzeł warstwy konsensusu Ethereum: kolejka wpłat do stakingu (pending_deposits), walidatorzy opuszczający zbiór (status active_exiting) rozdzieleni na WYJŚCIA i ŁĄCZENIE walidatorów
+#          (źródła łączeń z listy pending_consolidations — ETH zostaje w stakingu), częściowe wypłaty nadwyżek, limit przepływu na epokę z konfiguracji sieci. Odpowiedzi są duże (nieskompresowane 7–9 MB),
+#          więc czytane STRUMIENIOWO (Accept-Encoding: gzip, rozpakowanie na bieżąco, sumy z kawałków), z limitem bajtów po drodze i po rozpakowaniu oraz limitem czasu; przekroczenie = błąd części, NIGDY suma
+#          z połowy odpowiedzi. Część hostów oddaje całość mimo nagłówka Range, więc Range nie jest używany. Raz na ETH_EVERY['wal'] min; historia dobowa kolejek (ostatni odczyt doby UTC, ETH_HIST dób).
+#   spal — spalone ETH (1, 7, 30 dób i od The Merge) i podaż ETH w czasie (30 dób, od The Merge): zmiana podaży i szacunek rocznej inflacji; emisja = zmiana podaży + spalone (kontrola wiarygodności).
+#   l2   — aktywność sieci wokół Ethereum (warstwa 2 i pokrewne): transakcje, aktywne adresy, opłaty, stablecoiny, TVL, dane w blobach i ich koszt; dzień danych = najnowszy dzień z kompletem sieci
+#          (≥ ETH_POKR udziału największej liczby sieci), seria dobowa ETH_SER dób, Ethereum L1 jako odniesienie. Długi format (metric_key, origin_key, date, value) pobierany strumieniowo (gzip).
+#   tvs  — drugie, niezależne źródło wartości zabezpieczonej sieci L2 (kontrola TVL; nieudokumentowane API — NIGDY jedyne źródło liczby na stronie, tylko porównanie).
+# Zasady: brak = brak (nigdy zero); wartości poza pasmem wiarygodności albo zły układ odpowiedzi = błąd części; kolejki to SZACUNEK czasu (limit 256 ETH na epokę i 16 wpłat na epokę z konfiguracji sieci).
+ETH_V = 1
+ETH_EVERY_MIN = 60          # min — plik; część z błędem ponawiana po NIEPELNY_MIN (fresh_pelny)
+ETH_EVERY = {'wal': 360, 'spal': 60, 'l2': 180, 'tvs': 180}   # min — najrzadziej tyle odpytujemy daną część
+ETH_PARTS = ('wal', 'spal', 'l2', 'tvs')
+ETH_LABEL = {'wal': 'kolejki stakingu', 'spal': 'spalanie i podaż', 'l2': 'sieci L2', 'tvs': 'kontrola TVL'}
+ETH_PX = 'Ethereum i L2'
+ETH_BEACON = 'https://ethereum-beacon-api.publicnode.com/eth/v1/'
+ETH_ULTRA = 'https://ultrasound.money/api/v2/fees/'
+ETH_GP_URL = 'https://api.growthepie.xyz/v1/fundamentals.json'
+ETH_L2B_URL = 'https://l2beat.com/api/scaling/summary'
+ETH_TIMEOUT = 20            # s — jedno małe zapytanie / jedna operacja gniazda
+ETH_STREAM_S = 45           # s — najdłużej jedna odpowiedź czytana strumieniowo
+ETH_WAL_S = 110             # s — budżet całej części wal
+ETH_WIRE_MAX = 12_000_000   # bajtów po drodze (gzip: ok. 1–3 MB, bez gzip: 7–9 MB)
+ETH_RAW_MAX = 40_000_000    # bajtów po rozpakowaniu (ochrona przed „bombą” gzip)
+ETH_SLEEP = 0.5             # s — odstęp między zapytaniami do jednego węzła
+ETH_GENESIS = 1606824023    # s — czas startu łańcucha sygnałowego (stały)
+ETH_GLOWA_MAX_MIN = 20      # min — głowa łańcucha starsza niż tyle (czas slotu wobec chwili przebiegu) = węzeł stoi
+ETH_HIST = 90               # dób historii kolejek
+ETH_SER = 60                # dób serii sieci L2
+ETH_SPAL_SER = 31           # dób serii podaży
+ETH_POKR = 0.85             # dzień sieci L2 uznany za kompletny, gdy ma wartość od tego udziału największej liczby sieci w oknie
+ETH_L2_WIEK_MAX_DNI = 4     # dzień danych L2 starszy niż tyle dób wobec doby przebiegu = błąd części (źródło ma opóźnienie ok. 1 doby)
+ETH_SPAL_WIEK_MAX_H = 3     # h — odczyt podaży / spalania starszy = błąd części
+ETH_ETH_MAX = 20_000_000    # ETH — kolejka powyżej tego to błąd odczytu (cały staking ok. 37 mln ETH)
+ETH_N_MAX = 3_000_000       # wpisów w kolejce
+ETH_DNI_MAX = 1500          # dni — szacunek czasu w kolejce powyżej tego to błąd
+ETH_PODAZ = (100e6, 150e6)  # ETH — pasmo wiarygodności podaży
+ETH_EMISJA = (500.0, 20000.0)   # ETH na dobę — wiarygodna emisja (zmiana podaży + spalone); w 2026 ok. 2,9 tys.
+ETH_METRYKI = ('txcount', 'daa', 'fees_paid_usd', 'stables_mcap', 'tvl', 'blob_size_bytes', 'costs_blobs_usd', 'txcosts_median_usd')
+ETH_PASMA = {'txcount': 5e8, 'daa': 5e8, 'fees_paid_usd': 1e8, 'stables_mcap': 5e11, 'tvl': 5e11, 'blob_size_bytes': 1e12, 'costs_blobs_usd': 1e8, 'txcosts_median_usd': 1e4}   # górne granice wartości jednej sieci w dobie
+ETH_RAZEM_MAX = {'txcount': 3e9, 'fees_paid_usd': 3e8, 'stables_mcap': 1e12, 'tvl': 1e12, 'blob_size_bytes': 5e12, 'costs_blobs_usd': 3e8}   # górne granice sumy po sieciach
+ETH_TOP_TVL, ETH_TOP_TX = 12, 8   # ile sieci w pliku: największe wg TVL i największe wg transakcji (suma zbiorów)
+ETH_TVS_N_MIN = 20          # najmniej projektów L2 z liczbą w kontroli TVL
+ETH_SRC = ('CapitalFlowAI — publiczny węzeł warstwy konsensusu Ethereum (kolejki wpłat i wyjść walidatorów, łączenia walidatorów, częściowe wypłaty, konfiguracja sieci), serwis statystyk spalania i podaży ETH, '
+           'zbiór statystyk sieci wokół Ethereum (transakcje, adresy, opłaty, stablecoiny, TVL, bloby) i drugi, niezależny zestaw wartości zabezpieczonej sieci L2 (kontrola)')
+ETH_BUDUJ = {'wal': 'eth_wal', 'spal': 'eth_spal', 'l2': 'eth_l2', 'tvs': 'eth_tvs'}   # nazwy funkcji części (wywołanie przez nazwę — testy podmieniają części)
+_ETH_TERMIN = [None]
+
+
+def eth_liczba(x):
+    """Liczba skończona z liczby albo tekstu dziesiętnego; wartość logiczna, tekst nieliczbowy, nieskończoność = None."""
+    if isinstance(x, bool):
+        return None
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return None
+    return v if v == v and v not in (float('inf'), float('-inf')) else None
+
+
+def eth_czas(s):
+    """Czas ISO ze znakiem Z albo bez strefy → datetime UTC; zły = None."""
+    s = str(s or '')
+    return _ix_dt(s[:-1] + '+00:00' if s.endswith('Z') else s)
+
+
+def eth_teraz():
+    """Chwila przebiegu z NOW (jedno źródło czasu całego przebiegu; testy przypinają NOW)."""
+    t = _ix_dt(NOW)
+    if t is None:
+        raise RuntimeError('brak czasu przebiegu')
+    return t
+
+
+def eth_czas_do(limit):
+    """Ile sekund zostało do końca budżetu części (bez budżetu — limit); po budżecie wyjątek."""
+    if _ETH_TERMIN[0] is None:
+        return limit
+    left = _ETH_TERMIN[0] - time.monotonic()
+    if left < 1:
+        raise RuntimeError(f'limit czasu części ({ETH_WAL_S} s)')
+    return max(1.0, min(limit, left))
+
+
+def eth_strumien(url, karm, otworz=None):
+    """GET ze strumieniowym czytaniem: Accept-Encoding: gzip, kawałki 64 KB, rozpakowanie na bieżąco, każdy rozpakowany kawałek do karm(bajty). Zwraca (bajty po drodze, bajty po rozpakowaniu).
+    Wyjątek (a nie wynik częściowy) przy: kodzie innym niż 200, przekroczeniu bajtów po drodze (ETH_WIRE_MAX) albo po rozpakowaniu (ETH_RAW_MAX), przekroczeniu czasu (ETH_STREAM_S), urwanym gzip."""
+    import zlib as _eth_zlib   # biblioteka standardowa
+    otworz = otworz or _otworz
+    limit_s = eth_czas_do(ETH_STREAM_S)
+    t0 = time.monotonic()
+    _zuz_licz(url, None)
+    wire = raw = 0
+    with otworz(url, {'Accept': 'application/json', 'Accept-Encoding': 'gzip'}, ETH_TIMEOUT) as r:
+        if getattr(r, 'status', 200) != 200:
+            raise ValueError(f'kod {getattr(r, "status", "?")} zamiast 200 (odpowiedź częściowa nie jest używana)')
+        enc = str((getattr(r, 'headers', None) or {}).get('Content-Encoding') or '').lower()
+        d = _eth_zlib.decompressobj(16 + _eth_zlib.MAX_WBITS) if 'gzip' in enc else None
+        while True:
+            if time.monotonic() - t0 > limit_s:
+                raise TimeoutError(f'limit czasu odpowiedzi ({int(limit_s)} s)')
+            ch = r.read(65536)
+            if not ch:
+                break
+            wire += len(ch)
+            if wire > ETH_WIRE_MAX:
+                raise ValueError(f'odpowiedź większa niż {ETH_WIRE_MAX // 1_000_000} MB po drodze')
+            if d is None:
+                raw += len(ch)
+                if raw > ETH_RAW_MAX:
+                    raise ValueError(f'odpowiedź większa niż {ETH_RAW_MAX // 1_000_000} MB')
+                karm(ch)
+                continue
+            while ch:
+                out = d.decompress(ch, 262144)
+                raw += len(out)
+                if raw > ETH_RAW_MAX:
+                    raise ValueError(f'odpowiedź po rozpakowaniu większa niż {ETH_RAW_MAX // 1_000_000} MB')
+                if out:
+                    karm(out)
+                ch = d.unconsumed_tail
+        if d is not None:   # reszta wyjścia po końcu wejścia — też porcjami z kontrolą limitu (flush() oddałby całość naraz)
+            while True:
+                out = d.decompress(b'', 262144)
+                if not out:
+                    break
+                raw += len(out)
+                if raw > ETH_RAW_MAX:
+                    raise ValueError(f'odpowiedź po rozpakowaniu większa niż {ETH_RAW_MAX // 1_000_000} MB')
+                karm(out)
+            if not d.eof:
+                raise ValueError('urwany strumień gzip')
+    return wire, raw
+
+
+class EthRekordy:
+    """Czytnik rekordów tablicy 'data' z kawałków: tnie strumień na granicach '},{' (rekordy są płaskie albo mają jeden zagnieżdżony obiekt), wywołuje przetworz(segment) dla pełnych rekordów,
+    zapamiętuje początek i koniec odpowiedzi (kontrola kształtu: {...,"data":[ … ]})."""
+
+    def __init__(self, przetworz):
+        self.przetworz, self.bufor, self.glowa, self.ogon = przetworz, b'', b'', b''
+
+    def karm(self, b):
+        if len(self.glowa) < 400:
+            self.glowa = (self.glowa + b)[:400]
+        self.ogon = (self.ogon + b)[-16:]
+        self.bufor += b
+        i = self.bufor.rfind(b'},{')
+        if i >= 0:
+            seg, self.bufor = self.bufor[:i + 1], self.bufor[i + 1:]
+            self.przetworz(seg)
+
+    def koniec(self):
+        """Reszta bufora; kształt odpowiedzi: początek '{' i '"data":[', koniec ']}' — inaczej wyjątek (odpowiedź urwana albo inna)."""
+        if self.bufor:
+            self.przetworz(self.bufor)
+            self.bufor = b''
+        if not (self.glowa.startswith(b'{') and b'"data":[' in self.glowa and self.ogon.rstrip().endswith(b']}')):
+            raise ValueError('kształt odpowiedzi inny niż {…"data":[…]}')
+
+
+def eth_beacon_rekordy(sciezka, rx, wiersz, kontrola_znacznik):
+    """Strumieniowe czytanie listy węzła: rx (skompilowane wyrażenie rekordu) → wiersz(m) dla każdego rekordu; liczba rekordów musi się zgadzać z liczbą znaczników rekordu (kontrola_znacznik)
+    — inny układ pól = wyjątek, nie ciche pominięcie. Zwraca liczbę rekordów."""
+    cnt, znacz = [0], [0]
+
+    def przetworz(seg):
+        for m in rx.finditer(seg):
+            wiersz(m)
+            cnt[0] += 1
+        znacz[0] += seg.count(kontrola_znacznik)
+
+    R = EthRekordy(przetworz)
+    eth_strumien(ETH_BEACON + sciezka, R.karm)
+    R.koniec()
+    if cnt[0] != znacz[0]:
+        raise ValueError(f'{sciezka.split("?")[0]}: odczytano {cnt[0]} rekordów z {znacz[0]} — inny układ pól')
+    return cnt[0]
+
+
+_ETH_RX_KONS = re.compile(rb'\{"source_index":"(\d+)","target_index":"\d+"\}')
+_ETH_RX_DEP = re.compile(rb'\{"pubkey":"0x[0-9a-f]+","withdrawal_credentials":"0x[0-9a-f]+","amount":"(\d+)","signature":"0x[0-9a-f]+","slot":"\d+"\}')
+_ETH_RX_WAL = re.compile(rb'\{"index":"(\d+)","balance":"\d+","status":"active_exiting","validator":\{"pubkey":"0x[0-9a-f]+","withdrawal_credentials":"0x[0-9a-f]+","effective_balance":"(\d+)",'
+                         rb'"slashed":(?:true|false),"activation_eligibility_epoch":"\d+","activation_epoch":"\d+","exit_epoch":"(\d+)","withdrawable_epoch":"\d+"\}\}')
+
+
+def eth_beacon_json(sciezka):
+    time.sleep(ETH_SLEEP)
+    return get_json(ETH_BEACON + sciezka, {'Accept': 'application/json'}, timeout=eth_czas_do(ETH_TIMEOUT))
+
+
+def eth_hist_dobowa(prev_hist, dzien, wiersz, ile=ETH_HIST):
+    """Historia dobowa: poprzednie poprawne wiersze [dzień, …] bez bieżącej doby + wiersz tej doby (ostatni odczyt doby UTC); rosnąco, najwyżej `ile`."""
+    M = {}
+    for r in prev_hist if isinstance(prev_hist, list) else []:
+        if isinstance(r, list) and len(r) == len(wiersz) + 1 and isinstance(r[0], str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', r[0]) and all(eth_liczba(x) is not None for x in r[1:]):
+            M[r[0]] = r
+    M[dzien] = [dzien] + list(wiersz)
+    return [M[k] for k in sorted(M)][-ile:]
+
+
+def eth_wal(prev=None):
+    """Część wal: kolejki stakingu z publicznego węzła. Wynik: {'t', 'slot', 'epoka', 'glowa', 'limit_eth', 'wej': {n, eth, dni}, 'wyj': {n, eth, dni}, 'kons': {n, eth, dni, kolejka}, 'czesc': {n, eth}, 'hist': [[dzień, wej, wyj, kons]]}
+    (ETH w pełnych jednostkach: wpłaty — kwota, walidatorzy — saldo efektywne). Czas w kolejce to szacunek: wpłaty = większe z ETH / limit na epokę i wpisy / 16 na epokę; wyjścia = najpóźniejsza epoka wyjścia."""
+    prev = prev if isinstance(prev, dict) else {}
+    _ETH_TERMIN[0] = time.monotonic() + ETH_WAL_S
+    try:
+        j = eth_beacon_json('beacon/headers/head')
+        try:
+            slot = int(j['data']['header']['message']['slot'])
+        except (KeyError, TypeError, ValueError):
+            raise ValueError('głowa łańcucha: zły układ odpowiedzi') from None
+        sp = eth_beacon_json('config/spec')
+        try:
+            S = {k: int(sp['data'][k]) for k in ('SLOTS_PER_EPOCH', 'SECONDS_PER_SLOT', 'MAX_PER_EPOCH_ACTIVATION_EXIT_CHURN_LIMIT', 'MAX_PENDING_DEPOSITS_PER_EPOCH')}
+        except (KeyError, TypeError, ValueError):
+            raise ValueError('konfiguracja sieci: brak pól limitów (inna wersja sieci)') from None
+        if S['SLOTS_PER_EPOCH'] != 32 or S['SECONDS_PER_SLOT'] != 12:
+            raise ValueError('konfiguracja sieci: inna długość epoki — wzory czasu do przeglądu')
+        limit_eth = S['MAX_PER_EPOCH_ACTIVATION_EXIT_CHURN_LIMIT'] / 1e9
+        if not 32 <= limit_eth <= 4096 or not 1 <= S['MAX_PENDING_DEPOSITS_PER_EPOCH'] <= 1024:
+            raise ValueError('konfiguracja sieci: limity poza wiarygodnym pasmem')
+        teraz = eth_teraz()
+        t_glowa = datetime.datetime.fromtimestamp(ETH_GENESIS + slot * S['SECONDS_PER_SLOT'], datetime.timezone.utc)
+        wiek_min = (teraz - t_glowa).total_seconds() / 60
+        if not -5 <= wiek_min <= ETH_GLOWA_MAX_MIN:
+            raise ValueError(f'głowa łańcucha ma {wiek_min:.0f} min — węzeł stoi albo zegar się rozjechał')
+        epoka = slot // S['SLOTS_PER_EPOCH']
+        epok_doba = 86400 / (S['SLOTS_PER_EPOCH'] * S['SECONDS_PER_SLOT'])
+        # --- łączenia walidatorów (źródła) — zbiór indeksów
+        time.sleep(ETH_SLEEP)
+        zr = set()
+        n_zl = eth_beacon_rekordy('beacon/states/head/pending_consolidations', _ETH_RX_KONS, lambda m: zr.add(int(m.group(1))), b'"source_index"')
+        # --- walidatorzy opuszczający zbiór: wyjścia vs łączenia
+        time.sleep(ETH_SLEEP)
+        W = {'wyj': [0, 0, 0], 'kons': [0, 0, 0]}   # [liczba, gwei, najpóźniejsza epoka wyjścia]
+
+        def wiersz_wal(m):
+            g = W['kons' if int(m.group(1)) in zr else 'wyj']
+            g[0] += 1
+            g[1] += int(m.group(2))
+            g[2] = max(g[2], int(m.group(3)))
+        eth_beacon_rekordy('beacon/states/head/validators?status=active_exiting', _ETH_RX_WAL, wiersz_wal, b'"status":"')
+        # --- kolejka wpłat
+        time.sleep(ETH_SLEEP)
+        D = [0, 0]
+
+        def wiersz_dep(m):
+            D[0] += 1
+            D[1] += int(m.group(1))
+        eth_beacon_rekordy('beacon/states/head/pending_deposits', _ETH_RX_DEP, wiersz_dep, b'"pubkey":"')
+        # --- częściowe wypłaty (małe, zwykły JSON)
+        pw = eth_beacon_json('beacon/states/head/pending_partial_withdrawals')
+        try:
+            lw = [int(x['amount']) for x in pw['data']]
+        except (KeyError, TypeError, ValueError):
+            raise ValueError('częściowe wypłaty: zły układ odpowiedzi') from None
+    finally:
+        _ETH_TERMIN[0] = None
+    for nm, (n, g, ep) in W.items():
+        if n and ep <= epoka:
+            raise ValueError(f'{nm}: epoka wyjścia {ep} nie jest przyszła (głowa {epoka}) — inny układ danych')
+    wej_eth, wyj_eth, kons_eth = D[1] / 1e9, W['wyj'][1] / 1e9, W['kons'][1] / 1e9
+    if not (0 <= D[0] <= ETH_N_MAX and 0 <= wej_eth <= ETH_ETH_MAX and 0 <= wyj_eth <= ETH_ETH_MAX and 0 <= kons_eth <= ETH_ETH_MAX):
+        raise ValueError('kolejka poza wiarygodnym pasmem')
+    if W['wyj'][0] + W['kons'][0] > ETH_N_MAX or n_zl > ETH_N_MAX:
+        raise ValueError('liczba walidatorów w kolejce poza wiarygodnym pasmem')
+    dni_wej = max(wej_eth / (limit_eth * epok_doba), D[0] / (S['MAX_PENDING_DEPOSITS_PER_EPOCH'] * epok_doba)) if D[0] else 0.0
+    dni = {'wej': dni_wej, 'wyj': max(0, W['wyj'][2] - epoka) / epok_doba, 'kons': max(0, W['kons'][2] - epoka) / epok_doba}   # brak walidatorów w grupie: najpóźniejsza epoka 0 → 0 dni
+    if max(dni.values()) > ETH_DNI_MAX:
+        raise ValueError('szacunek czasu w kolejce poza wiarygodnym pasmem')
+    dzien = teraz.strftime('%Y-%m-%d')
+    return {'t': NOW, 'slot': slot, 'epoka': epoka, 'glowa': t_glowa.isoformat(), 'limit_eth': round(limit_eth, 1),
+            'wej': {'n': D[0], 'eth': round(wej_eth), 'dni': round(dni['wej'], 1)},
+            'wyj': {'n': W['wyj'][0], 'eth': round(wyj_eth), 'dni': round(dni['wyj'], 1)},
+            'kons': {'n': W['kons'][0], 'eth': round(kons_eth), 'dni': round(dni['kons'], 1), 'kolejka': n_zl},
+            'czesc': {'n': len(lw), 'eth': round(sum(lw) / 1e9, 1)},
+            'hist': eth_hist_dobowa(prev.get('hist'), dzien, [round(wej_eth), round(wyj_eth), round(kons_eth)])}
+
+
+def eth_punkty_podazy(lista):
+    """Lista {supply, timestamp} → [(czas, podaż)] rosnąco bez powtórzeń czasu; zły wpis pomijany."""
+    P = {}
+    for x in lista if isinstance(lista, list) else []:
+        if not isinstance(x, dict):
+            continue
+        tm, v = eth_czas(x.get('timestamp')), eth_liczba(x.get('supply'))
+        if tm is not None and v is not None and ETH_PODAZ[0] <= v <= ETH_PODAZ[1]:
+            P[tm] = v
+    return sorted(P.items())
+
+
+def eth_spal(prev=None):
+    """Część spal: spalone ETH (burn-sums: d1, d7, d30, since_merge) + podaż w czasie (supply-over-time: d7, d30, since_merge) → podaż, zmiany podaży, szacunek rocznej inflacji, emisja, seria dobowa podaży."""
+    time.sleep(ETH_SLEEP)
+    b = get_json(ETH_ULTRA + 'burn-sums', timeout=ETH_TIMEOUT)
+    time.sleep(ETH_SLEEP)
+    s = get_json(ETH_ULTRA + 'supply-over-time', timeout=ETH_TIMEOUT)
+    if not isinstance(b, dict) or not isinstance(s, dict):
+        raise ValueError('zły kształt odpowiedzi')
+    teraz = eth_teraz()
+    sp, usd, tsy = {}, {}, []
+    for k in ('d1', 'd7', 'd30', 'since_merge'):
+        o = b.get(k)
+        sm = o.get('sum') if isinstance(o, dict) else None
+        e = eth_liczba(sm.get('eth')) if isinstance(sm, dict) else None
+        if e is None or e < 0:
+            raise ValueError(f'spalone ETH ({k}): brak liczby')
+        sp[k] = e
+        u = eth_liczba(sm.get('usd'))
+        if u is not None and u >= 0:
+            usd['merge' if k == 'since_merge' else k] = u
+        tz = eth_czas(o.get('timestamp'))
+        if tz is None:
+            raise ValueError(f'spalone ETH ({k}): brak czasu odczytu')
+        tsy.append(tz)
+    if not (sp['d1'] <= sp['d7'] + 1e-6 and sp['d7'] <= sp['d30'] + 1e-6 and sp['d30'] <= sp['since_merge'] + 1e-6) or sp['d1'] > 200_000 or sp['since_merge'] > 20_000_000:
+        raise ValueError('spalone ETH: niespójne okna czasu albo poza pasmem')
+    tb = min(tsy)   # najstarszy z czasów okien
+    if not 0 <= (teraz - tb).total_seconds() <= ETH_SPAL_WIEK_MAX_H * 3600 + 600:
+        raise ValueError('odczyt spalania nieświeży')
+    P30, P7, PM = eth_punkty_podazy(s.get('d30')), eth_punkty_podazy(s.get('d7')), eth_punkty_podazy(s.get('since_merge'))
+    if len(P30) < 100 or not P7 or not PM:
+        raise ValueError('podaż: za mało punktów')
+    (t_koniec, podaz) = P30[-1]
+    if not 0 <= (teraz - t_koniec).total_seconds() <= ETH_SPAL_WIEK_MAX_H * 3600 + 600:
+        raise ValueError('odczyt podaży nieświeży')
+    span30 = (t_koniec - P30[0][0]).total_seconds() / 86400
+    span7 = (t_koniec - P7[0][0]).total_seconds() / 86400
+    if not 29.0 <= span30 <= 31.5 or not 6.5 <= span7 <= 7.7:
+        raise ValueError(f'podaż: okno {span30:.1f} / {span7:.1f} dób zamiast 30 / 7')
+    zm30, zm7, zmm = podaz - P30[0][1], podaz - P7[0][1], podaz - PM[0][1]
+    emisja = (zm30 + sp['d30']) / 30.0
+    if not ETH_EMISJA[0] <= emisja <= ETH_EMISJA[1]:
+        raise ValueError(f'emisja {emisja:.0f} ETH na dobę poza wiarygodnym pasmem — spalanie i podaż niespójne')
+    dni = {}
+    for tm, v in P30:
+        dni[tm.strftime('%Y-%m-%d')] = v   # ostatni punkt doby
+    ser = [[d, round(v, 1)] for d, v in sorted(dni.items())][-ETH_SPAL_SER:]
+    return {'t': NOW, 'zrodlo_t': tb.isoformat(), 'podaz': round(podaz, 1), 'koniec': t_koniec.isoformat(),
+            'spal': {'d1': round(sp['d1'], 1), 'd7': round(sp['d7'], 1), 'd30': round(sp['d30'], 1), 'merge': round(sp['since_merge'])},
+            'usd': {k: round(v) for k, v in usd.items()},
+            'zm': {'d7': round(zm7, 1), 'd30': round(zm30, 1), 'merge': round(zmm)}, 'span30': round(span30, 2),
+            'roczna': round(zm30 / podaz * 365.25 / span30 * 100, 3), 'emisja_dzien': round(emisja, 1),
+            'merge_dzien': PM[0][0].strftime('%Y-%m-%d'), 'ser': ser}
+
+
+def eth_l2_wczytaj():
+    """Zbiór statystyk sieci (długi format) pobrany strumieniowo (gzip) → lista słowników; zły kształt = wyjątek."""
+    kawalki = []
+    eth_strumien(ETH_GP_URL, kawalki.append)
+    d = json.loads(b''.join(kawalki).decode('utf-8'))
+    if not isinstance(d, list) or len(d) < 1000:
+        raise ValueError('zbiór statystyk: zły kształt albo za mało wierszy')
+    return d
+
+
+def eth_l2_indeks(d):
+    """Lista wierszy → {metryka: {sieć: {dzień: wartość}}} tylko dla ETH_METRYKI; wartość nieliczbowa, ujemna albo powyżej pasma jednej sieci pomijana (nigdy zero w zamian)."""
+    I = {m: {} for m in ETH_METRYKI}
+    for r in d:
+        if not isinstance(r, dict) or r.get('metric_key') not in I:
+            continue
+        o, dz, v = r.get('origin_key'), r.get('date'), eth_liczba(r.get('value'))
+        if not (isinstance(o, str) and re.fullmatch(r'[a-z0-9_]{2,40}', o) and isinstance(dz, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', dz)) or v is None or v < 0 or v > ETH_PASMA[r['metric_key']]:
+            continue
+        I[r['metric_key']].setdefault(o, {})[dz] = v
+    return I
+
+
+def eth_l2_dzien_kompletu(I):
+    """Najnowszy dzień, w którym liczba transakcji ma wartość dla ≥ ETH_POKR udziału największej liczby sieci w ostatnich 14 dobach (dzień niepełny = pomijany); sieć 'ethereum' (L1) poza liczeniem."""
+    cov = {}
+    for o, M in I['txcount'].items():
+        if o == 'ethereum':
+            continue
+        for dz in M:
+            cov[dz] = cov.get(dz, 0) + 1
+    if not cov:
+        raise ValueError('brak transakcji sieci')
+    dni = sorted(cov)[-14:]
+    mx = max(cov[x] for x in dni)
+    if mx < 10:
+        raise ValueError(f'tylko {mx} sieci z transakcjami')
+    ok = [x for x in dni if cov[x] >= ETH_POKR * mx]
+    return ok[-1]
+
+
+def eth_l2_suma(I, metryka, dzien, sieci):
+    """Suma metryki po sieciach w dobie → (suma, liczba sieci z wartością); brak sieci = (None, 0)."""
+    v = [I[metryka][o][dzien] for o in sieci if dzien in I[metryka].get(o, {})]
+    return (sum(v), len(v)) if v else (None, 0)
+
+
+def eth_l2_seria(I, metryka, sieci, dzien_koniec, dni=ETH_SER):
+    """Seria dobowa sumy po sieciach: tylko doby z kompletem (≥ ETH_POKR największej liczby sieci w oknie), do doby dzien_koniec włącznie; [[dzień, suma]]."""
+    dz = sorted({d for o in sieci for d in I[metryka].get(o, {}) if d <= dzien_koniec})[-dni:]
+    cov = {d: sum(1 for o in sieci if d in I[metryka].get(o, {})) for d in dz}
+    mx = max(cov.values()) if cov else 0
+    return [[d, round(sum(I[metryka][o][d] for o in sieci if d in I[metryka].get(o, {})), 2)] for d in dz if mx and cov[d] >= ETH_POKR * mx]
+
+
+def eth_l2(prev=None):
+    """Część l2: aktywność sieci wokół Ethereum z dnia kompletu (zbiór statystyk, strumieniowo)."""
+    I = eth_l2_indeks(eth_l2_wczytaj())
+    dzien = eth_l2_dzien_kompletu(I)
+    teraz = eth_teraz()
+    lag = (teraz.date() - datetime.date.fromisoformat(dzien)).days
+    if not 0 <= lag <= ETH_L2_WIEK_MAX_DNI:
+        raise ValueError(f'dzień danych {dzien} ma {lag} dób — źródło nie dopisuje nowych dób')
+    sieci = sorted(o for o in I['txcount'] if o != 'ethereum' and dzien in I['txcount'][o])
+    razem, nsieci = {}, {}
+    for m in ('txcount', 'fees_paid_usd', 'stables_mcap', 'tvl', 'blob_size_bytes', 'costs_blobs_usd'):   # bez sumy adresów: ten sam użytkownik w kilku sieciach liczyłby się wiele razy
+        sm, n = eth_l2_suma(I, m, dzien, sieci)
+        if sm is not None and sm > ETH_RAZEM_MAX[m]:
+            raise ValueError(f'suma {m} poza wiarygodnym pasmem')
+        razem[m], nsieci[m] = (round(sm, 2) if sm is not None else None), n
+    if razem['txcount'] is None or razem['tvl'] is None:
+        raise ValueError('brak sumy transakcji albo TVL')
+    L1 = {k: (I[m]['ethereum'].get(dzien) if 'ethereum' in I[m] else None) for k, m in (('tx', 'txcount'), ('daa', 'daa'), ('fees', 'fees_paid_usd'), ('med', 'txcosts_median_usd'), ('stables', 'stables_mcap'))}
+    d7 = (datetime.date.fromisoformat(dzien) - datetime.timedelta(days=7)).isoformat()
+
+    def wiersz(o):
+        tv = I['tvl'].get(o, {}).get(dzien)
+        t7 = I['tvl'].get(o, {}).get(d7)
+        return {'id': o, 'tvl': tv, 'tx': I['txcount'][o].get(dzien), 'daa': I['daa'].get(o, {}).get(dzien), 'fees': I['fees_paid_usd'].get(o, {}).get(dzien),
+                'stables': I['stables_mcap'].get(o, {}).get(dzien), 'med': I['txcosts_median_usd'].get(o, {}).get(dzien),
+                'blob': I['blob_size_bytes'].get(o, {}).get(dzien), 'tvl7': round((tv / t7 - 1) * 100, 2) if tv is not None and t7 else None}
+    wg_tvl = sorted((o for o in sieci if I['tvl'].get(o, {}).get(dzien) is not None), key=lambda o: -I['tvl'][o][dzien])[:ETH_TOP_TVL]
+    wg_tx = sorted(sieci, key=lambda o: -I['txcount'][o][dzien])[:ETH_TOP_TX]
+    wybrane = list(dict.fromkeys(wg_tvl + wg_tx))
+    return {'t': NOW, 'dzien': dzien, 'n': len(sieci), 'nsieci': nsieci, 'razem': razem, 'eth': L1, 'sieci': [wiersz(o) for o in wybrane],
+            'ser': {'tx': eth_l2_seria(I, 'txcount', sieci, dzien), 'fees': eth_l2_seria(I, 'fees_paid_usd', sieci, dzien), 'tvl': eth_l2_seria(I, 'tvl', sieci, dzien),
+                    'stables': eth_l2_seria(I, 'stables_mcap', sieci, dzien), 'blob': eth_l2_seria(I, 'blob_size_bytes', sieci, dzien)}}
+
+
+def eth_tvs(prev=None):
+    """Część tvs: drugie źródło — suma wartości zabezpieczonej projektów L2 (bez L3 i zarchiwizowanych), jej zmiana w 7 dni (średnia ważona wartością) i największe projekty. Tylko do porównania z TVL z części l2."""
+    kawalki = []
+    eth_strumien(ETH_L2B_URL, kawalki.append)
+    j = json.loads(b''.join(kawalki).decode('utf-8'))
+    pr = j.get('projects') if isinstance(j, dict) else None
+    if not isinstance(pr, dict):
+        raise ValueError('kontrola TVL: zły kształt odpowiedzi')
+    L = []
+    for k, p in pr.items():
+        if not isinstance(p, dict) or p.get('type') != 'layer2' or p.get('isArchived') or not isinstance(p.get('tvs'), dict):
+            continue
+        b = p['tvs'].get('breakdown') if isinstance(p['tvs'].get('breakdown'), dict) else {}
+        v, c = eth_liczba(b.get('total')), eth_liczba(p['tvs'].get('change7d'))
+        if v is not None and v >= 0 and isinstance(k, str) and re.fullmatch(r'[a-z0-9_-]{2,40}', k):
+            L.append((k, v, c if c is not None and -0.95 < c < 10 else None))
+    if len(L) < ETH_TVS_N_MIN:
+        raise ValueError(f'kontrola TVL: tylko {len(L)} projektów L2')
+    razem = sum(v for _, v, _ in L)
+    if not 1e9 <= razem <= ETH_PASMA['tvl']:
+        raise ValueError('kontrola TVL: suma poza wiarygodnym pasmem')
+    z7 = [(v, c) for _, v, c in L if c is not None]
+    stare = sum(v / (1 + c) for v, c in z7)
+    chg7 = round((sum(v for v, _ in z7) / stare - 1) * 100, 2) if z7 and stare > 0 and sum(v for v, _ in z7) >= 0.9 * razem else None
+    top = sorted(L, key=lambda x: -x[1])[:8]
+    return {'t': NOW, 'n': len(L), 'razem': round(razem), 'chg7': chg7, 'top': [[k, round(v)] for k, v, _ in top]}
+
+
+def build_eth_lancuch(prev=None):
+    """Plik data/eth-lancuch.json (v403): części wal, spal, l2, tvs z własnym ok / part_at / errs; część jeszcze świeża (ETH_EVERY) i poprawna zostaje bez pytania; część z błędem zostaje z poprzedniego
+    pliku z własną chwilą, nigdy pusta zamiast ostatnich danych; żadna część nie odpowiedziała i żadnej nie ma świeżej z poprzedniego pliku = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == ETH_V else {}
+    pat, pok = _dict(prev.get('part_at')), _dict(prev.get('ok'))
+    teraz = eth_teraz()
+    out = {'v': ETH_V, 'at': NOW, 'src': ETH_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    pytane = odp = 0
+    for k in ETH_PARTS:
+        stary = prev.get(k) if isinstance(prev.get(k), dict) else None
+        t_k = _ix_dt(pat.get(k))
+        if stary is not None and pok.get(k) is True and t_k is not None and 0 <= (teraz - t_k).total_seconds() / 60 < ETH_EVERY[k]:
+            out[k], out['ok'][k], out['part_at'][k] = stary, True, pat[k]
+            continue
+        pytane += 1
+        try:
+            out[k] = globals()[ETH_BUDUJ[k]](stary)
+            out['ok'][k], out['part_at'][k] = True, NOW
+            odp += 1
+        except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
+            msg = mask(f'{e}')[:160]
+            META['errors'].append(mask(f'{ETH_PX} {ETH_LABEL[k]}: {msg}')[:220])
+            out['ok'][k] = False
+            out['errs'][k] = msg
+            if stary is not None:
+                out[k], out['part_at'][k] = stary, pat.get(k) or prev.get('at')
+    if pytane and not odp and not any(v is True for v in out['ok'].values()):   # nic nie odpowiedziało i nie ma żadnej świeżej części z poprzedniego pliku
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+def eth_czesc():
+    """v403: część przebiegu → krotka (wal, spal, l2, tvs) dla META['ok']: True = odpowiedziała, 'cached' = część albo cały plik jeszcze świeży, False = zawiodła. Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('eth-lancuch')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == ETH_V else None
+    if prev and fresh_pelny(prev, ETH_EVERY_MIN):
+        save('eth-lancuch', prev)
+        return tuple(False if _dict(prev.get('ok')).get(k) is False else 'cached' for k in ETH_PARTS)
+    try:
+        obj = build_eth_lancuch(prev)
+        save('eth-lancuch', obj)
+        return tuple(True if obj['part_at'].get(k) == NOW and obj['ok'].get(k) is True else 'cached' if obj['ok'].get(k) is True else False for k in ETH_PARTS)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'{ETH_PX}: {e}')[:200])
+        if prev:
+            save('eth-lancuch', prev)
+        return (False,) * len(ETH_PARTS)
+
+
+ZRODLA_META.update({'eth_wal': _Z_WEZLY, 'eth_spal': 'ultrasound', 'eth_l2': 'growthepie', 'eth_tvs': 'l2beat'})   # v403: publiczny węzeł tego samego dostawcy co węzły łańcuchów (wieloryby, RWA) = to samo źródło; trzy nowe źródła (+3)
 
 
 if __name__ == '__main__':

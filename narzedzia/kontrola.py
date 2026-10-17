@@ -12329,6 +12329,158 @@ def df2_kontrola(j, emit=None, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v403 (F11Z16): ETHEREUM I WARSTWA 2 — KOLEJKI STAKINGU, PODAŻ, SIECI L2 (data/eth-lancuch.json) ---------------------------------------------------------
+# Plik: cztery części (wal — kolejki wpłat, wyjść i łączeń walidatorów z historią dobową; spal — spalone ETH i podaż; l2 — aktywność sieci wokół Ethereum; tvs — drugie źródło wartości zabezpieczonej L2).
+# Wiek odczytu każdej części osobnym wierszem świeżości, najwyżej ⚠️. Progi z rytmu zbieracza (ETH_EVERY: wal 6 h, spal 1 h, l2 i tvs 3 h): dwa chybione przebiegi + zapas = wal 14 h, spal 4 h, l2 i tvs 9 h.
+# Dzień danych sieci L2 starszy niż 3 doby wobec doby odczytu = ⚠️ (zbiór statystyk miał w nagraniu z 17.10.2026 90 kolejnych dób bez dziury, opóźnienie 1 doba; zbieracz sam odrzuca ≥ 5 dób).
+# Spójność w pliku (⚠️): liczby nieujemne i zgodne ze sobą (kolejka pusta ⇔ ETH = 0, saldo walidatora w kolejce wyjść 1–2048 ETH, epoka = slot / 32, historia dobowa rosnąca, ostatni wiersz = bieżący odczyt,
+# okna spalania rosnące d1 ≤ d7 ≤ d30 ≤ od The Merge, emisja = (zmiana podaży + spalone) / 30 w paśmie 500–20 000 ETH na dobę, seria podaży kończy się na bieżącej podaży, suma sieci L2 = ostatni punkt serii,
+# wiersze sieci nie przekraczają sumy).
+# Porównanie TVL sieci L2 (zbiór statystyk) z sumą wartości zabezpieczonej L2 (drugie źródło; INNA definicja, bliska): test wsteczny na 30 dobach (wykres drugiego źródła kontra dobowe sumy zbioru statystyk,
+# 26 sieci): stosunek 0,902–0,981 (średnia 0,944); próg ⚠️ poza 0,80–1,20 (zapas ok. 0,10 ponad obserwowany rozstęp po obu stronach). Zgodność największych sieci i zmiany 7-dobowej — TYLKO ℹ️.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'eth-lancuch')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['eth-lancuch'] = 4 * 60   # zapis co ~60 min — wiek pliku; wiek części ocenia osobny wiersz świeżości
+AW_BEZ_BLEDU.update({k_: 'Ethereum i L2 — część z błędem zostaje z datą (v403); wiek odczytu w wierszach świeżości' for k_ in ('eth_wal', 'eth_spal', 'eth_l2', 'eth_tvs')})
+ETH_K_H = {'wal': 14, 'spal': 4, 'l2': 9, 'tvs': 9}   # h — wiek odczytu części
+ETH_K_DZIEN_MAX = 3                                    # dób — dzień danych sieci L2 wobec doby odczytu
+ETH_K_TVL = (0.80, 1.20)                               # stosunek TVL (zbiór statystyk) / suma wartości zabezpieczonej (drugie źródło)
+ETH_K_ETYKIETA = {'wal': 'Ethereum — odczyt kolejek stakingu', 'spal': 'Ethereum — odczyt spalania i podaży', 'l2': 'Sieci L2 — odczyt aktywności', 'tvs': 'Sieci L2 — odczyt drugiego źródła TVL'}
+
+
+def eth_k_dzien(s):
+    return isinstance(s, str) and bool(re.fullmatch(r'\d{4}-\d{2}-\d{2}', s)) and _ix_dt_k(s + 'T00:00:00Z') is not None
+
+
+def eth_k_spojnosc(j):
+    """Lista usterek spójności w pliku (puste = zgodny); części bez danych pomijane."""
+    zle = []
+    W = j.get('wal') if isinstance(j.get('wal'), dict) else None
+    if W is not None:
+        for g in ('wej', 'wyj', 'kons'):
+            o = W.get(g) if isinstance(W.get(g), dict) else {}
+            n, e, d = _ste_k_l(o.get('n')), _ste_k_l(o.get('eth')), _ste_k_l(o.get('dni'))
+            if n is None or e is None or d is None or n < 0 or e < 0 or d < 0:
+                zle.append(f'kolejki: {g} — brak liczby albo wartość ujemna')
+            elif (n == 0) != (e == 0):
+                zle.append(f'kolejki: {g} — pusta kolejka z niezerową kwotą (albo odwrotnie)')
+            elif g != 'wej' and n and not 1 <= e / n <= 2048.5:
+                zle.append(f'kolejki: {g} — przeciętne saldo walidatora poza 1–2048 ETH')
+        sl, ep = _ste_k_l(W.get('slot')), _ste_k_l(W.get('epoka'))
+        if sl is None or ep is None or ep != sl // 32:
+            zle.append('kolejki: epoka nie jest slotem podzielonym przez 32')
+        li = _ste_k_l(W.get('limit_eth'))
+        if li is None or not 32 <= li <= 4096:
+            zle.append('kolejki: limit na epokę poza 32–4096 ETH')
+        t, g_ = _ix_dt_k(W.get('t')), _ix_dt_k(W.get('glowa'))
+        if t is not None and g_ is not None and not -5 <= (t - g_).total_seconds() / 60 <= 25:
+            zle.append('kolejki: głowa łańcucha odległa od chwili odczytu o więcej niż 25 min')
+        H = W.get('hist') if isinstance(W.get('hist'), list) else []
+        dni = [r[0] if isinstance(r, list) and len(r) == 4 else None for r in H]
+        if not H or any(not eth_k_dzien(d) for d in dni) or dni != sorted(set(dni)) or len(H) > 90 or any(_ste_k_l(x) is None or x < 0 for r in H for x in r[1:]):
+            zle.append('kolejki: historia dobowa pusta, nie rośnie albo ma niepoprawny wiersz')
+        elif t is not None and (dni[-1] != t.strftime('%Y-%m-%d') or [H[-1][1], H[-1][2], H[-1][3]] != [(W.get(g) or {}).get('eth') for g in ('wej', 'wyj', 'kons')]):
+            zle.append('kolejki: ostatni wiersz historii nie zgadza się z bieżącym odczytem')
+    S = j.get('spal') if isinstance(j.get('spal'), dict) else None
+    if S is not None:
+        sp, zm = S.get('spal') if isinstance(S.get('spal'), dict) else {}, S.get('zm') if isinstance(S.get('zm'), dict) else {}
+        v = [_ste_k_l(sp.get(k)) for k in ('d1', 'd7', 'd30', 'merge')]
+        if None in v or v != sorted(v) or v[0] < 0:
+            zle.append('spalanie: okna czasu nie rosną (d1 ≤ d7 ≤ d30 ≤ od The Merge) albo brak liczby')
+        em, z30, pod = _ste_k_l(S.get('emisja_dzien')), _ste_k_l(zm.get('d30')), _ste_k_l(S.get('podaz'))
+        if em is None or z30 is None or v[2] is None or not 500 <= em <= 20000 or abs(em - (z30 + v[2]) / 30) > 0.2:
+            zle.append('spalanie: emisja poza 500–20 000 ETH na dobę albo niezgodna ze zmianą podaży i spalonymi')
+        ser = S.get('ser') if isinstance(S.get('ser'), list) else []
+        sd = [r[0] if isinstance(r, list) and len(r) == 2 else None for r in ser]
+        if len(ser) < 20 or any(not eth_k_dzien(d) for d in sd) or sd != sorted(set(sd)):
+            zle.append('podaż: seria dobowa pusta, krótka albo nie rośnie')
+        elif pod is None or abs(ser[-1][1] - pod) > 0.2:
+            zle.append('podaż: seria nie kończy się na bieżącej podaży')
+    L = j.get('l2') if isinstance(j.get('l2'), dict) else None
+    if L is not None:
+        dz, rz = L.get('dzien'), L.get('razem') if isinstance(L.get('razem'), dict) else {}
+        tx, tv = _ste_k_l(rz.get('txcount')), _ste_k_l(rz.get('tvl'))
+        if not eth_k_dzien(dz) or tx is None or tv is None or tx <= 0 or tv <= 0 or (_ste_k_l(L.get('n')) or 0) < 10:
+            zle.append('sieci L2: brak dnia, sumy transakcji albo TVL albo mniej niż 10 sieci')
+        else:
+            sr = L.get('ser') if isinstance(L.get('ser'), dict) else {}
+            for k, sumk in (('tx', tx), ('tvl', tv)):
+                rows = sr.get(k) if isinstance(sr.get(k), list) else []
+                if not rows or rows[-1][0] != dz or abs(rows[-1][1] - sumk) > max(1.0, abs(sumk) * 1e-6):
+                    zle.append(f'sieci L2: seria {k} nie kończy się na sumie z dnia danych')
+                dd = [r[0] for r in rows if isinstance(r, list) and len(r) == 2]
+                if dd != sorted(set(dd)):
+                    zle.append(f'sieci L2: seria {k} nie rośnie')
+            ids = [r.get('id') for r in L.get('sieci') or [] if isinstance(r, dict)]
+            if len(ids) != len(set(ids)) or sum(_ste_k_l(r.get('tvl')) or 0 for r in L.get('sieci') or [] if isinstance(r, dict)) > tv * 1.000001 or any(
+                    (_ste_k_l(r.get(f)) or 0) < 0 for r in L.get('sieci') or [] if isinstance(r, dict) for f in ('tvl', 'tx', 'daa', 'fees', 'stables')):
+                zle.append('sieci L2: powtórzona sieć, wartość ujemna albo suma wierszy większa od sumy')
+    T = j.get('tvs') if isinstance(j.get('tvs'), dict) else None
+    if T is not None:
+        rz, n = _ste_k_l(T.get('razem')), _ste_k_l(T.get('n'))
+        if rz is None or n is None or n < 20 or not 1e9 <= rz <= 5e11:
+            zle.append('drugie źródło TVL: za mało projektów albo suma poza pasmem')
+    return zle
+
+
+def eth_kontrola(j, now=None):
+    """data/eth-lancuch.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️;
+    porównanie największych sieci i zmiany 7-dobowej tylko ℹ️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    for k in ('wal', 'spal', 'l2', 'tvs'):
+        lab = ETH_K_ETYKIETA[k]
+        P = j.get(k) if isinstance(j.get(k), dict) else None
+        if P is None:
+            if isinstance(j.get('ok'), dict) and j['ok'].get(k) is not None:
+                out['rows'].append((lab, '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od początku)')
+            continue
+        w = wiek_danych(P.get('t'), 'ts', 'k', now) if isinstance(P.get('t'), str) else None
+        if w is None:
+            out['rows'].append((lab, '?', None, None, 'brak czasu odczytu'))
+            continue
+        st = '⚠️' if w > ETH_K_H[k] * 60 else '✅'
+        note = '' if st == '✅' else f'odczyt starszy niż {ETH_K_H[k]} h — źródło nie odpowiada albo zmieniło odpowiedź; najwyżej uwaga'
+        out['rows'].append((lab, st, w, str(P['t'])[:16].replace('T', ' ') + ' UTC', note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: odczyt z {str(P["t"])[:16].replace("T", " ")} UTC — {fmt_wiek(w)} temu ({note})')
+    zle = eth_k_spojnosc(j)
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Ethereum i L2 (eth-lancuch.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in ('wal', 'spal', 'l2', 'tvs')):
+        out['wiersze'].append(('spójność pliku (kolejki, spalanie, podaż, sieci L2)', '⚠️' if zle else '✅'))
+    L, T = j.get('l2') if isinstance(j.get('l2'), dict) else None, j.get('tvs') if isinstance(j.get('tvs'), dict) else None
+    if L is not None and eth_k_dzien(L.get('dzien')):
+        t = _ix_dt_k(L.get('t')) or now
+        lag = (t.date() - dt.date.fromisoformat(L['dzien'])).days
+        out['wiersze'].append((f'dzień danych sieci L2 {L["dzien"]} ma {lag} d wobec doby odczytu', '✅' if lag <= ETH_K_DZIEN_MAX else '⚠️'))
+        if lag > ETH_K_DZIEN_MAX:
+            out['uwagi'].append(f'Sieci L2: dzień danych {L["dzien"]} ma {lag} d wobec doby odczytu — źródło nie dopisuje nowych dób (próg {ETH_K_DZIEN_MAX} d)')
+    if L is not None and T is not None:
+        tl, tt = _ix_dt_k(L.get('t')), _ix_dt_k(T.get('t'))
+        tv, rz = _ste_k_l((L.get('razem') or {}).get('tvl')), _ste_k_l(T.get('razem'))
+        if tl is not None and tt is not None and abs((tl - tt).total_seconds()) <= 12 * 3600 and tv and rz:
+            q = tv / rz
+            out['wiersze'].append((f'TVL sieci L2 zgodny z drugim źródłem (stosunek {q:.2f})'.replace('.', ',') if ETH_K_TVL[0] <= q <= ETH_K_TVL[1]
+                                   else f'TVL sieci L2 różni się od drugiego źródła (stosunek {q:.2f}, próg {ETH_K_TVL[0]:.2f}–{ETH_K_TVL[1]:.2f})'.replace('.', ','), '✅' if ETH_K_TVL[0] <= q <= ETH_K_TVL[1] else '⚠️'))
+            if not ETH_K_TVL[0] <= q <= ETH_K_TVL[1]:
+                out['uwagi'].append(f'Sieci L2: TVL ze zbioru statystyk i suma wartości zabezpieczonej z drugiego źródła różnią się (stosunek {q:.2f}) — jedno ze źródeł zmieniło definicję albo błądzi'.replace('.', ','))
+            gp = {r['id'].replace('-', '_'): _ste_k_l(r.get('tvl')) for r in L.get('sieci') or [] if isinstance(r, dict) and isinstance(r.get('id'), str)}
+            roz, por = [], 0
+            for k_, v_ in (T.get('top') or [])[:3]:
+                a = gp.get(str(k_).replace('-', '_'))
+                if a and _ste_k_l(v_):
+                    por += 1
+                    if abs(a / v_ - 1) > 0.25:
+                        roz.append(f'{k_}: {a / 1e9:.1f} i {v_ / 1e9:.1f} mld'.replace('.', ','))
+            if por:   # bez wspólnych sieci nie ma czego porównywać — bez wiersza
+                out['wiersze'].append(('największe sieci zgodne z drugim źródłem' if not roz else 'największe sieci różnią się od drugiego źródła (' + '; '.join(roz) + ')', '✅' if not roz else 'ℹ️'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -12766,6 +12918,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['dzwignia2'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Dźwignia 2 (v397): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v403. Ethereum i warstwa 2 (data/eth-lancuch.json): wiek czterech części, spójność w pliku, dzień danych sieci L2 i porównanie TVL z drugim źródłem — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        ET_ = eth_kontrola(files.get('eth-lancuch'))
+        for label, st, w, txt, note in ET_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += ET_['uwagi']
+        R['zgodnosc']['eth-lancuch'] = {'spojnosc': ET_['spojnosc'], 'wiersze': ET_['wiersze']} if (ET_['rows'] or ET_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['eth-lancuch'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Ethereum i L2 (v403): kontrola przerwana ({str(e)[:80]})')
     # 3c-v402. DeFi 2 (data/defi2.json): wiek doby danych każdej części, spójność w pliku, porównanie podaży USDT z plikiem emitentów — z plików strony, bez zapytań; porównanie TYLKO informacja (ℹ️), reszta najwyżej ⚠️
     try:
         DF_ = df2_kontrola(files.get('defi2'), files.get('stable-emitenci'))
@@ -13700,6 +13862,11 @@ def raport_md(R):
             L.append('- Dźwignia krypto 2, nastroje detalu i kredyt marżowy (z pliku strony; porównanie z dzwignia.json tylko informacyjnie): ' + (f'? kontrola przerwana ({sd2_["blad"]})' if sd2_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(sd2_['spojnosc'][:3]) + ' ⚠️ · ' if sd2_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in sd2_.get('wiersze') or []) or '—') + '.')
+        set_ = Z.get('eth-lancuch')   # v403: Ethereum i warstwa 2 — brak pliku = bez linii
+        if set_:
+            L.append('- Ethereum i warstwa 2, kolejki stakingu, podaż i sieci L2 (z pliku strony; porównanie TVL z drugim źródłem): ' + (f'? kontrola przerwana ({set_["blad"]})' if set_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(set_['spojnosc'][:3]) + ' ⚠️ · ' if set_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in set_.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else

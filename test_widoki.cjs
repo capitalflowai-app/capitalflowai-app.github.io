@@ -31039,3 +31039,266 @@ test('v402: telefon 390 px bez przewijania w bok — kafle po dwa, tabele w dwó
   assert.ok(/#c-defi2 \.wk-ch \.df2-a\{--k:var\(--bl\)\}/.test(css), 'kolor linii wykresu ze zmiennej motywu');
   assert.ok(!/(^|[^-\w])(#[0-9a-f]{3,8})\b/i.test(css.replace(/rgba?\([^)]*\)/g, '').replace(/#c-defi2/g, '')), 'żadnych kolorów na sztywno poza zmiennymi motywu');
 });
+
+/* ===================== v403 (F11Z16): Ethereum i warstwa 2 — panel #c-eth w CRYPTO (kolejki stakingu, podaż i spalanie, sieci L2) =====================
+   L403_F — plik zbieracza v403 (build_eth_lancuch) w kształcie z nagrań z 17.10.2026 (kolejka wpłat 18 079 = 1 281 652 ETH, wyjścia 5 325 = 269 903 ETH, łączenia 10 308 = 637 025 ETH, podaż 122 137 235 ETH, spalone 19,0 /
+   214,4 / 2 471,7 ETH; 26 sieci: 29,2 mln transakcji, TVL 39,2 mld USD; drugie źródło 84 projekty, 40,7 mld USD) z syntetycznymi seriami dobowymi. Zegar przypięty (2026-10-17 15:00 UTC), srvJSON — odpowiedź od razu. */
+const l403 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const code = cut('/* ===================== v403 (F11Z16): ETHEREUM I WARSTWA 2', '/* v403: koniec */');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-17T15:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[\u00a0\u202f]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  const T = '2026-10-17T14:50:00+00:00';
+  const dayOf = i => new Date(Date.parse('2026-10-16T12:00:00Z') - i * 864e5).toISOString().slice(0, 10);   /* i = 0: dzień danych (16.10) */
+  const ser = (n, f) => Array.from({length: n}, (_, j) => [dayOf(n - 1 - j), f(j)]);   /* rosnąco, ostatni (16.10) = f(n-1) */
+  const SIECI = [['base', 15650988285.75, 9032300, 352544, 79594.83, 5058405696.6, 0.0017675548738864764, 1365249144, 1.47], ['arbitrum', 10586702610.9, 1260561, 104432, 18713.55, 4495598905.4, 0.0044544821054636665, 223688580, -3.39],
+    ['polygon_pos', 3851462189.9, 4551904, 412124, 66094.64, 2891190927, 0.010261161309671616, null, -2.64], ['optimism', 2004930004.6, 2142358, 13990, 3816.27, 569801199, 2.4541e-05, 348293301, 0.5], ['mantle', 1315184149.4, 17275, 3064, 163.01, 562057235.9, 0.003032, 3024550, -4.0],
+    ['starknet', 649842017.8, 166777, 3414, 9429.68, 149218191.7, 0.006374, 26476527, -1.0], ['linea', 357692289.1, 13847, 2600, 1002.36, 36874694.96, 0.0196878, 2723439, 2.0], ['unichain', 85763244.68, 653409, 2083, 202.34, 26358700.9, 0.000116, 86345070, 3.0],
+    ['scroll', 40440339.86, 14429, 1252, 69.53, 8554829.97, 0.0019283, 2066082, -5.0]];
+  const file = () => ({v: 1, at: T, src: 'x', part_at: {wal: T, spal: T, l2: T, tvs: T}, ok: {wal: true, spal: true, l2: true, tvs: true}, errs: {},
+    wal: {t: T, slot: 15452035, epoka: 482876, glowa: '2026-10-17T14:47:23+00:00', limit_eth: 256, wej: {n: 18079, eth: 1281652, dni: 22.3}, wyj: {n: 5325, eth: 269903, dni: 4.9}, kons: {n: 10308, eth: 637025, dni: 6.9, kolejka: 13596}, czesc: {n: 202, eth: 12264.5},
+      hist: [['2026-10-13', 1100000, 300000, 600000], ['2026-10-14', 1150000, 290000, 610000], ['2026-10-15', 1200000, 280000, 620000], ['2026-10-16', 1250000, 275000, 630000], ['2026-10-17', 1281652, 269903, 637025]]},
+    spal: {t: T, zrodlo_t: '2026-10-17T14:47:11+00:00', podaz: 122137235.4, koniec: '2026-10-17T14:47:35+00:00', spal: {d1: 19.0, d7: 214.4, d30: 2471.7, merge: 2017723}, usd: {d1: 46138, d7: 527931, d30: 6516138, merge: 4561922466},
+      zm: {d7: 20612.3, d30: 86465.7, merge: 1616095}, span30: 30.03, roczna: 0.861, emisja_dzien: 2964.6, merge_dzien: '2022-09-15', ser: ser(31, i => 122051766.6 + i * 2880)},
+    l2: {t: T, dzien: '2026-10-16', n: 26, nsieci: {}, razem: {txcount: 29150076, fees_paid_usd: 240433.03, stables_mcap: 15326643664.28, tvl: 39171000197.55, blob_size_bytes: 4238072080, costs_blobs_usd: 85.01},
+      eth: {tx: 1770089, daa: 449950, fees: 294599.5, med: 0.03356013963875977, stables: 162125524334.15},
+      sieci: SIECI.map(r => ({id: r[0], tvl: r[1], tx: r[2], daa: r[3], fees: r[4], stables: r[5], med: r[6], blob: r[7], tvl7: r[8]})),
+      ser: {tx: ser(60, i => 25000000 + i * 70000), fees: ser(60, i => 200000 + i * 700), tvl: ser(60, i => 36e9 + i * 5e7), stables: ser(60, i => 13e9 + i * 4e7), blob: ser(60, i => 3.5e9 + i * 1.2e7)}},
+    tvs: {t: T, n: 84, razem: 40746472481, chg7: -3.48, top: [['base', 15427781632], ['arbitrum', 10443463680], ['polygon-pos', 3818398208]]}});
+  const mk = (L, data, opt) => {
+    opt = opt || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const mkEl = () => { const e = {innerHTML: '', hidden: true, openIds: [], querySelectorAll(q) { return e.openIds.map(id => ({id})); }, querySelector(q) { return e.openIds.some(id => q === '#' + id) ? {set open(v) { e.opened = (e.opened || []).concat(q); }} : null; }}; return e; };
+    const els = {'#c-eth': mkEl()};
+    const calls = [], ivs = [], charts = [], bars = [], obs = [];
+    const srv = n => { calls.push(n); const v = n === 'eth-lancuch' ? data : null; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const SRV_GR = {'ceny-krypto': 'c'}, SRV_LD = {c: [function srvLiveStart() {}]};
+    const doc = {hidden: false, documentElement: {}};
+    const wk = opt.nowk ? undefined : (Ls, o) => { charts.push({L: Ls, o}); return '[CHART:' + o.aria + '|' + Ls.map(l => l.n + ':' + l.d.length).join(',') + ']'; };
+    const wb = opt.nowk ? undefined : (rows, o) => { bars.push({rows, o}); return '[BARS:' + o.aria + '|' + rows.map(r => r.l + '=' + r.vt).join(',') + ']'; };
+    const MO = function (cb) { obs.push(cb); this.observe = () => {}; };
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'SRV_GR', 'SRV_LD', 'document', 'setInterval', 'Date', 'wkLines', 'wkBars', 'coinImg', 'glyphImg', 'icoWrap', 'MutationObserver',
+      "'use strict';\n" + code + '\nreturn {ETHW, EW_OLD, ewNumM, ewAmt, ewSAmt, ewUsd, ewFee, ewPct, ewDays, ewOk, ewPart, ewSer, ewBack, ewChg, ewName, ewQueue, ewSupply, ewL2, ewBody, renderEth, ethApply, ethLoad};')(
+      q => els[q] || null, v96src.tFor(L), v96src.escH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, SRV_GR, SRV_LD, doc, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD,
+      wk, wb, opt.ico ? (s => '[coin:' + s + ']') : undefined, opt.ico ? (s => '[glyph:' + s + ']') : undefined, opt.ico ? (h => '<i>' + h + '</i>') : undefined, MO);
+    return {api, els, calls, ivs, SRV_GR, SRV_LD, charts, bars, obs};
+  };
+  return {mk, clone, sp, txt, code, file, ser, dayOf, SIECI, NOW, LOC, T};
+})();
+/* kafle panelu: {label, cls (klasa <b>), val (tekst wartości przed pierwszym <small>), valHtml, subs (każdy <small> w <b>), when} */
+const l403tiles = h => [...l403.sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)]
+  .map(m => ({label: m[1], cls: (m[2].match(/class="([^"]*)"/) || [, ''])[1], valHtml: m[3].split('<small')[0], val: l403.txt(m[3].split('<small')[0]),
+    subs: [...m[3].matchAll(/<small>(.*?)<\/small>/g)].map(x => l403.txt(x[1])), subsHtml: [...m[3].matchAll(/<small>(.*?)<\/small>/g)].map(x => x[1]), when: l403.txt(m[4])}));
+const l403pl = (d, s) => new Date(Date.parse(d + 'T12:00:00Z')).toLocaleDateString('pl-PL', s ? {day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC'} : {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
+const l403h = (K) => l403.sp(K.els['#c-eth'].innerHTML);
+
+test('v403: rejestr grupy „c” (eth-lancuch), ładowanie i odświeżanie co 10 min; panel #c-eth w szablonie zaraz po #c-lancuch; zmiana języka przerysowuje panel', () => {
+  const K = l403.mk('pl', l403.file());
+  assert.equal(K.SRV_GR['eth-lancuch'], 'c'); assert.equal(K.SRV_GR['ceny-krypto'], 'c', 'stary wpis bez zmian');
+  assert.equal(K.SRV_LD.c[K.SRV_LD.c.length - 1].name, 'ethLoad'); assert.ok(K.calls.includes('eth-lancuch'));
+  assert.ok(K.ivs.some(([f, ms]) => ms === 10 * 60e3), 'odświeżanie co 10 min (plik zbieracza co ~60 min)');
+  assert.ok(html.includes("SRV_GR['eth-lancuch']='c';SRV_LD.c.push(ethLoad);"), 'rejestr dopisany po deklaracjach');
+  assert.ok(html.indexOf("SRV_GR['eth-lancuch']='c'") > html.indexOf('const SRV_GR=') && html.indexOf("SRV_GR['eth-lancuch']='c'") < html.indexOf('\nethLoad();'), 'rejestr przed pierwszym wywołaniem ładowarki');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])eth-lancuch\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.equal(html.split('id="c-eth"').length, 2, 'jeden panel w szablonie');
+  assert.ok(html.indexOf('<section class="panel pcard" id="c-lancuch" hidden></section>\n    <section class="panel pcard" id="c-eth" hidden></section>') > 0, 'zaraz po sieci Bitcoin');
+  assert.ok(!K.els['#c-eth'].hidden && K.els['#c-eth'].innerHTML.includes('Ethereum: staking, podaż i sieci warstwy 2'));
+  assert.equal(K.obs.length, 1, 'obserwator zmiany języka'); const przed = K.els['#c-eth'].innerHTML; K.els['#c-eth'].innerHTML = 'x'; K.obs[0](); assert.equal(K.els['#c-eth'].innerHTML, przed);
+});
+
+test('v403: kolejki — pięć kafli (wejścia, wyjścia, wejścia minus wyjścia, łączenia, częściowe wypłaty): wartości, czas w kolejce jako szacunek, kolor tylko przy saldzie, data i wiek', () => {
+  const K = l403.mk('pl', l403.file()), Q = K.api.ewQueue(), Tl = l403tiles(Q.html);
+  assert.equal(Q.gap, false); assert.equal(Tl.length, 5);
+  assert.deepEqual(Tl.map(x => x.label), ['Czeka na wejście do stakingu', 'Czeka na wyjście ze stakingu', 'Wejścia minus wyjścia', 'Łączenie walidatorów', 'Częściowe wypłaty nadwyżek']);
+  assert.deepEqual([Tl[0].cls, Tl[0].val, Tl[0].subs], ['', '1,28 mln ETH', ['czas w kolejce: ok. 22 d (szacunek)', '18 079 wpłat (nowi walidatorzy i dopłaty)']], 'rozmiar kolejki to poziom — bez koloru');
+  assert.deepEqual([Tl[1].cls, Tl[1].val, Tl[1].subs], ['', '270 tys. ETH', ['czas w kolejce: ok. 4,9 d (szacunek)', '5325 walidatorów opuszcza zbiór']]);
+  assert.equal(Tl[2].val, '+1,01 mln ETH'); assert.ok(Tl[2].valHtml.includes('<span class="pos">+1,01 mln ETH</span>'), 'saldo dodatnie → zielone'); assert.deepEqual(Tl[2].subs, ['więcej ETH czeka na wejście niż na wyjście']);
+  assert.equal(Tl[3].val, '637 tys. ETH'); assert.deepEqual(Tl[3].subs, ['10 308 walidatorów łączonych w większych — ETH zostaje w stakingu', 'czas w kolejce: ok. 6,9 d (szacunek)']);
+  assert.equal(Tl[4].val, '12,3 tys. ETH'); assert.deepEqual(Tl[4].subs, ['202 wniosków — walidator zostaje w stakingu']);
+  for (const x of Tl) assert.equal(x.when, 'Stan z D:' + l403.T + ' · wiek(' + l403.T + ')', x.label);
+  assert.ok(Q.html.includes('Wejścia minus wyjścia') && !/\bkupuj|sprzedaj\b/i.test(l403.txt(Q.html)), 'bez rekomendacji');
+});
+
+test('v403: kolejki — saldo ujemne czerwone, zerowe żółte; pusta kolejka = „kolejka pusta”, nie „0 d”; ułamek doby; wykres historii od 3 punktów, krótsza historia = notatka', () => {
+  const F = l403.file(); F.wal.wej = {n: 10, eth: 100000, dni: 1.7}; F.wal.wyj = {n: 50, eth: 300000, dni: 0.5}; F.wal.kons = {n: 0, eth: 0, dni: 0, kolejka: 0};
+  let Tl = l403tiles(l403.mk('pl', F).api.ewQueue().html);
+  assert.equal(Tl[2].val, '−200 tys. ETH'); assert.ok(Tl[2].valHtml.includes('<span class="neg">−200 tys. ETH</span>')); assert.deepEqual(Tl[2].subs, ['więcej ETH czeka na wyjście niż na wejście']);
+  assert.equal(Tl[1].subs[0], 'czas w kolejce: poniżej doby (szacunek)'); assert.equal(Tl[0].subs[0], 'czas w kolejce: ok. 1,7 d (szacunek)');
+  assert.equal(Tl[3].val, '0 ETH'); assert.deepEqual(Tl[3].subs, ['0 walidatorów łączonych w większych — ETH zostaje w stakingu'], 'brak czasu przy zerowej kolejce łączeń');
+  F.wal.wej = {n: 5, eth: 5000, dni: 0}; F.wal.wyj = {n: 5, eth: 5000, dni: 0}; Tl = l403tiles(l403.mk('pl', F).api.ewQueue().html);
+  assert.ok(Tl[2].valHtml.includes('<span class="neu">0 ETH</span>')); assert.deepEqual(Tl[2].subs, ['po równo']); assert.equal(Tl[0].subs[0], 'kolejka pusta');
+  const K = l403.mk('pl', l403.file()); K.api.renderEth();
+  const c = K.charts.find(x => x.o.aria.startsWith('wykres liniowy: Kolejki stakingu w czasie (ETH), 5 dób'));
+  assert.ok(c, 'wykres historii kolejek'); assert.deepEqual(c.L.map(l => [l.n, l.cls, l.d.length]), [['wejścia', 'eth-in', 5], ['wyjścia', 'eth-out', 5], ['łączenia', 'eth-con', 5]]);
+  assert.deepEqual(c.L[0].d[4], [Date.parse('2026-10-17T12:00:00Z'), 1281652]); assert.equal(c.o.fmt(1281652), '1,28 mln ETH');
+  const S = l403.file(); S.wal.hist = S.wal.hist.slice(-2); const h = l403h(l403.mk('pl', S));
+  assert.ok(!l403.mk('pl', S).charts.some(x => x.o.aria.includes('Kolejki stakingu w czasie')), 'dwa punkty — bez wykresu'); assert.ok(h.includes('Historia dobowa kolejek narasta od ' + l403pl('2026-10-16') + '; wykres pojawi się od trzeciej doby.'));
+});
+
+test('v403: podaż i spalanie — cztery kafle (podaż, roczna zmiana, spalone 24 h, od The Merge): wartości, kolory zmian z pokazanej liczby, USD przy spalonych, wykres zmiany podaży', () => {
+  const K = l403.mk('pl', l403.file()), S = K.api.ewSupply(), Tl = l403tiles(S.html);
+  assert.equal(S.gap, false); assert.deepEqual(Tl.map(x => x.label), ['Podaż ETH', 'Roczna zmiana podaży (szacunek)', 'Spalone ETH (24 godz.)', 'Od The Merge (' + l403pl('2022-09-15') + ')']);
+  assert.deepEqual([Tl[0].cls, Tl[0].val, Tl[0].subs], ['', '122,14 mln ETH', ['ostatnie 30 dób: +86,5 tys. ETH (+0,07%)']]); assert.ok(Tl[0].subsHtml[0].includes('<span class="pos">+86,5 tys. ETH</span>') && Tl[0].subsHtml[0].includes('<span class="pos">+0,07%</span>'));
+  assert.ok(Tl[1].valHtml.includes('<span class="pos">+0,86%</span>')); assert.deepEqual(Tl[1].subs, ['z ostatnich 30 dób · emisja ok. 2,96 tys. ETH dziennie, spalane ok. 82 ETH dziennie']);
+  assert.deepEqual([Tl[2].val, Tl[2].subs], ['19 ETH', ['wartość ok. 46,1 tys. USD', '7 dób: 214 ETH · 30 dób: 2,47 tys. ETH']]);
+  assert.ok(Tl[3].valHtml.includes('<span class="pos">+1,62 mln ETH</span>')); assert.deepEqual(Tl[3].subs, ['zmiana podaży (+1,3%); w tym czasie spalono 2,02 mln ETH']);
+  for (const x of Tl) assert.equal(x.when, 'Stan z D:' + l403.T + ' · wiek(' + l403.T + ')');
+  K.api.renderEth(); const c = K.charts.find(x => x.o.aria.includes('Zmiana podaży ETH od początku okna')); assert.ok(c && c.L[0].d.length === 31 && c.L[0].d[0][1] === 0 && c.L[0].d[30][1] === 30 * 2880, 'seria względem pierwszego dnia okna');
+  assert.equal(c.o.fmt(86400), '+86,4 tys. ETH'); assert.equal(c.o.fmt(0), '0 ETH');
+  const N = l403.file(); N.spal.zm = {d7: -100, d30: -5000, merge: -10}; N.spal.roczna = -0.05; const T2 = l403tiles(l403.mk('pl', N).api.ewSupply().html);
+  assert.ok(T2[0].subsHtml[0].includes('<span class="neg">−5,00 tys. ETH</span>') && T2[0].subsHtml[0].includes('<span class="neu">0,00%</span>'), T2[0].subsHtml[0]);
+  assert.ok(T2[1].valHtml.includes('<span class="neg">−0,05%</span>')); assert.ok(T2[3].valHtml.includes('<span class="neg">−10 ETH</span>'));
+});
+
+test('v403: podaż — zła albo niepełna część daje „—”, nie zero; okna spalania brakujące osobno', () => {
+  const F = l403.file(); delete F.spal.spal.d7; const Tl = l403tiles(l403.mk('pl', F).api.ewSupply().html);
+  assert.deepEqual([Tl[2].label, Tl[2].val, Tl[2].subs, Tl[2].cls], ['Spalone ETH (24 godz.)', '—', ['brak danych — to nie zero'], 'na']);
+  assert.notEqual(Tl[0].val, '—', 'pozostałe kafle bez zmian');
+  const G = l403.file(); G.spal.roczna = null; assert.equal(l403tiles(l403.mk('pl', G).api.ewSupply().html)[1].val, '—');
+  const H = l403.file(); H.spal.merge_dzien = 'wczoraj'; assert.equal(l403tiles(l403.mk('pl', H).api.ewSupply().html)[3].label, 'Od The Merge (—)');
+  const B = l403.file(); B.spal.podaz = 0; assert.equal(l403.mk('pl', B).api.ewSupply().gap, true);
+  const C = l403.file(); C.spal.ser = [['2026-10-16', 1]]; assert.ok(!l403.mk('pl', C).charts.some(x => x.o.aria.includes('Zmiana podaży')), 'seria za krótka — bez wykresu');
+});
+
+test('v403: sieci L2 — sześć kafli (transakcje, opłaty, typowa opłata, stablecoiny, TVL z kontrolą, blobs): wartości, odniesienie do Ethereum L1, zmiana 7 dób, data danych i wiek', () => {
+  const K = l403.mk('pl', l403.file()), L = K.api.ewL2(), Tl = l403tiles(L.html);
+  assert.equal(L.gap, false); assert.deepEqual(Tl.map(x => x.label), ['Transakcje w sieciach L2 (doba)', 'Opłaty płacone w sieciach L2 (doba)', 'Typowa opłata za transakcję w Ethereum L1', 'Stablecoiny w sieciach L2', 'Wartość zdeponowana w sieciach L2 (TVL)', 'Dane w blobach (doba)']);
+  const c7 = (S, i) => (S[S.length - 1][1] / S[S.length - 8][1] - 1) * 100;
+  const F = l403.file(), pct = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(Math.abs(v) < 1 ? 2 : 1).replace('.', ',') + '%';
+  assert.deepEqual([Tl[0].cls, Tl[0].val], ['', '29,2 mln']); assert.equal(Tl[0].subs[0], '16× więcej niż w Ethereum L1 (1,77 mln)'); assert.equal(Tl[0].subs[1], '7 dób: ' + pct(c7(F.l2.ser.tx)));
+  assert.ok(Tl[0].subsHtml[1].includes('<span class="pos">'), 'wzrost zielony');
+  assert.deepEqual([Tl[1].val, Tl[1].subs[0]], ['240 tys. USD', 'Ethereum L1: 295 tys. USD']);
+  assert.deepEqual([Tl[2].val, Tl[2].subs], ['0,034 USD', ['mediana; w sieci Base: 0,0018 USD']]);
+  assert.deepEqual([Tl[3].val, Tl[3].subs[0]], ['15,3 mld USD', 'w Ethereum L1: 162 mld USD']);
+  assert.equal(Tl[4].val, '39,2 mld USD'); assert.equal(Tl[4].subs[0], '7 dób: ' + pct(c7(F.l2.ser.tvl))); assert.equal(Tl[4].subs[1], 'kontrola drugim źródłem: 40,7 mld USD (−3,9%)'); assert.ok(Tl[4].subsHtml[1].includes('<span class="neg">−3,9%</span>'));
+  assert.deepEqual([Tl[5].val, Tl[5].subs[0]], ['4,24 GB', 'koszt publikacji w Ethereum: 85 USD']);
+  for (const x of Tl) assert.equal(x.when, 'Dane za ' + l403pl('2026-10-16') + ' · pobrano D:' + l403.T + ' · wiek(' + l403.T + ')', x.label);
+  assert.ok(L.html.includes('Dane za ' + l403pl('2026-10-16') + ' z 26 sieci; źródło ma opóźnienie około doby.'));
+});
+
+test('v403: sieci L2 — kontrola drugim źródłem tylko przy odczytach z tego samego przebiegu (12 h); brak drugiego źródła = bez dopisku; brakujące wartości to „—”', () => {
+  const F = l403.file(); F.tvs.t = '2026-10-17T00:30:00+00:00'; F.l2.t = '2026-10-17T14:50:00+00:00';
+  assert.equal(l403tiles(l403.mk('pl', F).api.ewL2().html)[4].subs.length, 1, 'odczyty odległe o ponad 12 h — bez porównania');
+  const G = l403.file(); delete G.tvs; assert.equal(l403tiles(l403.mk('pl', G).api.ewL2().html)[4].subs.length, 1);
+  const H = l403.file(); H.l2.razem.fees_paid_usd = null; H.l2.razem.blob_size_bytes = null; H.l2.razem.stables_mcap = undefined; H.l2.eth.med = null;
+  const Tl = l403tiles(l403.mk('pl', H).api.ewL2().html);
+  assert.deepEqual([Tl[1].val, Tl[2].val, Tl[3].val, Tl[5].val], ['—', '—', '—', '—']); assert.deepEqual(Tl[1].subs, ['brak danych — to nie zero']);
+  assert.equal(Tl[0].val, '29,2 mln'); assert.equal(Tl[4].val, '39,2 mld USD');
+  const Z = l403.file(); Z.l2.razem.txcount = 0; assert.equal(l403.mk('pl', Z).api.ewL2().gap, true, 'zero transakcji = zły odczyt, nie liczba');
+  const D = l403.file(); D.l2.dzien = '16-10-2026'; assert.equal(l403.mk('pl', D).api.ewL2().gap, true);
+  const M = l403.file(); M.l2.eth = {}; assert.deepEqual(l403tiles(l403.mk('pl', M).api.ewL2().html)[0].subs, [l403tiles(l403.mk('pl', l403.file()).api.ewL2().html)[0].subs[1]], 'brak L1 — bez porównania, kafel i zmiana 7 dób zostają');
+});
+
+test('v403: sieci L2 — zestawienia słupkowe (TVL, transakcje) malejąco, nazwy sieci z wyjątkami, etykiety bez HTML; trzy wykresy dobowe (60 dób) z jednostkami; brak wk-wykresów = bez wykresów', () => {
+  const K = l403.mk('pl', l403.file()); K.bars.length = 0; K.charts.length = 0; K.api.renderEth();
+  assert.equal(K.bars.length, 2);
+  const tv = K.bars[0], tx = K.bars[1];
+  assert.deepEqual(tv.rows.map(r => r.l), ['Base', 'Arbitrum One', 'Polygon PoS', 'OP Mainnet', 'Mantle', 'Starknet', 'Linea', 'Unichain']); assert.equal(tv.rows[0].vt, '15,7 mld'); assert.equal(tv.rows[0].cls, 'eth-b');
+  assert.deepEqual(tx.rows.map(r => r.l).slice(0, 3), ['Base', 'Polygon PoS', 'OP Mainnet']); assert.equal(tx.rows[0].vt, '9,03 mln'); assert.equal(tx.rows.length, 8, 'osiem największych wg transakcji'); assert.equal(tv.rows.length, 8);
+  assert.equal(l403.sp(tv.rows[0].tip), 'Base · TVL 15,7 mld USD · transakcje 9,03 mln · aktywne adresy 352 544 · opłaty 79,6 tys. USD');
+  assert.ok(tv.o.aria.startsWith('Największe sieci wg TVL (USD): 8 sieci, największa: Base'));
+  const aria = K.charts.map(c => c.o.aria);
+  assert.ok(aria.includes('wykres liniowy: Transakcje w sieciach L2 na dobę, 60 dób') && aria.includes('wykres liniowy: Wartość zdeponowana w sieciach L2 (TVL), 60 dób') && aria.includes('wykres liniowy: Dane w blobach L2 na dobę (GB), 60 dób'));
+  const ct = K.charts.find(c => c.o.aria.includes('Transakcje w sieciach')); assert.equal(ct.o.fmt(29150076), '29,2 mln'); assert.deepEqual(ct.L[0].cls, 'eth-lv');
+  assert.equal(K.charts.find(c => c.o.aria.includes('(TVL), 60')).o.fmt(39171000197), '39,2 mld USD'); assert.equal(K.charts.find(c => c.o.aria.includes('blobach')).L[0].d[59][1], (3.5e9 + 59 * 1.2e7) / 1e9);
+  const E = l403.file(); E.l2.sieci[0].id = '<img src=x onerror=alert(1)>'; const KE = l403.mk('pl', E); KE.api.renderEth();
+  assert.ok(KE.bars[0].rows.every(r => !r.l.includes('<img')), 'nazwa sieci jest escapowana'); assert.ok(KE.bars[0].rows.some(r => r.l.includes('&lt;img')));
+  let rzut = false; const N = l403.mk('pl', l403.file(), {nowk: true}); try { N.api.renderEth(); } catch (e) { rzut = true; } assert.ok(!rzut, 'bez wk-wykresów panel się rysuje'); assert.ok(!N.els['#c-eth'].innerHTML.includes('[CHART') && N.els['#c-eth'].innerHTML.includes('Transakcje w sieciach L2 (doba)'), 'kafle bez wykresów działają');
+  const sh = l403.file(); sh.l2.sieci = sh.l2.sieci.slice(0, 1); const Ks = l403.mk('pl', sh); Ks.bars.length = 0; Ks.api.renderEth(); assert.equal(Ks.bars.length, 0, 'jedna sieć — bez słupków');
+  const kr = l403.file(); kr.l2.ser.tx = kr.l2.ser.tx.slice(-2); kr.l2.ser.tvl = kr.l2.ser.tvl.slice(-1); const Kk = l403.mk('pl', kr); Kk.charts.length = 0; Kk.api.renderEth(); const ar = Kk.charts.map(c => c.o.aria);
+  assert.ok(!ar.some(a => a.includes('Transakcje w sieciach L2 na dobę')) && !ar.some(a => a.includes('(TVL), ')) && ar.some(a => a.includes('blobach')), 'seria krótsza niż 3 punkty — bez wykresu, pozostałe wykresy zostają');
+});
+
+test('v403: świeżość części — wal 30 h, spal 7 h, l2 i tvs 36 h; część za stara albo z przyszłości znika, reszta panelu zostaje; błąd ostatniego pobrania opisany; wszystkie części brak = panel ukryty', () => {
+  const K0 = l403.mk('pl', l403.file()); assert.deepEqual(K0.api.EW_OLD, {wal: 30 * 3600e3, spal: 7 * 3600e3, l2: 36 * 3600e3, tvs: 36 * 3600e3});
+  const ago = h => new Date(l403.NOW - h * 3600e3).toISOString();
+  for (const [k, h] of [['wal', 30], ['spal', 7], ['l2', 36], ['tvs', 36]]) {
+    const F = l403.file(); F[k].t = ago(h - 0.1); assert.ok(l403.mk('pl', F).api.ewPart(k), k + ' młody');
+    F[k].t = ago(h + 0.1); assert.equal(l403.mk('pl', F).api.ewPart(k), null, k + ' za stary');
+    F[k].t = new Date(l403.NOW + 3600e3).toISOString(); assert.equal(l403.mk('pl', F).api.ewPart(k), null, k + ' z przyszłości');
+  }
+  const F = l403.file(); F.wal.t = ago(40); const K = l403.mk('pl', F); K.api.renderEth(); const h = l403h(K);
+  assert.ok(!K.els['#c-eth'].hidden && !h.includes('Czeka na wejście') && h.includes('Podaż ETH') && h.includes('Transakcje w sieciach L2'), 'stara część kolejek znika, reszta zostaje');
+  const E = l403.file(); E.ok.spal = false; assert.ok(l403tiles(l403.mk('pl', E).api.ewSupply().html)[0].subs.includes('ostatnie pobranie nie wyszło — liczby z wcześniejszego odczytu'));
+  const A = l403.file(); for (const k of ['wal', 'spal', 'l2']) A[k].t = ago(100); A.tvs.t = ago(100); const KA = l403.mk('pl', A); KA.api.renderEth(); assert.ok(KA.els['#c-eth'].hidden && KA.els['#c-eth'].innerHTML === '');
+  const I = l403.file(); I.ok.l2 = false; assert.ok(l403tiles(l403.mk('pl', I).api.ewL2().html)[0].subs.includes('ostatnie pobranie nie wyszło — liczby z wcześniejszego odczytu'));
+});
+
+test('v403: zły kształt pliku — kolejka z ujemną kwotą, brakujący klucz, niepoprawna wersja i chwilowy błąd pobrania (null) nie psują panelu ani nie zerują wczytanych danych', () => {
+  const B = l403.file(); B.wal.wej.eth = -5; assert.equal(l403.mk('pl', B).api.ewQueue().gap, true);
+  const C = l403.file(); delete C.wal.kons; assert.equal(l403.mk('pl', C).api.ewQueue().gap, true);
+  const D = l403.file(); D.wal.czesc = null; assert.deepEqual(l403tiles(l403.mk('pl', D).api.ewQueue().html)[4].subs, ['brak danych — to nie zero']);
+  const K = l403.mk('pl', l403.file()); K.api.ethApply(null); assert.ok(!K.els['#c-eth'].hidden, 'chwilowy błąd pobrania nie zasłania wczytanych danych');
+  K.api.ethApply({v: 2, at: l403.T, wal: {}}); assert.ok(!K.els['#c-eth'].hidden, 'inna wersja pliku odrzucona, stare dane zostają');
+  const N = l403.mk('pl', null); assert.equal(N.api.ewOk(null), false); N.api.renderEth(); assert.ok(N.els['#c-eth'].hidden);
+  const O = l403.mk('pl', {v: 1, at: l403.T}); O.api.renderEth(); assert.ok(O.els['#c-eth'].hidden, 'plik bez części — panel ukryty');
+  for (const bad of ['x', 5, [], {v: 1, at: 'nie czas', wal: {}}]) assert.equal(l403.mk('pl', null).api.ewOk(bad), false);
+});
+
+test('v403: formatowanie liczb — jednostki mld / mln / tys. bez przeskoku do „1000”, USD, opłaty z cyframi znaczącymi, procenty z dwoma miejscami poniżej 1, czas w kolejce', () => {
+  const A = l403.mk('pl', null).api;
+  assert.deepEqual([999.4, 999.6, 1000, 12345, 999600, 999400, 1234567, 999600000, 1.2e9, 122137235.4, 0, 4.5].map(v => A.ewNumM(v)), ['999', '1,00 tys.', '1,00 tys.', '12,3 tys.', '1,00 mln', '999 tys.', '1,23 mln', '1,00 mld', '1,20 mld', '122 mln', '0', '4,5']);
+  assert.equal(A.ewNumM(122137235.4, 2), '122,14 mln'); assert.equal(A.ewNumM(NaN), '—'); assert.equal(A.ewNumM(undefined), '—');
+  assert.deepEqual([A.ewAmt(19, 0), A.ewAmt(2471.7), A.ewAmt(null), A.ewUsd(46138), A.ewUsd(85), A.ewUsd(39171000197), A.ewUsd('x')], ['19 ETH', '2,47 tys. ETH', '—', '46,1 tys. USD', '85 USD', '39,2 mld USD', '—']);
+  assert.deepEqual([A.ewSAmt(1011749), A.ewSAmt(-200000), A.ewSAmt(0), A.ewSAmt(0.2, 0), A.ewSAmt(NaN)], ['+1,01 mln ETH', '−200 tys. ETH', '0 ETH', '0 ETH', '—']);
+  assert.deepEqual([A.ewFee(0.03356), A.ewFee(0.0017675), A.ewFee(2.5), A.ewFee(0), A.ewFee(-1), A.ewFee(null)], ['0,034 USD', '0,0018 USD', '2,50 USD', '0,0000 USD', '—', '—']);
+  assert.deepEqual([A.ewPct(0.0708), A.ewPct(0.861, 2), A.ewPct(-3.87), A.ewPct(1.468), A.ewPct(0), A.ewPct(-0.001), A.ewPct(NaN)], ['+0,07%', '+0,86%', '−3,9%', '+1,5%', '0,00%', '0,00%', '—']);
+  assert.deepEqual([A.ewDays(0), A.ewDays(0.04), A.ewDays(0.3), A.ewDays(1.7), A.ewDays(22.3), A.ewDays(120), A.ewDays(-1), A.ewDays(NaN)], ['kolejka pusta', 'kolejka pusta', 'czas w kolejce: poniżej doby (szacunek)', 'czas w kolejce: ok. 1,7 d (szacunek)', 'czas w kolejce: ok. 22 d (szacunek)', 'czas w kolejce: ok. 120 d (szacunek)', '—', '—']);
+  assert.deepEqual([A.ewName('base'), A.ewName('polygon_pos'), A.ewName('nowa_siec-x'), A.ewName('zksync_era')], ['Base', 'Polygon PoS', 'Nowa siec x', 'ZKsync Era']);
+  const S = [['2026-10-01', 1], ['2026-10-02', 2], ['zła', 3], ['2026-10-02', 5], ['2026-10-08', 8], ['2026-10-09', NaN], 'x']; assert.deepEqual(A.ewSer(S), [['2026-10-01', 1], ['2026-10-02', 5], ['2026-10-08', 8]]);
+  assert.deepEqual(A.ewSer([['2026-10-08', 8], ['2026-10-01', 1], ['2026-10-03', 3]]), [['2026-10-01', 1], ['2026-10-03', 3], ['2026-10-08', 8]], 'rosnąco niezależnie od kolejności wejścia');
+  assert.equal(A.ewChg([['2026-10-01', 0], ['2026-10-08', 3]], 7), null, 'zmiana względem zera = brak, nie nieskończoność');
+  assert.equal(A.ewBack(A.ewSer(S), 7), 1, 'dokładnie 7 dób przed ostatnim dniem'); assert.equal(A.ewBack([['2026-10-02', 2], ['2026-10-08', 8]], 7), null, 'dziura = brak porównania'); assert.equal(A.ewChg([['2026-10-01', 2], ['2026-10-08', 3]], 7), 50);
+});
+
+test('v403: języki — en, de, ja: jednostki, etykiety i brak polskich resztek w panelu; kolory i liczby bez zmian', () => {
+  const E = l403.mk('en', l403.file()); E.api.renderEth(); const h = l403h(E), Tl = l403tiles(E.api.ewQueue().html);
+  assert.equal(Tl[0].label, 'Waiting to enter staking'); assert.equal(Tl[0].val, '1.28 m ETH'); assert.equal(Tl[1].val, '270 k ETH'); assert.ok(Tl[0].subs[0].startsWith('time in queue: ~22 d (estimate)'));
+  assert.ok(h.includes('Ethereum: staking, supply and layer-2 networks') && h.includes('Data for ' + new Date(Date.parse('2026-10-16T12:00:00Z')).toLocaleDateString('en-US', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'})));
+  assert.ok(!/Czeka|sieci|Podaż|Stan z/.test(h), 'brak polskich resztek'); assert.equal(l403tiles(E.api.ewL2().html)[4].val, '39.2 bn USD');
+  const D = l403.mk('de', l403.file()); assert.equal(l403tiles(D.api.ewL2().html)[3].val, '15,3 Mrd. USD'); assert.equal(l403tiles(D.api.ewQueue().html)[0].val, '1,28 Mio. ETH');
+  const J = l403.mk('ja', l403.file()); const tj = l403tiles(J.api.ewQueue().html); assert.equal(tj[0].val, '1.28 百万 ETH'); assert.equal(tj[0].subs[1], '18,079件の入金（新規バリデーターと追加入金）');
+});
+
+test('v403: słownik — 10 języków, te same klucze i pola, wszystkie użyte klucze istnieją, brak martwych, bez nazw dostawców; teksty o kolejkach nie są poradą', () => {
+  const I = v143Final(html), langs = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const used = new Set([...l403.code.matchAll(/\bt\('(eth403\.[a-z0-9.]+)'/g)].map(m => m[1]));
+  for (const k of ['eth403.u.b', 'eth403.u.m', 'eth403.u.k']) used.add(k);   /* jednostki przez tablicę w ewNumM */
+  for (const m of l403.code.matchAll(/'(eth403\.[a-z0-9.]+)'/g)) used.add(m[1]);
+  const ph = s => (String(s).match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  const own = Object.keys(I.pl).filter(k => k.startsWith('eth403.'));
+  assert.ok(own.length >= 75, 'liczba kluczy: ' + own.length);
+  for (const k of used) assert.ok(own.includes(k), 'użyty klucz bez tekstu: ' + k);
+  for (const k of own) assert.ok(used.has(k), 'martwy klucz: ' + k);
+  for (const l of langs) for (const k of own) { assert.ok(typeof I[l][k] === 'string' && I[l][k].trim(), l + ' ' + k); assert.equal(ph(I[l][k]), ph(I.pl[k]), 'pola ' + l + ' ' + k); }
+  const BAN = /publicnode|ultrasound|growthepie|l2beat|beaconcha|blobscan|defillama|etherscan|dune|coingecko|glassnode|nansen|rated\.network|validatorqueue/i;
+  for (const l of langs) for (const k of own) assert.ok(!BAN.test(I[l][k]), l + ' ' + k + ' — nazwa dostawcy');
+  for (const l of langs) for (const k of own) assert.ok(!/<[a-z]/i.test(I[l][k]), l + ' ' + k + ': bez znaczników HTML w tekście');
+  const sal = /kup(uj|ić)|sprzedaj|buy now|sell now|jetzt kaufen|comprar ya|achetez|acquista ora|compre agora|покупайте|продавайте|立即买入|今すぐ買/i;
+  for (const l of langs) for (const k of own) assert.ok(!sal.test(I[l][k]), l + ' ' + k + ': bez rekomendacji');
+  for (const k of ['eth403.not1', 'eth403.not2', 'eth403.not3', 'eth403.foot']) assert.ok(I.pl[k].length > 40, k);
+  assert.ok(I.pl['eth403.n.q'].includes('szacunek') && I.pl['eth403.d.est'].includes('szacunek') && I.pl['eth403.k.inf'].includes('szacunek'), 'szacunki nazwane szacunkami');
+  assert.ok(I.pl['eth403.foot'].length && !/\bklucz\w*\b.*wymag/i.test(I.pl['eth403.foot']));
+  const nums = [...html.matchAll(/^const EXTRA(\d+)=\{"pl":\{"eth403\.t"/gm)]; assert.equal(nums.length, 1, 'jeden słownik v403 w stronie');
+  const x0 = html.indexOf('const EXTRA' + nums[0][1] + '='), x1 = html.indexOf(';\n', x0), D = JSON.parse(html.slice(x0 + ('const EXTRA' + nums[0][1] + '=').length, x1)); assert.deepEqual(Object.keys(D), langs, 'kolejność języków');
+  assert.ok(html.includes('for(const l in EXTRA' + nums[0][1] + ')if(I18N[l])Object.assign(I18N[l],EXTRA' + nums[0][1] + '[l]);\n'), 'nałożony jedną linią');
+});
+
+test('v403: zasady modułu — bez localStorage i sieci poza srvJSON, brak zer w miejsce braku, kolory z klas, nazwy tylko przez escH, miejsce wstawienia i marker końca', () => {
+  const c = l403.code;
+  for (const w of ['localStorage', 'fetch(', 'XMLHttpRequest', 'innerHTML=t(', 'Math.random', 'document.write', 'eval(', 'new Function']) assert.ok(!c.includes(w), 'moduł v403 nie używa: ' + w);
+  assert.equal([...c.matchAll(/srvJSON\(/g)].length, 1); assert.ok(!c.includes('||0') && !c.includes('??0') && !c.includes('|| 0'), 'brak „|| 0” jako zamiennika braku danych');
+  assert.ok(html.indexOf('/* v403: koniec */') < html.indexOf('/* ===================== v105: wieloryby'), 'moduł przed v105'); assert.equal(html.split('/* v403: koniec */').length, 2);
+  assert.ok(/escH\(ewName\(r\.id\)\)/.test(c) && /escH\(ewName\(big\.id\)\)/.test(c), 'nazwy sieci przez escH');
+  assert.ok(!/style="/.test(c), 'stałe style w CSS, nie w znacznikach');
+  const css = cut403('/* v403 (F11Z16): Ethereum — staking, podaż i sieci L2', '@media (max-width:520px){#c-eth .wk-br{--lw:40%}}');
+  for (const w of ['#c-eth .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}', '@media (max-width:620px){#c-eth .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}', '#c-eth .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3}',
+    '#c-eth .etfk b span.pos{color:var(--gr-tx)}', '#c-eth .etfk b span.neg{color:var(--rd-tx)}', '#c-eth .etfk b span.neu{color:var(--yl-tx)}', '#c-eth .wk-ch .eth-in{--k:var(--gr)}', '#c-eth .wk-ch .eth-out{--k:var(--rd)}']) assert.ok(css.includes(w), 'CSS: ' + w);
+  assert.ok(!/#c-eth[^{]*\{[^}]*\b(width|min-width):\s*\d{3,}px/.test(css), 'telefon 390 px: bez stałych szerokości powyżej 99 px');
+  function cut403(a, b) { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'CSS: ' + a); return html.slice(i, j + b.length); }
+});
