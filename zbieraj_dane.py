@@ -32490,6 +32490,8 @@ def main():
     META['ok']['emit_llama'], META['ok']['emit_tether'], META['ok']['emit_circle'] = ste_czesc()
     # v377 (F6Z4): USDT na żywo — data/usdt-skarbiec.json; saldo skarbca emitenta i zdarzenia emisji / umorzeń z sieci Ethereum i Tron (publiczne zapytania, bez klucza), co USK_EVERY_MIN min
     META['ok']['usdt_eth'], META['ok']['usdt_tron'] = usk_czesc()
+    # v394 (F11Z8): premie lokalnych stablecoinów USDT wobec kursu referencyjnego — data/premie-stable.json; zapytania tylko w oknie po opublikowaniu kursu (raz na dzień roboczy), poza nim sam zapis pliku
+    META['ok']['premie_st_tr'], META['ok']['premie_st_br'], META['ok']['premie_st_za'], META['ok']['premie_st_id'], META['ok']['premie_st_in'], META['ok']['premie_st_mx'] = pst_czesc()
     # v140: TOP 10 monet w 8 sektorach sceny CRYPTO (klucz CoinGecko w nagłówku): najwyżej co 55 min, skład kategorii co 6 h (reszta: jedno zapytanie
     # o ceny); oba pliki zapisywane w każdym przebiegu (strona składana od zera); awaria = poprzednie pliki i błąd „krypto top 10: …” (brak ≠ zero)
     prev_t10, prev_t10l = previous('krypto-top10'), previous('krypto-top10-logo')
@@ -39579,6 +39581,246 @@ def build_usda_eksport(prev=None, run_t0=None):
 
 
 ZRODLA_META.update({'usda_eksport': 'usda'})   # v392: ten sam urząd co raporty zbóż (WASDE) — liczba źródeł bez zmian
+
+
+# ===================== v394 (F11Z8): PREMIE LOKALNYCH STABLECOINÓW (USDT) WOBEC KURSU REFERENCYJNEGO — data/premie-stable.json =====================
+# Sześć krajów z kontrolą kapitału albo słabą walutą: Turcja, Brazylia, RPA, Indonezja, Indie, Meksyk (Nigeria pominięta — kurs referencyjny EBC nie obejmuje nairy, a innego kursu urzędowego
+# w projekcie nie ma). Premia = (cena USDT na lokalnej giełdzie / kurs referencyjny dolara) − 1, w punktach procentowych:
+#  - cena USDT = środek najlepszej ceny kupna i sprzedaży z publicznego arkusza JEDNEJ lokalnej giełdy w kraju (publiczne GET bez klucza); ostatnia transakcja służy tylko do bramki zgodności;
+#  - kurs referencyjny = kurs waluty lokalnej za 1 USD z kursów referencyjnych EBC (waluta/euro ÷ dolar/euro z TEGO SAMEGO dnia); EBC ustala je raz na dzień roboczy o 14:10 czasu Frankfurtu
+#    (pr_fixing_utc) i publikuje ok. dwóch godzin później.
+# Jeden wiersz na kraj i dzień roboczy: [doba, premia, minuty od ustalenia kursu do notowania]. Notowanie pobieramy dopiero po opublikowaniu kursu tego dnia, w oknie od PST_OKNO[0] do
+# PST_OKNO[1] minut po jego ustaleniu — kurs i notowanie są więc z różnych godzin (zwykle 2–4 h; różnica wchodzi do premii, strona to mówi). Notowań wstecz nie ma (arkusze są tylko na żywo),
+# więc historia zaczyna się w dniu wdrożenia; dzień bez odczytu (awaria giełdy, spóźniony kurs) zostaje pusty — nigdy zero i nigdy kurs z innego dnia. Wiersz zapisany raz, nie nadpisujemy.
+# Poza oknem, w weekend i gdy wszystkie kraje mają już wiersz tego dnia — zero zapytań (plik jest tylko zapisywany z nową chwilą at). Surowych notowań w pliku nie ma (tylko premia).
+# Bramki: dwie strony arkusza skończone i dodatnie, spread ≤ PST_SPREAD_MAX, ostatnia transakcja w granicach arkusza ± PST_LAST_TOL, notowanie nie starsze niż PST_QUOTE_S s (gdy giełda podaje czas),
+# cena USDT / kurs w przedziale PST_PLAUZ, |premia| ≤ PST_PREM_MAX. Koszyk: mediana premii krajów danego dnia, gdy odczyt ma co najmniej PST_KOSZ_MIN krajów.
+PST_V = 1
+PST_KODY = ('tr', 'br', 'za', 'id', 'in', 'mx')
+PST_WAL = {'tr': 'TRY', 'br': 'BRL', 'za': 'ZAR', 'id': 'IDR', 'in': 'INR', 'mx': 'MXN'}
+PST_URL = {
+    'tr': 'https://api.btcturk.com/api/v2/ticker?pairSymbol=USDT_TRY',
+    'br': 'https://api.mercadobitcoin.net/api/v4/tickers?symbols=USDT-BRL',
+    'za': 'https://api.luno.com/api/1/ticker?pair=USDTZAR',
+    'id': 'https://indodax.com/api/ticker/usdtidr',
+    'in': 'https://www.zebapi.com/pro/v1/market/USDT-INR/ticker',
+    'mx': 'https://api.bitso.com/v3/ticker/?book=usdt_mxn'}
+PST_ECB = 'https://data-api.ecb.europa.eu/service/data/EXR/D.USD+TRY+BRL+ZAR+IDR+INR+MXN.EUR.SP00.A?format=csvdata&lastNObservations=3'
+PST_OKNO = (90, 300)       # min po ustaleniu kursu (14:10 Frankfurt): okno pobierania notowań (EBC publikuje ok. 110 min po ustaleniu)
+PST_ECB_MAX = 12           # zapytań do EBC na dobę (kurs jeszcze nieopublikowany albo EBC milczy — bez serii zapytań co 10 min)
+PST_SPREAD_MAX = 0.03      # największy dopuszczalny spread arkusza (ułamek ceny)
+PST_LAST_TOL = 0.03        # ostatnia transakcja najwyżej tyle poza arkuszem
+PST_QUOTE_S = 900          # s: najstarsze dopuszczalne notowanie, gdy giełda podaje jego czas
+PST_PLAUZ = (0.5, 2.0)     # cena USDT / kurs referencyjny poza przedziałem = błąd odczytu
+PST_PREM_MAX = 50.0        # pp: |premia| powyżej to błąd odczytu (w tych krajach nie bywa tak wysoka)
+PST_GAP_MAX = PST_OKNO[1]  # min: kurs i notowanie najwyżej tyle od siebie
+PST_KEEP = 800             # wierszy historii na kraj (ponad 3 lata dni roboczych)
+PST_KOSZ_MIN = 4           # najmniej krajów w odczycie koszyka
+PST_TIMEOUT = 20           # s: jedno zapytanie
+PST_SRC = ('premia = środek ceny kupna i sprzedaży USDT na lokalnej giełdzie wobec kursu referencyjnego dolara z tego samego dnia roboczego; '
+           'jeden odczyt na dzień roboczy po opublikowaniu kursu, bez surowych notowań')
+ZRODLA_META.update({'premie_st_tr': 'btcturk', 'premie_st_br': 'mercadobitcoin', 'premie_st_za': 'luno', 'premie_st_id': 'indodax', 'premie_st_in': 'zebpay', 'premie_st_mx': 'bitso'})   # v394: sześć lokalnych giełd (+6 źródeł); kurs referencyjny z EBC — źródło już liczone (Korea, kursy), więc bez własnego wpisu
+
+
+def _pst_liczba(v):
+    """Liczba skończona i dodatnia z liczby albo tekstu dziesiętnego (nie bool); inaczej None."""
+    if isinstance(v, bool):
+        return None
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    return x if x == x and x not in (float('inf'), float('-inf')) and x > 0 else None
+
+
+def _pst_cena(a, b, last):
+    """Środek dwóch stron arkusza (kolejność dowolna — nazwy stron różnią się między giełdami) po bramkach: obie dodatnie, spread ≤ PST_SPREAD_MAX, ostatnia transakcja w granicach
+    arkusza ± PST_LAST_TOL (brak ostatniej transakcji w odpowiedzi = zmieniony kształt = błąd). Zły arkusz → ValueError."""
+    a, b = _pst_liczba(a), _pst_liczba(b)
+    if a is None or b is None:
+        raise ValueError('arkusz: strona nie jest dodatnią liczbą')
+    lo, hi = min(a, b), max(a, b)
+    if hi / lo - 1 > PST_SPREAD_MAX:
+        raise ValueError('arkusz: spread za duży')
+    last = _pst_liczba(last)
+    if last is None or not lo * (1 - PST_LAST_TOL) <= last <= hi * (1 + PST_LAST_TOL):
+        raise ValueError('arkusz: ostatnia transakcja poza arkuszem albo brak')
+    return (lo + hi) / 2
+
+
+def _pst_sekundy(v, ms=False):
+    """Czas unix (s albo ms) → sekundy; zły → None."""
+    x = _pst_liczba(v)
+    if x is None:
+        return None
+    x = x / 1000.0 if ms else x
+    return x if 1.5e9 <= x <= 4e9 else None
+
+
+def parse_pst(kod, j):
+    """Odpowiedź arkusza lokalnej giełdy kraju `kod` → (cena USDT w walucie lokalnej, czas notowania unix s albo None). Zły kształt, inna para, nieaktywny rynek albo bramki
+    (_pst_cena) → ValueError. Czas — gdy giełda go podaje (ZebPay nie podaje)."""
+    if kod == 'tr':
+        d = j.get('data') if isinstance(j, dict) else None
+        if not (isinstance(j, dict) and j.get('success') is True and isinstance(d, list) and len(d) == 1 and isinstance(d[0], dict) and d[0].get('pairNormalized') == 'USDT_TRY'):
+            raise ValueError('Turcja: zły kształt albo para')
+        x = d[0]
+        return _pst_cena(x.get('bid'), x.get('ask'), x.get('last')), _pst_sekundy(x.get('timestamp'), True)
+    if kod == 'br':
+        if not (isinstance(j, list) and len(j) == 1 and isinstance(j[0], dict) and j[0].get('pair') == 'USDT-BRL'):
+            raise ValueError('Brazylia: zły kształt albo para')
+        x = j[0]
+        return _pst_cena(x.get('buy'), x.get('sell'), x.get('last')), _pst_sekundy(x.get('date'))
+    if kod == 'za':
+        if not (isinstance(j, dict) and j.get('pair') == 'USDTZAR' and j.get('status') == 'ACTIVE'):
+            raise ValueError('RPA: zły kształt, para albo rynek nieaktywny')
+        return _pst_cena(j.get('bid'), j.get('ask'), j.get('last_trade')), _pst_sekundy(j.get('timestamp'), True)
+    if kod == 'id':
+        x = j.get('ticker') if isinstance(j, dict) else None
+        if not isinstance(x, dict):
+            raise ValueError('Indonezja: zły kształt')
+        return _pst_cena(x.get('buy'), x.get('sell'), x.get('last')), _pst_sekundy(x.get('server_time'))
+    if kod == 'in':
+        if not (isinstance(j, dict) and j.get('pair') == 'USDT-INR'):
+            raise ValueError('Indie: zły kształt albo para')
+        return _pst_cena(j.get('buy'), j.get('sell'), j.get('market')), None
+    if kod == 'mx':
+        x = j.get('payload') if isinstance(j, dict) else None
+        if not (isinstance(j, dict) and j.get('success') is True and isinstance(x, dict) and x.get('book') == 'usdt_mxn'):
+            raise ValueError('Meksyk: zły kształt albo para')
+        t = None
+        try:
+            t = datetime.datetime.fromisoformat(str(x.get('created_at'))).timestamp()
+        except ValueError:
+            pass
+        return _pst_cena(x.get('bid'), x.get('ask'), x.get('last')), (t if t is not None and 1.5e9 <= t <= 4e9 else None)
+    raise ValueError('nieznany kraj')
+
+
+def parse_pst_fx(raw):
+    """CSV EBC (EXR D.USD+waluty.EUR.SP00.A) → {dzień: {waluta: jednostek waluty lokalnej za 1 USD}} = waluta/EUR ÷ USD/EUR z TEGO SAMEGO TIME_PERIOD; tylko dni z dolarem i walutą,
+    puste, NaN i ≤ 0 pominięte (nigdy 0); kolejność wierszy dowolna."""
+    text = raw.decode('utf-8', 'replace') if isinstance(raw, (bytes, bytearray)) else str(raw or '')
+    d = {}
+    for r in csv.DictReader(io.StringIO(text)):
+        cur, day, v = r.get('CURRENCY'), r.get('TIME_PERIOD'), _pst_liczba(r.get('OBS_VALUE'))
+        if (cur == 'USD' or cur in PST_WAL.values()) and isinstance(day, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', day) and v is not None:
+            d.setdefault(day, {})[cur] = v
+    return {day: {c: m[c] / m['USD'] for c in PST_WAL.values() if c in m} for day, m in sorted(d.items()) if 'USD' in m}
+
+
+def pst_premia(cena, kurs):
+    """Premia w pp (3 miejsca): (cena USDT / kurs − 1) × 100. Cena/kurs poza PST_PLAUZ albo |premia| > PST_PREM_MAX → ValueError."""
+    cena, kurs = _pst_liczba(cena), _pst_liczba(kurs)
+    if cena is None or kurs is None:
+        raise ValueError('premia: brak ceny albo kursu')
+    r = cena / kurs
+    if not PST_PLAUZ[0] <= r <= PST_PLAUZ[1] or abs((r - 1) * 100) > PST_PREM_MAX:
+        raise ValueError('premia poza zakresem')
+    return round((r - 1) * 100, 3)
+
+
+def pst_okno(now):
+    """(doba ISO, początek okna, koniec okna, chwila ustalenia kursu) dla dnia roboczego; weekend → None. Kursy EBC są tylko w dni robocze, więc dzień wolny EBC kończy się brakiem kursu."""
+    if now.weekday() >= 5:
+        return None
+    fix = pr_fixing_utc(now.date())
+    return now.date().isoformat(), fix + datetime.timedelta(minutes=PST_OKNO[0]), fix + datetime.timedelta(minutes=PST_OKNO[1]), fix
+
+
+def pst_wiersze(v):
+    """Wiersze kraju z pliku → lista poprawnych [doba, premia, minuty] bez powtórzeń doby, rosnąco, najwyżej PST_KEEP ostatnich; zepsute pomijane."""
+    M = {}
+    for r in (v if isinstance(v, list) else []):
+        if not (isinstance(r, list) and len(r) == 3 and isinstance(r[0], str) and re.match(r'^\d{4}-\d{2}-\d{2}$', r[0])):
+            continue
+        p, g = r[1], r[2]
+        if isinstance(p, bool) or not isinstance(p, (int, float)) or p != p or abs(p) > PST_PREM_MAX or isinstance(g, bool) or not isinstance(g, int) or not 0 <= g <= PST_GAP_MAX:
+            continue
+        try:
+            datetime.date.fromisoformat(r[0])
+        except ValueError:
+            continue
+        M.setdefault(r[0], [r[0], p, g])
+    return [M[k] for k in sorted(M)][-PST_KEEP:]
+
+
+def pst_kosz(rows):
+    """Koszyk: [[doba, mediana premii krajów tej doby (3 miejsca), liczba krajów]] dla dób z co najmniej PST_KOSZ_MIN krajami, rosnąco."""
+    D = {}
+    for k in PST_KODY:
+        for r in rows.get(k) or []:
+            D.setdefault(r[0], []).append(r[1])
+    return [[d, round(statistics.median(v), 3), len(v)] for d, v in sorted(D.items()) if len(v) >= PST_KOSZ_MIN]
+
+
+def _pst_ecb():
+    """Jedno zapytanie CSV do EBC z odstępem ECB_SLEEP od poprzedniego zapytania do EBC (wspólnym z resztą zbieracza)."""
+    global _ECB_LAST
+    wait = ECB_SLEEP - (time.monotonic() - _ECB_LAST)
+    if wait > 0:
+        time.sleep(wait)
+    try:
+        return parse_pst_fx(get_bytes(PST_ECB, timeout=PST_TIMEOUT))
+    finally:
+        _ECB_LAST = time.monotonic()
+
+
+def build_premie_stable(prev=None):
+    """data/premie-stable.json {v, at, od, src, ok, ecb_n, rows, kosz}. Wiersz kraju powstaje raz na dzień roboczy: w oknie po opublikowaniu kursu EBC tego dnia, gdy kraj nie ma jeszcze wiersza tej
+    doby. ok[kraj]: True = wiersz zapisany w tym przebiegu, 'cached' = nic do zrobienia (poza oknem, kurs nieopublikowany, wiersz już jest), False = zapytanie albo bramka zawiodły (błąd do
+    META['errors'], kolejny przebieg ponawia w oknie). Plik odświeża at w każdym przebiegu (wiek pliku = wiek kontroli, nie wiek odczytu — ten ma doba wiersza)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == PST_V else {}
+    now = _ix_dt(NOW)
+    prows = pv.get('rows') if isinstance(pv.get('rows'), dict) else {}
+    rows = {k: pst_wiersze(prows.get(k)) for k in PST_KODY}
+    od = pv.get('od') if isinstance(pv.get('od'), str) and re.match(r'^\d{4}-\d{2}-\d{2}$', pv['od']) else NOW[:10]
+    en = pv.get('ecb_n') if isinstance(pv.get('ecb_n'), list) and len(pv['ecb_n']) == 2 and pv['ecb_n'][0] == NOW[:10] and isinstance(pv['ecb_n'][1], int) else [NOW[:10], 0]
+    ok = {k: 'cached' for k in PST_KODY}
+    o = pst_okno(now)
+    if o and o[1] <= now <= o[2]:
+        dzien, fix = o[0], o[3]
+        brak = [k for k in PST_KODY if not any(r[0] == dzien for r in rows[k])]
+        if brak and en[1] < PST_ECB_MAX:
+            en[1] += 1
+            kursy = None
+            try:
+                kursy = _pst_ecb().get(dzien)
+            except Exception as e:   # noqa — brak kursu to brak dnia, nie zero
+                META['errors'].append(mask(f'premie stable EBC: {e}')[:200])
+                ok.update({k: False for k in brak})
+            if kursy:
+                for k in brak:
+                    kurs = kursy.get(PST_WAL[k])
+                    try:
+                        if kurs is None:
+                            raise ValueError('brak kursu referencyjnego tej waluty')
+                        cena, tq = parse_pst(k, get_json(PST_URL[k], timeout=PST_TIMEOUT))
+                        if tq is not None and abs(now.timestamp() - tq) > PST_QUOTE_S:
+                            raise ValueError('notowanie nieświeże')
+                        gap = int((now - fix).total_seconds() // 60)   # okno pobierania gwarantuje PST_OKNO[0] ≤ gap ≤ PST_OKNO[1] (= PST_GAP_MAX)
+                        rows[k].append([dzien, pst_premia(cena, kurs), gap])
+                        ok[k] = True
+                    except Exception as e:   # noqa — jeden kraj nie psuje pozostałych
+                        META['errors'].append(mask(f'premie stable {k}: {e}')[:200])
+                        ok[k] = False
+    return {'v': PST_V, 'at': NOW, 'od': od, 'src': PST_SRC, 'ok': ok, 'ecb_n': en, 'rows': rows, 'kosz': pst_kosz(rows)}
+
+
+def pst_czesc():
+    """Część przebiegu → krotka wartości dla META['ok'] w kolejności PST_KODY (tr, br, za, id, in, mx): True = wiersz zapisany, 'cached' = nic do zrobienia, False = zawiodła. Nieudana budowa
+    zostawia poprzedni plik."""
+    prev = previous('premie-stable')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == PST_V else None
+    try:
+        obj = build_premie_stable(prev)
+        save('premie-stable', obj)
+        return tuple(obj['ok'].get(k, False) for k in PST_KODY)
+    except Exception as e:
+        META['errors'].append(mask(f'premie stable: {e}')[:200])
+        if prev:
+            save('premie-stable', prev)
+        return (False,) * len(PST_KODY)
 
 
 if __name__ == '__main__':

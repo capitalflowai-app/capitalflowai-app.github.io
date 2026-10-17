@@ -10986,6 +10986,88 @@ def usda_kontrola(files, now=None):
     return {'spojnosc': sp, 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v394 (F11Z8): PREMIE LOKALNYCH STABLECOINÓW (data/premie-stable.json) --------------------------------------------------
+# Plik: jeden wiersz na kraj i dzień roboczy [doba, premia USDT wobec kursu referencyjnego w pp, minuty od ustalenia kursu do notowania] dla sześciu krajów i koszyk (mediana krajów doby).
+# Wiek (wiersz świeżości, najwyżej ⚠️): doba ostatniego wiersza kraju ≤ PST_K_DNI dni. Test wsteczny na kursach referencyjnych EBC z lat 2021–2026 (1484 dni roboczych, sześć walut jak w pliku):
+# największa przerwa między kolejnymi dniami z kursem to 5 dni (Wielkanoc: czwartek → wtorek; 2021, 2022, 2023, 2024, 2025), poza świętami najwyżej 4 (długi weekend 1 maja, Boże Narodzenie) —
+# przy PST_K_DNI = 8 nie ma fałszywego ⚠️ nawet gdyby w dniu największej przerwy zabrakło jednego odczytu (5 + 1 = 6 dni). Kraj bez żadnego wiersza: do PST_K_DNI dni od startu pliku (pole od) to dopiero
+# pierwsze okno pobierania — bez ostrzeżenia. Spójność w pliku (⚠️): doby rosnące bez powtórzeń, dzień roboczy, nie z przyszłości, premia skończona i |premia| ≤ PST_K_MAX_PP,
+# minuty 0..PST_K_GAP, koszyk = mediana krajów doby (co najmniej PST_K_KOSZ krajów). Błędów (❌) nie ma: brak odczytu dnia to luka w historii, nie zepsuty plik; awarie części — AW_BEZ_BLEDU.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'premie-stable')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['premie-stable'] = 3 * 60   # plik zapisywany w każdym przebiegu (pole at) — wiek pliku; wiek odczytu ocenia wiersz świeżości kraju
+AW_BEZ_BLEDU.update({'premie_st_' + k_: 'premie USDT — kraj z błędem ponawia w oknie pobierania (v394); wiek odczytu w wierszach świeżości' for k_ in ('tr', 'br', 'za', 'id', 'in', 'mx')})
+PST_K_DNI = 8
+PST_K_KOSZ = 4
+PST_K_MAX_PP = 50
+PST_K_GAP = 300
+PST_K_KRAJE = {'tr': 'Turcja', 'br': 'Brazylia', 'za': 'RPA', 'id': 'Indonezja', 'in': 'Indie', 'mx': 'Meksyk'}
+
+
+def pst_kontrola(j, now=None):
+    """data/premie-stable.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    dzis = now.date()
+    R = j.get('rows') if isinstance(j.get('rows'), dict) else {}
+    try:
+        od = dt.date.fromisoformat(str(j.get('od')))
+    except ValueError:
+        od = None
+    zle, dni_kraju = [], {}
+    for k, nazwa in PST_K_KRAJE.items():
+        lab = f'Premia USDT — {nazwa}'
+        rr = R.get(k) if isinstance(R.get(k), list) else []
+        prev_d, last = None, None
+        for r in rr:
+            try:
+                d = dt.date.fromisoformat(str(r[0]))
+                p, g = r[1], r[2]
+                ok_r = (len(r) == 3 and not isinstance(p, bool) and isinstance(p, (int, float)) and p == p and abs(p) <= PST_K_MAX_PP
+                        and isinstance(g, int) and not isinstance(g, bool) and 0 <= g <= PST_K_GAP)
+            except (TypeError, ValueError, IndexError):
+                ok_r, d = False, None
+            if not ok_r:
+                zle.append(f'{nazwa}: wiersz {str(r)[:40]} ma zły kształt, premię poza ±{PST_K_MAX_PP} pp albo złe minuty')
+                break
+            if d.weekday() >= 5 or d > dzis:
+                zle.append(f'{nazwa}: doba {d} to weekend albo przyszłość')
+                break
+            if prev_d is not None and d <= prev_d:
+                zle.append(f'{nazwa}: doby nie rosną ({prev_d} → {d})')
+                break
+            prev_d = d
+            last = (d, r)
+            dni_kraju.setdefault(str(d), []).append(p)
+        if last is None:
+            st = '✅' if od is not None and (dzis - od).days <= PST_K_DNI else '⚠️'
+            note = (f'jeszcze bez pierwszego odczytu (plik od {od})' if st == '✅' else f'brak odczytów od {(dzis - od).days if od else "?"} dni — giełda albo kurs referencyjny nie odpowiadają')
+            out['rows'].append((lab, st, None, None, note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab}: {note}')
+            continue
+        wiek = (dzis - last[0]).days
+        st = '✅' if wiek <= PST_K_DNI else '⚠️'
+        note = '' if st == '✅' else f'ostatni odczyt sprzed {wiek} dni (próg {PST_K_DNI}) — giełda albo kurs referencyjny nie odpowiadają'
+        out['rows'].append((lab, st, wiek * 1440, str(last[0]), note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: {note}')
+    kosz = j.get('kosz') if isinstance(j.get('kosz'), list) else []
+    ocz = {d: (round(statistics.median(v), 3), len(v)) for d, v in dni_kraju.items() if len(v) >= PST_K_KOSZ}
+    got = {}
+    for r in kosz:
+        if isinstance(r, list) and len(r) == 3 and isinstance(r[0], str) and isinstance(r[1], (int, float)) and isinstance(r[2], int):
+            got[r[0]] = (r[1], r[2])
+    if set(got) != set(ocz) or any(abs(got[d][0] - ocz[d][0]) > 0.002 or got[d][1] != ocz[d][1] for d in ocz if d in got):
+        zle.append('koszyk nie jest medianą krajów doby (co najmniej 4 kraje)')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Premie USDT (premie-stable.json): {z}')
+    out['wiersze'].append(('spójność pliku (doby, premie, minuty, koszyk)', '⚠️' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -11413,6 +11495,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['usdt-skarbiec'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'USDT skarbiec (v377): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v394. Premie USDT na lokalnych giełdach (data/premie-stable.json): wiek ostatniego wiersza każdego kraju, spójność w pliku i koszyka — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        P_ = pst_kontrola(files.get('premie-stable'))
+        for label, st, w, txt, note in P_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += P_['uwagi']
+        R['zgodnosc']['premie-stable'] = {'spojnosc': P_['spojnosc'], 'wiersze': P_['wiersze']} if (P_['rows'] or P_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['premie-stable'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Premie USDT (v394): kontrola przerwana ({str(e)[:80]})')
     # 3c-v362. krzywe rentowności (data/krzywe.json): wiek dnia danych każdej krzywej, spójność i zgodność 10L USA i Niemiec z rynki.json — z plików strony, bez zapytań; najwyżej ⚠
     try:
         T_ = krzywe_kontrola(files.get('krzywe'), files.get('rynki'))
@@ -12254,6 +12346,11 @@ def raport_md(R):
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(suk_['spojnosc'][:3]) + ' ⚠️ · ' if suk_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in suk_.get('wiersze') or []) or '—') + '.')
+        pst_ = Z.get('premie-stable')   # v394: premie USDT na lokalnych giełdach — brak pliku = bez linii
+        if pst_:
+            L.append('- Premie USDT na lokalnych giełdach (z pliku strony; jeden odczyt na dzień roboczy po opublikowaniu kursu referencyjnego): ' + (f'? kontrola przerwana ({pst_["blad"]})' if pst_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(pst_['spojnosc'][:3]) + ' ⚠️ · ' if pst_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in pst_.get('wiersze') or []) or '—') + '.')
         sez_ = Z.get('stable-emitenci')   # v363: emitenci stablecoinów — brak pliku = bez linii
         if sez_:
             L.append('- Emitenci stablecoinów (z pliku strony; porównania z drugim źródłem tylko informacyjnie): ' + (f'? kontrola przerwana ({sez_["blad"]})' if sez_.get('blad') else

@@ -29551,3 +29551,169 @@ test('v393: porty — miejsce w kodzie: blok po bloku metali (przed archiwum), p
   const css = html.slice(html.indexOf('/* v393 (F11Z7): porty świata'), html.indexOf('\n', html.indexOf('#g-surowce .prt-k>small.su-d')) + 1);
   assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgb\(/.test(css.replace(/#g-surowce/g, '')), 'tylko zmienne motywu — bez stałych kolorów');
 });
+
+/* ===================== v394 (F11Z8): cyfrowy dolar na lokalnych giełdach — blok #prs w karcie #c-premie (CRYPTO) =====================
+   PRS394_F — plik zbieracza v394 (build_premie_stable) w kształcie z odczytu z 16.10.2026 (kurs z 12:10 UTC, notowanie o 14:30 UTC = 140 min) z wartościami wyliczonymi z nagrań giełd:
+   Turcja −0,15, Brazylia 0,00, RPA +0,68, Indonezja −0,78, Indie +5,67, Meksyk +0,51; trzy dni robocze (14, 15, 16.10). Zegar przypięty (2026-10-16 18:00 UTC), srvJSON — odpowiedź od razu. */
+const prs394 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const code = cut('/* ===================== v394 (F11Z8): CYFROWY DOLAR NA LOKALNYCH GIEŁDACH', '/* v394: koniec */');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-16T18:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[\u00a0\u202f]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const file = () => {
+    const w = (p0, p1, p2) => [['2026-10-14', p0, 150], ['2026-10-15', p1, 145], ['2026-10-16', p2, 140]];
+    return {v: 1, at: '2026-10-16T17:50:00+00:00', od: '2026-10-14', src: 'x', ok: {tr: 'cached', br: 'cached', za: 'cached', id: 'cached', in: 'cached', mx: 'cached'}, ecb_n: ['2026-10-16', 1],
+      rows: {tr: w(0.1, -0.3, -0.147), br: w(0.2, 0.1, 0.0), za: w(0.5, 0.6, 0.677), id: w(-0.5, -0.9, -0.784), in: w(5.1, 5.4, 5.673), mx: w(0.4, 0.45, 0.514)},
+      kosz: [['2026-10-14', 0.3, 6], ['2026-10-15', 0.275, 6], ['2026-10-16', 0.257, 6]]};
+  };
+  const mk = (L, data, per) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const mkEl = () => ({innerHTML: '', hidden: true, open: [], querySelectorAll(q) { return q === 'details' ? this.open.map(id => ({id, open: true})) : []; }, querySelector() { return null; }});
+    const els = {'#prs': mkEl()};
+    const calls = [], ivs = [], obs = [], charts = [];
+    const srv = n => { calls.push(n); return {then(f) { f(data === undefined || data === null ? null : clone(data)); return this; }}; };
+    const SRV_GR = {'ceny-krypto': 'c'}, SRV_LD = {c: [function srvLiveStart() {}]};
+    const doc = {documentElement: {}, hidden: false};
+    const arcChart = (Ls, unit, small) => { charts.push({n: Ls[0].d.length, first: Ls[0].d[0][0], last: Ls[0].d[Ls[0].d.length - 1][0], cls: Ls[0].cls, unit, small}); return `<svg class="arc-svg" data-n="${Ls[0].d.length}"></svg>`; };
+    const arcWin = (d, p) => { const end = Date.parse(d[d.length - 1][0] + 'T00:00:00Z'); return d.filter(q => Date.parse(q[0] + 'T00:00:00Z') >= end - p * 864e5); };
+    const PRM = {per: per || 90, ok: [30, 90, 400]};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'SRV_GR', 'SRV_LD', 'flagImg', 'arcChart', 'arcWin', 'PRM', 'document', 'MutationObserver', 'setInterval', 'Date',
+      "'use strict';\n" + code + '\nreturn {PRS, renderPrs, prsApply, prsLoad, prsRows, prsKosz, prsPct, prsTn, prsOk, prsChart, prsCountry, prsBasket};')(
+      q => els[q] || null, v96src.tFor(L), v96src.escH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, SRV_GR, SRV_LD, (k, c) => '[f:' + k + ']', arcChart, arcWin, PRM, doc,
+      function () { this.observe = (...a) => obs.push(a); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD);
+    return {api, els, calls, ivs, SRV_GR, SRV_LD, obs, charts, PRM};
+  };
+  return {mk, clone, sp, txt, code, file, NOW, LOC};
+})();
+const prs394tiles = h => [...prs394.sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">(.*?)<\/span>)?([^<]*)<\/span><b class="([^"]*)"([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)]
+  .map(m => ({flag: m[1] || '', label: m[2], cls: m[3], title: (m[4].match(/title="([^"]*)"/) || [, ''])[1], val: prs394.txt(m[5].split('<small')[0]), sub: prs394.txt((m[5].match(/<small>(.*?)<\/small>/) || [])[1] || ''), when: prs394.txt(m[6])}));
+
+test('v394: rejestr grupy „c” (premie-stable), ładowanie i odświeżanie co 30 min; plik tylko przez srvJSON w ładowarce; kontener #prs w karcie #c-premie po wykresie premii, przed „Czego te dane nie mówią”', () => {
+  const K = prs394.mk('pl', prs394.file());
+  assert.equal(K.SRV_GR['premie-stable'], 'c'); assert.equal(K.SRV_GR['ceny-krypto'], 'c', 'stary wpis bez zmian');
+  assert.equal(K.SRV_LD.c[K.SRV_LD.c.length - 1].name, 'prsLoad'); assert.ok(K.calls.includes('premie-stable'));
+  assert.ok(K.ivs.filter(([f, ms]) => ms === 30 * 60e3).length === 1, 'odświeżanie co 30 min'); assert.equal(K.obs.length, 1, 'zmiana języka przerysowuje blok');
+  assert.ok(html.includes("SRV_GR['premie-stable']='c';SRV_LD.c.push(prsLoad);"), 'rejestr dopisany po deklaracjach');
+  assert.ok(html.indexOf("SRV_GR['premie-stable']='c'") < html.indexOf('\nprsLoad();') && html.indexOf("SRV_GR['premie-stable']='c'") > html.indexOf('const SRV_GR='), 'rejestr przed pierwszym wywołaniem ładowarki, po deklaracji');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])premie-stable\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.equal(html.split('<div id="prs"></div>').length, 2, 'jeden kontener w szablonie karty');
+  const i0 = html.indexOf('${prmChart(D)}<div id="prs"></div>`+'), i1 = html.indexOf('`<details class="etfd" id="prm-not">', i0);
+  assert.ok(i0 > 0 && i1 > i0 && i1 - i0 < 120, 'kontener bezpośrednio po wykresie premii, przed rozwijaną notatką karty');
+  const hk = html.indexOf("if(typeof renderPrs==='function'){try{renderPrs();}catch(e){}}"), hj = html.indexOf("open.forEach(id=>{const d=el.querySelector('#'+id);if(d)d.open=true;});", hk);
+  assert.ok(hk > html.indexOf('function renderPrm()') && hj > hk && hj - hk < 250, 'renderPrs w renderPrm tuż przed przywróceniem otwartych rozwijanych');
+  assert.ok(K.els['#prs'].innerHTML.includes('Cyfrowy dolar na lokalnych giełdach'), 'z plikiem blok wypełniony');
+  assert.equal(html.split('/* ===================== v394 (F11Z8): CYFROWY DOLAR NA LOKALNYCH GIEŁDACH').length, 2, 'jeden blok JS');
+  assert.ok(html.indexOf('/* ===================== v394 (F11Z8)') > html.indexOf('function prmApply('), 'blok po bloku premii Korei i USA');
+});
+
+test('v394: kafle — koszyk i sześć krajów: premia z kolorem z pokazanej liczby, dzień kursu z wiekiem, „notowanie ok. 2 godz. po ustaleniu kursu”; flagi', () => {
+  const K = prs394.mk('pl', prs394.file()), h = prs394.sp(K.els['#prs'].innerHTML), T = prs394tiles(h);
+  assert.deepEqual(T.map(x => [x.label, x.cls, x.val]), [['Mediana krajów', 'pos', '+0,26 %'], ['Turcja (lira)', 'neg', '−0,15 %'], ['Brazylia (real)', 'neu', '0,00 %'], ['RPA (rand)', 'pos', '+0,68 %'],
+    ['Indonezja (rupia)', 'neg', '−0,78 %'], ['Indie (rupia)', 'pos', '+5,67 %'], ['Meksyk (peso)', 'pos', '+0,51 %']]);
+  assert.deepEqual(T.map(x => x.flag), ['', '[f:tr]', '[f:br]', '[f:za]', '[f:id]', '[f:in]', '[f:mx]']);
+  assert.equal(T[0].sub, 'z 6 krajów · kurs z dnia 16 paź 2026 · wiek(2026-10-16)'); assert.equal(T[0].when, '');
+  assert.ok(T.slice(1).every(x => x.sub === 'kurs z dnia 16 paź 2026 · wiek(2026-10-16)' && x.when === 'notowanie ok. 2 godz. po ustaleniu kursu'), JSON.stringify(T[1]));
+  assert.ok(T.every(x => !x.title || x.title.startsWith('Kierunek niepewny')), 'podpowiedź tylko „kierunek niepewny”');
+  assert.deepEqual(T.map(x => x.title !== ''), [true, true, true, false, false, false, false], 'pasmo ±0,5 pkt proc.: koszyk +0,26, Turcja −0,15, Brazylia 0,00; Meksyk +0,51 poza pasmem');
+  /* minuty od ustalenia kursu: 195 min = 3 godz. (zaokrąglenie), brak minut = bez dopisku */
+  const g = prs394.file(); g.rows.in[2][2] = 195; g.rows.mx[2][2] = null; const G = prs394tiles(prs394.mk('pl', g).els['#prs'].innerHTML);
+  assert.equal(G[5].when, 'notowanie ok. 3 godz. po ustaleniu kursu'); assert.equal(G[6].when, '', 'brak minut = bez dopisku, nie zero');
+});
+
+test('v394: kolor i znak z POKAZANEJ liczby — plus zielony, minus czerwony, 0,00 żółte (także −0,004 i +0,004), minus U+2212; brak = „—”', () => {
+  const K = prs394.mk('pl', prs394.file()), A = K.api;
+  assert.deepEqual([0.006, 0.004, 0, -0.004, -0.006, 5.673, -12.346, null, undefined, NaN, 'x', true].map(A.prsPct), ['+0,01 %', '0,00 %', '0,00 %', '0,00 %', '−0,01 %', '+5,67 %', '−12,35 %', '—', '—', '—', '—', '—']);
+  assert.deepEqual([0.006, 0.004, 0, -0.004, -0.006, null, 'x'].map(A.prsTn), ['pos', 'neu', 'neu', 'neu', 'neg', 'na', 'na']);
+  const f = prs394.file(); f.rows.tr[2][1] = 0.004; f.rows.br[2][1] = -0.004; f.rows.za[2][1] = 0.006; f.rows.id[2][1] = -0.006;
+  const T = prs394tiles(prs394.mk('pl', f).els['#prs'].innerHTML);
+  assert.deepEqual(T.slice(1, 5).map(x => [x.cls, x.val]), [['neu', '0,00 %'], ['neu', '0,00 %'], ['pos', '+0,01 %'], ['neg', '−0,01 %']]);
+  const h = prs394.sp(K.els['#prs'].innerHTML); assert.ok(!/class="[^"]*\b(gr|grey|gray)\b/.test(h) && !/[▲▼]/.test(h), 'żadnych szarych strzałek'); assert.ok(!/<b class="(pos|neg)">0,00/.test(h), 'zero nie ma koloru kierunku');
+});
+
+test('v394: stary wiersz (ponad 8 dni), brak wierszy i brak koszyka = „—” z powodem, nigdy zero; kraj z jednego dnia pokazany, reszta bez wpływu', () => {
+  const f = prs394.file(); f.rows.tr = [['2026-10-02', 3.0, 140]]; f.rows.br = [['2026-10-08', 1.0, 140]]; f.rows.za = []; f.kosz = [['2026-10-02', 1.0, 6]];
+  const T = prs394tiles(prs394.mk('pl', f).els['#prs'].innerHTML), P = Object.fromEntries(T.map(x => [x.label, x]));
+  assert.deepEqual([P['Turcja (lira)'].cls, P['Turcja (lira)'].val, P['Turcja (lira)'].sub], ['na', '—', 'Ostatni odczyt z 2 paź 2026 jest za stary, by go pokazać.']);
+  assert.deepEqual([P['Brazylia (real)'].cls, P['Brazylia (real)'].val], ['pos', '+1,00 %'], '8 dni (od 8 do 16 paź) jeszcze pokazane'); assert.ok(P['Brazylia (real)'].sub.startsWith('kurs z dnia 8 paź 2026'));
+  assert.deepEqual([P['RPA (rand)'].cls, P['RPA (rand)'].val], ['na', '—']); assert.ok(P['RPA (rand)'].sub.startsWith('Brak odczytu: pierwszy pojawi się po opublikowaniu kursu referencyjnego'));
+  assert.deepEqual([P['Mediana krajów'].cls, P['Mediana krajów'].val, P['Mediana krajów'].sub], ['na', '—', 'Ostatni odczyt z 2 paź 2026 jest za stary, by go pokazać.']);
+  const n = prs394.file(); n.kosz = []; const N = prs394tiles(prs394.mk('pl', n).els['#prs'].innerHTML); assert.deepEqual([N[0].cls, N[0].val], ['na', '—']);
+  const h = prs394.txt(prs394.mk('pl', f).els['#prs'].innerHTML); assert.ok(!/\bNaN\b|undefined|null|Infinity/.test(h));
+  const e = prs394.file(); Object.keys(e.rows).forEach(k => { e.rows[k] = []; }); e.kosz = []; const E = prs394.mk('pl', e); assert.ok(E.els['#prs'].innerHTML.includes('Cyfrowy dolar'), 'sam początek zbierania (data startu): blok widoczny');
+  assert.ok(prs394tiles(E.els['#prs'].innerHTML).every(x => x.val === '—' && x.cls === 'na')); assert.ok(prs394.txt(E.els['#prs'].innerHTML).includes('Historia zbiera się od 14 paź 2026 (notowań z przeszłości nie ma); wykres pojawi się po drugim dniu roboczym.'));
+});
+
+test('v394: historia — wykres koszyka i krajów od 2 dni roboczych, okno 30/90/400 z karty, jedna linia z jednym punktem = sama wartość z datą; zdanie o ostatnim odczycie', () => {
+  const K = prs394.mk('pl', prs394.file()), h = prs394.sp(K.els['#prs'].innerHTML);
+  assert.equal(K.charts.length, 7, 'koszyk i sześć krajów'); assert.deepEqual(K.charts.map(c => c.n), [3, 3, 3, 3, 3, 3, 3]); assert.deepEqual(K.charts.map(c => c.cls), ['l1', 'l3', 'l3', 'l3', 'l3', 'l3', 'l3']);
+  assert.ok(K.charts.every(c => c.unit === '%' && c.small === true && c.first === '2026-10-14' && c.last === '2026-10-16'));
+  assert.ok(h.includes('<div class="seg arc-seg"') && h.includes('data-prm-per="30" aria-pressed="false"') && h.includes('data-prm-per="90" aria-pressed="true"') && h.includes('data-prm-per="400" aria-pressed="false"'), 'przyciski okna jak w karcie');
+  const t = prs394.txt(h); assert.ok(t.includes('Premia dzień po dniu') && t.includes('Ostatni odczyt: 16 paź 2026. Weekendy i święta bez odczytu — linia łączy dni robocze. · wiek(2026-10-16)'));
+  assert.ok(t.includes('Indie (rupia) +5,67 % 2026-10-16') && t.includes('Mediana krajów +0,26 % 2026-10-16'), 'wartość ostatniego dnia przy każdej linii');
+  const W = prs394.mk('pl', prs394.file(), 30); assert.ok(W.charts.every(c => c.n === 3)); const f = prs394.file();
+  f.rows.tr = [['2026-06-01', 1.0, 100], ['2026-09-01', 2.0, 100], ['2026-10-15', 3.0, 100], ['2026-10-16', 4.0, 100]];
+  assert.equal(prs394.mk('pl', f, 30).charts.find(c => c.n === 2 && c.first === '2026-10-15') !== undefined, true, 'okno 30 dni od ostatniego dnia linii'); assert.equal(prs394.mk('pl', f, 90).charts.find(c => c.n === 3 && c.first === '2026-09-01') !== undefined, true);
+  assert.equal(prs394.mk('pl', f, 400).charts.find(c => c.n === 4) !== undefined, true);
+  const j = prs394.file(); Object.keys(j.rows).forEach(k => { j.rows[k] = [j.rows[k][2]]; }); j.kosz = [j.kosz[2]]; const J = prs394.mk('pl', j);
+  assert.equal(J.charts.length, 0, 'jeden dzień = bez wykresów'); assert.ok(prs394.txt(J.els['#prs'].innerHTML).includes('Historia zbiera się od 14 paź 2026'));
+  const m = prs394.file(); Object.keys(m.rows).forEach(k => { if (k !== 'in') m.rows[k] = [m.rows[k][2]]; }); m.kosz = [m.kosz[2]]; const M = prs394.mk('pl', m);
+  assert.equal(M.charts.length, 1, 'tylko linia z 2+ punktami ma wykres'); assert.ok(prs394.txt(M.els['#prs'].innerHTML).includes('Turcja (lira) −0,15 % 2026-10-16'), 'linia z jednym punktem — sama wartość z datą');
+});
+
+test('v394: plik zepsuty — wiersze z NaN, bool, tekstem, premią ponad 50 pkt proc., złą datą, duplikatem doby i koszyk z liczbą krajów poniżej 4 odrzucone; błąd pobrania nie zasłania wczytanych danych', () => {
+  const f = prs394.file();
+  f.rows.tr = [['2026-10-16', NaN, 140], ['2026-10-15', 'x', 140], ['2026-10-14', true, 140], ['zły', 1, 1], ['2026-10-13', 80, 140], ['2026-02-30', 1, 1], ['2026-10-12', 1.5, 140], ['2026-10-12', 9.0, 140], 'x', null, ['2026-10-11']];
+  f.kosz = [['2026-10-16', 1.0, 3], ['2026-10-15', 99, 6], ['2026-10-14', 0.3, 6], ['2026-10-14', 7, 6], ['zły', 1, 6], ['2026-10-13', 0.2, NaN]];
+  const K = prs394.mk('pl', f);
+  assert.deepEqual(K.api.prsRows(JSON.parse(JSON.stringify(f)), 'tr'), [['2026-10-12', 1.5, 140]], 'jeden poprawny wiersz, pierwszy z duplikatu doby wygrywa'); assert.deepEqual(K.api.prsKosz(f), [['2026-10-14', 0.3, 6]]);
+  const h = prs394.txt(K.els['#prs'].innerHTML); assert.ok(!/\bNaN\b|undefined|null|Infinity|\[object/.test(h), h.slice(0, 200));
+  const T = prs394tiles(K.els['#prs'].innerHTML), P = Object.fromEntries(T.map(x => [x.label, x]));
+  assert.equal(P['Turcja (lira)'].val, '+1,50 %', 'z całej listy zostaje jeden poprawny wiersz (12.10, pierwszy z duplikatu doby)'); assert.equal(P['Mediana krajów'].val, '+0,30 %', 'z koszyka zostaje jedyny poprawny wpis (14.10)');
+});
+
+test('v394: prsApply — plik niepoprawny nie zasłania wczytanych danych; późniejszy dobry plik wypełnia blok; null/inna wersja/zły czas/brak rows = pusty blok', () => {
+  const K = prs394.mk('pl', prs394.file());
+  assert.ok(K.els['#prs'].innerHTML.includes('Cyfrowy dolar')); K.api.prsApply(null); assert.ok(K.els['#prs'].innerHTML.includes('Cyfrowy dolar'), 'błąd pobrania (null) nie zasłania');
+  K.api.prsApply({v: 1, at: 'zły', rows: {}}); assert.ok(K.els['#prs'].innerHTML.includes('Cyfrowy dolar')); K.api.prsApply({v: 2, at: '2026-10-16T17:50:00+00:00', rows: {tr: []}, od: '2026-10-14'}); assert.ok(K.els['#prs'].innerHTML.includes('Cyfrowy dolar'));
+  for (const zly of [null, undefined, 5, 'x', [], {}, {v: 2, at: '2026-10-16T17:50:00+00:00', rows: {}}, {v: 1, at: 'zły', rows: {}}, {v: 1, at: '2026-10-16T17:50:00+00:00'}, {v: 1, at: '2026-10-16T17:50:00+00:00', rows: {}}, {v: 1, at: '2026-10-16T17:50:00+00:00', rows: [], od: '2026-10-14'}])
+    assert.equal(prs394.mk('pl', zly).els['#prs'].innerHTML, '', JSON.stringify(zly));
+  assert.ok(prs394.mk('pl', {v: 1, at: '2026-10-16T17:50:00+00:00', rows: {}, od: '2026-10-14'}).els['#prs'].innerHTML.includes('Historia zbiera się od 14 paź 2026'), 'sama data startu = blok z zapowiedzią');
+  const F0 = prs394.mk('pl', null); assert.equal(F0.els['#prs'].innerHTML, ''); F0.api.prsApply(prs394.clone(prs394.file())); assert.ok(F0.els['#prs'].innerHTML.includes('Cyfrowy dolar'), 'późniejszy dobry plik wypełnia blok');
+  const Q = prs394.mk('pl', prs394.file()); Q.api.PRS.d = null; Q.api.renderPrs(); assert.equal(Q.els['#prs'].innerHTML, '', 'bez danych kontener jest czyszczony (nie zostaje stara treść)');
+  const O = prs394.mk('pl', prs394.file()); O.els['#prs'].open = ['prs-not']; O.api.renderPrs(); assert.ok(O.els['#prs'].innerHTML.includes('id="prs-not"'), 'rozwijana notatka zostaje');
+});
+
+test('v394: 10 języków — słownik w czystym JSON dopisany raz po linii for najwyższego słownika, komplet 22 kluczy, te same znaczniki, prawdziwe tłumaczenia, bez nazw dostawców, blok bez surowych kluczy', () => {
+  const m = [...html.matchAll(/^const EXTRA(\d+)=(\{.*\});$/gm)].filter(x => x[2].includes('"prs.h"'));
+  assert.equal(m.length, 1, 'jeden słownik v394'); const n = m[0][1], D = JSON.parse(m[0][2]);
+  assert.ok(html.includes(`const EXTRA${n}=`) && html.includes(`for(const l in EXTRA${n})if(I18N[l])Object.assign(I18N[l],EXTRA${n}[l]);`), 'linia nakładania');
+  const L = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']; assert.deepEqual(Object.keys(D).sort(), L.slice().sort());
+  const ph = s => (String(s).match(/\{\w+\}/g) || []).sort().join(); const PROV = /BtcTurk|Mercado ?Bitcoin|Luno|Indodax|ZebPay|Zebpay|Bitso|Binance|Coinbase|Upbit|\bECB\b|\bEBC\b/i;
+  for (const l of L) {
+    assert.deepEqual(Object.keys(D[l]).sort(), Object.keys(D.pl).sort(), l + ': komplet kluczy'); assert.equal(Object.keys(D[l]).length, 22);
+    for (const k of Object.keys(D.pl)) { assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k + ': znaczniki'); assert.ok(String(D[l][k]).length > 0 && !PROV.test(D[l][k]), l + ' ' + k); }
+    if (l !== 'pl') for (const k of ['prs.h', 'prs.sub', 'prs.not1', 'prs.not2', 'prs.not3', 'prs.foot', 'prs.noise']) assert.notEqual(D[l][k], D.pl[k], l + ' ' + k + ': prawdziwe tłumaczenie');
+    const K = prs394.mk(l, prs394.file()), h = prs394.sp(K.els['#prs'].innerHTML);
+    assert.ok(h.includes(D[l]['prs.h']) && h.includes(D[l]['prs.hist.h']) && h.includes(D[l]['prs.c.in']), l + ': teksty w języku');
+    assert.ok(!/prs\.|\b(undefined|NaN|null)\b|\{[a-z]\}/.test(h), l + ': ' + (h.match(/prs\.[\w.]+|\b(undefined|NaN)\b|\{[a-z]\}/) || [''])[0]); assert.ok(!PROV.test(h), l);
+  }
+  const E = prs394.mk('en', prs394.file()), he = prs394.txt(E.els['#prs'].innerHTML); assert.ok(he.includes('Digital dollar on local exchanges') && he.includes('Median of countries') && he.includes('India (rupee)') && he.includes('+5.67 %'), he.slice(0, 200));
+  const Z = prs394.mk('zh', prs394.file()), hz = prs394.txt(Z.els['#prs'].innerHTML); assert.ok(hz.includes('各国中位数') && hz.includes('印度（卢比）'));
+  const PL = prs394.txt(prs394.mk('pl', prs394.file()).els['#prs'].innerHTML); assert.ok(PL.includes('Indie (rupia) +5,67 %'));
+});
+
+test('v394: zasady strony i telefon — bez nazw dostawców, bez zapisu w przeglądarce i sieci poza srvJSON, bez widgetów TradingView, notatki „Czego te dane nie mówią” i uwaga o inwestycjach; reguły CSS bez stałych szerokości', () => {
+  const K = prs394.mk('pl', prs394.file()), h = prs394.sp(K.els['#prs'].innerHTML), t = prs394.txt(h);
+  assert.ok(h.includes('<details class="etfd" id="prs-not"><summary>Czego te dane nie mówią</summary>') && t.includes('To nie jest porada inwestycyjna'), 'notatki');
+  assert.ok(t.includes('Nigerii nie ma, bo nie ma dla niej kursu referencyjnego') && t.includes('Zmiana kursu w tym czasie wchodzi do premii') && t.includes('surowych notowań nie publikujemy'), 'ograniczenia nazwane wprost');
+  assert.ok(!/BtcTurk|Mercado|Luno|Indodax|ZebPay|Bitso|Binance|Coinbase|Upbit|EBC|ECB/i.test(h), 'bez nazw dostawców i giełd'); assert.ok(h.includes('Frankfurcie'), 'miejsce ustalenia kursu to przedmiot danych');
+  const mod = prs394.code; assert.ok(!/localStorage|sessionStorage|tradingview/i.test(mod) && !/\bfetch\(|XMLHttpRequest/.test(mod), 'blok nie czyta sieci ani pamięci przeglądarki sam (tylko przez srvJSON)');
+  assert.ok(html.includes('#c-premie .prs-h{margin:16px 0 4px;font-size:13px}')); const css = html.slice(html.indexOf('#c-premie .prs-h{'), html.indexOf('\n', html.indexOf('#c-premie .prs-h{')));
+  assert.ok(!/(^|[^-\w])width:\s*\d{3,}px/.test(css), 'bez stałych szerokości w px'); assert.ok(html.includes('#c-premie .etfkpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}'), 'kafle w siatce karty (telefon: po dwa)');
+  assert.ok(!/class="[^"]*\bgr\b/.test(h) && !/\.toFixed\(/.test(mod), 'liczby przez wspólny zapis (nfmt)');
+});
