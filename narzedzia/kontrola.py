@@ -9473,6 +9473,17 @@ KAL2_K_KODY = {'us_cpi': ('us', 3), 'us_praca': ('us', 3), 'pl_cpi': ('pl', 2), 
 def kalendarz2_spojnosc(j):
     """Sprzeczności wewnątrz pliku (jedyny powód ❌ w kalendarzu 2) → lista opisów."""
     zle = []
+    bp_ = j.get('brak_powod')   # v390: uzasadnienie braków — pole nieobowiązkowe (starszy plik go nie ma), ale jeśli jest, musi być spójne z polem brak
+    if bp_ is not None:
+        br_ = j.get('brak') if isinstance(j.get('brak'), list) else []
+        if not isinstance(bp_, dict):
+            zle.append('brak_powod: to nie słownik')
+        else:
+            for kb_, vb_ in bp_.items():
+                if kb_ not in br_:
+                    zle.append(f'brak_powod: {kb_} nie ma w polu brak')
+                elif not isinstance(vb_, str) or not vb_.strip():
+                    zle.append(f'brak_powod: pusty powód dla {kb_}')
     e = j.get('e') if isinstance(j.get('e'), dict) else None
     if e is None:
         return ['brak pola e (terminów)']

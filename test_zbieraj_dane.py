@@ -55032,7 +55032,7 @@ class KalendarzV375(unittest.TestCase):
     def test_plik_komplet_pola_okno_brak_i_brak_nazw_dostawcow(self):
         o = self.build()
         self.assertEqual((o['v'], o['at'], o['od'], o['do']), (1, self.NOW, '2026-10-14', '2026-11-14'))
-        self.assertEqual(set(o), {'v', 'at', 'src', 'od', 'do', 'ok', 'part_at', 'errs', 'e', 'n', 'brak'})
+        self.assertEqual(set(o), {'v', 'at', 'src', 'od', 'do', 'ok', 'part_at', 'errs', 'e', 'n', 'brak', 'brak_powod'})   # v390: + uzasadnienie braków
         self.assertEqual(o['ok'], {k: True for k in zd.KAL2_PARTS}); self.assertEqual(o['part_at'], {k: self.NOW for k in zd.KAL2_PARTS}); self.assertEqual(o['errs'], {})
         self.assertEqual({k: len(v) for k, v in o['e'].items()}, {'cpi_praca_us': 3, 'dane_pl': 4, 'bc_uk': 1, 'bc_jp': 1})
         self.assertEqual(o['n'], {'cpi_praca_us': [12, 3], 'dane_pl': [39, 4], 'bc_uk': [16, 1], 'bc_jp': [16, 1]})
@@ -59317,3 +59317,88 @@ class KontrolaNgGrupyV389(unittest.TestCase):
         src = inspect.getsource(self.k.kontrola)
         i1 = src.index("ng_dziennik_swiezosc(files.get('ng-dziennik'))"); i2 = src.index("ng_dziennik_grupy(files.get('ng-dziennik'))"); i3 = src.index("ng_ceny_swiezosc(files.get('ng-ceny'))")
         self.assertTrue(i1 < i2 < i3, 'wiersz zbiorczy, wiersze grup, ceny funduszy — jedna pętla uwag')
+
+
+class TestV390KalendarzBrakPowod(unittest.TestCase):
+    """v390 (17.10.2026): posiedzenia RPP (pl_bank) i szybki szacunek inflacji Polski (pl_szybki) nie mają maszynowego, oficjalnego terminarza dostępnego dla zbieracza
+    (serwis banku centralnego odpowiada ochroną przed automatami; arkusz kalendarza upowszechniania danych i kalendarium urzędu statystycznego nie zapowiadają tych terminów) —
+    zostają w polu brak, a plik niesie powód (brak_powod). Dat się nie wymyśla. Bez sieci (części kalendarza podstawione) i bez zegara (NOW przypięte)."""
+    NOW = '2026-10-24T22:30:00+00:00'
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        for p in (mock.patch.object(zd, 'NOW', self.NOW), mock.patch.object(zd.time, 'sleep')):
+            p.start(); self.addCleanup(p.stop)
+
+    def build(self, prev=None, padajace=()):
+        def czesc(k, od, do, key):
+            if k in padajace:
+                raise RuntimeError('odpowiedź bez terminów')
+            return [], [0, 0]
+        with mock.patch.object(zd, 'kal2_czesc', side_effect=czesc):
+            return zd.build_kalendarz2(prev, 'klucz-testowy')
+
+    @staticmethod
+    def kt():
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola-v390-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}, clear=False):
+            spec = importlib.util.spec_from_file_location('v390_kontrola', os.path.join(os.path.dirname(os.path.abspath(zd.__file__)), 'narzedzia', 'kontrola.py'))
+            k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    def test_powod_dla_obu_stalych_brakow_i_tylko_dla_nich(self):
+        o = self.build()
+        self.assertEqual(o['brak'], ['pl_bank', 'pl_szybki'])
+        self.assertEqual(list(o['brak_powod']), ['pl_bank', 'pl_szybki'])
+        for k, t in o['brak_powod'].items():
+            self.assertIsInstance(t, str); self.assertGreater(len(t), 60, k); self.assertIn('2026-10-17', t, 'powód ma datę sprawdzenia')
+        self.assertIn('Rady Polityki Pieniężnej', o['brak_powod']['pl_bank']); self.assertIn('nie wpisujemy', o['brak_powod']['pl_bank'])
+        self.assertIn('szybkiego szacunku inflacji', o['brak_powod']['pl_szybki'])
+        # część, która zawiodła bez terminów, ląduje w brak (z błędem w errs), ale bez dopisanego powodu — powód dotyczy tylko stałych braków
+        o2 = self.build(padajace=('dane_pl',))
+        self.assertEqual(o2['brak'], ['pl_bank', 'pl_szybki', 'pl_dane']); self.assertEqual(sorted(o2['brak_powod']), ['pl_bank', 'pl_szybki'])
+        self.assertIn('dane_pl', o2['errs'])
+        self.assertTrue(set(o2['brak_powod']) <= set(o2['brak']))
+
+    def test_powody_bez_nazw_dostawcow_i_adresow_oraz_bez_zmyslonych_dat(self):
+        import re
+        t = ' '.join(zd.KAL2_BRAK_POWOD.values())
+        for zakazane in ('nbp', 'gus', 'stat.gov', 'http', 'www', '@', 'Narodowy Bank', 'Główny Urząd'):
+            self.assertNotIn(zakazane.lower(), t.lower(), zakazane)
+        self.assertEqual(re.findall(r'\d{4}-\d{2}-\d{2}', t), ['2026-10-17'] * 2, 'jedyna data w powodach to data sprawdzenia — żadnego terminu posiedzenia ani publikacji')
+        self.assertEqual(set(zd.KAL2_BRAK_POWOD), set(zd.KAL2_BRAK_STALE))
+        # żaden termin RPP ani szybkiego szacunku nie trafia do tabeli kodów terminów (nie ma ich skąd wziąć)
+        self.assertFalse([k for k in zd.KAL2_KODY if 'rpp' in k or 'szybki' in k or k == 'pl_bank'])
+
+    def test_kontrola_powod_spojny_z_brak_stary_plik_bez_pola_ok(self):
+        k = self.kt(); j = json.loads(json.dumps(self.build()))
+        self.assertEqual(k.kalendarz2_spojnosc(j), [])
+        stary = dict(j); del stary['brak_powod']
+        self.assertEqual(k.kalendarz2_spojnosc(stary), [], 'plik sprzed v390 nie ma pola — to nie sprzeczność')
+        z1 = json.loads(json.dumps(j)); z1['brak_powod']['uk_bank'] = 'tekst'
+        self.assertTrue(any('uk_bank nie ma w polu brak' in z for z in k.kalendarz2_spojnosc(z1)))
+        z2 = json.loads(json.dumps(j)); z2['brak_powod']['pl_bank'] = '  '
+        self.assertTrue(any('pusty powód dla pl_bank' in z for z in k.kalendarz2_spojnosc(z2)))
+        z3 = json.loads(json.dumps(j)); z3['brak_powod'] = ['pl_bank']
+        self.assertTrue(any('nie słownik' in z for z in k.kalendarz2_spojnosc(z3)))
+        self.assertEqual(k.kalendarz2_kontrola({'kalendarz2': j})['spojnosc'], [])
+
+    def test_zmiana_czasu_pl_i_et_granice(self):
+        f = lambda s, *a: zd.kal_iso(zd.kal2_na_utc(s, *a))
+        # Polska: czas letni do niedzieli 25.10.2026 03:00 (letnie) → 02:00 zimowe; 10:00 w piątek 23.10 (letnie), w poniedziałek 26.10 (zimowe)
+        self.assertEqual((f('PL', 2026, 10, 23, 10, 0), f('PL', 2026, 10, 24, 10, 0), f('PL', 2026, 10, 26, 10, 0), f('PL', 2026, 10, 27, 10, 0)),
+                         ('2026-10-23T08:00Z', '2026-10-24T08:00Z', '2026-10-26T09:00Z', '2026-10-27T09:00Z'))
+        # granica: 02:59 jeszcze letnie (powtórzona godzina liczona jako letnia), 03:00 już zimowe
+        self.assertEqual((f('PL', 2026, 10, 25, 2, 59), f('PL', 2026, 10, 25, 3, 0)), ('2026-10-25T00:59Z', '2026-10-25T02:00Z'))
+        # USA: czas letni do niedzieli 1.11.2026 02:00; 8:30 w piątek 30.10 (letnie), w piątek 6.11 (zimowe)
+        self.assertEqual((f('ET', 2026, 10, 30, 8, 30), f('ET', 2026, 11, 2, 8, 30), f('ET', 2026, 11, 6, 8, 30)), ('2026-10-30T12:30Z', '2026-11-02T13:30Z', '2026-11-06T13:30Z'))
+        # początek czasu letniego w Polsce 29.03.2026 (02:00 zimowe → 03:00 letnie) i koniec czasu letniego w USA 1.11.2026 (02:00 letnie → 01:00 zimowe)
+        self.assertEqual((f('PL', 2026, 3, 29, 1, 59), f('PL', 2026, 3, 29, 3, 0), f('PL', 2026, 3, 29, 10, 0)), ('2026-03-29T00:59Z', '2026-03-29T01:00Z', '2026-03-29T08:00Z'))
+        self.assertEqual((f('ET', 2026, 11, 1, 1, 59), f('ET', 2026, 11, 1, 5, 0), f('ET', 2026, 11, 1, 12, 0)), ('2026-11-01T05:59Z', '2026-11-01T10:00Z', '2026-11-01T17:00Z'))
+        # wiosną 2027: Polska 28.03 (02:00 → 03:00), USA 14.03
+        self.assertEqual((f('PL', 2027, 3, 26, 10, 0), f('PL', 2027, 3, 29, 10, 0), f('ET', 2027, 3, 12, 8, 30), f('ET', 2027, 3, 15, 8, 30)),
+                         ('2027-03-26T09:00Z', '2027-03-29T08:00Z', '2027-03-12T13:30Z', '2027-03-15T12:30Z'))
+        # plik zbudowany tuż przed zmianą czasu w Polsce (NOW = 24.10 22:30 UTC = 25.10 00:30 czasu polskiego): okno liczone w dniach UTC, bez przesunięcia o dzień
+        o = self.build()
+        self.assertEqual((o['od'], o['do']), ('2026-10-23', '2026-11-23'))

@@ -36014,6 +36014,8 @@ KAL2_FRED_MIN = 3                # dat każdego z dwóch wydań FRED w odpowiedz
 KAL2_BRAMKA = {'cpi_praca_us': (6, 1), 'dane_pl': (20, 1), 'bc_uk': (6, 0), 'bc_jp': (8, 0)}   # (rozpoznanych terminów w całej odpowiedzi co najmniej, w oknie pliku co najmniej)
 KAL2_BRAK_STALE = ('pl_bank', 'pl_szybki')   # obszary bez maszynowego terminarza (zob. wyżej); części, które zawiodą bez żadnych terminów, dochodzą do listy dynamicznie
 KAL2_BRAK_CZESC = {'cpi_praca_us': 'us_praca', 'dane_pl': 'pl_dane', 'bc_uk': 'uk_bank', 'bc_jp': 'jp_bank'}
+KAL2_BRAK_POWOD = {'pl_bank': 'Terminarz posiedzeń Rady Polityki Pieniężnej jest dostępny tylko w serwisie banku centralnego, który odpowiada ochroną przed automatami (blokady nie obchodzimy); innego oficjalnego pliku z tymi terminami nie ma, a kopie w serwisach informacyjnych nie są źródłem urzędowym — dat nie wpisujemy (sprawdzone 2026-10-17)',
+                   'pl_szybki': 'Terminu szybkiego szacunku inflacji nie ma ani w arkuszu kalendarza upowszechniania danych urzędu statystycznego, ani w jego kalendarium z wyprzedzeniem (kalendarium pokazuje wydania już ogłoszone i zapowiedzi regionalne) — daty nie wpisujemy (sprawdzone 2026-10-17)'}   # v390: dlaczego obszar jest w polu brak (plik data/kalendarz2.json, pole brak_powod); tylko dla stałych braków, bez nazw dostawców
 # kod terminu → (region, waga 1–3): waga to nasza ocena wpływu na rynki, nie prognoza
 KAL2_KODY = {'us_cpi': ('us', 3), 'us_praca': ('us', 3), 'pl_cpi': ('pl', 2), 'pl_pkb': ('pl', 2), 'pl_prod': ('pl', 1), 'pl_praca': ('pl', 1), 'uk_stopy': ('gb', 3), 'jp_stopy': ('jp', 3)}
 KAL2_GODZ = {'us': ('ET', 8, 30), 'pl': ('PL', 10, 0), 'uk': ('UK', 12, 0), 'jp': ('JP', 12, 0)}   # godzina „z reguły” w czasie lokalnym (strefa, godzina, minuta)
@@ -36280,6 +36282,7 @@ def build_kalendarz2(prev=None, key=None, run_t0=None):
     if not any(out['ok'].values()):
         raise RuntimeError('żadna część nie odpowiedziała')
     out['brak'] = list(KAL2_BRAK_STALE) + [KAL2_BRAK_CZESC[k] for k in KAL2_PARTS if out['ok'].get(k) is False and not out['e'].get(k)]
+    out['brak_powod'] = {k: KAL2_BRAK_POWOD[k] for k in out['brak'] if k in KAL2_BRAK_POWOD}   # v390: uzasadnienie stałych braków (część, która zawiodła, ma błąd w errs)
     return out
 
 
