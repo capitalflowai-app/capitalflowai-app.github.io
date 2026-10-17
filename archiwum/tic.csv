@@ -4317,11 +4317,11 @@ month,country,net_flow_musd,table
 2024-10,Of Which: Foreign Official Other Financial Organizations,2708,slt1_for_lt_total_net
 2024-10,Of Which: Foreign Official State & Local General Government,-50,slt1_for_lt_total_net
 2024-10,Of Which: Fund Shares,11007,slt1_for_lt_total_net
-2024-10,Of Which: Fund Shares,-5571,slt2_us_lt_total_net
+2024-10,Of Which: Fund Shares,-5598,slt2_us_lt_total_net
 2024-10,Of Which: Non-Financial Organizations,-30753,slt1_for_lt_total_net
 2024-10,Of Which: Non-Financial Organizations,9331,slt2_us_lt_total_net
 2024-10,Of Which: Other Financial Organizations,31844,slt1_for_lt_total_net
-2024-10,Of Which: Other Financial Organizations,-4298,slt2_us_lt_total_net
+2024-10,Of Which: Other Financial Organizations,-4325,slt2_us_lt_total_net
 2024-10,Of Which: State & Local General Government,-190,slt1_for_lt_total_net
 2024-10,Pakistan,-2,slt1_for_lt_total_net
 2024-10,Pakistan,-65,slt2_us_lt_total_net
@@ -4597,15 +4597,15 @@ month,country,net_flow_musd,table
 2024-11,Uruguay,-21,slt2_us_lt_total_net
 2024-11,Venezuela,40,slt1_for_lt_total_net
 2024-11,Venezuela,-3,slt2_us_lt_total_net
-2024-12,All Countries,62969,slt1_for_lt_total_net
-2024-12,All Countries,10506,slt2_us_lt_total_net
-2024-12,Anguilla,155,slt1_for_lt_total_net
+2024-12,All Countries,61552,slt1_for_lt_total_net
+2024-12,All Countries,12131,slt2_us_lt_total_net
+2024-12,Anguilla,165,slt1_for_lt_total_net
 2024-12,Argentina,420,slt1_for_lt_total_net
 2024-12,Argentina,130,slt2_us_lt_total_net
 2024-12,Aruba,25,slt1_for_lt_total_net
 2024-12,Aruba,7,slt2_us_lt_total_net
-2024-12,Australia,8727,slt1_for_lt_total_net
-2024-12,Australia,431,slt2_us_lt_total_net
+2024-12,Australia,8725,slt1_for_lt_total_net
+2024-12,Australia,1231,slt2_us_lt_total_net
 2024-12,Austria,247,slt1_for_lt_total_net
 2024-12,Austria,387,slt2_us_lt_total_net
 2024-12,Bahamas,665,slt1_for_lt_total_net
@@ -4650,12 +4650,12 @@ month,country,net_flow_musd,table
 2024-12,Egypt,-42,slt2_us_lt_total_net
 2024-12,Finland,-1113,slt1_for_lt_total_net
 2024-12,Finland,468,slt2_us_lt_total_net
-2024-12,France,34091,slt1_for_lt_total_net
+2024-12,France,34141,slt1_for_lt_total_net
 2024-12,France,-774,slt2_us_lt_total_net
 2024-12,Germany,8701,slt1_for_lt_total_net
 2024-12,Germany,1715,slt2_us_lt_total_net
-2024-12,Grand Total,69170,slt1_for_lt_total_net
-2024-12,Grand Total,10116,slt2_us_lt_total_net
+2024-12,Grand Total,67760,slt1_for_lt_total_net
+2024-12,Grand Total,11741,slt2_us_lt_total_net
 2024-12,Greece,96,slt1_for_lt_total_net
 2024-12,Greece,513,slt2_us_lt_total_net
 2024-12,Guatemala,121,slt1_for_lt_total_net
@@ -4673,8 +4673,8 @@ month,country,net_flow_musd,table
 2024-12,International,5717,slt1_for_lt_total_net
 2024-12,International,486,slt2_us_lt_total_net
 2024-12,Ireland,29709,slt1_for_lt_total_net
-2024-12,Ireland,-1646,slt2_us_lt_total_net
-2024-12,Israel,2822,slt1_for_lt_total_net
+2024-12,Ireland,-846,slt2_us_lt_total_net
+2024-12,Israel,2022,slt1_for_lt_total_net
 2024-12,Israel,500,slt2_us_lt_total_net
 2024-12,Italy,4184,slt1_for_lt_total_net
 2024-12,Italy,1805,slt2_us_lt_total_net
@@ -4689,7 +4689,7 @@ month,country,net_flow_musd,table
 2024-12,"Korea, South",6774,slt1_for_lt_total_net
 2024-12,"Korea, South",4,slt2_us_lt_total_net
 2024-12,Kuwait,975,slt1_for_lt_total_net
-2024-12,Kuwait,119,slt2_us_lt_total_net
+2024-12,Kuwait,94,slt2_us_lt_total_net
 2024-12,Lebanon,8,slt1_for_lt_total_net
 2024-12,Lebanon,12,slt2_us_lt_total_net
 2024-12,Liberia,-30,slt1_for_lt_total_net
@@ -4700,46 +4700,46 @@ month,country,net_flow_musd,table
 2024-12,Malaysia,28,slt2_us_lt_total_net
 2024-12,Mauritius,-78,slt1_for_lt_total_net
 2024-12,Mauritius,-525,slt2_us_lt_total_net
-2024-12,Memo: Euro Area,77824,slt1_for_lt_total_net
-2024-12,Memo: Euro Area,11881,slt2_us_lt_total_net
-2024-12,Memo: European Union,74954,slt1_for_lt_total_net
-2024-12,Memo: European Union,12489,slt2_us_lt_total_net
+2024-12,Memo: Euro Area,76826,slt1_for_lt_total_net
+2024-12,Memo: Euro Area,12681,slt2_us_lt_total_net
+2024-12,Memo: European Union,73956,slt1_for_lt_total_net
+2024-12,Memo: European Union,13289,slt2_us_lt_total_net
 2024-12,Mexico,1605,slt1_for_lt_total_net
 2024-12,Mexico,1317,slt2_us_lt_total_net
 2024-12,Monaco,105,slt1_for_lt_total_net
 2024-12,Monaco,0,slt2_us_lt_total_net
 2024-12,Morocco,49,slt1_for_lt_total_net
 2024-12,Morocco,-20,slt2_us_lt_total_net
-2024-12,Netherlands,-6754,slt1_for_lt_total_net
+2024-12,Netherlands,-7802,slt1_for_lt_total_net
 2024-12,Netherlands,3749,slt2_us_lt_total_net
 2024-12,New Zealand,-285,slt1_for_lt_total_net
 2024-12,New Zealand,134,slt2_us_lt_total_net
-2024-12,Norway,-7635,slt1_for_lt_total_net
+2024-12,Norway,-7385,slt1_for_lt_total_net
 2024-12,Norway,243,slt2_us_lt_total_net
 2024-12,Of Which: Asset-Backed Securities,10596,slt1_for_lt_total_net
 2024-12,Of Which: Asset-Backed Securities,14313,slt2_us_lt_total_net
-2024-12,Of Which: Depository Institutions,4260,slt1_for_lt_total_net
+2024-12,Of Which: Depository Institutions,4259,slt1_for_lt_total_net
 2024-12,Of Which: Depository Institutions,-2725,slt2_us_lt_total_net
-2024-12,Of Which: Foreign Non-Official,118508,slt1_for_lt_total_net
-2024-12,Of Which: Foreign Non-Official Asset-Backed Securities,13527,slt1_for_lt_total_net
-2024-12,Of Which: Foreign Non-Official Depository Institutions,4398,slt1_for_lt_total_net
-2024-12,Of Which: Foreign Non-Official Fund Shares,18653,slt1_for_lt_total_net
-2024-12,Of Which: Foreign Non-Official Non-Financial Organizations,50589,slt1_for_lt_total_net
-2024-12,Of Which: Foreign Non-Official Other Financial Organizations,42486,slt1_for_lt_total_net
-2024-12,Of Which: Foreign Non-Official State & Local General Government,479,slt1_for_lt_total_net
-2024-12,Of Which: Foreign Official,-49338,slt1_for_lt_total_net
-2024-12,Of Which: Foreign Official Asset-Backed Securities,-2931,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Non-Official,115939,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Non-Official Asset-Backed Securities,13761,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Non-Official Depository Institutions,4397,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Non-Official Fund Shares,18840,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Non-Official Non-Financial Organizations,49329,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Non-Official Other Financial Organizations,42094,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Non-Official State & Local General Government,474,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Official,-48179,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Official Asset-Backed Securities,-3165,slt1_for_lt_total_net
 2024-12,Of Which: Foreign Official Depository Institutions,-138,slt1_for_lt_total_net
-2024-12,Of Which: Foreign Official Fund Shares,-3335,slt1_for_lt_total_net
-2024-12,Of Which: Foreign Official Non-Financial Organizations,1214,slt1_for_lt_total_net
-2024-12,Of Which: Foreign Official Other Financial Organizations,-7477,slt1_for_lt_total_net
-2024-12,Of Which: Foreign Official State & Local General Government,-80,slt1_for_lt_total_net
-2024-12,Of Which: Fund Shares,15318,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Official Fund Shares,-3521,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Official Non-Financial Organizations,1670,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Official Other Financial Organizations,-7084,slt1_for_lt_total_net
+2024-12,Of Which: Foreign Official State & Local General Government,-75,slt1_for_lt_total_net
+2024-12,Of Which: Fund Shares,15319,slt1_for_lt_total_net
 2024-12,Of Which: Fund Shares,-12977,slt2_us_lt_total_net
-2024-12,Of Which: Non-Financial Organizations,51803,slt1_for_lt_total_net
+2024-12,Of Which: Non-Financial Organizations,50999,slt1_for_lt_total_net
 2024-12,Of Which: Non-Financial Organizations,1372,slt2_us_lt_total_net
-2024-12,Of Which: Other Financial Organizations,35009,slt1_for_lt_total_net
-2024-12,Of Which: Other Financial Organizations,11178,slt2_us_lt_total_net
+2024-12,Of Which: Other Financial Organizations,35010,slt1_for_lt_total_net
+2024-12,Of Which: Other Financial Organizations,12822,slt2_us_lt_total_net
 2024-12,Of Which: State & Local General Government,399,slt1_for_lt_total_net
 2024-12,Pakistan,0,slt1_for_lt_total_net
 2024-12,Pakistan,8,slt2_us_lt_total_net
@@ -4757,11 +4757,11 @@ month,country,net_flow_musd,table
 2024-12,Romania,-193,slt2_us_lt_total_net
 2024-12,Russia,12,slt1_for_lt_total_net
 2024-12,Russia,7,slt2_us_lt_total_net
-2024-12,Saint Kitts and Nevis,131,slt1_for_lt_total_net
-2024-12,Saudi Arabia,1315,slt1_for_lt_total_net
+2024-12,Saint Kitts and Nevis,149,slt1_for_lt_total_net
+2024-12,Saudi Arabia,1313,slt1_for_lt_total_net
 2024-12,Serbia,106,slt1_for_lt_total_net
 2024-12,Serbia,25,slt2_us_lt_total_net
-2024-12,Singapore,13935,slt1_for_lt_total_net
+2024-12,Singapore,13934,slt1_for_lt_total_net
 2024-12,Singapore,-97,slt2_us_lt_total_net
 2024-12,South Africa,287,slt1_for_lt_total_net
 2024-12,South Africa,-167,slt2_us_lt_total_net
@@ -4778,19 +4778,19 @@ month,country,net_flow_musd,table
 2024-12,Thailand,515,slt2_us_lt_total_net
 2024-12,Total Africa,405,slt1_for_lt_total_net
 2024-12,Total Africa,-506,slt2_us_lt_total_net
-2024-12,Total Asia,1643,slt1_for_lt_total_net
-2024-12,Total Asia,-2830,slt2_us_lt_total_net
-2024-12,Total Caribbean,58959,slt1_for_lt_total_net
+2024-12,Total Asia,841,slt1_for_lt_total_net
+2024-12,Total Asia,-2855,slt2_us_lt_total_net
+2024-12,Total Caribbean,59094,slt1_for_lt_total_net
 2024-12,Total Caribbean,-2310,slt2_us_lt_total_net
-2024-12,Total Europe,18184,slt1_for_lt_total_net
-2024-12,Total Europe,12969,slt2_us_lt_total_net
-2024-12,Total IROs,6201,slt1_for_lt_total_net
+2024-12,Total Europe,17436,slt1_for_lt_total_net
+2024-12,Total Europe,13819,slt2_us_lt_total_net
+2024-12,Total IROs,6208,slt1_for_lt_total_net
 2024-12,Total IROs,-390,slt2_us_lt_total_net
 2024-12,Total Latin America,-23326,slt1_for_lt_total_net
 2024-12,Total Latin America,-1396,slt2_us_lt_total_net
-2024-12,Total Other,8425,slt1_for_lt_total_net
-2024-12,Total Other,588,slt2_us_lt_total_net
-2024-12,Total Regional Orgs.,484,slt1_for_lt_total_net
+2024-12,Total Other,8423,slt1_for_lt_total_net
+2024-12,Total Other,1388,slt2_us_lt_total_net
+2024-12,Total Regional Orgs.,491,slt1_for_lt_total_net
 2024-12,Total Regional Orgs.,-876,slt2_us_lt_total_net
 2024-12,Trinidad and Tobago,103,slt1_for_lt_total_net
 2024-12,Trinidad and Tobago,-11,slt2_us_lt_total_net
@@ -4798,10 +4798,10 @@ month,country,net_flow_musd,table
 2024-12,Turkey,147,slt2_us_lt_total_net
 2024-12,Ukraine,1356,slt1_for_lt_total_net
 2024-12,Ukraine,-13,slt2_us_lt_total_net
-2024-12,United Arab Emirates,-6552,slt1_for_lt_total_net
+2024-12,United Arab Emirates,-6551,slt1_for_lt_total_net
 2024-12,United Arab Emirates,587,slt2_us_lt_total_net
 2024-12,United Kingdom,-60066,slt1_for_lt_total_net
-2024-12,United Kingdom,-1100,slt2_us_lt_total_net
+2024-12,United Kingdom,-1050,slt2_us_lt_total_net
 2024-12,Uruguay,239,slt1_for_lt_total_net
 2024-12,Uruguay,-60,slt2_us_lt_total_net
 2024-12,Venezuela,35,slt1_for_lt_total_net
@@ -5977,7 +5977,7 @@ month,country,net_flow_musd,table
 2025-06,Of Which: Foreign Non-Official,162497,slt1_for_lt_total_net
 2025-06,Of Which: Foreign Non-Official Asset-Backed Securities,886,slt1_for_lt_total_net
 2025-06,Of Which: Foreign Non-Official Depository Institutions,295,slt1_for_lt_total_net
-2025-06,Of Which: Foreign Non-Official Fund Shares,44057,slt1_for_lt_total_net
+2025-06,Of Which: Foreign Non-Official Fund Shares,44152,slt1_for_lt_total_net
 2025-06,Of Which: Foreign Non-Official Non-Financial Organizations,66900,slt1_for_lt_total_net
 2025-06,Of Which: Foreign Non-Official Other Financial Organizations,82817,slt1_for_lt_total_net
 2025-06,Of Which: Foreign Non-Official State & Local General Government,842,slt1_for_lt_total_net
@@ -5988,7 +5988,7 @@ month,country,net_flow_musd,table
 2025-06,Of Which: Foreign Official Non-Financial Organizations,34227,slt1_for_lt_total_net
 2025-06,Of Which: Foreign Official Other Financial Organizations,15269,slt1_for_lt_total_net
 2025-06,Of Which: Foreign Official State & Local General Government,336,slt1_for_lt_total_net
-2025-06,Of Which: Fund Shares,46234,slt1_for_lt_total_net
+2025-06,Of Which: Fund Shares,46329,slt1_for_lt_total_net
 2025-06,Of Which: Fund Shares,-4440,slt2_us_lt_total_net
 2025-06,Of Which: Non-Financial Organizations,101127,slt1_for_lt_total_net
 2025-06,Of Which: Non-Financial Organizations,5507,slt2_us_lt_total_net
@@ -7369,7 +7369,7 @@ month,country,net_flow_musd,table
 2026-01,Finland,-506,slt2_us_lt_total_net
 2026-01,France,31645,slt1_for_lt_total_net
 2026-01,France,6382,slt2_us_lt_total_net
-2026-01,Germany,11464,slt1_for_lt_total_net
+2026-01,Germany,11288,slt1_for_lt_total_net
 2026-01,Germany,-931,slt2_us_lt_total_net
 2026-01,Grand Total,61070,slt1_for_lt_total_net
 2026-01,Grand Total,48124,slt2_us_lt_total_net
@@ -7411,7 +7411,7 @@ month,country,net_flow_musd,table
 2026-01,Lebanon,66,slt2_us_lt_total_net
 2026-01,Liberia,7,slt1_for_lt_total_net
 2026-01,Liberia,932,slt2_us_lt_total_net
-2026-01,Luxembourg,11078,slt1_for_lt_total_net
+2026-01,Luxembourg,11254,slt1_for_lt_total_net
 2026-01,Luxembourg,-786,slt2_us_lt_total_net
 2026-01,Malaysia,-972,slt1_for_lt_total_net
 2026-01,Malaysia,554,slt2_us_lt_total_net
@@ -7578,7 +7578,7 @@ month,country,net_flow_musd,table
 2026-02,Finland,632,slt2_us_lt_total_net
 2026-02,France,9184,slt1_for_lt_total_net
 2026-02,France,3948,slt2_us_lt_total_net
-2026-02,Germany,17973,slt1_for_lt_total_net
+2026-02,Germany,17671,slt1_for_lt_total_net
 2026-02,Germany,1064,slt2_us_lt_total_net
 2026-02,Grand Total,100340,slt1_for_lt_total_net
 2026-02,Grand Total,44506,slt2_us_lt_total_net
@@ -7620,7 +7620,7 @@ month,country,net_flow_musd,table
 2026-02,Lebanon,58,slt2_us_lt_total_net
 2026-02,Liberia,1282,slt1_for_lt_total_net
 2026-02,Liberia,812,slt2_us_lt_total_net
-2026-02,Luxembourg,-7681,slt1_for_lt_total_net
+2026-02,Luxembourg,-7379,slt1_for_lt_total_net
 2026-02,Luxembourg,3156,slt2_us_lt_total_net
 2026-02,Malaysia,-1640,slt1_for_lt_total_net
 2026-02,Malaysia,510,slt2_us_lt_total_net
@@ -7787,7 +7787,7 @@ month,country,net_flow_musd,table
 2026-03,Finland,12,slt2_us_lt_total_net
 2026-03,France,-9667,slt1_for_lt_total_net
 2026-03,France,4188,slt2_us_lt_total_net
-2026-03,Germany,24520,slt1_for_lt_total_net
+2026-03,Germany,23996,slt1_for_lt_total_net
 2026-03,Germany,1230,slt2_us_lt_total_net
 2026-03,Grand Total,95461,slt1_for_lt_total_net
 2026-03,Grand Total,15719,slt2_us_lt_total_net
@@ -7829,7 +7829,7 @@ month,country,net_flow_musd,table
 2026-03,Lebanon,3,slt2_us_lt_total_net
 2026-03,Liberia,38,slt1_for_lt_total_net
 2026-03,Liberia,-1114,slt2_us_lt_total_net
-2026-03,Luxembourg,759,slt1_for_lt_total_net
+2026-03,Luxembourg,1283,slt1_for_lt_total_net
 2026-03,Luxembourg,2314,slt2_us_lt_total_net
 2026-03,Malaysia,-1861,slt1_for_lt_total_net
 2026-03,Malaysia,-32,slt2_us_lt_total_net
@@ -7996,7 +7996,7 @@ month,country,net_flow_musd,table
 2026-04,Finland,-837,slt2_us_lt_total_net
 2026-04,France,27245,slt1_for_lt_total_net
 2026-04,France,5173,slt2_us_lt_total_net
-2026-04,Germany,8617,slt1_for_lt_total_net
+2026-04,Germany,9050,slt1_for_lt_total_net
 2026-04,Germany,2304,slt2_us_lt_total_net
 2026-04,Grand Total,207412,slt1_for_lt_total_net
 2026-04,Grand Total,102093,slt2_us_lt_total_net
@@ -8038,7 +8038,7 @@ month,country,net_flow_musd,table
 2026-04,Lebanon,19,slt2_us_lt_total_net
 2026-04,Liberia,-5,slt1_for_lt_total_net
 2026-04,Liberia,39,slt2_us_lt_total_net
-2026-04,Luxembourg,15872,slt1_for_lt_total_net
+2026-04,Luxembourg,15439,slt1_for_lt_total_net
 2026-04,Luxembourg,-240,slt2_us_lt_total_net
 2026-04,Malaysia,2370,slt1_for_lt_total_net
 2026-04,Malaysia,551,slt2_us_lt_total_net
@@ -8205,7 +8205,7 @@ month,country,net_flow_musd,table
 2026-05,Finland,976,slt2_us_lt_total_net
 2026-05,France,-18559,slt1_for_lt_total_net
 2026-05,France,1325,slt2_us_lt_total_net
-2026-05,Germany,24198,slt1_for_lt_total_net
+2026-05,Germany,23882,slt1_for_lt_total_net
 2026-05,Germany,330,slt2_us_lt_total_net
 2026-05,Grand Total,262845,slt1_for_lt_total_net
 2026-05,Grand Total,31646,slt2_us_lt_total_net
@@ -8247,7 +8247,7 @@ month,country,net_flow_musd,table
 2026-05,Lebanon,28,slt2_us_lt_total_net
 2026-05,Liberia,24,slt1_for_lt_total_net
 2026-05,Liberia,655,slt2_us_lt_total_net
-2026-05,Luxembourg,5476,slt1_for_lt_total_net
+2026-05,Luxembourg,5792,slt1_for_lt_total_net
 2026-05,Luxembourg,4715,slt2_us_lt_total_net
 2026-05,Malaysia,-57,slt1_for_lt_total_net
 2026-05,Malaysia,101,slt2_us_lt_total_net
@@ -8359,40 +8359,40 @@ month,country,net_flow_musd,table
 2026-05,Uruguay,-32,slt2_us_lt_total_net
 2026-05,Venezuela,60,slt1_for_lt_total_net
 2026-05,Venezuela,59,slt2_us_lt_total_net
-2026-06,All Countries,206728,slt1_for_lt_total_net
-2026-06,All Countries,33907,slt2_us_lt_total_net
+2026-06,All Countries,207746,slt1_for_lt_total_net
+2026-06,All Countries,33836,slt2_us_lt_total_net
 2026-06,Anguilla,-9,slt1_for_lt_total_net
 2026-06,Argentina,451,slt1_for_lt_total_net
 2026-06,Argentina,128,slt2_us_lt_total_net
 2026-06,Aruba,145,slt1_for_lt_total_net
 2026-06,Aruba,-28,slt2_us_lt_total_net
-2026-06,Australia,8290,slt1_for_lt_total_net
-2026-06,Australia,3568,slt2_us_lt_total_net
+2026-06,Australia,8287,slt1_for_lt_total_net
+2026-06,Australia,3566,slt2_us_lt_total_net
 2026-06,Austria,-16,slt1_for_lt_total_net
 2026-06,Austria,-40,slt2_us_lt_total_net
-2026-06,Bahamas,97,slt1_for_lt_total_net
+2026-06,Bahamas,98,slt1_for_lt_total_net
 2026-06,Bahamas,-21,slt2_us_lt_total_net
 2026-06,Barbados,1,slt1_for_lt_total_net
 2026-06,Barbados,-15,slt2_us_lt_total_net
 2026-06,Belgium,9567,slt1_for_lt_total_net
 2026-06,Belgium,5,slt2_us_lt_total_net
-2026-06,Bermuda,1079,slt1_for_lt_total_net
+2026-06,Bermuda,1088,slt1_for_lt_total_net
 2026-06,Bermuda,2976,slt2_us_lt_total_net
 2026-06,Brazil,-499,slt1_for_lt_total_net
 2026-06,Brazil,-2775,slt2_us_lt_total_net
-2026-06,British Virgin Islands,-680,slt1_for_lt_total_net
+2026-06,British Virgin Islands,-677,slt1_for_lt_total_net
 2026-06,British Virgin Islands,17,slt2_us_lt_total_net
 2026-06,Bulgaria,-20,slt1_for_lt_total_net
 2026-06,Bulgaria,13,slt2_us_lt_total_net
-2026-06,Canada,47763,slt1_for_lt_total_net
-2026-06,Canada,4873,slt2_us_lt_total_net
-2026-06,Cayman Islands,36171,slt1_for_lt_total_net
-2026-06,Cayman Islands,-1419,slt2_us_lt_total_net
-2026-06,Chile,1972,slt1_for_lt_total_net
+2026-06,Canada,48087,slt1_for_lt_total_net
+2026-06,Canada,4835,slt2_us_lt_total_net
+2026-06,Cayman Islands,36520,slt1_for_lt_total_net
+2026-06,Cayman Islands,-1429,slt2_us_lt_total_net
+2026-06,Chile,1976,slt1_for_lt_total_net
 2026-06,Chile,-152,slt2_us_lt_total_net
-2026-06,"China, Mainland",-15607,slt1_for_lt_total_net
+2026-06,"China, Mainland",-15566,slt1_for_lt_total_net
 2026-06,"China, Mainland",-1599,slt2_us_lt_total_net
-2026-06,Colombia,951,slt1_for_lt_total_net
+2026-06,Colombia,952,slt1_for_lt_total_net
 2026-06,Colombia,799,slt2_us_lt_total_net
 2026-06,Costa Rica,602,slt1_for_lt_total_net
 2026-06,Costa Rica,-31,slt2_us_lt_total_net
@@ -8404,76 +8404,76 @@ month,country,net_flow_musd,table
 2026-06,Cyprus,-47,slt2_us_lt_total_net
 2026-06,Czech Republic,-799,slt1_for_lt_total_net
 2026-06,Czech Republic,27,slt2_us_lt_total_net
-2026-06,Denmark,2360,slt1_for_lt_total_net
+2026-06,Denmark,2363,slt1_for_lt_total_net
 2026-06,Denmark,125,slt2_us_lt_total_net
 2026-06,Ecuador,16,slt1_for_lt_total_net
 2026-06,Ecuador,52,slt2_us_lt_total_net
 2026-06,Egypt,8,slt1_for_lt_total_net
 2026-06,Egypt,40,slt2_us_lt_total_net
-2026-06,Finland,-1128,slt1_for_lt_total_net
+2026-06,Finland,-1127,slt1_for_lt_total_net
 2026-06,Finland,-30,slt2_us_lt_total_net
-2026-06,France,-17522,slt1_for_lt_total_net
+2026-06,France,-17519,slt1_for_lt_total_net
 2026-06,France,3829,slt2_us_lt_total_net
-2026-06,Germany,33801,slt1_for_lt_total_net
+2026-06,Germany,34315,slt1_for_lt_total_net
 2026-06,Germany,-2376,slt2_us_lt_total_net
-2026-06,Grand Total,208899,slt1_for_lt_total_net
-2026-06,Grand Total,34529,slt2_us_lt_total_net
+2026-06,Grand Total,209917,slt1_for_lt_total_net
+2026-06,Grand Total,34458,slt2_us_lt_total_net
 2026-06,Greece,-36,slt1_for_lt_total_net
 2026-06,Greece,496,slt2_us_lt_total_net
 2026-06,Guatemala,741,slt1_for_lt_total_net
 2026-06,Guatemala,57,slt2_us_lt_total_net
 2026-06,Guernsey,1885,slt1_for_lt_total_net
 2026-06,Guernsey,143,slt2_us_lt_total_net
-2026-06,Hong Kong,-1481,slt1_for_lt_total_net
+2026-06,Hong Kong,-1462,slt1_for_lt_total_net
 2026-06,Hong Kong,202,slt2_us_lt_total_net
 2026-06,Hungary,13,slt1_for_lt_total_net
 2026-06,Hungary,-67,slt2_us_lt_total_net
 2026-06,India,2646,slt1_for_lt_total_net
-2026-06,India,192,slt2_us_lt_total_net
+2026-06,India,197,slt2_us_lt_total_net
 2026-06,Indonesia,-1038,slt1_for_lt_total_net
 2026-06,Indonesia,-603,slt2_us_lt_total_net
 2026-06,International,2029,slt1_for_lt_total_net
 2026-06,International,-983,slt2_us_lt_total_net
 2026-06,Ireland,42116,slt1_for_lt_total_net
 2026-06,Ireland,-3637,slt2_us_lt_total_net
-2026-06,Israel,3045,slt1_for_lt_total_net
+2026-06,Israel,3047,slt1_for_lt_total_net
 2026-06,Israel,1062,slt2_us_lt_total_net
 2026-06,Italy,687,slt1_for_lt_total_net
 2026-06,Italy,6602,slt2_us_lt_total_net
 2026-06,Jamaica,59,slt1_for_lt_total_net
 2026-06,Jamaica,-15,slt2_us_lt_total_net
-2026-06,Japan,-8837,slt1_for_lt_total_net
+2026-06,Japan,-8815,slt1_for_lt_total_net
 2026-06,Japan,19025,slt2_us_lt_total_net
 2026-06,Jersey,-493,slt1_for_lt_total_net
 2026-06,Jersey,4140,slt2_us_lt_total_net
 2026-06,Kazakhstan,538,slt1_for_lt_total_net
 2026-06,Kazakhstan,189,slt2_us_lt_total_net
-2026-06,"Korea, South",5743,slt1_for_lt_total_net
+2026-06,"Korea, South",5777,slt1_for_lt_total_net
 2026-06,"Korea, South",-15777,slt2_us_lt_total_net
-2026-06,Kuwait,2723,slt1_for_lt_total_net
+2026-06,Kuwait,2733,slt1_for_lt_total_net
 2026-06,Kuwait,-235,slt2_us_lt_total_net
 2026-06,Lebanon,2,slt1_for_lt_total_net
 2026-06,Lebanon,-2,slt2_us_lt_total_net
 2026-06,Liberia,46,slt1_for_lt_total_net
 2026-06,Liberia,-1311,slt2_us_lt_total_net
-2026-06,Luxembourg,1742,slt1_for_lt_total_net
+2026-06,Luxembourg,1245,slt1_for_lt_total_net
 2026-06,Luxembourg,661,slt2_us_lt_total_net
-2026-06,Malaysia,-210,slt1_for_lt_total_net
+2026-06,Malaysia,-208,slt1_for_lt_total_net
 2026-06,Malaysia,-387,slt2_us_lt_total_net
 2026-06,Mauritius,162,slt1_for_lt_total_net
 2026-06,Mauritius,-34,slt2_us_lt_total_net
-2026-06,Memo: Euro Area,77577,slt1_for_lt_total_net
-2026-06,Memo: Euro Area,11736,slt2_us_lt_total_net
-2026-06,Memo: European Union,82015,slt1_for_lt_total_net
-2026-06,Memo: European Union,9761,slt2_us_lt_total_net
-2026-06,Mexico,-574,slt1_for_lt_total_net
+2026-06,Memo: Euro Area,77600,slt1_for_lt_total_net
+2026-06,Memo: Euro Area,11733,slt2_us_lt_total_net
+2026-06,Memo: European Union,82041,slt1_for_lt_total_net
+2026-06,Memo: European Union,9737,slt2_us_lt_total_net
+2026-06,Mexico,-570,slt1_for_lt_total_net
 2026-06,Mexico,4856,slt2_us_lt_total_net
 2026-06,Monaco,53,slt1_for_lt_total_net
 2026-06,Monaco,0,slt2_us_lt_total_net
 2026-06,Morocco,181,slt1_for_lt_total_net
 2026-06,Morocco,126,slt2_us_lt_total_net
 2026-06,Netherlands,-954,slt1_for_lt_total_net
-2026-06,Netherlands,4985,slt2_us_lt_total_net
+2026-06,Netherlands,4982,slt2_us_lt_total_net
 2026-06,New Zealand,951,slt1_for_lt_total_net
 2026-06,New Zealand,-489,slt2_us_lt_total_net
 2026-06,Norway,17583,slt1_for_lt_total_net
@@ -8482,26 +8482,26 @@ month,country,net_flow_musd,table
 2026-06,Of Which: Asset-Backed Securities,1132,slt2_us_lt_total_net
 2026-06,Of Which: Depository Institutions,2358,slt1_for_lt_total_net
 2026-06,Of Which: Depository Institutions,-2451,slt2_us_lt_total_net
-2026-06,Of Which: Foreign Non-Official,171342,slt1_for_lt_total_net
+2026-06,Of Which: Foreign Non-Official,172150,slt1_for_lt_total_net
 2026-06,Of Which: Foreign Non-Official Asset-Backed Securities,-11383,slt1_for_lt_total_net
 2026-06,Of Which: Foreign Non-Official Depository Institutions,1770,slt1_for_lt_total_net
 2026-06,Of Which: Foreign Non-Official Fund Shares,30909,slt1_for_lt_total_net
-2026-06,Of Which: Foreign Non-Official Non-Financial Organizations,134493,slt1_for_lt_total_net
-2026-06,Of Which: Foreign Non-Official Other Financial Organizations,36019,slt1_for_lt_total_net
+2026-06,Of Which: Foreign Non-Official Non-Financial Organizations,134480,slt1_for_lt_total_net
+2026-06,Of Which: Foreign Non-Official Other Financial Organizations,36840,slt1_for_lt_total_net
 2026-06,Of Which: Foreign Non-Official State & Local General Government,857,slt1_for_lt_total_net
-2026-06,Of Which: Foreign Official,37557,slt1_for_lt_total_net
+2026-06,Of Which: Foreign Official,37767,slt1_for_lt_total_net
 2026-06,Of Which: Foreign Official Asset-Backed Securities,132,slt1_for_lt_total_net
 2026-06,Of Which: Foreign Official Depository Institutions,588,slt1_for_lt_total_net
 2026-06,Of Which: Foreign Official Fund Shares,610,slt1_for_lt_total_net
 2026-06,Of Which: Foreign Official Non-Financial Organizations,42447,slt1_for_lt_total_net
-2026-06,Of Which: Foreign Official Other Financial Organizations,6614,slt1_for_lt_total_net
+2026-06,Of Which: Foreign Official Other Financial Organizations,6824,slt1_for_lt_total_net
 2026-06,Of Which: Foreign Official State & Local General Government,-32,slt1_for_lt_total_net
 2026-06,Of Which: Fund Shares,31519,slt1_for_lt_total_net
-2026-06,Of Which: Fund Shares,-2753,slt2_us_lt_total_net
-2026-06,Of Which: Non-Financial Organizations,176940,slt1_for_lt_total_net
+2026-06,Of Which: Fund Shares,-2752,slt2_us_lt_total_net
+2026-06,Of Which: Non-Financial Organizations,176927,slt1_for_lt_total_net
 2026-06,Of Which: Non-Financial Organizations,5413,slt2_us_lt_total_net
-2026-06,Of Which: Other Financial Organizations,42633,slt1_for_lt_total_net
-2026-06,Of Which: Other Financial Organizations,31415,slt2_us_lt_total_net
+2026-06,Of Which: Other Financial Organizations,43664,slt1_for_lt_total_net
+2026-06,Of Which: Other Financial Organizations,31344,slt2_us_lt_total_net
 2026-06,Of Which: State & Local General Government,825,slt1_for_lt_total_net
 2026-06,Pakistan,-1,slt1_for_lt_total_net
 2026-06,Pakistan,38,slt2_us_lt_total_net
@@ -8512,7 +8512,7 @@ month,country,net_flow_musd,table
 2026-06,Philippines,993,slt1_for_lt_total_net
 2026-06,Philippines,362,slt2_us_lt_total_net
 2026-06,Poland,299,slt1_for_lt_total_net
-2026-06,Poland,11,slt2_us_lt_total_net
+2026-06,Poland,-10,slt2_us_lt_total_net
 2026-06,Portugal,-362,slt1_for_lt_total_net
 2026-06,Portugal,172,slt2_us_lt_total_net
 2026-06,Romania,51,slt1_for_lt_total_net
@@ -8520,38 +8520,38 @@ month,country,net_flow_musd,table
 2026-06,Russia,-4,slt1_for_lt_total_net
 2026-06,Russia,-172,slt2_us_lt_total_net
 2026-06,Saint Kitts and Nevis,257,slt1_for_lt_total_net
-2026-06,Saudi Arabia,4193,slt1_for_lt_total_net
+2026-06,Saudi Arabia,4271,slt1_for_lt_total_net
 2026-06,Serbia,-207,slt1_for_lt_total_net
 2026-06,Serbia,381,slt2_us_lt_total_net
-2026-06,Singapore,29007,slt1_for_lt_total_net
+2026-06,Singapore,29042,slt1_for_lt_total_net
 2026-06,Singapore,1712,slt2_us_lt_total_net
 2026-06,South Africa,-1819,slt1_for_lt_total_net
 2026-06,South Africa,-280,slt2_us_lt_total_net
-2026-06,Spain,8765,slt1_for_lt_total_net
+2026-06,Spain,8767,slt1_for_lt_total_net
 2026-06,Spain,1030,slt2_us_lt_total_net
 2026-06,Sweden,2514,slt1_for_lt_total_net
 2026-06,Sweden,-2208,slt2_us_lt_total_net
-2026-06,Switzerland,4482,slt1_for_lt_total_net
+2026-06,Switzerland,4487,slt1_for_lt_total_net
 2026-06,Switzerland,-202,slt2_us_lt_total_net
 2026-06,Syria,0,slt1_for_lt_total_net
-2026-06,Taiwan,4108,slt1_for_lt_total_net
+2026-06,Taiwan,4116,slt1_for_lt_total_net
 2026-06,Taiwan,-2237,slt2_us_lt_total_net
-2026-06,Thailand,1600,slt1_for_lt_total_net
+2026-06,Thailand,1601,slt1_for_lt_total_net
 2026-06,Thailand,59,slt2_us_lt_total_net
 2026-06,Total Africa,-984,slt1_for_lt_total_net
 2026-06,Total Africa,-1913,slt2_us_lt_total_net
-2026-06,Total Asia,21200,slt1_for_lt_total_net
-2026-06,Total Asia,2860,slt2_us_lt_total_net
-2026-06,Total Caribbean,37478,slt1_for_lt_total_net
-2026-06,Total Caribbean,142,slt2_us_lt_total_net
-2026-06,Total Europe,86634,slt1_for_lt_total_net
-2026-06,Total Europe,21843,slt2_us_lt_total_net
+2026-06,Total Asia,21490,slt1_for_lt_total_net
+2026-06,Total Asia,2865,slt2_us_lt_total_net
+2026-06,Total Caribbean,37840,slt1_for_lt_total_net
+2026-06,Total Caribbean,132,slt2_us_lt_total_net
+2026-06,Total Europe,86670,slt1_for_lt_total_net
+2026-06,Total Europe,21817,slt2_us_lt_total_net
 2026-06,Total IROs,2171,slt1_for_lt_total_net
 2026-06,Total IROs,622,slt2_us_lt_total_net
-2026-06,Total Latin America,5408,slt1_for_lt_total_net
+2026-06,Total Latin America,5417,slt1_for_lt_total_net
 2026-06,Total Latin America,2780,slt2_us_lt_total_net
-2026-06,Total Other,9229,slt1_for_lt_total_net
-2026-06,Total Other,3322,slt2_us_lt_total_net
+2026-06,Total Other,9226,slt1_for_lt_total_net
+2026-06,Total Other,3320,slt2_us_lt_total_net
 2026-06,Total Regional Orgs.,142,slt1_for_lt_total_net
 2026-06,Total Regional Orgs.,1605,slt2_us_lt_total_net
 2026-06,Trinidad and Tobago,128,slt1_for_lt_total_net
@@ -8560,10 +8560,10 @@ month,country,net_flow_musd,table
 2026-06,Turkey,-88,slt2_us_lt_total_net
 2026-06,Ukraine,1774,slt1_for_lt_total_net
 2026-06,Ukraine,72,slt2_us_lt_total_net
-2026-06,United Arab Emirates,-5459,slt1_for_lt_total_net
+2026-06,United Arab Emirates,-5421,slt1_for_lt_total_net
 2026-06,United Arab Emirates,771,slt2_us_lt_total_net
-2026-06,United Kingdom,-21998,slt1_for_lt_total_net
-2026-06,United Kingdom,8130,slt2_us_lt_total_net
+2026-06,United Kingdom,-21997,slt1_for_lt_total_net
+2026-06,United Kingdom,8128,slt2_us_lt_total_net
 2026-06,Uruguay,191,slt1_for_lt_total_net
 2026-06,Uruguay,-84,slt2_us_lt_total_net
 2026-06,Venezuela,114,slt1_for_lt_total_net
@@ -8694,7 +8694,7 @@ month,country,net_flow_musd,table
 2026-07,Of Which: Foreign Non-Official,-3740,slt1_for_lt_total_net
 2026-07,Of Which: Foreign Non-Official Asset-Backed Securities,10490,slt1_for_lt_total_net
 2026-07,Of Which: Foreign Non-Official Depository Institutions,-31,slt1_for_lt_total_net
-2026-07,Of Which: Foreign Non-Official Fund Shares,11136,slt1_for_lt_total_net
+2026-07,Of Which: Foreign Non-Official Fund Shares,11133,slt1_for_lt_total_net
 2026-07,Of Which: Foreign Non-Official Non-Financial Organizations,-2361,slt1_for_lt_total_net
 2026-07,Of Which: Foreign Non-Official Other Financial Organizations,10732,slt1_for_lt_total_net
 2026-07,Of Which: Foreign Non-Official State & Local General Government,-991,slt1_for_lt_total_net
@@ -8705,7 +8705,7 @@ month,country,net_flow_musd,table
 2026-07,Of Which: Foreign Official Non-Financial Organizations,14568,slt1_for_lt_total_net
 2026-07,Of Which: Foreign Official Other Financial Organizations,7545,slt1_for_lt_total_net
 2026-07,Of Which: Foreign Official State & Local General Government,104,slt1_for_lt_total_net
-2026-07,Of Which: Fund Shares,12288,slt1_for_lt_total_net
+2026-07,Of Which: Fund Shares,12285,slt1_for_lt_total_net
 2026-07,Of Which: Fund Shares,-1536,slt2_us_lt_total_net
 2026-07,Of Which: Non-Financial Organizations,12207,slt1_for_lt_total_net
 2026-07,Of Which: Non-Financial Organizations,19516,slt2_us_lt_total_net
@@ -8777,3 +8777,212 @@ month,country,net_flow_musd,table
 2026-07,Uruguay,-86,slt2_us_lt_total_net
 2026-07,Venezuela,68,slt1_for_lt_total_net
 2026-07,Venezuela,0,slt2_us_lt_total_net
+2026-08,All Countries,297441,slt1_for_lt_total_net
+2026-08,All Countries,20107,slt2_us_lt_total_net
+2026-08,Anguilla,179,slt1_for_lt_total_net
+2026-08,Argentina,655,slt1_for_lt_total_net
+2026-08,Argentina,287,slt2_us_lt_total_net
+2026-08,Aruba,17,slt1_for_lt_total_net
+2026-08,Aruba,3,slt2_us_lt_total_net
+2026-08,Australia,7065,slt1_for_lt_total_net
+2026-08,Australia,-487,slt2_us_lt_total_net
+2026-08,Austria,189,slt1_for_lt_total_net
+2026-08,Austria,151,slt2_us_lt_total_net
+2026-08,Bahamas,959,slt1_for_lt_total_net
+2026-08,Bahamas,15,slt2_us_lt_total_net
+2026-08,Barbados,86,slt1_for_lt_total_net
+2026-08,Barbados,0,slt2_us_lt_total_net
+2026-08,Belgium,55,slt1_for_lt_total_net
+2026-08,Belgium,-1146,slt2_us_lt_total_net
+2026-08,Bermuda,5209,slt1_for_lt_total_net
+2026-08,Bermuda,223,slt2_us_lt_total_net
+2026-08,Brazil,326,slt1_for_lt_total_net
+2026-08,Brazil,-2617,slt2_us_lt_total_net
+2026-08,British Virgin Islands,3015,slt1_for_lt_total_net
+2026-08,British Virgin Islands,457,slt2_us_lt_total_net
+2026-08,Bulgaria,-15,slt1_for_lt_total_net
+2026-08,Bulgaria,8,slt2_us_lt_total_net
+2026-08,Canada,64524,slt1_for_lt_total_net
+2026-08,Canada,1083,slt2_us_lt_total_net
+2026-08,Cayman Islands,54762,slt1_for_lt_total_net
+2026-08,Cayman Islands,12402,slt2_us_lt_total_net
+2026-08,Chile,-97,slt1_for_lt_total_net
+2026-08,Chile,817,slt2_us_lt_total_net
+2026-08,"China, Mainland",-5431,slt1_for_lt_total_net
+2026-08,"China, Mainland",-2859,slt2_us_lt_total_net
+2026-08,Colombia,323,slt1_for_lt_total_net
+2026-08,Colombia,-511,slt2_us_lt_total_net
+2026-08,Costa Rica,-39,slt1_for_lt_total_net
+2026-08,Costa Rica,-54,slt2_us_lt_total_net
+2026-08,Cuba,0,slt1_for_lt_total_net
+2026-08,Cuba,0,slt2_us_lt_total_net
+2026-08,Curacao,135,slt1_for_lt_total_net
+2026-08,Curacao,806,slt2_us_lt_total_net
+2026-08,Cyprus,-58,slt1_for_lt_total_net
+2026-08,Cyprus,74,slt2_us_lt_total_net
+2026-08,Czech Republic,-334,slt1_for_lt_total_net
+2026-08,Czech Republic,137,slt2_us_lt_total_net
+2026-08,Denmark,-1574,slt1_for_lt_total_net
+2026-08,Denmark,-682,slt2_us_lt_total_net
+2026-08,Ecuador,21,slt1_for_lt_total_net
+2026-08,Ecuador,-135,slt2_us_lt_total_net
+2026-08,Egypt,477,slt1_for_lt_total_net
+2026-08,Egypt,-162,slt2_us_lt_total_net
+2026-08,Finland,424,slt1_for_lt_total_net
+2026-08,Finland,-184,slt2_us_lt_total_net
+2026-08,France,8659,slt1_for_lt_total_net
+2026-08,France,3536,slt2_us_lt_total_net
+2026-08,Germany,30538,slt1_for_lt_total_net
+2026-08,Germany,-87,slt2_us_lt_total_net
+2026-08,Grand Total,300724,slt1_for_lt_total_net
+2026-08,Grand Total,21563,slt2_us_lt_total_net
+2026-08,Greece,29,slt1_for_lt_total_net
+2026-08,Greece,366,slt2_us_lt_total_net
+2026-08,Guatemala,58,slt1_for_lt_total_net
+2026-08,Guatemala,-112,slt2_us_lt_total_net
+2026-08,Guernsey,-551,slt1_for_lt_total_net
+2026-08,Guernsey,84,slt2_us_lt_total_net
+2026-08,Hong Kong,11952,slt1_for_lt_total_net
+2026-08,Hong Kong,673,slt2_us_lt_total_net
+2026-08,Hungary,127,slt1_for_lt_total_net
+2026-08,Hungary,248,slt2_us_lt_total_net
+2026-08,India,15683,slt1_for_lt_total_net
+2026-08,India,256,slt2_us_lt_total_net
+2026-08,Indonesia,-3147,slt1_for_lt_total_net
+2026-08,Indonesia,-87,slt2_us_lt_total_net
+2026-08,International,900,slt1_for_lt_total_net
+2026-08,International,276,slt2_us_lt_total_net
+2026-08,Ireland,28577,slt1_for_lt_total_net
+2026-08,Ireland,5301,slt2_us_lt_total_net
+2026-08,Israel,2561,slt1_for_lt_total_net
+2026-08,Israel,-106,slt2_us_lt_total_net
+2026-08,Italy,2742,slt1_for_lt_total_net
+2026-08,Italy,-1903,slt2_us_lt_total_net
+2026-08,Jamaica,85,slt1_for_lt_total_net
+2026-08,Jamaica,-14,slt2_us_lt_total_net
+2026-08,Japan,16218,slt1_for_lt_total_net
+2026-08,Japan,3584,slt2_us_lt_total_net
+2026-08,Jersey,40,slt1_for_lt_total_net
+2026-08,Jersey,1629,slt2_us_lt_total_net
+2026-08,Kazakhstan,-140,slt1_for_lt_total_net
+2026-08,Kazakhstan,-28,slt2_us_lt_total_net
+2026-08,"Korea, South",6956,slt1_for_lt_total_net
+2026-08,"Korea, South",7348,slt2_us_lt_total_net
+2026-08,Kuwait,4014,slt1_for_lt_total_net
+2026-08,Kuwait,-8,slt2_us_lt_total_net
+2026-08,Lebanon,15,slt1_for_lt_total_net
+2026-08,Lebanon,3,slt2_us_lt_total_net
+2026-08,Liberia,62,slt1_for_lt_total_net
+2026-08,Liberia,-526,slt2_us_lt_total_net
+2026-08,Luxembourg,5791,slt1_for_lt_total_net
+2026-08,Luxembourg,2298,slt2_us_lt_total_net
+2026-08,Malaysia,1179,slt1_for_lt_total_net
+2026-08,Malaysia,-21,slt2_us_lt_total_net
+2026-08,Mauritius,76,slt1_for_lt_total_net
+2026-08,Mauritius,-203,slt2_us_lt_total_net
+2026-08,Memo: Euro Area,67370,slt1_for_lt_total_net
+2026-08,Memo: Euro Area,11208,slt2_us_lt_total_net
+2026-08,Memo: European Union,68728,slt1_for_lt_total_net
+2026-08,Memo: European Union,9938,slt2_us_lt_total_net
+2026-08,Mexico,54,slt1_for_lt_total_net
+2026-08,Mexico,-556,slt2_us_lt_total_net
+2026-08,Monaco,7,slt1_for_lt_total_net
+2026-08,Monaco,0,slt2_us_lt_total_net
+2026-08,Morocco,236,slt1_for_lt_total_net
+2026-08,Morocco,11,slt2_us_lt_total_net
+2026-08,Netherlands,-6731,slt1_for_lt_total_net
+2026-08,Netherlands,2665,slt2_us_lt_total_net
+2026-08,New Zealand,-706,slt1_for_lt_total_net
+2026-08,New Zealand,182,slt2_us_lt_total_net
+2026-08,Norway,11881,slt1_for_lt_total_net
+2026-08,Norway,136,slt2_us_lt_total_net
+2026-08,Of Which: Asset-Backed Securities,-1573,slt1_for_lt_total_net
+2026-08,Of Which: Asset-Backed Securities,6746,slt2_us_lt_total_net
+2026-08,Of Which: Depository Institutions,892,slt1_for_lt_total_net
+2026-08,Of Which: Depository Institutions,4587,slt2_us_lt_total_net
+2026-08,Of Which: Foreign Non-Official,257847,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Non-Official Asset-Backed Securities,-598,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Non-Official Depository Institutions,891,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Non-Official Fund Shares,45320,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Non-Official Non-Financial Organizations,108221,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Non-Official Other Financial Organizations,58831,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Non-Official State & Local General Government,475,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Official,42877,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Official Asset-Backed Securities,-975,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Official Depository Institutions,1,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Official Fund Shares,4294,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Official Non-Financial Organizations,22586,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Official Other Financial Organizations,5062,slt1_for_lt_total_net
+2026-08,Of Which: Foreign Official State & Local General Government,26,slt1_for_lt_total_net
+2026-08,Of Which: Fund Shares,49614,slt1_for_lt_total_net
+2026-08,Of Which: Fund Shares,5918,slt2_us_lt_total_net
+2026-08,Of Which: Non-Financial Organizations,130807,slt1_for_lt_total_net
+2026-08,Of Which: Non-Financial Organizations,6915,slt2_us_lt_total_net
+2026-08,Of Which: Other Financial Organizations,63893,slt1_for_lt_total_net
+2026-08,Of Which: Other Financial Organizations,7714,slt2_us_lt_total_net
+2026-08,Of Which: State & Local General Government,501,slt1_for_lt_total_net
+2026-08,Pakistan,-1,slt1_for_lt_total_net
+2026-08,Pakistan,31,slt2_us_lt_total_net
+2026-08,Panama,953,slt1_for_lt_total_net
+2026-08,Panama,-109,slt2_us_lt_total_net
+2026-08,Peru,919,slt1_for_lt_total_net
+2026-08,Peru,2,slt2_us_lt_total_net
+2026-08,Philippines,-1561,slt1_for_lt_total_net
+2026-08,Philippines,-152,slt2_us_lt_total_net
+2026-08,Poland,2668,slt1_for_lt_total_net
+2026-08,Poland,-276,slt2_us_lt_total_net
+2026-08,Portugal,-99,slt1_for_lt_total_net
+2026-08,Portugal,57,slt2_us_lt_total_net
+2026-08,Romania,-405,slt1_for_lt_total_net
+2026-08,Romania,438,slt2_us_lt_total_net
+2026-08,Russia,23,slt1_for_lt_total_net
+2026-08,Russia,-71,slt2_us_lt_total_net
+2026-08,Saint Kitts and Nevis,199,slt1_for_lt_total_net
+2026-08,Saudi Arabia,2571,slt1_for_lt_total_net
+2026-08,Serbia,22,slt1_for_lt_total_net
+2026-08,Serbia,-40,slt2_us_lt_total_net
+2026-08,Singapore,25324,slt1_for_lt_total_net
+2026-08,Singapore,-1927,slt2_us_lt_total_net
+2026-08,South Africa,523,slt1_for_lt_total_net
+2026-08,South Africa,-63,slt2_us_lt_total_net
+2026-08,Spain,-2694,slt1_for_lt_total_net
+2026-08,Spain,198,slt2_us_lt_total_net
+2026-08,Sweden,876,slt1_for_lt_total_net
+2026-08,Sweden,-1135,slt2_us_lt_total_net
+2026-08,Switzerland,-634,slt1_for_lt_total_net
+2026-08,Switzerland,-9545,slt2_us_lt_total_net
+2026-08,Syria,0,slt1_for_lt_total_net
+2026-08,Taiwan,-916,slt1_for_lt_total_net
+2026-08,Taiwan,6789,slt2_us_lt_total_net
+2026-08,Thailand,947,slt1_for_lt_total_net
+2026-08,Thailand,-51,slt2_us_lt_total_net
+2026-08,Total Africa,1397,slt1_for_lt_total_net
+2026-08,Total Africa,-663,slt2_us_lt_total_net
+2026-08,Total Asia,78005,slt1_for_lt_total_net
+2026-08,Total Asia,12835,slt2_us_lt_total_net
+2026-08,Total Caribbean,64761,slt1_for_lt_total_net
+2026-08,Total Caribbean,13942,slt2_us_lt_total_net
+2026-08,Total Europe,79110,slt1_for_lt_total_net
+2026-08,Total Europe,-3912,slt2_us_lt_total_net
+2026-08,Total IROs,3283,slt1_for_lt_total_net
+2026-08,Total IROs,1456,slt2_us_lt_total_net
+2026-08,Total Latin America,3120,slt1_for_lt_total_net
+2026-08,Total Latin America,-3111,slt2_us_lt_total_net
+2026-08,Total Other,6534,slt1_for_lt_total_net
+2026-08,Total Other,-67,slt2_us_lt_total_net
+2026-08,Total Regional Orgs.,2383,slt1_for_lt_total_net
+2026-08,Total Regional Orgs.,1180,slt2_us_lt_total_net
+2026-08,Trinidad and Tobago,107,slt1_for_lt_total_net
+2026-08,Trinidad and Tobago,-21,slt2_us_lt_total_net
+2026-08,Turkey,13,slt1_for_lt_total_net
+2026-08,Turkey,128,slt2_us_lt_total_net
+2026-08,Ukraine,1039,slt1_for_lt_total_net
+2026-08,Ukraine,24,slt2_us_lt_total_net
+2026-08,United Arab Emirates,3325,slt1_for_lt_total_net
+2026-08,United Arab Emirates,-186,slt2_us_lt_total_net
+2026-08,United Kingdom,-1288,slt1_for_lt_total_net
+2026-08,United Kingdom,-6250,slt2_us_lt_total_net
+2026-08,Uruguay,-46,slt1_for_lt_total_net
+2026-08,Uruguay,-41,slt2_us_lt_total_net
+2026-08,Venezuela,39,slt1_for_lt_total_net
+2026-08,Venezuela,12,slt2_us_lt_total_net
