@@ -12198,6 +12198,137 @@ def interwencje_kontrola(files, now=None):
     return {'spojnosc': interwencje_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v402 (F11Z15): DeFi 2 — OPŁATY, CENY STABLECOINÓW, WŁAMANIA, OPCJE (data/defi2.json) --------------------------------------------------
+# Plik: cztery części (fees, peg, hacks, opt), każda z własnym czasem pobrania i dobą danych; plik zapisywany, gdy którakolwiek część została zbudowana (co najmniej raz na dobę UTC dzięki włamaniom).
+# Wiek (wiersze świeżości, najwyżej ⚠️): doba danych opłat i opcji nie starsza niż 2 doby od jej końca (normalnie wczorajsza, po godz. 02:00 UTC; w opóźnieniu serwisu najwyżej ok. 30 h — sprawdzone
+# na rytmie pobierania z v402), doba cen stablecoinów nie starsza niż 3 doby (etykieta doby w serii to bieżąca data UTC), włamania — pobranie nie starsze niż 50 h.
+# Spójność w pliku (⚠️): opłaty — produkty malejąco wg 30 dób, doba ≤ 30 dób, przychód ≤ opłat, seria rosnąca i kończy się na dobie danych, kategorie ≤ sumy z serwisu (z 5 % zapasu na podwójne liczenie);
+# ceny — liczby monet powyżej progów nie rosną z progiem i nie przekraczają liczby monet, największe malejąco wg podaży, ceny dodatnie, seria rosnąca do doby danych; włamania — lata kolejne,
+# 90 dób ≤ 12 miesięcy, rodzaje i cele sumują się do kwoty z 12 miesięcy, listy malejąco; opcje — protokoły malejąco, doba ≤ 30 dób. Porównanie podaży USDT z plikiem emitentów (ta sama usługa, inny
+# moment) — TYLKO ℹ️: różnica powyżej 3 % bywa przy zmianie listy w ciągu godziny; nie ma historii obu plików do progu, więc różnicy nie karzemy.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'defi2')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['defi2'] = 36 * 60   # plik odświeżany co najmniej raz na dobę UTC (włamania po godz. 02:00) — wiek pliku; wiek doby danych każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'defi2_' + p_: 'DeFi 2 — część z błędem zostaje z datą (v402); wiek danych w wierszach świeżości' for p_ in ('fees', 'peg', 'hacks', 'opt')})
+DF2_K_DOBY = {'fees': 48 * 60, 'opt': 48 * 60, 'peg': 72 * 60}   # min — wiek doby danych (od jej końca), powyżej tego ⚠️
+DF2_K_HACKS_H = 50      # h — wiek pobrania listy włamań
+DF2_K_ETYKIETA = {'fees': 'DeFi 2 — opłaty i przychody protokołów (doba danych)', 'peg': 'DeFi 2 — ceny stablecoinów (doba danych)', 'hacks': 'DeFi 2 — lista włamań (pobranie)',
+                  'opt': 'DeFi 2 — opcje na zdecentralizowanych giełdach (doba danych)'}
+
+
+def df2_k_ros(L, i=0, malejaco=True):
+    """Lista wierszy posortowana (malejąco albo rosnąco) wg liczby w kolumnie i; liczby skończone."""
+    v = [r[i] if isinstance(r, list) and len(r) > i else None for r in L]
+    if any(_ste_k_l(x) is None for x in v):
+        return False
+    return v == sorted(v, reverse=malejaco)
+
+
+def df2_k_seria(S, ost, ile=90):
+    """Seria [[doba, liczba]]: doby rosnące, bez powtórzeń, prawdziwe, nie dalej niż ile punktów, ostatnia = ost (gdy podane); zwraca opis usterki albo ''."""
+    if not isinstance(S, list) or not S:
+        return 'brak serii'
+    dni = [r[0] if isinstance(r, list) and len(r) == 2 else None for r in S]
+    if any(not isinstance(d, str) or _ix_dt_k(d + 'T00:00:00Z') is None for d in dni) or dni != sorted(set(dni)):
+        return 'doby nie rosną albo się powtarzają'
+    if any(_ste_k_l(r[1]) is None or r[1] < 0 for r in S):
+        return 'wartość ujemna albo brak liczby'
+    if len(S) > ile:
+        return f'więcej niż {ile} punktów'
+    if ost and dni[-1] != ost:
+        return 'ostatni punkt serii to nie doba danych'
+    return ''
+
+
+def df2_kontrola(j, emit=None, now=None):
+    """data/defi2.json (+ stable-emitenci.json do porównania) → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna
+    wersja = puste. Najwyżej ⚠️; porównanie podaży USDT z plikiem emitentów tylko ℹ️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    F, P, H, O = (j.get(k) if isinstance(j.get(k), dict) else None for k in ('fees', 'peg', 'hacks', 'opt'))
+    if F is not None:
+        f24, f30, r30 = _ste_k_l(F.get('f24')), _ste_k_l(F.get('f30')), F.get('r30')
+        if f24 is None or f30 is None or f24 <= 0 or f24 > f30:
+            zle.append('opłaty: doba większa niż 30 dób albo brak liczby')
+        if r30 is not None and (_ste_k_l(r30) is None or r30 > f30 * 1.05):
+            zle.append('opłaty: przychód większy niż opłaty')
+        if not df2_k_ros(F.get('rows') or [], 4):
+            zle.append('opłaty: produkty nie są posortowane wg 30 dób')
+        s = df2_k_seria(F.get('seria'), F.get('dzien'))
+        if s:
+            zle.append('opłaty: seria dzienna — ' + s)
+        if f30 is not None and sum((k[2] or 0) for k in F.get('kat') or [] if isinstance(k, list) and len(k) == 4 and _ste_k_l(k[2]) is not None) > f30 * 1.05:
+            zle.append('opłaty: kategorie razem większe niż suma serwisu')
+    if P is not None:
+        L_ = P.get('lic') if isinstance(P.get('lic'), dict) else {}
+        c = [(L_.get(k) or [None])[0] for k in ('0.5', '1.0', '5.0')]
+        if any(not isinstance(x, int) for x in c) or c != sorted(c, reverse=True) or c[0] > (P.get('n') or 0):
+            zle.append('ceny: liczby monet odchylonych nie maleją z progiem albo przekraczają liczbę monet')
+        if not df2_k_ros(P.get('top') or [], 2):
+            zle.append('ceny: największe monety nie są posortowane wg podaży')
+        if any(_ste_k_l(r[3]) is None or r[3] <= 0 for r in P.get('top') or [] if isinstance(r, list) and len(r) > 3):
+            zle.append('ceny: cena nie jest dodatnia')
+        s = df2_k_seria(P.get('seria'), None)
+        if s:
+            zle.append('ceny: seria 90 dób — ' + s)
+        if isinstance(P.get('seria'), list) and P['seria'] and isinstance(P['seria'][-1], list) and str(P['seria'][-1][0]) > str(P.get('dzien')):
+            zle.append('ceny: seria wybiega poza dobę danych')
+    if H is not None:
+        lata = [r[0] if isinstance(r, list) and r else None for r in H.get('lata') or []]
+        if not lata or any(not isinstance(y, int) for y in lata) or lata != list(range(lata[0], lata[0] + len(lata))):
+            zle.append('włamania: lata nie są kolejne')
+        w90, w365 = H.get('w90') or [None] * 3, H.get('w365') or [None] * 3
+        if any(_ste_k_l(x) is None for x in w90 + w365) or w90[0] > w365[0] or w90[1] > w365[1]:
+            zle.append('włamania: 90 dób większe niż 12 miesięcy albo brak liczby')
+        else:
+            for k in ('cl', 'tt'):
+                if abs(sum(r[2] for r in H.get(k) or [] if isinstance(r, list) and len(r) == 3 and _ste_k_l(r[2]) is not None) - w365[1]) > 1:
+                    zle.append(f'włamania: {"rodzaje" if k == "cl" else "cele"} nie sumują się do kwoty z 12 miesięcy')
+        if not df2_k_ros(H.get('top') or [], 2):
+            zle.append('włamania: największe nie są posortowane wg kwoty')
+    if O is not None:
+        o24, o30 = _ste_k_l(O.get('o24')), _ste_k_l(O.get('o30'))
+        if o24 is None or o30 is None or o24 > o30:
+            zle.append('opcje: doba większa niż 30 dób albo brak liczby')
+        if not df2_k_ros([[r[2]] for r in O.get('top') or [] if isinstance(r, list) and len(r) == 3], 0):
+            zle.append('opcje: protokoły nie są posortowane wg 30 dób')
+    for part, K in (('fees', F), ('peg', P), ('hacks', H), ('opt', O)):
+        lab = DF2_K_ETYKIETA[part]
+        if K is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab, '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od ponad 10 dób)')
+            continue
+        if part == 'hacks':
+            w = wiek_danych(K.get('t'), 'ts', 'k', now)
+            dane, prog = str(K.get('t'))[:16].replace('T', ' ') + ' UTC', DF2_K_HACKS_H * 60
+        else:
+            w, dane, prog = wiek_danych(K.get('dzien'), 'day', 'k', now), str(K.get('dzien')), DF2_K_DOBY[part]
+        if w is None:
+            out['rows'].append((lab, '?', None, None, 'brak doby danych'))
+            continue
+        st = '⚠️' if w > prog else '✅'
+        note = '' if st == '✅' else 'dane starsze niż zwykle — źródło nie odpowiada albo spóźnia się z aktualizacją; najwyżej uwaga'
+        out['rows'].append((lab, st, w, dane, note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: {dane} — {fmt_wiek(w)} temu ({note})')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'DeFi 2 (defi2.json): {z}')
+    if any(K is not None for K in (F, P, H, O)):
+        out['wiersze'].append(('spójność pliku (sumy, sortowanie, serie, lata)', '⚠️' if zle else '✅'))
+    # ---- porównanie podaży USDT z plikiem emitentów (ta sama usługa): TYLKO informacja ----
+    if P is not None and isinstance(emit, dict) and isinstance(emit.get('emit'), dict):
+        a = next((r[2] for r in P.get('top') or [] if isinstance(r, list) and len(r) > 2 and r[0] == 'USDT'), None)
+        b = next((r[2] for r in emit['emit'].get('rows') or [] if isinstance(r, list) and len(r) > 2 and r[0] == 'USDT'), None)
+        if _ste_k_l(a) and _ste_k_l(b) and b > 0:
+            roz = abs(a - b) / b * 100
+            out['wiersze'].append(('podaż USDT zgodna z plikiem emitentów' if roz <= 3 else f'podaż USDT różni się od pliku emitentów o {roz:.1f}%'.replace('.', ','), '✅' if roz <= 3 else 'ℹ️'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -12635,6 +12766,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['dzwignia2'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Dźwignia 2 (v397): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v402. DeFi 2 (data/defi2.json): wiek doby danych każdej części, spójność w pliku, porównanie podaży USDT z plikiem emitentów — z plików strony, bez zapytań; porównanie TYLKO informacja (ℹ️), reszta najwyżej ⚠️
+    try:
+        DF_ = df2_kontrola(files.get('defi2'), files.get('stable-emitenci'))
+        for label, st, w, txt, note in DF_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += DF_['uwagi']
+        R['zgodnosc']['defi2'] = {'spojnosc': DF_['spojnosc'], 'wiersze': DF_['wiersze']} if (DF_['rows'] or DF_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['defi2'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'DeFi 2 (v402): kontrola przerwana ({str(e)[:80]})')
     # 3c-v399. Indie (data/indie.json): wiek sprawdzenia części i ostatniej sesji, spójność w pliku (wycena, pozycje, dostawy, historia) — z plików strony, bez zapytań; najwyżej ⚠️
     try:
         IN_ = indie_kontrola(files.get('indie'))
@@ -13549,6 +13690,11 @@ def raport_md(R):
             L.append('- Indie, wycena indeksów, pozycje w kontraktach i dostawy akcji (z pliku strony): ' + (f'? kontrola przerwana ({sin_["blad"]})' if sin_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(sin_['spojnosc'][:3]) + ' ⚠️ · ' if sin_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in sin_.get('wiersze') or []) or '—') + '.')
+        sdf_ = Z.get('defi2')   # v402: DeFi 2 — brak pliku = bez linii
+        if sdf_:
+            L.append('- DeFi 2, opłaty, ceny stablecoinów, włamania i opcje (z pliku strony; porównanie podaży USDT z plikiem emitentów tylko informacyjnie): ' + (f'? kontrola przerwana ({sdf_["blad"]})' if sdf_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(sdf_['spojnosc'][:3]) + ' ⚠️ · ' if sdf_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in sdf_.get('wiersze') or []) or '—') + '.')
         sd2_ = Z.get('dzwignia2')   # v397: dźwignia krypto 2 — brak pliku = bez linii
         if sd2_:
             L.append('- Dźwignia krypto 2, nastroje detalu i kredyt marżowy (z pliku strony; porównanie z dzwignia.json tylko informacyjnie): ' + (f'? kontrola przerwana ({sd2_["blad"]})' if sd2_.get('blad') else

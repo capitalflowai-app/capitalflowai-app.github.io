@@ -30839,3 +30839,203 @@ test('v401 (F11Z14): Interwencje i rezerwy — moduł nie psuje skryptu strony: 
   assert.ok(!/api[_-]?key|token|secret|password/i.test(code), 'bez kluczy i tokenów');
 });
 
+
+/* ===================== v402 (F11Z15): DeFi 2 — karta #c-defi2 w CRYPTO (opłaty i przychody protokołów, ceny stablecoinów, włamania, opcje na DEX) =====================
+   DF2_F — plik zbieracza v402 (build_defi2) zbudowany z nagrań z 17.10.2026 (opłaty: doba 16.10, 74,15 mln USD, przychód 44,52 mln; ceny: 56 monet od 50 mln USD, USDX −99,17 %; włamania: 12 miesięcy 2,47 mld USD,
+   największe 387 mln USD; opcje: wartość nominalna 187 mln USD) z seriami przyciętymi do 12 ostatnich dób i 10 produktów. Zegar przypięty (2026-10-17 17:00 UTC), srvJSON — odpowiedź od razu (liczone wywołania). */
+const DF2_F = {"v":1,"at":"2026-10-17T16:50:00+00:00","src":"x","ok":{"fees":true,"peg":true,"hacks":true,"opt":true},"part_at":{"fees":"2026-10-17T16:50:00+00:00","peg":"2026-10-17T16:50:00+00:00","hacks":"2026-10-17T16:50:00+00:00","opt":"2026-10-17T16:50:00+00:00"},"fees":{"dzien":"2026-10-16","f24":74153809,"f7":553457314,"f7p":529555987,"f30":2411214695,"f30p":2386677929,"r24":44521186,"r30":1281839907,"rows":[["Tether","stab",17625945,122823819,521613854,521613854,121601527],["Circle USDC","stab",7034833,48995998,211939496,211939496,49189756],["PumpSwap","dex",3275768,23490515,118559823,16032872,30282840],["Hyperliquid Perps","der",3025918,19592456,85083580,69041295,16947799],["Polymarket US","pre",2204829,20683963,83421376,null,20258178],["Uniswap V4","dex",1416384,12313718,77839330,null,16503801],["pump.fun","lau",1973403,13999821,61268009,44426534,16629332],["Papertrade","der",3877494,55179076,55179076,55179076,null],["Lido","lst",1610631,11361424,52015936,3204625,12156325],["Meteora DLMM","dex",620618,4504542,42376305,4371164,9149882]],"kat":[["stab",25587339,761277261,750364736],["dex",7826620,387696372,64543786],["lau",3693618,200076333,95077794],["der",8271026,191153081,153576555],["lst",3982634,128950621,10096081],["pre",3608505,122643750,18416046],["len",3598447,116970740,23648328],["cha",3153981,112025962,48328229],["x",16331060,586329318,218737844]],"seria":[["2026-10-05",77.149],["2026-10-06",76.004],["2026-10-07",77.027],["2026-10-08",82.092],["2026-10-09",72.645],["2026-10-10",91.553],["2026-10-11",69.331],["2026-10-12",75.071],["2026-10-13",75.288],["2026-10-14",76.992],["2026-10-15",91.792],["2026-10-16",74.181]],"t":"2026-10-17T16:50:00+00:00"},"peg":{"dzien":"2026-10-17","n":56,"sup":302650059296,"bez":[9,1366206219],"lic":{"0.5":[10,3472415796],"1.0":[6,1321857383],"5.0":[2,748434007]},"top":[["USDT","Tether",183338435826,0.99886,0.99886,"2026-10-17"],["USDC","USD Coin",72648527239,0.99961,0.9996,"2026-10-15"],["USDS","Sky Dollar",7040778758,0.99962,0.99902,"2026-10-07"],["DAI","Dai",4722226681,1.00013,1.00032,"2026-10-12"],["USDe","Ethena USDe",4684862989,0.99918,0.99918,"2026-10-17"],["USD1","World Liberty Financial USD",4047743741,0.99893,0.99893,"2026-10-17"],["USDG","Global Dollar",3020151174,0.99999,1.00026,"2026-10-16"],["PYUSD","PayPal USD",2823835026,0.99953,0.99937,"2026-10-07"],["RLUSD","Ripple USD",2432896453,1.00002,1.00025,"2026-10-12"],["BUIDL","BlackRock USD",2170199921,1.0,1.0,"2026-10-15"],["USDD","USDD",1778403088,0.99787,0.99719,"2026-09-26"],["USDf","Falcon USD",1718230422,0.99483,0.99448,"2026-10-12"]],"out":[["USDX","USDX Money USDX",683442224,0.00828],["apxUSD","apxUSD",287551815,0.9857],["FRAX","Frax",148608531,0.9882],["USDA","AP USDA",85294416,0.98076],["pmUSD","pmUSD",64991783,0.69139],["REUSD","Resupply USD",51968615,0.9889]],"ev":[["USDT","2021-03-01",1.01136],["USDC","2023-03-12",0.96106],["USDS","2024-10-01",0.95989],["DAI","2023-03-12",0.96255],["USDe","2023-12-25",1.025],["USD1","2025-05-18",0.99067],["USDG","2026-07-17",1.00255],["PYUSD","2023-08-28",1.015],["RLUSD","2025-11-05",1.00329],["BUIDL","2026-10-15",1.0]],"seria":[["2026-10-06",0.047],["2026-10-07",0.098],["2026-10-08",0.096],["2026-10-09",0.079],["2026-10-10",0.09],["2026-10-11",0.096],["2026-10-12",0.088],["2026-10-13",0.06],["2026-10-14",0.094],["2026-10-15",0.087],["2026-10-16",0.093],["2026-10-17",0.114]],"t":"2026-10-17T16:50:00+00:00"},"hacks":{"lat":"2026-10-16","n":1306,"lata":[[2021,127,2868249772,4],[2022,185,3633656105,10],[2023,197,1626253369,1],[2024,217,1669697215,11],[2025,148,2715021619,2],[2026,298,2245161097,13]],"w90":[113,1187950910,10],"w365":[331,2470573990,13],"cl":[["kc",32,717012144],["bx",32,700139447],["ts",57,387082246],["ac",59,376716464],["om",44,75916780],["fi",13,63842693],["se",7,43759885],["gv",9,43133578],["pl",41,27083053],["iv",17,19798734],["mm",3,8747666],["rp",1,7300000],["re",2,23300],["x",1,18000]],"tt":[["defi",236,1346912432],["cex",3,436740000],["cha",19,436483826],["wal",8,150719885],["x",25,56313287],["tok",27,43404560]],"top":[["Bitget","2026-09-24",387000000,"kc","cex"],["Liquid Network","2026-09-06",320000000,"bx","cha"],["Drift Trade","2026-04-01",295000000,"ac","defi"],["Kelp","2026-04-18",293000000,"bx","defi"],["Balancer V2","2025-11-03",128000000,"ts","defi"],["Tectonic","2026-08-30",124470000,"ts","defi"]],"nowe":[["Papertrade","2026-10-10",1280000,"om","defi"],["MakerDAO ETH-A Liquidation Keeper Bot","2026-10-06",538000,"ac","defi"],["GoldPesa","2026-10-02",114900,"ts","defi"],["FlashLoopAdapter","2026-10-01",305000,"ac","defi"],["NEAR Intents","2026-10-01",3800000,"bx","defi"],["SKYDAO","2026-09-30",183483,"pl","defi"]],"t":"2026-10-17T16:50:00+00:00"},"opt":{"dzien":"2026-10-16","o24":187026674,"o7":1061327230,"o7p":1143404089,"o30":5160149463,"o30p":3580990369,"top":[["Derive Options",null,3041167569],["Derive V3 Options",136057102,1251468621],["Paradex Options",6172308,502640562],["Rysk V12",7849892,157028970]],"t":"2026-10-17T16:50:00+00:00"}};
+const df2t = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const code = cut('/* ===================== v402 (F11Z15): DeFi 2', '/* v402: koniec */');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-17T17:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/ | /g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mk = (L, file, opt) => {
+    opt = opt || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const mkEl = () => ({innerHTML: '', hidden: true, open: [], querySelectorAll(q) { return q === 'details' ? this.open.map(id => ({id, open: true})) : []; }, querySelector() { return null; }});
+    const els = {'#c-defi2': mkEl()};
+    const calls = [], ivs = [], store = {}, obs = [], charts = [];
+    const srv = n => { calls.push(n); const v = n === 'defi2' ? file : null; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const SRV_GR = {'ceny-krypto': 'c'}, SRV_LD = {c: [function srvLiveStart() {}]};
+    const doc = {addEventListener: () => {}, querySelector: () => null, documentElement: {}, hidden: false};
+    const wk = opt.nowk ? undefined : (Ls, o) => { charts.push({L: Ls, o}); return '[CHART:' + o.aria + '|' + Ls.map(l => l.n + ':' + l.d.length).join(',') + ']'; };
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'lnAgo', 'srvJSON', 'SRV_GR', 'SRV_LD', 'glyphImg', 'icoWrap', 'sepL', 'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date',
+      'wkLines', 'steCoin',
+      "'use strict';\n" + gx349.code + '\n' + code + '\nreturn {DF2, renderDf2, df2Apply, df2Load, df2Ok, df2Part, df2Fees, df2Peg, df2Hacks, df2Opt, df2Dev, df2Price};')(
+      q => els[q] || null, v96src.tFor(L), v96src.escH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, s => ' · temu(' + s + ')', srv, SRV_GR, SRV_LD,
+      (n, s) => '[g:' + n + ']', i => i ? '<span class="icos">' + i + '</span>' : '', () => ', ', {getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; }}, doc,
+      function () { this.observe = (...a) => obs.push(a); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD, wk, opt.coin ? (s => '[c:' + s + ']') : undefined);
+    return {api, els, calls, ivs, SRV_GR, SRV_LD, obs, charts};
+  };
+  return {mk, clone, sp, txt, code, NOW, LOC};
+})();
+const df2tiles = h => [...df2t.sp(h).matchAll(/<div class="etfk"><span>([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)]
+  .map(m => ({label: m[1], cls: (m[2].match(/class="([^"]*)"/) || [, ''])[1], val: df2t.txt(m[3].split('<small')[0]), subs: [...m[3].matchAll(/<small[^>]*>(.*?)<\/small>/g)].map(x => df2t.txt(x[1])), subHtml: m[3], when: df2t.txt(m[4])}));
+const df2rows = h => [...df2t.sp(h).matchAll(/<div class="df2-r(?: df2-[a-z])*"><span class="df2-n">(.*?)<\/span>((?:<span class="df2-c" data-l="[^"]*">.*?<\/span>)+)<\/div>/g)]
+  .map(m => ({name: df2t.txt(m[1]), cells: [...m[2].matchAll(/<span class="df2-c" data-l="([^"]*)">(.*?)<\/span>(?=<span class="df2-c"|$)/g)].map(c => ({l: c[1], v: df2t.txt(c[2]), html: c[2]}))}));
+
+const df2grp = h => { const R = df2rows(h); return {fees: R.filter(r => r.cells[0].l === 'Opłaty doby'), peg: R.filter(r => r.cells.length === 4 && r.cells[0].l === 'Podaż'), out: R.filter(r => r.cells.length === 3 && r.cells[0].l === 'Podaż'),
+  ev: R.filter(r => r.cells.length === 3 && r.cells[2].l === 'Odchylenie' && r.cells[0].l === 'Doba'), hack: R.filter(r => r.cells.length === 3 && r.cells[2].l === 'Rodzaj ataku')}; };
+const df2html = (f, L, o) => df2t.mk(L || 'pl', f, o).els['#c-defi2'].innerHTML;
+
+test('v402: rejestr grupy „c” (defi2), ładowanie co 30 min, jeden obserwator języka; karta po surowcach i przed CFTC; plik tylko przez srvJSON w ładowarce', () => {
+  const K = df2t.mk('pl', DF2_F);
+  assert.equal(K.SRV_GR.defi2, 'c'); assert.equal(K.SRV_GR['ceny-krypto'], 'c', 'stary wpis bez zmian');
+  assert.equal(K.SRV_LD.c[K.SRV_LD.c.length - 1].name, 'df2Load'); assert.ok(K.calls.includes('defi2'));
+  assert.ok(K.ivs.some(([f, ms]) => ms === 30 * 60e3), 'części co dobę — strona pyta co 30 min'); assert.ok(K.obs.length >= 1 && df2t.code.split('new MutationObserver(()=>renderDf2())').length === 2, 'jeden obserwator języka z tej karty (zmiana języka = przerysowanie)');
+  assert.ok(html.includes("SRV_GR.defi2='c';SRV_LD.c.push(df2Load);"), 'rejestr dopisany po deklaracjach');
+  assert.ok(html.indexOf("SRV_GR.defi2='c'") > html.indexOf('const SRV_GR=') && html.indexOf("SRV_GR.defi2='c'") < html.indexOf('\ndf2Load();'), 'rejestr przed pierwszym wywołaniem ładowarki');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])defi2\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.equal(html.split('id="c-defi2"').length, 2, 'jedna sekcja');
+  const a = html.indexOf('id="c-surowce"'), b = html.indexOf('id="c-defi2"'), c = html.indexOf('id="eng-cftc-crypto"');
+  assert.ok(a > 0 && b > a && c > b, 'karta po surowcach, przed CFTC'); assert.ok(html.includes('<section class="panel pcard" id="c-defi2" hidden></section>'));
+  assert.equal(K.els['#c-defi2'].hidden, false, 'z plikiem karta widoczna'); assert.equal(df2t.mk('pl', null).els['#c-defi2'].hidden, true, 'bez pliku ukryta');
+});
+
+test('v402: opłaty i przychody — kafle (doba, przychód, 30 dób, największy zarabiający), wykres z 90 dób, tabela, kategorie; data i wiek; kolory z pokazanej liczby', () => {
+  const K = df2t.mk('pl', DF2_F), h = K.els['#c-defi2'].innerHTML, T = df2tiles(h), G = df2grp(h);
+  assert.deepEqual(T.slice(0, 4).map(x => [x.label, x.val, x.subs[0], x.cls]), [
+    ['Opłaty zapłacone w DeFi, doba', '74,2 mln USD', '7 dób: 553 mln USD ( +4,5% wobec poprzednich 7)', ''], ['Przychód protokołów, doba', '44,5 mln USD', '30 dób: 53% opłat zostaje w protokołach', ''],
+    ['Opłaty, 30 dób', '2,41 mld USD', '+1,0% wobec poprzednich 30 dób', ''], ['Największy zarabiający, 30 dób', 'Tether', '22% opłat z 30 dób', '']]);
+  assert.ok(T[0].subHtml.includes('<span class="pos">+4,5%</span>') && T[2].subHtml.includes('<span class="pos">+1,0%</span>'), 'plus zielony');
+  assert.ok(T.slice(0, 4).every(x => /^doba 16 paź 2026 · pobrano /.test(x.when) && x.when.includes('D:2026-10-17T16:50:00+00:00')), 'doba danych i czas pobrania przy każdej liczbie');
+  const C = K.charts[0]; assert.ok(C.o.aria.includes('Dzienne opłaty zapłacone w DeFi, mln USD') && C.o.aria.includes('12 dób')); assert.equal(C.L.length, 1); assert.equal(C.L[0].d.length, 12);
+  assert.deepEqual(C.L[0].d[11], [Date.parse('2026-10-16T12:00:00Z'), 74.181], 'ostatni punkt = doba danych'); assert.equal(C.o.fmt(74.181), '74 mln USD'); assert.equal(C.o.zero, false);
+  assert.equal(G.fees.length, 8, 'tabela 8 produktów'); const R = G.fees.map(r => [r.name, r.cells.map(c => c.v)]);
+  assert.deepEqual(R[0], ['Tether Emitenci stablecoinów', ['17,6 mln USD', '522 mln USD', '522 mln USD', '+1,0%']]);
+  assert.deepEqual(R[1][1], ['7,0 mln USD', '212 mln USD', '212 mln USD', '−0,4%']); assert.deepEqual(R[2], ['PumpSwap Giełdy zdecentralizowane (DEX)', ['3,3 mln USD', '119 mln USD', '16,0 mln USD', '−22,4%']]);
+  assert.deepEqual(R[4][1], ['2,2 mln USD', '83,4 mln USD', '—', '+2,1%'], 'brak przychodu produktu = „—”, nie zero');
+  assert.ok(G.fees[1].cells[3].html.includes('class="neg"') && G.fees[3].cells[3].html.includes('class="pos"'));
+  const t = df2t.txt(h), i = t.indexOf('Skąd pochodzą opłaty (30 dób)');
+  assert.ok(t.slice(i).startsWith('Skąd pochodzą opłaty (30 dób) Emitenci stablecoinów 761 mln USD · 29% Giełdy zdecentralizowane (DEX) 388 mln USD · 15%'), 'kategorie: udział w sumie kategorii');
+  assert.ok(t.includes('Sieci bloków (opłaty sieciowe) 112 mln USD · 4% Pozostałe kategorie 586 mln USD · 22%') && h.includes('<i class="oth"'), 'reszta szara');
+  assert.ok(t.includes('Wersje i produkty jednej firmy są liczone osobno') && t.includes('o kilka procent większa'), 'notatki o definicji i o sumach');
+});
+
+test('v402: ceny stablecoinów — kafle, wykres „najgorsze z 10 największych”, tabela 12 monet z odchyleniem i najgorszą dobą z 30, monety ≥ 1 %, największe odchylenia od 2021 po rozwinięciu, notatki', () => {
+  const K = df2t.mk('pl', DF2_F, {coin: true}), h = K.els['#c-defi2'].innerHTML, T = df2tiles(h), G = df2grp(h), P = T.slice(4, 8);
+  assert.deepEqual(P.map(x => [x.label, x.val, x.subs[0], x.cls]), [['Monety w statystyce (od 50 mln USD podaży)', '56', 'razem 302,7 mld USD podaży nominalnej', ''], ['Odchylone o więcej niż 0,5%', '10', '3,47 mld USD podaży nominalnej (1,1% całości)', ''],
+    ['Odchylone o więcej niż 1%', '6', '1,32 mld USD podaży nominalnej (0,4% całości)', ''], ['Najgorsze odchylenie z 10 największych monet', '0,11%', 'najwyżej w ostatnich 90 dobach: 0,11%', '']]);
+  assert.ok(P.every(x => /^doba 17 paź 2026 · pobrano /.test(x.when)), 'doba cen = 17.10');
+  const C = K.charts[1]; assert.ok(C.o.aria.includes('Najgorsze odchylenie od 1 USD wśród 10 największych monet, %')); assert.equal(C.o.fmt(0.114), '0,11%'); assert.equal(C.L[0].d.length, 12);
+  assert.equal(G.peg.length, 12); assert.deepEqual(G.peg[0], {name: '[c:USDT]USDT Tether', cells: G.peg[0].cells}); assert.deepEqual(G.peg[0].cells.map(c => c.v), ['183,3 mld USD', '0,9989', '−0,11%', '0,9989 (17.10)']);
+  assert.deepEqual(G.peg[3].cells.map(c => c.v), ['4,72 mld USD', '1,0001', '+0,01%', '1,0003 (12.10)']); assert.deepEqual(G.peg[6].cells.map(c => c.v), ['3,02 mld USD', '1,0000', '0,00%', '1,0003 (16.10)']);
+  assert.ok(G.peg[0].cells[2].html.includes('class="neg"') && G.peg[3].cells[2].html.includes('class="pos"') && G.peg[6].cells[2].html.includes('class="neu"'), 'kolor z pokazanej liczby: zero żółte');
+  assert.deepEqual(G.out.map(r => [r.name, r.cells.map(c => c.v)]), [['[c:USDX]USDX USDX Money USDX', ['683 mln USD', '0,0083', '−99,17%']], ['[c:apxUSD]apxUSD apxUSD', ['288 mln USD', '0,9857', '−1,43%']], ['[c:FRAX]FRAX Frax', ['149 mln USD', '0,9882', '−1,18%']],
+    ['[c:USDA]USDA AP USDA', ['85,3 mln USD', '0,9808', '−1,92%']], ['[c:pmUSD]pmUSD pmUSD', ['65,0 mln USD', '0,6914', '−30,86%']], ['[c:REUSD]REUSD Resupply USD', ['52,0 mln USD', '0,9889', '−1,11%']]]);
+  assert.ok(h.includes('<details class="etfd" id="df2-ev"><summary>Największe odchylenia od 1 USD od 2021 roku (10 największych monet)</summary>'));
+  assert.equal(G.ev.length, 10); assert.deepEqual(G.ev[1].cells.map(c => c.v), ['12 mar 2023', '0,9611', '−3,89%']); assert.deepEqual(G.ev[0].cells.map(c => c.v), ['1 mar 2021', '1,0114', '+1,14%']);
+  const t = df2t.txt(h); assert.ok(t.includes('przy odkleceniu USDC w marcu 2023 odczyt dzienny wyniósł 0,961 USD') && t.includes('Bez ceny z ostatnich 3 dób: 9 monet o podaży 1,37 mld USD') && t.includes('stablecoiny w euro, funtach i innych walutach są pominięte') && t.includes('Podaż jest nominalna'));
+  const A = K.api; assert.deepEqual([A.df2Dev(1), A.df2Dev(0.9996), A.df2Dev(1.0004), A.df2Dev(1.00004), A.df2Dev(0.0083), A.df2Dev(null), A.df2Dev(0), A.df2Dev(NaN)].map(x => x.txt + '/' + x.tn),
+    ['0,00%/neu', '−0,04%/neg', '+0,04%/pos', '0,00%/neu', '−99,17%/neg', '—/na', '—/na', '—/na'], 'odchylenie: dwa miejsca, zero po zaokrągleniu żółte, brak = „—”');
+  assert.equal(A.df2Price(0.99886), '0,9989'); assert.equal(A.df2Price(1), '1,0000'); assert.equal(A.df2Price(null), '—'); assert.equal(A.df2Price(-1), '—'); assert.equal(A.df2Price(0), '—');
+  const F2 = df2t.clone(DF2_F); F2.peg.out = []; F2.peg.bez = [0, 0]; const h2 = df2html(F2), t2 = df2t.txt(h2);
+  assert.ok(t2.includes('Dziś żadna moneta z podażą od 50 mln USD nie odbiega od 1 USD o 1% lub więcej.') && df2grp(h2).out.length === 0, 'pusta lista = zdanie, nie pusta tabela'); assert.ok(!t2.includes('Bez ceny z ostatnich 3 dób'), 'brak monet bez ceny — bez zdania');
+});
+
+test('v402: włamania — kafle (90 dób, 12 miesięcy, od początku roku, największe), słupki według lat, rodzaje i cele, listy po rozwinięciu; kwota nieznana liczona osobno', () => {
+  const K = df2t.mk('pl', DF2_F), h = K.els['#c-defi2'].innerHTML, T = df2tiles(h).slice(8, 12), G = df2grp(h), t = df2t.txt(h);
+  assert.deepEqual(T.map(x => [x.label, x.val, x.subs[0]]), [['Skradzione, 90 dób', '1,19 mld USD', 'zdarzeń: 113, w tym bez znanej kwoty: 10'], ['Skradzione, 12 miesięcy', '2,47 mld USD', 'zdarzeń: 331, w tym bez znanej kwoty: 13'],
+    ['Skradzione od początku 2026', '2,25 mld USD', 'zdarzeń: 298, w tym bez znanej kwoty: 13'], ['Największe włamanie, 12 miesięcy', 'Bitget', '387 mln USD · 24 wrz 2026']]);
+  assert.ok(T.every(x => /^pobrano /.test(x.when)), 'włamania: czas pobrania (bez doby danych)');
+  const i = t.indexOf('Skradzione według lat');
+  assert.ok(t.slice(i).startsWith('Skradzione według lat 2021 2,87 mld USD · zdarzeń: 127 2022 3,63 mld USD · zdarzeń: 185 2023 1,63 mld USD · zdarzeń: 197 2024 1,67 mld USD · zdarzeń: 217 2025 2,72 mld USD · zdarzeń: 148 2026 (do 16 paź 2026) 2,25 mld USD · zdarzeń: 298'), 'rok bieżący opisany jako niepełny');
+  assert.ok(/<i class="cur" style="width:61\.\d+%"/.test(h) && h.includes('style="width:100.00%"'), 'słupki względem największego roku; bieżący wyróżniony');
+  assert.ok(t.includes('Jak dochodziło do włamań (12 miesięcy) Przejęcie kluczy 717 mln USD · 29% Mosty i transfery między sieciami 700 mln USD · 28%') && t.includes('Kto został okradziony (12 miesięcy) Protokoły DeFi 1,35 mld USD · 55% Giełdy scentralizowane 437 mln USD · 18%'));
+  assert.equal(G.hack.length, 12, '6 największych i 6 najnowszych'); assert.deepEqual(G.hack[0].cells.map(c => c.v), ['24 wrz 2026', '387 mln USD', 'Przejęcie kluczy']); assert.ok(G.hack[0].name.includes('Bitget') && G.hack[0].name.includes('Giełdy scentralizowane'));
+  assert.deepEqual(G.hack[8].cells.map(c => c.v), ['2 paź 2026', '<1 mln USD', 'Błędy rozliczania tokenów i udziałów'], 'poniżej 0,5 mln: „<1 mln”');
+  assert.ok(h.includes('<details class="etfd" id="df2-top"><summary>Największe włamania z 12 miesięcy</summary>') && h.includes('<details class="etfd" id="df2-new"><summary>Najnowsze włamania (od 0,1 mln USD)</summary>'));
+  assert.ok(t.includes('wpisy bez znanej kwoty są liczone osobno, a nie jako zero') && t.includes('Rok bieżący jest niepełny: ostatni wpis z doby 16 paź 2026.'));
+  const Z = df2t.clone(DF2_F); Z.hacks.w90 = [0, 0, 0]; Z.hacks.lata[5] = [2026, 0, 0, 0]; const tz = df2tiles(df2html(Z)).slice(8, 12);
+  assert.deepEqual([tz[0].val, tz[0].cls, tz[0].subs[0], tz[2].val], ['—', 'na', 'zdarzeń: 0', '—'], 'brak kwoty = „—”, nigdy zero');
+});
+
+test('v402: opcje na zdecentralizowanych giełdach — kafle (doba, 7 i 30 dób ze zmianą, największy protokół), słupki protokołów, notatka o wartości nominalnej', () => {
+  const K = df2t.mk('pl', DF2_F), h = K.els['#c-defi2'].innerHTML, T = df2tiles(h).slice(12), t = df2t.txt(h);
+  assert.deepEqual(T.map(x => [x.label, x.val, x.subs[0] || '']), [['Wolumen opcji, doba', '187 mln USD', ''], ['Wolumen opcji, 7 dób', '1,06 mld USD', '−7,2% wobec poprzednich 7 dób'], ['Wolumen opcji, 30 dób', '5,16 mld USD', '+44,1% wobec poprzednich 30 dób'],
+    ['Największy protokół, 30 dób', 'Derive Options', '59% wolumenu z 30 dób']]);
+  assert.ok(T[1].subHtml.includes('class="neg">−7,2%') && T[2].subHtml.includes('class="pos">+44,1%'), 'kierunek z pokazanej liczby');
+  assert.ok(t.includes('Protokoły opcji (30 dób) Derive Options 3,04 mld USD · 59% Derive V3 Options 1,25 mld USD · 24% Paradex Options 503 mln USD · 10% Rysk V12 157 mln USD · 3%'));
+  assert.ok(t.includes('Wolumen to wartość nominalna zawartych kontraktów, a nie premia ani otwarte pozycje.'));
+  const O = df2t.clone(DF2_F); O.opt.top = [O.opt.top[0]]; const to = df2t.txt(df2html(O)); assert.ok(!to.includes('Protokoły opcji (30 dób)'), 'jeden protokół — bez słupków');
+});
+
+test('v402: brak = „—”, części niezależne, stara część znika, zły plik ukrywa kartę, chwilowy błąd nie zasłania wczytanych danych, bez wykresów bez wk-', () => {
+  const C = df2t.clone, ok = (f, o) => df2t.mk('pl', f, o).els['#c-defi2'];
+  const a = C(DF2_F); a.fees.r24 = null; a.fees.r30 = null; a.fees.rows[1][5] = null; a.fees.rows[0][6] = null; const ta = df2tiles(ok(a).innerHTML).slice(0, 4), ga = df2grp(ok(a).innerHTML);
+  assert.deepEqual([ta[1].val, ta[1].cls, ta[1].subs.length], ['—', 'na', 0], 'brak przychodu: „—” bez zdania o udziale'); assert.equal(ga.fees[1].cells[2].v, '—'); assert.equal(ga.fees[0].cells[3].v, '—', 'brak poprzednich 7 dób: „—” bez koloru');
+  assert.ok(!ga.fees[0].cells[3].html.includes('class='));
+  const z0 = C(DF2_F); z0.fees.f7p = 0; z0.fees.f30p = 0; z0.fees.rows[1][6] = 0; z0.opt.o7p = 0; z0.opt.o30p = 0; const hz0 = ok(z0).innerHTML, tz0 = df2tiles(hz0);
+  assert.deepEqual([tz0[0].subs.length, tz0[2].subs.length, tz0[13].subs.length, tz0[14].subs.length, df2grp(hz0).fees[1].cells[3].v], [0, 0, 0, 0, '—'], 'poprzednia wartość równa zero: brak zmiany procentowej („—”), nie nieskończoność');
+  const b = C(DF2_F); b.peg.lic['0.5'] = null; b.peg.seria[b.peg.seria.length - 1][0] = '2026-10-16'; const tb = df2tiles(ok(b).innerHTML).slice(4, 8);
+  assert.deepEqual([tb[1].val, tb[1].cls, tb[1].subs.length, tb[3].val, tb[3].cls], ['—', 'na', 0, '—', 'na'], 'brak licznika i serii z innej doby = „—”');
+  const c = C(DF2_F); c.fees.dzien = '2026-10-10'; const hc = ok(c).innerHTML; assert.ok(!hc.includes('Opłaty i przychody protokołów') && hc.includes('Ceny stablecoinów: odchylenie od 1 USD') && hc.includes('Włamania i wycieki') && hc.includes('Opcje na zdecentralizowanych giełdach'), 'stara doba opłat: tylko ta część znika');
+  const d = C(DF2_F); d.peg.dzien = '2026-10-11'; d.hacks.t = '2026-10-10T00:00:00+00:00'; d.opt.dzien = '2026-10-12'; const hd = ok(d).innerHTML;
+  assert.ok(hd.includes('Opłaty i przychody protokołów') && !hd.includes('Ceny stablecoinów: odchylenie') && !hd.includes('Włamania i wycieki') && !hd.includes('Opcje na zdecentralizowanych giełdach'), 'ceny 6 dób, włamania 7 dób, opcje 5 dób temu: znikają');
+  const e = C(DF2_F); e.fees.dzien = '2026-10-10'; e.peg.dzien = '2026-10-11'; e.hacks.t = '2026-10-10T00:00:00+00:00'; e.opt.dzien = '2026-10-12'; assert.equal(ok(e).hidden, true, 'wszystkie części stare = karta ukryta');
+  for (const zly of [{v: 1, at: 'zły', fees: DF2_F.fees}, {v: 2, at: DF2_F.at, fees: DF2_F.fees}, 'tekst', [], {v: 1, at: DF2_F.at}, {v: 1, at: DF2_F.at, fees: []}]) assert.equal(ok(zly).hidden, true, JSON.stringify(zly).slice(0, 40));
+  const f = C(DF2_F); f.fees.rows = f.fees.rows.slice(0, 2); f.peg.top = f.peg.top.slice(0, 2); f.hacks.lat = 'zły'; f.opt.o30 = 0; const hf = ok(f); assert.equal(hf.hidden, true, 'części bez wystarczających danych nie są pokazywane');
+  const K = df2t.mk('pl', DF2_F); K.api.df2Apply(null); assert.equal(K.els['#c-defi2'].hidden, false, 'błąd pobrania nie zasłania wczytanych danych'); K.api.df2Apply({v: 1, at: 'zły'}); assert.equal(K.els['#c-defi2'].hidden, false);
+  const K0 = df2t.mk('pl', null); assert.equal(K0.els['#c-defi2'].hidden, true); K0.api.df2Apply(C(DF2_F)); assert.equal(K0.els['#c-defi2'].hidden, false, 'późniejszy dobry plik pokazuje kartę');
+  const nw = df2t.mk('pl', DF2_F, {nowk: true}), hw = nw.els['#c-defi2'].innerHTML; assert.ok(!hw.includes('[CHART') && hw.includes('Opłaty i przychody protokołów') && df2tiles(hw).length === 16, 'bez wk-: bez wykresów, reszta działa');
+  const op = df2t.mk('pl', DF2_F); op.els['#c-defi2'].open = ['df2-ev', 'df2-top']; op.api.renderDf2(); assert.equal(op.els['#c-defi2'].hidden, false, 'przerysowanie z otwartymi rozwijanymi');
+});
+
+test('v402: 10 języków — brak surowych kluczy i napisów-błędów, ten sam komplet znaczników; słownik dopisany raz po linii for najwyższego słownika; bez nazw dostawców', () => {
+  const m = [...html.matchAll(/^const EXTRA(\d+)=(\{.*\});$/gm)].filter(x => x[2].includes('"df2.t"'));
+  assert.equal(m.length, 1, 'jeden słownik v402'); const n = m[0][1], D = JSON.parse(m[0][2]);
+  assert.ok(html.includes(`const EXTRA${n}=`) && html.includes(`for(const l in EXTRA${n})if(I18N[l])Object.assign(I18N[l],EXTRA${n}[l]);`), 'linia nakładania');
+  const L = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']; assert.deepEqual(Object.keys(D).sort(), L.slice().sort());
+  const ph = s => (String(s).match(/\{\w+\}/g) || []).sort().join();
+  for (const l of L) {
+    assert.deepEqual(Object.keys(D[l]).sort(), Object.keys(D.pl).sort(), l + ': komplet kluczy');
+    for (const k of Object.keys(D.pl)) { assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k + ': znaczniki'); assert.ok(String(D[l][k]).length > 0 && !/DefiLlama|Llama|CoinGecko|CoinMarketCap/i.test(D[l][k]), l + ' ' + k); }
+    if (l !== 'pl') for (const k of ['df2.sub', 'df2.n.fees1', 'df2.n.peg1', 'df2.h.fees', 'df2.cat.der', 'df2.cl.kc']) assert.notEqual(D[l][k], D.pl[k], l + ' ' + k + ': prawdziwe tłumaczenie');
+    const h = df2t.sp(df2html(DF2_F, l)), t = df2t.txt(h);
+    assert.ok(t.includes(D[l]['df2.not1']) && t.includes(D[l]['df2.not3']), l + ': uwagi w języku');
+    assert.ok(h.includes(D[l]['df2.t']) && h.includes(D[l]['df2.h.fees']) && h.includes(D[l]['df2.h.peg']) && h.includes(D[l]['df2.h.hack']) && h.includes(D[l]['df2.h.opt']), l + ': teksty w języku');
+    assert.ok(!/df2\.|\b(undefined|NaN)\b|\{[a-z]\}/.test(h), l + ': ' + (h.match(/df2\.[\w.]+|\b(undefined|NaN)\b|\{[a-z]\}/) || [''])[0]);
+    assert.ok(!/DefiLlama|CoinGecko|CoinMarketCap/.test(h), l);
+    assert.ok(t.includes(D[l]['df2.cat.stab']) && t.includes(D[l]['df2.cl.kc']) && t.includes(D[l]['df2.tt.cex']), l + ': kategorie, rodzaje ataku i cele w języku');
+  }
+  assert.ok(/nie jest prognozą jego upadku/.test(D.pl['df2.not1']) && /not a forecast of its failure/.test(D.en['df2.not1']) && /keine Prognose/.test(D.de['df2.not1']), 'brak rekomendacji: nie prognoza');
+  const E = df2t.txt(df2html(DF2_F, 'en')); assert.ok(E.includes('Protocol fees and revenue') && E.includes('Key compromise') && E.includes('incidents: 113, of which without a known amount: 10') && E.includes('Stablecoin issuers'), E.slice(0, 200));
+  const U = df2t.txt(df2html(DF2_F, 'de')); assert.ok(U.includes('Protokollgebühren und -erträge') && U.includes('Kompromittierte Schlüssel'), 'niemiecki'); assert.ok(U.includes('74,2 Mio. USD') && U.includes('2,41 Mrd. USD'), 'liczby i jednostki w języku widza');
+});
+
+test('v402: każdy klucz słownika jest użyty, każdy użyty klucz istnieje; kody kategorii, rodzajów ataku i celów ze zbieracza mają podpisy na stronie; nic poza kodem karty nie czyta pliku', () => {
+  const m = [...html.matchAll(/^const EXTRA(\d+)=(\{.*\});$/gm)].filter(x => x[2].includes('"df2.t"')), D = JSON.parse(m[0][2]).pl, code = df2t.code;
+  const lit = new Set([...code.matchAll(/'(df2\.[\w.]+)'(?!\s*\+)/g)].map(x => x[1]));
+  const arr = n => (code.match(new RegExp('(?:const |,)' + n + '=\\[([^\\]]*)\\]'))[1].match(/'(\w+)'/g) || []).map(s => s.slice(1, -1));
+  const CAT = arr('DF2_CAT'), CLS = arr('DF2_CLS'), TTS = arr('DF2_TTS'); assert.ok(CAT.length === 25 && CLS.length === 14 && TTS.length === 6);
+  const used = new Set([...lit, ...CAT.map(c => 'df2.cat.' + c), ...CLS.map(c => 'df2.cl.' + c), ...TTS.map(c => 'df2.tt.' + c), 'df2.not1', 'df2.not2', 'df2.not3']);
+  for (const k of used) assert.ok(k in D, 'brak klucza: ' + k);
+  for (const k of Object.keys(D)) assert.ok(used.has(k), 'klucz nieużyty: ' + k);
+  const py = fs.readFileSync(path.join(__dirname, 'zbieraj_dane.py'), 'utf8'), vals = (n, rx) => { const b = py.slice(py.indexOf(n + ' = {')); return [...b.slice(0, b.indexOf('}') + 1).matchAll(rx)].map(x => x[1]); };
+  if (py.includes('DF2_KAT = {')) {   /* jsc (bramka) podstawia za każdy plik index.html — kontrakt ze zbieraczem sprawdza node */
+    const kat = vals('DF2_KAT', /: '(\w+)'/g), cl = vals('DF2_CL', /: '(\w+)'/g), tt = vals('DF2_TT', /: '(\w+)'/g);
+    assert.ok(kat.length >= 20 && cl.length === 13 && tt.length >= 5);
+    for (const k of kat) assert.ok(CAT.includes(k), 'kategoria bez podpisu: ' + k); for (const k of cl) assert.ok(CLS.includes(k), 'rodzaj ataku bez podpisu: ' + k); for (const k of tt) assert.ok(TTS.includes(k), 'cel bez podpisu: ' + k);
+  }
+  assert.ok(CAT.includes('x') && CLS.includes('x') && TTS.includes('x'), 'kod „x” = inne');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])defi2\1/g)].length, 1); assert.ok(!/DefiLlama|llama\.fi/i.test(code.replace(/\/\*[\s\S]*?\*\//g, '')), 'w kodzie karty żadnych nazw dostawców ani adresów (komentarze nie są wyświetlane)');
+  assert.ok(!/\bsrc\b/.test(code.replace(/\/\*[\s\S]*?\*\//g, '')), 'pole src pliku nie jest pokazywane');
+});
+
+test('v402: telefon 390 px bez przewijania w bok — kafle po dwa, tabele w dwóch kolumnach z podpisami, tylko własne reguły karty; kolory kierunku ze zmiennych motywu', () => {
+  const s0 = html.indexOf('/* v402 (F11Z15): karta DeFi 2 w CRYPTO'), css = html.slice(s0, html.indexOf('\n/*', s0 + 10));
+  assert.ok(css.length > 1500); assert.ok(css.split('\n').filter(l => l.trim() && !l.startsWith('/*')).every(l => /^(#c-defi2|@media|\s|\})/.test(l)), 'każda reguła zawężona do #c-defi2');
+  assert.ok(/@media \(max-width:760px\)\{#c-defi2 \.etfkpis\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}\}/.test(css), 'kafle po dwa');
+  const tel = css.slice(css.indexOf('@media (max-width:560px){'));
+  assert.ok(tel.includes('grid-template-columns:repeat(2,minmax(0,1fr))') && tel.includes('#c-defi2 .df2-hd{display:none}') && tel.includes('content:attr(data-l)') && tel.includes('#c-defi2 .df2-r>.df2-n{grid-column:1/-1}'), 'tabele na telefonie');
+  assert.ok(/#c-defi2 \.pos\{color:var\(--gr-tx\)\}/.test(css) && /#c-defi2 \.neg\{color:var\(--rd-tx\)\}/.test(css) && /#c-defi2 \.neu\{color:var\(--yl-tx\)\}/.test(css), 'kolory kierunku ze zmiennych motywu');
+  assert.ok(/#c-defi2 \.etfk b small span\{display:inline/.test(css), 'znaczniki zmian w kafelku w jednej linii z opisem (globalna reguła .etfk span robi z nich bloki)');
+  assert.ok(/#c-defi2 \.etfk b\{[^}]*white-space:normal;overflow-wrap:anywhere/.test(css) && /#c-defi2 \.df2-n b\{[^}]*overflow-wrap:anywhere/.test(css) && /#c-defi2 \.df2-c\{[^}]*overflow-wrap:anywhere/.test(css), 'długie nazwy się łamią');
+  assert.ok(/#c-defi2 \.wk-ch \.df2-a\{--k:var\(--bl\)\}/.test(css), 'kolor linii wykresu ze zmiennej motywu');
+  assert.ok(!/(^|[^-\w])(#[0-9a-f]{3,8})\b/i.test(css.replace(/rgba?\([^)]*\)/g, '').replace(/#c-defi2/g, '')), 'żadnych kolorów na sztywno poza zmiennymi motywu');
+});

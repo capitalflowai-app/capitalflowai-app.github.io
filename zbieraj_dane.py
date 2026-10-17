@@ -32832,6 +32832,8 @@ def main():
     # v397 (F11Z11): dźwignia krypto 2 — data/dzwignia2.json; nastroje detalu i kredyt marżowy (OKX: konta i najwięksi gracze long/short, wolumen agresora, pożyczki marżowe; Bitfinex: pozycje marżowe, pożyczki USD),
     # publiczne zapytania bez klucza, co D2_EVERY_MIN min; nic z tego pliku nie wchodzi do sumy „wszystkie giełdy razem” (dzwignia.json)
     META['ok']['dzwignia2_okx'], META['ok']['dzwignia2_bfx'] = d2_czesc()
+    # v402 (F11Z15): DeFi 2 — data/defi2.json; opłaty i przychody protokołów, ceny stablecoinów, włamania, opcje na DEX; publiczne zapytania bez klucza, każda część raz na dobę UTC (ta sama usługa co stablecoiny i DEX)
+    META['ok']['defi2_fees'], META['ok']['defi2_peg'], META['ok']['defi2_hacks'], META['ok']['defi2_opt'] = df2_czesc()
     # v394 (F11Z8): premie lokalnych stablecoinów USDT wobec kursu referencyjnego — data/premie-stable.json; zapytania tylko w oknie po opublikowaniu kursu (raz na dzień roboczy), poza nim sam zapis pliku
     META['ok']['premie_st_tr'], META['ok']['premie_st_br'], META['ok']['premie_st_za'], META['ok']['premie_st_id'], META['ok']['premie_st_in'], META['ok']['premie_st_mx'] = pst_czesc()
     # v140: TOP 10 monet w 8 sektorach sceny CRYPTO (klucz CoinGecko w nagłówku): najwyżej co 55 min, skład kategorii co 6 h (reszta: jedno zapytanie
@@ -42586,6 +42588,440 @@ def build_interwencje(prev=None, run_t0=None):
 
 
 ZRODLA_META.update({'interw_jp': 'mof-japonii', 'interw_hk': 'hkma', 'interw_ar': 'bcra', 'interw_br': 'bcb', 'interw_ca': 'bank-kanady', 'interw_focus': 'bcb-focus'})   # v401: trzy nowe źródła (hkma, bcra, bcb-focus); reszta to już liczone
+
+
+# ===================== v402 (F11Z15): DeFi 2 — OPŁATY I PRZYCHODY PROTOKOŁÓW, CENY STABLECOINÓW, WŁAMANIA, OPCJE NA DEX (data/defi2.json) =====================
+# Cztery niezależne części jednego pliku (każda z własnym czasem pobrania, 'ok' i poprzednią wersją przy awarii), publiczne zapytania GET bez klucza, nagłówek zbieracza, Accept-Encoding: gzip.
+# Ta sama usługa co stablecoiny, RWA, giełdy i DEX (zgoda właściciela z 11.10.2026) — liczba źródeł bez zmian. Bez endpointów płatnych (HTTP 402) i bez list pul (yields: odpowiedź 11,5 MB — pominięta).
+#  (1) fees — opłaty i przychody protokołów (/overview/fees, drugi raz z dataType=dailyRevenue; odpowiedzi ok. 1 MB po spakowaniu): sumy doby, 7 i 30 dób, 12 największych produktów wg opłat z 30 dób
+#      (wersje i produkty tej samej firmy liczone osobno), kategorie, dzienna seria sum z 90 dób. Doba total24h NIE jest podana w odpowiedzi: ostatni punkt wykresu to doba w toku, więc dobę wskazuje
+#      punkt wykresu najbliższy total24h (tolerancja 1 %) i zgodna z nim suma 7 dób (tolerancja 5 %; sprawdzone 17.10.2026: różnica 0,04 % i 0,13 %) — brak zgodności = błąd części, nigdy zgadywanie.
+#      Suma wierszy protokołów jest o kilka procent większa niż suma serwisu (podwójne liczenie warstw; sprawdzone 17.10.2026: doba +0,5 %, 30 dób +8,1 %) — udziały liczymy względem sumy kategorii, a sumy doby/7/30 dób bierzemy z serwisu.
+#  (2) peg — dzienne ceny stablecoinów w USD (/stablecoinprices, 6 MB, ok. 215 monet od 2021; jedna cena na dobę) dla monet dolarowych (lista monet jak w panelu emitentów: pegType peggedUSD)
+#      z podażą co najmniej DF2_PEG_MIN. Odchylenie od 1 USD, liczba monet powyżej 0,5 / 1 / 5 %, 12 największych (cena, najgorsza doba z 30 dób), monety odchylone o ≥ 1 %, największe odchylenie
+#      10 największych monet w całej historii i seria 90 dób „najgorsze odchylenie z 10 największych”. Cena starsza niż 3 doby = moneta bez ceny (liczona osobno, nigdy zero). Cena dzienna to
+#      jeden odczyt na dobę — wahania w ciągu doby mogą być większe (marzec 2023: USDC 0,9611 w odczycie dziennym).
+#  (3) hacks — lista włamań i wycieków (/hacks, 356 KB): kwoty skradzione w latach, 90 dób i 12 miesiącach, podział wg rodzaju ataku i celu, 6 największych z 12 miesięcy i 6 najnowszych (od 0,1 mln USD).
+#      Kwota brak = nieznana (liczona osobno, nie zero). Pole o odzyskanych środkach pominięte (u jednego wpisu większe od kwoty).
+#  (4) opt — wolumen opcji na zdecentralizowanych giełdach (/overview/options, dataType=dailyNotionalVolume — wartość nominalna kontraktów; domyślny wariant źródła to premia, ok. 50 razy mniejsza).
+# Rytm: część odświeżana raz na dobę UTC po godz. DF2_OD_GODZ (doba danych starsza niż wczoraj = ponowienie co DF2_PONOW_H h, bo serwis uzupełnia dane z opóźnieniem); część po błędzie ponawia co DF2_BLAD_H h.
+# Część, która zawiodła, zostaje z poprzedniego pliku z własnym czasem najwyżej DF2_MAX_D dób. Odpowiedzi czytane kawałkami z limitem czasu i rozmiaru (gx_pobierz).
+DF2_V = 1
+DF2_API = 'https://api.llama.fi'
+DF2_URL = {'fees': DF2_API + '/overview/fees?excludeTotalDataChartBreakdown=true',
+           'rev': DF2_API + '/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyRevenue',
+           'opt': DF2_API + '/overview/options?excludeTotalDataChartBreakdown=true&dataType=dailyNotionalVolume',
+           'hacks': DF2_API + '/hacks',
+           'ceny': 'https://stablecoins.llama.fi/stablecoinprices'}
+DF2_PARTS = ('fees', 'peg', 'hacks', 'opt')
+DF2_OD_GODZ = 2            # godzina UTC — przed nią serwis nie ma jeszcze pełnej wczorajszej doby
+DF2_PONOW_H = 3            # h — doba danych starsza niż wczoraj: ponowienie nie częściej niż co tyle
+DF2_BLAD_H = 2             # h — część, która zawiodła w poprzednim przebiegu: ponowienie nie częściej niż co tyle
+DF2_MAX_D = 10             # dób — część po błędzie zostaje z poprzedniego pliku najwyżej tyle
+DF2_SLEEP = 1.5            # s — odstęp między zapytaniami
+DF2_REQ_S = 50             # s — limit jednego zapytania (czytanie kawałkami)
+DF2_LIMIT = 170            # s — budżet czasu budowy pliku
+DF2_MAKS = {'fees': (40_000_000, 12_000_000), 'rev': (40_000_000, 12_000_000), 'opt': (10_000_000, 3_000_000), 'hacks': (6_000_000, 2_000_000),
+            'ceny': (40_000_000, 8_000_000), 'lista': (12_000_000, 4_000_000)}   # (po rozpakowaniu, na łączu) — bajty
+DF2_TOL_DOBA = 0.01        # dopuszczalna różnica total24h i punktu wykresu (część)
+DF2_CEL = {'fees': 1, 'opt': 1, 'peg': 0}   # doba, którą część ma mieć po godz. DF2_OD_GODZ: opłaty i opcje — wczorajszą (pełna doba), ceny — dzisiejszą (etykieta doby to jej początek, 00:00 UTC)
+DF2_TOL_7D = 0.05          # dopuszczalna różnica total7d i sumy 7 punktów wykresu (część)
+DF2_TOP = 12               # tyle największych produktów w tabeli opłat
+DF2_KAT_N = 8              # tyle największych kategorii (reszta jako 'x')
+DF2_SER = 90               # dób w seriach
+DF2_FEES_ZAKRES = (1e6, 1e10)   # USD — suma opłat doby poza przedziałem to błąd odczytu (17.10.2026: 74 mln)
+DF2_KAT = {'Stablecoin Issuer': 'stab', 'Dexs': 'dex', 'Launchpad': 'lau', 'Derivatives': 'der', 'Liquid Staking': 'lst', 'Prediction Market': 'pre', 'Lending': 'len', 'Chain': 'cha',
+           'Trading App': 'app', 'RWA': 'rwa', 'Staking Pool': 'stp', 'NFT Marketplace': 'nft', 'Interface': 'int', 'CDP': 'cdp', 'Onchain Capital Allocator': 'oca', 'Basis Trading': 'bas',
+           'Risk Curators': 'rsk', 'MEV': 'mev', 'DEX Aggregator': 'agg', 'Bridge': 'bri', 'Wallets': 'wal', 'Yield': 'yld', 'Liquid Restaking': 'lrs', 'Block Builders': 'blb'}
+DF2_PEG_MIN = 50e6         # USD — najmniejsza podaż monety w statystykach odklejenia
+DF2_PEG_PROGI = (0.5, 1.0, 5.0)   # % — progi liczby monet odchylonych od 1 USD
+DF2_PEG_STARE_D = 3        # dób — cena starsza niż tyle = moneta bez ceny; ostatnia doba serii starsza niż tyle wobec chwili przebiegu = błąd
+DF2_PEG_TOPN = 10          # tyle największych monet w serii „najgorsze odchylenie” i w historii
+DF2_PEG_MIN_TOP = 6        # tyle monet z ceną musi mieć doba, żeby weszła do serii
+DF2_PEG_OUT_N = 8
+DF2_CL = {'Access Control': 'ac', 'Protocol Logic': 'pl', 'Token & Share Accounting': 'ts', 'Oracle Manipulation': 'om', 'Key Compromise': 'kc', 'Frontend & Infrastructure': 'fi',
+          'Input Validation': 'iv', 'Reentrancy': 're', 'Social Engineering': 'se', 'Bridge & Cross-Chain': 'bx', 'Rugpull': 'rp', 'Governance': 'gv', 'Market Manipulation': 'mm'}
+DF2_TT = {'DeFi Protocol': 'defi', 'CEX': 'cex', 'Token': 'tok', 'Chain': 'cha', 'Layer 1': 'cha', 'Wallet': 'wal'}
+DF2_HACK_LATA = 6          # tyle ostatnich lat kalendarzowych (z bieżącym)
+DF2_HACK_MIN_WIERSZY = 500
+DF2_HACK_KWOTA_MAX = 1e11  # USD — kwota powyżej tego to błąd odczytu (największa w historii: 3,5 mld)
+DF2_HACK_NOWE_OD = 1e5     # USD — najnowsze włamania pokazujemy od tej kwoty
+DF2_HACK_STARE_D = 120     # dób — najnowszy wpis starszy niż tyle wobec chwili przebiegu = błąd odczytu
+_DF2_TERMIN = [None]
+
+
+def df2_num(v, lo=None, hi=None):
+    """Skończona liczba (nie wartość logiczna) w przedziale [lo, hi] albo None."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not _etf_math.isfinite(v):
+        return None
+    if (lo is not None and v < lo) or (hi is not None and v > hi):
+        return None
+    return float(v)
+
+
+def df2_dzien(ts):
+    """Sekundy epoki → data UTC RRRR-MM-DD; zły znacznik = None."""
+    v = df2_num(ts, 1, 4e9)
+    return datetime.datetime.fromtimestamp(v, datetime.timezone.utc).strftime('%Y-%m-%d') if v is not None else None
+
+
+def df2_pobierz(klucz, url=None):
+    """Jedyne miejsce sieci części DeFi 2 (testy je łatają): GET z gzip i limitami → obiekt JSON. Budżet czasu budowy: DF2_LIMIT s; po nim wyjątek."""
+    zostalo = DF2_REQ_S
+    if _DF2_TERMIN[0] is not None:
+        zostalo = min(DF2_REQ_S, _DF2_TERMIN[0] - time.monotonic())
+        if zostalo < 3:
+            raise RuntimeError(f'limit czasu budowy ({DF2_LIMIT} s)')
+    time.sleep(DF2_SLEEP)
+    maks, gz = DF2_MAKS[klucz]
+    raw, _ = gx_pobierz(url or DF2_URL[klucz], zostalo, maks, gz)
+    return json.loads(raw.decode('utf-8'))
+
+
+def df2_wykres(j):
+    """totalDataChart → [(doba, wartość)] rosnąco, bez powtórzeń; zły punkt pomijany; za mało punktów = wyjątek."""
+    W = {}
+    for p in (j.get('totalDataChart') if isinstance(j, dict) else None) or []:
+        if isinstance(p, (list, tuple)) and len(p) == 2:
+            d, v = df2_dzien(p[0]), df2_num(p[1], 0)
+            if d and v is not None:
+                W[d] = v
+    if len(W) < 40:
+        raise ValueError('wykres sum: za mało punktów')
+    return sorted(W.items())
+
+
+def df2_doba(j, W):
+    """Doba, której dotyczy total24h: punkt wykresu (jeden z dwóch ostatnich) najbliższy total24h w granicach DF2_TOL_DOBA i zgodna z nim suma 7 dób (DF2_TOL_7D).
+    → (doba, indeks punktu). Ostatni punkt wykresu bywa dobą w toku, więc wskazanie z wartości, nie z pozycji."""
+    t24, t7 = df2_num(j.get('total24h'), 0), df2_num(j.get('total7d'), 0)
+    if not t24:
+        raise ValueError('brak total24h')
+    i = min(range(max(0, len(W) - 2), len(W)), key=lambda k: abs(W[k][1] - t24))
+    if abs(W[i][1] - t24) > DF2_TOL_DOBA * t24:
+        raise ValueError('doba total24h nie pasuje do wykresu')
+    if t7 and i >= 6 and abs(sum(v for _, v in W[i - 6:i + 1]) - t7) > DF2_TOL_7D * t7:
+        raise ValueError('suma 7 dób nie pasuje do wykresu')
+    return W[i][0], i
+
+
+def df2_wiersze(j):
+    return [p for p in (j.get('protocols') if isinstance(j, dict) else None) or [] if isinstance(p, dict)]
+
+
+def df2_fees(fj, rj=None):
+    """/overview/fees (+ wariant przychodów) → część 'fees': {dzien, f24, f7, f7p, f30, f30p, r24, r30, rows, kat, seria, t}. Wiersz produktu: [nazwa, kategoria, opłaty doby, 7 dób, 30 dób,
+    przychód 30 dób albo None, opłaty poprzednich 7 dób albo None]."""
+    W = df2_wykres(fj)
+    dzien, i = df2_doba(fj, W)
+    g = lambda k: df2_num(fj.get(k), 0)  # noqa: E731
+    f24, f7, f7p, f30, f30p = g('total24h'), g('total7d'), g('total14dto7d'), g('total30d'), g('total60dto30d')
+    if f24 is None or not DF2_FEES_ZAKRES[0] <= f24 <= DF2_FEES_ZAKRES[1] or f30 is None or f30 < f24:
+        raise ValueError('sumy opłat poza przedziałem')
+    rev = {}
+    r24 = r30 = None
+    if isinstance(rj, dict):
+        r24, r30 = df2_num(rj.get('total24h'), 0), df2_num(rj.get('total30d'), 0)
+        if r24 is not None and r30 is not None and r24 <= f24 * 1.05 and r30 <= f30 * 1.05:
+            for p in df2_wiersze(rj):
+                v = df2_num(p.get('total30d'), 0)
+                if v is not None and p.get('id') is not None:
+                    rev[str(p['id'])] = v
+        else:
+            r24 = r30 = None   # przychody niespójne z opłatami (przychód ≤ opłaty) — pomijamy całą część, opłaty zostają
+    wier, kat = [], {}
+    for p in df2_wiersze(fj):
+        a30 = df2_num(p.get('total30d'), 0)
+        nm = re.sub(r'[\x00-\x1f]', '', str(p.get('name') or '')).strip()[:40]
+        if not a30 or not nm:
+            continue
+        k = DF2_KAT.get(p.get('category'), 'x')
+        a24, a7, a7p = df2_num(p.get('total24h'), 0), df2_num(p.get('total7d'), 0), df2_num(p.get('total14dto7d'), 0)
+        rv = rev.get(str(p.get('id')))
+        wier.append([nm, k, round(a24 or 0), round(a7 or 0), round(a30), round(rv) if rv else None, round(a7p) if a7p else None])
+        s = kat.setdefault(k, [0.0, 0.0, 0.0])
+        s[0] += a24 or 0
+        s[1] += a30
+        s[2] += rv or 0
+    if len(wier) < 5:
+        raise ValueError('za mało produktów z opłatami')
+    wier.sort(key=lambda r: -r[4])
+    jawne = sorted(((k, v) for k, v in kat.items() if k != 'x'), key=lambda kv: -kv[1][1])
+    reszta = [0.0, 0.0, 0.0]
+    for k, v in jawne[DF2_KAT_N:] + ([('x', kat['x'])] if 'x' in kat else []):
+        reszta = [a + b for a, b in zip(reszta, v)]
+    kat_out = [[k, round(v[0]), round(v[1]), round(v[2]) if r30 is not None else None] for k, v in jawne[:DF2_KAT_N]]
+    if reszta[1] > 0:
+        kat_out.append(['x', round(reszta[0]), round(reszta[1]), round(reszta[2]) if r30 is not None else None])
+    seria = [[d, round(v / 1e6, 3)] for d, v in W[:i + 1]][-DF2_SER:]
+    return {'dzien': dzien, 'f24': round(f24), 'f7': round(f7) if f7 is not None else None, 'f7p': round(f7p) if f7p is not None else None, 'f30': round(f30),
+            'f30p': round(f30p) if f30p is not None else None, 'r24': round(r24) if r24 is not None else None, 'r30': round(r30) if r30 is not None else None,
+            'rows': wier[:DF2_TOP], 'kat': kat_out, 'seria': seria, 't': NOW}
+
+
+def df2_lista(lista):
+    """Lista monet (/stablecoins) → {gecko_id: (symbol, nazwa, podaż USD)} dla monet dolarowych z podażą ≥ DF2_PEG_MIN; ta sama moneta pod dwoma wpisami = większa podaż."""
+    A = lista.get('peggedAssets') if isinstance(lista, dict) else None
+    if not isinstance(A, list) or not A:
+        raise ValueError('lista monet: brak peggedAssets')
+    uni = {}
+    for a in A:
+        if not isinstance(a, dict) or a.get('pegType') != 'peggedUSD' or not isinstance(a.get('gecko_id'), str) or not a['gecko_id']:
+            continue
+        c = df2_num((a.get('circulating') or {}).get('peggedUSD') if isinstance(a.get('circulating'), dict) else None, DF2_PEG_MIN)
+        sy = re.sub(r'[\x00-\x1f]', '', str(a.get('symbol') or '')).strip()[:12]
+        if c is None or not sy:
+            continue
+        if a['gecko_id'] not in uni or uni[a['gecko_id']][2] < c:
+            uni[a['gecko_id']] = (sy, re.sub(r'[\x00-\x1f]', '', str(a.get('name') or sy)).strip()[:40], c)
+    return uni
+
+
+def df2_peg(lista, ceny, teraz=None):
+    """Lista monet + dzienne ceny → część 'peg'. Pola: dzien (ostatnia doba serii), n (monety z ceną), sup (ich podaż), bez ([liczba, podaż] monet bez ceny z ostatnich 3 dób), lic ({próg: [liczba, podaż]}),
+    top (12 największych: [symbol, nazwa, podaż, cena, cena najgorszej doby z 30 dób, ta doba]), out (odchylone o ≥ 1 %: [symbol, nazwa, podaż, cena]), ev (10 największych: [symbol, doba najgorszej ceny, cena]),
+    seria ([doba, najgorsze odchylenie z 10 największych w %] z 90 dób), t."""
+    uni = df2_lista(lista)
+    S = {}
+    tn = _ix_dt(teraz or NOW)
+    jutro = (tn.date() + datetime.timedelta(days=1)).isoformat() if tn is not None else '9999-12-31'
+    for s in ceny if isinstance(ceny, list) else []:
+        if isinstance(s, dict) and isinstance(s.get('prices'), dict):
+            d = df2_dzien(s.get('date'))
+            if d and d <= jutro:   # doba z dalekiej przyszłości (zepsuty wiersz) nie wyznacza doby danych; etykieta bieżącej doby UTC bywa już w pliku
+                S[d] = s['prices']
+    if len(S) < 100:
+        raise ValueError('ceny stablecoinów: za mało dób')
+    dni = sorted(S)
+    ost = dni[-1]
+    if tn is not None and (tn.date() - datetime.date.fromisoformat(ost)).days > DF2_PEG_STARE_D:
+        raise ValueError(f'ceny stablecoinów: ostatnia doba {ost} jest za stara')
+    ost_d = datetime.date.fromisoformat(ost)
+    hist = {g: [] for g in uni}
+    for d in dni:
+        P = S[d]
+        for g in uni:
+            v = df2_num(P.get(g), 1e-12, 1e6)
+            if v is not None:
+                hist[g].append((d, v))
+    obecne, bez = {}, [0, 0.0]
+    for g, (sy, nm, c) in uni.items():
+        H = hist[g]
+        if H and (ost_d - datetime.date.fromisoformat(H[-1][0])).days <= DF2_PEG_STARE_D:
+            obecne[g] = H[-1][1]
+        else:
+            bez[0] += 1
+            bez[1] += c
+    if len(obecne) < 15:
+        raise ValueError('ceny stablecoinów: za mało monet z ceną')
+    wg_podazy = sorted(obecne, key=lambda g: -uni[g][2])
+    sup = sum(uni[g][2] for g in obecne)
+    lic = {}
+    for pr in DF2_PEG_PROGI:
+        gs = [g for g in obecne if abs(obecne[g] - 1) * 100 > pr]
+        lic[str(pr)] = [len(gs), round(sum(uni[g][2] for g in gs))]
+    od30 = (ost_d - datetime.timedelta(days=29)).isoformat()
+
+    def najgorsza(g, od=None):
+        H = [x for x in hist[g] if od is None or x[0] >= od]
+        return max(H, key=lambda x: (abs(x[1] - 1), x[0])) if H else (None, None)
+    top = []
+    for g in wg_podazy[:DF2_TOP]:
+        d30, p30 = najgorsza(g, od30)
+        top.append([uni[g][0], uni[g][1], round(uni[g][2]), round(obecne[g], 5), round(p30, 5) if p30 is not None else None, d30])
+    out = [[uni[g][0], uni[g][1], round(uni[g][2]), round(obecne[g], 5)] for g in wg_podazy if abs(obecne[g] - 1) * 100 >= 1.0][:DF2_PEG_OUT_N]
+    dziesiec = wg_podazy[:DF2_PEG_TOPN]
+    ev = []
+    for g in dziesiec:
+        d, p = najgorsza(g)
+        if d is not None:
+            ev.append([uni[g][0], d, round(p, 5)])
+    od90 = (ost_d - datetime.timedelta(days=DF2_SER - 1)).isoformat()
+    seria = []
+    for d in dni:
+        if d < od90:
+            continue
+        v = [abs(S[d][g] - 1) * 100 for g in dziesiec if df2_num(S[d].get(g), 1e-12, 1e6) is not None]
+        if len(v) >= DF2_PEG_MIN_TOP:
+            seria.append([d, round(max(v), 3)])
+    if len(seria) < 30:
+        raise ValueError('ceny stablecoinów: za krótka seria 90 dób')
+    return {'dzien': ost, 'n': len(obecne), 'sup': round(sup), 'bez': [bez[0], round(bez[1])], 'lic': lic, 'top': top, 'out': out, 'ev': ev, 'seria': seria, 't': NOW}
+
+
+def df2_hacks(j, teraz=None):
+    """/hacks → część 'hacks'. Pola: lat (doba najnowszego wpisu), n (liczba wpisów w całości), lata ([rok, liczba, suma znanych kwot, liczba bez kwoty]), w90 i w365 ([liczba, suma, bez kwoty]),
+    cl (rodzaje ataku z 12 miesięcy: [kod, liczba, suma]), tt (cele z 12 miesięcy), top (6 największych z 12 miesięcy: [nazwa, doba, kwota, rodzaj, cel]), nowe (6 najnowszych od 0,1 mln USD), t."""
+    if not isinstance(j, list) or len(j) < DF2_HACK_MIN_WIERSZY:
+        raise ValueError('lista włamań: za mało wpisów')
+    tn = _ix_dt(teraz or NOW) or datetime.datetime.now(datetime.timezone.utc)
+    dzis = tn.date()
+    W = []
+    for x in j:
+        if not isinstance(x, dict):
+            continue
+        d = df2_dzien(x.get('date'))
+        nm = re.sub(r'[\x00-\x1f]', '', str(x.get('name') or '')).strip()[:40]
+        if not d or not nm or datetime.date.fromisoformat(d) > dzis + datetime.timedelta(days=1):
+            continue
+        kw = df2_num(x.get('amount'), 0, DF2_HACK_KWOTA_MAX)
+        W.append((d, nm, kw if kw else None, DF2_CL.get(x.get('classification'), 'x'), DF2_TT.get(x.get('targetType'), 'x')))
+    if len(W) < DF2_HACK_MIN_WIERSZY:
+        raise ValueError('lista włamań: za mało poprawnych wpisów')
+    W.sort(key=lambda w: (w[0], w[1]))
+    lat = W[-1][0]
+    if (dzis - datetime.date.fromisoformat(lat)).days > DF2_HACK_STARE_D:
+        raise ValueError(f'lista włamań: najnowszy wpis {lat} jest za stary')
+    od90, od365 = (dzis - datetime.timedelta(days=89)).isoformat(), (dzis - datetime.timedelta(days=364)).isoformat()
+    lata = {y: [y, 0, 0, 0] for y in range(dzis.year - DF2_HACK_LATA + 1, dzis.year + 1)}
+    w90, w365 = [0, 0, 0], [0, 0, 0]
+    cl, tt = {}, {}
+    for d, nm, kw, c, t_ in W:
+        y = int(d[:4])
+        if y in lata:
+            lata[y][1] += 1
+            lata[y][2] += kw or 0
+            lata[y][3] += 0 if kw else 1
+        for okno, od in ((w90, od90), (w365, od365)):
+            if d >= od:
+                okno[0] += 1
+                okno[1] += kw or 0
+                okno[2] += 0 if kw else 1
+        if d >= od365 and kw:
+            for m, k in ((cl, c), (tt, t_)):
+                s = m.setdefault(k, [k, 0, 0])
+                s[1] += 1
+                s[2] += kw
+    z12 = [w for w in W if w[0] >= od365 and w[2]]
+    if w365[0] < 20:
+        raise ValueError('lista włamań: za mało wpisów z 12 miesięcy')
+    rows = lambda ws: [[nm, d, round(kw), c, t_] for d, nm, kw, c, t_ in ws]  # noqa: E731
+    return {'lat': lat, 'n': len(W), 'lata': [[y, a, round(b), c] for y, a, b, c in lata.values()], 'w90': [w90[0], round(w90[1]), w90[2]], 'w365': [w365[0], round(w365[1]), w365[2]],
+            'cl': sorted(([k, a, round(b)] for k, a, b in cl.values()), key=lambda r: -r[2]), 'tt': sorted(([k, a, round(b)] for k, a, b in tt.values()), key=lambda r: -r[2]),
+            'top': rows(sorted(z12, key=lambda w: -w[2])[:6]), 'nowe': rows(sorted([w for w in W if w[2] and w[2] >= DF2_HACK_NOWE_OD], key=lambda w: w[0], reverse=True)[:6]), 't': NOW}
+
+
+def df2_opt(j):
+    """/overview/options (wartość nominalna) → część 'opt': {dzien, o24, o7, o7p, o30, o30p, top: [[nazwa, doba, 30 dób]], t}."""
+    W = df2_wykres(j)
+    dzien, i = df2_doba(j, W)
+    g = lambda k: df2_num(j.get(k), 0)  # noqa: E731
+    o24, o7, o7p, o30, o30p = g('total24h'), g('total7d'), g('total14dto7d'), g('total30d'), g('total60dto30d')
+    if o24 is None or o30 is None or o30 < o24 or o24 > 1e12:
+        raise ValueError('sumy opcji poza przedziałem')
+    wier = []
+    for p in df2_wiersze(j):
+        a30 = df2_num(p.get('total30d'), 0)
+        nm = re.sub(r'[\x00-\x1f]', '', str(p.get('name') or '')).strip()[:40]
+        if a30 and nm:
+            a24 = df2_num(p.get('total24h'), 0)
+            wier.append([nm, round(a24) if a24 is not None else None, round(a30)])
+    wier.sort(key=lambda r: -r[2])
+    if not wier:
+        raise ValueError('opcje: brak protokołów')
+    return {'dzien': dzien, 'o24': round(o24), 'o7': round(o7) if o7 is not None else None, 'o7p': round(o7p) if o7p is not None else None, 'o30': round(o30),
+            'o30p': round(o30p) if o30p is not None else None, 'top': wier[:4], 't': NOW}
+
+
+def df2_trzeba(czas, dzien, ok_prev, teraz, cel=1):
+    """Czy część pobrać w tym przebiegu. czas — chwila poprzedniego pobrania części (brak = tak); dzien — doba danych części (None: część dobowa bez doby — raz na dobę UTC);
+    ok_prev — poprzednie pobranie się udało; cel — ile dób przed bieżącą ma mieć doba danych (1 = wczorajsza, 0 = dzisiejsza). Po błędzie: co DF2_BLAD_H h. Inaczej: po godz. DF2_OD_GODZ UTC, gdy doba danych
+    starsza niż cel (albo dobowa część nie była dziś pobrana) i minęło DF2_PONOW_H h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None:
+        return True
+    if tk is None or tk > tn:
+        return True
+    h = (tn - tk).total_seconds() / 3600
+    if not ok_prev:
+        return h >= DF2_BLAD_H
+    if tn.hour < DF2_OD_GODZ or h < DF2_PONOW_H:
+        return False
+    nowa = (tn.date() - datetime.timedelta(days=cel)).isoformat()
+    return (dzien < nowa) if dzien else tk.date() < tn.date()
+
+
+def df2_zadania(pv, teraz):
+    """Które części pobrać w tym przebiegu → {część: bool}."""
+    ok, pat = (pv.get('ok') if isinstance(pv.get('ok'), dict) else {}), (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {})
+    out = {}
+    for n in DF2_PARTS:
+        c = pv.get(n) if isinstance(pv.get(n), dict) else None
+        out[n] = True if c is None else df2_trzeba(pat.get(n) or pv.get('at'), c.get('dzien') if n != 'hacks' else None, ok.get(n, True) is not False, teraz, DF2_CEL.get(n, 1))
+    return out
+
+
+def df2_job(n):
+    """Odczyt jednej części z sieci → gotowa część pliku (testy łatają df2_pobierz)."""
+    if n == 'fees':
+        fj = df2_pobierz('fees')
+        try:
+            rj = df2_pobierz('rev')
+        except Exception as e:  # noqa — przychody to dodatek; opłaty zostają
+            META['errors'].append(mask(f'DeFi 2: przychody protokołów: {e}')[:200])
+            rj = None
+        return df2_fees(fj, rj)
+    if n == 'peg':
+        lista = STE_LLAMA.get('j') if STE_LLAMA.get('at') == NOW else None
+        if lista is None:
+            lista = df2_pobierz('lista', STE_URL_LLAMA)
+        return df2_peg(lista, df2_pobierz('ceny'))
+    if n == 'hacks':
+        return df2_hacks(df2_pobierz('hacks'))
+    return df2_opt(df2_pobierz('opt'))
+
+
+def build_defi2(prev=None, zadania=None):
+    """v402: data/defi2.json {v, at, src, ok, part_at, fees, peg, hacks, opt} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm) zostaje z poprzedniego pliku bez zmian; część po błędzie
+    — z poprzedniego pliku z własnym czasem (najwyżej DF2_MAX_D dób), błąd do META['errors']. Żadna część w pliku = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == DF2_V else {}
+    zad = zadania if zadania is not None else df2_zadania(pv, NOW)
+    pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
+    out = {'v': DF2_V, 'at': NOW, 'src': 'opłaty i przychody protokołów DeFi, dzienne ceny stablecoinów, lista włamań i wolumen opcji na zdecentralizowanych giełdach (publiczne API DefiLlama)',
+           'ok': {}, 'part_at': {}}
+    st = {}
+    _DF2_TERMIN[0] = time.monotonic() + DF2_LIMIT
+    try:
+        for n in DF2_PARTS:
+            stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+            if not zad.get(n) and stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+                continue
+            try:
+                out[n] = df2_job(n)
+                out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+            except Exception as e:  # noqa — jedna część nie psuje pozostałych
+                META['errors'].append(mask(f'DeFi 2: {n}: {e}')[:200])
+                out['ok'][n], st[n] = False, False
+                if stara is not None and _zapas_wiek_ok(pat0.get(n) or pv.get('at'), DF2_MAX_D):
+                    out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
+    finally:
+        _DF2_TERMIN[0] = None
+    if not any(isinstance(out.get(n), dict) for n in DF2_PARTS):
+        raise RuntimeError('żadna część DeFi 2 nie ma danych')
+    return out, st
+
+
+def df2_czesc():
+    """v402: część przebiegu → krotka wartości dla META['ok'] w kolejności DF2_PARTS: True = pobrane, 'cached' = poprzednia wersja wystarcza (rytm dobowy), False = część zawiodła. Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('defi2')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == DF2_V else None
+    zad = df2_zadania(prev or {}, NOW)
+    if prev and not any(zad.values()):
+        save('defi2', prev)
+        return tuple('cached' for _ in DF2_PARTS)
+    try:
+        obj, st = build_defi2(prev, zad)
+        save('defi2', obj)
+        return tuple(st.get(n, False) for n in DF2_PARTS)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'DeFi 2: {e}')[:200])
+        if prev:
+            save('defi2', prev)
+        return tuple(False for _ in DF2_PARTS)
+
+
+ZRODLA_META.update({'defi2_' + n: 'defillama' for n in DF2_PARTS})   # v402: ta sama usługa co stablecoiny, RWA, giełdy i DEX — liczba źródeł bez zmian
 
 
 if __name__ == '__main__':
