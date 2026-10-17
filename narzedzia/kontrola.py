@@ -6562,6 +6562,176 @@ def polska_dlug_kontrola(files, R):
     return {'spojnosc': zle, 'wiersze': P['wiersze'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v380 (F11Z1): Polska 2 — dług zagraniczny i rezerwy, depozyty i kredyty banków, WIBOR, WIRON/POLSTR, ceny mieszkań (data/polska-2.json) ----------------------------------------------------------------
+# Świeżość siedmiu odczytów (pięć części, z czego pierwsza ma trzy okresy) osobnymi wierszami (lista SWIEZOSC bez zmian), najwyżej ⚠️, nigdy ❌: źródła są miesięczne, kwartalne albo dzienne w dni
+# robocze, więc wiek danych oceniamy według RYTMU PUBLIKACJI, nie dnia (plik miesięczny nie może dawać alarmu przez cały miesiąc). Próg = najdłuższy normalny wiek tuż przed nową publikacją + zapas:
+# (a) dług zagraniczny i pozycja inwestycyjna (kwartał K): dane za II kw. 2026 pojawiły się w pliku 7.10.2026 (ok. 99 dni po końcu kwartału) i zostają najnowsze do następnej publikacji, czyli jeszcze ok. 92 dni
+#     (za III kw. ok. 7.01.2027); wiek tuż przed nową publikacją to więc ok. 99 + 92 = 191 dni od końca kwartału, próg ⚠️ 205 dni; (b) oficjalne aktywa rezerwowe (miesiąc M): dane za wrzesień w pliku z 7.10 (7 dni po końcu miesiąca), następne ok. 7. dnia kolejnego miesiąca → wiek do ok. 38 dni,
+#     próg 55 dni; (c) indeks cen (miesiąc M): wrzesień dołożony 15.10 (15 dni po końcu miesiąca), następny ok. 15. dnia → wiek do ok. 46 dni (z weekendem 48), próg 60 dni;
+# (d) depozyty i kredyty banków (miesiąc M): sierpień ze strony z 9.10.2026 (40 dni po końcu miesiąca), następny ok. 9. dnia → wiek do ok. 70 dni, próg 85 dni;
+# (e) WIBOR i (f) WIRON/POLSTR (dzień D): strona pokazuje stawkę z poprzedniego dnia roboczego; weekend i święta (do pięciu dni bez publikacji: Wielkanoc, Boże Narodzenie) → próg 7 dni od końca dnia danych;
+# (g) ceny mieszkań (kwartał K): II kw. 2026 w pliku zmienionym 7.08.2026 (38 dni po końcu kwartału), następny kwartał ok. 5–6 tygodni po jego końcu → wiek do ok. 130 dni, próg 150 dni (zapas 20 dni).
+# Rytm każdego źródła znamy z jednej–dwóch obserwacji (13–15.10.2026) i opisów publikacji; do weryfikacji po kolejnych publikacjach (listopad 2026 – styczeń 2027).
+# ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (sektory długu ≠ dług brutto, aktywa − zobowiązania ≠ saldo, depozyty razem ≠ suma walut, WIBID powyżej WIBOR, serie o różnych długościach, okresy nie kolejne).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'polska-2')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['polska-2'] = 180   # plik zapisywany co przebieg (części mają własny rytm); wiek danych każdego odczytu ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'polska2_' + p: 'Polska 2 — dług zagraniczny, depozyty, WIBOR, WIRON, ceny mieszkań: część z błędem zostaje z datą (v380); wiek danych w wierszach świeżości' for p in ('sdds', 'knf', 'wibor', 'wiron', 'mieszk')})
+P2_K_PROG = (   # (etykieta, ścieżka do daty w pliku, rodzaj daty, próg w dniach od końca okresu danych)
+    ('Polska 2: dług zagraniczny i pozycja inwestycyjna (kwartalnie)', ('sdds', 'a', 'dz'), 'q', 205),
+    ('Polska 2: oficjalne rezerwy i złoto (miesięcznie)', ('sdds', 'a', 'rez'), 'm', 55),
+    ('Polska 2: indeks cen konsumpcyjnych od 1999 (miesięcznie)', ('sdds', 'cpi', 'asof'), 'm', 60),
+    ('Polska 2: depozyty i kredyty banków (miesięcznie)', ('knf', 'asof'), 'm', 85),
+    ('Polska 2: WIBID i WIBOR (dziennie)', ('wibor', 'asof'), 'd', 7),
+    ('Polska 2: WIRON i POLSTR (dziennie)', ('wiron', 'asof'), 'd', 7),
+    ('Polska 2: ceny mieszkań (kwartalnie)', ('mieszk', 'asof'), 'q', 150),
+)
+P2_K_TOL_USD = 3.5       # mln USD: sumy częściowe w pliku urzędu (zbieracz: 3,0) + zaokrąglenie do 0,1
+P2_K_TOL_MLD = 0.002     # mld zł: sumy w pliku nadzoru (zbieracz: 0,0015) + zaokrąglenie do 0,001
+
+
+def _p2_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))
+
+
+def _p2_k_get(j, sciezka):
+    for k in sciezka:
+        j = j.get(k) if isinstance(j, dict) else None
+    return j
+
+
+def _p2_k_mi(m):
+    x = re.fullmatch(r'(\d{4})-(0[1-9]|1[0-2])', str(m))
+    return int(x.group(1)) * 12 + int(x.group(2)) - 1 if x else None
+
+
+def _p2_k_qi(q):
+    x = re.fullmatch(r'(\d{4})-Q([1-4])', str(q))
+    return int(x.group(1)) * 4 + int(x.group(2)) - 1 if x else None
+
+
+def polska2_swiezosc(j, now=None):
+    """Wiersze świeżości pliku polska-2.json (etykieta, status, wiek min, data danych, uwaga). Najwyżej ⚠️; brak pliku albo inna wersja = brak wierszy; część bez daty danych — '?'. Część w pliku
+    bez swojego wiersza w ogóle (nigdy nie pobrana) — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for label, sc, rodz, prog in P2_K_PROG:
+        txt = _p2_k_get(j, sc)
+        ok = isinstance(txt, str) and ((rodz == 'd' and re.fullmatch(r'\d{4}-\d{2}-\d{2}', txt)) or (rodz == 'm' and _p2_k_mi(txt) is not None) or (rodz == 'q' and _p2_k_qi(txt) is not None))
+        if not ok:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku'))
+            continue
+        if rodz == 'q':   # kwartał → ostatni miesiąc kwartału
+            kw = _p2_k_qi(txt)
+            ym = f'{kw // 4:04d}-{(kw % 4) * 3 + 3:02d}'
+            w = wiek_danych(ym, 'month', 'k', now)
+        else:
+            w = wiek_danych(txt, 'day' if rodz == 'd' else 'month', 'k', now)
+        st = '?' if w is None else ('⚠️' if w > prog * 1440 else '✅')
+        rows.append((label, st, w, txt, f'próg {prog} dni od końca okresu danych — najwyżej uwaga (rytm publikacji opisany w kodzie kontroli)' if st == '⚠️' else ''))
+    return rows
+
+
+def polska2_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w danych Polska 2) → lista opisów."""
+    zle = []
+    S = j.get('sdds') if isinstance(j.get('sdds'), dict) else None
+    if S:
+        h = S.get('h') if isinstance(S.get('h'), dict) else {}
+        if not all(isinstance(h.get(k), dict) and h[k] for k in ('dz', 'dz_rz', 'dz_nbp', 'dz_mif', 'dz_inne', 'dz_bi', 'iip_a', 'iip_p', 'iip_n', 'rez', 'zl', 'rb')):
+            zle.append('sdds.h: brak któregoś ze wskaźników')
+        else:
+            if any(not _p2_k_num(x) for v in h.values() for x in v.values()):
+                zle.append('sdds.h: wartość nie jest liczbą')
+            else:
+                for q in h['dz']:
+                    z = [h[k].get(q) for k in ('dz_rz', 'dz_nbp', 'dz_mif', 'dz_inne', 'dz_bi')]
+                    if all(x is not None for x in z) and abs(sum(z) - h['dz'][q]) > P2_K_TOL_USD:
+                        zle.append(f'sdds {q}: sektory długu {sum(z):.0f} ≠ dług brutto {h["dz"][q]:.0f} mln USD'); break
+                for q in h['iip_n']:
+                    x = [h[k].get(q) for k in ('iip_a', 'iip_p', 'iip_n')]
+                    if all(y is not None for y in x) and abs(x[0] - x[1] - x[2]) > P2_K_TOL_USD:
+                        zle.append(f'sdds {q}: aktywa − zobowiązania ≠ saldo pozycji inwestycyjnej'); break
+                for m in h['zl']:
+                    if m in h['rez'] and h['zl'][m] >= h['rez'][m]:
+                        zle.append(f'sdds {m}: złoto monetarne nie jest mniejsze od rezerw'); break
+        C = S.get('cpi') if isinstance(S.get('cpi'), dict) else None
+        if C:
+            n = len(C.get('v') or [])
+            a, o = _p2_k_mi(C.get('asof')), _p2_k_mi(C.get('od'))
+            if a is None or o is None or n != a - o + 1 or any(not _p2_k_num(x) or not 50 <= x <= 2000 for x in C['v']):
+                zle.append('sdds.cpi: długość szeregu ≠ liczba miesięcy między początkiem a datą danych albo wartość poza zakresem')
+    K = j.get('knf') if isinstance(j.get('knf'), dict) else None
+    if K:
+        m, s = K.get('m'), K.get('s')
+        mi = [_p2_k_mi(x) for x in m] if isinstance(m, list) else []
+        if len(mi) < 24 or None in mi or any(b - a != 1 for a, b in zip(mi, mi[1:])):
+            zle.append('knf: miesiące nie są kolejne albo jest ich mniej niż 24')
+        elif K.get('asof') != m[-1]:
+            zle.append(f'knf: miesiąc danych {K.get("asof")} ≠ ostatni z listy {m[-1]}')
+        elif not (isinstance(s, dict) and all(isinstance(s.get(k), list) and len(s[k]) == len(m) for k in ('dep', 'dep_pln', 'dep_eur', 'dep_inne', 'firmy', 'gosp', 'gosp_pln', 'gosp_eur', 'gosp_inne', 'ngo', 'rzad', 'mieszk', 'mieszk_chf', 'mieszk_f3'))):
+            zle.append('knf.s: układ serii (długości)')
+        else:
+            for i in range(len(m) - 24, len(m)):
+                g = lambda k: s[k][i]
+                if any(not _p2_k_num(g(k)) for k in s):
+                    zle.append(f'knf {m[i]}: brak wartości w ostatnich 24 miesiącach'); break
+                if abs(g('dep') - g('dep_pln') - g('dep_eur') - g('dep_inne')) > P2_K_TOL_MLD or abs(g('gosp') - g('gosp_pln') - g('gosp_eur') - g('gosp_inne')) > P2_K_TOL_MLD:
+                    zle.append(f'knf {m[i]}: depozyty razem ≠ suma walut'); break
+                if abs(g('dep') - g('firmy') - g('gosp') - g('ngo')) > P2_K_TOL_MLD:
+                    zle.append(f'knf {m[i]}: depozyty sektora ≠ firmy + gospodarstwa + instytucje'); break
+                if g('mieszk_chf') > g('mieszk') or g('mieszk_f3') > g('mieszk'):
+                    zle.append(f'knf {m[i]}: kredyty frankowe albo z utratą wartości większe od wszystkich mieszkaniowych'); break
+    W = j.get('wibor') if isinstance(j.get('wibor'), dict) else None
+    if W:
+        d, s = W.get('d'), W.get('s')
+        if not (isinstance(d, list) and len(d) >= 20 and all(isinstance(x, str) for x in d) and d == sorted(set(d)) and W.get('asof') == d[-1]):
+            zle.append('wibor: daty nie są rosnące, jest ich mniej niż 20 albo data danych ≠ ostatnia')
+        elif not (isinstance(s, dict) and all(isinstance(s.get(k), list) and len(s[k]) == len(d) for k in ('w1m', 'w3m', 'w6m', 'w1y', 'b1m', 'b3m', 'b6m'))):
+            zle.append('wibor.s: układ serii (długości)')
+        else:
+            if any(x is not None and not (_p2_k_num(x) and 0 <= x <= 30) for k in s for x in s[k]):
+                zle.append('wibor: stawka poza zakresem 0–30% albo nie liczba')
+            elif any(s['b' + t][i] is not None and s['w' + t][i] is not None and s['b' + t][i] > s['w' + t][i] + 1e-9 for t in ('1m', '3m', '6m') for i in range(len(d))):
+                zle.append('wibor: WIBID powyżej WIBOR')
+    R = j.get('wiron') if isinstance(j.get('wiron'), dict) else None
+    if R:
+        on, sk = R.get('on'), R.get('sk')
+        if not (isinstance(on, dict) and isinstance(on.get('d'), list) and on['d'] and all(isinstance(on.get(k), list) and len(on[k]) == len(on['d']) for k in ('w', 'p', 'wv', 'pv'))
+                and isinstance(sk, dict) and isinstance(sk.get('d'), list) and sk['d'] and all(isinstance(sk.get(k), list) and len(sk[k]) == len(sk['d']) for k in ('w1', 'w3', 'w6', 'p1', 'p3', 'p6'))):
+            zle.append('wiron: układ serii (długości)')
+        elif on['d'] != sorted(set(on['d'])) or sk['d'] != sorted(set(sk['d'])) or R.get('asof') != on['d'][-1]:
+            zle.append('wiron: daty nie są rosnące albo data danych ≠ ostatnia')
+        elif any(x is not None and not (_p2_k_num(x) and 0 <= x <= 30) for k in ('w', 'p') for x in on[k]):
+            zle.append('wiron: stawka poza zakresem 0–30%')
+    M = j.get('mieszk') if isinstance(j.get('mieszk'), dict) else None
+    if M:
+        q, k = M.get('q'), M.get('k')
+        qi = [_p2_k_qi(x) for x in q] if isinstance(q, list) else []
+        if len(qi) < 8 or None in qi or any(b - a != 1 for a, b in zip(qi, qi[1:])):
+            zle.append('mieszk: kwartały nie są kolejne albo jest ich mniej niż 8')
+        elif M.get('asof') != q[-1]:
+            zle.append(f'mieszk: kwartał danych {M.get("asof")} ≠ ostatni z listy {q[-1]}')
+        elif not (isinstance(k, dict) and all(isinstance(k.get(b), dict) and k[b] and all(isinstance(v, list) and len(v) == len(q) for v in k[b].values()) for b in ('pt', 'po', 'wt', 'wo', 'wy'))):
+            zle.append('mieszk.k: układ serii (długości)')
+        elif any(x is not None and not (_p2_k_num(x) and 1000 <= x <= 80000) for b in ('pt', 'po', 'wt', 'wo') for v in k[b].values() for x in v):
+            zle.append('mieszk: cena poza zakresem zł/m²')
+    return zle
+
+
+def polska2_kontrola(files, R):
+    """Kontrola pliku polska-2.json bez sieci: sprzeczności w pliku (❌ = BŁĄD). Brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('polska-2') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle = polska2_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'polska-2.json: sprzeczność w pliku — {z}')
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': zle, 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- v341 (F5Z3): zboża dziennie i koszt transportu (data/zboza-dzien.json) ----------------------------------------------------------------
 # Świeżość każdej z pięciu części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠ — pole next pliku mówi, kiedy spodziewana jest publikacja.
 # Progi z testu wstecznego na modelu kalendarza publikacji i prawdziwych datach wierszy z nagrań 10–11.10.2026 (ws53/v341-zboza-dz/bt/bt_swiezosc.py, sprawdzenia
@@ -9716,6 +9886,13 @@ def kontrola():
             R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
         elif st == '?':
             R['uwagi'].append(f'{label}: {note}')
+    # 3c-p2. v380 (F11Z1): Polska 2 (data/polska-2.json) — świeżość siedmiu odczytów osobnymi wierszami (lista SWIEZOSC bez zmian); najwyżej ⚠️
+    for label, st, w, txt, note in polska2_swiezosc(files.get('polska-2')):
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
     # 3c-gx. v349 (F6Z1): giełdy scentralizowane i DEX (data/gieldy.json, data/dex.json) — świeżość każdej części osobnym wierszem (lista SWIEZOSC bez zmian); najwyżej ⚠️
     for label, st, w, txt, note in gx_swiezosc(files.get('gieldy'), files.get('dex')):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
@@ -10229,6 +10406,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['polska-dlug'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Polska dług: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v380 (F11Z1): Polska 2 — sprzeczności w pliku (❌) z plików strony, bez zapytań
+    try:
+        Z['polska-2'] = polska2_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['polska-2'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Polska 2: kontrola przerwana ({str(e)[:80]})')
     # 3g. v341 (F5Z3): zboża dziennie i koszt transportu — sprzeczności w pliku (❌), skoki, korelacje zmian miesięcznych z innymi danymi i tabela źródła (najwyżej ⚠️), z plików strony, bez zapytań
     try:
         Z['zboza-dzien'] = zboza_kontrola(files.get('zboza-dzien'), files, R)
@@ -10620,6 +10803,10 @@ def raport_md(R):
             L.append('- Polska: dług skarbowy i obligacje detaliczne (z pliku strony): ' + (f'? kontrola przerwana ({rpd["blad"]})' if rpd.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(rpd['spojnosc'][:3]) + ' ❌ · ' if rpd.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in rpd.get('wiersze') or []) or '—') + '.')
+        rp2 = Z.get('polska-2')   # v380: Polska 2 — sprzeczności w pliku; brak pliku = bez linii
+        if rp2:
+            L.append('- Polska 2: dług zagraniczny, depozyty, WIBOR, WIRON, ceny mieszkań (z pliku strony): ' + (f'? kontrola przerwana ({rp2["blad"]})' if rp2.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(rp2['spojnosc'][:3]) + ' ❌' if rp2.get('spojnosc') else 'bez sprzeczności ✅')) + '.')
         gdz = Z.get('gieldy-dex')   # v349: giełdy scentralizowane i DEX — sprzeczności w plikach i informacje (flagi skoku listy portfeli, znak przepływu, stosunek DEX do giełd); brak plików = bez linii
         if gdz:
             L.append('- Giełdy scentralizowane, DEX i kontrakty na łańcuchu (z plików strony): ' + (f'? kontrola przerwana ({gdz["blad"]})' if gdz.get('blad') else

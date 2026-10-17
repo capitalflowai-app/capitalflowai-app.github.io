@@ -146,6 +146,7 @@ ZRODLA_META = {
     'etf_zapas': 'ishares',   # v360: zapas przepływów ETF krypto z plików emitenta (IBIT, ETHA) — ten sam wydawca co fundusze (iShares): liczba źródeł bez zmian
     'polska_kapital_fdi': 'eurostat', 'polska_kapital_ue': 'komisja-europejska',   # v365: kapitał z zagranicy do Polski (inwestycje według kraju) i wypłaty UE — oba źródła już liczone, bez zmiany liczby źródeł
     'polska_dlug_pos': 'mf-polska', 'polska_dlug_det': 'mf-polska',   # v371: kto trzyma dług skarbowy i sprzedaż obligacji detalicznych — ten sam wydawca co plik nierezydentów (spw), bez zmiany liczby źródeł
+    'polska2_sdds': 'gus', 'polska2_knf': 'knf', 'polska2_wibor': 'gpw-benchmark', 'polska2_wiron': 'gpw-benchmark', 'polska2_mieszk': 'nbp',   # v380: Polska 2 — nadzór bankowy i administrator wskaźników to dwa nowe źródła, urząd statystyczny liczony od v375 (kalendarz2_dane_pl), bank centralny od polska_zloto
     'polska_rynek_gpw': 'gpw', 'polska_rynek_krzywa': 'bondspot', 'polska_rynek_fundusze': 'izfia',   # v361: Polska na rynku dziennie — giełda w Warszawie, rynek obligacji skarbowych, izba funduszy: trzy nowe źródła
     'krzywe_us': 'skarb-usa', 'krzywe_de': 'bundesbank', 'krzywe_jp': 'mof-japonii', 'krzywe_ea': 'ecb', 'krzywe_ca': 'bank-kanady',   # v362: krzywe rentowności — te same pięć instytucji co dotąd (Skarb USA, Bundesbank, MF Japonii, EBC, Bank Kanady): liczba źródeł bez zmian
     'emit_llama': 'defillama', 'emit_tether': 'tether', 'emit_circle': 'circle',   # v363: emitenci stablecoinów — lista monet (ta sama usługa co podaż stablecoinów), raport Tether (jak karta XAUT) i raport Circle (+1 źródło)
@@ -31531,6 +31532,22 @@ def main():
         META['ok']['polska_dlug_pos'] = META['ok']['polska_dlug_det'] = False
         if isinstance(prev_pd, dict):
             save('polska-dlug', prev_pd)
+    # v380 (F11Z1): POLSKA 2 — dług zagraniczny i rezerwy, depozyty i kredyty banków, WIBOR, WIRON/POLSTR, ceny mieszkań (data/polska-2.json; GLOBAL, blok „Polska 2”) — pięć części, każda z własnym
+    # rytmem, bramką i poprzednią wersją przy awarii. META ok: polska2_sdds, polska2_knf, polska2_wibor, polska2_wiron, polska2_mieszk (klucze jawne — test tabeli źródeł liczy je bez generatora).
+    prev_p2 = previous('polska-2')
+    try:
+        p2_ = build_polska2(prev_p2)
+        save('polska-2', p2_)
+        META['ok']['polska2_sdds'] = p2_['ok'].get('sdds', False)
+        META['ok']['polska2_knf'] = p2_['ok'].get('knf', False)
+        META['ok']['polska2_wibor'] = p2_['ok'].get('wibor', False)
+        META['ok']['polska2_wiron'] = p2_['ok'].get('wiron', False)
+        META['ok']['polska2_mieszk'] = p2_['ok'].get('mieszk', False)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Polska 2: {e}')[:200])
+        META['ok']['polska2_sdds'] = META['ok']['polska2_knf'] = META['ok']['polska2_wibor'] = META['ok']['polska2_wiron'] = META['ok']['polska2_mieszk'] = False
+        if isinstance(prev_p2, dict):
+            save('polska-2', prev_p2)
     # v104: dźwignia i pozycje w krypto (bez klucza) — co godzinę od pełnej budowy; młody plik z częścią z błędem: dobieramy tylko tę część (strona Źródła: dzwignia)
     # v126: część `cz` (wszystkie duże giełdy, sekret COINALYZE_KEY — tylko nagłówek zapytań, maskowany w błędach). Bez klucza plik jak dotąd (notatka).
     # Z kluczem: młody zdrowy plik z zaległymi zadaniami tej części = dobierana tylko ona (co przebieg, w budżecie wywołań); jej awaria nigdy nie
@@ -36775,6 +36792,653 @@ def usk_czesc():
 
 
 ZRODLA_META.update({'usdt_eth': 'blockscout', 'usdt_tron': 'trongrid'})   # v377: publiczny eksplorator Ethereum (+1 źródło) i publiczny interfejs węzła Tron (+1 źródło)
+
+
+# ===================== v380 (F11Z1): POLSKA 2 — POZYCJA ZEWNĘTRZNA, DEPOZYTY, KOSZT KREDYTU, CENY MIESZKAŃ — data/polska-2.json =====================
+# Pięć niezależnych części jednego pliku, każda z własnym rytmem, bramką, datą danych i poprzednią wersją przy awarii (część po błędzie zostaje z poprzedniego pliku; ok False):
+#  (1) sdds — „Dane gospodarcze i finansowe dla Polski” (urząd statystyczny, plik .xlsx ok. 40 KB + osobny plik indeksu cen od 1998): dług zagraniczny brutto z podziałem na sektory,
+#      międzynarodowa pozycja inwestycyjna (aktywa, zobowiązania, saldo), rachunek bieżący, oficjalne aktywa rezerwowe i złoto monetarne (mln USD) — źródło podaje TYLKO bieżący i poprzedni okres, więc
+#      historię dopisujemy sami od dnia wdrożenia (okres → wartość; późniejszy odczyt poprawia wcześniejszy); indeks cen towarów i usług konsumpcyjnych (1998 = 100) miesięcznie od 1999-01, z niego
+#      inflacja r/r liczona na stronie. Adres pliku zawiera datę (dd-mm-rrrr): codziennie jedno zapytanie o stronę, plik tylko przy nowej nazwie albo raz na P2_ODSW_DNI dni, plik indeksu cen
+#      (14 KB) przy każdym sprawdzeniu. Bramka: sektory długu sumują się do długu brutto (±P2_SUMA_MLN), aktywa − zobowiązania = saldo, złoto < rezerwy, jednostka „mln US$”, okresy z etykiet.
+#  (2) knf — dane miesięczne sektora bankowego (nadzór bankowy, plik .xlsx ok. 2,2 MB, od 2018-01): depozyty sektora niefinansowego (razem, złote, euro, inne waluty), przedsiębiorstw, gospodarstw
+#      domowych (razem i według waluty), instytucji niefinansowych bez zysku, rządowych i samorządowych oraz kredyty mieszkaniowe gospodarstw domowych (razem, we frankach szwajcarskich, w tym
+#      z utratą wartości — faza 3), mld zł. Wiersze po NAZWACH etykiet (kolejność wzorców w bloku „Sektor bankowy”), daty miesięcy z nagłówka. Plik tylko przy nowej nazwie albo raz na P2_ODSW_DNI dni.
+#      Bramka: miesiące kolejne, razem = złote + euro + inne, gospodarstwa = suma walut, sektor = firmy + gospodarstwa + instytucje, ostatnie 24 miesiące komplet, zakresy.
+#  (3) wibor — stawki WIBID i WIBOR (administrator wskaźników, strona „dane opóźnione”: tabela od najnowszego dnia, ok. 200 dni): czytamy tylko POCZĄTEK strony (P2_WIBOR_BAJTY), bo host bywa wolny
+#      i zrywa połączenia (jedno ponowienie, łączny limit czasu odczytu); historię dopisujemy do P2_DNI_MAX dni. Bramka: daty malejące, bez dziur dłuższych niż 10 dni, 1M/3M/6M w ostatnich 20
+#      dniach, WIBID ≤ WIBOR, zakres 0–30%.
+#  (4) wiron — WIRON i POLSTR (ten sam administrator, strona „wartości i statystyki”: pięć ostatnich dni): stawka O/N, wolumen transakcji i stopy składane 1M/3M/6M; historia od wdrożenia.
+#  (5) mieszk — ceny mieszkań (bank centralny, kwartalnie, plik .xlsx 193 KB): rynek pierwotny i wtórny, ceny ofertowe i transakcyjne w zł za m² w 17 miastach i trzech średnich, wskaźnik
+#      hedoniczny r/r (rynek wtórny). Kolumny po nagłówkach, oś czasu z kolumny kwartałów (rzymskie I–IV), ostatnie P2_KW kwartałów.
+# Rytm: GUS — plik zmienia się przy każdej aktualizacji któregokolwiek wskaźnika (rezerwy ok. 7., inflacja ok. 15. dnia miesiąca, kwartalne dane o długu i pozycji inwestycyjnej raz na kwartał);
+# nadzór bankowy — raz w miesiącu ok. 9. dnia za miesiąc sprzed dwóch; administrator wskaźników — codziennie w dni robocze; bank centralny — raz na kwartał.
+P2_V = 1
+P2_CZESCI = ('sdds', 'knf', 'wibor', 'wiron', 'mieszk')
+P2_ETYK = {'sdds': 'Polska 2 (dług zagraniczny i rezerwy)', 'knf': 'Polska 2 (depozyty i kredyty banków)', 'wibor': 'Polska 2 (WIBOR)', 'wiron': 'Polska 2 (WIRON i POLSTR)', 'mieszk': 'Polska 2 (ceny mieszkań)'}
+P2_H = {'sdds': 8, 'knf': 20, 'wibor': 6, 'wiron': 6, 'mieszk': 40}       # godz. — odstęp sprawdzenia każdej części
+P2_PONOW_H = {'sdds': 2, 'knf': 3, 'wibor': 1, 'wiron': 1, 'mieszk': 3}   # godz. — po błędzie ponowienie nie częściej
+P2_ODSW_DNI = 8                 # dni — ten sam identyfikator pliku: ponowne pobranie najwyżej raz na tyle dni
+P2_GUS_STRONA = 'https://stat.gov.pl/banki-i-bazy-danych/sdds/'
+P2_GUS_HOST = 'https://stat.gov.pl'
+P2_GUS_PLIK = re.compile(r'href="([^"]*/(sdds_dane_gospodarcze_i_finansowe_dla_polski_(\d{2})-(\d{2})-(\d{4})\.xlsx))"')
+P2_GUS_CPI = re.compile(r'href="([^"]*/pl_cpi_1998\.xlsx)"')
+P2_KNF_STRONA = 'https://www.knf.gov.pl/?articleId=56224&p_id=18'
+P2_KNF_HOST = 'https://www.knf.gov.pl'
+P2_KNF_PLIK = re.compile(r'href="(/knf/pl/komponenty/img/((\d{4})_(\d{2})-Dane_statystyczne[\w.\-]*\.xlsx))"')
+P2_GPW_OPOZ = 'https://gpwbenchmark.pl/dane-opoznione'
+P2_GPW_WART = 'https://gpwbenchmark.pl/wartosci_i_statystyki'
+P2_NBP_PLIK = 'https://static.nbp.pl/dane/rynek-nieruchomosci/ceny_mieszkan.xlsx'
+P2_MAX_PLIK = 8_000_000         # plik .xlsx: 0,2–2,2 MB; większa odpowiedź = nie ten plik
+P2_MAX_STRONA = 3_000_000       # strona z odnośnikiem do pliku: 50–65 KB
+P2_WIBOR_BAJTY = 110_000        # początek strony „dane opóźnione” (tabela zaczyna się ok. 17 KB, ok. 700 B na dzień): ok. 130 dni, a cała strona to 280 KB
+P2_WART_BAJTY = 400_000         # strona WIRON/POLSTR: 46 KB
+P2_LIMIT_S = 45                 # s — łączny limit czasu odczytu jednej odpowiedzi (z ponowieniem)
+P2_DNI_MAX = 420                # dni stawek w pliku (WIBOR, WIRON)
+P2_KW = 32                      # kwartałów cen mieszkań w pliku
+P2_SUMA_MLN = 3.0               # mln USD — sumy częściowe a całość (zaokrąglenia w pliku urzędu)
+P2_KNF_TOL = 0.0015             # mld zł — sumy w pliku nadzoru zgadzają się co do złotówki; zapas na zaokrąglenia
+P2_MIES = {'styczeń': 1, 'luty': 2, 'marzec': 3, 'kwiecień': 4, 'maj': 5, 'czerwiec': 6, 'lipiec': 7, 'sierpień': 8, 'wrzesień': 9, 'październik': 10, 'listopad': 11, 'grudzień': 12}
+P2_RZYM = {'I': 1, 'II': 2, 'III': 3, 'IV': 4}
+# wskaźniki pliku urzędu statystycznego: (id, arkusz, wzorce etykiet po kolei (każdy szukany PO poprzednim), rodzaj okresu: q kwartał, m miesiąc)
+P2_SDDS_ARK = 'Sektor zagraniczny'
+_P2_DZ = (r'zadłużenie zagraniczne brutto',)
+_P2_IIP = (r'międzynarodowa pozycja inwestycyjna',)
+P2_SDDS_WSK = (
+    ('rb', P2_SDDS_ARK, (r'rachunek bieżący',), 'q'),
+    ('rez', P2_SDDS_ARK, (r'oficjalne aktywa rezerwowe',), 'm'),
+    ('zl', P2_SDDS_ARK, (r'złoto monetarne',), 'm'),
+    ('dz', P2_SDDS_ARK, _P2_DZ, 'q'),
+    ('dz_rz', P2_SDDS_ARK, _P2_DZ + (r'sektor rządowy',), 'q'),
+    ('dz_nbp', P2_SDDS_ARK, _P2_DZ + (r'sektor rządowy', r'narodowy bank polski'), 'q'),
+    ('dz_mif', P2_SDDS_ARK, _P2_DZ + (r'sektor rządowy', r'narodowy bank polski', r'mif \(z wyłączeniem nbp\)'), 'q'),
+    ('dz_inne', P2_SDDS_ARK, _P2_DZ + (r'sektor rządowy', r'narodowy bank polski', r'mif \(z wyłączeniem nbp\)', r'pozostałe sektory'), 'q'),
+    ('dz_bi', P2_SDDS_ARK, _P2_DZ + (r'sektor rządowy', r'narodowy bank polski', r'mif \(z wyłączeniem nbp\)', r'pozostałe sektory', r'inwestycje bezpo\w+: instrumenty dłużne'), 'q'),
+    ('iip_a', P2_SDDS_ARK, _P2_IIP + (r'aktywa',), 'q'),
+    ('iip_p', P2_SDDS_ARK, _P2_IIP + (r'aktywa', r'zobowiązania'), 'q'),
+    ('iip_n', P2_SDDS_ARK, (r'międzynarodowa pozycja inwestycyjna netto',), 'q'),
+)
+P2_SDDS_ZAKRES = {'rb': (-1e5, 1e5), 'rez': (1e4, 2e6), 'zl': (0, 1e6), 'dz': (1e4, 5e6), 'dz_rz': (0, 5e6), 'dz_nbp': (0, 5e6), 'dz_mif': (0, 5e6), 'dz_inne': (0, 5e6), 'dz_bi': (0, 5e6),
+                  'iip_a': (1e4, 1e7), 'iip_p': (1e4, 1e7), 'iip_n': (-5e6, 5e6)}
+P2_SDDS_KW = 40                 # kwartałów historii w pliku
+P2_SDDS_MC = 120                # miesięcy historii w pliku
+P2_CPI_MIN_LAT = 25             # najmniej lat indeksu cen w pliku (jest 28)
+# nadzór bankowy: wiersze po łańcuchach wzorców etykiet w bloku „Sektor bankowy” (p2_knf_zloz)
+P2_KNF_Z = 'Zobowiązania'
+P2_KNF_N = 'Należności_3'
+_P2_KD = (r'depozyty sektora niefinansowego',)
+P2_KNF_SER = ('dep', 'dep_pln', 'dep_eur', 'dep_inne', 'firmy', 'gosp', 'gosp_pln', 'gosp_eur', 'gosp_inne', 'ngo', 'rzad', 'mieszk', 'mieszk_chf', 'mieszk_f3')
+P2_KNF_MIN_MC = 90              # najmniej miesięcy w pliku (jest 104)
+P2_KNF_OKNO = 24                # ostatnie miesiące, w których każda seria musi mieć wartość
+
+
+def _p2_norm(v):
+    """Tekst komórki: spacje (także twarde) zwinięte, małe litery."""
+    return re.sub(r'\s+', ' ', str(v if v is not None else '').replace('\xa0', ' ')).strip().lower()
+
+
+def p2_liczba(v):
+    """Liczba z komórki albo tekstu zapisanego po polsku ('607 900,9', '3,62', '275.8'); pusto, myślnik i znaki spoza liczby (np. oznaczenie 'b' przy danych wstępnych) → None, nigdy 0."""
+    s = str(v if v is not None else '').replace('\xa0', '').replace(' ', '').strip()
+    if s in ('', '-', '—', '–'):
+        return None
+    s = s.replace(',', '.')
+    if not re.fullmatch(r'-?\d+(\.\d+)?', s):
+        return None
+    x = float(s)
+    return x if x == x and abs(x) != float('inf') else None
+
+
+def p2_dzien_xl(v):
+    """Liczba seryjna Excela → data (datetime.date) z lat 1998–2100 albo None."""
+    x = p2_liczba(v)
+    if x is None or not 35800 < x < 73000:
+        return None
+    return datetime.date(1899, 12, 30) + datetime.timedelta(days=int(x))
+
+
+def p2_okres(txt):
+    """Etykieta okresu urzędu statystycznego → (rodzaj, klucz): '2 kw. 2026' → ('q', '2026-Q2'); 'Wrzesień  2026' → ('m', '2026-09'); inne → None."""
+    s = _p2_norm(txt)
+    m = re.fullmatch(r'([1-4]) kw\. (\d{4})', s)
+    if m:
+        return 'q', f'{m.group(2)}-Q{m.group(1)}'
+    m = re.fullmatch(r'([a-ząćęłńóśźż]+) (\d{4})', s)
+    if m and m.group(1) in P2_MIES:
+        return 'm', f'{m.group(2)}-{P2_MIES[m.group(1)]:02d}'
+    return None
+
+
+def p2_okres_wstecz(rodzaj, klucz):
+    """Poprzedni okres: '2026-Q1' → '2025-Q4'; '2026-01' → '2025-12'."""
+    y, x = int(klucz[:4]), klucz[5:]
+    if rodzaj == 'q':
+        q = int(x[1]) - 1
+        return f'{y - 1}-Q4' if q == 0 else f'{y}-Q{q}'
+    mm = int(x) - 1
+    return f'{y - 1}-12' if mm == 0 else f'{y}-{mm:02d}'
+
+
+def p2_szukaj(rows, wzorce, rodzaj=None):
+    """Wiersz arkusza (słownik kolumn) po łańcuchu wzorców etykiet z kolumny 1: każdy szukany PO poprzednim znalezionym. Ostatni wzorzec z rodzajem okresu (kwartał/miesiąc) — pierwszy pasujący
+    z TYM rodzajem okresu w kolumnie 3 (te same nazwy powtarzają się w rachunku finansowym i w stanach, a stany są miesięczne). Brak = None."""
+    nr = sorted(rows)
+    pos = -1
+    for i, w in enumerate(wzorce):
+        ost = i == len(wzorce) - 1
+        znaleziony = None
+        for r in nr:
+            if r <= pos or not re.fullmatch(w, _p2_norm(rows[r].get(1))):
+                continue
+            if ost and rodzaj:
+                o = p2_okres(rows[r].get(3))
+                if not o or o[0] != rodzaj:
+                    continue
+            znaleziony = r
+            break
+        if znaleziony is None:
+            return None
+        pos = znaleziony
+    return rows[pos]
+
+
+def p2_cpi_zloz(raw):
+    """Plik indeksu cen (arkusz CPI: wiersz na rok, kolumny I–XII, 1998 = 100) → {'od', 'asof', 'v': [indeks od 1999-01 miesiąc po miesiącu]} albo wyjątek. Dziura w środku, rok pominięty albo
+    wartość spoza 50–2000 = błąd; ostatni rok może być niepełny."""
+    rows = _xlsx_rows(raw, 'CPI')
+    ry = {}
+    for r, c in sorted(rows.items()):
+        y = _p2_norm(c.get(1))
+        if re.fullmatch(r'(19|20)\d{2}', y):
+            if int(y) in ry:
+                raise RuntimeError(f'GUS indeks cen: rok {y} dwa razy')
+            ry[int(y)] = [p2_liczba(c.get(k)) for k in range(2, 14)]
+    if not ry or min(ry) != 1999:
+        raise RuntimeError('GUS indeks cen: brak roku 1999 na początku')
+    ys = sorted(ry)
+    if len(ys) < P2_CPI_MIN_LAT or ys[-1] - ys[0] != len(ys) - 1:
+        raise RuntimeError(f'GUS indeks cen: {len(ys)} lat, kolejne od 1999 (najmniej {P2_CPI_MIN_LAT})')
+    v = []
+    for y in ys:
+        a = ry[y]
+        n = max((i + 1 for i, x in enumerate(a) if x is not None), default=0)
+        if n == 0 or any(x is None for x in a[:n]) or (y != ys[-1] and n != 12):
+            raise RuntimeError(f'GUS indeks cen: dziura w roku {y}')
+        if any(not 50 <= x <= 2000 for x in a[:n]):
+            raise RuntimeError(f'GUS indeks cen: wartość poza zakresem w roku {y}')
+        v += a[:n]
+    nl = max(i + 1 for i, x in enumerate(ry[ys[-1]]) if x is not None)
+    return {'od': '1999-01', 'asof': f'{ys[-1]}-{nl:02d}', 'v': [round(x, 1) for x in v]}
+
+
+def p2_sdds_zloz(raw, cpi, prev=None):
+    """Plik urzędu statystycznego (bajty) + zbudowany indeks cen + poprzednia część → część sdds albo wyjątek. Historia z poprzedniej części jest dopisywana (okres → wartość)."""
+    h = {k: dict(v) for k, v in ((prev or {}).get('h') or {}).items() if isinstance(v, dict)}
+    cache, a = {}, {}
+    for wid, ark, wz, rodz in P2_SDDS_WSK:
+        if ark not in cache:
+            cache[ark] = _xlsx_rows(raw, ark)
+        row = p2_szukaj(cache[ark], wz, rodz)
+        if row is None:
+            raise RuntimeError(f'GUS SDDS: brak wiersza „{wid}” w arkuszu „{ark}”')
+        if 'mln us' not in _p2_norm(row.get(2)):
+            raise RuntimeError(f'GUS SDDS: wiersz „{wid}” ma jednostkę „{row.get(2)}” zamiast mln US$')
+        o = p2_okres(row.get(3))
+        cur, poprz = p2_liczba(row.get(4)), p2_liczba(row.get(5))
+        if o is None or cur is None:
+            raise RuntimeError(f'GUS SDDS: wiersz „{wid}” bez okresu albo bez bieżącej wartości')
+        lo, hi = P2_SDDS_ZAKRES[wid]
+        if not lo <= cur <= hi or (poprz is not None and not lo <= poprz <= hi):
+            raise RuntimeError(f'GUS SDDS: wartość „{wid}” poza zakresem')
+        h.setdefault(wid, {})[o[1]] = cur
+        if poprz is not None:
+            h[wid][p2_okres_wstecz(o[0], o[1])] = poprz
+        a[wid] = o[1]
+    if len({a[k] for k in a if k.startswith('dz')}) != 1 or len({a[k] for k in a if k.startswith('iip')}) != 1:
+        raise RuntimeError('GUS SDDS: części długu albo pozycji inwestycyjnej z różnych okresów')
+    for okr in {a['dz'], p2_okres_wstecz('q', a['dz'])}:
+        z = [h[k].get(okr) for k in ('dz_rz', 'dz_nbp', 'dz_mif', 'dz_inne', 'dz_bi')]
+        if all(x is not None for x in z) and h['dz'].get(okr) is not None and abs(sum(z) - h['dz'][okr]) > P2_SUMA_MLN:
+            raise RuntimeError(f'GUS SDDS: sektory długu {sum(z):.0f} ≠ dług brutto {h["dz"][okr]:.0f} mln USD w {okr}')
+    for okr in {a['iip_n'], p2_okres_wstecz('q', a['iip_n'])}:
+        x = [h[k].get(okr) for k in ('iip_a', 'iip_p', 'iip_n')]
+        if all(y is not None for y in x) and abs(x[0] - x[1] - x[2]) > P2_SUMA_MLN:
+            raise RuntimeError(f'GUS SDDS: aktywa − zobowiązania ≠ saldo pozycji inwestycyjnej w {okr}')
+    if h['zl'][a['zl']] >= h['rez'][a['rez']]:
+        raise RuntimeError('GUS SDDS: złoto monetarne nie jest mniejsze od rezerw')
+    for k, v in h.items():
+        kw = sorted(x for x in v if 'Q' in x)
+        mc = sorted(x for x in v if 'Q' not in x)
+        for x in kw[:-P2_SDDS_KW] + mc[:-P2_SDDS_MC]:
+            del v[x]
+    return {'a': a, 'h': {k: {x: round(y, 1) for x, y in sorted(v.items())} for k, v in h.items()}, 'cpi': cpi}
+
+
+def p2_knf_blok(rows):
+    """Wiersze bloku „Sektor bankowy” arkusza (pierwszy blok): (numer wiersza pierwszej etykiety, ostatni numer, wiersz nagłówka z datami) albo wyjątek."""
+    nr = sorted(rows)
+    start = next((r for r in nr if _p2_norm(rows[r].get(1)) == 'sektor bankowy'), None)
+    if start is None:
+        raise RuntimeError('KNF: brak bloku „Sektor bankowy”')
+    kon = next((r for r in nr if r > start and _p2_norm(rows[r].get(1)) in ('banki komercyjne', 'oddziały', 'banki spółdzielcze')), nr[-1] + 1)
+    hr = next((r for r in nr if start < r < kon and sum(1 for c, v in rows[r].items() if c >= 2 and p2_dzien_xl(v)) >= 12), None)
+    if hr is None:
+        raise RuntimeError('KNF: brak wiersza z datami miesięcy w bloku „Sektor bankowy”')
+    return start, kon, hr
+
+
+def p2_knf_ciag(rows, start, kon, wz, adj=None):
+    """Łańcuch wzorców etykiet w bloku po kolei (każdy po poprzednim); adj — lista wymaganych kolejnych wierszy tuż po ostatnim znalezionym ([(przesunięcie, wzorzec)]). Zwraca numer wiersza."""
+    pos = start
+    for w in wz:
+        nx = next((r for r in sorted(rows) if pos < r < kon and re.fullmatch(w, _p2_norm(rows[r].get(1)))), None)
+        if nx is None:
+            raise RuntimeError(f'KNF: brak wiersza „{w}” w bloku')
+        pos = nx
+    for dr, w in adj or ():
+        if not re.fullmatch(w, _p2_norm((rows.get(pos + dr) or {}).get(1))):
+            raise RuntimeError(f'KNF: pod wierszem „{wz[-1]}” (+{dr}) brak „{w}”')
+    return pos
+
+
+def p2_knf_zloz(raw):
+    """Plik nadzoru bankowego (bajty) → część knf albo wyjątek (patrz opis bloku)."""
+    Z = _xlsx_rows(raw, P2_KNF_Z)
+    N = _xlsx_rows(raw, P2_KNF_N)
+    zs, zk, zh = p2_knf_blok(Z)
+    ns, nk, nh = p2_knf_blok(N)
+    kol = sorted(c for c, v in Z[zh].items() if c >= 2 and p2_dzien_xl(v))
+    dni = [p2_dzien_xl(Z[zh][c]) for c in kol]
+    if any(d.day < 28 for d in dni):
+        raise RuntimeError('KNF: nagłówek miesiąca nie jest końcem miesiąca')
+    mi = [d.year * 12 + d.month - 1 for d in dni]
+    if len(mi) < P2_KNF_MIN_MC or any(b - a != 1 for a, b in zip(mi, mi[1:])):
+        raise RuntimeError(f'KNF: {len(mi)} miesięcy, nie kolejne albo za mało (najmniej {P2_KNF_MIN_MC})')
+    kolN = sorted(c for c, v in N[nh].items() if c >= 2 and p2_dzien_xl(v))
+    if [p2_dzien_xl(N[nh][c]) for c in kolN] != dni:
+        raise RuntimeError('KNF: miesiące w arkuszach należności i zobowiązań się różnią')
+
+    def seria(R, r, kolumny, f=1e9):
+        out = []
+        for c in kolumny:
+            x = p2_liczba(R[r].get(c)) if r in R else None
+            out.append(None if x is None else round(x / f, 3))
+        return out
+    r_dep = p2_knf_ciag(Z, zs, zk, _P2_KD, [(1, r'pln'), (2, r'eur'), (3, r'inne niż pln i eur')])
+    r_fir = p2_knf_ciag(Z, zs, zk, _P2_KD + (r'depozyty przedsiębiorstw',))
+    r_gos = p2_knf_ciag(Z, zs, zk, _P2_KD + (r'depozyty przedsiębiorstw', r'depozyty gospodarstw domowych'), [(1, r'pln'), (2, r'eur'), (3, r'inne niż pln i eur')])
+    r_ngo = p2_knf_ciag(Z, zs, zk, _P2_KD + (r'depozyty przedsiębiorstw', r'depozyty gospodarstw domowych', r'depozyty instytucji niekomercyjnych.*'))
+    r_mz = p2_knf_ciag(N, ns, nk, (r'kredyty mieszkaniowe - razem - gospodarstwa domowe',), [(1, r'należności bez utraty wartości, w tym:'), (4, r'należności ze stwierdzoną utratą wartości - faza 3')])
+    r_ch = p2_knf_ciag(N, ns, nk, (r'kredyty mieszkaniowe - razem - gospodarstwa domowe', r'kredyty mieszkaniowe - chf - gospodarstwa domowe'),
+                       [(1, r'należności bez utraty wartości, w tym:'), (4, r'należności ze stwierdzoną utratą wartości - faza 3')])
+    S = {'dep': seria(Z, r_dep, kol), 'dep_pln': seria(Z, r_dep + 1, kol), 'dep_eur': seria(Z, r_dep + 2, kol), 'dep_inne': seria(Z, r_dep + 3, kol),
+         'firmy': seria(Z, r_fir, kol), 'gosp': seria(Z, r_gos, kol), 'gosp_pln': seria(Z, r_gos + 1, kol), 'gosp_eur': seria(Z, r_gos + 2, kol), 'gosp_inne': seria(Z, r_gos + 3, kol),
+         'ngo': seria(Z, r_ngo, kol)}
+    # instytucje rządowe i samorządowe: w bloku „Zobowiązania wobec instytucji rządowych…” pierwszy wiersz „Depozyty instytucji rządowych i samorządowych” (bez zablokowanych) po nagłówku sekcji
+    r_rz = p2_knf_ciag(Z, r_gos, zk, (r'zobowiązania wobec instytucji rządowych.*', r'depozyty instytucji rządowych i samorządowych'))
+    S['rzad'] = seria(Z, r_rz, kol)
+    zm, zf, cm, cf = seria(N, r_mz + 1, kolN), seria(N, r_mz + 4, kolN), seria(N, r_ch + 1, kolN), seria(N, r_ch + 4, kolN)
+    plus = lambda a, b: [None if x is None or y is None else round(x + y, 3) for x, y in zip(a, b)]
+    S['mieszk'], S['mieszk_chf'], S['mieszk_f3'] = plus(zm, zf), plus(cm, cf), zf
+    n = len(kol)
+    for m in range(n):
+        dep, w = S['dep'][m], [S[k][m] for k in ('dep_pln', 'dep_eur', 'dep_inne')]
+        if dep is not None and all(x is not None for x in w) and abs(dep - sum(w)) > P2_KNF_TOL:
+            raise RuntimeError(f'KNF: depozyty razem ≠ złote + euro + inne w miesiącu {m}')
+        g, gw = S['gosp'][m], [S[k][m] for k in ('gosp_pln', 'gosp_eur', 'gosp_inne')]
+        if g is not None and all(x is not None for x in gw) and abs(g - sum(gw)) > P2_KNF_TOL:
+            raise RuntimeError(f'KNF: depozyty gospodarstw ≠ suma walut w miesiącu {m}')
+        sk = [S[k][m] for k in ('firmy', 'gosp', 'ngo')]
+        if dep is not None and all(x is not None for x in sk) and abs(dep - sum(sk)) > P2_KNF_TOL:
+            raise RuntimeError(f'KNF: depozyty sektora ≠ firmy + gospodarstwa + instytucje w miesiącu {m}')
+    for k in P2_KNF_SER:
+        if k not in S:
+            raise RuntimeError(f'KNF: brak serii {k}')
+        if len(S[k]) != n or any(v is None for v in S[k][-P2_KNF_OKNO:]):
+            raise RuntimeError(f'KNF: seria {k} niepełna w ostatnich {P2_KNF_OKNO} miesiącach')
+        if any(v is not None and not 0 <= v <= 20000 for v in S[k]):
+            raise RuntimeError(f'KNF: seria {k} poza zakresem (mld zł)')
+    if S['mieszk_chf'][-1] > S['mieszk'][-1] or S['mieszk_f3'][-1] > S['mieszk'][-1]:
+        raise RuntimeError('KNF: kredyty frankowe albo z utratą wartości większe od wszystkich mieszkaniowych')
+    m = [f'{d.year:04d}-{d.month:02d}' for d in dni]
+    wg = None
+    try:
+        wg = p2_dzien_xl(_xlsx_rows(raw, 'Info').get(3, {}).get(3))
+    except Exception:  # noqa — data wg danych z dnia jest dodatkiem
+        wg = None
+    return {'asof': m[-1], 'od': m[0], 'm': m, 's': S, 'wg': wg.isoformat() if wg else None}
+
+
+def p2_tabele(txt):
+    """Tabele HTML → lista tabel, każda lista wierszy (lista tekstów komórek). Wiersz bez </tr> (odczyt ucięty) jest pomijany."""
+    out = []
+    for tb in re.findall(r'<table\b.*?(?:</table>|\Z)', txt, flags=re.S | re.I):
+        w = []
+        for tr in re.findall(r'<tr\b.*?</tr>', tb, flags=re.S | re.I):
+            w.append([re.sub(r'\s+', ' ', _html.unescape(re.sub(r'<[^>]+>', ' ', c))).strip() for c in re.findall(r'<t[dh]\b[^>]*>(.*?)</t[dh]>', tr, flags=re.S | re.I)])
+        out.append(w)
+    return out
+
+
+P2_WIBOR_KOL = (('b', 1), ('w', 9))      # WIBID od kolumny 1, WIBOR od kolumny 9 (po kolumnie daty)
+P2_TERMINY = ('ON', 'TN', '2W', '1M', '3M', '6M', '1Y', 'SW')
+P2_WIBOR_SER = ('w1m', 'w3m', 'w6m', 'w1y', 'b1m', 'b3m', 'b6m')
+
+
+def _p2_data(s):
+    try:
+        return datetime.date.fromisoformat(s) if re.fullmatch(r'\d{4}-\d{2}-\d{2}', str(s)) else None
+    except ValueError:
+        return None
+
+
+def p2_scal(prev_d, prev_s, nowe, ser):
+    """Dopisanie nowych dni do historii: prev (listy dat rosnąco i serie) + nowe {data: {seria: liczba|None}} → (daty rosnąco, serie) z najwyżej P2_DNI_MAX ostatnimi dniami; nowy odczyt poprawia stary."""
+    z = {}
+    for i, d in enumerate(prev_d or []):
+        z[d] = {k: (prev_s.get(k) or [None] * len(prev_d))[i] for k in ser}
+    for d, w in nowe.items():
+        z[d] = {k: (w.get(k) if k in w else (z.get(d) or {}).get(k)) for k in ser}
+    ds = sorted(z)[-P2_DNI_MAX:]
+    return ds, {k: [z[d].get(k) for d in ds] for k in ser}
+
+
+def p2_wibor_zloz(html_txt, prev=None):
+    """Początek strony „dane opóźnione” → część wibor albo wyjątek."""
+    tab = next((t for t in p2_tabele(html_txt) if len(t) > 3 and t[0][:3] == ['', 'WIBID', 'WIBOR']), None)
+    if tab is None or tab[1][:1] != ['Data/Termin'] or tab[1][1:] != list(P2_TERMINY) * 2:
+        raise RuntimeError('WIBOR: brak tabeli albo inny układ kolumn (oczekiwano Data/Termin, ON…SW dla WIBID i WIBOR)')
+    nowe, dni = {}, []
+    for w in tab[2:]:
+        d = _p2_data(w[0]) if w else None
+        if d is None or len(w) != 17:
+            raise RuntimeError('WIBOR: wiersz bez daty albo z inną liczbą kolumn')
+        v = [p2_liczba(x) for x in w[1:]]
+        if any(x is not None and not 0 <= x <= 30 for x in v):
+            raise RuntimeError(f'WIBOR: stawka poza zakresem 0–30% ({w[0]})')
+        ix = {t: i for i, t in enumerate(P2_TERMINY)}
+        b, o = v[:8], v[8:]
+        nowe[w[0]] = {'w1m': o[ix['1M']], 'w3m': o[ix['3M']], 'w6m': o[ix['6M']], 'w1y': o[ix['1Y']], 'b1m': b[ix['1M']], 'b3m': b[ix['3M']], 'b6m': b[ix['6M']]}
+        dni.append(d)
+    if len(dni) < 20:
+        raise RuntimeError(f'WIBOR: tylko {len(dni)} dni w odczycie (najmniej 20)')
+    if any(a <= b for a, b in zip(dni, dni[1:])) or any((a - b).days > 10 for a, b in zip(dni, dni[1:])):
+        raise RuntimeError('WIBOR: dni nie są malejące albo mają dziurę dłuższą niż 10 dni')
+    for dd in dni[:20]:
+        x = nowe[dd.isoformat()]
+        if any(x[k] is None for k in ('w1m', 'w3m', 'w6m')):
+            raise RuntimeError(f'WIBOR: brak 1M/3M/6M w ostatnich 20 dniach ({dd.isoformat()})')
+        for t in ('1m', '3m', '6m'):
+            if x['b' + t] is not None and x['b' + t] > x['w' + t] + 1e-9:
+                raise RuntimeError(f'WIBOR: WIBID powyżej WIBOR ({dd.isoformat()}, {t})')
+    ds, s = p2_scal((prev or {}).get('d'), (prev or {}).get('s') or {}, nowe, P2_WIBOR_SER)
+    return {'asof': ds[-1], 'od': ds[0], 'd': ds, 's': s}
+
+
+def p2_wiron_zloz(html_txt, prev=None):
+    """Strona „wartości i statystyki” → część wiron (O/N i stopy składane, WIRON i POLSTR) albo wyjątek."""
+    T = {t[0][0]: t for t in p2_tabele(html_txt) if t and len(t[0]) == 1 and t[0][0] in ('WIRON', 'WIRON Stopy Składane', 'POLSTR', 'POLSTR Stopy Składane')}
+    if len(T) != 4:
+        raise RuntimeError('WIRON: brak którejś z czterech tabel (WIRON, POLSTR, stopy składane)')
+
+    def czytaj(nazwa, etykiety):
+        t = T[nazwa]
+        if not t[1] or t[1][0] != 'Data wskaźnika':
+            raise RuntimeError(f'WIRON: tabela „{nazwa}” bez wiersza dat')
+        ds = t[1][1:]
+        if len(ds) < 3 or any(_p2_data(d) is None for d in ds) or len(set(ds)) != len(ds):
+            raise RuntimeError(f'WIRON: tabela „{nazwa}” z niepoprawnymi datami')
+        out = {}
+        for k, et in etykiety.items():
+            w = next((r for r in t[2:] if r and r[0] == et), None)
+            if w is None or len(w) != len(ds) + 1:
+                raise RuntimeError(f'WIRON: tabela „{nazwa}” bez wiersza „{et}”')
+            out[k] = [p2_liczba(x) for x in w[1:]]
+        return ds, out
+    on, sk = {}, {}
+    for nm, pre in (('WIRON', 'w'), ('POLSTR', 'p')):
+        ds, o = czytaj(nm, {'v': 'Wartość w %', 'vol': 'Wolumen transakcji w mln pln'})
+        for i, d in enumerate(ds):
+            if o['v'][i] is None or not 0 <= o['v'][i] <= 30:
+                raise RuntimeError(f'WIRON: stawka {nm} {d} brak albo poza zakresem')
+            on.setdefault(d, {})[pre] = o['v'][i]
+            on[d][pre + 'v'] = o['vol'][i]
+        ds, o = czytaj(nm + ' Stopy Składane', {'1': '1M w %', '3': '3M w %', '6': '6M w %'})
+        for i, d in enumerate(ds):
+            for k in ('1', '3', '6'):
+                if o[k][i] is not None and not 0 <= o[k][i] <= 30:
+                    raise RuntimeError(f'WIRON: stopa składana {nm} {d} poza zakresem')
+                sk.setdefault(d, {})[pre + k] = o[k][i]
+    po = prev or {}
+    d1, s1 = p2_scal((po.get('on') or {}).get('d'), po.get('on') or {}, on, ('w', 'p', 'wv', 'pv'))
+    d2, s2 = p2_scal((po.get('sk') or {}).get('d'), po.get('sk') or {}, sk, ('w1', 'w3', 'w6', 'p1', 'p3', 'p6'))
+    return {'asof': d1[-1], 'od': d1[0], 'on': dict(d=d1, **s1), 'sk': dict(d=d2, **s2)}
+
+
+def p2_kwartal(txt):
+    """'II 2026' → '2026-Q2' albo None."""
+    m = re.fullmatch(r'(IV|III|II|I) (\d{4})', _p2_norm(txt).upper())
+    return f'{m.group(2)}-Q{P2_RZYM[m.group(1)]}' if m else None
+
+
+def p2_mieszk_zloz(raw):
+    """Plik cen mieszkań (bajty) → część mieszk albo wyjątek. Bloki kolumn rozpoznawane po nagłówkach nad nazwami miast (ceny ofertowe, transakcyjne, hedoniczny r/r); oś kwartałów — kolumna 1."""
+    out, qs = {}, None
+    for ark, pre, rodz in (('Rynek pierwotny', 'p', {'ofert': 'o', 'transakcyj': 't'}), ('Rynek wtórny', 'w', {'ofert': 'o', 'transakcyj': 't', 'analogiczn': 'y'})):
+        R = _xlsx_rows(raw, ark)
+        hdr = R.get(7) or {}
+        kw = sorted(c for c, v in hdr.items() if _p2_norm(v) == 'kwartał')
+        if not kw:
+            raise RuntimeError(f'ceny mieszkań: w arkuszu „{ark}” brak nagłówka „Kwartał”')
+        wier = {r: p2_kwartal(c.get(1)) for r, c in R.items() if r >= 8 and p2_kwartal(c.get(1))}
+        rs = sorted(wier)
+        ql = [wier[r] for r in rs]
+        qi = [int(q[:4]) * 4 + int(q[6]) for q in ql]
+        if len(ql) < P2_KW or any(b - a != 1 for a, b in zip(qi, qi[1:])):
+            raise RuntimeError(f'ceny mieszkań: kwartały w arkuszu „{ark}” nie są kolejne albo jest ich za mało')
+        if qs is not None and ql[-P2_KW:] != qs:
+            raise RuntimeError('ceny mieszkań: arkusze pierwotny i wtórny kończą się w różnych kwartałach')
+        qs = ql[-P2_KW:]
+        for i, c0 in enumerate(kw):
+            etyk = ' '.join(_p2_norm((R.get(rr) or {}).get(c)) for rr in (4, 5) for c in (c0, c0 + 1, c0 + 2))
+            rodzaj = next((v for k, v in rodz.items() if k in etyk), None)
+            if rodzaj is None and ('transaction' in etyk):
+                rodzaj = 't'
+            if rodzaj is None and ('offer' in etyk):
+                rodzaj = 'o'
+            if rodzaj is None and 'y-o-y' in etyk:
+                rodzaj = 'y'
+            if rodzaj is None or 'q-o-q' in etyk or 'kwartał do kwartału' in etyk:
+                continue
+            kon = kw[i + 1] if i + 1 < len(kw) else max(max(c) for c in R.values() if c) + 1
+            ser = {}
+            for c in range(c0 + 1, kon):
+                nm = re.sub(r'[*\s]+$', '', str(hdr.get(c, ''))).strip()
+                if not nm or _p2_norm(nm) == 'indeks':
+                    if rodzaj == 'y' and not nm:
+                        continue
+                    break
+                mm = re.fullmatch(r'(\d+) miast\w*(?: bez warszawy)?', _p2_norm(nm))
+                kl = ('m6' if 'bez' in _p2_norm(nm) else 'm' + mm.group(1)) if mm else nm
+                v = [p2_liczba(R[r].get(c)) for r in rs[-P2_KW:]]
+                ser[kl] = [None if x is None else (round(x, 2) if rodzaj == 'y' else round(x)) for x in v]
+            out[pre + rodzaj] = ser
+    for k in ('pt', 'po', 'wt', 'wo', 'wy'):
+        if k not in out:
+            raise RuntimeError(f'ceny mieszkań: brak bloku {k}')
+    for k in ('pt', 'po', 'wt', 'wo'):
+        s = out[k]
+        for c in ('Warszawa', 'Kraków', 'm10'):
+            if c not in s or s[c][-1] is None:
+                raise RuntimeError(f'ceny mieszkań: brak ceny {c} w ostatnim kwartale ({k})')
+        if sum(1 for c, v in s.items() if v and v[-1] is not None) < 14:
+            raise RuntimeError(f'ceny mieszkań: za mało miast z ceną w ostatnim kwartale ({k})')
+        if any(x is not None and not 1000 <= x <= 80000 for v in s.values() for x in v):
+            raise RuntimeError(f'ceny mieszkań: cena poza zakresem zł/m² ({k})')
+    if any(x is not None and not 70 <= x <= 140 for v in out['wy'].values() for x in v):
+        raise RuntimeError('ceny mieszkań: wskaźnik hedoniczny poza zakresem')
+    return {'asof': qs[-1], 'q': qs, 'k': out}
+
+
+def p2_get(url, timeout=25, maks=P2_MAX_PLIK, ucieta=False):
+    """Jedyne miejsce sieci tej części (testy je łatają): GET → (bajty, nagłówek Last-Modified albo None). Odpowiedź czytana kawałkami do `maks` bajtów i nie dłużej niż P2_LIMIT_S sekund łącznie.
+    Odpowiedź dłuższa niż maks = nie ten plik (RuntimeError), chyba że ucieta=True (początek strony wystarcza — reszta zostaje nieprzeczytana). Host wolny albo zrywający połączenie (zdarza się u
+    administratora wskaźników): jedno ponowienie po 3 s; błąd HTTP 4xx bez ponowienia."""
+    t0, ost = time.monotonic(), None
+    for proba in range(2):
+        if proba:
+            time.sleep(3)
+        try:
+            _zuz_licz(url, None)
+            with _otworz(url, None, timeout) as r:
+                lm, buf = r.headers.get('Last-Modified'), bytearray()
+                while len(buf) <= maks:
+                    if time.monotonic() - t0 > P2_LIMIT_S:
+                        raise TimeoutError('przekroczony łączny czas odczytu')
+                    ch = r.read(min(16384, maks + 1 - len(buf)))
+                    if not ch:
+                        break
+                    buf += ch
+            if len(buf) > maks:
+                if not ucieta:
+                    raise RuntimeError(f'odpowiedź większa niż {maks} B — to nie ten plik')
+                del buf[maks:]
+            return bytes(buf), lm
+        except urllib.error.HTTPError as e:
+            if e.code < 500:
+                raise
+            ost = e
+        except RuntimeError:
+            raise
+        except (OSError, TimeoutError, urllib.error.URLError) as e:
+            ost = e
+    raise ost
+
+
+def p2_lm(lm):
+    """Nagłówek Last-Modified → datetime UTC albo None."""
+    try:
+        t = _zd_email.parsedate_to_datetime(lm) if lm else None
+    except (TypeError, ValueError):
+        return None
+    return t.astimezone(datetime.timezone.utc) if t is not None and t.tzinfo is not None else None
+
+
+def p2_pora(n, prev_at, proba, now_t):
+    """Czy część n jest do sprawdzenia: po błędzie ponowienie nie częściej niż co P2_PONOW_H[n] godzin; bez poprzedniego sprawdzenia — tak; inaczej po P2_H[n] godzinach."""
+    pr = _plr_dt(proba) if proba else None
+    if pr is not None and (now_t - pr) < datetime.timedelta(hours=P2_PONOW_H[n]):
+        return False
+    pa = _plr_dt(prev_at) if prev_at else None
+    return pa is None or (now_t - pa) >= datetime.timedelta(hours=P2_H[n])
+
+
+def _p2_stary(prev, now_t):
+    dl = _plr_dt(prev.get('dl')) if isinstance(prev, dict) and prev.get('dl') else None
+    return dl is None or (now_t - dl) >= datetime.timedelta(days=P2_ODSW_DNI)
+
+
+def p2_czesc(n, prev, prev_at, proba, now_t):
+    """→ (część, stan, błąd, sprawdzono). stan True = zbudowana, 'cached' = poprzednia wystarcza (odstęp nie minął, ten sam plik albo nowy plik starszy od poprzedniego)."""
+    mam = isinstance(prev, dict) and bool(prev.get('asof'))
+    if not p2_pora(n, prev_at, proba, now_t):
+        return (prev, 'cached', None, False) if mam else (None, False, 'ponowienie dopiero po przerwie po błędzie', False)
+    znak = {'at': NOW, 'dl': now_t.replace(microsecond=0).isoformat()}
+    if n == 'sdds':
+        strona = p2_get(P2_GUS_STRONA, 40, P2_MAX_STRONA)[0].decode('utf-8', 'replace')
+        lk, lc = P2_GUS_PLIK.search(strona), P2_GUS_CPI.search(strona)
+        if lk is None or lc is None:
+            raise RuntimeError('GUS: na stronie nie ma odnośnika do pliku danych albo indeksu cen')
+        uid = lk.group(2)
+        plik = f'{lk.group(5)}-{lk.group(4)}-{lk.group(3)}'
+        if _p2_data(plik) is None:
+            raise RuntimeError('GUS: data w nazwie pliku nie jest datą')
+        cpi = p2_cpi_zloz(p2_get(P2_GUS_HOST + lc.group(1), 60, P2_MAX_PLIK)[0])
+        if mam and prev.get('uid') == uid and not _p2_stary(prev, now_t):
+            nowa = dict(prev, cpi=cpi)
+            nowa['at'] = NOW
+            return nowa, True, None, True
+        nowa = p2_sdds_zloz(p2_get(P2_GUS_HOST + lk.group(1), 60, P2_MAX_PLIK)[0], cpi, prev if mam else None)
+        nowa.update(znak, uid=uid, plik=plik, asof=plik)
+        if mam and nowa['asof'] < prev['asof']:
+            META['notes'].append(f'Polska 2 (sdds): plik z {nowa["asof"]}, a poprzedni z {prev["asof"]} — zostaje poprzedni')
+            return prev, 'cached', None, True
+        return nowa, True, None, True
+    if n == 'knf':
+        strona = p2_get(P2_KNF_STRONA, 40, P2_MAX_STRONA)[0].decode('utf-8', 'replace')
+        lk = P2_KNF_PLIK.search(strona)
+        if lk is None:
+            raise RuntimeError('KNF: na stronie nie ma odnośnika do pliku danych miesięcznych')
+        uid = lk.group(2)
+        if mam and prev.get('uid') == uid and not _p2_stary(prev, now_t):
+            return prev, 'cached', None, True
+        nowa = p2_knf_zloz(p2_get(P2_KNF_HOST + lk.group(1), 120, P2_MAX_PLIK)[0])
+    elif n == 'wibor':
+        raw = p2_get(P2_GPW_OPOZ, 25, P2_WIBOR_BAJTY, ucieta=True)[0]
+        nowa = p2_wibor_zloz(raw.decode('utf-8', 'replace'), prev if mam else None)
+        uid = None
+    elif n == 'wiron':
+        raw = p2_get(P2_GPW_WART, 25, P2_WART_BAJTY, ucieta=True)[0]
+        nowa = p2_wiron_zloz(raw.decode('utf-8', 'replace'), prev if mam else None)
+        uid = None
+    else:
+        raw, lm = p2_get(P2_NBP_PLIK, 90, P2_MAX_PLIK)
+        nowa = p2_mieszk_zloz(raw)
+        lt = p2_lm(lm)
+        nowa['lm'] = lt.isoformat().replace('+00:00', 'Z') if lt else None
+        uid = None
+    if mam and nowa['asof'] < prev['asof']:
+        META['notes'].append(f'Polska 2 ({n}): plik pokazuje {nowa["asof"]}, a poprzedni ma {prev["asof"]} — zostaje poprzedni')
+        return prev, 'cached', None, True
+    nowa.update(znak)
+    if uid:
+        nowa['uid'] = uid
+    return nowa, True, None, True
+
+
+def build_polska2(prev=None, now=None):
+    """data/polska-2.json = {v, at, ok: {sdds, knf, wibor, wiron, mieszk}, part_at, proba, <części>}. Każda część osobno: awaria = jej poprzednia wersja i błąd w meta; część bez poprzedniej wersji i bez
+    danych nie wchodzi do pliku. Wyjątek tylko wtedy, gdy plik nie miałby żadnej części."""
+    now_t = _plr_dt(now or NOW) or datetime.datetime.now(datetime.timezone.utc)
+    prev = prev if isinstance(prev, dict) and prev.get('v') == P2_V else {}
+    out, ok, pat, pro = {'v': P2_V, 'at': NOW}, {}, {}, {}
+    teraz = now_t.replace(microsecond=0).isoformat()
+    pat0 = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    pro0 = prev.get('proba') if isinstance(prev.get('proba'), dict) else {}
+    for n in P2_CZESCI:
+        pc = prev.get(n) if isinstance(prev.get(n), dict) else None
+        pa, pr = pat0.get(n) or (pc.get('at') if pc else None), pro0.get(n)
+        try:
+            nowa, stan, blad, spr = p2_czesc(n, pc, pa, pr, now_t)
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{P2_ETYK[n]}: {e}')[:200])
+            ok[n] = False
+            pro[n] = teraz
+            if pa:
+                pat[n] = pa
+            if pc:
+                out[n] = pc
+            continue
+        if blad:
+            ok[n] = False
+            pro[n] = pro0.get(n) or teraz
+            if pa:
+                pat[n] = pa
+            if pc:
+                out[n] = pc
+            continue
+        ok[n] = stan
+        if nowa:
+            out[n] = nowa
+            pat[n] = teraz if spr else (pa or teraz)
+            if not spr and pr:
+                ok[n], pro[n] = False, pr      # poprzednia próba zawiodła, a ponowienie jeszcze nie minęło — część nadal z błędem (nie 'cached')
+    out['ok'], out['part_at'] = ok, pat
+    if pro:
+        out['proba'] = pro
+    if not any(n in out for n in P2_CZESCI):
+        raise RuntimeError('żadna część pliku nie ma danych')
+    return out
 
 
 if __name__ == '__main__':
