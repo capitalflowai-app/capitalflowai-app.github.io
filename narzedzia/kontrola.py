@@ -11925,6 +11925,279 @@ def chtw_kontrola(files, now=None):
     return {'spojnosc': chtw_spojnosc(j, now), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v401 (F11Z14): interwencje walutowe i rezerwy banków centralnych + oczekiwania w Brazylii (data/interwencje.json) ----------------------------------------------------------------
+# Plik: jp {asof, kw_do, ev [[dzień, kwota, kierunek]], mo [[od, do, mld jenów, publikacja]], t}, hk {asof, od, band, s [[dzień, saldo, działania]], ev [[dzień, działania, saldo]], t}, ar {asof_res, asof_buy, res, buy, t},
+# br {asof, s, t}, ca {asof, s [[dzień, razem, dolary, inne waluty, złoto, SDR, MFW]], t}, focus {asof, y, i {selic, ipca, pib, cambio: {last, w}}, t}, ok / part_at / errs. Kontrola czyta pliki ze strony (bez zapytań do sieci).
+# RYTM PUBLIKACJI i progi (ws53/v401-interwencje/bt_progi.py; wiek = doby od końca dnia ostatniego odczytu w pliku, ⚠ po przekroczeniu progu):
+#   Japonia — komunikaty miesięczne ukazują się 2 doby po końcu okresu; od 2023 (45 komunikatów) największy odstęp między komunikatami 33 doby → wiek końca okresu tuż przed następnym komunikatem najwyżej 35 doby; ⚠ po 40;
+#   Hongkong — dane za sesję następnego dnia; największa przerwa między sesjami w 1000 sesjach (od 27.09.2022) 6 dób (Nowy Rok Księżycowy, Wielkanoc) → najwyżej 7 doby; ⚠ po 9;
+#   Argentyna — zwłoka 2 sesji; największa przerwa 5 dób + weekend → ⚠ po 12 (zbieracz odrzuca ponad 14);
+#   Brazylia — zwłoka 1–2 doby; największa przerwa 5 dób (karnawał) → ⚠ po 10 (zbieracz odrzuca ponad 12);
+#   Kanada — cztery odczyty w miesiącu (największy odstęp 10 dób), publikacja miesięczna z wielotygodniową zwłoką (17.10.2026 najnowszy odczyt z 29.09) → brak historii publikacji, próg z obserwacji i marginesu: ⚠ po 60 (zbieracz odrzuca ponad 75);
+#   oczekiwania w Brazylii — badanie w dni robocze, największa przerwa 4 doby, zwłoka 1 doba → ⚠ po 8 (zbieracz odrzuca ponad 14).
+# (1) świeżość pobrania każdej części (odświeżanie co 3 h, udane części najwyżej co 5–10 h; starsze niż doba = ⚠) i wiersze rytmu publikacji (najwyżej ⚠);
+# (2) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zły dzień albo liczba poza zakresem, dni nie idą rosnąco, kwartał ≠ okresy komunikatów (luka), działania rynkowe w szeregu ≠ lista interwencji, składniki rezerw Kanady ≠ razem,
+#     mediana poza minimum–maksimum, ostatni punkt tygodniowy ≠ ostatnie badanie;
+# (3) TYLKO UWAGA ⚠: rezerwy Brazylii z dziennego szeregu na koniec miesiąca a te same rezerwy Brazylii w pliku rezerw (inne źródło danych) — różnica ponad 1,5% (zmierzone 17.10.2026: czerwiec–sierpień 0,0–0,2%).
+# Najwyżej ⚠ poza (2). Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'interwencje')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['interwencje'] = 12 * 60   # plik zapisywany co ok. 3 h (część z błędem: co godzinę) — wiek pobrania każdej części ocenia osobny wiersz
+IWK_PARTS = ('jp', 'hk', 'ar', 'br', 'ca', 'focus')
+AW_BEZ_BLEDU.update({'interw_' + p_: 'interwencje i rezerwy — część z błędem zostaje z ostatnimi danymi i datą (v401); wiek pobrania i rytm publikacji w wierszach świeżości' for p_ in IWK_PARTS})
+IWK_NAZWA = {'jp': 'Japonia', 'hk': 'Hongkong', 'ar': 'Argentyna', 'br': 'Brazylia', 'ca': 'Kanada', 'focus': 'oczekiwania w Brazylii'}
+IWK_ETYKIETA = {p_: f'Interwencje i rezerwy: {IWK_NAZWA[p_]} (pobranie)' for p_ in IWK_PARTS}
+IWK_RYTM = {p_: f'Interwencje i rezerwy: {IWK_NAZWA[p_]} (rytm publikacji)' for p_ in IWK_PARTS}
+IWK_PROG_MIN = 24 * 60            # min — wiek pobrania części
+IWK_K = {'jp': 40, 'hk': 9, 'ar': 12, 'br': 10, 'ca': 60, 'focus': 8}   # doby — wiek ostatniego odczytu (test wsteczny w nagłówku)
+IWK_ASOF = {'jp': 'asof', 'hk': 'asof', 'ar': 'asof_res', 'br': 'asof', 'ca': 'asof', 'focus': 'asof'}
+IWK_MFW = 0.015                   # względna zgodność rezerw Brazylii z plikiem rezerw
+IWK_KIER = 'SBEX'
+
+
+def _iwk_dzien(s):
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return dt.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _iwk_num(x, lo, hi):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and lo <= x <= hi
+
+
+def _iwk_wiersze(zle, co, L, n, lo, hi, calk=False):
+    """Szereg [[dzień, liczby…]]: kolejne dni rosnąco, n kolumn (razem z dniem), liczby w [lo, hi] (całkowite, gdy calk). Zły kształt → opis w zle i False."""
+    if not (isinstance(L, list) and L and all(isinstance(r, list) and len(r) == n and _iwk_dzien(r[0]) for r in L)):
+        zle.append(f'{co}: zły kształt szeregu')
+        return False
+    if any(r[0] <= L[i][0] for i, r in enumerate(L[1:])):
+        zle.append(f'{co}: dni nie idą rosnąco')
+        return False
+    if not all(_iwk_num(v, lo, hi) and (not calk or v == int(v)) for r in L for v in r[1:]):
+        zle.append(f'{co}: liczba poza zakresem')
+        return False
+    return True
+
+
+def _iwk_jp(P, j):
+    zle = []
+    kon = _iwk_dzien(P.get('kw_do'))
+    ev, mo = P.get('ev'), P.get('mo')
+    if kon is None or kon.month % 3 or (kon + dt.timedelta(days=1)).day != 1:
+        return ['jp: koniec ostatniego kwartału pliku nie jest końcem kwartału']
+    if not (isinstance(ev, list) and len(ev) >= 300 and isinstance(mo, list)):
+        return ['jp: lista interwencji albo komunikatów miesięcznych w złym kształcie']
+    pop = None
+    for r in ev:
+        d = _iwk_dzien(r[0]) if isinstance(r, list) and len(r) == 3 else None
+        if d is None or not isinstance(r[2], str) or r[2] not in IWK_KIER or not (isinstance(r[1], int) and not isinstance(r[1], bool) and 1 <= r[1] <= 300000) or (pop and d < pop):
+            return [f'jp: zła interwencja {str(r)[:50]}']
+        pop = d
+    if pop > kon:
+        zle.append(f'jp: interwencja {pop} po końcu kwartału pliku {kon}')
+    koniec = kon
+    for i, r in enumerate(mo):
+        ok = isinstance(r, list) and len(r) == 4 and all(_iwk_dzien(x) for x in (r[0], r[1], r[3])) and _iwk_num(r[2], 0, 100000)
+        if not ok:
+            return zle + [f'jp: zły komunikat miesięczny {str(r)[:50]}']
+        od, do, pub = _iwk_dzien(r[0]), _iwk_dzien(r[1]), _iwk_dzien(r[3])
+        if not od < do or not do <= pub <= do + dt.timedelta(days=10):
+            zle.append(f'jp: okres {r[0]}–{r[1]} albo publikacja {r[3]} w złym układzie')
+        if (i == 0 and (od > kon + dt.timedelta(days=1) or do <= kon)) or (i > 0 and od != koniec + dt.timedelta(days=1)):
+            zle.append(f'jp: luka w pokryciu przed okresem {r[0]}–{r[1]}')
+        koniec = do
+    if P.get('asof') != koniec.isoformat():
+        zle.append(f'jp: asof {P.get("asof")} ≠ koniec pokrycia {koniec}')
+    return zle
+
+
+def _iwk_hk(P, j):
+    zle = []
+    s, ev = P.get('s'), P.get('ev')
+    if not _iwk_wiersze(zle, 'hk szereg', s, 3, -150000, 1000000, True):
+        return zle
+    if not isinstance(ev, list) or not all(isinstance(r, list) and len(r) == 3 and _iwk_dzien(r[0]) and isinstance(r[1], int) and r[1] != 0 for r in ev):
+        return zle + ['hk: lista interwencji w złym kształcie']
+    if any(ev[i][0] <= ev[i - 1][0] for i in range(1, len(ev))):
+        zle.append('hk: interwencje nie idą rosnąco')
+    if P.get('asof') != s[-1][0]:
+        zle.append(f'hk: asof {P.get("asof")} ≠ ostatni dzień szeregu {s[-1][0]}')
+    od = _iwk_dzien(P.get('od'))
+    if od is None or od.isoformat() > s[0][0]:
+        zle.append('hk: początek okna późniejszy niż szereg')
+    b = P.get('band')
+    if not (isinstance(b, list) and len(b) == 2 and _iwk_num(b[0], 7.0, 8.5) and _iwk_num(b[1], 7.0, 8.5) and b[0] < b[1]):
+        zle.append('hk: pasmo kursu w złym kształcie')
+    w_ok = {r[0]: r[1] for r in ev}
+    w_s = {r[0]: r[2] for r in s if r[2] != 0}
+    okno = {d: v for d, v in w_ok.items() if d >= s[0][0]}
+    if okno != w_s:
+        zle.append('hk: działania rynkowe w szeregu ≠ lista interwencji')
+    return zle
+
+
+def _iwk_ar(P, j):
+    zle = []
+    if _iwk_wiersze(zle, 'ar rezerwy', P.get('res'), 2, 1000, 300000) and P.get('asof_res') != P['res'][-1][0]:
+        zle.append(f'ar: asof_res {P.get("asof_res")} ≠ ostatni dzień szeregu {P["res"][-1][0]}')
+    if _iwk_wiersze(zle, 'ar zakupy', P.get('buy'), 2, -6000, 6000) and P.get('asof_buy') != P['buy'][-1][0]:
+        zle.append(f'ar: asof_buy {P.get("asof_buy")} ≠ ostatni dzień szeregu {P["buy"][-1][0]}')
+    return zle
+
+
+def _iwk_br(P, j):
+    zle = []
+    if _iwk_wiersze(zle, 'br rezerwy', P.get('s'), 2, 100000, 1000000):
+        s = P['s']
+        if P.get('asof') != s[-1][0]:
+            zle.append(f'br: asof {P.get("asof")} ≠ ostatni dzień szeregu {s[-1][0]}')
+        for i in range(1, len(s)):
+            if abs(s[i][1] / s[i - 1][1] - 1) > 0.05:
+                zle.append(f'br: rezerwy {s[i][0]} zmieniły się o ponad 5% w dzień')
+                break
+    return zle
+
+
+def _iwk_ca(P, j):
+    zle = []
+    if _iwk_wiersze(zle, 'ca rezerwy', P.get('s'), 7, 0, 1000000, True):
+        s = P['s']
+        if P.get('asof') != s[-1][0]:
+            zle.append(f'ca: asof {P.get("asof")} ≠ ostatni odczyt {s[-1][0]}')
+        for r in s:
+            if not 0 <= r[1] - sum(r[2:]) <= r[1] * 0.1:
+                zle.append(f'ca: składniki ≠ razem w odczycie {r[0]}')
+                break
+    return zle
+
+
+def _iwk_focus(P, j):
+    zle = []
+    asof = _iwk_dzien(P.get('asof'))
+    y = P.get('y')
+    I = P.get('i')
+    if asof is None or asof.weekday() > 4:
+        return ['focus: ostatni dzień badania nie jest dniem roboczym']
+    if not (isinstance(y, list) and len(y) == 3 and y[0] == asof.year and y[1] == y[0] + 1 and y[2] == y[0] + 2) or not isinstance(I, dict) or sorted(I) != ['cambio', 'ipca', 'pib', 'selic']:
+        return ['focus: lata albo wskaźniki w złym układzie']
+    for k in sorted(I):
+        o = I[k]
+        L, W = (o.get('last'), o.get('w')) if isinstance(o, dict) else (None, None)
+        if not (isinstance(L, list) and len(L) == 3 and isinstance(W, list) and len(W) == 3):
+            zle.append(f'focus {k}: zły kształt')
+            continue
+        for i in range(3):
+            r = L[i]
+            if not (isinstance(r, list) and len(r) == 6 and all(_iwk_num(v, -1000, 100000) for v in r) and r[3] <= r[0] <= r[4] and r[2] >= 0 and r[5] >= 5):
+                zle.append(f'focus {k}: statystyki roku {y[i]} w złym układzie')
+                continue
+            if _iwk_wiersze(zle, f'focus {k} {y[i]}', W[i], 2, -1000, 100000) and W[i][-1] != [asof.isoformat(), r[0]]:
+                zle.append(f'focus {k}: ostatni punkt tygodniowy roku {y[i]} {W[i][-1]} ≠ ostatnie badanie [{asof}, {r[0]}]')
+    return zle
+
+
+def interwencje_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w interwencjach i rezerwach) → lista opisów."""
+    zle = []
+    for p, f in (('jp', _iwk_jp), ('hk', _iwk_hk), ('ar', _iwk_ar), ('br', _iwk_br), ('ca', _iwk_ca), ('focus', _iwk_focus)):
+        P = j.get(p)
+        if P is None:
+            continue
+        if not isinstance(P, dict):
+            zle.append(f'{p}: część nie jest słownikiem')
+            continue
+        try:
+            zle += f(P, j)
+        except (KeyError, TypeError, IndexError, ValueError, AttributeError) as e:
+            zle.append(f'{p}: część w złym kształcie ({type(e).__name__})')
+        pa = j.get('part_at') if isinstance(j.get('part_at'), dict) else {}
+        d, t = _iwk_dzien(P.get(IWK_ASOF[p])), _iwk_dzien(str(pa.get(p) or '')[:10])
+        if d is not None and t is not None and d > t:
+            zle.append(f'{p}: dzień danych {d} późniejszy niż pobranie części {pa.get(p)}')
+    return zle[:12]
+
+
+def interwencje_swiezosc(j, now=None):
+    """Wiersze: pobranie każdej części (etykieta, status, wiek min, chwila, uwaga) i rytm publikacji (wiek ostatniego odczytu względem progów z testu wstecznego); brak pliku albo innej wersji = brak wierszy. Najwyżej ⚠."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p in IWK_PARTS:
+        P = j.get(p)
+        if not isinstance(P, dict):
+            continue
+        txt = (j.get('part_at') or {}).get(p) if isinstance(j.get('part_at'), dict) else None
+        if not txt:
+            rows.append((IWK_ETYKIETA[p], '?', None, None, 'brak chwili pobrania tej części w pliku'))
+            continue
+        w = wiek_danych(str(txt), 'ts', 'k', now)
+        ok = (j.get('ok') or {}).get(p) if isinstance(j.get('ok'), dict) else None
+        st = '?' if w is None else ('⚠️' if w > IWK_PROG_MIN else '✅')
+        note = ''
+        if st == '⚠️':
+            note = f'pobranie starsze niż {fmt_wiek(IWK_PROG_MIN)} (odświeżanie co 3 h) — dane mogą być nieaktualne; najwyżej uwaga'
+        elif ok is False:
+            note = 'ostatnie pobranie nieudane — dane z poprzedniego pobrania'
+        rows.append((IWK_ETYKIETA[p], st, w, str(txt), note))
+        d = _iwk_dzien(P.get(IWK_ASOF[p]))
+        if d is None:
+            continue
+        wd = wiek_danych(d.isoformat(), 'day', 'k', now)
+        zle = wd is not None and wd > IWK_K[p] * 1440
+        note = (f'ostatni odczyt {d.isoformat()} sprzed {fmt_wiek(wd)} (próg {IWK_K[p]} dób z testu wstecznego rytmu publikacji)' if zle else '')
+        rows.append((IWK_RYTM[p], '⚠️' if zle else '✅', wd, d.isoformat(), note))
+    return rows
+
+
+def interwencje_uwagi(j, files=None, now=None):
+    """Uwagi ⚠ (nigdy ❌): rezerwy Brazylii (dziennie, koniec miesiąca) a te same rezerwy w pliku rezerw (MFW). → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    files = files if isinstance(files, dict) else {}
+    out = {'wiersze': [], 'uwagi': []}
+    B = j.get('br') if isinstance(j.get('br'), dict) else None
+    rz = files.get('rezerwy')
+    C = (rz.get('countries') or {}).get('BRA') if isinstance(rz, dict) and isinstance(rz.get('countries'), dict) else None
+    if not B or not isinstance(C, dict) or not isinstance(C.get('d'), list):
+        return out
+    try:
+        s = {r[0]: r[1] for r in B['s'] if isinstance(r, list) and len(r) == 2}
+        dni = sorted(s)
+        pokryte = dni[-1]
+        wiersze = {r[0]: r[1] for r in C['d'] if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and re.fullmatch(r'\d{4}-\d{2}', r[0]) and _iwk_num(r[1], 0, 5000)}
+        porown = []
+        for m in sorted(wiersze, reverse=True):
+            y, mm = int(m[:4]), int(m[5:7])
+            koniec = dt.date(y + (mm == 12), mm % 12 + 1, 1) - dt.timedelta(days=1)
+            if koniec.isoformat() >= pokryte:
+                continue
+            ost = max((d for d in dni if d <= koniec.isoformat()), default=None)
+            if ost is None or (koniec - dt.date.fromisoformat(ost)).days > 5:
+                continue
+            porown.append((m, s[ost] / 1000, wiersze[m]))
+            if len(porown) == 3:
+                break
+        for m, a, b in porown:
+            roz = abs(a / b - 1) if b else 1
+            out['wiersze'].append((f'rezerwy Brazylii {m}: dziennie a MFW', '⚠️' if roz > IWK_MFW else '✅'))
+            if roz > IWK_MFW:
+                out['uwagi'].append(f'interwencje i rezerwy: rezerwy Brazylii na koniec {m}: {round(a, 1)} mld USD w szeregu dziennym, {b} w pliku rezerw — różnica {round(roz * 100, 1)}%')
+    except Exception:  # noqa
+        pass
+    return out
+
+
+def interwencje_kontrola(files, now=None):
+    """Kontrola pliku interwencje.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('interwencje') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    U = interwencje_uwagi(j, files, now)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': interwencje_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -12598,6 +12871,24 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['chiny-tw'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Chiny / Tajwan / Hongkong (v400): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v401. interwencje i rezerwy (data/interwencje.json): świeżość pobrania sześciu części i rytm publikacji (ostatni odczyt) osobnymi wierszami (lista SWIEZOSC bez zmian), zgodność rezerw Brazylii z plikiem rezerw (⚠)
+    # oraz sprzeczności w pliku (❌) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in interwencje_swiezosc(files.get('interwencje')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_iw = interwencje_kontrola(files)
+        if T_iw:
+            for z_ in T_iw['spojnosc'][:5]:
+                R['bledy'].append(f'interwencje.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_iw['uwagi']
+        R['zgodnosc']['interwencje'] = {k_: T_iw[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_iw else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['interwencje'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'interwencje i rezerwy (v401): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -13348,6 +13639,11 @@ def raport_md(R):
             L.append('- Chiny, Tajwan, Hongkong: obligacje, Shibor, CSI 300, put/call, krótka sprzedaż (z pliku strony): ' + (f'? kontrola przerwana ({kct["blad"]})' if kct.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(kct['spojnosc'][:3]) + ' ❌ · ' if kct.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in kct.get('wiersze') or []) or '—') + '.')
+        kiw = Z.get('interwencje')   # v401: interwencje i rezerwy — sprzeczności w pliku, rezerwy Brazylii a plik rezerw, rytm publikacji; brak pliku = bez linii
+        if kiw:
+            L.append('- Interwencje walutowe i rezerwy banków centralnych (z pliku strony): ' + (f'? kontrola przerwana ({kiw["blad"]})' if kiw.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(kiw['spojnosc'][:3]) + ' ❌ · ' if kiw.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in kiw.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

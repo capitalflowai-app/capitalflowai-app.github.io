@@ -33292,6 +33292,31 @@ def main():
                 save('energia-usa', prev_eu)
     META['ok']['energia_wpsr'] = stan_eu['wpsr']; META['ok']['energia_pogoda'] = stan_eu['pogoda']
     # v395: koniec bloku energii USA
+    # v401 (F11Z14): INTERWENCJE WALUTOWE I REZERWY BANKÓW CENTRALNYCH + OCZEKIWANIA RYNKU W BRAZYLII (data/interwencje.json: Japonia, Hongkong, Argentyna, Brazylia, Kanada, oczekiwania w Brazylii; sześć części z własnym
+    # ok / part_at / errs) — co IW_EVERY_MIN min, plik z częścią nieudaną ponawiany po NIEPELNY_MIN min (fresh_pelny; udane części używane ponownie przez IW_REUSE_MIN); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json).
+    # META ok: interw_jp, interw_hk, interw_ar, interw_br, interw_ca, interw_focus (trzy nowe źródła — liczba źródeł +3).
+    prev_iw = previous('interwencje')
+    if isinstance(prev_iw, dict) and prev_iw.get('v') == IW_V and fresh_pelny(prev_iw, IW_EVERY_MIN):
+        save('interwencje', prev_iw)
+        stan_iw = {}
+        for k_iw in IW_PARTS:
+            if _dict(prev_iw.get('ok')).get(k_iw) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{IW_PX} {IW_LABEL[k_iw]}: {str(_dict(prev_iw.get('errs')).get(k_iw) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_iw[k_iw] = False
+            else:
+                stan_iw[k_iw] = 'cached'
+    else:
+        try:
+            iw_ = build_interwencje(prev_iw, run_t0=_RUN_T0[0]); save('interwencje', iw_)
+            stan_iw = {k_iw: iw_['ok'].get(k_iw) is True for k_iw in IW_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{IW_PX}: {e}')[:200])
+            stan_iw = {k_iw: False for k_iw in IW_PARTS}
+            if isinstance(prev_iw, dict):
+                save('interwencje', prev_iw)
+    META['ok']['interw_jp'] = stan_iw['jp']; META['ok']['interw_hk'] = stan_iw['hk']; META['ok']['interw_ar'] = stan_iw['ar']
+    META['ok']['interw_br'] = stan_iw['br']; META['ok']['interw_ca'] = stan_iw['ca']; META['ok']['interw_focus'] = stan_iw['focus']
+    # v401: koniec bloku interwencji
     # v400 (F11Z13): CHINY, TAJWAN, HONGKONG (data/chiny-tw.json: krzywa rentowności i Shibor, put/call i pozycje inwestorów, krótka sprzedaż, CSI 300; pięć części z własnym ok / part_at / errs) — co CTW_EVERY_MIN min
     # (plik z częścią nieudaną: NIEPELNY_MIN, fresh_pelny); części mają własne rytmy (odczyt co 2 h, Hongkong w oknie dnia); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok: chtw_* (cached = odczyt jeszcze niepotrzebny).
     prev_ctw = previous('chiny-tw')
@@ -42081,6 +42106,486 @@ def build_chiny_tw(prev=None, run_t0=None):
     if not any(isinstance(out.get(k), dict) for k in CTW_PARTS):
         raise RuntimeError('żadna część nie odpowiedziała')
     return out
+
+
+# ===================== v401 (F11Z14): INTERWENCJE WALUTOWE I REZERWY BANKÓW CENTRALNYCH + OCZEKIWANIA RYNKU W BRAZYLII (data/interwencje.json; publiczne zapytania GET bez klucza) =====================
+# Sześć niezależnych części jednego pliku, każda z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie (nigdy puste zamiast ostatnich danych):
+#   jp    — Japonia: interwencje resortu finansów na rynku walutowym dzień po dniu od kwietnia 1991 (plik CSV w kodowaniu Shift_JIS ze scalonymi komórkami: rok i miesiąc przenoszone w dół; kwoty w setkach mln jenów,
+#           kierunek z opisu) oraz komunikaty MIESIĘCZNE po ostatnim kwartale pliku (okres i łączna kwota — rozbicie na dni i kierunek dopiero w komunikacie kwartalnym). Dzięki temu zdanie „brak interwencji od …” opiera się
+#           na ciągłym pokryciu okresów, a nie na domyśle.
+#   hk    — Hongkong: saldo zbiorcze banków i „działania rynkowe” urzędu walutowego (interwencje obronne w pasmie 7,75–7,85 HK$/US$), dziennie; ostatnie 262 sesje i wszystkie interwencje z okna ok. 1000 sesji.
+#   ar    — Argentyna: rezerwy międzynarodowe banku centralnego (dziennie) i dzienna zmiana rezerw z tytułu zakupu walut (wersja 4 interfejsu; wersja wyłączona = HTTP 404/410 = błąd części z przyczyną).
+#   br    — Brazylia: rezerwy międzynarodowe w koncepcji płynności, dziennie (z zapasem SOAP tego samego banku — wspólny pomocnik z innymi seriami).
+#   ca    — Kanada: oficjalne rezerwy międzynarodowe (4 odczyty w miesiącu, publikacja miesięczna) z podziałem na dolary, inne waluty, złoto, SDR i pozycję w MFW.
+#   focus — Brazylia: oczekiwania rynku (badanie banku centralnego, mediany prognoz dla Selic, inflacji IPCA, PKB i kursu na koniec roku; bieżący rok i dwa następne), próbka tygodniowa z ok. 17 tygodni.
+# Bramki (zły układ = błąd części, nigdy cicha zmiana liczb): CSV Japonii — 9 kolumn, każdy kwartał ma sumę równą sumie dni (±IW_JP_TOL), kwartały bez luk, dni rosnąco i w kwartałach; komunikaty miesięczne — okres
+# bez luk (kolejny zaczyna się dzień po końcu poprzedniego), kwota z jednostką; Hongkong — kody odpowiedzi, liczby całkowite w zakresach, kolejne dni, pasmo; Argentyna i Brazylia — daty, zakresy, skok dzienny; Kanada —
+# składniki = suma całości; oczekiwania — mediana między minimum a maksimum, trzy lata, ostatni dzień nie starszy niż IW_FOCUS_MAX_DNI.
+IW_V = 1
+IW_EVERY_MIN = 180            # min — plik; część z błędem: ponowienie po NIEPELNY_MIN (fresh_pelny); udane części są używane ponownie przez IW_REUSE_MIN
+IW_PARTS = ('jp', 'hk', 'ar', 'br', 'ca', 'focus')
+IW_LABEL = {'jp': 'Japonia', 'hk': 'Hongkong', 'ar': 'Argentyna', 'br': 'Brazylia', 'ca': 'Kanada', 'focus': 'oczekiwania w Brazylii'}
+IW_PX = 'Interwencje i rezerwy'
+IW_REUSE_MIN = {'jp': 600, 'hk': 300, 'ar': 300, 'br': 300, 'ca': 600, 'focus': 600}   # min — udana część młodsza niż tyle nie jest pobierana ponownie
+IW_TIMEOUT = 40               # s — jedno zapytanie
+IW_SLEEP = 0.7                # s — odstęp między zapytaniami
+IW_N = 262                    # sesji w szeregach dziennych (rok z zapasem: odniesienie sprzed 365 dni musi się w nich mieścić)
+IW_DNI_WSTECZ = 400           # dni kalendarzowe wstecz w zapytaniach o szeregi dzienne
+IW_JP_CSV = 'https://www.mof.go.jp/english/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv'
+IW_JP_IDX = 'https://www.mof.go.jp/english/policy/international_policy/reference/feio/monthly/index.html'
+IW_JP_MON = 'https://www.mof.go.jp/english/policy/international_policy/reference/feio/monthly/{f}'   # f = nazwa pliku z listy (zwykle RRRRMMDDe.html; raz w 2025 bez „e”)
+IW_JP_TOL = 3                 # setki mln jenów — zaokrąglenia dni względem sumy kwartału (w całym pliku od 1991 największa różnica: 1)
+IW_JP_MAX_NOWYCH = 8          # najwyżej tyle nowych komunikatów miesięcznych na przebieg
+IW_JP_MAX_OKRES = 100000      # mld jenów — górna granica kwoty okresu
+IW_HK_URL = ('https://api.hkma.gov.hk/public/market-data-and-statistics/daily-monetary-statistics/daily-figures-interbank-liquidity'
+             '?pagesize=1000&sortby=end_of_date&sortorder=desc&fields=end_of_date,closing_balance,market_activities,cu_weakside,cu_strongside')
+IW_HK_MIN = 200               # sesji — mniej = błąd (odpowiedź ucięta)
+IW_HK_MAX = 1000000           # mln HK$ — saldo zbiorcze
+IW_HK_AKT = 150000            # mln HK$ — największa dzienna interwencja uznana za wiarygodną
+IW_AR_URL = 'https://api.bcra.gob.ar/estadisticas/v4.0/monetarias/{id}?desde={a}&hasta={b}&limit=1000'
+IW_AR_RES, IW_AR_BUY = 1, 78  # 1 = rezerwy międzynarodowe (mln USD); 78 = zmiana rezerw z tytułu zakupu walut (mln USD, przepływ dzienny)
+IW_BR_SGS = 13621             # rezerwy międzynarodowe — płynność międzynarodowa, dziennie, mln USD
+IW_CA_URL = 'https://www.bankofcanada.ca/valet/observations/group/OFFICIAL_INT_RES/json?recent=60'
+IW_CA_IDS = ('V15943316', 'V15943317', 'V15943318', 'V15943319', 'V15943320', 'V15943321', 'OIRORA')   # razem, USD, inne waluty, złoto, SDR, MFW, pozostałe
+IW_FOCUS_URL = ('https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/ExpectativasMercadoAnuais?$top=1000&$orderby=Data%20desc&$format=json'
+                '&$select=Data,DataReferencia,Mediana,Media,DesvioPadrao,Minimo,Maximo,numeroRespondentes'
+                "&$filter=Indicador%20eq%20'{ind}'%20and%20baseCalculo%20eq%200%20and%20Data%20ge%20'{od}'")
+IW_FOCUS_IND = (('selic', 'Selic', 0, 60), ('ipca', 'IPCA', -5, 100), ('pib', 'PIB%20Total', -20, 20), ('cambio', 'C%C3%A2mbio', 0.5, 50))
+IW_FOCUS_DNI = 125            # dni wstecz w zapytaniu (ok. 17 tygodni)
+IW_FOCUS_TYG = 18             # tygodni w próbce
+IW_FOCUS_MAX_DNI = 14         # dni — ostatni dzień badania starszy = błąd części
+import html as _html   # v401: rozpakowanie encji w komunikatach miesięcznych (biblioteka standardowa)
+IW_SRC = ('CapitalFlowAI — interwencje walutowe i rezerwy banków centralnych (Japonia: dni interwencji i komunikaty miesięczne; Hongkong: saldo zbiorcze i działania rynkowe; Argentyna: rezerwy i zakupy walut; '
+          'Brazylia: rezerwy; Kanada: oficjalne rezerwy) oraz oczekiwania rynku w Brazylii; daty z samych źródeł, pobranie części w part_at (UTC)')
+IW_MIES = {m: i for i, m in enumerate(('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'), 1)}
+IW_MIES3 = {m[:3]: i for m, i in IW_MIES.items()}
+
+
+def iw_dzien(s):
+    """„RRRR-MM-DD” → date; inny zapis albo nieistniejący dzień = None."""
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return datetime.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def iw_liczba(x, lo, hi):
+    """Liczba skończona z przedziału [lo, hi] (wartość logiczna i tekst nie są liczbą) → float albo None."""
+    if isinstance(x, bool) or not isinstance(x, (int, float)):
+        return None
+    x = float(x)
+    return x if x == x and lo <= x <= hi else None
+
+
+def iw_pobierz(url, bajty=False):
+    """Jedno zapytanie GET (publiczne, bez klucza, z identyfikatorem zbieracza) z odstępem IW_SLEEP; tekst (albo bajty) odpowiedzi; pusta odpowiedź = błąd."""
+    time.sleep(IW_SLEEP)
+    if bajty:
+        b = get_bytes(url, timeout=IW_TIMEOUT)
+        if not isinstance(b, (bytes, bytearray)) or len(b) < 100:
+            raise RuntimeError('odpowiedź bez treści')
+        return bytes(b)
+    st, body = get(url, timeout=IW_TIMEOUT)
+    if st != 200 or not isinstance(body, str) or len(body) < 20:
+        raise RuntimeError(f'odpowiedź bez treści (HTTP {st})')
+    return body
+
+
+def iw_json(url):
+    try:
+        return json.loads(iw_pobierz(url))
+    except urllib.error.HTTPError as e:
+        if e.code in (404, 410):
+            raise RuntimeError(f'adres wyłączony albo zmieniony (HTTP {e.code})') from None
+        raise
+    except ValueError:
+        raise RuntimeError('odpowiedź nie jest JSON-em') from None
+
+
+# ---------- Japonia ----------
+def iw_jp_kier(opis):
+    """Opis operacji z pliku → 'S' sprzedaż dolarów za jeny (obrona jena), 'B' kupno dolarów za jeny, 'E' kupno euro za jeny, 'X' inne (marka, rupia)."""
+    s = re.sub(r'\s+', ' ', str(opis).replace('　', ' ')).strip()
+    if 'US dollar (sold)' in s and 'Japanese yen (bought)' in s:
+        return 'S'
+    if 'US dollar (bought)' in s and 'Japanese yen (sold)' in s:
+        return 'B'
+    if 'Euro (bought)' in s and 'Japanese yen (sold)' in s:
+        return 'E'
+    return 'X'
+
+
+def iw_jp_csv(tekst):
+    """Plik historii (po dekodowaniu Shift_JIS) → (zdarzenia [[RRRR-MM-DD, kwota w setkach mln jenów, kierunek]], kwartały [(rok, miesiąc od, miesiąc do, suma)]). Rok (kolumna 4) i miesiąc (kolumna 5)
+    przenoszone w dół; wiersz „…期計” = suma kwartału. Bramki: 9 kolumn; co najmniej 300 dni i 100 kwartałów; dni rosnąco; kwartały po kolei bez luk; każdy dzień w kwartale; suma kwartału = suma jego dni (±IW_JP_TOL)."""
+    wz = list(csv.reader(io.StringIO(tekst.lstrip(chr(0xFEFF)))))
+    ev, kw = [], []
+    rok = mies = None
+    for w in wz:
+        if len(w) != 9:
+            continue
+        if w[0].strip().endswith('期計'):
+            ms = re.findall(r'[A-Za-z]+', w[3])
+            lat = re.findall(r'\d{4}', w[3])
+            razem = w[6].replace(',', '').strip()
+            if not ms or not lat or any(m not in IW_MIES for m in ms) or not razem.isdigit():
+                raise RuntimeError(f'Japonia: wiersz sumy kwartału w złym układzie ({w[3][:30]!r})')
+            m1, m2 = IW_MIES[ms[0]], IW_MIES[ms[-1]]
+            if m2 - m1 != 2 or m1 % 3 != 1:
+                raise RuntimeError(f'Japonia: kwartał {w[3][:30]!r} nie jest pełnym kwartałem')
+            kw.append((int(lat[-1]), m1, m2, int(razem)))
+            continue
+        if not w[5].strip().isdigit() or not re.fullmatch(r'\d{1,3}(?:,\d{3})*', w[6].strip()):
+            continue
+        if w[3].strip().isdigit():
+            rok = int(w[3])
+        if w[4].strip():
+            if w[4].strip() not in IW_MIES3:
+                raise RuntimeError(f'Japonia: zły miesiąc {w[4][:10]!r}')
+            mies = IW_MIES3[w[4].strip()]
+        if rok is None or mies is None:
+            raise RuntimeError('Japonia: dzień bez roku albo miesiąca')
+        try:
+            d = datetime.date(rok, mies, int(w[5]))
+        except ValueError:
+            raise RuntimeError(f'Japonia: zły dzień {rok}-{mies}-{w[5]}') from None
+        ev.append([d.isoformat(), int(w[6].replace(',', '')), iw_jp_kier(w[8])])
+    if len(ev) < 300 or len(kw) < 100:
+        raise RuntimeError(f'Japonia: za mało wierszy ({len(ev)} dni, {len(kw)} kwartałów)')
+    if any(ev[i][0] < ev[i - 1][0] for i in range(1, len(ev))) or any(not 1 <= e[1] <= 300000 for e in ev):
+        raise RuntimeError('Japonia: dni nie idą rosnąco albo kwota poza zakresem')
+    for i in range(1, len(kw)):
+        a, b = kw[i - 1], kw[i]
+        if (b[0], b[1]) != ((a[0] + 1, 1) if a[2] == 12 else (a[0], a[2] + 1)):
+            raise RuntimeError(f'Japonia: luka między kwartałami {a[0]}/{a[1]} i {b[0]}/{b[1]}')
+    for y, m1, m2, razem in kw:
+        s = sum(e[1] for e in ev if e[0][:4] == str(y) and m1 <= int(e[0][5:7]) <= m2)
+        if abs(s - razem) > IW_JP_TOL:
+            raise RuntimeError(f'Japonia: suma kwartału {y}/{m1}–{m2} = {razem}, suma dni = {s}')
+    pierwszy = (kw[0][0], kw[0][1])
+    for e in ev:
+        y, m = int(e[0][:4]), int(e[0][5:7])
+        if (y, m) < pierwszy or not any(y == k[0] and k[1] <= m <= k[2] for k in kw):
+            raise RuntimeError(f'Japonia: dzień {e[0]} poza kwartałami pliku')
+    return ev, kw
+
+
+def iw_jp_koniec(kw):
+    """Ostatni dzień ostatniego kwartału pliku."""
+    y, m2 = kw[-1][0], kw[-1][2]
+    return (datetime.date(y + (m2 == 12), m2 % 12 + 1, 1) - datetime.timedelta(days=1))
+
+
+def iw_jp_lista(html_txt):
+    """Strona z listą komunikatów miesięcznych → posortowane [(data publikacji, nazwa pliku)] z odnośników „RRRRMMDDe.html” (raz w 2025 komunikat miał nazwę bez „e” — też z listy); mniej niż 20 albo zła data = błąd."""
+    nazwy = sorted(set(re.findall(r'(?<!\d)(\d{8}e?\.html)', html_txt)))
+    out = []
+    for n in nazwy:
+        try:
+            out.append((datetime.date(int(n[:4]), int(n[4:6]), int(n[6:8])), n))
+        except ValueError:
+            raise RuntimeError(f'Japonia: zła data komunikatu {n}') from None
+    if len(out) < 20:
+        raise RuntimeError(f'Japonia: lista komunikatów miesięcznych ma {len(out)} pozycji')
+    return out
+
+
+def iw_jp_data_ang(s):
+    m = re.fullmatch(r'([A-Z][a-z]+) (\d{1,2}), (\d{4})', s.strip())
+    if not m or m.group(1) not in IW_MIES:
+        raise RuntimeError(f'Japonia: zła data {s[:30]!r}')
+    try:
+        return datetime.date(int(m.group(3)), IW_MIES[m.group(1)], int(m.group(2)))
+    except ValueError:
+        raise RuntimeError(f'Japonia: zła data {s[:30]!r}') from None
+
+
+def iw_jp_okres(html_txt):
+    """Komunikat miesięczny → (od, do, kwota w mld jenów). Kwota „¥ 0” albo „¥ 15,399.3 billion” — inna jednostka przy kwocie niezerowej = błąd."""
+    t = re.sub(r'<script.*?</script>|<style.*?</style>', ' ', html_txt, flags=re.S | re.I)
+    t = re.sub(r'\s+', ' ', _html.unescape(re.sub(r'<[^>]+>', ' ', t)))
+    m = re.search(r'for the period from ([A-Z][a-z]+ \d{1,2}, \d{4}) through ([A-Z][a-z]+ \d{1,2}, \d{4}) [¥￥] ?([\d,]+(?:\.\d+)?)( billion)?', t)
+    if not m:
+        raise RuntimeError('Japonia: komunikat miesięczny w innym układzie')
+    od, do = iw_jp_data_ang(m.group(1)), iw_jp_data_ang(m.group(2))
+    v = float(m.group(3).replace(',', ''))
+    if v and not m.group(4):
+        raise RuntimeError('Japonia: kwota komunikatu bez jednostki')
+    if not od < do or (do - od).days > 45 or not 0 <= v <= IW_JP_MAX_OKRES:
+        raise RuntimeError(f'Japonia: okres {od}–{do} albo kwota {v} poza zakresem')
+    return od, do, round(v, 1)
+
+
+def iw_jp_czesc(prev):
+    ev, kw = iw_jp_csv(iw_pobierz(IW_JP_CSV, bajty=True).decode('cp932', 'replace'))
+    kon = iw_jp_koniec(kw)
+    lista = iw_jp_lista(iw_pobierz(IW_JP_IDX))
+    stare = {r[3]: r for r in (prev.get('mo') if isinstance(prev, dict) and isinstance(prev.get('mo'), list) else []) if isinstance(r, list) and len(r) == 4}
+    mo, nowe = [], 0
+    for pub, nazwa in (x for x in lista if x[0] > kon):
+        r = stare.get(pub.isoformat())
+        if r is None:
+            if nowe >= IW_JP_MAX_NOWYCH:
+                raise RuntimeError('Japonia: za dużo nowych komunikatów miesięcznych naraz')
+            nowe += 1
+            od, do, v = iw_jp_okres(iw_pobierz(IW_JP_MON.format(f=nazwa)))
+            if not do <= pub <= do + datetime.timedelta(days=10):
+                raise RuntimeError(f'Japonia: komunikat z {pub} dla okresu do {do}')
+            r = [od.isoformat(), do.isoformat(), v, pub.isoformat()]
+        if iw_dzien(r[1]) > kon:
+            mo.append(r)
+    mo.sort(key=lambda r: r[1])
+    for i, r in enumerate(mo):
+        nast = iw_dzien(mo[i - 1][1]) + datetime.timedelta(days=1) if i else None
+        if (i and iw_dzien(r[0]) != nast) or (not i and iw_dzien(r[0]) > kon + datetime.timedelta(days=1)):
+            raise RuntimeError(f'Japonia: luka w komunikatach miesięcznych przed okresem {r[0]}–{r[1]}')
+    asof = iw_dzien(mo[-1][1]) if mo else kon
+    return {'asof': asof.isoformat(), 'kw_do': kon.isoformat(), 'ev': ev, 'mo': mo}
+
+
+# ---------- Hongkong ----------
+def iw_hk_czesc(prev, dzis):
+    j = iw_json(IW_HK_URL)
+    h = j.get('header') if isinstance(j, dict) else None
+    if not isinstance(h, dict) or h.get('success') is not True or str(h.get('err_code')) != '0000':
+        raise RuntimeError('Hongkong: odpowiedź z kodem błędu')
+    rec = j['result'].get('records') if isinstance(j.get('result'), dict) else None
+    if not isinstance(rec, list) or len(rec) < IW_HK_MIN:
+        raise RuntimeError(f'Hongkong: za mało sesji ({len(rec) if isinstance(rec, list) else "brak"})')
+    wz = []
+    for r in rec:
+        d = iw_dzien(r.get('end_of_date')) if isinstance(r, dict) else None
+        zam = iw_liczba(r.get('closing_balance'), 0, IW_HK_MAX) if d else None
+        a = r.get('market_activities')
+        if d is None or zam is None or zam != int(zam) or not isinstance(a, str) or not re.fullmatch(r'[+-]?\d{1,6}', a.strip()):
+            raise RuntimeError(f'Hongkong: zły wiersz {str(r)[:60]}')
+        akt = int(a)
+        if abs(akt) > IW_HK_AKT:
+            raise RuntimeError(f'Hongkong: interwencja {akt} poza zakresem')
+        wz.append((d, int(zam), akt, iw_liczba(r.get('cu_weakside'), 7.0, 8.5), iw_liczba(r.get('cu_strongside'), 7.0, 8.5)))
+    wz.sort(key=lambda x: x[0])
+    if any(wz[i][0] == wz[i - 1][0] for i in range(1, len(wz))):
+        raise RuntimeError('Hongkong: powtórzony dzień')
+    ost = wz[-1]
+    if ost[3] is None or ost[4] is None or not ost[4] < ost[3]:
+        raise RuntimeError('Hongkong: pasmo kursu w złym kształcie')
+    if (dzis - ost[0]).days > 10 or ost[0] > dzis:
+        raise RuntimeError(f'Hongkong: ostatni dzień {ost[0]} (stoi albo z przyszłości)')
+    return {'asof': ost[0].isoformat(), 'od': wz[0][0].isoformat(), 'band': [ost[4], ost[3]],
+            's': [[x[0].isoformat(), x[1], x[2]] for x in wz[-IW_N:]],
+            'ev': [[x[0].isoformat(), x[2], x[1]] for x in wz if x[2] != 0]}
+
+
+# ---------- Argentyna ----------
+def iw_ar_szereg(j, idv, lo, hi, dzis):
+    if not isinstance(j, dict) or j.get('status') != 200 or not isinstance(j.get('results'), list) or len(j['results']) != 1:
+        raise RuntimeError('Argentyna: odpowiedź w innym układzie')
+    r = j['results'][0]
+    if not isinstance(r, dict) or r.get('idVariable') != idv or not isinstance(r.get('detalle'), list):
+        raise RuntimeError(f'Argentyna: seria {idv} w innym układzie')
+    meta = j.get('metadata', {}).get('resultset', {}) if isinstance(j.get('metadata'), dict) else {}
+    if meta.get('count') != len(r['detalle']):
+        raise RuntimeError(f'Argentyna: seria {idv} ucięta ({meta.get("count")} wobec {len(r["detalle"])})')
+    wz = []
+    for x in r['detalle']:
+        if isinstance(x, dict) and x.get('valor') is None and iw_dzien(x.get('fecha')):
+            continue   # dzień bez wartości w źródle = dzień pominięty (nigdy zero); zły tekst albo liczba poza zakresem = błąd
+        d = iw_dzien(x.get('fecha')) if isinstance(x, dict) else None
+        v = iw_liczba(x.get('valor'), lo, hi) if d else None
+        if d is None or v is None:
+            raise RuntimeError(f'Argentyna: seria {idv}, zły wiersz {str(x)[:50]}')
+        wz.append((d, round(v, 1)))
+    wz.sort(key=lambda x: x[0])
+    if len(wz) < 100 or any(wz[i][0] == wz[i - 1][0] for i in range(1, len(wz))):
+        raise RuntimeError(f'Argentyna: seria {idv} za krótka albo z powtórzeniem ({len(wz)})')
+    if (dzis - wz[-1][0]).days > 14 or wz[-1][0] > dzis:
+        raise RuntimeError(f'Argentyna: seria {idv}, ostatni dzień {wz[-1][0]}')
+    return wz
+
+
+def iw_ar_czesc(prev, dzis):
+    a, b = (dzis - datetime.timedelta(days=IW_DNI_WSTECZ)).isoformat(), dzis.isoformat()
+    rez = iw_ar_szereg(iw_json(IW_AR_URL.format(id=IW_AR_RES, a=a, b=b)), IW_AR_RES, 1000, 300000, dzis)
+    for i in range(1, len(rez)):
+        if abs(rez[i][1] / rez[i - 1][1] - 1) > 0.4:
+            raise RuntimeError(f'Argentyna: rezerwy {rez[i][0]} zmieniły się o ponad 40% w dzień')
+    buy = iw_ar_szereg(iw_json(IW_AR_URL.format(id=IW_AR_BUY, a=a, b=b)), IW_AR_BUY, -6000, 6000, dzis)
+    return {'asof_res': rez[-1][0].isoformat(), 'asof_buy': buy[-1][0].isoformat(),
+            'res': [[x[0].isoformat(), x[1]] for x in rez[-IW_N:]], 'buy': [[x[0].isoformat(), x[1]] for x in buy[-IW_N:]]}
+
+
+# ---------- Brazylia ----------
+def iw_br_czesc(prev, dzis):
+    _BCB_WS['chw'] = []; _BCB_WS.pop('ws_zle', None)   # liczniki chwilowych błędów interfejsu JSON — od nowa w każdym przebiegu (jak w bcb_part)
+    _BCB_WS.pop('json_zle', None); _BCB_WS['soap_ok'] = 0
+    now_br = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc) - datetime.timedelta(hours=3)
+    a, b = (now_br - datetime.timedelta(days=IW_DNI_WSTECZ)).strftime('%d/%m/%Y'), now_br.strftime('%d/%m/%Y')
+    j = _bcb_get(IW_BR_SGS, a, b)
+    if not isinstance(j, list):
+        raise RuntimeError('Brazylia: nieznany kształt odpowiedzi')
+    wz = {}
+    for r in j:
+        d = iw_dzien(_bcb_date(r.get('data'))) if isinstance(r, dict) else None
+        v = iw_liczba(_num(r.get('valor')), 100000, 1000000) if d else None
+        if d is None or v is None:
+            raise RuntimeError(f'Brazylia: zły wiersz {str(r)[:50]}')
+        wz[d] = v
+    wz = sorted(wz.items())
+    if len(wz) < 150:
+        raise RuntimeError(f'Brazylia: za mało sesji ({len(wz)})')
+    for i in range(1, len(wz)):
+        if abs(wz[i][1] / wz[i - 1][1] - 1) > 0.05:
+            raise RuntimeError(f'Brazylia: rezerwy {wz[i][0]} zmieniły się o ponad 5% w dzień')
+    if (dzis - wz[-1][0]).days > 12 or wz[-1][0] > dzis:
+        raise RuntimeError(f'Brazylia: ostatni dzień {wz[-1][0]}')
+    return {'asof': wz[-1][0].isoformat(), 's': [[d.isoformat(), v] for d, v in wz[-IW_N:]]}
+
+
+# ---------- Kanada ----------
+def iw_ca_czesc(prev, dzis):
+    """Odczyty oficjalnych rezerw: razem, dolary, inne waluty, złoto, SDR, pozycja w MFW (mln USD) + pozycja „pozostałe aktywa” (tylko w części odczytów, w starszych jej brak — wtedy liczymy ją jako resztę).
+    Odczyt bez całości albo któregoś składnika (zdarza się wiersz z samą pozycją „pozostałe”) jest pomijany; ostatni odczyt musi być pełny. Bramki: całość − pięć składników = reszta w [0, 10% całości] i równa podanej
+    pozycji „pozostałe” (±2), odstęp między odczytami najwyżej 14 dni, ostatni odczyt nie starszy niż 75 dni."""
+    j = iw_json(IW_CA_URL)
+    obs = j.get('observations') if isinstance(j, dict) else None
+    if not isinstance(obs, list) or len(obs) < 20:
+        raise RuntimeError('Kanada: za mało odczytów')
+    wz, pominiete = [], []
+    for o in obs:
+        d = iw_dzien(o.get('d')) if isinstance(o, dict) else None
+        if d is None:
+            raise RuntimeError(f'Kanada: zły odczyt {str(o)[:60]}')
+        v = []
+        for i in IW_CA_IDS[:6]:
+            x = o.get(i)
+            n = iw_liczba(_num(x.get('v')) if isinstance(x, dict) else None, 0, 1000000)
+            v.append(None if n is None else int(round(n)))
+        if None in v:
+            pominiete.append(d)
+            continue
+        reszta = v[0] - sum(v[1:])
+        x = o.get(IW_CA_IDS[6])
+        inne = iw_liczba(_num(x.get('v')) if isinstance(x, dict) else None, 0, 1000000)
+        if not 0 <= reszta <= v[0] * 0.1 or (inne is not None and abs(reszta - inne) > 2):
+            raise RuntimeError(f'Kanada: składniki ≠ razem w odczycie {d}')
+        wz.append((d, v))
+    wz.sort(key=lambda x: x[0])
+    if len(wz) < 20 or (pominiete and max(pominiete) > wz[-1][0]):
+        raise RuntimeError('Kanada: za mało pełnych odczytów albo ostatni odczyt niepełny')
+    if any(wz[i][0] == wz[i - 1][0] or (wz[i][0] - wz[i - 1][0]).days > 14 for i in range(1, len(wz))):
+        raise RuntimeError('Kanada: powtórzenie albo luka większa niż 14 dni')
+    if (dzis - wz[-1][0]).days > 75 or wz[-1][0] > dzis:
+        raise RuntimeError(f'Kanada: ostatni odczyt {wz[-1][0]}')
+    return {'asof': wz[-1][0].isoformat(), 's': [[d.isoformat()] + v for d, v in wz]}
+
+
+# ---------- oczekiwania rynku w Brazylii ----------
+def iw_focus_ind(klucz, wiersze, lo, hi, dzis):
+    """Wiersze jednego wskaźnika (dzienne, trzy lata odniesienia od roku ostatniego dnia) → {'last': [[mediana, średnia, odchylenie, min, max, respondenci] × 3], 'w': [[[dzień, mediana] …] × 3]}; ostatni dzień każdego
+    tygodnia (do IW_FOCUS_TYG tygodni). Bramki: komplet trzech lat w ostatnim dniu, mediana w [min, max] i w zakresie, odchylenie ≥ 0, co najmniej 5 respondentów, ostatni dzień nie starszy niż IW_FOCUS_MAX_DNI."""
+    if not isinstance(wiersze, list) or not wiersze:
+        raise RuntimeError(f'Focus {klucz}: brak wierszy')
+    dni_ok = [iw_dzien(r.get('Data')) for r in wiersze if isinstance(r, dict)]
+    if not all(dni_ok):
+        raise RuntimeError(f'Focus {klucz}: zły dzień w wierszu')
+    ost = max(dni_ok)
+    if (dzis - ost).days > IW_FOCUS_MAX_DNI or ost > dzis or ost.weekday() > 4:
+        raise RuntimeError(f'Focus {klucz}: ostatni dzień {ost}')
+    lata = [ost.year, ost.year + 1, ost.year + 2]
+    by = {}
+    for r in wiersze:   # ścisła walidacja tylko lat odniesienia z ostatniego dnia (dalsze lata w odpowiedzi są pomijane)
+        d, ref = iw_dzien(r.get('Data')), r.get('DataReferencia')
+        if not isinstance(ref, str) or not re.fullmatch(r'\d{4}', ref) or int(ref) not in lata:
+            continue
+        med, sr, sd = iw_liczba(r.get('Mediana'), lo, hi), iw_liczba(r.get('Media'), lo, hi), iw_liczba(r.get('DesvioPadrao'), 0, 1000)
+        mn, mx, n = iw_liczba(r.get('Minimo'), lo, hi), iw_liczba(r.get('Maximo'), lo, hi), iw_liczba(r.get('numeroRespondentes'), 0, 100000)
+        if None in (med, sr, sd, mn, mx, n) or not mn <= med <= mx:
+            raise RuntimeError(f'Focus {klucz}: zły wiersz {str(r)[:60]}')
+        by.setdefault(d, {})[int(ref)] = [round(med, 4), round(sr, 4), round(sd, 4), round(mn, 4), round(mx, 4), int(n)]
+    dni = sorted(by)
+    if ost not in by or any(y not in by[ost] for y in lata):
+        raise RuntimeError(f'Focus {klucz}: w dniu {ost} brakuje lat {[y for y in lata if y not in by.get(ost, {})]}')
+    if any(by[ost][y][5] < 5 for y in lata):
+        raise RuntimeError(f'Focus {klucz}: mniej niż 5 respondentów')
+    tyg = {}
+    for d in dni:
+        if all(y in by[d] for y in lata):
+            tyg[d.isocalendar()[:2]] = d
+    pr = sorted(tyg.values())[-IW_FOCUS_TYG:]
+    return {'last': [by[ost][y] for y in lata], 'w': [[[d.isoformat(), by[d][y][0]] for d in pr] for y in lata]}, ost, lata
+
+
+def iw_focus_czesc(prev, dzis):
+    od = (dzis - datetime.timedelta(days=IW_FOCUS_DNI)).isoformat()
+    out, ost, lata = {}, None, None
+    for klucz, ind, lo, hi in IW_FOCUS_IND:
+        j = iw_json(IW_FOCUS_URL.format(ind=ind, od=od))
+        w = j.get('value') if isinstance(j, dict) else None
+        o, d, l = iw_focus_ind(klucz, w, lo, hi, dzis)
+        if ost is not None and (d != ost or l != lata):
+            raise RuntimeError('Focus: wskaźniki z różnych dni badania')
+        out[klucz], ost, lata = o, d, l
+    return {'asof': ost.isoformat(), 'y': lata, 'i': out}
+
+
+def iw_czesc(k, prev_part, dzis):
+    if k == 'jp':
+        out = iw_jp_czesc(prev_part)
+    elif k == 'hk':
+        out = iw_hk_czesc(prev_part, dzis)
+    elif k == 'ar':
+        out = iw_ar_czesc(prev_part, dzis)
+    elif k == 'br':
+        out = iw_br_czesc(prev_part, dzis)
+    elif k == 'ca':
+        out = iw_ca_czesc(prev_part, dzis)
+    else:
+        out = iw_focus_czesc(prev_part, dzis)
+    out['t'] = NOW
+    return out
+
+
+def iw_swieza(prev, k):
+    """Czy udana część poprzedniego pliku jest młodsza niż IW_REUSE_MIN[k] min (wtedy bez ponownego pytania)."""
+    if not isinstance(prev.get(k), dict) or _dict(prev.get('ok')).get(k) is not True:
+        return False
+    tk, tn = _ix_dt(_dict(prev.get('part_at')).get(k)), _ix_dt(NOW)
+    return tk is not None and tn is not None and 0 <= (tn - tk).total_seconds() < IW_REUSE_MIN[k] * 60
+
+
+def build_interwencje(prev=None, run_t0=None):
+    """Plik data/interwencje.json (v401): sześć części (jp, hk, ar, br, ca, focus) z własnym ok / part_at / errs; udana część młodsza niż IW_REUSE_MIN[k] min jest używana ponownie; część z błędem zostaje z poprzedniego
+    pliku z własną chwilą, nigdy pusta zamiast ostatnich danych; żadna część nie odpowiedziała (i żadna nie jest świeża) = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == IW_V else {}
+    pat = _dict(prev.get('part_at'))
+    dzis = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc).date()
+    out = {'v': IW_V, 'at': NOW, 'src': IW_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    for k in IW_PARTS:
+        if iw_swieza(prev, k):
+            out[k] = prev[k]
+            out['ok'][k] = True
+            out['part_at'][k] = pat.get(k)
+            continue
+        try:
+            out[k] = iw_czesc(k, prev.get(k), dzis)
+            out['ok'][k] = True
+            out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
+            msg = mask(f'{e}')[:160]
+            META['errors'].append(mask(f'{IW_PX} {IW_LABEL[k]}: {msg}')[:220])
+            out['ok'][k] = False
+            out['errs'][k] = msg
+            if isinstance(prev.get(k), dict):
+                out[k] = prev[k]
+                out['part_at'][k] = pat.get(k) or prev.get('at')
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+ZRODLA_META.update({'interw_jp': 'mof-japonii', 'interw_hk': 'hkma', 'interw_ar': 'bcra', 'interw_br': 'bcb', 'interw_ca': 'bank-kanady', 'interw_focus': 'bcb-focus'})   # v401: trzy nowe źródła (hkma, bcra, bcb-focus); reszta to już liczone
 
 
 if __name__ == '__main__':
