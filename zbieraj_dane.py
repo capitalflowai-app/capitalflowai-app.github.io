@@ -32298,6 +32298,30 @@ def main():
                 save('nowcasty', prev_nc)
     META['ok']['nowcasty_pkb'] = stan_nc['pkb']; META['ok']['nowcasty_cpi'] = stan_nc['cpi']
     # v376: koniec bloku nowcastów
+    # v383 (F11Z4): SKARB USA (data/skarb-usa.json: wpływy dzienne — cła i podatki u źródła, emisje i umorzenia długu rynkowego, wykupy papierów z rynku; trzy części z własnym ok / part_at / errs) — co SK_EVERY_MIN min,
+    # plik z częścią nieudaną ponawiany po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok: skarb_wplywy, skarb_dlug, skarb_wykupy (to samo źródło co TGA
+    # i aukcje — liczba źródeł bez zmian).
+    prev_sk = previous('skarb-usa')
+    if isinstance(prev_sk, dict) and prev_sk.get('v') == SK_V and fresh_pelny(prev_sk, SK_EVERY_MIN):
+        save('skarb-usa', prev_sk)
+        stan_sk = {}
+        for k_sk in SK_PARTS:
+            if _dict(prev_sk.get('ok')).get(k_sk) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{SK_PX} {SK_LABEL[k_sk]}: {str(_dict(prev_sk.get('errs')).get(k_sk) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_sk[k_sk] = False
+            else:
+                stan_sk[k_sk] = 'cached'
+    else:
+        try:
+            sk_ = build_skarb_dts(prev_sk, run_t0=_RUN_T0[0]); save('skarb-usa', sk_)
+            stan_sk = {k_sk: sk_['ok'].get(k_sk) is True for k_sk in SK_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{SK_PX}: {e}')[:200])
+            stan_sk = {k_sk: False for k_sk in SK_PARTS}
+            if isinstance(prev_sk, dict):
+                save('skarb-usa', prev_sk)
+    META['ok']['skarb_wplywy'] = stan_sk['wplywy']; META['ok']['skarb_dlug'] = stan_sk['dlug']; META['ok']['skarb_wykupy'] = stan_sk['wykupy']
+    # v383: koniec bloku skarbu USA
     # v381 (F11Z2): EUROPA — FUNDUSZE I OSZCZĘDNOŚCI (data/europa-fundusze.json: przepływy netto do funduszy inwestycyjnych strefy euro i pięciu krajów oraz transakcje finansowe gospodarstw domowych w sześciu krajach i strefie euro;
     # dwie części z własnym ok / part_at / errs) — co EF_EVERY min, plik z częścią nieudaną ponawiany po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json).
     # META ok: europa_fundusze_ivf, europa_fundusze_hh (te same dwie instytucje co dotąd — liczba źródeł bez zmian).
@@ -37987,6 +38011,308 @@ def build_plusa(prev=None, run_t0=None):
 
 
 ZRODLA_META.update({'plusa_stopy': 'ny-fed', 'plusa_repo': 'ny-fed', 'plusa_wol': 'ofr'})   # v382: NY Fed i urząd badań finansowych (OFR) są już liczone — liczba źródeł bez zmian
+
+
+# ===================== v383 (F11Z4): SKARB USA — CŁA I PODATKI DZIENNIE, EMISJE I UMORZENIA DŁUGU, WYKUPY (data/skarb-usa.json; publiczne zapytania GET bez klucza) =====================
+# Trzy części jednego pliku, każda z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie (nigdy puste zamiast ostatnich danych):
+#   wplywy — dzienne wpływy do kasy Skarbu USA: cła i opłaty celne oraz podatki od płac i dochodów pobierane u źródła (rynek pracy przed danymi miesięcznymi). Jedno zapytanie o wszystkie wpłaty
+#            z ostatnich 3 miesięcy kalendarzowych (od 1. dnia miesiąca sprzed dwóch miesięcy; ok. 600 KB), z których bierzemy dwie kategorie. Kategoria ceł zmieniła nazwę w listopadzie 2025
+#            („…Customs and Certain Excise Taxes” → „…Customs Duties, Taxes, and Fees”; kwoty miesiąca do dnia zmiany i po niej są jedną serią) — łączymy po początku nazwy, nie po całej nazwie.
+#   dlug   — dzienne emisje i umorzenia długu RYNKOWEGO (bony oraz noty i obligacje; bez długu wewnątrzrządowego i bez narosłego kapitału papierów indeksowanych inflacją — to nie gotówka).
+#   wykupy — operacje wykupu papierów z rynku (liczone od kwietnia 2024): ostatnie zakończone (oferty, kupione, limit) i zapowiedziane najbliższe. Zapowiedzi aukcji nie bierzemy z tego źródła:
+#            lista zapowiedzi stoi tam w miejscu od 2024 roku (sprawdzone 15.10.2026), aukcje ma już kalendarz.
+# Kwoty z dziennego sprawozdania są w milionach dolarów, z wykupów — w dolarach (przeliczamy na miliony). Dane za dany dzień ukazują się następnego dnia roboczego po południu czasu USA, więc
+# najnowszy dzień ma zwykle 1–2 dni, a po weekendzie z poniedziałkowym świętem do 5 dni (test wsteczny 2021–2026: kontrola). Bramki: pełna lista (jedna strona wyników), znane kategorie i rodzaje papierów
+# (nieznany = błąd części, nie cicha zmiana liczby), brak powtórzeń, kompletne dni, kwoty w zakresach, suma doby w miesiącu = narastająco od początku miesiąca (z tolerancją zaokrągleń).
+SK_V = 1
+SK_EVERY_MIN = 180            # min — dane dzienne ukazują się raz na dobę roboczą, wykupy kilka razy w tygodniu; część z błędem: ponowienie po NIEPELNY_MIN (fresh_pelny)
+SK_BASE = 'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting'
+SK_PARTS = ('wplywy', 'dlug', 'wykupy')
+SK_LABEL = {'wplywy': 'wpływy', 'dlug': 'dług', 'wykupy': 'wykupy'}
+SK_PX = 'Skarb USA'
+SK_TIMEOUT = 60               # s — jedno zapytanie
+SK_SLEEP = 0.6                # s — odstęp między zapytaniami
+SK_STRONA = 10000             # wierszy na stronę — wynik w jednej stronie, inaczej błąd (lista ucięta)
+SK_DNI_MIN = 35               # dni robocze w oknie 3 miesięcy (zwykle 62–66); mniej = niepełne dane
+SK_WYKRES_DNI = 60            # dni kalendarzowe wykresów na stronie
+SK_CLA = (-200, 25000)        # mln USD na dobę — cła (dziś 300–600)
+SK_POD = (0, 250000)          # mln USD na dobę — podatki u źródła (dziś 8–70 tys.)
+SK_DLUG_ZAKRES = (-10000, 2500000)   # mln USD na dobę — jedna grupa papierów (bony do ~400 tys.)
+SK_TOL_MIN = 3                # mln USD — dolna granica tolerancji zgodności sumy doby z narastającym od początku miesiąca (zaokrąglenia źródła)
+SK_TOL_UL = 0.002             # ułamek narastającej kwoty — górna część tolerancji
+SK_WYKUPY_N = 40              # operacji w jednym zapytaniu (najnowsze; ok. 3 miesiące)
+SK_WYKUPY_OST = 24            # zakończonych operacji w pliku
+SK_WYKUPY_MAX = 100000        # mln USD — limit jednej operacji powyżej tego to błąd odczytu
+SK_RE_CLA = re.compile(r'^DHS - Customs\b')
+SK_POD_KAT = 'Taxes - Withheld Individual/FICA'
+SK_TYP = {'Liquidity Support': 'L', 'Cash Management': 'C'}
+SK_RODZ = {'Nominal Coupons': 'N', 'TIPS': 'T'}
+SK_RE_TERMIN = re.compile(r'^\d{1,2}(?:Mo|Y)? to \d{1,2}(?:Mo|Y)$')
+SK_RYN = {'Bills': 'b', 'Notes': 'o', 'Bonds': 'o', 'Federal Financing Bank': 'o'}   # papiery rynkowe: bony (b) i obligacje (o)
+SK_RYN_POMIN = 'Inflation-Protected Securities Increment'                         # narosły kapitał papierów indeksowanych inflacją (emisje): nie gotówka
+SK_WYMAGANE = (('Issues', 'Bills'), ('Issues', 'Notes'), ('Issues', 'Bonds'), ('Redemptions', 'Bills'), ('Redemptions', 'Notes'), ('Redemptions', 'Bonds'))
+SK_SRC = ('CapitalFlowAI — dzienne wpływy (cła, podatki u źródła), emisje i umorzenia długu rynkowego oraz wykupy papierów z rynku Skarbu USA z publicznych danych urzędowych; '
+          'daty z samych źródeł, pobranie części w part_at (UTC)')
+
+
+def sk_dzien(s):
+    """„RRRR-MM-DD” → date; inny zapis albo nieistniejący dzień = ValueError."""
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        raise ValueError(f'zły dzień {str(s)[:20]!r}')
+    try:
+        return datetime.date.fromisoformat(s)
+    except ValueError:
+        raise ValueError(f'zły dzień {s!r}') from None
+
+
+def sk_liczba(x, lo, hi, co):
+    """Liczba z odpowiedzi (tekst dziesiętny albo liczba) w zakresie [lo, hi]; „null”, pusty tekst, wartość logiczna, nie-liczba, NaN i poza zakresem = ValueError."""
+    if isinstance(x, bool):
+        raise ValueError(f'{co}: wartość logiczna')
+    if isinstance(x, (int, float)):
+        v = float(x)
+    elif isinstance(x, str):
+        try:
+            v = float(x.strip())
+        except ValueError:
+            raise ValueError(f'{co}: nie liczba ({x[:12]!r})') from None
+    else:
+        raise ValueError(f'{co}: zły typ')
+    if v != v or not lo <= v <= hi:
+        raise ValueError(f'{co}: poza zakresem ({v})')
+    return v
+
+
+def sk_poczatek(dzis):
+    """Pierwszy dzień miesiąca sprzed dwóch miesięcy (okno 3 miesięcy kalendarzowych razem z bieżącym)."""
+    y, m = dzis.year, dzis.month - 2
+    if m < 1:
+        m += 12
+        y -= 1
+    return datetime.date(y, m, 1)
+
+
+def _sk_lista(j, co, calosc=True):
+    """Wiersze odpowiedzi; zły kształt = błąd; przy calosc (dane dzienne z filtrem dat) lista ucięta (więcej niż jedna strona) też. Wykupy czytamy tylko od najnowszych (calosc=False)."""
+    d = j.get('data') if isinstance(j, dict) else None
+    m = j.get('meta') if isinstance(j, dict) and isinstance(j.get('meta'), dict) else {}
+    if not isinstance(d, list):
+        raise RuntimeError(f'{co}: odpowiedź ma zły kształt')
+    if calosc and (m.get('total-pages') not in (None, 1) or (m.get('total-count') is not None and m.get('total-count') != len(d))):
+        raise RuntimeError(f'{co}: lista ucięta ({m.get("total-count")} wierszy, {m.get("total-pages")} stron)')
+    return d
+
+
+def _sk_suma_miesiaca(per, klucze, wynik):
+    """Zgodność: suma doby w miesiącu = narastająco od początku miesiąca z ostatniego dnia (źródło podaje obie liczby) — niezgodność = brak dni albo ucięcie. per: {dzień: {klucz: (doba, narastająco)}}."""
+    mies = {}
+    for d in sorted(per):
+        mies.setdefault(d.isoformat()[:7], []).append(d)
+    for m, dni in mies.items():
+        for k in klucze:
+            s = sum(per[d][k][0] for d in dni)
+            nar = per[dni[-1]][k][1]
+            if abs(s - nar) > max(SK_TOL_MIN, SK_TOL_UL * abs(nar)):
+                raise RuntimeError(f'{wynik}: suma dób {m} ({round(s)}) ≠ narastająco od początku miesiąca ({round(nar)})')
+    return mies
+
+
+def _sk_porownanie(dni, wart, asof):
+    """Narastająco od początku miesiąca ostatniego dnia i w tym samym okresie poprzedniego miesiąca (do tego samego dnia miesiąca). wart: {dzień: [liczby]} → (miesiąc, poprzedni, dzień, [bieżące], [poprzednie])."""
+    m = asof.isoformat()[:7]
+    py, pm = (asof.year, asof.month - 1) if asof.month > 1 else (asof.year - 1, 12)
+    pmies = f'{py:04d}-{pm:02d}'
+    n = len(next(iter(wart.values())))
+    cur, prv = [0.0] * n, [0.0] * n
+    for d in dni:
+        if d.isoformat()[:7] == m:
+            for i, v in enumerate(wart[d]):
+                cur[i] += v
+        elif d.isoformat()[:7] == pmies and d.day <= asof.day:
+            for i, v in enumerate(wart[d]):
+                prv[i] += v
+    return m, pmies, asof.day, [round(v) for v in cur], [round(v) for v in prv]
+
+
+def parse_sk_wplywy(j, start, dzis):
+    """Odpowiedź o wpłatach do kasy → {'asof', 'd': [[dzień, cła, podatki u źródła]] (rosnąco, mln USD), 'mies': {miesiąc: [cła, podatki, ostatni dzień]}, 'por': porównanie z poprzednim miesiącem, 'kat': dzień
+    pierwszego wiersza kategorii ceł pod późniejszą nazwą (zmiana nazwy) albo None}. Kategorie: cła = nazwa zaczynająca się od „DHS - Customs” (obie nazwy), podatki = „Taxes - Withheld Individual/FICA”."""
+    rows = _sk_lista(j, 'wpływy')
+    per, nazwy = {}, {}
+    for r in rows:
+        if not isinstance(r, dict):
+            raise RuntimeError('wpływy: wiersz ma zły kształt')
+        c = str(r.get('transaction_catg') or '')
+        if SK_RE_CLA.match(c):
+            k, zak = 'cla', SK_CLA
+        elif c == SK_POD_KAT:
+            k, zak = 'pod', SK_POD
+        else:
+            continue
+        d = sk_dzien(r.get('record_date'))
+        if not start <= d <= dzis:
+            raise RuntimeError(f'wpływy: dzień {d} poza oknem')
+        if k in per.setdefault(d, {}):
+            raise RuntimeError(f'wpływy: powtórzony wiersz {k} z {d}')
+        per[d][k] = (sk_liczba(r.get('transaction_today_amt'), *zak, f'wpływy {k} doba'), sk_liczba(r.get('transaction_mtd_amt'), -1e7, 1e7, f'wpływy {k} narastająco'))
+        if k == 'cla':
+            nazwy[c] = min(nazwy.get(c, d), d)
+    dni = sorted(per)
+    if len(dni) < SK_DNI_MIN:
+        raise RuntimeError(f'wpływy: tylko {len(dni)} dni z kategoriami (min. {SK_DNI_MIN})')
+    for d in dni:
+        if set(per[d]) != {'cla', 'pod'}:
+            raise RuntimeError(f'wpływy: brak kategorii w dniu {d}')
+    mies = _sk_suma_miesiaca(per, ('cla', 'pod'), 'wpływy')
+    asof = dni[-1]
+    m, pm, dd, cur, prv = _sk_porownanie(dni, {d: [per[d]['cla'][0], per[d]['pod'][0]] for d in dni}, asof)
+    ost = sorted(nazwy.items(), key=lambda x: x[1])
+    return {'asof': asof.isoformat(), 'd': [[d.isoformat(), round(per[d]['cla'][0]), round(per[d]['pod'][0])] for d in dni],
+            'mies': {mm: [round(sum(per[d]['cla'][0] for d in ds)), round(sum(per[d]['pod'][0] for d in ds)), ds[-1].isoformat()] for mm, ds in mies.items()},
+            'por': {'m': m, 'pm': pm, 'dzien': dd, 'cla': [cur[0], prv[0]], 'pod': [cur[1], prv[1]]},
+            'kat': ost[-1][1].isoformat() if len(ost) > 1 else None}
+
+
+def parse_sk_dlug(j, start, dzis):
+    """Odpowiedź o operacjach na długu publicznym → {'asof', 'd': [[dzień, emisje bonów, emisje obligacji, umorzenia bonów, umorzenia obligacji]] (rosnąco, mln USD), 'mies', 'por'} — tylko dług RYNKOWY
+    (bony; noty, obligacje i fundusz bankowy jako „obligacje”); emisje narosłego kapitału papierów indeksowanych inflacją pomijamy; dług nierynkowy pomijamy. Nieznany rodzaj rynkowy = błąd."""
+    rows = _sk_lista(j, 'dług')
+    per, widziane, linie = {}, set(), {}
+    for r in rows:
+        if not isinstance(r, dict):
+            raise RuntimeError('dług: wiersz ma zły kształt')
+        rodz, rynek, sec = r.get('transaction_type'), r.get('security_market'), r.get('security_type')
+        if rodz not in ('Issues', 'Redemptions') or rynek not in ('Marketable', 'Nonmarketable'):
+            raise RuntimeError(f'dług: nieznany rodzaj operacji {str(rodz)[:20]!r}/{str(rynek)[:20]!r}')
+        d = sk_dzien(r.get('record_date'))
+        if not start <= d <= dzis:
+            raise RuntimeError(f'dług: dzień {d} poza oknem')
+        kl = (d, rodz, rynek, sec, r.get('security_type_desc'))
+        if kl in widziane:
+            raise RuntimeError(f'dług: powtórzony wiersz {kl[1]}/{kl[3]} z {d}')
+        widziane.add(kl)
+        if rynek != 'Marketable':
+            continue
+        if rodz == 'Issues' and sec == SK_RYN_POMIN:
+            continue
+        if sec not in SK_RYN:
+            raise RuntimeError(f'dług: nieznany rodzaj papieru rynkowego {str(sec)[:30]!r}')
+        g = ('i' if rodz == 'Issues' else 'r') + SK_RYN[sec]
+        a = per.setdefault(d, {})
+        t0, n0 = a.get(g, (0.0, 0.0))
+        a[g] = (t0 + sk_liczba(r.get('transaction_today_amt'), *SK_DLUG_ZAKRES, f'dług {g} doba'), n0 + sk_liczba(r.get('transaction_mtd_amt'), -1e8, 1e8, f'dług {g} narastająco'))
+        linie.setdefault(d, set()).add((rodz, sec))
+    dni = sorted(per)
+    if len(dni) < SK_DNI_MIN:
+        raise RuntimeError(f'dług: tylko {len(dni)} dni (min. {SK_DNI_MIN})')
+    for d in dni:
+        if not set(SK_WYMAGANE) <= linie[d]:
+            raise RuntimeError(f'dług: niekompletny dzień {d}')
+        for g in ('ib', 'io', 'rb', 'ro'):
+            per[d].setdefault(g, (0.0, 0.0))
+    mies = _sk_suma_miesiaca(per, ('ib', 'io', 'rb', 'ro'), 'dług')
+    asof = dni[-1]
+    m, pm, dd, cur, prv = _sk_porownanie(dni, {d: [per[d]['ib'][0] + per[d]['io'][0], per[d]['rb'][0] + per[d]['ro'][0]] for d in dni}, asof)
+    return {'asof': asof.isoformat(), 'd': [[d.isoformat()] + [round(per[d][g][0]) for g in ('ib', 'io', 'rb', 'ro')] for d in dni],
+            'mies': {mm: [round(sum(per[d][g][0] for d in ds)) for g in ('ib', 'io', 'rb', 'ro')] + [ds[-1].isoformat()] for mm, ds in mies.items()},
+            'por': {'m': m, 'pm': pm, 'dzien': dd, 'i': [cur[0], prv[0]], 'r': [cur[1], prv[1]]}}
+
+
+def parse_sk_wykupy(j, dzis):
+    """Operacje wykupu papierów z rynku → {'ost': [[dzień, typ L/C, rodzaj N/T, termin, oferty, kupione, limit]] (najnowsze pierwsze, mln USD), 'plan': [[dzień, typ, rodzaj, termin, limit]] (zapowiedziane,
+    jeszcze bez wyniku; dzień nie wcześniejszy niż wczoraj), 's': {'30': [liczba, kupione], '90': [...]} (zakończone w ostatnich 30 i 90 dniach do dnia przebiegu)}. Nieznany typ albo rodzaj, zły termin,
+    kupione ponad limit albo ponad oferty = błąd. Operacja bez wyniku starsza niż wczoraj (wynik jeszcze nie opublikowany) nie jest ani zakończona, ani zapowiedziana."""
+    rows = _sk_lista(j, 'wykupy', False)
+    mln = lambda x, co, hi=SK_WYKUPY_MAX: sk_liczba(x, 0, hi * 1e6 * 1.001, co) / 1e6   # noqa: E731
+    ost, plan, widziane = [], [], set()
+    for r in rows:
+        if not isinstance(r, dict):
+            raise RuntimeError('wykupy: wiersz ma zły kształt')
+        d = sk_dzien(r.get('operation_date'))
+        typ, rodz, term = SK_TYP.get(r.get('operation_type')), SK_RODZ.get(r.get('security_type')), r.get('maturity_bucket')
+        if typ is None or rodz is None or not isinstance(term, str) or not SK_RE_TERMIN.match(term):
+            raise RuntimeError(f'wykupy: nieznany typ, rodzaj albo termin ({str(r.get("operation_type"))[:20]!r}, {str(r.get("security_type"))[:20]!r}, {str(term)[:14]!r})')
+        kl = (d, typ, rodz, term)
+        if kl in widziane:
+            raise RuntimeError(f'wykupy: powtórzona operacja {d}')
+        widziane.add(kl)
+        lim = mln(r.get('max_par_amt_redeemed'), 'wykupy limit')
+        if not lim > 0:
+            raise RuntimeError('wykupy: limit operacji nie jest dodatni')
+        kup = r.get('total_par_amt_accepted')
+        if kup in (None, 'null', ''):
+            if d >= dzis - datetime.timedelta(days=1):
+                plan.append([d.isoformat(), typ, rodz, term, round(lim)])
+            continue
+        if d > dzis:
+            raise RuntimeError(f'wykupy: wynik z przyszłości ({d})')
+        k, o = mln(kup, 'wykupy kupione'), mln(r.get('total_par_amt_offered'), 'wykupy oferty')
+        if k > lim * 1.001 or k > o * 1.001 + 1e-6:
+            raise RuntimeError(f'wykupy: kupione ({round(k)}) ponad limit ({round(lim)}) albo ponad oferty ({round(o)}) — {d}')
+        ost.append([d.isoformat(), typ, rodz, term, round(o), round(k), round(lim)])
+    if not ost:
+        raise RuntimeError('wykupy: brak zakończonych operacji')
+    ost.sort(key=lambda x: x[0], reverse=True)
+    plan.sort(key=lambda x: x[0])
+    # sumy z okien 30 i 90 dni tylko, gdy zapytanie sięga co najmniej tyle dni wstecz (najstarsza operacja w odpowiedzi nie młodsza niż okno); inaczej null (brak, nie zero)
+    najst = min(sk_dzien(r.get('operation_date')) for r in rows)
+    s = {}
+    for n in (30, 90):
+        g = [x for x in ost if (dzis - datetime.date.fromisoformat(x[0])).days <= n]
+        s[str(n)] = [len(g), sum(x[5] for x in g)] if (dzis - najst).days >= n else None
+    return {'ost': ost[:SK_WYKUPY_OST], 'plan': plan, 's': s}
+
+
+def sk_pobierz(sciezka, filtr, pola, sort, strona):
+    """Jedno zapytanie GET (publiczne, bez klucza) z odstępem SK_SLEEP; filtr i pola bez znaków wymagających kodowania poza nawiasami strony."""
+    url = f'{SK_BASE}/{sciezka}?' + (f'filter={filtr}&' if filtr else '') + f'sort={sort}&page[size]={strona}&fields={pola}'
+    time.sleep(SK_SLEEP)
+    return get_json(url, timeout=SK_TIMEOUT)
+
+
+def sk_czesc(k, dzis):
+    """Jedna część pliku: pobranie i rozbiór; do części dopisujemy chwilę pobrania (t)."""
+    st = sk_poczatek(dzis).isoformat()
+    if k == 'wplywy':
+        out = parse_sk_wplywy(sk_pobierz('dts/deposits_withdrawals_operating_cash', f'record_date:gte:{st},transaction_type:eq:Deposits',
+                                         'record_date,transaction_catg,transaction_today_amt,transaction_mtd_amt', 'record_date', SK_STRONA), sk_poczatek(dzis), dzis)
+    elif k == 'dlug':
+        out = parse_sk_dlug(sk_pobierz('dts/public_debt_transactions', f'record_date:gte:{st}',
+                                       'record_date,transaction_type,security_market,security_type,security_type_desc,transaction_today_amt,transaction_mtd_amt', 'record_date', SK_STRONA),
+                            sk_poczatek(dzis), dzis)
+    else:
+        out = parse_sk_wykupy(sk_pobierz('od/buybacks_operations', '', 'operation_date,operation_type,security_type,maturity_bucket,total_par_amt_offered,total_par_amt_accepted,max_par_amt_redeemed',
+                                         '-operation_date', SK_WYKUPY_N), dzis)
+    out['t'] = NOW
+    return out
+
+
+def build_skarb_dts(prev=None, run_t0=None):
+    """Plik data/skarb-usa.json (v383): trzy części (wplywy, dlug, wykupy) z własnym ok / part_at / errs; część z błędem zostaje z poprzedniego pliku z własną chwilą, nigdy pusta zamiast
+    ostatnich danych; żadna część nie odpowiedziała = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == SK_V else {}
+    pat = _dict(prev.get('part_at'))
+    dzis = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc).date()
+    out = {'v': SK_V, 'at': NOW, 'src': SK_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    for k in SK_PARTS:
+        try:
+            out[k] = sk_czesc(k, dzis)
+            out['ok'][k] = True
+            out['part_at'][k] = NOW
+        except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
+            msg = mask(f'{e}')[:160]
+            META['errors'].append(mask(f'{SK_PX} {SK_LABEL[k]}: {msg}')[:220])
+            out['ok'][k] = False
+            out['errs'][k] = msg
+            if isinstance(prev.get(k), dict):
+                out[k] = prev[k]
+                out['part_at'][k] = pat.get(k) or prev.get('at')
+    if not any(out['ok'].values()):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+ZRODLA_META.update({'skarb_wplywy': 'skarb-usa', 'skarb_dlug': 'skarb-usa', 'skarb_wykupy': 'skarb-usa'})   # v383: to samo źródło co TGA, aukcje i krzywa rentowności — liczba źródeł bez zmian
 
 
 if __name__ == '__main__':

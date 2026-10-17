@@ -28586,3 +28586,150 @@ test('v382 (F11Z3): płynność USA — miejsce karty w GLOBAL (po nowcastach), 
   assert.ok(!/<script|javascript:|on(error|click|load)=/i.test(html.slice(a0, a1)), 'bez wstrzykiwanego kodu');
   assert.ok(/#g-usl|g-usl/.test(html.slice(a0, a1)), 'moduł używa swojego panelu');
 });
+
+// ===================== v383 (F11Z4): Skarb USA — wpływy dzienne, dług rynkowy, wykupy w GLOBAL (data/skarb-usa.json) =====================
+// Fixtura: plik skarb-usa.json w układzie, jaki buduje zbieracz (ostatni dzień danych 13.10.2026, wykupy z 8.10, zapowiedź na 15.10). Czas przypięty (Date.now), bez zegara.
+const sk383 = (() => {
+  const a0 = html.indexOf('/* ===================== v383 (F11Z4): SKARB USA'), a1 = html.indexOf('/* ---------- koniec bloku skarbu USA (v383) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v383 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-15T10:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[  ]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-skarb': el};
+    const calls = [], hnd = [], ivs = [], cols = [], bars = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const usd = (v, sign) => (typeof v === 'number' && isFinite(v) ? (sign && v > 0 ? '+' : v < 0 ? '−' : '') + Math.round(Math.abs(v) / 1e6) + ' mln USD' : '—');
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkCols', 'wkBars', 'wkUsd', 'wkMs', 'wkDay', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {SKZ, skzLoad, renderSkz, skzOk, skzWpl, skzDlug, skzWyk, skzBody, skzTerm, skzSeria};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, () => '', i => i, doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (X, o) => { cols.push({X, o}); return '<cols n=' + X.length + ' first=' + X[0].x + ' last=' + X[X.length - 1].x + ' aria="' + o.aria + '">'; },
+      (R, o) => { bars.push({R, o}); return '<bars n=' + R.length + ' aria="' + o.aria + '">'; }, usd,
+      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, hnd, ivs, cols, bars, mos, expand, collapse, html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), raw: m[3].split('<small')[0], lines: [...m[3].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const bdays = (d0, n) => { const out = []; let ms = Date.parse(d0 + 'T12:00:00Z'); while (out.length < n) { const d = new Date(ms); if (d.getUTCDay() % 6) out.push(d.toISOString().slice(0, 10)); ms += 86400000; } return out; };
+  const J = () => {
+    const dd = bdays('2026-08-03', 52);   // 3.08 … 13.10.2026 (dni robocze)
+    const last = dd.length - 1;
+    return {v: 1, at: '2026-10-15T09:00:00+00:00', src: 'x', ok: {wplywy: true, dlug: true, wykupy: true}, part_at: {wplywy: '2026-10-15T09:00:00+00:00', dlug: '2026-10-15T09:00:00+00:00', wykupy: '2026-10-15T09:00:00+00:00'}, errs: {},
+      wplywy: {asof: dd[last], t: '2026-10-15T09:00:00+00:00', d: dd.map((d, i) => [d, 300 + i, 20000 + i * 10]), mies: {}, por: {m: '2026-10', pm: '2026-09', dzien: 13, cla: [2538, 2421], pod: [118388, 103987]}, kat: null},
+      dlug: {asof: dd[last], t: '2026-10-15T09:00:00+00:00', d: dd.map((d, i) => i === last ? [d, 314653, 0, 278095, 0] : [d, 290000 + i, 100, 280000 + i, 50]), mies: {}, por: {m: '2026-10', pm: '2026-09', dzien: 13, i: [1237088, 1137528], r: [1177067, 1194764]}},
+      wykupy: {t: '2026-10-15T09:00:00+00:00', ost: [['2026-10-08', 'L', 'N', '20Y to 30Y', 14886, 6000, 6000], ['2026-10-06', 'L', 'N', '2Y to 3Y', 14763, 1327, 4000], ['2026-09-29', 'L', 'T', '1Y to 10Y', 3981, 605, 750],
+        ['2026-09-09', 'C', 'N', '1Mo to 2Y', 28027, 12500, 12500]], plan: [['2026-10-15', 'L', 'N', '10Y to 20Y', 6000]], s: {'30': [3, 7932], '90': [4, 20432]}}};
+  };
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {skarb_wplywy: true, skarb_dlug: 'cached', skarb_wykupy: true}} : meta, 'skarb-usa': j === undefined ? J() : j});
+  return {mk, tiles, files, J, sp, txt, code, helpers, clone, LOC, bdays};
+})();
+
+test('v383 (F11Z4): Skarb USA — nagłówek od razu, plik dopiero po rozwinięciu karty, kafle z kwotą, datą i wiekiem, zmianą w kolorach kierunku i narastającą kwotą od początku miesiąca', () => {
+  const K = sk383.mk('pl', sk383.files());
+  assert.equal(K.els['#g-skarb'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Skarb USA: wpływy, dług i wykupy dziennie</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Dane zostaną wczytane po rozwinięciu panelu.') && sk383.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku skarbu'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'skarb-usa'], 'po rozwinięciu jedno pobranie pliku'); h = K.html();
+  const T = sk383.tiles(h); assert.equal(T.length, 3 + 2 + 2, 'cła, podatki, emisje, umorzenia, netto, ostatni wykup, wykupy z 30 dni');
+  const [cla, pod, iss, red, net, bb, bb30] = T;
+  assert.equal(cla.label, 'Cła i opłaty celne'); assert.equal(cla.val, '351 mln USD', 'ostatni dzień (13.10): 300 + 51');
+  assert.deepEqual(cla.lines[0], ['pc', 'od początku miesiąca do 13 paź 2026: 2538 mln USD']);
+  assert.deepEqual(cla.lines[1], ['pos', '▲ +4,8 % wobec tych samych dni poprzedniego miesiąca'], 'zmiana wobec tego samego okresu: (2538−2421)/2421 = +4,8% — plus zielony');
+  assert.deepEqual(pod.lines[1], ['pos', '▲ +13,8 % wobec tych samych dni poprzedniego miesiąca']);
+  assert.equal(pod.label, 'Podatki od płac i dochodów (u źródła)');
+  assert.ok(cla.when.includes('13 paź 2026') && cla.when.includes('wiek(2026-10-13)'), 'data danych i wiek: ' + cla.when);
+  assert.equal(iss.val, '314653 mln USD'); assert.equal(iss.lines[0][1], 'bony: 314653 mln USD · obligacje: 0 mln USD'); assert.equal(red.val, '278095 mln USD');
+  assert.equal(net.val, '+36558 mln USD'); assert.ok(net.raw.includes('<span class="pos">+36558 mln USD</span>'), 'netto dodatnie = zielone'); assert.deepEqual(net.lines[0], ['pos', 'od początku miesiąca do 13 paź 2026: +60021 mln USD']);
+  assert.ok(bb.val === '6000 mln USD' && bb.lines[0][1] === 'wsparcie płynności · obligacje nominalne 20–30 l.' && bb.lines[1][1] === 'oferty 14886 mln USD, kupione 6000 mln USD (×2,5)', JSON.stringify(bb));
+  assert.equal(bb30.lines[0][1], '3 operacji'); assert.ok(bb30.when.includes('wiek(2026-10-15)'));
+  assert.ok(h.includes('Zapowiedziane operacje:') && h.includes('15 paź 2026: wsparcie płynności, obligacje nominalne 10–20 l., do 6000 mln USD'));
+  // wykresy: cła i podatki — słupki dzienne z ostatnich 60 dni (wartości w dolarach), netto długu — słupki z kolorem z kierunku, wykupy — wiersze oferty/kupione, najstarszy pierwszy
+  assert.equal(K.cols.length, 3); assert.equal(K.cols[0].X.length, 43, 'ostatnie 60 dni kalendarzowych (od 14.08 do 13.10) = 43 dni robocze');
+  assert.equal(K.cols[0].X[42].vs[0], 351e6); assert.equal(K.cols[1].X[42].vs[0], (20000 + 510) * 1e6); assert.equal(K.cols[2].X[42].v, (314653 - 278095) * 1e6, 'netto = emisje minus umorzenia, w dolarach');
+  assert.ok(K.cols[0].X.every(x => typeof x.vs[0] === 'number' && x.vs[0] >= 300e6) && K.cols[2].X.every(x => typeof x.v === 'number'), 'liczby w dolarach (mln × 1e6)');
+  assert.ok(K.cols[0].o.ser && K.cols[0].o.ser[0].cls === 's1' && !('tone' in K.cols[0].o), 'cła: jedna seria niebieska'); assert.ok(!K.cols[2].o.ser, 'netto: kolory z kierunku (domyślne pos / neg)');
+  assert.equal(K.bars.length, 1); assert.deepEqual(K.bars[0].R.map(r => r.l), ['2026-09 · 1 mies.–2 l.', '2026-09 · 1–10 l.', '2026-10 · 2–3 l.', '2026-10 · 20–30 l.'], 'najstarszy pierwszy, termin w języku widza');
+  assert.equal(K.bars[0].R[K.bars[0].R.length - 1].vs[1], 6000e6, 'najnowszy wykup na dole'); assert.deepEqual(K.bars[0].R[0].vs, [28027e6, 12500e6]);
+  assert.deepEqual(K.bars[0].o.ser.map(s => s.cls), ['s2', 's1']);
+  assert.ok(h.includes('porada inwestycyjna'), 'zastrzeżenie: to nie jest porada inwestycyjna');
+});
+
+test('v383 (F11Z4): Skarb USA — kolory netto z POKAZANEJ liczby: plus zielony, minus czerwony, zero żółte; brak porównania z poprzednim miesiącem = „—”, nigdy zero', () => {
+  const mkj = f => { const j = sk383.J(); f(j); return j; };
+  const net = j => { const K = sk383.mk('pl', sk383.files(j), {open: true}); const T = sk383.tiles(K.html()); return T[4]; };
+  const m = net(mkj(j => { j.dlug.d[j.dlug.d.length - 1] = [j.dlug.asof, 100000, 0, 150000, 0]; }));
+  assert.equal(m.val, '−50000 mln USD'); assert.ok(m.raw.includes('<span class="neg">−50000 mln USD</span>'), 'netto ujemne = czerwone: ' + JSON.stringify(m));
+  const z = net(mkj(j => { j.dlug.d[j.dlug.d.length - 1] = [j.dlug.asof, 100000, 0, 100000, 0]; j.dlug.por.i[0] = 5; j.dlug.por.r[0] = 5; }));
+  assert.ok(z.raw.includes('<span class="neu">') && z.lines[0][0] === 'neu', 'zero = żółte: ' + JSON.stringify(z));
+  const b = sk383.tiles(sk383.mk('pl', sk383.files(mkj(j => { j.wplywy.por = null; j.dlug.por = null; })), {open: true}).html());
+  assert.equal(b[0].lines.length, 1); assert.deepEqual(b[0].lines[0], ['na', 'od początku miesiąca: —']); assert.equal(b[4].lines[0][1], 'od początku miesiąca: —');
+  assert.ok(!/NaN|undefined|null|Infinity/.test(sk383.mk('pl', sk383.files(mkj(j => { j.wplywy.por = null; })), {open: true}).html()));
+  // spadek wobec poprzedniego miesiąca: czerwony, ujemny
+  const s = sk383.tiles(sk383.mk('pl', sk383.files(mkj(j => { j.wplywy.por.cla = [2000, 2421]; })), {open: true}).html());
+  assert.deepEqual(s[0].lines[1], ['neg', '▼ −17,4 % wobec tych samych dni poprzedniego miesiąca']);
+  const n = sk383.tiles(sk383.mk('pl', sk383.files(mkj(j => { j.wplywy.por.cla = [2421, 0]; })), {open: true}).html());
+  assert.deepEqual(n[0].lines[1], ['na', '— % wobec tych samych dni poprzedniego miesiąca'], 'poprzedni miesiąc zero = brak procentu, nie nieskończoność');
+});
+
+test('v383 (F11Z4): Skarb USA — brak części pliku = „—” i zdanie o braku, nigdy zero; zły plik odrzucony; błąd części z poprzednimi danymi; jedno ponowienie na minutę', () => {
+  const j = sk383.J(); delete j.wplywy; j.ok.wplywy = false;
+  const K = sk383.mk('pl', sk383.files(j), {open: true}); const h = K.html(), T = sk383.tiles(h);
+  assert.equal(T.length, 7); assert.deepEqual([T[0].val, T[1].val], ['—', '—']); assert.equal(T[0].lines[0][1], 'Brak odczytu tej części.'); assert.equal(K.cols.length, 1, 'bez wykresów wpływów — tylko netto długu');
+  assert.ok(h.includes('Ostatnie pobranie nie udało się (wpływy); pokazujemy poprzednie dane z ich datą.'));
+  // zły plik: wersja, brak czasu, źle uporządkowane dni, liczby poza zakresem, asof ≠ ostatni dzień
+  const api = sk383.mk('pl', sk383.files()).api, ok = j2 => api.skzOk(j2);
+  assert.equal(ok(sk383.J()), true); assert.equal(ok(null), false); assert.equal(ok([]), false); assert.equal(ok(Object.assign(sk383.J(), {v: 2})), false); assert.equal(ok(Object.assign(sk383.J(), {at: 'x'})), false);
+  const zm = f => { const x = sk383.J(); f(x); return x; };
+  assert.equal(api.skzWpl(zm(x => { x.wplywy.d[3][1] = 99999; })), null, 'cła poza zakresem — brak części, nie zero');
+  assert.equal(api.skzWpl(zm(x => { x.wplywy.asof = '2026-10-09'; })), null); assert.equal(api.skzWpl(zm(x => { x.wplywy.d[2][0] = x.wplywy.d[1][0]; })), null, 'powtórzony dzień');
+  assert.equal(api.skzDlug(zm(x => { x.dlug.d[1] = ['2026-08-04', 1, 2, 3]; })), null); assert.equal(api.skzWyk(zm(x => { x.wykupy.ost.forEach(r => { r[5] = 99999; }); })), null, 'kupione ponad limit');
+  assert.equal(api.skzWyk(zm(x => { x.wykupy.ost[0][3] = 'long'; })).ost.length, 3, 'zły wiersz odrzucony, reszta zostaje');
+  assert.equal(ok(zm(x => { delete x.wplywy; delete x.dlug; x.wykupy.ost = []; })), false, 'żadna część poprawna = plik odrzucony');
+  assert.equal(api.skzWpl(zm(x => { x.wplywy.por.dzien = 40; })).por, null, 'zły blok porównania nie psuje serii');
+  // zły plik przy pierwszym pobraniu: komunikat; kolejna próba (zwinięcie i rozwinięcie) dopiero po minucie
+  const K2 = sk383.mk('pl', sk383.files(Object.assign(sk383.J(), {v: 9}))); K2.expand();
+  assert.ok(K2.html().includes('Nie udało się wczytać danych. Spróbuj za chwilę.')); const n0 = K2.calls.length; K2.collapse(); K2.expand(); assert.equal(K2.calls.length, n0, 'bez pętli zapytań w ciągu minuty');
+  // chwilowy błąd po udanym wczytaniu nie zasłania danych; odświeżanie zegarem co 30 min tylko przy rozwiniętej karcie
+  const K3 = sk383.mk('pl', sk383.files()); K3.expand(); assert.ok(sk383.tiles(K3.html()).length === 7);
+  assert.ok(K3.ivs.some(x => x[1] === 30 * 60 * 1000), 'zegar 30 min');
+});
+
+test('v383 (F11Z4): Skarb USA — termin wykupu „10Y to 20Y” w języku widza, słownik 10 języków bez surowych kluczy i bez nazw dostawców, brak szarych strzałek', () => {
+  const D = sk383.mk('pl', sk383.files()).api;
+  assert.equal(D.skzTerm('10Y to 20Y'), '10–20 l.'); assert.equal(D.skzTerm('1Mo to 2Y'), '1 mies.–2 l.'); assert.equal(D.skzTerm('5Y to 7Y'), '5–7 l.'); assert.equal(D.skzTerm('long'), '—'); assert.equal(D.skzTerm(7), '—');
+  assert.equal(sk383.mk('en', sk383.files()).api.skzTerm('1Mo to 2Y'), '1 mo–2 y'); assert.equal(sk383.mk('zh', sk383.files()).api.skzTerm('10Y to 20Y'), '10–20 年');
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const K = sk383.mk(L, sk383.files(), {open: true}); K.expand(); const h = K.html(), t = sk383.txt(h);
+    assert.ok(h.length > 3000 && !/sk383\./.test(h) && !/\{[a-z]+\}/.test(h) && !/NaN|undefined|Infinity/.test(h), L + ': brak surowych kluczy i pól: ' + (h.match(/sk383\.[a-z.]+|\{[a-z]+\}/) || [''])[0]);
+    assert.ok(!/FiscalData|Fiscal Data|Treasury Direct|TreasuryDirect|Daily Treasury|DHS|IRS\b/.test(h), L + ': bez nazw dostawców i urzędów-źródeł');
+    assert.ok(!/class="[^"]*\b(gr|grey|gray)\b/.test(h), L + ': bez szarych klas');
+  }
+  const h = sk383.mk('pl', sk383.files(), {open: true}).html(); assert.ok(!/<small class="na">[▲▼]/.test(h), 'brak szarych strzałek');
+});
+
+test('v383 (F11Z4): Skarb USA — style: telefon 390 px bez przewijania w bok (bloki jeden pod drugim, długie napisy łamane), tylko zmienne motywu, sekcja po panelu szacunków, blok nie czyta sieci ani pamięci przeglądarki', () => {
+  const css = html.slice(html.indexOf('/* v383 (F11Z4): Skarb USA'), html.indexOf('/* v383 (F11Z4): Skarb USA') + 3200);
+  assert.ok(css.includes('@media (max-width:620px){#g-skarb .skz-g{grid-template-columns:minmax(0,1fr)}}'), 'jedna kolumna na telefonie');
+  assert.ok(/#g-skarb \.skz-g\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/.test(css) && /#g-skarb \.skz-c\{min-width:0\}/.test(css) && /#g-skarb \.etfk b\{[^}]*overflow-wrap:anywhere/.test(css), 'siatka z minmax(0,…), min-width:0 i łamanie');
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgb\(/.test(css.slice(0, css.indexOf('@media (max-width:620px)') + 80)), 'kolory tylko ze zmiennych motywu');
+  assert.ok(/#g-skarb \.etfk b small\.pos,#g-skarb \.etfk b span\.pos\{color:var\(--gr-tx\)\}/.test(css) && /small\.neg,#g-skarb \.etfk b span\.neg\{color:var\(--rd-tx\)\}/.test(css) && /span\.neu\{color:var\(--yl-tx\)\}/.test(css), 'plus zielony, minus czerwony, zero żółty');
+  const i1 = html.indexOf('<section class="panel pcard" id="g-nowcasty" hidden></section>'), i2 = html.indexOf('<section class="panel pcard" id="g-skarb" hidden></section>');
+  assert.ok(i1 > 0 && i2 > i1, 'panel po szacunkach na bieżąco');
+  assert.ok(!/localStorage|sessionStorage|tradingview/i.test(sk383.code) && !/\bfetch\(|XMLHttpRequest/.test(sk383.code), 'blok czyta tylko przez srvJSON');
+});

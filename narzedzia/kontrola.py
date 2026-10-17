@@ -10080,6 +10080,256 @@ def plusa_kontrola(files, now=None):
     return {'spojnosc': plusa_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v383 (F11Z4): skarb USA — cła i podatki dziennie, emisje i umorzenia długu, wykupy (data/skarb-usa.json) ----------------------------------------------------------------
+# Plik: wplywy {asof, d: [[dzień, cła, podatki u źródła]], mies, por, kat, t}, dlug {asof, d: [[dzień, emisje bonów, emisje obligacji, umorzenia bonów, umorzenia obligacji]], mies, por, t},
+# wykupy {ost: [[dzień, typ, rodzaj, termin, oferty, kupione, limit]], plan, s, t}, ok / part_at / errs. Kontrola czyta pliki ze strony (bez zapytań do sieci). RYTM PUBLIKACJI i progi z testu wstecznego
+# (ws53/v383-skarb-dts/bt_progi.py, dzienne sprawozdanie 2021-01…2026-10, 1450 dni roboczych):
+#   dane dzienne: dzień danych ukazuje się następnego dnia roboczego ok. 16:00 czasu USA (ok. 20:00 UTC); odstępy między kolejnymi dniami danych 1–4 dni (1: 1133, 3: 259, 4: 42, 2: 15), najstarszy odczyt
+#   przed publikacją następnego dnia miał 4,83 doby od końca dnia danych (np. 8–13.10.2026 i 14–19.01.2021: weekend + poniedziałkowe święto) → ⚠ dopiero przy wieku ostatniego dnia danych > SKD_K_DNI = 6 doby (0 fałszywych ⚠ w 1448 dniach);
+#   wykupy: od kwietnia 2024 (170 operacji) najdłuższa przerwa między operacjami 42 dni (start programu), potem najwyżej 19 → ⚠ przy ostatniej zakończonej operacji starszej niż SKD_K_WYKUPY = 45 dni i bez zapowiedzi
+#   następnej (0 fałszywych ⚠ od maja 2024).
+# (1) świeżość pobrania każdej części (odświeżanie co 3 h; starsze niż doba = ⚠) i wiersze rytmu publikacji (najwyżej ⚠);
+# (2) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zły dzień albo liczba poza zakresem, dni nie rosną albo są powtórzone, sumy miesięcy i porównanie z poprzednim miesiącem inne niż przeliczone z dni, ostatni dzień ≠ asof,
+#     kupione ponad limit albo oferty, zły typ / rodzaj / termin, sumy 30 i 90 dni inne niż przeliczone z operacji (część z ok False zostaje ze starymi danymi — też sprawdzana);
+# (3) TYLKO UWAGA ⚠: ostatni dzień danych o wpływach a dzień salda konta Skarbu (instytucje.tga) — oba z tego samego sprawozdania, różnica > 4 dni; zgodność wykupów z umorzeniami: dnia roboczego po operacji
+#     umorzenia obligacji rynkowych nie mogą być mniejsze niż kupione w wykupie (sprawdzone 15.10.2026: 15 z 15 operacji od sierpnia zgodnych co do miliona).
+# Najwyżej ⚠ poza (2). Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'skarb-usa')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['skarb-usa'] = 12 * 60   # plik zapisywany co ok. 3 h (część z błędem: co godzinę) — wiek pobrania każdej części ocenia osobny wiersz
+AW_BEZ_BLEDU.update({'skarb_' + p_: 'skarb USA — część z błędem zostaje z ostatnimi danymi i datą (v383); wiek pobrania i rytm publikacji w wierszach świeżości' for p_ in ('wplywy', 'dlug', 'wykupy')})
+SKD_PARTS = ('wplywy', 'dlug', 'wykupy')
+SKD_ETYKIETA = {'wplywy': 'Skarb USA: wpływy dzienne — cła i podatki (pobranie)', 'dlug': 'Skarb USA: emisje i umorzenia długu (pobranie)', 'wykupy': 'Skarb USA: wykupy papierów z rynku (pobranie)'}
+SKD_RYTM = {'wplywy': 'Skarb USA: wpływy dzienne (rytm publikacji)', 'dlug': 'Skarb USA: dług dzienny (rytm publikacji)', 'wykupy': 'Skarb USA: wykupy (rytm operacji)'}
+SKD_PROG_MIN = 24 * 60            # min — wiek pobrania części (odświeżanie co 3 h)
+SKD_K_DNI = 6                     # doby — wiek ostatniego dnia danych (bt_progi.py: najwyżej 4,83)
+SKD_K_WYKUPY = 45                 # dni od ostatniej zakończonej operacji wykupu, gdy nie ma zapowiedzi następnej (bt_progi.py: najwyżej 42, tylko start programu)
+SKD_K_TGA = 4                     # dni różnicy dnia danych o wpływach i salda konta Skarbu
+SKD_K_CLA = (-200, 25000)         # mln USD na dobę (jak w zbieraczu SK_CLA)
+SKD_K_POD = (0, 250000)
+SKD_K_DLUG = (-10000, 2500000)
+SKD_K_RE_TERMIN = re.compile(r'^\d{1,2}(?:Mo|Y)? to \d{1,2}(?:Mo|Y)$')
+
+
+def _skd_dzien(s):
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return dt.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _skd_num(x, lo, hi):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and lo <= x <= hi
+
+
+def _skd_seria(zle, k, d, kolumny, zakresy):
+    """Wspólna kontrola serii dziennej: kształt wierszy, dni rosnące bez powtórzeń, liczby w zakresach → lista dni (date) albo None, gdy seria zła."""
+    if not isinstance(d, list) or not d:
+        zle.append(f'{k}: brak serii dziennej')
+        return None
+    dni, ost = [], None
+    for r in d:
+        if not (isinstance(r, list) and len(r) == kolumny and _skd_dzien(r[0]) is not None and all(_skd_num(r[i + 1], *zakresy[i]) for i in range(kolumny - 1))):
+            zle.append(f'{k}: zły wiersz serii ({str(r)[:40]})')
+            return None
+        if ost is not None and r[0] <= ost:
+            zle.append(f'{k}: dni nie rosną albo się powtarzają ({ost} przed {r[0]})')
+            return None
+        ost = r[0]
+        dni.append(_skd_dzien(r[0]))
+    return dni
+
+
+def _skd_okres(dni, wart, asof):
+    """Jak _sk_porownanie w zbieraczu: narastająco od początku miesiąca asof i w tym samym okresie poprzedniego miesiąca (do tego samego dnia miesiąca)."""
+    m = asof.isoformat()[:7]
+    py, pm = (asof.year, asof.month - 1) if asof.month > 1 else (asof.year - 1, 12)
+    pmies = f'{py:04d}-{pm:02d}'
+    n = len(wart[0])
+    cur, prv = [0.0] * n, [0.0] * n
+    for d, w in zip(dni, wart):
+        if d.isoformat()[:7] == m:
+            cur = [a + b for a, b in zip(cur, w)]
+        elif d.isoformat()[:7] == pmies and d.day <= asof.day:
+            prv = [a + b for a, b in zip(prv, w)]
+    return m, pmies, asof.day, cur, prv
+
+
+def skarb_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w skarbie USA) → lista opisów."""
+    zle = []
+    pa = j.get('part_at') if isinstance(j.get('part_at'), dict) else {}
+    for k, kol, zak in (('wplywy', 3, (SKD_K_CLA, SKD_K_POD)), ('dlug', 5, (SKD_K_DLUG,) * 4)):
+        P = j.get(k)
+        if P is None:
+            continue
+        if not isinstance(P, dict):
+            zle.append(f'{k}: część nie jest słownikiem')
+            continue
+        dni = _skd_seria(zle, k, P.get('d'), kol, zak)
+        if dni is None:
+            continue
+        asof = _skd_dzien(P.get('asof'))
+        if asof is None or asof != dni[-1]:
+            zle.append(f'{k}: asof {str(P.get("asof"))[:12]} ≠ ostatni dzień serii {dni[-1]}')
+            continue
+        pt = _skd_dzien(str(pa.get(k) or '')[:10])
+        if pt is not None and asof > pt + dt.timedelta(days=1):
+            zle.append(f'{k}: dzień danych {asof} późniejszy niż pobranie części {pa.get(k)}')
+        wart = [r[1:] for r in P['d']]
+        mies = P.get('mies')
+        if not isinstance(mies, dict) or not mies:
+            zle.append(f'{k}: brak sum miesięcy')
+        else:
+            for m_ in sorted({d.isoformat()[:7] for d in dni}):
+                ds = [i for i, d in enumerate(dni) if d.isoformat()[:7] == m_]
+                z = mies.get(m_)
+                ocz = [sum(wart[i][c] for i in ds) for c in range(kol - 1)] + [dni[ds[-1]].isoformat()]
+                if not (isinstance(z, list) and len(z) == kol and z[-1] == ocz[-1] and all(_skd_num(z[c], -1e9, 1e9) and abs(z[c] - ocz[c]) <= 1 for c in range(kol - 1))):
+                    zle.append(f'{k}: suma miesiąca {m_} {str(z)[:50]} ≠ przeliczona z dni {ocz}')
+        por = P.get('por')
+        m_, pm_, dd_, cur, prv = _skd_okres(dni, [r[1:] for r in P['d']] if k == 'wplywy' else [[r[1] + r[2], r[3] + r[4]] for r in P['d']], asof)
+        kl = ('cla', 'pod') if k == 'wplywy' else ('i', 'r')
+        ok = isinstance(por, dict) and por.get('m') == m_ and por.get('pm') == pm_ and por.get('dzien') == dd_
+        for i, kk in enumerate(kl):
+            v = por.get(kk) if isinstance(por, dict) else None
+            ok = ok and isinstance(v, list) and len(v) == 2 and _skd_num(v[0], -1e9, 1e9) and _skd_num(v[1], -1e9, 1e9) and abs(v[0] - cur[i]) <= 1 and abs(v[1] - prv[i]) <= 1
+        if not ok:
+            zle.append(f'{k}: porównanie z poprzednim miesiącem {str(por)[:60]} ≠ przeliczone z dni (bieżący {[round(x) for x in cur]}, poprzedni {[round(x) for x in prv]})')
+    P = j.get('wykupy')
+    if isinstance(P, dict):
+        ost = P.get('ost')
+        if not isinstance(ost, list) or not ost:
+            zle.append('wykupy: brak zakończonych operacji')
+        else:
+            prev = None
+            for r in ost:
+                if not (isinstance(r, list) and len(r) == 7 and _skd_dzien(r[0]) is not None and r[1] in ('L', 'C') and r[2] in ('N', 'T') and isinstance(r[3], str) and SKD_K_RE_TERMIN.match(r[3])
+                        and all(_skd_num(r[i], 0, 1e5 * 1.001) for i in (4, 5, 6))):
+                    zle.append(f'wykupy: zły wiersz operacji ({str(r)[:50]})')
+                    break
+                if r[5] > r[6] * 1.001 + 1 or r[5] > r[4] * 1.001 + 1:
+                    zle.append(f'wykupy: kupione {r[5]} ponad limit {r[6]} albo oferty {r[4]} ({r[0]})')
+                if prev is not None and r[0] > prev:
+                    zle.append(f'wykupy: operacje nie malejąco ({prev} przed {r[0]})')
+                prev = r[0]
+        plan = P.get('plan')
+        if not isinstance(plan, list) or not all(isinstance(r, list) and len(r) == 5 and _skd_dzien(r[0]) is not None and r[1] in ('L', 'C') and r[2] in ('N', 'T') and isinstance(r[3], str)
+                                                  and SKD_K_RE_TERMIN.match(r[3]) and _skd_num(r[4], 0, 1e5 * 1.001) for r in plan):
+            zle.append('wykupy: zły plan operacji')
+        t = _skd_dzien(str(P.get('t') or '')[:10])
+        s = P.get('s')
+        if isinstance(ost, list) and ost and t is not None and isinstance(s, dict):
+            for n in (30, 90):
+                v = s.get(str(n))
+                if v is None:
+                    continue
+                g = [r for r in ost if isinstance(r, list) and len(r) == 7 and _skd_dzien(r[0]) is not None and 0 <= (t - _skd_dzien(r[0])).days <= n]
+                if not (isinstance(v, list) and len(v) == 2 and v[0] == len(g) and abs(v[1] - sum(r[5] for r in g)) <= 1):
+                    zle.append(f'wykupy: suma {n} dni {str(v)[:30]} ≠ przeliczona z operacji ({len(g)}, {sum(r[5] for r in g)})')
+        elif isinstance(ost, list) and ost:
+            zle.append('wykupy: brak sum 30 i 90 dni albo czasu pobrania')
+    return zle[:12]
+
+
+def skarb_swiezosc(j, now=None):
+    """Wiersze: pobranie każdej części (etykieta, status, wiek min, chwila, uwaga) i rytm publikacji (wiek ostatniego dnia danych albo ostatniej operacji wykupu względem progów z testu wstecznego);
+    brak pliku albo inna wersja = brak wierszy. Część bez chwili pobrania — '?'. Najwyżej ⚠."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p in SKD_PARTS:
+        P = j.get(p)
+        if not isinstance(P, dict):
+            continue
+        txt = (j.get('part_at') or {}).get(p) if isinstance(j.get('part_at'), dict) else None
+        if not txt:
+            rows.append((SKD_ETYKIETA[p], '?', None, None, 'brak chwili pobrania tej części w pliku'))
+            continue
+        w = wiek_danych(str(txt), 'ts', 'k', now)
+        ok = (j.get('ok') or {}).get(p) if isinstance(j.get('ok'), dict) else None
+        st = '?' if w is None else ('⚠️' if w > SKD_PROG_MIN else '✅')
+        note = ''
+        if st == '⚠️':
+            note = f'pobranie starsze niż {fmt_wiek(SKD_PROG_MIN)} (odświeżanie co 3 h) — dane mogą być nieaktualne; najwyżej uwaga'
+        elif ok is False:
+            note = 'ostatnie pobranie nieudane — dane z poprzedniego pobrania'
+        rows.append((SKD_ETYKIETA[p], st, w, str(txt), note))
+        if p in ('wplywy', 'dlug'):
+            d = _skd_dzien(P.get('asof'))
+            if d is None:
+                continue
+            wd = wiek_danych(d.isoformat(), 'day', 'k', now)
+            zle = wd is not None and wd > SKD_K_DNI * 1440
+            note = (f'ostatni dzień danych {d.isoformat()} sprzed {fmt_wiek(wd)} (dzień danych ukazuje się następnego dnia roboczego po południu czasu USA; najdłuższy odstęp w historii 4,83 doby)' if zle else '')
+            rows.append((SKD_RYTM[p], '⚠️' if zle else '✅', wd, d.isoformat(), note))
+        else:
+            ost = P.get('ost') if isinstance(P.get('ost'), list) and P.get('ost') else None
+            d = _skd_dzien(ost[0][0]) if ost and isinstance(ost[0], list) and ost[0] else None
+            if d is None:
+                continue
+            dzis = now.date()
+            plan = P.get('plan') if isinstance(P.get('plan'), list) else []
+            zle = (dzis - d).days > SKD_K_WYKUPY and not plan
+            note = f'ostatnia zakończona operacja {d.isoformat()} sprzed {(dzis - d).days} dni i brak zapowiedzi następnej (najdłuższa przerwa od maja 2024: 19 dni)' if zle else ''
+            rows.append((SKD_RYTM[p], '⚠️' if zle else '✅', wiek_danych(d.isoformat(), 'day', 'k', now), d.isoformat(), note))
+    return rows
+
+
+def skarb_uwagi(j, files=None, now=None):
+    """Uwagi ⚠ (nigdy ❌): dzień danych o wpływach a dzień salda konta Skarbu (instytucje.tga), zgodność wykupów z umorzeniami obligacji dnia następnego. → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    files = files if isinstance(files, dict) else {}
+    out = {'wiersze': [], 'uwagi': []}
+    W, D, B = (j.get(k) if isinstance(j.get(k), dict) else None for k in ('wplywy', 'dlug', 'wykupy'))
+    # ---- dzień danych a saldo konta Skarbu ----
+    try:
+        ins = files.get('instytucje')
+        tga = ins.get('tga') if isinstance(ins, dict) else None
+        a, b = _skd_dzien(W.get('asof')) if W else None, _skd_dzien(tga.get('asof')) if isinstance(tga, dict) else None
+        if a is not None and b is not None:
+            roz = abs((a - b).days)
+            if roz > SKD_K_TGA:
+                out['uwagi'].append(f'skarb USA: ostatni dzień wpływów {a.isoformat()} a dzień salda konta Skarbu {b.isoformat()} (instytucje.tga) — różnica {roz} dni (to samo sprawozdanie, oczekiwane ≤ {SKD_K_TGA})')
+                out['wiersze'].append(('dzień wpływów a saldo konta Skarbu', '⚠️'))
+            else:
+                out['wiersze'].append(('dzień wpływów a saldo konta Skarbu', '✅'))
+    except Exception:  # noqa
+        pass
+    # ---- wykupy a umorzenia obligacji w dniu następnym ----
+    try:
+        if D and B and isinstance(B.get('ost'), list):
+            dni = {r[0]: r for r in D['d']}
+            klucze = sorted(dni)
+            ile, zle = 0, []
+            for r in B['ost']:
+                nast = [x for x in klucze if x > r[0]]
+                if not nast or r[0] < klucze[0]:
+                    continue
+                ile += 1
+                um = dni[nast[0]][4]
+                if um < r[5] * 0.98 - 5:
+                    zle.append(f'{r[0]} (kupione {r[5]} mln, umorzenia obligacji {nast[0]}: {um} mln)')
+            if ile:
+                if zle:
+                    out['uwagi'].append('skarb USA: wykup większy niż umorzenia obligacji dnia roboczego po operacji — ' + '; '.join(zle[:3]))
+                out['wiersze'].append((f'wykupy a umorzenia obligacji ({ile} operacji)', '⚠️' if zle else '✅'))
+    except Exception:  # noqa
+        pass
+    return out
+
+
+def skarb_kontrola(files, now=None):
+    """Kontrola pliku skarb-usa.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('skarb-usa') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    U = skarb_uwagi(j, files, now)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': skarb_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -10634,6 +10884,24 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['plynnosc-usa'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'płynność USA (v382): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v383. skarb USA (data/skarb-usa.json): świeżość pobrania trzech części i rytm publikacji (ostatni dzień danych, ostatnia operacja wykupu) osobnymi wierszami (lista SWIEZOSC bez zmian), dzień wpływów a saldo
+    # konta Skarbu i zgodność wykupów z umorzeniami obligacji (⚠) oraz sprzeczności w pliku (❌) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in skarb_swiezosc(files.get('skarb-usa')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_sk = skarb_kontrola(files)
+        if T_sk:
+            for z_ in T_sk['spojnosc'][:5]:
+                R['bledy'].append(f'skarb-usa.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_sk['uwagi']
+        R['zgodnosc']['skarb-usa'] = {k_: T_sk[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_sk else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['skarb-usa'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'skarb USA (v383): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -11327,6 +11595,11 @@ def raport_md(R):
             L.append('- Płynność USA (z pliku strony): ' + (f'? kontrola przerwana ({kpl["blad"]})' if kpl.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(kpl['spojnosc'][:3]) + ' ❌ · ' if kpl.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in kpl.get('wiersze') or []) or '—') + '.')
+        ksk = Z.get('skarb-usa')   # v383: skarb USA — sprzeczności w pliku, dzień wpływów a saldo konta, wykupy a umorzenia, rytm publikacji; brak pliku = bez linii
+        if ksk:
+            L.append('- Skarb USA, wpływy i dług dzienne, wykupy (z pliku strony): ' + (f'? kontrola przerwana ({ksk["blad"]})' if ksk.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(ksk['spojnosc'][:3]) + ' ❌ · ' if ksk.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in ksk.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else
