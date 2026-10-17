@@ -29888,3 +29888,209 @@ test('v395 (F11Z9): Energia USA — style: telefon 390 px bez przewijania w bok 
   assert.ok(!/localStorage|sessionStorage|tradingview/i.test(en395.code) && !/\bfetch\(|XMLHttpRequest/.test(en395.code), 'blok czyta tylko przez srvJSON');
   assert.equal(html.split("srvJSON('energia-usa')").length, 2, 'jedno miejsce pobrania pliku (enuLoad)');
 });
+
+// ===================== v396 (F11Z10): prąd Europy 2 — sekcja „Skąd Europa ma prąd” w bloku „Prąd i CO2” (GLOBAL › Surowce) =====================
+// Nagrania 17.10.2026: miks produkcji Niemiec, Polski i Francji (ostatni kompletny punkt, doba do tej chwili, udział odnawialnych), przepływy Polski z sąsiadami, Wielka Brytania.
+const PRAD396_CZ = JSON.parse(String.raw`{"miks":{"asof":"2026-10-17","u":"MW","g":["wegiel","gaz","atom","wiatr","slonce","woda","bio","inne"],"k":{"DE":{"day":"2026-10-17","ts":"2026-10-17T09:30:00+00:00","krok":15,"n":47,"now":[9122.6,4924.5,null,24016.6,11446.4,1083.6,3860.9,1954.3],"sum":[132671.6,64275.6,null,247011.5,22809.5,12591.0,45365.6,23432.0],"rsn":72.7,"rs":{"t0":1792188000,"krok":900,"v":[52.7,53.2,53.0,53.0,52.7,52.9,53.0,53.4,54.1,54.9,55.4,56.2,56.1,56.5,56.7,57.1,57.3,58.0,58.4,59.0,58.9,59.0,59.3,59.5,60.4,61.1,61.6,62.2,62.6,62.9,63.2,63.6,63.5,63.8,64.1,64.6,64.8,65.3,66.0,66.8,67.5,68.2,69.2,70.0,71.2,71.8,72.7]},"at":"2026-10-17T11:15:00+00:00"},"PL":{"day":"2026-10-17","ts":"2026-10-17T09:30:00+00:00","krok":15,"n":47,"now":[8680.3,1637.5,null,180.8,9696.2,76.0,423.0,840.4],"sum":[119730.2,23257.5,null,18855.0,23482.9,955.1,5206.3,10092.2],"rsn":48.2,"rs":{"t0":1792188000,"krok":900,"v":[23.1,23.1,22.9,22.4,21.7,21.0,20.7,20.6,20.2,19.7,19.4,19.1,18.3,17.8,17.7,17.0,16.1,15.6,15.0,14.3,13.5,13.2,12.8,12.5,12.2,12.0,11.5,11.5,11.8,12.5,13.8,16.5,18.9,22.2,25.5,28.5,30.7,33.9,36.1,37.8,37.8,40.7,42.7,45.0,44.2,47.2,48.2]},"at":"2026-10-17T11:25:00+00:00"},"FR":{"day":"2026-10-17","ts":"2026-10-17T09:45:00+00:00","krok":15,"n":48,"now":[null,320.9,35880.5,9850.0,9827.7,1427.8,275.1,455.2],"sum":[null,4891.5,458032.9,108190.0,18449.9,20953.7,3312.5,5494.6],"rsn":37.2,"rs":{"t0":1792188000,"krok":900,"v":[22.7,23.0,23.4,23.8,23.8,23.4,23.1,22.8,22.9,22.9,22.5,22.5,22.3,21.9,21.6,21.5,21.4,21.4,21.5,21.7,21.7,21.5,21.5,21.4,21.7,21.9,21.9,21.9,22.8,22.9,22.9,23.1,23.2,23.4,24.1,24.9,25.5,25.9,26.7,27.6,28.5,29.7,30.8,32.4,33.8,35.2,36.2,37.2]},"at":"2026-10-17T11:35:00+00:00"}}},"przeplywy":{"day":"2026-10-17","ts":"2026-10-17T06:15:00+00:00","n":96,"k":["DE","CZ","SK","SE","LT","UA"],"now":[1895.0,-866.0,-426.0,485.0,204.0,-314.0],"avg":[1485.8,-1198.5,-472.6,-166.4,128.1,-235.6],"net":{"t0":1792132200,"krok":900,"v":[-410.0,-94.0,-113.0,-473.0,-471.0,-883.0,-1423.0,-1828.0,-2018.0,-2216.0,-2063.0,-2462.0,-2862.0,-3300.0,-2959.0,-3006.0,-3247.0,-3034.0,-2697.0,-2671.0,-2852.0,-2888.0,-2639.0,-2137.0,-1618.0,-829.0,-878.0,-554.0,-437.0,-241.0,-638.0,-404.0,27.0,1073.0,1373.0,1391.0,1486.0,1235.0,1142.0,1564.0,1613.0,1577.0,1228.0,1141.0,948.0,576.0,342.0,273.0,37.0,-587.0,-977.0,-847.0,-1016.0,-963.0,-596.0,-418.0,-289.0,-516.0,-403.0,-667.0,-1027.0,-1287.0,-612.0,-691.0,-647.0,-721.0,-976.0,-1096.0,-1104.0,-1016.0,-890.0,-770.0,-735.0,-627.0,-498.0,-545.0,-573.0,-544.0,-397.0,-215.0,119.0,228.0,250.0,531.0,438.0,839.0,1434.0,1598.0,1333.0,1226.0,1553.0,1494.0,1299.0,1165.0,1008.0,978.0]},"at":"2026-10-17T11:05:00+00:00","asof":"2026-10-17","u":"MW"},"uk":{"asof":"2026-10-17","mix":{"od":"2026-10-17T10:30Z","p":{"biomass":3.8,"coal":0.0,"imports":18.5,"gas":5.8,"nuclear":15.9,"other":0.0,"hydro":0.0,"solar":21.6,"wind":34.3}},"ci":{"u":"gCO2/kWh","t0":"2026-10-16T23:00Z","h":[[61,48],[60,55],[50,52],[53,55],[51,55],[49,50],[56,49],[49,51],[48,50],[49,47],[48,51],[46,47],[57,46],[50,58],[45,62],[53,62],[54,62],[58,58],[56,53],[54,52],[53,50],[46,49],[46,46],[46,null],[48,null],[52,null],[53,null],[56,null],[59,null],[58,null],[62,null],[66,null],[78,null],[88,null],[91,null],[98,null],[104,null],[107,null],[114,null],[116,null],[121,null],[121,null],[126,null],[126,null],[124,null],[123,null],[122,null],[124,null]],"now":{"od":"2026-10-17T10:30Z","forecast":46,"actual":null,"index":"low"}},"at":"2026-10-17T12:35:00+00:00"}}`);
+const PRAD396 = Object.assign(JSON.parse(JSON.stringify(PRAD367)), JSON.parse(JSON.stringify(PRAD396_CZ)));
+Object.assign(V142_OK, {'prd396.g.wiatr': 'de', 'prd396.pf.c.UA': 'de fr', 'prd396.g.atom': 'es pt', 'prd396.g.slonce': 'es pt', 'prd396.c.FR': 'fr'});   /* te same wyrazy bez tłumaczenia: Wind (de), Ukraine (de, fr), Nuclear i Solar (es, pt), France (fr) */
+const prd396 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i + 1); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const line = a => { const i = html.indexOf(a); assert.ok(i > 0, a); return html.slice(i, html.indexOf('\n', i)); };
+  const suSrc = cut('const SU={j:null,', 'function suDay(d){');
+  const suSrc2 = cut('function suDay(d){', 'function suIco(');
+  const icoSrc = line('function suIco(g,F,cls){');
+  const hmSrc = cut('function suHM(iso){', '/* punkty nietypowe');
+  const code = cut('/* ===================== v367 (F5Z2): PRĄD I CO2', '/* ---------- koniec sekcji „Skąd Europa ma prąd” (v396) ---------- */');
+  const escH = new Function(html.slice(html.indexOf('function escH(s){'), html.indexOf('\n', html.indexOf('function escH(s){'))) + '\nreturn escH;')();
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/\u00a0|\u202f/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mkDate = ms => { class D extends Date { constructor(...a) { if (a.length === 0) super(ms); else super(...a); } static now() { return ms; } } return D; };
+  const mk = (L, o) => {
+    o = o || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const lines = [], bars = [];
+    const srv = n => { const r = {then(f) { f(null); return r; }, catch() { return r; }}; return r; };
+    const doc = {hidden: false, addEventListener: () => {}};
+    const wkLines = (Ls, op) => { lines.push({L: Ls, op}); return '<lines aria="' + op.aria + '">' + Ls.map(l => `[${l.n}|${l.cls}|${l.d.length}]`).join('') + '</lines>'; };
+    const wkBars = (rows, op) => { bars.push({rows, op}); return '<bars aria="' + op.aria + '">' + rows.map(r => `[${r.l}|${r.v}|${r.vt}|${r.cls}]`).join('') + '</bars>'; };
+    const wkMs = d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z');
+    const wkDay = (ms, yr) => new Date(ms).toLocaleDateString(LOC[L] || 'pl-PL', yr ? {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'} : {day: 'numeric', month: 'short', timeZone: 'UTC'});
+    const now = Date.parse(o.now || '2026-10-17T12:30:00Z');
+    const flagImg = c => `[f:${c}]`;
+    const api = new Function('t', 'nfmt', 'escH', 'engDate', 'srvJSON', 'renderSu', 'document', 'setInterval', 'wkBars', 'wkLines', 'wkMs', 'wkDay', 'gAgeNote', 'flagImg', 'glyphImg', 'Date', 'LANG', 'LOCALE',
+      'const sg=v=>v>0?"+":v<0?"−":"";\n' + suSrc + suSrc2 + icoSrc + '\n' + hmSrc + '\n' + code + '\nreturn {SU, PRD, prdBody, prd396Sec, pmMix, pmFlows, pmUk, suHM, pmPct, pmSg};')(
+      v96src.tFor(L), F.nfmt, escH, d => 'D:' + d, srv, () => {}, doc, () => 1, wkBars, wkLines, wkMs, wkDay, d => ' · wiek(' + d + ')', flagImg, undefined, mkDate(now), L, LOC);
+    return {api, lines, bars, F, t: v96src.tFor(L)};
+  };
+  const full = (L, o) => { const K = mk(L || 'pl', o); K.api.SU.j = {ceny: {ttf: {u: 'EUR/MWh', d: clone(prd367.TTF)}}}; K.api.PRD.j = clone((o && o.file) || PRAD396); return K; };
+  return {mk, full, clone, sp, txt, escH, code};
+})();
+const pm = (L, o) => { const K = prd396.full(L, o), h = K.api.prd396Sec(); return {K, h, bars: K.bars, lines: K.lines, text: prd396.txt(h)}; };
+const hm396 = iso => new Date(iso).toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'});
+
+test('v396 (F11Z10): produkcja prądu wg źródła — słupki skumulowane: udział każdej grupy (suma 100%), grupa bez serii pominięta (nie zero), razem w GW, opis z godziną, druga seria — doba do tej chwili w GWh', () => {
+  const {K, bars} = pm(), nf = K.F.nfmt, X = PRAD396.miks.k, sp = prd396.sp;
+  const b = bars.find(x => /w 3 krajach/.test(x.op.aria) && x.op.leg === true), d = bars.find(x => /w 3 krajach/.test(x.op.aria) && x.op.leg === false);
+  assert.ok(b && d, 'dwa wykresy: ostatni pomiar (z legendą) i doba (bez legendy)');
+  assert.equal(b.op.stack, true); assert.deepEqual(b.op.dom, [0, 100]); assert.equal(b.rows.length, 3); assert.equal(b.op.lw, '30%');
+  assert.deepEqual(b.op.ser.map(s => s.cls), ['pm-wegiel', 'pm-gaz', 'pm-atom', 'pm-wiatr', 'pm-slonce', 'pm-woda', 'pm-bio', 'pm-inne']);
+  assert.deepEqual(b.op.ser.map(s => s.n), ['Węgiel', 'Gaz', 'Atom', 'Wiatr', 'Słońce', 'Woda', 'Biomasa i inne odnawialne', 'Inne']);
+  const tot = x => x.now.reduce((a, v) => a + (v || 0), 0), tots = x => x.sum.reduce((a, v) => a + (v || 0), 0);
+  ['DE', 'PL', 'FR'].forEach((c, i) => {
+    const r = b.rows[i], x = X[c];
+    r.vs.forEach((v, g) => { if (x.now[g] === null) assert.equal(v, null, c + ' grupa ' + g + ': brak serii = null, nie 0'); else assert.ok(Math.abs(v - x.now[g] / tot(x) * 100) < 1e-9, c + ' udział ' + g); });
+    assert.ok(Math.abs(r.vs.reduce((a, v) => a + (v || 0), 0) - 100) < 1e-9, c + ': udziały sumują się do 100%');
+    assert.equal(sp(r.vt), nf(tot(x) / 1000, 1) + ' GW', c + ': produkcja razem');
+    const rd = d.rows[i]; assert.ok(Math.abs(rd.vs.reduce((a, v) => a + (v || 0), 0) - 100) < 1e-9); assert.equal(sp(rd.vt), nf(tots(x) / 1000, tots(x) >= 1e5 ? 0 : 1) + ' GWh', c + ': energia od północy');
+  });
+  assert.equal(b.rows[0].vs[2], null, 'Niemcy: atom = null'); assert.equal(b.rows[1].vs[2], null, 'Polska: atom = null'); assert.ok(b.rows[2].vs[2] > 50, 'Francja: atom ponad połowa');
+  assert.ok(b.rows[0].tip.startsWith('Niemcy, ' + K.api.suHM(X.DE.ts) + ': Wiatr 43% · Słońce 20% · Węgiel 16%'), 'opis: kraj, godzina, udziały od największego: ' + b.rows[0].tip);
+  assert.ok(!/Atom/.test(b.rows[0].tip), 'Niemcy: bez atomu w opisie'); assert.ok(/Atom 62%/.test(b.rows[2].tip));
+  assert.ok(b.rows[0].l.includes('[f:de]') && b.rows[1].l.includes('[f:pl]') && b.rows[2].l.includes('[f:fr]') && b.rows[0].l.includes('Niemcy'), 'flaga i nazwa kraju');
+  assert.ok(!/[\u200b\u200c\u200d\u2060\ufeff]/.test(prd396.code));
+});
+
+test('v396 (F11Z10): produkcja prądu — zdania z liczb (największy udział, odnawialne razem, godzina ostatniego pomiaru z wiekiem), brak kraju i drobne udziały (<1% zapisane bezpiecznie), doba tylko od 4 pomiarów', () => {
+  const {K, text, h} = pm();
+  assert.ok(text.includes('Największy udział w produkcji — Niemcy: Wiatr 43%; Polska: Słońce 45%; Francja: Atom 62%. Odnawialne źródła (wiatr, słońce, woda, biomasa) razem: Niemcy 72%, Polska 48%, Francja 37%.'), text);
+  const X = PRAD396.miks.k, hm = c => K.api.suHM(X[c].ts);
+  assert.ok(text.includes(`Ostatni kompletny pomiar: Niemcy ${hm('DE')}, Polska ${hm('PL')}, Francja ${hm('FR')}. Źródło publikuje dane z opóźnieniem. · wiek(2026-10-17)`), 'godziny pomiarów i wiek danych: ' + text);
+  assert.ok(text.includes('Produkcja prądu wg źródła — ostatni pomiar · udział w produkcji, %') && text.includes('Produkcja prądu wg źródła — cała doba do tej chwili · udział w energii wyprodukowanej od północy, %'));
+  // Francja bez wpisu: dwa kraje, atom znika z legendy (żaden kraj go nie ma)
+  const F1 = prd396.clone(PRAD396); delete F1.miks.k.FR; const A = pm('pl', {file: F1}), b1 = A.bars.find(x => /w 2 krajach/.test(x.op.aria));
+  assert.ok(b1 && b1.rows.length === 2 && !b1.op.ser.some(s => s.cls === 'pm-atom'), 'dwa kraje, bez segmentu atom'); assert.ok(!/Atom|Francja/.test(A.text.split('Wielka Brytania: jak czysty')[0]), 'bez Francji i atomu w zdaniach');
+  // doba tylko od 4 pomiarów (godziny): n = 3 → jeden wykres
+  const F2 = prd396.clone(PRAD396); for (const c of ['DE', 'PL', 'FR']) F2.miks.k[c].n = 3; const B = pm('pl', {file: F2});
+  assert.equal(B.bars.filter(x => /w 3 krajach/.test(x.op.aria)).length, 1, 'doba pominięta przy n < 4'); assert.ok(!B.text.includes('cała doba do tej chwili'));
+  // drobny udział: <1% zapisane jako &lt;1% (tekst trafia do HTML)
+  const F3 = prd396.clone(PRAD396); F3.miks.k.DE.now = [50000, 0, null, 100, 0, 0, 0, 0]; F3.miks.k.DE.sum = [200000, 0, null, 400, 0, 0, 0, 0];
+  const C = pm('pl', {file: F3}); assert.ok(C.h.includes('Niemcy &lt;1%') && !C.h.includes('Niemcy <1%'), 'odnawialne 0,2% = „<1%” z ucieczką');
+  assert.ok(/<1%/.test(C.bars.find(x => /w 3 krajach/.test(x.op.aria)).rows[0].tip) || /Wiatr <1%/.test(C.bars[0].rows[0].tip), 'w opisie słupka wiatr <1% (wkBars ucieka znaki)');
+  // wpisy zepsute: zła lista, brak godziny, suma 0 — kraj pominięty (nie zero, nie wyjątek)
+  const F4 = prd396.clone(PRAD396); F4.miks.k.DE.now.pop(); F4.miks.k.PL.ts = 'wczoraj'; F4.miks.k.FR.now = [null, null, null, null, null, null, null, null];
+  assert.equal(pm('pl', {file: F4}).K.api.pmMix().length, 0); assert.ok(!pm('pl', {file: F4}).text.includes('Produkcja prądu wg źródła'));
+});
+
+test('v396 (F11Z10): udział odnawialnych w ciągu doby — linie krajów w kolorach serii, oś 0–100%, tylko kraje z tej samej doby i co najmniej dwa', () => {
+  const {K, lines} = pm(), l = lines.find(x => /odnawialnych źródeł w produkcji prądu/.test(x.op.aria)), X = PRAD396.miks.k;
+  assert.ok(l, 'wykres jest'); assert.deepEqual(l.L.map(s => s.n), ['Niemcy', 'Polska', 'Francja']); assert.deepEqual(l.L.map(s => s.cls), ['s1', 's2', 'pm-l3']);
+  assert.deepEqual(l.op.dom, [0, 100]); assert.equal(l.op.zero, false); assert.equal(l.op.fmt(72.7), '73%');
+  l.L.forEach((s, i) => { const x = X[['DE', 'PL', 'FR'][i]]; assert.equal(s.d.length, x.rs.v.length); assert.equal(s.d[0][0], x.rs.t0 * 1000); assert.equal(s.d[1][0], (x.rs.t0 + x.rs.krok) * 1000); assert.equal(s.d[x.rs.v.length - 1][1], x.rs.v[x.rs.v.length - 1]); });
+  assert.equal(l.op.dt(l.L[0].d[0][0]), new Date(l.L[0].d[0][0]).toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'}), 'godzina czytelnika');
+  assert.equal(prd396.sp(l.op.aria), 'Wykres liniowy: udział odnawialnych źródeł w produkcji prądu w 3 krajach');
+  const F1 = prd396.clone(PRAD396); F1.miks.k.FR.day = '2026-10-16'; const A = pm('pl', {file: F1});
+  assert.deepEqual(A.lines.find(x => /odnawialnych źródeł w produkcji prądu/.test(x.op.aria)).L.map(s => s.n), ['Niemcy', 'Polska'], 'Francja z poprzedniej doby — poza wykresem doby');
+  const F2 = prd396.clone(PRAD396); F2.miks.k.PL.rs = null; F2.miks.k.FR.rs = null; assert.ok(!pm('pl', {file: F2}).lines.some(x => /odnawialnych źródeł w produkcji prądu/.test(x.op.aria)), 'jedna seria to nie porównanie — bez wykresu');
+  const F3 = prd396.clone(PRAD396); F3.miks.k.DE.rs.v = F3.miks.k.DE.rs.v.map((v, i) => i < 3 ? v : (i % 2 ? 150 : null)); const C = pm('pl', {file: F3}).lines.find(x => /odnawialnych źródeł w produkcji prądu/.test(x.op.aria));
+  assert.equal(C.L.length, 2, 'seria Niemiec z samymi brakami i liczbami spoza 0–100 (poza trzema punktami) — odpada');
+});
+
+test('v396 (F11Z10): przepływy Polski z sąsiadami — słupki ze znakiem (import niebieski, eksport pomarańczowy), saldo, zdanie z największym importem i eksportem, wiersz bez liczby to „—”', () => {
+  const {K, bars, text} = pm(), nf = K.F.nfmt, P = PRAD396.przeplywy, sp = prd396.sp;
+  const b = bars.find(x => /przepływy prądu między Polską a sąsiadami w megawatach/.test(x.op.aria));
+  assert.ok(b); assert.equal(b.rows.length, 7); assert.equal(b.op.lw, '34%'); assert.equal(sp(b.op.fmt(1895)), '+1895 MW');
+  assert.deepEqual(b.rows.map(r => r.v), [1895, -866, -426, 485, 204, -314, 978]);
+  assert.deepEqual(b.rows.map(r => r.cls), ['pm-im', 'pm-ex', 'pm-ex', 'pm-im', 'pm-im', 'pm-ex', 'pm-im'], 'import niebieski, eksport pomarańczowy — to nie kierunek rynku (bez zieleni i czerwieni)');
+  assert.deepEqual(b.rows.map(r => sp(r.vt)), ['+1895 MW', '−866 MW', '−426 MW', '+485 MW', '+204 MW', '−314 MW', '+978 MW']);
+  assert.ok(b.rows[0].l.includes('[f:de]') && b.rows[0].l.includes('Niemcy') && b.rows[3].l.includes('Szwecja') && b.rows[5].l.includes('Ukraina') && b.rows[6].l.includes('<b>Razem (saldo)</b>'));
+  assert.equal(sp(b.rows[0].tip), 'Niemcy: import 1895 MW · średnio w ciągu 24 godzin +1486 MW'); assert.equal(sp(b.rows[1].tip), 'Czechy: eksport 866 MW · średnio w ciągu 24 godzin −1199 MW');
+  assert.ok(text.includes(`W ostatnim pomiarze (${K.api.suHM(P.ts)}) Polska importowała netto 978 MW. Największy import: Niemcy (1895 MW). Największy eksport: Czechy (866 MW).`), text);
+  assert.ok(text.includes(`Pomiar z ${K.api.suHM(P.ts)}. Źródło publikuje przepływy z opóźnieniem kilku godzin, a ostatnie kwadranse uzupełnia zerami — takich punktów nie pokazujemy. · wiek(2026-10-17)`));
+  assert.ok(text.includes('Przepływy prądu między Polską a sąsiadami · megawaty (MW); plus = Polska importuje, minus = eksportuje'));
+  // łącze bez liczby: „—”, saldo nieznane (nie suma częściowa), zdanie bez salda
+  const F1 = prd396.clone(PRAD396); F1.przeplywy.now[2] = null; const A = pm('pl', {file: F1}), a = A.bars.find(x => /przepływy prądu/.test(x.op.aria));
+  assert.equal(a.rows[2].vt, '—'); assert.equal(a.rows[6].vt, '—'); assert.equal(a.rows[6].v, null); assert.ok(!/netto/.test(A.text) && /Największy import: Niemcy/.test(A.text));
+  // saldo zerowe i sam eksport
+  const F2 = prd396.clone(PRAD396); F2.przeplywy.now = [100, -100, 0, 0, 0, 0]; const Z = pm('pl', {file: F2}); assert.ok(Z.text.includes('bilans wymiany prądu był zerowy') && !/netto/.test(Z.text));
+  assert.equal(prd396.sp(Z.bars.find(x => /przepływy prądu/.test(x.op.aria)).rows[2].tip), 'Słowacja: brak przepływu · średnio w ciągu 24 godzin −473 MW');
+  const F3 = prd396.clone(PRAD396); F3.przeplywy.now = [-100, -200, -50, -10, -5, -1]; assert.ok(pm('pl', {file: F3}).text.includes('Polska eksportowała netto 366 MW') && !/Największy import/.test(pm('pl', {file: F3}).text));
+  // zła kolejność łączy albo wartość spoza zakresu = sekcja przepływów pominięta
+  const F4 = prd396.clone(PRAD396); F4.przeplywy.k = ['CZ', 'DE', 'SK', 'SE', 'LT', 'UA']; assert.equal(pm('pl', {file: F4}).K.api.pmFlows(), null); assert.ok(!pm('pl', {file: F4}).text.includes('Przepływy prądu między'));
+  const F5 = prd396.clone(PRAD396); F5.przeplywy.now[0] = -5; F5.przeplywy.now = [null, null, null, null, null, null]; assert.equal(pm('pl', {file: F5}).K.api.pmFlows(), null, 'same braki = brak sekcji');
+});
+
+test('v396 (F11Z10): saldo wymiany z ostatnich 24 godzin — linia ze znakiem, oś z dniem i godziną, bez wykresu przy mniej niż 8 punktach', () => {
+  const {K, lines} = pm(), l = lines.find(x => /saldo wymiany prądu Polski z sąsiadami/.test(x.op.aria)), P = PRAD396.przeplywy;
+  assert.ok(l); assert.equal(l.L.length, 1); assert.equal(l.L[0].cls, 's1'); assert.equal(l.L[0].d.length, 96); assert.equal(l.L[0].d[0][0], P.net.t0 * 1000); assert.equal(l.L[0].d[95][1], P.net.v[95]);
+  assert.equal(prd396.sp(l.op.fmt(-498)), '−498 MW'); assert.ok(/\d/.test(l.op.dx(l.L[0].d[0][0])) && l.op.dx(l.L[0].d[0][0]) === l.op.dt(l.L[0].d[0][0]), 'podpis osi z dniem (seria dłuższa niż doba)');
+  assert.ok(prd396.txt(K.api.prd396Sec()).includes('Saldo wymiany Polski z zagranicą — ostatnie 24 godziny · MW; plus = import, minus = eksport'));
+  const F1 = prd396.clone(PRAD396); F1.przeplywy.net.v = F1.przeplywy.net.v.map((v, i) => i < 5 ? v : null); assert.ok(!pm('pl', {file: F1}).lines.some(x => /saldo wymiany prądu/.test(x.op.aria)), 'brak wykresu, pasek zostaje');
+  assert.ok(pm('pl', {file: F1}).bars.some(x => /przepływy prądu/.test(x.op.aria)));
+});
+
+test('v396 (F11Z10): Wielka Brytania — kafel emisyjności (wartość rzeczywista albo tylko prognoza, skala słowna, godzina i wiek), miks z importem, linie doby co 30 minut', () => {
+  const {K, bars, lines, h, text} = pm(), U = PRAD396.uk, tile = prd396.txt((/<div class="etfk su-k prd-k" data-prd="ukci">(.*?)<\/div>/.exec(prd396.sp(h)) || [])[1] || '');
+  assert.ok(tile.includes('[f:gb] Emisyjność prądu 46 gCO2/kWh niska · tylko prognoza okres od ' + K.api.suHM('2026-10-17T10:30Z') + ' · wiek(2026-10-17)'), 'tylko prognoza (rzeczywista jeszcze nie wpłynęła): ' + tile);
+  const F1 = prd396.clone(PRAD396); F1.uk.ci.now.actual = 52; const A = pm('pl', {file: F1}), t1 = prd396.txt((/data-prd="ukci">(.*?)<\/div>/.exec(prd396.sp(A.h)) || [])[1]);
+  assert.ok(t1.includes('52 gCO2/kWh niska · prognoza 46'), t1);
+  const F2 = prd396.clone(PRAD396); F2.uk.ci.now.index = null; assert.ok(!/niska/.test(pm('pl', {file: F2}).h.split('data-prd="ukci"')[1].split('</div>')[0]), 'bez skali słownej — bez słowa');
+  const F3 = prd396.clone(PRAD396); F3.uk.ci = null; const C = pm('pl', {file: F3}); assert.ok(C.h.includes('Brak danych o emisyjności.') && C.h.includes('<b class="na">—</b>'), 'bez emisyjności: kafel z „—” i powodem'); assert.ok(!C.lines.some(x => /emisyjność prądu w Wielkiej Brytanii/.test(x.op.aria)));
+  assert.equal(bars.filter(x => /dostawach prądu w Wielkiej Brytanii/.test(x.op.aria)).length, 1);
+  const b = bars.find(x => /dostawach prądu w Wielkiej Brytanii/.test(x.op.aria));
+  assert.deepEqual(b.op.ser.map(s => s.cls), ['pm-gaz', 'pm-atom', 'pm-wiatr', 'pm-slonce', 'pm-bio', 'pm-imp'], 'paliwa z udziałem > 0 w stałej kolejności (węgiel, woda i inne po 0% — bez segmentu)');
+  assert.deepEqual(b.op.ser.map(s => s.n), ['Gaz', 'Atom', 'Wiatr', 'Słońce', 'Biomasa', 'Import']); assert.deepEqual(b.rows[0].vs, [5.8, 15.9, 34.3, 21.6, 3.8, 18.5]); assert.equal(b.rows[0].vt, '100%'); assert.deepEqual(b.op.dom, [0, 100]);
+  assert.ok(b.rows[0].tip.startsWith('Wielka Brytania, ' + K.api.suHM('2026-10-17T10:30Z') + ': Wiatr 34% · Słońce 22% · Import 19% · Atom 16%'), b.rows[0].tip);
+  assert.ok(text.includes('Teraz (' + K.api.suHM('2026-10-17T10:30Z') + '): 46 gCO2/kWh, emisyjność niska. Największy udział w dostawach: Wiatr 34%; import 19%.'), text);
+  const l = lines.find(x => /emisyjność prądu w Wielkiej Brytanii/.test(x.op.aria));
+  assert.deepEqual(l.L.map(s => [s.n, s.cls, s.d.length]), [['Rzeczywista', 's1', 48], ['Prognoza', 's2', 48]]); assert.equal(l.op.zero, false);
+  assert.equal(l.L[0].d[0][0], Date.parse('2026-10-16T23:00Z')); assert.equal(l.L[0].d[1][0], Date.parse('2026-10-16T23:30Z')); assert.equal(l.L[0].d[0][1], 48); assert.equal(l.L[0].d[40][1], null, 'brak wartości rzeczywistej = przerwa, nie zero'); assert.equal(l.L[1].d[40][1], PRAD396.uk.ci.h[40][0]);
+  // miks nie sumuje się do 100% (np. brakujące paliwo) albo zły dzień: cała sekcja Wielkiej Brytanii pominięta
+  const F4 = prd396.clone(PRAD396); F4.uk.mix.p.wind = 80; assert.equal(pm('pl', {file: F4}).K.api.pmUk(), null); assert.ok(!pm('pl', {file: F4}).text.includes('Wielka Brytania: jak czysty'));
+  const F5 = prd396.clone(PRAD396); F5.uk.asof = 'dziś'; assert.equal(pm('pl', {file: F5}).K.api.pmUk(), null);
+  const F6 = prd396.clone(PRAD396); F6.uk.ci.h[3] = [5, 'x']; assert.equal(pm('pl', {file: F6}).K.api.pmUk().ci, null, 'zła seria emisyjności — sam miks');
+});
+
+test('v396 (F11Z10): podpięcie w bloku „Prąd i CO2” — sekcja po cenach w strefach i przed CO2, bez nowych części pliku blok bez zmian, noty o części bez odpowiedzi', () => {
+  const html0 = html, K = prd396.full('pl'), body = K.api.prdBody();
+  assert.ok(html0.includes("tiles+prdDayChart(A)+prdZones()+(typeof prd396Sec==='function'?prd396Sec():'')+prdCo2Chart()+prdHistChart()+"), 'kod: hak przez typeof');
+  assert.ok(body.indexOf('Europa: ceny prądu w 15 strefach') < body.indexOf('Skąd Europa ma prąd') && body.indexOf('Skąd Europa ma prąd') < body.indexOf('Uprawnienia do emisji CO2: cena dzienna'), 'kolejność: strefy, sekcja, CO2');
+  assert.ok(body.includes('<h4 class="mtxt prd-h2"><b>Skąd Europa ma prąd</b></h4>'));
+  const S = prd396.full('pl', {file: PRAD367, now: '2026-10-13T12:30:00Z'}), bs = S.api.prdBody(); assert.ok(!bs.includes('prd-h2') && !bs.includes('Skąd Europa ma prąd'), 'plik sprzed rozszerzenia: bez sekcji'); assert.equal(S.api.prd396Sec(), '');
+  assert.equal(prd367.full().api.prdBody(), bs, 'blok z nowym kodem i plikiem sprzed rozszerzenia = blok v367 bez zmian');
+  // wszystkie trzy części zepsute: nic nie wpada do bloku (pusty napis), zero wyjątków
+  const Z = prd396.clone(PRAD396); Z.miks = {k: 'x'}; Z.przeplywy = {}; Z.uk = {mix: 5}; assert.equal(prd396.full('pl', {file: Z}).api.prd396Sec(), '');
+  // części z błędem przy ostatnim pobraniu: dane są → poprzednie z datą; danych nie ma → „jeszcze niedostępne”
+  const E = prd396.clone(PRAD396); E.ok = Object.assign({}, E.ok, {miks: false, przeplywy: false}); delete E.przeplywy.ts; E.przeplywy = {};
+  const eh = prd396.txt(prd396.full('pl', {file: E}).api.prd396Sec());
+  assert.ok(eh.includes('Nie udało się odświeżyć: miks produkcji. Pokazujemy poprzednie dane z ich datą.') && eh.includes('Jeszcze niedostępne: przepływy Polski.'), eh);
+  const E2 = prd396.clone(PRAD396); E2.ok = Object.assign({}, E2.ok, {miks: true, przeplywy: 'cached', uk: false}); const e2 = prd396.txt(prd396.full('pl', {file: E2}).api.prd396Sec());
+  assert.ok(e2.includes('Nie udało się odświeżyć: Wielka Brytania.') && !/miks produkcji\. Pokazujemy/.test(e2));
+  assert.ok(/To nie jest porada inwestycyjna\./.test(prd396.txt(K.api.prd396Sec())) && /magazyny \(elektrownie szczytowo-pompowe, baterie\) pomijamy/.test(prd396.txt(K.api.prd396Sec())));
+  const t0 = prd396.txt(K.api.prd396Sec()); assert.ok(!/Energy|Fraunhofer|ENTSO|NESO|Bundesnetz/i.test(t0), 'żadnych nazw dostawców na stronie');
+});
+
+test('v396 (F11Z10): wszystkie 10 języków — sekcja renderuje się bez surowych kluczy, z tym samym układem wykresów i liczbami; słownik: te same klucze i pola {x}, bez znaczników i nazw dostawców', () => {
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const base = pm('pl'), shape = P => [P.bars.map(b => b.rows.length + ':' + (b.op.ser || []).length).join(','), P.lines.map(l => l.L.length).join(',')].join('|');
+  for (const L of L10) {
+    const P = pm(L); assert.ok(!/prd396\./.test(P.h), L + ': surowy klucz w HTML'); assert.equal(shape(P), shape(base), L + ': ten sam układ wykresów');
+    assert.ok(P.h.includes(v96src.tFor(L)('prd396.h')), L + ': nagłówek sekcji'); assert.ok(prd396.sp(P.h).includes(v96src.tFor(L)('prd396.read').slice(0, 20)), L + ': objaśnienie');
+    assert.notEqual(prd396.sp(P.bars[0].op.aria), '', L);
+  }
+  assert.ok(pm('de').text.includes('Größter Anteil an der Erzeugung — Deutschland: Wind 43%; Polen: Sonne 45%; Frankreich: Kernkraft 62%.'), pm('de').text);
+  const m = /const EXTRA(\d+)=(\{"pl":\{"prd396\.h".*?\});\n/.exec(html); assert.ok(m, 'słownik v396 w jednej linii');
+  const D = JSON.parse(m[2]), keys = Object.keys(D.pl).sort();
+  assert.equal(keys.length, 83); assert.deepEqual(Object.keys(D).sort(), L10.slice().sort());
+  const ph = s => (s.match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  for (const L in D) { assert.deepEqual(Object.keys(D[L]).sort(), keys, L); for (const k of keys) { assert.ok(typeof D[L][k] === 'string' && D[L][k].trim(), L + ' ' + k); assert.ok(!/[<>]/.test(D[L][k]), L + ' ' + k + ': bez znaczników'); assert.equal(ph(D[L][k]), ph(D.pl[k]), L + ' ' + k + ': te same pola');
+    assert.ok(!/Energy-Charts|Fraunhofer|ENTSO|NESO|Bundesnetz|SMARD/i.test(D[L][k]), L + ' ' + k + ': bez nazw dostawców'); } }
+  for (const L of ['de', 'es', 'fr', 'it', 'pt']) for (const k of ['prd396.h', 'prd396.sub', 'prd396.read', 'prd396.mx.h', 'prd396.pf.h', 'prd396.uk.h']) assert.notEqual(D[L][k], D.en[k], L + ' ' + k + ': prawdziwe tłumaczenie, nie angielski');
+  for (const L of ['ru', 'zh', 'ja']) for (const k of ['prd396.h', 'prd396.mx.h', 'prd396.pf.h', 'prd396.uk.h', 'prd396.g.wegiel', 'prd396.c.DE']) assert.ok(!/^[\x00-\x7f]*$/.test(D[L][k]), L + ' ' + k + ': nie same znaki ASCII');
+  assert.ok(html.includes('/* v396 (F11Z10): prąd Europy 2 — miks produkcji, przepływy Polski, Wielka Brytania — 10 języków */\nconst EXTRA' + m[1] + '='), 'komentarz i czysty JSON w jednej linii');
+  assert.ok(html.includes(`for(const l in EXTRA${m[1]})if(I18N[l])Object.assign(I18N[l],EXTRA${m[1]}[l]);\n`), 'linia for po słowniku'); assert.ok(html.indexOf('const EXTRA' + m[1] + '=') < html.indexOf(`for(const l in EXTRA${m[1]})`));
+  assert.ok(!/[\u200b-\u200f\u2060\ufeff\ufe0f\u00a0\u202f]/.test(m[2].replace(/\\u[0-9a-f]{4}/gi, '')), 'znaki niewidoczne tylko jako ucieczki');
+});
+
+test('v396 (F11Z10): kolory serii — kolory tożsamości źródła energii (bez zieleni i czerwieni), każda klasa użyta w kodzie ma regułę w panelu surowców, jasny motyw ma własne odcienie', () => {
+  for (const c of ['wegiel', 'gaz', 'atom', 'wiatr', 'slonce', 'woda', 'bio', 'inne', 'imp', 'l3', 'im', 'ex']) assert.ok(new RegExp('#g-surowce \\.wk-ch \\.pm-' + c + '\\{--k:').test(html), 'reguła pm-' + c);
+  for (const c of ['pm-l3', 'pm-im', 'pm-ex']) assert.ok(prd396.code.includes("'" + c + "'"), 'klasa ' + c + ' używana w kodzie');
+  assert.ok(prd396.code.includes("cls:'pm-'+g") && prd396.code.includes("cls:'pm-'+PM_UKC[k]"), 'klasy serii: pm- + identyfikator grupy');
+  const reg = html.slice(html.indexOf('#g-surowce .wk-ch .pm-wegiel{'), html.indexOf('#g-surowce .prd-h2{')); assert.ok(reg.length > 200);
+  assert.ok(!/var\(--gr\)|var\(--rd\)|#30D158|#34C759|#FF453A|#FF3B30/i.test(reg), 'bez zieleni i czerwieni (to nie kierunek)');
+  for (const c of ['atom', 'bio', 'imp']) assert.ok(new RegExp(':root\\[data-theme="light"\\] #g-surowce \\.wk-ch \\.pm-' + c + '\\{--k:').test(reg), 'jasny motyw: ' + c);
+  assert.ok(/#g-surowce \.prd-b \.wk-bl\{white-space:normal/.test(reg + html.slice(html.indexOf('#g-surowce .prd-h2{'), html.indexOf('#g-surowce .prd-h2{') + 300)), 'etykiety krajów mogą się zawijać (telefon)');
+});

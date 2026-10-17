@@ -32952,11 +32952,17 @@ def main():
     # v395: koniec bloku energii USA
     prev_pr = previous('prad')
     try:
-        pr_ = build_prad(prev_pr, run_t0=_RUN_T0[0])
+        pr_ = build_prad(prev_pr, run_t0=_RUN_T0[0], rozsz=True)
         save('prad', pr_)
         META['ok']['prad_pl'] = pr_['ok']['pl']
         META['ok']['prad_co2'] = pr_['ok']['co2']
         META['ok']['prad_str'] = pr_['ok']['str']
+        if 'miks' in pr_['ok']:   # v396 (F11Z10): miks produkcji, przepływy Polski i Wielka Brytania — osobne klucze stanu; źródła: interfejs danych o energii (jak strefy) i operator brytyjskiej sieci (+1)
+            META['ok']['prad_mx'] = pr_['ok']['miks']
+        if 'przeplywy' in pr_['ok']:
+            META['ok']['prad_pf'] = pr_['ok']['przeplywy']
+        if 'uk' in pr_['ok']:
+            META['ok']['prad_uk'] = pr_['ok']['uk']
     except Exception as e:  # noqa
         META['errors'].append(mask(f'surowce (prąd i CO2): {e}')[:200]); META['ok']['prad'] = False
         if prev_pr:
@@ -35311,7 +35317,7 @@ def _prad_due_co2(z, prev, now):
     return not (isinstance(prev, dict) and prev.get('d')) or at >= PRAD_CO2_ODSW_MIN
 
 
-def _prad_wybierz_strefe(prev_str, st, now):
+def _prad_wybierz_strefe(prev_str, st, now, tylko_pilne=False):
     """Strefa do odpytania w tym przebiegu albo None: najpierw bez dzisiejszej doby, potem bez jutrzejszej (po godzinie publikacji), potem najstarsza stan ≥ PRAD_STR_ODSW_MIN min;
     wewnątrz grupy najdawniej próbowana. Co najwyżej jedna na przebieg i nie w czasie wstrzymania."""
     h = _aw_t(st['hold']) if isinstance(st.get('hold'), str) else None
@@ -35335,7 +35341,7 @@ def _prad_wybierz_strefe(prev_str, st, now):
             if tr < PRAD_STR_JUTRO_PONOW_MIN:   # strefa, która nie publikuje doby następnej (część stref później albo wcale), nie zajmuje wszystkich zapytań
                 continue
             kl = 1
-        elif at >= PRAD_STR_ODSW_MIN:
+        elif at >= (PRAD_STR_PILNE_MIN if tylko_pilne else PRAD_STR_ODSW_MIN):   # v396: gdy zadanie rozszerzenia czeka na jedyne zapytanie przebiegu, odświeżanie stref tylko pilne
             kl = 2
         else:
             continue
@@ -35417,9 +35423,10 @@ def _prad_pobierz_co2(ctx):
 def _prad_pobierz_str(ctx):
     now = ctx['now']
     prev = ctx['prev'].get('str') if isinstance(ctx['prev'].get('str'), dict) else {}
-    z = _prad_wybierz_strefe(prev, ctx['st'], now)
+    z = _prad_wybierz_strefe(prev, ctx['st'], now, ctx.get('str_pilne', False))
     if z is None:
         return None
+    ctx['ec_uzyty'] = True   # v396: jedyne zapytanie do interfejsu danych o energii w tym przebiegu
     ctx['st'].setdefault('try', {})[z] = now.replace(microsecond=0).isoformat()
     dzis = _prad_dzis(now)
     dni = [dzis, dzis + datetime.timedelta(days=1)]
@@ -35447,7 +35454,335 @@ def _prad_pobierz_str(ctx):
     return part['asof']
 
 
-PRAD_POBIERZ = {'pl': _prad_pobierz_pl, 'co2': _prad_pobierz_co2, 'str': _prad_pobierz_str}
+# ===================== v396 (F11Z10): PRĄD EUROPY 2 — miks produkcji, przepływy Polski z sąsiadami, Wielka Brytania (rozszerzenie data/prad.json z v367) =====================
+# Trzy nowe części TEGO SAMEGO pliku (części pl, co2, str i ich pola bez zmian; włączane parametrem rozsz=True w build_prad, main go ustawia):
+#   miks      — skąd Niemcy, Polska i Francja mają prąd: produkcja wg źródła (8 grup: węgiel, gaz, atom, wiatr, słońce, woda, biomasa i odnawialne inne, inne) w MW
+#               w ostatnim kompletnym punkcie doby (now) i suma doby do tej chwili w MWh (sum), do tego udział odnawialnych w produkcji z własnej serii źródła (rs, rsn).
+#               Grupa, której kraj nie ma w odpowiedzi (np. atom w Niemczech i Polsce), = None, nigdy 0. Punkt jest kompletny, gdy WSZYSTKIE serie produkcji kraju mają w nim liczbę
+#               (ostatni punkt odpowiedzi bywa niepełny — wtedy cofamy się do ostatniego kompletnego). Produkcja = same serie wytwarzania ze źródeł; magazyny (elektrownie
+#               szczytowo-pompowe, baterie), pobór i wymiana transgraniczna nie wchodzą do sumy.
+#   przeplywy — fizyczne przepływy prądu między Polską a sąsiadami (Niemcy, Czechy, Słowacja, Szwecja, Litwa, Ukraina) w MW: dodatni = import do Polski, ujemny = eksport.
+#               Źródło podaje GW i wypełnia świeżo nieopublikowane kwadranse zerami (sprawdzone 17.10.2026: ostatnie 1–3 kwadranse łączy bez danych = 0,0) — zero na końcu serii krótsze
+#               niż PRAD_PF_ZERA_MAX kwadransów to więc brak, nie pomiar (kabel do Szwecji bywa wyłączony przez wiele godzin: dłuższy ciąg zer to prawdziwe zero). Punkt „teraz” =
+#               ostatni kwadrans sprzed tego ogona. Do tego średnia 24 h każdego łącza i seria salda (suma łączy) z ostatnich 24 h.
+#   uk        — Wielka Brytania: miks produkcji (udziały %, z importem) z ostatniego półgodzinnego okresu i emisyjność prądu (gCO2/kWh, prognoza i wartość rzeczywista, skala słowna)
+#               z całej doby co 30 minut. Drugie zapytanie (emisyjność) nie jest warunkiem: jego brak = część z samym miksem i notatka.
+# Limit interfejsu danych o energii: 2 zapytania na minutę na adres (adres maszyn GitHuba jest wspólny), więc JEDNO zapytanie do niego na przebieg łącznie z częścią str:
+# gdy do pobrania jest zadanie rozszerzenia (pf co 60 min, mx:DE / mx:PL / mx:FR co 120 min), strefy cenowe czekają, chyba że któraś jest pilna (bez dzisiejszej albo jutrzejszej
+# doby albo nieodświeżana od PRAD_STR_PILNE_MIN min). 429 = wspólne wstrzymanie zapytań (st['hold']). Wielka Brytania ma osobny serwer i własną bramkę (co 25 min).
+PRAD_ROZSZ = ('miks', 'przeplywy', 'uk')
+PRAD_EC_PP = 'https://api.energy-charts.info/public_power?country={c}&start={a}&end={b}'
+PRAD_EC_CB = 'https://api.energy-charts.info/cbpf?country=pl&start={a}&end={b}'
+PRAD_UK_GEN = 'https://api.carbonintensity.org.uk/generation'
+PRAD_UK_INT = 'https://api.carbonintensity.org.uk/intensity/date'
+PRAD_MX_KRAJE = ('DE', 'PL', 'FR')
+PRAD_MX_GRUPY = ('wegiel', 'gaz', 'atom', 'wiatr', 'slonce', 'woda', 'bio', 'inne')
+PRAD_MX_MAPA = {'Fossil brown coal / lignite': 'wegiel', 'Fossil hard coal': 'wegiel', 'Fossil gas': 'gaz', 'Nuclear': 'atom', 'Wind onshore': 'wiatr', 'Wind offshore': 'wiatr',
+                'Solar': 'slonce', 'Hydro Run-of-River': 'woda', 'Hydro water reservoir': 'woda', 'Biomass': 'bio', 'Other renewables': 'bio', 'Geothermal': 'bio',
+                'Fossil oil': 'inne', 'Fossil coal-derived gas': 'inne', 'Others': 'inne', 'Waste': 'inne'}
+PRAD_MX_MAG = ('Hydro pumped storage', 'Battery')   # magazyny energii oddają prąd pobrany wcześniej — nie są źródłem, więc nie wchodzą do produkcji (udział odnawialnych źródła zgadza się wtedy z naszym: 7 dni × 3 kraje, różnica najwyżej 1,5 pkt proc.)
+PRAD_MX_RS = 'Renewable share of generation'
+PRAD_MX_POMIN = re.compile(r'consumption|load|share|trading|price|exchange', re.I)   # serie poboru, obciążenia, udziałów i wymiany — nie wytwarzanie
+PRAD_MX_MW = (-5.0, 250000.0)          # wiarygodny zakres jednej serii (MW); drobny ujemny szum zaokrąglenia liczony jako 0
+PRAD_MX_SUMA = (500.0, 250000.0)       # wiarygodna suma produkcji kraju w punkcie (MW)
+PRAD_PF_NAZWY = {'Germany': 'DE', 'Czech Republic': 'CZ', 'Slovakia': 'SK', 'Sweden': 'SE', 'Lithuania': 'LT', 'Ukraine': 'UA'}
+PRAD_PF_KRAJE = ('DE', 'CZ', 'SK', 'SE', 'LT', 'UA')
+PRAD_PF_ZERA_MAX = 6                   # kwadranse: krótszy ciąg zer na końcu serii = brak publikacji, nie pomiar
+PRAD_PF_GW = 10.0                      # wiarygodny moduł przepływu jednego łącza (GW)
+PRAD_PF_OKNO = 96                      # kwadranse średniej i serii salda (24 h)
+PRAD_PF_MIN_OKNO = 90                  # średnia 24 h tylko z co najmniej tylu punktów
+PRAD_UK_PALIWA = ('biomass', 'coal', 'imports', 'gas', 'nuclear', 'other', 'hydro', 'solar', 'wind')
+PRAD_UK_INDEKS = ('very low', 'low', 'moderate', 'high', 'very high')
+PRAD_UK_CI_MAX = 1000
+PRAD_RZ_JOBS = ('pf', 'mx:DE', 'mx:PL', 'mx:FR')
+PRAD_RZ_CZESC = {'pf': 'przeplywy', 'mx': 'miks'}
+PRAD_RZ_ODSW_MIN = {'pf': 60, 'mx': 120}
+PRAD_UK_ODSW_MIN = 25
+PRAD_STR_PILNE_MIN = 300               # strefa cenowa nieodświeżana tak długo ma pierwszeństwo przed zadaniem rozszerzenia (próg kontroli: 6 h)
+PRAD_BUDZET_DODATEK_S = 40
+PRAD_LIMIT_S.update({'miks': 30, 'przeplywy': 30, 'uk': 20})
+PRAD_MAKS_B.update({'miks': 600_000, 'przeplywy': 300_000, 'uk': 100_000})
+ZRODLA_META.update({'prad': ('pse', 'energy-charts', 'neso'), 'prad_mx': 'energy-charts', 'prad_pf': 'energy-charts', 'prad_uk': 'neso'})   # v396: operator brytyjskiej sieci (+1 źródło), interfejs danych o energii już liczony
+
+
+def _prad_iso(ts):
+    return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _prad_mw(v, zakres=PRAD_MX_MW):
+    return not isinstance(v, bool) and isinstance(v, (int, float)) and math.isfinite(v) and zakres[0] <= v <= zakres[1]
+
+
+def _prad_szereg(j, kroki=(900, 3600)):
+    """Wspólny kształt odpowiedzi interfejsu danych o energii: (znaczniki czasu unix rosnące, krok w sekundach). Zły kształt = RuntimeError."""
+    if not isinstance(j, dict):
+        raise RuntimeError('zły kształt odpowiedzi')
+    if j.get('deprecated') is True:
+        raise RuntimeError('źródło oznacza serię jako wycofaną')
+    T = j.get('unix_seconds')
+    if not isinstance(T, list) or len(T) < 2 or not all(isinstance(x, int) and not isinstance(x, bool) for x in T):
+        raise RuntimeError('brak znaczników czasu')
+    if any(b <= a for a, b in zip(T, T[1:])):
+        raise RuntimeError('znaczniki czasu nie rosną')
+    krok = min(b - a for a, b in zip(T, T[1:]))
+    if krok not in kroki:
+        raise RuntimeError(f'nieznany krok serii ({krok} s)')
+    return T, krok
+
+
+def parse_prad_miks(j, dni):
+    """Odpowiedź public_power jednego kraju → ({'day', 'ts', 'krok', 'n', 'now', 'sum', 'rsn', 'rs'}, [notatki]). Kompletny punkt: wszystkie serie wytwarzania kraju mają w nim liczbę
+    w PRAD_MX_MW; dzień danych = dzień polski ostatniego kompletnego punktu (musi być jednym z dni); suma doby tylko z kompletnych punktów tego dnia."""
+    T, krok = _prad_szereg(j)
+    typy = j.get('production_types')
+    if not isinstance(typy, list):
+        raise RuntimeError('brak serii produkcji')
+    gr, rs, uw = {}, None, []
+    for s in typy:
+        if not isinstance(s, dict) or not isinstance(s.get('name'), str) or not isinstance(s.get('data'), list) or len(s['data']) != len(T):
+            raise RuntimeError('zła seria produkcji')
+        n = s['name']
+        if n == PRAD_MX_RS:
+            rs = s['data']; continue
+        if n in PRAD_MX_MAG or (n not in PRAD_MX_MAPA and PRAD_MX_POMIN.search(n)):
+            continue
+        g = PRAD_MX_MAPA.get(n)
+        if g is None:
+            g = 'inne'; uw.append(f'nieznana seria produkcji „{n}” — liczona jako inne')
+        if all(x is None for x in s['data']):
+            continue   # kraj nie ma takiej serii
+        gr.setdefault(g, []).append(s['data'])
+    if not gr:
+        raise RuntimeError('brak serii produkcji')
+    wiersze = []
+    for i, t in enumerate(T):
+        d = _pl_lok(datetime.datetime.fromtimestamp(t, datetime.timezone.utc)).date()
+        if d not in dni:
+            continue
+        row = {}
+        for g, L in gr.items():
+            if not all(_prad_mw(x[i]) for x in L):
+                row = None; break
+            row[g] = sum(max(x[i], 0.0) for x in L)
+        if row is not None:
+            wiersze.append((i, d, row))
+    if not wiersze:
+        raise RuntimeError('brak kompletnego punktu z dzisiejszej albo wczorajszej doby')
+    il, dl, rl = wiersze[-1]
+    if not (PRAD_MX_SUMA[0] <= sum(rl.values()) <= PRAD_MX_SUMA[1]):
+        raise RuntimeError('suma produkcji spoza zakresu')
+    dzien = [w for w in wiersze if w[1] == dl]
+    now = [round(rl[g], 1) if g in rl else None for g in PRAD_MX_GRUPY]
+    suma = [round(sum(w[2][g] for w in dzien) * krok / 3600, 1) if g in rl else None for g in PRAD_MX_GRUPY]
+    rsd, rsn = None, None
+    if isinstance(rs, list):
+        idx = [i for i, t in enumerate(T) if _pl_lok(datetime.datetime.fromtimestamp(t, datetime.timezone.utc)).date() == dl]
+        v = [round(float(rs[i]), 1) if _prad_mw(rs[i], (0.0, 100.0)) else None for i in idx]
+        if any(x is not None for x in v):
+            rsd = {'t0': T[idx[0]], 'krok': krok, 'v': v}
+        rsn = round(float(rs[il]), 1) if _prad_mw(rs[il], (0.0, 100.0)) else None
+    return {'day': dl.isoformat(), 'ts': _prad_iso(T[il]), 'krok': krok // 60, 'n': len(dzien), 'now': now, 'sum': suma, 'rsn': rsn, 'rs': rsd}, uw
+
+
+def parse_prad_przeplywy(j):
+    """Odpowiedź cbpf (GW, dodatni = import do Polski) → ({'day', 'ts', 'n', 'k', 'now', 'avg', 'net'}, [notatki]); wartości w MW. Ogon z zerami wypełniającymi
+    nieopublikowane kwadranse jest odcinany (opis przy PRAD_PF_ZERA_MAX); punkt „teraz” musi mieć liczbę dla każdego łącza."""
+    T, krok = _prad_szereg(j, (900,))
+    C = j.get('countries')
+    if not isinstance(C, list):
+        raise RuntimeError('brak listy sąsiadów')
+    S, uw = {}, []
+    for s in C:
+        if not isinstance(s, dict) or not isinstance(s.get('name'), str) or not isinstance(s.get('data'), list) or len(s['data']) != len(T):
+            raise RuntimeError('zła seria sąsiada')
+        k = PRAD_PF_NAZWY.get(s['name'])
+        if k is None:
+            if s['name'] != 'sum':
+                uw.append(f'nieznany sąsiad „{s["name"]}” pominięty')
+            continue
+        v = []
+        for x in s['data']:
+            if x is not None and not _prad_mw(x, (-PRAD_PF_GW, PRAD_PF_GW)):
+                raise RuntimeError(f'przepływ {k} spoza zakresu')
+            v.append(None if x is None else round(float(x) * 1000, 1))
+        S[k] = v
+    if 'DE' not in S or 'CZ' not in S:
+        raise RuntimeError('brak łączy z Niemcami albo Czechami')
+    K = [k for k in PRAD_PF_KRAJE if k in S]
+
+    def ogon(v):
+        r = 0
+        while r < len(v) and (v[-1 - r] is None or v[-1 - r] == 0.0):
+            r += 1
+        return r
+    cut = max([r for r in (ogon(S[k]) for k in K) if r <= PRAD_PF_ZERA_MAX] or [0])
+    L = len(T) - 1 - cut
+    while L >= 0 and any(S[k][L] is None for k in K):
+        L -= 1
+    if L < 0:
+        raise RuntimeError('brak kompletnego punktu')
+    od = max(0, L - PRAD_PF_OKNO + 1)
+    pelne = [i for i in range(od, L + 1) if all(S[k][i] is not None for k in K)]
+    avg = [round(sum(S[k][i] for i in pelne) / len(pelne), 1) if k in S and len(pelne) >= PRAD_PF_MIN_OKNO else None for k in PRAD_PF_KRAJE]
+    ps = set(pelne)
+    net = [round(sum(S[k][i] for k in K), 1) if i in ps else None for i in range(od, L + 1)]
+    now = [S[k][L] if k in S else None for k in PRAD_PF_KRAJE]
+    d = _pl_lok(datetime.datetime.fromtimestamp(T[L], datetime.timezone.utc)).date()
+    return {'day': d.isoformat(), 'ts': _prad_iso(T[L]), 'n': len(pelne), 'k': list(PRAD_PF_KRAJE), 'now': now, 'avg': avg, 'net': {'t0': T[od], 'krok': krok, 'v': net}}, uw
+
+
+def _prad_uk_t(s):
+    """„2026-10-17T10:30Z” → chwila UTC albo None."""
+    try:
+        return datetime.datetime.strptime(s, '%Y-%m-%dT%H:%MZ').replace(tzinfo=datetime.timezone.utc) if isinstance(s, str) else None
+    except ValueError:
+        return None
+
+
+def parse_prad_uk(g, d=None):
+    """Odpowiedź /generation (miks, udziały %) i — opcjonalnie — /intensity/date (doba co 30 min) → ({'asof', 'mix', 'ci'}, [notatki]). Miks: znane paliwa, liczby 0–100, suma 98–102
+    (zaokrąglenia do 0,1), okres 30 min. Emisyjność: wartości 0–PRAD_UK_CI_MAX gCO2/kWh, skala słowna znana; brak d = ci None."""
+    dane = g.get('data') if isinstance(g, dict) else None
+    mix = dane.get('generationmix') if isinstance(dane, dict) else None
+    od, do = _prad_uk_t(dane.get('from')) if isinstance(dane, dict) else None, _prad_uk_t(dane.get('to')) if isinstance(dane, dict) else None
+    if not isinstance(mix, list) or od is None or do is None or (do - od).total_seconds() != 1800:
+        raise RuntimeError('zły kształt miksu')
+    p, uw = {}, []
+    for r in mix:
+        f, v = (r.get('fuel'), r.get('perc')) if isinstance(r, dict) else (None, None)
+        if f not in PRAD_UK_PALIWA or not _prad_mw(v, (0.0, 100.0)) or f in p:
+            raise RuntimeError('zły wpis miksu (paliwo albo udział)')
+        p[f] = round(float(v), 1)
+    if not (98.0 <= sum(p.values()) <= 102.0) or len(p) < 5:
+        raise RuntimeError(f'udziały miksu nie sumują się do 100% ({sum(p.values()):.1f})')
+    ci = None
+    if d is not None:
+        L = d.get('data') if isinstance(d, dict) else None
+        if not isinstance(L, list) or not 1 <= len(L) <= 50:
+            raise RuntimeError('zły kształt emisyjności')
+        h, t0, teraz = [], None, None
+        for r in L:
+            i = r.get('intensity') if isinstance(r, dict) else None
+            a, b = _prad_uk_t(r.get('from')) if isinstance(r, dict) else None, _prad_uk_t(r.get('to')) if isinstance(r, dict) else None
+            if not isinstance(i, dict) or a is None or b is None or (b - a).total_seconds() != 1800 or (t0 is not None and a != t0 + datetime.timedelta(minutes=30 * len(h))):
+                raise RuntimeError('zły wpis emisyjności (czas albo skala)')
+            if t0 is None:
+                t0 = a
+            f, ac = i.get('forecast'), i.get('actual')
+            if (f is not None and not _prad_mw(f, (0, PRAD_UK_CI_MAX))) or (ac is not None and not _prad_mw(ac, (0, PRAD_UK_CI_MAX))) or i.get('index') not in PRAD_UK_INDEKS + (None,):
+                raise RuntimeError('emisyjność spoza zakresu albo nieznana skala')
+            h.append([None if f is None else int(round(f)), None if ac is None else int(round(ac))])
+            if a == od:
+                teraz = {'od': a.strftime('%Y-%m-%dT%H:%MZ'), 'forecast': h[-1][0], 'actual': h[-1][1], 'index': i.get('index')}
+        ci = {'u': 'gCO2/kWh', 't0': t0.strftime('%Y-%m-%dT%H:%MZ'), 'h': h, 'now': teraz}
+        if teraz is None:
+            uw.append('emisyjność: brak okresu z miksu w serii dobowej')
+    return {'asof': od.date().isoformat(), 'mix': {'od': od.strftime('%Y-%m-%dT%H:%MZ'), 'p': p}, 'ci': ci}, uw
+
+
+def _prad_rz_wiek(prev, job, now):
+    """Minuty od ostatniego pobrania danych zadania rozszerzenia (nieskończoność = jeszcze nie pobrane)."""
+    if job == 'pf':
+        e = prev.get('przeplywy') if isinstance(prev.get('przeplywy'), dict) else {}
+    else:
+        K = (prev.get('miks') or {}).get('k') if isinstance(prev.get('miks'), dict) else None
+        e = K.get(job.split(':')[1]) if isinstance(K, dict) else None
+    return _su_min(now, e.get('at')) if isinstance(e, dict) else float('inf')
+
+
+def _prad_rz_wybierz(prev, st, now):
+    """Zadanie rozszerzenia do wykonania w tym przebiegu (jedno zapytanie do interfejsu danych o energii) albo None: najpierw jeszcze nie pobrane, potem najdawniej odświeżane
+    po upływie okresu (pf 60 min, mx 120 min); po próbie (także nieudanej) najwcześniej po 3 × PRAD_PO_BLEDZIE_MIN min; nie w czasie wstrzymania (429)."""
+    h = _aw_t(st['hold']) if isinstance(st.get('hold'), str) else None
+    if h is not None and h > now:
+        return None
+    pr = (st.get('rz') or {}).get('try') if isinstance(st.get('rz'), dict) else None
+    kand = []
+    for i, job in enumerate(PRAD_RZ_JOBS):
+        tr = _su_min(now, pr.get(job)) if isinstance(pr, dict) else float('inf')
+        if tr < PRAD_PO_BLEDZIE_MIN * 3:
+            continue
+        at = _prad_rz_wiek(prev, job, now)
+        if at == float('inf'):
+            kl = 0
+        elif at >= PRAD_RZ_ODSW_MIN[job.split(':')[0]]:
+            kl = 1
+        else:
+            continue
+        kand.append((kl, -min(tr, 1e9), i, job))
+    return min(kand)[3] if kand else None
+
+
+def _prad_due_uk(z, prev, now):
+    at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
+    if tr < PRAD_PO_BLEDZIE_MIN:
+        return False
+    return not (isinstance(prev, dict) and prev.get('mix')) or at >= PRAD_UK_ODSW_MIN
+
+
+def _prad_ec_blad(ctx, e, etykieta):
+    """Błąd HTTP interfejsu danych o energii: 429 = wspólne wstrzymanie zapytań i pominięcie (nie błąd części), inny kod = błąd."""
+    if e.code == 429:
+        ctx['st']['hold'] = (ctx['now'] + datetime.timedelta(minutes=PRAD_STR_WSTRZYM_MIN)).isoformat()
+        raise _PradPomin(f'{etykieta}: limit zapytań (429) — wstrzymanie {PRAD_STR_WSTRZYM_MIN} min') from None
+    raise RuntimeError(f'{etykieta}: HTTP {e.code}') from None
+
+
+def _prad_pobierz_miks(ctx):
+    now, job = ctx['now'], ctx['rz_job']
+    c = job.split(':')[1]
+    ctx['st'].setdefault('rz', {}).setdefault('try', {})[job] = now.replace(microsecond=0).isoformat()
+    ctx['ec_uzyty'] = True
+    dzis = _prad_dzis(now)
+    dni = [dzis - datetime.timedelta(days=1), dzis]
+    try:
+        j = json.loads(_prad_get(ctx, 'miks', PRAD_EC_PP.format(c=c.lower(), a=dni[0].isoformat(), b=(dzis + datetime.timedelta(days=1)).isoformat())))
+    except urllib.error.HTTPError as e:
+        _prad_ec_blad(ctx, e, f'miks {c}')
+    e, uw = parse_prad_miks(j, dni)
+    ctx['uwagi'] += [f'miks {c}: {x}' for x in uw]
+    prev = ctx['prev'].get('miks') if isinstance(ctx['prev'].get('miks'), dict) else {}
+    K = {k: v for k, v in (prev.get('k') or {}).items() if k in PRAD_MX_KRAJE and isinstance(v, dict)} if isinstance(prev.get('k'), dict) else {}
+    K[c] = dict(e, at=now.replace(microsecond=0).isoformat())
+    part = {'asof': max(v['day'] for v in K.values()), 'u': 'MW', 'g': list(PRAD_MX_GRUPY), 'k': {k: K[k] for k in PRAD_MX_KRAJE if k in K}}
+    ctx['parts']['miks'] = part
+    return part['asof']
+
+
+def _prad_pobierz_pf(ctx):
+    now = ctx['now']
+    ctx['st'].setdefault('rz', {}).setdefault('try', {})['pf'] = now.replace(microsecond=0).isoformat()
+    ctx['ec_uzyty'] = True
+    dzis = _prad_dzis(now)
+    try:
+        j = json.loads(_prad_get(ctx, 'przeplywy', PRAD_EC_CB.format(a=(dzis - datetime.timedelta(days=1)).isoformat(), b=(dzis + datetime.timedelta(days=1)).isoformat())))
+    except urllib.error.HTTPError as e:
+        _prad_ec_blad(ctx, e, 'przepływy')
+    e, uw = parse_prad_przeplywy(j)
+    ctx['uwagi'] += [f'przepływy: {x}' for x in uw]
+    part = dict(e, at=now.replace(microsecond=0).isoformat(), asof=e['day'], u='MW')
+    ctx['parts']['przeplywy'] = part
+    return part['asof']
+
+
+def _prad_pobierz_uk(ctx):
+    now = ctx['now']
+    g = json.loads(_prad_get(ctx, 'uk', PRAD_UK_GEN))
+    d = None
+    try:
+        d = json.loads(_prad_get(ctx, 'uk', PRAD_UK_INT))
+        part, uw = parse_prad_uk(g, d)
+    except Exception as e:   # emisyjność nie jest warunkiem miksu — notatka i część z samym miksem (poprzednia emisyjność nie wraca: bywałaby sprzed doby)
+        ctx['uwagi'].append(mask(f'uk: emisyjność pominięta ({e})')[:160])
+        part, uw = parse_prad_uk(g, None)
+    ctx['uwagi'] += [f'uk: {x}' for x in uw]
+    part['at'] = now.replace(microsecond=0).isoformat()
+    ctx['parts']['uk'] = part
+    return part['asof']
+
+
+PRAD_POBIERZ = {'pl': _prad_pobierz_pl, 'co2': _prad_pobierz_co2, 'str': _prad_pobierz_str,
+                'miks': _prad_pobierz_miks, 'przeplywy': _prad_pobierz_pf, 'uk': _prad_pobierz_uk}   # v396: nowe części działają tylko przy build_prad(rozsz=True)
 
 
 def _prad_next(czesc, part, now):
@@ -35460,29 +35795,43 @@ def _prad_next(czesc, part, now):
         return _pl_utc(dzis + datetime.timedelta(days=1), PRAD_PL_JUTRO_GODZ[0], PRAD_PL_JUTRO_GODZ[1]).isoformat()
     if czesc == 'co2':
         return (now + datetime.timedelta(minutes=PRAD_CO2_ODSW_MIN)).isoformat()
+    if czesc == 'przeplywy':   # v396
+        return (now + datetime.timedelta(minutes=PRAD_RZ_ODSW_MIN['pf'])).isoformat()
+    if czesc == 'miks':
+        return (now + datetime.timedelta(minutes=PRAD_RZ_ODSW_MIN['mx'] // 3)).isoformat()
+    if czesc == 'uk':
+        return (now + datetime.timedelta(minutes=PRAD_UK_ODSW_MIN)).isoformat()
     return (now + datetime.timedelta(minutes=PRAD_PO_BLEDZIE_MIN)).isoformat()
 
 
-def build_prad(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
+def build_prad(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None, rozsz=False):
     """v367: data/prad.json. Każda część z własną bramką (_prad_due_*), budżetem czasu i zamaskowanym błędem; część z błędem — poprzednia z datą (ok False), część bez próby —
-    'cached' (z danymi) albo False (jeszcze nie pobrana). Plik innej wersji = start od zera. Strefy: jedno zapytanie na przebieg (limit źródła)."""
+    'cached' (z danymi) albo False (jeszcze nie pobrana). Plik innej wersji = start od zera. Strefy: jedno zapytanie na przebieg (limit źródła).
+    v396: rozsz=True dodaje części miks, przeplywy i uk (jedno zapytanie do interfejsu danych o energii na przebieg łącznie ze strefami)."""
     now = now or _now_utc()
     now_iso = now.replace(microsecond=0).isoformat()
     prev = prev if isinstance(prev, dict) and prev.get('v') == PRAD_V else {}
     st = json.loads(json.dumps(prev.get('st'))) if isinstance(prev.get('st'), dict) else {}
     ctx = {'now': now, 'uwagi': [], 'parts': {}, 'prev': prev, 'st': st, 't0': time.monotonic(),
-           'budzet': PRAD_BUDZET_S if budzet_s is None else budzet_s,
+           'budzet': (PRAD_BUDZET_S + (PRAD_BUDZET_DODATEK_S if rozsz else 0)) if budzet_s is None else budzet_s,
            'fetch': fetch or (lambda url, timeout, maks=None: _prad_pobierz(url, timeout, maks))}
     late = run_t0 is not None and time.monotonic() - run_t0 > PRAD_PRZEBIEG_MAX_S   # tylko przebieg bliski limitu zadania; zwykle budżet czasu (PRAD_BUDZET_S) wystarcza
-    proby, zle, pominiete = {p: 0 for p in PRAD_PARTS}, {}, []
-    for p in PRAD_PARTS:
+    czesci = PRAD_PARTS + (PRAD_ROZSZ if rozsz else ())
+    ctx['rz_job'] = _prad_rz_wybierz(prev, st, now) if rozsz else None
+    ctx['str_pilne'] = ctx['rz_job'] is not None   # zadanie rozszerzenia ma pierwszeństwo przed zwykłym odświeżaniem stref
+    proby, zle, pominiete = {p: 0 for p in czesci}, {}, []
+    for p in czesci:
         z = st.setdefault('cz', {}).setdefault(p, {})
         if p == 'pl':
             due = _prad_due_pl(z, prev.get('pl'), now)
         elif p == 'co2':
             due = _prad_due_co2(z, prev.get('co2'), now)
-        else:
-            due = _prad_wybierz_strefe(prev.get('str'), st, now) is not None
+        elif p == 'str':
+            due = _prad_wybierz_strefe(prev.get('str'), st, now, ctx['str_pilne']) is not None
+        elif p == 'uk':
+            due = _prad_due_uk(z, prev.get('uk'), now)
+        else:   # miks, przeplywy: zadanie wybrane na początku przebiegu, o ile strefa nie zajęła jedynego zapytania
+            due = ctx['rz_job'] is not None and PRAD_RZ_CZESC[ctx['rz_job'].split(':')[0]] == p and not ctx.get('ec_uzyty')
         if not due:
             continue
         if late:
@@ -35505,7 +35854,7 @@ def build_prad(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
     pat = dict(prev.get('part_at') or {}) if isinstance(prev.get('part_at'), dict) else {}
     perr = dict(prev.get('err') or {}) if isinstance(prev.get('err'), dict) else {}
     ok = {}
-    for p in PRAD_PARTS:
+    for p in czesci:
         if p in ctx['parts']:
             out[p] = ctx['parts'][p]
             if proby[p]:
@@ -35527,12 +35876,12 @@ def build_prad(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
         d2 = {k: v for k, v in pl_['d'].items() if k >= dzis}
         if d2 and d2 != pl_['d']:
             out['pl'] = dict(pl_, d=d2, asof=max(d2))
-    out['part_at'] = {p: pat[p] for p in PRAD_PARTS if pat.get(p) and isinstance(out.get(p), dict)}
+    out['part_at'] = {p: pat[p] for p in czesci if pat.get(p) and isinstance(out.get(p), dict)}
     out['at'] = max(out['part_at'].values()) if out['part_at'] else (prev.get('at') or now_iso)
-    out.update({'ok': ok, 'err': {p: perr[p] for p in PRAD_PARTS if perr.get(p)}, 'next': {p: _prad_next(p, out.get(p), now) for p in PRAD_PARTS}, 'st': st})
+    out.update({'ok': ok, 'err': {p: perr[p] for p in czesci if perr.get(p)}, 'next': {p: _prad_next(p, out.get(p), now) for p in czesci}, 'st': st})
     for x in ctx['uwagi']:
         META['notes'].append(mask('prąd i CO2: ' + x)[:200])
-    for p in PRAD_PARTS:
+    for p in czesci:
         for x in zle.get(p, []):
             META['errors'].append(mask('surowce (prąd i CO2) ' + x)[:200])
     if pominiete:

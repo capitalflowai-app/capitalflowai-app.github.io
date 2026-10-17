@@ -9178,6 +9178,18 @@ PRAD_K_ETYKIETA = {'pl': 'Prąd w Polsce: cena w kwadransach, dziś i jutro (dzi
                  'str': 'Prąd w Europie: ceny w 15 strefach (dziś i jutro)'}
 PRAD_K_RCE_STREFA, PRAD_K_RCE_TGE = 0.05, 0.12   # względna różnica RCE do strefy Polska / do indeksu giełdowego (tylko uwaga)
 PRAD_K_AVG_MIN, PRAD_K_AVG_MAX = -500.0, 3000.0  # zł/MWh — średnia doby (uwaga)
+# v396 (F11Z10): rozszerzenie prądu — części miks (Niemcy, Polska, Francja), przeplywy (Polska z sąsiadami), uk (Wielka Brytania). Wiersze świeżości dla części obecnych w pliku
+# (plik sprzed rozszerzenia = bez nowych wierszy), najwyżej ⚠️. Progi: wiek POBRANIA części (pole at) — miks 8 h (każdy kraj co 2 h, ale jedno zapytanie na przebieg dzieli się ze strefami
+# cenowymi), przepływy 4 h (co godzinę), Wielka Brytania 3 h (co 25 min); źródło przepływów publikuje z opóźnieniem ok. 2,5 h (nie jest to próg, tylko znana cecha). Sprzeczności w pliku
+# (❌): zła liczba pozycji, wartość ujemna w produkcji, suma poza zakresem, udziały miksu UK poza 98–102%. Uwaga ⚠️: udział odnawialnych z naszego podziału różni się od udziału z serii
+# źródła o więcej niż PRAD_K_RS_PP pkt proc. (test wsteczny 10–16.10.2026, trzy kraje, 2157 punktów: najwyżej 1,5 pkt proc.; próg 4).
+PRAD_K_ETYKIETA2 = {'miks': 'Prąd w Europie: miks produkcji Niemiec, Polski i Francji (co 2 h na kraj)', 'przeplywy': 'Prąd w Polsce: przepływy z sąsiadami (co godzinę)',
+                    'uk': 'Prąd w Wielkiej Brytanii: miks i emisyjność (co 30 min)'}
+PRAD_K_MX_H, PRAD_K_PF_H, PRAD_K_UK_H = 8, 4, 3
+PRAD_K_RS_PP = 4.0
+PRAD_K_MX_KRAJE = ('DE', 'PL', 'FR')
+PRAD_K_MX_ODN = (3, 4, 5, 6)   # wiatr, słońce, woda, biomasa — indeksy w liście grup (wegiel, gaz, atom, wiatr, slonce, woda, bio, inne)
+AW_BEZ_BLEDU.update({k_: 'prąd Europy 2 — część z błędem zostaje z datą (v396); wiek danych w wierszach świeżości' for k_ in ('prad_mx', 'prad_pf', 'prad_uk')})
 
 
 def _prad_k_num(v):
@@ -9199,6 +9211,119 @@ def _prad_k_dzis(now):
     a = dt.datetime.combine(ost_nd(now.year, 3), dt.time(1), dt.timezone.utc)
     b = dt.datetime.combine(ost_nd(now.year, 10), dt.time(1), dt.timezone.utc)
     return (now + dt.timedelta(hours=2 if a <= now < b else 1)).date()
+
+
+def _prad_k_lista(v, n, dozw_none=True, zakres=None):
+    """Lista n pozycji: liczby (w zakresie) albo None."""
+    if not (isinstance(v, list) and len(v) == n):
+        return False
+    return all((x is None and dozw_none) or (_prad_k_num(x) and (zakres is None or zakres[0] <= x <= zakres[1])) for x in v)
+
+
+def prad_swiezosc_rz(j, now=None):
+    """v396: wiersze świeżości części miks, przeplywy, uk (tylko części obecne w pliku): (etykieta, status, wiek min, data danych, uwaga)."""
+    now = now or NOW
+    rows = []
+    for p, label in PRAD_K_ETYKIETA2.items():
+        e = j.get(p)
+        if not isinstance(e, dict):
+            continue
+        zle = []
+        if p == 'miks':
+            K = e.get('k') if isinstance(e.get('k'), dict) else {}
+            ts = [v.get('ts') for v in K.values() if isinstance(v, dict) and isinstance(v.get('ts'), str)]
+            txt = min(ts) if ts else None
+            brak = [c for c in PRAD_K_MX_KRAJE if c not in K]
+            if brak:
+                zle.append('brak kraju: ' + ', '.join(brak))
+            stare = [c for c, v in K.items() if isinstance(v, dict) and (wiek_danych(str(v.get('at')), 'ts', 'k', now) or 0) > PRAD_K_MX_H * 60]
+            if stare:
+                zle.append(f'dane pobrane dawniej niż {PRAD_K_MX_H} h: ' + ', '.join(sorted(stare)))
+        elif p == 'przeplywy':
+            txt = e.get('ts')
+            a = wiek_danych(str(e.get('at')), 'ts', 'k', now)
+            if a is None or a > PRAD_K_PF_H * 60:
+                zle.append(f'dane pobrane dawniej niż {PRAD_K_PF_H} h')
+        else:
+            txt = e.get('at')
+            a = wiek_danych(str(txt), 'ts', 'k', now)
+            if a is None or a > PRAD_K_UK_H * 60:
+                zle.append(f'dane pobrane dawniej niż {PRAD_K_UK_H} h')
+        w = wiek_danych(str(txt), 'ts', 'k', now) if txt else None
+        if not txt:
+            rows.append((label, '?', None, None, 'brak daty danych tej części w pliku')); continue
+        rows.append((label, '⚠️' if zle else '✅', w, str(txt), ('; '.join(zle) + ' — najwyżej uwaga (limit zapytań źródła: jedno na przebieg)') if zle else ''))
+    return rows
+
+
+def prad_spojnosc_rz(j):
+    """v396: sprzeczności wewnątrz nowych części (jedyny powód ❌) → lista opisów."""
+    zle = []
+    m = j.get('miks')
+    if isinstance(m, dict):
+        K = m.get('k') if isinstance(m.get('k'), dict) else {}
+        if m.get('g') != ['wegiel', 'gaz', 'atom', 'wiatr', 'slonce', 'woda', 'bio', 'inne']:
+            zle.append('miks: lista grup inna niż oczekiwana')
+        for c, v in K.items():
+            if c not in PRAD_K_MX_KRAJE or not isinstance(v, dict):
+                zle.append(f'miks {c}: nieznany kraj albo zły wpis'); continue
+            if not (_prad_k_lista(v.get('now'), 8, True, (0, 250000)) and _prad_k_lista(v.get('sum'), 8, True, (0, 1e7))):
+                zle.append(f'miks {c}: zła lista wartości (osiem grup, liczby nieujemne albo brak)'); continue
+            tot = sum(x for x in v['now'] if x is not None)
+            if not 500 <= tot <= 250000 or [x is None for x in v['now']] != [x is None for x in v['sum']]:
+                zle.append(f'miks {c}: suma produkcji {tot:.0f} MW poza zakresem albo grupy teraz i doby się różnią')
+            if _prad_k_dzien(v.get('day')) is None or not isinstance(v.get('n'), int) or v['n'] < 1:
+                zle.append(f'miks {c}: zły dzień albo liczba punktów')
+            if v.get('rsn') is not None and not (_prad_k_num(v['rsn']) and 0 <= v['rsn'] <= 100):
+                zle.append(f'miks {c}: udział odnawialnych poza 0–100')
+    p = j.get('przeplywy')
+    if isinstance(p, dict):
+        if p.get('k') != ['DE', 'CZ', 'SK', 'SE', 'LT', 'UA'] or not (_prad_k_lista(p.get('now'), 6, True, (-10000, 10000)) and _prad_k_lista(p.get('avg'), 6, True, (-10000, 10000))):
+            zle.append('przepływy: zła lista łączy albo wartości (sześć łączy, moduł do 10 GW)')
+        n = (p.get('net') or {}).get('v') if isinstance(p.get('net'), dict) else None
+        if not (isinstance(n, list) and 1 <= len(n) <= 96 and all(x is None or (_prad_k_num(x) and abs(x) <= 60000) for x in n)):
+            zle.append('przepływy: zła seria salda')
+        if _prad_k_dzien(p.get('day')) is None:
+            zle.append('przepływy: zły dzień')
+    u = j.get('uk')
+    if isinstance(u, dict):
+        mp = ((u.get('mix') or {}).get('p')) if isinstance(u.get('mix'), dict) else None
+        if not (isinstance(mp, dict) and mp and all(_prad_k_num(x) and 0 <= x <= 100 for x in mp.values()) and 98 <= sum(mp.values()) <= 102):
+            zle.append('uk: udziały miksu poza 0–100 albo ich suma poza 98–102%')
+        ci = u.get('ci')
+        if ci is not None and not (isinstance(ci, dict) and isinstance(ci.get('h'), list) and 1 <= len(ci['h']) <= 50
+                                    and all(isinstance(r, list) and len(r) == 2 and all(x is None or (_prad_k_num(x) and 0 <= x <= 1000) for x in r) for r in ci['h'])):
+            zle.append('uk: zła seria emisyjności (liczby 0–1000 gCO2/kWh albo brak)')
+    return zle
+
+
+def prad_porownania_rz(j, out):
+    """v396: informacje i uwagi ⚠️ (nigdy ❌) do wyniku prad_porownania: udział odnawialnych z podziału a z serii źródła, saldo wymiany Polski, emisyjność Wielkiej Brytanii."""
+    m = j.get('miks')
+    for c, v in ((m.get('k') or {}) if isinstance(m, dict) and isinstance(m.get('k'), dict) else {}).items():
+        if not (isinstance(v, dict) and _prad_k_lista(v.get('now'), 8)):
+            continue
+        tot = sum(x for x in v['now'] if x is not None)
+        odn = sum(v['now'][i] for i in PRAD_K_MX_ODN if v['now'][i] is not None)
+        if tot <= 0:
+            continue
+        moj = odn / tot * 100
+        if _prad_k_num(v.get('rsn')):
+            roz = abs(moj - v['rsn'])
+            ok = roz <= PRAD_K_RS_PP
+            out['wiersze'].append((f'Miks {c} {v.get("day")}: odnawialne {moj:.1f}% z podziału wobec {v["rsn"]:.1f}% z serii źródła — różnica {roz:.1f} pkt proc.', '✅' if ok else '⚠️'))
+            if not ok:
+                out['uwagi'].append(f'Prąd w Europie, miks {c}: odnawialne {moj:.1f}% (podział) a {v["rsn"]:.1f}% (seria źródła) — różnica {roz:.1f} pkt proc. (próg {PRAD_K_RS_PP:.0f})')
+        else:
+            out['wiersze'].append((f'Miks {c} {v.get("day")}: odnawialne {moj:.1f}% (bez serii źródła do porównania)', 'ℹ️'))
+    p = j.get('przeplywy')
+    if isinstance(p, dict) and _prad_k_lista(p.get('now'), 6) and any(x is not None for x in p['now']):
+        s = sum(x for x in p['now'] if x is not None)
+        out['wiersze'].append((f'Przepływy Polski {p.get("ts")}: saldo {s:+.0f} MW ({"import" if s > 0 else "eksport" if s < 0 else "zero"}; tylko informacja)', 'ℹ️'))
+    u = j.get('uk')
+    n = (((u.get('ci') or {}).get('now')) if isinstance(u, dict) and isinstance(u.get('ci'), dict) else None)
+    if isinstance(n, dict) and _prad_k_num(n.get('actual') if n.get('actual') is not None else n.get('forecast')):
+        out['wiersze'].append((f'Wielka Brytania {n.get("od")}: emisyjność {n.get("actual") if n.get("actual") is not None else n.get("forecast")} gCO2/kWh, skala „{n.get("index")}” (tylko informacja)', 'ℹ️'))
 
 
 def prad_swiezosc(j, now=None):
@@ -9240,7 +9365,7 @@ def prad_swiezosc(j, now=None):
             st = '⚠️' if zle else '✅'
             note = '; '.join(zle) + (' — najwyżej uwaga (limit zapytań źródła: jedna strefa na przebieg)' if zle else '')
         rows.append((label, st, w, str(txt), note))
-    return rows
+    return rows + prad_swiezosc_rz(j, now)   # v396: wiersze nowych części, gdy są w pliku
 
 
 def prad_spojnosc(j):
@@ -9275,7 +9400,7 @@ def prad_spojnosc(j):
         for k, v in ((e.get('d') or {}) if isinstance(e, dict) and isinstance(e.get('d'), dict) else {}).items():
             if not (isinstance(v, list) and len(v) == 4 and all(_prad_k_num(x) for x in v) and v[1] <= v[0] <= v[2] and v[3] in (23, 24, 25, 92, 96, 100) and _prad_k_dzien(k)):
                 zle.append(f'str {z} {k}: zła pozycja (średnia poza minimum–maksimum albo zła liczba okresów)')
-    return zle
+    return zle + prad_spojnosc_rz(j)   # v396
 
 
 def prad_porownania(j, files, now=None):
@@ -9323,6 +9448,7 @@ def prad_porownania(j, files, now=None):
                 out['wiersze'].append((f'Polska {k}: RCE {sr:.1f} zł/MWh wobec indeksu giełdowego {t[k]:.1f} zł/MWh (inny rynek) — różnica {roz * 100:.1f}%', '✅' if ok else '⚠️'))
                 if not ok:
                     out['uwagi'].append(f'Prąd w Polsce {k}: RCE {sr:.1f} zł/MWh a indeks giełdowy {t[k]:.1f} zł/MWh — różnica {roz * 100:.1f}% (próg {PRAD_K_RCE_TGE * 100:.0f}%; inny rynek)')
+    prad_porownania_rz(j, out)   # v396
     return out
 
 

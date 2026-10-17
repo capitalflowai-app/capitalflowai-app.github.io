@@ -61694,3 +61694,448 @@ class EnergiaUsaV395(unittest.TestCase):
         for s in ("R['bledy'].append(f'energia-usa.json: sprzeczność w pliku — {z_}')", "R['zgodnosc']['energia-usa']", "keu = Z.get('energia-usa')", "L.append('- Energia USA, rafinerie, zapasy, import ropy i stopniodni (z pliku strony): '"):
             self.assertIn(s, src, s)
         self.assertLess(src.index("keu = Z.get('energia-usa')"), src.index("srz = Z.get('surowce-raporty')"))
+
+
+import io  # noqa: E402,F401 — v396
+import urllib.error  # noqa: E402,F401
+import urllib.parse  # noqa: E402,F401
+# ===================== v396 (F11Z10): prąd Europy 2 — miks produkcji, przepływy Polski, Wielka Brytania (rozszerzenie data/prad.json) =====================
+# Nagrania 17.10.2026 (przycięte): produkcja Niemiec, Polski i Francji (ostatnie 12 punktów po 15 min), fizyczne przepływy Polski z sąsiadami (110 kwadransów, z zerowym ogonem
+# wypełniającym nieopublikowane kwadranse), miks i emisyjność Wielkiej Brytanii (doba co 30 min). Bez sieci i bez zegara.
+PR396_FIX = json.loads(r'''{"pp":{"DE":{"t0":1792219500,"S":{"Hydro pumped storage consumption":[-114.4,-328.3,-68.3,-126.9,-111.9,-40.4,-51.8,-163.0,-426.9,-1153.1,-2208.9,-3066.4],"Cross border electricity trading":[-1247.2,-1203.1,-1145.8,-1108.5,-876.2,-242.7,-42.3,455.4,475.0,1603.7,1932.7,2681.6],"Hydro Run-of-River":[1017.7,1050.6,1052.4,1065.3,1039.5,1073.5,1047.6,1059.1,1076.6,1075.0,1062.3,1053.7],"Biomass":[3847.7,3847.7,3847.7,3847.7,3847.7,3847.7,3847.7,3847.7,3847.7,3847.7,3847.7,3847.7],"Fossil brown coal / lignite":[8429.6,8207.8,8170.1,8076.6,7910.9,7434.3,7120.6,6800.8,6575.9,6504.7,6562.2,6491.6],"Fossil hard coal":[2316.2,2335.7,2334.5,2351.6,2421.7,2522.4,2509.8,2507.1,2579.7,2629.0,2631.9,2631.0],"Fossil oil":[83.3,83.7,83.3,83.3,83.9,83.9,83.9,83.3,83.3,83.5,83.5,83.3],"Fossil coal-derived gas":[389.0,397.5,404.1,453.7,462.1,459.5,470.7,441.4,401.2,399.0,402.2,404.2],"Fossil gas":[5535.8,5891.2,5920.0,5845.3,5686.6,5813.4,5942.6,5952.7,5852.3,5266.3,5062.8,4924.5],"Geothermal":[13.2,13.2,13.2,13.2,13.2,13.2,13.2,13.2,13.2,13.2,13.2,13.2],"Hydro water reservoir":[30.2,30.3,30.1,30.1,36.1,123.6,47.5,29.5,29.3,29.7,30.4,29.9],"Hydro pumped storage":[171.4,197.9,144.1,415.0,168.3,176.4,144.4,178.2,170.7,44.3,12.7,12.2],"Others":[187.5,202.2,205.8,205.8,205.7,205.8,205.7,205.8,204.1,199.7,200.0,200.0],"Waste":[1269.9,1274.5,1270.4,1277.0,1276.3,1274.7,1273.6,1274.6,1270.9,1272.3,1271.6,1266.8],"Wind offshore":[7056.9,6899.0,6851.6,6907.8,6979.2,6829.7,6603.6,6644.9,6579.1,6471.2,6582.4,7105.3],"Wind onshore":[16948.9,16787.6,16619.9,16607.9,16423.8,16199.5,16409.5,16588.2,16623.0,16599.1,16640.6,16911.3],"Solar":[2662.6,3568.6,4435.6,5330.4,6167.1,6959.2,7978.8,8704.1,9486.7,10224.9,10881.8,11446.4],"Load":[50854.6,51270.4,52031.9,52576.7,53695.4,54382.2,54707.6,55005.0,55196.3,56014.8,56400.7,57865.1],"Residual load":[24186.3,24015.2,24124.8,23730.5,24125.4,24393.7,23715.6,23067.8,22507.5,22719.6,22295.9,22402.0],"Renewable share of load":[63.3,64.0,64.3,65.4,65.4,65.6,66.8,68.2,69.3,69.4,70.3,70.9],"Renewable share of generation":[64.6,64.8,65.3,66.0,66.8,67.5,68.2,69.2,70.0,71.2,71.8,72.7]}},"PL":{"t0":1792219500,"S":{"Hydro pumped storage consumption":[-4.1,-4.1,-6.6,-6.8,-258.4,-423.8,-761.6,-968.0,-964.8,-964.6,-965.6,-961.4],"Battery Consumption":[-0.0,-0.0,-0.0,-0.0,-0.0,-0.0,-0.0,-0.0,-0.0,-0.0,-0.0,-0.0],"Cross border electricity trading":[551.9,385.0,176.0,0.0,-0.1,-416.8,-335.8,-454.8,-821.9,-1161.9,-1504.5,-1753.5],"Hydro Run-of-River":[63.6,62.2,62.3,62.3,62.5,59.5,59.6,59.4,59.3,57.6,57.8,57.8],"Biomass":[365.1,362.5,360.6,361.6,361.2,355.7,352.1,353.7,348.7,344.5,348.3,346.1],"Fossil brown coal / lignite":[3820.1,3644.5,3321.0,3150.6,3243.6,3378.3,3403.0,3226.5,3138.7,3229.3,3204.1,2969.1],"Fossil hard coal":[6623.1,6675.1,6418.4,6203.5,6185.3,6038.7,5909.6,5754.4,5723.9,5814.8,5787.1,5711.2],"Fossil oil":[177.3,175.3,175.5,174.2,172.5,168.0,168.6,167.4,167.2,167.0,167.2,167.1],"Fossil coal-derived gas":[159.1,157.9,157.5,157.8,157.5,159.4,160.5,157.1,156.9,154.0,152.8,151.7],"Fossil gas":[2011.2,2000.0,1887.4,1876.0,1869.7,1729.0,1713.6,1673.8,1667.8,1683.1,1637.5,1637.5],"Hydro water reservoir":[20.8,20.3,20.3,20.3,20.3,19.4,19.4,19.4,19.4,18.2,18.2,18.2],"Hydro pumped storage":[323.6,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Battery":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Others":[532.8,527.8,529.1,530.9,529.7,529.7,518.0,525.1,525.3,521.7,522.6,521.6],"Other renewables":[78.8,78.2,78.4,78.4,78.2,77.8,76.5,77.2,77.3,76.8,76.9,76.9],"Wind offshore":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Wind onshore":[818.9,715.5,585.8,464.6,384.9,292.5,204.3,157.7,138.9,136.9,144.2,180.8],"Solar":[3958.1,4612.2,5299.8,5832.3,6480.7,6484.7,7435.6,7894.7,8671.9,8537.3,9590.7,9696.2],"Load":[19168.7,19195.3,19176.1,19028.8,18980.0,18458.4,18612.1,18284.0,18604.8,18084.1,18611.5,null],"Residual load":[14391.7,13867.6,13290.5,12731.9,12114.4,11681.2,10972.2,10231.5,9794.0,9409.8,8876.6,null],"Renewable share of load":[27.7,30.5,33.4,35.8,38.9,39.5,43.8,46.8,50.1,50.7,55.0,null],"Renewable share of generation":[28.5,30.7,33.9,36.1,37.8,37.8,40.7,42.7,45.0,44.2,47.2,48.2]}},"FR":{"t0":1792220400,"S":{"Hydro pumped storage consumption":[-658.3,-736.1,-744.5,-1348.6,-1471.1,-1470.6,-1480.8,-1632.5,-1855.0,-2023.8,-1973.6,-2029.7],"Battery Consumption":[-11.8,-18.1,-16.5,-7.8,-12.9,-21.1,-231.7,-45.1,-13.0,-28.0,-84.9,-24.3],"Cross border electricity trading":[-11248.6,-11003.9,-10349.5,-10183.9,-10541.9,-10481.0,-10479.0,-10752.1,-10905.0,-10996.0,-10934.0,-10905.0],"Nuclear":[38613.8,38578.6,37966.1,37876.6,37844.1,37766.7,37513.0,36952.2,36517.1,36409.4,36210.2,35880.5],"Hydro Run-of-River":[1410.5,1406.0,1395.3,1402.5,1365.8,1362.1,1326.5,1322.0,1333.0,1333.7,1332.8,1365.1],"Biomass":[276.1,276.3,276.4,276.1,275.1,275.5,275.5,275.5,275.5,275.5,275.5,275.1],"Fossil oil":[36.7,37.0,36.9,36.6,36.6,36.6,36.7,37.0,36.6,36.3,36.5,37.0],"Fossil gas":[350.2,366.0,394.9,359.0,335.1,370.0,365.8,353.0,339.7,336.4,312.5,320.9],"Hydro water reservoir":[397.4,389.5,436.4,494.4,373.1,349.7,279.4,257.2,226.9,128.9,61.7,62.7],"Hydro pumped storage":[509.9,504.6,510.5,621.2,510.4,432.2,282.4,275.0,281.2,149.6,152.0,128.6],"Battery":[337.9,276.4,119.0,16.2,229.5,72.9,1.9,5.9,46.8,3.8,3.1,8.2],"Waste":[424.2,423.7,422.4,423.6,419.8,422.6,420.4,420.3,419.3,417.7,419.2,418.2],"Wind offshore":[1666.7,1628.5,1593.3,1542.1,1504.3,1529.8,1543.9,1515.6,1516.2,1544.8,1569.2,1627.4],"Wind onshore":[7862.0,7585.7,7269.6,7026.1,6845.5,6878.0,6902.3,7074.3,7324.6,7608.6,7966.5,8222.6],"Solar":[1613.0,2198.3,2876.5,3746.0,4729.5,5628.6,6466.5,7312.6,8062.6,8954.7,9453.6,9827.7],"Load":[41300.6,41471.4,41755.3,42147.7,42416.0,42726.5,42928.4,43138.7,43280.1,43914.8,44321.2,44702.5],"Residual load":[30158.9,30058.9,30015.9,29833.5,29336.7,28690.1,28015.7,27236.2,26376.7,25806.8,25331.9,25024.7],"Renewable share of load":[32.5,33.0,33.7,34.9,36.1,38.0,39.6,41.6,43.8,45.7,47.1,48.3],"Renewable share of generation":[25.5,25.9,26.7,27.6,28.5,29.7,30.8,32.4,33.8,35.2,36.2,37.2]}}},"cb":{"t0":1792121400,"S":{"Czech Republic":[-1.294,-1.31,-1.031,-0.785,-0.612,-0.469,-0.262,-0.297,-0.237,-0.272,-0.355,-0.574,-0.971,-0.957,-0.959,-1.074,-0.856,-0.907,-1.295,-1.388,-1.343,-1.466,-1.458,-1.622,-1.73,-1.743,-1.809,-1.887,-1.931,-1.924,-1.81,-1.805,-1.801,-1.758,-1.586,-1.453,-1.339,-1.193,-1.25,-1.193,-1.126,-1.031,-0.817,-0.889,-0.693,-0.4,0.044,-0.01,0.016,-0.059,0.18,0.283,0.288,0.225,-0.105,-0.337,-0.384,-0.476,-0.654,-0.761,-0.805,-0.97,-1.412,-1.527,-1.529,-1.515,-1.645,-1.586,-1.562,-1.638,-1.686,-1.689,-1.771,-1.807,-1.696,-1.631,-1.592,-1.602,-1.663,-1.71,-1.721,-1.703,-1.682,-1.648,-1.644,-1.676,-1.67,-1.686,-1.676,-1.71,-1.596,-1.559,-1.512,-1.523,-1.385,-1.359,-1.39,-1.315,-0.96,-0.751,-0.843,-0.867,-0.802,-0.754,-0.823,-0.827,-0.854,-0.866,-0.8,-1.021],"Germany":[1.604,1.617,1.791,1.386,1.632,1.764,1.842,1.536,1.428,1.214,1.079,0.811,1.114,1.315,1.526,1.274,1.093,0.833,0.682,0.438,0.414,0.601,0.748,0.641,0.414,0.118,0.504,0.613,0.566,0.579,0.743,0.789,0.65,0.514,0.408,0.533,0.961,1.126,1.051,1.235,1.423,1.369,1.07,1.275,1.392,1.867,1.566,1.542,1.614,1.537,1.124,1.319,1.355,1.521,1.679,1.903,1.774,1.566,1.549,1.507,1.488,1.074,1.221,1.38,1.347,1.495,1.794,1.904,1.962,1.943,2.14,1.962,1.759,1.502,1.933,1.958,1.871,1.757,1.583,1.555,1.477,1.558,1.703,1.756,1.809,1.988,2.039,2.001,1.98,2.052,1.985,2.132,2.283,2.305,2.161,2.225,2.204,2.315,2.286,2.308,2.18,2.162,2.336,2.33,2.184,2.034,1.883,1.895,1.856,0.0],"Lithuania":[0.202,0.057,0.227,0.211,0.23,0.178,0.191,0.242,0.185,0.191,0.239,0.21,0.141,0.208,0.247,0.207,0.045,0.062,0.221,0.183,0.018,-0.179,-0.184,-0.11,-0.157,-0.173,-0.138,-0.147,-0.257,-0.134,-0.12,-0.097,-0.159,-0.097,-0.103,0.131,0.077,0.289,0.164,0.208,0.092,0.063,-0.041,-0.009,0.082,0.146,0.172,0.207,0.231,0.2,0.187,0.218,0.226,0.216,0.215,0.156,0.145,0.17,0.154,0.212,0.103,0.099,0.225,0.236,0.145,0.041,0.213,0.235,0.203,0.19,0.233,0.21,0.178,0.151,0.286,0.089,0.222,0.279,0.217,0.213,0.221,0.229,0.189,0.212,0.212,0.2,0.213,0.182,0.161,0.096,0.085,0.13,0.182,0.176,0.106,0.274,0.208,0.177,0.216,0.207,0.242,0.219,0.188,0.199,0.21,0.208,0.194,0.204,-0.19,0.0],"Slovakia":[-0.499,-0.47,-0.545,-0.369,-0.31,-0.301,-0.28,-0.286,-0.245,-0.261,-0.209,-0.26,-0.362,-0.331,-0.367,-0.381,-0.321,-0.387,-0.476,-0.46,-0.501,-0.549,-0.539,-0.605,-0.621,-0.731,-0.718,-0.7,-0.736,-0.742,-0.72,-0.733,-0.714,-0.693,-0.598,-0.561,-0.502,-0.503,-0.436,-0.448,-0.446,-0.379,-0.389,-0.324,-0.298,-0.202,-0.156,-0.112,-0.12,-0.186,-0.083,-0.14,-0.15,-0.145,-0.226,-0.269,-0.273,-0.306,-0.324,-0.319,-0.358,-0.404,-0.532,-0.558,-0.545,-0.54,-0.524,-0.496,-0.457,-0.523,-0.581,-0.605,-0.634,-0.621,-0.634,-0.609,-0.589,-0.621,-0.647,-0.651,-0.638,-0.611,-0.603,-0.603,-0.588,-0.613,-0.597,-0.598,-0.586,-0.589,-0.549,-0.566,-0.546,-0.528,-0.507,-0.499,-0.501,-0.414,-0.327,-0.359,-0.411,-0.391,-0.343,-0.399,-0.384,-0.371,-0.409,-0.426,0.0,0.0],"Sweden":[0.154,0.143,0.113,0.11,0.096,0.0,-0.225,-0.242,-0.262,-0.277,-0.297,-0.311,-0.31,-0.342,-0.47,-0.503,-0.498,-0.492,-0.506,-0.506,-0.506,-0.506,-0.506,-0.506,-0.506,-0.506,-0.506,-0.506,-0.507,-0.506,-0.507,-0.506,-0.506,-0.507,-0.506,-0.506,-0.483,-0.302,-0.138,-0.134,-0.131,-0.186,-0.286,-0.251,-0.205,-0.182,-0.089,-0.089,-0.088,-0.131,-0.196,-0.202,-0.202,-0.231,-0.272,-0.277,-0.273,-0.277,-0.286,-0.286,-0.287,-0.272,-0.253,-0.252,-0.25,-0.227,-0.199,-0.198,-0.199,-0.207,-0.229,-0.226,-0.232,-0.23,-0.228,-0.229,-0.229,-0.167,-0.094,-0.095,-0.095,-0.104,-0.119,-0.119,-0.119,-0.096,-0.069,-0.069,-0.068,0.0,0.091,0.091,0.1,0.173,0.246,0.247,0.265,0.373,0.472,0.472,0.473,0.45,0.414,0.414,0.414,0.446,0.485,0.485,0.501,0.0],"Ukraine":[-0.282,-0.266,-0.235,-0.172,-0.072,-0.029,-0.081,0.025,0.093,0.022,0.027,0.026,-0.022,0.013,-0.09,0.004,0.066,0.008,-0.049,-0.095,-0.1,-0.117,-0.124,-0.26,-0.262,-0.265,-0.292,-0.379,-0.382,-0.307,-0.283,-0.319,-0.322,-0.347,-0.254,-0.281,-0.332,-0.246,-0.269,-0.222,-0.249,-0.077,-0.175,-0.206,-0.251,-0.156,-0.164,-0.147,-0.167,-0.126,-0.07,0.086,0.096,-0.009,-0.063,-0.035,-0.041,-0.101,-0.097,-0.08,-0.104,-0.114,-0.226,-0.126,-0.184,-0.217,-0.235,-0.277,-0.236,-0.281,-0.28,-0.319,-0.327,-0.282,-0.273,-0.269,-0.33,-0.367,-0.372,-0.408,-0.348,-0.385,-0.378,-0.368,-0.405,-0.43,-0.414,-0.375,-0.384,-0.393,-0.413,-0.443,-0.388,-0.375,-0.371,-0.357,-0.348,-0.297,-0.253,-0.279,-0.308,-0.347,-0.24,-0.296,-0.302,-0.325,-0.291,-0.314,0.0,0.0],"sum":[-0.115,-0.229,0.318,0.381,0.964,1.143,1.187,0.977,0.962,0.617,0.484,-0.098,-0.41,-0.095,-0.113,-0.473,-0.472,-0.882,-1.422,-1.827,-2.017,-2.215,-2.065,-2.462,-2.861,-3.3,-2.96,-3.005,-3.247,-3.034,-2.697,-2.672,-2.852,-2.888,-2.639,-2.138,-1.618,-0.829,-0.877,-0.554,-0.436,-0.241,-0.639,-0.404,0.028,1.073,1.374,1.391,1.486,1.235,1.142,1.564,1.612,1.577,1.228,1.141,0.949,0.575,0.342,0.274,0.038,-0.588,-0.976,-0.847,-1.016,-0.963,-0.595,-0.417,-0.287,-0.517,-0.403,-0.667,-1.027,-1.287,-0.614,-0.689,-0.646,-0.722,-0.976,-1.095,-1.104,-1.015,-0.889,-0.771,-0.736,-0.627,-0.498,-0.545,-0.573,-0.544,-0.397,-0.216,0.12,0.227,0.249,0.53,0.438,0.839,1.434,1.598,1.332,1.225,1.553,1.494,1.299,1.166,1.008,0.977,1.367,-1.021]}},"uk_gen":{"from":"2026-10-17T10:30Z","to":"2026-10-17T11:00Z","generationmix":[{"fuel":"biomass","perc":3.8},{"fuel":"coal","perc":0},{"fuel":"imports","perc":18.5},{"fuel":"gas","perc":5.8},{"fuel":"nuclear","perc":15.9},{"fuel":"other","perc":0},{"fuel":"hydro","perc":0},{"fuel":"solar","perc":21.6},{"fuel":"wind","perc":34.3}]},"uk_ci":{"t0":"2026-10-16T23:00Z","h":[[61,48],[60,55],[50,52],[53,55],[51,55],[49,50],[56,49],[49,51],[48,50],[49,47],[48,51],[46,47],[57,46],[50,58],[45,62],[53,62],[54,62],[58,58],[56,53],[54,52],[53,50],[46,49],[46,46],[46,null],[48,null],[52,null],[53,null],[56,null],[59,null],[58,null],[62,null],[66,null],[78,null],[88,null],[91,null],[98,null],[104,null],[107,null],[114,null],[116,null],[121,null],[121,null],[126,null],[126,null],[124,null],[123,null],[122,null],[124,null]],"idx":["low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","low","moderate","moderate","moderate","moderate","moderate","moderate","moderate","moderate","moderate","moderate","moderate","moderate","moderate","moderate"]}}''')
+
+class PradV396(unittest.TestCase):
+    """v396 (F11Z10): części miks (produkcja wg źródła: Niemcy, Polska, Francja), przeplywy (Polska z sąsiadami) i uk (Wielka Brytania) pliku prad.json: parsery z bramkami
+    (kompletny punkt, magazyny poza produkcją, zerowy ogon przepływów, skala emisyjności), jedno zapytanie na przebieg do interfejsu danych o energii łącznie ze strefami cenowymi
+    (pilne strefy mają pierwszeństwo, 429 = wspólne wstrzymanie), części z błędem zostają z datą, tabela źródeł (+1: operator brytyjskiej sieci) i kontrola dzienna."""
+    F = PR396_FIX
+    U = datetime.timezone.utc
+    DNI = [datetime.date(2026, 10, 16), datetime.date(2026, 10, 17)]
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        for p in (mock.patch.object(zd, 'NOW', '2026-10-17T11:00:00+00:00'), mock.patch.object(zd.time, 'sleep')):
+            p.start(); self.addCleanup(p.stop)
+
+    def t(self, h, m=0, d=17):
+        return datetime.datetime(2026, 10, d, h, m, tzinfo=self.U)
+
+    # ---------------- nagrania w kształcie odpowiedzi źródła ----------------
+    def pp(self, c, mut=None):
+        f = self.F['pp'][c]; n = len(next(iter(f['S'].values())))
+        j = {'unix_seconds': [f['t0'] + 900 * i for i in range(n)], 'production_types': [{'name': k, 'data': list(v)} for k, v in f['S'].items()], 'deprecated': False}
+        if mut:
+            mut(j)
+        return j
+
+    @staticmethod
+    def seria(j, nazwa):
+        return next(s for s in j['production_types'] if s['name'] == nazwa)['data']
+
+    def cb(self, mut=None):
+        f = self.F['cb']; n = len(next(iter(f['S'].values())))
+        j = {'unix_seconds': [f['t0'] + 900 * i for i in range(n)], 'countries': [{'name': k, 'data': list(v)} for k, v in f['S'].items()], 'deprecated': False}
+        if mut:
+            mut(j)
+        return j
+
+    @staticmethod
+    def sk(j, nazwa):
+        return next(s for s in j['countries'] if s['name'] == nazwa)['data']
+
+    def uk(self):
+        t0 = datetime.datetime.strptime(self.F['uk_ci']['t0'], '%Y-%m-%dT%H:%MZ')
+        f = lambda i: (t0 + datetime.timedelta(minutes=30 * i)).strftime('%Y-%m-%dT%H:%MZ')
+        d = {'data': [{'from': f(i), 'to': f(i + 1), 'intensity': {'forecast': h[0], 'actual': h[1], 'index': self.F['uk_ci']['idx'][i]}} for i, h in enumerate(self.F['uk_ci']['h'])]}
+        return {'data': json.loads(json.dumps(self.F['uk_gen']))}, d
+
+    # ---------------- serwer: wszystkie adresy prądu (dane Polski i stref syntetyczne, produkcja i przepływy z nagrań) ----------------
+    def serwer(self, **o):
+        log = []
+
+        def fetch(url, timeout, maks=None):
+            log.append(url)
+            if '/rce-pln' in url:
+                day = urllib.parse.unquote(url).split("'")[1]; d = datetime.date.fromisoformat(day); t0 = zd._pl_utc(d, 0)
+                return json.dumps({'value': [{'dtime_utc': (t0 + datetime.timedelta(minutes=15 * (k + 1))).strftime('%Y-%m-%d %H:%M:%S'), 'business_date': day, 'rce_pln': 500.0 + k,
+                                              'publication_ts_utc': '2026-10-17 11:58:11.833'} for k in range(zd._prad_okresow(d))]}).encode()
+            if '/rcco2' in url:
+                return json.dumps({'value': [{'rcco2_eur': 85.0 + i * 0.01, 'rcco2_pln': 360.0, 'business_date': (datetime.date(2026, 10, 17) - datetime.timedelta(days=i)).isoformat(),
+                                              'publication_ts_utc': '2026-10-17 06:00:00'} for i in range(46)]}).encode()
+            if 'energy-charts' in url and o.get('ec_429'):
+                e = urllib.error.HTTPError(url, 429, 'Too Many Requests', {}, None); e.close()   # bez nieposprzątanego pliku tymczasowego
+                raise e
+            if 'price?bzn=' in url:
+                a = datetime.date.fromisoformat(url.split('start=')[1].split('&')[0]); b = datetime.date.fromisoformat(url.split('end=')[1])
+                t0 = zd._pl_utc(a, 0); n = 96 * (b - a).days + 96
+                return json.dumps({'license_info': 'CC BY 4.0', 'unix_seconds': [int(t0.timestamp()) + 900 * i for i in range(n)], 'price': [100.0 + i % 7 for i in range(n)], 'unit': 'EUR / MWh', 'deprecated': False}).encode()
+            if 'public_power' in url:
+                if o.get('pp_blad') and (o.get('pp_kraj') in (None, url.split('country=')[1].split('&')[0].upper())):
+                    raise o['pp_blad']
+                return json.dumps(self.pp(url.split('country=')[1].split('&')[0].upper())).encode()
+            if 'cbpf' in url:
+                return json.dumps(self.cb()).encode()
+            if url.endswith('/generation'):
+                return json.dumps(self.uk()[0]).encode()
+            if 'intensity/date' in url:
+                if o.get('uk_ci_blad'):
+                    raise o['uk_ci_blad']
+                return json.dumps(self.uk()[1]).encode()
+            raise AssertionError(url)
+        return fetch, log
+
+    @staticmethod
+    def etyk(url):
+        """adres → krótka etykieta: price:STREFA, pp:KRAJ, cb, uk, uk-ci, pse"""
+        if 'price?bzn=' in url:
+            return 'price:' + urllib.parse.unquote(url.split('bzn=')[1].split('&')[0])
+        if 'public_power' in url:
+            return 'pp:' + url.split('country=')[1].split('&')[0].upper()
+        return 'cb' if 'cbpf' in url else 'uk' if url.endswith('/generation') else 'uk-ci' if 'intensity/date' in url else 'pse'
+
+    def przebiegi(self, n, krok=10, start=None, prev=None, **o):
+        """n przebiegów co krok minut od start (domyślnie 11:00 UTC 17.10) → (plik po ostatnim, lista adresów zapytań do interfejsu danych o energii na przebieg)"""
+        f, log = self.serwer(**o); t0 = start or self.t(11, 0); wyn = []
+        for i in range(n):
+            n0 = len(log)
+            prev = json.loads(json.dumps(zd.build_prad(prev, now=t0 + datetime.timedelta(minutes=krok * i), fetch=f, rozsz=True)))
+            wyn.append([self.etyk(u) for u in log[n0:] if 'energy-charts' in u])
+        return prev, wyn
+
+    # ---------------- miks produkcji ----------------
+    def test_miks_podzial_na_grupy_i_ostatni_kompletny_punkt(self):
+        e, uw = zd.parse_prad_miks(self.pp('DE'), self.DNI)
+        self.assertEqual((e['day'], e['ts'], e['krok'], e['n']), ('2026-10-17', '2026-10-17T09:30:00+00:00', 15, 12)); self.assertEqual(uw, [])
+        self.assertEqual(e['now'], [9122.6, 4924.5, None, 24016.6, 11446.4, 1083.6, 3860.9, 1954.3], 'węgiel, gaz, atom (Niemcy: brak serii = None, nie 0), wiatr, słońce, woda, biomasa, inne')
+        self.assertEqual(e['sum'], [29513.9, 16923.4, None, 70217.5, 21961.5, 3287.5, 11582.7, 5946.9], 'suma doby w MWh = Σ MW × 0,25 h z kompletnych punktów')
+        self.assertEqual((e['rsn'], e['rs']['t0'], e['rs']['krok'], len(e['rs']['v']), e['rs']['v'][:3]), (72.7, 1792219500, 900, 12, [64.6, 64.8, 65.3]))
+        p, _ = zd.parse_prad_miks(self.pp('PL'), self.DNI)
+        self.assertEqual((p['now'][2], p['now'][0], p['now'][4]), (None, 8680.3, 9696.2), 'Polska bez atomu; węgiel brunatny i kamienny w jednej grupie')
+        fr, _ = zd.parse_prad_miks(self.pp('FR'), self.DNI)
+        self.assertEqual((fr['ts'], fr['now'][0], fr['now'][2]), ('2026-10-17T09:45:00+00:00', None, 35880.5), 'Francja: atom, bez węgla; własny ostatni punkt')
+        self.assertEqual(round(sum(x for x in e['now'] if x is not None) / 1000, 1), 56.4)
+
+    def test_miks_magazyny_i_poboru_nie_liczy_do_produkcji(self):
+        def mut(j):
+            j['production_types'].append({'name': 'Hydro pumped storage', 'data': [6000.0] * 12}); j['production_types'].append({'name': 'Battery', 'data': [900.0] * 12})
+            j['production_types'].append({'name': 'Hydro pumped storage consumption', 'data': [-5000.0] * 12}); j['production_types'].append({'name': 'Cross border electricity trading', 'data': [-4000.0] * 12})
+        e, uw = zd.parse_prad_miks(self.pp('DE', mut), self.DNI)
+        self.assertEqual(e['now'], zd.parse_prad_miks(self.pp('DE'), self.DNI)[0]['now'], 'magazyny (oddają pobraną wcześniej energię), pobór i wymiana poza produkcją'); self.assertEqual(uw, [])
+
+    def test_miks_niepelny_punkt_cofa_sie_a_niepelna_seria_zmniejsza_n(self):
+        def mut(j):
+            self.seria(j, 'Solar')[-1] = None; self.seria(j, 'Wind onshore')[-1] = None
+        e, _ = zd.parse_prad_miks(self.pp('DE', mut), self.DNI)
+        self.assertEqual((e['ts'], e['n']), ('2026-10-17T09:15:00+00:00', 11), 'ostatni punkt bez liczby w serii produkcji = niekompletny: cofnięcie do poprzedniego')
+        self.assertEqual(e['sum'][4], round(sum(self.seria(self.pp('DE'), 'Solar')[:-1]) * 0.25, 1))
+
+        def mut2(j):
+            self.seria(j, 'Fossil gas')[3] = None   # dziura w środku serii: punkt pominięty w sumie doby, ostatni punkt bez zmian
+        e2, _ = zd.parse_prad_miks(self.pp('DE', mut2), self.DNI)
+        self.assertEqual((e2['ts'], e2['n'], e2['now']), ('2026-10-17T09:30:00+00:00', 11, zd.parse_prad_miks(self.pp('DE'), self.DNI)[0]['now']))
+
+    def test_miks_bledy_i_nieznane_serie(self):
+        P = lambda c='DE', m=None: self.pp(c, m)
+        for mut, frag in ((lambda j: j.__setitem__('deprecated', True), 'wycofan'), (lambda j: self.seria(j, 'Solar').pop(), 'zła seria produkcji'),
+                          (lambda j: j.__setitem__('unix_seconds', j['unix_seconds'][::-1]), 'nie rosną'), (lambda j: j.__setitem__('production_types', 'x'), 'brak serii produkcji'),
+                          (lambda j: j.__setitem__('unix_seconds', [0, 100] + j['unix_seconds'][2:]), 'nieznany krok serii')):
+            with self.assertRaises(RuntimeError, msg=frag) as cm:
+                zd.parse_prad_miks(P('DE', mut), self.DNI)
+            self.assertIn(frag, str(cm.exception))
+        with self.assertRaises(RuntimeError):
+            zd.parse_prad_miks({'unix_seconds': [1, 2, 3], 'production_types': []}, self.DNI)
+        with self.assertRaises(RuntimeError) as cm:   # żaden punkt z dzisiejszej ani wczorajszej doby
+            zd.parse_prad_miks(self.pp('DE'), [datetime.date(2026, 10, 1)])
+        self.assertIn('brak kompletnego punktu', str(cm.exception))
+        with self.assertRaises(RuntimeError) as cm:   # suma produkcji spoza zakresu
+            zd.parse_prad_miks(self.pp('DE', lambda j: [s['data'].__setitem__(slice(None), [1.0] * 12) for s in j['production_types']]), self.DNI)
+        self.assertIn('spoza zakresu', str(cm.exception))
+        with self.assertRaises(RuntimeError):   # liczba spoza zakresu serii (np. 9e9 MW) = punkt niekompletny, a ostatnie kompletne są tylko przy zerach: błąd nie zero
+            zd.parse_prad_miks(self.pp('DE', lambda j: [s['data'].__setitem__(slice(None), [9e9] * 12) for s in j['production_types'] if s['name'] == 'Solar']), self.DNI)
+        e, uw = zd.parse_prad_miks(self.pp('DE', lambda j: j['production_types'].append({'name': 'Fossil peat', 'data': [100.0] * 12})), self.DNI)
+        self.assertEqual(uw, ['nieznana seria produkcji „Fossil peat” — liczona jako inne']); self.assertEqual(e['now'][7], 2054.3)
+        e2, uw2 = zd.parse_prad_miks(self.pp('DE', lambda j: j['production_types'].append({'name': 'Residual load share', 'data': [100.0] * 12})), self.DNI)
+        self.assertEqual((uw2, e2['now'][7]), ([], 1954.3), 'serie obciążenia i udziałów to nie wytwarzanie')
+
+    # ---------------- przepływy ----------------
+    def test_przeplywy_zerowy_ogon_to_brak_a_nie_pomiar(self):
+        e, uw = zd.parse_prad_przeplywy(self.cb())
+        self.assertEqual(uw, [])
+        self.assertEqual((e['day'], e['ts'], e['n'], e['k']), ('2026-10-17', '2026-10-17T06:15:00+00:00', 96, ['DE', 'CZ', 'SK', 'SE', 'LT', 'UA']))
+        self.assertEqual(e['now'], [1895.0, -866.0, -426.0, 485.0, 204.0, -314.0], 'dwa ostatnie kwadranse z zerami wypełniającymi pominięte (ogon do 6 kwadransów), GW → MW, dodatni = import')
+        self.assertEqual(e['avg'], [1485.8, -1198.5, -472.6, -166.4, 128.1, -235.6])
+        self.assertEqual((e['net']['t0'], e['net']['krok'], len(e['net']['v']), e['net']['v'][-3:]), (1792132200, 900, 96, [1165.0, 1008.0, 978.0]))
+        self.assertEqual(e['net']['v'][-1], round(sum(e['now']), 1), 'saldo = suma łączy w tym samym punkcie')
+        # długi ciąg zer (kabel do Szwecji wyłączony) to prawdziwe zero, nie brak — nie cofa punktu
+        e2, _ = zd.parse_prad_przeplywy(self.cb(lambda j: self.sk(j, 'Sweden').__setitem__(slice(-30, None), [0.0] * 30)))
+        self.assertEqual((e2['ts'], e2['now'][3]), ('2026-10-17T06:15:00+00:00', 0.0)); self.assertEqual(e2['n'], 96)
+        # ogon krótszy niż próg liczy się jako brak: sześć zer w Niemczech cofa punkt o sześć kwadranse
+        e3, _ = zd.parse_prad_przeplywy(self.cb(lambda j: self.sk(j, 'Germany').__setitem__(slice(-6, None), [0.0] * 6)))
+        self.assertEqual(e3['now'][0], round(self.sk(self.cb(), 'Germany')[-7] * 1000, 1), 'sześć zer w Niemczech = ogon: punkt o sześć kwadransów przed końcem serii'); self.assertEqual(e3['ts'], '2026-10-17T05:15:00+00:00')
+        e4, _ = zd.parse_prad_przeplywy(self.cb(lambda j: self.sk(j, 'Germany').__setitem__(slice(-7, None), [0.0] * 7)))
+        self.assertEqual(e4['now'][0], 0.0, 'siedem zer = już nie ogon (próg 6): to prawdziwe zero, a punkt zostaje dwa kwadranse przed końcem')
+        self.assertEqual(e4['ts'], e['ts'])
+
+    def test_przeplywy_bramki_i_srednia_24h_tylko_z_pelnego_okna(self):
+        for mut, frag in ((lambda j: j.__setitem__('deprecated', True), 'wycofan'), (lambda j: j.__setitem__('countries', 'x'), 'brak listy'),
+                          (lambda j: self.sk(j, 'Germany').__setitem__(-5, 11.0), 'spoza zakresu'), (lambda j: self.sk(j, 'Czech Republic').pop(), 'zła seria'),
+                          (lambda j: j.__setitem__('countries', [s for s in j['countries'] if s['name'] != 'Germany']), 'brak łączy z Niemcami')):
+            with self.assertRaises(RuntimeError) as cm:
+                zd.parse_prad_przeplywy(self.cb(mut))
+            self.assertIn(frag, str(cm.exception))
+        with self.assertRaises(RuntimeError):
+            zd.parse_prad_przeplywy(self.cb(lambda j: j.__setitem__('unix_seconds', [x * 4 for x in j['unix_seconds']])))   # krok 3600 s: nie to źródło
+        e, uw = zd.parse_prad_przeplywy(self.cb(lambda j: j['countries'].append({'name': 'Norway', 'data': [0.1] * len(j['unix_seconds'])})))
+        self.assertEqual(uw, ['nieznany sąsiad „Norway” pominięty'])
+        # tylko 50 kwadransów historii: punkt „teraz” jest, średnia 24 h nie (za mało punktów)
+        def kroj(j):
+            j['unix_seconds'] = j['unix_seconds'][-50:]
+            for s in j['countries']:
+                s['data'] = s['data'][-50:]
+        e2, _ = zd.parse_prad_przeplywy(self.cb(kroj))
+        self.assertEqual((e2['avg'], e2['n'], e2['now'][0]), ([None] * 6, 48, 1895.0)); self.assertEqual(len(e2['net']['v']), 48)
+        # dziura (None) w jednym łączu w środku okna: punkt pominięty w średniej i saldzie (None), nie zero
+        e3, _ = zd.parse_prad_przeplywy(self.cb(lambda j: self.sk(j, 'Slovakia').__setitem__(-20, None)))
+        self.assertEqual((e3['n'], e3['net']['v'][-18]), (95, None)); self.assertEqual(e3['now'], e['now'])
+
+    # ---------------- Wielka Brytania ----------------
+    def test_uk_miks_i_emisyjnosc(self):
+        g, d = self.uk()
+        e, uw = zd.parse_prad_uk(g, d)
+        self.assertEqual(uw, []); self.assertEqual(e['asof'], '2026-10-17')
+        self.assertEqual(e['mix'], {'od': '2026-10-17T10:30Z', 'p': {'biomass': 3.8, 'coal': 0.0, 'imports': 18.5, 'gas': 5.8, 'nuclear': 15.9, 'other': 0.0, 'hydro': 0.0, 'solar': 21.6, 'wind': 34.3}})
+        self.assertEqual(e['ci']['now'], {'od': '2026-10-17T10:30Z', 'forecast': 46, 'actual': None, 'index': 'low'}, 'okres z miksu w serii dobowej; wartość rzeczywista jeszcze nie wpłynęła = None')
+        self.assertEqual((len(e['ci']['h']), e['ci']['h'][:2], e['ci']['t0'], e['ci']['u']), (48, [[61, 48], [60, 55]], '2026-10-16T23:00Z', 'gCO2/kWh'))
+        e2, _ = zd.parse_prad_uk(g, None)
+        self.assertIsNone(e2['ci']); self.assertEqual(e2['mix'], e['mix'])
+
+    def test_uk_bramki(self):
+        g, d = self.uk()
+        zle = [lambda: ({'data': {}}, None), lambda: ({'data': dict(g['data'], to='2026-10-17T12:00Z')}, None),
+               lambda: ({'data': dict(g['data'], generationmix=[{'fuel': 'wind', 'perc': 50.0}, {'fuel': 'gas', 'perc': 10.0}, {'fuel': 'coal', 'perc': 0.0}, {'fuel': 'hydro', 'perc': 0.0}, {'fuel': 'solar', 'perc': 0.0}])}, None),
+               lambda: ({'data': dict(g['data'], generationmix=g['data']['generationmix'] + [{'fuel': 'fusion', 'perc': 0.0}])}, None),
+               lambda: ({'data': dict(g['data'], generationmix=[dict(r, perc=-1.0) if r['fuel'] == 'coal' else r for r in g['data']['generationmix']])}, None)]
+        for z in zle:
+            with self.assertRaises(RuntimeError):
+                zd.parse_prad_uk(*z())
+        d2 = json.loads(json.dumps(d)); d2['data'][5]['intensity']['actual'] = 5000
+        with self.assertRaises(RuntimeError):
+            zd.parse_prad_uk(g, d2)
+        d3 = json.loads(json.dumps(d)); d3['data'][5]['intensity']['index'] = 'extreme'
+        with self.assertRaises(RuntimeError):
+            zd.parse_prad_uk(g, d3)
+        d4 = json.loads(json.dumps(d)); d4['data'][7]['from'] = '2026-10-17T05:00Z'   # dziura w czasie
+        with self.assertRaises(RuntimeError):
+            zd.parse_prad_uk(g, d4)
+        d5 = {'data': d['data'][:10]}   # seria urwana przed okresem miksu: miks jest, „teraz” emisyjności brak, notatka
+        e, uw = zd.parse_prad_uk(g, d5)
+        self.assertEqual((e['ci']['now'], uw), (None, ['emisyjność: brak okresu z miksu w serii dobowej']))
+
+    # ---------------- build_prad(rozsz=True): jedno zapytanie na przebieg ----------------
+    def test_bez_rozszerzenia_plik_jak_w_v367(self):
+        f, log = self.serwer(); o = zd.build_prad(None, now=self.t(11, 0), fetch=f)
+        self.assertEqual(sorted(o['ok']), ['co2', 'pl', 'str']); self.assertFalse({'miks', 'przeplywy', 'uk'} & set(o)); self.assertFalse([u for u in log if 'public_power' in u or 'cbpf' in u or 'carbonintensity' in u])
+        self.assertNotIn('rz', o['st']); self.assertEqual(sorted(o['next']), ['co2', 'pl', 'str'])
+
+    def test_jedno_zapytanie_na_przebieg_i_okresy_zadan(self):
+        o, wyn = self.przebiegi(60)   # 10 godzin co 10 min
+        for i, w in enumerate(wyn):
+            self.assertLessEqual(len(w), 1, f'przebieg {i}: najwyżej jedno zapytanie do interfejsu danych o energii (limit 2 na minutę na adres wspólny dla maszyn)')
+        flat = [(i, w[0]) for i, w in enumerate(wyn) if w]
+        stref = [x for _, x in flat if x.startswith('price:')]
+        self.assertEqual(sorted(set(stref)), sorted('price:' + z for z in zd.PRAD_STREFY), 'wszystkie 15 stref nadal odpytywanych')
+        for etyk, okres in (('cb', 60), ('pp:DE', 120), ('pp:PL', 120), ('pp:FR', 120)):
+            ix = [i for i, x in flat if x == etyk]
+            self.assertTrue(ix, etyk); self.assertTrue(all(b - a >= okres // 10 for a, b in zip(ix, ix[1:])), f'{etyk}: nie częściej niż co {okres} min')
+            self.assertLessEqual(max(b - a for a, b in zip(ix, ix[1:])), okres // 10 + 8, f'{etyk}: odświeżane mniej więcej co {okres} min (strefy pilne mogą opóźnić o kilka przebiegów)')
+        for p in ('miks', 'przeplywy', 'uk'):
+            self.assertIsInstance(o[p], dict, p); self.assertIs(o['ok'][p] in (True, 'cached'), True, p)
+        self.assertEqual(sorted(o['miks']['k']), ['DE', 'FR', 'PL']); self.assertEqual(o['miks']['g'], list(zd.PRAD_MX_GRUPY)); self.assertEqual(o['miks']['asof'], '2026-10-17')
+        self.assertEqual({k: v['at'][:10] for k, v in o['miks']['k'].items()}, {'DE': '2026-10-17', 'FR': '2026-10-17', 'PL': '2026-10-17'})
+        self.assertEqual((o['przeplywy']['asof'], o['przeplywy']['u'], o['uk']['asof']), ('2026-10-17', 'MW', '2026-10-17'))
+        self.assertEqual(o['err'], {}); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(sorted(o['next']), ['co2', 'miks', 'pl', 'przeplywy', 'str', 'uk'])
+        self.assertEqual(o['v'], 1, 'ta sama wersja pliku — strona i kontrola czytają stare pola bez zmian')
+        tekst = json.dumps(o, ensure_ascii=False)
+        for nazwa in ('Energy-Charts', 'Fraunhofer', 'NESO', 'Carbon Intensity', 'Bundesnetzagentur', 'ENTSO'):
+            self.assertNotIn(nazwa, tekst, 'w pliku tylko kody źródeł: ' + nazwa)
+
+    def test_uk_osobny_serwer_co_25_minut(self):
+        f, log = self.serwer(); o = None; uk = []
+        for i in range(12):
+            n0 = len(log); o = json.loads(json.dumps(zd.build_prad(o, now=self.t(11, 0) + datetime.timedelta(minutes=10 * i), fetch=f, rozsz=True)))
+            uk.append(sum(1 for u in log[n0:] if 'carbonintensity' in u))
+        self.assertEqual(uk, [2, 0, 0, 2, 0, 0, 2, 0, 0, 2, 0, 0], 'dwa zapytania (miks i emisyjność) co 30 min przy przebiegach co 10 min (bramka 25 min)')
+        self.assertEqual(o['ok']['uk'], 'cached')
+
+    def test_pilna_strefa_ma_pierwszenstwo_a_zadanie_rozszerzenia_przed_zwyklym_odswiezaniem(self):
+        f, log = self.serwer()
+        o = None
+        for i in range(16):   # najpierw wszystkie strefy (puste pliki = pilne)
+            o = json.loads(json.dumps(zd.build_prad(o, now=self.t(11, 0) + datetime.timedelta(minutes=10 * i), fetch=f, rozsz=True)))
+        # wszystkie strefy z dzisiejszą i jutrzejszą dobą świeże; zadania rozszerzenia nigdy nie pobrane
+        o['miks'] = None; o.pop('miks'); o.pop('przeplywy', None); o['st']['rz'] = {}
+        now = self.t(12, 30)
+        for z, e in o['str']['z'].items():
+            e['at'] = (now - datetime.timedelta(minutes=30)).isoformat(); e['d'] = {'2026-10-17': [1.0, 1.0, 1.0, 96], '2026-10-18': [1.0, 1.0, 1.0, 96]}
+        o['st']['try'] = {z: (now - datetime.timedelta(hours=1)).isoformat() for z in zd.PRAD_STREFY}
+        n0 = len(log); zd.build_prad(o, now=now, fetch=f, rozsz=True)
+        self.assertEqual([self.etyk(u) for u in log[n0:] if 'energy-charts' in u], ['cb'], 'strefy świeże: zadanie rozszerzenia dostaje jedyne zapytanie')
+        # jedna strefa bez jutrzejszej doby po godzinie publikacji (pilna) — ma pierwszeństwo
+        o2 = json.loads(json.dumps(o)); del o2['str']['z']['FR']['d']['2026-10-18']
+        n0 = len(log); zd.build_prad(o2, now=now, fetch=f, rozsz=True)
+        self.assertEqual([self.etyk(u) for u in log[n0:] if 'energy-charts' in u], ['price:FR'])
+        # strefa nieodświeżana ≥ 300 min (blisko progu kontroli 6 h) — też pilna
+        o3 = json.loads(json.dumps(o)); o3['str']['z']['AT']['at'] = (now - datetime.timedelta(minutes=301)).isoformat()
+        n0 = len(log); zd.build_prad(o3, now=now, fetch=f, rozsz=True)
+        self.assertEqual([self.etyk(u) for u in log[n0:] if 'energy-charts' in u], ['price:AT'])
+        # strefa starsza niż 180, ale młodsza niż 300 min: czeka na zadanie rozszerzenia (bez rozszerzenia byłaby odświeżona)
+        o4 = json.loads(json.dumps(o)); o4['str']['z']['AT']['at'] = (now - datetime.timedelta(minutes=200)).isoformat()
+        n0 = len(log); zd.build_prad(o4, now=now, fetch=f, rozsz=True)
+        self.assertEqual([self.etyk(u) for u in log[n0:] if 'energy-charts' in u], ['cb'])
+        n0 = len(log); zd.build_prad(o4, now=now, fetch=f)
+        self.assertEqual([self.etyk(u) for u in log[n0:] if 'energy-charts' in u], ['price:AT'], 'bez rozszerzenia zachowanie v367 bez zmian')
+
+    def test_429_wspolne_wstrzymanie_i_czesc_nie_jest_bledem(self):
+        o, wyn = self.przebiegi(2, krok=10, ec_429=True)
+        self.assertEqual(wyn, [['price:PL'], []], 'pierwszy przebieg: pilna strefa dostaje 429 → wstrzymanie; drugi (10 min później): żadnego zapytania do tego źródła')
+        self.assertEqual(zd.META['errors'], [], '429 to pominięcie, nie błąd')
+        # przebieg, w którym do pobrania jest zadanie rozszerzenia (strefy świeże) i źródło odpowiada 429
+        f0, _ = self.serwer(); o = None
+        for i in range(16):
+            o = json.loads(json.dumps(zd.build_prad(o, now=self.t(11, 0) + datetime.timedelta(minutes=10 * i), fetch=f0, rozsz=True)))
+        o['st']['rz'] = {}; o.pop('przeplywy', None); o.pop('miks', None); o['st'].pop('hold', None)
+        now = self.t(13, 0)
+        for z, e in o['str']['z'].items():
+            e['at'] = (now - datetime.timedelta(minutes=30)).isoformat(); e['d'] = {'2026-10-17': [1.0, 1.0, 1.0, 96], '2026-10-18': [1.0, 1.0, 1.0, 96]}
+        o['st']['try'] = {z: (now - datetime.timedelta(hours=1)).isoformat() for z in zd.PRAD_STREFY}
+        f, log = self.serwer(ec_429=True)
+        zd.META['notes'].clear(); zd.META['errors'].clear()
+        o2 = json.loads(json.dumps(zd.build_prad(o, now=now, fetch=f, rozsz=True)))
+        self.assertEqual([self.etyk(u) for u in log if 'energy-charts' in u], ['cb'])
+        self.assertEqual(zd.META['errors'], [], '429 to pominięcie, nie błąd części'); self.assertTrue(any('limit zapytań (429)' in n for n in zd.META['notes']))
+        self.assertIn('hold', o2['st']); self.assertNotIn('przeplywy', o2)
+        n0 = len(log); o3 = zd.build_prad(o2, now=now + datetime.timedelta(minutes=10), fetch=f, rozsz=True)
+        self.assertEqual([u for u in log[n0:] if 'energy-charts' in u], [], 'w czasie wstrzymania żadnych zapytań do tego źródła — ani strefy, ani zadania rozszerzenia')
+        f2, log2 = self.serwer()
+        o4 = zd.build_prad(o3, now=now + datetime.timedelta(minutes=31), fetch=f2, rozsz=True)
+        self.assertEqual([self.etyk(u) for u in log2 if 'energy-charts' in u], ['pp:DE'], 'po wstrzymaniu najpierw zadania jeszcze nie pobrane; strefy świeże'); self.assertIn('miks', o4)
+
+    def test_blad_czesci_zostaje_z_data_a_blad_emisyjnosci_nie_psuje_miksu(self):
+        o, _ = self.przebiegi(30)
+        przed = json.loads(json.dumps(o['miks']))
+        f, log = self.serwer(pp_blad=urllib.error.URLError('offline'), pp_kraj='DE')
+        zd.META['errors'].clear()
+        t_dalej = self.t(11, 0) + datetime.timedelta(minutes=700)
+        o = json.loads(json.dumps(o))
+        for z, e in o['str']['z'].items():   # strefy świeże, z dzisiejszą i jutrzejszą dobą: jedyne zapytanie przebiegu dostaje zadanie rozszerzenia; DE jedyne wolne do pobrania
+            e['at'] = (t_dalej - datetime.timedelta(minutes=30)).isoformat(); e['d'] = {'2026-10-17': [1.0, 1.0, 1.0, 96], '2026-10-18': [1.0, 1.0, 1.0, 96]}
+        o['st']['try'] = {z: (t_dalej - datetime.timedelta(hours=1)).isoformat() for z in zd.PRAD_STREFY}
+        o['st']['rz']['try'] = {j: (t_dalej - datetime.timedelta(minutes=5)).isoformat() for j in ('pf', 'mx:PL', 'mx:FR')}; o['st']['rz']['try'].pop('mx:DE', None)
+        o2 = zd.build_prad(json.loads(json.dumps(o)), now=t_dalej, fetch=f, rozsz=True)
+        self.assertEqual([self.etyk(u) for u in log if 'energy-charts' in u], ['pp:DE'])
+        self.assertIs(o2['ok']['miks'], False); self.assertEqual(o2['miks'], przed, 'część z błędem: poprzednia wersja z jej datą'); self.assertIn('miks', o2['err'])
+        self.assertTrue(any(x.startswith('surowce (prąd i CO2) miks: ') for x in zd.META['errors']))
+        self.assertEqual(o2['przeplywy'], o['przeplywy'], 'pozostałe części bez zmian')
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        f3, _ = self.serwer(uk_ci_blad=urllib.error.URLError('offline'))
+        o3 = zd.build_prad(None, now=self.t(11, 0), fetch=f3, rozsz=True)
+        self.assertIsNone(o3['uk']['ci']); self.assertIn('mix', o3['uk']); self.assertIs(o3['ok']['uk'], True)
+        self.assertTrue(any(n.startswith('prąd i CO2: uk: emisyjność pominięta') for n in zd.META['notes']), 'brak emisyjności to notatka, miks zostaje')
+
+    # ---------------- tabela źródeł i okablowanie main ----------------
+    def test_tabela_zrodel_plus_jedno(self):
+        for k, v in (('prad_mx', 'energy-charts'), ('prad_pf', 'energy-charts'), ('prad_uk', 'neso')):
+            self.assertEqual(zd.ZRODLA_META[k], v)
+        self.assertEqual(zd.ZRODLA_META['prad'], ('pse', 'energy-charts', 'neso'))
+        wszystkie = {'prad_pl': True, 'prad_co2': True, 'prad_str': True, 'prad_mx': True, 'prad_pf': True, 'prad_uk': True}
+        self.assertEqual(zd.zrodla_meta(wszystkie), {'n': 3, 'ok': 3}, 'operator polskiej sieci, interfejs danych o energii (już liczony) i operator brytyjskiej sieci')
+        self.assertEqual(zd.zrodla_meta(dict(wszystkie, prad_uk=False)), {'n': 3, 'ok': 2})
+        self.assertEqual(zd.zrodla_meta({'prad_mx': False, 'prad_pf': 'cached', 'prad_str': False}), {'n': 1, 'ok': 1}, 'miks, przepływy i strefy to jedno źródło: odpowiada, gdy któraś część odpowiedziała')
+
+    def test_main_okablowanie_nowych_czesci(self):
+        with open(zd.__file__, encoding='utf-8') as fh:
+            src = fh.read()
+        m = src[src.index('def main():'):]
+        i = m.index("    prev_pr = previous('prad')"); j = m.index("    META['czas'] = czas_przebiegu(")
+        blok = m[i:j]
+        self.assertIn('build_prad(prev_pr, run_t0=_RUN_T0[0], rozsz=True)', blok)
+        for k in ('prad_mx', 'prad_pf', 'prad_uk'):
+            self.assertIn(f"META['ok']['{k}']", blok)
+        code = compile('\n'.join(x[4:] for x in blok.split('\n')), 'main-prad', 'exec')
+        o = {'v': 1, 'at': 'x', 'ok': {'pl': True, 'co2': 'cached', 'str': True, 'miks': True, 'przeplywy': 'cached', 'uk': False}}; saved = {}
+        with mock.patch.object(zd, 'previous', lambda n: None), mock.patch.object(zd, 'save', lambda n, x: saved.__setitem__(n, x)), mock.patch.object(zd, 'build_prad', return_value=o) as b:
+            exec(code, vars(zd), {})
+        b.assert_called_once(); self.assertEqual(b.call_args.kwargs.get('rozsz'), True)
+        self.assertEqual({k: zd.META['ok'][k] for k in ('prad_mx', 'prad_pf', 'prad_uk')}, {'prad_mx': True, 'prad_pf': 'cached', 'prad_uk': False})
+        zd.META['ok'].pop('prad_mx'); zd.META['ok'].pop('prad_pf'); zd.META['ok'].pop('prad_uk')
+        o2 = {'v': 1, 'at': 'x', 'ok': {'pl': True, 'co2': True, 'str': True}}   # stary kształt (bez nowych części): bez nowych kluczy stanu
+        with mock.patch.object(zd, 'previous', lambda n: None), mock.patch.object(zd, 'save', lambda n, x: None), mock.patch.object(zd, 'build_prad', return_value=o2):
+            exec(code, vars(zd), {})
+        self.assertFalse({'prad_mx', 'prad_pf', 'prad_uk'} & set(zd.META['ok']))
+
+    def test_blok_bez_kluczy_i_zakazanych_slow(self):
+        with open(zd.__file__, encoding='utf-8') as fh:
+            src = fh.read()
+        i0 = src.index('# ===================== v396 (F11Z10)'); i1 = src.index('PRAD_POBIERZ = {')
+        blk = src[i0:i1]
+        for zakazane in ('KEY', 'os.environ', 'print(', 'Authorization', 'token', 'TOKEN'):
+            self.assertNotIn(zakazane, blk, 'publiczne zapytania GET bez uwierzytelnienia: ' + zakazane)
+        self.assertIn('api.energy-charts.info/public_power', blk); self.assertIn('api.carbonintensity.org.uk/generation', blk)
+
+    # ---------------- kontrola dzienna ----------------
+    def kt(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v396', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    def test_kontrola_wiersze_swiezosci_nowych_czesci(self):
+        k = self.kt(); o, _ = self.przebiegi(40)
+        self.assertTrue({'prad_mx', 'prad_pf', 'prad_uk'} <= set(k.AW_BEZ_BLEDU)); self.assertIn('zostaje z datą', k.AW_BEZ_BLEDU['prad_uk'])
+        teraz = self.t(11, 0) + datetime.timedelta(minutes=400)
+        r = k.prad_swiezosc(o, teraz)
+        self.assertEqual(len(r), 6); self.assertEqual([x[1] for x in r[3:]], ['✅', '✅', '✅']); self.assertTrue(all(x[0] in k.PRAD_K_ETYKIETA2.values() for x in r[3:]))
+        stary = {kk: v for kk, v in o.items() if kk not in ('miks', 'przeplywy', 'uk')}
+        self.assertEqual(len(k.prad_swiezosc(stary, teraz)), 3, 'plik sprzed rozszerzenia — bez nowych wierszy (i bez „?”)')
+        x = k.prad_swiezosc(o, teraz + datetime.timedelta(hours=9))
+        self.assertEqual([y[1] for y in x[3:]], ['⚠️', '⚠️', '⚠️'], 'po 9 h bez odświeżenia: uwagi (najwyżej ⚠️)'); self.assertTrue(all('najwyżej uwaga' in y[4] for y in x[3:]))
+        o2 = json.loads(json.dumps(o)); del o2['miks']['k']['FR']
+        self.assertIn('brak kraju: FR', k.prad_swiezosc(o2, teraz)[3][4])
+        o3 = json.loads(json.dumps(o)); o3['uk'].pop('at')
+        self.assertEqual(k.prad_swiezosc(o3, teraz)[5][1], '?', 'część bez daty pobrania — „?”, nie ✅')
+
+    def test_kontrola_spojnosc_i_porownania(self):
+        k = self.kt(); o, _ = self.przebiegi(40)
+        self.assertEqual(k.prad_spojnosc(o), [])
+        def z(f):
+            j = json.loads(json.dumps(o)); f(j); return k.prad_spojnosc(j)
+        self.assertTrue(any('miks DE' in x for x in z(lambda j: j['miks']['k']['DE']['now'].pop())))
+        self.assertTrue(any('miks PL' in x and 'poza zakresem' in x for x in z(lambda j: j['miks']['k']['PL'].__setitem__('now', [1.0] * 8))))
+        self.assertTrue(any('miks FR' in x for x in z(lambda j: j['miks']['k']['FR']['now'].__setitem__(0, -5.0))))
+        self.assertTrue(any('miks DE' in x and 'dzień' in x for x in z(lambda j: j['miks']['k']['DE'].__setitem__('day', 'wczoraj'))))
+        self.assertTrue(any('miks' in x and 'poza 0–100' in x for x in z(lambda j: j['miks']['k']['DE'].__setitem__('rsn', 140.0))))
+        self.assertTrue(any('przepływy' in x for x in z(lambda j: j['przeplywy']['now'].__setitem__(0, 20000.0))))
+        self.assertTrue(any('przepływy' in x and 'seria salda' in x for x in z(lambda j: j['przeplywy']['net'].__setitem__('v', j['przeplywy']['net']['v'] * 2))))
+        self.assertTrue(any(x.startswith('uk:') and 'suma' in x for x in z(lambda j: j['uk']['mix']['p'].__setitem__('wind', 90.0))))
+        self.assertTrue(any(x.startswith('uk:') and 'emisyjności' in x for x in z(lambda j: j['uk']['ci']['h'].__setitem__(3, [5000, None]))))
+        j = json.loads(json.dumps(o)); j['uk']['ci'] = None
+        self.assertEqual(k.prad_spojnosc(j), [], 'brak emisyjności (jej zapytanie zawiodło) to nie sprzeczność')
+        P = k.prad_porownania(o, {}, self.t(11, 0) + datetime.timedelta(minutes=400))
+        self.assertTrue(any(w[0].startswith('Miks DE 2026-10-17: odnawialne') and w[1] == '✅' for w in P['wiersze'])); self.assertFalse([u for u in P['uwagi'] if u.startswith('Prąd w Europie, miks')])
+        self.assertTrue(any(w[0].startswith('Przepływy Polski') and w[1] == 'ℹ️' for w in P['wiersze'])); self.assertTrue(any(w[0].startswith('Wielka Brytania 2026-10-17T10:30Z: emisyjność 46 gCO2/kWh') for w in P['wiersze']))
+        j = json.loads(json.dumps(o)); j['miks']['k']['DE']['rsn'] = 50.0
+        P2 = k.prad_porownania(j, {}, self.t(11, 0)); self.assertTrue([u for u in P2['uwagi'] if u.startswith('Prąd w Europie, miks DE')]); self.assertTrue(any(w[1] == '⚠️' for w in P2['wiersze']))
+        j['miks']['k']['DE']['rsn'] = None
+        P3 = k.prad_porownania(j, {}, self.t(11, 0)); self.assertFalse([u for u in P3['uwagi'] if 'miks DE' in u]); self.assertTrue(any('bez serii źródła' in w[0] for w in P3['wiersze']))
+        T = k.prad_kontrola({'prad': o}, self.t(11, 0) + datetime.timedelta(minutes=400))
+        self.assertEqual(T['spojnosc'], [])
+
+    def test_kontrola_prog_odnawialnych_z_testu_wstecznego(self):
+        """Test wsteczny 10–16.10.2026 (nagrania tygodnia, Niemcy, Polska, Francja, 2157 punktów): udział odnawialnych z naszego podziału wobec serii źródła różnił się najwyżej o 1,5 pkt proc.
+        (bez magazynów w produkcji; z nimi do 10 pkt proc. — stąd ich wyłączenie). Próg uwagi 4 pkt proc. zostawia zapas 2,6×."""
+        k = self.kt(); self.assertEqual(k.PRAD_K_RS_PP, 4.0)
+        for c in ('DE', 'PL', 'FR'):
+            e, _ = zd.parse_prad_miks(self.pp(c), self.DNI)
+            tot = sum(x for x in e['now'] if x is not None); odn = sum(e['now'][i] for i in k.PRAD_K_MX_ODN if e['now'][i] is not None)
+            self.assertLess(abs(odn / tot * 100 - e['rsn']), 2.0, c)
