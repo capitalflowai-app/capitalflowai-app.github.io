@@ -65491,6 +65491,18 @@ class EthSpalV403(_V403Baza):
         self.assertEqual(s['ser'][-1], ['2026-10-17', 122137235.4], 'ostatni punkt doby = bieżąca podaż')
         self.assertGreater(s['ser'][-1][1], s['ser'][-2][1])
 
+    def test_odczyt_pozniejszy_niz_start_przebiegu_jest_dobry_a_odlegla_przyszlosc_nie(self):
+        # żywy błąd z 17.10: NOW = start przebiegu, odczyt spalania/podaży ma czas z chwili zapytania (po NOW) — dolna granica 0 odrzucała każdy odczyt
+        def zt(m): return (_V403_NOW + datetime.timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        b = _v403_burn(**{k: dict(v, timestamp=zt(10)) for k, v in _v403_burn().items()})
+        s = self._spal(b, _v403_podaz(ostatni=_V403_NOW + datetime.timedelta(minutes=10)))
+        self.assertEqual(s['spal']['d1'], 19.0)
+        b = _v403_burn(**{k: dict(v, timestamp=zt(40)) for k, v in _v403_burn().items()})
+        with self.assertRaisesRegex(ValueError, 'spalania nieświeży'):
+            self._spal(b, _v403_podaz())
+        with self.assertRaisesRegex(ValueError, 'podaży nieświeży'):
+            self._spal(None, _v403_podaz(ostatni=_V403_NOW + datetime.timedelta(minutes=40)))
+
     def test_odrzucenia_okna_swiezosc_emisja_i_zly_ksztalt(self):
         for burn, podaz, rx in ((_v403_burn(d1={'sum': {'eth': 5000.0, 'usd': 1.0}, 'timestamp': (_V403_NOW - datetime.timedelta(minutes=3)).strftime('%Y-%m-%dT%H:%M:%SZ')}), None, 'niespójne okna'),
                                 (_v403_burn(d7={'sum': {'usd': 1.0}, 'timestamp': (_V403_NOW - datetime.timedelta(minutes=3)).strftime('%Y-%m-%dT%H:%M:%SZ')}), None, r'spalone ETH \(d7\)'),

@@ -43061,6 +43061,7 @@ ETH_SER = 60                # dób serii sieci L2
 ETH_SPAL_SER = 31           # dób serii podaży
 ETH_POKR = 0.85             # dzień sieci L2 uznany za kompletny, gdy ma wartość od tego udziału największej liczby sieci w oknie
 ETH_L2_WIEK_MAX_DNI = 4     # dzień danych L2 starszy niż tyle dób wobec doby przebiegu = błąd części (źródło ma opóźnienie ok. 1 doby)
+ETH_SPAL_PRZED_S = 1800   # s — czas odczytu może być PÓŹNIEJSZY niż NOW (NOW = start przebiegu, odczyt po drodze); dalej w przyszłość = błąd
 ETH_SPAL_WIEK_MAX_H = 3     # h — odczyt podaży / spalania starszy = błąd części
 ETH_ETH_MAX = 20_000_000    # ETH — kolejka powyżej tego to błąd odczytu (cały staking ok. 37 mln ETH)
 ETH_N_MAX = 3_000_000       # wpisów w kolejce
@@ -43348,13 +43349,13 @@ def eth_spal(prev=None):
     if not (sp['d1'] <= sp['d7'] + 1e-6 and sp['d7'] <= sp['d30'] + 1e-6 and sp['d30'] <= sp['since_merge'] + 1e-6) or sp['d1'] > 200_000 or sp['since_merge'] > 20_000_000:
         raise ValueError('spalone ETH: niespójne okna czasu albo poza pasmem')
     tb = min(tsy)   # najstarszy z czasów okien
-    if not 0 <= (teraz - tb).total_seconds() <= ETH_SPAL_WIEK_MAX_H * 3600 + 600:
+    if not -ETH_SPAL_PRZED_S <= (teraz - tb).total_seconds() <= ETH_SPAL_WIEK_MAX_H * 3600 + 600:
         raise ValueError('odczyt spalania nieświeży')
     P30, P7, PM = eth_punkty_podazy(s.get('d30')), eth_punkty_podazy(s.get('d7')), eth_punkty_podazy(s.get('since_merge'))
     if len(P30) < 100 or not P7 or not PM:
         raise ValueError('podaż: za mało punktów')
     (t_koniec, podaz) = P30[-1]
-    if not 0 <= (teraz - t_koniec).total_seconds() <= ETH_SPAL_WIEK_MAX_H * 3600 + 600:
+    if not -ETH_SPAL_PRZED_S <= (teraz - t_koniec).total_seconds() <= ETH_SPAL_WIEK_MAX_H * 3600 + 600:
         raise ValueError('odczyt podaży nieświeży')
     span30 = (t_koniec - P30[0][0]).total_seconds() / 86400
     span7 = (t_koniec - P7[0][0]).total_seconds() / 86400
