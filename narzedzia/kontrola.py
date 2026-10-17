@@ -1331,7 +1331,10 @@ def czas_pl(iso):
 
 
 AW_UWAGA_H = 3        # v207: część automatu nie działa co najmniej tyle godzin (seria trwa) = ⚠️ z datą początku
-AW_BLAD_H = 48        # v207: … co najmniej tyle godzin = BŁĄD (e-mail do właściciela): automat nie naprawił tego sam
+AW_BLAD_H = 24        # v207: … co najmniej tyle godzin = BŁĄD (e-mail do właściciela): automat nie naprawił tego sam. v385 (CRYPTO-5): było 48 h — awaria
+                      # 'rwa-emitenci' 16.10.2026 trwała 12 h jako ⚠️, a tak samo długie serie samonaprawiających się części kończyły się w 11–21 h.
+                      # Test wsteczny (142 raporty kontroli od 06.10.2026): serie ≥ 24 h — tylko rwa-emitenci 08–10.10 (ponad 46 h, prawdziwa awaria); pozostałe
+                      # (sosovalue 11 h, insider 21 h, rwa-emitenci 16 h, kanada 2 h itd.) poniżej 24 h = 0 fałszywych ❌; części z AW_BEZ_BLEDU bez zmian
 AW_INFO_H = 24        # v207: awarie naprawione w ostatnich tylu godzinach — informacja ℹ️ (samonaprawa widoczna w raporcie)
 AW_KLUCZ = re.compile(r'klucz\w*(?:\s+\S+)?\s+odrzuc|zły klucz|unauthori[sz]ed|HTTP\D{0,7}401\b|(?:invalid|incorrect) api ?key', re.I)
 AW_LIMIT = re.compile(r'HTTP\D{0,7}(?:429|402)\b|too many requests|rate limit|credits|limit zapytań(?! w przebiegu)|dobowy limit|limit planu', re.I)   # v211: bez własnego limitu zbieracza
@@ -1451,7 +1454,7 @@ CO_ZROBIC = (   # v215: dopasowania po przeglądzie — „HTTP 200” i „bez 
     (re.compile(r'^automat nie działa'),
      'Ostatnie przebiegi automatu kończą się błędem. Napisz do Claude: „przebiegi automatu kończą się błędem”.'),
     (re.compile(r'^część automatu „'),
-     'Część automatu nie działa od ponad 2 dni (szczegóły niżej) — napisz do Claude tak, jak podpowiada wiersz błędu.'),
+     'Część automatu nie działa od ponad doby (szczegóły niżej) — napisz do Claude tak, jak podpowiada wiersz błędu.'),
     (re.compile(r'^zbieracz zgłasza błędy'),
      'Zbieracz od kilku dni zgłasza błędy — napisz do Claude: „napraw błędy zbieracza z kontroli”.'),
     (re.compile(r'^kapitalizacja krypto'),
@@ -11881,7 +11884,7 @@ def main():
 # Seria dzienna z zamknięcia sesji w USA jest publikowana z ok. 1 dniem opóźnienia; dzień danych liczony do końca doby, wiek w godzinach roboczych (bez sobót
 # i niedziel). Próg 4 doby robocze (96 h) mieści opóźnienie publikacji i jedno święto giełdowe w USA; indeks stresu ma opóźnienie 2 dni robocze — próg 5 dób.
 # Najwyżej ⚠️ (nigdy ❌). Plik stres jest już w PLIKI (limit 24 h) — dochodzą tylko wiersze dat put/call i indeksu stresu. Czerwień z serii awarii ('stres', 'zmiennosc')
-# zostaje taka jak dla innych części z cached (wzór v211: trwała awaria > 48 h = błąd) — np. trwała blokada sieci giełdy opcji nie jest chowana.
+# zostaje taka jak dla innych części z cached (wzór v211: trwała awaria ≥ AW_BLAD_H = błąd) — np. trwała blokada sieci giełdy opcji nie jest chowana.
 PLIKI.insert(PLIKI.index('krypto-dzien'), 'zmiennosc')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
 LIMIT_MIN['zmiennosc'] = 26 * 60
 ZM_K_ETYKIETA = {'vix': 'zmienność: VIX (S&P 500, 30 dni; dni robocze USA)', 'vix3m': 'zmienność: VIX 3M (S&P 500, 3 miesiące; dni robocze USA)',

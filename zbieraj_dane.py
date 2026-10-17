@@ -25616,6 +25616,9 @@ RWE_XS_OGON_ZAPAS = 2     # v267 (przegląd v265): zapas — kolejność emitent
 RWE_XS_OGON_PROC = 0.5    # v265: % — górna granica pominiętej reszty listy do tylu procent sumy = odczyt przyjęty (pole 'ogon'); więcej = błąd
 RWE_XS_BEZ_MAX = 100      # v311: xStocks — najwyżej tyle tokenów z dowodem rezerw null (na stronie odpowiedzi) pomijamy, każdy z górną granicą
                           #       wartości z liczby tokenów w obiegu (10.10.2026: 58 z 1318 tokenów emitenta; 05.10: 0 z 1000); więcej = błąd
+RWE_XS_DOP_TMO = 40       # v385: s — zapytanie dopelniajace liste xStocks ma WLASNY limit czasu (nie resztke budzetu kroku: 16.10.2026 po glownym zapytaniu
+                          #       zostawalo kilka sekund i dopelnienie konczylo sie TimeoutError); budzet kroku rosnie o tyle, gdy dopelnienie jest potrzebne
+RWE_ERR_MAX = 220         # v385: znakow opisu bledu produktu w pliku (razem z nazwa wyjatku; dotad 160 — diagnostyka v385 jest dluzsza)
 RWE_XS_BEZ_SYM = 5        # v311: tyle symboli pominiętych tokenów zapisujemy w pliku (kontrola: „np. …”)
 RWE_XS_OBIEG_W = 6        # v311: zapytania o liczbę tokenów w obiegu równolegle (tylko tokeny bez dowodu; 10.10: 58 zapytań po ok. 0,2 s)
 RWE_SEC_OKNO = (19 * 60, 21 * 60)   # v311: min doby UTC [od, do) — znane okno pustej listy kanału agenta transferowego (_rwe_bez_nowych)
@@ -26026,7 +26029,7 @@ def rwe_xs_parse(j, fx, obieg=None, dop=None):
             return _rwe_xs_licz(j, fx, obieg, extra)
         except Exception as e1:  # noqa — dopełnienie jest dodatkiem: jego błąd nie zmienia przyczyny (reszta listy za duża), tylko ją uzupełnia
             txt = 'reszta po dopełnieniu nadal za duża' if getattr(e1, 'ogon', False) else f'{type(e1).__name__}: {e1}'
-            room = max(20, 140 - len(str(e0)) - len('; dopełnienie: '))   # opis błędu w pliku jest ucinany do 160 znaków razem z nazwą wyjątku
+            room = max(20, RWE_ERR_MAX - 20 - len(str(e0)) - len('; dopełnienie: '))   # opis błędu w pliku jest ucinany do RWE_ERR_MAX znaków razem z nazwą wyjątku
             raise ValueError(f'{e0}; dopełnienie: {txt[:room]}') from None
 
 
@@ -26048,7 +26051,7 @@ def _rwe_xs_licz(j, fx, obieg=None, extra=()):
     nd = len(N)   # v364: tokeny z odpowiedzi głównej; dopełnienie (extra) dochodzi na końcu listy
     N = N + list(extra)
     R = (fx or {}).get('rates', {})
-    V, cur, used_fx, B, vd = [], {}, False, [], 0   # v311: B — tokeny z dowodem rezerw null: (symbol do opisu, węzeł)
+    V, VS, cur, used_fx, B, vd = [], [], {}, False, [], 0   # v385: VS — symbole tokenów równolegle do V (diagnostyka granicy reszty); v311: B — tokeny z dowodem rezerw null: (symbol do opisu, węzeł)
     for ix, n in enumerate(N):
         if not isinstance(n, dict):
             raise ValueError('zły token')
@@ -26079,7 +26082,7 @@ def _rwe_xs_licz(j, fx, obieg=None, extra=()):
         d = _rwe_iso(por.get('at'))
         if d is None:
             raise ValueError(f'{sym}: zły stan (at)')
-        V.append((x, d))
+        V.append((x, d)); VS.append(sym)
         if ix < nd:
             vd = len(V)   # v364: tokeny z głównej odpowiedzi (od największych) — z nich ostatnie 50 wyznacza granicę reszty
         cur[c] = cur.get(c, 0.0) + x
@@ -26092,17 +26095,22 @@ def _rwe_xs_licz(j, fx, obieg=None, extra=()):
     ogon = None
     if (tn is not None and tn > len(N)) or (tn is None and nd >= RWE_XS_VAR['pageSize']):
         # v265/v267: lista dłuższa niż odczytana strona (06.10: 1271 tokenów; dalsze strony — błąd serwera emitenta). Kolejność od największych
-        # (aktywa emitenta malejąco): reszta ≤ (totalNodes − na stronie) × największy z RWE_XS_OGON_K ostatnich × RWE_XS_OGON_ZAPAS. v267 (przegląd):
+        # (aktywa emitenta malejąco): reszta ≤ (totalNodes − na stronie) × MEDIANA z RWE_XS_OGON_K ostatnich × RWE_XS_OGON_ZAPAS (v385: dotąd największy — jeden token o wycenie milionów USD zbijał granicę 26 000×, 16.10.2026). v267 (przegląd):
         # zawsze, gdy totalNodes > tokeny na stronie (także strona kończąca się tokenem bez rezerwy albo niepełna). v268: pełna strona bez totalNodes
         # = błąd bez względu na ostatni token (dawna reguła ostatniego tokenu zależała od przypadku).
         if tn is None:
             raise ValueError('tokeny z rezerwą także poza stroną 0? — pełna strona bez liczby wszystkich tokenów')
-        ost = [x for x, _d in V[:vd][-RWE_XS_OGON_K:]]
+        ost = list(zip((x for x, _d in V[:vd]), VS[:vd]))[-RWE_XS_OGON_K:]
         if not ost:
             raise ValueError('lista dłuższa niż strona, a na stronie brak tokenów z rezerwą — reszty nie da się ograniczyć')
-        gr = (tn - len(N)) * max(ost) * RWE_XS_OGON_ZAPAS
+        # v385: mediana, nie największy — kolejność listy wg „aum” emitenta, więc na końcu strony bywa token o dużych rezerwach i zerowym „aum”
+        # (16.10.2026: wycena rzędu milionów USD wobec ok. 1,7 tys. USD pozostałych); suma reszty ≤ liczba × mediana × zapas, jeden token jej nie zmienia
+        med = statistics.median(x for x, _s in ost)
+        mx, ms = max(ost, key=lambda t: t[0])
+        gr = (tn - len(N)) * med * RWE_XS_OGON_ZAPAS
         if tot <= 0 or gr > RWE_XS_OGON_PROC / 100 * tot:
-            e = ValueError(f'tokeny z rezerwą także poza stroną 0 — górna granica reszty listy {gr:,.0f} USD ponad {RWE_XS_OGON_PROC:g}% sumy')
+            e = ValueError(f'górna granica reszty listy poza stroną 0: {gr:,.0f} USD ponad {RWE_XS_OGON_PROC:g}% sumy '
+                           f'(tn={tn}, N={len(N)}, med={med:,.0f}, max={mx:,.0f} {ms})')   # v385: wariant da się rozstrzygnąć z pliku
             e.ogon = True   # v364: rwe_xs_parse w tym jednym przypadku próbuje dopełnienia listy
             raise e
         ogon = {'n': tn - len(N), 'max_usd': round(gr)}
@@ -26199,14 +26207,21 @@ def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, 
     stamp = now.isoformat()
     lock = _rwa_thr.Lock()
     req = [0]
+    ext = [0.0]   # v385: dodatkowy czas kroku, gdy xStocks potrzebuje dopełnienia listy (tmo_dop)
 
     def tmo():
-        left = t0 + budget - clock()
+        left = t0 + budget + ext[0] - clock()
         if left < RWE_MIN_TMO:
             raise TimeoutError(f'brak czasu w budżecie kroku ({budget:g} s)')
         with lock:
             req[0] += 1
         return min(RWE_TIMEOUT, left)
+
+    def tmo_dop():   # v385: dopełnienie listy xStocks — własny limit czasu; budżet kroku rośnie o tyle samo (dalsze zapytania o obieg też dostają czas)
+        with lock:
+            req[0] += 1
+            ext[0] = RWE_XS_DOP_TMO
+        return RWE_XS_DOP_TMO
 
     pages, plock = {}, _rwa_thr.Lock()
 
@@ -26237,7 +26252,7 @@ def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, 
         if k == 'xs':   # v311: liczba tokenów w obiegu tylko dla tokenów bez dowodu rezerw (GET, ten sam budżet kroku)
             return rwe_xs_parse(post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q, 'variables': RWE_XS_VAR}, timeout=tmo()), fx,
                                 obieg=lambda S: rwe_xs_obieg(S, tmo, get, sleep),   # v315: ponowna próba z tym samym `sleep`
-                                dop=lambda: post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q, 'variables': rwe_xs_var_dop()}, timeout=tmo()))   # v364
+                                dop=lambda: post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q, 'variables': rwe_xs_var_dop()}, timeout=tmo_dop()))   # v364; v385: własny limit czasu
         raise ValueError(f'nieznany rodzaj {k}')
 
     def one(slug):
@@ -26251,7 +26266,7 @@ def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, 
                     break
                 (sleep or time.sleep)(RWE_PRZERWA)
         nz = 'ValueError' if isinstance(last, RweBezNowych) else type(last).__name__   # v311: opis błędu jak dotąd, dane „bez nowych” obok
-        return slug, dict({'err': f'{nz}: {last}'[:160]}, **({'bn': dict(last.bn)} if isinstance(last, RweBezNowych) else {}))
+        return slug, dict({'err': f'{nz}: {last}'[:RWE_ERR_MAX]}, **({'bn': dict(last.bn)} if isinstance(last, RweBezNowych) else {}))
     S = sorted(RWE_PRODUKTY)
     with _rwa_cf.ThreadPoolExecutor(max(1, min(threads or RWE_THREADS, len(S)))) as ex:
         R = dict(ex.map(one, S))
@@ -26454,6 +26469,9 @@ def rwe_meta(rw, off, cached=False):
     if isinstance(em, dict) and not em.get('off'):
         ok = em.get('ok')
         META['ok']['rwa-emitenci'] = False if ok is False else ('cached' if cached else ok is True)   # v326 GL-06: błąd ostatniego odczytu widać także z pamięci
+        for s_, p_ in sorted((em.get('p') or {}).items()) if isinstance(em.get('p'), dict) else ():   # v385 (CRYPTO-5): błąd produktu także w META.errors
+            if isinstance(p_, dict) and isinstance(p_.get('err'), str) and p_['err']:   # (dotąd tylko w issuer.notes — kontrola nie widziała go w „błędach zbieracza”)
+                META['errors'].append(mask(f"{RWE_LABEL}: {p_.get('name') if isinstance(p_.get('name'), str) else s_}: {p_['err']}")[:RWE_ERR_MAX + 60])
 
 
 # ===================== v340: GAZ I LNG — data/lng.json (dział SUROWCE, blok „Gaz i LNG”; zadanie F5Z1) =====================

@@ -23615,7 +23615,7 @@ class RwaEmitenciV170(unittest.TestCase):
             dl = _rwe170_xs(N[:3]); dl['data']['tokens']['page']['totalNodes'] = 10   # v265: lista dłuższa niż strona, reszta duża
             with self.assertRaises(ValueError) as c:
                 zd.rwe_xs_parse(dl, self._fx())
-            self.assertIn('także poza stroną 0', str(c.exception))
+            self.assertIn('poza stroną 0', str(c.exception))   # v385: nowy opis z diagnostyką
             self.assertEqual(zd.rwe_xs_parse(_rwe170_xs(N[:3]), self._fx())['n'], 3, 'v265: totalNodes = 3 — pełna lista na pełnej stronie')
             self.assertAlmostEqual(zd.rwe_xs_parse(_rwe170_xs(N[:2] + [N[4]]), self._fx())['v'], 1463073 * 99.455 + 200000 * 430, places=2, msg='pełna strona kończy się tokenem bez rezerwy')
 
@@ -25316,7 +25316,7 @@ class PamiecAwariiV207(unittest.TestCase):
         self.assertEqual(Z['uwagi'][0], 'część automatu „tic” nie działa od 06.10.2026, 01:00 (5 godz., nieudanych przebiegów z rzędu: 30) — automat ponawia '
                                         'sam; dane tej części mają swój wiek na stronie')
         self.assertEqual(Z['naprawione'][0]['h'], 2.1)
-        self.assertEqual((k.AW_UWAGA_H, k.AW_BLAD_H, k.AW_INFO_H), (3, 48, 24))
+        self.assertEqual((k.AW_UWAGA_H, k.AW_BLAD_H, k.AW_INFO_H), (3, 24, 24))   # v385: BŁĄD od doby (było 48 h)
 
     def test_rodzaj_bledu(self):
         r = self.k.awaria_rodzaj
@@ -25686,7 +25686,7 @@ class KontrolaCoZrobicV212(unittest.TestCase):
         self.assertTrue(H[1].startswith('Automat nie odświeża danych od ponad 3 godzin') and 'zegar zapasowy też nie pomógł' in H[1])
         self.assertTrue(H[2].startswith('Plik stanu automatu jest uszkodzony'))
         self.assertTrue(H[3].startswith('Ostatnie przebiegi automatu kończą się błędem') and 'sam tego nie naprawi' not in H[3])
-        self.assertTrue(H[4].startswith('Część automatu nie działa od ponad 2 dni'))
+        self.assertTrue(H[4].startswith('Część automatu nie działa od ponad doby'))   # v385: BŁĄD od doby
         self.assertTrue(H[5].startswith('Zbieracz od kilku dni')); self.assertTrue(H[6].startswith('Dwa źródła tej samej liczby'))
         self.assertTrue(H[7].startswith('Dane źródła są dużo starsze niż zwykle') and 'normalne' not in H[7] and 'święcie' not in H[7])
         self.assertEqual(H[8], k.CO_ZROBIC_INNE)
@@ -50775,7 +50775,7 @@ class XstocksDopelnienieV364(unittest.TestCase):
                 with self.assertRaises(ValueError) as c:
                     zd.rwe_xs_parse(j, self.FX, dop=d)
             self.assertIn('górna granica reszty listy', str(c.exception)); self.assertIn('dopełnienie', str(c.exception))
-            self.assertLess(len(str(c.exception)), 150, 'opis błędu w pliku jest ucinany do 160 znaków razem z nazwą wyjątku')
+            self.assertLess(len(str(c.exception)), zd.RWE_ERR_MAX - 11, 'opis błędu w pliku jest ucinany do RWE_ERR_MAX znaków razem z nazwą wyjątku (v385)')
 
     def test_inny_blad_nie_wywoluje_dopelnienia(self):
         j, N = self._glowna()
@@ -50806,7 +50806,7 @@ class XstocksDopelnienieV364(unittest.TestCase):
             if url == zd.RWE_XS:
                 sent.append(obj['variables']['orderBy']['direction'])
                 if obj['variables']['orderBy']['direction'] == 'asc':
-                    assert obj['variables'] == zd.rwe_xs_var_dop() and obj['query'] == zd.RWE_XS_Q and 0 < timeout <= zd.RWE_TIMEOUT
+                    assert obj['variables'] == zd.rwe_xs_var_dop() and obj['query'] == zd.RWE_XS_Q and 0 < timeout <= zd.RWE_XS_DOP_TMO   # v385: własny limit dopełnienia
                     return asc
                 return j
             return p0(url, obj, timeout)
@@ -58719,3 +58719,107 @@ class KontrolaBis2V384(unittest.TestCase):
             s = f.read()
         i1, i2, i3, i4, i5 = s.index("for label, st, w, txt, note in bis2_swiezosc(files.get('bis2')):"), s.index("Z['bis2'] = bis2_kontrola(files, R)"), s.index('# 3d. v115: zgodność liczb'), s.index("rb2 = Z.get('bis2')"), s.index("suk_ = Z.get('usdt-skarbiec')")
         self.assertTrue(i1 < i3 < i2 and i4 < i5, 'wiersze świeżości (blok 3c) przed zgodnością liczb 3d, kontrola spójności (blok 3g) po niej, linia raportu osobno')
+
+
+# ===================== v385: xSTOCKS — GRANICA RESZTY Z MEDIANY, DOPEŁNIENIE Z WŁASNYM CZASEM, BŁĄD W META, KONTROLA OD DOBY (CRYPTO-1, CRYPTO-5) =====================
+class RwaXstocksOdpornoscV385(unittest.TestCase):
+    """v385 (m12 CRYPTO-1/CRYPTO-5): od 16.10.2026 19:11 UTC xStocks odpadał z sum (63+ przebiegów): granica reszty listy = (totalNodes − na stronie) × NAJWIĘKSZY z 50
+    ostatnich tokenów × 2 wyszła 40,5 mld USD (jeden token o wycenie rzędu milionów USD wobec ok. 1,7 tys. USD pozostałych), dopełnienie v364 kończyło się przekroczeniem
+    czasu (resztka budżetu kroku), a błąd był tylko w notatkach pliku. Teraz: mediana, diagnostyka w błędzie, własny limit dopełnienia, błąd w META.errors, ❌ od doby."""
+
+    FX = {'d': '2026-10-17', 'rates': {'HKD': 7.78, 'GBP': 0.75}}
+    AT = '2026-10-16T06:00:00Z'
+
+    def _lista(self, n_duze=9, n_male=60, male_usd=389, absurd=None, wszystkich=340):
+        N = [_rwe170_xn(f'B{i}x', 1000000, 10000, 'USD', self.AT) for i in range(n_duze)]   # 100 mln USD każdy
+        N += [_rwe170_xn(f'S{i}x', 1, male_usd * 100, 'USD', self.AT) for i in range(n_male)]
+        for i, usd in (absurd or {}).items():   # jeden token o absurdalnej wycenie: 1 mln akcji × usd / 1e6 USD za akcję
+            N[n_duze + i] = _rwe170_xn(f'S{i}x', 1000000, usd / 10000, 'USD', self.AT)
+        j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 5, 'totalNodes': wszystkich}
+        return j
+
+    def test_jeden_absurdalny_token_nie_zbija_granicy(self):
+        j = self._lista(absurd={30: 44_000_000})   # nagranie 16.10: jeden z ostatnich tokenów ~44 mln USD, reszta po 389 USD
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 69}):
+            r = zd.rwe_xs_parse(j, self.FX, dop=lambda: self.fail('granica z mediany mieści się w 0,5% — bez drugiego zapytania'))
+        self.assertEqual(r['ogon'], {'n': 271, 'max_usd': 210838}, 'reszta 271 × mediana 389 USD × 2 (zapas)')
+        self.assertAlmostEqual(r['v'], 9 * 100000000 + 59 * 389 + 44_000_000, places=2, msg='token o dużych rezerwach jest w sumie (liczony dokładnie), tylko nie wyznacza granicy')
+        self.assertGreater(271 * 44_000_000 * 2, 0.005 * r['v'], 'dawna reguła (największy × 2) odrzucała ten odczyt')
+
+    def test_wiele_duzych_tokenow_nadal_blad_z_diagnostyka(self):
+        N = [_rwe170_xn(f'B{i}x', 1000000, 10000, 'USD', self.AT) for i in range(2)] + [_rwe170_xn(f'S{i}x', 1, 1000000 * 100, 'USD', self.AT) for i in range(10)]
+        N[2 + 7] = _rwe170_xn('S7x', 1, 9000000 * 100, 'USD', self.AT)   # 9 mln USD (mniejszy od dwóch dużych na początku listy: te wchodzą do 50 ostatnich)
+        j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 25, 'totalNodes': 283}
+        with mock.patch.dict(zd.RWE_XS_VAR, {'pageSize': 12}):
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_xs_parse(j, self.FX)
+            m = str(c.exception)
+            for ozn in ('górna granica reszty listy poza stroną 0: 542,000,000 USD', 'tn=283', 'N=12', 'med=1,000,000', 'max=100,000,000 B0x'):
+                self.assertIn(ozn, m)
+            with self.assertRaises(ValueError) as c:
+                zd.rwe_xs_parse(j, self.FX, dop=lambda: (_ for _ in ()).throw(TimeoutError('The read operation timed out')))
+        m = str(c.exception)
+        self.assertIn('max=100,000,000 B0x', m); self.assertIn('dopełnienie: TimeoutError: The read operation timed out', m, 'przyczyna dopełnienia nieucięta')
+        self.assertLessEqual(len('ValueError: ' + m), zd.RWE_ERR_MAX)
+
+    def test_dopelnienie_ma_wlasny_limit_czasu(self):
+        AT = self.AT
+        glowna = _rwe170_xs([_rwe170_xn(f'B{i}x', 1000000, 10000, 'USD', AT) for i in range(2)] + [_rwe170_xn(f'S{i}x', 1, 1000000 * 100, 'USD', AT) for i in range(998)])
+        glowna['data']['tokens']['page'] = {'totalPages': 2, 'totalNodes': 1450}
+        asc = _rwe170_xs([_rwe170_xn(f'T{i}x', 1, 10000, 'USD', AT) for i in range(449)] + [_xs311_null('NULx', 100)])   # jeden token bez dowodu rezerw: pytanie o obieg PO dopełnieniu
+        t = [0.0]
+        wyslane, obieg = [], []
+        g1, p0 = _rwe170_net()
+
+        def g0(url, headers=None, timeout=60):
+            if url.startswith('https://api.xstocks.fi/'):
+                obieg.append(timeout)
+                return b'{"value":1}'
+            return g1(url, headers, timeout)
+
+        def post(url, obj, timeout=60):
+            if url == zd.RWE_XS:
+                if obj['variables']['orderBy']['direction'] == 'desc':
+                    t[0] += 30.0   # główne zapytanie zjadło 30 z 35 s budżetu kroku
+                    return glowna
+                wyslane.append(timeout); t[0] += 20.0
+                return asc
+            return p0(url, obj, timeout)
+        now = datetime.datetime(2026, 10, 17, 8, 0, tzinfo=datetime.timezone.utc)
+        with mock.patch.object(zd, 'post_json', side_effect=AssertionError('test nie może pytać sieci')):
+            rd = zd.rwe_odczyt(now, fx=zd.rwe_fx(_RWE170_S, now), clock=lambda: t[0], get=g0, post=post, sleep=lambda s: None)
+        x = rd['r']['xstocks']
+        self.assertEqual(wyslane, [zd.RWE_XS_DOP_TMO], 'własny limit dopełnienia, nie resztka budżetu (5 s)')
+        self.assertNotIn('err', x, x); self.assertEqual((x['n'], x['bez']['n']), (1449, 1))
+        self.assertEqual(len(obieg), 1); self.assertTrue(0 < obieg[0] <= zd.RWE_TIMEOUT, 'zapytanie o obieg po dopełnieniu dostało czas (budżet kroku wydłużony o limit dopełnienia)')
+        self.assertGreater(zd.RWE_XS_DOP_TMO, zd.RWE_TIMEOUT)
+
+    def test_blad_produktu_trafia_do_meta_errors(self):
+        err = 'ValueError: górna granica reszty listy poza stroną 0: 40,500,003,866 USD ponad 0.5% sumy (tn=1460, N=1000, med=1,675, max=44,021,000 ABCx)'
+        rw = {'issuer': {'v': 1, 'ok': False, 'p': {'xstocks': {'name': 'xStocks', 'kind': 'xs', 'err': err}, 'spiko': {'name': 'Spiko', 'kind': 'spiko', 'err': None},
+                                                     'ondo': {'name': 'Ondo', 'kind': 'ondo_ya'}}}}
+        for cached in (False, True):   # także przebieg z pamięci (seria awarii trwa)
+            with mock.patch.object(zd, 'META', {'ok': {}, 'errors': [], 'notes': []}):
+                zd.rwe_meta(rw, False, cached=cached)
+                self.assertEqual(zd.META['errors'], [f'{zd.RWE_LABEL}: xStocks: {err}'])
+                self.assertIs(zd.META['ok']['rwa-emitenci'], False)
+        for rw2, off in ((dict(rw, issuer=dict(rw['issuer'], ok=True, p={'a': {'name': 'A'}})), False), (rw, True), ({'seg': {}}, False), (None, False)):
+            with mock.patch.object(zd, 'META', {'ok': {}, 'errors': [], 'notes': []}):
+                zd.rwe_meta(rw2, off, cached=False)
+                self.assertEqual(zd.META['errors'], [], 'bez błędu produktu, przy wyłączniku i bez bloku — brak wpisu')
+
+    def test_kontrola_czesc_nie_dziala_doba_to_blad(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v385', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        now = datetime.datetime(2026, 10, 17, 9, 0, tzinfo=datetime.timezone.utc)
+        t = lambda h: (now - datetime.timedelta(hours=h)).isoformat()  # noqa: E731
+        self.assertEqual(k.AW_BLAD_H, 24)
+        # serie z historii kontroli (06–17.10.2026): rwa-emitenci 08–10.10 (46 h) = ❌; insider 21 h, rwa-emitenci 16 h, sosovalue 11 h = tylko ⚠️
+        for h, n, bled in ((46, 15, 1), (25, 70, 1), (21, 104, 0), (16, 72, 0), (11, 63, 0)):
+            Z = k.awarie_ocena({'at': now.isoformat(), 'awarie': {'rwa-emitenci': {'od': t(h), 'ost': t(0.1), 'n': n, 'do': None}}}, now)
+            self.assertEqual((len(Z['bledy']), len(Z['uwagi'])), (bled, 1 - bled), (h, n))
+        Z = k.awarie_ocena({'at': now.isoformat(), 'awarie': {'ici': {'od': t(60), 'ost': t(0.1), 'n': 300, 'do': None}}}, now)
+        self.assertEqual((Z['bledy'], Z['uwagi'], Z['trwa'][0]['bez']), ([], [], True), 'części z AW_BEZ_BLEDU — bez zmian, zawsze informacja')
+        txt = ' '.join(x[1] for x in k.CO_ZROBIC)
+        self.assertIn('od ponad doby', txt); self.assertNotIn('od ponad 2 dni', txt)
