@@ -50513,7 +50513,7 @@ class StableEmitenciV363(unittest.TestCase):
         with mock.patch.object(zd, 'get_json', self._get(calls=calls)):
             o = zd.build_stable_emitenci(None)
         self.assertEqual(o['ok'], {'llama': True, 'tether': True, 'circle': True}); self.assertEqual(set(o['part_at']), {'llama', 'tether', 'circle'})
-        self.assertEqual(len(calls), 3); self.assertEqual({'usdt', 'usdc', 'eurc'}, set(o['hist'])); self.assertEqual(o['hist']['usdt'], [['2026-10-12', 184199691343]])
+        self.assertEqual(len(calls), 3); self.assertTrue({'usdt', 'usdc', 'eurc'} <= set(o['hist'])); self.assertEqual(o['hist']['usdt'], [['2026-10-12', 184199691343]])
         self.assertEqual(o['hist']['usdc'], [['2026-10-13', o['circle']['usdc']['tot']]]); self.assertEqual(o['zm']['usdt'], {'7': None, '30': None})
         self.assertLess(len(json.dumps(o)), 12000, 'plik mały (kilka KB)')
         # lista monet z tego samego przebiegu (STE_LLAMA) — bez drugiego pobrania
@@ -59091,3 +59091,60 @@ class TestV387KontrolaRosjaRezerwy(unittest.TestCase):
         with open(k.__file__, encoding='utf-8') as fh:
             src = fh.read()
         self.assertEqual(src.count("RU_K_REZ_UWAGA = ("), 1); self.assertEqual(src.count("note += ('; ' if note else '') + RU_K_REZ_UWAGA"), 1)
+
+
+class StableSeriaV388(unittest.TestCase):
+    """v388 (CRYPTO-2): własna seria dobowa listy monet (podaż łączna i podział wg zabezpieczenia) w stable-emitenci.json — zmiany 7 i 30 dni tylko z punktu DOKŁADNIE tyle dób
+    wcześniej; błąd listy monet nie dopisuje punktu (stary odczyt to nie nowa doba)."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.STE_LLAMA.clear()
+        self.p = [mock.patch.object(zd, '_now_utc', lambda: _V363_NOW), mock.patch.object(zd, 'NOW', _V363_NOW.isoformat())]
+        [p.start() for p in self.p]
+
+    def tearDown(self):
+        [p.stop() for p in self.p]
+
+    @staticmethod
+    def _get(kl=None):
+        kl = kl or {}
+
+        def get_json(url, headers=None, timeout=30):
+            k = 'llama' if 'llama.fi' in url else 'tether' if 'tether.to' in url else 'circle'
+            if k in kl:
+                raise kl[k]
+            return {'llama': _v363_llama(), 'tether': _v363_tether(), 'circle': _v363_circle()}[k]
+        return get_json
+
+    def test_punkt_serii_z_listy_monet_i_zmiany_z_dokladnie_tylu_dob(self):
+        with mock.patch.object(zd, 'get_json', self._get()):
+            o = zd.build_stable_emitenci(None)
+        E = o['emit']
+        self.assertEqual(o['hist']['tot'], [['2026-10-13', E['total']]])
+        for k in ('f', 'c', 'a', 'x'):
+            self.assertEqual(o['hist']['m' + k], [['2026-10-13', E['mech'][k][0]]], k)
+        self.assertEqual(o['zm']['tot'], {'7': None, '30': None}, 'jeden punkt = brak zmian, nigdy zero')
+        prev = {'v': 1, 'at': '2026-10-13T19:20:00+00:00', 'hist': {'tot': [['2026-09-13', E['total'] - 5], ['2026-10-06', E['total'] - 3], ['2026-10-12', E['total'] - 1]],
+                'mf': [['2026-09-13', E['mech']['f'][0] + 40], ['2026-10-12', E['mech']['f'][0] - 1]], 'mc': [['2026-10-06', E['mech']['c'][0] - 7]]}}
+        with mock.patch.object(zd, 'get_json', self._get()):
+            o2 = zd.build_stable_emitenci(prev)
+        self.assertEqual(o2['zm']['tot'], {'7': 3, '30': 5}); self.assertEqual(o2['zm']['mf'], {'7': None, '30': -40}, 'siódma doba bez punktu = brak, nie zero')
+        self.assertEqual(o2['zm']['mc'], {'7': 7, '30': None}); self.assertEqual(o2['zm']['ma'], {'7': None, '30': None})
+        self.assertEqual([p[0] for p in o2['hist']['tot']], ['2026-09-13', '2026-10-06', '2026-10-12', '2026-10-13'])
+        self.assertLess(len(json.dumps(o2)), 15000, 'plik nadal mały')
+
+    def test_ten_sam_dzien_zastepuje_punkt_a_blad_listy_nie_dopisuje_nowego(self):
+        with mock.patch.object(zd, 'get_json', self._get()):
+            o = zd.build_stable_emitenci(None)
+            o2 = zd.build_stable_emitenci(o)
+        self.assertEqual(len(o2['hist']['tot']), 1, 'drugi odczyt tej samej doby zastępuje pierwszy')
+        stare = {'v': 1, 'at': (_V363_NOW - datetime.timedelta(hours=1)).isoformat(), 'ok': {}, 'part_at': {'llama': (_V363_NOW - datetime.timedelta(hours=1)).isoformat()},
+                 'emit': o['emit'], 'hist': {'tot': [['2026-10-12', 1]], 'mf': [['2026-10-12', 2]]}}
+        with mock.patch.object(zd, 'get_json', self._get(kl={'llama': ValueError('zły JSON')})):
+            o3 = zd.build_stable_emitenci(stare)
+        self.assertEqual(o3['ok']['llama'], False); self.assertEqual(o3['hist']['tot'], [['2026-10-12', 1]], 'stary odczyt listy to nie nowa doba')
+        self.assertEqual(o3['hist']['mf'], [['2026-10-12', 2]]); self.assertNotIn('mc', o3['hist'])
+        # obce klucze historii nie przechodzą (tylko znane serie)
+        with mock.patch.object(zd, 'get_json', self._get()):
+            o4 = zd.build_stable_emitenci({'v': 1, 'at': '2026-10-13T19:20:00+00:00', 'hist': {'obce': [['2026-10-12', 1]], 'tot': 'zły'}})
+        self.assertNotIn('obce', o4['hist']); self.assertEqual(len(o4['hist']['tot']), 1)

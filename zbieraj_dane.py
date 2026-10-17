@@ -33961,6 +33961,7 @@ STE_MIN_DOLAR = 1e10       # USD — podaż stablecoinów dolarowych poniżej te
 STE_SPOJ_PCT = 1.0         # % — suma sieci a łączna liczba w raporcie emitenta: większa różnica = błąd odczytu
 STE_CENA = (1e-5, 1e3)     # USD za sztukę — cena poza przedziałem (np. zepsuta) = moneta pominięta w stablecoinach w innych walutach
 STE_MECH = {'fiat-backed': 'f', 'crypto-backed': 'c', 'crytpo-backed': 'c', 'algorithmic': 'a'}   # u źródła literówka „crytpo-backed” (1 moneta)
+STE_SERIE = ('usdt', 'usdc', 'eurc', 'tot', 'mf', 'mc', 'ma', 'mx')   # v388: własne serie dobowe — raporty emitentów (usdt, usdc, eurc) i lista monet (tot = podaż łączna, mf/mc/ma/mx = podział wg zabezpieczenia)
 STE_WAL = {'REAL': 'BRL'}  # kod rodzaju powiązania u źródła → kod waluty
 STE_LLAMA = {}             # {'j': odpowiedź listy monet, 'at': chwila przebiegu} — ustawia build_krypto (tylko w tym przebiegu)
 STE_TETHER_SIECI = {'algo': 'Algorand', 'aptos': 'Aptos', 'ava': 'Avalanche', 'bnb': 'BNB Chain', 'celo': 'Celo', 'cosmos': 'Cosmos', 'eth': 'Ethereum', 'eos': 'EOS',
@@ -34148,13 +34149,19 @@ def build_stable_emitenci(prev=None, llama=None):
                 out['part_at'][part] = t_old
     if not any(out['ok'].values()):
         raise RuntimeError('żadne źródło emitentów stablecoinów nie odpowiedziało')
-    h = {k: v for k, v in (pv.get('hist') if isinstance(pv.get('hist'), dict) else {}).items() if k in ('usdt', 'usdc', 'eurc') and isinstance(v, list)}
+    h = {k: v for k, v in (pv.get('hist') if isinstance(pv.get('hist'), dict) else {}).items() if k in STE_SERIE and isinstance(v, list)}
     if out['ok'].get('tether'):
         ste_historia(h, 'usdt', out['tether']['asof'], out['tether']['liab'])
     if out['ok'].get('circle'):
         for k in ('usdc', 'eurc'):
             if isinstance(out['circle'].get(k), dict):
                 ste_historia(h, k, out['circle'][k]['upd'][:10], out['circle'][k]['tot'])
+    if out['ok'].get('llama') and isinstance(out.get('emit'), dict):   # v388 (CRYPTO-2): własna seria dobowa listy monet — punkt tylko z odczytu z TEGO przebiegu (stary odczyt po błędzie to nie nowa doba)
+        dzien = str(NOW)[:10]
+        ste_historia(h, 'tot', dzien, out['emit']['total'])
+        for k in ('f', 'c', 'a', 'x'):
+            if isinstance(out['emit'].get('mech', {}).get(k), list):
+                ste_historia(h, 'm' + k, dzien, out['emit']['mech'][k][0])
     out['hist'] = h
     out['zm'] = {k: ste_zmiany(v) for k, v in h.items()}
     return out

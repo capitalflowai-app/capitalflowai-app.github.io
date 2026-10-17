@@ -2624,7 +2624,7 @@ const pgEnv = (over = {}) => {
     EDGES: [{f: 'btc', t: 'exch', a: 415, k: 'out', ev: 'direct'}, {f: 'stab', t: 'defi', a: 512, k: 'in', ev: 'onchain'}],
     NODES: [{id: 'btc', ev: 'proxy'}, {id: 'exch', ev: 'unc'}, {id: 'stab', ev: 'onchain'}, {id: 'defi', ev: 'proxy'}],
     DATA: {'24H': {btc: [1840, 8.4], exch: [-520, -2.1], stab: [0, 0], defi: [240, 1.8]}},
-    eAmt: e => e.a, nName: id => 'N:' + id, chip: k => '[' + k + ']', gfmt: v => v.toFixed(1) + ' B', nfmt: (v, d = 0) => Number(v).toFixed(d), CMC: undefined, fInt: v => (v > 0 ? '+' : '') + v,
+    eAmt: e => e.a, nName: id => 'N:' + id, chip: k => '[' + k + ']', gfmt: v => v.toFixed(1) + ' B', nfmt: (v, d = 0) => Number(v).toFixed(d), compactU: v => { const a = Math.abs(v); return a > 0 && a < 0.5 ? '<1 u.m' : +a.toFixed(0) >= 1000 ? (a / 1000).toFixed(a >= 10000 ? 1 : 2) + ' u.b' : a.toFixed(0) + ' u.m'; }, CMC: undefined, fInt: v => (v > 0 ? '+' : '') + v,
     iconURL: id => 'data:image/png;base64,' + id, LOCALE: {pl: 'pl-PL'}, LANG: 'pl',
     GLIVE: {}, GKPI: null, gDxy: () => null, gDaily: () => null, gStabDelta: () => null, gAgeNote: d => d ? ' ·age(' + d + ')' : '',
     KDEF: [{id: 'mcap'}, {id: 'dom'}, {id: 'stab'}, {id: 'vol'}, {id: 'tvl'}, {id: 'alt'}],
@@ -2659,7 +2659,7 @@ test('v96-pages: Przepływy — flagi obu końców (GLOBAL), loga grup (CRYPTO),
   assert.ok(k.includes('data-id="btc"') && k.includes('data-id="exch"') && k.includes('data-id="stab"') && k.includes('data-id="defi"'), 'loga grup krypto');
   assert.ok(k.includes('<span class="cell neg"><b>−415 u.m</b>') && k.includes('<span class="cell pos"><b>+512 u.m</b>'), 'kwota idzie za kierunkiem');
   assert.ok(!/\+\+|−\+|\+−/.test(k), 'bez „++1 840” ani „−+520”');
-  assert.ok(k.includes('class="amt in pos">+1840 u.m') && !k.includes('class="amt out neg">−520 u.m') && k.includes('<span class="amt neg">−520 u.m</span>'));   /* v322 (decyzja właściciela 10.10, pkt 5): reszta bilansu nadal poza listami, ale w kolorze znaku (dawniej szara) */   /* v315 (CR7-01): „Giełdy” (reszta bilansu) poza listą spadków — osobny wiersz bez koloru kierunku */
+  assert.ok(k.includes('class="amt in pos">+1.84 u.b') && !k.includes('class="amt out neg">−520 u.m') && k.includes('<span class="amt neg">−520 u.m</span>'));   /* v322 (decyzja właściciela 10.10, pkt 5): reszta bilansu nadal poza listami, ale w kolorze znaku (dawniej szara) */   /* v315 (CR7-01): „Giełdy” (reszta bilansu) poza listą spadków — osobny wiersz bez koloru kierunku */
 });
 
 test('v96-pages: Sektory — flagi regionu przed nazwą, kraje jako flagi (dwa kraje = dwie flagi), trzy kolory, loga grup krypto', () => {
@@ -2684,7 +2684,7 @@ test('v96-pages: Sektory — flagi regionu przed nazwą, kraje jako flagi (dwa k
   const c = pgEnv({st: {mode: 'crypto', period: '24H'}, isLive: () => true});   /* v334 (CR8-01): liczby sceny tylko przy danych na żywo albo z pliku serwera — bez nich zdanie zamiast liczb przykładowych */
   c.f.renderSectorsPage();
   const k = c.el.innerHTML;
-  assert.ok(k.includes('data-id="btc"') && k.includes('data-id="exch"') && k.includes('<span class="sval pos">+1840 u.m</span>') && k.includes('<span class="sval neg">−520 u.m</span>'));   /* v322 (pkt 5): reszta bilansu poza rankingiem, w kolorze znaku */   /* v315 (CR7-01): reszta bilansu poza rankingiem — osobny wiersz bez koloru */
+  assert.ok(k.includes('data-id="btc"') && k.includes('data-id="exch"') && k.includes('<span class="sval pos">+1.84 u.b</span>') && k.includes('<span class="sval neg">−520 u.m</span>'));   /* v322 (pkt 5): reszta bilansu poza rankingiem, w kolorze znaku */   /* v315 (CR7-01): reszta bilansu poza rankingiem — osobny wiersz bez koloru */
   assert.ok(!/\+\+|−\+/.test(k) && k.includes('<span class="sval eq">0 u.m</span>'), 'CRYPTO: bez „++”, zero żółte');   /* v322 (pkt 5) */
 });
 
@@ -18030,13 +18030,13 @@ test('v315 (CR7-01, CR7-04): Przepływy i Sektory w CRYPTO — „Giełdy” poz
   c.f.renderFlows();
   const k = c.el.innerHTML, a = k.indexOf('<div class="pg2">'), b = k.indexOf('<section class="panel pgc pg-exch">');
   assert.ok(a > 0 && b > a && k.indexOf('<section class="panel"><div class="list-wrap"><table>') > b, 'osobny wiersz pod listami, nad tabelą korytarzy');
-  assert.ok(!k.slice(a, b).includes('data-id="exch"') && k.slice(a, b).includes('class="amt in pos">+8130 u.m') && k.slice(a, b).includes('class="amt out neg">−781319 u.m'), 'listy bez „Giełd”');
+  assert.ok(!k.slice(a, b).includes('data-id="exch"') && k.slice(a, b).includes('class="amt in pos">+8.13 u.b') && k.slice(a, b).includes('class="amt out neg">−781.3 u.b'), 'listy bez „Giełd”');
   const x = k.slice(b, k.indexOf('</section>', b));
-  assert.ok(x.includes('<h2>c315.pg.exch.h</h2>') && x.includes('data-id="exch"') && x.includes('<span class="amt pos">+1161298 u.m</span>') && x.includes('<p class="pnote">c315.pg.exch.d</p>'), x);   /* v322 (pkt 5): reszta bilansu w kolorze znaku */
+  assert.ok(x.includes('<h2>c315.pg.exch.h</h2>') && x.includes('data-id="exch"') && x.includes('<span class="amt pos">+1161.3 u.b</span>') && x.includes('<p class="pnote">c315.pg.exch.d</p>'), x);   /* v322 (pkt 5): reszta bilansu w kolorze znaku */
   c.f.renderSectorsPage();
   const s = c.el.innerHTML, rows = s.split('<div class="secrow">').slice(1);
   assert.ok(rows.length === 4 && rows[3].includes('data-id="exch"') && s.indexOf('pg-exch') > s.indexOf('data-id="defi"'), 'ranking bez „Giełd”, osobny wiersz na końcu');
-  assert.ok(rows[3].includes('<span class="sval pos">+1161298 u.m</span>')   /* v322 (pkt 5): reszta bilansu w kolorze znaku */ && rows[3].includes('<span>c315.pg.exch.d</span>') && rows[0].includes('data-id="stab"') && rows[0].includes('<span>c315.ev.meas</span>'), rows[0] + rows[3]);
+  assert.ok(rows[3].includes('<span class="sval pos">+1161.3 u.b</span>')   /* v322 (pkt 5): reszta bilansu w kolorze znaku */ && rows[3].includes('<span>c315.pg.exch.d</span>') && rows[0].includes('data-id="stab"') && rows[0].includes('<span>c315.ev.meas</span>'), rows[0] + rows[3]);
   assert.ok(rows[2].includes('width:100%'), 'pasek najdłuższy dla największej zmiany wartości (BTC), nie dla reszty bilansu');
   const p = pgEnv({st: {mode: 'crypto', period: '1R'}, DATA: {'1R': {btc: [5, 1], exch: [-5, null], stab: [0, 0], defi: [0, 0]}}, isLive: () => true});   /* v334 (CR8-01): dane sceny na żywo */
   p.f.renderSectorsPage(); const ps = p.el.innerHTML.split('<div class="secrow">').find(r => r.includes('data-id="stab"')) || '';
@@ -20713,8 +20713,8 @@ test('v334 (CR8-01): Przepływy i Sektory w CRYPTO bez danych na żywo i bez pli
     assert.ok(se.includes('<h1>pg.sectors</h1>') && se.includes('<p class="pnote">' + key + '</p>') && !/1840|38200|secrow|pg-exch/.test(se), stt + ' ' + per + ': ' + se);
   }
   const L = pgEnv({st: {mode: 'crypto', period: '24H'}, isLive: () => true, LIVE: {st: 'ok'}});
-  L.f.renderFlows(); assert.ok(L.el.innerHTML.includes('+1840 u.m') && !L.el.innerHTML.includes('c334.pg'), 'dane sceny — liczby jak dotąd');
-  L.f.renderSectorsPage(); assert.ok(L.el.innerHTML.includes('+1840 u.m') && !L.el.innerHTML.includes('c334.pg'));
+  L.f.renderFlows(); assert.ok(L.el.innerHTML.includes('+1.84 u.b') && !L.el.innerHTML.includes('c334.pg'), 'dane sceny — liczby jak dotąd');
+  L.f.renderSectorsPage(); assert.ok(L.el.innerHTML.includes('+1.84 u.b') && !L.el.innerHTML.includes('c334.pg'));
   const G = pgEnv({LIVE: {st: 'err'}});
   G.f.renderFlows(); assert.ok(G.el.innerHTML.includes('g.n.eur') && !G.el.innerHTML.includes('c334.pg'), 'GLOBAL bez zmian');
   G.f.renderSectorsPage(); assert.ok(G.el.innerHTML.includes('g.n.eur') && !G.el.innerHTML.includes('c334.pg'));
@@ -23095,7 +23095,7 @@ test('v345 (C-06): małe zmiany sceny — okno szczegółów „<1 mln USD (<0,1
   const pg = pgEnv({st: {mode: 'crypto', period: '24H'}, isLive: () => true, DATA: {'24H': {btc: [1840, 8.4], exch: [-0.4, -2.1], stab: [0.3, 0], defi: [240, 1.8]}}, EDGES: [{f: 'btc', t: 'exch', a: 0.2, k: 'out', ev: 'direct'}, {f: 'stab', t: 'defi', a: 512, k: 'in', ev: 'onchain'}]});
   pg.f.renderSectorsPage(); const k = pg.el.innerHTML, rk = x => k.split('<div class="secrow">').find(y => y.includes('data-id="' + x + '"')) || '';
   assert.ok(rk('stab').includes('<span class="sval eq"><1 u.m</span>') && rk('exch').includes('<span class="sval eq"><1 u.m</span>'), 'Sektory: „<1 mln” żółte, bez znaku');
-  assert.ok(html.includes("const pgFmt=(v,u)=>u==='u.b'?gfmt(Math.abs(v)):(v!==0&&Math.abs(v)<.5?'<1':nfmt(Math.abs(v)))+' '+t('u.m');"), 'kod: jedna reguła zapisu małej kwoty');
+  assert.ok(/const pgFmt=\(v,u\)=>u==='u\.b'\?gfmt\(Math\.abs\(v\)\):compactU\(Math\.abs\(v\)\);/.test(html), 'kod: jedna reguła zapisu kwoty (mała kwota „<1”, od 1 mld w mld)');
 });
 
 test('v345 (C-07): ceny sceny z pliku serwera — wiek przy plakietce, żółty stan po 3 h, podpowiedź i panel „Pokrycie danych” (zegar przypięty)', () => {
@@ -27937,7 +27937,7 @@ test('v377: wykres netto dzień po dniu — słupek na dobę z ruchem, kolor z p
   const dz = usk377.file(); dz.tron.dni = usk377.dni([['2026-10-15', 400000000, 900000000, 1, 1]]); const tdz = usk377.txt(usk377.mk('pl', dz).els['#usk'].innerHTML);
   assert.ok(tdz.includes('Doba 15 paź 2026 (od północy UTC): emisje +400 mln USD · umorzenia −900 mln USD'), tdz.slice(tdz.indexOf('Doba'), tdz.indexOf('Doba') + 120));
   const z = usk377.file(); z.eth.dni = usk377.dni(); z.tron.dni = usk377.dni(); const hz = usk377.sp(usk377.mk('pl', z).els['#usk'].innerHTML);
-  assert.ok(!hz.includes('<rect') && hz.includes('<line x1="0" y1="36"') && hz.includes('W ostatnich 30 dobach nie było ani emisji, ani umorzeń USDT.'), 'bez ruchu: tylko linia zera i zdanie');
+  assert.ok(!hz.includes('<rect') && !hz.includes('<svg class="usk-ch"') && hz.includes('W ostatnich 30 dobach nie było ani emisji, ani umorzeń USDT.'), 'bez ruchu: krótki napis zamiast pustego wykresu (v388)');
   assert.ok(!usk377.txt(hz.slice(hz.indexOf('<div class="usk-ax">'), hz.indexOf('</div>', hz.indexOf('<div class="usk-ax">')))).includes('najwyższy'), 'bez skali, gdy nie ma słupków');
   /* doba netto zerowa przy emisji równej umorzeniu: słupek nie powstaje z fałszywą wysokością */
   const e = usk377.file(); e.eth.dni = usk377.dni([['2026-10-12', 700000000, 700000000, 1, 1]]); e.tron.dni = usk377.dni(); assert.ok(!usk377.mk('pl', e).els['#usk'].innerHTML.includes('<rect'), 'emisja = umorzenie = netto 0 → brak słupka');
@@ -29043,4 +29043,98 @@ test('v387 (GLOBAL_M12): słownik — czysty JSON w 10 językach, te same klucze
   for (const k of keys) for (const L of Ls.slice(2)) assert.notEqual(D[L][k], D.en[k], L + ' ' + k + ': prawdziwe tłumaczenie, nie kopia angielskiego');
   assert.ok(!/(?:GUS|FRED|BIS|NBP|OECD|Fiscal|Eurostat|ENTSO|TGE|PSE)/.test(JSON.stringify(D)), 'bez nazw dostawców');
   const n = +m[1], prev = new RegExp('^for\\(const l in EXTRA' + (n - 1) + '\\)', 'm').exec(html); assert.ok(prev && prev.index < m.index, 'po słowniku o numer niższym');
+});
+
+/* ===================== v388 (CRYPTO-2/3/4): zmiany podaży stablecoinów z własnej serii i zdanie o różnicy miar; pusty wykres druku USDT; kwoty ≥ 1 mld w mld na Przepływach i w Sektorach =====================
+   Wycinki kodu strony z atrapami (jak v363/v377); zegar przypięty (13.10.2026 21:00 UTC dla karty emitentów, 15.10.2026 04:00 UTC dla druku USDT). */
+const st388 = (() => {
+  const C = st363.clone, DAY = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+  const ser = (v0, d0, n) => { const o = []; for (let i = 0; i < n; i++) o.push([DAY(d0, i), v0 + i]); return o; };
+  /* plik z własnymi seriami listy monet do 13.10 (31 dób) — zm jak liczy zbieracz (punkt dokładnie 7 i 30 dób wcześniej) */
+  const own = (over = {}) => { const f = C(ST363_F); f.hist.tot = ser(312e9, '2026-09-13', 31); f.zm.tot = {'7': 7, '30': 30};
+    const mm = {mf: [283e9, 1111111111, 2222222222], mc: [28e9, -333333333, 444444444], ma: [664e6, 5e6, -6e6]};
+    for (const k in mm) { f.hist[k] = ser(mm[k][0], '2026-09-13', 31); f.zm[k] = {'7': mm[k][1], '30': mm[k][2]}; }
+    return Object.assign(f, over); };
+  const html1 = (L, f, extra) => { const K = st363.mk(L, f); if (extra) extra(K); return st363.sp(K.els['#c-emit'].innerHTML); };
+  return {C, DAY, ser, own, html1};
+})();
+
+test('v388 (CRYPTO-2): panel emitentów — bez własnej serii zmiany wg monet z migawek listy i jasne zdanie o różnicy miar; z własną świeżą serią zmiany z niej i zdanie o źródle', () => {
+  const h0 = st388.html1('pl', ST363_F);
+  assert.ok(h0.includes('Rezerwa w walucie i papierach skarbowych'), 'sekcja zabezpieczenia jest');
+  assert.ok(h0.includes('Zmiany 7 i 30 dni w tym panelu to suma zmian poszczególnych monet') && h0.includes('to dwie miary tego samego rynku, nie sprzeczność'), 'zdanie o różnicy miar');
+  assert.ok(!h0.includes('Własna seria zbiera się od'), 'plik bez serii listy — bez daty początku'); assert.ok(!h0.includes('liczone z własnej serii dobowej listy monet'));
+  const m0 = st363.txt(h0); assert.ok(m0.includes('7 dni −1,66 mld USD · 30 dni −1,81 mld USD'), 'wiersz zabezpieczenia: wartości z migawek listy: ' + m0.slice(m0.indexOf('Rezerwa'), m0.indexOf('Rezerwa') + 160));
+  /* z własną serią */
+  const f = st388.own(), h1 = st388.html1('pl', f), t1 = st363.txt(h1);
+  assert.ok(t1.includes('7 dni +1,11 mld USD · 30 dni +2,22 mld USD'), 'zabezpieczone rezerwą: własna seria: ' + t1.slice(t1.indexOf('Rezerwa'), t1.indexOf('Rezerwa') + 160));
+  assert.ok(t1.includes('7 dni −333 mln USD · 30 dni +444 mln USD') && t1.includes('7 dni +5,0 mln USD · 30 dni −6,0 mln USD'), 'kryptowaluty i algorytm z własnej serii: ' + t1);
+  assert.ok(t1.includes('liczone z własnej serii dobowej listy monet (do 13 paź 2026)') && !t1.includes('to suma zmian poszczególnych monet'), 'zdanie o źródle zmian');
+  assert.ok(t1.includes('osobnej serii pełnych dób'), 'zawsze uczciwa uwaga o drugiej mierze');
+  /* kolory kierunku z pokazanej liczby */
+  assert.ok(/class="pos">\+1,11 mld USD<\/span>/.test(h1) && /class="neg">−333 mln USD<\/span>/.test(h1) && /class="pos">\+444 mln USD<\/span>/.test(h1), 'kolor z pokazanej liczby');
+  /* seria stoi (ostatnia doba starsza niż wczoraj) → migawki listy i zdanie o różnicy */
+  const st = st388.own(); ['tot', 'mf', 'mc', 'ma'].forEach(k => { st.hist[k] = st.hist[k].slice(0, 27); });
+  const h2 = st363.txt(st388.html1('pl', st)); assert.ok(h2.includes('7 dni −1,66 mld USD · 30 dni −1,81 mld USD') && h2.includes('Zmiany 7 i 30 dni w tym panelu to suma') && h2.includes('Własna seria zbiera się od 13 wrz 2026'), 'nieświeża seria: ' + h2);
+  /* jedna z serii bez zmian (brak punktu 30 dób) → nie udajemy, że wszystko z własnej serii */
+  const pa = st388.own(); pa.zm.mc = {'7': -333333333, '30': null};
+  const h3 = st363.txt(st388.html1('pl', pa)); assert.ok(h3.includes('Zmiany 7 i 30 dni w tym panelu to suma') && h3.includes('7 dni −333 mln USD · 30 dni +') , 'częściowa seria: zdanie o różnicy miar');
+  /* seria w zm bez liczb (null) → wartości z listy, nigdy zero */
+  const nu = st388.own(); nu.zm.mf = {'7': null, '30': null};
+  const h4 = st363.txt(st388.html1('pl', nu)); assert.ok(h4.includes('7 dni −1,66 mld USD · 30 dni −1,81 mld USD'), 'brak własnej zmiany → lista monet, nie zero');
+});
+
+test('v388 (CRYPTO-2): sumy podaży — zdanie z dwiema liczbami i datami tylko gdy plik krypto jest i liczby się różnią; teksty w 10 językach z tymi samymi znacznikami', () => {
+  /* karta z atrapą krStabh() (w prawdziwej stronie to funkcja pliku krypto): kod karty + jedna funkcja przed blokiem v388 */
+  const render = (stabh, f) => {
+    const code = st363.code.replace('/* v388 (CRYPTO-2)', "function krStabh(){return " + JSON.stringify(stabh) + ";}\n/* v388 (CRYPTO-2)");
+    assert.ok(code.includes('function krStabh()'), 'wstawiona atrapa');
+    const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')('pl', st363.LOC);
+    const el = {innerHTML: '', hidden: true, querySelectorAll() { return []; }, querySelector() { return null; }};
+    const NOW = st363.NOW; class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'lnAgo', 'srvJSON', 'SRV_GR', 'SRV_LD', 'glyphImg', 'icoWrap', 'sepL', 'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date', 'coinImg', 'netImg', 'ccyIco',
+      "'use strict';\n" + gx349.code + '\n' + code + '\nreturn {STE, renderSte, steApply};')(q => q === '#c-emit' ? el : null, v96src.tFor('pl'), v96src.escH, F.nfmt, st363.LOC, 'pl', d => '', s => 'D:' + s, s => '',
+      () => ({then(fn) { fn(null); return this; }}), {}, {c: []}, (n, s) => '', i => i || '', () => ', ', {getItem: () => null, setItem: () => {}}, {addEventListener() {}, querySelector: () => null, documentElement: {}, hidden: false},
+      function () { this.observe = () => {}; }, () => 0, FD, s => '', n => '', c => '');
+    api.steApply(f); return st363.txt(el.innerHTML);
+  };
+  const tx = render({cur: 304858888465, asof: '2026-10-13'}, st388.own());
+  assert.ok(tx.includes('Suma podaży: 313,1 mld USD wg listy monet (13 paź 2026) wobec 304,9 mld USD wg serii łącznej w Sektorach i Przepływach (13 paź 2026).'), tx.slice(Math.max(0, tx.indexOf('Suma podaży') - 20), tx.indexOf('Suma podaży') + 220));
+  assert.ok(!render({cur: 313065936055, asof: '2026-10-13'}, st388.own()).includes('Suma podaży:'), 'te same liczby po zaokrągleniu — bez zdania');
+  assert.ok(!render({cur: 0, asof: '2026-10-13'}, st388.own()).includes('Suma podaży:') && !render({cur: 3e11, asof: 'zły'}, st388.own()).includes('Suma podaży:'), 'zły plik krypto — bez zdania, bez liczb');
+  assert.ok(!st363.txt(st388.html1('pl', st388.own())).includes('Suma podaży:'), 'brak pliku krypto (krStabh nie istnieje) — bez zdania i bez błędu');
+  const I = v96src.I18N, keys = ['st388.diff', 'st388.since', 'st388.own', 'st388.sums', 'st388.flat'], mk = v => (v.match(/\{\w+\}/g) || []).sort().join();
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) for (const k of keys) {
+    const v = I[l][k]; assert.ok(typeof v === 'string' && v.length > 5, l + ' ' + k); assert.equal(mk(v), mk(I.pl[k]), l + ' ' + k + ': te same znaczniki');
+    if (l !== 'en') assert.notEqual(v, I.en[k], l + ' ' + k + ': prawdziwe tłumaczenie'); assert.ok(!/DefiLlama|Tether|Circle|CoinGecko/.test(v), l + ' ' + k + ': bez nazw dostawców');
+  }
+});
+
+test('v388 (CRYPTO-3): druk USDT — przy samych zerach w 30 dobach krótki napis zamiast pustego wykresu; przy zdarzeniach wykres jak dotąd', () => {
+  const zeros = usk377.file(); zeros.eth.dni = usk377.dni([]); zeros.tron.dni = usk377.dni([]); zeros.eth.ost = {}; zeros.tron.ost = {};
+  const h0 = usk377.sp(usk377.mk('pl', zeros).els['#usk'].innerHTML);
+  assert.ok(!h0.includes('<svg class="usk-ch"') && !h0.includes('class="usk-ax"'), 'bez pustego prostokąta i etykiet osi');
+  assert.ok(h0.includes('W ostatnich 30 dobach nie było ani emisji, ani umorzeń USDT.'), 'krótki napis');
+  const h1 = usk377.sp(usk377.mk('pl', usk377.file()).els['#usk'].innerHTML);
+  assert.ok(h1.includes('<svg class="usk-ch"') && h1.includes('class="usk-ax"') && !h1.includes('nie było ani emisji'), 'zdarzenia → wykres');
+  /* emisje i umorzenia równe każdego dnia: netto 0, ale zdarzenia były — inny napis, nie „nie było zdarzeń” */
+  const eq = usk377.file(); eq.eth.dni = usk377.dni([['2026-10-05', 500000000, 500000000, 1, 1]]); eq.tron.dni = usk377.dni([]);
+  const h2 = usk377.sp(usk377.mk('pl', eq).els['#usk'].innerHTML);
+  assert.ok(!h2.includes('<svg class="usk-ch"') && h2.includes('się równoważyły (netto 0)') && !h2.includes('nie było ani emisji'), 'netto 0 przy zdarzeniach');
+  for (const l of ['en', 'de', 'ja']) assert.ok(usk377.sp(usk377.mk(l, zeros).els['#usk'].innerHTML).length > 500, l + ': renderuje');
+});
+
+test('v388 (CRYPTO-4): Przepływy i Sektory — kwoty od 1 mld w mld (jedna reguła liczb v336), poniżej w mln, <1 mln bez zera; zapis jak w kaflu Wykresów', () => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i + 1); assert.ok(i >= 0 && j > i, a.slice(0, 50)); return html.slice(i, j); };
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const tk = (k, o) => k === 'u.b' ? 'mld USD' : k === 'u.m' ? 'mln USD' : k;
+  const pg = (L = 'pl') => new Function('LANG', 'LOCALE', 't', 'gfmt', cut('const NF={};', '\nconst EXTRA={') + '\n' + cut('const pgFmt=', '\n') + '\nreturn {pgFmt, compactU};')(L, LOC, tk, v => v.toFixed(1) + ' mld USD');
+  const P = pg(), sp = s => String(s).replace(/[  ]/g, ' ');
+  assert.equal(sp(P.pgFmt(11551, 'u.m')), '11,6 mld USD'); assert.equal(sp(P.pgFmt(-2696, 'u.m')), '2,70 mld USD', 'bez „2696 mln”'); assert.equal(sp(P.pgFmt(17213, 'u.m')), '17,2 mld USD');
+  assert.equal(sp(P.pgFmt(1444, 'u.m')), '1,44 mld USD'); assert.equal(sp(P.pgFmt(999.6, 'u.m')), '1,00 mld USD', 'po zaokrągleniu 999,6 mln = 1,00 mld'); assert.equal(sp(P.pgFmt(999.4, 'u.m')), '999 mln USD');
+  assert.equal(sp(P.pgFmt(520, 'u.m')), '520 mln USD'); assert.equal(sp(P.pgFmt(0.3, 'u.m')), '<1 mln USD', 'mała kwota nie jest zerem'); assert.equal(sp(P.pgFmt(0, 'u.m')), '0 mln USD');
+  assert.equal(sp(P.pgFmt(-1161298, 'u.m')), sp(P.compactU(1161298)), 'ten sam zapis co wspólna reguła (compactU), bez znaku — znak dodaje widok');
+  assert.equal(sp(P.pgFmt(12.5, 'u.b')), '12.5 mld USD', 'jednostka mld — jak dotąd (gfmt)');
+  assert.ok(html.includes("const pgFmt=(v,u)=>u==='u.b'?gfmt(Math.abs(v)):compactU(Math.abs(v));"), 'jedna reguła w kodzie: pgFmt bierze compactU');
 });
