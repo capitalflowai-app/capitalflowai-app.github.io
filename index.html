@@ -10090,7 +10090,11 @@ function trdIgWrap(w,D,cr){
     const box=document.createElement('div');box.className='trd-wiecej-b';det.appendChild(box);
     let n=hr.nextSibling;while(n){const nx=n.nextSibling;box.appendChild(n);n=nx;}
     let sp='';try{sp=typeof trdSilaPanel==='function'?trdSilaPanel(D,cr):'';}catch(e){sp='';}
-    w.appendChild(det);hr.insertAdjacentHTML('afterend',sp+trdIg(D,cr));
+    w.appendChild(det);
+    /* v389: blok rejestracji reguł „w cieniu” (panel z details#trd-ng, tylko widok global) wychodzi ze „Szczegółów” — zaraz pod nimi, własne zwinięcie (jeden poziom
+       rozwinięcia zamiast dwóch); gdy go nie ma albo atrapa nie zna querySelector — bez zmian */
+    try{const ng=typeof w.querySelector==='function'?w.querySelector('#trd-ng'):null,sec=ng?ng.parentNode:null;if(sec&&sec.parentNode===box)w.appendChild(sec);}catch(e){}
+    hr.insertAdjacentHTML('afterend',sp+trdIg(D,cr));
   }catch(e){}
 }
 /* pomoc „Jak czytać” w TRENDACH otwiera „Jak liczymy”, który jest teraz w „Szczegółach” — najpierw je rozwija (przechwytywanie: przed obsługą przycisku) */

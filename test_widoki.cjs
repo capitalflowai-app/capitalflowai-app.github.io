@@ -29138,3 +29138,30 @@ test('v388 (CRYPTO-4): Przepływy i Sektory — kwoty od 1 mld w mld (jedna regu
   assert.equal(sp(P.pgFmt(12.5, 'u.b')), '12.5 mld USD', 'jednostka mld — jak dotąd (gfmt)');
   assert.ok(html.includes("const pgFmt=(v,u)=>u==='u.b'?gfmt(Math.abs(v)):compactU(Math.abs(v));"), 'jedna reguła w kodzie: pgFmt bierze compactU');
 });
+
+
+test('v389 (TRENDY-3): blok rejestracji reguł „w cieniu” wychodzi ze „Szczegółów” — jeden poziom rozwinięcia; bez bloku albo w atrapie — układ jak dotąd', () => {
+  const r0 = html.indexOf('function trdIgWrap('), W = html.slice(r0, html.indexOf('\n}\n', r0));
+  assert.ok(W.includes("w.querySelector('#trd-ng')") && W.includes('sec.parentNode===box') && W.includes('w.appendChild(sec)'), 'kod przeniesienia bloku');
+  assert.ok(W.indexOf('w.appendChild(det);') < W.indexOf('w.appendChild(sec)') && W.indexOf('w.appendChild(sec)') < W.indexOf("hr.insertAdjacentHTML('afterend'"), 'blok zaraz po „Szczegółach”');
+  const X = v323.make('pl');
+  /* mały DOM z rodzicami: panel (section) z details#trd-ng leży wśród reszty, którą trdIgWrap wkłada do „Szczegółów” */
+  const mk = (n, id) => ({n, id, nextSibling: null, kids: [], parentNode: null, appendChild(c) { if (c.parentNode) c.parentNode.kids = c.parentNode.kids.filter(x => x !== c); this.kids.push(c); c.parentNode = this; }});
+  const run = (z) => {
+    const hr = mk('hr'), x1 = mk('x1'), sec = mk('section'), ngd = mk('details', 'trd-ng'), x2 = mk('x2');
+    sec.appendChild(ngd); hr.nextSibling = x1; x1.nextSibling = sec; sec.nextSibling = x2;
+    const w = mk('w'); [hr, x1, sec, x2].forEach(c => { w.kids.push(c); c.parentNode = w; });
+    w.querySelector = q => (q === ':scope>.head-row' ? hr : (q === '#trd-ng' && z ? ngd : null));
+    hr.insertAdjacentHTML = () => {};
+    const G = globalThis, had = 'document' in G, prev = G.document; G.document = {createElement: tag => mk(tag)};
+    try { X.trdIgWrap(w, v323.world(), false); } finally { if (had) G.document = prev; else delete G.document; }
+    return {w, sec, ngd};
+  };
+  let a = run(true);
+  const det = a.w.kids.find(c => c.id === 'trd-wiecej');
+  assert.ok(det, '„Szczegóły” są'); assert.deepEqual(det.kids[1].kids.map(k => k.n), ['x1', 'x2'], 'w „Szczegółach” zostaje reszta bez bloku rejestracji');
+  assert.strictEqual(a.sec.parentNode, a.w, 'panel z blokiem rejestracji jest bezpośrednio w widoku TRENDY'); assert.strictEqual(a.ngd.parentNode, a.sec, 'blok rejestracji zostaje w swoim panelu (własne zwinięcie)');
+  assert.ok(a.w.kids.indexOf(a.sec) === a.w.kids.indexOf(det) + 1, 'panel zaraz pod „Szczegółami”');
+  a = run(false);
+  assert.deepEqual(a.w.kids.find(c => c.id === 'trd-wiecej').kids[1].kids.map(k => k.n), ['x1', 'section', 'x2'], 'bez bloku rejestracji (widok krypto) — wszystko w „Szczegółach” jak dotąd');
+});

@@ -3743,17 +3743,59 @@ NGK_START_DNI = 14              # dziennik bez wyniku dłużej niż tyle dni od 
 NGK_PX = ('EPOL', 'EWW', 'ECH', 'UAE', 'QAT', 'KWT', 'EWS', 'EIDO', 'THD', 'EWM', 'EPHE', 'XLB', 'XLRE', 'XLC')   # = WD_NG_PX w zbieraj_dane.py (test pilnuje zgodności)
 NGK_DZ = ('ng-dziennik', 'TRENDY nowe grupy — ostatni dzień z wynikiem reguł w cieniu')
 NGK_CZ = ('TRENDY nowe grupy — ceny 14 funduszy wyników (sesja w USA; reguły w cieniu)', NGK_PX)
+# v389 (audyt m12, TRENDY-1/TRENDY-2): (a) dzień z wynikiem tylko z kart na czas (stan 'ok') — karta „po czasie” (late) dostaje wynik tak samo, ale nie jest
+# dowodem, że automat zdąża; ⚠️, gdy ≥ NGK_LATE_SESJE ostatnich sesji ma WYŁĄCZNIE karty late (awaria „stale po granicy”); (b) świeżość osobno dla każdej grupy
+# wejść (plik wejściowy → linie dziennika), żeby zastój jednej grupy był widoczny mimo świeżych pozostałych; kategoria jak wiersz zbiorczy ('d', godziny robocze; test wsteczny v309/v373), ale próg grupy
+# 96 godzin roboczych (4 dni robocze): grupa może legalnie nie mieć karty w dniu święta źródła (np. 24.12 giełda w Warszawie), a następny dzień bywa świętem NYSE (25.12) — wtedy ostatni wynik ma ok. 85 h
+# (model pesymistyczny: wynik sesji D widać D+1 13:00 UTC; ten sam układ 30.12–01.01 i przed/po Święcie Dziękczynienia, Wielkim Piątku, 1 i 3 maja), więc próg 72 h dawał ⚠️ na kilka godzin wokół świąt
+# (audyt m12, przegląd: 26 godzin ⚠️ od 29.12 do 05.01). 96 h to margines 11 h nad najdłuższą legalną przerwą w teście na kalendarzu ze świętami NYSE i GPW; ⚠️ dopiero po 4 sesjach bez wyniku w grupie; najwyżej ⚠️.
+NGK_LATE_SESJE = 3
+NGK_PROG_GR = 96 * 60            # min = 96 godzin roboczych (kategoria 'd') — próg grupy: święto źródła obok święta NYSE (wiek ostatniego wyniku ≤ ok. 85 h w modelu pesymistycznym) bez uwagi
+NGK_GR = (('fundusze', ('rg.f', 'sk.f', 'pl.f')), ('rynek polski', ('pl.ix',)), ('metale', ('me.cu',)), ('zboża', ('zb.goi',)))   # = grupy plików wejściowych TD_SH_NG (test pilnuje pełnego pokrycia linii)
+
+
+def _ngk_wiersze(j):
+    """v389: poprawne wiersze dziennika (9 pól, dzień RRRR-MM-DD); inny kształt — [] (brak pliku albo listy zgłasza pętla wieku plików)."""
+    if not isinstance(j, dict) or not isinstance(j.get('rows'), list):
+        return []
+    return [r for r in j['rows'] if isinstance(r, list) and len(r) == 9 and isinstance(r[0], str) and _DZ_DZIEN.match(r[0])]
+
+
+def _ngk_dni_wyniku(rows, linie=None):
+    """v389: dni z wynikiem WYŁĄCZNIE z kart na czas (stan 'ok'; karta late też dostaje y, ale się nie liczy); wynik = liczba skończona w polu y (indeks 7;
+    bool, None, NaN — nie); linie=None — wszystkie linie."""
+    ok = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))  # noqa: E731
+    return [r[0] for r in rows if r[4] == 'ok' and ok(r[7]) and (linie is None or r[1] in linie)]
+
+
+def _ngk_ogon_late(rows):
+    """v389: ile ostatnich sesji (dni z wierszami) ma wyłącznie karty „po czasie” — liczone od najnowszego dnia wstecz do pierwszego dnia z kartą na czas."""
+    dni = {}
+    for r in rows:
+        dni[r[0]] = dni.get(r[0], False) or r[4] == 'ok'
+    n = 0
+    for d in sorted(dni, reverse=True):
+        if dni[d]:
+            break
+        n += 1
+    return n
 
 
 def ng_dziennik_swiezosc(j, now=None):
     """v373: wiersz świeżości dziennika reguł „w cieniu” nowych grup w kształcie wierszy swiezosc(): (etykieta, status, wiek min, dzień, uwaga) albo None
-    (brak pliku albo plik bez listy wierszy). Wynik = liczba skończona w polu y (indeks 7; bool, None, NaN — nie)."""
+    (brak pliku albo plik bez listy wierszy). Wynik = liczba skończona w polu y (indeks 7; bool, None, NaN — nie) wiersza na czas (stan 'ok'; v389: karta late
+    się nie liczy); ≥ NGK_LATE_SESJE ostatnich sesji wyłącznie z kartami late — ⚠️ (tylko uwaga)."""
     if not isinstance(j, dict) or not isinstance(j.get('rows'), list):
         return None
     lab = NGK_DZ[1]
     now = now or NOW
-    num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))  # noqa: E731
-    dni = [r[0] for r in j['rows'] if isinstance(r, list) and len(r) == 9 and isinstance(r[0], str) and _DZ_DZIEN.match(r[0]) and num(r[7])]
+    wiersze = _ngk_wiersze(j)
+    dni = _ngk_dni_wyniku(wiersze)   # v389: tylko karty na czas (stan 'ok')
+    late = _ngk_ogon_late(wiersze)   # v389: ile ostatnich sesji ma wyłącznie karty „po czasie”
+    if late >= NGK_LATE_SESJE:
+        d0 = max(dni) if dni else None
+        return (lab, '⚠️', wiek_danych(d0, 'day', 'd', now) if d0 else None, d0,
+                f'karty {late} ostatnich sesji tylko „po czasie” (bez głosu) — automat nie zdąża z kartami przed początkiem sesji (tylko uwaga)')
     since = j.get('since') if isinstance(j.get('since'), str) and _DZ_DZIEN.match(j['since']) else None
     if not dni:
         if since and now.date().isoformat() <= since:
@@ -3769,6 +3811,40 @@ def ng_dziennik_swiezosc(j, now=None):
     if w <= NGK_PROG:
         return (lab, '✅', w, d, '')
     return (lab, '⚠️', w, d, f'próg {fmt_wiek(NGK_PROG)} (godziny robocze) — wyniki reguł w cieniu przestały dochodzić (tylko uwaga)')
+
+
+def ng_dziennik_grupy(j, now=None):
+    """v389: wiersze świeżości dziennika reguł „w cieniu” osobno dla każdej grupy wejść (NGK_GR) w kształcie wierszy swiezosc(): (etykieta, status, wiek min, dzień,
+    uwaga); [] gdy brak pliku albo listy wierszy. Dzień z wynikiem tylko z kart na czas (stan 'ok') linii grupy; ✅ do NGK_PROG_GR (96 h roboczych), potem ⚠️ (tylko uwaga) — zastój
+    jednej grupy (np. pliku funduszy) nie chowa się za świeżymi liniami pozostałych grup. Grupa bez wyniku: „—” przez NGK_START_DNI dni od startu dziennika,
+    potem ⚠️ (linia bez serii wejścia nie daje kart)."""
+    if not isinstance(j, dict) or not isinstance(j.get('rows'), list):
+        return []
+    now = now or NOW
+    rows = _ngk_wiersze(j)
+    since = j.get('since') if isinstance(j.get('since'), str) and _DZ_DZIEN.match(j['since']) else None
+    out = []
+    for nazwa, linie in NGK_GR:
+        lab = f'TRENDY nowe grupy — {nazwa}: ostatni dzień z wynikiem reguł w cieniu'
+        dni = _ngk_dni_wyniku(rows, linie)
+        if not dni:
+            okres = (now.date() - dt.date.fromisoformat(since)).days if since else None
+            if since and now.date().isoformat() <= since:
+                out.append((lab, '—', None, None, f'dziennik rusza {since} — pierwsze wyniki po pierwszym sprawdzeniu'))
+            elif okres is not None and okres <= NGK_START_DNI:
+                out.append((lab, '—', None, None, f'dziennik od {since} — czekamy na pierwsze wyniki grupy'))
+            else:
+                out.append((lab, '⚠️', None, None, 'brak dnia z wynikiem w grupie' + (f' (od {since})' if since else '') + ' (tylko uwaga)'))
+            continue
+        d = max(dni)
+        w = wiek_danych(d, 'day', 'd', now)
+        if w is None:
+            out.append((lab, '?', None, d, 'zły zapis dnia'))
+        elif w <= NGK_PROG_GR:
+            out.append((lab, '✅', w, d, ''))
+        else:
+            out.append((lab, '⚠️', w, d, f'próg {fmt_wiek(NGK_PROG_GR)} (godziny robocze) — wyniki tej grupy przestały dochodzić, pozostałe grupy mogą być świeże (tylko uwaga)'))
+    return out
 
 
 def ng_ceny_swiezosc(nc, now=None):
@@ -10856,7 +10932,7 @@ def kontrola():
             R['uwagi'].append(f'{label}: {note}')
     # 3c-ng373. v373: nowe grupy w TRENDACH — dziennik reguł „w cieniu” (ostatni dzień z wynikiem) i ceny 14 funduszy wyników; osobne wiersze, najwyżej ⚠️
     ngz = ng_dziennik_swiezosc(files.get('ng-dziennik'))
-    for label, st, w, txt, note in ([ngz] if ngz else []) + ng_ceny_swiezosc(files.get('ng-ceny')):
+    for label, st, w, txt, note in ([ngz] if ngz else []) + ng_dziennik_grupy(files.get('ng-dziennik')) + ng_ceny_swiezosc(files.get('ng-ceny')):   # v389: grupy osobno
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
         if st == '⚠️':
             R['uwagi'].append(f'{label}: ostatni wynik z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')

@@ -59148,3 +59148,172 @@ class StableSeriaV388(unittest.TestCase):
         with mock.patch.object(zd, 'get_json', self._get()):
             o4 = zd.build_stable_emitenci({'v': 1, 'at': '2026-10-13T19:20:00+00:00', 'hist': {'obce': [['2026-10-12', 1]], 'tot': 'zły'}})
         self.assertNotIn('obce', o4['hist']); self.assertEqual(len(o4['hist']['tot']), 1)
+
+
+class KontrolaNgGrupyV389(unittest.TestCase):
+    """v389 (audyt m12, TRENDY-1/TRENDY-2): kontrola dzienna dziennika reguł „w cieniu” — dzień z wynikiem tylko z kart na czas, ⚠️ przy ≥ 3 sesjach wyłącznie
+    „po czasie”, świeżość osobno dla grup wejść (fundusze, rynek polski, metale, zboża). Bez zegara: każda chwila podana wprost."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola389-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v389_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+
+    @staticmethod
+    def t(s):
+        return datetime.datetime.fromisoformat(s).replace(tzinfo=datetime.timezone.utc)
+
+    LINIE = {'rg.f': 'EWC', 'sk.f': 'XLB', 'pl.f': 'EPOL', 'pl.ix': 'WIG20', 'me.cu': 'cu', 'zb.goi': 'goi'}
+
+    def wiersz(self, d, ln, stan='ok', y=0.3):
+        return [d, ln, self.LINIE[ln], 0, stan, 0.4, 'x', y, '2026-10-14']
+
+    def dz(self, rows, since='2026-10-15'):
+        return {'v': 1, 'reg': '2026-10-14', 'since': since, 'rows': rows}
+
+    def test_grupy_pokrywaja_wszystkie_linie_dziennika(self):
+        k = self.k
+        linie = [ln for _, ls in k.NGK_GR for ln in ls]
+        self.assertEqual(sorted(linie), sorted(x[0] for x in zd.TD_SH_NG), 'każda linia dziennika w dokładnie jednej grupie')
+        self.assertEqual(set(self.LINIE), set(linie)); self.assertEqual(len({n for n, _ in k.NGK_GR}), 4)
+        self.assertEqual([n for n, _ in k.NGK_GR], ['fundusze', 'rynek polski', 'metale', 'zboża'])
+        self.assertEqual(k.NGK_LATE_SESJE, 3)
+
+    def test_wiersz_zbiorczy_tylko_karty_na_czas(self):
+        k = self.k; f = k.ng_dziennik_swiezosc
+        # wynik mają tylko karty late — dzień się nie liczy (jak brak wyniku): po okresie startu ⚠️ „brak dnia z wynikiem”
+        J = self.dz([self.wiersz('2026-10-15', 'rg.f', 'late'), self.wiersz('2026-10-16', 'pl.f', 'late')])
+        r = f(J, self.t('2026-11-05T06:20:00')); self.assertEqual(r[1], '⚠️'); self.assertIn('brak dnia z wynikiem', r[4])
+        self.assertEqual(f(J, self.t('2026-10-20T06:20:00'))[1], '—', 'w okresie startu — czekamy (late nie daje ✅)')
+        # starszy wynik na czas + nowszy tylko late → dzień starszego
+        J = self.dz([self.wiersz('2026-10-14', 'rg.f'), self.wiersz('2026-10-15', 'rg.f', 'late')])
+        r = f(J, self.t('2026-10-15T20:00:00')); self.assertEqual((r[1], r[3]), ('✅', '2026-10-14'))
+        # zwykły dziennik (wszystko na czas) — bez zmian względem v373
+        J = self.dz([self.wiersz('2026-10-15', 'rg.f'), self.wiersz('2026-10-16', 'rg.f'), self.wiersz('2026-10-19', 'rg.f', 'ok', None)])
+        r = f(J, self.t('2026-10-19T06:20:00')); self.assertEqual((r[1], r[3]), ('✅', '2026-10-16'))
+        self.assertEqual(f(J, self.t('2026-10-23T06:20:00'))[1], '⚠️')
+
+    def test_ogon_late_trzy_sesje(self):
+        k = self.k; f = k.ng_dziennik_swiezosc
+        ok0 = [self.wiersz('2026-10-14', 'rg.f')]
+        late = lambda *dni: [self.wiersz(d, 'rg.f', 'late') for d in dni]
+        self.assertEqual(k._ngk_ogon_late(k._ngk_wiersze(self.dz(ok0))), 0)
+        for dni, n in ((('2026-10-15',), 1), (('2026-10-15', '2026-10-16'), 2), (('2026-10-15', '2026-10-16', '2026-10-19'), 3)):
+            self.assertEqual(k._ngk_ogon_late(k._ngk_wiersze(self.dz(ok0 + late(*dni)))), n)
+        now = self.t('2026-10-19T12:00:00')
+        for dni in (('2026-10-15',), ('2026-10-15', '2026-10-16')):
+            r = f(self.dz(ok0 + late(*dni)), now); self.assertEqual(r[1], '✅', 'jedna albo dwie sesje po czasie — jeszcze bez uwagi')
+        r = f(self.dz(ok0 + late('2026-10-15', '2026-10-16', '2026-10-19')), now)
+        self.assertEqual((r[1], r[3]), ('⚠️', '2026-10-14')); self.assertIn('3 ostatnich sesji tylko „po czasie”', r[4]); self.assertIsNotNone(r[2])
+        # dzień mieszany (część linii na czas) przerywa serię; seria liczy się od najnowszego dnia
+        mix = self.dz(ok0 + late('2026-10-15', '2026-10-16') + [self.wiersz('2026-10-19', 'rg.f', 'late'), self.wiersz('2026-10-19', 'pl.f', 'ok', None)])
+        self.assertEqual(k._ngk_ogon_late(k._ngk_wiersze(mix)), 0); self.assertEqual(f(mix, now)[1], '✅')
+        mix2 = self.dz([self.wiersz('2026-10-15', 'rg.f'), self.wiersz('2026-10-16', 'rg.f', 'late'), self.wiersz('2026-10-19', 'rg.f', 'late'), self.wiersz('2026-10-20', 'rg.f', 'late')])
+        self.assertEqual(k._ngk_ogon_late(k._ngk_wiersze(mix2)), 3)
+        # bez żadnego wyniku na czas i trzy sesje late — ⚠️ także w okresie startu, bez dnia
+        r = f(self.dz(late('2026-10-15', '2026-10-16', '2026-10-19')), self.t('2026-10-19T12:00:00')); self.assertEqual((r[1], r[2], r[3]), ('⚠️', None, None))
+        self.assertIsNone(f({'at': 'x'})); self.assertIsNone(f(None)); self.assertEqual(k._ngk_wiersze(None), [])
+
+    def test_grupy_zastoj_jednej_grupy_widoczny(self):
+        k = self.k; g = k.ng_dziennik_grupy
+        sesje = ['2026-10-15', '2026-10-16', '2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22']
+        rows = [self.wiersz(d, ln) for ln in ('me.cu', 'zb.goi', 'pl.ix') for d in sesje]
+        rows += [self.wiersz(d, ln) for ln in ('rg.f', 'sk.f', 'pl.f') for d in sesje[:2]]   # plik funduszy stoi od 16.10
+        J = self.dz(rows); now = self.t('2026-10-23T06:20:00')
+        zb = {x[0].split(':')[0].split('— ')[1]: x for x in g(J, now)}
+        self.assertEqual(list(zb), ['fundusze', 'rynek polski', 'metale', 'zboża'])
+        self.assertEqual([zb[n][1] for n in zb], ['⚠️', '✅', '✅', '✅'], 'zastój funduszy widać mimo świeżych pozostałych')
+        self.assertEqual(zb['fundusze'][3], '2026-10-16'); self.assertIn('przestały dochodzić', zb['fundusze'][4]); self.assertEqual(zb['metale'][3], '2026-10-22')
+        self.assertEqual(k.ng_dziennik_swiezosc(J, now)[1], '✅', 'wiersz zbiorczy tego zastoju nie widzi (stąd osobne wiersze grup)')
+        # próg grupy: dokładnie 96 godzin roboczych (od końca dnia wyniku) — jeszcze ✅; wiersz zbiorczy zostaje przy 60
+        self.assertEqual(k.NGK_PROG_GR, 96 * 60); self.assertGreater(k.NGK_PROG_GR, k.NGK_PROG)
+        J1 = self.dz([self.wiersz('2026-10-14', ln) for ln in self.LINIE])
+        for r in g(J1, self.t('2026-10-21T00:00:00')): self.assertEqual((r[1], r[2]), ('✅', k.NGK_PROG_GR))
+        for r in g(J1, self.t('2026-10-21T00:01:00')): self.assertEqual(r[1], '⚠️')
+        self.assertEqual(k.ng_dziennik_swiezosc(J1, self.t('2026-10-19T12:01:00'))[1], '⚠️', 'wiersz zbiorczy bez zmian: 60 godzin')
+        # tylko karty late linii grupy się nie liczą
+        J2 = self.dz([self.wiersz('2026-10-16', 'me.cu', 'late'), self.wiersz('2026-10-16', 'rg.f')])
+        gg = {x[0].split('— ')[1].split(':')[0]: x for x in g(J2, self.t('2026-10-20T06:20:00'))}
+        self.assertEqual((gg['metale'][1], gg['fundusze'][1], gg['zboża'][1]), ('—', '✅', '—'))
+
+    def test_grupy_start_brak_wyniku_nie_liczy_sie_jako_zero(self):
+        k = self.k; g = k.ng_dziennik_grupy
+        J = self.dz([self.wiersz('2026-10-15', 'rg.f')])
+        for r in g(self.dz([self.wiersz('2026-10-15', 'rg.f', 'ok', None)]), self.t('2026-10-15T00:10:00')): self.assertEqual(r[1], '—')
+        r = {x[0].split('— ')[1].split(':')[0]: x for x in g(J, self.t('2026-10-20T06:20:00'))}
+        self.assertEqual((r['fundusze'][1], r['zboża'][1]), ('✅', '—'), 'zboża jeszcze bez wyniku w okresie startu')
+        r = {x[0].split('— ')[1].split(':')[0]: x for x in g(J, self.t('2026-11-05T06:20:00'))}
+        self.assertEqual(r['zboża'][1], '⚠️'); self.assertIn('brak dnia z wynikiem w grupie', r['zboża'][4]); self.assertEqual(r['zboża'][3], None)
+        for zly in (True, None, float('nan'), float('inf'), 'x'):
+            self.assertEqual(g(self.dz([self.wiersz('2026-10-16', 'rg.f', 'ok', zly)]), self.t('2026-10-17T06:20:00'))[0][1], '—')
+        self.assertEqual(g(None), []); self.assertEqual(g({'at': 'x'}), []); self.assertEqual(g({'rows': 'x'}), [])
+        self.assertEqual(g(self.dz([]), self.t('2026-10-15T00:10:00'))[0][1], '—')
+
+    # Kalendarz do testu wstecznego (audyt m12, przegląd TRENDY-2): święta NYSE (brak kart we WSZYSTKICH liniach) i GPW (brak karty linii pl.ix); sesje pn–pt
+    NYSE_SWIETA = ('2026-11-26', '2026-12-25', '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18')   # Dziękczynienie, Boże Narodzenie, Nowy Rok, MLK, Prezydentów, Wielki Piątek, Memorial Day, Juneteenth (obserwowany)
+    GPW_SWIETA = ('2026-11-11', '2026-12-24', '2026-12-25', '2026-12-31', '2027-01-01', '2027-01-06', '2027-03-26', '2027-03-29', '2027-05-03', '2027-05-27')
+    # po jednej sesji bez karty naraz w metalach i zbożach (święta źródeł tuż przed i po świętach NYSE: przed Dziękczynieniem, 24.12, 28.12, po 01.01, przed Wielkim Piątkiem);
+    # dwie takie sesje obok siebie (np. 24.12 i 28.12 w jednej grupie) to już ponad 96 godzin — zastój, nie święto
+    METALE_BEZ = ('2026-11-25', '2026-12-24', '2027-03-25')
+    ZBOZA_BEZ = ('2026-12-28', '2027-01-04', '2027-03-24')
+
+    def dziennik_kalendarz(self, do='2027-06-30'):
+        """Wiersze dziennika na kalendarzu 2026-10-15…do: sesje pn–pt bez świąt NYSE; linia pl.ix bez świąt GPW; me.cu i zb.goi bez wskazanych sesji."""
+        bez = {'pl.ix': set(self.GPW_SWIETA), 'me.cu': set(self.METALE_BEZ), 'zb.goi': set(self.ZBOZA_BEZ)}
+        rows = []; d = datetime.date(2026, 10, 15)
+        while d <= datetime.date.fromisoformat(do):
+            dd = d.isoformat()
+            if d.weekday() < 5 and dd not in self.NYSE_SWIETA:
+                rows += [self.wiersz(dd, ln) for ln in self.LINIE if dd not in bez.get(ln, ())]
+            d += datetime.timedelta(days=1)
+        return rows
+
+    @staticmethod
+    def widok_na(rows, teraz):
+        """Model pesymistyczny v309: wynik sesji D pojawia się D+1 13:00 UTC (do tej chwili karta jest, ale bez wyniku); sesje po dniu 'teraz' jeszcze nie istnieją."""
+        ost = ((teraz - datetime.timedelta(hours=13)).date() - datetime.timedelta(days=1)).isoformat(); dzis = teraz.date().isoformat()
+        return [(r if r[0] <= ost else r[:7] + [None] + r[8:]) for r in rows if r[0] <= dzis]
+
+    def test_historia_bez_falszywych_alarmow(self):
+        """Dziennik syntetyczny na kalendarzu 2026-10-15…2027-06-30 ze świętami NYSE (26.11, 25.12, 01.01, 18.01, 15.02, 26.03, 31.05, 18.06) i GPW (11.11, 24.12, 25.12, 31.12,
+        01.01, 06.01, 26.03, 29.03, 03.05, 27.05) oraz po jednej sesji bez karty w metalach i zbożach, wynik sesji D widać D+1 13:00 UTC (model pesymistyczny v309), kontrola co godzinę
+        (górna granica; dzienna działa o 06:20): wiersze grup nigdy nie dają ⚠️ (najdłuższa legalna przerwa ok. 85 godzin roboczych, np. 23.12 → 29.12 13:00); wiersz zbiorczy
+        (próg 60 h, bez zmian) nie daje ⚠️ o 06:20 i nie więcej niż 0,5% godzin (po poniedziałku z zamkniętą NYSE, np. 20.01.2027, bywa ⚠️ do kilku godzin — jak w teście v373)."""
+        k = self.k; g = k.ng_dziennik_grupy
+        rows = self.dziennik_kalendarz()
+        teraz = self.t('2026-10-16T06:20:00'); koniec = self.t('2027-06-30T23:59:00')
+        godzin = 0; wiek_max = 0; gr_alarmy = []; zb_alarmy = []
+        while teraz <= koniec:
+            J = self.dz(self.widok_na(rows, teraz)); godzin += 1
+            for x in g(J, teraz):
+                if x[1] == '⚠️': gr_alarmy.append((x[0], teraz.isoformat(), x[3]))
+                if x[2] is not None: wiek_max = max(wiek_max, x[2])
+            z = k.ng_dziennik_swiezosc(J, teraz)
+            if z[1] == '⚠️': zb_alarmy.append(teraz)
+            teraz += datetime.timedelta(hours=1)
+        self.assertEqual(gr_alarmy, [], 'wiersze grup: zero fałszywych ⚠️ w żadnej godzinie, także wokół świąt NYSE i GPW')
+        self.assertGreater(godzin, 6000)
+        self.assertGreaterEqual(wiek_max, 84 * 60, 'test rzeczywiście obejmuje najdłuższe legalne przerwy (ok. 85 h) — próg 72 h dałby tu ⚠️'); self.assertLess(wiek_max, k.NGK_PROG_GR)
+        self.assertEqual([t for t in zb_alarmy if (t.hour, t.minute) == (6, 20)], [], 'wiersz zbiorczy o godzinie dziennej kontroli: zero ⚠️')
+        self.assertLess(len(zb_alarmy) / godzin, 0.005, 'wiersz zbiorczy: fałszywe ⚠️ tylko w pojedynczych godzinach po poniedziałku z zamkniętą NYSE')
+        # przypadek z przeglądu: 23.12 jest wynik, 24.12 (GPW) i 25.12 (NYSE) bez kart, 28.12 wynik widać 29.12 13:00 — pl.ix przez cały czas ✅
+        for ts in ('2026-12-28T06:20:00', '2026-12-29T00:20:00', '2026-12-29T12:20:00', '2026-12-29T13:00:00', '2027-01-05T12:20:00'):
+            J = self.dz(self.widok_na(rows, self.t(ts)))
+            self.assertEqual([x[1] for x in g(J, self.t(ts)) if 'rynek polski' in x[0]], ['✅'], ts)
+        # zastój czterech sesji (wt 17.11 – pt 20.11) w jednej grupie: ⚠️ dopiero od poniedziałku 23.11 (96 godzin roboczych od końca ostatniego wyniku), do chwili wyniku karty z 23.11
+        rows2 = [r for r in rows if not (r[1] == 'me.cu' and '2026-11-17' <= r[0] <= '2026-11-20')]
+
+        def stan(ts):
+            teraz = self.t(ts)
+            return [x for x in g(self.dz(self.widok_na(rows2, teraz)), teraz) if 'metale' in x[0]][0][1]
+        self.assertEqual(stan('2026-11-19T06:20:00'), '✅'); self.assertEqual(stan('2026-11-20T23:00:00'), '✅'); self.assertEqual(stan('2026-11-22T12:00:00'), '✅')
+        self.assertEqual(stan('2026-11-23T06:20:00'), '⚠️'); self.assertEqual(stan('2026-11-24T12:30:00'), '⚠️'); self.assertEqual(stan('2026-11-24T13:30:00'), '✅', 'wynik karty z 23.11 kończy zastój')
+
+    def test_wywolanie_w_kontroli(self):
+        import inspect
+        src = inspect.getsource(self.k.kontrola)
+        i1 = src.index("ng_dziennik_swiezosc(files.get('ng-dziennik'))"); i2 = src.index("ng_dziennik_grupy(files.get('ng-dziennik'))"); i3 = src.index("ng_ceny_swiezosc(files.get('ng-ceny'))")
+        self.assertTrue(i1 < i2 < i3, 'wiersz zbiorczy, wiersze grup, ceny funduszy — jedna pętla uwag')
