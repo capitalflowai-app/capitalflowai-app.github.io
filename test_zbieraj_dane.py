@@ -65927,3 +65927,40 @@ class KontrolaEthV403(unittest.TestCase):
             s = f.read()
         i = s.index("set_ = Z.get('eth-lancuch')")
         self.assertIn('Ethereum i warstwa 2, kolejki stakingu', s[i:i + 600])
+
+
+# ===================== v405 (W1B, pkt 14): logo giełd (zdjęcie węzła „Giełdy”) bez białych pasów u góry i u dołu =====================
+class ObrazGieldyV405(unittest.TestCase):
+    """img/wezly/gieldy.jpg to jedyne miejsce użycia tego logo (scena 3D, chipy, listy; index.html odwołuje się tylko do tej ścieżki). Oryginał miał białe wiersze
+    0–17 i 494–511 (w kole — dwa białe punkty u góry i u dołu); plik po v405 to środek 472 × 472 px bez nich, powiększony do 512 × 512 (proporcje 1:1 bez zmian).
+    Skrót pinuje plik: zmiana zdjęcia wymaga świadomej zmiany skrótu (i sprawdzenia, że brzegi nie są białe)."""
+    SHA = '1c9371d839c8fcd2876e299d5ca4d860ac60363d8ee2a810086ef1222182ca7e'
+
+    def _plik(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, 'img', 'wezly', 'gieldy.jpg'), 'rb') as f:
+            return f.read()
+
+    def test_wymiary_512_kwadrat_i_skrot(self):
+        b = self._plik()
+        self.assertEqual(b[:3], b'\xff\xd8\xff')
+        i, w, h = 2, None, None
+        while i + 4 < len(b):
+            self.assertEqual(b[i], 0xFF)
+            m = b[i + 1]
+            ln = int.from_bytes(b[i + 2:i + 4], 'big')
+            if m in (0xC0, 0xC1, 0xC2):
+                h, w = int.from_bytes(b[i + 5:i + 7], 'big'), int.from_bytes(b[i + 7:i + 9], 'big')
+                break
+            i += 2 + ln
+        self.assertEqual((w, h), (512, 512), 'proporcje 1:1 bez zmian')
+        self.assertLess(len(b), 200_000)
+        import hashlib
+        self.assertEqual(hashlib.sha256(b).hexdigest(), self.SHA, 'zdjęcie węzła Giełdy: wersja bez białych pasów (v405)')
+
+    def test_strona_uzywa_tylko_tego_pliku(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, 'index.html'), encoding='utf-8') as f:
+            html = f.read()
+        self.assertEqual(html.count("exch:'img/wezly/gieldy.jpg'"), 1)
+        self.assertEqual(html.count('gieldy.jpg'), 1, 'jedno miejsce użycia logo giełd w index.html')
