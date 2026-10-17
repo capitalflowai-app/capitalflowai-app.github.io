@@ -32826,6 +32826,9 @@ def main():
     META['ok']['emit_llama'], META['ok']['emit_tether'], META['ok']['emit_circle'] = ste_czesc()
     # v377 (F6Z4): USDT na żywo — data/usdt-skarbiec.json; saldo skarbca emitenta i zdarzenia emisji / umorzeń z sieci Ethereum i Tron (publiczne zapytania, bez klucza), co USK_EVERY_MIN min
     META['ok']['usdt_eth'], META['ok']['usdt_tron'] = usk_czesc()
+    # v399 (F11Z12): Indie — data/indie.json; wycena indeksów, pozycje uczestników w kontraktach, udział dostaw akcji z publicznych plików dziennych giełdy (bez klucza), co IN_EVERY_MIN min;
+    # trzy niezależne części (ind, fao, dl), każda z własnym czasem i poprzednią wersją przy awarii
+    META['ok']['indie_ind'], META['ok']['indie_fao'], META['ok']['indie_dl'] = in_czesc()
     # v397 (F11Z11): dźwignia krypto 2 — data/dzwignia2.json; nastroje detalu i kredyt marżowy (OKX: konta i najwięksi gracze long/short, wolumen agresora, pożyczki marżowe; Bitfinex: pozycje marżowe, pożyczki USD),
     # publiczne zapytania bez klucza, co D2_EVERY_MIN min; nic z tego pliku nie wchodzi do sumy „wszystkie giełdy razem” (dzwignia.json)
     META['ok']['dzwignia2_okx'], META['ok']['dzwignia2_bfx'] = d2_czesc()
@@ -41219,6 +41222,348 @@ def d2_czesc():
 
 
 ZRODLA_META.update({'dzwignia2_okx': 'okx', 'dzwignia2_bfx': 'bitfinex'})   # v397: OKX już jest źródłem (dzwignia_okx); Bitfinex = +1 źródło
+
+
+# ===================== v399 (F11Z12): INDIE — WYCENA INDEKSÓW, POZYCJE UCZESTNIKÓW W KONTRAKTACH, UDZIAŁ DOSTAW — data/indie.json =====================
+# Trzy niezależne części jednego pliku (każda z własnym czasem, ok i poprzednią wersją przy awarii), publiczne pliki dzienne giełdy w Indiach (GET bez klucza, nagłówek zbieracza, odstęp między zapytaniami):
+#  (1) ind — zamknięcia wszystkich indeksów z P/E, P/B i stopą dywidendy (plik dzienny, 160+ wierszy): zapisujemy wiersze z wyceną i indeks strachu; historia dobowa wybranych indeksów (cena, P/E, P/B, stopa dywidendy);
+#  (2) fao — pozycje uczestników w kontraktach terminowych i opcjach: stan otwartych pozycji (oi) i obroty (vol) czterech grup (Client = klienci detaliczni i pozostali, DII = krajowe instytucje, FII = zagraniczni,
+#      Pro = rachunki własne brokerów); historia dobowa pozycji w kontraktach terminowych na indeksy (long, short) każdej grupy;
+#  (3) dl — pełny plik dnia z udziałem dostaw: dla serii głównej (EQ) łączny obrót, wartość dostarczona (liczba dostarczonych akcji × średnia cena dnia — SZACUNEK wartości), udział dostaw wartościowo i ilościowo,
+#      osiem spółek z największą wartością dostaw; historia dobowa udziału.
+# Dzień sesji pochodzi z nazwy pliku i jest sprawdzany z datą w samym pliku (tytuł albo kolumna daty) — plik innego dnia = błąd. Wartości w pasmach wiarygodności (IN_PE_MAX itd.), sumy czterech grup uczestników
+# zgodne z wierszem sumy (z tolerancją zaokrągleń giełdy), liczba poprawnych wierszy serii głównej ≥ IN_DL_MIN_EQ; inaczej błąd części, nigdy cicha liczba.
+# Rytm: co IN_EVERY_MIN min. Każdy rodzaj pliku idzie od najnowszego dnia roboczego wstecz (IN_OKNO_DNI dób kalendarzowych); dzień z historii albo oznaczony jako brak sesji jest pomijany. Odpowiedź 404 dla dnia
+# starszego niż IN_BRAK_H godzin (od północy UTC tego dnia) = dzień bez sesji (święto) i jest zapamiętana; dla młodszego — plik jeszcze niepublikowany (ponowna próba w następnym przebiegu). Na przebieg najwyżej
+# IN_LIMIT_ZAP[rodzaj] plików danego rodzaju (uzupełnianie historii rozłożone na kolejne przebiegi), budżet czasu IN_LIMIT s. Soboty i niedziele pomijane (specjalne sesje weekendowe nie wchodzą do historii).
+IN_V = 1
+IN_EVERY_MIN = 60
+IN_BASE = 'https://nsearchives.nseindia.com/'
+IN_PLIKI = {'ind': 'content/indices/ind_close_all_{d}.csv', 'oi': 'content/nsccl/fao_participant_oi_{d}.csv',
+            'vol': 'content/nsccl/fao_participant_vol_{d}.csv', 'dl': 'products/content/sec_bhavdata_full_{d}.csv'}
+IN_LIMIT_ZAP = {'ind': 8, 'oi': 8, 'vol': 3, 'dl': 4}   # zapytań danego rodzaju na przebieg (vol: tylko najnowszy dzień, bez historii — kilka prób, bo dzień bieżący bywa jeszcze niepublikowany)
+IN_OKNO_DNI = 45           # dób kalendarzowych wstecz (ok. 31 sesji)
+IN_HIST = 120              # sesji w historii każdego rodzaju
+IN_BRAK_H = 30             # h od północy UTC dnia: 404 starszego dnia = brak sesji
+IN_BLAD_DNI = 7            # plik starszego dnia, którego nie da się odczytać, jest pomijany (zapamiętany jako brak) po tylu dobach
+IN_SLEEP = 0.7             # s między zapytaniami
+IN_TIMEOUT = 25            # s na zapytanie
+IN_LIMIT = 60              # s — budżet czasu budowy pliku
+IN_ZAPAS_DNI = 5           # część po błędzie zostaje z poprzedniego pliku najwyżej tyle dób od jej ostatniego udanego sprawdzenia
+IN_PE_MAX, IN_PB_MAX, IN_DY_MAX, IN_ZM_MAX = 1000.0, 100.0, 30.0, 60.0   # pasma wiarygodności: P/E, P/B, stopa dywidendy %, zmiana dzienna % (z 31 sesji: P/E 7–218, P/B 1,1–12,3, dywidenda do 6,6 %, zmiana −7,9…+22,6 %)
+IN_DL_MIN_EQ = 1000        # najmniej poprawnych wierszy serii głównej w pliku dostaw (zwykle ok. 2700)
+IN_TOL = 3                 # zaokrąglenia giełdy: suma czterech grup różni się od wiersza sumy o najwyżej tyle kontraktów (z 31 sesji: do 1)
+IN_SZEROKIE = ('Nifty 50', 'Nifty Next 50', 'Nifty 100', 'Nifty 500', 'Nifty Midcap 100', 'Nifty Smallcap 100', 'Nifty Microcap 250')
+IN_SEKTORY = ('Nifty Bank', 'Nifty IT', 'Nifty Financial Services', 'Nifty Private Bank', 'Nifty PSU Bank', 'Nifty Auto', 'Nifty FMCG', 'Nifty Pharma', 'Nifty Healthcare Index', 'Nifty Metal',
+              'Nifty Realty', 'Nifty Energy', 'Nifty Oil & Gas', 'Nifty Power', 'Nifty Infrastructure', 'Nifty Capital Goods', 'Nifty Consumer Durables', 'Nifty Media', 'Nifty Telecommunications',
+              'Nifty Cement', 'Nifty Chemicals', 'Nifty India Defence')
+IN_HIST_IDX = ('Nifty 50', 'Nifty 500', 'Nifty Midcap 100', 'Nifty Smallcap 100', 'Nifty Bank', 'India VIX')
+IN_FAO_KOLUMNY = (('ifl', 'Future Index Long'), ('ifs', 'Future Index Short'), ('sfl', 'Future Stock Long'), ('sfs', 'Future Stock Short'), ('icl', 'Option Index Call Long'),
+                  ('ipl', 'Option Index Put Long'), ('ics', 'Option Index Call Short'), ('ips', 'Option Index Put Short'), ('scl', 'Option Stock Call Long'), ('spl', 'Option Stock Put Long'),
+                  ('scs', 'Option Stock Call Short'), ('sps', 'Option Stock Put Short'), ('tl', 'Total Long Contracts'), ('ts', 'Total Short Contracts'))
+IN_UCZ = ('Client', 'DII', 'FII', 'Pro')
+IN_MIES = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+_IN_TERMIN = [None]
+_IN_KAN = {n.casefold(): n for n in (*IN_SZEROKIE, *IN_SEKTORY, *IN_HIST_IDX)}   # nazwa w pliku bywa w innej wielkości liter („NIFTY Midcap 100”) — zapisujemy postać kanoniczną
+
+
+def in_dni(now):
+    """Dni robocze (pon–pt) od dziś (UTC) wstecz przez IN_OKNO_DNI dób kalendarzowych, najnowszy pierwszy."""
+    d0 = now.date()
+    return [d for d in (d0 - datetime.timedelta(days=i) for i in range(IN_OKNO_DNI)) if d.weekday() < 5]
+
+
+def in_get(rodzaj, d):
+    """Plik dnia d jako tekst; 404 = None (brak pliku); 403, 429 i inne błędy = wyjątek (bez obchodzenia blokady). Odstęp między zapytaniami IN_SLEEP s."""
+    time.sleep(IN_SLEEP)
+    left = IN_TIMEOUT if _IN_TERMIN[0] is None else max(1, min(IN_TIMEOUT, _IN_TERMIN[0] - time.monotonic()))
+    url = IN_BASE + IN_PLIKI[rodzaj].format(d=d.strftime('%d%m%Y'))
+    try:
+        st, body = get(url, timeout=left)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise RuntimeError(f'HTTP {e.code}' + (' (blokada serwera)' if e.code in (403, 429) else '')) from None
+    if st != 200 or not body.strip():
+        raise RuntimeError(f'HTTP {st}' if st != 200 else 'pusta odpowiedź')
+    return body
+
+
+def in_parse_ind(text, d):
+    """Zamknięcia indeksów dnia d → {nazwa: [zamknięcie, zmiana %, P/E, P/B, stopa dywidendy %, obrót w crore]}; tylko wiersze z wyceną i India VIX; zły plik = ValueError."""
+    rows = list(csv.reader(io.StringIO(text.lstrip('\ufeff'))))
+    if len(rows) < 2:
+        raise ValueError('ind: pusty plik')
+    hd = [h.strip() for h in rows[0]]
+    need = ('Index Name', 'Index Date', 'Closing Index Value', 'Change(%)', 'Turnover (Rs. Cr.)', 'P/E', 'P/B', 'Div Yield')
+    if any(h not in hd for h in need):
+        raise ValueError('ind: zmieniony nagłówek pliku')
+    ix = {h: hd.index(h) for h in need}
+    want, out = d.strftime('%d-%m-%Y'), {}
+    for r in rows[1:]:
+        if len(r) < len(hd) or not r[ix['Index Name']].strip():
+            continue
+        name = r[ix['Index Name']].strip()
+        if r[ix['Index Date']].strip() != want:
+            raise ValueError(f'ind: wiersz {name!r} ma datę {r[ix["Index Date"]].strip()!r} zamiast {want}')
+        close = lev_num(r[ix['Closing Index Value']])
+        if close is None or close <= 0:
+            continue
+        kan = _IN_KAN.get(name.casefold())
+        rdzen = kan in IN_HIST_IDX
+        zm, pe, pb, dy, tv = (lev_num(r[ix[k]]) for k in ('Change(%)', 'P/E', 'P/B', 'Div Yield', 'Turnover (Rs. Cr.)'))
+        zm_ok = zm is None or abs(zm) <= IN_ZM_MAX
+        pe_ok = pe is None or 0 < pe < IN_PE_MAX
+        pb_ok = pb is None or 0 < pb < IN_PB_MAX
+        dy_ok = dy is None or 0 <= dy <= IN_DY_MAX
+        if rdzen and not (zm_ok and pe_ok and pb_ok and dy_ok):   # indeks z wykresów: wartość poza pasmem = błąd pliku; inny wiersz — samo pole pomijamy (brak, nie zero)
+            raise ValueError(f'ind: {name}: wartość poza przedziałem wiarygodności')
+        zm, pe, pb, dy = (v if ok else None for v, ok in ((zm, zm_ok), (pe, pe_ok), (pb, pb_ok), (dy, dy_ok)))
+        if pe is None and kan != 'India VIX':
+            continue
+        out[kan or name] = [close, zm, pe, pb, dy, tv if tv is not None and tv >= 0 else None]
+    n50 = out.get('Nifty 50')
+    if not n50 or n50[2] is None or n50[3] is None:
+        raise ValueError('ind: brak wiersza Nifty 50 z wyceną')
+    if len(out) < 30:
+        raise ValueError(f'ind: tylko {len(out)} wierszy z wyceną')
+    return out
+
+
+def in_parse_fao(text, d, rodzaj):
+    """Pozycje uczestników (rodzaj 'oi' — stan otwartych pozycji, 'vol' — obroty) dnia d → {grupa: {kolumna: liczba kontraktów}} dla Client, DII, FII, Pro; zły plik = ValueError."""
+    lines = text.lstrip('\ufeff').split('\n', 1)
+    m = re.search(r'as on ([A-Za-z]{3})[a-z]* (\d{1,2}),? (\d{4})', lines[0])
+    if not m or len(lines) < 2:
+        raise ValueError('fao: brak daty w tytule pliku')
+    if ('Open Interest' if rodzaj == 'oi' else 'Trading Volume') not in lines[0]:
+        raise ValueError('fao: tytuł pliku nie pasuje do rodzaju')
+    try:
+        dd = datetime.date(int(m.group(3)), IN_MIES.index(m.group(1).capitalize()) + 1, int(m.group(2)))
+    except ValueError:
+        raise ValueError('fao: zła data w tytule pliku') from None
+    if dd != d:
+        raise ValueError(f'fao: plik z dnia {dd.isoformat()} zamiast {d.isoformat()}')
+    rows = list(csv.reader(io.StringIO(lines[1])))
+    hd = [h.strip() for h in rows[0]] if rows else []
+    if any(n not in hd for _, n in IN_FAO_KOLUMNY):
+        raise ValueError('fao: zmieniony nagłówek pliku')
+    ix = {k: hd.index(n) for k, n in IN_FAO_KOLUMNY}
+    G = {}
+    for r in rows[1:]:
+        if r and len(r) >= len(hd) and r[0].strip() in (*IN_UCZ, 'TOTAL'):
+            v = {k: lev_num(r[i]) for k, i in ix.items()}
+            if any(x is None or x < 0 or x != int(x) for x in v.values()):
+                raise ValueError(f'fao: {r[0].strip()}: zła liczba kontraktów')
+            G[r[0].strip()] = {k: int(x) for k, x in v.items()}
+    if set(G) != {*IN_UCZ, 'TOTAL'}:
+        raise ValueError('fao: brak wiersza grupy uczestników')
+    for k, _ in IN_FAO_KOLUMNY:
+        if abs(sum(G[u][k] for u in IN_UCZ) - G['TOTAL'][k]) > IN_TOL:
+            raise ValueError(f'fao: suma grup różni się od wiersza sumy ({k})')
+    if abs(G['TOTAL']['tl'] - G['TOTAL']['ts']) > IN_TOL:
+        raise ValueError('fao: łączne pozycje long i short się różnią')
+    return {u: G[u] for u in IN_UCZ}
+
+
+def in_parse_dl(text, d):
+    """Plik dnia z dostawami → {'agg': {n, tv, dv, v, q}, 'top': [[symbol, dostarczono crore, udział dostaw %, zmiana ceny %, obrót crore]]} dla serii EQ; kwoty w crore (1 crore = 10 mln INR); zły plik = ValueError."""
+    rows = csv.reader(io.StringIO(text.lstrip('\ufeff')), skipinitialspace=True)
+    hd = [h.strip() for h in next(rows, [])]
+    need = ('SYMBOL', 'SERIES', 'DATE1', 'PREV_CLOSE', 'CLOSE_PRICE', 'AVG_PRICE', 'TTL_TRD_QNTY', 'DELIV_QTY')
+    if any(h not in hd for h in need):
+        raise ValueError('dl: zmieniony nagłówek pliku')
+    ix = {h: hd.index(h) for h in need}
+    want = f'{d.day:02d}-{IN_MIES[d.month - 1]}-{d.year}'
+    n = bad = 0
+    tq = dq = tv = dv = 0.0
+    L = []
+    for r in rows:
+        if len(r) < len(hd) or r[ix['SERIES']].strip() != 'EQ':
+            continue
+        if r[ix['DATE1']].strip() != want:
+            raise ValueError(f'dl: wiersz {r[ix["SYMBOL"]].strip()!r} ma datę {r[ix["DATE1"]].strip()!r} zamiast {want}')
+        q, dqty, ap, pc, cp = (lev_num(r[ix[k]]) for k in ('TTL_TRD_QNTY', 'DELIV_QTY', 'AVG_PRICE', 'PREV_CLOSE', 'CLOSE_PRICE'))
+        if None in (q, dqty, ap) or q <= 0 or ap <= 0 or dqty < 0 or dqty > q * 1.0001:
+            bad += 1
+            continue
+        n += 1
+        tq += q
+        dq += dqty
+        tv += q * ap
+        dv += dqty * ap
+        L.append((dqty * ap, r[ix['SYMBOL']].strip(), dqty / q * 100, (cp / pc - 1) * 100 if cp and pc and cp > 0 and pc > 0 else None, q * ap))
+    if n < IN_DL_MIN_EQ or bad > 0.05 * (n + bad):
+        raise ValueError(f'dl: za mało poprawnych wierszy serii głównej ({n}, odrzucone {bad})')
+    L.sort(key=lambda x: -x[0])
+    return {'agg': {'n': n, 'tv': round(tv / 1e7), 'dv': round(dv / 1e7), 'v': round(dv / tv * 100, 2), 'q': round(dq / tq * 100, 2)},
+            'top': [[s, round(v / 1e7, 1), round(p, 1), None if z is None else round(z, 2), round(o / 1e7, 1)] for v, s, p, z, o in L[:8]]}
+
+
+def in_zbierz(rodzaj, parse, now, have, miss, newest=None, historia=True):
+    """Pliki danego rodzaju od najnowszego dnia roboczego wstecz: dni z `have` (historia) i `miss` (brak sesji) pomijane; wynik ([(dzień, odczyt)] od najnowszego, nowe dni bez sesji, błąd albo None).
+    404: starszy niż IN_BRAK_H h = brak sesji (zapamiętany), młodszy = jeszcze niepublikowany. Wyjątek zapytania (403, 429, czas) kończy rodzaj w tym przebiegu; plik, którego nie da się odczytać,
+    kończy go też, ale starszy niż IN_BLAD_DNI dób jest zapamiętany jako brak (nie blokuje w kółko). historia=False: tylko dni nowsze niż `newest`, po pierwszym odczycie koniec."""
+    wyn, nowe, err, n = [], [], None, 0
+    for d in in_dni(now):
+        iso = d.isoformat()
+        if not historia and newest and iso <= newest:
+            break
+        if iso in have or iso in miss:
+            continue
+        if n >= IN_LIMIT_ZAP[rodzaj] or (_IN_TERMIN[0] is not None and time.monotonic() > _IN_TERMIN[0]):
+            break
+        wiek_h = (now - datetime.datetime.combine(d, datetime.time(0), tzinfo=datetime.timezone.utc)).total_seconds() / 3600
+        n += 1
+        try:
+            txt = in_get(rodzaj, d)
+        except Exception as e:  # noqa — zapytanie nie powiodło się: koniec rodzaju w tym przebiegu
+            err = str(e)[:120]
+            break
+        if txt is None:
+            if wiek_h > IN_BRAK_H:
+                nowe.append(iso)
+            continue
+        try:
+            wyn.append((d, parse(txt, d)))
+        except ValueError as e:
+            err = str(e)[:120]
+            if wiek_h > IN_BLAD_DNI * 24:
+                nowe.append(iso)
+                continue
+            break
+        if not historia:
+            break
+    return wyn, nowe, err
+
+
+def in_hist_czysta(H, pola=None):
+    """Historia z poprzedniego pliku: tylko wpisy-słowniki z poprawnym dniem, rosnąco, bez powtórzeń."""
+    out = {}
+    for h in H if isinstance(H, list) else []:
+        if isinstance(h, dict) and isinstance(h.get('d'), str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', h['d']):
+            out[h['d']] = h
+    return [out[k] for k in sorted(out)]
+
+
+def in_miss_czysty(M):
+    return sorted({m for m in (M if isinstance(M, list) else []) if isinstance(m, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', m)})
+
+
+def in_t(P, err):
+    """Czas ostatniego sprawdzenia części bez błędu: teraz, a po błędzie — czas z poprzedniego pliku (dane z postępem nie udają świeżego sprawdzenia)."""
+    return NOW if not err else (P.get('t') if isinstance(P.get('t'), str) else NOW)
+
+
+def in_cz_ind(prev, now):
+    """Część ind: (obiekt, błąd). Historia dobowa wybranych indeksów (IN_HIST_IDX), wiersze z wyceną ostatniej sesji, zestawy do wykresów."""
+    P = prev if isinstance(prev, dict) else {}
+    H, miss = in_hist_czysta(P.get('hist')), in_miss_czysty(P.get('miss'))
+    wyn, nowe, err = in_zbierz('ind', in_parse_ind, now, {h['d'] for h in H}, set(miss))
+    asof, rows = (P.get('asof'), P.get('rows')) if isinstance(P.get('rows'), dict) and isinstance(P.get('asof'), str) else (None, None)
+    for d, R in wyn:
+        H.append({'d': d.isoformat(), 'x': {n: [R[n][0], R[n][2], R[n][3], R[n][4]] for n in IN_HIST_IDX if n in R}})
+        if asof is None or d.isoformat() > asof:
+            asof, rows = d.isoformat(), R
+    if rows is None:
+        raise ValueError(err or 'brak plików indeksów')
+    H = in_hist_czysta(H)[-IN_HIST:]
+    obj = {'asof': asof, 't': in_t(P, err), 'rows': rows, 'sets': {'broad': [n for n in IN_SZEROKIE if n in rows], 'sect': [n for n in IN_SEKTORY if n in rows]},
+           'hist': H, 'miss': in_miss_czysty(miss + nowe)[-IN_HIST:]}
+    return obj, err
+
+
+def in_cz_fao(prev, now):
+    """Część fao: (obiekt, błąd). Stan pozycji (oi) z historią dobową pozycji w kontraktach na indeksy i obroty (vol) ostatniej sesji."""
+    P = prev if isinstance(prev, dict) else {}
+    H, miss, vmiss = in_hist_czysta(P.get('hist')), in_miss_czysty(P.get('miss')), in_miss_czysty(P.get('vmiss'))
+    wyn, nowe, err = in_zbierz('oi', lambda t_, d_: in_parse_fao(t_, d_, 'oi'), now, {h['d'] for h in H}, set(miss))
+    asof, oi = (P.get('asof'), P.get('oi')) if isinstance(P.get('oi'), dict) and isinstance(P.get('asof'), str) else (None, None)
+    for d, R in wyn:
+        H.append({'d': d.isoformat(), **{u: [R[u]['ifl'], R[u]['ifs']] for u in IN_UCZ}})
+        if asof is None or d.isoformat() > asof:
+            asof, oi = d.isoformat(), R
+    vasof, vol = (P.get('vasof'), P.get('vol')) if isinstance(P.get('vol'), dict) and isinstance(P.get('vasof'), str) else (None, None)
+    vw, vnowe, verr = (in_zbierz('vol', lambda t_, d_: in_parse_fao(t_, d_, 'vol'), now, set(), set(vmiss), newest=vasof, historia=False)
+                       if not err or err.startswith('fao:') else ([], [], None))   # błąd zapytania (blokada, czas) w pliku pozycji — bez dalszych zapytań do tego serwera w tym przebiegu
+    for d, R in vw:
+        vasof, vol = d.isoformat(), R
+    if oi is None and vol is None:
+        raise ValueError(err or verr or 'brak plików pozycji')
+    obj = {'asof': asof, 't': in_t(P, err or verr), 'oi': oi, 'hist': in_hist_czysta(H)[-IN_HIST:], 'miss': in_miss_czysty(miss + nowe)[-IN_HIST:],
+           'vasof': vasof, 'vol': vol, 'vmiss': in_miss_czysty(vmiss + vnowe)[-IN_HIST:]}
+    return obj, err or verr
+
+
+def in_cz_dl(prev, now):
+    """Część dl: (obiekt, błąd). Udział dostaw ostatniej sesji z ośmioma spółkami o największej wartości dostaw i historia dobowa udziału."""
+    P = prev if isinstance(prev, dict) else {}
+    H, miss = in_hist_czysta(P.get('hist')), in_miss_czysty(P.get('miss'))
+    wyn, nowe, err = in_zbierz('dl', in_parse_dl, now, {h['d'] for h in H}, set(miss))
+    asof, agg, top = (P.get('asof'), P.get('agg'), P.get('top')) if isinstance(P.get('agg'), dict) and isinstance(P.get('asof'), str) else (None, None, None)
+    for d, R in wyn:
+        a = R['agg']
+        H.append({'d': d.isoformat(), 'v': a['v'], 'q': a['q'], 'tv': a['tv'], 'dv': a['dv']})
+        if asof is None or d.isoformat() > asof:
+            asof, agg, top = d.isoformat(), a, R['top']
+    if agg is None:
+        raise ValueError(err or 'brak plików dostaw')
+    obj = {'asof': asof, 't': in_t(P, err), 'agg': agg, 'top': top, 'hist': in_hist_czysta(H)[-IN_HIST:], 'miss': in_miss_czysty(miss + nowe)[-IN_HIST:]}
+    return obj, err
+
+
+def build_indie(prev=None):
+    """v399: data/indie.json {v, at, src, part_at, ok, ind, fao, dl}. Część, która zawiodła, zostaje z poprzedniego pliku (najwyżej IN_ZAPAS_DNI dób od jej ostatniego udanego sprawdzenia), błąd do META['errors'];
+    postęp części z błędem (np. nowe dni wczytane przed awarią) zostaje zapisany, ale część liczy się jako nieudana; wszystkie części bez danych = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == IN_V else {}
+    now = _ix_dt(NOW) or datetime.datetime.now(datetime.timezone.utc)
+    out = {'v': IN_V, 'at': NOW, 'src': 'dzienne pliki giełdy w Indiach: zamknięcia indeksów z wyceną, pozycje uczestników w kontraktach, udział dostaw akcji', 'part_at': {}, 'ok': {}}
+    _IN_TERMIN[0] = time.monotonic() + IN_LIMIT
+    try:
+        for part, job in (('ind', in_cz_ind), ('fao', in_cz_fao), ('dl', in_cz_dl)):
+            obj, err = None, None
+            try:
+                obj, err = job(pv.get(part), now)
+            except Exception as e:  # noqa — jedna część nie psuje drugiej
+                err = str(e)[:160]
+            if err:
+                META['errors'].append(mask(f'Indie: {part}: {err}')[:200])
+            out['ok'][part] = not err
+            old, t_old = pv.get(part), _zapas_czas(pv, part)
+            stary = bool(err) and t_old is not None and not _zapas_wiek_ok(t_old, IN_ZAPAS_DNI)   # nieudane sprawdzenia od ponad IN_ZAPAS_DNI dób: część wypada z pliku (brak, nie stare dane bez końca)
+            if obj is not None and not stary:
+                out[part] = obj
+                out['part_at'][part] = NOW if not err else (t_old or NOW)
+            elif isinstance(old, dict) and not stary and _zapas_wiek_ok(t_old, IN_ZAPAS_DNI):
+                out[part] = old
+                out['part_at'][part] = t_old
+    finally:
+        _IN_TERMIN[0] = None
+    if not any(p in out for p in ('ind', 'fao', 'dl')):
+        raise RuntimeError('żaden plik giełdy nie odpowiedział')
+    return out
+
+
+def in_czesc():
+    """v399: część przebiegu → krotka wartości dla META['ok'] (ind, fao, dl): True = część się udała, 'cached' = poprzedni plik jeszcze świeży (IN_EVERY_MIN min), False = zawiodła.
+    Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('indie')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == IN_V else None
+    if prev and fresh_pelny(prev, IN_EVERY_MIN):
+        save('indie', prev)
+        return ('cached', 'cached', 'cached')
+    try:
+        obj = build_indie(prev)
+        save('indie', obj)
+        return tuple(obj['ok'].get(p, False) for p in ('ind', 'fao', 'dl'))
+    except Exception as e:
+        META['errors'].append(mask(f'Indie: {e}')[:200])
+        if prev:
+            save('indie', prev)
+        return (False, False, False)
+
+
+ZRODLA_META.update({'indie_ind': 'nse', 'indie_fao': 'nse', 'indie_dl': 'nse'})   # v399: giełda w Indiach (+1 źródło)
 
 
 if __name__ == '__main__':

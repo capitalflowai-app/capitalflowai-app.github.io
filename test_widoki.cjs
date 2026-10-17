@@ -28919,7 +28919,7 @@ test('v384: strona — słownik v384 jest ostatnim, czysty JSON z jedną linią 
   const mm = [...html.matchAll(/^const EXTRA(\d+)=(\{.*\});\nfor\(const l in EXTRA\1\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],EXTRA\1\[l\]\);$/gm)], mine = mm.filter(m => m[2].includes('"bs2.t"'));
   assert.equal(mine.length, 1); assert.ok(+mm[mm.length - 1][1] >= +mine[0][1], 'słownik v384 liczony jako kolejny po najwyższym; kolejne słowniki mają wyższe numery');
   const D = JSON.parse(mine[0][2]); assert.deepEqual(Object.keys(D).sort(), [...L10_384].sort()); assert.equal(Object.keys(D.pl).length, 108); assert.ok(Object.keys(D.pl).every(k => k.startsWith('bs2.')));
-  assert.equal(html.split("(typeof bs2D==='function'?bs2D():'')+szBlk()+").length, 2, 'hook raz, przed sektorami');
+  assert.equal(html.split("(typeof bs2D==='function'?bs2D():'')").length, 2, 'hook raz'); assert.ok(/\(typeof bs2D==='function'\?bs2D\(\):''\)(\+\(typeof \w+==='function'\?\w+\(\):''\))*\+szBlk\(\)\+/.test(html), 'hook po bs2D (i kolejnych blokach), przed sektorami');
   assert.ok(html.indexOf('/* v384 (F11Z5): BIS — kredyt, obsługa długu') > html.indexOf('/* v371 (F3Z1): koniec */') && html.indexOf('/* v384 (F11Z5): koniec */') < html.indexOf('\nsuLoad();suAuto();'), 'moduł w zakresie panelu surowców (cięcie testów)');
   assert.equal((bs2t.code.match(/srvJSON\('bis2'\)/g) || []).length, 1, 'jedno miejsce pobrania');
   assert.ok(!/suLoad\(\)[^\n]*bis2|SRV_LD[^\n]*bis2|SRV_GR\['bis2'\]/.test(html), 'plik nie jest w ładowarce startowej — tylko po rozwinięciu');
@@ -30286,4 +30286,181 @@ test('v397: telefon 390 px — kafle w siatce panelu (.etfkpis), bez własnej sz
   assert.ok(!/width\s*:\s*\d{3,}px|min-width\s*:\s*\d{3,}px|overflow-x/.test(c), 'bez stałych szerokości w bloku');
   assert.ok(c.includes('<div class="etfkpis">') && c.includes('class="etfd" id="lev-sent"'));
   assert.ok(html.includes('#c-dzwignia .etfkpis') || html.includes('.etfkpis{'), 'siatka kafli panelu istnieje');
+});
+
+/* ===================== v399 (F11Z12): INDIE — wycena indeksów, pozycje uczestników w kontraktach, udział dostaw: blok „Indie …” (#su-b-inx) w #g-surowce (plik data/indie.json po rozwinięciu) =====================
+   INX_FILE — wynik zbieracza v399 (build_indie) na prawdziwych plikach dziennych z 17.10.2026 (31 sesji: 03.09–16.10; ostatnia 16.10: Nifty 50 23 146,15, P/E 19,77, P/B 2,84; zagraniczni w kontraktach na indeksy
+   long 39 966 / short 312 965; udział dostaw 45,79%; dostawy z 6 sesji), wiersze indeksów ograniczone do zestawów i India VIX. Zegar przypięty (atrapa su295), wiek danych — atrapa „wiek(…)”. */
+const INX_FILE = {"v":1,"at":"2026-10-17T10:50:00+00:00","src":"dzienne pliki giełdy w Indiach: zamknięcia indeksów z wyceną, pozycje uczestników w kontraktach, udział dostaw akcji","part_at":{"ind":"2026-10-17T10:50:00+00:00","fao":"2026-10-17T10:50:00+00:00","dl":"2026-10-17T10:50:00+00:00"},"ok":{"ind":true,"fao":true,"dl":true},"ind":{"asof":"2026-10-16","t":"2026-10-17T10:50:00+00:00","rows":{"Nifty 50":[23146.15,0.65,19.77,2.84,1.49,38621.86],"Nifty Next 50":[68988.6,0.46,18.03,3.31,1.48,11953.93],"Nifty 100":[24133.1,0.61,19.42,2.92,1.49,50575.79],"Nifty 500":[22270.05,0.4,21.89,3.12,1.3,90108.07],"Nifty Midcap 100":[59129.75,-0.11,27.77,3.76,0.93,18324.04],"Nifty Smallcap 100":[19129.8,-0.01,36.49,3.71,0.65,14164.76],"Nifty Auto":[25768.5,0.75,29.95,4.03,1.13,3360.32],"Nifty Bank":[55844.0,0.06,13.21,1.68,1.12,10150.92],"Nifty Energy":[36190.85,-0.06,14.3,1.99,2.49,7998.74],"Nifty Financial Services":[25387.1,0.09,15.57,2.34,0.98,12711.35],"Nifty FMCG":[44616.15,-0.39,30.84,7.41,2.58,2004.13],"Nifty IT":[31924.1,3.92,19.75,5.59,3.66,14285.12],"Nifty Media":[1648.25,1.92,43.57,1.79,0.9,742.79],"Nifty Metal":[12133.2,0.95,15.91,2.58,1.75,3023.95],"Nifty Pharma":[25781.65,-0.14,39.88,4.85,0.58,2963.57],"Nifty PSU Bank":[8094.95,0.67,7.25,1.12,2.58,2167.35],"Nifty Realty":[825.95,-0.33,34.98,3.61,0.5,707.18],"Nifty Infrastructure":[8725.6,0.46,21.82,2.59,1.33,14353.92],"India VIX":[14.06,0.27,null,null,null,null],"Nifty Private Bank":[27700.55,0.08,17.09,1.99,0.65,8594.15],"Nifty Oil & Gas":[10556.75,-0.45,10.52,1.3,3.31,3295.42],"Nifty Healthcare Index":[15683.55,-0.26,40.83,5.18,0.52,3599.35],"Nifty Microcap 250":[25735.85,0.71,26.47,3.09,0.64,10125.17],"Nifty India Defence":[9210.6,0.16,57.38,10.8,0.5,2692.17],"Nifty Consumer Durables":[36247.95,-0.61,58.24,9.34,0.46,1938.36],"Nifty Chemicals":[28364.25,-0.21,42.49,3.74,0.57,959.65],"Nifty Cement":[13596.1,1.62,25.61,1.96,0.75,715.42],"Nifty Power":[8088.96,0.11,18.65,2.27,1.77,2037.43],"Nifty Capital Goods":[16231.29,0.19,43.23,8.84,0.6,10441.94],"Nifty Telecommunications":[3816.77,1.04,14.97,8.08,1.23,5992.94]},"sets":{"broad":["Nifty 50","Nifty Next 50","Nifty 100","Nifty 500","Nifty Midcap 100","Nifty Smallcap 100","Nifty Microcap 250"],"sect":["Nifty Bank","Nifty IT","Nifty Financial Services","Nifty Private Bank","Nifty PSU Bank","Nifty Auto","Nifty FMCG","Nifty Pharma","Nifty Healthcare Index","Nifty Metal","Nifty Realty","Nifty Energy","Nifty Oil & Gas","Nifty Power","Nifty Infrastructure","Nifty Capital Goods","Nifty Consumer Durables","Nifty Media","Nifty Telecommunications","Nifty Cement","Nifty Chemicals","Nifty India Defence"]},"hist":[{"d":"2026-09-03","x":{"Nifty 50":[23873.45,20.18,2.89,1.19],"Nifty 500":[23254.05,22.53,3.24,0.97],"Nifty Midcap 100":[63235.2,30.48,4.35,0.55],"Nifty Smallcap 100":[20050.75,31.76,3.6,0.56],"Nifty Bank":[57380.6,13.58,1.72,0.68],"India VIX":[11.34,null,null,null]}},{"d":"2026-09-04","x":{"Nifty 50":[23897.7,20.2,2.89,1.19],"Nifty 500":[23254.15,22.53,3.24,0.96],"Nifty Midcap 100":[63079.05,30.4,4.34,0.55],"Nifty Smallcap 100":[20095.45,31.83,3.58,0.56],"Nifty Bank":[57369.65,13.57,1.72,0.68],"India VIX":[10.68,null,null,null]}},{"d":"2026-09-07","x":{"Nifty 50":[23779.15,20.1,2.88,1.19],"Nifty 500":[23156.2,22.44,3.22,0.97],"Nifty Midcap 100":[62786.15,30.26,4.32,0.55],"Nifty Smallcap 100":[20100.2,31.84,3.58,0.56],"Nifty Bank":[57088.3,13.51,1.71,0.69],"India VIX":[11.16,null,null,null]}},{"d":"2026-09-08","x":{"Nifty 50":[23635.1,19.98,2.86,1.2],"Nifty 500":[23106.1,22.39,3.21,0.97],"Nifty Midcap 100":[62915.8,30.32,4.33,0.54],"Nifty Smallcap 100":[20133.75,31.89,3.56,0.55],"Nifty Bank":[56777.55,13.43,1.7,0.69],"India VIX":[11.23,null,null,null]}},{"d":"2026-09-09","x":{"Nifty 50":[23431.5,19.81,2.83,1.21],"Nifty 500":[22958.75,22.25,3.19,0.97],"Nifty Midcap 100":[62592.8,30.17,4.31,0.55],"Nifty Smallcap 100":[20036.9,31.74,3.54,0.56],"Nifty Bank":[56295.55,13.32,1.69,0.7],"India VIX":[11.92,null,null,null]}},{"d":"2026-09-10","x":{"Nifty 50":[23477.8,19.85,2.84,1.21],"Nifty 500":[22952.35,22.24,3.19,0.97],"Nifty Midcap 100":[62357.35,30.05,4.29,0.55],"Nifty Smallcap 100":[20021.95,31.71,3.54,0.56],"Nifty Bank":[56471.95,13.36,1.69,0.69],"India VIX":[11.8,null,null,null]}},{"d":"2026-09-11","x":{"Nifty 50":[23398.1,19.78,2.83,1.21],"Nifty 500":[22866.5,22.16,3.18,0.98],"Nifty Midcap 100":[62197.2,29.98,4.28,0.56],"Nifty Smallcap 100":[19906.3,31.53,3.52,0.56],"Nifty Bank":[56606.55,13.39,1.7,0.69],"India VIX":[12.29,null,null,null]}},{"d":"2026-09-15","x":{"Nifty 50":[23118.6,19.54,2.8,1.23],"Nifty 500":[22477.45,21.78,3.12,0.99],"Nifty Midcap 100":[60878.25,29.34,4.18,0.57],"Nifty Smallcap 100":[19422.45,30.76,3.41,0.56],"Nifty Bank":[55794.75,13.2,1.67,0.7],"India VIX":[13.43,null,null,null]}},{"d":"2026-09-16","x":{"Nifty 50":[23217.6,19.63,2.81,1.22],"Nifty 500":[22532.0,21.83,3.13,0.99],"Nifty Midcap 100":[60874.2,29.34,4.18,0.57],"Nifty Smallcap 100":[19388.3,30.71,3.41,0.57],"Nifty Bank":[56292.45,13.32,1.69,0.7],"India VIX":[13.17,null,null,null]}},{"d":"2026-09-17","x":{"Nifty 50":[23270.6,19.67,2.81,1.22],"Nifty 500":[22654.65,21.95,3.14,0.99],"Nifty Midcap 100":[61432.1,29.61,4.21,0.56],"Nifty Smallcap 100":[19535.7,30.94,3.41,0.57],"Nifty Bank":[56055.75,13.26,1.68,0.7],"India VIX":[12.29,null,null,null]}},{"d":"2026-09-18","x":{"Nifty 50":[23346.4,19.74,2.82,1.21],"Nifty 500":[22840.55,22.13,3.17,0.98],"Nifty Midcap 100":[62191.25,29.97,4.26,0.55],"Nifty Smallcap 100":[19875.7,31.48,3.45,0.55],"Nifty Bank":[56358.7,13.33,1.69,0.7],"India VIX":[11.39,null,null,null]}},{"d":"2026-09-21","x":{"Nifty 50":[23414.3,19.79,2.83,1.21],"Nifty 500":[22860.05,22.15,3.17,0.98],"Nifty Midcap 100":[62013.1,29.89,4.21,0.55],"Nifty Smallcap 100":[19861.5,31.46,3.45,0.55],"Nifty Bank":[56470.65,13.36,1.69,0.69],"India VIX":[11.25,null,null,null]}},{"d":"2026-09-22","x":{"Nifty 50":[23329.0,19.72,2.82,1.21],"Nifty 500":[22794.2,22.09,3.16,0.98],"Nifty Midcap 100":[61963.15,29.86,4.2,0.55],"Nifty Smallcap 100":[19815.45,31.39,3.44,0.55],"Nifty Bank":[56215.55,13.3,1.68,0.7],"India VIX":[11.0,null,null,null]}},{"d":"2026-09-23","x":{"Nifty 50":[23446.8,19.82,2.84,1.21],"Nifty 500":[22935.1,22.23,3.18,0.97],"Nifty Midcap 100":[62396.45,30.07,4.23,0.55],"Nifty Smallcap 100":[19991.5,31.67,3.47,0.56],"Nifty Bank":[56548.9,13.38,1.69,0.69],"India VIX":[10.35,null,null,null]}},{"d":"2026-09-24","x":{"Nifty 50":[23063.1,19.5,2.79,1.23],"Nifty 500":[22552.6,21.85,3.12,0.99],"Nifty Midcap 100":[60990.15,29.4,4.14,0.56],"Nifty Smallcap 100":[19684.75,31.18,3.42,0.56],"Nifty Bank":[55438.5,13.12,1.66,0.71],"India VIX":[12.69,null,null,null]}},{"d":"2026-09-25","x":{"Nifty 50":[23140.5,19.56,2.8,1.22],"Nifty 500":[22603.5,21.9,3.13,0.99],"Nifty Midcap 100":[60906.0,29.35,4.13,0.56],"Nifty Smallcap 100":[19715.25,31.23,3.43,0.56],"Nifty Bank":[55580.4,13.15,1.66,0.7],"India VIX":[12.16,null,null,null]}},{"d":"2026-09-28","x":{"Nifty 50":[22780.25,19.26,2.75,1.24],"Nifty 500":[22232.15,21.54,3.08,1.01],"Nifty Midcap 100":[59914.2,28.88,4.06,0.57],"Nifty Smallcap 100":[19351.1,30.65,3.36,0.57],"Nifty Bank":[54471.65,12.89,1.63,0.72],"India VIX":[13.64,null,null,null]}},{"d":"2026-09-29","x":{"Nifty 50":[22716.2,19.2,2.75,1.25],"Nifty 500":[22101.0,21.42,3.06,1.01],"Nifty Midcap 100":[59319.4,28.59,4.02,0.58],"Nifty Smallcap 100":[19193.55,30.4,3.33,0.58],"Nifty Bank":[54259.95,12.84,1.62,0.72],"India VIX":[13.41,null,null,null]}},{"d":"2026-09-30","x":{"Nifty 50":[22620.45,19.36,2.78,1.22],"Nifty 500":[22072.1,21.77,3.09,1.02],"Nifty Midcap 100":[59332.05,27.98,3.77,0.65],"Nifty Smallcap 100":[19245.7,37.71,3.73,0.53],"Nifty Bank":[54633.05,12.95,1.65,0.72],"India VIX":[13.49,null,null,null]}},{"d":"2026-10-01","x":{"Nifty 50":[22421.95,19.19,2.75,1.23],"Nifty 500":[21857.75,21.56,3.06,1.03],"Nifty Midcap 100":[58732.0,27.7,3.73,0.65],"Nifty Smallcap 100":[19058.65,37.37,3.69,0.55],"Nifty Bank":[54450.75,12.91,1.64,0.73],"India VIX":[14.46,null,null,null]}},{"d":"2026-10-05","x":{"Nifty 50":[22555.75,19.3,2.77,1.23],"Nifty 500":[21971.6,21.67,3.08,1.03],"Nifty Midcap 100":[59123.65,27.88,3.76,0.66],"Nifty Smallcap 100":[19149.1,37.54,3.71,0.54],"Nifty Bank":[54714.1,12.97,1.65,0.72],"India VIX":[14.78,null,null,null]}},{"d":"2026-10-06","x":{"Nifty 50":[22776.1,19.49,2.8,1.21],"Nifty 500":[22202.85,21.9,3.11,1.02],"Nifty Midcap 100":[59761.2,28.19,3.8,0.65],"Nifty Smallcap 100":[19448.7,38.13,3.77,0.54],"Nifty Bank":[55128.4,13.07,1.66,0.72],"India VIX":[13.61,null,null,null]}},{"d":"2026-10-07","x":{"Nifty 50":[22603.05,19.34,2.78,1.22],"Nifty 500":[22059.9,21.75,3.09,1.02],"Nifty Midcap 100":[59382.6,28.01,3.78,0.66],"Nifty Smallcap 100":[19506.95,38.25,3.78,0.53],"Nifty Bank":[55055.55,13.05,1.66,0.72],"India VIX":[13.89,null,null,null]}},{"d":"2026-10-08","x":{"Nifty 50":[22231.8,19.02,2.73,1.24],"Nifty 500":[21616.15,21.32,3.03,1.04],"Nifty Midcap 100":[57882.5,27.3,3.68,0.67],"Nifty Smallcap 100":[19050.1,37.35,3.69,0.55],"Nifty Bank":[54515.05,12.92,1.64,0.73],"India VIX":[15.28,null,null,null]}},{"d":"2026-10-09","x":{"Nifty 50":[22520.45,19.27,2.77,1.52],"Nifty 500":[21866.65,21.56,3.06,1.31],"Nifty Midcap 100":[58787.3,27.73,3.74,0.94],"Nifty Smallcap 100":[19153.7,37.55,3.71,0.63],"Nifty Bank":[55256.65,13.1,1.66,1.13],"India VIX":[14.38,null,null,null]}},{"d":"2026-10-12","x":{"Nifty 50":[22363.35,19.12,2.75,1.53],"Nifty 500":[21822.75,21.51,3.06,1.31],"Nifty Midcap 100":[58834.55,27.75,3.74,0.94],"Nifty Smallcap 100":[19425.8,38.09,3.76,0.62],"Nifty Bank":[54918.0,13.02,1.65,1.14],"India VIX":[15.25,null,null,null]}},{"d":"2026-10-13","x":{"Nifty 50":[22721.95,19.41,2.79,1.51],"Nifty 500":[22090.0,21.76,3.1,1.3],"Nifty Midcap 100":[59459.2,28.04,3.78,0.93],"Nifty Smallcap 100":[19447.4,37.86,3.77,0.63],"Nifty Bank":[55481.05,13.15,1.67,1.13],"India VIX":[14.12,null,null,null]}},{"d":"2026-10-14","x":{"Nifty 50":[22622.7,19.33,2.78,1.52],"Nifty 500":[22038.0,21.7,3.09,1.31],"Nifty Midcap 100":[59409.1,28.02,3.78,0.93],"Nifty Smallcap 100":[19384.8,37.72,3.76,0.63],"Nifty Bank":[55316.0,13.11,1.67,1.13],"India VIX":[14.63,null,null,null]}},{"d":"2026-10-15","x":{"Nifty 50":[22997.35,19.65,2.82,1.49],"Nifty 500":[22180.8,21.83,3.11,1.3],"Nifty Midcap 100":[59197.25,27.84,3.76,0.93],"Nifty Smallcap 100":[19131.7,37.05,3.71,0.65],"Nifty Bank":[55810.5,13.2,1.68,1.12],"India VIX":[14.03,null,null,null]}},{"d":"2026-10-16","x":{"Nifty 50":[23146.15,19.77,2.84,1.49],"Nifty 500":[22270.05,21.89,3.12,1.3],"Nifty Midcap 100":[59129.75,27.77,3.76,0.93],"Nifty Smallcap 100":[19129.8,36.49,3.71,0.65],"Nifty Bank":[55844.0,13.21,1.68,1.12],"India VIX":[14.06,null,null,null]}}],"miss":["2026-09-14","2026-10-02"]},"fao":{"asof":"2026-10-16","t":"2026-10-17T10:50:00+00:00","oi":{"Client":{"ifl":276618,"ifs":56704,"sfl":3453649,"sfs":294863,"icl":3823581,"ipl":4191151,"ics":3767056,"ips":4682637,"scl":2396725,"spl":1064078,"scs":1365136,"sps":1205337,"tl":15205802,"ts":11371733},"DII":{"ifl":51503,"ifs":14310,"sfl":352565,"sfs":4680162,"icl":10575,"ipl":89881,"ics":1900,"ips":0,"scl":5225,"spl":47310,"scs":428253,"sps":44127,"tl":557059,"ts":5168752},"FII":{"ifl":39966,"ifs":312965,"sfl":3616748,"sfs":2840084,"icl":707527,"ipl":1318296,"ics":981202,"ips":797059,"scl":310336,"spl":414657,"scs":467996,"sps":290447,"tl":6407530,"ts":5689753},"Pro":{"ifl":45888,"ifs":29996,"sfl":874777,"sfs":482630,"icl":1223426,"ipl":1247278,"ics":1014951,"ips":1366909,"scl":1119074,"spl":1103283,"scs":1569975,"sps":1089417,"tl":5613725,"ts":5553878}},"hist":[{"d":"2026-09-03","Client":[261619,55623],"DII":[42163,28876],"FII":[33502,268604],"Pro":[48193,32374]},{"d":"2026-09-04","Client":[261701,51859],"DII":[42445,31076],"FII":[33689,269527],"Pro":[46273,31646]},{"d":"2026-09-07","Client":[269796,50886],"DII":[42493,31440],"FII":[34987,285080],"Pro":[50324,30194]},{"d":"2026-09-08","Client":[276494,50856],"DII":[43447,32175],"FII":[37183,298740],"Pro":[54219,29572]},{"d":"2026-09-09","Client":[283444,52964],"DII":[43738,29127],"FII":[39027,315277],"Pro":[63306,32147]},{"d":"2026-09-10","Client":[286829,55858],"DII":[43284,28392],"FII":[39694,321538],"Pro":[66741,30760]},{"d":"2026-09-11","Client":[286353,54865],"DII":[43743,29395],"FII":[41252,326134],"Pro":[66613,27567]},{"d":"2026-09-15","Client":[292649,53186],"DII":[43240,29518],"FII":[46258,337310],"Pro":[68738,30871]},{"d":"2026-09-16","Client":[289936,56634],"DII":[40557,28011],"FII":[47446,335549],"Pro":[72202,29947]},{"d":"2026-09-17","Client":[295116,56168],"DII":[40622,27764],"FII":[47548,337589],"Pro":[68177,29942]},{"d":"2026-09-18","Client":[297981,56561],"DII":[40741,27774],"FII":[48406,336834],"Pro":[64601,30560]},{"d":"2026-09-21","Client":[297064,55345],"DII":[40954,27774],"FII":[47731,338277],"Pro":[64099,28452]},{"d":"2026-09-22","Client":[300851,55140],"DII":[40955,27774],"FII":[40257,343165],"Pro":[70336,26320]},{"d":"2026-09-23","Client":[294244,53999],"DII":[39976,27774],"FII":[40611,339224],"Pro":[72732,26566]},{"d":"2026-09-24","Client":[310605,64494],"DII":[39984,32538],"FII":[43743,353565],"Pro":[87061,30796]},{"d":"2026-09-25","Client":[310325,65926],"DII":[40198,33627],"FII":[46305,358306],"Pro":[91203,30172]},{"d":"2026-09-28","Client":[321005,63487],"DII":[39355,32367],"FII":[51567,371236],"Pro":[86620,31457]},{"d":"2026-09-29","Client":[284203,60390],"DII":[50075,14567],"FII":[27879,295186],"Pro":[31565,23579]},{"d":"2026-09-30","Client":[301040,58614],"DII":[49642,17592],"FII":[29394,312264],"Pro":[35278,26884]},{"d":"2026-10-01","Client":[306566,56754],"DII":[48119,14862],"FII":[29605,339779],"Pro":[51101,23996]},{"d":"2026-10-05","Client":[301687,59654],"DII":[47700,14872],"FII":[29117,331508],"Pro":[54509,26979]},{"d":"2026-10-06","Client":[297348,60248],"DII":[47973,14072],"FII":[30285,324010],"Pro":[52602,29878]},{"d":"2026-10-07","Client":[303069,57669],"DII":[47974,14055],"FII":[33426,331711],"Pro":[53637,34671]},{"d":"2026-10-08","Client":[307664,60271],"DII":[47792,11542],"FII":[31583,338692],"Pro":[53159,29693]},{"d":"2026-10-09","Client":[291627,62104],"DII":[48096,16166],"FII":[34943,328931],"Pro":[64003,31468]},{"d":"2026-10-12","Client":[301068,58139],"DII":[48510,14349],"FII":[32268,328128],"Pro":[54382,35612]},{"d":"2026-10-13","Client":[289087,59230],"DII":[48831,14300],"FII":[35416,324911],"Pro":[57667,32560]},{"d":"2026-10-14","Client":[296818,51460],"DII":[48983,18961],"FII":[34282,330979],"Pro":[54685,33368]},{"d":"2026-10-15","Client":[274365,55053],"DII":[50751,14310],"FII":[38549,318376],"Pro":[51015,26941]},{"d":"2026-10-16","Client":[276618,56704],"DII":[51503,14310],"FII":[39966,312965],"Pro":[45888,29996]}],"miss":["2026-09-14","2026-10-02"],"vasof":"2026-10-16","vol":{"Client":{"ifl":38995,"ifs":38393,"sfl":320484,"sfs":340768,"icl":36038317,"ipl":31342085,"ics":36039705,"ips":31361531,"scl":1944415,"spl":906887,"scs":1856515,"sps":872829,"tl":70591183,"ts":70509741},"DII":{"ifl":1702,"ifs":950,"sfl":172558,"sfs":123601,"icl":0,"ipl":8220,"ics":10430,"ips":0,"scl":6144,"spl":2411,"scs":25068,"sps":2975,"tl":191035,"ts":163024},"FII":{"ifl":16678,"ifs":9850,"sfl":359523,"sfs":369420,"icl":5063791,"ipl":5340481,"ics":5129584,"ips":5266271,"scl":312886,"spl":195661,"scs":320956,"sps":190822,"tl":11289020,"ts":11286903},"Pro":{"ifl":13542,"ifs":21724,"sfl":385428,"sfs":404204,"icl":45568251,"ipl":41258413,"ics":45490640,"ips":41321397,"scl":3537707,"spl":2157320,"scs":3598613,"sps":2195653,"tl":92920661,"ts":93032231}},"vmiss":[]},"dl":{"asof":"2026-10-16","t":"2026-10-17T10:50:00+00:00","agg":{"n":2691,"tv":121123,"dv":55467,"v":45.79,"q":36.05},"top":[["BHARTIARTL",3891.4,80.6,2.75,4826.2],["TCS",1702.3,57.4,4.89,2968.3],["INFY",1614.3,54.8,4.61,2946.3],["ICICIBANK",1427.1,68.7,0.55,2076.3],["HDFCBANK",1396.7,66.2,0.28,2111.1],["LIQUIDBEES",1242.1,84.1,0.0,1476.4],["RELIANCE",1238.4,59.6,-0.31,2079.5],["TECHM",1027.8,28.1,8.48,3657.7]],"hist":[{"d":"2026-10-09","v":39.82,"q":31.97,"tv":99202,"dv":39506},{"d":"2026-10-12","v":42.8,"q":34.63,"tv":95655,"dv":40942},{"d":"2026-10-13","v":40.43,"q":33.8,"tv":104483,"dv":42243},{"d":"2026-10-14","v":42.81,"q":35.68,"tv":115450,"dv":49423},{"d":"2026-10-15","v":43.48,"q":37.13,"tv":117576,"dv":51121},{"d":"2026-10-16","v":45.79,"q":36.05,"tv":121123,"dv":55467}],"miss":["2026-09-03","2026-09-04","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18","2026-09-21","2026-09-22","2026-09-23","2026-09-24","2026-09-25","2026-09-28","2026-09-29","2026-09-30","2026-10-01","2026-10-02","2026-10-05","2026-10-06","2026-10-07","2026-10-08"]}};
+const inxt = {
+  run(L, files) {
+    const K = su295.mk(L, Object.assign({}, SU295_ALL, files === undefined ? {'indie': INX_FILE} : files));
+    K.api.suApply(SU295_FILE);
+    K.toggle = open => { for (const [ev, fn] of K.clicks) if (ev === 'toggle') fn({target: {id: 'su-b-inx', open: open !== false}}); };
+    return K;
+  },
+  open(L, files) { const K = inxt.run(L, files); K.toggle(true); return K; },
+  blk: h => { const a = h.indexOf('<details class="etfd su-b su-pl su-inx" id="su-b-inx"'); if (a < 0) return '';
+    let d = 0, i = a; for (const m of h.slice(a).matchAll(/<details\b|<\/details>/g)) { d += m[0] === '</details>' ? -1 : 1; if (d === 0) { i = a + m.index + 10; break; } } return h.slice(a, i); },
+  txt: h => su295.txt(h.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<img[^>]*>/g, '')),
+  secs: h => { const o = {}; h.split('<p class="wk-sub">').slice(1).forEach(s => { const t = su295.txt(s.slice(0, s.indexOf('</p>'))); o[t.split(' · ')[0]] = s; }); return o; },
+  bars: h => [...h.matchAll(/<div class="wk-br([^"]*)" data-t="([^"]*)"><span class="wk-bl">([\s\S]*?)<\/span><svg([\s\S]*?)<\/svg><span class="wk-bv[^"]*">([\s\S]*?)<\/span><\/div>/g)]
+    .map(m => ({na: /\bna\b/.test(m[1]), tip: su295.txt(m[2]), l: su295.txt(m[3].replace(/<img[^>]*>/g, '')), v: su295.txt(m[5]), cls: (/class="wk-b (\w+)"/.exec(m[4]) || [])[1] || '', raw: m[5], svg: m[4]})),
+  tiles: h => { const o = {}, M = [...h.matchAll(/<div class="etfk su-k" data-inx="(\w+)">/g)];
+    M.forEach((m, i) => { o[m[1]] = h.slice(m.index, i + 1 < M.length ? M[i + 1].index : undefined); }); return o; },
+  tl: x => ({v: su295.txt(/<b>([\s\S]*?)<\/b>/.exec(x)[1]), vcls: (/<b><span class="(\w+)">/.exec(x) || [])[1] || '', subs: [...x.matchAll(/<small class="mtxt su-x ?(\w*)">([\s\S]*?)<\/small>/g)].map(m => [m[1], su295.txt(m[2])]),
+    date: su295.txt((/<small class="mtxt su-d">([\s\S]*?)<\/small>/.exec(x) || [, ''])[1])}),
+  code: html.slice(html.indexOf('/* ===================== v399 (F11Z12): INDIE'), html.indexOf('/* v399 (F11Z12): koniec */')),
+  F: () => su295.clone(INX_FILE),
+};
+const L10_399 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+
+test('v399: blok „Indie …” — zwinięty przed stopką panelu, po bloku kredytu i długu; plik dopiero po rozwinięciu (jedno pobranie), komunikaty wczytywania i błędu', () => {
+  const K = inxt.run('pl'), h0 = su295.sp(K.el.innerHTML), b0 = inxt.blk(h0);
+  assert.ok(b0.startsWith('<details class="etfd su-b su-pl su-inx" id="su-b-inx" data-su-inx="1"><summary><span class="icos">') && b0.includes('img/glify/chart.svg') && b0.includes('img/flagi/in.svg')
+    && b0.includes('Indie: wycena giełdy, zagraniczni inwestorzy w kontraktach i dostawy akcji'), 'blok zwijany z wykresem i flagą Indii');
+  assert.ok(h0.indexOf('id="su-b-inx"') > h0.indexOf('id="su-b-bs2"') && h0.indexOf('id="su-b-inx"') < h0.indexOf('<p class="pfoot">'), 'po bloku kredytu i długu, przed stopką panelu');
+  assert.equal(h0.split('id="su-b-inx"').length, 2, 'jeden blok');
+  assert.ok(b0.includes('<p class="pnote">Wczytuję dane o rynku w Indiach…</p>') && !K.calls.includes('indie'), 'przy starcie strony bez pobierania pliku');
+  assert.ok(!/<details[^>]* open/.test(b0), 'zwinięty');
+  K.toggle(true);
+  assert.equal(K.calls.filter(x => x === 'indie').length, 1, 'rozwinięcie = jedno pobranie');
+  K.toggle(true); K.toggle(false);
+  assert.equal(K.calls.filter(x => x === 'indie').length, 1, 'ponowne rozwinięcie młodego pliku (< 10 min) bez nowego pobrania, zwinięcie bez pobrania');
+  assert.ok(inxt.blk(su295.sp(K.el.innerHTML)).includes('Wycena rynku'), 'dane po rozwinięciu');
+  const F = inxt.F(), BAD = [null, Object.assign({}, F, {v: 2}), Object.assign({}, F, {at: 'wczoraj'}), {v: 1, at: F.at}, {v: 1, at: F.at, ind: 'x'}];
+  for (const bad of BAD) {
+    const E = inxt.run('pl', {'indie': bad}); E.toggle(true);
+    const b = inxt.blk(su295.sp(E.el.innerHTML));
+    assert.ok(b.includes('<p class="pnote">Nie udało się wczytać danych — zwiń i rozwiń blok za minutę, aby spróbować ponownie.</p>') && !b.includes('Wycena rynku'), JSON.stringify(bad).slice(0, 40));
+    E.toggle(true); assert.equal(E.calls.filter(x => x === 'indie').length, 1, 'po błędzie bez pętli zapytań (najwcześniej po minucie)');
+  }
+});
+
+test('v399: wycena — pięć kafli (poziom Nifty 50 ze zmianą dnia, P/E i P/B ze zmianą w 30 dni i wartością sprzed 30 dni, stopa dywidendy bez historii, India VIX), data sesji, data sprawdzenia i wiek', () => {
+  const K = inxt.open('pl'), b = su295.sp(inxt.blk(K.el.innerHTML)), T = inxt.tiles(b), D = su295.day('pl', '2026-10-16'), D2 = su295.day('pl', '2026-10-17');
+  assert.deepEqual(Object.keys(T).slice(0, 5), ['lvl', 'pe', 'pb', 'dy', 'vix']);
+  const t = Object.fromEntries(Object.keys(T).map(k => [k, inxt.tl(T[k])]));
+  assert.equal(t.lvl.v, '23 146'); assert.deepEqual(t.lvl.subs, [['pos', '▲ +0,65% w dniu sesji']]);
+  assert.equal(t.pe.v, '19,8'); assert.deepEqual(t.pe.subs, [['pos', '▲ +0,1 w 30 dni'], ['', '30 dni temu: 19,6']]);
+  assert.equal(t.pb.v, '2,84'); assert.deepEqual(t.pb.subs, [['pos', '▲ +0,03 w 30 dni'], ['', '30 dni temu: 2,81']]);
+  assert.equal(t.dy.v, '1,49%'); assert.deepEqual(t.dy.subs, [], 'stopa dywidendy tylko za ostatnią sesję — bez porównania w czasie');
+  assert.equal(t.vix.v, '14,1'); assert.deepEqual(t.vix.subs, [['pos', '▲ +0,27% w dniu sesji']]);
+  for (const k of ['lvl', 'pe', 'pb', 'dy', 'vix']) assert.equal(t[k].date, 'Dane z sesji ' + D + ' · sprawdzone ' + D2 + ' · wiek(2026-10-16)', k + ': sesja, sprawdzenie i wiek');
+  assert.ok(T.lvl.includes('Nifty 50: indeks 50 największych spółek') && T.pe.includes('Nifty 50: cena do zysku (P/E)') && T.vix.includes('India VIX: indeks strachu'));
+});
+
+test('v399: wycena — linie P/E trzech grup spółek w kolorach tożsamości, słupki P/E według wielkości i sektorów (kolejność, wartości, zmiana dnia w kolorze znaku)', () => {
+  const K = inxt.open('pl'), b = su295.sp(inxt.blk(K.el.innerHTML)), S = inxt.secs(b);
+  const ln = S['Cena do zysku (P/E) w czasie: duże, średnie i małe spółki'];
+  assert.ok(ln && ['ix1', 'ix2', 'ix3'].every(c => ln.includes('<polyline class="wk-l ' + c + '"')) && ln.includes('Wykres liniowy: P/E trzech grup spółek, 30 sesji'), 'trzy linie, opis wykresu');
+  const leg = su295.txt(/<div class="wk-leg">([\s\S]*?)<\/div>/.exec(ln)[1].replace(/<\/span>/g, '</span> ')); assert.equal(leg, 'Duże (Nifty 50) Średnie (Midcap 100) Małe (Smallcap 100)');
+  const sz = inxt.bars(S['P/E według wielkości spółek']);
+  assert.deepEqual(sz.map(r => [r.l, r.v]), [['Nifty 50', '19,8 ▲ +0,65%'], ['Nifty Next 50', '18,0 ▲ +0,46%'], ['Nifty 100', '19,4 ▲ +0,61%'], ['Nifty 500', '21,9 ▲ +0,40%'],
+    ['Nifty Midcap 100', '27,8 ▼ −0,11%'], ['Nifty Smallcap 100', '36,5 ▼ −0,01%'], ['Nifty Microcap 250', '26,5 ▲ +0,71%']], 'kolejność wg wielkości spółek');
+  assert.ok(sz.every(r => r.cls === 'ix1') && sz[4].raw.includes('<small class="neg">▼ −0,11%</small>') && sz[0].raw.includes('<small class="pos">▲ +0,65%</small>'), 'słupki w jednym kolorze tożsamości, zmiana w kolorze znaku');
+  assert.ok(sz[0].tip.includes('Nifty 50: P/E 19,8 · P/B 2,84 · Nifty 50: stopa dywidendy 1,49%') || sz[0].tip.includes('P/E 19,8 · P/B 2,84'), sz[0].tip);
+  const se = inxt.bars(S['P/E według sektorów']);
+  assert.equal(se.length, 22);
+  assert.deepEqual(se.slice(0, 3).map(r => [r.l, r.v]), [['Nifty Consumer Durables', '58,2 ▼ −0,61%'], ['Nifty India Defence', '57,4 ▲ +0,16%'], ['Nifty Media', '43,6 ▲ +1,92%']]);
+  assert.ok(se.every((r, i) => i === 0 || parseFloat(r.v.split(' ')[0].replace(',', '.')) <= parseFloat(se[i - 1].v.split(' ')[0].replace(',', '.'))), 'malejąco wg P/E');
+  assert.ok(S['P/E według sektorów'].includes('img/flagi/in.svg'), 'flaga Indii przy każdej pozycji (zasada właściciela: nic bez flagi)');
+  const x = inxt.txt(b);
+  assert.ok(x.includes('Stopę dywidendy pokazujemy tylko za ostatnią sesję') && x.includes('To poziom, a nie ocena'), 'objaśnienie poziomu i stopy dywidendy');
+});
+
+test('v399: kontrakty — trzy kafle zagranicznych (saldo z kolorem znaku, udział long ze zmianą w 30 dni, kontrakty na akcje), udział long czterech grup, saldo według rodzaju kontraktu, przebieg w czasie, udział w obrotach', () => {
+  const K = inxt.open('pl'), b = su295.sp(inxt.blk(K.el.innerHTML)), T = inxt.tiles(b), S = inxt.secs(b);
+  const net = inxt.tl(T.net), lg = inxt.tl(T.long), sf = inxt.tl(T.sf);
+  assert.equal(net.v, '−272 999'); assert.equal(net.vcls, 'neg'); assert.deepEqual(net.subs, [['', 'long 39 966 · short 312 965']]);
+  assert.equal(lg.v, '11,3%'); assert.deepEqual(lg.subs, [['neg', '▼ −1,1 pkt proc. w 30 dni'], ['', '30 dni temu: 12,4%']]);
+  assert.equal(sf.v, '+776 664'); assert.equal(sf.vcls, 'pos');
+  const who = inxt.bars(S['Kto po której stronie: kontrakty terminowe na indeksy (udział long i short)']);
+  assert.deepEqual(who.map(r => [r.l, r.v]), [['Zagraniczni inwestorzy instytucjonalni (FII)', '11% pozycji long'], ['Krajowe instytucje (DII)', '78% pozycji long'], ['Rachunki własne brokerów (Pro)', '60% pozycji long'], ['Klienci detaliczni i pozostali', '83% pozycji long']]);
+  assert.ok(who.every(r => /wk-b ix1/.test(r.svg) && /wk-b ix2/.test(r.svg)), 'long i short w kolorach tożsamości (bez kolorów kierunku)');
+  assert.ok(who[0].tip.includes('long 39 966 · short 312 965'));
+  const fw = /<rect class="wk-b ix1" x="0" y="1.5" width="([\d.]+)"/.exec(who[0].svg);
+  assert.ok(fw && Math.abs(parseFloat(fw[1]) - 11.32) < 0.02, 'pierwszy segment = long (udział 11,3%): ' + (fw && fw[1]));
+  const fr = inxt.bars(S['Zagraniczni: saldo pozycji według rodzaju kontraktu (long minus short)']);
+  assert.deepEqual(fr.map(r => [r.l, r.v, r.cls]), [['Kontrakty terminowe na indeksy', '−272 999', 'neg'], ['Kontrakty terminowe na akcje', '+776 664', 'pos'], ['Opcje kupna (call) na indeksy', '−273 675', 'neg'], ['Opcje sprzedaży (put) na indeksy', '+521 237', 'pos']]);
+  const hl = S['Zagraniczni: udział pozycji long w kontraktach na indeksy w czasie (%)'];
+  assert.ok(hl && hl.includes('<polyline class="wk-l ix1"') && hl.includes('Wykres liniowy: udział pozycji long zagranicznych inwestorów, 30 sesji'));
+  const vol = inxt.bars(S['Udział grup w obrotach kontraktami']);
+  assert.deepEqual(vol.map(r => [r.l, r.v]), [['Zagraniczni inwestorzy instytucjonalni (FII)', '6,5%'], ['Krajowe instytucje (DII)', '0,1%'], ['Rachunki własne brokerów (Pro)', '53,1%'], ['Klienci detaliczni i pozostali', '40,3%']]);
+  assert.ok(S['Udział grup w obrotach kontraktami'].includes('Dane z sesji ' + su295.day('pl', '2026-10-16')), 'obroty z własną datą sesji');
+  assert.ok(inxt.txt(b).includes('ujemne saldo nie musi oznaczać zakładu na spadek'), 'objaśnienie salda');
+});
+
+test('v399: dostawy akcji — trzy kafle (udział wartościowo ze zmianą wobec średniej 5 sesji, obrót, dostarczono), przebieg w czasie, osiem papierów z największą wartością dostaw', () => {
+  const K = inxt.open('pl'), b = su295.sp(inxt.blk(K.el.innerHTML)), T = inxt.tiles(b), S = inxt.secs(b);
+  const dv = inxt.tl(T.dv), tv = inxt.tl(T.tv), dd = inxt.tl(T.dlv);
+  assert.equal(dv.v, '45,8%'); assert.deepEqual(dv.subs, [['pos', '▲ +3,9 pkt proc. wobec średniej'], ['', 'średnia z 5 poprzednich sesji: 41,9%']]);
+  assert.equal(tv.v, '1,21 bln INR'); assert.deepEqual(tv.subs, [['', 'liczba spółek: 2691']]);
+  assert.equal(dd.v, '555 mld INR');
+  const ln = S['Udział dostaw w obrocie w czasie (%)'];
+  assert.ok(ln && ln.includes('<polyline class="wk-l ix1"') && ln.includes('Wykres liniowy: udział dostaw w obrocie, 6 sesji'));
+  const top = inxt.bars(S['Papiery z największą wartością dostaw (ostatnia sesja)']);
+  assert.equal(top.length, 8);
+  assert.ok(inxt.txt(b).includes('Papiery z największą wartością dostaw (ostatnia sesja) · liczba obok kwoty: udział dostaw w obrocie papieru'), 'objaśnienie procentu przy kwocie');
+  assert.deepEqual(top.slice(0, 3).map(r => [r.l, r.v]), [['BHARTIARTL', '38,9 mld INR 81%'], ['TCS', '17,0 mld INR 57%'], ['INFY', '16,1 mld INR 55%']]);
+  assert.ok(top.every(r => r.cls === 'ix1') && top[0].tip.includes('dostarczono 38,9 mld INR z obrotu 48,3 mld INR (81%)') && top[0].tip.includes('+2,75%'), top[0].tip);
+  assert.ok(inxt.txt(b).includes('więc to szacunek'), 'wartość dostarczona opisana jako szacunek');
+});
+
+test('v399: braki danych — część bez pliku: komunikat zamiast połowicznego wykresu; część z nieudanym pobraniem: ostrzeżenie i dane z datą; brak historii, listy papierów i obrotów: bez pustych wykresów', () => {
+  const F = inxt.F(); delete F.fao; delete F.dl;
+  let b = su295.sp(inxt.blk(inxt.open('pl', {'indie': F}).el.innerHTML));
+  assert.ok(b.includes('Części danych jeszcze nie pobrano (pozycje w kontraktach)') && b.includes('Części danych jeszcze nie pobrano (dostawy akcji)') && b.includes('Wycena rynku') && inxt.txt(b).includes('23 146'));
+  const G = inxt.F(); G.ok.fao = false;
+  b = su295.sp(inxt.blk(inxt.open('pl', {'indie': G}).el.innerHTML));
+  assert.ok(b.includes('Ostatnie pobranie części danych się nie udało (pozycje w kontraktach)') && b.includes('−272 999'), 'ostrzeżenie, ale dane z datą zostają');
+  const H = inxt.F(); H.ind.hist = []; H.fao.hist = []; H.fao.vol = null; H.fao.vasof = null; H.dl.top = []; H.dl.hist = [];
+  b = su295.sp(inxt.blk(inxt.open('pl', {'indie': H}).el.innerHTML));
+  const S = inxt.secs(b), x = inxt.txt(b);
+  assert.ok(x.includes('Historia wyceny jest jeszcze zbierana') && !S['Cena do zysku (P/E) w czasie: duże, średnie i małe spółki'], 'bez historii nie ma pustego wykresu');
+  assert.ok(!S['Udział grup w obrotach kontraktami'] && !S['Papiery z największą wartością dostaw (ostatnia sesja)'] && !S['Udział dostaw w obrocie w czasie (%)'] && !S['Zagraniczni: udział pozycji long w kontraktach na indeksy w czasie (%)']);
+  assert.deepEqual(inxt.tl(inxt.tiles(b).pe).subs, [], 'bez historii nie ma porównania w 30 dni (brak, nie zero)');
+  const N = inxt.F(); N.ind.rows['Nifty 50'][3] = null;
+  b = su295.sp(inxt.blk(inxt.open('pl', {'indie': N}).el.innerHTML));
+  assert.ok(b.includes('Części danych jeszcze nie pobrano (wycena indeksów)') && !b.includes('data-inx="pe"'), 'wiersz Nifty 50 bez P/B = część nieużyteczna, nie zero');
+  const W = inxt.F(); W.dl.agg.v = 140;
+  assert.ok(su295.sp(inxt.blk(inxt.open('pl', {'indie': W}).el.innerHTML)).includes('Części danych jeszcze nie pobrano (dostawy akcji)'), 'udział dostaw powyżej 100% = niepoprawna część');
+});
+
+test('v399: słownik — 10 języków z tymi samymi kluczami i polami, bez nazw dostawców; blok składa się w każdym języku bez „NaN”, „undefined” i pozostałych znaczników', () => {
+  const nums = [...html.matchAll(/^const EXTRA(\d+)=\{"pl":\{"inx\.t":/gm)];
+  assert.equal(nums.length, 1, 'jeden słownik v399 (klucze inx.*)');
+  const name = 'EXTRA' + nums[0][1], d0 = html.indexOf('const ' + name + '='), d1 = html.indexOf(';\nfor(const l in ' + name + ')', d0);
+  const dict = JSON.parse(html.slice(d0 + ('const ' + name + '=').length, d1));
+  assert.deepEqual(Object.keys(dict), L10_399);
+  const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join();
+  for (const l of L10_399) {
+    assert.deepEqual(Object.keys(dict[l]), Object.keys(dict.pl), l + ': te same klucze w tej samej kolejności');
+    for (const k of Object.keys(dict.pl)) { assert.equal(ph(dict[l][k]), ph(dict.pl[k]), l + ' ' + k + ': pola'); assert.ok(dict[l][k].trim().length > 1, l + ' ' + k); }
+    for (const k of Object.keys(dict[l])) assert.ok(!/NSE|NSDL|BSE\b|Bloomberg|Reuters|TradingView|National Stock|Stock Exchange of India/.test(dict[l][k]), l + ' ' + k + ': bez nazw dostawców i giełdy');
+  }
+  assert.ok(html.indexOf('for(const l in ' + name + ')') > html.indexOf('for(const l in EXTRA261)'), 'słownik nałożony po słowniku v384');
+  for (const l of L10_399) {
+    const K = inxt.open(l), b = su295.sp(inxt.blk(K.el.innerHTML)), x = inxt.txt(b);
+    assert.ok(b.length > 4000 && !/NaN|undefined|\[object|\{[a-z]+\}/.test(x), l + ': ' + (x.match(/NaN|undefined|\[object|\{[a-z]+\}/) || [''])[0]);
+    assert.ok(x.includes(dict[l]['inx.h.val']) && x.includes(dict[l]['inx.h.pos']) && x.includes(dict[l]['inx.h.dl']), l + ': trzy sekcje');
+    assert.equal(inxt.bars(b).length, 7 + 22 + 4 + 4 + 4 + 8, l + ': słupki');
+  }
+  const en = inxt.tl(inxt.tiles(su295.sp(inxt.blk(inxt.open('en').el.innerHTML))).pe);
+  assert.equal(en.v, '19.8'); assert.deepEqual(en.subs[1], ['', '30 days ago: 19.6']);
+  const de = inxt.tl(inxt.tiles(su295.sp(inxt.blk(inxt.open('de').el.innerHTML))).net);
+  assert.equal(de.v, '−272.999', 'zapis liczb języka widza (de: kropka tysięcy)');
+});
+
+test('v399: kod bloku — jedno pobranie pliku, bez magazynu przeglądarki, bez nazw dostawców i widgetów, haczyk w szablonie panelu GLOBAL, CSS: kolory tożsamości i telefon 390 px', () => {
+  const c = inxt.code;
+  assert.ok(c.length > 3000);
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])indie\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka bloku)');
+  for (const w of ['localStorage', 'sessionStorage', 'fetch(', 'TradingView', 'iframe']) assert.ok(!c.includes(w), 'blok nie używa: ' + w);
+  assert.ok(!/\bNSE\b|NSDL|Bloomberg|Reuters/.test(c.replace(/\/\*[\s\S]*?\*\//g, '')), 'bez nazw dostawców w kodzie bloku');
+  assert.equal(html.split("(typeof inxD==='function'?inxD():'')").length, 2, 'haczyk w szablonie panelu: jeden');
+  assert.ok(html.indexOf("(typeof inxD==='function'?inxD():'')") > html.indexOf("(typeof bs2D==='function'?bs2D():'')") && html.indexOf("(typeof inxD==='function'?inxD():'')") < html.indexOf('szBlk()+`<p class="pfoot">'), 'po bloku kredytu, przed sektorami i stopką');
+  const css = html.slice(html.indexOf('#g-surowce .su-inx .wk-ch .ix1{'), html.indexOf('/* v399 (F11Z12): blok Indie'));
+  assert.ok(css.includes('.ix2{--k:var(--or)}') && css.includes('.ix3{--k:var(--tl)}') && css.includes('@media (max-width:620px)') && !/#[0-9a-fA-F]{3,6}\b/.test(css), 'kolory tożsamości z palety strony, układ telefonu');
+  assert.ok(css.includes('.su-k>small.pos') && css.includes('var(--gr-tx)') && css.includes('var(--rd-tx)') && css.includes('var(--yl-tx)'), 'zmiany w kolorach znaku: zielony, czerwony, żółty');
 });

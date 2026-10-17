@@ -11602,6 +11602,145 @@ def d2_kontrola(j, dz, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v399 (F11Z12): INDIE — WYCENA, POZYCJE W KONTRAKTACH, DOSTAWY (data/indie.json) --------------------------------------
+# Plik: część ind (zamknięcia indeksów z wyceną, historia wybranych indeksów), fao (pozycje czterech grup uczestników w kontraktach, obroty, historia pozycji w kontraktach na indeksy), dl (udział dostaw serii
+# głównej, osiem spółek, historia). Wiek (wiersze świeżości, najwyżej ⚠️): ostatnie udane sprawdzenie każdej części ≤ IN_K_H h (plik odświeżany co ~60 min; część po błędzie zostaje najwyżej 5 dób) oraz dzień
+# ostatniej sesji nie starszy niż IN_K_SESJA dób (z 31 sesji najdłuższa przerwa to 4 doby: weekend i święto; dłuższa przerwa = giełda nie publikuje albo automat nie odczytuje).
+# Spójność w pliku (⚠️): doby historii rosnące i bez powtórzeń, ostatni wpis historii = dzień ostatniej sesji, P/E, P/B i stopa dywidendy Nifty 50 w pasmach z 31 sesji (P/E 18–21, P/B 2,7–2,9, wszystkie indeksy:
+# P/E 7–218), ostatni P/E Nifty 50 zgodny z historią, skok dzienny P/E Nifty 50 > 10 % (z 31 sesji największy 1,7 %), pozycje nieujemne i suma long = suma short czterech grup (±IN_K_TOL; z 31 sesji do 4),
+# udział dostaw 5–95 % i skok dzienny ≤ 25 pkt proc. (z 6 sesji: 40–46 %, skok do 6 pkt proc.), wartość dostarczona ≤ obrót, osiem spółek malejąco.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'indie')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['indie'] = 4 * 60   # zapis co przebieg lub co ~60 min — wiek pliku; wiek części i sesji ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({k_: 'Indie — część z błędem zostaje z datą (v399); wiek sprawdzenia i sesji w wierszach świeżości' for k_ in ('indie_ind', 'indie_fao', 'indie_dl')})
+IN_K_H = 4          # h — wiek ostatniego udanego sprawdzenia części
+IN_K_SESJA = 5      # dób — najstarsza dopuszczalna ostatnia sesja (wobec dnia kontroli)
+IN_K_TOL = 6        # kontraktów — zaokrąglenia giełdy w sumach grup (z 31 sesji do 4 na sumie czterech grup)
+IN_K_ETYKIETA = {'ind': 'Indie — odczyt wyceny indeksów', 'fao': 'Indie — odczyt pozycji w kontraktach', 'dl': 'Indie — odczyt dostaw akcji'}
+
+
+def in_k_dzien(s):
+    """Dzień RRRR-MM-DD → data albo None."""
+    try:
+        return dt.date.fromisoformat(s) if isinstance(s, str) and len(s) == 10 else None
+    except ValueError:
+        return None
+
+
+def in_k_hist(H, asof, klucz=None):
+    """Historia: lista wpisów z 'd' rosnącymi bez powtórzeń, ostatni = asof; zwraca opis usterki albo ''."""
+    if not isinstance(H, list) or not H:
+        return 'brak historii'
+    dni = [h.get('d') if isinstance(h, dict) else None for h in H]
+    if any(in_k_dzien(d) is None for d in dni) or dni != sorted(set(dni)):
+        return 'doby historii nie rosną albo się powtarzają'
+    if len(H) > 120:
+        return 'historia dłuższa niż 120 sesji'
+    if dni[-1] != asof:
+        return f'ostatni wpis historii ({dni[-1]}) to nie ostatnia sesja ({asof})'
+    return ''
+
+
+def indie_kontrola(j, now=None):
+    """data/indie.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    I = j.get('ind') if isinstance(j.get('ind'), dict) else None
+    F = j.get('fao') if isinstance(j.get('fao'), dict) else None
+    D = j.get('dl') if isinstance(j.get('dl'), dict) else None
+    if I is not None:
+        r = I.get('rows') if isinstance(I.get('rows'), dict) else {}
+        n50 = r.get('Nifty 50')
+        if not isinstance(n50, list) or len(n50) < 6 or any(_ste_k_l(n50[i]) is None for i in (0, 2, 3)):
+            zle.append('wycena: brak wiersza Nifty 50 z P/E i P/B')
+        else:
+            if not 5 < n50[2] < 60 or not 0.5 < n50[3] < 15 or (n50[4] is not None and not 0 <= n50[4] <= 10):
+                zle.append(f'wycena: Nifty 50 poza pasmem (P/E {n50[2]}, P/B {n50[3]}, dywidenda {n50[4]})')
+        z = in_k_hist(I.get('hist'), I.get('asof'))
+        if z:
+            zle.append(f'wycena: {z}')
+        else:
+            pe = [h['x']['Nifty 50'][1] for h in I['hist'] if isinstance(h.get('x'), dict) and isinstance(h['x'].get('Nifty 50'), list) and len(h['x']['Nifty 50']) > 1 and _ste_k_l(h['x']['Nifty 50'][1]) is not None]
+            if pe and isinstance(n50, list) and len(n50) > 2 and _ste_k_l(n50[2]) is not None and abs(pe[-1] - n50[2]) > 0.005:
+                zle.append(f'wycena: P/E Nifty 50 w wierszach ({n50[2]}) i w historii ({pe[-1]}) się różni')
+            if len(pe) >= 2 and pe[-2] > 0 and abs(pe[-1] / pe[-2] - 1) > 0.10:
+                zle.append(f'wycena: skok dzienny P/E Nifty 50 {pe[-2]} → {pe[-1]} (> 10 %)')
+        if len(r) < 30:
+            zle.append(f'wycena: tylko {len(r)} wierszy z wyceną')
+    if F is not None:
+        O = F.get('oi') if isinstance(F.get('oi'), dict) else None
+        if O is None:
+            zle.append('pozycje: brak stanu pozycji')
+        else:
+            kol = ('ifl', 'ifs', 'sfl', 'sfs', 'icl', 'ipl', 'ics', 'ips', 'scl', 'spl', 'scs', 'sps', 'tl', 'ts')
+            if any(not isinstance(O.get(u), dict) or any(_ste_k_l(O[u].get(k)) is None or O[u][k] < 0 for k in kol) for u in ('Client', 'DII', 'FII', 'Pro')):
+                zle.append('pozycje: brak grupy uczestników albo liczba ujemna')
+            else:
+                tl, ts = sum(O[u]['tl'] for u in O), sum(O[u]['ts'] for u in O)
+                if abs(tl - ts) > IN_K_TOL:
+                    zle.append(f'pozycje: suma long ({tl}) różni się od sumy short ({ts})')
+                if O['FII']['ifl'] + O['FII']['ifs'] <= 0:
+                    zle.append('pozycje: zagraniczni bez pozycji w kontraktach na indeksy')
+        z = in_k_hist(F.get('hist'), F.get('asof'))
+        if z:
+            zle.append(f'pozycje: {z}')
+        V = F.get('vol') if isinstance(F.get('vol'), dict) else None
+        if V is not None:
+            if any(not isinstance(V.get(u), dict) or _ste_k_l(V[u].get('tl')) is None or _ste_k_l(V[u].get('ts')) is None or V[u]['tl'] < 0 or V[u]['ts'] < 0 for u in ('Client', 'DII', 'FII', 'Pro')):
+                zle.append('obroty: brak grupy uczestników albo liczba ujemna')
+            elif in_k_dzien(F.get('vasof')) is None:
+                zle.append('obroty: zły dzień sesji')
+    if D is not None:
+        A = D.get('agg') if isinstance(D.get('agg'), dict) else None
+        if A is None or any(_ste_k_l(A.get(k)) is None for k in ('n', 'tv', 'dv', 'v', 'q')):
+            zle.append('dostawy: brak sum')
+        else:
+            if not 5 <= A['v'] <= 95 or not 5 <= A['q'] <= 95:
+                zle.append(f'dostawy: udział dostaw poza pasmem 5–95 % ({A["v"]} / {A["q"]})')
+            if A['dv'] > A['tv'] or A['tv'] <= 0:
+                zle.append('dostawy: wartość dostarczona większa niż obrót')
+        T = D.get('top') if isinstance(D.get('top'), list) else []
+        if not T or any(not isinstance(x, list) or len(x) < 3 or _ste_k_l(x[1]) is None or _ste_k_l(x[2]) is None or not 0 <= x[2] <= 100 for x in T) or [x[1] for x in T] != sorted((x[1] for x in T), reverse=True):
+            zle.append('dostawy: lista spółek pusta, zły kształt albo nie malejąco')
+        z = in_k_hist(D.get('hist'), D.get('asof'))
+        if z:
+            zle.append(f'dostawy: {z}')
+        else:
+            v = [h.get('v') for h in D['hist'] if _ste_k_l(h.get('v')) is not None]
+            if len(v) >= 2 and abs(v[-1] - v[-2]) > 25:
+                zle.append(f'dostawy: skok dzienny udziału dostaw {v[-2]} → {v[-1]} (> 25 pkt proc.)')
+    for part, P in (('ind', I), ('fao', F), ('dl', D)):
+        lab = IN_K_ETYKIETA[part]
+        if P is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab, '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (giełda nie odpowiada od ponad 5 dób)')
+            continue
+        t_ = j.get('part_at', {}).get(part) or P.get('t')
+        w = wiek_danych(t_, 'ts', 'k', now) if isinstance(t_, str) else None
+        if w is None:
+            out['rows'].append((lab, '?', None, None, 'brak czasu sprawdzenia'))
+            continue
+        asof = in_k_dzien(P.get('asof'))
+        dni = (now.date() - asof).days if asof else None
+        st, note = '✅', ''
+        if w > IN_K_H * 60:
+            st, note = '⚠️', f'ostatnie udane sprawdzenie starsze niż {IN_K_H} h — giełda nie odpowiada albo zmieniła odpowiedź; najwyżej uwaga'
+        elif dni is not None and dni > IN_K_SESJA:
+            st, note = '⚠️', f'ostatnia sesja sprzed {dni} dób (więcej niż {IN_K_SESJA}) — giełda nie publikuje plików albo automat ich nie odczytuje'
+        out['rows'].append((lab, st, w, f'sesja {P.get("asof")} · sprawdzone {str(t_)[:16].replace("T", " ")} UTC', note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: {note}')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Indie (indie.json): {z}')
+    if I is not None or F is not None or D is not None:
+        out['wiersze'].append(('spójność pliku (wycena, pozycje, dostawy, historia)', '⚠️' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -12039,6 +12178,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['dzwignia2'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Dźwignia 2 (v397): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v399. Indie (data/indie.json): wiek sprawdzenia części i ostatniej sesji, spójność w pliku (wycena, pozycje, dostawy, historia) — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        IN_ = indie_kontrola(files.get('indie'))
+        for label, st, w, txt, note in IN_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += IN_['uwagi']
+        R['zgodnosc']['indie'] = {'spojnosc': IN_['spojnosc'], 'wiersze': IN_['wiersze']} if (IN_['rows'] or IN_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['indie'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Indie (v399): kontrola przerwana ({str(e)[:80]})')
     # 3c-v394. Premie USDT na lokalnych giełdach (data/premie-stable.json): wiek ostatniego wiersza każdego kraju, spójność w pliku i koszyka — z plików strony, bez zapytań; najwyżej ⚠️
     try:
         P_ = pst_kontrola(files.get('premie-stable'))
@@ -12903,6 +13052,11 @@ def raport_md(R):
             L.append('- BIS: kredyt, obsługa długu, wierzyciele i płynność (z pliku strony): ' + (f'? kontrola przerwana ({rb2["blad"]})' if rb2.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(rb2['spojnosc'][:3]) + ' ❌ · ' if rb2.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in rb2.get('wiersze') or []) or '—') + '.')
+        sin_ = Z.get('indie')   # v399: Indie — brak pliku = bez linii
+        if sin_:
+            L.append('- Indie, wycena indeksów, pozycje w kontraktach i dostawy akcji (z pliku strony): ' + (f'? kontrola przerwana ({sin_["blad"]})' if sin_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(sin_['spojnosc'][:3]) + ' ⚠️ · ' if sin_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in sin_.get('wiersze') or []) or '—') + '.')
         sd2_ = Z.get('dzwignia2')   # v397: dźwignia krypto 2 — brak pliku = bez linii
         if sd2_:
             L.append('- Dźwignia krypto 2, nastroje detalu i kredyt marżowy (z pliku strony; porównanie z dzwignia.json tylko informacyjnie): ' + (f'? kontrola przerwana ({sd2_["blad"]})' if sd2_.get('blad') else
