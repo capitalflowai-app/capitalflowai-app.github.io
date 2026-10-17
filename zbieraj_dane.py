@@ -31265,6 +31265,9 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'BIS: {e}')); META['ok']['bis'] = False
             if prev_bis: save('bis', prev_bis); print('BIS zawiódł — zachowano poprzedni bis.json z', prev_bis.get('at'))
+    # v384 (F11Z5): BIS — kredyt, obsługa długu, ceny mieszkań, wierzyciele, emisje, płynność, banki centralne (data/bis2.json; GLOBAL, blok „Rynki wschodzące i świat: kredyt, dług i płynność”) —
+    # siedem części z własnymi bramkami i poprzednią wersją przy awarii, najwyżej raz na BIS2_EVERY_MIN min. META ok: bis2_cg, bis2_dsr, bis2_spp, bis2_lbs, bis2_ids, bis2_gli, bis2_cbta.
+    (META['ok']['bis2_cg'], META['ok']['bis2_dsr'], META['ok']['bis2_spp'], META['ok']['bis2_lbs'], META['ok']['bis2_ids'], META['ok']['bis2_gli'], META['ok']['bis2_cbta']) = bis2_czesc()
     # CFTC TFF (v50, bez klucza): raport w piątki ok. 19:30 UTC (stan na wtorek) — pytamy najwyżej raz na 6 h; przy awarii poprzedni plik
     prev_cftc = previous('cftc')
     if prev_cftc and fresh(prev_cftc, 360):
@@ -38313,6 +38316,359 @@ def build_skarb_dts(prev=None, run_t0=None):
 
 
 ZRODLA_META.update({'skarb_wplywy': 'skarb-usa', 'skarb_dlug': 'skarb-usa', 'skarb_wykupy': 'skarb-usa'})   # v383: to samo źródło co TGA, aukcje i krzywa rentowności — liczba źródeł bez zmian
+
+
+# ===================== v384 (F11Z5): BIS — KREDYT, OBSŁUGA DŁUGU, CENY MIESZKAŃ, WIERZYCIELE, EMISJE, PŁYNNOŚĆ, BANKI CENTRALNE — data/bis2.json =====================
+# Siedem części z jednego publicznego interfejsu statystyk (host i czytnik CSV jak dla stóp i kursów efektywnych: WS_CBPOL, WS_EER, LBS), bez klucza, odpowiedź CSV, klucze serii przypięte
+# (każdy wiersz musi zgadzać się z przypiętymi wymiarami — inny układ = część odrzucona, poprzednia zostaje):
+#   cg   — luka kredytowa (WS_CREDIT_GAP): kredyt dla sektora prywatnego niefinansowego w % PKB minus trend (pp PKB) — wczesne ostrzeżenie kryzysu kredytowego, 16 gospodarek;
+#   dsr  — udział spłat długu w dochodach sektora prywatnego (WS_DSR, %), 16 gospodarek (jak wyżej, bez Singapuru — źródło go nie ma);
+#   spp  — realne ceny mieszkań (WS_SPP, indeks 2010=100, wartość realna), 16 gospodarek;
+#   lbs  — należności banków świata wobec 10 krajów wschodzących (WS_LBS_D_PUB): stan (mln USD), zmiana skorygowana o kursy i przerwy (miara F) z 4 kwartałów oraz struktura
+#          według kraju banku-wierzyciela (12 krajów raportujących; reszta = pozostali);
+#   ids  — międzynarodowe papiery dłużne wyemitowane przez rezydentów regionów i krajów wschodzących (WS_DEBT_SEC2_PUB): stan, emisje brutto i netto (mln USD);
+#   gli  — globalna płynność (WS_GLI): kredyt (kredyty bankowe i papiery dłużne) dla nie-banków poza krajem waluty — USD, EUR, JPY, a dla USD także siedem krajów wschodzących;
+#   cbta — aktywa banków centralnych (WS_CBTA, mld USD po kursie rynkowym), 16 gospodarek (strefa euro = Eurosystem).
+# Rytm: dane kwartalne (cg, dsr, spp, lbs, ids, gli) z opóźnieniem 2-6 miesięcy, miesięczne (cbta) z opóźnieniem 2-3 miesięcy — zbieracz pyta najwyżej raz na BIS2_EVERY_MIN min (10 zapytań,
+# odstęp ≥ BIS2_TEMPO_S s); część z błędem zostaje z poprzedniego pliku (z własną datą pobrania), ponowienie po BIS2_RETRY_MIN min. Bez kalendarza publikacji (plik mały, pytanie raz na dobę).
+BIS2_V = 1
+BIS2_BASE = 'https://stats.bis.org/api/v2/data/dataflow/BIS/'
+BIS2_PARTS = ('cg', 'dsr', 'spp', 'lbs', 'ids', 'gli', 'cbta')
+BIS2_EVERY_MIN = 20 * 60        # poprzedni plik młodszy niż 20 h = bez zapytań (dane kwartalne i miesięczne zmieniają się raz na kilka tygodni)
+BIS2_RETRY_MIN = 55             # część z błędem: ponowienie w następnej godzinie
+BIS2_TEMPO_S = 1.0              # odstęp między zapytaniami do tego samego hosta
+BIS2_TIMEOUT_S = 45
+BIS2_BUDGET_S = 240             # budżet czasu całej budowy; część po jego wyczerpaniu zostaje z poprzedniego pliku
+BIS2_CG = ['CN', 'IN', 'BR', 'TR', 'ZA', 'MX', 'KR', 'ID', 'TH', 'HK', 'SG', 'PL', 'US', 'DE', 'GB', 'JP']
+BIS2_EM = ['CN', 'IN', 'BR', 'TR', 'ZA', 'MX', 'KR', 'ID', 'TH', 'PL']
+BIS2_REP = ['US', 'GB', 'JP', 'DE', 'FR', 'CH', 'NL', 'CA', 'HK', 'SG', 'IT', 'ES']
+BIS2_IDS = ['4T', '4Y', '4U', '4W', 'CN', 'IN', 'BR', 'PL', 'TR', 'ZA', 'MX']      # 4T = rynki wschodzące razem, 4Y Azja, 4U Ameryka Łacińska, 4W Afryka i Bliski Wschód
+BIS2_GLI_EM = ['CN', 'IN', 'BR', 'TR', 'ZA', 'MX', 'ID']
+BIS2_GLI_CUR = ['USD', 'EUR', 'JPY']
+BIS2_CBTA = ['XM', 'JP', 'CN', 'GB', 'CH', 'IN', 'BR', 'KR', 'MX', 'TR', 'ID', 'SA', 'PL', 'CA', 'AU', 'ZA']
+BIS2_MIN = {'cg': 10, 'dsr': 10, 'spp': 10, 'lbs': 8, 'ids': 8, 'gli_em': 5, 'cbta': 10}    # najmniej krajów w części (inaczej odpowiedź uznana za niepełną)
+BIS2_STARE_Q = 6                # kraj ze stanem starszym od kwartału danych o więcej kwartałów nie wchodzi do części
+BIS2_STARE_M = 6                # …albo o więcej miesięcy (aktywa banków centralnych)
+BIS2_Q = re.compile(r'^\d{4}-Q[1-4]$')
+BIS2_M = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+BIS2_URL = {
+    'cg': BIS2_BASE + 'WS_CREDIT_GAP/1.0/Q.' + '+'.join(BIS2_CG) + '.P.A.C?lastNObservations=6&format=csv',
+    'dsr': BIS2_BASE + 'WS_DSR/1.0/Q.' + '+'.join(BIS2_CG) + '.P?lastNObservations=6&format=csv',
+    'spp': BIS2_BASE + 'WS_SPP/1.0/Q.' + '+'.join(BIS2_CG) + '.R.628?lastNObservations=6&format=csv',
+    'lbs_s': BIS2_BASE + 'WS_LBS_D_PUB/1.0/Q.S.C.A.TO1.A.5J.A.5A.A.' + '+'.join(BIS2_EM) + '.N?lastNObservations=5&format=csv',
+    'lbs_f': BIS2_BASE + 'WS_LBS_D_PUB/1.0/Q.F.C.A.TO1.A.5J.A.5A.A.' + '+'.join(BIS2_EM) + '.N?lastNObservations=4&format=csv',
+    'lbs_r': BIS2_BASE + 'WS_LBS_D_PUB/1.0/Q.S.C.A.TO1.A.5J.A.' + '+'.join(BIS2_REP) + '.A.' + '+'.join(BIS2_EM) + '.N?lastNObservations=2&format=csv',
+    'ids': BIS2_BASE + 'WS_DEBT_SEC2_PUB/1.0/Q.' + '+'.join(BIS2_IDS) + '.3P.1.1.C.A.A.TO1.A.A.A.A.A.G+C+I?lastNObservations=6&format=csv',
+    'gli_t': BIS2_BASE + 'WS_GLI/1.0/Q.' + '+'.join(BIS2_GLI_CUR) + '.3P.N.A.I.B.USD+EUR+JPY+771?lastNObservations=8&format=csv',
+    'gli_e': BIS2_BASE + 'WS_GLI/1.0/Q.USD.' + '+'.join(BIS2_GLI_EM) + '.N.A.I.B.USD+771?lastNObservations=8&format=csv',
+    'cbta': BIS2_BASE + 'WS_CBTA/1.0/M.' + '+'.join(BIS2_CBTA) + '.B.USD._Z.B?lastNObservations=13&format=csv',
+}
+# przypięte wymiary (każdy wiersz odpowiedzi musi się zgadzać; wymiary „po kluczu” w idx)
+BIS2_PIN_LBS = {'FREQ': 'Q', 'L_POSITION': 'C', 'L_INSTR': 'A', 'L_DENOM': 'TO1', 'L_CURR_TYPE': 'A', 'L_PARENT_CTY': '5J', 'L_POS_TYPE': 'N', 'UNIT_MEASURE': 'USD', 'UNIT_MULT': '6'}
+BIS2_PIN = {
+    'cg': {'FREQ': 'Q', 'TC_BORROWERS': 'P', 'TC_LENDERS': 'A', 'CG_DTYPE': 'C', 'UNIT_MEASURE': '770'},
+    'dsr': {'FREQ': 'Q', 'DSR_BORROWERS': 'P', 'UNIT_MEASURE': '367'},
+    'spp': {'FREQ': 'Q', 'VALUE': 'R', 'UNIT_MEASURE': '628'},
+    'lbs_s': dict(BIS2_PIN_LBS, L_MEASURE='S', L_REP_BANK_TYPE='A', L_REP_CTY='5A', L_CP_SECTOR='A'),
+    'lbs_f': dict(BIS2_PIN_LBS, L_MEASURE='F', L_REP_BANK_TYPE='A', L_REP_CTY='5A', L_CP_SECTOR='A'),
+    'lbs_r': dict(BIS2_PIN_LBS, L_MEASURE='S', L_REP_BANK_TYPE='A', L_CP_SECTOR='A'),
+    'ids': {'FREQ': 'Q', 'ISSUER_NAT': '3P', 'ISSUER_BUS_IMM': '1', 'ISSUER_BUS_ULT': '1', 'MARKET': 'C', 'ISSUE_TYPE': 'A', 'ISSUE_CUR_GROUP': 'A', 'ISSUE_CUR': 'TO1',
+            'ISSUE_OR_MAT': 'A', 'ISSUE_RE_MAT': 'A', 'ISSUE_RATE': 'A', 'ISSUE_RISK': 'A', 'ISSUE_COL': 'A', 'UNIT_MEASURE': 'USD', 'UNIT_MULT': '6'},
+    'gli': {'FREQ': 'Q', 'BORROWERS_SECTOR': 'N', 'LENDERS_SECTOR': 'A', 'L_POS_TYPE': 'I', 'L_INSTR': 'B'},
+    'cbta': {'FREQ': 'M', 'COMP_METHOD': 'B', 'UNIT_MEASURE': 'USD', 'CURRENCY': '_Z', 'TRANSFORMATION': 'B', 'UNIT_MULT': '9'},
+}
+
+
+def _bis2_qi(p):
+    return int(p[:4]) * 4 + int(p[6]) - 1
+
+
+def _bis2_mi(p):
+    return int(p[:4]) * 12 + int(p[5:7]) - 1
+
+
+def _bis2_parse(raw, pin, idx, per_re):
+    """CSV statystyk → {klucz (krotka wartości kolumn idx): [(okres, liczba), ...]} rosnąco. Wiersz niezgodny z przypiętymi wymiarami, z innym okresem niż wzór, ze statusem braku
+    (H, K, L, M, Q — jak w BIS_MISSING) albo bez skończonej liczby jest pomijany (brak ≠ 0). Brak wymaganych kolumn = wyjątek (zmieniony układ odpowiedzi)."""
+    text = raw.decode('utf-8', errors='replace') if isinstance(raw, (bytes, bytearray)) else str(raw)
+    rd = csv.DictReader(io.StringIO(text))
+    need = {'TIME_PERIOD', 'OBS_VALUE', 'OBS_STATUS', *pin, *idx}
+    if not rd.fieldnames or not need <= set(rd.fieldnames):
+        raise RuntimeError('odpowiedź bez wymaganych kolumn (zmieniony układ)')
+    acc = {}
+    for r in rd:
+        if any((r.get(k) or '').strip() != v for k, v in pin.items()):
+            continue
+        p = (r.get('TIME_PERIOD') or '').strip()
+        if not per_re.match(p) or (r.get('OBS_STATUS') or '').strip() in BIS_MISSING:
+            continue
+        v = _num(r.get('OBS_VALUE'))
+        if v is None or v != v or v in (float('inf'), float('-inf')):
+            continue
+        acc.setdefault(tuple((r.get(k) or '').strip() for k in idx), {})[p] = v
+    return {k: sorted(d.items()) for k, d in acc.items()}
+
+
+def _bis2_tryb(okresy, min_n):
+    """Okres danych części = najczęstszy ostatni okres serii (remis: późniejszy); za mało krajów z tym okresem = wyjątek (niepełna odpowiedź)."""
+    cnt = {}
+    for p in okresy:
+        cnt[p] = cnt.get(p, 0) + 1
+    if not cnt:
+        raise RuntimeError('brak serii')
+    best = max(cnt, key=lambda p: (cnt[p], p))
+    if cnt[best] < max(3, (len(okresy) + 1) // 2) or cnt[best] < min(min_n, len(okresy)):
+        raise RuntimeError(f'okres danych {best} ma tylko {cnt[best]} z {len(okresy)} serii')
+    return best
+
+
+def _bis2_rekord(seria):
+    """Seria kwartalna [(okres, liczba)] → {'q': ostatni okres, 'v': liczba, 'a': liczba z tego samego kwartału rok wcześniej (dokładnie 4 kwartały, inaczej None)}."""
+    q, v = seria[-1]
+    return {'q': q, 'v': v, 'a': dict(seria).get(f'{int(q[:4]) - 1}{q[4:]}')}
+
+
+def _bis2_kwartal(raw, pin, kol, kraje, lo, hi, min_n, nd, nazwa):
+    """Wspólny czytnik części cg / dsr / spp: {kraj: {'q', 'v', 'a'}} + okres danych. Wartość poza [lo, hi] = wyjątek (zła seria, nie dane)."""
+    P = _bis2_parse(raw, pin, (kol,), BIS2_Q)
+    S = {k[0]: s for k, s in P.items() if k[0] in kraje and s}
+    if len(S) < min_n:
+        raise RuntimeError(f'{nazwa}: tylko {len(S)} krajów (min. {min_n})')
+    asof = _bis2_tryb([s[-1][0] for s in S.values()], min_n)
+    qi = _bis2_qi(asof)
+    rows = {}
+    for c in kraje:
+        s = S.get(c)
+        if not s or qi - _bis2_qi(s[-1][0]) > BIS2_STARE_Q:
+            continue
+        for p, v in s:
+            if not lo <= v <= hi:
+                raise RuntimeError(f'{nazwa} {c} {p}: wartość {v} poza zakresem {lo}…{hi}')
+        r = _bis2_rekord(s)
+        r['v'], r['a'] = round(r['v'], nd), (round(r['a'], nd) if r['a'] is not None else None)
+        rows[c] = r
+    if len(rows) < min_n:
+        raise RuntimeError(f'{nazwa}: tylko {len(rows)} aktualnych krajów (min. {min_n})')
+    return {'asof': asof, 'rows': rows}
+
+
+def parse_bis2_cg(raw):
+    return _bis2_kwartal(raw, BIS2_PIN['cg'], 'BORROWERS_CTY', BIS2_CG, -150.0, 150.0, BIS2_MIN['cg'], 2, 'luka kredytowa')
+
+
+def parse_bis2_dsr(raw):
+    return _bis2_kwartal(raw, BIS2_PIN['dsr'], 'BORROWERS_CTY', BIS2_CG, 0.0, 80.0, BIS2_MIN['dsr'], 1, 'obsługa długu')
+
+
+def parse_bis2_spp(raw):
+    return _bis2_kwartal(raw, BIS2_PIN['spp'], 'REF_AREA', BIS2_CG, 1.0, 2000.0, BIS2_MIN['spp'], 2, 'ceny mieszkań')
+
+
+def _bis2_suma4(seria, q):
+    """Suma czterech kolejnych kwartałów kończących się na q (wszystkie muszą być); inaczej None."""
+    d = dict(seria)
+    qi = _bis2_qi(q)
+    ps = [f'{(qi - k) // 4}-Q{(qi - k) % 4 + 1}' for k in range(4)]
+    return sum(d[p] for p in ps) if all(p in d for p in ps) else None
+
+
+def parse_bis2_lbs(raw_s, raw_f, raw_r):
+    """Należności banków świata wobec krajów wschodzących. Wynik: {'asof', 'tot': {kraj: {'v' stan, 'a' stan rok temu, 'f' zmiana 4 kw. (miara F)}}, 'rep': {kraj: {kraj banku: stan}}} (mln USD).
+    Struktura według kraju banku tylko z okresu danych; suma wierzycieli nie może przekroczyć „wszystkich raportujących” (kontrola spójności kluczy)."""
+    S = {k[0]: s for k, s in _bis2_parse(raw_s, BIS2_PIN['lbs_s'], ('L_CP_COUNTRY',), BIS2_Q).items() if k[0] in BIS2_EM and s}
+    if len(S) < BIS2_MIN['lbs']:
+        raise RuntimeError(f'należności: tylko {len(S)} krajów (min. {BIS2_MIN["lbs"]})')
+    asof = _bis2_tryb([s[-1][0] for s in S.values()], BIS2_MIN['lbs'])
+    F = {k[0]: s for k, s in _bis2_parse(raw_f, BIS2_PIN['lbs_f'], ('L_CP_COUNTRY',), BIS2_Q).items()}
+    tot = {}
+    for c in BIS2_EM:
+        s = S.get(c)
+        if not s or s[-1][0] != asof:
+            continue
+        d = dict(s)
+        v = d[asof]
+        if not v > 0:
+            raise RuntimeError(f'należności {c}: stan {v} nie jest dodatni')
+        a = d.get(f'{int(asof[:4]) - 1}{asof[4:]}')
+        f = _bis2_suma4(F.get(c) or [], asof)
+        if f is not None and abs(f) > v:
+            raise RuntimeError(f'należności {c}: zmiana 4 kw. {f} większa od stanu {v}')
+        tot[c] = {'v': round(v), 'a': round(a) if a is not None else None, 'f': round(f) if f is not None else None}
+    R = _bis2_parse(raw_r, BIS2_PIN['lbs_r'], ('L_CP_COUNTRY', 'L_REP_CTY'), BIS2_Q)
+    rep = {}
+    for (c, rc), s in R.items():
+        if c not in tot or rc not in BIS2_REP:
+            continue
+        d = dict(s)
+        if asof in d and d[asof] >= 0:
+            rep.setdefault(c, {})[rc] = round(d[asof])
+    for c, m in rep.items():
+        if sum(m.values()) > tot[c]['v'] * 1.02 + 1:
+            raise RuntimeError(f'należności {c}: suma wierzycieli {sum(m.values())} większa od wszystkich raportujących {tot[c]["v"]}')
+    if len(tot) < BIS2_MIN['lbs']:
+        raise RuntimeError(f'należności: tylko {len(tot)} krajów z okresem {asof}')
+    return {'asof': asof, 'tot': tot, 'rep': {c: rep[c] for c in BIS2_EM if c in rep}}
+
+
+def parse_bis2_ids(raw):
+    """Międzynarodowe papiery dłużne rezydentów regionów i krajów wschodzących: {'asof', 'rows': {obszar: {'q', 'i' stan, 'i4' stan rok temu, 'g1'/'g4' emisje netto, 'c1'/'c4' brutto (kwartał, 4 kw.)}}} (mln USD)."""
+    P = _bis2_parse(raw, BIS2_PIN['ids'], ('ISSUER_RES', 'MEASURE'), BIS2_Q)
+    A = {}
+    for (a, m), s in P.items():
+        if a in BIS2_IDS and m in ('I', 'G', 'C') and s:
+            A.setdefault(a, {})[m] = s
+    A = {a: x for a, x in A.items() if 'I' in x}
+    if len(A) < BIS2_MIN['ids']:
+        raise RuntimeError(f'emisje: tylko {len(A)} obszarów (min. {BIS2_MIN["ids"]})')
+    asof = _bis2_tryb([x['I'][-1][0] for x in A.values()], BIS2_MIN['ids'])
+    rows = {}
+    for a in BIS2_IDS:
+        x = A.get(a)
+        if not x or x['I'][-1][0] != asof:
+            continue
+        di, dg, dc = dict(x['I']), dict(x.get('G') or []), dict(x.get('C') or [])
+        i = di[asof]
+        if i < 0:
+            raise RuntimeError(f'emisje {a}: ujemny stan {i}')
+        g1, c1 = dg.get(asof), dc.get(asof)
+        if g1 is not None and c1 is not None and (c1 < 0 or g1 > c1 + 1):
+            raise RuntimeError(f'emisje {a}: emisje netto {g1} większe od brutto {c1} albo brutto ujemne')
+        ag = _bis2_suma4(x.get('G') or [], asof)
+        ac = _bis2_suma4(x.get('C') or [], asof)
+        rows[a] = {'q': asof, 'i': round(i), 'i4': round(di[f'{int(asof[:4]) - 1}{asof[4:]}']) if f'{int(asof[:4]) - 1}{asof[4:]}' in di else None,
+                   'g1': round(g1) if g1 is not None else None, 'g4': round(ag) if ag is not None else None,
+                   'c1': round(c1) if c1 is not None else None, 'c4': round(ac) if ac is not None else None}
+    if len(rows) < BIS2_MIN['ids']:
+        raise RuntimeError(f'emisje: tylko {len(rows)} obszarów z okresem {asof}')
+    return {'asof': asof, 'rows': rows}
+
+
+def parse_bis2_gli(raw_t, raw_e):
+    """Globalna płynność: {'asof', 'tot': {waluta: {'lvl': [[kw, mln waluty]], 'yoy': [[kw, %]]}}, 'em': {kraj: {'q', 'v' mln USD, 'yoy' %}}}. Wszystkie trzy waluty muszą mieć serie
+    poziomu i zmiany r/r z tym samym ostatnim kwartałem."""
+    P = _bis2_parse(raw_t, BIS2_PIN['gli'], ('CURR_DENOM', 'BORROWERS_CTY', 'UNIT_MEASURE'), BIS2_Q)
+    tot = {}
+    for cur in BIS2_GLI_CUR:
+        lv, yy = P.get((cur, '3P', cur)), P.get((cur, '3P', '771'))
+        if not lv or not yy or lv[-1][0] != yy[-1][0] or len(lv) < 5 or len(yy) < 5:
+            raise RuntimeError(f'płynność {cur}: brak serii poziomu albo zmiany r/r z tym samym kwartałem')
+        if any(not v > 0 for _, v in lv) or any(abs(v) > 200 for _, v in yy):
+            raise RuntimeError(f'płynność {cur}: wartość poza zakresem')
+        tot[cur] = {'lvl': [[p, round(v)] for p, v in lv], 'yoy': [[p, round(v, 3)] for p, v in yy]}
+    asof = _bis2_tryb([tot[c]['lvl'][-1][0] for c in BIS2_GLI_CUR], 3)
+    E = _bis2_parse(raw_e, BIS2_PIN['gli'], ('CURR_DENOM', 'BORROWERS_CTY', 'UNIT_MEASURE'), BIS2_Q)
+    em = {}
+    for c in BIS2_GLI_EM:
+        lv, yy = E.get(('USD', c, 'USD')), E.get(('USD', c, '771'))
+        if not lv or not yy or lv[-1][0] != asof or yy[-1][0] != asof:
+            continue
+        if not lv[-1][1] > 0 or abs(yy[-1][1]) > 200:
+            raise RuntimeError(f'płynność {c}: wartość poza zakresem')
+        em[c] = {'q': asof, 'v': round(lv[-1][1]), 'yoy': round(yy[-1][1], 3)}
+    if len(em) < BIS2_MIN['gli_em']:
+        raise RuntimeError(f'płynność: tylko {len(em)} krajów wschodzących (min. {BIS2_MIN["gli_em"]})')
+    return {'asof': asof, 'tot': tot, 'em': em}
+
+
+def parse_bis2_cbta(raw):
+    """Aktywa banków centralnych (mld USD po kursie rynkowym): {'asof': najnowszy miesiąc, 'rows': {obszar: {'m', 'v', 'a' (12 miesięcy wcześniej)}}}. Kraj ze stanem starszym od najnowszego
+    o więcej niż BIS2_STARE_M miesięcy nie wchodzi do części."""
+    P = _bis2_parse(raw, BIS2_PIN['cbta'], ('REF_AREA',), BIS2_M)
+    S = {k[0]: s for k, s in P.items() if k[0] in BIS2_CBTA and s}
+    if len(S) < BIS2_MIN['cbta']:
+        raise RuntimeError(f'aktywa banków centralnych: tylko {len(S)} obszarów (min. {BIS2_MIN["cbta"]})')
+    asof = max(s[-1][0] for s in S.values())
+    rows = {}
+    for c in BIS2_CBTA:
+        s = S.get(c)
+        if not s or _bis2_mi(asof) - _bis2_mi(s[-1][0]) > BIS2_STARE_M:
+            continue
+        for p, v in s:
+            if not 0 < v < 50000:
+                raise RuntimeError(f'aktywa {c} {p}: wartość {v} poza zakresem')
+        m, v = s[-1]
+        d = dict(s)
+        mi = _bis2_mi(m) - 12
+        ago = f'{mi // 12}-{mi % 12 + 1:02d}'
+        rows[c] = {'m': m, 'v': round(v, 2), 'a': round(d[ago], 2) if ago in d else None}
+    if len(rows) < BIS2_MIN['cbta']:
+        raise RuntimeError(f'aktywa banków centralnych: tylko {len(rows)} aktualnych obszarów')
+    return {'asof': asof, 'rows': rows}
+
+
+def _bis2_pobierz(klucze, t0, ostatnie):
+    """Pobranie odpowiedzi dla kluczy adresów (jedna część = 1-3 zapytania) z odstępem BIS2_TEMPO_S i budżetem czasu; wyjątek = część nieudana."""
+    out = []
+    for k in klucze:
+        if time.monotonic() - t0[0] > BIS2_BUDGET_S or (_DEADLINE[0] is not None and time.monotonic() >= _DEADLINE[0]):
+            raise RuntimeError('budżet czasu przebiegu wyczerpany')
+        if ostatnie[0] is not None:
+            time.sleep(max(0.0, BIS2_TEMPO_S - (time.monotonic() - ostatnie[0])))
+        ostatnie[0] = time.monotonic()
+        out.append(get_bytes(BIS2_URL[k], timeout=BIS2_TIMEOUT_S))
+    return out
+
+
+BIS2_CZESC = {   # część → (klucze adresów, czytnik, etykieta błędu)
+    'cg': (('cg',), lambda b: parse_bis2_cg(b[0]), 'luka kredytowa'),
+    'dsr': (('dsr',), lambda b: parse_bis2_dsr(b[0]), 'obsługa długu'),
+    'spp': (('spp',), lambda b: parse_bis2_spp(b[0]), 'ceny mieszkań'),
+    'lbs': (('lbs_s', 'lbs_f', 'lbs_r'), lambda b: parse_bis2_lbs(b[0], b[1], b[2]), 'należności banków'),
+    'ids': (('ids',), lambda b: parse_bis2_ids(b[0]), 'emisje obligacji'),
+    'gli': (('gli_t', 'gli_e'), lambda b: parse_bis2_gli(b[0], b[1]), 'płynność globalna'),
+    'cbta': (('cbta',), lambda b: parse_bis2_cbta(b[0]), 'aktywa banków centralnych'),
+}
+
+
+def build_bis2(prev=None, now=None):
+    """data/bis2.json = {v, at, src, url, ok: {część: bool}, part_at: {część: chwila pobrania}, cg, dsr, spp, lbs, ids, gli, cbta}. Każda część osobno: awaria = jej poprzednia wersja (z własną chwilą
+    pobrania) i błąd w META; część bez poprzedniej wersji i bez danych nie wchodzi do pliku. Wyjątek tylko wtedy, gdy plik nie miałby żadnej części."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == BIS2_V else {}
+    teraz = now or NOW
+    out = {'v': BIS2_V, 'at': NOW, 'src': 'BIS statistics: credit gap, debt service, property prices, locational banking, international debt securities, global liquidity, central bank assets',
+           'url': 'https://data.bis.org', 'ok': {}, 'part_at': {}}
+    pat0 = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    t0, ost = [time.monotonic()], [None]
+    for n in BIS2_PARTS:
+        klucze, czytnik, etyk = BIS2_CZESC[n]
+        pc = prev.get(n) if isinstance(prev.get(n), dict) else None
+        try:
+            nowa = czytnik(_bis2_pobierz(klucze, t0, ost))
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'BIS kredyt i dług ({etyk}): {e}')[:200])
+            out['ok'][n] = False
+            if pc:
+                out[n] = pc
+                if pat0.get(n):
+                    out['part_at'][n] = pat0[n]
+            continue
+        out[n] = nowa
+        out['ok'][n] = True
+        out['part_at'][n] = teraz
+    if not any(n in out for n in BIS2_PARTS):
+        raise RuntimeError('żadna część pliku nie ma danych')
+    return out
+
+
+def bis2_czesc():
+    """Część przebiegu → krotka wartości META['ok'] w kolejności BIS2_PARTS: True = pobrane, 'cached' = poprzedni plik jeszcze świeży, False = część zawiodła. Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('bis2')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == BIS2_V else None
+    if prev and fresh(prev, BIS2_EVERY_MIN if all(prev.get('ok', {}).get(n) for n in BIS2_PARTS) else BIS2_RETRY_MIN):
+        save('bis2', prev)
+        return tuple('cached' for _ in BIS2_PARTS)
+    try:
+        obj = build_bis2(prev)
+        save('bis2', obj)
+        return tuple(obj['ok'].get(n, False) for n in BIS2_PARTS)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'BIS kredyt i dług: {e}')[:200])
+        if prev:
+            save('bis2', prev)
+        return tuple(False for _ in BIS2_PARTS)
+
+
+ZRODLA_META.update({'bis2_' + n: 'bis' for n in BIS2_PARTS})   # v384: te same statystyki co dotąd (stopy, kursy efektywne, należności) — liczba źródeł bez zmian
 
 
 if __name__ == '__main__':

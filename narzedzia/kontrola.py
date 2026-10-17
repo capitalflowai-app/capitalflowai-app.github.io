@@ -6732,6 +6732,146 @@ def polska2_kontrola(files, R):
     return {'spojnosc': zle, 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v384 (F11Z5): BIS — kredyt, obsługa długu, ceny mieszkań, wierzyciele, emisje, płynność, banki centralne (data/bis2.json) ----------------------------------------------------------------
+# Świeżość każdej z siedmiu części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️, nigdy ❌: dane są kwartalne (miesięczne — aktywa banków centralnych) z opóźnieniem kilku miesięcy,
+# więc wiek liczymy od końca okresu danych i oceniamy według RYTMU PUBLIKACJI, nie dnia. Obserwacja 15.10.2026 (ostatnie kwartały w źródle): luka kredytowa i obsługa długu 2026-Q1
+# (wiek 198 dni; kolejna publikacja z 2026-Q2 w grudniu — tuż przed nią wiek ok. 265 dni), ceny mieszkań 2026-Q2 (107 dni; kolejny kwartał w grudniu-styczniu, tuż przed ok. 180),
+# należności banków i płynność globalna 2026-Q1 (198 dni; publikacja 2026-Q2 zapowiedziana na 30.10.2026 — tuż przed nią ok. 213 dni), emisje obligacji 2026-Q2 (107 dni; publikacja
+# 2026-Q3 zapowiedziana na 07.12.2026 — tuż przed nią ok. 160), aktywa banków centralnych 2026-07 (76 dni od końca miesiąca; zwłoka 2–3 miesięcy). Progi ⚠️ (dni od końca okresu danych)
+# = najdłuższy wiek tuż przed publikacją + zapas: 290 / 290 / 200 / 230 / 175 / 230 / 120. Źródło nie ma stałego kalendarza dla wszystkich części — do weryfikacji po kolejnych publikacjach.
+# ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (zły układ części, wartość poza zakresem, suma wierzycieli większa od wszystkich raportujących, emisje netto większe od brutto,
+# zmiana 4 kwartałów większa od stanu, serie płynności niekolejne). Porównanie (najwyżej ⚠️): zmiana r/r kredytu w danej walucie z serii BIS a ta sama zmiana przeliczona z poziomów (próg 2 pp).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'bis2')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['bis2'] = 36 * 60   # plik odświeżany co ok. 20 h (części bez zmian zostają) — wiek pliku; wiek danych każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'bis2_' + p: 'BIS kredyt i dług: część z błędem zostaje z datą (v384); wiek danych w wierszach świeżości' for p in ('cg', 'dsr', 'spp', 'lbs', 'ids', 'gli', 'cbta')})
+BIS2_K_ETYKIETA = {'cg': 'BIS: luka kredytowa (kwartalnie)', 'dsr': 'BIS: obsługa długu (kwartalnie)', 'spp': 'BIS: ceny mieszkań (kwartalnie)',
+                   'lbs': 'BIS: należności banków wobec rynków wschodzących (kwartalnie)', 'ids': 'BIS: emisje obligacji międzynarodowych (kwartalnie)',
+                   'gli': 'BIS: płynność globalna (kwartalnie)', 'cbta': 'BIS: aktywa banków centralnych (miesięcznie)'}
+BIS2_K_PROG_DNI = {'cg': 290, 'dsr': 290, 'spp': 200, 'lbs': 230, 'ids': 175, 'gli': 230, 'cbta': 120}   # dni od końca okresu danych
+BIS2_K_QRE = re.compile(r'^\d{4}-Q[1-4]$')
+BIS2_K_MRE = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+BIS2_K_ZAKRES = {'cg': (-150.0, 150.0), 'dsr': (0.0, 80.0), 'spp': (1.0, 2000.0)}
+BIS2_K_TOL_YOY_PP = 2.0   # zmiana r/r z serii BIS a z poziomów (kursy, korekty przerw): zwykle poniżej 0,5 pp (USD 15.10.2026: 0,07)
+
+
+def _b2k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))
+
+
+def _b2k_qi(q):
+    return int(q[:4]) * 4 + int(q[6]) - 1 if isinstance(q, str) and BIS2_K_QRE.match(q) else None
+
+
+def _b2k_koniec_q(q):
+    """'RRRR-Qn' → 'RRRR-MM' ostatniego miesiąca kwartału (dla wiek_danych)."""
+    return f'{q[:4]}-{int(q[6]) * 3:02d}'
+
+
+def bis2_swiezosc(j, now=None):
+    """Wiersze świeżości części pliku bis2.json (etykieta, status, wiek min, okres danych, uwaga). Najwyżej ⚠️; brak pliku albo inna wersja = brak wierszy; część bez okresu danych — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p, label in BIS2_K_ETYKIETA.items():
+        e = j.get(p) if isinstance(j.get(p), dict) else {}
+        txt = e.get('asof')
+        ok = isinstance(txt, str) and (BIS2_K_MRE.match(txt) if p == 'cbta' else BIS2_K_QRE.match(txt))
+        if not ok:
+            rows.append((label, '?', None, None, 'brak danych tej części w pliku')); continue
+        w, prog = wiek_danych(txt if p == 'cbta' else _b2k_koniec_q(txt), 'month', 'k', now), BIS2_K_PROG_DNI[p] * 1440
+        st = '?' if w is None else ('⚠️' if w > prog else '✅')
+        rows.append((label, st, w, txt, f'próg {BIS2_K_PROG_DNI[p]} dni od końca okresu danych — najwyżej uwaga (dane kwartalne z opóźnieniem, rytm publikacji opisany w kodzie kontroli)' if st == '⚠️' else ''))
+    return rows
+
+
+def bis2_spojnosc(j):
+    """Sprzeczności wewnątrz pliku → (lista ❌, lista ⚠️ — porównanie zmiany r/r kredytu w trzech walutach)."""
+    zle, ost = [], []
+    for p in ('cg', 'dsr', 'spp'):
+        e = j.get(p)
+        if not isinstance(e, dict):
+            continue
+        R, lo_hi = e.get('rows'), BIS2_K_ZAKRES[p]
+        if _b2k_qi(e.get('asof')) is None or not isinstance(R, dict) or len(R) < 8:
+            zle.append(f'{p}: układ części (okres danych, liczba krajów)'); continue
+        for c, r in R.items():
+            if not (isinstance(r, dict) and _b2k_qi(r.get('q')) is not None and _b2k_num(r.get('v')) and lo_hi[0] <= r['v'] <= lo_hi[1] and (r.get('a') is None or (_b2k_num(r['a']) and lo_hi[0] <= r['a'] <= lo_hi[1]))):
+                zle.append(f'{p} {c}: układ albo wartość poza zakresem'); break
+    e = j.get('lbs')
+    if isinstance(e, dict):
+        T, Rp = e.get('tot'), e.get('rep')
+        if _b2k_qi(e.get('asof')) is None or not isinstance(T, dict) or len(T) < 8 or not isinstance(Rp, dict):
+            zle.append('lbs: układ części')
+        else:
+            for c, r in T.items():
+                if not (isinstance(r, dict) and _b2k_num(r.get('v')) and r['v'] > 0 and (r.get('a') is None or (_b2k_num(r['a']) and r['a'] > 0)) and (r.get('f') is None or (_b2k_num(r['f']) and abs(r['f']) <= r['v']))):
+                    zle.append(f'lbs {c}: stan albo zmiana 4 kw. (układ, zmiana większa od stanu)'); break
+            for c, m in Rp.items():
+                if not (c in T and isinstance(m, dict) and all(_b2k_num(x) and x >= 0 for x in m.values()) and sum(m.values()) <= T[c]['v'] * 1.02 + 1):
+                    zle.append(f'lbs {c}: wierzyciele (układ albo suma większa od wszystkich raportujących)'); break
+    e = j.get('ids')
+    if isinstance(e, dict):
+        R = e.get('rows')
+        if _b2k_qi(e.get('asof')) is None or not isinstance(R, dict) or len(R) < 8:
+            zle.append('ids: układ części')
+        else:
+            for c, r in R.items():
+                ok = isinstance(r, dict) and r.get('q') == e['asof'] and _b2k_num(r.get('i')) and r['i'] >= 0
+                for g, cc in (('g1', 'c1'), ('g4', 'c4')):
+                    if ok and r.get(g) is not None and r.get(cc) is not None:
+                        ok = _b2k_num(r[g]) and _b2k_num(r[cc]) and r[cc] >= 0 and r[g] <= r[cc] + 4
+                if not ok:
+                    zle.append(f'ids {c}: układ, stan ujemny albo emisje netto większe od brutto'); break
+    e = j.get('gli')
+    if isinstance(e, dict):
+        T = e.get('tot')
+        if _b2k_qi(e.get('asof')) is None or not isinstance(T, dict) or set(T) != {'USD', 'EUR', 'JPY'}:
+            zle.append('gli: układ części (waluty)')
+        else:
+            for cur, r in T.items():
+                lv, yy = (r or {}).get('lvl'), (r or {}).get('yoy')
+                ok = isinstance(lv, list) and isinstance(yy, list) and len(lv) >= 5 and len(yy) >= 5 and lv[-1][0] == yy[-1][0] == e['asof'] and all(isinstance(x, list) and len(x) == 2 and _b2k_qi(x[0]) is not None and _b2k_num(x[1]) for x in lv + yy)
+                if ok:
+                    qi = [_b2k_qi(x[0]) for x in lv]
+                    ok = all(b - a == 1 for a, b in zip(qi, qi[1:])) and all(x[1] > 0 for x in lv)
+                if not ok:
+                    zle.append(f'gli {cur}: serie poziomu i zmiany r/r (układ, kolejność kwartałów)'); break
+                d = dict((x[0], x[1]) for x in lv)
+                a = d.get(f'{int(e["asof"][:4]) - 1}{e["asof"][4:]}')
+                if a:
+                    roz = abs((lv[-1][1] / a - 1) * 100 - yy[-1][1])
+                    if roz > BIS2_K_TOL_YOY_PP:
+                        ost.append(f'gli {cur}: zmiana r/r z serii BIS {yy[-1][1]:.1f}% ≠ z poziomów {(lv[-1][1] / a - 1) * 100:.1f}% (różnica {roz:.1f} pp)')
+            Em = e.get('em')
+            if isinstance(Em, dict) and not all(isinstance(r, dict) and _b2k_num(r.get('v')) and r['v'] > 0 and _b2k_num(r.get('yoy')) and abs(r['yoy']) <= 200 for r in Em.values()):
+                zle.append('gli: kraje wschodzące (układ)')
+    e = j.get('cbta')
+    if isinstance(e, dict):
+        R = e.get('rows')
+        if not (isinstance(e.get('asof'), str) and BIS2_K_MRE.match(e['asof'])) or not isinstance(R, dict) or len(R) < 10:
+            zle.append('cbta: układ części')
+        else:
+            for c, r in R.items():
+                if not (isinstance(r, dict) and isinstance(r.get('m'), str) and BIS2_K_MRE.match(r['m']) and r['m'] <= e['asof'] and _b2k_num(r.get('v')) and 0 < r['v'] < 50000 and (r.get('a') is None or (_b2k_num(r['a']) and 0 < r['a'] < 50000))):
+                    zle.append(f'cbta {c}: układ albo wartość poza zakresem'); break
+    return zle, ost
+
+
+def bis2_kontrola(files, R):
+    """Kontrola pliku bis2.json bez sieci: sprzeczności w pliku (❌ = BŁĄD) i porównania (najwyżej ⚠️). Brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('bis2') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    zle, ost = bis2_spojnosc(j)
+    for z in zle[:5]:
+        R['bledy'].append(f'bis2.json: sprzeczność w pliku — {z}')
+    R['uwagi'] += [f'BIS kredyt i dług: {o} — najwyżej uwaga' for o in ost]
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    wier = [('porównanie zmiany r/r kredytu w trzech walutach: ' + ('rozbieżność' if ost else 'zgodne'), '⚠️' if ost else '✅')] if isinstance(j.get('gli'), dict) else []
+    return {'spojnosc': zle, 'wiersze': wier, 'czesci_bez_odpowiedzi': nie}
+
+
 # ---------------------------------------------------------------- v341 (F5Z3): zboża dziennie i koszt transportu (data/zboza-dzien.json) ----------------------------------------------------------------
 # Świeżość każdej z pięciu części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠ — pole next pliku mówi, kiedy spodziewana jest publikacja.
 # Progi z testu wstecznego na modelu kalendarza publikacji i prawdziwych datach wierszy z nagrań 10–11.10.2026 (ws53/v341-zboza-dz/bt/bt_swiezosc.py, sprawdzenia
@@ -10759,6 +10899,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['krzywe'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'krzywe rentowności (v362): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v384. BIS — kredyt, obsługa długu, ceny mieszkań, wierzyciele, emisje, płynność, banki centralne (data/bis2.json): świeżość każdej z siedmiu części osobnym wierszem (lista SWIEZOSC bez zmian), najwyżej ⚠️
+    try:
+        for label, st, w, txt, note in bis2_swiezosc(files.get('bis2')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+    except Exception as e:  # noqa
+        R['uwagi'].append(f'BIS kredyt i dług (v384): kontrola świeżości przerwana ({str(e)[:80]})')
     # 3c-v366. inflacja (BIS) i koniunktura (OECD): wiek najnowszego miesiąca, spójność plików, pokrycie stopy realnej, inflacja USA a CPI-U z usa-makro (tylko informacja) — z plików strony, bez zapytań; najwyżej ⚠
     try:
         T_ = stopy_realne_kontrola(files.get('inflacja'), files.get('koniunktura'), files.get('usa-makro'), files.get('stopy'))
@@ -11159,6 +11309,12 @@ def kontrola():
     except Exception as e:  # noqa
         Z['polska'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Polska: kontrola przerwana ({str(e)[:80]})')
+    # 3g. v384 (F11Z5): BIS — kredyt i dług — sprzeczności w pliku (❌) i porównanie zmiany r/r kredytu w trzech walutach (najwyżej ⚠️), z pliku strony, bez zapytań
+    try:
+        Z['bis2'] = bis2_kontrola(files, R)
+    except Exception as e:  # noqa
+        Z['bis2'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'BIS kredyt i dług: kontrola przerwana ({str(e)[:80]})')
     # 3g. v295c: złoto i surowce a krypto — wiek stałej zasobów wydobytego złota (z pliku strony, bez zapytań; najwyżej ⚠️)
     try:
         Z['zloto-krypto'] = zk_kontrola(files.get('zloto-krypto'), R)
@@ -11535,6 +11691,11 @@ def raport_md(R):
                 L.append(tyt_ + (f'? kontrola przerwana ({tz_["blad"]})' if tz_.get('blad') else
                          ('niespójności w pliku: ' + '; '.join(tz_['spojnosc'][:3]) + ' ⚠️ · ' if tz_.get('spojnosc') else '')
                          + ' · '.join(f'{o} {zn}' for o, zn in tz_.get('wiersze') or []) or '—') + '.')
+        rb2 = Z.get('bis2')   # v384: BIS — kredyt, dług i płynność — sprzeczności w pliku i porównanie zmiany r/r kredytu w trzech walutach; brak pliku = bez linii
+        if rb2:
+            L.append('- BIS: kredyt, obsługa długu, wierzyciele i płynność (z pliku strony): ' + (f'? kontrola przerwana ({rb2["blad"]})' if rb2.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(rb2['spojnosc'][:3]) + ' ❌ · ' if rb2.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in rb2.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else

@@ -9792,7 +9792,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {/* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {/* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
 /* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
@@ -22243,7 +22243,7 @@ test('v341 (F5Z3): zboża dziennie — pięć bloków po bloku Polski i przed sz
   /* miejsce w kodzie: funkcje przed renderSu (w bloku panelu), wywołanie po bloku Polski i przed szlakami, słuchacz i zegar za startem panelu, przed słuchaczem raportów */
   const r0 = html.indexOf('function renderSu(){'), z0 = html.indexOf('/* ===================== v341 (F5Z3): ZBOŻA DZIENNIE');
   assert.ok(z0 > html.indexOf('/* ===================== v295g: SUROWCE') && z0 > html.indexOf('/* ===================== v320: SUROWCE — RAPORTY MIESIĘCZNE') && z0 < r0, 'funkcje bloków w bloku panelu surowców, przed renderSu');
-  assert.ok(/\+su3D\(\)\+plD\(\)\+(?:\(typeof \w+==='function'\?\w+\(\):''\)\+)*zdBlks\(\)\+\n    szBlk\(\)\+`<p class="pfoot">/.test(html), 'po bloku Polski, przed szlakami i stopką');
+  assert.ok(/\+su3D\(\)\+plD\(\)\+(?:\(typeof \w+==='function'\?\w+\(\):''\)\+)*zdBlks\(\)\+\n    (?:\(typeof \w+==='function'\?\w+\(\):''\)\+)*szBlk\(\)\+`<p class="pfoot">/.test(html), 'po bloku Polski, przed szlakami i stopką');
   const l0 = html.indexOf("document.addEventListener('click',e=>{const tg=e.target;if(tg&&tg.closest&&tg.closest('#g-surowce details#su-b-zd>summary,#g-surowce details#su-b-zf>summary,#g-surowce details#su-b-zy>summary,#g-surowce details#su-b-zu>summary,#g-surowce details#su-b-zn>summary'))zdLoad();});");
   assert.ok(l0 > html.indexOf('\nsuLoad();suAuto();try{new MutationObserver') && l0 < html.indexOf('/* v321 (decyzja właściciela 10.10.2026): kafelki GLOBAL') && l0 < html.indexOf('/* v320: raporty miesięczne o surowcach — plik data/surowce-raporty.json dopiero') && l0 < html.indexOf('/* ===================== v98: USA — energia'), 'słuchacz za startem panelu, przed kodem kafelków v321 i słuchaczem raportów (poza ich wycinkami)');
   assert.ok(!su295.blk.includes('zdLoad(1)') && !su295.blk.includes('su-b-zd>summary') && !zd341.code.includes('addEventListener(') && !zd341.code.includes('setInterval(') && !zd341.code.includes('setTimeout'), 'kod bloków bez słuchaczy i zegarów — liczba słuchaczy i zegarów panelu bez zmian');
@@ -28732,4 +28732,200 @@ test('v383 (F11Z4): Skarb USA — style: telefon 390 px bez przewijania w bok (b
   const i1 = html.indexOf('<section class="panel pcard" id="g-nowcasty" hidden></section>'), i2 = html.indexOf('<section class="panel pcard" id="g-skarb" hidden></section>');
   assert.ok(i1 > 0 && i2 > i1, 'panel po szacunkach na bieżąco');
   assert.ok(!/localStorage|sessionStorage|tradingview/i.test(sk383.code) && !/\bfetch\(|XMLHttpRequest/.test(sk383.code), 'blok czyta tylko przez srvJSON');
+});
+
+/* ===================== v384 (F11Z5): BIS — kredyt, obsługa długu, ceny mieszkań, wierzyciele, emisje, płynność, aktywa banków centralnych: blok „Rynki wschodzące i świat: kredyt, dług i płynność” (#su-b-bs2) w #g-surowce (plik data/bis2.json po rozwinięciu) =====================
+   BS2_FILE — wynik zbieracza v384 (build_bis2) na prawdziwych odpowiedziach z 15.10.2026: luka kredytowa i obsługa długu 2026-Q1, ceny mieszkań 2026-Q2 (Japonia 2025-Q4), należności banków i płynność 2026-Q1,
+   emisje obligacji 2026-Q2, aktywa banków centralnych do 2026-07. Zegar przypięty (atrapa su295), wiek danych — atrapa „wiek(…)”. */
+const BS2_FILE = {"v":1,"at":"2026-10-15T17:05:12+00:00","src":"BIS statistics: credit gap, debt service, property prices, locational banking, international debt securities, global liquidity, central bank assets","url":"https://data.bis.org","ok":{"cg":true,"dsr":true,"spp":true,"lbs":true,"ids":true,"gli":true,"cbta":true},"part_at":{"cg":"2026-10-15T17:05:12+00:00","dsr":"2026-10-15T17:05:12+00:00","spp":"2026-10-15T17:05:12+00:00","lbs":"2026-10-15T17:05:12+00:00","ids":"2026-10-15T17:05:12+00:00","gli":"2026-10-15T17:05:12+00:00","cbta":"2026-10-15T17:05:12+00:00"},"cg":{"asof":"2026-Q1","rows":{"CN":{"q":"2026-Q1","v":-5.14,"a":-4.43},"IN":{"q":"2026-Q1","v":4.32,"a":-4.96},"BR":{"q":"2026-Q1","v":0.72,"a":1.73},"TR":{"q":"2026-Q1","v":-24.68,"a":-31.11},"ZA":{"q":"2026-Q1","v":-4.25,"a":-5.76},"MX":{"q":"2026-Q1","v":-3.08,"a":-2.4},"KR":{"q":"2026-Q1","v":-15.13,"a":-5.54},"ID":{"q":"2026-Q1","v":-1.33,"a":-1.4},"TH":{"q":"2026-Q1","v":-15.66,"a":-4.08},"HK":{"q":"2026-Q1","v":-46.93,"a":-57.27},"SG":{"q":"2026-Q1","v":-21.98,"a":-31.78},"PL":{"q":"2026-Q1","v":-15.62,"a":-19.62},"US":{"q":"2026-Q1","v":-11.32,"a":-12.6},"DE":{"q":"2026-Q1","v":-4.18,"a":-3.56},"GB":{"q":"2026-Q1","v":-20.12,"a":-22.23},"JP":{"q":"2026-Q1","v":5.67,"a":4.61}}},"dsr":{"asof":"2026-Q1","rows":{"CN":{"q":"2026-Q1","v":19.1,"a":18.9},"IN":{"q":"2026-Q1","v":12.5,"a":11.7},"BR":{"q":"2026-Q1","v":29.8,"a":27.6},"TR":{"q":"2026-Q1","v":25.8,"a":28.7},"ZA":{"q":"2026-Q1","v":8.3,"a":8.5},"MX":{"q":"2026-Q1","v":5.3,"a":5.8},"KR":{"q":"2026-Q1","v":19.3,"a":20.6},"ID":{"q":"2026-Q1","v":4.2,"a":4.3},"TH":{"q":"2026-Q1","v":13.4,"a":15.0},"HK":{"q":"2026-Q1","v":34.3,"a":35.1},"PL":{"q":"2026-Q1","v":6.3,"a":6.5},"US":{"q":"2026-Q1","v":13.8,"a":14.0},"DE":{"q":"2026-Q1","v":12.2,"a":12.3},"GB":{"q":"2026-Q1","v":12.9,"a":13.0},"JP":{"q":"2026-Q1","v":15.5,"a":15.0}}},"spp":{"asof":"2026-Q2","rows":{"CN":{"q":"2026-Q2","v":84.37,"a":90.68},"IN":{"q":"2026-Q1","v":161.94,"a":160.23},"BR":{"q":"2026-Q2","v":91.36,"a":90.8},"TR":{"q":"2026-Q2","v":211.16,"a":223.35},"ZA":{"q":"2026-Q2","v":89.11,"a":88.01},"MX":{"q":"2026-Q2","v":155.47,"a":150.59},"KR":{"q":"2026-Q2","v":105.24,"a":105.74},"ID":{"q":"2026-Q2","v":92.88,"a":94.96},"TH":{"q":"2026-Q2","v":147.31,"a":147.81},"HK":{"q":"2026-Q2","v":142.59,"a":129.68},"SG":{"q":"2026-Q2","v":120.89,"a":119.64},"PL":{"q":"2026-Q1","v":122.95,"a":118.81},"US":{"q":"2026-Q2","v":154.21,"a":158.34},"DE":{"q":"2026-Q1","v":128.46,"a":129.5},"GB":{"q":"2026-Q2","v":108.54,"a":108.43},"JP":{"q":"2025-Q4","v":121.47,"a":118.59}}},"lbs":{"asof":"2026-Q1","tot":{"CN":{"v":845014,"a":913922,"f":-89332},"IN":{"v":216595,"a":212041,"f":2076},"BR":{"v":341303,"a":299669,"f":38239},"TR":{"v":152981,"a":139727,"f":9177},"ZA":{"v":59523,"a":46750,"f":11995},"MX":{"v":171782,"a":155080,"f":14612},"KR":{"v":375244,"a":316682,"f":53691},"ID":{"v":132317,"a":123476,"f":6881},"TH":{"v":78248,"a":76776,"f":870},"PL":{"v":165763,"a":133698,"f":38125}},"rep":{"CN":{"US":14157,"DE":20456,"ES":5709,"IT":2390,"JP":55097,"FR":25368,"GB":101011,"NL":3457,"CH":5708,"HK":357141},"IN":{"US":20517,"DE":18883,"ES":610,"IT":72,"JP":37348,"FR":13895,"CA":95,"GB":33608,"NL":732,"CH":1218,"HK":24190},"BR":{"US":86193,"DE":4828,"ES":10695,"IT":1460,"JP":9512,"FR":18102,"GB":51133,"NL":4988,"CH":3597,"HK":7850},"TR":{"US":1769,"DE":24822,"ES":12383,"IT":1490,"JP":1546,"FR":9549,"CA":471,"GB":32420,"NL":9493,"CH":4638,"HK":2732},"ZA":{"US":1447,"DE":4430,"ES":189,"IT":161,"JP":3515,"FR":6076,"CA":24,"GB":17131,"NL":862,"CH":1520,"HK":1532},"MX":{"US":49245,"DE":4585,"ES":42865,"IT":1612,"JP":12575,"FR":6857,"GB":8000,"NL":1255,"CH":3719,"HK":595},"KR":{"US":16201,"DE":10198,"ES":922,"IT":2132,"JP":34217,"FR":51762,"CA":690,"GB":34721,"NL":1030,"CH":2060,"HK":93626},"ID":{"US":3575,"DE":5264,"ES":977,"IT":1038,"JP":17725,"FR":8336,"CA":39,"GB":3847,"NL":65,"CH":349,"HK":11699},"TH":{"US":1349,"DE":1024,"ES":20,"IT":15,"JP":20816,"FR":2196,"CA":41,"GB":3130,"CH":540,"HK":15969},"PL":{"US":5444,"DE":36776,"ES":15425,"IT":4172,"JP":8548,"FR":27547,"CA":103,"GB":14123,"NL":9786,"CH":1607,"HK":537}}},"ids":{"asof":"2026-Q2","rows":{"4T":{"q":"2026-Q2","i":3644919,"i4":3289149,"g1":65489,"g4":363364,"c1":200120,"c4":771607},"4Y":{"q":"2026-Q2","i":737685,"i4":691735,"g1":14819,"g4":43599,"c1":45491,"c4":159559},"4U":{"q":"2026-Q2","i":1149419,"i4":1064328,"g1":16984,"g4":86772,"c1":41352,"c4":173478},"4W":{"q":"2026-Q2","i":1097818,"i4":951057,"g1":22628,"g4":146714,"c1":70268,"c4":273546},"CN":{"q":"2026-Q2","i":252238,"i4":252073,"g1":-7081,"g4":-3742,"c1":10205,"c4":62294},"IN":{"q":"2026-Q2","i":64972,"i4":62058,"g1":2013,"g4":2998,"c1":2890,"c4":8548},"BR":{"q":"2026-Q2","i":108649,"i4":95027,"g1":4134,"g4":13675,"c1":8444,"c4":20046},"PL":{"q":"2026-Q2","i":132820,"i4":110649,"g1":9611,"g4":25033,"c1":14453,"c4":35296},"TR":{"q":"2026-Q2","i":208060,"i4":182977,"g1":641,"g4":25750,"c1":12863,"c4":66321},"ZA":{"q":"2026-Q2","i":42198,"i4":38793,"g1":-1126,"g4":2171,"c1":1335,"c4":7625},"MX":{"q":"2026-Q2","i":345003,"i4":315707,"g1":13572,"g4":30041,"c1":16550,"c4":57389}}},"gli":{"asof":"2026-Q1","tot":{"USD":{"lvl":[["2024-Q2",13166158],["2024-Q3",13261443],["2024-Q4",13145732],["2025-Q1",13735916],["2025-Q2",13979225],["2025-Q3",14226388],["2025-Q4",14253875],["2026-Q1",14747654]],"yoy":[["2024-Q2",2.566],["2024-Q3",3.001],["2024-Q4",2.835],["2025-Q1",5.159],["2025-Q2",6.144],["2025-Q3",7.26],["2025-Q4",8.444],["2026-Q1",7.298]]},"EUR":{"lvl":[["2024-Q2",4214787],["2024-Q3",4368166],["2024-Q4",4427192],["2025-Q1",4588101],["2025-Q2",4742482],["2025-Q3",4935479],["2025-Q4",4914083],["2026-Q1",5119198]],"yoy":[["2024-Q2",4.971],["2024-Q3",7.997],["2024-Q4",8.762],["2025-Q1",9.819],["2025-Q2",12.867],["2025-Q3",11.387],["2025-Q4",10.943],["2026-Q1",11.622]]},"JPY":{"lvl":[["2024-Q2",64412292],["2024-Q3",64788943],["2024-Q4",69299928],["2025-Q1",65691696],["2025-Q2",64231163],["2025-Q3",62699344],["2025-Q4",66080234],["2026-Q1",65907983]],"yoy":[["2024-Q2",14.436],["2024-Q3",19.102],["2024-Q4",11.102],["2025-Q1",6.508],["2025-Q2",-0.426],["2025-Q3",-3.359],["2025-Q4",-4.633],["2026-Q1",0.324]]}},"em":{"CN":{"q":"2026-Q1","v":317954,"yoy":-7.052},"IN":{"q":"2026-Q1","v":117643,"yoy":-5.176},"BR":{"q":"2026-Q1","v":198040,"yoy":7.909},"TR":{"q":"2026-Q1","v":223853,"yoy":4.677},"ZA":{"q":"2026-Q1","v":37215,"yoy":-1.601},"MX":{"q":"2026-Q1","v":380369,"yoy":3.064},"ID":{"q":"2026-Q1","v":213842,"yoy":3.778}}},"cbta":{"asof":"2026-07","rows":{"XM":{"m":"2026-07","v":6823.52,"a":6992.23},"JP":{"m":"2026-07","v":4020.94,"a":4814.17},"CN":{"m":"2026-06","v":7285.17,"a":6390.01},"GB":{"m":"2026-07","v":1080.8,"a":1055.87},"CH":{"m":"2026-07","v":1148.0,"a":1053.23},"IN":{"m":"2026-06","v":921.5,"a":905.64},"BR":{"m":"2026-06","v":970.84,"a":869.51},"KR":{"m":"2026-05","v":399.17,"a":407.07},"MX":{"m":"2026-07","v":293.56,"a":280.39},"TR":{"m":"2026-07","v":270.02,"a":266.14},"ID":{"m":"2026-05","v":274.2,"a":280.94},"SA":{"m":"2026-06","v":524.98,"a":521.91},"PL":{"m":"2026-07","v":324.59,"a":294.66},"CA":{"m":"2026-07","v":166.4,"a":177.69},"AU":{"m":"2026-06","v":251.02,"a":263.43},"ZA":{"m":"2026-07","v":76.82,"a":72.12}}}};
+const bs2t = {
+  run(L, files) {
+    const K = su295.mk(L, Object.assign({}, SU295_ALL, files === undefined ? {'bis2': BS2_FILE} : files));
+    K.api.suApply(SU295_FILE);
+    K.toggle = open => { for (const [ev, fn] of K.clicks) if (ev === 'toggle') fn({target: {id: 'su-b-bs2', open: open !== false}}); };
+    return K;
+  },
+  open(L, files) { const K = bs2t.run(L, files); K.toggle(true); return K; },
+  blk: h => { const a = h.indexOf('<details class="etfd su-b su-pl su-bs2" id="su-b-bs2"'); if (a < 0) return '';
+    let d = 0, i = a; for (const m of h.slice(a).matchAll(/<details\b|<\/details>/g)) { d += m[0] === '</details>' ? -1 : 1; if (d === 0) { i = a + m.index + 10; break; } } return h.slice(a, i); },
+  txt: h => su295.txt(h.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<img[^>]*>/g, '')),
+  /* sekcje wykresów: tytuł (tekst) → fragment do następnego tytułu */
+  secs: h => { const o = {}; h.split('<p class="wk-sub">').slice(1).forEach(s => { const t = su295.txt(s.slice(0, s.indexOf('</p>'))); o[t.split(' · ')[0]] = s; }); return o; },
+  bars: h => [...h.matchAll(/<div class="wk-br([^"]*)" data-t="([^"]*)"><span class="wk-bl">([\s\S]*?)<\/span><svg([\s\S]*?)<\/svg><span class="wk-bv[^"]*">([\s\S]*?)<\/span><\/div>/g)]
+    .map(m => ({na: /\bna\b/.test(m[1]), tip: su295.txt(m[2]), l: su295.txt(m[3].replace(/<img[^>]*>/g, '')), v: su295.txt(m[5]), cls: (/class="wk-b (\w+)"/.exec(m[4]) || [])[1] || '', raw: m[5], svg: m[4]})),
+  tiles: h => { const o = {}, M = [...h.matchAll(/<div class="etfk su-k" data-bs2="(\w+)">/g)];
+    M.forEach((m, i) => { o[m[1]] = h.slice(m.index, i + 1 < M.length ? M[i + 1].index : undefined); }); return o; },
+  code: html.slice(html.indexOf('/* v384 (F11Z5): BIS — kredyt, obsługa długu'), html.indexOf('/* v384 (F11Z5): koniec */')),
+  F: () => su295.clone(BS2_FILE),
+};
+const L10_384 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+
+test('v384: blok „Rynki wschodzące i świat: kredyt, dług i płynność” — zwinięty przed stopką panelu, po blokach Polski i zbóż; plik dopiero po rozwinięciu (jedno pobranie), komunikaty wczytywania i błędu', () => {
+  const K = bs2t.run('pl'), h0 = su295.sp(K.el.innerHTML), b0 = bs2t.blk(h0);
+  assert.ok(b0.startsWith('<details class="etfd su-b su-pl su-bs2" id="su-b-bs2" data-su-bs2="1"><summary><span class="icos">') && b0.includes('img/glify/globe.svg') && b0.includes('Rynki wschodzące i świat: kredyt, dług i płynność'), 'blok zwijany z globusem');
+  assert.ok(h0.indexOf('id="su-b-bs2"') > h0.indexOf('id="su-b-pld"') && h0.indexOf('id="su-b-bs2"') < h0.indexOf('<p class="pfoot">'), 'po bloku „Polska: kto pożycza państwu”, przed stopką panelu');
+  assert.equal(h0.split('id="su-b-bs2"').length, 2, 'jeden blok');
+  assert.ok(b0.includes('<p class="pnote">Wczytuję dane o kredycie, długu i płynności…</p>') && !K.calls.includes('bis2'), 'przy starcie strony bez pobierania pliku');
+  assert.ok(!/<details[^>]* open/.test(b0), 'zwinięty');
+  K.toggle(true);
+  assert.equal(K.calls.filter(x => x === 'bis2').length, 1, 'rozwinięcie = jedno pobranie');
+  K.toggle(true); K.toggle(false);
+  assert.equal(K.calls.filter(x => x === 'bis2').length, 1, 'ponowne rozwinięcie młodego pliku (< 10 min) bez nowego pobrania, zwinięcie bez pobrania');
+  assert.ok(bs2t.blk(su295.sp(K.el.innerHTML)).includes('Luka kredytowa'), 'dane po rozwinięciu');
+  const F = bs2t.F(), BAD = [null, Object.assign({}, F, {v: 2}), Object.assign({}, F, {at: 'wczoraj'}), {v: 1, at: F.at}, {v: 1, at: F.at, cg: 'x'}];
+  for (const bad of BAD) {
+    const E = bs2t.run('pl', {'bis2': bad}); E.toggle(true);
+    const b = bs2t.blk(su295.sp(E.el.innerHTML));
+    assert.ok(b.includes('<p class="pnote">Nie udało się wczytać danych — zwiń i rozwiń blok za minutę, aby spróbować ponownie.</p>') && !b.includes('Luka kredytowa'), JSON.stringify(bad).slice(0, 40));
+    E.toggle(true); assert.equal(E.calls.filter(x => x === 'bis2').length, 1, 'po błędzie bez pętli zapytań (najwcześniej po minucie)');
+  }
+});
+
+test('v384: kredyt, obsługa długu i ceny mieszkań — słupki 16 gospodarek od największej wartości, wartości ze znakiem i kolorem znaku, zmiana r/r obsługi długu, własny kwartał kraju z innym okresem', () => {
+  const K = bs2t.open('pl'), b = su295.sp(bs2t.blk(K.el.innerHTML)), S = bs2t.secs(b);
+  assert.deepEqual(Object.keys(S).slice(0, 3), ['Luka kredytowa', 'Obciążenie spłatą długu', 'Realne ceny mieszkań']);
+  const cg = bs2t.bars(S['Luka kredytowa']);
+  assert.equal(cg.length, 16);
+  assert.deepEqual(cg.slice(0, 3).map(r => [r.l, r.v]), [['Japonia', '+5,7 pp'], ['Indie', '+4,3 pp'], ['Brazylia', '+0,7 pp']]);
+  assert.deepEqual(cg.slice(-2).map(r => [r.l, r.v]), [['Turcja', '−24,7 pp'], ['Hongkong', '−46,9 pp']]);
+  assert.deepEqual([...new Set(cg.map(r => r.cls))].sort(), ['neg', 'pos'], 'kolor słupka = znak wartości');
+  assert.ok(cg.slice(0, 3).every(r => r.cls === 'pos') && cg.slice(3).every(r => r.cls === 'neg') && cg.every((r, i) => i === 0 || parseFloat(r.v.replace('−', '-').replace(',', '.')) <= parseFloat(cg[i - 1].v.replace('−', '-').replace(',', '.'))), 'malejąco');
+  assert.ok(S['Luka kredytowa'].includes('<img class="ico sm" src="img/flagi/jp.svg"') && S['Luka kredytowa'].includes('img/flagi/in.svg') && S['Luka kredytowa'].includes('img/flagi/hk.svg'), 'flaga przy każdym kraju (zasada właściciela: nic bez flagi)');
+  assert.ok(cg[0].tip.includes('Japonia: +5,7 pp (1 kw. 2026)') && cg[0].tip.includes('rok temu: +4,6 pp'), cg[0].tip);
+  assert.ok(S['Luka kredytowa'].includes('Dane za 1 kw. 2026 · pobrano ' + su295.day('pl', '2026-10-15') + ' · wiek(2026-Q1)'), 'okres, data pobrania i wiek');
+  const dsr = bs2t.bars(S['Obciążenie spłatą długu']);
+  assert.equal(dsr.length, 15, 'bez Singapuru (źródło go nie ma): brak = brak wiersza, nie zero');
+  assert.deepEqual(dsr.slice(0, 2).map(r => [r.l, r.v]), [['Hongkong', '34,3% ▼ −0,8 pp'], ['Brazylia', '29,8% ▲ +2,2 pp']]);
+  assert.ok(dsr.every(r => r.cls === 'bs1') && dsr[1].raw.includes('<small class="pos">▲ +2,2 pp</small>') && dsr[0].raw.includes('<small class="neg">▼ −0,8 pp</small>'), 'słupki w jednym kolorze tożsamości, zmiana w kolorze znaku');
+  const spp = bs2t.bars(S['Realne ceny mieszkań']), by = n => spp.find(r => r.l === n);
+  assert.equal(spp.length, 16);
+  assert.equal(by('Turcja').v, '−5,5%'); assert.equal(by('Stany Zjednoczone'), undefined); assert.equal(by('USA').v, '−2,6%');
+  assert.ok(by('Japonia').v.includes('4 kw. 2025') && by('Japonia').v.startsWith('+2,4%') && by('Polska').v.includes('1 kw. 2026'), 'kraj z innym kwartałem ma przy słupku własny kwartał: ' + by('Japonia').v + ' / ' + by('Polska').v);
+  assert.ok(spp.every((r, i) => i === 0 || r.na || !spp[i - 1].na) && spp.filter(r => !r.na).every((r, i, a) => i === 0 || parseFloat(r.v.replace('−', '-').replace(',', '.')) <= parseFloat(a[i - 1].v.replace('−', '-').replace(',', '.'))), 'malejąco');
+  const x = bs2t.txt(b);
+  assert.ok(x.includes('Luka powyżej 10 pp bywa uznawana za sygnał nadmiernego narastania kredytu'), 'próg 10 pp opisany jako ogólnie przyjęty sygnał, nie prognoza kryzysu');
+  assert.ok(x.includes('To wskaźnik tła, nie prognoza kryzysu.'));
+});
+
+test('v384: należności banków świata wobec krajów wschodzących — trzy kafle (razem, zmiana 4 kwartałów w kolorze znaku, największy wierzyciel), stan, zmiana, struktura wierzycieli z pięcioma największymi i „Pozostałe”', () => {
+  const K = bs2t.open('pl'), b = su295.sp(bs2t.blk(K.el.innerHTML)), T = bs2t.tiles(b.slice(b.indexOf('Kto pożycza krajom wschodzącym'))), S = bs2t.secs(b);
+  assert.deepEqual(Object.keys(T).slice(0, 3), ['lbt', 'lbf', 'lbc']);
+  assert.ok(T.lbt.includes('<b>2,54 bln USD</b>') && T.lbt.includes('<small class="mtxt su-x pos">▲ +') && T.lbt.includes('10 krajów') && T.lbt.includes('Dane za 1 kw. 2026'), T.lbt);
+  assert.ok(T.lbf.includes('<b><span class="pos">+86,3 mld USD</span></b>') && T.lbf.includes('10 z 10 krajów z danymi'), T.lbf);
+  assert.ok(T.lbc.includes('<b>20%</b>') && bs2t.txt(T.lbc).includes('Hongkong'), bs2t.txt(T.lbc));
+  const st = bs2t.bars(S['Należności banków świata wobec kraju']);
+  assert.deepEqual(st.slice(0, 2).map(r => r.l), ['Chiny', 'Korea Południowa']); assert.ok(st[0].v.startsWith('845 mld') && st[0].raw.includes('<small class="neg">▼ −7,5%</small>'), st[0].v);
+  assert.ok(st.every(r => r.cls === 'bs1'));
+  const fl = bs2t.bars(S['Zmiana należności w 4 kwartałach']);
+  assert.deepEqual(fl.slice(0, 2).map(r => [r.l, r.v, r.cls]), [['Korea Południowa', '+53,7 mld', 'pos'], ['Brazylia', '+38,2 mld', 'pos']]); assert.deepEqual(fl[fl.length - 1].l, 'Chiny'); assert.equal(fl[fl.length - 1].cls, 'neg'); assert.equal(fl[fl.length - 1].v, '−89,3 mld');
+  const cr = bs2t.bars(S['Skąd pochodzą pożyczki']);
+  assert.equal(cr.length, 10); assert.ok(S['Skąd pochodzą pożyczki'].includes('<div class="wk-leg">'));
+  const leg = [...S['Skąd pochodzą pożyczki'].matchAll(/<span><i class="wk-sq (bs\d)"><\/i>([^<]*)<\/span>/g)].map(m => [m[1], m[2]]);
+  assert.deepEqual(leg, [['bs1', 'Hongkong'], ['bs2', 'Wielka Brytania'], ['bs3', 'Japonia'], ['bs4', 'USA'], ['bs5', 'Francja'], ['bs6', 'Pozostałe']], 'pięć największych krajów banków (stan łączny) i reszta');
+  const br = cr.find(r => r.l === 'Brazylia');
+  assert.ok(br.v.startsWith('US 2') && br.tip.includes('USA 25%') && br.tip.includes('Wielka Brytania 15%') && br.tip.includes('Pozostałe '), br.v + ' | ' + br.tip);
+  for (const r of cr) { const sum = [...r.svg.matchAll(/<rect class="wk-b bs\d" x="[\d.]+" y="[\d.]+" width="([\d.]+)"/g)].reduce((a, m) => a + +m[1], 0); assert.ok(Math.abs(sum - 100) < 1.5, r.l + ' suma szerokości ' + sum); }
+  assert.ok(bs2t.txt(b).includes('„Pozostałe” to banki z innych krajów oraz takie, które nie ujawniają podziału.'));
+});
+
+test('v384: emisje obligacji międzynarodowych rynków wschodzących — kafle dla całego rynku (stan z r/r, emisje brutto i netto 4 kwartałów), słupki netto według regionów i krajów, Rosji nie ma', () => {
+  const K = bs2t.open('pl'), b = su295.sp(bs2t.blk(K.el.innerHTML)), sec = b.slice(b.indexOf('Obligacje międzynarodowe rynków wschodzących'), b.indexOf('Globalna płynność: kredyt')), T = bs2t.tiles(sec), S = bs2t.secs(sec);
+  assert.deepEqual(Object.keys(T), ['ids', 'idc', 'idg']);
+  assert.ok(T.ids.includes('<b>3,64 bln USD</b>') && T.ids.includes('<small class="mtxt su-x pos">▲ +10,8% r/r</small>') && T.ids.includes('Dane za 2 kw. 2026'), T.ids);
+  assert.ok(T.idc.includes('<b>771,6 mld USD</b>') || T.idc.includes('<b>772 mld USD</b>') || T.idc.includes('<b>771 mld USD</b>'), T.idc);
+  assert.ok(T.idg.includes('<span class="pos">+363 mld USD</span>'), T.idg);
+  const bars = bs2t.bars(S['Emisje netto w 4 kwartałach']), by = n => bars.find(r => r.l === n);
+  assert.equal(bars.length, 10, 'trzy regiony i siedem krajów; razem — w kaflach');
+  assert.equal((S['Emisje netto w 4 kwartałach'].split('<h3')[0].match(/img\/glify\/globe\.svg/g) || []).length, 3, 'region ma globus zamiast flagi'); assert.ok(S['Emisje netto w 4 kwartałach'].includes('img/flagi/tr.svg') && S['Emisje netto w 4 kwartałach'].includes('img/flagi/pl.svg'));
+  assert.deepEqual(bars.slice(0, 3).map(r => r.l), ['Afryka i Bliski Wschód', 'Ameryka Łacińska', 'Azja i Pacyfik']);
+  assert.equal(by('Chiny').v, '−3,74 mld'); assert.equal(by('Chiny').cls, 'neg'); assert.equal(by('Meksyk').cls, 'pos'); assert.ok(by('Polska').tip.includes('brutto: 35,3 mld USD') || by('Polska').tip.includes('brutto'), by('Polska').tip);
+  assert.ok(!bs2t.txt(sec).includes('Rosja'));
+});
+
+test('v384: globalna płynność — trzy kafle (USD, EUR, JPY: poziom i zmiana r/r w kolorze znaku), linie zmiany r/r z ośmiu kwartałów, słupki dolarowego kredytu dla siedmiu krajów wschodzących', () => {
+  const K = bs2t.open('pl'), b = su295.sp(bs2t.blk(K.el.innerHTML)), sec = b.slice(b.indexOf('Globalna płynność: kredyt'), b.indexOf('Aktywa banków centralnych</b>')), T = bs2t.tiles(sec), S = bs2t.secs(sec);
+  assert.deepEqual(Object.keys(T), ['glusd', 'gleur', 'gljpy']);
+  assert.ok(T.glusd.includes('<b>14,7 bln USD</b>') && T.glusd.includes('<small class="mtxt su-x pos">▲ +7,3% r/r</small>') && T.glusd.includes('Kredyt w USD poza USA'), T.glusd);
+  assert.ok(T.gleur.includes('<b>5,1 bln EUR</b>') && T.gleur.includes('▲ +11,6% r/r'), T.gleur);
+  assert.ok(T.gljpy.includes('<b>65,9 bln JPY</b>') && T.gljpy.includes('<small class="mtxt su-x pos">▲ +0,3% r/r</small>'), T.gljpy);
+  const lines = S['Kredyt w dolarach, euro i jenach poza krajem waluty'];
+  assert.ok(lines.includes('class="wk-ch wk-lines"') && (lines.match(/<polyline class="wk-l bs\d"/g) || []).length === 3 && lines.includes('<div class="wk-leg">'), 'trzy linie w kolorach tożsamości');
+  assert.equal((lines.match(/<rect class="wk-hit"/g) || []).length, 8, 'osiem kwartałów');
+  assert.ok(lines.includes('2 kw. 2024 · USD: +2,6% · EUR: +5,0% · JPY: +14,4%'), 'podpowiedź: kwartał i trzy serie');
+  const em = bs2t.bars(S['Kredyt w dolarach dla krajów wschodzących']);
+  assert.deepEqual(em.map(r => r.l), ['Brazylia', 'Turcja', 'Indonezja', 'Meksyk', 'Republika Południowej Afryki'.length ? 'RPA' : '', 'Indie', 'Chiny'].filter(Boolean).slice(0, 7), 'malejąco według zmiany r/r');
+  assert.equal(em[0].v.startsWith('+7,9%'), true); assert.equal(em[0].cls, 'pos'); assert.equal(em[em.length - 1].cls, 'neg'); assert.ok(em[em.length - 1].v.startsWith('−7,1%'), em[em.length - 1].v);
+  assert.ok(!bs2t.txt(sec).includes('Rosja'));
+});
+
+test('v384: aktywa banków centralnych — słupki zmiany r/r w USD (kolor znaku) ze stanem obok, własny miesiąc kraju z innym stanem, strefa euro jako Eurosystem, zmiana odzwierciedla kursy', () => {
+  const K = bs2t.open('pl'), b = su295.sp(bs2t.blk(K.el.innerHTML)), sec = b.slice(b.indexOf('Aktywa banków centralnych</b>')), S = bs2t.secs(sec), r = bs2t.bars(S['Bilanse banków centralnych']);
+  assert.equal(r.length, 16);
+  assert.deepEqual(r.slice(0, 3).map(x => [x.l, x.v.split(' ')[0], x.cls]), [['Chiny', '+14,0%', 'pos'], ['Brazylia', '+11,7%', 'pos'], ['Polska', '+10,2%', 'pos']]);
+  assert.deepEqual([r[r.length - 1].l, r[r.length - 1].v.split(' ')[0], r[r.length - 1].cls], ['Japonia', '−16,5%', 'neg']);
+  assert.ok(r.find(x => x.l === 'Strefa euro').v.startsWith('−2,4% 6,82 bln') && r.find(x => x.l === 'Korea Południowa').v.endsWith('maj 26'), r.find(x => x.l === 'Korea Południowa').v);
+  assert.ok(r.find(x => x.l === 'Chiny').tip.includes('7,29 bln USD (czerwiec 2026)') && r.find(x => x.l === 'Chiny').tip.includes('rok temu: 6,39 bln USD'), r.find(x => x.l === 'Chiny').tip);
+  assert.ok(S['Bilanse banków centralnych'].includes('img/flagi/eu.svg'), 'strefa euro z flagą UE');
+  assert.ok(sec.includes('Dane za lipiec 2026 · pobrano ') && sec.includes('wiek(2026-07)'));
+  assert.ok(bs2t.txt(sec).includes('Strefa euro to Eurosystem.') && bs2t.txt(sec).includes('zmiana odzwierciedla także ruchy kursu waluty wobec dolara'));
+});
+
+test('v384: część bez danych albo uszkodzona — komunikat zamiast połowicznego wykresu; część z błędem pobrania — ostrzeżenie z datą; reszta bloku działa', () => {
+  const F = bs2t.F(); delete F.lbs; F.ok.lbs = false; F.gli = {asof: '2026-Q1', tot: {USD: F.gli.tot.USD}, em: F.gli.em}; F.cbta.rows = {CN: F.cbta.rows.CN}; F.spp.rows.CN.v = 'x'; F.ids.rows['4T'].i = -5;
+  const K = bs2t.open('pl', {'bis2': F}), b = su295.sp(bs2t.blk(K.el.innerHTML)), x = bs2t.txt(b);
+  assert.ok(x.includes('Części danych jeszcze nie pobrano (należności banków)'), 'część w ogóle bez pliku (ok False, brak danych)');
+  assert.ok(x.includes('Części danych jeszcze nie pobrano (płynność globalna)') && x.includes('Części danych jeszcze nie pobrano (aktywa banków centralnych)'), 'niepełne części: komunikat');
+  assert.ok(!b.includes('data-bs2="gl') && !b.includes('Aktywa banków centralnych</b></h3><p class="wk-sub">'), 'bez kafli i wykresów z niepełnych danych');
+  assert.ok(bs2t.bars(bs2t.secs(b)['Luka kredytowa']).length === 16 && bs2t.bars(bs2t.secs(b)['Realne ceny mieszkań']).length === 15, 'uszkodzona liczba kraju = brak wiersza, reszta zostaje');
+  assert.ok(!/NaN|undefined|Infinity|\bnull\b/.test(b), 'żadnych NaN ani undefined');
+  const G = bs2t.F(); G.ok.lbs = false; G.ok.cg = false;
+  const y = bs2t.txt(su295.sp(bs2t.blk(bs2t.open('pl', {'bis2': G}).el.innerHTML)));
+  assert.ok(y.includes('Ostatnie pobranie części danych się nie udało (luka kredytowa, należności banków) — pokazujemy wcześniejsze dane z ich datą.'), y.slice(0, 400));
+  const H0 = bs2t.F(); H0.ok = {}; H0.part_at = {};
+  const z = bs2t.txt(su295.sp(bs2t.blk(bs2t.open('pl', {'bis2': H0}).el.innerHTML)));
+  assert.ok(z.includes('Dane za 1 kw. 2026 · wiek(2026-Q1)') && !z.includes('pobrano'), 'bez daty pobrania — tylko okres i wiek');
+});
+
+test('v384: wszystkie teksty bloku w 10 językach (komplet kluczy, prawdziwe tłumaczenia, te same znaczniki), bez NaN i bez nazw dostawców danych, zero w miejscu braku nie występuje', () => {
+  const I = v96src.I18N, keys = Object.keys(I.pl).filter(k => k.startsWith('bs2.'));
+  assert.equal(keys.length, 108);
+  const lit = new Set([...bs2t.code.matchAll(/t\('(bs2\.[\w.]+)'/g)].map(m => m[1]).filter(k => !k.endsWith('.')));
+  for (const m of bs2t.code.matchAll(/bs2Sub\('(\w+)'/g)) { lit.add(`bs2.${m[1]}.t`); lit.add(`bs2.${m[1]}.u`); }
+  for (const m of bs2t.code.matchAll(/bs2Tile\('\w+','(\w+)'/g)) lit.add('bs2.k.' + m[1]);
+  for (const c of ['usd', 'eur', 'jpy']) lit.add('bs2.k.gl' + c);
+  for (const m of bs2t.code.matchAll(/sec\('(\w\w)'/g)) lit.add('bs2.h.' + m[1]);
+  for (const p of ['cg', 'dsr', 'spp', 'lbs', 'ids', 'gli', 'cbta']) lit.add('bs2.pt.' + p);
+  for (const c of [...Object.keys(BS2_FILE.cg.rows), ...Object.keys(BS2_FILE.ids.rows), ...Object.keys(BS2_FILE.cbta.rows), ...Object.keys(BS2_FILE.lbs.tot), ...Object.keys(BS2_FILE.lbs.rep.BR), 'SG', 'HK']) lit.add('bs2.cc.' + c);
+  for (const k of lit) assert.ok(keys.includes(k), 'brak klucza w słowniku: ' + k);
+  const ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  const SAME = new Set(['bs2.u.pp', 'bs2.cc.USA', 'bs2.cc.US']);   /* znaczniki i nazwy zapisywane tak samo w kilku językach */
+  for (const L of L10_384) {
+    for (const k of keys) {
+      const v = I[L][k]; assert.ok(typeof v === 'string' && v.length > 0, `${L} ${k}`);
+      assert.equal(ph(v), ph(I.pl[k]), `${L} ${k} znaczniki`);
+      assert.ok(!/\bBIS\b|Bank for International/.test(v), `${L} ${k}: nazwa dostawcy`);
+      if (L !== 'en' && v.length > 40) assert.notEqual(v, I.en[k], `${L} ${k}: skopiowany angielski`);
+      if (L !== 'pl' && v.length > 40) assert.notEqual(v, I.pl[k], `${L} ${k}: skopiowany polski`);
+    }
+    const K = bs2t.open(L), b = su295.sp(bs2t.blk(K.el.innerHTML)), x = bs2t.txt(b);
+    assert.ok(!/bs2\.|NaN|undefined|Infinity|\{[a-z]\}/.test(x), L + ': ' + (x.match(/bs2\.[\w.]+|NaN|undefined|\{[a-z]\}/) || [''])[0]);
+    assert.ok(!/BIS\b|Bank for International/.test(x), L + ': nazwa dostawcy w tekście bloku');
+    assert.equal((b.match(/data-bs2="/g) || []).length, 9, L + ': dziewięć kafli'); assert.ok(b.includes(I[L]['bs2.t']), L);
+  }
+  assert.ok(I.zh['bs2.q'] === '{y}年第{q}季度' && I.ja['bs2.q'] === '{y}年第{q}四半期' && I.en['bs2.q'] === 'Q{q} {y}' && I.pl['bs2.q'] === '{q} kw. {y}');
+});
+
+test('v384: strona — słownik v384 jest ostatnim, czysty JSON z jedną linią nakładania; jeden hook w panelu GLOBAL, moduł w zakresie panelu, plik pobierany tylko po rozwinięciu', () => {
+  const mm = [...html.matchAll(/^const EXTRA(\d+)=(\{.*\});\nfor\(const l in EXTRA\1\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],EXTRA\1\[l\]\);$/gm)], mine = mm.filter(m => m[2].includes('"bs2.t"'));
+  assert.equal(mine.length, 1); assert.equal(mm[mm.length - 1][1], mine[0][1], 'słownik v384 liczony jako kolejny po najwyższym (ostatni linia nakładania)');
+  const D = JSON.parse(mine[0][2]); assert.deepEqual(Object.keys(D).sort(), [...L10_384].sort()); assert.equal(Object.keys(D.pl).length, 108); assert.ok(Object.keys(D.pl).every(k => k.startsWith('bs2.')));
+  assert.equal(html.split("(typeof bs2D==='function'?bs2D():'')+szBlk()+").length, 2, 'hook raz, przed sektorami');
+  assert.ok(html.indexOf('/* v384 (F11Z5): BIS — kredyt, obsługa długu') > html.indexOf('/* v371 (F3Z1): koniec */') && html.indexOf('/* v384 (F11Z5): koniec */') < html.indexOf('\nsuLoad();suAuto();'), 'moduł w zakresie panelu surowców (cięcie testów)');
+  assert.equal((bs2t.code.match(/srvJSON\('bis2'\)/g) || []).length, 1, 'jedno miejsce pobrania');
+  assert.ok(!/suLoad\(\)[^\n]*bis2|SRV_LD[^\n]*bis2|SRV_GR\['bis2'\]/.test(html), 'plik nie jest w ładowarce startowej — tylko po rozwinięciu');
+  assert.ok(!bs2t.code.includes('BIS') || /\/\*[\s\S]*?\*\//.test(bs2t.code), 'nazwa dostawcy tylko w komentarzach kodu');
+  const vis = bs2t.code.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/BIS|Bank for International/.test(vis), 'kod bez nazw dostawców poza komentarzami');
+  const css = html.slice(html.indexOf('#g-surowce .su-bs2 .wk-ch .bs1'), html.indexOf('#g-surowce .su-pld .wk-ch .pld1'));
+  assert.ok(css.includes('@media (max-width:620px){#g-surowce .su-bs2 .wk-br{grid-template-columns:minmax(0,1fr) auto') && css.includes('--k:var(--bl)') && css.includes('var(--gr-tx)') && css.includes('var(--rd-tx)') && css.includes('var(--yl-tx)'), 'telefon: etykieta i wartość w jednym wierszu, kolory systemowe');
 });
