@@ -6411,9 +6411,10 @@ def rosja_kontrola(files, R):
 # (5) różnica „10 lat” do 10-latek Niemiec (plik rynki.json) poza [0,3; 6,0] pp = ⚠️ (09.10.2026: 6,27 − 3,50 = 2,77 pp).
 PLIKI.insert(PLIKI.index('krypto-dzien'), 'polska-rynek')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
 LIMIT_MIN['polska-rynek'] = 180   # plik zapisywany co przebieg (części mają własny rytm); wiek dnia danych każdej części ocenia wiersz świeżości
-AW_BEZ_BLEDU.update({'polska_rynek_' + p: 'Polska na rynku — część z błędem zostaje z datą (v361); wiek danych w wierszach świeżości' for p in ('gpw', 'krzywa', 'fundusze')})
+AW_BEZ_BLEDU.update({'polska_rynek_' + p: 'Polska na rynku — część z błędem zostaje z datą (v361); wiek danych w wierszach świeżości' for p in ('gpw', 'krzywa', 'fundusze', 'czlonkowie')})
 PLR_K_ETYKIETA = {'gpw': 'Polska: indeksy giełdy w Warszawie (dziennie)', 'krzywa': 'Polska: krzywa rentowności obligacji skarbowych (dziennie)',
-                  'fundusze': 'Polska: przepływy do funduszy inwestycyjnych (miesięcznie)'}
+                  'fundusze': 'Polska: przepływy do funduszy inwestycyjnych (miesięcznie)',
+                  'czlonkowie': 'Polska: członkowie giełdy w obrotach akcjami (miesięcznie)'}   # v428
 PLR_K_PROG_GODZ = {'gpw': 100, 'krzywa': 100}    # godziny robocze od końca dnia danych
 PLR_K_PROG_DNI_FUND = 60                          # dni od końca miesiąca danych
 PLR_K_IDX = ('WIG', 'WIG20', 'mWIG40', 'sWIG80', 'TBSP')
@@ -6470,6 +6471,10 @@ def polska_rynek_swiezosc(j, now=None):
             w = wiek_danych(str(txt)[:7], 'month', 'm', now)
             prog = PLR_K_PROG_DNI_FUND * 1440
             opis = f'próg {PLR_K_PROG_DNI_FUND} dni od końca miesiąca danych — najwyżej uwaga (nowy raport ok. 11. dnia drugiego miesiąca po miesiącu danych)'
+        elif p == 'czlonkowie':   # v428: miesięczna tabela udziału członków; nowy miesiąc od 1. dnia następnego miesiąca
+            w = wiek_danych(str(txt)[:7], 'month', 'm', now)
+            prog = PLR_K_PROG_DNI_CZL * 1440
+            opis = f'próg {PLR_K_PROG_DNI_CZL} dni od końca miesiąca danych — najwyżej uwaga (nowy miesiąc na stronie giełdy od 1. dnia następnego miesiąca)'
         else:
             w = wiek_danych(txt, 'day', 'd', now)
             prog = PLR_K_PROG_GODZ[p] * 60
@@ -6477,6 +6482,80 @@ def polska_rynek_swiezosc(j, now=None):
         st = '?' if w is None else ('⚠️' if w > prog else '✅')
         rows.append((label, st, w, str(txt), opis if st == '⚠️' else ''))
     return rows
+
+
+# ---------------------------------------------------------------- v428 (F11Z27): Polska na rynku — członkowie giełdy (część czlonkowie pliku data/polska-rynek.json) ----------------------------------------------------------------
+# Świeżość: miesięczna tabela udziału członków giełdy; dzień danych = koniec miesiąca, a dane za miesiąc ukazują się 1. dnia następnego miesiąca (strona pokazuje domyślnie poprzedni pełny miesiąc;
+# 18.10.2026 pokazywała wrzesień). Wiek liczony jak dla funduszy: od 1. dnia miesiąca po miesiącu danych. W normalnej pracy największy wiek tuż przed nowym miesiącem to 31 dni (+ do 3 godzin rytmu
+# zbieracza) → próg ⚠️ 45 dni (14 dni zapasu na opóźnienie publikacji). Test wsteczny: źródło nie udostępnia historii publikacji (jest tylko bieżący miesiąc), więc próg opiera się na regule strony i rytmie
+# miesięcznym, nie na rozkładzie z lat — do weryfikacji po pierwszych dwóch publikacjach (listopad i grudzień 2026); test w repozytorium symuluje 36 miesięcy pracy zgodnej z rytmem i wymaga zera ostrzeżeń.
+# ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (kwoty grup ≠ razem, dzień danych nie jest końcem miesiąca, największe obroty nie malejąco, nieznana grupa, ostatni miesiąc historii ≠ dzień danych
+# albo ≠ kwoty grup, miesiące historii nie rosną). Uwaga (najwyżej ⚠️): udział członków o nieustalonej siedzibie powyżej 5% — tablica klasyfikacji w zbieraczu wymaga przeglądu (zbieracz sam odrzuca powyżej 15%;
+# wrzesień 2026: 1,2%, jedyny taki członek to kod 959).
+PLR_K_PROG_DNI_CZL = 45
+PLR_K_CZ_NIEZN = 0.05
+PLR_K_CZ_TOL = 0.05    # mln zł: kwoty grup a razem
+
+
+def polska_rynek_czlonkowie_spojnosc(j):
+    """Sprzeczności wewnątrz części czlonkowie → lista opisów (pusta, gdy brak części albo wszystko zgodne)."""
+    zle = []
+    C = j.get('czlonkowie') if isinstance(j.get('czlonkowie'), dict) else None
+    if not C:
+        return zle
+    g = C.get('g')
+    if not (isinstance(g, dict) and all(_plr_k_num(g.get(k)) and g[k] >= 0 for k in ('z', 'k', 'n'))):
+        return ['członkowie: brak kwot grup z, k, n albo ujemne']
+    if not _plr_k_num(C.get('razem')) or abs(g['z'] + g['k'] + g['n'] - C['razem']) > PLR_K_CZ_TOL:
+        zle.append(f'członkowie: kwoty grup {round(g["z"] + g["k"] + g["n"], 2)} ≠ razem {C.get("razem")} mln zł')
+    d = _plr_k_dzien(C.get('asof'))
+    if d is None or (d + dt.timedelta(days=1)).day != 1:
+        zle.append(f'członkowie: dzień danych {C.get("asof")} nie jest końcem miesiąca')
+    top = C.get('top')
+    if not (isinstance(top, list) and top and all(isinstance(x, list) and len(x) == 4 and isinstance(x[0], str) and isinstance(x[1], str) and _plr_k_num(x[2]) and x[2] > 0 and x[3] in ('z', 'k', 'n') for x in top)):
+        zle.append('członkowie.top: brak członków albo wiersz spoza układu [kod, nazwa, mln zł > 0, grupa]')
+    else:
+        if any(a[2] < b[2] for a, b in zip(top, top[1:])):
+            zle.append('członkowie.top: obroty nie malejąco')
+        if len({x[0] for x in top}) != len(top):
+            zle.append('członkowie.top: powtórzony kod członka')
+        if sum(x[2] for x in top) > (C.get('razem') or 0) + PLR_K_CZ_TOL:
+            zle.append('członkowie.top: suma największych członków większa niż obroty razem')
+        for gr in ('z', 'k', 'n'):
+            if sum(x[2] for x in top if x[3] == gr) > g[gr] + PLR_K_CZ_TOL:
+                zle.append(f'członkowie.top: członkowie grupy {gr} mają więcej niż kwota grupy'); break
+    h = C.get('h')
+    if not (isinstance(h, dict) and h):
+        zle.append('członkowie.h: brak historii miesięcy')
+    else:
+        ks = sorted(h)
+        if any(not re.fullmatch(r'\d{4}-\d{2}', str(k)) or not (isinstance(h[k], list) and len(h[k]) == 3 and all(_plr_k_num(v) and v >= 0 for v in h[k])) for k in ks):
+            zle.append('członkowie.h: wiersz spoza układu [z, k, n] albo zły miesiąc')
+        elif ks[-1] != str(C.get('asof'))[:7]:
+            zle.append(f'członkowie: dzień danych {C.get("asof")} ≠ ostatni miesiąc historii {ks[-1]}')
+        elif any(abs(a - b) > 0.011 for a, b in zip(h[ks[-1]], (g['z'], g['k'], g['n']))):
+            zle.append(f'członkowie: ostatni miesiąc historii {h[ks[-1]]} ≠ kwoty grup {[g["z"], g["k"], g["n"]]}')
+    return zle
+
+
+def polska_rynek_czlonkowie_wiersze(j):
+    """Wiersz opisowy i ewentualna uwaga o nieustalonej siedzibie → (wiersze, uwagi); brak poprawnej części = puste listy."""
+    C = j.get('czlonkowie') if isinstance(j.get('czlonkowie'), dict) else None
+    g = C.get('g') if C else None
+    if not (isinstance(g, dict) and all(_plr_k_num(g.get(k)) and g[k] >= 0 for k in ('z', 'k', 'n'))):
+        return [], []
+    s = g['z'] + g['k'] + g['n']
+    if s <= 0:
+        return [], []
+    p = {k: g[k] / s * 100 for k in ('z', 'k', 'n')}
+    n = g['n'] / s
+    wier = [(f'członkowie giełdy {str(C.get("asof"))[:7]}: siedziba za granicą {_plr_k_f(p["z"], 1)}% · w Polsce {_plr_k_f(p["k"], 1)}% · nieustalona {_plr_k_f(p["n"], 1)}% (obroty razem {_plr_k_f(s, 0)} mln zł)',
+             '✅' if n <= PLR_K_CZ_NIEZN else '⚠️')]
+    uw = []
+    if n > PLR_K_CZ_NIEZN:
+        nazwy = ', '.join(str(x[1]) for x in (C.get('nowi') or [])[:3] if isinstance(x, list) and len(x) >= 2)
+        uw.append(f'Polska: członkowie giełdy o nieustalonej siedzibie mają {_plr_k_f(n * 100, 1)}% obrotów (próg {_plr_k_f(PLR_K_CZ_NIEZN * 100, 0)}%){": " + nazwy if nazwy else ""} — tablica klasyfikacji w zbieraczu do przeglądu — najwyżej uwaga')
+    return wier, uw
 
 
 def polska_rynek_spojnosc(j):
@@ -6531,6 +6610,7 @@ def polska_rynek_spojnosc(j):
                     zle.append(f'fundusze: suma netto typów {round(sum(x[2] for x in p), 1)} mln ≠ razem {round(m[-1][4] * 1000, 1)} mln zł')
             else:
                 zle.append('fundusze.p: brak typów funduszy albo zły układ')
+    zle += polska_rynek_czlonkowie_spojnosc(j)   # v428
     return zle
 
 
@@ -6598,6 +6678,9 @@ def polska_rynek_porownania(j, files):
                         uw.append(f'Polska: średnia zmiana rentowności obligacji {_plr_k_f(sk)} pp między {dni[-2]} a {dni[-1]} (próg {_plr_k_f(PLR_K_KRZYWA_SKOK_PP)} pp) — najwyżej uwaga')
             except (KeyError, TypeError, IndexError):
                 pass
+    w_cz, u_cz = polska_rynek_czlonkowie_wiersze(j)   # v428
+    wier += w_cz
+    uw += u_cz
     return {'wiersze': wier, 'uwagi': uw}
 
 

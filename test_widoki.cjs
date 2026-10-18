@@ -25612,7 +25612,7 @@ test('v361: 10 języków — bez surowych kluczy, NaN i undefined; bez nazw wyda
     assert.ok(!PROV.test(T), L + ': nazwa wydawcy: ' + (T.match(PROV) || [])[0]);
     assert.ok(T.includes(names[L]), L + ': nazwa sekcji ' + names[L]);
     assert.equal(Object.keys(plr361.tiles(b)).length, 12, L + ': 12 kafli');
-    assert.equal((b.match(/<h3 class="mtxt su-h">/g) || []).length, 3, L + ': 3 sekcje');
+    assert.equal((b.match(/<h3 class="mtxt su-h">/g) || []).length, 4, L + ': 4 sekcje (giełda, członkowie giełdy, obligacje, fundusze; członkowie bez części w pliku = nagłówek z komunikatem)');
     assert.equal((b.match(/<div class="wk-ch wk-lines"/g) || []).length, 3, L + ': krzywa, indeksy i rentowność w czasie');
     assert.equal((b.match(/<div class="wk-ch wk-cols"/g) || []).length, 1, L + ': kolumny funduszy');
     assert.equal((b.match(/<div class="wk-ch wk-bars"/g) || []).length, 1, L + ': słupki grup');
@@ -25653,7 +25653,7 @@ test('v361: miejsce w kodzie i zasady — moduł zaraz za blokiem Polska, blok z
   assert.ok(html.includes('@media (max-width:620px){#g-surowce .su-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}'), 'telefon: kafle w 2 kolumnach');
   assert.ok(html.includes('#g-surowce .su-plr .su-k>small.pos{color:var(--gr-tx)}#g-surowce .su-plr .su-k>small.neg{color:var(--rd-tx)}#g-surowce .su-plr .su-k>small.neu{color:var(--yl-tx)}'), 'zmiany w miesiącu i roku w kolorze kierunku (nie szare)') && html.includes('#g-surowce .su-plr .wk-bl{white-space:normal;line-height:1.25}');
   assert.ok(!/\bGPW\b|BondSpot|IZFiA|izfa\.pl|gpw\.pl|bondspot\.pl/.test(c + html.slice(html.indexOf('#g-surowce .su-plr .wk-ch .plr1'), html.indexOf('#g-surowce .su-plr .wk-ch .plr1') + 600)), 'bez nazw wydawców w kodzie strony');
-  assert.ok(c.includes("const PLR_P=['gpw','krzywa','fundusze'];") && c.includes('function plrOk(j){return !!(suObj(j)&&j.v===1&&'), 'plik wersji 1 z którąkolwiek częścią');
+  assert.ok(c.includes("const PLR_P=['gpw','krzywa','fundusze'") && c.includes('function plrOk(j){return !!(suObj(j)&&j.v===1&&'), 'plik wersji 1 z którąkolwiek częścią');
 });
 
 
@@ -33816,4 +33816,122 @@ test('v426: wygląd na telefonie — pasek zawija się, przyciski mają 34 px wy
   assert.ok(/@media \(max-width:420px\)\{\.s426-sh\{gap:6px;font-size:12px\}\.s426-bar \.pnote\{flex-basis:100%\}\}/.test(html), 'telefon: podpis pod przełącznikiem');
   const css = html.slice(html.indexOf('/* v426 (W4C_SUMY): przełącznik'), html.indexOf('@media (max-width:420px){.s426-sh'));
   assert.ok(!/color:\s*(#|rgb|var\(--(gr|rd|yl))/.test(css.replace(/\.s426-n\{[^}]*\}/, '').replace(/\.s426-v small\{[^}]*\}/, '')), 'CSS v426 nie koloruje kierunku (kolory z klas pos / neg / neu istniejących tabel i kafli)');
+});
+
+
+/* ===================== v428 (F11Z27): sekcja „Kto handluje na giełdzie w Warszawie” w bloku Polski (część czlonkowie pliku data/polska-rynek.json) =====================
+   CZ428_PART — wynik zbieracza v428 na prawdziwych 39 wierszach tabeli za wrzesień 2026 (pobranie 18.10.2026; test Python PolskaCzlonkowieV428); reszta pliku — PLR361_FILE. */
+const CZ428_PART = {"asof":"2026-09-30","razem":118810.79,"ile":39,"akt":29,"g":{"z":74795.2,"k":42559.67,"n":1455.92},"top":[["756","Goldman Sachs",27569.17,"z"],["912","BM PKO BP",12293.44,"k"],["754","BofA Securities",11804.87,"z"],["753","J.P. Morgan",7317.06,"z"],["755","Morgan Stanley",6386.05,"z"],["728","UBS Europe",6310.71,"z"],["767","Jump Trading",5768.78,"z"],["922","Handlowy",5659.89,"k"],["702","Wood & Company",5235.0,"z"],["915","Erste BM",5074.73,"k"],["815","BM Pekao",4462.87,"k"],["880","XTB",2767.59,"k"]],"nowi":[["959","ERSTE",1455.92]],"h":{"2026-09":[74795.2,42559.67,1455.92]},"at":"2026-10-18T12:00:00+00:00"};
+const CZ428_FILE = Object.assign({}, PLR361_FILE, {ok: Object.assign({}, PLR361_FILE.ok, {czlonkowie: true}), czlonkowie: CZ428_PART});
+const cz428open = (L, mod) => { const F = su295.clone(CZ428_FILE); if (mod) mod(F); return plr361open(L, {'polska-rynek': F, rynki: PLR361_RYNKI}); };
+const cz428blk = (L, mod) => su295.sp(plr361.blk(cz428open(L, mod).el.innerHTML));
+const cz428sec = b => { const a = b.indexOf('<div class="plr-cz">'); return a < 0 ? '' : b.slice(a, b.indexOf('<h3', a)); };
+
+test('v428: sekcja członków giełdy — po giełdzie, przed obligacjami; trzy kafle (zagranica, kraj, największy członek), pasek podziału, słupki, zdanie; liczby z pliku', () => {
+  const b = cz428blk('pl'), s = cz428sec(b);
+  assert.deepEqual([...b.matchAll(/<h3 class="mtxt su-h">.*?<b>(.*?)<\/b>/g)].map(m => m[1]), ['Giełda w Warszawie', 'Kto handluje na giełdzie w Warszawie', 'Obligacje skarbowe Polski', 'Fundusze inwestycyjne w Polsce']);
+  const T = plr361.tiles(s);
+  assert.deepEqual(Object.keys(T), ['cz', 'ck', 'ct']);
+  assert.ok(T.cz.includes('<b>63,0%</b>') && T.cz.includes('Z siedzibą za granicą') && T.cz.includes('udział w obrotach akcjami · 74,80 mld zł') && T.cz.includes('dane za wrzesień 2026') && T.cz.includes('img/glify/globe.svg'), T.cz);
+  assert.ok(T.ck.includes('<b>35,8%</b>') && T.ck.includes('Z siedzibą w Polsce') && T.ck.includes('42,56 mld zł') && T.ck.includes('img/flagi/pl.svg') && T.ck.includes('dane za wrzesień 2026'), T.ck);
+  assert.ok(T.cz.includes('wiek(2026-09-30)') && T.ck.includes('wiek(2026-09-30)') && T.ct.includes('wiek(2026-09-30)'), 'data danych i wiek przy każdym kaflu');
+  assert.ok(T.ct.includes('<b>Goldman Sachs 23,2%</b>') && T.ct.includes('Największy członek') && T.ct.includes('Siedziba za granicą · 27,57 mld zł'), T.ct);
+  assert.equal((s.match(/<div class="wk-ch wk-bars"/g) || []).length, 2, 'pasek podziału i słupki największych członków');
+  assert.equal((s.match(/<div class="wk-br"/g) || []).length, 11, '1 pasek + 10 największych');
+  assert.ok(s.includes('<span class="wk-bl">Goldman Sachs</span>') && s.includes('<span class="wk-bl">BM PKO BP</span>') && s.includes('<span class="wk-bl">Wrzesień 2026</span>'), 'etykiety');
+  assert.equal((s.match(/<rect class="wk-b plr1"/g) || []).length, 1 + 7, 'zagranica: segment paska + 7 spośród 10 największych (GS, BofA, JPM, MS, UBS, Jump, Wood)');
+  assert.equal((s.match(/<rect class="wk-b plr2"/g) || []).length, 1 + 3, 'kraj: segment paska + 3 (PKO BP, Handlowy, Erste BM)');
+  assert.equal((s.match(/<rect class="wk-b plr4"/g) || []).length, 1, 'nieustalona: tylko segment paska');
+  assert.ok(s.includes('<i class="wk-sq plr1"></i>Siedziba za granicą') && s.includes('<i class="wk-sq plr2"></i>Siedziba w Polsce') && s.includes('<i class="wk-sq plr4"></i>Siedziba nieustalona'), 'legenda z trzema grupami (kolory tożsamości, nie kierunku)');
+  assert.ok(/<rect class="wk-b plr1" x="0"[^>]*\/><rect class="wk-b plr2" x="62\.9\d*"/.test(s), 'pasek podziału jest skumulowany: kraj zaczyna się tam, gdzie kończy zagranica (62,95%)');
+  assert.ok(/data-t="[^"]*Siedziba za granicą[^"]*63,0%/.test(s) && /data-t="Goldman Sachs · 27,57 mld zł · 23,2% · Siedziba za granicą"/.test(s), 'podpowiedzi');
+  const tx = su295.txt(s);
+  assert.ok(tx.includes('Wrzesień 2026: członkowie giełdy z siedzibą za granicą mieli 63,0% obrotów akcjami na giełdzie w Warszawie, a z siedzibą w Polsce 35,8%. Największy: Goldman Sachs (23,2%). Dla 1,2% obrotów siedziba członka jest nieustalona (ERSTE).'), tx);
+  assert.ok(tx.includes('To obroty brutto') && tx.includes('klasyfikacja własna') && tx.includes('Najwięksi członkowie — wrzesień 2026'), 'objaśnienie: obroty brutto, klasyfikacja własna');
+  assert.ok(!/NaN|undefined|Infinity|null/.test(s) && !/GPW/.test(tx), 'bez NaN i nazw wydawców');
+  assert.ok(!s.includes('class="wk-b pos"') && !s.includes('class="wk-b neg"'), 'kolory grup to kolory tożsamości — nie zieleń i czerwień kierunku');
+});
+
+test('v428: historia narasta — do dwóch miesięcy notatka, od trzech wykres kolumnowy ze stosem 100%; bez członków o nieustalonej siedzibie trzecia grupa znika', () => {
+  let s = cz428sec(cz428blk('pl'));
+  assert.ok(s.includes('Wykres miesięczny pojawi się od trzeciego miesiąca w pliku (dane od: wrzesień 2026)') && !s.includes('wk-cols'), 'jeden miesiąc');
+  s = cz428sec(cz428blk('pl', F => { F.czlonkowie.h = {'2026-08': [60000, 40000, 0], '2026-09': F.czlonkowie.h['2026-09']}; }));
+  assert.ok(s.includes('(dane od: sierpień 2026)') && !s.includes('wk-cols'), 'dwa miesiące');
+  s = cz428sec(cz428blk('pl', F => { F.czlonkowie.h = {'2026-07': [50000, 50000, 0], '2026-08': [60000, 40000, 0], '2026-09': F.czlonkowie.h['2026-09']}; }));
+  assert.equal((s.match(/<div class="wk-ch wk-cols"/g) || []).length, 1); assert.ok(s.includes('Udział zagranicy i kraju — miesięcznie') && s.includes('% obrotów akcjami') && s.includes('ostatnie 3 mies.'), 'tytuł');
+  assert.ok(s.includes('aria-label="Wykres kolumnowy: podział obrotów akcjami na giełdzie w Warszawie według siedziby członków w ostatnich 3 miesiącach, w procentach"'), 'opis dla czytnika ekranu');
+  assert.equal((s.match(/<rect class="wk-b plr1"/g) || []).length, 3 + 1 + 7); assert.equal((s.match(/<rect class="wk-b plr4"/g) || []).length, 1 + 1, 'nieustalona tylko tam, gdzie > 0: wrzesień + segment paska');
+  assert.ok(/data-t="lip 2026 · Siedziba za granicą: 50,0% · Siedziba w Polsce: 50,0%"/.test(s) || /data-t="lipiec 2026 ·[^"]*50,0%/.test(s), 'podpowiedź kolumny');
+  s = cz428sec(cz428blk('pl', F => { const C = F.czlonkowie; C.g = {z: 75000, k: 43811.79, n: 0}; C.razem = 118811.79; C.nowi = []; C.h = {'2026-09': [75000, 43811.79, 0]}; C.top = C.top.filter(r => r[3] !== 'n'); }));
+  assert.ok(!s.includes('Siedziba nieustalona') && !s.includes('nieustalona') && !s.includes('wk-b plr4') && s.includes('<b>63,1%</b>'), 'bez nieustalonych: dwie grupy, brak zdania o nieustalonych');
+  assert.equal((s.match(/<i class="wk-sq plr/g) || []).length, 2 + 2, 'legenda paska i słupków po dwie grupy');
+});
+
+test('v428: część bez danych, z błędem albo zepsuta — komunikat zamiast sekcji, reszta bloku nietknięta, nigdy zero ani NaN', () => {
+  let b = cz428blk('pl', F => { delete F.czlonkowie; F.ok.czlonkowie = false; });
+  assert.ok(b.includes('<p class="pnote">Części danych jeszcze nie pobrano (członkowie giełdy) — pojawią się po pierwszym udanym pobraniu.</p>') && !b.includes('plr-cz') && b.includes('Giełda w Warszawie') && b.includes('Fundusze inwestycyjne w Polsce'), 'brak części');
+  b = cz428blk('pl', F => { F.ok.czlonkowie = false; });
+  assert.ok(b.includes('Ostatnie pobranie części danych się nie udało (członkowie giełdy) — pokazujemy wcześniejsze dane z ich datą.') && b.includes('<div class="plr-cz">'), 'część z błędem: wcześniejsze dane z datą');
+  b = cz428blk('pl');
+  assert.ok(!b.includes('Ostatnie pobranie części danych się nie udało') && !b.includes('jeszcze nie pobrano (członkowie giełdy)'));
+  for (const zly of [F => { F.czlonkowie.g.z = -1; }, F => { F.czlonkowie.g.k = NaN; }, F => { F.czlonkowie.g = {z: 0, k: 0, n: 0}; }, F => { F.czlonkowie.g.z = 0; }, F => { F.czlonkowie.asof = 'wrzesień'; }, F => { F.czlonkowie.g = [1, 2, 3]; }, F => { F.czlonkowie.g.n = '5'; }]) {
+    b = cz428blk('pl', zly);
+    assert.ok(b.includes('Części danych jeszcze nie pobrano (członkowie giełdy)') && !b.includes('plr-cz') && !/NaN|undefined|Infinity/.test(b), 'zepsuta część = komunikat: ' + zly);
+  }
+  b = cz428blk('pl', F => { F.czlonkowie.top = [['756', 'Goldman Sachs', 27569.17, 'z'], ['912', 'X', 0, 'k'], ['913', 'Y', 100, 'q'], 'zły', ['914', 5, 100, 'k'], ['915', 'Z', null, 'k']]; delete F.czlonkowie.nowi; });
+  const s = cz428sec(b); assert.equal((s.match(/<div class="wk-br"/g) || []).length, 2, 'wiersze spoza układu, zerowe i z nieznaną grupą pominięte (zostaje pasek i jeden członek)'); assert.ok(!/NaN|undefined|Infinity/.test(s) && s.includes('Największy: Goldman Sachs (23,2%).'));
+  b = cz428blk('pl', F => { F.czlonkowie.top = []; delete F.czlonkowie.h; });
+  const s2 = cz428sec(b); assert.ok(s2.includes('<b>—</b>') && s2.includes('brak danych — to nie zero') && !s2.includes('Najwięksi członkowie') && !s2.includes('Największy:') && /\(dane od: wrzesień 2026\)/.test(s2) && !/NaN|undefined|Infinity/.test(s2), 'bez największych członków: brak = „—”, nie zero');
+});
+
+test('v428: 10 języków — bez surowych kluczy, NaN i undefined; bez nazw wydawców danych; ten sam układ (3 kafle, 2 wykresy słupkowe, 11 wierszy)', () => {
+  const PROV = /GPW|WSE\b|BondSpot|IZFiA|IZFA|izfa|Izba Zarz|Giełda Papierów|Papierów Wartościowych|Stooq|EODHD|MFW|IMF\b|Bundesbank|FRED|NBP/;
+  const head = {pl: 'Kto handluje na giełdzie w Warszawie', en: 'Who trades on the Warsaw exchange', de: 'Wer an der Warschauer Börse handelt', es: 'Quién opera en la bolsa de Varsovia', fr: 'Qui négocie à la Bourse de Varsovie',
+    it: 'Chi negozia sulla Borsa di Varsavia', pt: 'Quem negoceia na bolsa de Varsóvia', ru: 'Кто торгует на Варшавской бирже', zh: '谁在华沙证券交易所交易', ja: 'ワルシャワ証券取引所で取引しているのは誰か'};
+  for (const L of L10_361) {
+    const b = cz428blk(L), s = cz428sec(b), T = su295.txt(s);
+    assert.ok(!b.includes('plr428.') && !b.includes('plr361.') && !/NaN|undefined|Infinity/.test(b), L + ': klucze i liczby');
+    assert.ok(!PROV.test(T), L + ': nazwa wydawcy: ' + (T.match(PROV) || [])[0]);
+    assert.ok(su295.txt(b).includes(head[L]), L + ': nagłówek sekcji');
+    assert.equal(Object.keys(plr361.tiles(s)).length, 3, L + ': 3 kafle'); assert.equal((s.match(/<div class="wk-ch wk-bars"/g) || []).length, 2, L + ': 2 wykresy słupkowe'); assert.equal((s.match(/<div class="wk-br"/g) || []).length, 11, L + ': 11 wierszy');
+    assert.ok(T.includes('Goldman Sachs') && /63[.,]0/.test(T) && /35[.,]8/.test(T), L + ': liczby');
+  }
+  const E = su295.txt(cz428sec(cz428blk('en')));
+  assert.ok(E.includes('September 2026: exchange members based abroad accounted for 63.0% of share trading on the Warsaw exchange, and those based in Poland for 35.8%. Largest: Goldman Sachs (23.2%).'), E);
+  const D = su295.txt(cz428sec(cz428blk('de')));
+  assert.ok(D.includes('Börsenmitglieder mit Sitz im Ausland hatten 63,0% des Aktienhandels'), D);
+});
+
+test('v428: słownik w 10 językach (komplet kluczy, pola {x} jak po polsku, scalony ze stroną, brak kopii angielskiego), każdy klucz użyty w kodzie sekcji', () => {
+  const a = html.indexOf('{"pl":{"plr361.h.c":'); assert.ok(a > 0, 'słownik v428');
+  const d0 = html.lastIndexOf('const EXTRA', a), name = html.slice(d0 + 6, a - 1);
+  const d1 = html.indexOf(';\nfor(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);', a); assert.ok(d1 > a, 'linia nakładania zaraz po słowniku');
+  assert.ok(/^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2, 'jedna deklaracja, numer nadany przy nakładaniu łatki');
+  const D = JSON.parse(html.slice(a, d1)), ph = s => (s.match(/\{\w+\}/g) || []).sort().join(','), K = Object.keys(D.pl);
+  assert.deepEqual(Object.keys(D), L10_361); assert.equal(K.length, 23, 'klucze: ' + K.length);
+  for (const l of L10_361) { assert.deepEqual(Object.keys(D[l]), K, l); for (const k of K) { assert.ok(D[l][k].trim(), l + ' ' + k); assert.equal(ph(D[l][k]), ph(D.pl[k]), l + ' ' + k); assert.equal(v96src.I18N[l][k], D[l][k], 'scalony: ' + l + ' ' + k);
+    assert.ok(!/\bNaN\b|undefined/.test(D[l][k]), l + ' ' + k); } }
+  for (const l of L10_361.slice(2)) for (const k of K) if (/[A-Za-z]{4}/.test(D.en[k].replace(/\{\w+\}/g, ' ')) && !(V142_OK[k] || '').split(' ').includes(l)) assert.notEqual(D[l][k], D.en[k], l + ' ' + k);
+  const c = html.slice(html.indexOf('/* ---------- członkowie giełdy (v428) ----------'), html.indexOf('function plrBody(){'));
+  assert.ok(c.length > 3000 && c.includes('function plrCzl('));
+  for (const k of K) {
+    if (/^plr428\.k\.[zkt]$/.test(k)) { assert.ok(c.includes("t('plr428.k.'+k)"), 'klucz składany: ' + k); continue; }
+    if (k === 'plr361.h.c') { assert.ok(html.includes("sec('c','globe',plrCzl())") && html.includes("t('plr361.h.'+k)"), 'nagłówek składany przez sec()'); continue; }
+    if (k === 'plr361.pt.czlonkowie') { assert.ok(html.includes("czlonkowie:!!plrCz()") && html.includes("t('plr361.pt.'+p)") && c.includes("t('plr361.pt.czlonkowie')"), 'nazwa części'); continue; }
+    assert.ok(c.includes("'" + k + "'"), 'klucz w kodzie: ' + k);
+  }
+  assert.ok(!/GPW|WSE\b/.test(JSON.stringify(D)), 'bez nazw wydawców w słowniku');
+});
+
+test('v428: kod i styl — część czwarta w liście części, kolory grup tożsamości w stylu bloku, telefon 390 px bez przewijania w bok; zbieracz i kontrola mają ten sam zestaw części', () => {
+  assert.ok(html.includes("const PLR_P=['gpw','krzywa','fundusze','czlonkowie'];"), 'lista części strony');
+  for (const cls of ['plr1', 'plr2', 'plr4']) assert.ok(new RegExp('#g-surowce \\.su-plr \\.plr-cz \\.' + cls + '\\{--k:var\\(--(bl|or|gy)\\)\\}').test(html), 'kolor ' + cls);
+  assert.ok(html.includes('@media (max-width:620px){#g-surowce .su-plr .plr-cz .wk-br{grid-template-columns:minmax(0,1fr) auto;row-gap:2px}#g-surowce .su-plr .plr-cz .wk-bt{grid-column:1/-1;grid-row:2}}'), 'telefon: pasek pod nazwą');
+  if (typeof fs.existsSync === 'function' && __dirname) {   // pod node: prawdziwe pliki z repozytorium (pod jsc readFileSync zwraca index.html — te pliki sprawdza też klasa PolskaCzlonkowieV428 w test_zbieraj_dane.py)
+    const py = fs.readFileSync(path.join(__dirname, 'zbieraj_dane.py'), 'utf8'), kt = fs.readFileSync(path.join(__dirname, 'narzedzia', 'kontrola.py'), 'utf8');
+    assert.ok(py.includes("PLR_PARTS = ('gpw', 'krzywa', 'fundusze', 'czlonkowie')") && kt.includes("'czlonkowie': 'Polska: członkowie giełdy w obrotach akcjami (miesięcznie)'"), 'zbieracz i kontrola');
+  }
+  const c = html.slice(html.indexOf('/* ---------- członkowie giełdy (v428) ----------'), html.indexOf('function plrBody(){'));
+  assert.ok(!/GPW|Warsaw Stock|Giełda Papierów/.test(c.replace(/\/\*[\s\S]*?\*\//g, '')), 'kod sekcji bez nazw wydawców');
+  assert.ok(/plrCap\(wkMon\(ym,1\)\)/.test(c) && c.includes("plrZl(") && !c.includes('toFixed('), 'miesiąc wielką literą na początku zdania, kwoty przez wspólną funkcję (<1 mln, mld), formatowanie liczb przez nfmt');
 });

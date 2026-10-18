@@ -148,7 +148,7 @@ ZRODLA_META = {
     'polska_kapital_fdi': 'eurostat', 'polska_kapital_ue': 'komisja-europejska',   # v365: kapitał z zagranicy do Polski (inwestycje według kraju) i wypłaty UE — oba źródła już liczone, bez zmiany liczby źródeł
     'polska_dlug_pos': 'mf-polska', 'polska_dlug_det': 'mf-polska',   # v371: kto trzyma dług skarbowy i sprzedaż obligacji detalicznych — ten sam wydawca co plik nierezydentów (spw), bez zmiany liczby źródeł
     'polska2_sdds': 'gus', 'polska2_knf': 'knf', 'polska2_wibor': 'gpw-benchmark', 'polska2_wiron': 'gpw-benchmark', 'polska2_mieszk': 'nbp',   # v380: Polska 2 — nadzór bankowy i administrator wskaźników to dwa nowe źródła, urząd statystyczny liczony od v375 (kalendarz2_dane_pl), bank centralny od polska_zloto
-    'polska_rynek_gpw': 'gpw', 'polska_rynek_krzywa': 'bondspot', 'polska_rynek_fundusze': 'izfia',   # v361: Polska na rynku dziennie — giełda w Warszawie, rynek obligacji skarbowych, izba funduszy: trzy nowe źródła
+    'polska_rynek_gpw': 'gpw', 'polska_rynek_krzywa': 'bondspot', 'polska_rynek_fundusze': 'izfia', 'polska_rynek_czlonkowie': 'gpw',   # v428: członkowie giełdy — ta sama giełda co indeksy, liczba źródeł bez zmian; v361: Polska na rynku dziennie — giełda w Warszawie, rynek obligacji skarbowych, izba funduszy: trzy nowe źródła
     'krzywe_us': 'skarb-usa', 'krzywe_de': 'bundesbank', 'krzywe_jp': 'mof-japonii', 'krzywe_ea': 'ecb', 'krzywe_ca': 'bank-kanady',   # v362: krzywe rentowności — te same pięć instytucji co dotąd (Skarb USA, Bundesbank, MF Japonii, EBC, Bank Kanady): liczba źródeł bez zmian
     'emit_llama': 'defillama', 'emit_tether': 'tether', 'emit_circle': 'circle',   # v363: emitenci stablecoinów — lista monet (ta sama usługa co podaż stablecoinów), raport Tether (jak karta XAUT) i raport Circle (+1 źródło)
     'niepewnosc_ciss': 'ecb', 'niepewnosc_epu': 'policyuncertainty', 'niepewnosc_gpr': 'gpr',   # v368 (F8Z4): stres systemowy (EBC — już liczony), niepewność polityki USA i ryzyko geopolityczne: dwa nowe źródła
@@ -32770,7 +32770,7 @@ def main():
     # v361 (F3Z2): POLSKA NA RYNKU DZIENNIE (data/polska-rynek.json; GLOBAL, blok „Polska: giełda, obligacje i fundusze”) — dzienne zamknięcia WIG, WIG20, mWIG40, sWIG80 i indeksu
     # obligacji skarbowych (giełda w Warszawie), dzienna krzywa rentowności obligacji skarbowych (drugi fixing dnia; 2, 5 i 10 lat) i przepływy do funduszy inwestycyjnych w Polsce
     # (raport miesięczny); każda część z własnym rytmem, bramką i poprzednią wersją przy awarii; nowa historia krzywej po najwyżej 3 zapytania na przebieg.
-    # META ok: polska_rynek_gpw, polska_rynek_krzywa, polska_rynek_fundusze (klucze jawne — test tabeli źródeł liczy je bez generatora).
+    # META ok: polska_rynek_gpw, polska_rynek_krzywa, polska_rynek_fundusze, polska_rynek_czlonkowie (v428; klucze jawne — test tabeli źródeł liczy je bez generatora).
     prev_plr = previous('polska-rynek')
     try:
         plr_ = build_polska_rynek(prev_plr, run_t0=_RUN_T0[0])
@@ -32778,9 +32778,10 @@ def main():
         META['ok']['polska_rynek_gpw'] = plr_['ok'].get('gpw', False)
         META['ok']['polska_rynek_krzywa'] = plr_['ok'].get('krzywa', False)
         META['ok']['polska_rynek_fundusze'] = plr_['ok'].get('fundusze', False)
+        META['ok']['polska_rynek_czlonkowie'] = plr_['ok'].get('czlonkowie', False)
     except Exception as e:  # noqa
         META['errors'].append(mask(f'Polska rynek: {e}')[:200])
-        META['ok']['polska_rynek_gpw'] = META['ok']['polska_rynek_krzywa'] = META['ok']['polska_rynek_fundusze'] = False
+        META['ok']['polska_rynek_gpw'] = META['ok']['polska_rynek_krzywa'] = META['ok']['polska_rynek_fundusze'] = META['ok']['polska_rynek_czlonkowie'] = False
         if isinstance(prev_plr, dict):
             save('polska-rynek', prev_plr)
     # v365 (F3Z3): POLSKA — KAPITAŁ Z ZAGRANICY I WYPŁATY UE (data/polska-kapital.json; GLOBAL, blok „Polska: kapitał z zagranicy i wypłaty UE”) — inwestycje bezpośrednie według kraju
@@ -34600,7 +34601,7 @@ def etf_zapas_czesc(etf=None):
 #      każdym nowym pliku (pole ph). Nowy plik ok. 11. dnia drugiego miesiąca po dniu danych; przed tym terminem lista raportów co 48 h, po nim co 3 godziny.
 # Bramki: układ odpowiedzi, skala i zakresy, skok dzienny, ciągłość miesięcy, tożsamość sum (suma profili = razem, netto = wpływy − wypływy). Rozmiar odpowiedzi ≤ 3 MB.
 PLR_V = 1
-PLR_PARTS = ('gpw', 'krzywa', 'fundusze')
+PLR_PARTS = ('gpw', 'krzywa', 'fundusze', 'czlonkowie')   # v428: czwarta część — członkowie giełdy (udział w obrotach akcjami)
 PLR_GPW_URL = 'https://www.gpw.pl/chart-json.php?req='
 PLR_GPW_ISIN = (('WIG', 'PL9999999995'), ('WIG20', 'PL9999999987'), ('mWIG40', 'PL9999999912'), ('sWIG80', 'PL9999999979'), ('TBSP', 'PL9999999474'))
 PLR_GPW_DNI = 400                  # historia indeksów (dni kalendarzowe)
@@ -35038,8 +35039,9 @@ def build_polska_rynek(prev=None, run_t0=None, now=None):
     now_t = _plr_dt(now or NOW) or datetime.datetime.now(datetime.timezone.utc)
     prev = prev if isinstance(prev, dict) and prev.get('v') == PLR_V else {}
     out, ok = {'v': PLR_V, 'at': NOW, 'ok': {}}, {}
-    etyk = {'gpw': 'Polska rynek (indeksy giełdy)', 'krzywa': 'Polska rynek (krzywa obligacji)', 'fundusze': 'Polska rynek (fundusze)'}
-    fun = {'gpw': lambda p: plr_czesc_gpw(p, now_t), 'krzywa': lambda p: plr_czesc_krzywa(p, now_t, run_t0), 'fundusze': lambda p: plr_czesc_fundusze(p, now_t)}
+    etyk = {'gpw': 'Polska rynek (indeksy giełdy)', 'krzywa': 'Polska rynek (krzywa obligacji)', 'fundusze': 'Polska rynek (fundusze)', 'czlonkowie': 'Polska rynek (członkowie giełdy)'}
+    fun = {'gpw': lambda p: plr_czesc_gpw(p, now_t), 'krzywa': lambda p: plr_czesc_krzywa(p, now_t, run_t0), 'fundusze': lambda p: plr_czesc_fundusze(p, now_t),
+           'czlonkowie': lambda p: plr_czesc_czlonkowie(p, now_t)}
     for n in PLR_PARTS:
         pc = prev.get(n) if isinstance(prev.get(n), dict) else None
         try:
@@ -35053,7 +35055,7 @@ def build_polska_rynek(prev=None, run_t0=None, now=None):
         if blad:
             META['errors'].append(mask(f'{etyk[n]}: {blad}')[:200])
         ok[n] = stan
-        if nowa and (nowa.get('idx') or nowa.get('k') or nowa.get('m')):
+        if nowa and (nowa.get('idx') or nowa.get('k') or nowa.get('m') or nowa.get('g')):
             out[n] = nowa
         elif pc:
             out[n] = pc
@@ -35063,6 +35065,166 @@ def build_polska_rynek(prev=None, run_t0=None, now=None):
     if not any(n in out for n in PLR_PARTS):
         raise RuntimeError('żadna część pliku nie ma danych')
     return out
+
+
+# ===================== v428 (F11Z27): POLSKA NA RYNKU — CZŁONKOWIE GIEŁDY (czwarta część pliku data/polska-rynek.json; GLOBAL, blok „Polska: giełda, obligacje i fundusze”) =====================
+# Kto handluje akcjami na giełdzie w Warszawie: udział członków giełdy (domów maklerskich i banków) w obrotach sesyjnych akcjami i PDA — miesięczna tabela strony giełdy (publiczny GET, HTML,
+# bez JS w danych; okres domyślny strony = poprzedni pełny miesiąc, odczytywany z pól „Od” i „Do” formularza, nigdy ze zgadywania). Każdy członek ma kod i nazwę; strona NIE podaje kraju,
+# więc zbieracz klasyfikuje członków własną tablicą PLR_CZ_GR (kod + nazwa na stronie → grupa): „z” = z siedzibą za granicą (członkowie zdalni: kody 7xx), „k” = z siedzibą w Polsce
+# (także spółki zależne zagranicznych grup, np. domy maklerskie banków), „n” = nieznany (nowy kod, zmieniona nazwa przy znanym kodzie albo członek, co do którego klasyfikacja jest niepewna) —
+# nigdy po cichu dopisany do „kraju” ani „zagranicy”. Część: {at, asof (ostatni dzień miesiąca danych), razem (mln zł), ile (członków w tabeli), akt (z obrotem > 0), g: {z, k, n} (mln zł),
+# top: [[kod, nazwa, mln zł, grupa]] (największe obroty), nowi: [[kod, nazwa, mln zł]] (grupa „n” z obrotem), h: {RRRR-MM: [z, k, n]} (mln zł, narasta o miesiąc; do PLR_CZ_PH miesięcy)}.
+# Rytm: nowy miesiąc pojawia się 1. dnia następnego miesiąca (dane za wrzesień 2026 były na stronie 18.10.2026), więc po dniu danych zapytanie przed 1. dniem drugiego miesiąca po nim
+# tylko co 48 h (ubezpieczenie), po nim co 3 godziny przez 48 godzin, dalej co 6 godzin — aż strona pokaże późniejszy miesiąc. Bramki: układ nagłówka (9 kolumn), kolejne numery, trzycyfrowe unikalne
+# kody, kwoty ≥ 0, suma wierszy = wiersz „Razem” (0,5%), udział % wiersza = kwota / razem (0,05 pp), okres = jeden pełny miesiąc już zakończony, obroty ≥ PLR_CZ_RAZEM[0], nieznani członkowie
+# ≤ PLR_CZ_NIEZN_MAX udziału (więcej = tablica klasyfikacji wymaga przeglądu, część zostaje z poprzednim miesiącem). Odpowiedź ≤ PLR_MAX_BAJTOW. META ok: polska_rynek_czlonkowie (źródło: giełda).
+PLR_CZ_URL = 'https://www.gpw.pl/udzial-czlonkow-gieldy-w-obrotach'
+PLR_CZ_MIN_WIERSZY = 20            # najmniej członków w tabeli (we wrześniu 2026: 39)
+PLR_CZ_RAZEM = (5000.0, 2_000_000.0)   # mln zł: obroty członków razem (wrzesień 2026: 118 810,79) poza zakresem = błąd skali albo nie ta tabela
+PLR_CZ_TOL_SUMA = 0.005            # względna różnica sumy wierszy i wiersza „Razem”
+PLR_CZ_TOL_PCT = 0.05              # pp: udział podany w wierszu a kwota / razem
+PLR_CZ_NIEZN_MAX = 0.15            # udział nieznanych członków, powyżej którego klasyfikacja wymaga przeglądu
+PLR_CZ_PH = 36                     # miesięcy historii (narasta)
+PLR_CZ_TOP = 12                    # największych członków w pliku
+PLR_CZ_DUE_DZIEN = 1               # nowy miesiąc ukazuje się 1. dnia miesiąca po miesiącu danych + 1
+PLR_CZ_DUE = (6, 0)                # godzina i minuta UTC
+PLR_CZ_NAGL = ('lp', 'kod', 'nazwa', 'transakcje sesyjne (mln zł)', 'transakcje sesyjne (%)', 'transakcje pakietowe (mln zł)', 'transakcje pakietowe (%)',
+               'transakcje inne (mln zł)', 'transakcje inne (%)')
+# kod → (nazwa na stronie giełdy, grupa, nazwa do pokazania). Klasyfikacja obowiązuje tylko przy zgodnej nazwie. 959 „ERSTE” (nie wiadomo, czy to spółka austriacka, czy polska) celowo poza tablicą.
+PLR_CZ_GR = {
+    '702': ('WOOD', 'z', 'Wood & Company'), '703': ('RBI', 'z', 'Raiffeisen (RBI)'), '710': ('UNICREDIT', 'z', 'UniCredit'), '712': ('SOCIETE', 'z', 'Société Générale'),
+    '728': ('UBS EUROPE', 'z', 'UBS Europe'), '733': ('EQUILOR', 'z', 'Equilor'), '734': ('BNP PARIBAS', 'z', 'BNP Paribas'), '738': ('ING BANK', 'z', 'ING Bank N.V.'),
+    '749': ('FLOW', 'z', 'Flow Traders'), '753': ('JPMSE', 'z', 'J.P. Morgan'), '754': ('BOFA SEC', 'z', 'BofA Securities'), '755': ('MORGAN STANLEY EUROPE', 'z', 'Morgan Stanley'),
+    '756': ('GS AG', 'z', 'Goldman Sachs'), '759': ('TRCEBV', 'z', 'Tower Research'), '761': ('HRTEU', 'z', 'Hudson River Trading'), '767': ('JUMP', 'z', 'Jump Trading'),
+    '768': ('TP ICAP', 'z', 'TP ICAP'), '769': ('UNICREDIT S.P.A.', 'z', 'UniCredit S.p.A.'), '770': ('PATRIA FINANCE A.S.', 'z', 'Patria Finance'),
+    '811': ('IPOPEMA', 'k', 'IPOPEMA'), '815': ('BM PEKAO', 'k', 'BM Pekao'), '821': ('BM ALIOR', 'k', 'BM Alior'), '846': ('PGE DM', 'k', 'PGE DM'),
+    '850': ('VELOBANK S.A.', 'k', 'VeloBank'), '863': ('MICHAEL/STRÖM DM', 'k', 'Michael/Ström DM'), '875': ('Q SECURITIES', 'k', 'Q Securities'), '880': ('XTB', 'k', 'XTB'),
+    '902': ('BM ING BSK', 'k', 'BM ING BSK'), '912': ('BM PKO BP', 'k', 'BM PKO BP'), '914': ('BM MBANK', 'k', 'BM mBank'), '915': ('ERSTE BM', 'k', 'Erste BM'),
+    '916': ('NOBLE', 'k', 'Noble'), '920': ('BM BNP PARIBAS', 'k', 'BM BNP Paribas'), '922': ('HANDLOWY', 'k', 'Handlowy'), '950': ('TRIGON', 'k', 'Trigon'),
+    '954': ('DM BOS', 'k', 'DM BOŚ'), '956': ('MILLENNIUM', 'k', 'Millennium'), '965': ('DM BDM', 'k', 'DM BDM'),
+}
+
+
+def plr_cz_grupa(kod, nazwa):
+    """'z' (siedziba za granicą), 'k' (siedziba w Polsce) albo 'n' (nieznany: brak kodu w tablicy albo inna nazwa przy tym samym kodzie)."""
+    e = PLR_CZ_GR.get(str(kod))
+    return e[1] if e and e[0] == str(nazwa) else 'n'
+
+
+def plr_cz_liczba(s):
+    """„5 235,00” (spacja twarda jako separator tysięcy, przecinek dziesiętny) → liczba ≥ 0; inny zapis = ValueError."""
+    t = str(s).replace('\xa0', '').replace(' ', '').replace(',', '.')
+    if not re.fullmatch(r'\d+(\.\d+)?', t):
+        raise ValueError(f'liczba „{str(s)[:20]}”')
+    return float(t)
+
+
+def _plr_cz_komorki(tr):
+    return [re.sub(r'\s+', ' ', _html.unescape(re.sub(r'<[^>]+>', '', re.sub(r'<br\s*/?>', ' ', c, flags=re.I)))).strip()
+            for c in re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', tr, re.S | re.I)]
+
+
+def plr_cz_parse(htm, now_t=None):
+    """Strona udziału członków giełdy → {'asof', 'razem', 'w': [[kod, nazwa, mln zł, udział %], …]} (karta „Akcje i PDA”, transakcje sesyjne) albo RuntimeError z przyczyną."""
+    h = str(htm)
+    m1 = re.search(r"name=['\"]date_from['\"][^>]*?value=['\"](\d{2})\.(\d{4})['\"]", h)
+    m2 = re.search(r"name=['\"]date_to['\"][^>]*?value=['\"](\d{2})\.(\d{4})['\"]", h)
+    if not m1 or not m2 or m1.groups() != m2.groups():
+        raise RuntimeError('członkowie giełdy: okres na stronie to nie jeden miesiąc (pola Od i Do)')
+    mies, rok = int(m1.group(1)), int(m1.group(2))
+    if not (1 <= mies <= 12 and 2000 <= rok <= 2100):
+        raise RuntimeError('członkowie giełdy: zły miesiąc w polach Od i Do')
+    asof = datetime.date(rok + (mies == 12), mies % 12 + 1, 1) - datetime.timedelta(days=1)
+    now_d = (now_t or _plr_dt(NOW) or datetime.datetime.now(datetime.timezone.utc)).date()
+    if asof >= now_d:
+        raise RuntimeError(f'członkowie giełdy: miesiąc {rok}-{mies:02d} jeszcze się nie skończył')
+    i = h.find('id="tab_bm_akc"')
+    if i < 0:
+        raise RuntimeError('członkowie giełdy: brak karty akcji')
+    j = h.find('id="tab_bm_', i + 20)
+    seg = h[i:j] if j > 0 else h[i:]
+    trs = re.findall(r'<tr[^>]*>(.*?)</tr>', seg, re.S | re.I)
+    naglowek = next((_plr_cz_komorki(t) for t in trs if re.search(r'<th', t, re.I) and len(_plr_cz_komorki(t)) == len(PLR_CZ_NAGL)), None)
+    if naglowek is None or [x.lower() for x in naglowek] != list(PLR_CZ_NAGL):
+        raise RuntimeError('członkowie giełdy: zmieniony nagłówek tabeli')
+    w, razem, kody = [], None, set()
+    for t in trs:
+        c = _plr_cz_komorki(t)
+        if not c or re.search(r'<th', t, re.I):
+            continue
+        if c[0] == 'Razem':
+            if len(c) != 7 or razem is not None:
+                raise RuntimeError('członkowie giełdy: wiersz „Razem” ma inny układ')
+            razem = plr_cz_liczba(c[1])
+            continue
+        if len(c) != len(PLR_CZ_NAGL):
+            raise RuntimeError(f'członkowie giełdy: wiersz ma {len(c)} kolumn')
+        if not re.fullmatch(r'\d{3}', c[1]) or not c[2] or c[1] in kody or c[0] != str(len(w) + 1):
+            raise RuntimeError(f'członkowie giełdy: wiersz {len(w) + 1} — numer, kod albo nazwa poza układem')
+        kody.add(c[1])
+        w.append([c[1], c[2], plr_cz_liczba(c[3]), plr_cz_liczba(c[4])])
+    if razem is None or len(w) < PLR_CZ_MIN_WIERSZY:
+        raise RuntimeError(f'członkowie giełdy: {len(w)} członków i {"brak" if razem is None else "jest"} wiersza „Razem” (min. {PLR_CZ_MIN_WIERSZY})')
+    if not PLR_CZ_RAZEM[0] <= razem <= PLR_CZ_RAZEM[1]:
+        raise RuntimeError(f'członkowie giełdy: obroty razem {razem} mln zł poza zakresem {PLR_CZ_RAZEM[0]:.0f}–{PLR_CZ_RAZEM[1]:.0f}')
+    suma = sum(x[2] for x in w)
+    if abs(suma / razem - 1) > PLR_CZ_TOL_SUMA:
+        raise RuntimeError(f'członkowie giełdy: suma wierszy {suma:.2f} ≠ razem {razem:.2f}')
+    if any(abs(x[3] - x[2] / razem * 100) > PLR_CZ_TOL_PCT or x[3] > 100 for x in w):
+        raise RuntimeError('członkowie giełdy: udział % wiersza nie zgadza się z kwotą i sumą')
+    return {'asof': asof.isoformat(), 'razem': razem, 'w': w}
+
+
+def plr_cz_zloz(p):
+    """Wynik plr_cz_parse → część pliku (bez at i h). RuntimeError, gdy nieznani członkowie mają ponad PLR_CZ_NIEZN_MAX udziału albo brak członków z jednej ze stron."""
+    g = {'z': 0.0, 'k': 0.0, 'n': 0.0}
+    wier = []
+    for kod, nazwa, mln, _ in p['w']:
+        gr = plr_cz_grupa(kod, nazwa)
+        g[gr] += mln
+        e = PLR_CZ_GR.get(kod)
+        wier.append((kod, nazwa, mln, gr, e[2] if gr != 'n' and e else nazwa))
+    razem = sum(g.values())
+    if g['z'] <= 0 or g['k'] <= 0:
+        raise RuntimeError('członkowie giełdy: brak obrotów po jednej ze stron (zagranica albo kraj) — klasyfikacja do przeglądu')
+    if g['n'] > PLR_CZ_NIEZN_MAX * razem:
+        raise RuntimeError(f'członkowie giełdy: nieznani członkowie mają {g["n"] / razem:.0%} obrotów (max {PLR_CZ_NIEZN_MAX:.0%}) — tablica klasyfikacji do przeglądu')
+    pozytywne = sorted((x for x in wier if x[2] > 0), key=lambda x: (-x[2], x[0]))
+    return {'asof': p['asof'], 'razem': round(razem, 2), 'ile': len(wier), 'akt': len(pozytywne),
+            'g': {k: round(v, 2) for k, v in g.items()},
+            'top': [[kod, pokaz, round(mln, 2), gr] for kod, _, mln, gr, pokaz in pozytywne[:PLR_CZ_TOP]],
+            'nowi': [[kod, nazwa, round(mln, 2)] for kod, nazwa, mln, gr, _ in pozytywne if gr == 'n'][:5]}
+
+
+def _plr_due_czlonkowie(asof):
+    """Spodziewane wydanie następnego miesiąca: 1. dzień drugiego miesiąca po miesiącu dnia danych (dzień danych = koniec miesiąca M → dane za M+1 od 1. dnia M+2)."""
+    d = _plr_dzien(asof)
+    if d is None:
+        return None
+    n = d.year * 12 + d.month - 1 + 2
+    return datetime.datetime(n // 12, n % 12 + 1, PLR_CZ_DUE_DZIEN, PLR_CZ_DUE[0], PLR_CZ_DUE[1], tzinfo=datetime.timezone.utc)
+
+
+def plr_czesc_czlonkowie(prev, now_t):
+    """→ (część, stan, błąd). Rytm: przed spodziewanym wydaniem co 48 h, po nim co 3 godziny (po 2 dobach co 6 godzin). Miesiąc nie późniejszy niż w poprzedniej części = poprzednia z nową chwilą."""
+    prev = prev if isinstance(prev, dict) else {}
+    due = _plr_due_czlonkowie(prev.get('asof'))
+    if prev.get('g') and due is not None:
+        po = 180 if (now_t - due).total_seconds() < 48 * 3600 else 360
+        if not _plr_pytac(prev, now_t, due, pierwsze=po, pozniej=po, przed=48 * 60):
+            return prev, 'cached', None
+    p = plr_cz_parse(_plr_get(PLR_CZ_URL, 45), now_t)
+    if prev.get('asof') and p['asof'] <= prev['asof']:
+        if p['asof'] < prev['asof']:
+            META['notes'].append(f'Polska rynek: członkowie giełdy — strona pokazuje {p["asof"][:7]}, a poprzedni plik ma {prev["asof"][:7]} — zostaje poprzedni')
+        return dict(prev, at=NOW, proba=None), True, None
+    nowa = plr_cz_zloz(p)
+    h = {k: v for k, v in (prev.get('h') or {}).items() if re.fullmatch(r'\d{4}-\d{2}', str(k)) and isinstance(v, list) and len(v) == 3 and all(_plr_liczba(x) for x in v)}
+    h[p['asof'][:7]] = [nowa['g']['z'], nowa['g']['k'], nowa['g']['n']]
+    nowa['h'] = {k: h[k] for k in sorted(h)[-PLR_CZ_PH:]}
+    nowa['at'] = NOW
+    return nowa, True, None
+# v428: koniec modułu członków giełdy
 
 
 # ===================== v362 (F2Z1): krzywe rentowności obligacji rządowych — USA (nominalna i realna), Niemcy, Japonia, strefa euro, Kanada =====================

@@ -25644,7 +25644,7 @@ class PoPrzegladzieV211(unittest.TestCase):
         md = self.k.raport_md({'at': t(0.2), 'wynik': 'OK', 'meta': {}, 'awarie': Z, 'uwagi': [], 'bledy': []})
         self.assertIn('jpx od 02.10.2026, 02:00 (4 dni 4 godz., nieudanych przebiegów: 500) ℹ️ (Japonia — tydzień czeka na publikację giełdy)', md)
         # v353: świadoma zmiana — części rosja* też bez czerwieni z serii awarii
-        self.assertEqual({x for x in set(self.k.AW_BEZ_BLEDU) if not x.startswith('premie_st_') and not x.startswith('skarbce_') and not x.startswith('polska2_') and not x.startswith('polska_dlug_') and not x.startswith('polska_kapital_') and not x.startswith('prad') and not x.startswith('porty_') and not x.startswith('kalendarz') and not x.startswith('interw_') and not x.startswith('chtw_') and not x.startswith('kandlug_') and not x.startswith('fedddp_') and not x.startswith('kap_') and not x.startswith('energia_') and not x.startswith('bis2_') and not x.startswith('skarb_') and not x.startswith('usda_') and not x.startswith('plusa_') and not x.startswith('usdt_') and not x.startswith('ucits_') and not x.startswith('eth_') and not x.startswith('indie_') and not x.startswith('dzwignia2_') and not x.startswith('defi2_') and not x.startswith('nowcasty') and not x.startswith('europa_fundusze')} - {'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'} - {'target', 'mica'} - {'soma_sklad', 'eurosystem', 'hedge'} - {'polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze'} - {'krzywe_us', 'krzywe_de', 'krzywe_jp', 'krzywe_ea', 'krzywe_ca'} - {'inflacja', 'koniunktura'} - {'niepewnosc_ciss', 'niepewnosc_epu', 'niepewnosc_gpr'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
+        self.assertEqual({x for x in set(self.k.AW_BEZ_BLEDU) if not x.startswith('premie_st_') and not x.startswith('skarbce_') and not x.startswith('polska2_') and not x.startswith('polska_dlug_') and not x.startswith('polska_kapital_') and not x.startswith('prad') and not x.startswith('porty_') and not x.startswith('kalendarz') and not x.startswith('interw_') and not x.startswith('chtw_') and not x.startswith('kandlug_') and not x.startswith('fedddp_') and not x.startswith('kap_') and not x.startswith('energia_') and not x.startswith('bis2_') and not x.startswith('skarb_') and not x.startswith('usda_') and not x.startswith('plusa_') and not x.startswith('usdt_') and not x.startswith('ucits_') and not x.startswith('eth_') and not x.startswith('indie_') and not x.startswith('dzwignia2_') and not x.startswith('defi2_') and not x.startswith('nowcasty') and not x.startswith('europa_fundusze')} - {'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'} - {'target', 'mica'} - {'soma_sklad', 'eurosystem', 'hedge'} - {'polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze', 'polska_rynek_czlonkowie'} - {'krzywe_us', 'krzywe_de', 'krzywe_jp', 'krzywe_ea', 'krzywe_ca'} - {'inflacja', 'koniunktura'} - {'niepewnosc_ciss', 'niepewnosc_epu', 'niepewnosc_gpr'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
                                                     'surowce_fundusze', 'surowce_banki'}, 'v215: snb — zwykła ocena; v295: + surowce; v298: + etap 3')   # v320: świadomie odjęte części raportów miesięcznych surowców (surowce_raporty_*) — też bez czerwieni z serii awarii
 
     def test_czas_do_ostatniego_przebiegu_i_pamiec_od(self):
@@ -25739,7 +25739,7 @@ class PoPrzegladzieV215(unittest.TestCase):
         self.assertEqual(len(Z['bledy']), 1); self.assertIn('„snb”', Z['bledy'][0]); self.assertEqual(Z['uwagi'], [])
         self.assertEqual(sorted(x['czesc'] for x in Z['trwa'] if x['bez']), ['ici', 'jpx', 'wycena_bg'])
         # v353: świadoma zmiana — części rosja* też bez czerwieni z serii awarii
-        self.assertEqual({x for x in set(k.AW_BEZ_BLEDU) if not x.startswith('premie_st_') and not x.startswith('skarbce_') and not x.startswith('polska2_') and not x.startswith('polska_dlug_') and not x.startswith('polska_kapital_') and not x.startswith('prad') and not x.startswith('porty_') and not x.startswith('kalendarz') and not x.startswith('interw_') and not x.startswith('chtw_') and not x.startswith('kandlug_') and not x.startswith('fedddp_') and not x.startswith('kap_') and not x.startswith('energia_') and not x.startswith('bis2_') and not x.startswith('skarb_') and not x.startswith('usda_') and not x.startswith('plusa_') and not x.startswith('usdt_') and not x.startswith('ucits_') and not x.startswith('eth_') and not x.startswith('indie_') and not x.startswith('dzwignia2_') and not x.startswith('defi2_') and not x.startswith('nowcasty') and not x.startswith('europa_fundusze')} - {'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'} - {'target', 'mica'} - {'soma_sklad', 'eurosystem', 'hedge'} - {'polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze'} - {'krzywe_us', 'krzywe_de', 'krzywe_jp', 'krzywe_ea', 'krzywe_ca'} - {'inflacja', 'koniunktura'} - {'niepewnosc_ciss', 'niepewnosc_epu', 'niepewnosc_gpr'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
+        self.assertEqual({x for x in set(k.AW_BEZ_BLEDU) if not x.startswith('premie_st_') and not x.startswith('skarbce_') and not x.startswith('polska2_') and not x.startswith('polska_dlug_') and not x.startswith('polska_kapital_') and not x.startswith('prad') and not x.startswith('porty_') and not x.startswith('kalendarz') and not x.startswith('interw_') and not x.startswith('chtw_') and not x.startswith('kandlug_') and not x.startswith('fedddp_') and not x.startswith('kap_') and not x.startswith('energia_') and not x.startswith('bis2_') and not x.startswith('skarb_') and not x.startswith('usda_') and not x.startswith('plusa_') and not x.startswith('usdt_') and not x.startswith('ucits_') and not x.startswith('eth_') and not x.startswith('indie_') and not x.startswith('dzwignia2_') and not x.startswith('defi2_') and not x.startswith('nowcasty') and not x.startswith('europa_fundusze')} - {'rosja', 'rosja_ue', 'rosja_bis', 'rosja_imts', 'rosja_rez'} - {'surowce_raporty_ropa', 'surowce_raporty_zboza', 'surowce_raporty_uran'} - {'polska_zloto', 'polska_hurt', 'polska_energia', 'polska_stacje', 'polska_pszenica'} - {'szlaki_cies', 'szlaki_presja', 'szlaki_bcpi'} - {'metale_lme', 'metale_sh', 'metale_shd', 'metale_shw', 'metale_cu'} - {'lng_dz', 'lng_skad', 'lng_zapasy'} - {'zboza_dzien_goi', 'zboza_dzien_fracht', 'zboza_dzien_fao', 'zboza_dzien_ue', 'zboza_dzien_nawozy'} - {'gieldy', 'dex', 'dex_oi'} - {'target', 'mica'} - {'soma_sklad', 'eurosystem', 'hedge'} - {'polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze', 'polska_rynek_czlonkowie'} - {'krzywe_us', 'krzywe_de', 'krzywe_jp', 'krzywe_ea', 'krzywe_ca'} - {'inflacja', 'koniunktura'} - {'niepewnosc_ciss', 'niepewnosc_epu', 'niepewnosc_gpr'}, {'ici', 'jpx', 'wycena_bg', 'surowce_ceny', 'surowce_zapasy', 'surowce_mies', 'surowce_pozycje',   # v339 (metale): świadoma zmiana — części metale_* też bez czerwieni z serii awarii   # v341 (F5Z3): świadoma zmiana — części zboza_dzien_* też bez czerwieni z serii awarii
                                                'surowce_fundusze', 'surowce_banki'})   # v295: + części surowców; v298: + etap 3; v320: świadomie odjęte części raportów miesięcznych (surowce_raporty_*)
         self.assertIn('z założenia bez czerwieni', k.AW_BEZ_BLEDU['ici'])
 
@@ -49683,6 +49683,10 @@ class PolskaRynekV361(unittest.TestCase):
         g, b, i = self.gpw_get(), self.bs_get(), self.iz_get()
 
         def get(url, headers=None, timeout=30):
+            if 'udzial-czlonkow-gieldy' in url:   # v428: tabela udziału członków giełdy (ta sama giełda co indeksy)
+                if not gpw:
+                    raise OSError('gpw offline')
+                return 200, _cz428_strona()
             if 'gpw.pl' in url:
                 if not gpw:
                     raise OSError('gpw offline')
@@ -49701,7 +49705,7 @@ class PolskaRynekV361(unittest.TestCase):
     def test_build_trzy_czesci_ok_i_pole_ok(self):
         with mock.patch.object(zd, 'get', self.trzy_zrodla()), mock.patch.object(zd, 'get_bytes', return_value=self.xlsx_iz()):
             p = zd.build_polska_rynek(None)
-        self.assertEqual((p['v'], p['at'], p['ok']), (1, self.NOW, {'gpw': True, 'krzywa': True, 'fundusze': True})); self.assertEqual(zd.PLR_PARTS, ('gpw', 'krzywa', 'fundusze'))
+        self.assertEqual((p['v'], p['at'], p['ok']), (1, self.NOW, {n: True for n in zd.PLR_PARTS})); self.assertEqual(zd.PLR_PARTS, ('gpw', 'krzywa', 'fundusze', 'czlonkowie'))
         self.assertEqual((p['gpw']['asof'], p['krzywa']['asof'], p['fundusze']['asof']), ('2026-10-09', '2026-10-13', '2026-08-31')); self.assertEqual(zd.META['errors'], [])
         json.dumps(p)
         self.assertLess(len(json.dumps(p, separators=(',', ':'))), 200000, 'plik ma rozmiar rzędu 100 KB (400 dni × 5 indeksów + krzywa + 25 miesięcy)')
@@ -49713,7 +49717,7 @@ class PolskaRynekV361(unittest.TestCase):
         zd.META['errors'].clear()
         with mock.patch.object(zd, 'get', self.trzy_zrodla(gpw=False, iz=False)), mock.patch.object(zd, 'get_bytes', side_effect=OSError('x')):
             p = zd.build_polska_rynek(prev)
-        self.assertEqual(p['ok'], {'gpw': False, 'krzywa': True, 'fundusze': 'cached'}, 'krzywa dociąga kolejne dni historii; fundusze: lista raportów nie jest pytana przed terminem → poprzednia część wystarcza')
+        self.assertEqual(p['ok'], {'gpw': False, 'krzywa': True, 'fundusze': 'cached', 'czlonkowie': 'cached'}, 'krzywa dociąga kolejne dni historii; fundusze i członkowie: źródło nie jest pytane przed terminem → poprzednia część wystarcza')
         self.assertEqual(p['gpw']['asof'], '2026-10-09'); self.assertEqual(p['gpw']['proba'], self.NOW); self.assertEqual(p['gpw']['idx'], prev['gpw']['idx'])
         self.assertTrue(any(e.startswith('Polska rynek (indeksy giełdy): ') and 'gpw offline' in e for e in zd.META['errors']))
         # fundusze po terminie: lista raportów milczy → błąd, poprzednia część z próbą
@@ -49800,7 +49804,7 @@ class PolskaRynekV361(unittest.TestCase):
         k = self.kt()
         self.assertIn('polska-rynek', k.PLIKI); self.assertLess(k.PLIKI.index('polska-rynek'), k.PLIKI.index('krypto-dzien')); self.assertEqual(k.LIMIT_MIN['polska-rynek'], 180)
         self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik']); self.assertEqual(len(k.PLIKI), len(set(k.PLIKI)))
-        for p in ('gpw', 'krzywa', 'fundusze'):
+        for p in ('gpw', 'krzywa', 'fundusze', 'czlonkowie'):
             self.assertIn('zostaje z datą', k.AW_BEZ_BLEDU['polska_rynek_' + p])
         self.assertEqual(k.pliki_bez_nadzoru(open(zd.__file__, encoding='utf-8').read()), [], 'polska-rynek jest w PLIKI')
 
@@ -49808,14 +49812,14 @@ class PolskaRynekV361(unittest.TestCase):
         k = self.kt(); j = self.plik()
         now = datetime.datetime(2026, 10, 13, 17, 30, tzinfo=self.U)
         R = k.polska_rynek_swiezosc(j, now)
-        self.assertEqual([r[0] for r in R], list(k.PLR_K_ETYKIETA.values())); self.assertEqual([r[1] for r in R], ['✅', '✅', '✅']); self.assertEqual([r[3] for r in R], ['2026-10-09', '2026-10-13', '2026-08-31'])
+        self.assertEqual([r[0] for r in R], list(k.PLR_K_ETYKIETA.values())); self.assertEqual([r[1] for r in R], ['✅'] * len(k.PLR_K_ETYKIETA)); self.assertEqual([r[3] for r in R], ['2026-10-09', '2026-10-13', '2026-08-31', '2026-09-30'])
         self.assertEqual(R[2][2], 42 * 1440 + 17 * 60 + 30, 'wiek od końca miesiąca danych (1.09.2026 00:00)')
         # największa przerwa 2021–2026 przed publikacją następnej sesji (Boże Narodzenie): 88,75 godz. roboczych — poniżej progu 100
         k_ = k.wiek_danych('2025-12-23', 'day', 'd', datetime.datetime(2025, 12, 29, 16, 45, tzinfo=self.U)); self.assertEqual(k_, 88 * 60 + 45)
         self.assertLess(k_, k.PLR_K_PROG_GODZ['gpw'] * 60)
         R2 = k.polska_rynek_swiezosc(j, datetime.datetime(2026, 10, 15, 10, 0, tzinfo=self.U)); self.assertEqual(R2[0][1], '✅', '9.10 → czwartek rano: 3 doby robocze')
         R3 = k.polska_rynek_swiezosc(j, datetime.datetime(2026, 10, 19, 10, 0, tzinfo=self.U)); self.assertEqual(R3[0][1], '⚠️'); self.assertIn('najwyżej uwaga', R3[0][4]); self.assertNotIn('❌', [r[1] for r in R3])
-        R4 = k.polska_rynek_swiezosc(j, datetime.datetime(2027, 6, 1, tzinfo=self.U)); self.assertEqual([r[1] for r in R4], ['⚠️', '⚠️', '⚠️'], 'bez ❌ nawet po wielu miesiącach')
+        R4 = k.polska_rynek_swiezosc(j, datetime.datetime(2027, 6, 1, tzinfo=self.U)); self.assertEqual([r[1] for r in R4], ['⚠️'] * len(k.PLR_K_ETYKIETA), 'bez ❌ nawet po wielu miesiącach')
         R5 = k.polska_rynek_swiezosc(dict(j, fundusze=None), now); self.assertEqual(R5[2][1], '?'); self.assertEqual(R5[2][3], None)
         self.assertEqual(k.polska_rynek_swiezosc(None, now), []); self.assertEqual(k.polska_rynek_swiezosc({'v': 2}, now), [])
 
@@ -71213,3 +71217,368 @@ class TestV427InterwencjeBrCached(unittest.TestCase):
         blk = src[src.index("    prev_iw = previous('interwencje')"):src.index('    # v401: koniec bloku interwencji')]
         self.assertIn("if k_iw == 'br' and iw_br_przerwa_trwa(prev_iw):", blk)
         self.assertLess(blk.index('iw_br_przerwa_trwa(prev_iw)'), blk.index("META['errors'].append(mask(f\"{IW_PX} {IW_LABEL[k_iw]}"), 'błąd tylko w gałęzi else')
+
+
+# ===================== v428 (F11Z27): członkowie giełdy w Warszawie — udział w obrotach akcjami (część czlonkowie pliku data/polska-rynek.json) =====================
+# Nagranie: 39 prawdziwych wierszy tabeli „Akcje i PDA — transakcje sesyjne” za wrzesień 2026 (pobranie 18.10.2026): kod, nazwa, kwoty i udziały jako tekst strony (spacja twarda w tysiącach, przecinek dziesiętny).
+_CZ428 = json.loads('''{"od":"09.2026","rows":[["702","WOOD","5 235,00","4,41","0,00","0,00","0,00","0,00"],["703","RBI","1 803,88","1,52","1,63","0,04","0,00","0,00"],["710","UNICREDIT","0,00","0,00","0,00","0,00","0,00","0,00"],["712","SOCIETE","40,93","0,03","0,00","0,00","0,00","0,00"],["728","UBS EUROPE","6 310,71","5,31","0,00","0,00","0,00","0,00"],["733","EQUILOR","1 440,93","1,21","11,19","0,27","0,00","0,00"],["734","BNP PARIBAS","1 003,66","0,84","0,00","0,00","0,00","0,00"],["738","ING BANK","114,16","0,10","0,00","0,00","0,00","0,00"],["749","FLOW","0,00","0,00","0,00","0,00","0,00","0,00"],["753","JPMSE","7 317,06","6,16","0,00","0,00","0,00","0,00"],["754","BOFA SEC","11 804,87","9,94","0,00","0,00","0,00","0,00"],["755","MORGAN STANLEY EUROPE","6 386,05","5,37","0,00","0,00","0,00","0,00"],["756","GS AG","27 569,17","23,20","0,00","0,00","0,00","0,00"],["759","TRCEBV","0,00","0,00","0,00","0,00","0,00","0,00"],["761","HRTEU","0,00","0,00","0,00","0,00","0,00","0,00"],["767","JUMP","5 768,78","4,86","0,00","0,00","0,00","0,00"],["768","TP ICAP","0,00","0,00","0,00","0,00","0,00","0,00"],["769","UNICREDIT S.P.A.","0,00","0,00","0,00","0,00","0,00","0,00"],["770","PATRIA FINANCE A.S.","0,00","0,00","0,00","0,00","0,00","0,00"],["811","IPOPEMA","2 452,67","2,06","1,63","0,04","0,00","0,00"],["815","BM PEKAO","4 462,87","3,76","1,34","0,03","0,00","0,00"],["821","BM ALIOR","832,57","0,70","0,00","0,00","0,00","0,00"],["846","PGE DM","0,00","0,00","0,00","0,00","0,00","0,00"],["850","VELOBANK S.A.","73,20","0,06","0,00","0,00","0,00","0,00"],["863","MICHAEL/STRÖM DM","0,00","0,00","0,00","0,00","0,00","0,00"],["875","Q SECURITIES","0,00","0,00","0,00","0,00","0,00","0,00"],["880","XTB","2 767,59","2,33","0,00","0,00","0,00","0,00"],["902","BM ING BSK","1 610,03","1,36","0,00","0,00","0,00","0,00"],["912","BM PKO BP","12 293,44","10,35","801,70","19,23","0,00","0,00"],["914","BM MBANK","2 548,83","2,15","24,88","0,60","0,00","0,00"],["915","ERSTE BM","5 074,73","4,27","204,56","4,91","0,00","0,00"],["916","NOBLE","398,46","0,34","0,15","0,00","0,00","0,00"],["920","BM BNP PARIBAS","454,25","0,38","0,00","0,00","0,00","0,00"],["922","HANDLOWY","5 659,89","4,76","3 064,61","73,53","0,00","0,00"],["950","TRIGON","1 066,47","0,90","25,54","0,61","0,00","0,00"],["954","DM BOS","2 203,87","1,85","11,51","0,28","0,00","0,00"],["956","MILLENNIUM","357,53","0,30","0,84","0,02","0,00","0,00"],["959","ERSTE","1 455,92","1,23","3,42","0,08","0,00","0,00"],["965","DM BDM","303,27","0,26","15,00","0,36","0,00","0,00"]],"razem":["118 810,79","100","4 168,00","100","0,00","0"]}''')
+_CZ428_NAGL = ['Lp', 'Kod', 'Nazwa', 'transakcje sesyjne<br>(mln&nbsp;zł)', 'transakcje sesyjne<br>(%)', 'transakcje pakietowe<br>(mln&nbsp;zł)', 'transakcje pakietowe<br>(%)',
+               'transakcje inne<br>(mln&nbsp;zł)', 'transakcje inne<br>(%)']
+
+
+def _cz428_f(x, d=2):
+    return f'{x:,.{d}f}'.replace(',', '\xa0').replace('.', ',')
+
+
+def _cz428_liczba(s):
+    return float(str(s).replace('\xa0', '').replace(' ', '').replace(',', '.'))
+
+
+def _cz428_wiersze(czynnik=1.0):
+    """Wiersze tabeli [kod, nazwa, mln, %, …] jako tekst; kwoty pomnożone przez czynnik (udziały bez zmian — jak przy innych obrotach o tej samej strukturze)."""
+    out = []
+    for r in _CZ428['rows']:
+        w = list(r)
+        w[2] = _cz428_f(_cz428_liczba(r[2]) * czynnik)
+        out.append(w)
+    return out
+
+
+def _cz428_strona(rows=None, razem=None, od='09.2026', do=None, czynnik=1.0, naglowek=None, lp=None, karta=True, tfoot=True):
+    """Strona w układzie prawdziwej strony: formularz z polami Od i Do, karta „Akcje i PDA” z nagłówkiem, wierszami (numer, kod, nazwa, kwoty) i wierszem „Razem”, potem karta obligacji."""
+    rows = _cz428_wiersze(czynnik) if rows is None else rows
+    if razem is None:
+        razem = _cz428_f(sum(_cz428_liczba(r[2]) for r in rows))
+    nag = ''.join(f'<th rowspan=2 data-type="text">{x}</th>' for x in (naglowek or _CZ428_NAGL))
+    lp = lp or (lambda i: str(i + 1))
+    tr = ''.join('<tr class="%s"><td class="" style="width:20px">%s</td><td class="" style="width:40px">%s</td><td class="left" style="width:140px">%s</td>%s</tr>\n' % (
+        'even' if i % 2 else '', lp(i), r[0], r[1], ''.join(f'<td class="right">{x}</td>' for x in r[2:])) for i, r in enumerate(rows))
+    foot = ('<tfoot><tr class="bg_lightCyan"><td  class="font18" colspan="3">Razem</td><td class="right">%s</td><td class="right">100</td><td class="right">4&nbsp;168,00</td>'
+            '<td class="right">100</td><td class="right">0,00</td><td class="right">0</td></tr></tfoot>' % razem.replace('\xa0', '&nbsp;')) if tfoot else ''
+    tab = (f'<div id="tab_bm_akc" class="tab-pane active" role="tabpanel"><div class="table-responsive"><table id="footable-Akc" class="footable table"><thead><tr>{nag}</tr></thead>'
+           f'<tbody>{tr}</tbody>{foot}</table></div></div>') if karta else ''
+    return ('<html><body><form name="showBmForMonthForm" method="post"><input type="hidden" name="selected_tab" id="selectedTab" value="#tab_bm_akc"/>'
+            f'<input type="text" class="form-control text-center" id="datepickerFrom"  name=\'date_from\' value="{od}" data-provide="datepicker">'
+            f'<input type="text" class="form-control text-center" id="datepickerTo"  name=\'date_to\' value="{do or od}"></form>'
+            f'<div class="tab-content responsive">{tab}<div id="tab_bm_obl" class="tab-pane"><table><tbody><tr><td>1</td><td>999</td><td>INNA KARTA</td><td class="right">1,00</td></tr></tbody>'
+            '<tfoot><tr><td colspan="3">Razem</td><td>1,00</td></tr></tfoot></table></div></div></body></html>').replace('&nbsp;', '\xa0') \
+        if False else (
+            '<html><body><form name="showBmForMonthForm" method="post"><input type="hidden" name="selected_tab" id="selectedTab" value="#tab_bm_akc"/>'
+            f'<input type="text" class="form-control text-center" id="datepickerFrom"  name=\'date_from\' value="{od}" data-provide="datepicker">'
+            f'<input type="text" class="form-control text-center" id="datepickerTo"  name=\'date_to\' value="{do or od}"></form>'
+            f'<div class="tab-content responsive">{tab}<div id="tab_bm_obl" class="tab-pane"><table><tbody><tr><td>1</td><td>999</td><td>INNA KARTA</td><td class="right">1,00</td></tr></tbody>'
+            '<tfoot><tr><td colspan="3">Razem</td><td>1,00</td></tr></tfoot></table></div></div></body></html>')
+
+
+class PolskaCzlonkowieV428(unittest.TestCase):
+    """v428 (F11Z27): data/polska-rynek.json, część czlonkowie — udział członków giełdy w Warszawie w obrotach akcjami (tabela miesięczna): parsowanie prawdziwych wierszy z 18.10.2026,
+    okres z pól Od i Do, bramki układu i sum, klasyfikacja członków (siedziba za granicą / w Polsce / nieustalona — tylko przy zgodnej nazwie), rytm zapytań (48 h przed nowym miesiącem, 3 godziny
+    po nim, potem 6), narastanie historii, awarie, tabela źródeł (ta sama giełda — liczba źródeł bez zmian), okablowanie main() i kontrola dzienna (świeżość, spójność, uwaga o nieustalonych).
+    Bez sieci i bez zegara (NOW przypięty)."""
+    U = datetime.timezone.utc
+    NOW = '2026-10-18T12:00:00+00:00'
+    ROOT = PolskaRynekV361.ROOT
+    ENV = PolskaRynekV361.ENV
+    main_wynik = PolskaRynekV361.main_wynik
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        for p in (mock.patch.object(zd, 'NOW', self.NOW), mock.patch.object(zd.time, 'sleep', lambda s: None)):
+            p.start(); self.addCleanup(p.stop)
+
+    def t(self, s='2026-10-18T12:00:00+00:00'):
+        return datetime.datetime.fromisoformat(s)
+
+    def kt(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v428', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    def stub(self, strony):
+        """get() zaślepka: kolejne odpowiedzi z listy (ostatnia powtarzana); zapisuje adresy."""
+        self.urls = []
+
+        def get(url, headers=None, timeout=30):
+            self.urls.append(url)
+            x = strony[min(len(self.urls) - 1, len(strony) - 1)]
+            if isinstance(x, Exception):
+                raise x
+            return 200, x
+        return get
+
+    def czesc(self, prev, now, strony):
+        with mock.patch.object(zd, 'get', self.stub(strony)):
+            return zd.plr_czesc_czlonkowie(prev, self.t(now))
+
+    # ---------------- parser ----------------
+    def test_parse_prawdziwych_wierszy(self):
+        p = zd.plr_cz_parse(_cz428_strona(), self.t())
+        self.assertEqual((p['asof'], p['razem'], len(p['w'])), ('2026-09-30', 118810.79, 39))
+        self.assertEqual(p['w'][0], ['702', 'WOOD', 5235.0, 4.41]); self.assertEqual(p['w'][12], ['756', 'GS AG', 27569.17, 23.2])
+        self.assertIn(['863', 'MICHAEL/STRÖM DM', 0.0, 0.0], p['w'])
+        self.assertAlmostEqual(sum(x[2] for x in p['w']), p['razem'], places=2)
+        self.assertEqual(zd.plr_cz_liczba('5\xa0235,00'), 5235.0); self.assertEqual(zd.plr_cz_liczba('0,00'), 0.0)
+        for zly in ('', '—', '1,2,3', '-5,00', 'abc'):
+            with self.assertRaises(ValueError):
+                zd.plr_cz_liczba(zly)
+
+    def test_parse_okres_z_pol_formularza(self):
+        self.assertEqual(zd.plr_cz_parse(_cz428_strona(od='12.2025'), self.t())['asof'], '2025-12-31', 'grudzień: koniec roku, nie zgadywanie z daty przebiegu')
+        self.assertEqual(zd.plr_cz_parse(_cz428_strona(od='02.2024'), self.t())['asof'], '2024-02-29', 'rok przestępny')
+        with self.assertRaisesRegex(RuntimeError, 'jeden miesiąc'):
+            zd.plr_cz_parse(_cz428_strona(od='08.2026', do='09.2026'), self.t())
+        with self.assertRaisesRegex(RuntimeError, 'jeden miesiąc'):
+            zd.plr_cz_parse(_cz428_strona().replace("name='date_from'", "name='inne'"), self.t())
+        with self.assertRaisesRegex(RuntimeError, 'zły miesiąc'):
+            zd.plr_cz_parse(_cz428_strona(od='13.2026'), self.t())
+        with self.assertRaisesRegex(RuntimeError, 'jeszcze się nie skończył'):
+            zd.plr_cz_parse(_cz428_strona(), self.t('2026-09-30T23:00:00+00:00'))
+        zd.plr_cz_parse(_cz428_strona(), self.t('2026-10-01T00:00:00+00:00'))   # dzień po końcu miesiąca — już pełny
+
+    def test_parse_bramki_ukladu(self):
+        def blad(fragment, **kw):
+            with self.assertRaisesRegex(RuntimeError, fragment):
+                zd.plr_cz_parse(_cz428_strona(**kw), self.t())
+        blad('brak karty akcji', karta=False)
+        blad('zmieniony nagłówek', naglowek=_CZ428_NAGL[:3] + ['transakcje inne<br>(mln&nbsp;zł)'] + _CZ428_NAGL[4:])
+        blad('zmieniony nagłówek', naglowek=_CZ428_NAGL[:-1])
+        blad('numer, kod albo nazwa', lp=lambda i: str(i + 2))
+        blad('numer, kod albo nazwa', lp=lambda i: str(i + 1 if i != 5 else 99))
+        w = _cz428_wiersze(); w[3][0] = w[2][0]
+        blad('numer, kod albo nazwa', rows=w)
+        w = _cz428_wiersze(); w[3][0] = '71'
+        blad('numer, kod albo nazwa', rows=w)
+        w = _cz428_wiersze(); w[3][1] = ''
+        blad('numer, kod albo nazwa', rows=w)
+        blad('brak wiersza „Razem”|brak', tfoot=False)
+        blad('suma wierszy', razem='150\xa0000,00')
+        with self.assertRaisesRegex(RuntimeError, 'wiersz „Razem”'):
+            zd.plr_cz_parse(_cz428_strona().replace('</tfoot>', '<tr><td colspan="3">Razem</td><td>1,00</td><td>100</td><td>1</td><td>1</td><td>1</td><td>1</td></tr></tfoot>'), self.t())
+        with self.assertRaisesRegex(RuntimeError, 'wiersz „Razem”'):
+            zd.plr_cz_parse(_cz428_strona().replace('<td class="right">0</td></tr></tfoot>', '</tr></tfoot>'), self.t())
+        blad('poza zakresem', rows=_cz428_wiersze(0.001), razem=_cz428_f(sum(_cz428_liczba(r[2]) for r in _cz428_wiersze(0.001))))
+        w = _cz428_wiersze(); w[0][3] = '14,41'
+        blad('udział %', rows=w)
+        w = _cz428_wiersze(); w[0][2] = '6\xa0235,00'
+        blad('udział %', rows=w)
+        blad('min. 20', rows=_cz428_wiersze()[:10], razem=_cz428_f(sum(_cz428_liczba(r[2]) for r in _cz428_wiersze()[:10])))
+        w = _cz428_wiersze(); w[7][2] = 'brak'
+        with self.assertRaises(ValueError):
+            zd.plr_cz_parse(_cz428_strona(rows=w, razem='118\xa0810,79'), self.t())
+
+    def test_parse_czyta_tylko_karte_akcji(self):
+        p = zd.plr_cz_parse(_cz428_strona(), self.t())
+        self.assertNotIn('999', [x[0] for x in p['w']], 'karta obligacji (po akcjach) nie wchodzi do wyniku')
+
+    # ---------------- klasyfikacja ----------------
+    def test_tablica_klasyfikacji_zgodna_z_prawdziwymi_wierszami(self):
+        kody = {r[0]: r[1] for r in _CZ428['rows']}
+        self.assertEqual({k: v[0] for k, v in zd.PLR_CZ_GR.items()}, {k: n for k, n in kody.items() if k != '959'}, 'każdy znany członek z nazwą jak na stronie; 959 celowo poza tablicą')
+        for k, (n, g, pokaz) in zd.PLR_CZ_GR.items():
+            self.assertEqual(g, 'z' if k.startswith('7') else 'k', f'{k} {n}: kody 7xx to członkowie zdalni (za granicą), 8xx i 9xx — krajowi'); self.assertTrue(pokaz)
+        self.assertEqual((sum(1 for v in zd.PLR_CZ_GR.values() if v[1] == 'z'), sum(1 for v in zd.PLR_CZ_GR.values() if v[1] == 'k')), (19, 19))
+
+    def test_klasyfikacja_tylko_przy_zgodnej_nazwie(self):
+        g = zd.plr_cz_grupa
+        self.assertEqual((g('756', 'GS AG'), g('912', 'BM PKO BP'), g('959', 'ERSTE')), ('z', 'k', 'n'))
+        self.assertEqual(g('756', 'GS AG 2'), 'n', 'ten sam kod, inna nazwa = nieustalona (kod mógł zostać oddany innemu podmiotowi)')
+        self.assertEqual((g('999', 'NOWY'), g(756, 'GS AG'), g('', '')), ('n', 'z', 'n'))
+
+    def test_zloz_z_prawdziwych_danych(self):
+        p = zd.plr_cz_zloz(zd.plr_cz_parse(_cz428_strona(), self.t()))
+        self.assertEqual((p['asof'], p['razem'], p['ile'], p['akt']), ('2026-09-30', 118810.79, 39, 29)); self.assertEqual(len(p['top']), 12, 'dwanaście największych (PLR_CZ_TOP)')
+        self.assertEqual(p['g'], {'z': 74795.2, 'k': 42559.67, 'n': 1455.92})
+        self.assertEqual(round(sum(p['g'].values()), 2), p['razem'])
+        self.assertEqual(p['top'][0], ['756', 'Goldman Sachs', 27569.17, 'z']); self.assertEqual(len(p['top']), zd.PLR_CZ_TOP)
+        self.assertEqual([x[0] for x in p['top'][:4]], ['756', '912', '754', '753'])
+        self.assertTrue(all(a[2] >= b[2] for a, b in zip(p['top'], p['top'][1:])) and all(x[2] > 0 for x in p['top']))
+        self.assertEqual(p['nowi'], [['959', 'ERSTE', 1455.92]])
+        self.assertAlmostEqual(p['g']['z'] / p['razem'], 0.6295, places=3)
+
+    def test_zloz_nieznani_czlonkowie_powyzej_progu_to_blad_i_brak_jednej_strony_to_blad(self):
+        w = _cz428_wiersze(); w[12][1] = 'GS AG ZMIENIONE'   # największy członek (23%) traci klasyfikację
+        with self.assertRaisesRegex(RuntimeError, 'nieznani członkowie mają 24%'):
+            zd.plr_cz_zloz(zd.plr_cz_parse(_cz428_strona(rows=w), self.t()))
+        w = _cz428_wiersze()
+        for r in w:
+            if r[0].startswith('7'):
+                r[1] += ' X'
+        with self.assertRaisesRegex(RuntimeError, 'brak obrotów po jednej ze stron'):
+            zd.plr_cz_zloz(zd.plr_cz_parse(_cz428_strona(rows=w), self.t()))
+        w = _cz428_wiersze()
+        for r in w:
+            if r[0][0] in '89':
+                r[1] += ' X'
+        with self.assertRaisesRegex(RuntimeError, 'brak obrotów po jednej ze stron'):
+            zd.plr_cz_zloz(zd.plr_cz_parse(_cz428_strona(rows=w), self.t()))
+        w = _cz428_wiersze(); w[0][1] = 'WOOD CO'   # 4,4% < 15% — przechodzi, ale widać w nowych
+        p = zd.plr_cz_zloz(zd.plr_cz_parse(_cz428_strona(rows=w), self.t()))
+        self.assertEqual({x[0] for x in p['nowi']}, {'702', '959'}); self.assertAlmostEqual(p['g']['n'], 5235.0 + 1455.92, places=2)
+
+    # ---------------- rytm i historia ----------------
+    def test_pierwsza_budowa_i_rytm_zapytan(self):
+        c, stan, blad = self.czesc(None, '2026-10-18T12:00:00+00:00', [_cz428_strona()])
+        self.assertEqual((stan, blad, self.urls), (True, None, [zd.PLR_CZ_URL])); self.assertEqual(c['at'], self.NOW)
+        self.assertEqual(c['h'], {'2026-09': [74795.2, 42559.67, 1455.92]}); self.assertEqual(c['asof'], '2026-09-30')
+        json.dumps(c); self.assertLess(len(json.dumps(c, separators=(',', ':'))), 3000)
+        # ten sam przebieg i kilka godzin później (przed nowym miesiącem, odstęp 48 h): bez zapytań
+        c2, stan2, _ = self.czesc(c, '2026-10-18T12:00:00+00:00', [_cz428_strona()]); self.assertEqual((stan2, self.urls), ('cached', [])); self.assertIs(c2, c)
+        c3, stan3, _ = self.czesc(c, '2026-10-20T11:59:00+00:00', [_cz428_strona()]); self.assertEqual((stan3, self.urls), ('cached', []))
+        # po 48 h: pytamy; strona nadal pokazuje wrzesień → poprzednia część z nową chwilą, historia bez zmian
+        c4, stan4, _ = self.czesc(c, '2026-10-20T12:00:00+00:00', [_cz428_strona()]); self.assertEqual((stan4, len(self.urls)), (True, 1))
+        self.assertEqual((c4['h'], c4['g'], c4['asof']), (c['h'], c['g'], c['asof'])); self.assertEqual(c4['at'], self.NOW)
+
+    def test_nowy_miesiac_dopisuje_historie_a_po_terminie_pytanie_co_3_godziny(self):
+        c, _, _ = self.czesc(None, '2026-10-18T12:00:00+00:00', [_cz428_strona()])
+        self.assertEqual(zd._plr_due_czlonkowie(c['asof']), datetime.datetime(2026, 11, 1, 6, 0, tzinfo=self.U), 'dane za październik od 1. listopada')
+        self.assertEqual(zd._plr_due_czlonkowie('2026-11-30'), datetime.datetime(2027, 1, 1, 6, 0, tzinfo=self.U), 'przełom roku')
+        self.assertIsNone(zd._plr_due_czlonkowie('')); self.assertIsNone(zd._plr_due_czlonkowie(None))
+        stary = dict(c, at='2026-11-01T06:10:00+00:00')
+        # 06:10 → po terminie (1.11 06:00): 2 godziny później jeszcze nie pytamy, po 3 godzinach tak
+        _, s1, _ = self.czesc(stary, '2026-11-01T08:10:00+00:00', [_cz428_strona(od='10.2026', czynnik=1.1)]); self.assertEqual((s1, self.urls), ('cached', []))
+        n, s2, _ = self.czesc(stary, '2026-11-01T09:10:00+00:00', [_cz428_strona(od='10.2026', czynnik=1.1)]); self.assertEqual((s2, len(self.urls)), (True, 1))
+        self.assertEqual(n['asof'], '2026-10-31'); self.assertEqual(sorted(n['h']), ['2026-09', '2026-10']); self.assertEqual(n['h']['2026-09'], c['h']['2026-09'])
+        self.assertAlmostEqual(n['razem'], 118810.79 * 1.1, delta=1.0); self.assertEqual(n['at'], self.NOW)
+        self.assertEqual(n['h']['2026-10'], [n['g']['z'], n['g']['k'], n['g']['n']])
+        # po 48 godzinach od terminu odstęp rośnie do 6 godzin
+        s3 = self.czesc(dict(c, at='2026-11-03T06:30:00+00:00'), '2026-11-03T10:00:00+00:00', [_cz428_strona()])[1]; self.assertEqual((s3, self.urls), ('cached', []))
+        s4 = self.czesc(dict(c, at='2026-11-03T06:30:00+00:00'), '2026-11-03T12:31:00+00:00', [_cz428_strona()])[1]; self.assertEqual((s4, len(self.urls)), (True, 1))
+
+    def test_starszy_miesiac_na_stronie_zostaje_poprzedni_z_notatka(self):
+        n, _, _ = self.czesc(None, '2026-11-02T12:00:00+00:00', [_cz428_strona(od='10.2026')])
+        stary = dict(n, at='2026-11-02T00:00:00+00:00')
+        c, stan, _ = self.czesc(stary, '2026-11-15T12:00:00+00:00', [_cz428_strona(od='09.2026')])
+        self.assertEqual((stan, c['asof'], sorted(c['h'])), (True, '2026-10-31', ['2026-10'])); self.assertEqual(c['at'], self.NOW)
+        self.assertTrue(any('członkowie giełdy' in x and '2026-09' in x and '2026-10' in x for x in zd.META['notes']))
+
+    def test_historia_36_miesiecy_i_odrzucenie_smieci(self):
+        c, _, _ = self.czesc(None, '2026-10-18T12:00:00+00:00', [_cz428_strona()])
+        h = {}
+        for i in range(36):
+            y, m = divmod(2023 * 12 + 4 + i, 12)
+            h[f'{y}-{m + 1:02d}'] = [10.0 + i, 20.0, 0.0]          # od 2023-05 do 2026-04 (36 miesięcy)
+        zle = {'2026-05': [1, 2], '2026-06': [1, 2, 'x'], '2026-07': [True, 2, 3], '2026-08': 'x', '2026-03x': [1, 2, 3], 'zły': [1, 2, 3], '2026-02-01': [1, 2, 3]}   # śmieci w oknie ostatnich 36 miesięcy — nie mogą przetrwać
+        h.update(zle); h['2026-09'] = [float('nan'), 1.0, 1.0]
+        prev = dict(c, asof='2026-08-31', h=h, at='2026-09-01T00:00:00+00:00')
+        n, _, _ = self.czesc(prev, '2026-10-18T12:00:00+00:00', [_cz428_strona()])
+        self.assertEqual(len(n['h']), zd.PLR_CZ_PH); self.assertEqual(max(n['h']), '2026-09'); self.assertEqual(min(n['h']), '2023-06'); self.assertFalse(set(zle) & set(n['h']), 'śmieci odrzucone')
+        self.assertEqual(n['h']['2026-09'], [n['g']['z'], n['g']['k'], n['g']['n']], 'nowy miesiąc nadpisuje wpis ze śmieciem')
+        self.assertTrue(all(re.fullmatch(r'\d{4}-\d{2}', k) and len(v) == 3 for k, v in n['h'].items()))
+
+    def test_awaria_zrodla_wyjatek_a_build_zostawia_poprzednia_czesc_z_proba(self):
+        with self.assertRaises(OSError):
+            self.czesc(None, '2026-10-18T12:00:00+00:00', [OSError('gpw offline')])
+        c, _, _ = self.czesc(None, '2026-10-18T12:00:00+00:00', [_cz428_strona()])
+        stare = dict(c, at='2026-10-01T00:00:00+00:00')
+        inne = {'gpw': ({'at': 'x', 'asof': '2026-10-16', 'idx': {'WIG': {'d': []}}}, True, None), 'krzywa': ({'at': 'x', 'asof': '2026-10-16', 'k': {'a': 1}}, True, None),
+                'fundusze': ({'at': 'x', 'asof': '2026-08-31', 'm': [['2026-08', 1, 1, 1, 0]]}, True, None)}
+        ps = [mock.patch.object(zd, 'plr_czesc_' + n, lambda p, t, *a, _n=n, **k: inne[_n]) for n in inne]
+        [p.start() for p in ps]
+        try:
+            with mock.patch.object(zd, 'get', self.stub([OSError('gpw offline')])):
+                out = zd.build_polska_rynek({'v': 1, 'czlonkowie': stare}, now=self.NOW)
+                out2 = zd.build_polska_rynek({'v': 1}, now=self.NOW)
+        finally:
+            [p.stop() for p in ps]
+        self.assertIs(out['ok']['czlonkowie'], False); self.assertEqual(out['czlonkowie']['proba'], self.NOW); self.assertEqual(out['czlonkowie']['g'], c['g'])
+        self.assertIs(out2['ok']['czlonkowie'], False); self.assertNotIn('czlonkowie', out2, 'bez poprzedniej części i bez danych część nie wchodzi do pliku')
+        self.assertTrue(any(e.startswith('Polska rynek (członkowie giełdy): ') and 'gpw offline' in e for e in zd.META['errors']))
+
+    def test_build_cztery_czesci_czlonkowie_wchodza_do_pliku(self):
+        inne = {'gpw': ({'at': 'x', 'asof': '2026-10-16', 'idx': {'WIG': {'d': []}}}, True, None), 'krzywa': ({'at': 'x', 'asof': '2026-10-16', 'k': {'a': 1}}, True, None),
+                'fundusze': ({'at': 'x', 'asof': '2026-08-31', 'm': [['2026-08', 1, 1, 1, 0]]}, True, None)}
+        ps = [mock.patch.object(zd, 'plr_czesc_' + n, lambda p, t, *a, _n=n, **k: inne[_n]) for n in inne]
+        [p.start() for p in ps]
+        try:
+            with mock.patch.object(zd, 'get', self.stub([_cz428_strona()])):
+                o = zd.build_polska_rynek(None, now=self.NOW)
+        finally:
+            [p.stop() for p in ps]
+        self.assertEqual(o['ok'], {'gpw': True, 'krzywa': True, 'fundusze': True, 'czlonkowie': True}); self.assertEqual(o['czlonkowie']['g']['z'], 74795.2); self.assertEqual(zd.META['errors'], [])
+
+    # ---------------- tabela źródeł i main ----------------
+    def test_tabela_zrodel_ta_sama_gielda(self):
+        self.assertEqual(zd.ZRODLA_META['polska_rynek_czlonkowie'], zd.ZRODLA_META['polska_rynek_gpw'])
+        baza = {'polska_zloto': True, 'polska_rynek_gpw': True}
+        n0 = zd.zrodla_meta(baza)
+        n1 = zd.zrodla_meta(dict(baza, polska_rynek_czlonkowie=True))
+        self.assertEqual(n1, n0, 'ta sama giełda co indeksy — liczba źródeł bez zmian')
+        self.assertEqual(zd.zrodla_meta({'polska_rynek_czlonkowie': True})['n'], 1, 'a gdy indeksy milczą, źródło liczy się z członków')
+
+    def test_main_ustawia_meta_ok_czlonkowie(self):
+        nowy = {'v': 1, 'at': self.NOW, 'ok': {'gpw': True, 'krzywa': True, 'fundusze': 'cached', 'czlonkowie': 'cached'}}
+        saved = self.main_wynik({'v': 1, 'at': '2026-10-17T16:00:00+00:00'}, mock.Mock(return_value=nowy))
+        self.assertIs(saved['polska-rynek'], nowy); self.assertEqual(zd.META['ok']['polska_rynek_czlonkowie'], 'cached')
+        saved2 = self.main_wynik({'v': 1, 'at': '2026-10-17T16:00:00+00:00'}, mock.Mock(side_effect=RuntimeError('x')))
+        self.assertEqual({k: zd.META['ok'][k] for k in ('polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze', 'polska_rynek_czlonkowie')}, {k: False for k in ('polska_rynek_gpw', 'polska_rynek_krzywa', 'polska_rynek_fundusze', 'polska_rynek_czlonkowie')})
+
+    # ---------------- kontrola dzienna ----------------
+    def plik(self):
+        c, _, _ = self.czesc(None, '2026-10-18T12:00:00+00:00', [_cz428_strona()])
+        return {'v': 1, 'at': self.NOW, 'ok': {'czlonkowie': True}, 'czlonkowie': json.loads(json.dumps(c))}
+
+    def test_kontrola_swiezosc_46_dni_i_symulacja_36_miesiecy(self):
+        k = self.kt(); j = self.plik()
+        self.assertIn('czlonkowie', k.PLR_K_ETYKIETA); self.assertEqual(k.PLR_K_PROG_DNI_CZL, 45); self.assertIn('zostaje z datą', k.AW_BEZ_BLEDU['polska_rynek_czlonkowie'])
+        # 18.10: dane za wrzesień (dzień danych 30.09) — 17 dni od 1.10 → ✅
+        R = [r for r in k.polska_rynek_swiezosc(j, datetime.datetime(2026, 10, 18, 12, 30, tzinfo=self.U)) if r[0] == k.PLR_K_ETYKIETA['czlonkowie']][0]
+        self.assertEqual((R[1], R[3]), ('✅', '2026-09-30')); self.assertEqual(R[2], 17 * 1440 + 12 * 60 + 30, 'wiek od 1.10.2026 00:00')
+        # 15.11 (45 dni + 0): jeszcze ✅; 16.11 ⚠️ — nigdy ❌
+        r = lambda d: [x for x in k.polska_rynek_swiezosc(j, d) if x[0] == k.PLR_K_ETYKIETA['czlonkowie']][0]
+        self.assertEqual(r(datetime.datetime(2026, 11, 15, 0, 0, tzinfo=self.U))[1], '✅'); w = r(datetime.datetime(2026, 11, 16, 1, 0, tzinfo=self.U))
+        self.assertEqual(w[1], '⚠️'); self.assertIn('najwyżej uwaga', w[4])
+        self.assertEqual(r(datetime.datetime(2028, 1, 1, tzinfo=self.U))[1], '⚠️', 'bez ❌ nawet po wielu miesiącach')
+        # symulacja: nowy miesiąc na stronie od 1. dnia (06:00 UTC), zbieracz widzi go do 3 godzin później; w każdym dniu 36 miesięcy (2024-01…2026-12) wiek ≤ 31 dni + 3 godz. i zero ostrzeżeń
+        najw, ostrz = 0, 0
+        d = datetime.date(2024, 2, 1)
+        while d < datetime.date(2027, 1, 1):
+            for godz in (0, 5, 9, 23):
+                now = datetime.datetime(d.year, d.month, d.day, godz, 0, tzinfo=self.U)
+                cur = d.year * 12 + d.month - 1
+                latest = cur - 1 if now >= datetime.datetime(d.year, d.month, 1, 9, 0, tzinfo=self.U) else cur - 2   # dane za miesiąc M od 1. dnia M+1 (po 09:00 zbieracz je ma)
+                ny, nm = divmod(latest + 1, 12)
+                last = datetime.date(ny, nm + 1, 1) - datetime.timedelta(days=1)
+                x = [z for z in k.polska_rynek_swiezosc({'v': 1, 'czlonkowie': {'asof': last.isoformat()}}, now) if z[0] == k.PLR_K_ETYKIETA['czlonkowie']][0]
+                najw = max(najw, x[2]); ostrz += x[1] != '✅'
+            d += datetime.timedelta(days=1)
+        self.assertEqual(ostrz, 0); self.assertLessEqual(najw, (31 * 24 + 9) * 60, 'największy wiek tuż przed nowym miesiącem: 31 dni + 9 godzin (od 1. dnia 00:00 do 09:00 1. dnia następnego)')
+        self.assertGreater(k.PLR_K_PROG_DNI_CZL * 1440, najw * 1.3, 'zapas progu ponad 30% nad największym normalnym wiekiem')
+
+    def test_kontrola_spojnosc_tylko_sprzecznosci(self):
+        k = self.kt(); j = self.plik()
+        self.assertEqual(k.polska_rynek_czlonkowie_spojnosc(j), []); self.assertEqual(k.polska_rynek_spojnosc(j), [])
+        self.assertEqual(k.polska_rynek_czlonkowie_spojnosc({'v': 1}), [], 'bez części — brak sprzeczności')
+        def zmien(f):
+            z = json.loads(json.dumps(j)); f(z['czlonkowie']); return k.polska_rynek_czlonkowie_spojnosc(z)
+        self.assertTrue(any(s.startswith('członkowie: kwoty grup') for s in zmien(lambda c: c['g'].update(z=c['g']['z'] + 10))))
+        self.assertFalse(any(s.startswith('członkowie: kwoty grup') for s in zmien(lambda c: c['g'].update(z=c['g']['z'] + 0.04, h={c['asof'][:7]: [c['g']['z'] + 0.04, c['g']['k'], c['g']['n']]}))), 'tolerancja zaokrągleń 0,05 mln zł')
+        self.assertTrue(any('brak kwot grup' in s for s in zmien(lambda c: c['g'].pop('n'))))
+        self.assertTrue(any('brak kwot grup' in s for s in zmien(lambda c: c['g'].update(k=-1.0))))
+        self.assertTrue(any('nie jest końcem miesiąca' in s for s in zmien(lambda c: c.update(asof='2026-09-29'))))
+        self.assertTrue(any('nie jest końcem miesiąca' in s for s in zmien(lambda c: c.update(asof='bzdura'))))
+        self.assertTrue(any('nie malejąco' in s for s in zmien(lambda c: c['top'].reverse())))
+        self.assertTrue(any('powtórzony kod' in s for s in zmien(lambda c: c['top'].__setitem__(1, list(c['top'][0])))))
+        self.assertTrue(any('spoza układu' in s for s in zmien(lambda c: c['top'][0].__setitem__(3, 'x'))))
+        self.assertTrue(any('suma największych' in s for s in zmien(lambda c: c.update(razem=c['razem'] / 3, g={'z': c['razem'] / 3, 'k': 0.0, 'n': 0.0}, h={c['asof'][:7]: [c['razem'] / 3, 0.0, 0.0]}))))
+        self.assertTrue(any('grupy z mają więcej' in s for s in zmien(lambda c: c['top'][0].__setitem__(3, 'z') or c['top'].insert(0, ['999', 'X', c['g']['z'], 'z']) or c['top'].sort(key=lambda x: -x[2]))))
+        self.assertTrue(any('brak historii' in s for s in zmien(lambda c: c.pop('h'))))
+        self.assertTrue(any('ostatni miesiąc historii 2026-08' in s for s in zmien(lambda c: c.update(h={'2026-08': c['h']['2026-09']}))))
+        self.assertTrue(any('≠ kwoty grup' in s for s in zmien(lambda c: c['h'].update({'2026-09': [1.0, 2.0, 3.0]}))))
+        self.assertTrue(any('spoza układu' in s and 'h' in s for s in zmien(lambda c: c['h'].update({'2026-08': [1.0, 2.0]}))))
+        # wpięcie: sprzeczność w części czlonkowie widać w wyniku polska_rynek_spojnosc i w raporcie
+        z = json.loads(json.dumps(j)); z['czlonkowie']['g']['k'] += 50
+        R = {'bledy': [], 'uwagi': [], 'swiezosc': []}; W = k.polska_rynek_kontrola({'polska-rynek': z}, R)
+        self.assertTrue(any('członkowie' in s for s in W['spojnosc'])); self.assertTrue(R['bledy'][0].startswith('polska-rynek.json: sprzeczność w pliku —'))
+
+    def test_kontrola_nieustaleni_wiersz_i_uwaga_powyzej_5_proc(self):
+        k = self.kt(); j = self.plik()
+        P = k.polska_rynek_porownania(j, {}); self.assertTrue(any(x[0].startswith('członkowie giełdy 2026-09') and x[1] == '✅' for x in P['wiersze'])); self.assertEqual(P['uwagi'], [])
+        w, u = k.polska_rynek_czlonkowie_wiersze(j)
+        self.assertEqual(len(w), 1); self.assertEqual(w[0][1], '✅'); self.assertEqual(u, [])
+        self.assertIn('siedziba za granicą 63,0%', w[0][0]); self.assertIn('w Polsce 35,8%', w[0][0]); self.assertIn('nieustalona 1,2%', w[0][0]); self.assertIn('118811 mln zł', w[0][0])
+        z = json.loads(json.dumps(j)); c = z['czlonkowie']; c['g'] = {'z': 75000.0, 'k': 40000.0, 'n': 10000.0}; c['razem'] = 125000.0; c['h'] = {'2026-09': [75000.0, 40000.0, 10000.0]}; c['nowi'] = [['702', 'WOOD', 5235.0], ['959', 'ERSTE', 1455.92]]
+        w2, u2 = k.polska_rynek_czlonkowie_wiersze(z); self.assertEqual(w2[0][1], '⚠️'); self.assertEqual(len(u2), 1)
+        self.assertIn('8,0%', u2[0]); self.assertIn('WOOD, ERSTE', u2[0]); self.assertIn('najwyżej uwaga', u2[0])
+        self.assertEqual(k.polska_rynek_czlonkowie_wiersze({'v': 1}), ([], [])); self.assertEqual(k.polska_rynek_czlonkowie_wiersze({'czlonkowie': {'g': {'z': 0, 'k': 0, 'n': 0}}}), ([], []))
+        R = {'bledy': [], 'uwagi': [], 'swiezosc': []}; k.polska_rynek_kontrola({'polska-rynek': z}, R); self.assertTrue(any('członkowie giełdy o nieustalonej siedzibie' in x for x in R['uwagi'])); self.assertEqual(R['bledy'], [])
