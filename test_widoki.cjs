@@ -32322,3 +32322,82 @@ test('v414 (W2): kalendarz makro — słownik w 10 językach (własne tłumaczen
   assert.equal(v96src.I18N.pl['kal414.t'], 'Kalendarz makro'); assert.equal(['d', 'w', 'm'].map(k => v96src.I18N.pl['kal414.p.' + k]).join('|'), 'Dzień|Tydzień|Miesiąc');
   assert.ok(!/Eurostat|Federal Reserve|Census|\bBEA\b/.test(Object.keys(v96src.I18N.pl).filter(k => k.startsWith('kal414.')).map(k => v96src.I18N.pl[k]).join(' ')), 'bez nazw dostawców');
 });
+
+/* ===================== v415 (W2 pkt 7): wyróżnienie karty Fed — blok „najbliższe posiedzenie” w nagłówku (fedHero), słownik w415.* ===================== */
+test('v415 (W2): karta Fed — blok w nagłówku: duża szansa decyzji, odliczanie, pasek szans z legendą, moment ogłoszenia, zmiana 7 dni, charakter danych z wiekiem; liczby te same co w kaflach', () => {
+  const D = fed131.cp(fed131.D), el = {hidden: true, innerHTML: ''}, Y = fed131.mk({$: q => q === '#g-fed' ? el : null, venueOff: true});
+  Y.fedApply(D); const h = el.innerHTML;
+  assert.equal(el.hidden, false);
+  const i0 = h.indexOf('<div class="fedhero">'), iH = h.indexOf('<h2>fed.t</h2>'), iB = h.indexOf('<div class="etfb">');
+  assert.ok(iH > 0 && iH < i0 && i0 < iB, 'blok jest w nagłówku karty (widoczny po zwinięciu): po tytule i opisie, przed znaczkiem świeżości');
+  const hero = h.slice(i0, h.indexOf('</p></div>', h.indexOf('class="fh-k"')) + 10);
+  assert.ok(!/undefined|NaN|\[object|null/.test(hero), hero.slice(0, 300));
+  assert.equal((h.match(/class="fedhero"/g) || []).length, 1, 'jeden blok');
+  const m1 = D.ks.meetings[0], R = Y.fedRows(m1), top = Y.fedTop(m1, R);
+  assert.ok(hero.includes('<span class="fh-ey">w415.next</span><span class="fh-cd">fed.left{"n":"31"}</span>'), 'napis nad liczbą i odliczanie dni');
+  assert.ok(hero.includes('<span class="fh-n">fed.pct{"v":"' + Math.round(top.show * 100) + '"}</span><span class="fh-w"><b>fed.o.' + top.k + '</b><small>fed.k.top</small></span>'), 'duża szansa i nazwa najbardziej prawdopodobnej decyzji — jak w kaflu');
+  /* pasek: odcinek na każdą decyzję od 1%, szerokość = szansa / max(1, suma szans) — liczone w teście niezależnie */
+  const sh = R.filter(r => r.show !== null), den = Math.max(1, sh.reduce((a, r) => a + r.show, 0)), big = sh.filter(r => r.show >= 0.01);
+  const bar = hero.slice(hero.indexOf('<div class="fh-bar"'), hero.indexOf('<div class="fh-lg">'));
+  assert.deepEqual([...bar.matchAll(/style="width:([\d.]+)%"/g)].map(x => x[1]), big.map(r => (r.show / den * 100).toFixed(2)), 'szerokości odcinków');
+  assert.deepEqual([...bar.matchAll(/class="fh-s fh-(\w)"/g)].map(x => x[1]), big.map(r => ({cutgt25: 'c', cut25: 'c', hold: 'h', hike25: 'u', hikegt25: 'u'}[r.k])), 'kolor odcinka wg rodzaju decyzji');
+  assert.ok(bar.includes('role="img" aria-label="w415.bar{&quot;s&quot;:&quot;') && bar.includes('fed.o.hike25 fed.pct{\\&quot;v\\&quot;:\\&quot;' + Math.round(top.show * 100) + '\\&quot;}'), 'opis paska dla czytnika ekranu zawiera decyzje z szansami');
+  const lg = hero.slice(hero.indexOf('<div class="fh-lg">'), hero.indexOf('<p class="fh-m">'));
+  assert.equal((lg.match(/class="fh-l"/g) || []).length, big.length, 'legenda: wiersz na każdą decyzję pokazaną na pasku (tekst, nie tylko kolor)');
+  assert.ok(lg.includes('<b>fed.pct{"v":"' + Math.round(top.show * 100) + '"}</b>') && lg.includes('fh-l fh-r">w415.rest</span>'), 'legenda: szanse i notka o decyzjach poniżej 1%');
+  assert.ok(sh.some(r => r.show < 0.01) && big.length < sh.length, 'nagranie ma decyzję poniżej 1%');
+  assert.ok(hero.includes('<p class="fh-m"><span>fed.mtg{"d":') && /<span class="fh-d (pos|neg|neu)">[▲▼•] [^<]*fed\.d7<\/span><\/p>/.test(hero), 'moment ogłoszenia i zmiana 7 dni w kolorze kierunku');
+  const raw7 = fed131.ppb(top.p - top.p7d), txt7 = raw7.replace(/(\d+(?:\.\d)?)$/, 'fed.pp{"v":"$1"}');
+  assert.notEqual(fed131.ppb(top.pn - top.p7d), raw7, 'nagranie rozróżnia cenę surową i przeliczoną');
+  assert.ok(hero.includes('<span class="fh-d ' + (raw7.startsWith('▲') ? 'pos' : raw7.startsWith('▼') ? 'neg' : 'neu') + '">' + txt7 + ' fed.d7</span>'), 'zmiana 7 dni z surowych cen, jak w kaflu: ' + txt7);
+  assert.ok(hero.includes('<p class="fh-k"><b>w415.kind</b><span class="fh-at">fed.at{"t":"D(' + D.part_at.ks + ') · ago(' + D.part_at.ks + ')"}</span></p>'), 'charakter danych (szacunek rynku zakładów) i czas cen z wiekiem');
+  assert.ok(h.includes('fed.o.' + top.k + ' — fed.pct{"v":"' + Math.round(top.show * 100) + '"}'), 'kafel (ukryty stylem) pokazuje tę samą liczbę — dane i obliczenia bez zmian');
+  assert.equal((Y.fedBody(D).match(/<div class="etfk">/g) || []).length, 3, 'treść karty bez zmian: nadal trzy kafle');
+});
+
+test('v415 (W2): blok Fed — bez notki „poniżej 1%” gdy każda od 1%; surowe ceny (suma > 1) nie rozciągają paska; brak ceny = „—”; poprzednie ceny; etykieta z pliku zabezpieczona', () => {
+  const draw = (D) => { const el = {hidden: true, innerHTML: ''}, Y = fed131.mk({$: q => q === '#g-fed' ? el : null, venueOff: true}); Y.fedApply(D); return el.innerHTML; };
+  const hero = h => h.slice(h.indexOf('<div class="fedhero">'), h.indexOf('</p></div>', h.indexOf('class="fh-k"')) + 10);
+  const wd = s => [...s.matchAll(/style="width:([\d.]+)%"/g)].map(x => x[1]);
+  const E = fed131.cp(fed131.D); E.ks.meetings[0].out.forEach(o => { o.p = 0.2; o.pn = 0.2; o.p7d = 0.2; });
+  const he = hero(draw(E));
+  assert.ok(!he.includes('w415.rest') && (he.match(/class="fh-l"/g) || []).length === 5 && (he.match(/class="fh-s /g) || []).length === 5, 'pięć decyzji po 20%: bez notki');
+  assert.deepEqual(wd(he), ['20.00', '20.00', '20.00', '20.00', '20.00']);
+  assert.ok(he.includes('fh-d neu">• fed.pp{"v":"0"} fed.d7</span>'), 'bez zmiany w 7 dni: żółty punkt');
+  const S = fed131.cp(fed131.D); S.ks.meetings[0].norm = false; S.ks.meetings[0].out.forEach(o => { o.p = 0.5; });
+  const ws = wd(hero(draw(S)));
+  assert.deepEqual(ws, ['20.00', '20.00', '20.00', '20.00', '20.00'], 'surowe ceny po 50% (suma 2,5): odcinki liczone względem sumy — pasek nie wychodzi poza 100%');
+  const P = fed131.cp(fed131.D); P.ks.meetings[0].out.forEach(o => { o.p7d = null; });
+  assert.ok(hero(draw(P)).includes('fh-d na">— fed.d7</span>'), 'brak ceny sprzed 7 dni — kreska, nie zero');
+  const N = fed131.cp(fed131.D); N.ok.ks = false;
+  const hn = hero(draw(N));
+  assert.ok(hn.includes('<span class="fh-at neu">fed.prev{"t":"D(' + N.part_at.ks + ')') && !hn.includes('fed.at{'), 'poprzednie ceny — żółta nota zamiast zwykłego wiersza');
+  const T = fed131.cp(fed131.D); T.ks.meetings[0].out.push({k: 'x<img src=x onerror=alert(1)>', o: 99, lab: '<img src=x onerror=alert(1)>', p: 0.02, pn: 0.02});
+  const ht = hero(draw(T));
+  assert.ok(!ht.includes('<img src=x') && ht.includes('&lt;img src=x onerror=alert(1)&gt;'), 'nieznana decyzja: etykieta zabezpieczona w legendzie i w opisie paska');
+  assert.ok(ht.includes('fh-s fh-x'), 'nieznana decyzja: kolor neutralny');
+  const Z = fed131.cp(fed131.D); Z.ks.meetings[0].out.forEach(o => { o.p = null; o.pn = null; o.bid = null; o.ask = null; });
+  const hz = hero(draw(Z));
+  assert.ok(hz.includes('<span class="fh-n">—</span><span class="fh-w"><b>—</b>') && !hz.includes('fh-bar') && !hz.includes('fh-lg') && !/NaN|undefined/.test(hz), 'brak jakiejkolwiek ceny — „—”, bez paska');
+  assert.ok(!draw(null).includes('fedhero'), 'bez pliku — bez bloku');
+});
+
+test('v415 (W2): wyróżnienie karty Fed — styl, kafel zastąpiony blokiem, wywołanie w nagłówku; słownik w415.* w 10 językach', () => {
+  const H = html;
+  assert.ok(H.includes('#g-fed{border-color:rgba(var(--bl-rgb),.6);') && H.includes('#g-fed .etfkpis>.etfk:first-child{display:none}') && H.includes('#g-fed.zw-on:not(.zw) .fh-at{display:none}'), 'styl: ramka, ukryty pierwszy kafel, nota cen tylko po zwinięciu (po rozwinięciu jest pod kaflami)');
+  assert.ok(H.includes('#g-fed .fh-n{font-size:44px;font-weight:700;line-height:1;letter-spacing:-.02em;color:var(--bl);') && H.includes('@media (min-width:621px){#g-fed .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}') && H.includes('@media (max-width:430px){#g-fed .fedhero{padding:11px 12px}'), 'duża liczba, dwa kafle w rzędzie, telefon');
+  assert.ok(!/#g-fed \.fh-(ey|k|l|m|w)[^{]*\{[^}]*color:var\(--bl\)/.test(H), 'małe napisy bez koloru niebieskiego (kontrast w jasnym motywie) — akcent tylko na dużej liczbie');
+  assert.ok(H.includes("<p class=\"pnote\">${t('fed.sub')}</p>${fedHero(D)}</div><div class=\"etfb\">"), 'blok w nagłówku karty, zaraz po opisie');
+  const dm = [...H.matchAll(/^const (EXTRA\d+)=(\{.*\});$/gm)].filter(m => m[2].includes('"w415.next"'));
+  assert.equal(dm.length, 1, 'jeden słownik w415');
+  const dict = JSON.parse(dm[0][2]), K = ['w415.next', 'w415.kind', 'w415.rest', 'w415.bar'];
+  assert.deepEqual(Object.keys(dict), ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], '10 języków, polski pierwszy');
+  for (const L of Object.keys(dict)) {
+    assert.deepEqual(Object.keys(dict[L]), K, L + ': te same klucze');
+    for (const k of K) { const s = dict[L][k]; assert.ok(typeof s === 'string' && s.length > 3 && !/[<>"]/.test(s) && !/kalshi|polymarket/i.test(s), L + ' ' + k); }
+    assert.ok(dict[L]['w415.bar'].includes('{s}'), L + ': miejsce na listę decyzji');
+  }
+  assert.ok(dict.pl['w415.kind'].includes('nie prognoza') && /betting/i.test(dict.en['w415.kind']) && dict.ru['w415.next'].includes('ФРС') && dict.zh['w415.next'].includes('美联储'), 'charakter danych i nazwy banku w językach');
+  assert.notEqual(dict.pl['w415.next'], dict.en['w415.next']); assert.notEqual(dict.de['w415.kind'], dict.en['w415.kind']);
+  assert.ok(H.includes('for(const l in ' + dm[0][1] + ')if(I18N[l])Object.assign(I18N[l],' + dm[0][1] + '[l]);'), 'słownik dołączony do I18N');
+});
