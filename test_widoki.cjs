@@ -32850,3 +32850,69 @@ test('v420 (F11Z23): wpięcie w stronę — sekcja karty po Kanadzie, plik w tle
   // kod modułu: bez nazw dostawców i bez TradingView; kolory zmian tylko z narzędzia strDelta (plus zielony, minus czerwony, zero żółte)
   assert.ok(!/nasdaq|eurostat|jpx|\bebc\b|tradingview/i.test(kap420.code.replace(/\/\*[\s\S]*?\*\//g, '')), 'kod bez nazw dostawców'); assert.ok(kap420.code.includes('strDelta(') && !/class="(pos|neg)"/.test(kap420.code));
 });
+
+/* ===================== v421 (F11Z24): ropa Murban w pozycjach funduszy (GLOBAL > Surowce > „Pozycje funduszy na giełdach towarowych”) ===================== */
+const MUR421 = () => ({code: 'ADM', asof: '2026-09-29', oi: 3584, net: -135, pct: -3.8, d1: 185, d1p: 6.4, g: 'en', pos: {prod: [3394, 3529, null]},
+  h: {d: ['2026-09-08', '2026-09-15', '2026-09-22', '2026-09-29'], oi: [2561, 2657, 3161, 3584], net: [-261, -131, -320, -135]}});
+const mur421 = (mod, L) => { const F = su298.file(); F.pozycje.asof.iceab = '2026-09-29'; F.pozycje.iceab = {murban: MUR421()}; if (mod) mod(F.pozycje.iceab.murban, F);
+  const K = su298.mk(L || 'pl', su298.files(F)); K.api.suApply(F); const B = su298.blk(su298.sp(K.el.innerHTML), 'su-b-poz');
+  return {B, K, M: B.includes('<div class="su-mur">') ? B.slice(B.indexOf('<div class="su-mur">')) : ''}; };
+
+test('v421: pozycje — Murban: dwa kafle (otwarte pozycje z mini-wykresem, saldo netto producentów i handlowców z udziałem i zmianą w pkt proc.), data i wiek; pasek funduszy bez zmian', () => {
+  const {B, M} = mur421();
+  assert.ok(M.startsWith('<div class="su-mur"><p class="wk-sub"><b>Ropa Murban (Abu Zabi)</b></p><div class="etfkpis su-kf">'), M.slice(0, 200));
+  const T = id => M.split('<div class="etfk su-k" ').find(x => x.startsWith('data-su3="' + id + '"')) || '';
+  const o = su298.txt(T('mur-oi')), n = su298.txt(T('mur-net'));
+  assert.ok(o.includes('Otwarte pozycje') && o.includes('3584 kontraktów') && o.includes('stan na 29 wrz 2026 · wiek(2026-09-29)') && T('mur-oi').includes('<div class="su-sp">') && T('mur-oi').includes('<polyline'), o);
+  assert.ok(n.includes('Producenci i handlowcy, netto') && n.includes('−135 kontraktów') && n.includes('−3,8% otwartych pozycji') && n.includes('▲ +6,4 pkt proc. w tygodniu') && n.includes('stan na 29 wrz 2026 · wiek(2026-09-29)'), n);
+  const tn = T('mur-net');
+  assert.ok(tn.includes('<b class="neg">−135') && tn.includes('<small class="neg">−3,8% otwartych pozycji</small>') && tn.includes('<small class="pos">▲ +6,4 pkt proc. w tygodniu</small>'), 'kolory wg znaku: saldo ujemne czerwone, poprawa zielona: ' + tn);
+  assert.ok(M.includes('img/flagi/ae.svg') && M.includes('img/glify/oil.svg'), 'ikony: ropa i flaga Zjednoczonych Emiratów');
+  assert.ok(M.includes('<p class="pnote">Murban: pozycje w tym raporcie mają głównie producenci i handlowcy') && M.includes('to głównie zabezpieczenia') && M.includes('Otwarte pozycje spadają skokowo na początku każdego miesiąca') && M.includes('Stan na wtorek, publikacja w piątek.'));
+  assert.ok(!/NaN|undefined|null|\bICE\b/.test(M), 'brak śmieci i nazw dostawców');
+  // kolejność w bloku: pasek funduszy → opis paska → Murban; wiersze pasków bez Murbana (15 rynków, jedna skala)
+  const R = su298.rows(B);
+  assert.equal(R.length, 15); assert.ok(!R.some(r => /Murban/.test(r[0])), 'Murban nie jest paskiem funduszy');
+  assert.ok(B.indexOf('<div class="su-poz">') < B.indexOf('To nastroje dużych graczy, nie prognoza.') && B.indexOf('To nastroje dużych graczy, nie prognoza.') < B.indexOf('<div class="su-mur">'));
+  assert.equal([...B.matchAll(/<line class="wk-z" x1=/g)].length, 15);
+});
+
+test('v421: pozycje — Murban: brak danych = brak bloku, wpis ze starszego raportu z dopiskiem, saldo zero żółte, bez zmiany tygodnia bez strzałki, krótka historia bez wykresu, uszkodzone liczby bez śmieci', () => {
+  const none = (() => { const F = su298.file(); const K = su298.mk('pl', su298.files(F)); K.api.suApply(F); return su298.blk(su298.sp(K.el.innerHTML), 'su-b-poz'); })();
+  assert.ok(!none.includes('su-mur') && !none.includes('mur421.') && none.includes('<div class="su-poz">'), 'plik sprzed v421 — panel jak dotąd');
+  const empty = (() => { const F = su298.file(); F.pozycje.iceab = {}; const K = su298.mk('pl', su298.files(F)); K.api.suApply(F); return su298.blk(su298.sp(K.el.innerHTML), 'su-b-poz'); })();
+  assert.ok(!empty.includes('su-mur'), 'pusta podczęść — bez bloku');
+  const kept = mur421(m => { m.kept = true; m.asof = '2026-09-22'; }).M;
+  assert.ok(kept.includes('<p class="pnote">* Ropa Murban (Abu Zabi): dane z ') && kept.includes('— rynku nie było w najnowszym raporcie.</p>'), kept.slice(-200));
+  const zero = mur421(m => { m.net = 0; m.pct = 0; m.d1p = 0; }).M;
+  assert.ok(zero.includes('<b class="neu">0 <small class="mtxt">kontraktów</small>') && zero.includes('<small class="neu">0,0% otwartych pozycji</small>') && zero.includes('<small class="neu">• 0,0 pkt proc. w tygodniu</small>'), zero);
+  const nod = mur421(m => { m.d1p = null; m.d1 = null; }).M;
+  assert.ok(nod.includes('data-su3="mur-net"') && !nod.includes('pkt proc.'), 'bez zmiany tygodnia — bez strzałki, nie zero');
+  const one = mur421(m => { m.h = {d: ['2026-09-29'], oi: [3584], net: [-135]}; }).M;
+  assert.ok(one.includes('data-su3="mur-oi"') && !one.includes('<div class="su-sp">') && one.includes('3584'), 'jeden punkt historii — kafel bez mini-wykresu');
+  const noh = mur421(m => { delete m.h; }).M;
+  assert.ok(noh.includes('data-su3="mur-net"') && !noh.includes('<div class="su-sp">'), 'bez historii — kafle bez wykresu');
+  for (const bad of [m => { m.oi = 0; }, m => { m.oi = '3584'; }, m => { m.net = null; }, m => { m.pct = Infinity; }, m => { m.asof = 'zły'; }, m => { m.asof = 20260929; }]) assert.equal(mur421(bad).M, '', 'uszkodzony wpis — bez bloku: ' + bad);
+  const bad2 = mur421(m => { m.h = {d: 'x', oi: 5}; }).M; assert.ok(bad2.includes('data-su3="mur-net"') && !/NaN|undefined/.test(bad2), 'uszkodzona historia — kafle bez wykresu');
+  const K = su298.mk('pl'); const F = su298.file(); F.pozycje.cftc = {}; F.pozycje.ice = {}; F.pozycje.iceab = {murban: MUR421()}; K.api.suApply(F);
+  assert.equal(K.api.su3Has('pozycje'), true, 'sama podczęść Murbana też jest „danymi” części pozycje (błąd części — wcześniejsze dane, nie „jeszcze nie pobrano”)');
+});
+
+test('v421: pozycje — Murban w 10 językach (słownik mur421.*: te same klucze i miejsca na liczby, wyrazy w języku widza, bez nazw dostawców); strona w każdym języku bez surowych kluczy', () => {
+  const dm = [...html.matchAll(/^const (EXTRA\d+)=(\{.*\});$/gm)].filter(m => m[2].includes('"mur421.h"'));
+  assert.equal(dm.length, 1, 'jeden słownik mur421');
+  const dict = JSON.parse(dm[0][2]), K = ['mur421.h', 'mur421.oi', 'mur421.u', 'mur421.net', 'mur421.net.p', 'mur421.on', 'mur421.read'];
+  assert.deepEqual(Object.keys(dict), ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], '10 języków, polski pierwszy');
+  for (const L of Object.keys(dict)) {
+    assert.deepEqual(Object.keys(dict[L]), K, L + ': te same klucze');
+    for (const k of K) { const s = dict[L][k]; assert.ok(typeof s === 'string' && s.length >= 1 && !/[<>"\\]/.test(s) && !/\bICE\b|CFTC|Intercontinental/i.test(s), L + ' ' + k); }
+    assert.ok(dict[L]['mur421.net.p'].includes('{v}') && dict[L]['mur421.on'].includes('{d}'), L + ': miejsca na liczbę i datę');
+    assert.ok(dict[L]['mur421.read'].length > 60 && /Murban|ムルバン|穆尔班/.test(dict[L]['mur421.read']), L + ': opis');
+  }
+  for (const k of ['mur421.h', 'mur421.oi', 'mur421.net', 'mur421.read', 'mur421.on']) assert.notEqual(dict.pl[k], dict.en[k], k);
+  for (const L of ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) for (const k of ['mur421.oi', 'mur421.net', 'mur421.read']) assert.notEqual(dict[L][k], dict.en[k], L + ' ' + k + ' (prawdziwe tłumaczenie, nie kopia angielskiego)');
+  assert.ok(/Нефть/.test(dict.ru['mur421.h']) && /原油/.test(dict.zh['mur421.h']) && /原油/.test(dict.ja['mur421.h']) && /Rohöl/.test(dict.de['mur421.h']));
+  assert.ok(html.includes('for(const l in ' + dm[0][1] + ')if(I18N[l])Object.assign(I18N[l],' + dm[0][1] + '[l]);'), 'słownik dołączony do I18N');
+  for (const L of Object.keys(dict)) { const {M} = mur421(null, L); assert.ok(M.includes('data-su3="mur-net"') && !M.includes('mur421.') && !/NaN|undefined/.test(M), L); assert.ok(su298.txt(M).includes(dict[L]['mur421.h']), L + ': nagłówek w języku widza'); }
+  assert.ok(html.includes('#g-surowce .su-mur{margin-top:14px}') && html.indexOf('function su3Mur(P)') > 0 && html.indexOf('function su3Mur(P)') < html.indexOf('function su3Poz()'), 'styl i funkcja przed su3Poz');
+});

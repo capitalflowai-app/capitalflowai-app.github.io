@@ -5302,9 +5302,10 @@ def surowce_kontrola(j, R):
 # suma pozycji grup ≠ open interest, netto lub udział niezgodne z pozycjami, tony ≠ uncje ÷ 32 150,7466 (±0,01 t), daty nie rosną, zero zamiast braku.
 SU3_ETYKIETA = {'pozycje': 'surowce: pozycje funduszy — USA, 30 rynków + fundusze indeksowe + indeks (stan na wtorek, publ. w piątek)',
                 'pozycje_ice': 'surowce: pozycje funduszy — Londyn (stan na wtorek, publ. w piątek)',
+                'pozycje_iceab': 'surowce: pozycje producentów — ropa Murban, Abu Zabi (stan na wtorek, publ. w piątek)',   # v421
                 'fundusze': 'surowce: złoto w funduszach (tony; po sesji w USA)',
                 'banki': 'surowce: złoto banków centralnych (miesięcznie; każdy kraj ze swoim miesiącem)'}
-SU3_PROG = {'pozycje': ('w', 13 * 24 * 60), 'pozycje_ice': ('w', 14 * 24 * 60), 'fundusze': ('d', 36 * 60)}
+SU3_PROG = {'pozycje': ('w', 13 * 24 * 60), 'pozycje_ice': ('w', 14 * 24 * 60), 'pozycje_iceab': ('w', 14 * 24 * 60), 'fundusze': ('d', 36 * 60)}
 SU3_BANKI_STARE = 120   # dni od końca miesiąca danych — kraj z danymi starszymi wymieniony w uwadze wiersza banków (bez ⚠️)
 SU3_OZ_T = 32150.7466   # uncji trojańskich w tonie metrycznej
 SU3_NAV_PROG = 0.1      # % — wartość aktywów funduszu GLD/GLDM ÷ (uncje × cena złota z tego pliku) − 1; test wsteczny na archiwach
@@ -5344,6 +5345,11 @@ def surowce_swiezosc3(j, now=None):
         wiersz('pozycje', min(a) if a else None, 'day', 'pozycje')   # najstarsza z trzech części tego samego raportu CFTC — zalegająca część widać
         ice = [e['asof'] for e in cz('ice').values() if isinstance(e, dict) and isinstance(e.get('asof'), str)]
         wiersz('pozycje_ice', max(ice) if ice else None, 'day', None)
+        # v421 (F11Z24): Murban — plik tej samej giełdy, ta sama godzina publikacji (pt 17:34 UTC) i 41 tygodni bez luki w 2026 (wtorek → piątek: najwyższy wiek
+        # przed nową publikacją 10 d 18 h) — próg 14 dni jak Londyn (test wsteczny modelu: 0% ⚠️); wiersz tylko gdy plik ma tę część (plik sprzed v421 — bez wiersza)
+        if isinstance(P.get('iceab'), dict):
+            ab = [e['asof'] for e in cz('iceab').values() if isinstance(e, dict) and isinstance(e.get('asof'), str)]
+            wiersz('pozycje_iceab', max(ab) if ab else None, 'day', None)
     F = j.get('fundusze') if isinstance(j.get('fundusze'), dict) else None
     if F is not None:
         g = F['f'].get('GLD') if isinstance(F.get('f'), dict) else None
@@ -5375,7 +5381,7 @@ def surowce_spojnosc3(j):
     if not isinstance(j, dict):
         return zle
     P = j.get('pozycje') if isinstance(j.get('pozycje'), dict) else {}
-    glowna = {'cftc': 'mm', 'ice': 'mm', 'cit': 'cit', 'tff': 'asset_mgr'}
+    glowna = {'cftc': 'mm', 'ice': 'mm', 'iceab': 'prod', 'cit': 'cit', 'tff': 'asset_mgr'}   # v421: Murban — producenci i handlowcy
     for sub, gk in glowna.items():
         for k, e in ((P.get(sub) or {}).items() if isinstance(P.get(sub), dict) else ()):
             if not isinstance(e, dict):
@@ -5548,7 +5554,8 @@ def surowce_porownania3(j):
     P = j.get('pozycje') if isinstance(j.get('pozycje'), dict) else None
     if P is not None:
         cz = []
-        for sub, nazwa in (('cftc', 'USA'), ('ice', 'Londyn'), ('cit', 'fundusze indeksowe'), ('tff', 'indeks')):
+        for sub, nazwa in (('cftc', 'USA'), ('ice', 'Londyn'), ('cit', 'fundusze indeksowe'), ('tff', 'indeks')) + (
+                (('iceab', 'Abu Zabi'),) if isinstance(P.get('iceab'), dict) else ()):   # v421: Murban tylko w pliku z tą częścią
             x = P.get(sub) if isinstance(P.get(sub), dict) else {}
             kept = [k for k, e in x.items() if isinstance(e, dict) and e.get('kept')]
             cz.append(f'{nazwa} {len(x) - len(kept)}' + (f' (+{len(kept)} z poprzedniego raportu)' if kept else ''))

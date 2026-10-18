@@ -12499,11 +12499,11 @@ SU_POBIERZ = {'eia': _su_eia, 'eia_dz': _su_eia_dz, 'acer': _su_acer, 'gld': _su
 # sprott, imf, safe; pozycje — z kodem w nazwie części (cftc, ice, cit, tff).
 SU_OZ_T = 32150.7466
 SU_E3_ZR = (('sprott_t', 'fundusze'), ('gldm', 'fundusze'), ('gld_t', 'fundusze'), ('imf_il', 'banki'), ('irfcl', 'banki'), ('safe_zl', 'banki'),
-            ('cit', 'pozycje'), ('tff', 'pozycje'), ('ice', 'pozycje'), ('cftcd', 'pozycje'))   # lekkie najpierw; naśladowcy po liderach
+            ('cit', 'pozycje'), ('tff', 'pozycje'), ('ice', 'pozycje'), ('iceab', 'pozycje'), ('cftcd', 'pozycje'))   # lekkie najpierw; naśladowcy po liderach
 SU_ZR = SU_ZR + SU_E3_ZR
 SU_CIEZKIE = SU_CIEZKIE | frozenset(('gld_t', 'cftcd'))   # ciężkie tylko przy własnym pobraniu — lider (też ciężki) w długim przebiegu i tak czeka
-SU_LIMIT_S.update({'sprott_t': 20, 'gldm': 30, 'gld_t': 60, 'imf_il': 30, 'irfcl': 20, 'safe_zl': 20, 'cit': 20, 'tff': 30, 'ice': 30, 'cftcd': 60})
-SU_ZAPYTANIA.update({'safe_zl': 2, 'cit': 2, 'tff': 2, 'ice': 2, 'cftcd': 2})   # strona + plik; tydzień + rok (rok tylko przy krótkiej historii)
+SU_LIMIT_S.update({'sprott_t': 20, 'gldm': 30, 'gld_t': 60, 'imf_il': 30, 'irfcl': 20, 'safe_zl': 20, 'cit': 20, 'tff': 30, 'ice': 30, 'iceab': 30, 'cftcd': 60})
+SU_ZAPYTANIA.update({'safe_zl': 2, 'cit': 2, 'tff': 2, 'ice': 2, 'iceab': 2, 'cftcd': 2})   # strona + plik; tydzień + rok (rok tylko przy krótkiej historii)
 SU_ZA = {'cftcd': 'cftc', 'gld_t': 'gld', 'sprott_t': 'sprott'}   # naśladowca → lider (ta sama odpowiedź w tym samym przebiegu)
 SU_ZA_PONOW = {'cftcd': 360, 'gld_t': 60, 'sprott_t': 60}        # min — po błędzie naśladowcy ponowienie własnym pobraniem
 SU_RAW = frozenset(('cftc', 'gld', 'sprott'))                     # odpowiedzi liderów zachowywane w pamięci przebiegu (ctx['raw'])
@@ -12523,6 +12523,11 @@ SU_POZ_TFF = (('bcom', '221602'),)   # BBG COMMODITY (CBOT) — kontrakty na ind
 SU_CIT_WEEK_URL = 'https://www.cftc.gov/dea/newcot/deacit.txt'
 SU_CIT_YEAR_URL = 'https://www.cftc.gov/files/dea/history/dea_cit_txt_{}.zip'
 SU_ICE_URL = 'https://www.ice.com/publicdocs/futures/COTHist{}.csv'
+# v421 (F11Z24): ropa Murban — osobny raport tej samej giełdy (ICE Futures Abu Dhabi): ten sam układ pliku i godzina publikacji co Londyn
+# (Last-Modified pt 16.10.2026: 17:34:53 UTC, Londyn 17:34:15), klucz CFTC_Commodity_Code 'ADM', wiersze „FutOnly”; grupy funduszy i banków są
+# w tym raporcie puste albo znikome — prawie wszystko mają producenci i handlowcy (prod), więc grupa główna wpisu to 'prod' (saldo netto producentów)
+SU_POZ_AB = (('murban', 'ADM', 'en'),)
+SU_AB_URL = 'https://www.ice.com/publicdocs/abu_dhabi/IFADCOTHist{}.csv'
 SU_CIT_COLS = ('Market_and_Exchange_Names', 'As_of_Date_In_Form_YYMMDD', 'As_of_Date_In_Form_YYYY-MM-DD', 'CFTC_Contract_Market_Code',
                'CFTC_Market_Code', 'CFTC_Region_Code', 'CFTC_Commodity_Code', 'Open_Interest_All', 'NComm_Positions_Long_All_NoCIT',
                'NComm_Positions_Short_All_NoCIT', 'NComm_Postions_Spread_All_NoCIT', 'Comm_Positions_Long_All_NoCIT',
@@ -12581,7 +12586,7 @@ SU_SAFE_ZL_PAGE = 'https://www.safe.gov.cn/en/2021/0203/2045.html'   # „Offici
 SU_BANKI_T = (0.5, 20000)    # t — straż skali (atrybut SCALE MFW): odpowiedź odrzucona, gdy spoza zakresu jest więcej niż co piąty kraj (USA 8133 t, CZ 86 t);
                              # v338: pojedynczy kraj spoza zakresu (np. 0 t) jest pomijany z notatką — przy 55 krajach nie odrzuca pozostałych
 SU_SAFE_WAN = (3000, 30000)  # 万盎司 (10 tys. uncji) — złoto Chin w pliku SAFE (I–VIII 2026: 7419–7673); spoza zakresu = plik odrzucony
-SU_MIEKKIE = {'safe_zl': 'imf_il', 'irfcl': 'imf_il'}   # v301: źródło uzupełniające → główne źródło tej samej części. Błąd uzupełniającego, gdy główne udało się
+SU_MIEKKIE = {'safe_zl': 'imf_il', 'irfcl': 'imf_il', 'iceab': 'ice'}   # v421: + Murban (uzupełnia Londyn). v301: źródło uzupełniające → główne źródło tej samej części. Błąd uzupełniającego, gdy główne udało się
                                      # w tym przebiegu albo część ma wcześniejsze dane = notatka, nie błąd części (SAFE dodaje Chinom 1–2 miesiące
                                      # przed MFW; przegląd v298: SAFE niesprawdzony z serwerów GitHuba — przy blokadzie co godzinę błąd w META
                                      # i ok.banki = False, choć Chiny mają dobre dane z MFW)
@@ -12591,7 +12596,7 @@ SU_SAFE_PONOW = 360   # min — v301: po błędzie SAFE (także przed pierwszym 
 def _su_ma_dane(prev, part, v2=True):
     """v301: czy część etapu 3 ma wcześniejsze dane — poprzedni plik v2 z co najmniej jednym wpisem (banki: kraj w kr, fundusze: fundusz w f)."""
     e = prev.get(part) if v2 and isinstance(prev, dict) and isinstance(prev.get(part), dict) else {}
-    sub = e.get({'banki': 'kr', 'fundusze': 'f'}.get(part, ''))
+    sub = e.get({'banki': 'kr', 'fundusze': 'f', 'pozycje': 'cftc'}.get(part, ''))   # v421: pozycje — wpisy USA (cftc)
     return isinstance(sub, dict) and any(isinstance(x, dict) for x in sub.values())
 
 
@@ -12625,8 +12630,8 @@ def _su_due3(src, z, now, S):
         if z.get('err'):
             return tr >= SU_ZA_PONOW[src]
         return str((st.get(lider) or {}).get('asof') or '') > asof and tr >= 60
-    if src in ('cit', 'tff', 'ice'):
-        exp = _su_wtorek_po(now, *(SU_ICE_PUB if src == 'ice' else (19, 30)))
+    if src in ('cit', 'tff', 'ice', 'iceab'):
+        exp = _su_wtorek_po(now, *(SU_ICE_PUB if src in ('ice', 'iceab') else (19, 30)))
         if first:
             return tr >= 60
         if exp and asof < exp and _cftc_iso(asof) and (datetime.date.fromisoformat(exp) - _cftc_iso(asof)).days <= SU_POZ_DNI:
@@ -12712,7 +12717,7 @@ def _su_cot_ok(oi, g, groups, tol=0):
             and abs(sum(x['short'] + (x['spread'] or 0) for x in g.values()) - oi) <= tol)
 
 
-def parse_ice_cot(text):
+def parse_ice_cot(text, poz=None):
     """ICE Futures Europe — Commitments of Traders (CSV z BOM, układ jak CFTC disaggregated) → ({kod towaru: {dzień: rekord}}, [złe wiersze]).
     Tylko wiersze „FutOnly” (bez opcji); klucz CFTC_Commodity_Code (kod rynku w pliku pusty); nazwy kolumn z pojedynczym „_” (CFTC ma
     „Swap__”); data z kolumny MM/DD/YYYY bez zer wiodących (np. 7/28/2026), sprawdzana z kolumną RRMMDD; rekord jak w parse_cftcd; wiersz,
@@ -12726,7 +12731,7 @@ def parse_ice_cot(text):
     miss = [n for n in need if n not in I]
     if miss:
         raise RuntimeError('brak kolumn ' + ', '.join(miss)[:160])
-    want = {c for _, c, _ in SU_POZ_ICE}
+    want = {c for _, c, _ in (poz or SU_POZ_ICE)}   # v421: poz — lista rynków innego pliku tego układu (Murban); domyślnie Londyn
     out, bad = {}, []
     for r in rows[1:]:
         if len(r) != len(rows[0]) or r[I['FutOnly_or_Combined']].strip() != 'FutOnly':
@@ -13073,17 +13078,17 @@ def _su_poz_cftcd(ctx):
     return _su_poz_zapisz(ctx, 'cftc', pairs, rows, prev_sub, 'mm', nazwa='USA (30 rynków)')
 
 
-def _su_poz_ice(ctx):
+def _su_poz_ice_plik(ctx, src, url, poz, glowna, nazwa):
     """Pozycje — ICE Futures Europe (plik roczny CSV ok. 0,3 MB); rok poprzedni tylko przy krótkiej historii (start, styczeń–kwiecień) albo
     gdy pliku bieżącego roku jeszcze nie ma (HTTP 404 albo plik bez wierszy rynków) — v301: wtedy tylko w styczniu albo bez wpisów z bieżącego
     roku; w innym miesiącu to błąd części (wpisy zostają z datą), nie dane sprzed roku."""
-    pairs = [(k, c, {'g': g}) for k, c, g in SU_POZ_ICE]
-    prev_sub, now = _su_poz_prev(ctx, 'ice'), ctx['now']
+    pairs = [(k, c, {'g': g}) for k, c, g in poz]
+    prev_sub, now = _su_poz_prev(ctx, src), ctx['now']
     rows, bad = {}, []
 
     def rok(y, nadpisz=True):
-        t = _su_get(ctx, 'ice', SU_ICE_URL.format(y)).decode('utf-8-sig', 'replace')
-        p = parse_ice_cot(t) if t.strip('\ufeff \t\r\n') else ({}, [])   # v301: plik bez treści — jak plik bez wierszy (nie wyjątek)
+        t = _su_get(ctx, src, url.format(y)).decode('utf-8-sig', 'replace')
+        p = parse_ice_cot(t, poz) if t.strip('\ufeff \t\r\n') else ({}, [])   # v301: plik bez treści — jak plik bez wierszy (nie wyjątek)
         _su_poz_dodaj(rows, bad, p, nadpisz)
         return any(p[0].values())
     nie = None   # v301: (opis błędu, notatka) — plik bieżącego roku bez wierszy rynków (przed pierwszym raportem roku) jak HTTP 404
@@ -13100,12 +13105,25 @@ def _su_poz_ice(ctx):
         # z datą, bez zapytania o rok poprzedni; dawniej dane sprzed roku zastępowały świeższe (09.10.2026: Londyn „stan na 29 wrz 2025”)
         raise RuntimeError(f'{nie[0]} — poza styczniem bez roku poprzedniego (wpisy z {now.year} zostają z datą)')
     if nie:
-        ctx['uwagi'].append('pozycje ice: ' + nie[1])
-    if nie or (now.month <= 4 and _su_poz_rok(ctx, 'ice', rows, prev_sub, pairs)):
+        ctx['uwagi'].append(f'pozycje {src}: ' + nie[1])
+    if nie or (now.month <= 4 and _su_poz_rok(ctx, src, rows, prev_sub, pairs)):
         rok(now.year - 1, nadpisz=False)
     if bad:
-        ctx['uwagi'].append('pozycje ice: suma pozycji ≠ open interest albo zła data (wiersz pominięty) — ' + ', '.join(bad[-5:]))
-    return _su_poz_zapisz(ctx, 'ice', pairs, rows, prev_sub, 'mm', nazwa='Londyn')
+        ctx['uwagi'].append(f'pozycje {src}: suma pozycji ≠ open interest albo zła data (wiersz pominięty) — ' + ', '.join(bad[-5:]))
+    return _su_poz_zapisz(ctx, src, pairs, rows, prev_sub, glowna, nazwa=nazwa)
+
+
+def _su_poz_ice(ctx):
+    """Pozycje — ICE Futures Europe (Londyn): plik roczny COTHist{rok}.csv; logika w _su_poz_ice_plik (v421: wspólna z Murbanem)."""
+    return _su_poz_ice_plik(ctx, 'ice', SU_ICE_URL, SU_POZ_ICE, 'mm', 'Londyn')
+
+
+def _su_poz_iceab(ctx):
+    """v421 (F11Z24): pozycje — ICE Futures Abu Dhabi (ropa Murban): IFADCOTHist{rok}.csv, ten sam układ i rok poprzedni jak w Londynie; grupa
+    główna 'prod' (producenci i handlowcy). Źródło uzupełniające (SU_MIEKKIE): jego błąd nie psuje części pozycje."""
+    return _su_poz_ice_plik(ctx, 'iceab', SU_AB_URL, SU_POZ_AB, 'prod', 'Abu Zabi')
+
+
 
 
 def _su_poz_cit(ctx):
@@ -13374,7 +13392,7 @@ def _su_bk_irfcl(ctx):
     return max(max(r) for r in dobre.values())
 
 
-SU_POBIERZ.update({'cftcd': _su_poz_cftcd, 'ice': _su_poz_ice, 'cit': _su_poz_cit, 'tff': _su_poz_tff, 'gld_t': _su_fu_gld, 'gldm': _su_fu_gldm,
+SU_POBIERZ.update({'cftcd': _su_poz_cftcd, 'ice': _su_poz_ice, 'iceab': _su_poz_iceab, 'cit': _su_poz_cit, 'tff': _su_poz_tff, 'gld_t': _su_fu_gld, 'gldm': _su_fu_gldm,
                    'sprott_t': _su_fu_sprott, 'imf_il': _su_bk_imf, 'irfcl': _su_bk_irfcl, 'safe_zl': _su_bk_safe})
 
 
@@ -13408,7 +13426,7 @@ def _su_etap3(ctx, prev):
     # pozycje
     pp = prev.get('pozycje') if isinstance(prev.get('pozycje'), dict) else {}
     poz = {'unit': 'kontrakty', 'asof': {}}
-    for sub, ids in (('cftc', [k for k, _, _ in SU_POZ_CFTC]), ('ice', [k for k, _, _ in SU_POZ_ICE]), ('cit', list(SU_POZ_CIT)),
+    for sub, ids in (('cftc', [k for k, _, _ in SU_POZ_CFTC]), ('ice', [k for k, _, _ in SU_POZ_ICE]), ('iceab', [k for k, _, _ in SU_POZ_AB]), ('cit', list(SU_POZ_CIT)),
                      ('tff', [k for k, _ in SU_POZ_TFF])):
         src = ctx['poz'].get(sub)
         if src is None:   # podczęść bez pobrania w tym przebiegu — poprzednie wpisy (z ich datami)
@@ -13573,7 +13591,7 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
     for src, part, msg in miekkie:   # v301: błąd SAFE — gdy MFW (imf_il) udał się w tym przebiegu albo część ma wcześniejsze dane: notatka (Chiny
         # zostają z danymi MFW albo poprzednimi z datą), nie błąd części; bez żadnych danych części — błąd jak dotąd
         if SU_MIEKKIE[src] in udane or _su_ma_dane(prev, part, v2):
-            ctx['uwagi'].append(f'{msg} — notatka, nie błąd części {part} (dane z {SU_MIEKKIE[src]} albo wcześniejsze zostają; ponowienie po ≥ 6 h)')
+            ctx['uwagi'].append(f'{msg} — notatka, nie błąd części {part} (dane z {SU_MIEKKIE[src]} albo wcześniejsze zostają; ponowienie ' + ('w oknie publikacji w piątek' if src == 'iceab' else 'po ≥ 6 h') + ')')
         else:
             proby[part] += 1
             zle.setdefault(part, []).append(msg)

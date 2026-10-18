@@ -33298,7 +33298,8 @@ class SurowceEtap3V298(unittest.TestCase):
              zd.SU_CIT_WEEK_URL: lambda: _E3_CITW.encode(), zd.SU_CIT_YEAR_URL.format(2026): lambda: cls.zip_txt('annualci.txt', _E3_CITY),
              zd.CFTC_WEEK_URL: lambda: (_E3_TFFW + '\n').encode(),
              zd.CFTC_YEAR_URL.format(2026): lambda: cls.zip_txt('FinFutYY.txt', ','.join(zd.CFTC_COLS) + '\n' + _E3_TFFY + '\n'),
-             zd.SU_ICE_URL.format(2026): lambda: ('\ufeff' + _E3_ICE).encode()}
+             zd.SU_ICE_URL.format(2026): lambda: ('\ufeff' + _E3_ICE).encode(),
+             zd.SU_AB_URL.format(2026): lambda: ('\ufeff' + _E3_AB).encode()}   # v421: Murban
         f = T.get(url)
         return f() if f else None
 
@@ -33562,7 +33563,8 @@ class SurowceEtap3V298(unittest.TestCase):
             self.assertIn(k, out, 'klucz v92 bez zmian')
         self.assertEqual(sorted(out['markets']), ['copper', 'gold', 'silver', 'wti'])
         P = out['pozycje']
-        self.assertEqual((sorted(P['cftc']), P['asof'], P['unit']), (['copper', 'gold', 'silver', 'wti'], {'cftc': '2026-09-29', 'ice': '2026-09-29', 'cit': '2026-09-29', 'tff': '2026-09-29'}, 'kontrakty'))
+        self.assertEqual((sorted(P['cftc']), P['unit']), (['copper', 'gold', 'silver', 'wti'], 'kontrakty'))
+        self.assertEqual({s: P['asof'][s] for s in ('cftc', 'ice', 'cit', 'tff')}, dict.fromkeys(('cftc', 'ice', 'cit', 'tff'), '2026-09-29'), 'daty części (v421: bez przypinania listy części)')
         self.assertEqual(P['cftc']['gold']['net'], out['markets']['gold']['groups']['mm']['net'], 'ta sama liczba w obu częściach')
         self.assertTrue(any('pozycje USA (30 rynków): brak rynku w raporcie' in x for x in zd.META['notes']), 'nagranie v295: 4 rynki — reszta notatką, nie zero')
         F = out['fundusze']['f']
@@ -34190,7 +34192,7 @@ class SurowcePoprawkiV301(unittest.TestCase):
         self.assertFalse(due('safe_zl', z, later, {}), 'poza dniami 5–20, po błędzie — też najwcześniej po 6 h')
         self.assertTrue(due('safe_zl', dict(z, **{'try': '2026-10-25T03:00:00+00:00'}), later, {}))
         self.assertTrue(due('safe_zl', {k: v for k, v in z.items() if k != 'err'} | {'try': '2026-10-25T08:00:00+00:00'}, later, {}), 'bez błędu — jak dotąd')
-        self.assertEqual((zd.SU_SAFE_PONOW, zd.SU_MIEKKIE), (360, {'safe_zl': 'imf_il', 'irfcl': 'imf_il'}))   # v338: + druga tabela MFW (Rosja, Polska)
+        self.assertEqual((zd.SU_SAFE_PONOW, zd.SU_MIEKKIE), (360, {'safe_zl': 'imf_il', 'irfcl': 'imf_il', 'iceab': 'ice'}))   # v338: + druga tabela MFW (Rosja, Polska)
 
     def test_safe_blad_bez_bledu_czesci_banki(self):
         fetch, calls = SurowceV295().siec(fail=('safe.gov.cn',))
@@ -70027,3 +70029,153 @@ class KontrolaKapitalizacjeV420(unittest.TestCase):
             s = f.read()
         i0, i1 = s.index('# 3c-v420. Kapitalizacje'), s.index('# 3d. v115: zgodność liczb')
         self.assertLess(i0, i1); self.assertIn("kapk_swiezosc(files.get('kapitalizacje'))", s); self.assertIn("kkp = Z.get('kapitalizacje')", s); self.assertIn("R['bledy'].append(f'kapitalizacje.json: sprzeczność w pliku — {z_}')", s)
+
+# ---------------------------------------------------------------- v421 (F11Z24): ropa Murban — raport pozycji giełdy w Abu Zabi
+# Nagranie: IFADCOTHist2026.csv (sprawdzone 18.10.2026: 41 tygodni od 6.01 do 13.10, wiersze „FutOnly”, kod ADM, układ jak COTHist); wiersze 8.09–29.09
+# bez zmian, kolumny skrócone do potrzebnych parserowi. Pierwszy wiersz „Combined” — pomijany jak w Londynie.
+_E3_AB = _E3_ICE.split('\n')[0] + '''
+ICE Murban Futures - ICE Futures Abu Dhabi,260908,9/8/2026,,ADM,2561,2233,2494,0,0,0,0,0,0,0,0,0,328,67,FutOnly
+ICE Murban Futures - ICE Futures Abu Dhabi,260915,9/15/2026,,ADM,2657,2436,2567,0,0,0,0,0,0,0,0,0,221,90,FutOnly
+ICE Murban Futures - ICE Futures Abu Dhabi,260922,9/22/2026,,ADM,3161,2770,3090,0,0,0,0,0,0,0,0,0,391,71,FutOnly
+ICE Murban Futures and Options - ICE Futures Abu Dhabi,260929,9/29/2026,,ADM,9999,5000,5000,0,0,0,0,0,0,0,0,0,4999,4999,Combined
+ICE Murban Futures - ICE Futures Abu Dhabi,260929,9/29/2026,,ADM,3584,3394,3529,0,0,0,0,0,0,0,0,0,190,55,FutOnly
+'''
+
+
+class TestV421Murban(unittest.TestCase):
+    """v421 (F11Z24): Murban jako podczęść pozycje.iceab (źródło iceab, uzupełniające wobec Londynu): parser tego samego układu pliku, wpis z grupą
+    producentów i handlowców, bramka publikacji jak Londyn, błąd = notatka, kontrola (świeżość 14 dni, spójność sum, wiersz informacyjny)."""
+    NOW = SurowceEtap3V298.NOW
+    FUND = {'f': {'IAU': {'h': SurowceEtap3V298.IAU}}}
+
+    def test_parser_ten_sam_uklad_inny_rynek(self):
+        o, bad = zd.parse_ice_cot('\ufeff' + _E3_AB, zd.SU_POZ_AB)
+        self.assertEqual((bad, sorted(o)), ([], ['ADM']))
+        self.assertEqual(sorted(o['ADM']), ['2026-09-08', '2026-09-15', '2026-09-22', '2026-09-29'], 'wiersz „Combined” pominięty')
+        r = o['ADM']['2026-09-29']
+        self.assertEqual((r['oi'], r['g']['prod']['long'], r['g']['prod']['short'], r['g']['prod']['net']), (3584, 3394, 3529, -135))
+        self.assertEqual((r['g']['nonrept']['net'], r['g']['mm']['net']), (135, 0), 'małe pozycje po drugiej stronie; fundusze — pusta grupa')
+        # domyślna lista rynków (Londyn) nie zawiera Murbana i odwrotnie — pliki się nie mieszają
+        self.assertEqual(zd.parse_ice_cot('\ufeff' + _E3_AB), ({}, []))
+        self.assertNotIn('B', zd.parse_ice_cot('\ufeff' + _E3_ICE, zd.SU_POZ_AB)[0])
+        # suma grup ≠ open interest — wiersz do złych, nie do danych
+        zly = _E3_AB.replace('260922,9/22/2026,,ADM,3161,', '260922,9/22/2026,,ADM,3000,')
+        o2, bad2 = zd.parse_ice_cot(zly, zd.SU_POZ_AB)
+        self.assertEqual((bad2, '2026-09-22' in o2['ADM']), (['ADM 2026-09-22'], False))
+
+    def test_wpis_producentow_i_historia(self):
+        E = SurowceEtap3V298()
+        seen = []
+        ctx = E.ctx(now=self.NOW, fetch=E.siec_z({zd.SU_AB_URL.format(2026): ('\ufeff' + _E3_AB).encode()}, seen))
+        self.assertEqual(zd._su_poz_iceab(ctx), '2026-09-29')
+        self.assertEqual(seen, [zd.SU_AB_URL.format(2026)], 'jeden plik; rok poprzedni tylko w styczniu–kwietniu przy krótkiej historii')
+        e = ctx['poz']['iceab']['murban']
+        self.assertEqual((e['code'], e['asof'], e['oi'], e['net'], e['pct'], e['g']), ('ADM', '2026-09-29', 3584, -135, -3.8, 'en'))
+        self.assertEqual((e['d1'], e['d1p']), (185, 6.4), 'zmiana wobec raportu sprzed 7 dni: z −320 (−10,1%) na −135 (−3,8%)')
+        self.assertEqual(e['pos']['prod'], [3394, 3529, None])
+        self.assertEqual(e['h']['d'], ['2026-09-08', '2026-09-15', '2026-09-22', '2026-09-29'])
+        self.assertEqual((e['h']['oi'], e['h']['net']), ([2561, 2657, 3161, 3584], [-261, -131, -320, -135]))
+        # rok bieżący zależy od daty przebiegu (adres z rokiem), a wpis dostaje swoją nazwę w „Abu Zabi” w notatkach
+        pusty = ('\ufeff' + _E3_AB.replace('ADM', 'XXX')).encode()   # plik bez wierszy rynku — jak w Londynie: rok poprzedni, potem „żaden rynek nie ma danych”
+        ctx2 = E.ctx(now=self.NOW, fetch=E.siec_z({zd.SU_AB_URL.format(2026): pusty, zd.SU_AB_URL.format(2025): pusty}))
+        self.assertRaisesRegex(RuntimeError, 'żaden rynek nie ma danych', zd._su_poz_iceab, ctx2)
+        self.assertEqual(zd.SU_AB_URL.format(2025), 'https://www.ice.com/publicdocs/abu_dhabi/IFADCOTHist2025.csv')
+
+    def test_londyn_bez_zmiany_zachowania(self):
+        E = SurowceEtap3V298()
+        ctx = E.ctx(now=self.NOW, fetch=E.siec_z({zd.SU_ICE_URL.format(2026): ('\ufeff' + _E3_ICE).encode()}))
+        self.assertEqual(zd._su_poz_ice(ctx), '2026-09-29')
+        self.assertEqual(sorted(ctx['poz']['ice']), sorted(k for k, _, _ in zd.SU_POZ_ICE))
+        self.assertNotIn('iceab', ctx['poz'])
+        self.assertEqual((zd.SU_POBIERZ['ice'].__name__, zd.SU_POBIERZ['iceab'].__name__), ('_su_poz_ice', '_su_poz_iceab'))
+        self.assertTrue(zd.SU_ICE_URL.startswith('https://www.ice.com/publicdocs/futures/') and zd.SU_AB_URL.startswith('https://www.ice.com/publicdocs/abu_dhabi/'))
+
+    def test_bramka_jak_londyn(self):
+        U = datetime.timezone.utc
+        for h, m, tr, asof in ((18, 0, (17, 20), '2026-10-06'), (18, 0, (17, 50), '2026-10-06'), (10, 0, (9, 0), '2026-10-06'), (18, 0, (17, 20), '2026-10-13'),
+                               (18, 0, (17, 20), '2026-08-04')):
+            now = datetime.datetime(2026, 10, 16, h, m, tzinfo=U)
+            z = {'at': datetime.datetime(2026, 10, 16, *tr, tzinfo=U).isoformat(), 'try': datetime.datetime(2026, 10, 16, *tr, tzinfo=U).isoformat(), 'asof': asof}
+            self.assertEqual(zd._su_due3('iceab', dict(z), now, {'st': {}}), zd._su_due3('ice', dict(z), now, {'st': {}}), (h, tr, asof))
+        now = datetime.datetime(2026, 10, 16, 18, 0, tzinfo=U)
+        z = {'at': '2026-10-09T18:00:00+00:00', 'try': '2026-10-16T17:20:00+00:00', 'asof': '2026-10-06'}
+        self.assertTrue(zd._su_due3('iceab', z, now, {'st': {}}), 'piątek po publikacji, brakuje raportu z 13.10, ostatnia próba 40 min temu — należne')
+        z['try'] = '2026-10-16T17:50:00+00:00'
+        self.assertFalse(zd._su_due3('iceab', z, now, {'st': {}}), '10 min po próbie — jeszcze nie')
+        self.assertTrue(zd._su_due3('iceab', {}, now, {'st': {}}), 'nigdy nie pobrane — należne')
+        self.assertIn(('iceab', 'pozycje'), zd.SU_ZR)
+        self.assertLess(zd.SU_ZR.index(('ice', 'pozycje')), zd.SU_ZR.index(('iceab', 'pozycje')), 'Londyn przed Murbanem — źródło uzupełniające po głównym')
+        self.assertEqual((zd.SU_LIMIT_S['iceab'], zd.SU_ZAPYTANIA['iceab']), (30, 2))
+
+    def test_w_przebiegu_dane_i_blad_jako_notatka(self):
+        fetch, calls = SurowceV295().siec()
+        out, h, zm = zd.build_surowce(None, None, {}, now=self.NOW, fetch=fetch, fund=self.FUND)
+        self.assertIs(out['ok']['pozycje'], True)
+        self.assertEqual((out['pozycje']['asof']['iceab'], sorted(out['pozycje']['iceab'])), ('2026-09-29', ['murban']))
+        self.assertEqual(out['pozycje']['iceab']['murban']['pct'], -3.8)
+        self.assertEqual(out['pozycje']['asof']['ice'], '2026-09-29', 'Londyn bez zmian')
+        # Murban niedostępny (HTTP 503), Londyn udany w tym przebiegu — notatka, część pozycje dalej OK, wpisów Murbana brak (nie zero)
+        zd.META['notes'].clear(); zd.META['errors'].clear()
+
+        def f2(url, timeout, headers=None):
+            if 'IFADCOT' in url:
+                raise zd.urllib.error.HTTPError(url, 503, 'x', {}, __import__('io').BytesIO(b''))
+            return fetch(url, timeout, headers)
+        o2, _, zm2 = zd.build_surowce(None, None, {}, now=self.NOW, fetch=f2, fund=self.FUND)
+        self.assertIs(o2['ok']['pozycje'], True)
+        self.assertNotIn('pozycje', o2.get('err') or {})
+        self.assertIn('iceab: HTTP Error 503', o2['st']['iceab']['err'])
+        self.assertTrue(any('iceab' in x and 'notatka' in x and 'ponowienie w oknie publikacji w piątek' in x for x in zd.META['notes']), zd.META['notes'])
+        self.assertFalse(any('iceab' in x for x in zd.META['errors']), zd.META['errors'])
+        self.assertEqual(o2['pozycje']['iceab'], {}, 'brak danych Murbana — pusta podczęść, nie zero')
+        self.assertEqual(sorted(o2['pozycje']['ice']), sorted(k for k, _, _ in zd.SU_POZ_ICE))
+        # poprzedni plik z danymi Murbana: błąd źródła zostawia wpis z jego datą (zachowanie wspólne podczęści: najwyżej CFTC_KEEP_DAYS dni)
+        zd.META['notes'].clear()
+        o3, _, _ = zd.build_surowce(out, h, {}, now=self.NOW + datetime.timedelta(hours=7), fetch=f2, fund=self.FUND)
+        self.assertEqual(o3['pozycje']['iceab'], out['pozycje']['iceab'], 'wpis z 29.09 zostaje z datą')
+        # ta sama zasada dla części bez żadnych danych: Londyn też nie udał się i brak poprzedniego pliku — błąd części jak dotąd
+        zd.META['notes'].clear(); zd.META['errors'].clear()
+
+        def f4(url, timeout, headers=None):
+            if 'COTHist' in url or 'IFADCOT' in url:
+                raise zd.urllib.error.HTTPError(url, 503, 'x', {}, __import__('io').BytesIO(b''))
+            return fetch(url, timeout, headers)
+        o4, _, _ = zd.build_surowce(None, None, {}, now=self.NOW, fetch=f4, fund=self.FUND)
+        self.assertIs(o4['ok']['pozycje'], False, 'Londyn (źródło główne) bez danych i bez poprzedniego pliku — błąd części jak dotąd')
+        self.assertTrue('ice: ' in o4['err']['pozycje'] and 'iceab: ' in o4['err']['pozycje'], o4['err'])
+        self.assertIn('gold', o4['pozycje']['cftc'], 'USA — dane zostają')
+        self.assertTrue(zd._su_ma_dane(out, 'pozycje') and not zd._su_ma_dane({'v': 2, 'pozycje': {'cftc': {}}}, 'pozycje'))
+        zd.META['notes'].clear(); zd.META['errors'].clear()
+
+    def test_kontrola_swiezosc_spojnosc_wiersz_informacyjny(self):
+        k = SurowceV295._kontrola()
+        U = datetime.timezone.utc
+        fetch, _ = SurowceV295().siec()
+        out, _, _ = zd.build_surowce(None, None, {}, now=self.NOW, fetch=fetch, fund={'f': {'IAU': {'h': SurowceEtap3V298.IAU}}})
+        E = k.SU3_ETYKIETA
+        self.assertEqual(k.SU3_PROG['pozycje_iceab'], k.SU3_PROG['pozycje_ice'], 'ta sama godzina publikacji i kalendarz co Londyn')
+        rows = {r[0]: r for r in k.surowce_swiezosc3(out, self.NOW + datetime.timedelta(hours=1))}
+        self.assertEqual((rows[E['pozycje_iceab']][1], rows[E['pozycje_iceab']][3]), ('✅', '2026-09-29'))
+        self.assertNotIn('Murban', E['pozycje_ice']); self.assertIn('Murban', E['pozycje_iceab'])
+        # progi: 14 dni jak Londyn — we wtorek 13.10 po raporcie z 29.09 (wiek 14 d 6 h rano) ⚠️ dopiero po przekroczeniu
+        j = {'v': 2, 'asof': '2026-09-29', 'pozycje': {'cftc': {'gold': {'asof': '2026-09-29'}}, 'iceab': {'murban': {'asof': '2026-09-29'}}}}
+        st = lambda t: {r[0]: r[1] for r in k.surowce_swiezosc3(j, datetime.datetime(*t, tzinfo=U))}[E['pozycje_iceab']]   # noqa: E731
+        self.assertEqual([st((2026, 10, 13, 6, 20)), st((2026, 10, 14, 6, 20))], ['✅', '⚠️'])
+        # plik sprzed v421 (bez podczęści) — bez wiersza; podczęść pusta — „?”, nie zero
+        j0 = {'v': 2, 'asof': '2026-09-29', 'pozycje': {'cftc': {'gold': {'asof': '2026-09-29'}}, 'ice': {'brent': {'asof': '2026-09-29'}}}}
+        self.assertNotIn(E['pozycje_iceab'], {r[0] for r in k.surowce_swiezosc3(j0, self.NOW)})
+        j1 = json.loads(json.dumps(j0)); j1['pozycje']['iceab'] = {}
+        self.assertEqual({r[0]: r[1] for r in k.surowce_swiezosc3(j1, self.NOW)}[E['pozycje_iceab']], '?')
+        # spójność: producenci i handlowcy jako grupa główna — netto ≠ long − short albo suma ≠ open interest to ❌
+        self.assertEqual(k.surowce_spojnosc3(out), [])
+        zly = json.loads(json.dumps(out))
+        zly['pozycje']['iceab']['murban']['net'] += 1
+        zly['pozycje']['iceab']['murban']['pos']['nonrept'][0] += 5
+        Z = k.surowce_spojnosc3(zly)
+        for x in ('pozycje.iceab.murban: netto', 'pozycje.iceab.murban: suma pozycji'):
+            self.assertTrue(any(z.startswith(x) for z in Z), (x, Z))
+        # wiersz informacyjny „rynków z bieżącego raportu”
+        W = dict(k.surowce_porownania3(out)['wiersze'])
+        self.assertTrue(any(o.startswith('pozycje: rynków z bieżącego raportu — ') and o.endswith('Abu Zabi 1') for o in W), list(W))
+        W0 = dict(k.surowce_porownania3(j0)['wiersze'])
+        self.assertTrue(all('Abu Zabi' not in o for o in W0), 'plik sprzed v421 — bez Abu Zabi')
