@@ -33342,3 +33342,127 @@ test('v423: stawki papierów komercyjnych — porównanie z dniem sprzed 4 tygod
   assert.ok(dziura.length > 100); assert.ok(tile(dziura, AA).lines[0][1].startsWith('—'), tile(dziura, AA).lines[0][1]);
   assert.ok(tile(dziura, 'Rozstęp: A2/P2 minus AA').lines[0][1].startsWith('—'));
 });
+
+/* ===================== v424 (W4A): wykres napływów ETF krypto i wykres zmiany podaży stablecoinów według sieci — testy bez zegara (zegar przypięty w ENV, dane syntetyczne i przycięty wiersz stabc z 18.10.2026) ===================== */
+const w424 = (() => {
+  const a = html.indexOf('/* ===================== v424 (W4A)'), z = html.indexOf('/* v424: koniec */');
+  assert.ok(a > 0 && z > a, 'blok v424');
+  const MOD = html.slice(a, z + '/* v424: koniec */'.length), ETFM = v157.cut('const etfM=v=>{', 'const etfA=');
+  /* sesje (dni robocze) od dnia start: [[sekundy, mln USD]] */
+  const days = (start, n, f) => { const out = []; let ms = Date.parse(start + 'T00:00:00Z'); while (out.length < n) { const wd = new Date(ms).getUTCDay(); if (wd !== 0 && wd !== 6) out.push([ms / 1000, f(out.length)]); ms += 864e5; } return out; };
+  const btc = days('2026-08-24', 40, i => (i === 30 ? null : i === 25 ? 0.03 : i === 22 ? 0 : i % 7 === 3 ? -(50 + i * 3) : 80 + i * 5));
+  const eth = days('2026-09-14', 25, i => (i % 4 === 1 ? -(20 + i) : 30 + i));
+  const sol = days('2026-10-01', 12, i => (i % 2 ? 4 : -3));
+  const ETFD = () => ({assets: {btc: {sym: 'BTC', asof: '2026-10-16', day: btc.map(r => r.slice()), cum: 56000}, eth: {sym: 'ETH', asof: '2026-10-16', day: eth.map(r => r.slice())},
+    sol: {sym: 'SOL', asof: '2026-10-09', stale: true, day: sol.map(r => r.slice())}}});
+  const STC = () => ({asof: '2026-10-18', n: 209, total: [306168654429, 38866097, -1178438507, -636291912], rows: [["Ethereum",145552964855,376121287,709367870,-1125000537],["Tron",94501406766,166840,-411742005,315818115],["Solana",15765204648,-192298869,-387838726,220967233],["BSC",14845763649,493618,-136968537,-109212125],["Hyperliquid L1",7035168138,23966965,-209591597,144473257],["Base",5142503917,-69557989,-79939500,82921606],["Arbitrum",3932581059,-22469852,-337530044,-114999450],["Polygon",3331205115,-7440401,-81548742,-86803265],["X Layer",1496995933,3001410,-138446020,-156907140],["Avalanche",1444480779,-50799177,-99920445,-108242752],["Plasma",1335538782,-3078656,-64678833,100201010],["XRPL",1099198379,-9101896,-123297190,20378739],["Robinhood Chain",1082445091,-10046303,-16890198,41111405],["Aptos",933094081,3160391,21895090,-163032486]]});
+  const mk = (data, x, ret) => {
+    const el = {innerHTML: '', focused: ''}, els = {'#etfw': el, '#stcw': el}, handlers = [];
+    el.querySelector = q => ({focus() { el.focused = q; }});
+    const env = v157.ENV('2026-10-18T10:00:00Z', Object.assign({ETF_SYMS: ['btc', 'eth', 'sol', 'xrp'], ETF: {data}, dayLoc: d => 'D(' + d + ')', cCoins: s => '[c:' + s.join() + ']', $: q => els[q] || null,
+      krData: () => ({stabc: STC()}), instFootL: d => 'D(' + d + ')', document: {addEventListener: (t, f) => handlers.push(f)}}, x || {}));
+    const api = v157.run(v157.KIT + '\n' + ETFM + '\n' + MOD, env, ret || 'etfwInner,etfwSer,etfwBlock,etfwRefresh,stcwInner,stcWyk,ETFW,STCW,etfwTone');
+    return Object.assign(api, {el, handlers});
+  };
+  const click = (api, attr, val) => api.handlers[0]({target: {closest: () => ({getAttribute: a => (a === attr ? val : null)})}});
+  return {MOD, days, btc, eth, ETFD, STC, mk, click};
+})();
+const w424rects = (h, cls) => v157.tags(h, 'rect', cls);
+test('v424 (W4A): ETF — słupki dzienne: tyle słupków, ile sesji z liczbą w oknie 1 mies.; zielony napływ, czerwony odpływ, zero i brak osobno; podpowiedź z datą i kwotą; oś z zerem', () => {
+  const D = w424.ETFD(), A = w424.mk(D), h = A.etfwInner(D);
+  const last = Math.max(...D.assets.btc.day.map(r => r[0])) * 1000, win = D.assets.btc.day.filter(r => r[0] * 1000 > last - 30 * 864e5);
+  const main = h.slice(h.indexOf('class="etfw-m"'), h.indexOf('class="etfw-c"')), bars = w424rects(main, 'wk-b'), tips = v157.tips(main);
+  assert.equal(tips.length, win.length, 'jedna podpowiedź na sesję okna');
+  assert.equal(bars.length, win.filter(r => r[1] !== null).length, 'słupek tylko dla dnia z liczbą (brak dnia = kreskowana linia, nie zero)');
+  const cls = bars.map(b => b.class.split(' ')[1]), nums = win.filter(r => r[1] !== null).map(r => r[1]);
+  assert.deepEqual(cls, nums.map(v => (v > 0 ? 'pos' : v < 0 ? 'neg' : 'zer')), 'kolor słupka = znak liczby: napływ zielony, odpływ czerwony, zero osobno');
+  assert.ok(cls.includes('pos') && cls.includes('neg') && cls.includes('zer'), 'dane testu mają wszystkie trzy rodzaje dnia');
+  assert.ok(main.includes('class="wk-z"') && main.includes('class="wk-gl"'), 'linia zera oraz kreska braku danych');
+  const gap = tips.find(x => x.includes('brak danych')), small = tips.find(x => x.includes('<0,1')), neg = tips.find(x => x.includes('odpływ')), pos = tips.find(x => x.includes('napływ'));
+  assert.ok(gap && small && neg && pos, 'podpowiedzi: brak danych, mały przepływ „<0,1”, odpływ, napływ');
+  assert.ok(/^\d{1,2} \S+ 2026 · BTC: −\d+ mln USD · odpływ$/.test(neg), 'data z rokiem · BTC: kwota ze znakiem i jednostką · słowo: ' + neg);
+  assert.ok(/BTC: \+<0,1 mln USD · napływ/.test(small), 'mały napływ: „+<0,1 mln USD”, nie zero');
+  assert.ok(/mln/.test(main), 'oś w mln USD');
+  assert.ok(!/NaN|undefined|null|etfw\.[a-z]/.test(v157.txt(h)), 'bez NaN i surowych kluczy');
+});
+test('v424 (W4A): ETF — suma narastająca w oknie z tych samych dni (do pierwszej luki), kolor ze znaku sumy, zakres 3 mies. i uwaga o krótszej historii, moneta stale bez wykresu, nieznana moneta → pierwsza', () => {
+  const D = w424.ETFD(), A = w424.mk(D), h = A.etfwInner(D);
+  const win = D.assets.btc.day.filter(r => r[0] * 1000 > Math.max(...D.assets.btc.day.map(q => q[0])) * 1000 - 30 * 864e5);
+  const line = h.slice(h.indexOf('class="etfw-c"')), tips = v157.tips(line), gi = win.findIndex(r => r[1] === null);
+  assert.ok(gi > 0, 'dane testu mają lukę w oknie');
+  assert.equal(tips.length, gi, 'podpowiedzi sumy tylko do dnia przed luką — od luki suma nieznana, linia się kończy (dni po luce nie są doliczane „po cichu”)');
+  const fm = x => (x < 0 ? '−' : '+') + (Math.abs(x) >= 999.5 ? (Math.abs(x) / 1000).toLocaleString('pl-PL', {maximumFractionDigits: Math.abs(x) >= 9995 ? 1 : 2}) + ' mld' : Math.abs(x).toLocaleString('pl-PL', {maximumFractionDigits: Math.abs(x) < 9.995 ? 1 : 0}) + ' mln') + ' USD';
+  let c = 0; for (let i = 0; i < gi; i++) { c += win[i][1]; assert.ok(tips[i].endsWith(' · Suma od początku okna: ' + fm(c)), 'suma narastająca po dniu ' + i + ': ' + tips[i] + ' ≠ ' + fm(c)); }
+  assert.ok(/etfw-t"><b>Suma narastająca w oknie<\/b>: <b class="">—<\/b>/.test(h), 'suma końcowa nieznana przy luce — „—”, nie zero');
+  assert.ok(line.includes('class="wk-l zer"') || line.includes('class="wk-l pos"') || line.includes('wk-pt'), 'linia sumy');
+  const B = w424.mk(D); B.ETFW.rng = '3m'; const h3 = B.etfwInner(D);
+  assert.ok(h3.includes('dostępna historia jest krótsza niż wybrany zakres') && !h.includes('dostępna historia jest krótsza'), 'uwaga o krótszej historii tylko przy zakresie 3 mies.');
+  assert.ok(v157.tips(h3.slice(h3.indexOf('class="etfw-m"'), h3.indexOf('class="etfw-c"'))).length === D.assets.btc.day.length, '3 mies. = cała dostępna historia (40 sesji)');
+  assert.ok(h3.includes('aria-pressed="true">3 mies.') && h.includes('aria-pressed="true">1 mies.'), 'przycisk zakresu');
+  assert.ok(!h.includes('data-etfw-coin="sol"') && h.includes('data-etfw-coin="eth"') && h.includes('data-etfw-coin="btc"'), 'moneta stale (sesja za starą) bez przycisku i bez wykresu');
+  const C = w424.mk(D); C.ETFW.coin = 'xrp'; assert.ok(C.etfwInner(D).includes('BTC: '), 'moneta bez danych → pierwsza z dostępnych');
+  const G = w424.mk(D); G.ETFW.coin = 'eth'; const he = G.etfwInner(D);
+  const ew = D.assets.eth.day.filter(r => r[0] * 1000 > Math.max(...D.assets.eth.day.map(q => q[0])) * 1000 - 30 * 864e5), etot = ew.reduce((q, r) => q + r[1], 0);
+  assert.ok(he.includes('<b class="pos">' + (etot < 0 ? '−' : '+') + (Math.abs(etot) >= 999.5 ? (Math.abs(etot) / 1000).toLocaleString('pl-PL', {maximumFractionDigits: 2}) + ' mld' : Math.abs(etot).toLocaleString('pl-PL', {maximumFractionDigits: Math.abs(etot) < 9.995 ? 1 : 0}) + ' mln') + ' USD</b>') && etot > 0, 'ETH: bez luk, suma okna = suma dni, dodatnia zielona'); assert.ok(!v157.tips(he).some(x => x.includes('brak danych')), 'ETH bez luk');
+  const E2 = w424.ETFD(); delete E2.assets.eth; delete E2.assets.btc; assert.equal(w424.mk(E2).etfwInner(E2), '', 'brak monet z sesjami → bez bloku'); assert.equal(w424.mk(E2).etfwBlock(E2), '');
+  assert.equal(w424.mk(null).etfwBlock(null), '', 'brak danych → pusty blok');
+});
+test('v424 (W4A): ETF — zakres krótki (1 sesja w oknie) i dni niepoprawne nie psują bloku; kolor kierunku z pokazanej kwoty; przyciski przełączają i oddają fokus', () => {
+  const D = w424.ETFD(); D.assets.eth.day = [[1790000000, 1], ['x', 5], null, [1790086400, 'a']];
+  const A = w424.mk(D); A.ETFW.coin = 'eth'; const h = A.etfwInner(D);
+  assert.ok(h.includes('Za mało sesji z danymi w wybranym zakresie.'), 'za mało dni — komunikat, przyciski zostają');
+  assert.equal(A.etfwTone(0.03), 'pos'); assert.equal(A.etfwTone(-0.03), 'neg'); assert.equal(A.etfwTone(0), 'zer'); assert.equal(A.etfwTone(null), '');
+  const D2 = w424.ETFD(), B = w424.mk(D2, {ETF: {data: D2}}); assert.equal(B.handlers.length, 1, 'jedna obsługa kliknięć');
+  w424.click(B, 'data-etfw-coin', 'eth'); assert.equal(B.ETFW.coin, 'eth'); assert.ok(B.el.innerHTML.includes('ETH: ') && !B.el.innerHTML.includes('BTC: '), 'przerysowanie dla ETH'); assert.equal(B.el.focused, '[data-etfw-coin="eth"]');
+  w424.click(B, 'data-etfw-rng', '3m'); assert.equal(B.ETFW.rng, '3m'); w424.click(B, 'data-etfw-rng', 'zly'); assert.equal(B.ETFW.rng, '3m', 'zła wartość ignorowana');
+  w424.click(B, 'data-etfw-coin', 'doge'); assert.equal(B.ETFW.coin, 'eth', 'nieznana moneta ignorowana');
+  w424.click(B, 'data-stcw-win', '7'); assert.equal(B.STCW.w, '7');
+});
+test('v424 (W4A): stablecoiny według sieci — 10 sieci o największej zmianie od największego napływu do odpływu, „Pozostałe sieci” = suma wszystkich minus pokazane, te same liczby co tabela, kolory, okno 7 i 30 dni', () => {
+  const S = w424.STC(), A = w424.mk(null), h = A.stcwInner(S);
+  const rows = [...h.matchAll(/<div class="wk-br[^"]*" data-t="([^"]*)"><span class="wk-bl">(.*?)<\/span><svg[^>]*>(.*?)<\/svg><span class="wk-bv[^"]*">(.*?)<\/span><\/div>/g)].map(m => ({tip: m[1], label: v157.txt(m[2]), bars: m[3], val: v157.txt(m[4]), html: m[4]}));
+  assert.equal(rows.length, 11, '10 sieci + Pozostałe');
+  const top = S.rows.slice().sort((x, y) => Math.abs(y[4]) - Math.abs(x[4])).slice(0, 10).sort((x, y) => y[4] - x[4]);
+  assert.deepEqual(rows.slice(0, 10).map(r => r.label), top.map(r => r[0]), 'kolejność: od największego napływu do największego odpływu');
+  assert.equal(rows[10].label, 'Pozostałe sieci (199)', 'liczba pozostałych sieci = wszystkie − pokazane');
+  const rest = S.total[3] - top.reduce((a, r) => a + r[4], 0);
+  assert.ok(Math.abs(rest) > 1e6, 'Pozostałe ma wartość testową'); assert.ok(rows[10].tip.includes('Pozostałe sieci (199) · 30 dni: ') && rows[10].tip.includes('suma zmian wszystkich sieci minus pokazane'));
+  const money = x => Math.abs(x) >= 999.5e6 ? (x < 0 ? '−' : '+') + (Math.abs(x) / 1e9).toLocaleString('pl-PL', {maximumFractionDigits: Math.abs(x) >= 9.995e9 ? 1 : 2}) + ' mld' : (x < 0 ? '−' : '+') + (Math.abs(x) / 1e6).toLocaleString('pl-PL', {maximumFractionDigits: Math.abs(x) >= 99.5e6 ? 0 : 1}) + ' mln';
+  rows.slice(0, 10).forEach((r, i) => assert.equal(r.val, money(top[i][4]), 'kwota jak w tabeli: ' + top[i][0]));
+  assert.equal(rows[10].val, money(rest));
+  const col = rows.map(r => (/class="pos"/.test(r.html) ? 'pos' : /class="neg"/.test(r.html) ? 'neg' : 'neu')), exp = top.map(r => (r[4] > 0 ? 'pos' : 'neg')).concat(rest > 0 ? 'pos' : 'neg');
+  assert.deepEqual(col, exp, 'kolor kwoty ze znaku');
+  assert.deepEqual(rows.map(r => w424rects(r.bars, 'wk-b')[0].class.split(' ')[1]), exp, 'kolor słupka ze znaku');
+  const first = rows[0].tip; assert.ok(first.includes('30 dni: ') && first.includes('podaż '), 'podpowiedź: sieć · okno: zmiana · podaż');
+  assert.ok(h.includes('Wartości jak w tabeli poniżej.') && h.includes('stan z D(2026-10-18)'), 'objaśnienie i dzień danych z wiekiem');
+  A.STCW.w = '7'; const h7 = A.stcwInner(S), t7 = [...h7.matchAll(/data-t="([^"]*)"/g)].map(m => m[1]);
+  assert.ok(t7.every(x => x.includes(' · 7 dni: ')), 'okno 7 dni w podpowiedziach'); assert.ok(h7.includes('aria-pressed="true">7 dni') && h.includes('aria-pressed="true">30 dni'));
+  const rest7 = S.total[2] - S.rows.slice().sort((x, y) => Math.abs(y[3]) - Math.abs(x[3])).slice(0, 10).reduce((a, r) => a + r[3], 0);
+  assert.equal(v157.txt([...h7.matchAll(/<span class="wk-bv[^"]*">(.*?)<\/span><\/div>/g)].pop()[1]), money(rest7), 'Pozostałe w oknie 7 dni: suma okna minus pokazane');
+  assert.ok(!/NaN|undefined|null|stcw\.[a-z]/.test(v157.txt(h)), 'bez NaN i surowych kluczy');
+});
+test('v424 (W4A): stablecoiny według sieci — bez sumy brak wiersza „Pozostałe”, mniej niż 3 sieci z liczbą → komunikat, wiersze bez zmiany pomijane, błąd danych nie psuje panelu', () => {
+  const S = w424.STC(); delete S.total; const A = w424.mk(null), h = A.stcwInner(S);
+  assert.equal((h.match(/class="wk-br/g) || []).length, 10, 'bez sumy tylko pokazane sieci'); assert.ok(!/wk-bl">Pozostałe/.test(h));
+  const S2 = w424.STC(); S2.rows = S2.rows.map((r, i) => (i > 1 ? [r[0], r[1], r[2], r[3], null] : r)); const h2 = A.stcwInner(S2);
+  assert.ok(h2.includes('Za mało sesji z danymi'), 'dwie sieci z liczbą — za mało na wykres');
+  const S3 = w424.STC(); S3.rows[0][4] = null; assert.equal((A.stcwInner(S3).match(/class="wk-br/g) || []).length, 11, 'sieć bez liczby pominięta, reszta zostaje');
+  assert.equal(A.stcWyk(null), ''); assert.equal(A.stcWyk({}), ''); assert.ok(A.stcWyk(w424.STC()).startsWith('<div class="etfw stcw" id="stcw">'));
+  const S4 = w424.STC(); delete S4.n; assert.ok(A.stcwInner(S4).includes('wk-bl">Pozostałe sieci<'), 'liczba sieci nieznana → etykieta bez liczby');
+});
+test('v424 (W4A): miejsce bloków (przed etfBars — poza wycinkami starych testów), wywołania osłonięte typeof, style zakresu .etfw, kolory zera żółte, słownik EXTRA w 10 językach z tymi samymi znacznikami', () => {
+  assert.ok(html.indexOf('/* ===================== v424 (W4A)') < html.indexOf('function etfBars(day){'), 'blok przed etfBars');
+  assert.ok(html.includes("${typeof etfwBlock==='function'?etfwBlock(D):''}<div class=\"list-wrap\"><table class=\"etft\"><thead><tr><th>${t('etf.c.asset')}"), 'wykres ETF nad tabelą panelu');
+  assert.ok(html.includes("if(typeof stcWyk==='function')h+=stcWyk(S);"), 'wykres sieci w panelu stablecoinów');
+  for (const s of ['.etfw .wk-ch .pos{--k:var(--gr)}', '.etfw .wk-ch .neg{--k:var(--rd)}', '.etfw .wk-ch .zer{--k:var(--yl)}', '@media (max-width:620px){.etfw-ctl{width:100%}']) assert.ok(html.includes(s), 'styl: ' + s);
+  const used = new Set([...w424.MOD.matchAll(/t\('((?:etfw|stcw)\.[a-z0-9.]+)'/g)].map(m => m[1])); [...w424.MOD.matchAll(/'((?:etfw|stcw)\.[a-z0-9.]+)'/g)].forEach(m => used.add(m[1]));
+  const n = Math.max(...[...html.matchAll(/^for\(const l in EXTRA(\d+)\)/gm)].map(m => +m[1])), mine = [...html.matchAll(/^const EXTRA(\d+)=(\{.*\});$/gm)].find(m => m[2].includes('"etfw.h"'));
+  assert.ok(mine, 'słownik v424'); const D = JSON.parse(mine[2]); assert.deepEqual(Object.keys(D), ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']);
+  assert.ok(html.includes('for(const l in EXTRA' + mine[1] + ')if(I18N[l])Object.assign(I18N[l],EXTRA' + mine[1] + '[l]);'), 'linia for słownika'); assert.ok(+mine[1] <= n);
+  const keys = Object.keys(D.pl); for (const l of Object.keys(D)) assert.deepEqual(Object.keys(D[l]), keys, 'te same klucze: ' + l);
+  const dyn = [...used].filter(u => u.endsWith('.') || u === 'stcw.w');   /* klucze składane z końcówki: 'etfw.g.' + g, 'stcw.w' + w */
+  for (const k of used) assert.ok(keys.includes(k) || dyn.includes(k), 'klucz użyty w kodzie jest w słowniku: ' + k);
+  for (const k of keys) { assert.ok(used.has(k) || dyn.some(u => k.startsWith(u)), 'klucz słownika użyty w kodzie: ' + k); const ph = x => (x.match(/\{[a-z]+\}/g) || []).sort().join(); for (const l of Object.keys(D)) assert.equal(ph(D[l][k]), ph(D.pl[k]), 'znaczniki ' + k + ' ' + l); }
+  assert.ok(!/DefiLlama|SoSoValue|Llama|Soso/i.test(JSON.stringify(D)) && !/DefiLlama|SoSoValue/.test(w424.MOD), 'bez nazw dostawców');
+  assert.ok(!/\u00a0|\u202f|[\u200b-\u200f\u2060\ufeff]/.test(w424.MOD), 'bez niewidocznych znaków w kodzie');
+});
