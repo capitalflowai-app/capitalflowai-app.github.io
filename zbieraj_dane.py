@@ -32835,6 +32835,9 @@ def main():
     # v403 (F11Z16): Ethereum i warstwa 2 — data/eth-lancuch.json; kolejki wpłat i wyjść walidatorów (odpowiedzi węzła czytane strumieniowo), podaż i spalanie ETH, aktywność sieci L2, kontrola TVL drugim źródłem;
     # cztery części z własnym rytmem (wal 6 h, spal 1 h, l2 i tvs 3 h), publiczne zapytania bez klucza
     META['ok']['eth_wal'], META['ok']['eth_spal'], META['ok']['eth_l2'], META['ok']['eth_tvs'] = eth_czesc()
+    # v409 (F11Z18): europejskie fundusze ETF — data/ucits-przeplywy.json; kursy walut, zestawienie ok. 920 funduszy (grupy, aktywa, wybór największych) i pliki historii największych funduszy (po 2 na przebieg);
+    # publiczne zapytania bez klucza, duże odpowiedzi czytane strumieniowo z limitem bajtów i czasu; szereg przepływów grup liczony z historii
+    META['ok']['ucits_fx'], META['ok']['ucits_scr'], META['ok']['ucits_hist'] = ucf_czesc()
     # v402 (F11Z15): DeFi 2 — data/defi2.json; opłaty i przychody protokołów, ceny stablecoinów, włamania, opcje na DEX; publiczne zapytania bez klucza, każda część raz na dobę UTC (ta sama usługa co stablecoiny i DEX)
     META['ok']['defi2_fees'], META['ok']['defi2_peg'], META['ok']['defi2_hacks'], META['ok']['defi2_opt'] = df2_czesc()
     # v394 (F11Z8): premie lokalnych stablecoinów USDT wobec kursu referencyjnego — data/premie-stable.json; zapytania tylko w oknie po opublikowaniu kursu (raz na dzień roboczy), poza nim sam zapis pliku
@@ -43576,6 +43579,569 @@ def eth_czesc():
 
 
 ZRODLA_META.update({'eth_wal': _Z_WEZLY, 'eth_spal': 'ultrasound', 'eth_l2': 'growthepie', 'eth_tvs': 'l2beat'})   # v403: publiczny węzeł tego samego dostawcy co węzły łańcuchów (wieloryby, RWA) = to samo źródło; trzy nowe źródła (+3)
+
+
+# ===================== v409 (F11Z18): EUROPEJSKIE FUNDUSZE ETF (UCITS) — DOKĄD PŁACI INWESTOR Z EUROPY (data/ucits-przeplywy.json; publiczne zapytania GET bez klucza) =====================
+# Przepływ netto do funduszu ETF w dniu d = (liczba jednostek w dniu d − liczba jednostek w poprzednim dniu notowania) × wartość jednostki (NAV) w dniu d, w walucie klasy funduszu, przeliczony na EUR
+# referencyjnym kursem dnia (dzienne kursy; brak kursu z tego dnia = ostatni z sześciu poprzednich dni, dalej brak = fundusz pominięty tego dnia). To szacunek z zestawień dziennych, nie sprawozdanie.
+# Trzy części jednego pliku, każda z własnym ok / part_at / try_at / errs i własną poprzednią wersją przy błędzie (nigdy puste zamiast ostatnich danych):
+#   fx   — dzienne kursy referencyjne walut klas funduszy (przeliczenie na EUR); co UCF_EVERY['fx'] min.
+#   scr  — publiczne zestawienie wszystkich europejskich funduszy ETF (ok. 900; JSON ok. 4 MB, po gzip ok. 0,8 MB) z NAV, aktywami i datą: podział na grupy (akcje USA, akcje świata, akcje rynków wschodzących,
+#          złoto, Polska) wg pól klasyfikacji zestawienia (fundusze sektorowe, tematyczne, czynnikowe i dywidendowe pomijane), aktywa grup oraz wybór „największych funduszy” grupy (do 90% aktywów grupy,
+#          najwyżej UCF_CORE_MAX; grupa z ≤ 3 funduszami — wszystkie); wybór zamrożony na UCF_CORE_DNI dni; dzień z zestawienia dopisywany do historii tych funduszy; co UCF_EVERY['scr'] min.
+#   hist — pełny plik funduszu (Excel 2003 XML, arkusz „Historical”: dzień, waluta, NAV, liczba jednostek, aktywa) dla największych funduszy: historia początkowa (po 2 pliki na przebieg) i odświeżenie co
+#          UCF_ODSW_DNI dni (poprawia dni, w których liczba jednostek ostatniego dnia była przeniesiona z poprzedniego). Pliki 2–6 MB hosty oddają w całości (nagłówek Range nie jest używany), więc czytane
+#          STRUMIENIOWO z limitem bajtów (UCF_DOC_MAX) i czasu (UCF_DOC_S) — przekroczenie = błąd tego funduszu, nigdy odczyt z połowy pliku.
+# Szereg dzienny grupy (seria) liczony z historii funduszy: suma przepływów w EUR (mln) po dniach, pokrycie = udział aktywów największych funduszy z liczbą w tym dniu; dzień z pokryciem < UCF_POKR_MIN (10%) pomijany.
+# Zasady: brak = brak (nigdy zero); skok liczby jednostek ponad UCF_SH_X przy niezmienionych aktywach = podział jednostek (przepływ 0), przy zmienionych aktywach = odczyt odrzucony; ostatni dzień danych jest wstępny.
+UCF_V = 1
+UCF_PARTS = ('fx', 'scr', 'hist')
+UCF_LABEL = {'fx': 'kursy walut', 'scr': 'zestawienie funduszy', 'hist': 'historia funduszy'}
+UCF_PX = 'Fundusze ETF w Europie'
+UCF_SCR_URL = 'https://www.ishares.com/varnish-api/blk-product-screener-server/api/v1/product-screener/product-data?country=gb&language=en&siteName=ishares-uk&userType=individual'
+UCF_DOC_URL = ('https://www.blackrock.com/varnish-api/blk-one01-product-data/product-data/api/v1/get-fund-document?appType=PRODUCT_PAGE&appSubType=ISHARES&targetSite=ishares-uk'
+               '&locale=en_GB&portfolioId={pid}&component=fundDownload&userType=individual')
+UCF_CUR = ('USD', 'GBP', 'CHF', 'MXN', 'JPY', 'SGD', 'SEK', 'NZD', 'AUD')   # waluty klas funduszy ze kursem referencyjnym (EUR = 1)
+UCF_FX_URL = 'https://data-api.ecb.europa.eu/service/data/EXR/D.' + '+'.join(UCF_CUR) + '.EUR.SP00.A?lastNObservations=130&format=csvdata'
+UCF_EVERY = {'fx': 720, 'scr': 120, 'hist': 8}   # min — najrzadziej tyle odpytujemy daną część (hist: odstęp między przebiegami pobierającymi pliki)
+UCF_RETRY_MIN = 30            # min — po błędzie części ponowienie najwcześniej po tylu minutach
+UCF_FUND_RETRY_MIN = 180      # min — po błędzie pliku jednego funduszu ponowienie najwcześniej po tylu minutach
+UCF_TIMEOUT = 20              # s — jedna operacja gniazda
+UCF_SCR_S, UCF_SCR_WIRE, UCF_SCR_RAW = 60, 12_000_000, 40_000_000     # s, bajty po drodze, bajty po rozpakowaniu — zestawienie
+UCF_FX_S, UCF_FX_WIRE, UCF_FX_RAW = 30, 2_000_000, 8_000_000          # kursy
+UCF_DOC_S, UCF_DOC_MAX = 60, 16_000_000                               # plik funduszu: czas jednego pliku i bajty (plik nie jest kompresowany)
+UCF_HIST_S = 100              # s — budżet całej części hist w przebiegu
+UCF_HIST_PER_RUN = 2          # plików funduszy na przebieg
+UCF_LATE_S = 720              # s — przebieg dłuższy niż tyle: bez pobierania plików funduszy (notatka; następny przebieg)
+UCF_N_MIN = 600               # najmniej funduszy ETF w zestawieniu (jest ok. 920); mniej = zmieniony układ odpowiedzi
+UCF_OK_MIN = 0.90             # udział funduszy z poprawnym NAV, aktywami i dniem
+UCF_GRUPY = ('usa', 'swiat', 'ew', 'zloto', 'pl')
+UCF_G_MIN = {'usa': 20, 'swiat': 15, 'ew': 5, 'zloto': 1, 'pl': 1}   # najmniej funduszy w grupie (jest 75 / 60 / 17 / 3 / 1)
+UCF_WYKL = ('Sectors', 'Thematic', 'Alternatives', 'Smart Beta', 'Factors', 'Equity Income', 'Outcome Focused')   # strategie spoza „szerokiego rynku”
+UCF_CORE_SHARE = 0.90         # największe fundusze grupy: do tylu aktywów grupy
+UCF_CORE_MAX = 12             # najwyżej tyle funduszy w grupie
+UCF_CORE_ALL = 3              # grupa z tylu funduszami albo mniej — wszystkie
+UCF_CORE_DNI = 30             # dni — wybór największych funduszy odświeżany najrzadziej co tyle
+UCF_DZIEN_ZEST = 4            # dni — fundusz z dniem NAV starszym od dnia zestawienia o więcej jest pomijany przy wyborze
+UCF_KEEP = 130                # notowań historii na fundusz
+UCF_HIST_MIN = 30             # najmniej notowań w pliku funduszu
+UCF_READY_ROWS = 40           # notowań, od których historia funduszu liczy się jako gotowa
+UCF_ODSW_DNI = 7              # dni — odświeżenie pełnego pliku funduszu
+UCF_LUKA_DNI = 6              # dni — dłuższa przerwa między notowaniami = przepływ nieznany; tyle samo dni wstecz dla kursu waluty
+UCF_SH_X = 1.25               # skok liczby jednostek między notowaniami (razy w obie strony) wymagający wyjaśnienia
+UCF_PODZIAL = (0.85, 1.15)    # aktywa (NAV × jednostki) w paśmie przy takim skoku = podział jednostek, nie przepływ
+UCF_POKR_MIN = 0.1            # dzień szeregu z mniejszym pokryciem aktywów jest pomijany (przepływ funduszu bez notowania w tym dniu trafia do następnego dnia, więc nic nie ginie)
+UCF_SER_DNI = 100             # dni wstecz od ostatniego dnia — zakres szeregu
+UCF_ZLE_MAX = 3               # wierszy z aktywami niezgodnymi z NAV × jednostki wśród ostatnich UCF_KEEP notowań, powyżej — plik odrzucony
+UCF_ZG_MAX = 0.01             # największa różnica liczby jednostek z zestawienia i pliku funduszu w tym samym dniu
+UCF_SRC = ('CapitalFlowAI — publiczne zestawienie europejskich funduszy ETF (UCITS: wartość jednostki, aktywa, dzień), pliki historii funduszy (liczba jednostek) i dzienne kursy referencyjne walut')
+
+
+def ucf_r(x):
+    """Pole zestawienia {"d": tekst, "r": liczba} → liczba; inne postaci, wartość logiczna, nieskończoność = None."""
+    if isinstance(x, dict):
+        x = x.get('r')
+    if isinstance(x, bool) or not isinstance(x, (int, float)):
+        return None
+    return float(x) if x == x and abs(x) != float('inf') else None
+
+
+def ucf_dzien(n):
+    """Liczba RRRRMMDD albo tekst → 'RRRR-MM-DD'; zły dzień = None."""
+    s = str(int(n)) if isinstance(n, (int, float)) and not isinstance(n, bool) and n == int(n) else str(n or '')
+    if re.fullmatch(r'\d{8}', s):
+        s = f'{s[:4]}-{s[4:6]}-{s[6:]}'
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return datetime.date.fromisoformat(s).isoformat()
+    except ValueError:
+        return None
+
+
+def ucf_dni(a, b):
+    """Dni kalendarzowe od a do b (RRRR-MM-DD)."""
+    return (datetime.date.fromisoformat(b) - datetime.date.fromisoformat(a)).days
+
+
+def ucf_strumien(url, wire_max, raw_max, limit_s, otworz=None):
+    """GET ze strumieniowym czytaniem: Accept-Encoding: gzip, kawałki 64 KB, rozpakowanie na bieżąco (gdy odpowiedź jest skompresowana). Zwraca bajty. Wyjątek (nigdy wynik częściowy) przy kodzie innym niż 200,
+    przekroczeniu bajtów po drodze (wire_max) albo po rozpakowaniu (raw_max), przekroczeniu czasu (limit_s) i urwanym strumieniu gzip. Nagłówek Range nie jest używany: część hostów oddaje całość mimo niego."""
+    import zlib as _ucf_zlib   # biblioteka standardowa
+    otworz = otworz or _otworz
+    t0 = time.monotonic()
+    _zuz_licz(url, None)
+    wire = raw = 0
+    out = []
+    with otworz(url, {'Accept': '*/*', 'Accept-Encoding': 'gzip'}, UCF_TIMEOUT) as r:
+        if getattr(r, 'status', 200) != 200:
+            raise ValueError(f'kod {getattr(r, "status", "?")} zamiast 200 (odpowiedź częściowa nie jest używana)')
+        enc = str((getattr(r, 'headers', None) or {}).get('Content-Encoding') or '').lower()
+        d = _ucf_zlib.decompressobj(16 + _ucf_zlib.MAX_WBITS) if 'gzip' in enc else None
+        while True:
+            if time.monotonic() - t0 > limit_s:
+                raise TimeoutError(f'limit czasu odpowiedzi ({int(limit_s)} s)')
+            ch = r.read(65536)
+            if not ch:
+                break
+            wire += len(ch)
+            if wire > wire_max:
+                raise ValueError(f'odpowiedź większa niż {wire_max // 1_000_000} MB po drodze')
+            if d is None:
+                raw += len(ch)
+                if raw > raw_max:
+                    raise ValueError(f'odpowiedź większa niż {raw_max // 1_000_000} MB')
+                out.append(ch)
+                continue
+            while ch:
+                part = d.decompress(ch, 262144)
+                raw += len(part)
+                if raw > raw_max:
+                    raise ValueError(f'odpowiedź po rozpakowaniu większa niż {raw_max // 1_000_000} MB')
+                out.append(part)
+                ch = d.unconsumed_tail
+        if d is not None:   # reszta wyjścia po końcu wejścia — porcjami z kontrolą limitu
+            while True:
+                part = d.decompress(b'', 262144)
+                if not part:
+                    break
+                raw += len(part)
+                if raw > raw_max:
+                    raise ValueError(f'odpowiedź po rozpakowaniu większa niż {raw_max // 1_000_000} MB')
+                out.append(part)
+            if not d.eof:
+                raise ValueError('urwany strumień gzip')
+    return b''.join(out)
+
+
+# ---------------------------------------------------------------- kursy walut
+def ucf_parse_fx(raw):
+    """CSV dziennych kursów referencyjnych (jednostek waluty za 1 EUR) → {waluta: [[dzień, kurs], …]} rosnąco. Brak USD albo GBP, mniej niż 60 notowań USD, kurs spoza (0; 100 000), powtórzony dzień
+    albo zmiana kursu między kolejnymi notowaniami ponad 10% = wyjątek (zły układ odpowiedzi)."""
+    text = raw.decode('utf-8', errors='replace') if isinstance(raw, (bytes, bytearray)) else str(raw)
+    cur = {}
+    for r in csv.DictReader(io.StringIO(text)):
+        c, d = (r.get('CURRENCY') or '').strip(), ucf_dzien((r.get('TIME_PERIOD') or '').strip())
+        if c not in UCF_CUR or d is None:
+            continue
+        v = _num(r.get('OBS_VALUE'))
+        if v is None or v != v or not 0 < v < 100_000:
+            raise ValueError(f'kurs {c} {d}: wartość spoza dopuszczalnego pasma')
+        if d in cur.setdefault(c, {}):
+            raise ValueError(f'kurs {c}: powtórzony dzień {d}')
+        cur[c][d] = round(v, 6)
+    if len(cur.get('USD', {})) < 60 or not cur.get('GBP'):
+        raise ValueError('kursy: za mało notowań USD albo brak GBP')
+    out = {}
+    for c, m in cur.items():
+        s = sorted(m.items())
+        for (d0, v0), (d1, v1) in zip(s, s[1:]):
+            if abs(v1 / v0 - 1) > 0.10:
+                raise ValueError(f'kurs {c}: zmiana ponad 10% między {d0} a {d1}')
+        out[c] = [[d, v] for d, v in s]
+    return out
+
+
+def ucf_kursy(fx):
+    """Funkcja kursu: (waluta, dzień) → jednostek waluty za 1 EUR z tego dnia albo ostatniego notowania nie starszego niż UCF_LUKA_DNI dni; EUR = 1; brak = None."""
+    cur = fx.get('cur') if isinstance(fx, dict) and isinstance(fx.get('cur'), dict) else {}
+    idx = {c: ([r[0] for r in s], [r[1] for r in s]) for c, s in cur.items() if isinstance(s, list) and s}
+
+    def kurs(c, d):
+        if c == 'EUR':
+            return 1.0
+        if c not in idx or not isinstance(d, str):
+            return None
+        ds, vs = idx[c]
+        i = bisect.bisect_right(ds, d) - 1
+        if i < 0 or ucf_dni(ds[i], d) > UCF_LUKA_DNI:
+            return None
+        return vs[i]
+    return kurs
+
+
+def ucf_fx(prev=None):
+    """Część fx → {'t', 'asof', 'cur'}."""
+    cur = ucf_parse_fx(ucf_strumien(UCF_FX_URL, UCF_FX_WIRE, UCF_FX_RAW, UCF_FX_S))
+    return {'t': NOW, 'asof': max(s[-1][0] for s in cur.values()), 'cur': cur}
+
+
+# ---------------------------------------------------------------- zestawienie funduszy
+def ucf_grupa(f):
+    """Grupa funduszu z pól klasyfikacji zestawienia: usa (akcje, kraj United States), pl (akcje, kraj Poland), swiat / ew (akcje, region Global, kraj Broad; rynek rozwinięty / wschodzący), zloto (surowiec,
+    nazwa z „Physical Gold”). Fundusze ze strategią sektorową, tematyczną, alternatywną, czynnikową, dywidendową albo z celem wyniku — spoza grup (None)."""
+    ac = f.get('aladdinAssetClass')
+    toks = [x.strip() for x in str(f.get('aladdinStrategy') or '').strip('[]').split(',')]
+    if ac == 'Equity':
+        if any(x in UCF_WYKL for x in toks):
+            return None
+        c = f.get('aladdinCountry')
+        if c == 'United States':
+            return 'usa'
+        if c == 'Poland':
+            return 'pl'
+        if f.get('aladdinRegion') == 'Global' and c == 'Broad':
+            return 'ew' if f.get('aladdinMarketType') == 'Emerging' else 'swiat'
+    if ac == 'Commodity' and 'Physical Gold' in str(f.get('fundName') or ''):
+        return 'zloto'
+    return None
+
+
+def ucf_wczytaj_scr(raw):
+    """Zestawienie (JSON) → {'n_etf', 'f': {id: {t, g, c, nav, tna, d}}, 'asof'}. Wyjątek: odpowiedź nie jest słownikiem, mniej niż UCF_N_MIN funduszy ETF, mniej niż UCF_OK_MIN z poprawnym NAV, aktywami
+    i dniem, brak dnia zestawienia albo grupa z mniejszą liczbą funduszy niż UCF_G_MIN (zmieniona klasyfikacja)."""
+    j = json.loads(raw.decode('utf-8-sig', 'replace')) if isinstance(raw, (bytes, bytearray)) else raw
+    if not isinstance(j, dict):
+        raise ValueError('zestawienie: odpowiedź nie jest słownikiem funduszy')
+    n_etf, F = 0, {}
+    for key, f in j.items():
+        if not isinstance(f, dict) or 'etf' not in (f.get('productView') if isinstance(f.get('productView'), list) else []):
+            continue
+        n_etf += 1
+        pid = str(f.get('portfolioId') if f.get('portfolioId') is not None else key)
+        tk, c = f.get('localExchangeTicker'), f.get('seriesBaseCurrencyCode')
+        nav, tna, d = ucf_r(f.get('navAmount')), ucf_r(f.get('totalNetAssets')), ucf_dzien(ucf_r(f.get('navAmountAsOf')))
+        if (not re.fullmatch(r'\d{3,9}', pid) or not isinstance(tk, str) or not re.fullmatch(r'[A-Za-z0-9]{2,8}', tk) or not isinstance(c, str) or not re.fullmatch(r'[A-Z]{3}', c)
+                or nav is None or nav <= 0 or tna is None or tna <= 0 or d is None):
+            continue
+        F[pid] = {'t': tk, 'g': ucf_grupa(f), 'c': c, 'nav': nav, 'tna': tna, 'd': d}
+    if n_etf < UCF_N_MIN:
+        raise ValueError(f'zestawienie: tylko {n_etf} funduszy ETF (oczekiwane co najmniej {UCF_N_MIN})')
+    if len(F) < UCF_OK_MIN * n_etf:
+        raise ValueError(f'zestawienie: poprawny NAV, aktywa i dzień ma tylko {len(F)} z {n_etf} funduszy')
+    dni = {}
+    for f in F.values():
+        dni[f['d']] = dni.get(f['d'], 0) + 1
+    asof = max(dni, key=lambda d: (dni[d], d))   # najczęstszy dzień zestawienia (remis: nowszy)
+    for g in UCF_GRUPY:
+        n = sum(1 for f in F.values() if f['g'] == g)
+        if n < UCF_G_MIN[g]:
+            raise ValueError(f'zestawienie: grupa {g} ma {n} funduszy (oczekiwane co najmniej {UCF_G_MIN[g]}) — zmieniona klasyfikacja')
+    return {'n_etf': n_etf, 'f': F, 'asof': asof}
+
+
+def ucf_core(F, kurs, asof, prev_core, teraz):
+    """Największe fundusze grup (do UCF_CORE_SHARE aktywów grupy w EUR, najwyżej UCF_CORE_MAX; grupa z UCF_CORE_ALL funduszami albo mniej — wszystkie). Wybór zamrożony na UCF_CORE_DNI dni, dopóki każdy
+    wybrany fundusz jest w zestawieniu. → {'t', 'f': {id: {t, g, c}}}."""
+    if isinstance(prev_core, dict) and isinstance(prev_core.get('f'), dict) and prev_core['f']:
+        tc = _ix_dt(prev_core.get('t'))
+        if tc is not None and 0 <= (teraz - tc).total_seconds() < UCF_CORE_DNI * 86400 and all(i in F and F[i]['g'] == v.get('g') for i, v in prev_core['f'].items()):
+            return prev_core
+    out = {}
+    for g in UCF_GRUPY:
+        C = []
+        for i, f in F.items():
+            if f['g'] != g or ucf_dni(f['d'], asof) > UCF_DZIEN_ZEST or ucf_dni(asof, f['d']) > UCF_DZIEN_ZEST:
+                continue
+            k = kurs(f['c'], f['d'])
+            if k:
+                C.append((f['tna'] / k, i))
+        C.sort(key=lambda x: (-x[0], x[1]))
+        tot, acc = sum(a for a, _ in C), 0.0
+        for a, i in C:
+            if len(C) > UCF_CORE_ALL and (acc >= UCF_CORE_SHARE * tot or sum(1 for v in out.values() if v['g'] == g) >= UCF_CORE_MAX):
+                break
+            acc += a
+            out[i] = {'t': F[i]['t'], 'g': g, 'c': F[i]['c']}
+    return {'t': NOW, 'f': out}
+
+
+def ucf_grupy_podsumowanie(F, kurs, core):
+    """Podsumowanie grup z zestawienia: liczba funduszy (n), aktywa wszystkich funduszy grupy w mln EUR (aum; fundusze bez kursu waluty pominięte, ich liczba w bez_kursu), liczba i aktywa
+    największych funduszy (core_n, core_aum)."""
+    out = {}
+    for g in UCF_GRUPY:
+        S = {'n': 0, 'aum': 0.0, 'bez_kursu': 0, 'core_n': 0, 'core_aum': 0.0}
+        for i, f in F.items():
+            if f['g'] != g:
+                continue
+            S['n'] += 1
+            k = kurs(f['c'], f['d'])
+            if not k:
+                S['bez_kursu'] += 1
+                continue
+            a = f['tna'] / k / 1e6
+            S['aum'] += a
+            if i in core['f']:
+                S['core_n'] += 1
+                S['core_aum'] += a
+        S['aum'], S['core_aum'] = round(S['aum'], 1), round(S['core_aum'], 1)
+        out[g] = S
+    return out
+
+
+def ucf_dodaj_punkt(rows, d, nav, sh):
+    """Dopisuje notowanie [dzień, NAV, liczba jednostek] do rosnącej listy: nowszy dzień — na koniec, ten sam — zastępuje (świeższy odczyt), starszy od ostatniego — pomijany; zostaje UCF_KEEP ostatnich."""
+    rows = list(rows)
+    if rows and d < rows[-1][0]:
+        return rows
+    p = [d, round(nav, 6), int(round(sh))]
+    if rows and d == rows[-1][0]:
+        rows[-1] = p
+    else:
+        rows.append(p)
+    return rows[-UCF_KEEP:]
+
+
+def ucf_scr(prev_scr, prev_core, fx, H):
+    """Część scr → (scr, core, H): zestawienie, wybór największych funduszy i dopisanie dnia z zestawienia do ich historii (H = {id: {rows, full_at, …}} zmieniane na kopii). Bez kursów (fx pusty)
+    wybór poprzedni zostaje, aktywa w EUR to None."""
+    S = ucf_wczytaj_scr(ucf_strumien(UCF_SCR_URL, UCF_SCR_WIRE, UCF_SCR_RAW, UCF_SCR_S))
+    F, kurs = S['f'], ucf_kursy(fx or {})
+    core = ucf_core(F, kurs, S['asof'], prev_core, eth_teraz()) if fx else (prev_core if isinstance(prev_core, dict) and prev_core.get('f') else {'t': NOW, 'f': {}})
+    H = {i: dict(v) for i, v in (H or {}).items()}   # kopia (zmieniana niżej); fundusze spoza wyboru odpada build_ucits przy składaniu pliku
+    zg = []
+    for i, c in core['f'].items():
+        f = F.get(i)
+        if f is None:
+            continue
+        h = H.setdefault(i, {'rows': [], 'full_at': None})
+        sh = f['tna'] / f['nav']
+        if h['rows'] and h['rows'][-1][0] == f['d'] and h.get('ls') == 'f':   # ten sam dzień w pliku funduszu i w zestawieniu: zgodność liczby jednostek (potem świeższy odczyt zestawienia)
+            zg.append(abs(sh / h['rows'][-1][2] - 1))
+        h['rows'] = ucf_dodaj_punkt(h['rows'], f['d'], f['nav'], sh)
+        if h['rows'][-1][0] == f['d']:
+            h['ls'] = 's'
+    scr = {'t': NOW, 'asof': S['asof'], 'n_etf': S['n_etf'], 'n_ok': len(F), 'grp': ucf_grupy_podsumowanie(F, kurs, core) if fx else {}, 'zg_max': round(max(zg), 5) if zg else None}
+    return scr, core, H
+
+
+# ---------------------------------------------------------------- pliki funduszy
+def ucf_parse_hist(data, waluta):
+    """Plik funduszu (Excel 2003 XML) → [[dzień, NAV, liczba jednostek], …] rosnąco, ostatnie UCF_KEEP notowań. Czytany tylko arkusz „Historical” (kolumny As Of, Currency, NAV per Share, Shares Outstanding,
+    Total Net Assets). Wiersz, w którym NAV × jednostki różni się od aktywów o ponad 1%, jest pomijany (w pliku zdarzają się takie dni sprzed lat); wyjątek: brak arkusza albo kolumn, waluta wiersza inna niż
+    waluta klasy, powtórzony dzień, mniej niż UCF_HIST_MIN wierszy, więcej niż UCF_ZLE_MAX takich wierszy wśród ostatnich UCF_KEEP notowań."""
+    import xml.etree.ElementTree as ET
+    txt = data.decode('utf-8-sig', 'replace') if isinstance(data, (bytes, bytearray)) else str(data)
+    m = re.search(r'<(?:\w+:)?Worksheet\b[^>]*\bName="Historical"[^>]*>.*?</(?:\w+:)?Worksheet>', txt, re.S)
+    if not m or '<!DOCTYPE' in m.group(0) or '<!ENTITY' in m.group(0):
+        raise ValueError('plik funduszu: brak arkusza Historical')
+    seg = re.sub(r'&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)', '&amp;', m.group(0))
+    root = ET.fromstring('<root xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns="urn:schemas-microsoft-com:office:spreadsheet">' + seg + '</root>')
+    ns = '{urn:schemas-microsoft-com:office:spreadsheet}'
+    head, out, zle = None, {}, set()
+    for row in root.iter(ns + 'Row'):
+        cells = [(c.find(ns + 'Data').text if c.find(ns + 'Data') is not None else '') or '' for c in row.iter(ns + 'Cell')]
+        if head is None:
+            if 'As Of' in cells and 'Shares Outstanding' in cells and 'NAV per Share' in cells and 'Currency' in cells:
+                head = {n: i for i, n in enumerate(cells)}
+            continue
+        try:
+            d = ucf_dzien(cells[head['As Of']].strip())
+            c = cells[head['Currency']].strip()
+            nav, sh = _num(cells[head['NAV per Share']]), _num(cells[head['Shares Outstanding']])
+        except (IndexError, KeyError):
+            continue
+        if d is None or nav is None or sh is None or nav <= 0 or sh <= 0:
+            continue
+        if c != waluta:
+            raise ValueError(f'plik funduszu: waluta wiersza {c} zamiast {waluta}')
+        if 'Total Net Assets' in head and len(cells) > head['Total Net Assets']:
+            tna = _num(cells[head['Total Net Assets']])
+            if tna and abs(nav * sh / tna - 1) > 0.01:
+                zle.add(d)
+        if d in out:
+            raise ValueError(f'plik funduszu: powtórzony dzień {d}')
+        out[d] = [d, round(nav, 6), int(round(sh))]
+    if head is None:
+        raise ValueError('plik funduszu: brak nagłówka tabeli historii')
+    dni = sorted(out)
+    if len(dni) < UCF_HIST_MIN:
+        raise ValueError('plik funduszu: za krótka historia')
+    ost = dni[-UCF_KEEP:]
+    if sum(1 for d in ost if d in zle) > UCF_ZLE_MAX:
+        raise ValueError('plik funduszu: aktywa niezgodne z NAV × jednostki w ostatnich notowaniach')
+    return [out[d] for d in ost if d not in zle]
+
+
+def ucf_do_pobrania(core, H, teraz):
+    """Fundusze, których plik trzeba pobrać: najpierw bez historii (kolejność wyboru), potem z najstarszym odświeżeniem (≥ UCF_ODSW_DNI dni); fundusz po błędzie czeka UCF_FUND_RETRY_MIN min."""
+    A, B = [], []
+    for i in core['f']:
+        h = H.get(i) or {}
+        te = _ix_dt(h.get('err_at'))
+        if te is not None and 0 <= (teraz - te).total_seconds() < UCF_FUND_RETRY_MIN * 60:
+            continue
+        tf = _ix_dt(h.get('full_at'))
+        if tf is None:
+            A.append(i)
+        elif (teraz - tf).total_seconds() >= UCF_ODSW_DNI * 86400:
+            B.append((tf, i))
+    return A + [i for _, i in sorted(B)]
+
+
+def ucf_hist(core, H, otworz=None):
+    """Część hist: do UCF_HIST_PER_RUN plików funduszy w budżecie UCF_HIST_S s (przebieg dłuższy niż UCF_LATE_S s — bez plików). → (H, pobrano, bledy, notatki). Pobrany plik zastępuje historię
+    funduszu, ale zestawienie ma pierwszeństwo w dniach nowszych od pliku; błąd jednego funduszu nie przerywa pozostałych."""
+    H = {i: dict(v) for i, v in H.items()}
+    teraz = eth_teraz()
+    kolejka = ucf_do_pobrania(core, H, teraz)
+    bledy, notatki, ok = [], [], 0
+    if not kolejka:
+        return H, 0, bledy, notatki
+    if _RUN_T0[0] is not None and time.monotonic() - _RUN_T0[0] > UCF_LATE_S:
+        notatki.append(f'historia funduszy pominięta w tym przebiegu: przebieg trwa już {time.monotonic() - _RUN_T0[0]:.0f} s (granica {UCF_LATE_S} s)')
+        return H, 0, bledy, notatki
+    t0 = time.monotonic()
+    for i in kolejka[:UCF_HIST_PER_RUN]:
+        rest = UCF_HIST_S - (time.monotonic() - t0)
+        if rest < 5:
+            break
+        c, h = core['f'][i], H.setdefault(i, {'rows': [], 'full_at': None})
+        try:
+            rows = ucf_parse_hist(ucf_strumien(UCF_DOC_URL.format(pid=i), UCF_DOC_MAX, UCF_DOC_MAX, min(UCF_DOC_S, rest), otworz), c['c'])
+            nowsze = [r for r in h.get('rows') or [] if r[0] > rows[-1][0]]
+            h['rows'] = (rows + nowsze)[-UCF_KEEP:]
+            h['ls'] = 's' if nowsze else 'f'
+            h['full_at'] = NOW
+            h.pop('err_at', None)
+            ok += 1
+        except Exception as e:  # noqa — błąd jednego funduszu: reszta idzie dalej
+            h['err_at'] = NOW
+            bledy.append(f'{c["t"]}: {mask(str(e))[:100]}')
+    return H, ok, bledy, notatki
+
+
+# ---------------------------------------------------------------- szereg przepływów
+def ucf_przeplyw(a, b):
+    """Przepływ netto w walucie klasy między notowaniami a i b ([dzień, NAV, jednostki]): (jednostki b − jednostki a) × NAV b. → (liczba | None, kod): 'ok'; 'luka' (przerwa dłuższa niż UCF_LUKA_DNI dni);
+    'podzial' (skok jednostek ponad UCF_SH_X przy aktywach w UCF_PODZIAL — przepływ 0); 'odrz' (skok jednostek bez wyjaśnienia — nieznany)."""
+    if ucf_dni(a[0], b[0]) > UCF_LUKA_DNI or ucf_dni(a[0], b[0]) <= 0:
+        return None, 'luka'
+    r = b[2] / a[2]
+    if r > UCF_SH_X or r < 1 / UCF_SH_X:
+        akt = (b[1] * b[2]) / (a[1] * a[2])
+        return (0.0, 'podzial') if UCF_PODZIAL[0] <= akt <= UCF_PODZIAL[1] else (None, 'odrz')
+    return (b[2] - a[2]) * b[1], 'ok'
+
+
+def ucf_seria(core, H, fx):
+    """Szereg dzienny przepływów grup z historii największych funduszy → {grupa: {rows: [[dzień, przepływ mln EUR, pokrycie 0–1, liczba funduszy]], core, seeded, ready, aum_core (mln EUR), odrz, podzial}}.
+    Przepływ funduszu liczony między jego kolejnymi notowaniami i przypisany dniu późniejszego (fundusz bez notowania w danym dniu wnosi przepływ w następnym); pokrycie = aktywa (poprzednie notowanie,
+    EUR) funduszy z przepływem w tym dniu / ostatnie aktywa wszystkich największych funduszy grupy (przybliżone, najwyżej 1); dni z pokryciem < UCF_POKR_MIN pominięte (przepływ funduszu bez notowania trafia do jego następnego notowania); zakres UCF_SER_DNI dni wstecz od ostatniego dnia."""
+    kurs = ucf_kursy(fx or {})
+    out = {}
+    for g in UCF_GRUPY:
+        ids = [i for i, c in core['f'].items() if c['g'] == g]
+        fl, cov, nf, aum, odrz, podz, seeded = {}, {}, {}, 0.0, 0, 0, 0
+        for i in ids:
+            rows = (H.get(i) or {}).get('rows') or []
+            if len(rows) >= UCF_READY_ROWS:
+                seeded += 1
+            c = core['f'][i]['c']
+            k_ost = kurs(c, rows[-1][0]) if rows else None
+            if k_ost:
+                aum += rows[-1][1] * rows[-1][2] / k_ost / 1e6
+            for a, b in zip(rows, rows[1:]):
+                v, kod = ucf_przeplyw(a, b)
+                if kod == 'odrz':
+                    odrz += 1
+                elif kod == 'podzial':
+                    podz += 1
+                k = kurs(c, b[0])
+                if v is None or not k:
+                    continue
+                fl[b[0]] = fl.get(b[0], 0.0) + v / k / 1e6
+                cov[b[0]] = cov.get(b[0], 0.0) + a[1] * a[2] / k / 1e6
+                nf[b[0]] = nf.get(b[0], 0) + 1
+        rows_g = []
+        if aum > 0:
+            rows_g = [[d, round(fl[d], 2), round(min(cov[d] / aum, 1.0), 3), nf[d]] for d in sorted(fl) if cov[d] / aum >= UCF_POKR_MIN]
+            if rows_g:
+                rows_g = [r for r in rows_g if ucf_dni(r[0], rows_g[-1][0]) <= UCF_SER_DNI]
+        out[g] = {'rows': rows_g, 'core': len(ids), 'seeded': seeded, 'ready': bool(ids) and seeded == len(ids) and bool(rows_g), 'aum_core': round(aum, 1), 'odrz': odrz, 'podzial': podz}
+    return out
+
+
+# ---------------------------------------------------------------- plik
+def ucf_do_wykonania(prev, k, teraz, wymus=False):
+    """Czy część k jest należna: nie ma udanego odczytu albo jest starszy niż UCF_EVERY[k] min (wymus: należna mimo świeżego odczytu — np. wybór funduszy czeka na kursy), a po błędzie ostatnia próba była nie później niż UCF_RETRY_MIN min temu — wtedy czekamy."""
+    pat, pok, ptr = _dict(prev.get('part_at')), _dict(prev.get('ok')), _dict(prev.get('try_at'))
+    t_ok, t_try = _ix_dt(pat.get(k)), _ix_dt(ptr.get(k))
+    if k != 'hist' and pok.get(k) is False and t_try is not None and 0 <= (teraz - t_try).total_seconds() < UCF_RETRY_MIN * 60:
+        return False   # (hist: ponowienie pojedynczych funduszy pilnuje UCF_FUND_RETRY_MIN)
+    return wymus or t_ok is None or (teraz - t_ok).total_seconds() / 60 >= UCF_EVERY[k] or (teraz - t_ok).total_seconds() < 0
+
+
+def build_ucits(prev=None):
+    """Plik data/ucits-przeplywy.json (v409): części fx, scr, hist z własnym ok / part_at / try_at / errs; część jeszcze świeża i poprawna zostaje bez pytania; część z błędem zostaje z poprzedniego pliku z własną
+    chwilą, nigdy pusta zamiast ostatnich danych. Szereg liczony w każdym przebiegu z historii funduszy i kursów (bez zapytań). Żadna część nie odpowiedziała i nie ma poprzedniego pliku = wyjątek."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == UCF_V else {}
+    teraz = eth_teraz()
+    out = {'v': UCF_V, 'at': NOW, 'src': UCF_SRC, 'ok': {}, 'part_at': {}, 'try_at': {}, 'errs': {}}
+    for k in ('fx', 'scr', 'hist'):
+        out['ok'][k] = _dict(prev.get('ok')).get(k)
+        if _dict(prev.get('part_at')).get(k):
+            out['part_at'][k] = prev['part_at'][k]
+        if _dict(prev.get('try_at')).get(k):
+            out['try_at'][k] = prev['try_at'][k]
+    fx, scr, core, H = prev.get('fx'), prev.get('scr'), prev.get('core'), _dict(prev.get('h'))
+    pytane = odp = 0
+
+    def blad(k, msg):
+        META['errors'].append(mask(f'{UCF_PX} {UCF_LABEL[k]}: {msg}')[:220])
+        out['ok'][k], out['try_at'][k], out['errs'][k] = False, NOW, mask(str(msg))[:160]
+    if ucf_do_wykonania(prev, 'fx', teraz):
+        pytane += 1
+        try:
+            fx = ucf_fx()
+            out['ok']['fx'], out['part_at']['fx'], out['try_at']['fx'] = True, NOW, NOW
+            odp += 1
+        except Exception as e:  # noqa — kursy z poprzedniego pliku
+            blad('fx', e)
+    if ucf_do_wykonania(prev, 'scr', teraz, wymus=bool(fx) and not (isinstance(core, dict) and core.get('f'))):   # kursy są, a wyboru funduszy jeszcze nie ma (zestawienie przyjęto bez kursów)
+        pytane += 1
+        try:
+            scr, core, H = ucf_scr(scr, core, fx, H)
+            out['ok']['scr'], out['part_at']['scr'], out['try_at']['scr'] = True, NOW, NOW
+            odp += 1
+        except Exception as e:  # noqa — zestawienie z poprzedniego pliku
+            blad('scr', e)
+    if isinstance(core, dict) and core.get('f') and ucf_do_wykonania(prev, 'hist', teraz) and ucf_do_pobrania(core, H, teraz):
+        pytane += 1
+        H, ile, bl, notatki = ucf_hist(core, H)
+        META['notes'].extend(notatki)
+        if bl:
+            blad('hist', '; '.join(bl)[:200])
+        elif ile:
+            out['ok']['hist'] = True
+            odp += 1
+        if ile:
+            out['part_at']['hist'] = NOW
+        if ile or bl:
+            out['try_at']['hist'] = NOW
+    if pytane and not odp and not prev:
+        raise RuntimeError('żadna część nie odpowiedziała')
+    if fx is not None:
+        out['fx'] = fx
+    if scr is not None:
+        out['scr'] = scr
+    if isinstance(core, dict):
+        out['core'] = core
+    out['h'] = {i: v for i, v in H.items() if isinstance(core, dict) and i in (core.get('f') or {})}
+    if isinstance(core, dict) and core.get('f') and fx:
+        out['seria'] = {'t': NOW, 'g': ucf_seria(core, out['h'], fx)}
+    elif isinstance(prev.get('seria'), dict):   # bez kursów albo bez wyboru funduszy: poprzedni szereg zostaje z własną datą, nigdy brak zamiast ostatnich danych
+        out['seria'] = prev['seria']
+    return out
+
+
+def ucf_czesc():
+    """v409: część przebiegu → krotka (fx, scr, hist) dla META['ok']: True = odpowiedziała, 'cached' = część jeszcze świeża, False = zawiodła. Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('ucits-przeplywy')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == UCF_V else None
+    try:
+        obj = build_ucits(prev)
+        save('ucits-przeplywy', obj)
+        return tuple(True if obj['part_at'].get(k) == NOW and obj['ok'].get(k) is True else False if obj['ok'].get(k) is False else 'cached' for k in UCF_PARTS)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'{UCF_PX}: {e}')[:200])
+        if prev:
+            save('ucits-przeplywy', prev)
+        return (False,) * len(UCF_PARTS)
+
+
+ZRODLA_META.update({'ucits_fx': 'ecb', 'ucits_scr': 'ishares', 'ucits_hist': 'ishares'})   # v409: kursy walut — ten sam bank centralny co dotąd; zestawienie i pliki funduszy — ten sam wydawca funduszy co fundusze USA: liczba źródeł bez zmian
 
 
 if __name__ == '__main__':

@@ -12481,6 +12481,168 @@ def eth_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v409 (F11Z18): EUROPEJSKIE FUNDUSZE ETF — DOKĄD PŁACI INWESTOR Z EUROPY (data/ucits-przeplywy.json) ---------------------------------------------------------
+# Plik: trzy części (fx — dzienne kursy walut, scr — zestawienie ok. 900 funduszy ETF z podziałem na pięć grup, hist — pliki historii największych funduszy) i szereg dzienny przepływów grup liczony w zbieraczu.
+# Wiek odczytu każdej części osobnym wierszem świeżości, najwyżej ⚠️. Progi z rytmu zbieracza (UCF_EVERY: fx 12 h, scr 2 h; pliki funduszy odświeżane co 7 dni): dwa chybione przebiegi + zapas = fx 40 h, scr 6 h,
+# najstarszy plik funduszu 14 dni.
+# Dzień danych zestawienia: test wsteczny na 5 latach notowań (1 842 doby kontroli, pięć największych funduszy; kalendarz notowań wspólny): odległość doby kontroli od ostatniego dnia danych — 1 d (1 274 dób),
+# 2 d (266), 3 d (264), 4 d (28), 5 d (10; przerwy świąteczne Wielkanoc i Boże Narodzenie); próg ⚠️ powyżej 6 d (obserwowany rozstęp 5 d plus 1 d na opóźnienie publikacji).
+# Spójność w pliku (⚠️): zestawienie ma co najmniej 600 funduszy ETF i 90% z poprawnym NAV, każda grupa ma fundusze, największe fundusze pokrywają co najmniej 80% aktywów grupy, historia funduszu rośnie bez powtórzeń,
+# szereg grupy rośnie, pokrycie 0–1, przepływ nie przekracza 30% aktywów grupy (zbieracz odrzuca skoki jednostek ponad 25%), „gotowa” tylko z kompletem historii, liczba jednostek z zestawienia zgodna z plikiem funduszu
+# (obserwowana różnica 1e-8 przy progu 0,5%), odrzucone skoki jednostek nie więcej niż 2% par notowań (test wsteczny, pięć funduszy od 2009: 0,1–0,3%).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'ucits-przeplywy')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['ucits-przeplywy'] = 4 * 60   # zapis co ~10 min — wiek pliku; wiek części ocenia osobny wiersz świeżości
+AW_BEZ_BLEDU.update({k_: 'Fundusze ETF w Europie — część z błędem zostaje z datą (v409); wiek odczytu w wierszach świeżości' for k_ in ('ucits_fx', 'ucits_scr', 'ucits_hist')})
+UCF_K_H = {'fx': 40, 'scr': 6}                   # h — wiek odczytu części
+UCF_K_HIST_DNI = 14                              # dni — wiek najstarszego pliku funduszu
+UCF_K_DZIEN_MAX = 6                              # dni — odległość doby kontroli od dnia danych zestawienia
+UCF_K_ODRZ = 0.02                                # udział odrzuconych skoków jednostek w parach notowań
+UCF_K_ZG = 0.005                                 # największa różnica liczby jednostek z zestawienia i z pliku funduszu
+UCF_K_CORE = 0.80                                # udział aktywów grupy w największych funduszach
+UCF_K_PRZEPLYW = 0.30                            # dzienny przepływ grupy / aktywa największych funduszy
+UCF_K_ETYKIETA = {'fx': 'Fundusze ETF — odczyt kursów walut', 'scr': 'Fundusze ETF — odczyt zestawienia funduszy', 'hist': 'Fundusze ETF — pliki historii funduszy'}
+UCF_K_GRUPY = ('usa', 'swiat', 'ew', 'zloto', 'pl')
+
+
+def ucf_k_dzien(s):
+    return isinstance(s, str) and bool(re.fullmatch(r'\d{4}-\d{2}-\d{2}', s)) and _ix_dt_k(s + 'T00:00:00Z') is not None
+
+
+def ucf_k_spojnosc(j):
+    """Lista usterek spójności w pliku (puste = zgodny); części bez danych pomijane."""
+    zle = []
+    S = j.get('scr') if isinstance(j.get('scr'), dict) else None
+    C = j.get('core') if isinstance(j.get('core'), dict) and isinstance(j['core'].get('f'), dict) else None
+    if S is not None:
+        ne, no = _ste_k_l(S.get('n_etf')), _ste_k_l(S.get('n_ok'))
+        if ne is None or no is None or ne < 600 or no < 0.9 * ne:
+            zle.append('zestawienie: mniej niż 600 funduszy ETF albo mniej niż 90% z poprawnym NAV, aktywami i dniem')
+        if not ucf_k_dzien(S.get('asof')):
+            zle.append('zestawienie: zły dzień danych')
+        zg = _ste_k_l(S.get('zg_max'))
+        if zg is not None and zg > UCF_K_ZG:
+            zle.append(f'zestawienie: liczba jednostek różni się od pliku funduszu o {zg * 100:.2f}% (próg {UCF_K_ZG * 100:.1f}%)'.replace('.', ','))
+        G = S.get('grp') if isinstance(S.get('grp'), dict) else {}
+        for g in UCF_K_GRUPY:
+            P = G.get(g) if isinstance(G.get(g), dict) else None
+            if P is None:
+                if G:
+                    zle.append(f'zestawienie: brak grupy {g}')
+                continue
+            n, a, cn, ca = _ste_k_l(P.get('n')), _ste_k_l(P.get('aum')), _ste_k_l(P.get('core_n')), _ste_k_l(P.get('core_aum'))
+            if n is None or n < 1 or a is None or a <= 0 or cn is None or cn < 1 or cn > n or ca is None or ca <= 0 or ca > a * 1.000001:
+                zle.append(f'zestawienie: grupa {g} bez funduszy, aktywów albo z błędnym podziałem na największe fundusze')
+            elif ca < UCF_K_CORE * a:
+                zle.append(f'zestawienie: największe fundusze grupy {g} pokrywają tylko {ca / a * 100:.0f}% jej aktywów (próg {UCF_K_CORE * 100:.0f}%)')
+    if C is not None:
+        for g in UCF_K_GRUPY:
+            if not any(isinstance(v, dict) and v.get('g') == g for v in C['f'].values()):
+                zle.append(f'największe fundusze: grupa {g} bez funduszu')
+        H = j.get('h') if isinstance(j.get('h'), dict) else {}
+        for i in C['f']:
+            h = H.get(i) if isinstance(H.get(i), dict) else None
+            rows = h.get('rows') if h and isinstance(h.get('rows'), list) else []
+            dni = [r[0] if isinstance(r, list) and len(r) == 3 else None for r in rows]
+            if any(not ucf_k_dzien(d) for d in dni) or dni != sorted(set(dni)) or len(rows) > 130 or any(_ste_k_l(r[1]) is None or r[1] <= 0 or _ste_k_l(r[2]) is None or r[2] <= 0 for r in rows):
+                zle.append(f'historia funduszu {C["f"][i].get("t")}: dni nie rosną, powtórzony dzień, zbyt wiele notowań albo niepoprawna wartość')
+                break
+    Q = j.get('seria') if isinstance(j.get('seria'), dict) and isinstance(j['seria'].get('g'), dict) else None
+    if Q is not None:
+        for g in UCF_K_GRUPY:
+            P = Q['g'].get(g) if isinstance(Q['g'].get(g), dict) else None
+            if P is None:
+                continue
+            rows, aum = P.get('rows') if isinstance(P.get('rows'), list) else [], _ste_k_l(P.get('aum_core'))
+            dni = [r[0] if isinstance(r, list) and len(r) == 4 else None for r in rows]
+            if any(not ucf_k_dzien(d) for d in dni) or dni != sorted(set(dni)):
+                zle.append(f'szereg {g}: dni nie rosną albo powtórzony dzień')
+                continue
+            if any(_ste_k_l(r[1]) is None or _ste_k_l(r[2]) is None or not 0 <= r[2] <= 1 or not isinstance(r[3], int) or r[3] < 1 for r in rows):
+                zle.append(f'szereg {g}: wiersz bez liczby, pokrycie spoza 0–1 albo zła liczba funduszy')
+            elif aum is not None and aum > 0 and any(abs(r[1]) > UCF_K_PRZEPLYW * aum for r in rows):
+                zle.append(f'szereg {g}: dzienny przepływ ponad {UCF_K_PRZEPLYW * 100:.0f}% aktywów największych funduszy')
+            ready, sd, cr = P.get('ready'), _ste_k_l(P.get('seeded')), _ste_k_l(P.get('core'))
+            if ready is True and (sd is None or cr is None or sd != cr or not rows):
+                zle.append(f'szereg {g}: oznaczony jako gotowy bez kompletu historii funduszy')
+    return zle
+
+
+def ucf_kontrola(j, now=None):
+    """data/ucits-przeplywy.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    for k in ('fx', 'scr'):
+        lab = UCF_K_ETYKIETA[k]
+        P = j.get(k) if isinstance(j.get(k), dict) else None
+        if P is None:
+            if isinstance(j.get('ok'), dict) and j['ok'].get(k) is not None:
+                out['rows'].append((lab, '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od początku)')
+            continue
+        w = wiek_danych(P.get('t'), 'ts', 'k', now) if isinstance(P.get('t'), str) else None
+        if w is None:
+            out['rows'].append((lab, '?', None, None, 'brak czasu odczytu'))
+            continue
+        st = '⚠️' if w > UCF_K_H[k] * 60 else '✅'
+        note = '' if st == '✅' else f'odczyt starszy niż {UCF_K_H[k]} h — źródło nie odpowiada albo zmieniło odpowiedź; najwyżej uwaga'
+        out['rows'].append((lab, st, w, str(P['t'])[:16].replace('T', ' ') + ' UTC', note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: odczyt z {str(P["t"])[:16].replace("T", " ")} UTC — {fmt_wiek(w)} temu ({note})')
+    C = j.get('core') if isinstance(j.get('core'), dict) and isinstance(j['core'].get('f'), dict) else None
+    H = j.get('h') if isinstance(j.get('h'), dict) else {}
+    if C is not None and C['f']:
+        pelne = [_ix_dt_k((H.get(i) or {}).get('full_at')) for i in C['f']]
+        gotowe = sum(1 for i in C['f'] if len((H.get(i) or {}).get('rows') or []) >= 40)
+        lab = UCF_K_ETYKIETA['hist']
+        if any(p is None for p in pelne):
+            ct = _ix_dt_k(C.get('t'))
+            dni = (now - ct).days if ct is not None else 0
+            out['wiersze'].append((f'historia największych funduszy w budowie: {gotowe} z {len(C["f"])}', '✅' if dni <= 3 else '⚠️'))
+            out['rows'].append((lab, '✅' if dni <= 3 else '⚠️', None, f'{gotowe} z {len(C["f"])} funduszy', 'pliki funduszy pobierane po 2 na przebieg' if dni <= 3 else 'historia buduje się dłużej niż 3 doby — pliki funduszy nie są pobierane'))
+            if dni > 3:
+                out['uwagi'].append(f'{lab}: po {dni} dobach gotowych jest tylko {gotowe} z {len(C["f"])} funduszy — pliki funduszy nie są pobierane (źródło nie odpowiada albo zmieniło plik)')
+        else:
+            w = max(int((now - p).total_seconds() // 60) for p in pelne)
+            st = '⚠️' if w > UCF_K_HIST_DNI * 1440 else '✅'
+            note = '' if st == '✅' else f'najstarszy plik funduszu ma ponad {UCF_K_HIST_DNI} dni — odświeżanie nie działa; najwyżej uwaga'
+            out['rows'].append((lab, st, w, f'najstarszy plik sprzed {fmt_wiek(w)}', note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab}: {note}')
+    zle = ucf_k_spojnosc(j)
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Fundusze ETF w Europie (ucits-przeplywy.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in ('scr', 'seria', 'core')):
+        out['wiersze'].append(('spójność pliku (zestawienie, największe fundusze, historia, szereg przepływów)', '⚠️' if zle else '✅'))
+    S = j.get('scr') if isinstance(j.get('scr'), dict) else None
+    if S is not None and ucf_k_dzien(S.get('asof')):
+        lag = (now.date() - dt.date.fromisoformat(S['asof'])).days
+        out['wiersze'].append((f'dzień danych zestawienia {S["asof"]} jest {lag} d przed dobą kontroli', '✅' if lag <= UCF_K_DZIEN_MAX else '⚠️'))
+        if lag > UCF_K_DZIEN_MAX:
+            out['uwagi'].append(f'Fundusze ETF w Europie: dzień danych zestawienia {S["asof"]} jest {lag} d przed dobą kontroli — źródło nie dopisuje nowych dni (próg {UCF_K_DZIEN_MAX} d)')
+    Q = j.get('seria') if isinstance(j.get('seria'), dict) and isinstance(j['seria'].get('g'), dict) else None
+    if Q is not None:
+        par = odrz = 0
+        gotowe, brak = [], []
+        for g in UCF_K_GRUPY:
+            P = Q['g'].get(g) if isinstance(Q['g'].get(g), dict) else None
+            if P is None:
+                continue
+            (gotowe if P.get('ready') is True else brak).append(g)
+            odrz += _ste_k_l(P.get('odrz')) or 0
+            par += max(0, (_ste_k_l(P.get('core')) or 0) * 129)
+        if par:
+            q = odrz / par
+            out['wiersze'].append((f'odrzucone skoki liczby jednostek: {odrz} z {par} par notowań ({q * 100:.1f}%)'.replace('.', ','), '✅' if q <= UCF_K_ODRZ else '⚠️'))
+            if q > UCF_K_ODRZ:
+                out['uwagi'].append(f'Fundusze ETF w Europie: odrzucono {odrz} z {par} par notowań ({q * 100:.1f}%, próg {UCF_K_ODRZ * 100:.0f}%) — źródło zmieniło sposób podawania liczby jednostek'.replace('.', ','))
+        if gotowe or brak:
+            out['wiersze'].append((f'grupy z gotowym szeregiem przepływów: {len(gotowe)} z {len(gotowe) + len(brak)}' + (f' (w budowie: {", ".join(brak)})' if brak else ''), '✅' if not brak else 'ℹ️'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -12928,6 +13090,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['eth-lancuch'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Ethereum i L2 (v403): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v409. Fundusze ETF w Europie (data/ucits-przeplywy.json): wiek odczytu kursów i zestawienia, najstarszy plik funduszu, spójność pliku, dzień danych (próg 6 d z testu wstecznego), odrzucone skoki jednostek — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        UC_ = ucf_kontrola(files.get('ucits-przeplywy'))
+        for label, st, w, txt, note in UC_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += UC_['uwagi']
+        R['zgodnosc']['ucits-przeplywy'] = {'spojnosc': UC_['spojnosc'], 'wiersze': UC_['wiersze']} if (UC_['rows'] or UC_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['ucits-przeplywy'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Fundusze ETF w Europie (v409): kontrola przerwana ({str(e)[:80]})')
     # 3c-v402. DeFi 2 (data/defi2.json): wiek doby danych każdej części, spójność w pliku, porównanie podaży USDT z plikiem emitentów — z plików strony, bez zapytań; porównanie TYLKO informacja (ℹ️), reszta najwyżej ⚠️
     try:
         DF_ = df2_kontrola(files.get('defi2'), files.get('stable-emitenci'))
@@ -13862,6 +14034,11 @@ def raport_md(R):
             L.append('- Dźwignia krypto 2, nastroje detalu i kredyt marżowy (z pliku strony; porównanie z dzwignia.json tylko informacyjnie): ' + (f'? kontrola przerwana ({sd2_["blad"]})' if sd2_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(sd2_['spojnosc'][:3]) + ' ⚠️ · ' if sd2_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in sd2_.get('wiersze') or []) or '—') + '.')
+        suc_ = Z.get('ucits-przeplywy')   # v409: fundusze ETF w Europie — brak pliku = bez linii
+        if suc_:
+            L.append('- Fundusze ETF w Europie, dzienne przepływy netto pięciu grup (z pliku strony; wiek części, dzień danych, historia największych funduszy): ' + (f'? kontrola przerwana ({suc_["blad"]})' if suc_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(suc_['spojnosc'][:3]) + ' ⚠️ · ' if suc_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in suc_.get('wiersze') or []) or '—') + '.')
         set_ = Z.get('eth-lancuch')   # v403: Ethereum i warstwa 2 — brak pliku = bez linii
         if set_:
             L.append('- Ethereum i warstwa 2, kolejki stakingu, podaż i sieci L2 (z pliku strony; porównanie TVL z drugim źródłem): ' + (f'? kontrola przerwana ({set_["blad"]})' if set_.get('blad') else

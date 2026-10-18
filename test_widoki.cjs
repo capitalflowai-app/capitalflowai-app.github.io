@@ -9792,7 +9792,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {/* v401 */"iw401.ca.gold": "de", "iw401.p.ar": "es it pt", "iw401.p.ca": "fr it", "iw401.p.hk": "es fr it pt", "iw401.p.jp": "de", /* v400 */"ct400.p.sh": "*", "ct400.p.tw": "de it pt", "ct400.p.hk": "es fr it pt", /* v395 */"en395.norm": "es pt", "en395.pr.propan": "fr", "en395.r.p2": "fr it", "en395.r.p4": "de", "en395.s.norm": "es pt", /* v392 */"ux392.c.CN": "de es pt", /* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {/* v409 */"ucf409.g.zloto": "de", /* v401 */"iw401.ca.gold": "de", "iw401.p.ar": "es it pt", "iw401.p.ca": "fr it", "iw401.p.hk": "es fr it pt", "iw401.p.jp": "de", /* v400 */"ct400.p.sh": "*", "ct400.p.tw": "de it pt", "ct400.p.hk": "es fr it pt", /* v395 */"en395.norm": "es pt", "en395.pr.propan": "fr", "en395.r.p2": "fr it", "en395.r.p4": "de", "en395.s.norm": "es pt", /* v392 */"ux392.c.CN": "de es pt", /* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
 /* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
@@ -31460,3 +31460,191 @@ test('v406: wiadomość i e-mail z odstępami wokół są przycinane przed wysy�
   assert.equal(await K.ktSend(''), 'ok');
   assert.equal(K.calls[0].init.body.get('entry.777401386'), 'przycięty tekst'); assert.equal(K.calls[0].init.body.get('entry.1818401413'), 'czytelnik@example.org');
 });
+
+// ===================== v409 (F11Z18): Europejczycy kupują ETF-y w GLOBAL (data/ucits-przeplywy.json) =====================
+// Fixtura: plik ucits-przeplywy.json w układzie, jaki buduje zbieracz (25 sesji szeregów pięciu grup do 2026-10-16: akcje USA +100 mln EUR dziennie, akcje świata −50, rynki wschodzące +0,4, złoto 0, Polska +0,01).
+// Czas przypięty (Date.now), bez zegara.
+const uc409 = (() => {
+  const a0 = html.indexOf('/* ===================== v409 (F11Z18): EUROPEJCZYCY KUPUJĄ ETF-Y'), a1 = html.indexOf('/* ---------- koniec bloku Europa: fundusze ETF (v409) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v409 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const linia = s => { const i = html.indexOf(s); assert.ok(i > 0, 'linia: ' + s); return html.slice(i, html.indexOf('\n', i)); };
+  const wkh = [linia('const wkNum='), linia('function wkPct('), linia('const wkMs='), linia('const wkIso='), linia('function wkDay(')].join('\n');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-17T21:40:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[  ]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const T = '2026-10-17T21:40:00+00:00';
+  const dni = (() => { const o = []; let d = new Date(Date.UTC(2026, 9, 16)); while (o.length < 25) { if (d.getUTCDay() % 6) o.unshift(d.toISOString().slice(0, 10)); d = new Date(d.getTime() - 864e5); } return o; })();
+  const rows = (v, n) => dni.slice(-(n || 25)).map(d => [d, v, 1, 3]);
+  const GR = {usa: [100, 200000, 297000, 75], swiat: [-50, 100000, 226000, 60], ew: [0.4, 50000, 84000, 17], zloto: [0, 36000, 36000, 3], pl: [0.01, 1000, 1047, 1]};
+  const J = () => ({v: 1, at: T, src: 'x', ok: {fx: true, scr: true, hist: true}, part_at: {fx: T, scr: T, hist: T}, try_at: {}, errs: {},
+    scr: {t: T, asof: '2026-10-16', n_etf: 918, n_ok: 918, zg_max: 1e-8, grp: Object.fromEntries(Object.entries(GR).map(([g, x]) => [g, {n: x[3], aum: x[2], bez_kursu: 0, core_n: 1, core_aum: x[1]}]))},
+    seria: {t: T, g: Object.fromEntries(Object.entries(GR).map(([g, x]) => [g, {rows: rows(x[0]), core: 1, seeded: 1, ready: true, aum_core: x[1], odrz: 0, podzial: 0}]))}});
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-ucits': el};
+    const calls = [], ivs = [], bars = [], lines = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {documentElement: {}, hidden: false};
+    const T_ = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'flagImg', 'document', 'MutationObserver', 'setInterval', 'wkBars', 'wkLines', 'wkK', 'Date',
+      "'use strict';\n" + helpers + '\n' + wkh + '\n' + code + '\nreturn {UCF, ucfLoad, renderUcf, ucfOk, ucfG, ucfRows, ucfSum, ucfEur, ucfBody, ucfStat, ucfTile, ucfPct, ucfProg};')(
+      q => els[q] || null, T_, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, n => '<g:' + n + '>', i => i ? '<i>' + i + '</i>' : '', c => '<f:' + c + '>', doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (r, o) => { bars.push({rows: r, o}); return '<bars n=' + r.length + ' aria="' + o.aria + '">'; }, (Ls, o) => { lines.push({L: Ls, o}); return '<lines n=' + Ls.length + ' aria="' + o.aria + '">'; }, () => ': ', FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, ivs, bars, lines, mos, expand, collapse, html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[2].split('<small')[0]), cls: (/class="ucf-v ([a-z]+)"/.exec(m[2]) || [])[1], lines: [...m[2].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[3])}));
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {ucits_fx: true, ucits_scr: true, ucits_hist: 'cached'}} : meta, 'ucits-przeplywy': j === undefined ? J() : j});
+  return {mk, tiles, files, J, sp, txt, code, helpers, clone, LOC, dni, rows, GR};
+})();
+
+test('v409 (F11Z18): fundusze ETF w Europie — nagłówek od razu, plik dopiero po rozwinięciu karty, pięć kafli z liczbą, datą i wiekiem, kolory kierunku wg znaku', () => {
+  const K = uc409.mk('pl', uc409.files());
+  assert.equal(K.els['#g-ucits'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Wybrane fundusze ETF w Europie: dokąd płyną pieniądze</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Dane zostaną wczytane po rozwinięciu panelu.') && uc409.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku danych'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'ucits-przeplywy'], 'po rozwinięciu: jeden plik, raz'); h = K.html();
+  const T = uc409.tiles(h); assert.equal(T.length, 5);
+  assert.deepEqual(T.map(x => x.label), ['Akcje USA', 'Akcje świata', 'Akcje rynków wschodzących', 'Złoto', 'Polska (akcje)']);
+  assert.deepEqual(T.map(x => x.val), ['+2,0 mld EUR', '−1,0 mld EUR', '+8 mln EUR', '0 mln EUR', '+<1 mln EUR']);
+  assert.deepEqual(T.map(x => x.cls), ['pos', 'neg', 'pos', 'neu', 'pos'], 'napływ zielony, odpływ czerwony, zero żółty');
+  const od = uc409.dni[5], od_ = new Date(Date.parse(od + 'T12:00:00Z')).toLocaleDateString('pl-PL', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'}), do_ = new Date(Date.parse('2026-10-16T12:00:00Z')).toLocaleDateString('pl-PL', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
+  assert.deepEqual(T[0].lines, [['pos', '5 sesji razem: +500 mln EUR'], ['pos', '+1,00% aktywów największych funduszy (20 sesji)'], ['pc', 'Aktywa grupy (jeden wydawca): 297 mld EUR · funduszy: 75']]);
+  assert.equal(T[0].when, '20 sesji, ' + od_ + ' – ' + do_ + ' · wiek(2026-10-16)', 'okres 20 sesji, data i wiek');
+  assert.deepEqual(T[1].lines.slice(0, 2), [['neg', '5 sesji razem: −250 mln EUR'], ['neg', '−1,00% aktywów największych funduszy (20 sesji)']]);
+  assert.deepEqual(T[2].lines.slice(0, 2), [['pos', '5 sesji razem: +2 mln EUR'], ['pos', '+0,02% aktywów największych funduszy (20 sesji)']]);
+  assert.deepEqual(T[3].lines.slice(0, 2), [['neu', '5 sesji razem: 0 mln EUR'], ['neu', '0,00% aktywów największych funduszy (20 sesji)']], 'zero to „0”, nie brak');
+  assert.deepEqual(T[4].lines.slice(0, 2), [['pos', '5 sesji razem: +<1 mln EUR'], ['pos', '+0,02% aktywów największych funduszy (20 sesji)']], 'kwota poniżej 1 mln (ale nie 0)');
+  assert.ok(h.includes('To jest szacunek') || h.includes('Przepływ netto to zmiana liczby jednostek'), 'nota o metodzie'); assert.ok(h.includes('Ostatnia sesja jest wstępna') && h.includes('To nie jest porada inwestycyjna') && h.includes('D:2026-10-17T21:40:00+00:00'), 'noty i data pliku');
+  assert.equal(K.calls.filter(x => x === 'ucits-przeplywy').length, 1); K.expand(); assert.equal(K.calls.filter(x => x === 'ucits-przeplywy').length, 1, 'ponowne rozwinięcie w ciągu 10 min bez nowego pobrania');
+  assert.ok(h.includes('W ostatnich 20 sesjach najwięcej netto napłynęło do grupy „Akcje USA” (+2,0 mld EUR), a najwięcej odpłynęło z grupy „Akcje świata” (−1,0 mld EUR).'), 'zdanie podsumowania z odpływem');
+  const J2 = uc409.J(); J2.seria.g.swiat.rows = uc409.rows(5); const K2 = uc409.mk('pl', uc409.files(J2)); K2.expand();
+  assert.ok(K2.html().includes('a najmniej do grupy „Złoto” (0 mln EUR).'), 'bez odpływów: „najmniej”, nie „odpłynęło”');
+});
+
+test('v409: słupki w EUR i w % aktywów oraz wykres skumulowanych przepływów od wspólnego dnia; wartości, kolejność i opisy', () => {
+  const K = uc409.mk('pl', uc409.files()); K.expand(); assert.equal(K.bars.length, 2); assert.equal(K.lines.length, 1);
+  const [b1, b2] = K.bars, zn = s => s.replace('<', '&lt;');
+  assert.deepEqual(b1.rows.map(r => r.vt), ['+2,0 mld EUR', '−1,0 mld EUR', '+8 mln EUR', '0 mln EUR', zn('+<1 mln EUR')]);
+  assert.deepEqual(b1.rows.map(r => r.v), [2000, -1000, 8, 0, 0.2]);
+  assert.deepEqual(b2.rows.map(r => r.vt), ['+1,00%', '−1,00%', '+0,02%', '0,00%', '+0,02%']);
+  assert.ok(Math.abs(b2.rows[0].v - 1) < 1e-9 && Math.abs(b2.rows[1].v + 1) < 1e-9);
+  assert.ok(b1.o.aria.includes('20 sesjach') && b2.o.aria.includes('procentach aktywów') && b1.o.lw === '42%');
+  assert.ok(b1.rows[0].tip.includes('Akcje USA: +2,0 mld EUR (+1,00%)') && b1.rows[0].tip.includes('5 sesji razem: +500 mln EUR') && b1.rows[0].tip.includes('ostatnia sesja (') && b1.rows[0].tip.includes(', wstępnie): +100 mln EUR'), b1.rows[0].tip);
+  assert.ok(b1.rows[0].l.includes('<f:us>') && b1.rows[1].l.includes('<g:globe>') && b1.rows[2].l.includes('<g:chart>') && b1.rows[3].l.includes('<g:gold>') && b1.rows[4].l.includes('<f:pl>'), 'ikony grup');
+  const w = K.lines[0], L = w.L;
+  assert.deepEqual(L.map(l => l.cls), ['ucf1', 'ucf2', 'ucf3', 'ucf4', 'ucf5']); assert.deepEqual(L.map(l => l.n), ['Akcje USA', 'Akcje świata', 'Akcje rynków wschodzących', 'Złoto', 'Polska (akcje)']);
+  assert.ok(L.every(l => l.d.length === 25 && l.d.every(p => Number.isFinite(p[0]) && Number.isFinite(p[1]))));
+  const end = L.map(l => l.d[24][1]); assert.ok(Math.abs(end[0] - 1.25) < 1e-9 && Math.abs(end[1] + 1.25) < 1e-9 && Math.abs(end[2] - 0.02) < 1e-9 && end[3] === 0 && Math.abs(end[4] - 0.025) < 1e-9, end.join(','));
+  assert.equal(w.o.fmt(1.25), '+1,25%'); assert.ok(w.o.aria.includes('5 grup') || w.o.aria.includes('grup: 5'), w.o.aria);
+  // wspólny dzień początku: grupa z krótszą historią skraca wykres wszystkich
+  const J = uc409.J(); J.seria.g.usa.rows = uc409.rows(100, 10); const K3 = uc409.mk('pl', uc409.files(J)); K3.expand();
+  assert.ok(K3.lines[0].L.every(l => l.d.length === 10), 'wszystkie serie od wspólnego dnia początku'); assert.equal(K3.bars[0].rows.length, 4, 'grupa bez 20 dni nie jest w słupkach 20 sesji');
+  const J4 = uc409.J(); for (const g of ['swiat', 'ew', 'zloto', 'pl']) J4.seria.g[g].ready = false; const K4 = uc409.mk('pl', uc409.files(J4)); K4.expand(); assert.equal(K4.lines.length, 0, 'jedna grupa — bez wykresu linii');
+});
+
+test('v409: grupy w budowie, krótkie historie, błędne wiersze i błąd części — brak to „—”, nie zero; błędne wiersze odrzucone', () => {
+  const J = uc409.J(); J.seria.g.ew.ready = false; J.seria.g.pl.rows = uc409.rows(1, 12); J.ok.scr = false;
+  const K = uc409.mk('pl', uc409.files(J)); K.expand(); const h = K.html(), T = uc409.tiles(h);
+  assert.equal(T.length, 5); assert.equal(T[2].val, '—'); assert.deepEqual(T[2].lines, [['na', 'historia tej grupy jest w budowie']]); assert.equal(T[2].when, '', 'grupa w budowie: bez daty');
+  assert.equal(T[4].val, '—', 'mniej niż 20 sesji — główna liczba to brak'); assert.deepEqual(T[4].lines.slice(0, 2), [['pos', '5 sesji razem: +5 mln EUR'], ['na', '— aktywów największych funduszy (20 sesji)']]);
+  assert.ok(h.includes('Historia tych grup jest w budowie (fundusze dołączają po kilka naraz): Akcje rynków wschodzących.'), 'nota o budowie');
+  assert.ok(h.includes('Nie udało się odświeżyć części danych: zestawienie funduszy. Widać ostatnio wczytane dane z ich datą.'), 'nota o błędzie części');
+  const api = K.api, d0 = uc409.dni[0];
+  assert.deepEqual(api.ucfRows([[uc409.dni[7], 4, 1, 2], [d0, 1, 0.5, 2], [d0, 9, 0.9, 1], ['2026-13-40x', 1, 1, 1], [uc409.dni[1], '5', 1, 1], [uc409.dni[2], 1, 1.5, 1], [uc409.dni[3], 1, 1, 0], [uc409.dni[8], 1, 1, 1.5], [uc409.dni[4], 2e6, 1, 1], [uc409.dni[5], 3, 0, 1], 'x', null, [uc409.dni[6], 1, 1]]),
+    [[d0, 9, 0.9, 1], [uc409.dni[5], 3, 0, 1], [uc409.dni[7], 4, 1, 2]], 'odrzucone: zły dzień, tekst zamiast liczby, pokrycie spoza 0–1, zła liczba funduszy (zero i ułamek), kwota ponad 1 000 000 mln, zła długość; powtórzony dzień — ostatni wiersz; wynik rosnąco mimo wejścia w innej kolejności');
+  assert.equal(api.ucfSum([[d0, 1, 1, 1], [uc409.dni[1], 2, 1, 1]], 3), null, 'za mało dni = brak, nie suma z kawałka'); assert.equal(api.ucfSum([[d0, 0.1, 1, 1], [uc409.dni[1], 0.2, 1, 1]], 2), 0.3, 'bez błędu zmiennoprzecinkowego');
+  assert.equal(api.ucfG(uc409.J(), 'nie'), null); const Jx = uc409.J(); Jx.seria.g.usa.aum_core = 0; assert.equal(api.ucfG(Jx, 'usa'), null, 'aktywa zero = grupa pominięta'); const Jy = uc409.J(); Jy.seria.g.usa.rows = uc409.rows(1, 4); assert.equal(api.ucfG(Jy, 'usa'), null, 'mniej niż 5 dni = grupa pominięta');
+  const Jm = uc409.J(); Jm.scr.grp.zloto.aum = 0.4; const Km = uc409.mk('pl', uc409.files(Jm)); Km.expand(); assert.ok(Km.html().includes('Aktywa grupy (jeden wydawca): &lt;1 mln EUR · funduszy: 3'), 'kwota poniżej 1 mln jako tekst, nie znacznik'); assert.ok(!Km.html().includes('Aktywa grupy (jeden wydawca): <1'));
+  const Jz = uc409.J(); delete Jz.scr; const Kz = uc409.mk('pl', uc409.files(Jz)); Kz.expand(); assert.equal(uc409.tiles(Kz.html())[0].lines.length, 2, 'bez zestawienia: bez linii o aktywach grupy (brak, nie zero)');
+});
+
+test('v409: plik niepoprawny i chwilowy błąd pobrania — komunikat bez pętli zapytań, wczytane dane nie znikają; meta bez części ukrywa panel; odświeżanie co 30 min tylko przy rozwiniętej karcie', () => {
+  for (const bad of [null, {v: 2}, {v: 1, at: 'x'}, []]) {
+    const K = uc409.mk('pl', uc409.files(bad)); K.expand(); assert.ok(K.html().includes('Nie udało się wczytać danych o funduszach. Spróbuj ponownie za chwilę.')); const n1 = K.calls.filter(c => c === 'ucits-przeplywy').length; K.expand(); K.expand();
+    assert.equal(K.calls.filter(c => c === 'ucits-przeplywy').length, n1, 'bez pętli zapytań po błędzie');
+  }
+  assert.equal(uc409.mk('pl', uc409.files(undefined, {ok: {kalendarz_bc_us: true}})).els['#g-ucits'].hidden, true, 'meta bez części funduszy — panel ukryty');
+  assert.equal(uc409.mk('pl', uc409.files(undefined, null)).els['#g-ucits'].hidden, true, 'brak meta — panel ukryty');
+  assert.equal(uc409.mk('pl', uc409.files(undefined, {ok: {ucits_scr: false}})).els['#g-ucits'].hidden, false, 'część z błędem w meta nadal jest częścią');
+  const KZ = uc409.mk('pl', uc409.files(), {open: true}); const iv = KZ.ivs.find(x => x[1] === 30 * 60 * 1000); assert.ok(iv, 'zegar 30 min'); const c0 = KZ.calls.filter(c => c === 'ucits-przeplywy').length; iv[0]();
+  assert.equal(KZ.calls.filter(c => c === 'ucits-przeplywy').length, c0 + 1, 'odświeżenie wymuszone zegarem'); KZ.collapse(); const c1 = KZ.calls.filter(c => c === 'ucits-przeplywy').length; iv[0](); assert.equal(KZ.calls.filter(c => c === 'ucits-przeplywy').length, c1, 'zwinięta karta nie odświeża');
+  // chwilowy błąd po wczytaniu danych: dane zostają, komunikat o błędzie nie zasłania wczytanych liczb
+  const F2 = uc409.files(), K2 = uc409.mk('pl', F2); K2.expand(); assert.ok(K2.html().includes('+2,0 mld EUR')); F2['ucits-przeplywy'] = {v: 2}; K2.api.UCF.t = 0; K2.api.ucfLoad(1);
+  assert.ok(K2.html().includes('+2,0 mld EUR') && !K2.html().includes('Nie udało się wczytać'), 'dane na ekranie po chwilowym błędzie'); assert.equal(K2.api.UCF.x, false); assert.ok(K2.api.UCF.e > 0, 'czas błędu zapamiętany (nowa próba po minucie)');
+  const nIle = () => K2.calls.filter(c => c === 'ucits-przeplywy').length, n2 = nIle(); K2.expand(); K2.collapse(); K2.expand(); assert.equal(nIle(), n2, 'po błędzie z wczytanymi danymi: bez pętli zapytań (przerysowanie nie woła pobrania)');
+});
+
+test('v409: budowa historii — żadna grupa jeszcze nie gotowa: nie błąd, tylko kafle „—” i postęp funduszy; po zasileniu grupy pojawiają się', () => {
+  const J = uc409.J(); for (const g of Object.keys(J.seria.g)) { J.seria.g[g].ready = false; J.seria.g[g].seeded = 0; J.seria.g[g].core = g === 'usa' ? 12 : 1; J.seria.g[g].rows = []; }
+  J.seria.g.zloto.seeded = 1; J.seria.g.pl.seeded = 1;
+  const K = uc409.mk('pl', uc409.files(J)); K.expand(); const h = K.html();
+  assert.ok(!h.includes('Nie udało się wczytać') && uc409.tiles(h).length === 5 && uc409.tiles(h).every(x => x.val === '—' && x.lines[0][1] === 'historia tej grupy jest w budowie'));
+  assert.ok(h.includes('Gotowych funduszy: 2 z 16.') && h.includes('Historia tych grup jest w budowie'), 'postęp: 2 z 16 funduszy'); assert.equal(K.bars.length, 0); assert.equal(K.lines.length, 0, 'bez wykresów'); assert.ok(!h.includes('W ostatnich 20 sesjach'));
+  const Jn = uc409.J(); delete Jn.seria; const Kn = uc409.mk('pl', uc409.files(Jn)); Kn.expand(); assert.ok(Kn.html().includes('Historia tych grup jest w budowie') && !Kn.html().includes('Gotowych funduszy'), 'bez szeregu: bez postępu (brak, nie „0 z 0”)');
+  const Jb = uc409.J(); Jb.seria.g.usa.seeded = 9; Jb.seria.g.usa.core = 3; assert.deepEqual(K.api.ucfProg(Jb), {n: 4, m: 4}, 'grupa z zepsutą liczbą pomijana'); assert.equal(K.api.ucfProg({}), null); assert.equal(K.api.ucfProg(null), null);
+});
+
+test('v409: 10 języków — liczby w lokalnym formacie, żadnych surowych kluczy ani NaN; zmiana języka przerysowuje bez nowego pobrania', () => {
+  const LANGS = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  for (const L of LANGS) {
+    const K = uc409.mk(L, uc409.files()); K.expand(); const hh = K.html();
+    assert.ok(!/ucf409\.|NaN|undefined|Infinity|\{[a-z]+\}/.test(hh), L + ': blok bez surowych kluczy, NaN i niepodstawionych pól'); assert.equal(uc409.tiles(hh).length, 5, L);
+    assert.ok(K.bars.length === 2 && K.lines.length === 1 && K.bars.every(b => b.o.aria && !/ucf409/.test(b.o.aria)) && !/ucf409/.test(K.lines[0].o.aria), L + ': opisy wykresów');
+  }
+  const val = (L, i) => uc409.tiles((() => { const K = uc409.mk(L, uc409.files()); K.expand(); return K.html(); })())[i || 0];
+  assert.equal(val('en').val, '+2.0 bn EUR', 'en: kropka'); assert.equal(val('de').val, '+2,0 Mrd. EUR', 'de: przecinek'); assert.equal(val('ru').val, '+2,0 млрд EUR');
+  assert.equal(val('ja').label, '米国株', 'ja: etykieta po japońsku'); assert.equal(val('de', 1).label, 'Weltaktien'); assert.equal(val('zh', 3).label, '黄金');
+  const KL = uc409.mk('pl', uc409.files(), {open: true}); const lm = KL.mos.filter(m => m.tg !== KL.els['#g-ucits']); assert.ok(lm.length >= 1, 'obserwator języka'); const before = KL.calls.length; lm.forEach(m => m.cb()); assert.equal(KL.calls.length, before, 'zmiana języka bez nowego pobrania');
+});
+
+test('v409: słownik w czystym JSON w 10 językach, bez nazw dostawców; karta po panelu funduszy w Europie; CSS ograniczony do karty (zmienne motywu, telefon 390 px bez przewijania w bok); jedno pobranie pliku', () => {
+  const LANGS = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const mm = [...html.matchAll(/\/\* v409: Europejczycy[^\n]*\*\/\nconst (EXTRA\d+)=(\{[^\n]*\});\n/g)]; assert.equal(mm.length, 1, 'jeden słownik v409 w jednej linii');
+  const n = mm[0][1], D = JSON.parse(mm[0][2]); assert.deepEqual(Object.keys(D), LANGS); const keys = Object.keys(D.pl); assert.ok(keys.length >= 35 && keys.every(k => k.startsWith('ucf409.')));
+  const nazwy = /\b(iShares|BlackRock|ECB|EBC|Europäische Zentralbank|European Central Bank|Banco Central Europeo|Banque centrale européenne|Eurostat|Bloomberg|Reuters)\b/i;
+  for (const L of LANGS) {
+    assert.deepEqual(Object.keys(D[L]), keys, L + ': te same klucze');
+    for (const k of keys) {
+      const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(','); assert.equal(ph(D[L][k]), ph(D.pl[k]), `${L} ${k}: te same pola {x}`); assert.ok(!/[<>]/.test(D[L][k]), `${L} ${k}: bez znaczników HTML`);
+      assert.ok(D[L][k].trim().length > 0 && !nazwy.test(D[L][k]), `${L} ${k}: niepusty, bez nazw dostawców`);
+    }
+  }
+  for (const l of Object.keys(D)) { const n3 = D[l]['ucf409.n3'], n2 = D[l]['ucf409.n2'], sb = D[l]['ucf409.sub'], au = D[l]['ucf409.l.aum']; assert.ok(n3 && n2 && sb && au, 'zakres (jeden wydawca) opisany w sub, n2, n3, l.aum: ' + l); assert.ok(!/ishares|blackrock/i.test(JSON.stringify(D[l])), 'bez nazw dostawców: ' + l); }
+  assert.ok(D.pl['ucf409.t'] !== D.en['ucf409.t'] && D.de['ucf409.t'] !== D.en['ucf409.t'] && D.ja['ucf409.n1'] !== D.en['ucf409.n1'] && D.ru['ucf409.n2'] !== D.en['ucf409.n2'], 'prawdziwe tłumaczenia');
+  for (const L of LANGS.filter(l => l !== 'pl')) assert.ok(keys.filter(k => D[L][k] === D.pl[k]).every(k => /\.u\.m/.test(k)), L + ': poza jednostkami (mld EUR / mln EUR) żadnej kopii polskiego');
+  const used = new Set([...uc409.code.matchAll(/'(ucf409\.[a-z0-9.]+)'/gi)].map(m => m[1]).filter(k => !k.endsWith('.'))); const dyn = {'ucf409.g.': ['usa', 'swiat', 'ew', 'zloto', 'pl'], 'ucf409.p.': ['fx', 'scr', 'hist']};
+  for (const [p, v] of Object.entries(dyn)) for (const x of v) used.add(p + x);
+  for (const k of used) assert.ok(keys.includes(k), 'klucz użyty w kodzie, brak w słowniku: ' + k); for (const k of keys) assert.ok(used.has(k), 'klucz słownika nieużyty w kodzie: ' + k);
+  assert.ok(html.includes('for(const l in ' + n + ')if(I18N[l])Object.assign(I18N[l],' + n + '[l]);\n') && html.indexOf('const ' + n + '=') < html.indexOf('for(const l in ' + n + ')'), 'linia for po słowniku');
+  assert.ok(!/[\u200b-\u200f\u2060\ufeff\ufe0f\u00a0\u202f]/.test(mm[0][0]), 'znaki niewidoczne tylko jako ucieczki');
+  const kod = uc409.code.replace(/\/\*[\s\S]*?\*\//g, ''); assert.ok(!nazwy.test(kod) && !/ishares|blackrock|ecb\.europa|screener/i.test(kod), 'w kodzie karty (poza komentarzami) brak nazw dostawców i adresów');
+  // karta: po panelu funduszy w Europie w GLOBAL, jedna na stronie
+  assert.ok(html.includes('<section class="panel pcard" id="g-eufund" hidden></section>\n    <section class="panel pcard" id="g-ucits" hidden></section>\n'), 'karta zaraz po panelu funduszy w Europie'); assert.equal(html.split('id="g-ucits"').length - 1, 1);
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])ucits-przeplywy\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  // CSS: tylko reguły karty; kolory ze zmiennych motywu, wyjątek: dwie barwy tożsamości serii wykresu liniowego; telefon w dwóch kolumnach
+  const c0 = html.indexOf('/* v409 (F11Z18): Europejczycy kupują ETF-y (panel #g-ucits)'); assert.ok(c0 > 0); const c1 = html.indexOf('</style>', c0); assert.ok(c1 > c0 && html.slice(c0, c1).includes('(max-width:620px){#g-ucits .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}'));
+  const css = html.slice(c0, c1); assert.ok(css.length > 800 && css.length < 4000, 'blok CSS ograniczony anchorami');
+  const body = css.replace(/\/\*[\s\S]*?\*\//g, ''); const rules = [...body.replace(/@media[^{]*\{/g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]); assert.ok(rules.length >= 14);
+  assert.ok(rules.every(([sel, b]) => !/#[0-9a-fA-F]{3,8}\b/.test(b.replace(/#g-ucits/g, ''))), 'kolory tylko ze zmiennych motywu (także serie tożsamości wykresu: zmienne i ich mieszanki)');
+  assert.ok(rules.every(([sel]) => sel.split(',').every(s => s.trim().startsWith('#g-ucits'))), 'wszystkie reguły ograniczone do karty'); assert.ok(html.indexOf('/* v409 (F11Z18): Europejczycy') > html.indexOf('/* v401 (F11Z14)') || !html.includes('/* v401 (F11Z14)'), 'CSS na końcu arkusza, po starszych blokach paneli');
+  assert.ok(css.includes('#g-ucits .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}') && css.includes('@media (max-width:620px){#g-ucits .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}'), 'trzy kolumny, na telefonie dwie (bez przewijania w bok)');
+  for (const c of ['small.pos{color:var(--gr-tx)}', 'small.neg{color:var(--rd-tx)}', 'small.neu{color:var(--yl-tx)}', '.ucf-v.pos{color:var(--gr-tx)}', '.ucf-v.neg{color:var(--rd-tx)}', '.ucf-v.neu{color:var(--yl-tx)}', '.wk-bl{white-space:normal;line-height:1.25}', '.etfk{min-width:0}', 'overflow-wrap:anywhere'])
+    assert.ok(css.includes(c), 'CSS: ' + c);
+  assert.ok(!/ucf[1-5]\{--k:var\(--(gr|rd|yl)/.test(css), 'serie wykresu liniowego nie w kolorach kierunku');
+  const K = uc409.mk('pl', uc409.files()); K.expand(); assert.ok(!/style="[^"]*(width|min-width):\s*\d{3,}px/.test(K.html()), 'brak stałych szerokości w pikselach');
+});
+/* v409: koniec */
