@@ -33856,6 +33856,30 @@ def main():
                 save('kanada-dlug', prev_kdl)
     META['ok']['kandlug_au'] = stan_kdl['au']; META['ok']['kandlug_dr'] = stan_kdl['dr']; META['ok']['kandlug_co'] = stan_kdl['co']; META['ok']['kandlug_bs'] = stan_kdl['bs']; META['ok']['kandlug_rp'] = stan_kdl['rp']
     # v410: koniec bloku Kanada
+    # v423 (F11Z26): FED — BANKI KOMERCYJNE, PAPIERY KOMERCYJNE, ANKIETA DEALERÓW, ANKIETA KREDYTOWA BANKÓW (data/fed-ddp.json: cztery części z własnym ok / part_at / errs) — co FDD_EVERY_MIN min
+    # (plik z częścią nieudaną: NIEPELNY_MIN, fresh_pelny); części mają własne rytmy (FDD_INT: banki i papiery komercyjne 12 h, ankiety 24 h); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json).
+    # META ok: fedddp_* (cached = odczyt jeszcze niepotrzebny).
+    prev_fdd = previous('fed-ddp')
+    if isinstance(prev_fdd, dict) and prev_fdd.get('v') == FDD_V and fresh_pelny(prev_fdd, FDD_EVERY_MIN):
+        save('fed-ddp', prev_fdd)
+        stan_fdd = {}
+        for k_fdd in FDD_PARTS:
+            if _dict(prev_fdd.get('ok')).get(k_fdd) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{FDD_PX} {FDD_LABEL[k_fdd]}: {str(_dict(prev_fdd.get('errs')).get(k_fdd) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_fdd[k_fdd] = False
+            else:
+                stan_fdd[k_fdd] = 'cached'
+    else:
+        try:
+            fdd_ = build_fed_ddp(prev_fdd, run_t0=_RUN_T0[0]); save('fed-ddp', fdd_)
+            stan_fdd = {k_fdd: fdd_['ok'].get(k_fdd, 'cached') for k_fdd in FDD_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{FDD_PX}: {e}')[:200])
+            stan_fdd = {k_fdd: False for k_fdd in FDD_PARTS}
+            if isinstance(prev_fdd, dict):
+                save('fed-ddp', prev_fdd)
+    META['ok']['fedddp_h8'] = stan_fdd['h8']; META['ok']['fedddp_cp'] = stan_fdd['cp']; META['ok']['fedddp_so'] = stan_fdd['so']; META['ok']['fedddp_sl'] = stan_fdd['sl']
+    # v423: koniec bloku Fed (banki, papiery komercyjne, ankiety)
     prev_pr = previous('prad')
     try:
         pr_ = build_prad(prev_pr, run_t0=_RUN_T0[0], rozsz=True)
@@ -43092,6 +43116,437 @@ def build_kanada_dlug(prev=None, run_t0=None):
 
 
 # v410: koniec modułu Kanada
+
+
+# ===================== v423 (F11Z26): FED — BANKI KOMERCYJNE USA, PAPIERY KOMERCYJNE, ANKIETA DEALERÓW, ANKIETA KREDYTOWA BANKÓW (data/fed-ddp.json) =====================
+# Cztery niezależne części jednego pliku, każda z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie (nigdy puste zamiast ostatnich danych); publiczne zapytania GET bez klucza,
+# nagłówek zbieracza, odstęp FDD_SLEEP s, limit czasu i rozmiaru KAŻDEGO zapytania, cała budowa FDD_LIMIT_S s. Jedno źródło (Rada Gubernatorów Fed — już liczone w kalendarzu): gotowe paczki ZIP z XML
+# (SDMX „Data Download Program”) pobierane z adresów wydań; XML czytany strumieniowo (parser expat, DOCTYPE odrzucany, limity rozmiaru spakowanego i rozpakowanego), do pamięci trafiają tylko potrzebne serie.
+#   h8 — banki komercyjne w USA, tygodniowo (środa, dane wyrównane sezonowo, mld $): aktywa razem, kredyt bankowy, papiery wartościowe, kredyty i leasing, w tym przemysłowe i handlowe (C&I), nieruchomości
+#        komercyjne, konsumenckie i dla instytucji finansowych poza bankami; depozyty, duże depozyty terminowe, pożyczki zaciągnięte, gotówka.
+#   cp — papiery komercyjne: (w) w obiegu tygodniowo (środa, wyrównane sezonowo, mld $): razem, niefinansowe, finansowe, zabezpieczone aktywami; (r) stawki dzienne 30-dniowych papierów: AA niefinansowe,
+#        A2/P2 niefinansowe (niższa jakość) — rozstęp A2/P2 do AA mierzy premię za ryzyko kredytowe.
+#   so — ankieta dealerów o warunkach finansowania funduszy hedgingowych (kwartalnie): netto % dealerów zaostrzających ceny, warunki poza ceną, netto % zwiększających się dźwigni funduszy i dostępności dalszej dźwigni.
+#   sl — ankieta kredytowa starszych urzędników bankowych (kwartalnie): netto % banków zaostrzających standardy (duże i średnie firmy, małe firmy, karty kredytowe, nieruchomości komercyjne, ważone: biznes i
+#        gospodarstwa domowe) oraz netto % banków widzących silniejszy popyt (duże firmy, karty).
+# Wersja z 18.10.2026: ogłoszono wygaszanie aplikacji Data Download Program (od 9.11 znika „Build Your Package”, pełne wycofanie później); paczki z wydań są nadal na swoich adresach — jeśli znikną, część zgłosi błąd
+# i zostanie z ostatnimi danymi (kontrola: ⚠ po przekroczeniu progu rytmu), bez zerowania liczb.
+# Bramki: każda liczba skończona i w zakresie wiarygodności, daty istniejące, nie z przyszłości i rosnące bez powtórzeń (tygodnie co 7 dni, środy), tożsamości (kredyt bankowy = papiery + kredyty; papiery
+# komercyjne razem = niefinansowe + finansowe + zabezpieczone aktywami; liczność ankiety = suma odpowiedzi), atrybuty serii zgodne z oczekiwanymi (wyrównanie sezonowe, grupa banków, mnożnik); inny kształt
+# albo brak serii = błąd części (nigdy cicha zmiana liczb).
+import zipfile as _fdd_zip
+import xml.parsers.expat as _fdd_expat
+import collections as _fdd_col
+import zlib as _fdd_zlib
+FDD_V = 1
+FDD_PARTS = ('h8', 'cp', 'so', 'sl')
+FDD_LABEL = {'h8': 'banki komercyjne', 'cp': 'papiery komercyjne', 'so': 'ankieta dealerów', 'sl': 'ankieta kredytowa banków'}
+FDD_PX = 'Fed banki i papiery komercyjne'
+FDD_EVERY_MIN = 30              # min — plik budowany najwyżej co tyle (plik z nieudaną częścią: NIEPELNY_MIN), części mają własne rytmy poniżej
+FDD_INT = {'h8': 720, 'cp': 720, 'so': 1440, 'sl': 1440}   # min — odstęp między odczytami części (wydania: H.8 raz w tygodniu w piątek wieczorem, papiery komercyjne dziennie, ankiety raz na kwartał)
+FDD_TIMEOUT = 60                # s — jedno zapytanie
+FDD_SLEEP = 1.0                 # s — odstęp między zapytaniami
+FDD_LIMIT_S = 240               # s — budżet czasu budowy pliku (pobranie + rozbiór); po nim kolejne części zgłaszają błąd limitu (poprzednie dane zostają)
+FDD_BASE = 'https://www.federalreserve.gov/releases/'
+FDD_URL = {'h8': FDD_BASE + 'h8/data/FRB_h8_xml.zip', 'cp': FDD_BASE + 'cp/data/FRB_CP_xml.zip', 'so': FDD_BASE + 'scoos/data/FRB_SCOOS_xml.zip', 'sl': FDD_BASE + 'sloos/data/FRB_SLOOS_xml.zip'}
+FDD_MEMBER = {'h8': 'H8_data.xml', 'cp': 'CP_data.xml', 'so': 'SCOOS_data.xml', 'sl': 'SLOOS_data.xml'}
+FDD_MAXZ = {'h8': 12000000, 'cp': 10000000, 'so': 1500000, 'sl': 1500000}   # B — największa dopuszczalna paczka (zmierzone 18.10.2026: 8,4 MB / 6,3 MB / 0,3 MB / 0,24 MB)
+FDD_MAXU = {'h8': 140000000, 'cp': 190000000, 'so': 30000000, 'sl': 20000000}   # B — największy dopuszczalny rozpakowany XML (zmierzone: 79 MB / 112 MB / 13 MB / 5 MB)
+FDD_KEEP = {'hw': 160, 'cpw': 160, 'cpr': 270, 'so': 64, 'sl': 52}   # wierszy historii (tygodnie ≈ 3 lata; dni robocze ≈ rok; kwartały)
+FDD_STARE = {'h8': 28, 'cpw': 28, 'cpr': 12, 'prep_q': 130}   # doby — ostatni tydzień / dzień danych; wiek publikacji ankiety (cykl kwartalny ≈ 91 dni + zapas)
+FDD_H8 = (('akt', 'B1151NCBA'), ('kre', 'B1001NCBA'), ('pap', 'B1002NCBA'), ('poz', 'B1020NCBA'), ('ci', 'B1023NCBA'), ('cre', 'B3219NCBA'), ('kon', 'B1029NCBA'), ('nbf', 'B1030NCBA'),
+          ('dep', 'B1058NCBA'), ('dlt', 'B1072NCBA'), ('zob', 'B3094NCBA'), ('got', 'B1048NCBA'))
+FDD_CPW = (('raz', 'DTBSPCK.WW'), ('nfi', 'DTBSPCKN.WW'), ('fin', 'DTBSPCKF.WW'), ('abc', 'DTBSPCKA.WW'))
+FDD_CPR = (('aa', 'RIFSPPNAAD30_N.B'), ('a2', 'RIFSPPNA2P2D30_N.B'))
+FDD_SO_Q = (('pr', 'Q04', 'T'), ('np', 'Q05', 'T'), ('lv', 'Q08', 'I'), ('av', 'Q09', 'I'))   # pytanie 4: ceny, 5: warunki poza ceną (zaostrzenie), 8: dźwignia funduszy, 9: dostępna dalsza dźwignia (zwiększenie)
+FDD_SO_K = {'T': ('TC', 'TS', 'RBU', 'ES', 'EC'), 'I': ('IC', 'IS', 'RBU', 'DS', 'DC')}   # odpowiedzi: dwie „w górę” (zaostrzenie / zwiększenie), bez zmian, dwie „w dół”
+FDD_SL = (('ci', 'SUBLPDCILS_N.Q'), ('cs', 'SUBLPDCISS_N.Q'), ('kk', 'SUBLPDCLCS_N.Q'), ('cr', 'SUBLPDRCSN_N.Q'), ('bw', 'SUBLPDMBS_XWB_N.Q'), ('hw', 'SUBLPDMHS_XWB_N.Q'), ('pd', 'SUBLPDCILD_N.Q'), ('pk', 'SUBLPDCLCD_N.Q'))
+FDD_SRC = ('CapitalFlowAI — banki komercyjne w USA (bilans tygodniowy), papiery komercyjne (w obiegu i stawki), ankieta dealerów o warunkach finansowania funduszy oraz ankieta kredytowa banków; '
+          'publiczne dane urzędowe, dzień danych (kwartał) i data publikacji przy każdej części')
+ZRODLA_META.update({'fedddp_h8': 'fed-board', 'fedddp_cp': 'fed-board', 'fedddp_so': 'fed-board', 'fedddp_sl': 'fed-board'})   # v423: ta sama instytucja co terminarz Fed (+0 źródeł)
+_FDD_T0 = [None]
+
+
+def fdd_get(url, maks):
+    """Jedno zapytanie GET (publiczne, bez klucza) z odstępem FDD_SLEEP, limitem czasu (FDD_TIMEOUT, nie więcej niż reszta budżetu budowy) i limitem rozmiaru `maks` B (dłuższa odpowiedź = błąd)."""
+    t0 = _FDD_T0[0]
+    lim = FDD_TIMEOUT
+    if t0 is not None:
+        left = FDD_LIMIT_S - (time.monotonic() - t0)
+        if left < 5:
+            raise RuntimeError(f'limit czasu budowy ({FDD_LIMIT_S} s)')
+        lim = max(5, min(FDD_TIMEOUT, left))
+    time.sleep(FDD_SLEEP)
+    return get_bytes_maks(url, timeout=lim, maks=maks)
+
+
+def fdd_liczba(x, lo, hi, co):
+    """Liczba skończona z tekstu dziesiętnego (albo liczby) w przedziale [lo, hi]; wartość logiczna, brak, NaN i poza przedziałem = ValueError."""
+    if isinstance(x, bool):
+        raise ValueError(f'{co}: wartość logiczna')
+    try:
+        v = float(x.strip()) if isinstance(x, str) else float(x)
+    except (TypeError, ValueError, AttributeError):
+        raise ValueError(f'{co}: nie liczba ({str(x)[:12]!r})') from None
+    if v != v or v in (float('inf'), float('-inf')) or not lo <= v <= hi:
+        raise ValueError(f'{co}: poza zakresem ({v})')
+    return v
+
+
+def fdd_dzien(s, dzis, co):
+    """Dzień RRRR-MM-DD → date; zły zapis, nieistniejący dzień albo więcej niż dzień po dniu przebiegu = ValueError."""
+    if not (isinstance(s, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', s)):
+        raise ValueError(f'{co}: zły dzień {str(s)[:12]!r}')
+    try:
+        d = datetime.date.fromisoformat(s)
+    except ValueError:
+        raise ValueError(f'{co}: nieistniejący dzień {s[:10]!r}') from None
+    if d > dzis + datetime.timedelta(days=1):
+        raise ValueError(f'{co}: dzień {d} z przyszłości')
+    return d
+
+
+def fdd_xml(zbytes, member, wanted, maxu):
+    """Paczka ZIP → {nazwa serii: {'a': atrybuty, 'o': [(dzień, status, wartość)] (ostatnie `keep`)}} + {'prep': data z nagłówka}. `wanted` = {nazwa: keep}.
+    Strumieniowo (expat): rozpakowany plik większy niż maxu, DOCTYPE/ENTITY, powtórzona seria, brak którejś z wymaganych serii albo zły ZIP = ValueError."""
+    try:
+        zf = _fdd_zip.ZipFile(io.BytesIO(zbytes))
+    except (_fdd_zip.BadZipFile, ValueError, OSError):
+        raise ValueError('odpowiedź nie jest paczką ZIP (strona błędu albo odmowa)') from None
+    try:
+        info = zf.getinfo(member)
+    except KeyError:
+        raise ValueError(f'w paczce brak pliku {member}') from None
+    if info.file_size > maxu:
+        raise ValueError(f'plik {member} po rozpakowaniu większy niż {maxu} B (limit)')
+    out, st = {}, {'cur': None, 'hdr': False, 'prep': [], 'inprep': False}
+
+    def start(name, at):
+        loc = name.rpartition(':')[2]
+        if loc == 'Series':
+            nm = at.get('SERIES_NAME')
+            if nm in wanted:
+                if nm in out:
+                    raise ValueError(f'powtórzona seria {nm}')
+                out[nm] = {'a': dict(at), 'o': _fdd_col.deque(maxlen=wanted[nm])}
+                st['cur'] = nm
+        elif loc == 'Obs' and st['cur'] is not None:
+            out[st['cur']]['o'].append((at.get('TIME_PERIOD'), at.get('OBS_STATUS'), at.get('OBS_VALUE')))
+        elif loc == 'Prepared':
+            st['inprep'] = True
+
+    def end(name):
+        loc = name.rpartition(':')[2]
+        if loc == 'Series':
+            st['cur'] = None
+        elif loc == 'Prepared':
+            st['inprep'] = False
+
+    def char(data):
+        if st['inprep'] and sum(map(len, st['prep'])) < 64:
+            st['prep'].append(data)
+
+    def doctype(*a):
+        raise ValueError('plik XML ma DOCTYPE/ENTITY (odrzucony)')
+    p = _fdd_expat.ParserCreate()
+    p.StartElementHandler, p.EndElementHandler, p.CharacterDataHandler = start, end, char
+    p.StartDoctypeDeclHandler = doctype
+    p.EntityDeclHandler = doctype
+    n = 0
+    try:
+        with zf.open(info) as f:
+            while True:
+                b = f.read(1 << 20)
+                if not b:
+                    break
+                n += len(b)
+                if n > maxu:
+                    raise ValueError(f'plik {member} po rozpakowaniu większy niż {maxu} B (limit)')
+                p.Parse(b, False)
+            p.Parse(b'', True)
+    except _fdd_expat.ExpatError as e:
+        raise ValueError(f'zły XML: {str(e)[:60]}') from None
+    except (_fdd_zip.BadZipFile, _fdd_zlib.error, OSError, EOFError) as e:
+        raise ValueError(f'uszkodzona paczka: {str(e)[:60]}') from None
+    brak = sorted(set(wanted) - set(out))
+    if brak:
+        raise ValueError(f'brak wymaganych serii: {", ".join(brak[:4])}')
+    prep = ''.join(st['prep']).strip()[:10]
+    return {k: {'a': v['a'], 'o': list(v['o'])} for k, v in out.items()}, (prep if re.fullmatch(r'\d{4}-\d{2}-\d{2}', prep) else None)
+
+
+def fdd_attrs(S, nm, oczek):
+    """Atrybuty serii zgodne z oczekiwanymi (wyrównanie sezonowe, grupa banków, mnożnik, częstotliwość); inne = ValueError (zmiana kształtu źródła)."""
+    for k, v in oczek.items():
+        if S[nm]['a'].get(k) != v:
+            raise ValueError(f'{nm}: atrybut {k}={S[nm]["a"].get(k)!r} zamiast {v!r}')
+
+
+def fdd_wartosc(o, nm):
+    """Obserwacja (dzień, status, tekst) → liczba albo None (status inny niż „A” albo wartość „-9999” = brak danych)."""
+    if o[1] != 'A' or o[2] in (None, '', '-9999', 'ND', 'NA', 'NC'):
+        return None
+    return o[2]
+
+
+def fdd_tyg(S, spec, lo_hi, mnoz, nd, co, stare, dzis, dec, srod=True):
+    """Serie tygodniowe z `spec` [(klucz, nazwa)] → wiersze [dzień, wartości…] (wartość × mnoz, `dec` miejsc) wspólne dla wszystkich serii: dni muszą się zgadzać, być środami, co 7 dni, bez luk
+    i braków; ostatni dzień nie starszy niż `stare` dni. Ostatnie `nd` wierszy."""
+    ref = None
+    kol = []
+    for k, nm in spec:
+        os_ = S[nm]['o']
+        if len(os_) < nd:
+            raise ValueError(f'{co} {nm}: za mało obserwacji ({len(os_)})')
+        os_ = os_[-nd:]
+        dni = [o[0] for o in os_]
+        if ref is None:
+            ref = dni
+        elif dni != ref:
+            raise ValueError(f'{co} {nm}: dni inne niż w pierwszej serii')
+        kol.append([None if fdd_wartosc(o, nm) is None else fdd_liczba(float(fdd_wartosc(o, nm)) * mnoz, *lo_hi[k], f'{co} {k} {o[0]}') for o in os_])   # zakres w jednostce wyniku (mld $)
+    prev = None
+    for d_ in ref:
+        d = fdd_dzien(d_, dzis, co)
+        if srod and d.weekday() != 2:
+            raise ValueError(f'{co}: {d_} nie jest środą')
+        if prev is not None and (d - prev).days != 7:
+            raise ValueError(f'{co}: luka w tygodniach przed {d_}')
+        prev = d
+    if (dzis - prev).days > stare:
+        raise ValueError(f'{co}: ostatni tydzień {ref[-1]} sprzed {(dzis - prev).days} dni (źródło stoi)')
+    rows = []
+    for i, d_ in enumerate(ref):
+        v = [c[i] for c in kol]
+        if any(x is None for x in v):
+            raise ValueError(f'{co}: brak wartości w tygodniu {d_}')
+        rows.append([d_] + [round(x, dec) for x in v])
+    return rows
+
+
+# ---------------------------------------------------------------- h8: banki komercyjne ----------------------------------------------------------------
+FDD_H8_ZAKRES = {'akt': (5000, 60000), 'kre': (3000, 40000), 'pap': (500, 15000), 'poz': (2000, 30000), 'ci': (500, 8000), 'cre': (500, 8000), 'kon': (300, 5000), 'nbf': (50, 6000),
+                 'dep': (3000, 40000), 'dlt': (100, 8000), 'zob': (100, 8000), 'got': (100, 8000)}   # mld $
+FDD_H8_ATR = {'SA': 'SA', 'BG': 'CB', 'FREQ': '19', 'UNIT_MULT': '1000000', 'H8_UNITS': 'LEVEL'}
+
+
+def parse_fdd_h8(zbytes, now):
+    """H.8 → {'asof': dzień, 'pub': data wydania, 'h': [[środa, aktywa, kredyt bankowy, papiery, kredyty i leasing, C&I, nieruchomości komercyjne, konsumenckie, dla instytucji finansowych poza bankami,
+    depozyty, duże depozyty terminowe, pożyczki zaciągnięte, gotówka]]} w mld $ (wartość źródła w mln × 0,001, 1 miejsce). Tożsamość: kredyt bankowy = papiery + kredyty i leasing (± 0,5 mld),
+    składniki kredytów ≤ kredyty + 0,5, kredyt bankowy ≤ aktywa; atrybuty serii jak FDD_H8_ATR; dni jak w fdd_tyg."""
+    dzis = now.date()
+    S, prep = fdd_xml(zbytes, FDD_MEMBER['h8'], {nm: FDD_KEEP['hw'] for _, nm in FDD_H8}, FDD_MAXU['h8'])
+    for _, nm in FDD_H8:
+        fdd_attrs(S, nm, FDD_H8_ATR)
+    rows = fdd_tyg(S, FDD_H8, FDD_H8_ZAKRES, 0.001, FDD_KEEP['hw'], 'H.8', FDD_STARE['h8'], dzis, 1)
+    for r in rows:
+        akt, kre, pap, poz, ci, cre, kon, nbf = r[1:9]
+        if abs(kre - (pap + poz)) > 0.5 or ci + cre + kon + nbf > poz + 0.5 or kre > akt:
+            raise ValueError(f'H.8 {r[0]}: składniki nie dają sum (kredyt bankowy, kredyty, aktywa)')
+    return {'asof': rows[-1][0], 'pub': prep if prep and prep <= dzis.isoformat() else None, 'h': rows}
+
+
+def fdd_h8(pk, now):
+    return parse_fdd_h8(fdd_get(FDD_URL['h8'], FDD_MAXZ['h8']), now)
+
+
+# ---------------------------------------------------------------- cp: papiery komercyjne ----------------------------------------------------------------
+FDD_CPW_ZAKRES = {'raz': (300, 4000), 'nfi': (30, 1500), 'fin': (100, 2500), 'abc': (50, 2500)}
+FDD_CPR_ZAKRES = {'aa': (-0.5, 20), 'a2': (-0.5, 25)}
+
+
+def parse_fdd_cp(zbytes, now):
+    """Papiery komercyjne → {'asof': dzień tygodnia, 'pub', 'w': [[środa, razem, niefinansowe, finansowe, zabezpieczone aktywami]] (mld $), 'r': [[dzień, AA niefinansowe 30 dni, A2/P2 niefinansowe 30 dni]] (%), 'rasof': ostatni dzień stawek}. Tożsamość: razem = niefinansowe + finansowe + zabezpieczone aktywami (± 4 mld; obserwowane do 2,4 mld); w stawkach dni bez którejś
+    z dwóch stawek pomijane (święta i dni bez emisji AA); dni stawek rosnące bez powtórzeń, robocze, nie z przyszłości, ostatni nie starszy niż FDD_STARE['cpr'] dni."""
+    dzis = now.date()
+    want = {nm: FDD_KEEP['cpw'] for _, nm in FDD_CPW}
+    want.update({nm: FDD_KEEP['cpr'] + 60 for _, nm in FDD_CPR})   # zapas na dni bez stawki (święta, dni bez emisji AA ≈ 17 % dni)
+    S, prep = fdd_xml(zbytes, FDD_MEMBER['cp'], want, FDD_MAXU['cp'])
+    for _, nm in FDD_CPW:
+        fdd_attrs(S, nm, {'FREQ': '19', 'UNIT_MULT': '1000000'})
+    for _, nm in FDD_CPR:
+        fdd_attrs(S, nm, {'FREQ': '9', 'UNIT': 'Percent'})
+    w = fdd_tyg(S, FDD_CPW, FDD_CPW_ZAKRES, 0.001, FDD_KEEP['cpw'], 'papiery komercyjne (tydzień)', FDD_STARE['cpw'], dzis, 1)
+    for r in w:
+        if abs(r[1] - (r[2] + r[3] + r[4])) > 4.0:   # obserwowane do 2,4 mld (kategoria „inne” sprzed 2025), tydzień 2024-08-07
+            raise ValueError(f'papiery komercyjne {r[0]}: razem ≠ niefinansowe + finansowe + zabezpieczone aktywami')
+    dni = [x[0] for x in S[FDD_CPR[0][1]]['o']]
+    for _, nm in FDD_CPR[1:]:
+        if [x[0] for x in S[nm]['o']] != dni:
+            raise ValueError(f'stawki papierów komercyjnych: {nm} ma inne dni niż pierwsza seria')
+    r, prev = [], None
+    for i, d_ in enumerate(dni):
+        d = fdd_dzien(d_, dzis, 'stawki papierów komercyjnych')
+        if d.weekday() > 4 or (prev is not None and d <= prev):
+            raise ValueError(f'stawki papierów komercyjnych: dzień {d_} nie jest roboczy albo nie rośnie')
+        prev = d
+        v = []
+        for k, nm in FDD_CPR:
+            x = fdd_wartosc(S[nm]['o'][i], nm)
+            v.append(None if x is None else round(fdd_liczba(x, *FDD_CPR_ZAKRES[k], f'stawka {k} {d_}'), 2))
+        if all(x is not None for x in v):
+            r.append([d_] + v)
+    r = r[-FDD_KEEP['cpr']:]
+    if len(r) < 150:
+        raise ValueError(f'stawki papierów komercyjnych: za mało pełnych dni ({len(r)})')
+    if (dzis - datetime.date.fromisoformat(dni[-1])).days > FDD_STARE['cpr']:
+        raise ValueError(f'stawki papierów komercyjnych: ostatni dzień {dni[-1]} sprzed {(dzis - datetime.date.fromisoformat(dni[-1])).days} dni (źródło stoi)')
+    return {'asof': w[-1][0], 'pub': prep if prep and prep <= dzis.isoformat() else None, 'w': w, 'r': r, 'rasof': r[-1][0]}
+
+
+def fdd_cp(pk, now):
+    return parse_fdd_cp(fdd_get(FDD_URL['cp'], FDD_MAXZ['cp']), now)
+
+
+# ---------------------------------------------------------------- so / sl: ankiety kwartalne ----------------------------------------------------------------
+def fdd_kwartal(s, dzis, co):
+    """Etykieta kwartału = ostatni dzień kwartału (31.03, 30.06, 30.09, 31.12); inna = ValueError. Etykieta może wyprzedzać dzień przebiegu (ankieta kwartału trwającego), nie więcej niż o 100 dni."""
+    if not (isinstance(s, str) and re.fullmatch(r'\d{4}-(03-31|06-30|09-30|12-31)', s)):
+        raise ValueError(f'{co}: zły koniec kwartału {str(s)[:12]!r}')
+    if datetime.date.fromisoformat(s) > dzis + datetime.timedelta(days=100):
+        raise ValueError(f'{co}: kwartał {s} z przyszłości')
+    return datetime.date.fromisoformat(s)
+
+
+def fdd_pub_ok(prep, dzis, co):
+    """Data wydania ankiety z nagłówka: brak, z przyszłości albo starsza niż FDD_STARE['prep_q'] dni = ValueError (ankieta nie ukazała się w oczekiwanym cyklu)."""
+    if not prep:
+        raise ValueError(f'{co}: brak daty wydania w nagłówku')
+    d = datetime.date.fromisoformat(prep)
+    if d > dzis + datetime.timedelta(days=1):
+        raise ValueError(f'{co}: data wydania {prep} z przyszłości')
+    if (dzis - d).days > FDD_STARE['prep_q']:
+        raise ValueError(f'{co}: wydanie z {prep} sprzed {(dzis - d).days} dni (źródło stoi)')
+
+
+def parse_fdd_so(zbytes, now):
+    """Ankieta dealerów → {'asof': koniec kwartału, 'pub': data wydania, 'h': [[kwartał, liczba dealerów, zaostrzenie cen netto %, zaostrzenie warunków poza ceną netto %, wzrost dźwigni funduszy netto %,
+    więcej dostępnej dźwigni netto %]]}. Netto % = (odpowiedzi „w górę” − „w dół”) / wszystkie odpowiedzi × 100, 1 miejsce; liczba dealerów = suma odpowiedzi na pytanie o ceny (5–40);
+    kwartał z brakiem którejkolwiek liczby pomijany; ≥ 40 kwartałów, ostatni obecny, wydanie nie starsze niż FDD_STARE['prep_q'] dni."""
+    dzis = now.date()
+    nazwy = {f'All_{q}.{k}.NR': FDD_KEEP['so'] for _, q, g in FDD_SO_Q for k in FDD_SO_K[g]}
+    S, prep = fdd_xml(zbytes, FDD_MEMBER['so'], nazwy, FDD_MAXU['so'])
+    fdd_pub_ok(prep, dzis, 'ankieta dealerów')
+    for nm in nazwy:
+        fdd_attrs(S, nm, {'FREQ': '162', 'UNIT': 'Number'})
+    mapy = {}
+    for kl, q, g in FDD_SO_Q:
+        for k in FDD_SO_K[g]:
+            m = {}
+            for o in S[f'All_{q}.{k}.NR']['o']:
+                x = fdd_wartosc(o, o[0])
+                if x is not None:
+                    m[o[0]] = fdd_liczba(x, 0, 60, f'{q}.{k} {o[0]}')
+            mapy[(q, k)] = m
+    dni = sorted(set.intersection(*[set(m) for m in mapy.values()]))
+    rows = []
+    for d_ in dni:
+        fdd_kwartal(d_, dzis, 'ankieta dealerów')
+        rr = []
+        n0 = None
+        for kl, q, g in FDD_SO_Q:
+            c = {k: mapy[(q, k)][d_] for k in FDD_SO_K[g]}
+            if any(v != int(v) for v in c.values()):
+                raise ValueError(f'ankieta dealerów {d_} {q}: liczba odpowiedzi nie jest całkowita')
+            n = int(sum(c.values()))
+            if not 5 <= n <= 40:
+                raise ValueError(f'ankieta dealerów {d_} {q}: liczba odpowiedzi {n} poza 5–40')
+            if n0 is None:
+                n0 = n
+            ud, us = (FDD_SO_K[g][0], FDD_SO_K[g][1])
+            dd, ds = (FDD_SO_K[g][3], FDD_SO_K[g][4])
+            rr.append(round((c[ud] + c[us] - c[dd] - c[ds]) / n * 100, 1))
+        rows.append([d_, n0] + rr)
+    rows = rows[-FDD_KEEP['so']:]
+    if len(rows) < 40:
+        raise ValueError(f'ankieta dealerów: za mało kwartałów ({len(rows)})')
+    return {'asof': rows[-1][0], 'pub': prep, 'h': rows}
+
+
+def parse_fdd_sl(zbytes, now):
+    """Ankieta kredytowa banków → {'asof': koniec kwartału, 'pub', 'h': [[kwartał, standardy: duże i średnie firmy, małe firmy, karty kredytowe, nieruchomości komercyjne (poza budownictwem i
+    wielorodzinnymi), ważone: biznes, ważone: gospodarstwa domowe; popyt: duże i średnie firmy, karty kredytowe]]} — netto % banków (zaostrzających standardy / widzących silniejszy popyt), 1 miejsce, −100…100.
+    Ostatnie FDD_KEEP['sl'] kwartałów, w których są wszystkie serie; ≥ 40, ostatni obecny, wydanie nie starsze niż FDD_STARE['prep_q'] dni."""
+    dzis = now.date()
+    S, prep = fdd_xml(zbytes, FDD_MEMBER['sl'], {nm: 140 for _, nm in FDD_SL}, FDD_MAXU['sl'])
+    fdd_pub_ok(prep, dzis, 'ankieta kredytowa')
+    mapy = {}
+    for k, nm in FDD_SL:
+        fdd_attrs(S, nm, {'FREQ': '162', 'PANEL': 'DOM'})
+        m = {}
+        for o in S[nm]['o']:
+            x = fdd_wartosc(o, nm)
+            if x is not None:
+                m[o[0]] = round(fdd_liczba(x, -100, 100, f'{nm} {o[0]}'), 1)
+        mapy[k] = m
+    dni = sorted(set.intersection(*[set(m) for m in mapy.values()]))
+    rows = []
+    for d_ in dni:
+        fdd_kwartal(d_, dzis, 'ankieta kredytowa')
+        rows.append([d_] + [mapy[k][d_] for k, _ in FDD_SL])
+    rows = rows[-FDD_KEEP['sl']:]
+    if len(rows) < 40:
+        raise ValueError(f'ankieta kredytowa: za mało kwartałów ({len(rows)})')
+    return {'asof': rows[-1][0], 'pub': prep, 'h': rows}
+
+
+def fdd_so(pk, now):
+    return parse_fdd_so(fdd_get(FDD_URL['so'], FDD_MAXZ['so']), now)
+
+
+def fdd_sl(pk, now):
+    return parse_fdd_sl(fdd_get(FDD_URL['sl'], FDD_MAXZ['sl']), now)
+
+
+# ---------------------------------------------------------------- budowa pliku ----------------------------------------------------------------
+FDD_BUDOWA = {'h8': fdd_h8, 'cp': fdd_cp, 'so': fdd_so, 'sl': fdd_sl}
+
+
+def fdd_wymagana(k, pk, pok, pat, now):
+    """Czy część k wymaga odczytu: brak części, poprzedni błąd albo odczyt starszy niż FDD_INT[k] min."""
+    if not isinstance(pk, dict) or pok.get(k) is False:
+        return True
+    t = _ix_dt(pat.get(k))
+    return t is None or (now - t).total_seconds() >= FDD_INT[k] * 60
+
+
+def build_fed_ddp(prev=None, run_t0=None):
+    """Plik data/fed-ddp.json (v423): cztery części (h8, cp, so, sl) z własnym ok / part_at / errs; część z błędem zostaje z poprzedniego pliku z własną chwilą, nigdy pusta zamiast ostatnich danych;
+    część, której odczyt nie jest jeszcze potrzebny (rytm), zostaje bez zmian z ok 'cached'. Żadna część nie ma danych = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == FDD_V else {}
+    pat, pok = _dict(prev.get('part_at')), _dict(prev.get('ok'))
+    now = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc)
+    out = {'v': FDD_V, 'at': NOW, 'od': prev.get('od') if isinstance(prev.get('od'), str) else now.date().isoformat(), 'src': FDD_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    _FDD_T0[0] = time.monotonic()
+    try:
+        for k in FDD_PARTS:
+            pk = prev.get(k) if isinstance(prev.get(k), dict) else None
+            if not fdd_wymagana(k, pk, pok, pat, now):
+                if pk is not None:
+                    out[k] = pk
+                    out['part_at'][k] = pat.get(k) or prev.get('at')
+                out['ok'][k] = 'cached'
+                continue
+            try:
+                out[k] = FDD_BUDOWA[k](pk, now)
+                out['ok'][k] = True
+                out['part_at'][k] = NOW
+            except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
+                msg = mask(f'{e}')[:160]
+                META['errors'].append(mask(f'{FDD_PX} {FDD_LABEL[k]}: {msg}')[:220])
+                out['ok'][k] = False
+                out['errs'][k] = msg
+                if pk is not None:
+                    out[k] = pk
+                    out['part_at'][k] = pat.get(k) or prev.get('at')
+    finally:
+        _FDD_T0[0] = None
+    if not any(isinstance(out.get(k), dict) for k in FDD_PARTS):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+# v423: koniec modułu Fed (banki, papiery komercyjne, ankiety)
 
 
 # ===================== v401 (F11Z14): INTERWENCJE WALUTOWE I REZERWY BANKÓW CENTRALNYCH + OCZEKIWANIA RYNKU W BRAZYLII (data/interwencje.json; publiczne zapytania GET bez klucza) =====================

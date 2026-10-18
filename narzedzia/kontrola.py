@@ -13421,6 +13421,163 @@ def kf_k_kontrola(j, krypto=None, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v423 (F11Z26): FED — banki komercyjne, papiery komercyjne, ankiety (data/fed-ddp.json) ----------------------------------------------------------------
+# Plik: h8 {asof, pub, h [[środa, aktywa, kredyt bankowy, papiery, kredyty i leasing, C&I, nieruchomości komercyjne, konsumenckie, instytucje finansowe poza bankami, depozyty, duże depozyty terminowe, pożyczki zaciągnięte, gotówka]]},
+# cp {asof, rasof, pub, w [[środa, razem, niefinansowe, finansowe, zabezpieczone aktywami]], r [[dzień, AA, A2/P2]]}, so {asof, pub, h [[kwartał, liczność, ceny, warunki, dźwignia, dostępna dźwignia]]},
+# sl {asof, pub, h [[kwartał, 8 liczb]]}, ok / part_at / errs, od. Kontrola czyta pliki ze strony (bez zapytań do sieci).
+# RYTM PUBLIKACJI i progi (test wsteczny — ws53/v423-fed-ddp/bt/bt_progi.py na nagraniach z 18.10.2026: H.8 i papiery komercyjne tygodniowo od 2020 r. — 353 z 353 odstępów po 7 dni, wszystkie środy; stawki dzienne 30 dni AA i A2/P2 —
+# 395 dni z obiema stawkami od 2025 r., najdłuższa przerwa 7 dni (stawka AA bywa niedostępna kilka dni z rzędu); ankiety: 60 z 60 odstępów kwartałów dealerów i 106 z 106 ankiety kredytowej od 2000 r. po 90–92 dni): dane tygodniowe — publikacja
+# w piątek za środę (wiek środy w dniu publikacji 9 dni) → ⚠ po 16 dniach od końca dnia danych (jeden opuszczony tydzień + zapas); stawki dzienne — ⚠ po 11 dniach (7 dni najdłuższej przerwy + 1 dzień opóźnienia + 3 zapasu);
+# ankiety kwartalne — wiek WYDANIA (nagłówek pliku), nie etykiety kwartału (etykieta wyprzedza wydanie o 6–60 dni) → ⚠ po 105 dniach (cykl 92 dni + zapas). Pobranie części (part_at): ⚠ przy wieku > 4 × odstęp odczytu (min. 12 h).
+# (1) wiersze świeżości (najwyżej ⚠️): pobranie i rytm danych każdej części; (2) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zły dzień, dni nie rosną, liczba poza zakresem wiarygodności (te same co w zbieraczu),
+#     kredyt bankowy ≠ papiery + kredyty, składniki kredytów większe od kredytów, papiery komercyjne razem ≠ suma rodzajów, liczność ankiety poza 5–40, kwartał inny niż koniec kwartału; (3) TYLKO UWAGA ⚠: część z ok False.
+#     Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'fed-ddp')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['fed-ddp'] = 6 * 60   # plik zapisywany co ok. 30–55 min — wiek pobrania każdej części ocenia osobny wiersz
+AW_BEZ_BLEDU.update({'fedddp_' + p_: 'Fed (banki, papiery komercyjne, ankiety) — część z błędem zostaje z ostatnimi danymi i datą (v423); wiek pobrania i rytm danych w wierszach świeżości' for p_ in ('h8', 'cp', 'so', 'sl')})
+FDK_PARTS = ('h8', 'cp', 'so', 'sl')
+FDK_ETYKIETA = {'h8': 'Fed: banki komercyjne w USA (tygodniowo)', 'cp': 'Fed: papiery komercyjne', 'so': 'Fed: ankieta dealerów (fundusze hedgingowe)', 'sl': 'Fed: ankieta kredytowa banków'}
+FDK_ODSTEP = {'h8': 720, 'cp': 720, 'so': 1440, 'sl': 1440}   # min — odstęp odczytu części w zbieraczu
+FDK_K = {'h8': 16, 'cp': 16, 'cpr': 11, 'so': 105, 'sl': 105}   # doby — wiek ostatniego dnia danych (h8, cp, cpr) albo dnia wydania ankiety (so, sl)
+FDK_H8 = ((5000, 60000), (3000, 40000), (500, 15000), (2000, 30000), (500, 8000), (500, 8000), (300, 5000), (50, 6000), (3000, 40000), (100, 8000), (100, 8000), (100, 8000))
+FDK_CPW = ((300, 4000), (30, 1500), (100, 2500), (50, 2500))
+
+
+def _fdk_dzien(s):
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return dt.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _fdk_num(x, lo, hi):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and lo <= x <= hi
+
+
+def _fdk_kwartal(s):
+    return _fdk_dzien(s) is not None and bool(re.fullmatch(r'\d{4}-(03-31|06-30|09-30|12-31)', s))
+
+
+def _fdk_wiersze(zle, co, h, n, chk, dzis, srod=False, kwart=False, minw=2):
+    """Historia wierszy [dzień, n liczb]: dni poprawne, rosnące bez powtórzeń, nie z przyszłości (kwartały: koniec kwartału, do 100 dni naprzód; tygodnie: środy), liczby przez chk(i, x); pierwsza usterka → opis w zle i False."""
+    if not isinstance(h, list) or len(h) < minw:
+        zle.append(f'{co}: historia pusta, za krótka albo nie jest listą')
+        return False
+    ost = None
+    lim = dzis + dt.timedelta(days=100 if kwart else 1)
+    for r in h:
+        d = _fdk_dzien(r[0]) if isinstance(r, list) and len(r) == n + 1 else None
+        if d is None or not all(chk(i, x) for i, x in enumerate(r[1:])) or (kwart and not _fdk_kwartal(r[0])) or (srod and d.weekday() != 2):
+            zle.append(f'{co}: zły wiersz {str(r)[:60]}')
+            return False
+        if d > lim or (ost is not None and d <= ost):
+            zle.append(f'{co}: dni nie rosną albo z przyszłości ({d})')
+            return False
+        ost = d
+    return True
+
+
+def _fdk_asof(zle, co, P, k='asof', poz='h'):
+    if not isinstance(P.get(poz), list) or not P[poz] or not isinstance(P[poz][-1], list):
+        return
+    if P.get(k) != P[poz][-1][0]:
+        zle.append(f'{co}: dzień danych {P.get(k)} ≠ ostatni wiersz {P[poz][-1][0]}')
+
+
+def fedddp_spojnosc(j, now=None):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w tej części) → lista opisów."""
+    now = now or NOW
+    dzis = now.date()
+    zle = []
+    P = j.get('h8')
+    if P is not None:
+        if not isinstance(P, dict):
+            zle.append('h8: część nie jest słownikiem')
+        elif _fdk_wiersze(zle, 'banki komercyjne', P.get('h'), 12, lambda i, x: _fdk_num(x, *FDK_H8[i]), dzis, srod=True, minw=5):
+            _fdk_asof(zle, 'banki komercyjne', P)
+            for r in P['h']:
+                if abs(r[2] - (r[3] + r[4])) > 0.5 or r[5] + r[6] + r[7] + r[8] > r[4] + 0.5 or r[2] > r[1]:
+                    zle.append(f'banki komercyjne {r[0]}: kredyt bankowy, papiery i kredyty nie dają sumy')
+                    break
+    P = j.get('cp')
+    if P is not None:
+        if not isinstance(P, dict):
+            zle.append('cp: część nie jest słownikiem')
+        else:
+            if _fdk_wiersze(zle, 'papiery komercyjne (tydzień)', P.get('w'), 4, lambda i, x: _fdk_num(x, *FDK_CPW[i]), dzis, srod=True, minw=5):
+                _fdk_asof(zle, 'papiery komercyjne (tydzień)', P, 'asof', 'w')
+                for r in P['w']:
+                    if abs(r[1] - (r[2] + r[3] + r[4])) > 4:
+                        zle.append(f'papiery komercyjne {r[0]}: razem ≠ niefinansowe + finansowe + zabezpieczone aktywami')
+                        break
+            if _fdk_wiersze(zle, 'papiery komercyjne (stawki)', P.get('r'), 2, lambda i, x: _fdk_num(x, -0.5, 25), dzis, minw=5):
+                _fdk_asof(zle, 'papiery komercyjne (stawki)', P, 'rasof', 'r')
+                if any(_fdk_dzien(r[0]).weekday() > 4 for r in P['r']):
+                    zle.append('papiery komercyjne (stawki): dzień weekendowy')
+    for k, etk, n, chk, minw in (('so', 'ankieta dealerów', 5, lambda i, x: (isinstance(x, int) and not isinstance(x, bool) and 5 <= x <= 40) if i == 0 else _fdk_num(x, -100, 100), 3),
+                                 ('sl', 'ankieta kredytowa', 8, lambda i, x: _fdk_num(x, -100, 100), 3)):
+        P = j.get(k)
+        if P is None:
+            continue
+        if not isinstance(P, dict):
+            zle.append(f'{k}: część nie jest słownikiem')
+        elif _fdk_wiersze(zle, etk, P.get('h'), n, chk, dzis, kwart=True, minw=minw):
+            _fdk_asof(zle, etk, P)
+            if P.get('pub') is not None and (_fdk_dzien(P.get('pub')) is None or _fdk_dzien(P['pub']) > dzis + dt.timedelta(days=1)):
+                zle.append(f'{etk}: zła data wydania {str(P.get("pub"))[:12]}')
+    return zle
+
+
+def fedddp_swiezosc(j, now=None):
+    """Wiersze: pobranie każdej części i rytm danych (etykieta, status, wiek min, chwila, uwaga); brak pliku albo inna wersja = brak wierszy. Najwyżej ⚠️; część bez chwili pobrania — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p in FDK_PARTS:
+        P = j.get(p)
+        if not isinstance(P, dict):
+            continue
+        txt = (j.get('part_at') or {}).get(p) if isinstance(j.get('part_at'), dict) else None
+        ok = (j.get('ok') or {}).get(p) if isinstance(j.get('ok'), dict) else None
+        prog = max(12 * 60, 4 * FDK_ODSTEP[p])
+        if not txt:
+            rows.append((FDK_ETYKIETA[p] + ' (pobranie)', '?', None, None, 'brak chwili pobrania tej części w pliku'))
+        else:
+            w = wiek_danych(str(txt), 'ts', 'k', now)
+            st = '?' if w is None else ('⚠️' if w > prog else '✅')
+            note = f'pobranie starsze niż {fmt_wiek(prog)} (odczyt co {fmt_wiek(FDK_ODSTEP[p])}) — dane mogą być nieaktualne; najwyżej uwaga' if st == '⚠️' else ('ostatnie pobranie nieudane — dane z poprzedniego pobrania' if ok is False else '')
+            rows.append((FDK_ETYKIETA[p] + ' (pobranie)', st, w, str(txt), note))
+        lab = FDK_ETYKIETA[p] + ' (rytm danych)'
+        celowe = []   # (etykieta, dzień, próg doby, opis)
+        if p in ('so', 'sl'):
+            if _fdk_dzien(P.get('pub')) is not None:
+                celowe.append((lab, P['pub'], FDK_K[p], 'dzień wydania ankiety'))
+        else:
+            if _fdk_dzien(P.get('asof')) is not None:
+                celowe.append((lab, P['asof'], FDK_K[p], 'ostatni dzień danych'))
+            if p == 'cp' and _fdk_dzien(P.get('rasof')) is not None:
+                celowe.append((FDK_ETYKIETA[p] + ' (rytm stawek)', P['rasof'], FDK_K['cpr'], 'ostatni dzień stawek'))
+        for lb, dz, k, opis in celowe:
+            wd = wiek_danych(dz, 'day', 'k', now)
+            zle = wd is not None and wd > k * 1440
+            note = f'{opis} {dz} sprzed {fmt_wiek(wd)} (próg {k} dni z testu wstecznego rytmu publikacji)' if zle else ''
+            rows.append((lb, '⚠️' if zle else '✅', wd, dz, note))
+    return rows
+
+
+def fedddp_kontrola(files, now=None):
+    """Kontrola pliku fed-ddp.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('fed-ddp') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    wiersze = [(f'{lab.replace("Fed: ", "").replace(" (rytm danych)", "").replace(" (rytm stawek)", " stawki")} {dz}', st) for lab, st, w, dz, note in fedddp_swiezosc(j, now) if '(rytm' in lab]
+    return {'spojnosc': fedddp_spojnosc(j, now), 'wiersze': wiersze, 'uwagi': [], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -14213,6 +14370,23 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['krypto-firmy'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Skarbce spółek (v422): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v423. Fed (data/fed-ddp.json): świeżość pobrania czterech części i rytm danych osobnymi wierszami (lista SWIEZOSC bez zmian) oraz sprzeczności w pliku (❌) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in fedddp_swiezosc(files.get('fed-ddp')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_fd = fedddp_kontrola(files)
+        if T_fd:
+            for z_ in T_fd['spojnosc'][:5]:
+                R['bledy'].append(f'fed-ddp.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_fd['uwagi']
+        R['zgodnosc']['fed-ddp'] = {k_: T_fd[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_fd else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['fed-ddp'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Fed banki i papiery komercyjne (v423): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -15003,6 +15177,11 @@ def raport_md(R):
             L.append('- Kapitalizacje rynków akcji, USA / siedem krajów Europy / Japonia (z pliku strony): ' + (f'? kontrola przerwana ({kkp["blad"]})' if kkp.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(kkp['spojnosc'][:3]) + ' ❌ · ' if kkp.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in kkp.get('wiersze') or []) or '—') + '.')
+        kfd = Z.get('fed-ddp')   # v423: Fed — sprzeczności w pliku, rytm danych; brak pliku = bez linii
+        if kfd:
+            L.append('- Fed: banki komercyjne USA, papiery komercyjne, ankieta dealerów, ankieta kredytowa banków (z pliku strony): ' + (f'? kontrola przerwana ({kfd["blad"]})' if kfd.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(kfd['spojnosc'][:3]) + ' ❌ · ' if kfd.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in kfd.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else
