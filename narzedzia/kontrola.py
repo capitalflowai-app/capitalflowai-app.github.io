@@ -12643,6 +12643,208 @@ def ucf_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v410 (F11Z19): KANADA — dług, CORRA, bilans Banku Kanady, ropociągi (data/kanada-dlug.json) ----------------------------------------------------------------
+# Plik: au {asof, h [[dzień, termin, kwota, rentowność, pokrycie, tail, zagranica %, dystrybutorzy %]]}, dr {asof, h [[dzień, Bank Kanady, konta rządu, rynek, razem, bony, obligacje]]}, co {asof, h [[dzień, stawka, 25., 75., obrót, zgłaszający]]},
+# bs {asof, h [[dzień, aktywa, papiery rządowe, obligacje, odkup, banknoty, depozyty rządu, depozyty członków]]}, rp {asof 'RRRR-MM', k [[miesiąc, przepływ, zdolność]], t [[miesiąc, Westridge, Sumas, Burnaby, zdolność]]}, ok / part_at / errs, od.
+# Kontrola czyta pliki ze strony (bez zapytań do sieci).
+# RYTM PUBLIKACJI i progi (test wsteczny — ws53/v410-kanada/bt/bt_progi.py na nagraniach z 17.10.2026: aukcje od 1998 r., CORRA 130 dni, tygodnie 2021–2026): aukcje — najdłuższa przerwa między aukcjami w latach 2015–2026
+# to 28 dni (święta 2025/26: 20) → wiek ostatniej aukcji od końca jej dnia ⚠ po 35 dniach; posiadacze długu i bilans — publikacja co tydzień (środa, 59 z 59 odstępów po 7 dni) → ⚠ po 21 dniach; CORRA — dni
+# robocze, najdłuższa przerwa 4 dni → ⚠ po 8 dniach; ropociągi — plik regulatora uzupełniany kwartalnie z opóźnieniem ok. 2 miesięcy (17.10.2026: ostatni miesiąc czerwiec, plik z 27.08) → ⚠ po 190 dniach od końca
+# ostatniego miesiąca (odstęp do następnej aktualizacji ok. 150 dni + 40 zapasu; historii zmian pliku nie mamy — próg ostrożny, tylko uwaga). Pobranie części (part_at): ⚠ przy wieku > 4 × odstęp odczytu (min. 12 h).
+# (1) wiersze świeżości (najwyżej ⚠️): pobranie i rytm danych każdej części; (2) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zły dzień, dni nie rosną, liczba poza zakresem wiarygodności (te same co w zbieraczu),
+#     udział zagranicy + kanadyjskich ≠ 100 %, składniki posiadaczy długu ≠ razem, stawka CORRA poza przedziałem 25.–75. centyla, przepływ ropociągu większy od zdolności; (3) TYLKO UWAGA ⚠: papiery Banku Kanady
+#     w pliku posiadaczy długu i w bilansie różnią się o więcej niż 6 % (obserwowane do 2,7 %: bilans liczy też obligacje hipoteczne) i część z ok False. Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'kanada-dlug')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['kanada-dlug'] = 6 * 60   # plik zapisywany co ok. 30–55 min — wiek pobrania każdej części ocenia osobny wiersz
+AW_BEZ_BLEDU.update({'kandlug_' + p_: 'Kanada (dług, CORRA, bilans, ropociągi) — część z błędem zostaje z ostatnimi danymi i datą (v410); wiek pobrania i rytm danych w wierszach świeżości' for p_ in ('au', 'dr', 'co', 'bs', 'rp')})
+KDK_PARTS = ('au', 'dr', 'co', 'bs', 'rp')
+KDK_ETYKIETA = {'au': 'Kanada: aukcje obligacji', 'dr': 'Kanada: posiadacze długu rządu', 'co': 'Kanada: stawka CORRA', 'bs': 'Kanada: bilans Banku Kanady', 'rp': 'Kanada: ropociągi (Keystone, Trans Mountain)'}
+KDK_ODSTEP = {'au': 240, 'dr': 360, 'co': 180, 'bs': 360, 'rp': 1440}   # min — odstęp odczytu części w zbieraczu
+KDK_K = {'au': 35, 'dr': 21, 'co': 8, 'bs': 21, 'rp': 190}   # doby — wiek ostatniego dnia (miesiąca) danych
+KDK_TERMY = (2, 3, 5, 7, 10, 30)
+KDK_BOC_TOL = 6.0             # % — Bank Kanady w pliku posiadaczy długu a papiery rządowe w bilansie (obserwowane do 2,7 %)
+
+
+def _kdk_dzien(s):
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return dt.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _kdk_mies(s):
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}', s) or not 1 <= int(s[5:]) <= 12:
+        return None
+    return int(s[:4]) * 12 + int(s[5:]) - 1
+
+
+def _kdk_num(x, lo, hi):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and lo <= x <= hi
+
+
+def _kdk_wiersze(zle, co, h, n, chk, dzis, klucz2=False):
+    """Historia wierszy [dzień, n liczb]: dni poprawne, rosnące bez powtórzeń (klucz2: dzień i termin), nie z przyszłości, liczby przez chk(i, x); pierwsza usterka → opis w zle i False."""
+    if not isinstance(h, list) or not h:
+        zle.append(f'{co}: historia pusta albo nie jest listą')
+        return False
+    ost = None
+    for r in h:
+        d = _kdk_dzien(r[0]) if isinstance(r, list) and len(r) == n + 1 else None
+        if d is None or not all(chk(i, x) for i, x in enumerate(r[1:])):
+            zle.append(f'{co}: zły wiersz {str(r)[:60]}')
+            return False
+        k = (d, r[1]) if klucz2 else d
+        if d > dzis + dt.timedelta(days=1) or (ost is not None and k <= ost):
+            zle.append(f'{co}: dni nie rosną albo z przyszłości ({d})')
+            return False
+        ost = k
+    return True
+
+
+def _kdk_asof(zle, co, P):
+    if not isinstance(P.get('h'), list) or not P['h'] or not isinstance(P['h'][-1], list):
+        return
+    if P.get('asof') != P['h'][-1][0]:
+        zle.append(f'{co}: dzień danych {P.get("asof")} ≠ ostatni wiersz {P["h"][-1][0]}')
+
+
+def kandlug_spojnosc(j, now=None):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w Kanadzie) → lista opisów."""
+    now = now or NOW
+    dzis = now.date()
+    zle = []
+    P = j.get('au')
+    if P is not None:
+        if not isinstance(P, dict):
+            zle.append('au: część nie jest słownikiem')
+        elif _kdk_wiersze(zle, 'aukcje', P.get('h'), 7, lambda i, x: (isinstance(x, int) and x in KDK_TERMY) if i == 0 else _kdk_num(x, *((100, 30000), (0, 15), (1, 10), (-5, 20), (0, 100), (0, 100))[i - 1]), dzis, klucz2=True):
+            _kdk_asof(zle, 'aukcje', P)
+    P = j.get('dr')
+    if P is not None:
+        if not isinstance(P, dict):
+            zle.append('dr: część nie jest słownikiem')
+        elif _kdk_wiersze(zle, 'posiadacze długu', P.get('h'), 6, lambda i, x: _kdk_num(x, 0, 5e7), dzis):
+            _kdk_asof(zle, 'posiadacze długu', P)
+            for r in P['h']:
+                if abs(r[1] + r[2] + r[3] - r[4]) > 3 or r[5] + r[6] > r[3] + 3:
+                    zle.append(f'posiadacze długu {r[0]}: składniki nie dają sumy')
+                    break
+    P = j.get('co')
+    if P is not None:
+        if not isinstance(P, dict):
+            zle.append('co: część nie jest słownikiem')
+        elif _kdk_wiersze(zle, 'CORRA', P.get('h'), 5, lambda i, x: _kdk_num(x, -1, 15) if i < 3 else (_kdk_num(x, 0, 5000) if i == 3 else _kdk_num(x, 3, 100)), dzis):
+            _kdk_asof(zle, 'CORRA', P)
+            for r in P['h']:
+                if not (r[2] - 0.0002 <= r[1] <= r[3] + 0.0002):
+                    zle.append(f'CORRA {r[0]}: stawka poza przedziałem 25.–75. centyla')
+                    break
+    P = j.get('bs')
+    if P is not None:
+        if not isinstance(P, dict):
+            zle.append('bs: część nie jest słownikiem')
+        elif _kdk_wiersze(zle, 'bilans', P.get('h'), 7, lambda i, x: _kdk_num(x, -1e6, 3e6), dzis):
+            _kdk_asof(zle, 'bilans', P)
+            for r in P['h']:
+                if r[1] < 1e4 or r[2] > r[1] + 3 or r[3] > r[2] + 3 or r[4] + r[2] > r[1] + 3:
+                    zle.append(f'bilans {r[0]}: papiery rządowe, obligacje albo odkup większe od całości')
+                    break
+    P = j.get('rp')
+    if P is not None:
+        if not isinstance(P, dict) or _kdk_mies(P.get('asof')) is None:
+            zle.append('rp: część bez poprawnego miesiąca')
+        else:
+            for nm, n, kk in (('Keystone', 2, 'k'), ('Trans Mountain', 4, 't')):
+                h = P.get(kk)
+                if not isinstance(h, list) or len(h) < 12:
+                    zle.append(f'rp {nm}: za mało miesięcy')
+                    continue
+                prev = None
+                for r in h:
+                    m = _kdk_mies(r[0]) if isinstance(r, list) and len(r) == n + 1 else None
+                    if m is None or not all(_kdk_num(x, 0, 5000) for x in r[1:]) or r[n] <= 0 or (prev is not None and m - prev != 1):
+                        zle.append(f'rp {nm}: zły wiersz albo luka w miesiącach {str(r)[:50]}')
+                        break
+                    if (kk == 'k' and r[1] > r[2] * 1.02 + 0.1) or (kk == 't' and r[1] + r[2] + r[3] > r[4] * 1.6):
+                        zle.append(f'rp {nm} {r[0]}: przepływ większy od zdolności')
+                        break
+                    prev = m
+            if P.get('k') and P.get('t') and isinstance(P['k'][-1], list) and isinstance(P['t'][-1], list) and P['asof'] != min(P['k'][-1][0], P['t'][-1][0]):
+                zle.append('rp: miesiąc danych ≠ ostatni miesiąc obu ropociągów')
+    return zle
+
+
+def kandlug_swiezosc(j, now=None):
+    """Wiersze: pobranie każdej części i rytm danych (etykieta, status, wiek min, chwila, uwaga); brak pliku albo inna wersja = brak wierszy. Najwyżej ⚠️; część bez chwili pobrania — '?'."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    for p in KDK_PARTS:
+        P = j.get(p)
+        if not isinstance(P, dict):
+            continue
+        txt = (j.get('part_at') or {}).get(p) if isinstance(j.get('part_at'), dict) else None
+        ok = (j.get('ok') or {}).get(p) if isinstance(j.get('ok'), dict) else None
+        prog = max(12 * 60, 4 * KDK_ODSTEP[p])
+        if not txt:
+            rows.append((KDK_ETYKIETA[p] + ' (pobranie)', '?', None, None, 'brak chwili pobrania tej części w pliku'))
+        else:
+            w = wiek_danych(str(txt), 'ts', 'k', now)
+            st = '?' if w is None else ('⚠️' if w > prog else '✅')
+            note = f'pobranie starsze niż {fmt_wiek(prog)} (odczyt co {fmt_wiek(KDK_ODSTEP[p])}) — dane mogą być nieaktualne; najwyżej uwaga' if st == '⚠️' else ('ostatnie pobranie nieudane — dane z poprzedniego pobrania' if ok is False else '')
+            rows.append((KDK_ETYKIETA[p] + ' (pobranie)', st, w, str(txt), note))
+        lab = KDK_ETYKIETA[p] + ' (rytm danych)'
+        if p == 'rp':
+            if _kdk_mies(P.get('asof')) is None:
+                continue
+            wd = wiek_danych(P['asof'], 'month', 'k', now)
+            zle = wd is not None and wd > KDK_K[p] * 1440
+            note = f'ostatni miesiąc {P["asof"]} sprzed {fmt_wiek(wd)} od jego końca (plik regulatora ma ok. 2 miesiące opóźnienia i uzupełnia się kwartalnie; próg {KDK_K[p]} dni)' if zle else ''
+            rows.append((lab, '⚠️' if zle else '✅', wd, P['asof'], note))
+            continue
+        d = _kdk_dzien(P.get('asof'))
+        if d is None:
+            continue
+        wd = wiek_danych(d.isoformat(), 'day', 'k', now)
+        zle = wd is not None and wd > KDK_K[p] * 1440
+        note = f'ostatni dzień danych {d.isoformat()} sprzed {fmt_wiek(wd)} (próg {KDK_K[p]} dni z testu wstecznego najdłuższych przerw w publikacji)' if zle else ''
+        rows.append((lab, '⚠️' if zle else '✅', wd, d.isoformat(), note))
+    return rows
+
+
+def kandlug_uwagi(j, files=None):
+    """Uwagi ⚠ (nigdy ❌): Bank Kanady w pliku posiadaczy długu a papiery rządowe w bilansie tego samego dnia. → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    out = {'wiersze': [], 'uwagi': []}
+    try:
+        d = {r[0]: r for r in j['dr']['h']}
+        b = {r[0]: r for r in j['bs']['h']}
+        wsp = sorted(set(d) & set(b))
+        if wsp:
+            k = wsp[-1]
+            roz = abs(d[k][1] / b[k][2] - 1) * 100 if b[k][2] > 0 else None
+            if roz is not None:
+                zle = roz > KDK_BOC_TOL
+                out['wiersze'].append((f'Bank Kanady: papiery w posiadaczach długu a w bilansie ({k})', '⚠️' if zle else '✅'))
+                if zle:
+                    out['uwagi'].append(f'Kanada (kanada-dlug.json): papiery Banku Kanady w pliku posiadaczy długu i w bilansie różnią się o {roz:.1f}% w dniu {k} (próg {KDK_BOC_TOL:g}%)')
+    except (KeyError, TypeError, IndexError, ZeroDivisionError):
+        pass
+    return out
+
+
+def kandlug_kontrola(files, now=None):
+    """Kontrola pliku kanada-dlug.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('kanada-dlug') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    U = kandlug_uwagi(j, files)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': kandlug_spojnosc(j, now), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -13364,6 +13566,23 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['interwencje'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'interwencje i rezerwy (v401): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v410. Kanada (data/kanada-dlug.json): świeżość pobrania pięciu części i rytm danych osobnymi wierszami (lista SWIEZOSC bez zmian), uwaga ⚠ o Banku Kanady w dwóch tabelach oraz sprzeczności w pliku (❌) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in kandlug_swiezosc(files.get('kanada-dlug')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_kd = kandlug_kontrola(files)
+        if T_kd:
+            for z_ in T_kd['spojnosc'][:5]:
+                R['bledy'].append(f'kanada-dlug.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_kd['uwagi']
+        R['zgodnosc']['kanada-dlug'] = {k_: T_kd[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_kd else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['kanada-dlug'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Kanada (v410): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -14134,6 +14353,11 @@ def raport_md(R):
             L.append('- Interwencje walutowe i rezerwy banków centralnych (z pliku strony): ' + (f'? kontrola przerwana ({kiw["blad"]})' if kiw.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(kiw['spojnosc'][:3]) + ' ❌ · ' if kiw.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in kiw.get('wiersze') or []) or '—') + '.')
+        kkd = Z.get('kanada-dlug')   # v410: Kanada — sprzeczności w pliku, Bank Kanady w dwóch tabelach, rytm danych; brak pliku = bez linii
+        if kkd:
+            L.append('- Kanada: aukcje obligacji, posiadacze długu, CORRA, bilans Banku Kanady, ropociągi (z pliku strony): ' + (f'? kontrola przerwana ({kkd["blad"]})' if kkd.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(kkd['spojnosc'][:3]) + ' ❌ · ' if kkd.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in kkd.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

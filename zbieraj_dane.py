@@ -33348,6 +33348,30 @@ def main():
                 save('chiny-tw', prev_ctw)
     META['ok']['chtw_cn'] = stan_ctw['cn']; META['ok']['chtw_sh'] = stan_ctw['sh']; META['ok']['chtw_tw'] = stan_ctw['tw']; META['ok']['chtw_hk'] = stan_ctw['hk']; META['ok']['chtw_csi'] = stan_ctw['csi']
     # v400: koniec bloku Chiny / Tajwan / Hongkong
+    # v410 (F11Z19): KANADA — AUKCJE OBLIGACJI (UDZIAŁ ZAGRANICY), POSIADACZE DŁUGU, CORRA, BILANS BANKU KANADY, ROPOCIĄGI (data/kanada-dlug.json: pięć części z własnym ok / part_at / errs) — co KDL_EVERY_MIN min
+    # (plik z częścią nieudaną: NIEPELNY_MIN, fresh_pelny); części mają własne rytmy (KDL_INT: aukcje 4 h, tygodniowe 6 h, CORRA 3 h, ropociągi 24 h); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json).
+    # META ok: kandlug_* (cached = odczyt jeszcze niepotrzebny).
+    prev_kdl = previous('kanada-dlug')
+    if isinstance(prev_kdl, dict) and prev_kdl.get('v') == KDL_V and fresh_pelny(prev_kdl, KDL_EVERY_MIN):
+        save('kanada-dlug', prev_kdl)
+        stan_kdl = {}
+        for k_kdl in KDL_PARTS:
+            if _dict(prev_kdl.get('ok')).get(k_kdl) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{KDL_PX} {KDL_LABEL[k_kdl]}: {str(_dict(prev_kdl.get('errs')).get(k_kdl) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_kdl[k_kdl] = False
+            else:
+                stan_kdl[k_kdl] = 'cached'
+    else:
+        try:
+            kdl_ = build_kanada_dlug(prev_kdl, run_t0=_RUN_T0[0]); save('kanada-dlug', kdl_)
+            stan_kdl = {k_kdl: kdl_['ok'].get(k_kdl, 'cached') for k_kdl in KDL_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{KDL_PX}: {e}')[:200])
+            stan_kdl = {k_kdl: False for k_kdl in KDL_PARTS}
+            if isinstance(prev_kdl, dict):
+                save('kanada-dlug', prev_kdl)
+    META['ok']['kandlug_au'] = stan_kdl['au']; META['ok']['kandlug_dr'] = stan_kdl['dr']; META['ok']['kandlug_co'] = stan_kdl['co']; META['ok']['kandlug_bs'] = stan_kdl['bs']; META['ok']['kandlug_rp'] = stan_kdl['rp']
+    # v410: koniec bloku Kanada
     prev_pr = previous('prad')
     try:
         pr_ = build_prad(prev_pr, run_t0=_RUN_T0[0], rozsz=True)
@@ -42146,6 +42170,444 @@ def build_chiny_tw(prev=None, run_t0=None):
     if not any(isinstance(out.get(k), dict) for k in CTW_PARTS):
         raise RuntimeError('żadna część nie odpowiedziała')
     return out
+
+
+# ===================== v410 (F11Z19): KANADA — AUKCJE OBLIGACJI (UDZIAŁ ZAGRANICY), KTO TRZYMA DŁUG, CORRA, BILANS BANKU KANADY, ROPOCIĄGI (data/kanada-dlug.json) =====================
+# Pięć niezależnych części jednego pliku, każda z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie (nigdy puste zamiast ostatnich danych); publiczne zapytania GET bez klucza,
+# nagłówek zbieracza, odstęp KDL_SLEEP s, limit czasu i rozmiaru KAŻDEGO zapytania, cała budowa KDL_LIMIT_S s. Dwa źródła: interfejs danych banku centralnego Kanady (już liczone) i regulator energii Kanady (nowe).
+#   au — wyniki aukcji obligacji rządu Kanady (nominalne): termin, kwota, rentowność, pokrycie (oferty / kwota), tail (pb), udział kont zagranicznych i kanadyjskich w przydziale, udział dystrybutorów;
+#        źródło zwraca całą historię (od 1998, ok. 1,4 MB) — bierzemy tylko aukcje z podanym udziałem zagranicy (pole jest od 3.04.2025), do KDL_KEEP['au'] ostatnich; zapowiedzi przyszłych aukcji (bez wyników) pomijane.
+#   dr — struktura posiadaczy długu rządu Kanady (tygodniowo, środa; mln CAD): Bank Kanady, konta rządu, rynek (reszta) i ich suma; z rynku bony i obligacje osobno.
+#   co — CORRA (stopa overnight repo w dolarach kanadyjskich): stawka, 25. i 75. centyl obrotu, obrót po przycięciu (mld CAD), liczba zgłaszających; dni z opublikowaną stawką.
+#   bs — bilans tygodniowy Banku Kanady (środa; mln CAD): aktywa razem, papiery rządowe (bony, obligacje, obligacje indeksowane, obligacje hipoteczne), same obligacje, transakcje z odkupem (aktywa), banknoty,
+#        depozyty rządu i depozyty członków systemu płatności (rezerwy banków).
+#   rp — przepustowość ropociągów Keystone (Hardisty → USA) i Trans Mountain (Alberta → Zatoka Vancouver / USA): miesięcznie, średnia dobowa w tys. baryłek na dobę (przeliczone z tys. m3), wolna zdolność tego samego miesiąca.
+#        Plik regulatora jest uzupełniany z opóźnieniem ok. 2 miesięcy po końcu miesiąca, kwartalnie — w pliku jest miesiąc, a nie dzień.
+# Bramki: każda liczba skończona i w zakresie wiarygodności, daty istniejące, nie z przyszłości i rosnące bez powtórzeń, tożsamości księgowe (suma składników = razem: posiadacze długu, aktywa i pasywa
+# bilansu, udział zagranicy + kanadyjskich = 100 %, dystrybutorzy + klienci = 100 %), stawka CORRA między 25. a 75. centylem; inny kształt albo brak serii = błąd części (nigdy cicha zmiana liczb).
+KDL_V = 1
+KDL_PARTS = ('au', 'dr', 'co', 'bs', 'rp')
+KDL_LABEL = {'au': 'aukcje obligacji', 'dr': 'posiadacze długu', 'co': 'CORRA', 'bs': 'bilans Banku Kanady', 'rp': 'ropociągi'}
+KDL_PX = 'Kanada dług i ropa'
+KDL_EVERY_MIN = 30              # min — plik budowany najwyżej co tyle (plik z nieudaną częścią: NIEPELNY_MIN), części mają własne rytmy poniżej
+KDL_INT = {'au': 240, 'dr': 360, 'co': 180, 'bs': 360, 'rp': 1440}   # min — odstęp między odczytami części (aukcje: kilka tygodniowo; posiadacze i bilans: raz na tydzień; CORRA: dzienna; plik regulatora: raz na dobę)
+KDL_TIMEOUT = 40                # s — jedno zapytanie
+KDL_SLEEP = 1.0                 # s — odstęp między zapytaniami
+KDL_LIMIT_S = 150               # s — budżet czasu budowy pliku; po nim kolejne części zgłaszają błąd limitu (poprzednie dane zostają)
+KDL_MAXB = {'au': 4000000, 'dr': 600000, 'co': 600000, 'bs': 800000, 'rp': 800000}   # B — największa dopuszczalna odpowiedź (zmierzone 17.10.2026: 1,44 MB / 96 kB / 150 kB / 114 kB / 169 kB + 344 kB)
+KDL_KEEP = {'au': 80, 'dr': 104, 'co': 260, 'bs': 104, 'rp': 48}   # wierszy historii w części (aukcje; tygodnie; dni z CORRA; tygodnie; miesiące)
+KDL_NEW = {'dr': 8, 'co': 15, 'bs': 8}   # ile ostatnich obserwacji prosić, gdy historia już jest (pierwszy odczyt: KDL_KEEP + zapas)
+KDL_VALET = 'https://www.bankofcanada.ca/valet/observations/group/'
+KDL_AU_URL = KDL_VALET + 'AUC_BOND_RESULTS/json'
+KDL_DR_URL = KDL_VALET + 'G4_WEEKLY/json?recent={n}'
+KDL_CO_URL = KDL_VALET + 'CORRA_METRICS/json?recent={n}'
+KDL_BS_URL = KDL_VALET + 'B2_WEEKLY/json?recent={n}'
+KDL_RP_URL = 'https://www.cer-rec.gc.ca/open/energy/throughput-capacity/{p}-throughput-and-capacity.csv'
+KDL_AU_OD = '2025-04-03'        # od tej aukcji źródło podaje udział kont zagranicznych (wynik aukcji z tej daty bez udziału = błąd części)
+KDL_AU_STARE = 60               # dni — ostatnia aukcja starsza = błąd części (najdłuższa przerwa między aukcjami w latach 2015–2026 to 28 dni; święta 20)
+KDL_DR_STARE = 28               # dni — ostatni tydzień posiadaczy długu i bilansu (publikacja co tydzień)
+KDL_CO_STARE = 12               # dni — ostatni dzień CORRA (najdłuższa przerwa dni roboczych: 4 dni)
+KDL_RP_STARE = 400              # dni od początku ostatniego miesiąca — starsze = błąd części (plik regulatora ma ok. 2 miesiące opóźnienia i uzupełnia się kwartalnie)
+KDL_BBL = 6.28981               # baryłek w metrze sześciennym
+KDL_TERMY = (2, 3, 5, 7, 10, 30)
+KDL_SRC = ('CapitalFlowAI — Kanada: wyniki aukcji obligacji rządu (udział zagranicy), posiadacze długu rządu, stawka CORRA i bilans tygodniowy banku centralnego; przepustowość ropociągów Keystone i Trans Mountain; '
+          'publiczne dane urzędowe, dzień (miesiąc) danych przy każdej części')
+ZRODLA_META.update({'kandlug_au': 'bank-kanady', 'kandlug_dr': 'bank-kanady', 'kandlug_co': 'bank-kanady', 'kandlug_bs': 'bank-kanady', 'kandlug_rp': 'cer-kanada'})   # v410: bank centralny Kanady już liczony; regulator energii Kanady (+1 źródło)
+_KDL_T0 = [None]
+
+
+def kdl_get(url, maks):
+    """Jedno zapytanie GET (publiczne, bez klucza) z odstępem KDL_SLEEP, limitem czasu (KDL_TIMEOUT, nie więcej niż reszta budżetu budowy) i limitem rozmiaru `maks` B (dłuższa odpowiedź = błąd)."""
+    t0 = _KDL_T0[0]
+    lim = KDL_TIMEOUT
+    if t0 is not None:
+        left = KDL_LIMIT_S - (time.monotonic() - t0)
+        if left < 3:
+            raise RuntimeError(f'limit czasu budowy ({KDL_LIMIT_S} s)')
+        lim = max(3, min(KDL_TIMEOUT, left))
+    time.sleep(KDL_SLEEP)
+    return get_bytes_maks(url, timeout=lim, maks=maks)
+
+
+def kdl_json(raw):
+    """Odpowiedź → obiekt JSON; HTML (strona błędu / odmowy) albo ucięty tekst = ValueError."""
+    try:
+        return json.loads(raw.decode('utf-8') if isinstance(raw, (bytes, bytearray)) else raw)
+    except ValueError:
+        raise ValueError('odpowiedź nie jest JSON (strona błędu albo odmowa)') from None
+
+
+def kdl_liczba(x, lo, hi, co):
+    """Liczba skończona z tekstu dziesiętnego (albo liczby) w przedziale [lo, hi]; wartość logiczna, brak, NaN i poza przedziałem = ValueError."""
+    if isinstance(x, bool):
+        raise ValueError(f'{co}: wartość logiczna')
+    try:
+        v = float(x.strip()) if isinstance(x, str) else float(x)
+    except (TypeError, ValueError, AttributeError):
+        raise ValueError(f'{co}: nie liczba ({str(x)[:12]!r})') from None
+    if v != v or v in (float('inf'), float('-inf')) or not lo <= v <= hi:
+        raise ValueError(f'{co}: poza zakresem ({v})')
+    return v
+
+
+def kdl_dzien(s, dzis, co):
+    """Dzień RRRR-MM-DD → date; zły zapis, nieistniejący dzień albo więcej niż dzień po dniu przebiegu = ValueError."""
+    if not (isinstance(s, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', s)):
+        raise ValueError(f'{co}: zły dzień {str(s)[:12]!r}')
+    try:
+        d = datetime.date.fromisoformat(s)
+    except ValueError:
+        raise ValueError(f'{co}: nieistniejący dzień {s[:10]!r}') from None
+    if d > dzis + datetime.timedelta(days=1):
+        raise ValueError(f'{co}: dzień {d} z przyszłości')
+    return d
+
+
+def kdl_scal(stare, nowe, ile, klucz=lambda r: r[0]):
+    """Historia wierszy: wiersze `nowe` zastępują stare o tym samym kluczu (domyślnie dzień r[0]), wynik rosnąco wg klucza, najwyżej `ile` ostatnich; wiersz o złym kształcie jest pomijany."""
+    m = {}
+    for r in list(stare or []) + list(nowe or []):
+        if isinstance(r, (list, tuple)) and r and isinstance(r[0], str):
+            m[klucz(r)] = list(r)
+    return [m[k] for k in sorted(m)][-ile:]
+
+
+def kdl_obs(raw, serie):
+    """Odpowiedź interfejsu danych (seriesDetail + observations) → lista obserwacji; brak którejś z wymaganych serii albo inny kształt = ValueError."""
+    j = kdl_json(raw)
+    sd = j.get('seriesDetail') if isinstance(j, dict) else None
+    ob = j.get('observations') if isinstance(j, dict) else None
+    if not (isinstance(sd, dict) and isinstance(ob, list) and all(k in sd for k in serie)):
+        raise ValueError('odpowiedź ma zły kształt albo brak wymaganej serii')
+    return ob
+
+
+def kdl_v(o, k):
+    x = o.get(k) if isinstance(o, dict) else None
+    return x.get('v') if isinstance(x, dict) else None
+
+
+def kdl_stare(asof, dzis, limit, co):
+    """Ostatni dzień danych starszy niż limit dni = ValueError (źródło stoi)."""
+    d = datetime.date.fromisoformat(asof)
+    if (dzis - d).days > limit:
+        raise ValueError(f'{co}: ostatni dzień {asof} sprzed {(dzis - d).days} dni (źródło stoi)')
+
+
+# ---------------------------------------------------------------- au: aukcje obligacji ----------------------------------------------------------------
+KDL_AU_S = ('AUC_BOND_AUCTION_DATE', 'AUC_BOND_TERM_YEARS', 'AUC_BOND_AMOUNT', 'AUC_BOND_AVG_YIELD', 'AUC_BOND_COVERAGE', 'AUC_BOND_TAIL',
+           'AUC_BOND_PERCENT_ALLOTTED_TO_DISTRIBUTORS', 'AUC_BOND_PERCENT_ALLOTTED_TO_CUSTOMERS', 'AUC_BOND_PERCENT_ALLOTTED_TO_CANADIAN', 'AUC_BOND_PERCENT_ALLOTTED_TO_FOREIGN')
+
+
+def parse_kdl_au(raw, now):
+    """Wyniki aukcji obligacji → wiersze [dzień, termin w latach, kwota mln CAD, rentowność %, pokrycie, tail pb, udział zagranicy %, udział dystrybutorów %] rosnąco wg dnia i terminu.
+    Wiersz bez udziału zagranicy to zapowiedź albo aukcja sprzed udostępnienia pola (pomijany) — wynik aukcji od KDL_AU_OD bez udziału = ValueError; identyfikator musi zaczynać się od dnia aukcji,
+    termin z listy KDL_TERMY, udział zagranicy + kanadyjskich = 100 % i dystrybutorzy + klienci = 100 % (± 0,1), liczby w zakresach; powtórzony identyfikator, mało aukcji albo zły kształt = ValueError."""
+    dzis = now.date()
+    rows, ids = [], set()
+    for o in kdl_obs(raw, KDL_AU_S):
+        if not isinstance(o, dict):
+            raise ValueError('aukcje: obserwacja ma zły kształt')
+        zag = kdl_v(o, 'AUC_BOND_PERCENT_ALLOTTED_TO_FOREIGN')
+        ds = kdl_v(o, 'AUC_BOND_AUCTION_DATE')
+        if zag is None:
+            if kdl_v(o, 'AUC_BOND_COVERAGE') is not None and isinstance(ds, str) and ds >= KDL_AU_OD:
+                raise ValueError(f'aukcje: wynik aukcji {ds[:10]} bez udziału zagranicy')
+            continue
+        d = kdl_dzien(ds, dzis, 'aukcje')
+        bid = o.get('bond_id')
+        if not (isinstance(bid, str) and bid.startswith(d.isoformat() + '_')) or bid in ids:
+            raise ValueError(f'aukcje: zły albo powtórzony identyfikator {str(bid)[:30]!r}')
+        ids.add(bid)
+        term = kdl_liczba(kdl_v(o, 'AUC_BOND_TERM_YEARS'), 1, 40, 'aukcje: termin')
+        if term not in KDL_TERMY:
+            raise ValueError(f'aukcje {d}: termin {term:g} lat spoza listy')
+        amt = kdl_liczba(kdl_v(o, 'AUC_BOND_AMOUNT'), 100, 30000, 'aukcje: kwota')
+        yld = kdl_liczba(kdl_v(o, 'AUC_BOND_AVG_YIELD'), 0, 15, 'aukcje: rentowność')
+        cov = kdl_liczba(kdl_v(o, 'AUC_BOND_COVERAGE'), 1, 10, 'aukcje: pokrycie')
+        tail = kdl_liczba(kdl_v(o, 'AUC_BOND_TAIL'), -5, 20, 'aukcje: tail')
+        dis, cus, can, zg = (kdl_liczba(kdl_v(o, k), 0, 100, 'aukcje: udział') for k in ('AUC_BOND_PERCENT_ALLOTTED_TO_DISTRIBUTORS', 'AUC_BOND_PERCENT_ALLOTTED_TO_CUSTOMERS',
+                                                                                     'AUC_BOND_PERCENT_ALLOTTED_TO_CANADIAN', 'AUC_BOND_PERCENT_ALLOTTED_TO_FOREIGN'))
+        if abs(can + zg - 100) > 0.1 or abs(dis + cus - 100) > 0.1:
+            raise ValueError(f'aukcje {d}: udziały nie dają 100 %')
+        rows.append([d.isoformat(), int(term), round(amt), round(yld, 3), round(cov, 3), round(tail, 2), round(zg, 2), round(dis, 2)])
+    if len(rows) < 20:
+        raise ValueError('aukcje: za mało aukcji z udziałem zagranicy')
+    rows.sort(key=lambda r: (r[0], r[1]))
+    return rows
+
+
+def kdl_au(pk, now):
+    """Część au: jedno zapytanie o całą historię wyników, wiersze dokładane wg dnia i terminu, ostatnie KDL_KEEP['au']."""
+    nowe = parse_kdl_au(kdl_get(KDL_AU_URL, KDL_MAXB['au']), now)
+    kdl_stare(nowe[-1][0], now.date(), KDL_AU_STARE, 'aukcje')
+    pk = pk if isinstance(pk, dict) else {}
+    h = kdl_scal(pk.get('h'), nowe, KDL_KEEP['au'], klucz=lambda r: (r[0], r[1]))
+    return {'asof': h[-1][0], 'h': h}
+
+
+# ---------------------------------------------------------------- dr: posiadacze długu rządu ----------------------------------------------------------------
+KDL_DR_S = ('DTBOCTOTUAW', 'DTGOCTOTUAW', 'DTGPTOTUAW', 'DTTOTUAW', 'DTGPTBUAW', 'DTGPOTHUAW')
+
+
+def parse_kdl_dr(raw, now):
+    """Posiadacze długu rządu Kanady → wiersze [dzień, Bank Kanady, konta rządu, rynek, razem, bony w rynku, obligacje w rynku] w mln CAD rosnąco wg dnia. Obserwacja bez żadnej z serii jest pomijana;
+    częściowa, powtórzony dzień, składniki ≠ razem (± 2 mln) albo bony + obligacje w rynku > rynek = ValueError."""
+    dzis = now.date()
+    rows, widziane = [], set()
+    for o in kdl_obs(raw, KDL_DR_S):
+        if not isinstance(o, dict):
+            raise ValueError('posiadacze długu: obserwacja ma zły kształt')
+        v = [kdl_v(o, k) for k in KDL_DR_S]
+        if all(x is None for x in v):
+            continue
+        d = kdl_dzien(o.get('d'), dzis, 'posiadacze długu')
+        if d in widziane:
+            raise ValueError(f'posiadacze długu: dzień {d} powtórzony')
+        widziane.add(d)
+        boc, goc, pub, tot, pb, po = (kdl_liczba(x, 0, 5e7, 'posiadacze długu') for x in v)
+        if abs(boc + goc + pub - tot) > 2 or pb + po > pub + 2 or tot < 1e5:
+            raise ValueError(f'posiadacze długu {d}: składniki nie dają sumy')
+        rows.append([d.isoformat(), round(boc), round(goc), round(pub), round(tot), round(pb), round(po)])
+    if len(rows) < 3:
+        raise ValueError('posiadacze długu: za mało tygodni')
+    rows.sort(key=lambda r: r[0])
+    return rows
+
+
+def kdl_dr(pk, now):
+    pk = pk if isinstance(pk, dict) else {}
+    n = KDL_NEW['dr'] if len(pk.get('h') or []) >= 20 else KDL_KEEP['dr'] + 4
+    nowe = parse_kdl_dr(kdl_get(KDL_DR_URL.format(n=n), KDL_MAXB['dr']), now)
+    kdl_stare(nowe[-1][0], now.date(), KDL_DR_STARE, 'posiadacze długu')
+    h = kdl_scal(pk.get('h'), nowe, KDL_KEEP['dr'])
+    return {'asof': h[-1][0], 'h': h}
+
+
+# ---------------------------------------------------------------- co: CORRA ----------------------------------------------------------------
+KDL_CO_S = ('AVG.INTWO', 'CORRA_TRIMMED_VOLUME', 'CORRA_NUMBER_OF_SUBMITTERS', 'CORRA_RATE_AT_PERCENTILE_5', 'CORRA_RATE_AT_PERCENTILE_25', 'CORRA_RATE_AT_PERCENTILE_75', 'CORRA_RATE_AT_PERCENTILE_95', 'CORRA_PUBLICATION_STATUS')
+
+
+def parse_kdl_co(raw, now):
+    """CORRA → wiersze [dzień, stawka %, 25. centyl, 75. centyl, obrót po przycięciu w mld CAD, liczba zgłaszających] rosnąco wg dnia. Dni ze statusem innym niż „Published” są pomijane; stawka
+    poza przedziałem, centyle w złej kolejności (5 ≤ 25 ≤ stawka ≤ 75 ≤ 95, ± 0,0001), obrót albo liczba zgłaszających poza zakresem, powtórzony dzień albo mało dni = ValueError."""
+    dzis = now.date()
+    rows, widziane = [], set()
+    for o in kdl_obs(raw, KDL_CO_S):
+        if not isinstance(o, dict):
+            raise ValueError('CORRA: obserwacja ma zły kształt')
+        if kdl_v(o, 'CORRA_PUBLICATION_STATUS') != 'Published':
+            continue
+        d = kdl_dzien(o.get('d'), dzis, 'CORRA')
+        if d in widziane:
+            raise ValueError(f'CORRA: dzień {d} powtórzony')
+        widziane.add(d)
+        c = kdl_liczba(kdl_v(o, 'AVG.INTWO'), -1, 15, 'CORRA: stawka')
+        p5, p25, p75, p95 = (kdl_liczba(kdl_v(o, k), -1, 15, 'CORRA: centyl') for k in ('CORRA_RATE_AT_PERCENTILE_5', 'CORRA_RATE_AT_PERCENTILE_25', 'CORRA_RATE_AT_PERCENTILE_75', 'CORRA_RATE_AT_PERCENTILE_95'))
+        e = 0.0001
+        if not (p5 <= p25 + e and p25 <= c + e and c <= p75 + e and p75 <= p95 + e):
+            raise ValueError(f'CORRA {d}: stawka i centyle w złej kolejności')
+        vol = kdl_liczba(kdl_v(o, 'CORRA_TRIMMED_VOLUME'), 1e9, 5e12, 'CORRA: obrót')
+        n = kdl_liczba(kdl_v(o, 'CORRA_NUMBER_OF_SUBMITTERS'), 3, 100, 'CORRA: zgłaszający')
+        rows.append([d.isoformat(), round(c, 4), round(p25, 4), round(p75, 4), round(vol / 1e9, 2), int(n)])
+    if len(rows) < 5:
+        raise ValueError('CORRA: za mało dni')
+    rows.sort(key=lambda r: r[0])
+    return rows
+
+
+def kdl_co(pk, now):
+    pk = pk if isinstance(pk, dict) else {}
+    n = KDL_NEW['co'] if len(pk.get('h') or []) >= 30 else KDL_KEEP['co'] + 5
+    nowe = parse_kdl_co(kdl_get(KDL_CO_URL.format(n=n), KDL_MAXB['co']), now)
+    kdl_stare(nowe[-1][0], now.date(), KDL_CO_STARE, 'CORRA')
+    h = kdl_scal(pk.get('h'), nowe, KDL_KEEP['co'])
+    return {'asof': h[-1][0], 'h': h}
+
+
+# ---------------------------------------------------------------- bs: bilans Banku Kanady ----------------------------------------------------------------
+KDL_BS_AKT = ('V36612', 'V36613', 'V1160788296', 'V1038114416', 'v1146067261', 'v1154426989', 'v1146067262', 'v1146067263', 'v1154426990', 'V36634', 'V44201362', 'v1154426991', 'V36635')   # składniki aktywów
+KDL_BS_PAS = ('V36625', 'V36628', 'V36636', 'v1146067264', 'V1203435186', 'V1210798115')   # składniki pasywów poza „pozostałymi” (V36632 albo V1490410223 + V1490410224)
+KDL_BS_S = ('V36610', 'V36624') + KDL_BS_AKT + KDL_BS_PAS + ('V1490410223', 'V1490410224')
+
+
+def parse_kdl_bs(raw, now):
+    """Bilans tygodniowy → wiersze [dzień, aktywa razem, papiery rządowe (bony + obligacje + indeksowane + hipoteczne), same obligacje, transakcje z odkupem (aktywa), banknoty, depozyty rządu, depozyty członków
+    systemu płatności] w mln CAD rosnąco wg dnia. Obserwacje starej serii (bez sum aktywów i pasywów) są pomijane; aktywa ≠ pasywa (± 1), suma składników aktywów ≠ aktywa (± 2) albo pasywów ≠ pasywa
+    (± 2), powtórzony dzień, brak składnika albo mało tygodni = ValueError."""
+    dzis = now.date()
+    rows, widziane = [], set()
+    for o in kdl_obs(raw, KDL_BS_S):
+        if not isinstance(o, dict):
+            raise ValueError('bilans: obserwacja ma zły kształt')
+        if kdl_v(o, 'V36610') is None and kdl_v(o, 'V36624') is None:
+            continue
+        d = kdl_dzien(o.get('d'), dzis, 'bilans')
+        if d in widziane:
+            raise ValueError(f'bilans: dzień {d} powtórzony')
+        widziane.add(d)
+        N = lambda k: kdl_liczba(kdl_v(o, k), -1e6, 3e6, f'bilans {k}')   # noqa: E731
+        akt, pas = N('V36610'), N('V36624')
+        sa = sum(N(k) for k in KDL_BS_AKT)
+        inne = N('V36632') if kdl_v(o, 'V36632') is not None else N('V1490410223') + N('V1490410224')
+        sp = sum(N(k) for k in KDL_BS_PAS) + inne
+        if abs(akt - pas) > 1 or abs(sa - akt) > 2 or abs(sp - pas) > 2 or not 1e4 <= akt <= 2e6:
+            raise ValueError(f'bilans {d}: aktywa, pasywa i składniki nie zgadzają się')
+        goc = N('V36612') + N('V36613') + N('V1160788296') + N('V1038114416')
+        rows.append([d.isoformat(), round(akt), round(goc), round(N('V36613')), round(N('V44201362')), round(N('V36625')), round(N('V36628')), round(N('V36636'))])
+    if len(rows) < 3:
+        raise ValueError('bilans: za mało tygodni')
+    rows.sort(key=lambda r: r[0])
+    return rows
+
+
+def kdl_bs(pk, now):
+    pk = pk if isinstance(pk, dict) else {}
+    n = KDL_NEW['bs'] if len(pk.get('h') or []) >= 20 else KDL_KEEP['bs'] + 6
+    nowe = parse_kdl_bs(kdl_get(KDL_BS_URL.format(n=n), KDL_MAXB['bs']), now)
+    kdl_stare(nowe[-1][0], now.date(), KDL_DR_STARE, 'bilans')
+    h = kdl_scal(pk.get('h'), nowe, KDL_KEEP['bs'])
+    return {'asof': h[-1][0], 'h': h}
+
+
+# ---------------------------------------------------------------- rp: ropociągi ----------------------------------------------------------------
+KDL_RP_KOL = ('Date', 'Pipeline', 'Key Point', 'Direction Of Flow', 'Product', 'Throughput (1000 m3/d)', 'Available Capacity (1000 m3/d)')
+
+
+def _kdl_rp_csv(raw, rurociag):
+    """Plik regulatora → {miesiąc 'RRRR-MM': [wiersze słowników]}; bez kolumn, z inną nazwą ropociągu albo dniem innym niż pierwszy dzień miesiąca = ValueError."""
+    txt = (raw.decode('utf-8-sig') if isinstance(raw, (bytes, bytearray)) else str(raw))
+    rd = csv.DictReader(io.StringIO(txt))
+    if not rd.fieldnames or not all(k in rd.fieldnames for k in KDL_RP_KOL):
+        raise ValueError('ropociągi: plik bez oczekiwanych kolumn (zmieniony układ?)')
+    out = {}
+    for r in rd:
+        if not isinstance(r.get('Pipeline'), str) or r['Pipeline'].strip() != rurociag:
+            raise ValueError(f'ropociągi: inny ropociąg niż {rurociag}')
+        ds = r.get('Date')
+        if not (isinstance(ds, str) and re.fullmatch(r'\d{4}-\d{2}-01', ds)):
+            raise ValueError(f'ropociągi: zły dzień {str(ds)[:12]!r}')
+        out.setdefault(ds[:7], []).append(r)
+    if not out:
+        raise ValueError('ropociągi: pusty plik')
+    return out
+
+
+def _kdl_rp_okno(mies, dzis):
+    """Ostatnie KDL_KEEP['rp'] miesięcy z pliku: kolejne bez luk, ostatni nie z przyszłości i nie starszy niż KDL_RP_STARE dni od jego początku."""
+    ks = sorted(mies)[-KDL_KEEP['rp']:]
+    ym = [int(k[:4]) * 12 + int(k[5:]) - 1 for k in ks]
+    if len(ks) < 24 or any(b - a != 1 for a, b in zip(ym, ym[1:])):
+        raise ValueError('ropociągi: za mało miesięcy albo luka w miesiącach')
+    d = datetime.date.fromisoformat(ks[-1] + '-01')
+    if d > dzis:
+        raise ValueError(f'ropociągi: miesiąc {ks[-1]} z przyszłości')
+    if (dzis - d).days > KDL_RP_STARE:
+        raise ValueError(f'ropociągi: ostatni miesiąc {ks[-1]} sprzed {(dzis - d).days} dni (źródło stoi)')
+    return ks
+
+
+def _kdl_rp_num(r, k):
+    x = r.get(k)
+    return None if x is None or str(x).strip() == '' else kdl_liczba(x, 0, 5000, f'ropociągi {k[:10]}')
+
+
+def parse_kdl_rp(raw_k, raw_t, now):
+    """Keystone i Trans Mountain → {'asof': 'RRRR-MM', 'k': [[miesiąc, przepływ, zdolność]], 't': [[miesiąc, Westridge, Sumas, Burnaby, zdolność]]}, w tys. baryłek na dobę (z tys. m3 × 6,28981, 1 miejsce).
+    Keystone: suma przepływu ciężkiej i lekkiej ropy na granicy (kierunek południowy), zdolność jedna dla wierszy miesiąca (± 0,01); Trans Mountain: przepływ w trzech punktach (Westridge, Sumas, Burnaby) i
+    zdolność z wiersza całego systemu; przepływ ≤ 1,02 zdolności (Keystone) albo ≤ 1,6 (Trans Mountain, w 2024 przy uruchomieniu rozbudowy zdarzały się 1,2–1,4), wartości ujemne, brak punktu = ValueError."""
+    dzis = now.date()
+    K = _kdl_rp_csv(raw_k, 'Keystone pipeline')
+    T = _kdl_rp_csv(raw_t, 'Trans Mountain pipeline')
+    kr, tr = [], []
+    for m in _kdl_rp_okno(K, dzis):
+        thr, caps = 0.0, []
+        n = 0
+        for r in K[m]:
+            if r['Product'].strip() in ('domestic heavy', 'domestic light') and r['Direction Of Flow'].strip() == 'south':
+                v = _kdl_rp_num(r, 'Throughput (1000 m3/d)')
+                c = _kdl_rp_num(r, 'Available Capacity (1000 m3/d)')
+                if v is None or c is None:
+                    raise ValueError(f'Keystone {m}: brak przepływu albo zdolności')
+                thr += v; caps.append(c); n += 1
+        if n != 2 or max(caps) - min(caps) > 0.01 or caps[0] <= 0 or thr > caps[0] * 1.02:
+            raise ValueError(f'Keystone {m}: przepływ i zdolność niespójne')
+        kr.append([m, round(thr * KDL_BBL, 1), round(caps[0] * KDL_BBL, 1)])
+    for m in _kdl_rp_okno(T, dzis):
+        punkty, cap = {'Westridge': 0.0, 'Sumas': 0.0, 'Burnaby': 0.0}, []
+        wid = set()
+        for r in T[m]:
+            kp = r['Key Point'].strip()
+            if kp == 'system':
+                c = _kdl_rp_num(r, 'Available Capacity (1000 m3/d)')
+                if c is not None:
+                    cap.append(c)
+            elif kp in punkty:
+                v = _kdl_rp_num(r, 'Throughput (1000 m3/d)')
+                if v is not None:
+                    punkty[kp] += v; wid.add(kp)
+        if len(cap) != 1 or cap[0] <= 0 or wid != set(punkty) or sum(punkty.values()) > cap[0] * 1.6:
+            raise ValueError(f'Trans Mountain {m}: punkty, zdolność albo przepływ niespójne')
+        tr.append([m, round(punkty['Westridge'] * KDL_BBL, 1), round(punkty['Sumas'] * KDL_BBL, 1), round(punkty['Burnaby'] * KDL_BBL, 1), round(cap[0] * KDL_BBL, 1)])
+    return {'asof': min(kr[-1][0], tr[-1][0]), 'k': kr, 't': tr}
+
+
+def kdl_rp(pk, now):
+    """Część rp: dwa zapytania (pliki obu ropociągów), cała historia z plików (źródło trzyma ją w całości) — bez dokładania wg dnia."""
+    k = kdl_get(KDL_RP_URL.format(p='keystone'), KDL_MAXB['rp'])
+    t = kdl_get(KDL_RP_URL.format(p='trans-mountain'), KDL_MAXB['rp'])
+    return parse_kdl_rp(k, t, now)
+
+
+# ---------------------------------------------------------------- budowa pliku ----------------------------------------------------------------
+KDL_BUDOWA = {'au': kdl_au, 'dr': kdl_dr, 'co': kdl_co, 'bs': kdl_bs, 'rp': kdl_rp}
+
+
+def kdl_wymagana(k, pk, pok, pat, now):
+    """Czy część k wymaga odczytu: brak części, poprzedni błąd albo odczyt starszy niż KDL_INT[k] min."""
+    if not isinstance(pk, dict) or pok.get(k) is False:
+        return True
+    t = _ix_dt(pat.get(k))
+    return t is None or (now - t).total_seconds() >= KDL_INT[k] * 60
+
+
+def build_kanada_dlug(prev=None, run_t0=None):
+    """Plik data/kanada-dlug.json (v410): pięć części (au, dr, co, bs, rp) z własnym ok / part_at / errs; część z błędem zostaje z poprzedniego pliku z własną chwilą, nigdy pusta zamiast ostatnich danych;
+    część, której odczyt nie jest jeszcze potrzebny (rytm), zostaje bez zmian z ok 'cached'. Żadna część nie ma danych = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == KDL_V else {}
+    pat, pok = _dict(prev.get('part_at')), _dict(prev.get('ok'))
+    now = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc)
+    out = {'v': KDL_V, 'at': NOW, 'od': prev.get('od') if isinstance(prev.get('od'), str) else now.date().isoformat(), 'src': KDL_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    _KDL_T0[0] = time.monotonic()
+    try:
+        for k in KDL_PARTS:
+            pk = prev.get(k) if isinstance(prev.get(k), dict) else None
+            if not kdl_wymagana(k, pk, pok, pat, now):
+                if pk is not None:
+                    out[k] = pk
+                    out['part_at'][k] = pat.get(k) or prev.get('at')
+                out['ok'][k] = 'cached'
+                continue
+            try:
+                out[k] = KDL_BUDOWA[k](pk, now)
+                out['ok'][k] = True
+                out['part_at'][k] = NOW
+            except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
+                msg = mask(f'{e}')[:160]
+                META['errors'].append(mask(f'{KDL_PX} {KDL_LABEL[k]}: {msg}')[:220])
+                out['ok'][k] = False
+                out['errs'][k] = msg
+                if pk is not None:
+                    out[k] = pk
+                    out['part_at'][k] = pat.get(k) or prev.get('at')
+    finally:
+        _KDL_T0[0] = None
+    if not any(isinstance(out.get(k), dict) for k in KDL_PARTS):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    return out
+
+
+# v410: koniec modułu Kanada
 
 
 # ===================== v401 (F11Z14): INTERWENCJE WALUTOWE I REZERWY BANKÓW CENTRALNYCH + OCZEKIWANIA RYNKU W BRAZYLII (data/interwencje.json; publiczne zapytania GET bez klucza) =====================
