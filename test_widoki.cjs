@@ -9792,7 +9792,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {/* v410 */"kd410.p.co": "*", "kd410.tab.d": "fr", "kd410.co.cent": "es", /* v409 */"ucf409.g.zloto": "de", /* v401 */"iw401.ca.gold": "de", "iw401.p.ar": "es it pt", "iw401.p.ca": "fr it", "iw401.p.hk": "es fr it pt", "iw401.p.jp": "de", /* v400 */"ct400.p.sh": "*", "ct400.p.tw": "de it pt", "ct400.p.hk": "es fr it pt", /* v395 */"en395.norm": "es pt", "en395.pr.propan": "fr", "en395.r.p2": "fr it", "en395.r.p4": "de", "en395.s.norm": "es pt", /* v392 */"ux392.c.CN": "de es pt", /* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {/* v420 */"kap420.p.eu": "fr", "kap420.p.jp": "de", /* v410 */"kd410.p.co": "*", "kd410.tab.d": "fr", "kd410.co.cent": "es", /* v409 */"ucf409.g.zloto": "de", /* v401 */"iw401.ca.gold": "de", "iw401.p.ar": "es it pt", "iw401.p.ca": "fr it", "iw401.p.hk": "es fr it pt", "iw401.p.jp": "de", /* v400 */"ct400.p.sh": "*", "ct400.p.tw": "de it pt", "ct400.p.hk": "es fr it pt", /* v395 */"en395.norm": "es pt", "en395.pr.propan": "fr", "en395.r.p2": "fr it", "en395.r.p4": "de", "en395.s.norm": "es pt", /* v392 */"ux392.c.CN": "de es pt", /* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
 /* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
@@ -16033,7 +16033,7 @@ const v299 = (() => {
       gStatus() {}, gDay() {}, gLinks() {}, gAuto() {}, gCenyApply() {}, gOecd: x => x, gFxRefs: x => x, gBuba: () => [], cgUrl: u => u,
       gUstLoad: () => Promise.resolve(), tdLoad: () => Promise.resolve(), gFiat: () => null
     };
-    for (const n of APPLY) E[n] = () => {};
+    for (const n of new Set([...APPLY, ...[...src.matchAll(/\b([a-z][A-Za-z]*(?:Apply|MapLoad))\(/g)].map(m => m[1])])) E[n] = () => {};   /* v420: atrapy także dla nowych funkcji wczytujących plik w tle */
     const env = new Proxy(E, {has: (t, k) => k !== 'gLoad' && (k in t || !(k in globalThis)),
       get: (t, k) => { if (k === Symbol.unscopables) return undefined; if (!(k in t)) c.unknown.push(String(k)); return t[k]; }});
     const gLoad = new Function('E', 'with(E){' + src + '\nreturn gLoad;}')(env);
@@ -16093,7 +16093,7 @@ test('v299: P (pierwszy widok) — tylko pliki kafelków; P2 — dawne pliki gLo
   assert.deepEqual(names(P), ['oecd', 'rynki', 'ceny', 'kursy'], 'pierwszy widok: pliki kafelków i mapy');
   assert.ok(P.includes("krP.then(()=>{if(krStabh())gOk('stab');}),") && P.includes('\n    cmcP,'), 'krypto.json i cmc.json — przez obietnice krLoad/cmcLoad (te same pobrania)');
   assert.ok(!/GSRC\.(stab|fiat|crypto)/.test(P), 'obce serwery nie wstrzymują pierwszego widoku');
-  assert.deepEqual(names(P2), ['instytucje', 'jpx', 'fred', 'tic', 'stopy', 'obce', 'eer', 'cofer', 'bilans', 'safe', 'kanada', 'korea', 'spw', 'meksyk', 'ue', 'rezerwy', 'cm', 'cftc', 'bis'],
+  assert.deepEqual(names(P2).filter(n => ['instytucje', 'jpx', 'fred', 'tic', 'stopy', 'obce', 'eer', 'cofer', 'bilans', 'safe', 'kanada', 'korea', 'spw', 'meksyk', 'ue', 'rezerwy', 'cm', 'cftc', 'bis'].includes(n)), ['instytucje', 'jpx', 'fred', 'tic', 'stopy', 'obce', 'eer', 'cofer', 'bilans', 'safe', 'kanada', 'korea', 'spw', 'meksyk', 'ue', 'rezerwy', 'cm', 'cftc', 'bis'],
     'reszta jak dawniej (cm zostaje: inaczej po pełnym odświeżeniu co 30 min liczba źródeł bez niego)');
   assert.ok(P2.includes("gJSON(cgUrl(GSRC.crypto)).then(j=>{GLIVE.crypto=j.data;gOk('crypto');})") && P2.includes('krP.then(()=>krStabh()?null:gJSON(GSRC.stab).then(') && P2.includes('gJSON(GSRC.fiat).then('), 'obce zapasy w tle');
   assert.ok(s.includes("const krP=Promise.resolve(typeof KR!=='undefined'&&KR?KR.p:null).catch(()=>{}),cmcP=Promise.resolve(typeof CMC!=='undefined'&&CMC?CMC.p:null).catch(()=>{});"), 'błąd obietnicy nie zawiesza pierwszego widoku');
@@ -32637,4 +32637,216 @@ test('v419 (W3B): słownik wi419.* — 12 kluczy w 10 językach, te same pola {x
   const code = html.replace(/^const EXTRA\d+=.*$/gm, '');
   for (const k of K) assert.ok(code.includes("'" + k + "'"), 'klucz użyty w kodzie: ' + k);
   assert.ok(dict.pl['wi419.t'].startsWith('Inflacja') && dict.pl['wi419.tg'] === 'cel inflacyjny Fed: 2%');
+});
+
+// ===================== v420 (F11Z23): wielkość rynków akcji z danych bieżących — USA, Europa (7 krajów), Japonia (data/kapitalizacje.json); baza regionów mapy i karta #g-kapital =====================
+// Fixtura KAP420_FILE: plik kapitalizacje.json zbudowany przez zbieracz na prawdziwych nagraniach z 18.10.2026 (zestawienie 7002 wierszy → 3832 spółki bez duplikatów klas, rachunki kwartalne 7 krajów do 2026-Q2, giełda w Tokio do 30.09.2026,
+// fixingi EBC). Czas przypięty (Date.now), bez zegara. Oczekiwane liczby liczone w teście z pól fixtury, tabela (koniec 2025) czytana ze strony.
+const KAP420_FILE = {"v":1,"at":"2026-10-18T03:00:00+00:00","od":"2026-10-18","src":"CapitalFlowAI — kapitalizacje rynków akcji: USA (suma po odsianiu duplikatów klas akcji, sektory, zmiana dnia), siedem krajów Europy (rachunki kwartalne), Japonia (koniec miesiąca); publiczne dane giełd i urzędów, dzień danych przy każdej części","ok":{"us":true,"eu":true,"jp":true},"part_at":{"us":"2026-10-18T03:00:00+00:00","eu":"2026-10-18T03:00:00+00:00","jp":"2026-10-18T03:00:00+00:00"},"errs":{},"us":{"n_wierszy":7002,"n":3832,"mld":80919.3,"zm":0.41,"top":[["NVDA",5235.2],["AAPL",4991.2],["GOOGL",4271.0],["MSFT",4005.6],["AMZN",2747.9]],"top10":36.3,"sek":[["tech",35639.8],["kons",11806.7],["zdr",7739.5],["przem",7298.9],["fin",7128.1],["ener",2448.0],["kom",2217.1],["tele",1675.3],["nier",1545.4],["baz",1408.5],["inne",1234.9],["mat",777.0]],"asof":"2026-10-16","checked_for":"2026-10-16","h":[["2026-10-16",80919.3]]},"eu":{"kraje":{"DE":{"q":"2026-Q2","d":"2026-06-30","eur":2529.7,"kurs":1.1394,"kurs_d":"2026-06-30","usd":2882.3},"ES":{"q":"2026-Q2","d":"2026-06-30","eur":1218.6,"kurs":1.1394,"kurs_d":"2026-06-30","usd":1388.5},"FR":{"q":"2026-Q2","d":"2026-06-30","eur":2814.7,"kurs":1.1394,"kurs_d":"2026-06-30","usd":3207.1},"IT":{"q":"2026-Q2","d":"2026-06-30","eur":1061.7,"kurs":1.1394,"kurs_d":"2026-06-30","usd":1209.7},"NL":{"q":"2026-Q2","d":"2026-06-30","eur":1976.9,"kurs":1.1394,"kurs_d":"2026-06-30","usd":2252.5},"PL":{"q":"2026-Q2","d":"2026-06-30","eur":255.8,"kurs":1.1394,"kurs_d":"2026-06-30","usd":291.5},"SE":{"q":"2026-Q2","d":"2026-06-30","eur":1119.0,"kurs":1.1394,"kurs_d":"2026-06-30","usd":1275.0}},"h":{"DE":[["2025-Q1",2402.5],["2025-Q2",2528.5],["2025-Q3",2473.7],["2025-Q4",2561.1],["2026-Q1",2410.3],["2026-Q2",2529.7]],"ES":[["2025-Q1",870.0],["2025-Q2",916.3],["2025-Q3",1001.5],["2025-Q4",1105.9],["2026-Q1",1083.4],["2026-Q2",1218.6]],"FR":[["2025-Q1",2810.5],["2025-Q2",2726.7],["2025-Q3",2787.0],["2025-Q4",2883.3],["2026-Q1",2688.9],["2026-Q2",2814.7]],"IT":[["2025-Q1",767.9],["2025-Q2",807.5],["2025-Q3",888.5],["2025-Q4",947.6],["2026-Q1",930.6],["2026-Q2",1061.7]],"NL":[["2025-Q1",1333.8],["2025-Q2",1429.1],["2025-Q3",1543.9],["2025-Q4",1550.7],["2026-Q1",1555.7],["2026-Q2",1976.9]],"PL":[["2025-Q1",200.1],["2025-Q2",211.1],["2025-Q3",207.3],["2025-Q4",231.6],["2026-Q1",243.0],["2026-Q2",255.8]],"SE":[["2025-Q1",1000.5],["2025-Q2",986.9],["2025-Q3",1016.7],["2025-Q4",1099.9],["2026-Q1",1061.2],["2026-Q2",1119.0]]},"asof":"2026-06-30"},"jp":{"asof":"2026-09-30","jpy_bln":1396.54,"rynki":{"prime":1351.24,"standard":34.478,"growth":10.451,"pro":0.369},"h":[["2024-04-30",990.28],["2024-05-31",993.84],["2024-06-28",1004.84],["2024-07-31",998.89],["2024-08-30",973.43],["2024-09-30",950.24],["2024-10-31",966.85],["2024-11-29",958.55],["2024-12-30",996.27],["2025-01-31",994.45],["2025-02-28",957.79],["2025-03-31",947.32],["2025-04-30",953.18],["2025-05-30",996.78],["2025-06-30",1012.61],["2025-07-31",1042.32],["2025-08-29",1088.58],["2025-09-30",1101.45],["2025-10-31",1168.68],["2025-11-28",1182.75],["2025-12-30",1192.65],["2026-01-30",1246.63],["2026-02-27",1372.38],["2026-03-31",1213.17],["2026-04-30",1293.46],["2026-05-29",1376.66],["2026-06-30",1384.75],["2026-07-31",1362.57],["2026-08-31",1414.46],["2026-09-30",1396.54]],"kurs":156.997,"kurs_d":"2026-09-30","usd_mld":8895.3},"fx":{"2026-06-30":{"f":"2026-06-30","usd_eur":1.1394,"jpy_usd":162.436},"2026-09-30":{"f":"2026-09-30","usd_eur":1.1355,"jpy_usd":156.997}}};
+const kap420 = (() => {
+  const a0 = html.indexOf('/* ===================== v420 (F11Z23): KAPITALIZACJE'), a1 = html.indexOf('/* ---------- koniec bloku Kapitalizacje rynków (v420) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v420 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const gf0 = html.indexOf('const gfmt='), gf1 = html.indexOf("t('u.m');};", gf0) + "t('u.m');};".length;
+  assert.ok(gf0 > 0 && gf1 > gf0, 'gfmt');
+  const e0 = html.indexOf('const GEST_D='), eD = html.slice(e0, html.indexOf('\n', e0));
+  const g0 = html.indexOf('const GREG=['), g1 = html.indexOf('\n];', g0) + 3;
+  const mkGREG = () => new Function(html.slice(g0, g1) + '\nreturn GREG;')();
+  const NOW = Date.parse('2026-10-18T13:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[  ]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-kapital': el};
+    const calls = [], ivs = [], bars = [], lines = [], mos = [], builds = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener() {}, documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH, GREG = mkGREG(), GB_ = Object.fromEntries(GREG.map(r => [r.id, r]));
+    const GL = {};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'flagImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkLines', 'wkBars', 'wkMs', 'wkDay', 'wkK', 'pgCty',
+      'GREG', 'GB_', 'gBuild', 'gRenderAll', 'GDATA', 'Date',
+      "'use strict';\n" + helpers + '\n' + html.slice(gf0, gf1) + '\n' + eD + '\n' + code + '\nreturn {KAP, kapLoad, renderKap, kapOk, kapUs, kapEu, kapJp, kapBody, kapApply, kapMapLoad, kapBaseRow, kapFull, kapTipMore, kapRows, gfmt, GEST_D};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, c => '<f:' + c + '>', i => i ? '<i>' + i + '</i>' : '', doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (Ls, o) => { lines.push({L: Ls, o}); return '<lines n=' + Ls.map(s => s.d.length).join('+') + ' aria="' + o.aria + '">'; },
+      (rows, o) => { bars.push({rows, o}); return '<bars n=' + rows.length + ' aria="' + o.aria + '">'; },
+      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), () => ': ', c => 'KRAJ:' + c,
+      GREG, GB_, () => { builds.push(1); }, () => {}, {}, FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    return {api, els, calls, ivs, bars, lines, mos, builds, expand, GREG, GB_, html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), lines: [...m[3].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {kap_us: true, kap_eu: 'cached', kap_jp: 'cached'}} : meta, kapitalizacje: j === undefined ? clone(KAP420_FILE) : j});
+  const J = () => clone(KAP420_FILE);
+  const MON = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+  const pdate = s => `${+s.slice(8)} ${MON[+s.slice(5, 7) - 1]} ${s.slice(0, 4)}`;
+  const fmt = (v, d) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(d).replace('.', ',');
+  const dl = (v, d, lab) => { const r = Math.round(v * 10 ** d) / 10 ** d; return r === 0 ? ['neu', '• ' + fmt(0, d) + ' ' + lab] : [r > 0 ? 'pos' : 'neg', (r > 0 ? '▲ +' : '▼ −') + fmt(Math.abs(r), d) + ' ' + lab]; };
+  // kwota jak gfmt: od 999,5 mld w bilionach (najwyżej dwa miejsca po przecinku, bez zer na końcu), od 10 mld bez miejsc, poniżej z jednym
+  const usd = v => v >= 999.5 ? String(Math.round(v / 10) / 100).replace('.', ',') + ' bln USD' : v >= 10 ? String(Math.round(v)) + ' mld USD' : fmt(v, 1) + ' mld USD';
+  return {mk, tiles, files, J, sp, txt, code, helpers, clone, LOC, pdate, fmt, dl, usd, mkGREG, eD, g0, g1, FD, NOW};
+})();
+
+test('v420 (F11Z23): karta — nagłówek od razu, plik dopiero po rozwinięciu, kafle USA / Europa / Japonia z liczbą, zmianą w kolorach kierunku, datą i wiekiem (liczby z pól fixtury i tabeli ze strony)', () => {
+  const K = kap420.mk('pl', kap420.files());
+  assert.equal(K.els['#g-kapital'].hidden, false, 'meta zna część — karta widoczna');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Wielkość rynków akcji: USA, Europa, Japonia — dane bieżące</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart');
+  assert.ok(h.includes('Dane wczytają się po rozwinięciu panelu.') && kap420.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'kapitalizacje'], 'po rozwinięciu jedno pobranie pliku'); h = K.html();
+  const T = kap420.tiles(h), P = Object.fromEntries(T.map(x => [x.label, x])), F = kap420.J(), {fmt, dl, pdate, usd} = kap420, tab = Object.fromEntries(K.GREG.map(r => [r.id, r.mcap0]));
+  assert.equal(T.length, 5, T.map(x => x.label).join('|'));
+  const U = F.us, E = F.eu.kraje, Jp = F.jp, when = d => `dzień ${pdate(d)} · wiek(${d})`, W = {DE: 2899, FR: 2863, IT: 690, NL: 1729, ES: 1298, SE: 581, PL: 316};
+  let x = P['Rynek akcji USA'];
+  assert.deepEqual([x.val, x.lines[0], x.lines[1], x.when], [usd(U.mld), dl(U.zm, 2, '% ostatnia sesja'), dl((U.mld / 68938 - 1) * 100, 1, '% względem tabeli z końca 2025'), when(U.asof)]);
+  assert.equal(tab.usa, 68938, 'tabela ze strony: USA 68 938 mld USD (koniec 2025)'); assert.equal(U.asof, '2026-10-16');
+  x = P['Spółki w zestawieniu']; assert.equal(x.val, String(U.n)); assert.deepEqual(x.lines, [['pc', `10 największych spółek: ${fmt(U.top10, 1)}% wartości`]]); assert.equal(x.when, when(U.asof));
+  const sum = Object.values(E).reduce((a, v) => a + v.usd, 0), tsum = Object.values(W).reduce((a, v) => a + v, 0);
+  x = P['Rynek akcji: 7 krajów Europy']; assert.equal(x.val, usd(sum)); assert.deepEqual(x.lines, [dl((sum / tsum - 1) * 100, 1, '% względem tabeli z końca 2025'), ['pc', 'dane za 2026-Q2']]); assert.equal(x.when, when('2026-06-30'));
+  x = P['Giełda w Tokio']; assert.equal(x.val, usd(Jp.usd_mld)); assert.deepEqual(x.lines, [dl((Jp.usd_mld / 7611 - 1) * 100, 1, '% względem tabeli z końca 2025')]); assert.equal(x.when, `ostatnia sesja miesiąca: ${pdate(Jp.asof)} · wiek(${Jp.asof})`);
+  x = P['Giełda w Tokio w jenach']; const hj = Jp.h; assert.equal(x.val, String(Math.round(Jp.jpy_bln)) + ' bln JPY');
+  assert.deepEqual(x.lines, [dl((hj[hj.length - 1][1] / hj[hj.length - 2][1] - 1) * 100, 1, '% wobec poprzedniego miesiąca'), dl((hj[hj.length - 1][1] / hj[hj.length - 13][1] - 1) * 100, 1, '% wobec roku temu')]);
+  for (const y of T) { assert.ok(/^(dzień |ostatnia sesja miesiąca: )/.test(y.when) && /wiek\(2026-\d\d-\d\d\)/.test(y.when), y.label + ': data i wiek'); assert.ok(!/NaN|undefined|null|Infinity/.test(y.val + JSON.stringify(y.lines)), y.label); }
+  const tx = kap420.txt(h);
+  assert.ok(tx.includes(`Dnia ${pdate(U.asof)} spółki z giełd w USA były warte razem ${usd(U.mld)} (klasy akcji jednej spółki liczone raz).`), 'zdanie o USA');
+  assert.ok(tx.includes('Dla 7 krajów Europy ostatni kompletny kwartał to 2026-Q2;') && !tx.includes('Kraje mają różne daty'), 'zdanie o Europie, wszystkie kraje z tego samego kwartału');
+  assert.ok(tx.includes('Największe spółki (symbol, wartość): NVDA ') && tx.includes('To suma wartości spółek, nie indeks.') && tx.includes('To nie jest porada inwestycyjna'), 'najwięksi i zastrzeżenia');
+  assert.ok(tx.includes('Plik z D:2026-10-18T03:00:00+00:00'), 'stopka z czasem pliku');
+  assert.ok(!/Nasdaq|Eurostat|JPX|EBC|ECB/i.test(tx), 'zero nazw dostawców na stronie');
+  // wykresy słupkowe: regiony (tabela i dane bieżące), kraje Europy (posortowane), zmiana w 4 kwartały, sektory USA
+  const B = K.bars;
+  assert.equal(B.length, 4); const rg = (a, b) => (a / b - 1) * 100;
+  assert.deepEqual(B[0].rows.map(r => Math.round(r.v * 1e6) / 1e6), [rg(U.mld, 68938), rg(Jp.usd_mld, 7611), rg(sum, tsum)].map(v => Math.round(v * 1e6) / 1e6), 'regiony: USA, Japonia, Europa — zmiana wartości względem tabeli (%)');
+  assert.ok(B[0].rows.every(r => r.v > 0 && r.vt.includes('<small class="pos">▲ +')), 'wszystkie trzy w górę: plus zielony ▲'); assert.deepEqual(B[0].rows.map(r => r.l.replace(/<f:[a-z]+>/, '')), ['USA', 'Japonia', 'Europa — siedem krajów'], 'Japonia bez Korei w nazwie wiersza');
+  assert.ok(B[0].o.aria.startsWith('Wykres słupkowy: zmiana wartości 3 rynków względem tabeli z końca 2025')); assert.equal(B[0].o.ser, undefined);
+  assert.ok(B[2].rows.every(r => /<small class="(pos|neg|neu)">(▲ \+|▼ −|• )[\d,]+%<\/small>$/.test(r.vt)), 'różnica względem tabeli z kierunkiem i kolorem'); assert.ok(B[2].rows.find(r => r.l.includes('KRAJ:DEU')).vt.includes('<small class="neg">▼ −1%</small>'), 'Niemcy: nieco poniżej tabeli (2,88 wobec 2,9 bln) — minus czerwony');
+  assert.deepEqual(B[2].rows.map(r => r.vs[1]), Object.values(E).map(v => v.usd).sort((a, b) => b - a), 'kraje Europy od największego'); assert.ok(B[2].rows.every(r => r.vs[0] > 0));
+  assert.equal(B[2].rows.find(r => r.l.includes('KRAJ:SWE')).vs[0], 581, 'Szwecja: tabela 581 mld (dane z 2003), bieżące ponad dwa razy więcej'); assert.ok(B[2].rows.find(r => r.l.includes('KRAJ:SWE')).vs[1] > 2 * 581);
+  const yoy = B[3].rows; assert.equal(yoy.length, 7); const de = F.eu.h.DE; assert.equal(yoy.find(r => r.l.includes('KRAJ:DEU')).v, (de[de.length - 1][1] / de[de.length - 5][1] - 1) * 100, 'DE: 2026-Q2 wobec 2025-Q2');
+  assert.deepEqual(yoy.map(r => r.v), yoy.map(r => r.v).slice().sort((a, b) => b - a), 'zmiana od największej');
+  assert.equal(B[1].rows.length, U.sek.length); assert.deepEqual(B[1].rows.map(r => r.v), U.sek.map(s => s[1])); assert.ok(B[1].rows[0].l.includes('Technologia') && B[1].rows[0].vt.includes(fmt(U.sek[0][1] / U.mld * 100, 1)), 'sektor: nazwa i udział');
+  assert.ok(B[1].rows.every(r => r.cls === 's1'), 'poziomy w kolorze niebieskim (nie kierunek)');
+  // wykres liniowy Japonii (30 miesięcy) i notatka o historii USA (1 sesja — dopiero się zbiera)
+  assert.equal(K.lines.length, 1); assert.deepEqual(K.lines[0].L[0].d.map(p => p[1]), Jp.h.map(r => r[1])); assert.ok(tx.includes('Historia sesji USA dopiero się zbiera (zapisano 1; wykres od 3 sesji).'));
+});
+
+test('v420 (F11Z23): historia USA od 3 sesji — wykres w bilionach, brak części = „—” i zdanie o braku, błąd części i nieważny plik', () => {
+  const j = kap420.J(); const d0 = j.us.h[0]; j.us.h = [['2026-10-14', d0[1] * 0.99], ['2026-10-15', d0[1] * 1.01], d0];
+  const K = kap420.mk('pl', kap420.files(j), {open: true}); K.lines.length = 0; K.bars.length = 0; K.api.renderKap();
+  assert.equal(K.lines.length, 2); assert.deepEqual(K.lines[0].L[0].d.map(p => p[1]), j.us.h.map(r => r[1] / 1000), 'USA: bln USD'); assert.ok(!kap420.txt(K.html()).includes('dopiero się zbiera'));
+  // brak Japonii: blok z „—” i zdaniem, bez kafli; reszta bez zmian
+  const j2 = kap420.J(); delete j2.jp;  const K2 = kap420.mk('pl', kap420.files(j2), {open: true}); K2.bars.length = 0; K2.api.renderKap(); const h2 = K2.html(), t2 = kap420.txt(h2);
+  assert.ok(t2.includes('Japonia — giełda w Tokio Brak odczytu tej części — mapa używa tabeli z końca 2025 roku.') && !kap420.tiles(h2).some(x => x.label.startsWith('Giełda w Tokio')), 'Japonia: brak odczytu, nie zero');
+  assert.equal(kap420.tiles(h2).length, 3); assert.deepEqual(K2.bars[0].rows.length, 2, 'wykres regionów tylko z USA i Europą'); assert.ok(kap420.txt(K2.bars[0].rows[1].l).includes('Europa'));
+  // część z ok false: informacja, dane z ostatniego odczytu zostają
+  const j3 = kap420.J(); j3.ok = {us: true, eu: false, jp: 'cached'}; const K3 = kap420.mk('pl', kap420.files(j3), {open: true}); K3.api.renderKap();
+  assert.ok(kap420.txt(K3.html()).includes('Część danych nie odświeżyła się (Europa) — pokazujemy ostatnie poprawne wartości z datą.') && kap420.tiles(K3.html()).length === 5);
+  // pola poza zakresem są odrzucane: USA bez sektorów przy sumie ≠ razem; kraj spoza listy; zły dzień
+  const j4 = kap420.J(); j4.us.sek[0][1] += 5000; const U4 = kap420.mk('pl', kap420.files(j4), {open: true}).api.kapUs(j4); assert.deepEqual(U4.sek, [], 'suma sektorów ≠ razem — sektory pominięte, reszta zostaje'); assert.equal(U4.mld, j4.us.mld);
+  const j5 = kap420.J(); j5.eu.kraje.US = clone5(j5.eu.kraje.DE); j5.eu.kraje.DE.d = 'x'; function clone5(o) { return JSON.parse(JSON.stringify(o)); }
+  const E5 = kap420.mk('pl', kap420.files(j5)).api.kapEu(j5); assert.deepEqual(Object.keys(E5.k).sort(), ['ES', 'FR', 'IT', 'NL', 'PL', 'SE'], 'kraj spoza listy i kraj ze złym dniem odrzucone');
+  const j6 = kap420.J(); for (const g of ['DE', 'FR', 'IT']) delete j6.eu.kraje[g]; assert.equal(kap420.mk('pl', kap420.files(j6)).api.kapEu(j6), null, 'mniej niż 5 krajów = brak części');
+  // nieważny plik: błąd bez pętli, mapa bez zmian
+  const K7 = kap420.mk('pl', kap420.files({v: 1, at: 'x'}), {open: true}); K7.api.renderKap(); assert.ok(kap420.txt(K7.html()).includes('Nie udało się wczytać tych danych. Mapa korzysta z tabeli z końca 2025 roku.') && K7.api.KAP.x === true);
+  const n = K7.calls.length; K7.api.kapLoad(); assert.equal(K7.calls.length, n, 'po błędzie najwcześniej po minucie'); assert.equal(K7.api.kapOk(null), false); assert.equal(K7.api.kapOk({v: 2}), false);
+  // plik dla mapy (kapMapLoad z gLoad): nakłada bazę, a ważny plik pokazuje kartę nawet bez meta.json; nieważny — tabela, karta bez zmian
+  const K9 = kap420.mk('pl', kap420.files(undefined, null)); assert.equal(K9.els['#g-kapital'].hidden, true, 'meta.json nie przyszedł — karta ukryta'); K9.api.kapMapLoad(kap420.J());
+  assert.equal(K9.els['#g-kapital'].hidden, false); assert.equal(K9.GB_.usa.mcap, kap420.J().us.mld); assert.equal(K9.api.KAP.j.at, kap420.J().at); assert.deepEqual(K9.calls, ['meta'], 'plik nie jest pobierany drugi raz');
+  K9.api.kapMapLoad(null); assert.equal(K9.GB_.usa.mcap, 68938, 'brak pliku = tabela'); assert.equal(K9.api.KAP.j.at, kap420.J().at, 'karta zostaje z ostatnim ważnym plikiem');
+  // brak części w meta.json = karta ukryta
+  const K8 = kap420.mk('pl', kap420.files(undefined, {ok: {fred2: true}})); assert.equal(K8.els['#g-kapital'].hidden, true);
+});
+
+test('v420 (F11Z23): baza mapy — kapApply podmienia kapitalizację i wagi regionów USA, Europa (7 krajów), Japonia; tabela zostaje zapasem, powrót do tabeli bez śladu', () => {
+  const K = kap420.mk('pl', kap420.files()), A = K.api, F = kap420.J(), orig = kap420.mkGREG(), G = K.GB_;
+  assert.equal(A.kapApply(F), true);
+  const sum = Object.values(F.eu.kraje).reduce((a, v) => a + v.usd, 0), tsum7 = 2899 + 2863 + 690 + 1729 + 1298 + 581 + 316;
+  assert.equal(G.usa.mcap, F.us.mld); assert.deepEqual(G.usa.kap.parts, [[F.us.mld, '2026-10-16']]); assert.equal(G.usa.kap.live, 1);
+  // Europa: DEU FRA GBR ITA ESP NLD CHE SWE POL → siedem krajów z rachunków (USD), GBR i CHE z tabeli
+  const w = G.eur.w, E = F.eu.kraje; assert.deepEqual(w, [E.DE.usd, E.FR.usd, 3895, E.IT.usd, E.ES.usd, E.NL.usd, 2514, E.SE.usd, E.PL.usd]);
+  assert.ok(Math.abs(G.eur.mcap - (sum + 3895 + 2514)) < 1e-6 && Math.abs(G.eur.mcap - (16785 - tsum7 + sum)) < 1e-6, 'mcap = tabela − 7 krajów z tabeli + 7 krajów z rachunków');
+  assert.deepEqual(G.eur.kap.parts.map(p => p[1]), ['2025-12-31', '2026-06-30']); assert.equal(G.eur.kap.n, 7); assert.ok(Math.abs(G.eur.kap.parts[0][0] - (3895 + 2514)) < 1e-9 && Math.abs(G.eur.kap.parts[1][0] - sum) < 1e-6);
+  assert.deepEqual(G.eur.fx.map(f => f[0]), ['EUR', 'GBP', 'CHF', 'SEK', 'PLN']); assert.ok(Math.abs(G.eur.fx[0][1] - (E.DE.usd + E.FR.usd + E.IT.usd + E.ES.usd + E.NL.usd)) < 1e-6); assert.equal(G.eur.fx[1][1], 3895); assert.equal(G.eur.fx[2][1], 2514);
+  assert.equal(G.eur.fx[3][1], E.SE.usd); assert.equal(G.eur.fx[4][1], E.PL.usd);
+  // Japonia: JPN z giełdy w Tokio (USD), KOR z tabeli
+  assert.deepEqual(G.jpn.w, [F.jp.usd_mld, 2757]); assert.equal(G.jpn.fx[0][1], F.jp.usd_mld); assert.equal(G.jpn.fx[1][1], 2757); assert.ok(Math.abs(G.jpn.mcap - (F.jp.usd_mld + 2757)) < 1e-9); assert.deepEqual(G.jpn.kap.parts.map(p => p[1]), ['2025-12-31', '2026-09-30']);
+  // pozostałe regiony bez zmian
+  for (const r of orig) if (!['usa', 'eur', 'jpn'].includes(r.id)) { assert.equal(G[r.id].mcap, r.mcap, r.id); assert.equal(G[r.id].kap, null, r.id); assert.deepEqual(G[r.id].w, r.w); }
+  // idempotencja i powrót do tabeli
+  const s1 = JSON.stringify(K.GREG); A.kapApply(F); assert.equal(JSON.stringify(K.GREG), s1, 'drugie nałożenie tego samego pliku nic nie zmienia');
+  assert.equal(A.kapApply(null), false);
+  for (const r of orig) { assert.equal(G[r.id].mcap, r.mcap, r.id); assert.deepEqual(G[r.id].w, r.w, r.id); assert.deepEqual(G[r.id].fx, r.fx, r.id); assert.equal(G[r.id].kap, null, r.id); }
+  // brak części: tylko USA ważne → Europa i Japonia z tabeli
+  const F2 = kap420.J(); delete F2.eu; delete F2.jp; assert.equal(A.kapApply(F2), true); assert.equal(G.usa.mcap, F.us.mld); assert.equal(G.eur.mcap, 16785); assert.equal(G.jpn.mcap, 10368); assert.equal(G.eur.kap, null);
+  assert.equal(A.kapApply({v: 1, at: 'x'}), false); assert.equal(G.usa.mcap, 68938, 'plik nieważny = tabela');
+  // wiersz „Baza — dane bieżące” w szczegółach regionu i dopisek do podpowiedzi kafla
+  assert.equal(A.kapBaseRow('usa'), ''); assert.equal(A.kapTipMore(), ''); assert.equal(A.kapFull('usa'), false); A.kapApply(F); assert.deepEqual(['usa', 'eur', 'jpn', 'can', 'zzz'].map(A.kapFull), [true, false, false, false, false], 'USA w całości z danych bieżących — bez wiersza o tabeli');
+  assert.equal(kap420.txt(A.kapBaseRow('usa')), `Baza — dane bieżące Kapitalizacja spółek z giełd w USA z dnia ${kap420.pdate('2026-10-16')} (suma bez duplikatów klas akcji) — zamiast tabeli z końca 2025 roku. · wiek(2026-10-16)`);
+  assert.ok(kap420.txt(A.kapBaseRow('eur')).includes('7 z 9 krajów regionu z rachunków kwartalnych (koniec kwartału: 30 cze 2026); pozostałe kraje nadal z tabeli z końca 2025 roku.'));
+  assert.ok(kap420.txt(A.kapBaseRow('jpn')).includes('Giełda w Tokio z dnia 30 wrz 2026; Korea nadal z tabeli z końca 2025 roku.')); assert.equal(A.kapBaseRow('can'), ''); assert.equal(A.kapBaseRow('zzz'), '');
+  assert.ok(A.kapTipMore().startsWith(' Dla USA, części Europy i Japonii baza szacunku to bieżąca kapitalizacja'));
+});
+
+test('v420 (F11Z23): szacunek wartości rynku (gEstReg) liczy od dnia każdej części bazy; bez danych bieżących — dokładnie jak dotąd', () => {
+  const c0 = html.indexOf('const GCENY_N='), c1 = html.indexOf('function gCenyAt(', c0);
+  assert.ok(c0 > 0 && c1 > c0 && html.slice(c0, c1).includes('function gEstP0(') && html.slice(c0, c1).includes('r.kap&&Array.isArray(r.kap.parts)'), 'gEstReg z częściami w zasięgu testów (bez zależności od modułu v420)');
+  const GPROXY = {usa: [['SPY', 1]], eur: [['VGK', 1]], jpn: [['EWJ', 1]]};
+  const mk = ceny => new Function('GLIVE', 'GPROXY', 'LOCALE', 'LANG', 'gOk', 'gPeriodButtons', 'tdStatus', html.slice(c0, c1) + '\nreturn {gEstReg, gEstAll, gAmt, gEstP0, GEST_P};')({ceny}, GPROXY, {pl: 'pl-PL'}, 'pl', () => {}, () => {}, () => {});
+  const d = a => a.map(([x, y]) => [x, y]);
+  const C = {q: {SPY: {d: d([['2026-06-30', 600], ['2026-10-14', 680], ['2026-10-15', 690], ['2026-10-16', 700]])}, VGK: {d: d([['2026-06-30', 80], ['2026-10-15', 88], ['2026-10-16', 90]])}, EWJ: {d: d([['2026-09-30', 70], ['2026-10-16', 77]])}}};
+  const F = mk(C), cal = ['2026-10-14', '2026-10-15', '2026-10-16'], P = F.GEST_P['2025-12-31'];
+  // bez danych bieżących (r.kap = null): baza × cena / cena z końca 2025 (GEST_P), jak przed v420
+  const near = (a, b, m) => assert.ok(Math.abs(a - b) <= 1e-9 * Math.abs(b), (m || '') + ' ' + a + ' ≠ ' + b);
+  const usa0 = {id: 'usa', mcap: 68938, kap: null}; let e = F.gEstReg(usa0, cal); near(e.v, 68938 * 700 / P.SPY); assert.equal(e.b, '2025-12-31'); assert.deepEqual(e.syms, ['SPY']);
+  assert.equal(F.gEstReg(usa0, ['2025-12-31']), null, 'koniec okna = dzień bazy: bez szacunku (jak dotąd)'); assert.equal(F.gEstReg({id: 'zzz', mcap: 1, kap: null}, cal), null);
+  // dzień danych = ostatnia świeca: poziom = wartość ze źródła (współczynnik 1); później — razy zmiana ceny od dnia danych
+  const usa1 = {id: 'usa', mcap: 80919.3, kap: {parts: [[80919.3, '2026-10-16']]}};
+  assert.equal(F.gEstReg(usa1, cal).v, 80919.3); assert.equal(F.gEstReg(usa1, cal.slice(0, 2).concat(['2026-10-16'])).v, 80919.3);
+  near(F.gEstReg({id: 'usa', mcap: 1, kap: {parts: [[1000, '2026-10-14']]}}, cal).v, 1000 * 700 / 680, 'dzień danych 14.10 → cena z 14.10');
+  // dzień bez świecy (sobota): ostatnia świeca nie później niż dzień; zbyt stara (> 10 dni) = brak szacunku
+  assert.equal(F.gEstReg({id: 'usa', mcap: 1, kap: {parts: [[1000, '2026-10-17']]}}, cal).v, 1000, 'sobota 17.10: świeca z 16.10, ta sama co koniec');
+  assert.equal(F.gEstReg({id: 'usa', mcap: 1, kap: {parts: [[1000, '2026-06-20']]}}, cal), null, 'plik cen nie sięga 20.06 (pierwsza świeca 30.06) — brak ceny z dnia danych, więc brak szacunku');
+  assert.equal(F.gEstReg({id: 'usa', mcap: 1, kap: {parts: [[1000, '2026-10-05']]}}, cal), null, 'ostatnia świeca nie później niż 05.10 to 30.06 — starsza niż 10 dni');
+  assert.equal(F.gEstReg({id: 'usa', mcap: 1, kap: {parts: [[1000, '2026-10-30']]}}, cal).v, 1000, 'plik cen opóźniony względem danych: współczynnik 1');
+  // dwie części (Europa): kraje z kwartału i GBR + CHE z tabeli — każda od swojego dnia
+  const eur = {id: 'eur', mcap: 9000, kap: {parts: [[2500, '2025-12-31'], [6500, '2026-06-30']]}};
+  e = F.gEstReg(eur, cal); near(e.v, 2500 * 90 / P.VGK + 6500 * 90 / 80); assert.deepEqual(e.syms, ['VGK']);
+  assert.equal(F.gEstReg({id: 'eur', mcap: 9000, kap: {parts: [[6500, '2026-06-30'], [100, '2025-12-31']]}}, cal) !== null, true);
+  // część bez ceny funduszu z dnia danych → cały region bez szacunku (nie liczba z połowy części)
+  assert.equal(F.gEstReg({id: 'jpn', mcap: 1, kap: {parts: [[5000, '2026-03-31'], [10, '2025-12-31']]}}, cal), null, 'EWJ nie ma świecy sprzed 10 dni od 31.03');
+  // kwota zmiany: szacunek bieżący liczony z r.mcap przy braku szacunku, jak dotąd
+  near(F.gAmt({id: 'usa', mcap: 80919.3}, 2), 80919.3 * 2 / 100); assert.ok(html.includes("const kr=typeof kapBaseRow==='function'?kapBaseRow(id):'';if(typeof kapFull==='function'&&kapFull(id))return kr;") && html.includes("(typeof kapTipMore==='function'?kapTipMore():'')"), 'wiersz bazy i dopisek tylko, gdy moduł jest (testy wycinków bez niego)');
+});
+
+test('v420 (F11Z23): wpięcie w stronę — sekcja karty po Kanadzie, plik w tle GLOBAL, język 10 razy, bez nazw dostawców, telefon 390 px', () => {
+  assert.equal(html.split('id="g-kapital"').length, 2, 'jedna sekcja karty'); assert.ok(html.indexOf('id="g-kapital"') > html.indexOf('id="g-kandlug"') && html.indexOf('id="g-kapital"') < html.indexOf('id="g-snb"'));
+  assert.ok(html.includes("srvJSON('kapitalizacje').then(j=>{if(typeof kapMapLoad==='function')kapMapLoad(j);}).catch(()=>{})"), 'plik w tle GLOBAL (P2) — pierwszy widok nie czeka');
+  assert.equal(html.split('function kapMapLoad(').length, 2); assert.equal(html.split('function kapApply(').length, 2);
+  assert.ok(html.includes('#g-kapital .etfkpis') && html.includes('@media (max-width:620px){#g-kapital .etfkpis') && html.includes('@media (max-width:520px){#g-kapital .wk-br{--lw:42%}}'), 'CSS karty, telefon');
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  const m = [...html.matchAll(/^const (EXTRA\d+)=(\{.*\});$/gm)].filter(x => x[2].includes('"kap420.t"'));
+  assert.equal(m.length, 1, 'jeden słownik v420'); const D = JSON.parse(m[0][2]); assert.deepEqual(Object.keys(D), L10);
+  const keys = Object.keys(D.pl); assert.ok(keys.length >= 60 && keys.every(k => k.startsWith('kap420.')));
+  const fl = `for(const l in ${m[0][1]})if(I18N[l])Object.assign(I18N[l],${m[0][1]}[l]);`; assert.equal(html.split(fl).length, 2, 'jedna linia nakładania');
+  for (const l of L10) { assert.deepEqual(Object.keys(D[l]), keys, l); for (const k of keys) { assert.ok(typeof D[l][k] === 'string' && D[l][k].length > 0, l + ' ' + k); assert.deepEqual((D[l][k].match(/\{\w+\}/g) || []).sort(), (D.pl[k].match(/\{\w+\}/g) || []).sort(), l + ' ' + k + ': pola'); } }
+  const wsz = L10.flatMap(l => Object.values(D[l])).join(' '); assert.ok(!/nasdaq|eurostat|jpx|\bebc\b|\becb\b|fred|bloomberg|coingecko/i.test(wsz), 'zero nazw dostawców w tekstach strony');
+  for (const l of L10.slice(2)) for (const k of keys) if (/[A-Za-z]{4}/.test(D.en[k].replace(/\{\w+\}/g, ' ')) && !(V142_OK[k] || '').split(' ').includes(l)) assert.notEqual(D[l][k], D.en[k], l + ' ' + k);
+  // wszystkie klucze użyte w module istnieją w słowniku (t('kap420.…') i kap420.sek.<id>)
+  const code = kap420.code, used = new Set([...code.matchAll(/'(kap420\.[a-z0-9.]+)'/g)].map(x => x[1]));
+  for (const k of used) if (!k.endsWith('.')) assert.ok(k in D.pl, 'brak klucza ' + k);
+  for (const s of ['tech', 'kons', 'zdr', 'przem', 'fin', 'ener', 'kom', 'tele', 'nier', 'baz', 'mat', 'inne']) assert.ok(('kap420.sek.' + s) in D.pl, s);
+  for (const p of ['us', 'eu', 'jp']) assert.ok(('kap420.p.' + p) in D.pl && ('kap420.d.' + {us: 'usa', eu: 'eur', jp: 'jpn'}[p]) in D.pl);
+  // teksty w innych językach: kafle i zdania bez surowych kluczy
+  for (const l of ['en', 'de', 'ja']) { const K = kap420.mk(l, kap420.files(), {open: true}); K.api.renderKap(); const tx = kap420.txt(K.html()); assert.ok(!tx.includes('kap420.') && kap420.tiles(K.html()).length === 5, l); }
+  // kod modułu: bez nazw dostawców i bez TradingView; kolory zmian tylko z narzędzia strDelta (plus zielony, minus czerwony, zero żółte)
+  assert.ok(!/nasdaq|eurostat|jpx|\bebc\b|tradingview/i.test(kap420.code.replace(/\/\*[\s\S]*?\*\//g, '')), 'kod bez nazw dostawców'); assert.ok(kap420.code.includes('strDelta(') && !/class="(pos|neg)"/.test(kap420.code));
 });

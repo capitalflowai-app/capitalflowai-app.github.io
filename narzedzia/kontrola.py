@@ -13067,6 +13067,199 @@ def fred2_kontrola(files, now=None):
     return {'spojnosc': fred2_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'serie_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v420 (F11Z23): KAPITALIZACJE RYNKÓW AKCJI — USA, Europa (7 krajów), Japonia (data/kapitalizacje.json) ----------------------------------------------------------------
+# Plik: us {asof, mld, n, n_wierszy, zm, top [[symbol, mld]], top10, sek [[sektor, mld]], h [[dzień, mld]], checked_for}, eu {asof, kraje {kraj: {q, d, eur, usd, kurs, kurs_d}}, h {kraj: [[kwartał, mld EUR]]}},
+# jp {asof, jpy_bln, usd_mld, kurs, kurs_d, rynki {prime, standard, growth, pro}, h [[dzień, bln JPY]]}, fx, ok / part_at / errs. Kontrola czyta pliki ze strony (bez zapytań do sieci).
+# RYTM PUBLIKACJI i progi (test wsteczny — ws53/v420-kapitalizacje/bt/bt_progi.py na 260 sesjach USA z pliku cen i 54 miesiącach giełdy w Tokio z 18.10.2026): USA — odczyt raz na sesję w ciszy między sesjami
+# (najdłuższa przerwa 2,3 doby, sobota → poniedziałek rano) → wiek odczytu ⚠ po 4 dobach; wiek dnia danych o 07:40 UTC najwyżej 3,3 doby (długi weekend) → ⚠ po 5 dobach od końca dnia; Japonia — odstępy między
+# miesiącami 28–33 doby, dostępność ostatniego miesiąca w ciągu kilku dni → ⚠ po 50 dobach (zapas na opóźnienie wydania 17 dób); Europa — kwartał II dostępny po 105 dobach (aktualizacja źródła 13.10.2026), największy
+# wiek tuż przed następnym wydaniem ok. 197 dób → ⚠ po 230 dobach (historii wydań źródło nie udostępnia — próg ostrożny, tylko uwaga). Pobranie części (part_at): USA ⚠ po 4 dobach, Europa po 12 (odczyt co 3 doby),
+# Japonia po 2 (odczyt co 12 h).
+# (1) wiersze świeżości (najwyżej ⚠️): pobranie i rytm danych każdej części; (2) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zły dzień, suma sektorów ≠ razem, wartość w dolarach ≠ wartość × kurs, rynki giełdy w Tokio ≠ razem,
+#     ostatni wiersz historii ≠ bieżąca wartość, dzień kwartału ≠ koniec kwartału; (3) TYLKO UWAGA ⚠: część z ok False. Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'kapitalizacje')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['kapitalizacje'] = 6 * 60   # plik zapisywany co ok. 20–55 min — wiek pobrania każdej części ocenia osobny wiersz
+AW_BEZ_BLEDU.update({'kap_' + p_: 'Kapitalizacje rynków akcji (USA, Europa, Japonia) — część z błędem zostaje z ostatnimi danymi i datą (v420); wiek pobrania i rytm danych w wierszach świeżości' for p_ in ('us', 'eu', 'jp')})
+KPK_PARTS = ('us', 'eu', 'jp')
+KPK_ETYKIETA = {'us': 'Kapitalizacje: USA', 'eu': 'Kapitalizacje: Europa (7 krajów)', 'jp': 'Kapitalizacje: Japonia'}
+KPK_POBRANIE = {'us': 4 * 1440, 'eu': 12 * 1440, 'jp': 2 * 1440}   # min — wiek pobrania części ⚠ (USA: raz na sesję; Europa: co 3 doby; Japonia: co 12 h)
+KPK_DANE = {'us': 5, 'eu': 230, 'jp': 50}   # doby — wiek ostatniego dnia danych od końca tego dnia ⚠
+KPK_GEO = ('DE', 'FR', 'IT', 'NL', 'ES', 'SE', 'PL')
+KPK_SEK = ('tech', 'kons', 'zdr', 'przem', 'fin', 'ener', 'kom', 'tele', 'nier', 'baz', 'mat', 'inne')
+KPK_BRAK_DNI = 3     # doby — część bez żadnych danych od pierwszej budowy pliku (USA czeka na ciszę między sesjami: pierwszy odczyt w ciągu doby)
+KPK_ZGODA = 0.003    # względna zgodność dwóch zaokrągleń (suma sektorów, wartość w dolarach)
+
+
+def _kpk_dzien(s):
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return dt.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _kpk_num(x, lo, hi):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and lo <= x <= hi
+
+
+def _kpk_kw_koniec(q):
+    m = re.fullmatch(r'(\d{4})-Q([1-4])', q) if isinstance(q, str) else None
+    if not m:
+        return None
+    y, k = int(m.group(1)), int(m.group(2))
+    return (dt.date(y + (k == 4), k * 3 % 12 + 1, 1) - dt.timedelta(days=1)).isoformat()
+
+
+def _kpk_hist_dni(h, ile_min=0):
+    """Wiersze [dzień, liczba]: dni poprawne i rosnące; zwraca (ok, opis błędu)."""
+    if not isinstance(h, list) or len(h) < ile_min:
+        return False, 'historia ma zły kształt albo jest za krótka'
+    ost = None
+    for r in h:
+        d = _kpk_dzien(r[0]) if isinstance(r, list) and len(r) == 2 else None
+        if d is None or not _kpk_num(r[1], 0, 1e9):
+            return False, f'zły wiersz historii ({str(r)[:40]})'
+        if ost is not None and d <= ost:
+            return False, 'dni historii nie rosną'
+        ost = d
+    return True, ''
+
+
+def kapk_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w kapitalizacjach) → lista opisów (najwyżej 12)."""
+    zle = []
+    at = _kpk_dzien(str(j.get('at'))[:10])
+    U = j.get('us')
+    if U is not None:
+        d = _kpk_dzien(U.get('asof')) if isinstance(U, dict) else None
+        if not isinstance(U, dict) or d is None or not _kpk_num(U.get('mld'), 15000, 4e5):
+            zle.append('USA: część ma zły kształt, dzień albo wartość')
+        else:
+            if at and d > at:
+                zle.append(f'USA: dzień danych {U["asof"]} z przyszłości względem pobrania')
+            sek = U.get('sek')
+            if isinstance(sek, list) and sek:
+                if any(not (isinstance(r, list) and len(r) == 2 and r[0] in KPK_SEK and _kpk_num(r[1], 0, 4e5)) for r in sek):
+                    zle.append('USA: sektor spoza listy albo zła liczba')
+                elif abs(sum(r[1] for r in sek) - U['mld']) > U['mld'] * KPK_ZGODA:
+                    zle.append(f'USA: suma sektorów {round(sum(r[1] for r in sek))} ≠ razem {U["mld"]}')
+            top = U.get('top')
+            if isinstance(top, list) and top:
+                if any(not (isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and _kpk_num(r[1], 0, U['mld'])) for r in top) or [r[1] for r in top] != sorted((r[1] for r in top), reverse=True):
+                    zle.append('USA: lista największych spółek zła albo nie malejąca')
+                elif _kpk_num(U.get('top10'), 0, 100) and U['top10'] + 0.1 < sum(r[1] for r in top) / U['mld'] * 100:
+                    zle.append('USA: udział 10 największych mniejszy niż udział 5 największych')
+            ok, opis = _kpk_hist_dni(U.get('h'))
+            if not ok:
+                zle.append('USA: ' + opis)
+            elif U['h'] and (U['h'][-1][0] != U['asof'] or abs(U['h'][-1][1] - U['mld']) > 0.06):
+                zle.append('USA: ostatni wiersz historii ≠ bieżący dzień i wartość')
+    E = j.get('eu')
+    if E is not None:
+        if not isinstance(E, dict) or not isinstance(E.get('kraje'), dict) or not E['kraje']:
+            zle.append('Europa: część ma zły kształt')
+        else:
+            for g, v in E['kraje'].items():
+                if g not in KPK_GEO or not isinstance(v, dict):
+                    zle.append(f'Europa: kraj {str(g)[:6]!r} spoza listy albo zły kształt')
+                    continue
+                if _kpk_kw_koniec(v.get('q')) != v.get('d'):
+                    zle.append(f'Europa {g}: dzień {v.get("d")} ≠ koniec kwartału {v.get("q")}')
+                if not (_kpk_num(v.get('eur'), 10, 2e4) and _kpk_num(v.get('usd'), 10, 2e4) and _kpk_num(v.get('kurs'), 0.3, 3)):
+                    zle.append(f'Europa {g}: liczba poza zakresem')
+                elif abs(v['usd'] - v['eur'] * v['kurs']) > v['usd'] * 0.002 + 0.1:
+                    zle.append(f'Europa {g}: wartość w dolarach {v["usd"]} ≠ {v["eur"]} × kurs {v["kurs"]}')
+                H = E.get('h', {}).get(g) if isinstance(E.get('h'), dict) else None
+                if isinstance(H, list) and H:
+                    qs = [r[0] for r in H if isinstance(r, list) and len(r) == 2]
+                    if len(qs) != len(H) or qs != sorted(set(qs)) or H[-1][0] != v.get('q') or abs(H[-1][1] - v.get('eur', -1)) > 0.06:
+                        zle.append(f'Europa {g}: historia kwartałów niespójna z ostatnim kwartałem')
+    P = j.get('jp')
+    if P is not None:
+        d = _kpk_dzien(P.get('asof')) if isinstance(P, dict) else None
+        if d is None or not _kpk_num(P.get('jpy_bln'), 300, 5000) or not _kpk_num(P.get('usd_mld'), 1000, 5e4) or not _kpk_num(P.get('kurs'), 60, 300):
+            zle.append('Japonia: część ma zły kształt, dzień albo liczbę poza zakresem')
+        else:
+            if at and d > at:
+                zle.append(f'Japonia: dzień danych {P["asof"]} z przyszłości względem pobrania')
+            if abs(P['usd_mld'] - P['jpy_bln'] * 1000 / P['kurs']) > P['usd_mld'] * 0.002 + 0.1:
+                zle.append(f'Japonia: wartość w dolarach {P["usd_mld"]} ≠ {P["jpy_bln"]} bln JPY ÷ kurs {P["kurs"]}')
+            R = P.get('rynki')
+            if isinstance(R, dict) and R:
+                if abs(sum(v for v in R.values() if _kpk_num(v, 0, 1e4)) - P['jpy_bln']) > 0.01 + P['jpy_bln'] * 1e-5:
+                    zle.append('Japonia: suma rynków ≠ razem')
+            ok, opis = _kpk_hist_dni(P.get('h'))
+            if not ok:
+                zle.append('Japonia: ' + opis)
+            elif P['h'] and (P['h'][-1][0] != P['asof'] or abs(P['h'][-1][1] - P['jpy_bln']) > 0.006):
+                zle.append('Japonia: ostatni wiersz historii ≠ bieżący miesiąc i wartość')
+    return zle[:12]
+
+
+def kapk_swiezosc(j, now=None):
+    """Wiersze (etykieta, status, wiek min, chwila/dzień, uwaga): dla każdej części pobranie (part_at) i wiek dnia danych względem progów z bt_progi.py; brak pliku, inna wersja albo część = brak wiersza. Najwyżej ⚠."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return []
+    rows = []
+    pa = j.get('part_at') if isinstance(j.get('part_at'), dict) else {}
+    for k in KPK_PARTS:
+        P = j.get(k)
+        if not isinstance(P, dict):
+            continue
+        et = KPK_ETYKIETA[k]
+        p = pa.get(k)
+        w = wiek_danych(str(p), 'ts', 'k', now) if p else None
+        if w is None:
+            rows.append((et + ' (pobranie)', '?', None, None, 'brak chwili pobrania części'))
+        else:
+            st = '⚠️' if w > KPK_POBRANIE[k] else '✅'
+            note = f'pobranie starsze niż {fmt_wiek(KPK_POBRANIE[k])} — dane mogą być nieaktualne; najwyżej uwaga' if st == '⚠️' else ''
+            if not note and isinstance(j.get('ok'), dict) and j['ok'].get(k) is False:
+                note = 'ostatnie pobranie nieudane — dane z poprzedniego pobrania'
+            rows.append((et + ' (pobranie)', st, w, str(p), note))
+        dzien = P.get('asof')
+        wd = wiek_danych(str(dzien), 'day', 'k', now) if _kpk_dzien(dzien) else None
+        if wd is not None:
+            st = '⚠️' if wd > KPK_DANE[k] * 1440 else '✅'
+            rows.append((et + ' (rytm danych)', st, wd, str(dzien), (f'dane starsze niż {KPK_DANE[k]} dób (próg z testu wstecznego) — źródło mogło stanąć; najwyżej uwaga' if st == '⚠️' else '')))
+    return rows
+
+
+def kapk_uwagi(j, now=None):
+    """Uwagi ⚠ (nigdy ❌): części z ok False, części bez żadnych danych od KPK_BRAK_DNI dni od pierwszej budowy pliku (od) i brakujące kraje Europy → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    now = now or NOW
+    out = {'wiersze': [], 'uwagi': []}
+    od = _kpk_dzien(j.get('od'))
+    for k in KPK_PARTS:
+        if not isinstance(j.get(k), dict) and od is not None and (now.date() - od).days >= KPK_BRAK_DNI:
+            out['uwagi'].append(f'Kapitalizacje: część {k} nadal bez żadnych danych od {(now.date() - od).days} dni (zbieracz jej jeszcze nie odczytał) — mapa używa dla niej tabeli z końca 2025 roku')
+            out['wiersze'].append((f'część {k} bez danych', '⚠️'))
+    ok = j.get('ok') if isinstance(j.get('ok'), dict) else {}
+    nie = sorted(k for k in KPK_PARTS if ok.get(k) is False)
+    for k in nie:
+        out['uwagi'].append(f'Kapitalizacje: część {k} nie odpowiedziała w ostatnim pobraniu ({str((j.get("errs") or {}).get(k) or "bez opisu")[:100]}) — pokazane są poprzednie dane z ich datą')
+        out['wiersze'].append((f'część {k} bez odpowiedzi', '⚠️'))
+    E = j.get('eu')
+    if isinstance(E, dict) and isinstance(E.get('kraje'), dict):
+        brak = [g for g in KPK_GEO if g not in E['kraje']]
+        if brak:
+            out['uwagi'].append('Kapitalizacje: Europa bez kompletnego kwartału dla: ' + ', '.join(brak) + ' — mapa używa dla nich tabeli z końca 2025 roku')
+            out['wiersze'].append(('kraje Europy bez kwartału', '⚠️'))
+    return out
+
+
+def kapk_kontrola(files, now=None):
+    """Kontrola pliku kapitalizacje.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('kapitalizacje') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    U = kapk_uwagi(j, now)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': kapk_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -13831,6 +14024,24 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['fred2'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'FRED 2 (v411): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v420. Kapitalizacje rynków akcji (data/kapitalizacje.json): świeżość pobrania trzech części i rytm danych (wiek dnia danych względem progów z testu wstecznego) osobnymi wierszami (lista SWIEZOSC bez zmian), sprzeczności w pliku (❌),
+    # części bez odpowiedzi i kraje Europy bez kwartału (⚠) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in kapk_swiezosc(files.get('kapitalizacje')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_kp = kapk_kontrola(files)
+        if T_kp:
+            for z_ in T_kp['spojnosc'][:5]:
+                R['bledy'].append(f'kapitalizacje.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_kp['uwagi']
+        R['zgodnosc']['kapitalizacje'] = {k_: T_kp[k_] for k_ in ('spojnosc', 'wiersze', 'czesci_bez_odpowiedzi')} if T_kp else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['kapitalizacje'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Kapitalizacje (v420): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -14611,6 +14822,11 @@ def raport_md(R):
             L.append('- FRED 2, premia terminowa, dolar, spready kredytowe, warunki finansowe i zasiłki (z pliku strony): ' + (f'? kontrola przerwana ({kf2["blad"]})' if kf2.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(kf2['spojnosc'][:3]) + ' ❌ · ' if kf2.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in kf2.get('wiersze') or []) or '—') + '.')
+        kkp = Z.get('kapitalizacje')   # v420: kapitalizacje rynków akcji — sprzeczności w pliku, części bez odpowiedzi; brak pliku = bez linii
+        if kkp:
+            L.append('- Kapitalizacje rynków akcji, USA / siedem krajów Europy / Japonia (z pliku strony): ' + (f'? kontrola przerwana ({kkp["blad"]})' if kkp.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(kkp['spojnosc'][:3]) + ' ❌ · ' if kkp.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in kkp.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

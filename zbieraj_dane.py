@@ -33454,6 +33454,30 @@ def main():
             if isinstance(prev_f2, dict):
                 save('fred2', prev_f2)
     # v411: koniec bloku FRED 2
+    # v420 (F11Z23): KAPITALIZACJE RYNKÓW AKCJI Z DANYCH BIEŻĄCYCH — USA (suma po odsianiu duplikatów klas), Europa (7 krajów, rachunki kwartalne), Japonia (koniec miesiąca) (data/kapitalizacje.json: trzy części z własnym ok / part_at / errs)
+    # — co KAP_EVERY_MIN min (plik z częścią nieudaną: NIEPELNY_MIN, fresh_pelny); części mają własne rytmy (USA: raz na sesję w ciszy między sesjami, Europa co 3 doby, Japonia co 12 h); awaria budowniczego = poprzedni plik bez zmian
+    # (błąd w meta.json). META ok: kap_us, kap_eu, kap_jp (cached = odczyt jeszcze niepotrzebny).
+    prev_kap = previous('kapitalizacje')
+    if isinstance(prev_kap, dict) and prev_kap.get('v') == KAP_V and fresh_pelny(prev_kap, KAP_EVERY_MIN):
+        save('kapitalizacje', prev_kap)
+        stan_kap = {}
+        for k_kap in KAP_PARTS:
+            if _dict(prev_kap.get('ok')).get(k_kap) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
+                META['errors'].append(mask(f"{KAP_PX} {KAP_LABEL[k_kap]}: {str(_dict(prev_kap.get('errs')).get(k_kap) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                stan_kap[k_kap] = False
+            else:
+                stan_kap[k_kap] = 'cached'
+    else:
+        try:
+            kap_ = build_kapitalizacje(prev_kap, run_t0=_RUN_T0[0]); save('kapitalizacje', kap_)
+            stan_kap = {k_kap: kap_['ok'].get(k_kap, 'cached') for k_kap in KAP_PARTS}
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{KAP_PX}: {e}')[:200])
+            stan_kap = {k_kap: False for k_kap in KAP_PARTS}
+            if isinstance(prev_kap, dict):
+                save('kapitalizacje', prev_kap)
+    META['ok']['kap_us'] = stan_kap['us']; META['ok']['kap_eu'] = stan_kap['eu']; META['ok']['kap_jp'] = stan_kap['jp']
+    # v420: koniec bloku Kapitalizacje rynków
     # v368 (F8Z4): STRES I NIEPEWNOŚĆ (data/niepewnosc.json: CISS 14 obszarów, EPU, GPR; trzy części z własnym ok / part_at / lm) — co NP_EVERY min, plik z częścią nieudaną ponawiany po NIEPELNY_MIN min
     # (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok: niepewnosc_ciss, niepewnosc_epu, niepewnosc_gpr (EBC + dwa nowe źródła: liczba źródeł rośnie o 2).
     prev_np = previous('niepewnosc')
@@ -45153,6 +45177,419 @@ def build_fred2(key, prev=None):
 
 
 ZRODLA_META.update({'fred2': 'fred'})   # v411: te same serie z tego samego interfejsu i klucza co fred.json — liczba źródeł bez zmian
+
+
+# ===================== v420 (F11Z23): KAPITALIZACJE RYNKÓW AKCJI Z DANYCH BIEŻĄCYCH — USA, EUROPA (7 KRAJÓW), JAPONIA (data/kapitalizacje.json) =====================
+# Mapa GLOBAL liczyła wielkość rynków akcji z tabeli wpisanej w kod (koniec 2025; luki: Szwecja 2003, Włochy 2014). Ten plik daje bieżące wartości, a tabela zostaje zapasem w stronie.
+# Trzy niezależne części jednego pliku, każda z własnym ok / part_at / errs i własną poprzednią wersją przy błędzie (nigdy puste zamiast ostatnich danych); publiczne zapytania GET bez klucza,
+# nagłówek zbieracza, odstęp KAP_SLEEP s, limit czasu i rozmiaru KAŻDEGO zapytania, cała budowa KAP_LIMIT_S s. Wszystkie źródła były już liczone (giełda Nasdaq, Eurostat, giełda w Tokio, EBC) — liczba źródeł bez zmian.
+#   us — zestawienie spółek notowanych w USA (kapitalizacja, sektor, kraj, zmiana dnia; źródło nie podaje daty). Liczone tylko spółki z krajem „United States”; papiery inne niż akcje (obligacje, akcje uprzywilejowane,
+#        kwity depozytowe, jednostki, warranty) odsiane po nazwie; klasy akcji tej samej spółki (np. dwie klasy Alphabet, A i B Berkshire) liczone RAZ (największa kapitalizacja z grupy o tej samej nazwie bazowej —
+#        bez tego wynik byłby zawyżony o ok. 10 %). Dzień danych = ostatnia zamknięta sesja z kalendarza tygodnia (odczyt tylko w „ciszy” między sesjami: 01:30–07:30 UTC dni robocze i cała sobota od 01:30 oraz niedziela,
+#        żeby nie złapać notowań przed sesją i po niej); gdy po święcie zestawienie jest identyczne jak poprzednie (suma co do 0,05 mld) — to nie jest nowa sesja, dzień zostaje.
+#   eu — wartość akcji notowanych wyemitowanych przez spółki niefinansowe i finansowe (rachunki kwartalne, bilans: zobowiązania z tytułu akcji notowanych) dla DE, FR, IT, NL, ES, SE, PL, w mln EUR;
+#        ostatni KOMPLETNY kwartał każdego kraju (oba sektory), przeliczenie na USD po kursie EBC z ostatniego dnia kwartału (ostatni fixing nie później niż 7 dni przed).
+#   jp — kapitalizacja giełdy w Tokio na ostatnią sesję miesiąca (rynki Prime, Standard, Growth i TOKYO PRO; mln JPY) z pliku historycznego, USD po kursie EBC z tego dnia.
+# Bramki: każda liczba skończona i w zakresie wiarygodności, daty istniejące, nie z przyszłości i rosnące, suma składników = razem (rynki giełdy w Tokio; sektory USA), skok względem poprzedniej wartości w granicach
+# (USA 25 %/sesję, kraj UE 40 %/kwartał, Japonia 25 %/miesiąc); inny kształt albo brak serii = błąd części (nigdy cicha zmiana liczb).
+KAP_V = 1
+KAP_PARTS = ('us', 'eu', 'jp')
+KAP_LABEL = {'us': 'USA', 'eu': 'Europa', 'jp': 'Japonia'}
+KAP_PX = 'Kapitalizacje rynków'
+KAP_EVERY_MIN = 20              # min — plik budowany najwyżej co tyle (plik z nieudaną częścią: NIEPELNY_MIN)
+KAP_INT = {'eu': 4320, 'jp': 720}   # min — odstęp między odczytami części (rachunki kwartalne publikowane raz na kwartał; plik giełdy w Tokio raz na miesiąc); USA wg okna sesji
+KAP_TIMEOUT = 60                # s — jedno zapytanie
+KAP_SLEEP = 1.0                 # s — odstęp między zapytaniami
+KAP_LIMIT_S = 150               # s — budżet czasu budowy pliku; po nim kolejne części zgłaszają błąd limitu (poprzednie dane zostają)
+KAP_MAXB = {'us': 6000000, 'eu': 300000, 'jp_html': 500000, 'jp_xlsx': 700000, 'fx': 100000}   # B — największa dopuszczalna odpowiedź (zmierzone 18.10.2026: 2,2 MB / 4,4 kB / 28 kB / 71 kB / 2 kB)
+KAP_US_URL = 'https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=25&offset=0&download=true'
+KAP_EU_GEO = ('DE', 'FR', 'IT', 'NL', 'ES', 'SE', 'PL')
+KAP_EU_URL = ('https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nasq_10_f_bs?format=JSON&lang=EN&sector=S11&sector=S12&finpos=LIAB&na_item=F511&unit=MIO_EUR'
+              + ''.join(f'&geo={g_}' for g_ in KAP_EU_GEO) + '&sinceTimePeriod={od}')
+KAP_JP_STRONA = 'https://www.jpx.co.jp/english/markets/statistics-equities/misc/02.html'
+KAP_JP_HOST = 'https://www.jpx.co.jp'
+KAP_FX_URL = 'https://data-api.ecb.europa.eu/service/data/EXR/D.USD+JPY.EUR.SP00.A?startPeriod={od}&endPeriod={do}&format=csvdata'
+KAP_FX_OKNO = 7                 # dni — kurs z ostatniego fixingu nie starszego niż tyle przed dniem wyceny
+KAP_US_MIN_WIERSZY = 3000       # wierszy zestawienia (7002 — 18.10.2026)
+KAP_US_MIN_SPOLEK = 1500        # spółek po odsianiu (3835)
+KAP_US_ZAKRES = (15000.0, 400000.0)   # mld USD — suma po odsianiu (80 912)
+KAP_US_SKOK = 0.25              # największa dopuszczalna zmiana sumy względem poprzedniej sesji (największy spadek dzienny od 1987 r.: ok. 20 %)
+KAP_EU_ZAKRES = (50.0, 8000.0)  # mld EUR — jeden kraj
+KAP_EU_SKOK = 0.40
+KAP_EU_NAJSTARSZY = 400         # dni od końca kwartału — starszy = brak kraju
+KAP_JP_ZAKRES = (3e8, 5e9)      # mln JPY — razem
+KAP_JP_SKOK = 0.25
+KAP_JP_STARE = 75               # dni od końca ostatniego miesiąca — starszy = źródło stoi
+KAP_H = {'us': 130, 'jp': 30}   # wierszy historii (sesje; miesiące)
+KAP_SEKTORY = {'Technology': 'tech', 'Health Care': 'zdr', 'Finance': 'fin', 'Consumer Discretionary': 'kons', 'Consumer Staples': 'baz', 'Industrials': 'przem',
+               'Energy': 'ener', 'Utilities': 'kom', 'Real Estate': 'nier', 'Telecommunications': 'tele', 'Basic Materials': 'mat'}   # reszta (puste, „Miscellaneous”) = 'inne'
+KAP_NIE_AKCJE = re.compile(r'\b(notes?|debentures?|warrants?|rights?|units?|preferred|depositary|subordinated|senior|bonds?|due \d{4})\b|%', re.I)
+KAP_SRC = ('CapitalFlowAI — kapitalizacje rynków akcji: USA (suma po odsianiu duplikatów klas akcji, sektory, zmiana dnia), siedem krajów Europy (rachunki kwartalne), Japonia (koniec miesiąca); '
+           'publiczne dane giełd i urzędów, dzień danych przy każdej części')
+ZRODLA_META.update({'kap_us': 'nasdaq', 'kap_eu': ('eurostat', 'ecb'), 'kap_jp': ('jpx', 'ecb')})   # v420: wszystkie źródła były już liczone (giełda Nasdaq w ZRODLA_META swiat-dzien) — liczba źródeł bez zmian
+_KAP_T0 = [None]
+
+
+def kap_get(url, maks, headers=None):
+    """Jedno zapytanie GET (publiczne, bez klucza) z odstępem KAP_SLEEP, limitem czasu (KAP_TIMEOUT, nie więcej niż reszta budżetu budowy) i limitem rozmiaru `maks` B (dłuższa odpowiedź = błąd)."""
+    t0 = _KAP_T0[0]
+    lim = KAP_TIMEOUT
+    if t0 is not None:
+        left = KAP_LIMIT_S - (time.monotonic() - t0)
+        if left < 3:
+            raise RuntimeError(f'limit czasu budowy ({KAP_LIMIT_S} s)')
+        lim = max(3, min(KAP_TIMEOUT, left))
+    time.sleep(KAP_SLEEP)
+    return get_bytes_maks(url, headers, timeout=lim, maks=maks)
+
+
+def kap_json(raw):
+    """Odpowiedź → obiekt JSON; HTML (strona błędu / odmowy) albo ucięty tekst = ValueError."""
+    try:
+        return json.loads(raw.decode('utf-8') if isinstance(raw, (bytes, bytearray)) else raw)
+    except ValueError:
+        raise ValueError('odpowiedź nie jest JSON (strona błędu albo odmowa)') from None
+
+
+def kap_liczba(x, lo, hi, co):
+    """Liczba skończona z tekstu dziesiętnego (albo liczby) w przedziale [lo, hi]; wartość logiczna, brak, NaN i poza przedziałem = ValueError."""
+    if isinstance(x, bool):
+        raise ValueError(f'{co}: wartość logiczna')
+    try:
+        v = float(x.strip()) if isinstance(x, str) else float(x)
+    except (TypeError, ValueError, AttributeError):
+        raise ValueError(f'{co}: nie liczba ({str(x)[:12]!r})') from None
+    if v != v or v in (float('inf'), float('-inf')) or not lo <= v <= hi:
+        raise ValueError(f'{co}: poza zakresem ({v})')
+    return v
+
+
+def kap_scal(stare, nowe, ile):
+    """Historia wierszy [dzień, liczba]: nowe zastępują stare o tym samym dniu, wynik rosnąco, najwyżej `ile` ostatnich; wiersz o złym kształcie jest pomijany."""
+    m = {}
+    for r in list(stare or []) + list(nowe or []):
+        if isinstance(r, (list, tuple)) and len(r) == 2 and isinstance(r[0], str) and isinstance(r[1], (int, float)) and not isinstance(r[1], bool):
+            m[r[0]] = [r[0], r[1]]
+    return [m[k] for k in sorted(m)][-ile:]
+
+
+# ---------------------------------------------------------------- kursy EBC ----------------------------------------------------------------
+def kap_fx(d, fxc):
+    """Kursy EBC na dzień d (RRRR-MM-DD): {'f': dzień fixingu, 'usd_eur': dolarów za euro, 'jpy_usd': jenów za dolara}; ostatni fixing nie później niż d i nie wcześniej niż d − KAP_FX_OKNO dni. Wynik zapamiętany w fxc
+    (kursy z końca kwartału i miesiąca nie zmieniają się — drugie zapytanie o ten dzień nie jest potrzebne)."""
+    if isinstance(fxc.get(d), dict):
+        return fxc[d]
+    dd = datetime.date.fromisoformat(d)
+    od = (dd - datetime.timedelta(days=KAP_FX_OKNO + 3)).isoformat()
+    by_day = fx_ecb_csv(kap_get(KAP_FX_URL.format(od=od, do=d), KAP_MAXB['fx']).decode('utf-8', 'replace'))
+    dni = [x for x in sorted(by_day) if x <= d and by_day[x].get('USD') and by_day[x].get('JPY')]
+    if not dni:
+        raise ValueError(f'kursy EBC na {d}: brak fixingu')
+    f = dni[-1]
+    if (dd - datetime.date.fromisoformat(f)).days > KAP_FX_OKNO:
+        raise ValueError(f'kursy EBC na {d}: ostatni fixing {f} jest za stary')
+    usd_eur = kap_liczba(by_day[f]['USD'], 0.5, 2.0, 'kurs USD za EUR')
+    jpy_usd = kap_liczba(by_day[f]['JPY'] / by_day[f]['USD'], 60.0, 300.0, 'kurs JPY za USD')
+    fxc[d] = {'f': f, 'usd_eur': round(usd_eur, 4), 'jpy_usd': round(jpy_usd, 3)}
+    return fxc[d]
+
+
+# ---------------------------------------------------------------- us: zestawienie spółek USA ----------------------------------------------------------------
+def kap_us_sesja(now):
+    """Dzień (RRRR-MM-DD) ostatniej zamkniętej sesji USA według kalendarza tygodnia, gdy teraz trwa „cisza” między sesjami (poza notowaniami przed sesją i po niej), inaczej None. Cisza: dni robocze
+    01:30–07:30 UTC (dzień = poprzedni dzień roboczy), sobota od 01:30 i niedziela cały dzień (dzień = piątek). Święta giełdy w kalendarzu nie są znane — patrz kap_us (identyczna suma = nie nowa sesja)."""
+    now = now.astimezone(datetime.timezone.utc)
+    d, m, wd = now.date(), now.hour * 60 + now.minute, now.weekday()
+    if wd == 6 or (wd == 5 and m >= 90):
+        return (d - datetime.timedelta(days=wd - 4)).isoformat()
+    if wd < 5 and 90 <= m < 450:
+        return (d - datetime.timedelta(days=3 if wd == 0 else 1)).isoformat()
+    return None
+
+
+def kap_baza_nazwy(nazwa):
+    """Nazwa spółki bez oznaczenia klasy akcji i rodzaju papieru („Alphabet Inc. Class A Common Stock” i „Alphabet Inc. Class C Capital Stock” → „alphabet inc”) — klucz grupy klas tej samej spółki."""
+    n = re.sub(r'\s*[-,]?\s*(class|series)\s+[a-z0-9]+\b.*$', '', str(nazwa), flags=re.I)
+    n = re.sub(r'\s+(common stock|common shares|ordinary shares|capital stock|shares of beneficial interest|common units?|limited partnership interests|beneficial interest)\b.*$', '', n, flags=re.I)
+    return re.sub(r'\s+', ' ', re.sub(r'[.,]', '', n)).strip().lower()
+
+
+def kap_us_parse(raw):
+    """Zestawienie spółek → {'n_wierszy', 'n': liczba spółek po odsianiu, 'mld': suma mld USD, 'zm': zmiana dnia w % (ważona kapitalizacją), 'top': [[symbol, mld]] (5), 'top10': udział 10 największych w %,
+    'sek': [[sektor, mld]] malejąco}. Odsiew: kraj „United States”, kapitalizacja > 0, nazwa bez obligacji / akcji uprzywilejowanych / kwitów / jednostek; grupa klas = największa kapitalizacja.
+    Zła powłoka, mało wierszy albo spółek, suma poza zakresem, udział jednej spółki > 30 % = ValueError."""
+    j = kap_json(raw)
+    d = j.get('data') if isinstance(j, dict) else None
+    rows = d.get('rows') if isinstance(d, dict) else None
+    if not isinstance(rows, list) or len(rows) < KAP_US_MIN_WIERSZY:
+        raise ValueError('zestawienie spółek: zły kształt albo za mało wierszy')
+    grupy = {}
+    for r in rows:
+        if not isinstance(r, dict) or r.get('country') != 'United States' or not isinstance(r.get('name'), str) or not isinstance(r.get('symbol'), str):
+            continue
+        if KAP_NIE_AKCJE.search(r['name']):
+            continue
+        try:
+            cap = float(str(r.get('marketCap') or '').strip())
+        except ValueError:
+            continue
+        if not (cap == cap and 1e6 <= cap <= 2e13):
+            continue
+        k = kap_baza_nazwy(r['name'])
+        if k not in grupy or cap > grupy[k][0]:
+            grupy[k] = (cap, r['symbol'].strip(), r.get('sector') if isinstance(r.get('sector'), str) else '', r.get('pctchange'))
+    if len(grupy) < KAP_US_MIN_SPOLEK:
+        raise ValueError(f'zestawienie spółek: tylko {len(grupy)} spółek po odsianiu')
+    razem = sum(v[0] for v in grupy.values()) / 1e9
+    if not KAP_US_ZAKRES[0] <= razem <= KAP_US_ZAKRES[1]:
+        raise ValueError(f'zestawienie spółek: suma {razem:.0f} mld USD poza zakresem')
+    wg = sorted(grupy.values(), key=lambda v: -v[0])
+    if wg[0][0] / 1e9 > 0.30 * razem:
+        raise ValueError('zestawienie spółek: jedna spółka ponad 30 % sumy')
+    sek = {}
+    for cap, _s, sk, _p in wg:
+        i = KAP_SEKTORY.get(sk, 'inne')
+        sek[i] = sek.get(i, 0.0) + cap / 1e9
+    teraz = pop = 0.0   # zmiana dnia: kapitalizacja teraz ÷ kapitalizacja przed zmianą (z procentu każdego wiersza), tylko spółki z procentem
+    for cap, _s, _sk, p in wg:
+        try:
+            x = float(str(p).strip().rstrip('%'))
+        except ValueError:
+            continue
+        if x == x and -90 < x < 1000:
+            teraz += cap
+            pop += cap / (1 + x / 100)
+    zm = None
+    if pop > 0 and teraz / (razem * 1e9) >= 0.9:
+        zm = round((teraz / pop - 1) * 100, 2)
+        if abs(zm) > 25:
+            raise ValueError(f'zestawienie spółek: zmiana dnia {zm} % nieprawdopodobna')
+    return {'n_wierszy': len(rows), 'n': len(grupy), 'mld': round(razem, 1), 'zm': zm, 'top': [[s, round(c / 1e9, 1)] for c, s, _sk, _p in wg[:5]],
+            'top10': round(sum(v[0] for v in wg[:10]) / 1e9 / razem * 100, 1), 'sek': [[k, round(v, 1)] for k, v in sorted(sek.items(), key=lambda kv: -kv[1])]}
+
+
+def kap_us(pk, now):
+    """Część us: jedno zapytanie, dzień = kap_us_sesja(now); suma identyczna jak poprzednia (święto) = dzień nie rusza się, sprawdzenie zapisane (checked_for); suma różna o więcej niż KAP_US_SKOK = ValueError."""
+    exp = kap_us_sesja(now)
+    if exp is None:
+        raise RuntimeError('odczyt poza ciszą między sesjami')
+    o = kap_us_parse(kap_get(KAP_US_URL, KAP_MAXB['us'], {'Accept': 'application/json'}))
+    if isinstance(pk, dict) and isinstance(pk.get('mld'), (int, float)) and isinstance(pk.get('asof'), str):
+        if abs(o['mld'] - pk['mld']) < 0.05:   # to samo zestawienie co poprzednio: nie było nowej sesji (święto giełdy) — dzień zostaje
+            return dict(pk, checked_for=exp)
+        if pk['asof'] >= exp:
+            raise ValueError(f'zestawienie zmieniło się mimo tego samego dnia sesji ({exp})')
+        if (datetime.date.fromisoformat(exp) - datetime.date.fromisoformat(pk['asof'])).days <= 10 and abs(o['mld'] / pk['mld'] - 1) > KAP_US_SKOK:
+            raise ValueError(f"zestawienie spółek: suma {o['mld']:.0f} mld USD przy poprzedniej {pk['mld']:.0f} — skok ponad {int(KAP_US_SKOK * 100)} %")
+    o['asof'] = exp
+    o['checked_for'] = exp
+    o['h'] = kap_scal(pk.get('h') if isinstance(pk, dict) else None, [[exp, o['mld']]], KAP_H['us'])
+    return o
+
+
+# ---------------------------------------------------------------- eu: rachunki kwartalne (akcje notowane) ----------------------------------------------------------------
+def kap_kwartal_koniec(q):
+    """'2026-Q2' → data ostatniego dnia kwartału ('2026-06-30'); zły zapis = ValueError."""
+    m = re.fullmatch(r'(\d{4})-Q([1-4])', str(q))
+    if not m:
+        raise ValueError(f'zły kwartał {str(q)[:10]!r}')
+    y, k = int(m.group(1)), int(m.group(2))
+    return (datetime.date(y + (k == 4), k * 3 % 12 + 1, 1) - datetime.timedelta(days=1)).isoformat()
+
+
+def kap_eu_parse(raw, now):
+    """Odpowiedź JSON-stat (wymiary w kolejności id: freq, unit, sector, finpos, na_item, geo, time) → {'kraje': {kraj: {'q', 'd', 'eur': mld EUR}}, 'h': {kraj: [[kwartał, mld EUR]]}}, tylko kwartały KOMPLETNE
+    (liczba dla obu sektorów S11 i S12). Zły kształt, brak wymiaru, kraj poza listą, liczba poza zakresem, kwartał z przyszłości, skok ostatniego kwartału większy niż KAP_EU_SKOK, ostatni kompletny kwartał
+    starszy niż KAP_EU_NAJSTARSZY dni = kraj pomijany (błąd części, gdy nie zostaje żaden); mniej niż 5 krajów = ValueError."""
+    j = kap_json(raw)
+    if not isinstance(j, dict) or not isinstance(j.get('value'), dict) or not isinstance(j.get('id'), list) or not isinstance(j.get('size'), list) or not isinstance(j.get('dimension'), dict):
+        raise ValueError('rachunki kwartalne: zły kształt odpowiedzi')
+    ids, size, dim = j['id'], j['size'], j['dimension']
+    if len(ids) != len(size) or not all(k in ids for k in ('sector', 'geo', 'time')) or not all(isinstance(n, int) and n >= 1 for n in size):
+        raise ValueError('rachunki kwartalne: brak wymiaru sector / geo / time')
+    idx = {}
+    for k in ('sector', 'geo', 'time'):
+        c = dim.get(k, {}).get('category', {}).get('index') if isinstance(dim.get(k), dict) else None
+        if isinstance(c, list):
+            c = {x: i for i, x in enumerate(c)}
+        if not isinstance(c, dict) or not c:
+            raise ValueError(f'rachunki kwartalne: wymiar {k} bez kategorii')
+        idx[k] = c
+    krok, s = {}, 1
+    for k, n in zip(reversed(ids), reversed(size)):
+        krok[k] = s
+        s *= n
+    dzis = now.date()
+    kraje, hist = {}, {}
+    for g in idx['geo']:
+        if g not in KAP_EU_GEO:
+            raise ValueError(f'rachunki kwartalne: kraj {str(g)[:6]!r} spoza listy')
+        wiersze = []
+        for q in sorted(idx['time']):
+            suma, ok = 0.0, True
+            for sk in idx['sector']:
+                x = j['value'].get(str(idx['sector'][sk] * krok['sector'] + idx['geo'][g] * krok['geo'] + idx['time'][q] * krok['time']))
+                if x is None:
+                    ok = False
+                    break
+                suma += kap_liczba(x, 0, 1e8, f'{g} {q}')
+            if ok:
+                if datetime.date.fromisoformat(kap_kwartal_koniec(q)) > dzis:
+                    raise ValueError(f'rachunki kwartalne: kwartał {q} z przyszłości')
+                mld = suma / 1000.0
+                if not KAP_EU_ZAKRES[0] <= mld <= KAP_EU_ZAKRES[1]:
+                    raise ValueError(f'rachunki kwartalne: {g} {q} {mld:.0f} mld EUR poza zakresem')
+                wiersze.append([q, round(mld, 1)])
+        if len(wiersze) > 1 and abs(wiersze[-1][1] / wiersze[-2][1] - 1) > KAP_EU_SKOK:   # skok sprawdzany tylko dla ostatniego kwartału (stary skok w historii nie blokuje pliku na zawsze)
+            raise ValueError(f'rachunki kwartalne: {g} {wiersze[-1][0]} skok o {abs(wiersze[-1][1] / wiersze[-2][1] - 1) * 100:.0f} %')
+        if wiersze and (dzis - datetime.date.fromisoformat(kap_kwartal_koniec(wiersze[-1][0]))).days <= KAP_EU_NAJSTARSZY:
+            kraje[g] = {'q': wiersze[-1][0], 'd': kap_kwartal_koniec(wiersze[-1][0]), 'eur': wiersze[-1][1]}
+            hist[g] = wiersze[-6:]
+    if len(kraje) < 5:
+        raise ValueError(f'rachunki kwartalne: tylko {len(kraje)} krajów z kompletnym kwartałem')
+    return {'kraje': kraje, 'h': hist}
+
+
+def kap_eu(pk, now, fxc):
+    """Część eu: jedno zapytanie o rachunki kwartalne + kurs EBC na koniec kwartału każdego kraju (zwykle jedna data) → kraje[kraj] z polami usd (mld USD), kurs (USD za EUR), kurs_d (dzień fixingu)."""
+    o = kap_eu_parse(kap_get(KAP_EU_URL.format(od=f'{now.year - 1}-Q1'), KAP_MAXB['eu']), now)
+    for g, v in o['kraje'].items():
+        fx = kap_fx(v['d'], fxc)
+        v['kurs'], v['kurs_d'], v['usd'] = fx['usd_eur'], fx['f'], round(v['eur'] * fx['usd_eur'], 1)
+    o['asof'] = max(v['d'] for v in o['kraje'].values())
+    return o
+
+
+# ---------------------------------------------------------------- jp: giełda w Tokio (koniec miesiąca) ----------------------------------------------------------------
+def kap_xlsx_wiersze(raw, arkusz='xl/worksheets/sheet1.xml'):
+    """Skoroszyt (xlsx) → {numer wiersza: {kolumna: liczba}} z komórek liczbowych arkusza; napisy (t="s"/"str") pomijane. Bez bibliotek zewnętrznych (zipfile + wyrażenia regularne); zły plik = ValueError."""
+    import io as _io
+    import zipfile as _zf
+    try:
+        with _zf.ZipFile(_io.BytesIO(raw)) as z:
+            info = z.getinfo(arkusz)
+            if info.file_size > 5000000:
+                raise ValueError('arkusz za duży')
+            xml = z.read(arkusz).decode('utf-8', 'replace')
+    except (_zf.BadZipFile, KeyError) as e:
+        raise ValueError(f'plik giełdy nie jest skoroszytem ({type(e).__name__})') from None
+    out = {}
+    for m in re.finditer(r'<c r="([A-Z]+)(\d+)"([^>]*?)(?:/>|>(.*?)</c>)', xml, re.S):
+        kol, nr, atr, wn = m.group(1), int(m.group(2)), m.group(3), m.group(4) or ''
+        if 't="s"' in atr or 't="str"' in atr or 't="inlineStr"' in atr:
+            continue
+        v = re.search(r'<v>([^<]*)</v>', wn)
+        if v:
+            try:
+                out.setdefault(nr, {})[kol] = float(v.group(1))
+            except ValueError:
+                pass
+    return out
+
+
+def kap_jp_parse(raw, now):
+    """Plik historyczny giełdy w Tokio → {'asof': dzień ostatniej sesji miesiąca, 'jpy_bln': razem w bilionach JPY, 'rynki': {prime, standard, growth, pro}, 'h': [[dzień, bln JPY]] (KAP_H['jp'] ostatnich)}.
+    Wiersz = A: dzień (numer seryjny; ostatnia sesja miesiąca), B–E: rynki, F: razem (mln JPY). Suma rynków = razem (± 0,001 %), kolejne miesiące, każdy dzień w ostatnich 4 dniach miesiąca, razem w zakresie, skok do 25 % miesięcznie,
+    ostatni miesiąc nie starszy niż KAP_JP_STARE dni i nie z przyszłości; mniej niż 12 wierszy = ValueError."""
+    W = kap_xlsx_wiersze(raw)
+    baza = datetime.date(1899, 12, 30)
+    wiersze, ost = [], None
+    for nr in sorted(W):
+        c = W[nr]
+        if not all(k in c for k in 'ABCDEF') or not 40000 <= c['A'] <= 60000:
+            continue   # nagłówki i puste wiersze
+        d = baza + datetime.timedelta(days=int(c['A']))
+        if (datetime.date(d.year + (d.month == 12), d.month % 12 + 1, 1) - d).days > 4:   # ostatnia sesja miesiąca bywa 1–3 dni przed jego końcem (święta)
+            raise ValueError(f'giełda w Tokio: {d} nie jest końcem miesiąca')
+        if ost is not None and (d <= ost or (d.year, d.month) == (ost.year, ost.month)):
+            raise ValueError(f'giełda w Tokio: miesiące nie rosną ({d})')
+        ost = d
+        razem = kap_liczba(c['F'], KAP_JP_ZAKRES[0], KAP_JP_ZAKRES[1], f'razem {d}')
+        skl = [kap_liczba(c[k], 0, KAP_JP_ZAKRES[1], f'rynek {k} {d}') for k in 'BCDE']
+        if abs(sum(skl) - razem) > max(1000.0, razem * 1e-5):
+            raise ValueError(f'giełda w Tokio: suma rynków ≠ razem w {d}')
+        if wiersze and abs(razem / wiersze[-1][1] - 1) > KAP_JP_SKOK:
+            raise ValueError(f'giełda w Tokio: skok {abs(razem / wiersze[-1][1] - 1) * 100:.0f} % w {d}')
+        wiersze.append((d.isoformat(), razem, skl))
+    if len(wiersze) < 12:
+        raise ValueError('giełda w Tokio: za mało wierszy miesięcznych')
+    d, razem, skl = wiersze[-1]
+    dd = datetime.date.fromisoformat(d)
+    if dd > now.date():
+        raise ValueError(f'giełda w Tokio: miesiąc {d} z przyszłości')
+    if (now.date() - dd).days > KAP_JP_STARE:
+        raise ValueError(f'giełda w Tokio: ostatni miesiąc {d} sprzed {(now.date() - dd).days} dni (źródło stoi)')
+    return {'asof': d, 'jpy_bln': round(razem / 1e6, 2), 'rynki': dict(zip(('prime', 'standard', 'growth', 'pro'), [round(x / 1e6, 3) for x in skl])),
+            'h': [[x[0], round(x[1] / 1e6, 2)] for x in wiersze[-KAP_H['jp']:]]}
+
+
+def kap_jp(pk, now, fxc):
+    """Część jp: strona z odnośnikiem + plik historyczny (xlsx) + kurs EBC na koniec miesiąca → pola d, usd_mld, kurs, kurs_d."""
+    html = kap_get(KAP_JP_STRONA, KAP_MAXB['jp_html']).decode('utf-8', 'replace')
+    m = re.search(r'href="(/[A-Za-z0-9_./-]*historical-jika\.xlsx)"', html)
+    if not m:
+        raise ValueError('strona giełdy w Tokio: brak odnośnika do pliku historycznego')
+    o = kap_jp_parse(kap_get(KAP_JP_HOST + m.group(1), KAP_MAXB['jp_xlsx']), now)
+    fx = kap_fx(o['asof'], fxc)
+    o['kurs'], o['kurs_d'], o['usd_mld'] = fx['jpy_usd'], fx['f'], round(o['jpy_bln'] * 1000.0 / fx['jpy_usd'], 1)
+    return o
+
+
+# ---------------------------------------------------------------- budowa pliku ----------------------------------------------------------------
+KAP_BUDOWA = {'us': lambda pk, now, fxc: kap_us(pk, now), 'eu': kap_eu, 'jp': kap_jp}
+
+
+def kap_wymagana(k, pk, pok, pat, now):
+    """Czy część k wymaga odczytu: brak części, poprzedni błąd; USA — cisza między sesjami i sesja jeszcze nie sprawdzona; Europa i Japonia — odczyt starszy niż KAP_INT[k] min."""
+    if not isinstance(pk, dict) or pok.get(k) is False:
+        return k != 'us' or kap_us_sesja(now) is not None
+    if k == 'us':
+        exp = kap_us_sesja(now)
+        return exp is not None and pk.get('checked_for') != exp
+    t = _ix_dt(pat.get(k))
+    return t is None or (now - t).total_seconds() >= KAP_INT[k] * 60
+
+
+def build_kapitalizacje(prev=None, run_t0=None):
+    """Plik data/kapitalizacje.json (v420): trzy części (us, eu, jp) z własnym ok / part_at / errs; część z błędem zostaje z poprzedniego pliku z własną chwilą, nigdy pusta zamiast ostatnich danych;
+    część, której odczyt nie jest jeszcze potrzebny (rytm, okno sesji), zostaje bez zmian z ok 'cached'. Żadna część nie ma danych = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    prev = prev if isinstance(prev, dict) and prev.get('v') == KAP_V else {}
+    pat, pok = _dict(prev.get('part_at')), _dict(prev.get('ok'))
+    now = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc)
+    fxc = {k: v for k, v in _dict(prev.get('fx')).items() if isinstance(v, dict)}
+    out = {'v': KAP_V, 'at': NOW, 'od': prev.get('od') if isinstance(prev.get('od'), str) else now.date().isoformat(), 'src': KAP_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    _KAP_T0[0] = time.monotonic()
+    try:
+        for k in KAP_PARTS:
+            pk = prev.get(k) if isinstance(prev.get(k), dict) else None
+            if not kap_wymagana(k, pk, pok, pat, now):
+                if pk is not None:
+                    out[k] = pk
+                    out['part_at'][k] = pat.get(k) or prev.get('at')
+                out['ok'][k] = 'cached'
+                continue
+            try:
+                out[k] = KAP_BUDOWA[k](pk, now, fxc)
+                out['ok'][k] = True
+                out['part_at'][k] = NOW
+            except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
+                msg = mask(f'{e}')[:160]
+                META['errors'].append(mask(f'{KAP_PX} {KAP_LABEL[k]}: {msg}')[:220])
+                out['ok'][k] = False
+                out['errs'][k] = msg
+                if pk is not None:
+                    out[k] = pk
+                    out['part_at'][k] = pat.get(k) or prev.get('at')
+    finally:
+        _KAP_T0[0] = None
+    if not any(isinstance(out.get(k), dict) for k in KAP_PARTS):
+        raise RuntimeError('żadna część nie odpowiedziała')
+    uzyte = {v['d'] for v in _dict(out.get('eu')).get('kraje', {}).values() if isinstance(v, dict)} | ({out['jp']['asof']} if isinstance(out.get('jp'), dict) and out['jp'].get('asof') else set())
+    out['fx'] = {d: fxc[d] for d in sorted(fxc) if d in uzyte}
+    return out
+
+
+# v420: koniec modułu Kapitalizacje rynków
 
 
 if __name__ == '__main__':
