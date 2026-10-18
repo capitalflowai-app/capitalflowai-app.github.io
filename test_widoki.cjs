@@ -9792,7 +9792,7 @@ test('v137.1: tabela 8 tygodni — tygodnie kończące się w środę albo czwar
    Słowniki nie-JSON (I18N, EXTRA, EXTRA2) strażnik pomija. Nowe wydanie, które wyśle angielską kopię w innym języku, zaczerwieni ten test —
    komunikat podaje słownik, klucz i języki. */
 const V142_L8 = ['de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
-const V142_OK = {/* v420 */"kap420.p.eu": "fr", "kap420.p.jp": "de", /* v410 */"kd410.p.co": "*", "kd410.tab.d": "fr", "kd410.co.cent": "es", /* v409 */"ucf409.g.zloto": "de", /* v401 */"iw401.ca.gold": "de", "iw401.p.ar": "es it pt", "iw401.p.ca": "fr it", "iw401.p.hk": "es fr it pt", "iw401.p.jp": "de", /* v400 */"ct400.p.sh": "*", "ct400.p.tw": "de it pt", "ct400.p.hk": "es fr it pt", /* v395 */"en395.norm": "es pt", "en395.pr.propan": "fr", "en395.r.p2": "fr it", "en395.r.p4": "de", "en395.s.norm": "es pt", /* v392 */"ux392.c.CN": "de es pt", /* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
+const V142_OK = {/* v429 */"sh429.c.pos": "de fr", /* v420 */"kap420.p.eu": "fr", "kap420.p.jp": "de", /* v410 */"kd410.p.co": "*", "kd410.tab.d": "fr", "kd410.co.cent": "es", /* v409 */"ucf409.g.zloto": "de", /* v401 */"iw401.ca.gold": "de", "iw401.p.ar": "es it pt", "iw401.p.ca": "fr it", "iw401.p.hk": "es fr it pt", "iw401.p.jp": "de", /* v400 */"ct400.p.sh": "*", "ct400.p.tw": "de it pt", "ct400.p.hk": "es fr it pt", /* v395 */"en395.norm": "es pt", "en395.pr.propan": "fr", "en395.r.p2": "fr it", "en395.r.p4": "de", "en395.s.norm": "es pt", /* v392 */"ux392.c.CN": "de es pt", /* v384 */"bs2.x.stock": "it", "bs2.cc.CN": "de es pt", "bs2.cc.IN": "es it", "bs2.cc.ID": "es it", "bs2.cc.TH": "de", "bs2.cc.HK": "es fr it pt", "bs2.cc.SG": "it", "bs2.cc.JP": "de", "bs2.cc.FR": "fr", "bs2.cc.CA": "fr it", "bs2.cc.AU": "es it", /* v381 */"efz.tip.tot": "es fr pt", /* v380 */"p2v380.pt.wibor": "*", "p2v380.k.w3": "*", "p2v380.k.w6": "*", "p2v380.k.won": "*", "p2v380.k.pol": "*", "p2v380.x.bid": "*", "p2v380.c.dep.sum": "es fr pt", /* v376 */"nc376.p.cpi": "fr", /* v367 */"prd367.z.AT": "es it", "prd367.z.FR": "fr", "prd367.z.SI": "it", /* v366 */"sp.cc.CL": "de es pt", "sp.cc.CO": "es it", "sp.cc.HK": "es fr it pt", "sp.cc.IL": "de es pt", "sp.cc.KW": "de es it pt", "sp.cc.MY": "de", "sp.cc.PE": "de pt", "sp.cc.RO": "it", "sp.cc.RS": "es it", "sp.cc.TH": "de", /* v346 */"t346.ex.n.th": "de", "t346.ex.n.jp": "de", "t346.ex.n.cr": "fr", "g.n.chn": "de es pt", "g.n.jpn": "de", "g.n.ind": "es it", "g.n.oce": "es it", "g.n.can": "fr it", "g.n.eur": "fr", "g.n.crypto": "fr", "g.n.rus": "it", "g.n.afr": "it", "tab.trendy": "de", "ix.c.idx": "de", "wh.c.exch": "es it", "wh.c.tx": "fr", "lev.c.coin": "de", "lev.c.ven": "es it", "lev.k.oi": "it", "zr2.live": "de", "foot.src": "fr", "pg.sources": "fr", "arc.k.rrp": "es fr it pt", "arc.g.dealer": "es fr pt", "wh.c.n": "de", "kc.c.coin": "de", "auk.tp.Note": "fr", "trd.d.fam.cr": "fr", "trd.dc2.n.s": "es fr pt", "lev.k.lq": "fr", "fed.c.p": "de", "n.exch": "es pt", "fg.s.n": "de es", "wy.z.nupl.0": "fr", "dl.cn.ve": "de es fr it pt", "dl.cn.ar": "es it pt", "dl.cn.bo": "es it", "dl.base": "es fr it pt", "dl.n.cripto": "fr", "dl.c.cripto": "fr", "dl.n.blue": "*", "view.blocks": "*", "fund.k.tot": "es fr pt", "fund.c.tot": "es fr pt", "fund.mm.k.tot": "es fr pt", "etf.n.btc": "de es fr it pt", "etf.n.eth": "de es fr it pt ru", "etf.n.sol": "de es fr it pt ru zh", "g.live.on": "de", "g.q.corrv0": "de", "g.help.src": "fr", "pg.assets": "de", "g.cf.col.reg": "de", "g.rf.src": "fr", "etf.t.short": "fr", "etf.b.err": "es", "etf.k.vsstabd": "es fr pt", "etf.c.asset": "it"};
 /* v321: tv.n.heatmap, tv.n.chart, tv.tab.idx, tv.tab.cmd usunięte z listy V142_OK razem z widgetami TradingView (decyzja właściciela 10.10.2026) */
 const V142_DEAD = [];   /* v151: 19 martwych kluczy z tej listy usunięto ze słowników (wszystkie są w V151_DEAD) */
 /* klucze przetłumaczone w v142 (tekst i pola {x} sprawdzane we wszystkich 8 językach) */
@@ -33934,4 +33934,213 @@ test('v428: kod i styl — część czwarta w liście części, kolory grup toż
   const c = html.slice(html.indexOf('/* ---------- członkowie giełdy (v428) ----------'), html.indexOf('function plrBody(){'));
   assert.ok(!/GPW|Warsaw Stock|Giełda Papierów/.test(c.replace(/\/\*[\s\S]*?\*\//g, '')), 'kod sekcji bez nazw wydawców');
   assert.ok(/plrCap\(wkMon\(ym,1\)\)/.test(c) && c.includes("plrZl(") && !c.includes('toFixed('), 'miesiąc wielką literą na początku zdania, kwoty przez wspólną funkcję (<1 mln, mld), formatowanie liczb przez nfmt');
+});
+
+// ===================== v429 (F11Z28): Krótka sprzedaż w Europie w GLOBAL — pozycje netto w Wielkiej Brytanii i w Szwecji (data/short-eu.json) =====================
+// Fixtura SHE429_FILE: plik short-eu.json zbudowany przez zbieracz na nagraniach z 18.10.2026 (Wielka Brytania: 425 spółek, 326 z pozycją ≥ 0,5 %, historia od 13.07.2026 odtworzona z pliku pozycji
+// nieobowiązujących; Szwecja: 335 spółek, 218 ≥ 0,5 %); zrzut sprzed 7 dób jest sztuczny (przesunięcia pozycji wg stałego wzoru), tak by były zmiany. Czas przypięty (Date.now), bez zegara.
+// Oczekiwane liczby liczone w teście z wierszy fixtury (niezależnie od kodu strony), część pinowana literalnie.
+const SHE429_FILE = {"v":1,"at":"2026-10-18T08:00:00+00:00","src":"x","ok":{"uk":true,"se":true},"part_at":{"uk":"2026-10-18T08:00:00+00:00","se":"2026-10-18T08:00:00+00:00"},"uk":{"t":"2026-10-18T08:00:00+00:00","dzien":"2026-10-18","asof":"2026-10-15","wyd":null,"n":425,"n05":326,"n1":257,"n2":173,"n5":66,"max":["CERES POWER HOLDINGS PLC","GB00BG5KQW09",17.19],"top":[["CERES POWER HOLDINGS PLC","GB00BG5KQW09",17.19,"2026-10-15",0.05,false],["IBSTOCK PLC","GB00BYXJC278",14.2,"2026-10-14",0.8,false],["VISTRY GROUP PLC","GB0001859296",14.12,"2026-10-14",0.05,false],["YELLOW CAKE PLC","JE00BF50RG45",14.02,"2026-10-14",-0.5,false],["GENUIT GROUP PLC","GB00BKRC5K31",12.61,"2026-10-14",0.05,false],["CAPITA PLC","GB00BPCT7534",12.47,"2026-10-14",0.8,false],["CREST NICHOLSON HOLDINGS PLC","GB00B8VZXT93",12.28,"2026-10-13",-0.5,false],["RIGHTMOVE PLC","GB00BGDT3G23",12.1,"2026-10-14",-0.5,false],["PENNON GROUP PLC","GB00BNNTLN49",11.81,"2026-10-14",0.05,false],["WH SMITH PLC","GB00B2PDGW16",11.32,"2026-10-14",0.05,false],["CHEMRING GROUP PLC","GB00B45C9X44",11.28,"2026-10-14",-0.2,false],["BREEDON GROUP PLC","GB00BM8NFJ84",10.92,"2026-10-09",0.0,false]],"rozk":[69,84,58,49,52,14],"zm":{"od":"2026-10-11","n05_ref":288,"n1_ref":245,"wej":41,"wyj":3,"plus":[["B&M EUROPEAN VALUE RETAIL PLC","JE00BVSYJW51",0.8,7.2],["BELLWAY P L C","GB0000904986",0.8,3.87],["CAPITA PLC","GB00BPCT7534",0.8,12.47],["COSTAIN GROUP PLC","GB00B64NSP76",0.8,1.4],["DERWENT LONDON PLC","GB0002652740",0.8,7.69]],"minus":[["AIRTEL AFRICA PLC","GB00BKDRYJ47",-0.5,0.5],["ASHTEAD TECHNOLOGY HOLDINGS PLC","GB00BLH42507",-0.5,4.61],["AYVENS","FR0013258662",-0.5,2.46],["BABCOCK INTERNATIONAL GROUP PLC","GB0009697037",-0.5,1.82],["BALFOUR BEATTY PLC","GB0000961622",-0.5,0.78]]},"hist":[["2026-07-13",332,244,167],["2026-07-14",331,244,167],["2026-07-15",328,245,168],["2026-07-16",328,245,168],["2026-07-17",328,245,165],["2026-07-20",327,243,165],["2026-07-21",325,246,168],["2026-07-22",325,248,165],["2026-07-23",321,248,165],["2026-07-24",322,248,164],["2026-07-27",325,246,165],["2026-07-28",320,243,166],["2026-07-29",320,244,168],["2026-07-30",318,243,168],["2026-07-31",320,245,170],["2026-08-03",321,245,169],["2026-08-04",321,244,168],["2026-08-05",319,243,166],["2026-08-06",318,240,166],["2026-08-07",320,241,166],["2026-08-10",322,244,166],["2026-08-11",318,244,166],["2026-08-12",317,244,165],["2026-08-13",317,245,163],["2026-08-14",314,245,159],["2026-08-17",315,245,156],["2026-08-18",315,242,156],["2026-08-19",317,245,156],["2026-08-20",317,244,158],["2026-08-21",318,244,158],["2026-08-24",318,243,158],["2026-08-25",317,241,159],["2026-08-26",319,240,155],["2026-08-27",317,241,155],["2026-08-28",317,242,156],["2026-08-31",317,242,156],["2026-09-01",318,242,155],["2026-09-02",318,243,159],["2026-09-03",319,242,160],["2026-09-04",318,240,159],["2026-09-07",317,240,160],["2026-09-08",316,241,162],["2026-09-09",317,241,164],["2026-09-10",318,241,164],["2026-09-11",319,242,164],["2026-09-14",321,238,164],["2026-09-15",319,241,165],["2026-09-16",321,243,163],["2026-09-17",321,243,164],["2026-09-18",326,244,164],["2026-09-21",325,246,162],["2026-09-22",325,247,161],["2026-09-23",325,248,163],["2026-09-24",325,249,164],["2026-09-25",324,249,165],["2026-09-28",325,250,165],["2026-09-29",325,253,165],["2026-09-30",326,254,167],["2026-10-01",327,252,170],["2026-10-02",322,254,171],["2026-10-05",323,255,171],["2026-10-06",324,253,168],["2026-10-07",323,253,167],["2026-10-08",324,256,168],["2026-10-09",325,258,170],["2026-10-12",326,257,173],["2026-10-13",325,258,172],["2026-10-14",326,257,173],["2026-10-15",326,257,173]],"snaps":[],"seed":true,"seed_try":null},"se":{"t":"2026-10-18T08:00:00+00:00","dzien":"2026-10-18","asof":"2026-10-16","wyd":"2026-10-16","n":335,"n05":218,"n1":159,"n2":96,"n5":31,"max":["Samhällsbyggnadsbolaget i Norden AB","549300HX9MRFY47AH564",16.55],"top":[["Samhällsbyggnadsbolaget i Norden AB","549300HX9MRFY47AH564",16.55,"2026-10-15",0.05,false],["Elekta AB (publ)","54930044O54BK617EP80",15.66,"2026-10-15",0.0,false],["JM AB","529900X0UEM9DOM6FK12",11.77,"2026-10-15",-0.5,false],["Cibus Real Estate AB (publ)","549300PW36MFK96GCR23",11.12,"2026-10-14",0.8,false],["RaySearch Laboratories AB (publ)","549300TYFVYGS0JFWM28",10.87,"2026-10-15",0.0,false],["Aktiebolaget Electrolux","549300Y3HHZB1ZGFPJ93",10.42,"2026-10-15",0.0,false],["BONESUPPORT HOLDING AB","549300COLY053IGTLD63",9.86,"2026-10-13",-0.2,false],["Truecaller AB","549300TEYF1FA5G5GK26",9.74,"2026-10-14",0.05,false],["Hemnet Group AB (publ)","5493008VIU67J3HUAR07",9.52,"2026-10-15",0.0,false],["Mips AB","549300LZSA4S0L54VQ25",9.26,"2026-10-15",-0.5,false],["Dynavox Group AB","5493008X1XZR4R5R0P66",9.07,"2026-10-13",0.3,false],["Xvivo Perfusion Aktiebolag","549300G2464FYLS14B41",8.64,"2026-10-15",0.3,false]],"rozk":[59,63,30,35,25,6],"zm":{"od":"2026-10-11","n05_ref":189,"n1_ref":144,"wej":32,"wyj":3,"plus":[["Addtech AB","549300QZ5U2IDRHPWL60",0.8,2.29],["Ambea AB ( publ )","549300AEVNZRHYI5HV24",0.8,2.42],["Camurus AB","5493003S6Z6VI7WYFQ06",0.8,4.76],["Cibus Real Estate AB (publ)","549300PW36MFK96GCR23",0.8,11.12],["Hansa Biopharma AB","549300LLEO25ZJJ3NT91",0.8,5.51]],"minus":[["ALVOTECH","222100DCZBOWV5DZ8372",-0.5,2.56],["Aktiebolaget Industrivärden","549300TM1DLIQI3B3T37",-0.5,1.89],["Altra Fastigheter AB","5493000YR2B83SILCJ50",-0.5,2.43],["Alzinova AB","549300K3IMVT20EK2S13",-0.5,1.64],["Beijer Ref AB (publ)","549300PZZEUVH08H4G75",-0.5,8.43]]},"hist":[["2026-10-16",218,159,96]],"snaps":[],"seed":false,"seed_try":null}};
+const she429 = (() => {
+  const a0 = html.indexOf('/* ===================== v429 (F11Z28): KRÓTKA SPRZEDAŻ W EUROPIE'), a1 = html.indexOf('/* ---------- koniec bloku krótka sprzedaż w Europie (v429) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v429 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const g0 = html.indexOf('function gxShare('), g1 = html.indexOf('\n', g0);
+  assert.ok(g0 > 0 && g1 > g0, 'pasek udziału');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1), share = html.slice(g0, g1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-18T13:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[\u00a0\u202f]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }},
+      det: [], querySelectorAll(q) { return q === 'details' ? this.det.map(id => ({id, open: true})) : []; }, querySelector() { return null; }};
+    const els = {'#g-shorteu': el};
+    const calls = [], ivs = [], lines = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: () => {}, documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'flagImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkLines', 'wkMs', 'wkDay', 'Date',
+      "'use strict';\n" + helpers + '\n' + share + '\n' + code + '\nreturn {SHE, sheLoad, renderShe, sheOk, shePart, sheDp, sheBody};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, c => '<f:' + c + '>', i => i, doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (Ls, o) => { lines.push({L: Ls, o}); return '<lines n=' + Ls.map(s => s.d.length).join('+') + ' aria="' + o.aria + '">'; },
+      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, ivs, lines, mos, expand, collapse, html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), valHtml: m[3].split('<small')[0], lines: [...m[3].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const rows = h => [...sp(h).matchAll(/<div class="sh-r"><span class="sh-n"><b>(.*?)<\/b><small>(.*?)<\/small><\/span>((?:<span class="sh-c[^"]*" data-l="[^"]*">.*?<\/span>)+)<\/div>/g)].map(m => ({
+    name: txt(m[1]), id: txt(m[2]), cells: [...m[3].matchAll(/<span class="sh-c([^"]*)" data-l="([^"]*)">(.*?)<\/span>/g)].map(c => ({cls: c[1].trim(), l: c[2], v: txt(c[3])}))}));
+  const bars = h => [...sp(h).matchAll(/<div class="gxs-r"><span class="gxs-n">(.*?)<\/span><span class="gxs-b"><span class="gxs-t" aria-hidden="true"><i( class="([a-z]+)")? style="width:([\d.]+)%"><\/i><\/span><span class="gxs-v">(.*?)<\/span><\/span><\/div>/g)].map(m => ({
+    name: txt(m[1]), cls: m[3] || '', w: parseFloat(m[4]), val: txt(m[5]), valHtml: m[5]}));
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {short_uk: true, short_se: 'cached'}} : meta, 'short-eu': j === undefined ? clone(SHE429_FILE) : j});
+  const J = () => clone(SHE429_FILE);
+  const MON = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+  const pdate = s => `${+s.slice(8)} ${MON[+s.slice(5, 7) - 1]} ${s.slice(0, 4)}`;
+  const fmt = (v, d) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(d).replace('.', ',');
+  const sec = (h, k) => { const i = h.indexOf(k === 'uk' ? 'Wielka Brytania: spółki' : 'Szwecja: spółki'); assert.ok(i >= 0, k); return i; };
+  const part = (h, k) => { const a = sec(h, 'uk'), b = sec(h, 'se'); return k === 'uk' ? h.slice(a, b) : h.slice(b); };
+  return {mk, tiles, rows, bars, files, J, sp, txt, code, clone, LOC, pdate, fmt, part, MON};
+})();
+
+test('v429 (F11Z28): rejestr — nagłówek od razu, plik tylko po rozwinięciu karty (jedno pobranie), karta po insiderach, jeden obserwator języka, odświeżanie co 30 min tylko przy rozwiniętej karcie', () => {
+  const K = she429.mk('pl', she429.files());
+  assert.equal(K.els['#g-shorteu'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Krótka sprzedaż w Europie: pozycje netto w Wielkiej Brytanii i w Szwecji</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Dane pojawią się po rozwinięciu karty.') && she429.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'short-eu'], 'po rozwinięciu jedno pobranie pliku'); K.expand(); K.collapse(); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'short-eu'], 'plik młodszy niż 10 minut — bez ponownego pobrania');
+  const iv = K.ivs.filter(([f, ms]) => ms === 30 * 60e3); assert.equal(iv.length, 1, 'odświeżanie co 30 min'); iv[0][0](); assert.deepEqual(K.calls, ['meta', 'short-eu', 'short-eu'], 'przy rozwiniętej karcie zegar pobiera ponownie');
+  K.collapse(); iv[0][0](); assert.equal(K.calls.length, 3, 'zwinięta karta — zegar nie pobiera');
+  assert.equal(she429.code.split('new MutationObserver(()=>renderShe())').length, 2, 'jeden obserwator języka z tej karty');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])short-eu\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.equal(html.split('id="g-shorteu"').length, 2, 'jedna sekcja'); assert.ok(html.includes('<section class="panel pcard" id="g-shorteu" hidden></section>'));
+  const a = html.indexOf('id="g-insider"'), b = html.indexOf('id="g-shorteu"'), c = html.indexOf('id="g-energiausa"'); assert.ok(a > 0 && b > a && c > b, 'karta po insiderach, przed energią USA');
+  // bez meta (brak części) i z samymi nieznanymi kluczami: ukryta
+  assert.equal(she429.mk('pl', she429.files(undefined, null)).els['#g-shorteu'].hidden, true); assert.equal(she429.mk('pl', she429.files(undefined, {ok: {inne: true}})).els['#g-shorteu'].hidden, true);
+  assert.equal(she429.mk('pl', she429.files(undefined, {ok: {short_se: false}})).els['#g-shorteu'].hidden, false, 'wystarczy jedna znana część');
+  // błąd pobrania: komunikat, nowa próba najwcześniej po minucie, wcześniejsze dane nie znikają
+  const E = she429.mk('pl', she429.files(null), {open: true}); assert.ok(she429.txt(E.html()).includes('Nie udało się teraz pobrać danych')); assert.deepEqual(E.calls, ['meta', 'short-eu']);
+  E.expand(); assert.equal(E.calls.length, 2, 'bez pętli: druga próba dopiero po minucie');
+  const V = she429.mk('pl', she429.files(), {open: true}); assert.ok(she429.tiles(V.html()).length > 0);
+});
+
+test('v429 (F11Z28): Wielka Brytania — cztery kafle (spółki ≥ 0,5 %, ≥ 1 %, największa pozycja, wchodzą i wychodzą) z liczbami z fixtury, zmianą od zrzutu w kolorach kierunku, datą danych i wiekiem', () => {
+  const F = she429.J(), U = F.uk, Z = U.zm, {fmt, pdate} = she429;
+  const K = she429.mk('pl', she429.files(), {open: true}), h = she429.part(K.html(), 'uk'), T = she429.tiles(h);
+  assert.equal(T.length, 4, T.map(x => x.label).join('|'));
+  assert.deepEqual([U.n, U.n05, U.n1, U.n2, U.n5, U.asof, U.max[0], U.max[2]], [425, 326, 257, 173, 66, '2026-10-15', 'CERES POWER HOLDINGS PLC', 17.19], 'fixtura = nagranie z 18.10.2026');
+  assert.equal(U.n05, Z.n05_ref - Z.wyj + Z.wej, 'niezmiennik zmiany od zrzutu');
+  const dl = (v, lab) => v === 0 ? ['neu', '• 0 ' + lab] : [v > 0 ? 'pos' : 'neg', (v > 0 ? '▲ +' : '▼ −') + Math.abs(v) + ' ' + lab], vs = 'wobec ' + pdate(Z.od);
+  assert.deepEqual(T.map(x => x.label), ['Spółki z pozycją co najmniej 0,5%', 'Spółki z pozycją co najmniej 1%', 'Największa pozycja netto', 'Wchodzą i wychodzą (próg 0,5%)']);
+  assert.deepEqual(T[0].lines, [dl(U.n05 - Z.n05_ref, vs), ['pc', 'z 425 spółek w rejestrze']]); assert.equal(T[0].val, '326');
+  assert.deepEqual(T[1].lines, [dl(U.n1 - Z.n1_ref, vs), ['pc', 'w tym 173 z co najmniej 2% i 66 z co najmniej 5%']]); assert.equal(T[1].val, '257');
+  assert.equal(T[2].val, '17,19%'); assert.deepEqual(T[2].lines, [['pc', 'CERES POWER HOLDINGS PLC']]);
+  assert.equal(T[3].val, `+${Z.wej} / −${Z.wyj}`); assert.ok(T[3].valHtml.includes(`<span class="pos">+${Z.wej}</span>`) && T[3].valHtml.includes(`<span class="neg">−${Z.wyj}</span>`), 'plus zielony, minus czerwony');
+  assert.deepEqual(T[3].lines, [['pc', 'od ' + pdate(Z.od) + ': wchodzą ponad próg / spadają poniżej niego lub znikają']]);
+  assert.ok(T.every(x => x.when === 'dane z 15 paź 2026 · wiek(2026-10-15)'), 'data danych i wiek przy każdej liczbie: ' + T.map(x => x.when).join('|'));
+  // spadek liczby spółek: czerwony; zero: żółte; wejścia i wyjścia zero: żółte, nie „+0”
+  const G = she429.J(); G.uk.zm.n05_ref = G.uk.n05 + 5; G.uk.zm.wyj = 5 + G.uk.zm.wej; G.uk.zm.n1_ref = G.uk.n1;
+  const T2 = she429.tiles(she429.part(she429.mk('pl', she429.files(G), {open: true}).html(), 'uk')); assert.deepEqual(T2[0].lines[0], ['neg', '▼ −5 ' + vs]); assert.deepEqual(T2[1].lines[0], ['neu', '• 0 ' + vs]);
+  const G3 = she429.J(); G3.uk.zm.wej = 0; G3.uk.zm.wyj = 0; G3.uk.zm.n05_ref = G3.uk.n05; G3.uk.zm.n1_ref = G3.uk.n1 - 3;
+  const T3 = she429.tiles(she429.part(she429.mk('pl', she429.files(G3), {open: true}).html(), 'uk')); assert.equal(T3[3].val, '0 / 0'); assert.equal((T3[3].valHtml.match(/class="neu"/g) || []).length, 2); assert.deepEqual(T3[1].lines[0], ['pos', '▲ +3 ' + vs]);
+  // bez porównania (brak zrzutu): „—” i powód, bez koloru; największa pozycja bez nazwy = „—”
+  const N = she429.J(); N.uk.zm = null; N.uk.max = null;
+  const T4 = she429.tiles(she429.part(she429.mk('pl', she429.files(N), {open: true}).html(), 'uk'));
+  assert.deepEqual(T4[0].lines[0], ['na', '— porównanie po dobie zbierania danych']); assert.equal(T4[3].val, '—'); assert.deepEqual(T4[3].lines, [['na', 'porównanie po dobie zbierania danych']]);
+  assert.equal(T4[2].val, '—'); assert.deepEqual(T4[2].lines, [['pc', '—']]);
+});
+
+test('v429 (F11Z28): Szwecja — osobny blok z własną datą danych, jeden punkt historii = zdanie zamiast wykresu, historia zbierana od pierwszego pobrania', () => {
+  const F = she429.J(), S = F.se, {pdate} = she429;
+  const K = she429.mk('pl', she429.files(), {open: true}), h = she429.part(K.html(), 'se'), T = she429.tiles(h);
+  assert.equal(T.length, 4); assert.deepEqual([S.n, S.n05, S.n1, S.asof, S.wyd, S.hist.length, S.seed], [335, 218, 159, '2026-10-16', '2026-10-16', 1, false]);
+  assert.equal(T[0].val, '218'); assert.equal(T[1].val, '159'); assert.equal(T[2].val, '16,55%'); assert.deepEqual(T[2].lines, [['pc', 'Samhällsbyggnadsbolaget i Norden AB']]);
+  assert.ok(T.every(x => x.when === 'dane z 16 paź 2026 · wiek(2026-10-16)'), 'Szwecja ma własną datę (nie brytyjską)');
+  const cnt = (x, f) => x.split(f).length - 1; assert.ok(cnt(h, '<f:se>') >= 4 && cnt(h, '<f:gb>') === 0, 'flaga Szwecji na kaflach i w nagłówku bloku szwedzkiego, brytyjskiej tam nie ma'); const hu = she429.part(K.html(), 'uk'); assert.ok(cnt(hu, '<f:gb>') >= 4 && cnt(hu, '<f:se>') <= 1, 'flaga Wielkiej Brytanii na kaflach bloku brytyjskiego (szwedzka tylko jako nagłówek następnego bloku)');
+  assert.ok(she429.sp(K.html()).includes('<h2><f:gb><f:se>Krótka sprzedaż'), 'dwie flagi w tytule karty');
+  assert.ok(she429.txt(h).includes('Wykres pojawi się po kilku dobach zbierania danych (zebrano 1).') && !h.includes('<lines'), 'jeden punkt — bez wykresu');
+  const G = she429.J(); G.se.hist = [['2026-10-14', 200, 150, 90], ['2026-10-15', 210, 155, 94], ['2026-10-16', 218, 159, 96]];
+  const K2 = she429.mk('pl', she429.files(G), {open: true}); assert.deepEqual(K2.lines.map(l => l.L.map(s => s.d.length)), [[69, 69, 69], [3, 3, 3]], 'wykres Wielkiej Brytanii: 3 serie × 69 punktów; Szwecji: 3 × 3');
+  assert.deepEqual(K2.lines[1].L.map(s => s.n), ['co najmniej 0,5%', 'co najmniej 1%', 'co najmniej 2%']); assert.deepEqual(K2.lines[1].L[0].d.map(p => p[1]), [200, 210, 218]);
+  assert.ok(K2.lines[1].o.aria.startsWith('Wykres: liczba spółek z pozycją krótką netto w czasie, 3 punktów') && K2.lines[1].o.zero === false);
+  assert.ok(she429.txt(she429.part(K2.html(), 'se')).includes('Historię zbieramy sami od 14 paź 2026.') && !she429.txt(she429.part(K2.html(), 'se')).includes('odtworzona'), 'Szwecja: historia własna');
+  assert.ok(she429.txt(K2.html()).includes('Historia od 13 lip 2026 odtworzona z rejestru pozycji, które przestały obowiązywać'), 'Wielka Brytania: historia odtworzona od 13.07.2026');
+});
+
+test('v429 (F11Z28): ranking — 10 pozycji + 2 po rozwinięciu, nazwa i identyfikator, pozycja, data pozycji, zmiana w p.p. (plus zielony, minus czerwony, zero żółte, nowa ponad progiem żółta, brak „—”)', () => {
+  const F = she429.J(), U = F.uk, {fmt, pdate} = she429;
+  const K = she429.mk('pl', she429.files(), {open: true}), h = she429.part(K.html(), 'uk'), R = she429.rows(h);
+  assert.equal(R.length, 12, '10 + 2 w tabeli rozwijanej'); assert.ok(U.top.length === 12 && U.top.every((r, i) => !i || r[2] <= U.top[i - 1][2]), 'ranking z fixtury malejąco');
+  const e = (r) => { const d = r[5] ? ['neu', 'nowa ponad progiem'] : r[4] === null ? ['na', '—'] : Math.round(r[4] * 100) === 0 ? ['neu', '0,00'] : [r[4] > 0 ? 'pos' : 'neg', (r[4] > 0 ? '+' : '−') + fmt(Math.abs(r[4]), 2)]; return [r[0], r[1], fmt(r[2], 2) + '%', pdate(r[3]), d[1], d[0]]; };
+  R.forEach((x, i) => { const w = e(U.top[i]); assert.deepEqual([x.name, x.id, x.cells[0].v, x.cells[1].v, x.cells[2].v, x.cells[2].cls], w, 'wiersz ' + i); assert.deepEqual(x.cells.map(c => c.l), ['Pozycja', 'Data pozycji', 'Zmiana (p.p.)'], 'etykiety kolumn na telefonie (data-l)'); });
+  assert.equal(R[0].name, 'CERES POWER HOLDINGS PLC'); assert.equal(R[0].cells[0].v, '17,19%');
+  const i = h.indexOf('<details class="etfd" id="she-rest-uk">'); assert.ok(i > 0 && she429.txt(h.slice(i)).includes('Pokaż pozostałe pozycje z rankingu (2)'), 'reszta w rozwijanej tabeli'); assert.ok(she429.sp(h).includes('<div class="sh-r sh-hd">'), 'nagłówek tabeli (ukrywany na telefonie)');
+  // wszystkie rodzaje zmiany w jednym ranku
+  const G = she429.J(); const t = G.uk.top; t[0][4] = 0.75; t[1][4] = -0.25; t[2][4] = 0.004; t[2][5] = false; t[3][4] = null; t[3][5] = false; t[4][5] = true; t[4][4] = null;
+  const R2 = she429.rows(she429.part(she429.mk('pl', she429.files(G), {open: true}).html(), 'uk'));
+  assert.deepEqual(R2.slice(0, 5).map(x => [x.cells[2].v, x.cells[2].cls]), [['+0,75', 'pos'], ['−0,25', 'neg'], ['0,00', 'neu'], ['—', 'na'], ['nowa ponad progiem', 'neu']]);
+  // Wiersz z pozycją poniżej progu albo bez daty jest pomijany (nie rysujemy zera)
+  const B = she429.J(); B.uk.top[1][2] = 0.3; B.uk.top[2][3] = 'zła'; B.uk.top[3][0] = '';
+  assert.equal(she429.rows(she429.part(she429.mk('pl', she429.files(B), {open: true}).html(), 'uk')).length, 9);
+  // nazwy ze znakami specjalnymi są zabezpieczone
+  const X = she429.J(); X.uk.top[0][0] = '<img src=x onerror=alert(1)> & Co'; const hx = she429.mk('pl', she429.files(X), {open: true}).html();
+  assert.ok(!hx.includes('<img src=x') && hx.includes('&lt;img src=x onerror=alert(1)&gt; &amp; Co'));
+});
+
+test('v429 (F11Z28): rozkład pozycji (6 pasków), największe zwiększenia i zmniejszenia od zrzutu (kolory kierunku, p.p., pozycja bieżąca), brak ruchów = zdanie', () => {
+  const F = she429.J(), U = F.uk, Z = U.zm, {fmt, pdate} = she429;
+  const K = she429.mk('pl', she429.files(), {open: true}), h = she429.part(K.html(), 'uk'), B = she429.bars(h);
+  const rk = B.slice(0, 6); assert.deepEqual(rk.map(b => b.name), ['0,5–1%', '1–2%', '2–3%', '3–5%', '5–10%', '10% i więcej']); assert.deepEqual(rk.map(b => b.val), U.rozk.map(String));
+  assert.ok(rk.every(b => b.cls === 'cur') && Math.max(...rk.map(b => b.w)) === 100, 'najdłuższy pasek = największy przedział'); assert.equal(U.rozk.reduce((a, b) => a + b, 0), U.n05, 'rozkład sumuje się do liczby spółek');
+  rk.forEach((b, i) => assert.ok(Math.abs(b.w - U.rozk[i] / Math.max(...U.rozk) * 100) < 0.01, 'szerokość paska ' + i));
+  const up = B.filter(b => b.cls === 'up'), dn = B.filter(b => b.cls === 'dn'); assert.equal(up.length, Z.plus.length); assert.equal(dn.length, Z.minus.length);
+  Z.plus.forEach((r, i) => { assert.equal(up[i].name, r[0]); assert.equal(up[i].val, `+${fmt(r[2], 2)} p.p. · ${fmt(r[3], 2)}%`); assert.ok(up[i].valHtml.includes('<span class="pos">')); });
+  Z.minus.forEach((r, i) => { assert.equal(dn[i].name, r[0]); assert.equal(dn[i].val, `−${fmt(Math.abs(r[2]), 2)} p.p. · ${fmt(r[3], 2)}%`); assert.ok(dn[i].valHtml.includes('<span class="neg">')); });
+  assert.equal(up[0].w, 100, 'paski względem największej zmiany'); assert.ok(she429.txt(h).includes('Największe zwiększenia pozycji od ' + pdate(Z.od)) && she429.txt(h).includes('Największe zmniejszenia pozycji od ' + pdate(Z.od)));
+  const G = she429.J(); G.uk.zm.plus = []; G.uk.zm.minus = []; const hg = she429.part(she429.mk('pl', she429.files(G), {open: true}).html(), 'uk');
+  assert.ok(she429.txt(hg).includes('Od ' + pdate(Z.od) + ' żadna pozycja nie zmieniła się o co najmniej 0,1 p.p.') && !hg.includes('Największe zwiększenia'));
+  const N = she429.J(); N.uk.zm = null; N.uk.rozk = null; const hn = she429.part(she429.mk('pl', she429.files(N), {open: true}).html(), 'uk');
+  assert.ok(!hn.includes('Największe zwiększenia') && !hn.includes('Ile spółek w jakim przedziale'), 'bez rozkładu i bez zrzutu — bez tych sekcji, bez zer');
+  // lista z błędnym znakiem albo bez liczby pomijana
+  const W = she429.J(); W.uk.zm.plus = [['X', 'y', -0.5, 1.0], ['Y', 'z', 0.5, null], [7, 'z', 0.5, 1.0]]; assert.ok(!she429.part(she429.mk('pl', she429.files(W), {open: true}).html(), 'uk').includes('Największe zwiększenia'));
+});
+
+test('v429 (F11Z28): obrona przed złym plikiem — część starsza niż 4 doby, niespójne liczniki, zła wersja albo brak ważnej części znikają; bez zera, bez wyjątku; błąd części w meta = zdanie', () => {
+  const old = she429.J(); old.uk.t = '2026-10-13T08:00:00+00:00';   // 5 dób
+  let h = she429.mk('pl', she429.files(old), {open: true}).html(); assert.ok(!h.includes('Wielka Brytania: spółki') && h.includes('Szwecja: spółki'), 'stara część znika, druga zostaje'); assert.ok(she429.txt(h).includes('Brak aktualnego odczytu: Wielka Brytania.') === false, 'brak komunikatu bez wpisu ok=false');
+  const bad = she429.J(); bad.ok = {uk: false, se: true}; bad.uk.t = '2026-10-13T08:00:00+00:00'; h = she429.mk('pl', she429.files(bad), {open: true}).html(); assert.ok(she429.txt(h).includes('Brak aktualnego odczytu: Wielka Brytania.'), 'część z błędem i bez świeżych danych — jawne zdanie');
+  const cases = {'n1 > n05': j => { j.uk.n1 = j.uk.n05 + 1; }, 'n05 > n': j => { j.uk.n05 = j.uk.n + 1; }, 'ujemny': j => { j.uk.n2 = -1; }, 'ułamek': j => { j.uk.n5 = 1.5; }, 'zły dzień danych': j => { j.uk.asof = '2026-02-30'; },
+    'brak rankingu': j => { j.uk.top = []; }, 'ranking poniżej progu': j => { j.uk.top = j.uk.top.map(r => [r[0], r[1], 0.2, r[3], r[4], r[5]]); }, 'zły czas': j => { j.uk.t = 'x'; }, 'część z przyszłości': j => { j.uk.t = '2026-10-19T13:00:00+00:00'; }};
+  for (const [nazwa, f] of Object.entries(cases)) { const j = she429.J(); f(j); const hh = she429.mk('pl', she429.files(j), {open: true}).html(); assert.ok(!hh.includes('Wielka Brytania: spółki') && hh.includes('Szwecja: spółki'), nazwa); }
+  for (const j of [{}, {v: 2}, {v: 1}, {v: 1, at: 'x', uk: {}}, {v: 1, at: '2026-10-18T08:00:00+00:00'}, [], 'x']) { const K = she429.mk('pl', she429.files(j), {open: true}); assert.ok(she429.txt(K.html()).includes('Nie udało się teraz pobrać danych'), JSON.stringify(j)); }
+  const inc = she429.J(); inc.uk.rozk = [1, 2, 3, 4, 5, 6]; inc.uk.zm.wej += 1;   // rozkład nie sumuje się, wzór zmiany niezgodny: elementy znikają, część zostaje
+  h = she429.part(she429.mk('pl', she429.files(inc), {open: true}).html(), 'uk'); assert.ok(she429.tiles(h).length === 4 && !h.includes('Ile spółek w jakim przedziale') && !h.includes('Największe zwiększenia') && she429.tiles(h)[3].val === '—');
+  assert.ok(!/NaN|undefined|Infinity|\bnull\b/.test(she429.txt(she429.mk('pl', she429.files(inc), {open: true}).html())), 'żadnych NaN / undefined w tekście');
+  const part = she429.mk('pl', she429.files(), {open: true}).api; assert.deepEqual([part.sheDp(null).txt, part.sheDp(NaN).cls, part.sheDp(0.004).cls, part.sheDp(-0.004).txt, part.sheDp(0.006).txt, part.sheDp(-1.2).txt], ['—', 'na', 'neu', '0,00', '+0,01', '−1,20']);
+});
+
+test('v429 (F11Z28): tłumaczenia — karta w 10 językach bez surowych kluczy i bez nazw dostawców; liczby w formacie języka; ukryte znaki w słowniku zabronione', () => {
+  const F = she429.J(), nazwy = /FCA|Financial Conduct|Finansinspektionen|fi\.se|fca\.org|Eurostat|ESMA/i;
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const K = she429.mk(L, she429.files(), {open: true}), h = K.html(), t = she429.txt(h);
+    assert.ok(!/sh429\./.test(h), L + ': surowy klucz'); assert.ok(!nazwy.test(t), L + ': nazwa dostawcy'); assert.ok(she429.tiles(h).length === 8 && she429.rows(h).length === 24, L + ': 8 kafli i 24 wiersze'); assert.ok(t.length > 1500, L);
+    assert.ok(!/NaN|undefined|Infinity/.test(t), L);
+  }
+  const en = she429.txt(she429.mk('en', she429.files(), {open: true}).html()); assert.ok(en.includes('Short selling in Europe: net positions in the UK and Sweden') && en.includes('17.19%') && en.includes('0.5–1%'));
+  const de = she429.txt(she429.mk('de', she429.files(), {open: true}).html()); assert.ok(de.includes('17,19%') && de.includes('Leerverkäufe in Europa'));
+  const ja = she429.txt(she429.mk('ja', she429.files(), {open: true}).html()); assert.ok(ja.includes('欧州の空売り') && !/\d[\u00a0\u202f\u3000 ]+(社|件|日)/.test(ja), 'japoński: bez spacji między liczbą a licznikiem');
+  const m = html.match(/const EXTRA(\d+)=\{"pl":\{"sh429\.t"/); assert.ok(m, 'słownik v429 jako czysty JSON'); const ln = html.slice(html.indexOf(m[0])).split('\n')[0];
+  assert.ok(ln.endsWith('};') && ln.length > 20000 && !/[\u200b\u200c\u200d\u2060\ufeff\u00ad]/.test(ln)); assert.ok(html.includes(`for(const l in EXTRA${m[1]})if(I18N[l])Object.assign(I18N[l],EXTRA${m[1]}[l]);`));
+  const dict = JSON.parse(ln.slice(ln.indexOf('=') + 1, -1)); const keys = Object.keys(dict.pl).filter(k => k.startsWith('sh429.')); assert.equal(keys.length, 47);
+  for (const l of Object.keys(dict)) assert.deepEqual(Object.keys(dict[l]).filter(k => k.startsWith('sh429.')).sort(), keys.slice().sort(), l + ': komplet kluczy');
+  for (const k of keys) { const ph = x => (x.match(/\{[a-z]+\}/g) || []).sort().join(); for (const l of Object.keys(dict)) assert.equal(ph(dict[l][k]), ph(dict.pl[k]), `${l} ${k}: te same pola`); }
+});
+
+test('v429 (F11Z28): wygląd — style tylko ze zmiennych motywu, telefon (kafle po dwa, ranking jako kartki z etykietami kolumn, paski węższe), bez poziomego przewijania; karta w GLOBAL, nie w CRYPTO', () => {
+  const c0 = html.indexOf('/* v429 (F11Z28): krótka sprzedaż w Europie (panel #g-shorteu)'), c1 = html.indexOf('</style>', c0); assert.ok(c0 > 0 && c1 > c0, 'blok stylów');
+  const css = html.slice(c0, c1);
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(css.replace(/#g-shorteu/g, '')), 'żadnych stałych kolorów'); assert.ok(!/\brgba?\(/.test(css), 'tylko zmienne motywu');
+  for (const v of ['--gr-tx', '--rd-tx', '--yl-tx', '--dim', '--line', '--bl', '--or', '--tl']) assert.ok(css.includes(`var(${v})`), v);
+  assert.ok(css.includes('@media (max-width:760px){#g-shorteu .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}'), 'telefon: kafle po dwa');
+  assert.ok(/@media \(max-width:560px\)\{[^}]*#g-shorteu \.gxs-b\{grid-template-columns:minmax\(0,1fr\) 9\.5em/.test(css.replace(/\n\s*/g, '')) && css.includes('content:attr(data-l)') && css.includes('#g-shorteu .sh-hd{display:none}'), 'telefon: etykiety kolumn z data-l, nagłówek ukryty');
+  assert.ok(css.includes('overflow-wrap:anywhere') && css.includes('minmax(0,'), 'długie nazwy się łamią, siatki bez wymuszonej szerokości');
+  assert.ok(!/(^|[;{\s])(min-)?width:\s*[3-9]\d\dpx/.test(css), 'żadnej sztywnej szerokości powyżej 300 px');
+  const g = html.indexOf('id="global"'), s = html.indexOf('id="g-shorteu"'); assert.ok(g > 0 && s > g && s < html.indexOf('id="g-dolar"'), 'karta w GLOBAL (przed końcem listy kart GLOBAL)');
+});
+
+test('v429 (F11Z28): karta nie sięga do przeglądarki poza ładowarką i nie ma nazw dostawców w kodzie ani w fixturze', () => {
+  const code = she429.code; assert.ok(!code.includes('localStorage') && !/\bfetch\(/.test(code) && !/innerHTML\s*\+=/.test(code), 'tylko srvJSON i jedno przypisanie innerHTML');
+  assert.ok(!/FCA|Finansinspektionen|Financial Conduct/i.test(code), 'zero nazw dostawców w kodzie strony');
+  const j = JSON.stringify(SHE429_FILE); assert.ok(!/api[_-]?key|token|secret|password/i.test(j), 'w pliku danych nie ma kluczy'); assert.equal(SHE429_FILE.uk.snaps.length + SHE429_FILE.se.snaps.length, 0, 'fixtura bez zrzutów (strona ich nie czyta)');
 });

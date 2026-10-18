@@ -13661,6 +13661,140 @@ def fedddp_kontrola(files, now=None):
     return {'spojnosc': fedddp_spojnosc(j, now), 'wiersze': wiersze, 'uwagi': [], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v429 (F11Z28): KRÓTKA SPRZEDAŻ W EUROPIE — POZYCJE NETTO W WIELKIEJ BRYTANII I W SZWECJI (data/short-eu.json) --------------------
+# Plik: dwie części (uk, se), każda z własnym czasem pobrania (pole t), rytmem ~6 h (po błędzie ponowienie po 1 h, zbieracz v429) i datą najnowszej pozycji (asof).
+# Wiersze świeżości (najwyżej ⚠️): (1) pobranie części nie starsze niż 24 h — rytm 6 h + 12-godzinna awaria źródła = 18 h (symulacja co 10 minut przez 30 dób w test_zbieraj_dane: największy wiek
+# pobrania bez awarii 6,0 h, z awarią 18,0 h), 0 fałszywych ⚠️; (2) najnowsza data pozycji nie starsza niż 7 dób. Test wsteczny (plik historyczny urzędu brytyjskiego, 13.07–15.10.2026, 95 dni):
+# wiek najnowszej daty pozycji widoczny następnego dnia roboczego to 1–3 doby (weekendy i poniedziałek bankowy 31.08), najwięcej 3 — próg 7 dób (święta: do ok. 6) daje 0 fałszywych ⚠️ w tym okresie.
+# Spójność w pliku (⚠️): n ≥ n05 ≥ n1 ≥ n2 ≥ n5, ranking malejąco z pozycjami ≥ 0,5% i pierwszym = największa, rozkład sumuje się do n05, zmiana od zrzutu (n05 = n05 zrzutu − ubyłe + dochodzące; znaki list),
+# historia (dni rosnące, ostatni punkt = dane bieżące), zrzuty (≤ 10, rosnące doby, ostatni = doba pobrania i n05 spółek), data pozycji nie z przyszłości.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'short-eu')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['short-eu'] = 18 * 60   # plik zapisywany przy każdej próbie pobrania (co ~6 h, po błędzie co 1 h) — wiek pliku; wiek pobrania każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'short_' + p_: 'Krótka sprzedaż w Europie — część z błędem zostaje z datą (v429); wiek danych w wierszach świeżości' for p_ in ('uk', 'se')})
+SH_K_POBR_MIN = 24 * 60        # min — wiek pobrania części, powyżej tego ⚠️
+SH_K_DATA_MIN = 7 * 24 * 60    # min — wiek najnowszej daty pozycji (od końca dnia), powyżej tego ⚠️
+SH_K_ETYKIETA = {'uk': 'Krótka sprzedaż — Wielka Brytania', 'se': 'Krótka sprzedaż — Szwecja'}
+
+
+def sh_k_dzien(d):
+    return isinstance(d, str) and len(d) == 10 and _ix_dt_k(d + 'T00:00:00Z') is not None
+
+
+def sh_k_int(v):
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+
+def sh_k_seria(S, ile, dl):
+    """Lista wierszy długości dl, których pierwszy element to doba: doby prawdziwe i rosnące, bez powtórzeń, nie więcej niż ile; zwraca opis usterki albo ''."""
+    if not isinstance(S, list) or not S:
+        return 'brak serii'
+    if any(not (isinstance(r, list) and len(r) == dl and sh_k_dzien(r[0])) for r in S):
+        return 'zły kształt wiersza'
+    dni = [r[0] for r in S]
+    if dni != sorted(set(dni)):
+        return 'doby nie rosną albo się powtarzają'
+    return f'więcej niż {ile} punktów' if len(S) > ile else ''
+
+
+def sh_k_czesc(P, now=None):
+    """Spójność jednej części → lista usterek."""
+    zle = []
+    n, n05, n1, n2, n5 = (P.get(k) for k in ('n', 'n05', 'n1', 'n2', 'n5'))
+    if not all(sh_k_int(x) for x in (n, n05, n1, n2, n5)) or not (n >= n05 >= n1 >= n2 >= n5) or n05 < 1:
+        return ['liczniki nie są całkowite albo nie maleją (n ≥ n05 ≥ n1 ≥ n2 ≥ n5)']
+    dz, asof = P.get('dzien'), P.get('asof')
+    if not sh_k_dzien(dz) or not sh_k_dzien(asof):
+        return ['dzień pobrania albo dzień danych bez poprawnej daty']
+    if asof > (dt.date.fromisoformat(dz) + dt.timedelta(days=1)).isoformat():
+        zle.append('najnowsza data pozycji z przyszłości')
+    top = P.get('top')
+    if not isinstance(top, list) or not top or len(top) > min(n05, 12) or any(
+            not (isinstance(r, list) and len(r) == 6 and isinstance(r[0], str) and r[0] and isinstance(r[1], str) and _ste_k_l(r[2]) is not None and r[2] >= 0.5
+                 and sh_k_dzien(r[3]) and (r[4] is None or _ste_k_l(r[4]) is not None) and isinstance(r[5], bool)) for r in top):
+        zle.append('ranking: zły kształt, za długi albo pozycja poniżej progu 0,5%')
+    else:
+        v = [r[2] for r in top]
+        if v != sorted(v, reverse=True):
+            zle.append('ranking nie jest posortowany malejąco')
+        if P.get('max') != [top[0][0], top[0][1], top[0][2]]:
+            zle.append('największa pozycja to nie pierwszy wiersz rankingu')
+    rk = P.get('rozk')
+    if not (isinstance(rk, list) and len(rk) == 6 and all(sh_k_int(x) for x in rk)) or sum(rk) != n05:
+        zle.append('rozkład pozycji nie sumuje się do liczby spółek z pozycją ≥ 0,5%')
+    Z = P.get('zm')
+    if isinstance(Z, dict):
+        r0, wej, wyj, r1 = (Z.get(k) for k in ('n05_ref', 'wej', 'wyj', 'n1_ref'))
+        if not all(sh_k_int(x) for x in (r0, wej, wyj, r1)) or r1 > r0:
+            zle.append('zmiana od zrzutu: zły kształt liczników')
+        elif n05 != r0 - wyj + wej:
+            zle.append('zmiana od zrzutu: liczba spółek ≠ zrzut − ubyłe + dochodzące')
+        if not sh_k_dzien(Z.get('od')) or str(Z.get('od')) >= str(dz):
+            zle.append('zmiana od zrzutu: dzień zrzutu nie jest wcześniejszy niż doba pobrania')
+        for k, zn in (('plus', 1), ('minus', -1)):
+            L = Z.get(k)
+            if not isinstance(L, list) or len(L) > 5 or any(not (isinstance(r, list) and len(r) == 4 and isinstance(r[0], str) and _ste_k_l(r[2]) is not None and r[2] * zn > 0 and _ste_k_l(r[3]) is not None) for r in L):
+                zle.append(f'zmiana od zrzutu: lista „{k}” ma zły znak, kształt albo długość')
+    H = P.get('hist')
+    s = sh_k_seria(H, 400, 4)
+    if s:
+        zle.append('historia: ' + s)
+    elif H[-1] != [asof, n05, n1, n2]:
+        zle.append('historia: ostatni punkt to nie dane bieżące')
+    elif any(not (all(sh_k_int(x) for x in r[1:]) and r[1] >= r[2] >= r[3]) for r in H):
+        zle.append('historia: liczby nie maleją (n05 ≥ n1 ≥ n2) albo nie są całkowite')
+    S = P.get('snaps')
+    if not (isinstance(S, list) and S and len(S) <= 10 and all(isinstance(r, list) and len(r) == 3 and sh_k_dzien(r[0]) and isinstance(r[2], dict) for r in S)):
+        zle.append('zrzuty: zły kształt albo więcej niż 10')
+    elif [r[0] for r in S] != sorted({r[0] for r in S}):
+        zle.append('zrzuty: doby nie rosną albo się powtarzają')
+    elif S[-1][0] != dz or len(S[-1][2]) != n05:
+        zle.append('zrzuty: ostatni zrzut to nie doba pobrania z liczbą spółek ≥ 0,5%')
+    return zle
+
+
+def sh_k_kontrola(j, now=None):
+    """data/short-eu.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    for part in ('uk', 'se'):
+        K = j.get(part) if isinstance(j.get(part), dict) else None
+        lab = SH_K_ETYKIETA[part]
+        if K is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od ponad 3 dób)')
+            continue
+        zle += [f'{part}: {x}' for x in sh_k_czesc(K, now)]
+        w = wiek_danych(K.get('t'), 'ts', 'k', now)
+        if w is None:
+            out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak czasu pobrania'))
+        else:
+            st = '⚠️' if w > SH_K_POBR_MIN else '✅'
+            dane = str(K.get('t'))[:16].replace('T', ' ') + ' UTC'
+            note = '' if st == '✅' else 'pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga'
+            out['rows'].append((lab + ' (pobranie)', st, w, dane, note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (pobranie): {dane} — {fmt_wiek(w)} temu ({note})')
+        wd = wiek_danych(K.get('asof'), 'day', 'k', now) if sh_k_dzien(K.get('asof')) else None
+        if wd is None:
+            out['rows'].append((lab + ' (data pozycji)', '?', None, None, 'brak daty najnowszej pozycji'))
+        else:
+            st = '⚠️' if wd > SH_K_DATA_MIN else '✅'
+            note = '' if st == '✅' else 'najnowsza pozycja starsza niż 7 dób — urząd nie dopisuje zgłoszeń albo zbieracz czyta stary plik; najwyżej uwaga'
+            out['rows'].append((lab + ' (data pozycji)', st, wd, str(K.get('asof')), note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (data pozycji): {K.get("asof")} — {fmt_wiek(wd)} temu ({note})')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Krótka sprzedaż w Europie (short-eu.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in ('uk', 'se')):
+        out['wiersze'].append(('spójność pliku (liczniki, ranking, rozkład, zmiana od zrzutu, historia, zrzuty)', '⚠️' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -14470,6 +14604,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['fed-ddp'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Fed banki i papiery komercyjne (v423): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v429. Krótka sprzedaż w Europie (data/short-eu.json): wiek pobrania i najnowszej daty pozycji każdej części, spójność w pliku — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        SH_ = sh_k_kontrola(files.get('short-eu'))
+        for label, st, w, txt, note in SH_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += SH_['uwagi']
+        R['zgodnosc']['short-eu'] = {'spojnosc': SH_['spojnosc'], 'wiersze': SH_['wiersze']} if (SH_['rows'] or SH_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['short-eu'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Krótka sprzedaż w Europie (v429): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -15155,6 +15299,11 @@ def raport_md(R):
             L.append('- Skarbce spółek (BTC, ETH) i wnioski o fundusze krypto w kolejce urzędu (z pliku strony; cena BTC z posiadania spółek wobec pliku cen krypto tylko informacyjnie): ' + (f'? kontrola przerwana ({skf_["blad"]})' if skf_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(skf_['spojnosc'][:3]) + ' ⚠️ · ' if skf_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in skf_.get('wiersze') or []) or '—') + '.')
+        ssh_ = Z.get('short-eu')   # v429: krótka sprzedaż w Europie — brak pliku = bez linii
+        if ssh_:
+            L.append('- Krótka sprzedaż w Europie: pozycje netto w Wielkiej Brytanii i w Szwecji (z pliku strony): ' + (f'? kontrola przerwana ({ssh_["blad"]})' if ssh_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(ssh_['spojnosc'][:3]) + ' ⚠️ · ' if ssh_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in ssh_.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else

@@ -32960,6 +32960,8 @@ def main():
     # v422 (F11Z25): skarbce spółek (BTC, ETH) i nowe wnioski o fundusze krypto w kolejce urzędu — data/krypto-firmy.json; klucz usługi cen tylko w nagłówku, adres kontaktowy urzędu z sekretu SEC_CONTACT;
     # części raz na ~dobę, część sec wyłączona bez adresu kontaktowego (bez błędu)
     META['ok']['skarbce_btc'], META['ok']['skarbce_eth'], META['ok']['skarbce_sec'] = kf_czesc(cg_key, sec_contact)
+    # v429 (F11Z28): krótka sprzedaż w Europie (pozycje netto w spółkach w Wielkiej Brytanii i w Szwecji) — data/short-eu.json; bez klucza, dwie części raz na ~6 h (po błędzie co 1 h)
+    META['ok']['short_uk'], META['ok']['short_se'] = sh_czesc()
     # v121: stres finansowy USA (indeks stresu — bez klucza) i put/call (tylko z pisemną zgodą giełdy: CBOE_ZGODA) — co 6 h; część z błędem
     # ponawiana po godzinie; zmiana stanu zgody = przebudowa (bez zgody stare put/call nie są przepisywane); awaria = poprzedni plik i błąd
     if not PC_ZGODA:
@@ -46576,6 +46578,383 @@ def kf_czesc(cg_key, contact):
 
 
 ZRODLA_META.update({'skarbce_btc': 'coingecko', 'skarbce_eth': 'coingecko', 'skarbce_sec': 'sec'})   # v422: to samo źródło cen krypto i ten sam urząd co insiderzy — liczba źródeł bez zmian
+
+
+# ===================== v429 (F11Z28): KRÓTKA SPRZEDAŻ W EUROPIE — POZYCJE NETTO W WIELKIEJ BRYTANII I W SZWECJI — data/short-eu.json =====================
+# Dwie niezależne części, każda z własnym czasem pobrania i rytmem ~6 h (urzędy dopisują zgłoszenia w dni robocze); po błędzie ponowienie po 1 h, część zostaje z poprzedniego pliku najwyżej 3 doby:
+#   uk — zagregowane pozycje krótkie netto w spółkach (plik CSV urzędu nadzoru rynku kapitałowego w Wielkiej Brytanii: spółka, ISIN, pozycja w % kapitału, data pozycji; od 13.07.2026 zamiast listy posiadaczy).
+#        Raz (do skutku) pobieramy też plik pozycji, które przestały obowiązywać (od 13.07.2026): razem z bieżącym odtwarza liczbę spółek z pozycją na każdy dzień roboczy od 13.07.2026,
+#        więc wykres historii jest od pierwszego dnia (odtworzenie na dzień danych musi zgadzać się z bieżącym plikiem — inaczej historii nie przyjmujemy).
+#   se — rejestr pozycji krótkich netto na spółkach szwedzkich (tabela HTML urzędu nadzoru w Szwecji: spółka, LEI, data ostatniej pozycji, suma pozycji krótkich w %; historia zbierana od pierwszego pobrania).
+# Do liczników i rankingu bierzemy pozycje co najmniej 0,5% kapitału spółki (próg publicznego ujawniania); w obu plikach są też mniejsze (ostatnio zgłoszone) — liczone tylko w „n”.
+# Pozycja netto = akcje sprzedane krótko minus długie: to często zabezpieczenie albo arbitraż, nie zakład na spadek. To nie jest porada inwestycyjna.
+import html as _sh_html   # v429: odkodowanie nazw w tabeli HTML (biblioteka standardowa; ponowny import jest nieszkodliwy)
+SH_V = 1
+SH_PARTS = ('uk', 'se')
+SH_URL = {'uk': 'https://www.fca.org.uk/publication/documents/aggregated-current-net-short-positions.csv',
+          'ukh': 'https://www.fca.org.uk/publication/documents/aggregated-historic-net-short-positions.csv',
+          'se': 'https://www.fi.se/en/our-registers/net-short-positions/'}
+SH_CO_H = 6               # h — pobranie co ~6 h
+SH_BLAD_H = 1             # h — część, która zawiodła: ponowienie nie częściej niż co tyle
+SH_MAX_D = 3              # dób — część po błędzie zostaje z poprzedniego pliku najwyżej tyle
+SH_SLEEP = 1.0            # s — odstęp przed zapytaniem
+SH_TIMEOUT = 40           # s
+SH_MAX_B = {'uk': 400_000, 'ukh': 4_000_000, 'se': 1_500_000}   # B — limit odpowiedzi (18.10.2026: 21 KB, 500 KB, 104 KB)
+SH_PROG = 0.5             # % kapitału — próg publicznego ujawniania (liczniki, ranking)
+SH_ROZK = (0.5, 1.0, 2.0, 3.0, 5.0, 10.0)   # dolne granice przedziałów rozkładu pozycji (ostatni przedział otwarty)
+SH_TOP = 12               # tyle największych pozycji w pliku
+SH_RUCH_N = 5             # tyle największych zwiększeń i zmniejszeń
+SH_RUCH_MIN = 0.1         # p.p. — mniejsza zmiana pozycji nie jest ruchem
+SH_RUCH_MAX = 0.4         # zmiana liczby spółek z pozycją ≥ 0,5% większa niż tyle (część) wobec zrzutu = zmiana zestawienia, nie ruch — porównania nie pokazujemy
+SH_HIST_MAX = 400         # punktów historii (po jednym na dzień danych)
+SH_SNAP_N = 10            # zrzutów w pliku (po jednym na dobę UTC)
+SH_REF_MIN_D, SH_REF_CEL_D, SH_REF_MAX_D = 1, 7, 14   # dób — zrzut do porównania: od 1 do 14 dób, najbliżej 7
+SH_MIN_N = {'uk': 100, 'se': 50}            # mniej wierszy = błąd odczytu (18.10.2026: 425 i 335)
+SH_MAX_N = {'uk': 3000, 'se': 2000}
+SH_PCT_MAX = 60.0         # % — pozycja większa = błąd odczytu (18.10.2026: najwyższa 17,2% i 16,6%)
+SH_DATA_MIN = '2019-01-01'   # data pozycji wcześniejsza = błąd wiersza (18.10.2026: najstarsza 2019-12-19 w Szwecji)
+SH_SEED_OD = '2026-07-13'    # początek odtwarzanej historii (start nowego pliku zagregowanego)
+SH_SEED_MIN_ROWS = 1000      # plik pozycji nieobowiązujących: mniej wierszy = błąd odczytu (18.10.2026: 8186)
+SH_BLEDNE_MAX = 0.05         # część wierszy odrzuconych jako błędne, powyżej której cały plik jest błędny
+_SH_ISIN = re.compile(r'^[A-Z]{2}[A-Z0-9]{9}[0-9]$')
+_SH_LEI = re.compile(r'^[A-Z0-9]{18}[0-9]{2}$')
+_SH_DZIEN = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+_SH_TAB = re.compile(r'<table\b[^>]*\bid="aktuella"[^>]*>(.*?)</table>', re.S | re.I)
+_SH_TR = re.compile(r'<tr\b[^>]*>(.*?)</tr>', re.S | re.I)
+_SH_TD = re.compile(r'<td\b[^>]*>(.*?)</td>', re.S | re.I)
+_SH_TH = re.compile(r'<th\b[^>]*>(.*?)</th>', re.S | re.I)
+_SH_TAG = re.compile(r'<[^>]+>')
+_SH_WYD = re.compile(r'List updated:\s*(\d{4}-\d{2}-\d{2})')
+
+
+def sh_num(v, lo=None, hi=None):
+    """Skończona liczba (nie wartość logiczna) w przedziale [lo, hi] albo None."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not _etf_math.isfinite(v):
+        return None
+    if (lo is not None and v < lo) or (hi is not None and v > hi):
+        return None
+    return float(v)
+
+
+def sh_dzien_ok(d):
+    return isinstance(d, str) and bool(_SH_DZIEN.match(d)) and _ix_dt(d + 'T00:00:00+00:00') is not None
+
+
+def sh_dni_miedzy(a, b):
+    """Liczba dób od dnia a do dnia b (RRRR-MM-DD); zły zapis = None."""
+    try:
+        return (datetime.date.fromisoformat(b) - datetime.date.fromisoformat(a)).days
+    except (TypeError, ValueError):
+        return None
+
+
+def sh_dzien_chwili(iso):
+    d = _ix_dt(iso)
+    return d.date().isoformat() if d is not None else None
+
+
+def sh_pozycja(txt):
+    """Tekst pozycji w % → liczba w (0, SH_PCT_MAX] albo None (przecinek lub kropka dziesiętna)."""
+    try:
+        return sh_num(float(str(txt).strip().replace(',', '.')), 1e-9, SH_PCT_MAX)
+    except ValueError:
+        return None
+
+
+def sh_nazwa(txt):
+    s = re.sub(r'\s+', ' ', str(txt or '')).strip()
+    return s if 0 < len(s) <= 120 else None
+
+
+def sh_wybierz(rows):
+    """Wiersze (nazwa, id, pct, dzień) → bez powtórzeń identyfikatora: późniejsza data pozycji, przy remisie wyższa pozycja."""
+    best = {}
+    for r in rows:
+        b = best.get(r[1])
+        if b is None or (r[3], r[2]) > (b[3], b[2]):
+            best[r[1]] = r
+    return sorted(best.values(), key=lambda r: (-r[2], r[0], r[1]))
+
+
+def sh_kontrola_bledow(wszystkie, dobre, nazwa):
+    if wszystkie == 0 or (wszystkie - dobre) > max(3, wszystkie * SH_BLEDNE_MAX):
+        raise RuntimeError(f'{nazwa}: za dużo wierszy o złym kształcie ({wszystkie - dobre} z {wszystkie})')
+
+
+def sh_data_pl(txt, teraz):
+    """Data DD/MM/RRRR → RRRR-MM-DD w oknie [SH_DATA_MIN, jutro]; inaczej None."""
+    try:
+        d = datetime.datetime.strptime(str(txt).strip(), '%d/%m/%Y').date()
+    except ValueError:
+        return None
+    dz = sh_dzien_chwili(teraz)
+    if dz is None or d.isoformat() < SH_DATA_MIN or d > datetime.date.fromisoformat(dz) + datetime.timedelta(days=1):
+        return None
+    return d.isoformat()
+
+
+def sh_csv(tekst):
+    rd = list(csv.reader(io.StringIO(tekst.lstrip('\ufeff'))))
+    if not rd or len(rd[0]) < 4:
+        raise RuntimeError('zły kształt pliku (brak nagłówka z czterema kolumnami)')
+    return [x.strip().lower() for x in rd[0]], rd[1:]
+
+
+def sh_uk_wiersze(tekst, teraz):
+    """Bieżący plik CSV urzędu (Wielka Brytania) → [(nazwa, ISIN, pozycja %, dzień)]; zły nagłówek, za mało wierszy albo za dużo błędnych = wyjątek."""
+    h, rows = sh_csv(tekst)
+    if not (('isin' in h[1] or 'securities identification' in h[1]) and 'net short' in h[2] and 'date' in h[3]):
+        raise RuntimeError('nagłówek pliku nie ma oczekiwanych kolumn (spółka, ISIN, pozycja, data)')
+    out = []
+    for r in rows:
+        if not r or not any(x.strip() for x in r):
+            continue
+        nz, isin, p, d = (sh_nazwa(r[0]), r[1].strip().upper() if len(r) > 1 else '', sh_pozycja(r[2]) if len(r) > 2 else None,
+                          sh_data_pl(r[3], teraz) if len(r) > 3 else None)
+        if nz and _SH_ISIN.match(isin) and p is not None and d is not None:
+            out.append((nz, isin, p, d))
+    sh_kontrola_bledow(sum(1 for r in rows if r and any(x.strip() for x in r)), len(out), 'plik brytyjski')
+    out = sh_wybierz(out)
+    if not SH_MIN_N['uk'] <= len(out) <= SH_MAX_N['uk']:
+        raise RuntimeError(f'liczba spółek w pliku brytyjskim poza zakresem sensu ({len(out)})')
+    return out
+
+
+def sh_ukh_wiersze(tekst, teraz):
+    """Plik pozycji, które przestały obowiązywać (Wielka Brytania) → [(ISIN, pozycja %, dzień pozycji, dzień zastąpienia)]."""
+    h, rows = sh_csv(tekst)
+    if len(h) < 5 or not ('isin' in h[1] or 'securities identification' in h[1]) or 'net short' not in h[2] or 'date' not in h[3] or 'historical' not in h[4]:
+        raise RuntimeError('nagłówek pliku historycznego nie ma oczekiwanych kolumn')
+    out, n = [], 0
+    for r in rows:
+        if not r or not any(x.strip() for x in r):
+            continue
+        n += 1
+        if len(r) < 5:
+            continue
+        isin, p, d1, d2 = r[1].strip().upper(), sh_pozycja(r[2]), sh_data_pl(r[3], teraz), sh_data_pl(r[4], teraz)
+        if _SH_ISIN.match(isin) and p is not None and d1 and d2 and d1 <= d2:
+            out.append((isin, p, d1, d2))
+    sh_kontrola_bledow(n, len(out), 'plik historyczny')
+    if len(out) < SH_SEED_MIN_ROWS:
+        raise RuntimeError(f'za mało wierszy w pliku historycznym ({len(out)} < {SH_SEED_MIN_ROWS})')
+    return out
+
+
+def sh_uk_odtworz(biez, hist, od, do):
+    """Liczba spółek z pozycją w każdy dzień roboczy od `od` do `do` (włącznie): pozycja obowiązuje od dnia pozycji do dnia zastąpienia (bez niego); w dniu obowiązuje ostatnia z pozycji danego ISIN.
+    Wynik: [[dzień, n05, n1, n2]]. Wiersze bieżące: obowiązują bez końca."""
+    iv = {}
+    for nz, isin, p, d in biez:
+        iv.setdefault(isin, []).append((d, '9999-12-31', p))
+    for isin, p, d1, d2 in hist:
+        iv.setdefault(isin, []).append((d1, d2, p))
+    out = []
+    dz, koniec = datetime.date.fromisoformat(od), datetime.date.fromisoformat(do)
+    while dz <= koniec:
+        if dz.weekday() < 5 or dz == koniec:   # dzień danych zawsze (także gdyby wypadł w weekend)
+            s = dz.isoformat()
+            v = []
+            for L in iv.values():
+                c = [x for x in L if x[0] <= s < x[1]]
+                if c:
+                    v.append(max(c, key=lambda x: (x[0], x[2]))[2])
+            out.append([s, sum(1 for x in v if x >= SH_PROG), sum(1 for x in v if x >= 1.0), sum(1 for x in v if x >= 2.0)])
+        dz += datetime.timedelta(days=1)
+    return out
+
+
+def sh_se_wiersze(tekst, teraz):
+    """Strona rejestru (Szwecja) → ([(nazwa, LEI, pozycja %, dzień)], dzień aktualizacji listy albo None)."""
+    m = _SH_TAB.search(tekst)
+    if not m:
+        raise RuntimeError('brak tabeli pozycji na stronie rejestru')
+    tr = _SH_TR.findall(m.group(1))
+    th = [_SH_TAG.sub('', x).strip().lower() for x in _SH_TH.findall(tr[0])] if tr else []
+    if len(th) != 4 or 'issuer' not in th[0] or 'date' not in th[2] or 'sum short' not in th[3]:
+        raise RuntimeError('nagłówek tabeli nie ma oczekiwanych kolumn (spółka, LEI, data, suma)')
+    dz = sh_dzien_chwili(teraz)
+    out, n = [], 0
+    for row in tr[1:]:
+        td = _SH_TD.findall(row)
+        if len(td) != 4:
+            continue
+        n += 1
+        c = [_sh_html.unescape(_SH_TAG.sub('', x)).strip() for x in td]
+        nz, lei, d, p = sh_nazwa(c[0]), c[1].upper(), c[2], sh_pozycja(c[3])
+        if nz and _SH_LEI.match(lei) and p is not None and sh_dzien_ok(d) and SH_DATA_MIN <= d <= (datetime.date.fromisoformat(dz) + datetime.timedelta(days=1)).isoformat():
+            out.append((nz, lei, p, d))
+    sh_kontrola_bledow(n, len(out), 'tabela szwedzka')
+    out = sh_wybierz(out)
+    if not SH_MIN_N['se'] <= len(out) <= SH_MAX_N['se']:
+        raise RuntimeError(f'liczba spółek w tabeli szwedzkiej poza zakresem sensu ({len(out)})')
+    w = _SH_WYD.search(tekst)
+    return out, (w.group(1) if w and sh_dzien_ok(w.group(1)) else None)
+
+
+def sh_rozklad(pcts):
+    """Liczby spółek w przedziałach SH_ROZK (ostatni otwarty); pozycje poniżej progu pomijane."""
+    c = [0] * len(SH_ROZK)
+    for p in pcts:
+        if p < SH_ROZK[0]:
+            continue
+        i = max(k for k, g in enumerate(SH_ROZK) if p >= g)
+        c[i] += 1
+    return c
+
+
+def sh_ref(snaps, dzien):
+    """Zrzut do porównania: od SH_REF_MIN_D do SH_REF_MAX_D dób wobec dnia `dzien`, najbliższy SH_REF_CEL_D (przy remisie młodszy); brak = None. Zrzut: [dzień, chwila, {id: pozycja}]."""
+    best, bk = None, None
+    for s in snaps if isinstance(snaps, list) else []:
+        if not (isinstance(s, list) and len(s) == 3 and isinstance(s[0], str) and isinstance(s[2], dict)):
+            continue
+        a = sh_dni_miedzy(s[0], dzien)
+        if a is None or not SH_REF_MIN_D <= a <= SH_REF_MAX_D:
+            continue
+        k = (abs(a - SH_REF_CEL_D), a)
+        if bk is None or k < bk:
+            best, bk = s, k
+    return best
+
+
+def sh_buduj(wiersze, teraz, prev=None, seed=None, wyd=None):
+    """Wiersze (nazwa, id, pozycja %, dzień) → część pliku. prev — poprzednia wersja części (historia, zrzuty); seed — odtworzona historia [[dzień, n05, n1, n2]] (tylko dni wcześniejsze niż dzień danych)."""
+    pv = prev if isinstance(prev, dict) else {}
+    dzien = sh_dzien_chwili(teraz)
+    wiersze = sorted(wiersze, key=lambda r: (-r[2], r[0], r[1]))   # parsery zwracają już posortowane; budowniczy nie zakłada kolejności
+    now = {r[1]: r[2] for r in wiersze}
+    nazwy = {r[1]: r[0] for r in wiersze}
+    nad = [r for r in wiersze if r[2] >= SH_PROG]
+    n05, n1, n2, n5 = len(nad), sum(1 for r in nad if r[2] >= 1.0), sum(1 for r in nad if r[2] >= 2.0), sum(1 for r in nad if r[2] >= 5.0)
+    asof = max(r[3] for r in wiersze)
+    ref = sh_ref(pv.get('snaps'), dzien)
+    rm = ref[2] if ref else None
+    zm = None
+    if rm and len(rm) >= 20 and abs(n05 - len(rm)) <= len(rm) * SH_RUCH_MAX:
+        wej = sum(1 for i, p in now.items() if p >= SH_PROG and i not in rm)
+        wyj = sum(1 for i in rm if now.get(i, 0) < SH_PROG)
+        ruch = [(nazwy[i], i, round(now[i] - rm[i], 2), now[i]) for i in rm if i in now and abs(now[i] - rm[i]) >= SH_RUCH_MIN - 1e-9]
+        zm = {'od': ref[0], 'n05_ref': len(rm), 'n1_ref': sum(1 for p in rm.values() if p >= 1.0), 'wej': wej, 'wyj': wyj,
+              'plus': [[a, b, c, round(d, 2)] for a, b, c, d in sorted((x for x in ruch if x[2] > 0), key=lambda x: (-x[2], x[0]))[:SH_RUCH_N]],
+              'minus': [[a, b, c, round(d, 2)] for a, b, c, d in sorted((x for x in ruch if x[2] < 0), key=lambda x: (x[2], x[0]))[:SH_RUCH_N]]}
+    top = []
+    for r in nad[:SH_TOP]:   # wiersz: [nazwa, id, pozycja, dzień, zmiana od zrzutu (None: brak porównania), nowa ponad progiem]
+        top.append([r[0], r[1], round(r[2], 2), r[3], round(r[2] - rm[r[1]], 2) if (zm and r[1] in rm) else None, bool(zm and r[1] not in rm)])
+    hist = [h for h in (pv.get('hist') if isinstance(pv.get('hist'), list) else [])
+            if isinstance(h, list) and len(h) == 4 and sh_dzien_ok(h[0]) and h[0] != asof and all(isinstance(x, int) and not isinstance(x, bool) and x >= 0 for x in h[1:])]
+    have = {h[0] for h in hist}
+    for h in seed or []:
+        if h[0] < asof and h[0] not in have:
+            hist.append(list(h))
+    hist.append([asof, n05, n1, n2])
+    hist = sorted(hist, key=lambda h: h[0])[-SH_HIST_MAX:]
+    snaps = [s for s in (pv.get('snaps') if isinstance(pv.get('snaps'), list) else []) if isinstance(s, list) and len(s) == 3 and isinstance(s[0], str) and isinstance(s[2], dict) and s[0] != dzien]
+    snaps.append([dzien, teraz, {r[1]: round(r[2], 2) for r in nad}])
+    snaps = snaps[-SH_SNAP_N:]
+    return {'t': teraz, 'dzien': dzien, 'asof': asof, 'wyd': wyd, 'n': len(wiersze), 'n05': n05, 'n1': n1, 'n2': n2, 'n5': n5,
+            'max': [nad[0][0], nad[0][1], round(nad[0][2], 2)] if nad else None, 'top': top, 'rozk': sh_rozklad(r[2] for r in nad), 'zm': zm,
+            'hist': hist, 'snaps': snaps, 'seed': bool(pv.get('seed') or seed), 'seed_try': pv.get('seed_try')}
+
+
+def sh_trzeba(czas, ok_prev, teraz):
+    """Czy część pobrać w tym przebiegu. czas — chwila poprzedniego pobrania części (brak = tak); po błędzie co SH_BLAD_H h, inaczej co SH_CO_H h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    h = (tn - tk).total_seconds() / 3600
+    return h >= (SH_CO_H if ok_prev else SH_BLAD_H)
+
+
+def sh_zadania(pv, teraz):
+    """Które części pobrać w tym przebiegu → {część: bool}."""
+    ok, pat = (pv.get('ok') if isinstance(pv.get('ok'), dict) else {}), (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {})
+    return {n: (True if not isinstance(pv.get(n), dict) else sh_trzeba(pat.get(n) or pv.get('at'), ok.get(n, True) is not False, teraz)) for n in SH_PARTS}
+
+
+def sh_pobierz(url, maks):
+    """Jedyne miejsce sieci tego pliku (testy je łatają): zapytanie GET z odstępem, limitem czasu i rozmiaru → bajty."""
+    time.sleep(SH_SLEEP)
+    return get_bytes_maks(url, None, SH_TIMEOUT, maks)
+
+
+def sh_job(n, prev_part, teraz):
+    """Odczyt jednej części z sieci → gotowa część pliku."""
+    if n == 'se':
+        w, wyd = sh_se_wiersze(sh_pobierz(SH_URL['se'], SH_MAX_B['se']).decode('utf-8', 'replace'), teraz)
+        return sh_buduj(w, teraz, prev_part, None, wyd)
+    w = sh_uk_wiersze(sh_pobierz(SH_URL['uk'], SH_MAX_B['uk']).decode('utf-8-sig'), teraz)
+    pv = prev_part if isinstance(prev_part, dict) else {}
+    seed, dzien, asof = None, sh_dzien_chwili(teraz), max(r[3] for r in w)
+    prob = pv.get('seed_try')
+    if not pv.get('seed') and prob != dzien:   # historia odtwarzana do skutku, najwyżej raz na dobę
+        try:
+            hist = sh_ukh_wiersze(sh_pobierz(SH_URL['ukh'], SH_MAX_B['ukh']).decode('utf-8-sig'), teraz)
+            seed = sh_uk_odtworz(w, hist, SH_SEED_OD, asof)
+            ost = seed[-1] if seed else None
+            nad = [r[2] for r in w if r[2] >= SH_PROG]
+            if not ost or ost[0] != asof or ost[1:] != [len(nad), sum(1 for p in nad if p >= 1.0), sum(1 for p in nad if p >= 2.0)]:
+                raise RuntimeError('odtworzenie na dzień danych nie zgadza się z bieżącym plikiem')
+        except Exception as e:  # noqa — historia jest dodatkiem, nie psuje części
+            seed = None
+            META['notes'].append(mask(f'Krótka sprzedaż (Wielka Brytania): historia nieodtworzona: {e}')[:200])
+    o = sh_buduj(w, teraz, pv, seed, None)
+    if not o['seed']:
+        o['seed_try'] = dzien
+    return o
+
+
+def build_short_eu(prev=None, zadania=None):
+    """v429: data/short-eu.json {v, at, src, ok, part_at, uk, se} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm) zostaje z poprzedniego pliku bez zmian; część po błędzie
+    — z poprzedniego pliku z własnym czasem (najwyżej SH_MAX_D dób), błąd do META['errors']. Żadna część w pliku = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == SH_V else {}
+    zad = zadania if zadania is not None else sh_zadania(pv, NOW)
+    pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
+    out = {'v': SH_V, 'at': NOW, 'src': 'rejestry pozycji krótkich netto w spółkach: urząd nadzoru rynku kapitałowego w Wielkiej Brytanii (plik zagregowany) i w Szwecji (rejestr na stronie urzędu)',
+           'ok': {}, 'part_at': {}}
+    st = {}
+    for n in SH_PARTS:
+        stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+        if not zad.get(n):
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+            else:
+                st[n] = 'cached'
+            continue
+        try:
+            out[n] = sh_job(n, stara, NOW)
+            out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+        except Exception as e:  # noqa — jedna część nie psuje drugiej
+            META['errors'].append(mask(f'Krótka sprzedaż w Europie: {n}: {e}')[:200])
+            out['ok'][n], st[n] = False, False
+            if stara is not None and _zapas_wiek_ok(pat0.get(n) or pv.get('at'), SH_MAX_D):
+                out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
+    if not any(isinstance(out.get(n), dict) for n in SH_PARTS):
+        raise RuntimeError('żadna część krótkiej sprzedaży w Europie nie ma danych')
+    return out, st
+
+
+def sh_czesc():
+    """v429: część przebiegu → krotka wartości dla META['ok'] w kolejności SH_PARTS: True = pobrane, 'cached' = poprzednia wersja wystarcza (rytm), False = część zawiodła.
+    Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('short-eu')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == SH_V else None
+    zad = sh_zadania(prev or {}, NOW)
+    if prev and not any(zad.values()):
+        save('short-eu', prev)
+        return tuple('cached' for _ in SH_PARTS)
+    try:
+        obj, st = build_short_eu(prev, zad)
+        save('short-eu', obj)
+        return tuple(st.get(n, False) for n in SH_PARTS)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Krótka sprzedaż w Europie: {e}')[:200])
+        if prev:
+            save('short-eu', prev)
+        return tuple(False for _ in SH_PARTS)
+
+
+ZRODLA_META.update({'short_uk': 'fca', 'short_se': 'finansinspektionen'})   # v429: dwa urzędy nadzoru (+2 źródła)
 
 
 if __name__ == '__main__':
