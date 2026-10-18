@@ -69381,7 +69381,7 @@ class TestV416BcbPrzerwa(unittest.TestCase):
                 mock.patch.object(zd, 'get_json', self._gj_html), mock.patch.object(zd, '_bcb_ws_post', self._soap500):
             out = zd.build_interwencje(pr)
             self.assertEqual(zd.META['errors'], [], zd.META['errors'])
-            self.assertIs(out['ok']['br'], False); self.assertEqual(out['br'], pr['br']); self.assertEqual(out['part_at']['br'], '2026-10-18T02:04:55+00:00')
+            self.assertIs(out['ok']['br'], False); self.assertEqual({a: b for a, b in out['br'].items() if a != 'przerwa'}, pr['br'], 'dane bez zmian (v427: dochodzi znacznik przerwy)'); self.assertEqual(out['part_at']['br'], '2026-10-18T02:04:55+00:00')
             self.assertTrue(any(n.startswith('Interwencje i rezerwy Brazylia: bank nie podaje danych') and 'dane z dnia 2026-10-15' in n for n in zd.META['notes']), zd.META['notes'])
             zd.META['notes'].clear(); zd._BCB_WS.update(on=False, chw=[]); zd._BCB_WS.pop('ws_zle', None); zd._BCB_WS.pop('json_zle', None)
             pr['part_at']['br'] = '2026-10-14T02:04:55+00:00'
@@ -71101,3 +71101,115 @@ class KontrolaFedDdpV423(unittest.TestCase):
             s = f.read()
         i0, i1 = s.index('# 3c-v423. Fed'), s.index('# 3d. v115: zgodność liczb')
         self.assertLess(i0, i1); self.assertIn("fedddp_swiezosc(files.get('fed-ddp'))", s); self.assertIn("kfd = Z.get('fed-ddp')", s); self.assertIn("R['bledy'].append(f'fed-ddp.json: sprzeczność w pliku — {z_}')", s)
+
+
+class TestV427InterwencjeBrCached(unittest.TestCase):
+    """v427 (18.10.2026): przerwa banku w części Brazylia pliku interwencje.json także przy ponownym użyciu poprzedniego pliku (main(), ścieżka „cached”): znacznik w części,
+    notatka zamiast błędu (dane młodsze niż 3 doby); po 3 dobach, bez znacznika albo przy innym błędzie — błąd jak dotąd."""
+    T = '2026-10-18T07:44:43+00:00'
+    ATB = '2026-10-18T02:04:55+00:00'
+    MSG = 'brak dni (13970: bramka banku odrzuciła zapytanie (strona z odmową zamiast danych); zapas SOAP: HTTP Error 500: Internal Server Error)'
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+
+    tearDown = setUp
+
+    def _pk(self, at=None):
+        a = at or self.ATB
+        return {'v': zd.IW_V, 'at': a, 'src': zd.IW_SRC, 'ok': {k: True for k in zd.IW_PARTS}, 'part_at': {k: a for k in zd.IW_PARTS}, 'errs': {},
+                **{k: {'asof': '2026-10-15', 's': [['2026-10-15', 356000.0]], 't': a} for k in zd.IW_PARTS}}
+
+    def _przebuduj(self, pk, wyjatek, now=None):
+        def cz(k, pp, dzis):
+            if k == 'br':
+                raise wyjatek
+            return {'asof': '2026-10-15', 's': [['2026-10-15', 1.0]], 't': zd.NOW}
+        with mock.patch.object(zd, 'NOW', now or self.T), mock.patch.object(zd, 'iw_czesc', cz), mock.patch.object(zd, 'iw_swieza', lambda p, k: False):
+            return zd.build_interwencje(pk)
+
+    def _main(self, pk, now=None):
+        """Blok main() wykonany wprost przy młodym pliku (fresh_pelny = prawda): ścieżka „cached”."""
+        import inspect, textwrap
+        src = inspect.getsource(zd.main)
+        blk = textwrap.dedent(src[src.index("    prev_iw = previous('interwencje')"):src.index('    # v401: koniec bloku interwencji')])
+        saved, calls = {}, []
+
+        def bs(p, run_t0=None):
+            calls.append(1)
+            raise RuntimeError('nie powinno być wywołane')
+        with mock.patch.object(zd, 'NOW', now or self.T), mock.patch.object(zd, 'previous', side_effect=lambda n: pk if n == 'interwencje' else None), \
+                mock.patch.object(zd, 'save', side_effect=lambda n, o: saved.__setitem__(n, o)), mock.patch.object(zd, 'fresh_pelny', return_value=True), \
+                mock.patch.object(zd, 'build_interwencje', side_effect=bs):
+            try:
+                exec(compile(blk, 'blok_v427', 'exec'), zd.__dict__)
+            finally:
+                for n_ in ('prev_iw', 'iw_', 'k_iw', 'stan_iw', 'e'):
+                    zd.__dict__.pop(n_, None)
+        self.assertEqual(calls, [], 'ścieżka cached nie buduje pliku'); self.assertEqual(saved, {'interwencje': pk}, 'plik bez zmian')
+
+    def test_przebudowa_zostawia_znacznik_przerwy_i_liczy_proby(self):
+        pk = self._pk()
+        o1 = self._przebuduj(pk, zd.BcbPrzerwa(self.MSG))
+        self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(o1['br']['s'], pk['br']['s']); self.assertEqual(o1['br']['asof'], '2026-10-15')
+        self.assertEqual((o1['br']['przerwa']['od'], o1['br']['przerwa']['ost'], o1['br']['przerwa']['n']), (self.T, self.T, 1))
+        self.assertIn('bramka banku odrzuciła zapytanie', o1['br']['przerwa']['powod'])
+        self.assertIs(o1['ok']['br'], False); self.assertEqual(o1['part_at']['br'], self.ATB); self.assertEqual(o1['errs']['br'], self.MSG[:160])
+        self.assertEqual(len(zd.META['notes']), 1); self.assertTrue(zd.META['notes'][0].startswith('Interwencje i rezerwy Brazylia: bank nie podaje danych (brak dni'))
+        self.assertIn('zostają dane z dnia 2026-10-15', zd.META['notes'][0])
+        zd.META['notes'].clear()
+        o2 = self._przebuduj(o1, zd.BcbPrzerwa(self.MSG), now='2026-10-18T08:44:43+00:00')
+        self.assertEqual((o2['br']['przerwa']['od'], o2['br']['przerwa']['ost'], o2['br']['przerwa']['n']), (self.T, '2026-10-18T08:44:43+00:00', 2), 'początek przerwy zostaje, próby rosną')
+        self.assertEqual(zd.META['errors'], [])
+
+    def test_cached_przerwa_banku_nota_zamiast_bledu(self):
+        o1 = self._przebuduj(self._pk(), zd.BcbPrzerwa(self.MSG))
+        nota_przebudowy = list(zd.META['notes'])
+        zd.META['notes'].clear(); zd.META['ok'].clear()
+        self._main(json.loads(json.dumps(o1)), now='2026-10-18T08:00:00+00:00')
+        self.assertEqual(zd.META['errors'], [], 'przerwa banku w pliku używanym ponownie to nie błąd')
+        self.assertEqual(zd.META['notes'], nota_przebudowy, 'ta sama notatka co przy przebudowie')
+        self.assertEqual(zd.META['ok'], dict({'interw_' + k: 'cached' for k in zd.IW_PARTS}, interw_br=False), 'Brazylia zostaje na liście „bez odpowiedzi” (⚠️), reszta cached')
+
+    def test_cached_po_trzech_dobach_albo_bez_znacznika_albo_inny_blad_to_blad(self):
+        o1 = self._przebuduj(self._pk(), zd.BcbPrzerwa(self.MSG))
+        stary = json.loads(json.dumps(o1)); stary['part_at']['br'] = '2026-10-15T07:00:00+00:00'
+        zd.META['notes'].clear(); zd.META['ok'].clear()
+        self._main(stary)
+        self.assertEqual(len(zd.META['errors']), 1, zd.META['errors']); self.assertTrue(zd.META['errors'][0].startswith('Interwencje i rezerwy Brazylia: brak dni (13970:'))
+        self.assertEqual(zd.META['notes'], []); self.assertIs(zd.META['ok']['interw_br'], False)
+        granica = json.loads(json.dumps(o1)); granica['part_at']['br'] = '2026-10-15T07:44:43+00:00'   # równo 3 doby = już błąd
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+        self._main(granica)
+        self.assertEqual(len(zd.META['errors']), 1)
+        bez = json.loads(json.dumps(o1)); del bez['br']['przerwa']   # plik sprzed v427 albo ok.br=False z innej przyczyny
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+        self._main(bez)
+        self.assertEqual(len(zd.META['errors']), 1); self.assertEqual(zd.META['notes'], [])
+        # inny błąd (zły kształt odpowiedzi) po przerwie zdejmuje stary znacznik — potem cached to błąd
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        o3 = self._przebuduj(o1, RuntimeError('Brazylia: nieznany kształt odpowiedzi'), now='2026-10-18T09:00:00+00:00')
+        self.assertNotIn('przerwa', o3['br']); self.assertEqual(o3['br']['s'], o1['br']['s']); self.assertEqual(len(zd.META['errors']), 1)
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self._main(o3, now='2026-10-18T09:10:00+00:00')
+        self.assertEqual(len(zd.META['errors']), 1); self.assertIn('nieznany kształt odpowiedzi', zd.META['errors'][0]); self.assertEqual(zd.META['notes'], [])
+
+    def test_inna_czesc_z_bledem_w_cached_bez_zmian_i_powrot_banku_zdejmuje_znacznik(self):
+        o1 = self._przebuduj(self._pk(), zd.BcbPrzerwa(self.MSG))
+        o1['ok']['hk'] = False; o1['errs']['hk'] = 'HTTP Error 503'
+        zd.META['notes'].clear(); zd.META['ok'].clear()
+        self._main(o1, now='2026-10-18T08:00:00+00:00')
+        self.assertEqual(zd.META['errors'], ['Interwencje i rezerwy Hongkong: HTTP Error 503'], 'znacznik dotyczy tylko Brazylii')
+        self.assertEqual(len(zd.META['notes']), 1)
+        with mock.patch.object(zd, 'NOW', '2026-10-18T09:00:00+00:00'), mock.patch.object(zd, 'iw_swieza', lambda p, k: False), \
+                mock.patch.object(zd, 'iw_czesc', lambda k, pp, dzis: {'asof': '2026-10-16', 's': [['2026-10-16', 357000.0]], 't': zd.NOW}):
+            o4 = zd.build_interwencje(o1)
+        self.assertNotIn('przerwa', o4['br']); self.assertIs(o4['ok']['br'], True); self.assertEqual(o4['br']['asof'], '2026-10-16')
+
+    def test_okablowanie_main(self):
+        import inspect
+        src = inspect.getsource(zd.main)
+        blk = src[src.index("    prev_iw = previous('interwencje')"):src.index('    # v401: koniec bloku interwencji')]
+        self.assertIn("if k_iw == 'br' and iw_br_przerwa_trwa(prev_iw):", blk)
+        self.assertLess(blk.index('iw_br_przerwa_trwa(prev_iw)'), blk.index("META['errors'].append(mask(f\"{IW_PX} {IW_LABEL[k_iw]}"), 'błąd tylko w gałęzi else')

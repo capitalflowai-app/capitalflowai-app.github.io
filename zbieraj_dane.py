@@ -33793,7 +33793,10 @@ def main():
         stan_iw = {}
         for k_iw in IW_PARTS:
             if _dict(prev_iw.get('ok')).get(k_iw) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
-                META['errors'].append(mask(f"{IW_PX} {IW_LABEL[k_iw]}: {str(_dict(prev_iw.get('errs')).get(k_iw) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                if k_iw == 'br' and iw_br_przerwa_trwa(prev_iw):   # v427: przerwa po stronie banku (znacznik w części, dane młodsze niż 3 doby) — ta sama notatka co przy przebudowie (⚠️), nie błąd
+                    META['notes'].append(iw_br_przerwa_nota(prev_iw['br'], str(_dict(prev_iw.get('errs')).get('br') or 'brak odpowiedzi')[:160]))
+                else:
+                    META['errors'].append(mask(f"{IW_PX} {IW_LABEL[k_iw]}: {str(_dict(prev_iw.get('errs')).get(k_iw) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
                 stan_iw[k_iw] = False
             else:
                 stan_iw[k_iw] = 'cached'
@@ -43996,6 +43999,24 @@ def iw_swieza(prev, k):
     return tk is not None and tn is not None and 0 <= (tn - tk).total_seconds() < IW_REUSE_MIN[k] * 60
 
 
+def iw_br_przerwa_nota(czesc, msg):
+    """v427: notatka o przerwie banku w części Brazylia (jedna dla przebudowy i dla ponownego użycia poprzedniego pliku): przyczyna i dzień poprzednich danych."""
+    return mask(f"{IW_PX} {IW_LABEL['br']}: bank nie podaje danych ({msg}) — zostają dane z dnia {_dict(czesc).get('asof') or '—'}")[:260]
+
+
+def iw_br_przerwa_trwa(prev):
+    """v427: czy część br poprzedniego pliku niesie znacznik przerwy banku (v416/v427), a jej dane są młodsze niż BCB_PRZERWA_DNI dób (wiek wg part_at, w razie braku — chwili pliku)."""
+    pp = _dict(prev).get('br')
+    if not isinstance(pp, dict) or not isinstance(pp.get('przerwa'), dict):
+        return False
+    return bcb_przerwa_dozwolona(BcbPrzerwa('przerwa'), pp, _dict(_dict(prev).get('part_at')).get('br') or _dict(prev).get('at'))
+
+
+def iw_bez_przerwy(czesc):
+    """v427: poprzednia część bez znacznika przerwy (inny błąd niż przerwa banku nie dziedziczy starego znacznika)."""
+    return {kk: vv for kk, vv in czesc.items() if kk != 'przerwa'}
+
+
 def build_interwencje(prev=None, run_t0=None):
     """Plik data/interwencje.json (v401): sześć części (jp, hk, ar, br, ca, focus) z własnym ok / part_at / errs; udana część młodsza niż IW_REUSE_MIN[k] min jest używana ponownie; część z błędem zostaje z poprzedniego
     pliku z własną chwilą, nigdy pusta zamiast ostatnich danych; żadna część nie odpowiedziała (i żadna nie jest świeża) = wyjątek (przebieg główny zostawia poprzedni plik)."""
@@ -44016,14 +44037,15 @@ def build_interwencje(prev=None, run_t0=None):
         except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
             msg = mask(f'{e}')[:160]
             if k == 'br' and bcb_przerwa_dozwolona(e, prev.get(k), pat.get(k) or prev.get('at')):   # v416: przerwa banku, dane młodsze niż 3 doby — poprzednie z datą + notatka (⚠️)
-                META['notes'].append(mask(f"{IW_PX} {IW_LABEL[k]}: bank nie podaje danych ({msg}) — zostają dane z dnia {prev[k].get('asof') or '—'}")[:260])
-                out['ok'][k] = False; out['errs'][k] = msg; out[k] = prev[k]; out['part_at'][k] = pat.get(k) or prev.get('at')
+                out[k] = bcb_przerwa_wynik(prev[k], msg)   # v427: znacznik przerwy w części (od kiedy, ostatnia próba, ile prób, przyczyna) — czyta go też ścieżka „cached” w main()
+                META['notes'].append(iw_br_przerwa_nota(out[k], msg))
+                out['ok'][k] = False; out['errs'][k] = msg; out['part_at'][k] = pat.get(k) or prev.get('at')
                 continue
             META['errors'].append(mask(f'{IW_PX} {IW_LABEL[k]}: {msg}')[:220])
             out['ok'][k] = False
             out['errs'][k] = msg
             if isinstance(prev.get(k), dict):
-                out[k] = prev[k]
+                out[k] = iw_bez_przerwy(prev[k])   # v427: inny błąd niż przerwa banku — bez starego znacznika
                 out['part_at'][k] = pat.get(k) or prev.get('at')
     if not any(out['ok'].values()):
         raise RuntimeError('żadna część nie odpowiedziała')
