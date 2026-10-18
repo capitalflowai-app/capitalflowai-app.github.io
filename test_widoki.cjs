@@ -26214,7 +26214,7 @@ const rl366 = (() => {
     const doc = {hidden: false, addEventListener: (e, f) => lis.push([e, f]), querySelector: q => { const m = /data-srs="(\w*)"/.exec(q); return m ? {focus: () => { doc.focused = m[1]; }} : null; }};
     const wkBars = (rows, op) => { bars.push({rows, op}); return '<bars aria="' + op.aria + '">' + rows.map(r => `[${r.l}|${r.v}|${r.vt}|${r.tip}]`).join('') + '</bars>'; };
     const api = new Function('t', 'gOk', 'renderInst', 'instSign', 'nfmt', 'instFoot', 'escH', 'engDate', 'gtI', 'wkBars', 'document', 'srvJSON', 'setTimeout', 'setInterval', 'LANG', 'LOCALE', 'ISO32',
-      instRowSrc + spSrc + '\n' + code + '\nreturn {SP, spApply, spBlock, RL, rrReal, rrOrder, rrSort, rrClick, rrAfter, rrTd, rrTh, nsBlock, nsLast, nsOk, rrInfOk, rrLoad};')(
+      instRowSrc + spSrc + '\n' + code + '\nreturn {SP, spApply, spBlock, RL, rrReal, rrOrder, rrSort, rrClick, rrAfter, rrTd, rrTh, nsBlock, nsLast, nsOk, rrInfOk, rrLoad, wiInfl};')(
       v96src.tFor(L), () => {}, () => { renders++; }, v => v > 0 ? '+' : (v < 0 ? '−' : ''), F.nfmt, d => escH(d) + ' · wiek(' + d + ')', escH, s => 'D:' + s, gI, wkBars, doc, srv,
       (f, ms) => { tos.push([f, ms]); return tos.length; }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, L, LOC, {POL: 'PL', USA: 'US', DEU: 'DE', IND: 'IN', TUR: 'TR', CAN: 'CA'});
     return {api, calls, lis, ivs, tos, bars, doc, renders: () => renders, F};
@@ -26303,7 +26303,7 @@ test('v366 (F2Z2): sortowanie tabeli stóp — domyślna, stopa, stopa realna, z
 
 test('v366 (F2Z2): wykres stóp realnych — od najwyższej, słupki od zera, podpowiedź z rachunkiem, miesiące inflacji, opis wyliczenia; mniej niż 3 kraje — bez wykresu', () => {
   const K = rl366.full(), A = K.api; const h = rl366.sp(A.spBlock());
-  assert.equal(K.bars.length, 1, 'jeden wykres (rrAfter)'); const B = K.bars[0];
+  assert.equal(K.bars.length, 2, 'v419: wykres inflacji (wiInfl) i wykres stóp realnych (rrAfter)'); const B = K.bars.find(b => b.op.aria === 'Stopa realna według banków centralnych, w punktach procentowych');
   assert.deepEqual(B.rows.map(r => /\[f:([A-Z]+)\]/.exec(r.l)[1]), ['TR', 'CZ', 'PL', 'US', 'AU', 'ZZ', 'JP', 'XM', 'CH'], 'od najwyższej; NZ bez realnej — bez wiersza');
   assert.deepEqual(B.rows.map(r => r.v).slice(0, 4), [5.49, 1.86, 0.49, 0.48]); assert.deepEqual(B.rows.slice(-2).map(r => r.v), [-0.75, -0.81]);
   assert.equal(rl366.sp(B.rows[3].tip), 'USA (Fed): stopa 3,875% − inflacja 3,40% (2026-08) = +0,48 pkt proc.', 'rachunek w podpowiedzi'); assert.equal(rl366.sp(B.rows[3].vt), '+0,48');
@@ -26692,11 +26692,11 @@ test('v368 (F8Z4): stres i niepewność — nagłówek od razu, plik dopiero po 
 
 test('v368 (F8Z4): wykresy 1 roku (stres: 4 obszary; EPU i GPR: średnia 30 dni) i tabela krajów strefy euro od najwyższego stresu — kolumny, flagi, daty z wiekiem', () => {
   const K = np368.mk('pl', np368.files()); K.expand(); const h = K.html();
-  assert.equal(K.wl.length, 3); assert.deepEqual(K.wl[0].L.map(l => l.n + ':' + l.d.length + ':' + l.cls), ['strefa euro:3:npz1', 'USA:3:npz2', 'Wielka Brytania:3:npz3', 'Chiny:3:npz4']);
-  assert.equal(K.wl[1].L.length, 1); assert.equal(K.wl[1].L[0].d.length, 3); assert.equal(K.wl[2].L[0].d.length, 3);
+  assert.equal(K.wl.length, 6, 'v419: cztery małe wykresy stresu + EPU + GPR'); assert.deepEqual(K.wl.slice(0, 4).map(w => w.L.map(l => l.n + ':' + l.d.length + ':' + l.cls).join()), ['strefa euro:3:npz1', 'USA:3:npz2', 'Wielka Brytania:3:npz3', 'Chiny:3:npz4']);
+  assert.equal(K.wl[4].L.length, 1); assert.equal(K.wl[4].L[0].d.length, 3); assert.equal(K.wl[5].L[0].d.length, 3);
   assert.ok(h.includes('Stres rynków finansowych (0–1), ostatni rok') && h.includes('Niepewność polityki USA, średnia 30 dni, ostatni rok') && h.includes('Ryzyko geopolityczne, średnia 30 dni, ostatni rok'));
-  assert.ok(K.wl[0].o.aria.startsWith('Stres rynków finansowych (0–1), ostatni rok: wykres liniowy od ') && K.wl[1].o.aria.includes('wykres liniowy od'), 'opis wykresu dla czytników');
-  assert.ok(h.includes('<chart n=strefa euro:3,USA:3,Wielka Brytania:3,Chiny:3'), 'wykres stresu z czterema liniami');
+  assert.ok(K.wl[0].o.aria.startsWith('Stres rynków finansowych (0–1), ostatni rok · strefa euro: wykres liniowy od ') && K.wl[4].o.aria.includes('wykres liniowy od'), 'opis wykresu dla czytników');
+  assert.ok(h.includes('<chart n=strefa euro:3 ') && h.includes('<chart n=Chiny:3 '), 'v419: cztery osobne wykresy stresu');
   const tb = h.slice(h.indexOf('<details class="etfd">'), h.indexOf('</details>'));
   assert.ok(tb.includes('Strefa euro: stres w poszczególnych krajach') && tb.includes('<th>Kraj</th><th>Stres (0–1)</th><th>Wyżej niż (% dni)</th><th>Dane z dnia</th>'));
   const rows = [...tb.matchAll(/<tr><td><span class="cell">\[([a-z]+)\]<span>([^<]*)<\/span><\/span><\/td><td><span class="cell mono"><span>([^<]*)<\/span><\/span><\/td><td><span class="cell mono"><span>([^<]*)<\/span><\/span><\/td><td>(.*?)<\/td><\/tr>/g)];
@@ -28412,8 +28412,8 @@ test('v382 (F11Z3): płynność USA — wykresy (rozrzut SOFR, kolumny repo, wol
   const K = usl382.mk('pl', usl382.files()); K.expand();
   assert.equal(K.wl.length, 3, 'trzy wykresy liniowe: rozrzut SOFR, wolumeny, stopy'); assert.equal(K.wc.length, 2, 'dwa wykresy kolumnowe: stałe i odwrotne repo');
   const [ws, wv, wr] = K.wl;
-  assert.deepEqual(ws.L.map(l => [l.n, l.cls, l.d.length]), [['1. percentyl', 'usl1', 25], ['25. percentyl', 'usl2', 25], ['SOFR (mediana)', 'usl3', 25], ['75. percentyl', 'usl2', 25], ['99. percentyl', 'usl1', 25], ['Górna granica korytarza', 'usl4', 25]]);
-  assert.equal(ws.L[5].d.length, 25); assert.deepEqual([...new Set(ws.L[5].d.map(r => r[1]))], [3.75, 4], 'górna granica korytarza z każdego dnia (schodek 17.09), nie dzisiejsza na całej osi'); assert.ok(ws.L[5].d.filter(r => r[1] === 3.75).length === 6); assert.ok(ws.o.aria.includes('od ') && ws.o.aria.includes('25 dni roboczych') && ws.o.zero === false); assert.equal(ws.o.fmt(3.876), '3,88%'); assert.equal(ws.o.fmt(-0.4), '−0,40%');
+  assert.deepEqual(ws.L.map(l => [l.n, l.cls, l.d.length]), [['1. percentyl', 'usl1', 25], ['SOFR (mediana)', 'usl3', 25], ['99. percentyl', 'usl1', 25], ['Górna granica korytarza', 'usl4', 25]]);   /* v419: bez 25. i 75. percentyla */
+  assert.equal(ws.L[3].d.length, 25); assert.deepEqual([...new Set(ws.L[3].d.map(r => r[1]))], [3.75, 4], 'górna granica korytarza z każdego dnia (schodek 17.09), nie dzisiejsza na całej osi'); assert.ok(ws.L[3].d.filter(r => r[1] === 3.75).length === 6); assert.ok(ws.o.aria.includes('od ') && ws.o.aria.includes('25 dni roboczych') && ws.o.zero === false); assert.equal(ws.o.fmt(3.876), '3,88%'); assert.equal(ws.o.fmt(-0.4), '−0,40%');
   assert.deepEqual(wv.L.map(l => [l.n, l.d.length]), [['DVP', 30], ['Tri-party (bez Fed)', 30], ['GCF', 30]]); assert.equal(wv.o.fmt(2869.8), '2870');
   assert.deepEqual(wr.L.map(l => [l.n, l.d.length]), [['DVP', 30], ['Tri-party (bez Fed)', 30], ['GCF', 30], ['SOFR (mediana)', 25]], 'stopy repo obok SOFR');
   const [cs, cr] = K.wc; assert.equal(cs.X.length, 30); assert.equal(cs.o.tone, 'lvl'); assert.equal(cs.X[cs.X.length - 1].v, 110); assert.ok(cs.X[cs.X.length - 1].tip.includes('110 mln USD')); assert.equal(cr.X[cr.X.length - 1].v, 1201);
@@ -28432,7 +28432,7 @@ test('v382 (F11Z3): płynność USA — wykresy (rozrzut SOFR, kolumny repo, wol
   assert.ok(K2.html().includes('Za mało punktów, by narysować wykres.'), 'brak serii = komunikat zamiast pustego wykresu'); assert.ok(!/NaN|undefined|Infinity/.test(K2.html()));
   // bez korytarza: brak linii granicy, brak „dni z napięciem”, brak odległości
   const J3 = usl382.J(); J3.stopy.target = null; J3.stopy.avg = null; J3.repo.srf.forEach(r => { r[4] = null; }); const K3 = usl382.mk('pl', usl382.files(J3)); K3.expand(); const t3 = usl382.tiles(K3.html());
-  assert.ok(!t3[0].lines.some(l => /Korytarz|Dni z 99/.test(l[1])) && !t3[0].lines.some(l => /Średnia SOFR/.test(l[1]))); assert.equal(K3.wl[0].L.length, 5);
+  assert.ok(!t3[0].lines.some(l => /Korytarz|Dni z 99/.test(l[1])) && !t3[0].lines.some(l => /Średnia SOFR/.test(l[1]))); assert.equal(K3.wl[0].L.length, 3);   /* v419: bez granicy korytarza — trzy linie (1. percentyl, SOFR, 99. percentyl) */
   // uszkodzone wiersze: percentyle nie rosną, zły dzień, liczba jako tekst, zła długość — pomijane (nie rysowane), reszta zostaje
   const J4 = usl382.J(); J4.stopy.sofr[0][3] = 9; J4.stopy.sofr[1][0] = '2026-13-40'; J4.stopy.sofr[2][1] = 'x'; J4.stopy.sofr[3].pop(); const A = usl382.mk('pl', usl382.files(J4)).api;
   assert.equal(A.uslSofr(J4).length, 21); assert.ok(A.uslSofr(J4).every((r, i, a) => !i || a[i - 1][0] < r[0]), 'rosnąco');
@@ -28862,7 +28862,7 @@ test('v387 (GLOBAL-3): stopy realne — ujemna inflacja z minusem typograficznym
   const K = rl366.mk('pl'); K.api.spApply(rl366.clone(rl366.STO)); const inf = rl366.clone(rl366.INF); inf.c.ZZ = rl366.cpi('2026-08', -0.59); K.api.RL.i = inf; K.api.RL.n = rl366.clone(rl366.KON);
   const h = rl366.sp(K.api.spBlock()), R = Object.fromEntries(rl366.rows(h).map(r => [/\[f:([A-Z]+)\]/.exec(r)[1], [...r.matchAll(/<td>(.*?)<\/td>/g)].map(m => m[1])]));
   assert.ok(rl366.txt(R.ZZ[6]).includes('inflacja −0,59% · 2026-08'), rl366.txt(R.ZZ[6])); assert.ok(!/inflacja -0/.test(R.ZZ[6]), 'bez zwykłego myślnika');
-  const tip = K.bars[0].rows.find(r => /\[f:ZZ\]/.test(r.l)).tip;
+  const tip = K.bars.find(b => b.op.aria.startsWith('Stopa realna')).rows.find(r => /\[f:ZZ\]/.test(r.l)).tip;
   assert.ok(rl366.sp(tip).includes('inflacja −0,59% (2026-08)') && !tip.includes('inflacja -'), tip);
   assert.ok(rl366.txt(R.US[6]).includes('inflacja 3,40%'), 'dodatnia bez zmian');
   assert.ok(html.includes("nfmt(x.i,2).replace(/^-/,'−')") && !/\{v:nfmt\(x\.i,2\),m:instFoot/.test(html), 'kod: obie miejsca z zamianą znaku');
@@ -32499,4 +32499,142 @@ test('v418 (W3A_KRZYWE): słownik yc418.* — 6 kluczy w 10 językach, te same p
   for (const q of ['#g-krzywe .wk-l.s2{stroke-width:1.5;stroke-dasharray:5 4}', '#g-krzywe .yc-inv{fill:rgba(var(--yl-rgb),.14)}', '#g-krzywe .wk-ch .yc-b{--k:var(--bl)}', '#g-krzywe .etfk b.neu{color:var(--yl-tx)}', '@media (max-width:620px){#g-krzywe .wk-br{--lw:42%}']) assert.ok(css.includes(q), 'CSS: ' + q);
   const mm = [...html.matchAll(/^const EXTRA(\d+)=\{"pl":\{"yc418\.xu"/gm)]; assert.equal(mm.length, 1, 'jeden słownik v418'); const n = mm[0][1];
   assert.equal([...html.matchAll(new RegExp('^for\\(const l in EXTRA' + n + '\\)if\\(I18N\\[l\\]\\)Object\\.assign\\(I18N\\[l\\],EXTRA' + n + '\\[l\\]\\);$', 'gm'))].length, 1, 'jedna linia nakładania');
+});
+
+/* ===================== v419 (W3B): inflacja w krajach (słupki + cel banku), oczekiwania inflacyjne z linią celu 2%, przegląd czytelności GLOBAL ===================== */
+test('v419 (W3B): zestaw wykresów — słupek z kreską odniesienia (mk): kreska tylko w wierszu z liczbą, w skali wykresu, wlicza się do skali; bez mk wszystko jak dotąd', () => {
+  const K = v157.run(v157.KIT, v157.ENV(), 'wkBars');
+  const h = K.wkBars([{l: 'A', v: 3, mk: 2, tip: ''}, {l: 'B', v: 1, tip: ''}, {l: 'C', v: null, mk: 2, tip: ''}, {l: 'D', v: 2, mk: NaN, tip: ''}], {fmt: String, dom: [0, 4], tone: 'lvl'});
+  const M = v157.tags(h, 'line', 'wk-mk');
+  assert.equal(M.length, 1, 'kreska tylko w wierszu A: B bez mk, C bez liczby (kreskowana linia braku), D z mk nie będącym liczbą');
+  assert.deepEqual([M[0].x1, M[0].x2, M[0].y1, M[0].y2, M[0]['vector-effect']], ['50', '50', '0', '10', 'non-scaling-stroke'], 'cel 2 na skali 0–4 = środek paska; stała grubość linii mimo rozciągnięcia SVG');
+  assert.deepEqual(v157.tags(h, 'rect', 'wk-b').map(r => [r.width, r.class]), [['75', 'wk-b lvl'], ['25', 'wk-b lvl'], ['50', 'wk-b lvl']], 'słupki bez zmian');
+  const big = v157.tags(K.wkBars([{l: 'A', v: 3, mk: 6, tip: ''}], {fmt: String}), 'line', 'wk-mk');
+  assert.equal(big[0].x1, '100', 'bez zadanej skali kreska wlicza się do zakresu (cel 6 > wartość 3 — skala do 6, kreska na końcu paska)');
+  assert.equal(v157.tags(K.wkBars([{l: 'A', v: 3, mk: 6, tip: ''}], {fmt: String}), 'rect', 'wk-b')[0].width, '50', 'ta sama skala dla paska: wartość 3 przy skali do 6 = połowa szerokości');
+  const out = v157.tags(K.wkBars([{l: 'A', v: 3, mk: 9, tip: ''}], {fmt: String, dom: [0, 4]}), 'line', 'wk-mk');
+  assert.equal(out[0].x1, '100', 'kreska poza zadaną skalą — na krawędzi (nigdy poza wykresem)');
+  assert.ok(!K.wkBars([{l: 'A', v: 3, tip: ''}], {fmt: String}).includes('wk-mk'), 'bez mk — bez kreski');
+});
+
+test('v419 (W3B): zestaw wykresów — linie odniesienia (refs): linia przerywana w skali wykresu, skala obejmuje cel, legenda także przy jednej serii; zły wpis pominięty; bez refs bez zmian', () => {
+  const K = v157.run(v157.KIT, v157.ENV(), 'wkLines');
+  const d = (s, v) => [Date.parse(s + 'T12:00:00Z'), v];
+  const L = [{n: 'A', cls: 's1', d: [d('2026-09-01', 2.3), d('2026-09-02', 2.4)]}];
+  const h = K.wkLines(L, {refs: [{v: 2, n: 'cel 2%', cls: 'tg'}, {v: NaN, n: 'zły'}, null], zero: false});
+  const R = v157.tags(h, 'line', 'wk-rf');
+  assert.equal(R.length, 1, 'jedna linia odniesienia (NaN i null pominięte)'); assert.equal(R[0].class, 'wk-rf tg'); assert.equal(R[0].x1, '0'); assert.equal(R[0].x2, '1000'); assert.equal(R[0]['vector-effect'], 'non-scaling-stroke');
+  const ax = [...h.matchAll(/<span style="top:([\d.]+)%">([\d,−]+)<\/span>/g)].map(m => m[2]);
+  assert.ok(ax.includes('2') || ax.includes('2,0'), 'skala obejmuje cel 2 (dane 2,3–2,4): ' + ax.join(' '));
+  assert.ok(+R[0].y1 > 50 && R[0].y1 === R[0].y2, 'cel poniżej danych — w dolnej części wykresu');
+  assert.ok(h.includes('<div class="wk-leg">') && h.includes('<i class="wk-sq tg"></i>cel 2%'), 'legenda z wpisem celu także przy jednej serii');
+  const o = K.wkLines(L, {refs: [{v: 2, n: 'cel', cls: 'tg'}], dom: [2.2, 2.5]});
+  assert.equal(v157.tags(o, 'line', 'wk-rf').length, 0, 'zadana skala nie obejmuje celu — linii nie ma (nie rysujemy poza wykresem)');
+  const n = K.wkLines(L, {zero: false});
+  assert.ok(!n.includes('wk-rf') && !n.includes('wk-leg'), 'bez refs: jedna seria — bez linii odniesienia i bez legendy, jak dotąd');
+  const two = K.wkLines([L[0], {n: 'B', cls: 's2', d: [d('2026-09-01', 2.5), d('2026-09-02', 2.6)]}], {refs: [{v: 2, n: 'cel'}]});
+  assert.ok(two.includes('wk-rf tg') && (two.match(/<i class="wk-sq/g) || []).length === 3, 'dwie serie + cel: trzy wpisy legendy, domyślna klasa tg');
+});
+
+test('v419 (W3B): inflacja krajów — słupki od najwyższej z celem banku jako kreską; liczby z pliku inflacji, miesiące z wiekiem, ucięty odczyt ponad 15% z „»”, podpowiedź z celem; bez celu — bez kreski', () => {
+  const K = rl366.full(), h = rl366.sp(K.api.spBlock());
+  const B = K.bars.find(b => b.op.aria.startsWith('Inflacja rok do roku według krajów'));
+  assert.ok(B, 'wykres jest'); assert.equal(K.bars.length, 2, 'inflacja + stopy realne');
+  assert.deepEqual(B.rows.map(r => /\[f:([A-Z]+)\]/.exec(r.l)[1]), ['TR', 'NZ', 'AU', 'US', 'PL', 'XM', 'ZZ', 'JP', 'CZ', 'CH'], 'od najwyższej inflacji; remis rozstrzyga kod kraju');
+  assert.deepEqual(B.rows.map(r => r.v), [31.507, 4.058, 3.942, 3.397, 3.257, 3.249, 2, 1.898, 1.887, 0.807], 'liczby z pliku bez zmian');
+  assert.deepEqual(B.rows.map(r => r.mk), [undefined, 2, 2.5, 2, 2.5, 2, undefined, 2, 2, undefined], 'cel: Nowa Zelandia 2, Australia 2,5 (środek 2–3), USA 2, Polska 2,5, strefa euro 2, Japonia 2, Czechy 2; Turcja, „ZZ” i Szwajcaria bez celu');
+  assert.deepEqual(B.op.dom, [0, 5], 'skala 0–5: Turcja (31,5%) nie rozciąga skali'); assert.equal(B.op.tone, 'lvl'); assert.equal(B.op.lw, '44%');
+  assert.equal(rl366.sp(B.rows[0].vt), '31,5% »', 'ucięty słupek: „»” przy dokładnej liczbie'); assert.equal(rl366.sp(B.rows[3].vt), '3,4%');
+  assert.ok(B.rows[2].l.includes('<small>2026-06</small>') && B.rows[7].l.includes('<small>2026-07</small>') && !B.rows[3].l.includes('<small>'), 'miesiąc przy kraju tylko gdy starszy od najnowszego');
+  assert.equal(rl366.sp(B.rows[3].tip), 'USA (Fed): inflacja 3,40% r/r (2026-08); cel banku centralnego 2,0%');
+  assert.equal(rl366.sp(B.rows[0].tip), 'Turcja: inflacja 31,51% r/r (2026-08); bez liczbowego celu w naszym zestawieniu');
+  assert.ok(h.includes('Inflacja: o ile drożeją ceny w krajach banków centralnych</b>') && h.includes('Żółta kreska to cel inflacyjny banku centralnego: stała wartość z oficjalnych założeń banku') && h.includes('Strzałka » przy liczbie'), 'tytuł, objaśnienie kreski, objaśnienie strzałki');
+  assert.ok(h.includes('Miesiące inflacji użyte w wykresie: 2026-06 – 2026-08') && h.includes('Pokazano 10 z 10 banków (dane starsze niż 3 miesiące pomijamy).'), 'miesiące i pokrycie');
+  assert.ok(h.indexOf('Inflacja: o ile drożeją') > h.indexOf('<table class="etft">') && h.indexOf('Inflacja: o ile drożeją') < h.indexOf('Stopy realne: gdzie'), 'inflacja pod tabelą stóp, przed stopami realnymi (stopa realna = stopa − inflacja)');
+  assert.ok(!/NaN|undefined|\[object/.test(rl366.txt(h)), 'bez NaN i undefined'); assert.ok(!/\b(?:BIS|OECD|Eurostat)\b/.test(rl366.txt(h)), 'zero nazw dostawców');
+});
+
+test('v419 (W3B): inflacja krajów — starsza niż 3 miesiące od najnowszej poza wykresem, mniej niż 3 kraje albo brak pliku — bez wykresu; ujemna inflacja przesuwa zero; bez kreski dla kraju spoza tabeli celów', () => {
+  const mkK = f => { const K = rl366.mk('pl'); K.api.spApply(rl366.clone(rl366.STO)); const inf = rl366.clone(rl366.INF); f(inf); K.api.RL.i = inf; return K; };
+  const infl = K => K.bars.find(b => b.op.aria.startsWith('Inflacja rok do roku'));
+  const K1 = mkK(i => { i.c.AU = rl366.cpi('2026-04', 3.9); }); K1.api.spBlock();
+  assert.ok(!infl(K1).rows.some(r => r.l.includes('[f:AU]')), 'Australia z kwietnia (4 miesiące wcześniej niż sierpień) pominięta'); assert.ok(infl(K1).rows.some(r => r.l.includes('[f:NZ]')), 'czerwiec zostaje (2 miesiące)');
+  assert.ok(rl366.sp(K1.api.spBlock()).includes('Pokazano 9 z 10 banków'), 'pokrycie: 9 z 10');
+  const K2 = mkK(i => { i.c = {US: i.c.US, PL: i.c.PL}; }); K2.api.spBlock(); assert.ok(!infl(K2), 'dwa kraje — bez wykresu');
+  const K3 = rl366.mk('pl'); K3.api.spApply(rl366.clone(rl366.STO)); K3.api.spBlock(); assert.ok(!infl(K3), 'bez pliku inflacji — bez wykresu, tabela jak dotąd');
+  assert.equal(K3.api.RL.i, null); assert.equal(K3.api.spBlock().includes('wi419'), false);
+  const K4 = mkK(i => { i.c.CH = rl366.cpi('2026-08', -0.6); }); K4.api.spBlock();
+  const c4 = infl(K4); assert.deepEqual(c4.op.dom, [-1, 5], 'ujemna inflacja: skala od −1, zero w środku wiersza'); assert.equal(rl366.sp(c4.rows[c4.rows.length - 1].vt), '−0,6%', 'minus typograficzny');
+  assert.equal(rl366.sp(c4.rows[c4.rows.length - 1].tip), 'Szwajcaria: inflacja −0,60% r/r (2026-08); bez liczbowego celu w naszym zestawieniu');
+  const K5 = mkK(i => { Object.keys(i.c).forEach(a => { i.c[a].v = 40 + i.c[a].v; }); }); K5.api.spBlock(); const c5 = infl(K5);
+  assert.deepEqual(c5.op.dom, [0, 72], 'wszystkie odczyty ponad 15% — skala po największym (nic nie jest ucięte)'); assert.ok(!c5.rows.some(r => rl366.sp(r.vt).includes('»')));
+  assert.equal(K5.api.RL.i.c.US.v > 15, true);
+  const api = rl366.mk('pl').api; assert.equal(api.wiInfl(null), ''); assert.equal(api.wiInfl({order: 'x', rows: {}}), '');
+});
+
+test('v419 (W3B): inflacja krajów — tabela celów: tylko liczby w rozsądnym zakresie, wiersze dla krajów z listy stóp, Fed 2; wpięcie w spBlock przed stopami realnymi (typeof), styl w zmiennych motywu, kafle nastrojów w dwóch kolumnach', () => {
+  const m = /const WI_CEL=\{([^}]*)\};/.exec(html); assert.ok(m, 'tabela celów'); const T = Object.fromEntries(m[1].split(',').map(x => x.split(':')).map(([k, v]) => [k, +v]));
+  assert.ok(Object.keys(T).length >= 20 && Object.values(T).every(v => v >= 1 && v <= 5), 'cele 1–5%'); assert.deepEqual([T.US, T.XM, T.GB, T.JP, T.PL, T.BR, T.IN], [2, 2, 2, 2, 2.5, 3, 4]);
+  assert.ok(Object.keys(T).every(a => v157.I.pl['sp.cc.' + a]), 'każdy kraj z tabeli celów ma nazwę w słowniku krajów banków (etykieta wiersza)');
+  assert.ok(html.includes("+(typeof wiInfl==='function'?wiInfl(D):'')+(typeof rrAfter==='function'?rrAfter(D):'')+"), 'wywołanie przez typeof, tuż przed stopami realnymi');
+  const code = rl366.code.slice(rl366.code.indexOf('function wiInfl')); assert.ok(!/innerHTML\s*=/.test(code) && !/\b(?:BIS|OECD|Eurostat|FRED)\b/.test(code.replace(/\/\*[\s\S]*?\*\//g, '')), 'moduł tylko zwraca HTML, bez nazw dostawców');
+  for (const s of ['.wk-mk{stroke:var(--yl);stroke-width:2.4}', '.wk-rf{fill:none;stroke:var(--k,var(--yl));stroke-width:1.5;stroke-dasharray:5 4}', '.wk-ch .tg{--k:var(--yl)}', '#inst .wk-ch .lvl{--k:var(--bl)}', '#inst .wi-ch .wk-bv{min-width:66px}',
+    '#inst .etfkpis.ns419{grid-template-columns:repeat(2,minmax(0,1fr))}', '@media (max-width:520px){#inst .etfkpis.ns419{grid-template-columns:minmax(0,1fr)}}']) assert.ok(html.includes(s), s);
+  const css = html.slice(html.indexOf('.wk-mk{stroke'), html.indexOf('#g-niepewnosc .np-sm{') + 400); assert.ok(!/#[0-9a-fA-F]{3,6}\b/.test(css.replace(/#inst|#g-niepewnosc/g, '')), 'tylko zmienne motywu');
+  const N = rl366.full().api.nsBlock(); assert.ok(N.includes('<div class="etfkpis ns419">'), 'dwa kafle Polski w siatce dwukolumnowej, nie w siedmiokolumnowej');
+});
+
+test('v419 (W3B): krzywa inflacji oczekiwanej USA (krzywe.json) — te same dwie krzywe (dziś, miesiąc temu), linia celu 2% w skali, nota o różnicy miar; brak miesiąca temu — jedna krzywa', () => {
+  const i0 = html.indexOf('function ycBeChart(j){'), i1 = html.indexOf('\n', html.indexOf("return ch?`<p class=\"wk-sub\"><b>${t('yc362.h.bech'", i0)) + 1; assert.ok(i0 > 0 && i1 > i0);
+  const calls = [];
+  const mk = () => new Function('ycCur', 'ycV', 'ycDate', 'ycLab', 'ycName', 'YC_LAB', 'strDay', 'wkLines', 't', 'nfmt', html.slice(i0, i1) + '\nreturn ycBeChart;')(
+    (j, k) => (j.c && j.c[k]) || null, (C, w, l) => (C[w] && typeof C[w][l] === 'number' ? C[w][l] : null), (C, w) => (w === 'prev' ? C.pasof : C.asof), l => l, () => 'USA', ['5Y', '7Y', '10Y', '20Y', '30Y'], d => 'D:' + d,
+    (L, o) => { calls.push({L, o}); return '<lines n=' + L.map(l => l.n + ':' + l.d.length).join(',') + '>'; }, v157.t, v157.nfmt);
+  const J = {c: {us_be: {asof: '2026-10-16', pasof: '2026-09-16', now: {'5Y': 2.37, '7Y': 2.36, '10Y': 2.35, '20Y': 2.46, '30Y': 2.27}, prev: {'5Y': 2.35, '7Y': 2.35, '10Y': 2.33, '20Y': 2.46, '30Y': 2.26}}}};
+  const h = mk()(J);
+  assert.equal(calls.length, 1); const c = calls[0];
+  assert.deepEqual(c.L.map(l => [l.n, l.cls, l.d.length, l.d[0][1], l.d[4][1]]), [['D:2026-09-16', 's2', 5, 2.35, 2.26], ['D:2026-10-16', 's1', 5, 2.37, 2.27]], 'te same liczby: miesiąc temu (s2) i dziś (s1)');
+  assert.deepEqual(c.o.refs, [{v: 2, n: 'cel inflacyjny Fed: 2%', cls: 'tg'}]); assert.equal(c.o.zero, false); assert.equal(c.o.fmt(2.345), '2,35%'); assert.equal(c.o.dx(2), '10Y');
+  assert.ok(h.includes('Inflacja oczekiwana według zapadalności: USA'), 'tytuł'); assert.ok(h.includes('Linia 2% to cel inflacyjny Fed. Fed mierzy go inną miarą'), 'nota o różnicy miar');
+  assert.ok(c.o.aria.includes('D:2026-10-16') && c.o.aria.includes('D:2026-09-16'), 'opis wykresu z oboma dniami');
+  calls.length = 0; const J2 = JSON.parse(JSON.stringify(J)); delete J2.c.us_be.prev; delete J2.c.us_be.pasof; const h2 = mk()(J2);
+  assert.deepEqual(calls[0].L.map(l => l.n), ['D:2026-10-16'], 'bez miesiąca temu — jedna krzywa'); assert.ok(calls[0].o.refs.length === 1 && h2.includes('<lines n=D:2026-10-16:5>'));
+  calls.length = 0; assert.equal(mk()({c: {}}), ''); assert.equal(mk()({c: {us_be: {asof: '2026-10-16', now: {'5Y': 2.3}}}}), '', 'jeden punkt — bez wykresu');
+});
+
+test('v419 (W3B): FRED 2 — wykres oczekiwanej inflacji z linią celu 2% i notą, „Warunki finansowe i stres” z jednostką; liczby bez zmian', () => {
+  const K = fr411.mk('pl', fr411.files(), {open: true}), h = K.html();
+  assert.deepEqual(K.lines[1].o.refs, [{v: 2, n: 'cel inflacyjny Fed: 2%', cls: 'tg'}], 'linia celu tylko przy oczekiwanej inflacji'); assert.ok(K.lines.every((x, i) => i === 1 || x.o.refs === undefined), 'pozostałe wykresy bez linii odniesienia');
+  assert.equal(K.lines[1].L.length, 2, 'nadal dwie serie (10 lat i 5 lat za 5 lat) z tymi samymi liczbami'); assert.deepEqual(K.lines[1].L.map(s => [s.d[0][1], +s.d[s.d.length - 1][1].toFixed(2)]), [[2.28, 2.35], [2.31, 2.33]]);
+  assert.ok(h.includes('Warunki finansowe i stres</b> · indeks, 0 = przeciętne warunki'), 'jednostka przy wykresie warunków i stresu'); assert.ok(h.includes('Linia 2% to cel inflacyjny Fed.'), 'nota o linii celu');
+});
+
+test('v419 (W3B): przegląd czytelności GLOBAL — rozrzut SOFR w czterech liniach (bez 25. i 75. percentyla), stres rynków w czterech małych wykresach o wspólnej skali od zera; telefon: jedna kolumna', () => {
+  const K = usl382.mk('pl', usl382.files()); K.expand(); const ws = K.wl[0];
+  assert.deepEqual(ws.L.map(l => l.n), ['1. percentyl', 'SOFR (mediana)', '99. percentyl', 'Górna granica korytarza'], 'sześć serii → cztery; 25. i 75. percentyl zostają w kaflu');
+  assert.ok(!/25\. percentyl|75\. percentyl/.test(JSON.stringify(ws.L.map(l => l.n))) && usl382.tiles(K.html())[0].lines.some(l => /25–75/.test(l[1])), 'kafel nadal podaje środek rozrzutu (25–75)');
+  const N = np368.mk('pl', np368.files()); N.expand(); const h = N.html();
+  const sm = N.wl.slice(0, 4); assert.deepEqual(sm.map(w => w.L.length), [1, 1, 1, 1], 'każdy obszar w osobnym wykresie');
+  assert.ok(sm.every(w => w.o.dom[0] === 0 && w.o.dom[1] === sm[0].o.dom[1]), 'wspólna skala: od zera do najwyższego odczytu ze wszystkich czterech');
+  const hi = Math.max(...N.wl.slice(0, 4).flatMap(w => w.L[0].d.map(r => r[1]))); assert.equal(sm[0].o.dom[1], hi);
+  assert.ok(h.includes('<div class="np-sm"><div class="np-c"><p class="wk-sub"><b>strefa euro</b></p><chart n=strefa euro:3') && (h.match(/class="np-c"/g) || []).length === 4, 'siatka czterech wykresów z podpisem obszaru');
+  assert.ok(h.includes('Cztery wykresy w tej samej skali, więc poziomy stresu można porównywać wprost.'));
+  assert.ok(sm[0].o.aria.startsWith('Stres rynków finansowych (0–1), ostatni rok · strefa euro: wykres liniowy od '), 'opis wykresu z nazwą obszaru');
+  assert.ok(html.includes('#g-niepewnosc .np-sm{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 18px}') && html.includes('@media (max-width:560px){#g-niepewnosc .np-sm{grid-template-columns:minmax(0,1fr)}}'), 'dwie kolumny, na telefonie jedna');
+});
+
+test('v419 (W3B): słownik wi419.* — 12 kluczy w 10 językach, te same pola {x}, każdy klucz użyty w kodzie, polski pierwszy, zero nazw dostawców i znaków niewidocznych', () => {
+  const dm = [...html.matchAll(/^const (EXTRA\d+)=(\{.*\});$/gm)].filter(m => m[2].includes('"wi419.t"')); assert.equal(dm.length, 1, 'jeden słownik wi419');
+  const dict = JSON.parse(dm[0][2]), K = ['wi419.t', 'wi419.sub', 'wi419.aria', 'wi419.tip', 'wi419.tip0', 'wi419.leg', 'wi419.cut', 'wi419.note', 'wi419.tg', 'wi419.be.note', 'wi419.u.idx', 'wi419.sm'];
+  assert.deepEqual(Object.keys(dict), ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], '10 języków, polski pierwszy');
+  const ph = s => [...new Set(s.match(/\{\w+\}/g) || [])].sort().join('');
+  for (const L of Object.keys(dict)) {
+    assert.deepEqual(Object.keys(dict[L]), K, L + ': te same klucze w tej samej kolejności');
+    for (const k of K) { assert.ok(typeof dict[L][k] === 'string' && dict[L][k].length > 3, L + ' ' + k); assert.equal(ph(dict[L][k]), ph(dict.pl[k]), L + ' ' + k + ': te same pola'); assert.ok(!/[\u200b-\u200d\u2060\ufeff\u00ad]/.test(dict[L][k]), 'bez znaków niewidocznych'); assert.ok(!/FRED|Eurostat|OECD|\bBIS\b|IMF|Bloomberg/.test(dict[L][k]), L + ' ' + k + ': bez nazw dostawców'); }
+  }
+  for (const L of Object.keys(dict)) if (L !== 'pl') for (const k of ['wi419.t', 'wi419.leg', 'wi419.note']) assert.notEqual(dict[L][k], dict.pl[k], L + ' ' + k + ': prawdziwe tłumaczenie, nie kopia polskiego');
+  assert.deepEqual(['wi419.tip', 'wi419.tip0'].map(k => ph(dict.pl[k])), ['{c}{g}{m}{v}', '{c}{m}{v}']); assert.equal(ph(dict.pl['wi419.note']), '{k}{n}');
+  const code = html.replace(/^const EXTRA\d+=.*$/gm, '');
+  for (const k of K) assert.ok(code.includes("'" + k + "'"), 'klucz użyty w kodzie: ' + k);
+  assert.ok(dict.pl['wi419.t'].startsWith('Inflacja') && dict.pl['wi419.tg'] === 'cel inflacyjny Fed: 2%');
 });
