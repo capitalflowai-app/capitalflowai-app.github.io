@@ -93,6 +93,13 @@ jobs:
           fi
           # v141: w obu gałęziach pliki słowników wersji z żywej strony (najwyżej ok. 30 s) — stara index.html z pamięci podręcznej (do 10 min) nie trafi na 404
           python3 narzedzia/odchudz_strone.py --poprzednie "$SITE_URL" _site || true
+          # v412 (F11Z21): komentarze programisty wycięte z OPUBLIKOWANEJ kopii (źródło w repozytorium bez zmian; ok. −460 KB, gzip −200 KB); tokenizator JavaScriptu + ten sam ciąg tokenów
+          # + składnia w silniku JS (narzedzia/bez_komentarzy.py); odmowa albo błąd = zostaje kopia z komentarzami i ostrzeżenie. Znacznik <meta name="cf-wydanie"> = skrót commitu (który commit jest na żywo)
+          if python3 narzedzia/bez_komentarzy.py _site/index.html --wydanie "${GITHUB_SHA:0:12}"; then
+            echo "v412: komentarze wycięte z opublikowanej strony"
+          else
+            echo "::warning title=komentarze::wycięcie komentarzy nie przeszło — opublikowana strona z komentarzami (cięższa, działa jak dotąd)"
+          fi
           cp -r fonts _site/fonts                      # czcionki z tej samej strony (v34) — bez tego zmienia się wygląd
           cp -r img _site/img                          # v96: flagi i loga (SVG z tej samej strony) — bez nich strona bez ikon
           test -f _site/img/flagi/pl.svg                # brak ikon = przerwij publikację

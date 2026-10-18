@@ -68555,3 +68555,147 @@ class KontrolaFred2V411(unittest.TestCase):
         j = self._j(); del j['s']['nfci']['hist'][-3]
         self.assertEqual(k.fred2_spojnosc(j), []); U = k.fred2_kontrola({'fred2': j}, self.NOW)
         self.assertEqual(U['spojnosc'], []); self.assertTrue(any('NFCI' in u and 'odstępy' in u for u in U['uwagi'])); self.assertIn(('ciągłość tygodni NFCI', '⚠️'), U['wiersze'])
+
+
+# ===================== v412 (F11Z21): szybkość strony, etap 5 — komentarze programisty tylko w opublikowanej kopii (narzedzia/bez_komentarzy.py) =====================
+import importlib.util as _ilu_v412     # noqa: E402
+import contextlib as _ctx_v412         # noqa: E402
+import io as _io_v412                  # noqa: E402
+
+
+class TestV412SzybkoscEtap5(unittest.TestCase):
+    """Tokenizator JavaScriptu (łańcuchy, szablony, wyrażenia regularne, nawiasy) wycina z opublikowanej kopii tylko komentarze: ciąg tokenów
+    musi zostać identyczny, składnia poprawna w silniku JS, a odmowa (kod 1) zostawia plik bez zmian. Źródło w repozytorium nie jest ruszane."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    @classmethod
+    def setUpClass(cls):
+        spec = _ilu_v412.spec_from_file_location('v412_bk', os.path.join(cls.ROOT, 'narzedzia', 'bez_komentarzy.py'))
+        cls.B = _ilu_v412.module_from_spec(spec); spec.loader.exec_module(cls.B)
+        spec = _ilu_v412.spec_from_file_location('v412_od', os.path.join(cls.ROOT, 'narzedzia', 'odchudz_strone.py'))
+        cls.O = _ilu_v412.module_from_spec(spec); spec.loader.exec_module(cls.O)
+        with open(os.path.join(cls.ROOT, 'index.html'), encoding='utf-8') as f:
+            cls.zrodlo = f.read()
+        cls.pub, _, _ = cls.O.podziel(cls.zrodlo)       # kopia jak w kroku „Złóż stronę” (v141), bez sprawdzenia w silniku
+
+    def js(self, s):
+        return self.B.usun_komentarze_js(s)[0]
+
+    def test_przyklady_wycinania(self):
+        for we, wy in (
+            ('a=1; // x\nb=2;', 'a=1;\nb=2;'),
+            ('x();\n  /* c\n d */\ny();', 'x();\ny();'),
+            ("s='http://x /* y */'; /* z */ t=1;", "s='http://x /* y */'; t=1;"),
+            ('s="a//b"; q=\'/*\'; /* c */\n', 's="a//b"; q=\'/*\';\n'),
+            ('r=/\\/\\*x/g; // c\nq=1;', 'r=/\\/\\*x/g;\nq=1;'),
+            ('if(ok) /[/*]/.test(s); /* c */', 'if(ok) /[/*]/.test(s);'),
+            ('a=(b)/2; /* c */\nx=a/b/c;//d\n', 'a=(b)/2;\nx=a/b/c;\n'),
+            ('x = a++ / 2 /* c */;', 'x = a++ / 2;'),
+            ('var u = typeof /x\\//.test(1) /*c*/;', 'var u = typeof /x\\//.test(1);'),
+            ('t=`a ${ x /* c */ + `n${y}` } // nie komentarz`; /* c */', 't=`a ${ x + `n${y}` } // nie komentarz`;'),
+            ('t=`/* nie komentarz */\n// też nie\n`;', 't=`/* nie komentarz */\n// też nie\n`;'),
+            ('function f(){return /* a\nb */ x}', 'function f(){return\nx}'),
+            ('a/**/b', 'a b'), ('f(a, /*c*/ b)', 'f(a, b)'), ('    /* c */ foo();', '    foo();'),
+            ('x.return /2/ 3; /*c*/', 'x.return /2/ 3;'), ('/* tylko komentarz */', ''), ('bez komentarzy', 'bez komentarzy'),
+        ):
+            self.assertEqual(self.js(we), wy, repr(we))
+
+    def test_odmowy_przy_niedomknietych_elementach(self):
+        for zle in ("s='abc", '/* x', 'a={', 'a=/x', 'a=)', 'a=[1,2}', 't=`x', 'a=(1;', "x='a\nb'"):
+            with self.assertRaises(self.B.Odmowa, msg=repr(zle)):
+                self.B.usun_komentarze_js(zle)
+        with self.assertRaises(self.B.Odmowa):
+            self.B.usun_komentarze_js('a=1;\x00/* c */')          # znak roboczy w skrypcie = odmowa, nie cichy błąd
+
+    def test_strona_ciag_tokenow_ten_sam_komentarzy_zero(self):
+        B = self.B
+        a, b = B.znajdz_skrypt(self.pub); js = self.pub[a:b]
+        h0, n0, kom0 = B.skrot_tokenow(js)
+        nowy, nk, nb = B.usun_komentarze_js(js)
+        h1, n1, kom1 = B.skrot_tokenow(nowy)
+        self.assertGreater(nk, 1000); self.assertEqual(nk, len(kom0)); self.assertEqual(kom1, [])
+        self.assertEqual((h0, n0), (h1, n1), 'po wycięciu dokładnie te same tokeny')
+        self.assertEqual(B.usun_komentarze_js(nowy)[0], nowy, 'drugi przebieg niczego nie zmienia')
+        self.assertGreater(nb, 300_000, 'skrypt strony traci ponad 300 KB samych komentarzy')
+        self.assertLess(len(nowy), 0.9 * len(js))
+        for s in ("'use strict';", 'const EXTRA', 'function srvJSON(name){', "case 'crypto'" if "case 'crypto'" in js else 'function setMode('):
+            self.assertIn(s, nowy)
+
+    def test_cala_strona_odchudz_i_znacznik_wydania(self):
+        B = self.B
+        silniki = B.silniki()
+        nowa, o = B.odchudz(self.pub, '0123456789ab', sprawdzac=bool(silniki), silnik_lista=silniki)
+        self.assertEqual(nowa.count('<meta name="cf-wydanie" content="0123456789ab">'), 1)
+        self.assertLess(nowa.index('<meta name="referrer" content="no-referrer">'), nowa.index('<meta name="cf-wydanie"'))
+        self.assertLess(len(nowa.encode('utf-8')), 0.88 * len(self.pub.encode('utf-8')), 'opublikowana strona lżejsza o ponad 12%')
+        self.assertGreater(o['css_komentarzy'], 100); self.assertGreater(o['js_komentarzy'], 1000)
+        a, b = B.znajdz_skrypt(nowa)
+        self.assertEqual(B.skrot_tokenow(nowa[a:b])[2], [], 'w skrypcie strony nie zostały komentarze')
+        sa, sb = B.znajdz_style(nowa)
+        self.assertEqual(B.komentarze_css(nowa[sa:sb]), [])
+        # nietknięte: ładowarka słowników v141 i reszta skryptów, komentarze HTML w <head>
+        for s in ('<!-- v45: polityka bezpieczeństwa treści', self.O.ZNACZNIK[:40], 'id="cf-sw"', 'CF_I18N_SRC'):
+            self.assertEqual(nowa.count(s), self.pub.count(s), s)
+        # źródło w repozytorium zostaje z komentarzami (tego narzędzie nigdy nie dotyka)
+        self.assertGreater(self.zrodlo.count('/* v'), 1000)
+        self.assertEqual(B.odchudz(nowa, '', sprawdzac=bool(silniki), silnik_lista=silniki)[0], nowa, 'ponowne wycięcie nic nie zmienia')
+
+    def test_znacznik_wydania_tylko_skrot_szesnastkowy(self):
+        with self.assertRaises(self.B.Odmowa):
+            self.B.odchudz(self.pub, '<script>', sprawdzac=False)
+
+    def test_css_niezaleznie_od_lancuchow(self):
+        B = self.B
+        css = 'a{content:"/* nie */"}/* c */\nb{background:url(x/*y*/.png)} /* d\n e */\nc{color:red}/*f*/'
+        nowy = B.usun_komentarze_css(css)[0]
+        self.assertEqual(nowy, 'a{content:"/* nie */"}\nb{background:url(x/*y*/.png)}\nc{color:red}')
+        self.assertEqual(B.css_niezaleznie(css), B.css_niezaleznie(nowy))
+        with self.assertRaises(B.Odmowa):
+            B.usun_komentarze_css('a{}/* niedomknięty')
+
+    def test_program_odmowa_nic_nie_zapisuje(self):
+        import tempfile
+        B = self.B
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, 'index.html')
+            zly = self.pub.replace(B.POCZATEK_SKRYPTU, B.POCZATEK_SKRYPTU + "const zly = 'niedomkniety;\n", 1)
+            with open(p, 'w', encoding='utf-8', newline='') as f:
+                f.write(zly)
+            err = _io_v412.StringIO()
+            with _ctx_v412.redirect_stderr(err):
+                self.assertEqual(B.main([p, '--bez-sprawdzenia']), 1)
+            self.assertIn('ODMOWA', err.getvalue())
+            with open(p, encoding='utf-8', newline='') as f:
+                self.assertEqual(f.read(), zly, 'po odmowie plik bez zmian')
+            self.assertFalse(os.path.exists(p + '.tmp'))
+            self.assertEqual(B.main([]), 2)
+            self.assertEqual(B.main([os.path.join(td, 'brak.html')]), 2)
+            with open(p, 'w', encoding='utf-8', newline='') as f:
+                f.write(self.pub)
+            out = _io_v412.StringIO()
+            with _ctx_v412.redirect_stdout(out):
+                self.assertEqual(B.main([p, '--wydanie', 'abcdef1234567890abcd', '--bez-sprawdzenia']), 0)
+            with open(p, encoding='utf-8', newline='') as f:
+                zapis = f.read()
+            self.assertIn('<meta name="cf-wydanie" content="abcdef123456">', zapis, 'znacznik: pierwsze 12 znaków')
+            self.assertLess(len(zapis), len(self.pub)); self.assertIn('komentarze wycięte', out.getvalue())
+
+    def test_krok_publikacji_kolejnosc_i_zapas(self):
+        with open(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'), encoding='utf-8') as f:
+            wf = f.read()
+        z0 = wf.index('- name: Złóż stronę'); z1 = wf.index('- name: Straż kluczy', z0); krok = wf[z0:z1]
+        i_pop = krok.index('python3 narzedzia/odchudz_strone.py --poprzednie "$SITE_URL" _site || true')
+        i_bk = krok.index('if python3 narzedzia/bez_komentarzy.py _site/index.html --wydanie "${GITHUB_SHA:0:12}"; then')
+        i_w = krok.index('W=$(sha256sum _site/index.html | cut -c1-16)')
+        i_warn = krok.index('::warning title=komentarze::', i_bk)
+        self.assertTrue(i_pop < i_bk < i_warn < i_w, 'wycięcie po v141 i plikach poprzedniej wersji, przed skrótem wydania Service Workera; błąd = ostrzeżenie, nie przerwanie')
+        self.assertEqual(krok.count('python3 narzedzia/bez_komentarzy.py'), 1)
+        self.assertLess(wf.index('bez_komentarzy.py'), wf.index('python3 narzedzia/straz_kluczy.py'), 'straż kluczy sprawdza już ostateczną stronę')
+        _ast_v141.parse(open(os.path.join(self.ROOT, 'narzedzia', 'bez_komentarzy.py'), encoding='utf-8').read(), feature_version=(3, 12))
+
+    def test_strona_zrodlowa_zachowuje_komentarze_i_service_worker(self):
+        sw = open(os.path.join(self.ROOT, 'sw.js'), encoding='utf-8').read()
+        self.assertIn('?sw=off', self.zrodlo); self.assertIn("const WYLACZONY = false;", sw)
+        self.assertIn("'__WYDANIE__'", sw)
+
+

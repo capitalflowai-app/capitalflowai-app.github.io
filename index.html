@@ -4674,7 +4674,9 @@ function srvJSON(name){
   if(srvJSON.g&&srvJSON.g.zamk(name))return new Promise(()=>{});   /* v308: plik z zamkniętej grupy (bramka niżej) — bez pobierania; obietnica się nie rozstrzyga */
   const S=srvJSON.c||(srvJSON.c={}),m=Math.floor(Date.now()/60000);let c=S[name];
   if(!c||c.m!==m){
-    const p=fetch('data/'+name+'.json?t='+m,{cache:'no-store',signal:(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?AbortSignal.timeout(20000):undefined})
+    const o={cache:'no-store',signal:(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?AbortSignal.timeout(20000):undefined};
+    if(srvJSON.lo&&srvJSON.t0&&srvJSON.t0.indexOf(name)<0)o.priority='low';   /* v412 (F11Z21): w fazie startu pliki spoza pierwszego widoku (srvJSON.t0 niżej) idą z niskim priorytetem — pliki kafelków i mapy nie dzielą z nimi łącza; faza kończy się po pobraniu T0 (najpóźniej po 8 s) albo przy otwarciu CRYPTO/TRENDÓW */
+    const p=fetch('data/'+name+'.json?t='+m,o)
       .then(r=>r.ok?r.json():null).catch(()=>null);
     c=S[name]={m,p};
     p.then(j=>{if(j==null&&S[name]===c)delete S[name];});
@@ -4699,7 +4701,7 @@ const SRV_GR={'ceny-krypto':'c',wieloryby:'c',dzwignia:'c',premie:'c',wycena:'c'
 const SRV_LD={c:[srvLiveStart,whLoad,rwLoad,zkLoad,levLoad,prmLoad,kcLoad,lnLoad,wyLoad]};   /* najpierw scena (największe pobranie), potem karty w kolejności zakładki */
 srvJSON.g={o:{c:(()=>{try{return new URLSearchParams(location.search).get('pelna')==='1';}catch(e){return false;}})()},
   zamk:n=>Object.prototype.hasOwnProperty.call(SRV_GR,n)&&!srvJSON.g.o[SRV_GR[n]]};
-function srvOpen(g){const G=srvJSON.g;if(!G||G.o[g])return false;G.o[g]=true;
+function srvOpen(g){const G=srvJSON.g;if(!G||G.o[g])return false;G.o[g]=true;srvJSON.lo=false;
   for(const f of SRV_LD[g]||[]){try{f();}catch(e){console.error(e);}}   /* błąd jednej ładowarki nie zatrzymuje pozostałych; widoczny w konsoli (kontrola) */
   if(g==='c'&&typeof refreshLogoImgs==='function')try{refreshLogoImgs();}catch(e){console.error(e);}   /* v319: ikony kart zakładki CRYPTO narysowane przed otwarciem (piksel zamiast logo węzła z img/loga/ — iconURL) dostają pliki; błąd nie przerywa otwarcia */
   return true;}
@@ -4711,6 +4713,12 @@ function srvLiveStart(){const s=LIVE.st==='idle'&&lvSrv(false);loadAll(srvLive,s
 /* jak afterLive; po przyjściu danych sceny (albo błędzie) także strona z menu otwarta w trybie CRYPTO — jej liczby są z danych sceny (dawniej wczytanych
    przy starcie strony; bez tego np. Aktywa w CRYPTO zostałyby z „—” do następnego rysowania) */
 function srvLive(){afterLive();if(LIVE.st!=='load'&&st.mode==='crypto'&&PAGES.includes(page))renderPage();}
+/* v412 (F11Z21, szybkość etap 5): pliki PIERWSZEGO WIDOKU GLOBAL (T0) w jednym miejscu — kafelki (od v321 także Złoto i Ropa Brent z surowce.json), mapa, lewy pasek, pierwsza karta pod mapą, znaczniki świeżości. W fazie startu (lo) każdy inny plik serwera jest pobierany z priority:'low', więc przeglądarka najpierw kończy T0 (pomiar: KAT/pomiary); faza kończy się, gdy skończą się obietnice T0 (błąd też kończy), najpóźniej po 8 s, przy otwarciu grupy CRYPTO/TRENDY (srvOpen — czytelnik czeka na te pliki) i od razu przy ?pelna=1 (kontrola dzienna). Wyłączenie: srvJSON.lo=false. Strona nic nie traci: te same pliki, te same adresy i ta sama pamięć minutowa — zmienia się tylko kolejność. */
+srvJSON.t0=['oecd','rynki','ceny','kursy','dzis','krypto','cmc','surowce','nastroj','etf','meta'];
+srvJSON.lo=!srvJSON.g.o.c;
+['surowce','nastroj','etf','meta'].forEach(n=>srvJSON(n));   /* reszta pierwszego widoku też przed ~25 modułami; te same pobrania co niżej (pamięć minutowa). surowce.json: od v321 kafelki Złoto i Ropa Brent w górnym rzędzie — kafelki rysują się dopiero po jego przyjściu (pomiar v412), więc idzie pierwszy */
+(function(){const k=()=>{srvJSON.lo=false;};Promise.all(srvJSON.t0.map(n=>{const c=srvJSON.c&&srvJSON.c[n];return c?c.p:null;})).then(k,k);setTimeout(k,8000);})();
+/* v412: koniec konfiguracji pierwszego widoku */
 /* notowania ETF-ów krajowych → zmiana dnia per region (wspólne dla serwera i klucza Finnhub) */
 function gDayApply(q){
   const day={};let ok=0;
@@ -17455,7 +17463,7 @@ function renderArc(){const g=$('#g-archiwum'),c=$('#c-archiwum');if(!g||!c)retur
   if(W.length)k+=`<h3 class="mtxt"><b>${t('arc.k.wh')}</b></h3><div class="arc-grid">${W.map(x=>{const n=x.slice(3);return arcBlock(x,ex(n)+escH(n),[{sid:x,cls:'l1',name:n}],'USD','arc.src.wh',true);}).join('')}</div>`+arcWhLista(W,(()=>{try{return WH.data?WH.data.gieldy:null;}catch(e){return null;}})(),x=>arcWin(arcSer(x),ARC.per));   /* v230: nowa lista portfeli — nota; v233: w oknie wykresu */
   c.innerHTML=k?arcHead('arc.t.c')+k+`<p class="pfoot">${t('arc.foot')}</p>`:'';c.hidden=!k;}
 function arcApply(j){const ok=arcOk(j);if(!ok&&ARC.data)return;ARC.data=ok?j:null;renderArc();}   /* chwilowy błąd pobrania nie zasłania wczytanych danych */
-function arcLoad(){if(location.protocol==='file:')return;fetch('archiwum/seria.json?t='+Math.floor(Date.now()/60000),{cache:'no-store',signal:(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?AbortSignal.timeout(20000):undefined}).then(r=>r.ok?r.json():null).catch(()=>null).then(arcApply);}
+function arcLoad(){if(location.protocol==='file:')return;fetch('archiwum/seria.json?t='+Math.floor(Date.now()/60000),{cache:'no-store',priority:srvJSON.lo?'low':'auto',signal:(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?AbortSignal.timeout(20000):undefined}).then(r=>r.ok?r.json():null).catch(()=>null).then(arcApply);}
 function arcAuto(){if(ARC.timer)return;ARC.timer=setInterval(()=>{if(!document.hidden)arcLoad();},60*60*1000);}   /* plik zmienia się raz na dobę — co godzinę wystarczy */
 document.addEventListener('click',e=>{const b=e.target.closest('button[data-arc-per]');if(!b)return;const p=+b.dataset.arcPer;if(!ARC.ok.includes(p)||p===ARC.per)return;ARC.per=p;try{localStorage.setItem('cfai.arc.per',String(p));}catch(_){}renderArc();const f=document.querySelector('button[data-arc-per][aria-pressed="true"]');if(f)f.focus();});
 arcLoad();arcAuto();try{new MutationObserver(()=>renderArc()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* v114: archiwum własne; zmiana języka = nowe etykiety */

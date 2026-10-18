@@ -32029,3 +32029,53 @@ test('v411 (F11Z20): FRED 2 — miejsce w stronie: jedna sekcja po funduszach w 
   assert.ok(/@media \(max-width:620px\)\{#g-fred2 \.etfkpis[^}]*repeat\(2,minmax\(0,1fr\)\)[^}]*\}[^}]*#g-fred2 \.fr-g\{grid-template-columns:minmax\(0,1fr\)\}/.test(css), 'telefon: dwie kolumny kafli, wykresy jeden pod drugim');
   assert.ok(/#g-fred2 \.etfk b small\.pos\{color:var\(--gr-tx\)\}.*small\.neg\{color:var\(--rd-tx\)\}.*small\.neu\{color:var\(--yl-tx\)\}/.test(css), 'plus zielony, minus czerwony, zero żółte');
 });
+
+test('v412 (F11Z21): lista pierwszego widoku T0 w jednym miejscu; pliki spoza niej z priority:low tylko na starcie, otwarcie CRYPTO/TRENDÓW kończy tę fazę', () => {
+  const T0 = ['oecd', 'rynki', 'ceny', 'kursy', 'dzis', 'krypto', 'cmc', 'surowce', 'nastroj', 'etf', 'meta'];
+  const m = html.match(/\nsrvJSON\.t0=(\[[^\]]*\]);/); assert.ok(m, 'srvJSON.t0 — jedna lista T0');
+  assert.deepEqual(JSON.parse(m[1].replace(/'/g, '"')), T0, 'lista T0: kafelki (z surowce.json — Złoto i Ropa Brent od v321), mapa, lewy pasek, pierwsza karta, znaczniki świeżości');
+  assert.equal(html.split('srvJSON.t0=').length, 2, 'lista tylko w jednym miejscu');
+  /* wczesne pobrania (v299 + v412) wyłącznie z T0, a pliki T0 nigdy w grupach zamykanych bramką v308 */
+  const wczesne = [...html.matchAll(/\n(\[(?:'[a-z0-9-]+',?)+\])\.forEach\(n=>srvJSON\(n\)\);/g)].map(x => JSON.parse(x[1].replace(/'/g, '"')));
+  assert.ok(wczesne.length >= 2, 'dwie linie wczesnych pobrań: v299 (7 plików) i v412 (4)');
+  assert.deepEqual([...new Set(wczesne.flat())].sort(), [...T0].sort(), 'razem dokładnie T0, bez powtórzeń');
+  const gr = html.match(/const SRV_GR=\{([^}]*)\};/)[1];
+  for (const n of T0) assert.ok(!gr.includes(`'${n}'`) && !new RegExp(`(^|[,{])${n}:`).test(gr), n + ': plik pierwszego widoku nie może czekać na otwarcie grupy');
+  /* sama funkcja: priority:'low' tylko w fazie startu i tylko poza T0 */
+  const a = html.indexOf('function srvJSON(name){'), b = html.indexOf('\n}\n', a) + 3;
+  const calls = [];
+  const fetchAtrapa = (u, o) => { calls.push([u, o]); return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: 1 }) }); };
+  const srv = new Function('fetch', 'location', 'AbortSignal', 'structuredClone', html.slice(a, b) + '\nreturn srvJSON;')(fetchAtrapa, { protocol: 'https:' }, undefined, undefined);
+  srv.t0 = T0;
+  const pr = n => { calls.length = 0; srv.c = {}; srv(n); return calls[0][1].priority; };
+  assert.equal(pr('oecd'), undefined, 'bez fazy startu (lo niezdefiniowane) — bez zmian względem v411');
+  srv.lo = true;
+  for (const n of T0) assert.equal(pr(n), undefined, n + ': T0 bez priority');
+  assert.ok(html.includes("function suLoad(){srvJSON('surowce').then(suApply);") && html.includes('suKpi(\'gold\',\'w321.k.gold\',per),suKpi(\'brent\',\'w321.k.brent\',per)'), 'kafelki Złoto i Ropa Brent czytają surowce.json — dlatego T0 ma surowce');
+  for (const n of ['instytucje', 'fred', 'cftc', 'trendy', 'usa-makro', 'cm']) assert.equal(pr(n), 'low', n + ': poza T0 na starcie priority:low');
+  assert.equal(calls[0][1].cache, 'no-store', 'reszta opcji bez zmian'); assert.ok(calls[0][0].startsWith('data/cm.json?t='));
+  srv.lo = false;
+  for (const n of ['instytucje', 'oecd']) assert.equal(pr(n), undefined, n + ': po fazie startu zwykły priorytet');
+  /* faza startu: kończy się, gdy 10 plików T0 skończy się pobierać, najpóźniej po 8 s; ?pelna=1 (kontrola) i otwarcie grupy — od razu */
+  const s0 = html.indexOf('\nsrvJSON.t0='), s1 = html.indexOf('\n/* v412: koniec konfiguracji pierwszego widoku */', s0); assert.ok(s0 > 0 && s1 > s0);
+  const blok = html.slice(s0, s1);
+  const uruchom = (c, p) => {
+    const timers = [], thens = [], S = function () {}; S.g = { o: { c } }; S.c = p;
+    const fakeP = { all: l => ({ then: (ok, ko) => { thens.push([l, ok, ko]); } }) };
+    new Function('srvJSON', 'setTimeout', 'Promise', blok)(S, (f, ms) => { timers.push([f, ms]); }, fakeP);
+    return { S, timers, thens };
+  };
+  const wpisy = {}; for (const n of T0) wpisy[n] = { p: 'p-' + n };
+  let r = uruchom(false, wpisy);
+  assert.equal(r.S.lo, true, 'start: faza niskiego priorytetu włączona'); assert.deepEqual(r.S.t0, T0);
+  assert.equal(r.thens.length, 1); assert.deepEqual(r.thens[0][0], T0.map(n => 'p-' + n), 'czeka na obietnice 10 plików T0');
+  assert.equal(r.timers.length, 1); assert.equal(r.timers[0][1], 8000, 'najpóźniej po 8 s');
+  r.thens[0][1](); assert.equal(r.S.lo, false, 'po pobraniu T0 faza kończy się'); r = uruchom(false, wpisy); r.timers[0][0](); assert.equal(r.S.lo, false, 'albo po 8 s');
+  r = uruchom(true, wpisy); assert.equal(r.S.lo, false, '?pelna=1: wszystko od razu, bez niskiego priorytetu');
+  r = uruchom(false, {}); assert.deepEqual(r.thens[0][0], T0.map(() => null), 'brak wpisu (pamięć pusta) nie wiesza fazy');
+  /* otwarcie grupy (CRYPTO/TRENDY) kończy fazę — czytelnik czeka na te pliki */
+  const o0 = html.indexOf('function srvOpen(g){'), o1 = html.indexOf('\n', o0), ot = html.slice(o0, html.indexOf('\n  return true;}', o0));
+  assert.ok(ot.indexOf('G.o[g]=true;') > 0 && ot.indexOf('srvJSON.lo=false;') > ot.indexOf('G.o[g]=true;') && ot.indexOf('srvJSON.lo=false;') < ot.indexOf('for(const f of SRV_LD[g]'), 'srvOpen: koniec fazy przed ładowarkami grupy');
+  /* archiwum wykresów: ten sam niski priorytet na starcie, potem zwykły */
+  assert.ok(html.includes("fetch('archiwum/seria.json?t='+Math.floor(Date.now()/60000),{cache:'no-store',priority:srvJSON.lo?'low':'auto',signal:"), 'arcLoad');
+});
