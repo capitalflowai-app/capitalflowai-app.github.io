@@ -12845,6 +12845,170 @@ def kandlug_kontrola(files, now=None):
     return {'spojnosc': kandlug_spojnosc(j, now), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v411 (F11Z20): FRED 2 — premia terminowa, oczekiwana inflacja, dolar, spready kredytowe, warunki finansowe, zasiłki (data/fred2.json) ----------------------------------------------------------------
+# Plik: s[k] = {asof, v, hist [[dzień, liczba]]}, ok[k], part_at[k], ids, osoby_trzecie. Kontrola czyta pliki ze strony (bez zapytań do sieci). PROGI wieku ostatniej obserwacji (ws53/v411-fred/bt_progi.py: 5 lat obserwacji;
+# modele pesymistyczne: najdłuższy odstęp między obserwacjami + największe opóźnienie publikacji; 0 fałszywych ⚠ w symulacji 2021–2026):
+#   serie dzienne bez opóźnienia (oczekiwana inflacja, rentowność realna, spready): największy odstęp 4 doby (długi weekend) + opóźnienie do 3 dób → ⚠ po 10 dobach od końca dnia;
+#   serie dzienne z tygodniowym opóźnieniem publikacji (premia terminowa, dolar): obserwacja sprzed 8 dób przy sprawdzeniu 17.10.2026, publikacja co tydzień → najwyżej ok. 18 dób → ⚠ po 21;
+#   serie tygodniowe (indeksy warunków finansowych i stresu: 7 + do 12 dób; zasiłki nowe: 7 + do 10; zasiłki kontynuowane: 7 + do 17) → ⚠ po 21 dobach (kontynuowane po 28).
+# (1) świeżość pobrania każdej serii (odświeżanie co 3 h; starsze niż doba = ⚠) w jednym wierszu i wiek ostatniej obserwacji każdej serii względem progu w drugim (najwyżej ⚠);
+# (2) ❌ wyłącznie przy sprzeczności wewnątrz pliku: zła data albo liczba, brak lub niemonotoniczny dzień w historii, ostatnia obserwacja ≠ asof/v, liczba poza zakresem sensu, długość historii poza limitem, seria tygodniowa na złym dniu tygodnia;
+# (3) TYLKO UWAGA ⚠: zgodność z krzywą rentowności USA z innego pliku (ten sam dzień): rentowność realna 10 lat i oczekiwana inflacja 10 lat = nominalna − realna (identyczność sprawdzona na 1447 dniach 2021–2026: różnica 0,000);
+#     odstępy w serii tygodniowej inne niż 7 dób.
+# Najwyżej ⚠ poza (2). Brak pliku zgłasza pętla PLIKI.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'fred2')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['fred2'] = 12 * 60   # plik zapisywany co ok. 3 h (seria z błędem: co godzinę) — wiek pobrania każdej serii ocenia osobny wiersz
+F2K_PROG_MIN = 24 * 60         # min — wiek pobrania serii (odświeżanie co 3 h)
+F2K_SERIE = (   # (klucz, seria, częstotliwość, próg wieku ostatniej obserwacji w dobach, najmniejsza i największa wartość z sensem — jak FR2_SERIES w zbieraczu)
+    ('tp', 'THREEFYTP10', 'D', 21, -5.0, 10.0), ('be10', 'T10YIE', 'D', 10, -2.0, 10.0), ('f55', 'T5YIFR', 'D', 10, -2.0, 10.0), ('r10', 'DFII10', 'D', 10, -5.0, 10.0),
+    ('afe', 'DTWEXAFEGS', 'D', 21, 30.0, 300.0), ('eme', 'DTWEXEMEGS', 'D', 21, 30.0, 300.0),
+    ('ig', 'BAMLC0A0CM', 'D', 10, 0.0, 30.0), ('em', 'BAMLEMCBPIOAS', 'D', 10, 0.0, 60.0), ('ehy', 'BAMLHE00EHYIOAS', 'D', 10, 0.0, 60.0),
+    ('nfci', 'NFCI', 'W', 21, -5.0, 10.0), ('anfci', 'ANFCI', 'W', 21, -5.0, 10.0), ('stl', 'STLFSI4', 'W', 21, -10.0, 30.0),
+    ('icsa', 'ICSA', 'W', 21, 5e4, 1e7), ('ccsa', 'CCSA', 'W', 28, 3e5, 3e7))
+F2K_DZIEN_TYG = {'nfci': 4, 'anfci': 4, 'stl': 4, 'icsa': 5, 'ccsa': 5}   # piątek (indeksy) i sobota (zasiłki) — wszystkie obserwacje 2021–2026
+F2K_HIST_MAX = 260
+F2K_ZGODA = 0.011   # pkt proc. — dwa zaokrąglenia do setnych
+
+
+def _f2k_dzien(s):
+    if not isinstance(s, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+        return None
+    try:
+        return dt.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _f2k_num(x, lo, hi):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and lo <= x <= hi
+
+
+def fred2_spojnosc(j):
+    """Sprzeczności wewnątrz pliku (jedyny powód ❌ w FRED 2) → lista opisów (najwyżej 12)."""
+    zle = []
+    S = j.get('s')
+    if not isinstance(S, dict):
+        return ['s: część nie jest słownikiem']
+    pa = j.get('part_at') if isinstance(j.get('part_at'), dict) else {}
+    for k, sid, fr, _prog, lo, hi in F2K_SERIE:
+        P = S.get(k)
+        if P is None:
+            continue
+        if not isinstance(P, dict) or not isinstance(P.get('hist'), list) or not 2 <= len(P['hist']) <= F2K_HIST_MAX:
+            zle.append(f'{sid}: seria w złym kształcie albo długość historii poza 2…{F2K_HIST_MAX}')
+            continue
+        h = P['hist']
+        ost = None
+        for r in h:
+            d = _f2k_dzien(r[0]) if isinstance(r, list) and len(r) == 2 else None
+            if d is None or not _f2k_num(r[1], lo, hi):
+                zle.append(f'{sid}: zły wiersz historii ({str(r)[:40]})')
+                break
+            if ost is not None and d <= ost:
+                zle.append(f'{sid}: dni historii nie rosną ({ost} przed {d})')
+                break
+            if fr == 'W' and d.weekday() != F2K_DZIEN_TYG[k]:
+                zle.append(f'{sid}: obserwacja tygodniowa {d} nie wypada w dzień tygodnia {F2K_DZIEN_TYG[k]}')
+                break
+            ost = d
+        else:
+            if P.get('asof') != h[-1][0] or P.get('v') != h[-1][1]:
+                zle.append(f'{sid}: asof/v ({P.get("asof")}, {P.get("v")}) ≠ ostatnia obserwacja historii ({h[-1][0]}, {h[-1][1]})')
+            pt = _f2k_dzien(str(pa.get(k) or '')[:10])
+            if pt is not None and _f2k_dzien(h[-1][0]) is not None and _f2k_dzien(h[-1][0]) > pt:
+                zle.append(f'{sid}: dzień danych {h[-1][0]} późniejszy niż pobranie serii {pa.get(k)}')
+    ok = j.get('ok')
+    if not isinstance(ok, dict) or set(ok) - set(k for k, *_ in F2K_SERIE):
+        zle.append('ok: nieznany klucz serii albo zły kształt')
+    return zle[:12]
+
+
+def fred2_swiezosc(j, now=None):
+    """Dwa wiersze (etykieta, status, wiek min, chwila/dzień, uwaga): pobranie serii (najstarsze z part_at) i wiek ostatnich obserwacji względem progów z bt_progi.py; brak pliku albo inna wersja = brak wierszy. Najwyżej ⚠."""
+    now = now or NOW
+    if not isinstance(j, dict) or j.get('v') != 1 or not isinstance(j.get('s'), dict):
+        return []
+    rows = []
+    pa = j.get('part_at') if isinstance(j.get('part_at'), dict) else {}
+    ok = j.get('ok') if isinstance(j.get('ok'), dict) else {}
+    ma = [(wiek_danych(str(pa[k]), 'ts', 'k', now), k) for k, *_ in F2K_SERIE if k in j['s'] and pa.get(k)]
+    brak = [k for k, *_ in F2K_SERIE if k in j['s'] and not pa.get(k)]
+    if brak:
+        rows.append(('FRED 2: serie (pobranie)', '?', None, None, 'brak chwili pobrania serii: ' + ', '.join(brak)))
+    elif ma and all(w is not None for w, _k in ma):
+        w, k = max(ma)
+        st = '⚠️' if w > F2K_PROG_MIN else '✅'
+        note = f'pobranie serii {k} starsze niż {fmt_wiek(F2K_PROG_MIN)} (odświeżanie co 3 h) — dane mogą być nieaktualne; najwyżej uwaga' if st == '⚠️' else ''
+        nie = sorted(k_ for k_, v in ok.items() if v is False)
+        if not note and nie:
+            note = 'ostatnie pobranie nieudane dla: ' + ', '.join(nie) + ' — dane z poprzedniego pobrania'
+        rows.append(('FRED 2: serie (pobranie)', st, w, str(pa[k]), note))
+    stare, naj = [], None
+    for k, sid, _fr, prog, _lo, _hi in F2K_SERIE:
+        P = j['s'].get(k)
+        d = _f2k_dzien(P.get('asof')) if isinstance(P, dict) else None
+        if d is None:
+            continue
+        wd = wiek_danych(d.isoformat(), 'day', 'k', now)
+        if wd is None:
+            continue
+        if naj is None or wd / 1440 / prog > naj[0]:
+            naj = (wd / 1440 / prog, d.isoformat(), wd)
+        if wd > prog * 1440:
+            stare.append(f'{sid} {d.isoformat()} (sprzed {fmt_wiek(wd)}, próg {prog} dób)')
+    if naj is not None:
+        rows.append(('FRED 2: serie (rytm publikacji)', '⚠️' if stare else '✅', naj[2], naj[1],
+                     ('ostatnia obserwacja starsza niż próg: ' + '; '.join(stare[:6]) + ' (progi z testu wstecznego; najwyżej uwaga)') if stare else ''))
+    return rows
+
+
+def _f2k_id(k):
+    return next((sid for kk, sid, *_ in F2K_SERIE if kk == k), k)
+
+
+def fred2_uwagi(j, files=None):
+    """Uwagi ⚠ (nigdy ❌): rentowność realna 10 lat i oczekiwana inflacja 10 lat a krzywa rentowności USA z innego pliku (ten sam dzień); odstępy w seriach tygodniowych. → {'wiersze': [(opis, znak)], 'uwagi': [...]}"""
+    files = files if isinstance(files, dict) else {}
+    out = {'wiersze': [], 'uwagi': []}
+    S = j.get('s') if isinstance(j.get('s'), dict) else {}
+    try:
+        kr = files.get('krzywe')
+        C = kr.get('c') if isinstance(kr, dict) and isinstance(kr.get('c'), dict) else {}
+        us, re_ = C.get('us'), C.get('us_real')
+        if isinstance(us, dict) and isinstance(re_, dict) and us.get('asof') == re_.get('asof') and isinstance(us.get('now'), dict) and isinstance(re_.get('now'), dict):
+            nom, real = us['now'].get('10Y'), re_['now'].get('10Y')
+            dzien = us.get('asof')
+            if _f2k_num(nom, -5, 20) and _f2k_num(real, -5, 20):
+                for k, sid, ocz, nazwa in (('r10', 'DFII10', real, 'rentowność realna 10 lat'), ('be10', 'T10YIE', nom - real, 'oczekiwana inflacja 10 lat (nominalna − realna)')):
+                    P = S.get(k)
+                    mapa = {r[0]: r[1] for r in P['hist'] if isinstance(r, list) and len(r) == 2} if isinstance(P, dict) and isinstance(P.get('hist'), list) else {}
+                    if dzien in mapa and _f2k_num(mapa[dzien], -5, 20):
+                        roz = abs(mapa[dzien] - ocz)
+                        if roz > F2K_ZGODA:
+                            out['uwagi'].append(f'FRED 2: {nazwa} {dzien}: {mapa[dzien]} ({sid}) a krzywa rentowności USA {round(ocz, 3)} — różnica {round(roz, 3)} pkt proc.')
+                        out['wiersze'].append((f'{nazwa} a krzywa USA', '⚠️' if roz > F2K_ZGODA else '✅'))
+        for k in ('nfci', 'anfci', 'stl', 'icsa', 'ccsa'):
+            P = S.get(k)
+            if isinstance(P, dict) and isinstance(P.get('hist'), list):
+                ds = [_f2k_dzien(r[0]) for r in P['hist'] if isinstance(r, list) and len(r) == 2]
+                if all(d is not None for d in ds) and any((b - a).days != 7 for a, b in zip(ds, ds[1:])):
+                    out['uwagi'].append(f'FRED 2: {_f2k_id(k)} — w historii są odstępy inne niż 7 dób (brakujący tydzień w źródle)')
+                    out['wiersze'].append((f'ciągłość tygodni {_f2k_id(k)}', '⚠️'))
+    except Exception:  # noqa
+        pass
+    return out
+
+
+def fred2_kontrola(files, now=None):
+    """Kontrola pliku fred2.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'serie_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('fred2') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    U = fred2_uwagi(j, files)
+    nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
+    return {'spojnosc': fred2_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'serie_bez_odpowiedzi': nie}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -13583,6 +13747,24 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['kanada-dlug'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Kanada (v410): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v411. FRED 2 (data/fred2.json): świeżość pobrania serii i rytm publikacji (wiek ostatnich obserwacji względem progów z testu wstecznego) osobnymi wierszami (lista SWIEZOSC bez zmian), zgodność z krzywą rentowności USA (⚠)
+    # oraz sprzeczności w pliku (❌) — z plików strony, bez zapytań
+    try:
+        for label, st, w, txt, note in fred2_swiezosc(files.get('fred2')):
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+            if st == '⚠️':
+                R['uwagi'].append(f'{label}: dane z {txt} — {fmt_wiek(w)} temu ({note})')
+            elif st == '?':
+                R['uwagi'].append(f'{label}: {note}')
+        T_f2 = fred2_kontrola(files)
+        if T_f2:
+            for z_ in T_f2['spojnosc'][:5]:
+                R['bledy'].append(f'fred2.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_f2['uwagi']
+        R['zgodnosc']['fred2'] = {k_: T_f2[k_] for k_ in ('spojnosc', 'wiersze', 'serie_bez_odpowiedzi')} if T_f2 else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['fred2'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'FRED 2 (v411): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -14358,6 +14540,11 @@ def raport_md(R):
             L.append('- Kanada: aukcje obligacji, posiadacze długu, CORRA, bilans Banku Kanady, ropociągi (z pliku strony): ' + (f'? kontrola przerwana ({kkd["blad"]})' if kkd.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(kkd['spojnosc'][:3]) + ' ❌ · ' if kkd.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in kkd.get('wiersze') or []) or '—') + '.')
+        kf2 = Z.get('fred2')   # v411: FRED 2 — sprzeczności w pliku, zgodność z krzywą USA; brak pliku = bez linii
+        if kf2:
+            L.append('- FRED 2, premia terminowa, dolar, spready kredytowe, warunki finansowe i zasiłki (z pliku strony): ' + (f'? kontrola przerwana ({kf2["blad"]})' if kf2.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(kf2['spojnosc'][:3]) + ' ❌ · ' if kf2.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in kf2.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

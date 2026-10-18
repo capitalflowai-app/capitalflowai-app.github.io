@@ -33020,6 +33020,22 @@ def main():
             META['errors'].append(mask(f'{ZM_LABEL}: {e}')); META['ok']['zmiennosc'] = False
             if isinstance(prev_zm, dict):
                 save('zmiennosc', prev_zm)
+    # v411 (F11Z20): FRED 2 (data/fred2.json: premia terminowa, oczekiwana inflacja, dolar wobec grup krajów, spready kredytowe, warunki finansowe, zasiłki; 14 serii, ten sam klucz FRED_KEY) — co FR2_EVERY min,
+    # plik z serią z błędem ponawiany po NIEPELNY_MIN min (fresh_pelny); bez klucza albo przy awarii poprzedni plik bez zmian (błąd w meta.json). META ok: fred2 (jedno źródło FRED — liczba źródeł bez zmian).
+    prev_f2 = previous('fred2')
+    if not fred_key:
+        if isinstance(prev_f2, dict):
+            save('fred2', prev_f2)
+    elif isinstance(prev_f2, dict) and prev_f2.get('v') == FR2_V and fresh_pelny(prev_f2, FR2_EVERY):
+        save('fred2', prev_f2); META['ok']['fred2'] = 'cached'
+    else:
+        try:
+            f2_ = build_fred2(fred_key, prev_f2); save('fred2', f2_); META['ok']['fred2'] = all(f2_['ok'].get(k_) is True for k_ in FR2_KEYS)
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'{FR2_LABEL}: {e}')[:200]); META['ok']['fred2'] = False
+            if isinstance(prev_f2, dict):
+                save('fred2', prev_f2)
+    # v411: koniec bloku FRED 2
     # v368 (F8Z4): STRES I NIEPEWNOŚĆ (data/niepewnosc.json: CISS 14 obszarów, EPU, GPR; trzy części z własnym ok / part_at / lm) — co NP_EVERY min, plik z częścią nieudaną ponawiany po NIEPELNY_MIN min
     # (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok: niepewnosc_ciss, niepewnosc_epu, niepewnosc_gpr (EBC + dwa nowe źródła: liczba źródeł rośnie o 2).
     prev_np = previous('niepewnosc')
@@ -44604,6 +44620,94 @@ def ucf_czesc():
 
 
 ZRODLA_META.update({'ucits_fx': 'ecb', 'ucits_scr': 'ishares', 'ucits_hist': 'ishares'})   # v409: kursy walut — ten sam bank centralny co dotąd; zestawienie i pliki funduszy — ten sam wydawca funduszy co fundusze USA: liczba źródeł bez zmian
+
+
+# ===================== v411 (F11Z20): FRED 2 — PREMIA TERMINOWA, OCZEKIWANA INFLACJA, DOLAR WOBEC GRUP KRAJÓW, SPREADY KREDYTOWE, WARUNKI FINANSOWE, ZASIŁKI (data/fred2.json) =====================
+# Czternaście serii z tego samego interfejsu i tego samego klucza projektu co fred.json, zmiennosc.json i nastroj.json (klucz tylko w adresie zapytania, maskowany w błędach; bez nowych kont i kluczy;
+# jedno źródło FRED = liczba źródeł bez zmian). Jedno zapytanie na serię (limit FR2_LIMIT obserwacji, odstęp FRED_SLEEP), odświeżanie co FR2_EVERY min (seria z błędem: ponowienie po NIEPELNY_MIN min).
+#   stopy:   tp  THREEFYTP10 premia terminowa 10 lat (model, %) · be10 T10YIE oczekiwana inflacja 10 lat (%) · f55 T5YIFR oczekiwana inflacja 5 lat za 5 lat (%) · r10 DFII10 rentowność realna 10 lat (%)
+#   dolar:   afe DTWEXAFEGS indeks dolara wobec rozwiniętych gospodarek poza USA · eme DTWEXEMEGS wobec rynków wschodzących (obie: styczeń 2006 = 100)
+#   kredyt:  ig BAMLC0A0CM spread firm o ratingu inwestycyjnym USA · em BAMLEMCBPIOAS spread obligacji firm z rynków wschodzących · ehy BAMLHE00EHYIOAS spread obligacji wysokodochodowych w euro (pkt proc.;
+#            te trzy to dane osób trzecich — lista kluczy w polu 'osoby_trzecie', nota na stronie; właściciel przyjął ryzyko licencyjne 27.09 i 11.10.2026)
+#   stres:   nfci NFCI krajowy indeks warunków finansowych · anfci ANFCI ten sam po usunięciu wpływu cyklu koniunktury (0 = średnie warunki, powyżej 0 = zacieśnienie) · stl STLFSI4 indeks stresu finansowego (tygodniowy)
+#   praca:   icsa ICSA nowe wnioski o zasiłek dla bezrobotnych (osoby, tydzień kończący się w sobotę) · ccsa CCSA wnioski kontynuowane (osoby)
+# Plik: s[k] = {asof, v, hist: [[dzień, liczba]] rosnąco (dzienne FR2_HIST_D, tygodniowe FR2_HIST_W)}, ok[k], part_at[k], ids (klucz → seria), osoby_trzecie. Seria z błędem zostaje z poprzedniego pliku z WŁASNĄ chwilą (ok False);
+# żadna seria bez odpowiedzi = wyjątek (przebieg główny zostawia poprzedni plik). Brak liczby nigdy nie jest zerem („.” w źródle = brak dnia). Wartość poza zakresem sensu = błąd tej serii (nie zapisujemy).
+FR2_V = 1
+FR2_SERIES = (   # (klucz, seria, częstotliwość D/W, najmniejsza i największa wartość z sensem)
+    ('tp', 'THREEFYTP10', 'D', -5.0, 10.0), ('be10', 'T10YIE', 'D', -2.0, 10.0), ('f55', 'T5YIFR', 'D', -2.0, 10.0), ('r10', 'DFII10', 'D', -5.0, 10.0),
+    ('afe', 'DTWEXAFEGS', 'D', 30.0, 300.0), ('eme', 'DTWEXEMEGS', 'D', 30.0, 300.0),
+    ('ig', 'BAMLC0A0CM', 'D', 0.0, 30.0), ('em', 'BAMLEMCBPIOAS', 'D', 0.0, 60.0), ('ehy', 'BAMLHE00EHYIOAS', 'D', 0.0, 60.0),
+    ('nfci', 'NFCI', 'W', -5.0, 10.0), ('anfci', 'ANFCI', 'W', -5.0, 10.0), ('stl', 'STLFSI4', 'W', -10.0, 30.0),
+    ('icsa', 'ICSA', 'W', 5e4, 1e7), ('ccsa', 'CCSA', 'W', 3e5, 3e7))
+FR2_KEYS = tuple(k for k, _s, _f, _a, _b in FR2_SERIES)
+FR2_IDS = {k: s for k, s, _f, _a, _b in FR2_SERIES}
+FR2_THIRD = ('ig', 'em', 'ehy')   # dane osób trzecich (spready kredytowe)
+FR2_LIMIT = 260        # obserwacji na serię w zapytaniu (najnowsze pierwsze)
+FR2_HIST_D = 260       # zapisanych obserwacji serii dziennej (ok. rok)
+FR2_HIST_W = 156       # zapisanych obserwacji serii tygodniowej (trzy lata)
+FR2_EVERY = 180        # min — serie dzienne i tygodniowe; młodszy plik bez zapytań
+FR2_LABEL = 'FRED 2'
+FR2_SRC = ('CapitalFlowAI — publiczne serie: premia terminowa i oczekiwana inflacja, indeksy dolara wobec grup krajów, spready kredytowe (dane osób trzecich), '
+           'indeksy warunków finansowych i stresu, wnioski o zasiłek w USA')
+
+
+def fr2_rows(j, sid, lo, hi):
+    """Odpowiedź observations → [[dzień, liczba]] rosnąco (bez powtórzeń dnia). „.”, pusta, nie-liczba, zła data = pominięta (brak, nigdy zero); liczba poza [lo, hi] = wyjątek (zła seria, nie dane)."""
+    if not isinstance(j, dict) or not isinstance(j.get('observations'), list):
+        raise RuntimeError(f'{sid}: odpowiedź bez observations' + (f" ({j.get('error_message')})" if isinstance(j, dict) and j.get('error_message') else ''))
+    out = {}
+    for o in j['observations']:
+        if not isinstance(o, dict):
+            continue
+        d = str(o.get('date', ''))[:10]
+        txt = str(o.get('value', '')).strip()
+        v = _num(txt) if txt not in ('', '.') else None
+        if not (_isnum(v) and re.match(r'^\d{4}-\d{2}-\d{2}$', d) and _d(d)):
+            continue
+        if not lo <= v <= hi:
+            raise RuntimeError(f'{sid}: wartość {v} poza zakresem {lo}…{hi} ({d})')
+        out[d] = float(v)
+    if len(out) < 2:
+        raise RuntimeError(f'{sid}: mniej niż dwie obserwacje z wartością')
+    return [[d, out[d]] for d in sorted(out)]
+
+
+def fr2_seria(rows, freq):
+    """[[dzień, liczba]] rosnąco → {'asof', 'v', 'hist'}: ostatnie FR2_HIST_D (D) albo FR2_HIST_W (W) obserwacji; liczby do 4 miejsc (zasiłki: całkowite)."""
+    n = FR2_HIST_D if freq == 'D' else FR2_HIST_W
+    def r(v):
+        return int(round(v)) if abs(v) >= 1e4 else round(v, 4)
+    h = [[d, r(v)] for d, v in rows[-n:]]
+    return {'asof': h[-1][0], 'v': h[-1][1], 'hist': h}
+
+
+def build_fred2(key, prev=None):
+    """data/fred2.json (opis — nagłówek sekcji). Błąd serii: ta seria z poprzedniego pliku (z jej part_at), ok[k] = False; błąd każdej serii albo brak klucza = wyjątek (przebieg główny zostawia poprzedni plik)."""
+    if not key:
+        raise RuntimeError('brak klucza FRED')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == FR2_V else {}
+    ps = prev.get('s') if isinstance(prev.get('s'), dict) else {}
+    pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
+    s, ok, part_at, errs = {}, {}, {}, []
+    for i, (k, sid, freq, lo, hi) in enumerate(FR2_SERIES):
+        if i:
+            time.sleep(FRED_SLEEP)
+        try:
+            s[k] = fr2_seria(fr2_rows(get_json(f'{FRED}?series_id={sid}&api_key={key}&file_type=json&sort_order=desc&limit={FR2_LIMIT}'), sid, lo, hi), freq)
+            ok[k] = True; part_at[k] = NOW
+        except Exception as e:  # noqa — seria z błędem: poprzednia z własną chwilą, pozostałe liczone dalej
+            errs.append(mask(f'{sid}: {e}')); ok[k] = False
+            if isinstance(ps.get(k), dict):
+                s[k] = ps[k]; part_at[k] = pat.get(k) or prev.get('at')
+    if not any(ok.values()):
+        raise RuntimeError('żadna seria nie odpowiedziała' + (': ' + '; '.join(errs)[:300] if errs else ''))
+    if errs:
+        META['errors'].append(mask(f'{FR2_LABEL}: ' + '; '.join(errs)[:400]))
+    return {'at': NOW, 'v': FR2_V, 'src': FR2_SRC, 'ids': dict(FR2_IDS), 'osoby_trzecie': list(FR2_THIRD), 'ok': ok, 'part_at': part_at, 's': s}
+
+
+ZRODLA_META.update({'fred2': 'fred'})   # v411: te same serie z tego samego interfejsu i klucza co fred.json — liczba źródeł bez zmian
 
 
 if __name__ == '__main__':
