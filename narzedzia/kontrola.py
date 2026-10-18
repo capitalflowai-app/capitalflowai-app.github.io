@@ -3880,6 +3880,53 @@ def ng_ceny_swiezosc(nc, now=None):
     return [(lab, st, w, d, '; '.join(u))]
 
 
+# v413: najnowsze źródła w TRENDACH — dziennik reguł „w cieniu” TD_SH_FW (data/fw-dziennik.json; wiersz [dzień, linia, symbol, głos, stan, z, zapisano, y,
+# dzień danych], rejestracja 17.10.2026). Plik jest przepisywany w każdym przebiegu (wiek pliku zawsze mały), więc tu: najnowszy dzień z wynikiem z kart NA CZAS
+# (jak ng_dziennik_swiezosc, v389). Wynik sesji pojawia się wieczorem tej samej sesji (cena funduszu w pliku świat dziennie), więc próg i kategoria jak w v309/v373:
+# 60 godzin roboczych, kategoria 'd' — test wsteczny v309 (sesje NYSE 2004–2026 z zamknięciami nadzwyczajnymi; ceny zaobserwowane 00:58–02:05 UTC D+1, model
+# pesymistyczny 13:00 UTC D+1; kontrola codziennie o 06:20 UTC i — górna granica — co godzinę): fałszywych ⚠️ najwyżej 0,024% kontroli dziennych i 0,201% godzinnych.
+# Jeden wiersz zbiorczy (nie po grupach): linie z krótką historią wejścia (premie USDT, pozycje na Tajwanie) startują dopiero po 40 dniach, więc wiersz grupy kończyłby
+# się fałszywym ⚠️; wiersz zbiorczy ma wynik w każdej sesji, bo linie SOFR i CSI 300 mają dziś wystarczającą historię. Najwyżej ⚠️, nigdy ❌ ani BŁĄD; przed startem
+# dziennika albo w pierwszych dniach bez wyniku — „—”; ≥ NGK_LATE_SESJE ostatnich sesji tylko z kartami „po czasie” — ⚠️ (tylko uwaga).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'fw-dziennik')   # v413: dziennik reguł „w cieniu” najnowszych źródeł — przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['fw-dziennik'] = 180
+FWK_PROG = 60 * 60              # min = 60 godzin roboczych (kategoria 'd')
+FWK_START_DNI = 14              # dziennik bez wyniku dłużej niż tyle dni od startu — uwaga
+FWK_DZ = ('fw-dziennik', 'TRENDY najnowsze źródła — ostatni dzień z wynikiem reguł w cieniu')
+
+
+def fw_dziennik_swiezosc(j, now=None):
+    """v413: wiersz świeżości dziennika reguł „w cieniu” najnowszych źródeł w kształcie wierszy swiezosc(): (etykieta, status, wiek min, dzień, uwaga) albo None
+    (brak pliku albo plik bez listy wierszy). Wynik = liczba skończona w polu y (indeks 7; bool, None, NaN — nie) wiersza na czas (stan 'ok'); ≥ NGK_LATE_SESJE
+    ostatnich sesji wyłącznie z kartami late — ⚠️ (tylko uwaga)."""
+    if not isinstance(j, dict) or not isinstance(j.get('rows'), list):
+        return None
+    lab = FWK_DZ[1]
+    now = now or NOW
+    wiersze = _ngk_wiersze(j)
+    dni = _ngk_dni_wyniku(wiersze)
+    late = _ngk_ogon_late(wiersze)
+    if late >= NGK_LATE_SESJE:
+        d0 = max(dni) if dni else None
+        return (lab, '⚠️', wiek_danych(d0, 'day', 'd', now) if d0 else None, d0,
+                f'karty {late} ostatnich sesji tylko „po czasie” (bez głosu) — automat nie zdąża z kartami przed początkiem sesji (tylko uwaga)')
+    since = j.get('since') if isinstance(j.get('since'), str) and _DZ_DZIEN.match(j['since']) else None
+    if not dni:
+        if since and now.date().isoformat() <= since:
+            return (lab, '—', None, None, f'dziennik rusza {since} — pierwsze wyniki po pierwszym sprawdzeniu')
+        okres = (now.date() - dt.date.fromisoformat(since)).days if since else None
+        if okres is not None and okres <= FWK_START_DNI:
+            return (lab, '—', None, None, f'dziennik od {since} — czekamy na pierwsze wyniki')
+        return (lab, '⚠️', None, None, 'brak dnia z wynikiem w dzienniku' + (f' (od {since})' if since else '') + ' (tylko uwaga)')
+    d = max(dni)
+    w = wiek_danych(d, 'day', 'd', now)
+    if w is None:
+        return (lab, '?', None, d, 'zły zapis dnia')
+    if w <= FWK_PROG:
+        return (lab, '✅', w, d, '')
+    return (lab, '⚠️', w, d, f'próg {fmt_wiek(FWK_PROG)} (godziny robocze) — wyniki reguł w cieniu przestały dochodzić (tylko uwaga)')
+
+
 def dolar_swiezosc(j, now=None):
     """Wiersz świeżości kursów dolara (data/dolar.json → najnowsza z part_at.ar/ve/bo) w kształcie wierszy swiezosc(): (etykieta, status, wiek min,
     data, uwaga); brak pliku = None (brak pliku zgłasza pętla wieku plików). Najwyżej ⚠️ — nieoficjalny serwis kursów to nie awaria strony."""
@@ -13352,6 +13399,14 @@ def kontrola():
     # 3c-ng373. v373: nowe grupy w TRENDACH — dziennik reguł „w cieniu” (ostatni dzień z wynikiem) i ceny 14 funduszy wyników; osobne wiersze, najwyżej ⚠️
     ngz = ng_dziennik_swiezosc(files.get('ng-dziennik'))
     for label, st, w, txt, note in ([ngz] if ngz else []) + ng_dziennik_grupy(files.get('ng-dziennik')) + ng_ceny_swiezosc(files.get('ng-ceny')):   # v389: grupy osobno
+        R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        if st == '⚠️':
+            R['uwagi'].append(f'{label}: ostatni wynik z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')
+        elif st == '?':
+            R['uwagi'].append(f'{label}: {note}')
+    # 3c-fw413. v413: najnowsze źródła w TRENDACH — dziennik reguł „w cieniu” (ostatni dzień z wynikiem na czas); osobny wiersz, najwyżej ⚠️
+    fwz = fw_dziennik_swiezosc(files.get('fw-dziennik'))
+    for label, st, w, txt, note in ([fwz] if fwz else []):
         R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
         if st == '⚠️':
             R['uwagi'].append(f'{label}: ostatni wynik z {txt} — {fmt_wiek(w)} temu ({note})' if txt else f'{label}: {note}')

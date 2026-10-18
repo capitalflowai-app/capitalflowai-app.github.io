@@ -29,6 +29,8 @@ Pliki CSV (UTF-8, przecinek, kropka dziesiętna, nagłówek po angielsku bez pol
                        (v408; otwarte pozycje, stosunki kont i pozycji, kupno/sprzedaż po rynku; CC BY-NC-SA 4.0, użycie niekomercyjne); dane wejściowe testów wstecznych
   binance-funding.csv  dzień × kontrakt (od 2020-01) — suma i ostatnie rozliczenie doby ze stawek finansowania (pliki miesięczne, punkty bazowe; ta sama licencja)
   deribit-dvol.csv     dzień × moneta (BTC, ETH od 2021-03) — dzienne świece indeksu zmienności opcji (pełne doby); szczegóły i filtr przyczynowy: narzedzia/backfill_pochodne.py
+  fw-dziennik.csv      dzień × linia × symbol — dziennik kart reguł „w cieniu” najnowszych źródeł danych (v413; obliczenie własne zbieracza: karta liczona przed granicą
+                       9:00 NY, i wynik); zbieracz odtwarza z niej zgubiony dziennik
 Zasady: operacja idempotentna (jeden wiersz na klucz; ponowne uruchomienie tego samego dnia nadpisuje ten sam dzień); brak danych
 danego dnia = brak wiersza, nigdy zero; rewizje (np. FRED) nadpisywane najnowszą wartością i zliczane w `archiwum/indeks.json`.
 Każde źródło osobno: awaria jednego nie blokuje pozostałych; kod wyjścia 1 gdy którekolwiek zawiodło (e-mail z GitHuba).
@@ -92,6 +94,9 @@ FILES = {
                         'src': 'Binance Vision (data.binance.vision), licencja CC BY-NC-SA 4.0 („Binance Vision Dataset Terms” v1.0), tylko użycie niekomercyjne: miesięczne pliki stawek finansowania kontraktów wieczystych (od 2020-01) sprowadzone do wiersza doby UTC — n = liczba rozliczeń, sum_bp = suma stawek doby w punktach bazowych (stawka × 10 000), last_bp = ostatnie rozliczenie doby; plik miesiąca powstaje po jego końcu (dane wejściowe do testów wstecznych, bez sygnałów)'},
     'deribit-dvol': {'file': 'deribit-dvol.csv', 'cols': bp.COLS_DVOL, 'key': ['date', 'cur'], 'back': None,
                      'src': 'Publiczne dane rynkowe giełdy opcji Deribit (bez klucza): dzienne świece indeksu zmienności opcji BTC i ETH (DVOL, od 2021-03; punkty indeksu: otwarcie, maksimum, minimum, zamknięcie) — tylko pełne doby UTC (dane wejściowe do testów wstecznych, bez sygnałów)'},
+    'fw-dziennik': {'file': 'fw-dziennik.csv', 'cols': ['date', 'line', 'sym', 'g', 'state', 'z', 'saved_at', 'y', 'dd', 'v', 'reg'],
+                    'key': ['date', 'line', 'sym', 'v', 'reg'], 'back': None,
+                    'src': 'Obliczenia własne CapitalFlowAI: dziennik kart reguł „w cieniu” najnowszych źródeł danych (rejestracja z góry 17.10.2026: pozycje zagranicznych inwestorów w Indiach i na Tajwanie, put/call na Tajwanie, indeks CSI 300, napięcie na rynku repo w USA, lokalne premie stablecoina) zapisanych przed granicą karty — 9:00 w Nowym Jorku; g = głos, z = odchylenie wejścia, y = wynik sesji w %, dd = dzień danych wejścia'},
 }
 TIC_OD = '2020-01'
 STABLE = {'USDT': zd.WH_USDT, 'USDC': zd.WH_USDC}   # oba po 6 miejsc
@@ -503,6 +508,30 @@ def src_ng_dziennik():
     return out
 
 
+def src_fw_dziennik():
+    """v413: data/fw-dziennik.json ze strony (obliczenie własne zbieracza: karty reguł „w cieniu” najnowszych źródeł zapisane przed granicą karty, i wynik) → wiersze
+    [dzień, linia, symbol, głos, stan, z, zapisano, y, dzień danych, wersja, rejestracja]; brak liczby = puste pole. 404 (pierwsze godziny po wdrożeniu) albo
+    dziennik bez wierszy → brak wierszy i uwaga, nie błąd. Plik bez listy wierszy, wersji albo daty rejestracji, niepusta lista bez poprawnego wiersza albo inny
+    błąd HTTP → wyjątek (to źródło pada osobno). Zbieracz odtwarza z tej kopii zgubiony dziennik (_fwt_from_csv)."""
+    try:
+        d = zd.get_json(f'{SITE}/data/fw-dziennik.json?t={int(time.time())}', timeout=60)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            NOTES.append('brak pliku dziennika najnowszych źródeł na stronie (404) — nic do zapisania')
+            return []
+        raise
+    rows = d.get('rows') if isinstance(d, dict) else None
+    if not isinstance(rows, list) or not isinstance(d.get('v'), int) or isinstance(d.get('v'), bool) or not isinstance(d.get('reg'), str):
+        raise RuntimeError('plik dziennika najnowszych źródeł bez wierszy, wersji albo daty rejestracji')
+    if not rows:
+        NOTES.append(f"dziennik najnowszych źródeł wersji {d['v']} z rejestracji {d['reg']} jeszcze bez wierszy — nic do zapisania")
+        return []
+    out = [list(r) + [d['v'], d['reg']] for r in rows if isinstance(r, list) and len(r) == 9]
+    if not out:
+        raise RuntimeError('dziennik najnowszych źródeł bez poprawnych wierszy')
+    return out
+
+
 def src_swiat_dziennik_pk():
     """v127 (przegląd): data/swiat-dziennik.json ze strony → zamrożone punkty kontrolne licznika „od wdrożenia” każdej wersji reguły
     (kind cp) i sumy poprzednich wersji (kind oos, c = 0) — wiersze [od, wersja, linia, rodzaj, c, k, n, sesje, b0, h1, h2, lo, hi, ocena,
@@ -734,7 +763,7 @@ def main():
                'cftc-krypto': src_cftc, 'rentownosci': src_rentownosci,
                'binance-metrics': src_binance_metrics, 'binance-funding': src_binance_funding, 'deribit-dvol': src_deribit_dvol,
                'krypto-dziennik': src_krypto_dziennik, 'swiat-dziennik': src_swiat_dziennik, 'swiat-dziennik-pk': src_swiat_dziennik_pk,
-               'surowce-dziennik': src_surowce_dziennik, 'ng-dziennik': src_ng_dziennik}, prev_index=prev)
+               'surowce-dziennik': src_surowce_dziennik, 'ng-dziennik': src_ng_dziennik, 'fw-dziennik': src_fw_dziennik}, prev_index=prev)
     summ = os.environ.get('GITHUB_STEP_SUMMARY')
     lines = [f'## Archiwum własne — {NOW.isoformat()}', '', '| plik | wiersze | od | do | nowe | rewizje | stan |', '|---|---|---|---|---|---|---|']
     for n, r in idx['files'].items():

@@ -10085,10 +10085,16 @@ def build_trendy(S):
     except Exception as e:
         _NGT_LOG[1] = None                 # awaria bloku nie rusza reszty pliku; poprzedni dziennik zostaje (main)
         META['notes'].append(mask(f'trendy nowe grupy (w cieniu): {e}'))
+    fw_td = None
+    try:                                  # v413: najnowsze źródła — blok reguł „w cieniu” TD_SH_FW (dziennik _FWT_LOG; strona: opis, licznik, data rejestracji)
+        fw_td = _fwt_build(S)
+    except Exception as e:
+        _FWT_LOG[1] = None                 # awaria bloku nie rusza reszty pliku; poprzedni dziennik zostaje (main)
+        META['notes'].append(mask(f'trendy najnowsze źródła (w cieniu): {e}'))
     return {'at': NOW, 'v': 1, 'src': 'CapitalFlowAI — obliczenia z plików tej strony (fundusze, obce, meksyk, instytucje, kursy, etf, cm, krypto, cftc, surowce, ceny)',
             'rules': {'base_min': TR_BASE_MIN, 'base_max': TR_BASE_MAX, 'dir': TR_DIR, 'all': TR_ALL, 'floor': TR_FLOOR, 'strong': TR_STRONG,
                       'exc': TR_EXC, 'day_z': TR_DAY_Z, 'span': TR_SPAN, 'px_min': TR_PX_MIN, 'cr_typ': TR_CR_TYP},
-            'f': flows, 'p': prices, 'b': base, **daily, **({'su': su_td} if su_td else {}), **({'ng': ng_td} if ng_td else {})}   # v303: su tylko, gdy blok policzony
+            'f': flows, 'p': prices, 'b': base, **daily, **({'su': su_td} if su_td else {}), **({'ng': ng_td} if ng_td else {}), **({'fw': fw_td} if fw_td else {})}   # v303: su tylko, gdy blok policzony
 
 
 # ===================== v303: SUROWCE w TRENDACH — blok „w cieniu” TD_SH_SU (dział SUROWCE, etap 7) =====================
@@ -10844,6 +10850,354 @@ def _ngt_build(S):
                 META['notes'].append('Dziennik nowych grup (TRENDY): nowy dziennik — pierwszy zapis (archiwum jeszcze go nie miało)')
     _NGT_LOG[1] = _ngt_log(log0, S, now_utc)
     return _ngt_summary(_NGT_LOG[1])
+
+
+# ===================== v413: najnowsze źródła w TRENDACH — blok „w cieniu” TD_SH_FW (F11Z22 planu tygodnia źródeł) =====================
+# Rejestracja z góry: docs/REGULY_FALE_1_3_2026-10-17_PL.md (suma SHA-256 dokumentu w FWT_SHA) — lista zamknięta 17.10.2026, przed jakimkolwiek wynikiem.
+# Sześć linii: zmiana pozycji netto zagranicznych inwestorów w kontraktach na indeksy w Indiach (in.fii) → fundusz Indii INDA i w kontraktach terminowych na Tajwanie (tw.fn) → EWT;
+# zmiana stosunku put/call na Tajwanie (tw.pc, kierunek odwrotny) → EWT; zmiana zamknięcia CSI 300 (cn.csi) → MCHI; zmiana „ogona” stopy SOFR, czyli 99. percentyl minus stopa
+# (us.sofr, kierunek odwrotny) → SPY; zmiana mediany lokalnych premii USDT (st.pr, kierunek odwrotny) → EEM. Mechanika jak w bloku nowych grup (TD_SH_NG), tylko sesje NYSE: karta
+# sesji jest liczona w każdym przebiegu PRZED granicą 09:00 NY z danych, które w tej chwili są w plikach strony, i zamrażana na granicy (saved_at); karta, której przed granicą
+# nie było, trafia do dziennika „po czasie” (bez głosu); dzień danych głosuje najwyżej raz w linii (najnowszy, którego wcześniejsza karta nie użyła; za stary — wcale) i nigdy
+# w sesji D. Progi wyłącznie ze stałych reguł głównych (TD_LB, TD_MIN, TD_Z1, TD_FLOOR, TD_GAP); własny Bonferroni: m = 6 linii × 3 oceny = 18; punkty kontrolne 100/200/400 sesji
+# z sygnałem zamrażane raz. Strona pokazuje tylko opis, datę rejestracji i licznik sesji z sygnałem do najbliższej oceny — NIC nie jest ujawniane (pole 'ok' nie istnieje).
+# Wejścia pochodzą z plików plynnosc-usa, chiny-tw, indie i premie-stable (w tym przebiegu zapisywanych dopiero PO trendach — wtedy z pamięci poprzedniego przebiegu, _prev_cache),
+# wyniki z cen sesji w pliku swiat-dzien (INDA, EWT, MCHI, SPY, EEM); bez zapytań do sieci i bez nowego budowniczego cen. Reguły głównych sygnałów, bloku SUROWCE i nowych grup bez zmian.
+FWT_V = 1                       # wersja bloku (zmiana linii albo reguły = nowa rejestracja, nowa wersja; stare oceny zostają w 'prev')
+FWT_REG = '2026-10-17'          # data rejestracji (dokument z sumą SHA-256)
+FWT_SINCE = '2026-10-19'        # najwcześniejsza data karty w dzienniku (pierwsza sesja docelowa po dniu rejestracji — poniedziałek)
+# SHA-256 pliku docs/REGULY_FALE_1_3_2026-10-17_PL.md (dokument rejestracji zapisany przed kodem i przed jakimkolwiek wynikiem)
+FWT_SHA = '323394ebdd8e45c8bf70964dce4336ad1c2a728c49e645ff334c4829d6440057'
+TD_SH_FW = (('in.fii', 'fii', 1, TD_Z1), ('tw.fn', 'fn', 1, TD_Z1), ('tw.pc', 'pc', -1, TD_Z1), ('cn.csi', 'csi', 1, TD_Z1), ('us.sofr', 'sofr', -1, TD_Z1),
+            ('st.pr', 'pr', -1, TD_Z1))
+#           (nazwa, wejście, kierunek z góry, próg |z|) — lista zamknięta 17.10.2026; sesja NYSE, wynik: otwarcie → zamknięcie funduszu
+FWT_SYMS = {'in.fii': ('FII',), 'tw.fn': ('FN',), 'tw.pc': ('PC',), 'cn.csi': ('CSI',), 'us.sofr': ('SOFR',), 'st.pr': ('PR',)}   # symbol wejścia każdej linii (jeden na linię)
+FWT_OUT = {'in.fii': 'INDA', 'tw.fn': 'EWT', 'tw.pc': 'EWT', 'cn.csi': 'MCHI', 'us.sofr': 'SPY', 'st.pr': 'EEM'}                  # fundusz wyniku każdej linii
+FWT_DM = {'in.fii': True, 'tw.fn': True, 'tw.pc': False, 'cn.csi': False, 'us.sofr': True, 'st.pr': True}   # z: True = „przepływ” (ze średnią i dolną granicą), False = „ruch” (bez średniej)
+FWT_KIND = {'in.fii': ('azja',), 'tw.fn': ('azja',), 'tw.pc': ('azja',), 'cn.csi': ('azja',), 'us.sofr': ('nyfed',), 'st.pr': ('stbl',)}   # linia → rodzaje publikacji wejścia
+FWT_OUTS = tuple(sorted(set(FWT_OUT.values())))   # wszystkie fundusze wyniku (muszą mieć ceny w swiat-dzien): EEM, EWT, INDA, MCHI, SPY
+FWT_M = len(TD_SH_FW) * len(TD_W_LOOKS)                                  # 18 prób naraz (6 linii × 3 oceny) — także linie jeszcze bez danych
+FWT_ZL = statistics.NormalDist().inv_cdf(1 - 0.025 / FWT_M)              # 2,9913
+FWT_CLL = round(100 - 5 / FWT_M, 1)                                      # 99.7
+FWT_ZW = 1        # sesje NYSE: pierwsza sesja, w której wejście mogło głosować (po publikacji), najwyżej tyle sesji przed sesją karty (dostępność danych)
+# publikacja wejścia z datą d: (dni po d, minuty po północy, strefa); w tygodniu ze świętem NYSE — ostrożnie dzień roboczy później. Giełdy azjatyckie (Indie, Tajwan, Chiny): pliki dnia d
+# gotowe wieczorem czasu lokalnego, najpóźniej ok. 13:30 UTC dnia d — zapisujemy 20:00 UTC (karta wejdzie najwcześniej do następnej sesji NYSE); SOFR dnia d bank publikuje o 8:00 w Nowym Jorku
+# następnego dnia roboczego (zapas: 8:30); premie USDT — okno zapytań kończy się 300 min po ustaleniu kursu we Frankfurcie (14:10, czyli 17:10 UTC latem, 18:10 zimą) — zapisujemy 21:00 UTC
+FWT_PUB = {'azja': (0, 1200, 'utc'), 'nyfed': (1, 510, 'ny'), 'stbl': (0, 1260, 'utc')}
+FWT_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'archiwum', 'fw-dziennik.csv')   # kopia dzienna (narzedzia/archiwum.py)
+FWT_CSV_COLS = ['date', 'line', 'sym', 'g', 'state', 'z', 'saved_at', 'y', 'dd', 'v', 'reg']
+FWT_JST = ('ok', 'late')        # stany wiersza: ok — karta przed granicą (głos albo spokój), late — po czasie (bez głosu)
+_FWT_LOG = [None, None]         # [poprzedni dziennik (main, przed trendami), nowy dziennik (_fwt_build)]
+
+
+
+def _fwt_out(line, sym):
+    """Fundusz wyniku wiersza (linia, symbol wejścia)."""
+    return FWT_OUT[line]
+
+
+
+def _fwt_pub(kind, d):
+    """Chwila publikacji (UTC, 'YYYY-MM-DDTHH:MM:SS') wejścia rodzaju `kind` z datą d. Dzień bez sesji NYSE (TD_NYSE_CLOSED) w (d, dzień publikacji] albo
+    publikacja w sobotę/niedzielę — dzień roboczy później (ostrożnie, nigdy wcześniej)."""
+    dd, m, tz = FWT_PUB[kind]
+    p = _d(d) + datetime.timedelta(days=dd)
+    if dd:
+        if any((_d(d) + datetime.timedelta(days=k)).isoformat() in TD_NYSE_CLOSED for k in range(1, dd + 1)):
+            p += datetime.timedelta(days=1)
+        while p.weekday() >= 5 or p.isoformat() in TD_NYSE_CLOSED:
+            p += datetime.timedelta(days=1)
+    if tz == 'utc':
+        return p.isoformat() + 'T%02d:%02d:00' % divmod(m, 60)
+    return _tdw_at(p.isoformat(), m)
+
+
+def _fwt_sesja_pub(kind, d):
+    """Pierwsza sesja NYSE, w której karta (granica 09:00 NY) może użyć wejścia `kind` z datą d — pierwsza sesja z granicą po publikacji."""
+    pub = _fwt_pub(kind, d)
+    s = pub[:10] if _d(pub[:10]).weekday() < 5 and pub[:10] not in TD_NYSE_CLOSED else _tdw_next(pub[:10])
+    return s if _tdw_cut(s) > pub else _tdw_next(s)
+
+
+def _fwt_plik(S, nazwa):
+    """Plik wejściowy: z obiektów tego przebiegu (S), a gdy go tam jeszcze nie ma (pliki fal 1–3 zapisuje main() dopiero po trendach) — z pamięci Actions poprzedniego
+    przebiegu (lokalny plik, bez sieci; najwyżej kilkanaście minut starszy). Brak = {}."""
+    p = S.get(nazwa)
+    if isinstance(p, dict) and p:
+        return p
+    try:
+        p = _prev_cache(nazwa)
+    except Exception:  # noqa
+        p = None
+    return p if isinstance(p, dict) else {}
+
+
+def _fwt_ser(pary, zm):
+    """[(dzień, liczba | None)] → posortowane [(dzień, zmiana | None)]: zm='roz' — różnica wobec poprzedniego dnia z wartością; zm='pct' — (v / poprzednia − 1)·100 dla
+    poprzedniej > 0. Poprzedni dzień dalej niż TD_GAP dni kalendarzowych = None. Tylko dzień i dzień przed nim — nic z dni późniejszych."""
+    by = {}
+    for d, v in pary:
+        if isinstance(d, str) and _d(d) and _isnum(v):
+            by[d[:10]] = float(v)
+    ser = sorted(by.items())
+    out = []
+    for i, (d, v) in enumerate(ser):
+        if not i or (_d(d) - _d(ser[i - 1][0])).days > TD_GAP:
+            out.append((d, None)); continue
+        pv = ser[i - 1][1]
+        out.append((d, v - pv if zm == 'roz' else ((v / pv - 1) * 100 if pv > 0 else None)))
+    return out
+
+
+def _fwt_wejscia(S):
+    """Wejścia linii z plików tego przebiegu → {(linia, symbol): ([(dzień, zmiana | None)], demean, rodzaje publikacji)}. Brak pliku albo serii (mniej niż 2 dni) = brak wpisu
+    (linia czeka). Indie: pozycja netto grupy FII = długie − krótkie z jednego dnia (indie.fao.hist); Tajwan: wartość pozycji netto zagranicznych (chiny-tw.tw.in.h[3]) i stosunek
+    wolumenu opcji sprzedaży do kupna (chiny-tw.tw.pc.h[1] / [2]); Chiny: zamknięcie CSI 300 (chiny-tw.csi.h[1]); SOFR: 99. percentyl minus stopa (plynnosc-usa.stopy.sofr[5] − [1]);
+    premie: mediana koszyka (premie-stable.kosz[1])."""
+    out = {}
+
+    def dodaj(linia, pary, zm):
+        ser = _fwt_ser(pary, zm)
+        if len(ser) > 1:
+            out[(linia, FWT_SYMS[linia][0])] = (ser, FWT_DM[linia], FWT_KIND[linia])
+    ind = _fwt_plik(S, 'indie')
+    fao = ind.get('fao') if isinstance(ind.get('fao'), dict) else {}
+    pary = []
+    for r in fao.get('hist') if isinstance(fao.get('hist'), list) else []:
+        f = r.get('FII') if isinstance(r, dict) else None
+        if isinstance(f, list) and len(f) == 2 and _isnum(f[0]) and _isnum(f[1]):
+            pary.append((r.get('d'), f[0] - f[1]))
+    dodaj('in.fii', pary, 'roz')
+    ct = _fwt_plik(S, 'chiny-tw')
+    tw = ct.get('tw') if isinstance(ct.get('tw'), dict) else {}
+    h = ((tw.get('in') or {}).get('h') if isinstance(tw.get('in'), dict) else None)
+    dodaj('tw.fn', [(r[0], r[3]) for r in h if isinstance(r, list) and len(r) >= 4] if isinstance(h, list) else [], 'roz')
+    h = ((tw.get('pc') or {}).get('h') if isinstance(tw.get('pc'), dict) else None)
+    dodaj('tw.pc', [(r[0], r[1] / r[2]) for r in h if isinstance(r, list) and len(r) >= 3 and _isnum(r[1]) and _isnum(r[2]) and r[2] > 0] if isinstance(h, list) else [], 'pct')
+    h = ((ct.get('csi') or {}).get('h') if isinstance(ct.get('csi'), dict) else None)
+    dodaj('cn.csi', [(r[0], r[1]) for r in h if isinstance(r, list) and len(r) >= 2] if isinstance(h, list) else [], 'pct')
+    pl = _fwt_plik(S, 'plynnosc-usa')
+    h = ((pl.get('stopy') or {}).get('sofr') if isinstance(pl.get('stopy'), dict) else None)
+    dodaj('us.sofr', [(r[0], r[5] - r[1]) for r in h if isinstance(r, list) and len(r) >= 6 and _isnum(r[5]) and _isnum(r[1])] if isinstance(h, list) else [], 'roz')
+    ps = _fwt_plik(S, 'premie-stable')
+    h = ps.get('kosz')
+    dodaj('st.pr', [(r[0], r[1]) for r in h if isinstance(r, list) and len(r) >= 3 and _isnum(r[2]) and r[2] >= PST_KOSZ_MIN] if isinstance(h, list) else [], 'roz')
+    return out
+
+
+
+def _fwt_karta(ch, demean, thr, kinds, cel, prev_dd):
+    """Karta linii dla sesji `cel` z serii wejścia ch → (głos przed kierunkiem, z, dzień danych) albo None (brak karty). Dzień danych = najnowszy dzień serii
+    przed sesją, którego publikacja jest przed granicą karty (09:00 NY); zużyty przez wcześniejszą kartę (≤ prev_dd) albo za stary (pierwsza sesja, w której mógł
+    głosować, wcześniejsza niż FWT_ZW sesji przed kartą) = brak karty. z z najwyżej TD_LB poprzednich wartości serii (_td_z; ruch bez odejmowania średniej,
+    przepływ ze średnią i dolną granicą rozrzutu). Tylko dni ≤ dzień danych — nic z dni późniejszych."""
+    cut = _tdw_cut(cel)
+
+    def wolno(d):
+        return d < cel and all(_fwt_pub(k, d) < cut for k in kinds)
+    i = len(ch) - 1
+    while i >= 0 and not wolno(ch[i][0]):
+        i -= 1
+    if i < 0:
+        return None
+    d = ch[i][0]
+    lo = cel
+    for _ in range(FWT_ZW):
+        lo = _wd_prev_session(lo)
+    first = max(_fwt_sesja_pub(k, d) for k in kinds)
+    if first < lo or (prev_dd and d <= prev_dd):
+        return None
+    z = _td_z([x for _, x in ch], i, demean)
+    if z is None:
+        return None
+    return ((1 if z > 0 else -1) if abs(z) >= thr else 0), z, d
+
+
+def _fwt_valid(log):
+    return isinstance(log, dict) and isinstance(log.get('rows'), list) and 'v' in log and 'reg' in log
+
+
+def _fwt_rows(log):
+    """Poprawne wiersze dziennika: [dzień, linia, symbol, głos, stan, z, zapisano, y, dzień danych]."""
+    return [list(r) for r in ((log or {}).get('rows') or []) if isinstance(r, list) and len(r) == 9 and isinstance(r[0], str) and _d(r[0])
+            and r[1] in FWT_SYMS and r[2] in FWT_SYMS[r[1]] and r[4] in FWT_JST]
+
+
+def _fwt_ut_w(wd, name):
+    """Udział sesji wzrostowych w TD_W_UT sesjach przed parą (b0t, jak reguły świata) z pliku swiat-dzien → {symbol wejścia: {sesja: udział}}."""
+    cal = [c for c in ((wd or {}).get('cal') or []) if isinstance(c, str)]
+    if not cal:
+        return None
+    by = _sut_oc(wd, (FWT_OUT[name],))
+    ser = [{'id': s, 'dates': cal, 'y': [by[FWT_OUT[name]].get(c) for c in cal]} for s in FWT_SYMS[name] if by[FWT_OUT[name]]]
+    return _tdw_ut(ser)
+
+
+def _fwt_cp(log, rows, today, iso, wd):
+    """Punkty kontrolne 100/200/400 sesji z sygnałem (wiersze dojrzałe: ≥ TD_W_SETTLE dni) przy z = FWT_ZL:
+    [c, k, n, b0, h1, h2, lo, hi, vd, dzień c, zapisano, b0t, próg] — zapis raz, nigdy liczone od nowa (jak _sut_cp)."""
+    cp = {k: [list(x) for x in v if isinstance(x, list) and len(x) == 13] for k, v in ((log or {}).get('cp') or {}).items()}
+    for name, *_ in TD_SH_FW:
+        pr, ys = _sut_pary(rows, name, FWT_SINCE, (today - datetime.timedelta(days=TD_W_SETTLE)).isoformat())
+        pr = sorted(pr); ds = sorted({p[0] for p in pr}); have = {x[0] for x in cp.get(name, [])}
+        ut = None
+        for c in TD_W_LOOKS:
+            if c in have or len(ds) < c:
+                continue
+            q = [p for p in pr if p[0] <= ds[c - 1]]
+            ut = ut if ut is not None else (_fwt_ut_w(wd, name) or {})
+            S_ = _tdw_stat(q, ys, FWT_ZL, ut)
+            ne = S_['ne']; b0t = None if S_['b0t'] is None else round(S_['b0t'], 1)
+            bm = S_['bm']
+            thr = round(bm + 100 * FWT_ZL * math.sqrt(bm / 100 * (1 - bm / 100) / ne), 1) if ne else None
+            cp.setdefault(name, []).append([c, S_['k'], S_['n'], None if S_['b0'] is None else round(S_['b0'], 1), S_['h1'], S_['h2'],
+                                            S_['ca'][0], S_['ca'][1], S_['vd'], ds[c - 1], iso, b0t, thr])
+    return {k: sorted(v) for k, v in cp.items() if v}
+
+
+def _fwt_log(log, S, now_utc):
+    """Dziennik bloku: karty liczone na żywo przed granicą (nadpisywane do granicy, potem zamrożone), karta bez wiersza przed granicą → „po czasie” (bez głosu,
+    tylko gdy dziennik istniał przed tą granicą), wyniki dopisywane raz, punkty kontrolne raz, postęp (pg). Inna wersja albo rejestracja → nowy dziennik, stare
+    oceny w 'prev'. Nie zmienia S."""
+    log = log if _fwt_valid(log) else {}
+    prevs = [x for x in (log.get('prev') or []) if isinstance(x, dict)] if isinstance(log.get('prev'), list) else []
+    if log and (log.get('v') != FWT_V or log.get('reg') != FWT_REG):
+        prevs = prevs + [{'v': log.get('v'), 'reg': log.get('reg'), 'cp': log.get('cp') or {}, 'n': len(log.get('rows') or [])}]
+        log = {}
+    iso = _sut_iso(now_utc); n19 = iso[:19]; today = _d(iso)
+    was = log.get('at') if isinstance(log.get('at'), str) else None
+    R = {(r[0], r[1], r[2]): r for r in _fwt_rows(log)}
+    W = _fwt_wejscia(S)
+    cel = _sut_cel('w', now_utc); pc = _sut_poprz('w', cel)
+
+    def zuzyty(name, sym, przed):
+        return max((r[8] for (d, ln, s), r in R.items() if ln == name and s == sym and d < przed and r[4] == 'ok' and isinstance(r[8], str)),
+                   default=None)
+    for name, inp, dr, thr in TD_SH_FW:
+        for (ln, sym), (ch, dm, kinds) in W.items():
+            if ln != name:
+                continue
+            if cel >= FWT_SINCE:
+                k = _fwt_karta(ch, dm, thr, kinds, cel, zuzyty(name, sym, cel))
+                if k:
+                    R[(cel, name, sym)] = [cel, name, sym, k[0] * dr, 'ok', _tdw_rz(k[1]), iso, None, k[2]]
+            if (pc >= FWT_SINCE and (pc, name, sym) not in R and was and was[:19] < _tdw_cut(pc) <= n19 < _tdw_end(pc)):
+                k = _fwt_karta(ch, dm, thr, kinds, pc, zuzyty(name, sym, pc))
+                if k:
+                    R[(pc, name, sym)] = [pc, name, sym, 0, 'late', None, iso, None, k[2]]
+    wd0 = S.get('swiat-dzien') if isinstance(S.get('swiat-dzien'), dict) else {}
+    wd = {'cal': wd0.get('cal'), 'px': wd0.get('px') or {}}   # ceny wyników: plik świat dziennie (INDA, EWT, MCHI, SPY, EEM)
+    oc = None
+    for key, r in R.items():
+        if r[7] is not None:
+            continue
+        if r[0] < today.isoformat() or n19 >= _tdw_at(r[0], TD_W_CLOSE):
+            oc = oc if oc is not None else _sut_oc(wd, FWT_OUTS)
+            y = (oc.get(_fwt_out(r[1], r[2])) or {}).get(r[0])
+            if y is not None:
+                r[7] = round(y, 4)
+    rows = [R[k] for k in sorted(R)]
+    out = {'at': iso, 'v': FWT_V, 'reg': FWT_REG, 'sha': FWT_SHA, 'since': FWT_SINCE, 'cut': {'w': TD_W_CUT}, 'rows': rows, 'cp': {}}
+    out['cp'] = _fwt_cp(log, rows, today, iso, wd)
+    pg = {}
+    for name, *_ in TD_SH_FW:
+        od = min((r[0] for r in rows if r[1] == name), default=None)
+        a, _ = _sut_pary(rows, name, FWT_SINCE, (today - datetime.timedelta(days=TD_W_SETTLE)).isoformat())
+        b, _ = _sut_pary(rows, name, FWT_SINCE)
+        g = _td_pg({name: a}, {name: b}, [(name, name)], TD_W_LOOKS, out['cp'], od, today, TD_W_SETTLE)['l'][name]
+        pg[name] = g + [od]                                     # [n, c, szacunek, dni dojrzałe, pierwsza karta]
+    out['pg'] = pg
+    if prevs:
+        out['prev'] = prevs
+    return out
+
+
+def _fwt_from_csv(path=None):
+    """Kopia dzienna dziennika (archiwum/fw-dziennik.csv, narzedzia/archiwum.py) → (dziennik, 'ok') z wierszami TEJ wersji i rejestracji (punkty kontrolne
+    policzy od nowa _fwt_log z tych samych wierszy); (None, 'none') — brak pliku albo wierszy tej wersji; (None, 'bad') — plik jest, ale nieczytelny."""
+    path = path or FWT_CSV
+    try:
+        with open(path, encoding='utf-8', newline='') as f:
+            rd = csv.reader(f)
+            if next(rd, None) != FWT_CSV_COLS:
+                return None, 'bad'
+            raw = list(rd)
+    except FileNotFoundError:
+        return None, 'none'
+    except (OSError, csv.Error, UnicodeDecodeError):
+        return None, 'bad'
+    rows = []
+    num = lambda x: float(x) if x != '' else None   # noqa: E731 — puste pole = brak, nigdy 0
+    for r in raw:
+        if len(r) != len(FWT_CSV_COLS):
+            continue
+        d = dict(zip(FWT_CSV_COLS, r))
+        try:
+            if int(d['v'] or 0) != FWT_V or d['reg'] != FWT_REG or not _d(d['date']):
+                continue
+            rows.append([d['date'], d['line'], d['sym'], int(d['g']), d['state'], num(d['z']), d['saved_at'], num(d['y']), d['dd'] or None])
+        except (TypeError, ValueError):
+            continue
+    rows = [r for r in rows if r in _fwt_rows({'rows': [r]})]
+    if not rows:
+        return None, 'none'
+    return {'at': None, 'v': FWT_V, 'reg': FWT_REG, 'since': FWT_SINCE, 'rows': sorted(rows), 'cp': {}}, 'ok'
+
+
+def _fwt_summary(log):
+    """Dziennik → pole 'fw' pliku trendy.json: wersja, data rejestracji, suma dokumentu, m, poziom, punkty kontrolne, stan dziennika i postęp linii
+    (l: [n, c, szacunek, dni dojrzałe, pierwsza karta]). Żadnych liczb ocen i żadnego ujawnienia (nie ma pola 'ok')."""
+    pg = log.get('pg') if isinstance(log.get('pg'), dict) else {}
+    L = {}
+    for name, *_ in TD_SH_FW:
+        g = pg.get(name)
+        L[name] = g if isinstance(g, list) and len(g) == 5 else [0, TD_W_LOOKS[0], None, 0, None]
+    return {'v': FWT_V, 'reg': FWT_REG, 'sha': FWT_SHA, 'm': FWT_M, 'cll': FWT_CLL, 'looks': list(TD_W_LOOKS), 'at': log.get('at'), 'l': L}
+
+
+def _fwt_arch_byl(path=None):
+    """Czy archiwum miało już kiedyś kopię dziennika: archiwum/indeks.json z wpisem fw-dziennik o co najmniej jednym wierszu → True; indeks bez takiego wpisu
+    → False (pierwsze wdrożenie); brak albo nieczytelny indeks → None (wtedy ostrożnie reguła daty)."""
+    path = path or os.path.join(os.path.dirname(FWT_CSV), 'indeks.json')
+    try:
+        with open(path, encoding='utf-8') as f:
+            ix = json.load(f)
+    except (OSError, ValueError):
+        return None
+    fl = ix.get('files') if isinstance(ix, dict) else None
+    if not isinstance(fl, dict):
+        return None
+    e = fl.get('fw-dziennik')
+    return isinstance(e, dict) and _isnum(e.get('rows')) and e['rows'] > 0
+
+
+def _fwt_build(S):
+    """v413: blok „w cieniu” fal 1–3 → pole 'fw' pliku trendy.json albo None (bez gotowego pliku swiat-dzien albo bez żadnego wejścia linii — bez pola). Dziennik:
+    _FWT_LOG[0] (poprzedni) → _FWT_LOG[1] (nowy); brak → odtworzenie z archiwum/fw-dziennik.csv; nieczytelne archiwum → błąd w meta, licznik wstrzymany,
+    nic nie zapisujemy; brak pliku i kopii → błąd w meta tylko wtedy, gdy dziennik już był (wpis w archiwum/indeks.json; bez czytelnego indeksu — po 4 dniach od
+    FWT_SINCE), a przy pierwszym wdrożeniu — uwaga. Liczone tylko z plików tego przebiegu, bez sieci."""
+    S = S if isinstance(S, dict) else {}
+    rd = lambda k: isinstance(S.get(k), dict) and S[k].get('ready') is True   # noqa: E731
+    log0 = _FWT_LOG[0] if _fwt_valid(_FWT_LOG[0]) else None
+    if log0 is None and not (rd('swiat-dzien') and _fwt_wejscia(S)):
+        return None
+    now_utc = _now_utc()
+    if log0 is None:
+        log0, why = _fwt_from_csv()
+        if why == 'bad':
+            META['errors'].append('Dziennik najnowszych źródeł (TRENDY): brak poprzedniego pliku, a kopia w archiwum jest nieczytelna — licznik wstrzymany, '
+                                  'nic nie nadpisano')
+            return None
+        if log0 is not None:
+            META['notes'].append(f"Dziennik najnowszych źródeł (TRENDY): odtworzony z archiwum ({len(log0['rows'])} wierszy do {log0['rows'][-1][0]})")
+        else:
+            byl = _fwt_arch_byl()
+            if byl or (byl is None and now_utc.date() > _d(FWT_SINCE) + datetime.timedelta(days=4)):
+                META['errors'].append('Dziennik najnowszych źródeł (TRENDY): brak poprzedniego pliku i brak jego kopii w archiwum — nowy dziennik, licznik od zera')
+            else:                              # pierwsze wdrożenie: dziennika nie było ani na stronie, ani w archiwum
+                META['notes'].append('Dziennik najnowszych źródeł (TRENDY): nowy dziennik — pierwszy zapis (archiwum jeszcze go nie miało)')
+    _FWT_LOG[1] = _fwt_log(log0, S, now_utc)
+    return _fwt_summary(_FWT_LOG[1])
 
 
 # ===================== v373: ceny dodatkowych funduszy dla bloku TD_SH_NG (osobny plik data/ng-ceny.json) =====================
@@ -33102,6 +33456,7 @@ def main():
     _CR_LOG[0] = previous('krypto-dziennik'); _CR_LOG[1] = None   # v125: dziennik kart krypto — źródło licznika „od wdrożenia”
     _SUT_LOG[0] = previous('surowce-dziennik'); _SUT_LOG[1] = None   # v303: dziennik reguł „w cieniu” SUROWCE — licznik od rejestracji
     _NGT_LOG[0] = previous('ng-dziennik'); _NGT_LOG[1] = None   # v373: dziennik reguł „w cieniu” nowych grup — licznik od rejestracji
+    _FWT_LOG[0] = previous('fw-dziennik'); _FWT_LOG[1] = None   # v413: dziennik reguł „w cieniu” najnowszych źródeł — licznik od rejestracji
     # v89: TRENDY — z plików zapisanych w tym przebiegu, bez zapytań do sieci; awaria = błąd w meta, pozostałe pliki bez zmian
     try:
         save('trendy', build_trendy(SAVED)); META['ok']['trendy'] = True
@@ -33123,6 +33478,10 @@ def main():
         save('ng-dziennik', _NGT_LOG[1])
     elif _ngt_valid(_NGT_LOG[0]):                                 # blok bez dziennika w tym przebiegu (awaria trendów): poprzedni bez zmian
         save('ng-dziennik', _NGT_LOG[0])
+    if _FWT_LOG[1]:                                                 # v413: dziennik reguł „w cieniu” najnowszych źródeł zbudowany w tym przebiegu
+        save('fw-dziennik', _FWT_LOG[1])
+    elif _fwt_valid(_FWT_LOG[0]):                                 # blok bez dziennika w tym przebiegu (awaria trendów): poprzedni bez zmian
+        save('fw-dziennik', _FWT_LOG[0])
     # v372 (F9Z1): KALENDARZ (data/kalendarz.json: terminarze Fed, BEA, Census, Eurostatu i EBC; pięć części z własnym ok / part_at / errs) — co KAL_EVERY min, plik z częścią nieudaną ponawiany
     # po NIEPELNY_MIN min (fresh_pelny); awaria budowniczego = poprzedni plik bez zmian (błąd w meta.json). META ok: kalendarz_bc_us, kalendarz_pkb_us, kalendarz_sprz_us, kalendarz_stat_eu,
     # kalendarz_bc_eu (dwa nowe źródła: terminarz Rezerwy Federalnej i urzędu statystycznego USA; BEA, Eurostat i EBC już liczone — liczba źródeł rośnie o 2).

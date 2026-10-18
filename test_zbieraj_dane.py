@@ -54783,7 +54783,7 @@ class NoweGrupyV373(unittest.TestCase):
         with mock.patch.object(A.zd, 'get_json', side_effect=urllib.error.HTTPError('u', 500, 'x', {}, io.BytesIO(b''))):
             self.assertRaises(urllib.error.HTTPError, A.src_ng_dziennik)
         src = open(os.path.join(self.ROOT, 'narzedzia', 'archiwum.py'), encoding='utf-8').read()
-        self.assertIn("'ng-dziennik': src_ng_dziennik}", src)
+        self.assertIn("'ng-dziennik': src_ng_dziennik", src)
 
 
 class TestV374StrazJawnyKontakt(unittest.TestCase):
@@ -68699,3 +68699,488 @@ class TestV412SzybkoscEtap5(unittest.TestCase):
         self.assertIn("'__WYDANIE__'", sw)
 
 
+class FaleV413(unittest.TestCase):
+    """v413 (F11Z22 planu tygodnia źródeł — TRENDY): nowy, osobny blok reguł „w cieniu” TD_SH_FW dla danych z fal 1–3 (pozycje zagranicznych inwestorów w Indiach i na Tajwanie,
+    put/call na Tajwanie, indeks CSI 300, ogon stopy SOFR, lokalne premie stablecoina) — rejestracja z góry (docs/REGULY_FALE_1_3_2026-10-17_PL.md z SHA-256 w kodzie), karty liczone
+    na żywo przed granicą 09:00 NY i zamrażane, wejście z datą PUBLIKACJI, dzień danych głosuje raz i nigdy w sesji D, filtry tylko na danych wcześniejszych (ziarna 1–30),
+    Bonferroni m = 18, punkty kontrolne 100/200/400 zamrażane raz, strona bez ocen i bez ujawnienia; dziennik: zapis w main(), kopia w archiwum, odtworzenie, kontrola.
+    Reguły główne, blok SUROWCE i blok nowych grup bez zmian (asercje wartości). Bez sieci, czas przypięty."""
+    UTC = datetime.timezone.utc
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    def setUp(self):
+        import shutil, tempfile
+        self.tmp = tempfile.mkdtemp(prefix='v413-'); self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.cache = {}
+        for p in (mock.patch.object(zd, 'FWT_CSV', os.path.join(self.tmp, 'brak', 'fw-dziennik.csv')),
+                  mock.patch.object(zd, '_prev_cache', side_effect=lambda n: self.cache.get(n)),
+                  mock.patch.object(zd.urllib.request, 'urlopen', side_effect=AssertionError('sieć w teście'))):
+            p.start(); self.addCleanup(p.stop)
+        zd._FWT_LOG[0] = zd._FWT_LOG[1] = None
+        self.addCleanup(zd._FWT_LOG.__setitem__, slice(None), [None, None])
+        zd.META['notes'].clear(); zd.META['errors'].clear()
+
+    def t(self, s):
+        return datetime.datetime.fromisoformat(s).replace(tzinfo=self.UTC)
+
+    @staticmethod
+    def sesje(a, b):
+        d, out = datetime.date.fromisoformat(a), []
+        while d.isoformat() <= b:
+            if d.weekday() < 5 and d.isoformat() not in zd.TD_NYSE_CLOSED:
+                out.append(d.isoformat())
+            d += datetime.timedelta(days=1)
+        return out
+
+    # ------------------------------------------------------------------ dane syntetyczne: wszystkie 6 linii, dostępność w plikach strony
+    def dane(self, a='2026-01-05', b='2026-12-31', seed=5):
+        """Syntetyczne pliki fal 1–3 w układzie zbieracza (indie.fao.hist, chiny-tw.tw.in/pc i csi, plynnosc-usa.stopy.sofr, premie-stable.kosz) oraz otwarcia i zamknięcia pięciu funduszy
+        wyników. Dostępność wiersza w plikach: wejścia — 60 min PRZED modelową publikacją (_fwt_pub), ceny sesji — 21:30 UTC dnia sesji."""
+        import random
+        rnd = random.Random(seed)
+        self.cal = self.sesje(a, b)
+        self.fii, self.fn, self.pc, self.csi, self.sofr, self.kosz, self.px = [], [], [], [], [], [], {}
+        lo, sh, fnv, cl, pv = 40000, 310000, -1.0e6, 4000.0, 3.9
+        for d in self.cal:
+            lo += int(rnd.gauss(0, 1500)); sh += int(rnd.gauss(0, 4000)); fnv += rnd.gauss(0, 60000); cl *= 1 + rnd.gauss(0, 0.01); pv += rnd.gauss(0, 0.03)
+            self.fii.append({'d': d, 'Client': [1, 1], 'DII': [1, 1], 'FII': [lo, sh], 'Pro': [1, 1]})
+            self.fn.append([d, -214115, 805024, round(fnv)])
+            self.pc.append([d, 200000 + int(rnd.gauss(0, 30000)), 230000 + int(rnd.gauss(0, 30000)), 50000, 60000])
+            self.csi.append([d, round(cl, 2), 0.1])
+            self.sofr.append([d, round(pv, 3), round(pv - 0.04, 3), round(pv - 0.02, 3), round(pv + 0.05, 3), round(pv + 0.08 + abs(rnd.gauss(0, 0.03)), 3), 3000.0])
+            self.kosz.append([d, round(rnd.gauss(2.0, 0.6), 3), 6])
+        for s in zd.FWT_OUTS:
+            p, rows = 100.0, []
+            for d in self.cal:
+                o = p * (1 + rnd.gauss(0, 0.003)); p = o * (1 + rnd.gauss(0, 0.01)); rows.append([d, round(o, 4), round(p, 4), None])
+            self.px[s] = rows
+
+    def av(self, kind, d):
+        return (datetime.datetime.fromisoformat(zd._fwt_pub(kind, d)) - datetime.timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M')
+
+    def S(self, now, bez=()):
+        """Pliki strony w chwili `now`: tylko wiersze już dostępne (bez — nazwy plików do pominięcia)."""
+        n = now.strftime('%Y-%m-%dT%H:%M')
+        k = sum(1 for d in self.cal if d + 'T21:30' <= n)
+        S = {'swiat-dzien': {'ready': True, 'cal': self.cal[:k], 'px': {s: {'d': rows[:k]} for s, rows in self.px.items()}, 'fl': {}}}
+        a = lambda kind, rows, i=0: [r for r in rows if self.av(kind, r[i] if isinstance(r, list) else r['d']) <= n]   # noqa: E731
+        if 'indie' not in bez:
+            S['indie'] = {'fao': {'hist': [r for r in self.fii if self.av('azja', r['d']) <= n]}}
+        if 'chiny-tw' not in bez:
+            S['chiny-tw'] = {'tw': {'in': {'h': a('azja', self.fn)}, 'pc': {'h': a('azja', self.pc)}}, 'csi': {'h': a('azja', self.csi)}}
+        if 'plynnosc-usa' not in bez:
+            S['plynnosc-usa'] = {'stopy': {'sofr': a('nyfed', self.sofr)}}
+        if 'premie-stable' not in bez:
+            S['premie-stable'] = {'kosz': a('stbl', self.kosz)}
+        return S
+
+    def symuluj(self, a, b, runs=((9, 0), (12, 30), (23, 30)), log=None):
+        """Przebiegi automatu w dniach roboczych a…b o podanych godzinach UTC; zwraca dziennik po ostatnim przebiegu."""
+        d = datetime.date.fromisoformat(a)
+        while d.isoformat() <= b:
+            if d.weekday() < 5:
+                for h, m in runs:
+                    now = datetime.datetime.combine(d, datetime.time(h, m), tzinfo=self.UTC)
+                    log = zd._fwt_log(log, self.S(now), now)
+            d += datetime.timedelta(days=1)
+        return log
+
+    # ------------------------------------------------------------------ rejestracja i stałe zapisane z góry
+    def test_rejestracja_dokument_i_suma(self):
+        import hashlib
+        doc = os.path.join(self.ROOT, 'docs', 'REGULY_FALE_1_3_2026-10-17_PL.md')
+        with open(doc, 'rb') as fh:
+            b = fh.read()
+        self.assertEqual(hashlib.sha256(b).hexdigest(), zd.FWT_SHA, 'suma SHA-256 dokumentu rejestracji przypięta w kodzie')
+        with open(doc + '.sha256', encoding='utf-8') as fh:
+            self.assertEqual(fh.read().split()[0], zd.FWT_SHA)
+        s = b.decode('utf-8')
+        for name, inp, dr, thr in zd.TD_SH_FW:
+            self.assertIn('`fw.' + name + '`', s, 'linia zapisana w dokumencie')
+        self.assertIn('m = 6 linii × 3 oceny = **18**', s); self.assertIn('z = %s (zakres 99,7%%)' % ('%.4f' % zd.FWT_ZL).replace('.', ','), s)
+        self.assertIn('79d4eef1', s); self.assertIn('79dfa4a6', s); self.assertEqual(s.count('**−1**'), 3, 'trzy linie o kierunku odwrotnym')
+        for w in ('Żadnego testu w próbie przed startem', 'ten blok niczego nie ujawnia', 'nie może zmienić żadnej reguły', 'Czego tu nie rejestrujemy', 'Dzień danych głosuje w sesji późniejszej niż D'):
+            self.assertIn(w, s)
+        self.assertIn('Reguły głównych sygnałów dziennych', s)
+
+    def test_stale_przypiete_wartosciami(self):
+        self.assertEqual(zd.TD_SH_FW, (('in.fii', 'fii', 1, 1.0), ('tw.fn', 'fn', 1, 1.0), ('tw.pc', 'pc', -1, 1.0), ('cn.csi', 'csi', 1, 1.0), ('us.sofr', 'sofr', -1, 1.0),
+                                       ('st.pr', 'pr', -1, 1.0)))
+        self.assertEqual(zd.FWT_OUT, {'in.fii': 'INDA', 'tw.fn': 'EWT', 'tw.pc': 'EWT', 'cn.csi': 'MCHI', 'us.sofr': 'SPY', 'st.pr': 'EEM'})
+        self.assertEqual(zd.FWT_DM, {'in.fii': True, 'tw.fn': True, 'tw.pc': False, 'cn.csi': False, 'us.sofr': True, 'st.pr': True})
+        self.assertEqual(zd.FWT_SYMS, {'in.fii': ('FII',), 'tw.fn': ('FN',), 'tw.pc': ('PC',), 'cn.csi': ('CSI',), 'us.sofr': ('SOFR',), 'st.pr': ('PR',)})
+        self.assertEqual(zd.FWT_KIND, {'in.fii': ('azja',), 'tw.fn': ('azja',), 'tw.pc': ('azja',), 'cn.csi': ('azja',), 'us.sofr': ('nyfed',), 'st.pr': ('stbl',)})
+        self.assertEqual(zd.FWT_OUTS, ('EEM', 'EWT', 'INDA', 'MCHI', 'SPY'))
+        self.assertEqual((zd.FWT_V, zd.FWT_REG, zd.FWT_SINCE, zd.FWT_ZW), (1, '2026-10-17', '2026-10-19', 1))
+        self.assertEqual(zd.FWT_PUB, {'azja': (0, 1200, 'utc'), 'nyfed': (1, 510, 'ny'), 'stbl': (0, 1260, 'utc')})
+        self.assertEqual(zd.FWT_M, 18); self.assertEqual(zd.FWT_CLL, 99.7)
+        self.assertAlmostEqual(zd.FWT_ZL, statistics.NormalDist().inv_cdf(1 - 0.025 / 18), 12); self.assertAlmostEqual(zd.FWT_ZL, 2.9913, 4)
+        self.assertEqual(set(zd.FWT_SYMS), {n for n, *_ in zd.TD_SH_FW}); self.assertEqual(set(zd.FWT_KIND), set(zd.FWT_SYMS)); self.assertEqual(set(zd.FWT_DM), set(zd.FWT_SYMS))
+        self.assertTrue(set(zd.FWT_OUTS) <= set(zd.TD_W_SYMS), 'każdy fundusz wyniku ma ceny w pliku świat dziennie — bez nowego budowniczego cen')
+        self.assertEqual(zd.FWT_SYMS['us.sofr'], ('SOFR',))
+        # stałe progów wspólne z regułami głównymi — bez zmian
+        self.assertEqual((zd.TD_LB, zd.TD_MIN, zd.TD_Z1, zd.TD_Z2, zd.TD_FLOOR, zd.TD_GAP, zd.TD_W_SETTLE, zd.TD_W_LOOKS), (60, 40, 1.0, 2.0, 0.25, 4, 4, (100, 200, 400)))
+        # reguły główne, blok SUROWCE i blok nowych grup — bez zmian (asercje wartości)
+        self.assertEqual(len(zd.TD_W_SYMS), 44); self.assertEqual(zd.SUT_SHA, '79d4eef13ba7fc33f0630fdb323baf3979e55007a8d120ad9213f8811630fe5b')
+        self.assertEqual(zd.NGT_SHA, '79dfa4a6f07c4fd9f2a26b59768793f907f75aa5c14a2d5c10a4a131533ec41e'); self.assertEqual((zd.NGT_M, zd.NGT_V, zd.NGT_REG), (18, 1, '2026-10-14'))
+        self.assertEqual(zd.TD_SH_NG, (('rg.f', 'fl', 1, 1.0), ('sk.f', 'fl', 1, 1.0), ('pl.f', 'fl', 1, 1.0), ('pl.ix', 'ix', 1, 1.0), ('me.cu', 'cu', -1, 1.0), ('zb.goi', 'goi', 1, 1.0)))
+        self.assertEqual(zd.TD_SH_SU, (('cm.p', 'w', 'px', 1, 1.0), ('cm.f', 'w', 'fl', 1, 1.0), ('eq.cu', 'w', 'cuau', 1, 1.0), ('cr.au', 'cr', 'au', 1, 2.0)))
+        self.assertEqual(zd.TD_SH_W, (('eq.pf', 'eq', ('p', 'f')), ('eq.fo', 'eq', ('f', 'o')))); self.assertEqual(zd.TD_SH_CR[-1], ('n3', 3))
+        self.assertEqual(len(zd.TD_RULES), 7); self.assertEqual((zd.SUT_M, zd.SUT_V, zd.SUT_REG), (12, 1, '2026-10-08'))
+
+    # ------------------------------------------------------------------ publikacja wejść
+    def test_publikacje_i_pierwsza_sesja(self):
+        P = zd._fwt_pub
+        self.assertEqual(P('azja', '2026-10-12'), '2026-10-12T20:00:00'); self.assertEqual(P('stbl', '2026-10-12'), '2026-10-12T21:00:00')
+        self.assertEqual(P('nyfed', '2026-10-12'), '2026-10-13T12:30:00', 'SOFR dnia d: 8:30 NY (EDT = UTC−4) następnego dnia roboczego')
+        self.assertEqual(P('nyfed', '2026-12-10'), '2026-12-11T13:30:00', 'zima: 8:30 NY = 13:30 UTC')
+        self.assertEqual(P('nyfed', '2026-10-09'), '2026-10-12T12:30:00', 'piątek → poniedziałek')
+        self.assertEqual(P('nyfed', '2026-09-04'), '2026-09-08T12:30:00', 'piątek przed świętem w poniedziałek (Labor Day) → wtorek')
+        self.assertEqual(P('nyfed', '2026-11-25'), '2026-11-27T13:30:00', 'środa przed Świętem Dziękczynienia → piątek')
+        S = zd._fwt_sesja_pub
+        for kind, d, s in (('azja', '2026-10-12', '2026-10-13'), ('azja', '2026-10-09', '2026-10-12'), ('stbl', '2026-10-12', '2026-10-13'), ('nyfed', '2026-10-12', '2026-10-13'),
+                           ('nyfed', '2026-10-09', '2026-10-12'), ('azja', '2026-09-04', '2026-09-08'), ('stbl', '2026-11-25', '2026-11-27')):
+            self.assertEqual(S(kind, d), s, (kind, d))
+        for kind in zd.FWT_PUB:   # publikacja zawsze po stanie, a pierwsza sesja głosu ma granicę po publikacji i jest późniejsza niż dzień danych
+            for d in ('2026-10-12', '2026-10-09', '2026-11-25', '2026-12-23'):
+                self.assertGreater(P(kind, d), d); s = S(kind, d)
+                self.assertGreater(zd._tdw_cut(s), P(kind, d), (kind, d)); self.assertGreater(s, d)
+
+    # ------------------------------------------------------------------ wejścia z plików strony
+    def test_wejscia_z_plikow(self):
+        S = {'indie': {'fao': {'hist': [{'d': '2026-10-13', 'FII': [40000, 310000]}, {'d': '2026-10-14', 'FII': [39000, 312000]}, {'d': '2026-10-15', 'FII': [41500, 311000]},
+                                        {'d': '2026-10-16', 'FII': 'zepsute'}, {'d': '2026-10-17', 'FII': [True, 5]}]}},
+             'chiny-tw': {'tw': {'in': {'h': [['2026-10-13', 1, 2, -1000000], ['2026-10-14', 1, 2, -1100000], ['2026-10-16', 1, 2, -900000]]},
+                                 'pc': {'h': [['2026-10-13', 300000, 200000, 1, 1], ['2026-10-14', 330000, 200000, 1, 1], ['2026-10-15', 100, 0, 1, 1]]}},
+                          'csi': {'h': [['2026-10-12', 4000.0, 0.1], ['2026-10-13', 4040.0, 1.0], ['2026-10-14', 4000.0, -1.0]]}},
+             'plynnosc-usa': {'stopy': {'sofr': [['2026-10-13', 3.80, 3.75, 3.78, 3.84, 3.86, 3000.0], ['2026-10-14', 3.81, 3.76, 3.79, 3.85, 3.90, 3010.0],
+                                                 ['2026-10-15', 3.82, 3.77, 3.80, 3.86, None, 3020.0]]}},
+             'premie-stable': {'kosz': [['2026-10-13', 2.0, 5], ['2026-10-14', 2.5, 6], ['2026-10-15', 9.0, 3]]}}
+        W = zd._fwt_wejscia(S)
+        self.assertEqual(set(W), {('in.fii', 'FII'), ('tw.fn', 'FN'), ('tw.pc', 'PC'), ('cn.csi', 'CSI'), ('us.sofr', 'SOFR'), ('st.pr', 'PR')})
+        r2 = lambda ch: [(d, None if x is None else round(x, 6)) for d, x in ch]   # noqa: E731
+        self.assertEqual(r2(W[('in.fii', 'FII')][0]), [('2026-10-13', None), ('2026-10-14', -3000.0), ('2026-10-15', 3500.0)], 'pozycja netto = długie − krótkie, zmiana dnia; zepsute wiersze pominięte')
+        self.assertEqual(r2(W[('tw.fn', 'FN')][0]), [('2026-10-13', None), ('2026-10-14', -100000.0), ('2026-10-16', 200000.0)], 'zmiana wartości pozycji netto zagranicznych (kolumna 3)')
+        self.assertEqual(r2(W[('tw.pc', 'PC')][0]), [('2026-10-13', None), ('2026-10-14', round((330 / 200 / (300 / 200) - 1) * 100, 6))], 'stosunek wolumenów sprzedaż / kupno; zero opcji kupna pominięte')
+        self.assertEqual(r2(W[('cn.csi', 'CSI')][0]), [('2026-10-12', None), ('2026-10-13', 1.0), ('2026-10-14', round((4000 / 4040 - 1) * 100, 6))])
+        self.assertEqual(r2(W[('us.sofr', 'SOFR')][0]), [('2026-10-13', None), ('2026-10-14', round((3.90 - 3.81) - (3.86 - 3.80), 6))], 'ogon = 99. percentyl − stopa; wiersz bez percentyla pominięty')
+        self.assertEqual(r2(W[('st.pr', 'PR')][0]), [('2026-10-13', None), ('2026-10-14', 0.5)], 'koszyk z mniej niż 4 krajów pominięty')
+        self.assertEqual([W[k][1] for k in (('in.fii', 'FII'), ('tw.fn', 'FN'), ('tw.pc', 'PC'), ('cn.csi', 'CSI'), ('us.sofr', 'SOFR'), ('st.pr', 'PR'))], [True, True, False, False, True, True])
+        self.assertEqual(W[('us.sofr', 'SOFR')][2], ('nyfed',)); self.assertEqual(W[('in.fii', 'FII')][2], ('azja',)); self.assertEqual(W[('st.pr', 'PR')][2], ('stbl',))
+        # przerwa dłuższa niż 4 dni kalendarzowe = brak zmiany (nigdy zero); brak pliku albo serii = brak wpisu
+        ch = zd._fwt_ser([('2026-10-01', 10), ('2026-10-02', 12), ('2026-10-12', 20), ('2026-10-13', 21)], 'roz')
+        self.assertEqual(ch, [('2026-10-01', None), ('2026-10-02', 2.0), ('2026-10-12', None), ('2026-10-13', 1.0)])
+        self.assertEqual(zd._fwt_ser([('2026-10-01', 0), ('2026-10-02', 5)], 'pct'), [('2026-10-01', None), ('2026-10-02', None)], 'procent od zera = brak')
+        self.assertEqual(zd._fwt_wejscia({}), {}); self.assertEqual(zd._fwt_wejscia({'indie': {'fao': {'hist': []}}, 'chiny-tw': 'x', 'plynnosc-usa': None, 'premie-stable': {'kosz': 'x'}}), {})
+        self.assertEqual(set(zd._fwt_wejscia({'premie-stable': S['premie-stable']})), {('st.pr', 'PR')}, 'każda linia czeka na swój plik osobno')
+
+    def test_wejscia_z_pamieci_poprzedniego_przebiegu(self):
+        """Pliki fal 1–3 zapisuje main() dopiero po trendach — wtedy blok czyta pamięć Actions (_prev_cache, plik lokalny); plik z tego przebiegu ma pierwszeństwo."""
+        self.dane(); now = self.t('2026-10-15T12:30:00'); Sn = self.S(now)
+        pelne = zd._fwt_wejscia(Sn)
+        self.cache.update({k: Sn[k] for k in ('indie', 'chiny-tw', 'plynnosc-usa', 'premie-stable')})
+        z_pamieci = zd._fwt_wejscia({'swiat-dzien': Sn['swiat-dzien']})
+        self.assertEqual(z_pamieci, pelne); self.assertEqual(len(z_pamieci), 6)
+        inny = {'kosz': [['2026-10-13', 1.0, 6], ['2026-10-14', 3.0, 6]]}
+        self.assertEqual([x for _, x in zd._fwt_wejscia({'premie-stable': inny})[('st.pr', 'PR')][0]], [None, 2.0], 'plik z tego przebiegu ma pierwszeństwo przed pamięcią')
+        self.cache.clear(); self.cache['indie'] = 'zepsute'
+        self.assertEqual(zd._fwt_wejscia({}), {}, 'pamięć nieczytelna albo pusta — linie czekają')
+        with mock.patch.object(zd, '_prev_cache', side_effect=RuntimeError('x')):
+            self.assertEqual(zd._fwt_wejscia({}), {})
+
+    # ------------------------------------------------------------------ karta jednej linii
+    @staticmethod
+    def seria(n=100, ostatnia=10.0, a='2026-01-05', seed=3, rozrzut=1.0):
+        import random
+        rnd = random.Random(seed); cal = FaleV413.sesje(a, '2026-12-31')[:n]
+        ch = [(d, rnd.gauss(0, rozrzut)) for d in cal]
+        ch[-1] = (cal[-1], ostatnia)
+        return ch
+
+    def test_karta_glos_prog_i_publikacja(self):
+        ch = self.seria(); d = ch[-1][0]; cel = zd._tdw_next(d)
+        k = zd._fwt_karta(ch, False, 1.0, ('azja',), cel, None)
+        self.assertEqual((k[0], k[2]), (1, d)); self.assertGreater(k[1], 3)
+        n = zd._fwt_karta([(a, -b) if i == len(ch) - 1 else (a, b) for i, (a, b) in enumerate(ch)], False, 1.0, ('azja',), cel, None)
+        self.assertEqual(n[0], -1)
+        q = zd._fwt_karta(self.seria(ostatnia=0.2), False, 1.0, ('azja',), cel, None)
+        self.assertEqual(q[0], 0, 'poniżej progu — spokój, bez głosu')
+        # dzień danych nigdy nie głosuje w sesji D (dane azjatyckie dnia D są znane dopiero wieczorem), tylko w późniejszej
+        self.assertLess(zd._fwt_karta(ch, False, 1.0, ('azja',), d, None)[2], d)
+        self.assertIsNone(zd._fwt_karta(ch, False, 1.0, ('azja',), cel, d), 'dzień danych już głosował w wcześniejszej karcie')
+        self.assertEqual(zd._fwt_karta(ch, False, 1.0, ('azja',), zd._tdw_next(cel), None)[2], d, 'zapas FWT_ZW = 1 sesja: dzień danych głosuje jeszcze w drugiej sesji po publikacji')
+        self.assertIsNone(zd._fwt_karta(ch, False, 1.0, ('azja',), zd._tdw_next(zd._tdw_next(cel)), None), 'za stary dzień danych nie głosuje')
+        # SOFR (publikacja 8:30 NY następnego dnia roboczego): dzień d głosuje najwcześniej w sesji d+1; premie USDT (21:00 UTC) — w sesji d+1
+        s = self.seria(); dd = s[-1][0]; nx = zd._tdw_next(dd)
+        self.assertEqual(zd._fwt_karta(s, False, 1.0, ('nyfed',), nx, None)[2], dd)
+        self.assertLess(zd._fwt_karta(s, False, 1.0, ('nyfed',), dd, None)[2], dd)
+        self.assertEqual(zd._fwt_karta(s, False, 1.0, ('stbl',), nx, None)[2], dd)
+        ch = self.seria(n=30)
+        self.assertIsNone(zd._fwt_karta(ch, False, 1.0, ('azja',), zd._tdw_next(ch[-1][0]), None), 'mniej niż 40 poprzednich wartości — brak karty, nie zero')
+        ch = self.seria(); ch[-1] = (ch[-1][0], None)
+        self.assertIsNone(zd._fwt_karta(ch, False, 1.0, ('azja',), zd._tdw_next(ch[-1][0]), None), 'brak wartości dnia — brak karty')
+
+    def test_ziarna_1_30_nic_z_przyszlosci(self):
+        import random
+        for seed in range(1, 31):
+            rnd = random.Random(seed)
+            cal = self.sesje('2026-01-05', '2026-12-31')
+            n = rnd.randint(70, 150); m = rnd.randint(45, n - 8)
+            ch = [(d, rnd.gauss(0, 1.0 + rnd.random())) for d in cal[:n]]
+            dm = bool(seed % 2)
+            cel = cal[m + rnd.randint(0, 1)]
+            kinds = [('azja',), ('nyfed',), ('stbl',)][seed % 3]
+            ref = zd._fwt_karta(ch[:m + 1], dm, 1.0, kinds, cel, None)
+            self.assertEqual(zd._fwt_karta(ch, dm, 1.0, kinds, cel, None), ref, f'ziarno {seed}: dane po sesji karty nie mogą zmienić karty')
+            if ref:
+                i = [x[0] for x in ch].index(ref[2])
+                mut = ch[:i + 1] + [(d, rnd.gauss(0, 50)) for d, _ in ch[i + 1:]]
+                self.assertEqual(zd._fwt_karta(mut, dm, 1.0, kinds, cel, None), ref, f'ziarno {seed}: wartości po dniu danych bez wpływu')
+
+    def test_ziarna_1_30_serie_wejsc_przyczynowe(self):
+        """Zmiana dnia d liczona z plików do dnia d jest taka sama jak z plików dłuższych (nic z dni późniejszych) — dla wszystkich sześciu wejść."""
+        import random
+        for seed in range(1, 31):
+            self.dane(a='2026-01-05', b='2026-08-31', seed=seed)
+            rnd = random.Random(seed); k = rnd.randint(70, len(self.cal) - 5)
+            cut = lambda rows: rows[:k + 1]   # noqa: E731
+            full = zd._fwt_wejscia({'indie': {'fao': {'hist': self.fii}}, 'chiny-tw': {'tw': {'in': {'h': self.fn}, 'pc': {'h': self.pc}}, 'csi': {'h': self.csi}},
+                                    'plynnosc-usa': {'stopy': {'sofr': self.sofr}}, 'premie-stable': {'kosz': self.kosz}})
+            part = zd._fwt_wejscia({'indie': {'fao': {'hist': cut(self.fii)}}, 'chiny-tw': {'tw': {'in': {'h': cut(self.fn)}, 'pc': {'h': cut(self.pc)}}, 'csi': {'h': cut(self.csi)}},
+                                    'plynnosc-usa': {'stopy': {'sofr': cut(self.sofr)}}, 'premie-stable': {'kosz': cut(self.kosz)}})
+            self.assertEqual(set(full), set(part))
+            for key in full:
+                self.assertEqual(dict(full[key][0])[self.cal[k]], dict(part[key][0])[self.cal[k]], f'ziarno {seed}, {key}')
+                self.assertEqual(part[key][0], full[key][0][:k + 1], f'ziarno {seed}, {key}: seria do dnia k identyczna z początkiem serii pełnej')
+
+    # ------------------------------------------------------------------ dziennik: karty na żywo, zamrażanie, po czasie, jeden głos, wyniki
+    def test_karty_na_zywo_zamrazanie_i_jeden_glos(self):
+        self.dane()
+        log = self.symuluj('2026-06-01', '2026-09-30')
+        self.assertEqual((log['v'], log['reg'], log['sha'], log['since'], log['cut']), (1, '2026-10-17', zd.FWT_SHA, '2026-10-19', {'w': 540}))
+        self.assertEqual(log['rows'], [], 'przed 19.10.2026 (FWT_SINCE) dziennik nie ma kart')
+        log = self.symuluj('2026-10-12', '2026-12-18')
+        rows = log['rows']; self.assertTrue(rows); self.assertEqual({r[1] for r in rows}, set(zd.FWT_SYMS), 'wszystkie sześć linii ma karty (dane syntetyczne od stycznia)')
+        self.assertEqual(min(r[0] for r in rows), '2026-10-19'); self.assertTrue(all(len(r) == 9 and r[4] in ('ok', 'late') for r in rows))
+        dr = {n: d for n, _, d, _ in zd.TD_SH_FW}
+        for d, ln, sym, g, st, z, at, y, dd in rows:
+            self.assertEqual(sym, zd.FWT_SYMS[ln][0])
+            if st == 'ok':
+                self.assertLess(at[:19], zd._tdw_cut(d), f'{ln} {d}: karta zapisana przed granicą 9:00 NY')
+                self.assertLess(dd, d, f'{ln} {d}: dzień danych wcześniejszy niż sesja')
+                self.assertIn(g, (0, dr[ln], -dr[ln])); self.assertEqual(g == 0, abs(z) < 1.0)
+                if g:
+                    self.assertEqual(g, dr[ln] * (1 if z > 0 else -1), 'głos = kierunek z góry × znak z')
+            else:
+                self.assertEqual((g, z, y is None or isinstance(y, float)), (0, None, True), 'karta „po czasie” bez głosu')
+        for ln in zd.FWT_SYMS:
+            dds = [r[8] for r in rows if r[1] == ln and r[4] == 'ok']
+            self.assertEqual(len(dds), len(set(dds)), f'{ln}: dzień danych głosuje najwyżej raz')
+            self.assertEqual(sorted(dds), dds)
+        # wyniki: otwarcie → zamknięcie funduszu wyniku w sesji karty; sesje po ostatnim przebiegu czekają
+        px = {s: {r[0]: r for r in rows_} for s, rows_ in self.px.items()}
+        for d, ln, sym, g, st, z, at, y, dd in rows:
+            if y is not None:
+                o, c = px[zd.FWT_OUT[ln]][d][1], px[zd.FWT_OUT[ln]][d][2]
+                self.assertAlmostEqual(y, round((c / o - 1) * 100, 4), 3, f'{ln} {d}')
+        self.assertTrue(any(r[7] is not None for r in rows)); self.assertTrue(all(r[7] is None for r in rows if r[0] > '2026-12-18'))
+        # karta zamrożona na granicy: kolejny przebieg po granicy nie zmienia wiersza (zmienia się tylko wynik)
+        d = [r[0] for r in rows if r[1] == 'cn.csi' and r[4] == 'ok'][-3]
+        key = next(r for r in rows if r[0] == d and r[1] == 'cn.csi')
+        later = zd._fwt_log(log, self.S(self.t('2026-12-30T23:30:00')), self.t('2026-12-30T23:30:00'))
+        key2 = next(r for r in later['rows'] if r[0] == d and r[1] == 'cn.csi')
+        self.assertEqual(key[:7] + [key[8]], key2[:7] + [key2[8]], 'wiersz zamrożony po granicy')
+
+    def test_karta_po_czasie_bez_glosu_i_tylko_przy_istniejacym_dzienniku(self):
+        self.dane()
+        log = self.symuluj('2026-10-12', '2026-10-21')
+        dni = self.sesje('2026-10-19', '2026-10-30'); x = dni[4]; x_prev = dni[3]
+        # automat milczy w dniu x aż do popołudnia (nie było przebiegu przed granicą 9:00 NY); pierwszy przebieg po granicy, w oknie karty (do 16:15 NY), zapisuje „po czasie”
+        a = self.symuluj(x_prev, x_prev, runs=((9, 0), (12, 30)), log=log)
+        n = self.t(x + 'T19:00:00')
+        a2 = zd._fwt_log(a, self.S(n), n)
+        late = [r for r in a2['rows'] if r[0] == x and r[4] == 'late']
+        self.assertTrue(late, 'karta bez wiersza przed granicą → wiersz „po czasie”')
+        self.assertTrue(all(r[3] == 0 and r[5] is None for r in late))
+        self.assertFalse([r for r in a2['rows'] if r[0] == x and r[4] == 'ok'], 'brak kart na czas')
+        # bez dziennika sprzed granicy: nie ma wierszy „po czasie” (nowy dziennik nie udaje, że istniał)
+        b = zd._fwt_log(None, self.S(n), n)
+        self.assertFalse([r for r in b['rows'] if r[4] == 'late'])
+        # wiersze „po czasie” nie wchodzą do par ocen
+        pr, ys = zd._sut_pary(a2['rows'], late[0][1], '2026-10-19')
+        self.assertFalse([p for p in pr if p[0] == x])
+
+    def test_punkty_kontrolne_zamrazane_raz(self):
+        rows = []
+        cal = self.sesje('2026-10-19', '2027-12-31')
+        import random
+        rnd = random.Random(2)
+        for i, d in enumerate(cal[:140]):
+            g = rnd.choice((1, -1)); y = round(rnd.gauss(0.1 * g, 0.8), 4)
+            rows.append([d, 'cn.csi', 'CSI', g, 'ok', 1.5 * g, d + 'T12:00:00Z', y, cal[i - 1] if i else '2026-10-16'])
+        self.dane(a='2026-10-19', b='2027-12-31')
+        wd = {'cal': self.cal, 'px': {s: {'d': r_} for s, r_ in self.px.items()}}
+        today = datetime.date.fromisoformat(cal[139]) + datetime.timedelta(days=10)
+        cp = zd._fwt_cp({}, rows, today, '2027-05-20T10:00:00Z', wd)
+        self.assertEqual(list(cp), ['cn.csi']); self.assertEqual([x[0] for x in cp['cn.csi']], [100], 'przy 140 sesjach z sygnałem — tylko punkt 100')
+        c = cp['cn.csi'][0]; self.assertEqual(len(c), 13); self.assertEqual(c[9], cal[99], 'punkt 100 zamrożony na setnej sesji z sygnałem'); self.assertEqual(c[10], '2027-05-20T10:00:00Z')
+        # późniejsze dane niczego nie zmieniają w zamrożonym punkcie
+        rows2 = rows + [[d, 'cn.csi', 'CSI', 1, 'ok', 1.5, d + 'T12:00:00Z', 0.5, cal[140 + i]] for i, d in enumerate(cal[140:260])]
+        cp2 = zd._fwt_cp({'cp': cp}, rows2, datetime.date.fromisoformat(cal[259]) + datetime.timedelta(days=10), '2027-09-01T10:00:00Z', wd)
+        self.assertEqual(cp2['cn.csi'][0], c, 'punkt 100 liczony raz'); self.assertEqual([x[0] for x in cp2['cn.csi']], [100, 200])
+        # wiersze za świeże (< TD_W_SETTLE dni) nie wchodzą do oceny
+        cp3 = zd._fwt_cp({}, rows[:100], datetime.date.fromisoformat(cal[99]) + datetime.timedelta(days=1), '2027-03-01T10:00:00Z', wd)
+        self.assertEqual(cp3, {}, 'ostatnie wiersze dojrzewają 4 dni')
+
+    def test_podsumowanie_bez_ocen_i_postep(self):
+        self.dane(); log = self.symuluj('2026-10-19', '2026-11-20')
+        s = zd._fwt_summary(log)
+        self.assertEqual(set(s), {'v', 'reg', 'sha', 'm', 'cll', 'looks', 'at', 'l'}); self.assertNotIn('ok', s); self.assertNotIn('cp', s)
+        self.assertEqual((s['v'], s['reg'], s['sha'], s['m'], s['cll'], s['looks']), (1, '2026-10-17', zd.FWT_SHA, 18, 99.7, [100, 200, 400]))
+        self.assertEqual(list(s['l']), [n for n, *_ in zd.TD_SH_FW])
+        for n, g in s['l'].items():
+            self.assertEqual(len(g), 5); self.assertEqual(g[4], min(r[0] for r in log['rows'] if r[1] == n)); self.assertGreaterEqual(g[0], 0)
+        self.assertEqual(zd._fwt_summary({})['l']['in.fii'], [0, 100, None, 0, None])
+        self.assertFalse(any(isinstance(x, float) and x != x for g in s['l'].values() for x in g))
+        # inna wersja albo rejestracja → nowy dziennik, stare oceny w 'prev'
+        stary = dict(log, v=0)
+        n = self.t('2026-11-23T12:30:00'); nowy = zd._fwt_log(stary, self.S(n), n)
+        self.assertEqual(nowy['prev'][0]['v'], 0); self.assertTrue(nowy['rows'])
+
+    # ------------------------------------------------------------------ kopia w archiwum i odtworzenie
+    def test_odtworzenie_z_archiwum(self):
+        import csv
+        self.dane(); log = self.symuluj('2026-10-19', '2026-11-13')
+        os.makedirs(os.path.join(self.tmp, 'brak'), exist_ok=True)
+        path = os.path.join(self.tmp, 'brak', 'fw-dziennik.csv')
+        with open(path, 'w', encoding='utf-8', newline='') as f:
+            w = csv.writer(f); w.writerow(zd.FWT_CSV_COLS)
+            for r in log['rows']:
+                w.writerow([r[0], r[1], r[2], r[3], r[4], '' if r[5] is None else r[5], r[6], '' if r[7] is None else r[7], r[8] or '', 1, '2026-10-17'])
+            w.writerow(['2026-10-20', 'in.fii', 'FII', 1, 'ok', 1.0, 'x', '', '2026-10-19', 2, '2026-10-17'])   # inna wersja — pominięta
+        L, why = zd._fwt_from_csv(path)
+        self.assertEqual(why, 'ok'); self.assertEqual(L['rows'], sorted(log['rows'])); self.assertEqual((L['v'], L['reg'], L['since']), (1, '2026-10-17', '2026-10-19'))
+        self.assertEqual(zd._fwt_from_csv(os.path.join(self.tmp, 'nie-ma.csv')), (None, 'none'))
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write('zły,nagłówek\n1,2\n')
+        self.assertEqual(zd._fwt_from_csv(path), (None, 'bad'))
+        # _fwt_build: brak poprzedniego pliku → odtworzenie z kopii; nieczytelna kopia → błąd i brak zapisu; bez kopii pierwszy zapis = uwaga
+        with open(path, 'w', encoding='utf-8', newline='') as f:
+            w = csv.writer(f); w.writerow(zd.FWT_CSV_COLS)
+            w.writerow(['2026-10-20', 'in.fii', 'FII', 1, 'ok', 1.0, 'x', '', '2026-10-19', 1, '2026-10-17'])
+        now = self.t('2026-10-21T12:30:00')
+        with mock.patch.object(zd, '_now_utc', return_value=now):
+            out = zd._fwt_build(self.S(now))
+        self.assertIsNotNone(out); self.assertTrue(any('odtworzony z archiwum' in x for x in zd.META['notes'])); self.assertEqual(zd.META['errors'], [])
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write('zły\n')
+        zd.META['errors'].clear(); zd._FWT_LOG[1] = None
+        with mock.patch.object(zd, '_now_utc', return_value=now):
+            self.assertIsNone(zd._fwt_build(self.S(now)))
+        self.assertTrue(any('nieczytelna' in x for x in zd.META['errors'])); self.assertIsNone(zd._FWT_LOG[1])
+        os.remove(path); zd.META['errors'].clear(); zd.META['notes'].clear()
+        with mock.patch.object(zd, '_now_utc', return_value=now):
+            zd._fwt_build(self.S(now))
+        self.assertEqual(zd.META['errors'], []); self.assertTrue(any('pierwszy zapis' in x for x in zd.META['notes']))
+        zd.META['notes'].clear()
+        with mock.patch.object(zd, '_now_utc', return_value=self.t('2026-10-30T12:30:00')):
+            zd._fwt_build(self.S(self.t('2026-10-30T12:30:00')))
+        self.assertTrue(any('licznik od zera' in x for x in zd.META['errors']))
+
+    # ------------------------------------------------------------------ build_trendy: pole fw
+    def test_build_trendy_pole_fw(self):
+        self.dane(); now = self.t('2026-10-21T12:30:00')
+        bez = [mock.patch.object(zd, n, return_value=(None, None)) for n in ('build_daily', 'build_daily_cr', 'build_daily_w2')]   # sygnały główne poza testem
+        [p.start() for p in bez]; self.addCleanup(lambda: [p.stop() for p in bez])
+        with mock.patch.object(zd, '_now_utc', return_value=now):
+            out = zd.build_trendy(self.S(now))
+            self.assertEqual(set(zd.build_trendy({})), {'at', 'v', 'src', 'rules', 'f', 'p', 'b', 'dv', 'dsince', 'dr', 'd', 'bd'}, 'bez wejść — klucze jak dotąd (bez fw)')
+        fw = out['fw']
+        self.assertEqual((fw['reg'], fw['sha'], fw['m'], fw['looks'], fw['at']), ('2026-10-17', zd.FWT_SHA, 18, [100, 200, 400], '2026-10-21T12:30:00Z'))
+        self.assertEqual(list(fw['l']), ['in.fii', 'tw.fn', 'tw.pc', 'cn.csi', 'us.sofr', 'st.pr']); self.assertNotIn('ok', fw); self.assertNotIn('su', out)
+        L = zd._FWT_LOG[1]
+        self.assertEqual((L['v'], L['reg'], L['since'], L['sha'], L['cut']), (1, '2026-10-17', '2026-10-19', zd.FWT_SHA, {'w': 540}))
+        self.assertEqual({r[1] for r in L['rows']}, set(zd.FWT_SYMS)); self.assertEqual(zd.META['errors'], [])
+        # blok nowych grup w tym samym pliku nie zmienia swojego pola (pole ng tylko z własnych wejść)
+        self.assertNotIn('ng', out)
+        # awaria bloku nie rusza reszty pliku; poprzedni dziennik zostaje (main)
+        with mock.patch.object(zd, '_now_utc', return_value=now), mock.patch.object(zd, '_fwt_log', side_effect=RuntimeError('x')):
+            o2 = zd.build_trendy(self.S(now))
+        self.assertNotIn('fw', o2); self.assertIsNone(zd._FWT_LOG[1]); self.assertIn('trendy najnowsze źródła (w cieniu): x', zd.META['notes'])
+        self.assertEqual({k for k in o2 if k != 'fw'}, {k for k in out if k != 'fw'})
+
+    def test_main_kolejnosc_i_zapis(self):
+        src = open(zd.__file__, encoding='utf-8').read()
+        m = src.index('def main():')
+        a = src.index("_FWT_LOG[0] = previous('fw-dziennik'); _FWT_LOG[1] = None"); t0 = src.index("save('trendy', build_trendy(SAVED))")
+        b = src.index("save('fw-dziennik', _FWT_LOG[1])"); c = src.index("save('fw-dziennik', _FWT_LOG[0])")
+        self.assertTrue(m < a < t0 < b < c, 'dziennik: poprzedni przed trendami, zapis po trendach')
+        for plik in ("save('plynnosc-usa', plusa_)", "save('chiny-tw', ctw_)"):
+            self.assertGreater(src.index(plik), t0, plik + ' zapisany PO trendach — stąd odczyt z pamięci poprzedniego przebiegu (_prev_cache)')
+        blk = src[src.index('# ===================== v413: najnowsze źródła w TRENDACH'):src.index('# ===================== v373: ceny dodatkowych funduszy')]
+        for bad in ('_tdw_pool(', '_td_pool_cr2(', '_tdw_pairs(', '_td_pairs_cr2(', 'get_json(', 'urlopen', 'os.environ', '_wd_fetch_px(', 'previous('):
+            self.assertNotIn(bad, blk, 'blok reguł bez wyniku „w próbie” i bez sieci: ' + bad)
+        self.assertFalse(any(n.startswith('build_') for n in dir(zd) if '_fwt_' in n), 'funkcje bloku bez przedrostka build_ (atrapy testów main)')
+        self.assertTrue(set(dir(zd)).isdisjoint({'build_fw_ceny'}), 'żadnego nowego budowniczego cen')
+        self.assertIn("**({'fw': fw_td} if fw_td else {})", src)
+
+    # ------------------------------------------------------------------ kontrola dzienna i archiwum
+    def kontrola(self):
+        import importlib.util
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(self.tmp, 'k'), 'KONTROLA_ARCH': os.path.join(self.tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('kontrola_v413', os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'))
+            K = importlib.util.module_from_spec(spec); spec.loader.exec_module(K)
+        return K
+
+    def test_kontrola_pliki_i_swiezosc(self):
+        import inspect
+        K = self.kontrola()
+        self.assertEqual(K.PLIKI.count('fw-dziennik'), 1); self.assertLess(K.PLIKI.index('fw-dziennik'), K.PLIKI.index('krypto-dzien'))
+        self.assertEqual(K.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik']); self.assertEqual(K.LIMIT_MIN['fw-dziennik'], 180)
+        self.assertEqual((K.FWK_PROG, K.FWK_START_DNI, K.NGK_PROG, K.NGK_PROG_GR), (60 * 60, 14, 60 * 60, 96 * 60), 'progi nowego wiersza jak zbiorczy wiersz bloku nowych grup (test wsteczny v309/v373)')
+        J = {'v': 1, 'reg': '2026-10-17', 'since': '2026-10-19', 'rows': []}
+        F = K.fw_dziennik_swiezosc
+        self.assertEqual(F(J, self.t('2026-10-18T00:10:00'))[1], '—'); self.assertEqual(F(J, self.t('2026-10-30T00:10:00'))[1], '—', 'pierwsze 14 dni od startu bez wyniku — „—”')
+        r = F(J, self.t('2026-11-05T06:20:00')); self.assertEqual(r[1], '⚠️'); self.assertIn('brak dnia z wynikiem', r[4])
+        J['rows'] = [['2026-10-20', 'cn.csi', 'CSI', 0, 'ok', 0.4, 'x', 0.31, '2026-10-19'], ['2026-10-21', 'cn.csi', 'CSI', 1, 'ok', 2.2, 'x', None, '2026-10-20']]
+        r = F(J, self.t('2026-10-21T06:20:00')); self.assertEqual((r[1], r[3]), ('✅', '2026-10-20'), 'wiersz bez wyniku (czeka) się nie liczy'); self.assertLess(r[2], K.FWK_PROG)
+        r = F(J, self.t('2026-10-26T06:20:00')); self.assertEqual(r[1], '⚠️'); self.assertIn('przestały dochodzić', r[4])
+        self.assertIsNone(F({'at': 'x'})); self.assertIsNone(F(None))
+        J2 = {'v': 1, 'reg': '2026-10-17', 'since': '2026-10-19', 'rows': [['2026-10-14', 'in.fii', 'FII', 0, 'ok', 0.4, 'x', 0.31, '2026-10-13']]}
+        self.assertEqual(F(J2, self.t('2026-10-19T12:00:00'))[1:3], ('✅', K.FWK_PROG), 'dokładnie 60 godzin roboczych — jeszcze ✅'); self.assertEqual(F(J2, self.t('2026-10-19T12:01:00'))[1], '⚠️')
+        for zly in (True, None, float('nan'), float('inf'), 'x'):   # y nie jest liczbą skończoną → wiersz bez wyniku
+            self.assertEqual(F(dict(J, rows=[['2026-10-20', 'in.fii', 'FII', 0, 'ok', 0.4, 'x', zly, 'd']]), self.t('2026-10-21T06:20:00'))[1], '—')
+        # same karty „po czasie” przez trzy sesje → ⚠️ (automat nie zdąża)
+        L = {'v': 1, 'reg': '2026-10-17', 'since': '2026-10-19', 'rows': [['2026-10-20', 'in.fii', 'FII', 0, 'ok', 0.4, 'x', 0.3, '2026-10-19']] +
+             [[d, 'in.fii', 'FII', 0, 'late', None, 'x', 0.2, '2026-10-19'] for d in ('2026-10-21', '2026-10-22', '2026-10-23')]}
+        r = F(L, self.t('2026-10-26T06:20:00')); self.assertEqual(r[1], '⚠️'); self.assertIn('po czasie', r[4])
+        src = inspect.getsource(K.kontrola)
+        self.assertIn("fw_dziennik_swiezosc(files.get('fw-dziennik'))", src)
+        self.assertIn("ng_dziennik_swiezosc(files.get('ng-dziennik'))", src, 'wiersze bloku nowych grup bez zmian')
+
+    def test_archiwum_fw_dziennik(self):
+        import importlib.util, io, urllib.error
+        spec = importlib.util.spec_from_file_location('arch_v413', os.path.join(self.ROOT, 'narzedzia', 'archiwum.py'))
+        A = importlib.util.module_from_spec(spec); spec.loader.exec_module(A)
+        F = A.FILES['fw-dziennik']
+        self.assertEqual((F['file'], F['cols'], F['key'], F['back']), ('fw-dziennik.csv', zd.FWT_CSV_COLS, ['date', 'line', 'sym', 'v', 'reg'], None))
+        self.assertTrue(all(c.isascii() and c == c.lower() for c in F['cols']) and set(F['key']) <= set(F['cols']))
+        self.assertEqual(os.path.basename(zd.FWT_CSV), 'fw-dziennik.csv')
+        self.assertIn('ng-dziennik', A.FILES, 'wpis bloku nowych grup bez zmian')
+        log = {'v': 1, 'reg': '2026-10-17', 'rows': [['2026-10-19', 'in.fii', 'FII', 1, 'ok', 1.2, 'x', None, '2026-10-16'], ['2026-10-19', 'in.fii', 'bad']]}
+        with mock.patch.object(A.zd, 'get_json', return_value=log):
+            out = A.src_fw_dziennik()
+        self.assertEqual(out, [['2026-10-19', 'in.fii', 'FII', 1, 'ok', 1.2, 'x', None, '2026-10-16', 1, '2026-10-17']])
+        e404 = urllib.error.HTTPError('u', 404, 'nf', {}, io.BytesIO(b''))
+        with mock.patch.object(A.zd, 'get_json', side_effect=e404):
+            self.assertEqual(A.src_fw_dziennik(), [])
+        with mock.patch.object(A.zd, 'get_json', return_value={'v': 1, 'reg': 'x', 'rows': []}):
+            self.assertEqual(A.src_fw_dziennik(), [])
+        for zle in ({'v': 1, 'reg': 'x'}, {'rows': [], 'reg': 'x'}, {'v': True, 'reg': 'x', 'rows': []}, {'v': 1, 'reg': 'x', 'rows': [['a']]}, []):
+            with mock.patch.object(A.zd, 'get_json', return_value=zle):
+                self.assertRaises(RuntimeError, A.src_fw_dziennik)
+        with mock.patch.object(A.zd, 'get_json', side_effect=urllib.error.HTTPError('u', 500, 'x', {}, io.BytesIO(b''))):
+            self.assertRaises(urllib.error.HTTPError, A.src_fw_dziennik)
+        src = open(os.path.join(self.ROOT, 'narzedzia', 'archiwum.py'), encoding='utf-8').read()
+        self.assertIn("'fw-dziennik': src_fw_dziennik", src)
+        self.assertIn('`fw-dziennik.csv`', open(os.path.join(self.ROOT, 'docs', 'ODTWORZENIE.md'), encoding='utf-8').read())

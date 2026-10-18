@@ -32079,3 +32079,86 @@ test('v412 (F11Z21): lista pierwszego widoku T0 w jednym miejscu; pliki spoza ni
   /* archiwum wykresów: ten sam niski priorytet na starcie, potem zwykły */
   assert.ok(html.includes("fetch('archiwum/seria.json?t='+Math.floor(Date.now()/60000),{cache:'no-store',priority:srvJSON.lo?'low':'auto',signal:"), 'arcLoad');
 });
+
+/* ---------- v413 (F11Z22): najnowsze źródła danych w TRENDACH — zwinięty blok reguł „w cieniu” (rejestracja z góry 17.10.2026): do końca okresu cienia tylko opis,
+   data rejestracji i licznik sesji z sygnałem do najbliższej oceny; żadnych ocen, procentów ani ujawnienia (plik trendy.json nie ma pola ok) ---------- */
+const v413 = (() => {
+  const dict = v142Dicts(html).find(d => d.obj.pl && d.obj.pl['fw413.t']);
+  const fw = (o = {}) => Object.assign({v: 1, reg: '2026-10-17', sha: 'b'.repeat(64), m: 18, cll: 99.7, looks: [100, 200, 400], at: '2026-10-19T12:59:00Z',
+    l: {'in.fii': [4, 100, '2027-03-01', 3, '2026-10-19'], 'tw.fn': [0, 100, null, 0, null], 'tw.pc': [0, 100, null, 0, null], 'cn.csi': [2, 100, null, 0, '2026-10-19'],
+      'us.sofr': [2, 100, null, 0, '2026-10-19'], 'st.pr': [0, 100, null, 0, null]}}, o);
+  const view = (data, trdv, ico) => { const st = {mode: 'trendy', trdv: trdv || 'global'}, f = trdV96.make(st, ico); f.trdApply(data); return f.el.innerHTML; };
+  const panel = h => { const a = h.indexOf('<details class="etfd" id="trd-fw">'); return a < 0 ? '' : h.slice(a, h.indexOf('</details>', a) + 10); };
+  return {dict, fw, view, panel};
+})();
+
+test('v413: słownik najnowszych źródeł — 10 języków, te same klucze i pola, prawdziwe tłumaczenia, bez nazw dostawców', () => {
+  const {dict} = v413;
+  assert.ok(dict, 'słownik z kluczem fw413.t');
+  const L10 = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'], K = Object.keys(dict.obj.pl);
+  assert.deepEqual(Object.keys(dict.obj), L10);
+  assert.ok(K.every(k => k.startsWith('fw413.')), 'przedrostek zadania');
+  for (const line of ['in.fii', 'tw.fn', 'tw.pc', 'cn.csi', 'us.sofr', 'st.pr']) assert.ok(K.includes('fw413.l.' + line) && K.includes('fw413.d.' + line), line);
+  assert.equal(K.length, 14);
+  const ph = s => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  const PROV = /\b(CFTC|EIA|LBMA|GLD|SPDR|Sprott|iShares|State Street|Nasdaq|Twelve|FMP|Tiingo|BlackRock|Invesco|NSE|TAIFEX|TWSE|CSIndex|NY Fed|New York Fed|Federal Reserve|OFR|ECB|EBC|Binance|Bybit|Stooq|Yahoo|Bloomberg)\b/;
+  for (const l of L10) {
+    assert.deepEqual(Object.keys(dict.obj[l]), K, 'te same klucze: ' + l);
+    for (const k of K) {
+      assert.ok(typeof dict.obj[l][k] === 'string' && dict.obj[l][k].trim().length > 0, l + ' ' + k);
+      assert.equal(ph(dict.obj[l][k]), ph(dict.obj.pl[k]), 'pola ' + l + ' ' + k);
+      assert.ok(!PROV.test(dict.obj[l][k]), 'bez nazw dostawców: ' + l + ' ' + k);
+      if (!['pl', 'en'].includes(l)) assert.notEqual(dict.obj[l][k], dict.obj.en[k], 'nie kopia angielskiego: ' + l + ' ' + k);
+    }
+  }
+  assert.deepEqual(v142Bad(html).bad.filter(x => x.startsWith(dict.name + ' ')), [], 'strażnik v142');
+  assert.ok(!/\d \{|\} (日|件|回|セッション)|\d (日|件|回)/.test(Object.values(dict.obj.ja).join('|')), 'ja: bez spacji przed licznikiem');
+  assert.equal(dict.obj.pl['fw413.l.st.pr'], 'Stablecoiny — lokalne premie');
+  assert.ok(dict.obj.pl['fw413.sub'].includes('nie pokazujemy wyników ani ocen') && dict.obj.en['fw413.sub'].includes('we show no results or grades'), 'opis wprost: bez wyników');
+  assert.ok(dict.obj.pl['fw413.sub'].includes('{j}') && !/ — rekomendacj|kup|sprzedaj/i.test(dict.obj.pl['fw413.sub']), 'bez zaleceń kupna ani sprzedaży');
+  const ng = v142Dicts(html).find(d => d.obj.pl && d.obj.pl['ng373.t']);
+  assert.ok(ng && ng.obj.pl['ng373.reg'].includes('Sześć reguł') && ng.obj.pl['ng373.how'].includes('reguł {r} × 3 oceny = {m} prób naraz'), 'zapis z góry i poprzeczka reużyte z bloku nowych grup (te same 6 reguł i m = 18)');
+});
+
+test('v413: blok najnowszych źródeł — zwinięty, opis, data rejestracji, licznik sesji z sygnałem; tylko widok global; bez wyników i ocen', () => {
+  const {fw, view, panel} = v413, {data} = trdV96;
+  const p = panel(view(Object.assign({}, data, {fw: fw()}), 'global'));
+  assert.ok(p.startsWith('<details class="etfd" id="trd-fw"><summary>') && p.includes('fw413.t</summary>'), 'blok zwinięty (bez open), id trd-fw');
+  assert.ok(p.includes('fw413.sub{"j":200}') && p.includes('ng373.reg{"d":"17.10.2026"}') && p.includes('ng373.how{"r":6,"m":18}'), p.slice(0, 500));
+  assert.ok(p.includes('<b>fw413.l.in.fii</b> — fw413.d.in.fii<br><span class="mtxt">td303.n.w{"n":4,"c":100} · td303.est{"d":'), 'licznik sesji z sygnałem i szacunek');
+  assert.ok(p.includes('<b>fw413.l.cn.csi</b> — fw413.d.cn.csi<br><span class="mtxt">td303.n.w{"n":2,"c":100}</span>'), 'licznik bez szacunku');
+  assert.equal(p.split('td303.wait').length - 1, 3, 'linie bez pierwszej karty (tw.fn, tw.pc, st.pr) czekają na dane');
+  assert.deepEqual([...p.matchAll(/<b>fw413\.l\.([\w.]+)<\/b>/g)].map(x => x[1]), ['in.fii', 'tw.fn', 'tw.pc', 'cn.csi', 'us.sofr', 'st.pr'], 'kolejność z rejestracji');
+  assert.ok(p.includes('td303.at{"t":"2026-10-19T12:59:00Z"}') && p.includes('eng.disclaimer'), 'stan dziennika z datą');
+  assert.ok(!/td303\.(ok|wyc)|dr318\.su\.(ok|wyc)|\d+(\.\d)?%|"k":|"vd"|edge/.test(p), 'bez ocen, procentów i liczb trafień');
+  assert.equal(panel(view(Object.assign({}, data, {fw: fw()}), 'crypto')), '', 'widok krypto bez bloku (reguły dotyczą sesji w USA)');
+  assert.equal(panel(view(data, 'global')), '', 'bez pola fw — bez bloku (pliki sprzed v413)');
+  assert.equal(panel(view(Object.assign({}, data, {fw: {reg: 'x', l: {}}}), 'global')), '', 'zła data rejestracji — bez bloku');
+  assert.equal(panel(view(Object.assign({}, data, {fw: {reg: '2026-02-30', l: {}}}), 'global')), '', 'nieistniejąca data — bez bloku');
+  assert.equal(panel(view(Object.assign({}, data, {fw: fw({l: null})}), 'global')), '', 'bez listy linii — bez bloku');
+  const n = fw(); n.l['in.fii'] = [130, 100, null, 101, '2026-10-19'];
+  assert.ok(panel(view(Object.assign({}, data, {fw: n}), 'global')).includes('td303.n.w{"n":100,"c":100} · td303.soon'), 'licznik nie przekracza punktu kontrolnego');
+  const d = fw(); d.l['in.fii'] = [500, null, null, 500, '2026-10-19'];
+  assert.ok(panel(view(Object.assign({}, data, {fw: d}), 'global')).includes('<span class="mtxt">td303.done</span>'));
+  const z = fw(); z.l['us.sofr'] = ['x', 0, 'zła', -1, 'zła data'];
+  assert.ok(panel(view(Object.assign({}, data, {fw: z}), 'global')).includes('<b>fw413.l.us.sofr</b> — fw413.d.us.sofr<br><span class="mtxt">td303.wait</span>'), 'zły wpis linii — czeka, nic nie psuje');
+  const w = panel(view(Object.assign({}, data, {fw: fw()}), 'global'));
+  assert.equal(w.split('<li>').length - 1, 6); assert.ok(!/NaN|undefined|null/.test(w), 'brak śmieci w bloku');
+  const dwa = view(Object.assign({}, data, {fw: fw(), ng: v373.ng()}), 'global');
+  assert.ok(dwa.includes('id="trd-fw"') && dwa.includes('id="trd-ng"') && dwa.indexOf('id="trd-ng"') < dwa.indexOf('id="trd-fw"'), 'oba bloki obok siebie, nowy po bloku nowych grup');
+});
+
+test('v413: nic nie jest ujawniane — dodatkowe pola oceny w pliku nie zmieniają bloku; kod bloku nie czyta ocen ani nie pobiera plików', () => {
+  const {fw, view, panel} = v413, {data} = trdV96;
+  const bez = panel(view(Object.assign({}, data, {fw: fw()}), 'global'));
+  const z = panel(view(Object.assign({}, data, {fw: fw({ok: [['in.fii', 200, 'edge', '2027-09-01']], jawne: 200, cp: {'in.fii': [[200, 130, 200, 51, 55, 60, 52, 70, 'edge', '2027-09-01', 'x', 50, 55]]}, vd: 'edge'})}), 'global'));
+  assert.equal(z, bez, 'ocena w pliku (której kod nie wytwarza) niczego nie ujawnia');
+  const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v89: TRENDY — koniec */'), f0 = html.indexOf('function trdFw(D){');
+  assert.ok(b0 < f0 && f0 < b1, 'blok w części TRENDY');
+  const kod = html.slice(f0, html.indexOf('\n/* v373 (F1Z2/F5Z4): nowe grupy danych', f0));
+  assert.ok(!kod.includes('srvJSON(') && !/\bfetch\(|XMLHttpRequest/.test(kod), 'bez nowych plików danych (dane z trendy.json)');
+  assert.ok(!/S\.ok|S\.cp|\.vd\b|jawne|edge|wyc/.test(kod), 'kod bloku nie czyta ocen');
+  assert.equal(html.split('trdFw(D)').length - 1, 2, 'definicja i jedno wywołanie (widok global)');
+  assert.ok(/trdNg\(D\):''\)\+\(typeof trdFw==='function'\?trdFw\(D\):''\)/.test(html), 'po bloku nowych grup, tylko w widoku global');
+  assert.ok(!/NSE|TAIFEX|TWSE|CSIndex|Federal Reserve/.test(kod), 'kod bloku bez nazw dostawców');
+});
