@@ -77,22 +77,9 @@ jobs:
           path: pamiec-danych
           key: dane-${{ github.run_id }}
       - name: Złóż stronę
-        env:
-          # v141: adres żywej strony (jak w kroku „Zbierz dane”) — pliki słowników wersji, która jest teraz na żywo
-          SITE_URL: ${{ endsWith(github.event.repository.name, '.github.io') && format('https://{0}', github.event.repository.name) || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
         run: |
           mkdir -p _site/data _site/data/widoki
           cp index.html _site/
-          # v141: lżejsza strona — słowniki 8 języków (poza pl i en) w _site/i18n/<język>.<skrót>.js, porównane w node z pełną stroną przed zapisem;
-          # odmowa albo błąd = zostaje pełna strona jak dotąd (cięższa, ale działa) i ostrzeżenie w podsumowaniu przebiegu
-          if python3 narzedzia/odchudz_strone.py index.html _site; then
-            echo "v141: lżejsza strona złożona"
-          else
-            cp index.html _site/index.html; rm -rf _site/i18n
-            echo "::warning title=lżejsza strona::podział słowników nie przeszedł — opublikowana pełna strona (cięższa, działa jak dotąd)"
-          fi
-          # v141: w obu gałęziach pliki słowników wersji z żywej strony (najwyżej ok. 30 s) — stara index.html z pamięci podręcznej (do 10 min) nie trafi na 404
-          python3 narzedzia/odchudz_strone.py --poprzednie "$SITE_URL" _site || true
           # v412 (F11Z21): komentarze programisty wycięte z OPUBLIKOWANEJ kopii (źródło w repozytorium bez zmian; ok. −460 KB, gzip −200 KB); tokenizator JavaScriptu + ten sam ciąg tokenów
           # + składnia w silniku JS (narzedzia/bez_komentarzy.py); odmowa albo błąd = zostaje kopia z komentarzami i ostrzeżenie. Znacznik <meta name="cf-wydanie"> = skrót commitu (który commit jest na żywo)
           if python3 narzedzia/bez_komentarzy.py _site/index.html --wydanie "${GITHUB_SHA:0:12}"; then
@@ -109,7 +96,7 @@ jobs:
           test -f _site/count.js                        # brak skryptu licznika = przerwij publikację (osobna linia, jak wyżej)
           # v351 (F4Z4): Service Worker — wersja wydania = skrót zawartości złożonej strony (nowe wydanie = nowa pamięć w przeglądarce, stare czyszczone)
           cp sw.js _site/sw.js                          # własny Service Worker z tej samej strony; strategie i wyłączniki opisane w sw.js i README
-          W=$(sha256sum _site/index.html | cut -c1-16)   # skrót ostatecznej strony (po podziale słowników)
+          W=$(sha256sum _site/index.html | cut -c1-16)   # skrót ostatecznej strony
           sed -i "s/__WYDANIE__/$W/" _site/sw.js
           test -f _site/sw.js                           # brak Service Workera = przerwij publikację (osobna linia, jak wyżej)
           if grep -q '__WYDANIE__' _site/sw.js; then echo "::error title=sw.js::znacznik wydania nie został podstawiony"; exit 1; fi   # wykrzyknik przed grep nie przerwałby kroku przy bash -e

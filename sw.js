@@ -1,12 +1,12 @@
 /* CF-SW v351 (F4Z4) — własny Service Worker strony CapitalFlowAI.
-   CEL: szybsze powroty (czcionki, obrazki, słowniki i skrypt licznika z pamięci przeglądarki) BEZ pogorszenia świeżości danych.
+   CEL: szybsze powroty (czcionki, obrazki, skrypt licznika z pamięci przeglądarki) BEZ pogorszenia świeżości danych.
 
    ZASADY
    1) Strona (HTML) i pliki data/*.json: ZAWSZE najpierw z sieci. Żądanie przechodzi bez zmian (nagłówki, tryb pamięci, adres z ?t=…),
       więc świeżość jest taka sama jak bez Service Workera. Kopia z pamięci tylko wtedy, gdy sieć w ogóle nie odpowiada (błąd połączenia);
       wtedy strona pokazuje pasek „zapisana kopia z <data>” (wiek danych jest podany uczciwie). Odpowiedź serwera z błędem HTTP
       (404, 5xx) NIE jest zastępowana kopią. Do pamięci trafiają tylko odpowiedzi 200 o właściwym typie (HTML / JSON).
-   2) fonts/, img/, i18n/ i count.js: z pamięci od razu; w tle odświeżane, gdy kopia jest starsza niż godzina (stale-while-revalidate).
+   2) fonts/, img/ i count.js: z pamięci od razu; w tle odświeżane, gdy kopia jest starsza niż godzina (stale-while-revalidate).
    3) Obce domeny (źródła danych, licznik odwiedzin) i wszystko spoza listy powyżej (np. archiwum/, kontrola/, robots.txt, ten plik):
       NIE przechwytywane — przeglądarka robi z nimi to, co zrobiłaby bez Service Workera. Service Worker sam nie pyta obcych domen.
    4) Wersja wydania: publikacja (strona.yml) podstawia pod znacznik wydania skrót zawartości złożonej strony. Pamięć nazywa się
@@ -36,7 +36,7 @@ function rodzaj(url) {
   const w = url.pathname.slice(KORZEN.length);
   if (w === '' || w === 'index.html') return ['strona', KLUCZ_STRONY];
   if (/^data\/(?:[A-Za-z0-9_-]+\/)?[A-Za-z0-9_.-]+\.json$/.test(w)) return ['dane', url.origin + url.pathname];
-  if (/^(?:fonts|img|i18n)\/[A-Za-z0-9_.\/-]+$/.test(w) || w === 'count.js') return ['statyk', url.origin + url.pathname];
+  if (/^(?:fonts|img)\/[A-Za-z0-9_.\/-]+$/.test(w) || w === 'count.js') return ['statyk', url.origin + url.pathname];
   return null;
 }
 

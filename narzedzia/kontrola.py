@@ -4515,62 +4515,6 @@ def przegladarka_wiersz_lekka(P):
             + (f'; napisy-błędy w tekście (NaN, undefined…): {P["artefakty_n"]} ⚠️' if P.get('artefakty_n') else '') + '.')
 
 
-# ---------------------------------------------------------------- v141: lżejsza strona — pliki słowników języków (i18n/<język>.<skrót>.js) ----------------------------------------------------------------
-I18N_MAPA = re.compile(r'const CF_I18N_H=(\{[^{}]*\})[;,]')
-I18N_JEZYKI = ('de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja')
-
-
-def i18n_skrot(jezyk, d_json):
-    """Ten sam wzór co narzedzia/odchudz_strone.py (skrot): sha256(język + '\\n' + JSON słownika z pliku)[:8]."""
-    import hashlib
-    return hashlib.sha256((jezyk + '\n' + d_json).encode('utf-8')).hexdigest()[:8]
-
-
-def i18n_kontrola(body, R, pobierz=None):
-    """v141: index.html na żywo. Mapa plików słowników (CF_I18N_H) — każdy plik HTTP 200, treść window.CF_I18N_X tego języka i skrótu,
-    skrót w nazwie = treść. Brak mapy = na żywo PEŁNA strona (przekształcenie przy publikacji odmówiło — publikacja dalej działa, ale strona
-    jest cięższa; szczegóły w ostrzeżeniu „lżejsza strona” przebiegu „Strona i dane”). Tylko uwagi (najwyżej ⚠️, nigdy błąd).
-    Wynik w R['strona']['i18n'] (linia raportu pod „Strona główna”)."""
-    if body is None:
-        return None
-    pobierz = pobierz or get
-    txt = body.decode('utf-8', 'replace') if isinstance(body, bytes) else str(body)
-    m = I18N_MAPA.search(txt)
-    if not m:
-        R['strona']['i18n'] = {'pelna': True, 'opis': 'pełna strona (bez osobnych plików słowników)'}
-        R['uwagi'].append('strona główna to PEŁNA wersja (bez osobnych plików słowników v141) — przekształcenie przy publikacji odmówiło; '
-                          'zobacz ostrzeżenie „lżejsza strona” w przebiegu „Strona i dane”')
-        return R['strona']['i18n']
-    try:
-        mapa = json.loads(m.group(1))
-    except ValueError:
-        mapa = {}
-    zle, ok = [], 0
-    for j in I18N_JEZYKI:
-        h = mapa.get(j)
-        if not (isinstance(h, str) and re.fullmatch(r'[0-9a-f]{8}', h)):
-            zle.append(f'{j}: brak w mapie'); continue
-        try:
-            st, b, ms = pobierz(f'{SITE}/i18n/{j}.{h}.js')
-        except urllib.error.HTTPError as e:
-            zle.append(f'{j}.{h}.js: HTTP {e.code}'); continue
-        except Exception as e:  # noqa
-            zle.append(f'{j}.{h}.js: {str(e)[:60]}'); continue
-        t = b.decode('utf-8', 'replace') if isinstance(b, bytes) else str(b)
-        pre = f'window.CF_I18N_X={{"lang":"{j}","h":"{h}","d":'
-        if st != 200:
-            zle.append(f'{j}.{h}.js: HTTP {st}')
-        elif not (t.startswith(pre) and t.endswith('};\n')) or i18n_skrot(j, t[len(pre):-3]) != h:
-            zle.append(f'{j}.{h}.js: treść nie zgadza się ze skrótem w nazwie')
-        else:
-            ok += 1
-    R['strona']['i18n'] = {'pelna': False, 'plikow': len(I18N_JEZYKI), 'ok': ok, 'zle': zle,
-                           'opis': f'{ok} z {len(I18N_JEZYKI)} plików odpowiada, skróty zgodne' if not zle else f'{ok} z {len(I18N_JEZYKI)} w porządku'}
-    if zle:
-        R['uwagi'].append('pliki słowników języków (lżejsza strona): ' + '; '.join(zle) + ' — widz w tym języku dostanie angielski zapas')
-    return R['strona']['i18n']
-
-
 # ---------------------------------------------------------------- v133: tokenizowane aktywa RWA (data/rwa.json) ----------------------------------------------------------------
 RWA_ETYKIETA = 'tokenizowane aktywa RWA (co 3 h)'   # v172: było co 6 h
 RWA_SWIEZ_MIN = 12 * 60    # min — lista starsza (plik co 3 h od v172, część z błędem ponawiana po godzinie) = ⚠️; nigdy ❌ ani BŁĄD
@@ -14090,11 +14034,6 @@ def kontrola():
     except Exception as e:  # noqa
         R['strona'] = {'ok': False, 'blad': str(e)[:200]}
         R['bledy'].append(f'strona główna nie odpowiada: {str(e)[:120]}')
-    # 1b. v141: lżejsza strona — pliki słowników języków wskazane przez index.html (HTTP 200, skrót = treść); pełna strona = uwaga; najwyżej ⚠️
-    try:
-        i18n_kontrola(body if (R.get('strona') or {}).get('ok') else None, R)
-    except Exception as e:  # noqa
-        R['uwagi'].append(f'pliki słowników języków: kontrola nie przeszła ({str(e)[:80]})')
     # 1c. v247: strona w przeglądarce bez okna (Chrome, ekran telefonu) — błędy JavaScriptu na prawdziwych danych; najwyżej ⚠️. Tylko gdy
     # KONTROLA_PRZEGLADARKA=1 (ustawia kontrola.yml): testy wołające kontrola() nie mogą uruchamiać przeglądarki — ona ma własną sieć
     if (R.get('strona') or {}).get('ok') and os.environ.get('KONTROLA_PRZEGLADARKA') == '1':
@@ -15335,9 +15274,6 @@ def raport_md(R):
         top = [x for x in (cz.get('top') or []) if isinstance(x, list) and len(x) == 2][:3]
         L.append(f'- Czas tego przebiegu automatu: {int(cz["s"]) // 60} min {int(cz["s"]) % 60} s'
                  + ('; najdłużej: ' + ', '.join(f'{n} {s} s' for n, s in top) if top else '') + '.')
-    s18 = (R.get('strona') or {}).get('i18n')   # v141: lżejsza strona — pliki słowników języków
-    if s18:
-        L.append('- Słowniki języków de–ja (osobne pliki strony): ' + s18.get('opis', '—') + '.')
     pg = R.get('przegladarka')   # v247: strona w przeglądarce bez okna
     if isinstance(pg, dict):
         L.append(przegladarka_wiersz(pg))

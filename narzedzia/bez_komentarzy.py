@@ -13,7 +13,7 @@ CO WYCINA
   Cała linia z samym komentarzem znika razem z końcem linii; komentarz za kodem traci też białe znaki przed sobą; komentarz w środku linii
   zamienia się w spację (tokeny się nie sklejają); komentarz blokowy z końcem linii w środku linii kodu zamienia się w koniec linii
   (wstawianie średnika i `return` + nowa linia działają tak samo jak przed wycięciem).
-  Zostają: wszystkie inne skrypty (ładowarka słowników v141, licznik, Service Worker), komentarze HTML (<!-- … -->) i cały tekst poza <script>/<style>.
+  Zostają: wszystkie inne skrypty (licznik, Service Worker), komentarze HTML (<!-- … -->) i cały tekst poza <script>/<style>.
 
 JAK SIĘ UPEWNIAMY (każda odmowa = kod wyjścia 1, nic nie zapisano, strona.yml publikuje kopię z komentarzami z ostrzeżeniem)
   1. tokenizator kończy w stanie czystym (żaden łańcuch, szablon, wyrażenie regularne ani komentarz nie jest otwarty, nawiasy w parach);

@@ -22,7 +22,7 @@ i nazwane `capitalflowai-app.github.io`, więc jest to strona użytkownika bez �
 ## Service Worker (v351)
 
 Plik `sw.js` (kopiowany do `_site/` w kroku „Złóż stronę”, rejestrowany w `index.html`) przyspiesza powroty na stronę:
-czcionki, obrazki, słowniki języków i skrypt licznika wchodzą z pamięci przeglądarki (w tle odświeżane po godzinie).
+czcionki, obrazki i skrypt licznika wchodzą z pamięci przeglądarki (w tle odświeżane po godzinie).
 Strona (HTML) i pliki `data/*.json` są zawsze pobierane najpierw z sieci — świeżość danych jest taka sama jak bez Service Workera;
 kopia z pamięci pojawia się tylko wtedy, gdy sieć w ogóle nie odpowiada, a strona pokazuje wtedy pasek z datą i wiekiem kopii.
 Service Worker nie dotyka obcych domen (źródeł danych ani licznika odwiedzin) i niczego nie wysyła.
