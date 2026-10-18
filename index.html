@@ -124,9 +124,15 @@ body[data-bg="off"] #hex{display:none}
 .nav{display:flex;flex-direction:column;gap:2px;position:relative}
 /* v404: lewy pasek bez ciemnej, rozmytej płyty — to samo tło ze spadającymi cyframi (#hex) co reszta strony */
 .nav button{display:flex;align-items:center;gap:12px;background:none;border:1px solid transparent;border-radius:9px;padding:10px 12px;text-align:left;color:var(--mut);font-weight:500}
-.nav button[aria-current="page"]{background:var(--sel);border-color:var(--line-2);color:var(--tx)}
+.nav button[aria-current="page"]{background:var(--sel);border-color:transparent;color:var(--tx)}
+/* v433: lewy panel — ikony w neonowym niebieskim jak logo; cienka niebieska linia od ikony do końca napisu tylko przy aktywnej pozycji (jak aktywne GLOBAL/CRYPTO/TRENDY) */
+.nav button{position:relative;transition:color .15s}
+.nav button:hover{color:var(--tx)}
+.nav button span{position:relative}
+.nav button span::after{content:"";position:absolute;left:-31px;right:0;bottom:-5px;height:2px;border-radius:2px;background:var(--bl);box-shadow:0 0 6px rgba(var(--bl-rgb),.55);transform:scaleX(0);transform-origin:left center;transition:transform .2s}
+.nav button[aria-current="page"] span::after{transform:scaleX(1)}
 .nav button[aria-disabled="true"]{cursor:default;opacity:.7}
-.nav svg{width:19px;height:19px;flex:none}
+.nav svg{width:19px;height:19px;flex:none;color:var(--bl);filter:drop-shadow(0 0 3px rgba(var(--bl-rgb),.5))}
 .upd{margin-top:auto;border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--mut);font-size:12px;display:flex;gap:10px;align-items:center;background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .upd svg{width:22px;height:22px;flex:none;color:var(--gr)}
 .upd .upd-n{display:block;margin-top:4px;font-size:11.5px;line-height:1.35;color:var(--mut);cursor:help}   /* v347: „Dane z N źródeł” pod datą aktualizacji */
@@ -441,7 +447,9 @@ td .cell .logo-img{width:34px;height:34px}
   .logo{padding:0 8px 0 2px;white-space:nowrap;font-size:0;gap:0}
   .nav{flex-direction:row}
   .nav button{white-space:nowrap;padding:8px 10px}
-  .nav svg{display:none}
+  .nav button{gap:8px}
+  .nav svg{width:17px;height:17px}
+  .nav button span::after{left:-25px;bottom:-4px}   /* v433: telefon — ikony zostają w pasku, linia od ikony */
   .upd{display:none}
   .top{grid-column:1;grid-row:2;padding:10px 14px}
   .center{grid-column:1;grid-row:3;padding:14px}
@@ -11103,6 +11111,7 @@ function applyVis(){
   $('#nav-overview').setAttribute('aria-current',ov?'page':'false');
   $('#nav-settings').setAttribute('aria-current',page==='settings'?'page':'false');
   PAGES.forEach(k=>{const b=$('#nav-'+k);if(b)b.setAttribute('aria-current',page===k?'page':'false');});
+  try{const sd=$('#side'),ac=sd&&sd.querySelector('.nav [aria-current="page"]');if(ac&&sd.scrollWidth>sd.clientWidth+2)sd.scrollLeft+=ac.getBoundingClientRect().left-sd.getBoundingClientRect().left-(sd.clientWidth-ac.offsetWidth)/2;}catch(e){}   /* v433: poziomy pasek (telefon) — aktywna pozycja na środku, linia zawsze widoczna */
   if(ov&&st.mode==='crypto'){resize();dirty=true;}
   if(ov&&st.mode==='global'){gResize();gDirty();}
 }

@@ -34440,3 +34440,22 @@ test('v431: GLOBAL — wpięcie: plik iip.json, kolejność po bilansie płatnic
   assert.ok(html.includes(`for(const l in ${m[0][1]})if(I18N[l])Object.assign(I18N[l],${m[0][1]}[l]);`));
   assert.ok(d.pl['iip431.not'].includes('porada') === false);
 });
+
+
+test('v433: lewy panel — ikony w neonowym niebieskim jak logo, cienka niebieska linia od ikony do napisu tylko przy aktywnej pozycji, telefon z ikonami', () => {
+  assert.ok(html.includes('.nav svg{width:19px;height:19px;flex:none;color:var(--bl);filter:drop-shadow(0 0 3px rgba(var(--bl-rgb),.5))}'), 'ikony w kolorze logo (--bl), nie szare');
+  const m = html.match(/\.nav button span::after\{([^}]*)\}/); assert.ok(m, 'linia pod napisem');
+  assert.ok(m[1].includes('left:-31px') && m[1].includes('height:2px') && m[1].includes('background:var(--bl)') && m[1].includes('transform:scaleX(0)'), 'domyślnie linia schowana (scaleX(0)), cienka, niebieska, od lewej krawędzi ikony');
+  assert.ok(html.includes('.nav button[aria-current="page"] span::after{transform:scaleX(1)}'), 'linia tylko przy aktywnej');
+  assert.ok(!html.includes('.nav button:hover span::after') && !html.includes('.nav button:hover::after'), 'najechanie nie rysuje linii');
+  assert.ok(html.includes('.nav button[aria-current="page"]{background:var(--sel);border-color:transparent;color:var(--tx)}'));
+  assert.ok(!html.includes('  .nav svg{display:none}'), 'telefon: ikony widoczne');
+  assert.ok(html.includes('  .nav svg{width:17px;height:17px}') && html.includes('.nav button span::after{left:-25px;'), 'telefon: mniejsze ikony, linia od ikony (17 + 8 px)');
+  const nav = html.slice(html.indexOf('<nav class="nav">'), html.indexOf('</nav>', html.indexOf('<nav class="nav">')));
+  const btns = nav.match(/<button id="nav-[a-z]+"[^>]*>.*?<\/button>/g) || [];
+  assert.equal(btns.length, 7, 'siedem pozycji panelu');
+  btns.forEach(b => assert.ok(/<svg [^>]*stroke="currentColor"/.test(b) && /<span data-i18n="nav\.[a-z]+"><\/span><\/button>$/.test(b), 'ikona (currentColor) + napis: ' + b.slice(0, 40)));
+  assert.equal((html.match(/<button id="nav-[a-z]+"[^>]*aria-current="page"/g) || []).length, 1, 'w kodzie startowym jedna pozycja aktywna');
+  assert.ok(html.includes("$('#side'),ac=sd&&sd.querySelector('.nav [aria-current=\"page\"]')") && html.includes('catch(e){}   /* v433: poziomy pasek'), 'przewijanie paska do aktywnej pozycji, w try/catch');
+  assert.ok(html.includes('.tabs button[aria-selected="true"]{background:var(--sel);color:var(--tx);box-shadow:inset 0 -2px 0 var(--bl)}'), 'wzór (aktywne GLOBAL/CRYPTO/TRENDY) bez zmian');
+});
