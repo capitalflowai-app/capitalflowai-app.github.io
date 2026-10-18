@@ -621,6 +621,7 @@ td .cell .logo-img{width:34px;height:34px}
 .sbar.n i{background:linear-gradient(90deg,rgba(var(--rd-rgb),.5),var(--rd))}
 .sval{grid-area:v;font-weight:600;font-size:13px;white-space:nowrap}
 .ssub{grid-area:s;color:var(--dim);font-size:11px}
+#page-sectors .swhy{color:var(--dim)}
 .mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11.5px;color:var(--mut)}
 .formula{margin:8px 0 0;padding:9px 11px;border:1px solid var(--line-2);border-radius:9px;background:var(--panel-2);
   font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11.5px;color:var(--tx);line-height:1.6}
@@ -3676,6 +3677,8 @@ for(const l in EXTRA296)if(I18N[l])Object.assign(I18N[l],EXTRA296[l]);
 /* v434 (pkt 2 poleceń 18.10): podtytuł strony Przepływy po usunięciu tabeli korytarzy — 10 języków */
 const EXTRA297={"pl":{"pg434.flows.d":"Największe wzrosty i spadki wartości w okresie: {p}. Kierunek jest wnioskiem z danych, nie zapisem przelewu."},"en":{"pg434.flows.d":"Largest gains and losses in value for the period: {p}. The direction is inferred from data, not a record of a transfer."},"de":{"pg434.flows.d":"Größte Wertzuwächse und -rückgänge im Zeitraum: {p}. Die Richtung ist aus Daten abgeleitet, keine Aufzeichnung einer Überweisung."},"es":{"pg434.flows.d":"Mayores subidas y bajadas de valor en el periodo: {p}. La dirección se deduce de los datos, no es el registro de una transferencia."},"fr":{"pg434.flows.d":"Plus fortes hausses et baisses de valeur sur la période : {p}. La direction est déduite des données, ce n’est pas l’enregistrement d’un transfert."},"it":{"pg434.flows.d":"Maggiori aumenti e cali di valore nel periodo: {p}. La direzione è dedotta dai dati, non è la registrazione di un trasferimento."},"pt":{"pg434.flows.d":"Maiores altas e quedas de valor no período: {p}. A direção é deduzida dos dados, não é o registro de uma transferência."},"ru":{"pg434.flows.d":"Крупнейший рост и падение стоимости за период: {p}. Направление выведено из данных, это не запись перевода."},"zh":{"pg434.flows.d":"本期价值涨幅和跌幅最大的项目：{p}。方向由数据推断，并非转账记录。"},"ja":{"pg434.flows.d":"期間（{p}）に価値が最も増減した項目。向きはデータからの推論で、送金の記録ではありません。"}};
 for(const l in EXTRA297)if(I18N[l])Object.assign(I18N[l],EXTRA297[l]);
+const EXTRA298={"pl": {"v435.sek.cov": "Dane: {n}/{m} regionów · brakuje", "v435.sek.rus": "powód: sankcje UE i USA — notowań rosyjskiej giełdy nie pobieramy"}, "en": {"v435.sek.cov": "Data: {n}/{m} regions · missing", "v435.sek.rus": "reason: EU and US sanctions — we do not collect Russian exchange quotes"}, "de": {"v435.sek.cov": "Daten: {n}/{m} Regionen · fehlend", "v435.sek.rus": "Grund: Sanktionen der EU und der USA — Kurse der russischen Börse werden nicht erhoben"}, "es": {"v435.sek.cov": "Datos: {n}/{m} regiones · faltan", "v435.sek.rus": "motivo: sanciones de la UE y EE. UU. — no recogemos cotizaciones de la bolsa rusa"}, "fr": {"v435.sek.cov": "Données : {n}/{m} régions · manquent", "v435.sek.rus": "raison : sanctions de l’UE et des États-Unis — nous ne collectons pas les cours de la Bourse russe"}, "it": {"v435.sek.cov": "Dati: {n}/{m} regioni · mancano", "v435.sek.rus": "motivo: sanzioni di UE e USA — non raccogliamo le quotazioni della borsa russa"}, "pt": {"v435.sek.cov": "Dados: {n}/{m} regiões · faltam", "v435.sek.rus": "motivo: sanções da UE e dos EUA — não coletamos cotações da bolsa russa"}, "ru": {"v435.sek.cov": "Данные: {n}/{m} регионов · не хватает", "v435.sek.rus": "причина: санкции ЕС и США — котировки российской биржи мы не собираем"}, "zh": {"v435.sek.cov": "数据：{n}/{m} 个地区 · 缺少", "v435.sek.rus": "原因：欧盟和美国的制裁——我们不收集俄罗斯交易所的行情"}, "ja": {"v435.sek.cov": "データ：{n}/{m} 地域 · 欠落", "v435.sek.rus": "理由：EU と米国の制裁のため、ロシアの取引所の相場は取得していません"}};
+for(const l in EXTRA298)if(I18N[l])Object.assign(I18N[l],EXTRA298[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -7900,7 +7903,7 @@ function renderSectorsPage(){
   const mx=Math.max(...N.filter(hasD).map(n=>Math.abs(n.v)),1);
   const nR=gActive()?GREG.filter(r=>hasD({id:r.id})).length:GREG.length;
   w.innerHTML=`<h1>${t(gActive()?'pg.sectors.g':'pg.sectors')}</h1>
-   <p class="pgsub">${t(gActive()?'pg.sectors.dg':'pg.sectors.dc',{p:pgPeriod()})}${nR<GREG.length?' · '+t('g.nodata')+(typeof sepK==='function'?sepK():': ')+(GREG.length-nR)+'/'+GREG.length:''}</p>
+   <p class="pgsub">${t(gActive()?'pg.sectors.dg':'pg.sectors.dc',{p:pgPeriod()})}${nR<GREG.length?' · '+t('v435.sek.cov',{n:nR,m:GREG.length})+(typeof sepK==='function'?sepK():': ')+GREG.filter(r=>!hasD({id:r.id})).map(r=>t('g.n.'+r.id)).join(', '):''}</p>
    <section class="panel pgc">${N.map(n=>{
      /* v96: flagi regionu (albo logo grupy krypto) przed nazwą, kraje regionu jako flagi z nazwami; kolor w trzech stanach (zero — żółte, v322) */
      const na=!hasD(n),c=na?'':(pgToneU(n.v,n.u)||'eq'),wd=(na||c==='eq')?0:Math.max(2,Math.abs(n.v)/mx*100);   /* v322: zero żółte, bez paska */
@@ -7910,7 +7913,7 @@ function renderSectorsPage(){
      return `<div class="secrow"><span class="sname">${ic}<span>${n.nm}</span></span>
        <span class="sbar ${c==='neg'?'n':'p'}"><i style="width:${wd}%"></i></span>
        <span class="sval ${na?'na':c}">${na?'—':pgSign(c)+pgFmt(n.v,n.u)}</span>
-       <span class="ssub">${na?`<span class="sna">${t('g.nodata')}</span>`:''}${sub}</span></div>`;}).join('')}</section>${X?pgExch(X,1):''}`;
+       <span class="ssub">${na?`<span class="sna">${t('g.nodata')}</span>`+(n.id==='rus'?`<span class="swhy">${t('v435.sek.rus')}</span>`:''):''}${sub}</span></div>`;}).join('')}</section>${X?pgExch(X,1):''}`;
   if(typeof f342Sek==='function')f342Sek(w);   /* v342 (F1Z2): panel 11 sektorów S&P 500 (fundusze ETF) pod listą regionów — tylko GLOBAL */
 }
 /* v35: widoki silnika z plików data/widoki/*.json — tylko odczyt z serwera, bez zapasu w przeglądarce i bez migawki.

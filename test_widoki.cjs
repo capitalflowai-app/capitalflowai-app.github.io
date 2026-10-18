@@ -34490,3 +34490,28 @@ test('v434: Przepływy (GLOBAL i CRYPTO) bez „Rodzaju dowodu” i bez tabeli k
   }
   assert.ok(!/korytarz/i.test(I.pl['pg434.flows.d']) && /wzrosty i spadki/.test(I.pl['pg434.flows.d']) && !/corridor/i.test(I.en['pg434.flows.d']));
 });
+
+
+test('v435: Sektory — podtytuł „Dane: n/m” z nazwami brakujących regionów, powód tylko przy Rosji; CRYPTO i pełne dane bez podpisu; słownik 10 języków', () => {
+  const g = pgEnv(); g.f.renderSectorsPage();
+  const h = g.el.innerHTML, sub = h.slice(h.indexOf('<p class="pgsub">'), h.indexOf('</p>'));
+  assert.ok(sub.includes('v435.sek.cov{"n":3,"m":4}: g.n.rus') && !sub.includes('g.nodata'), 'Dane: 3/4 · brakuje: Rosja (nie „brak danych: 1/4”)');
+  const rows = h.split('<div class="secrow">').slice(1), row = id => rows.find(r => r.includes('g.n.' + id + '<'));
+  assert.ok(row('rus').includes('class="sna">g.nodata<') && row('rus').includes('class="swhy">v435.sek.rus<') && row('rus').includes('<span class="sval na">—</span>'), 'Rosja: brak nadal widoczny („—”, brak danych) + powód');
+  assert.ok(!row('eur').includes('v435.sek.rus') && !row('eur').includes('class="sna"'), 'region z danymi bez powodu i bez „brak danych”');
+  // dwa regiony bez danych: nazwy po przecinku, powód tylko przy Rosji
+  const g2 = pgEnv({GDATA: {'1M': {eur: [-5, -1, true], jpn: [0, 0, false], usa: [0, 0, true], rus: [0, 0, false], crypto: [1, .5, true]}}}); g2.f.renderSectorsPage();
+  assert.ok(g2.el.innerHTML.includes('v435.sek.cov{"n":2,"m":4}: g.n.jpn, g.n.rus'), 'kolejność jak na liście regionów');
+  const r2 = g2.el.innerHTML.split('<div class="secrow">').slice(1).find(r => r.includes('g.n.jpn<'));
+  assert.ok(r2.includes('class="sna">g.nodata<') && !r2.includes('v435.sek.rus'), 'Japonia i Korea bez danych: tylko „brak danych”, bez powodu sankcji');
+  // komplet danych: brak podpisu
+  const g3 = pgEnv({GDATA: {'1M': {eur: [-5, -1, true], jpn: [3, 2, true], usa: [0, 0, true], rus: [1, 1, true], crypto: [1, .5, true]}}}); g3.f.renderSectorsPage();
+  assert.ok(!g3.el.innerHTML.includes('v435.sek.cov') && !g3.el.innerHTML.includes('class="sna"'), 'wszystkie regiony z danymi — bez podpisu');
+  // słownik: oba klucze w 10 językach, z miejscami {n} {m} {x}; zero nazw dostawców
+  const k = html.indexOf('"v435.sek.cov"'), x0 = html.lastIndexOf('const EXTRA', k), a = html.indexOf('=', x0) + 1;
+  const d = JSON.parse(html.slice(a, html.indexOf(';\n', a)));
+  assert.deepEqual(Object.keys(d).sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'pl', 'pt', 'ru', 'zh']);
+  for (const l of Object.keys(d)) { const c = d[l]['v435.sek.cov']; assert.ok(c.includes('{n}') && c.includes('{m}') && !c.includes('{x}') && d[l]['v435.sek.rus'].length > 20, l); }
+  assert.ok(d.pl['v435.sek.cov'] === 'Dane: {n}/{m} regionów · brakuje' && d.en['v435.sek.cov'].startsWith('Data: {n}/{m}'));
+  assert.ok(html.includes('#page-sectors .swhy{color:var(--dim)}'));
+});
