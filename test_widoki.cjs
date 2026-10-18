@@ -34366,3 +34366,77 @@ test('v430 (F11Z29): strona — karta #g-ropa po karcie energii USA, jedno pobra
   assert.ok(!/(jodi|eurostat|ec\.europa|jodidata)/i.test(rop430.code), 'zero nazw dostawców w kodzie karty');
   assert.ok(/ropa_/.test(rop430.code) && /ropa-swiat/.test(rop430.code));
 });
+
+
+// v431 (F11Z30): GLOBAL — „Wierzyciele i dłużnicy świata” (data/iip.json): ranking, paski, tabela, rachunek bieżący z dwóch plików, brak = „—”, słownik w 10 językach
+test('v431: wierzyciele i dłużnicy świata: ranking wg pozycji netto, paski, tabela, rachunek bieżący z bilans.json i z pola bop, brak = „—”', () => {
+  const a0 = html.indexOf('const BIL={data:null};'), a1 = html.indexOf('/* v431 koniec */', a0);
+  assert.ok(a0 > 0 && a1 > a0 && html.slice(a0, a1).includes('const IIP={data:null};'), 'blok IIP stoi między BIL a renderInst');
+  const oks = [], T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const f = new Function('t', 'gOk', 'renderInst', 'escH', 'engDate', 'instFoot', 'etfCls', 'bopMld', 'instMld', 'instRow', 'engK', 'LANG', html.slice(a0, a1) + '\nreturn {BIL, IIP, bilQadd, bilApply, iipApply, iipHtml, iipRows, iipCa, iipLvl};')(
+    T, k => oks.push(k), () => {}, s => String(s), s => String(s), s => 'F' + s, v => v > 0 ? 'pos' : (v < 0 ? 'neg' : ''), v => typeof v === 'number' ? (v > 0 ? '+' : (v < 0 ? '-' : '')) + (Math.abs(v) / 1000).toFixed(1) : '—',
+    m => (m / 1000).toFixed(1), (l, v, e, n) => `<K>${l}|${v}|${n || ''}</K>`, (l, v) => `<E>${l}|${v}</E>`, 'pl');
+  assert.equal(f.iipHtml(null), ''); assert.equal(f.iipHtml({rows: {}, order: []}), '');
+  const S = (q0, vals) => vals.map((v, i) => [f.bilQadd(q0, i - vals.length + 1), v]);
+  const row = (q, a, l, extra) => Object.assign({q, a, l, n: a == null || l == null ? extra.n : a - l, n1: null, n4: null, a4: null, l4: null}, extra || {});
+  const J = {at: '2026-10-18T03:00:00+00:00', asof_max: '2026-Q2', zapytane: 6, pomin: {AZE: 'x'}, bop: {CZE: {q: '2026-Q2', s: {ca: S('2026-Q2', [1000, 2000, -500, 300])}}},
+    order: ['DEU', 'CHN', 'POL', 'FRA', 'USA', 'ZZZ'], rows: {
+      DEU: row('2026-Q2', 10000000, 5000000, {n4: 4000000}), CHN: row('2026-Q2', 9000000, 5500000, {}), POL: row('2026-Q1', 700000, 1000000, {n4: -250000}),
+      FRA: row('2026-Q2', null, null, {n: -984400, n4: -900000}), USA: row('2026-Q2', 47000000, 69400000, {n4: -20000000}), ZZZ: {q: 'x', n: 5}}};
+  f.iipApply(J); assert.deepEqual(oks, ['iip']);
+  const R = f.iipRows(J); assert.deepEqual(R.map(r => r.c), ['DEU', 'CHN', 'POL', 'FRA', 'USA'], 'zły kwartał odpada; od największego wierzyciela do największego dłużnika');
+  const h = f.iipHtml(J);
+  assert.ok(h.includes('iip431.t') && h.includes('iip431.sub'));
+  assert.ok(h.includes('iip431.k.cred') && h.includes('F2026-Q2') && h.indexOf('iip431.k.cred') < h.indexOf('iip431.k.debt'));
+  const top = h.split('<div class="iip-cols">')[1].split('</div><p class="pnote">')[0];
+  assert.equal((top.match(/<li>/g) || []).length, 4, 'dwa kraje z plusem i dwa z minusem (n10 = 2)');
+  assert.ok(top.indexOf('DEU') < top.indexOf('CHN') && top.indexOf('USA') < top.indexOf('FRA'), 'wierzyciele malejąco, dłużnicy od największego');
+  const li = c => top.split('<li>').find(x => x.includes(c));   /* wiersz kraju (nazwa z bilCty = kod, bo ISO32 niedostępne w teście) */
+  assert.ok(li('DEU').includes('<span class="bar pos"><i style="width:100%">') && li('USA').includes('<span class="bar neg"><i style="width:100%">'), 'najdłuższy pasek w każdej liście = 100%, plus zielony / minus czerwony');
+  assert.ok(li('CHN').includes('<span class="bar pos"><i style="width:70%">') && li('FRA').includes('<span class="bar neg"><i style="width:4.4%">'), 'szerokość względem największego w liście: 3 500/5 000 i 984/22 400');
+  assert.ok(top.includes('<span class="v pos">+5000.0</span>') && top.includes('<span class="v neg">-22400.0</span>'));
+  const tab = h.split('<tbody>')[1].split('</tbody>')[0], trs = tab.split('<tr>').slice(1);
+  assert.equal(trs.length, 5);
+  const tFR = trs.find(x => x.includes('FRA')), tPL = trs.find(x => x.includes('POL')), tCZ = h.includes('CZE');
+  assert.ok(/F2026-Q2[^]*<span class="cell mono">—<\/span><\/td><td><span class="cell mono">—<\/span><\/td><td><span class="cell mono neg">-984\.4<\/span>/.test(tFR) && !/>0<\/span>/.test(tFR), 'brak aktywów i zobowiązań = „—”, nie zero: ' + tFR);
+  assert.ok(tPL.includes('F2026-Q1') && tPL.includes('<span class="cell mono">700.0</span>') && tPL.includes('<span class="cell mono">1000.0</span>') && tPL.includes('-300.0'), 'Polska: kwartał własny, aktywa, zobowiązania, netto');
+  assert.ok(tPL.includes('<span class="cell mono neg">-50.0</span>') || tPL.includes('-50.0'), 'zmiana r/r: −300 − (−250) = −50 mld');
+  assert.ok(tFR.includes('<span class="cell mono neg">-84.4</span>'), 'zmiana r/r: −984,4 − (−900) = −84,4 mld');
+  assert.ok(trs.find(x => x.includes('CHN')).includes('<span class="cell mono">—</span></td><td><span class="cell mono">—</span></td>'), 'brak n4 i rachunku bieżącego = „—” w obu kolumnach');
+  assert.ok(!tCZ, 'kraj spoza rows nie trafia do tabeli');
+  assert.equal(f.iipCa(J, 'CZE').v, 2800); assert.equal(f.iipCa(J, 'CZE').q, '2026-Q2'); assert.equal(f.iipCa(J, 'POL'), null, 'brak rachunku bieżącego = null');
+  f.BIL.data = {at: 'x', order: ['POL'], rows: {POL: {q: '2026-Q1', s: {ca: S('2026-Q1', [10, 20, 30, 40])}}}};
+  assert.equal(f.iipCa(J, 'POL').v, 100); assert.ok(f.iipHtml(J).includes('+0.1') || f.iipHtml(J).includes('<small>2026-Q1</small>'), 'rachunek bieżący Polski z bilans.json z kwartałem');
+  f.BIL.data.rows.POL.s.ca = S('2026-Q1', [10, 20, 30]); assert.equal(f.iipCa(J, 'POL'), null, 'trzy kwartały to za mało — suma tylko z kompletu');
+  f.BIL.data.rows.POL.s.ca = [['2026-Q1', 40], ['2025-Q3', 30], ['2025-Q2', 20], ['2025-Q1', 10]]; assert.equal(f.iipCa(J, 'POL'), null, 'dziura w kwartałach');
+  assert.ok(h.includes('iip431.k.pl.v{"a":"700.0","l":"1000.0"}') && h.includes('iip431.k.cov.v{"a":5,"e":6}')  && h.includes('iip431.k.cov.no{"n":1}'));
+  assert.ok(h.includes('iip431.all{"n":5}') && h.includes('iip431.not') && h.includes('inst.file'));
+  f.iipApply({at: 'x', rows: {}, order: []}); assert.equal(f.IIP.data, null, 'plik bez krajów odrzucony');
+  f.iipApply({at: 'x', asof_max: 'zle', rows: {A: 1}, order: ['A']}); assert.equal(f.IIP.data, null, 'zły kwartał pliku');
+  const solo = {at: 'x', asof_max: '2026-Q2', zapytane: 2, order: ['AAA', 'BBB'], rows: {AAA: row('2026-Q2', 5, 3, {}), BBB: row('2026-Q2', 5, 7, {})}};
+  assert.equal((f.iipHtml(solo).match(/<li>/g) || []).length, 2, 'dwa kraje: po jednym w każdej liście');
+  const plus = {at: 'x', asof_max: '2026-Q2', order: ['AAA'], rows: {AAA: row('2026-Q2', 5, 3, {})}};
+  const hp = f.iipHtml(plus); assert.ok(!hp.includes('iip431.k.debt{') && hp.includes('iip431.k.debt') && hp.includes('|—|'), 'bez dłużnika kafel „—”');
+});
+
+test('v431: GLOBAL — wpięcie: plik iip.json, kolejność po bilansie płatniczym, styl pasków, słownik 10 języków', () => {
+  assert.ok(html.includes("html+=(typeof iipHtml==='function'&&typeof IIP!=='undefined')?iipHtml(IIP.data):'';"));
+  assert.ok(html.indexOf("bilHtml(BIL.data)") < html.indexOf("iipHtml(IIP.data)") && html.indexOf("iipHtml(IIP.data)") < html.indexOf('/* A. płynność dolara: TGA, RRP, SOMA */'));
+  assert.ok(html.includes("srvJSON('iip').then(j=>{iipApply(j);}).catch(()=>{iipApply(null);})"));
+  assert.ok(html.includes('.iip-bars{') && html.includes('.iip-cols{') && html.includes('.iip-bars .bar.pos i{background:var(--gr)}') && html.includes('.iip-bars .bar.neg i{background:var(--rd)}'));
+  assert.ok(html.includes('bilans płatniczy 37 gospodarek'), 'bilans.json nadal 37 gospodarek');
+  const m = [...html.matchAll(/const (EXTRA\d+)=(\{"pl":\{"iip431\.t".*?\});\n/g)];
+  assert.equal(m.length, 1, 'jeden słownik z kluczami iip431');
+  const d = JSON.parse(m[0][2]), langs = ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja'];
+  assert.deepEqual(Object.keys(d), langs);
+  const keys = Object.keys(d.pl);
+  assert.equal(keys.length, 19);
+  for (const l of langs) {
+    assert.deepEqual(Object.keys(d[l]), keys, l);
+    for (const k of keys) { assert.ok(typeof d[l][k] === 'string' && d[l][k].length > 1, l + ' ' + k); if (l !== 'pl') assert.notEqual(d[l][k], d.pl[k], 'prawdziwe tłumaczenie ' + l + ' ' + k + (k === 'iip431.k.pl' ? '' : '')); }
+    for (const k of keys) for (const p of (d.pl[k].match(/\{[a-z]\}/g) || [])) assert.ok(d[l][k].includes(p), `${l} ${k} brakuje ${p}`);
+    assert.ok(!/MFW|IMF|International Monetary|Fundusz Walutowy/.test(JSON.stringify(d[l])), 'zero nazw dostawców na stronie ' + l);
+  }
+  assert.ok(html.includes(`for(const l in ${m[0][1]})if(I18N[l])Object.assign(I18N[l],${m[0][1]}[l]);`));
+  assert.ok(d.pl['iip431.not'].includes('porada') === false);
+});

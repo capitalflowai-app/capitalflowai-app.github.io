@@ -214,6 +214,7 @@ def zrodla_cisze(saved):
     return out
 
 
+ZRODLA_META.update({'iip': 'imf'})   # v431 (F11Z30): wierzyciele i dłużnicy świata — ten sam dostawca co bilans płatniczy, rezerwy i COFER (liczba źródeł bez zmian)
 ZRODLA_META.update({'inflacja': 'bis', 'koniunktura': 'oecd'})   # v366 (F2Z2): inflacja i koniunktura — te same dwa źródła co dotąd (liczba źródeł bez zmian)
 
 
@@ -4516,9 +4517,10 @@ BIL_URL = ('https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/BOP/+/' 
            + '.L_NIL_T+A_NFA_T+NETCD_T.D_F+P_F+P_F5+P_F3+O_F+CAB.USD.Q?lastNObservations=8&dimensionAtObservation=TIME_PERIOD')
 
 
-def parse_bilans(j):
+def parse_bilans(j, ctys=None):
     """BOP MFW → {kraj: {'q': ostatni kwartał z napływem, 's': {klucz: [[kwartał, mln USD]] rosnąco, najwyżej 8}}}.
     Wartość pusta / NaN = brak (nigdy 0). Straż skali: napływ portfelowy USA musi mieć rząd mld–bln USD na kwartał."""
+    ctys = BIL_CTY if ctys is None else ctys   # v431: lista krajów opcjonalna — bez niej bilans.json liczy się jak dotąd (37 gospodarek)
     ser = parse_imf_sdmx(j, _imf_quarter)
     rows = {}
     for lab, d in ser.items():
@@ -4526,14 +4528,14 @@ def parse_bilans(j):
             continue
         c, e, i, u, f = lab
         k = BIL_KEYS.get((e, i))
-        if not k or u != 'USD' or f != 'Q' or c not in BIL_CTY:
+        if not k or u != 'USD' or f != 'Q' or c not in ctys:
             continue
         rows.setdefault(c, {})[k] = [[q, round(v / 1e6, 1)] for q, v in d][-8:]
     usa = (rows.get('USA') or {}).get('in_p')
     if usa and not 1e3 <= abs(usa[-1][1]) <= 1e7:
         raise RuntimeError(f'skala niezgodna (USA napływ portfelowy {usa[-1][1]} mln USD)')
     out = {}
-    for c in BIL_CTY:
+    for c in ctys:
         s = rows.get(c)
         qs = [x[-1][0] for k, x in (s or {}).items() if k in ('in_d', 'in_p', 'in_o') and x]
         if qs:
@@ -4545,12 +4547,115 @@ def parse_bilans(j):
             'unit': 'mln USD, transakcje w kwartale; in_* = kapitał zagraniczny napływający do kraju (net incurrence of liabilities), '
                     'out_* = kapitał mieszkańców wysyłany za granicę (net acquisition of financial assets); d bezpośrednie, '
                     'p portfelowe (pe akcje, pd obligacje), o pozostałe (kredyty, depozyty); ca = saldo rachunku bieżącego',
-            'asof_max': max(r['q'] for r in out.values()), 'order': [c for c in BIL_CTY if c in out], 'rows': out}
+            'asof_max': max(r['q'] for r in out.values()), 'order': [c for c in ctys if c in out], 'rows': out}
 
 
 def build_bilans():
     out = parse_bilans(get_json(BIL_URL, {'Accept': 'application/json'}))
     out['at'] = NOW
+    return out
+
+
+# ===================== v431 (F11Z30): WIERZYCIELE I DŁUŻNICY ŚWIATA — MFW IIP (stan aktywów i zobowiązań wobec zagranicy) i bilans płatniczy dla krajów spoza listy 37 (data/iip.json) =====================
+# Międzynarodowa pozycja inwestycyjna (IIP, kwartalnie, bez klucza): ile kraj ma za granicą (aktywa), ile jest winien zagranicy (zobowiązania) i pozycja netto (aktywa − zobowiązania; plus = wierzyciel świata, minus = dłużnik)
+# — STAN na koniec kwartału w mln USD (zmienia się też przez kursy walut i ceny papierów, nie tylko przez przepływy). Jedno zapytanie na dobę o ok. 100 gospodarek z wymiarami przypiętymi (aktywa, zobowiązania, netto;
+# razem, portfel, bezpośrednie, pozostałe, rezerwy; USD; kwartał) i 5 ostatnimi obserwacjami (kwartał, poprzedni, rok wcześniej). Zestaw IDS bez filtra to 13,8 MB — nigdy. Kraj bez pozycji netto, z kwartałem starszym niż
+# IIP_STARE_Q kwartałów od najnowszego w pliku albo z niezgodnością aktywa − zobowiązania ≠ netto (ponad 1%) nie wchodzi do pliku (powód w `pomin`) — brak jest brakiem, nigdy zerem.
+# Bilans płatniczy (BOP): dla krajów spoza listy BIL_CTY (37 gospodarek w bilans.json zostaje bez zmian) trzy zapytania po IIP_BOP_PACZKA krajów tym samym schematem co bilans.json (pole `bop`: {kraj: {q, s}}); paczka bez
+# odpowiedzi → kraje z poprzedniego pliku (bez zmiany kwartału) i błąd w `bledy`; ponowienie nie częściej niż co IIP_PONOW_MIN min. Liczba źródeł na stronie bez zmian (ten sam dostawca — ZRODLA_META: imf).
+IIP_V = 1
+IIP_EXTRA = ['AGO', 'ALB', 'ARM', 'AUT', 'AZE', 'BEL', 'BGD', 'BGR', 'BHR', 'BIH', 'BLR', 'BOL', 'CRI', 'CYP', 'CZE', 'DNK', 'DOM', 'DZA', 'ECU', 'EST', 'FIN', 'GEO', 'GRC', 'GTM', 'HND', 'HRV', 'HUN', 'ISL', 'JAM',
+             'JOR', 'KAZ', 'KGZ', 'KHM', 'KWT', 'LKA', 'LTU', 'LUX', 'LVA', 'MAR', 'MDA', 'MKD', 'MLT', 'MMR', 'MNE', 'MNG', 'MOZ', 'MUS', 'NAM', 'NIC', 'NOR', 'NPL', 'PAK', 'PAN', 'PER', 'PRT', 'PRY', 'ROU',
+             'SLV', 'SRB', 'SVK', 'SVN', 'TJK', 'TTO', 'UGA', 'UKR', 'URY', 'UZB', 'VEN', 'ZMB']   # sprawdzone 18.10.2026: wszystkie mają szereg IIP (nieaktualne odsiewa IIP_STARE_Q); Katar, ZEA, Oman, Tajwan, Kenia, Ghana, Etiopia i in. — brak w zbiorze MFW
+IIP_CTY = BIL_CTY + IIP_EXTRA
+IIP_KEYS = {('A_P', 'IIP'): 'a', ('L_P', 'IIP'): 'l', ('NETAL_P', 'NIIP'): 'n', ('A_P', 'P_MV'): 'pa', ('L_P', 'P_MV'): 'pl', ('A_P', 'D'): 'da', ('L_P', 'D'): 'dl',
+            ('A_P', 'O'): 'oa', ('L_P', 'O'): 'ol', ('A_P', 'R'): 'r'}
+IIP_BASE = 'https://api.imf.org/external/sdmx/3.0/data/dataflow/IMF.STA/IIP/+/'
+IIP_TAIL = '.A_P+L_P+NETAL_P.IIP+P_MV+D+O+R+NIIP.USD.Q?lastNObservations=5&dimensionAtObservation=TIME_PERIOD'
+IIP_URL = IIP_BASE + '+'.join(IIP_CTY) + IIP_TAIL
+IIP_PAGE = 'https://data.imf.org/en/datasets/IMF.STA:IIP'
+IIP_SRC = 'International Monetary Fund, International Investment Position (IIP) and Balance of Payments (BOP)'
+IIP_BOP_PACZKA = 32       # krajów w jednym zapytaniu o bilans płatniczy (sonda 18.10.2026: 32 kraje, 117 KB, 3 s)
+IIP_STARE_Q = 4           # kraj z kwartałem starszym o tyle kwartałów od najnowszego w pliku odpada (18.10.2026: Mjanma 2020, Kirgistan 2024, Azerbejdżan 2008, Wenezuela 2016)
+IIP_ZGODA = 0.01          # dopuszczalna różnica aktywa − zobowiązania − netto (część większej z dwóch; 18.10.2026: ≤ 0,0001)
+IIP_MIN_KRAJOW = 60       # mniej krajów w odpowiedzi = zły odczyt (18.10.2026: 99 z 106 zapytanych)
+IIP_PONOW_MIN = 360       # po paczce bez odpowiedzi następna próba najwcześniej po tylu minutach
+IIP_TIMEOUT = 60          # s na jedno zapytanie
+
+
+def parse_iip(j):
+    """IIP MFW → {'asof_max', 'order' (pozycja netto malejąco), 'rows': {kraj: {q, a, l, n, pa, pl, da, dl, oa, ol, r, n1, n4, a4, l4}}, 'pomin': {kraj: powód}} w mln USD (0,1).
+    a/l/n = aktywa, zobowiązania, pozycja netto razem; pa/pl portfel, da/dl bezpośrednie, oa/ol pozostałe, r rezerwy (tylko aktywa); n1/n4/a4/l4 = kwartał i rok wcześniej (tylko dokładnie ten kwartał).
+    Kwartał kraju = najnowszy z pozycją netto. Brak wartości = brak (nigdy 0). Straż skali: aktywa USA rzędu bilionów USD (mln USD: 1e7–2e8)."""
+    ser = parse_imf_sdmx(j, _imf_quarter)
+    by = {}
+    for lab, rows in ser.items():
+        if len(lab) != 5:
+            continue
+        c, e, i, u, f = lab
+        k = IIP_KEYS.get((e, i))
+        if k and u == 'USD' and f == 'Q' and c in IIP_CTY:
+            by.setdefault(c, {})[k] = dict(rows)
+    r1 = lambda v: None if v is None else round(v / 1e6, 1)
+    kand, pomin = {}, {}
+    for c in IIP_CTY:
+        s = by.get(c)
+        if not s or not s.get('n'):
+            continue
+        q = max(s['n'])
+        g = lambda k, qq=q: (s.get(k) or {}).get(qq)
+        a, l, n = g('a'), g('l'), g('n')
+        if a is not None and l is not None and abs(a - l - n) > IIP_ZGODA * max(abs(a), abs(l), 1.0):
+            pomin[c] = 'aktywa − zobowiązania ≠ pozycja netto'
+            continue
+        kand[c] = {'q': q, 'a': r1(a), 'l': r1(l), 'n': r1(n), 'pa': r1(g('pa')), 'pl': r1(g('pl')), 'da': r1(g('da')), 'dl': r1(g('dl')), 'oa': r1(g('oa')), 'ol': r1(g('ol')), 'r': r1(g('r')),
+                   'n1': r1(g('n', _q_add(q, -1))), 'n4': r1(g('n', _q_add(q, -4))), 'a4': r1(g('a', _q_add(q, -4))), 'l4': r1(g('l', _q_add(q, -4)))}
+    if len(kand) < IIP_MIN_KRAJOW:
+        raise RuntimeError(f'IIP: tylko {len(kand)} krajów z pozycją netto (poniżej {IIP_MIN_KRAJOW})')
+    top = max(r['q'] for r in kand.values())
+    lo = _q_add(top, -IIP_STARE_Q)
+    rows = {}
+    for c, r in kand.items():
+        if r['q'] < lo:
+            pomin[c] = f'ostatni kwartał {r["q"]}'
+        else:
+            rows[c] = r
+    usa = rows.get('USA')
+    if usa and not (usa['a'] is not None and 1e7 <= usa['a'] <= 2e8):
+        raise RuntimeError(f'IIP: skala niezgodna (aktywa USA {usa["a"]} mln USD)')
+    return {'asof_max': max(r['q'] for r in rows.values()), 'order': sorted(rows, key=lambda c: (-rows[c]['n'], c)), 'rows': rows, 'pomin': dict(sorted(pomin.items()))}
+
+
+IIP_BOP_PRZED, IIP_BOP_PO = BIL_URL.split('/+/')[0] + '/+/', BIL_URL[BIL_URL.index('.L_NIL_T'):]   # ten sam adres i te same wymiary co bilans.json — zmienia się tylko lista krajów
+
+
+def iip_bop_url(kraje):
+    return IIP_BOP_PRZED + '+'.join(kraje) + IIP_BOP_PO
+
+
+def build_iip(prev=None, run_t0=None):
+    """data/iip.json: stany IIP ok. 100 gospodarek (jedno zapytanie) + bilans płatniczy krajów spoza BIL_CTY (paczki). Błąd IIP = wyjątek (plik zostaje poprzedni);
+    paczka BOP bez odpowiedzi = kraje z poprzedniego pliku i opis w `bledy`; przebieg zbieracza dłuższy niż BACK_LATE s (run_t0) — paczki bilansu dopiero w następnym przebiegu (kraje z poprzedniego pliku)."""
+    out = parse_iip(get_json(IIP_URL, {'Accept': 'application/json'}, IIP_TIMEOUT))
+    pv = prev.get('bop') if isinstance(prev, dict) and isinstance(prev.get('bop'), dict) else {}
+    bop, bledy = {}, []
+    for i in range(0, len(IIP_EXTRA), IIP_BOP_PACZKA):
+        paczka = IIP_EXTRA[i:i + IIP_BOP_PACZKA]
+        try:
+            if run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE:
+                raise RuntimeError('przebieg zbyt długi, paczka w następnym przebiegu')
+            bop.update(parse_bilans(get_json(iip_bop_url(paczka), {'Accept': 'application/json'}, IIP_TIMEOUT), paczka)['rows'])
+        except Exception as e:
+            bledy.append(mask(f'MFW bilans płatniczy (paczka {i // IIP_BOP_PACZKA + 1}): {e}'))
+            bop.update({c: pv[c] for c in paczka if c in pv})
+    if bop:
+        lo = _q_add(max(r['q'] for r in bop.values()), -IIP_STARE_Q)
+        bop = {c: bop[c] for c in IIP_EXTRA if c in bop and bop[c]['q'] >= lo}
+    out.update({'v': IIP_V, 'src': IIP_SRC, 'url': IIP_PAGE,
+                'unit': 'mln USD, stan na koniec kwartału; a aktywa za granicą, l zobowiązania wobec zagranicy, n pozycja netto (a − l; plus = wierzyciel świata); pa/pl papiery portfelowe, '
+                        'da/dl bezpośrednie, oa/ol pozostałe (kredyty, depozyty), r rezerwy walutowe (tylko aktywa); n1 netto kwartał wcześniej, n4/a4/l4 rok wcześniej; '
+                        'bop = bilans płatniczy krajów spoza listy 37 (mln USD, transakcje w kwartale, jak w bilans.json)',
+                'zapytane': len(IIP_CTY), 'bop': bop, 'bledy': bledy, 'at': NOW})
     return out
 
 
@@ -33178,6 +33283,18 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'MFW bilans płatniczy: {e}')); META['ok']['bilans'] = False
             if prev_bl: save('bilans', prev_bl)
+    # v431 (F11Z30): MFW IIP — wierzyciele i dłużnicy świata (stany aktywów i zobowiązań ok. 100 gospodarek) + bilans płatniczy krajów spoza listy 37: najwyżej raz na dobę (po paczce bez odpowiedzi — nie częściej niż co 6 h);
+    # awaria IIP = poprzedni plik i błąd; paczka bilansu bez odpowiedzi = kraje z poprzedniego pliku i błąd
+    prev_iip = previous('iip')
+    if prev_iip and fresh(prev_iip, 1440) and (not prev_iip.get('bledy') or fresh(prev_iip, IIP_PONOW_MIN)):
+        save('iip', prev_iip); META['ok']['iip'] = 'cached'
+    else:
+        try:
+            iip_ = build_iip(prev_iip, run_t0=_RUN_T0[0]); save('iip', iip_)
+            META['errors'].extend(iip_.get('bledy') or []); META['ok']['iip'] = not iip_.get('bledy')
+        except Exception as e:
+            META['errors'].append(mask(f'MFW IIP: {e}')); META['ok']['iip'] = False
+            if prev_iip: save('iip', prev_iip)
     # v337 (F2Z4): MFW PIP — kto trzyma czyje papiery (półrocznie): najwyżej raz na dobę lekkie zapytanie (plik niepełny — po 55 min); pełna macierz wg
     # reguł build_pip; awaria = poprzedni plik i błąd
     prev_pip = previous('pip')

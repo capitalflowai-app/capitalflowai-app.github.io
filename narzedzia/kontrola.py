@@ -14004,6 +14004,78 @@ def rop_k_kontrola(j, enu=None, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v431 (F11Z30): WIERZYCIELE I DŁUŻNICY ŚWIATA — MFW IIP + bilans płatniczy krajów spoza listy 37 (data/iip.json) ----------------------------------------------------------------
+# Plik: rows {kraj: {q, a, l, n, pa, pl, da, dl, oa, ol, r, n1, n4, a4, l4}} (mln USD, stan na koniec kwartału), order (netto malejąco), asof_max, pomin, zapytane, bop {kraj: {q, s}}, bledy. Kontrola czyta pliki ze strony (bez zapytań do sieci).
+# RYTM i progi: dane kwartalne, kraje publikują ok. 3–9 miesięcy po końcu kwartału; najnowszy kwartał w pliku (co najmniej 60 krajów) ma 18.10.2026 koniec 30.06 (wiek 110 dni), a kolejny pojawia się po ok. 92 dniach → ⚠ dopiero po 240 dniach
+# od końca najnowszego kwartału (opóźnienie publikacji ≈ 100–110 dni + cały kwartał + zapas; brak fałszywych alarmów przy zwykłym cyklu). ❌ wyłącznie przy sprzeczności wewnątrz pliku: aktywa − zobowiązania ≠ pozycja netto (ponad 1%), zły kwartał,
+# kolejność inna niż malejąca pozycja netto, asof_max ≠ najnowszy kwartał krajów, mniej niż 60 krajów, aktywa USA poza rzędem bilionów USD. Uwaga ⚠: paczka bilansu płatniczego bez odpowiedzi (kraje z poprzedniego pliku) — opis w `bledy`.
+# Wiek pliku: pętla PLIKI (plik zapisywany raz na dobę; po błędzie paczki ponowienie nie częściej niż co 6 h).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'iip')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['iip'] = 48 * 60   # plik zapisywany co ~dobę — wiek pobrania
+IIPK_PROG_DNI = 240
+IIPK_MIN_KRAJOW = 60
+_IIPK_Q = re.compile(r'^(\d{4})-Q([1-4])$')
+
+
+def _iipk_koniec(q):
+    """'2026-Q2' → data ostatniego dnia kwartału (2026-06-30) albo None."""
+    m = _IIPK_Q.match(q) if isinstance(q, str) else None
+    if not m:
+        return None
+    y, k = int(m.group(1)), int(m.group(2))
+    return (dt.date(y + (k == 4), k * 3 % 12 + 1, 1) - dt.timedelta(days=1))
+
+
+def iip_kontrola(files, now=None):
+    """Kontrola pliku iip.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('iip') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    now = now or NOW
+    zle, uwagi = [], []
+    rows, order = j.get('rows'), j.get('order')
+    if not (isinstance(rows, dict) and isinstance(order, list) and rows):
+        return {'spojnosc': ['brak krajów albo zły kształt'], 'wiersze': [], 'uwagi': []}
+    if len(rows) < IIPK_MIN_KRAJOW:
+        zle.append(f'tylko {len(rows)} krajów (poniżej {IIPK_MIN_KRAJOW})')
+    if sorted(order) != sorted(rows):
+        zle.append('lista kolejności ≠ kraje w pliku')
+    qs = []
+    for c, r in rows.items():
+        if not (isinstance(r, dict) and isinstance(r.get('q'), str) and _IIPK_Q.match(r['q']) and _euk_num(r.get('n'), -1e9, 1e9)):
+            zle.append(f'{c}: zły kwartał albo pozycja netto'); continue
+        qs.append(r['q'])
+        a, l, n = r.get('a'), r.get('l'), r['n']
+        if a is not None and l is not None:
+            if not (_euk_num(a, 0, 1e9) and _euk_num(l, 0, 1e9)):
+                zle.append(f'{c}: aktywa albo zobowiązania poza zakresem'); continue
+            if abs(a - l - n) > 0.01 * max(abs(a), abs(l), 1.0):
+                zle.append(f'{c}: aktywa − zobowiązania ≠ pozycja netto ({a} − {l} ≠ {n})')
+    if qs and j.get('asof_max') != max(qs):
+        zle.append(f'asof_max {j.get("asof_max")} ≠ najnowszy kwartał krajów {max(qs)}')
+    ns = [rows[c].get('n') for c in order if c in rows and isinstance(rows[c], dict)]
+    if any(isinstance(x, (int, float)) and isinstance(y, (int, float)) and x < y for x, y in zip(ns, ns[1:])):
+        zle.append('kraje nie są ułożone od największej pozycji netto')
+    usa = rows.get('USA')
+    if isinstance(usa, dict) and not _euk_num(usa.get('a'), 1e7, 2e8):
+        zle.append(f'aktywa USA poza rzędem bilionów USD ({usa.get("a")} mln)')
+    bop = j.get('bop')
+    if bop is not None and not (isinstance(bop, dict) and all(isinstance(r, dict) and isinstance(r.get('q'), str) and _IIPK_Q.match(r['q']) and isinstance(r.get('s'), dict) for r in bop.values())):
+        zle.append('bilans płatniczy krajów dodatkowych w złym kształcie')
+    if isinstance(j.get('bledy'), list) and j['bledy']:
+        uwagi.append('iip.json: ' + str(j['bledy'][0])[:140] + ' — kraje z poprzedniego pliku')
+    wiersze = []
+    if qs:
+        top = max(qs)
+        e = _iipk_koniec(top)
+        d = (now.date() - e).days if e else None
+        zl = d is not None and d > IIPK_PROG_DNI
+        wiersze.append((f'IIP: kwartał {top}, {len(rows)} krajów' + (f' (sprzed {d} dni)' if zl else ''), '⚠️' if zl else '✅'))
+        if zl:
+            uwagi.append(f'iip.json: najnowszy kwartał {top} sprzed {d} dni (próg {IIPK_PROG_DNI} dni z cyklu publikacji)')
+    return {'spojnosc': zle, 'wiersze': wiersze, 'uwagi': uwagi}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -14833,6 +14905,17 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['ropa-swiat'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Ropa świata (v430): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v431. Wierzyciele i dłużnicy świata (data/iip.json): sprzeczności w pliku (❌), rytm danych kwartalnych i paczki bez odpowiedzi (⚠) — z plików strony, bez zapytań
+    try:
+        T_ip = iip_kontrola(files)
+        if T_ip:
+            for z_ in T_ip['spojnosc'][:5]:
+                R['bledy'].append(f'iip.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_ip['uwagi']
+        R['zgodnosc']['iip'] = {k_: T_ip[k_] for k_ in ('spojnosc', 'wiersze')} if T_ip else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['iip'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Wierzyciele i dłużnicy świata (v431): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -15638,6 +15721,11 @@ def raport_md(R):
             L.append('- Fed: banki komercyjne USA, papiery komercyjne, ankieta dealerów, ankieta kredytowa banków (z pliku strony): ' + (f'? kontrola przerwana ({kfd["blad"]})' if kfd.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(kfd['spojnosc'][:3]) + ' ❌ · ' if kfd.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in kfd.get('wiersze') or []) or '—') + '.')
+        kip = Z.get('iip')   # v431: wierzyciele i dłużnicy świata (MFW) — sprzeczności w pliku, rytm kwartalny; brak pliku = bez linii
+        if kip:
+            L.append('- Wierzyciele i dłużnicy świata, pozycja inwestycyjna ok. 100 gospodarek (z pliku strony): ' + (f'? kontrola przerwana ({kip["blad"]})' if kip.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(kip['spojnosc'][:3]) + ' ❌ · ' if kip.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in kip.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else
