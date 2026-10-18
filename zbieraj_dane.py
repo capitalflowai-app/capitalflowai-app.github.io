@@ -5665,11 +5665,21 @@ T10_CATS = (('l1', 'layer-1'), ('l2', 'layer-2'), ('ai', 'artificial-intelligenc
             ('rwa', 'real-world-assets-rwa'), ('meme', 'meme-token'), ('depin', 'depin'), ('gaming', 'gaming'))   # grupa strony → kategoria (sprawdzone 27.09)
 T10_COLS = ('id', 'sym', 'name', 'px', 'mc', 'ch', 'upd')   # cena USD, kapitalizacja USD, zmiana 24 h %, czas notowania (UTC)
 # v155 (właściciel 04.10): grupa L1 bez BTC i ETH (własne elementy sceny); gaming bez memecoinów — FLOKI na stałe i każda moneta z kandydatów
-# grupy memecoinów (T10_BEZ_Z: kategoria serwisu zalicza FLOKI do gier). Kandydatów jest T10_POOL (20), więc w grupie nadal T10_N monet.
-T10_BEZ = {'l1': frozenset({'bitcoin', 'ethereum'}), 'gaming': frozenset({'floki'})}
+# grupy memecoinów (T10_BEZ_Z: kategoria serwisu zalicza FLOKI do gier). Kandydatów jest T10_POOL (25), więc w grupie nadal T10_N monet.
+T10_BEZ = {'l1': frozenset({'bitcoin', 'ethereum'}), 'gaming': frozenset({'floki', 'gmt-token'})}   # v437: + GoMining (wydobycie BTC, nie gra); FLOKI na stałe
 T10_BEZ_Z = {'gaming': 'meme'}
+# v437 (18.10.2026, punkt 9 poleceń właściciela): SEKTOR GŁÓWNY. Kategorie serwisu się nakładają (na żywo 18.10: NEAR w L1 i AI, Hyperliquid w L1 i DeFi, Stellar w L1 i RWA,
+# Chainlink w DeFi i RWA, Ondo w DeFi i RWA, Pump.fun w DeFi i memecoinach, Bittensor w AI i DePIN, Render w AI i DePIN, Immutable w L2 i grach, Geodnet w DePIN i grach), więc ta sama
+# moneta stała w dwóch grupach sceny. Teraz każda moneta jest w JEDNYM sektorze: wskazanym wprost w T10_GLOWNY (gdy kategoria jest wśród kandydatów) albo według kolejności
+# T10_PRIO (od najwęższego: memecoiny, RWA, DePIN, AI, gaming, DeFi, L2, L1 — szersza kategoria przegrywa z węższą). Wprost: NEAR i Stellar to łańcuchy L1 (AI i RWA to dopiski
+# kategorii), Bittensor to sieć AI, Chainlink to wyrocznia DeFi. Reguła liczona z KANDYDATÓW wszystkich sektorów (nie z pliku), więc stała między przebiegami. Stablecoiny
+# (T10_STABILNE: cena przypięta do waluty, kapitalizacja = podaż) nie są sektorem — poza wszystkimi grupami (dawniej DAI w DeFi); fundusze tokenizowane (BUIDL, USYC, USDY) zostają w RWA.
+T10_PRIO = ('meme', 'rwa', 'depin', 'ai', 'gaming', 'defi', 'l2', 'l1')
+T10_GLOWNY = {'near': 'l1', 'stellar': 'l1', 'bittensor': 'ai', 'chainlink': 'defi'}
+T10_STABILNE = frozenset({'dai', 'usds', 'tether', 'usd-coin', 'ethena-usde', 'usd1-wlfi', 'paypal-usd', 'first-digital-usd', 'true-usd', 'usdd', 'frax',
+                          'gemini-dollar', 'binance-usd', 'ripple-usd', 'global-dollar', 'stasis-eurs'})
 T10_N = 10               # monet w grupie
-T10_POOL = 20            # kandydatów z jednej kategorii (jedno zapytanie; zapas na tokeny pochodne i zmianę kolejności między pobraniami składu)
+T10_POOL = 25            # kandydatów z jednej kategorii (jedno zapytanie; zapas na tokeny pochodne, zmianę kolejności między pobraniami składu i monety, których sektorem głównym jest inny — v437: było 20)
 T10_EVERY = 55           # min — ceny i kapitalizacje (jak krypto.json)
 T10_SKLAD = 360          # min — skład kategorii na nowo; kategoria z błędem albo z mniej niż T10_N kandydatami — w następnym przebiegu
 T10_MAX_AGE = 72 * 60    # min — najstarsze poprzednie wiersze grupy, gdy ceny nie przyszły (potem „brak danych”)
@@ -5826,6 +5836,17 @@ def t10_logos(top, imgs, prev_logo=None, at=None, end=None, late=False):
     return {'at': at or _now_utc().replace(microsecond=0).isoformat(), 'n': len(logo), 'logo': logo}
 
 
+def t10_glowny(pools):
+    """v437: {id monety: sektor główny} dla monet, które są kandydatami choć jednego sektora (pools: {sektor: [id…]}). Wskazanie wprost z T10_GLOWNY, gdy ten sektor
+    jest wśród kandydatów monety; inaczej pierwszy wg T10_PRIO z sektorów, w których moneta jest kandydatem (węższa kategoria wygrywa)."""
+    gdzie = {}
+    for k, _ in T10_CATS:
+        for i in (pools or {}).get(k) or []:
+            if k not in gdzie.setdefault(i, []):
+                gdzie[i].append(k)
+    return {i: (T10_GLOWNY[i] if T10_GLOWNY.get(i) in ks else min(ks, key=T10_PRIO.index)) for i, ks in gdzie.items()}
+
+
 def _t10_fresh(r, now):
     """v330 (ZB04-02): wiersz z poprzedniego pliku wolno przenieść, gdy jego WŁASNE notowanie (kolumna upd) ma mniej niż T10_MAX_AGE min; brak czasu
     albo zły format = nie (brak danych, nie stara cena). Dawniej wiek liczony z czasu PLIKU, a ten dostaje nowy czas w każdym przebiegu."""
@@ -5896,6 +5917,12 @@ def build_krypto_top10(cg_key, prev=None, prev_logo=None, now=None, run_t0=None)
         except Exception as e:  # noqa
             errs.append(f'ceny ({len(ids)} monet): {e}')
     out = {'at': at, 'cols': list(T10_COLS), 'n': T10_N, 'g': {}, 'ok': {}}
+    bezk = {}   # v437: wykluczenia sektora (stare reguły + stablecoiny); sektor główny liczony z kandydatów bez nich
+    for k, _ in T10_CATS:
+        bezk[k] = set(T10_BEZ.get(k, ())) | T10_STABILNE
+        if k in T10_BEZ_Z:   # v155: moneta z kandydatów grupy memecoinów (ten albo poprzedni skład) to memecoin, nie gra
+            bezk[k] |= {i for i in (G[T10_BEZ_Z[k]]['pool'] or []) if isinstance(i, str)}
+    glowny = t10_glowny({k: [i for i in G[k]['pool'] if i not in bezk[k]] for k, _ in T10_CATS})   # v437: każda moneta w jednym sektorze
     for k, cat in T10_CATS:                                   # 3) plik: top 10 wg kapitalizacji
         g = G[k]
         rows = g['rows']
@@ -5903,10 +5930,9 @@ def build_krypto_top10(cg_key, prev=None, prev_logo=None, now=None, run_t0=None)
             rows = [r for r in g['prev'] if _t10_fresh(r, now)]   # v330 (ZB04-02): wiek z czasu notowania wiersza, nie pliku
             if not any(e.startswith(k + ':') for e in errs):
                 errs.append(f'{k}: ' + ('poprzednie ceny' if rows else 'brak danych'))
-        bez = set(T10_BEZ.get(k, ()))
-        if k in T10_BEZ_Z:   # v155: moneta z kandydatów grupy memecoinów (ten albo poprzedni skład) to memecoin, nie gra
-            bez |= {i for i in (G[T10_BEZ_Z[k]]['pool'] or []) if isinstance(i, str)}
-        rows = sorted((r for r in rows if r[0] not in bez), key=lambda r: -r[4])[:T10_N]
+        bez = bezk[k]
+        inne = {i for i, s in glowny.items() if s != k}   # v437: moneta, której sektorem głównym jest inny — tu nie stoi (kandydaci zostają: reguła liczona od nowa w każdym przebiegu)
+        rows = sorted((r for r in rows if r[0] not in bez and r[0] not in inne), key=lambda r: -r[4])[:T10_N]
         pool = [i for i in g['pool'] if i not in bez]   # v155: kandydaci też bez wykluczonych (kolejne ceny tylko dla monet grupy)
         out['g'][k] = {'cat': cat, 'sk': g['sk'] if rows else None, 'pool': pool if rows else [], 'c': rows}
         out['ok'][k] = g['rows'] is not None

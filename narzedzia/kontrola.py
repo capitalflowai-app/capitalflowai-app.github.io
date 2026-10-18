@@ -14868,6 +14868,14 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['krypto-firmy'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Skarbce spółek (v422): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v437. Sektory krypto i Top 10 sceny CRYPTO (data/krypto-top10.json + logo + ranking ogólny z krypto.json): przypisanie monet, identyfikatory, kapitalizacje, logo — z plików strony, bez zapytań; tylko raport (⚠️/ℹ️)
+    try:
+        T10K_ = t10_k_kontrola(files.get('krypto-top10'), files.get('krypto-top10-logo'), files.get('krypto'))
+        R['uwagi'] += T10K_['uwagi']
+        R['zgodnosc']['krypto-top10'] = {'spojnosc': T10K_['spojnosc'], 'wiersze': T10K_['wiersze']} if T10K_['wiersze'] else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['krypto-top10'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Sektory krypto (v437): kontrola przerwana ({str(e)[:80]})')
     # 3c-v423. Fed (data/fed-ddp.json): świeżość pobrania czterech części i rytm danych osobnymi wierszami (lista SWIEZOSC bez zmian) oraz sprzeczności w pliku (❌) — z plików strony, bez zapytań
     try:
         for label, st, w, txt, note in fedddp_swiezosc(files.get('fed-ddp')):
@@ -15611,6 +15619,11 @@ def raport_md(R):
             L.append('- Ropa świata (bilans krajów i zapasy ropy i paliw w Europie; z pliku strony; wydobycie USA i zapasy Polski z drugim źródłem tylko informacyjnie): ' + (f'? kontrola przerwana ({srop_["blad"]})' if srop_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(srop_['spojnosc'][:3]) + ' ⚠️ · ' if srop_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in srop_.get('wiersze') or []) or '—') + '.')
+        skt_ = Z.get('krypto-top10')   # v437: sektory krypto i Top 10 sceny CRYPTO — brak pliku = bez linii
+        if skt_:
+            L.append('- Sektory krypto i Top 10 w scenie CRYPTO (z plików strony; kontrola tylko raportuje, niczego nie zmienia): ' + (f'? kontrola przerwana ({skt_["blad"]})' if skt_.get('blad') else
+                     ('uwagi: ' + '; '.join(skt_['spojnosc'][:4]) + ' ⚠️ · ' if skt_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in skt_.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else
@@ -15840,6 +15853,127 @@ def main():
             f.write(md)
     print('::notice title=kontrola::' + (R['wynik'] + ' — ' + '; '.join(R['bledy'] + R['uwagi'])[:900]).replace('%', '%25').replace('\n', '%0A'))
     sys.exit(1 if R['bledy'] else 0)
+
+
+# ---------------------------------------------------------------- v437: SEKTORY KRYPTO I TOP 10 W SCENIE CRYPTO (data/krypto-top10.json, krypto-top10-logo.json, krypto.json) ----------------
+# Stała kontrola przypisania monet do sektorów sceny CRYPTO (punkt 9 poleceń właściciela z 18.10.2026). TYLKO RAPORTUJE (⚠️ z listą i ℹ️), niczego nie zmienia ani nie zapisuje.
+# Sprawdza: (1) osiem znanych sektorów (L1, L2, AI, DeFi, RWA, memecoiny, DePIN, gaming), (2) każda moneta w dokładnie jednym sektorze, (3) identyfikatory i wiersze poprawne,
+# bez stablecoinów i bez BTC/ETH w L1, (4) kapitalizacje w sektorze nie rosną i zgadzają się z rankingiem ogólnym z tego samego przebiegu (krypto.json, część mk, po symbolu),
+# (5) komplet monet w sektorze, (6) skład sektora nie starszy niż T10_K_SKLAD_H h, (7) logo każdej monety. Ranking ogólny: rozbieżność ponad T10_K_ROZNICA przy co najmniej
+# T10_K_MK_ILE monetach = ⚠️ (pojedyncza = ℹ️: symbol bywa wspólny dla dwóch monet, a ranking ogólny zostawia pierwszy). Test wsteczny: migawka na żywo 18.10.2026 17:05 UTC
+# (71 monet, największa różnica 1,7%, 0 uwag po poprawce przypisań; przed nią 13 monet w dwóch sektorach i DAI w DeFi) — historii pliku nie ma, próg ma zapas wobec ruchu ceny między pobraniami.
+T10_K_SEKTORY = (('l1', 'L1'), ('l2', 'L2'), ('ai', 'AI'), ('defi', 'DeFi'), ('rwa', 'RWA'), ('meme', 'memecoiny'), ('depin', 'DePIN'), ('gaming', 'gaming'))
+T10_K_ID = re.compile(r'^[a-z0-9][a-z0-9-]{0,99}$')
+T10_K_STABILNE = frozenset({'dai', 'usds', 'tether', 'usd-coin', 'ethena-usde', 'usd1-wlfi', 'paypal-usd', 'first-digital-usd', 'true-usd', 'usdd', 'frax',
+                            'gemini-dollar', 'binance-usd', 'ripple-usd', 'global-dollar', 'stasis-eurs'})
+T10_K_WLASNE = {'l1': frozenset({'bitcoin', 'ethereum'})}   # BTC i ETH to własne elementy sceny, nie członkowie grupy L1
+T10_K_SKLAD_H = 14        # h — skład sektora odświeżany co ~6 h; dwa nieudane odświeżenia mieszczą się poniżej progu
+T10_K_ROZNICA = 0.15      # część — kapitalizacja w sektorze wobec rankingu ogólnym
+T10_K_MK_ILE = 3          # tyle rozbieżności naraz = ⚠️ (mniej = ℹ️)
+T10_K_OKNO_MIN = 180      # min — pliki dalej od siebie nie są z jednego przebiegu (porównanie pominięte)
+
+
+def _t10_k_lista(x, n=6):
+    x = list(x)
+    return ', '.join(x[:n]) + (f' i {len(x) - n} więcej' if len(x) > n else '')
+
+
+def t10_k_kontrola(j, logo=None, krypto=None, now=None):
+    """data/krypto-top10.json (+ krypto-top10-logo.json, krypto.json) → {'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku = puste. Najwyżej ⚠️; nic nie zmienia."""
+    now = now or NOW
+    out = {'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or not isinstance(j.get('g'), dict):
+        return out
+    G, nazwa = j['g'], dict(T10_K_SEKTORY)
+    zle = {'sektory': [], 'id': [], 'rangi': [], 'dane': [], 'sklad': [], 'logo': []}
+    info = []
+    obce = [k for k in G if k not in nazwa]
+    if obce:
+        zle['sektory'].append('nieznany sektor w pliku: ' + _t10_k_lista(map(str, obce)))
+    n_ = j.get('n') if isinstance(j.get('n'), int) and not isinstance(j.get('n'), bool) and 0 < j.get('n') <= 50 else 10
+    gdzie, wiersz = {}, {}
+    for k, nz in T10_K_SEKTORY:
+        g = G.get(k)
+        c = g.get('c') if isinstance(g, dict) else None
+        if not isinstance(c, list):
+            zle['dane'].append(f'{nz}: brak sektora w pliku')
+            continue
+        if not c:
+            zle['dane'].append(f'{nz}: brak danych (pusty sektor)')
+            continue
+        if len(c) < n_:
+            zle['dane'].append(f'{nz}: tylko {len(c)} z {n_} monet')
+        prev, nie_maleje = None, False
+        for r in c:
+            mc = _ste_k_l(r[4]) if isinstance(r, list) and len(r) >= 7 else None
+            if not (mc and mc > 0 and isinstance(r[0], str) and T10_K_ID.match(r[0]) and isinstance(r[1], str) and r[1].strip() and isinstance(r[2], str) and r[2].strip()):
+                zle['id'].append(f'{nz}: zły wiersz ({str(r[0] if isinstance(r, list) and r else r)[:30]})')
+                continue
+            gdzie.setdefault(r[0], []).append(k)
+            wiersz.setdefault(r[0], r)
+            if prev is not None and mc > prev:
+                nie_maleje = True
+            prev = mc
+            if r[0] in T10_K_STABILNE:
+                zle['id'].append(f'stablecoin w sektorze {nz}: {r[0]}')
+            if r[0] in T10_K_WLASNE.get(k, ()):
+                zle['id'].append(f'{r[0]} w sektorze {nz} (to własny element sceny)')
+        if nie_maleje:
+            zle['rangi'].append(f'{nz}: kapitalizacje nie malejąco')
+        sk = _ix_dt_k(g.get('sk')) if g.get('sk') else None
+        if sk is None:
+            zle['sklad'].append(f'{nz}: brak czasu składu')
+        elif (now - sk).total_seconds() / 3600 > T10_K_SKLAD_H:
+            zle['sklad'].append(f'{nz}: skład z {str(g.get("sk"))[:16].replace("T", " ")} UTC ({int((now - sk).total_seconds() // 3600)} h temu)')
+    dup = {i: ks for i, ks in gdzie.items() if len(ks) > 1}
+    if dup:
+        zle['sektory'].append('moneta w więcej niż jednym sektorze: ' + _t10_k_lista(f'{i} ({", ".join(nazwa[k] for k in ks)})' for i, ks in dup.items()))
+    # ranking ogólny z tego samego przebiegu (krypto.json, mk) — po symbolu
+    mk = krypto.get('mk') if isinstance(krypto, dict) and isinstance(krypto.get('mk'), dict) else {}
+    por = {}
+    for r in mk.get('rows') or []:
+        if isinstance(r, list) and len(r) >= 2 and isinstance(r[0], str) and _ste_k_l(r[1]) and r[1] > 0:
+            por.setdefault(r[0].upper(), r[1])
+    t_j, t_mk = _ix_dt_k(j.get('at')), _ix_dt_k(mk.get('asof'))
+    if por and wiersz:
+        if t_j and t_mk and abs((t_j - t_mk).total_seconds()) <= T10_K_OKNO_MIN * 60:
+            roz, poza, mn = [], [], min(por.values())
+            for i, r in wiersz.items():
+                s_, mc = str(r[1]).upper(), r[4]
+                if s_ in por:
+                    d = abs(mc / por[s_] - 1)
+                    if d > T10_K_ROZNICA:
+                        roz.append(f'{r[1]} ({d * 100:.0f}%)')
+                elif mc > mn:
+                    poza.append(str(r[1]))
+            if len(roz) >= T10_K_MK_ILE:
+                zle['rangi'].append(f'kapitalizacja różni się od rankingu ogólnego o ponad {int(T10_K_ROZNICA * 100)}%: ' + _t10_k_lista(roz))
+            elif roz:
+                info.append('kapitalizacja różni się od rankingu ogólnego: ' + _t10_k_lista(roz) + ' — pojedyncze, możliwy wspólny symbol dwóch monet')
+            if poza:
+                info.append('poza rankingiem ogólnym mimo kapitalizacji powyżej jego dolnej granicy: ' + _t10_k_lista(poza))
+        else:
+            info.append('porównanie z rankingiem ogólnym pominięte — pliki nie są z jednego przebiegu')
+    L = logo.get('logo') if isinstance(logo, dict) and isinstance(logo.get('logo'), dict) else None
+    if wiersz and L is None:
+        zle['logo'].append('brak pliku z logo monet')
+    elif L is not None:
+        bez = [i for i in wiersz if not (isinstance(L.get(i), str) and L[i].startswith('data:image/'))]
+        if bez:
+            zle['logo'].append('brak logo: ' + _t10_k_lista(bez))
+    zly_ok = [nazwa[k] for k in nazwa if isinstance(j.get('ok'), dict) and j['ok'].get(k) is False and isinstance(G.get(k), dict) and G[k].get('c')]
+    if zly_ok:
+        info.append('ostatnie pobranie nieudane, widać poprzednie notowania: ' + _t10_k_lista(zly_ok))
+    for opis, k in (('każda moneta w jednym sektorze (znane sektory, bez powtórzeń)', 'sektory'), ('identyfikatory i wiersze (bez stablecoinów, BTC i ETH w L1)', 'id'),
+                    ('kolejność i zgodność kapitalizacji z rankingiem ogólnym', 'rangi'), ('komplet monet w sektorach', 'dane'),
+                    ('świeżość składu sektorów', 'sklad'), ('logo monet', 'logo')):
+        out['wiersze'].append((opis, '⚠️' if zle[k] else '✅'))
+        out['spojnosc'] += zle[k]
+    for x in info:
+        out['wiersze'].append((x, 'ℹ️'))
+    for z in out['spojnosc'][:4]:
+        out['uwagi'].append(f'Sektory krypto (krypto-top10.json): {z}')
+    return out
 
 
 # --- v352: zmienność rynków (data/zmiennosc.json) oraz put/call i indeks stresu (data/stres.json) — świeżość w dniach roboczych (kontrola dzienna) ---
