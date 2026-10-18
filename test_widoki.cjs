@@ -2641,23 +2641,23 @@ test('v96-pages: Przepływy — flagi obu końców (GLOBAL), loga grup (CRYPTO),
   g.f.renderFlows();
   const h = g.el.innerHTML;
   assert.ok(h.includes('<h2 class="pos">▲ rail.in.g</h2>') && h.includes('<h2 class="neg">▼ rail.out.g</h2>'), 'nagłówki zielony / czerwony');
-  const rows = h.split('<tr>').slice(2);
-  const eur = rows.find(r => r.includes('g.n.eur'));
-  assert.ok(eur && eur.includes('flagi/eu.svg') && eur.includes('flagi/gb.svg') && eur.includes('flagi/jp.svg') && eur.includes('flagi/kr.svg'), 'flagi obu końców: Europa → Japonia i Korea');
-  assert.ok(eur.includes('<span class="cell pos"><b>+3.0 B</b>'), 'napływ zielony z „+”');
-  const etf = rows.find(r => r.includes('ETF BTC'));
-  assert.ok(etf && etf.includes('glify/etf.svg') && (etf.match(/krypto\/btc\.svg/g) || []).length === 2, 'ETF BTC: glif ETF + logo BTC; „Krypto” — logo BTC');
-  const us = rows.find(r => r.includes('g.n.usa'));
-  assert.ok(us && us.includes('flagi/us.svg'), 'USA → Krypto z flagą');
+  /* v434: tabela korytarzy usunięta z interfejsu — korytarze sprawdzane na danych (pgEdges) i ikonach (pgIco), strona ma tylko listy i wiersz „Giełdy” */
+  assert.ok(!/<table|<tr>|<th>|class="chip|pg\.(from|to|amount)|list\.ev|ev\.(direct|onchain|proxy|unc|meas)/.test(h), 'bez tabeli korytarzy i bez rodzaju dowodu');
+  const E0 = g.f.pgEdges(), eur = E0.find(e => e.f === 'eur'), etf = E0.find(e => e.f === 'etf-btc'), us = E0.find(e => e.f === 'usa');
+  assert.ok(eur && eur.t === 'jpn' && eur.a === 3, 'korytarz Europa → Japonia i Korea zostaje w danych');
+  const ic = id => g.f.pgIco(id);
+  assert.ok(ic(eur.f).includes('flagi/eu.svg') && ic(eur.f).includes('flagi/gb.svg') && ic(eur.t).includes('flagi/jp.svg') && ic(eur.t).includes('flagi/kr.svg'), 'flagi obu końców (pgIco)');
+  assert.ok(etf && ic(etf.f).includes('glify/etf.svg') && (ic(etf.f) + ic(etf.t)).split('krypto/btc.svg').length === 3, 'ETF BTC: glif ETF + logo BTC; „Krypto” — logo BTC');
+  assert.ok(us && us.t === 'crypto' && ic(us.f).includes('flagi/us.svg'), 'USA → Krypto z flagą');
   assert.ok(h.includes('class="amt in pos">+') && h.includes('class="amt out neg">−5.0 B'), 'listy: napływy zielone z „+”, odpływy czerwone z „−”');
   assert.ok(!h.includes('g.n.rus'), 'region bez danych i region z zerem nie trafiają do list największych');
-  for (const r of rows) assert.ok(/<img |<span class="iss/.test(r.split('<td>')[1] || '') , 'każdy wiersz ma ikonę przy „Z”');
+  for (const e of E0) assert.ok(/<img |<span class="iss/.test(ic(e.f)), 'każdy korytarz ma ikonę przy „Z”');
   // CRYPTO: loga grup, odpływ do giełd czerwony z „−”, bez podwójnego znaku
   const c = pgEnv({st: {mode: 'crypto', period: '24H'}, isLive: () => true});   /* v334 (CR8-01): liczby sceny tylko przy danych na żywo albo z pliku serwera — bez nich zdanie zamiast liczb przykładowych */
   c.f.renderFlows();
   const k = c.el.innerHTML;
-  assert.ok(k.includes('data-id="btc"') && k.includes('data-id="exch"') && k.includes('data-id="stab"') && k.includes('data-id="defi"'), 'loga grup krypto');
-  assert.ok(k.includes('<span class="cell neg"><b>−415 u.m</b>') && k.includes('<span class="cell pos"><b>+512 u.m</b>'), 'kwota idzie za kierunkiem');
+  assert.ok(k.includes('data-id="btc"') && k.includes('data-id="exch"') && k.includes('data-id="defi"') && !k.includes('data-id="stab"') && c.f.pgIco('stab').includes('data-id="stab"'), 'loga grup krypto (listy i „Giełdy”; zero — poza listami)');   /* v434: dawniej loga także z tabeli korytarzy */
+  assert.deepEqual(c.f.pgEdges().map(e => [e.f, e.t, e.a, e.k]), [['btc', 'exch', 415, 'out'], ['stab', 'defi', 512, 'in']], 'korytarze krypto w danych jak dotąd (v434: bez tabeli)');
   assert.ok(!/\+\+|−\+|\+−/.test(k), 'bez „++1 840” ani „−+520”');
   assert.ok(k.includes('class="amt in pos">+1.84 u.b') && !k.includes('class="amt out neg">−520 u.m') && k.includes('<span class="amt neg">−520 u.m</span>'));   /* v322 (decyzja właściciela 10.10, pkt 5): reszta bilansu nadal poza listami, ale w kolorze znaku (dawniej szara) */   /* v315 (CR7-01): „Giełdy” (reszta bilansu) poza listą spadków — osobny wiersz bez koloru kierunku */
 });
@@ -2804,10 +2804,10 @@ test('v96-pages: po przeglądzie — Sektory: flagi przy nazwie = kraje z wiersz
   assert.ok(rk('exch').includes('<span class="sval eq"><1 u.m</span>') && !k.includes('−0 u.m') && !k.includes('+0 u.m') && !k.includes('−<1 u.m'), '−0,4 mln → „<1 mln” żółte, bez znaku');   /* v322 (pkt 5); v345 (C-06): „<1 mln” (dawniej „0 mln”) */   /* v315 (CR7-01): „Giełdy” w osobnym wierszu (reszta bilansu) — klasa bez kierunku */
   const f = pgEnv(E);
   f.f.renderFlows();
-  const fl = f.el.innerHTML, tr = fl.split('<tr>').slice(2);
-  assert.ok(tr.find(r => r.includes('N:exch')).includes('<span class="cell eq"><b><1 u.m</b>'), 'korytarz 0,2 mln — żółty, bez znaku');   /* v322 (pkt 5); v345 (C-06): „<1 mln” (dawniej „0 mln”) */
-  const lists = fl.slice(0, fl.indexOf('<section class="panel pgc pg-exch">'));   /* v315 (CR7-01): „Giełdy” (reszta bilansu) — osobny wiersz pod listami, nad tabelą */
-  assert.ok(fl.indexOf('<section class="panel pgc pg-exch">') > 0 && fl.indexOf('<section class="panel pgc pg-exch">') < fl.indexOf('<table>'), 'osobny wiersz „Giełdy” pod listami');
+  const fl = f.el.innerHTML;
+  assert.ok(!fl.includes('<table') && f.f.pgEdges().some(e => e.t === 'exch' && e.a === 0.2), 'v434: korytarz 0,2 mln zostaje w danych (tabeli już nie ma)');   /* v322 (pkt 5); v345 (C-06): „<1 mln” (dawniej „0 mln”) */
+  const lists = fl.slice(0, fl.indexOf('<section class="panel pgc pg-exch">'));   /* v315 (CR7-01): „Giełdy” (reszta bilansu) — osobny wiersz pod listami (v434: tabeli korytarzy już nie ma) */
+  assert.ok(fl.indexOf('<section class="panel pgc pg-exch">') > 0 && !fl.includes('<table>'), 'osobny wiersz „Giełdy” pod listami');
   assert.ok(!lists.includes('data-id="stab"') && !lists.includes('data-id="exch"') && lists.includes('data-id="btc"'), 'zaokrąglone zero nie trafia do list największych');
 });
 
@@ -12645,9 +12645,9 @@ test('v165: telefon — szerokie tabele jako kartki: etykiety z nagłówka, nume
   assert.equal(tblPrep(K, 720), true); assert.ok(K.C.has('tst') && K.C.has('tst-r')); assert.equal(K.A.get('data-n'), '1');
   assert.deepEqual(k0.cells.map(c => [c.A.get('data-l') ?? null, c.A.get('data-r') ?? null]), [[null, null], [null, '1'], ['Stan, mld USD', null]]);
   /* Przepływy: kolumna strzałki bez nagłówka — schowana, „Do” z etykietą */
-  const P = v165Tab(['Z', '', 'Do', 'Kwota', 'Rodzaj dowodu'], [['Giełdy', '→', 'BTC', '+5 607 mln USD', 'Pomiar']]), p0 = P.tBodies[0].rows[0];
-  assert.equal(tblPrep(P, 560), true); assert.ok(!P.C.has('tst-r')); assert.equal(P.A.get('data-n'), '3', 'Do, Kwota, Rodzaj dowodu — trzy w rzędzie');
-  assert.deepEqual(p0.cells.map(c => [c.A.get('data-l') ?? null, c.A.has('data-x')]), [[null, false], [null, true], ['Do', false], ['Kwota', false], ['Rodzaj dowodu', false]]);
+  const P = v165Tab(['Z', '', 'Do', 'Kwota', 'Opis'], [['Giełdy', '→', 'BTC', '+5 607 mln USD', 'Pomiar']]), p0 = P.tBodies[0].rows[0];
+  assert.equal(tblPrep(P, 560), true); assert.ok(!P.C.has('tst-r')); assert.equal(P.A.get('data-n'), '3', 'Do, Kwota, Opis — trzy w rzędzie');
+  assert.deepEqual(p0.cells.map(c => [c.A.get('data-l') ?? null, c.A.has('data-x')]), [[null, false], [null, true], ['Do', false], ['Kwota', false], ['Opis', false]]);
   /* tabela dopasowana do telefonu (min-width:0) i tabela bez nagłówka — bez zmian */
   for (const [X, mw] of [[v165Tab(['Kraj', 'Stopa'], [['Polska', '4,0']]), 0], [v165Tab([], [['a', 'b']]), 720]]) {
     assert.equal(tblPrep(X, mw), false); assert.equal(X.A.get('data-tl'), '0'); assert.ok(!X.C.has('tst'));
@@ -14828,10 +14828,10 @@ test('v296c CR-03: Sektory i Przepływy — wiersz „Krypto: stablecoiny” z l
   const eur = g.el.innerHTML.split('<div class="secrow">').find(r => r.includes('g.n.eur<'));
   assert.ok(eur.includes('flagi/de.svg'), 'regiony — flagi jak dotąd');
   g.f.renderFlows();
-  const h = g.el.innerHTML, lists = h.slice(0, h.indexOf('<table>')), it = lists.split('<div class="row">').find(r => r.includes('a293c.pg.n.crypto'));
+  const h = g.el.innerHTML, lists = h, it = lists.split('<div class="row">').find(r => r.includes('a293c.pg.n.crypto'));
   assert.ok(it && it.includes('krypto/usdt.svg') && it.includes('krypto/usdc.svg') && !it.includes('krypto/btc.svg'), 'lista napływów: ' + it);
-  const etf = h.split('<tr>').find(r => r.includes('ETF BTC'));
-  assert.equal((etf.match(/krypto\/btc\.svg/g) || []).length, 2, 'korytarz ETF BTC → Krypto — jak dotąd (rynek krypto)');
+  const etf = g.f.pgEdges().find(e => e.f === 'etf-btc');
+  assert.equal((g.f.pgIco(etf.f) + g.f.pgIco(etf.t)).split('krypto/btc.svg').length - 1, 2, 'korytarz ETF BTC → Krypto — jak dotąd (rynek krypto; v434: ikony z pgIco, bez tabeli)');
   const c = pgEnv({st: {mode: 'crypto', period: '24H'}, isLive: () => true});   /* v334 (CR8-01): liczby sceny tylko przy danych na żywo albo z pliku serwera — bez nich zdanie zamiast liczb przykładowych */
   c.f.renderSectorsPage();
   assert.ok(c.el.innerHTML.includes('data-id="btc"') && c.el.innerHTML.includes('data-id="exch"') && c.el.innerHTML.includes('data-id="stab"'), 'CRYPTO — loga grup jak dotąd');
@@ -18012,7 +18012,7 @@ test('v315 (CR7-01, CR7-04): Przepływy i Sektory w CRYPTO — „Giełdy” poz
   const c = pgEnv({st: {mode: 'crypto', period: '1R'}, DATA: D, isLive: () => true});   /* v334 (CR8-01): dane sceny na żywo */
   c.f.renderFlows();
   const k = c.el.innerHTML, a = k.indexOf('<div class="pg2">'), b = k.indexOf('<section class="panel pgc pg-exch">');
-  assert.ok(a > 0 && b > a && k.indexOf('<section class="panel"><div class="list-wrap"><table>') > b, 'osobny wiersz pod listami, nad tabelą korytarzy');
+  assert.ok(a > 0 && b > a && !k.includes('<table') && !k.includes('class="chip'), 'osobny wiersz pod listami (v434: tabeli korytarzy i rodzaju dowodu już nie ma)');
   assert.ok(!k.slice(a, b).includes('data-id="exch"') && k.slice(a, b).includes('class="amt in pos">+8.13 u.b') && k.slice(a, b).includes('class="amt out neg">−781.3 u.b'), 'listy bez „Giełd”');
   const x = k.slice(b, k.indexOf('</section>', b));
   assert.ok(x.includes('<h2>c315.pg.exch.h</h2>') && x.includes('data-id="exch"') && x.includes('<span class="amt pos">+1161.3 u.b</span>') && x.includes('<p class="pnote">c315.pg.exch.d</p>'), x);   /* v322 (pkt 5): reszta bilansu w kolorze znaku */
@@ -19918,7 +19918,7 @@ test('v322 (pkt 5): kolory kierunku w CRYPTO i na stronach Przepływy / Sektory 
   assert.ok(f0.stroke.some(s => s.style.startsWith('rgba(255,204,1,')), 'bryła bez zmian — krawędzie żółte (tintOf; dawniej zielone)'); D[id][0] = keep; D[id][1] = keepP;
   R.act('Przepływy', () => A.setPage('flows'));
   const pf = R.el('page-flows').innerHTML;
-  assert.ok(/<span class="cell (pos|neg)">→<\/span>/.test(pf) && !pf.includes('<span class="cell">→</span>'), 'Przepływy: strzałka w kolorze kwoty');
+  assert.ok(!/<table|→/.test(pf), 'Przepływy: bez tabeli korytarzy i strzałek (v434)');
   assert.ok(/<span class="amt (pos|neg|eq)">[+−]?[\d\s ]/.test(pf.slice(pf.indexOf('pg-exch'))), 'Przepływy: „Giełdy” w kolorze znaku');
   R.act('Sektory', () => A.setPage('sectors'));
   const ps = R.el('page-sectors').innerHTML;
@@ -20717,7 +20717,8 @@ test('v334 (GL-05): Przepływy GLOBAL (miesiąc) — wiersze „ETF → Krypto�
   assert.equal(ids({live: true, data: {assets: Object.assign({}, A, {xrp: {m: 106, sym: 'XRP', stale: true}})}}), 'etf-btc,etf-eth', 'XRP stale — bez wiersza (panel ETF ma „—”)');
   assert.equal(ids({live: false, data: {asof: '2026-09-23', assets: {btc: {m: 3200, sym: 'BTC'}, xrp: {m: 182, sym: 'XRP'}}}}), '', 'plik niedostępny (migawka wbudowana) — bez wierszy');
   const g = pgEnv({ETF: {live: true, data: {assets: Object.assign({}, A, {xrp: {m: 106, sym: 'XRP', stale: true}})}}, ETF_SYMS: ['btc', 'eth', 'xrp']});
-  g.f.renderFlows(); assert.ok(g.el.innerHTML.includes('ETF BTC') && !g.el.innerHTML.includes('ETF XRP'));
+  g.f.renderFlows(); const nmE = g.f.pgEdges().map(e => e.nm(e.f)).join('|');
+  assert.ok(nmE.includes('ETF BTC') && !nmE.includes('ETF XRP') && !g.el.innerHTML.includes('<table'), 'v434: korytarze w danych, bez tabeli');
 });
 
 test('v334 (CR8-09): kolumna słupków ETF — „Ostatnie 30 sesji” (słupków jest 30 sesji, ok. 6 tygodni), nie „30 dni”, w 10 językach', () => {
@@ -34458,4 +34459,34 @@ test('v433: lewy panel — ikony w neonowym niebieskim jak logo, cienka niebiesk
   assert.equal((html.match(/<button id="nav-[a-z]+"[^>]*aria-current="page"/g) || []).length, 1, 'w kodzie startowym jedna pozycja aktywna');
   assert.ok(html.includes("$('#side'),ac=sd&&sd.querySelector('.nav [aria-current=\"page\"]')") && html.includes('catch(e){}   /* v433: poziomy pasek'), 'przewijanie paska do aktywnej pozycji, w try/catch');
   assert.ok(html.includes('.tabs button[aria-selected="true"]{background:var(--sel);color:var(--tx);box-shadow:inset 0 -2px 0 var(--bl)}'), 'wzór (aktywne GLOBAL/CRYPTO/TRENDY) bez zmian');
+});
+
+
+test('v434: Przepływy (GLOBAL i CRYPTO) bez „Rodzaju dowodu” i bez tabeli korytarzy; podtytuł bez „wszystkich korytarzy”; logika przepływów i okna szczegółów bez zmian', () => {
+  const widok = (g, jak) => {
+    g.f.renderFlows(); const h = g.el.innerHTML;
+    assert.ok(h.includes('<h1>pg.flows</h1>') && h.includes('<p class="pgsub">pg434.flows.d{"p"'), jak + ': nagłówek i nowy podtytuł');
+    assert.ok(!h.includes('pg.flows.d') && !/<table|<thead|<tr>|<th>|<td>|list-wrap|class="chip|pg\.(from|to|amount)|list\.ev|\bev\.[a-z]+|c315\.ev|→/.test(h), jak + ': bez tabeli korytarzy, kolumny i rodzaju dowodu: ' + h.slice(0, 200));
+    assert.ok(h.includes('class="amt in pos">+') && (jak !== 'GLOBAL' || h.includes('class="amt out neg">−')), jak + ': listy wzrostów i spadków zostają');
+    return h;
+  };
+  const g = pgEnv(), c = pgEnv({st: {mode: 'crypto', period: '24H'}, isLive: () => true});
+  widok(g, 'GLOBAL');
+  assert.ok(widok(c, 'CRYPTO').includes('pg-exch'), 'CRYPTO: wiersz „Giełdy” zostaje');
+  /* logika korytarzy bez zmian: te same linie w danych, także gdy ich nie rysujemy */
+  assert.ok(g.f.pgEdges().length >= 3 && c.f.pgEdges().length === 2 && g.f.pgEdges().every(e => typeof e.ev === 'string'), 'pgEdges liczy korytarze jak dotąd');
+  /* bez danych: zdanie zamiast liczb (v334) — także bez tabeli */
+  const bez = pgEnv({st: {mode: 'crypto', period: '24H'}, LIVE: {st: 'err'}}); bez.f.renderFlows();
+  assert.ok(bez.el.innerHTML.includes('c334.pg.err') && !bez.el.innerHTML.includes('<table'));
+  /* kod: strona Przepływy nie składa już ani tabeli, ani kolumny rodzaju dowodu; okno szczegółów w Przeglądzie zostaje, jak było */
+  const src = html.slice(html.indexOf('function renderFlows(){'), html.indexOf('\n/* v293 (audyt G1)', html.indexOf('function renderFlows(){'))).replace(/\/\*[\s\S]*?\*\//g, '');   /* bez komentarzy */
+  assert.ok(src.length > 200 && !/chip\(|<table|list\.ev|pg\.from|pg\.amount|pgEdges\(\)/.test(src), 'renderFlows bez tabeli i rodzaju dowodu');
+  assert.ok(html.includes("<div><dt>${t('d.evidence')}</dt><dd>${chip(ev)}</dd></div>"), 'okno szczegółów w Przeglądzie bez zmian');
+  /* słownik: nowy podtytuł w 10 językach, z okresem, bez słowa o „wszystkich korytarzach” */
+  const I = v143Final(html);
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const v = I[l]['pg434.flows.d']; assert.ok(typeof v === 'string' && v.includes('{p}') && v.length > 20, l);
+    if (l !== 'en') assert.notEqual(v, I.en['pg434.flows.d'], l + ': prawdziwe tłumaczenie');
+  }
+  assert.ok(!/korytarz/i.test(I.pl['pg434.flows.d']) && /wzrosty i spadki/.test(I.pl['pg434.flows.d']) && !/corridor/i.test(I.en['pg434.flows.d']));
 });
