@@ -1338,6 +1338,16 @@ AW_BLAD_H = 24        # v207: … co najmniej tyle godzin = BŁĄD (e-mail do w�
 AW_INFO_H = 24        # v207: awarie naprawione w ostatnich tylu godzinach — informacja ℹ️ (samonaprawa widoczna w raporcie)
 AW_KLUCZ = re.compile(r'klucz\w*(?:\s+\S+)?\s+odrzuc|zły klucz|unauthori[sz]ed|HTTP\D{0,7}401\b|(?:invalid|incorrect) api ?key', re.I)
 AW_LIMIT = re.compile(r'HTTP\D{0,7}(?:429|402)\b|too many requests|rate limit|credits|limit zapytań(?! w przebiegu)|dobowy limit|limit planu', re.I)   # v211: bez własnego limitu zbieracza
+# v416: część z przerwą po stronie źródła, o której zbieracz zostawia notatkę w meta.notes (początek tekstu): seria awarii tej części jest informacją (bez ❌), dopóki
+# notatka jest — zbieracz sam kończy ją po 3 dobach od ostatniego udanego pobrania (wtedy znów ❌ po AW_BLAD_H); bez notatki (inny błąd) — ocena jak dotąd
+AW_PRZERWA_BANKU = {'obce_br': ('BCB: bank nie podaje danych', 'Brazylia — przerwa po stronie banku: dane z datą, do 3 dób (v416); wiek danych w wierszach świeżości')}
+
+
+def aw_bez_opis(czesc):
+    """v416: opis części bez czerwieni z serii awarii (stały z AW_BEZ_BLEDU albo chwilowy z AW_PRZERWA_BANKU)."""
+    return AW_BEZ_BLEDU.get(czesc) or (AW_PRZERWA_BANKU.get(czesc) or ('', ''))[1]
+
+
 AW_BEZ_BLEDU = {   # v211/v215: części bez czerwieni z serii awarii — seria tylko informacją (wiek danych ocenia wiersz świeżości); v215: snb usunięte (False = błąd pobrania)
     'ici': 'fundusze USA — z założenia bez czerwieni (v134); wiek danych w wierszu świeżości', 'jpx': 'Japonia — tydzień czeka na publikację giełdy',
     'wycena_bg': 'dodatek SOPR — limit planu źródła (v132)',
@@ -1401,6 +1411,7 @@ def awarie_ocena(meta, now=None):
     ma = _aw_t(meta.get('at'))
     kon = min(now, ma) if ma else now
     Z = {'trwa': [], 'naprawione': [], 'zniknely': [], 'uwagi': [], 'bledy': []}
+    nt = [s for s in (meta.get('notes') or []) if isinstance(s, str)]   # v416: notatki zbieracza (przerwa po stronie źródła)
     for k, w in sorted(aw.items()):
         if not isinstance(w, dict):
             continue
@@ -1411,7 +1422,7 @@ def awarie_ocena(meta, now=None):
         h = max(0.0, ((do or kon) - od).total_seconds() / 3600)
         x = {'czesc': str(k)[:40], 'od': w['od'], 'ost': w['ost'], 'n': n, 'do': w.get('do'), 'h': round(h, 1)}
         if do is None:
-            x['bez'] = k in AW_BEZ_BLEDU
+            x['bez'] = k in AW_BEZ_BLEDU or (k in AW_PRZERWA_BANKU and any(s.startswith(AW_PRZERWA_BANKU[k][0]) for s in nt))   # v416
             Z['trwa'].append(x)
             opis = f'część automatu „{x["czesc"]}” nie działa od {czas_pl(w["od"])} ({_aw_h(h)}, nieudanych przebiegów z rzędu: {n})'
             if x['bez']:
@@ -14278,7 +14289,7 @@ def raport_md(R):
         if aw.get('trwa'):
             L.append('- Awarie części automatu — trwają: ' + '; '.join(
                 f'{x["czesc"]} od {czas_pl(x["od"])} ({_aw_h(x["h"])}, nieudanych przebiegów: {x["n"]}) '
-                + ('ℹ️ (' + AW_BEZ_BLEDU.get(x['czesc'], '') + ')' if x.get('bez') else '❌' if x['h'] >= AW_BLAD_H else '⚠️' if x['h'] >= AW_UWAGA_H else 'ℹ️')
+                + ('ℹ️ (' + aw_bez_opis(x['czesc']) + ')' if x.get('bez') else '❌' if x['h'] >= AW_BLAD_H else '⚠️' if x['h'] >= AW_UWAGA_H else 'ℹ️')
                 for x in aw['trwa']) + '.')
         if aw.get('naprawione'):
             L.append('- Naprawiły się same (24 h): ' + '; '.join(
