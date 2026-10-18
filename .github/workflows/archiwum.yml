@@ -8,7 +8,7 @@ on:
     - cron: '20 1 * * *'        # 01:20 UTC = 03:20 czasu polskiego (letniego); v118.1: godzinę po północy, bo rotacja portfeli ETH (~80 min) musi przekroczyć północ, by doba była pełna
   push:
     branches: [main]
-    paths: ['narzedzia/archiwum.py', '.github/workflows/archiwum.yml']
+    paths: ['narzedzia/archiwum.py', 'narzedzia/backfill_pochodne.py', '.github/workflows/archiwum.yml']
   workflow_dispatch:
 
 permissions: {}

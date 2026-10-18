@@ -3,8 +3,8 @@
 
 Repozytorium jest publiczne, więc w archiwum są tylko (1) nasze własne wyliczenia z danych publicznych i (2) dane z domeny publicznej
 albo otwartych licencji: łańcuch Ethereum (odczyt własny), FRED (serie Rady Gubernatorów Fed), U.S. Treasury (TIC, rentowności),
-CFTC, Deutsche Bundesbank. Żadnych danych z API osobistych ani od dostawców z własnymi warunkami (CoinGecko, SoSoValue, CoinPaprika,
-Coin Metrics, Finnhub, Twelve Data, CoinMarketCap, giełdy, Tiingo, Massive, EODHD, FMP, Alpha Vantage, Etherscan, CryptoPanic).
+CFTC, Deutsche Bundesbank, a od v408 trzy pliki historii pochodnych krypto z publicznych archiwów plików (licencje i opis niżej). Żadnych danych z API osobistych ani od dostawców z własnymi warunkami (CoinGecko, SoSoValue, CoinPaprika,
+Coin Metrics, Finnhub, Twelve Data, CoinMarketCap, giełdy z ich API (poza trzema plikami historii pochodnych), Tiingo, Massive, EODHD, FMP, Alpha Vantage, Etherscan, CryptoPanic).
 
 Pliki CSV (UTF-8, przecinek, kropka dziesiętna, nagłówek po angielsku bez polskich znaków) w katalogu `archiwum/`:
   wieloryby.csv        dzień × giełda × aktywo — salda ogłoszonych portfeli giełd (z data/wieloryby.json, wyliczenie własne v105–v112)
@@ -25,6 +25,10 @@ Pliki CSV (UTF-8, przecinek, kropka dziesiętna, nagłówek po angielsku bez pol
                        liczona przed granicą 09:00 NY / 05:30 UTC, i wynik); zbieracz odtwarza z niej zgubiony dziennik
   ng-dziennik.csv      dzień × linia × symbol — dziennik kart reguł „w cieniu” nowych grup danych (v373; obliczenie własne zbieracza: karta liczona przed granicą
                        9:00 NY, i wynik); zbieracz odtwarza z niej zgubiony dziennik
+  binance-metrics.csv  dzień × kontrakt (BTCUSDT od 2020-09-01, ETHUSDT od 2021-12-01) — podsumowanie doby UTC z dziennych plików metryk kontraktów wieczystych
+                       (v408; otwarte pozycje, stosunki kont i pozycji, kupno/sprzedaż po rynku; CC BY-NC-SA 4.0, użycie niekomercyjne); dane wejściowe testów wstecznych
+  binance-funding.csv  dzień × kontrakt (od 2020-01) — suma i ostatnie rozliczenie doby ze stawek finansowania (pliki miesięczne, punkty bazowe; ta sama licencja)
+  deribit-dvol.csv     dzień × moneta (BTC, ETH od 2021-03) — dzienne świece indeksu zmienności opcji (pełne doby); szczegóły i filtr przyczynowy: narzedzia/backfill_pochodne.py
 Zasady: operacja idempotentna (jeden wiersz na klucz; ponowne uruchomienie tego samego dnia nadpisuje ten sam dzień); brak danych
 danego dnia = brak wiersza, nigdy zero; rewizje (np. FRED) nadpisywane najnowszą wartością i zliczane w `archiwum/indeks.json`.
 Każde źródło osobno: awaria jednego nie blokuje pozostałych; kod wyjścia 1 gdy którekolwiek zawiodło (e-mail z GitHuba).
@@ -42,6 +46,8 @@ import zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 import zbieraj_dane as zd  # noqa: E402 — parsery, adresy źródeł, maskowanie kluczy
+sys.path.insert(0, os.path.join(ROOT, 'narzedzia'))
+import backfill_pochodne as bp  # noqa: E402 — v408: historia pochodnych krypto (moduł bez zapytań przy imporcie)
 
 ARCH = os.environ.get('ARCHIWUM_DIR', os.path.join(ROOT, 'archiwum'))
 SITE = os.environ.get('SITE_URL', 'https://capitalflowai-app.github.io').rstrip('/')
@@ -80,6 +86,12 @@ FILES = {
     'ng-dziennik': {'file': 'ng-dziennik.csv', 'cols': ['date', 'line', 'sym', 'g', 'state', 'z', 'saved_at', 'y', 'dd', 'v', 'reg'],
                     'key': ['date', 'line', 'sym', 'v', 'reg'], 'back': None,
                     'src': 'Obliczenia własne CapitalFlowAI: dziennik kart reguł „w cieniu” nowych grup danych (rejestracja z góry 14.10.2026: fundusze regionów i sektorów, fundusz Polski, indeksy giełdy w Warszawie, zapasy miedzi, indeks zbóż) zapisanych przed granicą karty — 9:00 w Nowym Jorku; g = głos, z = odchylenie wejścia, y = wynik sesji w %, dd = dzień danych wejścia'},
+    'binance-metrics': {'file': 'binance-metrics.csv', 'cols': bp.COLS_METRICS, 'key': ['date', 'sym'], 'back': None,
+                        'src': 'Binance Vision (data.binance.vision), licencja CC BY-NC-SA 4.0 („Binance Vision Dataset Terms” v1.0), tylko użycie niekomercyjne: dzienne pliki metryk kontraktów wieczystych USDT (BTCUSDT od 2020-09-01, ETHUSDT od 2021-12-01) sprowadzone do jednego wiersza doby UTC — n = liczba odczytów 5-minutowych, last_t = godzina ostatniego odczytu otwartych pozycji, oi = otwarte pozycje (monety), oi_usd, top_ls i top_pos = stosunek kont i pozycji największych graczy, ls = stosunek kont wszystkich, taker = kupno do sprzedaży po rynku (ostatnia poprawna wartość doby), taker_avg = średnia doby; puste pole = źródło nie ma tej wartości (np. w części 2022 r.), plik doby X powstaje u źródła ok. 07:00 UTC doby X+1 (dane wejściowe do testów wstecznych, bez sygnałów)'},
+    'binance-funding': {'file': 'binance-funding.csv', 'cols': bp.COLS_FUNDING, 'key': ['date', 'sym'], 'back': None,
+                        'src': 'Binance Vision (data.binance.vision), licencja CC BY-NC-SA 4.0 („Binance Vision Dataset Terms” v1.0), tylko użycie niekomercyjne: miesięczne pliki stawek finansowania kontraktów wieczystych (od 2020-01) sprowadzone do wiersza doby UTC — n = liczba rozliczeń, sum_bp = suma stawek doby w punktach bazowych (stawka × 10 000), last_bp = ostatnie rozliczenie doby; plik miesiąca powstaje po jego końcu (dane wejściowe do testów wstecznych, bez sygnałów)'},
+    'deribit-dvol': {'file': 'deribit-dvol.csv', 'cols': bp.COLS_DVOL, 'key': ['date', 'cur'], 'back': None,
+                     'src': 'Publiczne dane rynkowe giełdy opcji Deribit (bez klucza): dzienne świece indeksu zmienności opcji BTC i ETH (DVOL, od 2021-03; punkty indeksu: otwarcie, maksimum, minimum, zamknięcie) — tylko pełne doby UTC (dane wejściowe do testów wstecznych, bez sygnałów)'},
 }
 TIC_OD = '2020-01'
 STABLE = {'USDT': zd.WH_USDT, 'USDC': zd.WH_USDC}   # oba po 6 miejsc
@@ -622,6 +634,49 @@ def seria(arch):
 
 
 
+# ------------------------------------------------------------------ v408 (F11Z17): historia pochodnych krypto do testów wstecznych TRENDÓW (dane wejściowe, bez sygnałów) ------
+BP_MAKS = [bp.MAKS_PRZEBIEG]   # zapytań o pliki na kontrakt w jednym przebiegu (jednorazowe zasilenie z wiersza poleceń podnosi: narzedzia/backfill_pochodne.py)
+BP_PAUZA = [bp.PAUZA]          # s między zapytaniami do tego samego hosta
+
+
+def _bp_istniejace(nazwa, arch=None):
+    spec = FILES[nazwa]
+    return list(read_csv(os.path.join(arch or ARCH, spec['file']), spec['cols'])[0].values())
+
+
+def _bp_zbierz(nazwa, klucze, jeden, fetch, arch, today):
+    """Każdy kontrakt (moneta) osobno: błąd jednego nie zabiera wierszy drugiego; wszystkie z błędem i bez żadnego wiersza = błąd źródła (poprzedni plik
+    zostaje); z wierszami = zapis pobranych i uwaga w indeksie (ciąg dalszy następnego dnia — zasilenie wznawia się od ostatniego zapisanego dnia)."""
+    old = _bp_istniejace(nazwa, arch)
+    rows, bledy = [], []
+    for k in klucze:
+        try:
+            rows += jeden(k, old, today, fetch, BP_MAKS[0], BP_PAUZA[0], NOTES)
+        except Exception as e:  # noqa
+            bledy.append(f'{k}: {e}')
+    if bledy and not rows:
+        raise RuntimeError('; '.join(bledy))
+    if bledy:
+        NOTES.append(f'{nazwa}: ' + '; '.join(bledy) + ' — zapisano pobrane wiersze')
+    return rows
+
+
+def src_binance_metrics(today=None, fetch=None, arch=None):
+    """Metryki kontraktów wieczystych (otwarte pozycje, stosunki kont i pozycji, kupno/sprzedaż po rynku) — podsumowanie doby UTC; do wczoraj, ale plik doby
+    X pojawia się u źródła ok. 07:00 UTC doby X+1, więc o 01:20 UTC najnowszy wiersz to dzień sprzed wczoraj."""
+    return _bp_zbierz('binance-metrics', bp.SYMS, bp.nowe_metryki, fetch, arch, today or TODAY)
+
+
+def src_binance_funding(today=None, fetch=None, arch=None):
+    """Stawki finansowania (plik miesięczny, po końcu miesiąca) — suma i ostatnie rozliczenie doby w punktach bazowych."""
+    return _bp_zbierz('binance-funding', bp.SYMS, bp.nowe_finansowanie, fetch, arch, today or TODAY)
+
+
+def src_deribit_dvol(today=None, fetch=None, arch=None):
+    """Indeks zmienności opcji BTC i ETH — dzienne świece pełnych dób (otwarcie, maksimum, minimum, zamknięcie)."""
+    return _bp_zbierz('deribit-dvol', bp.DVOL_CURS, bp.nowe_dvol, fetch, arch, today or TODAY)
+
+
 def run(sources, arch=None, prev_index=None):
     """sources: nazwa → funkcja zwracająca wiersze. Zapisuje CSV i indeks.json; zwraca indeks (z listą błędów)."""
     arch = arch or ARCH
@@ -677,6 +732,7 @@ def main():
         prev = None
     idx = run({'wieloryby': src_wieloryby, 'stablecoiny-eth': src_stable, 'plynnosc': lambda: src_plynnosc(key), 'tic': src_tic,
                'cftc-krypto': src_cftc, 'rentownosci': src_rentownosci,
+               'binance-metrics': src_binance_metrics, 'binance-funding': src_binance_funding, 'deribit-dvol': src_deribit_dvol,
                'krypto-dziennik': src_krypto_dziennik, 'swiat-dziennik': src_swiat_dziennik, 'swiat-dziennik-pk': src_swiat_dziennik_pk,
                'surowce-dziennik': src_surowce_dziennik, 'ng-dziennik': src_ng_dziennik}, prev_index=prev)
     summ = os.environ.get('GITHUB_STEP_SUMMARY')

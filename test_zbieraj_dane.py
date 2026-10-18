@@ -66170,3 +66170,421 @@ class IndieSwietaV407(unittest.TestCase):
         o = self._run(None, _v399_get(nadpisz={'sec_bhavdata_full_16102026': zly}))
         self.assertFalse(o['ok']['dl']); self.assertTrue(any('Indie: dl: dl: wiersz' in e and 'datę' in e for e in zd.META['errors']), zd.META['errors'])
         self.assertTrue(o['ok']['ind'] and o['ok']['fao'])
+
+
+class TestV408HistoriaPochodnych(unittest.TestCase):
+    """v408 (F11Z17): historia pochodnych krypto do testów wstecznych TRENDÓW — dane wejściowe (podsumowania dób z plików dziennych metryk, miesięcznych
+    stawek finansowania i dziennych świec indeksu zmienności), przyrost w archiwum, filtr przyczynowy. Bez sieci i bez zegara (dzień „dzisiejszy” podany)."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib
+        import sys as _sys
+        _sys.path.insert(0, os.path.join(cls.ROOT, 'narzedzia'))
+        cls.bp = importlib.import_module('backfill_pochodne')   # te same obiekty modułów, których używa wiersz poleceń (bp.main → archiwum → bp)
+        cls.A = importlib.import_module('archiwum')
+        assert cls.A.bp is cls.bp
+
+    # ---------- pomocnicze: pliki źródła w pamięci
+    HEAD = 'create_time,symbol,sum_open_interest,sum_open_interest_value,count_toptrader_long_short_ratio,sum_toptrader_long_short_ratio,count_long_short_ratio,sum_taker_long_short_vol_ratio'
+
+    def _metryki_csv(self, dzien, odczyty, dubluj=False):
+        """odczyty: lista (hh:mm:ss, oi, oi_usd, top_ls, top_pos, ls, taker); dubluj — każdy odczyt dwa razy (starsze pliki źródła)."""
+        w = [self.HEAD]
+        for t, *v in odczyty:
+            for _ in range(2 if dubluj else 1):
+                w.append(f'{dzien} {t},BTCUSDT,' + ','.join(str(x) for x in v))
+        return '\n'.join(w) + '\n'
+
+    @staticmethod
+    def _zip(nazwa, tekst):
+        import io
+        import zipfile
+        b = io.BytesIO()
+        with zipfile.ZipFile(b, 'w') as z:
+            z.writestr(nazwa, tekst)
+        return b.getvalue()
+
+    def _http(self, kod):
+        import urllib.error
+        return urllib.error.HTTPError('https://example.invalid/x', kod, 'x', {}, None)
+
+    def _plik_dnia(self, sym, d):
+        return self._zip(f'{sym}-metrics-{d}.csv', self._metryki_csv(d, [('00:05:00', 100, 1000, 1.1, 1.2, 1.3, 0.5), ('23:55:00', 110, 1100, 1.5, 1.6, 1.7, 1.5)]))
+
+    # ---------- jedna doba metryk
+    def test_metryki_doby_duplikaty_braki_i_inne_dni(self):
+        bp = self.bp
+        t = self._metryki_csv('2026-03-10', [('00:00:00', 100, 5000, 1.0, 1.0, 1.0, 0.5), ('12:00:00', 101, 5100, 1.5, 1.4, 1.3, 1.5),
+                                             ('23:55:00', 102, 5200, 2.0, 1.9, 1.8, 1.0)], dubluj=True)
+        t += '2026-03-11 00:00:00,BTCUSDT,999,9999,9,9,9,9\n'        # odczyt następnej doby w pliku tej doby — pominięty
+        t += '2026-03-10 23:58:00,BTCUSDT,,5300,2,2,2,2\n'            # brak otwartych pozycji — odczyt się nie liczy
+        t += '2026-03-10 23:59:00,BTCUSDT,103,5300,-1,2,2,2\n'        # ujemny stosunek — ta wartość to brak (zostaje poprzednia poprawna), reszta odczytu się liczy
+        w = bp.metryki_doby('BTCUSDT', '2026-03-10', t)
+        self.assertEqual(w[:4], ['2026-03-10', 'BTCUSDT', 4, '23:59'], 'duplikaty czasu liczone raz; n = odczyty z otwartymi pozycjami; last_t = ostatni z nich')
+        self.assertEqual(w[4:10], [103.0, 5300.0, 2.0, 2.0, 2.0, 2.0], 'każda wartość: ostatnia poprawna doby')
+        self.assertAlmostEqual(w[10], (0.5 + 1.5 + 1.0 + 2.0) / 4, places=6)
+        self.assertEqual(len(w), len(bp.COLS_METRICS))
+        # źródło bez stosunków największych graczy i bez kupna/sprzedaży (jak w części 2022 r.): są otwarte pozycje, reszta to brak — nie zero
+        puste = self.HEAD + '\n2022-03-01 00:00:00,BTCUSDT,69677.598,3007459323.675,"","",1.0625,""\n2022-03-01 23:55:00,BTCUSDT,71410.252,3166937560.82,"","",0.9668,""\n'
+        w = bp.metryki_doby('BTCUSDT', '2022-03-01', puste)
+        self.assertEqual(w, ['2022-03-01', 'BTCUSDT', 2, '23:55', 71410.252, 3166937560.82, None, None, 0.9668, None, None])
+        self.assertIsNone(bp.metryki_doby('BTCUSDT', '2026-03-10', self.HEAD + '\n'), 'brak odczytów = brak wiersza, nie zero')
+        self.assertIsNone(bp.metryki_doby('BTCUSDT', '2026-03-10', self._metryki_csv('2026-03-09', [('01:00:00', 1, 1, 1, 1, 1, 1)])))
+        self.assertIsNone(bp.metryki_doby('BTCUSDT', '2026-03-10', self._metryki_csv('2026-03-10', [('01:00:00', 0, 5, 1, 1, 1, 1)])), 'zerowe otwarte pozycje = brak odczytu')
+        with self.assertRaises(ValueError):
+            bp.metryki_doby('BTCUSDT', '2026-03-10', 'a,b\n1,2\n')
+
+    def test_liczba_brak_nie_jest_zerem(self):
+        L = self.bp.liczba
+        for zle in (None, True, '', 'x', float('nan'), float('inf'), '-inf'):
+            self.assertIsNone(L(zle), repr(zle))
+        self.assertEqual(L('0'), 0.0); self.assertIsNone(L('0', dodatnia=True)); self.assertEqual(L(' 1.5 '), 1.5)
+
+    # ---------- przyrost metryk
+    def test_metryki_start_przyrost_i_koniec(self):
+        import datetime
+        bp = self.bp; D = datetime.date
+        zap = []
+
+        def fetch(url):
+            zap.append(url); d = url.rsplit('-metrics-', 1)[1][:10]
+            return self._plik_dnia('BTCUSDT', d)
+        # pierwsze zasilenie: od pierwszej doby pliku; dzis = 3 doby później → dwie doby (dzis − 1 włącznie)
+        w = bp.nowe_metryki('BTCUSDT', [], D(2020, 9, 4), fetch, pauza=0)
+        self.assertEqual([r[0] for r in w], ['2020-09-01', '2020-09-02', '2020-09-03'])
+        self.assertTrue(zap[0].endswith('BTCUSDT/BTCUSDT-metrics-2020-09-01.zip')); self.assertIn('data.binance.vision/data/futures/um/daily/metrics/', zap[0])
+        # ETH zaczyna się później niż BTC; kontrakty nie mieszają się
+        zap.clear(); bp.nowe_metryki('ETHUSDT', [['2020-09-02', 'BTCUSDT'] + [''] * 9], D(2021, 12, 3), fetch, pauza=0)
+        self.assertTrue(zap[0].endswith('ETHUSDT-metrics-2021-12-01.zip'), zap[0])
+        # przyrost: po ostatnim zapisanym; wczorajszy = ostatni; nic do pobrania = zero zapytań
+        zap.clear(); w = bp.nowe_metryki('BTCUSDT', [['2026-03-08', 'BTCUSDT']], D(2026, 3, 11), fetch, pauza=0)
+        self.assertEqual([r[0] for r in w], ['2026-03-09', '2026-03-10'])
+        zap.clear(); self.assertEqual(bp.nowe_metryki('BTCUSDT', [['2026-03-10', 'BTCUSDT']], D(2026, 3, 11), fetch, pauza=0), []); self.assertEqual(zap, [])
+        # dzisiejsza (niepełna) doba nigdy nie jest pobierana
+        self.assertFalse(any('2026-03-11' in u for u in zap))
+
+    def test_metryki_404_ostatnich_dni_koniec_starych_luka(self):
+        import datetime
+        bp = self.bp; D = datetime.date; uw = []; zap = []
+
+        def fetch(url):
+            d = url.rsplit('-metrics-', 1)[1][:10]; zap.append(d)
+            if d == '2026-03-05':
+                raise self._http(404)                       # stara doba bez pliku — luka
+            if d >= '2026-03-09':
+                raise self._http(404)                       # dwie ostatnie doby (dzis = 11.03) — jeszcze nie opublikowane
+            return self._plik_dnia('BTCUSDT', d)
+        w = bp.nowe_metryki('BTCUSDT', [['2026-03-03', 'BTCUSDT']], D(2026, 3, 11), fetch, pauza=0, uwagi=uw)
+        self.assertEqual([r[0] for r in w], ['2026-03-04', '2026-03-06', '2026-03-07', '2026-03-08'], 'luka 05.03 pominięta, 09.03 i późniejsze — koniec przebiegu')
+        self.assertEqual(uw, ['metryki BTCUSDT: 1 dób bez pliku albo bez kompletnego odczytu (luki)'], 'luką jest tylko 05.03')
+        self.assertEqual(zap[-1], '2026-03-09', 'pierwszy brak z dwóch ostatnich dób kończy przebieg — dalszych dób nie pytamy')
+
+    def test_metryki_blad_po_wierszach_zapis_pobranych_bez_wierszy_blad(self):
+        import datetime
+        bp = self.bp; D = datetime.date
+
+        def fetch_blad(kod_od):
+            def f(url):
+                d = url.rsplit('-metrics-', 1)[1][:10]
+                if d >= kod_od:
+                    raise self._http(403)
+                return self._plik_dnia('BTCUSDT', d)
+            return f
+        uw = []
+        w = bp.nowe_metryki('BTCUSDT', [['2026-03-01', 'BTCUSDT']], D(2026, 3, 11), fetch_blad('2026-03-05'), pauza=0, uwagi=uw)
+        self.assertEqual([r[0] for r in w], ['2026-03-02', '2026-03-03', '2026-03-04']); self.assertTrue(any('HTTP 403' in x for x in uw), uw)
+        import urllib.error
+        with self.assertRaises(urllib.error.HTTPError):
+            bp.nowe_metryki('BTCUSDT', [['2026-03-01', 'BTCUSDT']], D(2026, 3, 11), fetch_blad('2026-03-02'), pauza=0)
+        # uszkodzony plik: po wierszach — uwaga, na początku — błąd
+        zle = lambda url: b'to nie jest zip' if url.endswith('2026-03-03.zip') else self._plik_dnia('BTCUSDT', url.rsplit('-metrics-', 1)[1][:10])
+        uw = []; w = bp.nowe_metryki('BTCUSDT', [['2026-03-01', 'BTCUSDT']], D(2026, 3, 11), zle, pauza=0, uwagi=uw)
+        self.assertEqual([r[0] for r in w], ['2026-03-02']); self.assertTrue(any('2026-03-03' in x for x in uw), uw)
+        with self.assertRaises(Exception):
+            bp.nowe_metryki('BTCUSDT', [['2026-03-02', 'BTCUSDT']], D(2026, 3, 11), zle, pauza=0)
+
+    def test_metryki_maks_zapytan_i_pauza(self):
+        import datetime
+        bp = self.bp; zap = []; sp = []
+        w = bp.nowe_metryki('BTCUSDT', [], datetime.date(2026, 1, 1), lambda u: zap.append(u) or self._plik_dnia('BTCUSDT', u.rsplit('-metrics-', 1)[1][:10]),
+                            maks=3, pauza=0.25, spij=sp.append)
+        self.assertEqual(len(zap), 3); self.assertEqual(len(w), 3); self.assertEqual(sp, [0.25] * 3, 'przerwa po każdym zapytaniu do tego samego hosta')
+        self.assertLessEqual(bp.MAKS_PRZEBIEG, 60); self.assertGreaterEqual(bp.PAUZA, 0.1)
+
+    # ---------- finansowanie
+    FUND = 'calc_time,funding_interval_hours,last_funding_rate\n'
+
+    def _ms(self, s):
+        import datetime
+        return int(datetime.datetime.fromisoformat(s).replace(tzinfo=datetime.timezone.utc).timestamp() * 1000)
+
+    def test_finansowanie_doby(self):
+        bp = self.bp
+        t = self.FUND + ''.join(f'{self._ms(s) + dz},8,{f}\n' for s, dz, f in (
+            ('2020-02-01T00:00:00', 5, '0.00010000'), ('2020-02-01T08:00:00', 0, '0.00002000'), ('2020-02-01T16:00:00', 7, '-0.00001000'),
+            ('2020-02-01T16:00:00', 3, '0.00007'),              # to samo rozliczenie (inne ms, ta sama sekunda) — liczone raz, wygrywa późniejszy wiersz pliku
+            ('2020-02-02T00:00:00', 2, '0.07000000'),           # ponad 5 % — pomyłka jednostki, pominięta
+            ('2020-02-02T08:00:00', 0, 'x'),                    # nieliczbowa — pominięta
+            ('2020-02-02T16:00:00', 1, '0.00003000'), ('2020-01-31T16:00:00', 0, '0.00005000')))
+        w = bp.finansowanie_miesiaca('ETHUSDT', t)
+        self.assertEqual([r[0] for r in w], ['2020-01-31', '2020-02-01', '2020-02-02'], 'dzień = data UTC chwili rozliczenia')
+        self.assertEqual(w[0], ['2020-01-31', 'ETHUSDT', 1, 0.5, 0.5])
+        self.assertEqual(w[1][2:], [3, round((0.0001 + 0.00002 + 0.00007) * 1e4, 6), 0.7], 'n rozliczeń, suma w punktach bazowych, ostatnie rozliczenie doby')
+        self.assertEqual(w[2][2:], [1, 0.3, 0.3])
+        with self.assertRaises(ValueError):
+            bp.finansowanie_miesiaca('ETHUSDT', 'a,b\n1,2\n')
+
+    def test_finansowanie_miesiace_start_ponowienie_i_koniec(self):
+        import datetime
+        bp = self.bp; D = datetime.date; zap = []; uw = []
+
+        def fetch(url):
+            zap.append(url); m = url.rsplit('-fundingRate-', 1)[1][:7]
+            if m == '2020-03':
+                raise self._http(404)                      # stary miesiąc bez pliku — luka
+            if m >= '2020-06':
+                raise self._http(404)                      # miesiąc, który dopiero się skończył (dzis = lipiec) — jeszcze nie opublikowany
+            y, mo = int(m[:4]), int(m[5:])
+            return self._zip('f.csv', self.FUND + f'{self._ms(f"{y}-{mo:02d}-01T00:00:00")},8,0.0001\n')
+        w = bp.nowe_finansowanie('BTCUSDT', [], D(2020, 7, 3), fetch, pauza=0, uwagi=uw)
+        self.assertTrue(zap[0].endswith('BTCUSDT/BTCUSDT-fundingRate-2020-01.zip')); self.assertIn('futures/um/monthly/fundingRate/', zap[0])
+        self.assertEqual([r[0] for r in w], ['2020-01-01', '2020-02-01', '2020-04-01', '2020-05-01'], 'luka marca; czerwiec jeszcze niepublikowany; bieżącego miesiąca się nie pobiera')
+        self.assertFalse(any('2020-07' in u for u in zap)); self.assertEqual(uw, ['finansowanie BTCUSDT: 1 miesięcy bez pliku (luki)'], 'luką jest tylko marzec')
+        self.assertTrue(zap[-1].endswith('2020-06.zip'), 'czerwiec = ostatni zapytany miesiąc')
+        # ostatni wiersz z ostatniego dnia miesiąca → następny miesiąc; ze środka miesiąca → ten sam miesiąc jeszcze raz
+        zap.clear(); bp.nowe_finansowanie('BTCUSDT', [['2020-04-30', 'BTCUSDT']], D(2020, 7, 3), fetch, pauza=0); self.assertTrue(zap[0].endswith('2020-05.zip'), zap)
+        zap.clear(); bp.nowe_finansowanie('BTCUSDT', [['2020-04-15', 'BTCUSDT']], D(2020, 7, 3), fetch, pauza=0); self.assertTrue(zap[0].endswith('2020-04.zip'), zap)
+        zap.clear(); self.assertEqual(bp.nowe_finansowanie('BTCUSDT', [['2020-06-30', 'BTCUSDT']], D(2020, 7, 3), fetch, pauza=0), []); self.assertEqual(zap, [])
+
+    # ---------- indeks zmienności
+    def _ms_dnia(self, d):
+        return self._ms(d + 'T00:00:00')
+
+    def test_dvol_swiece_pełne_doby_i_kontrola_kształtu(self):
+        import datetime
+        bp = self.bp
+        dane = {'result': {'data': [[self._ms_dnia('2026-03-08'), 50.0, 52.0, 49.0, 51.0],
+                                    [self._ms_dnia('2026-03-09') + 3600000, 50.0, 52.0, 49.0, 51.0],   # nie od północy UTC
+                                    [self._ms_dnia('2026-03-10'), 50.0, 48.0, 49.0, 51.0],             # maksimum poniżej minimum
+                                    [self._ms_dnia('2026-03-11'), 50.0, 52.0, 0, 51.0],                # zero = brak, nie liczba
+                                    [self._ms_dnia('2026-03-12'), 40.5, 44.25, 39.0, 41.0],
+                                    [self._ms_dnia('2026-03-13'), 41.0, 42.0, 40.0, 41.5], 'x', [1]], 'continuation': 123}}
+        w, k = bp.dvol_swiece('BTC', dane, datetime.date(2026, 3, 13))
+        self.assertEqual(w, [['2026-03-08', 'BTC', 50.0, 52.0, 49.0, 51.0], ['2026-03-12', 'BTC', 40.5, 44.25, 39.0, 41.0]], 'dzisiejsza (niepełna) świeca nie wchodzi')
+        self.assertEqual(k, 123)
+        with self.assertRaises(ValueError):
+            bp.dvol_swiece('BTC', {'x': 1}, datetime.date(2026, 3, 13))
+
+    def test_dvol_strony_wstecz_przyrost_i_brak_zapytan(self):
+        import datetime
+        bp = self.bp; D = datetime.date; zap = []
+        dni = [(D(2026, 1, 1) + datetime.timedelta(days=i)).isoformat() for i in range(10)]    # 01.01–10.01
+
+        def fetch(url):
+            zap.append(url)
+            b = int(url.split('end_timestamp=')[1].split('&')[0]); a = int(url.split('start_timestamp=')[1].split('&')[0])
+            tab = [[self._ms_dnia(d), 50.0 + i, 53.0 + i, 49.0, 51.0 + i] for i, d in enumerate(dni) if a <= self._ms_dnia(d) <= b][-4:]   # źródło oddaje najnowsze 4 świece
+            return {'result': {'data': tab, 'continuation': (tab[0][0] - 86400000) if tab and tab[0][0] > a else None}}
+        with mock.patch.object(bp, 'DVOL_START', '2026-01-01'):
+            w = bp.nowe_dvol('ETH', [], D(2026, 1, 9), fetch, pauza=0)
+        self.assertEqual([r[0] for r in w], dni[:8], 'strony wstecz po 4 świece do początku zakresu; 09.01 (dzis) nie wchodzi; bez powtórzeń')
+        self.assertEqual(len(zap), 3, 'trzy strony po 4 świece: 06–09.01 (09.01 odrzucone jako dzisiejsze), 02–05.01, 01.01'); self.assertIn('currency=ETH', zap[0]); self.assertIn('resolution=1D', zap[0])
+        zap.clear(); w = bp.nowe_dvol('ETH', [['2026-01-06', 'ETH']], D(2026, 1, 9), fetch, pauza=0)
+        self.assertEqual([r[0] for r in w], ['2026-01-07', '2026-01-08'], 'przyrost od dnia po ostatnim zapisanym'); self.assertEqual(len(zap), 1)
+        zap.clear(); self.assertEqual(bp.nowe_dvol('ETH', [['2026-01-08', 'ETH']], D(2026, 1, 9), fetch, pauza=0), []); self.assertEqual(zap, [])
+        def fetch_ze_starymi(url):   # źródło oddaje też świece sprzed żądanego początku — nie wchodzą do wyniku
+            j = fetch(url); j['result']['data'].insert(0, [self._ms_dnia(dni[0]), 1.0, 2.0, 1.0, 1.5]); return j
+        w = bp.nowe_dvol('ETH', [['2026-01-06', 'ETH']], D(2026, 1, 9), fetch_ze_starymi, pauza=0)
+        self.assertEqual([r[0] for r in w], ['2026-01-07', '2026-01-08'])
+        zap.clear()
+        puste = lambda url: zap.append(url) or {'result': {'data': [], 'continuation': self._ms_dnia('2026-01-02')}}
+        self.assertEqual(bp.nowe_dvol('ETH', [['2026-01-01', 'ETH']], D(2026, 1, 9), puste, pauza=0), []); self.assertEqual(len(zap), 1, 'pusta strona kończy pobieranie mimo znacznika kontynuacji')
+        uw = []
+        with mock.patch.object(bp, 'DVOL_START', '2026-01-01'):
+            bp.nowe_dvol('ETH', [], D(2026, 1, 9), fetch, maks=1, pauza=0, uwagi=uw)
+        self.assertTrue(any('niepełny' in x for x in uw), 'za mało stron na zakres — uwaga o niepełnym zakresie')
+
+    # ---------- filtr przyczynowy (dostępność wierszy)
+    def test_filtr_przyczynowy_dostepnosc(self):
+        import datetime
+        bp = self.bp; U = datetime.timezone.utc
+        self.assertEqual(bp.dostepne_od('metryki', '2026-10-13'), datetime.datetime(2026, 10, 14, 7, 30, tzinfo=U))
+        self.assertEqual(bp.dostepne_od('finansowanie', '2026-10-13'), datetime.datetime(2026, 10, 14, 0, 0, tzinfo=U))
+        self.assertEqual(bp.dostepne_od('dvol', '2026-12-31'), datetime.datetime(2027, 1, 1, 0, 0, tzinfo=U))
+        with self.assertRaises(ValueError):
+            bp.dostepne_od('inne', '2026-10-13')
+        rows = [[f'2026-10-{d:02d}', 'BTCUSDT'] for d in range(10, 14)]
+        granica = datetime.datetime(2026, 10, 14, 5, 30, tzinfo=U)            # granica reguł krypto
+        self.assertEqual([r[0] for r in bp.wiersze_do(rows, 'metryki', granica)], ['2026-10-10', '2026-10-11', '2026-10-12'], 'plik doby 13.10 jest znany dopiero 14.10 o 07:30')
+        self.assertEqual(len(bp.wiersze_do(rows, 'finansowanie', granica)), 4)
+        self.assertEqual(len(bp.wiersze_do(rows, 'metryki', datetime.datetime(2026, 10, 14, 7, 30, tzinfo=U))), 4)
+
+    # ---------- archiwum: rejestr, przyrost i idempotencja
+    def test_archiwum_rejestr_zrodla_i_licencje(self):
+        A = self.A; bp = self.bp
+        for n, cols in (('binance-metrics', bp.COLS_METRICS), ('binance-funding', bp.COLS_FUNDING), ('deribit-dvol', bp.COLS_DVOL)):
+            F = A.FILES[n]
+            self.assertEqual(F['cols'], cols); self.assertTrue(set(F['key']) <= set(cols)); self.assertEqual(F['file'], n + '.csv')
+            self.assertTrue(all(c.isascii() and c == c.lower() for c in cols), cols)
+        for n in ('binance-metrics', 'binance-funding'):
+            self.assertIn('CC BY-NC-SA 4.0', A.FILES[n]['src']); self.assertIn('niekomercyjne', A.FILES[n]['src'])
+        self.assertIn('CC BY-NC-SA 4.0', bp.__doc__); self.assertIn('bez sygnałów', A.FILES['deribit-dvol']['src'])
+        def czytaj(*p):
+            with open(os.path.join(self.ROOT, *p), encoding='utf-8') as f:
+                return f.read()
+        src = czytaj('narzedzia', 'archiwum.py')
+        for n in ('src_binance_metrics', 'src_binance_funding', 'src_deribit_dvol'):
+            self.assertIn(f"'{n.replace('src_', '').replace('_', '-')}': {n}", src)
+        wf = czytaj('.github', 'workflows', 'archiwum.yml')
+        self.assertIn("'narzedzia/backfill_pochodne.py'", wf)
+        mod = czytaj('narzedzia', 'backfill_pochodne.py')
+        self.assertIn('data.binance.vision', mod); self.assertNotIn('fapi.binance', mod); self.assertNotIn('api.binance', mod, 'API giełdy blokuje GitHuba — tylko publiczne pliki')
+        for sekret in ('api_key', 'apikey', 'Authorization', 'secret'):
+            self.assertNotIn(sekret, mod.lower().replace('licencja', ''), sekret)
+
+    def test_archiwum_przyrost_idempotentny_i_odporny(self):
+        import datetime
+        import tempfile
+        A = self.A; bp = self.bp; D = datetime.date
+        zap = []
+
+        def fetch_b(url):
+            zap.append(url)
+            if '/metrics/' in url:
+                s, d = url.split('/metrics/')[1].split('/')[0], url.rsplit('-metrics-', 1)[1][:10]
+                if s == 'ETHUSDT' and d < '2021-12-01':
+                    raise self._http(404)
+                return self._plik_dnia(s, d)
+            s, m = url.split('/fundingRate/')[1].split('/')[0], url.rsplit('-fundingRate-', 1)[1][:7]
+            return self._zip('f.csv', self.FUND + f'{self._ms(m + "-01T00:00:00")},8,0.0001\n')
+        today = D(2021, 12, 4)
+
+        def fetch_d(url):
+            return {'result': {'data': [[self._ms_dnia(d), 60.0, 61.0, 59.0, 60.5] for d in ('2021-12-01', '2021-12-02', '2021-12-03', '2021-12-04')], 'continuation': None}}
+        with tempfile.TemporaryDirectory() as t, mock.patch.object(bp, 'DVOL_START', '2021-12-01'):
+            with mock.patch.dict(bp.BN_START, {'BTCUSDT': '2021-11-29', 'ETHUSDT': '2021-12-01'}), mock.patch.object(bp, 'BN_FUND_START', '2021-10'):
+                src = {'binance-metrics': lambda: A.src_binance_metrics(today, fetch_b, t), 'binance-funding': lambda: A.src_binance_funding(today, fetch_b, t),
+                       'deribit-dvol': lambda: A.src_deribit_dvol(today, fetch_d, t)}
+                with mock.patch.object(A, 'BP_PAUZA', [0]):
+                    idx = A.run(src, arch=t)
+                    self.assertEqual(idx['errors'], [], idx)
+                    r = idx['files']
+                    self.assertEqual((r['binance-metrics']['rows'], r['binance-metrics']['first'], r['binance-metrics']['last']), (5 + 3, '2021-11-29', '2021-12-03'))
+                    self.assertEqual((r['binance-funding']['rows'], r['binance-funding']['last']), (4, '2021-11-01'), 'miesiące do listopada włącznie (grudzień jeszcze trwa)')
+                    self.assertEqual((r['deribit-dvol']['rows'], r['deribit-dvol']['last']), (6, '2021-12-03'), 'BTC i ETH po 3 pełne doby; 04.12 (dzis) nie wchodzi')
+                    n1 = len(zap)
+                    idx2 = A.run(src, arch=t)                              # drugi przebieg tego samego dnia: bez nowych wierszy, bez rewizji
+                    for n in src:
+                        self.assertEqual((idx2['files'][n]['added'], idx2['files'][n]['revised']), (0, 0), n)
+                    self.assertLessEqual(len(zap) - n1, 6, 'drugi przebieg pobiera najwyżej ostatni miesiąc finansowania (dzień ostatniego wiersza nie jest ostatnim dniem miesiąca)')
+                    with open(os.path.join(t, 'binance-metrics.csv'), encoding='utf-8') as f:
+                        self.assertEqual(f.readline().strip(), ','.join(bp.COLS_METRICS))
+                        self.assertTrue(f.readline().startswith('2021-11-29,BTCUSDT,2,23:55,110,1100,1.5,1.6,1.7,1.5,1'), 'ostatni odczyt doby; taker_avg = (0.5 + 1.5) / 2')
+                    # awaria jednego kontraktu nie zabiera drugiego; awaria obu = błąd źródła, plik zostaje
+                    def tylko_eth(url):
+                        if 'BTCUSDT' in url:
+                            raise self._http(403)
+                        return fetch_b(url)
+                    with tempfile.TemporaryDirectory() as t2:
+                        A.NOTES.clear(); w = A.src_binance_metrics(D(2021, 12, 4), tylko_eth, t2)
+                        self.assertEqual({r[1] for r in w}, {'ETHUSDT'}); self.assertTrue(any('BTCUSDT' in x and '403' in x for x in A.NOTES), A.NOTES)
+                        import urllib.error
+                        with self.assertRaises(RuntimeError):
+                            A.src_binance_metrics(D(2021, 12, 4), lambda u: (_ for _ in ()).throw(self._http(403)), t2)
+                        idx3 = A.run({'binance-metrics': lambda: A.src_binance_metrics(D(2021, 12, 6), lambda u: (_ for _ in ()).throw(self._http(403)), t)}, arch=t)
+                        self.assertEqual(len(idx3['errors']), 1); self.assertEqual(idx3['files']['binance-metrics']['rows'], 8, 'poprzedni plik zostaje nietknięty')
+
+    def test_zasilenie_z_wiersza_polecen_scala_indeks(self):
+        import datetime
+        import json as _json
+        import tempfile
+        A = self.A; bp = self.bp
+        with mock.patch.object(A, 'BP_MAKS', [45]), mock.patch.object(A, 'BP_PAUZA', [0.25]), tempfile.TemporaryDirectory() as t:
+            with open(os.path.join(t, 'indeks.json'), 'w', encoding='utf-8') as f:
+                _json.dump({'at': 'X', 'files': {'tic': {'ok': True, 'rows': 7}}, 'errors': ['stary błąd']}, f)
+            fetch = lambda u: self._plik_dnia('BTCUSDT', u.rsplit('-metrics-', 1)[1][:10]) if '/metrics/' in u else (_ for _ in ()).throw(self._http(404))
+            with mock.patch.object(bp, 'pobierz_bajty', fetch), mock.patch.object(A, 'TODAY', datetime.date(2020, 9, 4)), mock.patch.dict(bp.BN_START, {'ETHUSDT': '2020-09-03'}):
+                self.assertEqual(bp.main(['--arch', t, '--pauza', '0', '--tylko', 'metryki']), 0)
+            with open(os.path.join(t, 'indeks.json'), encoding='utf-8') as f:
+                j = _json.load(f)
+            self.assertEqual(j['files']['tic'], {'ok': True, 'rows': 7}, 'cudze rekordy indeksu zostają'); self.assertEqual(j['at'], 'X'); self.assertEqual(j['errors'], ['stary błąd'])
+            self.assertTrue(j['files']['binance-metrics']['ok']); self.assertEqual(j['files']['binance-metrics']['first'], '2020-09-01')
+            self.assertFalse(os.path.exists(os.path.join(t, 'deribit-dvol.csv')), '--tylko metryki: pozostałych plików nie dotyka')
+
+    # ---------- dostarczone pliki historii
+    def _wiersze_pliku(self, nazwa):
+        import csv
+        p = os.path.join(self.ROOT, 'archiwum', nazwa)
+        self.assertTrue(os.path.exists(p), nazwa + ' — pierwsze zasilenie historią jest częścią tej wersji')
+        with open(p, encoding='utf-8', newline='') as f:
+            r = list(csv.reader(f))
+        return r[0], r[1:]
+
+    def _luki(self, daty):
+        import datetime
+        d = sorted({datetime.date.fromisoformat(x) for x in daty})
+        return (d[-1] - d[0]).days + 1 - len(d)
+
+    def test_pliki_historii_ksztalt_i_wartosci(self):
+        import datetime
+        bp = self.bp
+        for nazwa, cols, kol1 in (('binance-metrics.csv', bp.COLS_METRICS, {'BTCUSDT': ('2020-09-01', 2200), 'ETHUSDT': ('2021-12-01', 1750)}),
+                                  ('binance-funding.csv', bp.COLS_FUNDING, {'BTCUSDT': ('2020-01-01', 2400), 'ETHUSDT': ('2020-01-01', 2400)}),
+                                  ('deribit-dvol.csv', bp.COLS_DVOL, {'BTC': ('2021-03-24', 2000), 'ETH': ('2021-03-24', 2000)})):
+            head, rows = self._wiersze_pliku(nazwa)
+            self.assertEqual(head, cols, nazwa)
+            self.assertTrue(all(len(r) == len(cols) for r in rows), nazwa)
+            self.assertEqual(rows, sorted(rows), nazwa + ' — wiersze posortowane')
+            klucze = [(r[0], r[1]) for r in rows]
+            self.assertEqual(len(klucze), len(set(klucze)), nazwa + ' — jeden wiersz na dzień i kontrakt')
+            for r in rows:
+                datetime.date.fromisoformat(r[0])
+                dozwolone_puste = (6, 7, 8, 9, 10) if nazwa == 'binance-metrics.csv' else ()
+                self.assertTrue(all(x != '' for i, x in enumerate(r) if i not in dozwolone_puste), f'{nazwa}: puste pole w wierszu {r}')
+            for k, (pierwszy, minimum) in kol1.items():
+                d = [r[0] for r in rows if r[1] == k]
+                self.assertGreaterEqual(len(d), minimum, f'{nazwa} {k}: liczba dób (plik tylko rośnie)')
+                self.assertEqual(d[0], pierwszy, f'{nazwa} {k}: pierwszy dzień')
+                self.assertLessEqual(self._luki(d) / len(d), 0.02, f'{nazwa} {k}: luki ponad 2 % dób')
+                dd = [datetime.date.fromisoformat(x) for x in d]
+                self.assertTrue(all(b > a for a, b in zip(dd, dd[1:])))
+
+    def test_pliki_historii_wartosci_w_granicach(self):
+        _, m = self._wiersze_pliku('binance-metrics.csv')
+        for r in m:
+            n, oi, usd = int(r[2]), float(r[4]), float(r[5])
+            self.assertTrue(1 <= n <= 600, r); self.assertRegex(r[3], r'^([01]\d|2[0-3]):[0-5]\d$')
+            self.assertTrue(oi > 0 and usd > 0 and all(float(x) >= 0 for x in r[6:11] if x != ''), r)
+            self.assertEqual(r[9] == '', r[10] == '', 'ostatnia wartość i średnia kupna/sprzedaży są albo obie, albo żadna')
+            self.assertTrue(usd / oi > 100, f'cena implikowana z otwartych pozycji (USD / monety) zbyt niska — pomyłka jednostki? {r}')
+        _, f = self._wiersze_pliku('binance-funding.csv')
+        for r in f:
+            n, s, last = int(r[2]), float(r[3]), float(r[4])
+            self.assertTrue(1 <= n <= 24, r); self.assertLessEqual(abs(last), 500, r); self.assertLessEqual(abs(s), 500 * n, r)
+        _, v = self._wiersze_pliku('deribit-dvol.csv')
+        for r in v:
+            o, h, l, c = (float(x) for x in r[2:6])
+            self.assertTrue(0 < l <= min(o, c) <= max(o, c) <= h < 400, r)
+
+    def test_pliki_historii_szczelnosc_filtru_przyczynowego(self):
+        """Własność: dla dowolnego momentu T (ziarna 1–30) żaden wiersz zwrócony przez wiersze_do nie jest z doby, która w T jeszcze trwa albo której plik
+        nie mógł być opublikowany; a wiersz doby sprzed co najmniej dwóch dni jest zawsze zwrócony (filtr nie wycina za dużo)."""
+        import datetime
+        import random
+        bp = self.bp; U = datetime.timezone.utc
+        _, m = self._wiersze_pliku('binance-metrics.csv')
+        _, v = self._wiersze_pliku('deribit-dvol.csv')
+        dni = sorted({r[0] for r in m})
+        for ziarno in range(1, 31):
+            rnd = random.Random(ziarno)
+            d0 = datetime.date.fromisoformat(rnd.choice(dni))
+            T = datetime.datetime(d0.year, d0.month, d0.day, tzinfo=U) + datetime.timedelta(minutes=rnd.randrange(0, 2 * 1440))
+            for rodzaj, rows in (('metryki', m), ('dvol', v)):
+                ok = bp.wiersze_do(rows, rodzaj, T)
+                for r in ok:
+                    self.assertLessEqual(bp.dostepne_od(rodzaj, r[0]), T, (ziarno, rodzaj, r[0]))
+                    self.assertLess(datetime.date.fromisoformat(r[0]), T.date(), 'doba zakończona przed dobą momentu T')
+                wyciete = [r for r in rows if r not in ok]
+                self.assertTrue(all(datetime.date.fromisoformat(r[0]) >= T.date() - datetime.timedelta(days=1) for r in wyciete), (ziarno, rodzaj))
