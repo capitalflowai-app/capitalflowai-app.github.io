@@ -1,5 +1,5 @@
 {
- "at": "2026-10-18T01:40:19+00:00",
+ "at": "2026-10-18T07:33:37+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,13 +22,13 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-10-18T01:40:19+00:00",
+   "at": "2026-10-18T07:33:37+00:00",
    "rows": 299,
    "first": "2026-09-26",
    "last": "2026-10-18",
-   "added": 13,
-   "revised": 0,
-   "revisions_total": 143,
+   "added": 0,
+   "revised": 13,
+   "revisions_total": 156,
    "fetched": 13
   },
   "stablecoiny-eth": {
@@ -44,13 +44,13 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-10-18T01:40:19+00:00",
+   "at": "2026-10-18T07:33:37+00:00",
    "rows": 46,
    "first": "2026-09-26",
    "last": "2026-10-18",
-   "added": 2,
-   "revised": 0,
-   "revisions_total": 12,
+   "added": 0,
+   "revised": 1,
+   "revisions_total": 13,
    "fetched": 2
   },
   "plynnosc": {
@@ -68,7 +68,7 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-18T01:40:19+00:00",
+   "at": "2026-10-18T07:33:37+00:00",
    "rows": 763,
    "first": "2023-09-26",
    "last": "2026-10-16",
@@ -92,7 +92,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-10-18T01:40:19+00:00",
+   "at": "2026-10-18T07:33:37+00:00",
    "rows": 8987,
    "first": "2023-02",
    "last": "2026-08",
@@ -118,7 +118,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-10-18T01:40:19+00:00",
+   "at": "2026-10-18T07:33:37+00:00",
    "rows": 1070,
    "first": "2024-10-01",
    "last": "2026-10-13",
@@ -140,7 +140,7 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-18T01:40:19+00:00",
+   "at": "2026-10-18T07:33:37+00:00",
    "rows": 532,
    "first": "2024-09-26",
    "last": "2026-10-16",
@@ -148,6 +148,85 @@
    "revised": 0,
    "revisions_total": 2,
    "fetched": 516
+  },
+  "binance-metrics": {
+   "file": "binance-metrics.csv",
+   "src": "Binance Vision (data.binance.vision), licencja CC BY-NC-SA 4.0 („Binance Vision Dataset Terms” v1.0), tylko użycie niekomercyjne: dzienne pliki metryk kontraktów wieczystych USDT (BTCUSDT od 2020-09-01, ETHUSDT od 2021-12-01) sprowadzone do jednego wiersza doby UTC — n = liczba odczytów 5-minutowych, last_t = godzina ostatniego odczytu otwartych pozycji, oi = otwarte pozycje (monety), oi_usd, top_ls i top_pos = stosunek kont i pozycji największych graczy, ls = stosunek kont wszystkich, taker = kupno do sprzedaży po rynku (ostatnia poprawna wartość doby), taker_avg = średnia doby; puste pole = źródło nie ma tej wartości (np. w części 2022 r.), plik doby X powstaje u źródła ok. 07:00 UTC doby X+1 (dane wejściowe do testów wstecznych, bez sygnałów)",
+   "cols": [
+    "date",
+    "sym",
+    "n",
+    "last_t",
+    "oi",
+    "oi_usd",
+    "top_ls",
+    "top_pos",
+    "ls",
+    "taker",
+    "taker_avg"
+   ],
+   "key": [
+    "date",
+    "sym"
+   ],
+   "ok": true,
+   "at": "2026-10-18T07:33:37+00:00",
+   "rows": 4020,
+   "first": "2020-09-01",
+   "last": "2026-10-17",
+   "added": 2,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 2
+  },
+  "binance-funding": {
+   "file": "binance-funding.csv",
+   "src": "Binance Vision (data.binance.vision), licencja CC BY-NC-SA 4.0 („Binance Vision Dataset Terms” v1.0), tylko użycie niekomercyjne: miesięczne pliki stawek finansowania kontraktów wieczystych (od 2020-01) sprowadzone do wiersza doby UTC — n = liczba rozliczeń, sum_bp = suma stawek doby w punktach bazowych (stawka × 10 000), last_bp = ostatnie rozliczenie doby; plik miesiąca powstaje po jego końcu (dane wejściowe do testów wstecznych, bez sygnałów)",
+   "cols": [
+    "date",
+    "sym",
+    "n",
+    "sum_bp",
+    "last_bp"
+   ],
+   "key": [
+    "date",
+    "sym"
+   ],
+   "ok": true,
+   "at": "2026-10-18T07:33:37+00:00",
+   "rows": 4930,
+   "first": "2020-01-01",
+   "last": "2026-09-30",
+   "added": 0,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 0
+  },
+  "deribit-dvol": {
+   "file": "deribit-dvol.csv",
+   "src": "Publiczne dane rynkowe giełdy opcji Deribit (bez klucza): dzienne świece indeksu zmienności opcji BTC i ETH (DVOL, od 2021-03; punkty indeksu: otwarcie, maksimum, minimum, zamknięcie) — tylko pełne doby UTC (dane wejściowe do testów wstecznych, bez sygnałów)",
+   "cols": [
+    "date",
+    "cur",
+    "open",
+    "high",
+    "low",
+    "close"
+   ],
+   "key": [
+    "date",
+    "cur"
+   ],
+   "ok": true,
+   "at": "2026-10-18T07:33:37+00:00",
+   "rows": 4068,
+   "first": "2021-03-24",
+   "last": "2026-10-17",
+   "added": 2,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 2
   },
   "krypto-dziennik": {
    "file": "krypto-dziennik.csv",
@@ -170,14 +249,14 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-18T01:40:19+00:00",
-   "rows": 190,
+   "at": "2026-10-18T07:33:37+00:00",
+   "rows": 200,
    "first": "2026-09-28",
-   "last": "2026-10-16",
+   "last": "2026-10-17",
    "added": 10,
    "revised": 10,
-   "revisions_total": 170,
-   "fetched": 190
+   "revisions_total": 180,
+   "fetched": 200
   },
   "swiat-dziennik": {
    "file": "swiat-dziennik.csv",
@@ -200,12 +279,12 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-18T01:40:19+00:00",
+   "at": "2026-10-18T07:33:37+00:00",
    "rows": 440,
    "first": "2026-10-05",
    "last": "2026-10-16",
    "added": 0,
-   "revised": 44,
+   "revised": 0,
    "revisions_total": 352,
    "fetched": 440
   },
@@ -240,7 +319,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-10-18T01:40:19+00:00",
+   "at": "2026-10-18T07:33:37+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -273,13 +352,13 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-10-18T01:40:19+00:00",
+   "at": "2026-10-18T07:33:37+00:00",
    "rows": 67,
    "first": "2026-10-08",
    "last": "2026-10-19",
-   "added": 7,
-   "revised": 15,
-   "revisions_total": 100,
+   "added": 0,
+   "revised": 11,
+   "revisions_total": 111,
    "fetched": 67
   },
   "ng-dziennik": {
@@ -306,19 +385,53 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-10-18T01:40:19+00:00",
+   "at": "2026-10-18T07:33:37+00:00",
    "rows": 77,
    "first": "2026-10-15",
    "last": "2026-10-19",
-   "added": 18,
-   "revised": 32,
-   "revisions_total": 101,
+   "added": 0,
+   "revised": 23,
+   "revisions_total": 124,
    "fetched": 77
+  },
+  "fw-dziennik": {
+   "file": "fw-dziennik.csv",
+   "src": "Obliczenia własne CapitalFlowAI: dziennik kart reguł „w cieniu” najnowszych źródeł danych (rejestracja z góry 17.10.2026: pozycje zagranicznych inwestorów w Indiach i na Tajwanie, put/call na Tajwanie, indeks CSI 300, napięcie na rynku repo w USA, lokalne premie stablecoina) zapisanych przed granicą karty — 9:00 w Nowym Jorku; g = głos, z = odchylenie wejścia, y = wynik sesji w %, dd = dzień danych wejścia",
+   "cols": [
+    "date",
+    "line",
+    "sym",
+    "g",
+    "state",
+    "z",
+    "saved_at",
+    "y",
+    "dd",
+    "v",
+    "reg"
+   ],
+   "key": [
+    "date",
+    "line",
+    "sym",
+    "v",
+    "reg"
+   ],
+   "ok": true,
+   "at": "2026-10-18T07:33:37+00:00",
+   "rows": 0,
+   "first": null,
+   "last": null,
+   "added": 0,
+   "revised": 0,
+   "revisions_total": 0,
+   "fetched": 0
   }
  },
  "errors": [],
  "notes": [
-  "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania"
+  "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania",
+  "fw-dziennik: brak pliku dziennika najnowszych źródeł na stronie (404) — nic do zapisania"
  ],
  "seria": {
   "plyn.net": 400,
