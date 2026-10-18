@@ -32162,3 +32162,163 @@ test('v413: nic nie jest ujawniane — dodatkowe pola oceny w pliku nie zmieniaj
   assert.ok(/trdNg\(D\):''\)\+\(typeof trdFw==='function'\?trdFw\(D\):''\)/.test(html), 'po bloku nowych grup, tylko w widoku global');
   assert.ok(!/NSE|TAIFEX|TWSE|CSIndex|Federal Reserve/.test(kod), 'kod bloku bez nazw dostawców');
 });
+
+// ===================== v414 (W2): mały kalendarz makro w GLOBAL (panele #g-rkmi i #g-kmi; pliki kalendarz.json + kalendarz2.json) =====================
+// Kod bloku v414 uruchamiany razem z kodem karty „Kalendarz” (v372/v375) z podstawionymi zależnościami; czas przypięty (Date.now), bez zegara.
+const kal414 = (() => {
+  const a0 = html.indexOf('/* ===================== v414 (W2'), a1 = html.indexOf('/* v414: koniec kalendarza makro */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v414 w stronie');
+  const code = html.slice(a0, a1), sp = kal372.sp, txt = kal372.txt;
+  const mk = (L, files, opt) => {
+    const o = opt || {}, NOW = Date.parse(o.now || '2026-10-28T19:30:00Z');
+    class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set(), contains(c) { return this.s.has(c); }}};
+    const km = {innerHTML: '', hidden: true};
+    const els = {'#g-kalendarz': el, '#g-kmi': km};
+    const calls = [], hnd = [], ivs = [], rail = [], store = {};
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : kal372.clone(v)); return this; }}; };
+    const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false, querySelectorAll: () => []};
+    const ls = {getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }};
+    if (o.stored) store['cfai.kalm'] = o.stored;
+    const st = {mode: o.mode || 'global'};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'LOCALE', 'LANG', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'flagImg', 'document', 'MutationObserver', 'setInterval', 'Date', 'st', 'gRailRender', 'localStorage',
+      "'use strict';\n" + kal372.code + '\n' + code + '\nreturn {KALZ, KALM, KALM_N, KALM_KAT, KALM_LIM, KAL_KODY, KAL2_KODY, kalLoad, kalmInner, kalmSection, renderKalMini, kalmKick, kalmDays};')(
+      q => els[q] || null, T, EH, kal372.LOC, L, s => 'D:' + s, srv, n => '<glyph ' + n + '>', i => i, (a, c) => '[' + a + ']', doc,
+      function (cb) { this.observe = () => {}; }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD, st, () => rail.push(1), ls);
+    const click = (attr, val) => { const h = hnd.filter(x => x[0] === 'click' && String(x[1]).includes('kmi')); assert.equal(h.length, 1, 'jedna obsługa kliknięć panelu'); const b = {getAttribute: n => (n === attr ? val : null)};
+      h[0][1]({target: {closest: s => (s.includes(attr) ? b : null)}}); };
+    return {api, els, calls, hnd, ivs, rail, store, st, click, html: () => sp(km.innerHTML), sec: () => sp(api.kalmSection()), km};
+  };
+  const E = kal372.E;
+  const J2 = () => ({v: 1, at: '2026-10-28T11:00:00+00:00', src: 'x', od: '2026-10-27', do: '2026-12-02', ok: {cpi_praca_us: true, dane_pl: true, bc_uk: true, bc_jp: true}, part_at: {}, errs: {}, n: {}, brak: ['pl_bank', 'pl_szybki'],
+    e: {cpi_praca_us: [E('2026-11-06T13:30Z', 'us_praca', {r: 'us', w: 3, g: 'r'}), E('2026-11-10T13:30Z', 'us_cpi', {r: 'us', w: 3, g: 'r'})],
+        dane_pl: [E('2026-11-13T09:00Z', 'pl_cpi', {r: 'pl', w: 2, g: 'r', p: '2026-10'}), E('2026-10-30T09:00Z', 'pl_prod', {r: 'pl', w: 1, g: 'r', p: '2026-09'}), E('2026-11-03T09:00Z', 'pl_praca', {r: 'pl', w: 1, g: 'r', p: '2026-09'})],
+        bc_uk: [E('2026-11-05T12:00Z', 'uk_stopy', {r: 'gb', w: 3, g: 'r'})], bc_jp: [E('2026-10-30T03:00Z', 'jp_stopy', {r: 'jp', w: 3, g: 'r'})]}});
+  const files = (j, j2, meta) => Object.assign(kal372.files(j, meta), {kalendarz2: j2 === undefined ? J2() : j2});
+  const rows = h => [...sp(h).matchAll(/<li class="kmi-e w(\d)( kmi-past)?"><span class="kmi-h">([^<]*)<\/span><span class="kmi-fl">(.*?)<\/span><span class="kmi-t">(.*?)<\/span><span class="kmi-d" role="img" aria-label="([^"]*)"/g)]
+    .map(m => ({w: +m[1], past: !!m[2], hm: m[3], flag: m[4], title: txt(m[5].replace(/<small.*$/, '')), small: [...m[5].matchAll(/<small>([^<]*)<\/small>/g)].map(x => x[1]), aria: m[6]}));
+  const days = h => [...sp(h).matchAll(/<div class="kmi-day">(.*?)<\/div>/g)].map(m => txt(m[1]));
+  const loaded = (L, f, o) => { const K = mk(L, f, o); K.api.kalLoad(1); return K; };
+  return {mk, rows, days, files, J2, loaded, code, E};
+})();
+
+test('v414 (W2): kalendarz makro — tylko banki centralne, inflacja, rynek pracy i PKB (z obu plików), godziny polskie, flagi, waga; reszta terminów karty 14 dni zostaje poza panelem', () => {
+  const sp = kal372.sp;
+  const K = kal414.loaded('pl', kal414.files(), {now: '2026-10-28T19:30:00Z'});
+  assert.deepEqual(Object.keys(K.api.KALM_KAT).sort(), ['eu_bezrob', 'eu_cpi', 'eu_cpi_flash', 'eu_pkb', 'eu_pkb_flash', 'eu_stopy', 'fomc', 'jp_stopy', 'pl_cpi', 'pl_pkb', 'uk_stopy', 'us_cpi', 'us_pce', 'us_pkb', 'us_praca'], 'lista kodów ważnych terminów');
+  const TAB = Object.assign({}, K.api.KAL_KODY, K.api.KAL2_KODY);
+  assert.ok(Object.keys(K.api.KALM_KAT).every(k => TAB[k] && TAB[k][1] >= 2), 'każdy wybrany termin ma w tabelach karty wagę 2–3');
+  assert.deepEqual([...new Set(Object.values(K.api.KALM_KAT))].sort(), ['bc', 'inf', 'pkb', 'pr'], 'cztery rodzaje: banki centralne, inflacja, praca, PKB');
+  // dzień: dziś w Polsce = środa 28.10 (po zmianie czasu 25.10 jest CET: 19:30 UTC = 20:30); decyzja Fed 18:00 UTC = 19:00 — już była
+  K.api.KALM.p = 'd'; let h = K.api.kalmInner(), R = kal414.rows(h);
+  assert.equal(R.length, 1); assert.deepEqual([R[0].hm, R[0].w, R[0].past, R[0].title, R[0].flag], ['19:00', 3, true, 'Decyzja Fed o stopach procentowych (FOMC)', '[us]']); assert.deepEqual(R[0].small, ['już było']);
+  assert.deepEqual(kal414.days(h), [], 'widok „Dzień” bez nagłówków dni'); assert.ok(/Dziś: środa, 28 października/.test(sp(h)), 'podpis zakresu: dziś');
+  // tydzień 28.10–03.11: bez protokołu Fed, Beżowej Księgi, bilansu, sprzedaży, budów, nastrojów, produkcji i zatrudnienia w Polsce (wagi 1–2 spoza listy)
+  K.api.KALM.p = 'w'; h = K.api.kalmInner(); R = kal414.rows(h);
+  assert.deepEqual(R.map(r => r.title), ['Decyzja Fed o stopach procentowych (FOMC)', 'Inflacja PCE i wydatki Amerykanów', 'PKB USA', 'Decyzja EBC o stopach procentowych', 'Decyzja Banku Japonii o stopach procentowych', 'PKB strefy euro: szybki szacunek']);
+  assert.deepEqual(R.map(r => r.hm), ['19:00', '13:30', '13:30', '~14:15', '~04:00', '~11:00'], 'godziny polskie; ~ przy godzinie z zasady publikacji');
+  assert.deepEqual(R.map(r => r.flag), ['[us]', '[us]', '[us]', '[eu]', '[jp]', '[eu]']); assert.deepEqual(R.map(r => r.w), [3, 3, 3, 3, 3, 3]); assert.deepEqual(R.map(r => r.past), [true, false, false, false, false, false]);
+  assert.equal(h.includes('kmi-more'), false, 'do 6 terminów — bez przycisku'); assert.deepEqual(R[5].small, ['Q3 2026'], 'okres odczytu z pliku');
+  assert.ok(/Najbliższe 7 dni: śr\., 28 paź – wt\., 3 lis/.test(sp(h)), 'podpis zakresu tygodnia: ' + sp(h).slice(0, 700));
+  // miesiąc 28.10–26.11: dochodzą Bank Anglii, rynek pracy USA, inflacja CPI USA, inflacja w Polsce; limit 6 + „Pokaż wszystkie (10)”
+  K.api.KALM.p = 'm'; h = K.api.kalmInner(); R = kal414.rows(h);
+  assert.equal(R.length, 6); assert.ok(h.includes('data-kmi-all="1" aria-expanded="false">Pokaż wszystkie (10)</button>'), h.slice(-1200)); assert.ok(!h.includes('kmi-sc'), 'zwinięta lista bez przewijania'); assert.ok(/Najbliższe 30 dni: śr\., 28 paź – czw\., 26 lis/.test(sp(h)));
+  K.api.KALM.all = true; h = K.api.kalmInner(); R = kal414.rows(h);
+  assert.equal(R.length, 10); assert.ok(h.includes('aria-expanded="true">Pokaż mniej</button>')); assert.ok(h.includes('<div class="kmi-sc" role="region" tabindex="0" aria-label="Najbliższe 30 dni:'), 'rozwinięta lista przewija się w panelu');
+  assert.deepEqual(R.slice(-4).map(r => r.title), ['Decyzja Banku Anglii o stopach procentowych', 'Rynek pracy USA: zatrudnienie i bezrobocie', 'Inflacja CPI w USA (ceny konsumpcyjne)', 'Inflacja w Polsce (odczyt pełny)']);
+  assert.deepEqual(R.slice(-4).map(r => r.small.join('|')), ['', '', '', 'październik 2026'], 'okres, którego dotyczy odczyt, tylko gdy jest w pliku'); assert.deepEqual(R.slice(-4).map(r => r.flag), ['[gb]', '[us]', '[us]', '[pl]']);
+  assert.deepEqual(R.slice(-4).map(r => r.w), [3, 3, 3, 2]);
+  const D = kal414.days(h); assert.equal(D.length, 7, 'nagłówek dnia tylko dla dni z terminem: ' + D.join(' / ')); assert.ok(D[0].startsWith('śr., 28 paź') && D[0].endsWith('dziś') && D[1].startsWith('czw., 29 paź') && D[1].endsWith('jutro') && !D[2].includes('jutro'));
+  assert.ok(h.includes('aria-label="Waga 3 z 3: duże znaczenie dla rynków"') && h.includes('aria-label="Waga 2 z 3: średnie znaczenie dla rynków"'));
+});
+
+test('v414 (W2): kalendarz makro — wybór okresu, rozwinięcie i zapamiętanie; pliki pobierane dopiero w GLOBAL i raz (te same co karta)', () => {
+  const K = kal414.mk('pl', kal414.files(), {mode: 'crypto'});
+  assert.deepEqual(K.calls, ['meta'], 'poza GLOBAL panel nic nie pobiera (tylko meta, jak karta)'); K.api.renderKalMini(); K.api.kalmKick(); assert.deepEqual(K.calls, ['meta']);
+  K.st.mode = 'global'; K.api.kalmKick(); assert.deepEqual(K.calls, ['meta', 'kalendarz', 'kalendarz2'], 'w GLOBAL oba pliki, po jednym razie'); K.api.kalmKick(); K.api.renderKalMini();
+  assert.equal(K.calls.filter(c => c === 'kalendarz').length, 1, 'powtórne rysowanie nie pobiera ponownie (przerwa 10 min)'); assert.equal(K.calls.filter(c => c === 'kalendarz2').length, 1);
+  assert.equal(K.els['#g-kmi'].hidden, false); assert.ok(K.rail.length >= 1, 'prawa kolumna odświeżona (gRailRender)');
+  assert.deepEqual([...K.sec().matchAll(/data-kmi-p="(\w)" aria-pressed="(\w+)"/g)].map(m => m[1] + m[2]), ['dfalse', 'wtrue', 'mfalse'], 'domyślnie tydzień');
+  assert.ok(K.sec().startsWith('<section class="panel kmi" id="g-rkmi">') && K.sec().includes('Kalendarz makro') && K.html().includes('Kalendarz makro'), 'ta sama treść w kolumnie i pod parą wskaźników');
+  K.click('data-kmi-p', 'm'); assert.equal(K.api.KALM.p, 'm'); assert.equal(K.store['cfai.kalm'], 'm'); assert.ok(K.html().includes('data-kmi-p="m" aria-pressed="true"') && K.sec().includes('data-kmi-p="m" aria-pressed="true"'));
+  K.click('data-kmi-all', ''); assert.equal(K.api.KALM.all, true); K.click('data-kmi-p', 'd'); assert.equal(K.api.KALM.all, false, 'zmiana okresu zwija listę'); assert.equal(K.store['cfai.kalm'], 'd');
+  K.click('data-kmi-p', 'constructor'); K.click('data-kmi-p', '<img>'); assert.equal(K.api.KALM.p, 'd', 'zła wartość okresu ignorowana'); assert.equal(K.store['cfai.kalm'], 'd');
+  assert.equal(kal414.mk('pl', kal414.files(), {stored: 'm'}).api.KALM.p, 'm', 'zapamiętany okres po odświeżeniu strony');
+  for (const bad of ['x', 'constructor', '__proto__', '']) assert.equal(kal414.mk('pl', kal414.files(), {stored: bad}).api.KALM.p, 'w', 'zapamiętana zła wartość: ' + bad);
+  assert.deepEqual(K.ivs.map(x => x[1]).sort((a, b) => a - b), [5 * 60e3, 5 * 60e3, 30 * 60e3, 30 * 60e3], 'zegary: karta (5 i 30 min) i panel (przerysowanie co 5 min, odświeżenie plików co 30 min)');
+  const KM = kal414.mk('pl', kal414.files(undefined, undefined, {ok: {niepewnosc_ciss: true}})); KM.api.renderKalMini();
+  assert.equal(KM.els['#g-kmi'].hidden, true, 'meta bez części kalendarza — panel ukryty'); assert.equal(KM.sec(), ''); assert.equal(KM.html(), ''); assert.deepEqual(KM.calls, ['meta']);
+  const KN = kal414.mk('pl', kal414.files(undefined, undefined, null)); KN.api.renderKalMini(); assert.equal(KN.sec(), '', 'brak meta — bez panelu'); assert.equal(KN.els['#g-kmi'].hidden, true);
+});
+
+test('v414 (W2): kalendarz makro — pusty okres (z najbliższym terminem), błędy, braki, okno dalsze niż plik, wiek pliku; brak danych to brak wiersza, nigdy zero', () => {
+  const sp = kal372.sp;
+  const E = kal414.E, now = {now: '2026-10-28T19:30:00Z'};
+  const none = kal372.J(); Object.keys(none.e).forEach(k => { none.e[k] = []; }); const n2 = kal414.J2(); Object.keys(n2.e).forEach(k => { n2.e[k] = []; });
+  let K = kal414.loaded('pl', kal414.files(none, n2), now); K.api.KALM.p = 'd'; let h = K.api.kalmInner();
+  assert.ok(h.includes('Dziś nie ma ważnych terminów.') && kal414.rows(h).length === 0 && !h.includes('Najbliższy termin'), 'bez żadnego terminu w plikach — bez „najbliższego”');
+  K.api.KALM.p = 'w'; assert.ok(K.api.kalmInner().includes('W najbliższym tygodniu nie ma ważnych terminów.')); K.api.KALM.p = 'm'; assert.ok(K.api.kalmInner().includes('W najbliższym miesiącu nie ma ważnych terminów.'));
+  const j = kal372.J(); Object.keys(j.e).forEach(k => { j.e[k] = []; }); const j2 = kal414.J2(); Object.keys(j2.e).forEach(k => { j2.e[k] = []; }); j2.e.bc_uk = [E('2026-11-05T12:00Z', 'uk_stopy', {r: 'gb', w: 3, g: 'r'})];
+  K = kal414.loaded('pl', kal414.files(j, j2), now); K.api.KALM.p = 'd'; h = sp(K.api.kalmInner());
+  assert.ok(h.includes('Dziś nie ma ważnych terminów.') && h.includes('Najbliższy termin: czw., 5 lis, ~13:00 — Decyzja Banku Anglii o stopach procentowych.'), h.slice(0, 900));
+  // część z błędem (stare terminy), brak obszarów, data pliku, zastrzeżenie
+  const jb = kal372.J(); jb.ok.pkb_us = false; jb.ok.bc_eu = false; const jb2 = kal414.J2(); jb2.ok.bc_uk = false;
+  h = sp(kal414.loaded('pl', kal414.files(jb, jb2), now).api.kalmInner());
+  assert.ok(h.includes('Część terminów pochodzi z poprzedniego pobrania: PKB i inflacja PCE w USA, posiedzenia EBC, decyzje Banku Anglii.'), h.slice(-900));
+  assert.ok(h.includes('Jeszcze bez: posiedzenia NBP (Polska), szybki szacunek inflacji w Polsce.') && h.includes('Plik z D:2026-10-28T12:00:00+00:00') && h.includes('To nie jest porada inwestycyjna'), 'braki, data pliku i zastrzeżenie');
+  assert.ok(!h.includes('sięgają do'), 'okno w pliku — bez uwagi o zakresie');
+  assert.ok(!sp(kal414.loaded('pl', kal414.files(), now).api.kalmInner()).includes('poprzedniego pobrania'), 'bez błędów części — bez uwagi o starych terminach');
+  const jk = kal372.J(); jk.do = '2026-11-12'; K = kal414.loaded('pl', kal414.files(jk, kal414.J2()), now);
+  K.api.KALM.p = 'w'; assert.ok(!K.api.kalmInner().includes('sięgają do'), 'tydzień mieści się w pliku');
+  K.api.KALM.p = 'm'; assert.ok(sp(K.api.kalmInner()).includes('Terminarze sięgają do czw., 12 lis — późniejsze terminy mogą jeszcze nie być znane.'), 'miesiąc dalej niż plik — uwaga o zakresie');
+  // pliki niepoprawne albo bez drugiego pliku
+  K = kal414.mk('pl', kal414.files(null, null)); K.api.kalLoad(1); h = K.html(); assert.ok(h.includes('Nie udało się wczytać kalendarza.') && !h.includes('Wczytujemy terminy') && kal414.rows(h).length === 0);
+  K = kal414.mk('pl', kal414.files({v: 2}, {v: 3})); K.api.kalLoad(1); assert.ok(K.html().includes('Nie udało się wczytać kalendarza.'), 'plik innej wersji = błąd');
+  K = kal414.mk('pl', kal414.files(kal372.J(), null)); K.api.kalLoad(1); K.api.KALM.p = 'w'; h = sp(K.api.kalmInner());
+  assert.equal(kal414.rows(h).length, 5, 'bez drugiego pliku — ważne terminy z pierwszego'); assert.ok(h.includes('Jeszcze bez: posiedzenia NBP (Polska), posiedzenia Banku Anglii, posiedzenia Banku Japonii, inflacja i PKB Polski, inflacja CPI i zatrudnienie w USA.'), 'lista braków z pierwszego pliku');
+  K = kal414.mk('pl', kal414.files()); assert.ok(K.api.kalmInner().includes('Wczytujemy terminy…') && kal414.rows(K.api.kalmInner()).length === 0, 'przed wczytaniem plików — napis o wczytywaniu');
+});
+
+test('v414 (W2): kalendarz makro — dni polskie i godziny przez zmianę czasu (25.10.2026), nie doba UTC', () => {
+  const E = kal414.E, j = kal372.J(); Object.keys(j.e).forEach(k => { j.e[k] = []; });
+  j.e.bc_eu = [E('2026-10-24T22:30Z', 'eu_stopy', {r: 'eu', w: 3, g: 'r'}), E('2026-10-25T13:15Z', 'eu_stopy', {r: 'eu', w: 3, g: 'r'}), E('2026-10-29T13:15Z', 'eu_stopy', {r: 'eu', w: 3, g: 'r'})];
+  const K = kal414.loaded('pl', kal414.files(j, kal414.J2()), {now: '2026-10-24T22:45:00Z'}); K.api.KALM.p = 'd';
+  assert.deepEqual(K.api.kalmDays(Date.parse('2026-10-24T22:45:00Z'), 2), ['2026-10-25', '2026-10-26'], '22:45 UTC w sobotę (CEST) = niedziela 00:45 w Polsce');
+  const R = kal414.rows(K.api.kalmInner()); assert.deepEqual(R.map(r => r.hm), ['~00:30', '~14:15'], 'dzień: dwa terminy tej niedzieli w Polsce (22:30 UTC = 00:30 CEST; 13:15 UTC = 14:15 CET)');
+  assert.deepEqual(R.map(r => r.past), [true, false], '00:30 już było, 14:15 jeszcze nie');
+  const K2 = kal414.loaded('pl', kal414.files(j, kal414.J2()), {now: '2026-10-25T23:30:00Z'}); K2.api.KALM.p = 'd';
+  assert.deepEqual(K2.api.kalmDays(Date.parse('2026-10-25T23:30:00Z'), 1), ['2026-10-26'], '23:30 UTC po zmianie czasu = poniedziałek 00:30 CET');
+  assert.equal(kal414.rows(K2.api.kalmInner()).length, 0, 'poniedziałek bez ważnych terminów');
+  assert.deepEqual([K2.api.KALM_N.d, K2.api.KALM_N.w, K2.api.KALM_N.m], [1, 7, 30]);
+});
+
+test('v414 (W2): kalendarz makro — miesiąc mieści się w oknie pliku zbieracza (KAL_PRZOD), karta 14 dni bez zmian; panel w kolumnie i pod parą wskaźników (tablet, telefon)', () => {
+  const zb = fs.readFileSync(path.join(__dirname, 'zbieraj_dane.py'), 'utf8'), K = kal414.mk('pl', kal414.files()).api;
+  if (zb !== html) { const m = /^KAL_PRZOD = (\d+)/m.exec(zb); assert.ok(m && +m[1] >= 35, 'okno pliku ≥ 35 dni naprzód (dawniej 30)'); assert.ok(K.KALM_N.m + 1 <= +m[1], 'miesiąc (30 dni od dziś + przesunięcie doby UTC/Polska) w oknie pliku'); }   /* pod jsc fs.readFileSync zwraca stronę — porównanie tylko pod node */
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(m => m[1]).join('\n');
+  assert.ok(html.includes('const KAL_DNI=14;') && html.includes('<section class="panel pcard" id="g-kalendarz" hidden></section>'), 'karta „najbliższe 14 dni” bez zmian');
+  assert.equal(html.split('id="g-kmi"').length - 1, 1, 'jeden panel pod parą wskaźników'); assert.ok(html.indexOf('id="g-kmi"') > html.indexOf('id="g-sg"') && html.indexOf('id="g-kmi"') < html.indexOf('data-zw="global"'), 'zaraz pod parą wskaźników, przed paskiem widoku');
+  assert.ok(html.includes("</section>`+(typeof kalmSection==='function'?kalmSection():'');") && html.includes("if(typeof kalmKick==='function')kalmKick();"), 'prawa kolumna: panel pod „Pokryciem danych”');
+  assert.ok(html.includes("function renderKal(){\n  try{if(typeof renderKalMini==='function')renderKalMini();}catch(e){}"), 'karta odświeża panel');
+  assert.ok(css.includes('@media (min-width:1241px){#g-kmi{display:none!important}}') && css.includes('#g-kmi[hidden]{display:none}'), 'pod parą do 1240 px; od 1241 px kolumna po prawej');
+  assert.ok(/\.kmi \.kmi-e\{[^}]*grid-template-columns:42px 18px minmax\(0,1fr\) 28px/.test(css) && /\.kmi \.kmi-t\{[^}]*overflow-wrap:anywhere[^}]*min-width:0/.test(css) && /\.kmi \.seg button\{[^}]*flex:1 1 0;min-width:0/.test(css), 'telefon 390 px: stałe kolumny 42 + 18 + 28 px, długie nazwy zawijane, przyciski okresu równe');
+  const blok = css.slice(css.indexOf('/* v414 (W2): mały kalendarz makro'), css.indexOf('@media (min-width:1241px){#g-kmi{display:none!important}}'));   // bez samej reguły zapytania o szerokość
+  assert.ok(blok.length > 800 && !/min-width:\s*\d{3,}px|[^-]width:\s*\d{3,}px|#[0-9a-fA-F]{3,6}\b|rgba?\(/.test(blok), 'tylko zmienne motywu, bez stałych szerokości ≥ 100 px');
+  assert.ok(!/\b(Federal ?Reserve|Eurostat|Census|BEA|federalreserve|bea\.gov|census\.gov|europa\.eu|ecb\.)\b/i.test(kal414.code), 'zero nazw dostawców w kodzie bloku'); assert.ok(!/timeZone:\s*'Europe\/Warsaw'/.test(kal414.code) && kal414.code.includes('Date.now()'), 'czas polski z reguły karty, zegar z Date.now()');
+});
+
+test('v414 (W2): kalendarz makro — słownik w 10 językach (własne tłumaczenia, pola {x} podstawione, zero surowych kluczy)', () => {
+  const KEYS = ['t', 'sub', 'p.d', 'p.w', 'p.m', 'p.aria', 'r.d', 'r.w', 'r.m', 'load', 'none.d', 'none.w', 'none.m', 'next', 'more', 'less', 'short', 'note'];
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const T = v96src.tFor(L), I = v96src.I18N[L];
+    for (const k of KEYS) { const v = I['kal414.' + k]; assert.ok(typeof v === 'string' && v.length > 0, L + ' ' + k); }
+    if (L !== 'pl' && L !== 'en') for (const k of ['t', 'sub', 'none.d', 'next', 'more', 'less', 'short', 'note']) assert.notEqual(I['kal414.' + k], v96src.I18N.en['kal414.' + k], L + ': własne tłumaczenie ' + k);
+    const K = kal414.loaded(L, kal414.files(), {now: '2026-10-28T19:30:00Z'}); K.api.KALM.p = 'm'; K.api.KALM.all = true; const h = K.api.kalmInner();
+    assert.ok(!/kal414\./.test(h) && !/\{[a-z]\}/.test(h), L + ': surowy klucz lub pole'); assert.equal(kal414.rows(h).length, 10, L); assert.ok(kal414.rows(h).every(r => r.title.length > 3), L);
+    assert.ok(T('kal414.r.w', {a: 'AA', b: 'BB'}).includes('AA') && T('kal414.r.w', {a: 'AA', b: 'BB'}).includes('BB') && T('kal414.r.m', {a: 'AA', b: 'BB'}).includes('BB') && T('kal414.r.d', {a: 'AA'}).includes('AA'), L + ': pola zakresu');
+    assert.ok(T('kal414.next', {d: 'DD', h: 'HH', n: 'NN'}).includes('DD') && T('kal414.next', {d: 'DD', h: 'HH', n: 'NN'}).includes('NN') && T('kal414.more', {n: 77}).includes('77') && T('kal414.short', {d: 'DD'}).includes('DD'), L + ': pola');
+  }
+  assert.equal(v96src.I18N.pl['kal414.t'], 'Kalendarz makro'); assert.equal(['d', 'w', 'm'].map(k => v96src.I18N.pl['kal414.p.' + k]).join('|'), 'Dzień|Tydzień|Miesiąc');
+  assert.ok(!/Eurostat|Federal Reserve|Census|\bBEA\b/.test(Object.keys(v96src.I18N.pl).filter(k => k.startsWith('kal414.')).map(k => v96src.I18N.pl[k]).join(' ')), 'bez nazw dostawców');
+});

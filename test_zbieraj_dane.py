@@ -53832,11 +53832,11 @@ class KalendarzV372(unittest.TestCase):
     # ---------------- budowa pliku ----------------
     def test_plik_komplet_pola_okno_i_brak_nazw_dostawcow(self):
         o = self.build()
-        self.assertEqual((o['v'], o['at'], o['od'], o['do']), (1, self.NOW, '2026-10-13', '2026-11-13'))
+        self.assertEqual((o['v'], o['at'], o['od'], o['do']), (1, self.NOW, '2026-10-13', '2026-11-18'))   # v414: okno 35 dni naprzód (było 30)
         self.assertEqual(set(o), {'v', 'at', 'src', 'od', 'do', 'ok', 'part_at', 'errs', 'e', 'n', 'brak'})
         self.assertEqual(o['ok'], {k: True for k in zd.KAL_PARTS}); self.assertEqual(o['part_at'], {k: self.NOW for k in zd.KAL_PARTS}); self.assertEqual(o['errs'], {})
-        self.assertEqual({k: len(v) for k, v in o['e'].items()}, {'bc_us': 8, 'pkb_us': 4, 'sprz_us': 4, 'stat_eu': 8, 'bc_eu': 1})
-        self.assertEqual(o['n'], {'bc_us': [16, 8], 'pkb_us': [16, 4], 'sprz_us': [38, 4], 'stat_eu': [8, 8], 'bc_eu': [4, 1]})
+        self.assertEqual({k: len(v) for k, v in o['e'].items()}, {'bc_us': 9, 'pkb_us': 4, 'sprz_us': 4, 'stat_eu': 8, 'bc_eu': 1})   # v414: okno 35 dni — dochodzi 18.11 (protokół FOMC)
+        self.assertEqual(o['n'], {'bc_us': [16, 9], 'pkb_us': [16, 4], 'sprz_us': [38, 4], 'stat_eu': [8, 8], 'bc_eu': [4, 1]})
         self.assertEqual(o['brak'], ['pl_bank', 'uk_bank', 'jp_bank', 'pl_dane', 'us_praca'], 'pominięte: Polska, Wielka Brytania, Japonia, inflacja CPI i zatrudnienie USA')
         self.assertEqual(zd.META['errors'], [])
         for L in o['e'].values():
@@ -55050,7 +55050,7 @@ class KalendarzV375(unittest.TestCase):
     # ---------------- plik ----------------
     def test_plik_komplet_pola_okno_brak_i_brak_nazw_dostawcow(self):
         o = self.build()
-        self.assertEqual((o['v'], o['at'], o['od'], o['do']), (1, self.NOW, '2026-10-14', '2026-11-14'))
+        self.assertEqual((o['v'], o['at'], o['od'], o['do']), (1, self.NOW, '2026-10-14', '2026-11-19'))   # v414: okno 35 dni naprzód (było 30)
         self.assertEqual(set(o), {'v', 'at', 'src', 'od', 'do', 'ok', 'part_at', 'errs', 'e', 'n', 'brak', 'brak_powod'})   # v390: + uzasadnienie braków
         self.assertEqual(o['ok'], {k: True for k in zd.KAL2_PARTS}); self.assertEqual(o['part_at'], {k: self.NOW for k in zd.KAL2_PARTS}); self.assertEqual(o['errs'], {})
         self.assertEqual({k: len(v) for k, v in o['e'].items()}, {'cpi_praca_us': 3, 'dane_pl': 4, 'bc_uk': 1, 'bc_jp': 1})
@@ -59420,7 +59420,7 @@ class TestV390KalendarzBrakPowod(unittest.TestCase):
                          ('2027-03-26T09:00Z', '2027-03-29T08:00Z', '2027-03-12T13:30Z', '2027-03-15T12:30Z'))
         # plik zbudowany tuż przed zmianą czasu w Polsce (NOW = 24.10 22:30 UTC = 25.10 00:30 czasu polskiego): okno liczone w dniach UTC, bez przesunięcia o dzień
         o = self.build()
-        self.assertEqual((o['od'], o['do']), ('2026-10-23', '2026-11-23'))
+        self.assertEqual((o['od'], o['do']), ('2026-10-23', '2026-11-28'))   # v414: okno 35 dni naprzód (było 30)
 
 
 # ===================== v391: xSTOCKS — DOPEŁNIENIE LISTY BEZ TOKENU Z BŁĘDNĄ CENĄ (LISTA BEZ CEN + CENY WYBRANYCH TOKENÓW) =====================
@@ -69184,3 +69184,39 @@ class FaleV413(unittest.TestCase):
         src = open(os.path.join(self.ROOT, 'narzedzia', 'archiwum.py'), encoding='utf-8').read()
         self.assertIn("'fw-dziennik': src_fw_dziennik", src)
         self.assertIn('`fw-dziennik.csv`', open(os.path.join(self.ROOT, 'docs', 'ODTWORZENIE.md'), encoding='utf-8').read())
+
+
+class TestV414KalendarzOkno35Dni(unittest.TestCase):
+    """v414 (W2): okno zbieracza obu plików kalendarza poszerzone z 30 do 35 dni naprzód (okres „miesiąc” małego kalendarza makro w GLOBAL = 30 dni od dziś
+    w czasie polskim, plus zapas na przesunięcie doby i dzień bez odświeżenia); karta „Najbliższe 14 dni”, godziny, reguła zmiany czasu i bramki części bez zmian.
+    Pliki budują nagrania z klas KalendarzV372 i KalendarzV375 (bez sieci, NOW przypięte)."""
+
+    def test_stala_okna_i_wspolne_uzycie_w_obu_plikach(self):
+        import inspect
+        self.assertEqual((zd.KAL_PRZOD, zd.KAL_WSTECZ), (35, 1))
+        for fn in (zd.build_kalendarz, zd.build_kalendarz2):
+            src = inspect.getsource(fn)
+            self.assertIn('days=KAL_PRZOD', src, fn.__name__ + ': okno z jednej stałej')
+            self.assertIn('days=KAL_WSTECZ', src, fn.__name__)
+
+    def _okno(self, klasa, test):
+        t = klasa(test); t.setUp()
+        try:
+            o = t.build()
+        finally:
+            t.doCleanups()
+        return o
+
+    def test_plik_ma_okno_36_dni_i_dalekie_terminy_w_oknie_zostaja(self):
+        for klasa, test in ((KalendarzV372, 'test_plik_komplet_pola_okno_i_brak_nazw_dostawcow'), (KalendarzV375, 'test_plik_komplet_pola_okno_brak_i_brak_nazw_dostawcow')):
+            o = self._okno(klasa, test)
+            od, do = datetime.date.fromisoformat(o['od']), datetime.date.fromisoformat(o['do'])
+            self.assertEqual((do - od).days, 36, klasa.__name__ + ': od (wczoraj) do (dziś + 35 dni)')
+            self.assertEqual(do, datetime.datetime.fromisoformat(klasa.NOW).date() + datetime.timedelta(days=35), klasa.__name__)
+            for L in o['e'].values():
+                for e in L:
+                    self.assertTrue(o['od'] <= e['t'][:10] <= o['do'], klasa.__name__ + ' ' + e['t'])
+
+    def test_miesiac_panelu_mieści_się_w_oknie(self):
+        # 30 dni od dziś (dzień polski) i do 1 dnia przesunięcia doby UTC/Polska — nigdy dalej niż KAL_PRZOD
+        self.assertLessEqual(30 + 1, zd.KAL_PRZOD)

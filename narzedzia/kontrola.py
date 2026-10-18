@@ -9681,7 +9681,7 @@ def niepewnosc_kontrola(np_, stres=None, now=None):
 
 # ---------------------------------------------------------------- v372 (F9Z1): kalendarz „Najbliższe 14 dni” (data/kalendarz.json) ----------------------------------------------------------------
 # Plik: e (terminy każdej z pięciu części: fed, bea, census, eurostat, ecb; czas w UTC, kod, region, waga 1–3, g = z terminarza / z reguły), n (po części: [rozpoznanych w całej odpowiedzi,
-# w oknie pliku]), ok / part_at / errs, od / do (okno pliku: wczoraj … +30 dni UTC), brak (obszary bez terminarza). Kontrola czyta plik ze strony (bez zapytań do sieci):
+# w oknie pliku]), ok / part_at / errs, od / do (okno pliku: wczoraj … +35 dni UTC; v414: było +30), brak (obszary bez terminarza). Kontrola czyta plik ze strony (bez zapytań do sieci):
 # (1) świeżość pobrania każdej części osobnym wierszem (odświeżanie co 6 h, część z błędem co godzinę): starsza niż KAL_K_PROG_MIN = ⚠ (najwyżej uwaga);
 # (2) TERMINARZ PUSTY ALBO PRZETERMINOWANY (⚠ z opisem): brak jakiegokolwiek terminu w następnych 14 dniach, plik starszy niż KAL_K_PLIK_MIN, terminy kończą się wcześniej niż za 14 dni,
 #     część, która w całej odpowiedzi rozpoznała mniej terminów niż próg (parser zgubił tabelę), część fed/bea/census/eurostat bez żadnego terminu w oknie pliku;
