@@ -4284,7 +4284,7 @@ test('v117: poprawki po przeglądzie — nota o starych wierszach ETH (EXTRA108)
 });
 
 test('v118: sumy dobowe dużych przelewów w panelu wielorybów — blok whDob z D.dobowe, podpisy doby (w toku / liczone od / pełna), EXTRA109 ×10', () => {
-  assert.ok(html.includes("const body=whExch(D)+whDob(D)+whTable(D);") && html.includes("function whDob(D){const B=D&&D.dobowe&&typeof D.dobowe==='object'?D.dobowe:null;if(!B)return '';"));
+  assert.ok(/\bbody=[^;]*\bwhExch\(D\)[^;]*\bwhDob\(D\)[^;]*\bwhTable\(D\)/.test(html) && html.includes("function whDob(D){const B=D&&D.dobowe&&typeof D.dobowe==='object'?D.dobowe:null;if(!B)return '';"));
   assert.ok(html.includes(".sort().reverse().slice(0,3)") && html.includes("const from=!!(od&&od.slice(0,10)>=d),p=[];if(from)p.push(t('wh.dob.from',{t:engDate(od)}));"), '3 ostatnie doby; doba z początkiem liczenia = „liczone od”');
   for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
     const t = v96src.tFor(L);
@@ -14493,7 +14493,7 @@ test('v293c CR-10: otwarte pozycje — „2,35 mln BTC”, opis „wszystkie mon
 test('v293c CR-11: wieloryby — sumy dobowe „nie tylko największe przelewy z tabeli niżej” (tabela jest pod opisem i ma ≤ 60 wierszy)', () => {
   for (const L of V293C_L) { const s = v96src.tFor(L)('wh.dob.sub'); assert.ok(!/60/.test(s) && !/wyżej|above|oben|superior|ci-dessus|sopra|acima|выше|上表|上の表/.test(s), L + ': ' + s); }
   assert.ok(v96src.tFor('pl')('wh.dob.sub').includes('z tabeli niżej'));
-  assert.ok(html.includes('const body=whExch(D)+whDob(D)+whTable(D);'), 'kolejność: sumy dobowe przed tabelą');
+  assert.ok(/\bbody=[^;]*\bwhExch\(D\)[^;]*\bwhDob\(D\)[^;]*\bwhTable\(D\)/.test(html), 'kolejność: sumy dobowe przed tabelą');
 });
 
 test('v293c CR-12: trudność — zmiana poniżej 0,1% z dwoma miejscami (−0,03%, nie „0,0%”)', () => {
@@ -33559,4 +33559,261 @@ test('v425: słownik w425 — 10 języków, te same symbole zastępcze, bez nazw
     if (l !== 'pl' && l !== 'en') assert.notEqual(v, I.en['w425.' + k], l + ' ' + k + ': prawdziwe tłumaczenie');
     assert.ok(!/DefiLlama|CoinMarketCap|CoinGecko|Coinbase|Binance/.test(v), l + ' ' + k + ': bez nazw dostawców');
   }
+});
+
+
+// ===================== v426 (W4C_SUMY): przełącznik „Szczegóły / Suma” — otwarte pozycje na giełdach, salda ogłoszonych portfeli, przelewy dużych graczy =====================
+// Nagrania: zwarte kopie publicznych plików strony z 18.10.2026 (dzwignia.json — 11 giełd w sumie, Coinbase International wstrzymana od 1.10; wieloryby.json — 5 giełd, OKX tylko USDC). Zegar przypięty (18.10.2026 15:00 UTC).
+const W4C_LEV = {"at":"2026-10-18T14:50:22+00:00","ok":{"hl":true,"bn":true,"dr":true,"okx":true,"kr":true,"cb":true,"dy":true,"cde":true,"bg":true,"gt":true,"kc":true,"mx":true,"hx":true},"part_at":{"hl":"2026-10-18T14:29:49+00:00","bn":"2026-10-18T06:39:10+00:00","dr":"2026-10-18T14:29:49+00:00","okx":"2026-10-18T14:29:49+00:00","kr":"2026-10-18T14:29:49+00:00","cb":"2026-10-18T14:29:49+00:00","dy":"2026-10-18T14:29:49+00:00","cde":"2026-10-18T14:29:49+00:00","bg":"2026-10-18T14:29:49+00:00","gt":"2026-10-18T14:29:49+00:00","kc":"2026-10-18T14:29:49+00:00","mx":"2026-10-18T14:29:49+00:00","hx":"2026-10-18T14:29:49+00:00"},"hl":{"rows":{"BTC":{"f_h":2.3328e-06,"f_y":2.044,"oi":41583.7081,"oi_usd":3373561487.0,"px":81127.0,"d1":-0.487,"vol_usd":1190892667.0},"ETH":{"f_h":6.3441e-06,"f_y":5.557,"oi":1048342.7116,"oi_usd":2487696288.0,"px":2372.98,"d1":-2.133,"vol_usd":662857866.0}},"top":["BTC","ETH"],"n":2,"f7_y":{"BTC":7.99,"ETH":5.568}},"bn":{"day":"2026-10-17","BTC":{"last":{"oi":94267.08,"oi_usd":7678604713.779535,"ls":1.74790903,"top_ls":1.86955798,"top_pos":1.777109,"taker":0.827114}},"ETH":{"last":{"oi":2266568.258,"oi_usd":5443344997.04764,"ls":3.0799175,"top_ls":2.45720187,"top_pos":1.734024,"taker":2.523675}}},"dr":{"BTC":{"fut":{"t":"2026-10-18T14:31:05+00:00","perp":{"mark":81079.45,"oi_usd":842328040.0,"vol_usd":677133800.0,"f8":4.701e-05,"f_y":5.148}}},"ETH":{"fut":{"t":"2026-10-18T14:31:11+00:00","perp":{"mark":2369.1,"oi_usd":246817464.0,"vol_usd":89422108.0,"f8":7.6e-05,"f_y":8.322}}}},"okx":{"BTC":{"t":"2026-10-18T14:29:49+00:00","f":5.14913330145e-05,"f_hours":8.0,"f_y":5.638,"oi_usd":2471726996.0,"oi":30461.4457,"ls":1.74,"ls_t":"2026-10-17T16:00:00+00:00"},"ETH":{"t":"2026-10-18T14:29:49+00:00","f":6.7285853938e-05,"f_hours":8.0,"f_y":7.368,"oi_usd":1384014854.0,"oi":583224.41,"ls":2.25,"ls_t":"2026-10-17T16:00:00+00:00"}},"kr":{"t":"2026-10-18T14:31:13+00:00","f_hours":1,"BTC":{"f_h":5.9655e-06,"f_y":5.226,"f_hours":1,"oi":2246.4295,"oi_usd":182127770.0,"px":81074.33131885795,"vol":2314.2753,"vol_usd":188622289.0,"t":"2026-10-18T14:31:13+00:00","sym":"PF_XBTUSD"},"ETH":{"f_h":2.093967e-06,"f_y":1.834,"f_hours":1,"oi":27447.89,"oi_usd":65049779.0,"px":2369.93732170988,"vol":28874.524,"vol_usd":69179876.0,"t":"2026-10-18T14:31:13+00:00","sym":"PF_ETHUSD"}},"cb":{"t":"2026-10-18T14:29:49+00:00","f_hours":1,"BTC":{"f_h":null,"f_y":null,"f_hours":1.0,"oi":1031.3903,"oi_usd":86636785.0,"px":84000.0,"vol":null,"vol_usd":null,"t":"2026-10-01T09:00:29+00:00","stan":"PAUSED"},"ETH":{"f_h":null,"f_y":null,"f_hours":1.0,"oi":13699.4503,"oi_usd":36889469.0,"px":2692.77,"vol":null,"vol_usd":null,"t":"2026-10-01T09:00:29+00:00","stan":"PAUSED"}},"dy":{"t":"2026-10-18T14:29:49+00:00","f_hours":1,"BTC":{"f_h":0.0,"f_y":0.0,"f_hours":1,"oi":205.1342,"oi_usd":16630559.0,"px":81071.60691,"vol":null,"vol_usd":1286740.0,"t":"2026-10-18T14:29:49+00:00"},"ETH":{"f_h":2.2689516e-05,"f_y":19.876,"f_hours":1,"oi":6387.115,"oi_usd":15138850.0,"px":2370.217178,"vol":null,"vol_usd":2580420.0,"t":"2026-10-18T14:29:49+00:00"}},"cde":{"t":"2026-10-18T14:31:13+00:00","f_hours":1,"BTC":{"f_h":1.3e-05,"f_y":11.388,"f_hours":1.0,"oi":1737.43,"oi_usd":140857794.0,"px":81072.5,"vol":690.49,"vol_usd":55988382.0,"t":"2026-10-18T14:31:13+00:00"},"ETH":{"f_h":1e-06,"f_y":0.876,"f_hours":1.0,"oi":23353.3,"oi_usd":55347321.0,"px":2370.0,"vol":9357.9,"vol_usd":22168865.0,"t":"2026-10-18T14:31:13+00:00"}},"bg":{"t":"2026-10-18T14:29:49+00:00","BTC":{"f_h":7.875e-06,"f_y":6.898,"f_hours":8.0,"oi":34862.9753,"oi_usd":2828590069.0,"px":81134.5,"vol":null,"vol_usd":1437151448.0,"t":"2026-10-18T14:31:16+00:00"},"ETH":{"f_h":2.5e-06,"f_y":2.19,"f_hours":8.0,"oi":749911.18,"oi_usd":1779524232.0,"px":2372.98,"vol":null,"vol_usd":1422252537.0,"t":"2026-10-18T14:31:16+00:00"}},"gt":{"t":"2026-10-18T14:29:49+00:00","BTC":{"f_h":7.5e-06,"f_y":6.57,"f_hours":8.0,"oi":25010.566,"oi_usd":2029273290.0,"px":81136.64,"vol":null,"vol_usd":null,"t":"2026-10-18T14:29:49+00:00"},"ETH":{"f_h":4.5e-06,"f_y":3.942,"f_hours":8.0,"oi":391971.03,"oi_usd":930296203.0,"px":2373.38,"vol":null,"vol_usd":null,"t":"2026-10-18T14:29:49+00:00"}},"kc":{"t":"2026-10-18T14:29:49+00:00","BTC":{"f_h":7.75e-06,"f_y":6.789,"f_hours":8.0,"oi":9486.24,"oi_usd":769689513.0,"px":81137.47,"vol":null,"vol_usd":158508838.0,"t":"2026-10-18T14:29:49+00:00"},"ETH":{"f_h":7e-06,"f_y":6.132,"f_hours":8.0,"oi":141916.61,"oi_usd":336481444.0,"px":2370.98,"vol":null,"vol_usd":86150595.0,"t":"2026-10-18T14:29:49+00:00"}},"mx":{"t":"2026-10-18T14:29:49+00:00","BTC":{"f_h":1.25e-05,"f_y":10.95,"f_hours":8.0,"oi":47248.2139,"oi_usd":3832940480.0,"px":81123.5,"vol":null,"vol_usd":1771643781.0,"t":"2026-10-18T14:31:19+00:00"},"ETH":{"f_h":7.125e-06,"f_y":6.242,"f_hours":8.0,"oi":1276237.62,"oi_usd":3028881981.0,"px":2373.29,"vol":null,"vol_usd":1120601672.0,"t":"2026-10-18T14:31:19+00:00"}},"hx":{"t":"2026-10-18T14:29:49+00:00","BTC":{"f_h":2.899016e-06,"f_y":2.54,"f_hours":8,"oi":20577.878,"oi_usd":1668925582.0,"px":81102.9,"vol":null,"vol_usd":234790034.0,"t":"2026-10-18T14:31:23+00:00"},"ETH":{"f_h":1.25e-05,"f_y":10.95,"f_hours":8,"oi":106123.62,"oi_usd":251719920.0,"px":2371.95,"vol":null,"vol_usd":457789132.0,"t":"2026-10-18T14:31:23+00:00"}},"hist":[{"d":"2026-09-25"},{"d":"2026-09-26","all_btc":5774733004,"all_btc_v":"cb,dy,hl,kr,okx","all_eth":4674624775,"all_eth_v":"cb,dy,hl,kr,okx"},{"d":"2026-09-27","all_btc":5712842128,"all_btc_v":"cb,dy,hl,kr,okx","all_eth":4692591327,"all_eth_v":"cb,dy,hl,kr,okx"},{"d":"2026-09-28","all_btc":5537914370,"all_btc_v":"cb,dy,hl,kr,okx","all_eth":4691882144,"all_eth_v":"cb,dy,hl,kr,okx"},{"d":"2026-09-29","all_btc":5624477447,"all_btc_v":"cb,dy,hl,kr,okx","all_eth":4804221573,"all_eth_v":"cb,dy,hl,kr,okx"},{"d":"2026-09-30","all_btc":5541966981,"all_btc_v":"cb,dy,hl,kr,okx","all_eth":4862681761,"all_eth_v":"cb,dy,hl,kr,okx"},{"d":"2026-10-01","all_btc":5580166315,"all_btc_v":"dy,hl,kr,okx","all_eth":4791506869,"all_eth_v":"dy,hl,kr,okx"},{"d":"2026-10-02","all_btc":5734757705,"all_btc_v":"dy,hl,kr,okx","all_eth":4908548024,"all_eth_v":"dy,hl,kr,okx"},{"d":"2026-10-03","all_btc":5726782890,"all_btc_v":"dy,hl,kr,okx","all_eth":4910697288,"all_eth_v":"dy,hl,kr,okx"},{"d":"2026-10-04","all_btc":5933289338,"all_btc_v":"dy,hl,kr,okx","all_eth":4985611393,"all_eth_v":"dy,hl,kr,okx"},{"d":"2026-10-05","all_btc":6000590840,"all_btc_v":"dy,hl,kr,okx","all_eth":4901723781,"all_eth_v":"dy,hl,kr,okx"},{"d":"2026-10-06","all_btc":6343103989,"all_btc_v":"dy,hl,kr,okx","all_eth":4899108265,"all_eth_v":"dy,hl,kr,okx"},{"d":"2026-10-07","all_btc":6050091324,"all_btc_v":"dy,hl,kr,okx","all_eth":4859154697,"all_eth_v":"dy,hl,kr,okx"},{"d":"2026-10-08","all_btc":5917622010,"all_btc_v":"dy,hl,kr,okx","all_eth":4428477331,"all_eth_v":"dy,hl,kr,okx"},{"d":"2026-10-09","all_btc":5827620717,"all_btc_v":"dy,hl,kr,okx","all_eth":4370241766,"all_eth_v":"dy,hl,kr,okx"},{"d":"2026-10-10","all_btc":5876843670,"all_btc_v":"dy,hl,kr,okx","all_eth":4420827968,"all_eth_v":"dy,hl,kr,okx"},{"d":"2026-10-11","all_btc":5853002785,"all_btc_v":"dy,hl,kr,okx","all_eth":4377979863,"all_eth_v":"dy,hl,kr,okx"},{"d":"2026-10-12","all_btc":5911087098,"all_btc_v":"cde,dy,hl,kr,okx","all_eth":4216929497,"all_eth_v":"cde,dy,hl,kr,okx"},{"d":"2026-10-13","all_btc":17881773737,"all_btc_v":"bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx","all_eth":10476840865,"all_eth_v":"bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx"},{"d":"2026-10-14","all_btc":18449205778,"all_btc_v":"bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx","all_eth":11076061436,"all_eth_v":"bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx"},{"d":"2026-10-15","all_btc":17996556670,"all_btc_v":"bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx","all_eth":10776689160,"all_eth_v":"bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx"},{"d":"2026-10-16","all_btc":18169314065,"all_btc_v":"bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx","all_eth":10926039140,"all_eth_v":"bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx"},{"d":"2026-10-17","all_btc":18116215093,"all_btc_v":"bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx","all_eth":10689810313,"all_eth_v":"bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx"},{"d":"2026-10-18","all_btc":18156651580,"all_btc_v":"bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx","all_eth":10580968336,"all_eth_v":"bg,cde,dr,dy,gt,hl,hx,kc,kr,mx,okx"}]};
+const W4C_WH = {"at":"2026-10-18T14:50:22+00:00","ok":{"cena":true,"salda":true,"transfery":true,"eth":true},"part_at":{"salda":"2026-10-18T14:50:22+00:00","transfery":"2026-10-18T14:50:22+00:00","eth":"2026-10-18T14:50:22+00:00"},"gieldy":{"Binance":{"n":9,"since":"2022-11","tokeny":["USDT","USDC","ETH"]},"OKX":{"n":10,"since":"2026-09-08","tokeny":["USDC"]},"Bybit":{"n":122,"since":"2026-09-23","tokeny":["USDT","USDC","ETH"],"zmiana":"2026-10-06"},"KuCoin":{"n":33,"since":"2026-08-31","tokeny":["USDT","USDC","ETH"]},"Bitfinex":{"n":4,"since":"2022-11","tokeny":["USDT","USDC","ETH"]}},"eth_usd":2371.41184045,"eth_usd_at":"2026-10-18T14:50:23+00:00","dobowe":{"2026-10-16":{"Binance":{"USDT":{"in":830122044.68,"out":388169497.79,"n":215},"ETH":{"in":236997114.05,"out":172869267.95,"n":118}},"Bitfinex":{"USDT":{"in":591885227.96,"out":271899136.8,"n":53},"ETH":{"in":3862993.27,"out":48681210.77,"n":2}},"Bybit":{"USDT":{"in":40548398.65,"out":89041549.84,"n":48},"USDC":{"in":47412913.22,"out":20389887.83,"n":19},"ETH":{"in":6341929.16,"out":1691850.55,"n":4}},"OKX":{"USDC":{"in":24371704.11,"out":59000320.71,"n":35}},"KuCoin":{"USDC":{"in":1000000.0,"out":4000000.0,"n":2},"USDT":{"in":6129596.07,"out":6390357.11,"n":8}}},"2026-10-17":{"Binance":{"USDT":{"in":100752729.54,"out":33893989.08,"n":44},"ETH":{"in":118448670.61,"out":63578382.63,"n":50}},"Bitfinex":{"USDT":{"in":41000000.0,"out":197318459.31,"n":19},"ETH":{"in":6633555.76,"out":12116812.33,"n":4}},"OKX":{"USDC":{"in":13175480.44,"out":30347054.33,"n":16}},"Bybit":{"USDT":{"in":7815620.0,"out":8891296.43,"n":8},"USDC":{"in":3000000.04,"out":3250389.27,"n":3},"ETH":{"in":3115269.21,"out":1997722.11,"n":3}},"KuCoin":{"USDT":{"in":0.0,"out":2377761.21,"n":1}}},"2026-10-18":{"Binance":{"USDT":{"in":47339466.16,"out":55878455.21,"n":28},"ETH":{"in":32015741.46,"out":37099153.16,"n":20}},"Bitfinex":{"USDT":{"in":36879469.13,"out":21289641.7,"n":9},"ETH":{"in":2413791.0,"out":0.0,"n":1}},"Bybit":{"ETH":{"in":0.0,"out":1502289.87,"n":1},"USDT":{"in":23809999.6,"out":5099998.4,"n":5},"USDC":{"in":0.0,"out":8824963.33,"n":3}},"OKX":{"USDC":{"in":5528233.77,"out":5019567.88,"n":6}}}},"dobowe_od":"2026-09-26T13:06:16+00:00","blk":26220154,"blk_t":"2026-10-18T14:50:23+00:00","salda":{"Binance":{"eth":2678500.275049,"usdt":21064537660.16,"usdc":57172.11,"usd":27416422099.17,"blk":26220154,"t":"2026-10-18T14:50:23+00:00","n":9},"OKX":{"eth":0.503265,"usdt":29.81,"usdc":1283045317.21,"usd":1283046540.47,"blk":26220154,"t":"2026-10-18T14:50:23+00:00","n":10},"Bybit":{"eth":390445.611661,"usdt":1441569061.25,"usdc":414628123.87,"usd":2782104531.66,"blk":26220154,"t":"2026-10-18T14:50:23+00:00","n":122},"KuCoin":{"eth":70253.960052,"usdt":585324898.24,"usdc":16929393.05,"usd":768855364.0,"blk":26220154,"t":"2026-10-18T14:50:23+00:00","n":33},"Bitfinex":{"eth":591001.794185,"usdt":215506655.47,"usdc":17239839.25,"usd":1634255147.18,"blk":26220154,"t":"2026-10-18T14:50:23+00:00","n":4}},"ostatni_t":"2026-10-18T14:50:23+00:00","okno":7200,"okno_od_t":"2026-10-17T14:44:59+00:00","hist":{"Binance":[["2026-10-14","2026-10-14T00:03:35+00:00",2679988.971576,20666120620.9,57172.11,"2022-11"],["2026-10-15","2026-10-15T00:16:11+00:00",2674738.783585,20545117486.61,57172.11,"2022-11"],["2026-10-16","2026-10-16T00:03:59+00:00",2652422.816808,20613333722.11,57172.11,"2022-11"],["2026-10-17","2026-10-17T00:02:23+00:00",2675898.097718,21022887248.75,57172.11,"2022-11"],["2026-10-18","2026-10-18T00:03:23+00:00",2687533.29869,21075107909.93,57172.11,"2022-11"]],"OKX":[["2026-10-14","2026-10-14T00:03:35+00:00",0.539221,29.81,1219122906.21,"2026-09-08"],["2026-10-15","2026-10-15T00:16:11+00:00",0.53131,29.81,1300553041.79,"2026-09-08"],["2026-10-16","2026-10-16T00:03:59+00:00",0.50539,29.81,1299581639.5,"2026-09-08"],["2026-10-17","2026-10-17T00:02:23+00:00",0.50468,29.81,1302178697.62,"2026-09-08"],["2026-10-18","2026-10-18T00:03:23+00:00",0.503969,29.81,1284787469.9,"2026-09-08"]],"Bybit":[["2026-10-14","2026-10-14T00:03:35+00:00",365888.113892,1518228284.48,410749377.97,"2026-09-23"],["2026-10-15","2026-10-15T00:16:11+00:00",366588.269144,1461146264.27,414835807.01,"2026-09-23"],["2026-10-16","2026-10-16T00:03:59+00:00",376781.055307,1461078220.1,411567863.98,"2026-09-23"],["2026-10-17","2026-10-17T00:02:23+00:00",383009.732642,1418803927.04,428758192.37,"2026-09-23"],["2026-10-18","2026-10-18T00:03:23+00:00",388526.97529,1422114721.23,426419334.98,"2026-09-23"]],"KuCoin":[["2026-10-14","2026-10-14T00:03:35+00:00",69585.859251,554396689.43,19764529.98,"2026-08-31"],["2026-10-15","2026-10-15T00:16:11+00:00",70156.918902,570972349.38,22195045.85,"2026-08-31"],["2026-10-16","2026-10-16T00:03:59+00:00",70156.873206,585407052.09,20775740.35,"2026-08-31"],["2026-10-17","2026-10-17T00:02:23+00:00",70156.846261,586805409.3,17102452.12,"2026-08-31"],["2026-10-18","2026-10-18T00:03:23+00:00",70156.828973,586628504.91,16933075.14,"2026-08-31"]],"Bitfinex":[["2026-10-14","2026-10-14T00:03:35+00:00",561083.785497,219159072.5,17619638.78,"2022-11"],["2026-10-15","2026-10-15T00:16:11+00:00",592985.490259,272114966.19,17565570.79,"2022-11"],["2026-10-16","2026-10-16T00:03:59+00:00",608546.260587,48057890.0,16810385.59,"2022-11"],["2026-10-17","2026-10-17T00:02:23+00:00",591105.88136,361912153.33,17306574.77,"2022-11"],["2026-10-18","2026-10-18T00:03:23+00:00",589682.802624,202101623.41,17416231.36,"2022-11"]]},"transfery":[]};
+const w4c = (() => {
+  const a = html.indexOf('/* ===================== v426 (W4C_SUMY)'), z = html.indexOf('/* v426: koniec funkcji */', a);
+  assert.ok(a > 0 && z > a, 'blok v426 w stronie');
+  const MOD = html.slice(a, z);
+  const b0 = html.indexOf('/* ===================== v104: dźwignia i pozycje w krypto'), b1 = html.indexOf('function levAuto(){', b0);
+  const w0 = html.indexOf('const WH={data:null,timer:null};'), w1 = html.indexOf('function whLoad(){', w0);
+  assert.ok(b0 > 0 && b1 > b0 && w0 > 0 && w1 > w0);
+  const code = v157.cut('const nSg=', '\n') + v157.cut('const fPct=', '\n') + v157.KIT + '\n' + html.slice(b0, html.indexOf('\n', b1)) + '\n' + html.slice(w0, w1) + '\n' + MOD;
+  const RET = 'LEV,WH,SUM426,SUM426_KEY,lev426Sum,lev426Post,lev426Prev,lev426Chart,wh426Bal,wh426Dob,wh426Sec,sum426Sw,sum426Bars,sum426Click,renderLev,renderWh,whAmt,whDelta';
+  const NOW = '2026-10-18T15:00:00Z';
+  const store = o => ({getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); }});
+  const mk = (extra) => {
+    const els = {}, ev = [];
+    const el = (id) => els[id] || (els[id] = {innerHTML: '', hidden: true, attrs: {}, after: [], querySelectorAll() { return []; },
+      querySelector(s) { return s === '.etfh' ? {insertAdjacentHTML: (p, h) => { els[id].after.push([p, h]); }} : null; },
+      setAttribute(k, v) { this.attrs[k] = v; }, removeAttribute(k) { delete this.attrs[k]; }});
+    const env = v157.ENV(NOW, Object.assign({$: s => el(s), srvJSON: () => Promise.resolve(null), setInterval: () => 7, clearInterval: () => {}, document: {hidden: false, querySelector: () => ({focus: () => ev.push('focus')})},
+      localStorage: store({})}, extra || {}));
+    const f = v157.run(code, env, RET); f.els = els; f.ev = ev; f.el = el; return f;
+  };
+  const lev = () => JSON.parse(JSON.stringify(W4C_LEV)), wh = () => JSON.parse(JSON.stringify(W4C_WH));
+  const text = h => v157.txt(h);
+  const num = (v, d) => v157.nfmt(v, d);
+  return {MOD, mk, lev, wh, text, num, code, store, NOW};
+})();
+
+test('v426: dźwignia — suma zgadza się z wierszami giełd: BTC, ETH i razem; giełda ze starym odczytem (Coinbase wstrzymana) i Binance (poprzedni dzień) poza sumą, nazwane', () => {
+  const K = w4c.mk(); K.LEV.data = w4c.lev();
+  const D = K.LEV.data, ms = Date.parse(w4c.NOW), fresh = t => ms - Date.parse(t) <= 6 * 3600e3;
+  const row = (c, k) => k === 'hl' ? D.hl.rows[c] : k === 'dr' ? Object.assign({t: D.dr[c].fut.t}, D.dr[c].fut.perp) : D[k][c];
+  const live = c => ['hl', 'okx', 'kr', 'cb', 'cde', 'dy', 'dr', 'bg', 'gt', 'kc', 'mx', 'hx'].filter(k => { const r = row(c, k); return r && fresh(k === 'hl' ? D.part_at.hl : r.t || D.part_at[k]) && r.oi_usd > 0; });
+  const sumOf = c => live(c).reduce((s, k) => s + row(c, k).oi_usd, 0);
+  assert.ok(!live('BTC').includes('cb'), 'nagranie: Coinbase International ma odczyt sprzed 17 dni — poza sumą');
+  assert.equal(live('BTC').length, 11, 'jedenaście giełd w sumie (jak w rzędzie „Wszystkie giełdy razem”)');
+  const h = K.lev426Sum();
+  const bt = sumOf('BTC'), et = sumOf('ETH');
+  assert.ok(h.includes(w4c.num(bt / 1e9, 2)) && h.includes(w4c.num(et / 1e9, 2)) && h.includes(w4c.num((bt + et) / 1e9, 2)), 'BTC, ETH i BTC+ETH razem = suma wierszy giełd');
+  assert.ok(h.includes('s426.lev.cnt{a=11,b=11}') || w4c.text(h).includes('giełd w sumie: BTC 11, ETH 11'), 'podpis: z ilu giełd');
+  assert.ok(w4c.text(h).includes('Poza sumą, bo odczyt jest starszy niż 6 godzin albo bez liczby: Coinbase.'), 'Coinbase International poza sumą, nazwana');
+  assert.ok(w4c.text(h).includes('Do sumy nie wchodzą: opcje i kontrakty z datą rozliczenia, wskaźniki nastrojów') && w4c.text(h).includes('dodanie ich zmieszałoby różne rzeczy w jednej liczbie'), 'opis: czego nie ma w sumie i dlaczego');
+  assert.ok(w4c.text(h).includes('BTC: poza sumą: Binance') && w4c.text(h).includes('ETH: poza sumą: Binance'), 'Binance (liczby za poprzedni dzień) poza sumą, nazwany');
+  assert.ok(!h.includes(w4c.num(sumOf('BTC') / 1e9 + D.cb.BTC.oi_usd / 1e9, 2)), 'wiersz Coinbase International nie jest dodany');
+  const bn = w4c.lev(); bn.bn.BTC.last.oi_usd = 9e12; K.LEV.data = bn;
+  assert.ok(K.lev426Sum().includes(w4c.num(bt / 1e9, 2)), 'zmiana liczby Binance nie rusza sumy');
+  K.LEV.data = w4c.lev(); K.LEV.data.kr.BTC.t = '2026-10-18T08:00:00+00:00'; K.LEV.data.kr.ETH.t = '2026-10-18T08:00:00+00:00'; K.LEV.data.part_at.kr = '2026-10-18T08:00:00+00:00';
+  const h2 = K.lev426Sum();
+  assert.ok(h2.includes(w4c.num((bt - D.kr.BTC.oi_usd) / 1e9, 2)) && w4c.text(h2).includes('Kraken'), 'giełda starsza niż 6 godzin: wypada z sumy i jest nazwana');
+  K.LEV.data = w4c.lev(); for (const k of ['hl', 'okx', 'kr', 'cb', 'cde', 'dy', 'dr', 'bg', 'gt', 'kc', 'mx', 'hx']) K.LEV.data.part_at[k] = '2026-10-01T00:00:00+00:00';
+  assert.equal(K.lev426Sum(), '', 'żadna giełda nie ma świeżego stanu: bez widoku sumy (panel zostaje jak był)');
+  K.LEV.data = null; assert.equal(K.lev426Sum(), '');
+});
+
+test('v426: dźwignia — zmiana sumy i wykres tylko z dób o TYM SAMYM zestawie giełd; inny zestaw = brak porównania, nie „zmiana”', () => {
+  const K = w4c.mk(); K.LEV.data = w4c.lev();
+  const H = K.LEV.data.hist, cur = H[H.length - 1], prev = H[H.length - 2];
+  assert.equal(cur.all_btc_v, prev.all_btc_v, 'nagranie: dwie ostatnie doby mają ten sam zestaw');
+  const h = K.lev426Sum();
+  const bt = cur.all_btc, et = cur.all_eth;   // ostatnia doba = bieżący stan do 0,1 % (wpis doby to ostatni odczyt)
+  const C = ['BTC', 'ETH'].map(c => ({c, sum: 0}));
+  const pc = (bt + et) / (prev.all_btc + prev.all_eth) - 1;
+  const m = /Zmiana sumy BTC i ETH<\/span><b class="(pos|neg|neu)">([+−]?[\d,]+%)/.exec(h);
+  assert.ok(m, 'kafel zmiany sumy');
+  const v = Math.round(pc * 1000) / 10;
+  assert.ok(Math.abs(parseFloat(m[2].replace('−', '-').replace(',', '.').replace('%', '')) - v) < 0.6, 'zmiana ≈ wobec poprzedniej doby (' + m[2] + ' vs ' + v + ')');
+  assert.ok(w4c.text(h).includes('od końca doby UTC'), 'podpis kotwicy');
+  const ch = K.lev426Chart(['BTC', 'ETH'].map(c => ({c, L: [1], ven: cur.all_btc_v})));
+  assert.ok(ch.includes('wk-lines') && ch.includes('Wykres liniowy: suma otwartych pozycji BTC i ETH z ostatnich 6 dób'), 'wykres: 6 dób z tym samym zestawem (13–18.10), starsze doby z innym zestawem pominięte');
+  assert.equal(v157.tips(ch).length, 6, 'sześć punktów');
+  // inny zestaw giełd dzień wcześniej → brak porównania
+  const D2 = w4c.lev(); D2.hist[D2.hist.length - 2].all_btc_v = 'hl,okx'; K.LEV.data = D2;
+  const h2 = K.lev426Sum();
+  assert.ok(w4c.text(h2).includes('brak porównania — dzień wcześniej inny zestaw giełd') && !/Zmiana sumy BTC i ETH<\/span><b class="(pos|neg|neu)"/.test(h2), 'inny zestaw: „—” z powodem');
+  const D3 = w4c.lev(); D3.hist = D3.hist.slice(-1); K.LEV.data = D3;
+  assert.ok(w4c.text(K.lev426Sum()).includes('brak wcześniejszych dni') && !K.lev426Sum().includes('wk-lines'), 'brak historii: „—” i bez wykresu (poniżej 3 dób)');
+});
+
+test('v426: dźwignia — tryb „Suma” nie dotyka v397 (dzwignia2), opcji ani kontraktów z datą rozliczenia; hak w renderLev przed hakiem v397; bez nazw dostawców', () => {
+  for (const w of ['LEV2', 'dzwignia2', 'lev2', 'l2Ser', 'levOpt', 'levFut', 'levVol', 'levCz']) assert.ok(!w4c.MOD.includes(w), 'blok v426 nie używa: ' + w);
+  const rl = html.indexOf('function renderLev(){'), rl2 = html.indexOf('function levApply(j){', rl), rb = html.slice(rl, rl2);
+  const i1 = rb.indexOf("if(typeof lev426Post==='function'){try{lev426Post(el);}catch(e){}}"), i2 = rb.indexOf("if(typeof renderLev2==='function')"), i0 = rb.indexOf('el.innerHTML=`');
+  assert.ok(i0 > 0 && i1 > i0 && i2 > i1 && i2 - i1 < 260, 'hak po narysowaniu panelu, tuż przed hakiem v397; usterka sumy nie psuje panelu (try/catch)');
+  assert.ok(rb.includes("body=D?levAll()+CZ+levHl()+") && rb.includes("levVol()+levOpt():''"), 'treść panelu (Szczegóły) bez zmian');
+  assert.ok(/#c-dzwignia\[data-sum="s"\]>\*:not\(\.etfh\):not\(\.s426-bar\):not\(\.s426-view\):not\(#lev-not\):not\(\.pfoot\)\{display:none\}/.test(html), 'CSS: w trybie Suma zostają nagłówek, pasek, widok sumy, „Czego te dane nie mówią” i stopka');
+  for (const w of ['Coinglass', 'Coinalyze', 'DefiLlama', 'CoinGecko', 'Etherscan', 'Glassnode']) assert.ok(!w4c.MOD.includes(w), 'bez nazwy dostawcy: ' + w);
+});
+
+test('v426: dźwignia — przełącznik pod nagłówkiem, atrybut trybu na panelu, domyślnie „Szczegóły”; widok sumy tylko w trybie „Suma”', () => {
+  const K = w4c.mk(); K.LEV.data = w4c.lev();
+  const el = K.el('#c-dzwignia');
+  K.lev426Post(el);
+  assert.equal(el.attrs['data-sum'], 'd', 'domyślnie Szczegóły');
+  assert.equal(el.after.length, 1); assert.equal(el.after[0][0], 'afterend');
+  assert.ok(el.after[0][1].includes('data-s426="lev" data-m="d" aria-pressed="true"') && el.after[0][1].includes('data-s426="lev" data-m="s" aria-pressed="false"') && !el.after[0][1].includes('s426-view'), 'dwa przyciski, bez widoku sumy');
+  assert.ok(el.after[0][1].includes('role="group"') && el.after[0][1].includes('aria-label="Widok: szczegóły albo suma"') && el.after[0][1].includes('>Szczegóły</button>') && el.after[0][1].includes('>Suma</button>'));
+  K.SUM426.lev = 's'; el.after.length = 0; K.lev426Post(el);
+  assert.equal(el.attrs['data-sum'], 's'); assert.ok(el.after[0][1].includes('data-m="s" aria-pressed="true"') && el.after[0][1].includes('class="s426-view"') && el.after[0][1].includes('Otwarte pozycje: suma wszystkich giełd naraz'));
+  K.LEV.data = null; el.after.length = 0; K.lev426Post(el); assert.equal(el.after.length, 0, 'bez danych nic się nie dzieje');
+  const D = w4c.lev(); for (const k of ['hl', 'okx', 'kr', 'cb', 'cde', 'dy', 'dr', 'bg', 'gt', 'kc', 'mx', 'hx']) D.part_at[k] = '2026-10-01T00:00:00+00:00'; K.LEV.data = D;
+  el.attrs['data-sum'] = 's'; K.lev426Post(el); assert.ok(!('data-sum' in el.attrs) && el.after.length === 0, 'bez sumy: brak przełącznika i znacznika (panel jak dotąd)');
+  // cały renderLev na nagraniu: panel pokazany, hak wywołany tylko gdy jest funkcja (testy starszych bloków uruchamiają renderLev bez niej)
+  const K2 = w4c.mk(); K2.LEV.data = w4c.lev(); K2.renderLev();
+  const e2 = K2.els['#c-dzwignia']; assert.ok(e2 && e2.innerHTML.includes('lev-not') && e2.attrs['data-sum'] === 'd' && e2.after.length === 1);
+});
+
+test('v426: pamięć wyboru — localStorage tylko w try/catch (brak pamięci, wyjątek przy odczycie i zapisie), wartości spoza „s” i „d” ignorowane, ten sam wybór nie rysuje panelu ponownie', () => {
+  const o = {'cfai.sum.lev': 's', 'cfai.sum.whb': 'x', 'cfai.sum.whd': 's'};
+  const K = w4c.mk({localStorage: w4c.store(o)});
+  assert.deepEqual(JSON.parse(JSON.stringify(K.SUM426)), {lev: 's', whb: 'd', whd: 's'}, 'każdy przełącznik czyta swój klucz; zapamiętane „s” wraca, nieznana wartość = Szczegóły');
+  const bad = {getItem() { throw new Error('zablokowane'); }, setItem() { throw new Error('zablokowane'); }};
+  const K2 = w4c.mk({localStorage: bad});
+  assert.deepEqual(JSON.parse(JSON.stringify(K2.SUM426)), {lev: 'd', whb: 'd', whd: 'd'}, 'wyjątek przy odczycie: strona działa, domyślnie Szczegóły');
+  const KB = w4c.mk({localStorage: undefined});
+  assert.equal(KB.SUM426.lev, 'd', 'brak localStorage w ogóle (ReferenceError w try)');
+  const clk = (K, k, m) => K.sum426Click({target: {closest: s => (s === 'button[data-s426]' ? {dataset: {s426: k, m}} : null)}});
+  const st = {}; const K3 = w4c.mk({localStorage: w4c.store(st)});
+  K3.LEV.data = w4c.lev(); K3.WH.data = w4c.wh();
+  clk(K3, 'lev', 's'); assert.equal(K3.els['#c-dzwignia'].attrs['data-sum'], 's'); assert.ok(!K3.els['#c-wieloryby'], 'przełącznik dźwigni rysuje tylko panel dźwigni'); K3.ev.length = 0;
+  clk(K3, 'whb', 's'); assert.equal(K3.SUM426.whb, 's'); assert.equal(st['cfai.sum.whb'], 's'); assert.deepEqual(K3.ev, ['focus']); assert.ok(K3.els['#c-wieloryby'].innerHTML.includes('data-sum="s"'), 'przełącznik sald rysuje panel Wieloryby');
+  clk(K3, 'whb', 's'); assert.equal(K3.ev.length, 1, 'ten sam wybór: bez ponownego rysowania');
+  clk(K3, 'whd', 'x'); clk(K3, 'inny', 's'); assert.equal(K3.SUM426.whd, 'd'); assert.ok(!('cfai.sum.inny' in st), 'nieznany klucz i wartość ignorowane');
+  assert.equal(K3.sum426Click({target: {closest: () => null}}), undefined, 'kliknięcie poza przyciskiem');
+  const K4 = w4c.mk({localStorage: bad}); clk(K4, 'lev', 's'); assert.equal(K4.SUM426.lev, 's', 'zapis nieudany: wybór działa do końca wizyty, bez wyjątku');
+  assert.ok(/addEventListener\('click',sum426Click\)/.test(html) && html.split("addEventListener('click',sum426Click)").length === 2, 'jeden nasłuch kliknięć, delegowany');
+  assert.equal([...w4c.MOD.matchAll(/localStorage\.(get|set)Item/g)].length, 2); assert.ok(/try\{const v=localStorage\.getItem\(SUM426_KEY\[k\]\);[^}]*\}catch\(e\)\{\}/.test(w4c.MOD) && /try\{localStorage\.setItem\(SUM426_KEY\[k\],m\);\}catch\(_\)\{\}/.test(w4c.MOD), 'oba dostępy do localStorage w try/catch');
+});
+
+test('v426: salda portfeli — suma osobno dla USDT, USDC i ETH tylko z giełd, które daną monetę ogłosiły (OKX: tylko USDC); razem w USD po kursie; podpisy z ilu giełd', () => {
+  const K = w4c.mk(); const D = w4c.wh(); D.salda.OKX.usdt = 5e9; D.salda.OKX.eth = 123456; K.WH.data = D;
+  const G = D.gieldy, S = D.salda, T = {usdt: 'USDT', usdc: 'USDC', eth: 'ETH'};
+  const of = key => Object.keys(S).filter(g => G[g].tokeny.includes(T[key]));
+  const sum = key => of(key).reduce((a, g) => a + S[g][key], 0);
+  assert.deepEqual(of('usdt'), ['Binance', 'Bybit', 'KuCoin', 'Bitfinex'], 'USDT: bez OKX'); assert.deepEqual(of('usdc'), ['Binance', 'OKX', 'Bybit', 'KuCoin', 'Bitfinex']);
+  const h = K.wh426Bal(D), tx = w4c.text(h), px = D.eth_usd;
+  assert.ok(h.includes(K.whAmt(sum('usdt'), 'USDT')) && h.includes(K.whAmt(sum('usdc'), 'USDC')) && h.includes(K.whAmt(sum('eth'), 'ETH')), 'trzy sumy w swoich jednostkach (ETH nie jest mieszany z dolarami)');
+  assert.ok(!h.includes(K.whAmt(sum('usdt') + 5e9, 'USDT')) && !h.includes(K.whAmt(sum('eth') + 123456, 'ETH')), 'wartości giełdy, która monety nie ogłosiła, nie wchodzą do sumy');
+  const usd = sum('usdt') + sum('usdc') + sum('eth') * px;
+  assert.ok(h.includes(K.whAmt(usd, 'USD')), 'razem w USD = USDT + USDC + ETH × kurs');
+  assert.ok(tx.includes('z giełd (4): Binance, Bybit, KuCoin, Bitfinex') && tx.includes('z giełd (5): Binance, OKX, Bybit, KuCoin, Bitfinex'), 'podpis: z ilu giełd i których');
+  assert.ok(tx.includes('Zakres monet różni się między giełdami: OKX (USDC).') && tx.includes('suma jest dolną granicą'), 'zakres monet i zastrzeżenie');
+  assert.ok(tx.includes('nie dodawaj tych dwóch liczb do siebie'), 'to część sald z panelu „Giełdy” — bez podwójnego liczenia');
+  assert.ok(h.includes('class="s426-sh"') && tx.includes('Binance') && /\d+%/.test(tx), 'skład sumy w USD według giełd');
+  assert.ok(w4c.text(h).includes('Stan na D(' + Object.values(S).map(s => s.t).sort()[0] + ')') || w4c.text(h).includes('wh.blk'), 'data i blok odczytu');
+  // odczyt starszy o ponad godzinę od najnowszego: poza sumą, nazwany
+  const D2 = w4c.wh(); D2.salda.KuCoin.t = '2026-10-18T12:00:00+00:00'; K.WH.data = D2;
+  const h2 = K.wh426Bal(D2), ex2 = ['Binance', 'Bybit', 'Bitfinex'].reduce((a, g) => a + D2.salda[g].usdt, 0);
+  assert.ok(h2.includes(K.whAmt(ex2, 'USDT')) && w4c.text(h2).includes('Poza sumą, bo odczyt jest o ponad godzinę starszy od najnowszego: KuCoin.'), 'stary odczyt jednej giełdy wypada z sumy');
+  // brak kursu ETH: razem w USD = „—” z powodem, ETH w monetach zostaje
+  const D3 = w4c.wh(); D3.eth_usd = null; const h3 = K.wh426Bal(D3);
+  assert.ok(h3.includes(K.whAmt(sum('eth'), 'ETH')) && !h3.includes('class="s426-sh"'), 'bez kursu: ETH w monetach zostaje, bez słupków w USD');
+  assert.ok(/Razem w USD<\/span><b>—<small class="na">/.test(h3), 'bez kursu: „—” zamiast sumy w USD');
+  // wykres stablecoinów: doby, w których każda z pięciu giełd ma zrzut z bieżącą listą portfeli (pierwszy odczyt doby)
+  const need = Object.keys(S), okDays = Object.keys(D.hist.Binance.reduce((a, r) => (a[r[0]] = 1, a), {})).filter(d => need.every(g => D.hist[g].some(r => r[0] === d && (!D.gieldy[g].since || r[5] === D.gieldy[g].since)))).sort();
+  assert.ok(okDays.length >= 4, 'nagranie: kilka dób z jedną listą portfeli');
+  const ch = h.slice(h.indexOf('wk-lines')), tips = v157.tips(ch);
+  assert.equal(tips.length, okDays.length, 'punkt na każdą dobę z kompletem zrzutów');
+  const stable = d => need.reduce((a, g) => { const r = D.hist[g].find(x => x[0] === d); return a + (D.gieldy[g].tokeny.includes('USDT') ? r[3] : 0) + (D.gieldy[g].tokeny.includes('USDC') ? r[4] : 0); }, 0);
+  assert.ok(tips[tips.length - 1].endsWith(K.whAmt(stable(okDays[okDays.length - 1]), 'USD')), 'ostatni punkt = USDT + USDC wszystkich giełd z tej doby');
+  // oś Y: wąski zakres (kilka miliardów) nie może dawać powtórzonych podpisów (24 mld, 24 mld, 25 mld…) — jedno miejsce po przecinku
+  const yl = hh => [...hh.slice(hh.indexOf('wk-lines')).matchAll(/<span style="top:[\d.]+%">([^<]*)<\/span>/g)].map(m => m[1]);
+  const yv = yl(h); assert.ok(yv.length >= 3, 'oś Y ma podpisy: ' + yv.join('|')); assert.equal(new Set(yv).size, yv.length, 'podpisy osi Y są różne: ' + yv.join(' | '));
+  assert.ok(yv.every(x => /^\d+,\d mld$/.test(x)), 'podpisy osi Y w mld z jednym miejscem po przecinku: ' + yv.join(' | '));
+  const D4 = w4c.wh(); D4.hist.Bybit[1][5] = '2020-01'; const h4 = K.wh426Bal(D4);
+  assert.equal(v157.tips(h4.slice(h4.indexOf('wk-lines'))).length, okDays.length - 1, 'doba z inną listą portfeli jednej giełdy wypada z wykresu');
+  const D5 = w4c.wh(); D5.hist.KuCoin = D5.hist.KuCoin.slice(-2); assert.ok(!K.wh426Bal(D5).includes('wk-lines'), 'mniej niż 3 doby z kompletem: bez wykresu');
+});
+
+test('v426: salda portfeli — zmiana doby tylko gdy KAŻDA giełda w sumie ma zrzut z tą samą listą portfeli; inaczej „—” z powodem', () => {
+  const K = w4c.mk(); const D = w4c.wh(); K.WH.data = D;
+  const day = String(D.salda.Binance.t).slice(0, 10), prev = new Date(Date.parse(day + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
+  const ex = ['Binance', 'Bybit', 'KuCoin', 'Bitfinex'];
+  const d = ex.reduce((a, g) => { const r = D.hist[g].find(x => x[0] === prev); return a + D.salda[g].usdt - r[3]; }, 0);
+  const h = K.wh426Bal(D);
+  assert.ok(w4c.text(h).includes(K.whDelta(d).txt.replace(/\s+/g, ' ')), 'zmiana USDT = suma zmian czterech giełd: ' + K.whDelta(d).txt);
+  const D2 = w4c.wh(); D2.hist.Bybit = []; const h2 = K.wh426Bal(D2);
+  assert.ok(w4c.text(h2).includes('— · brak wcześniejszego zrzutu') && !w4c.text(h2).includes(K.whDelta(d).txt), 'jedna giełda bez zrzutu: nie sumujemy zmian częściowych');
+  const D3 = w4c.wh(); D3.gieldy.Bybit.since = '2026-10-17'; const h3 = K.wh426Bal(D3);
+  assert.ok(w4c.text(h3).includes('nowa lista portfeli od') && w4c.text(h3).includes('bez porównania'), 'inna lista portfeli w zrzucie: bez porównania');
+});
+
+test('v426: przelewy — sumy dobowe wszystkich giełd (na giełdy, z giełd, netto, przelewy, giełdy) = sumy z pliku; trzy ostatnie doby w tabeli; słupki netto z dób, doba w toku i początek liczenia blado', () => {
+  const K = w4c.mk(); const D = w4c.wh(); K.WH.data = D;
+  const agg = d => { let i = 0, o = 0, n = 0, g = 0; for (const e in D.dobowe[d]) { let any = false; for (const tk in D.dobowe[d][e]) { const s = D.dobowe[d][e][tk]; i += s.in || 0; o += s.out || 0; n += s.n || 0; any = any || s.in != null || s.out != null; } if (any) g++; } return {i, o, n, g, net: i - o}; };
+  const days = Object.keys(D.dobowe).sort(), last3 = days.slice(-3).reverse();
+  const h = K.wh426Dob(D), rows = [...h.matchAll(/<tr><td>([\s\S]*?)<\/tr>/g)].map(m => m[0]);
+  assert.equal(rows.length, 3, 'trzy ostatnie doby w tabeli, najnowsza pierwsza');
+  last3.forEach((d, k) => {
+    const A = agg(d), tx = w4c.text(rows[k]);
+    assert.ok(rows[k].includes('<span class="cell mono ' + (A.net > 0 ? 'pos' : A.net < 0 ? 'neg' : 'neu') + '">' + (A.net > 0 ? '+' : A.net < 0 ? '−' : '') + K.whAmt(Math.abs(A.net), 'USD')), d + ': kolor netto z pokazanego znaku (plus zielony, minus czerwony)');
+    assert.ok(tx.startsWith(d) && tx.includes('▲ ' + K.whAmt(A.i, 'USD')) && tx.includes('▼ ' + K.whAmt(A.o, 'USD')) && tx.includes((A.net > 0 ? '+' : A.net < 0 ? '−' : '') + K.whAmt(Math.abs(A.net), 'USD')), d + ': wpływ, wypływ i netto');
+    assert.ok(tx.endsWith(w4c.num(A.n, 0) + ' ' + w4c.num(A.g, 0)), d + ': liczba przelewów i giełd (' + tx + ')');
+  });
+  assert.ok(w4c.text(rows[0]).includes('doba w toku') && w4c.text(rows[1]).includes('pełna doba'), 'doba w toku i pełna doba');
+  assert.ok(!h.includes('wk-cols'), 'plik trzyma trzy doby — wykres słupkowy dopiero od czterech (trzy słupki powtarzałyby tabelę)');
+  // dłuższa historia (zbieracz może ją wydłużyć): 16 dób → wykres z 14 ostatnich, doba w toku i doba początku liczenia blado
+  const L = w4c.wh(); for (let k = 3; k <= 15; k++) L.dobowe[new Date(Date.parse('2026-10-18T00:00:00Z') - k * 864e5).toISOString().slice(0, 10)] = JSON.parse(JSON.stringify(L.dobowe['2026-10-17']));
+  L.dobowe_od = '2026-10-10T10:00:00+00:00';
+  const ch = K.wh426Dob(L); const cc = ch.slice(ch.indexOf('wk-cols'));
+  assert.equal(Object.keys(L.dobowe).length, 16); assert.equal(v157.tips(cc).length, 14, 'czternaście dób na wykresie');
+  assert.equal((cc.match(/class="wk-b (pos|neg|zer) pt"/g) || []).length, 7, 'blade: doba w toku (18.10) i sześć dób od 5.10 do 10.10 (początek liczenia 10.10 — dane tych dób niepełne)');
+  assert.ok(v157.tips(cc)[13].startsWith('2026-10-18 · netto ') && v157.tips(cc)[13].includes('▲') && v157.tips(cc)[13].includes('▼'), 'podpowiedź: doba, netto, wpływ i wypływ');
+  assert.equal(K.wh426Dob({}), ''); assert.equal(K.wh426Dob({dobowe: {}}), ''); assert.equal(K.wh426Dob({dobowe: {'2026-10-17': {Binance: {}}}}), '', 'doba bez żadnego przelewu = brak widoku, nie zero');
+  const D3 = w4c.wh(); D3.dobowe = {'2026-10-17': D3.dobowe['2026-10-17'], '2026-10-18': D3.dobowe['2026-10-18']}; const h3 = K.wh426Dob(D3);
+  assert.ok(h3.includes('<table') && !h3.includes('wk-cols') && (h3.match(/<tr><td>/g) || []).length === 2, 'dwie doby: tabela z dwoma wierszami, bez wykresu');
+  assert.ok(w4c.text(h).includes('Przelew między dwiema ogłoszonymi giełdami liczy się po obu stronach, więc nie zmienia salda netto.'), 'opis: przelew między giełdami po obu stronach');
+});
+
+test('v426: sekcje panelu Wieloryby — dwa niezależne przełączniki, szczegóły bez zmian w trybie „Szczegóły”, sama suma w trybie „Suma”; bez sumy sekcja jak była', () => {
+  const K = w4c.mk(); const D = w4c.wh(); K.WH.data = D;
+  const det = '<h3>SZCZEGOLY</h3>';
+  let s = K.wh426Sec('whb', D, det);
+  assert.ok(s.startsWith('<div class="s426-sec" data-sum="d">') && s.includes(det) && s.includes('data-s426="whb" data-m="d" aria-pressed="true"') && !s.includes('s426-view'), 'Szczegóły: pasek + stary HTML');
+  K.SUM426.whb = 's'; s = K.wh426Sec('whb', D, det);
+  assert.ok(s.includes('data-sum="s"') && !s.includes('SZCZEGOLY') && s.includes('class="s426-view"') && s.includes('Salda ogłoszonych portfeli: suma wszystkich giełd'), 'Suma: bez szczegółów, widok sumy');
+  assert.ok(K.wh426Sec('whd', D, det).includes('data-s426="whd" data-m="d" aria-pressed="true"') && K.wh426Sec('whd', D, det).includes(det), 'drugi przełącznik niezależny (nadal Szczegóły)');
+  K.SUM426.whd = 's'; assert.ok(K.wh426Sec('whd', D, det).includes('Przelewy ≥ 1 mln USD: suma wszystkich giełd') && !K.wh426Sec('whd', D, det).includes(det));
+  assert.equal(K.wh426Sec('whb', D, ''), '', 'brak szczegółów = brak sekcji'); assert.equal(K.wh426Sec('whd', {dobowe: {}}, det), det, 'brak możliwej sumy: sekcja bez przełącznika, jak dotąd');
+  assert.equal(K.wh426Sec('whb', {salda: {}}, det), det);
+  // renderWh na nagraniu: oba przełączniki w panelu, hasło w obu trybach
+  const K2 = w4c.mk(); K2.WH.data = w4c.wh(); K2.renderWh();
+  const h = K2.els['#c-wieloryby'].innerHTML; assert.ok(h.includes('data-s426="whb"') && h.includes('data-s426="whd"') && h.includes('wh-not'), 'panel z dwoma przełącznikami');
+  const K3 = w4c.mk(); K3.SUM426.whb = 's'; K3.SUM426.whd = 's'; K3.WH.data = w4c.wh(); K3.renderWh();
+  const h3 = K3.els['#c-wieloryby'].innerHTML; assert.ok(h3.includes('Salda ogłoszonych portfeli: suma wszystkich giełd') && h3.includes('Przelewy ≥ 1 mln USD: suma wszystkich giełd') && !h3.includes('Sumy wszystkich przelewów ≥ 1 mln USD z danej doby'), 'oba w trybie Suma');
+});
+
+test('v426: renderWh — body składane z sekcji (stara postać dopuszczona tylko bez funkcji wh426Sec); kolejność salda, przelewy dobowe, tabela; blok v426 po bloku Wieloryby i przed Indeksami', () => {
+  assert.ok(/body=sec\('whb',D,whExch\(D\)\)\+sec\('whd',D,whDob\(D\)\+whTable\(D\)\)/.test(html) && html.includes("const sec=typeof wh426Sec==='function'?wh426Sec:(k,d,h)=>h,body="), 'body przez sec(); bez funkcji — zwraca szczegóły bez zmian');
+  const iw = html.indexOf('/* ===================== v105: wieloryby'), i426 = html.indexOf('/* ===================== v426 (W4C_SUMY)'), ix = html.indexOf('/* ===================== v106: INDEKSY GIEŁDOWE ŚWIATA');
+  assert.ok(iw > 0 && i426 > iw && ix > i426, 'kolejność bloków'); assert.equal(html.split('/* ===================== v426 (W4C_SUMY)').length, 2);
+  assert.ok(html.split('const SUM426=').length === 2 && html.split('function wh426Sec(').length === 2 && html.split('function lev426Post(').length === 2, 'jedna definicja każdej funkcji');
+});
+
+test('v426: słownik s426.* — 10 języków, te same pola {x}, żadnego klucza pustego ani skopiowanego z angielskiego, bez nazw dostawców', () => {
+  const keys = Object.keys(v157.I.pl).filter(k => k.startsWith('s426.'));
+  assert.ok(keys.length >= 30, 'klucze s426.*: ' + keys.length);
+  const fields = s => (String(s).match(/\{\w+\}/g) || []).sort().join(',');
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) for (const k of keys) {
+    const s = v157.I[l][k]; assert.ok(typeof s === 'string' && s.length > 0, l + ' ' + k);
+    assert.equal(fields(s), fields(v157.I.pl[k]), l + ' ' + k + ': pola');
+    if (l !== 'pl' && l !== 'en' && /[A-Za-z]{4}/.test(v157.I.en[k].replace(/\{\w+\}/g, ' '))) assert.notEqual(s, v157.I.en[k], l + ' ' + k + ' — kopia angielskiego');
+    for (const w of ['Coinglass', 'Coinalyze', 'DefiLlama', 'CoinGecko', 'Etherscan', 'Glassnode', 'Hyperliquid']) assert.ok(!s.includes(w), l + ' ' + k + ': ' + w);
+  }
+  for (const k of keys) assert.ok(!/\s{2,}|\s[.,;:]/.test(v157.I.pl[k]), 'polski: spacje i interpunkcja ' + k);
+  for (const k of ['s426.lev.hint', 's426.whb.hint', 's426.whd.hint']) { assert.ok(v157.I.pl[k].startsWith('Szczegóły: ') && v157.I.pl[k].includes(' Suma: '), 'hasło przełącznika mówi, co jest w obu widokach: ' + k); assert.ok(v157.I.en[k].startsWith('Details: ') && v157.I.en[k].includes(' Total: '), k); }
+});
+
+test('v426: wygląd na telefonie — pasek zawija się, przyciski mają 34 px wysokości, słupki udziału w siatce bez przewijania; kolory kierunku nie są nadpisywane', () => {
+  assert.ok(html.includes('.s426-bar{display:flex;flex-wrap:wrap;') && html.includes('.s426-sw button{min-height:34px}') && html.includes('.s426-sh{display:grid;grid-template-columns:max-content minmax(0,1fr) max-content;'), 'CSS paska i siatki');
+  assert.ok(/@media \(max-width:420px\)\{\.s426-sh\{gap:6px;font-size:12px\}\.s426-bar \.pnote\{flex-basis:100%\}\}/.test(html), 'telefon: podpis pod przełącznikiem');
+  const css = html.slice(html.indexOf('/* v426 (W4C_SUMY): przełącznik'), html.indexOf('@media (max-width:420px){.s426-sh'));
+  assert.ok(!/color:\s*(#|rgb|var\(--(gr|rd|yl))/.test(css.replace(/\.s426-n\{[^}]*\}/, '').replace(/\.s426-v small\{[^}]*\}/, '')), 'CSS v426 nie koloruje kierunku (kolory z klas pos / neg / neu istniejących tabel i kafli)');
 });
