@@ -32960,6 +32960,8 @@ def main():
     # v422 (F11Z25): skarbce spółek (BTC, ETH) i nowe wnioski o fundusze krypto w kolejce urzędu — data/krypto-firmy.json; klucz usługi cen tylko w nagłówku, adres kontaktowy urzędu z sekretu SEC_CONTACT;
     # części raz na ~dobę, część sec wyłączona bez adresu kontaktowego (bez błędu)
     META['ok']['skarbce_btc'], META['ok']['skarbce_eth'], META['ok']['skarbce_sec'] = kf_czesc(cg_key, sec_contact)
+    # v430 (F11Z29): ropa świata — bilans krajów (wydobycie, przerób, handel, zapasy) i zapasy ropy i paliw w Europie — data/ropa-swiat.json; bez kluczy, części raz na ~dobę, duże pliki roczne tylko po zmianie
+    META['ok']['ropa_kr'], META['ok']['ropa_eu'] = rop_czesc()
     # v429 (F11Z28): krótka sprzedaż w Europie (pozycje netto w spółkach w Wielkiej Brytanii i w Szwecji) — data/short-eu.json; bez klucza, dwie części raz na ~6 h (po błędzie co 1 h)
     META['ok']['short_uk'], META['ok']['short_se'] = sh_czesc()
     # v121: stres finansowy USA (indeks stresu — bez klucza) i put/call (tylko z pisemną zgodą giełdy: CBOE_ZGODA) — co 6 h; część z błędem
@@ -46955,6 +46957,318 @@ def sh_czesc():
 
 
 ZRODLA_META.update({'short_uk': 'fca', 'short_se': 'finansinspektionen'})   # v429: dwa urzędy nadzoru (+2 źródła)
+
+
+# ===================== v430 (F11Z29): ROPA ŚWIATA — BILANS KRAJÓW (PRODUKCJA, PRZERÓB, IMPORT, EKSPORT, ZAPASY) I ZAPASY ROPY I PALIW W EUROPIE — data/ropa-swiat.json =====================
+import email.utils   # v430: nagłówek Last-Modified (biblioteka standardowa; ponowny import jest nieszkodliwy)
+# Dwie niezależne części, każda z własnym czasem sprawdzenia (pole t) i rytmem ~22 h (po błędzie ponowienie po 3 h, zapas najwyżej ROP_MAX_D dób):
+#   jodi — miesięczne dane o ropie naftowej (bez gazu ziemnego płynnego) wg kraju, ok. 100 krajów, które je przekazują: wydobycie, przerób w rafineriach, import, eksport (tys. baryłek na dobę)
+#          i stan zapasów na koniec miesiąca (tys. baryłek). Dwa pliki roczne (poprzedni i bieżący rok) — ok. 17 MB razem, ale pobierane TYLKO gdy plik bieżącego roku się zmienił
+#          (zapytanie warunkowe z czasem ostatniej zmiany: 304 = bez pobierania, raz na miesiąc ~40 s). W pliku: ostatnie 24 miesiące, tysiące baryłek zamienione na mln (b/d) i mln baryłek.
+#          Kraj bez liczby w danym miesiącu = brak (null), nigdy zero; wartości ujemne, poza zakresem i znaczniki braku („-”, „..”, „x”) = brak. Kraje przekazują dane z różnym opóźnieniem — okres
+#          każdego kraju to jego ostatni miesiąc z liczbą (liczy strona). Dane przekazywane przez rządy dobrowolnie: największych producentów (m.in. Rosji, Indii) w zestawieniu może brakować.
+#   eu   — miesięczne zapasy ropy naftowej, benzyny silnikowej, oleju napędowego i paliwa lotniczego (koniec miesiąca, tys. ton; bez części biopaliwowej) w krajach Unii Europejskiej, Norwegii i Turcji
+#          oraz zapasy awaryjne ropy (zapasy obowiązkowe wg prawa UE); ostatnie 26 miesięcy (rok wcześniej do porównania). Suma UE27 w danych = suma 27 państw (kontrola spójności).
+# Źródła: JODI (nowe źródło, +1) i urząd statystyczny UE (już liczony). Bez kluczy i sekretów; publiczne GET z identyfikatorem zbieracza, limit rozmiaru i czasu, odstęp między zapytaniami.
+ROP_V = 1
+ROP_CZESCI = ('kr', 'eu')
+ROP_CO_H = 22             # h — sprawdzenie raz na ~dobę
+ROP_BLAD_H = 3            # h — część, która zawiodła: ponowienie nie częściej niż co tyle
+ROP_MAX_D = 10            # dób — część po błędzie zostaje z poprzedniego pliku najwyżej tyle
+ROP_SLEEP = 1.5           # s — odstęp przed zapytaniem
+ROP_TIMEOUT = 60          # s — limit jednego odczytu z gniazda
+ROP_CZAS_MAX = 120        # s — limit całego pobrania jednego pliku
+ROP_MAX_B = 40_000_000    # bajtów — większy plik = błąd
+ROP_OKNO = 24             # miesięcy w pliku (jodi)
+ROP_EU_OKNO = 26          # miesięcy w pliku (eu)
+ROP_MIN_KRAJE = 15        # tyle krajów z wydobyciem w miesiącu, by miesiąc uznać za pełny (17.10.2026: 47–62)
+ROP_MIN_KRAJE_PLIK = 15   # tyle krajów w pliku, mniej = błąd odczytu
+ROP_MIN_WIERSZE = 200     # tyle wierszy pięciu serii ropy w pliku rocznym, mniej = plik ucięty (17.10.2026: ok. 3,4 tys. w bieżącym roku, ok. 480 na jeden miesiąc — w styczniu plik ma jeden miesiąc)
+ROP_JODI_URL = 'https://www.jodidata.org/_resources/files/downloads/oil-data/annual-csv/primary/'
+ROP_JODI_KOLUMNY = ['REF_AREA', 'TIME_PERIOD', 'ENERGY_PRODUCT', 'FLOW_BREAKDOWN', 'UNIT_MEASURE', 'OBS_VALUE', 'ASSESSMENT_CODE']
+ROP_JODI_SERIE = {('INDPROD', 'KBD'): 'p', ('REFINOBS', 'KBD'): 'r', ('TOTIMPSB', 'KBD'): 'i', ('TOTEXPSB', 'KBD'): 'e', ('CLOSTLV', 'KBBL'): 'z'}
+ROP_JODI_ZAKRES = {'p': (0, 40000), 'r': (0, 40000), 'i': (0, 40000), 'e': (0, 40000), 'z': (0.5, 3_000_000)}   # tys. b/d i tys. baryłek (USA: 13,8 mln b/d, zapasy 0,57 mld baryłek)
+ROP_EU_URL = ('https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nrg_stk_oilm?format=JSON&lang=EN&unit=THS_T&stk_flow=STK_CL&stk_flow=STKCL_EUE'
+              '&siec=O4100_TOT&siec=O4652XR5210B&siec=O4671XR5220B&siec=O4661XR5230B&sinceTimePeriod={od}')
+ROP_EU_SERIE = {'ropa': ('STK_CL', 'O4100_TOT'), 'benz': ('STK_CL', 'O4652XR5210B'), 'ole': ('STK_CL', 'O4671XR5220B'), 'lot': ('STK_CL', 'O4661XR5230B'), 'awar': ('STKCL_EUE', 'O4100_TOT')}
+ROP_EU_UE = ('BE', 'BG', 'CZ', 'DK', 'DE', 'EE', 'IE', 'EL', 'ES', 'FR', 'HR', 'IT', 'CY', 'LV', 'LT', 'LU', 'HU', 'MT', 'NL', 'AT', 'PL', 'PT', 'RO', 'SI', 'SK', 'FI', 'SE')
+ROP_EU_KRAJE = ('EU27_2020',) + ROP_EU_UE + ('NO', 'TR')
+ROP_EU_ZAKRES = (0, 300000)   # tys. ton (UE27: ropa 55 mln t, olej napędowy 47 mln t)
+_ROP_KRAJ = re.compile(r'^[A-Z]{2}$')
+_ROP_MIES = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+
+
+def rop_mies_przed(teraz, n):
+    """Miesiąc RRRR-MM, który jest n miesięcy przed miesiącem chwili ISO `teraz`."""
+    d = _ix_dt(teraz)
+    k = d.year * 12 + (d.month - 1) - n
+    return '%04d-%02d' % (k // 12, k % 12 + 1)
+
+
+def rop_liczba(txt, lo, hi):
+    """Tekst liczby z pliku → liczba w przedziale [lo, hi] albo None (znaczniki braku „-”, „..”, „x”, liczby ujemne i poza zakresem = brak)."""
+    try:
+        v = float(str(txt).strip())
+    except (TypeError, ValueError):
+        return None
+    return v if _etf_math.isfinite(v) and lo <= v <= hi else None
+
+
+def rop_pobierz(url, ims=None):
+    """Jedyne miejsce sieci części jodi (testy je łatają): GET z identyfikatorem zbieracza, odstępem, limitem rozmiaru i czasu → (kod, bajty | None, Last-Modified | None).
+    ims = czas ostatniej zmiany z poprzedniego pobrania (zapytanie warunkowe): 304 → (304, None, ims); 404 → (404, None, None); inny błąd = wyjątek."""
+    time.sleep(ROP_SLEEP)
+    t0 = time.monotonic()
+    try:
+        with _otworz(url, {'If-Modified-Since': ims} if ims else None, ROP_TIMEOUT) as r:
+            lm = r.headers.get('Last-Modified')
+            czesci, n = [], 0
+            while True:
+                b = r.read(1 << 20)
+                if not b:
+                    break
+                n += len(b)
+                if n > ROP_MAX_B:
+                    raise RuntimeError('plik większy niż limit')
+                if time.monotonic() - t0 > ROP_CZAS_MAX:
+                    raise RuntimeError('pobranie trwa dłużej niż limit')
+                czesci.append(b)
+            return r.status, b''.join(czesci), lm
+    except urllib.error.HTTPError as e:
+        if e.code in (304, 404):
+            e.close()   # odpowiedź błędu nie jest potrzebna — zamknięcie połączenia
+            return e.code, None, (ims if e.code == 304 else None)
+        raise
+
+
+def rop_http_iso(lm):
+    """Nagłówek Last-Modified → chwila ISO UTC albo None."""
+    try:
+        d = email.utils.parsedate_to_datetime(lm)
+        return d.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+    except (TypeError, ValueError):
+        return None
+
+
+def rop_jodi_czytaj(tresc, od_mies):
+    """Bajty pliku rocznego → ({kraj: {seria: {miesiąc: tys.}}}, zbiór miesięcy z wierszy ropy). Zmieniony nagłówek albo za mało wierszy = wyjątek."""
+    rd = csv.reader(io.StringIO(tresc.decode('utf-8-sig', 'replace')))
+    nag = next(rd, None)
+    if nag is None or [c.strip() for c in nag] != ROP_JODI_KOLUMNY:
+        raise RuntimeError('zmieniony nagłówek pliku')
+    out, mies, n = {}, set(), 0
+    for w in rd:
+        if len(w) != 7 or w[2] != 'CRUDEOIL':
+            continue
+        s = ROP_JODI_SERIE.get((w[3], w[4]))
+        if s is None:
+            continue
+        n += 1
+        k, m = w[0], w[1]
+        if not (_ROP_KRAJ.match(k) and _ROP_MIES.match(m)) or m < od_mies:
+            continue
+        mies.add(m)
+        v = rop_liczba(w[5], *ROP_JODI_ZAKRES[s])
+        if v is not None:
+            out.setdefault(k, {}).setdefault(s, {})[m] = v
+    if n < ROP_MIN_WIERSZE:
+        raise RuntimeError(f'za mało wierszy ropy w pliku ({n})')
+    return out, mies
+
+
+def rop_jodi_zloz(dane, mies_all):
+    """Dane z plików → (okres, miesiące, kraje {kod: {seria: [liczby | None]}}); liczby: przepływy w mln b/d (3 miejsca), zapasy w mln baryłek (2 miejsca)."""
+    licz = {m: sum(1 for k in dane if m in dane[k].get('p', {})) for m in mies_all}
+    pelne = [m for m in sorted(mies_all) if licz[m] >= ROP_MIN_KRAJE]
+    if not pelne:
+        raise RuntimeError('żaden miesiąc nie ma wydobycia w co najmniej %d krajach' % ROP_MIN_KRAJE)
+    okres = pelne[-1]
+    mies = [m for m in sorted(mies_all) if m <= okres][-ROP_OKNO:]
+    kraje = {}
+    for k in sorted(dane):
+        ser = {}
+        for s, d in dane[k].items():
+            arr = [round(d[m] / 1000.0, 2 if s == 'z' else 3) if m in d else None for m in mies]
+            if any(x is not None for x in arr):
+                ser[s] = arr
+        if ser and sum(1 for a in ser.values() for x in a if x is not None) >= 3:
+            kraje[k] = ser
+    if len(kraje) < ROP_MIN_KRAJE_PLIK:
+        raise RuntimeError('za mało krajów w pliku (%d)' % len(kraje))
+    return okres, mies, kraje
+
+
+def rop_jodi_pliki(rok):
+    """Nazwy pliku rocznego do wypróbowania: bieżący rok ma nazwę z przedrostkiem, lata zamknięte — sam rok (strona pobrań źródła); po zmianie roku obie nazwy są możliwe."""
+    return ('primaryyear%d.csv' % rok, '%d.csv' % rok)
+
+
+def rop_jodi_plik(rok, biezacy, ims=None):
+    """Plik roczny z sieci → (bajty | None, Last-Modified | None, status); 404 pod obiema nazwami = (None, None, 404)."""
+    nazwy = rop_jodi_pliki(rok) if biezacy else rop_jodi_pliki(rok)[::-1]
+    for nm in nazwy:
+        kod, b, lm = rop_pobierz(ROP_JODI_URL + nm, ims if biezacy else None)
+        if kod == 304:
+            return None, lm, 304
+        if kod != 404:
+            return b, lm, kod
+    return None, None, 404
+
+
+def rop_jodi(prev_part, teraz):
+    """Część jodi → gotowa część pliku. Bieżący rok nie zmieniony od poprzedniego pobrania (304) = poprzednia część z nowym czasem sprawdzenia."""
+    rok = _ix_dt(teraz).year
+    ims = prev_part.get('lm_http') if isinstance(prev_part, dict) and isinstance(prev_part.get('kraje'), dict) else None
+    b1, lm1, kod1 = rop_jodi_plik(rok, True, ims)
+    if kod1 == 304:
+        return dict(prev_part, t=teraz)
+    if b1 is None and _ix_dt(teraz).month > 3:
+        raise RuntimeError('brak pliku bieżącego roku')   # w styczniu–marcu pliku nowego roku może jeszcze nie być (opóźnienie danych ok. 2 miesiące)
+    b0, lm0, kod0 = rop_jodi_plik(rok - 1, False)
+    if b0 is None:
+        raise RuntimeError('brak pliku poprzedniego roku')
+    od = rop_mies_przed(teraz, ROP_OKNO + 2)
+    dane, mies = {}, set()
+    for b in (b0, b1):
+        if b is None:
+            continue
+        d, m = rop_jodi_czytaj(b, od)
+        mies |= m
+        for k, ser in d.items():
+            for s, v in ser.items():
+                dane.setdefault(k, {}).setdefault(s, {}).update(v)
+    okres, mies_l, kraje = rop_jodi_zloz(dane, mies)
+    return {'t': teraz, 'lm': rop_http_iso(lm1 or lm0), 'lm_http': lm1, 'okres': okres, 'mies': mies_l, 'kraje': kraje}
+
+
+def rop_eu_dekoduj(j):
+    """Odpowiedź JSON-stat → (chwila aktualizacji ISO | None, miesiące, {seria: {kraj: [liczby | None]}}). Zła budowa = wyjątek."""
+    if not isinstance(j, dict) or not isinstance(j.get('id'), list) or not isinstance(j.get('size'), list) or not isinstance(j.get('dimension'), dict) or 'value' not in j:
+        raise RuntimeError('zła budowa odpowiedzi')
+    ids, sz = j['id'], j['size']
+    if set(ids) != {'freq', 'stk_flow', 'siec', 'unit', 'geo', 'time'} or len(ids) != len(sz):
+        raise RuntimeError('zmieniony układ wymiarów')
+    kat = {}
+    for d in ids:
+        ix = j['dimension'][d]['category']['index']
+        kat[d] = sorted(ix, key=lambda c: ix[c]) if isinstance(ix, dict) else list(ix)
+    if [len(kat[d]) for d in ids] != sz:
+        raise RuntimeError('rozmiary wymiarów niezgodne z listą kategorii')
+    krok, m = {}, 1
+    for d, n in reversed(list(zip(ids, sz))):
+        krok[d] = m
+        m *= n
+    val = j['value']
+    pobierz = (lambda p: val.get(str(p))) if isinstance(val, dict) else (lambda p: val[p] if 0 <= p < len(val) else None)
+    mies = kat['time']
+    if any(not _ROP_MIES.match(x) for x in mies) or mies != sorted(mies):
+        raise RuntimeError('miesiące nie rosną')
+    out = {}
+    for nm, (sf, sc) in ROP_EU_SERIE.items():
+        if sf not in kat['stk_flow'] or sc not in kat['siec'] or 'THS_T' not in kat['unit'] or 'M' not in kat['freq']:
+            raise RuntimeError('brak serii w odpowiedzi: ' + nm)
+        baza = kat['stk_flow'].index(sf) * krok['stk_flow'] + kat['siec'].index(sc) * krok['siec'] + kat['unit'].index('THS_T') * krok['unit'] + kat['freq'].index('M') * krok['freq']
+        for g in ROP_EU_KRAJE:
+            if g not in kat['geo']:
+                continue
+            arr = []
+            for i, _m in enumerate(mies):
+                v = pobierz(baza + kat['geo'].index(g) * krok['geo'] + i * krok['time'])
+                v = rop_liczba(v, *ROP_EU_ZAKRES) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+                arr.append(round(v, 1) if v is not None else None)
+            if any(x is not None for x in arr):
+                out.setdefault(nm, {})[g] = arr
+    upd = None
+    try:
+        upd = datetime.datetime.strptime(str(j.get('updated')), '%Y-%m-%dT%H:%M:%S%z').astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+    except ValueError:
+        pass
+    return upd, mies, out
+
+
+def rop_eu(teraz):
+    """Część eu → gotowa część pliku."""
+    time.sleep(ROP_SLEEP)
+    kod, b, _lm = rop_pobierz_json(ROP_EU_URL.format(od=rop_mies_przed(teraz, ROP_EU_OKNO - 1)))
+    upd, mies, s = rop_eu_dekoduj(b)
+    ropa = s.get('ropa') or {}
+    if 'EU27_2020' not in ropa or 'PL' not in ropa or len(mies) < 12 or len(ropa) < 15:
+        raise RuntimeError('odpowiedź bez UE27, Polski albo z za małą liczbą krajów')
+    ok_ue = [m for m, v in zip(mies, ropa['EU27_2020']) if v is not None]
+    kraje = [g for g in ROP_EU_KRAJE if any(g in s.get(n, {}) for n in s)]
+    return {'t': teraz, 'upd': upd, 'okres': ok_ue[-1] if ok_ue else None, 'mies': mies, 'kraje': kraje, 's': s}
+
+
+def rop_pobierz_json(url):
+    """Jedyne miejsce sieci części eu (testy je łatają): GET z limitem → (kod, obiekt JSON, None)."""
+    return 200, get_json(url, None, ROP_TIMEOUT), None
+
+
+def rop_trzeba(czas, ok_prev, teraz):
+    """Czy część sprawdzić w tym przebiegu. czas — chwila poprzedniego sprawdzenia (brak = tak); po błędzie co ROP_BLAD_H h, inaczej co ROP_CO_H h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    return (tn - tk).total_seconds() / 3600 >= (ROP_CO_H if ok_prev else ROP_BLAD_H)
+
+
+def rop_zadania(pv, teraz):
+    """Które części sprawdzić w tym przebiegu → {część: bool}."""
+    ok, pat = (pv.get('ok') if isinstance(pv.get('ok'), dict) else {}), (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {})
+    return {n: True if not isinstance(pv.get(n), dict) else rop_trzeba(pat.get(n) or pv.get('at'), ok.get(n, True) is not False, teraz) for n in ROP_CZESCI}
+
+
+def build_ropa_swiat(prev=None, zadania=None):
+    """v430: data/ropa-swiat.json {v, at, src, ok, part_at, kr, eu} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm) zostaje z poprzedniego pliku; część po błędzie —
+    z poprzedniego pliku z własnym czasem (najwyżej ROP_MAX_D dób), błąd do META['errors']. Żadna część w pliku = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == ROP_V else {}
+    zad = zadania if zadania is not None else rop_zadania(pv, NOW)
+    pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
+    out = {'v': ROP_V, 'at': NOW, 'src': 'miesięczne dane krajów o ropie naftowej (wydobycie, przerób, handel, zapasy) z międzynarodowej bazy danych o ropie oraz zapasy ropy i paliw w Europie z urzędu statystycznego UE',
+           'ok': {}, 'part_at': {}}
+    st = {}
+    for n in ROP_CZESCI:
+        stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+        if not zad.get(n):
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+            else:
+                st[n] = 'cached'
+            continue
+        try:
+            out[n] = rop_jodi(stara, NOW) if n == 'kr' else rop_eu(NOW)
+            out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+        except Exception as e:  # noqa — jedna część nie psuje drugiej
+            META['errors'].append(mask(f'Ropa świata: {n}: {e}')[:200])
+            out['ok'][n], st[n] = False, False
+            if stara is not None and _zapas_wiek_ok(pat0.get(n) or pv.get('at'), ROP_MAX_D):
+                out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
+    if not any(isinstance(out.get(n), dict) for n in ROP_CZESCI):
+        raise RuntimeError('żadna część ropy świata nie ma danych')
+    return out, st
+
+
+def rop_czesc():
+    """v430: część przebiegu → krotka wartości dla META['ok'] w kolejności ROP_CZESCI: True = sprawdzone, 'cached' = poprzednia wersja wystarcza (rytm dobowy), False = część zawiodła.
+    Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('ropa-swiat')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == ROP_V else None
+    zad = rop_zadania(prev or {}, NOW)
+    if prev and not any(zad.values()):
+        save('ropa-swiat', prev)
+        return tuple('cached' for _ in ROP_CZESCI)
+    try:
+        obj, st = build_ropa_swiat(prev, zad)
+        save('ropa-swiat', obj)
+        return tuple(st.get(n, False) for n in ROP_CZESCI)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Ropa świata: {e}')[:200])
+        if prev:
+            save('ropa-swiat', prev)
+        return tuple(False for _ in ROP_CZESCI)
+
+
+ZRODLA_META.update({'ropa_kr': 'jodi', 'ropa_eu': 'eurostat'})   # v430: baza danych o ropie (+1 źródło); urząd statystyczny UE już liczony
 
 
 if __name__ == '__main__':

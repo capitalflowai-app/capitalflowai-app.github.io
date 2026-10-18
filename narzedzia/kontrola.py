@@ -13795,6 +13795,215 @@ def sh_k_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v430 (F11Z29): ROPA ŚWIATA — BILANS KRAJÓW I ZAPASY W EUROPIE (data/ropa-swiat.json) --------------------
+# Plik: dwie części (jodi, eu), każda z własnym czasem sprawdzenia źródła (pole t) i rytmem ~22 h (po błędzie ponowienie po 3 h, zbieracz v430); część jodi ma też czas ostatniej zmiany pliku źródła (lm).
+# Świeżość (wiersze, najwyżej ⚠️): (1) sprawdzenie źródła nie starsze niż 48 h — ponad dwa pełne rytmy (symulacja rytmu co 10 minut przez 30 dób, także z 12-godzinną awarią co 5 dób: największy wiek 21,8 h bez awarii
+# i 31,8 h z awarią, 0 fałszywych ⚠️); (2) ostatni miesiąc danych krajów (jodi) nie starszy niż 150 dób od końca miesiąca: źródło publikuje miesiąc M około 22. dnia miesiąca M+2 (plik źródła zmieniony
+# 22.09.2026, dane do lipca), więc najstarszy normalny wiek to ok. 82 dób tuż przed kolejną publikacją, a po jednej opuszczonej ok. 113 — próg 150 nie daje fałszywego ⚠️; (3) suma UE27 nie starsza niż 200 dób
+# (do jej obliczenia muszą być dane wszystkich 27 państw: 09.10.2026 miała czerwiec, czyli 101 dób, najwolniejszy cykl ok. 130) i najnowszy miesiąc któregokolwiek kraju nie starszy niż 120 dób (najszybszy kraj: 40 dób).
+# Spójność w pliku (⚠️): miesiące rosnące i ostatni = okres, długości serii = liczba miesięcy, liczby w zakresie, co najmniej 15 krajów z wydobyciem w okresie; w części eu suma UE27 = suma 27 państw w każdym
+# miesiącu, w którym są wszystkie (tolerancja 1 tys. t — dane z 17.10.2026: 22 miesiące zgodne do 0,2 tys. t). Porównania z drugim źródłem — TYLKO ℹ️: wydobycie USA w pliku vs średnia z 5 tygodni raportu
+# tygodniowego (różnica > 10 %; inne okresy, ale wydobycie zmienia się o kilka procent rocznie) i zapasy ropy Polski w obu częściach (baryłki przeliczone po 7,33 baryłki na tonę; różnica > 5 %; 19 miesięcy historii:
+# najwyżej 0,6 %, czyli 0 fałszywych ℹ️). Inne kraje nie są porównywane — definicje zapasów różnią się (Niemcy +30 %, Belgia −85 %).
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'ropa-swiat')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['ropa-swiat'] = 36 * 60   # plik odświeżany co ~22 h — wiek pliku; wiek sprawdzenia każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'ropa_' + p_: 'Ropa świata — część z błędem zostaje z datą (v430); wiek danych w wierszach świeżości' for p_ in ('kr', 'eu')})
+ROP_K_PROG_MIN = 48 * 60      # min — wiek sprawdzenia części, powyżej tego ⚠️
+ROP_K_JODI_DNI = 150          # dób od końca ostatniego miesiąca danych krajów
+ROP_K_UE27_DNI = 200          # dób od końca ostatniego miesiąca sumy UE27
+ROP_K_KRAJ_DNI = 120          # dób od końca najnowszego miesiąca któregokolwiek kraju Europy
+ROP_K_MIN_KRAJE = 15          # krajów z wydobyciem w ostatnim miesiącu
+ROP_K_USA_ROZNICA = 0.10      # część — wydobycie USA: plik vs raport tygodniowy, powyżej tego ℹ️
+ROP_K_PL_ROZNICA = 0.05       # część — zapasy Polski: dwie części pliku, powyżej tego ℹ️
+ROP_K_BBL_T = 7.33            # baryłek ropy w tonie
+ROP_K_ETYKIETA = {'kr': 'Ropa świata — bilans krajów (sprawdzenie źródła)', 'eu': 'Ropa świata — zapasy w Europie (sprawdzenie źródła)'}
+ROP_K_SERIE_J = {'p': (0, 40), 'r': (0, 40), 'i': (0, 40), 'e': (0, 40), 'z': (0.5, 3000)}
+ROP_K_UE = ('BE', 'BG', 'CZ', 'DK', 'DE', 'EE', 'IE', 'EL', 'ES', 'FR', 'HR', 'IT', 'CY', 'LV', 'LT', 'LU', 'HU', 'MT', 'NL', 'AT', 'PL', 'PT', 'RO', 'SI', 'SK', 'FI', 'SE')
+
+
+def rop_k_mies(L):
+    """Lista miesięcy RRRR-MM: prawdziwe, rosnące, co najmniej 3; zwraca opis usterki albo ''."""
+    if not isinstance(L, list) or len(L) < 3:
+        return 'za mało miesięcy'
+    if any(not (isinstance(m, str) and len(m) == 7 and m[4] == '-' and m[:4].isdigit() and m[5:].isdigit() and 1 <= int(m[5:]) <= 12) for m in L) or L != sorted(set(L)):
+        return 'miesiące nie rosną albo mają zły zapis'
+    return ''
+
+
+def rop_k_liczby(a, n, lo, hi):
+    """Seria o n elementach: liczby z przedziału [lo, hi] albo null; zwraca opis usterki albo ''."""
+    if not isinstance(a, list) or len(a) != n:
+        return 'zła długość serii'
+    for v in a:
+        if v is None:
+            continue
+        x = _ste_k_l(v)
+        if x is None or x < lo or x > hi:
+            return 'liczba poza zakresem'
+    return ''
+
+
+def rop_k_jodi(P):
+    """Spójność części jodi → lista usterek."""
+    zle = []
+    s = rop_k_mies(P.get('mies'))
+    if s:
+        return ['bilans krajów: ' + s]
+    mies = P['mies']
+    if P.get('okres') != mies[-1]:
+        zle.append('bilans krajów: okres to nie ostatni miesiąc listy')
+    K = P.get('kraje')
+    if not isinstance(K, dict) or len(K) < ROP_K_MIN_KRAJE:
+        return zle + ['bilans krajów: za mało krajów']
+    z_ser = z_pusty = 0
+    for c, S in K.items():
+        if not (isinstance(c, str) and len(c) == 2 and c.isupper() and isinstance(S, dict) and S and set(S) <= set(ROP_K_SERIE_J)):
+            zle.append(f'bilans krajów: zły kraj albo serie ({str(c)[:6]})')
+            continue
+        for k, a in S.items():
+            u = rop_k_liczby(a, len(mies), *ROP_K_SERIE_J[k])
+            if u:
+                z_ser += 1
+                if z_ser <= 3:
+                    zle.append(f'bilans krajów: {c} {k}: {u}')
+            elif not any(v is not None for v in a):
+                z_pusty += 1
+    if z_pusty:
+        zle.append(f'bilans krajów: {z_pusty} serii bez żadnej liczby')
+    n = sum(1 for S in K.values() if isinstance(S, dict) and isinstance(S.get('p'), list) and S['p'] and S['p'][-1] is not None)
+    if n < ROP_K_MIN_KRAJE:
+        zle.append(f'bilans krajów: wydobycie w ostatnim miesiącu tylko w {n} krajach (próg {ROP_K_MIN_KRAJE})')
+    return zle
+
+
+def rop_k_eu(P):
+    """Spójność części eu → lista usterek."""
+    zle = []
+    s = rop_k_mies(P.get('mies'))
+    if s:
+        return ['zapasy w Europie: ' + s]
+    mies, S = P['mies'], P.get('s')
+    if not isinstance(S, dict) or not isinstance(S.get('ropa'), dict) or 'EU27_2020' not in S['ropa'] or 'PL' not in S['ropa']:
+        return ['zapasy w Europie: brak ropy z UE27 albo Polską']
+    bl = 0
+    for nm, G in S.items():
+        if nm not in ('ropa', 'benz', 'ole', 'lot', 'awar') or not isinstance(G, dict):
+            zle.append(f'zapasy w Europie: nieznana seria {str(nm)[:8]}')
+            continue
+        for g, a in G.items():
+            u = rop_k_liczby(a, len(mies), 0, 300000)
+            if u:
+                bl += 1
+                if bl <= 3:
+                    zle.append(f'zapasy w Europie: {nm} {g}: {u}')
+        e = G.get('EU27_2020')
+        if isinstance(e, list) and len(e) == len(mies) and not bl:
+            for i, m in enumerate(mies):
+                cz = [G.get(g, [None] * len(mies))[i] for g in ROP_K_UE]
+                if e[i] is not None and all(isinstance(v, (int, float)) for v in cz) and abs(sum(cz) - e[i]) > 1.0:
+                    zle.append(f'zapasy w Europie: {nm} {m}: suma UE27 ≠ suma 27 państw ({e[i]} vs {sum(cz):.1f})')
+                    break
+    return zle
+
+
+def rop_k_ostatni(a):
+    """Indeks ostatniej liczby serii albo -1."""
+    if not isinstance(a, list):
+        return -1
+    for i in range(len(a) - 1, -1, -1):
+        if isinstance(a[i], (int, float)) and not isinstance(a[i], bool):
+            return i
+    return -1
+
+
+def rop_k_kontrola(j, enu=None, now=None):
+    """data/ropa-swiat.json (+ energia-usa.json: wydobycie USA do porównania) → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku
+    albo inna wersja = puste. Najwyżej ⚠️; porównania tylko ℹ️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle, info = [], []
+    for part in ('kr', 'eu'):
+        P = j.get(part) if isinstance(j.get(part), dict) else None
+        lab = ROP_K_ETYKIETA[part]
+        if P is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab, '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od ponad 10 dób)')
+            continue
+        zle += rop_k_jodi(P) if part == 'kr' else rop_k_eu(P)
+        w = wiek_danych(P.get('t'), 'ts', 'k', now)
+        if w is None:
+            out['rows'].append((lab, '?', None, None, 'brak czasu sprawdzenia'))
+            continue
+        st = '⚠️' if w > ROP_K_PROG_MIN else '✅'
+        dane = str(P.get('t'))[:16].replace('T', ' ') + ' UTC'
+        note = '' if st == '✅' else 'dane starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga'
+        out['rows'].append((lab, st, w, dane, note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: {dane} — {fmt_wiek(w)} temu ({note})')
+        # wiek danych (ostatni miesiąc)
+        if part == 'kr':
+            okres, prog, lab2 = P.get('okres'), ROP_K_JODI_DNI, 'Ropa świata — bilans krajów (ostatni miesiąc danych)'
+        else:
+            e = ((P.get('s') or {}).get('ropa') or {}).get('EU27_2020')
+            i = rop_k_ostatni(e)
+            okres = P['mies'][i] if i >= 0 and isinstance(P.get('mies'), list) and i < len(P['mies']) else None
+            prog, lab2 = ROP_K_UE27_DNI, 'Ropa świata — zapasy UE27 (ostatni miesiąc danych)'
+        wm = wiek_danych(okres, 'month', 'k', now) if okres else None
+        if wm is None:
+            out['rows'].append((lab2, '?', None, None, 'brak miesiąca danych'))
+        else:
+            sm = '⚠️' if wm > prog * 1440 else '✅'
+            nm = '' if sm == '✅' else f'miesiąc danych starszy niż {prog} dób od jego końca — źródło nie publikuje albo zbieracz nie widzi nowego pliku; najwyżej uwaga'
+            out['rows'].append((lab2, sm, wm, str(okres), nm))
+            if sm == '⚠️':
+                out['uwagi'].append(f'{lab2}: {okres} — {fmt_wiek(wm)} od końca miesiąca ({nm})')
+        if part == 'eu':
+            S = P.get('s') if isinstance(P.get('s'), dict) else {}
+            ks = [rop_k_ostatni(a) for g, a in (S.get('ropa') or {}).items() if g != 'EU27_2020']
+            ks = [x for x in ks if x >= 0]
+            if ks and isinstance(P.get('mies'), list) and max(ks) < len(P['mies']):
+                wk = wiek_danych(P['mies'][max(ks)], 'month', 'k', now)
+                if wk is not None and wk > ROP_K_KRAJ_DNI * 1440:
+                    out['rows'].append(('Ropa świata — zapasy w krajach Europy (najnowszy miesiąc)', '⚠️', wk, P['mies'][max(ks)], 'żaden kraj nie ma nowszego miesiąca niż podany; najwyżej uwaga'))
+                    out['uwagi'].append(f'Ropa świata — zapasy w krajach Europy: najnowszy miesiąc {P["mies"][max(ks)]} ({fmt_wiek(wk)} od końca miesiąca)')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Ropa świata (ropa-swiat.json): {z}')
+    # porównania z drugim źródłem — tylko ℹ️
+    J, E = j.get('kr') if isinstance(j.get('kr'), dict) else None, j.get('eu') if isinstance(j.get('eu'), dict) else None
+    try:
+        us = ((J or {}).get('kraje') or {}).get('US', {}).get('p')
+        wy = ((((enu or {}).get('wpsr') or {}).get('wyd') or {}).get('kraj')) if isinstance(enu, dict) else None
+        iu = rop_k_ostatni(us)
+        if iu >= 0 and isinstance(wy, list) and len(wy) >= 3 and all(isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 for v in wy):
+            eia = sum(wy) / len(wy) / 1000.0
+            r = abs(us[iu] / eia - 1)
+            if r > ROP_K_USA_ROZNICA:
+                info.append(f'wydobycie ropy USA: w pliku {us[iu]:.2f} mln b/d za {J["mies"][iu]}, w raporcie tygodniowym (średnia z {len(wy)} tygodni) {eia:.2f} mln b/d (różnica {r * 100:.1f}%) — inne okresy'.replace('.', ','))
+        pl_j = ((J or {}).get('kraje') or {}).get('PL', {}).get('z')
+        pl_e = (((E or {}).get('s') or {}).get('ropa') or {}).get('PL')
+        if isinstance(pl_j, list) and isinstance(pl_e, list) and J.get('mies') and E.get('mies'):
+            for i in range(len(J['mies']) - 1, -1, -1):
+                m = J['mies'][i]
+                if m in E['mies'] and i < len(pl_j) and isinstance(pl_j[i], (int, float)):
+                    ie = E['mies'].index(m)
+                    if ie < len(pl_e) and isinstance(pl_e[ie], (int, float)) and pl_e[ie] > 0:
+                        r = abs(pl_j[i] / (pl_e[ie] / 1000.0 * ROP_K_BBL_T) - 1)
+                        if r > ROP_K_PL_ROZNICA:
+                            info.append(f'zapasy ropy Polski za {m}: w części krajów {pl_j[i]:.1f} mln baryłek, w części europejskiej {pl_e[ie] / 1000.0:.2f} mln t (różnica {r * 100:.1f}%)'.replace('.', ','))
+                        break
+    except Exception as e:  # noqa
+        info.append(f'porównanie z drugim źródłem przerwane ({str(e)[:60]})')
+    if J or E:
+        out['wiersze'].append(('spójność pliku (miesiące, długości serii, zakresy, suma UE27 = suma 27 państw)', '⚠️' if zle else '✅'))
+    for x in info:
+        out['wiersze'].append((x, 'ℹ️'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -14614,6 +14823,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['short-eu'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Krótka sprzedaż w Europie (v429): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v430. Ropa świata (data/ropa-swiat.json): wiek sprawdzenia każdej części i miesiąca danych, spójność w pliku, wydobycie USA i zapasy Polski z drugim źródłem — z plików strony, bez zapytań; porównania TYLKO informacja (ℹ️), reszta najwyżej ⚠️
+    try:
+        ROPK_ = rop_k_kontrola(files.get('ropa-swiat'), files.get('energia-usa'))
+        for label, st, w, txt, note in ROPK_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += ROPK_['uwagi']
+        R['zgodnosc']['ropa-swiat'] = {'spojnosc': ROPK_['spojnosc'], 'wiersze': ROPK_['wiersze']} if (ROPK_['rows'] or ROPK_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['ropa-swiat'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Ropa świata (v430): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -15304,6 +15523,11 @@ def raport_md(R):
             L.append('- Krótka sprzedaż w Europie: pozycje netto w Wielkiej Brytanii i w Szwecji (z pliku strony): ' + (f'? kontrola przerwana ({ssh_["blad"]})' if ssh_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(ssh_['spojnosc'][:3]) + ' ⚠️ · ' if ssh_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in ssh_.get('wiersze') or []) or '—') + '.')
+        srop_ = Z.get('ropa-swiat')   # v430: ropa świata (bilans krajów i zapasy w Europie) — brak pliku = bez linii
+        if srop_:
+            L.append('- Ropa świata (bilans krajów i zapasy ropy i paliw w Europie; z pliku strony; wydobycie USA i zapasy Polski z drugim źródłem tylko informacyjnie): ' + (f'? kontrola przerwana ({srop_["blad"]})' if srop_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(srop_['spojnosc'][:3]) + ' ⚠️ · ' if srop_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in srop_.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else
