@@ -13267,6 +13267,160 @@ def kapk_kontrola(files, now=None):
     return {'spojnosc': kapk_spojnosc(j), 'wiersze': U['wiersze'], 'uwagi': U['uwagi'], 'czesci_bez_odpowiedzi': nie}
 
 
+# ---------------------------------------------------------------- v422 (F11Z25): SKARBCE SPÓŁEK (BTC, ETH) I NOWE WNIOSKI O FUNDUSZE KRYPTO W KOLEJCE URZĘDU (data/krypto-firmy.json) --------------------
+# Plik: trzy części (btc, eth, sec), każda z własnym czasem pobrania (pole t) i rytmem ~22 h (po błędzie ponowienie po 3 h, zbieracz v422). Wiek (wiersze świeżości, najwyżej ⚠️): pobranie części nie starsze
+# niż 48 h — to ponad dwa pełne rytmy. Test rytmu (symulacja co 10 minut przez 30 dób, bez awarii i z 12-godzinną awarią źródła co 5 dób): największy wiek pobrania bez awarii 21,8 h, z awarią 31,8 h — poniżej
+# progu, czyli 0 fałszywych ⚠️ (historii pliku jeszcze nie ma; próg wynika z rytmu, a nie z rozkładu danych).
+# Spójność w pliku (⚠️): spółki malejąco wg posiadania, suma wierszy ≤ sumy pliku, udział pięciu największych zgodny z wierszami, cena z wartości i posiadania w zakresie, udział w podaży BTC zgodny z sumą
+# (21 mln), historia (doby rosnące, ostatni punkt = doba pobrania i suma), zrzuty (doby rosnące, najwyżej 6), zmiana posiadania (część istniejących spółek + nowe na liście = zmiana sumy), kraje malejąco;
+# wnioski — liczby całkowite, nowe ≤ fundusze w kolejce, lista malejąco wg daty i w oknie, ostatni punkt historii = bieżące liczby. Cena wynikająca z posiadania BTC względem ceny BTC z pliku cen krypto
+# (inny moment) — TYLKO ℹ️ powyżej 5 %.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'krypto-firmy')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['krypto-firmy'] = 36 * 60   # plik odświeżany co ~22 h — wiek pliku; wiek pobrania każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'skarbce_' + p_: 'Skarbce spółek — część z błędem zostaje z datą (v422); wiek danych w wierszach świeżości' for p_ in ('btc', 'eth', 'sec')})
+KF_K_PROG_MIN = 48 * 60   # min — wiek pobrania części, powyżej tego ⚠️
+KF_K_CENA_ROZNICA = 0.05  # część — różnica ceny z posiadania i ceny z pliku cen krypto, powyżej tego ℹ️
+KF_K_ETYKIETA = {'btc': 'Skarbce spółek — BTC w spółkach publicznych (pobranie)', 'eth': 'Skarbce spółek — ETH w spółkach publicznych (pobranie)',
+                 'sec': 'Wnioski o fundusze krypto w kolejce urzędu (pobranie)'}
+
+
+def kf_k_dzien(d):
+    return isinstance(d, str) and len(d) == 10 and _ix_dt_k(d + 'T00:00:00Z') is not None
+
+
+def kf_k_seria_dni(S, ile):
+    """Lista wierszy, których pierwszy element to doba: doby prawdziwe, rosnące, bez powtórzeń, nie więcej niż ile; zwraca opis usterki albo ''."""
+    if not isinstance(S, list) or not S:
+        return 'brak serii'
+    dni = [r[0] if isinstance(r, list) and r else None for r in S]
+    if any(not kf_k_dzien(d) for d in dni) or dni != sorted(set(dni)):
+        return 'doby nie rosną albo się powtarzają'
+    return f'więcej niż {ile} punktów' if len(S) > ile else ''
+
+
+def kf_k_firmy(P, akt, krypto_px=None):
+    """Spójność części btc / eth → (lista usterek, lista informacji)."""
+    zle, info = [], []
+    total, top = _ste_k_l(P.get('total')), P.get('top')
+    if total is None or total <= 0 or not isinstance(top, list) or not top:
+        return ['brak sumy albo listy spółek'], info
+    h = [r[3] if isinstance(r, list) and len(r) == 7 else None for r in top]
+    if any(_ste_k_l(x) is None or x <= 0 for x in h) or h != sorted(h, reverse=True):
+        zle.append('spółki nie są posortowane wg posiadania albo mają zero')
+    elif sum(h) > total * 1.000001:
+        zle.append('suma wierszy większa niż suma pliku')
+    elif _ste_k_l(P.get('top5')) is None or abs(P['top5'] - sum(h[:5]) / total * 100) > 0.05:
+        zle.append('udział pięciu największych niezgodny z wierszami')
+    n = P.get('n')
+    if not isinstance(n, int) or n < len(top):
+        zle.append('liczba spółek mniejsza niż wierszy')
+    usd, cena = _ste_k_l(P.get('usd')), _ste_k_l(P.get('cena'))
+    if usd is None or cena is None or abs(usd / total - cena) > max(0.01, cena * 1e-4):
+        zle.append('cena nie wynika z wartości i posiadania')
+    if akt == 'btc' and (_ste_k_l(P.get('dom')) is None or abs(P['dom'] - total / 21e6 * 100) > 0.3):
+        zle.append('udział w podaży BTC niezgodny z sumą posiadania')
+    K = P.get('kraje')
+    kv = [r[1] if isinstance(r, list) and len(r) == 3 else None for r in K] if isinstance(K, list) else None
+    if kv is None or any(_ste_k_l(x) is None or x <= 0 for x in kv) or kv != sorted(kv, reverse=True) or sum(kv) > total * 1.000001:
+        zle.append('kraje: nie malejąco albo suma większa niż posiadanie')
+    H = P.get('hist')
+    s = kf_k_seria_dni(H, 400)
+    if s:
+        zle.append('historia: ' + s)
+    elif H[-1][0] != P.get('dzien') or abs((_ste_k_l(H[-1][1]) or -1) - total) > 0.01:
+        zle.append('historia: ostatni punkt to nie doba i suma pobrania')
+    S = P.get('snaps')
+    s = kf_k_seria_dni(S, 6)
+    if s:
+        zle.append('zrzuty: ' + s)
+    Z = P.get('zm')
+    if isinstance(Z, dict):
+        dt_, ni, no = _ste_k_l(Z.get('dtot')), _ste_k_l(Z.get('istniejace')), _ste_k_l(Z.get('nowe'))
+        if dt_ is None or ni is None or no is None or abs(ni + no - dt_) > 0.01:
+            zle.append('zmiana posiadania: istniejące + nowe spółki ≠ zmiana sumy')
+        if not kf_k_dzien(Z.get('od')) or str(Z.get('od')) >= str(P.get('dzien')):
+            zle.append('zmiana posiadania: dzień zrzutu nie jest wcześniejszy niż doba pobrania')
+        for k, zn in (('plus', 1), ('minus', -1)):
+            L = Z.get(k)
+            if not isinstance(L, list) or any(not (isinstance(r, list) and len(r) == 3 and _ste_k_l(r[2]) is not None and r[2] * zn > 0) for r in L):
+                zle.append(f'zmiana posiadania: lista „{k}” ma zły znak albo kształt')
+    if akt == 'btc' and isinstance(krypto_px, (int, float)) and not isinstance(krypto_px, bool) and krypto_px > 0 and cena:
+        r = abs(cena / krypto_px - 1)
+        if r > KF_K_CENA_ROZNICA:
+            info.append(f'cena BTC z posiadania spółek {cena:,.0f} USD, w pliku cen krypto {krypto_px:,.0f} USD (różnica {r * 100:.1f}%) — inny moment pobrania'.replace(',', ' '))
+    return zle, info
+
+
+def kf_k_sec(P):
+    """Spójność części sec → lista usterek."""
+    zle = []
+    c = [P.get(k) for k in ('f30', 'f30p', 'n30', 'n30p', 'l30', 'l30p')]
+    if any(not isinstance(x, int) or isinstance(x, bool) or x < 0 for x in c):
+        return ['liczby wniosków nie są całkowite albo są ujemne']
+    f30, f30p, n30, n30p = c[:4]
+    if n30 > f30 or n30p > f30p:
+        zle.append('nowych wniosków więcej niż funduszy w kolejce')
+    L = P.get('lista')
+    if not isinstance(L, list) or len(L) > 10 or len(L) > f30:
+        zle.append('lista funduszy dłuższa niż 10 albo niż liczba funduszy')
+        return zle
+    if any(not (isinstance(r, list) and len(r) == 5 and isinstance(r[0], str) and r[0] and kf_k_dzien(r[2]) and isinstance(r[3], int) and r[3] >= 1) for r in L):
+        zle.append('lista funduszy: zły kształt wiersza')
+        return zle
+    d = [r[2] for r in L]
+    if d != sorted(d, reverse=True):
+        zle.append('lista funduszy nie jest posortowana wg daty')
+    if not kf_k_dzien(P.get('do')) or not kf_k_dzien(P.get('od')) or any(not P['od'] <= x <= P['do'] for x in d):
+        zle.append('lista funduszy: data poza oknem 30 dób')
+    H = P.get('hist')
+    s = kf_k_seria_dni(H, 400)
+    if s:
+        zle.append('historia: ' + s)
+    elif H[-1] != [P.get('do'), f30, n30]:
+        zle.append('historia: ostatni punkt to nie bieżące liczby')
+    return zle
+
+
+def kf_k_kontrola(j, krypto=None, now=None):
+    """data/krypto-firmy.json (+ krypto.json: cena BTC do porównania) → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku
+    albo inna wersja = puste. Najwyżej ⚠️; porównanie ceny tylko ℹ️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle, info = [], []
+    px = ((krypto or {}).get('mk') or {}).get('btc_px') if isinstance(krypto, dict) and isinstance(krypto.get('mk'), dict) else None
+    for part in ('btc', 'eth', 'sec'):
+        K = j.get(part) if isinstance(j.get(part), dict) else None
+        lab = KF_K_ETYKIETA[part]
+        if K is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab, '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od ponad 3 dób)')
+            continue
+        z, i = (kf_k_sec(K), []) if part == 'sec' else kf_k_firmy(K, part, px)
+        zle += [f'{part}: {x}' for x in z]
+        info += i
+        w = wiek_danych(K.get('t'), 'ts', 'k', now)
+        if w is None:
+            out['rows'].append((lab, '?', None, None, 'brak czasu pobrania'))
+            continue
+        st = '⚠️' if w > KF_K_PROG_MIN else '✅'
+        dane = str(K.get('t'))[:16].replace('T', ' ') + ' UTC'
+        note = '' if st == '✅' else 'dane starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga'
+        out['rows'].append((lab, st, w, dane, note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: {dane} — {fmt_wiek(w)} temu ({note})')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Skarbce spółek (krypto-firmy.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in ('btc', 'eth', 'sec')):
+        out['wiersze'].append(('spójność pliku (sumy, sortowanie, cena, historia, zrzuty, wnioski)', '⚠️' if zle else '✅'))
+    for x in info:
+        out['wiersze'].append((x, 'ℹ️'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -14049,6 +14203,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['kapitalizacje'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Kapitalizacje (v420): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v422. Skarbce spółek (data/krypto-firmy.json): wiek pobrania każdej części, spójność w pliku, cena BTC z posiadania spółek wobec pliku cen krypto — z plików strony, bez zapytań; porównanie TYLKO informacja (ℹ️), reszta najwyżej ⚠️
+    try:
+        KF_ = kf_k_kontrola(files.get('krypto-firmy'), files.get('krypto'))
+        for label, st, w, txt, note in KF_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += KF_['uwagi']
+        R['zgodnosc']['krypto-firmy'] = {'spojnosc': KF_['spojnosc'], 'wiersze': KF_['wiersze']} if (KF_['rows'] or KF_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['krypto-firmy'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Skarbce spółek (v422): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -14729,6 +14893,11 @@ def raport_md(R):
             L.append('- Ethereum i warstwa 2, kolejki stakingu, podaż i sieci L2 (z pliku strony; porównanie TVL z drugim źródłem): ' + (f'? kontrola przerwana ({set_["blad"]})' if set_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(set_['spojnosc'][:3]) + ' ⚠️ · ' if set_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in set_.get('wiersze') or []) or '—') + '.')
+        skf_ = Z.get('krypto-firmy')   # v422: skarbce spółek i wnioski o fundusze krypto — brak pliku = bez linii
+        if skf_:
+            L.append('- Skarbce spółek (BTC, ETH) i wnioski o fundusze krypto w kolejce urzędu (z pliku strony; cena BTC z posiadania spółek wobec pliku cen krypto tylko informacyjnie): ' + (f'? kontrola przerwana ({skf_["blad"]})' if skf_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(skf_['spojnosc'][:3]) + ' ⚠️ · ' if skf_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in skf_.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else

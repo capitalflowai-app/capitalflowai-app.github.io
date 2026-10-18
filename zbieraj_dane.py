@@ -32956,6 +32956,9 @@ def main():
                 save('insider', prev_ins)
             else:   # v181 (przegląd v176): sekret jest, a poprzedni plik to „wyłączone” albo go brak — plik bez danych i BEZ „off” z czasem poprzedniego
                 save('insider', {'at': (prev_ins or {}).get('at') or NOW, 'v': 1})   # pliku: strona go nie pokazuje, kontrola — rosnący wiek i błąd
+    # v422 (F11Z25): skarbce spółek (BTC, ETH) i nowe wnioski o fundusze krypto w kolejce urzędu — data/krypto-firmy.json; klucz usługi cen tylko w nagłówku, adres kontaktowy urzędu z sekretu SEC_CONTACT;
+    # części raz na ~dobę, część sec wyłączona bez adresu kontaktowego (bez błędu)
+    META['ok']['skarbce_btc'], META['ok']['skarbce_eth'], META['ok']['skarbce_sec'] = kf_czesc(cg_key, sec_contact)
     # v121: stres finansowy USA (indeks stresu — bez klucza) i put/call (tylko z pisemną zgodą giełdy: CBOE_ZGODA) — co 6 h; część z błędem
     # ponawiana po godzinie; zmiana stanu zgody = przebudowa (bez zgody stare put/call nie są przepisywane); awaria = poprzedni plik i błąd
     if not PC_ZGODA:
@@ -45608,6 +45611,332 @@ def build_kapitalizacje(prev=None, run_t0=None):
 
 
 # v420: koniec modułu Kapitalizacje rynków
+
+
+# ===================== v422 (F11Z25): SKARBCE SPÓŁEK — BTC I ETH W SPÓŁKACH PUBLICZNYCH I NOWE WNIOSKI O FUNDUSZE KRYPTO W KOLEJCE URZĘDU — data/krypto-firmy.json =====================
+# Trzy niezależne części, każda z własnym czasem pobrania i raz na ~dobę (jedno zapytanie na dobę na część — limit publicznego planu usługi cen krypto):
+#   btc / eth — zestawienie spółek publicznych z ich posiadaniem BTC albo ETH (to samo źródło i klucz co ceny krypto: klucz tylko w nagłówku, nigdy w adresie ani w pliku).
+#               Zestawienie to deklaracje spółek zebrane przez dostawcę, bez daty stanu — data pliku = chwila pobrania. Historia sum (po jednym punkcie na dobę UTC) i zrzuty posiadania
+#               co ≥ 6 dób pozwalają policzyć zmianę posiadania spółek od dnia zrzutu (nowe spółki na liście liczone osobno — to nie zakup).
+#   sec       — nowe wnioski o fundusze oparte na krypto w kolejce amerykańskiego urzędu nadzoru: wyszukiwanie tekstowe wniosków rejestracyjnych (S-1) i rejestracji do notowania (8-A) z wzmianką
+#               o bitcoinie albo aktywach cyfrowych. Fundusze = podmioty z ETF/ETP w nazwie i kodem branży funduszy towarowych/inwestycyjnych (wyszukiwanie tekstowe jest przybliżeniem:
+#               fundusz o innym profilu, który tylko wspomina krypto, odpada, bo nie ma ETF/ETP w nazwie). Adres kontaktowy do nagłówka — wyłącznie z sekretu (jak insiderzy).
+KF_V = 1
+KF_URL = CG + '/companies/public_treasury/{a}'
+KF_AKT = {'btc': 'bitcoin', 'eth': 'ethereum'}
+KF_PARTS = ('btc', 'eth', 'sec')
+KF_CO_H = 22              # h — pobranie raz na ~dobę (jedno zapytanie na dobę na część)
+KF_BLAD_H = 3             # h — część, która zawiodła: ponowienie nie częściej niż co tyle
+KF_MAX_D = 3              # dób — część po błędzie zostaje z poprzedniego pliku najwyżej tyle
+KF_SLEEP = 2.5            # s — odstęp przed zapytaniem do usługi cen
+KF_TIMEOUT = 30           # s
+KF_ZAKRES = {'btc': (300_000, 3_000_000, 20), 'eth': (1_000_000, 30_000_000, 8)}   # suma posiadania poza przedziałem albo mniej spółek niż trzeci element = błąd odczytu (17.10.2026: 1,30 mln BTC w 180 spółkach; 8,10 mln ETH w 34)
+KF_CENA = {'btc': (1_000, 1_000_000), 'eth': (50, 100_000)}   # USD — cena wynikająca z wartości i posiadania poza przedziałem = błąd odczytu (17.10.2026: 81,6 tys. i 2,41 tys.)
+KF_ZGODA = 0.02           # dopuszczalna różnica sumy spółek i sumy źródła (część; 17.10.2026: 0)
+KF_TOP = 15               # tyle największych spółek w pliku
+KF_KRAJE = 6              # tyle największych krajów
+KF_RUCH_N = 5             # tyle największych zwiększeń i zmniejszeń posiadania
+KF_RUCH_MAX = 0.25        # zmiana sumy większa niż tyle (część) wobec zrzutu = zmiana zestawienia, nie zakupy — porównania nie pokazujemy
+KF_HIST_MAX = 400         # punktów historii (po jednym na dobę UTC)
+KF_SNAP_D = 6             # dób — zrzut posiadania nie częściej niż co tyle
+KF_SNAP_N = 6             # zrzutów w pliku
+KF_REF_MIN_D = 6          # dób — zrzut do porównania ma co najmniej tyle dób
+KF_REF_MAX_D = 40         # dób — zrzut starszy niż tyle nie służy do porównania
+KF_SEC_URL = 'https://efts.sec.gov/LATEST/search-index?q={q}&forms={f}&dateRange=custom&startdt={a}&enddt={b}'
+KF_SEC_ZAPYTANIA = (('S-1', 'bitcoin'), ('S-1', 'digital asset'), ('8-A12B', 'bitcoin'), ('8-A12B', 'digital asset'))
+KF_SEC_OKNO = 30          # dób — okno bieżące i poprzednie (razem 60 dób w jednym zapytaniu)
+KF_SEC_LISTA = 10         # tyle funduszy na liście
+KF_SEC_SIC = ('6221', '6199', '6211', '')   # branże funduszy towarowych i inwestycyjnych; pusty = nowy podmiot bez kodu
+KF_ETF = re.compile(r'\b(?:ETF|ETP)s?\b', re.I)
+KF_8A = re.compile(r'\b(?:ETF|ETP|Trust|Fund)s?\b', re.I)
+_KF_NAWIAS = re.compile(r'\s*\([^()]*\)\s*$')
+_KF_DZIEN = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
+
+def kf_num(v, lo=None, hi=None):
+    """Skończona liczba (nie wartość logiczna) w przedziale [lo, hi] albo None."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not _etf_math.isfinite(v):
+        return None
+    if (lo is not None and v < lo) or (hi is not None and v > hi):
+        return None
+    return float(v)
+
+
+def kf_dzien(iso):
+    """Chwila ISO → data UTC RRRR-MM-DD albo None."""
+    d = _ix_dt(iso)
+    return d.date().isoformat() if d is not None else None
+
+
+def kf_dni_miedzy(a, b):
+    """Liczba dób od dnia a do dnia b (RRRR-MM-DD); zły zapis = None."""
+    try:
+        return (datetime.date.fromisoformat(b) - datetime.date.fromisoformat(a)).days
+    except (TypeError, ValueError):
+        return None
+
+
+def kf_ref(snaps, dzien):
+    """Najnowszy zrzut posiadania, który ma od KF_REF_MIN_D do KF_REF_MAX_D dób wobec dnia `dzien`; brak = None. Zrzut: [dzień, chwila, suma, {symbol: posiadanie}]."""
+    best = None
+    for s in snaps if isinstance(snaps, list) else []:
+        if not (isinstance(s, list) and len(s) == 4 and isinstance(s[0], str) and kf_num(s[2], 0) is not None and isinstance(s[3], dict)):
+            continue
+        a = kf_dni_miedzy(s[0], dzien)
+        if a is not None and KF_REF_MIN_D <= a <= KF_REF_MAX_D and (best is None or s[0] > best[0]):
+            best = s
+    return best
+
+
+def kf_firmy(j, akt, teraz, prev=None):
+    """Odpowiedź usługi (skarbce spółek) → część pliku (btc / eth). Zła odpowiedź = wyjątek (część zostaje z poprzedniego pliku)."""
+    if not isinstance(j, dict) or not isinstance(j.get('companies'), list):
+        raise RuntimeError('zły kształt odpowiedzi (brak listy spółek)')
+    lo, hi, min_f = KF_ZAKRES[akt]
+    total = kf_num(j.get('total_holdings'), lo, hi)
+    usd = kf_num(j.get('total_value_usd'), 1e8, 1e13)
+    dom = kf_num(j.get('market_cap_dominance'), 0.01, 50)
+    if total is None or usd is None or dom is None:
+        raise RuntimeError('suma posiadania, wartość albo udział w podaży poza zakresem sensu')
+    cena = usd / total
+    if not KF_CENA[akt][0] <= cena <= KF_CENA[akt][1]:
+        raise RuntimeError(f'cena z wartości i posiadania poza zakresem sensu ({cena:.4g})')
+    C = []
+    for c in j['companies']:
+        if not isinstance(c, dict):
+            continue
+        nazwa, h = c.get('name'), kf_num(c.get('total_holdings'), 0, total * 1.0001)
+        if not isinstance(nazwa, str) or not nazwa.strip() or len(nazwa) > 80 or h is None or h <= 0:
+            continue
+        sym = c.get('symbol') if isinstance(c.get('symbol'), str) and 0 < len(c['symbol']) <= 24 else None
+        kr = c.get('country') if isinstance(c.get('country'), str) and re.fullmatch(r'[A-Z]{2}', c['country']) else 'x'
+        C.append([nazwa.strip(), sym, kr, round(h, 4), kf_num(c.get('percentage_of_total_supply'), 0, 100)])
+    if len(C) < min_f:
+        raise RuntimeError(f'za mało spółek z posiadaniem ({len(C)} < {min_f})')
+    suma = sum(r[3] for r in C)
+    if abs(suma - total) > total * KF_ZGODA:
+        raise RuntimeError(f'suma posiadania spółek ({suma:.0f}) różni się od sumy usługi ({total:.0f})')
+    C.sort(key=lambda r: -r[3])
+    dzien = kf_dzien(teraz)
+    kraje = {}
+    for r in C:
+        k = kraje.setdefault(r[2], [0.0, 0])
+        k[0] += r[3]; k[1] += 1
+    kr_l = sorted(([k, round(v[0], 2), v[1]] for k, v in kraje.items()), key=lambda x: -x[1])
+    kr_top = [x for x in kr_l if x[0] != 'x'][:KF_KRAJE]
+    sym_n = {}
+    for r in C:
+        if r[1]:
+            sym_n[r[1]] = sym_n.get(r[1], 0) + 1
+    mapa = {r[1]: r[3] for r in C if r[1] and sym_n[r[1]] == 1}   # symbol powtórzony = niejednoznaczny, bez porównania
+    pv = prev if isinstance(prev, dict) else {}
+    ref = kf_ref(pv.get('snaps'), dzien)
+    zm = None
+    if ref:
+        dtot = suma - ref[2]
+        if ref[2] > 0 and abs(dtot) <= ref[2] * KF_RUCH_MAX:
+            ruch, nowe_n, nowe = [], 0, 0.0
+            for r in C:
+                if not r[1] or r[1] not in mapa:
+                    continue
+                if r[1] not in ref[3]:
+                    nowe_n += 1; nowe += r[3]
+                    continue
+                d = r[3] - ref[3][r[1]]
+                if abs(d) >= 1e-6:
+                    ruch.append([r[0], r[1], round(d, 4)])
+            plus = sorted((x for x in ruch if x[2] > 0), key=lambda x: -x[2])[:KF_RUCH_N]
+            minus = sorted((x for x in ruch if x[2] < 0), key=lambda x: x[2])[:KF_RUCH_N]
+            zm = {'od': ref[0], 'dtot': round(dtot, 4), 'nowe_n': nowe_n, 'nowe': round(nowe, 4), 'plus': plus, 'minus': minus,
+                  'istniejace': round(dtot - nowe, 4)}
+    top = []
+    for r in C[:KF_TOP]:   # wiersz: [nazwa, symbol, kraj, posiadanie, udział w podaży, zmiana od zrzutu (None: brak porównania), nowa na liście]
+        if ref and r[1] and r[1] in mapa:
+            nw = r[1] not in ref[3]
+            top.append(r + [None if nw else round(r[3] - ref[3][r[1]], 4), nw])
+        else:
+            top.append(r + [None, False])
+    hist = [h for h in (pv.get('hist') if isinstance(pv.get('hist'), list) else [])
+            if isinstance(h, list) and len(h) == 4 and isinstance(h[0], str) and _KF_DZIEN.match(h[0]) and h[0] != dzien and kf_num(h[1], 0) is not None]
+    hist.append([dzien, round(suma, 2), len(C), round(cena, 2)])
+    hist = sorted(hist, key=lambda h: h[0])[-KF_HIST_MAX:]
+    snaps = [s for s in (pv.get('snaps') if isinstance(pv.get('snaps'), list) else []) if isinstance(s, list) and len(s) == 4 and isinstance(s[0], str) and isinstance(s[3], dict)]
+    if not snaps or (kf_dni_miedzy(snaps[-1][0], dzien) or 0) >= KF_SNAP_D:
+        snaps.append([dzien, teraz, round(suma, 4), mapa])
+    snaps = snaps[-KF_SNAP_N:]
+    return {'t': teraz, 'dzien': dzien, 'n': len(C), 'total': round(suma, 2), 'usd': round(usd, 2), 'cena': round(cena, 2), 'dom': dom,
+            'top': top, 'kraje': kr_top, 'top5': round(sum(r[3] for r in C[:5]) / suma * 100, 2), 'zm': zm, 'hist': hist, 'snaps': snaps}
+
+
+def kf_nazwa(dn):
+    """Nazwa podmiotu z wpisu wyszukiwarki: bez końcowych nawiasów (symbole giełdowe i numer CIK)."""
+    s = str(dn or '').strip()
+    for _ in range(4):
+        n = _KF_NAWIAS.sub('', s)
+        if n == s:
+            break
+        s = n
+    return re.sub(r'\s+', ' ', s).strip()
+
+
+def kf_hity(j):
+    """Odpowiedź wyszukiwarki wniosków → (lista wpisów, ucięta). Wpis: {adsh, cik, nazwa, form, data, sic}. Zły kształt = wyjątek; zły pojedynczy wpis pomijany."""
+    h = j.get('hits') if isinstance(j, dict) else None
+    if not (isinstance(h, dict) and isinstance(h.get('hits'), list) and isinstance(h.get('total'), dict) and isinstance(h['total'].get('value'), int)):
+        raise RuntimeError('zły kształt odpowiedzi wyszukiwarki')
+    out = []
+    for x in h['hits']:
+        s = x.get('_source') if isinstance(x, dict) else None
+        if not isinstance(s, dict):
+            continue
+        dn = s.get('display_names') if isinstance(s.get('display_names'), list) and s['display_names'] else None
+        ciks = s.get('ciks') if isinstance(s.get('ciks'), list) and s['ciks'] else None
+        if not (dn and ciks and isinstance(s.get('form'), str) and isinstance(s.get('file_date'), str) and _KF_DZIEN.match(s['file_date']) and isinstance(s.get('adsh'), str)):
+            continue
+        sics = s.get('sics') if isinstance(s.get('sics'), list) else []
+        out.append({'adsh': s['adsh'], 'cik': str(ciks[0]), 'nazwa': kf_nazwa(dn[0]), 'form': s['form'], 'data': s['file_date'], 'sic': str(sics[0]) if sics else ''})
+    if h['hits'] and not out:
+        raise RuntimeError('żaden wpis wyszukiwarki nie ma oczekiwanych pól')
+    rel = h['total'].get('relation')
+    return out, bool(rel and rel != 'eq') or h['total']['value'] > len(h['hits'])
+
+
+def kf_sec(hity, dzis, ucieta=False, prev=None, teraz=None):
+    """Wpisy wyszukiwarki (połączone z zapytań, bez powtórzeń) → część `sec`: fundusze w kolejce w ostatnich 30 dobach wobec poprzednich 30. `dzis` — ostatnia doba okna (RRRR-MM-DD)."""
+    k_do = datetime.date.fromisoformat(dzis)
+    a_cur = (k_do - datetime.timedelta(days=KF_SEC_OKNO - 1)).isoformat()
+    a_prev = (k_do - datetime.timedelta(days=2 * KF_SEC_OKNO - 1)).isoformat()
+    b_prev = (k_do - datetime.timedelta(days=KF_SEC_OKNO)).isoformat()
+    seen, H = set(), []
+    for h in hity:
+        if h['adsh'] in seen or not a_prev <= h['data'] <= dzis:
+            continue
+        seen.add(h['adsh']); H.append(h)
+    s1 = [h for h in H if h['form'] in ('S-1', 'S-1/A') and KF_ETF.search(h['nazwa']) and h['sic'] in KF_SEC_SIC]
+    a8 = [h for h in H if h['form'] in ('8-A12B', '8-A12B/A') and KF_8A.search(h['nazwa'])]
+    w_cur = lambda h: h['data'] >= a_cur   # noqa: E731
+    w_prev = lambda h: a_prev <= h['data'] <= b_prev   # noqa: E731
+    f30 = {h['cik'] for h in s1 if w_cur(h)}
+    f30p = {h['cik'] for h in s1 if w_prev(h)}
+    n30 = {h['cik'] for h in s1 if w_cur(h) and h['form'] == 'S-1'}
+    n30p = {h['cik'] for h in s1 if w_prev(h) and h['form'] == 'S-1'}
+    l30 = {h['cik'] for h in a8 if w_cur(h)}
+    l30p = {h['cik'] for h in a8 if w_prev(h)}
+    lista = []
+    for cik in f30:
+        F = sorted((h for h in s1 if h['cik'] == cik and w_cur(h)), key=lambda h: (h['data'], h['form']))
+        pierw = [h['data'] for h in s1 if h['cik'] == cik and h['form'] == 'S-1']
+        lista.append([F[-1]['nazwa'], F[-1]['form'], F[-1]['data'], len(F), min(pierw) if pierw else None])
+    lista.sort(key=lambda r: (r[2], r[0]), reverse=True)
+    pv = prev if isinstance(prev, dict) else {}
+    hist = [h for h in (pv.get('hist') if isinstance(pv.get('hist'), list) else [])
+            if isinstance(h, list) and len(h) == 3 and isinstance(h[0], str) and _KF_DZIEN.match(h[0]) and h[0] != dzis and kf_num(h[1], 0) is not None]
+    hist.append([dzis, len(f30), len(n30)])
+    hist = sorted(hist, key=lambda h: h[0])[-KF_HIST_MAX:]
+    return {'t': teraz, 'do': dzis, 'od': a_cur, 'f30': len(f30), 'f30p': len(f30p), 'n30': len(n30), 'n30p': len(n30p), 'l30': len(l30), 'l30p': len(l30p),
+            'lista': lista[:KF_SEC_LISTA], 'ucieta': bool(ucieta), 'hist': hist}
+
+
+def kf_trzeba(czas, ok_prev, teraz):
+    """Czy część pobrać w tym przebiegu. czas — chwila poprzedniego pobrania części (brak = tak); po błędzie co KF_BLAD_H h, inaczej co KF_CO_H h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    h = (tn - tk).total_seconds() / 3600
+    return h >= (KF_CO_H if ok_prev else KF_BLAD_H)
+
+
+def kf_zadania(pv, teraz, ma_ua=True):
+    """Które części pobrać w tym przebiegu → {część: bool}; część `sec` bez adresu kontaktowego (ma_ua=False) nigdy."""
+    ok, pat = (pv.get('ok') if isinstance(pv.get('ok'), dict) else {}), (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {})
+    out = {}
+    for n in KF_PARTS:
+        if n == 'sec' and not ma_ua:
+            out[n] = False
+            continue
+        out[n] = True if not isinstance(pv.get(n), dict) else kf_trzeba(pat.get(n) or pv.get('at'), ok.get(n, True) is not False, teraz)
+    return out
+
+
+def kf_pobierz(url, naglowki=None):
+    """Jedyne miejsce sieci części btc / eth (testy je łatają): zapytanie do usługi cen z odstępem → obiekt JSON."""
+    time.sleep(KF_SLEEP)
+    return get_json(url, naglowki, KF_TIMEOUT)
+
+
+def kf_sec_pobierz(url, ua):
+    """Jedyne miejsce sieci części sec (testy je łatają): zapytanie do wyszukiwarki urzędu z nagłówkiem User-Agent i odstępem (_ins_get) → obiekt JSON."""
+    st, body = _ins_get(url, ua)
+    return json.loads(body)
+
+
+def kf_job(n, cg_key, ua, prev_part, teraz):
+    """Odczyt jednej części z sieci → gotowa część pliku."""
+    if n in KF_AKT:
+        j = kf_pobierz(KF_URL.format(a=KF_AKT[n]), {'x-cg-demo-api-key': cg_key} if cg_key else None)
+        return kf_firmy(j, n, teraz, prev_part)
+    dzis = (datetime.date.fromisoformat(kf_dzien(teraz)) - datetime.timedelta(days=1)).isoformat()   # ostatnia pełna doba UTC (wnioski z bieżącej doby wpływają do 22:00 czasu wschodniego)
+    od = (datetime.date.fromisoformat(dzis) - datetime.timedelta(days=2 * KF_SEC_OKNO - 1)).isoformat()
+    wszystkie, ucieta = [], False
+    for forma, fraza in KF_SEC_ZAPYTANIA:
+        url = KF_SEC_URL.format(q=urllib.parse.quote('"' + fraza + '"'), f=urllib.parse.quote(forma), a=od, b=dzis)
+        h, u = kf_hity(kf_sec_pobierz(url, ua))
+        wszystkie += h; ucieta = ucieta or u
+    return kf_sec(wszystkie, dzis, ucieta, prev_part, teraz)
+
+
+def build_krypto_firmy(cg_key, contact, prev=None, zadania=None):
+    """v422: data/krypto-firmy.json {v, at, src, ok, part_at, btc, eth, sec} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm) zostaje z poprzedniego pliku bez zmian; część po błędzie
+    — z poprzedniego pliku z własnym czasem (najwyżej KF_MAX_D dób), błąd do META['errors']. Żadna część w pliku = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == KF_V else {}
+    ua = ins_ua(contact)
+    zad = zadania if zadania is not None else kf_zadania(pv, NOW, bool(ua))
+    pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
+    out = {'v': KF_V, 'at': NOW, 'src': 'zestawienie skarbców spółek publicznych (BTC, ETH) z publicznego API usługi cen krypto oraz wyszukiwanie wniosków o fundusze krypto w publicznym indeksie amerykańskiego urzędu nadzoru',
+           'ok': {}, 'part_at': {}}
+    st = {}
+    for n in KF_PARTS:
+        stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+        if not zad.get(n):
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+            else:
+                st[n] = 'cached'
+            continue
+        try:
+            out[n] = kf_job(n, cg_key, ua, stara, NOW)
+            out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+        except Exception as e:  # noqa — jedna część nie psuje pozostałych
+            META['errors'].append(mask(f'Skarbce spółek: {n}: {e}')[:200])
+            out['ok'][n], st[n] = False, False
+            if stara is not None and _zapas_wiek_ok(pat0.get(n) or pv.get('at'), KF_MAX_D):
+                out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
+    if not any(isinstance(out.get(n), dict) for n in KF_PARTS):
+        raise RuntimeError('żadna część skarbców spółek nie ma danych')
+    return out, st
+
+
+def kf_czesc(cg_key, contact):
+    """v422: część przebiegu → krotka wartości dla META['ok'] w kolejności KF_PARTS: True = pobrane, 'cached' = poprzednia wersja wystarcza (rytm dobowy) albo część wyłączona (brak adresu kontaktowego),
+    False = część zawiodła. Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('krypto-firmy')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == KF_V else None
+    zad = kf_zadania(prev or {}, NOW, bool(ins_ua(contact)))
+    if prev and not any(zad.values()):
+        save('krypto-firmy', prev)
+        return tuple('cached' for _ in KF_PARTS)
+    try:
+        obj, st = build_krypto_firmy(cg_key, contact, prev, zad)
+        save('krypto-firmy', obj)
+        return tuple(st.get(n, False) for n in KF_PARTS)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Skarbce spółek: {e}')[:200])
+        if prev:
+            save('krypto-firmy', prev)
+        return tuple(False for _ in KF_PARTS)
+
+
+ZRODLA_META.update({'skarbce_btc': 'coingecko', 'skarbce_eth': 'coingecko', 'skarbce_sec': 'sec'})   # v422: to samo źródło cen krypto i ten sam urząd co insiderzy — liczba źródeł bez zmian
 
 
 if __name__ == '__main__':

@@ -32916,3 +32916,192 @@ test('v421: pozycje — Murban w 10 językach (słownik mur421.*: te same klucze
   for (const L of Object.keys(dict)) { const {M} = mur421(null, L); assert.ok(M.includes('data-su3="mur-net"') && !M.includes('mur421.') && !/NaN|undefined/.test(M), L); assert.ok(su298.txt(M).includes(dict[L]['mur421.h']), L + ': nagłówek w języku widza'); }
   assert.ok(html.includes('#g-surowce .su-mur{margin-top:14px}') && html.indexOf('function su3Mur(P)') > 0 && html.indexOf('function su3Mur(P)') < html.indexOf('function su3Poz()'), 'styl i funkcja przed su3Poz');
 });
+
+/* ===================== v422 (F11Z25): skarbce spółek — karta #c-skarbce w CRYPTO (BTC i ETH w spółkach publicznych, nowe wnioski o fundusze krypto w kolejce urzędu) =====================
+   KF_F — plik zbieracza v422 (kf_firmy / kf_sec) zbudowany z nagrań z 17.10.2026 (BTC: 173 spółki z posiadaniem, 1,30 mln BTC, cena 81,6 tys. USD; ETH: 31 spółek, 8,10 mln ETH; wnioski: 5 funduszy z wnioskiem
+   w ostatnich 30 dobach wobec 4) z historią sztucznie przedłużoną o kilka dób i zmianą od zrzutu z 9.10 (Strategy +11,5 tys. BTC, jedna spółka nowa na liście, MARA −1,5 tys. BTC), tabele przycięte do 10 spółek.
+   Zegar przypięty (2026-10-18 10:00 UTC), srvJSON — odpowiedź od razu (liczone wywołania). */
+const KF_F = {"v":1,"at":"2026-10-18T08:00:00+00:00","src":"x","ok":{"btc":true,"eth":true,"sec":true},"part_at":{"btc":"2026-10-18T08:00:00+00:00","eth":"2026-10-18T08:00:00+00:00","sec":"2026-10-18T08:00:00+00:00"},"btc":{"t":"2026-10-18T08:00:00+00:00","dzien":"2026-10-18","n":173,"total":1302062.0,"usd":107030371070.32,"cena":82200.67,"dom":6.2,"top":[["Strategy","MSTR.US","US",848250.0,4.039,11451.0,false],["Metaplanet","3350.T","JP",44000.0,0.21,0.0,false],["Twenty One Capital","XXI.US","US",43514.0,0.207,null,true],["MARA Holdings","MARA.US","US",35577.0,0.169,-1500.0,false],["Strive","ASST.US","US",32773.0,0.156,0.0,false],["Bitcoin Standard Treasury Company","CEPO.US","US",30021.0,0.143,0.0,false],["Bullish","BLSH.US","US",23800.0,0.113,0.0,false],["Galaxy Digital Holdings Ltd","GLXY.US","US",21084.0,0.1,0.0,false],["Space Exploration Technologies Corp.","SPCX","US",18712.0,0.089,0.0,false],["Coinbase Global","COIN.US","US",17311.0,0.082,0.0,false]],"kraje":[["US",1193083.0,60],["JP",49943.0,13],["CN",17521.0,9],["CA",5585.0,22],["HK",5114.0,7],["BR",4555.0,2]],"top5":77.12,"zm":{"od":"2026-10-09","dtot":53465.0,"nowe_n":1,"nowe":43514.0,"plus":[["Strategy","MSTR.US",11451.0]],"minus":[["MARA Holdings","MARA.US",-1500.0]],"istniejace":9951.0},"hist":[["2026-10-13",1252186.0,172,82147.74],["2026-10-14",1253458.0,172,81805.02],["2026-10-15",1254731.0,172,81259.0],["2026-10-16",1299517.0,173,81321.6],["2026-10-17",1300790.0,173,82243.38],["2026-10-18",1302062.0,173,82200.67]]},"eth":{"t":"2026-10-18T08:00:00+00:00","dzien":"2026-10-18","n":31,"total":8096612.0,"usd":19510177457.3,"cena":2409.67,"dom":6.63,"top":[["BitMine Immersion","BMNR.US","US",6028906.0,4.936,108520.0,false],["SharpLink","SBET.US","US",888938.0,0.728,0.0,false],["The Ether Machine","ETHM.US","US",496712.0,0.407,0.0,false],["Bit Digital","BTBT.US","US",158462.0,0.13,0.0,false],["Coinbase Global","COIN.US","US",150279.0,0.123,0.0,false],["Galaxy Digital Holdings Ltd","GLXY.US","US",97764.0,0.08,0.0,false],["BTCS","BTCS.US","US",70787.0,0.058,0.0,false],["Forum Markets (formerly ETHZilla)","FRMM.US","US",69802.0,0.057,0.0,false],["FG Nexus","FGNX.US","US",40093.0,0.033,0.0,false],["Yueda Digital Holding","YDKG.US","KY",19929.0,0.016,0.0,false]],"kraje":[["US",8037708.0,21],["KY",19929.0,1],["JP",13109.0,3],["CN",11766.0,2],["KR",10449.0,1],["SG",2135.0,1]],"top5":95.39,"zm":{"od":"2026-10-09","dtot":108520.0,"nowe_n":0,"nowe":0.0,"plus":[["BitMine Immersion","BMNR.US",108520.0]],"minus":[],"istniejace":108520.0},"hist":[["2026-10-13",8036323.0,31,2411.1],["2026-10-14",8048381.0,31,2413.83],["2026-10-15",8060439.0,31,2405.31],["2026-10-16",8072496.0,31,2446.37],["2026-10-17",8084554.0,31,2440.33],["2026-10-18",8096612.0,31,2409.67]]},"sec":{"t":"2026-10-18T08:00:00+00:00","do":"2026-10-17","od":"2026-09-18","f30":5,"f30p":4,"n30":1,"n30p":0,"l30":2,"l30p":2,"lista":[["Winklevoss Zcash ETF","S-1","2026-10-06",1,"2026-10-06"],["Canary PEPE ETF","S-1/A","2026-10-02",1,null],["Cryptex Digital Market Cap ETF","S-1/A","2026-09-30",1,null],["Canary Staked INJ ETF","S-1/A","2026-09-24",1,null],["21Shares Injective ETF","S-1/A","2026-09-18",1,null]],"ucieta":false,"hist":[["2026-10-10",4,1],["2026-10-11",3,0],["2026-10-12",5,1],["2026-10-13",4,0],["2026-10-14",3,1],["2026-10-15",5,0],["2026-10-16",4,1],["2026-10-17",5,1]]}};
+const kft = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const code = cut('/* ===================== v422 (F11Z25): SKARBCE SPÓŁEK', '/* v422: koniec */');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-18T10:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/ | /g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mk = (L, file, opt) => {
+    opt = opt || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const mkEl = () => ({innerHTML: '', hidden: true, open: [], querySelectorAll(q) { return q === 'details' ? this.open.map(id => ({id, open: true})) : []; }, querySelector() { return null; }});
+    const els = {'#c-skarbce': mkEl()};
+    const calls = [], ivs = [], store = {}, obs = [], charts = [];
+    const srv = n => { calls.push(n); const v = n === 'krypto-firmy' ? file : null; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const SRV_GR = {'ceny-krypto': 'c'}, SRV_LD = {c: [function srvLiveStart() {}]};
+    const doc = {addEventListener: () => {}, querySelector: () => null, documentElement: {}, hidden: false};
+    const wk = opt.nowk ? undefined : (Ls, o) => { charts.push({L: Ls, o}); return '[CHART:' + o.aria + '|' + Ls.map(l => l.n + ':' + l.d.length).join(',') + ']'; };
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'lnAgo', 'srvJSON', 'SRV_GR', 'SRV_LD', 'glyphImg', 'icoWrap', 'sepL', 'localStorage', 'document', 'MutationObserver', 'setInterval', 'Date',
+      'wkLines', 'steCoin',
+      "'use strict';\n" + gx349.code + '\n' + code + '\nreturn {KF, renderKf, kfApply, kfLoad, kfOk, kfPart, kfFirm, kfSec, kfAmt, kfSigned, kfPct, kfDiff, kfCountry, kfChart};')(
+      q => els[q] || null, v96src.tFor(L), v96src.escH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, s => ' · temu(' + s + ')', srv, SRV_GR, SRV_LD,
+      (n, s) => '[g:' + n + ']', i => i ? '<span class="icos">' + i + '</span>' : '', () => ', ', {getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; }}, doc,
+      function () { this.observe = (...a) => obs.push(a); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD, wk, undefined);
+    return {api, els, calls, ivs, SRV_GR, SRV_LD, obs, charts};
+  };
+  return {mk, clone, sp, txt, code, NOW, LOC};
+})();
+const kftiles = h => [...kft.sp(h).matchAll(/<div class="etfk"><span>([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)]
+  .map(m => ({label: m[1], cls: (m[2].match(/class="([^"]*)"/) || [, ''])[1], val: kft.txt(m[3].split('<small')[0]), subs: [...m[3].matchAll(/<small[^>]*>(.*?)<\/small>/g)].map(x => kft.txt(x[1])), subHtml: m[3], valHtml: m[3].split('<small')[0], when: kft.txt(m[4])}));
+const kfrows = h => [...kft.sp(h).matchAll(/<div class="kf-r(?: kf-f)?"><span class="kf-n">(.*?)<\/span>((?:<span class="kf-c" data-l="[^"]*">.*?<\/span>)+)<\/div>/g)]
+  .map(m => ({name: kft.txt(m[1]), cells: [...m[2].matchAll(/<span class="kf-c" data-l="([^"]*)">(.*?)<\/span>(?=<span class="kf-c"|$)/g)].map(c => ({l: c[1], v: kft.txt(c[2]), html: c[2]}))}));
+const kfhtml = (f, L, o) => kft.mk(L || 'pl', f, o).els['#c-skarbce'].innerHTML;
+
+test('v422 (F11Z25): rejestr grupy „c” (krypto-firmy), ładowanie co 30 min, jeden obserwator języka; karta po MiCA i przed RWA; plik tylko przez srvJSON w ładowarce', () => {
+  const K = kft.mk('pl', KF_F);
+  assert.equal(K.SRV_GR['krypto-firmy'], 'c'); assert.equal(K.SRV_GR['ceny-krypto'], 'c', 'stary wpis bez zmian');
+  assert.equal(K.SRV_LD.c[K.SRV_LD.c.length - 1].name, 'kfLoad'); assert.ok(K.calls.includes('krypto-firmy'));
+  assert.ok(K.ivs.some(([f, ms]) => ms === 30 * 60e3), 'części co ~dobę — strona pyta co 30 min'); assert.ok(K.obs.length >= 1 && kft.code.split('new MutationObserver(()=>renderKf())').length === 2, 'jeden obserwator języka z tej karty');
+  assert.ok(html.includes("SRV_GR['krypto-firmy']='c';SRV_LD.c.push(kfLoad);"), 'rejestr dopisany po deklaracjach');
+  assert.ok(html.indexOf("SRV_GR['krypto-firmy']='c'") > html.indexOf('const SRV_GR=') && html.indexOf("SRV_GR['krypto-firmy']='c'") < html.indexOf('\nkfLoad();'), 'rejestr przed pierwszym wywołaniem ładowarki');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])krypto-firmy\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.equal(html.split('id="c-skarbce"').length, 2, 'jedna sekcja');
+  const a = html.indexOf('id="c-mica"'), b = html.indexOf('id="c-skarbce"'), c = html.indexOf('id="c-rwa"');
+  assert.ok(a > 0 && b > a && c > b, 'karta po MiCA, przed RWA'); assert.ok(html.includes('<section class="panel pcard" id="c-skarbce" hidden></section>'));
+  assert.equal(K.els['#c-skarbce'].hidden, false, 'z plikiem karta widoczna'); assert.equal(kft.mk('pl', null).els['#c-skarbce'].hidden, true, 'bez pliku ukryta');
+  assert.ok(!kft.code.includes('localStorage') && !/\bfetch\(/.test(kft.code), 'karta nie sięga do przeglądarki poza ładowarką');
+});
+
+test('v422 (F11Z25): BTC — kafle (posiadanie, wartość i udział w podaży, liczba spółek, zmiana od zrzutu, największa spółka), data pobrania i wiek przy każdej liczbie, kolory z pokazanej liczby', () => {
+  const h = kfhtml(KF_F), T = kftiles(h).slice(0, 4);
+  assert.deepEqual(T.map(x => [x.label, x.val, x.subs, x.cls]), [
+    ['Posiadanie spółek, BTC', '1,30 mln BTC', ['wartość 107,0 mld USD · 6,20% całej podaży'], ''], ['Spółki z posiadaniem', '173', ['pięć największych trzyma 77,1% sumy'], ''],
+    ['Zmiana od 9 paź 2026', '+53,5 tys. BTC', ['spółki, które już były na liście: +9951 BTC', 'nowe spółki na liście (1; to nie zakupy): 43,5 tys. BTC'], ''], ['Największa spółka', 'Strategy', ['65,1% posiadania wszystkich spółek'], '']]);
+  assert.ok(T[2].valHtml.includes('<span class="pos">+53,5 tys. BTC</span>') && T[2].subHtml.includes('<span class="pos">+9951 BTC</span>'), 'plus zielony');
+  assert.ok(T.every(x => x.when === 'pobrano D:2026-10-18T08:00:00+00:00 · temu(2026-10-18T08:00:00+00:00)'), 'chwila pobrania i wiek przy każdej liczbie');
+  const t = kft.txt(h); assert.ok(t.startsWith('Skarbce spółek: krypto w spółkach publicznych i nowe fundusze w kolejce urzędu'));
+  assert.ok(t.includes('Zestawienie opiera się na deklaracjach spółek') && t.includes('Zmianę liczymy od zrzutu sprzed co najmniej 6 dób'), 'notatki o charakterze danych i o zrzucie');
+  assert.equal(t.split('Zestawienie opiera się na deklaracjach').length, 2, 'notatka o danych raz, nie przy każdej monecie');
+  // spadek sumy: znak minus, czerwony; zmiana zero: żółta
+  const F = kft.clone(KF_F); F.btc.zm.dtot = -2500; F.btc.zm.istniejace = -2500; F.btc.zm.nowe_n = 0; F.btc.zm.nowe = 0;
+  const T2 = kftiles(kfhtml(F)); assert.equal(T2[2].val, '−2500 BTC'); assert.ok(T2[2].valHtml.includes('class="neg"')); assert.equal(T2[2].subs.length, 1, 'bez nowych spółek bez drugiej linii');
+  F.btc.zm.dtot = 0.004; F.btc.zm.istniejace = 0.004; const T3 = kftiles(kfhtml(F)); assert.equal(T3[2].val, '0 BTC'); assert.ok(T3[2].valHtml.includes('class="neu"'), 'zero po zaokrągleniu bez znaku, żółte');
+});
+
+test('v422 (F11Z25): ETH — kafle jak BTC; bez nowych spółek brak drugiej linii; wartość i udział w podaży z pliku', () => {
+  const T = kftiles(kfhtml(KF_F)).slice(4, 8);
+  assert.deepEqual(T.map(x => [x.label, x.val, x.subs]), [['Posiadanie spółek, ETH', '8,10 mln ETH', ['wartość 19,5 mld USD · 6,63% całej podaży']], ['Spółki z posiadaniem', '31', ['pięć największych trzyma 95,4% sumy']],
+    ['Zmiana od 9 paź 2026', '+108,5 tys. ETH', ['spółki, które już były na liście: +108,5 tys. ETH']], ['Największa spółka', 'BitMine Immersion', ['74,5% posiadania wszystkich spółek']]]);
+  const F = kft.clone(KF_F); F.btc = null; const h = kfhtml(F); assert.ok(!kft.txt(h).includes('Bitcoin w spółkach publicznych') && kft.txt(h).includes('Ether w spółkach publicznych'), 'sama część eth');
+  assert.ok(kft.txt(h).includes('Zestawienie opiera się na deklaracjach') && kft.txt(h).includes('Zmianę liczymy od zrzutu'), 'notatki także przy samej części eth');
+});
+
+test('v422 (F11Z25): tabela największych spółek — 8 wierszy + reszta po rozwinięciu, kraj i symbol, udział w podaży, wartość, zmiana (zero żółte, minus czerwony, nowa na liście), brak = „—”', () => {
+  const K = kft.mk('pl', KF_F), h = K.els['#c-skarbce'].innerHTML, R = kfrows(h).filter(r => r.cells.length === 4);
+  assert.equal(R.length, 20, '10 + 10 wierszy w dwóch tabelach'); const B = R.slice(0, 10);
+  assert.deepEqual(B[0].cells.map(c => c.v), ['848,3 tys. BTC', '4,04%', '69,7 mld USD', '+11,5 tys. BTC']); assert.ok(B[0].name.startsWith('Strategy') && B[0].name.includes('MSTR.US'));
+  assert.deepEqual(B[1].cells.map(c => c.v), ['44,0 tys. BTC', '0,21%', '3,62 mld USD', '0 BTC']); assert.ok(B[1].cells[3].html.includes('class="neu"'), 'bez zmiany: zero żółte');
+  assert.deepEqual(B[2].cells.map(c => c.v), ['43,5 tys. BTC', '0,21%', '3,58 mld USD', 'nowa na liście']); assert.ok(B[2].cells[3].html.includes('class="neu"'), 'nowa na liście: żółte, nie zakup');
+  assert.deepEqual(B[3].cells.map(c => c.v), ['35,6 tys. BTC', '0,17%', '2,92 mld USD', '−1500 BTC']); assert.ok(B[3].cells[3].html.includes('class="neg"') && B[0].cells[3].html.includes('class="pos"'));
+  assert.deepEqual(B[0].cells.map(c => c.l), ['Posiadanie', 'Udział w podaży', 'Wartość', 'Zmiana'], 'etykiety kolumn na telefonie (data-l)');
+  const i = h.indexOf('<details class="etfd" id="kf-rest-btc">'); assert.ok(i > 0 && h.indexOf('Space Exploration Technologies') > i && h.indexOf('Galaxy Digital Holdings Ltd') < i, 'ósma spółka w tabeli, dziewiąta i dziesiąta po rozwinięciu');
+  assert.ok(kft.txt(h).includes('Pokaż pozostałe spółki z pierwszej piętnastki (2)')); assert.ok(h.includes('id="kf-rest-eth"'));
+  // bez porównania (brak zrzutu): kolumna „Zmiana” = „—”, bez koloru; bez symbolu i kraju — bez dopisku
+  const F = kft.clone(KF_F); F.eth = null; F.btc.zm = null; F.btc.top.forEach(r => { r[5] = null; r[6] = false; }); F.btc.top[0][1] = null; F.btc.top[0][2] = 'x'; F.btc.top[1][4] = null;
+  const R2 = kfrows(kfhtml(F)).filter(r => r.cells.length === 4); assert.equal(R2[0].cells[3].v, '—'); assert.ok(!R2[0].cells[3].html.includes('class='), 'brak porównania — bez koloru'); assert.equal(R2[0].name, 'Strategy', 'bez kraju i symbolu — sama nazwa');
+  assert.equal(R2[1].cells[1].v, '—', 'brak udziału w podaży = „—”, nie 0');
+  const t2 = kft.txt(kfhtml(F)); assert.ok(t2.includes('Zmiana posiadania —') && t2.includes('porównanie będzie dostępne po tygodniu zbierania danych'), 'kafel zmiany: „—” i powód'); assert.ok(!t2.includes('Największe zwiększenia'));
+});
+
+test('v422 (F11Z25): największe zwiększenia i zmniejszenia od zrzutu (paski z kolorem kierunku), kraje z udziałem w posiadaniu, bez zmian — zdanie', () => {
+  const h = kfhtml(KF_F), t = kft.txt(h);
+  assert.ok(t.includes('Największe zwiększenia posiadania od 9 paź 2026 Strategy +11,5 tys. BTC') && t.includes('Największe zmniejszenia posiadania od 9 paź 2026 MARA Holdings −1500 BTC'));
+  assert.ok(h.includes('<i class="up"') && h.includes('<i class="dn"'), 'paski: wzrost zielony, spadek czerwony (klasy up / dn)');
+  assert.ok(t.includes('Gdzie mają siedzibę spółki (wg posiadania)') && /1,19 mln BTC · 91,6%/.test(t) && /49,9 tys. BTC · 3,84%/.test(t) && !/ x /.test(t), 'kraje: ilość i udział w posiadaniu');
+  const F = kft.clone(KF_F); F.btc.zm.plus = []; F.btc.zm.minus = [];
+  const t2 = kft.txt(kfhtml(F)); assert.ok(t2.includes('Od 9 paź 2026 żadna ze spółek z listy nie zmieniła posiadania.')); assert.ok(!t2.includes('Największe zwiększenia posiadania od 9 paź 2026 Strategy'));
+  const F2 = kft.clone(KF_F); F2.eth = null; F2.btc.kraje = [['US', 1e6, 100]]; assert.ok(!kft.txt(kfhtml(F2)).includes('Gdzie mają siedzibę spółki (wg posiadania) Stany'), 'jeden kraj — bez sekcji (nie ma z czym porównać)');
+  const F3 = kft.clone(KF_F); F3.btc.zm.plus = [['Zły', 'Z.US', -5], ['Dobry', 'D.US', 3000]]; const t3 = kft.txt(kfhtml(F3)); assert.ok(t3.includes('Dobry +3000 BTC') && !t3.includes('Zły'), 'lista zwiększeń zawiera tylko dodatnie');
+});
+
+test('v422 (F11Z25): wykres sumy z kolejnych dób — od 3 punktów, ostatni punkt = doba pobrania, tys. jednostek; mniej niż 3 punkty — zdanie zamiast pustego wykresu; bez wykresów strony — nic', () => {
+  const K = kft.mk('pl', KF_F); assert.equal(K.charts.length, 3, 'BTC, ETH, wnioski');
+  const C = K.charts[0]; assert.ok(C.o.aria.includes('Posiadanie spółek w kolejnych dobach, tys. BTC') && C.o.aria.includes('6 dób')); assert.equal(C.L[0].d.length, 6); assert.equal(C.o.zero, false);
+  assert.deepEqual(C.L[0].d[5], [Date.parse('2026-10-18T12:00:00Z'), 1302.062], 'ostatni punkt = doba pobrania'); assert.equal(C.o.fmt(1302.062), '1302 tys. BTC'); assert.equal(C.o.fmt(850.5), '850,5 tys. BTC');
+  assert.ok(K.charts[1].o.aria.includes('tys. ETH')); assert.equal(K.charts[2].L[0].d.length, 8); assert.equal(K.charts[2].o.fmt(4), '4');
+  const F = kft.clone(KF_F); F.btc.hist = F.btc.hist.slice(-2); const t = kft.txt(kfhtml(F));
+  assert.ok(t.includes('Wykres pojawi się po kilku dobach zbierania danych (na razie: 2).')); assert.equal(kft.mk('pl', F).charts.length, 2, 'bez wykresu BTC');
+  const F2 = kft.clone(KF_F); F2.btc.hist = [['zły', 5], ['2026-10-18', 'x'], ['2026-10-17', 1], ['2026-10-16', 2], ['2026-10-15', 3]]; assert.equal(kft.mk('pl', F2).charts[0].L[0].d.length, 3, 'zły dzień i zła liczba pomijane');
+  const F3 = kft.clone(KF_F); F3.btc.hist = [['2026-10-18', 3000], ['2026-10-16', 1000], ['2026-10-17', 2000]]; assert.deepEqual(kft.mk('pl', F3).charts[0].L[0].d.map(p => p[1]), [1, 2, 3], 'punkty rosnąco wg doby niezależnie od kolejności w pliku');
+  const h = kfhtml(KF_F, 'pl', {nowk: true}); assert.ok(!kft.txt(h).includes('[CHART') && !kft.txt(h).includes('Wykres pojawi się'), 'bez wykresów strony — nic');
+});
+
+test('v422 (F11Z25): wnioski o fundusze krypto w kolejce urzędu — trzy kafle z porównaniem do poprzednich 30 dób (zero żółte), okno dat i pobranie, wykres, lista funduszy, notatki', () => {
+  const h = kfhtml(KF_F), T = kftiles(h).slice(8, 11);
+  assert.deepEqual(T.map(x => [x.label, x.val, x.subs[0]]), [['Fundusze z wnioskiem, ostatnie 30 dób', '5', '+1 wobec 4 w poprzednich 30 dobach'], ['Nowe wnioski (pierwszy wniosek funduszu)', '1', '+1 wobec 0 w poprzednich 30 dobach'],
+    ['Rejestracje do notowania z wzmianką o krypto', '2', '0 wobec 2 w poprzednich 30 dobach']]);
+  assert.ok(T[0].subHtml.includes('<span class="pos">+1</span>') && T[2].subHtml.includes('<span class="neu">0</span>')); assert.ok(T.every(x => /^okno 18\.09–17 paź 2026 · pobrano D:2026-10-18T08:00:00\+00:00 · temu\(/.test(x.when)), 'okno dat i czas pobrania');
+  const F = kft.clone(KF_F); F.sec.f30 = 2; F.sec.f30p = 6; assert.ok(kftiles(kfhtml(F))[8].subHtml.includes('<span class="neg">−4</span>'), 'spadek: minus czerwony');
+  const L = kfrows(h).filter(r => r.cells.length === 3); assert.equal(L.length, 5);
+  assert.deepEqual(L[0], {name: 'Winklevoss Zcash ETF', cells: [{l: 'Rodzaj wniosku', v: 'pierwszy wniosek', html: 'pierwszy wniosek'}, {l: 'Ostatni wniosek', v: '6 paź 2026', html: '6 paź 2026'}, {l: 'Wnioski w 30 dobach', v: '1', html: '1'}]});
+  assert.equal(L[1].cells[0].v, 'zmiana wniosku'); assert.deepEqual(L.map(r => r.cells[1].v), ['6 paź 2026', '2 paź 2026', '30 wrz 2026', '24 wrz 2026', '18 wrz 2026']);
+  const t = kft.txt(h); assert.ok(t.includes('Nowe fundusze krypto w kolejce urzędu') && t.includes('Fundusze z wnioskiem w ostatnich 30 dobach Fundusz Rodzaj wniosku Ostatni wniosek Wnioski w 30 dobach'));
+  assert.ok(t.includes('wniosek nie oznacza zgody urzędu ani startu funduszu') && t.includes('jeden podmiot może obejmować wiele funduszy'), 'notatki o przybliżeniu i o 8-A'); assert.ok(!t.includes('Wyniki wyszukiwania były ucięte'));
+  const F2 = kft.clone(KF_F); F2.sec.ucieta = true; assert.ok(kft.txt(kfhtml(F2)).includes('Wyniki wyszukiwania były ucięte — liczby to dolne oszacowanie.'));
+  const F3 = kft.clone(KF_F); F3.sec.lista = []; assert.ok(!kft.txt(kfhtml(F3)).includes('Fundusz Rodzaj wniosku'), 'bez listy — bez tabeli');
+});
+
+test('v422 (F11Z25): część starsza niż 4 doby, z przyszłości albo w złym kształcie znika; bez żadnej części — karta ukryta; błąd pobrania nie zasłania wczytanych danych', () => {
+  const dni = n => new Date(kft.NOW - n * 864e5).toISOString();
+  const F = kft.clone(KF_F); F.btc.t = dni(4.5); let t = kft.txt(kfhtml(F)); assert.ok(!t.includes('Bitcoin w spółkach publicznych') && t.includes('Ether w spółkach publicznych') && t.includes('Nowe fundusze krypto'), 'stara część BTC znika, reszta zostaje');
+  F.btc.t = dni(3.9); assert.ok(kft.txt(kfhtml(F)).includes('Bitcoin w spółkach publicznych'), '3,9 doby jeszcze pokazujemy (z wiekiem przy liczbie)');
+  F.btc.t = new Date(kft.NOW + 30 * 60e3).toISOString(); assert.ok(!kft.txt(kfhtml(F)).includes('Bitcoin w spółkach publicznych'), 'czas z przyszłości (> 10 min) — odrzucony');
+  const Z = kft.clone(KF_F); Z.btc.t = Z.eth.t = Z.sec.t = dni(5); const K = kft.mk('pl', Z); assert.equal(K.els['#c-skarbce'].hidden, true, 'wszystko stare — karta ukryta');
+  const bad = (f, fragment) => { const G = kft.clone(KF_F); f(G); const x = kft.txt(kfhtml(G)); assert.ok(!x.includes(fragment), fragment); };
+  bad(G => { G.btc.total = '1300000'; }, 'Bitcoin w spółkach publicznych'); bad(G => { G.btc.total = 0; }, 'Bitcoin w spółkach publicznych'); bad(G => { G.btc.usd = null; }, 'Bitcoin w spółkach publicznych');
+  bad(G => { G.btc.n = 17.5; }, 'Bitcoin w spółkach publicznych'); bad(G => { G.btc.top = G.btc.top.slice(0, 2); }, 'Bitcoin w spółkach publicznych'); bad(G => { G.eth.cena = -1; }, 'Ether w spółkach publicznych');
+  bad(G => { G.sec.f30 = 1.5; }, 'Nowe fundusze krypto'); bad(G => { G.sec.od = 'wczoraj'; }, 'Nowe fundusze krypto'); bad(G => { G.sec.n30 = -1; }, 'Nowe fundusze krypto'); bad(G => { G.sec.t = 5; }, 'Nowe fundusze krypto');
+  const G = kft.clone(KF_F); G.btc.top = [['Z', null, 'US', 0, 0], ['', null, 'US', 5, 0], ['Dobra', null, 'US', 3, 0], [], 'x']; G.btc.top.push(['Dobra2', null, 'US', 2, 0], ['Dobra3', null, 'US', 1, 0]); const R = kfrows(kfhtml(G)).filter(r => r.cells.length === 4 && /Dobra/.test(r.name));
+  assert.equal(R.length, 3, 'wiersze bez nazwy, z zerem albo w złym kształcie pomijane');
+  const A = kft.mk('pl', KF_F).api; assert.equal(A.kfOk(null), false); assert.equal(A.kfOk({}), false); assert.equal(A.kfOk({v: 2, at: KF_F.at, btc: {}}), false); assert.equal(A.kfOk({v: 1, at: 'x', btc: {}}), false); assert.equal(A.kfOk({v: 1, at: KF_F.at}), false); assert.equal(A.kfOk(KF_F), true);
+  A.kfApply(null); assert.ok(A.KF.d && A.kfFirm('btc'), 'chwilowy błąd pobrania nie zasłania wczytanych danych'); A.kfApply({v: 2}); assert.ok(A.KF.d);
+  const E = kft.mk('pl', null); assert.equal(E.api.KF.d, null); E.api.kfApply(null); assert.equal(E.els['#c-skarbce'].hidden, true);
+});
+
+test('v422 (F11Z25): formatowanie ilości, znaku i różnic — tys. od 10 tys., mln od 1 mln z przejściem przy zaokrągleniu, zero po zaokrągleniu bez znaku, brak = „—”', () => {
+  const A = kft.mk('pl', KF_F).api;
+  assert.deepEqual([0.004, 0.5, 5, 99.4, 150, 9999, 12345, 999940, 999960, 1302062, 8096612, null, NaN, Infinity].map(v => A.kfAmt(v, 'BTC')),
+    ['0,00 BTC', '0,50 BTC', '5,0 BTC', '99,4 BTC', '150 BTC', '9999 BTC', '12,3 tys. BTC', '999,9 tys. BTC', '1,00 mln BTC', '1,30 mln BTC', '8,10 mln BTC', '—', '—', '—'], 'granice jednostek');
+  assert.deepEqual([1500, -1500, 0, 0.004, -0.004, 43514, -1302062, null, 'x'].map(v => { const s = A.kfSigned(v, 'ETH'); return s.txt + '/' + s.tn; }),
+    ['+1500 ETH/pos', '−1500 ETH/neg', '0 ETH/neu', '0 ETH/neu', '0 ETH/neu', '+43,5 tys. ETH/pos', '−1,30 mln ETH/neg', '—/na', '—/na'], 'znak z pokazanej liczby');
+  assert.deepEqual([4.039, 0.21, 77.123, 100, null, NaN].map(A.kfPct), ['4,04%', '0,21%', '77,1%', '100,0%', '—', '—']);
+  assert.deepEqual([[5, 4], [2, 6], [3, 3]].map(([a, b]) => A.kfDiff(a, b)), ['<span class="pos">+1</span>', '<span class="neg">−4</span>', '<span class="neu">0</span>']);
+  assert.ok(['US', 'JP', 'KY'].every(c => /\S/.test(A.kfCountry(c))), 'nazwa kraju albo sam kod'); assert.equal(A.kfCountry('x'), ''); assert.equal(A.kfCountry(null), ''); assert.equal(A.kfCountry('USA'), '');
+});
+
+test('v422 (F11Z25): słownik — wszystkie klucze karty w 10 językach z tymi samymi polami, bez nazw dostawców, bez znaczników HTML, japoński bez spacji przed licznikami; karta rysuje się w każdym języku bez pustych pól', () => {
+  const keys = [...new Set([...kft.code.matchAll(/t\('(kf422\.[a-z0-9.]+)'/g)].map(m => m[1]).filter(k => !k.endsWith('.') && !k.endsWith('not')))];
+  ['btc', 'eth'].forEach(n => keys.push('kf422.h.' + n, 'kf422.ch.' + n)); keys.push('kf422.h.sec', 'kf422.ch.sec', 'kf422.not1', 'kf422.not2', 'kf422.not3');
+  const all = Object.keys(v96src.I18N.pl).filter(k => k.startsWith('kf422.')); assert.ok(all.length >= 55, 'liczba kluczy słownika: ' + all.length);
+  for (const k of keys) assert.ok(all.includes(k), 'brak klucza w słowniku: ' + k);
+  const ph = s => (String(s).match(/\{[a-z]+\}/g) || []).sort().join(','), gp = new Function('return ' + html.match(/const GT_PROV=(\/.*\/);/)[1])();
+  for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    for (const k of all) {
+      const v = v96src.I18N[L][k]; assert.ok(typeof v === 'string' && v.trim(), L + ' ' + k); assert.equal(ph(v), ph(v96src.I18N.pl[k]), L + ' ' + k + ': pola'); assert.ok(!/[<>]/.test(v), L + ' ' + k + ': HTML');
+      assert.ok(!gp.test(v), L + ' ' + k + ': nazwa dostawcy w tekście strony: ' + (v.match(gp) || [])[0]);
+    }
+    if (L === 'ja') for (const k of all) assert.ok(!/(\d|\})[ \u00a0]+(?:日|社|件|年|か月)/.test(v96src.I18N.ja[k]), 'ja ' + k + ': spacja przed licznikiem');
+    const t = kft.txt(kfhtml(KF_F, L)); assert.ok(t.length > 1500 && !/undefined|NaN|\[object|kf422\./.test(t), L + ': pola'); const dane = [...KF_F.btc.top, ...KF_F.eth.top, ...KF_F.sec.lista].map(r => r[0]).sort((a, b) => b.length - a.length).reduce((x, n) => x.split(n).join(' '), t.replace(/D:\S+|temu\(\S+\)/g, ''));   // nazwy spółek i funduszy to przedmiot danych (np. „… Treasury Company”)
+    assert.ok(!gp.test(dane), L + ': nazwa dostawcy w treści karty: ' + (dane.match(gp) || [])[0]);
+  }
+  assert.ok(!html.slice(html.indexOf('/* ===================== v422 (F11Z25): SKARBCE SPÓŁEK'), html.indexOf('/* v422: koniec */')).includes('CoinGecko'), 'nazwy dostawcy nie ma w module strony');
+});
+
+test('v422 (F11Z25): styl karty — telefon 390 px: kafle po dwa, tabele dwukolumnowe z etykietami (data-l), bez przewijania w bok; kolory kierunku ze zmiennych motywu', () => {
+  const css = html.slice(html.indexOf('/* v422 (F11Z25): karta Skarbce spółek w CRYPTO'), html.indexOf('</style>', html.indexOf('/* v422 (F11Z25): karta Skarbce spółek w CRYPTO')));
+  assert.ok(css.length > 1500 && css.includes('@media (max-width:760px){#c-skarbce .etfkpis') && css.includes('@media (max-width:560px)')); assert.ok(css.includes('#c-skarbce .kf-c::before{content:attr(data-l)'), 'etykiety kolumn na telefonie');
+  assert.ok(css.includes('#c-skarbce .pos{color:var(--gr-tx)}') && css.includes('#c-skarbce .neg{color:var(--rd-tx)}') && css.includes('#c-skarbce .neu{color:var(--yl-tx)}') && css.includes('i.up{background:var(--gr)}') && css.includes('i.dn{background:var(--rd)}'));
+  assert.ok(!/#c-skarbce[^{]*\{[^}]*(?:^|[;{ ])(?:min-)?width:\s*\d{3,}px/.test(css), 'żadnej stałej szerokości powyżej 99 px (przewijanie w bok; max-width wolno)'); assert.ok(css.includes('overflow-wrap:anywhere'));
+  assert.ok(!/#[0-9a-fA-F]{3,6}\b/.test(css) && !/rgba?\(/.test(css), 'kolory tylko ze zmiennych motywu (jasny i ciemny)');
+});
