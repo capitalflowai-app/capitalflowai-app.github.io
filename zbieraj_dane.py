@@ -41284,7 +41284,7 @@ ZRODLA_META.update({'dzwignia2_okx': 'okx', 'dzwignia2_bfx': 'bitfinex'})   # v3
 #      Pro = rachunki własne brokerów); historia dobowa pozycji w kontraktach terminowych na indeksy (long, short) każdej grupy;
 #  (3) dl — pełny plik dnia z udziałem dostaw: dla serii głównej (EQ) łączny obrót, wartość dostarczona (liczba dostarczonych akcji × średnia cena dnia — SZACUNEK wartości), udział dostaw wartościowo i ilościowo,
 #      osiem spółek z największą wartością dostaw; historia dobowa udziału.
-# Dzień sesji pochodzi z nazwy pliku i jest sprawdzany z datą w samym pliku (tytuł albo kolumna daty) — plik innego dnia = błąd. Wartości w pasmach wiarygodności (IN_PE_MAX itd.), sumy czterech grup uczestników
+# Dzień sesji pochodzi z nazwy pliku i jest sprawdzany z datą w samym pliku (tytuł albo kolumna daty) — plik innego dnia = błąd (wyjątek v407: plik dostaw z wierszami jednej wcześniejszej sesji = święto, brak sesji dnia z adresu, bez błędu). Wartości w pasmach wiarygodności (IN_PE_MAX itd.), sumy czterech grup uczestników
 # zgodne z wierszem sumy (z tolerancją zaokrągleń giełdy), liczba poprawnych wierszy serii głównej ≥ IN_DL_MIN_EQ; inaczej błąd części, nigdy cicha liczba.
 # Rytm: co IN_EVERY_MIN min. Każdy rodzaj pliku idzie od najnowszego dnia roboczego wstecz (IN_OKNO_DNI dób kalendarzowych); dzień z historii albo oznaczony jako brak sesji jest pomijany. Odpowiedź 404 dla dnia
 # starszego niż IN_BRAK_H godzin (od północy UTC tego dnia) = dzień bez sesji (święto) i jest zapamiętana; dla młodszego — plik jeszcze niepublikowany (ponowna próba w następnym przebiegu). Na przebieg najwyżej
@@ -41318,6 +41318,28 @@ IN_UCZ = ('Client', 'DII', 'FII', 'Pro')
 IN_MIES = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 _IN_TERMIN = [None]
 _IN_KAN = {n.casefold(): n for n in (*IN_SZEROKIE, *IN_SEKTORY, *IN_HIST_IDX)}   # nazwa w pliku bywa w innej wielkości liter („NIFTY Midcap 100”) — zapisujemy postać kanoniczną
+
+
+IN_SWIETO_MAX_DNI = 5      # v407: plik dnia z danymi wcześniejszej sesji to święto, gdy ta sesja jest o 1–5 dób wcześniejsza (długi weekend ze świętem); dalej = błąd pliku
+
+
+class InBrakSesji(ValueError):
+    """v407: plik dnia d zawiera dane jednej wcześniejszej sesji (giełda w dniu święta powtarza poprzedni dzień) — to brak sesji dnia d, nie błąd; `dzien` = data z treści pliku."""
+
+    def __init__(self, msg, dzien):
+        super().__init__(msg)
+        self.dzien = dzien
+
+
+def in_data_dl(s):
+    """v407: data z kolumny DATE1 pliku dostaw („01-Oct-2026”) albo None, gdy zapis jest nieprawidłowy."""
+    m = re.fullmatch(r'(\d{1,2})-([A-Za-z]{3})-(\d{4})', s)
+    if not m or m.group(2).capitalize() not in IN_MIES:
+        return None
+    try:
+        return datetime.date(int(m.group(3)), IN_MIES.index(m.group(2).capitalize()) + 1, int(m.group(1)))
+    except ValueError:
+        return None
 
 
 def in_dni(now):
@@ -41428,6 +41450,12 @@ def in_parse_dl(text, d):
         raise ValueError('dl: zmieniony nagłówek pliku')
     ix = {h: hd.index(h) for h in need}
     want = f'{d.day:02d}-{IN_MIES[d.month - 1]}-{d.year}'
+    rows = [r for r in rows if len(r) >= len(hd) and r[ix['SERIES']].strip() == 'EQ']   # v407: data z treści pliku decyduje o dniu
+    dat = {r[ix['DATE1']].strip() for r in rows}
+    if len(dat) == 1 and want not in dat:   # wszystkie wiersze z jedną inną datą: święto (plik powtarza poprzednią sesję); mieszanka dat albo odległa data = błąd pliku niżej
+        dd = in_data_dl(next(iter(dat)))
+        if dd is not None and 0 < (d - dd).days <= IN_SWIETO_MAX_DNI:
+            raise InBrakSesji(f'dl: plik dnia {d.isoformat()} zawiera sesję {dd.isoformat()} (brak sesji)', dd.isoformat())
     n = bad = 0
     tq = dq = tv = dv = 0.0
     L = []
@@ -41455,7 +41483,7 @@ def in_parse_dl(text, d):
 
 def in_zbierz(rodzaj, parse, now, have, miss, newest=None, historia=True):
     """Pliki danego rodzaju od najnowszego dnia roboczego wstecz: dni z `have` (historia) i `miss` (brak sesji) pomijane; wynik ([(dzień, odczyt)] od najnowszego, nowe dni bez sesji, błąd albo None).
-    404: starszy niż IN_BRAK_H h = brak sesji (zapamiętany), młodszy = jeszcze niepublikowany. Wyjątek zapytania (403, 429, czas) kończy rodzaj w tym przebiegu; plik, którego nie da się odczytać,
+    404: starszy niż IN_BRAK_H h = brak sesji (zapamiętany), młodszy = jeszcze niepublikowany. Plik dostaw z wierszami jednej wcześniejszej sesji (InBrakSesji, v407) liczy się tak samo: bez błędu i bez danych. Wyjątek zapytania (403, 429, czas) kończy rodzaj w tym przebiegu; plik, którego nie da się odczytać,
     kończy go też, ale starszy niż IN_BLAD_DNI dób jest zapamiętany jako brak (nie blokuje w kółko). historia=False: tylko dni nowsze niż `newest`, po pierwszym odczycie koniec."""
     wyn, nowe, err, n = [], [], None, 0
     for d in in_dni(now):
@@ -41479,6 +41507,10 @@ def in_zbierz(rodzaj, parse, now, have, miss, newest=None, historia=True):
             continue
         try:
             wyn.append((d, parse(txt, d)))
+        except InBrakSesji:   # v407: święto — plik powtarza wcześniejszą sesję (ma własny plik); jak 404: brak sesji po IN_BRAK_H h, wcześniej jeszcze niepublikowany; bez błędu
+            if wiek_h > IN_BRAK_H:
+                nowe.append(iso)
+            continue
         except ValueError as e:
             err = str(e)[:120]
             if wiek_h > IN_BLAD_DNI * 24:

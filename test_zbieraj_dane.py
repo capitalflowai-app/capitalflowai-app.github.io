@@ -66036,3 +66036,137 @@ class TestV406KontaktBezAdresu(unittest.TestCase):
             self.assertEqual('@' in ua, ma_at, ua)
             self.assertTrue(ua.startswith('CapitalFlowAI/1.0 badania-niekomercyjne ('), ua)
             self.assertTrue(ua.endswith('capitalflowai-app.github.io/)') if not env else env in ua, ua)
+
+
+_V407_REC = ['SYMBOL, SERIES, DATE1, PREV_CLOSE, OPEN_PRICE, HIGH_PRICE, LOW_PRICE, LAST_PRICE, CLOSE_PRICE, AVG_PRICE, TTL_TRD_QNTY, TURNOVER_LACS, NO_OF_TRADES, DELIV_QTY, DELIV_PER', '20MICRONS, EQ, 01-Oct-2026, 214.59, 213.00, 214.70, 203.35, 205.35, 207.26, 208.20, 92549, 192.69, 3990, 42666, 46.10', '21STCENMGM, EQ, 01-Oct-2026, 38.67, 37.90, 39.25, 37.90, 38.00, 38.00, 38.65, 4636, 1.79, 33, 3410, 73.55', '360ONE, EQ, 01-Oct-2026, 1030.00, 1027.90, 1043.00, 1008.00, 1040.00, 1040.00, 1028.94, 1213803, 12489.30, 47593, 732619, 60.36', '3BBLACKBIO, EQ, 01-Oct-2026, 1710.40, 1690.20, 1734.00, 1617.90, 1663.00, 1646.80, 1677.54, 27802, 466.39, 3377, 9576, 34.44', '3IINFOLTD, BE, 01-Oct-2026, 22.52, 22.52, 22.91, 22.12, 22.67, 22.45, 22.47, 285733, 64.22, 695, -, -', '574GS2026, GS, 01-Oct-2026, 101.61, 102.49, 102.49, 102.49, 102.49, 102.49, 102.49, 15, 0.02, 1, 15, 100.00', '585GS2030, GS, 01-Oct-2026, 97.56, 98.50, 98.50, 98.50, 98.50, 98.50, 98.50, 2, 0.00, 2, 2, 100.00', 'ZYDUSLIFE, EQ, 01-Oct-2026, 1162.00, 1151.00, 1158.00, 1123.70, 1145.70, 1145.70, 1142.90, 2547369, 29113.76, 56564, 1489237, 58.46', 'ZYDUSWELL, EQ, 01-Oct-2026, 512.80, 512.20, 515.25, 490.20, 498.65, 493.25, 497.54, 151840, 755.46, 12745, 73046, 48.11']
+
+
+def _v407_rec():
+    """Nagranie prawdziwego pliku dostaw z dnia święta 02.10.2026 (sprawdzone 17.10.2026): wszystkie wiersze mają datę 01-Oct-2026; wybrane wiersze (nagłówek, 4 z serii głównej, 3 inne serie, 2 ostatnie)."""
+    return '\n'.join(_V407_REC) + '\n'
+
+
+_V407_404 = urllib.error.HTTPError('u', 404, 'Not Found', {}, None)
+
+
+def _v407_get(calls=None, plik_swieta=None):
+    """Zaślepka get() z v399: 02.10 jest dniem świątecznym — pliki indeksów i pozycji dają 404, a plik dostaw 200 z treścią poprzedniej sesji (jak naprawdę)."""
+    return _v399_get(calls, holidays=('2026-09-14',), blok={'ind_close_all_02102026': _V407_404, 'participant_oi_02102026': _V407_404, 'participant_vol_02102026': _V407_404},
+                     nadpisz={'sec_bhavdata_full_02102026': plik_swieta or _v399_dl(datetime.date(2026, 10, 1))})
+
+
+class IndieSwietaV407(unittest.TestCase):
+    """v407: plik dostaw z dnia święta zawiera wiersze poprzedniej sesji — data z treści decyduje o dniu: brak sesji bez błędu i bez podwójnego zapisu."""
+
+    def setUp(self):
+        zd.META['errors'].clear()
+        self.ps = [mock.patch.object(zd, 'NOW', _V399_NOW.isoformat()), mock.patch.object(zd, 'IN_SLEEP', 0)]
+        for p in self.ps:
+            p.start()
+        self.addCleanup(lambda: [p.stop() for p in self.ps])
+
+    def _run(self, prev=None, get=None, now=None):
+        with mock.patch.object(zd, 'get', get or _v407_get()), mock.patch.object(zd, 'NOW', (now or _V399_NOW).isoformat()):
+            return json.loads(json.dumps(zd.build_indie(prev)))
+
+    def _pelny(self, get):
+        prev, n = None, []
+        for _ in range(12):
+            calls = []
+            prev = self._run(prev, get(calls))
+            n.append(len(calls))
+            if not calls:
+                break
+        return prev, n
+
+    def test_nagranie_pliku_swieta_to_brak_sesji_z_data_z_tresci(self):
+        d = datetime.date(2026, 10, 2)
+        with self.assertRaises(zd.InBrakSesji) as c:
+            zd.in_parse_dl(_v407_rec(), d)
+        self.assertEqual(c.exception.dzien, '2026-10-01', 'dzień z treści pliku')
+        self.assertIsInstance(c.exception, ValueError, 'stare miejsca łapiące ValueError nadal widzą wyjątek')
+        # ten sam plik pod adresem dnia, którego dane zawiera: data zgodna, więc to nie święto (nagranie skrócone, więc za mało wierszy)
+        with self.assertRaises(ValueError) as c2:
+            zd.in_parse_dl(_v407_rec(), datetime.date(2026, 10, 1))
+        self.assertNotIsInstance(c2.exception, zd.InBrakSesji); self.assertIn('za mało', str(c2.exception))
+        # wiersze innych serii (obligacje, rejestr ETF) z inną datą nie decydują — liczy się seria główna, jak przy sprawdzaniu daty dotąd
+        inna = _v407_rec().replace('574GS2026, GS, 01-Oct-2026', '574GS2026, GS, 28-Sep-2026')
+        self.assertNotEqual(inna, _v407_rec())
+        with self.assertRaises(zd.InBrakSesji) as c3:
+            zd.in_parse_dl(inna, d)
+        self.assertEqual(c3.exception.dzien, '2026-10-01')
+        # pełny plik dnia świątecznego (kształt prawdziwego pliku, 1108 papierów) — też brak sesji, bez liczenia
+        with self.assertRaises(zd.InBrakSesji):
+            zd.in_parse_dl(_v399_dl(datetime.date(2026, 10, 1)), d)
+
+    def test_nie_kazda_inna_data_to_swieto(self):
+        rec = _v407_rec()
+        d2 = datetime.date(2026, 10, 2)
+        # mieszanka dat w jednym pliku = błąd pliku, jak dotąd
+        mieszany = rec.replace('01-Oct-2026', '30-Sep-2026', 1)
+        with self.assertRaises(ValueError) as c:
+            zd.in_parse_dl(mieszany, d2)
+        self.assertNotIsInstance(c.exception, zd.InBrakSesji); self.assertIn('datę', str(c.exception))
+        # data z przyszłości względem adresu = błąd
+        with self.assertRaises(ValueError) as c:
+            zd.in_parse_dl(rec, datetime.date(2026, 9, 30))
+        self.assertNotIsInstance(c.exception, zd.InBrakSesji); self.assertIn('datę', str(c.exception))
+        # długi weekend: sesja o 5 dób wcześniejsza to jeszcze święto, o 6 — już błąd pliku
+        self.assertEqual(zd.IN_SWIETO_MAX_DNI, 5)
+        with self.assertRaises(zd.InBrakSesji):
+            zd.in_parse_dl(rec, datetime.date(2026, 10, 6))
+        with self.assertRaises(ValueError) as c:
+            zd.in_parse_dl(rec, datetime.date(2026, 10, 7))
+        self.assertNotIsInstance(c.exception, zd.InBrakSesji)
+        # nieprawidłowy zapis daty w pliku = błąd, nie święto
+        for zly in ('31-Feb-2026', '01-Foo-2026', '1-10-2026'):
+            with self.assertRaises(ValueError) as c:
+                zd.in_parse_dl(rec.replace('01-Oct-2026', zly), d2)
+            self.assertNotIsInstance(c.exception, zd.InBrakSesji, zly)
+        self.assertIsNone(zd.in_data_dl('31-Feb-2026')); self.assertEqual(zd.in_data_dl('1-oct-2026'), datetime.date(2026, 10, 1))
+
+    def test_zbieracz_stary_dzien_swieta_zapamietany_bez_bledu_i_bez_danych(self):
+        calls = []
+        have = {x.isoformat() for x in zd.in_dni(_V399_NOW) if x > datetime.date(2026, 10, 2)}
+        with mock.patch.object(zd, 'get', _v407_get(calls)):
+            wyn, nowe, err = zd.in_zbierz('dl', zd.in_parse_dl, _V399_NOW, have, set())
+        self.assertIsNone(err, 'święto to nie błąd')
+        self.assertEqual(nowe, ['2026-10-02'], 'dzień święta zapamiętany jako brak sesji')
+        self.assertEqual([d.isoformat() for d, _ in wyn], ['2026-10-01', '2026-09-30', '2026-09-29'], 'dane święta nie wchodzą jako osobny dzień; pętla idzie dalej wstecz')
+        self.assertEqual(len([u for u in calls if '02102026' in u]), 1)
+
+    def test_zbieracz_mlody_dzien_to_jeszcze_niepublikowany_nie_swieto(self):
+        now = datetime.datetime(2026, 10, 2, 20, 0, tzinfo=datetime.timezone.utc)   # 20 h od północy UTC dnia: przed IN_BRAK_H
+        with mock.patch.object(zd, 'get', _v407_get()):
+            wyn, nowe, err = zd.in_zbierz('dl', zd.in_parse_dl, now, set(), set())
+        self.assertIsNone(err); self.assertEqual(nowe, [], 'młody dzień: bez zapamiętywania, ponowna próba w następnym przebiegu')
+        self.assertEqual(wyn[0][0], datetime.date(2026, 10, 1))
+
+    def test_plik_indie_swieto_bez_bledu_bez_podwojnego_zapisu_i_bez_ponownych_zapytan(self):
+        o, n = self._pelny(_v407_get)
+        o0, _ = self._pelny(lambda calls: _v399_get(calls))   # to samo, ale święto jako zwykłe 404 we wszystkich plikach
+        self.assertEqual(zd.META['errors'], [], 'żadnego alarmu')
+        self.assertTrue(all(o['ok'].values()))
+        self.assertEqual(n[-1], 0, 'kompletna historia = zero zapytań, także o dzień święta')
+        D = o['dl']
+        self.assertEqual(D['miss'], ['2026-09-14', '2026-10-02'])
+        days = [h['d'] for h in D['hist']]
+        self.assertEqual(days, sorted(set(days)), 'rosnąco, bez powtórzeń'); self.assertEqual(len(days), 30)
+        self.assertNotIn('2026-10-02', days); self.assertEqual(days.count('2026-10-01'), 1, 'poprzednia sesja zapisana raz')
+        self.assertEqual(D, o0['dl'], 'plik świąteczny nie zmienia niczego w stosunku do zwykłego 404')
+
+    def test_plik_indie_swieto_na_przebiegu_po_swiecie_miesza_sie_z_zapamietaniem_dopiero_po_30_godzinach(self):
+        mlody = datetime.datetime(2026, 10, 2, 20, 0, tzinfo=datetime.timezone.utc)
+        o = self._run(None, _v407_get(), mlody)
+        self.assertTrue(o['ok']['dl']); self.assertEqual(zd.META['errors'], []); self.assertEqual(o['dl']['miss'], [])
+        self.assertEqual(o['dl']['asof'], '2026-10-01')
+        pozniej = datetime.datetime(2026, 10, 3, 7, 0, tzinfo=datetime.timezone.utc)   # 31 h od północy UTC dnia święta
+        o2 = self._run(o, _v407_get(), pozniej)
+        self.assertTrue(o2['ok']['dl']); self.assertEqual(zd.META['errors'], [])
+        self.assertIn('2026-10-02', o2['dl']['miss']); self.assertEqual([h['d'] for h in o2['dl']['hist']].count('2026-10-01'), 1)
+
+    def test_prawdziwy_blad_pliku_nadal_jest_bledem(self):
+        zly = _v399_dl(datetime.date(2026, 10, 16)).replace('16-Oct-2026', '15-Oct-2026', 1)   # jedna sesja udaje inną w jednym pliku
+        o = self._run(None, _v399_get(nadpisz={'sec_bhavdata_full_16102026': zly}))
+        self.assertFalse(o['ok']['dl']); self.assertTrue(any('Indie: dl: dl: wiersz' in e and 'datę' in e for e in zd.META['errors']), zd.META['errors'])
+        self.assertTrue(o['ok']['ind'] and o['ok']['fao'])
