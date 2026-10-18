@@ -1891,22 +1891,26 @@ textarea.kt-f{min-height:110px;resize:vertical}
 /* v414 (W2): mały kalendarz makro w GLOBAL — prawa kolumna (#g-rkmi) i para pod mapą na tablecie i telefonie (#g-kmi, do 1240 px; od 1241 px kolumna po prawej); tylko zmienne motywu; telefon 390 px bez przewijania w bok */
 .kmi{padding:14px}
 .kmi h2{margin:0 0 4px}
-.kmi .kmi-sub{margin:0 0 10px;font-size:11.5px;line-height:1.35;color:var(--mut)}
+/* v436: bez opisu pod nagłówkiem; ważność kolorem (czerwony 3, pomarańczowy 2) z legendą; wartość ostatniego odczytu pod nazwą */
 .kmi .seg{display:flex;width:100%;max-width:100%}
 .kmi .seg button{flex:1 1 0;min-width:0;min-height:32px;padding:6px 4px}
-.kmi .kmi-rng{margin:10px 0 0;font-size:11.5px;line-height:1.35;color:var(--mut);overflow-wrap:anywhere}
+.kmi .kmi-meta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;margin:10px 0 0}
+.kmi .kmi-rng{margin:0;font-size:11.5px;line-height:1.35;color:var(--mut);overflow-wrap:anywhere;min-width:0}
+.kmi .kmi-leg{display:inline-flex;gap:10px;margin:0;font-size:11.5px;line-height:1.35;color:var(--mut)}
+.kmi .kmi-leg span{display:inline-flex;align-items:center;gap:5px}
+.kmi .kmi-i{display:block;width:9px;height:9px;border-radius:50%;background:var(--or);justify-self:end}
+.kmi .kmi-i.w3{background:var(--rd)}
+.kmi .kmi-v{display:block;margin-top:2px;font-size:11px;font-weight:400;line-height:1.3;color:var(--mut);font-variant-numeric:tabular-nums}
 .kmi .kmi-rng::first-letter{text-transform:uppercase}
 .kmi .kmi-day{margin:10px 0 2px;font-size:12px;font-weight:600;color:var(--tx);overflow-wrap:anywhere}
 .kmi .kmi-day::first-letter{text-transform:uppercase}
 .kmi .kmi-day small{font-size:10.5px;font-weight:500;color:var(--bl)}
 .kmi ul.kmi-l{list-style:none;margin:0;padding:0}
-.kmi .kmi-e{display:grid;grid-template-columns:42px 18px minmax(0,1fr) 28px;gap:6px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.kmi .kmi-e{display:grid;grid-template-columns:42px 18px minmax(0,1fr) 12px;gap:6px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
 .kmi .kmi-h{font-size:12px;font-weight:600;color:var(--tx);font-variant-numeric:tabular-nums;white-space:nowrap}
 .kmi .kmi-fl{display:inline-flex;align-items:center}
 .kmi .kmi-t{font-size:12px;line-height:1.3;color:var(--tx);overflow-wrap:anywhere;min-width:0}
 .kmi .kmi-t small{font-size:10.5px;font-weight:500;color:var(--mut)}
-.kmi .kmi-d{display:inline-flex;gap:2px;justify-content:flex-end}
-.kmi .kmi-d i{display:block;width:5px;height:5px;border-radius:50%;background:var(--line-2)}.kmi .kmi-d i.on{background:var(--bl)}
 .kmi .kmi-e.w3 .kmi-t{font-weight:600}
 .kmi .kmi-past{opacity:.55}
 .kmi .kmi-sc{max-height:300px;overflow-y:auto;overscroll-behavior:contain;margin:0 -4px;padding:0 4px}
@@ -3679,6 +3683,9 @@ const EXTRA297={"pl":{"pg434.flows.d":"Największe wzrosty i spadki wartości w 
 for(const l in EXTRA297)if(I18N[l])Object.assign(I18N[l],EXTRA297[l]);
 const EXTRA298={"pl": {"v435.sek.cov": "Dane: {n}/{m} regionów · brakuje", "v435.sek.rus": "powód: sankcje UE i USA — notowań rosyjskiej giełdy nie pobieramy"}, "en": {"v435.sek.cov": "Data: {n}/{m} regions · missing", "v435.sek.rus": "reason: EU and US sanctions — we do not collect Russian exchange quotes"}, "de": {"v435.sek.cov": "Daten: {n}/{m} Regionen · fehlend", "v435.sek.rus": "Grund: Sanktionen der EU und der USA — Kurse der russischen Börse werden nicht erhoben"}, "es": {"v435.sek.cov": "Datos: {n}/{m} regiones · faltan", "v435.sek.rus": "motivo: sanciones de la UE y EE. UU. — no recogemos cotizaciones de la bolsa rusa"}, "fr": {"v435.sek.cov": "Données : {n}/{m} régions · manquent", "v435.sek.rus": "raison : sanctions de l’UE et des États-Unis — nous ne collectons pas les cours de la Bourse russe"}, "it": {"v435.sek.cov": "Dati: {n}/{m} regioni · mancano", "v435.sek.rus": "motivo: sanzioni di UE e USA — non raccogliamo le quotazioni della borsa russa"}, "pt": {"v435.sek.cov": "Dados: {n}/{m} regiões · faltam", "v435.sek.rus": "motivo: sanções da UE e dos EUA — não coletamos cotações da bolsa russa"}, "ru": {"v435.sek.cov": "Данные: {n}/{m} регионов · не хватает", "v435.sek.rus": "причина: санкции ЕС и США — котировки российской биржи мы не собираем"}, "zh": {"v435.sek.cov": "数据：{n}/{m} 个地区 · 缺少", "v435.sek.rus": "原因：欧盟和美国的制裁——我们不收集俄罗斯交易所的行情"}, "ja": {"v435.sek.cov": "データ：{n}/{m} 地域 · 欠落", "v435.sek.rus": "理由：EU と米国の制裁のため、ロシアの取引所の相場は取得していません"}};
 for(const l in EXTRA298)if(I18N[l])Object.assign(I18N[l],EXTRA298[l]);
+/* v436: kalendarz makro — ważność kolorem i wartości ostatnich odczytów — 10 języków */
+const EXTRA299={"pl":{"kal436.imp.3":"Wysoka","kal436.imp.2":"Średnia","kal436.v.rate":"Stopa obecnie: {v}","kal436.v.cpi":"Ostatnio ({m}): {y} r/r, bazowa {c}","kal436.v.cpi1":"Ostatnio ({m}): {y} r/r","kal436.v.job":"Ostatnio ({m}): bezrobocie {u}, zatrudnienie {n} tys.","kal436.v.job1":"Ostatnio ({m}): bezrobocie {u}","kal436.v.gdp":"Ostatnio ({q}): {v} w skali roku","kal436.asof":"Stan na {d}","kal436.approx":"Godzina wg zasady publikacji (terminarz podaje tylko dzień)"},"en":{"kal436.imp.3":"High","kal436.imp.2":"Medium","kal436.v.rate":"Current rate: {v}","kal436.v.cpi":"Latest ({m}): {y} y/y, core {c}","kal436.v.cpi1":"Latest ({m}): {y} y/y","kal436.v.job":"Latest ({m}): unemployment {u}, payrolls {n}k","kal436.v.job1":"Latest ({m}): unemployment {u}","kal436.v.gdp":"Latest ({q}): {v} annualised","kal436.asof":"As of {d}","kal436.approx":"Time follows the usual publication rule (the schedule gives only the day)"},"de":{"kal436.imp.3":"Hoch","kal436.imp.2":"Mittel","kal436.v.rate":"Aktueller Zins: {v}","kal436.v.cpi":"Zuletzt ({m}): {y} gg. Vorjahr, Kern {c}","kal436.v.cpi1":"Zuletzt ({m}): {y} gg. Vorjahr","kal436.v.job":"Zuletzt ({m}): Arbeitslosenquote {u}, Beschäftigung {n} Tsd.","kal436.v.job1":"Zuletzt ({m}): Arbeitslosenquote {u}","kal436.v.gdp":"Zuletzt ({q}): {v} aufs Jahr hochgerechnet","kal436.asof":"Stand: {d}","kal436.approx":"Uhrzeit nach üblicher Veröffentlichungsregel (der Kalender nennt nur den Tag)"},"es":{"kal436.imp.3":"Alta","kal436.imp.2":"Media","kal436.v.rate":"Tipo actual: {v}","kal436.v.cpi":"Último ({m}): {y} interanual, subyacente {c}","kal436.v.cpi1":"Último ({m}): {y} interanual","kal436.v.job":"Último ({m}): paro {u}, empleo {n} mil","kal436.v.job1":"Último ({m}): paro {u}","kal436.v.gdp":"Último ({q}): {v} anualizado","kal436.asof":"Datos a {d}","kal436.approx":"Hora según la regla habitual de publicación (el calendario solo indica el día)"},"fr":{"kal436.imp.3":"Élevée","kal436.imp.2":"Moyenne","kal436.v.rate":"Taux actuel : {v}","kal436.v.cpi":"Dernier ({m}) : {y} sur un an, sous-jacente {c}","kal436.v.cpi1":"Dernier ({m}) : {y} sur un an","kal436.v.job":"Dernier ({m}) : chômage {u}, emplois {n} mille","kal436.v.job1":"Dernier ({m}) : chômage {u}","kal436.v.gdp":"Dernier ({q}) : {v} en rythme annuel","kal436.asof":"Données au {d}","kal436.approx":"Heure selon la règle de publication habituelle (le calendrier ne donne que le jour)"},"it":{"kal436.imp.3":"Alta","kal436.imp.2":"Media","kal436.v.rate":"Tasso attuale: {v}","kal436.v.cpi":"Ultimo ({m}): {y} annuo, core {c}","kal436.v.cpi1":"Ultimo ({m}): {y} annuo","kal436.v.job":"Ultimo ({m}): disoccupazione {u}, occupati {n} mila","kal436.v.job1":"Ultimo ({m}): disoccupazione {u}","kal436.v.gdp":"Ultimo ({q}): {v} annualizzato","kal436.asof":"Dati al {d}","kal436.approx":"Orario secondo la regola di pubblicazione abituale (il calendario indica solo il giorno)"},"pt":{"kal436.imp.3":"Alta","kal436.imp.2":"Média","kal436.v.rate":"Taxa atual: {v}","kal436.v.cpi":"Último ({m}): {y} homólogo, subjacente {c}","kal436.v.cpi1":"Último ({m}): {y} homólogo","kal436.v.job":"Último ({m}): desemprego {u}, emprego {n} mil","kal436.v.job1":"Último ({m}): desemprego {u}","kal436.v.gdp":"Último ({q}): {v} anualizado","kal436.asof":"Dados de {d}","kal436.approx":"Hora segundo a regra habitual de publicação (o calendário indica só o dia)"},"ru":{"kal436.imp.3":"Высокая","kal436.imp.2":"Средняя","kal436.v.rate":"Текущая ставка: {v}","kal436.v.cpi":"Последнее ({m}): {y} г/г, базовая {c}","kal436.v.cpi1":"Последнее ({m}): {y} г/г","kal436.v.job":"Последнее ({m}): безработица {u}, занятость {n} тыс.","kal436.v.job1":"Последнее ({m}): безработица {u}","kal436.v.gdp":"Последнее ({q}): {v} в годовом выражении","kal436.asof":"На {d}","kal436.approx":"Время по обычному правилу публикации (в календаре указан только день)"},"zh":{"kal436.imp.3":"高","kal436.imp.2":"中","kal436.v.rate":"当前利率：{v}","kal436.v.cpi":"最新（{m}）：同比 {y}，核心 {c}","kal436.v.cpi1":"最新（{m}）：同比 {y}","kal436.v.job":"最新（{m}）：失业率 {u}，新增就业 {n} 千人","kal436.v.job1":"最新（{m}）：失业率 {u}","kal436.v.gdp":"最新（{q}）：年化 {v}","kal436.asof":"截至 {d}","kal436.approx":"时间按惯例发布规则（日程表只给出日期）"},"ja":{"kal436.imp.3":"高","kal436.imp.2":"中","kal436.v.rate":"現在の政策金利：{v}","kal436.v.cpi":"直近（{m}）：前年比 {y}、コア {c}","kal436.v.cpi1":"直近（{m}）：前年比 {y}","kal436.v.job":"直近（{m}）：失業率 {u}、雇用者数 {n}千人","kal436.v.job1":"直近（{m}）：失業率 {u}","kal436.v.gdp":"直近（{q}）：年率 {v}","kal436.asof":"{d}時点","kal436.approx":"通常の公表ルールによる時刻（日程表には日付のみ）"}};
+for(const l in EXTRA299)if(I18N[l])Object.assign(I18N[l],EXTRA299[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -13563,33 +13570,68 @@ try{new MutationObserver(()=>renderKal()).observe(document.documentElement,{attr
 /* ---------- koniec bloku kalendarza (v372) ---------- */
 /* ===================== v414 (W2, paczka wyglądu 19.10.2026): MAŁY KALENDARZ MAKRO W GLOBAL — panele #g-rkmi (prawa kolumna, komputer > 1240 px) i #g-kmi (pod parą wskaźników, tablet i telefon) =====================
    Pod „Strachem i chciwością GLOBAL” i „Pokryciem danych GLOBAL” mały panel wielkości kart wskaźników: wybór okresu Dzień / Tydzień / Miesiąc (dziś; 7 dni; 30 dni — dni polskie od dziś) i lista
-   TYLKO najważniejszych terminów z plików kalendarz.json i kalendarz2.json (nic wymyślonego): decyzje banków centralnych (Fed, EBC, Bank Anglii, Bank Japonii), inflacja, rynek pracy, PKB.
-   Wybór terminów: tablica KALM_KAT (kod terminu → kategoria), każdy z wagą 2–3 w tabelach kodów karty „Kalendarz”; protokół Fed, bilans, sprzedaż, produkcja i inne zostają tylko w karcie 14 dni.
-   Godzina w czasie polskim (kalPl — własna reguła zmiany czasu karty), flaga regionu, nazwa po polsku (te same klucze co karta), okres, którego dotyczy odczyt, waga kropkami; minione przygaszone.
+   TYLKO najważniejszych terminów z plików kalendarz.json i kalendarz2.json (nic wymyślonego): decyzje banków centralnych (Fed, EBC, Bank Anglii, Bank Japonii), inflacja CPI i PCE, rynek pracy USA, PKB, sprzedaż detaliczna USA.
+   Wybór terminów i ich ważność (v436): własna tablica KALM_IMP w kodzie (kod terminu → 3 = czerwony, 2 = pomarańczowy), niezależna od wag w tabelach karty „Kalendarz”; reszta terminów zostaje tylko w karcie 14 dni.
+   Godzina w czasie polskim (kalPl — własna reguła zmiany czasu karty), flaga regionu, nazwa po polsku (te same klucze co karta), okres, którego dotyczy odczyt, ważność kolorem (legenda: wysoka, średnia); pod nazwą ostatni odczyt (v436, tylko przy terminach jeszcze nieopublikowanych); minione przygaszone.
    Tych samych plików nie pobieramy drugi raz: używamy KALZ i kalLoad karty (pamięć minutowa srvJSON, ponowienie po błędzie nie częściej niż co minutę); pobranie dopiero w zakładce GLOBAL.
-   Wiek i data: stopka „Plik z …”; część z błędem (stare terminy), obszary bez terminarza (np. posiedzenia NBP) i okno dalsze niż plik — jedno zdanie każde. Brak = brak wiersza, nigdy zero.
-   Wybrany okres w tej przeglądarce (cfai.kalm). Kolory kropek wagi to ważność, nie kierunek. Nie jest to porada inwestycyjna. */
+   Bez opisu działania i bez informacji o pliku (v436); uwagi tylko o brakach: część z błędem (stare terminy), obszary bez terminarza (np. posiedzenia NBP) i okno dalsze niż plik — jedno zdanie każde. Brak = brak wiersza, nigdy zero.
+   Wybrany okres w tej przeglądarce (cfai.kalm). Kolory ważności (czerwony, pomarańczowy) to ważność terminu, nie kierunek rynku. Nie jest to porada inwestycyjna. */
 var KALM_READY=false;
 const KALM={p:'w',all:false};
 const KALM_N={d:1,w:7,m:30};
 const KALM_LIM=6;
-const KALM_KAT={fomc:'bc',eu_stopy:'bc',uk_stopy:'bc',jp_stopy:'bc',us_pce:'inf',us_cpi:'inf',eu_cpi_flash:'inf',eu_cpi:'inf',pl_cpi:'inf',us_praca:'pr',eu_bezrob:'pr',us_pkb:'pkb',eu_pkb_flash:'pkb',eu_pkb:'pkb',pl_pkb:'pkb'};
+const KALM_IMP={fomc:3,eu_stopy:3,uk_stopy:3,jp_stopy:3,us_cpi:3,us_pce:3,us_praca:3,us_pkb:3,eu_cpi_flash:3,eu_pkb_flash:2,eu_cpi:2,pl_cpi:2,pl_pkb:2,us_sprzedaz:2};
+/* v436: wartości przy terminach — tylko ostatni odczyt z danych, które strona już zna (stopy banków, inflacja i rynek pracy USA, PKB USA, inflacja strefy euro i Polski); brak danych albo dane starsze niż okno świeżości = bez wiersza wartości, nigdy zero */
+const KALM_RATE={fomc:'US',eu_stopy:'XM',uk_stopy:'GB',jp_stopy:'JP'};
+const KALM_INF={eu_cpi_flash:'XM',eu_cpi:'XM',pl_cpi:'PL'};
+const KALV={};
+const KALV_FILES=[['s','stopy'],['m','usa-makro'],['b','bilans-usa'],['i','inflacja']];
+const kalvJ=k=>(KALV[k]&&kalObj(KALV[k].j))?KALV[k].j:null;
+/* pobranie plików wartości (raz na 30 min; po błędzie najwcześniej po minucie), po każdym pobraniu przerysowanie panelu */
+function kalvLoad(){const now=Date.now();KALV_FILES.forEach(([k,f])=>{const S=KALV[k]||(KALV[k]={j:null,t:0,e:0,l:false});
+  if(S.l||(S.t&&now-S.t<30*60*1000)||(S.e&&now-S.e<60*1000))return;S.l=true;
+  srvJSON(f).then(j=>{S.l=false;if(kalObj(j)){S.j=j;S.t=Date.now();}else S.e=Date.now();renderKalMini();});});}
+const kalmNum=(v,a,b)=>typeof v==='number'&&isFinite(v)&&v>=a&&v<=b;
+const kalmDec=(v,d)=>new Intl.NumberFormat(kalLoc(),{minimumFractionDigits:d,maximumFractionDigits:d}).format(v);
+const kalmPct=(v,d)=>kalmDec(v,d)+'%';
+/* ostatni poprawny wiersz [okres, liczba] (okres wg wzoru, liczba w zakresie) */
+function kalmLast(a,re,lo,hi){let b=null;(Array.isArray(a)?a:[]).forEach(r=>{if(Array.isArray(r)&&typeof r[0]==='string'&&re.test(r[0])&&kalmNum(r[1],lo,hi)&&(!b||r[0]>b[0]))b=r;});return b;}
+/* okres („RRRR-MM”, „RRRR-Qn”, „RRRR-MM-DD”) zaczął się nie dawniej niż `dni` dni temu */
+function kalmFresh(per,dni){const m=/^(\d{4})-(?:Q([1-4])|(\d{2})(?:-(\d{2}))?)$/.exec(typeof per==='string'?per:'');if(!m)return false;
+  const ms=m[2]?Date.UTC(+m[1],(+m[2]-1)*3,1):Date.UTC(+m[1],+m[3]-1,m[4]?+m[4]:1);return isFinite(ms)&&Date.now()-ms<=dni*864e5;}
+/* wiersz wartości (ostatni odczyt) pod nazwą terminu; '' gdy brak świeżych danych */
+function kalmVal(e){const k=e.k;let s='',ti='';
+  if(kalHas(KALM_RATE,k)){const S=kalvJ('s'),R=S&&kalObj(S.rows)&&kalHas(S.rows,KALM_RATE[k])?S.rows[KALM_RATE[k]]:null;
+    if(kalObj(R)&&kalmNum(R.rate,-10,100)&&typeof R.date==='string'&&kalmFresh(R.date,60)){let v=null;
+      if(k==='fomc'){const lo=R.rate-0.125;if(Math.abs(lo*4-Math.round(lo*4))<1e-6)v=kalmDec(lo,2)+'–'+kalmPct(lo+0.25,2);}   /* stopa Fed to widełki 0,25 pp; wartość źródła to ich środek */
+      s=t('kal436.v.rate',{v:v||kalmPct(R.rate,2)});ti=t('kal436.asof',{d:kalDayShort(R.date)});}}
+  else if(k==='us_cpi'){const M=kalvJ('m'),S=M&&kalObj(M.s)?M.s:null,y=S&&kalObj(S.cpi)?kalmLast(S.cpi.yoy,/^\d{4}-\d{2}$/,-30,100):null;
+    if(y&&kalmFresh(y[0],130)){const c=kalObj(S.core)?kalmLast(S.core.yoy,/^\d{4}-\d{2}$/,-30,100):null,same=!!c&&c[0]===y[0];
+      s=t(same?'kal436.v.cpi':'kal436.v.cpi1',{m:kalPer(y[0]),y:kalmPct(y[1],1),c:same?kalmPct(c[1],1):''});}}
+  else if(k==='us_praca'){const M=kalvJ('m'),S=M&&kalObj(M.s)?M.s:null,u=S&&kalObj(S.unemp)?kalmLast(S.unemp.d,/^\d{4}-\d{2}$/,0,100):null;
+    if(u&&kalmFresh(u[0],130)){const n=kalObj(S.nfp)?kalmLast(S.nfp.chg,/^\d{4}-\d{2}$/,-3000,3000):null,same=!!n&&n[0]===u[0];
+      s=t(same?'kal436.v.job':'kal436.v.job1',{m:kalPer(u[0]),u:kalmPct(u[1],1),n:same?(n[1]>0?'+':n[1]<0?'−':'')+kalmDec(Math.abs(n[1]),0):''});}}
+  else if(k==='us_pkb'){const B=kalvJ('b'),g=B?kalmLast(B.gdp,/^\d{4}-Q[1-4]$/,-50,50):null;
+    if(g&&kalmFresh(g[0],250))s=t('kal436.v.gdp',{q:kalPer(g[0]),v:kalmPct(g[1],1)});}
+  else if(kalHas(KALM_INF,k)){const I=kalvJ('i'),C=I&&kalObj(I.c)&&kalHas(I.c,KALM_INF[k])?I.c[KALM_INF[k]]:null;
+    if(kalObj(C)&&typeof C.m==='string'&&/^\d{4}-\d{2}$/.test(C.m)&&kalmNum(C.v,-30,1000)&&kalmFresh(C.m,130))s=t('kal436.v.cpi1',{m:kalPer(C.m),y:kalmPct(C.v,1)});}
+  return s?`<span class="kmi-v"${ti?` title="${escH(ti)}"`:''}>${escH(s)}</span>`:'';}
 try{const v=localStorage.getItem('cfai.kalm');if(typeof v==='string'&&kalHas(KALM_N,v))KALM.p=v;}catch(e){}
 /* dni polskie od dnia, w którym jest chwila now (ms): n dni, ['RRRR-MM-DD', …] */
 function kalmDays(now,n){const b=Date.parse(kalPl(now).day+'T12:00:00Z');return Array.from({length:n},(_,i)=>new Date(b+i*864e5).toISOString().slice(0,10));}
 const kalmName=e=>t((kalHas(KAL2_KODY,e.k)?'kal375.e.':'kal372.e.')+e.k);
-function kalmRow(e,now){const past=e.ms<now,per=kalPer(e.p),wt=t('kal372.w.'+e.w);
-  const dots=[1,2,3].map(i=>`<i${i<=e.w?' class="on"':''}></i>`).join('');
-  return `<li class="kmi-e w${e.w}${past?' kmi-past':''}"><span class="kmi-h">${e.g==='r'?'~':''}${e.pl.hm}</span><span class="kmi-fl">${typeof flagImg==='function'?flagImg(e.r,'sm'):''}</span>`+
-    `<span class="kmi-t">${escH(kalmName(e))}${per?` <small>${escH(per)}</small>`:''}${past?` <small>${t('kal372.past')}</small>`:''}</span>`+
-    `<span class="kmi-d" role="img" aria-label="${escH(wt)}" title="${escH(wt)}">${dots}</span></li>`;}
+function kalmRow(e,now){const past=e.ms<now,per=kalPer(e.p),wt=t('kal436.imp.'+e.w),val=past?'':kalmVal(e);
+  return `<li class="kmi-e w${e.w}${past?' kmi-past':''}"><span class="kmi-h"${e.g==='r'?` title="${escH(t('kal436.approx'))}"`:''}>${e.g==='r'?'~':''}${e.pl.hm}</span><span class="kmi-fl">${typeof flagImg==='function'?flagImg(e.r,'sm'):''}</span>`+
+    `<span class="kmi-t">${escH(kalmName(e))}${per?` <small>${escH(per)}</small>`:''}${past?` <small>${t('kal372.past')}</small>`:''}${val}</span>`+
+    `<span class="kmi-i w${e.w}" role="img" aria-label="${escH(wt)}" title="${escH(wt)}"></span></li>`;}
 /* zawartość panelu (bez opakowania): nagłówek, wybór okresu, lista, uwagi, stopka */
 function kalmInner(){const J=KALZ.j,P=KALM.p;
   const seg=`<div class="seg" role="group" aria-label="${escH(t('kal414.p.aria'))}">`+['d','w','m'].map(k=>`<button type="button" data-kmi-p="${k}" aria-pressed="${P===k}">${t('kal414.p.'+k)}</button>`).join('')+`</div>`;
-  const head=`<h2><span>${t('kal414.t')}</span></h2><p class="kmi-sub">${t('kal414.sub')}</p>${seg}`;
+  const head=`<h2><span>${t('kal414.t')}</span></h2>${seg}`;
   if(!J)return head+`<p class="pnote">${t(KALZ.x?'kal372.err':'kal414.load')}</p>`;
-  const now=Date.now(),days=kalmDays(now,KALM_N[P]),today=days[0],all=kalEv(J,KALZ.j2).filter(e=>kalHas(KALM_KAT,e.k)),ev=all.filter(e=>days.includes(e.pl.day)),n=ev.length;
+  const now=Date.now(),days=kalmDays(now,KALM_N[P]),today=days[0],all=kalEv(J,KALZ.j2).filter(e=>kalHas(KALM_IMP,e.k)).map(e=>Object.assign({},e,{w:KALM_IMP[e.k]})),ev=all.filter(e=>days.includes(e.pl.day)),n=ev.length;
   const rng=t('kal414.r.'+P,{a:P==='d'?kalDayLbl(today):kalDayShort(days[0]),b:kalDayShort(days[days.length-1])});
+  const leg=`<p class="kmi-leg">`+[3,2].map(w=>`<span><i class="kmi-i w${w}" aria-hidden="true"></i>${t('kal436.imp.'+w)}</span>`).join('')+`</p>`;   /* legenda: czerwony = wysoka, pomarańczowy = średnia */
   let body='';
   if(!n){const nx=all.find(e=>e.ms>=now);
     body=`<p class="pnote">${t('kal414.none.'+P)}</p>`+(nx?`<p class="pnote">${t('kal414.next',{d:kalDayShort(nx.pl.day),h:(nx.g==='r'?'~':'')+nx.pl.hm,n:escH(kalmName(nx))})}</p>`:'');}
@@ -13603,16 +13645,16 @@ function kalmInner(){const J=KALZ.j,P=KALM.p;
   const bad=KAL_PARTS.filter(p=>kalObj(J.ok)&&J.ok[p]===false).map(p=>t('kal372.p.'+p)).concat(J2&&kalObj(J2.ok)?KAL2_PARTS.filter(p=>J2.ok[p]===false&&Array.isArray(J2.e[p])&&J2.e[p].length).map(p=>t('kal375.p.'+p)):[]);
   const miss=J2?(Array.isArray(J2.brak)?J2.brak:[]).filter(c=>KAL2_BRAK.includes(c)):(Array.isArray(J.brak)?J.brak:[]).filter(c=>KAL_BRAK.includes(c));
   const dos=[J.do,J2&&J2.do].filter(x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)).sort()[0],last=days[days.length-1];
-  return head+`<p class="kmi-rng">${escH(rng)}</p>`+body+
+  return head+`<div class="kmi-meta"><p class="kmi-rng">${escH(rng)}</p>${leg}</div>`+body+
     (bad.length?`<p class="pnote neu">${t('kal372.errp',{p:bad.join(', ')})}</p>`:'')+
     (dos&&last>dos?`<p class="pnote neu">${t('kal414.short',{d:kalDayShort(dos)})}</p>`:'')+
     (miss.length?`<p class="pnote">${t('kal372.brak',{z:miss.map(c=>t(c==='pl_szybki'?'kal375.brak.pl_szybki':'kal372.brak.'+c)).join(', ')})}</p>`:'')+
-    `<p class="pnote">${t('kal414.note')}</p><p class="pfoot">${t('inst.file',{t:engDate(J.at)})} · ${t('eng.disclaimer')}</p>`;}
+    `<p class="pfoot">${t('eng.disclaimer')}</p>`;}
 /* opakowanie panelu w prawej kolumnie (woła je gRailRender); bez części kalendarza w meta.json — nic */
 function kalmSection(){return KALM_READY&&KALZ.on?`<section class="panel kmi" id="g-rkmi">${kalmInner()}</section>`:'';}
 const kalmGlobal=()=>typeof st==='object'&&!!st&&st.mode==='global';
 /* pobranie plików tylko w zakładce GLOBAL (kalLoad i kal2Load same pilnują przerw i błędów; ok. 12 KB, więc także przy karcie przeglądarki w tle — wraca z danymi) */
-function kalmKick(){if(!KALM_READY||!KALZ.on||!kalmGlobal())return;kalLoad();if(KALZ.j&&!KALZ.j2)kal2Load();}
+function kalmKick(){if(!KALM_READY||!KALZ.on||!kalmGlobal())return;kalLoad();if(KALZ.j&&!KALZ.j2)kal2Load();if(KALZ.j)kalvLoad();}   /* v436: pliki wartości (ostatnie odczyty) po pierwszym pliku kalendarza */
 function renderKalMini(){if(!KALM_READY)return;
   try{const ph=$('#g-kmi'),on=!!KALZ.on,h=on?kalmInner():'';
     if(ph){if(ph._km!==h){ph._km=h;ph.innerHTML=h;}ph.hidden=!on;}
