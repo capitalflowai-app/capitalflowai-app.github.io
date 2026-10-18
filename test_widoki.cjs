@@ -12237,13 +12237,13 @@ test('v157: CRYPTO — stablecoiny według sieci (pole = podaż, kolor = zmiana 
   const N0 = v157.fix('top10'); N0.g.ai.c.push(N0.g.l1.c[0].slice());   /* ta sama moneta w dwóch grupach (jak HYPE i LINK w pliku) */
   const N = T.t10Norm(N0);
   const U = v157C(null, {T10: {data: N, st: 'ok'}});
-  const u = U.wkCT10(), UT = v157.tips(u.ch);
-  assert.equal(UT.length, 17, '4 grupy po 4 monety + jedna moneta w drugiej grupie');
-  assert.ok(u.ch.includes('aria-label="16 monet w 4 grupach; największa: BNB."'), 'opis: moneta w dwóch grupach liczona raz');
-  assert.deepEqual(UT.slice(0, 4).map(x => x.replace(/ · D\(2026-10-04T\d\d:\d\d:\d\dZ\)$/, '')), ['BNB (BNB) · L1: 105,3 mld USD · 24 h: +2,9%', 'XRP (XRP) · L1: 94,7 mld USD · 24 h: +1,1%', 'Solana (SOL) · L1: 71,4 mld USD · 24 h: +1,7%', 'TRON (TRX) · L1: 31,9 mld USD · 24 h: −0,3%'], 'moneta: grupa, kapitalizacja, zmiana 24 h (największe pierwsze)');
+  const u = U.wkCT10(), UT = v157.tips(u.ch);   /* v425: słupki jednej grupy (domyślnie L1), posortowane wg kapitalizacji */
+  assert.equal(UT.length, 4, 'cztery monety grupy L1 (powtórzona w grupie AI jest tylko w jej liście)');
+  assert.ok(u.ch.includes('aria-label="Największe monety grupy L1 (4): na czele BNB (105,3 mld USD). Długość słupka to kapitalizacja, kolor to zmiana w ciągu 24 godzin."'), 'opis zdaniem: grupa, liczba monet, największa');
+  assert.deepEqual(UT.map(x => x.replace(/ · D\(2026-10-04T\d\d:\d\d:\d\dZ\)$/, '')), ['BNB (BNB) · L1: 105,3 mld USD · 24 h: +2,9%', 'XRP (XRP) · L1: 94,7 mld USD · 24 h: +1,1%', 'Solana (SOL) · L1: 71,4 mld USD · 24 h: +1,7%', 'TRON (TRX) · L1: 31,9 mld USD · 24 h: −0,3%'], 'moneta: grupa, kapitalizacja, zmiana 24 h (największe pierwsze)');
   assert.ok(UT.every(x => / · D\(2026-10-04T\d\d:\d\d:\d\dZ\)$/.test(x)), 'chwila notowania monety w podpowiedzi');
-  assert.deepEqual(v157.tags(u.ch, 'rect', 'wk-tc').slice(0, 4).map(c => c.class), ['wk-tc pos', 'wk-tc pos', 'wk-tc pos', 'wk-tc neg'], 'wzrost zielony, spadek czerwony');
-  assert.equal(v157.tags(u.ch, 'rect', 'wk-tg').length, 4, 'obrys każdej grupy');
+  assert.deepEqual(v157.tags(u.ch, 'rect', 'wk-b').map(c => c.class), ['wk-b pos', 'wk-b pos', 'wk-b pos', 'wk-b neg'], 'wzrost zielony, spadek czerwony');
+  assert.equal(v157.tags(u.ch, 'button', 't10-gb').length, 4, 'przycisk każdej grupy z danymi');
   assert.ok(u.d.startsWith('D(2026-10-04T'), 'chwila pliku');
 });
 
@@ -14426,10 +14426,12 @@ test('v293c CR-03: Sektory i Przepływy — wiersz krypto to zmiana podaży stab
   assert.ok(html.slice(html.indexOf('function pgNodes(){'), html.indexOf('\nconst pgFmt=')).includes("sub:t('pg.sub.crypto'),coins:['USDT','USDC']"));
 });
 
-test('v293c CR-06: Wykresy „Top 10 monet w grupach” — dopisek, że RWA to kategoria rynku, nie wartość tokenizowanych aktywów', () => {
-  const N = v157C(null, {T10: {data: null, st: 'ok'}}).t10Norm(v157.fix('top10'));
-  const u = v157C(null, {T10: {data: N, st: 'ok'}}).wkCT10(), r = v157.t('a293c.wk.t10.rwa');
-  assert.equal(u.s, v157.t('wk.c.t10.s') + ' · ' + r);
+test('v293c CR-06 (v425): Wykresy „Top 10 monet w grupach” — dopisek, że RWA to kategoria rynku, nie wartość tokenizowanych aktywów, tylko przy grupie RWA', () => {
+  const N0 = v157.fix('top10'); N0.g.rwa = JSON.parse(JSON.stringify(N0.g.ai));
+  const N = v157C(null, {T10: {data: null, st: 'ok'}}).t10Norm(N0), r = v157.t('a293c.wk.t10.rwa');
+  const K = v157C(null, {T10: {data: N, st: 'ok'}});
+  assert.equal(K.wkCT10('rwa').s, v157.t('w425.t10.s') + ' · ' + r);
+  assert.equal(K.wkCT10('ai').s, v157.t('w425.t10.s'), 'inna grupa — bez dopisku');
   assert.ok(/kategoria rynku/.test(r) && r.includes('Tokenizowane aktywa'));
 });
 
@@ -25255,15 +25257,13 @@ test('v359 CR-M11-03: Dźwignia, „wszystkie giełdy razem” — wieczysty Der
   assert.ok(html.includes("LEV_LIVE=['hl','okx','kr','cb','cde','dy','dr'],LEV_SUMAGE=6*3600e3") && html.includes("dr:'Deribit',bn:'Binance'}"), 'kod: LEV_LIVE ma dr');
 });
 
-test('v359 CR-M11-05: Wykresy, Top 10 w grupach — podtytuł z ostrzeżeniem o powtórzeniach monet tylko wtedy, gdy powtórzenia są', () => {
-  const N = v157C(null, {T10: {data: null, st: 'ok'}}).t10Norm(v157.fix('top10')), seen = new Set();
-  for (const k of Object.keys(N.g)) if (N.g[k] && Array.isArray(N.g[k].c)) N.g[k].c = N.g[k].c.filter(x => !seen.has(x.id) && seen.add(x.id));
-  const dup = v157.t('cr359.t10.dup'), rw = v157.t('a293c.wk.t10.rwa');
-  assert.equal(v157C(null, {T10: {data: N, st: 'ok'}}).wkCT10().s, v157.t('wk.c.t10.s') + ' · ' + rw, 'bez powtórzeń — bez ostrzeżenia');
-  const ks = Object.keys(N.g).filter(k => N.g[k] && Array.isArray(N.g[k].c) && N.g[k].c.length), D = JSON.parse(JSON.stringify(N));
-  D.g[ks[1]].c.push(Object.assign({}, D.g[ks[0]].c[0]));
-  assert.equal(v157C(null, {T10: {data: D, st: 'ok'}}).wkCT10().s, v157.t('wk.c.t10.s') + ' · ' + rw + ' · ' + dup, 'ta sama moneta w dwóch grupach — ostrzeżenie');
-  assert.ok(dup.includes('HYPE') && dup.includes('nie sumują się do rynku'));
+test('v359 CR-M11-05 (v425): Wykresy, Top 10 w grupach — ta sama moneta w dwóch grupach jest na liście każdej z nich, a suma liczona w obrębie grupy (bez ostrzeżenia o polach)', () => {
+  const N = v157C(null, {T10: {data: null, st: 'ok'}}).t10Norm(v157.fix('top10')), D = JSON.parse(JSON.stringify(N));
+  D.g.ai.c.push(Object.assign({}, D.g.l1.c[0]));
+  const K = v157C(null, {T10: {data: D, st: 'ok'}}), a = K.wkCT10('ai'), l = K.wkCT10('l1');
+  assert.ok(v157.tips(a.ch).some(x => x.startsWith('BNB (BNB) · AI: ')) && v157.tips(l.ch).some(x => x.startsWith('BNB (BNB) · L1: ')), 'moneta w obu grupach');
+  assert.ok(!a.s.includes('nie sumują się') && !l.s.includes('nie sumują się'), 'bez zdania o sumowaniu pól — słupki nie sumują grup');
+  assert.equal(a.s, v157.t('w425.t10.s'));
 });
 
 test('v359 CR-M11-06/07: MiCA — remis na granicy pokazany razem, reszta krajów policzona; nota o firmach bez daty zezwolenia i „Pozostałe” przy emitentach', () => {
@@ -33465,4 +33465,98 @@ test('v424 (W4A): miejsce bloków (przed etfBars — poza wycinkami starych test
   for (const k of keys) { assert.ok(used.has(k) || dyn.some(u => k.startsWith(u)), 'klucz słownika użyty w kodzie: ' + k); const ph = x => (x.match(/\{[a-z]+\}/g) || []).sort().join(); for (const l of Object.keys(D)) assert.equal(ph(D[l][k]), ph(D.pl[k]), 'znaczniki ' + k + ' ' + l); }
   assert.ok(!/DefiLlama|SoSoValue|Llama|Soso/i.test(JSON.stringify(D)) && !/DefiLlama|SoSoValue/.test(w424.MOD), 'bez nazw dostawców');
   assert.ok(!/\u00a0|\u202f|[\u200b-\u200f\u2060\ufeff]/.test(w424.MOD), 'bez niewidocznych znaków w kodzie');
+});
+
+/* ===================== v425 (W4B_TOP10_LINIE): Top 10 monet w grupach jako słupki; premia tokenów złota jako kolumny dzienne ===================== */
+const v425 = (() => {
+  const N0 = () => v157.fix('top10'), norm = D => v157C(null, {T10: {data: null, st: 'ok'}}).t10Norm(D);
+  const C = (D, logo) => v157C(null, {T10: {data: D, st: 'ok', logo: logo || {}}});
+  return {N0, norm, C};
+})();
+
+test('v425: Top 10 w grupach — słupki jednej grupy: posortowane wg kapitalizacji (najdłuższy = największa moneta), przycisk każdej grupy z danymi, wybór grupy, nieznana grupa → pierwsza', () => {
+  const N = v425.norm(v425.N0()); N.g.l1.c.reverse();   /* kolejność w danych nie ma znaczenia — kafel sortuje sam */
+  const K = v425.C(N);
+  const u = K.wkCT10(), R = v157.tags(u.ch, 'rect', 'wk-b').map(r => +r.width);
+  assert.equal(R.length, 4); assert.equal(R[0], 100, 'największa moneta — cała długość');
+  assert.ok(R.every((w, i) => i === 0 || w < R[i - 1]), 'malejąco: ' + R.join(','));
+  assert.ok(Math.abs(R[1] - 94652609406 / 105282204857 * 100) < .01, 'długość ∝ kapitalizacji');
+  assert.deepEqual(v157.tags(u.ch, 'button', 't10-gb').map(b => [b['data-t10g'], b['aria-pressed']]), [['l1', 'true'], ['ai', 'false'], ['defi', 'false'], ['meme', 'false']], 'przyciski w kolejności grup sceny; wybrana oznaczona');
+  assert.ok(u.ch.includes('role="group" aria-label="Grupa monet"'), 'przyciski jako grupa z opisem');
+  assert.ok(u.ch.includes('<b>L1</b> · 4 największych monet · razem 303,2 mld USD'), 'nagłówek grupy: liczba monet i suma');
+  const a = K.wkCT10('ai'), A = v157.tips(a.ch);
+  assert.equal(A.length, 4); assert.ok(A[0].startsWith('NEAR Protocol (NEAR) · AI: ') && a.ch.includes('<button class="t10-gb" type="button" data-t10g="ai" aria-pressed="true">AI</button>'));
+  assert.equal(K.wkCT10('nie-ma').ch, u.ch, 'nieznana grupa — pierwsza z danymi');
+  assert.equal(u.k, 'p'); assert.ok(u.d.startsWith('D(2026-10-04T'));
+  const G = v425.N0(); delete G.g.l1; const L = v425.C(v425.norm(G)).wkCT10('l1');
+  assert.ok(L.ch.includes('data-t10g="ai" aria-pressed="true"') && !L.ch.includes('data-t10g="l1"'), 'brak grupy w danych — bez jej przycisku, pierwsza dostępna');
+});
+
+test('v425: Top 10 w grupach — logo z pliku albo znaczek monety, zmiana 24 h w kolorze znaku (zero żółte, brak „—” i szary), zabezpieczenie tekstów', () => {
+  const D = v425.N0(); D.g.l1.c[1][5] = 0.03;   /* 0,03 % → po zaokrągleniu do 0,1 to „0,0%” — żółte */ D.g.l1.c[2][5] = null; D.g.l1.c[3][1] = 'T<x>';
+  const K = v425.C(v425.norm(D), {binancecoin: 'data:image/png;base64,AAAA', ripple: 'javascript:alert(1)'}), u = K.wkCT10();
+  assert.ok(u.ch.includes('<img class="ico sm" src="data:image/png;base64,AAAA"'), 'logo z pliku (poprawny adres obrazka)');
+  assert.ok(u.ch.includes('<i data-c="XRP">') && !u.ch.includes('javascript:'), 'niepoprawny adres logo — znaczek monety, nigdy ten adres');
+  assert.deepEqual(v157.tags(u.ch, 'rect', 'wk-b').map(c => c.class), ['wk-b pos', 'wk-b zer', 'wk-b na', 'wk-b neg'], 'plus zielony, zero żółty, brak szary, minus czerwony');
+  assert.ok(u.ch.includes('<small class="zer">0,0%</small>') && u.ch.includes('<small class="na">—</small>') && u.ch.includes('<small class="pos">+2,9%</small>'), 'liczba zmiany w klasie koloru');
+  assert.ok(v157.tips(u.ch).some(x => x.startsWith('Solana (SOL) · L1: 71,4 mld USD · 24 h: brak danych')), 'brak zmiany — w podpowiedzi „brak danych”, nie zero');
+  assert.ok(u.ch.includes('<b>T&lt;x&gt;</b>') && !u.ch.replace(/<i data-c="[^"]*"><\/i>/g, '').includes('T<x>'), 'symbol zabezpieczony (znaczek monety w tym teście to zaślepka)');
+  assert.equal(v425.C(null).wkCT10().na, 'plik danych jeszcze się wczytuje albo jest niedostępny');
+  const E = v425.norm(v425.N0()); for (const k in E.g) E.g[k].c.forEach(x => { x.mc = 0; });
+  assert.equal(v425.C(E).wkCT10().na, 'w danych nie ma liczb do pokazania', 'żadna grupa bez monet — brak z powodem');
+});
+
+test('v425: Top 10 w grupach — obsługa przycisków grup (kliknięcie podmienia tylko ten kafel, fokus zostaje na przycisku), styl ze zmiennych motywu, telefon bez nazw monet; premia tokenów złota w kolumnach (styl)', () => {
+  assert.ok(html.includes("const gb=tg.closest('[data-t10g]');if(gb){const k=gb.getAttribute('data-t10g');") && html.includes("if(T10_G.some(x=>x[0]===k)){WKT.t10=k;wkRender('crypto',new Set(['c-t10']));"), 'kliknięcie: tylko znana grupa, tylko kafel Top 10');
+  assert.ok(html.includes("nb.focus({preventScroll:true})"), 'fokus wraca na przycisk grupy');
+  const css = html.slice(html.indexOf('/* v425 (W4B): Top 10 w grupach'), html.indexOf('#c-surowce .zk-ph1 .wk-sv{flex-basis:110px;min-height:110px}') + 80);
+  assert.ok(css.includes('#wk-crypto .t10-gb[aria-pressed="true"]{background:var(--sel)') && css.includes('#wk-crypto .t10-gb:focus-visible{outline:2px solid var(--bl)') && css.includes('min-height:32px'), 'przyciski: wybrany, fokus, cel dotyku');
+  assert.ok(css.includes('#wk-crypto .t10b .wk-rows .wk-br:has(.wk-b) .wk-bv{color:var(--tx)}'), 'wartość kapitalizacji neutralna (kolor ma tylko zmiana 24 h)');
+  assert.ok(!html.includes('"wk.c.t10.s":') && !html.includes('"wk.c.t10.a":') && html.includes('"wk.c.t10.t":'), 'dawne napisy mapy pól usunięte, tytuł kafla zostaje');
+  assert.ok(css.includes('@media (max-width:520px){#wk-crypto .t10b .wk-bl small{display:none}}'), 'telefon: tylko symbol, nazwa w podpowiedzi');
+  assert.ok(css.includes('.zer{color:var(--yl-tx)}') && css.includes('small.pos{color:var(--gr-tx)}') && css.includes('small.neg{color:var(--rd-tx)}'), 'kolory kierunku jak na stronie (zielony, czerwony, żółty)');
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(css), 'tylko zmienne motywu');
+  assert.ok(css.includes('#c-surowce .zk-ph1 .wk-ch .pos{--k:var(--gr)}') && css.includes('#c-surowce .zk-ph1 .wk-ch .neg{--k:var(--rd)}') && css.includes('#c-surowce .zk-ph1 .wk-ch .zer{--k:var(--yl)}'), 'kolumny premii: znak = kolor');
+  assert.ok(html.includes('src:[\'kpis\',\'wk-t10\'],b:wkCT10}'), 'kafel Top 10 odświeżany jak dotąd (te same źródła)');
+});
+
+test('v425: premia tokenów złota — kolumny dzienne w kolorze znaku, każdy token osobno z bieżącą liczbą; te same dane; bez zestawu wykresów — dawna linia', () => {
+  const FILE = JSON.parse(JSON.stringify(ZK295C_FILE));
+  assert.ok(FILE.tok && Array.isArray(FILE.tok.ph) && FILE.tok.ph.length >= 3, 'plik testowy ma historię premii');
+  const ENVX = {$: () => null, srvJSON: () => ({then() {}}), document: {addEventListener() {}, documentElement: {}, hidden: false, querySelector: () => null}, localStorage: {getItem: () => null, setItem() {}},
+    setInterval: () => 1, MutationObserver: class { observe() {} }, lnAgo: s => ' · ago(' + s + ')'};
+  const K = v157.run(zk295c.BLK + '\n' + v157.KIT, v157.ENV('2026-10-07T20:20:00Z', ENVX), 'zkPh,wkCols');
+  const ph = FILE.tok.ph.filter(r => Array.isArray(r) && /^\d{4}-\d{2}-\d{2}$/.test(r[0]));
+  const h = K.zkPh(FILE.tok);
+  assert.ok(h.startsWith('<div class="arc" id="zk-ph">') && h.includes('<b>Premia tokenów do ceny złota — dzień po dniu (do 90 dni)</b>'));
+  assert.equal((h.match(/<div class="zk-ph1">/g) || []).length, 2, 'PAXG i XAUT osobno');
+  assert.ok(!h.includes('arc-svg') && !h.includes('polyline'), 'bez linii');
+  const B = v157.tags(h, 'rect', 'wk-b');
+  assert.equal(B.length, ph.filter(r => r[1] !== null).length + ph.filter(r => r[2] !== null).length, 'jedna kolumna na dzień i token');
+  const pos = B.filter(b => b.class === 'wk-b pos').length, neg = B.filter(b => b.class === 'wk-b neg').length;
+  const ex = (i, f) => ph.filter(r => r[i] !== null && f(Math.round(r[i] * 100) / 100)).length;
+  assert.equal(pos, ex(1, v => v > 0) + ex(2, v => v > 0), 'zielone = dni z premią dodatnią'); assert.equal(neg, ex(1, v => v < 0) + ex(2, v => v < 0), 'czerwone = dni z premią ujemną');
+  const last = ph[ph.length - 1], fmt = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Math.round(v * 100) / 100).toFixed(2).replace('.', ',') + '%';
+  assert.ok(h.includes('<b>PAXG</b> · <b class="' + (last[1] < 0 ? 'neg' : last[1] > 0 ? 'pos' : 'neu') + '">' + fmt(last[1]) + '</b>'), 'bieżąca premia PAXG w nagłówku, w kolorze znaku');
+  assert.ok(v157.tips(h).some(x => x.startsWith('PAXG: ' + fmt(last[1]) + ' · ')), 'podpowiedź dnia: token, premia, data');
+  assert.ok(/aria-label="PAXG: premia do ceny złota dzień po dniu, \d+ dni; ostatnio /.test(h), 'opis zdaniem');
+  assert.ok(h.includes('<p class="pnote">Na każdy dzień: ostatni pomiar'), 'objaśnienie premii zostaje');
+  const D1 = JSON.parse(JSON.stringify(FILE.tok)); D1.ph = D1.ph.slice(-1);
+  assert.equal(K.zkPh(D1), '', 'jeden dzień — bez wykresu');
+  const D2 = JSON.parse(JSON.stringify(FILE.tok)); D2.ph = D2.ph.map(r => [r[0], r[1], null]);
+  assert.equal((K.zkPh(D2).match(/<div class="zk-ph1">/g) || []).length, 1, 'token bez historii — bez jego wykresu (nie zero)');
+  const D3 = JSON.parse(JSON.stringify(FILE.tok)); D3.ph = [['2026-10-05', 0.003, -0.004], ['2026-10-06', -0.002, 0.004], ['2026-10-07', 0.2, 0.3]];
+  assert.deepEqual(v157.tags(K.zkPh(D3), 'rect', 'wk-b').map(b => b.class), ['wk-b zer', 'wk-b zer', 'wk-b pos', 'wk-b zer', 'wk-b zer', 'wk-b pos'], 'premia zerowa po zaokrągleniu do 0,01 % — żółta kolumna, nie zielona ani czerwona');
+  const old = zk295c.run(FILE).K.zkTok(FILE, Date.parse('2026-10-07T20:20:00Z'));
+  assert.ok(old.includes('id="zk-ph"') && old.includes('arc-svg'), 'bez zestawu wykresów (dawna ścieżka testowa) — linia jak dotąd');
+});
+
+test('v425: słownik w425 — 10 języków, te same symbole zastępcze, bez nazw dostawców', () => {
+  const I = v143Final(html), keys = ['t10.s', 't10.h', 't10.g', 't10.a', 'ph.a'];
+  for (const l of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) for (const k of keys) {
+    const v = I[l]['w425.' + k]; assert.ok(typeof v === 'string' && v.length > 2, l + ' ' + k);
+    assert.deepEqual((v.match(/\{\w+\}/g) || []).sort(), (I.pl['w425.' + k].match(/\{\w+\}/g) || []).sort(), l + ' ' + k + ': te same symbole zastępcze');
+    if (l !== 'pl' && l !== 'en') assert.notEqual(v, I.en['w425.' + k], l + ' ' + k + ': prawdziwe tłumaczenie');
+    assert.ok(!/DefiLlama|CoinMarketCap|CoinGecko|Coinbase|Binance/.test(v), l + ' ' + k + ': bez nazw dostawców');
+  }
 });
