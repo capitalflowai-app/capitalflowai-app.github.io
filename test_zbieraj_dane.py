@@ -69385,3 +69385,91 @@ class TestV416BcbPrzerwa(unittest.TestCase):
             pr['part_at']['br'] = '2026-10-14T02:04:55+00:00'
             zd.build_interwencje(pr)
             self.assertEqual(len(zd.META['errors']), 1, 'dane starsze niż 3 doby — błąd jak dotąd'); self.assertTrue(zd.META['errors'][0].startswith('Interwencje i rezerwy Brazylia:'))
+
+
+# ---------------------------------------------------------------- v417: doba total24h potwierdzana dobą poprzednią (nagranie 18.10.2026 07:53 UTC)
+_V417_FEES = [91002100.47, 97001334.58, 84271527.9, 88399285.24, 87593449.35, 93784329.18, 95884146.38, 89130700.23, 91195460.85, 76893105.82, 76062639.76, 80937294.89, 80992221.44, 78493278.65, 85316908.82, 86729403.23, 77634298.93, 75506279.84, 90770768.19, 83786375.35, 83753011.5, 90477811.06, 79981003.52, 79131063.15, 76581941.08, 82878915.84, 83737884.26, 82150262.56, 87865259.68, 84042092.27, 70718569.18, 74717545.72, 77148669.53, 76004406.62, 77026648.99, 82091609.49, 72644866.15, 91553379.57, 69330514.95, 75071118.91, 75288270.86, 76992370.11, 91800551.04, 74370691.53, 60916845.49, 60870684.31]
+_V417_FEES_T = {"total24h": 61674193.12, "total48hto24h": 74235468.33, "total7d": 523077042.51}
+_V417_OPT = [62448078, 75945416, 24200036, 175247231, 124935352, 35084534, 39568819, 227367383, 175489508, 33280081, 154877182, 249162273, 128433149, 221823526, 164538601.3, 250521857, 203357238, 208647205.04, 526161805, 124789458, 173171173, 216295304, 203804974, 127844391, 71979408, 87946272, 120835198, 75255573, 232701274.99, 167568412, 581226297, 45962057, 71569459.8, 49767849, 136976529, 188358266, 69543631, 27644476, 114986378, 148280637.3, 103695842.5, 230448646, 249313646, 187026674, 55645341, 54782788]
+_V417_OPT_T = {"total24h": 55645341, "total48hto24h": 187026674, "total7d": 1089397164.8}
+
+
+def _v417_odp(c, t, koniec='2026-10-18', baza=None, **zm):
+    """Odpowiedź serwisu z nagrania: ostatnie 46 punktów wykresu (koniec = doba w toku) i sumy; baza — odpowiedź z _v402_* (produkty)."""
+    dni = _v402_dni(len(c), koniec)
+    return dict(baza or {}, totalDataChart=[[_v402_ts(d), v] for d, v in zip(dni, c)], **dict(t, **zm))
+
+
+class DefiFeesV417Doba(unittest.TestCase):
+    """v417: nagranie z 18.10.2026 (błąd META „DeFi 2: fees: doba total24h nie pasuje do wykresu” od 04:04 UTC): total24h różni się od punktu doby 17.10 o 1,23 %."""
+
+    def setUp(self):
+        zd.META['errors'].clear()
+
+    def test_nagranie_przypadku_ma_roznice_powyzej_starej_tolerancji_i_przechodzi(self):
+        j = _v417_odp(_V417_FEES, _V417_FEES_T)
+        W = zd.df2_wykres(j)
+        t24 = j['total24h']
+        e17, e18 = abs(W[-2][1] - t24) / t24, abs(W[-1][1] - t24) / t24
+        self.assertGreater(e17, zd.DF2_TOL_DOBA, 'przypadek: różnica większa niż stara tolerancja 1 %')
+        self.assertLess(e17, e18, 'wartość total24h jest bliżej doby pełnej, ale obie leżą blisko siebie — rozstrzyga doba poprzednia')
+        self.assertLess(abs(e17 - e18), 0.01)
+        self.assertEqual(zd.df2_doba(j, W), ('2026-10-17', len(W) - 2), 'doba pełna 17.10, nie doba w toku 18.10')
+
+    def test_opłaty_z_nagrania_buduja_czesc_z_doba_17_10(self):
+        F = zd.df2_fees(_v417_odp(_V417_FEES, _V417_FEES_T, baza=_v402_fees()), None)
+        self.assertEqual(F['dzien'], '2026-10-17'); self.assertEqual(F['f24'], 61674193)
+        self.assertEqual(F['seria'][-1][0], '2026-10-17', 'seria kończy się na dobie danych, bez doby w toku')
+
+    def test_ta_sama_regula_dla_opcji_z_nagrania(self):
+        j = _v417_odp(_V417_OPT, _V417_OPT_T)
+        W = zd.df2_wykres(j)
+        self.assertEqual(zd.df2_doba(j, W), ('2026-10-17', len(W) - 2))
+        self.assertEqual(zd.df2_doba({k: v for k, v in j.items() if k != 'total48hto24h'}, W), ('2026-10-17', len(W) - 2), 'bez doby poprzedniej — jak dotąd (zgodność dokładna)')
+
+    def test_prawdziwosc_nadal_sprawdzana(self):
+        j = _v417_odp(_V417_FEES, _V417_FEES_T)
+        W = zd.df2_wykres(j)
+        # bez total48hto24h: tylko stara tolerancja 1 % — przypadek jest błędem jak dotąd (nic nie zgadujemy)
+        with self.assertRaisesRegex(ValueError, 'nie pasuje do wykresu'):
+            zd.df2_doba({k: v for k, v in j.items() if k != 'total48hto24h'}, W)
+        # doba poprzednia nie zgadza się z wykresem (21 % różnicy) — brak kotwicy, stara tolerancja
+        with self.assertRaisesRegex(ValueError, 'nie pasuje do wykresu'):
+            zd.df2_doba(dict(j, total48hto24h=j['total48hto24h'] * 0.79), W)
+        # kotwica jest, ale total24h dalej niż 3 %
+        with self.assertRaisesRegex(ValueError, 'nie pasuje do wykresu'):
+            zd.df2_doba(dict(j, total24h=j['total24h'] * 1.05), W)
+        # kotwica i total24h w tolerancji, ale suma 7 dób nie — dalej błąd
+        with self.assertRaisesRegex(ValueError, 'suma 7 dób'):
+            zd.df2_doba(dict(j, total7d=j['total7d'] * 1.2), W)
+        # total48hto24h dalej niż 2 % od punktu z doby wcześniej
+        with self.assertRaisesRegex(ValueError, 'nie pasuje do wykresu'):
+            zd.df2_doba(dict(j, total48hto24h=j['total48hto24h'] * 1.03), W)
+
+    def test_doba_w_toku_nie_wygrywa_gdy_poprzednia_wskazuje_inaczej(self):
+        j = _v417_odp(_V417_FEES, _V417_FEES_T)
+        W = zd.df2_wykres(j)
+        # serwis uzupełnił dobę 18.10 (pełna), total24h = jej wartość z odchyłką 1,5 %, total48hto24h = doba 17.10: wskazanie przechodzi na ostatni punkt
+        t24 = W[-1][1] * 1.015
+        j2 = dict(j, total24h=t24, total48hto24h=W[-2][1] * 1.001, total7d=sum(v for _, v in W[-7:]))
+        self.assertEqual(zd.df2_doba(j2, W), ('2026-10-18', len(W) - 1))
+
+    def test_obie_kotwice_zgodne_wygrywa_dokladniejsza_doba(self):
+        c = [60e6] * 45 + [60.9e6]
+        j = _v417_odp(c, {'total24h': 60.9e6, 'total48hto24h': 60e6, 'total7d': sum(c[-7:])})
+        W = zd.df2_wykres(j)
+        self.assertEqual(zd.df2_doba(j, W), ('2026-10-18', len(W) - 1), 'obie doby w granicach, nowsza zgodna dokładnie (1,5 pp lepiej) — wygrywa nowsza')
+
+    def test_seria_plaska_remis_dobie_starszej_pelnej(self):
+        c = [60e6] * 46
+        j = _v417_odp(c, {'total24h': 60.2e6, 'total48hto24h': 60.1e6, 'total7d': 7 * 60e6})
+        W = zd.df2_wykres(j)
+        self.assertEqual(zd.df2_doba(j, W), ('2026-10-17', len(W) - 2))
+
+    def test_budowa_pliku_z_nagraniem_bez_bledu_w_meta(self):
+        sw = _v402_swiat()
+        sw['fees'] = _v417_odp(_V417_FEES, _V417_FEES_T, baza=sw['fees'])
+        with mock.patch.object(zd, 'df2_pobierz', _v402_pobierz(sw)), mock.patch.object(zd, 'DF2_SLEEP', 0), mock.patch.object(zd, 'SECRETS', []):
+            out, st = zd.build_defi2(None)
+        self.assertIs(st['fees'], True); self.assertEqual(out['fees']['dzien'], '2026-10-17')
+        self.assertFalse([e for e in zd.META['errors'] if 'doba total24h' in e], 'brak błędu „doba total24h nie pasuje do wykresu”')

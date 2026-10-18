@@ -43566,7 +43566,9 @@ DF2_REQ_S = 50             # s — limit jednego zapytania (czytanie kawałkami)
 DF2_LIMIT = 170            # s — budżet czasu budowy pliku
 DF2_MAKS = {'fees': (40_000_000, 12_000_000), 'rev': (40_000_000, 12_000_000), 'opt': (10_000_000, 3_000_000), 'hacks': (6_000_000, 2_000_000),
             'ceny': (40_000_000, 8_000_000), 'lista': (12_000_000, 4_000_000)}   # (po rozpakowaniu, na łączu) — bajty
-DF2_TOL_DOBA = 0.01        # dopuszczalna różnica total24h i punktu wykresu (część)
+DF2_TOL_DOBA = 0.01        # dopuszczalna różnica total24h i punktu wykresu (część) — gdy doba poprzednia nie potwierdza wskazania
+DF2_TOL_DOBA_LUZ = 0.03    # v417: ta różnica, gdy doba poprzednia (total48hto24h) zgadza się z punktem tuż przed wskazanym (DF2_TOL_48)
+DF2_TOL_48 = 0.02          # v417: dopuszczalna różnica total48hto24h i punktu wykresu z doby wcześniej (18.10.2026: 0,18 %)
 DF2_CEL = {'fees': 1, 'opt': 1, 'peg': 0}   # doba, którą część ma mieć po godz. DF2_OD_GODZ: opłaty i opcje — wczorajszą (pełna doba), ceny — dzisiejszą (etykieta doby to jej początek, 00:00 UTC)
 DF2_TOL_7D = 0.05          # dopuszczalna różnica total7d i sumy 7 punktów wykresu (część)
 DF2_TOP = 12               # tyle największych produktów w tabeli opłat
@@ -43635,14 +43637,30 @@ def df2_wykres(j):
 
 
 def df2_doba(j, W):
-    """Doba, której dotyczy total24h: punkt wykresu (jeden z dwóch ostatnich) najbliższy total24h w granicach DF2_TOL_DOBA i zgodna z nim suma 7 dób (DF2_TOL_7D).
+    """Doba, której dotyczy total24h: punkt wykresu (jeden z dwóch ostatnich) najbliższy total24h w granicach DF2_TOL_DOBA (albo DF2_TOL_DOBA_LUZ, gdy potwierdza go doba
+    poprzednia: total48hto24h) i zgodna z nim suma 7 dób (DF2_TOL_7D).
     → (doba, indeks punktu). Ostatni punkt wykresu bywa dobą w toku, więc wskazanie z wartości, nie z pozycji."""
-    t24, t7 = df2_num(j.get('total24h'), 0), df2_num(j.get('total7d'), 0)
+    t24, t7, t48 = df2_num(j.get('total24h'), 0), df2_num(j.get('total7d'), 0), df2_num(j.get('total48hto24h'), 0)
     if not t24:
         raise ValueError('brak total24h')
-    i = min(range(max(0, len(W) - 2), len(W)), key=lambda k: abs(W[k][1] - t24))
-    if abs(W[i][1] - t24) > DF2_TOL_DOBA * t24:
-        raise ValueError('doba total24h nie pasuje do wykresu')
+    # v417: dwie kotwice tej samej doby — total24h w DF2_TOL_DOBA_LUZ od punktu k ORAZ total48hto24h (doba wcześniej) w DF2_TOL_48 od punktu k-1.
+    # Serwis liczy sumę doby z innej chwili niż wykres (18.10.2026: 1,23 % przy 0,04–0,29 % dotąd), a doba w toku leży blisko wartości doby pełnej (1,31 %) —
+    # sama wartość total24h nie rozstrzyga, doba poprzednia tak (0,18 % wobec 21 %). Remis w granicach 0,5 pp = doba starsza (pełna).
+    zak = []
+    if t48:
+        for k in range(max(1, len(W) - 2), len(W)):
+            e24, e48 = abs(W[k][1] - t24) / t24, abs(W[k - 1][1] - t48) / t48
+            if e24 <= DF2_TOL_DOBA_LUZ and e48 <= DF2_TOL_48:
+                zak.append((e24 + e48, k))
+    if zak:
+        s0, i = zak[0]
+        for s, k in zak[1:]:
+            if s < s0 - 0.005:
+                s0, i = s, k
+    else:
+        i = min(range(max(0, len(W) - 2), len(W)), key=lambda k: abs(W[k][1] - t24))   # bez kotwicy: jak dotąd — sama wartość, 1 %
+        if abs(W[i][1] - t24) > DF2_TOL_DOBA * t24:
+            raise ValueError('doba total24h nie pasuje do wykresu')
     if t7 and i >= 6 and abs(sum(v for _, v in W[i - 6:i + 1]) - t7) > DF2_TOL_7D * t7:
         raise ValueError('suma 7 dób nie pasuje do wykresu')
     return W[i][0], i
