@@ -1173,6 +1173,15 @@ textarea.kt-f{min-height:110px;resize:vertical}
 #g-krzywe .etft td .cell.mono{font-variant-numeric:tabular-nums}
 #g-krzywe .etft td .cell.na{color:var(--dim)}
 @media (max-width:620px){#g-krzywe .etfkpis,#g-krzywe .etfkpis.k3{grid-template-columns:repeat(2,minmax(0,1fr))}#g-krzywe .seg button{padding:6px 9px}#g-krzywe .seg button[aria-pressed="false"] .yc-nm{display:none}#g-krzywe .etft td .cell{padding:6px 4px;font-size:12px}#g-krzywe .etft th{padding:6px 4px;font-size:11px}#g-krzywe .etft th .yc-nm2{display:none}#g-krzywe .etft th:first-child{white-space:nowrap;overflow-wrap:normal}}
+/* v418 (W3A_KRZYWE): krzywa z punktami terminów, odwrócenie jako żółte tło, słupki państw, liczba nachylenia w kolorze znaku, tabela po rozwinięciu */
+#g-krzywe .wk-l.s2{stroke-width:1.5;stroke-dasharray:5 4}#g-krzywe .wk-pt.s2{stroke-width:4}#g-krzywe .wk-curve .wk-sv{min-height:190px}
+#g-krzywe .yc-inv{fill:rgba(var(--yl-rgb),.14)}#g-krzywe .wk-ch .yc-invq{--k:rgba(var(--yl-rgb),.5)}
+#g-krzywe .wk-curve .wk-x span:first-child,#g-krzywe .wk-curve .wk-x span:last-child:not(:first-child){transform:translateX(-50%)}
+#g-krzywe .wk-ch .yc-b{--k:var(--bl)}#g-krzywe .wk-bl{white-space:normal;line-height:1.25}#g-krzywe .wk-bv small{margin-left:6px;font-family:inherit;font-size:10.5px;color:var(--dim)}
+#g-krzywe .etfk b.neu{color:var(--yl-tx)}
+#g-krzywe .wk-bars+.pnote{margin-top:8px}
+#g-krzywe .yc-det{margin-top:14px}#g-krzywe .yc-det>summary{cursor:pointer;color:var(--tx);font-weight:600;font-size:13px;padding:4px 0}#g-krzywe .yc-det[open]>summary{margin-bottom:6px}
+@media (max-width:620px){#g-krzywe .wk-br{--lw:42%}#g-krzywe .wk-curve .wk-sv{min-height:170px}}
 /* v352: zmienność rynków (panel zwijany, plik po rozwinięciu) */
 #g-zmiennosc .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}
 #g-zmiennosc .etfk>span{white-space:normal;overflow-wrap:anywhere}
@@ -3399,6 +3408,9 @@ for(const l in EXTRA282)if(I18N[l])Object.assign(I18N[l],EXTRA282[l]);
 /* v415: wyróżnienie karty Fed (blok „najbliższe posiedzenie”) — 10 języków */
 const EXTRA283={"pl":{"w415.next":"Najbliższe posiedzenie Fed","w415.kind":"Szacunek rynku zakładów, nie prognoza Fed","w415.rest":"pozostałe decyzje: poniżej 1% każda","w415.bar":"Szanse decyzji: {s}"},"en":{"w415.next":"Next Fed meeting","w415.kind":"Betting-market estimate, not a Fed forecast","w415.rest":"other decisions: under 1% each","w415.bar":"Chances of each decision: {s}"},"de":{"w415.next":"Nächste Fed-Sitzung","w415.kind":"Schätzung des Wettmarkts, keine Prognose der Fed","w415.rest":"übrige Entscheidungen: je unter 1 %","w415.bar":"Chancen der Entscheidungen: {s}"},"es":{"w415.next":"Próxima reunión de la Fed","w415.kind":"Estimación del mercado de apuestas, no una previsión de la Fed","w415.rest":"otras decisiones: menos del 1 % cada una","w415.bar":"Probabilidad de cada decisión: {s}"},"fr":{"w415.next":"Prochaine réunion de la Fed","w415.kind":"Estimation du marché des paris, pas une prévision de la Fed","w415.rest":"autres décisions : moins de 1 % chacune","w415.bar":"Probabilité de chaque décision : {s}"},"it":{"w415.next":"Prossima riunione della Fed","w415.kind":"Stima del mercato delle scommesse, non una previsione della Fed","w415.rest":"altre decisioni: meno dell’1% ciascuna","w415.bar":"Probabilità di ogni decisione: {s}"},"pt":{"w415.next":"Próxima reunião do Fed","w415.kind":"Estimativa do mercado de apostas, não uma previsão do Fed","w415.rest":"outras decisões: menos de 1% cada","w415.bar":"Probabilidade de cada decisão: {s}"},"ru":{"w415.next":"Ближайшее заседание ФРС","w415.kind":"Оценка рынка ставок, а не прогноз ФРС","w415.rest":"остальные решения: менее 1% каждое","w415.bar":"Шансы решений: {s}"},"zh":{"w415.next":"美联储下次会议","w415.kind":"投注市场的估计，不是美联储的预测","w415.rest":"其他决议：各低于1%","w415.bar":"各项决议的概率：{s}"},"ja":{"w415.next":"次回のFRB会合","w415.kind":"予測市場の推定であり、FRBの予測ではありません","w415.rest":"その他の決定：各1%未満","w415.bar":"各決定の確率：{s}"}};
 for(const l in EXTRA283)if(I18N[l])Object.assign(I18N[l],EXTRA283[l]);
+/* v418: krzywe rentowności — oś, odwrócenie, porównanie państw — 10 języków */
+const EXTRA284={"pl":{"yc418.xu":"oś pozioma: lata do wykupu","yc418.inv":"krzywa odwrócona: rentowność 2 lat wyższa niż 10 lat","yc418.h.cmp":"Rentowność {m} w poszczególnych państwach","yc418.sel":"Wybór zapadalności","yc418.cmp.aria":"Słupki: rentowność obligacji o zapadalności {m} według państw: {s}","yc418.cmp.note":"Słupki zaczynają się od zera, od najwyższej rentowności. Przy każdej liczbie jest dzień notowania (w krajach bywa inny); zmiana wobec miesiąca temu — w podpowiedzi."},"en":{"yc418.xu":"horizontal axis: years to maturity","yc418.inv":"inverted curve: 2-year yield above the 10-year yield","yc418.h.cmp":"{m} yield by country","yc418.sel":"Choose maturity","yc418.cmp.aria":"Bars: government bond yield at {m} maturity by country: {s}","yc418.cmp.note":"Bars start at zero, from the highest yield. Each number shows the date it was quoted (it can differ between countries); the change versus a month ago is in the tooltip."},"de":{"yc418.xu":"Waagerechte Achse: Jahre bis zur Fälligkeit","yc418.inv":"Inverse Kurve: Rendite 2-jähriger über der 10-jähriger Anleihen","yc418.h.cmp":"Rendite {m} nach Ländern","yc418.sel":"Laufzeit wählen","yc418.cmp.aria":"Balken: Rendite von Staatsanleihen mit Laufzeit {m} nach Ländern: {s}","yc418.cmp.note":"Die Balken beginnen bei null und sind nach Rendite absteigend sortiert. Bei jeder Zahl steht der Kurstag (er kann je nach Land abweichen); die Veränderung zum Vormonat steht im Tooltip."},"es":{"yc418.xu":"eje horizontal: años hasta el vencimiento","yc418.inv":"curva invertida: el rendimiento a 2 años supera al de 10 años","yc418.h.cmp":"Rendimiento a {m} por país","yc418.sel":"Elegir plazo","yc418.cmp.aria":"Barras: rendimiento de los bonos con vencimiento a {m} por país: {s}","yc418.cmp.note":"Las barras empiezan en cero, del mayor rendimiento al menor. Cada cifra lleva la fecha de su cotización (puede variar entre países); el cambio frente a hace un mes está en la información emergente."},"fr":{"yc418.xu":"axe horizontal : années jusqu’à l’échéance","yc418.inv":"courbe inversée : le taux à 2 ans dépasse celui à 10 ans","yc418.h.cmp":"Rendement à {m} par pays","yc418.sel":"Choisir l’échéance","yc418.cmp.aria":"Barres : rendement des obligations d’État à échéance {m} par pays : {s}","yc418.cmp.note":"Les barres partent de zéro, du rendement le plus élevé au plus faible. Chaque chiffre indique sa date de cotation (elle peut varier selon les pays) ; la variation sur un mois figure dans l’infobulle."},"it":{"yc418.xu":"asse orizzontale: anni alla scadenza","yc418.inv":"curva invertita: il rendimento a 2 anni supera quello a 10 anni","yc418.h.cmp":"Rendimento a {m} per paese","yc418.sel":"Scegli la scadenza","yc418.cmp.aria":"Barre: rendimento dei titoli di Stato con scadenza {m} per paese: {s}","yc418.cmp.note":"Le barre partono da zero, dal rendimento più alto. Ogni cifra riporta la data di quotazione (può variare da paese a paese); la variazione rispetto a un mese fa è nel suggerimento."},"pt":{"yc418.xu":"eixo horizontal: anos até ao vencimento","yc418.inv":"curva invertida: a rentabilidade a 2 anos supera a de 10 anos","yc418.h.cmp":"Rentabilidade a {m} por país","yc418.sel":"Escolher o prazo","yc418.cmp.aria":"Barras: rentabilidade das obrigações com vencimento a {m} por país: {s}","yc418.cmp.note":"As barras começam em zero, da maior rentabilidade para a menor. Cada número indica a data da cotação (pode variar entre países); a variação face a há um mês está na dica."},"ru":{"yc418.xu":"горизонтальная ось: годы до погашения","yc418.inv":"перевёрнутая кривая: доходность 2-летних бумаг выше 10-летних","yc418.h.cmp":"Доходность {m} по странам","yc418.sel":"Выбор срока","yc418.cmp.aria":"Столбцы: доходность облигаций со сроком {m} по странам: {s}","yc418.cmp.note":"Столбцы начинаются с нуля, от наибольшей доходности. У каждого числа указана дата котировки (в разных странах она может отличаться); изменение за месяц — во всплывающей подсказке."},"zh":{"yc418.xu":"横轴：距到期年数","yc418.inv":"收益率曲线倒挂：2年期收益率高于10年期","yc418.h.cmp":"各国{m}期收益率","yc418.sel":"选择期限","yc418.cmp.aria":"柱状图：各国{m}期国债收益率：{s}","yc418.cmp.note":"柱从零开始，由收益率最高者排起。每个数字都标有报价日期（各国可能不同）；与一个月前相比的变化见悬停提示。"},"ja":{"yc418.xu":"横軸：償還までの年数","yc418.inv":"逆イールド：2年債利回りが10年債利回りを上回る","yc418.h.cmp":"各国の{m}利回り","yc418.sel":"年限を選択","yc418.cmp.aria":"棒グラフ：{m}国債の利回り（国別）：{s}","yc418.cmp.note":"棒はゼロから始まり、利回りの高い順に並びます。各数値には気配日が付きます（国により異なる場合があります）。1か月前との変化はツールチップに表示します。"}};
+for(const l in EXTRA284)if(I18N[l])Object.assign(I18N[l],EXTRA284[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -15009,9 +15021,10 @@ try{setTimeout(rrLoad,1200);setInterval(()=>{if(!document.hidden)rrLoad();},30*6
    inflacją o tej samej zapadalności (USA 5 i 10 lat, Kanada — długie), opisana jako nasze wyliczenie (zawiera premie), z wykresem krzywej USA; (4) różnice: USA minus
    Niemcy (10 lat) i premia za ryzyko krajów strefy euro (wszyscy emitenci minus AAA, 10 lat); (5) tabela rentowności wg zapadalności. Brak = „—”, nigdy zero; nazw
    dostawców tu nie ma. Korzysta z narzędzi panelu stresu (strTile, strDelta, strDay, strVal) i silnika wykresów (wkLines). Rozwinięcie karty = brak klasy zw przy zw-on. */
-const YC={j:null,l:false,x:false,t:0,e:0,on:false,mo:false,cl:false,k:'us',f:false};
+const YC={j:null,l:false,x:false,t:0,e:0,on:false,mo:false,cl:false,k:'us',f:false,y:'10Y',g:false};
 const YC_K=[['us','US','us'],['de','DE','de'],['jp','JP','jp'],['ea','','eu'],['ca','CA','ca']];   /* klucz w pliku, kod regionu (nazwa kraju z Intl.DisplayNames w języku czytelnika), flaga; strefa euro: nazwa ze słownika */
 const YC_LAB=['3M','1Y','2Y','3Y','5Y','7Y','10Y','20Y','30Y'];
+const YC_CMP=['2Y','5Y','10Y','30Y'];   /* v418: terminy porównania państw */
 const YC_D=/^\d{4}-\d{2}-\d{2}$/;
 const YC_NF={},YC_DN={};
 /* zapadalność z etykiety pliku: „3M” → 3 mies., „10Y” → 10 lat (jednostki i odmiana wg języka z Intl); „L” = długie obligacje Kanady */
@@ -15042,7 +15055,8 @@ function ycSlopeTile(j,k){const C=ycCur(j,k),lab=ycName(k);
   const lines=[strDelta(s==null||p==null?null:yc3(s-p),2,t('yc362.vsm'))];
   if(s!=null&&Math.round(s*100)/100<0)lines.push({txt:t('yc362.inv'),cls:'neu'});
   const yl=a!=null&&b!=null?t('yc362.yl',{a:ycNum(a,2),b:ycNum(b,2)})+' · ':'';
-  return strTile(ycFlag(k),lab,s==null?'—':ycPp(s,2),lines,yl+ycWhen(C.asof));}
+  const sc=s==null?'':Math.round(s*100)===0?'neu':s>0?'pos':'neg';   /* v418: kolor znaku widocznej liczby (zero po zaokrągleniu = żółta) */
+  return strTile(ycFlag(k),lab,s==null?'—':ycPp(s,2),lines,yl+ycWhen(C.asof)).replace('</span><b>','</span><b'+(sc?' class="'+sc+'"':'')+'>');}
 /* kafel różnicy w jednym punkcie krzywej (inflacja oczekiwana, premia, różnica między krajami): wartość now/prev z obiektu pliku */
 function ycDiffTile(j,key,l,lab,ico,unit){const C=ycCur(j,key);
   if(!C||ycV(C,'now',l)==null)return strTile(ico,lab,'—',[{txt:t('yc362.na'),cls:'na'}],'');
@@ -15057,9 +15071,9 @@ function ycChart(C,labs,name,aria0,aria1){
   return wkLines(L,{aria:b.length>1?t(aria1,{c:name,a:strDay(C.asof),b:strDay(ycDate(C,'prev'))}):t(aria0,{c:name,a:strDay(C.asof)}),fmt:v=>nfmt(v,2)+'%',dt:ax,dx:ax,zero:false});}
 function ycCharts(j){let out='';
   const C=ycCur(j,YC.k);
-  if(C){const nm=ycName(YC.k),ch=ycChart(C,YC_LAB,nm,'yc362.ch.aria0','yc362.ch.aria');
+  if(C){const nm=ycName(YC.k),ch=ycCurve(C,YC_LAB,nm);
     out+=`<div class="yc-sel"><span class="seg" role="group" aria-label="${escH(t('yc362.sel'))}">${YC_K.filter(([k])=>ycCur(j,k)).map(([k])=>`<button type="button" data-yck="${k}" aria-pressed="${k===YC.k}" title="${ycName(k)}">${ycFlag(k)}<span class="yc-nm">${ycName(k)}</span></button>`).join('')}</span></div>`;
-    out+=ch?`<p class="wk-sub"><b>${t('yc362.h.ch',{c:nm})}</b><small>${t('yc362.unit')}</small></p>${ch}`:`<p class="pnote">${t('yc362.na')}</p>`;}
+    out+=ch?`<p class="wk-sub"><b>${t('yc362.h.ch',{c:nm})}</b><small>${t('yc362.unit')} · ${t('yc418.xu')}</small></p>${ch}`:`<p class="pnote">${t('yc362.na')}</p>`;}
   return out;}
 function ycBeChart(j){const C=ycCur(j,'us_be');if(!C)return '';
   const labs=YC_LAB.filter(l=>ycV(C,'now',l)!=null||ycV(C,'prev',l)!=null),ch=ycChart(C,labs,ycName('us'),'yc362.be.aria0','yc362.be.aria');
@@ -15068,11 +15082,11 @@ function ycTable(j){const cs=YC_K.filter(([k])=>ycCur(j,k));if(!cs.length)return
   const labs=YC_LAB.concat(cs.some(([k])=>ycV(ycCur(j,k),'now','L')!=null)?['L']:[]);
   const head=cs.map(([k])=>`<th title="${ycName(k)}" aria-label="${ycName(k)}, ${strDay(ycCur(j,k).asof)}">${ycFlag(k)}<span class="yc-nm2">${ycName(k)}</span><small>${strDay(ycCur(j,k).asof)}</small></th>`).join('');
   const rows=labs.map(l=>`<tr><td><span class="cell">${ycLab(l)}</span></td>${cs.map(([k])=>{const v=ycV(ycCur(j,k),'now',l);return `<td><span class="cell mono${v==null?' na':''}">${ycNum(v,2)}</span></td>`;}).join('')}</tr>`).join('');
-  return `<h3 class="mtxt">${t('yc362.h.tbl')}</h3><div class="list-wrap"><table class="etft"><thead><tr><th>${t('yc362.c.mat')}</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;}
+  return `<details class="yc-det"><summary>${t('yc362.h.tbl')}</summary><div class="list-wrap"><table class="etft"><thead><tr><th>${t('yc362.c.mat')}</th>${head}</tr></thead><tbody>${rows}</tbody></table></div></details>`;}
 function ycBody(){const J=YC.j;
   if(!J)return `<p class="pnote">${t(YC.x?'yc362.err':'yc362.lazy')}</p>`;
   const G=typeof glyphImg==='function'?glyphImg('chart','sm'):'';
-  return `<h3 class="mtxt">${t('yc362.h.slope')}</h3><div class="etfkpis">${YC_K.map(([k])=>ycSlopeTile(J,k)).join('')}</div><p class="pnote">${t('yc362.read')}</p>`+ycCharts(J)+
+  return `<h3 class="mtxt">${t('yc362.h.slope')}</h3><div class="etfkpis">${YC_K.map(([k])=>ycSlopeTile(J,k)).join('')}</div><p class="pnote">${t('yc362.read')}</p>`+ycCharts(J)+ycCmp(J)+
     `<h3 class="mtxt">${t('yc362.h.be')}</h3><div class="etfkpis k3">${ycDiffTile(J,'us_be','5Y',ycName('us')+' · '+ycLab('5Y'),ycFlag('us'),'%')}${ycDiffTile(J,'us_be','10Y',ycName('us')+' · '+ycLab('10Y'),ycFlag('us'),'%')}${ycDiffTile(J,'ca_be','L',ycName('ca')+' · '+ycLab('L'),ycFlag('ca'),'%')}</div>`+
     `<p class="pnote">${t('yc362.be.note')}</p>`+ycBeChart(J)+
     `<h3 class="mtxt">${t('yc362.h.sp')}</h3><div class="etfkpis k2">${ycDiffTile(J,'us_de','10Y',t('yc362.sp.usde'),ycFlag('us')+ycFlag('de'),'pp')}${ycDiffTile(J,'ea_prem','10Y',t('yc362.sp.ea'),ycFlag('ea'),'pp')}</div>`+
@@ -15087,8 +15101,10 @@ function renderYc(){const el=$('#g-krzywe');if(!el)return;
   el.innerHTML=`<div class="etfh"><div><h2>${ico}${t('yc362.t')}</h2><p class="pnote">${t('yc362.sub')}</p></div></div>${ycBody()}`;
   el.hidden=false;
   if(YC.f&&typeof el.querySelector==='function'){YC.f=false;const b=el.querySelector('button[data-yck="'+YC.k+'"]');if(b&&typeof b.focus==='function')b.focus();}   /* po wyborze kraju fokus wraca na przycisk */
-  if(!YC.cl&&typeof el.addEventListener==='function'){YC.cl=true;el.addEventListener('click',ev=>{const b=ev&&ev.target&&typeof ev.target.closest==='function'?ev.target.closest('button[data-yck]'):null;if(!b)return;
-    const k=b.getAttribute('data-yck');if(YC_K.some(x=>x[0]===k)&&k!==YC.k){YC.k=k;YC.f=true;renderYc();}});}
+  if(YC.g&&typeof el.querySelector==='function'){YC.g=false;const b=el.querySelector('button[data-yct="'+YC.y+'"]');if(b&&typeof b.focus==='function')b.focus();}   /* v418: tak samo po wyborze terminu porównania */
+  if(!YC.cl&&typeof el.addEventListener==='function'){YC.cl=true;el.addEventListener('click',ev=>{const b=ev&&ev.target&&typeof ev.target.closest==='function'?ev.target.closest('button[data-yck],button[data-yct]'):null;if(!b)return;
+    const k=b.getAttribute('data-yck');if(k!=null){if(YC_K.some(x=>x[0]===k)&&k!==YC.k){YC.k=k;YC.f=true;renderYc();}return;}
+    const y=b.getAttribute('data-yct');if(YC_CMP.includes(y)&&y!==YC.y){YC.y=y;YC.g=true;renderYc();}});}
   if(!YC.mo&&typeof MutationObserver==='function'){YC.mo=true;try{new MutationObserver(()=>{if(ycOpen(el))ycLoad();}).observe(el,{attributes:true,attributeFilter:['class']});}catch(e){}}   /* rozwinięcie karty (klasa) = pobranie */
   if(ycOpen(el))ycLoad();}
 /* pobranie pliku: jedno naraz; chwilowy błąd nie zasłania wczytanych danych; po błędzie najwcześniej po minucie; f = odświeżenie wymuszone zegarem */
@@ -15097,6 +15113,54 @@ function ycLoad(f){if(YC.l)return;const n=Date.now();if(YC.j&&!f&&n-YC.t<10*60e3
 srvJSON('meta').then(m=>{YC.on=!!(m&&typeof m==='object'&&m.ok&&typeof m.ok==='object'&&Object.prototype.hasOwnProperty.call(m.ok,'krzywe_us'));renderYc();});
 setInterval(()=>{if(!document.hidden&&YC.j&&ycOpen($('#g-krzywe')))ycLoad(1);},30*60*1000);
 try{new MutationObserver(()=>renderYc()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
+/* ---------- v418 (W3A_KRZYWE): czytelniejsze formy — krzywa z punktami terminów, porównanie państw słupkami ----------
+   Te same dane i obliczenia (ycV, ycSlope, ycCur); zmienia się tylko forma. (1) Krzywa kraju: oś = kolejne zapadalności w równych odstępach, KAŻDY termin podpisany
+   (lata liczbą, miesiące z jednostką), punkt na każdym terminie, dzień danych linią ciągłą, miesiąc temu linią przerywaną; żółte tło między 2 a 10 latami, gdy krzywa
+   jest odwrócona (rentowność 2 lat wyższa niż 10 lat — opis stanu, nie ocena); legenda tylko gdy są co najmniej dwie serie albo oznaczenie odwrócenia; podpowiedź przy
+   najechaniu: termin, obie wartości z datami i zmiana wobec miesiąca temu. (2) Porównanie państw dla jednego terminu (2, 5, 10 albo 30 lat): słupki od zera, od najwyższej
+   rentowności, data notowania każdego kraju przy liczbie; brak = „—” i kreskowana linia, nigdy zero. (3) Liczba nachylenia (10 lat minus 2 lata) w kolorze znaku. */
+/* podpis osi: lata liczbą (jednostkę podaje podtytuł „lata do wykupu”), miesiące z jednostką */
+function ycAxL(l){return /^\d+Y$/.test(l)?String(parseInt(l,10)):ycLab(l);}
+/* dzień i miesiąc krótko (rok jest w podpowiedzi i w tabeli) */
+function ycShort(d){const ms=Date.parse(String(d||'').slice(0,10)+'T12:00:00Z');if(!isFinite(ms))return escH(d);
+  try{return new Date(ms).toLocaleDateString(LOCALE[LANG]||'pl-PL',{day:'numeric',month:'short',timeZone:'UTC'});}catch(e){return escH(d);}}
+/* zmiana wobec miesiąca temu w pp ze znakiem pokazanej liczby; brak którejkolwiek wartości = pusty tekst */
+function ycChg(v,p){return strNum(v)&&strNum(p)?strDelta(yc3(v-p),2,'').txt.trim()+' '+t('yc362.pp')+' '+t('yc362.vsm'):'';}
+/* ciągłe odcinki serii: przerwa przy braku liczby (np. Niemcy nie podają 3 miesięcy) */
+function ycRuns(vals){const out=[];let cur=[];vals.forEach((v,i)=>{if(v==null){if(cur.length)out.push(cur);cur=[];}else cur.push([i,v]);});if(cur.length)out.push(cur);return out;}
+function ycCurve(C,labs,name){
+  const n=labs.length,sl=1000/n,X=i=>(i+.5)*sl,pd=ycDate(C,'prev'),vn=labs.map(l=>ycV(C,'now',l)),vp=pd?labs.map(l=>ycV(C,'prev',l)):labs.map(()=>null);
+  const cn=vn.filter(v=>v!=null).length,cp=vp.filter(v=>v!=null).length;if(cn<2&&cp<2)return '';
+  const showP=cp>1,showN=cn>0,all=[].concat(showN?vn:[],showP?vp:[]).filter(v=>v!=null);
+  const N=wkNice(...wkDom(all,false),4),Y=v=>(N.hi-v)/(N.hi-N.lo)*100;
+  let g=N.ticks.map(v=>`<line class="wk-g" x1="0" x2="1000" y1="${wkF2(Y(v))}" y2="${wkF2(Y(v))}" vector-effect="non-scaling-stroke"/>`).join('');
+  const i2=labs.indexOf('2Y'),i10=labs.indexOf('10Y'),sn=ycSlope(C,'now'),inv=showN&&i2>=0&&i10>=0&&sn!=null&&Math.round(sn*100)<0;
+  if(inv)g+=`<rect class="yc-inv" x="${wkF2(X(i2))}" y="0" width="${wkF2(X(i10)-X(i2))}" height="100"/>`;
+  const draw=(vals,cls)=>{ycRuns(vals).forEach(r=>{if(r.length>1)g+=`<polyline class="wk-l ${cls}" points="${r.map(p=>wkF2(X(p[0]))+','+wkF2(Y(p[1]))).join(' ')}" vector-effect="non-scaling-stroke"/>`;});
+    vals.forEach((v,i)=>{if(v!=null)g+=`<line class="wk-pt ${cls}" x1="${wkF2(X(i))}" x2="${wkF2(X(i)+.01)}" y1="${wkF2(Y(v))}" y2="${wkF2(Y(v))}" vector-effect="non-scaling-stroke"/>`;});};
+  if(showP)draw(vp,'s2');if(showN)draw(vn,'s1');   /* miesiąc temu pod spodem, dzień danych na wierzchu */
+  const K=wkK(),nd=strDay(C.asof),pdd=pd?strDay(pd):'';let hit='',xl='';
+  labs.forEach((l,i)=>{const a=vn[i],b=showP?vp[i]:null;if(a==null&&b==null)return;const pr=[ycLab(l)],f=v=>v==null?t('yc362.na'):ycNum(v,2)+'%';
+    if(showP){pr.push(nd+K+f(a));pr.push(pdd+K+f(b));}else pr.push(nd+K+f(a));
+    const c=ycChg(a,b);if(c)pr.push(c);
+    hit+=`<rect class="wk-hit" x="${wkF2(i*sl)}" y="0" width="${wkF2(sl)}" height="100" data-t="${escH(pr.join(' · '))}"/>`;
+    xl+=`<span style="left:${wkF2(X(i)/10)}%">${escH(ycAxL(l))}</span>`;});
+  const lg=[];if(showN&&showP){lg.push({n:nd,cls:'s1'});lg.push({n:pdd,cls:'s2'});}if(inv)lg.push({n:t('yc418.inv'),cls:'yc-invq'});
+  const aria=showP?t('yc362.ch.aria',{c:name,a:nd,b:pdd}):t('yc362.ch.aria0',{c:name,a:nd});
+  return wkCh('curve',aria,(lg.length?wkLeg(lg):'')+`<div class="wk-plot">${wkYAx(N,Y)}<div class="wk-pa"><svg class="wk-sv" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">${g}${hit}</svg><div class="wk-x" aria-hidden="true">${xl}</div></div></div>`);}
+/* porównanie państw dla jednego terminu: słupki od zera, od najwyższej rentowności; kraj bez liczby w tym terminie = „—” na końcu */
+function ycCmp(j){
+  const terms=YC_CMP.filter(l=>YC_K.filter(([k])=>ycV(ycCur(j,k),'now',l)!=null).length>1);if(!terms.length)return '';
+  if(!terms.includes(YC.y))YC.y=terms.includes('10Y')?'10Y':terms[0];
+  const l=YC.y,K=wkK(),ll=ycLab(l);
+  const rows=YC_K.map(([k])=>{const C=ycCur(j,k),v=ycV(C,'now',l),p=ycV(C,'prev',l),nm=ycName(k);
+    let tip=nm+' · '+ll+K+(v==null?t('yc362.na'):ycNum(v,2)+'%');
+    if(v!=null){tip+=' · '+strDay(C.asof)+gAgeNote(C.asof);const c=ycDate(C,'prev')?ycChg(v,p):'';if(c)tip+=' · '+c;}
+    return {k,nm,v,tip,cls:'yc-b',l:ycFlag(k)+nm,vt:v==null?'—':ycNum(v,2)+'%<small>'+ycShort(C.asof)+'</small>'};});
+  rows.sort((a,b)=>(a.v==null)-(b.v==null)||(b.v||0)-(a.v||0));
+  const bars=wkBars(rows,{aria:t('yc418.cmp.aria',{m:ll,s:rows.filter(r=>r.v!=null).map(r=>r.nm+' '+ycNum(r.v,2)+'%').join(', ')}),fmt:v=>ycNum(v,2)+'%',lw:'38%'});
+  const sel=`<div class="yc-sel"><span class="seg" role="group" aria-label="${escH(t('yc418.sel'))}">${terms.map(m=>`<button type="button" data-yct="${m}" aria-pressed="${m===l}">${ycLab(m)}</button>`).join('')}</span></div>`;
+  return `<h3 class="mtxt">${t('yc418.h.cmp',{m:ll})}</h3>`+sel+`<p class="wk-sub"><small>${t('yc362.unit')}</small></p>`+bars+`<p class="pnote">${t('yc418.cmp.note')}</p>`;}
 /* ---------- koniec bloku krzywych rentowności (v362) ---------- */
 /* ===================== v124: SZWAJCARIA — DEPOZYTY BANKÓW W BANKU CENTRALNYM (plik automatu data/snb.json; bez klucza) =====================
    Najnowszy tydzień (średnia z tygodnia do piątku, publikacja w poniedziałek): depozyty banków krajowych i wszystkie depozyty na widoku we

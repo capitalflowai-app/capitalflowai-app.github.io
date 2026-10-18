@@ -25673,20 +25673,22 @@ const yc362 = (() => {
     const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
     const cls = new Set((opt && opt.open) ? ['zw-on'] : []);
     const el = {innerHTML: '', hidden: true, classList: {contains: c => cls.has(c)}, handlers: {}, addEventListener(e, f) { (this.handlers[e] = this.handlers[e] || []).push(f); },
-      querySelector(q) { const m = /data-yck="(\w+)"/.exec(q); return m ? {focus: () => { el.focused = m[1]; }} : null; }};
+      querySelector(q) { const m = /data-yc([kt])="(\w+)"/.exec(q); return m ? {focus: () => { el[m[1] === 't' ? 'focusedT' : 'focused'] = m[2]; }} : null; }};
     const els = {'#g-krzywe': el};
+    const WK = v157.run(v157.KIT, v157.ENV(null, {LANG: L, LOCALE: LOC, t: v96src.tFor(L), nfmt: F.nfmt}), 'wkNum,wkF2,wkCh,wkBars,wkNice,wkDom,wkYAx,wkLeg,wkK');   // v418: prawdziwy zestaw wykresów strony
     const calls = [], ivs = [], wl = [], mos = [];
     const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
     const doc = {documentElement: {}, hidden: false};
-    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'flagImg', 'document', 'MutationObserver', 'setInterval', 'wkLines', 'Date',
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'icoWrap', 'flagImg', 'document', 'MutationObserver', 'setInterval', 'wkLines', 'Date', 'wkNum', 'wkF2', 'wkCh', 'wkBars', 'wkNice', 'wkDom', 'wkYAx', 'wkLeg', 'wkK',
       "'use strict';\n" + helpers + '\n' + code + '\nreturn {YC, ycLoad, renderYc, ycOk, ycCur, ycSlope, ycLab};')(
       q => els[q] || null, v96src.tFor(L), v96src.escH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, () => '', i => i, c => '<flag ' + c + '>', doc,
       function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
-      (Ls, o) => { wl.push({L: Ls, o}); return '<chart n=' + Ls.map(l => l.n + ':' + l.d.length).join(',') + ' aria="' + o.aria + '">'; }, FD);
+      (Ls, o) => { wl.push({L: Ls, o}); return '<chart n=' + Ls.map(l => l.n + ':' + l.d.length).join(',') + ' aria="' + o.aria + '">'; }, FD,
+      WK.wkNum, WK.wkF2, WK.wkCh, WK.wkBars, WK.wkNice, WK.wkDom, WK.wkYAx, WK.wkLeg, WK.wkK);
     const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
     const expand = () => { cls.add('zw-on'); cls.delete('zw'); fire(); };
     const collapse = () => { cls.add('zw-on'); cls.add('zw'); fire(); };
-    const click = k => { const b = {getAttribute: () => k}; const ev = {target: {closest: () => b}}; el.handlers.click.forEach(f => f(ev)); };
+    const click = (k, at) => { const b = {getAttribute: a => (a === (at || 'data-yck') ? k : null)}; const ev = {target: {closest: () => b}}; el.handlers.click.forEach(f => f(ev)); };
     return {api, el, calls, ivs, wl, mos, expand, collapse, click, html: () => sp(el.innerHTML)};
   };
   const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(.*?)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({label: txt(m[1]), val: txt(m[3].split('<small')[0]), raw: m[3], when: txt(m[4])}));
@@ -25722,28 +25724,16 @@ test('v362 (F2Z1): karta „Krzywe rentowności” w GLOBAL — nagłówek od ra
   const KZ = yc362.mk('pl', yc362.files(), {open: false}); assert.equal(KZ.calls.filter(c => c === 'krzywe').length, 0);
 });
 
-test('v362 (F2Z1): wykres krzywej wybranego kraju (dziś i miesiąc temu), przełącznik kraju z fokusem, etykiety zapadalności w języku czytelnika, wykres inflacji oczekiwanej USA', () => {
+test('v362 (F2Z1): przełącznik kraju z fokusem (wykres krzywej od v418 w osobnym teście), wykres inflacji oczekiwanej USA', () => {
   const K = yc362.mk('pl', yc362.files()); K.expand();
-  assert.equal(K.wl.length, 2, 'krzywa kraju i inflacja oczekiwana USA');
-  const w = K.wl[0];
-  assert.deepEqual(w.L.map(l => [l.n, l.cls, l.d.length]), [['9 wrz 2026', 's2', 9], ['9 paź 2026', 's1', 9]], 'miesiąc temu pomarańczowy, dzień danych niebieski; legenda = daty');
-  assert.deepEqual(w.L[1].d.map(r => r[0]), [0, 1, 2, 3, 4, 5, 6, 7, 8], 'oś = kolejne zapadalności w równych odstępach'); assert.deepEqual(w.L[1].d.map(r => r[1]), [4.25, 4.47, 4.8, 4.89, 5.02, 5.13, 5.24, 5.65, 5.6]);
-  assert.equal(w.o.dt(0), '3 mies.'); assert.equal(w.o.dt(2), '2 lata'); assert.equal(w.o.dx(8), '30 lat'); assert.equal(w.o.dx(6), '10 lat'); assert.equal(w.o.fmt(5.24), '5,24%'); assert.equal(w.o.zero, false);
-  assert.ok(w.o.aria.includes('Krzywa rentowności Stany Zjednoczone') && w.o.aria.includes('9 paź 2026') && w.o.aria.includes('9 wrz 2026'));
-  const b = K.wl[1]; assert.deepEqual(b.L[1].d.map(r => r[1]), [2.34, 2.34, 2.33, 2.48, 2.28], 'inflacja oczekiwana USA = nominalna − realna (5, 7, 10, 20, 30 lat)'); assert.equal(b.o.dt(0), '5 lat'); assert.equal(b.o.dt(4), '30 lat');
+  assert.equal(K.wl.length, 1, 'inflacja oczekiwana USA (krzywa kraju od v418 nie używa wkLines)');
+  const b = K.wl[0]; assert.deepEqual(b.L[1].d.map(r => r[1]), [2.34, 2.34, 2.33, 2.48, 2.28], 'inflacja oczekiwana USA = nominalna − realna (5, 7, 10, 20, 30 lat)'); assert.equal(b.o.dt(0), '5 lat'); assert.equal(b.o.dt(4), '30 lat');
   let h = K.html(); assert.ok(h.includes('data-yck="us" aria-pressed="true"') && h.includes('data-yck="de" aria-pressed="false"') && (h.match(/data-yck=/g) || []).length === 5);
-  assert.ok(h.includes('<b>Krzywa rentowności: Stany Zjednoczone</b><small>rentowność, % rocznie</small>'), 'jednostka pod tytułem wykresu (telefon: bez łamania w połowie zdania)');
-  /* wybór Niemiec: nowa krzywa (bez 3 miesięcy — Niemcy nie podają tej zapadalności), fokus wraca na przycisk */
+  assert.ok(h.includes('<b>Krzywa rentowności: Stany Zjednoczone</b>'), 'tytuł wykresu');
   K.click('de'); h = K.html(); assert.ok(h.includes('data-yck="de" aria-pressed="true"') && h.includes('data-yck="us" aria-pressed="false"')); assert.equal(K.el.focused, 'de');
-  const d = K.wl[K.wl.length - 2]; assert.deepEqual(d.L[1].d.map(r => r[0]), [1, 2, 3, 4, 5, 6, 7, 8], 'brak 3M = przerwa na osi, nie zero'); assert.equal(d.L[1].d[0][1], 2.95); assert.ok(d.o.aria.includes('Niemcy'));
-  const nw = K.wl.length; K.click('de'); assert.equal(K.wl.length, nw, 'ten sam kraj — bez przerysowania'); K.click('xx'); assert.equal(K.wl.length, nw, 'nieznany kraj ignorowany');
-  K.click('jp'); assert.ok(K.html().includes('<b>Krzywa rentowności: Japonia</b>')); assert.equal(K.wl[K.wl.length - 2].L[1].d.length, 8);
+  const nw = K.html(); K.click('de'); assert.equal(K.html(), nw, 'ten sam kraj — bez przerysowania'); K.click('xx'); assert.equal(K.html(), nw, 'nieznany kraj ignorowany');
+  K.click('jp'); assert.ok(K.html().includes('<b>Krzywa rentowności: Japonia</b>'));
   assert.equal(K.calls.filter(c => c === 'krzywe').length, 1, 'zmiana kraju nie pobiera pliku ponownie');
-  /* język zmienia etykiety zapadalności (jednostki z Intl) */
-  const nsp = s => yc362.sp(s).replace(/[\s.]+/g, '');   /* silniki (node, jsc) różnie wstawiają spacje i kropki w jednostkach (ja: „3か月” albo „3 か月”, ru: „3 мес.” albo „3 мес”) */
-  for (const [L, a, b2] of [['en', '3mths', '10yrs'], ['de', '3Mon', '10J'], ['ja', '3か月', '10年'], ['ru', '3мес', '10л']]) {
-    const X = yc362.mk(L, yc362.files()); X.expand(); const o = X.wl[0].o; assert.equal(nsp(o.dt(0)), a, L); assert.equal(nsp(o.dx(6)), b2, L);
-  }
 });
 
 test('v362 (F2Z1): inflacja oczekiwana (nominalna − realna, opisana jako wyliczenie), różnice USA − Niemcy i premia strefy euro, tabela rentowności — liczby, kierunek, daty; brak = „—”, nigdy zero', () => {
@@ -25779,10 +25769,10 @@ test('v362 (F2Z1): odwrócenie krzywej = żółta informacja po zaokrągleniu do
     assert.equal(Tz[1].val, val, String(v10)); assert.equal(Tz[1].raw.includes('krzywa odwrócona'), val.startsWith('−'), 'odwrócenie wg liczby pokazanej: ' + val);
   }
   assert.equal(T[2].val, '1,12 pp'); assert.ok(T[2].raw.includes('<small class="na">— wobec miesiąca temu</small>'), 'Japonia bez miesiąca temu: „—”'); assert.ok(!T[2].raw.includes('NaN'));
-  assert.equal(K.wl[0].L.length, 2, 'USA ma obie serie');
+  assert.equal((K.html().match(/<i class="wk-sq s[12]">/g) || []).length, 2, 'USA ma obie serie (legenda)');
   const J2 = yc362.J(); delete J2.c.us; J2.c.us_real && delete J2.c.us_real;
   const K2 = yc362.mk('pl', yc362.files(J2)); K2.expand(); assert.ok(K2.html().includes('data-yck="de" aria-pressed="true"'), 'USA bez krzywej → pierwszy kraj z krzywą');
-  const J3 = yc362.J(); J3.c.jp.pasof = null; J3.c.jp.prev = null; const K3 = yc362.mk('pl', yc362.files(J3)); K3.expand(); K3.click('jp'); assert.equal(K3.wl[K3.wl.length - 2].L.length, 1, 'jedna seria, gdy brak miesiąca temu'); 
+  const J3 = yc362.J(); J3.c.jp.pasof = null; J3.c.jp.prev = null; const K3 = yc362.mk('pl', yc362.files(J3)); K3.expand(); K3.click('jp'); assert.ok((K3.html().match(/<i class="wk-sq s[12]">/g) || []).length === 0 && K3.html().includes('class="wk-l s1"'), 'jedna seria, gdy brak miesiąca temu'); 
 });
 
 test('v362 (F2Z1): panel ukryty bez części w meta; błąd pobrania — komunikat bez pętli zapytań; plik niepoprawny nie zasłania wczytanych danych', () => {
@@ -32400,4 +32390,113 @@ test('v415 (W2): wyróżnienie karty Fed — styl, kafel zastąpiony blokiem, wy
   assert.ok(dict.pl['w415.kind'].includes('nie prognoza') && /betting/i.test(dict.en['w415.kind']) && dict.ru['w415.next'].includes('ФРС') && dict.zh['w415.next'].includes('美联储'), 'charakter danych i nazwy banku w językach');
   assert.notEqual(dict.pl['w415.next'], dict.en['w415.next']); assert.notEqual(dict.de['w415.kind'], dict.en['w415.kind']);
   assert.ok(H.includes('for(const l in ' + dm[0][1] + ')if(I18N[l])Object.assign(I18N[l],' + dm[0][1] + '[l]);'), 'słownik dołączony do I18N');
+});
+
+// ===================== v418 (W3A_KRZYWE): czytelniejsze formy krzywych rentowności i porównania państw =====================
+const yc418 = (() => {
+  const chart = h => { const m = /<div class="wk-ch wk-curve"[\s\S]*?<div class="wk-tip"/.exec(yc362.sp(h)); assert.ok(m, 'wykres krzywej w karcie'); return m[0]; };
+  const xl = c => [...c.matchAll(/<span style="left:[\d.]+%">([^<]*)<\/span>/g)].map(m => m[1]);
+  const tips = c => [...c.matchAll(/data-t="([^"]*)"/g)].map(m => m[1]);
+  const cls = (c, k) => (c.match(new RegExp('class="' + k + '[ "]', 'g')) || []).length;
+  const bars = h => { const m = /<div class="wk-ch wk-bars"[\s\S]*?<div class="wk-tip"/.exec(yc362.sp(h)); return m ? m[0] : ''; };
+  const rows = b => [...b.matchAll(/<div class="wk-br( na)?" data-t="([^"]*)"><span class="wk-bl">(.*?)<\/span><svg[^>]*>(.*?)<\/svg><span class="wk-bv[^"]*">(.*?)<\/span><\/div>/g)].map(m => ({na: !!m[1], tip: m[2], name: yc362.txt(m[3]), svg: m[4], val: yc362.txt(m[5].split('<small')[0]), day: yc362.txt((m[5].match(/<small>(.*?)<\/small>/) || [0, ''])[1])}));
+  return {chart, xl, tips, cls, bars, rows};
+})();
+
+test('v418 (W3A_KRZYWE): krzywa kraju — punkt na każdym terminie, każdy termin podpisany, dzień danych linią ciągłą i miesiąc temu przerywaną; legenda tylko przy dwóch seriach; podpowiedź z obiema wartościami, datami i zmianą', () => {
+  const K = yc362.mk('pl', yc362.files()); K.expand(); const h = K.html(), c = yc418.chart(h);
+  assert.deepEqual(yc418.xl(c), ['3 mies.', '1', '2', '3', '5', '7', '10', '20', '30'], 'wszystkie terminy podpisane (lata liczbą, miesiące z jednostką)');
+  assert.equal(yc418.cls(c, 'wk-l s1'), 1); assert.equal(yc418.cls(c, 'wk-l s2'), 1); assert.equal(yc418.cls(c, 'wk-pt s1'), 9, 'punkt na każdym terminie'); assert.equal(yc418.cls(c, 'wk-pt s2'), 9);
+  assert.equal(yc418.cls(c, 'wk-hit'), 9, 'pas podpowiedzi na każdym terminie');
+  assert.ok(c.indexOf('wk-l s2') < c.indexOf('wk-l s1'), 'miesiąc temu pod spodem, dzień danych na wierzchu');
+  const leg = [...c.matchAll(/<span><i class="wk-sq (s\d)"><\/i>([^<]*)<\/span>/g)].map(m => [m[1], m[2]]);
+  assert.deepEqual(leg, [['s1', '9 paź 2026'], ['s2', '9 wrz 2026']], 'legenda: dwie serie = daty');
+  assert.ok(c.includes('<line class="wk-pt s1" x1="722.22" x2="722.23" y1="30.4" y2="30.4"'), '10 lat 5,24%: oś 3,5–6,0, termin 7 z 9 w równych odstępach');
+  assert.ok(yc418.tips(c).includes('10 lat · 9 paź 2026: 5,24% · 9 wrz 2026: 4,83% · ▲ +0,41 pp wobec miesiąca temu'), yc418.tips(c)[6]);
+  assert.ok(!c.includes('yc-inv'), 'krzywa rosnąca — bez oznaczenia odwrócenia');
+  assert.ok(h.includes('<b>Krzywa rentowności: Stany Zjednoczone</b><small>rentowność, % rocznie · oś pozioma: lata do wykupu</small>'), 'jednostka i oś pod tytułem wykresu');
+  assert.ok(c.includes('aria-label="Krzywa rentowności Stany Zjednoczone: dzień 9 paź 2026 i dzień 9 wrz 2026, rentowność według zapadalności"'));
+  /* Niemcy: bez 3 miesięcy — brak terminu na osi i brak podpisu, nie zero */
+  K.click('de'); const d = yc418.chart(K.html());
+  assert.deepEqual(yc418.xl(d), ['1', '2', '3', '5', '7', '10', '20', '30']); assert.equal(yc418.cls(d, 'wk-pt s1'), 8); assert.equal(K.el.focused, 'de');
+  assert.ok(d.includes('<polyline class="wk-l s1" points="166.67,'), 'linia zaczyna się na pierwszym terminie z liczbą (1 rok = drugi z 9 miejsc)');
+  /* Japonia bez miesiąca temu: jedna seria — bez legendy i bez linii przerywanej; podpowiedź bez zmiany */
+  const J = yc362.J(); J.c.jp.prev = null; J.c.jp.pasof = null; const K2 = yc362.mk('pl', yc362.files(J)); K2.expand(); K2.click('jp'); const j = yc418.chart(K2.html());
+  assert.ok(!j.includes('wk-leg') && yc418.cls(j, 'wk-l s2') === 0 && yc418.cls(j, 'wk-pt s2') === 0); assert.ok(yc418.tips(j).includes('10 lat · 9 paź 2026: 3,03%'), yc418.tips(j)[5]);
+  /* odwrócenie: żółte tło od 2 do 10 lat i wpis w legendzie; po zaokrągleniu do 0,00 to nie odwrócenie */
+  const Ji = yc362.J(); Ji.c.us.now['2Y'] = 5.5; const Ki = yc362.mk('pl', yc362.files(Ji)); Ki.expand(); const i = yc418.chart(Ki.html());
+  assert.ok(i.includes('<rect class="yc-inv" x="277.78" y="0" width="444.44" height="100"/>'), 'od 2 lat (3. miejsce) do 10 lat (7. miejsce)');
+  assert.ok(i.includes('<span><i class="wk-sq yc-invq"></i>krzywa odwrócona: rentowność 2 lat wyższa niż 10 lat</span>'));
+  const Jz = yc362.J(); Jz.c.us.now['2Y'] = 5.245; Jz.c.us.now['10Y'] = 5.24; assert.ok(!yc418.chart((() => { const Kz = yc362.mk('pl', yc362.files(Jz)); Kz.expand(); return Kz.html(); })()).includes('yc-inv'), '−0,005 po zaokrągleniu do 0,00 — bez oznaczenia');
+  /* odwrócenie bez miesiąca temu: legenda tylko z oznaczeniem (jedna seria nie ma legendy) */
+  const Jj = yc362.J(); Jj.c.us.prev = null; Jj.c.us.pasof = null; Jj.c.us.now['2Y'] = 5.5; const Kj = yc362.mk('pl', yc362.files(Jj)); Kj.expand(); const jj = yc418.chart(Kj.html());
+  assert.deepEqual([...jj.matchAll(/<span><i class="wk-sq ([\w-]+)">/g)].map(m => m[1]), ['yc-invq']);
+  /* język: podpisy osi i podpowiedź w jednostkach czytelnika */
+  const nsp = s => yc362.sp(s).replace(/[\s.]+/g, '');
+  for (const [L, a, b] of [['en', '3mths', '10yrs'], ['de', '3Mon', '10J'], ['ja', '3か月', '10年'], ['ru', '3мес', '10л']]) {
+    const X = yc362.mk(L, yc362.files()); X.expand(); const cx = yc418.chart(X.html()); assert.equal(nsp(yc418.xl(cx)[0]), a, L); assert.ok(nsp(yc418.tips(cx)[6]).startsWith(b), L + ': ' + yc418.tips(cx)[6]);
+  }
+});
+
+test('v418 (W3A_KRZYWE): porównanie państw dla jednego terminu — słupki od zera od najwyższej rentowności, data każdego kraju przy liczbie, brak = „—” na końcu; wybór terminu z fokusem; ta sama liczba co w tabeli', () => {
+  const K = yc362.mk('pl', yc362.files()); K.expand(); const h = K.html(), b = yc418.bars(h), R = yc418.rows(b);
+  assert.ok(h.includes('<h3 class="mtxt">Rentowność 10 lat w poszczególnych państwach</h3>'));
+  assert.deepEqual(R.map(r => [r.name, r.val]), [['Stany Zjednoczone', '5,24%'], ['Strefa euro', '4,11%'], ['Kanada', '3,86%'], ['Niemcy', '3,46%'], ['Japonia', '3,03%']], 'posortowane malejąco');
+  assert.deepEqual(R.map(r => r.day), ['9 paź', '12 paź', '9 paź', '13 paź', '9 paź'], 'dzień notowania każdego kraju');
+  assert.ok(R[0].svg.includes('x="0" y="1.5" width="100" height="7"') && R[3].svg.includes('width="66.03"'), 'słupki od zera: 3,46 / 5,24 = 66,03%');
+  assert.equal(R[0].tip, 'Stany Zjednoczone · 10 lat: 5,24% · 9 paź 2026 · wiek(2026-10-09) · ▲ +0,41 pp wobec miesiąca temu');
+  assert.ok(b.includes('aria-label="Słupki: rentowność obligacji o zapadalności 10 lat według państw: Stany Zjednoczone 5,24%, Strefa euro 4,11%, Kanada 3,86%, Niemcy 3,46%, Japonia 3,03%"'));
+  assert.ok(h.includes('<button type="button" data-yct="10Y" aria-pressed="true">10 lat</button>') && (h.match(/data-yct=/g) || []).length === 4, 'cztery terminy do wyboru');
+  /* ujemna rentowność nie wypycha kraju bez liczby przed kraje z liczbą (brak zawsze na końcu) */
+  const Jn = yc362.J(); Jn.c.jp.now['30Y'] = -0.2; const Kn = yc362.mk('pl', yc362.files(Jn)); Kn.expand(); Kn.click('30Y', 'data-yct');
+  assert.deepEqual(yc418.rows(yc418.bars(Kn.html())).map(r => [r.name, r.val]), [['Stany Zjednoczone', '5,60%'], ['Strefa euro', '4,45%'], ['Niemcy', '3,79%'], ['Japonia', '−0,20%'], ['Kanada', '—']]);
+  /* ta sama liczba co w tabeli rentowności */
+  const tab = [...yc362.sp(h).matchAll(/<tr><td><span class="cell">10 lat<\/span><\/td>(.*?)<\/tr>/g)][0][1]; assert.ok(tab.includes('>5,24<') && tab.includes('>3,03<'));
+  /* wybór 30 lat: Kanada nie ma tego terminu → „—” na końcu, nie zero; fokus wraca na przycisk terminu */
+  K.click('30Y', 'data-yct'); const h2 = K.html(), R2 = yc418.rows(yc418.bars(h2));
+  assert.equal(K.el.focusedT, '30Y'); assert.ok(h2.includes('data-yct="30Y" aria-pressed="true"') && h2.includes('data-yct="10Y" aria-pressed="false"'));
+  assert.deepEqual(R2.map(r => [r.name, r.val, r.na]), [['Stany Zjednoczone', '5,60%', false], ['Strefa euro', '4,45%', false], ['Japonia', '4,09%', false], ['Niemcy', '3,79%', false], ['Kanada', '—', true]]);
+  assert.ok(R2[4].svg.includes('wk-gl') && !R2[4].svg.includes('wk-b '), 'brak = kreskowana linia'); assert.ok(R2[4].tip.endsWith('brak danych'));
+  assert.equal(K.calls.filter(c => c === 'krzywe').length, 1, 'zmiana terminu nie pobiera pliku ponownie');
+  const n0 = K.html(); K.click('30Y', 'data-yct'); assert.equal(K.html(), n0, 'ten sam termin — bez zmian'); K.click('99Y', 'data-yct'); assert.equal(K.html(), n0, 'nieznany termin ignorowany');
+  /* termin, w którym liczbę ma tylko jeden kraj, nie jest do wyboru; wybrany termin znika → 10 lat */
+  const J = yc362.J(); for (const k of ['de', 'jp', 'ea', 'ca']) delete J.c[k].now['30Y']; const K3 = yc362.mk('pl', yc362.files(J)); K3.expand();
+  assert.ok(!K3.html().includes('data-yct="30Y"') && (K3.html().match(/data-yct=/g) || []).length === 3);
+  K3.api.YC.y = '30Y'; K3.click('de'); assert.ok(K3.html().includes('data-yct="10Y" aria-pressed="true"'), 'wybrany termin bez porównania → 10 lat');
+  /* brak porównania, gdy żaden termin nie ma dwóch krajów */
+  const J4 = yc362.J(); J4.c.us.now = {'10Y': 5}; J4.c.de.now = {'2Y': 3}; J4.c.jp.now = {'5Y': 2}; J4.c.ea.now = {'30Y': 4}; J4.c.ca.now = {'L': 4}; const K4 = yc362.mk('pl', yc362.files(J4)); K4.expand(); assert.ok(!K4.html().includes('data-yct=') && !K4.html().includes('Rentowność 10 lat w poszczególnych'));
+});
+
+test('v418 (W3A_KRZYWE): liczba nachylenia (10 lat minus 2 lata) w kolorze znaku, tabela rentowności po rozwinięciu; krzywa inflacji oczekiwanej bez zmian', () => {
+  const K = yc362.mk('pl', yc362.files()); K.expand(); let h = K.html();
+  assert.ok(h.includes('<b class="pos">0,44 pp<small') && !h.includes('<b>0,44 pp'), 'USA: +0,44 pp zielony');
+  const J = yc362.J(); J.c.us.now['2Y'] = 5.5; J.c.de.now['10Y'] = 3.09; J.c.de.now['2Y'] = 3.09; J.c.jp.now['10Y'] = 1.951; const K2 = yc362.mk('pl', yc362.files(J)); K2.expand(); h = K2.html();
+  assert.ok(h.includes('<b class="neg">−0,26 pp<small') && h.includes('<small class="neu">krzywa odwrócona</small>'), 'USA odwrócona: czerwona liczba i żółta informacja');
+  assert.ok(h.includes('<b class="neu">0,00 pp<small'), 'zero po zaokrągleniu: żółta, bez znaku');
+  assert.ok(h.includes('<b class="pos">0,04 pp<small'), 'mały dodatni odczyt (0,04) to jeszcze kierunek, nie zero');
+  const J3 = yc362.J(); delete J3.c.ca; const K3 = yc362.mk('pl', yc362.files(J3)); K3.expand(); assert.ok(K3.html().includes('<b>—<small class="na">brak danych</small>'), 'brak krzywej: „—” bez koloru');
+  h = K.html(); assert.ok(h.includes('<details class="yc-det"><summary>Rentowności według zapadalności (% rocznie)</summary><div class="list-wrap"><table class="etft">') && !/<details class="yc-det" open/.test(h), 'tabela zwinięta, dane po rozwinięciu');
+  assert.equal(K.wl.length, 1, 'przez wkLines wciąż tylko wykres inflacji oczekiwanej USA'); assert.deepEqual(K.wl[0].L[1].d.map(r => r[1]), [2.34, 2.34, 2.33, 2.48, 2.28]);
+});
+
+test('v418 (W3A_KRZYWE): słownik yc418.* — 6 kluczy w 10 językach, te same pola {x}, każdy klucz użyty w kodzie, zero nazw dostawców i znaków niewidocznych; prawdziwe tłumaczenia; reguły CSS ze zmiennych motywu; jeden słownik i jedna linia nakładania', () => {
+  const D = v96src.I18N, keys = Object.keys(D.pl).filter(k => k.startsWith('yc418.')); assert.equal(keys.length, 6, 'klucze: ' + keys.length);
+  const ph = s => (String(s).match(/\{[a-z0-9]+\}/g) || []).sort().join(',');
+  for (const k of keys) {
+    for (const L of ['pl', 'en', 'de', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+      assert.equal(typeof D[L][k], 'string', L + ' ' + k); assert.ok(D[L][k].length > 0, L + ' ' + k); assert.equal(ph(D[L][k]), ph(D.pl[k]), L + ' ' + k + ': pola {x}');
+      assert.ok(!/[\u200b-\u200f\u2060\ufeff\ufe0f\u00a0\u202f]/.test(D[L][k]), L + ' ' + k + ': znak niewidoczny'); assert.ok(!/fred|treasury|bundesbank|ministry|bank of canada|\becb\b|\bebc\b|tradingview/i.test(D[L][k]), L + ' ' + k + ': nazwa dostawcy');
+      if (L !== 'pl' && L !== 'en') assert.notEqual(D[L][k], D.en[k], L + ' ' + k + ': prawdziwe tłumaczenie');
+    }
+    assert.ok(yc362.code.includes("'" + k + "'"), 'klucz bez użycia w kodzie: ' + k);
+  }
+  for (const L of ['de', 'en', 'es', 'fr', 'it', 'pt', 'ru', 'zh', 'ja']) {
+    const K = yc362.mk(L, yc362.files()); K.expand(); const h = K.html(); assert.ok(!/yc418\./.test(h) && !/yc362\./.test(h), L + ': brak surowych kluczy');
+    assert.equal(yc418.cls(yc418.chart(h), 'wk-pt s1'), 9, L); assert.equal(yc418.rows(yc418.bars(h)).length, 5, L + ': pięć krajów w porównaniu');
+  }
+  const css = html.slice(html.indexOf('/* v418 (W3A_KRZYWE): krzywa z punktami terminów'), html.indexOf('/* v352: zmienność rynków (panel zwijany'));
+  assert.ok(css.length > 600 && !/#[0-9a-fA-F]{3,6}\b/.test(css) && !/(?<![\w-])(width|min-width):\s*\d{3,}px/.test(css), 'kolory ze zmiennych motywu, bez sztywnych szerokości');
+  for (const q of ['#g-krzywe .wk-l.s2{stroke-width:1.5;stroke-dasharray:5 4}', '#g-krzywe .yc-inv{fill:rgba(var(--yl-rgb),.14)}', '#g-krzywe .wk-ch .yc-b{--k:var(--bl)}', '#g-krzywe .etfk b.neu{color:var(--yl-tx)}', '@media (max-width:620px){#g-krzywe .wk-br{--lw:42%}']) assert.ok(css.includes(q), 'CSS: ' + q);
+  const mm = [...html.matchAll(/^const EXTRA(\d+)=\{"pl":\{"yc418\.xu"/gm)]; assert.equal(mm.length, 1, 'jeden słownik v418'); const n = mm[0][1];
+  assert.equal([...html.matchAll(new RegExp('^for\\(const l in EXTRA' + n + '\\)if\\(I18N\\[l\\]\\)Object\\.assign\\(I18N\\[l\\],EXTRA' + n + '\\[l\\]\\);$', 'gm'))].length, 1, 'jedna linia nakładania');
 });
