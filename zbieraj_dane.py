@@ -5288,6 +5288,60 @@ MX_STALE = 21      # dni bez nowego dnia (zwykłe opóźnienie ok. 1,5 tygodnia)
 BMX_API = 'https://www.banxico.org.mx/SieAPIRest/service/v1/series/{ids}/datos/{a}/{b}'
 BMX_TOKEN_KSZTALT = re.compile(r'[A-Za-z0-9]{64}')   # token SIE: 64 litery/cyfry (strona banku „token”); inny kształt nie jest wysyłany
 
+# v471 (19.10.2026): obie drogi Meksyku są u tego samego banku — jego krótka niedostępność kładła obie (11.10 ok. 4 h, 19.10 ok. 3 h, łącznie 44 nieudane przebiegi;
+# publiczna kontrola podaje tylko liczbę nieudanych przebiegów, nie rodzaj błędu). Ponawiamy w tym samym przebiegu TYLKO przejściowe awarie (brak odpowiedzi,
+# przerwane połączenie, HTTP 408/5xx) z rosnącym limitem czasu i rosnącą przerwą, we wspólnym budżecie obu dróg; odmowa tokenu, limit zapytań, zła odpowiedź
+# i zła skala nie są ponawiane. Gdy bank nadal nie odpowiada, zostaje poprzedni plik z datą pobrania (ok 'cached', błąd → uwaga) do MX_CACHE_DNI dni.
+MX_TMO_API = (60, 90, 120)   # s — limity czasu kolejnych prób API SIE (rosnące)
+MX_TMO_FORM = (90, 120)      # s — limity czasu kolejnych prób formularza
+MX_PAUZY = (5, 15)           # s — przerwy przed kolejną próbą (rosnące; ostatnia dla dalszych prób)
+MX_BUDZET = 200              # s — wspólny budżet prób obu dróg w jednym przebiegu (pierwsza próba każdej drogi zawsze się odbywa)
+MX_CACHE_DNI = 3             # dni — tyle poprzedni plik (data pobrania) może być stary, by brak odpowiedzi banku był uwagą, nie błędem
+MX_HTTP_PRZEJ = (408, 425, 500, 502, 503, 504, 520, 521, 522, 523, 524)
+_MX_NET = {'do': None}       # chwila (monotonic), do której trwa budżet prób; build_meksyk zeruje ją na początku
+
+
+def _mx_przejsciowy(e):
+    """v471: czy awaria jest przejściowa (warto ponowić): HTTPError tylko z kodów MX_HTTP_PRZEJ; brak odpowiedzi, przerwane połączenie, limit czasu."""
+    if isinstance(e, urllib.error.HTTPError):
+        return e.code in MX_HTTP_PRZEJ
+    return isinstance(e, (urllib.error.URLError, OSError, _http_client.HTTPException))
+
+
+def _mx_ponow(f, tmo, pauzy=MX_PAUZY):
+    """v471: f(limit_czasu_s) z ponowieniem przy przejściowej awarii: kolejne limity z `tmo`, przerwa z `pauzy` (rosnąca), ostatni wyjątek idzie dalej bez zmian.
+    Kolejna próba tylko, gdy w budżecie _MX_NET['do'] zostaje przerwa + 20 s; jej limit czasu jest przycięty do reszty budżetu (najmniej 15 s)."""
+    if _MX_NET['do'] is None:
+        _MX_NET['do'] = time.monotonic() + MX_BUDZET
+    for i, t in enumerate(tmo):
+        if i:
+            t = max(15, min(t, int(_MX_NET['do'] - time.monotonic())))
+        try:
+            return f(t)
+        except Exception as e:
+            p = pauzy[min(i, len(pauzy) - 1)]
+            if i == len(tmo) - 1 or not _mx_przejsciowy(e) or _MX_NET['do'] - time.monotonic() < p + 20:
+                raise
+            if isinstance(e, urllib.error.HTTPError):
+                e.close()
+            print(f'MEKSYK: próba {i + 1}/{len(tmo)} bez odpowiedzi ({type(e).__name__}) — ponawiam za {p} s')
+            time.sleep(p)
+
+
+def _mx_zapas(prev, e, n0):
+    """v471: bank nie odpowiada (przejściowa awaria obu dróg), a poprzedni plik ma datę pobrania nie starszą niż MX_CACHE_DNI dni → True: błędy tego przebiegu
+    (od indeksu n0) przechodzą do uwag, dodana uwaga z datą pobrania, META['ok']['meksyk'] = 'cached' (plik zostaje bez zmian, wołający go zapisuje).
+    Inaczej False (zwykły błąd): zła odpowiedź i skala to nie niedostępność, brak poprzedniego pliku albo plik starszy niż próg też nie."""
+    d = prev.get('d') if isinstance(prev, dict) else None
+    if not (_mx_przejsciowy(e) and isinstance(d, list) and d and _zapas_wiek_ok(prev.get('at'), MX_CACHE_DNI)):
+        return False
+    META['notes'].extend(META['errors'][n0:])
+    del META['errors'][n0:]
+    META['notes'].append(mask(f"Banxico: bank nie odpowiada ({type(e).__name__}) — zostaje plik pobrany {str(prev.get('at'))[:16]}, dane do {prev.get('asof')}"))
+    META['ok']['meksyk'] = 'cached'
+    return True
+
+
 
 def post_bytes(url, form, timeout=90):
     data = urllib.parse.urlencode(form, doseq=True).encode()
@@ -5401,7 +5455,8 @@ def bmx_api(token, ids, a, b):
     + ' (blokada limitu jeszcze N s)' przy limicie). Komunikat: maskowany w całości, dopiero potem skrócony do 80 znaków."""
     code, why = 200, 'odpowiedź z polem error'
     try:
-        j = bmx_fetch(BMX_API.format(ids=','.join(ids), a=a, b=b), token)
+        adr = BMX_API.format(ids=','.join(ids), a=a, b=b)
+        j = _mx_ponow(lambda t: bmx_fetch(adr, token, t), MX_TMO_API)   # v471: ponowienie przy przejściowej awarii banku
     except urllib.error.HTTPError as e:
         code, why = e.code, e.reason
         try:
@@ -5476,6 +5531,7 @@ def build_meksyk(key, token='', prev=None):
     v126: z tokenem (sekret BANXICO_TOKEN) najpierw oficjalne API SIE — te same serie i ten sam zakres, więc te same wiersze; bez tokenu,
     z tokenem odrzuconym albo po awarii API — formularz jak dotąd (bmx_api_rows). Plik ma te same pola co dotąd."""
     now = _now_utc().date()
+    _MX_NET['do'] = None   # v471: nowy budżet prób na ten przebieg
     d = bmx_api_rows(token, now) if token else None
     if d is None:
         form = {'locale': 'es', 'idCuadro': 'CA138', 'sector': '7', 'version': '3', 'series': [c for _, c in BMX_SER],
@@ -5485,7 +5541,7 @@ def build_meksyk(key, token='', prev=None):
                 # ('false') — i to działa (CSV z 6 kolumnami, sprawdzone 25–27.09.2026). Zestaw pól jest przypięty testem (MeksykV88); przywrócenie obu pól —
                 # dopiero po sondzie w Actions (porównanie CSV z polami i bez), nie na ślepo (bez sondy nie wysyłamy POST)
                 'metadatosWeb': 'true', 'formatoCSV.x': '10', 'formatoCSV.y': '10'}
-        d = parse_bmx(post_bytes(BMX_URL, form).decode('latin-1'))[-MX_KEEP:]
+        d = parse_bmx(_mx_ponow(lambda t: post_bytes(BMX_URL, form, t), MX_TMO_FORM).decode('latin-1'))[-MX_KEEP:]   # v471
     bad = _mx_bad(d)
     if bad:
         raise RuntimeError(f'skala niezgodna ({bad[-1]})')
@@ -33676,9 +33732,11 @@ def main():
         save('meksyk', prev_mx); META['ok']['meksyk'] = 'cached'
     else:
         try:
+            n_err_mx = len(META['errors'])   # v471: błędy tego budowania (API) mogą przejść do uwag, gdy bank nie odpowiada
             mx_ = build_meksyk(fred_key, bmx_token, prev_mx); save('meksyk', mx_); META['ok']['meksyk'] = not plik_niepelny(mx_)   # v328: kurs z poprzedniego pliku = ok False
         except Exception as e:
-            META['errors'].append(mask(f'Banxico: {e}')); META['ok']['meksyk'] = False
+            if not _mx_zapas(prev_mx, e, n_err_mx):   # v471: bank nie odpowiada, plik do 3 dób → uwaga i ok 'cached', nie błąd
+                META['errors'].append(mask(f'Banxico: {e}')); META['ok']['meksyk'] = False
             if prev_mx: save('meksyk', prev_mx)
     # KRYPTO (CoinGecko z kluczem właściciela w nagłówku + Alternative.me): najwyżej raz na 55 min (limit Demo 10 000/mies.)
     prev_kr = previous('krypto')

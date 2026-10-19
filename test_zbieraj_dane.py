@@ -3725,7 +3725,7 @@ class BanxicoApiV126(unittest.TestCase):
             assert 'DEXMXUS' in url, url
             return {'observations': [{'date': '2026-09-18', 'value': '18.25'}, {'date': '2026-09-15', 'value': '17.1393'}, {'date': '2026-09-14', 'value': '.'}]}
         with mock.patch.object(zd, 'bmx_fetch', fetch), mock.patch.object(zd, 'post_bytes', pb), mock.patch.object(zd, 'get_json', gj), \
-                mock.patch.object(zd, '_now_utc', lambda: now or self.NOW):
+                mock.patch.object(zd.time, 'sleep', lambda s: None), mock.patch.object(zd, '_now_utc', lambda: now or self.NOW):   # v471: bez prawdziwych przerw
             out = zd.build_meksyk('FREDKEY', self.TOKEN if token is None else token)
         return out, calls, posts
 
@@ -3834,7 +3834,8 @@ class BanxicoApiV126(unittest.TestCase):
         for api, err in cases:
             zd.META['errors'].clear()
             out, calls, posts = self.run_(api)
-            self.assertEqual(len(calls), 1, 'bez ponawiania'); self.assertEqual(len(posts), 1, 'formularz jako zapas')
+            self.assertEqual(len(calls), 3 if type(api) is urllib.error.URLError else 1, 'ponawianie tylko przy przejściowej awarii sieci (v471)')
+            self.assertEqual(len(posts), 1, 'formularz jako zapas')
             self.assertEqual(out, want); self.assertEqual(zd.META['errors'], [err]); self.assertEqual(zd.META['notes'], [])
 
     def test_token_masked_if_echoed(self):
@@ -79978,3 +79979,158 @@ class KontrolaTetherTolerancjaV470(unittest.TestCase):
         self.assertTrue(o['rows'][0][4].startswith('raport starszy niż 30 h') and 'po 96 h' in o['rows'][0][4]); self.assertEqual(o['rows'][0][2], 3600)
         j = self._plik(); del j['tether']
         self.assertIn('120 h', k.ste_kontrola(j, None, {}, '2026-10-13', self.NOW)['uwagi'][0])
+
+
+class TestV471MeksykOdpornosc(unittest.TestCase):
+    """v471 (19.10.2026): Meksyk — krótka niedostępność banku (obie drogi u tego samego banku: 11.10 ok. 4 h, 19.10 ok. 3 h) nie kładzie źródła:
+    ponowienie w przebiegu tylko przy przejściowej awarii, a przy dalszym braku odpowiedzi poprzedni plik z datą pobrania do 3 dób (ok 'cached', uwaga)."""
+    B = BanxicoApiV126
+    NOW_ISO = '2026-09-27T17:00:00+00:00'
+    PREV2 = '2026-09-25T12:00:00+00:00'   # 2 doby przed przebiegiem
+    PREV4 = '2026-09-23T12:00:00+00:00'   # 4 doby przed przebiegiem
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        zd.SECRETS[:] = [self.B.TOKEN]
+        zd._MX_NET['do'] = None
+
+    def _build(self, api, form, token=None, clock=None):
+        """build_meksyk z nagraniami: api / form = lista wyników kolejnych prób (wyjątek = rzucany, inaczej zwracany); zwraca (plik albo wyjątek, limity API, limity formularza, przerwy)."""
+        tm_api, tm_form, pauzy = [], [], []
+        api, form = list(api), list(form)
+
+        def fetch(url, tok, timeout=60):
+            tm_api.append(timeout)
+            if clock:
+                clock[0] += timeout
+            x = api.pop(0)
+            if isinstance(x, Exception):
+                raise x
+            return x
+
+        def pb(url, f, timeout=90):
+            tm_form.append(timeout)
+            if clock:
+                clock[0] += timeout
+            x = form.pop(0)
+            if isinstance(x, Exception):
+                raise x
+            return x
+
+        def slp(s):
+            pauzy.append(s)
+            if clock:
+                clock[0] += s
+        ctx = [mock.patch.object(zd, 'bmx_fetch', fetch), mock.patch.object(zd, 'post_bytes', pb), mock.patch.object(zd.time, 'sleep', slp),
+               mock.patch.object(zd, '_now_utc', lambda: self.B.NOW), mock.patch.object(zd, 'get_json', lambda *a, **k: {'observations': []})]
+        if clock:
+            ctx.append(mock.patch.object(zd.time, 'monotonic', lambda: clock[0]))
+        [c.start() for c in ctx]
+        try:
+            try:
+                out = zd.build_meksyk('', self.B.TOKEN if token is None else token)
+            except Exception as e:
+                out = e
+        finally:
+            [c.stop() for c in ctx]
+        return out, tm_api, tm_form, pauzy
+
+    def test_ponowienie_tylko_przy_przejsciowej_awarii(self):
+        csv = self.B.csv().encode('latin-1')
+        ok = self.B.api()
+        out, ta, tf, p = self._build([urllib.error.URLError('timed out'), TimeoutError('timed out'), ok], [])
+        self.assertEqual((ta, tf, p), ([60, 90, 120], [], [5, 15]), 'limit czasu rośnie, przerwa rośnie, formularz niepotrzebny')
+        self.assertEqual(out['d'][-1], self.B.LAST); self.assertEqual(zd.META['errors'], [])
+        zd.META['errors'].clear()
+        out, ta, tf, p = self._build([self.B.http_error(503, b'', 'Service Unavailable'), ok], [])
+        self.assertEqual((len(ta), p), (2, [5]), 'HTTP 503 = przejściowa'); self.assertEqual(out['d'][-1], self.B.LAST)
+        for x in (self.B.http_error(400, {'error': {'mensaje': 'Límite de consultas superado.', 'secondsToReset': 54}}), self.B.http_error(403, b'x', 'Forbidden'),
+                  self.B.http_error(404, b'', 'Not Found'), self.B.REJECT, ValueError('Expecting value: line 1 column 1 (char 0)'), RuntimeError('x')):
+            zd.META['errors'].clear(); zd.META['notes'].clear()
+            out, ta, tf, p = self._build([x], [csv])
+            self.assertEqual((len(ta), p, tf), (1, [], [90]), f'bez ponawiania: {x!r}'); self.assertEqual(out['d'][-1], self.B.LAST)
+        zd.META['errors'].clear()
+        out, ta, tf, p = self._build([], [urllib.error.URLError('timed out'), csv], token='')
+        self.assertEqual((ta, tf, p), ([], [90, 120], [5]), 'formularz też ponawiany'); self.assertEqual(out['d'][-1], self.B.LAST)
+
+    def test_przejsciowa_klasyfikacja(self):
+        for e, w in ((urllib.error.URLError('x'), True), (TimeoutError(), True), (ConnectionResetError(), True), (zd._http_client.IncompleteRead(b''), True),
+                     (self.B.http_error(502, b''), True), (self.B.http_error(524, b''), True), (self.B.http_error(429, b''), False),
+                     (self.B.http_error(401, b''), False), (self.B.http_error(404, b''), False), (ValueError('x'), False), (RuntimeError('x'), False)):
+            self.assertIs(zd._mx_przejsciowy(e), w, repr(e))
+
+    def test_wspolny_budzet_obu_drog(self):
+        """Obie drogi leżą (każda próba trwa do końca limitu): łącznie najwyżej budżet + pierwsza próba formularza, przycięty limit ostatniej próby."""
+        clock = [0.0]
+        t = lambda: urllib.error.URLError('timed out')   # noqa: E731
+        out, ta, tf, p = self._build([t(), t(), t()], [t(), t()], clock=clock)
+        self.assertIsInstance(out, urllib.error.URLError)
+        self.assertEqual((ta, p, tf), ([60, 90, 30], [5, 15], [90]), 'API: 60, 90, przycięte 30; formularz: jedna próba (budżet wyczerpany)')
+        self.assertEqual(clock[0], 290); self.assertLessEqual(clock[0], zd.MX_BUDZET + zd.MX_TMO_FORM[0])
+
+    def _main(self, prev, api, form, fixed=True):
+        """Pełny main() z nagraniami; zwraca (zapisany meksyk, META ok, błędy Banxico, uwagi Banxico)."""
+        saved = {}
+        stubs = [mock.patch.object(zd, n, side_effect=RuntimeError('offline')) for n in dir(zd) if n.startswith('build_') and n != 'build_meksyk']
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        api, form = list(api), list(form)
+
+        def fetch(url, tok, timeout=60):
+            x = api.pop(0)
+            if isinstance(x, Exception):
+                raise x
+            return x
+
+        def pb(url, f, timeout=90):
+            x = form.pop(0)
+            if isinstance(x, Exception):
+                raise x
+            return x
+        [p.start() for p in stubs]
+        try:
+            with mock.patch.dict(os.environ, {'BANXICO_TOKEN': self.B.TOKEN, 'FRED_KEY': '', 'SOSOVALUE_KEY': '', 'COINGECKO_KEY': ''}, clear=False), \
+                    mock.patch.object(zd, 'save', lambda name, obj: saved.__setitem__(name, obj)), \
+                    mock.patch.object(zd, 'previous', lambda name: prev if name == 'meksyk' else None), \
+                    mock.patch.object(zd, 'bmx_fetch', fetch), mock.patch.object(zd, 'post_bytes', pb), mock.patch.object(zd.time, 'sleep', lambda s: None), \
+                    mock.patch.object(zd, 'NOW', self.NOW_ISO), mock.patch.object(zd, '_now_utc', lambda: self.B.NOW):
+                zd.main()
+        finally:
+            [p.stop() for p in stubs]
+        return (saved.get('meksyk'), zd.META['ok'].get('meksyk'), [e for e in zd.META['errors'] if 'Banxico' in e], [n for n in zd.META['notes'] if 'Banxico' in n])
+
+    def test_bank_nie_odpowiada_plik_zostaje_z_wiekiem(self):
+        prev = {'at': self.PREV2, 'asof': '2026-09-15', 'd': [self.B.LAST]}
+        down = [urllib.error.URLError('timed out')]
+        f, ok, err, notes = self._main(prev, down * 3, down * 2)
+        self.assertIs(f, prev, 'poprzedni plik zapisany bez zmian (data pobrania zostaje)'); self.assertEqual(f['at'], self.PREV2)
+        self.assertEqual(ok, 'cached'); self.assertEqual(err, [], 'do 3 dób to uwaga, nie błąd')
+        self.assertEqual(len(notes), 2, notes); self.assertTrue(notes[0].startswith('Banxico API (zapas: formularz)'), notes)
+        self.assertEqual(notes[1], 'Banxico: bank nie odpowiada (URLError) — zostaje plik pobrany 2026-09-25T12:00, dane do 2026-09-15')
+        self.assertNotIn(self.B.TOKEN, json.dumps(notes))
+        for e in (self.B.http_error(503, b'', 'Service Unavailable'), TimeoutError('timed out')):    # także 5xx i sam limit czasu formularza
+            f, ok, err, notes = self._main(prev, [e] * 3, [e] * 2)
+            self.assertEqual((f is prev, ok, err), (True, 'cached', []), repr(e))
+
+    def test_plik_starszy_niz_3_doby_albo_brak_pliku_albo_zla_odpowiedz_to_blad(self):
+        down = [urllib.error.URLError('timed out')]
+        old = {'at': self.PREV4, 'asof': '2026-09-15', 'd': [self.B.LAST]}
+        f, ok, err, notes = self._main(old, down * 3, down * 2)
+        self.assertEqual((f is old, ok), (True, False), 'plik zapisany, ale źródło niedziałające'); self.assertEqual(len(err), 2, err)
+        self.assertTrue(err[1].startswith('Banxico: '), err); self.assertEqual(notes, [])
+        f, ok, err, notes = self._main(None, down * 3, down * 2)
+        self.assertEqual((f, ok, len(err)), (None, False, 2), 'bez poprzedniego pliku nie ma czego pokazać')
+        prev = {'at': self.PREV2, 'asof': '2026-09-15', 'd': [self.B.LAST]}
+        f, ok, err, notes = self._main(prev, [RuntimeError('x')], [self.B.csv().replace('1788646.44', '1788.64').encode('latin-1')])
+        self.assertEqual((ok, len(err)), (False, 2), 'zła skala to nie niedostępność banku (błąd API + błąd formularza)'); self.assertIn('skala niezgodna', err[-1])
+        bad = {'at': self.PREV2, 'asof': '2026-09-15', 'd': []}
+        self.assertEqual(self._main(bad, down * 3, down * 2)[1], False, 'pusty poprzedni plik nie jest zapasem')
+
+    def test_powrot_zrodla(self):
+        prev = {'at': self.PREV2, 'asof': '2026-09-15', 'd': [self.B.LAST]}
+        down = [urllib.error.URLError('timed out')]
+        self.assertEqual(self._main(prev, down * 3, down * 2)[1], 'cached')
+        f, ok, err, notes = self._main(prev, [self.B.api()], [])      # bank wraca: pierwszy przebieg po awarii
+        self.assertIsNot(f, prev); self.assertEqual(f['d'][-1], self.B.LAST); self.assertEqual(f['at'], self.NOW_ISO, 'nowa data pobrania')
+        self.assertEqual((ok, err, notes), (True, [], []), 'bez śladu awarii')
+        f, ok, err, notes = self._main(prev, [urllib.error.URLError('x'), self.B.api()], [])   # wraca w trakcie przebiegu (drugie ponowienie)
+        self.assertEqual((f['d'][-1], ok, err, notes), (self.B.LAST, True, [], []))
