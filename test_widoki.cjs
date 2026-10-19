@@ -34123,3 +34123,19 @@ test('v438: podłoga 3D CRYPTO bez siatki — gradient zamiast odcinków, lustro
   assert.ok(html.includes('setCam();drawFloor();NODES.forEach(drawGroundGlow);') && html.includes('if(C[1]>FY+.3)drawScene(true,time);'), 'kolejność rysowania: podłoga, plamy, lustro, scena');
   assert.ok(html.includes('--scene-floor:rgba(235,235,245,.10)') && html.includes('--scene-floor:rgba(60,60,67,.10)'), 'kolor podłogi w obu motywach');
 });
+
+
+test('v440: skrypt kontroli zakładek (wstrzykiwany do kopii strony) — składnia, tylko lokalny serwer kontroli, bez zapisu na stronie', () => {
+  if (typeof fs.existsSync !== 'function') return;   /* pod jsc atrapa fs oddaje tylko index.html — skrypt sprawdza node, a plik i jego wzorce także test zbieracza (TestV440KontrolaZakladek) */
+  const src = fs.readFileSync(path.join(__dirname, 'narzedzia', 'kontrola_zakladki.js'), 'utf8');
+  new Function(src);   /* składnia (kompilacja bez uruchomienia; jsc i node) */
+  assert.ok(!/<\/script/i.test(src), 'skrypt wstrzykiwany w <script>');
+  for (const m of src.matchAll(/fetch\(([^)]*)\)/g)) assert.ok(/'\/__kz\//.test(m[1]), 'jedyne zapytania sieciowe: lokalny serwer kontroli /__kz/ — ' + m[1].slice(0, 60));
+  assert.ok(!/\beval\(|new Function\(|document\.write|localStorage|sessionStorage|indexedDB|\.cookie|XMLHttpRequest|WebSocket|sendBeacon/.test(src), 'bez niebezpiecznych wzorców i bez zapisu stanu strony');
+  assert.ok(!/\.(innerHTML|outerHTML)\s*=/.test(src), 'skrypt niczego nie wstawia na stronę');
+  for (const s of ["'/__kz/wynik'", 'aria-pressed', 'aria-expanded', 'unhandledrejection', "'tab-' + id", 'wk-', 'srv-stale', 'global', 'crypto', 'trendy'])
+    assert.ok(src.includes(s), 'skrypt zna: ' + s);
+  /* zakładki i ich sekcje istnieją w stronie pod nazwami, których używa skrypt */
+  for (const id of ['tab-global', 'tab-crypto', 'tab-trendy', 'srv-stale']) assert.ok(html.includes('id="' + id + '"'), 'strona ma #' + id);
+  for (const id of ['global', 'crypto', 'trendy']) assert.ok(new RegExp('<[a-z]+[^>]*id="' + id + '"[^>]*role="tabpanel"').test(html), 'strona ma panel zakładki #' + id);
+});

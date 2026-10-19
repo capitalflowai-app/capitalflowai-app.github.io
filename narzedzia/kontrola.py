@@ -4515,6 +4515,30 @@ def przegladarka_wiersz_lekka(P):
             + (f'; napisy-błędy w tekście (NaN, undefined…): {P["artefakty_n"]} ⚠️' if P.get('artefakty_n') else '') + '.')
 
 
+# ---------------------------------------------------------------- v440: stała kontrola zakładek GLOBAL, CRYPTO i TRENDY ----------------------------------------------------------------
+# Przełączanie zakładek, przełączniki i zakresy, rozwijanie bloków, wykresy, błędy JavaScriptu, brakujące/stare/niepełne pliki w KOPII strony —
+# narzedzia/kontrola_zakladki.py (+ .js). Najwyżej ⚠️ w uwagach; sekcja w raporcie; czasy pierwszego widoku w historii (pole zakl).
+def _zakladki_modul():
+    """v440: moduł stałej kontroli zakładek (narzedzia/kontrola_zakladki.py) ładowany z pliku obok — bez zależności od sys.path (testy ładują
+    kontrola.py z pliku)."""
+    import importlib.util
+    sp = importlib.util.spec_from_file_location('kontrola_zakladki', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'kontrola_zakladki.py'))
+    m = importlib.util.module_from_spec(sp)
+    sp.loader.exec_module(m)
+    return m
+
+
+def zakladki_do_historii(Z):
+    """v440: skrót kontroli zakładek do kontrola/historia.json: czasy pierwszego widoku (s), liczba wykresów, kroków i potwierdzonych ⚠️/❌ — pomiary do ustawienia
+    ostrzejszych progów po tygodniu; brak kontroli = None."""
+    if not isinstance(Z, dict) or Z.get('stan') != 'ok':
+        return None
+    ocz = [x for x in (Z.get('oceny') or []) if isinstance(x, dict)] + [x for s in (Z.get('scenariusze') or []) for x in (s.get('oceny') or []) if isinstance(x, dict)]
+    w = Z.get('wynik_podstawowy') or {}
+    return {'widok': Z.get('widok'), 'wykresy': w.get('wykresy'), 'kroki': w.get('kroki'),
+            'bledy': sum(1 for x in ocz if x.get('p') == '❌'), 'ostrz': sum(1 for x in ocz if x.get('p') == '⚠️')}
+
+
 # ---------------------------------------------------------------- v133: tokenizowane aktywa RWA (data/rwa.json) ----------------------------------------------------------------
 RWA_ETYKIETA = 'tokenizowane aktywa RWA (co 3 h)'   # v172: było co 6 h
 RWA_SWIEZ_MIN = 12 * 60    # min — lista starsza (plik co 3 h od v172, część z błędem ponawiana po godzinie) = ⚠️; nigdy ❌ ani BŁĄD
@@ -14034,6 +14058,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['strona'] = {'ok': False, 'blad': str(e)[:200]}
         R['bledy'].append(f'strona główna nie odpowiada: {str(e)[:120]}')
+    # v440: stała kontrola zakładek GLOBAL/CRYPTO/TRENDY (przełączniki, zakresy, bloki, wykresy, błędy JS, brakujące/stare/niepełne pliki w kopii strony);
+    # najwyżej ⚠️ w uwagach — nigdy BŁĄD całej kontroli, żadnych zmian na stronie ani w danych. Tak jak 1c tylko z KONTROLA_PRZEGLADARKA=1 (własna sieć,
+    # własna przeglądarka); poza blokiem 1c, który testy wycinają i uruchamiają na atrapach
+    if (R.get('strona') or {}).get('ok') and os.environ.get('KONTROLA_PRZEGLADARKA') == '1':
+        try:
+            kz = _zakladki_modul()
+            R['zakladki'] = kz.kontrola_zakladek(SITE, termin_zostalo=termin_zostalo)
+            R['uwagi'] += kz.zakladki_uwagi(R['zakladki'])
+        except Exception as e:  # noqa
+            R['zakladki'] = {'stan': 'blad', 'brak': f'błąd kontroli zakładek: {type(e).__name__}'}
     # 1c. v247: strona w przeglądarce bez okna (Chrome, ekran telefonu) — błędy JavaScriptu na prawdziwych danych; najwyżej ⚠️. Tylko gdy
     # KONTROLA_PRZEGLADARKA=1 (ustawia kontrola.yml): testy wołające kontrola() nie mogą uruchamiać przeglądarki — ona ma własną sieć
     if (R.get('strona') or {}).get('ok') and os.environ.get('KONTROLA_PRZEGLADARKA') == '1':
@@ -15249,7 +15283,8 @@ def kontrola():
         R['bledy'].append(kontrola_przerwana_opis(KoniecCzasu()))
     n_err = bledy_zbieracza_liczba(R['meta'].get('errors'), files, NOW) if isinstance(R['meta'], dict) else 0   # v386: bez pojedynczych 429 USDT skarbiec przy świeżym odczycie
     hist = historia(os.path.join(OUT_DIR, 'historia.json'), {'at': R['at'], 'bledy_zbieracza': n_err, 'uwagi': len(R['uwagi']), 'bledy': len(R['bledy']),
-                                                           'przegl': (R.get('przegladarka') or {}).get('stan')})   # v248: stan przeglądarki
+                                                           'przegl': (R.get('przegladarka') or {}).get('stan'),   # v248: stan przeglądarki
+                                                           'zakl': zakladki_do_historii(R.get('zakladki'))})   # v440: czasy pierwszego widoku i liczby kontroli zakładek
     if czerwone_z_historii(hist):
         R['bledy'].append(f'zbieracz zgłasza błędy w {HIST_CZERWONE} kolejnych dniach kontroli (' + '; '.join((R['meta'].get('errors') or ['?'])[:2]) + ')')
     R['historia_n'] = len(hist)
@@ -15703,6 +15738,11 @@ def raport_md(R):
         ez = Z.get('rwa-emitenci')   # v169: dane emitentów — produkty w sumach, braki, inny zakres; brak bloku = bez linii
         if ez:
             L.append('- Tokenizowane aktywa — dane emitentów: ' + (ez.get('opis') or (f'? kontrola przerwana ({ez["blad"]})' if ez.get('blad') else '—')) + '.')
+    if isinstance(R.get('zakladki'), dict):   # v440: sekcja kontroli zakładek (✅/⚠️/❌ z nazwą elementu)
+        try:
+            L += _zakladki_modul().zakladki_wiersze(R['zakladki'])
+        except Exception as e:  # noqa
+            L += ['', '## Kontrola zakładek GLOBAL, CRYPTO i TRENDY', '', f'- nie sprawdzono (błąd zapisu sekcji: {type(e).__name__}) ℹ️.']
     if R['bledy']:
         L += ['', '## Błędy (wymagają uwagi)'] + [f'- {x}' for x in R['bledy']]
     if R['uwagi']:

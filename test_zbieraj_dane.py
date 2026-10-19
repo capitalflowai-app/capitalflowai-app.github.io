@@ -72432,3 +72432,271 @@ class TestV432DwaJezyki(unittest.TestCase):
         self.assertIn("SEO_LANGS=['pl','en'];", h)
         self.assertIn('id="lang-sw"', h)
         self.assertNotIn('cfLangReady', h); self.assertNotIn('CF_I18N', h)
+
+
+class TestV440KontrolaZakladek(unittest.TestCase):
+    """v440 (18.10.2026): stała kontrola zakładek GLOBAL, CRYPTO i TRENDY — podmiana pliku w kopii, serwer lokalny, oceny, raport, okablowanie.
+    Bez przeglądarki i bez sieci zewnętrznej (serwer tylko na 127.0.0.1, żywa strona udawana funkcją)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        here = os.path.dirname(os.path.abspath(__file__))
+        sp = importlib.util.spec_from_file_location('kz_v440', os.path.join(here, 'narzedzia', 'kontrola_zakladki.py'))
+        cls.kz = importlib.util.module_from_spec(sp)
+        sp.loader.exec_module(cls.kz)
+        cls.here = here
+
+    # --- podmiana pliku -----------------------------------------------------------------
+    def test_przesuniecie_dat(self):
+        kz = self.kz
+        self.assertEqual(kz._przesun_str('2026-03-01', 14), '2026-02-15')
+        self.assertEqual(kz._przesun_str('2026-10-18T06:20:00+00:00', 14), '2026-10-04T06:20:00+00:00')
+        self.assertEqual(kz._przesun_str('2026-10-18 06:20', 1), '2026-10-17 06:20')
+        self.assertEqual(kz._przesun_str('jutro', 14), 'jutro')
+        self.assertEqual(kz._przesun_str('2026-13-45', 14), '2026-13-45', 'nieprawdziwa data bez zmian')
+        j = {'at': '2026-10-18T06:20:00+00:00', 'ts': 1792300000, 'wolumen': 1792300000, 'ok': True, 'x': [1, '2026-10-01', {'t': 1792300000000}]}
+        o = kz.przesun_daty(j, 14)
+        self.assertEqual(o['at'], '2026-10-04T06:20:00+00:00')
+        self.assertEqual(o['ts'], 1792300000 - 14 * 86400)
+        self.assertEqual(o['wolumen'], 1792300000, 'zwykła liczba (nie klucz czasu) nietknięta')
+        self.assertIs(o['ok'], True)
+        self.assertEqual(o['x'][1], '2026-09-17')
+        self.assertEqual(o['x'][2]['t'], 1792300000000 - 14 * 86400 * 1000)
+
+    def test_zmiany_pliku(self):
+        kz = self.kz
+        body = json.dumps({'at': '2026-10-18T06:00:00+00:00', 'rows': [[1, 2], [3, 4]], 'm': {'a': [1], 'b': 5}}).encode()
+        self.assertEqual(kz.zmien_plik('brak', body)[0], 404)
+        self.assertEqual(kz.zmien_plik('pusty', body), (200, b'{}'))
+        k, b = kz.zmien_plik('ucięty', body)
+        self.assertEqual(k, 200); self.assertLess(len(b), len(body))
+        with self.assertRaises(ValueError):
+            json.loads(b.decode())
+        k, b = kz.zmien_plik('puste_listy', body)
+        self.assertEqual(json.loads(b), {'at': '2026-10-18T06:00:00+00:00', 'rows': [], 'm': {'a': [], 'b': 5}})
+        k, b = kz.zmien_plik('stary', body)
+        self.assertEqual(json.loads(b)['at'], '2026-10-04T06:00:00+00:00')
+        self.assertEqual(kz.zmien_plik('stary', b'nie json'), (200, b'nie json'), 'nie JSON — bez zmiany')
+        self.assertEqual(set(kz.OPIS_ZMIAN), set(kz.ZMIANY), 'każda zmiana ma opis')
+        for sc in kz.SCENARIUSZE:
+            self.assertIn(sc['zmiana'], kz.ZMIANY)
+
+    def test_wstrzykniecie_skryptu(self):
+        kz = self.kz
+        h = kz.wstrzyknij('<html><head><title>x</title></head><body></body></html>', {'tryb': 'pelny'}, 'var a=1;')
+        self.assertTrue(h.startswith('<html><head><script>window.__KZ_CFG={"tryb": "pelny"};'))
+        self.assertEqual(h.count('var a=1;'), 1)
+        with self.assertRaises(AssertionError):
+            kz.wstrzyknij('<head>', {}, 'x</script>y')
+        js = open(os.path.join(self.here, 'narzedzia', 'kontrola_zakladki.js'), encoding='utf-8').read()
+        self.assertNotIn('</script', js)
+
+    def test_serwer_lokalny_podmienia_tylko_jeden_plik(self):
+        kz = self.kz
+        zapytane = []
+
+        def zywa(sciezka):
+            zapytane.append(sciezka)
+            if sciezka == '/index.html':
+                return 200, 'text/html', b'<html><head></head><body>const EXTRA1</body></html>'
+            if sciezka == '/data/krypto.json':
+                return 200, 'application/json', b'{"at": "2026-10-18T06:00:00+00:00", "a": [1]}'
+            if sciezka == '/data/rynki.json':
+                return 200, 'application/json', b'{"r": [1]}'
+            return 404, 'text/plain', b''
+        zr = kz.Zrodlo('https://example.invalid', pobierz=zywa)   # (testy bez sieci: odpowiedzi serwera sprawdzamy funkcją obsluz, bez gniazd)
+        stan = kz.nowy_stan()
+        sc = {'plik': 'krypto', 'zmiana': 'pusty'}
+
+        def o(adres, metoda='GET', dane=b''):
+            return kz.obsluz(zr, sc, {'tryb': 'pelny'}, 'var kz=1;', stan, metoda, adres, dane)
+        k, ct, b = o('/?nc=1&sw=off'); self.assertEqual(k, 200); self.assertIn('text/html', ct)
+        self.assertIn(b'window.__KZ_CFG', b); self.assertIn(b'const EXTRA1', b); self.assertIn('strona', stan['zdarzenia'])
+        self.assertEqual(o('/data/krypto.json?nc=2')[::2], (200, b'{}'), 'plik scenariusza podmieniony')
+        self.assertEqual(o('/data/rynki.json')[::2], (200, b'{"r": [1]}'), 'inne pliki bez zmian')
+        self.assertEqual(o('/data/nie-ma.json')[0], 404)
+        self.assertEqual(o('/data/krypto.json')[2], b'{}')
+        self.assertEqual(zapytane.count('/data/krypto.json'), 1, 'jedno pobranie z żywej strony na ścieżkę (pamięć wspólna)')
+        self.assertEqual(o('/__kz/widok_global')[0], 204); self.assertIn('widok_global', stan['zdarzenia'])
+        self.assertFalse(stan['gotowe'].is_set())
+        self.assertEqual(o('/__kz/wynik', 'POST', json.dumps({'koniec': True, 'tab': {}}).encode())[0], 204)
+        self.assertTrue(stan['gotowe'].is_set()); self.assertTrue(stan['wynik']['koniec'])
+        self.assertEqual(o('/__kz/wynik', 'POST', b'nie json')[0], 204); self.assertEqual(stan['wynik'], {'nieczytelny': True})
+        k, ct, b = kz.obsluz(zr, None, {}, 'x', kz.nowy_stan(), 'GET', '/data/krypto.json')
+        self.assertIn(b'"a": [1]', b, 'bez scenariusza plik bez zmian')
+        k, ct, b = kz.obsluz(kz.Zrodlo('https://example.invalid', pobierz=lambda p: (503, 'text/plain', b'')), None, {}, 'x', kz.nowy_stan(), 'GET', '/')
+        self.assertEqual(k, 503, 'żywa strona nie odpowiada — przeglądarka dostaje ten sam błąd')
+        z = {'strona': 10.0, 'widok_global': 12.4, 'klik_crypto': 20.0, 'widok_crypto': 21.5, 'klik_trendy': 30.0}
+        self.assertEqual(kz.czasy_widoku(z), {'global': 2.4, 'crypto': 1.5, 'trendy': None})
+
+    # --- oceny -----------------------------------------------------------------
+    def wynik_ok(self):
+        tab = lambda nz, w, wp: {'nazwa': nz, 'przelaczenie': True, 'uwagi': [], 'wykresy': 1, 'wykresy_po': wp, 'panele': 30, 'artefakty': [], 'artefakty_po': []}
+        return {'koniec': True, 'err': [], 'kons': [], 'tab': {'global': tab('GLOBAL', 1, 119), 'crypto': tab('CRYPTO', 3, 21), 'trendy': tab('TRENDY', 48, 48)},
+                'powrot': {'ok': True, 'u': [], 'wykresy': 1, 'wykresy_wczesniej': 1},
+                'ele': [{'z': 'GLOBAL', 't': 'przełącznik', 'n': 'Okres › 1M', 's': 'ok', 'u': []},
+                        {'z': 'CRYPTO', 't': 'rozwijanie', 'n': 'DEX (blok)', 's': 'ok', 'u': []}], 'zegar': {'stale': ''}}
+
+    def test_oceny_podstawowe_zielone(self):
+        kz = self.kz
+        o = kz.oceny_podstawowe(self.wynik_ok(), {'global': 2.0, 'crypto': 1.0, 'trendy': 0.3})
+        self.assertEqual([x for x in o if x['p'] in ('⚠️', '❌')], [])
+        n = ' | '.join(x['n'] for x in o)
+        for s in ('przełączenie zakładki', 'rysowanie wykresów', 'napisy-błędy', 'czas pierwszego widoku', 'powrót do zakładki GLOBAL', 'błędy JavaScriptu', 'Okres › 1M', 'DEX (blok)'):
+            self.assertIn(s, n)
+
+    def test_oceny_podstawowe_problemy(self):
+        kz = self.kz
+        w = self.wynik_ok()
+        w['err'] = ['TypeError: x is undefined (index.html:5)']
+        w['tab']['crypto']['przelaczenie'] = False; w['tab']['crypto']['uwagi'] = ['sekcja zakładki niewidoczna']
+        w['tab']['trendy']['wykresy_po'] = 0
+        w['tab']['global']['artefakty_po'] = ['Kafle: „cena NaN USD”']
+        w['ele'][0]['s'] = 'ostrz'; w['ele'][0]['u'] = ['przycisk nie został zaznaczony']
+        w['powrot'] = {'ok': True, 'u': [], 'wykresy': 2, 'wykresy_wczesniej': 119}
+        o = kz.oceny_podstawowe(w, {'global': 99.0, 'crypto': None, 'trendy': 0.1})
+        zle = {(x['z'], x['n'].split(' (')[0]): x['p'] for x in o if x['p'] != '✅'}
+        self.assertEqual(zle[('wszystkie', 'błędy JavaScriptu na stronie')], '❌')
+        self.assertEqual(zle[('CRYPTO', 'przełączenie zakładki')], '❌')
+        self.assertEqual(zle[('TRENDY', 'rysowanie wykresów')], '❌')
+        self.assertEqual(zle[('GLOBAL', 'napisy-błędy')], '❌')
+        self.assertEqual(zle[('GLOBAL', 'Okres › 1M')], '⚠️')
+        self.assertEqual(zle[('GLOBAL', 'czas pierwszego widoku')], '⚠️', 'dłużej niż próg')
+        self.assertEqual(zle[('CRYPTO', 'czas pierwszego widoku')], '⚠️', 'brak pomiaru = ostrzeżenie, nie zero')
+        self.assertTrue(any(x['n'].startswith('powrót do zakładki GLOBAL') and x['p'] == '❌' for x in o))
+
+    def test_potwierdzenie_drugim_przebiegiem(self):
+        kz = self.kz
+        a = [{'z': 'GLOBAL', 'p': '❌', 'n': 'X', 't': 'js', 'u': 'e'}, {'z': 'GLOBAL', 'p': '⚠️', 'n': 'Y', 't': 'js', 'u': 'f'}, {'z': 'GLOBAL', 'p': '✅', 'n': 'Z', 't': 'js', 'u': ''}]
+        b = [{'z': 'GLOBAL', 'p': '❌', 'n': 'X', 't': 'js', 'u': 'e'}, {'z': 'GLOBAL', 'p': '✅', 'n': 'Y', 't': 'js', 'u': ''}, {'z': 'GLOBAL', 'p': '⚠️', 'n': 'Z', 't': 'js', 'u': 'g'}]
+        o = {x['n']: x for x in kz.potwierdz(a, b)}
+        self.assertEqual(o['X']['p'], '❌', 'w obu przebiegach — potwierdzone')
+        self.assertEqual(o['Y']['p'], 'ℹ️'); self.assertIn('niepotwierdzone', o['Y']['u'])
+        self.assertEqual(o['Z']['p'], 'ℹ️'); self.assertIn('niepotwierdzone', o['Z']['u'])
+
+    def test_oceny_scenariusza(self):
+        kz = self.kz
+        baza = self.wynik_ok(); baza['err'] = ['znany błąd (index.html:1)']
+        w = json.loads(json.dumps(baza))
+        sc = {'id': 's1', 'plik': 'krypto', 'zmiana': 'pusty', 'rdzen': False}
+        o = kz.ocen_scenariusz(baza, w, sc)
+        self.assertEqual([x for x in o if x['p'] in ('⚠️', '❌')], [], 'ten sam błąd co w podstawowym nie jest nowy')
+        w['err'].append('TypeError: nowy (index.html:9)')
+        w['tab']['crypto']['artefakty'] = ['DEX: „NaN”']
+        w['tab']['trendy']['przelaczenie'] = False
+        w['ele'][0]['s'] = 'blad'; w['ele'][0]['u'] = ['błąd JavaScriptu: x']
+        w['tab']['global']['wykresy_po'] = 20
+        o = kz.ocen_scenariusz(baza, w, sc)
+        zle = {x['n'].split(' (')[0]: x['p'] for x in o if x['p'] != '✅'}
+        self.assertEqual(zle['błędy JavaScriptu'], '❌'); self.assertEqual(zle['napisy-błędy w tekście'], '❌')
+        self.assertEqual(zle['przełączanie zakładek'], '❌'); self.assertEqual(zle['przełączniki i zakresy'], '❌')
+        self.assertEqual(zle['wykresy zakładek'], '⚠️', 'ponad połowa wykresów zniknęła przy pliku spoza rdzenia')
+        o2 = kz.ocen_scenariusz(baza, w, dict(sc, rdzen=True))
+        self.assertEqual({x['p'] for x in o2 if x['n'] == 'wykresy zakładek'}, {'ℹ️'}, 'plik-rdzeń: utrata wykresów oczekiwana')
+        m = kz.ocen_scenariusz(baza, baza, {'id': 's4', 'plik': 'meta', 'zmiana': 'stary', 'rdzen': False})
+        self.assertEqual([x['p'] for x in m if x['n'].startswith('pasek')], ['⚠️'], 'stary plik stanu bez paska o nieaktualnych danych')
+        b2 = json.loads(json.dumps(baza)); b2['zegar'] = {'stale': 'Dane serwera sprzed 2 godzin'}
+        m = kz.ocen_scenariusz(baza, b2, {'id': 's4', 'plik': 'meta', 'zmiana': 'stary', 'rdzen': False})
+        self.assertEqual([x['p'] for x in m if x['n'].startswith('pasek')], ['✅'])
+
+    # --- całość z podstawionym przebiegiem -----------------------------------------------------------------
+    def przebieg_udawany(self, w=None, zle_scenariusze=()):
+        wyn = w or self.wynik_ok()
+        wywolania = []
+
+        def pr(zr, sc, tryb, czas_s, port=0, prog=None):
+            wywolania.append((sc and sc['id'], tryb))
+            if sc and sc['id'] in zle_scenariusze:
+                r = json.loads(json.dumps(wyn)); r['err'] = ['TypeError: brak pliku (index.html:3)']
+                return {'stan': 'ok', 'wynik': r, 'czas_s': 5.0, 'widok': {}, 'zapytania': 1}
+            return {'stan': 'ok', 'wynik': json.loads(json.dumps(wyn)), 'czas_s': 5.0, 'widok': {'global': 1.0, 'crypto': 1.0, 'trendy': 0.1}, 'zapytania': 1}
+        return pr, wywolania
+
+    def test_cala_kontrola_zielona_i_uwagi(self):
+        kz = self.kz
+        pr, wyw = self.przebieg_udawany()
+        Z = kz.kontrola_zakladek('https://example.invalid', przebieg_fn=pr, scenariusze=kz.SCENARIUSZE[:2])
+        self.assertEqual(Z['stan'], 'ok'); self.assertEqual(len(Z['scenariusze']), 2)
+        self.assertEqual(kz.zakladki_uwagi(Z), [])
+        self.assertEqual(wyw[0], (None, 'pelny')); self.assertEqual(len(wyw), 3, 'bez problemu nie ma przebiegu potwierdzającego')
+        txt = '\n'.join(kz.zakladki_wiersze(Z))
+        self.assertIn('## Kontrola zakładek GLOBAL, CRYPTO i TRENDY', txt)
+        self.assertIn('### GLOBAL', txt); self.assertIn('### CRYPTO', txt); self.assertIn('### TRENDY', txt)
+        self.assertIn('✅ przełączenie zakładki', txt); self.assertIn('Okres', txt); self.assertIn('plik „krypto”: plik pusty ({})', txt)
+        self.assertNotIn('⚠️', txt); self.assertNotIn('❌', txt)
+
+    def test_scenariusz_z_bledem_daje_uwage_nie_blad(self):
+        kz = self.kz
+        pr, _ = self.przebieg_udawany(zle_scenariusze=('s2',))
+        Z = kz.kontrola_zakladek('https://example.invalid', przebieg_fn=pr, scenariusze=kz.SCENARIUSZE[:2])
+        u = kz.zakladki_uwagi(Z)
+        self.assertTrue(u and all(x.startswith('kontrola zakładek') for x in u), u)
+        self.assertTrue(any('rynki' in x and 'błędy JavaScriptu' in x for x in u), u)
+        txt = '\n'.join(kz.zakladki_wiersze(Z))
+        self.assertIn('❌', txt); self.assertIn('plik „rynki”', txt)
+
+    def test_problem_podstawowy_potwierdzany_drugim_przebiegiem(self):
+        kz = self.kz
+        w = self.wynik_ok(); w['ele'][0]['s'] = 'ostrz'; w['ele'][0]['u'] = ['przycisk nie został zaznaczony']
+        pr, wyw = self.przebieg_udawany(w)
+        Z = kz.kontrola_zakladek('https://example.invalid', przebieg_fn=pr, scenariusze=[])
+        self.assertEqual(wyw, [(None, 'pelny'), (None, 'pelny')], 'drugi przebieg potwierdzający')
+        self.assertTrue(Z['potwierdzenie'])
+        self.assertTrue(any('Okres › 1M' in x for x in kz.zakladki_uwagi(Z)))
+
+    def test_bez_czasu_bez_przegladarki_i_awarie_nie_wywracaja(self):
+        kz = self.kz
+        Z = kz.kontrola_zakladek('https://example.invalid', termin_zostalo=lambda: 70, przebieg_fn=lambda *a, **k: self.fail('bez czasu nie uruchamiamy'))
+        self.assertEqual(Z['stan'], 'pominieta'); self.assertEqual(kz.zakladki_uwagi(Z), [])
+        self.assertIn('Nie sprawdzono', '\n'.join(kz.zakladki_wiersze(Z)))
+        Z = kz.kontrola_zakladek('https://example.invalid', przebieg_fn=lambda *a, **k: {'stan': 'brak_programu', 'brak': 'brak przeglądarki'})
+        self.assertEqual(Z['stan'], 'brak_programu'); self.assertEqual(kz.zakladki_uwagi(Z), [])
+        def boom(*a, **k):
+            raise RuntimeError('x')
+        Z = kz.kontrola_zakladek('https://example.invalid', przebieg_fn=boom)
+        self.assertEqual(Z['stan'], 'blad'); self.assertEqual(kz.zakladki_uwagi(Z), [])
+        zost = iter([400, 400])   # przed przebiegiem podstawowym i po nim zostaje dużo, przy scenariuszach — już tylko 40 s
+        Z = kz.kontrola_zakladek('https://example.invalid', termin_zostalo=lambda: next(zost, 40), przebieg_fn=self.przebieg_udawany()[0], scenariusze=kz.SCENARIUSZE)
+        self.assertEqual(len(Z['scenariusze']), 0, 'przy 40 s do terminu żaden scenariusz się nie mieści (po przebiegu podstawowym)')
+        czasy = []
+        kz.kontrola_zakladek('https://example.invalid', termin_zostalo=lambda: 100, przebieg_fn=lambda zr, sc, tryb, czas_s, **k: czasy.append(czas_s) or {'stan': 'blad', 'brak': 'x'})
+        self.assertEqual(czasy, [70], 'przebieg dostaje czas do terminu minus 30 s zapasu')
+        self.assertEqual(Z['pominiete_scenariusze'], [s['id'] for s in kz.SCENARIUSZE])
+        self.assertIn('pominięte z braku czasu', '\n'.join(kz.zakladki_wiersze(Z)))
+
+    def test_przebieg_bez_przegladarki(self):
+        kz = self.kz
+        r = kz.przebieg(kz.Zrodlo('https://example.invalid', pobierz=lambda p: (404, 'text/plain', b'')), None, 'pelny', 5, prog='/nie/ma/takiego/programu-chrome-v440')
+        self.assertEqual(r['stan'], 'blad', 'program, którego nie ma, nie wywraca kontroli'); self.assertIn('nie uruchomiono', r['brak'])
+        self.assertEqual(kz.program(('nie-ma-takiej-przegladarki-v440',)), None)
+
+    # --- okablowanie -----------------------------------------------------------------
+    def test_okablowanie_w_kontroli(self):
+        src = open(os.path.join(self.here, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        for s in ("def _zakladki_modul():", "R['zakladki'] = kz.kontrola_zakladek(SITE, termin_zostalo=termin_zostalo)", "R['uwagi'] += kz.zakladki_uwagi(R['zakladki'])",
+                  "L += _zakladki_modul().zakladki_wiersze(R['zakladki'])", "'zakl': zakladki_do_historii(R.get('zakladki'))"):
+            self.assertIn(s, src, s)
+        i1c, i2 = src.index('    # 1c. v247'), src.index('    # 2. plik stanu automatu')
+        iz = src.index("R['zakladki'] = kz.kontrola_zakladek")
+        self.assertLess(iz, i1c, 'poza blokiem 1c (testy 1c wycinają go i uruchamiają na atrapach — bez prawdziwej sieci)')
+        i = src.index("    # v440: stała kontrola zakładek"); blk = src[i:i1c]
+        self.assertIn("os.environ.get('KONTROLA_PRZEGLADARKA') == '1'", blk, 'tylko na maszynie kontroli (testy kontrola() bez przeglądarki)')
+        self.assertNotIn("R['bledy']", blk, 'najwyżej ⚠️ — nigdy BŁĄD całej kontroli')
+        yml = open(os.path.join(self.here, '.github', 'workflows', 'kontrola.yml'), encoding='utf-8').read()
+        self.assertIn("'narzedzia/kontrola_zakladki.py'", yml); self.assertIn("'narzedzia/kontrola_zakladki.js'", yml)
+        self.assertIn("KONTROLA_PRZEGLADARKA: '1'", yml)
+
+    def test_historia_zakladek_i_modul_z_pliku(self):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola-v440-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}, clear=False):
+            spec = importlib.util.spec_from_file_location('v440_kontrola', os.path.join(self.here, 'narzedzia', 'kontrola.py'))
+            kt = importlib.util.module_from_spec(spec); spec.loader.exec_module(kt)
+        self.assertTrue(hasattr(kt._zakladki_modul(), 'kontrola_zakladek'))
+        self.assertIsNone(kt.zakladki_do_historii(None)); self.assertIsNone(kt.zakladki_do_historii({'stan': 'pominieta'}))
+        Z = {'stan': 'ok', 'widok': {'global': 2.4, 'crypto': 1.0, 'trendy': None}, 'wynik_podstawowy': {'wykresy': {'global': 1, 'crypto': 3}, 'kroki': 99},
+             'oceny': [{'p': '❌', 'z': 'a', 'n': 'x', 't': 't', 'u': ''}, {'p': '⚠️', 'z': 'a', 'n': 'y', 't': 't', 'u': ''}, {'p': '✅', 'z': 'a', 'n': 'z', 't': 't', 'u': ''}],
+             'scenariusze': [{'oceny': [{'p': '❌', 'n': 'q', 'u': ''}]}]}
+        h = kt.zakladki_do_historii(Z)
+        self.assertEqual(h['widok'], {'global': 2.4, 'crypto': 1.0, 'trendy': None}); self.assertEqual((h['bledy'], h['ostrz'], h['kroki']), (2, 1, 99))

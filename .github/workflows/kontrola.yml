@@ -8,7 +8,7 @@ on:
     - cron: '20 6 * * *'        # 06:20 UTC = 08:20 czasu polskiego (letniego)
   push:
     branches: [main]
-    paths: ['narzedzia/kontrola.py', '.github/workflows/kontrola.yml']
+    paths: ['narzedzia/kontrola.py', 'narzedzia/kontrola_zakladki.py', 'narzedzia/kontrola_zakladki.js', '.github/workflows/kontrola.yml']   # v440
   workflow_dispatch:
 
 permissions: {}
