@@ -20,7 +20,7 @@ import urllib.request
 REPO = os.environ.get('GITHUB_REPOSITORY', 'capitalflowai-app/capitalflowai-app.github.io')
 API = 'https://api.github.com'
 # przepływy z harmonogramem (cron), które muszą działać same; sondy (jednorazowe, tylko ręcznie) nie wchodzą — test pilnuje zgodności z plikami
-ZAPLANOWANE = ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml', 'raport-ai.yml', 'wh_listy.yml')   # v482: raport tygodniowy AI
+ZAPLANOWANE = ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml', 'raport-ai.yml', 'wh_listy.yml', 'wh_listy_pdf.yml')   # v482: raport tygodniowy AI
 PROG_COMMIT_DNI = 30                       # commit aktywności, gdy ostatni commit jest starszy (limit GitHuba: 60 dni)
 WLACZ_ZAWSZE = ('disabled_inactivity',)    # GitHub wyłączył z powodu braku aktywności
 WLACZ_RECZNIE = ('disabled_manually',)     # wyłączony ręcznie — tylko przy STRAZNIK_RECZNIE=1

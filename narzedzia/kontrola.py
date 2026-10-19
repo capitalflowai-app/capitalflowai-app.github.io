@@ -2558,6 +2558,55 @@ def wh_listy_ocena(j, now=None):
     return {'wszystkie': A, 'stare': [x for x in A if x[2] > WH_LISTY_DNI and x[0] not in WH_LISTY_AUTO]}   # v477: OKX odświeża automat
 
 
+# v478: wynik samodzielnego odświeżania list portfeli z PDF (przepływ „Listy portfeli giełd z PDF” → konfig/wh_listy_pdf_stan.json): wiersz raportu i uwagi
+WH_AUTO_PLIK = '-' if os.environ.get('WH_PDF_PLIK') == '-' else 'konfig/wh_listy_pdf_stan.json'   # '-' (testy) = kontrola nie czyta pliku
+WH_AUTO_GIELDY = ('Bybit', 'KuCoin')
+WH_AUTO_STARE_DNI = 3                                                                              # wynik starszy niż tyle dni = przepływ nie działa
+WH_AUTO_ZNAK = {'ok': '✅', 'brak': '✅', 'czeka': 'ℹ️', 'nie_wiadomo': 'ℹ️', 'odrzucona': '⚠️', 'blad': '⚠️'}
+
+
+def wh_auto_ocena(plik=None, now=None):
+    """→ {'wiersz', 'uwagi'} albo None (plik '-'). Brak pliku = „jeszcze nie działało” (informacja, bez uwagi); odrzucona nowa lista, błąd automatu i wynik
+    starszy niż WH_AUTO_STARE_DNI dni = uwaga (⚠️, nigdy BŁĄD — lista zostaje dotychczasowa, strona działa)."""
+    plik = WH_AUTO_PLIK if plik is None else plik
+    now = now or NOW
+    if plik == '-':
+        return None
+    pre = '- Samodzielne odświeżanie list portfeli giełd z raportów PDF (Bybit, KuCoin; codziennie)'
+    try:
+        with open(plik, encoding='utf-8') as f:
+            j = json.load(f)
+    except OSError:
+        return {'wiersz': pre + ': jeszcze nie działało (brak pliku wyniku) ℹ️.', 'uwagi': []}
+    except ValueError:
+        return {'wiersz': pre + ': plik wyniku nieczytelny ⚠️.', 'uwagi': ['automat odświeżania list portfeli z PDF: plik wyniku (konfig/wh_listy_pdf_stan.json) nieczytelny']}
+    cz, uw = [], []
+    for g in WH_AUTO_GIELDY:
+        o = j.get(g) if isinstance(j, dict) else None
+        if not isinstance(o, dict):
+            continue
+        st, pw = o.get('status'), str(o.get('powod') or '')[:200]
+        try:
+            dni = (now.date() - dt.date.fromisoformat(o.get('dzien'))).days
+        except (TypeError, ValueError):
+            dni = None
+        if st == 'odrzucona':
+            cz.append(f'{g} — nowy raport odrzucony, lista zostaje: {pw} ⚠️')
+            uw.append(f'automat odświeżania listy portfeli {g}: nowy raport odrzucony, lista zostaje dotychczasowa — {pw}')
+        elif st == 'blad':
+            cz.append(f'{g} — błąd automatu: {pw} ⚠️')
+            uw.append(f'automat odświeżania listy portfeli {g}: błąd — {pw}')
+        else:
+            cz.append(f'{g} — {pw} {WH_AUTO_ZNAK.get(st, "ℹ️")}')
+        if dni is None or dni > WH_AUTO_STARE_DNI:
+            cz[-1] += f' (wynik sprzed {dni if dni is not None else "?"} dni)'
+            uw.append(f'automat odświeżania listy portfeli {g}: ostatni wynik sprzed {dni if dni is not None else "?"} dni — przepływ „Listy portfeli giełd z PDF” nie działa '
+                      '(Actions: włącz go i uruchom ręcznie)')
+    if not cz:
+        return {'wiersz': pre + ': brak wyniku w pliku ℹ️.', 'uwagi': []}
+    return {'wiersz': pre + ': ' + '; '.join(cz) + '.', 'uwagi': uw}
+
+
 # v237/v242: nowe raporty dowodu rezerw giełd (listy portfeli wielorybów) — sprawdzanie codzienne, bez pobierania całych plików
 WH_NOWE_OD_DNI = 20        # nowszego raportu szukamy od tylu dni po dacie obecnej listy (raporty miesięczne)
 WH_NOWE_MAX = 30           # najwyżej tyle dat na giełdę, od najnowszej
@@ -3330,7 +3379,7 @@ def github_ostrz_odczyt(hdr, getf=None):
     return {'sprawdzone': nwf, 'znalezione': ostrzezenia_github(ann), 'bledne': bledne}
 
 
-STRAZNIK_WF = ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml', 'raport-ai.yml', 'wh_listy.yml')   # v354: przepływy z harmonogramem (jak ZAPLANOWANE w narzedzia/straznik.py; test pilnuje zgodności)
+STRAZNIK_WF = ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml', 'raport-ai.yml', 'wh_listy.yml', 'wh_listy_pdf.yml')   # v478: + listy portfeli; v354: przepływy z harmonogramem (jak ZAPLANOWANE w narzedzia/straznik.py; test pilnuje zgodności)
 STRAZNIK_PRZEBIEG_DNI = 16   # v354: strażnik działa raz w tygodniu — 2 tygodnie + 2 dni zapasu: jeden pominięty poniedziałek nie jest alarmem (zapas do 60 dni jest ogromny)
 STRAZNIK_COMMIT_DNI = 45     # v354: strażnik robi commit aktywności po 30 dniach bez commitu; 45 = nie zadziałał (GitHub wyłącza harmonogramy po 60)
 
@@ -17008,14 +17057,15 @@ def kontrola():
     if wl is not None:
         Z['wh_listy'] = wl
         for g, d, n in wl['stare']:
-            R['uwagi'].append(f'lista portfeli giełdy {g} z {d} ma {n} dni — portfele dodane przez giełdę od tego czasu nie są liczone; '
-                              f'co zrobić: odśwież listę portfeli {g} z nowego raportu dowodu rezerw ({PORADA_3D})')
+            R['uwagi'].append(f'lista portfeli giełdy {g} z {d} ma {n} dni — portfele dodane przez giełdę od tego czasu nie są liczone; ' + (
+                              'odświeża ją sam automat po nowym raporcie dowodu rezerw giełdy (codziennie; powód zwłoki w wierszu automatu) — człowiek nie musi nic robić'   # v478
+                              if g in WH_AUTO_GIELDY else f'co zrobić: odśwież listę portfeli {g} z nowego raportu dowodu rezerw ({PORADA_3D})'))
         try:   # v237: nowe raporty dowodu rezerw — automat sam wie, kiedy listę można odświeżyć
             Z['wh_nowe'] = wh_nowe_raporty((files.get('wieloryby') or {}).get('gieldy'))
         except Exception as e:  # noqa
             Z['wh_nowe'] = {'_blad': type(e).__name__}   # v243: wiersz „nie wiadomo”, nie zniknięcie
         for g, o in Z['wh_nowe'].items():
-            if isinstance(o, dict) and o.get('nowy') and o.get('lista') and g not in WH_LISTY_AUTO:
+            if isinstance(o, dict) and o.get('nowy') and o.get('lista') and g not in WH_AUTO_GIELDY and g not in WH_LISTY_AUTO:   # v478 (+ v477): Bybit i KuCoin odświeża automat (bez rady dla człowieka)
                 R['uwagi'].append(f'nowa lista portfeli giełdy {g} z {o["nowy"]} (raport dowodu rezerw; obecna z {o["od"]}) — co zrobić: '
                                   f'odśwież listę portfeli {g} z nowego raportu dowodu rezerw ({PORADA_3D})')
         try:   # v477: listę OKX odświeża automat — ostrzeżenie dopiero, gdy odświeżenie zawodzi dłużej niż WH_OKX_BLAD_DNI dni
@@ -17024,6 +17074,13 @@ def kontrola():
             Z['wh_okx'] = None
         if Z.get('wh_okx') and Z['wh_okx'].get('uwaga'):
             R['uwagi'].append(Z['wh_okx']['uwaga'])
+    try:   # v478: wynik samodzielnego odświeżania list portfeli (plik konfig/wh_listy_pdf_stan.json) — powód porażki widoczny w raporcie
+        Z['wh_auto'] = wh_auto_ocena()
+    except Exception as e:  # noqa
+        Z['wh_auto'] = None
+        R['uwagi'].append(f'automat odświeżania list portfeli: kontrola wyniku przerwana ({type(e).__name__})')
+    if Z.get('wh_auto'):
+        R['uwagi'] += Z['wh_auto']['uwagi']
     # 3e. v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (2 zapytania, bez ponawiania; najwyżej ⚠️)
     try:
         Z['etf_emitent'] = etf_emitent(files, R)
@@ -17454,6 +17511,8 @@ def raport_md(R):
                      + (' ✅.' if not wl['stare'] else '.'))
         if Z.get('wh_nowe'):   # v237
             L.append(wh_nowe_wiersz(Z['wh_nowe']))
+        if Z.get('wh_auto'):   # v478
+            L.append(Z['wh_auto']['wiersz'])
         if Z.get('wh_okx'):   # v477
             L.append(Z['wh_okx']['wiersz'])
         wy = Z.get('wycena')   # v132: MVRV BTC z dwóch źródeł — tylko różnice procentowe i daty; brak = „—”

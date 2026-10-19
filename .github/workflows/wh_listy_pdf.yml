@@ -1,0 +1,45 @@
+name: Listy portfeli giełd z PDF (codziennie)
+
+# v478 (19.10.2026): samodzielne odświeżanie list portfeli giełd z miesięcznych raportów dowodu rezerw (Bybit, KuCoin) — po 20.10 nikt nie napisze
+# do Claude „odśwież listę”. Raz na dobę (05:31 UTC, przed kontrolą o 06:20; osobny przepływ i osobny plik wyniku, niezależne od listy OKX) narzedzia/wh_listy_auto.py szuka nowszego raportu (Bybit: plik
+# z datą w nazwie; KuCoin: link z publicznego API), czyta tabelę „Verified wallets” i przyjmuje nową listę tylko po twardych warunkach (test
+# odtworzenia obecnej listy z jej PDF, data nowsza, liczba w przedziale, bez duplikatów, ≥ 90% starych adresów). Wynik: konfig/wh_listy_pdf.json
+# (osobny plik) — zbieracz nakłada go na listy wbudowane; stan i powód porażki: konfig/wh_listy_pdf_stan.json (czyta kontrola). Biblioteka do PDF (pypdf, przypięta wersja) jest instalowana
+# TYLKO tutaj; zbieracz i testy zostają na bibliotece standardowej. Bez sekretów właściciela (wyłącznie token przebiegu do commitu pliku).
+# Wyłącznik: zmienna repozytorium WH_AUTO_OFF=1. Przy porażce źródła lista zostaje dotychczasowa (przebieg kończy się zielono; powód w pliku i w kontroli).
+on:
+  schedule:
+    - cron: '31 5 * * *'        # 05:31 UTC (poza pełną godziną)
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: wh_listy_pdf         # własna grupa: ten przepływ nie dzieli pliku wyniku z innymi
+  cancel-in-progress: false
+
+jobs:
+  listy:
+    if: ${{ vars.WH_AUTO_OFF != '1' }}
+    runs-on: ubuntu-24.04   # przypięty obraz (jak w pozostałych przepływach)
+    timeout-minutes: 10
+    permissions:
+      contents: write          # jedyny zapis: commit plików z katalogu konfig/
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Biblioteka do czytania PDF (przypięta wersja, tylko ten przepływ)
+        run: python3 -m pip install --disable-pip-version-check --no-input 'pypdf==6.19.0'
+      - name: Odśwież listy portfeli (tylko publiczne odczyty, bez obchodzenia blokad)
+        run: python3 narzedzia/wh_listy_auto.py
+      - name: Zapisz wynik (commit tylko gdy pliki się zmieniły)
+        run: |
+          git config user.name 'listy-portfeli'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add konfig/wh_listy_pdf.json konfig/wh_listy_pdf_stan.json
+          if git diff --cached --quiet; then echo "bez zmian"; else
+            git commit -q -m "Listy portfeli giełd $(date -u +%Y-%m-%d) [skip ci]"
+            git push -q origin HEAD:main || (git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main)
+          fi

@@ -17668,6 +17668,59 @@ def wh_okx_ustaw(rec):
 _wh_rec, WH_LISTA_BLAD = wh_okx_wczytaj()
 wh_okx_ustaw(_wh_rec or WH_OKX_WBUDOWANA)
 
+# v478: listy portfeli giełd z miesięcznym raportem dowodu rezerw (Bybit, KuCoin) odświeża sam przepływ „Listy portfeli giełd z PDF” (narzedzia/wh_listy_auto.py,
+# osobny od zbieracza, bo czyta PDF biblioteką pypdf) i zapisuje je w osobnym pliku konfig/wh_listy_pdf.json ({"v": 1, "Bybit": {since, url, addr, …}, "KuCoin": {…}});
+# zbieracz (tylko biblioteka standardowa) nakłada ten plik na listy wbudowane. Wpis przyjęty tylko, gdy wygląda wiarygodnie (data nowsza od wbudowanej, liczba
+# w przedziale, adresy małymi literami, bez duplikatów, https); cokolwiek innego (brak pliku, uszkodzony, zły wpis) = zostają listy wbudowane.
+# WH_PDF_PLIK='-' (testy) = bez pliku.
+import copy as _wh_copy   # biblioteka standardowa
+WH_KONFIG_PLIK = os.environ.get('WH_PDF_PLIK') or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'konfig', 'wh_listy_pdf.json')
+WH_KONFIG_ZAKRES = {'Bybit': (100, 400), 'KuCoin': (20, 100)}   # liczba portfeli w sieci Ethereum, od–do (obecnie 122 i 33)
+WH_KONFIG_SRC = {'Bybit': 'Bybit — miesięczny raport dowodu rezerw giełdy (audyt z {d}, PDF na stronie giełdy): wszystkie {n} w sieci Ethereum z tabeli „Verified wallets”',
+                 'KuCoin': 'KuCoin — miesięczny raport dowodu rezerw giełdy (stan z {d}, PDF podlinkowany na stronie Proof of Reserves giełdy): wszystkie {n} w sieci Ethereum z tabeli „Verified wallets”'}
+
+
+def wh_konfig_n_portfeli(n):
+    """Liczba z poprawnie odmienionym słowem „portfel” (1 portfel, 2–4 portfele, 5+ i 12–14 portfeli, 22–24 portfele)."""
+    n = int(n)
+    return f'{n} ' + ('portfel' if n == 1 else 'portfele' if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14 else 'portfeli')
+
+
+def wh_konfig_nalozone(wbud, sciezka=None):
+    """v478: listy wbudowane + plik konfig/wh_listy_pdf.json (wersja v = 1; klucz giełdy → {since, url, addr}) → kopia z nałożonymi listami; wejście bez zmian.
+    Wpis z pliku zastępuje wbudowany (adresy, datę, adres raportu, opis) tylko gdy: data jest nowsza od wbudowanej, liczba adresów w przedziale
+    WH_KONFIG_ZAKRES, adresy to małe litery 0x + 40 znaków heksadecymalnych, bez duplikatów, adres raportu zaczyna się od https://. Inne klucze pliku
+    są ignorowane."""
+    out = _wh_copy.deepcopy(wbud)
+    sciezka = WH_KONFIG_PLIK if sciezka is None else sciezka
+    if sciezka == '-':
+        return out
+    try:
+        with open(sciezka, encoding='utf-8') as f:
+            j = json.load(f)
+    except (OSError, ValueError):
+        return out
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    for g, (lo, hi) in WH_KONFIG_ZAKRES.items():
+        k, c = j.get(g), out.get(g)
+        if not isinstance(k, dict) or c is None:
+            continue
+        a, s, u = k.get('addr'), k.get('since'), k.get('url')
+        try:
+            d = datetime.date.fromisoformat(s)
+            nowsza = d > datetime.date.fromisoformat(c['since'])
+        except (TypeError, ValueError):
+            continue
+        if (nowsza and isinstance(a, list) and lo <= len(a) <= hi and len(set(a)) == len(a)
+                and all(isinstance(x, str) and re.fullmatch(r'0x[0-9a-f]{40}', x) for x in a) and isinstance(u, str) and u.startswith('https://')):
+            c.update(addr=list(a), since=s, url=u, src=WH_KONFIG_SRC[g].format(d=f'{d.day:02d}.{d.month:02d}.{d.year}', n=wh_konfig_n_portfeli(len(a))))
+    return out
+
+
+WH_GIELDY_WBUDOWANE = _wh_copy.deepcopy(WH_GIELDY)   # stan sprzed nałożenia pliku (testy, porównania)
+WH_GIELDY.update(wh_konfig_nalozone(WH_GIELDY_WBUDOWANE, WH_KONFIG_PLIK))   # w miejscu: reszta kodu trzyma tę samą tablicę
+
 
 def wh_portfele():
     """Lista portfeli z WH_GIELDY (małe litery) — do pliku (źródło przy każdym adresie) i do filtrów."""

@@ -12,6 +12,7 @@ import statistics
 import unittest
 from unittest import mock
 
+os.environ.setdefault('WH_PDF_PLIK', '-')   # v478: testy na listach wbudowanych — plik konfig/wh_listy_pdf.json (wynik automatu) nie zmienia liczb w testach ani kontroli
 import zbieraj_dane as zd
 
 
@@ -47442,9 +47443,9 @@ class StraznikV354(unittest.TestCase):
         self.assertEqual((S['czynne'], S['razem'], S['przebieg_dni'], S['przebieg_wynik'], S['commit_dni'], S['uwagi']), (len(k.STRAZNIK_WF), len(k.STRAZNIK_WF), 8, 'success', 0, []))
         self.assertIn('✅', k.straznik_wiersz(S)); self.assertIn(f'czynne {len(k.STRAZNIK_WF)} z {len(k.STRAZNIK_WF)}', k.straznik_wiersz(S)); self.assertIn('8 dni temu (success)', k.straznik_wiersz(S))
         # wyłączony przez GitHub, brakujący, strażnik milczy 17 dni, nieudany, stary commit
-        W2 = [self.wf('strona.yml', 'disabled_inactivity'), self.wf('zegar.yml'), self.wf('kontrola.yml'), self.wf('straznik.yml'), self.wf('wh_listy.yml')]
+        W2 = [self.wf('strona.yml', 'disabled_inactivity'), self.wf('zegar.yml'), self.wf('kontrola.yml'), self.wf('straznik.yml'), self.wf('wh_listy.yml'), self.wf('wh_listy_pdf.yml')]   # v478
         S2 = k.straznik_ocena(W2, [run(17, 'failure')], '2026-08-01T00:00:00Z', N)
-        self.assertEqual(S2['czynne'], 4); self.assertEqual(S2['brak'], ['archiwum.yml', 'raport-ai.yml'])
+        self.assertEqual(S2['czynne'], 5); self.assertEqual(S2['brak'], ['archiwum.yml', 'raport-ai.yml'])   # v478: + wh_listy_pdf.yml
         txt = ' | '.join(S2['uwagi'])
         for fr in ('strona.yml (disabled_inactivity)', 'brak w repozytorium przepływów: archiwum.yml', 'nie działał od 17 dni', 'wynikiem „failure”', 'sprzed 73 dni'):
             self.assertIn(fr, txt)
@@ -81883,3 +81884,366 @@ class V477PrzeplywListy(unittest.TestCase):
         self.assertIsNotNone(w.poprawna_lista(j, datetime.date(2099, 1, 1)))
         self.assertEqual(j['OKX']['n'], len(j['OKX']['addr']))
         self.assertTrue(w.STAN_PLIK.endswith(os.path.join('konfig', 'wh_listy_stan.json')) and w.LISTA_PLIK.endswith(os.path.join('konfig', 'wh_listy.json')))
+
+
+# ===================== v478: SAMODZIELNE ODŚWIEŻANIE LIST PORTFELI GIEŁD (Bybit, KuCoin) =====================
+class ListyPortfeliAutoV478(unittest.TestCase):
+    """v478 (19.10.2026): automat sam czyta nowy raport dowodu rezerw (PDF) i przyjmuje listę portfeli tylko po twardych warunkach; wynik w pliku
+    konfig/wh_listy_pdf.json (zbieracz nakłada go na listy wbudowane), powód porażki w pliku i w kontroli. Bez sieci i bez prawdziwych PDF-ów."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    DZIS = datetime.date(2026, 10, 25)
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('wh_listy_auto_v478', os.path.join(cls.ROOT, 'narzedzia', 'wh_listy_auto.py'))
+        cls.W = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.W)
+
+    @staticmethod
+    def zap(p, tresc):
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write(tresc if isinstance(tresc, str) else json.dumps(tresc))
+
+    @staticmethod
+    def cz(p, jako_json=True):
+        with open(p, encoding='utf-8') as f:
+            return json.load(f) if jako_json else f.read()
+
+    @staticmethod
+    def adr(i):
+        return '0x' + format(i, '040x')
+
+    def tekst(self, adresy, siec='Ethereum', lig=(), stopka='2026/10/24'):
+        """Tekst jak z pypdf: wiersze „Sieć adres” (jeden token w linii), w środku jednego adresu ligatura „ﬀ”, inne sieci z tymi samymi adresami."""
+        w = ['Verified Wallets', 'Network', 'Address']
+        for a in adresy:
+            w += [siec, a.replace('ff', 'ﬀ') if a in lig else a]
+        w += ['Bitcoin', 'bc1q05xzfmg7gvel98z8vz9p24t2fceftrw7qrt69', 'BSC', adresy[0], 'Hacken\'s Proof of Reserves ' + stopka, 'Page 9']
+        return '\n \n'.join(w)
+
+    class Zaslepka:
+        """Siec bez sieci: pliki (adres → True/False/None), PDF-y (adres → tekst) i odpowiedź API."""
+        def __init__(self, pliki=None, pdfy=None, api=None, blad_pdf=None):
+            self.pliki, self.pdfy, self.api, self.blad_pdf, self.zapytania = pliki or {}, pdfy or {}, api, blad_pdf, []
+
+        def plik_jest(self, url):
+            self.zapytania.append(url)
+            return self.pliki.get(url, False)
+
+        def pdf(self, url):
+            if self.blad_pdf:
+                raise ValueError(self.blad_pdf)
+            return url.encode()
+
+        def tekst(self, dane):
+            return self.pdfy[dane.decode()]
+
+        def ku_api(self):
+            if isinstance(self.api, Exception):
+                raise self.api
+            return self.api
+
+    BY_STARY = 'https://www.bybit.com/common-static/cht-static/por/Bybit_PoR_Audit_2026_Sep_23.pdf'
+    BY_NOWY = 'https://www.bybit.com/common-static/cht-static/por/Bybit_PoR_Audit_2026_Oct_24.pdf'
+
+    def by_cur(self, n=122):
+        return {'since': '2026-09-23', 'url': self.BY_STARY, 'addr': [self.adr(i) for i in range(1, n + 1)]}
+
+    # --- parser -------------------------------------------------------------------------------------------------------
+    def test_parser_ligatury_siec_duplikaty(self):
+        W = self.W
+        A = [self.adr(0xff00 + i) if i % 5 == 0 else self.adr(i + 1) for i in range(12)]
+        lig = [a for a in A if 'ff' in a]
+        self.assertTrue(lig and all(a.count('ff') >= 1 for a in lig))
+        t = self.tekst(A, lig=lig)
+        a, dup, zle, zl = W.wyciagnij(t, 'wiersze')
+        self.assertEqual((a, dup, zle), (A, 0, 0)); self.assertEqual(set(zl), set(lig), 'adresy z ligaturą rozpoznane po zamianie ligatur')
+        self.assertEqual(W.wyciagnij(t, 'wszystkie')[0], A, 'BSC/inne sieci z tym samym adresem nie dają duplikatów w profilu wierszy; w „wszystkie” są deduplikowane')
+        self.assertEqual(W.wyciagnij(t, 'wszystkie')[1], 1, 'ten sam adres w drugiej sieci = duplikat w profilu „wszystkie”')
+        self.assertEqual(W.wyciagnij(self.tekst(A[:3] + [A[0]]), 'wiersze')[1], 1, 'duplikat w tabeli Ethereum liczony')
+        self.assertEqual(W.wyciagnij(t.upper().replace('0X', '0x'), 'wiersze')[0][:1], [], 'wielkie litery sieci „ETHEREUM” to nie wiersz sieci')
+        self.assertEqual(W.wyciagnij('Ethereum 0x' + 'a' * 39 + '\nEthereum ' + A[0], 'wiersze'), ([A[0]], 0, 1, []), 'adres za krótki = zepsuty, nie pomijany po cichu')
+        self.assertEqual(W.wyciagnij('Ethereum 0x' + 'a' * 41, 'wiersze')[2], 1, 'za długi = zepsuty')
+        self.assertEqual(W.wyciagnij('Ethereum ' + A[0].upper().replace('0X', '0x'), 'wiersze')[0], [A[0]], 'adresy małymi literami')
+        self.assertEqual(W.wyciagnij(None, 'wiersze'), ([], 0, 0, []))
+        with self.assertRaises(ValueError):
+            W.wyciagnij('x', 'inny')
+
+    def test_odtworzenie_obecnej_listy(self):
+        W = self.W
+        A = [self.adr(0xff00 + i) for i in range(1, 11)]   # każdy adres ma „ff” (miejsce na ligaturę)
+        t = self.tekst(A)
+        self.assertEqual(W.dobierz_profil(t, A), ('wiersze', None))
+        self.assertIsNone(W.dobierz_profil(t, A[:-1])[0], 'parser znalazł adres, którego nie ma na obecnej liście (bez ligatury) — nie odtwarza')
+        self.assertIsNone(W.dobierz_profil(t, A + [self.adr(9999)])[0], 'obecna lista ma adres, którego parser nie widzi')
+        tl = self.tekst(A, lig=[A[2]])
+        self.assertEqual(W.dobierz_profil(tl, [a for a in A if a != A[2]])[0], 'wiersze', 'jedyny dopuszczony wyjątek: brakujące adresy mają ligaturę (KuCoin 08.2026: 5 takich)')
+        self.assertIsNone(W.dobierz_profil(tl, [a for a in A if a not in (A[2], A[3])])[0], 'brakuje też adresu bez ligatury')
+        self.assertEqual(W.dobierz_profil(self.tekst(A, siec='ETH'), A)[0], 'wiersze', 'etykieta sieci ETH')
+        p, opis = W.dobierz_profil(self.tekst(A, siec='Polygon'), A)
+        self.assertEqual(p, None); self.assertIn('wiersze: 0 adresów', opis)
+        self.assertEqual(W.data_stopki('Hacken\'s KuCoin Proof of Reserves\n \n2026/08/31\n \nPage 8'), '2026-08-31')
+        self.assertIsNone(W.data_stopki('Proof of Reserves 2026/13/45')); self.assertIsNone(W.data_stopki('brak'))
+
+    def test_warunki_przyjecia(self):
+        W = self.W
+        stare = [self.adr(i) for i in range(1, 123)]
+        nowe = stare + [self.adr(500 + i) for i in range(8)]
+        ok = lambda n=nowe, d=0, z=0, nd='2026-10-24', sd='2026-09-23': W.waliduj('Bybit', stare, n, d, z, nd, sd)   # noqa: E731
+        self.assertIsNone(ok())
+        self.assertIn('nie jest nowsza', ok(nd='2026-09-23')); self.assertIn('nie jest nowsza', ok(nd='2026-09-01'))
+        self.assertIn('nieczytelna data', ok(nd='jutro'))
+        self.assertIn('poza przedziałem 100–400', W.waliduj('Bybit', stare[:100], stare[:99], 0, 0, '2026-10-24', '2026-09-23'))
+        self.assertIsNone(W.waliduj('Bybit', stare[:100], stare[:100], 0, 0, '2026-10-24', '2026-09-23'), '100 to dolna granica')
+        self.assertIn('poza przedziałem', ok(n=stare + [self.adr(600 + i) for i in range(279)]))
+        self.assertIsNone(ok(n=stare + [self.adr(600 + i) for i in range(278)]), '400 to górna granica')
+        self.assertIn('duplikaty', ok(d=2)); self.assertIn('złej długości', ok(z=1))
+        self.assertIn('duplikaty', ok(n=nowe + [nowe[0]]))
+        self.assertIn('złym formacie', ok(n=nowe[:-1] + ['0xABC' + '0' * 37]))
+        self.assertIn('próg 90%', ok(n=[self.adr(2000 + i) for i in range(130)]), 'żaden stary adres nie zostaje')
+        self.assertIsNone(ok(n=stare[:110] + [self.adr(3000 + i) for i in range(20)]), '110 z 122 = 90,2% — przyjęte')
+        self.assertIn('próg 90%', ok(n=stare[:109] + [self.adr(3000 + i) for i in range(21)]), '109 z 122 = 89,3% — odrzucone')
+        k = lambda n, nd='2026-10-24': W.waliduj('KuCoin', stare[:33], n, 0, 0, nd, '2026-08-31')   # noqa: E731
+        self.assertIsNone(k(stare[:33] + [self.adr(900 + i) for i in range(5)])); self.assertIn('poza przedziałem 20–100', k(stare[:19]))
+        self.assertIn('poza przedziałem 20–100', k(stare[:33] + [self.adr(900 + i) for i in range(70)]))
+
+    # --- jedna giełda ---------------------------------------------------------------------------------------------------
+    def bybit(self, cur, nowe_adr, pliki=None, **kw):
+        z = self.Zaslepka(pliki={self.BY_STARY: True, self.BY_NOWY: True, **(pliki or {})},
+                          pdfy={self.BY_STARY: self.tekst(cur['addr']), self.BY_NOWY: self.tekst(nowe_adr)}, **kw)
+        return self.W.odswiez_gielde('Bybit', cur, self.DZIS, z, spij=lambda s: None), z
+
+    def test_bybit_nowy_raport_przyjety(self):
+        cur = self.by_cur()
+        nowe = cur['addr'] + [self.adr(900 + i) for i in range(9)]
+        w, z = self.bybit(cur, nowe)
+        self.assertEqual((w['status'], w['wpis']['since'], w['wpis']['url'], len(w['wpis']['addr'])), ('ok', '2026-10-24', self.BY_NOWY, 131))
+        self.assertEqual(w['wpis']['addr'], sorted(nowe)); self.assertIn('131 portfeli (było 122)', w['powod'])
+        self.assertEqual(z.zapytania[0], self.BY_STARY, 'najpierw próba kontrolna: plik obecnej listy musi odpowiedzieć plikiem')
+        self.assertEqual(z.zapytania[1].rsplit('_', 1)[-1], '25.pdf', 'dni od najnowszego (dziś) w dół — pierwszy trafiony to najnowszy')
+
+    def test_bybit_porazki_zostawiaja_liste(self):
+        cur = self.by_cur()
+        nowe = cur['addr'] + [self.adr(900)]
+        w, _ = self.bybit(cur, nowe, pliki={self.BY_STARY: None})
+        self.assertEqual((w['status'], w['wpis']), ('nie_wiadomo', None)); self.assertIn('blokada', w['powod'])
+        w, _ = self.bybit(cur, nowe, pliki={self.BY_NOWY: False})
+        self.assertEqual((w['status'], w['powod']), ('brak', 'brak nowszego niż 2026-09-23'))
+        w, _ = self.bybit(cur, nowe, pliki={self.BY_NOWY: False, 'https://www.bybit.com/common-static/cht-static/por/Bybit_PoR_Audit_2026_Oct_20.pdf': None})
+        self.assertEqual(w['status'], 'nie_wiadomo'); self.assertIn('dni bez jasnej odpowiedzi: 1', w['powod'])
+        w, _ = self.bybit(cur, nowe, blad_pdf='HTTP 403')
+        self.assertEqual(w['status'], 'nie_wiadomo'); self.assertIn('nie udało się pobrać', w['powod'])
+        z = self.Zaslepka(pliki={self.BY_STARY: True, self.BY_NOWY: True}, pdfy={self.BY_STARY: self.tekst(cur['addr']), self.BY_NOWY: self.tekst(nowe, stopka='2026/09/23')})
+        w = self.W.odswiez_gielde('Bybit', cur, self.DZIS, z, spij=lambda s: None)
+        self.assertEqual(w['status'], 'odrzucona'); self.assertIn('rozjeżdża się', w['powod'], 'stopka PDF (stary raport pod nową nazwą) ≠ data z nazwy pliku')
+        w, _ = self.bybit(cur, cur['addr'][:60])   # nowy PDF z połową adresów
+        self.assertEqual(w['status'], 'odrzucona'); self.assertIn('poza przedziałem', w['powod'])
+        w, _ = self.bybit(cur, [self.adr(5000 + i) for i in range(122)])   # zupełnie inna lista
+        self.assertEqual(w['status'], 'odrzucona'); self.assertIn('próg 90%', w['powod'])
+        z = self.Zaslepka(pliki={self.BY_STARY: True, self.BY_NOWY: True}, pdfy={self.BY_STARY: self.tekst(cur['addr'][1:]), self.BY_NOWY: self.tekst(nowe)})
+        w = self.W.odswiez_gielde('Bybit', cur, self.DZIS, z, spij=lambda s: None)
+        self.assertEqual(w['status'], 'odrzucona'); self.assertIn('parser nie odtwarza obecnej listy', w['powod'])
+        young = dict(cur, since='2026-10-10')
+        self.assertEqual(self.W.odswiez_gielde('Bybit', young, self.DZIS, self.Zaslepka(), spij=lambda s: None)['status'], 'brak', 'raport miesięczny — za wcześnie')
+
+    def test_kucoin(self):
+        W = self.W
+        A = [self.adr(0xf100 + i) for i in range(1, 34)]
+        cur = {'since': '2026-08-31', 'url': 'https://assets.example/ku-stary.pdf', 'addr': A}
+        api = lambda **d: {'latestAuditDate': 1790783999000, 'auditReportUrl': None, **d}   # noqa: E731 — 30.09.2026
+        nowe = A + [self.adr(0xf200 + i) for i in range(5)]
+        z = lambda a, **kw: self.Zaslepka(api=a, pdfy={'https://assets.example/ku-stary.pdf': self.tekst(A, stopka='2026/08/31'),
+                                                      'https://assets.example/ku-nowy.pdf': self.tekst(nowe, stopka='2026/09/30')}, **kw)   # noqa: E731
+        r = lambda zas: W.odswiez_gielde('KuCoin', cur, self.DZIS, zas)   # noqa: E731
+        w = r(z(api(auditReportUrl='https://assets.example/ku-nowy.pdf')))
+        self.assertEqual((w['status'], w['wpis']['since'], w['wpis']['url'], len(w['wpis']['addr'])), ('ok', '2026-09-30', 'https://assets.example/ku-nowy.pdf', 38))
+        w = r(z(api()))
+        self.assertEqual((w['status'], w['wpis']), ('czeka', None)); self.assertIn('link do raportu jeszcze niepodany', w['powod'])
+        self.assertEqual(r(z(api(auditReportUrl='   ')))['status'], 'czeka')
+        self.assertEqual(r(z(api(auditReportUrl=cur['url'])))['status'], 'czeka', 'ten sam link co obecna lista')
+        self.assertEqual(r(z(api(latestAuditDate=1788134399000)))['status'], 'brak', 'audyt z 30.08 — nie nowszy niż lista z 31.08')
+        self.assertEqual(r(z(ValueError('x')))['status'], 'nie_wiadomo'); self.assertEqual(r(z(api(latestAuditDate='wczoraj')))['status'], 'nie_wiadomo')
+        self.assertEqual(r(z(api(latestAuditDate=True)))['status'], 'nie_wiadomo')
+        w = r(z(api(auditReportUrl='https://assets.example/ku-nowy.pdf', latestAuditDate=1792000000000)))   # audyt 14.10, PDF ze stopką 30.09
+        self.assertEqual(w['status'], 'odrzucona'); self.assertIn('rozjeżdża się', w['powod'])
+        self.assertEqual(r(z(api(auditReportUrl='https://assets.example/ku-nowy.pdf'), blad_pdf='nie PDF'))['status'], 'nie_wiadomo')
+
+    def test_siec_pdf_tylko_https_i_podpis(self):
+        W = self.W
+        with self.assertRaises(ValueError):
+            W.Siec().pdf('http://example.org/a.pdf')
+        with self.assertRaises(ValueError):
+            W.Siec().pdf(None)
+
+        def http(url, timeout=30, headers=None, limit=None):
+            return 200, b'<html>to nie PDF</html>', url, {}
+        with mock.patch.object(W, 'http', http):
+            with self.assertRaises(ValueError) as c:
+                W.Siec().pdf('https://example.org/a.pdf')
+        self.assertIn('nie jest PDF', str(c.exception))
+        with mock.patch.object(W, 'http', lambda *a, **k: (200, b'%PDF-1.4 x', 'http://example.org/a.pdf', {})):
+            with self.assertRaises(ValueError) as c:
+                W.Siec().pdf('https://example.org/a.pdf')
+        self.assertIn('przekierowanie', str(c.exception))
+        with mock.patch.object(W, 'http', lambda *a, **k: (200, b'%PDF-1.4 x', 'https://example.org/a.pdf', {})):
+            self.assertEqual(W.Siec().pdf('https://example.org/a.pdf'), b'%PDF-1.4 x')
+
+    def test_plik_jest_jak_w_kontroli(self):
+        import io, urllib.error
+        W = self.W
+
+        def blad(kod, srv=None):
+            def http(url, timeout=30, headers=None, limit=None):
+                raise urllib.error.HTTPError(url, kod, 'x', {'Server': srv} if srv else {}, io.BytesIO(b''))
+            return http
+        for http, oczek in ((blad(404), False), (blad(403, 'AmazonS3'), False), (blad(403, 'AkamaiGHost'), None), (blad(403), None), (blad(500), None),
+                            (lambda *a, **k: (200, b'<html>', 'u', {}), None), (lambda *a, **k: (206, b'%PDF-1.7', 'u', {}), True),
+                            (lambda *a, **k: (_ for _ in ()).throw(OSError('sieć')), None)):
+            with mock.patch.object(W, 'http', http):
+                self.assertIs(W.Siec().plik_jest('https://x/a.pdf'), oczek)
+
+    # --- plik wyniku i nałożenie na listy wbudowane -------------------------------------------------------------------
+    def test_uruchom_zapisuje_wynik_i_zbieracz_go_naklada(self):
+        import tempfile
+        W = self.W
+        cur = self.by_cur()
+        nowe = cur['addr'] + [self.adr(900 + i) for i in range(9)]
+        ku = {'since': '2026-08-31', 'url': 'https://assets.example/k.pdf', 'addr': [self.adr(0xf100 + i) for i in range(1, 34)]}
+        z = self.Zaslepka(pliki={self.BY_STARY: True, self.BY_NOWY: True}, api={'latestAuditDate': 1790783999000, 'auditReportUrl': None},
+                          pdfy={self.BY_STARY: self.tekst(cur['addr']), self.BY_NOWY: self.tekst(nowe)})
+        with tempfile.TemporaryDirectory() as d:
+            p, ps = os.path.join(d, 'konfig', 'wh_listy_pdf.json'), os.path.join(d, 'konfig', 'stan.json')
+            os.makedirs(os.path.dirname(p))
+            self.zap(p, {'v': 1, 'OKX': {'since': '2026-09-08', 'plik': 'x', 'n': 10, 'addr': []}})   # obcy klucz w pliku
+            w = W.uruchom({'Bybit': cur, 'KuCoin': ku}, self.DZIS, z, p, spij=lambda s: None, stan_sciezka=ps)
+            self.assertEqual((w['Bybit']['status'], w['KuCoin']['status']), ('ok', 'czeka'))
+            j, st = self.cz(p), self.cz(ps)
+            self.assertEqual(j['v'], 1); self.assertEqual(set(j), {'v', 'OKX', 'Bybit'}, 'KuCoin bez nowej listy — bez wpisu; obcy wpis nietknięty')
+            self.assertEqual(j['OKX'], {'since': '2026-09-08', 'plik': 'x', 'n': 10, 'addr': []})
+            self.assertEqual((j['Bybit']['n'], j['Bybit']['zapisano'], j['Bybit']['url']), (131, '2026-10-25', self.BY_NOWY))
+            self.assertEqual(st['v'], 1); self.assertEqual(st['Bybit']['status'], 'ok')
+            self.assertEqual(st['KuCoin'], {'dzien': '2026-10-25', 'status': 'czeka', 'powod': 'audyt z 2026-09-30 jest, link do raportu jeszcze niepodany'})
+            # zbieracz: lista wbudowana + plik → nowa lista Bybit, KuCoin bez zmian, wbudowane nietknięte
+            bud = zd.WH_GIELDY_WBUDOWANE
+            out = zd.wh_konfig_nalozone(bud, p)
+            self.assertEqual((out['Bybit']['since'], out['Bybit']['url'], len(out['Bybit']['addr'])), ('2026-10-24', self.BY_NOWY, 131))
+            self.assertIn('audyt z 24.10.2026', out['Bybit']['src']); self.assertIn('wszystkie 131 portfeli w sieci Ethereum', out['Bybit']['src'])
+            self.assertEqual(out['Bybit']['tokeny'], bud['Bybit']['tokeny']); self.assertEqual(out['KuCoin'], bud['KuCoin']); self.assertEqual(list(out), list(bud))
+            self.assertEqual((len(bud['Bybit']['addr']), bud['Bybit']['since']), (122, '2026-09-23'), 'lista wbudowana nie jest zmieniana w miejscu')
+            self.assertEqual(out['OKX'], bud['OKX'], 'obcy klucz pliku jest ignorowany')
+            self.assertFalse(W.zapisz(p, j), 'ta sama treść — plik bez zmiany (commit tylko gdy się zmienił)')
+            # następny przebieg: cur = lista z pliku, nowszego raportu już nie ma → plik list bez zmiany, stan: brak
+            przed = self.cz(p, False)
+            W.uruchom({'Bybit': out['Bybit'], 'KuCoin': ku}, self.DZIS, z, p, spij=lambda s: None, stan_sciezka=ps)
+            self.assertEqual(self.cz(p, False), przed, 'przyjęta lista zostaje, plik list nietknięty')
+            self.assertEqual(self.cz(ps)['Bybit']['status'], 'brak')
+            self.assertEqual(self.W.uruchom({'Bybit': out['Bybit'], 'KuCoin': ku}, self.DZIS, z, p, spij=lambda s: None, stan_sciezka=ps, zapis=False)['Bybit']['status'], 'brak')
+
+    def test_uruchom_porazka_nie_rusza_listy_a_zapisuje_powod(self):
+        import tempfile
+        W = self.W
+        cur = self.by_cur()
+        z = self.Zaslepka(pliki={self.BY_STARY: None}, api=ValueError('x'))
+        with tempfile.TemporaryDirectory() as d:
+            p, ps = os.path.join(d, 'wh_listy_pdf.json'), os.path.join(d, 'stan.json')
+            lista = {'v': 1, 'OKX': {'since': '2026-09-08', 'addr': []}, 'Bybit': {'since': '2026-09-01', 'addr': ['x']}}
+            self.zap(p, lista); przed = self.cz(p, False)
+            w = W.uruchom({'Bybit': cur, 'KuCoin': None}, self.DZIS, z, p, spij=lambda s: None, stan_sciezka=ps)
+            self.assertEqual((w['Bybit']['status'], w['KuCoin']['status'], w['KuCoin']['powod']), ('nie_wiadomo', 'blad', 'brak obecnej listy'))
+            self.assertEqual(self.cz(p, False), przed, 'porażka nie rusza pliku list (ani wpisów, ani kolejności, ani cudzych kluczy)')
+            st = self.cz(ps)
+            self.assertEqual((st['v'], st['Bybit']['status'], st['KuCoin']['status']), (1, 'nie_wiadomo', 'blad'))
+            self.assertIn('blokada', st['Bybit']['powod'])
+            self.assertEqual(W.uruchom({'Bybit': cur, 'KuCoin': cur}, self.DZIS, z, p, spij=lambda s: None, stan_sciezka=ps, zapis=False)['KuCoin']['status'], 'nie_wiadomo')
+            self.zap(ps, '{nie json')
+            W.uruchom({'Bybit': cur}, self.DZIS, z, p, spij=lambda s: None, stan_sciezka=ps)
+            self.assertEqual(self.cz(ps)['Bybit']['status'], 'nie_wiadomo', 'uszkodzony plik stanu zastąpiony nowym, nie wyjątek')
+            d2 = os.path.join(d, 'nowy', 'katalog', 'p.json')   # brak pliku list i katalogu: porażka nie tworzy pliku list
+            W.uruchom({'Bybit': cur}, self.DZIS, z, d2, spij=lambda s: None, stan_sciezka=os.path.join(d, 'nowy', 'stan.json'))
+            self.assertFalse(os.path.exists(d2)); self.assertTrue(os.path.exists(os.path.join(d, 'nowy', 'stan.json')))
+
+    def test_zbieracz_nakladanie_zasady(self):
+        import tempfile
+        bud = zd.WH_GIELDY_WBUDOWANE
+        A = [self.adr(7000 + i) for i in range(130)]
+        U = 'https://example.org/Bybit_PoR_Audit_2026_Oct_24.pdf'
+
+        def wynik(zawartosc, sciezka='k.json'):
+            with tempfile.TemporaryDirectory() as d:
+                p = os.path.join(d, sciezka)
+                if zawartosc is not None:
+                    self.zap(p, zawartosc)
+                return zd.wh_konfig_nalozone(bud, p)
+        wpis = lambda **kw: {'v': 1, 'Bybit': {'since': '2026-10-24', 'url': U, 'addr': A, **kw}}   # noqa: E731
+        self.assertEqual(wynik(wpis())['Bybit']['addr'], A)
+        self.assertEqual(wynik(wpis(addr=[self.adr(8000 + i) for i in range(400)]))['Bybit']['addr'][0], self.adr(8000), '400 to górna granica')
+        for opis, k in (('brak pliku', None), ('nie JSON', '{'), ('lista zamiast obiektu', '[]'), ('brak wersji', {'Bybit': wpis()['Bybit']}),
+                        ('zła wersja', dict(wpis(), v=2)), ('wersja jako tekst', dict(wpis(), v='1')),
+                        ('data nie nowsza', wpis(since='2026-09-23')), ('data starsza', wpis(since='2026-09-01')), ('zła data', wpis(since='jutro')),
+                        ('brak daty', wpis(since=None)), ('liczba za mała', wpis(addr=A[:99])), ('liczba za duża', wpis(addr=[self.adr(8000 + i) for i in range(401)])),
+                        ('duplikat', wpis(addr=A + [A[0]])), ('wielkie litery', wpis(addr=A[:-1] + ['0x' + 'AB' * 20])), ('adres nie tekst', wpis(addr=A[:-1] + [5])),
+                        ('addr nie lista', wpis(addr='x')), ('url http', wpis(url=U.replace('https', 'http'))), ('brak url', wpis(url=None)),
+                        ('wpis nie obiekt', {'v': 1, 'Bybit': 'x'}), ('giełda spoza listy', {'v': 1, 'Binance': wpis()['Bybit']})):
+            self.assertEqual(wynik(k), bud, 'plik odrzucony (' + opis + ') — zostają listy wbudowane')
+        self.assertEqual(os.environ.get('WH_PDF_PLIK'), '-', 'początek pliku testów wyłącza prawdziwy plik wyniku automatu')
+        self.assertEqual(zd.WH_GIELDY, zd.wh_konfig_nalozone(zd.WH_GIELDY_WBUDOWANE, '-'), 'testy pracują na listach wbudowanych')
+        self.assertEqual(len(zd.WH_GIELDY['Bybit']['addr']), 122)
+        self.assertEqual([zd.wh_konfig_n_portfeli(n) for n in (1, 2, 5, 12, 22, 33, 122, 131, 132, 140)],
+                         ['1 portfel', '2 portfele', '5 portfeli', '12 portfeli', '22 portfele', '33 portfele', '122 portfele', '131 portfeli', '132 portfele', '140 portfeli'])
+
+    def test_kontrola_nie_radzi_czlowiekowi_przy_listach_z_automatu(self):
+        """Stare uwagi o liście portfeli Bybit i KuCoin nie każą już nikomu odświeżać ich ręcznie (robi to automat); dla OKX rada zostaje."""
+        src = self.cz(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), False)
+        self.assertIn('if g in WH_AUTO_GIELDY else f\'co zrobić: odśwież listę portfeli {g}', src, 'rada dla człowieka tylko poza listami z automatu')
+        self.assertIn("o.get('nowy') and o.get('lista') and g not in WH_AUTO_GIELDY", src, 'nowy raport Bybit/KuCoin: bez uwagi z radą — automat bierze go sam')
+        self.assertIn('sam automat po nowym raporcie', src)
+
+    # --- kontrola -----------------------------------------------------------------------------------------------------
+    def test_kontrola_pokazuje_wynik_i_powod(self):
+        import importlib.util, tempfile
+        spec = importlib.util.spec_from_file_location('kontrola_v478', os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'))
+        K = importlib.util.module_from_spec(spec); spec.loader.exec_module(K)
+        now = datetime.datetime(2026, 10, 25, 6, 20, tzinfo=datetime.timezone.utc)
+        self.assertIsNone(K.wh_auto_ocena('-', now), 'tryb testów — kontrola nie czyta prawdziwego pliku')
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'w.json')
+            o = K.wh_auto_ocena(p, now)
+            self.assertEqual(o['uwagi'], []); self.assertIn('jeszcze nie działał', o['wiersz']); self.assertIn('ℹ️', o['wiersz'])
+            self.zap(p, '{źle')
+            o = K.wh_auto_ocena(p, now)
+            self.assertEqual(len(o['uwagi']), 1); self.assertIn('nieczytelny', o['uwagi'][0])
+            self.zap(p, {'v': 1, 'Bybit': {'dzien': '2026-10-25', 'status': 'ok', 'powod': 'nowa lista z 2026-10-24: 131 portfeli (było 122)'},
+                       'KuCoin': {'dzien': '2026-10-25', 'status': 'czeka', 'powod': 'audyt z 2026-09-30 jest, link do raportu jeszcze niepodany'},
+                       'OKX': {'dzien': '2026-10-25', 'status': 'ok', 'powod': 'obcy wpis — tu pomijany'}})
+            o = K.wh_auto_ocena(p, now)
+            self.assertEqual(o['uwagi'], [])
+            self.assertIn('Bybit — nowa lista z 2026-10-24: 131 portfeli (było 122) ✅', o['wiersz']); self.assertIn('KuCoin — audyt z 2026-09-30 jest', o['wiersz'])
+            self.assertIn('link do raportu jeszcze niepodany ℹ️', o['wiersz']); self.assertNotIn('OKX', o['wiersz'])
+            self.zap(p, {'v': 1, 'Bybit': {'dzien': '2026-10-25', 'status': 'odrzucona', 'powod': 'liczba portfeli 90 poza przedziałem 100–400 (raport z 2026-10-24)'},
+                       'KuCoin': {'dzien': '2026-10-20', 'status': 'blad', 'powod': 'wyjątek KeyError: x'}})
+            o = K.wh_auto_ocena(p, now)
+            self.assertEqual(len(o['uwagi']), 3, 'odrzucona, błąd i nieaktualny wynik (5 dni)')
+            self.assertTrue(any('Bybit' in u and 'poza przedziałem 100–400' in u and 'lista zostaje' in u for u in o['uwagi']))
+            self.assertTrue(any('KuCoin' in u and 'sprzed 5 dni' in u for u in o['uwagi']))
+            self.assertIn('⚠️', o['wiersz'])
+            self.zap(p, {'v': 1, 'Bybit': {'dzien': '2026-10-22', 'status': 'brak', 'powod': 'brak nowszego niż 2026-09-23'}})
+            self.assertEqual(K.wh_auto_ocena(p, now)['uwagi'], [], '3 dni to jeszcze w normie')
+
+    def test_przeplyw_i_zalezności(self):
+        y = self.cz(os.path.join(self.ROOT, '.github', 'workflows', 'wh_listy_pdf.yml'), False)
+        import re
+        self.assertIn("cron: '31 5 * * *'", y); self.assertIn('group: wh_listy_pdf ', y, 'własna grupa współbieżności'); self.assertIn('workflow_dispatch:', y); self.assertEqual(len(re.findall(r'^permissions: \{\}$', y, re.M)), 1)
+        self.assertEqual(re.findall(r'^      (\w+): (\w+)', y.split('steps:')[0], re.M), [('contents', 'write')], 'jedyny zapis: commit pliku')
+        self.assertIn("pypdf==6.19.0", y); self.assertEqual(y.count('pip install'), 1)
+        self.assertIn('git add konfig/wh_listy_pdf.json konfig/wh_listy_pdf_stan.json', y); self.assertIn('[skip ci]', y); self.assertIn("vars.WH_AUTO_OFF != '1'", y)
+        self.assertNotIn('secrets.', y); self.assertEqual(y.count('runs-on:'), y.count('runs-on: ubuntu-24.04')); self.assertNotIn('\t', y)
+        self.assertIn('actions/checkout@v7', y); self.assertIn('actions/setup-python@v7', y)
+        self.assertIn('wh_listy_pdf.yml', self.cz(os.path.join(self.ROOT, 'narzedzia', 'straznik.py'), False), 'strażnik harmonogramów pilnuje także tego przepływu')
+        for nazwa in ('strona.yml', 'kontrola.yml', 'archiwum.yml', 'sondy.yml', 'zegar.yml', 'straznik.yml'):
+            self.assertNotIn('pypdf', self.cz(os.path.join(self.ROOT, '.github', 'workflows', nazwa), False), nazwa + ': pypdf tylko w osobnym przepływie')
+        for nazwa in ('zbieraj_dane.py', os.path.join('narzedzia', 'kontrola.py')):
+            self.assertNotIn('import pypdf', self.cz(os.path.join(self.ROOT, nazwa), False), nazwa + ': zbieracz i kontrola zostają na bibliotece standardowej')
+        src = self.cz(os.path.join(self.ROOT, 'narzedzia', 'wh_listy_auto.py'), False)
+        self.assertEqual(src.count('import pypdf'), 1); self.assertNotIn('\nimport pypdf', src, 'import pypdf tylko leniwie, wewnątrz funkcji')
+        for zakaz in ('KEY', 'TOKEN', 'getenv', 'subprocess', 'os.system', 'GH_TOKEN'):
+            self.assertNotIn(zakaz, src, 'skrypt bez kluczy i bez uruchamiania poleceń: ' + zakaz)
