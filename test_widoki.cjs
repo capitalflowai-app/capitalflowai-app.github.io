@@ -37353,3 +37353,21 @@ test('v486: przypis krótkiej sprzedaży (sh429.n.def) nie obiecuje „sprzed ty
   assert.ok(!/sprzed około tygodnia/.test(I.pl['sh429.n.def']) && !/against about a week ago/.test(I.en['sh429.n.def']), 'stare zdanie usunięte');
   assert.ok(I.pl['sh429.n.def'].startsWith('Pozycja netto to akcje sprzedane krótko') && I.en['sh429.n.def'].startsWith('A net position is shares sold short'), 'początek przypisu bez zmian');
 });
+
+
+test('v487-podwojny-stempel: blok stóp — ten sam czas pliku stóp i kursów efektywnych = jeden stempel „Plik z”, różne = dwa', () => {
+  const e0 = html.indexOf('const SP={data:null};'), e1 = html.indexOf('/* v54: ZMIERZONE dzienne', e0);
+  const SP = new Function('t', 'gOk', 'renderInst', 'instSign', 'nfmt', 'instFoot', 'escH', 'engDate', 'gtI', html.slice(e0, e1) + '\nreturn {spApply, EER, eerApply, spBlock};')(
+    gtT, () => {}, () => {}, v => v > 0 ? '+' : (v < 0 ? '−' : ''), (v, d) => v.toFixed(d), s => s, gtEsc, s => s, gtEnv.gtI);
+  const AT = '2026-10-19T18:17:06+00:00', AT2 = '2026-10-19T17:00:00+00:00', st = h => h.split('inst.file{"t":"' + AT + '"}').length - 1, st2 = h => h.split('inst.file{"t":"' + AT2 + '"}').length - 1;
+  SP.spApply({ at: AT, order: ['XM', 'US'], rows: { XM: { rate: 2, date: '2026-09-20', d12: -0.5, vs_us: -2.25, last: ['2025-06', -0.25] }, US: { rate: 4.25, date: '2026-09-20', d12: 0, vs_us: 0 } } });
+  let h = SP.spBlock();
+  assert.equal(st(h), 1, 'bez pliku kursów efektywnych: jeden stempel');
+  SP.eerApply({ at: AT, rows: { XM: { c30: 1.2, c12: -0.4, m: '2026-08', d: '2026-09-22' }, US: { c30: 0, c12: 2 } } });
+  h = SP.spBlock();
+  assert.equal(st(h), 1, 'ten sam czas obu plików: jeden stempel, bez dublowania');
+  assert.ok(!h.includes('inst.file{"t":"' + AT + '"} · inst.file'), 'brak podwójnego napisu');
+  SP.eerApply({ at: AT2, rows: { XM: { c30: 1.2, c12: -0.4, m: '2026-08', d: '2026-09-22' }, US: { c30: 0, c12: 2 } } });
+  h = SP.spBlock();
+  assert.ok(st(h) === 1 && st2(h) === 1 && h.includes('inst.file{"t":"' + AT + '"} · inst.file{"t":"' + AT2 + '"}'), 'różny czas plików: dwa stemple');
+});
