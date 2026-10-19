@@ -26280,7 +26280,7 @@ RWE_XS_OGON_ZAPAS = 2     # v267 (przegląd v265): zapas — kolejność emitent
 RWE_XS_OGON_PROC = 0.5    # v265: % — górna granica pominiętej reszty listy do tylu procent sumy = odczyt przyjęty (pole 'ogon'); więcej = błąd
 RWE_XS_BEZ_MAX = 250      # v391: było 100 (17.10.2026: 116 tokenów bez dowodu, razem granica 0,05% sumy — próg 0,5% sumy nadal ogranicza wartość). v311: xStocks — najwyżej tyle tokenów z dowodem rezerw null (na stronie odpowiedzi) pomijamy, każdy z górną granicą
                           #       wartości z liczby tokenów w obiegu (10.10.2026: 58 z 1318 tokenów emitenta; 05.10: 0 z 1000); więcej = błąd
-RWE_XS_DOP_TMO = 40       # v385: s — zapytanie dopelniajace liste xStocks ma WLASNY limit czasu (nie resztke budzetu kroku: 16.10.2026 po glownym zapytaniu
+RWE_XS_DOP_TMO = 50       # v442: było 40 (19.10.2026 lista z sortowaniem odpowiada ok. 31 s). v385: s — zapytanie dopelniajace liste xStocks ma WLASNY limit czasu (nie resztke budzetu kroku: 16.10.2026 po glownym zapytaniu
                           #       zostawalo kilka sekund i dopelnienie konczylo sie TimeoutError); budzet kroku rosnie o tyle, gdy dopelnienie jest potrzebne
 RWE_ERR_MAX = 420         # v398: było 280 (nazwa kroku i czasy kroków xStocks w opisie błędu). v391: było 220 (dopisek o dopełnieniu listy xStocks jest dłuższy). v385: znakow opisu bledu produktu w pliku (razem z nazwa wyjatku; dotad 160 — diagnostyka v385 jest dluzsza)
 RWE_XS_BEZ_SYM = 5        # v311: tyle symboli pominiętych tokenów zapisujemy w pliku (kontrola: „np. …”)
@@ -26568,8 +26568,10 @@ RWE_XS_CENY_TMO = 10       # v398: s — jedno zapytanie o ceny; zdrowa paczka 2
                            #       wolniejsza odpowiedź uznajemy za błąd paczki i dzielimy ją (inaczej każdy poziom dzielenia kosztowałby 21 s: 17.10.2026 ok. 20 takich tokenów = ponad 2 minuty)
 RWE_XS_CENY_BUDZET = 150   # v398: s na wszystkie wyceny jednego odczytu (lista główna i dopełnienie); po nim zapytań już nie wysyłamy (tokeny niesprawdzone = granica wartości)
 RWE_XS_CENY_ABORT = 8      # v398: tyle pierwszych zapytań o ceny wszystkie z błędem = serwer nie działa, koniec bez dzielenia paczek
-RWE_XS_LISTA_TMO = 25      # v398: s — lista tokenów bez cen (zwykle 2–7 s, ok. 100 KB)
-RWE_XS_NP_MAX = 60         # v398: najwyżej tyle tokenów bez ceny (pamiętane do następnego odczytu jako podejrzane i liczone z górną granicą)
+RWE_XS_LISTA_TMO = 45      # v442: było 25 (19.10.2026 ok. 31 s trzy razy z rzędu; 18.10: 2 s — TimeoutError, bo limit 25 s). v398: s — lista tokenów bez cen (zwykle 2–7 s, ok. 100 KB)
+RWE_XS_NP_MAX = 300        # v442: było 60 (17–18.10.2026: 10 → 60 → 100 tokenów bez ceny w weekend zatrzymywało cały odczyt, choć wartość takich tokenów ogranicza próg RWE_XS_OGON_PROC % sumy,
+                           #       a lista podejrzanych ucięta do 60 zostawiała resztę bez pamięci cen). v398: najwyżej tyle tokenów bez ceny (pamiętane do następnego odczytu jako podejrzane i liczone z górną granicą);
+                           #       suma xStocks liczy tylko wycenione tokeny, pominięte są jawne w polach 'nc' (liczba, akcje, granica wartości) i 'np' (symbole)
 RWE_XS_CAP_PCT = 0.95      # v398: szacunkowa górna granica ceny akcji tokenu bez ceny = ten percentyl cen wycenionych tokenów (17.10.2026: 95. ok. 0,5 tys. USD; 99. ok. 1,3 tys. USD uniemożliwiał odczyt przy 25 takich tokenach)
 RWE_XS_CAP_MIN = 50        # v398: tyle wycenionych tokenów najmniej, by policzyć granicę
 RWE_XS_OBIEG_CZAS = 30     # v398: s budżetu kroku zostaje na zapytania o obieg po etapie cen
@@ -27187,8 +27189,9 @@ def rwe_xs_czytaj(post, fx, tmo, get=None, sleep=None, clock=None, podejrzani=()
                 dg.dodaj(nazwa, clock() - t)
                 return j
             except Exception as e:  # noqa — jedno ponowienie po błędzie serwera, czasie albo zerwanym połączeniu
-                dg.dodaj(nazwa, clock() - t, False)
-                if i + 1 >= proby or not (isinstance(e, ValueError) or _rwe_ponow(e)):
+                dt_ = clock() - t
+                dg.dodaj(nazwa, dt_, False)
+                if i + 1 >= proby or not (isinstance(e, ValueError) or _rwe_ponow(e)) or dt_ >= tm / 2:   # v442: po wyczerpaniu połowy limitu czasu bez drugiego zapytania (wolny serwer nie odpowie szybciej)
                     raise
                 (sleep or time.sleep)(RWE_PRZERWA)
 

@@ -73008,3 +73008,66 @@ class PremieUpbitV441(unittest.TestCase):
         src = inspect.getsource(zd._pr_build)
         self.assertLess(src.index('_pr_fx('), src.index('L[part] = fn(now, cnt)'))
         self.assertGreaterEqual(zd.PR_UP_TRIES, 2); self.assertEqual(zd.PR_UP_PAUSE, 30); self.assertEqual(zd.PR_UP_ERR_H, 6)
+
+
+# ===================== v442: xSTOCKS — MASA TOKENÓW BEZ CENY (WEEKEND 17–18.10.2026) I WOLNA LISTA TOKENÓW =====================
+class RwaXstocksBezCenyV442(unittest.TestCase):
+    """17–18.10.2026 emitent nie wyceniał 10 → 60 → 100 tokenów z rezerwą; odczyt padał na limicie liczby (60) zamiast na wartości. Suma tylko z wycenionych, pominięte jawnie."""
+    AT = RwaXstocksOdpornoscV398.AT
+    NOW = RwaXstocksOdpornoscV398.NOW
+    _L = RwaXstocksOdpornoscV398._L
+    _odczyt = RwaXstocksOdpornoscV398._odczyt
+    setUp = RwaXstocksOdpornoscV398.setUp
+
+    def _P(self, n, sh=1, od=0):
+        return [_rwe170_xn(f'P{i + od:03d}x', sh, 450000, 'USD', self.AT) for i in range(n)]
+
+    def test_sto_tokenow_bez_ceny_to_nie_awaria_suma_tylko_z_wycenionych(self):
+        L = self._L(100, sh=1000); P = self._P(100)
+        rd, zap = self._odczyt(L + P, trujace={n['symbol'] for n in P})
+        x = rd['r']['xstocks']
+        self.assertNotIn('err', x, x)
+        self.assertAlmostEqual(x['v'], 1000 * 100 * sum(range(1, 101)), places=0)
+        self.assertEqual(x['n'], 100, 'tokeny bez ceny nie są w sumie ani jako zero, ani jako szacunek')
+        self.assertEqual((x['nc']['n'], x['nc']['akcje'], x['nc']['max_usd'], x['nc']['sym']), (100, 100.0, 100 * 9600, [f'P{i:03d}x' for i in range(5)]),
+                         'jawna liczba pominiętych i górna granica wartości (95. percentyl cen akcji 9 600 USD), nie wartość')
+        self.assertEqual(x['np'], [f'P{i:03d}x' for i in range(100)], 'wszyscy podejrzani zapamiętani (dotąd tylko pierwsze 60)')
+        self.assertGreaterEqual(zd.RWE_XS_NP_MAX, 100)
+
+    def test_podejrzani_ponad_60_zostaja_takze_gdy_wartosc_za_duza_a_pamiec_cen_ratuje_odczyt(self):
+        L = self._L(60, sh=1000); P = self._P(100, sh=10)   # bez pamięci: 100 × 10 × 5 800 USD = 5,8 mln > 0,5% z 183 mln
+        pad, _ = self._odczyt(L + P, trujace={n['symbol'] for n in P})
+        e = pad['r']['xstocks']
+        self.assertTrue(e['err'].startswith('ValueError: krok przetwarzanie: tokenów z rezerwą bez ceny 100 (np. P000x)'), e['err'])
+        self.assertEqual(len(e['np']), 100, 'pełna lista podejrzanych także z nieudanego odczytu')
+        pm = {n['symbol']: [20.0, '2026-10-17'] for n in P}   # pamięć cen: ostatnia znana cena × 3 = 60 USD → 100 × 10 × 60 = 60 tys. USD
+        rd, _ = self._odczyt(L + P, trujace={n['symbol'] for n in P}, prev_np=e['np'], prev_pm=pm)
+        x = rd['r']['xstocks']
+        self.assertNotIn('err', x, x)
+        self.assertEqual((x['n'], x['nc']['n'], x['nc']['max_usd'], x['nc']['pm']), (60, 100, 60000, 100))
+        self.assertAlmostEqual(x['v'], 1000 * 100 * sum(range(1, 61)), places=0)
+
+    def test_ponad_limit_liczby_nadal_blad_z_nazwa_kroku(self):
+        L = self._L(60, sh=1000); P = self._P(zd.RWE_XS_NP_MAX + 1)
+        rd, _ = self._odczyt(L + P, trujace={n['symbol'] for n in P})
+        e = rd['r']['xstocks']['err']
+        self.assertTrue(e.startswith(f'ValueError: krok ceny: tokenów bez ceny {zd.RWE_XS_NP_MAX + 1} (np. P000x) — więcej niż {zd.RWE_XS_NP_MAX}'), e)
+
+    def test_wolna_lista_bez_drugiego_zapytania_szybki_blad_z_ponowieniem(self):
+        t, zap = [0.0], []
+
+        def wolny(url, obj, timeout=60):
+            zap.append(timeout); t[0] += timeout
+            raise TimeoutError('The read operation timed out')
+        with self.assertRaises(zd.RweXsBlad) as c:
+            zd.rwe_xs_czytaj(wolny, None, 15, clock=lambda: t[0], sleep=lambda s: None)
+        self.assertEqual(zap, [zd.RWE_XS_LISTA_TMO], 'cały limit zużyty = drugie, równie długie zapytanie nie ma sensu'); self.assertGreaterEqual(zd.RWE_XS_LISTA_TMO, 40)
+        self.assertEqual(c.exception.krok, 'lista')
+        zap.clear(); t[0] = 0.0
+
+        def szybki(url, obj, timeout=60):
+            zap.append(timeout); t[0] += 1.0
+            raise TimeoutError('The read operation timed out')
+        with self.assertRaises(zd.RweXsBlad):
+            zd.rwe_xs_czytaj(szybki, None, 15, clock=lambda: t[0], sleep=lambda s: None)
+        self.assertEqual(zap, [zd.RWE_XS_LISTA_TMO] * 2, 'błąd po 1 s z 45 s — jedno ponowienie jak dotąd')
