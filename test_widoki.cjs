@@ -37463,3 +37463,24 @@ test('v493: EN — jedna jednostka miliardów („B”) w panelach dźwigni i Et
   assert.equal(I.pl['lev.u.mld'], 'mld USD'); assert.equal(I.pl['eth403.u.b'], 'mld');
   assert.equal(I.en['u.b'], 'B USD', 'słownik bazowy bez zmian');
 });
+
+test('v494: wieloryby, duże przelewy dobami — kwoty USD poniżej 1 mln jako „<1 mln USD” (netto 446412 → „<1 mln USD”), 0,5–1 mln z jednym miejscem, miliony i zero bez zmian', () => {
+  const ws = html.slice(html.indexOf('function whDob(D){'), html.indexOf('function whTable(D){'));
+  const gs = html.slice(html.indexOf('function gxMag(a){'), html.indexOf('/* kierunek z pokazanej liczby'));
+  assert.ok(ws.includes('wdNet(r.net)') && ws.includes('wdUsd(r.i)') && ws.includes('wdUsd(r.o)') && gs.length > 50, 'tabela używa wdUsd/wdNet i gxMag');
+  const nf = (v, d) => Number(v).toFixed(d), tt = k => (k === 'u.m' ? 'mln USD' : k === 'u.b' ? 'mld USD' : k === 'u.t' ? 'bln USD' : k);
+  const mk = () => new Function('t', 'engDate', 'escH', 'whNum', 'whAmt', 'nfmt', 'gxNum', gs + '\n' + ws + '\nreturn whDob;')(
+    (k, v) => tt(k) !== k ? tt(k) : k, s => 'D(' + s + ')', s => String(s), v => typeof v === 'number' && isFinite(v), (v, u) => (v < 0 ? '−' : '') + nf(Math.abs(v) >= 1e6 ? Math.abs(v) / 1e6 : Math.abs(v), Math.abs(v) >= 1e6 ? 1 : 0) + (Math.abs(v) >= 1e6 ? ' mln' : '') + ' ' + u, nf,
+    v => typeof v === 'number' && isFinite(v));
+  const whDob = mk();
+  const i = 171.9e6, o = i - 446412;
+  const o1 = whDob({dobowe: {'2026-10-18': {Binance: {USDT: {in: i, out: o, n: 97}}}}, dobowe_od: '2026-10-01T00:00:00+00:00'});
+  assert.ok(o1.includes('>▲ 171.9 mln USD<') && o1.includes('>▼ 171.5 mln USD<'), 'miliony bez zmian: ' + o1);
+  assert.ok(o1.includes('<span class="cell mono pos">+<1 mln USD</span>') && !/446412/.test(o1), 'netto 446412 → „+<1 mln USD”, nie pełna liczba: ' + o1);
+  const o2 = whDob({dobowe: {'2026-10-18': {OKX: {USDT: {in: 300000, out: 900000, n: 3}}, Bybit: {USDC: {in: 2e6, out: 2e6, n: 1}}}}, dobowe_od: '2026-10-01T00:00:00+00:00'});
+  assert.ok(o2.includes('>▲ <1 mln USD<') && o2.includes('>▼ 0.9 mln USD<'), 'wpływ 0,3 mln — „<1 mln USD”, odpływ 0,9 mln z jednym miejscem: ' + o2);
+  assert.ok(o2.includes('<span class="cell mono neg">−0.6 mln USD</span>'), 'netto −0,6 mln: znak i kolor zostają — ' + o2);
+  assert.ok(o2.includes('<span class="cell mono neu">0 USD</span>'), 'netto zero — bez zmian (żółte)');
+  const o3 = whDob({dobowe: {'2026-10-18': {OKX: {USDT: {in: 100000, out: 300000, n: 3}}}}, dobowe_od: '2026-10-01T00:00:00+00:00'});
+  assert.ok(o3.includes('<span class="cell mono neg">−<1 mln USD</span>') && !/200000|100000|300000/.test(o3), 'netto ujemne poniżej 0,5 mln: „−<1 mln USD”, czerwone: ' + o3);
+});
