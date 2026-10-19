@@ -30773,20 +30773,16 @@ class KryptoCenaBtcV293c(unittest.TestCase):
 
 
 class ArchiwumGodzinaV293c(unittest.TestCase):
-    """v293c (CR-14): godzina zapisu archiwum w stopce panelu = harmonogram archiwum.yml (dawniej „02:20 czasu polskiego” / „00:20 UTC”)."""
+    """v293c (CR-14), v472: stopka panelu archiwum nie opisuje wewnętrznej metody (godzina zapisu, repozytorium, pliki CSV) — jedno krótkie zdanie."""
 
     def test_godzina_w_stopce_jak_cron(self):
         import re
         root = os.path.dirname(os.path.abspath(__file__))
-        y = open(os.path.join(root, '.github', 'workflows', 'archiwum.yml'), encoding='utf-8').read()
-        m = re.search(r"cron:\s*'(\d+) (\d+) \* \* \*'", y)
-        self.assertIsNotNone(m)
-        hhmm = f'{int(m.group(2)):02d}:{int(m.group(1)):02d} UTC'
         html = open(os.path.join(root, 'index.html'), encoding='utf-8').read()
         texts = re.findall(r'"arc\.foot":"([^"]*)"', html)
         self.assertEqual(len(texts), 2)
         for s in texts:
-            self.assertIn(hhmm, s); self.assertNotIn('00:20', s); self.assertNotIn('02:20 czasu', s)
+            self.assertIsNone(re.search(r'UTC|\d\d:\d\d|CSV|repozytor|repositor|katalog|folder', s), s); self.assertLess(len(s), 90)
 
 
 class KoszykiScenyV293c(unittest.TestCase):

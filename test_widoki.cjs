@@ -4224,9 +4224,8 @@ test('v114: archiwum własne na stronie — słownik EXTRA107 (10 języków), se
   assert.ok(html.includes('arcLoad();arcAuto();') && html.includes('if [ -d archiwum ]') === false, 'start wczytywania na stronie');
   for (const L of ['pl', 'en']) {
     const t = v96src.tFor(L);
-    for (const k of ['arc.t', 'arc.t.c', 'arc.sub', 'arc.credit', 'arc.foot', 'arc.k.liq', 'arc.k.yld', 'arc.k.tic', 'arc.k.stab', 'arc.k.wh', 'arc.src.fred', 'arc.u.ct']) assert.ok(t(k) !== k && t(k).length > 0, L + ' ' + k);   // ja: „枚” — jeden znak
-    assert.ok(t('arc.per').includes('{n}') && t('arc.since').includes('{d}') && t('arc.since').includes('{n}') && t('arc.k.cftc').includes('{c}') && t('arc.src').includes('{s}'), L + ' zmienne');
-    assert.ok(t('arc.credit').includes('CapitalFlowAI'), L + ' podpis archiwum');
+    for (const k of ['arc.t', 'arc.t.c', 'arc.sub', 'arc.foot', 'arc.k.liq', 'arc.k.yld', 'arc.k.tic', 'arc.k.stab', 'arc.k.wh', 'arc.u.ct']) assert.ok(t(k) !== k && t(k).length > 0, L + ' ' + k);   // ja: „枚” — jeden znak
+    assert.ok(t('arc.per').includes('{n}') && t('arc.since').includes('{d}') && t('arc.since').includes('{n}') && t('arc.k.cftc').includes('{c}'), L + ' zmienne');
   }
   // funkcje czyste: okno, luki, format
   const src = html.slice(html.indexOf('function arcMs(d)'), html.indexOf('function arcBlock('));
@@ -6596,9 +6595,8 @@ test('v126.2-zrodla: słowniki — wartość skuteczna KAŻDEGO klucza w każdym
     for (const k of ['lev.h.bn', 'lev.h.dr', 'lev.h.hl', 'lev.h.tab']) assert.ok(!/[(（][^()（）]*(?:Binance|Deribit|Hyperliquid)[^()（）]*[)）]/.test(E[l][k]), l + ' ' + k + ': giełda jako miejsce obrotu, nie dopisek w nawiasie');
     assert.ok(!/Sources page|stronie Źródła|“Sources” menu|menu „Źródła”/.test(E[l]['pg.assets.dv'] + E[l]['top.err2'] + E[l]['eng.x.gen.lim'] + E[l]['eng.x.gen.not_says']), l + ': bez odesłań do strony Źródła po to, czego ona nie ma');
   }
-  assert.equal(E.pl['arc.src.cftc'], 'tygodniowy raport regulatora rynku terminowego USA'); assert.ok(!('tv.load' in E.pl) && !('tv.off' in E.en), 'v321: teksty zgody na widgety usunięte');
+  assert.ok(!('tv.load' in E.pl) && !('tv.off' in E.en), 'v321: teksty zgody na widgety usunięte');
   assert.ok(E.pl['zr2.legal'].includes('organizacji międzynarodowych, regulatorów rynku, giełd, serwisów zbierających dane rynkowe') && E.en['zr2.legal'].includes('market-data aggregators'), 'zdanie o źródłach pełne (kategorie, bez nazw)');
-  assert.ok(E.pl['arc.src.fred'].includes('co tydzień') && E.pl['arc.src.fred'].includes('reverse repo codziennie') && E.en['arc.src.tic'].includes('cross-border'), 'opisy źródeł bazowych prawdziwe (częstotliwość, oba kierunki)');
 });
 
 test('v126.2-zrodla: znaczniki strony poza skryptem (tekst, title / aria-label / alt / placeholder, tytuł i opisy meta) bez nazw źródeł; stopka = sam przycisk „Źródła”', () => {
@@ -14167,9 +14165,8 @@ test('v293c CR-13: dźwignia — obrót 0 albo brak = „—”, poniżej 0,5 ml
   assert.ok(T.includes('levVolTxt(r.vol_usd)') && !T.includes('nfmt(r.vol_usd/1e6,0)'));
 });
 
-test('v293c CR-14: archiwum — godzina zapisu w stopce jak w harmonogramie (01:20 UTC), we wszystkich językach', () => {
-  for (const L of V293C_L) { const s = v96src.tFor(L)('arc.foot'); assert.ok(s.includes('01:20 UTC') && !s.includes('00:20') && !/02:20 czasu/.test(s), L + ': ' + s); }
-  assert.ok(v96src.tFor('pl')('arc.foot').includes('w Polsce 03:20 latem, 02:20 zimą'));
+test('v293c CR-14 (v472): archiwum — stopka bez opisu zapisu i repozytorium (zastąpione krótkim zdaniem)', () => {
+  for (const L of ['pl', 'en']) { const s = v96src.tFor(L)('arc.foot'); assert.ok(!/UTC|01:20|CSV|repozytor|repositor|katalog|folder/i.test(s), L + ': ' + s); }
 });
 
 test('v293c CR-15: kontrakty na BTC i ETH — własne zdania „czego nie mówią” (bez euro, indeksu dolara i MSCI EM); panel euro bez zmian', () => {
@@ -37209,4 +37206,18 @@ test('v470: raport USDT starzeje się po 120 h (nie 48 h) i pokazuje swój wiek;
   assert.ok(!h130.includes('Aktywa emitenta') && !h130.includes('raport z D:') && h130.includes('USDC w obiegu'), 'migawka sprzed 130 h: część znika, USDC zostaje');
   assert.ok(!/<span class="(pos|neg)">0 /.test(h60) && !/\b(undefined|NaN|null)\b|Infinity/.test(h60), 'bez zer z kolorem i napisów-błędów');
   assert.ok(html.includes('tether:120*3600e3'), 'próg w kodzie strony');
+});
+
+
+test('v472: archiwum — stopka i podpisy bez opisu metody (repozytorium, godzina zapisu, „źródło bazowe”, „Archiwum własne … ·”), pl i en', () => {
+  const V = ['pl', 'en'].map(L => v96src.tFor(L));
+  for (const [i, L] of ['pl', 'en'].entries()) {
+    const f = V[i]('arc.foot');
+    assert.ok(f !== 'arc.foot' && f.length > 20 && f.length < 90 && f.includes('—') && !/UTC|CSV|repozytor|repositor|katalog|folder|rewizj|revision|01:20/i.test(f), L + ': ' + f);
+    for (const k of ['arc.credit', 'arc.src', 'arc.src.fred', 'arc.src.rent', 'arc.src.tic', 'arc.src.cftc', 'arc.src.stab', 'arc.src.wh']) assert.equal(V[i](k), k, L + ': klucz usunięty ' + k);
+  }
+  assert.ok(html.includes('v472: podpis bez źródła bazowego') && !html.includes("t('arc.credit')") && !/arc\.src/.test(html) && !html.includes('srcKey'));
+  const a = html.indexOf('function arcBlock('), b = html.indexOf('\nfunction arcSeg(', a), blk = html.slice(a, b);
+  assert.ok(blk.includes("function arcBlock(id,title,lines,unit,small){") && blk.includes("t('arc.month')") && !/źródło|source/i.test(blk));
+  assert.ok(!/,'arc\.src/.test(html.slice(html.indexOf('function renderArc('), html.indexOf('function arcApply('))), 'wywołania bez klucza źródła');
 });
