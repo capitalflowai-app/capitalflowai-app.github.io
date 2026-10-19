@@ -1478,7 +1478,7 @@ test('v84: klucze Korei nie kolidują z panelem krypto; słownik v84 nakładany 
   for (const l of ['pl', 'en']) assert.ok(!('g.help.2' in d[l]), l);   /* v151: g.help.2 (dawny akapit okna pomocy z nazwami wydawców) usunięty — strona czyta g.hm.2 */
   assert.ok(d.pl['g.help.3'].includes('To model, nie pomiar') && d.en['g.help.3'].includes('not a measurement'));
   for (const l of ['pl', 'en']) for (const k of ['ue.not', 'bil.not']) assert.ok(!d[l][k].includes('TARGET2'), l + ' ' + k);
-  assert.ok(html.includes("t('rail.in.g')") && html.includes('data-i18n="g.help.regtds"'));   // v96: Finnhub i Twelve Data opisane na stronie Źródła (okno pomocy ma tylko link)
+  assert.ok(html.includes("t('rail.in.g')") && html.includes('data-i18n="g.help.src"'));   /* v450: okno pomocy bez opisu zapasu — zostaje zdanie o źródłach z linkiem */   // v96: Finnhub i Twelve Data opisane na stronie Źródła (okno pomocy ma tylko link)
   assert.ok(!html.includes("['Finnhub','g.hs.fh'],['Twelve Data','g.hs.td']") && html.includes('<p class="mtxt" id="gh-src"></p>'), 'v96: okno pomocy GLOBAL bez listy źródeł');
   assert.ok(!html.includes('tych danych nie ma') && !html.includes('(okresy 1T i 1M)') && !html.includes('Plik z serwera starszy niż trzy godziny') && !html.includes('tylko giełda CME.'));
   for (const s of ['Obok pokazujemy miary pokrewne', 'dopisek „pokazany poprzedni plik”', 'wpłaty i wypłaty BTC i ETH na giełdy</span>'])   // v96: tabela częstotliwości bez kolumny „Źródło” (źródła tylko na stronie Źródła)
@@ -3216,7 +3216,8 @@ test('v98.1-usa: panel USA — kolory widoczne (styl kafelków nie gasi zmian), 
 });
 test('v98.2: okno pomocy GLOBAL bez nazw instytucji, w 10 językach; Metodologia zostaje przy dawnych tekstach', () => {
   const m0 = html.indexOf('<div class="modal" id="g-help-modal"'), m1 = html.indexOf('<div class="modal" id="help-modal"', m0), M = html.slice(m0, m1);
-  for (const k of ['2', 'readd', 'corr', 'probd', 'limd']) assert.ok(M.includes(`data-i18n="g.hm.${k}"`) && !M.includes(`data-i18n="g.help.${k}"`), 'okno pomocy: ' + k);
+  for (const k of ['hg.1', 'hg.2', 'hg.3', 'hg.col.h', 'hg.col.p', 'hg.lim.h', 'hg.lim.p']) assert.ok(M.includes(`data-i18n="m450.${k}"`), 'v450: okno pomocy GLOBAL — krótki tekst: ' + k);
+  for (const k of ['2', 'readd', 'corr', 'probd', 'limd']) assert.ok(!M.includes(`data-i18n="g.hm.${k}"`) && !M.includes(`data-i18n="g.help.${k}"`), 'v450: bez opisów metod w oknie pomocy: ' + k);
   const PROV = /\b(BIS|BIZ|BRI|BPI|OECD|OCDE|TIC|MOF|EBC|ECB|EZB|BCE|Eurostat|MFW|IMF|IWF|FMI|CFTC)\b|МВФ|ЕЦБ|Евростат|欧洲央行|欧盟统计局|ユーロスタット/;
   const en = v96src.tFor('en');
   for (const L of ['pl', 'en']) {
@@ -3226,7 +3227,7 @@ test('v98.2: okno pomocy GLOBAL bez nazw instytucji, w 10 językach; Metodologia
   }
   assert.ok(v96src.tFor('pl')('g.hm.limd').includes('kwartalne (bilanse płatnicze 37 gospodarek, skład walutowy rezerw świata, międzynarodowe statystyki bankowe)'));   /* v314 (audyt G9): ta sama lista co karta „Jakość danych mapy” */
   assert.ok(v96src.tFor('pl')('g.hm.probd').includes('nie jest to porada inwestycyjna'), 'zastrzeżenie zostaje');
-  assert.ok(html.includes("<p class=\"mtxt\">${t('g.help.corr')}</p>") && html.includes("${t('g.help.limd')}"), 'Metodologia: dawne teksty bez zmian');
+  assert.ok(!html.includes("<p class=\"mtxt\">${t('g.help.corr')}</p>") && !html.includes("${t('g.help.limd')}"), 'v450: Metodologia bez dawnych opisów metod (klucze słownika zostają)');
 });
 test('v98.2: jednostka kontraktu i podpis wykresu bez nazw dostawców; flagi przy gospodarkach w opisie kalendarza', () => {
   const c0 = html.indexOf('function cftcUnit('), c1 = html.indexOf('\n', html.indexOf("return v?`<p class=\"pnote\">", c0));
@@ -9927,13 +9928,13 @@ test('v146: każde wywołanie zagSes trafia w zdanie ze słownika z „{n} {sło
 });
 
 /* wycięta funkcja renderMethod (cała strona Metodologii) z t danego języka; gMemStats = null (bez pamięci przeglądarki) */
-function v146Method(L) {
+function v146Method(L, meta) {
   const a = html.indexOf('function renderMethod(){'), b = html.indexOf('\nfunction renderPage(){', a);
   assert.ok(a > 0 && b > a, 'renderMethod w stronie');
-  const w = {innerHTML: ''}, R = v96src.render(L, false, null);
+  const w = {innerHTML: ''};
   const k0 = html.indexOf('/* ===================== v406: KONTAKT'), k1 = html.indexOf('/* v406: koniec kontaktu */', k0);   // v406: przycisk kontaktu w Metodologii
   assert.ok(k0 > 0 && k1 > k0, 'moduł kontaktu w stronie');
-  new Function('$', 'gMemStats', 't', 'txtJakCzytac', 'escH', html.slice(k0, k1) + '\n' + html.slice(a, b) + '\nrenderMethod();')(q => q === '#page-method' ? w : null, () => null, v96src.tFor(L), R.txtJakCzytac, v96src.escH);
+  new Function('$', 'GLIVE', 'LOCALE', 'LANG', 'nfmt', 't', 'escH', v103zr.src + '\n' + html.slice(a, b) + '\nrenderMethod();')(q => q === '#page-method' ? w : null, {meta: meta || null}, {pl: 'pl-PL', en: 'en-US'}, L, v => String(v), v96src.tFor(L), v96src.escH);
   return w.innerHTML;
 }
 const v146Txt = s => s.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
@@ -9971,9 +9972,9 @@ test('v146: Metodologia „Jak czytać liczby” — de, es, fr, it, pt, ru, zh,
   }
   /* cała strona Metodologii: żadne zdanie wersji angielskiej (≥ 4 słowa) nie zostaje w de–ja; sekcja „Jak czytać liczby” na końcu */
   const M = {}; for (const L of V146_L10) M[L] = v146Method(L);
-  assert.ok(M.en.endsWith(EN) && M.pl.endsWith(out.pl), 'Metodologia kończy się sekcją „Jak czytać liczby”');
+  assert.ok(!M.en.includes(EN) && !M.pl.includes(out.pl), 'v450: Metodologia nie pokazuje już sekcji „Jak czytać liczby” (stała, słownik i te testy zostają jako dokumentacja)');
   const sent = v146Txt(M.en).split(/(?<=[.!?:;)])\s+|\s+·\s+|\s+—\s+/).map(x => x.trim()).filter(x => (x.match(/[A-Za-z]{2,}/g) || []).length >= 4);
-  assert.ok(sent.length >= 20, 'zdania angielskiej Metodologii: ' + sent.length);
+  assert.ok(sent.length >= 5, 'zdania angielskiej Metodologii: ' + sent.length);
   for (const L of V146_L8) {
     const T = v146Txt(M[L]);
     const bad = sent.filter(x => T.includes(x));
@@ -11069,7 +11070,7 @@ test('v151: 150 usuniętych kluczy nie ma w żadnym słowniku ani języku (takż
   assert.deepEqual(V151_DEAD.filter(k => U.used(k)).sort(), ['eng.x.gen.attr', 'eng.x.imf-portfolio-pairs.attr', 'eng.x.wdi-destinations.attr', 'q.lin', 'q.lin.d', 'q.lin.v', 'q.src.d']);
   assert.ok(html.includes('function engAttr(rec){') && !/engAttr\(/.test(html.replace('function engAttr(', '')), 'engAttr bez wywołań');
   const code = v143Code(html);
-  assert.equal(code.split("'q.'+").length, 2, 'jedno sklejanie z przedrostkiem q.'); assert.ok(code.includes("['src','fresh','compl','meth'].map(k=>`<div class=\"q\"><div class=\"t\">${t('q.'+k)}"), 'q.: tylko cztery karty');
+  assert.equal(code.split("'q.'+").length, 2, 'jedno sklejanie z przedrostkiem q.'); assert.ok(code.includes("['src','fresh','compl'].map(k=>`<div class=\"q\"><div class=\"t\">${t('q.'+k)}"), 'q.: tylko trzy karty (v450: bez „Co pokazuje scena”)');
   assert.ok(!/['"`]q\.(?:['"`]|\$\{)/.test(code.replace("t('q.'+k)", '')), 'q.: bez innego składania');
   assert.equal(html.split('/* v151: ze słowników usunięto klucze, których kod strony nie czyta').length, 2, 'znacznik v151 raz');
 });
@@ -11105,7 +11106,7 @@ test('v151: klucze składane z zamkniętych list w kodzie (przedrostek + id z ta
   const F = [
     ['kpi.', U.kdef], ['fg.comp.', arr('const FG_KEYS=')], ['fg.why.', arr('const FG_WHY=')],
     ['fed.o.', arr('const FED_ORDER=')], ['cftc.g.', arr('const CFTC_G=')], ['dl.c.', arr('const DL_AR=')], ['eng.t.', arr('const ENG_VIEWS=')], ['etf.n.', arr('const ETF_SYMS=')],
-    ['q.', inl("['src','fresh','compl','meth'].map(k=>`<div class=\"q\">")], ['jpx.c.', inl("['for','ind','trb','bus','it','prop'].map(k=>`<th>${t('jpx.c.'+k)}")],
+    ['q.', inl("['src','fresh','compl'].map(k=>`<div class=\"q\">")], ['jpx.c.', inl("['for','ind','trb','bus','it','prop'].map(k=>`<th>${t('jpx.c.'+k)}")],
     ['mx.i.', inl("['bon','cet','udi','oth'].map(k=>{const v=mxI(l,k);")], ['dl.n.', inl("['blue','bolsa','cripto'].map(k=>escH(t('dl.n.'+k))")],
     ['trd.d.m.', inl("['1','6','7'].map(i=>`<p class=\"pnote\">${t('trd.d.m.'+i)}")], ['trd.m.', inl("['1','2','3'].map(i=>`<p class=\"pnote\">${t('trd.m.'+i)}")],
     ['ev.', ev4], ['evd.', ev4], ['esrc.', ev4], ['elim.', ev4], ['lim.', ev4], ['c315.ev.', ['meas']], ['c315.evd.', ['meas']], ['per.', per], ['prev.', per], ['g.pfs.', pf], ['gmap.pf.', pf],
@@ -13859,7 +13860,7 @@ test('v293 (audyt G1/G3/G11): strona Aktywa — akcje = ta sama liczba co kafele
   assert.ok(el.innerHTML.includes('<div class="k-val" title="a&lt;b">F153718</div>') && el.innerHTML.includes('g.cov.of{"n":11,"m":12} · SZAC · 2026-10-06 · age(2026-10-06)'), el.innerHTML);
   // szczegóły regionu, rok bazy i Metodologia
   assert.ok(html.includes("${(e=>e?`<div><dt>${t('a293g.d.est')}</dt><dd>${gfmt(e.v)} · ${escH(GLIVE.est.d)}${gAgeNote(GLIVE.est.d)}</dd></div>`:'')(GLIVE.est&&GLIVE.est.r?GLIVE.est.r[s.id]:null)}"));
-  assert.ok(html.includes("<b>${t('a293g.m.lvl.h')}:</b> ${t('a293g.m.lvl')} ${t('r296g.m.day',{p:t('g.p.1D')})}</p></section>"));   // v296 (runda 2, G1): + zdanie o kwocie dnia
+  assert.ok(!html.includes("<b>${t('a293g.m.lvl.h')}:</b> ${t('a293g.m.lvl')} ${t('r296g.m.day',{p:t('g.p.1D')})}</p></section>"));   // v450: opis kwoty dnia (v296) nie jest już pokazywany w Metodologii
   const d0 = html.indexOf('/* v53: okno czasu i źródło bazy'), d1 = html.indexOf('function gRenderRefresh(){', d0);
   const B = GL2 => new Function('t', 'escH', 'GDATA', 'gst', 'BI', 'GB_', 'GLIVE', 'gFrozen', 'gFrozenN', 'instSign', 'instMld', 'bopMld', 'biRow', 'biV', 'bopSum', 'instFoot', html.slice(d0, d1) + '\nreturn gBaseRow;')(
     a293gT, s => String(s), {}, {period: '1M'}, {data: null}, {}, GL2, () => false, () => 0, () => '', () => '', () => '', () => '', () => null, () => null, s => s);
@@ -14397,7 +14398,7 @@ test('v296 (runda 2, G1): DZIŚ — kwota regionu od wartości na początku sesj
   assert.equal(apply({SPY: {c: 776.62, pc: 779.09, dp: -0.317, t: 0}, KSA: {dp: 1, pc: 30, t: 0}, TUR: {dp: 2, t: 0}, EIS: {dp: 3, pc: 'x', t: 0}}), 2);
   assert.deepEqual(GLd.day.usa.pc, {SPY: 779.09}); assert.deepEqual(GLd.day.mea.pc, {KSA: 30}); assert.deepEqual(GLd.day.mea.syms, ['KSA', 'TUR', 'EIS']);
   assert.ok(html.includes('c:+j.c,pc:+j.pc,t:+j.t'), 'notowania na żywo też niosą poprzednie zamknięcie');
-  assert.ok(html.includes("${t('a293g.m.lvl')} ${t('r296g.m.day',{p:t('g.p.1D')})}</p></section>"), 'Metodologia: jak liczona jest kwota dnia');
+  assert.ok(!html.includes("${t('a293g.m.lvl')} ${t('r296g.m.day',{p:t('g.p.1D')})}</p></section>"), 'v450: Metodologia nie pokazuje już wyjaśnienia kwoty dnia');
 });
 
 test('v296 (runda 2, G1): rok bazy w tekstach a293g.k.tip, a293g.m.lvl, a293g.basey.v = GEST_D (10 języków) — zmiana bazy bez tekstów nie przejdzie', () => {
@@ -17369,14 +17370,10 @@ test('v314 (audyt G3): opisy kwot mapy (DZIŚ, 1T–1R, okno pomocy) — od szac
   const a = html.indexOf('const gAmt=(r,dp)=>'), gAmt = new Function('GLIVE', html.slice(a, html.indexOf('\n', a)) + '\nreturn gAmt;')({est: {r: {usa: {v: 78710}}}});
   const amt = gAmt({id: 'usa', mcap: 68938}, 2.74);
   assert.ok(Math.abs(amt - 78710 * 2.74 / 102.74) < 1e-9 && Math.round(amt / 100) === 21 && Math.round(68938 * 2.74 / 100 / 100) === 19, 'kwota ' + amt);
-  /* Metodologia: DZIŚ i 1T–1R (metoda główna), potem zapas z miesięcznych indeksów i wzór „(wyżej)”, potem poziom wartości */
+  /* v450: Metodologia nie pokazuje już sekcji „Wartość regionu” (DZIŚ, 1T–1R, zapas, poziom wartości) — te opisy zostają w słowniku */
   for (const L of V314_L10) {
-    const M = v146Method(L), T = v96src.tFor(L), s0 = M.indexOf('<h2>' + T('pg.m1') + '</h2>');
-    const i1 = M.indexOf(T('g.m.reg1d'), s0), i2 = M.indexOf(T('g.m.regtds', {n: '5 / 21 / 63 / 252'}), s0), i3 = M.indexOf(T('g.help.regfb'), s0), i4 = M.indexOf(T('pg.formula'), s0), i5 = M.indexOf(T('a293g.m.lvl'), s0);
-    assert.ok(s0 > 0 && i1 > s0 && i2 > i1 && i3 > i2 && i4 > i3 && i5 > i4, L + ': kolejność Metodologii ' + [s0, i1, i2, i3, i4, i5].join(','));
-    assert.ok(M.slice(s0).startsWith('<h2>' + T('pg.m1') + '</h2><p class="mtxt"><b>' + T('g.p.1D') + ':</b> '), L + ': pierwszy akapit — DZIŚ (metoda główna), nie wzór zapasowy');
-    const sec = M.slice(s0, M.indexOf('</section>', s0));
-    assert.ok(!sec.includes('<p class="mtxt">' + T('g.m.reg') + '</p>') && sec.split(T('g.help.regfb')).length === 2, L + ': zapas opisany raz — akapitem okna pomocy „Zapas, gdy nie ma cen ETF-ów”');
+    const M = v146Method(L), T = v96src.tFor(L);
+    assert.ok(!M.includes(T('pg.m1')) && !M.includes(T('g.m.reg1d')) && !M.includes(T('g.help.regfb')) && !M.includes(T('pg.formula')) && !M.includes(T('a293g.m.lvl')), L + ': bez opisu liczenia wartości regionu');
   }
   const UP = {pl: '(wyżej)', en: '(above)', de: '(oben)', es: '(arriba)', fr: '(ci-dessus)', it: '(sopra)', pt: '(acima)', ru: '(выше)', zh: '（见上文）', ja: '（上記）'};
   for (const L of V314_L10) assert.ok(v96src.tFor(L)('pg.formula').endsWith(UP[L]), L + ': wzór zapasowy odsyła wyżej (metoda główna stoi teraz nad nim): ' + v96src.tFor(L)('pg.formula').slice(-30));
@@ -17652,7 +17649,10 @@ test('v315 (CR7-06): Jakość danych — stablecoiny osobno (przy cenach z pliku
   assert.ok(q.innerHTML.includes('q.s.stab — · c315.q.tvl —') && q.innerHTML.includes('q.src.v{"k":4,"n":6}'), 'bez historii serwera — brak');
   run({C: {}, src: 'live', stab: 3.1e11, tvl: 9e10, at: 'x', cover: 1}, null);
   assert.ok(q.innerHTML.includes('q.s.stab ✓ · c315.q.tvl ✓'), 'na żywo — oba');
-  assert.ok(ev.innerHTML.includes('c315.ev.meas') && ev.innerHTML.includes('c315.evd.meas') && !/ev\.onchain|evd\.onchain|undefined/.test(ev.innerHTML), ev.innerHTML);
+  assert.equal(ev.innerHTML, '', 'v450: rodzaje dowodu nie są już pokazywane w oknie pomocy');
+  assert.equal((q.innerHTML.match(/<div class="q">/g) || []).length, 3, 'v450: trzy karty jakości danych');
+  assert.ok(!q.innerHTML.includes('q.meth'), 'v450: bez karty „Co pokazuje scena”');
+  assert.ok(html.includes("k:'c315.ev.meas',d:'c315.evd.meas'") && !/ev\.onchain|evd\.onchain/.test(q.innerHTML), 'definicja rodzaju „pomiar podaży” w kodzie zostaje');
 });
 
 test('v315 (TR7-2): panel stablecoinów — zmiany CAŁEJ podaży z 7 i 30 pełnych dób (stabh.pelne, podpis z dniem końca), suma sieci „do chwili pobrania”; plik bez pola — jak dotąd z podpisem; migawka 10.10.2026 (+95 mln jak TRENDY, nie −911 mln)', () => {
@@ -23014,7 +23014,7 @@ test('v347: „Dane z N źródeł” — odmiana według języka widza (pl: źr�
 test('v347: lewa karta „Ostatnia aktualizacja” — linia „Dane z N źródeł” z dymkiem; bez pola w meta ukryta (nigdy „0”); w każdym języku', () => {
   assert.ok(html.includes('<b data-i18n="upd.v"></b><small class="upd-n" id="upd-n" hidden></small></div></div>'), 'miejsce linii w karcie (ukryta do czasu pliku stanu)');
   assert.ok(html.includes('.upd .upd-n b{display:inline;'), 'liczba w linii nie dziedziczy bloku z .upd b');
-  assert.ok(html.includes("GLIVE.meta=ok?m:null;try{if(page==='sources')renderPage();}catch(e){}try{updSrc();}catch(e){}"), 'odświeżenie po każdym wczytaniu pliku stanu');
+  assert.ok(html.includes("GLIVE.meta=ok?m:null;try{if(page==='sources'||page==='method')renderPage();}catch(e){}try{updSrc();}catch(e){}"), 'odświeżenie po każdym wczytaniu pliku stanu');
   assert.ok(html.includes("if(typeof updSrc==='function')updSrc();"), 'zmiana języka przelicza linię');
   const F = v347z.mk('pl', {at: v347z.FRESH, zrodla: {n: 90, ok: 82}});
   F.updSrc();
@@ -23133,11 +23133,9 @@ const v348 = (() => {
   const csp = (html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/) || [])[1] || '';
   const dir = n => (csp.split(';').map(s => s.trim()).find(s => s.startsWith(n + ' ')) || '').split(/\s+/).slice(1);
   const L10 = ['pl', 'en'];
-  /* przycisk „Nie licz moich odwiedzin” — słownik znajdowany po kluczu (nie po numerze EXTRA) */
-  const dict = v142Dicts(html).find(d => d.obj.pl && 'v404.licz' in d.obj.pl);
   /* bramka z <head>: wynik = window.goatcounter ustawione przed załadowaniem skryptu licznika */
   const bramka = o => { const win = {}; new Function('window', 'navigator', 'location', gate)(win, {webdriver: o.webdriver, userAgent: o.ua}, {hostname: o.host}); return win.goatcounter; };
-  return {block, gate, tag, csp, dir, L10, dict, bramka, HOST: 'https://capitalflowai.goatcounter.com', ADRES: 'https://capitalflowai.goatcounter.com/count'};
+  return {block, gate, tag, csp, dir, L10, bramka, HOST: 'https://capitalflowai.goatcounter.com', ADRES: 'https://capitalflowai.goatcounter.com/count'};
 })();
 
 test('v348: skrypt licznika — jeden, z naszej strony (count.js), async, z dokładnym adresem zliczania; żadnego obcego skryptu ani zdarzeń', () => {
@@ -30688,31 +30686,13 @@ test('v404 W1A: lewy pasek bez ciemnej płyty (spadające cyfry zostają); GLOBA
   assert.ok(!html.includes('.fg-cap.fg-own{'), 'martwy styl usunięty');
 });
 
-test('v404 W1A: Ustawienia bez sekcji Prywatność (karta, styl, teksty, przełącznik); licznik działa dalej; zdanie o liczeniu odwiedzin w Źródłach w 10 językach', () => {
+test('v404 W1A: Ustawienia bez sekcji Prywatność (karta, styl, teksty, przełącznik); licznik działa dalej; zdania o liczeniu odwiedzin w Źródłach już nie ma (v450)', () => {
   const s0 = html.indexOf('<section class="settings" id="settings" hidden>'), s1 = html.indexOf('</section>\n\n  <section class="page" id="page-flows"', s0), S = html.slice(s0, s1);
   assert.ok(s0 > 0 && s1 > s0 && !S.includes('set-priv') && !S.includes('set.priv') && !S.includes('dd-skipgc'), 'Ustawienia: karty Prywatność nie ma');
   assert.ok(S.includes('id="set-scene"') && S.includes('id="set-done"') && S.includes('id="dd-size"') && S.includes('id="dd-view"'), 'pozostałe ustawienia bez zmian');
   for (const k of ['set-priv', 'set.priv.', 'dd-skipgc', 'cfSkipGet', 'cfSkipSet']) assert.ok(!html.includes(k), 'w stronie nie ma: ' + k);
   assert.ok(html.includes('<script async src="count.js" data-goatcounter="https://capitalflowai.goatcounter.com/count"></script>') && html.includes('id="cf-licznik"'), 'licznik działa dalej (skrypt i bramka w <head>)');
-  const I = v96src.I18N, L10 = ['pl', 'en'];
-  const d = v142Dicts(html).find(x => x.obj.pl && 'v404.licz' in x.obj.pl);
-  assert.ok(d, 'słownik z kluczem v404.licz');
-  assert.deepEqual(Object.keys(d.obj), L10); for (const L of L10) assert.deepEqual(Object.keys(d.obj[L]), ['v404.licz'], L);
-  assert.ok(html.slice(d.e, d.e + 160).startsWith(';\nfor(const l in ' + d.name + ')if(I18N[l])Object.assign(I18N[l],' + d.name + '[l]);'), 'jedna linia for zaraz po słowniku');
-  assert.equal(html.split('const ' + d.name + '=').length, 2); assert.equal(html.split('for(const l in ' + d.name + ')').length, 2);
-  assert.equal(I.pl['v404.licz'], 'Liczymy odwiedziny bez ciasteczek i bez danych osobowych.');
-  const ZD = {pl: 'Liczymy odwiedziny bez ciasteczek i bez danych osobowych', en: 'We count visits without cookies and without personal data'};
-  for (const L of L10) {
-    const s = I[L]['v404.licz'];
-    assert.ok(typeof s === 'string' && s.includes(ZD[L]), L + ': zdanie o liczeniu odwiedzin');
-    if (L !== 'pl') assert.notEqual(s, I.pl['v404.licz'], L + ': nie kopia polskiego');
-    if (L !== 'en' && L !== 'pl') assert.notEqual(s, I.en['v404.licz'], L + ': nie kopia angielskiego');
-    assert.ok(!/goatcounter|zgo\.at|github|cloudflare|google/i.test(s) && !/\{[a-z0-9]+\}/.test(s), L + ': bez nazw dostawców i pól');
-  }
-  assert.ok(!/no (visit )?(statistics|analytics|tracking)|(does not|doesn.t) track/i.test(Object.values(I.en).join('\n')), 'en: bez twierdzenia o braku statystyk');
-  assert.ok(!/statystyk odwiedzin|nie zapisuje ciasteczek|nie zbiera danych osobowych|bez śledzenia|nie śledzi/i.test(Object.values(I.pl).join('\n')), 'pl: stare twierdzenia nie wróciły');
-  assert.ok(html.includes("    <p class=\"mtxt\">${t('zr2.note')}</p>\n    <p class=\"mtxt zr-lic\">${t('v404.licz')}</p>\n    <p class=\"mtxt zr-kont\">"), 'Źródła: zdanie po zdaniu o dacie i wieku, przed adresem projektu');
-  assert.equal(html.split("t('v404.licz')").length - 1, 1);
+  assert.ok(!html.includes('v404.licz') && !html.includes('zr-lic') && !html.includes('Liczymy odwiedziny') && !html.includes('We count visits'), 'v450: zdania o liczeniu odwiedzin w Źródłach nie ma (słownik, kod, tekst); licznik działa dalej');
 });
 
 test('v404 W1A: pod mapą GLOBAL na starcie tylko „Widok”; kliknięcie rozwija Karty / Wykresy i Rozwiń / Zwiń wszystkie (i zwija z powrotem); funkcje bez zmian; CRYPTO bez zmian', () => {
@@ -35063,4 +35043,81 @@ test('v449: CRYPTO i TRENDY — bez opisów metody liczenia; krótkie „Jak czy
   for (const k of ['prm.kr.sub', 'prm.not5', 'prm.not3', 'kc.sub', 'kc.note', 'arc.sub', 'wy.note', 'wy.k.mvrv', 'ln.sub', 'ln.foot', 'wh.foot', 'eth403.n.q', 'su295c.kor.how', 'su295c.tok.sub']) for (const T of [PL, EN])
     assert.ok(T[k] && !/0[,.]4 ?%|÷|365|30, 90|kroczą|rolling|bez klucza|no key|węzł|nodes|dni kalendarzowych|calendar days|32 150/i.test(T[k]), 'CRYPTO: bez wzorów, okien i sposobu pobierania: ' + k);
   assert.ok(html.includes("['trd.dc.m.1','trd.d.m.7'].map(k=>`<p class=\"pnote\">${t(k)}</p>`)") && PL['trd.dc.m.1'].includes('Czego to nie mówi') && EN['trd.dc.m.1'].includes('What this does not say'), 'TRENDY krypto (zapasowy widok): własne zdanie „czego to nie mówi”, bez zdania o świecie');
+});
+
+// ===================== v450: Metodologia, okna pomocy „?” i Źródła — krótko, bez metod wewnętrznych =====================
+test('v450: Metodologia — czym jest strona, skąd dane (liczba źródeł), jak często się odświeżają, kolory i daty, to nie porada; bez wzorów, wag, tabel i nazw dostawców; formularz kontaktu zostaje', () => {
+  const at = v347z.FRESH, meta = {at, ok: {a: true}, zrodla: {n: 74, ok: 70}}, PROV = /CoinGecko|SoSoValue|DefiLlama|CoinMarketCap|CoinPaprika|Eurostat|Finnhub|Twelve Data|TradingView|Farside|FRED\b|OECD|\bBIS\b|\bECB\b|\bCFTC\b|Deribit/;
+  const N = {pl: 'Dane z <b>74</b> źródeł', en: 'Data from <b>74</b> sources'};
+  for (const L of ['pl', 'en']) {
+    const T = v96src.tFor(L), M = v146Method(L, meta), M0 = v146Method(L, null), tf = v96src.tFor(L);
+    const hs = ['m450.what.h', 'm450.src.h', 'm450.fresh.h', 'm450.col.h', 'm450.adv.h'].map(k => '<h2>' + T(k) + '</h2>'), pos = hs.map(h => M.indexOf(h));
+    assert.ok(M.startsWith('<h1>' + T('pg.method') + '</h1><p class="pgsub">' + T('m450.sub') + '</p><section class="panel pgc"><h2>' + T('m450.what.h') + '</h2>'), L + ': nagłówek i pierwszy rozdział');
+    assert.ok(pos.every((p, i) => p > 0 && (i === 0 || p > pos[i - 1])), L + ': rozdziały po kolei: ' + pos.join(','));
+    assert.equal(M.split('<section class="panel pgc">').length - 1, 6, L + ': pięć rozdziałów i blok kontaktu');
+    assert.ok(M.includes('<p class="mtxt">' + T('m450.src.n', {n: N[L]}) + '</p>') && !M.includes(T('m450.src.0')), L + ': liczba źródeł z pliku stanu');
+    assert.ok(M0.includes('<p class="mtxt">' + T('m450.src.0') + '</p>') && !M0.includes('<b>74</b>') && !/\b0\b.*(źródeł|sources)/.test(v146Txt(M0)), L + ': bez pliku stanu zdanie bez liczby, nigdy „0”');
+    for (const bad of [{at, zrodla: {n: 0}}, {at, zrodla: {}}, {zrodla: {n: 74}}, {at: 'x', zrodla: {n: 74}}]) assert.ok(!v146Method(L, bad).includes('<b>74</b>') && v146Method(L, bad).includes(T('m450.src.0')), L + ': zły plik stanu — bez liczby: ' + JSON.stringify(bad));
+    for (const k of ['m450.what.p', 'm450.src.gap', 'm450.fresh.p', 'm450.adv.p']) assert.ok(M.includes('<p class="mtxt">' + T(k) + '</p>'), L + ' ' + k);
+    assert.ok(M.includes('<b class="pos">▲</b> ' + T('m450.col.g')) && M.includes('<b class="neg">▼</b> ' + T('m450.col.r')) && M.includes('<b class="neu">●</b> ' + T('m450.col.y')), L + ': kolory zielony, czerwony, żółty jak na stronie');
+    assert.ok(M.includes('<b>' + T('m450.col.d1') + '</b>: ' + T('m450.col.d2')) && M.includes('<b>—</b>: ' + T('m450.col.n')), L + ': data i wiek, brak danych');
+    assert.ok(!/<table|class="formula"|calbox|list-wrap|<h3>/.test(M), L + ': bez tabel, wzorów i podrozdziałów');
+    assert.ok(!PROV.test(M), L + ': bez nazw dostawców');
+    assert.ok(v146Txt(M).length < 1700, L + ': krótko: ' + v146Txt(M).length + ' znaków');
+    for (const k of ['pg.m1', 'pg.m2', 'pg.m3', 'pg.m4', 'pg.m5', 'pg.m6', 'pg.m7', 'pg.formula', 'pg.weight', 'pg.cal.d', 'g.help.etf', 'etf.m', 'g.cf.m']) assert.ok(!M.includes(T(k)), L + ': dawny opis metody nie jest pokazany: ' + k);
+    const btn = `<button type="button" class="kt-btn" data-kt="toggle" aria-expanded="false">${v96src.escH(tf('kt.btn'))}</button>`;
+    assert.ok(M.endsWith('<section class="panel pgc"><p class="mtxt">' + tf('kont.t', {m: btn}) + '</p><div class="kt-wrap"></div></section>'), L + ': formularz kontaktu bez zmian, na końcu');
+  }
+  const a = html.indexOf('function renderMethod(){'), c = html.slice(a, html.indexOf('\nfunction renderPage(){', a));
+  assert.ok(!c.includes('txtJakCzytac') && !c.includes('gMemStats') && !c.includes('wts'), 'kod Metodologii nie składa dawnych opisów (wag, wyniku, tabeli)');
+});
+
+test('v450: słownik krótkich wyjaśnień — czysty JSON, tylko pl i en, te same klucze i pola, bez nazw dostawców, jedna linia nakładania zaraz po słowniku', () => {
+  const d = v142Dicts(html).find(x => x.obj.pl && 'm450.what.h' in x.obj.pl);
+  assert.ok(d, 'słownik z kluczem m450.what.h');
+  assert.deepEqual(Object.keys(d.obj), ['pl', 'en']);
+  assert.deepEqual(Object.keys(d.obj.pl), Object.keys(d.obj.en), 'te same klucze');
+  assert.ok(html.slice(d.e, d.e + 160).startsWith(';\nfor(const l in ' + d.name + ')if(I18N[l])Object.assign(I18N[l],' + d.name + '[l]);'), 'jedna linia for zaraz po słowniku');
+  assert.equal(html.split('const ' + d.name + '=').length, 2); assert.equal(html.split('for(const l in ' + d.name + ')').length, 2);
+  const ph = s => (s.match(/\{\w+\}/g) || []).sort().join(','), PROV = /CoinGecko|SoSoValue|DefiLlama|CoinMarketCap|Eurostat|Finnhub|TradingView|OECD|\bBIS\b|\bECB\b|CFTC/;
+  for (const k of Object.keys(d.obj.pl)) {
+    for (const L of ['pl', 'en']) { const s = d.obj[L][k]; assert.ok(typeof s === 'string' && s.length > 3 && s.length < 260, L + ' ' + k + ': krótko'); assert.ok(!PROV.test(s), L + ' ' + k + ': bez nazw dostawców'); }
+    assert.equal(ph(d.obj.pl[k]), ph(d.obj.en[k]), k + ': te same pola');
+    assert.notEqual(d.obj.pl[k], d.obj.en[k], k + ': angielski to nie kopia polskiego');
+  }
+  assert.ok(d.obj.pl['m450.src.gap'].includes('„—”') && d.obj.pl['m450.src.gap'].includes('nie zero') && d.obj.en['m450.src.gap'].includes('“—”') && d.obj.en['m450.src.gap'].includes('not zero') && d.obj.pl['m450.col.n'].includes('nie jest zero') && d.obj.en['m450.col.n'].includes('not zero'), 'brak danych to „—”, nigdy zero');
+  assert.ok(html.includes('#page-method .pgc p+p{margin-top:8px}') && html.includes('#page-method .pgc p b{font-weight:700}'), 'styl krótkiej Metodologii (odstęp między zdaniami)');
+  assert.ok(d.obj.pl['m450.src.n'].startsWith('{n} — ') && d.obj.en['m450.src.n'].startsWith('{n} — '));
+  assert.ok(!/[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(Object.values(d.obj.en).join('')), 'en: bez polskich liter');
+  assert.ok(/nie jest porad/.test(d.obj.pl['m450.adv.h']) && /not investment advice/.test(d.obj.en['m450.adv.h']), 'zastrzeżenie: to nie jest porada inwestycyjna');
+  assert.ok(d.obj.pl['m450.fresh.p'].includes('co 10 minut') && d.obj.en['m450.fresh.p'].includes('every 10 minutes') && v96src.I18N.pl['zr2.refresh'].includes('co 10 minut') && v96src.I18N.en['zr2.refresh'].includes('every 10 minutes'), 'częstotliwość odświeżania ta sama co na stronie Źródła (zbieracz co 10 minut)');
+});
+
+test('v450: okna pomocy „?” — krótko: kroki, kolor, legenda, źródła, ograniczenia; bez metod, wzorów, rodzajów dowodu i opisu „Co pokazuje scena”', () => {
+  const m0 = html.indexOf('<div class="modal" id="g-help-modal"'), m1 = html.indexOf('<div class="modal" id="help-modal"', m0), m2 = html.indexOf('<button type="button" class="totop"', m1);
+  const G = html.slice(m0, m1), C = html.slice(m1, m2);
+  assert.ok(m0 > 0 && m1 > m0 && m2 > m1);
+  assert.ok(G.includes('<h2 id="gh-t" data-i18n="m450.hg.t"></h2>') && C.includes('data-i18n="help.t"'), 'tytuły');
+  for (const k of ['g.help.1', 'g.hm.2', 'g.help.3', 'g.help.read', 'g.hm.readd', 'g.help.meth', 'g.m.reg1d', 'g.help.regtds', 'g.help.regfb', 'g.hm.corr', 'g.m.stab', 'g.help.etf', 'g.help.prob', 'g.hm.probd', 'g.help.lim', 'g.hm.limd'])
+    assert.ok(!G.includes('"' + k + '"'), 'okno GLOBAL bez: ' + k);
+  for (const k of ['m450.hg.1', 'm450.hg.2', 'm450.hg.3', 'm450.hg.col.p', 'm450.hg.lim.p', 'help.legend', 'g.help.src']) assert.ok(G.includes('"' + k + '"'), 'okno GLOBAL ma: ' + k);
+  assert.ok(G.includes('id="gh-src"') && G.includes('g.leg.in') && G.includes('g.leg.out') && G.includes('g.leg.unc'), 'okno GLOBAL: źródła i legenda zostają');
+  for (const k of ['howto.1b', 'howto.2', 'howto.3', 'why.empty', 'help.evidence', 'ev-legend']) assert.ok(!C.includes(k), 'okno CRYPTO bez: ' + k);
+  for (const k of ['m450.hc.1', 'm450.hc.2', 'm450.hc.3', 'm450.hc.why', 'help.legend', 'help.quality']) assert.ok(C.includes('"' + k + '"'), 'okno CRYPTO ma: ' + k);
+  assert.ok(C.includes('id="legend"') && C.includes('id="qgrid"'), 'okno CRYPTO: legenda i jakość danych zostają');
+  const I = v96src.I18N;
+  for (const L of ['pl', 'en']) for (const k of Object.keys(I[L]).filter(x => /^m450\.h[cg]\./.test(x))) assert.ok(I[L][k].length < 230, L + ' ' + k + ': krótko');
+  assert.ok(/nie jest porad/.test(I.pl['m450.hg.lim.p']) && /not investment advice/.test(I.en['m450.hg.lim.p']), 'ograniczenia: to nie porada');
+});
+
+test('v450: Źródła — bez zdania o liczeniu odwiedzin i bez nazw dostawców; liczba źródeł, odświeżanie i formularz kontaktu zostają; licznik odwiedzin działa dalej', () => {
+  const at = v347z.FRESH;
+  for (const L of ['pl', 'en']) {
+    const o = v347src(L, {at, ok: {a: true}, zrodla: {n: 74, ok: 70}}), T = v96src.tFor(L);
+    assert.ok(!o.includes('zr-lic') && !/ciasteczek|cookies|odwiedzin|visits/i.test(o), L + ': bez zdania o liczeniu odwiedzin');
+    assert.ok(o.includes('<b>74</b>') && o.includes(T('zr2.note')) && o.includes('data-kt="toggle"') && o.includes('<div class="kt-wrap"></div>'), L + ': liczba źródeł, zdanie o dacie i wieku, kontakt');
+    assert.ok(o.indexOf(T('zr2.note')) < o.indexOf('zr-kont'), L + ': kontakt zaraz po zdaniu o dacie i wieku');
+  }
+  assert.ok(html.includes('<script async src="count.js" data-goatcounter="https://capitalflowai.goatcounter.com/count"></script>') && html.includes('id="cf-licznik"'), 'licznik działa dalej (skrypt i bramka w <head>)');
+  assert.ok(!html.includes("t('v404.licz')") && !html.includes('"v404.licz"'), 'klucz zdania usunięty z kodu i ze słowników');
 });
