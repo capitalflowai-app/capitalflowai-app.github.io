@@ -37271,3 +37271,67 @@ test('v474: blok Brazylii — „wyliczone” tylko przy kolumnach z oznaczeniem
   assert.ok(html.slice(end + 2).startsWith('for(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);'), 'linia nakładania zaraz po słowniku');
   assert.ok(!/Banco|BCB|SGS/.test(JSON.stringify(D)), 'zero nazw dostawców w tekstach strony');
 });
+
+/* ===================== v475 (ETF_ZAPAS_2): zapas ETF z kilku funduszy — pokrycie, „wstępnie”, SOL i XRP ===================== */
+const v475 = (() => {
+  const D = () => ({asof: '2026-10-12', assets: {btc: {sym: 'BTC', asof: '2026-10-12'}, eth: {sym: 'ETH', asof: '2026-10-12'}, sol: {sym: 'SOL', asof: '2026-10-12'}, xrp: {sym: 'XRP', asof: '2026-10-12'}}});
+  const day = (v, n) => { const o = []; for (let i = 0; i < n; i++) o.push([1790899200 + i * 86400, i === n - 1 ? v : 10 * (i % 2 ? -1 : 1)]); return o; };
+  const Z = () => ({v: 1, at: '2026-10-19T20:10:00+00:00', coins: {
+    btc: {t: 'IBIT', asof: '2026-10-13', row_to: '2026-10-14', day: day(-65.401, 8), d1: -65.401, pct: 62.6, pct_asof: '2026-10-12',
+          razem: {t: ['IBIT', 'BITB', 'ARKB'], asof: '2026-10-13', d1: -64.1, pct: 68, pct_asof: '2026-10-12', day: day(-64.1, 5)}},
+    sol: {t: 'BSOL', asof: '2026-10-13', row_to: '2026-10-14', day: day(12.3, 2), d1: 12.3, pct: 69.1, pct_asof: '2026-10-12', razem: {t: ['BSOL'], asof: '2026-10-13', d1: 12.3, pct: 69.1, pct_asof: '2026-10-12', day: day(12.3, 2)}},
+    xrp: {t: 'XRP', asof: '2026-10-13', row_to: '2026-10-14', day: day(0, 2), d1: 0, pct: 36.8, pct_asof: '2026-10-12', razem: {t: ['XRP'], asof: '2026-10-13', d1: 0, pct: 36.8, pct_asof: '2026-10-12', day: day(0, 2)}}}});
+  return {D, Z, day};
+})();
+
+test('v475: zapas ETF — wiersz z kilku funduszy: lista, suma udziałów (uczciwe pokrycie), „wstępnie”, data i wiek; SOL i XRP mają wiersze; słupki tylko przy co najmniej 5 dniach sumy', () => {
+  const h = v360.mk({zap: v475.Z(), meta: v360.META()})(v475.D());
+  assert.equal((h.match(/class="pnote etfz-r"/g) || []).length, 3, 'BTC, SOL i XRP (ETH bez pozycji w pliku)');
+  assert.ok(h.includes('<b>BTC</b> · fundusze IBIT + BITB + ARKB (68% aktywów ETF-ów tej monety): <b class="mono neg">−64 mln USD</b> · wstępnie · za sesję z 13.10.2026 · wiek(2026-10-13)'), h);
+  assert.ok(h.includes('<b>SOL</b> · fundusz BSOL (69% aktywów ETF-ów tej monety): <b class="mono pos">+12 mln USD</b> · wstępnie · za sesję z 13.10.2026'), 'jeden fundusz — liczba pojedyncza: ' + h);
+  assert.ok(h.includes('<b>XRP</b> · fundusz XRP (37% aktywów ETF-ów tej monety): <b class="mono neu">0 mln USD</b> · wstępnie'), 'zero prawdziwe — żółte');
+  assert.equal((h.match(/<svg class="etfbars"/g) || []).length, 1, 'słupki tylko dla BTC (5 dni sumy); SOL i XRP mają po 2 dni — bez słupków zamiast pustego wykresu');
+  assert.ok(h.includes('Dla monet bez wiersza powyżej zapasu nie ma') && !h.includes('Dla SOL i XRP zapasu nie ma') && h.includes('To tylko część rynku, nie suma wszystkich funduszy'), 'notka zgodna z zawartością pliku');
+  assert.ok(!/SoSoValue|iShares|BlackRock|ishares|Bitwise|bitwise|ARK Invest|NaN|undefined|null/.test(h), 'bez nazw wydawców i napisów-błędów');
+  const k = v360.mk({zap: v475.Z(), meta: v360.META()})(v475.D(), true);
+  assert.ok(k.includes('fundusze IBIT + BITB + ARKB') && !k.includes('<svg') && !k.includes('Dla monet bez wiersza') && !k.includes('To tylko część rynku'), 'prawy panel CRYPTO: wiersze bez słupków i notki');
+});
+
+test('v475: zapas ETF — brak sumy w pliku (stary plik), zła suma, nieznane pokrycie, escapowanie symboli, dzień nie nowszy niż dane główne = bez wiersza (dane główne zawsze mają pierwszeństwo)', () => {
+  const mk = (mut, Dm) => { const z = v475.Z(); if (mut) mut(z); return v360.mk({zap: z, meta: v360.META()})(Dm || v475.D()); };
+  const stary = mk(z => { for (const c of Object.values(z.coins)) delete c.razem; });
+  assert.ok(stary.includes('<b>BTC</b> · fundusz IBIT (63% aktywów ETF-ów tej monety): <b class="mono neg">−65 mln USD</b> · za sesję z 13.10.2026') && !stary.includes('wstępnie'), 'plik bez sumy: stary wiersz bez zmian');
+  assert.ok(stary.includes('<b>SOL</b> · fundusz BSOL (69%') && !stary.includes('Dla SOL i XRP'), 'SOL w pliku — notka o braku zapasu SOL i XRP nie może się pojawić');
+  const zla = mk(z => { z.coins.btc.razem.d1 = NaN; });
+  assert.ok(zla.includes('−65 mln USD'), 'zła kwota sumy — wiersz z kwoty funduszu podstawowego, nie NaN: ' + zla.slice(0, 400));
+  const pusta = mk(z => { z.coins.btc.razem.t = []; });
+  assert.ok(pusta.includes('fundusz IBIT (63%') && !pusta.includes('wstępnie</b>'), 'pusta lista funduszy sumy — wiersz podstawowy');
+  assert.ok(mk(z => { z.coins.btc.razem.pct = null; }).includes('fundusze IBIT + BITB + ARKB (— aktywów') || mk(z => { z.coins.btc.razem.pct = null; }).includes('(—% aktywów'), 'pokrycie nieznane = „—”, nie 0%');
+  assert.ok(!mk(z => { z.coins.btc.razem.t = ['IBIT', '<img src=x>']; }).includes('<img src=x>'), 'escapowanie symboli');
+  const jedenDzien = mk(z => { z.coins.btc.razem.day = []; });
+  assert.ok(jedenDzien.includes('wstępnie') && !/<svg/.test(jedenDzien.split('<b>SOL</b>')[0]), 'suma bez dni — bez słupków BTC');
+  /* dane główne wróciły (ich dzień nie starszy niż zapasu) — żadnego wiersza zapasu, także dla SOL i XRP */
+  const D2 = v475.D(); for (const c of Object.values(D2.assets)) c.asof = '2026-10-13';
+  assert.ok(!/etfz-r/.test(mk(null, D2)), 'zapas nie nadpisuje danych głównych tego samego dnia');
+  const D3 = v475.D(); D3.assets.sol.asof = '2026-10-14'; D3.assets.xrp.asof = '2026-10-13'; delete D3.assets.btc;
+  const h3 = mk(null, D3); assert.ok(!/etfz-r/.test(h3), 'dane główne nowsze albo równe, albo brak monety w danych głównych — bez wiersza: ' + h3);
+  assert.ok(!/etfz-r/.test(mk(z => { delete z.coins.btc; delete z.coins.sol; delete z.coins.xrp; })), 'brak pozycji — bez wierszy (nie zero)');
+});
+
+test('v475: zapas ETF — słownik ez475.* po polsku i angielsku (te same znaczniki, prawdziwe tłumaczenia, bez nazw wydawców), jeden słownik i jedna linia nakładania; kod używa tylko istniejących kluczy', () => {
+  const I = v143Final(html), KEYS = ['ez475.row', 'ez475.prel', 'ez475.none'];
+  for (const l of ['pl', 'en']) for (const k of KEYS) {
+    assert.ok(typeof I[l][k] === 'string' && I[l][k].length > 5, l + ' ' + k);
+    const ph = s => (s.match(/\{\w\}/g) || []).sort().join(); assert.equal(ph(I[l][k]), ph(I.pl[k]), l + ' ' + k + ': te same znaczniki co po polsku');
+    if (l !== 'pl') assert.notEqual(I[l][k], I.pl[k], l + ' ' + k + ': prawdziwe tłumaczenie');
+    assert.ok(!/SoSoValue|iShares|BlackRock|Bitwise|ARK/i.test(I[l][k]), 'bez nazw wydawców: ' + l + ' ' + k);
+  }
+  const mm = [...html.matchAll(/^const EXTRA(\d+)=\{"pl":\{"ez475\.row"/gm)];
+  assert.equal(mm.length, 1, 'jeden słownik v475'); const n = mm[0][1];
+  assert.equal([...html.matchAll(new RegExp('^for\\(const l in EXTRA' + n + '\\)if\\(I18N\\[l\\]\\)Object\\.assign\\(I18N\\[l\\],EXTRA' + n + '\\[l\\]\\);$', 'gm'))].length, 1, 'jedna linia nakładania');
+  const zap = html.slice(html.indexOf('function etfZapHtml(D,kompakt){'), html.indexOf('/* v57: bilans przepływu kapitału'));
+  const used = new Set([...zap.matchAll(/'(ez475\.[a-z0-9]+)'/g)].map(x => x[1]));
+  assert.deepEqual([...used].sort(), [...KEYS].sort(), 'kod używa dokładnie tych kluczy');
+  assert.ok(zap.includes("for(const s of ['btc','eth','sol','xrp'])"), 'cztery monety');
+  assert.ok(html.includes("m.ok.sosovalue===false&&ETF.stale)srvJSON('etf-zapas')"), 'plik zapasu wczytywany tylko gdy źródło główne milczy — gdy wróci, strona go nie pokazuje');
+});

@@ -211,6 +211,13 @@ def zrodla_cisze(saved):
         out['swiat-dzien'] = cichy
     except Exception:  # noqa
         pass
+    try:   # v475: zapas przepływów ETF — fundusze z migawek: wydawca milczy, gdy zawiodły WSZYSTKIE jego fundusze (cztery Bitwise: BITB, ETHW, BSOL, XRP; ARKB osobno)
+        oks = (saved.get('etf-zapas') or {}).get('ok_snap')
+        if isinstance(oks, dict) and oks:
+            bw = [oks.get(t) for t in ('BITB', 'ETHW', 'BSOL', 'XRP') if t in oks]
+            out['etf_zapas_snap'] = ({'bitwise'} if bw and all(v is False for v in bw) else set()) | ({'ark-invest'} if oks.get('ARKB') is False else set())
+    except Exception:  # noqa
+        pass
     return out
 
 
@@ -35191,10 +35198,227 @@ def etfz_udzial(etf, coin, tick):
     return round(f['aum'] / a['aum'] * 100, 1), a['asof']
 
 
+# ===================== v475 (ETF_ZAPAS_2): kolejne fundusze w zapasie przepływów ETF — migawki z publicznych danych emitentów =====================
+# Zapas z v360 obejmował tylko IBIT i ETHA (BTC ok. 63% rynku) i nic dla SOL i XRP. Dodane fundusze, których dane są jawne i publiczne bez klucza (zwykłe zapytanie GET):
+#   BITB (BTC), ETHW (ETH), BSOL (SOL), XRP (XRP) — strona każdego z nich zawiera dane funduszu (liczba monet w zasobach, wartość, dzień danych), oraz ARKB (BTC) — plik CSV
+#   (liczba monet i wartość). Każdy odczyt to JEDEN dzień, bez historii, więc zbieracz zapisuje odczyty w pliku zapasu (pole 'snap', do ETFZ_SNAP_WIERSZE wierszy) i liczy
+#   przepływ dnia D = (monety w następnym wierszu − monety w wierszu D) × cena monety z wiersza D (jak plik iShares: zmiana stanu po sesji D rozlicza się w następnym wierszu).
+#   Przepływ pojawia się więc dopiero po drugim odczycie (następny dzień danych), a wynik jest WSTĘPNY (dzień danych emitentów liczony wg tej samej zasady co v360, ale
+#   bez porównania z danymi głównymi na historii — dlatego strona pisze „wstępnie”). Dzień danych ARKB = poprzedni dzień roboczy po dacie pliku (sprawdzone 19.10.2026:
+#   plik z datą 10/19 ma cenę z piątku 16.10, jak BITB z dnia 16.10).
+# Uczciwe pokrycie: 'razem' każdej monety = suma funduszy, które mają dzień D (ostatni dzień funduszu podstawowego: IBIT, ETHA, a dla SOL i XRP pierwszy fundusz z migawek)
+#   i ich udział w aktywach ETF-ów monety (pct, z etf.json); strona pokazuje listę funduszy i sumę udziałów. Fundusz bez dnia D nie wchodzi do sumy (brak ≠ zero).
+# Zapas nadal tylko uzupełnia: strona pokazuje go wyłącznie gdy źródło główne milczy, a gdy wróci, to ono jest pierwsze (dane główne zawsze nadpisują zapas).
+# Odmowa emitenta (HTTP 403 albo 429): STOP — bez obchodzenia zabezpieczeń, bez ponawiania, fundusz zapisany z czasem 'blok'; kolejna próba najwcześniej po ETFZ_ODSW_MIN min.
+# Sprawdzone 19.10.2026 i NIEUŻYTE: fundusze, których strony odpowiadają 403/429 (zabezpieczenie hosta) — nie obchodzimy ich; fundusze bez publicznego pliku z liczbą monet
+#   (ich przepływy zostają wyłącznie w danych głównych); wszystkie to ok. 30% aktywów ETF-ów BTC i ok. 40% ETH, więc pokrycie zapasu nigdy nie jest pełne.
+ETFZ_SNAP = (('btc', 'BITB', 'bw', 'https://bitbetf.com/', 'BITCOIN'),
+             ('btc', 'ARKB', 'ark', 'https://assets.ark-funds.com/fund-documents/funds-etf-csv/ARK_21SHARES_BITCOIN_ETF_ARKB_HOLDINGS.csv', 'BTC'),
+             ('eth', 'ETHW', 'bw', 'https://ethwetf.com/', 'ETHEREUM'),
+             ('sol', 'BSOL', 'bw', 'https://bsoletf.com/', 'SOLANA'),
+             ('xrp', 'XRP', 'bw', 'https://bitxrpetf.com/', 'XRP'))   # moneta, symbol funduszu, rodzaj danych, adres, nazwa składnika w danych funduszu
+ETFZ_SNAP_BAZA = {'sol': 'BSOL', 'xrp': 'XRP'}   # monety bez pliku z historią: ten fundusz jest podstawą (dla BTC i ETH podstawą zostają IBIT i ETHA)
+ETFZ_SNAP_WIERSZE = 45     # tyle ostatnich odczytów (dni danych) na fundusz
+ETFZ_SNAP_MAKS = 2_000_000  # B — większa odpowiedź = nie ta strona (typowo 0,2–0,3 MB)
+ETFZ_SNAP_KOLEJNOSC = ('btc', 'eth', 'sol', 'xrp')
+_ETFZ_NEXT = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.S)
+
+
+def _etfz_liczba(v):
+    """Skończona liczba dodatnia (nie wartość logiczna) albo wyjątek."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not _etf_math.isfinite(v) or v <= 0:
+        raise ValueError('zła liczba w danych funduszu')
+    return float(v)
+
+
+def etfz_bw_parse(b, nazwa):
+    """Dane funduszu z jego strony (blok danych strony: fundData.data) → (dzień ISO, liczba monet, wartość USD) ze składnika `nazwa`. Wyjątek (brak, nie zero), gdy: nie ma bloku
+    danych, dzień danych różni się między sekcjami, składnik nie występuje dokładnie raz, liczby są złe albo wartość zasobów różni się od aktywów netto o ponad 5%."""
+    m = _ETFZ_NEXT.search(b.decode('utf-8', 'replace'))
+    if not m:
+        raise ValueError('brak danych funduszu na stronie (zmieniony układ?)')
+    try:
+        d = json.loads(m.group(1))['props']['pageProps']['fundData']['data']
+        h, fd = d['holdings'], d['fundDetails']
+        dzien, dzien2 = h['asOfDate'], fd['asOfDate']
+        poz = [x for x in h['basket'] if isinstance(x, dict) and str(x.get('companyName', '')).strip().upper() == nazwa]
+    except (KeyError, TypeError, ValueError, AttributeError):
+        raise ValueError('dane funduszu: zmieniony układ strony') from None
+    if len(poz) != 1:
+        raise ValueError('dane funduszu: składnik nie występuje dokładnie raz')
+    if not (isinstance(dzien, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', dzien) and dzien == dzien2):
+        raise ValueError('dane funduszu: zły albo niespójny dzień danych')
+    datetime.date.fromisoformat(dzien)
+    u, usd = _etfz_liczba(poz[0].get('shares')), _etfz_liczba(poz[0].get('marketValue'))
+    na = fd.get('netAssets')
+    if isinstance(na, (int, float)) and not isinstance(na, bool) and na > 0 and abs(usd / na - 1) > 0.05:
+        raise ValueError('dane funduszu: wartość zasobów niezgodna z aktywami netto')
+    return dzien, u, usd
+
+
+def etfz_ark_parse(b, now=None):
+    """Plik CSV funduszu (date, fund, company, ticker, cusip, shares, market value ($), weight (%) + zastrzeżenia) → (dzień danych ISO, liczba BTC, wartość USD) z wiersza ARKB / BTC.
+    Data w pliku (MM/DD/RRRR) to dzień publikacji, dane są z poprzedniego dnia roboczego (cena z jego zamknięcia) — to jest zwracany dzień. Zła postać, brak wiersza,
+    zła liczba albo data z przyszłości = wyjątek."""
+    wiersze = list(csv.reader(io.StringIO(b.decode('utf-8-sig', 'replace'))))
+    gl = next((i for i, r in enumerate(wiersze) if r and [c.strip().lower() for c in r[:8]][:2] == ['date', 'fund']), None)
+    if gl is None:
+        raise ValueError('ARKB: brak nagłówka pliku')
+    nag = [c.strip().lower() for c in wiersze[gl]]
+    try:
+        i_d, i_f, i_t, i_s, i_v = (nag.index(n) for n in ('date', 'fund', 'ticker', 'shares', 'market value ($)'))
+    except ValueError:
+        raise ValueError('ARKB: zmieniony układ pliku') from None
+    for r in wiersze[gl + 1:]:
+        if len(r) <= max(i_d, i_f, i_t, i_s, i_v) or r[i_t].strip().upper() != 'BTC' or r[i_f].strip().upper() != 'ARKB':
+            continue
+        try:
+            plik = datetime.datetime.strptime(r[i_d].strip(), '%m/%d/%Y').date()
+            u = _etfz_liczba(float(r[i_s].replace(',', '').strip()))
+            usd = _etfz_liczba(float(r[i_v].replace('$', '').replace(',', '').strip()))
+        except ValueError:
+            raise ValueError('ARKB: zła data albo liczba w wierszu BTC') from None
+        if plik > ((now or _now_utc()).date() + datetime.timedelta(days=1)):
+            raise ValueError('ARKB: data pliku z przyszłości')
+        dzien = plik - datetime.timedelta(days=1)
+        while dzien.weekday() >= 5:
+            dzien -= datetime.timedelta(days=1)
+        return dzien.isoformat(), u, usd
+    raise ValueError('ARKB: brak wiersza BTC (plik zmienił układ?)')
+
+
+def etfz_snap_dodaj(hist, dzien, u, usd):
+    """Odczyt (dzień danych, monety, wartość) dopisany do historii funduszu [[dzień, monety, wartość]] rosnąco; dzień nie nowszy niż ostatni = bez zmian (powtórny odczyt tego samego
+    dnia nie nadpisuje); ostatnie ETFZ_SNAP_WIERSZE wierszy. Zła historia (nie lista wierszy) = zaczynamy od nowa."""
+    h = [r for r in (hist if isinstance(hist, list) else []) if isinstance(r, list) and len(r) == 3 and isinstance(r[0], str)]
+    if h and dzien <= h[-1][0]:
+        return h
+    return (h + [[dzien, round(u, 8), round(usd, 2)]])[-ETFZ_SNAP_WIERSZE:]
+
+
+def etfz_snap_przeplywy(h):
+    """Historia funduszu [[dzień, monety, wartość USD]] rosnąco → [[ts dnia D, przepływ mln USD]]: (monety w następnym wierszu − monety w wierszu D) × cena monety z D (wartość / monety).
+    Para pominięta (brak, nie zero): wiersze dalej niż ETFZ_PRZERWA dni, zła liczba, skok ceny monety ponad ETFZ_NAV_SKOK % albo zmiana liczby monet ponad ETFZ_JEDN_SKOK % w jednym
+    kroku (błąd danych). Ostatnie ETFZ_DNI dni."""
+    out = []
+    for a, b in zip(h, h[1:]):
+        try:
+            da, db = datetime.date.fromisoformat(a[0]), datetime.date.fromisoformat(b[0])
+            u0, v0, u1, v1 = float(a[1]), float(a[2]), float(b[1]), float(b[2])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if not 0 < (db - da).days <= ETFZ_PRZERWA or min(u0, v0, u1, v1) <= 0 or not all(_etf_math.isfinite(x) for x in (u0, v0, u1, v1)):
+            continue
+        p0, p1 = v0 / u0, v1 / u1
+        if abs(p1 / p0 - 1) * 100 > ETFZ_NAV_SKOK or abs(u1 / u0 - 1) * 100 > ETFZ_JEDN_SKOK:
+            continue
+        out.append([ts(a[0]), round((u1 - u0) * p0 / 1e6, 6)])
+    return out[-ETFZ_DNI:]
+
+
+def etfz_snap_blokada(e, now=None):
+    """Czy fundusz ma znacznik odmowy emitenta (403/429) młodszy niż ETFZ_ODSW_MIN min (wtedy bez zapytania). Zły znacznik = nie."""
+    t = _ix_dt(e.get('blok')) if isinstance(e, dict) and isinstance(e.get('blok'), str) else None
+    if t is None:
+        return False
+    s = ((now or _now_utc()) - t).total_seconds()
+    return 0 <= s < ETFZ_ODSW_MIN * 60
+
+
+def etfz_snap_zle(prev):
+    """Symbole funduszy z migawek, które w poprzednim pliku zawiodły (ok_snap False) i nie czekają na koniec blokady emitenta."""
+    if not isinstance(prev, dict) or not isinstance(prev.get('ok_snap'), dict):
+        return []
+    sn = prev.get('snap') if isinstance(prev.get('snap'), dict) else {}
+    return [t for t, v in prev['ok_snap'].items() if v is False and not etfz_snap_blokada(sn.get(t))]
+
+
+def etfz_snap_pobierz(rodzaj, url, nazwa):
+    b = get_bytes_maks(url, timeout=ETFZ_TIMEOUT, maks=ETFZ_SNAP_MAKS)
+    return etfz_bw_parse(b, nazwa) if rodzaj == 'bw' else etfz_ark_parse(b)
+
+
+def etfz_snap_zbierz(prev_snap, cele):
+    """Odczyt funduszy z migawek `cele` (symbole) → (stan {symbol: {coin, hist, at, [blok], [pct, pct_asof]}}, {symbol: ok}). Stan funduszy spoza `cele` i historia zawiedzionych
+    zostają z poprzedniego pliku (własne 'at'); błąd funduszu → META['errors'], nie psuje pozostałych. HTTP 403/429 = odmowa emitenta: znacznik 'blok', bez obchodzenia i bez ponawiania
+    przez ETFZ_ODSW_MIN min."""
+    snap = {t: dict(v) for t, v in (prev_snap if isinstance(prev_snap, dict) else {}).items() if isinstance(v, dict)}
+    ok = {}
+    for coin, tick, rodzaj, url, nazwa in ETFZ_SNAP:
+        if tick not in cele:
+            continue
+        e = snap.get(tick) if isinstance(snap.get(tick), dict) and snap[tick].get('coin') == coin else {}
+        e = {'coin': coin, **{k: v for k, v in e.items() if k in ('hist', 'at', 'blok', 'pct', 'pct_asof')}}
+        snap[tick] = e
+        if etfz_snap_blokada(e):
+            ok[tick] = False
+            continue
+        try:
+            dzien, u, usd = etfz_snap_pobierz(rodzaj, url, nazwa)
+            e['hist'] = etfz_snap_dodaj(e.get('hist'), dzien, u, usd)
+            e['at'] = NOW
+            e.pop('blok', None)
+            ok[tick] = True
+        except urllib.error.HTTPError as ex:
+            if ex.code in (403, 429):
+                e['blok'] = NOW
+                META['errors'].append(f'ETF zapas {tick}: HTTP {ex.code} — emitent odmawia; bez obchodzenia, następna próba najwcześniej po {ETFZ_ODSW_MIN // 60} h')
+            else:
+                META['errors'].append(f'ETF zapas {tick}: HTTP {ex.code}')
+            ok[tick] = False
+        except Exception as ex:   # noqa — jeden fundusz nie psuje pozostałych
+            META['errors'].append(mask(f'ETF zapas {tick}: {ex}')[:200])
+            ok[tick] = False
+    return snap, ok
+
+
+def etfz_scal(coins, snap, etf):
+    """Zapas z iShares (coins) + migawki (snap) → (coins2, snap2). SOL i XRP: pozycja podstawowa z funduszu ETFZ_SNAP_BAZA, gdy ma przepływ (min. 2 odczyty); brak = bez pozycji.
+    Każda moneta z pozycją dostaje 'razem' {t: symbole funduszy w sumie, asof, d1, pct (suma udziałów, jedno miejsce albo None), pct_asof, day}: dzień D = ostatni dzień funduszu
+    podstawowego, w sumie fundusze mające dzień D; 'day' — dni, w których mają przepływ WSZYSTKIE fundusze z sumy (inaczej słupki mieszałyby różne pokrycie). Nie zmienia wejścia."""
+    coins = dict(coins if isinstance(coins, dict) else {})
+    snap = {t: dict(v) for t, v in snap.items()}
+    dni = {t: etfz_snap_przeplywy(e.get('hist') or []) for t, e in snap.items()}
+    udzial = {}
+    for coin, tick, _r, _u, _n in ETFZ_SNAP:
+        if tick not in snap:
+            continue
+        pct, pd = etfz_udzial(etf, coin, tick)
+        if pct is None and isinstance(snap[tick].get('pct'), (int, float)) and not isinstance(snap[tick].get('pct'), bool):
+            pct, pd = snap[tick]['pct'], snap[tick].get('pct_asof')   # udział z poprzedniego pliku — z własną datą
+        snap[tick]['pct'], snap[tick]['pct_asof'] = pct, pd
+        udzial[tick] = (pct, pd)
+    for coin, tick in ETFZ_SNAP_BAZA.items():
+        fl, e = dni.get(tick), snap.get(tick)
+        if fl and e and e.get('hist'):
+            pct, pd = udzial.get(tick, (None, None))
+            coins[coin] = {'t': tick, 'asof': datetime.datetime.fromtimestamp(fl[-1][0], datetime.timezone.utc).date().isoformat(), 'row_to': e['hist'][-1][0], 'day': fl,
+                           'd1': fl[-1][1], 'pct': pct, 'pct_asof': pd, 'at': e.get('at')}
+        else:
+            coins.pop(coin, None)
+    for coin in ETFZ_SNAP_KOLEJNOSC:
+        c = coins.get(coin)
+        if not isinstance(c, dict) or not c.get('day') or not isinstance(c.get('t'), str):
+            continue
+        D = c['day'][-1][0]
+        czl = [(c['t'], {r[0]: r[1] for r in c['day']}, (c.get('pct'), c.get('pct_asof')))]
+        czl += [(t, {r[0]: r[1] for r in dni.get(t) or []}, udzial.get(t, (None, None))) for cc, t, _r, _u, _n in ETFZ_SNAP if cc == coin and t != c['t']]
+        S = [m for m in czl if D in m[1]]
+        pcts = [m[2][0] for m in S]
+        okp = all(isinstance(p, (int, float)) and not isinstance(p, bool) for p in pcts)
+        daty = [m[2][1] for m in S if isinstance(m[2][1], str)]
+        coins[coin] = {**c, 'razem': {'t': [m[0] for m in S], 'asof': c['asof'], 'd1': round(sum(m[1][D] for m in S), 6), 'pct': round(sum(pcts), 1) if okp else None,
+                                      'pct_asof': min(daty) if okp and daty else None,
+                                      'day': [[r[0], round(sum(m[1][r[0]] for m in S), 6)] for r in c['day'] if all(r[0] in m[1] for m in S)]}}
+    return coins, snap
+
+
 def build_etf_zapas(prev=None, etf=None, tylko=None):
     """v360: data/etf-zapas.json {v, at, src, coins: {btc|eth: {t, asof, row_to, day, d1, pct, pct_asof, at}}, ok: {moneta: bool}}. Plik funduszu, który zawiódł, zostaje z poprzedniego
     pliku (własne 'at'), błąd do META['errors']; wszystkie zawiodły = wyjątek (main zostawia poprzedni plik).
-    v370: `tylko` = lista monet do ponowienia (zawiedzione w poprzednim pliku): reszta zostaje z poprzedniego pliku z własną datą i bez zapytania, a wyjątek, gdy zawiodły wszystkie PONAWIANE."""
+    v370: `tylko` = lista monet do ponowienia (zawiedzione w poprzednim pliku): reszta zostaje z poprzedniego pliku z własną datą i bez zapytania, a wyjątek, gdy zawiodły wszystkie PONAWIANE.
+    v475: dodatkowo fundusze z migawek (ETFZ_SNAP): pola 'snap' (odczyty), 'ok_snap' (symbol → bool) i 'razem' przy monetach (suma funduszy z uczciwym pokryciem); przy `tylko` — tylko zawiedzione migawki
+    (tylko=[] = same migawki); wyjątek dopiero, gdy nic z ponawianego (pliki iShares i migawki razem) nie odpowiedziało."""
     pc = prev.get('coins') if isinstance(prev, dict) and prev.get('v') == 1 and isinstance(prev.get('coins'), dict) else {}
     coins, okc = {}, {}
     pytane = 0
@@ -35226,9 +35450,17 @@ def build_etf_zapas(prev=None, etf=None, tylko=None):
             okc[coin] = False
             if pc.get(coin):
                 coins[coin] = pc[coin]
-    if not any(v for c, v in okc.items() if tylko is None or c in tylko):
+    psn = prev.get('snap') if isinstance(prev, dict) and isinstance(prev.get('snap'), dict) else {}
+    pos = prev.get('ok_snap') if isinstance(prev, dict) and isinstance(prev.get('ok_snap'), dict) else {}
+    cele = [t for _c, t, _r, _u, _n in ETFZ_SNAP] if tylko is None else [t for t, v in pos.items() if v is False]
+    snap, oks = etfz_snap_zbierz(psn, cele)   # v475: fundusze z migawek — jeden fundusz nie psuje pozostałych
+    if not any([v for c, v in okc.items() if tylko is None or c in tylko] + list(oks.values())):
         raise RuntimeError('pliki funduszy niedostępne')
-    return {'v': 1, 'at': NOW, 'src': 'pliki emitentów funduszy (liczba jednostek × cena jednostki)', 'coins': coins, 'ok': okc}
+    obj = {'v': 1, 'at': NOW, 'src': 'pliki emitentów funduszy (liczba jednostek × cena jednostki)', 'coins': coins, 'ok': okc}
+    if snap:
+        obj['coins'], obj['snap'] = etfz_scal(coins, snap, etf)
+        obj['ok_snap'] = {**pos, **oks}
+    return obj
 
 
 def etf_zapas_czesc(etf=None):
@@ -35240,20 +35472,32 @@ def etf_zapas_czesc(etf=None):
     prev = prev if isinstance(prev, dict) and prev.get('v') == 1 else None
     pok = prev.get('ok') if prev and isinstance(prev.get('ok'), dict) else {}
     zle = [c for c, _, _ in ETFZ_FUNDS if pok.get(c) is False]
-    prog = ETFZ_AWARIA_MIN if META['ok'].get('sosovalue') is False or zle else ETFZ_ODSW_MIN
+    zle_snap = etfz_snap_zle(prev)   # v475: fundusze z migawek, które zawiodły (bez tych, którym emitent odmówił dostępu — czekają ETFZ_ODSW_MIN min)
+    prog = ETFZ_AWARIA_MIN if META['ok'].get('sosovalue') is False or zle or zle_snap else ETFZ_ODSW_MIN
     if prev and (fresh(prev, prog) or fresh({'at': prev.get('proba')}, prog)):
         save('etf-zapas', prev)
+        if prev.get('ok_snap'):
+            META['ok']['etf_zapas_snap'] = 'cached'
         return 'cached'
     tylko = zle if prev and zle and len(zle) < len(ETFZ_FUNDS) and fresh(prev, ETFZ_ODSW_MIN) else None
+    if tylko is None and prev and zle_snap and not zle and fresh(prev, ETFZ_ODSW_MIN):
+        tylko = []   # v475: zawiodły tylko migawki — pliki iShares bez zapytań
     try:
-        obj = build_etf_zapas(prev, etf, tylko=tylko) if tylko else build_etf_zapas(prev, etf)
+        obj = build_etf_zapas(prev, etf, tylko=tylko) if tylko is not None else build_etf_zapas(prev, etf)
         save('etf-zapas', obj)
+        if obj.get('ok_snap'):
+            META['ok']['etf_zapas_snap'] = all(obj['ok_snap'].values())
         return all(obj['ok'].values())
     except Exception as e:
         META['errors'].append(mask(f'ETF zapas: {e}')[:200])
         if prev:
             save('etf-zapas', {**prev, 'proba': NOW})
+            if prev.get('ok_snap'):
+                META['ok']['etf_zapas_snap'] = False
         return False
+
+
+ZRODLA_META.update({'etf_zapas_snap': ('bitwise', 'ark-invest')})   # v475: dwa nowe źródła na liczniku (strona „Dane z N źródeł”): wydawca czterech funduszy z migawek i wydawca ARKB
 
 
 # ===================== v361 (F3Z2): POLSKA NA RYNKU DZIENNIE — data/polska-rynek.json (GLOBAL, blok „Polska: giełda, obligacje i fundusze”) =====================

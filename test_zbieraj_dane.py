@@ -48506,7 +48506,8 @@ class EtfZapasV360(unittest.TestCase):
 
     def setUp(self):
         zd.META['errors'].clear(); zd.META['ok'].clear()
-        self.p = [mock.patch.object(zd, '_now_utc', lambda: _V360_NOW), mock.patch.object(zd.time, 'sleep', lambda s: None), mock.patch.object(zd, 'NOW', _V360_NOW.isoformat())]
+        self.p = [mock.patch.object(zd, '_now_utc', lambda: _V360_NOW), mock.patch.object(zd.time, 'sleep', lambda s: None), mock.patch.object(zd, 'NOW', _V360_NOW.isoformat()),
+                  mock.patch.object(zd, 'etfz_snap_zbierz', lambda prev, cele: ({}, {}))]   # v475: testy v360 bez funduszy z migawek (te mają własną klasę EtfSnapV475)
         [p.start() for p in self.p]
 
     def tearDown(self):
@@ -80485,3 +80486,275 @@ class TestV474BcbOdpornosc(unittest.TestCase):
         self.assertIn('do 7 dób', k.AW_PRZERWA_BANKU['obce_br'][1]); self.assertNotIn('do 3 dób', k.AW_PRZERWA_BANKU['obce_br'][1])
         pp = {'at': self._w(dni=2), 'asof': '2026-10-09', 'przerwa': {'od': self.T, 'ost': self.T, 'n': 1, 'powod': 'x'}}
         self.assertTrue(zd.bcb_przerwa_nota(pp).startswith(k.AW_PRZERWA_BANKU['obce_br'][0]), 'przedrostek notatki = przedrostek w kontroli')
+
+# ===================== v475 (ETF_ZAPAS_2): zapas przepływów ETF — kolejne fundusze z migawek (BITB, ARKB, ETHW, BSOL, XRP) =====================
+# Nagrania z 19.10.2026 (odczyt zwykłym zapytaniem GET): dane funduszu BITB ze strony emitenta (dzień danych 2026-10-16: 37317,87985994 BTC, wartość 3 033 631 655,14 USD,
+# aktywa netto 3 033 307 789,12 USD) i plik CSV funduszu ARKB (data pliku 10/19/2026: 32 024 BTC, 2 603 477 650,79 USD, cena z piątku 16.10 — ta sama co w BITB).
+_V475_NOW = datetime.datetime(2026, 10, 19, 14, 0, tzinfo=datetime.timezone.utc)
+_V475_ARK = ('date,fund,company,ticker,cusip,shares,market value ($),weight (%)\n10/19/2026,ARKB,BITCOIN,BTC,ARKBTCUSD,"32,024","$2,603,477,650.79",100.00%\n'
+             '\n"Investing involves risk, including the possible loss of principal."\n').encode('utf-8')
+
+
+def _v475_strona(nazwa='BITCOIN', u=37317.87985994, usd=3033631655.14, dzien='2026-10-16', na=3033307789.12, dzien2=None, ile=1, blok=True):
+    """Strona funduszu z blokiem danych (fundData.data) w postaci jak u emitenta — tylko pola, które czyta zbieracz."""
+    poz = {'companyName': nazwa, 'ticker': '', 'figi': '', 'shares': u, 'marketValue': usd, 'notionalValue': None, 'weight': 1}
+    d = {'fundDetails': {'netAssets': na, 'sharesOutstanding': 68780000, 'asOfDate': dzien2 or dzien}, 'holdings': {'basket': [poz] * ile, 'asOfDate': dzien}}
+    j = {'props': {'pageProps': {'fundData': {'data': d}}}}
+    if not blok:
+        return b'<html><body>brak</body></html>'
+    return ('<html><head><title>x</title><script id="__NEXT_DATA__" type="application/json">' + json.dumps(j) + '</script></head><body></body></html>').encode('utf-8')
+
+
+def _v475_etf():
+    return {'at': '2026-10-19T13:03:30+00:00', 'assets': {
+        'btc': {'sym': 'BTC', 'asof': '2026-10-16', 'aum': 104290.0, 'funds': [{'t': 'IBIT', 'aum': 65269.0}, {'t': 'FBTC', 'aum': 14427.0}, {'t': 'BITB', 'aum': 3033.0}, {'t': 'ARKB', 'aum': 2603.0}]},
+        'eth': {'sym': 'ETH', 'asof': '2026-10-16', 'aum': 14946.0, 'funds': [{'t': 'ETHA', 'aum': 8088.0}, {'t': 'ETHW', 'aum': 262.0}]},
+        'sol': {'sym': 'SOL', 'asof': '2026-10-16', 'aum': 1618.5, 'funds': [{'t': 'BSOL', 'aum': 1118.0}]},
+        'xrp': {'sym': 'XRP', 'asof': '2026-10-16', 'aum': 1471.4, 'funds': [{'t': 'XRP', 'aum': 541.0}]}}}
+
+
+class EtfSnapV475(unittest.TestCase):
+    """v475: kolejne fundusze w zapasie — odczyty (migawki) z publicznych danych emitentów, przepływ z różnicy stanu, uczciwe pokrycie, odmowa emitenta (403/429) = stop bez obchodzenia."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.p = [mock.patch.object(zd, '_now_utc', lambda: _V475_NOW), mock.patch.object(zd.time, 'sleep', lambda s: None), mock.patch.object(zd, 'NOW', _V475_NOW.isoformat()),
+                  mock.patch.object(zd, 'SECRETS', []), mock.patch.object(zd, 'SECRETS_ZLE', [])]   # inne testy zostawiają klucze w SECRETS (maska zmieniłaby komunikaty)
+        [p.start() for p in self.p]
+
+    def tearDown(self):
+        [p.stop() for p in self.p]
+
+    def test_dane_strony_funduszu(self):
+        self.assertEqual(zd.etfz_bw_parse(_v475_strona(), 'BITCOIN'), ('2026-10-16', 37317.87985994, 3033631655.14))
+        self.assertEqual(zd.etfz_bw_parse(_v475_strona('Solana', 10853896.1, 1118611216.4, na=1118483622.9), 'SOLANA')[0], '2026-10-16', 'wielkość liter składnika bez znaczenia')
+        for zle, co in ((_v475_strona(blok=False), 'brak bloku danych'), (_v475_strona(dzien2='2026-10-15'), 'dzień danych różni się między sekcjami'),
+                        (_v475_strona(ile=2), 'składnik dwa razy'), (_v475_strona(nazwa='ETHEREUM'), 'inny składnik'), (_v475_strona(dzien='16.10.2026'), 'zły dzień'),
+                        (_v475_strona(dzien='2026-13-45'), 'dzień nie istnieje'), (_v475_strona(u=0), 'zero monet'), (_v475_strona(u=-5), 'ujemna liczba'),
+                        (_v475_strona(usd=float('nan')), 'nie liczba'), (_v475_strona(u=True), 'wartość logiczna'), (_v475_strona(na=5e9), 'aktywa netto ≠ wartość zasobów'),
+                        (b'<script id="__NEXT_DATA__" type="application/json">{"props": 5}</script>', 'zmieniony układ')):
+            with self.assertRaises(ValueError, msg=co):
+                zd.etfz_bw_parse(zle, 'BITCOIN')
+        self.assertEqual(zd.etfz_bw_parse(_v475_strona(na=None), 'BITCOIN')[0], '2026-10-16', 'brak aktywów netto: bez porównania')
+
+    def test_plik_csv_funduszu_ark(self):
+        # data pliku = dzień publikacji (poniedziałek 19.10); dane z piątku 16.10 (cena jak w BITB z dnia 16.10: 81 296,9 USD)
+        d, u, usd = zd.etfz_ark_parse(_V475_ARK)
+        self.assertEqual((d, u, usd), ('2026-10-16', 32024.0, 2603477650.79))
+        self.assertAlmostEqual(usd / u, 3033631655.14 / 37317.87985994, delta=15.0, msg='ta sama cena BTC co w BITB z dnia 16.10 (liczba BTC w pliku jest zaokrąglona do całości: różnica ok. 6 USD)')
+        self.assertEqual(zd.etfz_ark_parse(_V475_ARK.replace(b'10/19/2026', b'10/20/2026'))[0], '2026-10-19', 'wtorek → poniedziałek')
+        self.assertEqual(zd.etfz_ark_parse(_V475_ARK.replace(b'10/19/2026', b'10/17/2026'))[0], '2026-10-16', 'sobota → piątek')
+        for zle, co in ((_V475_ARK.replace(b'10/19/2026', b'10/25/2026'), 'data z przyszłości'), (_V475_ARK.replace(b'ARKB,BITCOIN,BTC', b'ARKB,ETHER,ETH'), 'brak wiersza BTC'),
+                        (_V475_ARK.replace(b',ARKB,', b',XYZ,'), 'inny fundusz'), (_V475_ARK.replace(b'date,fund', b'dzien,fundusz'), 'zły nagłówek'),
+                        (_V475_ARK.replace(b'"32,024"', b'"0"'), 'zero BTC'), (_V475_ARK.replace(b'"$2,603,477,650.79"', b'"brak"'), 'zła wartość'),
+                        (_V475_ARK.replace(b'10/19/2026', b'2026-10-19'), 'zły format daty'), (b'', 'pusty plik')):
+            with self.assertRaises(ValueError, msg=co):
+                zd.etfz_ark_parse(zle)
+
+    def test_przeplyw_z_roznicy_stanu(self):
+        # (monety następnego wiersza − monety wiersza D) × cena z D; cena = wartość / monety
+        h = [['2026-10-14', 1000.0, 80000000.0], ['2026-10-15', 1010.0, 80800000.0], ['2026-10-16', 1010.0, 81000000.0], ['2026-10-19', 995.0, 80000000.0]]
+        fl = zd.etfz_snap_przeplywy(h)
+        self.assertEqual([r[0] for r in fl], [zd.ts('2026-10-14'), zd.ts('2026-10-15'), zd.ts('2026-10-16')])
+        self.assertAlmostEqual(fl[0][1], 10 * 80000 / 1e6, places=6); self.assertEqual(fl[1][1], 0.0, 'bez zmiany stanu — zero prawdziwe'); self.assertAlmostEqual(fl[2][1], -15 * 81000000 / 1010 / 1e6, places=5)
+        self.assertEqual(zd.etfz_snap_przeplywy([h[0]]), [], 'jeden odczyt — brak przepływu (nie zero)'); self.assertEqual(zd.etfz_snap_przeplywy([]), [])
+        self.assertEqual(zd.etfz_snap_przeplywy([['2026-10-01', 1000.0, 8e7], ['2026-10-08', 1010.0, 8e7]]), [], 'luka ponad 5 dni')
+        self.assertEqual(zd.etfz_snap_przeplywy([['2026-10-14', 1000.0, 8e7], ['2026-10-15', 1400.0, 1.12e8]]), [], 'zmiana stanu o 40% w kroku = błąd danych')
+        self.assertEqual(zd.etfz_snap_przeplywy([['2026-10-14', 1000.0, 8e7], ['2026-10-15', 1000.0, 4e7]]), [], 'skok ceny monety o 50% = błąd danych')
+        self.assertEqual(zd.etfz_snap_przeplywy([['zła', 1.0, 1.0], ['2026-10-15', 1.0, 1.0]]), []); self.assertEqual(zd.etfz_snap_przeplywy([['2026-10-14', 0, 1.0], ['2026-10-15', 1.0, 1.0]]), [])
+        self.assertEqual(zd.etfz_snap_przeplywy([['2026-10-15', 1.0, 1.0], ['2026-10-14', 1.0, 1.0]]), [], 'kolejność malejąca = brak')
+        dl = [[(datetime.date(2026, 1, 1) + datetime.timedelta(days=i)).isoformat(), 1000.0 + i, 8e7 + i * 1000] for i in range(60)]
+        self.assertEqual(len(zd.etfz_snap_przeplywy(dl)), zd.ETFZ_DNI)
+
+    def test_dopisywanie_odczytow(self):
+        h = zd.etfz_snap_dodaj(None, '2026-10-16', 10.0, 800.0); self.assertEqual(h, [['2026-10-16', 10.0, 800.0]])
+        self.assertEqual(zd.etfz_snap_dodaj(h, '2026-10-16', 11.0, 900.0), h, 'ten sam dzień nie nadpisuje'); self.assertEqual(zd.etfz_snap_dodaj(h, '2026-10-15', 11.0, 900.0), h, 'dzień starszy — bez zmiany')
+        self.assertEqual(zd.etfz_snap_dodaj(h, '2026-10-19', 12.0, 960.0)[-1], ['2026-10-19', 12.0, 960.0])
+        self.assertEqual(zd.etfz_snap_dodaj('zepsute', '2026-10-16', 10.0, 800.0), [['2026-10-16', 10.0, 800.0]], 'zła historia — od nowa')
+        dl = []
+        for i in range(60):
+            dl = zd.etfz_snap_dodaj(dl, (datetime.date(2026, 1, 1) + datetime.timedelta(days=i)).isoformat(), 10.0 + i, 800.0 + i)
+        self.assertEqual(len(dl), zd.ETFZ_SNAP_WIERSZE); self.assertEqual(dl[-1][0], '2026-03-01')
+
+    def _wzor(self, wyj=None, dzien='2026-10-16', ark_dzien='10/19/2026'):
+        """get_bytes_maks z nagraniami: adres → strona albo plik; wyj: adres → wyjątek."""
+        wyj = wyj or {}
+        zap = []
+
+        def f(url, headers=None, timeout=60, maks=None):
+            zap.append(url)
+            for a, w in wyj.items():
+                if a in url:
+                    raise w
+            if 'bitbetf' in url:
+                return _v475_strona(dzien=dzien)
+            if 'ark-funds' in url:
+                return _V475_ARK.replace(b'10/19/2026', ark_dzien.encode())
+            if 'ethwetf' in url:
+                return _v475_strona('ETHEREUM', 108961.39341655, 262203607.5, dzien, 262174669.7)
+            if 'bsoletf' in url:
+                return _v475_strona('SOLANA', 10853896.11174544, 1118611216.39, dzien, 1118483622.9)
+            if 'bitxrpetf' in url:
+                return _v475_strona('XRP', 417729396.212536, 541222737.61, dzien, 541119918.43)
+            raise AssertionError('nieznany adres ' + url)
+        return f, zap
+
+    def test_odczyt_funduszy_blokada_i_bledy(self):
+        f, zap = self._wzor()
+        with mock.patch.object(zd, 'get_bytes_maks', f):
+            snap, ok = zd.etfz_snap_zbierz({}, [t for _, t, *_ in zd.ETFZ_SNAP])
+        self.assertEqual(ok, {'BITB': True, 'ARKB': True, 'ETHW': True, 'BSOL': True, 'XRP': True}); self.assertEqual(len(zap), 5, 'jedno zapytanie na fundusz')
+        self.assertEqual(snap['BITB']['hist'], [['2026-10-16', 37317.87985994, 3033631655.14]]); self.assertEqual(snap['ARKB']['hist'][0][0], '2026-10-16'); self.assertEqual(snap['BITB']['at'], _V475_NOW.isoformat())
+        self.assertEqual(zd.META['errors'], []); self.assertTrue(all(snap[t]['coin'] == c for c, t, *_ in zd.ETFZ_SNAP))
+        # odmowa emitenta: 403 = stop; znacznik blokady, historia zostaje, bez ponawiania przez 6 h
+        zd.META['errors'].clear()
+        f2, zap2 = self._wzor({'bitbetf': urllib.error.HTTPError('https://bitbetf.com/', 403, 'Forbidden', {}, None), 'bsoletf': urllib.error.HTTPError('https://bsoletf.com/', 429, 'Too Many', {}, None),
+                               'ethwetf': urllib.error.HTTPError('https://ethwetf.com/', 503, 'Unavailable', {}, None), 'bitxrpetf': OSError('timed out')}, dzien='2026-10-19')
+        with mock.patch.object(zd, 'get_bytes_maks', f2):
+            snap2, ok2 = zd.etfz_snap_zbierz(snap, ['BITB', 'ETHW', 'BSOL', 'XRP', 'ARKB'])
+        self.assertEqual(ok2, {'BITB': False, 'ETHW': False, 'BSOL': False, 'XRP': False, 'ARKB': True})
+        self.assertEqual(snap2['BITB']['blok'], _V475_NOW.isoformat()); self.assertEqual(snap2['BSOL']['blok'], _V475_NOW.isoformat()); self.assertNotIn('blok', snap2['ETHW'], '503 to nie odmowa')
+        self.assertEqual(snap2['BITB']['hist'], snap['BITB']['hist'], 'historia zawiedzionego funduszu bez zmian'); self.assertEqual(snap2['BITB']['at'], snap['BITB']['at'], 'prawdziwy wiek odczytu')
+        e = ' | '.join(zd.META['errors']); self.assertIn('ETF zapas BITB: HTTP 403', e); self.assertIn('bez obchodzenia', e); self.assertIn('ETF zapas BSOL: HTTP 429', e); self.assertIn('ETF zapas ETHW: HTTP 503', e)
+        self.assertNotIn('bitbetf.com', e, 'bez adresów w komunikatach')
+        # w ciągu ETFZ_ODSW_MIN min fundusze z blokadą nie są pytane, pozostałe tak
+        f3, zap3 = self._wzor(dzien='2026-10-19')
+        with mock.patch.object(zd, 'get_bytes_maks', f3):
+            snap3, ok3 = zd.etfz_snap_zbierz(snap2, ['BITB', 'BSOL', 'ETHW'])
+        self.assertEqual(sorted(u.split('/')[2] for u in zap3), ['ethwetf.com'], 'blokada: BITB i BSOL pominięte'); self.assertEqual(ok3, {'BITB': False, 'BSOL': False, 'ETHW': True})
+        self.assertEqual([r[0] for r in snap3['ETHW']['hist']], ['2026-10-16', '2026-10-19'])
+        # po 6 h blokada wygasa: kolejna próba i udany odczyt kasuje znacznik
+        with mock.patch.object(zd, '_now_utc', lambda: _V475_NOW + datetime.timedelta(minutes=zd.ETFZ_ODSW_MIN + 1)), mock.patch.object(zd, 'NOW', (_V475_NOW + datetime.timedelta(minutes=zd.ETFZ_ODSW_MIN + 1)).isoformat()), \
+                mock.patch.object(zd, 'get_bytes_maks', f3):
+            snap4, ok4 = zd.etfz_snap_zbierz(snap3, ['BITB'])
+        self.assertTrue(ok4['BITB']); self.assertNotIn('blok', snap4['BITB']); self.assertEqual(snap4['BITB']['hist'][-1][0], '2026-10-19')
+        # zły układ strony / dzień z przyszłości = błąd funduszu, bez zapisu
+        zd.META['errors'].clear()
+        with mock.patch.object(zd, 'get_bytes_maks', lambda url, headers=None, timeout=60, maks=None: _v475_strona(blok=False)):
+            snap5, ok5 = zd.etfz_snap_zbierz({}, ['BITB']); self.assertEqual(ok5, {'BITB': False}); self.assertNotIn('hist', snap5['BITB'])
+        self.assertTrue(any(x.startswith('ETF zapas BITB: brak danych funduszu') for x in zd.META['errors']))
+
+    def test_pokrycie_i_suma_funduszy(self):
+        etf = _v475_etf()
+        # BTC: IBIT (podstawa z pliku iShares) + BITB + ARKB; dni 14–16.10 u wszystkich, IBIT ma jeszcze 13.10
+        ibit = {'t': 'IBIT', 'asof': '2026-10-16', 'row_to': '2026-10-19', 'pct': 62.6, 'pct_asof': '2026-10-16', 'at': 'x',
+                'day': [[zd.ts('2026-10-13'), 5.0], [zd.ts('2026-10-14'), 100.0], [zd.ts('2026-10-15'), -50.0], [zd.ts('2026-10-16'), 20.0]], 'd1': 20.0}
+        snap = {'BITB': {'coin': 'btc', 'at': 'a', 'hist': [['2026-10-13', 1000.0, 80e6], ['2026-10-14', 1010.0, 80.8e6], ['2026-10-15', 1005.0, 80.4e6], ['2026-10-16', 1005.0, 80.4e6], ['2026-10-19', 1000.0, 80e6]]},
+                'ARKB': {'coin': 'btc', 'at': 'a', 'hist': [['2026-10-13', 32024.0, 2.6e9], ['2026-10-14', 32024.0, 2.6e9], ['2026-10-15', 32024.0, 2.6e9], ['2026-10-16', 32024.0, 2.6e9], ['2026-10-19', 32024.0, 2.6e9]]}}
+        co, sn = zd.etfz_scal({'btc': ibit}, snap, etf)
+        r = co['btc']['razem']
+        self.assertEqual(r['t'], ['IBIT', 'BITB', 'ARKB'], 'fundusze mające dzień D = 16.10 (BITB: zmiana 19.10 − 16.10 rozlicza 16.10)'); self.assertEqual(r['asof'], '2026-10-16')
+        bitb16 = (1000.0 - 1005.0) * 80.4e6 / 1005.0 / 1e6
+        self.assertAlmostEqual(r['d1'], 20.0 + bitb16 + 0.0, places=5); self.assertEqual(r['pct'], round(62.6 + 2.9 + 2.5, 1), 'suma udziałów w aktywach ETF-ów monety: 68,0%')
+        self.assertEqual(r['pct_asof'], '2026-10-16'); self.assertEqual([x[0] for x in r['day']], [zd.ts('2026-10-13'), zd.ts('2026-10-14'), zd.ts('2026-10-15'), zd.ts('2026-10-16')])
+        self.assertAlmostEqual(r['day'][0][1], 5.0 + 10 * 80e6 / 1000 / 1e6, places=5); self.assertAlmostEqual(r['day'][1][1], 100.0 - 5 * 80.8e6 / 1010 / 1e6, places=5); self.assertEqual(co['btc']['t'], 'IBIT'); self.assertEqual(co['btc']['d1'], 20.0, 'pozycja podstawowa bez zmian')
+        self.assertEqual(sn['BITB']['pct'], 2.9); self.assertEqual(sn['ARKB']['pct_asof'], '2026-10-16'); self.assertNotIn('pct', snap['BITB'], 'wejście bez zmian')
+        # fundusz bez dnia D nie wchodzi do sumy i do pokrycia (brak ≠ zero); udział nieznany → pokrycie nieznane (None, nie 0)
+        snap2 = {'BITB': snap['BITB'], 'ARKB': {'coin': 'btc', 'at': 'a', 'hist': [['2026-10-13', 32024.0, 2.6e9], ['2026-10-14', 32024.0, 2.6e9]]}}
+        r2 = zd.etfz_scal({'btc': ibit}, snap2, etf)[0]['btc']['razem']
+        self.assertEqual(r2['t'], ['IBIT', 'BITB']); self.assertEqual(r2['pct'], round(62.6 + 2.9, 1)); self.assertEqual([x[0] for x in r2['day']], [zd.ts('2026-10-13'), zd.ts('2026-10-14'), zd.ts('2026-10-15'), zd.ts('2026-10-16')][:4])
+        r3 = zd.etfz_scal({'btc': ibit}, snap2, {'assets': {}})[0]['btc']['razem']; self.assertEqual(r3['t'], ['IBIT', 'BITB']); self.assertIsNone(r3['pct'], 'brak udziałów z danych głównych: pokrycie nieznane'); self.assertIsNone(r3['pct_asof'])
+        # SOL i XRP: pozycja podstawowa z migawek dopiero po 2 odczytach
+        s1 = {'BSOL': {'coin': 'sol', 'at': 'b', 'hist': [['2026-10-16', 10853896.1, 1118611216.4]]}}
+        self.assertNotIn('sol', zd.etfz_scal({}, s1, etf)[0], 'jeden odczyt — bez pozycji (nie zero)')
+        s2 = {'BSOL': {'coin': 'sol', 'at': 'b', 'hist': [['2026-10-15', 10853896.1, 1118611216.4], ['2026-10-16', 10953896.1, 1128611216.4]]}}
+        so = zd.etfz_scal({}, s2, etf)[0]['sol']
+        self.assertEqual((so['t'], so['asof'], so['row_to'], so['pct']), ('BSOL', '2026-10-15', '2026-10-16', 69.1)); self.assertAlmostEqual(so['d1'], 100000 * 1118611216.4 / 10853896.1 / 1e6, places=5)
+        self.assertEqual(so['razem']['t'], ['BSOL']); self.assertEqual(so['razem']['pct'], 69.1)
+        # stare dane SOL bez nowych odczytów nie zostają jako pozycja ze zmyślonym dniem
+        self.assertNotIn('sol', zd.etfz_scal({'sol': {'t': 'BSOL', 'day': [[1, 1.0]], 'asof': '2026-01-01'}}, s1, etf)[0])
+        # udział z poprzedniego pliku, gdy etf.json nie ma monety
+        s3 = {'BITB': {**snap['BITB'], 'pct': 2.8, 'pct_asof': '2026-10-12'}}
+        r4 = zd.etfz_scal({'btc': ibit}, s3, {'assets': {}})[0]['btc']['razem']; self.assertEqual((r4['pct'], r4['pct_asof']), (65.4, '2026-10-12'), 'udział z poprzedniego pliku z własną datą — pokrycie liczone najstarszą datą'); self.assertEqual(zd.etfz_scal({'btc': ibit}, s3, {'assets': {}})[1]['BITB']['pct'], 2.8)
+
+    def _budowa(self, wyj=None, prev=None, dzien='2026-10-16', tylko=None):
+        f, zap = self._wzor(wyj, dzien=dzien)
+        with EtfZapasV360._bytes(self), mock.patch.object(zd, 'get_bytes_maks', f):
+            return zd.build_etf_zapas(prev, _v475_etf(), tylko=tylko), zap
+
+    def test_budowa_pliku_z_migawkami(self):
+        o1, zap = self._budowa()
+        self.assertEqual(o1['ok'], {'btc': True, 'eth': True}, 'pola v360 bez zmian'); self.assertEqual(o1['ok_snap'], {'BITB': True, 'ARKB': True, 'ETHW': True, 'BSOL': True, 'XRP': True})
+        self.assertEqual(set(o1['coins']), {'btc', 'eth'}, 'SOL i XRP: pierwszy odczyt — jeszcze bez przepływu'); self.assertEqual(o1['coins']['btc']['razem']['t'], ['IBIT'], 'pierwszy odczyt BITB/ARKB — bez przepływu')
+        self.assertEqual(len(zap), 5)
+        # drugi odczyt kolejnego dnia danych: pojawiają się przepływy SOL i XRP oraz fundusze w sumie BTC i ETH (IBIT: dzień 15.10 → fundusze z migawek: dzień 16.10, więc dzień D = 15.10 bez nich)
+        o2, _ = self._budowa(prev=o1, dzien='2026-10-19')
+        self.assertEqual(set(o2['coins']), {'btc', 'eth', 'sol', 'xrp'}); self.assertEqual(o2['coins']['sol']['t'], 'BSOL'); self.assertEqual(o2['coins']['sol']['row_to'], '2026-10-19')
+        self.assertEqual(o2['coins']['sol']['asof'], '2026-10-16'); self.assertEqual(o2['coins']['sol']['d1'], 0.0, 'ten sam stan monet = zero prawdziwe'); self.assertEqual(o2['coins']['xrp']['razem']['pct'], 36.8)
+        self.assertEqual(o2['coins']['btc']['razem']['t'], ['IBIT'], 'IBIT kończy na dniu 15.10, fundusze z migawek na 16.10 — dzień D z podstawy, bez niepełnych dni')
+        self.assertEqual(o2['ok_snap'], o1['ok_snap']); self.assertEqual(json.loads(json.dumps(o2)), o2, 'wynik to czysty JSON')
+        # awaria jednego funduszu nie psuje reszty; historia zostaje
+        o3, _ = self._budowa(wyj={'bsoletf': OSError('x')}, prev=o2, dzien='2026-10-20')
+        self.assertFalse(o3['ok_snap']['BSOL']); self.assertTrue(o3['ok_snap']['XRP']); self.assertEqual(o3['snap']['BSOL']['hist'], o2['snap']['BSOL']['hist']); self.assertEqual(o3['coins']['sol']['asof'], '2026-10-16')
+        # ponowienie tylko zawiedzionych funduszy z migawek (tylko=[]): bez pobierania plików iShares i bez pytania pozostałych
+        o4, zap4 = self._budowa(prev=o3, dzien='2026-10-20', tylko=[])
+        self.assertEqual([u.split('/')[2] for u in zap4], ['bsoletf.com']); self.assertTrue(o4['ok_snap']['BSOL']); self.assertEqual(o4['coins']['btc'], o3['coins']['btc'], 'iShares bez zapytań')
+        self.assertEqual(o4['coins']['sol']['asof'], '2026-10-19')
+
+    def test_budowa_wszystko_zawiodlo_to_wyjatek_a_samo_zrodlo_snap_nie_wystarcza_do_pustki(self):
+        err = {k: OSError('503') for k in ('bitbetf', 'ark-funds', 'ethwetf', 'bsoletf', 'bitxrpetf')}
+        f, _ = self._wzor(err)
+        with EtfZapasV360._bytes(self, kl={'333011': OSError('503'), '337614': OSError('503')}), mock.patch.object(zd, 'get_bytes_maks', f):
+            with self.assertRaises(RuntimeError):
+                zd.build_etf_zapas(None, _v475_etf())
+        # pliki iShares zawiodły, ale fundusze z migawek odpowiedziały: plik powstaje (sol/xrp bez przepływu, btc/eth bez pozycji)
+        f, _ = self._wzor()
+        with EtfZapasV360._bytes(self, kl={'333011': OSError('503'), '337614': OSError('503')}), mock.patch.object(zd, 'get_bytes_maks', f):
+            o = zd.build_etf_zapas(None, _v475_etf())
+        self.assertEqual(o['ok'], {'btc': False, 'eth': False}); self.assertTrue(all(o['ok_snap'].values())); self.assertEqual(o['coins'], {})
+
+    def _czesc(self, prev, sosovalue_ok=True, build=None):
+        import copy
+        saved = {}
+        zd.META['ok'].clear(); zd.META['errors'].clear(); zd.META['ok']['sosovalue'] = sosovalue_ok
+
+        def fresh_(p, minutes):
+            try:
+                return (_V475_NOW - datetime.datetime.fromisoformat(p['at'])).total_seconds() < minutes * 60
+            except Exception:
+                return False
+        with mock.patch.object(zd, 'previous', lambda n: copy.deepcopy(prev) if n == 'etf-zapas' else None), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)), \
+             mock.patch.object(zd, 'build_etf_zapas', build or mock.Mock(side_effect=AssertionError('nie wolno pytać'))), mock.patch.object(zd, 'fresh', fresh_):
+            res = zd.etf_zapas_czesc(_v475_etf())
+        return res, saved
+
+    def test_rytm_i_znacznik_czesci(self):
+        ago = lambda m: (_V475_NOW - datetime.timedelta(minutes=m)).isoformat()   # noqa: E731
+        P = lambda m, **k: dict({'v': 1, 'at': ago(m), 'coins': {}, 'ok': {'btc': True, 'eth': True}, 'snap': {}, 'ok_snap': {'BITB': True, 'BSOL': True}}, **k)   # noqa: E731
+        nowy = {'v': 1, 'at': 'nowy', 'coins': {}, 'ok': {'btc': True, 'eth': True}, 'snap': {'BITB': {}}, 'ok_snap': {'BITB': True, 'BSOL': True}}
+        res, saved = self._czesc(P(100)); self.assertEqual(res, 'cached', 'wszystko sprawne: plik do 6 h wystarcza'); self.assertEqual(zd.META['ok']['etf_zapas_snap'], 'cached')
+        b = mock.Mock(return_value=nowy); res, saved = self._czesc(P(400), build=b)
+        self.assertIs(res, True); self.assertIsNone(b.call_args.kwargs.get('tylko'), 'plik starszy niż 6 h — pełna budowa'); self.assertIs(zd.META['ok']['etf_zapas_snap'], True)
+        # fundusz z migawek zawiódł: ponowienie po godzinie, tylko migawki (tylko=[]), iShares bez zapytań
+        zle = P(60, ok_snap={'BITB': True, 'BSOL': False})
+        b = mock.Mock(return_value=nowy); res, saved = self._czesc(zle, build=b)
+        self.assertIs(res, True); self.assertEqual(b.call_args.kwargs.get('tylko'), [], 'tylko fundusze z migawek')
+        res, saved = self._czesc(P(30, ok_snap={'BITB': True, 'BSOL': False})); self.assertEqual(res, 'cached', 'młodszy niż 55 min — bez zapytań')
+        # odmowa emitenta (znacznik blok < 6 h): bez godzinnych ponowień — do 6 h wystarcza plik
+        blok = P(100, ok_snap={'BITB': True, 'BSOL': False}, snap={'BSOL': {'blok': ago(100)}})
+        res, saved = self._czesc(blok); self.assertEqual(res, 'cached', 'blokada emitenta: bez ponawiania co godzinę')
+        self.assertEqual(zd.etfz_snap_zle(blok), []); self.assertEqual(zd.etfz_snap_zle(P(100, ok_snap={'BSOL': False})), ['BSOL']); self.assertEqual(zd.etfz_snap_zle(P(1, ok_snap={'BSOL': False}, snap={'BSOL': {'blok': ago(500)}})), ['BSOL'], 'blokada wygasła')
+        self.assertEqual(zd.etfz_snap_zle({'v': 1}), []); self.assertEqual(zd.etfz_snap_zle(None), [])
+        # awaria całości: poprzedni plik zostaje, część snap oznaczona jako niesprawna
+        bad = mock.Mock(side_effect=RuntimeError('pliki funduszy niedostępne'))
+        res, saved = self._czesc(P(400), build=bad); self.assertIs(res, False); self.assertEqual(saved['etf-zapas']['at'], ago(400)); self.assertIs(zd.META['ok']['etf_zapas_snap'], False)
+        # plik w starej postaci (v360, bez pól snap): zachowanie jak dotąd i żadnego nowego znacznika części
+        stary = {'v': 1, 'at': ago(10), 'coins': {'btc': {'t': 'IBIT'}}, 'ok': {'btc': True}}
+        res, saved = self._czesc(stary); self.assertEqual(res, 'cached'); self.assertNotIn('etf_zapas_snap', zd.META['ok'])
+
+    def test_zrodla_i_cisza(self):
+        self.assertEqual(zd.ZRODLA_META['etf_zapas'], 'ishares'); self.assertEqual(zd.ZRODLA_META['etf_zapas_snap'], ('bitwise', 'ark-invest'), 'dwa nowe źródła na liczniku')
+        n0 = zd.zrodla_meta({'etf_zapas': True})['n']; n1 = zd.zrodla_meta({'etf_zapas': True, 'etf_zapas_snap': True})
+        self.assertEqual((n1['n'], n1['ok']), (n0 + 2, n0 + 2))
+        saved = {'etf-zapas': {'ok_snap': {'BITB': False, 'ETHW': False, 'BSOL': False, 'XRP': False, 'ARKB': True}}}
+        self.assertEqual(zd.zrodla_cisze(saved)['etf_zapas_snap'], {'bitwise'}, 'wszystkie fundusze jednego wydawcy zawiodły = źródło milczy')
+        self.assertEqual(zd.zrodla_cisze({'etf-zapas': {'ok_snap': {'BITB': True, 'ETHW': False, 'BSOL': False, 'XRP': False, 'ARKB': False}}})['etf_zapas_snap'], {'ark-invest'})
+        self.assertNotIn('etf_zapas_snap', zd.zrodla_cisze({})); self.assertNotIn('etf_zapas_snap', zd.zrodla_cisze({'etf-zapas': {'ok': {}}}))
+        r = zd.zrodla_meta({'etf_zapas_snap': False}, saved=saved); self.assertEqual((r['n'], r['ok']), (2, 1), 'milczy tylko wydawca, który zawiódł')
+
+    def test_zrodlo_w_main_i_fundusze_to_publiczne_adresy_bez_kluczy(self):
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zbieraj_dane.py'), encoding='utf-8').read()
+        for c, t, r, url, n in zd.ETFZ_SNAP:
+            self.assertTrue(url.startswith('https://') and '?' not in url and '@' not in url and 'key' not in url.lower(), url)
+        self.assertEqual([t for _, t, *_ in zd.ETFZ_SNAP], ['BITB', 'ARKB', 'ETHW', 'BSOL', 'XRP']); self.assertEqual(zd.ETFZ_SNAP_BAZA, {'sol': 'BSOL', 'xrp': 'XRP'})
+        self.assertEqual(src.count("META['ok']['etf_zapas'] = etf_zapas_czesc("), 1, 'część zapasu wywoływana raz, po bloku ETF')
