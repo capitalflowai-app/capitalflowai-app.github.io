@@ -12688,8 +12688,10 @@ def df2_kontrola(j, emit=None, now=None):
         if w is None:
             out['rows'].append((lab, '?', None, None, 'brak doby danych'))
             continue
-        st = '⚠️' if w > prog else '✅'
-        note = '' if st == '✅' else 'dane starsze niż zwykle — źródło nie odpowiada albo spóźnia się z aktualizacją; najwyżej uwaga'
+        pa_ = j['part_at'].get(part) if isinstance(j.get('part_at'), dict) else None
+        wst = part in ('fees', 'opt') and isinstance(pa_, str) and isinstance(K.get('dzien'), str) and pa_[:10] <= K['dzien']   # v463: doba pobrana przed własnym końcem = wartość wstępna
+        st = '⚠️' if (w > prog or wst) else '✅'
+        note = '' if st == '✅' else ('doba pobrana, zanim się skończyła — wartość wstępna; automat pobierze ją ponownie' if wst and w <= prog else 'dane starsze niż zwykle — źródło nie odpowiada albo spóźnia się z aktualizacją; najwyżej uwaga')
         out['rows'].append((lab, st, w, dane, note))
         if st == '⚠️':
             out['uwagi'].append(f'{lab}: {dane} — {fmt_wiek(w)} temu ({note})')

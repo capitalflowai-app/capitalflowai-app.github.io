@@ -44791,10 +44791,20 @@ def df2_wykres(j):
     return sorted(W.items())
 
 
-def df2_doba(j, W):
+def df2_dzis():
+    """v463: bieżąca doba UTC przebiegu (RRRR-MM-DD) z NOW; brak czasu = None (wtedy bez ograniczenia)."""
+    t = _ix_dt(NOW)
+    return t.date().isoformat() if t is not None else None
+
+
+def df2_doba(j, W, dzis=None):
     """Doba, której dotyczy total24h: punkt wykresu (jeden z dwóch ostatnich) najbliższy total24h w granicach DF2_TOL_DOBA (albo DF2_TOL_DOBA_LUZ, gdy potwierdza go doba
     poprzednia: total48hto24h) i zgodna z nim suma 7 dób (DF2_TOL_7D).
     → (doba, indeks punktu). Ostatni punkt wykresu bywa dobą w toku, więc wskazanie z wartości, nie z pozycji."""
+    if dzis:   # v463: doba w toku nigdy nie jest pełną dobą — wskazanie tylko wśród dób zakończonych (przed bieżącą dobą UTC); 18.10.2026 08:50 UTC: „doba 18 paź” z odczytu w toku
+        W = [p for p in W if p[0] < dzis]
+        if len(W) < 2:
+            raise ValueError('wykres sum: za mało zakończonych dób')
     t24, t7, t48 = df2_num(j.get('total24h'), 0), df2_num(j.get('total7d'), 0), df2_num(j.get('total48hto24h'), 0)
     if not t24:
         raise ValueError('brak total24h')
@@ -44829,7 +44839,7 @@ def df2_fees(fj, rj=None):
     """/overview/fees (+ wariant przychodów) → część 'fees': {dzien, f24, f7, f7p, f30, f30p, r24, r30, rows, kat, seria, t}. Wiersz produktu: [nazwa, kategoria, opłaty doby, 7 dób, 30 dób,
     przychód 30 dób albo None, opłaty poprzednich 7 dób albo None]."""
     W = df2_wykres(fj)
-    dzien, i = df2_doba(fj, W)
+    dzien, i = df2_doba(fj, W, df2_dzis())
     g = lambda k: df2_num(fj.get(k), 0)  # noqa: E731
     f24, f7, f7p, f30, f30p = g('total24h'), g('total7d'), g('total14dto7d'), g('total30d'), g('total60dto30d')
     if f24 is None or not DF2_FEES_ZAKRES[0] <= f24 <= DF2_FEES_ZAKRES[1] or f30 is None or f30 < f24:
@@ -45020,7 +45030,7 @@ def df2_hacks(j, teraz=None):
 def df2_opt(j):
     """/overview/options (wartość nominalna) → część 'opt': {dzien, o24, o7, o7p, o30, o30p, top: [[nazwa, doba, 30 dób]], t}."""
     W = df2_wykres(j)
-    dzien, i = df2_doba(j, W)
+    dzien, i = df2_doba(j, W, df2_dzis())
     g = lambda k: df2_num(j.get(k), 0)  # noqa: E731
     o24, o7, o7p, o30, o30p = g('total24h'), g('total7d'), g('total14dto7d'), g('total30d'), g('total60dto30d')
     if o24 is None or o30 is None or o30 < o24 or o24 > 1e12:
@@ -45054,6 +45064,8 @@ def df2_trzeba(czas, dzien, ok_prev, teraz, cel=1):
     if tn.hour < DF2_OD_GODZ or h < DF2_PONOW_H:
         return False
     nowa = (tn.date() - datetime.timedelta(days=cel)).isoformat()
+    if dzien and cel >= 1 and tk.date().isoformat() <= dzien:   # v463: doba pobrana przed własnym końcem (wartość wstępna, np. plik sprzed v463) — pobieramy ponownie
+        return True
     return (dzien < nowa) if dzien else tk.date() < tn.date()
 
 

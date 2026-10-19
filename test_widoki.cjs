@@ -10342,7 +10342,7 @@ const rw133 = (() => {
     class FD extends Date { constructor(...a) { if (a.length === 0) super(NOWMS); else super(...a); } static now() { return NOWMS; } }
     const el = {innerHTML: '', hidden: true, querySelectorAll: () => [], querySelector: () => null};
     const K = new Function('$', 't', 'nfmt', 'escH', 'LOCALE', 'LANG', 'engDate', 'gAgeNote', 'lnAgo', 'icoWrap', 'glyphImg', 'flagImg', 'Date', 'D',
-      BLK + '\nif(D!==undefined){RW.data=D;renderRw();}\nreturn {RW,rwIsDay,rwUsd,rwPct,rwCls,rwN,rwShare,rwBody,rwOk,rwApply,renderRw,RW_SEGS,RW_LIVE,RW_OLD};')(
+      (opt.krotko ? BLK : BLK.replace('const RW_OPISY=false;', 'const RW_OPISY=true;')) + '\nif(D!==undefined){RW.data=D;renderRw();}\nreturn {RW,rwIsDay,rwUsd,rwPct,rwCls,rwN,rwShare,rwBody,rwOk,rwApply,renderRw,RW_SEGS,RW_LIVE,RW_OLD};')(
       q => (q === '#c-rwa' ? el : null), R ? R.t : (opt.t || T), R ? R.nfmt : ((v, d) => Number(v).toFixed(d || 0)), v96src.escH, LOC, L,
       s => '[' + String(s) + ']', d => ' · age(' + String(d).slice(0, 10) + ')', s => ' · ago(' + String(s) + ')', x => `<span class="icos">${x}</span>`,
       (n, c) => `<i class="g ${n}"></i>`, (c, k) => `<i class="f ${c}"></i>`, FD, D);
@@ -10416,7 +10416,7 @@ test('v133: po 31 dniach — „+1,0%” zielone „(od 20.09)”, spadek czerwo
   const W = rw133.day31(); W.seg.all.c30 = null; W.seg.all.c30_from = null;
   assert.ok(rw133.run(W, {real: true}).el.innerHTML.includes('Zmiany 7 i 30 dni liczymy'), 'jest zmiana 7 dni, brak 30 — notka zostaje (liczy się 30 dni)');
   assert.ok(out.includes('<td><span class="cell mono pos">+0,9%</span></td><td><span class="cell mono neg">−1,3%</span></td></tr>'), 'zmiany produktu w tabeli');
-  assert.ok(/Zmiany: 7 dni wobec 20[^,]*2026, 30 dni wobec 28[^;]*2026; tylko produkty obecne w obu dniach\./.test(out), 'dni kotwic pod tabelą');
+  assert.ok(/Zmiany: 7 dni wobec 20[^,]*2026, 30 dni wobec 28[^;]*2026\./.test(out), 'dni kotwic pod tabelą');
   const seg = out.slice(out.indexOf('id="rw-seg"'), out.indexOf('id="rw-top"'));
   const sh = [...seg.matchAll(/<tr><td><span class="cell">[^<]+<\/span><\/td><td><span class="cell mono">[^<]+<\/span><\/td><td><span class="cell mono(?: na)?">[^<]+<\/span><\/td><td class="rw-w"><span class="cell mono">\d+<\/span><\/td><td class="rw-w"><span class="cell mono">([\d,]+)%<\/span>/g)].map(m => parseFloat(m[1].replace(',', '.')));
   assert.equal(sh.length, 7); assert.ok(Math.abs(sh.reduce((a, b) => a + b, 0) - 100) <= 0.1 + 1e-9, 'udziały: ' + sh.join(' + '));
@@ -14517,7 +14517,7 @@ test('v296c CR-04: nota panelu stablecoinów — zmiana DO stanu z chwili pobran
     assert.ok(d.includes(OK[L]) && d.includes('GLOBAL'), L + ': ' + d);
     assert.ok(!k.toLowerCase().includes(NEW[L]), L + ': ' + k);
   }
-  assert.ok(I.pl['a293c.stc.diff'].includes('tylko tam, gdzie źródło podaje stan sprzed okresu') && I.pl['a293c.stc.k.all'] === 'Cała podaż — historia dzienna (wszystkie monety)');
+  assert.ok(I.pl['a293c.stc.diff'].includes('Suma sieci i tabela liczą zmianę do stanu z chwili pobrania') && I.pl['a293c.stc.k.all'] === 'Cała podaż — historia dzienna (wszystkie monety)');
 });
 
 test('v296c CR-01: ostatni zapas kafla stablecoinów (bez podaży na żywo i bez historii) — podpis „Kapitalizacja stablecoinów (monety: n/m)” na kaflu i w Aktywach', () => {
@@ -28443,15 +28443,15 @@ const st388 = (() => {
 test('v388 (CRYPTO-2): panel emitentów — bez własnej serii zmiany wg monet z migawek listy i jasne zdanie o różnicy miar; z własną świeżą serią zmiany z niej i zdanie o źródle', () => {
   const h0 = st388.html1('pl', ST363_F);
   assert.ok(h0.includes('Rezerwa w walucie i papierach skarbowych'), 'sekcja zabezpieczenia jest');
-  assert.ok(h0.includes('Zmiany 7 i 30 dni w tym panelu to suma zmian poszczególnych monet') && h0.includes('to dwie miary tego samego rynku, nie sprzeczność'), 'zdanie o różnicy miar');
+  assert.ok(h0.includes('Zmiany 7 i 30 dni w tym panelu to suma zmian monet między migawkami listy') && h0.includes('więc różnią się od zmiany podaży łącznej'), 'zdanie o różnicy miar');
   assert.ok(!h0.includes('Własna seria zbiera się od'), 'plik bez serii listy — bez daty początku'); assert.ok(!h0.includes('liczone z własnej serii dobowej listy monet'));
   const m0 = st363.txt(h0); assert.ok(m0.includes('7 dni −1,66 mld USD · 30 dni −1,81 mld USD'), 'wiersz zabezpieczenia: wartości z migawek listy: ' + m0.slice(m0.indexOf('Rezerwa'), m0.indexOf('Rezerwa') + 160));
   /* z własną serią */
   const f = st388.own(), h1 = st388.html1('pl', f), t1 = st363.txt(h1);
   assert.ok(t1.includes('7 dni +1,11 mld USD · 30 dni +2,22 mld USD'), 'zabezpieczone rezerwą: własna seria: ' + t1.slice(t1.indexOf('Rezerwa'), t1.indexOf('Rezerwa') + 160));
   assert.ok(t1.includes('7 dni −333 mln USD · 30 dni +444 mln USD') && t1.includes('7 dni +5,0 mln USD · 30 dni −6,0 mln USD'), 'kryptowaluty i algorytm z własnej serii: ' + t1);
-  assert.ok(t1.includes('liczone z własnej serii dobowej listy monet (do 13 paź 2026)') && !t1.includes('to suma zmian poszczególnych monet'), 'zdanie o źródle zmian');
-  assert.ok(t1.includes('osobnej serii pełnych dób'), 'zawsze uczciwa uwaga o drugiej mierze');
+  assert.ok(t1.includes('liczone z własnej serii dobowej listy monet (do 13 paź 2026)') && !t1.includes('to suma zmian monet między migawkami'), 'zdanie o źródle zmian');
+  assert.ok(t1.includes('mogą się nieco różnić od zmiany podaży łącznej'), 'zawsze uczciwa uwaga o drugiej mierze');
   /* kolory kierunku z pokazanej liczby */
   assert.ok(/class="pos">\+1,11 mld USD<\/span>/.test(h1) && /class="neg">−333 mln USD<\/span>/.test(h1) && /class="pos">\+444 mln USD<\/span>/.test(h1), 'kolor z pokazanej liczby');
   /* seria stoi (ostatnia doba starsza niż wczoraj) → migawki listy i zdanie o różnicy */
@@ -30287,7 +30287,7 @@ test('v402: opłaty i przychody — kafle (doba, przychód, 30 dób, największy
   const t = df2t.txt(h), i = t.indexOf('Skąd pochodzą opłaty (30 dób)');
   assert.ok(t.slice(i).startsWith('Skąd pochodzą opłaty (30 dób) Emitenci stablecoinów 761 mln USD · 29% Giełdy zdecentralizowane (DEX) 388 mln USD · 15%'), 'kategorie: udział w sumie kategorii');
   assert.ok(t.includes('Sieci bloków (opłaty sieciowe) 112 mln USD · 4% Pozostałe kategorie 586 mln USD · 22%') && h.includes('<i class="oth"'), 'reszta szara');
-  assert.ok(t.includes('Wersje i produkty jednej firmy są liczone osobno') && t.includes('o kilka procent większa'), 'notatki o definicji i o sumach');
+  assert.ok(t.includes('przychód to część, która zostaje w protokole') && t.includes('o kilka procent większa'), 'notatki o definicji i o sumach');
 });
 
 test('v402: ceny stablecoinów — kafle, wykres „najgorsze z 10 największych”, tabela 12 monet z odchyleniem i najgorszą dobą z 30, monety ≥ 1 %, największe odchylenia od 2021 po rozwinięciu, notatki', () => {
@@ -30303,7 +30303,7 @@ test('v402: ceny stablecoinów — kafle, wykres „najgorsze z 10 największych
     ['[c:USDA]USDA AP USDA', ['85,3 mln USD', '0,9808', '−1,92%']], ['[c:pmUSD]pmUSD pmUSD', ['65,0 mln USD', '0,6914', '−30,86%']], ['[c:REUSD]REUSD Resupply USD', ['52,0 mln USD', '0,9889', '−1,11%']]]);
   assert.ok(h.includes('<details class="etfd" id="df2-ev"><summary>Największe odchylenia od 1 USD od 2021 roku (10 największych monet)</summary>'));
   assert.equal(G.ev.length, 10); assert.deepEqual(G.ev[1].cells.map(c => c.v), ['12 mar 2023', '0,9611', '−3,89%']); assert.deepEqual(G.ev[0].cells.map(c => c.v), ['1 mar 2021', '1,0114', '+1,14%']);
-  const t = df2t.txt(h); assert.ok(t.includes('przy odkleceniu USDC w marcu 2023 odczyt dzienny wyniósł 0,961 USD') && t.includes('Bez ceny z ostatnich 3 dób: 9 monet o podaży 1,37 mld USD') && t.includes('stablecoiny w euro, funtach i innych walutach są pominięte') && t.includes('Podaż jest nominalna'));
+  const t = df2t.txt(h); assert.ok(t.includes('Cena dzienna to jeden odczyt na dobę') && t.includes('Bez ceny z ostatnich 3 dób: 9 monet o podaży 1,37 mld USD') && t.includes('Tylko stablecoiny powiązane z dolarem') && t.includes('Podaż jest nominalna'));
   const A = K.api; assert.deepEqual([A.df2Dev(1), A.df2Dev(0.9996), A.df2Dev(1.0004), A.df2Dev(1.00004), A.df2Dev(0.0083), A.df2Dev(null), A.df2Dev(0), A.df2Dev(NaN)].map(x => x.txt + '/' + x.tn),
     ['0,00%/neu', '−0,04%/neg', '+0,04%/pos', '0,00%/neu', '−99,17%/neg', '—/na', '—/na', '—/na'], 'odchylenie: dwa miejsca, zero po zaokrągleniu żółte, brak = „—”');
   assert.equal(A.df2Price(0.99886), '0,9989'); assert.equal(A.df2Price(1), '1,0000'); assert.equal(A.df2Price(null), '—'); assert.equal(A.df2Price(-1), '—'); assert.equal(A.df2Price(0), '—');
@@ -30323,7 +30323,7 @@ test('v402: włamania — kafle (90 dób, 12 miesięcy, od początku roku, najwi
   assert.equal(G.hack.length, 12, '6 największych i 6 najnowszych'); assert.deepEqual(G.hack[0].cells.map(c => c.v), ['24 wrz 2026', '387 mln USD', 'Przejęcie kluczy']); assert.ok(G.hack[0].name.includes('Bitget') && G.hack[0].name.includes('Giełdy scentralizowane'));
   assert.deepEqual(G.hack[8].cells.map(c => c.v), ['2 paź 2026', '<1 mln USD', 'Błędy rozliczania tokenów i udziałów'], 'poniżej 0,5 mln: „<1 mln”');
   assert.ok(h.includes('<details class="etfd" id="df2-top"><summary>Największe włamania z 12 miesięcy</summary>') && h.includes('<details class="etfd" id="df2-new"><summary>Najnowsze włamania (od 0,1 mln USD)</summary>'));
-  assert.ok(t.includes('wpisy bez znanej kwoty są liczone osobno, a nie jako zero') && t.includes('Rok bieżący jest niepełny: ostatni wpis z doby 16 paź 2026.'));
+  assert.ok(t.includes('wpisy bez kwoty liczone są osobno, nie jako zero') && t.includes('Rok bieżący jest niepełny: ostatni wpis z doby 16 paź 2026.'));
   const Z = df2t.clone(DF2_F); Z.hacks.w90 = [0, 0, 0]; Z.hacks.lata[5] = [2026, 0, 0, 0]; const tz = df2tiles(df2html(Z)).slice(8, 12);
   assert.deepEqual([tz[0].val, tz[0].cls, tz[0].subs[0], tz[2].val], ['—', 'na', 'zdarzeń: 0', '—'], 'brak kwoty = „—”, nigdy zero');
 });
@@ -30334,7 +30334,7 @@ test('v402: opcje na zdecentralizowanych giełdach — kafle (doba, 7 i 30 dób 
     ['Największy protokół, 30 dób', 'Derive Options', '59% wolumenu z 30 dób']]);
   assert.ok(T[1].subHtml.includes('class="neg">−7,2%') && T[2].subHtml.includes('class="pos">+44,1%'), 'kierunek z pokazanej liczby');
   assert.ok(t.includes('Protokoły opcji (30 dób) Derive Options 3,04 mld USD · 59% Derive V3 Options 1,25 mld USD · 24% Paradex Options 503 mln USD · 10% Rysk V12 157 mln USD · 3%'));
-  assert.ok(t.includes('Wolumen to wartość nominalna zawartych kontraktów, a nie premia ani otwarte pozycje.'));
+  assert.ok(t.includes('Wolumen to wartość nominalna zawartych kontraktów, nie premia ani otwarte pozycje'));
   const O = df2t.clone(DF2_F); O.opt.top = [O.opt.top[0]]; const to = df2t.txt(df2html(O)); assert.ok(!to.includes('Protokoły opcji (30 dób)'), 'jeden protokół — bez słupków');
 });
 
@@ -37028,4 +37028,33 @@ test('v462: widoki silnika po 24.10.2026 (zegar 25.10 i 1.11) — każda karta: 
     }
   }
   assert.ok(!/2026-10-24/.test(src), 'renderEng bez wpisanej na stałe daty wygaśnięcia');
+});
+
+
+test('v463: CRYPTO — krótkie karty tokenizowanych aktywów, EN o odświeżaniu co 3 godziny', () => {
+  const I = g126I18N();
+  for (const L of ['pl', 'en']) {
+    for (const k of ['rwa463.o', 'rwa463.e']) assert.ok(I[L][k], k + ' w ' + L);
+    for (const k of ['rwa.what', 'rwa.not1', 'rwa.not4', 'a293c.stc.diff', 'stc.not', 'stcw.sub', 'st388.diff', 'st388.own', 'df2.n.fees1', 'df2.n.fees2', 'df2.n.peg1', 'df2.n.peg3', 'df2.n.hack1', 'df2.n.opt', 'eth403.n.l1'])
+      assert.ok(I[L][k].length <= 330, k + ' ' + L + ' krótki opis (' + I[L][k].length + ' znaków)');
+    assert.ok(!/×|wyroczn|oracle/i.test([I[L]['rwa.what'], I[L]['rwa.not1'], I[L]['rwa.not4']].join(' ')), L + ': bez opisu sposobu liczenia');
+  }
+  assert.ok(I.pl['rwa.sub'].includes('co 3 godziny') && I.pl['rwa.foot'].includes('co 3 godziny'));
+  assert.ok(I.en['rwa.sub'].includes('every 3 hours') && I.en['rwa.foot'].includes('every 3 hours') && !/6 hours/.test(I.en['rwa.sub'] + I.en['rwa.foot']), 'EN jak PL: co 3 godziny');
+  assert.ok(/inny|different/.test(I.pl['eth403.n.l1'] + I.en['eth403.n.l1']) && I.pl['eth403.n.l1'].includes('Na które sieci płyną stablecoiny'), 'różnica podaży stablecoinów w Ethereum wyjaśniona jednym zdaniem');
+  assert.equal(I.en['c315.pct.x'], 'remainder');
+  assert.ok(html.includes('const RW_OPISY=false;') && html.includes('return RW_OPISY?L:L.slice(0,4);}') && html.includes('h+=RW_OPISY?rwOcPara(D)+rwEmPara(D):rwSrcNote(D);'), 'karta RWA: cztery zdania „czego nie mówią” i jedno zdanie o znakach');
+  /* karta z odczytem własnym i danymi emitentów: jedno zdanie legendy zamiast długich akapitów (v463); ta sama karta z RW_OPISY = true ma pełne opisy */
+  const F = v169Plik();
+  const pe = rw133.run(F, {real: true}).el.innerHTML, sh = rw133.run(F, {real: true, krotko: true}).el.innerHTML;
+  assert.ok(pe.includes('Wartość = liczba tokenów w obiegu') && pe.includes('Dane emitentów — produkty'), 'pełne opisy zostają w kodzie (RW_OPISY = true)');
+  assert.ok(!/Wartość = liczba tokenów|wyroczni|pominęliśmy|Dane emitentów — produkty|Odczyt własny z łańcucha bloków \(stan/.test(sh), 'krótka karta: bez opisów sposobu liczenia');
+  assert.ok(sh.includes('◆ wartość z odczytu własnego z łańcucha bloków · ◇ wartość z danych emitenta.'), 'jedno zdanie o znakach');
+  assert.ok(sh.length < pe.length - 1500, 'krótsza o same opisy (' + sh.length + ' wobec ' + pe.length + ')');
+  assert.ok(!/opis nad tabelami|Każdy produkt liczony raz|tylko produkty obecne w obu dniach/.test(sh), 'krótka karta: stopki tabel bez odsyłacza do usuniętych opisów ani opisu metody');
+  const s31 = rw133.run(rw133.day31(), {real: true, krotko: true}).el.innerHTML;
+  assert.ok(/Zmiany: 7 dni wobec[^<]*\.\s*<|Zmiany: 7 dni wobec[^<]*\./.test(s31) && !/obecne w obu dniach|Każdy produkt liczony raz/.test(s31), 'krótka karta z historią: zmiany bez opisu metody');
+  assert.ok(pe.includes('opis nad tabelami'), 'pełne opisy (RW_OPISY = true): odsyłacz zostaje');
+  assert.ok(I.en['rwa.seg.note'] === 'As of {t}.' && I.en['rwa.seg.ch'].endsWith('{d30}.'), 'EN: bez opisu metody');
+  assert.ok(!sh.includes('Zmiany porównują te same produkty') && sh.includes('Co to jest: tokenizowane aktywo') && sh.includes('nikt ich tu nie audytuje'), 'cztery zdania „czego nie mówią”');
 });

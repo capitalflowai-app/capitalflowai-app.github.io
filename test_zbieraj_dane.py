@@ -79360,3 +79360,86 @@ class KontrolaFedZapasV462(unittest.TestCase):
         j = self._plik(); j['via'] = {'h8': 'zepsute', 'cp': {'zr': 'fred'}, 'zly': {'od': 'x'}}
         r = self.k.fedddp_kontrola({'fed-ddp': j}, self.NOW)
         self.assertEqual(r['uwagi'], []); self.assertEqual(len([x for x in r['wiersze'] if 'zapas' in x[0]]), 1, 'część z niepełnym znacznikiem — tylko informacja, bez błędu kontroli')
+
+
+class TestV463DobaWToku(unittest.TestCase):
+    """v463 (19.10.2026, audyt m13 CRYPTO-1): „Doba 18 paź 2026: 61,7 mln USD” z odczytu 18.10 08:50 UTC była dobą w toku podaną jako pełna, a plik nie był pobierany ponownie."""
+
+    def setUp(self):
+        zd.META['errors'].clear()
+
+    def _odp(self, c, t, koniec='2026-10-18'):
+        dni = _v402_dni(len(c), koniec)
+        return dict(totalDataChart=[[_v402_ts(d), v] for d, v in zip(dni, c)], **t)
+
+    def _seria(self):
+        """Wykres do 18.10 (ostatni punkt = doba w toku, 61,7 mln); total24h i total48hto24h wskazują dobę w toku i dobę 17.10 (61,9 mln) — przypadek z odczytu 18.10 08:50 UTC."""
+        c = [60e6] * 43 + [58e6, 61.9e6, 61.7e6]
+        return self._odp(c, {'total24h': 61.7e6, 'total48hto24h': 61.9e6, 'total7d': sum(c[-7:])})
+
+    def test_doba_w_toku_nie_jest_dobą_pełną(self):
+        j = self._seria()
+        W = zd.df2_wykres(j)
+        self.assertEqual(zd.df2_doba(j, W), ('2026-10-18', len(W) - 1), 'bez ograniczenia (jak dotąd) wygrywa ostatni punkt — doba w toku')
+        self.assertEqual(zd.df2_doba(j, W, '2026-10-18'), ('2026-10-17', len(W) - 2), 'o 08:50 UTC 18.10 doba 18.10 nie jest zakończona')
+        self.assertEqual(zd.df2_doba(j, W, '2026-10-19'), ('2026-10-18', len(W) - 1), 'następnego dnia ta sama doba jest zakończona')
+        with self.assertRaisesRegex(ValueError, 'nie pasuje do wykresu'):
+            zd.df2_doba(dict(j, total24h=64e6), W, '2026-10-18')
+        with self.assertRaisesRegex(ValueError, 'za mało zakończonych dób'):
+            zd.df2_doba(j, W[-1:], '2026-10-18')
+
+    def test_czesci_opłat_i_opcji_używaja_doby_przebiegu(self):
+        j = self._seria()
+        for now, doba in (('2026-10-18T08:50:51+00:00', '2026-10-17'), ('2026-10-19T02:07:41+00:00', '2026-10-18')):
+            with mock.patch.object(zd, 'NOW', now):
+                F = zd.df2_fees(dict(_v402_fees(), **j), None)
+                self.assertEqual(F['dzien'], doba); self.assertEqual(F['seria'][-1][0], doba, 'seria kończy się na dobie danych')
+                self.assertEqual(zd.df2_dzis(), now[:10])
+        with mock.patch.object(zd, 'NOW', None):
+            self.assertIsNone(zd.df2_dzis())
+
+    def test_rytm_doba_pobrana_przed_koncem_jest_wstepna(self):
+        T = lambda s: s + ':00+00:00'
+        # plik z 18.10 08:50 z dobą 18.10 (przypadek audytu): 19.10 02:07 pobieramy ponownie
+        self.assertTrue(zd.df2_trzeba('2026-10-18T08:50:51+00:00', '2026-10-18', True, T('2026-10-19T02:07'), 1))
+        self.assertFalse(zd.df2_trzeba('2026-10-18T08:50:51+00:00', '2026-10-18', True, T('2026-10-19T01:30'), 1), 'przed godziną DF2_OD_GODZ — bez zmian')
+        self.assertFalse(zd.df2_trzeba('2026-10-19T02:10:00+00:00', '2026-10-18', True, T('2026-10-19T09:00'), 1), 'pełna doba pobrana po jej końcu — raz')
+        self.assertFalse(zd.df2_trzeba('2026-10-19T02:10:00+00:00', '2026-10-19', True, T('2026-10-19T09:00'), 0), 'ceny (cel 0): etykieta doby to bieżąca data — to nie wstępność')
+        self.assertTrue(zd.df2_trzeba('2026-10-18T23:50:00+00:00', '2026-10-18', True, T('2026-10-19T03:00'), 1))
+        pv = {'ok': {}, 'part_at': {'fees': '2026-10-18T08:50:51+00:00', 'opt': '2026-10-18T08:50:51+00:00', 'peg': '2026-10-19T02:07:41+00:00', 'hacks': '2026-10-19T02:07:41+00:00'},
+              'at': '2026-10-19T02:07:41+00:00', 'fees': {'dzien': '2026-10-18'}, 'opt': {'dzien': '2026-10-18'}, 'peg': {'dzien': '2026-10-19'}, 'hacks': {}}
+        self.assertEqual(zd.df2_zadania(pv, T('2026-10-19T06:00')), {'fees': True, 'peg': False, 'hacks': False, 'opt': True})
+        pv['part_at'].update(fees='2026-10-19T02:08:00+00:00', opt='2026-10-19T02:08:00+00:00')
+        self.assertEqual(zd.df2_zadania(pv, T('2026-10-19T06:00')), {'fees': False, 'peg': False, 'hacks': False, 'opt': False})
+
+
+class KontrolaDefi2V463(unittest.TestCase):
+    """v463: kontrola ostrzega (najwyżej ⚠️) o dobie opłat albo opcji pobranej przed własnym końcem; czysty plik bez ostrzeżeń."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola463-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v463_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.NOW = _V402_NOW
+
+    def _plik(self):
+        with mock.patch.object(zd, 'NOW', _V402_NOW.isoformat()), mock.patch.object(zd, 'DF2_SLEEP', 0), mock.patch.object(zd, 'df2_pobierz', _v402_pobierz()):
+            o, _ = zd.build_defi2(None)
+        return json.loads(json.dumps(o))
+
+    def test_doba_pobrana_przed_koncem_to_ostrzezenie(self):
+        k = self.k
+        p = self._plik()
+        o = k.df2_kontrola(p, None, self.NOW)
+        self.assertEqual([r[1] for r in o['rows']], ['✅'] * 4, 'plik zbudowany nowym kodem: doba zakończona')
+        p['part_at']['fees'] = p['fees']['dzien'] + 'T08:50:51+00:00'
+        o = k.df2_kontrola(p, None, self.NOW)
+        self.assertEqual([r[1] for r in o['rows']], ['⚠️', '✅', '✅', '✅'])
+        self.assertTrue(any('wartość wstępna' in u for u in o['uwagi']), o['uwagi'])
+        p['part_at']['opt'] = p['opt']['dzien'] + 'T00:10:00+00:00'
+        p['part_at']['peg'] = p['peg']['dzien'] + 'T08:50:51+00:00'
+        o = k.df2_kontrola(p, None, self.NOW)
+        self.assertEqual([r[1] for r in o['rows']], ['⚠️', '✅', '✅', '⚠️'], 'ceny: etykieta doby to bieżąca data — bez ostrzeżenia')
