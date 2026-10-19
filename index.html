@@ -3127,6 +3127,19 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
     </div>
   </div>
 </div>
+<div class="modal" id="t-help-modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="th-t">
+    <div class="sheet-top">
+      <h2 id="th-t" data-i18n="trd.m.t"></h2>
+      <button class="x" id="th-x" data-i18n-aria="help.close">×</button>
+    </div>
+    <div class="sheet-body">
+      <p class="mtxt" data-i18n="trd.m.1"></p>
+      <p class="mtxt" data-i18n="trd.m.2"></p>
+      <p class="mtxt" data-i18n="trd.m.3"></p>
+    </div>
+  </div>
+</div>
 <div class="modal" id="help-modal" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="help-t">
     <div class="sheet-top">
@@ -3540,7 +3553,7 @@ for(const l in EXTRA129)if(I18N[l])Object.assign(I18N[l],EXTRA129[l]);
 const EXTRA130={"pl":{"prm.kr.t":"Premie cenowe krypto: Korea i USA","prm.kr.sub":"O ile drożej (plus) albo taniej (minus) są BTC i ETH w Korei i w USA — w tych samych zamkniętych minutach. Korea: Upbit wobec Coinbase; USA: Coinbase wobec Binance. Premia Korei na żywo jest przybliżona, bo kurs wymiany wona ustala się raz dziennie. Trwała premia dodatnia zwykle oznacza silniejszy popyt w danym kraju. To różnica cen, nie przepływ pieniędzy; brak liczby to „—”, nigdy zero.","prm.kr.foot":"Wyliczenie własne z notowań giełd i dziennych oficjalnych kursów walut.","prm.kr.hn":"Korea: tylko dni robocze, bez weekendów i świąt. USA: średnia z godzin doby UTC. Każda linia ma własną skalę. Luka to brak danych, nie zero. Ostatni dzień: {d}","prm.k.kr":"{c}: Korea wobec USA","prm.k.kr.d":"Upbit {up} KRW wobec Coinbase {cb} USD × {fx} KRW/USD (minuta {m})","prm.k.usdt":"USDT w Korei wobec kursu wymiany","prm.k.usdt.d":"Upbit {up} KRW za 1 USDT wobec {fx} KRW/USD (minuta {m})","prm.k.usdt.n":"Gdy ta premia jest równa premii BTC, to premia dla dolara w Korei, a nie dla samego BTC.","prm.fx":"kurs wymiany z {d}","prm.kr.noise":"w granicach niepewności kursu wymiany (±0,5 pkt proc.) — kierunek niepewny","prm.na.fx":"kurs wymiany starszy niż 5 dni — premii nie liczymy (brak, nie zero)","prm.na.nofx":"brak kursu wymiany USD/KRW — premii nie liczymy (brak, nie zero)","prm.h.kr":"Korea BTC: 5 minut przed ustaleniem kursu wymiany (dni robocze)","prm.not5":"Kurs USD/KRW ustala się raz dziennie, więc premia Korei na żywo jest przybliżona. W granicach ±0,5 pkt proc. kolor kafli Korei pokazuje tylko znak liczby, a kierunek jest niepewny."},"en":{"prm.kr.t":"Crypto price premiums: Korea and the US","prm.kr.sub":"How much more expensive (plus) or cheaper (minus) BTC and ETH are in Korea and in the US — in the same closed minutes. Korea: Upbit against Coinbase; US: Coinbase against Binance. The live Korean premium is approximate because the won exchange rate is set once a day. A lasting positive premium usually means stronger demand in that country. It is a price difference, not a money flow; a missing number is “—”, never zero.","prm.kr.foot":"Our own calculation from exchange prices and daily official exchange rates.","prm.kr.hn":"Korea: business days only, no weekends or holidays. US: average over the hours of the UTC day. Each line has its own scale. A gap means no data, not zero. Last day: {d}","prm.k.kr":"{c}: Korea vs US","prm.k.kr.d":"Upbit {up} KRW vs Coinbase {cb} USD × {fx} KRW/USD (minute {m})","prm.k.usdt":"USDT in Korea vs the exchange rate","prm.k.usdt.d":"Upbit {up} KRW per 1 USDT vs {fx} KRW/USD (minute {m})","prm.k.usdt.n":"When this premium equals the BTC premium, it is a premium on the dollar in Korea, not on BTC itself.","prm.fx":"exchange rate of {d}","prm.kr.noise":"within the exchange-rate uncertainty (±0.5 pp) — direction uncertain","prm.na.fx":"exchange rate older than 5 days — premium not computed (missing, not zero)","prm.na.nofx":"no USD/KRW exchange rate — premium not computed (missing, not zero)","prm.h.kr":"Korea BTC: 5 minutes before the exchange rate is set (business days)","prm.not5":"The USD/KRW rate is set once a day, so the live Korean premium is approximate. Within ±0.5 percentage points the colour of the Korean tiles shows only the sign of the number, and the direction is uncertain."}};
 for(const l in EXTRA130)if(I18N[l])Object.assign(I18N[l],EXTRA130[l]);
 /* v138: „Giełdy” bez „(model)” w każdym języku (nazwy jak w słowniku bazowym; wyjaśnienie „wartość wyliczona — reszta bilansu, nie pomiar” w podpowiedzi i legendzie: exch.tip) oraz podpowiedź wiersza panelu „Aktywność sektorów” z datą danych (sect.tip) */
-const EXTRA135={"pl":{"n.exch":"Giełdy","exch.tip":"Giełdy: wartość wyliczona — reszta bilansu wszystkich pozostałych elementów, nie pomiar sald giełd","sect.tip":"{n}: obrót z 24 h względem kapitalizacji koszyka monet (1 punkt ≈ 4%) · stan: {t}"},"en":{"n.exch":"Exchanges","exch.tip":"Exchanges: computed value — the balance remainder of all other items, not a measurement of exchange balances","sect.tip":"{n}: 24h trading volume relative to the coin basket’s market cap (1 point ≈ 4%) · as of {t}"}};
+const EXTRA135={"pl":{"n.exch":"Giełdy","exch.tip":"Giełdy: wartość szacunkowa, nie zmierzona","sect.tip":"{n}: obrót z 24 h względem kapitalizacji koszyka monet (1 punkt ≈ 4%) · stan: {t}"},"en":{"n.exch":"Exchanges","exch.tip":"Exchanges: an estimate, not measured","sect.tip":"{n}: 24h trading volume relative to the coin basket’s market cap (1 point ≈ 4%) · as of {t}"}};
 for(const l in EXTRA135)if(I18N[l])Object.assign(I18N[l],EXTRA135[l]);
 /* v139: strach i chciwość — skala 0–100, stany, historia, składniki wskaźnika własnego GLOBAL i opis metody ogólnymi słowami (bez nazw dostawców; VIX i S&P 500 to przedmiot danych) */
 const EXTRA136={"pl":{"fg.t.c":"Strach i chciwość — krypto","fg.t.g":"Strach i chciwość GLOBAL","fg.g.sub":"Nastroje na rynkach akcji i obligacji USA w skali 0–100. To opis nastrojów, nie zmierzony przepływ pieniędzy.","fg.g.cap":"Wskaźnik własny CapitalFlowAI (nie pomiar)","fg.c.cap":"Indeks nastrojów rynku krypto (0–100) — wskaźnik, nie pomiar.","fg.s.xf":"Skrajny strach","fg.s.f":"Strach","fg.s.n":"Neutralnie","fg.s.g":"Chciwość","fg.s.xg":"Skrajna chciwość","fg.h.now":"Teraz","fg.h.d1":"Wczoraj","fg.h.s1":"Poprzednia sesja","fg.h.w1":"Tydzień temu","fg.h.m1":"Miesiąc temu","fg.upd":"Dane z dnia {d}","fg.aria":"{t}: {v} na 100 — {s}","fg.na":"brak danych","fg.comp.vix":"Zmienność: VIX wobec średniej z 50 sesji","fg.comp.hy":"Ryzyko kredytowe: spread obligacji wysokodochodowych USA","fg.comp.spx":"Momentum: S&P 500 wobec średniej ze 125 sesji","fg.comp.sb":"Bezpieczne aktywa: akcje wobec obligacji skarbowych USA (20 sesji)","fg.raw.vix":"{v} (średnia 50 sesji: {m})","fg.raw.hy":"{v} pkt proc.","fg.raw.spx":"{v} ({p} wobec średniej)","fg.raw.sb":"akcje {a}, obligacje {b}","fg.h.parts":"Składniki","fg.col.c":"Składnik","fg.col.s":"Wynik 0–100","fg.col.d":"Dzień","fg.part":"Wynik z {n} z 4 składników. Brak: {c}.","fg.none":"Za mało składników do wyniku (potrzebne co najmniej 3 z 4). Brak: {c}.","fg.why.fetch":"błąd pobrania","fg.why.nodata":"brak danych","fg.why.short":"za krótka historia","fg.why.stale":"dane starsze niż 5 dni","fg.how":"O wskaźniku","fg.meth.g":"Wskaźnik łączy cztery sygnały z rynków USA: zmienność (VIX), ryzyko kredytowe, ruch indeksu S&P 500 i popyt na bezpieczne aktywa. Skala: 0–24 skrajny strach, 25–44 strach, 45–55 neutralnie, 56–75 chciwość, 76–100 skrajna chciwość. Wynik to średnia niezaokrąglonych składników, więc średnia pokazanych może różnić się od wyniku o 1.","fg.not":"Wskaźnik opisuje nastroje, nie przepływ pieniędzy, i nie jest sygnałem kupna ani sprzedaży."},"en":{"fg.t.c":"Fear & Greed — crypto","fg.t.g":"Fear & Greed GLOBAL","fg.g.sub":"Sentiment in US stock and bond markets on a 0–100 scale. A description of sentiment, not a measured capital flow.","fg.g.cap":"CapitalFlowAI’s own indicator (not a measurement)","fg.c.cap":"Crypto market sentiment index (0–100) — an indicator, not a measurement.","fg.s.xf":"Extreme fear","fg.s.f":"Fear","fg.s.n":"Neutral","fg.s.g":"Greed","fg.s.xg":"Extreme greed","fg.h.now":"Now","fg.h.d1":"Yesterday","fg.h.s1":"Previous session","fg.h.w1":"A week ago","fg.h.m1":"A month ago","fg.upd":"Figures for {d}","fg.aria":"{t}: {v} out of 100 — {s}","fg.na":"no data","fg.comp.vix":"Volatility: VIX vs its 50-session average","fg.comp.hy":"Credit risk: US high-yield bond spread","fg.comp.spx":"Momentum: S&P 500 vs its 125-session average","fg.comp.sb":"Safe havens: stocks vs US government bonds (20 sessions)","fg.raw.vix":"{v} (50-session average: {m})","fg.raw.hy":"{v} pp","fg.raw.spx":"{v} ({p} vs average)","fg.raw.sb":"stocks {a}, bonds {b}","fg.h.parts":"Components","fg.col.c":"Component","fg.col.s":"Score 0–100","fg.col.d":"Day","fg.part":"Score from {n} of 4 components. Missing: {c}.","fg.none":"Too few components for a score (at least 3 of 4 needed). Missing: {c}.","fg.why.fetch":"download error","fg.why.nodata":"no data","fg.why.short":"history too short","fg.why.stale":"older than 5 days","fg.how":"About the indicator","fg.meth.g":"The indicator combines four signals from US markets: volatility (VIX), credit risk, momentum of the S&P 500 index and demand for safe assets. Scale: 0–24 extreme fear, 25–44 fear, 45–55 neutral, 56–75 greed, 76–100 extreme greed. The score is the average of unrounded components, so the average of those shown can differ from the score by 1.","fg.not":"The indicator describes sentiment, not money flows, and is not a buy or sell signal."}};
@@ -4011,6 +4024,9 @@ for(const l in EXTRA314)if(I18N[l])Object.assign(I18N[l],EXTRA314[l]);
 /* v463: CRYPTO — krótsze opisy kart (RWA, stablecoiny wg sieci, emitenci, DeFi) — pl i en */
 const EXTRA315={"pl":{"rwa463.o":"{m} wartość z odczytu własnego z łańcucha bloków","rwa463.e":"{m} wartość z danych emitenta"},"en":{"rwa463.o":"{m} value from our own blockchain reading","rwa463.e":"{m} value from the issuer’s data"}};
 for(const l in EXTRA315)if(I18N[l])Object.assign(I18N[l],EXTRA315[l]);
+/* v464 (GLOBAL_M13): etykieta różnicy ceny fizycznej i kontraktu, nota kalendarza — pl i en */
+const EXTRA316={"pl":{"g464.gap.u":"Kontrakt terminowy: {v}. Cena dostawy fizycznej jest o {p}% wyższa.","g464.gap.d":"Kontrakt terminowy: {v}. Cena dostawy fizycznej jest o {p}% niższa.","kal464.n":"Godziny w czasie polskim. Znak ~ oznacza zwyczajową godzinę publikacji.","kal464.at":"Dane z {t}"},"en":{"g464.gap.u":"Futures contract: {v}. The spot (physical delivery) price is {p}% higher.","g464.gap.d":"Futures contract: {v}. The spot (physical delivery) price is {p}% lower.","kal464.n":"Times are in Polish time. A ~ sign means the usual publication time.","kal464.at":"Data from {t}"}};
+for(const l in EXTRA316)if(I18N[l])Object.assign(I18N[l],EXTRA316[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -6060,7 +6076,7 @@ function spWyk(D){
 function spBlock(){const D=SP.data;if(!D)return '';const I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';   /* v96: flagi banków centralnych, zmiany w kolorze, bez zdań o źródłach */
   const rows=(typeof rrOrder==='function'?rrOrder(D):D.order).filter(a=>D.rows[a]).map(a=>{const r=D.rows[a];   /* v366: kolejność wg wybranej kolumny */
     const last=Array.isArray(r.last)?t('sp.last',{m:escH(r.last[0]),v:I('w',r.last[1],spPP(r.last[1]))}):(typeof r.m_n==='number'?(r.m_n>=13?t('sp.none.n',{n:r.m_n}):'—'):t('sp.none'));   /* v63: „bez zmian” tylko z historią */
-    return `<tr><td><span class="cell">${I('f',a)}${escH(t('sp.cc.'+a))} <span class="cell mono">${escH(a)}</span></span></td><td><span class="cell mono">${spPct(r.rate)}</span></td><td><span class="cell mono">${instFoot(r.date)}</span></td><td><span class="cell mono${I('t',r.d12)}">${spPP(r.d12)}</span></td><td><span class="cell mono"><span>${last}</span></span></td><td><span class="cell mono${I('t',r.vs_us)}">${spPP(r.vs_us)}</span></td>${typeof rrTd==='function'?rrTd(a):''}<td><span class="cell mono"><span>${eerCell(a)}</span></span></td></tr>`;}).join('');   /* v96: tekst z liczbą w kolorze w jednym elemencie (komórka jest flex) */
+    return `<tr><td><span class="cell">${I('f',a)}${escH(t('sp.cc.'+a))}</span></td><td><span class="cell mono">${spPct(r.rate)}</span></td><td><span class="cell mono">${typeof instFootG==='function'?instFootG(r.date):instFoot(r.date)}</span></td><td><span class="cell mono${I('t',r.d12)}">${spPP(r.d12)}</span></td><td><span class="cell mono"><span>${last}</span></span></td><td><span class="cell mono${I('t',r.vs_us)}">${spPP(r.vs_us)}</span></td>${typeof rrTd==='function'?rrTd(a):''}<td><span class="cell mono"><span>${eerCell(a)}</span></span></td></tr>`;}).join('');   /* v96: tekst z liczbą w kolorze w jednym elemencie (komórka jest flex) */
   return `<h3 class="mtxt">${I('g','globe')}<b>${t('sp.t')}</b></h3><p class="pnote">${t('sp.sub')}</p>${spWyk(D)}${typeof rrSort==='function'?rrSort():''}<div class="list-wrap"><table class="etft"><thead><tr><th>${t('sp.c.cb')}</th><th>${t('sp.c.rate')}</th><th>${t('sp.c.date')}</th><th>${t('sp.c.d12')}</th><th>${t('sp.c.last')}</th><th>${t('sp.c.vs')}</th>${typeof rrTh==='function'?rrTh():''}<th>${t('sp.c.fx')}</th></tr></thead><tbody>${rows}</tbody></table></div>`+(EER.data?`<p class="pnote">${t('eer.not')}</p>${eerAsof(D.order)}`:'')+(typeof wiInfl==='function'?wiInfl(D):'')+(typeof rrAfter==='function'?rrAfter(D):'')+
     `<details class="etfd"><summary>${t('eng.notsays')}</summary><p class="pnote">${t('sp.not')}</p></details><p class="pnote">${t('inst.file',{t:engDate(D.at)})}${EER.data?' · '+t('inst.file',{t:engDate(EER.data.at)}):''}</p>`;}
 /* v54: ZMIERZONE dzienne przepływy inwestorów zagranicznych — Indie (NSDL) i Tajwan (TWSE), plik serwera obce.json */
@@ -7927,7 +7943,7 @@ function gRenderProb(){
   /* v154: karta zwijana jak inne (sekcja #g-prob to sama karta) — w nagłówku sedno: najlepszy i najsłabszy region z wynikiem */
   const sk=(o,a)=>`<span class="${gmPsT('',o.score)}">${a} ${escH(t('g.n.'+o.id))} ${o.score>0?'+':o.score<0?'−':''}${Math.abs(o.score)}</span>`,   /* v321: w kolorze wyniku */
         sum=[top[0]?sk(top[0],'▲'):'',bot[0]?sk(bot[0],'▼'):''].filter(Boolean).join(' · ');
-  const pd=GLIVE.asof?' · '+t('g.pr.d',{d:escH(GLIVE.asof)+gAgeNote(GLIVE.asof)}):'';   /* v166: miesiąc danych i wiek — także w zwiniętej karcie */
+  const pd=GLIVE.asof?' · '+t('g.pr.d',{d:escH(typeof gIsoTxt==='function'?gIsoTxt(GLIVE.asof):GLIVE.asof)+gAgeNote(GLIVE.asof)}):'';   /* v166: miesiąc danych i wiek — także w zwiniętej karcie */
   w.innerHTML=`<div class="etfh"><div><h2>${t('g.pr.t')}</h2><p class="pnote">${sum||t('g.pr.note')}${pd}</p></div></div>
      <p class="pnote">${t('g.pr.note')}</p>
      <div class="pcols">
@@ -8258,7 +8274,7 @@ function renderAssets(){
     if(sd)rows.push(['as.stab',gfmt(sd[2]),sd[1],t('pg.daily')+' · '+(sdD?escH(typeof gFreshTxt==='function'?gFreshTxt(sdD):sdD)+gAgeNote(sdD):noD())]);
     /* v321: złoto i ropa Brent — te same liczby, zmiana i dzień co kafelki GLOBAL (Puls surowców); bez ceny — bez wiersza */
     for(const [kk,ak] of [['w321.k.gold','su295g.k.gold'],['w321.k.brent','su295g.k.brent']]){const x=Array.isArray(GKPI)?GKPI.find(o=>o&&o.k===kk):null;
-      if(x&&typeof x.v==='number'&&isFinite(x.v))rows.push([ak,(typeof suFmt==='function'?suFmt(x.v):n2(x.v))+(x.unit?' '+x.unit:''),typeof x.d==='number'&&isFinite(x.d)?x.d:null,when(t('pg.daily'),x.fresh)+(x.pre?' · '+t('su295g.pre'):'')+(x.mk?' · '+x.mk:''),null,x.why]);}   /* v321 (przegląd): opis ceny jak w Pulsie */
+      if(x&&typeof x.v==='number'&&isFinite(x.v))rows.push([ak,(typeof suFmt==='function'?suFmt(x.v):n2(x.v))+(x.unit?' '+x.unit:''),typeof x.d==='number'&&isFinite(x.d)?x.d:null,when(t('pg.daily'),x.fresh)+(x.pre?' · '+t('su295g.pre'):'')+(x.mk?' · '+x.mk:'')+(x.gap?' · '+x.gap:''),null,x.why]);}   /* v321 (przegląd): opis ceny jak w Pulsie */
   }else{
     const KV=kpiVals(),lv=isLive();
     KDEF.forEach(k=>{
@@ -8344,10 +8360,16 @@ function engLoad(cb){
 }
 function engAuto(){if(ENG.timer)clearInterval(ENG.timer);ENG.timer=setInterval(()=>{if(!document.hidden)engLoad();},60*60*1000);}
 const engNum=v=>typeof v==='number'&&isFinite(v)?(s=>(v<0&&/[1-9]/.test(s)?'−':'')+s)(Math.abs(v).toLocaleString(LOCALE[LANG])):(typeof v==='string'&&v!==''?v:'—');   /* v336 (GL-10): długi minus, bez „−0” */
-const engDate=iso=>{const ms=Date.parse(iso||'');return isFinite(ms)?new Date(ms).toLocaleString(LOCALE[LANG],{dateStyle:'short',timeStyle:'short'}):'—';};
+const engDate=iso=>{const ms=Date.parse(iso||'');return isFinite(ms)?new Date(ms).toLocaleString(LOCALE[LANG],{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';};
 /* v345 (C-10): dzień danych RRRR-MM-DD w tym samym stylu liczbowym co czas pliku („9.10.2026” obok „11.10.2026, 10:19”); dawniej w jednym panelu „dane z 2026-10-09 · 11.10.2026, 10:19”.
    Zakres, miesiąc i kwartał zostają jak były (instFoot). Funkcje deklarowane (bez martwej strefy czasowej) */
 function dayLoc(d){const s=String(d==null?'':d).trim(),ms=/^\d{4}-\d{2}-\d{2}$/.test(s)?Date.parse(s+'T12:00:00Z'):NaN;return isFinite(ms)?new Date(ms).toLocaleDateString(LOCALE[LANG]||'pl-PL',{dateStyle:'short',timeZone:'UTC'}):escH(s);}
+/* v464 (GLOBAL_M13, GLOBAL-4): dzień albo miesiąc danych w zapisie czytelnika („13 paź 2026”, „sierpień 2026”), nie ISO; zakres i kwartał bez zmian */
+function gIsoTxt(d){const s=String(d==null?'':d).trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)&&typeof gFreshTxt==='function')return gFreshTxt(s);
+  if(/^\d{4}-\d{2}$/.test(s)&&typeof usaMon==='function')return usaMon(s);
+  return s;}
+function instFootG(d){const s=String(d==null?'':d).trim();return /^\d{4}-\d{2}(-\d{2})?$/.test(s)?`${escH(gIsoTxt(s))}${gAgeNote(s)}`:instFoot(d);}
 function instFootL(d){const s=String(d==null?'':d).trim();return /^\d{4}-\d{2}-\d{2}$/.test(s)?`${dayLoc(s)}${gAgeNote(s)}`:instFoot(d);}
 /* v345 (C-11): czas pliku `at` zbieracz zapisuje na początku przebiegu, a odczyty (blok łańcucha, kontrakty) kończą się później — „Plik z 10:49” stało nad „Stan na 10:50”.
    Do nagłówka bierzemy późniejszy z `at` i czasów danych w tym pliku (do 30 min po `at`; dalsze — pomyłka, ignorowane); `at` zostaje do oceny świeżości */
@@ -11548,11 +11570,13 @@ function trdSilaPanel(D,cr){
 /* ---------- okno pomocy (znak zapytania) ---------- */
 const hModal=$('#help-modal');
 const gModal=$('#g-help-modal');
+const tModal=$('#t-help-modal');   /* v464: okno pomocy TRENDÓW (te same trzy zdania co blok „Jak czytać TRENDY”) */
 function openHelp(){
+  if(st.mode==='trendy'&&tModal){tModal.hidden=false;document.body.style.overflow='hidden';const tx=$('#th-x');if(tx)tx.focus();return;}   /* v464: okno jak w GLOBAL i CRYPTO — bez przewijania strony */
   if(st.mode==='trendy'){if(page!=='overview')setPage('overview');const d=$('#trd-method');if(d){d.open=true;d.scrollIntoView({behavior:st.anim?'smooth':'auto',block:'start'});const sm=d.querySelector('summary');if(sm)sm.focus();}return;}   /* v89: w TRENDACH — „Jak liczymy” */
   if(st.mode==='global'){gHelpSrc();gModal.hidden=false;document.body.style.overflow='hidden';$('#gh-x').focus();return;}
   renderLegend();renderWhy();hModal.hidden=false;document.body.style.overflow='hidden';$('#help-x').focus();}
-function closeHelp(){hModal.hidden=true;gModal.hidden=true;document.body.style.overflow='';$('#help').focus();}
+function closeHelp(){hModal.hidden=true;gModal.hidden=true;if(tModal)tModal.hidden=true;document.body.style.overflow='';$('#help').focus();}
 function gHelpSrc(){   /* v96: źródła tylko na stronie Źródła — w oknie pomocy jedno zdanie z linkiem */
   const w=$('#gh-src');if(!w)return;
   w.innerHTML=`${t('zr2.help')} <button type="button" class="lnk" data-go="sources">${t('foot.src')}</button>`;
@@ -11561,9 +11585,11 @@ $('#help').addEventListener('click',openHelp);
 const si=$('#sect-i');if(si)si.addEventListener('click',openHelp);
 $('#help-x').addEventListener('click',closeHelp);
 $('#gh-x').addEventListener('click',closeHelp);
+{const tx=$('#th-x');if(tx)tx.addEventListener('click',closeHelp);}
+if(tModal)tModal.addEventListener('pointerdown',e=>{if(e.target===tModal)closeHelp();});
 hModal.addEventListener('pointerdown',e=>{if(e.target===hModal)closeHelp();});
 gModal.addEventListener('pointerdown',e=>{if(e.target===gModal)closeHelp();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(!hModal.hidden||!gModal.hidden)){e.preventDefault();closeHelp();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(!hModal.hidden||!gModal.hidden||(tModal&&!tModal.hidden))){e.preventDefault();closeHelp();}});
 
 /* ---------- strony i tryby ---------- */
 let page='overview';
@@ -13983,8 +14009,9 @@ try{document.addEventListener('toggle',e=>{const d=e&&e.target;if(d&&typeof d.id
    nie ze stałego przesunięcia i nie z bazy stref przeglądarki (jedna reguła w pliku i na stronie — te same chwile dają te same godziny w każdej przeglądarce). Godziny USA zbieracz przeliczył na UTC
    regułą amerykańską (zmiana 1.11.2026), więc przez tydzień różnica Nowy Jork–Polska wynosi 5 godzin, a nie 6. Znak ~ przy godzinie: godzina z zasady publikacji (g = r), nie z terminarza.
    Brak = „—” albo brak wiersza, nigdy zero; waga 1–3 to nasza ocena (nie prognoza); nazw dostawców tu nie ma (w pliku tylko kody terminów). Kolory: kropki wagi i słupki to ważność, nie kierunek. */
-const KALZ={j:null,l:false,x:false,t:0,e:0,on:false,mo:false,min:1,j2:null,l2:false,t2:0,e2:0};
+const KALZ={j:null,l:false,x:false,t:0,e:0,on:false,mo:false,min:2,j2:null,l2:false,t2:0,e2:0};
 const KAL_DNI=14;
+try{if(localStorage.getItem('cfai.kal')==='1')KALZ.min=1;}catch(e){}   /* v464 (GLOBAL_M13, pkt 11 poleceń 18.10): domyślnie tylko ważniejsze (waga 2–3); „Wszystkie” to wybór czytelnika zapamiętany w przeglądarce */
 const KAL_PARTS=['bc_us','pkb_us','sprz_us','stat_eu','bc_eu'];
 const KAL_BRAK=['pl_bank','uk_bank','jp_bank','pl_dane','us_praca'];
 const KAL_KODY={fomc:['us',3],fomc_min:['us',2],beige:['us',1],g17:['us',1],h41:['us',1],z1:['us',1],us_pkb:['us',3],us_pce:['us',3],us_handel:['us',1],us_bop:['us',1],us_iip:['us',1],us_sprzedaz:['us',2],us_trwale:['us',1],us_budowy:['us',1],
@@ -14047,13 +14074,13 @@ function kalBody(){const J=KALZ.j;
   const seg=`<div class="seg" role="group" aria-label="${escH(t('kal372.f.aria'))}"><button type="button" data-kal-min="1" aria-pressed="${KALZ.min===1}">${t('kal372.f.all')}</button><button type="button" data-kal-min="2" aria-pressed="${KALZ.min===2}">${t('kal372.f.imp')}</button></div>`;
   const J2=kal2Ok(KALZ.j2)?KALZ.j2:null;   /* v375: części z błędem (ze starymi terminami) z obu plików; lista braków z pliku uzupełnienia zastępuje dawną */
   const bad=KAL_PARTS.filter(p=>kalObj(J.ok)&&J.ok[p]===false).map(p=>t('kal372.p.'+p)).concat(J2&&kalObj(J2.ok)?KAL2_PARTS.filter(p=>J2.ok[p]===false&&Array.isArray(J2.e[p])&&J2.e[p].length).map(p=>t('kal375.p.'+p)):[]);
-  const miss=J2?(Array.isArray(J2.brak)?J2.brak:[]).filter(c=>KAL2_BRAK.includes(c)):(Array.isArray(J.brak)?J.brak:[]).filter(c=>KAL_BRAK.includes(c));
+  const miss=!J2&&(KALZ.l2||!KALZ.e2)?[]:J2?(Array.isArray(J2.brak)?J2.brak:[]).filter(c=>KAL2_BRAK.includes(c)):(Array.isArray(J.brak)?J.brak:[]).filter(c=>KAL_BRAK.includes(c));
   const why=J2?miss.filter(c=>c==='pl_bank'||c==='pl_szybki').map(c=>t('kal375.why.'+c)).concat(miss.some(c=>c!=='pl_bank'&&c!=='pl_szybki')?[t('kal375.why.err')]:[]):[];
   return kalStrip(days,win,today)+`<div class="kal-fb">${seg}</div>`+kalList(days,vis,now,today)+
     (bad.length?`<p class="pnote neu">${t('kal372.errp',{p:bad.join(', ')})}</p>`:'')+
-    `<p class="pnote">${t('kal372.n1')}</p><p class="pnote">${t('kal372.n2')}</p><p class="pnote">${t('kal372.n3')}</p>`+(J2?`<p class="pnote">${t('kal375.n4')}</p>`:'')+
+    `<p class="pnote">${t('kal464.n')}</p>`+
     (miss.length?`<p class="pnote">${t('kal372.brak',{z:miss.map(c=>t(c==='pl_szybki'?'kal375.brak.pl_szybki':'kal372.brak.'+c)).join(', ')})}</p>`+why.map(w=>`<p class="pnote">${w}</p>`).join(''):'')+
-    `<p class="pfoot">${t('inst.file',{t:engDate(J.at)})} · ${t('eng.disclaimer')}</p>`;}
+    `<p class="pfoot">${t('kal464.at',{t:engDate(J.at)})} · ${t('eng.disclaimer')}</p>`;}
 /* karta rozwinięta: silnik kart zwijanych ma klasę zw-on, a nie zw */
 function kalOpen(el){return !!(el&&el.classList&&el.classList.contains('zw-on')&&!el.classList.contains('zw'));}
 function renderKal(){
@@ -14073,7 +14100,7 @@ function kalLoad(f){if(KALZ.l)return;const n=Date.now();if(KALZ.j&&!f&&n-KALZ.t<
 function kal2Load(f){if(KALZ.l2)return;const n=Date.now();if(KALZ.j2&&!f&&n-KALZ.t2<10*60e3)return;if(!KALZ.j2&&n-KALZ.e2<60e3)return;KALZ.l2=true;
   srvJSON('kalendarz2').then(j=>{KALZ.l2=false;if(kal2Ok(j)){KALZ.j2=j;KALZ.t2=Date.now();}else{KALZ.e2=Date.now();}renderKal();});}
 srvJSON('meta').then(m=>{KALZ.on=!!(m&&typeof m==='object'&&m.ok&&typeof m.ok==='object'&&KAL_PARTS.some(p=>Object.prototype.hasOwnProperty.call(m.ok,'kalendarz_'+p)));renderKal();});
-try{document.addEventListener('click',e=>{const b=e&&e.target&&typeof e.target.closest==='function'?e.target.closest('#g-kalendarz [data-kal-min]'):null;if(b){KALZ.min=b.getAttribute('data-kal-min')==='2'?2:1;renderKal();}});}catch(e){}   /* filtr ważności */
+try{document.addEventListener('click',e=>{const b=e&&e.target&&typeof e.target.closest==='function'?e.target.closest('#g-kalendarz [data-kal-min]'):null;if(b){KALZ.min=b.getAttribute('data-kal-min')==='2'?2:1;try{localStorage.setItem('cfai.kal',String(KALZ.min));}catch(x){}renderKal();}});}catch(e){}   /* filtr ważności */
 setInterval(()=>{if(!document.hidden&&KALZ.j&&kalOpen($('#g-kalendarz')))kalLoad(1);},30*60*1000);
 setInterval(()=>{if(!document.hidden&&KALZ.j&&kalOpen($('#g-kalendarz')))renderKal();},5*60*1000);   /* oznaczenie minionych nadąża za zegarem bez pobierania */
 try{new MutationObserver(()=>renderKal()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
@@ -14153,7 +14180,7 @@ function kalmInner(){const J=KALZ.j,P=KALM.p;
     if(n>KALM_LIM)body+=`<button type="button" class="kmi-more" data-kmi-all="1" aria-expanded="${KALM.all}">${KALM.all?t('kal414.less'):t('kal414.more',{n})}</button>`;}
   const J2=kal2Ok(KALZ.j2)?KALZ.j2:null;
   const bad=KAL_PARTS.filter(p=>kalObj(J.ok)&&J.ok[p]===false).map(p=>t('kal372.p.'+p)).concat(J2&&kalObj(J2.ok)?KAL2_PARTS.filter(p=>J2.ok[p]===false&&Array.isArray(J2.e[p])&&J2.e[p].length).map(p=>t('kal375.p.'+p)):[]);
-  const miss=J2?(Array.isArray(J2.brak)?J2.brak:[]).filter(c=>KAL2_BRAK.includes(c)):(Array.isArray(J.brak)?J.brak:[]).filter(c=>KAL_BRAK.includes(c));
+  const miss=!J2&&(KALZ.l2||!KALZ.e2)?[]:J2?(Array.isArray(J2.brak)?J2.brak:[]).filter(c=>KAL2_BRAK.includes(c)):(Array.isArray(J.brak)?J.brak:[]).filter(c=>KAL_BRAK.includes(c));
   const dos=[J.do,J2&&J2.do].filter(x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)).sort()[0],last=days[days.length-1];
   return head+`<div class="kmi-meta"><p class="kmi-rng">${escH(rng)}</p>${leg}</div>`+body+
     (bad.length?`<p class="pnote neu">${t('kal372.errp',{p:bad.join(', ')})}</p>`:'')+
@@ -14838,7 +14865,7 @@ function iwJpBlock(P,ico){
       +iwTile(ico,t('iw401.k.jp.bez'),`${strVal(I.dni,0)} ${t('iw401.u.dni')}`,[iwPcLine(t('iw401.jp.do',{do:strDay(I.asof)}))],when);}
   tiles+=iwTile(ico,t('iw401.k.jp.rok',{y:r.y}),iwJpAmt(razem),[iwPcLine(t('iw401.jp.roz',{v:iwJpAmt(r.S+r.B+r.E+r.X)}))],when);
   if(IW.rez&&iwObj(IW.rez.countries)&&iwObj(IW.rez.countries.JPN)&&strNum(IW.rez.countries.JPN.total)){const c=IW.rez.countries.JPN;
-    tiles+=iwTile(ico,t('iw401.k.jp.rez'),`${strVal(c.total,1)} ${t('iw401.u.mldusd')}`,[strDelta(strNum(c.d1m)?c.d1m:null,1,t('iw401.vs.m')),iwPcLine(t('iw401.mies'))],typeof c.asof==='string'?t('iw401.msc',{m:iwMon(c.asof)}):'—');}
+    tiles+=iwTile(ico,t('iw401.k.jp.rez'),`${strVal(c.total,1)} ${t('iw401.u.mldusd')}`,[strDelta(strNum(c.d1m)?c.d1m:null,1,t('iw401.u.mldusd')+' '+t('iw401.vs.m')),iwPcLine(t('iw401.mies'))],typeof c.asof==='string'?t('iw401.msc',{m:iwMon(c.asof)}):'—');}
   const ser=[{n:t('iw401.s.S'),cls:'s1'},{n:t('iw401.s.B'),cls:'s2'},{n:t('iw401.s.EX'),cls:'s3'},{n:t('iw401.s.U'),cls:'s4'}];
   const X=I.lata.map(o=>{const v=[o.S,o.B,o.E+o.X,o.U].map(x=>x/1000);
     return {x:String(o.y),vs:v,tip:t('iw401.tip.rok',{y:o.y,s:iwJpAmt(o.S),b:iwJpAmt(o.B),e:iwJpAmt(o.E+o.X),u:iwJpAmt(o.U)})};});
@@ -16290,7 +16317,7 @@ function rrReal(a){const D=typeof SP!=='undefined'?SP.data:null,r=D&&D.rows&&D.r
 const rrI=()=>typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'';
 function rrTh(){return RL.i?`<th>${t('sr366.c.real')}</th>`:'';}
 function rrTd(a){if(!RL.i)return '';const x=rrReal(a),I=rrI();
-  return x?`<td><span class="cell mono"><span>${I('w',x.v,spPP(x.v))}<small class="rl-i">${t('sr366.infl',{v:nfmt(x.i,2).replace(/^-/,'−'),m:instFoot(x.m)})}</small></span></span></td>`:'<td><span class="cell mono">—</span></td>';}
+  return x?`<td><span class="cell mono"><span>${I('w',x.v,spPP(x.v))}<small class="rl-i">${t('sr366.infl',{v:nfmt(x.i,2).replace(/^-/,'−'),m:typeof instFootG==='function'?instFootG(x.m):instFoot(x.m)})}</small></span></span></td>`:'<td><span class="cell mono">—</span></td>';}
 /* kolejność wierszy tabeli: domyślna (D.order) albo wg wybranej kolumny; brak liczby zawsze na końcu, remis — kolejność domyślna */
 function rrOrder(D){const o=D.order.filter(a=>D.rows[a]);if(!RL.s)return o;
   const val=a=>{const r=D.rows[a],v=RL.s==='real'?(rrReal(a)||{}).v:RL.s==='rate'?r.rate:r.d12;return rrNum(v)?v:null;};
@@ -17106,12 +17133,21 @@ const suChg0=w=>t(w==='p'?'su300.chg0p':'su297g.chg0');
 /* kontrakt terminowy tej samej ropy z tego samego dnia (seria kontrolna bez kafla) — tylko dla porównania */
 const SU_FUT={brent:'brent_fut'};
 function suFut(id,d){const f=SU_FUT[id]?suSer('ceny',SU_FUT[id]):null,r=f?suVal(suRows(f.d,SU_D)).find(x=>x[0]===d):null;return r?t('su297g.fut',{d:suDay(d),v:suFmt(r[1])+' '+suUnit(f.u)}):'';}
+/* v464 (GLOBAL_M13, GLOBAL-1): cena dostawy fizycznej Brenta bywa wyraźnie wyższa niż kontrakt terminowy tej samej ropy (od września 2026 o 15–25%: to prawdziwa cecha
+   rynku, dane zgodne z publikacją urzędu) — czytelnik widzi w kilku miejscach dwie różne ceny Brenta. Gdy w dniu ostatniej ceny różnica sięga SU_GAP_MIN % — krótka
+   etykieta z kontraktem i różnicą; poniżej progu nic (zwykła różnica to kilka procent). Kontrakt tylko dla porównania, jak w uwadze o cenie bez potwierdzenia. */
+const SU_GAP_MIN=8;
+function suGapTxt(id,d){const fid=SU_FUT[id];if(!fid||!d)return '';const s=suSer('ceny',id),f=suSer('ceny',fid);if(!s||!f)return '';
+  const a=suVal(suRows(s.d,SU_D)).find(x=>x[0]===d),b=suVal(suRows(f.d,SU_D)).find(x=>x[0]===d);if(!a||!b||!(b[1]>0))return '';
+  const g=(a[1]/b[1]-1)*100;if(!suNum(g)||Math.abs(g)<SU_GAP_MIN)return '';
+  return t(g>0?'g464.gap.u':'g464.gap.d',{v:suFmt(b[1])+' '+suUnit(f.u),p:nfmt(Math.abs(g),0)});}
+const suGapN=(id,d)=>{const g=suGapTxt(id,d);return g?`<small class="mtxt su-qn">${g}</small>`:'';};
 /* zdania uwagi: ciąg kilku sesji — „od {d}”; jeden dzień — dopisek punktu (kafel surowców ma go już pod wykresem: one=false); kontrakt — osobno */
 /* v300: ciąg od dnia z samym wpisem 'trwa' — „od {d}” albo (jeden dzień) „cena z {d}”, z dniem punktu, po którym cena została na nowym poziomie */
-function suRunTxt(id,run,one){if(!run)return [];const m=run.t&&run.p?t(run.d!==run.l?'su300.runp':'su300.run1p',{d:suDay(run.d),p:suDay(run.p)}):
+function suRunTxt(id,run,one,d){if(!run)return d?[suGapTxt(id,d)].filter(Boolean):[];const m=run.t&&run.p?t(run.d!==run.l?'su300.runp':'su300.run1p',{d:suDay(run.d),p:suDay(run.p)}):
   run.d!==run.l||run.t?t('su297g.run',{d:suDay(run.d)}):one?t('su295g.q.n',{d:suDay(run.d)}):'';return [m,suFut(id,run.l)].filter(Boolean);}
 /* panel USA (v98): stan ostatniej ceny TEJ SAMEJ serii → {ok: zmiana tygodnia dozwolona, n: zdania uwagi}; seria spoza pliku surowców → null */
-function suUsaQ(id){const s=suSer('ceny',id),V=s?suVal(suRows(s.d,SU_D)):[];if(!V.length)return null;const Q=suQ(s);const w=suWkWhy(V,Q);return {ok:!w,w,n:suRunTxt(id,suRun(V,Q,suQE(s)),true)};}
+function suUsaQ(id){const s=suSer('ceny',id),V=s?suVal(suRows(s.d,SU_D)):[];if(!V.length)return null;const Q=suQ(s);const w=suWkWhy(V,Q);return {ok:!w,w,n:suRunTxt(id,suRun(V,Q,suQE(s)),true),g:suGapTxt(id,V[V.length-1][0])};}
 /* notowanie godzinowe złota: wiek obok godziny; starsze niż SU_LIVE_H godz. — bez dopisku (awaria notowań nie udaje bieżącej ceny) */
 const SU_LIVE_H=3;
 function suAgo(iso){const m=Math.max(0,Math.floor((Date.now()-Date.parse(iso))/6e4));return m<1?t('su297g.ago.0'):m<60?t('su297g.ago.m',{n:m}):t('su297g.ago.h',{n:Math.floor(m/60)});}
@@ -17145,7 +17181,7 @@ function suTile(id,g,F){
   const qn=[...QW].filter(([d])=>!(run&&(run.d!==run.l&&d===run.d||run.t&&d===run.p))).sort((a,b)=>a[0]<b[0]?1:-1).slice(0,2).map(([d,st])=>`<small class="mtxt su-qn"><i class="su-qo" aria-hidden="true"></i>${t(st==='potw'?'su295g.q.p':'su295g.q.n',{d:suDay(d)})}</small>`).join('');
   const L=s.live,la=suObj(L)&&typeof L.at==='string'?Date.parse(L.at):NaN;
   const lv=suNum(L&&L.v)&&isFinite(la)&&L.at.slice(0,10)>=l[0]&&Date.now()-la<=SU_LIVE_H*3600e3?`<small class="mtxt su-live">${t('su295g.live',{h:suHM(L.at),v:suFmt(L.v,suDec(l[1])),a:suAgo(L.at)})}</small>`:'';
-  return `<div class="etfk su-k" data-su="${id}">${head}<b>${suFmt(l[1])} <small class="mtxt">${suUnit(s.u)}</small>${chg}</b>${mkh}${rn}${sp}`+
+  return `<div class="etfk su-k" data-su="${id}">${head}<b>${suFmt(l[1])} <small class="mtxt">${suUnit(s.u)}</small>${chg}</b>${mkh}${rn}${suGapN(id,l[0])}${sp}`+
     `<small class="mtxt su-d">${suDay(l[0])}${gAgeNote(l[0])}${pre?' · '+t('su295g.pre'):''}</small>${lv}${qn}</div>`;
 }
 /* ---------- B) mapa zmian miesięcznych ---------- */
@@ -18710,7 +18746,7 @@ function suKpi(id,key,per){
   const o={k:key,v:null,u:'su',d:null,su:id,fresh:'',why:SUK.tried?'':'…'};
   const s=suSer('ceny',id),R=s?suRows(s.d,SU_D):[],V=suVal(R);if(!V.length)return o;
   const l=V[V.length-1],Q=suQ(s),k=SU_K_N[per]||21;
-  Object.assign(o,{v:l[1],unit:suUnit(s.u),fresh:l[0],pre:Array.isArray(s.pre)&&s.pre.includes(l[0]),why:'',name:t('su295g.k.'+id),note:suRunTxt(id,suRun(V,Q,suQE(s)),true).join(' '),
+  Object.assign(o,{v:l[1],unit:suUnit(s.u),fresh:l[0],pre:Array.isArray(s.pre)&&s.pre.includes(l[0]),why:'',name:t('su295g.k.'+id),note:suRunTxt(id,suRun(V,Q,suQE(s)),true,l[0]).join(' '),gap:suGapTxt(id,l[0]),
     mk:suMarks(s.x)});   /* v321 (przegląd): opis ceny z serii jak w Pulsie (wyliczona, z wyceny funduszu, kontrakt terminowy, szacunek) */
   let VV=V;
   if(V.length<=k){const hs=SU.h&&suObj(SU.h.d)&&Array.isArray(SU.h.d[id])?suVal(suRows(SU.h.d[id],SU_D)):null;
@@ -18766,7 +18802,7 @@ function usaEnergy(){
   const px=(k,label,ico,unit)=>{const s=S[k];const l=s&&usaLast(s.d);if(!l)return;const p=usaBack(s.d,l[0],5);
     const uq=s.su&&typeof suUsaQ==='function'?suUsaQ(s.su):null,no=!!(uq&&!uq.ok),ch=p&&p[1]&&!no?(l[1]/p[1]-1)*100:null;   /* v297g: cena bez potwierdzenia (seria panelu surowców) — bez zmiany tygodnia, z tą samą uwagą */
     out.push(usaTile(ico,t(label),`${nfmt(l[1],2)} <small class="mtxt">${t(unit)}</small>`,'',usaNum(ch)?usaChg(ch,1,'%',t('usa.wk')):no&&p?suChg0(uq.w):'',usaTone(ch,1),usaDay(l[0]),gAgeNote(l[0])+(Array.isArray(s.pre)&&s.pre.includes(l[0])?' · '+t('su295g.pre'):''),
-      uq?uq.n.map(x=>`<small class="mtxt su-qr">${x}</small>`).join(''):''));};
+      uq?uq.n.map(x=>`<small class="mtxt su-qr">${x}</small>`).join('')+(uq.g?`<small class="mtxt su-qn">${uq.g}</small>`:''):''));};
   const st=(k,label,ico)=>{const s=S[k];const l=s&&usaLast(s.d);if(!l)return;const p=usaBack(s.d,l[0],1);const ch=p?(l[1]-p[1])/1000:null;
     out.push(usaTile(ico,t(label),`${nfmt(l[1]/1000,1)} <small class="mtxt">${t('usa.u.mbbl')}</small>`,'',usaNum(ch)?usaChg(ch,1,'',t('usa.wk1')):'',usaTone(ch,1),t('usa.weekto',{d:usaDay(l[0])}),gAgeNote(l[0])));};
   px('wti','usa.wti',oil+us,'usa.u.bbl');px('brent','usa.brent',oil,'usa.u.bbl');px('gas','usa.gas',usaG('gas')+us,'usa.u.mmbtu');
@@ -19086,7 +19122,7 @@ function renderArc(){const g=$('#g-archiwum'),c=$('#c-archiwum');if(!g||!c)retur
   const S=D.series,ico=typeof icoWrap==='function',ex=ico&&typeof exchImg==='function'?n=>icoWrap(exchImg(n,'sm')):()=>'',co=ico&&typeof coinImg==='function'?n=>icoWrap(coinImg(n,'sm')):()=>'';
   let h='';
   if(arcHas(['plyn.net','plyn.walcl','plyn.tga','plyn.rrp'])){h+=arcBlock('liq',t('arc.k.liq'),[{sid:'plyn.net',cls:'l1',name:t('arc.k.liq'),note:arcLiqNote()}],'mln USD','arc.src.fred');
-    h+=`<div class="etfkpis">`+[['plyn.walcl','arc.k.walcl'],['plyn.tga','arc.k.tga'],['plyn.rrp','arc.k.rrp']].map(([sid,k])=>{const d=arcSer(sid),p=d.length?d[d.length-1]:null,o=p?arcObs(sid,p[0]):'';return instRow(t(k),p?arcVal(p[1],'mln USD'):'—','',p?`${t('inst.asof')} ${escH(o)}${gAgeNote(o)}`:t('eng.gap'));}).join('')+`</div>`;}
+    h+=`<div class="etfkpis">`+[['plyn.walcl','arc.k.walcl'],['plyn.tga','arc.k.tga'],['plyn.rrp','arc.k.rrp']].map(([sid,k])=>{const d=arcSer(sid),p=d.length?d[d.length-1]:null,o=p?arcObs(sid,p[0]):'';return instRow(t(k),p?arcVal(p[1],'mln USD'):'—','',p?`${t('inst.asof')} ${escH(typeof gIsoTxt==='function'?gIsoTxt(o):o)}${gAgeNote(o)}`:t('eng.gap'));}).join('')+`</div>`;}
   if(arcHas(['rent.ust','rent.bund','rent.spread'])){h+=arcBlock('yld',t('arc.k.yld'),[{sid:'rent.ust',cls:'l1',name:t('arc.us')},{sid:'rent.bund',cls:'l2',name:t('arc.de')}],'%','arc.src.rent');
     h+=arcBlock('spr',t('arc.k.spread'),[{sid:'rent.spread',cls:'l3',name:t('arc.k.spread')}],'pp','arc.src.rent',true);}
   if(arcHas(['tic.in','tic.out']))h+=arcBlock('tic',t('arc.k.tic'),[{sid:'tic.in',cls:'l1',name:t('arc.tic.in')},{sid:'tic.out',cls:'l2',name:t('arc.tic.out')}],'mln USD','arc.src.tic');
@@ -20008,6 +20044,7 @@ SRV_GR['eth-lancuch']='c';SRV_LD.c.push(ethLoad);
 setInterval(()=>{if(!document.hidden)ethLoad();},10*60*1000);   /* plik co ~60 min — strona pyta co 10 min (wiek w kafelkach też się odświeża) */
 ethLoad();try{new MutationObserver(()=>renderEth()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
 /* v403: koniec */
+/* v464 (GLOBAL_M13): koniec poprawek audytu m13 */
 /* ===================== v458 (F11Z40): POGODA I KLIMAT — TEMPERATURA ŚWIATA, EL NIÑO, SUSZA W USA, PAS KUKURYDZY, MISSISIPI, REN (GLOBAL) — panel #g-klimat (plik automatu data/klimat.json) =====================
    Karta zwijana jak pozostałe w GLOBAL (silnik kart zw). Nagłówek i opis widać od razu (karta pojawia się, gdy meta.json zna którąś część „kli_*”); plik (ok. 20 KB) jest pobierany dopiero po rozwinięciu karty
    (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie; po wczytaniu odświeżany co 30 min przy rozwiniętej karcie). Sześć bloków, każdy z własną datą danych i wiekiem:

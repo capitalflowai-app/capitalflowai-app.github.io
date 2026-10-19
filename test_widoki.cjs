@@ -1643,7 +1643,7 @@ test('v89: TRENDY — trzecia zakładka, sekcja po GLOBAL, tryb w setMode/applyV
   assert.ok(html.includes("function gActive(){return st.mode!=='crypto';}"), 'strony z menu w TRENDACH pokazują dane GLOBAL');
   assert.ok(html.includes("if(document.hidden||!gActive())return;"), '… i dane GLOBAL odświeżają się także w TRENDACH');
   assert.ok(html.includes("if(sc)sc.hidden=st.mode!=='crypto';"), 'ustawienia sceny 3D tylko w CRYPTO');
-  assert.ok(html.includes("if(st.mode==='trendy'){if(page!=='overview')setPage('overview');const d=$('#trd-method');"), 'znak zapytania w TRENDACH otwiera „Jak liczymy” (także z innej strony menu)');
+  assert.ok(html.includes("if(st.mode==='trendy'){if(page!=='overview')setPage('overview');const d=$('#trd-method');") && html.includes("if(st.mode==='trendy'&&tModal){tModal.hidden=false;"), 'znak zapytania w TRENDACH otwiera okno pomocy (v464), a bez okna — blok „Jak czytać TRENDY”');
   assert.ok(html.includes('trdLoad();trdAuto();'), 'plik trendów wczytywany na starcie i co 20 min');
   assert.ok(html.includes("if(typeof renderTrendy==='function'&&st.mode==='trendy')renderTrendy();"), 'zmiana języka odświeża TRENDY');
   assert.ok(html.includes('.tabs button{padding:9px 16px}') && html.includes('@media (max-width:400px){.tabs button{padding:9px 10px;letter-spacing:.01em}}'), 'trzy zakładki mieszczą się na telefonie');
@@ -7690,7 +7690,7 @@ test('v138: słownik EXTRA135 — 10 języków, te same klucze i miejsca na wart
     assert.ok(D[L]['sect.tip'].startsWith('{n}'), L + ': podpowiedź sektora zaczyna się pełną nazwą (nazwa w wierszu może skończyć się wielokropkiem)');
     assert.ok(t('eng.gap').trim() && t('live.off').trim() && t('n.meme').trim(), L + ': teksty użyte w panelu sektorów');
   }
-  assert.ok(/reszta bilansu/.test(D.pl['exch.tip']) && /nie pomiar/.test(D.pl['exch.tip']) && /balance remainder/.test(D.en['exch.tip']) && /not a measurement/.test(D.en['exch.tip']), 'wyjaśnienie: reszta bilansu, nie pomiar');
+  assert.ok(/szacunkowa/.test(D.pl['exch.tip']) && /estimate/.test(D.en['exch.tip']) && !/reszta bilansu|pomiar sald|balance remainder|measurement/.test(D.pl['exch.tip'] + D.en['exch.tip']), 'v464: jedno proste zdanie — szacunek, bez opisu metody');
 });
 
 test('v138: panel „Aktywność sektorów” — memecoiny jak pozostałe sektory; brak danych = „—” bez paska, nigdy liczba zastępcza; podpowiedź z datą', () => {
@@ -11853,7 +11853,7 @@ test('v157: CRYPTO — przepływy sceny (szacunek; tylko dane na żywo, nigdy pr
     ETF: {data: v157.fix('etf')}, CMC: {data: v157.fix('cmc')}, cCoins: s => s.join('+')};
   const C = v157C(null, env), f = C.wkCFlow(), F = v157.tips(f.ch);
   assert.equal(f.k, 's', 'szacunek'); assert.equal(F.length, 11);
-  assert.deepEqual([F[0], F[10]], ['BTC · 24 godziny: +11,9 mld USD (+0,7%) · W', 'Giełdy * · 24 godziny: −16,1 mld USD · Giełdy: wartość wyliczona — reszta bilansu wszystkich pozostałych elementów, nie pomiar sald giełd · W']);   /* v315 (CR7-01): reszta bilansu bez procentu */
+  assert.deepEqual([F[0], F[10]], ['BTC · 24 godziny: +11,9 mld USD (+0,7%) · W', 'Giełdy * · 24 godziny: −16,1 mld USD · Giełdy: wartość szacunkowa, nie zmierzona · W']);   /* v315 (CR7-01): reszta bilansu bez procentu */
   assert.equal(f.d, 'W · wiek(2026-10-04)');
   const N = v157C(null, Object.assign({}, env, {isLive: () => false, LIVE: {st: 'load'}}));
   assert.equal(N.wkCFlow().na, 'dane jeszcze się wczytują', 'bez danych na żywo — brak (nigdy dane przykładowe)');
@@ -12439,7 +12439,7 @@ test('v166: warunki — wynik regionu tylko ze składników o co najmniej połow
 });
 test('v166: warunki — miesiąc danych i wiek w nagłówku karty, objaśnienie składników (CLI …) pod kolumnami; słownik EXTRA166 tylko po polsku, bez nazw dostawców', () => {
   const a = html.indexOf('function gRenderProb(){'), b = html.indexOf('\nfunction gRenderRefresh(', a), s = html.slice(a, b);
-  assert.ok(s.includes("const pd=GLIVE.asof?' · '+t('g.pr.d',{d:escH(GLIVE.asof)+gAgeNote(GLIVE.asof)}):'';") && s.includes("${sum||t('g.pr.note')}${pd}</p></div></div>"));
+  assert.ok(s.includes("const pd=GLIVE.asof?' · '+t('g.pr.d',{d:escH(typeof gIsoTxt==='function'?gIsoTxt(GLIVE.asof):GLIVE.asof)+gAgeNote(GLIVE.asof)}):'';") && s.includes("${sum||t('g.pr.note')}${pd}</p></div></div>"));
   assert.ok(s.indexOf("t('g.pr.leg')") > s.indexOf('pcols') && s.indexOf("t('g.pr.leg')") < s.indexOf("t('g.pr.foot')"));
   const d0 = html.indexOf('const EXTRA166='), d1 = html.indexOf(';\n', d0), D = JSON.parse(html.slice(d0 + 'const EXTRA166='.length, d1));
   assert.deepEqual(Object.keys(D), ['pl']); assert.deepEqual(Object.keys(D.pl).sort(), ['cmc.diff', 'g.pr.d', 'g.pr.leg']);
@@ -12505,7 +12505,7 @@ test('v167: „ETF → krypto” w prawej kolumnie — kwoty bez końcowego „U
   assert.ok(html.includes("${t('etf.k.cum')}${typeof sepK==='function'?sepK():': '}<b class=\"${etfCz(T.cum)}\">${etfM(T.cum)}</b>"), 'suma od startu — z jednostką jak dotąd');   /* v322 (pkt 5): etfCz — zero żółte */
 });
 test('v167: archiwum — wiek danych obok daty ostatniej wartości (wykresy i kafelki); Aktywa — zmiana rentowności 10-letnich w pp; Sektory w GLOBAL — „regiony świata”', () => {
-  assert.ok(html.includes("<small>${escH(p[0])}${gAgeNote(p[0])}</small></span>${l.note?`<span class=\"arc-last arc-obs\"><small>${l.note}</small></span>`:''}`:'';}).join('');") /* v296 (runda 2, G2): + dopisek pod wartością */ && html.includes("`${t('inst.asof')} ${escH(o)}${gAgeNote(o)}`:t('eng.gap'));}")   /* v293 (audyt G2): dzień obserwacji serii tygodniowej */);
+  assert.ok(html.includes("<small>${escH(p[0])}${gAgeNote(p[0])}</small></span>${l.note?`<span class=\"arc-last arc-obs\"><small>${l.note}</small></span>`:''}`:'';}).join('');") /* v296 (runda 2, G2): + dopisek pod wartością */ && html.includes("`${t('inst.asof')} ${escH(typeof gIsoTxt==='function'?gIsoTxt(o):o)}${gAgeNote(o)}`:t('eng.gap'));}")   /* v293 (audyt G2): dzień obserwacji serii tygodniowej */);
   assert.ok(html.includes("if(du)rows.push(['as.us10',n2(du.v)+'%',typeof du.d==='number'&&isFinite(du.d)?du.d:null,") && html.includes("if(dd)rows.push(['as.de10',n2(dd.v)+'%',typeof dd.d==='number'&&isFinite(dd.d)?dd.d:null,"));
   assert.ok(html.includes("${(k==='kpi.dom'||k==='as.us10'||k==='as.de10'||k==='as.jp10')?' '+t('u.pp'):'%'}"), 'rentowność: zmiana w pp, nie % (v293: także Japonia)');
   assert.ok(html.includes("else if(yu)rows.push(['as.us10',n2(yu[1])+'%',ym('USA'),"), 'dane miesięczne (zapas) — v293 (audyt G11): zmiana z danych miesięcznych jak kafelek GLOBAL, nie „—”');
@@ -13877,7 +13877,7 @@ test('v293 (audyt G2): archiwum — bilans Fed i konto rządu z dniem obserwacji
   assert.equal(F.arcObs('plyn.tga', '2026-10-06'), '2026-10-06', 'zły zapis — dzień wiersza');
   assert.equal(F.arcObs('plyn.rrp', '2026-10-06'), '2026-10-06', 'seria dzienna bez pola obs — dzień wiersza');
   assert.equal(F.arcObs('x', '2026-10-06'), '2026-10-06', 'obserwacja późniejsza niż wiersz — odrzucona');
-  assert.ok(html.includes("const d=arcSer(sid),p=d.length?d[d.length-1]:null,o=p?arcObs(sid,p[0]):'';return instRow(t(k),p?arcVal(p[1],'mln USD'):'—','',p?`${t('inst.asof')} ${escH(o)}${gAgeNote(o)}`:t('eng.gap'));"), 'kafelki archiwum: data i wiek z dnia obserwacji');
+  assert.ok(html.includes("const d=arcSer(sid),p=d.length?d[d.length-1]:null,o=p?arcObs(sid,p[0]):'';return instRow(t(k),p?arcVal(p[1],'mln USD'):'—','',p?`${t('inst.asof')} ${escH(typeof gIsoTxt==='function'?gIsoTxt(o):o)}${gAgeNote(o)}`:t('eng.gap'));"), 'kafelki archiwum: data i wiek z dnia obserwacji');
   assert.ok(html.includes("tga2=sr('WDTGAL')") && !html.includes("sr('WTREGEN')"), 'panel urzędowy: „stan na środę” = WDTGAL');
 });
 
@@ -26667,6 +26667,7 @@ const kal372 = (() => {
     const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
     const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
     const click = min => { const h = hnd.find(x => x[0] === 'click'); assert.ok(h, 'obsługa kliknięcia filtra'); const b = {getAttribute: n => (n === 'data-kal-min' ? String(min) : null)}; h[1]({target: {closest: s => (s === '#g-kalendarz [data-kal-min]' ? b : null)}}); };
+    if (!(opt && opt.def)) { api.KALZ.min = 1; api.renderKal(); }   // v464: domyślnie ważniejsze — stare testy badają widok „Wszystkie”
     return {api, els, calls, hnd, ivs, mos, expand, collapse, click, html: () => sp(el.innerHTML), el};
   };
   // wiersze listy: dzień (nagłówek), godzina, flaga, nazwa, okres, minione, waga
@@ -26774,7 +26775,7 @@ test('v372 (F9Z1): kalendarz — karta: nagłówek od razu, plik dopiero po rozw
   assert.ok(h.includes('role="img" aria-label="Wykres 14 dni od ') && h.includes('łącznie terminów: 10.'), 'opis wykresu dla czytników');
   // godziny: nie ma nic poza kodem w pliku, nazw dostawców brak
   assert.ok(!/Federal|Eurostat|Census|\bBEA\b|europa\.eu|bea\.gov|federalreserve|census\.gov|ecb\./i.test(h), 'zero nazw dostawców na stronie');
-  assert.ok(h.includes('Godziny w czasie polskim (zimą CET, latem CEST).') && h.includes('Znak ~ przy godzinie') && h.includes('Waga 1–3 to nasza ocena') && h.includes('To nie jest porada inwestycyjna'), 'objaśnienia: czas, znak ~, waga, brak porady');
+  assert.ok(h.includes('Godziny w czasie polskim. Znak ~ oznacza zwyczajową godzinę publikacji.') && h.includes('To nie jest porada inwestycyjna'), 'objaśnienia: czas, znak ~, waga, brak porady');
   assert.ok(h.includes('D:2026-10-28T12:00:00+00:00'), 'data pliku'); assert.ok(h.includes('Jeszcze bez: posiedzenia NBP (Polska), posiedzenia Banku Anglii, posiedzenia Banku Japonii, inflacja i PKB Polski, inflacja CPI i zatrudnienie w USA.'), 'czego jeszcze nie ma w kalendarzu');
   K.expand(); assert.equal(K.calls.filter(c => c === 'kalendarz').length, 1, 'plik świeży — bez drugiego pobrania');
   const iv = K.ivs.find(x => x[1] === 30 * 60 * 1000); assert.ok(iv); iv[0](); assert.equal(K.calls.filter(c => c === 'kalendarz').length, 2, 'odświeżenie wymuszone zegarem');
@@ -26961,6 +26962,7 @@ const kal375 = (() => {
       function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD);
     const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
     const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    if (!(opt && opt.def)) { api.KALZ.min = 1; api.renderKal(); }   // v464: jak w kal372 — stare testy badają widok „Wszystkie”
     return {api, els, calls, ivs, expand, html: () => sp(el.innerHTML), el};
   };
   const E = (t, k, r, w, extra) => Object.assign({t, k, r, w, g: 'r'}, extra || {});
@@ -26991,7 +26993,7 @@ test('v375 (F9Z1): kalendarz 2 — drugi plik dopiero po rozwinięciu karty, now
   nowe('Inflacja CPI w USA (ceny konsumpcyjne)', '~14:30', '[us]', 3, '', 'wtorek');
   assert.deepEqual(R.filter(r => !['[gb]', '[jp]', '[pl]'].includes(r.flag) && !/CPI|Rynek pracy USA/.test(r.title)).map(r => r.hm), ['19:00', '~11:00', '13:30', '13:30', '~14:15', '~11:00', '14:30', '20:00', '14:30', '22:30'], 'dawne godziny bez zmian');
   assert.ok(!K.html().includes('Decyzja Banku Anglii o stopach procentowych <small class="kal-m">'), 'przyszłe terminy bez oznaczenia „już było”');
-  assert.ok(K.html().includes('Znak ~ dotyczy też: inflacji i pracy w USA (8:30 czasu nowojorskiego)'), 'objaśnienie godzin z reguły');
+  assert.ok(K.html().includes('Znak ~ oznacza zwyczajową godzinę publikacji.'), 'objaśnienie godzin z reguły (v464: jedna krótka nota)');
   assert.ok(K.html().includes('Kiedy decydują banki centralne (USA, strefa euro, Wielka Brytania, Japonia) i kiedy wychodzą ważne dane z USA, strefy euro i Polski.') && !K.html().includes('z USA i strefy euro. Godziny'), 'podtytuł karty obejmuje nowe kraje dopiero z plikiem uzupełnienia');
   // odświeżanie co 30 min pobiera oba pliki; zegar 5 min — żadnych zapytań
   const iv = K.ivs.find(x => x[1] === 30 * 60 * 1000); iv[0](); assert.equal(K.calls.filter(c => c === 'kalendarz').length, 2); assert.equal(K.calls.filter(c => c === 'kalendarz2').length, 2);
@@ -30066,7 +30068,7 @@ test('v401 (F11Z14): Interwencje i rezerwy — nagłówek od razu, plik dopiero 
   assert.ok(jl.when.includes('28 wrz 2026') && jl.when.includes('wiek(2026-09-28)'), 'data danych i wiek: ' + jl.when);
   assert.equal(jb.label, 'Bez interwencji od'); assert.equal(jb.val, '33 dni'); assert.deepEqual(jb.lines, [['pc', 'do końca danych: 28 wrz 2026']]);
   assert.equal(jr.label, 'Interwencje w 2026 r.'); assert.equal(jr.val, '27,1 bln ¥', 'dni z pliku 11,7 bln + okres bez podziału 15,4 bln'); assert.deepEqual(jr.lines, [['pc', 'w tym z podziałem na dni: 11,7 bln ¥']]);
-  assert.equal(jz.label, 'Rezerwy walutowe Japonii'); assert.equal(jz.val, '1207,5 mld USD'); assert.deepEqual(jz.lines, [['neg', '▼ −79,6 wobec miesiąca temu'], ['pc', 'stan na koniec miesiąca']]); assert.equal(jz.when, 'stan na sierpień 2026');
+  assert.equal(jz.label, 'Rezerwy walutowe Japonii'); assert.equal(jz.val, '1207,5 mld USD'); assert.deepEqual(jz.lines, [['neg', '▼ −79,6 mld USD wobec miesiąca temu'], ['pc', 'stan na koniec miesiąca']]); assert.equal(jz.when, 'stan na sierpień 2026');
   assert.equal(hs.label, 'Saldo zbiorcze banków'); assert.equal(hs.val, '54,1 mld HK$'); assert.deepEqual(hs.lines, [['neu', '• 0,0 wobec poprzedniej sesji'], ['neg', '▼ −2,1 wobec miesiąca temu']], 'zero żółte, spadek czerwony z typograficznym minusem');
   assert.equal(hl.val, '−3,4 mld HK$'); assert.deepEqual(hl.lines, [['pc', '15 sie 2025'], ['pc', 'skup HK$ za dolary (obrona słabszej strony pasma)']]);
   assert.equal(hb.val, '427 dni'); assert.deepEqual(hb.lines, [['pc', 'od 15 sie 2025']]); assert.equal(hp.val, '7,75–7,85'); assert.ok(hp.when.includes('wiek(2026-10-16)'));
@@ -37057,4 +37059,81 @@ test('v463: CRYPTO — krótkie karty tokenizowanych aktywów, EN o odświeżani
   assert.ok(pe.includes('opis nad tabelami'), 'pełne opisy (RW_OPISY = true): odsyłacz zostaje');
   assert.ok(I.en['rwa.seg.note'] === 'As of {t}.' && I.en['rwa.seg.ch'].endsWith('{d30}.'), 'EN: bez opisu metody');
   assert.ok(!sh.includes('Zmiany porównują te same produkty') && sh.includes('Co to jest: tokenizowane aktywo') && sh.includes('nikt ich tu nie audytuje'), 'cztery zdania „czego nie mówią”');
+});
+
+test('v464 (GLOBAL-2, GLOBAL-5, pkt 11 poleceń 18.10): kalendarz GLOBAL — domyślnie tylko ważniejsze (waga 2–3), „Wszystkie” to wybór zapamiętywany; jedna krótka nota zamiast opisów działania; stopka bez „pliku”; „Jeszcze bez” nie pojawia się, póki uzupełnienie kalendarza się wczytuje', () => {
+  const T = v96src.tFor('pl'), K = kal372.mk('pl', kal372.files(), {open: true, def: true});
+  let R = kal372.rows(K.html());
+  assert.ok(R.length > 0 && R.length < 10 && R.every(r => r.w >= 2), 'domyślnie tylko waga 2–3: ' + R.map(r => r.w));
+  assert.ok(K.html().includes('data-kal-min="2" aria-pressed="true"') && K.html().includes('data-kal-min="1" aria-pressed="false"'), 'przycisk „Ważniejsze” wciśnięty od początku');
+  K.click(1); assert.equal(kal372.rows(K.html()).length, 10, '„Wszystkie” po kliknięciu');
+  K.click(2); assert.ok(kal372.rows(K.html()).every(r => r.w >= 2), 'z powrotem ważniejsze');
+  const h = K.html();
+  assert.ok(h.includes(T('kal464.n')) && !h.includes('kal464.n'), 'jedna krótka nota');
+  assert.ok(!h.includes('Waga 1–3 to nasza ocena') && !h.includes('Znak ~ oznacza godzinę wynikającą') && !h.includes('Znak ~ dotyczy też') && !/Plik z /.test(h), 'bez opisów działania i bez informacji o pliku');
+  assert.equal((h.match(/class="pnote"/g) || []).filter(Boolean).length >= 1, true);
+  assert.ok(h.includes(T('kal464.at', {t: 'D:2026-10-28T12:00:00+00:00'})), 'stopka: „Dane z …”');
+  assert.ok(html.includes("min:2,j2:null") && html.includes("localStorage.getItem('cfai.kal')==='1'") && html.includes("localStorage.setItem('cfai.kal',String(KALZ.min))"), 'wybór „Wszystkie” zapamiętany w przeglądarce (try/catch)');
+  // uzupełnienie kalendarza jeszcze w drodze — bez listy braków ze starego pliku; po porażce wczytania lista wraca
+  const J = kal372.J(); J.brak = ['pl_bank', 'uk_bank'];
+  const P = kal372.mk('pl', kal372.files(J), {open: true}), A = P.api;
+  A.KALZ.j2 = null; A.KALZ.l2 = true; A.KALZ.e2 = 0; A.renderKal();
+  assert.ok(!P.html().includes('Jeszcze bez'), 'uzupełnienie w drodze — bez „Jeszcze bez”');
+  A.KALZ.l2 = false; A.KALZ.e2 = 0; A.renderKal();
+  assert.ok(!P.html().includes('Jeszcze bez'), 'uzupełnienie jeszcze nie zaczęte — też bez');
+  A.KALZ.e2 = 123; A.renderKal();
+  assert.ok(P.html().includes('Jeszcze bez'), 'uzupełnienie nie przyszło — lista braków z pierwszego pliku wraca');
+  const en = kal372.mk('en', kal372.files(), {open: true, def: true}).html();
+  assert.ok(en.includes(v96src.tFor('en')('kal464.n')) && !en.includes('kal464.'), 'po angielsku też');
+});
+
+test('v464 (GLOBAL-1, audyt m13): etykieta różnicy między ceną dostawy fizycznej Brenta a kontraktem terminowym — od 8%: kafel, uwaga w Pulsie i panel USA (uwaga), wiersz Aktywów; poniżej progu i bez kontraktu — nic', () => {
+  const {mk, file, B} = v321su, t = v96src.tFor('pl'), te = v96src.tFor('en');
+  const wf = (fut) => { const f = file(); f.ceny.brent_fut.d = B.map((d, i) => [d, fut(i)]); return f; };
+  const exp = (K, g, c, key) => t(key, {v: K.api.suFmt(c) + ' ' + t('usa.u.bbl'), p: K.F.nfmt(Math.abs((g / c - 1) * 100), 0)});
+  const g = 80 + 29 / 2;
+  let K = mk('pl', {}); K.api.suApply(wf(i => 60 + i / 2));
+  const k = K.api.suKpi('brent', 'w321.k.brent', '1T'), up = exp(K, g, 60 + 29 / 2, 'g464.gap.u');
+  assert.equal(k.gap, up, 'cena fizyczna wyższa: kontrakt i różnica'); assert.equal(k.note, up, 'to samo w uwadze kafla GLOBAL');
+  assert.ok(/o 2\d% wyższa/.test(up) && up.includes('Kontrakt terminowy: 74,5'), up);
+  assert.ok(K.api.suTile('brent', 'oil', ['gb']).includes('<small class="mtxt su-qn">' + up + '</small>'), 'Puls: uwaga pod ceną');
+  assert.ok(html.includes("+(x.gap?' · '+x.gap:'')"), 'wiersz Aktywów dopisuje etykietę');
+  K = mk('pl', {}); K.api.suApply(wf(i => 100 + i / 2));
+  const dn = K.api.suKpi('brent', 'w321.k.brent', '1T');
+  assert.equal(dn.gap, exp(K, g, 100 + 29 / 2, 'g464.gap.d')); assert.ok(/niższa\.$/.test(dn.gap), 'cena fizyczna niższa od kontraktu');
+  K = mk('pl', {}); K.api.suApply(file());
+  assert.equal(K.api.suKpi('brent', 'w321.k.brent', '1T').gap, '', 'różnica ok. 1% — bez etykiety'); assert.equal(K.api.suKpi('brent', 'w321.k.brent', '1T').note, '');
+  assert.ok(!K.api.suTile('brent', 'oil', ['gb']).includes('su-qn'), 'Puls bez uwagi');
+  K = mk('pl', {}); K.api.suApply(wf(i => 74 + i / 2));   // 6%: poniżej progu
+  assert.equal(K.api.suKpi('brent', 'w321.k.brent', '1T').gap, '', '6% — poniżej progu');
+  K = mk('pl', {}); K.api.suApply(wf(i => 60 + i / 2));
+  assert.equal(K.api.suKpi('gold', 'w321.k.gold', '1T').gap, '', 'złoto bez kontraktu — bez etykiety');
+  const f2 = wf(i => 60 + i / 2); f2.ceny.brent_fut.d.pop(); K = mk('pl', {}); K.api.suApply(f2);
+  assert.equal(K.api.suKpi('brent', 'w321.k.brent', '1T').gap, '', 'kontrakt bez tego samego dnia — bez etykiety, bez zgadywania');
+  assert.ok(te('g464.gap.u', {v: '1', p: '2'}).includes('2% higher') && te('g464.gap.d', {v: '1', p: '2'}).includes('2% lower') && !/ICE|EIA|Reuters/.test(up + te('g464.gap.u', {v: '1', p: '2'})), 'po angielsku, bez nazw dostawców');
+});
+
+test('v464 (GLOBAL-3, GLOBAL-4, STRONY-1, STRONY-3, STRONY-4): jednostka zmiany rezerw Japonii; daty bez zapisu ISO; pomoc CRYPTO bez opisu metody; jeden zapis daty po angielsku; „?” w TRENDACH otwiera okno', () => {
+  assert.ok(html.includes("strDelta(strNum(c.d1m)?c.d1m:null,1,t('iw401.u.mldusd')+' '+t('iw401.vs.m'))"), 'rezerwy Japonii: zmiana miesięczna z „mld USD”');
+  // daty: dzień i miesiąc jako zapis czytelnika, zakres bez zmian
+  const a = html.indexOf('function gIsoTxt(d){'), b = html.indexOf('function instFootL(d){');
+  assert.ok(a > 0 && b > a);
+  const F = new Function('gFreshTxt', 'usaMon', 'escH', 'gAgeNote', 'instFoot', html.slice(a, b) + '\nreturn {gIsoTxt, instFootG};')(s => 'D:' + s, s => 'M:' + s, v96src.escH, s => '+age', d => 'I:' + d);
+  assert.equal(F.gIsoTxt('2026-10-13'), 'D:2026-10-13'); assert.equal(F.gIsoTxt('2026-08'), 'M:2026-08'); assert.equal(F.gIsoTxt('2026-Q3'), '2026-Q3'); assert.equal(F.gIsoTxt(null), '');
+  assert.equal(F.instFootG('2026-10-13'), 'D:2026-10-13+age'); assert.equal(F.instFootG('2026-08'), 'M:2026-08+age'); assert.equal(F.instFootG('2026-06 – 2026-07'), 'I:2026-06 – 2026-07', 'zakres jak dotąd');
+  for (const s of ["typeof instFootG==='function'?instFootG(r.date):instFoot(r.date)", "typeof instFootG==='function'?instFootG(x.m):instFoot(x.m)", "typeof gIsoTxt==='function'?gIsoTxt(GLIVE.asof):GLIVE.asof", "typeof gIsoTxt==='function'?gIsoTxt(o):o"]) assert.ok(html.includes(s), s);
+  assert.ok(!html.includes('<span class="cell mono">${escH(a)}</span></span></td><td><span class="cell mono">${spPct(r.rate)}'), 'tabela stóp bez kodów krajów obok nazw');
+  // jeden zapis daty po angielsku: rok czterocyfrowy jak w zegarze
+  const e0 = html.indexOf('const engDate='), E = new Function('LOCALE', 'LANG', html.slice(e0, html.indexOf('\n', e0)) + '\nreturn engDate;');
+  const LOC = {pl: 'pl-PL', en: 'en-US'};
+  assert.ok(/^\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}\s?(AM|PM)$/.test(E(LOC, 'en')('2026-10-19T10:09:00Z')) || /^\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}$/.test(E(LOC, 'en')('2026-10-19T10:09:00Z')), 'en: ' + E(LOC, 'en')('2026-10-19T10:09:00Z'));
+  assert.ok(/^\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/.test(E(LOC, 'pl')('2026-10-19T10:09:00Z')), 'pl: ' + E(LOC, 'pl')('2026-10-19T10:09:00Z'));
+  assert.equal(E(LOC, 'pl')('x'), '—');
+  // pomoc CRYPTO: jedno proste zdanie o giełdach, bez metody
+  for (const L of ['pl', 'en']) { const x = v96src.tFor(L)('exch.tip'); assert.ok(x.length < 60 && !/bilans|remainder|pomiar|measurement/.test(x), L + ': ' + x); }
+  // „?” w TRENDACH: okno pomocy z tymi samymi trzema zdaniami
+  assert.ok(html.includes('id="t-help-modal"') && html.includes('data-i18n="trd.m.1"') && html.includes('data-i18n="trd.m.3"') && html.includes('id="th-x"'), 'okno pomocy TRENDÓW');
+  assert.ok(html.includes('function closeHelp(){hModal.hidden=true;gModal.hidden=true;if(tModal)tModal.hidden=true;') && html.includes('(tModal&&!tModal.hidden)'), 'zamykanie (×, tło, Esc)');
+  assert.ok(html.includes("if(st.mode==='trendy'&&tModal){tModal.hidden=false;document.body.style.overflow='hidden';"), 'okno się otwiera (hidden=false, blokada przewijania tła)');
+  assert.ok(html.indexOf("if(st.mode==='trendy'&&tModal){") < html.indexOf("if(st.mode==='trendy'){if(page!=='overview')setPage('overview')"), 'okno ma pierwszeństwo, blok w stronie to zapas');
 });
