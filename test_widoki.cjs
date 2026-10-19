@@ -34301,3 +34301,12 @@ test('v439 Top 100: nowe dane pliku czyszczą pamięć wachlarzy; brak pliku / p
   try { t10H.CLK.ms = c0 + 5 * 60000; Q.act('nowy plik', () => B.t10Load()); Q.settle(); } finally { t10H.CLK.ms = c0; }
   const a2 = B.T10.w100.fan('l1', false); assert.ok(a2 !== a1 && a2.pts.length === 30, 'nowy plik — nowy wachlarz (30 zamiast 90): ' + (a2 && a2.pts.length));
 });
+
+test('v440b: kontrola zakładek — nazwa „PancakeSwap Infinity” nie jest napisem-błędem, prawdziwe „Infinity” i „NaN” nadal są', () => {
+  if (typeof fs.existsSync !== 'function') return;   /* pod jsc atrapa fs oddaje tylko index.html — wzorzec sprawdza node */
+  const src = fs.readFileSync(path.join(__dirname, 'narzedzia', 'kontrola_zakladki.js'), 'utf8');
+  const m = /var ART = (\/.*\/g);/.exec(src); assert.ok(m, 'wyrażenie ART w pliku');
+  const hit = (s) => { const re = new Function('return ' + m[1])(); return re.test(s); };
+  assert.ok(!hit('399 mln USD PancakeSwap Infinity +36,1% 4,6%'), 'nazwa giełdy zdecentralizowanej');
+  assert.ok(hit('zmiana Infinity%') && hit('Wolumen: Infinity') && hit('PancakeSwap NaN') && hit('Infinity mln USD'), 'prawdziwe napisy-błędy');
+});

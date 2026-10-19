@@ -8,7 +8,7 @@
   if (window.__KZ) return;
   var CFG = window.__KZ_CFG || {};
   var KZ = window.__KZ = { v: 1, tryb: CFG.tryb || 'pelny', err: [], kons: [], ele: [], tab: {}, uwagi: [] };
-  var ART = /\bNaN\b|\bundefined\b|\[object Object\]|\bInfinity\b|\bnull\b|∞|Invalid Date/g;
+  var ART = /\bNaN\b|\bundefined\b|\[object Object\]|(?<!PancakeSwap\s)\bInfinity\b|\bnull\b|∞|Invalid Date/g;
   var KSZ = 'path,polyline,polygon,rect,circle,ellipse,line';
   var ZAKL = [['global', 'GLOBAL'], ['crypto', 'CRYPTO'], ['trendy', 'TRENDY']];
   var MAKS = CFG.maks || 500;
