@@ -17156,7 +17156,7 @@ const suGapN=(id,d)=>{const g=suGapTxt(id,d);return g?`<small class="mtxt su-qn"
 /* zdania uwagi: ciąg kilku sesji — „od {d}”; jeden dzień — dopisek punktu (kafel surowców ma go już pod wykresem: one=false); kontrakt — osobno */
 /* v300: ciąg od dnia z samym wpisem 'trwa' — „od {d}” albo (jeden dzień) „cena z {d}”, z dniem punktu, po którym cena została na nowym poziomie */
 function suRunTxt(id,run,one,d){if(!run)return d?[suGapTxt(id,d)].filter(Boolean):[];const m=run.t&&run.p?t(run.d!==run.l?'su300.runp':'su300.run1p',{d:suDay(run.d),p:suDay(run.p)}):
-  run.d!==run.l||run.t?t('su297g.run',{d:suDay(run.d)}):one?t('su295g.q.n',{d:suDay(run.d)}):'';return [m,suFut(id,run.l)].filter(Boolean);}
+  run.d!==run.l||run.t?t('su297g.run',{d:suDay(run.d)}):one?t('su295g.q.n',{d:suDay(run.d)}):'';return [m,suGapTxt(id,run.l)?'':suFut(id,run.l)].filter(Boolean);}
 /* panel USA (v98): stan ostatniej ceny TEJ SAMEJ serii → {ok: zmiana tygodnia dozwolona, n: zdania uwagi}; seria spoza pliku surowców → null */
 function suUsaQ(id){const s=suSer('ceny',id),V=s?suVal(suRows(s.d,SU_D)):[];if(!V.length)return null;const Q=suQ(s);const w=suWkWhy(V,Q);return {ok:!w,w,n:suRunTxt(id,suRun(V,Q,suQE(s)),true),g:suGapTxt(id,V[V.length-1][0])};}
 /* notowanie godzinowe złota: wiek obok godziny; starsze niż SU_LIVE_H godz. — bez dopisku (awaria notowań nie udaje bieżącej ceny) */

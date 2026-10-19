@@ -15134,8 +15134,10 @@ test('v297g: Brent po niepotwierdzonym skoku — uwaga na kaflu „od dnia skoku
   assert.deepEqual(Object.keys(T), ['brent', 'wti', 'ttf', 'hh', 'gold', 'silver', 'copper', 'uran'], 'seria kontraktu bez kafla');
   assert.ok(T.brent.includes('<b>125,44 <small class="mtxt">USD za baryłkę</small> <small class="su-nc">— w tygodniu (cena niepotwierdzona)</small></b>'), T.brent.slice(0, 600));
   assert.ok(!T.brent.includes('+10,1%') && !u.includes('+10,1%'), 'bez zmiany liczonej z ceny niepotwierdzonej (06.10) — w obu panelach');
-  const run = 'Od ' + d('2026-10-02') + ' ceny niepotwierdzone drugim źródłem (po nietypowym ruchu). Kontrakt terminowy na tę ropę (' + d('2026-10-06') + '): 104,90 USD za baryłkę.';
-  assert.deepEqual(su297.qr(T.brent), [run], 'jedna uwaga: od dnia skoku, z kontraktem z dnia ostatniej ceny');
+  /* v489: różnica 125,44 vs 104,9 to ok. 20% (≥ 8%) — cenę kontraktu pokazuje już etykieta różnicy, więc uwaga o ciągu jej nie powtarza */
+  const run = 'Od ' + d('2026-10-02') + ' ceny niepotwierdzone drugim źródłem (po nietypowym ruchu).';
+  assert.deepEqual(su297.qr(T.brent), [run], 'jedna uwaga: od dnia skoku, bez powtórzenia kontraktu (jest w etykiecie różnicy)');
+  assert.equal(T.brent.split('104,90 USD za baryłkę').length - 1, 1, 'v489: cena kontraktu raz (w etykiecie różnicy)');
   assert.ok(T.brent.indexOf('su-qr') < T.brent.indexOf('class="su-sp"'), 'uwaga zaraz pod ceną, przed wykresem');
   assert.ok(!T.brent.includes(d('2026-10-02') + ' — nietypowa wartość'), 'dzień skoku nie powtarza się osobnym dopiskiem');
   assert.equal((T.brent.match(/<line class="su-q" /g) || []).length, 1, 'kółko tylko w dniu punktu (02.10), nie na kolejnych sesjach');
@@ -15144,7 +15146,8 @@ test('v297g: Brent po niepotwierdzonym skoku — uwaga na kaflu „od dnia skoku
   /* panel USA: ta sama seria, ten sam podpis co kafel surowców, ta sama uwaga i „—” */
   assert.ok(u.includes('<span><span class="icos">') && u.includes('Ropa Brent (dostawa fizyczna)</span><b>125,44 <small class="mtxt">USD za baryłkę</small> <small class="">— w tygodniu (cena niepotwierdzona)</small></b>'), u.slice(0, 900));
   assert.ok(T.brent.includes('Ropa Brent (dostawa fizyczna)') && !u.includes('Morze Północne'), 'podpis Brenta w obu panelach ten sam');
-  assert.equal(su297.qr(u).join(' '), run, 'panel USA — ta sama uwaga (zdania w osobnych wierszach)'); assert.equal(su297.qr(u).length, 2);
+  assert.equal(su297.qr(u).join(' '), run, 'panel USA — ta sama uwaga'); assert.equal(su297.qr(u).length, 1);
+  assert.equal(u.split('104,90 USD za baryłkę').length - 1, 1, 'v489: panel USA — cena kontraktu raz (etykieta różnicy)');
   assert.ok(u.includes('96,24 <small class="mtxt">USD za baryłkę</small> <small class="pos">▲ +0,1% w tygodniu</small>'), 'WTI w panelu USA bez zmian');
   /* bez kontraktu z dnia ostatniej ceny — uwaga bez porównania; bez serii kontraktu — tak samo */
   for (const F of [su297.file(null, Object.assign({}, su297.FUT, {d: su297.FUT.d.slice(0, 3)})), su297.file(null, false)]) {
@@ -15179,8 +15182,10 @@ test('v297g: zmiana tygodnia tylko przy obu końcach potwierdzonych; jeden dzie�
   /* ostatni dzień = sam punkt: kafel ma dopisek punktu pod wykresem i osobno kontrakt; panel USA — oba zdania osobnymi wierszami */
   [b, u] = T([['2026-10-06', 'rozjazd', 'niepotw']]);
   const fut = 'Kontrakt terminowy na tę ropę (' + d('2026-10-06') + '): 104,90 USD za baryłkę.';
-  assert.deepEqual(su297.qr(b), [fut]); assert.ok(b.includes(d('2026-10-06') + ' — nietypowa wartość, niepotwierdzona drugim źródłem'));
-  assert.deepEqual(su297.qr(u), [d('2026-10-06') + ' — nietypowa wartość, niepotwierdzona drugim źródłem', fut]);
+  /* v489: różnica ok. 20% — cenę kontraktu pokazuje etykieta różnicy, więc osobnego zdania o kontrakcie nie ma */
+  assert.deepEqual(su297.qr(b), []); assert.ok(b.includes(d('2026-10-06') + ' — nietypowa wartość, niepotwierdzona drugim źródłem'));
+  assert.deepEqual(su297.qr(u), [d('2026-10-06') + ' — nietypowa wartość, niepotwierdzona drugim źródłem']);
+  assert.ok(!b.includes(fut) && !u.includes(fut) && b.split('104,90 USD za baryłkę').length === 2 && u.split('104,90 USD za baryłkę').length === 2, 'v489: cena kontraktu raz (etykieta różnicy)');
   /* punkt potwierdzony — bez uwagi i ze zmianą */
   [b, u] = T([['2026-10-06', 'rozjazd', 'potw']]);
   assert.ok(b.includes('▲ +10,1% w tygodniu') && !b.includes('su-qr') && !u.includes('su-qr') && b.includes('nietypowy ruch, potwierdzony drugim źródłem'));
@@ -15765,8 +15770,10 @@ test('v300: ciąg cen bez potwierdzenia od dnia z samym wpisem „trwa” — uw
   /* 05.10 potwierdzony przez kontrakt, 06.10 już nie (przypadek q3 testu zbieracza) — dawniej kafel: tylko kontrakt, panel USA: „nietypowa wartość” */
   let [b, u] = T([['2026-10-02', 'rozjazd', 'niepotw'], ['2026-10-06', 'trwa', 'niepotw']]);
   const one = 'Cena z ' + d('2026-10-06') + ' niepotwierdzona drugim źródłem (wciąż na poziomie po nietypowym ruchu z ' + d('2026-10-02') + ').';
-  assert.deepEqual(su297.qr(b), [one + ' ' + fut], b.slice(0, 700));
-  assert.deepEqual(su297.qr(u), [one, fut], 'panel USA — te same zdania w osobnych wierszach');
+  /* v489: różnica ok. 20% — kontrakt jest w etykiecie różnicy, uwaga o ciągu go nie powtarza */
+  assert.deepEqual(su297.qr(b), [one], b.slice(0, 700));
+  assert.deepEqual(su297.qr(u), [one], 'panel USA — to samo zdanie');
+  assert.ok(b.split('104,90 USD za baryłkę').length === 2 && u.split('104,90 USD za baryłkę').length === 2 && !b.includes(fut) && !u.includes(fut), 'v489: cena kontraktu raz');
   assert.ok(!u.includes(d('2026-10-06') + ' — nietypowa wartość') && !b.includes(d('2026-10-06') + ' — nietypowa wartość'), 'dzień ciągu to nie punkt q');
   assert.ok(!b.includes(d('2026-10-02') + ' — nietypowa wartość'), 'dzień punktu jest w uwadze — bez osobnego dopisku');
   assert.equal((b.match(/<line class="su-q" /g) || []).length, 1, 'kółko na wykresie zostaje w dniu punktu');
@@ -15777,17 +15784,17 @@ test('v300: ciąg cen bez potwierdzenia od dnia z samym wpisem „trwa” — uw
   /* kilka sesji od dnia z samym wpisem 'trwa' (30.09 i 01.10 potwierdzone) — „od {dzień}” z dniem punktu */
   [b, u] = T([['2026-09-29', 'rozjazd', 'niepotw'], ['2026-10-02', 'trwa', 'niepotw'], ['2026-10-05', 'trwa', 'niepotw'], ['2026-10-06', 'trwa', 'niepotw']]);
   const runp = 'Od ' + d('2026-10-02') + ' ceny niepotwierdzone drugim źródłem (wciąż na poziomie po nietypowym ruchu z ' + d('2026-09-29') + ').';
-  assert.deepEqual(su297.qr(b), [runp + ' ' + fut]); assert.deepEqual(su297.qr(u), [runp, fut]);
+  assert.deepEqual(su297.qr(b), [runp]); assert.deepEqual(su297.qr(u), [runp]);
   /* ciąg od punktu — jak dotąd (v297g) */
   [b] = T(SU297_Q_BRENT);
-  assert.deepEqual(su297.qr(b), ['Od ' + d('2026-10-02') + ' ceny niepotwierdzone drugim źródłem (po nietypowym ruchu). ' + fut]);
+  assert.deepEqual(su297.qr(b), ['Od ' + d('2026-10-02') + ' ceny niepotwierdzone drugim źródłem (po nietypowym ruchu).']);
   /* sam punkt na końcu — jak dotąd: dopisek pod wykresem, w panelu USA „nietypowa wartość” */
   [b, u] = T([['2026-10-06', 'rozjazd', 'niepotw']]);
-  assert.deepEqual(su297.qr(b), [fut]); assert.deepEqual(su297.qr(u), [d('2026-10-06') + ' — nietypowa wartość, niepotwierdzona drugim źródłem', fut]);
+  assert.deepEqual(su297.qr(b), []); assert.deepEqual(su297.qr(u), [d('2026-10-06') + ' — nietypowa wartość, niepotwierdzona drugim źródłem']);
   /* wpis 'trwa' bez wcześniejszego punktu bez potwierdzenia w oknie wykresu (plik uszkodzony; punkty 18.03 i 07.04 są poza oknem 90 sesji) —
      ogólne „od {dzień}” bez dnia punktu, nigdy surowy klucz ani punkt sprzed pół roku */
   [b, u] = T([['2026-10-02', 'rozjazd', 'potw'], ['2026-10-06', 'trwa', 'niepotw']]);
-  assert.deepEqual(su297.qr(b), ['Od ' + d('2026-10-06') + ' ceny niepotwierdzone drugim źródłem (po nietypowym ruchu). ' + fut]);
+  assert.deepEqual(su297.qr(b), ['Od ' + d('2026-10-06') + ' ceny niepotwierdzone drugim źródłem (po nietypowym ruchu).']);
   assert.ok(!b.includes(d('2026-04-07')) && !u.includes(d('2026-04-07')));
   /* 10 języków */
   for (const L of ['pl', 'en']) {
@@ -37394,4 +37401,23 @@ test('v488: liczba mnoga — „zgłoszenia” (insiderzy) i „instytucje” (B
   const mm = [...html.matchAll(/^const EXTRA(\d+)=\{"pl":\{"odm\.ins\.k\.rep\.one"/gm)];
   assert.equal(mm.length, 1, 'jeden słownik v488'); const n = mm[0][1];
   assert.equal([...html.matchAll(new RegExp('^for\\(const l in EXTRA' + n + '\\)if\\(I18N\\[l\\]\\)Object\\.assign\\(I18N\\[l\\],EXTRA' + n + '\\[l\\]\\);$', 'gm'))].length, 1, 'jedna linia nakładania');
+});
+
+
+test('v489: kafel Brenta w Pulsie — cena kontraktu terminowego tylko raz (etykieta różnicy ją zawiera, więc „kontrakt tej ropy” nie jest dopisywany); przy małej różnicy zdanie o kontrakcie zostaje', () => {
+  const {mk, file, B} = v321su, t = v96src.tFor('pl');
+  const L = B[29], day = d => new Date(Date.parse(d + 'T12:00:00Z')).toLocaleDateString('pl-PL', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'}), cnt = (h, s) => h.split(s).length - 1;
+  const wf = (fut) => { const f = file({q: [[L, 'skok', 'niepotw']]}); f.ceny.brent_fut.d = B.map((d, i) => [d, fut(i)]); return f; };
+  const gapDuza = (K) => t('g464.gap.u', {v: K.api.suFmt(60 + 29 / 2) + ' ' + t('usa.u.bbl'), p: K.F.nfmt(Math.abs(((80 + 29 / 2) / (60 + 29 / 2) - 1) * 100), 0)});
+  let K = mk('pl', {}); K.api.suApply(wf(i => 60 + i / 2));
+  const duza = K.api.suTile('brent', 'oil', ['gb']), futTxt = t('su297g.fut', {d: day(L), v: K.api.suFmt(60 + 29 / 2) + ' ' + t('usa.u.bbl')});
+  assert.ok(duza.includes(t('su295g.q.n', {d: day(L)})), 'uwaga o cenie bez potwierdzenia zostaje');
+  assert.equal(cnt(duza, futTxt), 0, 'zdanie „kontrakt tej ropy” nie jest dopisywane, gdy jest etykieta różnicy');
+  assert.equal(cnt(duza, gapDuza(K)), 1, 'etykieta różnicy z ceną kontraktu — raz');
+  assert.equal(cnt(duza, '60,5') + cnt(duza, '74,5'), 1, 'cena kontraktu 74,5 widoczna dokładnie raz');
+  K = mk('pl', {}); K.api.suApply(file({q: [[L, 'skok', 'niepotw']]}));   // różnica ok. 1% — poniżej progu: zdanie o kontrakcie zostaje, etykiety nie ma
+  const mala = K.api.suTile('brent', 'oil', ['gb']);
+  assert.equal(cnt(mala, t('su297g.fut', {d: day(L), v: K.api.suFmt(79 + 29 / 2) + ' ' + t('usa.u.bbl')})), 1, 'mała różnica: zdanie o kontrakcie raz');
+  assert.ok(!/o \d+% (wyższa|niższa)/.test(mala), 'mała różnica: bez etykiety różnicy');
+  assert.ok(html.includes("return [m,suGapTxt(id,run.l)?'':suFut(id,run.l)].filter(Boolean);}"), 'suRunTxt nie dopisuje kontraktu, gdy etykieta różnicy go zawiera');
 });
