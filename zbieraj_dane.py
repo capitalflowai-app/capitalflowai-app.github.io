@@ -33194,6 +33194,8 @@ def main():
     META['ok']['skarbce_btc'], META['ok']['skarbce_eth'], META['ok']['skarbce_sec'] = kf_czesc(cg_key, sec_contact)
     # v430 (F11Z29): ropa świata — bilans krajów (wydobycie, przerób, handel, zapasy) i zapasy ropy i paliw w Europie — data/ropa-swiat.json; bez kluczy, części raz na ~dobę, duże pliki roczne tylko po zmianie
     META['ok']['ropa_kr'], META['ok']['ropa_eu'] = rop_czesc()
+    # v454 (F11Z36): rynki prognoz (cena BTC i ETH na kolejne dni), odsłony artykułów o kryptowalutach i indeks sezonu altcoinów — data/nastroje.json; bez kluczy, trzy części (1 h, 12 h, 6 h), wyłącznik NASTROJE_OFF
+    META['ok']['nastr_pm'], META['ok']['nastr_wiki'], META['ok']['nastr_alt'] = nas_czesc()
     # v452 (F11Z32): złoto w handlu Wielkiej Brytanii (import i eksport wg miesięcy i krajów) — data/zloto-uk.json; bez klucza, dwa zapytania raz na ~dobę (po błędzie co 3 h)
     META['ok']['zloto_uk'] = hmrc_czesc()
     # v445 (F11Z31): USA — pakiet małych (zadłużenie gospodarstw, stopy hipoteczne, niepewność handlowa, przewozy) — data/usa-pakiet.json; bez kluczy, części co 6 h (pm, tp) i 12 h (hh, ts)
@@ -49056,6 +49058,406 @@ def hla_czesc():
 
 
 ZRODLA_META.update({'hlaave_hl': 'hyperliquid', 'hlaave_aave': 'aave'})   # v453: giełda kontraktów Hyperliquid już liczona (dźwignia); protokół pożyczkowy = +1 źródło
+
+
+# ===================== v454 (F11Z36): RYNKI PROGNOZ I UWAGA DETALU — data/nastroje.json =====================
+# Trzy niezależne części, każda z własnym czasem pobrania; bez kluczy i kont, tylko publiczne odczyty (GET), oszczędnie, z nagłówkiem zbieracza (adres strony projektu, bez adresu e-mail):
+#   pm   — rynek prognoz (kontrakty zdarzeniowe): ceny kontraktów „Bitcoin / Ethereum powyżej X na zamknięcie dnia D” (drabina progów na kolejne dni) i „wzrost czy spadek w dobie D”. Z drabiny liczymy środek
+#          (cena, powyżej której rynek daje 50% szans) i zakres 80% szans (od ceny z 90% szans do ceny z 10% szans, interpolacja liniowa między progami). Rynek rozstrzyga się w południe czasu nowojorskiego (16:00 UTC latem, 17:00 UTC zimą).
+#          Rytm 1 h. Tylko rynki z obrotem dobowym co najmniej NAS_PM_VOL_MIN USD i co najmniej NAS_PM_MIN_PROGOW progami; zbiór adresów budujemy z dat (slugi), bez przeglądania całego katalogu.
+#   wiki — dzienne odsłony czterech artykułów o kryptowalutach w encyklopedii internetowej (bez botów) jako miara uwagi zwykłych ludzi; ostatnie 90 dni; rytm 12 h (źródło ma kilkudniowe opóźnienie).
+#   alt  — indeks sezonu altcoinów (0–100: ile ze 100 największych kryptowalut biło bitcoina w ostatnich 90 dniach) z historią 90 dni; rytm 6 h; jeden odczyt publicznego punktu końcowego strony kapitalizacji.
+# Część po błędzie ponawiana po NAS_BLAD_H h; zostaje z poprzedniego pliku z własnym czasem najwyżej NAS_MAX_D dób. Błąd części, której poprzednie dane mają mniej niż NAS_ERR_H h, jest tylko notatką
+# (przerwa źródła nie czerwieni kontroli, jak w v441); starszy albo pierwszy — błąd zbieracza. Wyłącznik: zmienna repozytorium NASTROJE_OFF = lista części po przecinku (np. „pm,alt”) — bez zapytań.
+# Wartości z rynku prognoz to szacunek rynku, nie prognoza instytucji. To nie jest porada inwestycyjna.
+NAS_V = 1
+NAS_PARTS = ('pm', 'wiki', 'alt')
+NAS_ETYKIETA = {'pm': 'rynki prognoz', 'wiki': 'odsłony artykułów', 'alt': 'indeks sezonu altcoinów'}
+NAS_CO_H = {'pm': 1.0, 'wiki': 12.0, 'alt': 6.0}   # h — rytm pobrania części
+NAS_BLAD_H = 2.0          # h — część, która zawiodła: ponowienie nie częściej niż co tyle
+NAS_MAX_D = 3             # dób — część po błędzie zostaje z poprzedniego pliku najwyżej tyle
+NAS_ERR_H = 12            # h — błąd części z danymi młodszymi niż tyle to notatka, nie błąd zbieracza
+NAS_SLEEP = 1.0           # s — odstęp przed zapytaniem
+NAS_TIMEOUT = 25          # s
+NAS_UA = {'User-Agent': 'CapitalFlowAI-collector/1.0 (+https://capitalflowai-app.github.io/)'}   # jawny identyfikator zbieracza z adresem strony projektu
+NAS_PM_URL = 'https://gamma-api.polymarket.com/events?'
+NAS_PM_MONET = (('btc', 'bitcoin'), ('eth', 'ethereum'))
+NAS_PM_DNI = 5            # tyle kolejnych dni (od dziś UTC) w zapytaniu i najwyżej tyle dni w pliku na monetę
+NAS_PM_MAX_B = 3_000_000  # B — limit odpowiedzi (19.10.2026: 4 wydarzenia ≈ 160 KB, 20 adresów ≈ 0,5 MB)
+NAS_PM_VOL_MIN = 10_000.0 # USD — najmniejszy obrót dobowy rynku, który pokazujemy
+NAS_PM_MIN_PROGOW = 6     # najmniej progów w drabinie
+NAS_PM_SPADEK_MAX = 0.05  # szansa nie może rosnąć z progiem o więcej niż tyle (większy skok = zepsuta drabina)
+NAS_PM_TOP = 6            # najwyżej tyle powodów pominięcia w pliku
+NAS_MIES = ('january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december')
+NAS_WIKI_URL = 'https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/{a}/daily/{od}/{do}'
+NAS_WIKI_ART = (('bitcoin', 'Bitcoin'), ('ethereum', 'Ethereum'), ('solana', 'Solana_(blockchain_platform)'), ('dogecoin', 'Dogecoin'))
+NAS_WIKI_DNI = 90         # dób w serii
+NAS_WIKI_MIN_DNI = 60     # najmniej dni z odczytem w oknie
+NAS_WIKI_STARE_D = 10     # dób — ostatni dzień danych starszy niż tyle = zły odczyt (19.10.2026: ostatni dzień 15.10, czyli 4 doby)
+NAS_WIKI_MIN_ART = 3      # najmniej artykułów w części
+NAS_WIKI_MAX_B = 100_000
+NAS_ALT_URL = 'https://pro-api.coinmarketcap.com/public-api/v1/altcoin-season-index/historical?timeframe=90d'
+NAS_ALT_MAX_B = 100_000
+NAS_ALT_MIN = 30          # najmniej punktów historii
+NAS_ALT_STARE_D = 5       # dób — ostatni punkt starszy niż tyle = zły odczyt
+
+
+def nas_wyl():
+    """Części wyłączone zmienną NASTROJE_OFF (lista po przecinku)."""
+    return {x.strip() for x in os.environ.get('NASTROJE_OFF', '').lower().split(',') if x.strip()}
+
+
+def nas_pobierz(url, maks):
+    """Jedyne miejsce sieci tego pliku (testy je łatają): zapytanie GET z odstępem, nagłówkiem zbieracza, limitem czasu i rozmiaru → bajty."""
+    time.sleep(NAS_SLEEP)
+    return get_bytes_maks(url, NAS_UA, NAS_TIMEOUT, maks)
+
+
+def nas_json(raw):
+    try:
+        return json.loads(raw.decode('utf-8-sig'))
+    except ValueError:
+        raise ValueError('odpowiedź nie jest JSON') from None
+
+
+def nas_dzien(s):
+    """RRRR-MM-DD z początku tekstu (data prawdziwa) albo None."""
+    try:
+        return datetime.date.fromisoformat(str(s)[:10]).isoformat()
+    except ValueError:
+        return None
+
+
+# ---------------------------------------------------------------- rynek prognoz
+def nas_pm_slugi(teraz):
+    """Adresy (slugi) wydarzeń na NAS_PM_DNI kolejnych dni od dziś UTC: drabina „powyżej X” i „wzrost czy spadek” dla każdej monety."""
+    d0 = _ix_dt(teraz).date()
+    out = []
+    for k in range(NAS_PM_DNI):
+        d = d0 + datetime.timedelta(days=k)
+        ds = f'{NAS_MIES[d.month - 1]}-{d.day}-{d.year}'
+        for _c, nazwa in NAS_PM_MONET:
+            out += [f'{nazwa}-above-on-{ds}', f'{nazwa}-up-or-down-on-{ds}']
+    return out
+
+
+def nas_pm_lista(v):
+    """Pole źródła będące listą zapisaną jako tekst JSON (outcomes, outcomePrices) → lista albo None."""
+    if isinstance(v, str):
+        try:
+            v = json.loads(v)
+        except ValueError:
+            return None
+    return v if isinstance(v, list) else None
+
+
+def nas_pm_cena(v):
+    """Cena kontraktu (0–1) z tekstu albo liczby; poza zakresem albo brak = None."""
+    x = lev_num(v)
+    return x if x is not None and 0.0 <= x <= 1.0 else None
+
+
+def nas_pm_prog(rynek):
+    """Rynek „powyżej X” → (próg w USD, szansa „tak”) albo None (rynek zamknięty, bez progu w nazwie, inne wyniki niż Yes/No, cena poza 0–1)."""
+    if not isinstance(rynek, dict) or rynek.get('closed') is True or rynek.get('active') is False:
+        return None
+    try:
+        k = float(str(rynek.get('groupItemTitle')).replace(',', '').replace(' ', ''))
+    except ValueError:
+        return None
+    if not 0 < k < 1e7:
+        return None
+    wy, ce = nas_pm_lista(rynek.get('outcomes')), nas_pm_lista(rynek.get('outcomePrices'))
+    if not wy or not ce or len(wy) != 2 or len(ce) != 2 or wy[0] != 'Yes':
+        return None
+    p = nas_pm_cena(ce[0])
+    return None if p is None else (k, p)
+
+
+def nas_kwantyl(lad, q):
+    """lad — [(próg, szansa powyżej progu)] rosnąco wg progu, szansa nierosnąca. Cena, poniżej której rynek widzi q szans (szansa powyżej = 1 − q), interpolacja liniowa między progami;
+    poza drabiną (nawet najniższy próg ma mniej szans albo najwyższy więcej) = None — nie zgadujemy poza zakresem. Wymaga co najmniej dwóch progów."""
+    cel = 1.0 - q
+    for (k0, s0), (k1, s1) in zip(lad, lad[1:]):
+        if s0 >= cel >= s1:
+            return k0 if s0 == s1 else k0 + (s0 - cel) / (s0 - s1) * (k1 - k0)
+    return None
+
+
+def nas_pm_koniec(e, teraz):
+    """Koniec rynku (UTC) jako tekst ISO z „Z”, tylko gdy jest po chwili `teraz`; inaczej None."""
+    end, tn = _ix_dt(e.get('endDate')), _ix_dt(teraz)
+    if end is None or tn is None or end <= tn:
+        return None
+    return end.astimezone(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def nas_pm_dzien(e, teraz):
+    """Wydarzenie „powyżej X na dzień D” → (wiersz {end, n, vol, p10, p50, p90, lad}, None) albo (None, powód). Odrzucamy: rozstrzygnięte, mały obrót, za mało albo powtórzone progi, drabinę, w której szansa rośnie z progiem."""
+    end = nas_pm_koniec(e, teraz)
+    if end is None:
+        return None, 'rozstrzygnięty albo zły czas'
+    vol = lev_num(e.get('volume24hr'))
+    if vol is None or vol < NAS_PM_VOL_MIN:
+        return None, 'mały obrót'
+    prog, powt = {}, False
+    for r in e.get('markets') if isinstance(e.get('markets'), list) else []:
+        x = nas_pm_prog(r)
+        if x:
+            powt = powt or x[0] in prog
+            prog[x[0]] = x[1]
+    if powt:
+        return None, 'powtórzony próg'
+    lad = sorted(prog.items())
+    if len(lad) < NAS_PM_MIN_PROGOW:
+        return None, 'za mało progów'
+    if any(s1 > s0 + NAS_PM_SPADEK_MAX for (_k0, s0), (_k1, s1) in zip(lad, lad[1:])):
+        return None, 'szansa rośnie z progiem'
+    mono, m = [], 1.0
+    for k, p in lad:
+        m = min(m, p)
+        mono.append((k, m))
+    kw = lambda q: lev_r(nas_kwantyl(mono, q), 1)   # noqa: E731
+    return {'end': end, 'n': len(lad), 'vol': round(vol), 'p10': kw(0.10), 'p50': kw(0.50), 'p90': kw(0.90), 'lad': [[k, round(p, 4)] for k, p in lad]}, None
+
+
+def nas_pm_gora(e, teraz):
+    """Wydarzenie „wzrost czy spadek w dobie D” → {end, p, vol} (p = szansa „Up”) albo None."""
+    end = nas_pm_koniec(e, teraz)
+    vol = lev_num(e.get('volume24hr'))
+    ms = e.get('markets') if isinstance(e.get('markets'), list) else []
+    if end is None or vol is None or vol < NAS_PM_VOL_MIN or len(ms) != 1 or not isinstance(ms[0], dict) or ms[0].get('closed') is True:
+        return None
+    wy, ce = nas_pm_lista(ms[0].get('outcomes')), nas_pm_lista(ms[0].get('outcomePrices'))
+    if not wy or not ce or len(wy) != 2 or len(ce) != 2 or wy[0] != 'Up' or wy[1] != 'Down':
+        return None
+    p = nas_pm_cena(ce[0])
+    return None if p is None else {'end': end, 'p': round(p, 4), 'vol': round(vol)}
+
+
+def nas_pm_buduj(lista, teraz):
+    """Odpowiedź (lista wydarzeń) → część `pm` {t, btc: {dni, gora}, eth: {dni, gora}, pomin}. Żadna moneta bez ani jednego dnia z obrotem = wyjątek (część zawodzi, plik zostaje poprzedni)."""
+    if not isinstance(lista, list):
+        raise ValueError('odpowiedź nie jest listą wydarzeń')
+    out, pomin = {'t': teraz}, {}
+    for c, nazwa in NAS_PM_MONET:
+        dni, gory = [], []
+        for e in lista:
+            slug = e.get('slug') if isinstance(e, dict) else None
+            if not isinstance(slug, str):
+                continue
+            if slug.startswith(nazwa + '-above-on-'):
+                w, p = nas_pm_dzien(e, teraz)
+                if w:
+                    dni.append(w)
+                else:
+                    pomin[slug] = p
+            elif slug.startswith(nazwa + '-up-or-down-on-'):
+                g = nas_pm_gora(e, teraz)
+                if g:
+                    gory.append(g)
+                else:
+                    pomin[slug] = 'wzrost/spadek: rozstrzygnięty, mały obrót albo zły kształt'
+        dni.sort(key=lambda w: w['end'])
+        gory.sort(key=lambda g: g['end'])
+        out[c] = {'dni': dni[:NAS_PM_DNI], 'gora': gory[0] if gory else None}
+    if not any(out[c]['dni'] for c, _n in NAS_PM_MONET):
+        raise RuntimeError('brak rynków z obrotem i pełną drabiną progów' + (': ' + '; '.join(f'{k}: {v}' for k, v in list(pomin.items())[:3]) if pomin else ''))
+    out['pomin'] = dict(list(pomin.items())[:NAS_PM_TOP])
+    return out
+
+
+def nas_pm_job(prev, teraz):
+    j = nas_json(nas_pobierz(NAS_PM_URL + '&'.join('slug=' + s for s in nas_pm_slugi(teraz)), NAS_PM_MAX_B))
+    return nas_pm_buduj(j, teraz)
+
+
+# ---------------------------------------------------------------- odsłony artykułów
+def nas_wiki_url(art, teraz):
+    d = _ix_dt(teraz).date()
+    return NAS_WIKI_URL.format(a=urllib.parse.quote(art, safe=''), od=(d - datetime.timedelta(days=NAS_WIKI_DNI + 10)).strftime('%Y%m%d'), do=(d - datetime.timedelta(days=1)).strftime('%Y%m%d'))
+
+
+def nas_wiki_dni(j):
+    """Odpowiedź → lista [(dzień, odsłony)] rosnąco. Wiersze o złym kształcie pomijane (do 5%), więcej = wyjątek."""
+    it = j.get('items') if isinstance(j, dict) else None
+    if not isinstance(it, list) or not it:
+        raise ValueError('brak wierszy odsłon')
+    out, zle = {}, 0
+    for r in it:
+        try:
+            ts, v = str(r['timestamp']), r['views']
+            if len(ts) < 8 or isinstance(v, bool) or not isinstance(v, int) or v < 0:
+                raise ValueError
+            out[datetime.date(int(ts[:4]), int(ts[4:6]), int(ts[6:8])).isoformat()] = v
+        except (KeyError, TypeError, ValueError):
+            zle += 1
+    if zle > 0.05 * len(it):
+        raise ValueError(f'{zle} z {len(it)} wierszy odsłon ma zły kształt')
+    return sorted(out.items())
+
+
+def nas_wiki_art(dni, teraz):
+    """Seria dni → {asof, last, a7, a90, s}: ostatni dzień danych, odsłony tego dnia, średnia z ostatnich 7 dób i z 90 dób (do ostatniego dnia), seria [[dzień, odsłony]]. Zły odczyt = wyjątek."""
+    tn = _ix_dt(teraz).date()
+    if not dni:
+        raise ValueError('pusta seria')
+    ad = datetime.date.fromisoformat(dni[-1][0])
+    if ad > tn or (tn - ad).days > NAS_WIKI_STARE_D:
+        raise ValueError(f'ostatni dzień danych {ad.isoformat()} poza oczekiwanym oknem')
+    s = [[d, v] for d, v in dni if (ad - datetime.date.fromisoformat(d)).days < NAS_WIKI_DNI]
+    n7 = [v for d, v in s if (ad - datetime.date.fromisoformat(d)).days < 7]
+    if len(s) < NAS_WIKI_MIN_DNI or len(n7) < 5:
+        raise ValueError(f'za mało dni w oknie ({len(s)} z {NAS_WIKI_DNI}, w ostatnim tygodniu {len(n7)})')
+    a90 = sum(v for _d, v in s) / len(s)
+    if a90 <= 0:
+        raise ValueError('średnia odsłon równa zeru')
+    return {'asof': ad.isoformat(), 'last': s[-1][1], 'a7': round(sum(n7) / len(n7), 1), 'a90': round(a90, 1), 's': s}
+
+
+def nas_wiki_job(prev, teraz):
+    rows, pomin = {}, {}
+    for cid, art in NAS_WIKI_ART:
+        try:
+            rows[cid] = nas_wiki_art(nas_wiki_dni(nas_json(nas_pobierz(nas_wiki_url(art, teraz), NAS_WIKI_MAX_B))), teraz)
+        except Exception as e:  # noqa — jeden artykuł nie psuje pozostałych
+            pomin[cid] = mask(str(e))[:100]
+    if len(rows) < NAS_WIKI_MIN_ART:
+        raise RuntimeError(f'tylko {len(rows)} z {len(NAS_WIKI_ART)} artykułów: ' + '; '.join(f'{k}: {v}' for k, v in pomin.items())[:150])
+    prevr = prev.get('rows') if isinstance(prev, dict) and isinstance(prev.get('rows'), dict) else {}
+    for cid, _a in NAS_WIKI_ART:   # artykuł brakujący w tym odczycie zostaje z poprzedniego pliku do NAS_MAX_D dób (z własnym dniem danych)
+        if cid not in rows and isinstance(prevr.get(cid), dict) and _zapas_wiek_ok(prev.get('t'), NAS_MAX_D):
+            rows[cid] = prevr[cid]
+    return {'t': teraz, 'asof': max(r['asof'] for r in rows.values()), 'rows': rows, 'pomin': pomin}
+
+
+# ---------------------------------------------------------------- indeks sezonu altcoinów
+def nas_alt_buduj(j, teraz):
+    """Odpowiedź → część `alt` {t, asof, v, mcap, s}: indeks 0–100 z ostatniego dnia, kapitalizacja altcoinów (USD) i seria [[dzień, indeks]] do 90 dni. Zły odczyt = wyjątek."""
+    if not isinstance(j, dict):
+        raise ValueError('odpowiedź nie jest obiektem')
+    st = j.get('status')
+    if isinstance(st, dict) and str(st.get('error_code', 0)) not in ('0', 'None', ''):
+        raise RuntimeError('źródło zgłasza błąd odpowiedzi')
+    pts = j.get('data', {}).get('points') if isinstance(j.get('data'), dict) else None
+    if not isinstance(pts, list):
+        raise ValueError('brak punktów historii')
+    seria, mc, zle = {}, {}, 0
+    for r in pts:
+        d = nas_dzien(r.get('timestamp')) if isinstance(r, dict) else None
+        v = lev_num(r.get('altcoin_index')) if isinstance(r, dict) else None
+        if d is None or v is None or not 0 <= v <= 100:
+            zle += 1
+            continue
+        seria[d] = round(v, 1)
+        m = lev_num(r.get('altcoin_marketcap'))
+        mc[d] = m if m is not None and m > 0 else None
+    if zle > 0.05 * len(pts) or len(seria) < NAS_ALT_MIN:
+        raise ValueError(f'za mało poprawnych punktów ({len(seria)} z {len(pts)}, minimum {NAS_ALT_MIN})')
+    dni = sorted(seria)
+    tn, ad = _ix_dt(teraz).date(), datetime.date.fromisoformat(dni[-1])
+    if ad > tn + datetime.timedelta(days=1) or (tn - ad).days > NAS_ALT_STARE_D:
+        raise ValueError(f'ostatni punkt {ad.isoformat()} poza oczekiwanym oknem')
+    return {'t': teraz, 'asof': dni[-1], 'v': seria[dni[-1]], 'mcap': None if mc[dni[-1]] is None else round(mc[dni[-1]]), 's': [[d, seria[d]] for d in dni[-90:]]}
+
+
+def nas_alt_job(prev, teraz):
+    return nas_alt_buduj(nas_json(nas_pobierz(NAS_ALT_URL, NAS_ALT_MAX_B)), teraz)
+
+
+# ---------------------------------------------------------------- plik i rytm
+def nas_trzeba(n, czas, ok_prev, teraz):
+    """Czy część n pobrać w tym przebiegu. czas — chwila poprzedniego pobrania części, a po błędzie chwila ostatniej próby (brak = tak); po błędzie co NAS_BLAD_H h, inaczej co NAS_CO_H[n] h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    return (tn - tk).total_seconds() / 3600 >= (NAS_CO_H[n] if ok_prev else NAS_BLAD_H)
+
+
+def nas_zadania(pv, teraz):
+    """Które części pobrać w tym przebiegu → {część: bool}; część wyłączona zmienną NASTROJE_OFF nigdy."""
+    ok, pat, prb = (pv.get(k) if isinstance(pv.get(k), dict) else {} for k in ('ok', 'part_at', 'try_at'))
+    wyl = nas_wyl()
+    out = {}
+    for n in NAS_PARTS:
+        zly = ok.get(n, True) is False
+        if n in wyl:
+            out[n] = False
+        elif zly and prb.get(n):   # po błędzie (także gdy część nigdy się nie udała) liczy się chwila ostatniej próby
+            out[n] = nas_trzeba(n, prb[n], False, teraz)
+        else:
+            out[n] = True if not isinstance(pv.get(n), dict) else nas_trzeba(n, pat.get(n) or pv.get('at'), True, teraz)
+    return out
+
+
+def nas_job(n, prev_part, teraz):
+    return {'pm': nas_pm_job, 'wiki': nas_wiki_job, 'alt': nas_alt_job}[n](prev_part, teraz)
+
+
+def build_nastroje(prev=None, zadania=None):
+    """v454: data/nastroje.json {v, at, src, ok, part_at, try_at, pm, wiki, alt} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm, wyłącznik) zostaje z poprzedniego pliku bez zmian; część po błędzie —
+    z poprzedniego pliku z własnym czasem (najwyżej NAS_MAX_D dób); błąd = notatka, gdy poprzednie dane części mają mniej niż NAS_ERR_H h, inaczej błąd zbieracza. Żadna część w pliku = wyjątek."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == NAS_V else {}
+    zad = zadania if zadania is not None else nas_zadania(pv, NOW)
+    pat0, ok0, prb0 = (pv.get(k) if isinstance(pv.get(k), dict) else {} for k in ('part_at', 'ok', 'try_at'))
+    out = {'v': NAS_V, 'at': NOW, 'src': 'ceny kontraktów na rynku prognoz (cena Bitcoina i Ethereum na kolejne dni), dzienne odsłony artykułów o kryptowalutach w encyklopedii internetowej i indeks sezonu altcoinów',
+           'ok': {}, 'part_at': {}, 'try_at': {}}
+    st = {}
+    for n in NAS_PARTS:
+        stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+        if not zad.get(n):
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+                if prb0.get(n):
+                    out['try_at'][n] = prb0[n]
+            else:
+                st[n] = 'cached'
+            continue
+        out['try_at'][n] = NOW   # chwila tej próby — po błędzie następna najwcześniej po NAS_BLAD_H h (bez odpytywania źródła co przebieg)
+        try:
+            out[n] = nas_job(n, stara, NOW)
+            out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+        except Exception as e:  # noqa — jedna część nie psuje pozostałych
+            kiedy = pat0.get(n) or pv.get('at')
+            txt = mask(f'Rynki prognoz i uwaga detalu: {NAS_ETYKIETA[n]}: {e}')[:200]
+            if stara is not None and _zapas_wiek_ok(kiedy, NAS_ERR_H / 24):
+                META['notes'].append(txt)
+            else:
+                META['errors'].append(txt)
+            out['ok'][n], st[n] = False, False
+            if stara is not None and _zapas_wiek_ok(kiedy, NAS_MAX_D):
+                out[n], out['part_at'][n] = stara, kiedy
+    if not any(isinstance(out.get(n), dict) for n in NAS_PARTS):
+        raise RuntimeError('żadna część rynków prognoz i uwagi detalu nie ma danych')
+    return out, st
+
+
+def nas_czesc():
+    """v454: część przebiegu → krotka wartości dla META['ok'] w kolejności NAS_PARTS: True = pobrane, 'cached' = poprzednia wersja wystarcza (rytm) albo część wyłączona, False = część zawiodła.
+    Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('nastroje')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == NAS_V else None
+    zad = nas_zadania(prev or {}, NOW)
+    if prev and not any(zad.values()):
+        save('nastroje', prev)
+        return tuple('cached' for _ in NAS_PARTS)
+    if not prev and not any(zad.values()):
+        return tuple('cached' for _ in NAS_PARTS)
+    try:
+        obj, st = build_nastroje(prev, zad)
+        save('nastroje', obj)
+        return tuple(st.get(n, False) for n in NAS_PARTS)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Rynki prognoz i uwaga detalu: {e}')[:200])
+        # poprzedni plik zostaje z danymi, ale z zapisaną nieudaną próbą (następna najwcześniej po NAS_BLAD_H h); bez poprzedniego pliku — plik bez części (strona go nie pokazuje, kontrola pokazuje brak części)
+        baza = dict(prev) if prev else {'v': NAS_V, 'at': NOW, 'src': 'rynki prognoz i uwaga detalu', 'part_at': {}}
+        baza['ok'] = {**(prev or {}).get('ok', {}), **{n: False for n in NAS_PARTS if zad.get(n)}}
+        baza['try_at'] = {**(prev or {}).get('try_at', {}), **{n: NOW for n in NAS_PARTS if zad.get(n)}}
+        save('nastroje', baza)
+        return tuple(False for _ in NAS_PARTS)
+
+
+ZRODLA_META.update({'nastr_pm': 'polymarket', 'nastr_wiki': 'wikimedia', 'nastr_alt': 'coinmarketcap'})   # v454: rynek prognoz (+1 źródło), encyklopedia internetowa (+1 źródło); indeks altcoinów z tego samego dostawcy co kapitalizacje (liczba bez zmian)
 
 
 if __name__ == '__main__':

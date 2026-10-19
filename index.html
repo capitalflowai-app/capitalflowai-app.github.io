@@ -2674,6 +2674,42 @@ textarea.kt-f{min-height:110px;resize:vertical}
   .hla .hla-c::before{content:attr(data-l);display:block;color:var(--dim);font-size:10.5px}
   .hla .hla-hd{display:none}
 }
+/* v454 (F11Z36): rynki prognoz i uwaga detalu (karta #c-nastroje w CRYPTO) — kafle po dwa (telefon: po dwa), zakres cen na kolejne dni, paski progów, wykresy; tylko kolory systemowe i zmienne strony */
+#c-nastroje .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+#c-nastroje .etfkpis.nas-k4{grid-template-columns:repeat(4,minmax(0,1fr))}
+#c-nastroje .etfkpis.nas-k1{grid-template-columns:minmax(0,1fr);max-width:420px}
+#c-nastroje .etfk b{font-variant-numeric:tabular-nums;white-space:normal;overflow-wrap:anywhere;line-height:1.3}
+#c-nastroje .etfk b .un{font-size:11px;font-weight:500;color:var(--mut);white-space:nowrap}
+#c-nastroje .etfk b small{display:block;font-size:10.5px;font-weight:500;white-space:normal;margin-top:2px}
+#c-nastroje .etfk b small.pos{color:var(--gr-tx)}#c-nastroje .etfk b small.neg{color:var(--rd-tx)}#c-nastroje .etfk b small.neu{color:var(--yl-tx)}#c-nastroje .etfk b small.pc{color:var(--dim)}
+#c-nastroje .etfk>small.mtxt{display:block;margin-top:6px;font-size:10.5px;line-height:1.35;color:var(--dim)}
+#c-nastroje .gx-h{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin:16px 0 4px;font-size:13px}
+#c-nastroje .gxs{margin:8px 0 10px;max-width:760px}
+#c-nastroje .gxs-r{margin:7px 0}
+#c-nastroje .gxs-n{display:block;font-size:12.5px;color:var(--mut);margin-bottom:3px;overflow-wrap:anywhere}
+#c-nastroje .gxs-b{display:grid;grid-template-columns:minmax(0,1fr) 5em;align-items:center;gap:10px}
+#c-nastroje .gxs-t{position:relative;height:10px;border-radius:2px;background:var(--line-2)}
+#c-nastroje .gxs-t i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--bl)}
+#c-nastroje .gxs-v{font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap;text-align:right}
+#c-nastroje .wk-ch{margin:4px 0 10px;max-width:760px}
+#c-nastroje .wk-ch .nas-a{--k:var(--bl)}#c-nastroje .wk-ch .nas-b{--k:var(--or)}#c-nastroje .wk-ch .nas-c{--k:var(--tl)}#c-nastroje .wk-ch .nas-d{--k:var(--gy)}
+#c-nastroje .nas-g{margin:2px 0 8px;max-width:860px}
+#c-nastroje .nas-r{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2.6fr) repeat(2,minmax(78px,1fr));align-items:center;gap:4px 14px;padding:8px 0;border-top:1px solid var(--line);font-size:12.5px}
+#c-nastroje .nas-hd{border-top:0;color:var(--dim);font-size:11px;padding:2px 0}
+#c-nastroje .nas-n{overflow-wrap:anywhere;font-weight:600}
+#c-nastroje .nas-c{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#c-nastroje .nas-tr{position:relative;display:block;height:8px;border-radius:99px;background:var(--line-2)}
+#c-nastroje .nas-tr b{position:absolute;top:0;bottom:0;border-radius:99px;background:var(--bl);opacity:.55}
+#c-nastroje .nas-tr i{position:absolute;top:-3px;width:4px;height:14px;margin-left:-2px;border-radius:2px;background:var(--bl)}
+#c-nastroje .nas-lb{display:flex;justify-content:space-between;gap:8px;margin-top:5px;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+@media (max-width:760px){#c-nastroje .etfkpis.nas-k4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){
+  #c-nastroje .etfkpis.nas-k1{max-width:none}
+  #c-nastroje .nas-r{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px}
+  #c-nastroje .nas-r>.nas-n,#c-nastroje .nas-r>.nas-rg{grid-column:1/-1}
+  #c-nastroje .nas-c::before{content:attr(data-l);display:block;color:var(--dim);font-size:10.5px}
+  #c-nastroje .nas-hd{display:none}
+}
 </style>
 <!-- v348: licznik odwiedzin (decyzja właściciela 12.10). Skrypt count.js leży na naszej stronie (nie na obcej domenie) i nie używa ciasteczek; zliczenie wychodzi do licznika przez sendBeacon (CSP: connect-src; zapas obrazkiem: img-src https:).
      Wizyt technicznych nie liczymy: przeglądarki sterowane automatem (navigator.webdriver), Chrome bez okna (kontrola dzienna, testy), Lighthouse i adresy lokalne z końcówką .local albo [::1] dostają no_onload;
@@ -2797,6 +2833,7 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
     <section class="panel pcard" id="c-lancuch" hidden></section>
     <section class="panel pcard" id="c-eth" hidden></section>
     <section class="panel pcard" id="c-wycena" hidden></section>
+    <section class="panel pcard" id="c-nastroje" hidden></section>
       <section class="panel pcard" id="cmc" hidden></section>
       <section class="panel pcard" id="krypto" hidden></section>
   </main>
@@ -3832,6 +3869,9 @@ for(const l in EXTRA307)if(I18N[l])Object.assign(I18N[l],EXTRA307[l]);
 /* v453 (F11Z34): Hyperliquid — największe konta i pożyczki w DeFi (CRYPTO, karty #c-hl i #c-aave) — polski i angielski */
 const EXTRA308={"pl":{"hla.when":"stan: {t}","hla.err":"Brak aktualnych danych. Spróbuj ponownie za chwilę.","hla.foot":"Dane publiczne, mogą się zmieniać.","hl.t":"Hyperliquid: największe konta","hl.sub":"Publiczny ranking kont na giełdzie kontraktów Hyperliquid: ile pieniędzy mają konta, ile z nich zarabia i jak ustawiają się największe aktywne konta.","hl.k.n":"Konta w rankingu","hl.s.act":"aktywnych w tygodniu: {n}","hl.k.val":"Wartość kont razem","hl.s.big":"kont powyżej 1 mln: {n}","hl.k.win":"Konta na plusie (tydzień)","hl.s.win":"na minusie: {n}","hl.k.top":"Udział 100 największych kont","hl.s.top":"10 największych: {p}","hl.h.gr":"Ile pieniędzy mają konta","hl.g.1":"do 10 tys.","hl.g.2":"10–100 tys.","hl.g.3":"100 tys.–1 mln","hl.g.4":"1–10 mln","hl.g.5":"10–100 mln","hl.g.6":"ponad 100 mln","hl.v.gr":"kont: {n} · {v} · {p}","hl.h.win":"Zyski i straty kont","hl.c.okres":"Okres","hl.c.plus":"Na plusie","hl.c.minus":"Na minusie","hl.c.zysk":"Zyski razem","hl.c.strata":"Straty razem","hl.c.obrot":"Obrót","hl.w.day":"Doba","hl.w.week":"Tydzień","hl.w.month":"Miesiąc","hl.n.win":"Liczą się konta, które w danym okresie miały zysk lub stratę.","hl.h.poz":"Pozycje największych aktywnych kont","hl.sub.poz":"Odczyt dla {n} największych kont, które handlowały w ostatnim tygodniu. Long to zakład na wzrost ceny, short — na spadek.","hl.k.long":"Pozycje long (na wzrost)","hl.k.short":"Pozycje short (na spadek)","hl.k.net":"Long minus short","hl.k.eq":"Wartość tych kont","hl.s.poz":"kont z pozycjami: {n}","hl.s.longp":"long to {p} wszystkich pozycji","hl.s.read":"odczytano {a} z {b} kont","hl.h.coins":"Pozycje według monet","hl.c.moneta":"Moneta","hl.c.long":"Long","hl.c.short":"Short","hl.c.net":"Różnica","hl.c.konta":"Konta long / short","hl.n.poz":"Konta są anonimowe — pokazujemy tylko sumy. Pozycje zmieniają się co chwilę.","hl.n.nopoz":"Pozycje chwilowo niedostępne.","aave.t":"Aave: pożyczki w DeFi","aave.sub":"Ile pieniędzy wpłacono i pożyczono w największym protokole pożyczkowym DeFi oraz ile kosztuje pożyczka.","aave.k.dep":"Wpłacone razem","aave.s.rynki":"rynków: {n} · sieci: {m}","aave.k.bor":"Pożyczone razem","aave.s.wyk":"wykorzystanie {p}","aave.k.stab":"{s}: pożyczka","aave.s.stab":"wpłata {d} · wykorzystanie {u}","aave.h.rynki":"Gdzie jest najwięcej pieniędzy","aave.v.rynek":"wpłaty {a} · pożyczki {b}","aave.h.stawki":"Stawki na rynku głównym ({s})","aave.c.aktywo":"Aktywo","aave.c.wp":"Wpłacono","aave.c.dep":"Stawka wpłaty","aave.c.bor":"Stawka pożyczki","aave.c.wyk":"Wykorzystanie","aave.n.1":"Stawka wpłaty to roczne odsetki dla wpłacającego, stawka pożyczki — roczny koszt dla pożyczającego. Stawki zmieniają się co chwilę.","aave.n.2":"„—” oznacza, że pożyczanie tego aktywa jest wyłączone."},"en":{"hla.when":"as of: {t}","hla.err":"No current data. Please try again in a moment.","hla.foot":"Public data, which may change.","hl.t":"Hyperliquid: biggest accounts","hl.sub":"The public ranking of accounts on the Hyperliquid futures exchange: how much money the accounts hold, how many are making money and how the biggest active accounts are positioned.","hl.k.n":"Accounts in the ranking","hl.s.act":"active this week: {n}","hl.k.val":"Total value of accounts","hl.s.big":"accounts above 1 million: {n}","hl.k.win":"Accounts in profit (week)","hl.s.win":"in loss: {n}","hl.k.top":"Share of the 100 biggest accounts","hl.s.top":"top 10: {p}","hl.h.gr":"How much money the accounts hold","hl.g.1":"under 10 thousand","hl.g.2":"10–100 thousand","hl.g.3":"100 thousand–1 million","hl.g.4":"1–10 million","hl.g.5":"10–100 million","hl.g.6":"over 100 million","hl.v.gr":"accounts: {n} · {v} · {p}","hl.h.win":"Profits and losses of accounts","hl.c.okres":"Period","hl.c.plus":"In profit","hl.c.minus":"In loss","hl.c.zysk":"Total profits","hl.c.strata":"Total losses","hl.c.obrot":"Trading volume","hl.w.day":"Day","hl.w.week":"Week","hl.w.month":"Month","hl.n.win":"Accounts count if they had a profit or a loss in the period.","hl.h.poz":"Positions of the biggest active accounts","hl.sub.poz":"A reading for the {n} biggest accounts that traded in the last week. Long is a bet on a rising price, short on a falling one.","hl.k.long":"Long positions (up)","hl.k.short":"Short positions (down)","hl.k.net":"Long minus short","hl.k.eq":"Value of these accounts","hl.s.poz":"accounts with positions: {n}","hl.s.longp":"long is {p} of all positions","hl.s.read":"{a} of {b} accounts read","hl.h.coins":"Positions by coin","hl.c.moneta":"Coin","hl.c.long":"Long","hl.c.short":"Short","hl.c.net":"Difference","hl.c.konta":"Accounts long / short","hl.n.poz":"Accounts are anonymous, only totals are shown. Positions change all the time.","hl.n.nopoz":"Positions are temporarily unavailable.","aave.t":"Aave: lending in DeFi","aave.sub":"How much money has been deposited and borrowed in the biggest DeFi lending protocol, and how much a loan costs.","aave.k.dep":"Total deposited","aave.s.rynki":"markets: {n} · networks: {m}","aave.k.bor":"Total borrowed","aave.s.wyk":"utilisation {p}","aave.k.stab":"{s}: loan","aave.s.stab":"deposit {d} · utilisation {u}","aave.h.rynki":"Where most of the money is","aave.v.rynek":"deposits {a} · loans {b}","aave.h.stawki":"Rates on the main market ({s})","aave.c.aktywo":"Asset","aave.c.wp":"Deposited","aave.c.dep":"Deposit rate","aave.c.bor":"Loan rate","aave.c.wyk":"Utilisation","aave.n.1":"The deposit rate is the yearly interest for the depositor, the loan rate is the yearly cost for the borrower. Rates change all the time.","aave.n.2":"“—” means borrowing this asset is switched off."}};
 for(const l in EXTRA308)if(I18N[l])Object.assign(I18N[l],EXTRA308[l]);
+/* v454 (F11Z36): rynki prognoz i uwaga detalu (CRYPTO, karta #c-nastroje) — pl i en */
+const EXTRA309={"pl":{"nas454.t":"Rynki prognoz i uwaga detalu","nas454.sub":"Jak rynek prognoz ocenia cenę bitcoina i ethera na najbliższe dni, jak bardzo interesują się nimi zwykli ludzie i czy altcoiny biją bitcoina.","nas454.c.btc":"Bitcoin","nas454.c.eth":"Ethereum","nas454.h.pm":"Cena na najbliższe dni według rynku prognoz","nas454.k.mid":"{c}: środek na {d}","nas454.s.rg":"80% szans, że cena będzie między {a} a {b} USD","nas454.s.up":"Szansa wzrostu w ciągu doby ({d}): {p}","nas454.s.vol":"Obrót w ostatniej dobie: {v} USD","nas454.when":"odczyt: {w}","nas454.h.rg":"{c}: cena na kolejne dni","nas454.c.day":"Dzień","nas454.c.rg":"Zakres 80% szans (USD)","nas454.c.mid":"Środek (USD)","nas454.c.vol":"Obrót 24 h (USD)","nas454.rg.aria":"Zakres 80% szans: od {a} do {b} USD","nas454.lad":"Szansa każdego progu: {c}, {d}","nas454.lad.r":"powyżej {k} USD","nas454.u.k":"tys.","nas454.u.m":"mln","nas454.n.pm":"Środek to cena, powyżej której rynek daje 50% szans. Rynek rozstrzyga się codziennie w południe czasu nowojorskiego.","nas454.h.w":"Zainteresowanie zwykłych ludzi: odsłony artykułów","nas454.w.bitcoin":"Bitcoin","nas454.w.ethereum":"Ethereum","nas454.w.solana":"Solana","nas454.w.dogecoin":"Dogecoin","nas454.w.day":"odsłon dziennie","nas454.w.chg":"Ostatni tydzień wobec średniej z 90 dni: {p}","nas454.w.last":"Ostatni dzień danych ({d}): {n}","nas454.w.when":"dane za {d} · pobrano: {w}","nas454.h.wc":"Zainteresowanie wobec normy (średnia z 90 dni = 100)","nas454.wc.aria":"Wykres zainteresowania artykułami o kryptowalutach wobec średniej z 90 dni, cztery artykuły","nas454.norma":"norma (100)","nas454.n.w":"Liczone bez botów. Dane mają kilka dni opóźnienia. Więcej odsłon to większe zainteresowanie, a nie kierunek ceny.","nas454.h.a":"Altcoiny kontra bitcoin","nas454.a.k":"Indeks sezonu altcoinów","nas454.a.hi":"Sezon altcoinów: większość dużych kryptowalut bije bitcoina","nas454.a.lo":"Sezon bitcoina: większość dużych kryptowalut jest słabsza od bitcoina","nas454.a.mid":"Bez wyraźnej przewagi altcoinów albo bitcoina","nas454.a.wk":"Zmiana w tydzień: {p} pkt","nas454.a.mc":"Kapitalizacja altcoinów: {v}","nas454.a.when":"dane za {d} · pobrano: {w}","nas454.h.ac":"Indeks sezonu altcoinów, ostatnie 90 dni","nas454.ac.aria":"Wykres indeksu sezonu altcoinów z ostatnich 90 dni, skala od 0 do 100","nas454.a.lo.s":"sezon bitcoina (25)","nas454.a.hi.s":"sezon altcoinów (75)","nas454.n.a":"Ile ze 100 największych kryptowalut zarobiło w ostatnich 90 dniach więcej niż bitcoin. Powyżej 75 to sezon altcoinów, poniżej 25 to sezon bitcoina.","nas454.not1":"To szacunek uczestników rynku prognoz, a nie prognoza instytucji. Rynek bywa cienki i może się mylić.","nas454.not2":"Zainteresowanie ludzi nie mówi, czy cena wzrośnie, czy spadnie.","nas454.not3":"Indeks altcoinów opisuje ostatnie 90 dni, a nie przyszłość.","nas454.foot":"Rynek prognoz odświeżamy co około godzinę, odsłony co pół doby, indeks altcoinów co kilka godzin."},"en":{"nas454.t":"Prediction markets and retail attention","nas454.sub":"How the prediction market prices Bitcoin and Ether for the coming days, how interested ordinary people are, and whether altcoins are beating Bitcoin.","nas454.c.btc":"Bitcoin","nas454.c.eth":"Ethereum","nas454.h.pm":"Price for the coming days according to the prediction market","nas454.k.mid":"{c}: midpoint for {d}","nas454.s.rg":"80% chance the price lands between {a} and {b} USD","nas454.s.up":"Chance of a rise over the day ({d}): {p}","nas454.s.vol":"Volume in the last day: {v} USD","nas454.when":"read: {w}","nas454.h.rg":"{c}: price for the next days","nas454.c.day":"Day","nas454.c.rg":"80% range (USD)","nas454.c.mid":"Midpoint (USD)","nas454.c.vol":"24h volume (USD)","nas454.rg.aria":"80% range: from {a} to {b} USD","nas454.lad":"Chance of each level: {c}, {d}","nas454.lad.r":"above {k} USD","nas454.u.k":"k","nas454.u.m":"mln","nas454.n.pm":"The midpoint is the price the market gives a 50% chance of staying above. The market settles every day at noon New York time.","nas454.h.w":"Interest of ordinary people: article page views","nas454.w.bitcoin":"Bitcoin","nas454.w.ethereum":"Ethereum","nas454.w.solana":"Solana","nas454.w.dogecoin":"Dogecoin","nas454.w.day":"views a day","nas454.w.chg":"Last week vs the 90-day average: {p}","nas454.w.last":"Last day of data ({d}): {n}","nas454.w.when":"data for {d} · fetched: {w}","nas454.h.wc":"Interest vs normal (90-day average = 100)","nas454.wc.aria":"Chart of interest in crypto articles vs the 90-day average, four articles","nas454.norma":"normal (100)","nas454.n.w":"Bots are excluded. The data runs a few days behind. More views mean more interest, not a price direction.","nas454.h.a":"Altcoins vs Bitcoin","nas454.a.k":"Altcoin season index","nas454.a.hi":"Altcoin season: most large coins beat Bitcoin","nas454.a.lo":"Bitcoin season: most large coins trail Bitcoin","nas454.a.mid":"No clear lead for altcoins or Bitcoin","nas454.a.wk":"Change over a week: {p} pts","nas454.a.mc":"Altcoin market cap: {v}","nas454.a.when":"data for {d} · fetched: {w}","nas454.h.ac":"Altcoin season index, last 90 days","nas454.ac.aria":"Chart of the altcoin season index over the last 90 days, scale 0 to 100","nas454.a.lo.s":"Bitcoin season (25)","nas454.a.hi.s":"Altcoin season (75)","nas454.n.a":"How many of the 100 largest coins did better than Bitcoin over the last 90 days. Above 75 is altcoin season, below 25 is Bitcoin season.","nas454.not1":"This is an estimate by prediction-market traders, not a forecast by an institution. The market can be thin and wrong.","nas454.not2":"People's interest does not say whether the price will rise or fall.","nas454.not3":"The altcoin index describes the last 90 days, not the future.","nas454.foot":"The prediction market is refreshed about hourly, page views twice a day, the altcoin index every few hours."}};
+for(const l in EXTRA309)if(I18N[l])Object.assign(I18N[l],EXTRA309[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -20490,6 +20530,117 @@ SRV_GR['krypto-firmy']='c';SRV_LD.c.push(kfLoad);
 setInterval(()=>{if(!document.hidden)kfLoad();},30*60*1000);   /* części co ~dobę — strona pyta co 30 min (wiek w kafelkach też się odświeża) */
 kfLoad();try{new MutationObserver(()=>renderKf()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
 /* v422: koniec */
+/* ===================== v454 (F11Z36): RYNKI PROGNOZ I UWAGA DETALU (CRYPTO, karta #c-nastroje — po karcie wyceny) =====================
+   Plik data/nastroje.json (zbieracz, trzy części z własnym czasem pobrania; grupa plików „c” — pobierany dopiero po otwarciu CRYPTO, ładowarka nasLoad dopisana do rejestru SRV_LD):
+   pm — co rynek prognoz sądzi o cenie Bitcoina i Ethereum na kolejne dni: środek i zakres 80% szans (kafle dla najbliższego dnia, wiersze dla kolejnych dni, rozwijane progi najbliższego dnia z szansą każdego progu);
+   wiki — odsłony czterech artykułów o kryptowalutach (średnia z 7 dób wobec średniej z 90 dób, wykres względem normy = 100); alt — indeks sezonu altcoinów (0–100) z wykresem 90 dni.
+   Część starsza niż NAS_OLD znika, rynek już rozstrzygnięty znika z listy; brak = „—”, nigdy zero. Kolory kierunku z POKAZANEJ liczby (plus zielony, minus czerwony, zero żółte); szanse rynku i opisy bez koloru kierunku.
+   Bez nazw dostawców (pole src pliku nie jest pokazywane). To szacunek rynku i miara zainteresowania, nie prognoza instytucji i nie porada inwestycyjna. Telefon: kafle po dwa, wiersze w układzie dwukolumnowym. */
+const NAS={d:null};
+const NAS_OLD={pm:6*36e5,wiki:5*864e5,alt:3*864e5},NAS_LIVE=3*36e5,NAS_COINS=['btc','eth'],NAS_ART=['bitcoin','ethereum','solana','dogecoin'],NAS_CLS=['nas-a','nas-b','nas-c','nas-d'];
+function nasOk(j){return !!(gxObj(j)&&j.v===1&&typeof j.at==='string'&&isFinite(Date.parse(j.at))&&['pm','wiki','alt'].some(k=>gxObj(j[k])));}
+/* część z czasem pobrania młodszym niż NAS_OLD (i nie z przyszłości); inaczej null */
+function nasPart(n){const D=NAS.d,P=D&&gxObj(D[n])?D[n]:null;if(!P||typeof P.t!=='string')return null;const a=gxAge(P.t);return a<=NAS_OLD[n]&&a>=-6e5?P:null;}
+/* dzień rynku prognoz: tylko nierozstrzygnięty i z prawdziwą drabiną progów */
+function nasEv(e){
+  if(!gxObj(e)||typeof e.end!=='string')return null;const ms=Date.parse(e.end);if(!isFinite(ms)||ms<=Date.now())return null;
+  if(!Array.isArray(e.lad)||e.lad.length<2||!e.lad.every(r=>Array.isArray(r)&&r.length===2&&gxNum(r[0])&&r[0]>0&&gxNum(r[1])&&r[1]>=0&&r[1]<=1))return null;
+  return e;
+}
+function nasDays(c){const P=nasPart('pm'),C=P&&gxObj(P[c])?P[c]:null;return C&&Array.isArray(C.dni)?C.dni.map(nasEv).filter(Boolean).sort((a,b)=>Date.parse(a.end)-Date.parse(b.end)):[];}
+function nasUp(c){const P=nasPart('pm'),C=P&&gxObj(P[c])?P[c]:null,g=C&&gxObj(C.gora)?C.gora:null;return g&&typeof g.end==='string'&&Date.parse(g.end)>Date.now()&&gxNum(g.p)&&g.p>=0&&g.p<=1?g:null;}
+function nasWd(iso){const d=String(iso).slice(0,10);return gxIsDay(d)?new Date(Date.parse(d+'T12:00:00Z')).toLocaleDateString(LOCALE[LANG]||'pl-PL',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}):'—';}
+/* szansa rynku: poniżej 1% i powyżej 99% bez udawania dokładności; brak = „—” */
+function nasPct(p){if(!gxNum(p))return '—';const x=p*100;if(x>0&&x<1)return '&lt;1%';if(x>99&&x<100)return '&gt;99%';return nfmt(x,0)+'%';}
+/* obrót w USD: tys. od 1 tys., mln od 1 mln (zaokrąglenie do 1000 tys. przechodzi do mln); brak albo zero = „—” */
+function nasVol(v){
+  if(!gxNum(v)||!(v>0))return '—';
+  if(v>=1e6||+(v/1e3).toFixed(0)>=1000)return nfmt(v/1e6,v>=1e7?1:2)+' '+t('nas454.u.m');
+  if(v>=1e3)return nfmt(v/1e3,0)+' '+t('nas454.u.k');
+  return nfmt(v,0);
+}
+function nasTile(c,E,P){
+  const has=gxNum(E.p10)&&gxNum(E.p90),up=nasUp(c),L=[];
+  if(has)L.push({txt:t('nas454.s.rg',{a:nfmt(E.p10,0),b:nfmt(E.p90,0)}),cls:'pc'});
+  if(up)L.push({txt:t('nas454.s.up',{d:nasWd(up.end),p:nasPct(up.p)}),cls:'pc'});
+  if(gxNum(E.vol)&&E.vol>0)L.push({txt:t('nas454.s.vol',{v:nasVol(E.vol)}),cls:'pc'});
+  return gxTile(t('nas454.k.mid',{c:t('nas454.c.'+c),d:nasWd(E.end)}),gxNum(E.p50)?`${nfmt(E.p50,0)} <span class="un">USD</span>`:'—',gxNum(E.p50)?'':'na',L,t('nas454.when',{w:gxWhen(P.t)}));
+}
+/* wiersz dnia: pasek zakresu 80% szans na wspólnej skali monety i znacznik środka */
+function nasRow(e,lo,hi){
+  const sc=v=>hi>lo?(v-lo)/(hi-lo)*100:50,has=gxNum(e.p10)&&gxNum(e.p90);
+  const bar=has?`<span class="nas-tr" role="img" aria-label="${escH(t('nas454.rg.aria',{a:nfmt(e.p10,0),b:nfmt(e.p90,0)}))}"><b style="left:${sc(e.p10).toFixed(1)}%;width:${Math.max(sc(e.p90)-sc(e.p10),1).toFixed(1)}%"></b>${gxNum(e.p50)?`<i style="left:${sc(e.p50).toFixed(1)}%"></i>`:''}</span><span class="nas-lb"><span>${nfmt(e.p10,0)}</span><span>${nfmt(e.p90,0)}</span></span>`:'—';
+  return `<div class="nas-r"><span class="nas-n">${escH(nasWd(e.end))}</span><span class="nas-c nas-rg" data-l="${escH(t('nas454.c.rg'))}">${bar}</span>`
+    +`<span class="nas-c" data-l="${escH(t('nas454.c.mid'))}">${gxNum(e.p50)?nfmt(e.p50,0):'—'}</span><span class="nas-c" data-l="${escH(t('nas454.c.vol'))}">${nasVol(e.vol)}</span></div>`;
+}
+function nasPmBody(P){
+  const C=NAS_COINS.map(c=>[c,nasDays(c)]).filter(x=>x[1].length);
+  if(!C.length)return '';
+  let h=`<div class="gx-h"><b>${t('nas454.h.pm')}</b></div><div class="etfkpis">${C.map(([c,D])=>nasTile(c,D[0],P)).join('')}</div>`;
+  C.forEach(([c,D])=>{
+    const ok=D.filter(e=>gxNum(e.p10)&&gxNum(e.p90)),lo=Math.min(...ok.map(e=>e.p10)),hi=Math.max(...ok.map(e=>e.p90)),nm=t('nas454.c.'+c);
+    h+=`<div class="gx-h"><b>${t('nas454.h.rg',{c:nm})}</b></div><div class="nas-g"><div class="nas-r nas-hd"><span>${t('nas454.c.day')}</span><span>${t('nas454.c.rg')}</span><span>${t('nas454.c.mid')}</span><span>${t('nas454.c.vol')}</span></div>${D.map(e=>nasRow(e,lo,hi)).join('')}</div>`;
+    const lad=D[0].lad.slice().sort((a,b)=>a[0]-b[0]);
+    h+=`<details class="etfd" id="nas-lad-${c}"><summary>${t('nas454.lad',{c:nm,d:nasWd(D[0].end)})}</summary><div class="gxs">${lad.map(r=>gxShare(t('nas454.lad.r',{k:nfmt(r[0],0)}),r[1]*100,nasPct(r[1]),'')).join('')}</div></details>`;
+  });
+  return h+`<p class="pnote">${t('nas454.n.pm')}</p>`;
+}
+/* artykuł: tylko z prawdziwym dniem danych, dodatnią średnią z 90 dób i serią co najmniej 30 dni */
+function nasArt(id){
+  const P=nasPart('wiki'),r=P&&gxObj(P.rows)&&gxObj(P.rows[id])?P.rows[id]:null;
+  if(!r||!gxIsDay(r.asof)||!gxNum(r.a7)||r.a7<0||!gxNum(r.a90)||!(r.a90>0)||!gxNum(r.last)||!Array.isArray(r.s))return null;
+  const s=r.s.filter(x=>Array.isArray(x)&&x.length===2&&gxIsDay(x[0])&&gxNum(x[1])&&x[1]>=0);
+  return s.length>=30?Object.assign({},r,{s}):null;
+}
+/* strzałka i znak z POKAZANEJ liczby (zaokrąglenie do 0,1 pkt proc.); zero bez strzałki */
+function nasChg(v){const r=Math.round(v*10)/10;return (r>0?'▲ ':r<0?'▼ ':'')+gxPct(v);}
+function nasWTile(id,r,P){
+  const chg=(r.a7/r.a90-1)*100;
+  return gxTile(t('nas454.w.'+id),`${nfmt(r.a7,0)} <span class="un">${t('nas454.w.day')}</span>`,'',[{txt:t('nas454.w.chg',{p:nasChg(chg)}),cls:gxPcTone(chg)},{txt:t('nas454.w.last',{n:nfmt(r.last,0),d:gxDayS(r.asof)}),cls:'pc'}],t('nas454.w.when',{d:gxDayTxt(r.asof),w:gxWhen(P.t)}));
+}
+const nasIsoMs=ms=>new Date(ms).toISOString().slice(0,10);
+function nasWBody(R,P){
+  const L=R.map(([id,r],i)=>({n:t('nas454.w.'+id),cls:NAS_CLS[i],d:r.s.map(([d,v])=>[Date.parse(d+'T12:00:00Z'),v/r.a90*100])}));
+  const ch=typeof wkLines==='function'?wkLines(L,{aria:t('nas454.wc.aria'),fmt:v=>nfmt(v,0),dt:ms=>gxDayTxt(nasIsoMs(ms)),dx:ms=>gxDayS(nasIsoMs(ms)),zero:false,refs:[{v:100,n:t('nas454.norma'),cls:'tg'}]}):'';
+  return `<div class="gx-h"><b>${t('nas454.h.w')}</b></div><div class="etfkpis nas-k4">${R.map(([id,r])=>nasWTile(id,r,P)).join('')}</div>`
+    +(ch?`<div class="gx-h"><b>${t('nas454.h.wc')}</b></div>${ch}`:'')+`<p class="pnote">${t('nas454.n.w')}</p>`;
+}
+/* indeks altcoinów: prawdziwy dzień, wartość 0–100 i seria co najmniej 7 dni */
+function nasAlt(){
+  const P=nasPart('alt');
+  if(!P||!gxIsDay(P.asof)||!gxNum(P.v)||P.v<0||P.v>100||!Array.isArray(P.s))return null;
+  const s=P.s.filter(x=>Array.isArray(x)&&x.length===2&&gxIsDay(x[0])&&gxNum(x[1])&&x[1]>=0&&x[1]<=100);
+  return s.length>=7?Object.assign({},P,{s}):null;
+}
+function nasAltBody(P){
+  const prev=P.s.find(x=>x[0]===gxDm(P.asof,-7)),L=[],st=P.v>=75?'hi':P.v<=25?'lo':'mid';
+  L.push({txt:t('nas454.a.'+st),cls:'pc'});
+  if(prev){const r=Math.round(P.v-prev[1]);L.push({txt:t('nas454.a.wk',{p:(r>0?'▲ +'+nfmt(r,0):r<0?'▼ −'+nfmt(-r,0):nfmt(0,0))}),cls:r>0?'pos':r<0?'neg':'neu'});}
+  if(gxNum(P.mcap)&&P.mcap>0)L.push({txt:t('nas454.a.mc',{v:gxMag(P.mcap)}),cls:'pc'});
+  const ch=typeof wkLines==='function'?wkLines([{n:t('nas454.a.k'),cls:'nas-a',d:P.s.map(([d,v])=>[Date.parse(d+'T12:00:00Z'),v])}],
+    {aria:t('nas454.ac.aria'),fmt:v=>nfmt(v,0),dt:ms=>gxDayTxt(nasIsoMs(ms)),dx:ms=>gxDayS(nasIsoMs(ms)),dom:[0,100],refs:[{v:25,n:t('nas454.a.lo.s'),cls:'tg'},{v:75,n:t('nas454.a.hi.s'),cls:'tg'}]}):'';
+  return `<div class="gx-h"><b>${t('nas454.h.a')}</b></div><div class="etfkpis nas-k1">${gxTile(t('nas454.a.k'),`${nfmt(P.v,0)} <span class="un">/ 100</span>`,'',L,t('nas454.a.when',{d:gxDayTxt(P.asof),w:gxWhen(P.t)}))}</div>`
+    +(ch?`<div class="gx-h"><b>${t('nas454.h.ac')}</b></div>${ch}`:'')+`<p class="pnote">${t('nas454.n.a')}</p>`;
+}
+function renderNas(){
+  const el=$('#c-nastroje');if(!el)return;
+  const D=NAS.d;if(!D){el.hidden=true;el.innerHTML='';return;}
+  const pP=nasPart('pm'),pm=pP?nasPmBody(pP):'',wP=nasPart('wiki'),R=wP?NAS_ART.map(id=>[id,nasArt(id)]).filter(x=>x[1]):[],aP=nasAlt();
+  if(!pm&&R.length<2&&!aP){el.hidden=true;el.innerHTML='';return;}
+  const live=gxAge(D.at)<NAS_LIVE,open=typeof el.querySelectorAll==='function'?[...el.querySelectorAll('details')].map(x=>[x.id,!!x.open]).filter(x=>x[0]):[];
+  el.innerHTML=`<div class="etfh"><div><h2>${t('nas454.t')}</h2><p class="pnote">${t('nas454.sub')}</p></div><div class="etfb"><span class="live ${live?'on':'off'}"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`
+    +pm+(R.length>=2?nasWBody(R,wP):'')+(aP?nasAltBody(aP):'')
+    +`<details class="etfd" id="nas-not"><summary>${t('eng.notsays')}</summary>${[1,2,3].map(i=>`<p class="pnote">${t('nas454.not'+i)}</p>`).join('')}</details>`
+    +`<p class="pfoot">${t('inst.file',{t:engDate(D.at)})} · ${t('nas454.foot')} ${t('eng.disclaimer')}</p>`;
+  open.forEach(([id,o])=>{const x=el.querySelector('#'+id);if(x)x.open=o;});
+  el.hidden=false;
+}
+function nasApply(j){const ok=nasOk(j);if(!ok&&NAS.d)return;NAS.d=ok?j:null;renderNas();}   /* chwilowy błąd pobrania nie zasłania wczytanych danych */
+function nasLoad(){srvJSON('nastroje').then(nasApply);}
+SRV_GR['nastroje']='c';SRV_LD.c.push(nasLoad);
+setInterval(()=>{if(!document.hidden)nasLoad();},10*60*1000);   /* rynek prognoz co ~godzinę — strona pyta co 10 min (rynki rozstrzygnięte znikają, wiek w kafelkach się odświeża) */
+nasLoad();try{new MutationObserver(()=>renderNas()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
+/* ---------- koniec bloku rynków prognoz i uwagi detalu (v454) ---------- */
 /* ===================== v105: wieloryby — portfele giełd na Ethereum (plik data/wieloryby.json, odczyt własny z łańcucha) =====================
    Salda ETH/USDT/USDC portfeli, które giełdy same ogłosiły; zmiana wobec własnego zrzutu dobowego; przelewy USDT/USDC ≥ 1 mln USD
    do tych portfeli i z nich. Brak = „—” z powodem, nigdy zero; bez pliku sekcja ukryta. To pomiar sald i przelewów, nie kupna

@@ -35486,3 +35486,182 @@ test('v453 (F11Z34): słownik tylko pl i en o tych samych kluczach, zero nazw do
   assert.ok(/@media \(max-width:560px\)\{[^@]*\.hla \.hla-c::before\{content:attr\(data-l\)/.test(html) && html.includes('.hla .hla-hd{display:none}'), 'tabele jako kartki z etykietami kolumn');
   assert.ok(/\.hla \.hla-n b\{[^}]*overflow-wrap:anywhere/.test(html) && !/\.hla[^{]*\{[^}]*white-space:nowrap[^}]*\}/.test(html.slice(html.indexOf('.hla .etfkpis'), html.indexOf('.hla .etfkpis') + 4000).replace(/\.hla \.gxs-v\{[^}]*\}/, '')), 'bez wymuszonego jednego wiersza poza wartością paska');
 });
+
+// ===================== v454 (F11Z36): Rynki prognoz i uwaga detalu w CRYPTO (data/nastroje.json); karta #c-nastroje =====================
+// Fixtura NAS454_FILE zbudowana w teście z nagrania drabiny „Bitcoin powyżej X” z 19.10.2026 04:44 UTC; czas przypięty (Date.now = 19.10.2026 05:00 UTC), bez zegara.
+// Oczekiwane liczby liczone w teście z pól fixtury (niezależnie od kodu strony).
+const NAS454_LAD = [[72000, 0.9995], [74000, 0.9995], [76000, 0.9965], [78000, 0.9895], [80000, 0.9695], [82000, 0.795], [84000, 0.1115], [86000, 0.0145], [88000, 0.0035], [90000, 0.0005], [92000, 0.0005]];
+const nas454Day = (end, vol, lad, kw) => ({end, n: lad.length, vol, p10: kw[0], p50: kw[1], p90: kw[2], lad});
+const nas454Art = (k, i7, flat) => {   // 90 dni do 15.10.2026; i7 = mnożnik ostatnich 7 dób (1 = bez zmiany); flat = stała liczba odsłon (zmiana dokładnie 0)
+  const s = [], d1 = Date.parse('2026-10-15T12:00:00Z');
+  for (let i = 0; i < 90; i++) s.push([new Date(d1 - (89 - i) * 864e5).toISOString().slice(0, 10), Math.round((1000 * (k + 1) + (flat ? 0 : (i * 37) % 400)) * (i >= 83 ? i7 : 1))]);
+  const a90 = s.reduce((a, x) => a + x[1], 0) / 90, a7 = s.slice(83).reduce((a, x) => a + x[1], 0) / 7;
+  return {asof: '2026-10-15', last: s[89][1], a7: Math.round(a7 * 10) / 10, a90: Math.round(a90 * 10) / 10, s};
+};
+const nas454Alt = (v, w) => {   // 90 dni do 19.10.2026, wartość sprzed tygodnia = w
+  const s = [], d1 = Date.parse('2026-10-19T12:00:00Z');
+  for (let i = 0; i < 90; i++) s.push([new Date(d1 - (89 - i) * 864e5).toISOString().slice(0, 10), i === 82 ? w : i === 89 ? v : 40 + i % 30]);
+  return {t: '2026-10-19T05:00:00+00:00', asof: '2026-10-19', v, mcap: 1.19e12, s};
+};
+const nas454File = (o = {}) => ({v: 1, at: '2026-10-19T05:00:00+00:00', src: 'x', ok: {pm: true, wiki: true, alt: true}, part_at: {}, try_at: {},
+  pm: {t: '2026-10-19T05:00:00+00:00',
+    btc: {dni: [nas454Day('2026-10-19T16:00:00Z', 533640, NAS454_LAD, [80796.6, 82863.2, 84237.1]), nas454Day('2026-10-20T16:00:00Z', 80929, NAS454_LAD.map(r => [r[0] + 1000, r[1]]), [81796.6, 83863.2, 85237.1]),
+      nas454Day('2026-10-21T16:00:00Z', 48027, NAS454_LAD.map(r => [r[0] + 2000, r[1]]), [82796.6, 84863.2, 86237.1])], gora: {end: '2026-10-19T16:00:00Z', p: 0.935, vol: 41655}},
+    eth: {dni: [nas454Day('2026-10-19T16:00:00Z', 104050, NAS454_LAD.map(r => [r[0] / 32, r[1]]), [2524.9, 2589.5, 2632.4])], gora: null}, pomin: {}},
+  wiki: {t: '2026-10-19T05:00:00+00:00', asof: '2026-10-15', rows: {bitcoin: nas454Art(0, 1.5), ethereum: nas454Art(1, 1, true), solana: nas454Art(2, 0.6), dogecoin: nas454Art(3, 1.2)}, pomin: {}},
+  alt: nas454Alt(69, 66), ...o});
+const nas454T = (() => {
+  const a0 = html.indexOf('/* ===================== v454 (F11Z36): RYNKI PROGNOZ'), a1 = html.indexOf('/* ---------- koniec bloku rynków prognoz i uwagi detalu (v454) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v454 w stronie');
+  const h0 = html.indexOf('const gxNum='), h1 = html.indexOf('function gxSpark(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia kart');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[\u00a0\u202f]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const mk = (L, file, opt) => {
+    const NOW = Date.parse((opt && opt.now) || '2026-10-19T05:00:00Z');
+    class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, querySelectorAll() { return []; }, querySelector() { return null; }};
+    const calls = [], ivs = [], mos = [], charts = [];
+    const srv = n => { calls.push(n); const v = (file === undefined || file === null) ? null : file; return {then(f) { f(v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: () => {}, documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH, SRV_GR = {}, SRV_LD = {c: []};
+    const wk = (S, o) => { charts.push({S, o}); return '<chart n=' + S.length + '>'; };
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'engDate', 'lnAgo', 'srvJSON', 'SRV_GR', 'SRV_LD', 'wkLines', 'document', 'MutationObserver', 'setInterval', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {NAS, nasPart, nasEv, nasDays, nasUp, nasPct, nasVol, nasChg, nasArt, nasAlt, nasApply, nasLoad, renderNas};')(
+      q => q === '#c-nastroje' ? el : null, T, EH, F.nfmt, LOC, L, s => 'D:' + String(s).slice(0, 16), iso => ' · ago', srv, SRV_GR, SRV_LD, wk, doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD);
+    return {api, el, calls, ivs, mos, charts, SRV_GR, SRV_LD, html: () => sp(el.innerHTML), T};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], cls: m[2], val: txt(m[3].split('<small')[0]),
+    lines: [...m[3].matchAll(/<small class="(pos|neg|neu|na|pc)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const rows = h => sp(h).split('<div class="nas-r">').slice(1).map(c => ({day: txt((c.match(/<span class="nas-n">(.*?)<\/span>/) || [, ''])[1]), left: (c.match(/<b style="left:([\d.]+)%;width:([\d.]+)%/) || [, null, null]).slice(1, 3),
+    tick: (c.match(/<i style="left:([\d.]+)%/) || [, null])[1], mid: txt((c.match(/data-l="Środek[^"]*">(.*?)<\/span>/) || c.match(/data-l="Midpoint[^"]*">(.*?)<\/span>/) || [, ''])[1]), n: c.length}));
+  return {mk, tiles, rows, txt, sp, clone};
+})();
+
+test('v454 rynek prognoz: kafle dla najbliższego dnia — środek, zakres 80% szans, szansa wzrostu, obrót; wiersze kolejnych dni i progi', () => {
+  const M = nas454T.mk('pl', nas454File()), api = M.api;
+  const fix = nas454File().pm;
+  assert.equal(M.el.hidden, false); assert.deepEqual(M.calls, ['nastroje']);
+  const all = nas454T.tiles(M.html()), pm = all.filter(x => / środek na /.test(x.label));
+  assert.equal(pm.length, 2);
+  assert.ok(/^Bitcoin: środek na /.test(pm[0].label) && /^Ethereum: środek na /.test(pm[1].label), pm.map(x => x.label).join('|'));
+  assert.equal(pm[0].val, '82 863 USD'); assert.equal(pm[1].val, '2590 USD', 'polski zapis nie grupuje liczb czterocyfrowych (wspólny nfmt)');
+  assert.ok(pm[0].lines.some(l => l[1] === '80% szans, że cena będzie między 80 797 a 84 237 USD'), JSON.stringify(pm[0].lines));
+  assert.ok(pm[0].lines.some(l => /^Szansa wzrostu w ciągu doby \(.*\): 94%$/.test(l[1])), JSON.stringify(pm[0].lines));
+  assert.ok(pm[0].lines.some(l => l[1] === 'Obrót w ostatniej dobie: 534 tys. USD'), JSON.stringify(pm[0].lines));
+  assert.ok(!pm[1].lines.some(l => /^Szansa wzrostu/.test(l[1])), 'bez zdarzenia wzrost/spadek — bez linii, nie zero');
+  assert.ok(/^odczyt: D:2026-10-19T05:00/.test(pm[0].when), pm[0].when);
+  // wiersze dni: 3 dla Bitcoina i 1 dla Ethereum; pasek na wspólnej skali monety
+  const R = nas454T.rows(M.html());
+  assert.equal(R.filter(r => r.left[0] !== null).length, 4); assert.equal(R[0].mid, '82 863'); assert.equal(R[1].mid, '83 863'); assert.equal(R[2].mid, '84 863'); assert.equal(R[3].mid, '2590');
+  const lo = 80796.6, hi = 86237.1, sc = v => (v - lo) / (hi - lo) * 100;
+  assert.ok(Math.abs(+R[0].left[0] - sc(80796.6)) < 0.06 && Math.abs(+R[0].left[1] - (sc(84237.1) - sc(80796.6))) < 0.06 && Math.abs(+R[2].tick - sc(84863.2)) < 0.06, JSON.stringify(R.slice(0, 3)));
+  assert.ok(R[0].left[0] === '0.0', 'najniższy początek zakresu = lewy brzeg skali');
+  // progi najbliższego dnia (rozwijane): 11 wierszy, szanse bez udawania dokładności
+  const g = nas454T.sp(M.html()), d0 = g.indexOf('id="nas-lad-btc"'), d1 = g.indexOf('</details>', d0), lad = nas454T.txt(g.slice(d0, d1));
+  assert.ok(/powyżej 72 000 USD >99%/.test(lad) && /powyżej 82 000 USD 80%/.test(lad) && /powyżej 92 000 USD <1%/.test(lad) && /powyżej 84 000 USD 11%/.test(lad), lad);
+  assert.equal((g.slice(d0, d1).match(/class="gxs-r"/g) || []).length, 11);
+  assert.ok(!/NaN|undefined|Infinity/.test(g));
+});
+
+test('v454 rynek prognoz: zakres albo środek poza drabiną progów = „—”, nigdy zero', () => {
+  const F = nas454File(); F.pm.btc.dni[0].p50 = null; F.pm.btc.dni[1].p10 = null; F.pm.btc.dni[1].p90 = null; F.pm.eth.dni[0].p10 = null;
+  const M = nas454T.mk('pl', F), t = nas454T.tiles(M.html()).filter(x => / środek na /.test(x.label));
+  assert.equal(t[0].val, '—'); assert.ok(/ class="na"/.test(t[0].cls), 'brak środka = „—” w kolorze podpisów'); assert.ok(t[0].lines.some(l => /^80% szans, że cena będzie między 80 797 a 84 237 USD$/.test(l[1])), 'zakres zostaje, gdy jest');
+  assert.equal(t[1].val, '2590 USD'); assert.ok(!t[1].lines.some(l => /^80% szans/.test(l[1])), 'brak końca zakresu = bez linii zakresu, nie zero');
+  const R = nas454T.rows(M.html()); assert.equal(R[0].mid, '—'); assert.equal(R[1].left[0], null, 'dzień bez zakresu — bez paska'); assert.equal(R[1].mid, '83 863'); assert.equal(R[2].mid, '84 863');
+  assert.ok(!/NaN|undefined|Infinity/.test(M.html()) && !/ 0 USD/.test(M.html()));
+});
+
+test('v454 rynek prognoz: rynek rozstrzygnięty znika, część starsza niż 6 godzin znika, brak pliku i zły kształt = ukryta karta', () => {
+  const F16 = nas454File(); F16.pm.t = '2026-10-19T16:20:00+00:00';   // plik odświeżony tuż przed pytaniem; rynki dnia 19.10 rozstrzygnęły się o 16:00 UTC
+  const M = nas454T.mk('pl', F16, {now: '2026-10-19T16:30:00Z'});
+  const pm = nas454T.tiles(M.html()).filter(x => / środek na /.test(x.label));
+  assert.equal(pm.length, 1, 'po 16:00 UTC wygasa dzień 19.10 obu monet — zostaje Bitcoin na 20.10'); assert.ok(/^Bitcoin/.test(pm[0].label) && pm[0].val === '83 863 USD', pm[0].label + pm[0].val);
+  assert.ok(!pm[0].lines.some(l => /^Szansa wzrostu/.test(l[1])), 'wzrost/spadek z 19.10 wygasł');
+  const old = nas454T.mk('pl', nas454File(), {now: '2026-10-19T11:01:00Z'}), h = old.html();
+  assert.ok(!/ środek na /.test(h) && /odsłon dziennie/.test(h), 'rynek prognoz starszy niż 6 h znika, odsłony (do 5 dób) i indeks zostają');
+  assert.equal(nas454T.mk('pl', null).el.hidden, true); assert.equal(nas454T.mk('pl', null).el.innerHTML, '');
+  for (const bad of [{}, {v: 2}, {v: 1, at: 'x', pm: {}}, {v: 1, at: '2026-10-19T05:00:00Z'}, 'tekst']) assert.equal(nas454T.mk('pl', bad).el.hidden, true, JSON.stringify(bad));
+  const zle = nas454File(); zle.pm.btc.dni = [{end: '2026-10-19T16:00:00Z', lad: [[1, 2], [2, 3]]}, {end: 'x', lad: []}]; zle.pm.eth = 'x';
+  const Z = nas454T.mk('pl', zle); assert.ok(!/ środek na /.test(Z.html()), 'drabina z szansą poza 0–1 i zły czas odrzucone'); assert.equal(Z.el.hidden, false, 'odsłony i indeks nadal są');
+  const sam = nas454File(); delete sam.wiki; delete sam.alt; const S = nas454T.mk('pl', sam); assert.equal(S.el.hidden, false); assert.ok(!/odsłon dziennie|\/ 100|Zainteresowanie wobec normy/.test(S.html()));
+});
+
+test('v454 uwaga detalu: kafle odsłon (średnia z 7 dób wobec 90 dób, kolor ze znaku), wykres względem normy, brak = ukryta sekcja', () => {
+  const F = nas454File(), M = nas454T.mk('pl', F), all = nas454T.tiles(M.html()), w = all.filter(x => /odsłon dziennie/.test(x.val));
+  assert.deepEqual(w.map(x => x.label), ['Bitcoin', 'Ethereum', 'Solana', 'Dogecoin']); assert.equal(all.length, 7);
+  const W = F.wiki.rows, chg = id => (W[id].a7 / W[id].a90 - 1) * 100;
+  const pct = v => { const r = Math.round(v * 10) / 10; return (r > 0 ? '▲ +' : r < 0 ? '▼ −' : '') + new Intl.NumberFormat('pl-PL', {minimumFractionDigits: 1, maximumFractionDigits: 1}).format(Math.abs(r)) + '%'; };
+  ['bitcoin', 'ethereum', 'solana', 'dogecoin'].forEach((id, i) => {
+    const l = w[i].lines[0]; assert.equal(l[1], 'Ostatni tydzień wobec średniej z 90 dni: ' + pct(chg(id)), id);
+    assert.equal(l[0], chg(id) > 0.05 ? 'pos' : chg(id) < -0.05 ? 'neg' : 'neu', id + ' kolor z pokazanego znaku');
+    assert.ok(w[i].val.endsWith(' odsłon dziennie') && w[i].lines[1][1] === 'Ostatni dzień danych (15.10): ' + nas454T.sp(new Intl.NumberFormat('pl-PL').format(W[id].last)), w[i].val + w[i].lines[1][1]);
+    assert.ok(/^dane za 15 paź 2026 · pobrano: D:2026-10-19T05:00/.test(w[i].when), w[i].when);
+  });
+  assert.deepEqual(w.map(x => x.lines[0][0]), ['pos', 'neu', 'neg', 'pos']); assert.ok(!w[1].lines[0][1].includes('▲') && !w[1].lines[0][1].includes('▼') && w[1].lines[0][1].endsWith('0,0%'), 'zero bez strzałki, żółte');
+  const c = M.charts.find(x => x.S.length === 4); assert.ok(c, 'wykres czterech artykułów');
+  assert.deepEqual(c.S.map(s => s.cls), ['nas-a', 'nas-b', 'nas-c', 'nas-d']); assert.deepEqual(c.S.map(s => s.n), ['Bitcoin', 'Ethereum', 'Solana', 'Dogecoin']);
+  assert.equal(c.S[0].d.length, 90); assert.ok(Math.abs(c.S[0].d[0][1] - W.bitcoin.s[0][1] / W.bitcoin.a90 * 100) < 1e-9 && c.S[0].d[0][0] === Date.parse(W.bitcoin.s[0][0] + 'T12:00:00Z'));
+  assert.deepEqual(c.o.refs.map(r => r.v), [100]); assert.equal(c.o.zero, false); assert.equal(c.o.fmt(101.4), '101'); assert.equal(c.o.dx(Date.parse('2026-10-15T12:00:00Z')), '15.10');
+  // jeden artykuł z błędną średnią (zero) albo za krótką serią — pomijany; mniej niż dwa artykuły = sekcja ukryta
+  const f2 = nas454File(); f2.wiki.rows.bitcoin.a90 = 0; f2.wiki.rows.ethereum.s = f2.wiki.rows.ethereum.s.slice(0, 20); f2.wiki.rows.solana.asof = 'x';
+  const H = nas454T.mk('pl', f2).html(); assert.ok(!/odsłon dziennie/.test(H) && !/Zainteresowanie wobec normy/.test(H), 'jeden poprawny artykuł = bez sekcji');
+  const f3 = nas454File(); f3.wiki.rows.dogecoin.a7 = null; f3.wiki.rows.solana.last = 'x';
+  assert.equal(nas454T.tiles(nas454T.mk('pl', f3).html()).filter(x => /odsłon dziennie/.test(x.val)).length, 2);
+  const old = nas454File(); old.wiki.t = '2026-10-13T04:00:00+00:00'; assert.ok(!/odsłon dziennie/.test(nas454T.mk('pl', old).html()), 'część starsza niż 5 dób znika');
+});
+
+test('v454 indeks sezonu altcoinów: wartość z opisem stanu, zmiana w tydzień z kolorem ze znaku, kapitalizacja, wykres 0–100 z progami 25 i 75', () => {
+  const stan = (v, w) => { const M = nas454T.mk('pl', nas454File({alt: nas454Alt(v, w)})), t = nas454T.tiles(M.html()).find(x => /\/ 100/.test(x.val)); return {t, M}; };
+  let {t, M} = stan(69, 66);
+  assert.equal(t.label, 'Indeks sezonu altcoinów'); assert.equal(t.val, '69 / 100');
+  assert.deepEqual(t.lines.map(l => l[1]), ['Bez wyraźnej przewagi altcoinów albo bitcoina', 'Zmiana w tydzień: ▲ +3 pkt', 'Kapitalizacja altcoinów: 1,19 bln USD']); assert.equal(t.lines[1][0], 'pos');
+  assert.equal(t.when, 'dane za 19 paź 2026 · pobrano: D:2026-10-19T05:00 · ago');
+  const c = M.charts.find(x => x.S.length === 1); assert.ok(c); assert.deepEqual(c.o.dom, [0, 100]); assert.deepEqual(c.o.refs.map(r => r.v), [25, 75]); assert.equal(c.S[0].d.length, 90); assert.equal(c.S[0].d[89][1], 69);
+  ({t} = stan(80, 84)); assert.equal(t.lines[0][1], 'Sezon altcoinów: większość dużych kryptowalut bije bitcoina'); assert.equal(t.lines[1][1], 'Zmiana w tydzień: ▼ −4 pkt'); assert.equal(t.lines[1][0], 'neg');
+  ({t} = stan(20, 20)); assert.equal(t.lines[0][1], 'Sezon bitcoina: większość dużych kryptowalut jest słabsza od bitcoina'); assert.equal(t.lines[1][1], 'Zmiana w tydzień: 0 pkt'); assert.equal(t.lines[1][0], 'neu', 'zero żółte, bez strzałki');
+  assert.equal(stan(75, 70).t.lines[0][1].slice(0, 6), 'Sezon ', 'dokładnie 75 to już sezon altcoinów'); assert.equal(stan(25, 30).t.lines[0][1].slice(0, 12), 'Sezon bitcoi', 'dokładnie 25 to sezon bitcoina');
+  const bez = nas454File({alt: nas454Alt(69, 66)}); bez.alt.s = bez.alt.s.filter(x => x[0] !== '2026-10-12'); bez.alt.mcap = null;
+  const B = nas454T.tiles(nas454T.mk('pl', bez).html()).find(x => /\/ 100/.test(x.val)); assert.deepEqual(B.lines.map(l => l[1]), ['Bez wyraźnej przewagi altcoinów albo bitcoina'], 'brak dnia sprzed tygodnia i kapitalizacji = bez tych linii, nie zero');
+  for (const bad of [{v: 101}, {v: -1}, {asof: '2026-02-30'}, {s: []}, {v: null}]) assert.ok(!/ \/ 100/.test(nas454T.mk('pl', nas454File({alt: Object.assign(nas454Alt(69, 66), bad)})).html()), JSON.stringify(bad));
+  const old = nas454File(); old.alt.t = '2026-10-15T04:00:00+00:00'; assert.ok(!/ \/ 100/.test(nas454T.mk('pl', old).html()), 'część starsza niż 3 doby znika');
+});
+
+test('v454 angielski: te same elementy, bez polskich napisów, bez nazw dostawców; liczby przez wspólny nfmt', () => {
+  const M = nas454T.mk('en', nas454File()), h = M.html(), x = nas454T.txt(h);
+  assert.ok(/Prediction markets and retail attention/.test(x) && /Bitcoin: midpoint for /.test(x) && /80% chance the price lands between 80,797 and 84,237 USD/.test(x), x.slice(0, 400));
+  assert.ok(/Altcoin season index/.test(x) && /views a day/.test(x) && /Interest vs normal \(90-day average = 100\)/.test(x));
+  assert.ok(/Volume in the last day: 534 k USD/.test(x), 'obrót w tysiącach po angielsku');
+  assert.ok(!/[ąćęłńóśźż]/i.test(x.replace(/▲|▼/g, '')), 'bez polskich liter w wersji angielskiej: ' + (x.match(/\S*[ąćęłńóśźż]\S*/i) || [''])[0]);
+  for (const L of ['pl', 'en']) assert.ok(!/Polymarket|Kalshi|Wikipedia|Wikimedia|CoinMarketCap|Gamma|Upbit/i.test(nas454T.mk(L, nas454File()).html()), 'zero nazw dostawców na stronie');
+  const I = v96src.I18N, ks = Object.keys(I.pl).filter(k => k.startsWith('nas454.')), ke = Object.keys(I.en).filter(k => k.startsWith('nas454.'));
+  assert.ok(ks.length >= 45 && JSON.stringify(ks.sort()) === JSON.stringify(ke.sort()), 'te same klucze w pl i en');
+  for (const k of ks) { assert.ok(I.pl[k] && I.en[k], k); assert.ok(!/\{[a-z]\}/.test(nas454T.sp(I.pl[k]).replace(/\{[a-z]\}/g, '')) , k); }
+  assert.ok(!nas454T.mk('pl', nas454File()).html().includes('undefined'));
+});
+
+test('v454 ładowanie: grupa „c”, ładowarka w rejestrze, odświeżanie co 10 minut, zły plik nie zasłania wczytanych danych, zmiana języka przerysowuje', () => {
+  const M = nas454T.mk('pl', nas454File()), a = M.api;
+  assert.equal(M.SRV_GR.nastroje, 'c'); assert.equal(M.SRV_LD.c.length, 1); assert.equal(M.SRV_LD.c[0], a.nasLoad); assert.deepEqual(M.ivs.map(i => i[1]), [600000]);
+  const h0 = M.html(); assert.ok(h0.length > 1000);
+  a.nasApply({v: 1, at: 'zepsute'}); assert.equal(M.html(), h0, 'chwilowy błąd pobrania nie zasłania wczytanych danych');
+  assert.ok(M.mos.some(m => m.o && m.o.attributeFilter && m.o.attributeFilter.includes('lang')), 'zmiana języka');
+  M.el.innerHTML = ''; M.mos[0].cb(); assert.equal(M.html(), h0, 'przerysowanie daje ten sam widok');
+  // karta w strukturze strony i style
+  assert.ok(html.includes('<section class="panel pcard" id="c-nastroje" hidden></section>'), 'sekcja karty');
+  const css = html.slice(html.indexOf('/* v454 (F11Z36): rynki prognoz i uwaga detalu (karta #c-nastroje'), html.indexOf('</style>\n<!-- v348: licznik odwiedzin'));
+  assert.ok(css.length > 800 && css.includes('#c-nastroje .etfk b small.pos{color:var(--gr-tx)}') && css.includes('#c-nastroje .etfk b small.neg{color:var(--rd-tx)}') && css.includes('#c-nastroje .etfk b small.neu{color:var(--yl-tx)}'), 'kolory kierunku systemowe');
+  assert.ok(css.includes('@media (max-width:560px)') && css.includes('#c-nastroje .nas-hd{display:none}') && !/#c-nastroje[^{]*\{[^}]*(overflow-x:\s*(auto|scroll)|min-width:\s*\d{3,})/.test(css), 'telefon 390 px: układ dwukolumnowy bez przewijania w bok');
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(css.replace(/&#\d+;/g, '')), 'tylko zmienne strony, bez kolorów na sztywno');
+  const code = html.slice(html.indexOf('/* ===================== v454 (F11Z36): RYNKI PROGNOZ'), html.indexOf('/* ---------- koniec bloku rynków prognoz i uwagi detalu (v454) ---------- */'));
+  assert.ok(!/toLocaleString|Intl\.NumberFormat/.test(code.replace(/\/\*[\s\S]*?\*\//g, '')), 'liczby przez wspólną funkcję nfmt');
+  assert.equal((html.match(/SRV_GR\['nastroje'\]='c'/g) || []).length, 1);
+});

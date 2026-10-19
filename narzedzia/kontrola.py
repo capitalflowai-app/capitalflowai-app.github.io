@@ -14671,6 +14671,163 @@ def hla_k_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v454 (F11Z36): RYNKI PROGNOZ I UWAGA DETALU (data/nastroje.json) --------------------
+# Plik: trzy części (pm, wiki, alt), każda z własnym czasem pobrania (pole t) i rytmem: pm 1 h, wiki 12 h, alt 6 h (po błędzie ponowienie po 2 h; zbieracz v454). Najwyżej ⚠️ — źródła są publiczne
+# i niegwarantowane, więc przerwa źródła nie ma czerwienić kontroli (część z błędem zostaje z datą do 3 dób).
+# Wiersze świeżości: (1) pobranie części nie starsze niż pm 12 h, wiki 36 h, alt 24 h — ponad dwa pełne rytmy plus awaria (symulacja rytmu co 10 minut przez 30 dób, także z 6-godzinną awarią co 3 doby,
+# w test_zbieraj_dane: największy wiek pm 3,0 h, wiki 24,0 h, alt 12,0 h bez awarii i z awarią — 0 fałszywych ⚠️); (2) pm: co najmniej jeden rynek jeszcze nierozstrzygnięty (rynki rozstrzygają się w południe czasu nowojorskiego (16:00 UTC latem, 17:00 UTC zimą),
+# nowe dni są dopisywane co godzinę); wiki: ostatni dzień danych nie starszy niż 14 dób (19.10.2026: źródło miało dane do 15.10, czyli 4 doby opóźnienia; próg 14 dób z dużym zapasem); alt: ostatni punkt nie starszy niż 4 doby.
+# Test wsteczny na historii nie jest możliwy (pliki nowe, źródła bez archiwum rytmu) — progi z rytmu i z pomiaru z 19.10.2026.
+# Spójność w pliku (⚠️): pm — progi rosnąco, szanse w 0–1 i nierosnące (tolerancja 0,05), środek mieści się w zakresie (p10 ≤ p50 ≤ p90), koniec rynku po czasie pobrania; wiki — dni rosnące, ostatni dzień = asof,
+# last = ostatnia wartość serii, średnia 7 dób i 90 dób zgodne z serią (tolerancja 0,15); alt — dni rosnące, wartości 0–100, v = ostatni punkt serii, asof = ostatni dzień.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'nastroje')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['nastroje'] = 6 * 60   # plik zapisywany przy każdej próbie pobrania (pm co 1 h, po błędzie co 2 h) — wiek pliku; wiek pobrania każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'nastr_' + p_: 'Rynki prognoz i uwaga detalu — część z błędem zostaje z datą (v454); wiek danych w wierszach świeżości' for p_ in ('pm', 'wiki', 'alt')})
+NAS_K_POBR_MIN = {'pm': 12 * 60, 'wiki': 36 * 60, 'alt': 24 * 60}   # min — wiek pobrania części, powyżej tego ⚠️
+NAS_K_WIKI_DATA_D = 14   # dób — wiek ostatniego dnia danych odsłon, powyżej tego ⚠️
+NAS_K_ALT_DATA_D = 4     # dób — wiek ostatniego punktu indeksu altcoinów, powyżej tego ⚠️
+NAS_K_ETYKIETA = {'pm': 'Rynki prognoz — cena BTC i ETH', 'wiki': 'Uwaga detalu — odsłony artykułów', 'alt': 'Indeks sezonu altcoinów'}
+NAS_K_TOL = 0.15         # tolerancja zaokrągleń średnich odsłon (zbieracz zaokrągla do 0,1)
+
+
+def nas_k_dzien(d):
+    return isinstance(d, str) and len(d) == 10 and _ix_dt_k(d + 'T00:00:00Z') is not None
+
+
+def nas_k_num(x, lo, hi):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and lo <= x <= hi
+
+
+def nas_k_seria(S, lo, hi):
+    """Seria [[dzień, liczba]]: dni prawdziwe i rosnące, liczby w zakresie; zwraca opis usterki albo ''."""
+    if not isinstance(S, list) or not S:
+        return 'brak serii'
+    if any(not (isinstance(r, list) and len(r) == 2 and nas_k_dzien(r[0]) and nas_k_num(r[1], lo, hi)) for r in S):
+        return 'zły kształt albo liczba poza zakresem'
+    if [r[0] for r in S] != sorted({r[0] for r in S}):
+        return 'dni nie rosną albo się powtarzają'
+    return ''
+
+
+def nas_k_pm(P, now):
+    zle, zywe = [], 0
+    for c in ('btc', 'eth'):
+        C = P.get(c)
+        if not isinstance(C, dict) or not isinstance(C.get('dni'), list):
+            if C is not None:
+                zle.append(f'{c}: zły kształt')
+            continue
+        tp = _ix_dt_k(P.get('t'))
+        for e in C['dni']:
+            if not (isinstance(e, dict) and isinstance(e.get('lad'), list) and len(e['lad']) >= 2):
+                zle.append(f'{c}: zły kształt dnia'); continue
+            L = e['lad']
+            if any(not (isinstance(r, list) and len(r) == 2 and nas_k_num(r[0], 0.0001, 1e7) and nas_k_num(r[1], 0.0, 1.0)) for r in L):
+                zle.append(f'{c}: zły próg albo szansa'); continue
+            if [r[0] for r in L] != sorted({r[0] for r in L}):
+                zle.append(f'{c}: progi nie rosną'); continue
+            if any(L[i + 1][1] > L[i][1] + 0.05 for i in range(len(L) - 1)):
+                zle.append(f'{c}: szansa rośnie z progiem'); continue
+            q = [e.get(k) for k in ('p10', 'p50', 'p90')]
+            if any(x is not None and not nas_k_num(x, 0.0001, 1e7) for x in q) or (all(x is not None for x in q) and not q[0] <= q[1] <= q[2]):
+                zle.append(f'{c}: zakres nie mieści środka')
+            ed = _ix_dt_k(e.get('end'))
+            if ed is None or (tp is not None and ed <= tp):
+                zle.append(f'{c}: koniec rynku nie po czasie pobrania')
+            elif ed > now:
+                zywe += 1
+    return zle, zywe
+
+
+def nas_k_wiki(P):
+    zle = []
+    R = P.get('rows')
+    if not isinstance(R, dict) or not R:
+        return ['brak artykułów']
+    for cid, r in R.items():
+        if not isinstance(r, dict):
+            zle.append(f'{cid}: zły kształt'); continue
+        s = nas_k_seria(r.get('s'), 0, 1e9)
+        if s:
+            zle.append(f'{cid}: seria — {s}'); continue
+        S = r['s']
+        if r.get('asof') != S[-1][0] or r.get('last') != S[-1][1]:
+            zle.append(f'{cid}: ostatni dzień albo ostatnia wartość ≠ koniec serii'); continue
+        d0 = _ix_dt_k(S[-1][0] + 'T00:00:00Z')
+        n7 = [v for d, v in S if (d0 - _ix_dt_k(d + 'T00:00:00Z')).days < 7]
+        a7, a90 = sum(n7) / len(n7), sum(v for _d, v in S) / len(S)
+        if not (nas_k_num(r.get('a7'), 0, 1e9) and nas_k_num(r.get('a90'), 0.0001, 1e9)) or abs(r['a7'] - a7) > NAS_K_TOL or abs(r['a90'] - a90) > NAS_K_TOL:
+            zle.append(f'{cid}: średnie odsłon niezgodne z serią')
+    return zle
+
+
+def nas_k_alt(P):
+    s = nas_k_seria(P.get('s'), 0, 100)
+    if s:
+        return [f'seria — {s}']
+    S = P['s']
+    return ([] if P.get('asof') == S[-1][0] and P.get('v') == S[-1][1] else ['ostatni punkt serii ≠ asof albo v'])
+
+
+def nas_k_kontrola(j, now=None):
+    """data/nastroje.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    for part in ('pm', 'wiki', 'alt'):
+        P = j.get(part) if isinstance(j.get(part), dict) else None
+        lab = NAS_K_ETYKIETA[part]
+        if P is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od ponad 3 dób)')
+            continue
+        w = wiek_danych(P.get('t'), 'ts', 'k', now)
+        if w is None:
+            out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak czasu pobrania'))
+        else:
+            st = '⚠️' if w > NAS_K_POBR_MIN[part] else '✅'
+            dane = str(P.get('t'))[:16].replace('T', ' ') + ' UTC'
+            note = '' if st == '✅' else 'pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga'
+            out['rows'].append((lab + ' (pobranie)', st, w, dane, note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (pobranie): {dane} — {fmt_wiek(w)} temu ({note})')
+        if part == 'pm':
+            z, zywe = nas_k_pm(P, now)
+            zle += [f'pm: {x}' for x in z]
+            if not zywe:
+                out['rows'].append((lab + ' (rynki)', '⚠️', None, None, 'wszystkie rynki rozstrzygnięte — nowe dni nie zostały dopisane; najwyżej uwaga'))
+                out['uwagi'].append(f'{lab}: wszystkie pokazane rynki są już rozstrzygnięte')
+        elif part == 'wiki':
+            zle += [f'wiki: {x}' for x in nas_k_wiki(P)]
+            wd = wiek_danych(P.get('asof'), 'day', 'k', now) if nas_k_dzien(P.get('asof')) else None
+            if wd is None:
+                out['rows'].append((lab + ' (dzień danych)', '?', None, None, 'brak dnia danych'))
+            else:
+                st = '⚠️' if wd > NAS_K_WIKI_DATA_D * 1440 else '✅'
+                out['rows'].append((lab + ' (dzień danych)', st, wd, str(P.get('asof')), '' if st == '✅' else 'dane starsze niż 14 dób; najwyżej uwaga'))
+                if st == '⚠️':
+                    out['uwagi'].append(f'{lab}: dzień danych {P.get("asof")} — {fmt_wiek(wd)} temu')
+        else:
+            zle += [f'alt: {x}' for x in nas_k_alt(P)]
+            wd = wiek_danych(P.get('asof'), 'day', 'k', now) if nas_k_dzien(P.get('asof')) else None
+            if wd is None:
+                out['rows'].append((lab + ' (dzień danych)', '?', None, None, 'brak dnia danych'))
+            else:
+                st = '⚠️' if wd > NAS_K_ALT_DATA_D * 1440 else '✅'
+                out['rows'].append((lab + ' (dzień danych)', st, wd, str(P.get('asof')), '' if st == '✅' else 'dane starsze niż 4 doby; najwyżej uwaga'))
+                if st == '⚠️':
+                    out['uwagi'].append(f'{lab}: dzień danych {P.get("asof")} — {fmt_wiek(wd)} temu')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Rynki prognoz i uwaga detalu (nastroje.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in ('pm', 'wiki', 'alt')):
+        out['wiersze'].append(('spójność pliku (drabiny progów, serie odsłon, średnie, indeks altcoinów)', '⚠️' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -15513,6 +15670,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['short-eu'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Krótka sprzedaż w Europie (v429): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v454. Rynki prognoz i uwaga detalu (data/nastroje.json): wiek pobrania każdej części, dzień danych, spójność w pliku — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        NS_ = nas_k_kontrola(files.get('nastroje'))
+        for label, st, w, txt, note in NS_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += NS_['uwagi']
+        R['zgodnosc']['nastroje'] = {'spojnosc': NS_['spojnosc'], 'wiersze': NS_['wiersze']} if (NS_['rows'] or NS_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['nastroje'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Rynki prognoz i uwaga detalu (v454): kontrola przerwana ({str(e)[:80]})')
     # 3c-v430. Ropa świata (data/ropa-swiat.json): wiek sprawdzenia każdej części i miesiąca danych, spójność w pliku, wydobycie USA i zapasy Polski z drugim źródłem — z plików strony, bez zapytań; porównania TYLKO informacja (ℹ️), reszta najwyżej ⚠️
     try:
         ROPK_ = rop_k_kontrola(files.get('ropa-swiat'), files.get('energia-usa'))
@@ -16268,6 +16435,11 @@ def raport_md(R):
             L.append('- Krótka sprzedaż w Europie: pozycje netto w Wielkiej Brytanii i w Szwecji (z pliku strony): ' + (f'? kontrola przerwana ({ssh_["blad"]})' if ssh_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(ssh_['spojnosc'][:3]) + ' ⚠️ · ' if ssh_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in ssh_.get('wiersze') or []) or '—') + '.')
+        snas_ = Z.get('nastroje')   # v454: rynki prognoz i uwaga detalu — brak pliku = bez linii
+        if snas_:
+            L.append('- Rynki prognoz i uwaga detalu: cena BTC i ETH według rynku prognoz, odsłony artykułów, indeks sezonu altcoinów (z pliku strony): ' + (f'? kontrola przerwana ({snas_["blad"]})' if snas_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(snas_['spojnosc'][:3]) + ' ⚠️ · ' if snas_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in snas_.get('wiersze') or []) or '—') + '.')
         srop_ = Z.get('ropa-swiat')   # v430: ropa świata (bilans krajów i zapasy w Europie) — brak pliku = bez linii
         if srop_:
             L.append('- Ropa świata (bilans krajów i zapasy ropy i paliw w Europie; z pliku strony; wydobycie USA i zapasy Polski z drugim źródłem tylko informacyjnie): ' + (f'? kontrola przerwana ({srop_["blad"]})' if srop_.get('blad') else
