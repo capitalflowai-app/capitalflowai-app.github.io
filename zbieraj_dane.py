@@ -22725,7 +22725,7 @@ def pr_get(venue, url, cnt):
     przebiegu → PrBlok bez wysyłania; HTTP 429/418 → giełda wstrzymana do końca przebiegu i PrBlok z nagłówkiem Retry-After."""
     if venue in _PR_PAUSED:
         raise PrBlok('wstrzymana po HTTP 429/418 — zapytanie nie wysłane', venue, fresh=False)
-    tmax, proby = (PR_UP_TIMEOUT, PR_UP_TRIES) if venue == 'up' else (PR_TIMEOUT, 1)   # v441: Upbit — własny krótszy limit i jedno ponowienie
+    tmax, proby = (PR_UP_TIMEOUT, PR_UP_TRIES) if venue == 'up' else ((PR_Z_TIMEOUT, 1) if venue in ('zk', 'zb') else (PR_TIMEOUT, 1))   # v441: Upbit — własny krótszy limit i jedno ponowienie; v469: zapas — własny limit
     for k in range(proby):
         wait = PR_SLEEP - (time.monotonic() - _PR_LAST.get(venue, -1e9))
         if wait > 0:
@@ -23067,6 +23067,119 @@ def _pr_live_up(now, cnt):
     return {c: pr_up_rows(pr_get('up', PR_UP.format(m=m, n=PR_WIN + 1), cnt)) for c, m in PR_UP_M.items()}
 
 
+# v469: ZAPAS DLA UPBITU. Część „premie_up” padała seriami (12–13.10 trzy krótkie epizody, 18.10 w nocy 21 przebiegów przez 4 h), a Upbit był jedynym
+# źródłem cen KRW. Gdy Upbit zawiedzie (awaria, przerwa po awarii, limit zapytań, koniec czasu), te same świece 1 min pochodzą z drugiej publicznej drogi
+# bez klucza (kolejno PR_Z_SRC: pierwsza, która da premię BTC; z dwóch ta, która da więcej monet), więc premia Korei liczy się TĄ SAMĄ metodą (mediana z ostatnich
+# wspólnych minut z Coinbase, ten sam kurs) — świece, nie ostatnia cena: ta sama minuta po obu stronach, żadnej nogi z innej chwili. Zapas nie podmienia
+# danych po cichu: blok now.kr dostaje pole src, plik pole up_src, notatka w meta. Kontrola spójności każdej ceny zapasu: (1) odbiega od ostatniego odczytu
+# Upbitu (now.kr poprzedniego pliku) o więcej niż PR_Z_DEV % + PR_Z_DEV_H % za godzinę jego wieku (najwyżej PR_Z_DEV_MAX %) = odrzucona; (2) daje premię ponad
+# PR_Z_PREM (progi kontroli dziennej: BTC/ETH 10 %, USDT 5 %) = odrzucona — działa też bez poprzedniego odczytu. Historia h_kr tylko z Upbitu.
+PR_Z_KORBIT = 'https://api.korbit.co.kr/v2/candles?symbol={s}_krw&interval=1&limit={n}'     # od najstarszej; timestamp = początek minuty (ms), close = tekst
+PR_Z_BITHUMB = 'https://api.bithumb.com/public/candlestick/{s}_KRW/1m'                      # od najstarszej; [początek minuty (ms), open, close, high, low, wolumen]
+PR_Z_SRC = (('korbit', 'zk'), ('bithumb', 'zb'))   # nazwa w pliku (src, up_src) i część dla pr_get (odstęp, wstrzymanie w przebiegu)
+PR_Z_TIMEOUT = 5       # s: jedno zapytanie do zapasu (≤ czas pozostały z budżetu)
+PR_Z_DEV = 5.0         # %: największe odchylenie ceny zapasu od ostatniego odczytu Upbitu w tej samej minucie…
+PR_Z_DEV_H = 1.0       # …plus tyle % za każdą godzinę różnicy między minutą ceny a minutą tego odczytu…
+PR_Z_DEV_MAX = 25.0    # …nigdy więcej niż tyle %
+PR_Z_PREM = {'btc': 10.0, 'eth': 10.0, 'usdt': 5.0}   # %: |premia| ponad to = cena odrzucona (jak PR_KR_MAX i PR_USDT_MAX w kontroli)
+
+
+def pr_z_rows(src, j):
+    """Świece 1 min zapasu (src = korbit | bithumb) → {minuta UTC 'RRRR-MM-DDTHH:MM': zamknięcie w KRW}. Znacznik czasu musi być początkiem minuty (ms);
+    zła świeca (0, None, bool, tekst nieliczbowy, zły czas) pominięta; odpowiedź w złym kształcie → ValueError."""
+    if src == 'korbit':
+        if not isinstance(j, dict) or j.get('success') is not True or not isinstance(j.get('data'), list):
+            raise ValueError('zapas: zła odpowiedź')
+        rows = [(x.get('timestamp'), x.get('close')) for x in j['data'] if isinstance(x, dict)]
+    elif src == 'bithumb':
+        if not isinstance(j, dict) or j.get('status') != '0000' or not isinstance(j.get('data'), list):
+            raise ValueError('zapas: zła odpowiedź')
+        rows = [(x[0], x[2]) for x in j['data'] if isinstance(x, list) and len(x) >= 3]
+    else:
+        raise ValueError('zapas: nieznane źródło')
+    out = {}
+    for ts, c in rows:
+        px = _pr_px(c, text=True)
+        if px is None or isinstance(ts, bool) or not isinstance(ts, int) or not 0 < ts < 4_000_000_000_000 or ts % 60000:
+            continue
+        out[datetime.datetime.fromtimestamp(ts // 1000, datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M')] = px
+    return out
+
+
+def _pr_z_fetch(name, venue, cnt):
+    """Świece zapasu dla BTC, ETH i USDT → {moneta: {minuta: zamknięcie}}. Błąd BTC = wyjątek (zapas bez BTC nic nie daje); błąd ETH albo USDT = ta moneta
+    pusta; koniec czasu budowniczego (PrBudget) zawsze przechodzi dalej."""
+    out = {}
+    for c in PR_KR_COINS:
+        try:
+            url = PR_Z_KORBIT.format(s=c, n=PR_WIN + 1) if name == 'korbit' else PR_Z_BITHUMB.format(s=c.upper())
+            out[c] = pr_z_rows(name, pr_get(venue, url, cnt))
+        except PrBudget:
+            raise
+        except Exception:  # noqa — moneta bez zapasu = brak premii tej monety (nigdy 0)
+            if c == 'btc':
+                raise
+            out[c] = {}
+    return out
+
+
+def _pr_z_ref(kr):
+    """Ostatni odczyt Upbitu z poprzedniego pliku (now.kr) → {moneta: (cena KRW, minuta)}; brak albo zły wpis = moneta bez odniesienia."""
+    out = {}
+    for c in PR_KR_COINS:
+        o = kr.get(c) if isinstance(kr, dict) else None
+        if isinstance(o, dict) and _pr_px(o.get('up')) and isinstance(o.get('m'), str) and re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$', o['m'][:16]):
+            out[c] = (float(o['up']), o['m'][:16])
+    return out
+
+
+def _pr_z_clean(c, rows, ref, cb, fx, lo, before):
+    """Ceny zapasu monety c z minut [lo, before) po kontroli spójności: odrzucona cena odbiegająca od odniesienia (ref = (cena, minuta) albo None) o więcej
+    niż PR_Z_DEV + PR_Z_DEV_H × (wiek odniesienia w godzinach), nie więcej niż PR_Z_DEV_MAX %, oraz cena dająca premię wobec Coinbase (cb) × kurs fx ponad PR_Z_PREM."""
+    out = {}
+    for m, v in rows.items():
+        if not lo <= m < before:
+            continue
+        if ref:
+            try:
+                age_h = abs((datetime.datetime.strptime(m, '%Y-%m-%dT%H:%M') - datetime.datetime.strptime(ref[1], '%Y-%m-%dT%H:%M')).total_seconds()) / 3600
+            except ValueError:
+                continue
+            if abs(v / ref[0] - 1) * 100 > min(PR_Z_DEV_MAX, PR_Z_DEV + PR_Z_DEV_H * age_h):
+                continue
+        b = 1.0 if c == 'usdt' else (cb.get(c) or {}).get(m)
+        if b is not None and abs(v / (b * fx) - 1) * 100 > PR_Z_PREM[c]:
+            continue
+        out[m] = v
+    return out
+
+
+def _pr_up_zapas(now, cnt, kr, cb, fx):
+    """Zapas dla Upbitu → ({'btc', 'eth', 'usdt': {minuta: zamknięcie}}, nazwa źródła) albo None (zapas też zawiódł: dalej jak bez zapasu). kr = now.kr
+    z poprzedniego pliku (odniesienie), cb = świece Coinbase tego przebiegu, fx = kurs wymiany tego przebiegu. Bez Coinbase albo bez świeżego kursu zapas nic nie da."""
+    if not isinstance(cb, dict) or not isinstance(fx, dict) or not _pr_px(fx.get('v')) or not isinstance(fx.get('d'), str) or not _d(fx['d']):
+        return None
+    if (now.date() - _d(fx['d'])).days > PR_FX_MAX_D:
+        return None
+    before = now.strftime('%Y-%m-%dT%H:%M')
+    lo = (now - datetime.timedelta(minutes=PR_WIN + 1)).strftime('%Y-%m-%dT%H:%M')
+    ref, best = _pr_z_ref(kr), None
+    for name, venue in PR_Z_SRC:
+        try:
+            raw = _pr_z_fetch(name, venue, cnt)
+        except PrBudget:
+            break
+        except Exception:  # noqa — to źródło zawiodło: następne
+            continue
+        rows = {c: _pr_z_clean(c, raw[c], ref.get(c), cb, fx['v'], lo, before) for c in PR_KR_COINS}
+        ok = [c for c in PR_KR_COINS if pr_prem(rows[c], cb[c] if c != 'usdt' else {m: 1.0 for m in rows[c]}, fx=fx['v'], before=before) is not None]
+        if 'btc' in ok and (best is None or len(ok) > best[0]):
+            best = (len(ok), rows, name)
+        if len(ok) == len(PR_KR_COINS):
+            break
+    return (best[1], best[2]) if best else None
+
+
 def _pr_fx(out, prev, now, cnt, notes, blok):
     """Kurs KRW za 1 USD (część fx): (1) poprzedni odczyt z EBC młodszy niż PR_FX_EVERY min — bez zapytania ('cached'); (2) EBC wprost (ostatnie
     PR_FX_OBS dni roboczych); (3) awaria — NOWSZY z dwóch zapasów: ten sam kurs z pliku rynki tego przebiegu (SAVED, liczony od USD) z jego datą
@@ -23272,6 +23385,12 @@ def _pr_build(prev, now, late):
             _pr_fail(out, part, e, now, blok)
             if part == 'up' and _pr_up_przejsciowy(e):
                 up_stan = {'od': up_s0['od'] if up_s0 else seen, 'try': seen, 'n': up_s0['n'] + 1 if up_s0 else 1}
+    up_bak = None   # v469: zapas dla Upbitu (nazwa źródła) — tylko gdy Upbit nie dał świec w tym przebiegu, a Coinbase i kurs są
+    if 'up' in PR_PARTS and 'up' not in L and 'cb' in L:
+        z = _pr_up_zapas(now, cnt, pnow.get('kr'), L['cb'], fx_res[0] if fx_res else None)
+        if z:
+            L['up'], up_bak = z
+            out['ok']['up'] = True; out['part_at']['up'] = seen; out['up_src'] = up_bak
     if up_stan:
         out['up_s'] = up_stan
     for part in PR_PARTS:
@@ -23284,6 +23403,8 @@ def _pr_build(prev, now, late):
         out['fx'] = fx
         why = 'blocked' if any(k in blok for k in ('up', 'cb')) else 'leg_failed'
         out['now']['kr'] = _pr_kr_now(L, fx, before, seen, now) if ('up' in L and 'cb' in L) else _pr_keep(pnow.get('kr'), why, PR_KR_COINS, _pr_until(blok, ('up', 'cb')))
+        if up_bak:
+            out['now']['kr']['src'] = up_bak   # v469: ceny KRW z zapasu (Upbit nie odpowiedział)
     out['h_cb'] = _pr_hist_prev(prev.get('h_cb'), now.date(), PR_KEEP_CB, 4)
     if not late and 'cb' in L and 'bn' in L and not _PR_PAUSED & {'cb', 'bn'}:   # giełda wstrzymana w tym przebiegu — bez dalszych zapytań
         try:
@@ -23297,7 +23418,7 @@ def _pr_build(prev, now, late):
         nod = {x for x in (prev.get('nod') if isinstance(prev.get('nod'), list) else []) if isinstance(x, str) and _d(x) and x >= first}
         tries = {k: v for k, v in (prev.get('try_kr') if isinstance(prev.get('try_kr'), dict) else {}).items()
                  if isinstance(k, str) and _d(k) and k >= first and isinstance(v, int) and not isinstance(v, bool) and 0 < v < PR_KR_TRIES}
-        if not late and 'up' in L and 'cb' in L and not _PR_PAUSED & {'up', 'cb'}:   # giełda wstrzymana w tym przebiegu — bez dalszych zapytań
+        if not late and 'up' in L and 'cb' in L and not up_bak and not _PR_PAUSED & {'up', 'cb'}:   # giełda wstrzymana w tym przebiegu — bez dalszych zapytań; v469: historia tylko z Upbitu
             try:
                 _pr_hist_kr(out['h_kr'], nod, fx_last, now, cnt, notes, tries)
             except Exception as e:  # noqa — historia z błędem: dotychczasowe wiersze zostają, ponowienie w następnym przebiegu
@@ -23320,10 +23441,12 @@ def _pr_build(prev, now, late):
     up_tol = up_stan is not None and 'up' in out['bledy']
     up_od = (_pr_ts(out['part_at'].get('up')) if isinstance(out['part_at'].get('up'), str) else None) or (_pr_ts(up_stan['od']) if up_stan else None)
     up_dlugo = bool(up_tol and up_od and now - up_od >= datetime.timedelta(hours=PR_UP_ERR_H) and up_stan['n'] >= PR_UP_ERR_N)
-    err = {k: v for k, v in out['bledy'].items() if k not in raz and not (k == 'up' and up_tol and not up_dlugo)}
+    err = {k: v for k, v in out['bledy'].items() if k not in raz and not (k == 'up' and (up_bak or (up_tol and not up_dlugo)))}   # v469: Upbit z zapasem = uwaga, nie błąd
     if up_dlugo and 'up' in err:
         err['up'] = f"{err['up']} (brak odpowiedzi od {up_od.strftime('%d.%m %H:%M')} UTC, prób: {up_stan['n']})"
-    if up_tol and not up_dlugo:
+    if up_bak:   # v469: dane Korei są świeże, ale z zapasu — widać w notatkach, dlaczego
+        notes.append(mask(f"{PR_LABEL}: Upbit niedostępny ({out['bledy'].get('up') or 'przerwa po awarii albo wstrzymany'}) — Korea z zapasu ({up_bak})")[:300])
+    elif up_tol and not up_dlugo:
         until = (_pr_ts(up_stan['try']) + datetime.timedelta(minutes=PR_UP_PAUSE)).strftime('%H:%M')
         notes.append(mask(f"{PR_LABEL}: " + (f"Upbit — przerwa po awarii do {until} UTC" if up_skip else out['bledy']['up'] + f" — następna próba po {until} UTC")
                           + f"; odczyt Korei zostaje z datą, błąd dopiero po {PR_UP_ERR_H} h bez odpowiedzi")[:300])

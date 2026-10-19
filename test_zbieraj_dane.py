@@ -15383,6 +15383,9 @@ class _PrRynekKr(_PrRynek):
         self.now = now
 
     def __call__(self, url, headers=None, timeout=30):
+        if url.startswith(('https://api.korbit.co.kr/', 'https://api.bithumb.com/')):   # v469: zapas dla Upbitu domyślnie niedostępny (włącza go _PrRynekZ)
+            self.urls.append(url)
+            raise OSError('zapas wyłączony w teście')
         if not url.startswith('https://api.upbit.com/v1/candles/minutes/1?'):
             return super().__call__(url, headers, timeout)
         import urllib.parse as _up
@@ -79628,3 +79631,288 @@ class RwaXstocksWeekendV468(unittest.TestCase):
         self.assertEqual((Z['status'], Z['uwagi']), ('✅', []), 'tylko informacja — bez ostrzeżenia')
         for zle in ({'n': 0, 'usd': 5, 'od': '2026-10-16'}, {'n': 'x', 'usd': 5, 'od': '2026-10-16'}, {'n': 2, 'usd': -1, 'od': '2026-10-16'}, {'n': 2, 'usd': 5}, 'x'):
             self.assertNotIn('wartość wstępna', k.rwe_porownanie({'issuer': dict(j['issuer'], p={'xstocks': dict(p, wk=zle)})})['opis'], zle)
+
+
+class _PrRynekZ(_PrRynekKr):
+    """Jak _PrRynekKr, plus zapas dla Upbitu w kształcie prawdziwych odpowiedzi: Korbit (v2/candles: od najstarszej, liczby tekstem, timestamp = początek minuty w ms)
+    i Bithumb (candlestick 1m: od najstarszej, [ms, open, close, high, low, wolumen]); cena z px('korbit' | 'bithumb', (moneta, 60), t). Ceny wymyślone."""
+    def __call__(self, url, headers=None, timeout=30):
+        import urllib.parse as _up
+        if url.startswith('https://api.korbit.co.kr/v2/candles?'):
+            self.urls.append(url)
+            if self.fail and self.fail(url) is not None:
+                raise self.fail(url)
+            q = {k: v[0] for k, v in _up.parse_qs(url.split('?', 1)[1]).items()}
+            s, end = q['symbol'][:-4], int(self.now.timestamp()) // 60 * 60 + 60
+            rows = []
+            for t in range(end - 60 * int(q['limit']), end, 60):
+                v = self.px('korbit', (s, 60), t)
+                if v is not None:
+                    rows.append({'timestamp': t * 1000, 'open': str(v), 'high': str(v), 'low': str(v), 'close': str(v), 'volume': '0.0204'})
+            return {'success': True, 'data': rows}
+        if url.startswith('https://api.bithumb.com/public/candlestick/'):
+            self.urls.append(url)
+            if self.fail and self.fail(url) is not None:
+                raise self.fail(url)
+            s, end = url.split('/candlestick/')[1].split('_')[0].lower(), int(self.now.timestamp()) // 60 * 60 + 60
+            rows = []
+            for t in range(end - 60 * 200, end, 60):
+                v = self.px('bithumb', (s, 60), t)
+                if v is not None:
+                    rows.append([t * 1000, str(v), str(v), str(v), str(v), '0.5'])
+            return {'status': '0000', 'data': rows}
+        return super().__call__(url, headers, timeout)
+
+
+class PremieZapasV469(unittest.TestCase):
+    """v469 (19.10.2026): zapas dla Upbitu — gdy Upbit nie odpowiada (awaria, przerwa po awarii), świece 1 min z Korbitu (potem Bithumbu) dają premię Korei tą samą
+    metodą, z kontrolą spójności cen (odchylenie od ostatniego odczytu Upbitu rosnące z jego wiekiem, premia ponad próg kontroli), znacznikiem src w now.kr
+    i up_src w pliku, bez błędu zbieracza i bez historii z zapasu. Bez sieci, zegar przypięty. Pomocniki z klasy v129 bez dziedziczenia jej testów."""
+    NOW = PremieKoreaV129.NOW
+    FX = PremieKoreaV129.FX
+    setUp = PremieKoreaV129.setUp
+    tearDown = PremieKoreaV129.tearDown
+    bdays = PremieKoreaV129.__dict__['bdays']
+    px = PremieKoreaV129.__dict__['px']
+    kr_full = PremieKoreaV129.kr_full
+    prev_full = PremieKoreaV129.prev_full
+    bp = PremieKoreaV129.bp
+    ebc = PremieKoreaV129.ebc
+    MARKET = {'btc': 'KRW-BTC', 'eth': 'KRW-ETH', 'usdt': 'KRW-USDT'}
+
+    def zrk(self, dev=0.0, only=('korbit', 'bithumb'), zk=None, up_fail=True, fail=None, **kw):
+        """Upbit wyłączony (czas albo wyjątek podany w up_fail) dopóki up_fail; zapas = ceny Upbitu × (1 + dev) z minut okna; zk = {(źródło, moneta, nr minuty od 19:56): cena | None}."""
+        base = self.px(kw.pop('k', None), kw.pop('hist', None))
+        t0 = int(datetime.datetime(2026, 9, 27, 19, 56, tzinfo=datetime.timezone.utc).timestamp())
+        zk = zk or {}
+
+        def f(v, leg, t):
+            if v in ('korbit', 'bithumb'):
+                key = (v, leg[0], (t - t0) // 60)
+                if key in zk:
+                    return zk[key]
+                x = base('up', (self.MARKET[leg[0]], 60), t) if v in only else None
+                return None if x is None else x * (1 + dev)
+            return base(v, leg, t)
+
+        def fl(u):
+            if up_fail and 'upbit' in u:
+                return up_fail if isinstance(up_fail, BaseException) else OSError('timed out')
+            return fail(u) if fail else None
+        return _PrRynekZ(f, self.NOW, fail=fl, **kw)
+
+    def _prev(self):
+        return self.bp(PremieKoreaV129.rk(self), self.ebc(), PremieKoreaV129.prev_full(self))
+
+    @staticmethod
+    def _bez_src(kr):
+        return {k: v for k, v in kr.items() if k != 'src'}
+
+    def test_parsery_zapasu(self):
+        T = 1792409820000   # początek minuty (ms)
+        kb = {'success': True, 'data': [{'timestamp': T, 'close': '110481000'}, {'timestamp': T + 60000, 'close': '0'}, {'timestamp': T + 120000, 'close': None},
+                                        {'timestamp': T + 180000, 'close': True}, {'timestamp': T + 1, 'close': '5'}, {'timestamp': 'x', 'close': '5'}, 'x', {'close': '5'},
+                                        {'timestamp': T + 240000, 'close': 'abc'}, {'timestamp': T + 300000, 'close': 1.5e8}]}
+        r = zd.pr_z_rows('korbit', kb)
+        m0 = datetime.datetime.fromtimestamp(T // 1000, datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M')
+        self.assertEqual(r[m0], 110481000.0)
+        self.assertEqual(len(r), 2, 'zero, None, bool, czas nie na początku minuty, tekst nieliczbowy i zły kształt odrzucone: ' + repr(r))
+        bh = {'status': '0000', 'data': [[T, '3244000', '3247000', '3247000', '3244000', '41.1'], [T + 60000, '1', '0', '1', '1', '1'], [T + 120000, '1'], 'x']}
+        self.assertEqual(zd.pr_z_rows('bithumb', bh), {m0: 3247000.0}, 'zamknięcie = trzecia kolumna')
+        for src, bad in (('korbit', {'success': False, 'data': []}), ('korbit', None), ('korbit', {'success': True, 'data': 'x'}), ('bithumb', {'status': '5500', 'message': 'x'}),
+                         ('bithumb', []), ('inny', {})):
+            with self.assertRaises(ValueError, msg=repr((src, bad))):
+                zd.pr_z_rows(src, bad)
+
+    def test_zapas_liczy_premie_gdy_upbit_wylaczony(self):
+        """Upbit nie odpowiada → premia Korei z zapasu, TA SAMA co z Upbitu (te same ceny), ze znacznikiem źródła; nie „brak”, nie stale, nie błąd zbieracza."""
+        prev = self._prev()
+        zd.META['notes'].clear()
+        o0 = self.bp(PremieKoreaV129.rk(self), self.ebc(), prev)
+        self.assertNotIn('up_src', o0); self.assertNotIn('src', o0['now']['kr'])
+        zd.META['notes'].clear()
+        rk = self.zrk()
+        o = self.bp(rk, self.ebc(), prev)
+        kr = o['now']['kr']
+        self.assertEqual(kr['src'], 'korbit'); self.assertEqual(o['up_src'], 'korbit')
+        self.assertIs(kr['stale'], False); self.assertIs(o['ok']['up'], True); self.assertEqual(o['part_at']['up'], kr['seen'])
+        self.assertEqual(self._bez_src(kr), o0['now']['kr'], 'ceny zapasu = ceny Upbitu → ta sama premia, okna i ceny (n, w, m, up, cb)')
+        for c in ('btc', 'eth', 'usdt'):
+            self.assertIsNotNone(kr[c]['p'], c)
+        self.assertEqual(zd.META['errors'], []); self.assertTrue(any('Korea z zapasu (korbit)' in n for n in zd.META['notes']), zd.META['notes'])
+        self.assertEqual(len([u for u in rk.urls if 'upbit' in u]), zd.PR_UP_TRIES, 'Upbit: pierwsze zapytanie i jedno ponowienie, nic więcej (także nie dla historii)')
+        self.assertTrue(all('upbit' not in u or '&to=' not in u for u in rk.urls), 'historia Korei tylko z Upbitu')
+        self.assertEqual(o['h_kr'], prev['h_kr'], 'historia h_kr bez zmian (nic z zapasu)')
+        self.assertEqual(len([u for u in rk.urls if 'korbit' in u]), 3, 'BTC, ETH, USDT — po jednym zapytaniu')
+        self.assertFalse([u for u in rk.urls if 'bithumb' in u], 'drugi zapas niepotrzebny, gdy pierwszy dał komplet')
+
+    def test_kolejnosc_zapasow_i_wspolne_zachowanie_gdy_zawiodly_oba(self):
+        prev = self._prev()
+        # Korbit nie odpowiada → Bithumb
+        o = self.bp(self.zrk(fail=lambda u: OSError('reset') if 'korbit' in u else None), self.ebc(), prev)
+        self.assertEqual((o['now']['kr']['src'], o['up_src']), ('bithumb', 'bithumb')); self.assertIsNotNone(o['now']['kr']['btc']['p'])
+        # Korbit daje tylko BTC (ETH i USDT bez świec), Bithumb komplet → wybrany Bithumb (więcej monet)
+        zk = {('korbit', c, i): None for c in ('eth', 'usdt') for i in range(0, 12)}
+        o = self.bp(self.zrk(zk=zk), self.ebc(), prev)
+        self.assertEqual(o['now']['kr']['src'], 'bithumb'); self.assertIsNotNone(o['now']['kr']['eth']['p']); self.assertIsNotNone(o['now']['kr']['usdt']['p'])
+        # oba zapasy bez świec BTC → jak przed v469: poprzedni odczyt z datą (stale), Upbit = błąd przejściowy z przerwą, brak src i up_src
+        o = self.bp(self.zrk(only=()), self.ebc(), prev)
+        self.assertNotIn('up_src', o); self.assertNotIn('src', o['now']['kr']); self.assertIs(o['now']['kr']['stale'], True)
+        self.assertEqual(o['now']['kr']['seen'], prev['now']['kr']['seen']); self.assertIs(o['ok']['up'], False); self.assertEqual(o['up_s']['n'], 1)
+        # oba zapasy niedostępne (błąd sieci)
+        o = self.bp(self.zrk(fail=lambda u: OSError('x') if ('korbit' in u or 'bithumb' in u) else None), self.ebc(), prev)
+        self.assertIs(o['ok']['up'], False); self.assertIs(o['now']['kr']['stale'], True); self.assertNotIn('up_src', o)
+
+    def test_cena_z_kosmosu_odrzucona(self):
+        prev = self._prev()
+        base = self.bp(PremieKoreaV129.rk(self), self.ebc(), prev)['now']['kr']['btc']
+        # (a) jedna świeca z kosmosu (x1000) w środku okna: odrzucona, reszta liczy
+        zk = {('korbit', 'btc', 9): 1.06e11}
+        o = self.bp(self.zrk(zk=zk), self.ebc(), prev)
+        b = o['now']['kr']['btc']
+        self.assertEqual(o['now']['kr']['src'], 'korbit'); self.assertNotIn('2026-09-27T20:05', [b['w'][1]]); self.assertEqual(b['w'][1], '2026-09-27T20:04')
+        self.assertEqual(b['n'], base['n']); self.assertLess(abs(b['p'] - base['p']), 0.05)
+        # (b) wszystkie ceny zapasu x10 (obie drogi) — z odniesieniem (poprzedni odczyt Upbitu) i bez niego (premia ponad próg): zapas odrzucony → jak bez zapasu
+        for pv in (prev, PremieKoreaV129.prev_full(self)):
+            o = self.bp(self.zrk(dev=9.0), self.ebc(), pv)
+            self.assertNotIn('up_src', o); self.assertNotIn('src', o['now']['kr']); self.assertIs(o['ok']['up'], False)
+            self.assertEqual(o['now']['kr'].get('stale'), True); self.assertEqual(zd.META['errors'], [])
+            if pv is not prev:
+                self.assertIsNone(o['now']['kr']['btc']); self.assertEqual(o['now']['kr']['win'], None)
+        # (c) ceny ×0,1 — tak samo
+        o = self.bp(self.zrk(dev=-0.9), self.ebc(), prev)
+        self.assertNotIn('up_src', o)
+        # (d) USDT z kosmosu odrzucone osobno, BTC i ETH zostają
+        zk = {('korbit', 'usdt', i): 2500.0 for i in range(0, 11)}
+        zk.update({('bithumb', 'usdt', i): 2500.0 for i in range(0, 11)})
+        o = self.bp(self.zrk(zk=zk), self.ebc(), prev)
+        self.assertIsNotNone(o['now']['kr']['btc']['p']); self.assertIsNone(o['now']['kr']['usdt']['p'])
+
+    def test_prog_odchylenia_rosnie_z_wiekiem_odniesienia(self):
+        """Ceny zapasu o +8% od ostatniego odczytu Upbitu: przy świeżym odczycie (limit 5%) odrzucone, przy odczycie sprzed 4 godzin (limit 9%) przyjęte."""
+        prev = self._prev()
+        o = self.bp(self.zrk(dev=0.08), self.ebc(), prev)
+        self.assertNotIn('up_src', o, 'odniesienie świeże: 8 % > 5 %')
+        stary = json.loads(json.dumps(prev))
+        for c in ('btc', 'eth', 'usdt'):
+            stary['now']['kr'][c]['m'] = '2026-09-27T16:05'
+        o = self.bp(self.zrk(dev=0.08), self.ebc(), stary)
+        self.assertEqual(o['up_src'], 'korbit', 'odniesienie sprzed 4 h: limit 9 %')
+        self.assertGreater(o['now']['kr']['btc']['p'], 7.0)
+        stary2 = json.loads(json.dumps(prev))
+        for c in ('btc', 'eth', 'usdt'):
+            stary2['now']['kr'][c]['m'] = '2026-09-20T16:05'
+        o = self.bp(self.zrk(dev=0.40), self.ebc(), stary2)
+        self.assertNotIn('up_src', o, 'tydzień przerwy: ceny +40 % nadal odrzucone')
+
+    def test_zapas_gdy_upbit_odrzuca_zapytania_nie_robi_bledu(self):
+        """Awaria nieprzejściowa Upbitu (HTTP 403) bez zapasu to błąd zbieracza (jak dotąd); z zapasem — dane świeże, uwaga w notatkach, bez błędu."""
+        import urllib.error as _ue
+        prev = self._prev()
+        e403 = lambda: _ue.HTTPError('https://api.upbit.com/x', 403, 'Forbidden', {}, None)   # noqa: E731
+        o = self.bp(self.zrk(only=(), up_fail=e403()), self.ebc(), prev)
+        self.assertTrue(any('Upbit' in e for e in zd.META['errors']), zd.META['errors']); self.assertNotIn('up_src', o)
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        o = self.bp(self.zrk(up_fail=e403()), self.ebc(), prev)
+        self.assertEqual(zd.META['errors'], []); self.assertEqual(o['up_src'], 'korbit'); self.assertIs(o['ok']['up'], True)
+        self.assertTrue(any('Upbit niedostępny' in n and '403' in n and 'korbit' in n for n in zd.META['notes']), zd.META['notes'])
+
+    def test_historia_korei_tylko_z_upbitu(self):
+        """Brakujący dzień historii h_kr: z Upbitem dopisany, z zapasem — bez zapytań o historię i bez wiersza (nadrobi, gdy Upbit wróci)."""
+        prev = dict(PremieKoreaV129.prev_full(self), h_kr=self.kr_full(skip=('2026-09-25',)))
+        ebc = lambda: self.ebc(last='2026-09-25')   # noqa: E731
+        rk0 = PremieKoreaV129.rk(self)
+        o0 = self.bp(rk0, ebc(), prev)
+        self.assertTrue([u for u in rk0.urls if 'upbit' in u and '&to=' in u], 'Upbit działa: historia pytana'); self.assertEqual(len(o0['h_kr']), len(prev['h_kr']) + 1)
+        rk = self.zrk()
+        o = self.bp(rk, ebc(), prev)
+        self.assertEqual(o['up_src'], 'korbit'); self.assertEqual(len(o['h_kr']), len(prev['h_kr']))
+        self.assertFalse([u for u in rk.urls if 'upbit' in u and '&to=' in u]); self.assertNotIn('historia Korei', ' '.join(o['bledy'].values()))
+
+    def test_kontrola_spojnosci_funkcja(self):
+        """Granice kontroli wprost: okno minut, odchylenie rosnące z wiekiem odniesienia i sufit, premia ponad próg (BTC 10 %, USDT 5 %)."""
+        cb = {'btc': {'2026-09-27T20:00': 85000.0, '2026-09-27T20:01': 85000.0}}
+        fx = 1250.0
+        lo, before = '2026-09-27T19:55', '2026-09-27T20:06'
+        ref = (100.0, '2026-09-27T20:00')
+        C = lambda c, rows, ref_=None, cb_=cb: zd._pr_z_clean(c, rows, ref_, cb_, fx, lo, before)   # noqa: E731
+        r = {'2026-09-27T19:54': 100.0, '2026-09-27T19:55': 100.0, '2026-09-27T20:05': 100.0, '2026-09-27T20:06': 100.0, '2026-09-27T20:07': 100.0}
+        self.assertEqual(sorted(C('btc', r, None, {})), ['2026-09-27T19:55', '2026-09-27T20:05'], 'tylko minuty [lo, before): starsze i bieżąca (otwarta) odrzucone')
+        r = {'2026-09-27T20:01': 104.9, '2026-09-27T20:02': 105.1, '2026-09-27T20:03': 95.1, '2026-09-27T20:04': 94.9}
+        self.assertEqual(sorted(C('btc', r, ref, {})), ['2026-09-27T20:01', '2026-09-27T20:03'], 'odniesienie sprzed ≤ 4 min: ±5 %')
+        old = (100.0, '2026-09-27T16:00')   # 4 h przed minutami 20:0x: limit 9 %
+        self.assertEqual(sorted(C('btc', {'2026-09-27T20:01': 108.9, '2026-09-27T20:02': 109.2}, old, {})), ['2026-09-27T20:01'])
+        sufit = (100.0, '2026-09-20T16:00')   # tydzień: 5 + 1 × 172 > 25 → limit 25 %
+        self.assertEqual(sorted(C('btc', {'2026-09-27T20:01': 124.0, '2026-09-27T20:02': 126.0}, sufit, {})), ['2026-09-27T20:01'], 'sufit odchylenia 25 %')
+        self.assertEqual(sorted(C('btc', {'2026-09-27T20:01': 85000 * fx * 1.099, '2026-09-27T20:00': 85000 * fx * 1.101})), ['2026-09-27T20:01'], 'premia BTC ponad 10 % odrzucona')
+        self.assertEqual(sorted(C('usdt', {'2026-09-27T20:01': fx * 1.049, '2026-09-27T20:02': fx * 0.949})), ['2026-09-27T20:01'], 'USDT: 5 % w obie strony')
+
+    def test_przerwa_po_awarii_nie_blokuje_zapasu_a_powrot_upbitu_czysci_znaczniki(self):
+        prev = self._prev()
+        o1 = self.bp(self.zrk(), self.ebc(), prev)
+        self.assertEqual(o1['up_s']['n'], 1, 'awaria Upbitu zapamiętana (przerwa 30 min)'); self.assertEqual(o1['up_src'], 'korbit')
+        o1['up_s']['od'] = o1['up_s']['try'] = (self.NOW - datetime.timedelta(minutes=10)).isoformat()   # awaria sprzed 10 min (ceny w atrapie są tylko wokół NOW)
+        rk = self.zrk(up_fail=False)
+        o2 = self.bp(rk, self.ebc(), o1)
+        self.assertEqual([u for u in rk.urls if 'upbit' in u], [], 'w przerwie Upbit nie jest pytany…')
+        self.assertEqual(o2['up_src'], 'korbit', '…a Korea idzie z zapasu'); self.assertEqual(o2['up_s'], o1['up_s']); self.assertIs(o2['ok']['up'], True)
+        self.assertEqual(zd.META['errors'], [])
+        # po przerwie Upbit odpowiada: plik bez up_src i bez src
+        o2['up_s']['try'] = (self.NOW - datetime.timedelta(minutes=31)).isoformat()
+        o3 = self.bp(self.zrk(up_fail=False, only=()), self.ebc(), o2)
+        self.assertNotIn('up_src', o3); self.assertNotIn('up_s', o3); self.assertNotIn('src', o3['now']['kr']); self.assertIs(o3['now']['kr']['stale'], False)
+
+    def test_zapas_nie_robi_bledu_zbieracza_przy_dlugiej_awarii_upbitu(self):
+        """Wiele godzin bez Upbitu, ale z zapasem: dane Korei świeże, uwaga w notatkach, brak błędu zbieracza (bez zapasu tak było od 6 h)."""
+        o, t = self._prev(), self.NOW
+        for i in range(0, 80):   # ~13 godzin co 10 minut; ceny zapasu to ceny z okna px (czas przypięty), więc przesuwamy tylko stan
+            zd.META['errors'].clear(); zd.META['notes'].clear()
+            o = self.bp(self.zrk(), self.ebc(), o)
+            self.assertEqual(zd.META['errors'], [], i)
+            o['up_s']['try'] = (self.NOW - datetime.timedelta(hours=1)).isoformat()   # kolejne „przebiegi” nie są w przerwie
+        self.assertGreaterEqual(o['up_s']['n'], 10); self.assertEqual(o['up_src'], 'korbit')
+
+    def test_zapas_miesci_sie_w_budzecie_czasu(self):
+        """Upbit zawiesza łącze (2 zapytania po 6 s = 12 z 20 s budżetu): zapas ma jeszcze czas i dostaje premię; przy 9 s na zapytanie — nie (koniec czasu, jak dotąd)."""
+        prev = self._prev()
+        zd._PR_LAST.clear(); zg = _PrZegar()
+
+        def zawieszony(u):
+            if 'upbit' in u:
+                zg.t += 6.0
+                return OSError('timed out')
+        rk = self.zrk(up_fail=False, fail=zawieszony, zegar=zg)
+        o = self.bp(rk, self.ebc(), prev, zegar=zg)
+        self.assertEqual(o['up_src'], 'korbit'); self.assertIs(o['ok']['up'], True)
+        zd._PR_LAST.clear(); zg2 = _PrZegar()
+
+        def bardzo_wolny(u):
+            if 'upbit' in u:
+                zg2.t += 9.0
+                return OSError('timed out')
+        o = self.bp(self.zrk(up_fail=False, fail=bardzo_wolny, zegar=zg2), self.ebc(), prev, zegar=zg2)
+        self.assertNotIn('up_src', o); self.assertIs(o['ok']['up'], False)
+
+    def test_zapas_ma_wlasny_limit_zapytania_i_wymaga_coinbase(self):
+        prev = self._prev()
+        seen = []
+        rk = self.zrk()
+
+        def spy(url, headers=None, timeout=30):
+            if 'korbit' in url:
+                seen.append(timeout)
+            return rk(url, headers, timeout)
+        with mock.patch.object(zd, 'get_json', spy), mock.patch.object(zd, 'get_bytes', self.ebc()), mock.patch.object(zd, '_now_utc', lambda: self.NOW):
+            zd.build_premie(prev)
+        self.assertEqual(len(seen), 3); self.assertTrue(all(t <= zd.PR_Z_TIMEOUT for t in seen)); self.assertLess(zd.PR_Z_TIMEOUT, zd.PR_TIMEOUT)
+        # Coinbase nie odpowiada: bez nogi USA nie ma czego porównać — zapasu się nie pyta
+        rk2 = self.zrk(fail=lambda u: OSError('x') if 'coinbase' in u else None)
+        o = self.bp(rk2, self.ebc(), prev)
+        self.assertFalse([u for u in rk2.urls if 'korbit' in u or 'bithumb' in u]); self.assertNotIn('up_src', o)
+
+    def test_limit_zapytan_zapasu_przechodzi_na_drugi(self):
+        import urllib.error as _ue
+        prev = self._prev()
+        rk = self.zrk(fail=lambda u: _ue.HTTPError(u, 429, 'x', {}, None) if 'korbit' in u else None)
+        o = self.bp(rk, self.ebc(), prev)
+        self.assertEqual(o['up_src'], 'bithumb'); self.assertEqual(len([u for u in rk.urls if 'korbit' in u]), 1, 'po 429 Korbit wstrzymany do końca przebiegu')
