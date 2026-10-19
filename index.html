@@ -2740,6 +2740,21 @@ textarea.kt-f{min-height:110px;resize:vertical}
   #g-sec13f .gxs-b{grid-template-columns:minmax(0,1fr);gap:3px}
   #g-sec13f .gxs-v{text-align:left}
 }
+/* v456 (F11Z38): nastroje konsumentów, oczekiwana inflacja i dług na akcjach (panel #g-nkg) — kafle w czterech kolumnach (przy 3 i 6 kaflach: trzech; telefon: dwie), wykresy w pełnej szerokości; tylko zmienne motywu; kolory kierunku jak w całej stronie (wzrost zielony, spadek czerwony, zero żółte) */
+#g-nkg .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+#g-nkg .etfkpis.k3,#g-nkg .etfkpis.k6{grid-template-columns:repeat(3,minmax(0,1fr))}
+#g-nkg .etfk>span{white-space:normal;overflow-wrap:anywhere}
+#g-nkg .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3;font-variant-numeric:tabular-nums}
+#g-nkg .etfk b small{display:block;font-size:10.5px;font-weight:500;white-space:normal;margin-top:2px}
+#g-nkg .etfk b small.pos{color:var(--gr-tx)}#g-nkg .etfk b small.neg{color:var(--rd-tx)}#g-nkg .etfk b small.neu{color:var(--yl-tx)}#g-nkg .etfk b small.na,#g-nkg .etfk b small.pc{color:var(--dim)}
+#g-nkg .etfk .icos{display:inline-flex;margin-right:6px}
+#g-nkg .etfk>small.mtxt{font-size:10.5px;line-height:1.35}
+#g-nkg .pnote.neu{color:var(--yl-tx)}
+#g-nkg .gx-h{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin:18px 0 4px;font-size:13px}
+#g-nkg .gx-h .icos{display:inline-flex;margin-right:6px;vertical-align:middle}
+#g-nkg .wk-ch{margin:4px 0 10px;max-width:760px}
+#g-nkg .wk-ch .s1{--k:var(--bl)}#g-nkg .wk-ch .s2{--k:var(--or)}#g-nkg .wk-ch .s3{--k:var(--tl)}
+@media (max-width:760px){#g-nkg .etfkpis,#g-nkg .etfkpis.k3,#g-nkg .etfkpis.k6{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <!-- v348: licznik odwiedzin (decyzja właściciela 12.10). Skrypt count.js leży na naszej stronie (nie na obcej domenie) i nie używa ciasteczek; zliczenie wychodzi do licznika przez sendBeacon (CSP: connect-src; zapas obrazkiem: img-src https:).
      Wizyt technicznych nie liczymy: przeglądarki sterowane automatem (navigator.webdriver), Chrome bez okna (kontrola dzienna, testy), Lighthouse i adresy lokalne z końcówką .local albo [::1] dostają no_onload;
@@ -3000,6 +3015,7 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
     <section class="panel pcard" id="g-sur247" hidden></section>
     <section class="panel pcard" id="g-zlotouk" hidden></section>
     <section class="panel pcard" id="g-chinatw" hidden></section>
+    <section class="panel pcard" id="g-nkg" hidden></section>
     <section class="panel pcard" id="g-sec13f" hidden></section>
     <section class="panel pcard" id="g-waluty" hidden></section>
     <section class="panel pcard" id="g-dolar" hidden></section>
@@ -3906,6 +3922,9 @@ for(const l in EXTRA309)if(I18N[l])Object.assign(I18N[l],EXTRA309[l]);
 /* v455 (F11Z37): pozycje instytucji w USA (13F) i niedostarczone akcje (GLOBAL, karta #g-sec13f) — polski i angielski */
 const EXTRA310={"pl":{"sx455.lazy":"Dane pojawią się po rozwinięciu karty.","sx455.err":"Nie udało się teraz pobrać danych. Spróbuj ponownie za chwilę.","sx455.errp":"Brak aktualnego odczytu: {p}.","sx455.dzien":"dane z {d}","sx455.vs":"wobec {d}","sx455.t":"Instytucje i niedostarczone akcje w USA","sx455.sub":"Co kupiły i sprzedały największe instytucje oraz które akcje nie zostały dostarczone w terminie.","sx455.p.f13":"pozycje instytucji","sx455.p.ftd":"niedostarczone akcje","sx455.q":"{n}. kwartał {y}","sx455.h.f13":"Co trzymają instytucje w akcjach USA","sx455.sub.f13":"{q} (stan na {d}). Instytucje zgłaszają pozycje raz na kwartał, z opóźnieniem.","sx455.k.n":"Instytucje w porównaniu","sx455.s.n":"z {m} zgłaszających","sx455.k.w":"Wartość ich pozycji","sx455.k.pap":"Liczba papierów","sx455.s.pap":"akcji i funduszy w portfelach","sx455.k.u10":"Udział 10 największych","sx455.s.u10":"w wartości pozycji","sx455.h.inst":"Największe instytucje","sx455.h.top":"Największe pozycje","sx455.sub.top":"Wartość u wszystkich instytucji razem i zmiana liczby akcji w kwartale.","sx455.nowa":"nowa pozycja","sx455.akcji":"liczba akcji","sx455.h.kup":"Największe kupna w kwartale (szacunek)","sx455.h.sprz":"Największe sprzedaże w kwartale (szacunek)","sx455.n.f13":"Szacunek na podstawie zmiany liczby akcji w portfelach tych samych instytucji. Pominięto papiery z nietypową zmianą (np. po podziale akcji).","sx455.h.ftd":"Niedostarczone akcje","sx455.sub.ftd":"Akcje sprzedane, ale niedostarczone w terminie rozliczenia. Dane dwa razy w miesiącu, z opóźnieniem około 2 tygodni.","sx455.k.fv":"Wartość niedostarczonych akcji","sx455.k.fn":"Spółki z niedostarczeniem","sx455.k.f1":"Pozycje powyżej 1 mln USD","sx455.s.f10":"w wartości dnia","sx455.h.fch":"Wartość dzień po dniu","sx455.s.fv":"Wartość","sx455.ch.f":"Wykres: wartość niedostarczonych akcji w {n} dniach","sx455.h.ftop":"Największe pozycje, {d}","sx455.f.dni":"{k} z {n} dni","sx455.n.ftd":"Wartość = liczba akcji × cena. Takie pozycje bywają krótkotrwałe i nie są sygnałem do kupna ani sprzedaży.","sx455.foot":"Dane urzędowe USA, sprawdzane dwa razy na dobę."},"en":{"sx455.lazy":"The data appear when the card is expanded.","sx455.err":"The data could not be loaded right now. Please try again in a moment.","sx455.errp":"No current reading: {p}.","sx455.dzien":"data from {d}","sx455.vs":"vs {d}","sx455.t":"US institutions and undelivered shares","sx455.sub":"What the largest institutions bought and sold, and which shares were not delivered on time.","sx455.p.f13":"institutional holdings","sx455.p.ftd":"undelivered shares","sx455.q":"Q{n} {y}","sx455.h.f13":"What institutions hold in US stocks","sx455.sub.f13":"{q} (as of {d}). Institutions report their holdings once a quarter, with a delay.","sx455.k.n":"Institutions compared","sx455.s.n":"out of {m} reporting","sx455.k.w":"Value of their holdings","sx455.k.pap":"Number of securities","sx455.s.pap":"stocks and funds in portfolios","sx455.k.u10":"Share of the top 10","sx455.s.u10":"of the holdings value","sx455.h.inst":"Largest institutions","sx455.h.top":"Largest holdings","sx455.sub.top":"Value held by all institutions together and the change in shares during the quarter.","sx455.nowa":"new holding","sx455.akcji":"shares","sx455.h.kup":"Biggest purchases in the quarter (estimate)","sx455.h.sprz":"Biggest sales in the quarter (estimate)","sx455.n.f13":"An estimate based on the change in shares held by the same institutions. Securities with an unusual change (e.g. after a stock split) are left out.","sx455.h.ftd":"Undelivered shares","sx455.sub.ftd":"Shares sold but not delivered by the settlement date. Data twice a month, about 2 weeks late.","sx455.k.fv":"Value of undelivered shares","sx455.k.fn":"Companies with fails","sx455.k.f1":"Positions above USD 1 million","sx455.s.f10":"of the day’s value","sx455.h.fch":"Value day by day","sx455.s.fv":"Value","sx455.ch.f":"Chart: value of undelivered shares over {n} days","sx455.h.ftop":"Largest positions, {d}","sx455.f.dni":"{k} of {n} days","sx455.n.ftd":"Value = number of shares × price. Such positions are often short-lived and are not a signal to buy or sell.","sx455.foot":"US official data, checked twice a day."}};
 for(const l in EXTRA310)if(I18N[l])Object.assign(I18N[l],EXTRA310[l]);
+/* v456 (F11Z38): nastroje konsumentów, oczekiwana inflacja gospodarstw i dług na akcjach (GLOBAL, karta #g-nkg) — pl i en */
+const EXTRA311={"pl":{"nkg456.t":"Nastroje konsumentów, oczekiwana inflacja i dług na akcjach","nkg456.sub":"Co Amerykanie i Europejczycy myślą o swojej sytuacji i o cenach oraz ile pieniędzy pożycza się na zakup akcji.","nkg456.lazy":"Dane pojawią się po rozwinięciu karty.","nkg456.err":"Nie udało się wczytać danych — spróbuj za chwilę.","nkg456.errp":"Brak aktualnego odczytu: {p}.","nkg456.p.mi":"nastroje konsumentów","nkg456.p.sc":"oczekiwana inflacja w USA","nkg456.p.ec":"oczekiwana inflacja w strefie euro","nkg456.p.fm":"dług na akcjach","nkg456.h.mi":"Nastroje konsumentów w USA","nkg456.h.inf":"Oczekiwana inflacja: USA i strefa euro","nkg456.h.fm":"Dług na akcjach w USA","nkg456.w.m":"dane za {m}","nkg456.w.pre":"wstępnie, {m}","nkg456.pt":"pkt","nkg456.pp":"p.p.","nkg456.s.mm":"m/m","nkg456.s.yy":"r/r","nkg456.ch.short":"Za mało punktów, by narysować wykres.","nkg456.mi.k1":"Nastroje konsumentów","nkg456.mi.k2":"Ocena obecnej sytuacji","nkg456.mi.k3":"Oczekiwania na przyszłość","nkg456.mi.k4":"Na tle historii","nkg456.mi.p":"miesięcy od {y} r. miało niższy odczyt","nkg456.mi.s1":"Ogółem","nkg456.mi.s2":"Obecna sytuacja","nkg456.mi.s3":"Oczekiwania","nkg456.mi.ch.h":"Wskaźniki w ostatnich trzech latach","nkg456.mi.ch.aria":"Wykres: nastroje konsumentów w USA, {n} miesięcy","nkg456.mi.n":"Im wyższy wskaźnik, tym lepsze nastroje. Poziom 100 to rok 1966.","nkg456.mi.pre":"Ostatni punkt to odczyt wstępny — może się jeszcze zmienić.","nkg456.k.us1":"USA: inflacja za rok (badanie nastrojów)","nkg456.k.us5":"USA: inflacja za 5–10 lat (badanie nastrojów)","nkg456.k.sc1":"USA: inflacja za rok (badanie oczekiwań)","nkg456.k.sc3":"USA: inflacja za 3 lata (badanie oczekiwań)","nkg456.k.ec1":"Strefa euro: inflacja za rok","nkg456.k.ec3":"Strefa euro: inflacja za 3 lata","nkg456.k.ec5":"Strefa euro: inflacja za 5 lat","nkg456.k.un":"USA: szansa na wyższe bezrobocie za rok","nkg456.ref2":"cel inflacji: 2%","nkg456.s.us1m":"USA — badanie nastrojów (za rok)","nkg456.s.us1s":"USA — badanie oczekiwań (za rok)","nkg456.s.ec1":"Strefa euro (za rok)","nkg456.s.us5m":"USA — badanie nastrojów (5–10 lat)","nkg456.s.us5s":"USA — badanie oczekiwań (5 lat)","nkg456.s.ec5":"Strefa euro (5 lat)","nkg456.inf.ch1.h":"Spodziewana inflacja za rok","nkg456.inf.ch2.h":"Spodziewana inflacja za 5 lat i dalej","nkg456.inf.ch1.aria":"Wykres: spodziewana inflacja za rok, USA i strefa euro","nkg456.inf.ch2.aria":"Wykres: spodziewana inflacja za 5 lat i dalej, USA i strefa euro","nkg456.inf.n":"To typowa odpowiedź gospodarstw domowych (mediana), a nie prognoza ekonomistów ani cena z rynku.","nkg456.fm.k1":"Dług na akcjach","nkg456.fm.k2":"Rekord","nkg456.fm.k3":"Na tle 5 lat","nkg456.fm.k4":"Wolne środki klientów","nkg456.fm.u":"bln USD","nkg456.fm.rec":"najwyżej w {m}","nkg456.fm.now":"obecnie {p}% rekordu","nkg456.fm.p5":"miesięcy z ostatnich 5 lat miało niższe saldo","nkg456.fm.s1":"Dług na akcjach","nkg456.fm.s2":"Wolne środki klientów","nkg456.fm.ch.h":"Ostatnie pięć lat (bln USD)","nkg456.fm.ch.aria":"Wykres: dług na akcjach i wolne środki klientów, {n} miesięcy","nkg456.fm.n":"To pożyczki od domów maklerskich na zakup akcji. Wyższe saldo oznacza więcej akcji kupowanych na kredyt.","nkg456.foot":"Dane miesięczne; każda liczba ma swoją datę i wiek."},"en":{"nkg456.t":"Consumer sentiment, expected inflation and borrowing for stocks","nkg456.sub":"What Americans and Europeans think about their finances and prices, and how much money is borrowed to buy stocks.","nkg456.lazy":"The data will load when you expand the card.","nkg456.err":"Could not load the data — please try again shortly.","nkg456.errp":"No current reading: {p}.","nkg456.p.mi":"consumer sentiment","nkg456.p.sc":"expected inflation in the US","nkg456.p.ec":"expected inflation in the euro area","nkg456.p.fm":"borrowing for stocks","nkg456.h.mi":"US consumer sentiment","nkg456.h.inf":"Expected inflation: US and euro area","nkg456.h.fm":"US borrowing for stocks","nkg456.w.m":"data for {m}","nkg456.w.pre":"preliminary, {m}","nkg456.pt":"pts","nkg456.pp":"pp","nkg456.s.mm":"m/m","nkg456.s.yy":"y/y","nkg456.ch.short":"Too few data points for a chart.","nkg456.mi.k1":"Consumer sentiment","nkg456.mi.k2":"Current conditions","nkg456.mi.k3":"Expectations","nkg456.mi.k4":"Against history","nkg456.mi.p":"of months since {y} had a lower reading","nkg456.mi.s1":"Overall","nkg456.mi.s2":"Current conditions","nkg456.mi.s3":"Expectations","nkg456.mi.ch.h":"The indexes over the last three years","nkg456.mi.ch.aria":"Chart: US consumer sentiment, {n} months","nkg456.mi.n":"The higher the index, the better the mood. A level of 100 is the year 1966.","nkg456.mi.pre":"The last point is a preliminary reading — it may still change.","nkg456.k.us1":"US: inflation in a year (sentiment survey)","nkg456.k.us5":"US: inflation in 5–10 years (sentiment survey)","nkg456.k.sc1":"US: inflation in a year (expectations survey)","nkg456.k.sc3":"US: inflation in 3 years (expectations survey)","nkg456.k.ec1":"Euro area: inflation in a year","nkg456.k.ec3":"Euro area: inflation in 3 years","nkg456.k.ec5":"Euro area: inflation in 5 years","nkg456.k.un":"US: chance of higher unemployment in a year","nkg456.ref2":"inflation target: 2%","nkg456.s.us1m":"US — sentiment survey (1 year)","nkg456.s.us1s":"US — expectations survey (1 year)","nkg456.s.ec1":"Euro area (1 year)","nkg456.s.us5m":"US — sentiment survey (5–10 years)","nkg456.s.us5s":"US — expectations survey (5 years)","nkg456.s.ec5":"Euro area (5 years)","nkg456.inf.ch1.h":"Expected inflation in a year","nkg456.inf.ch2.h":"Expected inflation in 5 years and beyond","nkg456.inf.ch1.aria":"Chart: expected inflation in a year, US and euro area","nkg456.inf.ch2.aria":"Chart: expected inflation in 5 years and beyond, US and euro area","nkg456.inf.n":"These are typical answers from households (the median), not economists’ forecasts or market prices.","nkg456.fm.k1":"Borrowing for stocks","nkg456.fm.k2":"Record","nkg456.fm.k3":"Against 5 years","nkg456.fm.k4":"Clients’ free cash","nkg456.fm.u":"USD tn","nkg456.fm.rec":"highest in {m}","nkg456.fm.now":"now {p}% of the record","nkg456.fm.p5":"of the last 5 years’ months had a lower balance","nkg456.fm.s1":"Borrowing for stocks","nkg456.fm.s2":"Clients’ free cash","nkg456.fm.ch.h":"The last five years (USD tn)","nkg456.fm.ch.aria":"Chart: borrowing for stocks and clients’ free cash, {n} months","nkg456.fm.n":"These are loans from brokers used to buy shares. A higher balance means more shares bought on credit.","nkg456.foot":"Monthly data; each number has its own date and age."}};
+for(const l in EXTRA311)if(I18N[l])Object.assign(I18N[l],EXTRA311[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -19698,6 +19717,119 @@ SRV_GR['eth-lancuch']='c';SRV_LD.c.push(ethLoad);
 setInterval(()=>{if(!document.hidden)ethLoad();},10*60*1000);   /* plik co ~60 min — strona pyta co 10 min (wiek w kafelkach też się odświeża) */
 ethLoad();try{new MutationObserver(()=>renderEth()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
 /* v403: koniec */
+/* ===================== v456 (F11Z38): GLOBAL — NASTROJE KONSUMENTÓW I OCZEKIWANA INFLACJA GOSPODARSTW — panel #g-nkg (plik automatu data/nastroje-gosp.json) =====================
+   Karta zwijana jak pozostałe w GLOBAL (silnik kart zw). Nagłówek widać od razu (karta pojawia się, gdy meta.json zna którąś część „nkg_*”); plik (kilka KB) jest pobierany dopiero po rozwinięciu karty
+   (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie; po wczytaniu odświeżany co 30 min przy rozwiniętej karcie). Trzy bloki, każdy z własną datą danych i wiekiem:
+   (1) nastroje konsumentów w USA: wskaźnik ogólny, ocena obecnej sytuacji i oczekiwania — zmiana m/m i r/r w punktach, miejsce na tle historii, wykres 3 lat (ostatni punkt może być odczytem wstępnym);
+   (2) oczekiwana inflacja gospodarstw: USA (dwa badania) i strefa euro — za rok, za 3 lata, za 5 lat i dalej, szansa na wyższe bezrobocie; dwa wykresy (za rok; za 5 lat i dalej) z linią celu 2%;
+   (3) zadłużenie na rachunkach z dźwignią w USA: saldo, rekord, miejsce na tle 5 lat, wolne środki klientów, wykres 5 lat.
+   Kolory zmian z POKAZANEJ liczby (plus zielony, minus czerwony, zero żółte); brak = „—”, nigdy zero; część starsza niż dopuszczalny wiek danych znika. Nazw dostawców tu nie ma.
+   To nie jest porada inwestycyjna. Korzysta z narzędzi panelu stresu (strTile, strDelta, strNum) i wykresów (wkLines, wkDay). */
+const NKG={j:null,l:false,x:false,t:0,e:0,on:false,mo:false};
+const NKG_PARTS=['mi','sc','ec','fm'],NKG_AGE={mi:90,sc:100,ec:180,fm:130},NKG_DAYMS=864e5;
+const NKG_M=/^\d{4}-(0[1-9]|1[0-2])$/;
+const nkgObj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const nkgMon=s=>typeof s==='string'&&NKG_M.test(s)?new Date(Date.UTC(+s.slice(0,4),+s.slice(5)-1,15,12)).toLocaleDateString(LOCALE[LANG]||'pl-PL',{month:'long',year:'numeric',timeZone:'UTC'}):'—';
+const nkgMms=m=>Date.UTC(+m.slice(0,4),+m.slice(5),0,12);   /* miesiąc → koniec miesiąca, środek doby UTC */
+const nkgMadd=(m,n)=>{const i=+m.slice(0,4)*12+(+m.slice(5)-1)+n;return `${Math.floor(i/12)}-${String(i%12+1).padStart(2,'0')}`;};
+/* dane nie starsze niż dopuszczalny wiek (część k) i nie z odległej przyszłości (bieżący miesiąc z odczytu wstępnego kończy się najwyżej za 35 dni) */
+const nkgYoung=(m,k)=>{const a=Date.now()-nkgMms(m);return isFinite(a)&&a<=NKG_AGE[k]*NKG_DAYMS&&a>=-35*NKG_DAYMS;};
+const nkgAt=(S,m)=>S.find(r=>r[0]===m)||null;
+const nkgFl=c=>typeof flagImg==='function'?flagImg(c,'sm'):'';
+const nkgWhen=m=>t('nkg456.w.m',{m:nkgMon(m)})+gAgeNote(m);
+const nkgPc=(a,b)=>strNum(a)&&strNum(b)&&b>0?(a/b-1)*100:null;   /* zmiana procentowa; brak albo zerowa podstawa = brak */
+const nkgDif=(a,b)=>strNum(a)&&strNum(b)?a-b:null;
+/* ---------- walidacja części (zły kształt = część znika, nie zero) ---------- */
+function nkgSer(S,len,nullFrom){return (Array.isArray(S)?S:[]).filter(r=>Array.isArray(r)&&r.length===len&&typeof r[0]==='string'&&NKG_M.test(r[0])&&r.slice(1).every((v,i)=>strNum(v)||(i+1>=nullFrom&&v===null))).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);}
+function nkgMi(j){const P=nkgObj(j)?j.mi:null;if(!nkgObj(P)||typeof P.m!=='string'||!NKG_M.test(P.m))return null;
+  const F=nkgSer(P.fin,6,1);if(F.length<13||F[F.length-1][0]!==P.m||!strNum(F[F.length-1][1])||!nkgYoung(P.m,'mi'))return null;
+  let pre=nkgObj(P.pre)&&typeof P.pre.m==='string'&&NKG_M.test(P.pre.m)&&P.pre.m>P.m&&P.pre.m<=nkgMadd(P.m,2)&&['ics','icc','ice'].every(k=>strNum(P.pre[k])&&P.pre[k]>0)?P.pre:null;
+  if(pre&&!nkgYoung(pre.m,'mi'))pre=null;
+  return {P,F,pre};}
+function nkgSc(j){const P=nkgObj(j)?j.sc:null;if(!nkgObj(P)||typeof P.m!=='string'||!NKG_M.test(P.m))return null;
+  const R=nkgSer(P.rows,5,3);if(R.length<13||R[R.length-1][0]!==P.m||!nkgYoung(P.m,'sc'))return null;return {P,R};}
+function nkgEc(j){const P=nkgObj(j)?j.ec:null;if(!nkgObj(P)||typeof P.m!=='string'||!NKG_M.test(P.m))return null;
+  const R=nkgSer(P.rows,4,9);if(R.length<12||R[R.length-1][0]!==P.m||!nkgYoung(P.m,'ec'))return null;return {P,R};}
+function nkgFm(j){const P=nkgObj(j)?j.fm:null;if(!nkgObj(P)||typeof P.m!=='string'||!NKG_M.test(P.m))return null;
+  const R=nkgSer(P.rows,4,2);if(R.length<25||R[R.length-1][0]!==P.m||!(R[R.length-1][1]>0)||!nkgYoung(P.m,'fm'))return null;return {P,R};}
+function nkgOk(j){return !!(nkgObj(j)&&j.v===1&&typeof j.at==='string'&&isFinite(Date.parse(j.at))&&(nkgMi(j)||nkgSc(j)||nkgEc(j)||nkgFm(j)));}
+/* ---------- wspólne ---------- */
+const nkgTiles=a=>`<div class="etfkpis k${a.length}">${a.join('')}</div>`;
+const nkgHead=(k,ico)=>`<div class="gx-h"><b>${icoWrap(ico)}${t('nkg456.h.'+k)}</b></div>`;
+const nkgChart=(S,aria,fmt,hk,refs)=>{const ch=wkLines(S,{aria,fmt,dt:ms=>wkDay(ms,1),dx:ms=>wkDay(ms,1),zero:false,refs:refs||[]});
+  return ch?`<div class="gx-h"><b>${t(hk)}</b></div>${ch}`:`<p class="pnote">${t('nkg456.ch.short')}</p>`;};
+const nkgSeries=(rows,idx,cls,tk)=>({n:t(tk),cls,d:rows.filter(r=>strNum(r[idx])).map(r=>[nkgMms(r[0]),r[idx]])});
+/* wartość kafla ze zmianą m/m i r/r: lines = dwie zmiany liczone z wierszy (poprzedni miesiąc, rok wcześniej); dec = miejsca po przecinku, lab = jednostka zmiany */
+function nkgTile(ico,label,val,cur,prev,ya,lab,dec,when){return strTile(ico,label,val,[strDelta(nkgDif(cur,prev),dec,lab+' '+t('nkg456.s.mm')),strDelta(nkgDif(cur,ya),dec,lab+' '+t('nkg456.s.yy'))],when);}
+/* ---------- (1) nastroje konsumentów ---------- */
+function nkgMiHtml(Q){const P=Q.P,F=Q.F,pre=Q.pre,fl=nkgFl('us'),m=pre?pre.m:P.m,L=nkgAt(F,m)||F[F.length-1];
+  const get=i=>pre?pre[['','ics','icc','ice'][i]]:L[i],B=nkgAt(F,nkgMadd(m,-1)),Y=nkgAt(F,nkgMadd(m,-12)),w=pre?t('nkg456.w.pre',{m:nkgMon(m)})+gAgeNote(m):nkgWhen(m),pt=t('nkg456.pt');
+  const tl=[1,2,3].map(i=>nkgTile(fl,t('nkg456.mi.k'+i),strNum(get(i))?nfmt(get(i),1):'—',get(i),B&&B[i],Y&&Y[i],pt,1,w));
+  if(strNum(P.p))tl.push(strTile(fl,t('nkg456.mi.k4'),nfmt(P.p,1)+'%',[{txt:t('nkg456.mi.p',{y:String(P.from||'').slice(0,4)}),cls:'pc'}],nkgWhen(P.m)));
+  const ser=[nkgSeries(F,1,'s1','nkg456.mi.s1'),nkgSeries(F,2,'s2','nkg456.mi.s2'),nkgSeries(F,3,'s3','nkg456.mi.s3')];
+  if(pre)[['ics',0],['icc',1],['ice',2]].forEach(([k,i])=>{if(strNum(pre[k]))ser[i].d.push([nkgMms(pre.m),pre[k]]);});
+  return nkgHead('mi',fl)+nkgTiles(tl)+nkgChart(ser,t('nkg456.mi.ch.aria',{n:F.length+(pre?1:0)}),v=>nfmt(v,1),'nkg456.mi.ch.h')
+    +`<p class="pnote">${t('nkg456.mi.n')}${pre?' '+t('nkg456.mi.pre'):''}</p>`;}
+/* ---------- (2) oczekiwana inflacja gospodarstw ---------- */
+function nkgInfHtml(Qm,Qs,Qe){const us=nkgFl('us'),eu=nkgFl('eu'),pp=t('nkg456.pp'),tl=[],cut=t('nkg456.ref2');
+  if(Qm){const F=Qm.F,pre=Qm.pre;
+    [['px1',4,'nkg456.k.us1'],['px5',5,'nkg456.k.us5']].forEach(([k,i,lk])=>{const up=!!(pre&&strNum(pre[k])),m=up?pre.m:Qm.P.m,L=nkgAt(F,Qm.P.m),v=up?pre[k]:(L?L[i]:null),B=nkgAt(F,nkgMadd(m,-1)),Y=nkgAt(F,nkgMadd(m,-12)),
+      w=up?t('nkg456.w.pre',{m:nkgMon(m)})+gAgeNote(m):nkgWhen(m);tl.push(nkgTile(us,t(lk),strNum(v)?nfmt(v,1)+'%':'—',v,B&&B[i],Y&&Y[i],pp,1,w));});}
+  if(Qs){const R=Qs.R,L=R[R.length-1],B=nkgAt(R,nkgMadd(L[0],-1)),Y=nkgAt(R,nkgMadd(L[0],-12)),w=nkgWhen(L[0]);
+    [[1,'nkg456.k.sc1'],[2,'nkg456.k.sc3']].forEach(([i,lk])=>tl.push(nkgTile(us,t(lk),strNum(L[i])?nfmt(L[i],1)+'%':'—',L[i],B&&B[i],Y&&Y[i],pp,1,w)));}
+  if(Qe){const R=Qe.R,L=R[R.length-1],B=nkgAt(R,nkgMadd(L[0],-1)),Y=nkgAt(R,nkgMadd(L[0],-12)),w=nkgWhen(L[0]);
+    [[1,'nkg456.k.ec1'],[2,'nkg456.k.ec3'],[3,'nkg456.k.ec5']].forEach(([i,lk])=>tl.push(nkgTile(eu,t(lk),strNum(L[i])?nfmt(L[i],1)+'%':'—',L[i],B&&B[i],Y&&Y[i],pp,1,w)));}
+  if(Qs){const R=Qs.R,L=R[R.length-1],B=nkgAt(R,nkgMadd(L[0],-1)),Y=nkgAt(R,nkgMadd(L[0],-12));
+    tl.push(nkgTile(us,t('nkg456.k.un'),strNum(L[4])?nfmt(L[4],1)+'%':'—',L[4],B&&B[4],Y&&Y[4],pp,1,nkgWhen(L[0])));}
+  const lim=ms=>{const mx=Math.max(...[Qm&&nkgMms((Qm.pre||Qm.P).m),Qs&&nkgMms(Qs.P.m),Qe&&nkgMms(Qe.P.m)].filter(x=>strNum(x)));return ms>=mx-760*NKG_DAYMS;};   /* ok. 25 miesięcy */
+  const cut2=s=>({n:s.n,cls:s.cls,d:s.d.filter(p=>lim(p[0]))});
+  const preAdd=(s,k)=>{if(Qm&&Qm.pre&&strNum(Qm.pre[k]))s.d.push([nkgMms(Qm.pre.m),Qm.pre[k]]);return s;};
+  const one=[],lng=[];
+  if(Qm){one.push(preAdd(nkgSeries(Qm.F,4,'s1','nkg456.s.us1m'),'px1'));lng.push(preAdd(nkgSeries(Qm.F,5,'s1','nkg456.s.us5m'),'px5'));}
+  if(Qs){one.push(nkgSeries(Qs.R,1,'s2','nkg456.s.us1s'));lng.push(nkgSeries(Qs.R,3,'s2','nkg456.s.us5s'));}
+  if(Qe){one.push(nkgSeries(Qe.R,1,'s3','nkg456.s.ec1'));lng.push(nkgSeries(Qe.R,3,'s3','nkg456.s.ec5'));}
+  const rf=[{v:2,n:cut,cls:'tg'}],fm=v=>nfmt(v,1)+'%';
+  return nkgHead('inf',us+eu)+nkgTiles(tl)
+    +nkgChart(one.map(cut2),t('nkg456.inf.ch1.aria'),fm,'nkg456.inf.ch1.h',rf)+nkgChart(lng.map(cut2),t('nkg456.inf.ch2.aria'),fm,'nkg456.inf.ch2.h',rf)
+    +`<p class="pnote">${t('nkg456.inf.n')}</p>`;}
+/* ---------- (3) zadłużenie na rachunkach z dźwignią ---------- */
+function nkgFmHtml(Q){const P=Q.P,R=Q.R,L=R[R.length-1],fl=nkgFl('us'),B=nkgAt(R,nkgMadd(L[0],-1)),Y=nkgAt(R,nkgMadd(L[0],-12)),w=nkgWhen(L[0]),u=t('nkg456.fm.u'),bln=v=>strNum(v)?nfmt(v/1e6,2)+' '+u:'—';
+  const pct=(a,b,lk)=>strDelta(nkgPc(a,b),1,'% '+t(lk));
+  const tl=[strTile(fl,t('nkg456.fm.k1'),bln(L[1]),[pct(L[1],B&&B[1],'nkg456.s.mm'),pct(L[1],Y&&Y[1],'nkg456.s.yy')],w)];
+  if(Array.isArray(P.mx)&&strNum(P.mx[0])&&P.mx[0]>0&&typeof P.mx[1]==='string'&&NKG_M.test(P.mx[1]))
+    tl.push(strTile(fl,t('nkg456.fm.k2'),bln(P.mx[0]),[{txt:t('nkg456.fm.rec',{m:nkgMon(P.mx[1])}),cls:'pc'},{txt:t('nkg456.fm.now',{p:nfmt(L[1]/P.mx[0]*100,0)}),cls:'pc'}],w));
+  if(strNum(P.p5))tl.push(strTile(fl,t('nkg456.fm.k3'),nfmt(P.p5,0)+'%',[{txt:t('nkg456.fm.p5'),cls:'pc'}],w));
+  if(strNum(L[2]))tl.push(strTile(fl,t('nkg456.fm.k4'),bln(L[2]),[pct(L[2],B&&B[2],'nkg456.s.mm'),pct(L[2],Y&&Y[2],'nkg456.s.yy')],w));
+  const ser=[{n:t('nkg456.fm.s1'),cls:'s1',d:R.filter(r=>strNum(r[1])).map(r=>[nkgMms(r[0]),r[1]/1e6])},{n:t('nkg456.fm.s2'),cls:'s2',d:R.filter(r=>strNum(r[2])).map(r=>[nkgMms(r[0]),r[2]/1e6])}];
+  return nkgHead('fm',fl)+nkgTiles(tl)+nkgChart(ser,t('nkg456.fm.ch.aria',{n:R.length}),v=>nfmt(v,2),'nkg456.fm.ch.h')+`<p class="pnote">${t('nkg456.fm.n')}</p>`;}
+function nkgBody(){const J=NKG.j;
+  if(!J)return `<p class="pnote">${t(NKG.x?'nkg456.err':'nkg456.lazy')}</p>`;
+  const Q={mi:nkgMi(J),sc:nkgSc(J),ec:nkgEc(J),fm:nkgFm(J)};
+  const bad=NKG_PARTS.filter(k=>!Q[k]&&nkgObj(J.ok)&&J.ok[k]===false);
+  return (Q.mi?nkgMiHtml(Q.mi):'')+(Q.mi||Q.sc||Q.ec?nkgInfHtml(Q.mi,Q.sc,Q.ec):'')+(Q.fm?nkgFmHtml(Q.fm):'')
+    +(bad.length?`<p class="pnote neu">${t('nkg456.errp',{p:bad.map(k=>t('nkg456.p.'+k)).join(', ')})}</p>`:'')
+    +`<p class="pfoot">${t('inst.file',{t:engDate(J.at)})} · ${t('nkg456.foot')} ${t('eng.disclaimer')}</p>`;}
+/* karta rozwinięta: silnik kart zwijanych ma klasę zw-on, a nie zw */
+function nkgOpen(el){return !!(el&&el.classList&&el.classList.contains('zw-on')&&!el.classList.contains('zw'));}
+function renderNkg(){const el=$('#g-nkg');if(!el)return;
+  if(!NKG.on){el.hidden=true;el.innerHTML='';return;}
+  el.innerHTML=`<div class="etfh"><div><h2>${icoWrap(nkgFl('us'))}${t('nkg456.t')}</h2><p class="pnote">${t('nkg456.sub')}</p></div></div>${nkgBody()}`;
+  el.hidden=false;
+  if(!NKG.mo&&typeof MutationObserver==='function'){NKG.mo=true;try{new MutationObserver(()=>{if(nkgOpen(el))nkgLoad();}).observe(el,{attributes:true,attributeFilter:['class']});}catch(e){}}   /* rozwinięcie karty (klasa) = pobranie */
+  if(nkgOpen(el))nkgLoad();}
+/* pobranie pliku: jedno naraz; chwilowy błąd nie zasłania wczytanych danych; po błędzie najwcześniej po minucie; f = odświeżenie wymuszone zegarem */
+function nkgLoad(f){if(NKG.l)return;const n=Date.now();if(NKG.j&&!f&&n-NKG.t<10*60e3)return;if(!NKG.j&&n-NKG.e<60e3)return;NKG.l=true;
+  srvJSON('nastroje-gosp').then(j=>{
+    if(!nkgOk(j)){NKG.l=false;NKG.e=Date.now();if(!NKG.j)NKG.x=true;renderNkg();return;}
+    NKG.l=false;NKG.j=j;NKG.x=false;NKG.t=Date.now();NKG.on=true;renderNkg();});}
+/* karta pojawia się, gdy meta.json zna którąś część „nkg_*”; chwilowy błąd meta (brak odpowiedzi) = najwyżej 5 ponowień co 20 s, odpowiedź bez tych części = karta ukryta bez ponowień */
+function nkgMeta(){srvJSON('meta').then(m=>{const ok=!!(m&&typeof m==='object'&&m.ok&&typeof m.ok==='object');NKG.mf=ok?0:(NKG.mf||0)+1;
+  NKG.on=ok&&NKG_PARTS.some(k=>Object.prototype.hasOwnProperty.call(m.ok,'nkg_'+k));renderNkg();});}
+nkgMeta();
+setInterval(()=>{if(!NKG.on&&NKG.mf>0&&NKG.mf<=5)nkgMeta();},20*1000);
+setInterval(()=>{if(!document.hidden&&NKG.j&&nkgOpen($('#g-nkg')))nkgLoad(1);},30*60*1000);
+try{new MutationObserver(()=>renderNkg()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
+/* ---------- koniec bloku nastroje konsumentów (v456) ---------- */
 /* ===================== v455 (F11Z37): POZYCJE INSTYTUCJI W USA (13F) I NIEDOSTARCZONE AKCJE (GLOBAL) — panel #g-sec13f (plik automatu data/sec-13f.json) =====================
    Karta zwijana jak pozostałe w GLOBAL (silnik kart zw), na końcu GLOBAL po Chinach i Tajwanie (przed kursami dolara). Nagłówek widać od razu (karta pojawia się, gdy meta.json zna którąś część „sec_*”); plik (kilka KB) jest pobierany dopiero po rozwinięciu
    karty (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie; po wczytaniu odświeżany co 30 min przy rozwiniętej karcie). Dwa bloki, każdy z własną datą danych i wiekiem:

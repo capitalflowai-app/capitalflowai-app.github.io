@@ -14966,6 +14966,165 @@ def sec_k_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v456 (F11Z38): NASTROJE KONSUMENTÓW I OCZEKIWANA INFLACJA GOSPODARSTW (data/nastroje-gosp.json) --------------------
+# Plik: cztery części (mi sondaż nastrojów konsumentów w USA, sc ankieta oczekiwanej inflacji w USA, ec ankieta w strefie euro, fm zadłużenie marżowe w USA), każda z własnym czasem pobrania (pole t);
+# rytm zbieracza: mi co 6 h, pozostałe co 12 h (po błędzie ponowienie po 1 h). Wiersze świeżości (najwyżej ⚠️): (1) pobranie części: mi ≤ 24 h, sc/ec/fm ≤ 36 h (symulacja co 10 minut przez 30 dób w
+# test_zbieraj_dane: największy wiek pobrania bez awarii = rytm, z 12-godzinną awarią źródła = rytm + 12 h — poniżej progów, 0 fałszywych ⚠️); (2) wiek danych liczony od końca ostatniego miesiąca (odczyt wstępny
+# liczy się jako jego miesiąc): mi ≤ 45 dni (wynik końcowy miesiąca M pojawia się pod koniec M, kolejny po miesiącu: największy wiek bez odczytu wstępnego ≈ 28 dni), sc ≤ 60 dni (miesiąc M w drugim tygodniu
+# M+1: największy wiek tuż przed kolejnym ≈ 42 dni), ec ≤ 120 dni (miesiąc M po ok. 7 tygodniach: ≈ 80 dni), fm ≤ 80 dni (miesiąc M w trzecim tygodniu M+1: ≈ 51 dni). Progi z cyklu publikacji i z odstępów
+# między miesiącami w plikach (wszystkie cztery szeregi mają kolejne miesiące bez przerw); bez ❌. Osobny wiersz dla odczytu wstępnego: strona sondażu w innym układzie (pre_ok = False) = ⚠️ z opisem.
+# Spójność w pliku (⚠️): miesiące kolejne i rosnące, ostatni = m, liczby w zakresach, odczyt wstępny nowszy od ostatniego miesiąca końcowego, kwartyle wokół mediany, rekord salda nie mniejszy od bieżącego.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'nastroje-gosp')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['nastroje-gosp'] = 18 * 60   # plik zapisywany przy każdej próbie pobrania (co ~6 h, po błędzie co 1 h) — wiek pliku; wiek pobrania każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'nkg_' + p_: 'Nastroje konsumentów — część z błędem zostaje z datą (v456); wiek danych w wierszach świeżości' for p_ in ('mi', 'sc', 'ec', 'fm')})
+NKGK_ETYKIETA = {'mi': 'USA nastroje konsumentów', 'sc': 'USA oczekiwana inflacja gospodarstw', 'ec': 'Strefa euro oczekiwana inflacja', 'fm': 'USA zadłużenie marżowe'}
+NKGK_POBR_MIN = {'mi': 24 * 60, 'sc': 36 * 60, 'ec': 36 * 60, 'fm': 36 * 60}    # min — wiek pobrania części, powyżej ⚠️
+NKGK_DATA_MIN = {'mi': 45 * 24 * 60, 'sc': 60 * 24 * 60, 'ec': 120 * 24 * 60, 'fm': 80 * 24 * 60}   # min — wiek danych (od końca miesiąca), powyżej ⚠️
+_NKGK_M = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+
+
+def nkgk_madd(m, n):
+    i = int(m[:4]) * 12 + int(m[5:7]) - 1 + n
+    return '%04d-%02d' % (i // 12, i % 12 + 1)
+
+
+def nkgk_rows(S, dl, ile, minimum=1):
+    """Wiersze długości dl z miesiącem 'RRRR-MM' na początku, ściśle kolejne (bez przerw), niepuste, nie więcej niż ile; zwraca opis usterki albo ''."""
+    if not isinstance(S, list) or len(S) < minimum:
+        return 'brak serii'
+    if any(not (isinstance(r, list) and len(r) == dl and isinstance(r[0], str) and _NKGK_M.match(r[0])) for r in S):
+        return 'zły kształt wiersza'
+    if len(S) > ile:
+        return f'więcej niż {ile} wierszy'
+    return '' if all(b[0] == nkgk_madd(a[0], 1) for a, b in zip(S, S[1:])) else 'miesiące nie są kolejne'
+
+
+def nkgk_mi(P):
+    zle = []
+    m = P.get('m')
+    if not (isinstance(m, str) and _NKGK_M.match(m)):
+        return ['mi: zły miesiąc']
+    F = P.get('fin')
+    s = nkgk_rows(F, 6, 37, 13)
+    if s:
+        return ['mi.fin: ' + s]
+    if F[-1][0] != m:
+        zle.append('mi: ostatni miesiąc serii ≠ m')
+    if not _euk_num(F[-1][1], 1, 200):
+        zle.append('mi: wskaźnik ogólny ostatniego miesiąca poza zakresem')
+    if any(v is not None and not _euk_num(v, 0, 200) for r in F for v in r[1:4]) or any(v is not None and not _euk_num(v, 0, 30) for r in F for v in r[4:6]):
+        zle.append('mi.fin: liczba poza zakresem')
+    if P.get('p') is not None and not _euk_num(P['p'], 0, 100):
+        zle.append('mi: percentyl poza 0–100')
+    pre = P.get('pre')
+    if pre is not None:
+        if not (isinstance(pre, dict) and isinstance(pre.get('m'), str) and _NKGK_M.match(pre['m']) and pre['m'] > m and pre['m'] <= nkgk_madd(m, 2)):
+            zle.append('mi.pre: miesiąc odczytu wstępnego nie jest zaraz po ostatnim końcowym')
+        elif any(not _euk_num(pre.get(k), 1, 200) for k in ('ics', 'icc', 'ice')) or any(pre.get(k) is not None and not _euk_num(pre[k], 0.01, 30) for k in ('px1', 'px5')):
+            zle.append('mi.pre: liczba poza zakresem')
+    return zle
+
+
+def nkgk_sc(P):
+    zle = []
+    m = P.get('m')
+    R = P.get('rows')
+    s = nkgk_rows(R, 5, 25, 13)
+    if s:
+        return ['sc: ' + s]
+    if m != R[-1][0]:
+        zle.append('sc: m ≠ ostatni miesiąc')
+    if any(not _euk_num(r[1], -10, 30) or not _euk_num(r[2], -10, 30) for r in R) or any(r[3] is not None and not _euk_num(r[3], -10, 30) for r in R) or any(r[4] is not None and not _euk_num(r[4], 0, 100) for r in R):
+        zle.append('sc: liczba poza zakresem')
+    q = P.get('q1')
+    if q is not None and not (isinstance(q, list) and len(q) == 2 and _euk_num(q[0], -10, 30) and _euk_num(q[1], -10, 30) and q[0] <= R[-1][1] <= q[1]):
+        zle.append('sc: kwartyle nie obejmują mediany')
+    return zle
+
+
+def nkgk_ec(P):
+    zle = []
+    R = P.get('rows')
+    s = nkgk_rows(R, 4, 24, 12)
+    if s:
+        return ['ec: ' + s]
+    if P.get('m') != R[-1][0]:
+        zle.append('ec: m ≠ ostatni miesiąc')
+    if any(not _euk_num(v, -10, 30) for r in R for v in r[1:]):
+        zle.append('ec: liczba poza zakresem')
+    return zle
+
+
+def nkgk_fm(P):
+    zle = []
+    R = P.get('rows')
+    s = nkgk_rows(R, 4, 61, 25)
+    if s:
+        return ['fm: ' + s]
+    if P.get('m') != R[-1][0]:
+        zle.append('fm: m ≠ ostatni miesiąc')
+    if any(not _euk_num(r[1], 1e4, 5e7) or (r[2] is not None and not _euk_num(r[2], 1, 5e7)) or (r[3] is not None and not _euk_num(r[3], 1, 5e7)) for r in R):
+        zle.append('fm: saldo poza zakresem')
+    mx = P.get('mx')
+    if not (isinstance(mx, list) and len(mx) == 2 and _euk_num(mx[0], 1e4, 5e7) and isinstance(mx[1], str) and _NKGK_M.match(mx[1])):
+        zle.append('fm.mx: zły kształt')
+    elif mx[0] < max(r[1] for r in R):
+        zle.append('fm: rekord salda mniejszy niż saldo w serii')
+    if P.get('p5') is not None and not _euk_num(P['p5'], 0, 100):
+        zle.append('fm: percentyl poza 0–100')
+    return zle
+
+
+def nkgk_kontrola(j, now=None):
+    """data/nastroje-gosp.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    for part, spr in (('mi', nkgk_mi), ('sc', nkgk_sc), ('ec', nkgk_ec), ('fm', nkgk_fm)):
+        K = j.get(part) if isinstance(j.get(part), dict) else None
+        lab = NKGK_ETYKIETA[part]
+        if K is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od dłuższego czasu)')
+            continue
+        zle += spr(K)
+        w = wiek_danych(K.get('t'), 'ts', 'k', now)
+        if w is None:
+            out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak czasu pobrania'))
+        else:
+            st = '⚠️' if w > NKGK_POBR_MIN[part] else '✅'
+            dane = str(K.get('t'))[:16].replace('T', ' ') + ' UTC'
+            note = '' if st == '✅' else 'pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga'
+            out['rows'].append((lab + ' (pobranie)', st, w, dane, note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (pobranie): {dane} — {fmt_wiek(w)} temu ({note})')
+        dd = K.get('m')
+        pre = K.get('pre') if part == 'mi' and isinstance(K.get('pre'), dict) else None
+        if pre is not None and isinstance(pre.get('m'), str) and _NKGK_M.match(pre['m']) and isinstance(dd, str) and pre['m'] > dd:
+            dd = pre['m']      # odczyt wstępny liczy się jako jego miesiąc
+        wd = wiek_danych(dd, 'month', 'k', now) if (isinstance(dd, str) and _NKGK_M.match(dd)) else None
+        if wd is None:
+            out['rows'].append((lab + ' (data danych)', '?', None, None, 'brak daty danych'))
+        else:
+            st = '⚠️' if wd > NKGK_DATA_MIN[part] else '✅'
+            note = '' if st == '✅' else 'dane starsze niż wynika z cyklu publikacji — źródło nie publikuje albo zbieracz czyta stary plik; najwyżej uwaga'
+            out['rows'].append((lab + ' (data danych)', st, wd, str(dd), note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (data danych): {dd} — {fmt_wiek(wd)} temu ({note})')
+        if part == 'mi' and K.get('pre_ok') is False:
+            out['rows'].append((lab + ' (odczyt wstępny)', '⚠️', None, None, 'strona sondażu w innym układzie albo bez odpowiedzi — dane końcowe zostają'))
+            out['uwagi'].append(f'{lab}: odczyt wstępny niedostępny (strona sondażu w innym układzie albo bez odpowiedzi) — dane końcowe zostają')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Nastroje konsumentów (nastroje-gosp.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in ('mi', 'sc', 'ec', 'fm')):
+        out['wiersze'].append(('spójność pliku (nastroje konsumentów, oczekiwana inflacja, zadłużenie marżowe)', '⚠️' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -15890,6 +16049,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['sec-13f'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Pozycje instytucji i niedostarczone akcje (v455): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v456. Nastroje konsumentów i oczekiwana inflacja (data/nastroje-gosp.json): wiek pobrania i danych każdej części, spójność w pliku — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        NK_ = nkgk_kontrola(files.get('nastroje-gosp'))
+        for label, st, w, txt, note in NK_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += NK_['uwagi']
+        R['zgodnosc']['nastroje-gosp'] = {'spojnosc': NK_['spojnosc'], 'wiersze': NK_['wiersze']} if (NK_['rows'] or NK_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['nastroje-gosp'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Nastroje konsumentów (v456): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -16618,6 +16787,11 @@ def raport_md(R):
             L.append('- Pozycje instytucji USA (13F) i niedostarczone akcje (z pliku strony): ' + (f'? kontrola przerwana ({ssec_["blad"]})' if ssec_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(ssec_['spojnosc'][:3]) + ' ⚠️ · ' if ssec_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in ssec_.get('wiersze') or []) or '—') + '.')
+        nkg_ = Z.get('nastroje-gosp')   # v456: nastroje konsumentów i oczekiwana inflacja — brak pliku = bez linii
+        if nkg_:
+            L.append('- Nastroje konsumentów, oczekiwana inflacja i zadłużenie marżowe (z pliku strony): ' + (f'? kontrola przerwana ({nkg_["blad"]})' if nkg_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(nkg_['spojnosc'][:3]) + ' ⚠️ · ' if nkg_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in nkg_.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else

@@ -33205,6 +33205,8 @@ def main():
     META['ok']['usp_hh'], META['ok']['usp_pm'], META['ok']['usp_tp'], META['ok']['usp_ts'] = up_czesc()
     # v429 (F11Z28): krótka sprzedaż w Europie (pozycje netto w spółkach w Wielkiej Brytanii i w Szwecji) — data/short-eu.json; bez klucza, dwie części raz na ~6 h (po błędzie co 1 h)
     META['ok']['short_uk'], META['ok']['short_se'] = sh_czesc()
+    # v456 (F11Z38): nastroje konsumentów i oczekiwana inflacja gospodarstw (USA, strefa euro) oraz dług na akcjach w USA — data/nastroje-gosp.json; bez kluczy, części co 6 h (mi) i 12 h (sc, ec, fm)
+    META['ok']['nkg_mi'], META['ok']['nkg_sc'], META['ok']['nkg_ec'], META['ok']['nkg_fm'] = nkg_czesc()
     # v447 (F11Z35): waluty świata i koszt pieniądza (kursy wielu walut, kurs centralny juana, gilty i inflacja oczekiwana) — data/waluty.json; bez klucza, trzy części raz na ~6 h (po błędzie najwcześniej po 1 h od próby)
     META['ok']['waluty_fx'], META['ok']['waluty_yuan'], META['ok']['waluty_gilty'] = wal_czesc()
     # v446 (F11Z33): surowce całą dobę (ropa, gaz, złoto, srebro, miedź w kontraktach wieczystych) — data/surowce-247.json z TEJ SAMEJ odpowiedzi giełdy co część `kr` dźwigni (zero nowych zapytań);
@@ -50222,6 +50224,368 @@ def sec_czesc(contact):
 
 
 ZRODLA_META.update({'sec_f13': 'sec', 'sec_ftd': 'sec'})   # v455: ten sam urząd co insiderzy (zgłoszenia Form 4) — liczba źródeł bez zmian
+
+
+# ===================== v456 (F11Z38): NASTROJE KONSUMENTÓW I OCZEKIWANA INFLACJA GOSPODARSTW (data/nastroje-gosp.json) =====================
+# Cztery niezależne części, każda z własnym czasem pobrania (pole t w części), rytmem i zapasem po błędzie (plik zostaje z poprzednią częścią, najwyżej NKG_MAX_D dób):
+#   mi — nastroje konsumentów w USA (uniwersytecki sondaż miesięczny): trzy pliki CSV z pełną historią (wskaźnik ogólny, ocena obecnej sytuacji i oczekiwania, oczekiwana inflacja za rok i za 5–10 lat; wartości
+#        po zamknięciu miesiąca) + strona główna z WSTĘPNYM odczytem bieżącego miesiąca (tabela trzech wskaźników: bieżący miesiąc, poprzedni, rok temu; zdania o inflacji tylko gdy „od” zgadza się z ostatnią
+#        wartością z pliku). Strażnik układu strony: tytuł „Preliminary Results for <miesiąc> <rok>”, nagłówek kolumn zgodny z tytułem, wartości w zakresie; inny układ = wstępnego odczytu nie ma (pre_ok = False), część dalej ma dane końcowe;
+#   sc — oczekiwana inflacja gospodarstw w USA (ankieta banku regionalnego Fed, plik .xlsx ok. 1 MB, arkusze „Inflation expectations” i „Unemployment Expectations”): mediana na rok, 3 i 5 lat, kwartyle na rok,
+#        szansa na wyższe bezrobocie za rok; od 2013, miesięcznie;
+#   ec — oczekiwana inflacja konsumentów strefy euro (ankieta banku centralnego; mediana ważona, 11 krajów): za 12 miesięcy, 3 i 5 lat, 24 miesiące;
+#   fm — zadłużenie klientów domów maklerskich na rachunkach z dźwignią w USA (miesięczny plik .xlsx od 1997): saldo długu (mln USD), wolne środki klientów, rekord, miejsce na tle 5 lat.
+# Brak = brak (nigdy zero): komórka bez liczby jest pomijana, ostatni wiersz bez wymaganej liczby = błąd części. Publiczne GET bez klucza, nagłówek zbieracza, limit czasu i rozmiaru, odstęp NKG_SLEEP s.
+# Źródła na stronie: sondaż uniwersytecki (+1 źródło), bank regionalny Fed (już liczony: ny-fed), bank centralny strefy euro (już liczony: ecb), organizacja domów maklerskich (+1 źródło) — liczba źródeł rośnie o 2.
+# To nie jest porada inwestycyjna.
+NKG_V = 1
+NKG_PARTS = ('mi', 'sc', 'ec', 'fm')
+NKG_CO_H = {'mi': 6, 'sc': 12, 'ec': 12, 'fm': 12}    # h między pobraniami części (po błędzie NKG_BLAD_H)
+NKG_BLAD_H = 1
+NKG_MAX_D = {'mi': 30, 'sc': 60, 'ec': 60, 'fm': 75}  # doby: część po błędzie zostaje z poprzedniego pliku najwyżej tak długo
+NKG_SLEEP = 0.5
+NKG_TIMEOUT = 60
+NKG_MI_HTML = 'https://www.sca.isr.umich.edu/'
+NKG_MI_CSV = {'ics': ('https://www.sca.isr.umich.edu/files/tbmics.csv', 'month,yyyy,ics_all'),
+              'cce': ('https://www.sca.isr.umich.edu/files/tbmiccice.csv', 'month,yyyy,icc,ice'),
+              'px': ('https://www.sca.isr.umich.edu/files/tbmpx1px5.csv', 'month,yyyy,px_md,px5_md')}
+NKG_SC_URL = 'https://www.newyorkfed.org/medialibrary/interactives/sce/sce/downloads/data/frbny-sce-data.xlsx'
+NKG_EC_URL = 'https://data-api.ecb.europa.eu/service/data/CES/M.Z18.ALL.T.C1120+C1220+E2020.NUM_VAR.WM?lastNObservations=24&format=jsondata'
+NKG_FM_URL = 'https://www.finra.org/sites/default/files/2021-03/margin-statistics.xlsx'
+NKG_MAX_B = {'mi_html': 300_000, 'mi_csv': 400_000, 'sc': 4_000_000, 'ec': 400_000, 'fm': 1_000_000}
+NKG_MI_N = 37              # miesięcy w pliku (36 zmian m/m; rok temu = 12 miesięcy wstecz)
+NKG_MI_MIN = 400           # wierszy w pliku wskaźnika (w 2026: ok. 650 od 1952)
+NKG_MI_OD = '1978-01'      # od tego miesiąca (badanie miesięczne) liczony jest percentyl wskaźnika ogólnego
+NKG_MI_WIN_MIN = 400
+NKG_IDX_MAX = 200.0        # wskaźniki sondażu: 0–200 (rekordy: 112 w 2000, 50 w 2022, 46 w 2026)
+NKG_PX_MAX = 30.0          # oczekiwana inflacja, %
+_NKG_MON = {m: i for i, m in enumerate(('january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'), 1)}
+NKG_SC_N = 25              # miesięcy w pliku (24 zmiany; rok temu = 12 wstecz)
+NKG_SC_MIN = 60            # wierszy arkusza (w 2026: 160 od 2013)
+NKG_SC_SHEET = 'Inflation expectations'
+NKG_SC_HEAD = {2: 'Median one-year ahead expected inflation rate', 3: 'Median three-year ahead expected inflation rate', 4: '25th Percentile one-year ahead expected inflation rate',
+               6: '75th Percentile one-year ahead expected inflation rate', 11: 'Median five-year ahead expected inflation rate'}
+NKG_SC_SHEET_U = 'Unemployment Expectations'
+NKG_SC_HEAD_U = 'Mean probability that the U.S. unemployment rate will be higher one year from now'
+NKG_SC_LO, NKG_SC_HI = -10.0, 30.0
+NKG_EC_VARS = {'C1120': 'e12', 'C1220': 'e36', 'E2020': 'e60'}
+NKG_EC_N = 24
+NKG_EC_MIN = 12
+NKG_FM_N = 61              # miesięcy w pliku (5 lat + miesiąc sprzed 5 lat)
+NKG_FM_MIN = 200           # wierszy arkusza (w 2026: 357 od 1997)
+NKG_FM_SHEET = 'Customer Margin Balances'
+NKG_FM_LO, NKG_FM_HI = 1e4, 5e7    # mln USD (2026: 1,48 bln = 1 480 054 mln)
+NKG_FM_WIN = 60
+NKG_FM_WIN_MIN = 55
+NKG_SRC = ('nastroje konsumentów w USA (sondaż miesięczny z odczytem wstępnym), oczekiwana inflacja gospodarstw w USA i strefie euro (ankiety miesięczne) '
+           'i zadłużenie klientów domów maklerskich w USA (plik miesięczny) — publiczne pliki uniwersytetu, banków centralnych i organizacji rynku')
+_NKG_YM = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+_NKG_MON3 = ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec')
+
+
+def nkg_madd(m, n):
+    """'2026-09' + n miesięcy → 'RRRR-MM'."""
+    i = int(m[:4]) * 12 + int(m[5:7]) - 1 + n
+    return '%04d-%02d' % (i // 12, i % 12 + 1)
+
+
+def nkg_ok(v, lo, hi):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and lo <= v <= hi
+
+
+def nkg_mi_csv(text, glowa, lo, hi):
+    """Plik CSV sondażu ('Miesiąc,Rok,wartości…') → {'RRRR-MM': [liczby albo None]}. Nagłówek dokładnie `glowa` (małe litery), miesiące ściśle rosnące, wartość spoza [lo, hi] = None, co najmniej NKG_MI_MIN wierszy."""
+    lines = [l.strip() for l in str(text).lstrip('\ufeff').splitlines() if l.strip()]
+    if not lines or lines[0].replace(' ', '').lower() != glowa:
+        raise ValueError('nagłówek pliku nastrojów konsumentów inny niż oczekiwany')
+    out, prev = {}, None
+    for l in lines[1:]:
+        p = l.split(',')
+        mo = _NKG_MON.get(p[0].strip().lower())
+        if len(p) != len(glowa.split(',')) or mo is None or not re.fullmatch(r'\d{4}', p[1].strip()):
+            raise ValueError('zły wiersz pliku nastrojów konsumentów')
+        ym = '%s-%02d' % (p[1].strip(), mo)
+        if prev is not None and ym <= prev:
+            raise ValueError('miesiące w pliku nastrojów konsumentów nie rosną')
+        prev = ym
+        out[ym] = [(round(v, 1) if v is not None and lo <= v <= hi else None) for v in (_num(x) for x in p[2:])]
+    if len(out) < NKG_MI_MIN:
+        raise ValueError(f'plik nastrojów konsumentów obcięty ({len(out)} wierszy)')
+    return out
+
+
+def nkg_mi_pre(html):
+    """Strona główna sondażu → (status, dane): ('pre', {m, ics, icc, ice, px1, px5, prev, ya}) przy wstępnym odczycie; ('final', None) gdy strona pokazuje wynik końcowy;
+    ('brak', None) gdy układ strony jest inny niż oczekiwany. prev i ya = [ics, icc, ice] poprzedniego miesiąca i sprzed roku z tabeli strony; px1 i px5 (oczekiwana inflacja) — ze zdań komentarza, albo None."""
+    t = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', re.sub(r'(?is)<(script|style)\b.*?</\1>', ' ', str(html)))).replace('&nbsp;', ' ')
+    if re.search(r'Final Results for [A-Z][a-z]+ \d{4}', t) and not re.search(r'Preliminary Results for', t):
+        return 'final', None
+    m = re.search(r'Preliminary Results for ([A-Z][a-z]+) (\d{4})', t)
+    if not m or m.group(1).lower() not in _NKG_MON:
+        return 'brak', None
+    ym = '%s-%02d' % (m.group(2), _NKG_MON[m.group(1).lower()])
+    h = re.search(r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?: M-M Y-Y)? (\d{4}) (\d{4}) (\d{4})\b', t)
+    if not h:
+        return 'brak', None
+    ms = [_NKG_MON3.index(h.group(i).lower()) + 1 for i in (1, 2, 3)]
+    ys = [int(h.group(i)) for i in (4, 5, 6)]
+    if '%04d-%02d' % (ys[0], ms[0]) != ym or '%04d-%02d' % (ys[1], ms[1]) != nkg_madd(ym, -1) or '%04d-%02d' % (ys[2], ms[2]) != nkg_madd(ym, -12):
+        return 'brak', None
+    rows = []
+    for lab in ('Index of Consumer Sentiment', 'Current Economic Conditions', 'Index of Consumer Expectations'):
+        r = re.search(re.escape(lab) + r' (\d+(?:\.\d+)?) (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)(?: |$)', t)
+        if not r:
+            return 'brak', None
+        v = [float(r.group(i)) for i in (1, 2, 3)]
+        if not all(nkg_ok(x, 1, NKG_IDX_MAX) for x in v):
+            return 'brak', None
+        rows.append(v)
+    px = {}
+    for k, lab in (('px1', 'Year-ahead inflation expectations'), ('px5', 'Long-run inflation expectations')):
+        r = re.search(lab + r'[^.%]{0,120}?from (\d+(?:\.\d+)?)%[^%.]{0,40}? to (\d+(?:\.\d+)?)%', t)
+        px[k] = (float(r.group(1)), float(r.group(2))) if r and nkg_ok(float(r.group(2)), 0.01, NKG_PX_MAX) else None
+    return 'pre', {'m': ym, 'ics': rows[0][0], 'icc': rows[1][0], 'ice': rows[2][0], 'prev': [r_[1] for r_ in rows], 'ya': [r_[2] for r_ in rows], 'px': px}
+
+
+def nkg_mi_czesc(ics, cce, px, html=None):
+    """Trzy pliki CSV (słowniki z nkg_mi_csv) + strona główna → część 'mi' {m, fin, p, n, from, pre, pre_ok}: fin = [[miesiąc, ogólny, obecna sytuacja, oczekiwania, inflacja za rok, za 5–10 lat]] (NKG_MI_N miesięcy
+    kalendarzowych kończących się ostatnim miesiącem z wartością wskaźnika ogólnego; brak = None; miesiąc bez żadnej liczby pominięty), p = percentyl wskaźnika ogólnego wśród miesięcy od NKG_MI_OD.
+    pre = wstępny odczyt miesiąca nowszego od ostatniego końcowego (oczekiwana inflacja tylko gdy „od” = ostatnia wartość końcowa ±0,05), pre_ok: True / False (strona w innym układzie albo bez odpowiedzi) / None (strona pokazuje wynik końcowy)."""
+    ms = [m for m, v in ics.items() if v[0] is not None]
+    if not ms:
+        raise RuntimeError('nastroje konsumentów: brak wartości wskaźnika ogólnego')
+    last = ms[-1]
+    fin = []
+    for i in range(NKG_MI_N - 1, -1, -1):
+        m = nkg_madd(last, -i)
+        row = [m, (ics.get(m) or [None])[0], (cce.get(m) or [None, None])[0], (cce.get(m) or [None, None])[1], (px.get(m) or [None, None])[0], (px.get(m) or [None, None])[1]]
+        if any(v is not None for v in row[1:]):
+            fin.append(row)
+    win = [ics[m][0] for m in ms if m >= NKG_MI_OD]
+    pre, pre_ok = None, None
+    if html is not None:
+        st, pr = nkg_mi_pre(html)
+        pre_ok = {'pre': True, 'final': None, 'brak': False}[st]
+        if st == 'pre' and pr['m'] > last:
+            lastpx = (px.get(last) or [None, None])
+            ok1 = pr['px']['px1'] is not None and lastpx[0] is not None and abs(pr['px']['px1'][0] - lastpx[0]) <= 0.05
+            ok5 = pr['px']['px5'] is not None and lastpx[1] is not None and abs(pr['px']['px5'][0] - lastpx[1]) <= 0.05
+            pre = {'m': pr['m'], 'ics': pr['ics'], 'icc': pr['icc'], 'ice': pr['ice'], 'px1': pr['px']['px1'][1] if ok1 else None, 'px5': pr['px']['px5'][1] if ok5 else None}
+        elif st == 'pre':
+            pre_ok = None    # strona pokazuje miesiąc, który plik już ma
+    return {'m': last, 'unit': 'wskaźniki sondażu (1966 = 100); oczekiwana inflacja w %', 'fin': fin,
+            'p': round(ns_pct(win, ics[last][0]), 1) if len(win) >= NKG_MI_WIN_MIN else None, 'n': len(win), 'from': NKG_MI_OD, 'pre': pre, 'pre_ok': pre_ok}
+
+
+def nkg_sc_czesc(data):
+    """Plik .xlsx ankiety → część 'sc' {m, rows, q1}: rows = [[miesiąc, mediana na rok, na 3 lata, na 5 lat (albo None), szansa na wyższe bezrobocie (%) albo None]] NKG_SC_N ostatnich miesięcy,
+    q1 = [dolny, górny kwartyl] odpowiedzi na rok w ostatnim miesiącu. Nagłówki kolumn dokładnie jak oczekiwane, miesiące ściśle rosnące, ostatni wiersz musi mieć medianę na rok i na 3 lata."""
+    rw = _xlsx_rows(data, NKG_SC_SHEET)
+    h = rw.get(4) or {}
+    for c, tx in NKG_SC_HEAD.items():
+        if h.get(c) != tx:
+            raise RuntimeError(f'oczekiwana inflacja gospodarstw: kolumna {c} ma inny nagłówek niż oczekiwany')
+    ru = _xlsx_rows(data, NKG_SC_SHEET_U)
+    if (ru.get(4) or {}).get(2) != NKG_SC_HEAD_U:
+        raise RuntimeError('oczekiwana inflacja gospodarstw: arkusz bezrobocia ma inny nagłówek niż oczekiwany')
+    un = {}
+    for r in sorted(ru):
+        c = re.fullmatch(r'(\d{4})(0[1-9]|1[0-2])', (ru[r].get(1) or ''))
+        v = _num(ru[r].get(2))
+        if c and v is not None and 0 <= v <= 100:
+            un[f'{c.group(1)}-{c.group(2)}'] = round(v, 1)
+    out, prev = [], None
+    for r in sorted(rw):
+        c = re.fullmatch(r'(\d{4})(0[1-9]|1[0-2])', (rw[r].get(1) or ''))
+        if not c:
+            continue
+        m = f'{c.group(1)}-{c.group(2)}'
+        if prev is not None and m <= prev:
+            raise RuntimeError('oczekiwana inflacja gospodarstw: miesiące nie rosną')
+        prev = m
+        v = [_num(rw[r].get(k)) for k in (2, 3, 11, 4, 6)]
+        v = [round(x, 2) if x is not None and NKG_SC_LO <= x <= NKG_SC_HI else None for x in v]
+        out.append((m, v))
+    if len(out) < NKG_SC_MIN:
+        raise RuntimeError(f'oczekiwana inflacja gospodarstw: arkusz obcięty ({len(out)} wierszy)')
+    m, v = out[-1]
+    if v[0] is None or v[1] is None:
+        raise RuntimeError(f'oczekiwana inflacja gospodarstw: ostatni miesiąc {m} bez mediany na rok albo 3 lata')
+    rows = [[mm, vv[0], vv[1], vv[2], un.get(mm)] for mm, vv in out[-NKG_SC_N:] if vv[0] is not None]
+    return {'m': m, 'unit': '% (mediana odpowiedzi); bezrobocie: średnia szansa w %', 'rows': rows, 'q1': [v[3], v[4]] if v[3] is not None and v[4] is not None else None}
+
+
+def nkg_ec_czesc(j):
+    """Odpowiedź SDMX-JSON ankiety strefy euro → część 'ec' {m, rows}: rows = [[miesiąc, za 12 miesięcy, za 3 lata, za 5 lat]] rosnąco. Wymiar zmiennej musi zawierać dokładnie C1120, C1220 i E2020,
+    ostatni wiersz komplet trzech liczb (starszy wiersz z brakiem pominięty), co najmniej NKG_EC_MIN wierszy."""
+    if not isinstance(j, dict):
+        raise RuntimeError('oczekiwana inflacja strefy euro: odpowiedź nie jest obiektem')
+    try:
+        dim = j['structure']['dimensions']
+        sd = dim['series']
+        iv = next(i for i, d in enumerate(sd) if d.get('id') == 'CES_VARIABLE')
+        vars_ = [v['id'] for v in sd[iv]['values']]
+        T = [v['id'] for v in dim['observation'][0]['values']]
+        ser = j['dataSets'][0]['series']
+    except (KeyError, IndexError, StopIteration, TypeError):
+        raise RuntimeError('oczekiwana inflacja strefy euro: odpowiedź w innym układzie niż oczekiwany') from None
+    if sorted(vars_) != sorted(NKG_EC_VARS):
+        raise RuntimeError('oczekiwana inflacja strefy euro: inny zestaw zmiennych niż oczekiwany')
+    by = {}
+    for key, s in ser.items():
+        try:
+            nm = NKG_EC_VARS[vars_[int(key.split(':')[iv])]]
+            obs = s['observations']
+        except (KeyError, IndexError, ValueError, TypeError):
+            raise RuntimeError('oczekiwana inflacja strefy euro: zły klucz serii') from None
+        for k, v in obs.items():
+            try:
+                m = T[int(k)]
+            except (IndexError, ValueError):
+                raise RuntimeError('oczekiwana inflacja strefy euro: zły indeks obserwacji') from None
+            x = v[0] if isinstance(v, list) and v else None
+            if _NKG_YM.match(m) and nkg_ok(x, NKG_SC_LO, NKG_SC_HI):
+                by.setdefault(m, {})[nm] = round(float(x), 2)
+    rows = [[m, d.get('e12'), d.get('e36'), d.get('e60')] for m, d in sorted(by.items())]
+    rows = [r for r in rows if r[1] is not None and r[2] is not None and r[3] is not None]
+    if len(rows) < NKG_EC_MIN:
+        raise RuntimeError(f'oczekiwana inflacja strefy euro: tylko {len(rows)} pełnych miesięcy (poniżej {NKG_EC_MIN})')
+    if rows[-1][0] != max(by):
+        raise RuntimeError('oczekiwana inflacja strefy euro: najnowszy miesiąc bez kompletu trzech liczb')
+    rows = rows[-NKG_EC_N:]
+    return {'m': rows[-1][0], 'unit': '% (mediana ważona, za 12 miesięcy / 3 lata / 5 lat)', 'rows': rows}
+
+
+def nkg_fm_czesc(data):
+    """Plik .xlsx → część 'fm' {m, rows, mx, p5}: rows = [[miesiąc, saldo długu na rachunkach z dźwignią, wolne środki na rachunkach gotówkowych, wolne środki na rachunkach z dźwignią (albo None)]] (mln USD)
+    NKG_FM_N ostatnich miesięcy, mx = [rekord salda, miesiąc], p5 = percentyl ostatniego salda wśród NKG_FM_WIN miesięcy. Nagłówek dokładnie jak oczekiwany, miesiące ściśle malejące w pliku, saldo w zakresie."""
+    rw = _xlsx_rows(data, NKG_FM_SHEET)
+    h = rw.get(1) or {}
+    if h.get(1) != 'Year-Month' or not str(h.get(2, '')).startswith('Debit Balances') or 'Free Credit' not in str(h.get(3, '')):
+        raise RuntimeError('zadłużenie marżowe: arkusz ma inny nagłówek niż oczekiwany')
+    out, prev = [], None
+    for r in sorted(rw):
+        if r == 1 or not _NKG_YM.match(rw[r].get(1, '')):
+            continue
+        m = rw[r][1]
+        if prev is not None and m >= prev:
+            raise RuntimeError('zadłużenie marżowe: miesiące nie maleją')
+        prev = m
+        v = [_num(rw[r].get(c)) for c in (2, 3, 4)]
+        if v[0] is None or not (NKG_FM_LO <= v[0] <= NKG_FM_HI):
+            if not out:
+                raise RuntimeError('zadłużenie marżowe: ostatni miesiąc bez salda długu albo saldo poza zakresem')
+            continue
+        out.append([m, round(v[0]), round(v[1]) if v[1] is not None and 0 < v[1] <= NKG_FM_HI else None, round(v[2]) if v[2] is not None and 0 < v[2] <= NKG_FM_HI else None])
+    if len(out) < NKG_FM_MIN:
+        raise RuntimeError(f'zadłużenie marżowe: arkusz obcięty ({len(out)} wierszy)')
+    out.reverse()
+    mx = max(out, key=lambda r: (r[1], r[0]))
+    win = [r[1] for r in out[-NKG_FM_WIN:]]
+    return {'m': out[-1][0], 'unit': 'mln USD (stan na koniec miesiąca)', 'rows': out[-NKG_FM_N:], 'mx': [mx[1], mx[0]],
+            'p5': round(ns_pct(win, out[-1][1]), 1) if len(win) >= NKG_FM_WIN_MIN else None}
+
+
+def nkg_pobierz(url, maks):
+    """Jedyne miejsce sieci tego pliku (testy je łatają): zapytanie GET z odstępem, limitem czasu i rozmiaru → bajty. Zapytanie do banku centralnego strefy euro zachowuje odstęp ECB_SLEEP od poprzedniego
+    zapytania do niego w przebiegu (bank blokuje serie szybkich zapytań)."""
+    global _ECB_LAST
+    ecb = 'data-api.ecb.europa.eu' in url
+    time.sleep(max(NKG_SLEEP, ECB_SLEEP - (time.monotonic() - _ECB_LAST)) if ecb else NKG_SLEEP)
+    try:
+        return get_bytes_maks(url, None, NKG_TIMEOUT, maks)
+    finally:
+        if ecb:
+            _ECB_LAST = time.monotonic()
+
+
+def nkg_job(n, prev_part, teraz):
+    """Odczyt jednej części z sieci → gotowa część pliku (z polem t = chwila pobrania). Część mi: trzy pliki CSV muszą się udać; strona główna (odczyt wstępny) nie jest warunkiem."""
+    if n == 'mi':
+        pl = {k: nkg_mi_csv(nkg_pobierz(u, NKG_MAX_B['mi_csv']).decode('utf-8-sig'), g, 0, NKG_PX_MAX if k == 'px' else NKG_IDX_MAX) for k, (u, g) in NKG_MI_CSV.items()}
+        html, html_blad = None, False
+        try:
+            html = nkg_pobierz(NKG_MI_HTML, NKG_MAX_B['mi_html']).decode('utf-8-sig', 'replace')
+        except Exception as e:  # noqa — brak strony głównej = brak odczytu wstępnego, dane końcowe zostają
+            META['errors'].append(mask(f'Nastroje konsumentów: mi: odczyt wstępny niedostępny ({type(e).__name__})')[:200])
+            html_blad = True
+        o = nkg_mi_czesc(pl['ics'], pl['cce'], pl['px'], html)
+        if html_blad:
+            o['pre_ok'] = False
+    elif n == 'sc':
+        o = nkg_sc_czesc(nkg_pobierz(NKG_SC_URL, NKG_MAX_B['sc']))
+    elif n == 'ec':
+        o = nkg_ec_czesc(json.loads(nkg_pobierz(NKG_EC_URL, NKG_MAX_B['ec']).decode('utf-8')))
+    else:
+        o = nkg_fm_czesc(nkg_pobierz(NKG_FM_URL, NKG_MAX_B['fm']))
+    o = dict(o)
+    o['t'] = teraz
+    return o
+
+
+def nkg_trzeba(czas, ok_prev, teraz, co_h):
+    """Czy część pobrać w tym przebiegu: brak czasu poprzedniego pobrania = tak; po błędzie co NKG_BLAD_H h, inaczej co `co_h` h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    return (tn - tk).total_seconds() / 3600 >= (co_h if ok_prev else NKG_BLAD_H)
+
+
+def nkg_zadania(pv, teraz):
+    """Które części pobrać w tym przebiegu → {część: bool}."""
+    ok, pat = (pv.get('ok') if isinstance(pv.get('ok'), dict) else {}), (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {})
+    return {n: (True if not isinstance(pv.get(n), dict) else nkg_trzeba(pat.get(n) or pv.get('at'), ok.get(n, True) is not False, teraz, NKG_CO_H[n])) for n in NKG_PARTS}
+
+
+def build_nastroje_gosp(prev=None, zadania=None):
+    """v456: data/nastroje-gosp.json {v, at, src, ok, part_at, mi, sc, ec, fm} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm) zostaje z poprzedniego pliku bez zmian; część po błędzie —
+    z poprzedniego pliku z własnym czasem (najwyżej NKG_MAX_D dób), błąd do META['errors']. Żadna część w pliku = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == NKG_V else {}
+    zad = zadania if zadania is not None else nkg_zadania(pv, NOW)
+    pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
+    out = {'v': NKG_V, 'at': NOW, 'src': NKG_SRC, 'ok': {}, 'part_at': {}}
+    st = {}
+    for n in NKG_PARTS:
+        stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+        if not zad.get(n):
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+            else:
+                st[n] = 'cached'
+            continue
+        try:
+            out[n] = nkg_job(n, stara, NOW)
+            out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+        except Exception as e:  # noqa — jedna część nie psuje pozostałych
+            META['errors'].append(mask(f'Nastroje konsumentów: {n}: {e}')[:200])
+            out['ok'][n], st[n] = False, False
+            if stara is not None and _zapas_wiek_ok(pat0.get(n) or pv.get('at'), NKG_MAX_D[n]):
+                out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
+    if not any(isinstance(out.get(n), dict) for n in NKG_PARTS):
+        raise RuntimeError('żadna część nastrojów konsumentów nie ma danych')
+    return out, st
+
+
+def nkg_czesc():
+    """v456: część przebiegu → krotka wartości dla META['ok'] w kolejności NKG_PARTS: True = pobrane, 'cached' = poprzednia wersja wystarcza (rytm), False = część zawiodła. Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('nastroje-gosp')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == NKG_V else None
+    zad = nkg_zadania(prev or {}, NOW)
+    if prev and not any(zad.values()):
+        save('nastroje-gosp', prev)
+        return tuple('cached' for _ in NKG_PARTS)
+    try:
+        obj, st = build_nastroje_gosp(prev, zad)
+        save('nastroje-gosp', obj)
+        return tuple(st.get(n, False) for n in NKG_PARTS)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Nastroje konsumentów: {e}')[:200])
+        if prev:
+            save('nastroje-gosp', prev)
+        return tuple(False for _ in NKG_PARTS)
+
+
+ZRODLA_META.update({'nkg_mi': 'umich', 'nkg_sc': 'ny-fed', 'nkg_ec': 'ecb', 'nkg_fm': 'finra'})   # v456: bank regionalny Fed i bank centralny strefy euro już liczone; sondaż uniwersytecki i organizacja domów maklerskich to +2 źródła
 
 
 if __name__ == '__main__':

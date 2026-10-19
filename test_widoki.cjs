@@ -35867,3 +35867,213 @@ test('v455 (F11Z37): kolory zmian z pokazanej liczby, angielski i brak nazw dost
   assert.ok(css.includes('overflow-wrap:anywhere') && css.includes('repeat(2,minmax(0,1fr))'));
   assert.ok(css.includes('#g-sec13f .gxs-t i.up{background:var(--gr)}') && css.includes('#g-sec13f .gxs-t i.dn{background:var(--rd)}'), 'paski kupna zielone, sprzedaży czerwone');
 });
+
+// ===================== v456 (F11Z38): nastroje konsumentów, oczekiwana inflacja gospodarstw i dług na akcjach (data/nastroje-gosp.json) =====================
+// Fixtura NKG456_FILE: plik nastroje-gosp.json zbudowany przez kod zbieracza na nagraniach publicznych plików z 19.10.2026 (sondaż: wstępny odczyt 2026-10 i dane końcowe do 2026-09; ankieta USA do 2026-09;
+// ankieta strefy euro do 2026-08; zadłużenie marżowe do 2026-09). Czas przypięty (Date.now = 19.10.2026 13:00 UTC), bez zegara. Oczekiwane liczby liczone w teście z wierszy fixtury (niezależnie od kodu strony).
+const NKG456_FILE = {"v":1,"at":"2026-10-19T08:00:00+00:00","src":"nastroje konsumentów w USA (sondaż miesięczny z odczytem wstępnym), oczekiwana inflacja gospodarstw w USA i strefie euro (ankiety miesięczne) i zadłużenie klientów domów maklerskich w USA (plik miesięczny) — publiczne pliki uniwersytetu, banków centralnych i organizacji rynku","ok":{"mi":true,"sc":true,"ec":true,"fm":true},"part_at":{"mi":"2026-10-19T08:00:00+00:00","sc":"2026-10-19T08:00:00+00:00","ec":"2026-10-19T08:00:00+00:00","fm":"2026-10-19T08:00:00+00:00"},"mi":{"m":"2026-09","unit":"wskaźniki sondażu (1966 = 100); oczekiwana inflacja w %","fin":[["2023-09",67.8,71.1,65.7,3.2,2.8],["2023-10",63.8,70.6,59.3,4.2,3.0],["2023-11",61.3,68.3,56.8,4.5,3.2],["2023-12",69.7,73.3,67.4,3.1,2.9],["2024-01",79.0,81.9,77.1,2.9,2.9],["2024-02",76.9,79.4,75.2,3.0,2.9],["2024-03",79.4,82.5,77.4,2.9,2.8],["2024-04",77.2,79.0,76.0,3.2,3.0],["2024-05",69.1,69.6,68.8,3.3,3.0],["2024-06",68.2,65.9,69.6,3.0,3.0],["2024-07",66.4,62.7,68.8,2.9,3.0],["2024-08",67.9,61.3,72.1,2.8,3.0],["2024-09",70.1,63.3,74.4,2.7,3.1],["2024-10",70.5,64.9,74.1,2.7,3.0],["2024-11",71.8,63.9,76.9,2.6,3.2],["2024-12",74.0,75.1,73.3,2.8,3.0],["2025-01",71.7,75.1,69.5,3.3,3.2],["2025-02",64.7,65.7,64.0,4.3,3.5],["2025-03",57.0,63.8,52.6,5.0,4.1],["2025-04",52.2,59.8,47.3,6.5,4.4],["2025-05",52.2,58.9,47.9,6.6,4.2],["2025-06",60.7,64.8,58.1,5.0,4.0],["2025-07",61.7,68.0,57.7,4.5,3.4],["2025-08",58.2,61.7,55.9,4.8,3.5],["2025-09",55.1,60.4,51.7,4.7,3.7],["2025-10",53.6,58.6,50.3,4.6,3.9],["2025-11",51.0,51.1,51.0,4.5,3.4],["2025-12",52.9,50.4,54.6,4.2,3.2],["2026-01",56.4,55.4,57.0,4.0,3.3],["2026-02",56.6,56.6,56.6,3.4,3.3],["2026-03",53.3,55.8,51.7,3.8,3.2],["2026-04",49.8,52.5,48.1,4.7,3.5],["2026-05",44.8,45.8,44.1,4.8,3.9],["2026-06",49.5,47.7,50.7,4.6,3.3],["2026-07",55.2,54.8,55.4,4.2,3.3],["2026-08",51.7,51.9,51.5,4.0,3.3],["2026-09",48.1,50.9,46.3,4.6,3.4]],"p":0.3,"n":585,"from":"1978-01","pre":{"m":"2026-10","ics":46.3,"icc":44.7,"ice":47.3,"px1":4.7,"px5":3.5},"pre_ok":true,"t":"2026-10-19T08:00:00+00:00"},"sc":{"m":"2026-09","unit":"% (mediana odpowiedzi); bezrobocie: średnia szansa w %","rows":[["2024-09",3.0,2.66,2.86,36.2],["2024-10",2.87,2.54,2.77,34.5],["2024-11",2.97,2.57,2.86,35.0],["2024-12",3.0,2.97,2.72,34.6],["2025-01",3.0,2.99,2.98,34.0],["2025-02",3.13,3.0,2.98,39.4],["2025-03",3.58,3.0,2.86,44.0],["2025-04",3.63,3.17,2.74,44.1],["2025-05",3.2,3.0,2.61,40.8],["2025-06",3.02,3.0,2.61,39.7],["2025-07",3.09,3.0,2.88,37.4],["2025-08",3.2,3.0,2.93,39.1],["2025-09",3.38,3.05,2.97,41.1],["2025-10",3.24,3.0,3.0,42.5],["2025-11",3.2,3.0,2.98,42.1],["2025-12",3.42,3.0,2.98,41.8],["2026-01",3.09,2.98,3.0,41.9],["2026-02",3.0,3.0,2.98,39.9],["2026-03",3.42,3.08,3.05,43.5],["2026-04",3.64,3.15,3.01,43.9],["2026-05",3.46,3.13,3.02,43.2],["2026-06",3.67,3.34,3.0,41.7],["2026-07",3.63,3.26,3.02,42.8],["2026-08",3.58,3.19,3.01,44.4],["2026-09",3.9,3.25,3.0,43.9]],"q1":[2.42,6.35],"t":"2026-10-19T08:00:00+00:00"},"ec":{"m":"2026-08","unit":"% (mediana ważona, za 12 miesięcy / 3 lata / 5 lat)","rows":[["2024-09",2.4,2.1,2.0],["2024-10",2.5,2.1,2.0],["2024-11",2.6,2.4,2.0],["2024-12",2.8,2.4,2.1],["2025-01",2.6,2.4,2.1],["2025-02",2.6,2.4,2.1],["2025-03",2.9,2.5,2.1],["2025-04",3.1,2.5,2.1],["2025-05",2.8,2.4,2.1],["2025-06",2.6,2.4,2.1],["2025-07",2.6,2.5,2.1],["2025-08",2.8,2.5,2.2],["2025-09",2.7,2.5,2.2],["2025-10",2.8,2.5,2.2],["2025-11",2.8,2.5,2.2],["2025-12",2.8,2.6,2.4],["2026-01",2.6,2.6,2.3],["2026-02",2.5,2.5,2.3],["2026-03",4.0,3.0,2.4],["2026-04",4.0,2.9,2.4],["2026-05",3.5,2.9,2.4],["2026-06",3.0,2.8,2.4],["2026-07",2.9,2.7,2.4],["2026-08",3.0,2.9,2.5]],"t":"2026-10-19T08:00:00+00:00"},"fm":{"m":"2026-09","unit":"mln USD (stan na koniec miesiąca)","rows":[["2021-09",903117,229279,205564],["2021-10",935862,226159,200548],["2021-11",918598,235638,211623],["2021-12",910021,250435,215116],["2022-01",829637,247752,194545],["2022-02",835255,250686,195269],["2022-03",799660,256076,196008],["2022-04",772940,242724,188652],["2022-05",752944,244857,184151],["2022-06",683445,249399,186931],["2022-07",696781,232147,177054],["2022-08",687787,226182,175974],["2022-09",664009,223400,173050],["2022-10",649618,216057,172976],["2022-11",643783,205158,165434],["2022-12",606659,205902,164065],["2023-01",641228,208720,161224],["2023-02",624379,198644,159103],["2023-03",645429,191618,152014],["2023-04",631949,175460,145594],["2023-05",644170,178576,147377],["2023-06",681228,181569,145173],["2023-07",709834,174804,147921],["2023-08",689185,177711,145989],["2023-09",680846,153918,141751],["2023-10",635276,162865,142117],["2023-11",660887,171207,146319],["2023-12",700774,161639,147019],["2024-01",701975,165025,144941],["2024-02",742963,166144,150620],["2024-03",784136,166990,151339],["2024-04",775464,161749,149855],["2024-05",809431,155256,145072],["2024-06",809322,157240,149714],["2024-07",810835,154951,150738],["2024-08",797162,148702,152107],["2024-09",813211,167901,158358],["2024-10",815369,173621,164813],["2024-11",890852,170052,167223],["2024-12",899168,181280,175795],["2025-01",937253,178301,166346],["2025-02",918144,183278,176051],["2025-03",880316,189855,176161],["2025-04",850558,187958,175824],["2025-05",920960,187685,176698],["2025-06",1007961,200573,185584],["2025-07",1022548,194712,186672],["2025-08",1059723,188221,181563],["2025-09",1126494,204106,194884],["2025-10",1183654,197923,195376],["2025-11",1214321,202131,194418],["2025-12",1225597,211720,199762],["2026-01",1279042,203700,196911],["2026-02",1253192,205060,200047],["2026-03",1220922,221860,205600],["2026-04",1304281,217836,215445],["2026-05",1415557,206600,217256],["2026-06",1502072,217441,223412],["2026-07",1417225,205132,217305],["2026-08",1453832,207641,217499],["2026-09",1480054,215328,218581]],"mx":[1502072,"2026-06"],"p5":97.5,"t":"2026-10-19T08:00:00+00:00"}};
+const nkg456 = (() => {
+  const a0 = html.indexOf('/* ===================== v456 (F11Z38): GLOBAL — NASTROJE KONSUMENTÓW'), a1 = html.indexOf('/* ---------- koniec bloku nastroje konsumentów (v456) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v456 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-19T13:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[\u00a0\u202f]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }},
+      querySelectorAll() { return []; }, querySelector() { return null; }};
+    const els = {'#g-nkg': el};
+    const calls = [], ivs = [], lines = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: () => {}, documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'flagImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkLines', 'wkDay', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {NKG, nkgLoad, renderNkg, nkgOk, nkgMi, nkgSc, nkgEc, nkgFm, nkgBody};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, c => '<f:' + c + '>', i => i, doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (Ls, o) => { lines.push({L: Ls, o}); return '<lines n=' + Ls.map(s => s.d.length).join('+') + ' aria="' + o.aria + '">'; },
+      (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, ivs, lines, mos, expand, collapse, html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), valHtml: m[3].split('<small')[0], lines: [...m[3].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {nkg_mi: true, nkg_sc: 'cached', nkg_ec: true, nkg_fm: 'cached'}} : meta, 'nastroje-gosp': j === undefined ? clone(NKG456_FILE) : j});
+  const J = () => clone(NKG456_FILE);
+  const fmt = (v, d) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(d).replace('.', ',');
+  const dir = (v, d, lab) => { const r = Math.round(v * 10 ** d) / 10 ** d; return r === 0 ? ['neu', '• ' + fmt(0, d) + lab] : [r > 0 ? 'pos' : 'neg', (r > 0 ? '▲ +' : '▼ −') + fmt(Math.abs(r), d) + lab]; };
+  const pc = (a, b) => (a / b - 1) * 100;
+  const H = ['Nastroje konsumentów w USA', 'Oczekiwana inflacja: USA i strefa euro', 'Dług na akcjach w USA'];
+  const blk = (h, k) => { const i = h.indexOf(k), e = H.map(x => h.indexOf(x)).filter(x => x > i).sort((a, b) => a - b)[0]; assert.ok(i >= 0, k); return h.slice(i, e === undefined ? undefined : e); };
+  return {mk, tiles, files, J, sp, txt, code, clone, LOC, fmt, pc, dir, blk, H};
+})();
+
+test('v456 (F11Z38): nastroje konsumentów — nagłówek od razu, plik tylko po rozwinięciu karty (jedno pobranie), karta w GLOBAL, jeden obserwator języka, odświeżanie co 30 min tylko przy rozwiniętej karcie', () => {
+  const K = nkg456.mk('pl', nkg456.files());
+  assert.equal(K.els['#g-nkg'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Nastroje konsumentów, oczekiwana inflacja i dług na akcjach</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart');
+  assert.ok(h.includes('Dane pojawią się po rozwinięciu karty.') && nkg456.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'nastroje-gosp'], 'po rozwinięciu jedno pobranie pliku'); K.expand(); K.collapse(); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'nastroje-gosp'], 'plik młodszy niż 10 minut — bez ponownego pobrania');
+  const iv = K.ivs.filter(([f, ms]) => ms === 30 * 60e3); assert.equal(iv.length, 1, 'odświeżanie co 30 min'); iv[0][0](); assert.deepEqual(K.calls, ['meta', 'nastroje-gosp', 'nastroje-gosp'], 'przy rozwiniętej karcie zegar pobiera ponownie');
+  K.collapse(); iv[0][0](); assert.equal(K.calls.length, 3, 'zwinięta karta — zegar nie pobiera');
+  assert.equal(nkg456.code.split('new MutationObserver(()=>renderNkg())').length, 2, 'jeden obserwator języka z tej karty');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])nastroje-gosp\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.equal(html.split('id="g-nkg"').length, 2, 'jedna sekcja'); assert.ok(html.includes('<section class="panel pcard" id="g-nkg" hidden></section>'));
+  const a = html.indexOf('id="g-chinatw"'), b = html.indexOf('id="g-nkg"'), c = html.indexOf('id="g-dolar"'); assert.ok(a > 0 && b > a && c > b, 'karta po Chinach i Tajwanie, przed kursami dolara (koniec GLOBAL: dolar, inst bez zmian)');
+  assert.equal(nkg456.mk('pl', nkg456.files(undefined, null)).els['#g-nkg'].hidden, true); assert.equal(nkg456.mk('pl', nkg456.files(undefined, {ok: {inne: true}})).els['#g-nkg'].hidden, true);
+  // chwilowy błąd meta: ponowienie co 20 s (najwyżej 5 razy), po udanej odpowiedzi karta się pokazuje; meta bez części „nkg_*” — bez ponowień
+  const F = nkg456.files(undefined, null), R = nkg456.mk('pl', F); const r20 = R.ivs.filter(([f, ms]) => ms === 20e3); assert.equal(r20.length, 1); assert.equal(R.els['#g-nkg'].hidden, true);
+  for (let i = 0; i < 7; i++) r20[0][0](); assert.equal(R.calls.filter(c => c === 'meta').length, 6, 'pierwsza próba + 5 ponowień, potem koniec'); F.meta = {ok: {nkg_mi: true}}; for (let i = 0; i < 3; i++) r20[0][0]();
+  assert.equal(R.calls.filter(c => c === 'meta').length, 6, 'po wyczerpaniu ponowień już nie pytamy');
+  const F2 = nkg456.files(undefined, null), R2 = nkg456.mk('pl', F2); F2.meta = {ok: {nkg_mi: true}}; R2.ivs.filter(([f, ms]) => ms === 20e3)[0][0](); assert.equal(R2.els['#g-nkg'].hidden, false, 'drugie podejście do meta udane — karta widoczna');
+  const n2 = R2.calls.length; R2.ivs.filter(([f, ms]) => ms === 20e3)[0][0](); assert.equal(R2.calls.length, n2, 'po sukcesie bez ponowień');
+  const F3 = nkg456.files(undefined, {ok: {inne: true}}), R3 = nkg456.mk('pl', F3); R3.ivs.filter(([f, ms]) => ms === 20e3)[0][0](); assert.equal(R3.calls.filter(c => c === 'meta').length, 1, 'meta odpowiedziała, ale bez części — bez ponowień'); assert.equal(R3.els['#g-nkg'].hidden, true);
+  assert.equal(nkg456.mk('pl', nkg456.files(undefined, {ok: {nkg_fm: false}})).els['#g-nkg'].hidden, false, 'wystarczy jedna znana część');
+  const E = nkg456.mk('pl', nkg456.files(null), {open: true}); assert.ok(nkg456.txt(E.html()).includes('Nie udało się wczytać danych')); assert.deepEqual(E.calls, ['meta', 'nastroje-gosp']);
+  E.expand(); assert.equal(E.calls.length, 2, 'bez pętli: druga próba dopiero po minucie');
+  assert.equal(nkg456.tiles(nkg456.mk('pl', nkg456.files(), {open: true}).html()).length, 4 + 8 + 4, 'trzy bloki: 4 + 8 + 4 kafli');
+});
+
+test('v456 (F11Z38): nastroje konsumentów w USA — kafle z liczbami fixtury (wskaźnik ogólny, obecna sytuacja, oczekiwania, miejsce w historii), zmiana m/m i r/r w punktach, odczyt wstępny z podpisem, wykres 3 lat', () => {
+  const P = NKG456_FILE.mi, pre = P.pre, F = P.fin, at = m => F.find(r => r[0] === m);
+  assert.equal(pre.m, '2026-10'); assert.equal(P.m, '2026-09'); assert.equal(F.length, 37);
+  const K = nkg456.mk('pl', nkg456.files(), {open: true}), h = nkg456.blk(K.html(), nkg456.H[0]), T = nkg456.tiles(h);
+  assert.equal(T.length, 4); assert.deepEqual(T.map(x => x.label), ['Nastroje konsumentów', 'Ocena obecnej sytuacji', 'Oczekiwania na przyszłość', 'Na tle historii']);
+  const w = 'wstępnie, październik 2026 · wiek(2026-10)', B = at('2026-09'), Y = at('2025-10');
+  [[pre.ics, 1], [pre.icc, 2], [pre.ice, 3]].forEach(([v, i], k) => {
+    assert.equal(T[k].when, w, 'odczyt wstępny: podpis'); assert.equal(T[k].val, nkg456.fmt(v, 1));
+    assert.deepEqual(T[k].lines, [nkg456.dir(v - B[i], 1, ' pkt m/m'), nkg456.dir(v - Y[i], 1, ' pkt r/r')]);
+  });
+  assert.equal(T[0].val, '46,3'); assert.deepEqual(T[0].lines, [['neg', '▼ −1,8 pkt m/m'], ['neg', '▼ −7,3 pkt r/r']]); assert.deepEqual(T[2].lines, [['pos', '▲ +1,0 pkt m/m'], ['neg', '▼ −3,0 pkt r/r']], 'kolory z pokazanej liczby');
+  assert.equal(T[3].val, nkg456.fmt(P.p, 1) + '%'); assert.deepEqual(T[3].lines, [['pc', 'miesięcy od 1978 r. miało niższy odczyt']]); assert.equal(T[3].when, 'dane za wrzesień 2026 · wiek(2026-09)');
+  const ch = K.lines.filter(l => /nastroje konsumentów w USA/.test(l.o.aria)); assert.equal(ch.length, 1); assert.deepEqual(ch[0].L.map(s => s.d.length), [38, 38, 38], '37 miesięcy + odczyt wstępny');
+  assert.deepEqual(ch[0].L.map(s => s.n), ['Ogółem', 'Obecna sytuacja', 'Oczekiwania']); assert.deepEqual(ch[0].L.map(s => s.cls), ['s1', 's2', 's3']);
+  assert.deepEqual(ch[0].L[0].d[ch[0].L[0].d.length - 1], [Date.UTC(2026, 10, 0, 12), pre.ics]); assert.deepEqual(ch[0].L[0].d[ch[0].L[0].d.length - 2], [Date.UTC(2026, 9, 0, 12), B[1]]);
+  assert.ok(h.includes('Wskaźniki w ostatnich trzech latach') && h.includes('Im wyższy wskaźnik, tym lepsze nastroje.') && h.includes('Ostatni punkt to odczyt wstępny'));
+  // bez odczytu wstępnego: dane końcowe wrześniowe, podpis „dane za …”, bez zdania o odczycie wstępnym
+  const j = nkg456.J(); j.mi.pre = null; const h2 = nkg456.blk(nkg456.mk('pl', nkg456.files(j), {open: true}).html(), nkg456.H[0]), T2 = nkg456.tiles(h2), A = at('2026-08'), Z = at('2025-09');
+  assert.equal(T2[0].val, '48,1'); assert.deepEqual(T2[0].lines, [nkg456.dir(48.1 - A[1], 1, ' pkt m/m'), nkg456.dir(48.1 - Z[1], 1, ' pkt r/r')]); assert.ok(T2.slice(0, 3).every(x => x.when === 'dane za wrzesień 2026 · wiek(2026-09)')); assert.ok(!h2.includes('odczyt wstępny'));
+  // brak = „—”, nigdy zero: brak oczekiwań i miesiąca roku wcześniej
+  const j3 = nkg456.J(); j3.mi.fin.forEach(r => { if (r[0] === '2025-10') r[3] = null; }); j3.mi.fin = j3.mi.fin.filter(r => r[0] !== '2026-09'); j3.mi.fin.push(['2026-09', 48.1, 50.9, null, 4.6, 3.4]); j3.mi.p = null;
+  const T3 = nkg456.tiles(nkg456.blk(nkg456.mk('pl', nkg456.files(j3), {open: true}).html(), nkg456.H[0])); assert.equal(T3.length, 3, 'bez miejsca w historii kafel znika');
+  assert.deepEqual(T3[2].lines.map(x => x[1]), ['— pkt m/m', '— pkt r/r'], 'brak oczekiwań we wrześniu i rok wcześniej = „—”, nie zero');
+});
+
+test('v456 (F11Z38): oczekiwana inflacja — osiem kafli (USA sondaż, USA ankieta, strefa euro, bezrobocie) z liczbami fixtury i zmianą m/m, r/r; dwa wykresy z linią celu 2%; data przy każdej liczbie', () => {
+  const mi = NKG456_FILE.mi, sc = NKG456_FILE.sc, ec = NKG456_FILE.ec, pre = mi.pre, at = (S, m) => S.find(r => r[0] === m), pp = ' p.p.';
+  const K = nkg456.mk('pl', nkg456.files(), {open: true}), h = nkg456.blk(K.html(), nkg456.H[1]), T = nkg456.tiles(h);
+  assert.equal(T.length, 8); assert.deepEqual(T.map(x => x.label), ['USA: inflacja za rok (badanie nastrojów)', 'USA: inflacja za 5–10 lat (badanie nastrojów)', 'USA: inflacja za rok (badanie oczekiwań)', 'USA: inflacja za 3 lata (badanie oczekiwań)',
+    'Strefa euro: inflacja za rok', 'Strefa euro: inflacja za 3 lata', 'Strefa euro: inflacja za 5 lat', 'USA: szansa na wyższe bezrobocie za rok']);
+  const wp = 'wstępnie, październik 2026 · wiek(2026-10)', ws = 'dane za wrzesień 2026 · wiek(2026-09)', we = 'dane za sierpień 2026 · wiek(2026-08)';
+  // sondaż (odczyt wstępny): wartość z odczytu, zmiany wobec końcowych wartości września i października poprzedniego roku
+  [[pre.px1, 4, 0], [pre.px5, 5, 1]].forEach(([v, i, k]) => { const B = at(mi.fin, '2026-09'), Y = at(mi.fin, '2025-10'); assert.equal(T[k].val, nkg456.fmt(v, 1) + '%'); assert.equal(T[k].when, wp); assert.deepEqual(T[k].lines, [nkg456.dir(v - B[i], 1, pp + ' m/m'), nkg456.dir(v - Y[i], 1, pp + ' r/r')]); });
+  assert.equal(T[0].val, '4,7%'); assert.equal(T[1].val, '3,5%');
+  const L = sc.rows[sc.rows.length - 1], B = at(sc.rows, '2026-08'), Y = at(sc.rows, '2025-09');
+  [[1, 2], [2, 3]].forEach(([i, k]) => { assert.equal(T[k].val, nkg456.fmt(L[i], 1) + '%'); assert.equal(T[k].when, ws); assert.deepEqual(T[k].lines, [nkg456.dir(L[i] - B[i], 1, pp + ' m/m'), nkg456.dir(L[i] - Y[i], 1, pp + ' r/r')]); });
+  const E = ec.rows[ec.rows.length - 1], EB = at(ec.rows, '2026-07'), EY = at(ec.rows, '2025-08');
+  [[1, 4], [2, 5], [3, 6]].forEach(([i, k]) => { assert.equal(T[k].val, nkg456.fmt(E[i], 1) + '%'); assert.equal(T[k].when, we, 'strefa euro: miesiąc wcześniejszy niż USA'); assert.deepEqual(T[k].lines, [nkg456.dir(E[i] - EB[i], 1, pp + ' m/m'), nkg456.dir(E[i] - EY[i], 1, pp + ' r/r')]); });
+  assert.equal(T[4].val, '3,0%'); assert.deepEqual(T[4].lines, [['pos', '▲ +0,1 p.p. m/m'], ['pos', '▲ +0,2 p.p. r/r']]);
+  assert.equal(T[7].val, nkg456.fmt(L[4], 1) + '%'); assert.equal(T[7].when, ws); assert.deepEqual(T[7].lines, [nkg456.dir(L[4] - B[4], 1, pp + ' m/m'), nkg456.dir(L[4] - Y[4], 1, pp + ' r/r')]);
+  const c1 = K.lines.filter(l => /oczekiwana inflacja za rok/i.test(l.o.aria) || /spodziewana inflacja za rok/i.test(l.o.aria)), c2 = K.lines.filter(l => /5 lat i dalej/.test(l.o.aria));
+  assert.equal(c1.length, 1); assert.equal(c2.length, 1);
+  assert.deepEqual(c1[0].L.map(s => s.n), ['USA — badanie nastrojów (za rok)', 'USA — badanie oczekiwań (za rok)', 'Strefa euro (za rok)']); assert.deepEqual(c1[0].L.map(s => s.d.length), [25, 24, 23], 'okno ok. 25 miesięcy (od 2024-10); sondaż z odczytem wstępnym');
+  assert.deepEqual(c2[0].L.map(s => s.n), ['USA — badanie nastrojów (5–10 lat)', 'USA — badanie oczekiwań (5 lat)', 'Strefa euro (5 lat)']); assert.deepEqual(c2[0].L.map(s => s.d.length), [25, 24, 23]);
+  assert.deepEqual(c1[0].L[0].d[24], [Date.UTC(2026, 10, 0, 12), pre.px1]); assert.deepEqual(c1[0].L[1].d[23], [Date.UTC(2026, 9, 0, 12), L[1]]); assert.deepEqual(c1[0].L[2].d[22], [Date.UTC(2026, 8, 0, 12), E[1]]); assert.equal(c1[0].L[0].d[0][0], Date.UTC(2024, 10, 0, 12), 'okno zaczyna się w 2024-10');
+  assert.deepEqual(c1[0].o.refs, [{v: 2, n: 'cel inflacji: 2%', cls: 'tg'}], 'linia celu'); assert.deepEqual(c2[0].o.refs, c1[0].o.refs);
+  assert.ok(h.includes('Spodziewana inflacja za rok') && h.includes('Spodziewana inflacja za 5 lat i dalej') && h.includes('To typowa odpowiedź gospodarstw domowych'));
+  // bez odczytu wstępnego: wartość końcowa sondażu z podpisem września; część bez danych nie psuje reszty
+  const j = nkg456.J(); j.mi.pre = null; const T2 = nkg456.tiles(nkg456.blk(nkg456.mk('pl', nkg456.files(j), {open: true}).html(), nkg456.H[1]));
+  assert.equal(T2[0].val, '4,6%'); assert.equal(T2[0].when, ws); assert.deepEqual(T2[0].lines, [nkg456.dir(4.6 - at(mi.fin, '2026-08')[4], 1, pp + ' m/m'), nkg456.dir(4.6 - at(mi.fin, '2025-09')[4], 1, pp + ' r/r')]);
+  const j2 = nkg456.J(); delete j2.ec; delete j2.sc; const T3 = nkg456.tiles(nkg456.blk(nkg456.mk('pl', nkg456.files(j2), {open: true}).html(), nkg456.H[1])); assert.equal(T3.length, 2, 'tylko sondaż'); assert.deepEqual(T3.map(x => x.label), [T[0].label, T[1].label]);
+  const j4 = nkg456.J(); delete j4.mi; delete j4.fm; const h4 = nkg456.mk('pl', nkg456.files(j4), {open: true}).html(); assert.ok(!h4.includes(nkg456.H[0]) && !h4.includes(nkg456.H[2]) && h4.includes(nkg456.H[1]));
+});
+
+test('v456 (F11Z38): dług na akcjach w USA — cztery kafle (saldo ze zmianą m/m i r/r w %, rekord, miejsce na tle 5 lat, wolne środki) i wykres 5 lat; wartości z fixtury, data i wiek', () => {
+  const P = NKG456_FILE.fm, R = P.rows, L = R[R.length - 1], B = R.find(r => r[0] === '2026-08'), Y = R.find(r => r[0] === '2025-09');
+  assert.equal(P.m, '2026-09'); assert.equal(R.length, 61); assert.deepEqual(P.mx, [1502072, '2026-06']);
+  const K = nkg456.mk('pl', nkg456.files(), {open: true}), h = nkg456.blk(K.html(), nkg456.H[2]), T = nkg456.tiles(h), w = 'dane za wrzesień 2026 · wiek(2026-09)';
+  assert.equal(T.length, 4); assert.deepEqual(T.map(x => x.label), ['Dług na akcjach', 'Rekord', 'Na tle 5 lat', 'Wolne środki klientów']); assert.ok(T.every(x => x.when === w));
+  assert.equal(T[0].val, nkg456.fmt(L[1] / 1e6, 2) + ' bln USD'); assert.equal(T[0].val, '1,48 bln USD'); assert.deepEqual(T[0].lines, [nkg456.dir(nkg456.pc(L[1], B[1]), 1, ' % m/m'), nkg456.dir(nkg456.pc(L[1], Y[1]), 1, ' % r/r')]);
+  assert.deepEqual(T[0].lines.map(x => x[0]), ['pos', 'pos']); assert.equal(T[1].val, '1,50 bln USD'); assert.deepEqual(T[1].lines, [['pc', 'najwyżej w czerwiec 2026'], ['pc', 'obecnie ' + Math.round(L[1] / P.mx[0] * 100) + '% rekordu']]);
+  assert.equal(T[2].val, Math.round(P.p5) + '%'); assert.deepEqual(T[2].lines, [['pc', 'miesięcy z ostatnich 5 lat miało niższe saldo']]);
+  assert.equal(T[3].val, nkg456.fmt(L[2] / 1e6, 2) + ' bln USD'); assert.deepEqual(T[3].lines, [nkg456.dir(nkg456.pc(L[2], B[2]), 1, ' % m/m'), nkg456.dir(nkg456.pc(L[2], Y[2]), 1, ' % r/r')]);
+  const ch = K.lines.filter(l => /dług na akcjach i wolne środki/.test(l.o.aria)); assert.equal(ch.length, 1); assert.deepEqual(ch[0].L.map(s => s.d.length), [61, 61]); assert.deepEqual(ch[0].L.map(s => s.n), ['Dług na akcjach', 'Wolne środki klientów']);
+  assert.deepEqual(ch[0].L[0].d[60], [Date.UTC(2026, 9, 0, 12), L[1] / 1e6], 'oś w miliardach (bln USD)'); assert.ok(h.includes('Ostatnie pięć lat (bln USD)') && h.includes('To pożyczki od domów maklerskich'));
+  // brak rekordu / percentyla / wolnych środków: kafle znikają (bez zera), reszta zostaje
+  const j = nkg456.J(); delete j.fm.mx; j.fm.p5 = null; j.fm.rows.forEach(r => { r[2] = null; }); const T2 = nkg456.tiles(nkg456.blk(nkg456.mk('pl', nkg456.files(j), {open: true}).html(), nkg456.H[2]));
+  assert.deepEqual(T2.map(x => x.label), ['Dług na akcjach']);
+  // brak miesiąca sprzed roku: „—”
+  const j2 = nkg456.J(); j2.fm.rows = j2.fm.rows.filter(r => r[0] !== '2025-09'); const T3 = nkg456.tiles(nkg456.blk(nkg456.mk('pl', nkg456.files(j2), {open: true}).html(), nkg456.H[2])); assert.deepEqual(T3[0].lines.map(x => x[1]), [T[0].lines[0][1], '— % r/r']); assert.equal(T3[0].lines[1][0], 'na');
+});
+
+test('v456 (F11Z38): obrona przed złym plikiem — część za stara, zły kształt, zła wersja albo brak znikają; bez zera, NaN i wyjątku; błąd części w pliku = zdanie', () => {
+  const Hh = (j, o) => nkg456.mk('pl', nkg456.files(j), o || {open: true}).html(), TX = nkg456.txt, J = nkg456.J;
+  const nazwy = {mi: nkg456.H[0], inf: nkg456.H[1], fm: nkg456.H[2]};
+  let j = J(); j.mi.m = '2026-04'; j.mi.pre = null; j.mi.fin = j.mi.fin.filter(r => r[0] <= '2026-04'); let h = Hh(j); assert.ok(!h.includes(nazwy.mi) && h.includes(nazwy.fm), 'nastroje sprzed ponad 90 dni znikają, reszta zostaje');
+  j = J(); j.fm.m = '2026-03'; j.fm.rows = j.fm.rows.filter(r => r[0] <= '2026-03'); h = Hh(j); assert.ok(!h.includes(nazwy.fm) && h.includes(nazwy.mi), 'dług sprzed ponad 130 dni znika');
+  j = J(); j.ec.m = '2026-01'; j.ec.rows = j.ec.rows.filter(r => r[0] <= '2026-01'); h = Hh(j); assert.ok(h.includes(nazwy.inf) && nkg456.tiles(nkg456.blk(h, nazwy.inf)).length === 5, 'strefa euro sprzed ponad 180 dni znika, USA zostaje');
+  const cases = {'mi: brak wskaźnika': j => { j.mi.fin[j.mi.fin.length - 1][1] = null; }, 'mi: zły miesiąc': j => { j.mi.m = '2026-13'; }, 'mi: za krótka seria': j => { j.mi.fin = j.mi.fin.slice(-5); },
+    'fm: saldo 0': j => { j.fm.rows[j.fm.rows.length - 1][1] = 0; }, 'fm: za krótka seria': j => { j.fm.rows = j.fm.rows.slice(-10); }, 'fm: ostatni ≠ m': j => { j.fm.rows.pop(); }};
+  for (const [nazwa, f] of Object.entries(cases)) { const jj = J(); f(jj); const hh = Hh(jj), k = nazwa.slice(0, 2); assert.ok(!hh.includes(nazwy[k]), nazwa + ': część znika'); for (const o of Object.keys(nazwy)) if (o !== k && !(o === 'inf')) assert.ok(hh.includes(nazwy[o]), nazwa + ': ' + o + ' zostaje'); }
+  for (const bad of [{}, {v: 2}, {v: 1}, {v: 1, at: 'x', mi: {}}, {v: 1, at: '2026-10-19T08:00:00+00:00'}, [], 'x']) { assert.ok(TX(Hh(bad)).includes('Nie udało się wczytać danych'), JSON.stringify(bad)); }
+  const e = J(); e.ok = {mi: true, sc: false, ec: true, fm: true}; e.sc.m = '2026-04'; e.sc.rows = e.sc.rows.filter(r => r[0] <= '2026-04'); assert.ok(TX(Hh(e)).includes('Brak aktualnego odczytu: oczekiwana inflacja w USA.'), 'część z błędem i bez świeżych danych — jawne zdanie');
+  const e2 = J(); e2.ok = {mi: true, sc: false, ec: true, fm: true}; assert.ok(!TX(Hh(e2)).includes('Brak aktualnego odczytu'), 'część z błędem, ale z danymi w dopuszczalnym wieku — bez zdania (data i wiek są przy liczbie)');
+  const m = J(); m.sc.rows.forEach((r, i) => { if (i % 3 === 0) r[4] = null; }); m.ec.rows[5][2] = null; m.fm.rows.forEach((r, i) => { if (i < 20) r[2] = null; }); m.mi.fin.forEach((r, i) => { if (i % 2) r[4] = null; });
+  assert.ok(!/NaN|undefined|Infinity|\bnull\b/.test(TX(Hh(m))), 'żadnych NaN / undefined w tekście');
+  const pre = J(); pre.mi.pre = {m: '2026-09', ics: 46.3, icc: 44.7, ice: 47.3, px1: 4.7, px5: 3.5}; assert.ok(!TX(Hh(pre)).includes('wstępnie'), 'odczyt wstępny tego samego miesiąca co ostatni końcowy odrzucony');
+  const pre3 = J(); pre3.mi.pre.m = '2026-12'; assert.ok(!TX(Hh(pre3)).includes('wstępnie'), 'odczyt wstępny z miesiąca za daleko w przyszłości odrzucony');
+  const pre2 = J(); pre2.mi.pre.ics = 0; assert.ok(!TX(Hh(pre2)).includes('wstępnie'), 'odczyt wstępny z zerem odrzucony (zero to brak)');
+  const api = nkg456.mk('pl', nkg456.files(), {open: true}).api; assert.equal(api.nkgOk(J()), true); assert.equal(api.nkgOk(Object.assign(J(), {v: 2})), false); assert.equal(api.nkgOk({v: 1, at: '2026-10-19T08:00:00+00:00', fm: NKG456_FILE.fm}), true, 'wystarczy jedna dobra część');
+});
+
+test('v456 (F11Z38): tłumaczenia — karta po polsku i angielsku bez surowych kluczy i bez nazw dostawców; liczby w formacie języka; słownik jako czysty JSON tylko pl i en z kompletem kluczy i tymi samymi polami', () => {
+  const nazwy = /Michigan|Surveys of Consumers|New York Fed|NY Fed|Federal Reserve Bank|FRBNY|FINRA|\bECB\b|European Central Bank|Consumer Expectations Survey|\bSCE\b|\bCES\b|newyorkfed|sca\.isr|finra\.org|umich/i;
+  for (const L of ['pl', 'en']) {
+    const K = nkg456.mk(L, nkg456.files(), {open: true}), h = K.html(), t = nkg456.txt(h);
+    assert.ok(!/nkg456\./.test(h), L + ': surowy klucz'); assert.ok(!nazwy.test(t), L + ': nazwa dostawcy'); assert.equal(nkg456.tiles(h).length, 16, L); assert.ok(t.length > 1500, L); assert.ok(!/NaN|undefined|Infinity/.test(t), L);
+  }
+  const en = nkg456.txt(nkg456.mk('en', nkg456.files(), {open: true}).html()); assert.ok(en.includes('Consumer sentiment, expected inflation and borrowing for stocks') && en.includes('46.3') && en.includes('USD tn') && en.includes('preliminary, October 2026') && en.includes('data for September 2026'));
+  assert.ok(en.includes('pts m/m') && en.includes('pp y/y') && en.includes('US: inflation in a year (sentiment survey)') && en.includes('Euro area: inflation in 5 years') && en.includes('Clients’ free cash'));
+  assert.equal(nkg456.mk('en', nkg456.files(), {open: true}).lines.filter(l => l.o.refs && l.o.refs.length).every(l => l.o.refs[0].n === 'inflation target: 2%'), true, 'linia celu po angielsku');
+  const pl = nkg456.txt(nkg456.mk('pl', nkg456.files(), {open: true}).html()); assert.ok(pl.includes('46,3') && pl.includes('bln USD') && pl.includes('p.p. m/m') && pl.includes('pkt r/r') && pl.includes('wstępnie, październik 2026'));
+  const m = html.match(/const EXTRA(\d+)=\{"pl":\{"nkg456\.t"/); assert.ok(m, 'słownik v456 jako czysty JSON'); const ln = html.slice(html.indexOf(m[0])).split('\n')[0];
+  assert.ok(ln.endsWith('};') && ln.length > 4000 && !/[\u200b\u200c\u200d\u2060\ufeff\u00ad]/.test(ln)); assert.ok(html.includes(`for(const l in EXTRA${m[1]})if(I18N[l])Object.assign(I18N[l],EXTRA${m[1]}[l]);`));
+  const dict = JSON.parse(ln.slice(ln.indexOf('=') + 1, -1)); const keys = Object.keys(dict.pl).filter(k => k.startsWith('nkg456.')); assert.ok(keys.length >= 60, 'liczba kluczy: ' + keys.length);
+  assert.deepEqual(Object.keys(dict).sort(), ['en', 'pl'], 'słownik tylko pl i en');
+  for (const l of Object.keys(dict)) assert.deepEqual(Object.keys(dict[l]).filter(k => k.startsWith('nkg456.')).sort(), keys.slice().sort(), l + ': komplet kluczy');
+  for (const k of keys) { const ph = x => (x.match(/\{[a-z]+\}/g) || []).sort().join(); assert.equal(ph(dict.en[k]), ph(dict.pl[k]), `${k}: te same pola`); assert.ok(dict.pl[k] !== dict.en[k] || /^[\d.%a-z/ ]+$/i.test(dict.pl[k]), `${k}: pl różni się od en`); assert.ok(!nazwy.test(dict.pl[k] + dict.en[k]), `${k}: nazwa dostawcy w słowniku`); }
+  const used = new Set([...nkg456.code.matchAll(/['"`](nkg456\.[a-zA-Z0-9.]+)/g)].map(x => x[1])); for (const u of used) assert.ok(keys.includes(u) || keys.some(k => k.startsWith(u)), 'użyty klucz (albo przedrostek) ma wpis: ' + u);
+  for (const pre of ['nkg456.h.', 'nkg456.p.']) for (const k of (pre === 'nkg456.h.' ? ['mi', 'inf', 'fm'] : ['mi', 'sc', 'ec', 'fm'])) assert.ok(keys.includes(pre + k), pre + k);
+  for (const k of dict.pl ? Object.keys(dict.pl).filter(x => x.startsWith('nkg456.')) : []) assert.ok(dict.pl[k].length <= 140, `${k}: tekst krótki (${dict.pl[k].length} znaków)`);
+});
+
+test('v456 (F11Z38): wygląd — style tylko ze zmiennych motywu, telefon (kafle po dwa), bez poziomego przewijania; karta w GLOBAL, nie w CRYPTO; kolory kierunku z klas pos/neg/neu', () => {
+  const c0 = html.indexOf('/* v456 (F11Z38): nastroje konsumentów, oczekiwana inflacja i dług na akcjach (panel #g-nkg)'), c1 = html.indexOf('</style>', c0); assert.ok(c0 > 0 && c1 > c0, 'blok stylów');
+  const css = html.slice(c0, c1);
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(css.replace(/#g-nkg/g, '')), 'żadnych stałych kolorów'); assert.ok(!/\brgba?\(/.test(css), 'tylko zmienne motywu');
+  for (const v of ['--gr-tx', '--rd-tx', '--yl-tx', '--dim', '--bl', '--or', '--tl']) assert.ok(css.includes(`var(${v})`), v);
+  assert.ok(css.includes('@media (max-width:760px){#g-nkg .etfkpis,#g-nkg .etfkpis.k3,#g-nkg .etfkpis.k6{grid-template-columns:repeat(2,minmax(0,1fr))}}'), 'telefon: kafle po dwa');
+  assert.ok(css.includes('overflow-wrap:anywhere') && css.includes('minmax(0,'), 'długie teksty się łamią, siatki bez wymuszonej szerokości');
+  assert.ok(!/(^|[;{\s])(min-)?width:\s*[3-9]\d\dpx/.test(css), 'żadnej sztywnej szerokości powyżej 300 px');
+  const g = html.indexOf('id="global"'), s = html.indexOf('id="g-nkg"'); assert.ok(g > 0 && s > g && s < html.indexOf('id="trendy"'), 'karta w GLOBAL (przed zakładką TRENDY)');
+  const K = nkg456.mk('pl', nkg456.files(), {open: true}), h = K.html(); for (const c of ['pos', 'neg']) assert.ok(new RegExp(`class="${c}"`).test(h) || new RegExp(`<small class="${c}">`).test(h), 'klasa ' + c);
+  assert.ok(!/class="(gy|mut|dim)"/.test(h.replace(/class="gxs-/g, '')), 'żadnych szarych strzałek zmian');
+});
+
+test('v456 (F11Z38): karta nie sięga do przeglądarki poza ładowarką i nie ma nazw dostawców ani kluczy w kodzie i fixturze; plik danych ma tylko cztery części i jest mały', () => {
+  const code = nkg456.code; assert.ok(!code.includes('localStorage') && !/\bfetch\(/.test(code) && !/innerHTML\s*\+=/.test(code), 'tylko srvJSON i jedno przypisanie innerHTML');
+  assert.ok(!/Michigan|New York Fed|FINRA|Federal Reserve Bank|Consumer Expectations|umich|finra/i.test(code), 'zero nazw dostawców w kodzie strony');
+  const j = JSON.stringify(NKG456_FILE); assert.ok(!/api[_-]?key|token|secret|password|@/i.test(j), 'w pliku danych nie ma kluczy ani adresów'); assert.deepEqual(Object.keys(NKG456_FILE).sort(), ['at', 'ec', 'fm', 'mi', 'ok', 'part_at', 'sc', 'src', 'v']);
+  assert.ok(!/Michigan|New York Fed|FINRA|Federal Reserve Bank|Consumer Expectations|ECB|umich/i.test(j), 'zero nazw dostawców w pliku danych'); assert.ok(j.length < 20000, 'plik danych poniżej 20 KB: ' + j.length);
+});
