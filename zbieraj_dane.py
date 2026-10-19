@@ -33198,6 +33198,8 @@ def main():
     META['ok']['usp_hh'], META['ok']['usp_pm'], META['ok']['usp_tp'], META['ok']['usp_ts'] = up_czesc()
     # v429 (F11Z28): krótka sprzedaż w Europie (pozycje netto w spółkach w Wielkiej Brytanii i w Szwecji) — data/short-eu.json; bez klucza, dwie części raz na ~6 h (po błędzie co 1 h)
     META['ok']['short_uk'], META['ok']['short_se'] = sh_czesc()
+    # v447 (F11Z35): waluty świata i koszt pieniądza (kursy wielu walut, kurs centralny juana, gilty i inflacja oczekiwana) — data/waluty.json; bez klucza, trzy części raz na ~6 h (po błędzie najwcześniej po 1 h od próby)
+    META['ok']['waluty_fx'], META['ok']['waluty_yuan'], META['ok']['waluty_gilty'] = wal_czesc()
     # v446 (F11Z33): surowce całą dobę (ropa, gaz, złoto, srebro, miedź w kontraktach wieczystych) — data/surowce-247.json z TEJ SAMEJ odpowiedzi giełdy co część `kr` dźwigni (zero nowych zapytań);
     # przebieg bez pobrania części `kr` (rytm godzinowy) zostawia poprzedni plik
     META['ok']['sur247'] = sur247_czesc()
@@ -48039,6 +48041,344 @@ def sur247_czesc():
 
 
 ZRODLA_META.update({'sur247': 'kraken'})   # v446: ta sama giełda kontraktów i ta sama odpowiedź co część `kr` dźwigni — liczba źródeł bez zmian
+
+
+# ===================== v447 (F11Z35): WALUTY ŚWIATA I KOSZT PIENIĄDZA — KURSY WIELU WALUT, KURS CENTRALNY JUANA, GILTY I INFLACJA OCZEKIWANA — data/waluty.json =====================
+# Trzy niezależne części, każda z własnym czasem pobrania i rytmem ~6 h (kursy i notowania zmieniają się raz na dobę roboczą); po błędzie ponowienie najwcześniej po 1 h od ostatniej próby (try_at), część zostaje z poprzedniego pliku najwyżej 3 doby:
+#   fx    — kursy ok. 160 walut wobec dolara USA z publicznego zbiorczego interfejsu kursów referencyjnych banków centralnych i urzędów (wersja 2): odpowiedź „wszystkie waluty” + cztery odpowiedzi
+#           z dniem odniesienia (tydzień, miesiąc, kwartał, rok wstecz od dnia danych). Zmiana = siła waluty wobec dolara: (kurs sprzed okresu / kurs dziś − 1) w %, plus = waluta zyskała.
+#           Pominięte: dolar (baza), kruszce (XAU, XAG, XPD, XPT), prawa specjalne (XDR), jednostka COMESA (CMD) i juan zagraniczny (CNH — ma własną część); kurs starszy niż 14 dób względem dnia danych też odpada.
+#           Zmiana liczona tylko, gdy odstęp dni między kursem dziś a odniesieniem mieści się w oknie okresu (waluta z rzadszym notowaniem nie dostaje „miesiąca” liczonego z 10 dni).
+#   yuan  — kurs centralny juana (ustalany codziennie przez bank centralny Chin, dni robocze) i kurs rynkowy juana poza Chinami (CNH) z tego samego interfejsu; historia ok. 70 dób, jeden punkt na dzień roboczy
+#           z obiema liczbami. Różnica fixing/rynek = (centralny / rynkowy − 1) w %: plus = bank ustawia juana słabiej niż rynek.
+#   gilty — rentowności brytyjskich obligacji rządowych (krzywa zerokuponowa 5, 10 i 20 lat), stopy realne i inflacja oczekiwana przez rynek (różnica nominalnej i realnej) — baza danych banku centralnego Wielkiej Brytanii,
+#           ten sam punkt dostępu co stopa banku w kontroli (CSV, bez klucza); ok. 13 miesięcy dziennie. Dane z opóźnieniem ok. 2 dni roboczych.
+# Liczby szacunkowe: inflacja oczekiwana to wynik modelu rynkowego (nie prognoza banku centralnego). To nie jest porada inwestycyjna.
+import math as _wal_math   # v447: isfinite (biblioteka standardowa; ponowny import jest nieszkodliwy)
+WAL_V = 1
+WAL_CZESCI = ('fx', 'yuan', 'gilty')
+WAL_URL_KURSY = 'https://api.frankfurter.dev/v2/rates?base=USD'
+WAL_URL_DZIEN = WAL_URL_KURSY + '&date={d}'
+WAL_URL_SERIA = WAL_URL_KURSY + '&quotes={q}&from={a}&to={b}'
+WAL_URL_FIX = WAL_URL_SERIA + '&providers=CFETS'
+WAL_URL_BOE = ('https://www.bankofengland.co.uk/boeapps/database/_iadb-fromshowcolumns.asp?csv.x=yes&Datefrom={a}&Dateto={b}'
+               '&SeriesCodes={c}&CSVF=TN&UsingCodes=Y&VPD=Y&VFD=N')
+WAL_BOE_KODY = ('IUDSNZC', 'IUDMNZC', 'IUDLNZC', 'IUDSRZC', 'IUDMRZC', 'IUDLRZC', 'IUDSIZC', 'IUDMIZC', 'IUDLIZC')   # nominalna, realna, inflacyjna × 5, 10, 20 lat
+WAL_CO_H = 6              # h — pobranie co ~6 h
+WAL_BLAD_H = 1            # h — część, która zawiodła: ponowienie nie częściej niż co tyle
+WAL_MAX_D = 3             # dób — część po błędzie zostaje z poprzedniego pliku najwyżej tyle
+WAL_SLEEP = 0.7           # s — odstęp przed zapytaniem
+WAL_TIMEOUT = 40          # s
+WAL_MAX_B = {'fx': 80_000, 'seria': 80_000, 'boe': 120_000}   # B — limit odpowiedzi (18.10.2026: 10 KB, 3 KB, 22 KB)
+WAL_POMIN = frozenset(('USD', 'XAU', 'XAG', 'XPD', 'XPT', 'XDR', 'CMD', 'CNH'))
+WAL_GLOWNE = frozenset(('AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HUF', 'IDR', 'ILS', 'INR', 'ISK', 'JPY', 'KRW', 'MXN', 'MYR',
+                        'NOK', 'NZD', 'PHP', 'PLN', 'RON', 'SEK', 'SGD', 'THB', 'TRY', 'ZAR'))   # waluty z kursami już na stronie (pliki kursów) — nie dublujemy ich w rankingach i tabeli
+WAL_OKRESY = ('1T', '1M', '1Q', '1R')
+WAL_OKNO = {'1T': (4, 12), '1M': (24, 40), '1Q': (80, 105), '1R': (350, 380)}   # dni — dopuszczalny odstęp między kursem dziś a kursem odniesienia danej waluty
+WAL_STARE_D = 14          # dób — kurs starszy względem dnia danych odpada
+WAL_MIN_WALUT, WAL_MAX_WALUT = 100, 400   # liczba walut w odpowiedzi (18.10.2026: 165)
+WAL_MIN_WIERSZY = 100     # po pominięciach (18.10.2026: 156)
+WAL_ZM_MAX = 1000.0       # % — większa zmiana = błąd danych (zmiana waluty), nie ruch
+WAL_BLEDNE_MAX = 0.05     # część wierszy odpowiedzi odrzuconych jako błędne, powyżej której cała odpowiedź jest błędna
+WAL_KURS_MAX = 1e9
+WAL_YUAN_DNI = 70         # dób historii kursu centralnego
+WAL_YUAN_MIN = 20         # najmniej dni z obiema liczbami
+WAL_YUAN_ROZ_MAX = 10.0   # % — różnica kursu centralnego i rynkowego większa = błąd danych (pasmo dzienne wokół kursu centralnego to ±2%)
+WAL_YUAN_HIST_MAX = 120
+WAL_GILTY_DNI = 400
+WAL_GILTY_MAX = 300       # wierszy historii w pliku
+WAL_GILTY_MIN = 100
+WAL_GILTY_ZAKRES = (-2.0, 15.0)   # % — rentowność poza zakresem = błąd odczytu
+WAL_GILTY_SPOJ = 0.02     # p.p. — |nominalna − realna − inflacyjna| większe = niespójny odczyt
+WAL_MIES = {'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6, 'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
+_WAL_DZ = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+_WAL_KOD = re.compile(r'^[A-Z]{3}$')
+_WAL_BOE_DZ = re.compile(r'^(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})$')
+
+
+def wal_dzien(s):
+    """'RRRR-MM-DD' → data albo None."""
+    if not isinstance(s, str) or not _WAL_DZ.match(s):
+        return None
+    try:
+        return datetime.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def wal_liczba(v, lo, hi):
+    """Skończona liczba (nie wartość logiczna) w przedziale (lo, hi) otwartym od dołu albo None."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not _wal_math.isfinite(v):
+        return None
+    return float(v) if lo < v < hi else None
+
+
+def wal_dzis():
+    """Dzień UTC przebiegu."""
+    return datetime.date.fromisoformat(NOW[:10])
+
+
+def wal_json(tekst):
+    j = json.loads(tekst)
+    if not isinstance(j, list):
+        raise ValueError('odpowiedź nie jest listą kursów')
+    return j
+
+
+def wal_kursy(j, dzis):
+    """Lista kursów z interfejsu (wiersze {date, base, quote, rate}) → {kod: [kurs, dzień (date)]}; najnowszy dzień kodu wygrywa. Wiersz z inną bazą niż USD, złym kodem, kursem albo dniem późniejszym niż
+    jutro (waluty Azji i Pacyfiku mają dzień „z przodu”) jest odrzucony; odrzuconych ponad WAL_BLEDNE_MAX = błąd odpowiedzi."""
+    out, zle = {}, 0
+    for r in j:
+        ok = isinstance(r, dict) and r.get('base') == 'USD' and isinstance(r.get('quote'), str) and bool(_WAL_KOD.match(r['quote']))
+        k = wal_liczba(r.get('rate'), 0, WAL_KURS_MAX) if ok else None
+        d = wal_dzien(r.get('date')) if ok else None
+        if k is None or d is None or d > dzis + datetime.timedelta(days=1):
+            zle += 1
+            continue
+        if r['quote'] not in out or d > out[r['quote']][1]:
+            out[r['quote']] = [k, d]
+    if zle > max(1, len(j) * WAL_BLEDNE_MAX):
+        raise ValueError(f'{zle} z {len(j)} wierszy kursów odrzuconych jako błędne')
+    return out
+
+
+def wal_dzien_danych(kursy):
+    """Dzień, z którym ma kurs najwięcej walut (przy remisie późniejszy) — dzień danych całego zestawu."""
+    licz = {}
+    for k, d in kursy.values():
+        licz[d] = licz.get(d, 0) + 1
+    return max(licz.items(), key=lambda kv: (kv[1], kv[0]))[0]
+
+
+def wal_zmiana(kurs, dzien, ref, okres):
+    """Siła waluty wobec dolara w % (plus = waluta zyskała): (kurs odniesienia / kurs dziś − 1) · 100, 2 miejsca; brak odniesienia, odstęp dni poza oknem okresu albo zmiana ponad WAL_ZM_MAX = None."""
+    if not ref:
+        return None
+    dni = (dzien - ref[1]).days
+    lo, hi = WAL_OKNO[okres]
+    if not (lo <= dni <= hi):
+        return None
+    z = (ref[0] / kurs - 1) * 100
+    return round(z, 2) if abs(z) <= WAL_ZM_MAX else None
+
+
+def wal_fx_buduj(dzis, pobierz):
+    """Część fx → słownik {asof, ref, n, pom, brak, glowne, wiersze: [[kod, kurs, dzień, zm 1T, zm 1M, zm 1Q, zm 1R]]}. pobierz(adres, maks) → bajty. Brak miesięcznego odniesienia = błąd (rdzeń rankingu); brak
+    tygodnia, kwartału albo roku — kolumna pusta („—”) i wpis w `brak`."""
+    teraz = wal_kursy(wal_json(pobierz(WAL_URL_KURSY, WAL_MAX_B['fx']).decode('utf-8')), dzis)
+    if not (WAL_MIN_WALUT <= len(teraz) <= WAL_MAX_WALUT):
+        raise ValueError(f'liczba walut {len(teraz)} poza {WAL_MIN_WALUT}–{WAL_MAX_WALUT}')
+    asof = wal_dzien_danych(teraz)
+    if asof > dzis + datetime.timedelta(days=1) or (dzis - asof).days > 5:
+        raise ValueError(f'dzień danych {asof.isoformat()} nie pasuje do dnia przebiegu {dzis.isoformat()}')
+    ref_d = {'1T': asof - datetime.timedelta(days=7), '1M': months_back(asof, 1), '1Q': months_back(asof, 3), '1R': months_back(asof, 12)}
+    refs, brak = {}, []
+    for p in WAL_OKRESY:
+        try:
+            refs[p] = wal_kursy(wal_json(pobierz(WAL_URL_DZIEN.format(d=ref_d[p].isoformat()), WAL_MAX_B['fx']).decode('utf-8')), dzis)
+        except Exception as e:  # noqa — tydzień, kwartał i rok są dodatkiem
+            if p == '1M':
+                raise ValueError(f'kursy sprzed miesiąca: {e}')
+            brak.append(p)
+    wiersze, pom = [], 0
+    for kod in sorted(teraz):
+        if kod in WAL_POMIN:
+            continue
+        k, d = teraz[kod]
+        if (asof - d).days > WAL_STARE_D:
+            pom += 1
+            continue
+        wiersze.append([kod, k, d.isoformat()] + [wal_zmiana(k, d, refs.get(p, {}).get(kod), p) for p in WAL_OKRESY])
+    if len(wiersze) < WAL_MIN_WIERSZY:
+        raise ValueError(f'tylko {len(wiersze)} walut po pominięciach (minimum {WAL_MIN_WIERSZY})')
+    z_mies = sum(1 for w in wiersze if w[4] is not None)
+    if z_mies < 0.8 * len(wiersze):
+        raise ValueError(f'miesięczna zmiana tylko dla {z_mies} z {len(wiersze)} walut')
+    return {'asof': asof.isoformat(), 'ref': {p: ref_d[p].isoformat() for p in WAL_OKRESY if p not in brak}, 'n': len(wiersze), 'pom': pom, 'brak': brak, 'glowne': sorted(WAL_GLOWNE), 'wiersze': wiersze}
+
+
+def wal_seria(j, kod, dzis):
+    """Odpowiedź z szeregiem jednej waluty → {dzień (date): kurs}; inny kod albo zły wiersz = pominięty (powyżej WAL_BLEDNE_MAX = błąd)."""
+    out, zle = {}, 0
+    for r in j:
+        d = wal_dzien(r.get('date')) if isinstance(r, dict) else None
+        x = wal_liczba(r.get('rate'), 0, WAL_KURS_MAX) if isinstance(r, dict) else None
+        if d is None or x is None or r.get('quote') != kod or r.get('base') != 'USD' or d > dzis + datetime.timedelta(days=1):
+            zle += 1
+            continue
+        out[d] = x
+    if zle > max(1, len(j) * WAL_BLEDNE_MAX) or not out:
+        raise ValueError(f'szereg {kod}: {zle} z {len(j)} wierszy błędnych')
+    return out
+
+
+def wal_yuan_buduj(dzis, pobierz):
+    """Część yuan → {asof, hist: [[dzień, kurs centralny, kurs rynkowy]]} (rosnąco; tylko dni z obiema liczbami; rynek = notowanie z tego dnia albo z poprzedniego dnia, najwyżej 3 dni wcześniej)."""
+    a, b = (dzis - datetime.timedelta(days=WAL_YUAN_DNI)).isoformat(), dzis.isoformat()
+    fix = wal_seria(wal_json(pobierz(WAL_URL_FIX.format(q='CNY', a=a, b=b), WAL_MAX_B['seria']).decode('utf-8')), 'CNY', dzis)
+    time.sleep(WAL_SLEEP)
+    rynek = wal_seria(wal_json(pobierz(WAL_URL_SERIA.format(q='CNH', a=a, b=b), WAL_MAX_B['seria']).decode('utf-8')), 'CNH', dzis)
+    hist = []
+    for d in sorted(fix):
+        m = next((rynek[d - datetime.timedelta(days=i)] for i in range(4) if d - datetime.timedelta(days=i) in rynek), None)
+        if m is None:
+            continue
+        roz = (fix[d] / m - 1) * 100
+        if abs(roz) > WAL_YUAN_ROZ_MAX:
+            raise ValueError(f'różnica kursu centralnego i rynkowego {roz:.1f}% w dniu {d.isoformat()}')
+        hist.append([d.isoformat(), fix[d], m])
+    if len(hist) < WAL_YUAN_MIN:
+        raise ValueError(f'tylko {len(hist)} dni z kursem centralnym i rynkowym (minimum {WAL_YUAN_MIN})')
+    return {'asof': hist[-1][0], 'hist': hist[-WAL_YUAN_HIST_MAX:]}
+
+
+def wal_boe_csv(tekst):
+    """CSV bazy danych banku centralnego (nagłówek DATE + kody serii, wiersze „DD Mon RRRR”) → {dzień (date): {kod: liczba | None}}; zły wiersz pominięty (powyżej WAL_BLEDNE_MAX = błąd)."""
+    import csv as _csv
+    import io as _io
+    w = list(_csv.reader(_io.StringIO(str(tekst or '').lstrip('\ufeff'))))
+    if not w or not w[0] or w[0][0].strip().upper() != 'DATE':
+        raise ValueError('brak nagłówka DATE w odpowiedzi')
+    kody = [c.strip() for c in w[0][1:]]
+    if sorted(kody) != sorted(WAL_BOE_KODY):
+        raise ValueError(f'inne serie niż zamówione: {kody[:10]}')
+    out, zle = {}, 0
+    for r in w[1:]:
+        if not r:
+            continue
+        m = _WAL_BOE_DZ.match(r[0].strip())
+        try:
+            d = datetime.date(int(m.group(3)), WAL_MIES[m.group(2)], int(m.group(1))) if m else None
+        except (KeyError, ValueError):
+            d = None
+        if d is None or len(r) != len(kody) + 1:
+            zle += 1
+            continue
+        v = {}
+        for kod, x in zip(kody, r[1:]):
+            try:
+                f = float(x)
+            except ValueError:
+                f = None
+            v[kod] = f if f is not None and _wal_math.isfinite(f) and WAL_GILTY_ZAKRES[0] <= f <= WAL_GILTY_ZAKRES[1] else None
+        out[d] = v
+    if zle > max(1, len(w) * WAL_BLEDNE_MAX) or not out:
+        raise ValueError(f'{zle} z {len(w) - 1} wierszy odpowiedzi błędnych')
+    return out
+
+
+def wal_gilty_buduj(dzis, pobierz):
+    """Część gilty → {asof, hist: [[dzień, n5, n10, n20, r5, r10, r20, i5, i10, i20]]} (rosnąco; dni z kompletem dziewięciu liczb, spójnych: nominalna − realna = inflacyjna z tolerancją WAL_GILTY_SPOJ)."""
+    mies = {v: k for k, v in WAL_MIES.items()}
+    f = lambda d: f'{d.day:02d}/{mies[d.month]}/{d.year}'   # noqa: E731
+    adres = WAL_URL_BOE.format(a=f(dzis - datetime.timedelta(days=WAL_GILTY_DNI)), b=f(dzis), c=','.join(WAL_BOE_KODY))
+    dane = wal_boe_csv(pobierz(adres, WAL_MAX_B['boe']).decode('utf-8-sig'))
+    hist, niesp = [], 0
+    for d in sorted(dane):
+        if d > dzis:
+            continue
+        v = [dane[d][k] for k in WAL_BOE_KODY]
+        if any(x is None for x in v):
+            continue
+        if any(abs(v[i] - v[3 + i] - v[6 + i]) > WAL_GILTY_SPOJ for i in range(3)):
+            niesp += 1
+            continue
+        hist.append([d.isoformat()] + v)
+    if niesp > max(1, 0.05 * len(dane)):
+        raise ValueError(f'{niesp} dni z niespójną rentownością nominalną, realną i inflacyjną')
+    if len(hist) < WAL_GILTY_MIN:
+        raise ValueError(f'tylko {len(hist)} pełnych dni notowań (minimum {WAL_GILTY_MIN})')
+    return {'asof': hist[-1][0], 'hist': hist[-WAL_GILTY_MAX:]}
+
+
+def wal_trzeba(czas, ok_prev, teraz):
+    """Czy część pobrać w tym przebiegu. czas — chwila poprzedniego pobrania części (brak = tak); po błędzie co WAL_BLAD_H h, inaczej co WAL_CO_H h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    h = (tn - tk).total_seconds() / 3600
+    return h >= (WAL_CO_H if ok_prev else WAL_BLAD_H)
+
+
+def wal_zadania(pv, teraz):
+    """Które części pobrać w tym przebiegu → {część: bool}."""
+    ok, pat, pro = (pv.get('ok') if isinstance(pv.get('ok'), dict) else {}), (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('try_at') if isinstance(pv.get('try_at'), dict) else {})
+    # po udanym pobraniu liczy się czas tego pobrania (co WAL_CO_H h), po błędzie czas ostatniej PRÓBY (co WAL_BLAD_H h) — nie 10-minutowe ponowienia przez całą awarię źródła
+    return {n: (True if not isinstance(pv.get(n), dict) else
+                wal_trzeba((pat.get(n) or pv.get('at')) if ok.get(n, True) is not False else (pro.get(n) or pat.get(n) or pv.get('at')), ok.get(n, True) is not False, teraz)) for n in WAL_CZESCI}
+
+
+def wal_pobierz(url, maks):
+    """Jedyne miejsce sieci tego pliku (testy je łatają): zapytanie GET z odstępem, limitem czasu i rozmiaru → bajty."""
+    time.sleep(WAL_SLEEP)
+    return get_bytes_maks(url, None, WAL_TIMEOUT, maks)
+
+
+def wal_job(n, dzis):
+    """Odczyt jednej części z sieci → gotowa część pliku (z czasem pobrania t i dniem pobrania dzien)."""
+    f = {'fx': wal_fx_buduj, 'yuan': wal_yuan_buduj, 'gilty': wal_gilty_buduj}[n]
+    o = f(dzis, wal_pobierz)
+    o['t'], o['dzien'] = NOW, dzis.isoformat()
+    return o
+
+
+def build_waluty(prev=None, zadania=None):
+    """v447: data/waluty.json {v, at, src, ok, part_at, try_at, fx, yuan, gilty} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm) zostaje z poprzedniego pliku bez zmian; część po błędzie
+    — z poprzedniego pliku z własnym czasem (najwyżej WAL_MAX_D dób), błąd do META['errors']. Żadna część w pliku = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == WAL_V else {}
+    zad = zadania if zadania is not None else wal_zadania(pv, NOW)
+    pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
+    out = {'v': WAL_V, 'at': NOW, 'src': 'kursy referencyjne walut świata wobec dolara (banki centralne i urzędy, zbiorczy interfejs), kurs centralny i rynkowy juana, rentowności i inflacja oczekiwana brytyjskich obligacji',
+           'ok': {}, 'part_at': {}, 'try_at': {}}
+    st = {}
+    dzis = wal_dzis()
+    pro0 = pv.get('try_at') if isinstance(pv.get('try_at'), dict) else {}
+    for n in WAL_CZESCI:
+        stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+        if not zad.get(n):
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+                if pro0.get(n):
+                    out['try_at'][n] = pro0[n]
+            else:
+                st[n] = 'cached'
+            continue
+        out['try_at'][n] = NOW
+        try:
+            out[n] = wal_job(n, dzis)
+            out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+        except Exception as e:  # noqa — jedna część nie psuje pozostałych
+            META['errors'].append(mask(f'Waluty świata: {n}: {e}')[:200])
+            out['ok'][n], st[n] = False, False
+            if stara is not None and _zapas_wiek_ok(pat0.get(n) or pv.get('at'), WAL_MAX_D):
+                out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
+    if not any(isinstance(out.get(n), dict) for n in WAL_CZESCI):
+        raise RuntimeError('żadna część walut świata nie ma danych')
+    return out, st
+
+
+def wal_czesc():
+    """v447: część przebiegu → krotka wartości dla META['ok'] w kolejności WAL_CZESCI: True = pobrane, 'cached' = poprzednia wersja wystarcza (rytm), False = część zawiodła.
+    Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('waluty')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == WAL_V else None
+    zad = wal_zadania(prev or {}, NOW)
+    if prev and not any(zad.values()):
+        save('waluty', prev)
+        return tuple('cached' for _ in WAL_CZESCI)
+    try:
+        obj, st = build_waluty(prev, zad)
+        save('waluty', obj)
+        return tuple(st.get(n, False) for n in WAL_CZESCI)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Waluty świata: {e}')[:200])
+        if prev:
+            save('waluty', prev)
+        return tuple(False for _ in WAL_CZESCI)
+
+
+ZRODLA_META.update({'waluty_fx': 'frankfurter', 'waluty_yuan': 'frankfurter', 'waluty_gilty': 'bank-anglii'})   # v447: zbiorczy interfejs kursów (+1 źródło); bank centralny Wielkiej Brytanii już liczony (kalendarz)
 
 
 if __name__ == '__main__':

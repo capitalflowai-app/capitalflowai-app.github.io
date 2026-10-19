@@ -14301,6 +14301,125 @@ def s247_kontrola(files, now=None):
     return {'spojnosc': zle, 'wiersze': wiersze, 'uwagi': uwagi}
 
 
+# ---------------------------------------------------------------- v447 (F11Z35): WALUTY ŚWIATA I KOSZT PIENIĄDZA — KURSY, KURS CENTRALNY JUANA, GILTY (data/waluty.json) --------------------
+# Plik: trzy części (fx, yuan, gilty), każda z własnym czasem pobrania (pole t), rytmem ~6 h (po błędzie ponowienie po 1 h, zbieracz v447) i dniem danych (asof).
+# Wiersze świeżości (najwyżej ⚠️): (1) pobranie części nie starsze niż 24 h — rytm 6 h + 12-godzinna awaria źródła = 18 h; (2) dzień danych: fx — nie starszy niż 4 doby, yuan — 10 dób, gilty — 10 dób.
+# Test wsteczny (18.10.2026): fx — dzień danych (dzień z kursem większości z 165 walut) wobec dnia zapytania w 100 próbkach co 4 doby z ostatnich 400 dni: 0 albo 1 doba (88 razy 0, 12 razy 1; zawsze komplet 165 walut)
+# → próg 4 dób daje 0 fałszywych ⚠️; yuan — największa przerwa między kolejnymi kursami centralnymi w 45 dniach roboczych: 8 dób (święto narodowe na przełomie września i października) + opóźnienie 2 doby → próg 10 dób;
+# gilty — największa przerwa między kolejnymi notowaniami w 285 dniach (wrzesień 2025 – październik 2026): 5 dób (Boże Narodzenie, Wielkanoc), opóźnienie publikacji ok. 2 dni roboczych (do 4 dób przez weekend)
+# → najstarszy dzień danych widoczny przy zwykłym cyklu ok. 9 dób, próg 10 dób daje 0 fałszywych ⚠️.
+# Spójność w pliku (⚠️): fx — liczba walut = n, kody trzyliterowe, rosnące i niepowtarzalne, bez pominiętych (dolar, kruszce, prawa specjalne), kursy dodatnie, dni nie z przyszłości, zmiany w granicach, daty odniesienia malejące wstecz;
+# yuan — dni rosnące, ostatni = asof, różnica kursu centralnego i rynkowego w granicach ±10%; gilty — dni rosnące, ostatni = asof, rentowność nominalna − realna = inflacyjna (±0,02 p.p.), liczby w zakresie −2…15%.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'waluty')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['waluty'] = 18 * 60   # plik zapisywany przy każdej próbie pobrania (co ~6 h, po błędzie co 1 h) — wiek pliku; wiek pobrania każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'waluty_' + p_: 'Waluty świata — część z błędem zostaje z datą (v447); wiek danych w wierszach świeżości' for p_ in ('fx', 'yuan', 'gilty')})
+WL_K_POBR_MIN = 24 * 60        # min — wiek pobrania części, powyżej tego ⚠️
+WL_K_DATA_MIN = {'fx': 4 * 24 * 60, 'yuan': 10 * 24 * 60, 'gilty': 10 * 24 * 60}   # min — wiek dnia danych (od końca dnia), powyżej tego ⚠️
+WL_K_ETYKIETA = {'fx': 'Waluty świata — kursy wobec dolara', 'yuan': 'Waluty świata — kurs centralny juana', 'gilty': 'Waluty świata — gilty i inflacja oczekiwana'}
+WL_K_POMIN = ('USD', 'XAU', 'XAG', 'XPD', 'XPT', 'XDR', 'CMD', 'CNH')
+
+
+def wl_k_dzien(d):
+    return isinstance(d, str) and len(d) == 10 and _ix_dt_k(d + 'T00:00:00Z') is not None
+
+
+def wl_k_seria(H, dl, ile):
+    """Wiersze długości dl, których pierwszy element to dzień: dni prawdziwe, rosnące, bez powtórzeń, najwyżej ile; zwraca opis usterki albo ''."""
+    if not isinstance(H, list) or not H:
+        return 'brak serii'
+    if any(not (isinstance(r, list) and len(r) == dl and wl_k_dzien(r[0])) for r in H):
+        return 'zły kształt wiersza'
+    dni = [r[0] for r in H]
+    if dni != sorted(set(dni)):
+        return 'dni nie rosną albo się powtarzają'
+    return f'więcej niż {ile} punktów' if len(H) > ile else ''
+
+
+def wl_k_czesc(n, P):
+    """Spójność jednej części → lista usterek."""
+    zle = []
+    dz, asof = P.get('dzien'), P.get('asof')
+    if not wl_k_dzien(dz) or not wl_k_dzien(asof):
+        return ['dzień pobrania albo dzień danych bez poprawnej daty']
+    if asof > (dt.date.fromisoformat(dz) + dt.timedelta(days=1)).isoformat():
+        zle.append('dzień danych z przyszłości')
+    if n == 'fx':
+        W = P.get('wiersze')
+        if not isinstance(W, list) or not W or P.get('n') != len(W):
+            return zle + ['liczba walut ≠ n albo brak wierszy']
+        kody = [w[0] if isinstance(w, list) and w else None for w in W]
+        if any(not (isinstance(w, list) and len(w) == 7 and isinstance(w[0], str) and len(w[0]) == 3 and w[0].isalpha() and w[0].isupper()
+                    and _ste_k_l(w[1]) is not None and w[1] > 0 and wl_k_dzien(w[2]) and w[2] <= (dt.date.fromisoformat(dz) + dt.timedelta(days=1)).isoformat()
+                    and all(x is None or (_ste_k_l(x) is not None and abs(x) <= 1000) for x in w[3:])) for w in W):
+            zle.append('waluty: zły kształt wiersza, kurs, dzień albo zmiana poza granicami')
+        elif any(k in WL_K_POMIN for k in kody):
+            zle.append('waluty: w zestawieniu jest pominięta pozycja (dolar, kruszec, prawa specjalne)')
+        elif kody != sorted(set(kody)):
+            zle.append('waluty: kody nie rosną albo się powtarzają')
+        R = P.get('ref')
+        if not (isinstance(R, dict) and all(wl_k_dzien(v) for v in R.values()) and list(R.values()) == sorted(R.values(), reverse=True) and all(v < asof for v in R.values())):
+            zle.append('daty odniesienia: zły kształt albo nie malejące wstecz od dnia danych')
+        elif '1M' not in R:
+            zle.append('daty odniesienia: brak miesiąca')
+    else:
+        H = P.get('hist')
+        dl = 3 if n == 'yuan' else 10
+        s = wl_k_seria(H, dl, 120 if n == 'yuan' else 300)
+        if s:
+            zle.append('historia: ' + s)
+        elif H[-1][0] != asof:
+            zle.append('historia: ostatni punkt to nie dzień danych')
+        elif n == 'yuan':
+            if any(not (_ste_k_l(r[1]) is not None and _ste_k_l(r[2]) is not None and r[1] > 0 and r[2] > 0 and abs(r[1] / r[2] - 1) <= 0.10) for r in H):
+                zle.append('historia: kurs centralny i rynkowy poza granicami (różnica ponad 10%)')
+        elif any(not (all(_ste_k_l(x) is not None and -2 <= x <= 15 for x in r[1:]) and all(abs(r[1 + i] - r[4 + i] - r[7 + i]) <= 0.02 for i in range(3))) for r in H):
+            zle.append('historia: rentowności poza zakresem albo nominalna − realna ≠ inflacyjna')
+    return zle
+
+
+def wl_k_kontrola(j, now=None):
+    """data/waluty.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    for part in ('fx', 'yuan', 'gilty'):
+        K = j.get(part) if isinstance(j.get(part), dict) else None
+        lab = WL_K_ETYKIETA[part]
+        if K is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od ponad 3 dób)')
+            continue
+        zle += [f'{part}: {x}' for x in wl_k_czesc(part, K)]
+        w = wiek_danych(K.get('t'), 'ts', 'k', now)
+        if w is None:
+            out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak czasu pobrania'))
+        else:
+            st = '⚠️' if w > WL_K_POBR_MIN else '✅'
+            dane = str(K.get('t'))[:16].replace('T', ' ') + ' UTC'
+            note = '' if st == '✅' else 'pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga'
+            out['rows'].append((lab + ' (pobranie)', st, w, dane, note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (pobranie): {dane} — {fmt_wiek(w)} temu ({note})')
+        wd = wiek_danych(K.get('asof'), 'day', 'k', now) if wl_k_dzien(K.get('asof')) else None
+        if wd is None:
+            out['rows'].append((lab + ' (dzień danych)', '?', None, None, 'brak dnia danych'))
+        else:
+            st = '⚠️' if wd > WL_K_DATA_MIN[part] else '✅'
+            note = '' if st == '✅' else 'dzień danych starszy niż zwykle — źródło nie dopisuje notowań albo zbieracz czyta stary plik; najwyżej uwaga'
+            out['rows'].append((lab + ' (dzień danych)', st, wd, str(K.get('asof')), note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (dzień danych): {K.get("asof")} — {fmt_wiek(wd)} temu ({note})')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Waluty świata (waluty.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in ('fx', 'yuan', 'gilty')):
+        out['wiersze'].append(('spójność pliku (waluty, kurs centralny juana, gilty i inflacja oczekiwana)', '⚠️' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -15175,6 +15294,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['surowce-247'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Surowce całą dobę (v446): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v447. Waluty świata i koszt pieniądza (data/waluty.json): wiek pobrania i dnia danych każdej części, spójność w pliku — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        WL_ = wl_k_kontrola(files.get('waluty'))
+        for label, st, w, txt, note in WL_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += WL_['uwagi']
+        R['zgodnosc']['waluty'] = {'spojnosc': WL_['spojnosc'], 'wiersze': WL_['wiersze']} if (WL_['rows'] or WL_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['waluty'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Waluty świata (v447): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -15878,6 +16007,11 @@ def raport_md(R):
             L.append('- USA: zadłużenie gospodarstw, stopy hipoteczne, niepewność handlowa i przewozy (z pliku strony): ' + (f'? kontrola przerwana ({sup_["blad"]})' if sup_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(sup_['spojnosc'][:3]) + ' ⚠️ · ' if sup_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in sup_.get('wiersze') or []) or '—') + '.')
+        swl_ = Z.get('waluty')   # v447: waluty świata, kurs centralny juana, gilty — brak pliku = bez linii
+        if swl_:
+            L.append('- Waluty świata, kurs centralny juana, gilty i inflacja oczekiwana (z pliku strony): ' + (f'? kontrola przerwana ({swl_["blad"]})' if swl_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(swl_['spojnosc'][:3]) + ' ⚠️ · ' if swl_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in swl_.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else

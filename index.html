@@ -2571,6 +2571,49 @@ textarea.kt-f{min-height:110px;resize:vertical}
   #g-sur247 .s247-c::before{content:attr(data-l);display:block;color:var(--dim);font-size:10.5px}
   #g-sur247 .s247-hd{display:none}
 }
+/* v447 (F11Z35): waluty świata i koszt pieniądza (panel #g-waluty) — kafle w czterech kolumnach (telefon: dwie), paski rankingów, wykres w pełnej szerokości, tabela walut (telefon: kartki z etykietami kolumn); tylko zmienne motywu; kolory kierunku jak w całej stronie (wzrost zielony, spadek czerwony, zero żółte) */
+#g-waluty .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+#g-waluty .etfk>span{white-space:normal;overflow-wrap:anywhere}
+#g-waluty .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3;font-variant-numeric:tabular-nums}
+#g-waluty .etfk b small{display:block;font-size:10.5px;font-weight:500;white-space:normal;margin-top:2px}
+#g-waluty .etfk b small.pos{color:var(--gr-tx)}#g-waluty .etfk b small.neg{color:var(--rd-tx)}#g-waluty .etfk b small.neu{color:var(--yl-tx)}#g-waluty .etfk b small.na,#g-waluty .etfk b small.pc{color:var(--dim)}
+#g-waluty .etfk b span.pos{color:var(--gr-tx)}#g-waluty .etfk b span.neg{color:var(--rd-tx)}#g-waluty .etfk b span.neu{color:var(--yl-tx)}
+#g-waluty .etfk .icos{display:inline-flex;margin-right:6px}
+#g-waluty .etfk>small.mtxt{font-size:10.5px;line-height:1.35}
+#g-waluty .pos{color:var(--gr-tx)}#g-waluty .neg{color:var(--rd-tx)}#g-waluty .neu{color:var(--yl-tx)}#g-waluty .na{color:var(--dim)}
+#g-waluty .pnote.neu{color:var(--yl-tx)}
+#g-waluty .gx-h{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin:16px 0 4px;font-size:13px}
+#g-waluty .gx-h .icos{display:inline-flex;margin-right:6px;vertical-align:middle}
+#g-waluty .gxs{margin:8px 0 10px;max-width:760px}
+#g-waluty .gxs-r{margin:7px 0}
+#g-waluty .gxs-n{display:block;font-size:12.5px;color:var(--mut);margin-bottom:3px;overflow-wrap:anywhere}
+#g-waluty .gxs-b{display:grid;grid-template-columns:minmax(0,1fr) 12em;align-items:center;gap:10px}
+#g-waluty .gxs-n .ico,#g-waluty .gxs-n>img{margin-right:6px;vertical-align:middle}
+#g-waluty .gxs-t{position:relative;height:10px;border-radius:2px;background:var(--line-2)}
+#g-waluty .gxs-t i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--bl)}
+#g-waluty .gxs-t i.cur{background:var(--tl)}#g-waluty .gxs-t i.up{background:var(--gr)}#g-waluty .gxs-t i.dn{background:var(--rd)}
+#g-waluty .gxs-v{font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap;text-align:right}
+#g-waluty .wk-ch{margin:4px 0 10px;max-width:760px}
+#g-waluty .wk-ch .s1{--k:var(--bl)}#g-waluty .wk-ch .s2{--k:var(--or)}#g-waluty .wk-ch .s3{--k:var(--tl)}
+#g-waluty .etfkpis.wl-k3{grid-template-columns:repeat(3,minmax(0,1fr))}
+#g-waluty .wl-g{margin:6px 0 8px;max-width:960px}
+#g-waluty .wl-r{display:grid;grid-template-columns:minmax(0,2.2fr) repeat(6,minmax(64px,1fr));align-items:center;gap:4px 10px;padding:7px 0;border-top:1px solid var(--line);font-size:12.5px}
+#g-waluty .wl-hd{border-top:0;color:var(--dim);font-size:11px;padding:2px 0}
+#g-waluty .wl-hd span:not(:first-child){text-align:right}
+#g-waluty .wl-n{display:block;min-width:0}
+#g-waluty .wl-n .icos,#g-waluty .wl-n>img{margin-right:6px;vertical-align:middle}
+#g-waluty .wl-n b{font-weight:600;font-size:13px;overflow-wrap:anywhere}
+#g-waluty .wl-n small{display:block;color:var(--dim);font-size:11px;overflow-wrap:anywhere}
+#g-waluty .wl-c{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;overflow-wrap:anywhere}
+@media (max-width:760px){#g-waluty .etfkpis,#g-waluty .etfkpis.wl-k3{grid-template-columns:repeat(2,minmax(0,1fr))}#g-waluty .wl-k3 .etfk:last-child:nth-child(odd){grid-column:1/-1}}
+@media (max-width:560px){
+  #g-waluty .gxs-b{grid-template-columns:minmax(0,1fr) 9.5em;gap:8px}
+  #g-waluty .wl-r{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 10px}
+  #g-waluty .wl-r>.wl-n{grid-column:1/-1}
+  #g-waluty .wl-c{text-align:left}
+  #g-waluty .wl-c::before{content:attr(data-l);display:block;color:var(--dim);font-size:10.5px}
+  #g-waluty .wl-hd{display:none}
+}
 </style>
 <!-- v348: licznik odwiedzin (decyzja właściciela 12.10). Skrypt count.js leży na naszej stronie (nie na obcej domenie) i nie używa ciasteczek; zliczenie wychodzi do licznika przez sendBeacon (CSP: connect-src; zapas obrazkiem: img-src https:).
      Wizyt technicznych nie liczymy: przeglądarki sterowane automatem (navigator.webdriver), Chrome bez okna (kontrola dzienna, testy), Lighthouse i adresy lokalne z końcówką .local albo [::1] dostają no_onload;
@@ -2827,6 +2870,7 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
     <section class="panel pcard" id="g-ropa" hidden></section>
     <section class="panel pcard" id="g-sur247" hidden></section>
     <section class="panel pcard" id="g-chinatw" hidden></section>
+    <section class="panel pcard" id="g-waluty" hidden></section>
     <section class="panel pcard" id="g-dolar" hidden></section>
       <section class="panel pcard" id="inst" hidden></section>
     <!-- v321 (decyzja właściciela 10.10): GLOBAL = rynki świata — panele o krypto na samym dole zakładki -->
@@ -3726,6 +3770,9 @@ for(const l in EXTRA303)if(I18N[l])Object.assign(I18N[l],EXTRA303[l]);
 /* v446 (F11Z33): surowce całą dobę — ropa, gaz, złoto, srebro i miedź w kontraktach całodobowych (GLOBAL, karta #g-sur247) — pl i en */
 const EXTRA304={"pl":{"s247.t":"Surowce całą dobę: ropa, gaz, złoto, srebro i miedź","s247.sub":"Kontrakty na surowce, którymi handluje się także w nocy, w weekendy i w święta. Gdy zwykłe giełdy towarowe są zamknięte, pokazują, gdzie rynek wycenia surowiec — ale rynek jest mały, więc to cena orientacyjna.","s247.lazy":"Dane pojawią się po rozwinięciu karty.","s247.err":"Nie udało się teraz pobrać danych. Spróbuj ponownie za chwilę.","s247.errp":"Brak aktualnego odczytu: {p}.","s247.k.brent":"Ropa Brent","s247.k.wti":"Ropa WTI","s247.k.gaz":"Gaz ziemny","s247.k.zloto":"Złoto","s247.k.srebro":"Srebro","s247.k.miedz":"Miedź","s247.h24":"24 h","s247.rg":"zakres 24 h: {a} – {b}","s247.last":"ostatnia transakcja: {a}","s247.when":"odczyt: {a}","s247.h.rg":"Gdzie jest cena w zakresie ostatnich 24 godzin","s247.c.cm":"Surowiec","s247.c.rg":"Zakres 24 h","s247.c.vol":"Obrót 24 h","s247.c.oi":"Otwarte pozycje","s247.rg.aria":"Cena leży w {p}% zakresu ostatnich 24 godzin, licząc od minimum","s247.u.k":"tys. USD","s247.u.m":"mln USD","s247.n.def":"Cena to cena rozliczeniowa kontraktu wieczystego (bez daty wygaśnięcia). Zmiana 24 h to różnica wobec ceny sprzed doby. Jednostki: baryłka (bbl), milion Btu (MMBtu), uncja (oz), funt (lb).","s247.n.thin":"Obroty są małe, więc jedno duże zlecenie może przesunąć cenę. To cena orientacyjna, nie notowanie giełdy towarowej.","s247.not1":"To nie jest notowanie giełdy towarowej ani cena fizycznego surowca — kontrakt wieczysty może się od niej różnić, zwłaszcza gdy zwykły rynek jest zamknięty.","s247.not2":"Zmiana ceny w ciągu doby nie mówi, dokąd cena pójdzie dalej.","s247.foot":"Kontrakty odczytywane co ok. godzinę."},"en":{"s247.t":"Commodities around the clock: oil, gas, gold, silver and copper","s247.sub":"Contracts on commodities that also trade at night, at weekends and on holidays. When regular commodity exchanges are closed, they show where the market prices the commodity — but the market is small, so the price is only indicative.","s247.lazy":"Data will appear when you expand the card.","s247.err":"Could not load the data right now. Please try again in a moment.","s247.errp":"No current reading: {p}.","s247.k.brent":"Brent crude","s247.k.wti":"WTI crude","s247.k.gaz":"Natural gas","s247.k.zloto":"Gold","s247.k.srebro":"Silver","s247.k.miedz":"Copper","s247.h24":"24 h","s247.rg":"24 h range: {a} – {b}","s247.last":"last trade: {a}","s247.when":"reading: {a}","s247.h.rg":"Where the price sits in the last 24 hours range","s247.c.cm":"Commodity","s247.c.rg":"24 h range","s247.c.vol":"24 h turnover","s247.c.oi":"Open interest","s247.rg.aria":"The price is at {p}% of the last 24 hours range, counting from the low","s247.u.k":"k USD","s247.u.m":"m USD","s247.n.def":"The price is the settlement price of a perpetual contract (no expiry date). The 24 h change is the difference from the price a day earlier. Units: barrel (bbl), million Btu (MMBtu), ounce (oz), pound (lb).","s247.n.thin":"Turnover is small, so one large order can move the price. This is an indicative price, not a quote from a commodity exchange.","s247.not1":"This is not a quote from a commodity exchange or the price of the physical commodity — a perpetual contract can differ from it, especially when the regular market is closed.","s247.not2":"A price change over one day does not say where the price will go next.","s247.foot":"Contracts read about once an hour."}};
 for(const l in EXTRA304)if(I18N[l])Object.assign(I18N[l],EXTRA304[l]);
+/* v447 (F11Z35): waluty świata i koszt pieniądza — kursy walut, kurs centralny juana, gilty i inflacja oczekiwana (GLOBAL, karta #g-waluty) — pl i en */
+const EXTRA305={"pl":{"wl447.lazy":"Dane pojawią się po rozwinięciu karty.","wl447.err":"Nie udało się teraz pobrać danych. Spróbuj ponownie za chwilę.","wl447.errp":"Brak aktualnego odczytu: {p}.","wl447.dzien":"dane z {d}","wl447.vs":"wobec {d}","wl447.t":"Waluty świata i koszt pieniądza","wl447.sub":"Kursy walut wobec dolara, kurs centralny juana i koszt pożyczania w Wielkiej Brytanii: rentowności obligacji i inflacja oczekiwana.","wl447.p.fx":"kursy walut","wl447.p.yuan":"kurs centralny juana","wl447.p.gilty":"gilty i inflacja oczekiwana","wl447.h.fx":"Waluty wobec dolara","wl447.sub.fx":"Ile jednostek waluty kosztuje 1 dolar USA. Plus (zielony) znaczy, że waluta zyskała na wartości wobec dolara, minus (czerwony) — że straciła.","wl447.k.n":"Waluty w zestawieniu","wl447.s.main":"oprócz {n} głównych, które są w innych kartach","wl447.k.up":"Zyskały wobec dolara (miesiąc)","wl447.v.of":"{a} z {b}","wl447.s.dn":"{n} straciło, {m} bez zmian","wl447.k.med":"Typowa zmiana (mediana, miesiąc)","wl447.k.top":"Największy ruch (miesiąc)","wl447.h.up":"Najmocniej zyskały wobec dolara (miesiąc)","wl447.h.dn":"Najmocniej straciły wobec dolara (miesiąc)","wl447.all":"Wszystkie waluty z zestawienia ({n})","wl447.c.waluta":"Waluta","wl447.c.kurs":"Kurs","wl447.c.1t":"Tydzień","wl447.c.1m":"Miesiąc","wl447.c.1q":"Kwartał","wl447.c.1r":"Rok","wl447.c.data":"Data","wl447.n.fx":"Kurs pokazuje, ile jednostek waluty daje 1 dolar. W części krajów kurs ustala państwo — wtedy zmienia się skokami albo wcale. „—” oznacza brak danych z odpowiedniego dnia.","wl447.h.yuan":"Juan: kurs centralny i kurs rynkowy","wl447.sub.yuan":"Bank centralny Chin co dzień ustala kurs centralny juana. Obok jest cena juana na rynku poza Chinami.","wl447.k.fix":"Kurs centralny","wl447.k.mkt":"Kurs rynkowy (poza Chinami)","wl447.s.cny":"juanów za 1 dolar","wl447.k.gap":"Różnica: centralny wobec rynkowego","wl447.g.pos":"juan ustawiony słabiej niż na rynku","wl447.g.neg":"juan ustawiony mocniej niż na rynku","wl447.g.zero":"tak samo jak na rynku","wl447.k.avg":"Średnia różnica z {n} dni","wl447.s.rng":"od {a} do {b}","wl447.h.yuanch":"Kurs centralny i rynkowy juana w czasie","wl447.s.fix":"kurs centralny","wl447.s.mkt":"kurs rynkowy","wl447.ch.yuan":"Wykres: kurs centralny i kurs rynkowy juana, {n} dni roboczych","wl447.n.yuan":"Plus znaczy, że bank centralny ustawia juana słabiej niż rynek, minus — mocniej.","wl447.h.gilt":"Wielka Brytania: koszt pożyczania i inflacja oczekiwana","wl447.sub.gilt":"Rentowność gilta to roczny koszt pożyczki dla rządu Wielkiej Brytanii na 5, 10 albo 20 lat. Inflacja oczekiwana to wzrost cen, który rynek ma wbudowany w ceny obligacji.","wl447.h.nom":"Rentowność obligacji rządowych","wl447.h.inf":"Inflacja oczekiwana przez rynek","wl447.k.y":"{y} lat","wl447.pp":"p.p.","wl447.h.giltch":"Obligacje 10-letnie: rentowność, stopa realna i inflacja oczekiwana","wl447.s.nom":"rentowność","wl447.s.real":"stopa realna (bez inflacji)","wl447.s.inf":"inflacja oczekiwana","wl447.ch.gilt":"Wykres: rentowność 10-letnich obligacji, stopa realna i inflacja oczekiwana, {n} dni","wl447.n.gilt":"Stopa realna to rentowność pomniejszona o inflację oczekiwaną. To odczyt rynku, a nie prognoza banku centralnego.","wl447.foot":"Dane urzędowe i rynkowe, mogą być korygowane."},"en":{"wl447.lazy":"The data appear when the card is expanded.","wl447.err":"The data could not be loaded right now. Please try again in a moment.","wl447.errp":"No current reading: {p}.","wl447.dzien":"data from {d}","wl447.vs":"vs {d}","wl447.t":"World currencies and the cost of money","wl447.sub":"Exchange rates against the dollar, the yuan’s central rate and the cost of borrowing in the United Kingdom: bond yields and expected inflation.","wl447.p.fx":"exchange rates","wl447.p.yuan":"yuan central rate","wl447.p.gilty":"gilts and expected inflation","wl447.h.fx":"Currencies against the dollar","wl447.sub.fx":"How many units of a currency 1 US dollar buys. Plus (green) means the currency gained against the dollar, minus (red) that it lost.","wl447.k.n":"Currencies listed","wl447.s.main":"besides {n} major ones shown in other cards","wl447.k.up":"Gained against the dollar (month)","wl447.v.of":"{a} of {b}","wl447.s.dn":"{n} lost, {m} unchanged","wl447.k.med":"Typical change (median, month)","wl447.k.top":"Biggest move (month)","wl447.h.up":"Biggest gains against the dollar (month)","wl447.h.dn":"Biggest losses against the dollar (month)","wl447.all":"All listed currencies ({n})","wl447.c.waluta":"Currency","wl447.c.kurs":"Rate","wl447.c.1t":"Week","wl447.c.1m":"Month","wl447.c.1q":"Quarter","wl447.c.1r":"Year","wl447.c.data":"Date","wl447.n.fx":"The rate shows how many units of the currency 1 dollar buys. In some countries the state sets the rate, so it moves in jumps or not at all. “—” means there is no data for the matching day.","wl447.h.yuan":"Yuan: central rate and market rate","wl447.sub.yuan":"China’s central bank sets a central rate for the yuan every day. Next to it is the yuan’s price on the market outside China.","wl447.k.fix":"Central rate","wl447.k.mkt":"Market rate (outside China)","wl447.s.cny":"yuan per 1 dollar","wl447.k.gap":"Gap: central rate vs market rate","wl447.g.pos":"yuan set weaker than the market","wl447.g.neg":"yuan set stronger than the market","wl447.g.zero":"same as the market","wl447.k.avg":"Average gap over {n} days","wl447.s.rng":"from {a} to {b}","wl447.h.yuanch":"The yuan’s central and market rate over time","wl447.s.fix":"central rate","wl447.s.mkt":"market rate","wl447.ch.yuan":"Chart: the yuan’s central rate and market rate, {n} business days","wl447.n.yuan":"Plus means the central bank sets the yuan weaker than the market, minus means stronger.","wl447.h.gilt":"United Kingdom: borrowing costs and expected inflation","wl447.sub.gilt":"A gilt yield is the yearly cost of lending to the UK government for 5, 10 or 20 years. Expected inflation is the rise in prices that the market has built into bond prices.","wl447.h.nom":"Government bond yields","wl447.h.inf":"Inflation expected by the market","wl447.k.y":"{y} years","wl447.pp":"pp","wl447.h.giltch":"10-year bonds: yield, real rate and expected inflation","wl447.s.nom":"yield","wl447.s.real":"real rate (excluding inflation)","wl447.s.inf":"expected inflation","wl447.ch.gilt":"Chart: 10-year bond yield, real rate and expected inflation, {n} days","wl447.n.gilt":"The real rate is the yield minus expected inflation. It is a reading of the market, not a forecast by the central bank.","wl447.foot":"Official and market data, which may be revised."}};
+for(const l in EXTRA305)if(I18N[l])Object.assign(I18N[l],EXTRA305[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -19408,6 +19455,150 @@ SRV_GR['eth-lancuch']='c';SRV_LD.c.push(ethLoad);
 setInterval(()=>{if(!document.hidden)ethLoad();},10*60*1000);   /* plik co ~60 min — strona pyta co 10 min (wiek w kafelkach też się odświeża) */
 ethLoad();try{new MutationObserver(()=>renderEth()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
 /* v403: koniec */
+/* ===================== v447 (F11Z35): WALUTY ŚWIATA I KOSZT PIENIĄDZA — KURSY WIELU WALUT, KURS CENTRALNY JUANA, GILTY I INFLACJA OCZEKIWANA (GLOBAL) — panel #g-waluty (plik automatu data/waluty.json) =====================
+   Karta zwijana jak pozostałe w GLOBAL (silnik kart zw), po krzywych rentowności. Nagłówek widać od razu (karta pojawia się, gdy meta.json zna którąś część „waluty_*”); plik (kilkadziesiąt KB) jest pobierany dopiero
+   po rozwinięciu karty (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie; po wczytaniu odświeżany co 30 min przy rozwiniętej karcie). Trzy bloki, każdy z własną datą danych i wiekiem:
+   (1) waluty wobec dolara — tylko waluty spoza „głównych” (te mają kursy w innych kartach): cztery kafle (ile walut, ile zyskało w miesiąc, mediana, największy ruch), rankingi 8 największych wzrostów i spadków,
+       tabela wszystkich (tydzień, miesiąc, kwartał, rok; telefon: kartki z etykietami kolumn); zmiana = siła waluty wobec dolara (plus = waluta zyskała);
+   (2) juan — kurs centralny (ustalany codziennie przez bank centralny Chin) obok kursu rynkowego poza Chinami: trzy kafle (kurs centralny, rynkowy, różnica; średnia różnica) i wykres dwóch linii;
+   (3) Wielka Brytania — rentowności obligacji rządowych 5, 10 i 20 lat oraz inflacja oczekiwana przez rynek (sześć kafli ze zmianą od ok. tygodnia) i wykres 10-latek (nominalna, realna, inflacja).
+   Kolory zmian z POKAZANEJ liczby (plus zielony, minus czerwony, zero żółte); różnica juana to informacja (żółta); brak = „—”, nigdy zero; część starsza niż 4 doby znika. Nazw dostawców tu nie ma;
+   nazwy walut z przeglądarki (Intl) w języku strony, bez nich — sam kod. To nie jest porada inwestycyjna. Korzysta z narzędzi panelu stresu (strTile, strDay, strNum) i wykresów (wkLines, wkMs, wkDay). */
+const WLT={j:null,l:false,x:false,t:0,e:0,on:false,mo:false};
+const WLT_PARTS=['fx','yuan','gilty'],WLT_OLD=4*864e5,WLT_TOP=8,WLT_D=/^\d{4}-\d{2}-\d{2}$/,WLT_K=/^[A-Z]{3}$/;
+const WLT_FL={EUR:'eu',ANG:'',XAF:'',XOF:'',XCD:'',XPF:'',XCG:''},WLT_NM={};
+const wlObj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const wlDay=s=>typeof s==='string'&&WLT_D.test(s)&&isFinite(Date.parse(s+'T12:00:00Z'))&&new Date(Date.parse(s+'T12:00:00Z')).toISOString().slice(0,10)===s;
+const wlFl=c=>{if(typeof flagImg!=='function')return '';const k=WLT_FL[c]!==undefined?WLT_FL[c]:String(c).slice(0,2);return k?flagImg(k,'sm'):'';};
+const wlWhen=d=>t('wl447.dzien',{d:strDay(d)})+gAgeNote(d);
+const wlPos=(x,n)=>Array.isArray(x)&&x.length===n;
+/* nazwa waluty w języku strony (przeglądarka); brak albo to samo co kod = pusto; pierwsza litera wielka */
+function wlName(c){
+  const k=LANG+c;if(WLT_NM[k]!==undefined)return WLT_NM[k];
+  let n='';try{n=new Intl.DisplayNames([LOCALE[LANG]||LANG],{type:'currency'}).of(c)||'';}catch(e){n='';}
+  n=!n||n===c?'':n.charAt(0).toLocaleUpperCase(LOCALE[LANG]||LANG)+n.slice(1);WLT_NM[k]=n;return n;
+}
+/* kurs: 4–5 cyfr znaczących (waluty od kilku do milionów za dolar) */
+const wlKurs=v=>!strNum(v)?'—':nfmt(v,v>=1000?0:v>=100?2:v>=10?3:v>=1?4:5);
+/* zmiana w % z POKAZANEJ liczby (2 miejsca): plus zielony, minus czerwony, zero żółte, brak „—” */
+function wlPct(v){
+  if(!strNum(v))return {txt:'—',cls:'na'};
+  const r=Math.round(v*100)/100;if(!r)return {txt:nfmt(0,2)+'%',cls:'neu'};
+  return {txt:(r>0?'+':'−')+nfmt(Math.abs(r),2)+'%',cls:r>0?'pos':'neg'};
+}
+/* zmiana ze strzałką (kafle): dec miejsc, suf jednostka, lab dopisek */
+function wlD(v,dec,suf,lab){
+  const L=lab?' '+lab:'';if(!strNum(v))return {txt:'—'+L,cls:'na'};
+  const r=Math.round(v*10**dec)/10**dec;if(!r)return {txt:'• '+nfmt(0,dec)+suf+L,cls:'neu'};
+  return {txt:(r>0?'▲ +':'▼ −')+nfmt(Math.abs(r),dec)+suf+L,cls:r>0?'pos':'neg'};
+}
+const wlMed=a=>{if(!a.length)return null;const s=a.slice().sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;};
+/* ---------- poprawność części pliku ---------- */
+function wlFxRow(r){return wlPos(r,7)&&typeof r[0]==='string'&&WLT_K.test(r[0])&&strNum(r[1])&&r[1]>0&&wlDay(r[2])&&r.slice(3).every(x=>x===null||strNum(x));}
+function wlPart(j,k){
+  const P=wlObj(j)?j[k]:null;if(!wlObj(P)||typeof P.t!=='string'||!wlDay(P.asof))return null;
+  const a=Date.now()-Date.parse(P.t);if(!isFinite(a)||a>WLT_OLD||a<-6e5)return null;
+  if(k==='fx'){
+    const rows=(Array.isArray(P.wiersze)?P.wiersze:[]).filter(wlFxRow);if(!rows.length)return null;
+    const main=new Set((Array.isArray(P.glowne)?P.glowne:[]).filter(x=>typeof x==='string'));
+    const ref=wlObj(P.ref)?P.ref:{};
+    return {P,rows,main,ref,ex:rows.filter(r=>!main.has(r[0]))};
+  }
+  const H=(Array.isArray(P.hist)?P.hist:[]).filter(r=>wlPos(r,k==='yuan'?3:10)&&wlDay(r[0])&&r.slice(1).every(x=>strNum(x)&&(k==='yuan'?x>0:true))).sort((x,y)=>x[0]<y[0]?-1:x[0]>y[0]?1:0);
+  return H.length>=2?{P,H}:null;
+}
+function wlOk(j){return !!(wlObj(j)&&j.v===1&&typeof j.at==='string'&&isFinite(Date.parse(j.at))&&WLT_PARTS.some(k=>wlPart(j,k)));}
+/* ---------- blok 1: waluty wobec dolara ---------- */
+function wlFxTiles(Q){
+  const ex=Q.ex,m1=ex.filter(r=>strNum(r[4])),w=wlWhen(Q.P.asof),sg=v=>Math.round(v*100)/100;
+  const up=m1.filter(r=>sg(r[4])>0).length,dn=m1.filter(r=>sg(r[4])<0).length,fl=m1.length-up-dn,med=wlMed(m1.map(r=>r[4]));
+  const top=m1.reduce((a,r)=>!a||Math.abs(r[4])>Math.abs(a[4])?r:a,null);
+  const vs=Q.ref['1M']&&wlDay(Q.ref['1M'])?t('wl447.vs',{d:strDay(Q.ref['1M'])}):'',mp=wlPct(med),ico=icoWrap(wlFl('USD'));
+  return strTile(ico,t('wl447.k.n'),nfmt(ex.length,0),[{txt:t('wl447.s.main',{n:nfmt(Q.rows.length-ex.length,0)}),cls:'pc'}],w)
+    +strTile(ico,t('wl447.k.up'),m1.length?t('wl447.v.of',{a:nfmt(up,0),b:nfmt(m1.length,0)}):'—',[{txt:m1.length?t('wl447.s.dn',{n:nfmt(dn,0),m:nfmt(fl,0)}):'—',cls:m1.length?'pc':'na'},{txt:vs,cls:'pc'}],w)
+    +strTile(ico,t('wl447.k.med'),m1.length?`<span class="${mp.cls}">${mp.txt}</span>`:'—',[{txt:vs||'—',cls:vs?'pc':'na'}],w)
+    +strTile(ico,t('wl447.k.top'),top?escH(top[0]):'—',top?[wlPct(top[4]),{txt:escH(wlName(top[0]))+(wlName(top[0])&&vs?' · ':'')+vs,cls:'pc'}]:[{txt:'—',cls:'na'}],w);
+}
+function wlFxMov(Q,up){
+  const L=Q.ex.filter(r=>strNum(r[4])&&(up?Math.round(r[4]*100)>0:Math.round(r[4]*100)<0)).sort((a,b)=>up?b[4]-a[4]:a[4]-b[4]).slice(0,WLT_TOP);
+  if(!L.length)return '';
+  const mx=Math.max(...L.map(r=>Math.abs(r[4])));
+  return `<div class="gx-h"><b>${t(up?'wl447.h.up':'wl447.h.dn')}</b></div><div class="gxs">`
+    +L.map(r=>{const nm=wlName(r[0]),p=wlPct(r[4]);return gxShare(`${wlFl(r[0])}${escH(nm?nm+' · '+r[0]:r[0])}`,Math.abs(r[4])/mx*100,`<span class="${p.cls}">${p.txt}</span> · ${wlKurs(r[1])}`,up?'up':'dn');}).join('')+`</div>`;
+}
+function wlFxRowH(r){
+  const nm=wlName(r[0]),c=[[t('wl447.c.kurs'),{txt:wlKurs(r[1]),cls:''}],[t('wl447.c.1t'),wlPct(r[3])],[t('wl447.c.1m'),wlPct(r[4])],[t('wl447.c.1q'),wlPct(r[5])],[t('wl447.c.1r'),wlPct(r[6])],[t('wl447.c.data'),{txt:escH(strDay(r[2])),cls:''}]];
+  return `<div class="wl-r"><span class="wl-n">${wlFl(r[0])}<b>${escH(r[0])}</b><small>${escH(nm)}</small></span>${c.map(x=>`<span class="wl-c ${x[1].cls}" data-l="${escH(x[0])}">${x[1].txt}</span>`).join('')}</div>`;
+}
+function wlFxTable(Q){
+  const R=Q.ex.slice().sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
+  return `<details class="etfd" id="wl-all"><summary>${t('wl447.all',{n:nfmt(R.length,0)})}</summary><div class="wl-g"><div class="wl-r wl-hd"><span>${t('wl447.c.waluta')}</span><span>${t('wl447.c.kurs')}</span><span>${t('wl447.c.1t')}</span><span>${t('wl447.c.1m')}</span><span>${t('wl447.c.1q')}</span><span>${t('wl447.c.1r')}</span><span>${t('wl447.c.data')}</span></div>${R.map(wlFxRowH).join('')}</div></details>`;
+}
+function wlFxBlock(Q){
+  if(!Q.ex.length)return '';
+  return `<div class="gx-h"><b>${icoWrap(wlFl('USD'))}${t('wl447.h.fx')}</b></div><p class="pnote">${t('wl447.sub.fx')}</p><div class="etfkpis">${wlFxTiles(Q)}</div>`+wlFxMov(Q,true)+wlFxMov(Q,false)+wlFxTable(Q)+`<p class="pnote">${t('wl447.n.fx')}</p>`;
+}
+/* ---------- blok 2: juan ---------- */
+function wlYuanBlock(Q){
+  const H=Q.H,n=H.length,L=H[n-1],gap=r=>(r[1]/r[2]-1)*100,g=gap(L),w=wlWhen(Q.P.asof),ico=icoWrap(wlFl('CNY'));
+  const last=H.slice(-30),avg=last.reduce((a,r)=>a+gap(r),0)/last.length,gs=last.map(gap),gp=wlPct(g),ap=wlPct(avg);
+  const info=p=>p.cls==='na'?p:{txt:p.txt,cls:'neu'};
+  const word=Math.round(g*100)>0?'wl447.g.pos':Math.round(g*100)<0?'wl447.g.neg':'wl447.g.zero';
+  const S=(i,cls,tk)=>({n:t(tk),cls,d:H.map(r=>[wkMs(r[0]),r[i]])});
+  return `<div class="gx-h"><b>${ico}${t('wl447.h.yuan')}</b></div><p class="pnote">${t('wl447.sub.yuan')}</p><div class="etfkpis">`
+    +strTile(ico,t('wl447.k.fix'),wlKurs(L[1]),[{txt:t('wl447.s.cny'),cls:'pc'}],w)
+    +strTile(ico,t('wl447.k.mkt'),wlKurs(L[2]),[{txt:t('wl447.s.cny'),cls:'pc'}],w)
+    +strTile(ico,t('wl447.k.gap'),`<span class="${info(gp).cls}">${gp.txt}</span>`,[{txt:t(word),cls:'pc'}],w)
+    +strTile(ico,t('wl447.k.avg',{n:nfmt(last.length,0)}),`<span class="${info(ap).cls}">${ap.txt}</span>`,[{txt:t('wl447.s.rng',{a:wlPct(Math.min(...gs)).txt,b:wlPct(Math.max(...gs)).txt}),cls:'pc'}],w)
+    +`</div><div class="gx-h"><b>${t('wl447.h.yuanch')}</b></div>`
+    +wkLines([S(1,'s1','wl447.s.fix'),S(2,'s2','wl447.s.mkt')],{aria:t('wl447.ch.yuan',{n:nfmt(n,0)}),fmt:v=>nfmt(v,4),dt:ms=>wkDay(ms,1),dx:ms=>wkDay(ms,1),zero:false})
+    +`<p class="pnote">${t('wl447.n.yuan')}</p>`;
+}
+/* ---------- blok 3: gilty ---------- */
+/* wiersz sprzed ok. tygodnia (ostatni dzień ≤ dzień danych − 7 dób) albo null */
+function wlRefRow(H){
+  const e=Date.parse(H[H.length-1][0]+'T12:00:00Z')-7*864e5;let r=null;
+  for(const x of H){if(Date.parse(x[0]+'T12:00:00Z')<=e)r=x;else break;}
+  return r;
+}
+function wlGiltyBlock(Q){
+  const H=Q.H,L=H[H.length-1],R=wlRefRow(H),w=wlWhen(Q.P.asof),ico=icoWrap(wlFl('GBR')),vs=R?t('wl447.vs',{d:strDay(R[0])}):'';
+  const tile=(i,lab)=>strTile(ico,lab,nfmt(L[i],2)+'%',[R?wlD(L[i]-R[i],2,' '+t('wl447.pp'),vs):{txt:'—',cls:'na'}],w);
+  const Y=[5,10,20],S=(i,cls,tk)=>({n:t(tk),cls,d:H.map(r=>[wkMs(r[0]),r[i]])});
+  return `<div class="gx-h"><b>${ico}${t('wl447.h.gilt')}</b></div><p class="pnote">${t('wl447.sub.gilt')}</p>`
+    +`<div class="gx-h"><b>${t('wl447.h.nom')}</b></div><div class="etfkpis wl-k3">${Y.map((y,i)=>tile(1+i,t('wl447.k.y',{y}))).join('')}</div>`
+    +`<div class="gx-h"><b>${t('wl447.h.inf')}</b></div><div class="etfkpis wl-k3">${Y.map((y,i)=>tile(7+i,t('wl447.k.y',{y}))).join('')}</div>`
+    +`<div class="gx-h"><b>${t('wl447.h.giltch')}</b></div>`
+    +wkLines([S(2,'s1','wl447.s.nom'),S(5,'s2','wl447.s.real'),S(8,'s3','wl447.s.inf')],{aria:t('wl447.ch.gilt',{n:nfmt(H.length,0)}),fmt:v=>nfmt(v,2)+'%',dt:ms=>wkDay(ms,1),dx:ms=>wkDay(ms,1),zero:false})
+    +`<p class="pnote">${t('wl447.n.gilt')}</p>`;
+}
+function wlBody(){const J=WLT.j;
+  if(!J)return `<p class="pnote">${t(WLT.x?'wl447.err':'wl447.lazy')}</p>`;
+  const Q={};WLT_PARTS.forEach(k=>{Q[k]=wlPart(J,k);});
+  const bad=WLT_PARTS.filter(k=>!Q[k]&&wlObj(J.ok)&&J.ok[k]===false);
+  return (Q.fx?wlFxBlock(Q.fx):'')+(Q.yuan?wlYuanBlock(Q.yuan):'')+(Q.gilty?wlGiltyBlock(Q.gilty):'')
+    +(bad.length?`<p class="pnote neu">${t('wl447.errp',{p:bad.map(k=>t('wl447.p.'+k)).join(', ')})}</p>`:'')
+    +`<p class="pfoot">${t('inst.file',{t:engDate(J.at)})} · ${t('wl447.foot')} ${t('eng.disclaimer')}</p>`;}
+/* karta rozwinięta: silnik kart zwijanych ma klasę zw-on, a nie zw */
+function wlOpen(el){return !!(el&&el.classList&&el.classList.contains('zw-on')&&!el.classList.contains('zw'));}
+function renderWlt(){const el=$('#g-waluty');if(!el)return;
+  if(!WLT.on){el.hidden=true;el.innerHTML='';return;}
+  const open=typeof el.querySelectorAll==='function'?[...el.querySelectorAll('details')].map(x=>[x.id,!!x.open]).filter(x=>x[0]):[];
+  const ico=icoWrap(wlFl('USD')+wlFl('CNY')+wlFl('GBR'));
+  el.innerHTML=`<div class="etfh"><div><h2>${ico}${t('wl447.t')}</h2><p class="pnote">${t('wl447.sub')}</p></div></div>${wlBody()}`;
+  open.forEach(([id,o])=>{const x=el.querySelector('#'+id);if(x)x.open=o;});
+  el.hidden=false;
+  if(!WLT.mo&&typeof MutationObserver==='function'){WLT.mo=true;try{new MutationObserver(()=>{if(wlOpen(el))wlLoad();}).observe(el,{attributes:true,attributeFilter:['class']});}catch(e){}}   /* rozwinięcie karty (klasa) = pobranie */
+  if(wlOpen(el))wlLoad();}
+/* pobranie pliku: jedno naraz; chwilowy błąd nie zasłania wczytanych danych; po błędzie najwcześniej po minucie; f = odświeżenie wymuszone zegarem */
+function wlLoad(f){if(WLT.l)return;const n=Date.now();if(WLT.j&&!f&&n-WLT.t<10*60e3)return;if(!WLT.j&&n-WLT.e<60e3)return;WLT.l=true;
+  srvJSON('waluty').then(j=>{
+    if(!wlOk(j)){WLT.l=false;WLT.e=Date.now();if(!WLT.j)WLT.x=true;renderWlt();return;}
+    WLT.l=false;WLT.j=j;WLT.x=false;WLT.t=Date.now();WLT.on=true;renderWlt();});}
+srvJSON('meta').then(m=>{WLT.on=!!(m&&typeof m==='object'&&m.ok&&typeof m.ok==='object'&&WLT_PARTS.some(k=>Object.prototype.hasOwnProperty.call(m.ok,'waluty_'+k)));renderWlt();});
+setInterval(()=>{if(!document.hidden&&WLT.j&&wlOpen($('#g-waluty')))wlLoad(1);},30*60*1000);
+try{new MutationObserver(()=>renderWlt()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
+/* ---------- koniec bloku waluty świata (v447) ---------- */
 /* ===================== v445 (F11Z31): USA — PAKIET MAŁYCH: HIPOTEKI, ZADŁUŻENIE GOSPODARSTW, NIEPEWNOŚĆ HANDLOWA, PRZEWOZY (GLOBAL) — panel #g-uspak (plik automatu data/usa-pakiet.json) =====================
    Karta zwijana jak pozostałe w GLOBAL (silnik kart zw). Nagłówek i opis widać od razu (karta pojawia się, gdy meta.json zna którąś część „usp_*”); plik (kilkanaście KB) jest pobierany dopiero po rozwinięciu karty
    (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie; po wczytaniu odświeżany co 30 min przy rozwiniętej karcie). Cztery bloki, każdy z własną datą danych i wiekiem:
