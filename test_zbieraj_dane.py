@@ -55679,7 +55679,7 @@ class V379pSondaF11(unittest.TestCase):
         S = self._S()
         names = [g.__name__ for g in S.GROUPS]
         f = tuple(n for n in names if n.startswith('g_f11_'))
-        self.assertEqual(len(f), 15); self.assertEqual(f, S.F11_TYLKO); self.assertEqual(S.TYLKO, S.F11_TYLKO, 'ten przebieg: tylko sonda F11S1')
+        self.assertEqual(len(f), 15); self.assertEqual(f, S.F11_TYLKO); self.assertTrue(S.TYLKO and all(any(g.__name__ == n for g in S.GROUPS) for n in S.TYLKO), 'TYLKO = istniejące grupy (zmienia się co sondę; v483p: Banxico)')
         self.assertIs(S.GROUPS[-1], S.g_nasdaq); self.assertEqual(len(set(names)), len(names), 'każda grupa raz')
         self.assertEqual([g.__name__ for g in S.F11_GRUPY], list(S.F11_TYLKO))
         self.assertEqual(len(S.F11_ADRESY), 109)

@@ -3139,7 +3139,7 @@ for _g in F11_GRUPY:
     GROUPS.insert(GROUPS.index(g_nasdaq), _g)       # g_nasdaq zostaje ostatnia (test v127)
 F11_TYLKO = tuple(g.__name__ for g in F11_GRUPY)     # w sondy.py: TYLKO = F11_TYLKO — przebieg tylko tej sondy
 
-TYLKO = F11_TYLKO   # v379p: ten przebieg — tylko sonda F11S1 (v324p: PZ_TYLKO; v294p: g_su_*; v288p: g_jse2; v272p: g_ix_fmp, g_ix_massive; pusta krotka = wszystkie)
+TYLKO = ('g_banxico',)   # v483p (19.10): sprawdzenie nowego BANXICO_TOKEN właściciela — tylko sonda Banxico. Wcześniej v379p: F11_TYLKO; ten przebieg — tylko sonda F11S1 (v324p: PZ_TYLKO; v294p: g_su_*; v288p: g_jse2; v272p: g_ix_fmp, g_ix_massive; pusta krotka = wszystkie)
 
 
 # --------------------------------------------------------------------------- main
