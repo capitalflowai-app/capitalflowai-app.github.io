@@ -30635,7 +30635,7 @@ test('v403: języki — en, de, ja: jednostki, etykiety i brak polskich resztek 
   const E = l403.mk('en', l403.file()); E.api.renderEth(); const h = l403h(E), Tl = l403tiles(E.api.ewQueue().html);
   assert.equal(Tl[0].label, 'Waiting to enter staking'); assert.equal(Tl[0].val, '1.28 m ETH'); assert.equal(Tl[1].val, '270 k ETH'); assert.ok(Tl[0].subs[0].startsWith('time in queue: ~22 d (estimate)'));
   assert.ok(h.includes('Ethereum: staking, supply and layer-2 networks') && h.includes('Data for ' + new Date(Date.parse('2026-10-16T12:00:00Z')).toLocaleDateString('en-US', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'})));
-  assert.ok(!/Czeka|sieci|Podaż|Stan z/.test(h), 'brak polskich resztek'); assert.equal(l403tiles(E.api.ewL2().html)[4].val, '39.2 bn USD');
+  assert.ok(!/Czeka|sieci|Podaż|Stan z/.test(h), 'brak polskich resztek'); assert.equal(l403tiles(E.api.ewL2().html)[4].val, '39.2 B USD');
 });
 
 test('v403: słownik — 10 języków, te same klucze i pola, wszystkie użyte klucze istnieją, brak martwych, bez nazw dostawców; teksty o kolejkach nie są poradą', () => {
@@ -37453,4 +37453,13 @@ test('v492: Skarbce spolek — udzial BTC wobec 21 mln BTC (podaz maksymalna): o
     assert.ok(h.indexOf(zd) > h.indexOf('kf-g') && h.indexOf(zd) < h.indexOf(D[L]['kf422.h.eth']), L + ': zdanie po tabeli BTC, przed częścią ETH');
     assert.ok(!/undefined|NaN|\[object|kf422\./.test(tx), L + ': pola');
   }
+});
+
+
+test('v493: EN — jedna jednostka miliardów („B”) w panelach dźwigni i Ethereum, polski bez zmian', () => {
+  const I = g126I18N();
+  const want = {'lev.u.mld': 'B USD', 'eth403.u.b': 'B', 'em457.u.usd': 'B USD', 'iw401.u.mldusd': 'B USD'};
+  for (const [k, v] of Object.entries(want)) assert.equal(I.en[k], v, 'EN ' + k);
+  assert.equal(I.pl['lev.u.mld'], 'mld USD'); assert.equal(I.pl['eth403.u.b'], 'mld');
+  assert.equal(I.en['u.b'], 'B USD', 'słownik bazowy bez zmian');
 });
