@@ -33194,6 +33194,8 @@ def main():
     META['ok']['skarbce_btc'], META['ok']['skarbce_eth'], META['ok']['skarbce_sec'] = kf_czesc(cg_key, sec_contact)
     # v430 (F11Z29): ropa świata — bilans krajów (wydobycie, przerób, handel, zapasy) i zapasy ropy i paliw w Europie — data/ropa-swiat.json; bez kluczy, części raz na ~dobę, duże pliki roczne tylko po zmianie
     META['ok']['ropa_kr'], META['ok']['ropa_eu'] = rop_czesc()
+    # v452 (F11Z32): złoto w handlu Wielkiej Brytanii (import i eksport wg miesięcy i krajów) — data/zloto-uk.json; bez klucza, dwa zapytania raz na ~dobę (po błędzie co 3 h)
+    META['ok']['zloto_uk'] = hmrc_czesc()
     # v445 (F11Z31): USA — pakiet małych (zadłużenie gospodarstw, stopy hipoteczne, niepewność handlowa, przewozy) — data/usa-pakiet.json; bez kluczy, części co 6 h (pm, tp) i 12 h (hh, ts)
     META['ok']['usp_hh'], META['ok']['usp_pm'], META['ok']['usp_tp'], META['ok']['usp_ts'] = up_czesc()
     # v429 (F11Z28): krótka sprzedaż w Europie (pozycje netto w spółkach w Wielkiej Brytanii i w Szwecji) — data/short-eu.json; bez klucza, dwie części raz na ~6 h (po błędzie co 1 h)
@@ -48379,6 +48381,196 @@ def wal_czesc():
 
 
 ZRODLA_META.update({'waluty_fx': 'frankfurter', 'waluty_yuan': 'frankfurter', 'waluty_gilty': 'bank-anglii'})   # v447: zbiorczy interfejs kursów (+1 źródło); bank centralny Wielkiej Brytanii już liczony (kalendarz)
+
+
+# ===================== v452 (F11Z32): ZŁOTO W HANDLU WIELKIEJ BRYTANII — IMPORT I EKSPORT WG MIESIĘCY I KRAJÓW (data/zloto-uk.json) =====================
+# Jedno źródło: publiczny interfejs statystyk handlu zagranicznego brytyjskiego urzędu skarbowo-celnego (bez klucza i konta, licencja otwartych danych rządu). Towar: kody celne z przedziału 71081100–71081399 (w praktyce 71081100, 71081200, 71081310 i 71081380) —
+# złoto niemonetarne: w proszku, nieobrobione (71081200) i półprodukty, w tym sztabki londyńskiego rynku (71081310 niesie prawie cały obrót: sierpień 2026 import 17,5 z 17,6 mld £; sam kod 71081200 to ok. 0,4%). Złoto monetarne (71082000), monety i biżuteria nie wchodzą. Cztery strumienie urzędu (import i eksport z krajami Unii oraz spoza Unii) scalamy w dwa: import i eksport.
+# Dwa zapytania raz na ~dobę (druga lista to słownik krajów): towar od okresu sprzed ~27 miesięcy, ok. 4300 wierszy (miesiąc × kod × kraj × port; 19.10.2026: ok. 0,8 MB). Interfejs odrzuca zapytania z sortowaniem (403 „niedozwolona
+# operacja”) — używamy wyłącznie filtru; 403 przy dozwolonym zapytaniu = koniec próby (bez obchodzenia: plik zostaje poprzedni, błąd w META).
+# Wartości w funtach (mln), masa w tonach (urząd podaje kilogramy). Miesiąc w pliku = miesiąc, który urząd opublikował w komplecie (co najmniej HMRC_MIN_MIES wierszy); miesiąc bez żadnego wiersza
+# w całym zestawieniu = brak (null), a kierunek bez wierszy w miesiącu pełnym = 0 (urząd nie odnotował obrotu). Urząd publikuje miesiąc M około 6–8 tygodni po jego końcu.
+# W pliku: 24 miesiące (import i eksport: wartość w, masa m) i ranking krajów z ostatnich 12 miesięcy (8 dostawców, 6 odbiorców): wartość z 12 miesięcy, masa, wartość z poprzednich 12 miesięcy
+# i wartość z ostatniego miesiąca. Kraje bez kodu dwuliterowego (poufne, zbiorcze grupy) i kody zbiorcze urzędu (zaopatrzenie statków i samolotów, szacunki) nie trafiają do rankingu — zostają w sumie.
+HMRC_V = 1
+HMRC_CN = (71081100, 71081399)   # przedział kodów celnych złota niemonetarnego (ten sam co w zapytaniu): proszek, nieobrobione, półprodukty (w tym sztabki londyńskie)
+HMRC_URL = 'https://api.uktradeinfo.com/OTS?$filter=CommodityId%20ge%2071081100%20and%20CommodityId%20le%2071081399%20and%20MonthId%20ge%20{od}'
+HMRC_KRAJE_URL = 'https://api.uktradeinfo.com/Country'
+HMRC_CO_H = 22            # h — sprawdzenie raz na ~dobę
+HMRC_BLAD_H = 3           # h — po błędzie ponowienie nie częściej niż co tyle
+HMRC_SLEEP = 2.0          # s — odstęp przed każdym zapytaniem
+HMRC_TIMEOUT = 60         # s — limit jednego odczytu z gniazda
+HMRC_MAX_B = 8_000_000    # bajtów — większa odpowiedź = błąd (19.10.2026: ok. 0,8 MB)
+HMRC_OKNO = 24            # miesięcy w pliku
+HMRC_WSTECZ = 27          # miesięcy wstecz od teraz w zapytaniu (zapas na opóźnienie publikacji)
+HMRC_MIN_WIERSZE = 100    # tyle wierszy w odpowiedzi, mniej = zły odczyt (19.10.2026: ok. 4300 w 26 miesiącach)
+HMRC_MIN_MIES = 5         # tyle wierszy miesiąca, by uznać go za pełny (19.10.2026: najmniej 150 przy czterech kodach)
+HMRC_MIN_KRAJE = 100      # tyle pozycji w słowniku krajów (18.10.2026: 263)
+HMRC_MIN_MIES_DANYCH = 18  # tyle z 24 miesięcy z danymi, mniej = zły odczyt
+HMRC_TOP = {'imp': 8, 'exp': 6}
+HMRC_ZAKRES_W = (0.0, 1e11)   # funtów w jednym wierszu (19.10.2026: największy wiersz 9,8 mld £ — sztabki londyńskie)
+HMRC_ZAKRES_KG = (0.0, 5e6)   # kilogramów w jednym wierszu (19.10.2026: największy 106 t)
+HMRC_ZBIORCZE = frozenset({'QQ', 'QR', 'QS', 'QU', 'QV', 'QW', 'QX', 'QY', 'QZ', 'XO', 'XA', 'XR'})   # kody zbiorcze urzędu (zaopatrzenie, szacunki, grupy), nie kraje
+HMRC_SRC = 'miesięczne statystyki handlu zagranicznego Wielkiej Brytanii: złoto niemonetarne (nieobrobione, w proszku, półprodukty i sztabki), import i eksport wg krajów'
+_HM_MIES = re.compile(r'^(20\d{2})(0[1-9]|1[0-2])$')
+_HM_ALFA = re.compile(r'^[A-Z]{2}$')
+
+
+def hmrc_get(url):
+    """Jedyne miejsce sieci części zloto-uk (testy je łatają): GET z identyfikatorem zbieracza, odstępem, limitem rozmiaru → obiekt JSON. Błąd HTTP (także 403) = wyjątek."""
+    time.sleep(HMRC_SLEEP)
+    with _otworz(url, None, HMRC_TIMEOUT) as r:
+        b = r.read(HMRC_MAX_B + 1)
+    if len(b) > HMRC_MAX_B:
+        raise RuntimeError('odpowiedź większa niż limit')
+    return json.loads(b.decode('utf-8'))
+
+
+def hmrc_liczba(v, zakres):
+    """Liczba skończona z przedziału albo None (tekst, wartość logiczna, NaN i poza zakresem = brak)."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    x = float(v)
+    return x if _etf_math.isfinite(x) and zakres[0] <= x <= zakres[1] else None
+
+
+def hmrc_kraje(j):
+    """Słownik krajów urzędu → {CountryId: kod dwuliterowy}; poufne, zbiorcze grupy i kody zbiorcze pomijamy."""
+    rows = j.get('value') if isinstance(j, dict) else None
+    if not isinstance(rows, list) or len(rows) < HMRC_MIN_KRAJE:
+        raise RuntimeError('słownik krajów za krótki albo zły')
+    out = {}
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        cid, a = r.get('CountryId'), r.get('CountryCodeAlpha')
+        if isinstance(cid, int) and not isinstance(cid, bool) and isinstance(a, str) and _HM_ALFA.match(a.strip()) and a.strip() not in HMRC_ZBIORCZE:
+            out[cid] = a.strip()
+    if out.get(4) != 'DE' or out.get(39) != 'CH':
+        raise RuntimeError('słownik krajów bez Niemiec i Szwajcarii — zły odczyt')
+    return out
+
+
+def hmrc_mies_str(ms):
+    """'202608' → '2026-08'."""
+    return ms[:4] + '-' + ms[4:]
+
+
+def hmrc_zloz(j, kraje, teraz):
+    """Odpowiedź OTS + słownik krajów → plik data/zloto-uk.json (bez pól czasu stanu). Błąd = wyjątek (plik zostaje poprzedni)."""
+    if not isinstance(j, dict) or not isinstance(j.get('value'), list):
+        raise RuntimeError('brak listy wierszy')
+    if j.get('@odata.nextLink'):
+        raise RuntimeError('odpowiedź podzielona na strony — zestawienie niepełne')
+    rows = j['value']
+    if len(rows) < HMRC_MIN_WIERSZE:
+        raise RuntimeError(f'za mało wierszy ({len(rows)})')
+    suma, licz, kr, pomin = {}, {}, {}, 0
+    for r in rows:
+        if not isinstance(r, dict):
+            pomin += 1; continue
+        ms = str(r.get('MonthId')) if isinstance(r.get('MonthId'), int) and not isinstance(r.get('MonthId'), bool) else ''
+        ft = r.get('FlowTypeId')
+        kier = 'imp' if ft in (1, 3) else 'exp' if ft in (2, 4) else None
+        w, kg = hmrc_liczba(r.get('Value'), HMRC_ZAKRES_W), hmrc_liczba(r.get('NetMass'), HMRC_ZAKRES_KG)
+        if not isinstance(r.get('CommodityId'), int) or not HMRC_CN[0] <= r['CommodityId'] <= HMRC_CN[1] or not _HM_MIES.match(ms) or kier is None or w is None or kg is None or r.get('SuppressionIndex') not in (0, None):
+            pomin += 1; continue
+        a = suma.setdefault((kier, ms), [0.0, 0.0])
+        a[0] += w; a[1] += kg
+        licz[ms] = licz.get(ms, 0) + 1
+        al = kraje.get(r.get('CountryId'))
+        if al:
+            b = kr.setdefault((kier, al), {}).setdefault(ms, [0.0, 0.0])
+            b[0] += w; b[1] += kg
+    if pomin * 20 > len(rows):
+        raise RuntimeError(f'pominięto {pomin} z {len(rows)} wierszy (zły format)')
+    pelne = sorted(m for m, n in licz.items() if n >= HMRC_MIN_MIES and ('imp', m) in suma)
+    if not pelne:
+        raise RuntimeError('brak pełnego miesiąca')
+    okres = pelne[-1]
+    d = _ix_dt(teraz)
+    if d is not None and hmrc_mies_str(okres) > '%04d-%02d' % (d.year, d.month):
+        raise RuntimeError('miesiąc danych z przyszłości')
+    k0 = int(okres[:4]) * 12 + int(okres[4:]) - 1
+    lista = ['%04d%02d' % ((k0 - HMRC_OKNO + 1 + i) // 12, (k0 - HMRC_OKNO + 1 + i) % 12 + 1) for i in range(HMRC_OKNO)]
+    if sum(1 for m in lista if m in pelne) < HMRC_MIN_MIES_DANYCH:
+        raise RuntimeError('za mało miesięcy z danymi')
+
+    def seria(kier, nr, dz, dec):
+        # miesiąc pełny, kierunek bez wierszy = 0 (nie odnotowano obrotu); miesiąc bez wierszy w ogóle = brak
+        return [round(suma.get((kier, m), [0.0, 0.0])[nr] / dz, dec) if m in pelne else None for m in lista]
+
+    out = {'v': HMRC_V, 'src': HMRC_SRC, 'okres': hmrc_mies_str(okres), 'mies': [hmrc_mies_str(m) for m in lista],
+           'imp': {'w': seria('imp', 0, 1e6, 3), 'm': seria('imp', 1, 1e3, 3)}, 'exp': {'w': seria('exp', 0, 1e6, 3), 'm': seria('exp', 1, 1e3, 3)},
+           'kraje': {}, 'pomin': pomin}
+    ost12, pop12 = lista[-12:], lista[-24:-12]
+    for kier in ('imp', 'exp'):
+        L = []
+        for (kk, al), po_m in kr.items():
+            if kk != kier:
+                continue
+            w12 = sum(po_m.get(m, [0.0, 0.0])[0] for m in ost12 if m in pelne)
+            if w12 <= 0:
+                continue
+            L.append({'k': al, 'w12': round(w12 / 1e6, 3), 'm12': round(sum(po_m.get(m, [0.0, 0.0])[1] for m in ost12 if m in pelne) / 1e3, 3),
+                      'wp': round(sum(po_m.get(m, [0.0, 0.0])[0] for m in pop12 if m in pelne) / 1e6, 3),
+                      'wl': round(po_m.get(okres, [0.0, 0.0])[0] / 1e6, 3), 'ml': round(po_m.get(okres, [0.0, 0.0])[1] / 1e3, 3)})
+        L.sort(key=lambda x: (-x['w12'], x['k']))
+        out['kraje'][kier] = L[:HMRC_TOP[kier]]
+    # kontrola spójności: wartość krajów z 12 miesięcy nie przekracza sumy 12 miesięcy (pozostałe: poufne i zbiorcze zostają w sumie)
+    for kier in ('imp', 'exp'):
+        tot = sum(v for v in out[kier]['w'][-12:] if v is not None)
+        if sum(x['w12'] for x in out['kraje'][kier]) > tot + 0.01:
+            raise RuntimeError('suma krajów większa niż suma miesięcy (' + kier + ')')
+    if not out['kraje']['imp']:
+        raise RuntimeError('brak krajów w imporcie')
+    return out
+
+
+def build_zloto_uk(prev=None):
+    """v452: dwa zapytania (towar, słownik krajów) → plik data/zloto-uk.json {v, at, t, try, ok, src, okres, mies, imp, exp, kraje, pomin}."""
+    d = _ix_dt(NOW)
+    k = d.year * 12 + (d.month - 1) - HMRC_WSTECZ
+    od = '%04d%02d' % (k // 12, k % 12 + 1)
+    j = hmrc_get(HMRC_URL.format(od=od))
+    kraje = hmrc_kraje(hmrc_get(HMRC_KRAJE_URL))
+    out = hmrc_zloz(j, kraje, NOW)
+    out.update({'at': NOW, 't': NOW, 'try': NOW, 'ok': True})
+    return out
+
+
+def hmrc_trzeba(prev, teraz):
+    """Czy sprawdzić źródło w tym przebiegu: brak pliku = tak; inaczej co HMRC_CO_H h od ostatniej próby (po błędzie co HMRC_BLAD_H h)."""
+    if not isinstance(prev, dict):
+        return True
+    tk, tn = _ix_dt(prev.get('try') or prev.get('t')), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    return (tn - tk).total_seconds() / 3600 >= (HMRC_CO_H if prev.get('ok') is not False else HMRC_BLAD_H)
+
+
+def hmrc_czesc():
+    """v452: część przebiegu → True = sprawdzone, 'cached' = poprzedni plik wystarcza (rytm dobowy), False = zawiodła (plik zostaje poprzedni z ok=False, błąd do META['errors'])."""
+    prev = previous('zloto-uk')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == HMRC_V else None
+    if prev and not hmrc_trzeba(prev, NOW):
+        save('zloto-uk', prev)
+        return 'cached'
+    try:
+        save('zloto-uk', build_zloto_uk(prev))
+        return True
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Złoto Wielkiej Brytanii: {e}')[:200])
+        if hasattr(e, 'close'):
+            e.close()   # błąd HTTP trzyma odpowiedź — zamknięcie połączenia
+        if prev:
+            p = dict(prev)
+            p['ok'], p['try'] = False, NOW
+            save('zloto-uk', p)
+        return False
+
+
+ZRODLA_META.update({'zloto_uk': 'hmrc'})   # v452: brytyjski urząd skarbowo-celny (+1 źródło)
 
 
 if __name__ == '__main__':

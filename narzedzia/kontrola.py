@@ -14420,6 +14420,113 @@ def wl_k_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v452 (F11Z32): ZŁOTO W HANDLU WIELKIEJ BRYTANII (data/zloto-uk.json) --------------------
+# Plik: 24 miesiące importu i eksportu (wartość w mln £, masa w t), ranking krajów z 12 miesięcy, czasy: t (ostatnie udane sprawdzenie), try (ostatnia próba), ok (False = ostatnia próba zawiodła, plik z wcześniejszych danych).
+# Świeżość (wiersze, najwyżej ⚠️): (1) ostatnie udane sprawdzenie nie starsze niż 48 h (rytm ~22 h, po błędzie ponowienie co 3 h; symulacja co 10 minut przez 30 dób, także z 12-godzinną awarią
+# co 5 dób: największy wiek 21,8 h bez awarii i 31,8 h z awarią — jak przy ropie świata, ten sam rytm); (2) ostatni miesiąc danych nie starszy niż 110 dób od końca miesiąca: urząd publikuje miesiąc M
+# około 6–8 tygodni po jego końcu (18.10.2026 plik ma sierpień, czyli 48 dób), więc największy wiek przed kolejną publikacją to ok. 78 dób, a po jednej opuszczonej publikacji ok. 109 — próg 110
+# oznacza dopiero drugą opuszczoną publikację. Spójność w pliku (⚠️): miesiące rosnące i ostatni = okres, długości serii, liczby nieujemne, wartość krajów z 12 miesięcy nie większa niż suma serii,
+# kraje o poprawnym kodzie i bez powtórzeń, wartość z ostatniego miesiąca kraju nie większa niż jego wartość z 12 miesięcy. Porównanie TYLKO ℹ️: cena jednostkowa importu z 12 miesięcy (£ za kg) poza
+# przedziałem 20–300 tys. (cena złota od 2024: 51–117 tys. £/kg w miesięcznych wartościach z danych; 19.10.2026 z czterema kodami towaru import 12 mies. 106 tys. £/kg), czyli pomyłka jednostki albo kodu towaru.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'zloto-uk')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['zloto-uk'] = 36 * 60   # plik odświeżany co ~22 h — wiek pliku; wiek sprawdzenia i miesiąca danych ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'zloto_uk': 'Złoto Wielkiej Brytanii — plik z błędem zostaje z datą (v452); wiek danych w wierszach świeżości'})
+ZUK_K_PROG_MIN = 48 * 60     # min — wiek ostatniego udanego sprawdzenia, powyżej tego ⚠️
+ZUK_K_MIES_DNI = 110         # dób od końca ostatniego miesiąca danych
+ZUK_K_CENA = (20_000, 300_000)   # £ za kg — przedział wiarygodnej ceny jednostkowej (ℹ️ poza nim)
+ZUK_K_OKNO = 24
+
+
+def zuk_k_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))
+
+
+def zuk_k_spojnosc(j):
+    """Spójność pliku → lista usterek (pusta = zgodny)."""
+    zle = []
+    s = rop_k_mies(j.get('mies'))
+    if s:
+        return ['miesiące: ' + s]
+    mies = j['mies']
+    n = len(mies)
+    if n != ZUK_K_OKNO:
+        zle.append(f'liczba miesięcy {n} zamiast {ZUK_K_OKNO}')
+    if j.get('okres') != mies[-1]:
+        zle.append('okres to nie ostatni miesiąc listy')
+    for kier in ('imp', 'exp'):
+        S = j.get(kier) if isinstance(j.get(kier), dict) else {}
+        for p, hi in (('w', 1e6), ('m', 1e5)):
+            a = S.get(p)
+            if not isinstance(a, list) or len(a) != n:
+                zle.append(f'{kier}.{p}: zła długość serii'); continue
+            if any(v is not None and (not zuk_k_num(v) or v < 0 or v > hi) for v in a):
+                zle.append(f'{kier}.{p}: liczba poza zakresem')
+        w = S.get('w') if isinstance(S.get('w'), list) and len(S.get('w')) == n else None
+        L = ((j.get('kraje') or {}).get(kier)) if isinstance(j.get('kraje'), dict) else None
+        if not isinstance(L, list):
+            zle.append(f'kraje.{kier}: brak listy'); continue
+        tot, sk, widziane = (sum(v for v in w[-12:] if zuk_k_num(v)) if w else None), 0.0, set()
+        for x in L:
+            if not isinstance(x, dict) or not (isinstance(x.get('k'), str) and len(x['k']) == 2 and x['k'].isupper()) or x['k'] in widziane:
+                zle.append(f'kraje.{kier}: zły albo powtórzony kod'); continue
+            widziane.add(x['k'])
+            if any(not zuk_k_num(x.get(f)) or x.get(f) < 0 for f in ('w12', 'm12', 'wp', 'wl', 'ml')):
+                zle.append(f'kraje.{kier}.{x["k"]}: zła liczba'); continue
+            if x['wl'] > x['w12'] + 0.01:
+                zle.append(f'kraje.{kier}.{x["k"]}: ostatni miesiąc większy niż 12 miesięcy')
+            sk += x['w12']
+        if tot is not None and sk > tot + 0.01:
+            zle.append(f'kraje.{kier}: suma krajów {sk:.2f} większa niż suma serii {tot:.2f}')
+    return zle
+
+
+def zuk_k_kontrola(j, now=None):
+    """data/zloto-uk.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = zuk_k_spojnosc(j)
+    out['spojnosc'] = zle
+    lab = 'Złoto Wielkiej Brytanii (sprawdzenie źródła)'
+    w = wiek_danych(j.get('t'), 'ts', 'k', now)
+    if w is None:
+        out['rows'].append((lab, '?', None, None, 'brak czasu sprawdzenia'))
+    else:
+        st = '⚠️' if w > ZUK_K_PROG_MIN else '✅'
+        dane = str(j.get('t'))[:16].replace('T', ' ') + ' UTC'
+        note = '' if st == '✅' else 'dane starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył pliku; najwyżej uwaga'
+        out['rows'].append((lab, st, w, dane, note))
+        if st == '⚠️':
+            out['uwagi'].append(f'{lab}: {dane} — {fmt_wiek(w)} temu ({note})')
+    lab2 = 'Złoto Wielkiej Brytanii (ostatni miesiąc danych)'
+    wm = wiek_danych(j.get('okres'), 'month', 'k', now) if j.get('okres') else None
+    if wm is None:
+        out['rows'].append((lab2, '?', None, None, 'brak miesiąca danych'))
+    else:
+        sm = '⚠️' if wm > ZUK_K_MIES_DNI * 1440 else '✅'
+        nm = '' if sm == '✅' else f'miesiąc danych starszy niż {ZUK_K_MIES_DNI} dób od jego końca — urząd nie publikuje albo zbieracz nie widzi nowego miesiąca; najwyżej uwaga'
+        out['rows'].append((lab2, sm, wm, str(j.get('okres')), nm))
+        if sm == '⚠️':
+            out['uwagi'].append(f'{lab2}: {j.get("okres")} — {fmt_wiek(wm)} od końca miesiąca ({nm})')
+    if j.get('ok') is False:
+        out['uwagi'].append('Złoto Wielkiej Brytanii: ostatnia próba odświeżenia nie powiodła się — plik z wcześniejszych danych (szczegóły w błędach zbieracza)')
+    for z in zle[:4]:
+        out['uwagi'].append(f'Złoto Wielkiej Brytanii (zloto-uk.json): {z}')
+    if not zle:
+        try:
+            imp = j['imp']
+            wi, mi = sum(v for v in imp['w'][-12:] if zuk_k_num(v)), sum(v for v in imp['m'][-12:] if zuk_k_num(v))
+            if mi > 0:
+                cena = wi * 1e6 / (mi * 1000.0)
+                if not ZUK_K_CENA[0] <= cena <= ZUK_K_CENA[1]:
+                    out['wiersze'].append((f'cena jednostkowa importu z 12 miesięcy {cena / 1000:.1f} tys. £ za kg poza przedziałem {ZUK_K_CENA[0] // 1000}–{ZUK_K_CENA[1] // 1000} tys. — możliwa pomyłka jednostki albo towaru'.replace('.', ','), 'ℹ️'))
+        except Exception as e:  # noqa
+            out['wiersze'].append((f'porównanie ceny jednostkowej przerwane ({str(e)[:60]})', 'ℹ️'))
+    out['wiersze'].insert(0, ('spójność pliku (miesiące, długości serii, zakresy, kraje wobec sumy)', '⚠️' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -15262,6 +15369,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['ropa-swiat'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Ropa świata (v430): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v452. Złoto w handlu Wielkiej Brytanii (data/zloto-uk.json): wiek sprawdzenia i miesiąca danych, spójność w pliku — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        ZUKK_ = zuk_k_kontrola(files.get('zloto-uk'))
+        for label, st, w, txt, note in ZUKK_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += ZUKK_['uwagi']
+        R['zgodnosc']['zloto-uk'] = {'spojnosc': ZUKK_['spojnosc'], 'wiersze': ZUKK_['wiersze']} if (ZUKK_['rows'] or ZUKK_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['zloto-uk'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Złoto Wielkiej Brytanii (v452): kontrola przerwana ({str(e)[:80]})')
     # 3c-v431. Wierzyciele i dłużnicy świata (data/iip.json): sprzeczności w pliku (❌), rytm danych kwartalnych i paczki bez odpowiedzi (⚠) — z plików strony, bez zapytań
     try:
         T_ip = iip_kontrola(files)
@@ -15997,6 +16114,11 @@ def raport_md(R):
             L.append('- Ropa świata (bilans krajów i zapasy ropy i paliw w Europie; z pliku strony; wydobycie USA i zapasy Polski z drugim źródłem tylko informacyjnie): ' + (f'? kontrola przerwana ({srop_["blad"]})' if srop_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(srop_['spojnosc'][:3]) + ' ⚠️ · ' if srop_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in srop_.get('wiersze') or []) or '—') + '.')
+        szuk_ = Z.get('zloto-uk')   # v452: złoto w handlu Wielkiej Brytanii (import i eksport wg miesięcy i krajów) — brak pliku = bez linii
+        if szuk_:
+            L.append('- Złoto w handlu Wielkiej Brytanii, import i eksport wg miesięcy i krajów (z pliku strony): ' + (f'? kontrola przerwana ({szuk_["blad"]})' if szuk_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(szuk_['spojnosc'][:3]) + ' ⚠️ · ' if szuk_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in szuk_.get('wiersze') or []) or '—') + '.')
         skt_ = Z.get('krypto-top10')   # v437: sektory krypto i Top 10 sceny CRYPTO — brak pliku = bez linii
         if skt_:
             L.append('- Sektory krypto i Top 10 w scenie CRYPTO (z plików strony; kontrola tylko raportuje, niczego nie zmienia): ' + (f'? kontrola przerwana ({skt_["blad"]})' if skt_.get('blad') else

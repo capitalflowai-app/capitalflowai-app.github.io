@@ -35121,3 +35121,188 @@ test('v450: Źródła — bez zdania o liczeniu odwiedzin i bez nazw dostawców;
   assert.ok(html.includes('<script async src="count.js" data-goatcounter="https://capitalflowai.goatcounter.com/count"></script>') && html.includes('id="cf-licznik"'), 'licznik działa dalej (skrypt i bramka w <head>)');
   assert.ok(!html.includes("t('v404.licz')") && !html.includes('"v404.licz"'), 'klucz zdania usunięty z kodu i ze słowników');
 });
+
+
+// ===================== v452 (F11Z32): złoto w handlu Wielkiej Brytanii — import i eksport wg miesięcy i krajów (data/zloto-uk.json); karta #g-zlotouk =====================
+// Fixtura ZUK452_FILE: plik zloto-uk.json zbudowany przez zbieracz na prawdziwej odpowiedzi urzędu z 19.10.2026 (24 miesiące do sierpnia 2026, rankingi krajów). Czas przypięty (Date.now), bez zegara.
+const ZUK452_FILE = {"v":1,"src":"miesięczne statystyki handlu zagranicznego Wielkiej Brytanii: złoto niemonetarne (nieobrobione, w proszku, półprodukty i sztabki), import i eksport wg krajów","okres":"2026-08","mies":["2024-09","2024-10","2024-11","2024-12","2025-01","2025-02","2025-03","2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07","2026-08"],"imp":{"w":[38.61,44.638,40.426,9.891,26.563,42.305,37.249,61.07,53.584,42.909,59.684,34.458,53.708,61.851,54.44,120.51,57.787,75.755,67.135,44.401,66.409,45.505,55.496,75.424],"m":[0.65,0.679,0.636,0.148,0.385,0.578,0.521,0.798,0.676,0.558,0.769,0.476,0.646,0.644,0.569,1.19,0.554,0.695,0.574,0.402,0.604,0.433,0.579,0.755]},"exp":{"w":[0.781,0.869,0.912,0.756,0.549,1.087,1.448,1.112,1.054,0.646,0.934,1.099,1.042,1.002,1.883,0.584,0.713,182.293,1.216,0.206,1.277,0.544,1.265,0.762],"m":[0.01,0.009,0.012,0.011,0.006,0.012,0.018,0.014,0.011,0.004,0.006,0.008,0.006,0.01,0.021,0.004,0.004,1.5,0.014,0.0,0.013,0.013,0.008,0.004]},"kraje":{"imp":[{"k":"CH","w12":433.847,"m12":4.218,"wp":215.205,"wl":40.407,"ml":0.4},{"k":"ES","w12":221.594,"m12":2.147,"wp":167.049,"wl":26.117,"ml":0.255},{"k":"DE","w12":103.061,"m12":1.112,"wp":106.862,"wl":8.895,"ml":0.1},{"k":"FR","w12":18.301,"m12":0.15,"wp":0.0,"wl":0.0,"ml":0.0},{"k":"AE","w12":0.485,"m12":0.004,"wp":0.082,"wl":0.0,"ml":0.0},{"k":"AU","w12":0.25,"m12":0.002,"wp":0.005,"wl":0.0,"ml":0.0},{"k":"IE","w12":0.246,"m12":0.002,"wp":0.0,"wl":0.0,"ml":0.0},{"k":"ZA","w12":0.243,"m12":0.008,"wp":0.0,"wl":0.0,"ml":0.0}],"exp":[{"k":"CH","w12":181.522,"m12":1.494,"wp":0.017,"wl":0.001,"ml":0.0},{"k":"HK","w12":2.787,"m12":0.022,"wp":1.949,"wl":0.4,"ml":0.004},{"k":"FR","w12":2.49,"m12":0.041,"wp":0.737,"wl":0.0,"ml":0.0},{"k":"TH","w12":2.091,"m12":0.01,"wp":4.035,"wl":0.104,"ml":0.0},{"k":"IE","w12":0.861,"m12":0.003,"wp":0.456,"wl":0.037,"ml":0.0},{"k":"DE","w12":0.729,"m12":0.01,"wp":0.793,"wl":0.109,"ml":0.0}]},"pomin":0,"at":"2026-10-19T05:00:00+00:00","t":"2026-10-19T05:00:00+00:00","try":"2026-10-19T05:00:00+00:00","ok":true};
+const zuk452 = (() => {
+  const a0 = html.indexOf('/* ===================== v452 (F11Z32): ZŁOTO W HANDLU WIELKIEJ BRYTANII'), a1 = html.indexOf('/* ---------- koniec bloku złota w handlu Wielkiej Brytanii (v452) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v452 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-19T13:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[  ]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    opt = opt || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set(opt.open ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-zlotouk': el};
+    const calls = [], ivs = [], bars = [], cols = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener() {}, documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'flagImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkBars', 'wkCols', 'wkK', 'PG_DN', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {ZUK, zukLoad, renderZuk, zukParse, zukBody, zukSum, zukMln, zukT, zukNm};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, c => '<f:' + c + '>', i => i ? '<i>' + i + '</i>' : '', doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (rows, o) => { bars.push({rows, o}); return '<bars n=' + rows.length + ' aria="' + o.aria + '">'; },
+      (X, o) => { cols.push({X, o}); return '<cols n=' + X.length + ' aria="' + o.aria + '">'; },
+      () => ': ', {}, FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    return {api, els, calls, ivs, bars, cols, mos, expand, html: () => sp(el.innerHTML), T};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), unit: (m[3].match(/<small class="u">(.*?)<\/small>/) || [, ''])[1], lines: [...m[3].matchAll(/<small class="(pos|neg|neu|na|pc)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {zloto_uk: 'cached'}} : meta, 'zloto-uk': j === undefined ? clone(ZUK452_FILE) : j});
+  const J = () => clone(ZUK452_FILE);
+  const fmt = (v, d) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(d).replace('.', ',');
+  const dl = (v, d, lab) => { const r = Math.round(v * 10 ** d) / 10 ** d; return r === 0 ? ['neu', '• ' + fmt(0, d) + ' ' + lab] : [r > 0 ? 'pos' : 'neg', (r > 0 ? '▲ +' : '▼ −') + fmt(Math.abs(r), d) + ' ' + lab]; };
+  return {mk, tiles, files, J, sp, txt, code, clone, LOC, fmt, dl};
+})();
+
+test('v452 (F11Z32): karta złota — nagłówek dopiero gdy meta zna zloto_uk, plik dopiero po rozwinięciu, błąd bez pętli, odświeżenie co 30 minut', () => {
+  const K = zuk452.mk('pl', zuk452.files());
+  K.api.renderZuk();
+  assert.strictEqual(K.els['#g-zlotouk'].hidden, false, 'meta zna zloto_uk — karta widoczna');
+  assert.deepStrictEqual(K.calls, ['meta'], 'plik nie jest pobierany przy starcie');
+  assert.match(K.html(), /Złoto w handlu Wielkiej Brytanii/); assert.match(K.html(), /Dane pojawią się po rozwinięciu karty/);
+  K.expand();
+  assert.strictEqual(K.calls.filter(c => c === 'zloto-uk').length, 1, 'rozwinięcie = jedno pobranie');
+  K.api.zukLoad(); assert.strictEqual(K.calls.filter(c => c === 'zloto-uk').length, 1, 'świeży plik nie jest pobierany ponownie');
+  assert.ok(K.ivs.some(([, ms]) => ms === 30 * 60 * 1000), 'odświeżanie co 30 minut przy rozwiniętej karcie');
+  const bez = zuk452.mk('pl', zuk452.files(undefined, {ok: {kalendarz: true}}));
+  bez.api.renderZuk(); assert.strictEqual(bez.els['#g-zlotouk'].hidden, true, 'meta nie zna zloto_uk — karta ukryta');
+  const zly = zuk452.mk('pl', zuk452.files({v: 1, at: 'x'}), {open: true});
+  zly.api.renderZuk(); assert.match(zly.html(), /Nie udało się wczytać danych o handlu złotem/); const n = zly.calls.filter(c => c === 'zloto-uk').length;
+  zly.api.renderZuk(); assert.strictEqual(zly.calls.filter(c => c === 'zloto-uk').length, n, 'po błędzie ponowna próba najwcześniej po minucie — bez pętli zapytań');
+  const brak = zuk452.mk('pl', zuk452.files(null), {open: true}); brak.api.renderZuk(); assert.match(brak.html(), /Nie udało się wczytać/);
+});
+
+test('v452 (F11Z32): cztery kafle — import i eksport w ostatnim miesiącu i z 12 miesięcy: liczby, jednostki, zmiany m/m i r/r w kolorach kierunku, "<1", miesiąc i wiek (liczone z pól fixtury)', () => {
+  const K = zuk452.mk('pl', zuk452.files(), {open: true}); K.api.renderZuk();
+  const J = zuk452.J(), n = J.mies.length, I = J.imp, E = J.exp, S = a => a.reduce((x, y) => x + y, 0);
+  const T = zuk452.tiles(K.html());
+  assert.deepStrictEqual(T.map(x => x.label), ['Import — ostatni miesiąc', 'Eksport — ostatni miesiąc', 'Import — 12 miesięcy', 'Eksport — 12 miesięcy']);
+  assert.strictEqual(T[0].val, zuk452.fmt(I.w[n - 1], 1)); assert.strictEqual(T[0].val, '75,4'); assert.strictEqual(T[0].unit, 'mln £');
+  assert.deepStrictEqual(T[0].lines[0], zuk452.dl((I.w[n - 1] / I.w[n - 2] - 1) * 100, 1, '% m/m')); assert.deepStrictEqual(T[0].lines[1], zuk452.dl((I.w[n - 1] / I.w[n - 13] - 1) * 100, 1, '% r/r'));
+  assert.deepStrictEqual(T[0].lines[2], ['pc', '0,76 t']);
+  assert.match(T[0].when, /dane za sierpień 2026 · wiek\(2026-08\)/);
+  assert.strictEqual(T[1].val, '<1', 'eksport poniżej 1 mln £ jako „<1”'); assert.strictEqual(T[1].lines[0][0], 'neg', 'spadek m/m (1,265 → 0,762) czerwony');
+  assert.deepStrictEqual(T[1].lines[2], ['pc', '<0,01 t'], 'masa poniżej 0,01 t');
+  const w12 = S(I.w.slice(n - 12)), p12 = S(I.w.slice(n - 24, n - 12));
+  assert.strictEqual(T[2].val, zuk452.fmt(w12, 0)); assert.strictEqual(T[2].val, '778'); assert.deepStrictEqual(T[2].lines[0], zuk452.dl((w12 / p12 - 1) * 100, 1, '% r/r')); assert.strictEqual(T[2].lines.length, 2, '12 miesięcy: tylko r/r i masa');
+  assert.deepStrictEqual(T[2].lines[1], ['pc', '7,65 t'], 'masa z 12 miesięcy: 7,645 zaokrąglone do 7,65');
+  assert.strictEqual(T[3].val, zuk452.fmt(S(E.w.slice(n - 12)), 0)); assert.strictEqual(T[3].lines[0][0], 'pos', 'wzrost r/r (11 → 193 mln £) zielony');
+  assert.match(T[2].when, /12 miesięcy do sierpnia 2026 · wiek\(2026-08\)/);
+});
+
+test('v452 (F11Z32): skala sztabek londyńskich — miesięczne wartości dziesiątki tysięcy mln £ są przyjęte (nie „brak”), zmiana r/r od tysiąca procent skrócona do „>1000%”', () => {
+  const skala = zuk452.J(), X = 200;   // dawny limit 5 000 mln £ odrzucałby 15 085 mln £ w miesiącu; teraz import ostatniego miesiąca to ok. 17 600 mln £
+  for (const d of ['imp', 'exp']) { skala[d].w = skala[d].w.map(v => v * X); skala[d].m = skala[d].m.map(v => v * X / 20); }
+  for (const d of ['imp', 'exp']) for (const x of skala.kraje[d]) for (const f of ['w12', 'wp', 'wl']) x[f] = x[f] * X;
+  const K = zuk452.mk('pl', zuk452.files(skala), {open: true}); K.api.renderZuk();
+  const P = K.api.zukParse(skala); assert.ok(P, 'plik o dużej skali jest poprawny'); assert.ok(P.imp.w.every(v => typeof v === 'number'), 'żadna wartość nie zamieniona na brak');
+  assert.strictEqual(P.kr.imp.length, skala.kraje.imp.length, 'kraje o dużych wartościach zostają w rankingu');
+  const T = zuk452.tiles(K.html()); assert.strictEqual(T[0].val.replace(/\s/g, ''), String(Math.round(skala.imp.w[23])), 'import ostatniego miesiąca: liczba całkowita z odstępem tysięcy');
+  assert.ok(Math.round(skala.imp.w[23]) > 5000 && T[0].val !== '—');
+  const K0 = zuk452.mk('pl', zuk452.files(), {open: true}); K0.api.renderZuk(); const T0 = zuk452.tiles(K0.html());
+  assert.strictEqual(T0[3].lines[0][0], 'pos'); assert.match(T0[3].lines[0][1], /^▲ \+>1000 % r\/r$/, 'eksport 12 mies. od małej podstawy: „>1000%”, nie +1614,1');
+  const wiel = zuk452.J(); wiel.imp.w[0] = 1e6 + 1; assert.strictEqual(K0.api.zukParse(wiel).imp.w[0], null, 'wartość powyżej granicy = brak, nie zero');
+});
+
+test('v452 (F11Z32): luka w serii = „—” (nigdy zero), za krótka historia = brak r/r, błąd ostatniego odświeżenia = zdanie, ale dane zostają', () => {
+  const j = zuk452.J(); const n = j.mies.length;
+  j.imp.w[n - 5] = null; j.imp.m[n - 5] = null;                                  // brak jednego miesiąca w oknie 12 miesięcy
+  let K = zuk452.mk('pl', zuk452.files(j), {open: true}); K.api.renderZuk();
+  let T = zuk452.tiles(K.html());
+  assert.strictEqual(T[2].val, '—', 'suma z dziurą w serii to brak, nie suma z zerem'); assert.deepStrictEqual(T[2].lines[0], ['na', 'brak danych']);
+  assert.strictEqual(T[0].val, '75,4', 'ostatni miesiąc nadal jest');
+  j.imp.w[n - 1] = null; j.imp.m[n - 1] = null;
+  K = zuk452.mk('pl', zuk452.files(j), {open: true}); K.api.renderZuk(); T = zuk452.tiles(K.html());
+  assert.strictEqual(T[0].val, '—'); assert.deepStrictEqual(T[0].lines[0], ['na', 'brak danych']);
+  const kr = zuk452.J(); kr.mies = kr.mies.slice(-13); ['w', 'm'].forEach(p => { kr.imp[p] = kr.imp[p].slice(-13); kr.exp[p] = kr.exp[p].slice(-13); });   // 13 miesięcy: jest r/r ostatniego miesiąca, nie ma r/r z 12 miesięcy
+  K = zuk452.mk('pl', zuk452.files(kr), {open: true}); K.api.renderZuk(); T = zuk452.tiles(K.html());
+  assert.strictEqual(T[0].lines[1][0] === 'na', false, 'r/r ostatniego miesiąca z miesiąca sprzed 12'); assert.deepStrictEqual(T[2].lines[0], ['na', '— % r/r'], 'brak poprzednich 12 miesięcy');
+  const ok = zuk452.J(); ok.ok = false;
+  K = zuk452.mk('pl', zuk452.files(ok), {open: true}); K.api.renderZuk();
+  assert.match(K.html(), /Ostatnie odświeżenie się nie udało — widać wcześniejsze dane/); assert.strictEqual(zuk452.tiles(K.html()).length, 4);
+  assert.strictEqual(K.api.zukParse({...zuk452.J(), v: 2}), null); assert.strictEqual(K.api.zukParse({...zuk452.J(), okres: '2026-07'}), null, 'okres musi być ostatnim miesiącem');
+  const kr2 = zuk452.J(); kr2.imp.w = kr2.imp.w.slice(1); assert.strictEqual(K.api.zukParse(kr2), null, 'zła długość serii');
+  const kr3 = zuk452.J(); kr3.imp.w[3] = -4; assert.strictEqual(K.api.zukParse(kr3).imp.w[3], null, 'liczba ujemna = brak, nie zero');
+  const kr4 = zuk452.J(); kr4.kraje.imp[0].k = 'ch'; kr4.kraje.imp[1].wl = 'x'; assert.strictEqual(K.api.zukParse(kr4).kr.imp.length, kr4.kraje.imp.length - 2, 'wiersze krajów ze złym kodem albo liczbą odpadają');
+});
+
+test('v452 (F11Z32): dwa wykresy kolumnowe — 24 miesiące, seria s1 (import) i s2 (eksport), podpowiedź z miesiącem, wartością i masą, luka jako brak', () => {
+  const j = zuk452.J(); j.exp.w[6] = null; j.exp.m[6] = null;
+  const K = zuk452.mk('pl', zuk452.files(j), {open: true}); K.api.renderZuk(); K.cols.length = 0; K.api.renderZuk();   // po wczytaniu pliku: jedno czyste rysowanie
+  assert.strictEqual(K.cols.length, 2); const [ci, ce] = K.cols;
+  assert.strictEqual(ci.X.length, 24); assert.deepStrictEqual(ci.o.ser, [{n: 'Import złota', cls: 's1'}]); assert.deepStrictEqual(ce.o.ser, [{n: 'Eksport złota', cls: 's2'}]);
+  assert.match(ci.o.aria, /Wykres kolumnowy: Import złota, 24 miesięcy/);
+  const last = ci.X[23]; assert.strictEqual(last.v, j.imp.w[23]); assert.match(zuk452.sp(last.tip), /^sierpień 2026: 75,4 mln £ · 0,76 t$/);
+  assert.strictEqual(ce.X[23].tip.includes('<1 mln £'), true, 'eksport poniżej 1 mln £ w podpowiedzi jako „<1”');
+  assert.strictEqual(ce.X[6].v, null); assert.match(ce.X[6].tip, /: —$/, 'luka: kreska, nie zero');
+  assert.match(ci.X[0].x, /wrz 2024|wrz\. 2024/);
+  const kr = zuk452.J(); kr.exp.w = kr.exp.w.map((v, i) => (i < 22 ? null : v));
+  const K2 = zuk452.mk('pl', zuk452.files(kr), {open: true}); K2.api.renderZuk(); K2.cols.length = 0; K2.api.renderZuk();
+  assert.strictEqual(K2.cols.length, 1, 'wykres z mniej niż trzema punktami nie jest rysowany'); assert.match(K2.html(), /Za mało danych na wykres/);
+});
+
+test('v452 (F11Z32): rankingi krajów — flaga i nazwa, wartość z 12 miesięcy, zmiana wobec poprzednich 12, "Pozostałe kraje" = suma serii minus kraje, udział w podpowiedzi', () => {
+  const K = zuk452.mk('pl', zuk452.files(), {open: true}); K.api.renderZuk(); K.bars.length = 0; K.api.renderZuk();
+  const J = zuk452.J(), n = J.mies.length, S = a => a.reduce((x, y) => x + y, 0);
+  assert.strictEqual(K.bars.length, 2); const [bi, be] = K.bars;
+  const L = J.kraje.imp.filter(x => x.w12 >= 1), tot = S(J.imp.w.slice(n - 12));
+  assert.strictEqual(L.length, 4); assert.ok(J.kraje.imp.length > L.length, 'plik ma też kraje poniżej 1 mln £ — w rankingu wchodzą do „Pozostałe kraje”');
+  assert.strictEqual(bi.rows.length, L.length + 1, 'kraje od 1 mln £ + „Pozostałe kraje”');
+  assert.match(bi.rows[0].l, /^<f:CH>/); assert.ok(/Szwajcaria/.test(bi.rows[0].l)); assert.strictEqual(bi.rows[0].v, L[0].w12); assert.strictEqual(bi.rows[0].cls, 's1');
+  assert.match(zuk452.sp(bi.rows[0].vt), new RegExp('^434 <small class="pos">▲ \\+' + zuk452.fmt((L[0].w12 / L[0].wp - 1) * 100, 1) + '%</small>$'));
+  const rest = bi.rows[bi.rows.length - 1]; assert.ok(Math.abs(rest.v - (tot - S(L.map(x => x.w12)))) < 1e-9); assert.strictEqual(rest.l, 'Pozostałe kraje');
+  assert.match(zuk452.sp(bi.rows[0].tip), /^Szwajcaria: 434 mln £ · 4,22 t · udział 56%$/);
+  assert.strictEqual(bi.o.lw, '38%'); assert.match(bi.o.aria, /Wykres słupkowy: 5 pozycji/);
+  assert.strictEqual(be.rows[0].cls, 's2'); assert.match(zuk452.sp(be.rows[0].tip), /^Szwajcaria: 182 mln £ · 1,49 t · udział 94%$/);
+  assert.ok(zuk452.sp(be.rows[2].vt).startsWith('2,5 '), 'wartości poniżej 100 z jednym miejscem po przecinku');
+  assert.ok(zuk452.sp(be.rows[0].vt).endsWith(' —'), 'zmiana r/r od podstawy poniżej 1 mln £ (0,017) to brak, nie +1 067 676%');
+  const wk = zuk452.J(); wk.kraje.imp[0].wp = 1.0; const K4 = zuk452.mk('pl', zuk452.files(wk), {open: true}); K4.api.renderZuk(); K4.bars.length = 0; K4.api.renderZuk();
+  assert.match(zuk452.sp(K4.bars[0].rows[0].vt), /<small class="pos">▲ \+>1000%<\/small>/, 'zmiana od tysiąca procent skrócona do „>1000%”');
+  assert.match(K.html(), /Skąd złoto płynie do Wielkiej Brytanii — 12 miesięcy do sierpnia 2026/); assert.match(K.html(), /Dokąd Wielka Brytania wysyła złoto/);
+  const brak = zuk452.J(); brak.kraje.imp = []; const K2 = zuk452.mk('pl', zuk452.files(brak), {open: true}); K2.api.renderZuk(); K2.bars.length = 0; K2.api.renderZuk();
+  assert.strictEqual(K2.bars.length, 1); assert.match(K2.html(), /Brak danych o krajach/);
+  const dz = zuk452.J(); dz.imp.w[n - 3] = null; const K3 = zuk452.mk('pl', zuk452.files(dz), {open: true}); K3.api.renderZuk();
+  assert.match(K3.html(), /Brak danych o krajach/, 'suma z dziurą: bez rankingu zamiast liczb bez pokrycia');
+});
+
+test('v452 (F11Z32): angielski — etykiety, jednostki i miesiące w języku widza; zero nazw dostawców w kodzie karty i w słowniku; klucze pl = en i wszystkie użyte istnieją', () => {
+  const K = zuk452.mk('en', zuk452.files(), {open: true}); K.api.renderZuk();
+  assert.match(K.html(), /Gold in UK trade/); assert.match(K.html(), /Imports — last month/); assert.match(K.html(), /Where gold comes from — 12 months to August 2026/);
+  const T = zuk452.tiles(K.html()); assert.strictEqual(T[0].unit, '£m'); assert.strictEqual(T[0].val, '75.4'); assert.ok(T[0].lines.some(l => /y\/y/.test(l[1])));
+  assert.match(K.html(), /data for August 2026/);
+  const bez = /(uktradeinfo|hmrc|revenue|customs\.|gov\.uk)/i;
+  assert.ok(!bez.test(zuk452.code), 'zero nazw dostawców w kodzie karty');
+  const keys = [...new Set([...zuk452.code.matchAll(/'(zuk452\.[a-z0-9.]+)'/g)].map(m => m[1]).concat([...zuk452.code.matchAll(/t\('(zuk452\.[a-z0-9.]+)'/g)].map(m => m[1])))].filter(k => !k.endsWith('.'));   // klucze składane z przedrostka (np. 'zuk452.c.'+dir) są na liście dyn
+  const dyn = ['zuk452.c.imp', 'zuk452.c.exp', 'zuk452.h.imp', 'zuk452.h.exp', 'zuk452.v.mm', 'zuk452.v.yy'];
+  for (const L of ['pl', 'en']) {
+    const all = Object.keys(v96src.I18N[L]).filter(k => k.startsWith('zuk452.'));
+    for (const k of keys.concat(dyn)) assert.ok(all.includes(k), 'brak klucza ' + k + ' w ' + L);
+    for (const k of all) assert.ok(!bez.test(v96src.I18N[L][k]), 'bez nazw dostawców: ' + k);
+  }
+  assert.deepStrictEqual(Object.keys(v96src.I18N.pl).filter(k => k.startsWith('zuk452.')).sort(), Object.keys(v96src.I18N.en).filter(k => k.startsWith('zuk452.')).sort());
+  assert.strictEqual(K.api.zukMln(0.4), '<1'); assert.strictEqual(K.api.zukMln(null), '—'); assert.strictEqual(K.api.zukMln(0), '0'); assert.strictEqual(K.api.zukT(0.004), '<0.01');
+});
+
+test('v452 (F11Z32): struktura strony — jedna sekcja, jedno miejsce pobrania pliku, plik poza grupą ładowaną przy starcie, kolory tylko ze zmiennych strony', () => {
+  assert.strictEqual(html.split('id="g-zlotouk"').length - 1, 1);
+  assert.strictEqual(html.split("srvJSON('zloto-uk')").length - 1, 1, 'jedno miejsce pobrania pliku (po rozwinięciu karty)');
+  assert.ok(!/SRV_GR\['zloto-uk'\]|'zloto-uk':'c'/.test(html), 'plik nie jest w grupie CRYPTO');
+  const css = html.split('\n').filter(l => l.includes('#g-zlotouk') && !l.includes('<section')).join('\n');
+  assert.ok(css.length > 500); assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(css), 'kolory tylko ze zmiennych strony'); assert.ok(/max-width:620px/.test(css) && /max-width:520px/.test(css), 'układ telefonu');
+  const ico = html.indexOf('id="g-ropa"'), me = html.indexOf('id="g-zlotouk"'), ch = html.indexOf('id="g-chinatw"');
+  assert.ok(ico > 0 && me > ico && ch > me, 'karta po ropie świata, przed Chinami i Tajwanem');
+});

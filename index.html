@@ -2616,6 +2616,27 @@ textarea.kt-f{min-height:110px;resize:vertical}
   #g-waluty .wl-c::before{content:attr(data-l);display:block;color:var(--dim);font-size:10.5px}
   #g-waluty .wl-hd{display:none}
 }
+/* v452 (F11Z32): złoto w handlu Wielkiej Brytanii (panel #g-zlotouk) — kafle w czterech kolumnach (telefon: dwie), dwa wykresy parą (telefon: jeden pod drugim), słupki krajów w pełnej szerokości; tylko kolory systemowe i zmienne strony */
+#g-zlotouk .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+#g-zlotouk .etfk>span{white-space:normal;overflow-wrap:anywhere}
+#g-zlotouk .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3}
+#g-zlotouk .etfk b small{display:block;font-size:10.5px;font-weight:500;white-space:normal;margin-top:2px}
+#g-zlotouk .etfk b small.u{display:inline;margin:0;font-size:11px;color:var(--mut)}
+#g-zlotouk .etfk b small.pos{color:var(--gr-tx)}#g-zlotouk .etfk b small.neg{color:var(--rd-tx)}#g-zlotouk .etfk b small.neu{color:var(--yl-tx)}#g-zlotouk .etfk b small.na,#g-zlotouk .etfk b small.pc{color:var(--dim)}
+#g-zlotouk .etfk>small.mtxt{font-size:10.5px;line-height:1.35}
+#g-zlotouk .wk-ch .s1{--k:var(--bl)}#g-zlotouk .wk-ch .s2{--k:var(--or)}
+#g-zlotouk .wk-bv small{font-size:inherit;margin-left:3px}
+#g-zlotouk .wk-bv small.pos{color:var(--gr-tx)}#g-zlotouk .wk-bv small.neg{color:var(--rd-tx)}#g-zlotouk .wk-bv small.neu{color:var(--yl-tx)}
+#g-zlotouk .wk-bl{white-space:normal;overflow-wrap:anywhere;line-height:1.25}
+#g-zlotouk .wk-bl .ico{margin-right:5px;vertical-align:-3px}
+#g-zlotouk .wk-sub{margin-top:14px}
+#g-zlotouk .pnote.neu{color:var(--yl-tx)}
+#g-zlotouk .zuk-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:2px}
+#g-zlotouk .zuk-c{min-width:0}
+#g-zlotouk .zuk-c .wk-sub{margin-top:12px}
+@media (max-width:900px){#g-zlotouk .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){#g-zlotouk .zuk-g{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){#g-zlotouk .wk-br{--lw:42%}}
 </style>
 <!-- v348: licznik odwiedzin (decyzja właściciela 12.10). Skrypt count.js leży na naszej stronie (nie na obcej domenie) i nie używa ciasteczek; zliczenie wychodzi do licznika przez sendBeacon (CSP: connect-src; zapas obrazkiem: img-src https:).
      Wizyt technicznych nie liczymy: przeglądarki sterowane automatem (navigator.webdriver), Chrome bez okna (kontrola dzienna, testy), Lighthouse i adresy lokalne z końcówką .local albo [::1] dostają no_onload;
@@ -2871,6 +2892,7 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
     <section class="panel pcard" id="g-energiausa" hidden></section>
     <section class="panel pcard" id="g-ropa" hidden></section>
     <section class="panel pcard" id="g-sur247" hidden></section>
+    <section class="panel pcard" id="g-zlotouk" hidden></section>
     <section class="panel pcard" id="g-chinatw" hidden></section>
     <section class="panel pcard" id="g-waluty" hidden></section>
     <section class="panel pcard" id="g-dolar" hidden></section>
@@ -3765,6 +3787,9 @@ for(const l in EXTRA305)if(I18N[l])Object.assign(I18N[l],EXTRA305[l]);
 /* v450: krótka Metodologia i okna pomocy „?” — pl i en */
 const EXTRA306={"pl":{"m450.sub":"Krótko: czym jest ta strona i jak czytać liczby.","m450.what.h":"Czym jest ta strona","m450.what.p":"To bezpłatna strona, która pokazuje, dokąd płyną pieniądze na świecie: na giełdach, w funduszach i w kryptowalutach. Zbiera publiczne dane i pokazuje je prosto.","m450.src.h":"Skąd są dane","m450.src.n":"{n} — urzędów, banków centralnych, giełd i innych instytucji.","m450.src.0":"Dane pochodzą z publicznych źródeł: urzędów, banków centralnych, giełd i innych instytucji.","m450.src.gap":"Niczego nie zgadujemy: gdy danych brakuje, widać „—”, a nie zero.","m450.fresh.h":"Jak często dane się odświeżają","m450.fresh.p":"Strona sprawdza nowe dane co 10 minut. Same źródła publikują we własnym tempie: jedne codziennie, inne co tydzień, co miesiąc albo co kwartał. Dlatego przy liczbach jest data i wiek danych.","m450.col.h":"Jak czytać kolory i daty","m450.col.g":"Zielony: wartość rośnie.","m450.col.r":"Czerwony: wartość spada.","m450.col.y":"Żółty: bez zmian albo informacja.","m450.col.d1":"„dane sprzed 2 dni”","m450.col.d2":"tyle czasu minęło od daty danych.","m450.col.n":"brak danych. To nie jest zero.","m450.adv.h":"To nie jest porada inwestycyjna","m450.adv.p":"Strona tylko pokazuje dane. Nie mówi, co kupić ani sprzedać, i niczego nie prognozuje.","m450.hc.1":"Blok albo kula to aktywo lub sektor. Im większy, tym większa zmiana wartości w okresie: zielony to wzrost, czerwony spadek.","m450.hc.2":"Linie pokazują, dokąd mógł płynąć kapitał. Kropki płyną w stronę strzałki, a grubość linii to kwota.","m450.hc.3":"Kliknij element lub linię, aby zobaczyć szczegóły. Przeciągaj, aby obejrzeć scenę z każdej strony.","m450.hc.why":"Kliknij blok, kulę lub linię w scenie 3D (albo pozycję na liście), aby zobaczyć wartość, okres i ograniczenia.","m450.hg.t":"Jak czytać mapę","m450.hg.1":"Każde koło to region świata. Flaga oznacza kraj albo Unię Europejską. Im większe koło, tym większa zmiana wartości rynków.","m450.hg.2":"Linie łączą regiony, które traciły, z tymi, które zyskiwały. To szacunek, a nie zmierzone przelewy.","m450.hg.3":"Koło z symbolem BTC po prawej stronie to rynek kryptowalut.","m450.hg.col.h":"Co oznacza kolor","m450.hg.col.p":"Zielony to wzrost wartości rynku, a czerwony to spadek.","m450.hg.lim.h":"Czego mapa nie pokazuje","m450.hg.lim.p":"Mapa pokazuje zmianę wartości rynków, a nie przelewy między krajami. Dane przychodzą z różnym opóźnieniem, od jednego dnia do kilku miesięcy. To nie jest porada inwestycyjna."},"en":{"m450.sub":"In short: what this site is and how to read the numbers.","m450.what.h":"What this site is","m450.what.p":"A free site that shows where money is moving in the world: in stock markets, funds and crypto. It gathers public data and shows it in a simple way.","m450.src.h":"Where the data comes from","m450.src.n":"{n} — government agencies, central banks, exchanges and other institutions.","m450.src.0":"The data comes from public sources: government agencies, central banks, exchanges and other institutions.","m450.src.gap":"We never guess: when data is missing you see “—”, not zero.","m450.fresh.h":"How often the data refreshes","m450.fresh.p":"The site checks for new data every 10 minutes. The sources themselves publish at their own pace: some daily, others weekly, monthly or quarterly. That is why each number shows the date and age of its data.","m450.col.h":"How to read colours and dates","m450.col.g":"Green: the value is rising.","m450.col.r":"Red: the value is falling.","m450.col.y":"Yellow: no change, or information.","m450.col.d1":"“data 2 days old”","m450.col.d2":"how much time has passed since the date of the data.","m450.col.n":"no data. This is not zero.","m450.adv.h":"This is not investment advice","m450.adv.p":"The site only shows data. It does not say what to buy or sell, and it does not forecast anything.","m450.hc.1":"A block or a sphere is an asset or a sector. The bigger it is, the bigger the change in value over the period: green is a rise, red a fall.","m450.hc.2":"Lines show where capital may have flowed. Dots travel toward the arrow, and line thickness is the amount.","m450.hc.3":"Click an item or a line to see the details. Drag to look at the scene from any side.","m450.hc.why":"Click a block, a sphere or a line in the 3D scene (or an item in the list) to see the value, the period and the limitations.","m450.hg.t":"How to read the map","m450.hg.1":"Each circle is a region of the world. A flag marks a country or the European Union. The bigger the circle, the bigger the change in market value.","m450.hg.2":"Lines connect regions that lost value with regions that gained it. This is an estimate, not measured transfers.","m450.hg.3":"The circle with the BTC symbol on the right is the crypto market.","m450.hg.col.h":"What the colour means","m450.hg.col.p":"Green is a rise in market value, and red is a fall.","m450.hg.lim.h":"What the map does not show","m450.hg.lim.p":"The map shows changes in market value, not transfers between countries. Data arrives with different delays, from one day to several months. This is not investment advice."}};
 for(const l in EXTRA306)if(I18N[l])Object.assign(I18N[l],EXTRA306[l]);
+/* v452 (F11Z32): złoto w handlu Wielkiej Brytanii — import i eksport wg miesięcy i krajów (GLOBAL, karta #g-zlotouk) — pl i en */
+const EXTRA307={"pl":{"zuk452.t":"Złoto w handlu Wielkiej Brytanii","zuk452.sub":"Ile złota Wielka Brytania sprowadza i wywozi, miesiąc po miesiącu.","zuk452.lazy":"Dane pojawią się po rozwinięciu karty.","zuk452.err":"Nie udało się wczytać danych o handlu złotem. Spróbuj ponownie za chwilę.","zuk452.errp":"Ostatnie odświeżenie się nie udało — widać wcześniejsze dane.","zuk452.k.imp":"Import — ostatni miesiąc","zuk452.k.exp":"Eksport — ostatni miesiąc","zuk452.k.imp12":"Import — 12 miesięcy","zuk452.k.exp12":"Eksport — 12 miesięcy","zuk452.u.mln":"mln £","zuk452.u.t":"t","zuk452.when":"dane za {m}","zuk452.when12":"12 miesięcy do {m}","zuk452.v.mm":"m/m","zuk452.v.yy":"r/r","zuk452.na.t":"brak danych","zuk452.na.k":"Brak danych o krajach.","zuk452.c.imp":"Import złota","zuk452.c.exp":"Eksport złota","zuk452.ch.aria":"Wykres kolumnowy: {n}, {k} miesięcy","zuk452.ch.short":"Za mało danych na wykres.","zuk452.h.imp":"Skąd złoto płynie do Wielkiej Brytanii — 12 miesięcy do {m}","zuk452.h.exp":"Dokąd Wielka Brytania wysyła złoto — 12 miesięcy do {m}","zuk452.rest":"Pozostałe kraje","zuk452.share":"udział {p}%","zuk452.bars.aria":"Wykres słupkowy: {n} pozycji","zuk452.note":"Dane urzędu celnego: złoto niemonetarne (sztabki, półprodukty i złoto nieobrobione), bez złota monetarnego, monet i biżuterii. Miesięczne, z opóźnieniem około dwóch miesięcy."},"en":{"zuk452.t":"Gold in UK trade","zuk452.sub":"How much gold the United Kingdom imports and exports, month by month.","zuk452.lazy":"Data will appear when you expand the card.","zuk452.err":"Could not load the gold trade data. Please try again in a moment.","zuk452.errp":"The latest refresh failed — earlier data is shown.","zuk452.k.imp":"Imports — last month","zuk452.k.exp":"Exports — last month","zuk452.k.imp12":"Imports — 12 months","zuk452.k.exp12":"Exports — 12 months","zuk452.u.mln":"£m","zuk452.u.t":"t","zuk452.when":"data for {m}","zuk452.when12":"12 months to {m}","zuk452.v.mm":"m/m","zuk452.v.yy":"y/y","zuk452.na.t":"no data","zuk452.na.k":"Country data is not available.","zuk452.c.imp":"Gold imports","zuk452.c.exp":"Gold exports","zuk452.ch.aria":"Column chart: {n}, {k} months","zuk452.ch.short":"Not enough data for a chart.","zuk452.h.imp":"Where gold comes from — 12 months to {m}","zuk452.h.exp":"Where the UK sends gold — 12 months to {m}","zuk452.rest":"Other countries","zuk452.share":"{p}% share","zuk452.bars.aria":"Bar chart: {n} items","zuk452.note":"Customs data: non-monetary gold (bars, semi-finished and unwrought), excluding monetary gold, coins and jewellery. Monthly, about two months behind."}};
+for(const l in EXTRA307)if(I18N[l])Object.assign(I18N[l],EXTRA307[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -20011,6 +20036,102 @@ srvJSON('meta').then(m=>{SHE.on=!!(m&&typeof m==='object'&&m.ok&&typeof m.ok==='
 setInterval(()=>{if(!document.hidden&&SHE.j&&sheOpen($('#g-shorteu')))sheLoad(1);},30*60*1000);
 try{new MutationObserver(()=>renderShe()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
 /* ---------- koniec bloku krótka sprzedaż w Europie (v429) ---------- */
+/* ===================== v452 (F11Z32): ZŁOTO W HANDLU WIELKIEJ BRYTANII — IMPORT I EKSPORT WG MIESIĘCY I KRAJÓW — panel #g-zlotouk (plik automatu data/zloto-uk.json) =====================
+   Karta zwijana jak pozostałe w GLOBAL (silnik kart zw), po karcie ropy świata. Nagłówek widać od razu (karta pojawia się, gdy meta.json zna klucz „zloto_uk”); plik (kilka KB) jest pobierany dopiero po
+   rozwinięciu karty (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie; po wczytaniu odświeżany co 30 min przy rozwiniętej karcie). Cztery kafle (import i eksport w ostatnim miesiącu ze zmianą
+   m/m i r/r oraz z ostatnich 12 miesięcy ze zmianą r/r), dwa wykresy kolumnowe (24 miesiące) i dwa rankingi krajów (skąd złoto przypływa, dokąd wypływa; 12 miesięcy, zmiana wobec poprzednich 12, reszta jako
+   „Pozostałe kraje”). Każda liczba ma miesiąc danych i wiek; brak = „—” (nigdy zero), wartości poniżej 1 mln £ jako „<1”; kolory zmian z POKAZANEJ liczby (plus zielony ▲, minus czerwony ▼, zero żółte •).
+   Bez nazw dostawców (w pliku tylko liczby, miesiące i kody krajów). To dane statystyczne, nie porada inwestycyjna. Korzysta z narzędzi panelu stresu (strTile, strDelta, strVal, strNum) i wykresów (wkBars, wkCols, wkK). */
+const ZUK={j:null,l:false,x:false,t:0,e:0,on:false,mo:false};
+const ZUK_M=/^\d{4}-(0[1-9]|1[0-2])$/;
+const ZUK_HW=1e6,ZUK_HM=1e5;   /* górne granice poprawnych liczb: wartość w mln £, masa w t (19.10.2026: miesiąc do 21 tys. mln £ i 205 t, 12 miesięcy do 56 tys. mln £ z jednego kraju) */
+const ZUK_MINW=1,ZUK_TOP=6;   /* w rankingu kraje od 1 mln £ z 12 miesięcy (najwyżej sześć), reszta w „Pozostałe kraje”; zmiana tylko od podstawy 1 mln £ */
+const zukObj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const zukIn=(v,hi)=>strNum(v)&&v>=0&&v<=hi;
+const zukArr=(a,n,hi)=>Array.isArray(a)&&a.length===n?a.map(v=>zukIn(v,hi)?v:null):null;   /* liczba poza zakresem = brak, nie zero */
+const zukList=L=>(Array.isArray(L)?L:[]).filter(x=>zukObj(x)&&typeof x.k==='string'&&/^[A-Z]{2}$/.test(x.k)&&[['w12',ZUK_HW],['m12',ZUK_HM],['wp',ZUK_HW],['wl',ZUK_HW],['ml',ZUK_HM]].every(([f,hi])=>zukIn(x[f],hi)));
+/* plik: wersja 1, miesiące rosnące (13–36), ostatni = okres, serie importu i eksportu o długości listy miesięcy, co najmniej 12 miesięcy importu; inaczej null */
+function zukParse(j){
+  if(!zukObj(j)||j.v!==1||typeof j.at!=='string'||!isFinite(Date.parse(j.at)))return null;
+  const M=j.mies;
+  if(!Array.isArray(M)||M.length<13||M.length>36||!M.every((m,i)=>typeof m==='string'&&ZUK_M.test(m)&&(i===0||m>M[i-1]))||M[M.length-1]!==j.okres)return null;
+  const n=M.length,I=zukObj(j.imp)?j.imp:{},E=zukObj(j.exp)?j.exp:{},K=zukObj(j.kraje)?j.kraje:{};
+  const iw=zukArr(I.w,n,ZUK_HW),im=zukArr(I.m,n,ZUK_HM),ew=zukArr(E.w,n,ZUK_HW),em=zukArr(E.m,n,ZUK_HM);
+  if(!iw||!im||!ew||!em||iw.filter(strNum).length<12)return null;
+  return {mies:M,n,okres:j.okres,imp:{w:iw,m:im},exp:{w:ew,m:em},kr:{imp:zukList(K.imp),exp:zukList(K.exp)},ok:j.ok!==false};
+}
+const zukFl=c=>typeof flagImg==='function'?flagImg(c==='UK'?'GB':c,'sm'):'';
+function zukNm(c){const i2=c==='EL'?'GR':c==='UK'?'GB':c;
+  try{const k=LOCALE[LANG]||'en';const dn=PG_DN[k]||(PG_DN[k]=new Intl.DisplayNames([k],{type:'region'}));const n=dn.of(i2);if(n&&n!==i2)return n;}catch(e){}
+  return c;}
+const zukLoc=()=>LOCALE[LANG]||'pl-PL';
+const zukMon=m=>ZUK_M.test(m||'')?new Date(Date.UTC(+m.slice(0,4),+m.slice(5,7)-1,15)).toLocaleDateString(zukLoc(),{month:'long',year:'numeric',timeZone:'UTC'}):'—';
+const zukMonS=m=>ZUK_M.test(m||'')?new Date(Date.UTC(+m.slice(0,4),+m.slice(5,7)-1,15)).toLocaleDateString(zukLoc(),{month:'short',year:'numeric',timeZone:'UTC'}):'—';
+/* „do sierpnia 2026” (dopełniacz po „do”; w angielskim „August 2026”): miesiąc i rok z pełnej daty w języku widza */
+const zukMonDo=m=>{if(!ZUK_M.test(m||''))return '—';try{return new Intl.DateTimeFormat(zukLoc(),{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).formatToParts(new Date(Date.UTC(+m.slice(0,4),+m.slice(5,7)-1,15))).filter(p=>p.type==='month'||p.type==='year').map(p=>p.value).join(' ');}catch(e){return zukMon(m);}};
+const zukWhen=m=>t('zuk452.when',{m:zukMon(m)})+gAgeNote(m);
+/* suma serii z przedziału [od, do): wszystkie miesiące muszą mieć liczbę, inaczej brak (nie suma z dziur) */
+function zukSum(a,od,do_){if(od<0)return null;let s=0;for(let i=od;i<do_;i++){if(!strNum(a[i]))return null;s+=a[i];}return Math.round(s*1000)/1000;}   /* serie mają 3 miejsca — zaokrąglenie usuwa szum sumowania (7,645, nie 7,6449999) */
+const zukPct=(a,b)=>strNum(a)&&strNum(b)&&b>0?(a/b-1)*100:null;
+const zukMln=v=>!strNum(v)?'—':v===0?'0':v>0&&v<1?'<1':strVal(v,v<100?1:0);
+const zukT=v=>!strNum(v)?'—':v>0&&v<0.01?'<'+nfmt(0.01,2):strVal(v,2);
+/* zmiana w procentach z kierunkiem i kolorem z POKAZANEJ liczby; brak = „—” */
+function zukPd(p){if(!strNum(p))return '—';const r=Math.round(p*10)/10,big=Math.abs(r)>=1000;return `<small class="${r>0?'pos':r<0?'neg':'neu'}">${r>0?'▲ +':r<0?'▼ −':'• '}${big?'>'+nfmt(1000,0):nfmt(Math.abs(r),1)}%</small>`;}   /* zmiana od tysiąca procent: „>1000%” (mała podstawa nie robi z szumu rekordu) */
+const zukSub=(h,u)=>`<p class="wk-sub"><b>${h}</b>${u?`<small>${u}</small>`:''}</p>`;
+/* zmiana w kaflu: od tysiąca procent skrócona do „>1000%” (mała podstawa nie robi z szumu rekordu), inaczej jak w innych kaflach */
+function zukDl(p,lab){if(strNum(p)&&Math.round(p*10)/10>=1000)return {txt:'▲ +>'+nfmt(1000,0)+' '+lab,cls:'pos'};return strDelta(p,1,lab);}
+/* kafel: wartość w mln £, masa w t, zmiany (null = brak porównania) */
+function zukTile(lab,w,m,cmp,when){
+  if(!strNum(w))return strTile('',lab,'—',[{txt:t('zuk452.na.t'),cls:'na'}],when);
+  const ls=cmp.map(([v,k])=>zukDl(zukPct(w,v),'% '+t('zuk452.v.'+k)));
+  ls.push({txt:`${zukT(m)} ${t('zuk452.u.t')}`,cls:'pc'});
+  return strTile('',lab,`${zukMln(w)} <small class="u">${t('zuk452.u.mln')}</small>`,ls,when);}
+function zukTiles(J){
+  const n=J.n,i=n-1,I=J.imp,E=J.exp,w=zukWhen(J.okres);
+  const mon=(S,lab)=>zukTile(lab,S.w[i],S.m[i],[[S.w[i-1],'mm'],[n>=13?S.w[n-13]:null,'yy']],w);
+  const yr=(S,lab)=>zukTile(lab,zukSum(S.w,n-12,n),zukSum(S.m,n-12,n),[[n>=24?zukSum(S.w,n-24,n-12):null,'yy']],t('zuk452.when12',{m:zukMonDo(J.okres)})+gAgeNote(J.okres));
+  return mon(I,t('zuk452.k.imp'))+mon(E,t('zuk452.k.exp'))+yr(I,t('zuk452.k.imp12'))+yr(E,t('zuk452.k.exp12'));}
+function zukChart(J,dir,cls){
+  const S=J[dir],lab=t('zuk452.c.'+dir);
+  if(S.w.filter(strNum).length<3)return `<div class="zuk-c">${zukSub(lab,t('zuk452.u.mln'))}<p class="pnote">${t('zuk452.ch.short')}</p></div>`;
+  const X=J.mies.map((m,k)=>({x:zukMonS(m),v:S.w[k],tip:zukMon(m)+wkK()+(strNum(S.w[k])?`${zukMln(S.w[k])} ${t('zuk452.u.mln')} · ${zukT(S.m[k])} ${t('zuk452.u.t')}`:'—')}));
+  return `<div class="zuk-c">${zukSub(lab,t('zuk452.u.mln'))}${wkCols(X,{aria:t('zuk452.ch.aria',{n:lab,k:J.n}),ser:[{n:lab,cls}]})}</div>`;}
+/* ranking krajów z 12 miesięcy: kraje z pliku + „Pozostałe kraje” (suma serii minus kraje); zmiana wobec poprzednich 12 miesięcy */
+function zukBars(J,dir,cls){
+  const n=J.n,S=J[dir],L=J.kr[dir],tot=zukSum(S.w,n-12,n),tm=zukSum(S.m,n-12,n),tp=n>=24?zukSum(S.w,n-24,n-12):null;
+  const h=t('zuk452.h.'+dir,{m:zukMonDo(J.okres)});
+  if(!L.length||!strNum(tot)||!(tot>0))return `${zukSub(h)}<p class="pnote">${t('zuk452.na.k')}</p>`;
+  const rows=L.filter(x=>x.w12>=ZUK_MINW).slice(0,ZUK_TOP).map(x=>({c:x.k,w:x.w12,m:x.m12,p:x.wp}));
+  const sw=rows.reduce((a,r)=>a+r.w,0),sm=rows.reduce((a,r)=>a+r.m,0),sp=rows.reduce((a,r)=>a+r.p,0);
+  if(tot-sw>0.005)rows.push({c:'',w:tot-sw,m:strNum(tm)?Math.max(0,tm-sm):null,p:strNum(tp)?Math.max(0,tp-sp):null});
+  const B=rows.map(r=>{const nm=r.c?escH(zukNm(r.c)):t('zuk452.rest'),sh=Math.round(r.w/tot*100);
+    return {l:(r.c?zukFl(r.c):'')+nm,v:r.w,vt:`${escH(zukMln(r.w))} ${zukPd(strNum(r.p)&&r.p>=ZUK_MINW?zukPct(r.w,r.p):null)}`,cls,
+      tip:(r.c?zukNm(r.c):t('zuk452.rest'))+wkK()+`${zukMln(r.w)} ${t('zuk452.u.mln')} · ${zukT(r.m)} ${t('zuk452.u.t')} · ${t('zuk452.share',{p:nfmt(sh,0)})}`};});
+  return zukSub(h,t('zuk452.u.mln'))+wkBars(B,{aria:t('zuk452.bars.aria',{n:B.length}),lw:'38%',fmt:v=>zukMln(v)});}
+function zukBody(){
+  if(!ZUK.j)return `<p class="pnote">${t(ZUK.x?'zuk452.err':'zuk452.lazy')}</p>`;
+  const J=zukParse(ZUK.j);if(!J)return `<p class="pnote">${t('zuk452.err')}</p>`;
+  return `<div class="etfkpis">${zukTiles(J)}</div><div class="zuk-g">${zukChart(J,'imp','s1')}${zukChart(J,'exp','s2')}</div>`
+    +zukBars(J,'imp','s1')+zukBars(J,'exp','s2')
+    +(J.ok?'':`<p class="pnote neu">${t('zuk452.errp')}</p>`)
+    +`<p class="pnote">${t('zuk452.note')}</p><p class="pfoot">${t('inst.file',{t:engDate(ZUK.j.at)})} · ${t('eng.disclaimer')}</p>`;}
+function zukOpen(el){return !!(el&&el.classList&&el.classList.contains('zw-on')&&!el.classList.contains('zw'));}
+function renderZuk(){const el=$('#g-zlotouk');if(!el)return;
+  if(!ZUK.on){el.hidden=true;el.innerHTML='';return;}
+  const ico=typeof icoWrap==='function'?icoWrap(zukFl('GB')):'';
+  el.innerHTML=`<div class="etfh"><div><h2>${ico}${t('zuk452.t')}</h2><p class="pnote">${t('zuk452.sub')}</p></div></div>${zukBody()}`;
+  el.hidden=false;
+  if(!ZUK.mo&&typeof MutationObserver==='function'){ZUK.mo=true;try{new MutationObserver(()=>{if(zukOpen(el))zukLoad();}).observe(el,{attributes:true,attributeFilter:['class']});}catch(e){}}   /* rozwinięcie karty (klasa) = pobranie */
+  if(zukOpen(el))zukLoad();}
+/* pobranie pliku: jedno naraz; chwilowy błąd nie zasłania wczytanych danych; po błędzie najwcześniej po minucie; f = odświeżenie wymuszone zegarem */
+function zukLoad(f){if(ZUK.l)return;const n=Date.now();if(ZUK.j&&!f&&n-ZUK.t<10*60e3)return;if(!ZUK.j&&n-ZUK.e<60e3)return;ZUK.l=true;
+  srvJSON('zloto-uk').then(j=>{
+    if(!zukParse(j)){ZUK.l=false;ZUK.e=Date.now();if(!ZUK.j)ZUK.x=true;renderZuk();return;}
+    ZUK.l=false;ZUK.j=j;ZUK.x=false;ZUK.t=Date.now();ZUK.on=true;renderZuk();});}
+srvJSON('meta').then(m=>{ZUK.on=!!(m&&typeof m==='object'&&m.ok&&typeof m.ok==='object'&&Object.prototype.hasOwnProperty.call(m.ok,'zloto_uk'));renderZuk();});
+setInterval(()=>{if(!document.hidden&&ZUK.j&&zukOpen($('#g-zlotouk')))zukLoad(1);},30*60*1000);
+try{new MutationObserver(()=>renderZuk()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
+/* ---------- koniec bloku złota w handlu Wielkiej Brytanii (v452) ---------- */
 /* ===================== v446 (F11Z33): SUROWCE CAŁĄ DOBĘ — ROPA, GAZ, ZŁOTO, SREBRO I MIEDŹ W KONTRAKTACH CAŁODOBOWYCH (GLOBAL) — panel #g-sur247 (plik automatu data/surowce-247.json) =====================
    Karta zwijana jak pozostałe w GLOBAL (silnik kart zw), po karcie ropy świata. Nagłówek i opis widać od razu (karta pojawia się, gdy meta.json zna część „sur247”); plik (kilka KB) jest pobierany dopiero po rozwinięciu
    karty (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie albo po zwinięciu i rozwinięciu; po wczytaniu odświeżany co 15 min przy rozwiniętej karcie).
