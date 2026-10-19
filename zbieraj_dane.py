@@ -12000,10 +12000,14 @@ def _su_due(src, z, now, S):
         if wd in (2, 3) and (wd == 3 or hm >= (14, 0)) and asof < (today - datetime.timedelta(days=wd - 1)).isoformat():
             return tr >= 30
         return at >= 12 * 60 and tr >= 60
-    if src == 'eia_dz':   # strona dzienna (T+1): dni robocze 11:30–15:00 UTC co 20 min, aż pojawi się poprzedni dzień roboczy; potem stop
+    if src == 'eia_dz':   # strona dzienna (T+1): dni robocze 11:30–15:00 UTC co 20 min, aż pojawi się poprzedni dzień roboczy; v481: po oknie co godzinę do 22:00 UTC (dni robocze urzędu)
         if first:
             return tr >= 60
-        return wd < 5 and (11, 30) <= hm < (15, 0) and asof < _su_dzien_rob(today, -1).isoformat() and tr >= 20
+        if wd >= 5 or asof >= _su_dzien_rob(today, -1).isoformat():
+            return False
+        if (11, 30) <= hm < (15, 0):
+            return tr >= 20
+        return _su_eia_rob(today) and (15, 0) <= hm < (22, 0) and tr >= 60   # v481: późne dogonienie po oknie (co godzinę do 22:00 UTC, nie w święto urzędu)
     if src == 'acer':     # ocena ceny LNG tego samego dnia (17:00), benchmark (różnica do TTF) następnego dnia roboczego (09:00)
         return _su_termin(now, z, ((9, 0), (17, 0)), range(5))
     if src == 'gld':      # archiwum funduszu po sesji NYSE: 01:00, ponowienie 13:00 UTC
@@ -12063,7 +12067,7 @@ def _su_next(part, out, now):
     iso = lambda d, h, mi=0: datetime.datetime(d.year, d.month, d.day, h, mi, tzinfo=utc).isoformat()   # noqa: E731
     today = now.date()
     if part == 'ceny':   # strona dzienna EIA (T+1) ok. 11:30–12:30 UTC w dni robocze
-        d = today if today.weekday() < 5 and now.hour < 12 else _su_dzien_rob(today, 1)
+        d = today if _su_eia_rob(today) and now.hour < 12 else _su_eia_nast(today, 1)   # v481: kalendarz urzędu — w święto USA nie ma publikacji
         return iso(d, 12)
     if part == 'zapasy':   # raport tygodniowy w środę 10:30 czasu Nowego Jorku (14:30 UTC latem, 15:30 UTC zimą — v325, zb07-05)
         wed = today - datetime.timedelta(days=today.weekday() - 2)
@@ -12654,6 +12658,69 @@ def _su_last(rows):
     return next((r for r in reversed(rows) if _isnum(r[1])), None)
 
 
+# ===================== v481: ropa i gaz EIA — odporność odczytu (ponowienia, kalendarz publikacji, późne dogonienie) =====================
+# Trzy odrębne awarie odczytu w 5 dniach (zapasy 15.10, ceny 17.10 i 19.10) kończyły się po jednym przebiegu: urząd odpowiada wolno (strona dzienna ok. 8 s,
+# limit 20 s) albo chwilowo błędem serwera. Dlatego (1) źródła rodziny EIA ponawiają zapytanie W TYM SAMYM przebiegu z odstępem (SU_PONOW, s) — tylko błąd
+# chwilowy (brak odpowiedzi w limicie, przerwane połączenie, HTTP 408 i 5xx) i tylko gdy pauza z pełnym limitem mieści się w budżecie budowniczego; odmowa
+# (403, 429), brak pliku (404) i zła treść nie są ponawiane (bez obchodzenia blokad). (2) Kalendarz publikacji strony dziennej: w święta w USA urząd
+# nie publikuje, więc zamknięcie dnia przed świętem przychodzi dopiero następnego dnia roboczego urzędu (piątek 9.10.2026 — we wtorek 13.10, po
+# poniedziałkowym Columbus Day). (3) Gdy strona dzienna nie dała dnia w oknie 11:30–15:00 UTC, odczyt jest powtarzany po oknie: co godzinę do 22:00 UTC
+# w dni robocze urzędu, dopóki nie ma poprzedniego dnia (wcześniej dopiero następnego dnia — strona pokazuje już wtedy kolejne zamknięcie, więc dzień
+# zostawał dziurą do środowego API). Test wsteczny kalendarza (ws53/v481-ropa-gaz-eia/bt, ceny WTI z historii urzędu 1986–10.2026): w 2023–2025 brak
+# ceny dokładnie w święta federalne i w Wielki Piątek (jedyny dzień poza tabelą: żałoba narodowa 9.01.2025); w 2026 część świąt ma cenę powtórzoną z poprzedniego dnia (12.10),
+# a część brak (3.07, 7.09) — kontrola ocenia świeżość tym samym kalendarzem i tylko łagodzi ⚠️ (ℹ️), gdy dane są zgodne z kalendarzem.
+SU_PONOW = {'eia_dz': (4, 12), 'wpsr': (4, 12), 'wngsr': (4, 12), 'eia': (8,), 'eia_t': (8,)}   # s pauzy przed kolejną próbą (liczba prób = pauzy + 1)
+SU_EIA_SWIETA = frozenset((   # dni bez publikacji urzędu: święta federalne USA (z przesunięciem na piątek / poniedziałek) i Wielki Piątek (giełda zamknięta)
+    '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07', '2026-10-12', '2026-11-11',
+    '2026-11-26', '2026-12-25', '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18', '2027-07-05', '2027-09-06',
+    '2027-10-11', '2027-11-11', '2027-11-25', '2027-12-24', '2027-12-31'))
+SU_EIA_SWIETA_DO = 2027   # ostatni rok tabeli; po nim sam dzień roboczy pn–pt (świeżość: bez fałszywego spokoju, najwyżej zbędne ⚠️ w święto)
+SU_EIA_PUB_UTC = (15, 0)  # godzina UTC, po której zamknięcie poprzedniego dnia powinno już być na stronie dziennej (zwykle 11:30–12:30 + zapas)
+
+
+def _su_przejsciowy(e):
+    """v481: błąd chwilowy — warto ponowić w tym przebiegu (brak odpowiedzi w limicie, przerwane połączenie, HTTP 408 i 5xx). Odmowa (403, 429), brak
+    pliku (404) i błędy treści (RuntimeError, ValueError) to nie błąd chwilowy: bez ponawiania i bez obchodzenia blokad."""
+    if isinstance(e, urllib.error.HTTPError):
+        return e.code == 408 or 500 <= e.code <= 599
+    return isinstance(e, (OSError, TimeoutError, _http_client.HTTPException))
+
+
+def _su_ponow_miesci(ctx, src, pauza, limit=None):
+    """v481: czy pauza i kolejne zapytanie z pełnym limitem mieszczą się w reszcie budżetu budowniczego (kontekst bez budżetu — tak)."""
+    if ctx.get('t0') is None or ctx.get('budzet') is None:
+        return True
+    return ctx['budzet'] - (time.monotonic() - ctx['t0']) >= pauza + (limit or SU_LIMIT_S[src])
+
+
+def _su_eia_rob(d):
+    """v481: dzień roboczy urzędu (pn–pt bez świąt z SU_EIA_SWIETA)."""
+    return d.weekday() < 5 and d.isoformat() not in SU_EIA_SWIETA
+
+
+def _su_eia_nast(d, k=1):
+    """v481: k-ty dzień roboczy urzędu po dniu d (k < 0 — przed nim)."""
+    step, n = (-1 if k < 0 else 1), abs(k)
+    while n:
+        d += datetime.timedelta(days=step)
+        if _su_eia_rob(d):
+            n -= 1
+    return d
+
+
+def su_eia_oczekiwany(now):
+    """v481: najnowszy dzień roboczy urzędu, którego zamknięcie powinno już być na stronie dziennej: zamknięcie dnia D wychodzi w następnym dniu
+    roboczym urzędu po D (nie w święto) — po SU_EIA_PUB_UTC. Przed piątkowym zamknięciem przy poniedziałku-święcie: czwartek (do wtorku 15:00 UTC)."""
+    d = now.date()
+    for _ in range(20):
+        if _su_eia_rob(d):
+            p = _su_eia_nast(d, 1)
+            if datetime.datetime(p.year, p.month, p.day, SU_EIA_PUB_UTC[0], SU_EIA_PUB_UTC[1], tzinfo=datetime.timezone.utc) <= now:
+                return d
+        d -= datetime.timedelta(days=1)
+    return None
+
+
 # ---- pobrania źródeł: każde aktualizuje historię H (API ma pierwszeństwo przed szybkimi kanałami: pole pre) ----
 def _su_limit(ctx, src, limit=None):
     """Limit jednego zapytania: limit źródła, ale nie dłuższy niż reszta budżetu budowniczego — zapytanie ponad liczbę z SU_ZAPYTANIA (CFTC
@@ -12669,7 +12736,16 @@ def _su_limit(ctx, src, limit=None):
 
 
 def _su_get(ctx, src, url, headers=None, limit=None):
-    b = ctx['fetch'](url, _su_limit(ctx, src, limit), headers)
+    pauzy, n = (SU_PONOW.get(src, ()) if ctx.get('ponow_on') else ()), 0   # v481: ponowienia w przebiegu — tylko z prawdziwą siecią (albo flagą testu)
+    while True:
+        try:
+            b = ctx['fetch'](url, _su_limit(ctx, src, limit), headers)
+            break
+        except Exception as e:
+            if n >= len(pauzy) or not _su_przejsciowy(e) or not _su_ponow_miesci(ctx, src, pauzy[n], limit):
+                raise
+            time.sleep(pauzy[n]); n += 1
+            ctx.setdefault('ponow', {})[src] = ctx.get('ponow', {}).get(src, 0) + 1
     if src in SU_RAW and isinstance(ctx.get('raw'), dict):   # v298: odpowiedź lidera dla źródeł-naśladowców etapu 3 (bez drugiego zapytania)
         ctx['raw'][url] = b
     return b
@@ -13937,7 +14013,7 @@ def _su_crack(H):
                           for d, w in W.items()}
 
 
-def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, budzet_s=None, run_t0=None, fund=None):   # v298: fund — data/fundusze.json (IAU)
+def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, budzet_s=None, run_t0=None, fund=None, ponow=None):   # v298: fund — data/fundusze.json (IAU)
     """v295: data/surowce.json w wersji 2 i data/surowce-hist.json → (surowce, historia, zbiór źródeł pobranych w tym przebiegu).
     Każde źródło ma własną bramkę (_su_due) i budżet czasu; źródło bez klucza — pominięte z notatką; źródło z błędem — poprzednie dane z datą
     (część z ok False i krótkim błędem err). Bez wyjątku na zewnątrz poza błędem w samym budowniczym (main zostawia wtedy poprzednie pliki)."""
@@ -13961,7 +14037,7 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
     kontr = json.loads(json.dumps(prev.get('kontr'))) if v2 and isinstance(prev.get('kontr'), dict) else {}
     ctx = {'now': now, 'now_iso': now_iso, 'keys': keys, 'H': H, 'P': P, 'live': live, 'st': st, 'kontr': kontr, 'prev': prev,
            'bledy': [], 'uwagi': [], 'markets': None, 'avg5_zr': None, 't0': time.monotonic(),
-           'budzet': SU_BUDZET_S if budzet_s is None else budzet_s,
+           'budzet': SU_BUDZET_S if budzet_s is None else budzet_s, 'ponow_on': fetch is None if ponow is None else bool(ponow),   # v481
            'fetch': fetch or (lambda url, timeout, headers=None: get_bytes(url, headers, timeout=timeout))}
     late = run_t0 is not None and time.monotonic() - run_t0 > SU_LATE
     S = {'st': st, 'markets_asof': prev.get('asof')}
@@ -13988,7 +14064,7 @@ def build_surowce(prev=None, prev_hist=None, keys=None, now=None, fetch=None, bu
         try:
             asof = SU_POBIERZ[src](ctx)
         except Exception as e:
-            msg = mask(f'{src}: {e}')[:160]
+            msg = mask(f'{src}: {e}' + (f' (po {ctx["ponow"][src]} ponowieniach)' if (ctx.get('ponow') or {}).get(src) else ''))[:160]   # v481
             z['err'] = msg
             if src in SU_MIEKKIE:   # v301: źródło uzupełniające — notatka albo błąd części rozstrzygane po pętli (wynik źródła głównego)
                 miekkie.append((src, part, msg)); continue

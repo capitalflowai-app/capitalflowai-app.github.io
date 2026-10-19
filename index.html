@@ -4042,6 +4042,8 @@ const EXTRA321={"pl":{"kf422.s.valb":"wartość {v} · {p} z 21 mln BTC (podaż 
 for(const l in EXTRA321)if(I18N[l])Object.assign(I18N[l],EXTRA321[l]);
 const EXTRA322={"pl":{"wh479.old":"lista sprzed {a} dni — nowe portfele giełdy mogą być jeszcze niewliczone"},"en":{"wh479.old":"wallet list is {a} days old — new wallets of the exchange may not be counted yet"}};
 for(const l in EXTRA322)if(I18N[l])Object.assign(I18N[l],EXTRA322[l]);
+const EXTRA323={"pl":{"su481.chr":"Od {d}: {n} z {m} ostatnich sesji bez potwierdzenia drugim źródłem — stały rozjazd cen, nie pojedynczy skok.","su481.chg0":"— w tygodniu (stały rozjazd cen)","su481.k.n":"— stały rozjazd cen"},"en":{"su481.chr":"Since {d}: {n} of the last {m} sessions not confirmed by a second source — a lasting price gap, not a one-off jump.","su481.chg0":"— over the week (lasting price gap)","su481.k.n":"— lasting price gap"}};
+for(const l in EXTRA323)if(I18N[l])Object.assign(I18N[l],EXTRA323[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -17146,7 +17148,7 @@ function suRun(V,Q,E){const n=V.length;if(!n||Q.get(V[n-1][0])!=='niepotw')retur
    bez potwierdzenia, '': obie potwierdzone */
 function suWkWhy(V,Q){const l=V[V.length-1],p=l?suBack(V,l[0],5):null;return !l||Q.get(l[0])==='niepotw'?'l':p&&Q.get(p[0])==='niepotw'?'p':'';}
 function suWkOk(V,Q){return !suWkWhy(V,Q);}
-const suChg0=w=>t(w==='p'?'su300.chg0p':'su297g.chg0');
+const suChg0=(w,c)=>t(c?'su481.chg0':w==='p'?'su300.chg0p':'su297g.chg0');
 /* kontrakt terminowy tej samej ropy z tego samego dnia (seria kontrolna bez kafla) — tylko dla porównania */
 const SU_FUT={brent:'brent_fut'};
 function suFut(id,d){const f=SU_FUT[id]?suSer('ceny',SU_FUT[id]):null,r=f?suVal(suRows(f.d,SU_D)).find(x=>x[0]===d):null;return r?t('su297g.fut',{d:suDay(d),v:suFmt(r[1])+' '+suUnit(f.u)}):'';}
@@ -17159,12 +17161,16 @@ function suGapTxt(id,d){const fid=SU_FUT[id];if(!fid||!d)return '';const s=suSer
   const g=(a[1]/b[1]-1)*100;if(!suNum(g)||Math.abs(g)<SU_GAP_MIN)return '';
   return t(g>0?'g464.gap.u':'g464.gap.d',{v:suFmt(b[1])+' '+suUnit(f.u),p:nfmt(Math.abs(g),0)});}
 const suGapN=(id,d)=>{const g=suGapTxt(id,d);return g?`<small class="mtxt su-qn">${g}</small>`:'';};
+/* v481: stan trwały — co najmniej SU_QA[1] z ostatnich SU_QA[0] sesji bez potwierdzenia i któraś z ostatnich SU_QA[2] (ta sama reguła co su_chron w kontroli):
+   jedna adnotacja zamiast uwag o punktach i ciągu, a zmiana w tygodniu „—” z powodem; inaczej null */
+const SU_QA=[14,5,5];
+function suChr(V,Q){const w=V.slice(-SU_QA[0]),f=w.filter(r=>Q.get(r[0])==='niepotw');return f.length>=SU_QA[1]&&V.slice(-SU_QA[2]).some(r=>Q.get(r[0])==='niepotw')?{d:f[0][0],n:f.length,m:w.length}:null;}
 /* zdania uwagi: ciąg kilku sesji — „od {d}”; jeden dzień — dopisek punktu (kafel surowców ma go już pod wykresem: one=false); kontrakt — osobno */
 /* v300: ciąg od dnia z samym wpisem 'trwa' — „od {d}” albo (jeden dzień) „cena z {d}”, z dniem punktu, po którym cena została na nowym poziomie */
-function suRunTxt(id,run,one,d){if(!run)return d?[suGapTxt(id,d)].filter(Boolean):[];const m=run.t&&run.p?t(run.d!==run.l?'su300.runp':'su300.run1p',{d:suDay(run.d),p:suDay(run.p)}):
+function suRunTxt(id,run,one,d,chr){if(chr)return [t('su481.chr',{d:suDay(chr.d),n:chr.n,m:chr.m}),d?suGapTxt(id,d):''].filter(Boolean);if(!run)return d?[suGapTxt(id,d)].filter(Boolean):[];const m=run.t&&run.p?t(run.d!==run.l?'su300.runp':'su300.run1p',{d:suDay(run.d),p:suDay(run.p)}):
   run.d!==run.l||run.t?t('su297g.run',{d:suDay(run.d)}):one?t('su295g.q.n',{d:suDay(run.d)}):'';return [m,suGapTxt(id,run.l)?'':suFut(id,run.l)].filter(Boolean);}
 /* panel USA (v98): stan ostatniej ceny TEJ SAMEJ serii → {ok: zmiana tygodnia dozwolona, n: zdania uwagi}; seria spoza pliku surowców → null */
-function suUsaQ(id){const s=suSer('ceny',id),V=s?suVal(suRows(s.d,SU_D)):[];if(!V.length)return null;const Q=suQ(s);const w=suWkWhy(V,Q);return {ok:!w,w,n:suRunTxt(id,suRun(V,Q,suQE(s)),true),g:suGapTxt(id,V[V.length-1][0])};}
+function suUsaQ(id){const s=suSer('ceny',id),V=s?suVal(suRows(s.d,SU_D)):[];if(!V.length)return null;const Q=suQ(s);const w=suWkWhy(V,Q),chr=suChr(V,Q);return {ok:!w,w,c:!!chr,n:suRunTxt(id,suRun(V,Q,suQE(s)),true,undefined,chr),g:suGapTxt(id,V[V.length-1][0])};}
 /* notowanie godzinowe złota: wiek obok godziny; starsze niż SU_LIVE_H godz. — bez dopisku (awaria notowań nie udaje bieżącej ceny) */
 const SU_LIVE_H=3;
 function suAgo(iso){const m=Math.max(0,Math.floor((Date.now()-Date.parse(iso))/6e4));return m<1?t('su297g.ago.0'):m<60?t('su297g.ago.m',{n:m}):t('su297g.ago.h',{n:Math.floor(m/60)});}
@@ -17189,13 +17195,13 @@ function suTile(id,g,F){
   const s=suSer('ceny',id),R=s?suRows(s.d,SU_D):[],V=suVal(R),l=V.length?V[V.length-1]:null,mk=s?suMarks(s.x):'';
   const head=`<span>${suIco(g,F)}${t('su295g.k.'+id)}</span>`,mkh=mk?`<small class="mtxt su-x">${mk}</small>`:'';
   if(!l)return `<div class="etfk su-k" data-su="${id}">${head}<b class="na">—</b>${mkh}<small class="mtxt">${t('eng.gap')}</small></div>`;
-  const Q=suQ(s),why=suWkWhy(V,Q),ok=!why,run=suRun(V,Q,suQE(s)),p=suBack(V,l[0],5),ch=ok&&p&&p[1]>0?(l[1]/p[1]-1)*100:null;   /* v297g: zmiana tylko przy obu końcach potwierdzonych */
+  const Q=suQ(s),why=suWkWhy(V,Q),ok=!why,chr=suChr(V,Q),run=suRun(V,Q,suQE(s)),p=suBack(V,l[0],5),ch=ok&&p&&p[1]>0?(l[1]/p[1]-1)*100:null;   /* v297g: zmiana tylko przy obu końcach potwierdzonych */
   const QW=new Map([...suQE(s)].filter(([d])=>d>=R[0][0])),pre=Array.isArray(s.pre)&&s.pre.includes(l[0]);
-  const chg=suNum(ch)?` <small class="${suTone(ch,1)}">${suChg(ch,1,'%',t('usa.wk'))}</small>`:!ok&&p?` <small class="su-nc">${suChg0(why)}</small>`:
+  const chg=suNum(ch)?` <small class="${suTone(ch,1)}">${suChg(ch,1,'%',t('usa.wk'))}</small>`:!ok&&p?` <small class="su-nc">${suChg0(why,chr)}</small>`:
     !p?` <small class="su-nc">${t('g314.su.wk0',{d:suDay(V[0][0])})}</small>`:'';   /* v314 (audyt G8): za krótka historia (miedź, uran od 7.10) — „—” z powodem, nie pusto */
-  const rt=suRunTxt(id,run,false).join(' '),rn=rt?`<small class="mtxt su-qn su-qr"><i class="su-qo" aria-hidden="true"></i>${rt}</small>`:'';
+  const rt=suRunTxt(id,run,false,null,chr).join(' '),rn=rt?`<small class="mtxt su-qn su-qr"><i class="su-qo" aria-hidden="true"></i>${rt}</small>`:'';
   const sp=V.length>1?suSpark(R,QW):`<small class="mtxt su-few">${t('su295g.few',{d:suDay(V[0][0])})}</small>`;
-  const qn=[...QW].filter(([d])=>!(run&&(run.d!==run.l&&d===run.d||run.t&&d===run.p))).sort((a,b)=>a[0]<b[0]?1:-1).slice(0,2).map(([d,st])=>`<small class="mtxt su-qn"><i class="su-qo" aria-hidden="true"></i>${t(st==='potw'?'su295g.q.p':'su295g.q.n',{d:suDay(d)})}</small>`).join('');
+  const qn=chr?'':[...QW].filter(([d])=>!(run&&(run.d!==run.l&&d===run.d||run.t&&d===run.p))).sort((a,b)=>a[0]<b[0]?1:-1).slice(0,2).map(([d,st])=>`<small class="mtxt su-qn"><i class="su-qo" aria-hidden="true"></i>${t(st==='potw'?'su295g.q.p':'su295g.q.n',{d:suDay(d)})}</small>`).join('');
   const L=s.live,la=suObj(L)&&typeof L.at==='string'?Date.parse(L.at):NaN;
   const lv=suNum(L&&L.v)&&isFinite(la)&&L.at.slice(0,10)>=l[0]&&Date.now()-la<=SU_LIVE_H*3600e3?`<small class="mtxt su-live">${t('su295g.live',{h:suHM(L.at),v:suFmt(L.v,suDec(l[1])),a:suAgo(L.at)})}</small>`:'';
   return `<div class="etfk su-k" data-su="${id}">${head}<b>${suFmt(l[1])} <small class="mtxt">${suUnit(s.u)}</small>${chg}</b>${mkh}${rn}${suGapN(id,l[0])}${sp}`+
@@ -18763,7 +18769,7 @@ function suKpi(id,key,per){
   const o={k:key,v:null,u:'su',d:null,su:id,fresh:'',why:SUK.tried?'':'…'};
   const s=suSer('ceny',id),R=s?suRows(s.d,SU_D):[],V=suVal(R);if(!V.length)return o;
   const l=V[V.length-1],Q=suQ(s),k=SU_K_N[per]||21;
-  Object.assign(o,{v:l[1],unit:suUnit(s.u),fresh:l[0],pre:Array.isArray(s.pre)&&s.pre.includes(l[0]),why:'',name:t('su295g.k.'+id),note:suRunTxt(id,suRun(V,Q,suQE(s)),true,l[0]).join(' '),gap:suGapTxt(id,l[0]),
+  Object.assign(o,{v:l[1],unit:suUnit(s.u),fresh:l[0],pre:Array.isArray(s.pre)&&s.pre.includes(l[0]),why:'',name:t('su295g.k.'+id),note:suRunTxt(id,suRun(V,Q,suQE(s)),true,l[0],suChr(V,Q)).join(' '),gap:suGapTxt(id,l[0]),
     mk:suMarks(s.x)});   /* v321 (przegląd): opis ceny z serii jak w Pulsie (wyliczona, z wyceny funduszu, kontrakt terminowy, szacunek) */
   let VV=V;
   if(V.length<=k){const hs=SU.h&&suObj(SU.h.d)&&Array.isArray(SU.h.d[id])?suVal(suRows(SU.h.d[id],SU_D)):null;
@@ -18771,8 +18777,8 @@ function suKpi(id,key,per){
     else if(per==='1R'&&!SU.hx){o.why=t('w321.k.n.load');suKpiHist();return o;}}
   const p=suBack(VV,l[0],k);
   if(!p){o.why=t('w321.k.n.few',{d:suDay(VV[0][0])});return o;}
-  if(Q.get(l[0])==='niepotw'){o.why=t('w321.k.n.l');return o;}
-  if(Q.get(p[0])==='niepotw'){o.why=t('w321.k.n.p');return o;}
+  if(Q.get(l[0])==='niepotw'){o.why=t(suChr(V,Q)?'su481.k.n':'w321.k.n.l');return o;}
+  if(Q.get(p[0])==='niepotw'){o.why=t(suChr(V,Q)?'su481.k.n':'w321.k.n.p');return o;}
   if(p[1]>0)o.d=(l[1]/p[1]-1)*100;
   o.from=p[0];return o;
 }
@@ -18818,7 +18824,7 @@ function usaEnergy(){
   const oil=usaG('oil'),us=usaF('us','sm');
   const px=(k,label,ico,unit)=>{const s=S[k];const l=s&&usaLast(s.d);if(!l)return;const p=usaBack(s.d,l[0],5);
     const uq=s.su&&typeof suUsaQ==='function'?suUsaQ(s.su):null,no=!!(uq&&!uq.ok),ch=p&&p[1]&&!no?(l[1]/p[1]-1)*100:null;   /* v297g: cena bez potwierdzenia (seria panelu surowców) — bez zmiany tygodnia, z tą samą uwagą */
-    out.push(usaTile(ico,t(label),`${nfmt(l[1],2)} <small class="mtxt">${t(unit)}</small>`,'',usaNum(ch)?usaChg(ch,1,'%',t('usa.wk')):no&&p?suChg0(uq.w):'',usaTone(ch,1),usaDay(l[0]),gAgeNote(l[0])+(Array.isArray(s.pre)&&s.pre.includes(l[0])?' · '+t('su295g.pre'):''),
+    out.push(usaTile(ico,t(label),`${nfmt(l[1],2)} <small class="mtxt">${t(unit)}</small>`,'',usaNum(ch)?usaChg(ch,1,'%',t('usa.wk')):no&&p?suChg0(uq.w,uq.c):'',usaTone(ch,1),usaDay(l[0]),gAgeNote(l[0])+(Array.isArray(s.pre)&&s.pre.includes(l[0])?' · '+t('su295g.pre'):''),
       uq?uq.n.map(x=>`<small class="mtxt su-qr">${x}</small>`).join('')+(uq.g?`<small class="mtxt su-qn">${uq.g}</small>`:''):''));};
   const st=(k,label,ico)=>{const s=S[k];const l=s&&usaLast(s.d);if(!l)return;const p=usaBack(s.d,l[0],1);const ch=p?(l[1]-p[1])/1000:null;
     out.push(usaTile(ico,t(label),`${nfmt(l[1]/1000,1)} <small class="mtxt">${t('usa.u.mbbl')}</small>`,'',usaNum(ch)?usaChg(ch,1,'',t('usa.wk1')):'',usaTone(ch,1),t('usa.weekto',{d:usaDay(l[0])}),gAgeNote(l[0])));};

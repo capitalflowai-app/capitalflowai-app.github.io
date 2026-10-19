@@ -31489,7 +31489,7 @@ class SurowceV295(unittest.TestCase):
                          'czwartek, nowy tydzień już jest — co 12 h')
         self.assertTrue(due('eia', {'at': '2026-10-07T18:00:00+00:00', 'asof': '2026-10-06'}, T(2026, 10, 8, 6, 1), {}), 'po 12 h')
         dz = {'at': '2026-10-06T12:00:00+00:00', 'try': '2026-10-07T11:00:00+00:00', 'asof': '2026-10-05'}
-        self.assertTrue(due('eia_dz', dz, T(2026, 10, 7, 11, 40), {})); self.assertFalse(due('eia_dz', dz, T(2026, 10, 7, 15, 10), {}), 'po 15:00 — stop')
+        self.assertTrue(due('eia_dz', dz, T(2026, 10, 7, 11, 40), {})); self.assertFalse(due('eia_dz', dz, T(2026, 10, 7, 22, 10), {}), 'od 22:00 — stop (v481: do 22:00 późne dogonienie co godzinę)')
         self.assertFalse(due('eia_dz', dict(dz, asof='2026-10-06'), T(2026, 10, 7, 12, 0), {}), 'jest poprzedni dzień roboczy — stop')
         self.assertFalse(due('eia_dz', dz, T(2026, 10, 10, 12, 0), {}), 'sobota')
         self.assertEqual(zd._su_dzien_rob(datetime.date(2026, 10, 12), -1), datetime.date(2026, 10, 9), 'poniedziałek → piątek')
@@ -31532,7 +31532,7 @@ class SurowceV295(unittest.TestCase):
         self.assertEqual(zd._su_next('zapasy', {'st': {'wpsr': {'asof': '2026-09-25'}}}, now), '2026-10-07T14:30:00+00:00', 'zaległy (w przeszłości)')
         self.assertEqual(zd._su_next('mies', out, now), '2026-11-03T12:00:00+00:00', '2. dzień roboczy listopada')
         self.assertEqual(zd._su_next('markets', out, now), '2026-10-09T19:30:00+00:00')
-        self.assertEqual(zd._su_next('ceny', out, datetime.datetime(2026, 10, 9, 13, 0, tzinfo=U)), '2026-10-12T12:00:00+00:00', 'piątek po publikacji → poniedziałek')
+        self.assertEqual(zd._su_next('ceny', out, datetime.datetime(2026, 10, 9, 13, 0, tzinfo=U)), '2026-10-13T12:00:00+00:00', 'piątek po publikacji → wtorek (v481: poniedziałek 12.10 to święto w USA)')
 
     # ---- całość na nagraniach ----
     def test_caly_przebieg_v2_zgodnosc_wstecz(self):
@@ -33415,6 +33415,7 @@ class SurowceUwagiV300(unittest.TestCase):
         import importlib.util
         spec = importlib.util.spec_from_file_location('kontrola_v300', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
         k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        k.SU_QA_MIN = 10 ** 6   # v481: stan trwały wyłączony — ten test bada samą logikę uwag o ciągach (adnotacja ma własne testy)
         B, W, _F = self.ser(self.R26)
         bd = [[d, v] for d, v in sorted(B.items()) if d <= '2026-04-02']
         q = [['2026-03-18', 'rozjazd', 'niepotw'], ['2026-03-23', 'trwa', 'niepotw'], ['2026-03-24', 'trwa', 'niepotw'], ['2026-03-26', 'trwa', 'niepotw'],
@@ -33577,6 +33578,7 @@ class SurowceUwagiV300(unittest.TestCase):
         import importlib.util
         spec = importlib.util.spec_from_file_location('kontrola_v300b', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
         k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        k.SU_QA_MIN = 10 ** 6   # v481: stan trwały wyłączony — ten test bada samą logikę uwag o ciągach (adnotacja ma własne testy)
         B, W, _F = self.ser(self.R26)
         bd = [[d, v] for d, v in sorted(B.items()) if d <= '2026-04-02']
         now = datetime.datetime(2026, 4, 3, 6, 20, tzinfo=datetime.timezone.utc)
@@ -82537,3 +82539,191 @@ class ZbozaOdpornoscV480(unittest.TestCase):
         # granica: różnica 1,0 jeszcze zaokrąglenie, 1,2 — nie
         self.assertEqual(W(self.plik(lambda T, S: T['pszenica'].__setitem__(1, -2.42))), '✅')
         self.assertEqual(W(self.plik(lambda T, S: T['pszenica'].__setitem__(1, -2.62))), '⚠️')
+
+
+class RopaGazEiaOdpornoscV481(unittest.TestCase):
+    """v481 (19.10.2026): ropa i gaz EIA — ponowienia odczytu w przebiegu z odstępami (tylko błąd chwilowy, w budżecie czasu), kalendarz publikacji urzędu
+    (święta w USA) w bramce strony dziennej, w terminie następnej publikacji i w ocenie świeżości w kontroli, późne dogonienie dnia po oknie publikacji
+    oraz jedna adnotacja zamiast codziennej uwagi dla ciągu cen bez potwierdzenia. Bez sieci i bez zegara (czas przypięty)."""
+    U = datetime.timezone.utc
+
+    def _k(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v481', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    @staticmethod
+    def _http(code):
+        return urllib.error.HTTPError('https://x.test/', code, 'x', {}, io.BytesIO(b''))
+
+    def _get(self, ods, src='eia_dz', ctx=None):
+        """ods: kolejne reakcje zaślepki zapytania (wyjątek albo bajty) → (wynik albo wyjątek, liczba zapytań, pauzy)."""
+        calls, pauzy = [], []
+
+        def fetch(url, timeout, headers=None):
+            calls.append(timeout)
+            o = ods[min(len(calls) - 1, len(ods) - 1)]
+            if isinstance(o, BaseException):
+                raise o
+            return o
+        c = dict({'ponow_on': True}, **(ctx or {}), fetch=fetch)
+        with mock.patch.object(zd.time, 'sleep', side_effect=lambda s: pauzy.append(s)):
+            try:
+                r = zd._su_get(c, src, 'https://x.test/p')
+            except Exception as e:   # noqa: BLE001
+                r = e
+        return r, len(calls), pauzy, c
+
+    def test_ponowienia_tylko_blad_chwilowy_z_odstepami(self):
+        self.assertEqual(zd.SU_PONOW['eia_dz'], (4, 12)); self.assertEqual(zd.SU_PONOW['eia'], (8,))
+        self.assertTrue(set(zd.SU_PONOW) <= {'eia_dz', 'eia', 'eia_t', 'wpsr', 'wngsr'}, 'tylko rodzina EIA')
+        r, n, p, c = self._get([TimeoutError('timed out'), self._http(503), b'ok'])
+        self.assertEqual((r, n, p, c['ponow']), (b'ok', 3, [4, 12], {'eia_dz': 2}), 'dwa błędy chwilowe, trzecia próba udana, odstępy 4 i 12 s')
+        r, n, p, c = self._get([urllib.error.URLError('brak odpowiedzi')] * 5)
+        self.assertIsInstance(r, urllib.error.URLError); self.assertEqual((n, p), (3, [4, 12]), 'po wyczerpaniu prób — pierwotny błąd, bez dalszych zapytań')
+        r, n, p, c = self._get([self._http(500), b'ok'], src='eia')
+        self.assertEqual((r, n, p), (b'ok', 2, [8]))
+        for ob in (self._http(403), self._http(429), self._http(404), RuntimeError('zła treść'), ValueError('x')):
+            r, n, p, c = self._get([ob, b'ok'])
+            self.assertEqual((n, p, r is ob), (1, [], True), f'{ob!r}: bez ponawiania (odmowa i zła treść to nie błąd chwilowy)')
+        r, n, p, c = self._get([TimeoutError('x'), b'ok'], src='acer')
+        self.assertEqual((n, p), (1, []), 'źródło spoza rodziny EIA — bez zmian')
+        self.assertTrue(zd._su_przejsciowy(self._http(408)) and zd._su_przejsciowy(self._http(599)) and not zd._su_przejsciowy(self._http(400)))
+        self.assertTrue(zd._su_przejsciowy(ConnectionResetError()) and zd._su_przejsciowy(zd._http_client.IncompleteRead(b'')))
+
+    def test_ponowienie_tylko_gdy_miesci_sie_w_budzecie(self):
+        t0 = zd.time.monotonic()
+        # 150 s budżetu: po 4 s pauzy i pełnym limicie 20 s mieści się; reszta 10 s — nie
+        r, n, p, _ = self._get([TimeoutError('x'), b'ok'], ctx={'t0': t0, 'budzet': 150})
+        self.assertEqual((r, n, p), (b'ok', 2, [4]))
+        r, n, p, _ = self._get([TimeoutError('x'), b'ok'], ctx={'t0': t0, 'budzet': 10})
+        self.assertIsInstance(r, (TimeoutError, RuntimeError)); self.assertEqual(p, [], 'brak miejsca w budżecie — bez pauzy i bez drugiego zapytania')
+        r, n, p, _ = self._get([TimeoutError('x'), b'ok'], ctx={'t0': t0, 'budzet': 23.9})
+        self.assertEqual((n, p), (1, []), 'pauza 4 s + limit 20 s = 24 s > reszta budżetu 23,9 s')
+
+    def test_budowniczy_ponawia_tylko_z_siecia_domyslna_albo_flaga_i_opisuje_w_bledzie(self):
+        t = SurowceV295('build')
+        fetch, calls = t.siec(fail=('todayinenergy',))   # strona dzienna zawsze 503
+        with mock.patch.object(zd.time, 'sleep', lambda s: None):
+            zd.META['errors'].clear()
+            out, _, zm = zd.build_surowce(None, None, t.keys(), now=t.NOW, fetch=fetch)
+            n_bez = sum(1 for c in calls if c[0] == zd.SU_EIA_DZ_URL)
+            self.assertEqual(n_bez, 1, 'zaślepka zapytania bez flagi — jak dotąd jedno zapytanie (testy bez czekania)')
+            fetch2, calls2 = t.siec(fail=('todayinenergy',))
+            zd.META['errors'].clear()
+            out2, _, _ = zd.build_surowce(None, None, t.keys(), now=t.NOW, fetch=fetch2, ponow=True)
+            self.assertEqual(sum(1 for c in calls2 if c[0] == zd.SU_EIA_DZ_URL), 3, 'z flagą: 3 próby')
+            self.assertTrue(any('eia_dz' in e and 'po 2 ponowieniach' in e for e in zd.META['errors']), zd.META['errors'])
+            self.assertFalse(any(t.KEY in e for e in zd.META['errors']), 'bez klucza w komunikatach')
+        zd.META['errors'].clear()
+
+    def test_kalendarz_dni_roboczych_urzedu(self):
+        D = datetime.date
+        self.assertEqual(sorted(zd.SU_EIA_SWIETA), sorted(set(zd.SU_EIA_SWIETA)))
+        for s in zd.SU_EIA_SWIETA:
+            self.assertLess(D.fromisoformat(s).weekday(), 5, s + ': święto przesunięte na dzień roboczy')
+        self.assertFalse(zd._su_eia_rob(D(2026, 10, 12)) or zd._su_eia_rob(D(2026, 10, 10)) or zd._su_eia_rob(D(2026, 11, 26)))
+        self.assertTrue(zd._su_eia_rob(D(2026, 10, 13)))
+        self.assertEqual(zd._su_eia_nast(D(2026, 10, 9), 1), D(2026, 10, 13), 'piątek przed świętem — następne zamknięcie we wtorek')
+        self.assertEqual(zd._su_eia_nast(D(2026, 10, 13), -1), D(2026, 10, 9))
+        t = lambda *a: zd.su_eia_oczekiwany(datetime.datetime(*a, tzinfo=self.U))   # noqa: E731
+        self.assertEqual(t(2026, 10, 12, 14, 0), D(2026, 10, 8), 'poniedziałek-święto: spodziewany czwartek (piątek wyjdzie we wtorek)')
+        self.assertEqual(t(2026, 10, 13, 14, 59), D(2026, 10, 8)); self.assertEqual(t(2026, 10, 13, 15, 0), D(2026, 10, 9))
+        self.assertEqual(t(2026, 10, 14, 15, 0), D(2026, 10, 13), 'wtorek 13.10 wyszedł w środę 14.10')
+        self.assertEqual(t(2026, 10, 19, 15, 0), D(2026, 10, 16), 'zwykły poniedziałek: piątek')
+        self.assertEqual(t(2026, 10, 17, 3, 0), D(2026, 10, 15), 'sobota: piątkowe zamknięcie wyjdzie dopiero w poniedziałek — spodziewany czwartek')
+        self.assertEqual(t(2026, 11, 27, 15, 0), D(2026, 11, 25), 'Dziękczynienie (czw. 26.11): środa wyjdzie w piątek 27.11')
+        self.assertEqual(t(2026, 11, 27, 14, 59), D(2026, 11, 24))
+        self.assertEqual(zd.SU_EIA_SWIETA_DO, 2027); self.assertEqual(max(zd.SU_EIA_SWIETA)[:4], '2027')
+        self.assertTrue(zd.SU_EIA_PUB_UTC == (15, 0))
+
+    def test_nastepna_publikacja_omija_swieta(self):
+        U = self.U
+        for now, want in (((2026, 10, 9, 13, 0), '2026-10-13T12:00:00+00:00'), ((2026, 10, 12, 8, 0), '2026-10-13T12:00:00+00:00'),
+                          ((2026, 10, 13, 8, 0), '2026-10-13T12:00:00+00:00'), ((2026, 10, 13, 13, 0), '2026-10-14T12:00:00+00:00'),
+                          ((2026, 10, 16, 13, 0), '2026-10-19T12:00:00+00:00'), ((2026, 11, 25, 13, 0), '2026-11-27T12:00:00+00:00')):
+            self.assertEqual(zd._su_next('ceny', {}, datetime.datetime(*now, tzinfo=U)), want, now)
+
+    def test_bramka_strony_dziennej_okno_i_pozne_dogonienie(self):
+        U = self.U
+        due = lambda now, asof, tr: zd._su_due('eia_dz', {'at': '2026-10-13T08:00:00+00:00', 'try': tr, 'asof': asof}, datetime.datetime(*now, tzinfo=U), {'st': {}})   # noqa: E731
+        # wtorek 13.10 (pierwszy dzień po święcie): do poprzedniego dnia roboczego brakuje (asof czwartek 8.10 < pn 12.10)
+        self.assertTrue(due((2026, 10, 13, 11, 40), '2026-10-08', '2026-10-13T11:10:00+00:00'), 'okno: co 20 min')
+        self.assertFalse(due((2026, 10, 13, 11, 20), '2026-10-08', '2026-10-13T11:10:00+00:00'), 'okno, ale przed upływem 20 min')
+        self.assertFalse(due((2026, 10, 13, 11, 40), '2026-10-08', '2026-10-13T11:25:00+00:00'), 'okno, 15 min od próby')
+        self.assertTrue(due((2026, 10, 13, 16, 5), '2026-10-08', '2026-10-13T14:50:00+00:00'), 'po oknie: późne dogonienie co godzinę')
+        self.assertFalse(due((2026, 10, 13, 15, 40), '2026-10-08', '2026-10-13T14:50:00+00:00'), 'po oknie, ale < 60 min od próby')
+        self.assertFalse(due((2026, 10, 13, 22, 0), '2026-10-08', '2026-10-13T20:00:00+00:00'), 'od 22:00 UTC stop')
+        self.assertFalse(due((2026, 10, 13, 16, 5), '2026-10-12', '2026-10-13T14:50:00+00:00'), 'poprzedni dzień roboczy już jest — stop')
+        self.assertFalse(due((2026, 10, 10, 16, 5), '2026-10-08', '2026-10-10T10:00:00+00:00'), 'sobota — bez odczytu')
+        self.assertFalse(due((2026, 11, 26, 16, 5), '2026-11-24', '2026-11-26T10:00:00+00:00'), 'święto (Dziękczynienie) po oknie — bez późnego dogonienia')
+        self.assertTrue(due((2026, 11, 26, 11, 40), '2026-11-24', '2026-11-26T10:00:00+00:00'), 'okno publikacji jak dotąd także w święto (odczyt jest tani)')
+
+    def test_kontrola_swiezosc_ceny_wedlug_kalendarza(self):
+        k, U = self._k(), self.U
+        self.assertEqual(k.SU_EIA_SWIETA, zd.SU_EIA_SWIETA, 'ta sama tabela świąt w zbieraczu i w kontroli'); self.assertEqual(k.SU_EIA_PUB_UTC, zd.SU_EIA_PUB_UTC)
+        lab = k.SU_ETYKIETA['ceny']
+
+        def row(d, now):
+            j = {'v': 2, 'ceny': {'brent': {'d': [[d, 100.0]]}, 'wti': {'d': [[d, 90.0]]}}, 'next': {'ceny': '2026-10-13T12:00:00+00:00'}}
+            return {r[0]: r for r in k.surowce_swiezosc(j, datetime.datetime(*now, tzinfo=U))}[lab]
+        r = row('2026-10-08', (2026, 10, 12, 14, 5))   # poniedziałek-święto, ostatni dzień czwartek: dawniej ⚠️ (38 godz. roboczych)
+        self.assertEqual(r[1], 'ℹ️', r); self.assertIn('kalendarz', r[4])
+        self.assertEqual(row('2026-10-08', (2026, 10, 13, 7, 5))[1], 'ℹ️', 'wtorek rano przed zamknięciem piątku (wyjdzie we wtorek)')
+        self.assertEqual(row('2026-10-08', (2026, 10, 13, 16, 5))[1], '⚠️', 'wtorek po 15:00 UTC bez piątku — prawdziwa zaległość')
+        self.assertEqual(row('2026-10-09', (2026, 10, 14, 11, 5))[1], 'ℹ️', 'środa po poniedziałku-święcie: piątek to najnowszy spodziewany dzień (59 godz. roboczych — dawniej ⚠️)')
+        self.assertEqual(row('2026-10-12', (2026, 10, 14, 11, 5))[1], '✅', 'zamknięcie z poniedziałku-święta na stronie we wtorek — w normie (35 godz.)')
+        self.assertEqual(row('2026-10-06', (2026, 10, 24, 12, 0))[1], '⚠️', 'długa przerwa — ⚠️ jak dotąd (stary test v295)')
+        self.assertEqual(row('2026-10-16', (2026, 10, 19, 14, 0))[1], '✅')
+        self.assertEqual(row('2026-10-15', (2026, 10, 19, 16, 0))[1], '⚠️', 'czwartek w poniedziałek 16:00 UTC: piątek już powinien być (spodziewany od 15:00 UTC)')
+
+    def _seria(self, flagi, n=30):
+        dni = [d.isoformat() for d in (datetime.date(2026, 9, 1) + datetime.timedelta(days=i) for i in range(60)) if d.weekday() < 5][:n]
+        return dni, {'u': 'USD/bbl', 'd': [[d, 110.0 + i] for i, d in enumerate(dni)], 'q': [[dni[i], 'rozjazd' if j == 0 else 'trwa', 'niepotw'] for j, i in enumerate(flagi)]}
+
+    def test_kontrola_adnotacja_zamiast_codziennej_uwagi(self):
+        k = self._k()
+        self.assertEqual((k.SU_QA_OKNO, k.SU_QA_MIN, k.SU_QA_SW), (14, 5, 5))
+        now = datetime.datetime(2026, 10, 12, 6, 20, tzinfo=self.U)
+        dni, br = self._seria([17, 19, 20, 21, 22, 24, 28])
+        ch = k.su_chron(br); self.assertEqual((ch[0], ch[1], ch[2], ch[3]), (7, 14, dni[17], dni[28]))
+        j = {'v': 2, 'ceny': {'brent': br, 'wti': {'u': 'USD/bbl', 'd': br['d'], 'q': []}}}
+        P = k.surowce_porownania(j, now)
+        self.assertFalse([u for u in P['uwagi'] if 'Brent' in u and ('punkt do sprawdzenia' in u or 'cena zostaje' in u)], P['uwagi'])
+        ad = [o for o, zn in P['wiersze'] if o.startswith('Brent: od ')]
+        self.assertEqual(len(ad), 1, P['wiersze']); self.assertIn('7 z 14', ad[0]); self.assertIn('jedna adnotacja zamiast codziennej uwagi', ad[0]); self.assertIn(dni[17], ad[0])
+        self.assertEqual([zn for o, zn in P['wiersze'] if o.startswith('Brent: od ')], ['ℹ️'])
+        # kontrakt: różnica ceny fizycznej i kontraktu w ostatnim dniu
+        j['ceny']['brent_fut'] = {'u': 'USD/bbl', 'd': [[dni[29], 100.0]]}
+        self.assertIn(f'(cena fizyczna +{(139.0 / 100 - 1) * 100:.1f}% wobec kontraktu z {dni[29]})'.replace('.', ','),
+                      [o for o, zn in k.surowce_porownania(j, now)['wiersze'] if o.startswith('Brent: od ')][0])
+        # mniej niż 5 sesji w oknie albo żadna z ostatnich 5 — zwykłe uwagi jak dotąd
+        for flagi in ([17, 19, 20, 22], [16, 17, 18, 19, 20, 21], [25, 26, 27, 28, 29]):
+            d2, b2 = self._seria(flagi)
+            P2 = k.surowce_porownania({'v': 2, 'ceny': {'brent': b2}}, now)
+            if flagi == [25, 26, 27, 28, 29]:
+                self.assertIsNotNone(k.su_chron(b2), 'pięć ostatnich sesji bez potwierdzenia — stan trwały')
+            else:
+                self.assertIsNone(k.su_chron(b2), flagi)
+                if flagi[0] == 17:
+                    self.assertTrue([u for u in P2['uwagi'] if 'Brent' in u], f'{flagi}: zwykła uwaga zostaje')
+        # bezpiecznik ciągu — uwaga zawsze, także w stanie trwałym
+        j['ceny']['brent']['q_lim'] = [dni[28], 20]
+        self.assertTrue(any('bezpiecznika' in u for u in k.surowce_porownania(j, now)['uwagi']), 'q_lim: uwaga zostaje')
+        self.assertIsNone(k.su_chron(None)); self.assertIsNone(k.su_chron({'d': [], 'q': []}))
+        self.assertIsNone(k.su_chron({'d': br['d'], 'q': [[dni[i], 'trwa', 'potw'] for i in range(20, 30)]}), 'potwierdzone nie liczą się')
+
+    def test_strona_i_kontrola_te_same_stale_ciagu(self):
+        import re as _re
+        k = self._k()
+        html = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html'), encoding='utf-8').read()
+        m = _re.search(r'const SU_QA=\[(\d+),(\d+),(\d+)\];', html)
+        self.assertTrue(m, 'stała ciągu w index.html')
+        self.assertEqual(tuple(int(x) for x in m.groups()), (k.SU_QA_OKNO, k.SU_QA_MIN, k.SU_QA_SW), 'ta sama reguła na stronie i w kontroli')
+
+    def test_wsteczny_ciag_tylko_w_latach_kryzysow(self):
+        """Reguła ciągu na ostatnich 400 sesjach pliku strony nie zmienia ocen zbieracza: su_q nie ma stałych adnotacji (tylko prezentacja)."""
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zbieraj_dane.py'), encoding='utf-8').read()
+        a = src.index('def su_q('); b = src.index('\ndef ', a + 10)
+        self.assertNotIn('SU_QA', src[a:b], 'ocena punktów (skok, rozjazd, bezpiecznik) bez zmian')

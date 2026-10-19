@@ -37530,3 +37530,45 @@ test('v479: lista portfeli giełdy starsza niż 45 dni ma przy nagłówku giełd
   assert.ok(html.includes('#c-wieloryby h3.mtxt .whn.warn{color:var(--yl-tx)}'), 'żółty kolor noty (informacja) — reguła nagłówka giełdy nie nadpisuje go szarym');
   assert.ok(html.includes('function whListAge(since,day){') && html.includes("t('wh479.old',{a:nfmt(a,0)})") && html.includes('a>45'), 'kod wiek listy: tylko pełne daty, próg 45 dni');
 });
+
+test('v481 (ropa i gaz EIA): ciąg cen bez potwierdzenia — jedna adnotacja zamiast codziennych uwag i „—” w tygodniu z powodem; poniżej progu albo po ustaniu — zwykłe uwagi jak dotąd', () => {
+  const {mk, file, B} = v321su, t = v96src.tFor('pl'), te = v96src.tFor('en');
+  const q = (idx, kind) => idx.map((i, j) => [B[i], kind || (j === 0 ? 'rozjazd' : 'trwa'), 'niepotw']);
+  assert.ok(html.includes('const SU_QA=[14,5,5];'), 'okno 14 sesji, co najmniej 5 bez potwierdzenia, któraś z ostatnich 5');
+  /* 6 z ostatnich 14 sesji bez potwierdzenia, ostatnia cena też → stan trwały */
+  const K = mk('pl', {}); K.api.suApply(file({q: q([19, 21, 24, 25, 26, 29], 'rozjazd')}));   /* same punkty „rozjazd”: bez stanu trwałego każdy byłby osobną uwagą pod ceną */
+  const chr = t('su481.chr', {d: K.api.suDay(B[19]), n: 6, m: 14});
+  const tile = K.api.suTile('brent', 'oil', ['gb']);
+  assert.ok(tile.includes(chr) && /Od .+: 6 z 14 ostatnich sesji bez potwierdzenia drugim źródłem — stały rozjazd cen/.test(chr), 'adnotacja w kaflu: ' + chr);
+  assert.ok(!tile.includes(t('su295g.q.n', {d: K.api.suDay(B[26])})) && !tile.includes(t('su295g.q.n', {d: K.api.suDay(B[29])})) && !tile.includes(t('su297g.run', {d: K.api.suDay(B[29])})), 'bez codziennych uwag o punktach i ciągu');
+  const Kn = mk('pl', {}); Kn.api.suApply(file({q: q([19, 21, 24, 29], 'rozjazd')}));
+  assert.ok(Kn.api.suTile('brent', 'oil', ['gb']).includes(t('su295g.q.n', {d: Kn.api.suDay(B[29])})), 'poniżej progu punkty mają swoje uwagi pod ceną (kontrola testu)');
+  assert.ok(tile.includes(t('su481.chg0')) && !tile.includes(t('su297g.chg0')) && !tile.includes(t('su300.chg0p')), 'zmiana w tygodniu: „—” ze stałym rozjazdem jako powodem');
+  const k = K.api.suKpi('brent', 'w321.k.brent', '1T');
+  assert.equal(k.why, t('su481.k.n')); assert.equal(k.d, null, 'bez liczby zmiany'); assert.ok(k.note.includes(chr), 'ta sama adnotacja w kafelku GLOBAL');
+  assert.equal(K.api.suKpi('brent', 'w321.k.brent', '1M').why, t('su481.k.n'), 'także dla innych okresów, gdy ostatnia cena bez potwierdzenia');
+  /* stan trwały, ostatnia cena potwierdzona, ale cena sprzed tygodnia (5 sesji wcześniej) bez potwierdzenia → ten sam powód */
+  const Kp = mk('pl', {}); Kp.api.suApply(file({q: q([19, 21, 24, 25, 26], 'rozjazd')}));
+  assert.equal(Kp.api.suKpi('brent', 'w321.k.brent', '1T').why, t('su481.k.n'), 'cena z początku okresu bez potwierdzenia w stanie trwałym');
+  assert.ok(Kp.api.suTile('brent', 'oil', ['gb']).includes(t('su481.chg0')), 'kafel: ten sam powód zmiany');
+  /* 4 z 14 — poniżej progu: zwykłe uwagi i zwykły powód */
+  const K2 = mk('pl', {}); K2.api.suApply(file({q: q([19, 21, 24, 29])}));
+  const t2 = K2.api.suTile('brent', 'oil', ['gb']);
+  assert.ok(!t2.includes(t('su481.chr', {d: K2.api.suDay(B[19]), n: 4, m: 14})) && t2.includes(t('su297g.chg0')) && !t2.includes(t('su481.chg0')), 'poniżej progu: stare brzmienie');
+  assert.equal(K2.api.suKpi('brent', 'w321.k.brent', '1T').why, t('w321.k.n.l'));
+  /* 6 z 14, ale żadna z ostatnich 5 sesji — ciąg ustał: bez adnotacji, ostatnia cena potwierdzona */
+  const K3 = mk('pl', {}); K3.api.suApply(file({q: q([16, 17, 18, 19, 20, 21])}));
+  const t3 = K3.api.suTile('brent', 'oil', ['gb']), k3 = K3.api.suKpi('brent', 'w321.k.brent', '1T');
+  assert.ok(!t3.includes(t('su481.chr', {d: K3.api.suDay(B[16]), n: 6, m: 14})) && !t3.includes(t('su481.chg0')) && k3.why === '' && typeof k3.d === 'number' && !k3.note.includes(t('su481.chr', {d: K3.api.suDay(B[16]), n: 6, m: 14})), 'ciąg ustał — zwykła zmiana tygodnia, bez adnotacji');
+  /* potwierdzone punkty nie liczą się */
+  const K4 = mk('pl', {}); K4.api.suApply(file({q: [19, 21, 24, 25, 26, 29].map(i => [B[i], 'rozjazd', 'potw'])}));
+  assert.ok(!K4.api.suTile('brent', 'oil', ['gb']).includes(t('su481.chg0')), 'punkty potwierdzone drugim źródłem — bez adnotacji');
+  /* po angielsku, krótko, bez nazw dostawców */
+  const e = te('su481.chr', {d: 'X', n: 6, m: 14}) + te('su481.chg0') + te('su481.k.n') + t('su481.chr', {d: 'X', n: 6, m: 14}) + t('su481.chg0') + t('su481.k.n');
+  assert.ok(te('su481.chr', {d: 'X', n: 6, m: 14}).startsWith('Since X: 6 of the last 14 sessions') && te('su481.chg0').includes('lasting price gap'), 'po angielsku');
+  assert.ok(!/\bEIA\b|\bICE\b|Reuters|Brent/.test(e) && !e.includes('su481.'), 'bez nazw dostawców i bez surowych kluczy: ' + e);
+  /* panel USA i Aktywa: ta sama reguła (uwaga i powód zmiany) */
+  const usa = html.slice(html.indexOf('function suUsaQ('), html.indexOf('function suUsaQ(') + 400);
+  assert.ok(usa.includes('chr=suChr(V,Q)') && usa.includes('c:!!chr') && html.includes('suChg0(uq.w,uq.c)'), 'panel USA dostaje tę samą adnotację i powód zmiany');
+  assert.ok(html.includes("const suChg0=(w,c)=>t(c?'su481.chg0':"), 'powód zmiany w tygodniu');
+});

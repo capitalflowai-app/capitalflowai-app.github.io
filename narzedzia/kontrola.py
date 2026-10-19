@@ -5385,6 +5385,66 @@ SU_DZ_TOL = 0.01       # USD — strona dzienna (2 miejsca po przecinku) wobec A
 SU_FUT_WTI = 0.01      # USD — v301: kontrakt Brenta (seria kontrolna) równy WTI z tego samego dnia (|różnica| < 0,01) = podejrzany punkt dostawcy
                        # (29.09.2026: 96,16 = WTI przy zmianie miesiąca kontraktu); zbieracz: SU_Q_FUT_WTI (w regule q jak brak notowania);
                        # tylko ℹ️ — test wsteczny 07.2007–10.2026: 2 takie dni na 4706 (2007, różnica Brent–WTI bliska zera)
+# v481: ropa i gaz — świeżość ocenia kalendarz publikacji urzędu (święta w USA), a ciąg cen „bez potwierdzenia” ma jedną adnotację zamiast codziennej uwagi.
+# Kalendarz = ta sama tabela co SU_EIA_SWIETA w zbieraj_dane.py (test pilnuje zgodności): w święto urząd nie publikuje, więc zamknięcie dnia przed świętem
+# wychodzi dopiero następnego dnia roboczego — próg 36 godzin roboczych dawał wtedy ⚠️ (w poniedziałek-święto i do wtorku 15:00 UTC). Teraz ⚠️ tylko, gdy
+# ostatni dzień danych jest starszy niż dzień spodziewany z kalendarza (SU_EIA_PUB_UTC po następnym dniu roboczym urzędu); w przeciwnym razie ℹ️ z objaśnieniem.
+# Test wsteczny (ws53/v481-ropa-gaz-eia/bt/bt_fresh.py; ceny z historii urzędu 1986–10.2026, model: zamknięcie dnia wychodzi w następnym dniu roboczym urzędu o 12:00 UTC,
+# kontrola co godzinę 06–23 UTC od 1.01.2023, 24 894 kontroli): próg 36 godz. roboczych dawał ⚠️ w 5,61% kontroli (święta i dzień po nich), kalendarz — 0% ⚠️ i 5,61% ℹ️;
+# brak publikacji jednego dnia (97 prób): ⚠️ po 3 godz. od terminu (dawniej po 1 godz.) — prawdziwa zaległość nadal widoczna tego samego dnia.
+SU_EIA_SWIETA = frozenset((
+    '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07', '2026-10-12', '2026-11-11',
+    '2026-11-26', '2026-12-25', '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18', '2027-07-05', '2027-09-06',
+    '2027-10-11', '2027-11-11', '2027-11-25', '2027-12-24', '2027-12-31'))
+SU_EIA_PUB_UTC = (15, 0)
+# Ciąg bez potwierdzenia: ≥ SU_QA_MIN z ostatnich SU_QA_OKNO sesji serii oznaczonych „niepotw” i co najmniej jedna z ostatnich SU_QA_SW sesji = stan trwały
+# (strona: ta sama reguła, stała SU_QA w index.html). Test wsteczny 1986–10.2026 (ceny z historii urzędu, bez kontraktu — górna granica; ws53/v481-ropa-gaz-eia/bt/
+# bt_chron.py): Brent 37 z 9108 sesji (0,41%) w 4 epizodach (1996, 2020, 2026), WTI 77 z 9523 (0,81%) w 7 epizodach (1998, 2003, 2008–09, 2020) — wyłącznie lata
+# kryzysów; zmieniona jest tylko prezentacja, ocena punktów (skok, rozjazd, bezpiecznik ciągu SU_Q_MAX) bez zmian. Pierwsze SU_QA_MIN sesji ciągu nadal
+# daje zwykłą uwagę, bezpiecznik ciągu (q_lim) — uwagę zawsze.
+SU_QA_OKNO, SU_QA_MIN, SU_QA_SW = 14, 5, 5
+
+
+def su_eia_rob(d):
+    return d.weekday() < 5 and d.isoformat() not in SU_EIA_SWIETA
+
+
+def su_eia_nast(d, k=1):
+    step, n = (-1 if k < 0 else 1), abs(k)
+    while n:
+        d += dt.timedelta(days=step)
+        if su_eia_rob(d):
+            n -= 1
+    return d
+
+
+def su_eia_oczekiwany(now):
+    """Najnowszy dzień roboczy urzędu, którego zamknięcie powinno już być na stronie dziennej (zamknięcie dnia D wychodzi w następnym dniu roboczym urzędu
+    po SU_EIA_PUB_UTC); brak = None."""
+    d = now.date()
+    for _ in range(20):
+        if su_eia_rob(d):
+            p = su_eia_nast(d, 1)
+            if dt.datetime(p.year, p.month, p.day, SU_EIA_PUB_UTC[0], SU_EIA_PUB_UTC[1], tzinfo=dt.timezone.utc) <= now:
+                return d
+        d -= dt.timedelta(days=1)
+    return None
+
+
+def su_chron(e):
+    """Seria ceny (słownik z polami d i q) → (liczba sesji bez potwierdzenia w oknie, długość okna, pierwszy taki dzień, ostatni taki dzień), gdy ciąg jest
+    trwały (SU_QA_MIN z SU_QA_OKNO sesji i któraś z ostatnich SU_QA_SW); inaczej None."""
+    if not isinstance(e, dict):
+        return None
+    ds = [str(x[0]) for x in (e.get('d') or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[1], (int, float)) and not isinstance(x[1], bool)]
+    fl = {str(q[0]) for q in (e.get('q') or []) if isinstance(q, list) and len(q) == 3 and q[2] == 'niepotw'}
+    w = ds[-SU_QA_OKNO:]
+    f = [d for d in w if d in fl]
+    if len(f) < SU_QA_MIN or not any(d in fl for d in ds[-SU_QA_SW:]):
+        return None
+    return len(f), len(w), f[0], f[-1]
+
+
 SU_JEDN = {'brent': 'USD/bbl', 'wti': 'USD/bbl', 'hh': 'USD/MMBtu', 'ttf': 'EUR/MWh', 'lng_eu': 'EUR/MWh', 'ulsd_nyh': 'USD/gal', 'gas_nyh': 'USD/gal',
            'jet_gulf': 'USD/gal', 'propan': 'USD/gal', 'crack321': 'USD/bbl', 'gold': 'USD/oz', 'silver': 'USD/oz', 'copper': 'USD/t',
            'uran': 'USD/lb', 'brent_fut': 'USD/bbl', 'gold_fut': 'USD/oz', 'us_crude': 'mln bbl', 'us_spr': 'mln bbl', 'us_gasoline': 'mln bbl',
@@ -5434,6 +5494,11 @@ def surowce_swiezosc(j, now=None):
         w = wiek_danych(txt, kind, kat, now)
         st = '?' if w is None else ('⚠️' if w > prog else '✅')
         note = ''
+        if k == 'ceny' and st == '⚠️':   # v481: święto w USA — urząd nie publikuje; ⚠️ tylko, gdy ostatni dzień jest starszy niż spodziewany z kalendarza
+            oczek = su_eia_oczekiwany(now)
+            if oczek and str(txt)[:10] >= oczek.isoformat():
+                rows.append((label, 'ℹ️', w, txt, f'zgodnie z kalendarzem publikacji (święto w USA): spodziewany najnowszy dzień {oczek.isoformat()}; próg {fmt_wiek(prog)} (godziny robocze) przekroczony z powodu przerwy'))
+                continue
         if st == '⚠️':
             p = nx.get(k) if k in ('ceny', 'zapasy', 'mies', 'markets') else None   # złoto: archiwum funduszu i notowania — bez kalendarza w pliku
             pt = _aw_t(p) if isinstance(p, str) else None
@@ -5566,6 +5631,7 @@ def surowce_porownania(j, now=None):
             W.append((f'Brent dostawa fizyczna vs kontrakt, zmiany dzienne z {len(wsp)} wspólnych dni: największa różnica {mx} '
                       f'({a[mx]:+.1f}% vs {b[mx]:+.1f}%)'.replace('.', ','), 'ℹ️'))
     for cid, nazwa in (('brent', 'Brent'), ('wti', 'WTI')):
+        n0 = len(U)   # v481: uwagi tej ropy od tego miejsca — w stanie trwałym zastąpione jedną adnotacją
         tr, pk = [], set()   # v297g: kolejne sesje po punkcie bez potwierdzenia (wpisy q 'trwa'); v300: wszystkie (ciąg dłuższy niż SU_Q_DNI dni
                              # ma w uwadze swój początek), uwaga dla ciągu z ostatnim dniem młodszym niż SU_Q_DNI dni; pk — dni punktów bez potwierdzenia
         for q in ((C.get(cid) or {}).get('q') or []) if isinstance(C.get(cid), dict) else []:
@@ -5597,6 +5663,14 @@ def surowce_porownania(j, now=None):
                             f' — ciąg już się skończył ({nast} — nowy punkt do sprawdzenia)' if z == nast else
                             f' — ciąg już się skończył (od {nast} cena bez oznaczenia, znów bez potwierdzenia od {z})' if z else
                             f' — ciąg już się skończył (od {nast} cena bez oznaczenia)'))
+        ch = su_chron(C.get(cid))
+        if ch:   # v481: ≥ SU_QA_MIN z SU_QA_OKNO sesji bez potwierdzenia, ostatnia w ostatnich SU_QA_SW — stan trwały: jedna adnotacja zamiast codziennej uwagi
+            del U[n0:]
+            ld = [x for x in ((C.get(cid) or {}).get('d') or []) if isinstance(x, list) and len(x) == 2 and isinstance(x[1], (int, float)) and not isinstance(x[1], bool)][-1]
+            fv = next((x[1] for x in ((C.get('brent_fut') or {}).get('d') or []) if cid == 'brent' and isinstance(x, list) and len(x) == 2 and x[0] == ld[0]
+                       and isinstance(x[1], (int, float)) and not isinstance(x[1], bool) and x[1] > 0), None)
+            kf = f' (cena fizyczna {(ld[1] / fv - 1) * 100:+.1f}% wobec kontraktu z {ld[0]})'.replace('.', ',') if fv else ''
+            W.append((f'{nazwa}: od {ch[2]} stały rozjazd cen — {ch[0]} z {ch[1]} ostatnich sesji bez potwierdzenia{kf}; jedna adnotacja zamiast codziennej uwagi (uwaga wraca przy bezpieczniku ciągu)', 'ℹ️'))
         lim = (C.get(cid) or {}).get('q_lim') if isinstance(C.get(cid), dict) else None
         if isinstance(lim, list) and len(lim) == 2 and isinstance(lim[1], int) and not isinstance(lim[1], bool):
             try:
