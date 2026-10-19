@@ -12107,7 +12107,7 @@ test('v157: podpowiedź i klawiatura — wartość ze znacznika, podświetlenie,
 test('v157: strona — pasek nad kartami z przełącznikiem (GLOBAL i CRYPTO), kontener kafli ukryty, karty na miejscu (v321: bez widgetów TradingView); styl bez stałych kolorów; blok przed startem GLOBAL; zaczep top 10', () => {
   const SEL = '<span class="wk-hint" data-i18n="wk.hint"></span><span class="wk-sel" role="group" data-i18n-aria="wk.view"><span class="wk-lab" data-i18n="wk.view"></span><span class="wk-seg"><button type="button" class="wk-v" data-wk-v="karty" aria-pressed="true" data-i18n="wk.cards"></button><button type="button" class="wk-v" data-wk-v="wykresy" aria-pressed="false" data-i18n="wk.charts"></button></span></span>';
   for (const [tab, first, tv] of [['global', 'g-prob', 'tv-markets'], ['crypto', 'eng-coinmetrics-exchange-flows', 'tv-heatmap']]) {   /* v321: g-etf na samym dole GLOBAL — pierwsza karta pod paskiem to „Gdzie warunki sprzyjają” */
-    const FOLD = tab === 'global' ? ['<button type="button" class="zw-fb" id="zw-fb-global" aria-expanded="false" aria-controls="zw-rest-global" data-i18n="wk.view"></button><span class="zw-rest" id="zw-rest-global" hidden>', '</span>'] : ['', ''];   /* v404 */
+    const FOLD = ['<button type="button" class="zw-fb" id="zw-fb-' + tab + '" aria-expanded="false" aria-controls="zw-rest-' + tab + '" data-i18n="wk.view"></button><span class="zw-rest" id="zw-rest-' + tab + '" hidden>', '</span>'];   /* v485: CRYPTO też z przyciskiem „Widok” */   /* v404 */
     const bar = `<div class="zw-bar" data-zw="${tab}">${FOLD[0]}<span class="zw-hint" data-i18n="zw.hint"></span>${SEL}<span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span>${FOLD[1]}</div><!-- v154: sekcje do wyboru -->\n    <div class="wk-dash" id="wk-${tab}" hidden></div>`;
     const b = html.indexOf(bar);
     assert.ok(b > html.indexOf(`id="${tab}" role="tabpanel"`) && b < html.indexOf(`id="${first}"`), tab + ': pasek v154 z przełącznikiem, kafle zaraz pod nim, przed pierwszą kartą');
@@ -19063,7 +19063,7 @@ test('v321: tło — więcej spadających znaków (trzy warstwy na kolumnę, ok.
   assert.ok(html.includes('if(d.row*FS>H+40){if(d.gold){d.gold=false;hGoldN=Math.max(0,hGoldN-1);}d.row=-Math.floor(Math.random()*30);d.on=Math.random()<.85;'), 'koniec złotego ciągu zwalnia miejsce; ciągi startują częściej');
   assert.ok(html.includes("if(!d.on){if(Math.random()<.012){d.on=true;d.row=-Math.floor(Math.random()*8);hGoldPick(d,tm);}continue;}"), 'uśpione ciągi budzą się częściej');
   assert.ok(html.includes("const gi=i=>i%5===2;") && html.includes('col=gi(i)?PAL.hexGoldTail:PAL.hexTail'), 'obraz bez animacji: co 5. kolumna złota');
-  assert.ok(html.includes("function hSync(){cancelAnimationFrame(hraf);if(st.bg==='off')return;if(st.anim&&!document.hidden){hx.clearRect(0,0,W,H);hraf=requestAnimationFrame(hStep);}else hStatic();}") && html.includes('if(tm-lastH>64){lastH=tm;'), 'ustawienie tła, bez animacji — obraz stały, tempo klatek bez zmian');
+  assert.ok(html.includes("function hSync(){cancelAnimationFrame(hraf);if(st.bg==='off')return;if(st.anim&&!document.hidden){hx.clearRect(0,0,W,H);hraf=requestAnimationFrame(hStep);}else hStatic();}") && (html.includes('if(tm-lastH>64){lastH=tm;') || html.includes('if(tm-lastH>64&&!hScroll){lastH=tm;')), 'ustawienie tła, bez animacji — obraz stały, tempo klatek bez zmian');
   assert.ok(html.includes("function applyHexOp(){const op=st.theme==='custom'?st.customOp:(st.bg==='strong'?.95:.62);"), '„Widoczność znaków w tle” bez zmian');
 });
 
@@ -30706,7 +30706,7 @@ test('v404 W1A: pod mapą GLOBAL na starcie tylko „Widok”; kliknięcie rozwi
   for (const s of ['data-wk-v="karty"', 'data-wk-v="wykresy"', 'data-zw-all="1"', 'data-zw-all="0"', 'class="wk-hint"', 'class="zw-hint"']) assert.ok(R.includes(s) && !B.slice(0, B.indexOf('<span class="zw-rest"')).includes(s), 'w ukrytej części: ' + s);
   assert.ok(B.endsWith('</span></span>') && (B.match(/<button /g) || []).length === 5 && B.split('data-zw="global"').length === 2, 'pięć przycisków: Widok, Karty, Wykresy, Rozwiń, Zwiń');
   const c = html.indexOf('<div class="zw-bar" data-zw="crypto">');
-  assert.ok(html.slice(c, html.indexOf('</div><!-- v154', c)).startsWith('<div class="zw-bar" data-zw="crypto"><span class="zw-hint" data-i18n="zw.hint"></span>'), 'CRYPTO: pasek jak dotąd');
+  assert.ok(html.slice(c, html.indexOf('</div><!-- v154', c)).startsWith('<div class="zw-bar" data-zw="crypto"><button type="button" class="zw-fb" id="zw-fb-crypto" aria-expanded="false" aria-controls="zw-rest-crypto" data-i18n="wk.view"></button><span class="zw-rest" id="zw-rest-crypto" hidden>'), 'CRYPTO (v485): też na starcie tylko „Widok”');
   const c0 = html.indexOf('/* v404: GLOBAL — pasek pod mapą'), c1 = html.indexOf('@media (prefers-reduced-motion: reduce){.zw-fb::after{transition:none}}', c0), css = html.slice(c0, c1);
   assert.ok(c0 > 0 && c1 > c0 && !/#[0-9a-fA-F]{3,6}\b/.test(css), 'styl: tylko zmienne motywu');
   for (const s of ['.zw-rest{display:contents}', '.zw-rest[hidden]{display:none}', '.zw-fb:focus-visible{outline:2px solid var(--bl);outline-offset:2px}', '.zw-fb[aria-expanded="true"]::after{']) assert.ok(css.includes(s), 'styl: ' + s);
@@ -37483,4 +37483,11 @@ test('v494: wieloryby, duże przelewy dobami — kwoty USD poniżej 1 mln jako �
   assert.ok(o2.includes('<span class="cell mono neu">0 USD</span>'), 'netto zero — bez zmian (żółte)');
   const o3 = whDob({dobowe: {'2026-10-18': {OKX: {USDT: {in: 100000, out: 300000, n: 3}}}}, dobowe_od: '2026-10-01T00:00:00+00:00'});
   assert.ok(o3.includes('<span class="cell mono neg">−<1 mln USD</span>') && !/200000|100000|300000/.test(o3), 'netto ujemne poniżej 0,5 mln: „−<1 mln USD”, czerwone: ' + o3);
+});
+
+test('v485: płynność — tło ze znakami 1×, stop tła przy przewijaniu, scena 3D i mapa najwyżej 1,5×', () => {
+  assert.ok(html.includes("const dpr=1;W=window.innerWidth;H=window.innerHeight;"), 'tło 1×');
+  assert.ok(html.includes("if(tm-lastH>64&&!hScroll){lastH=tm;") && html.includes("window.addEventListener('scroll',()=>{hScroll=true;"), 'tło stoi podczas przewijania');
+  assert.ok(html.includes("let hScroll=false,hScT=0;") && html.indexOf("let hScroll=false") < html.indexOf("function hSync()") + 100000, 'zmienna przewijania zadeklarowana');
+  assert.ok(html.includes("DPR=Math.min(window.devicePixelRatio||1,1.5);") && html.includes("GDPR=Math.min(window.devicePixelRatio||1,1.5);"), 'scena 3D i mapa najwyżej 1,5×');
 });

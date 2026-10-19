@@ -2925,7 +2925,7 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
       <h2 data-i18n="why"></h2>
       <div class="detail" id="detail" aria-live="polite"></div>
     </section>
-    <div class="zw-bar" data-zw="crypto"><span class="zw-hint" data-i18n="zw.hint"></span><span class="wk-hint" data-i18n="wk.hint"></span><span class="wk-sel" role="group" data-i18n-aria="wk.view"><span class="wk-lab" data-i18n="wk.view"></span><span class="wk-seg"><button type="button" class="wk-v" data-wk-v="karty" aria-pressed="true" data-i18n="wk.cards"></button><button type="button" class="wk-v" data-wk-v="wykresy" aria-pressed="false" data-i18n="wk.charts"></button></span></span><span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span></div><!-- v154: sekcje do wyboru -->
+    <div class="zw-bar" data-zw="crypto"><button type="button" class="zw-fb" id="zw-fb-crypto" aria-expanded="false" aria-controls="zw-rest-crypto" data-i18n="wk.view"></button><span class="zw-rest" id="zw-rest-crypto" hidden><span class="zw-hint" data-i18n="zw.hint"></span><span class="wk-hint" data-i18n="wk.hint"></span><span class="wk-sel" role="group" data-i18n-aria="wk.view"><span class="wk-lab" data-i18n="wk.view"></span><span class="wk-seg"><button type="button" class="wk-v" data-wk-v="karty" aria-pressed="true" data-i18n="wk.cards"></button><button type="button" class="wk-v" data-wk-v="wykresy" aria-pressed="false" data-i18n="wk.charts"></button></span></span><span class="zw-bs"><button type="button" class="zw-a" data-zw-all="1" data-i18n="zw.all"></button><button type="button" class="zw-a" data-zw-all="0" data-i18n="zw.none"></button></span></span></div><!-- v154: sekcje do wyboru -->
     <div class="wk-dash" id="wk-crypto" hidden></div><!-- v157: widok „Wykresy” — kafle z wykresami -->
 <section class="panel pcard" id="eng-coinmetrics-exchange-flows" hidden></section>
     <section class="panel pcard" id="c-wieloryby" hidden></section>
@@ -5140,7 +5140,7 @@ function loop(tm){
 function resize(){
   const r=$('#stage').getBoundingClientRect();if(!r.width)return;
   const wasHome=!cam._home||Math.abs(cam.dist-cam._home)<.01;
-  DPR=Math.min(window.devicePixelRatio||1,2);CW=Math.floor(r.width);CH=Math.floor(r.height);
+  DPR=Math.min(window.devicePixelRatio||1,1.5);CW=Math.floor(r.width);CH=Math.floor(r.height);   /* v485: scena 3D najwyżej 1,5× (było 2×) — mniej pikseli co klatkę, płynniej na słabszych urządzeniach */
   cvs.width=Math.floor(CW*DPR);cvs.height=Math.floor(CH*DPR);
   if(wasHome)cam.dist=homeDist();cam._home=homeDist();dirty=true;
 }
@@ -7116,7 +7116,7 @@ let gcvs=null,gctx=null,GCW=0,GCH=0,GDPR=1,GLAY=null,gdirty=true,GKEY='';
 const gDirty=()=>{gdirty=true;};
 function gResize(){
   if(!gcvs)return;const b=gcvs.parentElement.getBoundingClientRect();if(b.width<2||b.height<2)return;
-  GDPR=Math.min(window.devicePixelRatio||1,2);GCW=Math.floor(b.width);GCH=Math.floor(b.height);
+  GDPR=Math.min(window.devicePixelRatio||1,1.5);GCW=Math.floor(b.width);GCH=Math.floor(b.height);   /* v485: mapa najwyżej 1,5× */
   gcvs.width=Math.floor(GCW*GDPR);gcvs.height=Math.floor(GCH*GDPR);GLAY=null;gdirty=true;
 }
 function gLayout(){
@@ -11935,7 +11935,7 @@ const hNew=first=>({row:-Math.floor(Math.random()*(first?60:40)),acc:0,v:.10+Mat
    częściej; złotych naraz do hGoldMax (1 na ok. 14 kolumn, co najmniej 2), kolejny złoty co 1,5–4 s (dawniej jeden, potem przerwa 8–23 s). Tempo klatek bez zmian. */
 function hGoldPick(d,tm){if(hGoldN<hGoldMax&&d.on&&tm>=hGoldNext){d.gold=true;hGoldN++;hGoldNext=tm+1500+Math.random()*2500;}}
 function hResize(){
-  const dpr=Math.min(window.devicePixelRatio||1,2);W=window.innerWidth;H=window.innerHeight;
+  const dpr=1;W=window.innerWidth;H=window.innerHeight;   /* v485 (właściciel 19.10: „strona się ścina”): tło ze znakami w rozdzielczości 1× — na ekranach o gęstości 2× czterokrotnie mniej pikseli co klatkę */
   hc.width=Math.floor(W*dpr);hc.height=Math.floor(H*dpr);hx.setTransform(dpr,0,0,dpr,0,0);
   hx.font='600 '+FS+'px "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace';hx.textBaseline='top';
   cols=Math.ceil(W/CS);
@@ -11949,7 +11949,7 @@ function hStatic(){
     for(let j=0;j<len;j++){const y=(top+j)*FS;if(y>H)break;hx.fillStyle=`rgba(${col},${((1-j/len)*.8).toFixed(2)})`;hx.fillText(HEXC[Math.floor(rnd()*HEXC.length)],i*CS,y);}}
 }
 function hStep(tm){
-  if(tm-lastH>64){lastH=tm;
+  if(tm-lastH>64&&!hScroll){lastH=tm;   /* v485: podczas przewijania tło stoi (płynniejsze przewijanie długiej strony) */
     hx.globalCompositeOperation='destination-out';hx.fillStyle='rgba(0,0,0,.06)';hx.fillRect(0,0,W,H);hx.globalCompositeOperation='source-over';
     for(let i=0;i<drops.length;i++){const d=drops[i],x=(i%cols)*CS;
       if(!d.on){if(Math.random()<.012){d.on=true;d.row=-Math.floor(Math.random()*8);hGoldPick(d,tm);}continue;}
@@ -11967,6 +11967,7 @@ function hStep(tm){
 }
 function hSync(){cancelAnimationFrame(hraf);if(st.bg==='off')return;if(st.anim&&!document.hidden){hx.clearRect(0,0,W,H);hraf=requestAnimationFrame(hStep);}else hStatic();}
 document.addEventListener('visibilitychange',hSync);
+let hScroll=false,hScT=0;window.addEventListener('scroll',()=>{hScroll=true;clearTimeout(hScT);hScT=setTimeout(()=>{hScroll=false;},200);},{passive:true});   /* v485 */
 let rz=0;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(hResize,150);});
 
 /* ---------- zegar ---------- */
