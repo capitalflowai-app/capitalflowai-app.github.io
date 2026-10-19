@@ -47301,7 +47301,7 @@ class StraznikV354(unittest.TestCase):
         self.assertEqual(s.dni_bez_commita('2026-10-13T06:51:12Z', self.NOW), 0)
         self.assertIsNone(s.dni_bez_commita('zła data', self.NOW)); self.assertIsNone(s.dni_bez_commita(None, self.NOW))
         self.assertFalse(s.potrzebny_commit(None), 'nieczytelna data = nie zgaduje (błąd zgłasza sprawdz)')
-        self.assertEqual((s.PROG_COMMIT_DNI, s.ZAPLANOWANE), (30, ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml')))
+        self.assertEqual((s.PROG_COMMIT_DNI, s.ZAPLANOWANE), (30, ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml', 'raport-ai.yml')))
 
     def _api(self, lista, commit_iso, zle_put=(), log=None):
         s = self.s
@@ -47433,12 +47433,12 @@ class StraznikV354(unittest.TestCase):
         W = [self.wf(n) for n in k.STRAZNIK_WF]
         run = lambda dni, wynik='success': {'status': 'completed', 'conclusion': wynik, 'created_at': (N - datetime.timedelta(days=dni, hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')}  # noqa: E731
         S = k.straznik_ocena(W, [run(8), run(15)], '2026-10-13T06:51:12Z', N)
-        self.assertEqual((S['czynne'], S['razem'], S['przebieg_dni'], S['przebieg_wynik'], S['commit_dni'], S['uwagi']), (5, 5, 8, 'success', 0, []))
-        self.assertIn('✅', k.straznik_wiersz(S)); self.assertIn('czynne 5 z 5', k.straznik_wiersz(S)); self.assertIn('8 dni temu (success)', k.straznik_wiersz(S))
+        self.assertEqual((S['czynne'], S['razem'], S['przebieg_dni'], S['przebieg_wynik'], S['commit_dni'], S['uwagi']), (6, 6, 8, 'success', 0, []))
+        self.assertIn('✅', k.straznik_wiersz(S)); self.assertIn('czynne 6 z 6', k.straznik_wiersz(S)); self.assertIn('8 dni temu (success)', k.straznik_wiersz(S))
         # wyłączony przez GitHub, brakujący, strażnik milczy 17 dni, nieudany, stary commit
         W2 = [self.wf('strona.yml', 'disabled_inactivity'), self.wf('zegar.yml'), self.wf('kontrola.yml'), self.wf('straznik.yml')]
         S2 = k.straznik_ocena(W2, [run(17, 'failure')], '2026-08-01T00:00:00Z', N)
-        self.assertEqual(S2['czynne'], 3); self.assertEqual(S2['brak'], ['archiwum.yml'])
+        self.assertEqual(S2['czynne'], 3); self.assertEqual(S2['brak'], ['archiwum.yml', 'raport-ai.yml'])
         txt = ' | '.join(S2['uwagi'])
         for fr in ('strona.yml (disabled_inactivity)', 'brak w repozytorium przepływów: archiwum.yml', 'nie działał od 17 dni', 'wynikiem „failure”', 'sprzed 73 dni'):
             self.assertIn(fr, txt)
@@ -47476,13 +47476,13 @@ class StraznikV354(unittest.TestCase):
                 return 200, json.dumps({'workflows': W}).encode(), 5
             raise k.urllib.error.HTTPError(url, 500, 'x', {}, None)
         S2 = k.straznik_odczyt({}, N, get2)
-        self.assertEqual((S2['przebieg_dni'], S2['commit_dni'], S2['uwagi'], S2['czynne']), (None, None, [], 5))
+        self.assertEqual((S2['przebieg_dni'], S2['commit_dni'], S2['uwagi'], S2['czynne']), (None, None, [], 6))
         with self.assertRaises(Exception):
             k.straznik_odczyt({}, N, lambda *a, **kw: (_ for _ in ()).throw(RuntimeError('503')))
         R = {'at': '2026-10-13T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 100}, 'meta': {}, 'pliki': {}, 'actions': {},
              'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': [], 'straznik': S}
         md = k.raport_md(R)
-        self.assertIn('- Strażnik harmonogramów (raz w tygodniu): przepływy z harmonogramem czynne 5 z 5;', md)
+        self.assertIn('- Strażnik harmonogramów (raz w tygodniu): przepływy z harmonogramem czynne 6 z 6;', md)
         self.assertNotIn('Strażnik', k.raport_md({kk: v for kk, v in R.items() if kk != 'straznik'}), 'stary raport bez pola — bez linii')
         import inspect
         src = inspect.getsource(k)
@@ -80987,3 +80987,252 @@ class TestV476AzjaSesje(unittest.TestCase):
         self.assertEqual((len(meta['errors']), meta['ok']['obce_in']), (1, False), 'zła treść to błąd')
         o, meta = self._obce({'in': urllib.error.URLError('timed out')}, '2026-10-05', self.T(18, 20))
         self.assertEqual((len(meta['errors']), meta['ok']['obce_in']), (1, False), 'dane starsze niż 7 dni = błąd')
+
+
+# ===================== v482: RAPORT TYGODNIOWY AI, ASYSTENT CLAUDE W GITHUBIE, STRAŻ KLUCZY ANTHROPIC =====================
+class RaportAiV482(unittest.TestCase):
+    """v482 (19.10.2026): narzedzia/raport_ai.py na zaślepkach (bez sieci): poprawne zapytanie (model, limit, nagłówki; klucz tylko w nagłówku — nie w treści, nie w logach, nie w pliku),
+    brak klucza i błędy API = kod 0 bez raportu, bezpiecznik 1 raport na dobę; przepływy raport-ai.yml i asystent-claude.yml (tylko OWNER, bez scalania, minimalne uprawnienia,
+    łańcuch nazw sekretu); straż kluczy zna nazwy sekretu Anthropic."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    KLUCZ = 'sk-ant-TESTOWY-KLUCZ-0123456789abcdef'
+    NOW = datetime.datetime(2026, 10, 19, 19, 0, tzinfo=datetime.timezone.utc)
+
+    def _mod(self, name):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('v482_' + name, os.path.join(self.ROOT, 'narzedzia', name + '.py'))
+        m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+        return m
+
+    @staticmethod
+    def _czytaj(p):
+        with open(p, encoding='utf-8') as f:
+            return f.read()
+
+    def _wf(self, nazwa):
+        return self._czytaj(os.path.join(self.ROOT, '.github', 'workflows', nazwa))
+
+    def _root(self, md_extra=''):
+        import tempfile
+        r = tempfile.mkdtemp(); os.makedirs(os.path.join(r, 'kontrola'))
+        with open(os.path.join(r, 'kontrola', 'ostatnia.md'), 'w', encoding='utf-8') as f:
+            f.write('# Kontrola strony — 19.10.2026\n\n**Wynik: UWAGA**\n\n- Strona główna: działa.\n' + md_extra + '\n## Świeżość źródeł\n' + 'x' * 30000 + '\n\n## Uwagi\n- źródło em2_in bez odpowiedzi od 5 dni\n')
+        with open(os.path.join(r, 'kontrola', 'ostatnia.json'), 'w', encoding='utf-8') as f:
+            json.dump({'wynik': 'UWAGA', 'at': '2026-10-19T15:54:55+00:00', 'awarie': {'trwa': [{'czesc': 'em2_in', 'h': 5.9}], 'naprawione': []}, 'bledy': []}, f)
+        with open(os.path.join(r, 'kontrola', 'historia.json'), 'w', encoding='utf-8') as f:
+            json.dump([{'at': '2026-10-05T06:00:00+00:00', 'bledy_zbieracza': 9, 'uwagi': 1, 'bledy': 0, 'przegl': 'ok'},
+                       {'at': '2026-10-18T06:00:00+00:00', 'bledy_zbieracza': 1, 'uwagi': 17, 'bledy': 0, 'przegl': 'ok'}], f)
+        return r
+
+    META = json.dumps({'at': '2026-10-19T18:00:00+00:00', 'errors': [], 'zrodla': {'n': 158, 'ok': 158}, 'awarie': {'em2_in': {'od': '2026-10-19T09:29:48+00:00', 'ost': 'x', 'n': 28, 'prev': [1, 2, 3]}},
+                       'ok': {'tajne_pole_ok': True}, 'zuzycie': {'cg': 1}})
+
+    def _uruchom(self, root, env=None, odp=None, now=None, blad=None, get=None):
+        r = self._mod('raport_ai')
+        wyw, logi, zgl = [], [], []
+
+        def post(klucz, cialo, timeout=120):
+            wyw.append((klucz, cialo))
+            if blad:
+                raise blad
+            return 200, odp or {'content': [{'type': 'text', 'text': '## Podsumowanie\nWszystko działa.'}], 'stop_reason': 'end_turn', 'usage': {'input_tokens': 1200, 'output_tokens': 300}}
+        env = {'ANTHROPIC_API_KEY': self.KLUCZ, 'GITHUB_TOKEN': 'ghs_TOKENTESTOWY123', 'GITHUB_REPOSITORY': 'wlasciciel/repo'} if env is None else env
+        rc = r.main(env=env, root=root, now=now or self.NOW, post=post, get=get or (lambda url, timeout=30: self.META), issue=lambda repo, tok, t, b: zgl.append((repo, t, b)) or 'https://x/1', log=logi.append)
+        return r, rc, wyw, logi, zgl
+
+    def test_poprawne_zapytanie_i_zapis(self):
+        root = self._root(md_extra=f'- uwaga: wyciek {self.KLUCZ} w tekście\n')
+        r, rc, wyw, logi, zgl = self._uruchom(root)
+        self.assertEqual((rc, len(wyw)), (0, 1), 'jedno zapytanie')
+        klucz, cialo = wyw[0]
+        self.assertEqual((klucz, cialo['model'], cialo['max_tokens']), (self.KLUCZ, 'claude-sonnet-5-5', 2000))
+        tresc = json.dumps(cialo, ensure_ascii=False)
+        self.assertNotIn(self.KLUCZ, tresc, 'klucz nie trafia do treści zapytania (także gdy pojawił się w faktach)'); self.assertIn('***', tresc)
+        u = cialo['messages'][0]['content']
+        for fr in ('em2_in bez odpowiedzi od 5 dni', 'DZIŚ: 2026-10-19', '"zrodla": {"n": 158', '"awarie": {"em2_in"', '2026-10-18 06:00 UTC: błędy zbieracza 1, uwagi 17', '"trwa"'):
+            self.assertIn(fr, u)
+        for nie in ('tajne_pole_ok', 'prev', 'x' * 100, '2026-10-05 06:00'):
+            self.assertNotIn(nie, u, 'tylko errors/awarie/zrodla z meta.json, tylko 7 dni historii, przycięta kontrola')
+        self.assertLess(len(u), r.LIMIT_WEJSCIA + 200)
+        self.assertIn('## Co zrobić', cialo['system']); self.assertIn('nie dawaj porad inwestycyjnych', cialo['system'])
+        md = self._czytaj(os.path.join(root, 'kontrola', 'raport-ai.md'))
+        self.assertTrue(md.startswith('<!-- raport-ai:2026-10-19 -->\n# Raport tygodniowy AI — 19.10.2026')); self.assertIn('Wszystko działa.', md); self.assertIn('wejście 1200, wyjście 300', md)
+        self.assertEqual((len(zgl), zgl[0][0], zgl[0][1]), (1, 'wlasciciel/repo', 'Raport tygodniowy AI — 2026-10-19')); self.assertIn('Wszystko działa.', zgl[0][2])
+        for tekst in (md, zgl[0][2], ' '.join(logi)):
+            self.assertNotIn(self.KLUCZ, tekst); self.assertNotIn('ghs_TOKENTESTOWY123', tekst)
+
+    def test_naglowki_zapytania_http(self):
+        r = self._mod('raport_ai')
+        przechwycone = []
+
+        class Odp:
+            status = 200
+            def __enter__(s): return s
+            def __exit__(s, *a): return False
+            def read(s): return b'{"content": [{"type": "text", "text": "ok"}]}'
+        def fake(req, timeout=None):
+            przechwycone.append((req, timeout)); return Odp()
+        with mock.patch.object(r.urllib.request, 'urlopen', fake):
+            kod, odp = r.post_api(self.KLUCZ, r.zapytanie('fakty'))
+        req, tm = przechwycone[0]
+        self.assertEqual((kod, req.full_url, req.get_method(), req.get_header('X-api-key'), req.get_header('Anthropic-version'), tm), (200, 'https://api.anthropic.com/v1/messages', 'POST', self.KLUCZ, '2023-06-01', 120))
+        self.assertNotIn(self.KLUCZ.encode(), req.data); self.assertEqual(json.loads(req.data)['model'], 'claude-sonnet-5-5')
+
+    def test_brak_klucza_i_zly_klucz(self):
+        for env in ({}, {'ANTHROPIC_API_KEY': ''}, {'ANTHROPIC_API_KEY': '   \n'}):
+            root = self._root()
+            r, rc, wyw, logi, zgl = self._uruchom(root, env=env)
+            self.assertEqual((rc, wyw, zgl), (0, [], [])); self.assertFalse(os.path.exists(os.path.join(root, 'kontrola', 'raport-ai.md'))); self.assertIn('brak klucza', ' '.join(logi))
+        root = self._root()
+        r, rc, wyw, logi, zgl = self._uruchom(root, env={'ANTHROPIC_API_KEY': 'sk-ant-ze spacja-w-srodku'})
+        self.assertEqual((rc, wyw), (0, [])); self.assertNotIn('spacja-w-srodku', ' '.join(logi))
+        r, rc, wyw, logi, zgl = self._uruchom(root, env={'ANTHROPIC_API_KEY': 'ghp_klucz-innego-dostawcy-123'})
+        self.assertEqual((rc, wyw), (0, [])); self.assertIn('nie wygląda na klucz Anthropic', ' '.join(logi)); self.assertNotIn('klucz-innego', ' '.join(logi))
+        r, rc, wyw, logi, zgl = self._uruchom(root, env={'ANTHROPIC_API_KEY': self.KLUCZ + '\n'})
+        self.assertEqual((rc, len(wyw), wyw[0][0]), (0, 1, self.KLUCZ), 'końcowy znak nowej linii (typowe przy wklejaniu) obcięty')
+
+    def test_bledy_api_kod_0_bez_raportu_i_bez_klucza_w_logu(self):
+        import io
+        for blad in (urllib.error.HTTPError('https://api.anthropic.com/v1/messages', 401, 'x', {}, io.BytesIO(('{"error": {"type": "authentication_error", "message": "invalid x-api-key ' + self.KLUCZ + '"}}').encode())),
+                     urllib.error.HTTPError('u', 400, 'x', {}, io.BytesIO(b'{"error": {"type": "invalid_request_error", "message": "Your credit balance is too low"}}')),
+                     urllib.error.URLError('timed out'), TimeoutError('timed out'), ValueError('x ' + self.KLUCZ)):
+            root = self._root()
+            r, rc, wyw, logi, zgl = self._uruchom(root, blad=blad)
+            self.assertEqual((rc, len(wyw), zgl), (0, 1, []), repr(blad)); self.assertFalse(os.path.exists(os.path.join(root, 'kontrola', 'raport-ai.md')), 'bez raportu = bez znacznika, można ponowić')
+            self.assertNotIn(self.KLUCZ, ' '.join(logi)); self.assertIn('bez raportu', ' '.join(logi))
+        for odp in ({'content': []}, {'content': [{'type': 'text', 'text': '  '}]}, 'zły', None):
+            root = self._root()
+            r, rc, wyw, logi, zgl = self._uruchom(root, odp=odp if odp is not None else {'x': 1})
+            self.assertEqual((rc, zgl), (0, []))
+        root = self._root()
+        r, rc, wyw, logi, zgl = self._uruchom(root, get=lambda url, timeout=30: (_ for _ in ()).throw(urllib.error.URLError('x')))
+        self.assertEqual((rc, len(wyw)), (0, 1), 'brak meta.json ze strony nie blokuje raportu'); self.assertTrue(wyw[0][1]['messages'][0]['content'].rstrip().endswith('null\n</dane>'), 'część stanu danych pusta (null), reszta faktów jest')
+        root = self._root(); os.remove(os.path.join(root, 'kontrola', 'ostatnia.md'))
+        r, rc, wyw, logi, zgl = self._uruchom(root)
+        self.assertEqual((rc, wyw), (0, []), 'bez kontroli nie ma o czym pisać')
+        root = self._root()
+        r, rc, wyw, logi, zgl = self._uruchom(root, odp={'content': [{'type': 'text', 'text': 'Ucięte'}], 'stop_reason': 'max_tokens'})
+        self.assertIn('ucięty', self._czytaj(os.path.join(root, 'kontrola', 'raport-ai.md')))
+
+    def test_bezpiecznik_jeden_raport_na_dobe(self):
+        root = self._root()
+        r, rc, wyw, logi, zgl = self._uruchom(root)
+        self.assertEqual((rc, len(wyw)), (0, 1))
+        r, rc, wyw2, logi2, zgl2 = self._uruchom(root, now=self.NOW + datetime.timedelta(hours=3))
+        self.assertEqual((rc, len(wyw2), len(zgl2)), (0, 0, 0)); self.assertIn('najwyżej 1 na dobę', ' '.join(logi2))
+        r, rc, wyw3, logi3, zgl3 = self._uruchom(root, now=self.NOW + datetime.timedelta(days=7))
+        self.assertEqual((rc, len(wyw3), len(zgl3)), (0, 1, 1), 'następny dzień (tydzień później) — znów jedno zapytanie')
+        self.assertEqual(r.dzien_ostatniego(root), '2026-10-26')
+
+    def test_issue_blad_nie_psuje(self):
+        r = self._mod('raport_ai'); root = self._root(); logi = []
+
+        def zly(repo, tok, t, b):
+            raise urllib.error.HTTPError('u', 403, 'x', {}, None)
+        rc = r.main(env={'ANTHROPIC_API_KEY': self.KLUCZ, 'GITHUB_TOKEN': 'ghs_TOKENTESTOWY123', 'GITHUB_REPOSITORY': 'a/b'}, root=root, now=self.NOW,
+                    post=lambda k, c, timeout=120: (200, {'content': [{'type': 'text', 'text': 'tekst'}]}), get=lambda u, timeout=30: self.META, issue=zly, log=logi.append)
+        self.assertEqual(rc, 0); self.assertTrue(os.path.exists(os.path.join(root, 'kontrola', 'raport-ai.md'))); self.assertIn('zgłoszenia nie utworzono', ' '.join(logi))
+
+    def test_skrypt_bez_wyjatkow_gdy_brak_klucza(self):
+        import subprocess, sys, tempfile
+        d = tempfile.mkdtemp()
+        p = subprocess.run([sys.executable, os.path.join(self.ROOT, 'narzedzia', 'raport_ai.py')], cwd=d, env={'PATH': os.environ.get('PATH', ''), 'PYTHONDONTWRITEBYTECODE': '1'}, capture_output=True, text=True, timeout=60)
+        self.assertEqual(p.returncode, 0, p.stderr); self.assertIn('brak klucza', p.stdout)
+
+    # ---- przepływy ----
+    LANCUCH = 'secrets.ANTHROPIC_API_KEY || secrets.CLAUDE_API_KEY || secrets.ANTHROPIC_KEY || secrets.API_KEY'
+
+    def test_raport_ai_yml(self):
+        y = self._wf('raport-ai.yml')
+        self.assertIn("cron: '30 6 * * 1'", y); self.assertIn('workflow_dispatch:', y); self.assertIn("paths: ['.github/workflows/raport-ai.yml', 'narzedzia/raport_ai.py']", y)
+        self.assertIn('runs-on: ubuntu-24.04', y); self.assertIn("python-version: '3.12'", y); self.assertTrue(y.startswith('name:'))
+        self.assertIn('ANTHROPIC_API_KEY: ${{ ' + self.LANCUCH + ' }}', y); self.assertIn('GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}', y)
+        self.assertIn('permissions: {}\n', y); self.assertIn('    permissions:\n      contents: write          # zapis kontrola/raport-ai.md\n      issues: write', y)
+        for zly in ('pull-requests', 'id-token', 'actions: write', 'workflows:'):
+            self.assertNotIn(zly, y)
+        self.assertIn('[skip ci]', y); self.assertIn('git add kontrola/raport-ai.md', y); self.assertIn('python3 narzedzia/raport_ai.py ||', y)
+        self.assertEqual(y.count('secrets.'), 5, 'tylko łańcuch nazw klucza (4) i GITHUB_TOKEN — żadnych innych sekretów')
+
+    def test_asystent_claude_yml(self):
+        y = self._wf('asystent-claude.yml')
+        self.assertIn("if: ${{ github.event.comment.author_association == 'OWNER' && contains(github.event.comment.body, '@claude') }}", y)
+        self.assertEqual(y.count('author_association'), 1); self.assertIn('issue_comment:', y); self.assertIn('pull_request_review_comment:', y)
+        self.assertNotIn('pull_request_target', y); self.assertNotIn('workflow_run', y); self.assertNotIn('\n  issues:', y, 'tylko komentarze właściciela, nie treść zgłoszeń obcych')
+        self.assertIn('permissions: {}\n', y); self.assertIn('    permissions:\n      contents: write\n      pull-requests: write\n      issues: write\n', y)
+        for zly in ('id-token', 'actions: write', 'workflows:', 'admin', 'packages'):
+            self.assertNotIn(zly, y)
+        for zly in ('gh pr merge', 'auto-merge', 'automerge', '--auto', 'enable-auto', 'mergePullRequest', 'allowed_non_write_users', 'allowed_bots'):
+            self.assertNotIn(zly, y, 'asystent nigdy nie scala sam i nie wpuszcza obcych')
+        self.assertIn('uses: anthropics/claude-code-action@v1', y); self.assertIn('anthropic_api_key: ${{ ' + self.LANCUCH + ' }}', y)
+        self.assertIn('--model claude-sonnet-5-5', y); self.assertRegex(y, r'--max-turns \d+'); self.assertIn('include_comments_by_actor: ${{ github.repository_owner }}', y)
+        self.assertIn('nigdy nie scalaj do main', y); self.assertIn('runs-on: ubuntu-24.04', y); self.assertIn('timeout-minutes: 30', y)
+        self.assertNotIn('--dangerously-skip-permissions', y); self.assertNotIn('Bash(*)', y)
+        self.assertIn('Merge pull request', y); self.assertIn('@claude napraw', y)
+        # v482 poprawka po przeglądzie: zadanie z kluczem i prawem zapisu nie uruchamia kodu napisanego przez asystenta
+        self.assertIn("CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: '1'", y); self.assertIn('use_commit_signing: true', y)
+        self.assertIn('--allowedTools "Edit,Read,Write,Glob,Grep"', y); self.assertIn('--disallowedTools "Bash,', y)
+        for zly in ('Bash(python3', 'Bash(node', 'Bash(git', 'unittest:*', 'node --test:*'):
+            self.assertNotIn(zly, y.split('  testy:')[0], 'asystent z kluczem nie uruchamia żadnych poleceń')
+        for fraza in ('Read(.git/**)', 'Edit(.git/**)', 'Write(.git/**)', 'Edit(.github/**)', 'Write(.github/**)'):
+            self.assertIn(fraza, y)
+        i, j = y.index('\n  asystent:'), y.index('\n  testy:'); k = y.index('\n  zglos:')
+        zad_a, zad_t, zad_z = y[i:j], y[j:k], y[k:]
+        self.assertEqual(zad_a.count('persist-credentials: false'), 1)
+        self.assertIn('galaz: ${{ steps.claude.outputs.branch_name }}', zad_a)
+        # zadanie testów: tylko odczyt, bez sekretów, bez zapisanego tokenu, na gałęzi asystenta
+        self.assertIn('needs: asystent', zad_t); self.assertIn('    permissions:\n      contents: read\n', zad_t); self.assertNotIn('secrets.', zad_t)
+        self.assertIn('ref: ${{ needs.asystent.outputs.galaz }}', zad_t); self.assertIn('persist-credentials: false', zad_t)
+        self.assertNotIn('write', zad_t.replace('Testy', '')); self.assertNotIn('gh ', zad_t); self.assertNotIn('GH_TOKEN', zad_t)
+        # zadanie zgłoszenia: komentarz i PR, bez pobierania i uruchamiania kodu z repozytorium
+        self.assertIn('needs: [asystent, testy]', zad_z); self.assertIn('pull-requests: write', zad_z); self.assertIn('issues: write', zad_z)
+        for zly in ('actions/checkout', 'unittest', 'node --test', 'git checkout', 'git fetch', 'setup-python', 'claude-code-action'):
+            self.assertNotIn(zly, zad_z, 'zadanie z prawem zapisu nie uruchamia kodu z gałęzi')
+        self.assertEqual(y.count('secrets.'), 6, 'klucz (łańcuch 4 nazw, tylko w zadaniu asystenta) + GITHUB_TOKEN dwa razy — nic więcej')
+        self.assertEqual(zad_a.count('secrets.'), 5); self.assertEqual(zad_z.count('secrets.'), 1)
+
+    def test_testy_pr_yml(self):
+        y = self._wf('testy-pr.yml')
+        self.assertIn('pull_request:', y); self.assertIn('permissions:\n  contents: read', y); self.assertNotIn('secrets.', y)
+        self.assertIn('python3 -m unittest test_zbieraj_dane.py', y); self.assertIn('node --test test_widoki.cjs', y); self.assertNotIn('pull_request_target', y)
+
+    def test_skladnia_yaml_ruby(self):
+        import shutil, subprocess
+        if not shutil.which('ruby'):
+            self.skipTest('brak ruby (walidacja YAML w bramce lokalnej)')
+        for n in ('raport-ai.yml', 'asystent-claude.yml', 'testy-pr.yml'):
+            p = subprocess.run(['ruby', '-ryaml', '-e', 'YAML.load_file(ARGV[0])', os.path.join(self.ROOT, '.github', 'workflows', n)], capture_output=True, text=True, timeout=60)
+            self.assertEqual(p.returncode, 0, n + ': ' + p.stderr[-300:])
+
+    # ---- straż kluczy i strażnik harmonogramów ----
+    def test_straz_zna_nazwy_anthropic(self):
+        s = self._mod('straz_kluczy')
+        nazwy = ('ANTHROPIC_API_KEY', 'CLAUDE_API_KEY', 'ANTHROPIC_KEY', 'API_KEY')
+        for n in nazwy:
+            self.assertIn(n, s.NAZWY)
+        import tempfile
+        root = tempfile.mkdtemp(); os.makedirs(os.path.join(root, '_site')); os.makedirs(os.path.join(root, 'data'))
+        with open(os.path.join(root, '_site', 'index.html'), 'w', encoding='utf-8') as f:
+            f.write('<html>' + self.KLUCZ + '</html>')
+        sek, _ = s.sekrety({'CLAUDE_API_KEY': self.KLUCZ})
+        tr, _ = s.skanuj(sek, root)
+        self.assertEqual([(a, b) for a, b, _ in tr], [('CLAUDE_API_KEY', '_site/index.html')], 'klucz w pliku strony przerywa publikację')
+        self.assertNotIn(self.KLUCZ, str(tr))
+        y = self._wf('strona.yml'); i = y.index('python3 narzedzia/straz_kluczy.py'); blok = y[y.rindex('- name:', 0, i):i]
+        for n in nazwy:
+            self.assertEqual(blok.count(f'{n}: ${{{{ secrets.{n} }}}}'), 1, n); self.assertEqual(y.count(f'secrets.{n} }}}}'), 1, 'tylko w kroku straży, nie w zbieraczu: ' + n)
+        self.assertEqual(y.count('${{ secrets.ANTHROPIC'), 2)
+
+    def test_straznik_harmonogramow_pilnuje_raportu(self):
+        s, k = self._mod('straznik'), self._mod('kontrola')
+        self.assertIn('raport-ai.yml', s.ZAPLANOWANE); self.assertEqual(k.STRAZNIK_WF, s.ZAPLANOWANE)
+        self.assertNotIn('asystent-claude.yml', s.ZAPLANOWANE); self.assertNotIn('testy-pr.yml', s.ZAPLANOWANE)
+
+    def test_przycinanie_faktow(self):
+        r = self._mod('raport_ai')
+        md = '# T\n\n- a\n## Świeżość\n' + 'z' * 9000 + '\n## Uwagi\n- uwaga 1\n'
+        p = r.przytnij_kontrole(md)
+        self.assertIn('- a', p); self.assertIn('uwaga 1', p); self.assertNotIn('zzzz', p)
+        self.assertEqual(r.przytnij_kontrole(None), ''); self.assertEqual(r.fakty_meta('zły'), None)
+        m = r.fakty_meta({'errors': ['e' * 900] * 40, 'awarie': {f'k{i}': {'od': 'x', 'n': i, 'prev': 1} for i in range(100)}, 'zrodla': {'n': 1}, 'ok': {'a': 1}})
+        self.assertEqual((len(m['errors']), len(m['errors'][0]), len(m['awarie']), sorted(m['awarie']['k1'])), (30, 300, 60, ['n', 'od']))
+        self.assertEqual(r.historia_7_dni('zły', self.NOW), []); self.assertEqual(r.historia_7_dni([{'at': 'zła'}, 5], self.NOW), [])

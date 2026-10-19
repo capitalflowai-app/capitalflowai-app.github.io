@@ -9,7 +9,8 @@ import sys
 
 NAZWY = ('SOSOVALUE_KEY', 'COINGECKO_KEY', 'FINNHUB_KEY', 'TWELVEDATA_KEY', 'COINMARKETCAP_KEY', 'FRED_KEY', 'EIA_KEY', 'BLS_KEY', 'BEA_KEY',
          'EODHD_KEY', 'MASSIVE_KEY', 'TIINGO_KEY', 'FMP_KEY', 'ALPHAVANTAGE_KEY', 'ETHERSCAN_KEY', 'CRYPTOPANIC_KEY', 'CENSUS_KEY',
-         'SEC_CONTACT', 'GITHUB_TOKEN', 'COINALYZE_KEY', 'BANXICO_TOKEN', 'EVDS_KEY')   # v126: trzy nowe sekrety właściciela (27.09)
+         'SEC_CONTACT', 'GITHUB_TOKEN', 'COINALYZE_KEY', 'BANXICO_TOKEN', 'EVDS_KEY',   # v126: trzy nowe sekrety właściciela (27.09)
+         'ANTHROPIC_API_KEY', 'CLAUDE_API_KEY', 'ANTHROPIC_KEY', 'API_KEY')   # v482: klucz API Claude właściciela (raport AI i asystent) — nazwa sekretu nieznana, pilnowane cztery możliwe
 MIN_DL = 8
 _ZLY = re.compile(r'[\x00-\x20\x7f]')   # v272: spacja, tabulator, nowa linia i inne znaki sterujące
 _NAZWA = re.compile(r'[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_(?:KEY|TOKEN|SECRET)')   # v281: nazwa zmiennej (jak w maskowaniu zbieracza, v278)

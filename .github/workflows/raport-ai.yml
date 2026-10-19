@@ -1,0 +1,50 @@
+name: Raport tygodniowy AI
+
+# v482: raz w tygodniu (poniedziałek 06:30 UTC = 08:30 czasu polskiego) jedno zapytanie do API Claude z faktami z kontroli strony -> prosty raport po polsku
+# (co działa, co się psuje i od ilu dni, co zrobić, czego nie wiadomo) -> plik kontrola/raport-ai.md (commit z [skip ci]) i nowe zgłoszenie (issue) „Raport tygodniowy AI”
+# w repozytorium — GitHub wysyła właścicielowi e-mail. Klucz API z przedpłaconymi kredytami jest w Secrets; nazwa sekretu może być jedna z czterech
+# (ANTHROPIC_API_KEY, CLAUDE_API_KEY, ANTHROPIC_KEY, API_KEY) — pierwsza istniejąca. Bezpieczniki kosztu: najwyżej 1 zapytanie na przebieg, najwyżej 1 raport na dobę.
+# Brak klucza albo błąd API = notatka w logu i zielony przebieg (strony to nie dotyczy). Uruchomienie raz po wgraniu tego pliku (push) i ręcznie (Actions -> Run workflow).
+on:
+  schedule:
+    - cron: '30 6 * * 1'
+  push:
+    branches: [main]
+    paths: ['.github/workflows/raport-ai.yml', 'narzedzia/raport_ai.py']
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: raport-ai
+  cancel-in-progress: false
+
+jobs:
+  raport:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write          # zapis kontrola/raport-ai.md
+      issues: write            # zgłoszenie z raportem (e-mail od GitHuba)
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Raport AI (jedno zapytanie; błąd = notatka, nigdy czerwony przebieg)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || secrets.CLAUDE_API_KEY || secrets.ANTHROPIC_KEY || secrets.API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SITE_URL: https://capitalflowai-app.github.io
+        run: |
+          python3 narzedzia/raport_ai.py || echo "raport AI: pominięty (kod $?) — strony to nie dotyczy"
+      - name: Zapisz raport w repozytorium
+        continue-on-error: true
+        run: |
+          git config user.name 'raport-ai'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if [ -f kontrola/raport-ai.md ]; then git add kontrola/raport-ai.md; fi
+          if git diff --cached --quiet; then echo "bez zmian"; else
+            git commit -q -m "Raport tygodniowy AI $(date -u +%Y-%m-%d) [skip ci]"
+            for i in 1 2 3; do git push -q origin HEAD:main && break; git pull -q --rebase -X theirs origin main || break; sleep 3; done
+          fi

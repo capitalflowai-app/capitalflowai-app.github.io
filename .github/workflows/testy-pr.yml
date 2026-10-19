@@ -1,0 +1,30 @@
+name: Testy zmian (Pull Request)
+
+# v482: te same testy co przed publikacją strony (strona.yml) — na każdym Pull Requeście do main (także od asystenta Claude, gdy właściciel otworzy PR z linku).
+# Zielone testy = można scalić. Przebieg nie ma dostępu do sekretów i niczego nie publikuje.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testy-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Testy zbieracza (sieć zablokowana)
+        run: PYTHONPATH=narzedzia/bez_sieci PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test_zbieraj_dane.py
+      - name: Testy strony (widoki)
+        run: node --test test_widoki.cjs

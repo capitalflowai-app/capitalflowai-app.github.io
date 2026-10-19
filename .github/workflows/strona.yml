@@ -135,6 +135,10 @@ jobs:
           COINALYZE_KEY: ${{ secrets.COINALYZE_KEY }}
           BANXICO_TOKEN: ${{ secrets.BANXICO_TOKEN }}
           EVDS_KEY: ${{ secrets.EVDS_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}   # v482: klucz API Claude (raport AI, asystent) — tylko pilnowany; zbieracz go nie dostaje
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_KEY }}
+          API_KEY: ${{ secrets.API_KEY }}
         run: python3 narzedzia/straz_kluczy.py
       - name: Spis plików zgodny z plikami wydania (niezgodny = usunięty; strona działa wtedy na własnych zegarach modułów)
         run: |

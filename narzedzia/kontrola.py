@@ -3282,7 +3282,7 @@ def github_ostrz_odczyt(hdr, getf=None):
     return {'sprawdzone': nwf, 'znalezione': ostrzezenia_github(ann), 'bledne': bledne}
 
 
-STRAZNIK_WF = ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml')   # v354: przepływy z harmonogramem (jak ZAPLANOWANE w narzedzia/straznik.py; test pilnuje zgodności)
+STRAZNIK_WF = ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml', 'raport-ai.yml')   # v354: przepływy z harmonogramem (jak ZAPLANOWANE w narzedzia/straznik.py; test pilnuje zgodności)
 STRAZNIK_PRZEBIEG_DNI = 16   # v354: strażnik działa raz w tygodniu — 2 tygodnie + 2 dni zapasu: jeden pominięty poniedziałek nie jest alarmem (zapas do 60 dni jest ogromny)
 STRAZNIK_COMMIT_DNI = 45     # v354: strażnik robi commit aktywności po 30 dniach bez commitu; 45 = nie zadziałał (GitHub wyłącza harmonogramy po 60)
 
