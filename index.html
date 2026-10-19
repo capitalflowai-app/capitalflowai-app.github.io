@@ -4027,6 +4027,8 @@ for(const l in EXTRA315)if(I18N[l])Object.assign(I18N[l],EXTRA315[l]);
 /* v464 (GLOBAL_M13): etykieta różnicy ceny fizycznej i kontraktu, nota kalendarza — pl i en */
 const EXTRA316={"pl":{"g464.gap.u":"Kontrakt terminowy: {v}. Cena dostawy fizycznej jest o {p}% wyższa.","g464.gap.d":"Kontrakt terminowy: {v}. Cena dostawy fizycznej jest o {p}% niższa.","kal464.n":"Godziny w czasie polskim. Znak ~ oznacza zwyczajową godzinę publikacji.","kal464.at":"Dane z {t}"},"en":{"g464.gap.u":"Futures contract: {v}. The spot (physical delivery) price is {p}% higher.","g464.gap.d":"Futures contract: {v}. The spot (physical delivery) price is {p}% lower.","kal464.n":"Times are in Polish time. A ~ sign means the usual publication time.","kal464.at":"Data from {t}"}};
 for(const l in EXTRA316)if(I18N[l])Object.assign(I18N[l],EXTRA316[l]);
+const EXTRA317={"pl":{"xs468.wk":"{p}: wartość wstępna — rynek akcji jest zamknięty, więc część tokenów wyceniono ostatnią ceną z {d} (tokenów: {n}, razem {v}, czyli {pr} wartości produktu); odczyt {t}."},"en":{"xs468.wk":"{p}: preliminary value — the stock market is closed, so some tokens are priced at the last price from {d} (tokens: {n}, {v} in total, which is {pr} of the product's value); read {t}."}};
+for(const l in EXTRA317)if(I18N[l])Object.assign(I18N[l],EXTRA317[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -13099,7 +13101,13 @@ function rwTopFz(D){const st=rwObj(D.stale)?D.stale:null;if(!st||!Array.isArray(
 /* v463 (polecenie 18.10, pkt 4 i 6): strona nie pokazuje opisów sposobu liczenia — długich akapitów o odczycie własnym ◆ i danych emitentów ◇ ani zdań „czego nie mówią” o zmianach i odczycie własnym;
    zamiast nich jedno zdanie o znakach. Kod opisów i ich testy zostają (RW_OPISY = true przywraca pełne opisy; testy uruchamiają blok z tą wartością). */
 const RW_OPISY=false;
-function rwSrcNote(D){const p=[];if(rwOc(D))p.push(t('rwa463.o',{m:RW_OC}));if(rwEm(D))p.push(t('rwa463.e',{m:RW_EM}));return p.length?`<p class="pnote">${p.join(' · ')}.</p>`:'';}
+/* v468: dzień wolny od sesji — tokeny bez świeżej ceny akcji wycenione ostatnią ceną z pamięci: zdanie „wartość wstępna” (liczba tokenów, wartość, udział, dzień ceny z wiekiem, chwila odczytu); zły zapis pola — bez zdania */
+function rwWkL(D){const o=rwEm(D),L=[];if(!o)return L;
+  for(const s of rwEmUsed(D).sort((a,b)=>o.used[b]-o.used[a])){const w=o.p[s].wk;if(!rwObj(w)||!rwNum(w.n)||w.n<1||w.n!==Math.floor(w.n)||!rwNum(w.usd)||w.usd<0||!rwIsDay(w.od))continue;
+    L.push(t('xs468.wk',{p:escH(typeof o.p[s].name==='string'?o.p[s].name:s),d:rwDayS(w.od)+(typeof gAgeNote==='function'?gAgeNote(w.od):''),n:nfmt(w.n,0),v:rwUsd(w.usd),pr:xs311Pr(w.usd,o.used[s]),t:rwWhen(o.p[s].read)}));}
+  return L;}
+function rwSrcNote(D){const p=[];if(rwOc(D))p.push(t('rwa463.o',{m:RW_OC}));if(rwEm(D))p.push(t('rwa463.e',{m:RW_EM}));const w=rwWkL(D);
+  return p.length||w.length?`<p class="pnote">${p.length?p.join(' · ')+'.':''}${w.length?(p.length?' ':'')+w.join(' '):''}</p>`:'';}
 function rwBody(D){
   if(!rwOk(D))return '';
   const ms=Date.parse(D.at),old=!(Date.now()-ms<RW_OLD);
@@ -13230,6 +13238,7 @@ function rwEmPara(D){
     for(const s of U){const b=o.p[s].bez;if(!rwObj(b)||!rwNum(b.n)||b.n<1||b.n!==Math.floor(b.n)||!rwNum(b.max_usd)||b.max_usd<0)continue;
       const ob=rwNum(b.obieg)&&b.obieg>=0?nfmt(b.obieg,b.obieg<100&&b.obieg!==Math.floor(b.obieg)?2:0):'—';
       L.push((typeof tN==='function'?tN:(k,x,v)=>t(k,v))('xs311.bez',b.n,{p:nm(s),n:nfmt(b.n,0),o:ob,v:xs311Usd(b.max_usd),pr:xs311Pr(b.max_usd,o.used[s]),t:rwWhen(o.p[s].read)}));}
+    for(const z of rwWkL(D))L.push(z);   /* v468: dzień wolny od sesji — zdanie „wartość wstępna” */
   }
   const P=Object.keys(o.p).filter(s=>rwObj(o.p[s])&&!U.includes(s)&&(typeof o.p[s].stan==='string'?o.p[s].stan==='poza':o.p[s].full!==true));   /* v175: tylko naprawdę poza sumami (stan z pliku; starsze pliki — brak pełnego odczytu) */
   if(P.length)L.push(t('rwe.part',{list:P.map(nm).join(sl)}));

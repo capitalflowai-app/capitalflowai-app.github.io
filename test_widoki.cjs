@@ -37159,3 +37159,40 @@ test('v465: TRENDY — w słownikach i w szablonach kart linii nie ma zakresu 95
   /* data pliku po angielsku: rok czterocyfrowy */
   assert.ok(html.includes("{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';};   /* v465"), 'engDate: rok czterocyfrowy');
 });
+
+
+/* ---------- v468: xStocks w dzień wolny od sesji — wartość wstępna (tokeny wycenione ostatnią ceną z pamięci); słownik xs468.* (pl, en) ---------- */
+test('v468: zdanie o wartości wstępnej xStocks — liczba tokenów, wartość, udział, dzień ceny, chwila odczytu; na stronie (krótka karta) i w pełnych opisach; pl i en', () => {
+  const NOW = '2026-10-10T07:00:00Z', W = {n: 12, usd: 1234567, od: '2026-10-09'};
+  const F = v311Plik(V311_BEZ); F.issuer.p.xstocks.wk = W;
+  const pl0 = 'xStocks: wartość wstępna — rynek akcji jest zamknięty, więc część tokenów wyceniono ostatnią ceną z 09.10', pl1 = ' (tokenów: 12, razem 1 mln USD, czyli 0,13% wartości produktu); odczyt ';
+  const o = rw133.run(F, {real: true, lang: 'pl', now: NOW}).el.innerHTML, k = rw133.run(F, {real: true, lang: 'pl', now: NOW, krotko: true}).el.innerHTML;
+  for (const h of [o, k]) assert.ok(h.includes(pl0) && h.includes(pl1), 'zdanie, dzień ceny i liczby');
+  assert.ok(o.indexOf('pominęliśmy 58 rodzajów tokenów') < o.indexOf('wartość wstępna'), 'pełne opisy: po zdaniu o tokenach bez dowodu rezerw');
+  assert.ok(k.includes('◆ wartość z odczytu własnego') || k.includes('wartość z danych emitenta'), 'krótka karta: zdanie o znakach zostaje'); assert.ok(k.indexOf('wartość z danych emitenta') < k.indexOf('wartość wstępna'), 'krótka karta: po zdaniu o znakach');
+  assert.ok(!/NaN|undefined|null|xs468\.[a-z]/.test(RWC150.txt(o)) && !/NaN|undefined|null|xs468\.[a-z]/.test(RWC150.txt(k)), 'bez NaN i surowych kluczy');
+  assert.ok(!rw133.run(v311Plik(), {real: true, lang: 'pl', now: NOW, krotko: true}).el.innerHTML.includes('wartość wstępna'), 'bez pola wk — bez zdania');
+  const s = v311Plik(); s.issuer.p.xstocks.wk = {n: 2, usd: 5000, od: '2026-10-09'};
+  assert.ok(rw133.run(s, {real: true, lang: 'pl', now: NOW, krotko: true}).el.innerHTML.includes('(tokenów: 2, razem <1 mln USD, czyli <0,01% wartości produktu)'), 'mała kwota: <1 mln USD');
+  const e = rw133.run(F, {real: true, lang: 'en', now: NOW, krotko: true}).el.innerHTML;
+  assert.ok(e.includes('xStocks: preliminary value — the stock market is closed, so some tokens are priced at the last price from ') && e.includes('(tokens: 12, 1 M USD in total, which is 0.13% of the product'), 'po angielsku');
+});
+test('v468: zły zapis pola wk albo produkt poza sumami — bez zdania (nigdy NaN ani 0)', () => {
+  const NOW = '2026-10-10T07:00:00Z', run = F => rw133.run(F, {real: true, lang: 'pl', now: NOW, krotko: true}).el.innerHTML;
+  for (const zle of [null, 'x', {n: 0, usd: 5, od: '2026-10-09'}, {n: 1.5, usd: 5, od: '2026-10-09'}, {n: '3', usd: 5, od: '2026-10-09'}, {n: 3, usd: -1, od: '2026-10-09'}, {n: 3, od: '2026-10-09'}, {n: 3, usd: NaN, od: '2026-10-09'}, {n: 3, usd: 5}, {n: 3, usd: 5, od: '2026-13-40'}, {n: 3, usd: 5, od: 'wczoraj'}]) {
+    const P = v311Plik(); P.issuer.p.xstocks.wk = zle;
+    assert.ok(!run(P).includes('wartość wstępna'), JSON.stringify(zle));
+  }
+  const P = v311Plik(); P.issuer.p.xstocks.wk = {n: 3, usd: 5000, od: '2026-10-09'}; delete P.issuer.used.xstocks; P.issuer.p.xstocks.stan = 'poza';
+  assert.ok(!run(P).includes('wartość wstępna'), 'poza sumami — bez zdania');
+});
+test('v468: słownik xs468.* — czysty JSON (pl, en), te same pola {x}, klucz użyty w bloku RWA, linia nakładania zaraz po słowniku', () => {
+  const i = html.indexOf('{"pl":{"xs468.wk"'), a = html.lastIndexOf('const EXTRA', i), name = html.slice(a + 6, i - 1);
+  assert.ok(i > 0 && /^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2, 'słownik xs468: ' + name);
+  const end = html.indexOf(';\n', i), D = JSON.parse(html.slice(i, end));
+  assert.deepEqual(Object.keys(D).sort(), ['en', 'pl']); assert.deepEqual(Object.keys(D.pl), ['xs468.wk']); assert.deepEqual(Object.keys(D.en), ['xs468.wk']);
+  const pola = s => (s.match(/\{[a-z]+\}/g) || []).sort().join();
+  assert.equal(pola(D.pl['xs468.wk']), pola(D.en['xs468.wk']), 'te same pola'); assert.equal(pola(D.pl['xs468.wk']), '{d},{n},{pr},{p},{t},{v}');
+  assert.ok(html.slice(end + 2).startsWith('for(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);'), 'linia nakładania zaraz po słowniku');
+  assert.ok(rw133.BLK.includes("t('xs468.wk',{") && rw133.BLK.includes('for(const z of rwWkL(D))L.push(z);'), 'klucz i wywołanie w kodzie bloku RWA');
+});

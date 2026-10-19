@@ -23076,7 +23076,7 @@ class RwaEmitenciV170(unittest.TestCase):
         P = zd.RWE_PRODUKTY
         self.assertEqual(len(P), 14)
         self.assertEqual({s: (P[s]['kind'], P[s]['max_h'], P[s].get('zakres')) for s in ('ondo-yield-assets', 'ondo-global-markets', 'xstocks')},
-                         {'ondo-yield-assets': ('ondo_ya', 36, None), 'ondo-global-markets': ('ondo_gm', 60, 'gm'), 'xstocks': ('xs', 36, 'xs')})
+                         {'ondo-yield-assets': ('ondo_ya', 36, None), 'ondo-global-markets': ('ondo_gm', 60, 'gm'), 'xstocks': ('xs', 96, 'xs')})   # v468: 36 → 96 h
         self.assertEqual((zd.RWE_ONDO, zd.RWE_XS, zd.RWE_MAX_HTML), ('https://ondo.finance/', 'https://api.backed.fi/graphql', 5_000_000))
         self.assertEqual((zd.RWE_XS_VAR['pageSize'], zd.RWE_XS_VAR['where'], zd.RWE_XS_VAR['orderBy']),
                          (1000, {'businessLine': {'equals': 'xStocks'}}, {'field': 'aum', 'direction': 'desc'}))
@@ -62289,12 +62289,12 @@ class RwaXstocksOdpornoscV398(unittest.TestCase):
         N = self._L(60, sh=1000) + [_xs311_null('WBDx', 2500)]
         rd1, _z = self._odczyt(N, obieg=3809)
         x1 = rd1['r']['xstocks']
-        self.assertNotIn('err', x1, x1); self.assertEqual(x1['pm'], {'WBDx': [25.0, '2026-10-17']}); self.assertEqual(x1['bez']['n'], 1)
+        self.assertNotIn('err', x1, x1); self.assertEqual(x1['pm']['WBDx'], [25.0, '2026-10-17']); self.assertEqual(x1['bez']['n'], 1)
         o1 = zd.rwe_blok(rd1, None, self.NOW)['p']['xstocks']
         rd2, zap = self._odczyt(N, trujace={'WBDx'}, prev_pm=o1['pm'], obieg=3809)   # emitent przestaje wyceniać WBDx
         x2 = rd2['r']['xstocks']
         self.assertNotIn('err', x2, x2); self.assertEqual((x2['np'], x2['bez']['bc'], x2['bez']['bm'], x2['bez']['max_usd']), (['WBDx'], 1, 1, round(7619 * 75.0)))
-        self.assertEqual(x2['pm'], {'WBDx': [25.0, '2026-10-17']})
+        self.assertEqual(x2['pm']['WBDx'], [25.0, '2026-10-17'])
         rd3, _z = self._odczyt(N, trujace={'WBDx'}, obieg=3809)   # bez pamięci cen ten sam odczyt odpada (granica z percentyla), a opis błędu wskazuje token
         x3 = rd3['r']['xstocks']
         self.assertIn('err', x3); self.assertIn('największy WBDx', x3['err']); self.assertIn('bez pamięci', x3['err']); self.assertLessEqual(len(x3['err']), zd.RWE_ERR_MAX)
@@ -62304,9 +62304,9 @@ class RwaXstocksOdpornoscV398(unittest.TestCase):
         N = self._L(60, sh=1000) + [_xs311_null('WBDx', 2500)]
         rd, _z = self._odczyt(N, obieg=1e9)   # wartość tokenów w obiegu za duża — odczyt odpada, ale cena WBDx została odczytana
         x = rd['r']['xstocks']
-        self.assertIn('err', x); self.assertEqual(x['pm'], {'WBDx': [25.0, '2026-10-17']})
+        self.assertIn('err', x); self.assertEqual(x['pm']['WBDx'], [25.0, '2026-10-17'])
         o = zd.rwe_blok(rd, None, self.NOW)['p']['xstocks']
-        self.assertEqual((o['pm'], o['v']), ({'WBDx': [25.0, '2026-10-17']}, None), 'nieudany odczyt bez poprzedniego: pamięć cen mimo to w pliku')
+        self.assertEqual((o['pm']['WBDx'], o['v']), ([25.0, '2026-10-17'], None), 'nieudany odczyt bez poprzedniego: pamięć cen mimo to w pliku')
         pv = {'name': 'xStocks', 'kind': 'xs', 'v': 6.8e8, 'as_of': '2026-10-17T13:00:00+00:00', 'read': '2026-10-17T13:07:00+00:00', 'pm': {'ABx': [3.0, '2026-10-16']}, 'n': 900, 'zakres': 'xs'}
         rd['r']['xstocks'].pop('pm')
         self.assertEqual(zd.rwe_blok(rd, {'p': {'xstocks': pv}}, self.NOW)['p']['xstocks']['pm'], {'ABx': [3.0, '2026-10-16']}, 'odczyt bez pamięci cen — pamięć z poprzedniego odczytu')
@@ -73038,6 +73038,7 @@ class RwaXstocksBezCenyV442(unittest.TestCase):
         self.assertGreaterEqual(zd.RWE_XS_NP_MAX, 100)
 
     def test_podejrzani_ponad_60_zostaja_takze_gdy_wartosc_za_duza_a_pamiec_cen_ratuje_odczyt(self):
+        self.NOW = datetime.datetime(2026, 10, 19, 15, 0, tzinfo=datetime.timezone.utc)   # v468: poniedziałek — w dzień wolny pamięć cen wycenia takie tokeny (pole wk, RwaXstocksWeekendV468); tu: granica 3 × cena
         L = self._L(60, sh=1000); P = self._P(100, sh=10)   # bez pamięci: 100 × 10 × 5 800 USD = 5,8 mln > 0,5% z 183 mln
         pad, _ = self._odczyt(L + P, trujace={n['symbol'] for n in P})
         e = pad['r']['xstocks']
@@ -79532,3 +79533,98 @@ class TestV467RbiWeekend(unittest.TestCase):
         with mock.patch.object(zd, 'em_pobierz', lambda u, c, nagl=None: self._pusta().encode() if c == 'in' else wk(u, c, nagl)):
             p, st = zd.build_em2(None)
         self.assertEqual((st['in'], p['ok']['in']), (False, False)); self.assertNotIn('in', p); self.assertTrue(any('Rynki wschodzące 2: in: RBI: dzień bez danych' in e for e in zd.META['errors']))
+
+
+class RwaXstocksWeekendV468(unittest.TestCase):
+    """v468 (19.10.2026): xStocks w weekend i święto — token z rezerwą, któremu emitent nie podaje ceny, dostaje ostatnią cenę zamknięcia z pamięci cen (do 4 dni):
+    odczyt przechodzi, wartość jest wstępna (pole 'wk'), w poniedziałek wraca zwykła reguła (górna granica 'nc'). Zegar zamrożony na piątek, sobotę, niedzielę i poniedziałek."""
+    AT = '2026-10-16T20:00:00Z'
+    FRI, SAT, SUN, MON = [datetime.datetime(2026, 10, d, 15, 0, tzinfo=datetime.timezone.utc) for d in (16, 17, 18, 19)]
+    _L = RwaXstocksOdpornoscV398._L
+    _odczyt = RwaXstocksOdpornoscV398._odczyt
+    setUp = RwaXstocksOdpornoscV398.setUp
+    BAZA = 1000 * 100 * (60 * 61 // 2)   # 60 tokenów po 1000 akcji, ceny 100, 200 … 6000 USD
+
+    def _N(self):
+        return self._L(60, sh=1000) + [_rwe170_xn('P0x', 1000, 20000, 'USD', self.AT)]   # P0x: 1000 akcji po 200 USD = 200 000 USD
+
+    def _czytaj(self, now, pm=None, trujace=('P0x',)):
+        self.NOW = now
+        rd, _z = self._odczyt(self._N(), trujace=set(trujace), t=[0.0], prev_pm=pm)
+        return rd, rd['r']['xstocks']
+
+    def test_wolny_dzien_rynku(self):
+        W = zd._rwe_xs_wolny
+        U = lambda d, h: datetime.datetime(2026, 10, d, h, 0, tzinfo=datetime.timezone.utc)   # noqa: E731
+        self.assertFalse(W(U(16, 15))); self.assertTrue(W(U(17, 0))); self.assertTrue(W(U(18, 23)))
+        self.assertTrue(W(U(19, 10)), 'poniedziałek rano (do 12:00 UTC) — ceny wracały ok. 11:30 UTC'); self.assertFalse(W(U(19, 15)), 'poniedziałek po południu — norma')
+        self.assertFalse(W(U(20, 10)), 'wtorek rano po zwykłym poniedziałku')
+        sw = lambda d, h: datetime.datetime(2026, 9, d, h, 0, tzinfo=datetime.timezone.utc)   # noqa: E731
+        self.assertTrue(W(sw(7, 15)), 'święto giełdy (poniedziałek 07.09.2026)'); self.assertTrue(W(sw(8, 10))); self.assertFalse(W(sw(8, 15)))
+        self.assertTrue(W(datetime.datetime(2026, 10, 17, 3, 0)), 'zegar bez strefy traktowany jak UTC')
+
+    def test_sobota_i_niedziela_odczyt_przechodzi_z_wartoscia_wstepna(self):
+        for now in (self.SAT, self.SUN):
+            rd, x = self._czytaj(now, pm={'P0x': [200.0, '2026-10-16']})
+            self.assertNotIn('err', x, x)
+            self.assertEqual(x['wk'], {'n': 1, 'usd': 200000.0, 'od': '2026-10-16'}); self.assertNotIn('nc', x); self.assertEqual(x['np'], ['P0x'])
+            self.assertEqual((x['v'], x['n']), (self.BAZA + 200000.0, 61), 'token wycenionym ostatnią ceną liczy się do sumy')
+            self.assertEqual(x['cur'], {'USD': self.BAZA + 200000.0})
+            o = zd.rwe_blok(rd, None, now)['p']['xstocks']
+            self.assertIsNone(o['err']); self.assertTrue(o['full']); self.assertEqual(o['wk'], x['wk']); self.assertNotIn('k', o)
+            self.assertEqual(zd.rwe_blok(rd, None, now)['p']['xstocks']['v'], self.BAZA + 200000.0)
+
+    def test_bez_pamieci_ceny_w_weekend_odczyt_odpada_jak_dotad(self):
+        rd, x = self._czytaj(self.SAT)
+        self.assertIn('err', x); self.assertIn('bez ceny', x['err']); self.assertNotIn('wk', x)
+
+    def test_granica_wieku_ceny_cztery_dni(self):
+        _rd, x = self._czytaj(self.SAT, pm={'P0x': [200.0, '2026-10-13']})   # 4 dni
+        self.assertEqual(x['wk']['od'], '2026-10-13'); self.assertNotIn('err', x)
+        _rd, x = self._czytaj(self.SAT, pm={'P0x': [200.0, '2026-10-12']})   # 5 dni — zwykła reguła: górna granica 3 × cena
+        self.assertNotIn('wk', x); self.assertEqual((x['nc']['n'], x['nc']['max_usd'], x['v']), (1, 600000, self.BAZA))
+
+    def test_poniedzialek_po_poludniu_wraca_zwykla_regula(self):
+        rd, x = self._czytaj(self.MON, pm={'P0x': [200.0, '2026-10-16']})   # ta sama pamięć, ten sam brak ceny
+        self.assertNotIn('wk', x); self.assertEqual((x['nc']['n'], x['nc']['max_usd'], x['v']), (1, 600000, self.BAZA), 'wartość tylko wycenionych tokenów, granica w polu nc')
+        _rd, x = self._czytaj(self.MON.replace(hour=10), pm={'P0x': [200.0, '2026-10-16']})
+        self.assertIn('wk', x, 'poniedziałek przed 12:00 UTC — jeszcze dzień wolny')
+        _rd, x = self._czytaj(self.MON, trujace=())   # emitent znów podaje cenę — wszystko wycenione, bez wk i nc
+        self.assertEqual((x['v'], x['n']), (self.BAZA + 200000.0, 61)); self.assertNotIn('wk', x); self.assertNotIn('nc', x)
+
+    def test_pamiec_cen_z_piatku_wystarcza_na_weekend(self):
+        self.NOW = self.FRI
+        rd1, _z = self._odczyt(self._N(), t=[0.0])
+        x1 = rd1['r']['xstocks']
+        self.assertNotIn('wk', x1); self.assertEqual(len(x1['pm']), 61); self.assertEqual(x1['pm']['P0x'], [200.0, '2026-10-16'])
+        rd2, x2 = self._czytaj(self.SAT, pm=x1['pm'])
+        self.assertNotIn('err', x2, x2); self.assertEqual(x2['wk'], {'n': 1, 'usd': 200000.0, 'od': '2026-10-16'})
+        self.assertEqual(x2['pm']['P0x'], [200.0, '2026-10-16'], 'pamięć zostaje z dniem ostatniej prawdziwej ceny')
+
+    def test_blok_zachowuje_pole_wk_z_poprzedniego_odczytu_i_limit_stanu(self):
+        rd, x = self._czytaj(self.SAT, pm={'P0x': [200.0, '2026-10-16']})
+        o1 = zd.rwe_blok(rd, None, self.SAT)
+        rd2 = dict(rd, r={'xstocks': {'err': 'TimeoutError: x'}}, at='2026-10-17T16:00:00+00:00')
+        o2 = zd.rwe_blok(rd2, o1, self.SAT)['p']['xstocks']
+        self.assertEqual((o2['k'], o2['wk']), (1, x['wk']), 'nieudany odczyt = poprzedni z polem wk')
+        self.assertEqual(zd.RWE_PRODUKTY['xstocks']['max_h'], 96); self.assertEqual((zd.RWE_XS_WK_DNI, zd.RWE_XS_WK_PON_H, zd.RWE_XS_PM_TOP), (4, 12, 150))
+        self.assertGreaterEqual(zd.RWE_XS_PM_MAX, zd.RWE_XS_PM_TOP + zd.RWE_XS_NP_MAX)
+        now = datetime.datetime(2026, 10, 19, 12, 0, tzinfo=datetime.timezone.utc)
+        iso = lambda h: (now - datetime.timedelta(hours=h)).isoformat()   # noqa: E731
+        self.assertIn('xstocks', zd.rwe_uzyj({'p': {'xstocks': {'kind': 'xs', 'v': 9e8, 'as_of': iso(80)}}}, now), 'stan sprzed 80 h (piątek wieczór → poniedziałek) liczy się do sum')
+        self.assertNotIn('xstocks', zd.rwe_uzyj({'p': {'xstocks': {'kind': 'xs', 'v': 9e8, 'as_of': iso(100)}}}, now))
+
+    def test_kontrola_wiersz_o_wartosci_wstepnej(self):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola468-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v468_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        p = {'name': 'xStocks', 'kind': 'xs', 'v': 900000000.0, 'as_of': '2026-10-17T14:50:00+00:00', 'read': '2026-10-17T15:07:29+00:00', 'stan': 'e', 'full': True,
+             'wk': {'n': 12, 'usd': 1800000.0, 'od': '2026-10-16'}}
+        j = {'issuer': {'at': '2026-10-17T15:07:29+00:00', 'ok': True, 'used': {'xstocks': p['v']}, 'p': {'xstocks': p}}}
+        Z = k.rwe_porownanie(j)
+        self.assertIn('xStocks: wartość wstępna — 12 tokenów wycenione ostatnią ceną zamknięcia z 2026-10-16 (dzień wolny od sesji), razem 1.80 mln USD (0.200% wartości), odczyt 2026-10-17 15:07 UTC ℹ️', Z['opis'])
+        self.assertEqual((Z['status'], Z['uwagi']), ('✅', []), 'tylko informacja — bez ostrzeżenia')
+        for zle in ({'n': 0, 'usd': 5, 'od': '2026-10-16'}, {'n': 'x', 'usd': 5, 'od': '2026-10-16'}, {'n': 2, 'usd': -1, 'od': '2026-10-16'}, {'n': 2, 'usd': 5}, 'x'):
+            self.assertNotIn('wartość wstępna', k.rwe_porownanie({'issuer': dict(j['issuer'], p={'xstocks': dict(p, wk=zle)})})['opis'], zle)

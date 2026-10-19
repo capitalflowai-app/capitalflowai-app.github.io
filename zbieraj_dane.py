@@ -26317,7 +26317,7 @@ RWE_PRODUKTY = {   # produkt źródła v133 → nazwa, rodzaj odczytu, limit wie
     'centrifuge-protocol': {'name': 'Centrifuge Protocol', 'kind': 'cfg', 'max_h': 192, 'zakres': 'cfg'},   # v175: 8 dni — 05.10 (pon.) wycena z 01.10 (czw.)
     'ondo-yield-assets': {'name': 'Ondo Yield Assets', 'kind': 'ondo_ya', 'max_h': 36},   # v170: strona emitenta (USDY + OUSG), budowana co ok. 5 min
     'ondo-global-markets': {'name': 'Ondo Global Markets', 'kind': 'ondo_gm', 'max_h': 60, 'zakres': 'gm'},   # v170: punkt dzienny (stan = dzień, 00:00 UTC)
-    'xstocks': {'name': 'xStocks', 'kind': 'xs', 'max_h': 36, 'zakres': 'xs'},     # v170: dowód rezerw co ok. 30 min
+    'xstocks': {'name': 'xStocks', 'kind': 'xs', 'max_h': 96, 'zakres': 'xs'},     # v468: było 36 h (weekend 18–19.10.2026: 91 nieudanych przebiegów z rzędu, xStocks wypadał z sum). v170: dowód rezerw co ok. 30 min
 }
 RWE_SRC = ('Dane emitentów (publiczne, bez klucza): public-api.spiko.io (klasy funduszy Spiko: totalAssets w walucie klasy; kurs dzienny z pliku '
            'rynki), public-feed.securitize.io/asset-stats (agent transferowy: BCAP, MI4, ACRED, VBILL, STAC, HLSCOPE — Σ aum), '
@@ -26577,9 +26577,12 @@ RWE_XS_NP_MAX = 300        # v442: było 60 (17–18.10.2026: 10 → 60 → 100 
 RWE_XS_CAP_PCT = 0.95      # v398: szacunkowa górna granica ceny akcji tokenu bez ceny = ten percentyl cen wycenionych tokenów (17.10.2026: 95. ok. 0,5 tys. USD; 99. ok. 1,3 tys. USD uniemożliwiał odczyt przy 25 takich tokenach)
 RWE_XS_CAP_MIN = 50        # v398: tyle wycenionych tokenów najmniej, by policzyć granicę
 RWE_XS_OBIEG_CZAS = 30     # v398: s budżetu kroku zostaje na zapytania o obieg po etapie cen
-RWE_XS_PM_MAX = 300        # v398 (przegląd): najwyżej tyle cen akcji w pamięci cen (pole 'pm' pliku; tokeny bez dowodu rezerw — do RWE_XS_BEZ_MAX)
+RWE_XS_PM_MAX = 450        # v468: było 300 (+ ceny RWE_XS_PM_TOP największych tokenów). v398 (przegląd): najwyżej tyle cen akcji w pamięci cen (pole 'pm' pliku; tokeny bez dowodu rezerw — do RWE_XS_BEZ_MAX)
 RWE_XS_PM_DNI = 30         # v398: dni — starsza cena z pamięci nie ogranicza ceny tokenu bez ceny (zostaje percentyl)
 RWE_XS_PM_RAZY = 3         # v398: granica ceny akcji tokenu bez ceny = ostatnia znana cena × tyle (kurs akcji w ciągu 30 dni, zapas)
+RWE_XS_PM_TOP = 150        # v468: ceny tylu największych (wg wartości) tokenów trafiają do pamięci cen przy każdym odczycie — w weekend token bez ceny ma wtedy ostatnią cenę zamknięcia
+RWE_XS_WK_DNI = 4          # v468: dzień wolny od sesji — cena z pamięci nie starsza niż tyle dni wycenia token bez świeżej ceny (piątek → wtorek po poniedziałkowym święcie); wartość wstępna (pole 'wk')
+RWE_XS_WK_PON_H = 12       # v468: godzina UTC, do której trwa tryb dnia wolnego w pierwszy dzień po nim (18–19.10.2026: ceny wracały w poniedziałek ok. 11:30 UTC)
 
 
 def rwe_xs_var_ceny(symbole):
@@ -26870,6 +26873,17 @@ def _rwe_xs_j_ceny(j, st):
     return j if N2 is N else dict(j, data=dict(j['data'], tokens=dict(j['data']['tokens'], nodes=N2)))
 
 
+def _rwe_xs_wolny(now):
+    """v468: czy rynek akcji (podstawa wycen xStocks) nie notuje — sobota, niedziela, dzień zamknięcia giełdy w USA (TD_NYSE_CLOSED) albo pierwsze godziny (do RWE_XS_WK_PON_H UTC)
+    dnia po takim dniu. Wtedy token bez świeżej ceny akcji może dostać ostatnią cenę zamknięcia z pamięci cen (_XsPm.cena_wk)."""
+    now = now.replace(tzinfo=datetime.timezone.utc) if now.tzinfo is None else now.astimezone(datetime.timezone.utc)
+
+    def wolny(d):
+        return d.weekday() >= 5 or d.isoformat() in TD_NYSE_CLOSED
+    d = now.date()
+    return wolny(d) or (wolny(d - datetime.timedelta(days=1)) and now.hour < RWE_XS_WK_PON_H)
+
+
 class _XsPm:
     """v398 (przegląd): pamięć ostatnich cen akcji (USD) tokenów, którym wycena może kończyć się błędem serwera emitenta. Token bez dowodu rezerw i bez ceny ma wartość
     ograniczoną liczbą tokenów w obiegu × cena akcji; 17.10.2026 (WBDx: ok. 3,8 tys. tokenów, wycena wstrzymana) cena = percentyl cen innych tokenów (_rwe_xs_cap, ok. 0,5 tys. USD
@@ -26878,7 +26892,8 @@ class _XsPm:
     (zapas na ruch kursu i przecenę), najwyżej RWE_XS_PM_DNI dni wstecz; bez pamięci zostaje percentyl. To szacunek, nie dowód — opisany tak w polu 'bez' ('bm') i 'nc' ('pm').
     `prev` {symbol: [USD, 'RRRR-MM-DD']} z poprzedniego odczytu, `dzis` — data odczytu, `sledz` — symbole podejrzane o brak ceny; `nowe` — ceny tego odczytu; wynik() → pole 'pm' do pliku."""
 
-    def __init__(self, prev=None, dzis=None, sledz=()):
+    def __init__(self, prev=None, dzis=None, sledz=(), wk=False, top=0):
+        self.wk, self.top = bool(wk), max(0, int(top))   # v468: wk — dzień wolny od sesji (cena_wk), top — ile największych tokenów zapamiętać
         self.dzis = dzis if isinstance(dzis, str) and self._data(dzis) is not None else _now_utc().date().isoformat()
         self.prev, self.nowe = {}, {}
         for s, e in (prev.items() if isinstance(prev, dict) else ()):
@@ -26900,6 +26915,13 @@ class _XsPm:
 
     def sledzi(self, sym):
         return sym in self.sledz
+
+    def cena_wk(self, sym):
+        """v468: (cena USD, dzień zapisu) z pamięci dla tokenu bez świeżej ceny — tylko w trybie dnia wolnego (wk) i nie starsza niż RWE_XS_WK_DNI dni; inaczej None."""
+        e = self.prev.get(sym) if self.wk else None
+        if e is None:
+            return None
+        return e if 0 <= (self._data(self.dzis) - self._data(e[1])).days <= RWE_XS_WK_DNI else None
 
     def zapisz(self, sym, usd):
         if isinstance(sym, str) and _RWE_XS_SYM.match(sym) and isinstance(usd, float) and usd > 0 and math.isfinite(usd):
@@ -27003,6 +27025,7 @@ def _rwe_xs_licz(j, fx, obieg=None, extra=(), pm=None):
     R = (fx or {}).get('rates', {})
     PS = []
     NC = []   # v398: (symbol, akcje w rezerwie) tokenów z rezerwą, których ceny nie dało się odczytać (znacznik '_np')
+    WK = []   # v468: dzień wolny od sesji — tokeny z rezerwą bez ceny, wycenione ostatnią ceną z pamięci: (wartość USD, stan dowodu, dzień ceny)
     V, VS, cur, used_fx, B, vd = [], [], {}, False, [], 0   # v385: VS — symbole tokenów równolegle do V (diagnostyka granicy reszty); v311: B — tokeny z dowodem rezerw null: (symbol do opisu, węzeł)
     for ix, n in enumerate(N):
         if not isinstance(n, dict):
@@ -27020,6 +27043,11 @@ def _rwe_xs_licz(j, fx, obieg=None, extra=(), pm=None):
         if sh == 0:
             continue
         if n.get('_np') is True:   # v398: wycena tego tokenu kończy się błędem serwera emitenta — wartość tylko z górną granicą (nc), nie zero i nie błąd odczytu
+            e_ = pm.cena_wk(str(n.get('symbol'))) if pm is not None else None   # v468: dzień wolny — ostatnia cena zamknięcia z pamięci, wartość wstępna (pole 'wk')
+            d_ = _rwe_iso(por.get('at')) if e_ is not None else None
+            if e_ is not None and d_ is not None:
+                WK.append((sh * e_[0], d_, e_[1]))
+                continue
             NC.append((sym, sh))
             continue
         C = n.get('tokenCollaterals')
@@ -27044,7 +27072,12 @@ def _rwe_xs_licz(j, fx, obieg=None, extra=(), pm=None):
         if ix < nd:
             vd = len(V)   # v364: tokeny z głównej odpowiedzi (od największych) — z nich ostatnie 50 wyznacza granicę reszty
         cur[c] = cur.get(c, 0.0) + x
-    tot = sum(x for x, _d in V)
+    if pm is not None and pm.top:   # v468: ceny największych tokenów do pamięci (także gdy odczyt odpadnie niżej) — w dzień wolny token bez ceny ma wtedy ostatnią cenę zamknięcia
+        for i_ in sorted(range(len(V)), key=lambda i: -V[i][0])[:pm.top]:
+            pm.zapisz(VS[i_], PS[i_])
+    for x, _d, _p in WK:
+        cur['USD'] = cur.get('USD', 0.0) + x   # pamięć cen jest w USD
+    tot = sum(x for x, _d in V) + sum(x for x, _d, _p in WK)
     pg = data['tokens'].get('page') if isinstance(data['tokens'].get('page'), dict) else {}
     tn = pg.get('totalNodes')
     tn = int(tn) if isinstance(tn, (int, float)) and not isinstance(tn, bool) and 0 <= tn < 1e9 and tn == int(tn) else None   # v268: także 1271.0
@@ -27097,11 +27130,12 @@ def _rwe_xs_licz(j, fx, obieg=None, extra=(), pm=None):
         nc = {'n': len(NC), 'akcje': round(sum(a for _s, a in NC), 4), 'cap': round(kap[0], 2) if kap[0] is not None else None, 'max_usd': round(gnc),
               'sym': [t for t, _a in NC[:RWE_XS_BEZ_SYM]], **({'pm': nm_} if nm_ else {})}
     bez = _rwe_xs_bez(B, R, obieg, tot, ogon, cap=cap, dod=gnc, pm=pm) if B else None   # v311: tokeny bez dowodu rezerw — pole 'bez' albo wyjątek
-    big = [d for x, d in V if tot > 0 and x >= RWE_MIN_SHARE * tot]
+    big = [d for x, d in V + [(x, d) for x, d, _p in WK] if tot > 0 and x >= RWE_MIN_SHARE * tot]
     if tot <= 0 or not big:
         raise ValueError('suma rezerw zero')
-    return {'v': tot, 'as_of': min(big), 'n': len(V), 'fx': {'d': fx['d']} if used_fx else None, 'cur': {k: round(x, 2) for k, x in sorted(cur.items())},
-            **({'ogon': ogon} if ogon else {}), **({'bez': bez} if bez else {}), **({'nc': nc} if nc else {})}
+    wk = {'n': len(WK), 'usd': round(sum(x for x, _d, _p in WK), 2), 'od': min(p for _x, _d, p in WK)} if WK else None   # v468: wartość wstępna (ostatnia cena z pamięci)
+    return {'v': tot, 'as_of': min(big), 'n': len(V) + len(WK), 'fx': {'d': fx['d']} if used_fx else None, 'cur': {k: round(x, 2) for k, x in sorted(cur.items())},
+            **({'ogon': ogon} if ogon else {}), **({'bez': bez} if bez else {}), **({'nc': nc} if nc else {}), **({'wk': wk} if wk else {})}
 
 
 def _rwe_xs_bez(B, R, obieg, tot, ogon, cap=None, dod=0.0, pm=None):
@@ -27167,15 +27201,16 @@ def _rwe_xs_bez(B, R, obieg, tot, ogon, cap=None, dod=0.0, pm=None):
     return {'n': len(B), 'max_usd': round(gb), 'obieg': round(ob, 4), 'sym': [s for s, _n in B[:RWE_XS_BEZ_SYM]], **({'bc': bc, 'bm': bm} if bc else {})}
 
 
-def rwe_xs_czytaj(post, fx, tmo, get=None, sleep=None, clock=None, podejrzani=(), czas_na=None, pm_prev=None, dzis=None):
+def rwe_xs_czytaj(post, fx, tmo, get=None, sleep=None, clock=None, podejrzani=(), czas_na=None, pm_prev=None, dzis=None, wolny=False):
     """v398: odczyt xStocks krok po kroku, każdy z własnym limitem czasu, jednym ponowieniem tam, gdzie ma sens, i czasem w diagnostyce: lista tokenów bez cen
     (RWE_XS_LISTA_TMO, ok. 100 KB), ceny osobnymi zapytaniami (_XsCeny: paczki dzielone po błędzie), dopełnienie listy (tylko gdy reszta za duża), obieg tokenów
     bez dowodu rezerw. 17.10.2026 jedno zapytanie z cenami wszystkich ok. 1000 tokenów kończyło się błędem serwera emitenta po ok. 21 s (ok. 10 tokenów bez działającej
     wyceny), a na maszynach GitHuba przekroczeniem czasu. Wynik jak rwe_xs_parse + 'dg' (czasy kroków) i 'np' (tokeny bez ceny, podejrzane w następnym odczycie);
     błąd = RweXsBlad (nazwa kroku, czasy, 'np'). `post(url, obj, timeout)`; `czas_na(s)` — budżet kroku ma jeszcze s sekund (na zapytania o obieg po etapie cen).
-    `pm_prev`, `dzis` — pamięć cen z poprzedniego odczytu i data odczytu (_XsPm); wynik i błąd niosą odświeżoną pamięć ('pm')."""
+    `pm_prev`, `dzis` — pamięć cen z poprzedniego odczytu i data odczytu (_XsPm); wynik i błąd niosą odświeżoną pamięć ('pm').
+    v468: `wolny` — dzień wolny od sesji (_rwe_xs_wolny): token bez świeżej ceny dostaje ostatnią cenę z pamięci (do RWE_XS_WK_DNI dni), wynik ma pole 'wk' (wartość wstępna)."""
     clock = clock or time.monotonic
-    pm = _XsPm(pm_prev, dzis, podejrzani)
+    pm = _XsPm(pm_prev, dzis, podejrzani, wk=wolny, top=RWE_XS_PM_TOP)
     dg, krok = _XsDiag(), ['lista']
     st = _XsCeny(lambda S: post(RWE_XS, {'operationName': 'Reserves', 'query': RWE_XS_Q, 'variables': rwe_xs_var_ceny(S)}, timeout=RWE_XS_CENY_TMO),
                  clock=clock, podejrzani=podejrzani, dg=dg, krok=krok, pm=pm)
@@ -27306,7 +27341,7 @@ def rwe_odczyt(now=None, fx=None, budget=None, clock=None, get=None, post=None, 
         if k == 'ondo_gm':
             return rwe_ondo_gm_parse(strona(RWE_ONDO), stamp)   # v302: punkt zakończonej doby względem chwili odczytu
         if k == 'xs':   # v311: liczba tokenów w obiegu tylko dla tokenów bez dowodu rezerw (GET, ten sam budżet kroku)
-            return rwe_xs_czytaj(post_xs, fx, tmo, get=get, sleep=sleep, clock=clock, podejrzani=prev_np, czas_na=czas_na, pm_prev=prev_pm, dzis=now.date().isoformat())   # v398: kroki z własnymi limitami czasu i diagnostyką
+            return rwe_xs_czytaj(post_xs, fx, tmo, get=get, sleep=sleep, clock=clock, podejrzani=prev_np, czas_na=czas_na, pm_prev=prev_pm, dzis=now.date().isoformat(), wolny=_rwe_xs_wolny(now))   # v398: kroki z własnymi limitami czasu i diagnostyką
         raise ValueError(f'nieznany rodzaj {k}')
 
     def one(slug):
@@ -27405,7 +27440,7 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
         err = cur.get('err') if isinstance(cur, dict) and isinstance(cur.get('err'), str) else (None if isinstance(cur, dict) else 'brak odpowiedzi')
         new = None
         if err is None:
-            new = {k: x for k, x in cur.items() if k in ('v', 'as_of', 'hl', 'bez', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon', 'nc', 'np', 'dg', 'pm')}   # v267: + ogon; v302: + hl; v311: + bez; v398: + nc, np, dg, pm
+            new = {k: x for k, x in cur.items() if k in ('v', 'as_of', 'hl', 'bez', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon', 'nc', 'np', 'dg', 'pm', 'wk')}   # v267: + ogon; v302: + hl; v311: + bez; v398: + nc, np, dg, pm
             new['read'] = rd['at']
             if c['kind'] == 'xaum':
                 new['v'] = round(new['oz'] * gp['v'], 2) if gp else None
@@ -27427,7 +27462,7 @@ def rwe_blok(rd, prev_em=None, now=None, oc=None, ref=None):
             ok = False
             notes.append(f'{nm}: {err}' + (f" — poprzedni odczyt (stan {pv['as_of']})" if pv is not None else ' — bez wartości'))
         if new is None and pv is not None:
-            new = {k: x for k, x in pv.items() if k in ('v', 'as_of', 'read', 'hl', 'bez', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon', 'nc', 'np', 'dg', 'pm')}   # v267: + ogon; v302: + hl; v311: + bez; v398: + nc, np, dg, pm
+            new = {k: x for k, x in pv.items() if k in ('v', 'as_of', 'read', 'hl', 'bez', 'n', 'cls', 'fx', 'u', 'oz', 'nde', 'nx', 'cz', 'cur', 'ogon', 'nc', 'np', 'dg', 'pm', 'wk')}   # v267: + ogon; v302: + hl; v311: + bez; v398: + nc, np, dg, pm
             new['k'] = 1
             if c['kind'] == 'xaum':
                 new['v'] = round(new['oz'] * gp['v'], 2) if gp else None
