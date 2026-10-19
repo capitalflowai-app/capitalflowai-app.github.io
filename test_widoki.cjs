@@ -745,7 +745,7 @@ test('v50: rezerwy i depozyt Fed wpięte w sekcję danych urzędowych, plik reze
   }
   assert.ok(dict.pl['inst.fred.cust'] === 'Papiery w depozycie Fed dla zagranicznych instytucji oficjalnych');   /* v152: tekst skuteczny (EXTRA89 — bez kodu publikacji „H.4.1”, v126.2); wersja z EXTRA42 była zasłonięta */
   assert.ok(dict.pl['inst.fred.sub'].startsWith('Osiem serii') && dict.en['inst.fred.sub'].startsWith('Eight'));
-  assert.ok(dict.pl['inst.fred.cust.plain'].includes('To nie wszystkie obligacje USA za granicą') && dict.pl['inst.fred.cust.plain'].includes('minus = papierów ubyło (sprzedaż, wykup w terminie'));
+  assert.ok(dict.pl['inst.fred.cust.plain'].includes('To nie wszystkie obligacje USA za granicą') && dict.pl['inst.fred.cust.plain'].includes('minus = ubyło'));
   assert.ok(dict.pl['rez.note'].includes('to nie to samo co interwencje') && dict.en['rez.note'].includes('not the same as intervention'));
   assert.ok(dict.pl['rez.c.d12'].includes('w nawiasie %') && dict.en['rez.c.d12'].includes('% in brackets'), 'kolumna 12 mies.: mld USD, % w nawiasie');
   const ex = html.indexOf('for(const l in EXTRA38)'), e42 = html.indexOf('for(const l in EXTRA42)if(I18N[l])Object.assign(I18N[l],EXTRA42[l]);');
@@ -1339,7 +1339,7 @@ test('v77: przegląd i SAFE opisane zgodnie z danymi; TIC przerysowuje panel; op
   for (const l of ['pl', 'en']) for (const k of ['fo.sub', 'fo.foot', 'fo.ind', 'fo.jpn', 'fo.chn', 'sf.t', 'sf.sub', 'sf.not', 'tr.gd']) assert.ok(dict[l][k], l + ' ' + k);
   assert.ok(dict.pl['fo.sub'].includes('transakcje mieszkańców') && !dict.pl['fo.sub'].includes('zagranica kupuje tam więcej'));
   assert.ok(dict.pl['sf.sub'].includes('nie to samo co pieniądze przychodzące z zagranicy') && !dict.pl['sf.sub'].includes('napłynęło więcej walut'));
-  assert.ok(dict.pl['fo.foot'].includes('najbliższego wcześniejszego dnia'));
+  assert.ok(dict.pl['fo.foot'].includes('≈') && dict.pl['fo.foot'].includes('brak części danych'));
   assert.ok(html.includes("renderTic();if(typeof renderInst==='function')renderInst();}"));
   assert.ok(!html.includes('kraje publikują z opóźnieniem od jednego do dwóch kwartałów'));
 });
@@ -1447,8 +1447,8 @@ test('v82: blok Korei: bln KRW i ≈ mld USD, suma 12 kolejnych miesięcy, wiers
 test('v83: Korea: opisy i opóźnienie zgodne ze źródłem', () => {
   const x0 = html.indexOf('const EXTRA71='), x1 = html.indexOf(';\n', x0), dict = v152Eff(JSON.parse(html.slice(x0 + 'const EXTRA71='.length, x1)));
   for (const l of ['pl', 'en']) for (const k of ['kor.sub', 'kor.eq', 'kor.bd', 'kor.not', 'fo.kor', 'fo.foot']) assert.ok(dict[l][k], l + ' ' + k);
-  assert.ok(dict.pl['kor.sub'].includes('wykupione przy zapadalności') && dict.pl['kor.sub'].includes('KOSPI i KOSDAQ') && dict.pl['kor.not'].includes('kraj rejestracji'));
-  assert.ok(dict.pl['fo.foot'].includes('Korea: średnim kursem miesiąca'));
+  assert.ok(dict.pl['kor.sub'].includes('KOSPI i KOSDAQ') && dict.pl['kor.not'].includes('kraj rejestracji'));
+  assert.ok(dict.pl['fo.foot'].includes('przybliżonym kursem'));
   assert.ok(!html.includes(".replace(/^([+−])/,'$1')"));
   assert.ok(html.includes('zwykle 2–4 tygodnie po końcu miesiąca (w ostatnim roku 9–31 dni)'));
 });
@@ -1524,7 +1524,7 @@ test('v86: Tajlandia (ThaiBMA): blok, sumy, stan, linia regionu, przegląd, podp
   for (const l of ['pl', 'en']) for (const k of ['th.t', 'th.sub', 'th.nf', 'th.split', 'th.hold', 'th.hold.ch', 'th.not', 'th.reg.v', 'fo.tha', 'inst.sub'])   /* v151: th.src usunięty ze słowników (strona go nie czyta) */ assert.ok(dict[l][k], l + ' ' + k);
   for (const l of ['pl', 'en']) assert.ok(!('g.q.limd' in dict[l]) && dict[l]['g.help.limd'], l);   /* v151: g.q.limd usunięty — strona czyta g.help.limd */
   assert.ok(dict.pl['g.help.limd'].includes('Hongkong, Tajlandia;') && dict.pl['inst.sub'].includes('Hongkong, Tajlandia, dolary'));   /* v151: zamiast usuniętego g.q.limd — używany g.help.limd; v152: teksty skuteczne (późniejsze słowniki dopisały Tajwan i zmieniły „i dolary” na „, dolary”) */
-  assert.ok(fix.pl['th.split'].includes('z wykupem w ciągu roku') && fix.en['th.split'].includes('maturing within 1 year') && fix.pl['th.not'].includes('od 16:00 poprzedniego dnia roboczego'));
+  assert.ok(fix.pl['th.split'].includes('z wykupem w ciągu roku') && fix.en['th.split'].includes('maturing within 1 year') && fix.pl['th.not'].includes('uzgodnienia z bankiem centralnym'));
 });
 
 // v87: Polska — MF: zmiana stanu SPW u nierezydentów (tylko między istniejącymi miesiącami), tabele typów, regionów i krajów, linia regionu, przegląd
@@ -1626,7 +1626,7 @@ test('v88.1: Meksyk (Banxico): rodzaje papierów, reszta do całości, brak = �
   assert.equal(f.mxHtml({at: 'x', d: [['2026-09-14', 1788646.44, 16097115.95]]}).includes('mx.tab'), false, 'stary plik bez rodzajów — bez tabeli');
   const a = 'const EXTRA79=', x0 = html.indexOf(a), dict = v152Eff(JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0))));
   assert.ok(dict.pl['mx.d.n'].startsWith('do {d}{u} ·') && dict.en['mx.d.n'].startsWith('to {d}{u} ·'), 'USD przy zmianie 20 sesji, nie przy „od końca roku”');
-  assert.ok(dict.pl['mx.not'].includes('repo') && dict.pl['mx.not'].includes('instytucji przechowującej') && dict.pl['mx.not'].includes('IPAB'));
+  assert.ok(dict.pl['mx.not'].includes('repo'));
   assert.ok(dict.pl['inst.sub'].includes('meksykańskich papierów rządowych') && dict.pl['fo.sub'].includes('skarbowych (rządowych)'));
 });
 
@@ -8020,7 +8020,7 @@ test('v139: strach i chciwość — miejsca na stronie (CRYPTO zaraz pod „Pokr
       assert.ok(!PROV.test(s), 'bez nazw dostawców: ' + L + ' ' + k);
     }
     if (L !== 'en') for (const k of ['fg.t.g', 'fg.g.sub', 'fg.g.cap', 'fg.meth.g', 'fg.meth.c', 'fg.not', 'fg.s.xf', 'fg.h.m1']) assert.notEqual(E[L][k], E.en[k], 'przetłumaczone: ' + L + ' ' + k);
-    for (const n of ['0–24', '25–44', '45–55', '56–75', '76–100', '252', '50', '125', '20', '7–10']) assert.ok(E[L]['fg.meth.g'].includes(n), L + ': metoda podaje ' + n);
+    for (const n of ['0–24', '25–44', '45–55', '56–75', '76–100']) assert.ok(E[L]['fg.meth.g'].includes(n), L + ': skala podaje ' + n);
     assert.ok(E[L]['fg.meth.g'].includes('VIX') && E[L]['fg.meth.g'].includes('S&P 500') && E[L]['fg.comp.vix'].includes('VIX') && E[L]['fg.comp.spx'].includes('S&P 500'), L + ': przedmioty danych nazwane (indeksy), bez dostawców');
     assert.ok(E[L]['fg.g.cap'].includes('CapitalFlowAI'), L + ': wskaźnik własny strony');
   }
@@ -8383,7 +8383,7 @@ test('v136: Ameryka Łacińska — słownik EXTRA145 w 10 językach (te same klu
       assert.ok(typeof E[L][k] === 'string' && E[L][k].trim(), L + ' ' + k); assert.equal(ph(E[L][k]), ph(E.pl[k]), 'pola ' + L + ' ' + k);
       assert.ok(!dl136.PROV.test(E[L][k]), 'nazwa serwisu: ' + L + ' ' + k); assert.equal(v96src.I18N[L][k], E[L][k], L + ': nałożony na słownik strony: ' + k);
     }
-    assert.ok(E[L]['dl.sub'].includes('▲/▼') && E[L]['dl.leg'].includes('× 100') && E[L]['dl.leg'].includes('—'), L + ': opis ▲/▼, wzór i kreska');
+    assert.ok(E[L]['dl.sub'].includes('▲/▼') && E[L]['dl.leg'].includes('—'), L + ': opis ▲/▼, wzór i kreska');
   }
   assert.equal(ph(E.pl['dl.mm']), '{dmax},{dmin},{max},{min},{n}'); assert.equal(ph(E.pl['dl.prev']), '{c},{t}');
   assert.ok(E.pl['dl.not1'].includes('nie jest przepływem') && E.pl['dl.not1'].includes('kontrolę kapitału') && E.pl['dl.sub'].includes('kontrolę kapitału'), 'co luka znaczy i czego nie znaczy');
@@ -17380,13 +17380,13 @@ test('v314 (audyt G3): opisy kwot mapy (DZIŚ, 1T–1R, okno pomocy) — od szac
     assert.ok(typeof v === 'string' && v.length > 80, L + ' ' + k);
     for (const o of OLD) assert.ok(!v.includes(o), L + ' ' + k + ': stary opis „' + o + '”');
     assert.equal(ph(v), k === 'g.m.regtds' || k === 'g.m.regtd' ? '{n}' : '', L + ' ' + k + ': pola');
-    if (k !== 'g.m.reg1d') assert.ok(v.includes('÷') && /1 \+/.test(v), L + ' ' + k + ': wzór „szacunek × zmiana ÷ (1 + zmiana)”');
+    assert.ok(!/[×÷]/.test(v), L + ' ' + k + ': v448 — opis bez wzoru');
     assert.ok(v.toLowerCase().includes(EST[L]), L + ' ' + k + ': opis od szacunku bieżącej wartości („' + EST[L] + '”), nie od kapitalizacji z roku danych');
     if (L !== 'en') assert.notEqual(v, E.en[k], L + ' ' + k + ': tłumaczenie');
     assert.ok(!GM_PROV.test(v), L + ' ' + k + ': bez nazw dostawców');
   }
   for (const L of []) for (const k of K) assert.ok(!/[A-Za-z]{4,}/.test(E[L][k].replace(/\bETF\b|\bEWJ\b|\bVGK\b|\b1W\b|\b1M\b|\b1Q\b|\b1Y\b/g, '')), L + ' ' + k + ': bez angielskich słów');
-  assert.ok(E.pl['g.m.regtds'].includes('szacunek × zmiana ÷ (1 + zmiana)') && E.pl['g.m.reg1d'].includes('wartość rynku regionu na początku tej sesji'), 'pl: opis zgodny z liczeniem');
+  assert.ok(E.pl['g.m.regtds'].includes('Szacunek zmiany wartości rynku') && E.pl['g.m.reg1d'].includes('w ostatniej sesji'), 'pl: opis ogólny (v448: bez wzoru)');
   /* liczenie kwoty (gAmt) — dokładnie to, co mówi opis: szacunek × zmiana ÷ (1 + zmiana); USA 1M z migawki: 78,71 bln, +2,74% → 2,10 bln (z bazy 68,94 wyszłoby 1,89) */
   const a = html.indexOf('const gAmt=(r,dp)=>'), gAmt = new Function('GLIVE', html.slice(a, html.indexOf('\n', a)) + '\nreturn gAmt;')({est: {r: {usa: {v: 78710}}}});
   const amt = gAmt({id: 'usa', mcap: 68938}, 2.74);
@@ -17417,7 +17417,7 @@ test('v314 (audyt G4): Strach i chciwość — S&P 500 z dwoma miejscami po prze
   assert.ok(g.includes('</tbody></table></div><p class="pnote">dr318.fg.spx0</p><details class="etfd" id="fg-how-g">'), 'nota pod tabelą składników, przed „Jak liczymy”');   /* v318: wycinek bez panelu indeksów */
   for (const L of V314_L10) {
     const T = v96src.tFor(L), v = T('g314.fg.spxn', {t: T('ix.t')});
-    assert.ok(v.includes(T('ix.t')) && v.includes('S&P 500') && /400/.test(v), L + ': ' + v);
+    assert.ok(v.includes(T('ix.t')) && v.includes('S&P 500'), L + ': ' + v);
   }
   assert.ok(v96src.tFor('pl')('g314.fg.spxn', {t: v96src.tFor('pl')('ix.t')}).includes('wydawcy indeksu') && v96src.tFor('pl')('ix.t') === 'Indeksy giełdowe świata');
 });
@@ -18028,7 +18028,7 @@ test('v318 (recenzja GLOBAL fali 7, G4): Strach i chciwość — nota o S&P 500 
   /* 10 języków: zdanie o źródle = początek noty v314; nota „inny dzień” — oba dni, tytuł panelu, S&P 500 */
   for (const L of v318.L10) {
     const T = v318.tp(L), s0 = T('dr318.fg.spx0'), sd = T('dr318.fg.spxd', {a: 'A1', b: 'B2', t: T('ix.t')});
-    assert.ok(T('g314.fg.spxn', {t: T('ix.t')}).startsWith(s0) && s0.includes('S&P 500') && /400/.test(s0), L + ': ' + s0);
+    assert.ok(T('g314.fg.spxn', {t: T('ix.t')}).startsWith(s0) && s0.includes('S&P 500'), L + ': ' + s0);
     assert.ok(sd.includes('A1') && sd.includes('B2') && sd.includes(T('ix.t')) && sd.includes('S&P 500') && sd.indexOf('A1') < sd.indexOf('B2'), L + ': ' + sd);
   }
   /* po wczytaniu pliku indeksów — panel strachu i chciwości rysowany ponownie (nota zależy od dnia w panelu indeksów); chwilowy błąd — bez zmian */
@@ -22480,13 +22480,12 @@ test('v344 (G-08): „Jakość danych mapy” → „Metoda” — opis zgodny z
   for (const L of L10) {
     const m = I[L]['gmap.q.methd'], card = I[L]['g.m.regtd'];
     assert.ok(typeof m === 'string' && m.length > 40, L);
-    assert.ok(m.includes('÷') && /1 \+/.test(m), L + ': wzór z dzieleniem przez (1 + zmiana) jak w karcie regionu: ' + m);
-    assert.ok(card.includes('÷') && /1 \+/.test(card), L + ': karta regionu ma ten sam wzór');
+    assert.ok(!/[×÷]/.test(m) && !/[×÷]/.test(card), L + ': v448 — opisy bez wzoru: ' + m);
     assert.ok(!/razy wartość rynku|times market capitalisation \(TODAY/.test(m), L + ': bez dawnego uproszczenia');
     if (L !== 'pl' && L !== 'en') assert.notEqual(m, I.en['gmap.q.methd'], L + ': własne tłumaczenie');
   }
-  assert.ok(I.pl['gmap.q.methd'].includes('szacunek bieżącej wartości rynku × zmiana ÷ (1 + zmiana)') && I.pl['gmap.q.methd'].includes('(DZIŚ–1R)'), 'pl');
-  assert.ok(I.en['gmap.q.methd'].includes('estimated current market value × change ÷ (1 + change)') && I.en['gmap.q.methd'].includes('(TODAY–1Y)'), 'en');
+  assert.ok(I.pl['gmap.q.methd'].includes('Zmiana wartości rynku akcji') && !/[×÷]/.test(I.pl['gmap.q.methd']), 'pl');
+  assert.ok(I.en['gmap.q.methd'].includes('Change in the value of the stock market') && !/[×÷]/.test(I.en['gmap.q.methd']), 'en');
   /* przykład z audytu: ILF 1R +35,62% — kwota z wzoru strony 694 mld, a „zmiana × baza” dałaby ok. 751 mld; opis ma mówić o pierwszym */
   const est = 694 / (0.3562 / 1.3562), nowa = est * 0.3562 / 1.3562; assert.ok(Math.abs(nowa - 694) < 1e-6);
   assert.ok(Math.abs(est * 0.3562 - 694) / 694 > 0.3, 'dawny opis (zmiana × baza) dałby inną kwotę');
@@ -35033,4 +35032,43 @@ test('v451: język z adresu (?lang=) przestawiany na wybrany w Ustawieniach lub 
   assert.deepEqual([D.en['bg'], D.en['theme.pattern']], ['Falling digits', 'Falling digit visibility']);
   assert.deepEqual([D.pl['bg'], D.pl['theme.pattern']], ['Znaki w tle', 'Widoczność znaków w tle']);
   assert.ok(!/hex/i.test([D.en['bg'], D.en['theme.pattern'], D.en['theme.color'], D.en['anim']].join(' ')), 'bez żargonu „hex” w ustawieniach po angielsku');
+});
+
+
+/* v448 (19.10.2026): GLOBAL i Aktywa — opisy bez wewnętrznej metodologii (postać ogólna, bez przypinania do pojedynczych zdań) */
+function v448Dict() {
+  const lit = (s) => {   // literał obiektu od „{”, z pominięciem napisów
+    let d = 0, i = s.start, q = null;
+    for (; i < html.length; i++) {
+      const c = html[i];
+      if (q) { if (c === '\\') { i++; continue; } if (c === q) q = null; continue; }
+      if (c === '"' || c === "'" || c === '`') { q = c; continue; }
+      if (c === '{') d++; else if (c === '}') { d--; if (d === 0) break; }
+    }
+    return html.slice(s.start, i + 1);
+  };
+  const defs = {};
+  const re = /^const (I18N|EXTRA\w*)=\{/gm;
+  let m;
+  while ((m = re.exec(html))) defs[m[1]] = new Function('return ' + lit({ start: m.index + m[0].length - 1 }))();
+  const out = { pl: Object.assign({}, defs.I18N.pl), en: Object.assign({}, defs.I18N.en) };
+  const fr = /^for\(const l in (EXTRA\w*)\)(?:if\(I18N\[l\]\))?Object\.assign\(I18N\[l\],\1\[l\]\);?/gm;
+  while ((m = fr.exec(html))) { const X = defs[m[1]]; for (const l of ['pl', 'en']) if (X && X[l]) Object.assign(out[l], X[l]); }
+  return out;
+}
+
+test('v448: opisy GLOBAL i Aktywa — krótko, bez wzorów i bez „Jak liczymy”', () => {
+  const D = v448Dict();
+  const KEYS = ["g.m.reg", "g.m.reg1d", "g.m.regtd", "g.m.regtds", "g.m.corr", "g.m.stab", "g.help.3", "g.help.etf", "g.help.regtds", "g.help.regfb", "g.help.corr", "g.help.probd", "gmap.q.methd", "gmap.q.corrd", "gmap.q.freshd", "gmap.m.corrbis", "g.hm.2", "g.hm.corr", "g.hm.probd", "g.pr.note", "g.pr.foot", "g.d.basey.v", "a293g.k.tip", "a293g.basey.v", "a293g.m.lvl", "r296g.m.day", "pg.formula", "g.cf.m", "etf.m", "g.d.method", "g.q.meth", "fed.how", "fed.contract", "fg.how", "fg.g.sub", "fg.meth.g", "g314.fg.spxn", "dr318.fg.spx0", "dr318.fg.spxd", "bis2.sub", "bis2.not1", "bis2.not4", "bis2.netplain", "bis2.regnote", "bis2.sign", "gt.tic.meth", "inst.fred.cust.plain", "inst.fred.cust.not3", "ix.note", "eer.not", "auk.sub", "auk.note", "st.sub", "st.note", "snb.sub", "snb.note", "ins.sub", "ins.delay", "ins.not", "sf.sub", "bil.foot", "bil.not", "ue.sub", "ue.foot", "ue.not", "kor.sub", "kor.not", "mx.sub", "mx.not", "spw.sub", "spw.not", "fo.sub", "fo.foot", "fo.polspw", "ob.not", "th.not", "jpx.unit", "jpx.not1", "tr.sub", "br.sub", "cftc.how", "fund.what", "fund.note", "fund.not", "fund.mm.note", "dl.leg", "dl.not2", "dl.not3", "su295g.z.read", "su298g.pz.read", "mt339.cn.how", "zd341.zf.read", "f342.m", "f342.sek.m", "ru353.bis.n", "ru353.im.k", "yc362.meth", "sr366.note", "prd367.read1", "prd367.read2", "np368.read", "kal372.n1", "usl382.n3", "prt393.w.read", "prt393.p.read", "en395.n.net", "en395.n.pop", "en395.n.pog", "kd410.n.au", "kd410.n.co", "fr411.n.dolar", "fd423.s.sl", "plr428.read", "sh429.n.def", "ct400.n.csi", "arc.sub", "gmap.l.reg", "gmap.l.regtd", "gmap.plain.edge", "gmap.plain.edge0", "g.plain.cf", "gmap.plain.cf.out", "g.d.tdnote", "g.d.tdnote.srv", "g.d.basey.fix", "g.q.corrv0", "inx.pos.n", "inx.dl.n", "ucf409.n1", "plk365.not.ue", "inst.mof.unit", "th.sub", "cftc.x.sub", "jpx.sub", "jpx.not3", "g.hm.readd", "fed.norm", "fed.norm1", "g.pr.leg"];
+  const ph = (s) => (String(s).match(/\{[a-zA-Z0-9]+\}/g) || []).sort().join(',');
+  for (const l of ['pl', 'en']) {
+    for (const k of KEYS) {
+      const s = D[l][k];
+      assert.ok(typeof s === 'string' && s.length > 0, 'v448: klucz ' + k + ' istnieje: ' + l);
+      assert.ok(s.length <= 460, 'v448: opis krótki (do 460 znaków): ' + k + ' ' + l + ' ' + s.length);
+      assert.ok(!/[×÷]/.test(s), 'v448: bez wzorów z działaniami: ' + k + ' ' + l);
+    }
+    assert.ok(!/Jak (to )?licz|How we calc|calculate it/i.test(D[l]['fg.how']), 'v448: nagłówek rozwinięcia wskaźnika nastrojów bez „Jak liczymy”: ' + l);
+  }
+  for (const k of KEYS) assert.equal(ph(D.pl[k]), ph(D.en[k]), 'v448: te same znaczniki {…} w pl i en: ' + k);
 });
