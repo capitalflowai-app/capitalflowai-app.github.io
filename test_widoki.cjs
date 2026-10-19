@@ -32462,7 +32462,7 @@ test('v422 (F11Z25): rejestr grupy „c” (krypto-firmy), ładowanie co 30 min,
 test('v422 (F11Z25): BTC — kafle (posiadanie, wartość i udział w podaży, liczba spółek, zmiana od zrzutu, największa spółka), data pobrania i wiek przy każdej liczbie, kolory z pokazanej liczby', () => {
   const h = kfhtml(KF_F), T = kftiles(h).slice(0, 4);
   assert.deepEqual(T.map(x => [x.label, x.val, x.subs, x.cls]), [
-    ['Posiadanie spółek, BTC', '1,30 mln BTC', ['wartość 107,0 mld USD · 6,20% całej podaży'], ''], ['Spółki z posiadaniem', '173', ['pięć największych trzyma 77,1% sumy'], ''],
+    ['Posiadanie spółek, BTC', '1,30 mln BTC', ['wartość 107,0 mld USD · 6,20% z 21 mln BTC (podaż maksymalna)'], ''], ['Spółki z posiadaniem', '173', ['pięć największych trzyma 77,1% sumy'], ''],
     ['Zmiana od 9 paź 2026', '+53,5 tys. BTC', ['spółki, które już były na liście: +9951 BTC', 'nowe spółki na liście (1; to nie zakupy): 43,5 tys. BTC'], ''], ['Największa spółka', 'Strategy', ['65,1% posiadania wszystkich spółek'], '']]);
   assert.ok(T[2].valHtml.includes('<span class="pos">+53,5 tys. BTC</span>') && T[2].subHtml.includes('<span class="pos">+9951 BTC</span>'), 'plus zielony');
   assert.ok(T.every(x => x.when === 'pobrano D:2026-10-18T08:00:00+00:00 · temu(2026-10-18T08:00:00+00:00)'), 'chwila pobrania i wiek przy każdej liczbie');
@@ -37434,4 +37434,23 @@ test('v490: marża elektrowni gazowej — gaz nazwany jak w pulsie surowców (z 
   assert.equal(I.en['prd367.mar.d'], 'power for {x}, Europe gas (calculated from the LNG price) from {a}, CO2 from {b}');
   assert.ok(/LNG/.test(I.pl['prd367.mar.na']) && /LNG/.test(I.en['prd367.mar.na']), 'komunikat braku danych też mówi „z ceny LNG”');
   assert.equal([...html.matchAll(/"prd367\.mar\.d":/g)].length, 2, 'klucz tylko w pl i en');
+});
+
+
+test('v492: Skarbce spolek — udzial BTC wobec 21 mln BTC (podaz maksymalna): osobny podpis kafla BTC, zdanie w stopce tabeli BTC, ETH bez zmian (pl i en)', () => {
+  const D = v96src.I18N;
+  assert.equal(D.pl['kf422.s.valb'], 'wartość {v} · {p} z 21 mln BTC (podaż maksymalna)'); assert.equal(D.en['kf422.s.valb'], 'worth {v} · {p} of 21 M BTC (maximum supply)');
+  assert.equal(D.pl['kf422.n.sup'], 'Udział w podaży: wobec 21 mln BTC (podaż maksymalna).'); assert.equal(D.en['kf422.n.sup'], 'Share of supply: of 21 M BTC (maximum supply).');
+  assert.equal(D.pl['kf422.s.val'], 'wartość {v} · {p} całej podaży'); assert.equal(D.en['kf422.s.val'], 'worth {v} · {p} of total supply');
+  for (const L of ['pl', 'en']) {
+    const h = kfhtml(KF_F, L), T = kftiles(h), tx = kft.txt(h);
+    assert.ok(/(z 21 mln BTC \(podaż maksymalna\)|of 21 M BTC \(maximum supply\))$/.test(T[0].subs[0]), L + ': podpis kafla BTC: ' + T[0].subs[0]);
+    assert.ok(!/całej podaży|of total supply/.test(T[0].subs[0]), L + ': BTC bez „całej podaży”');
+    const etk = T.find(x => /ETH/.test(x.label) && /6,63|6\.63/.test(x.subs[0]));
+    assert.ok(etk && /całej podaży|of total supply/.test(etk.subs[0]), L + ': kafel ETH bez zmian: ' + (etk && etk.subs[0]));
+    const zd = L === 'pl' ? 'Udział w podaży: wobec 21 mln BTC (podaż maksymalna).' : 'Share of supply: of 21 M BTC (maximum supply).';
+    assert.equal(tx.split(zd).length, 2, L + ': zdanie o udziale dokładnie raz (tylko tabela BTC)');
+    assert.ok(h.indexOf(zd) > h.indexOf('kf-g') && h.indexOf(zd) < h.indexOf(D[L]['kf422.h.eth']), L + ': zdanie po tabeli BTC, przed częścią ETH');
+    assert.ok(!/undefined|NaN|\[object|kf422\./.test(tx), L + ': pola');
+  }
 });

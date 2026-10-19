@@ -4037,6 +4037,8 @@ for(const l in EXTRA319)if(I18N[l])Object.assign(I18N[l],EXTRA319[l]);
 /* v488: liczba mnoga „zgłoszenia” (insiderzy) i „instytucje” (Brazylia) — formy przez tN(); pl i en */
 const EXTRA320={"pl":{"odm.ins.k.rep.one":"{n} zgłoszenie","odm.ins.k.rep.few":"{n} zgłoszenia","odm.ins.k.rep.many":"{n} zgłoszeń","odm.iw401.fo.zakres.one":"zakres {a}–{b} · {n} instytucja","odm.iw401.fo.zakres.few":"zakres {a}–{b} · {n} instytucje","odm.iw401.fo.zakres.many":"zakres {a}–{b} · {n} instytucji"},"en":{"odm.ins.k.rep.one":"{n} filing","odm.iw401.fo.zakres.one":"range {a}–{b} · {n} institution"}};
 for(const l in EXTRA320)if(I18N[l])Object.assign(I18N[l],EXTRA320[l]);
+const EXTRA321={"pl":{"kf422.s.valb":"wartość {v} · {p} z 21 mln BTC (podaż maksymalna)","kf422.n.sup":"Udział w podaży: wobec 21 mln BTC (podaż maksymalna)."},"en":{"kf422.s.valb":"worth {v} · {p} of 21 M BTC (maximum supply)","kf422.n.sup":"Share of supply: of 21 M BTC (maximum supply)."}};
+for(const l in EXTRA321)if(I18N[l])Object.assign(I18N[l],EXTRA321[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -21435,7 +21437,7 @@ function kfFirmBody(n,P){
   const sym=KF_SYM[n],R=kfRows(P.top),lead=R[0],Z=kfZm(P),when=kfWhen(P),pctSup=gxNum(P.dom)&&P.dom>0?P.dom:null;
   const chg=Z?kfSigned(Z.dtot,sym):null;
   let h=`<div class="gx-h"><b>${t('kf422.h.'+n)}</b></div><div class="etfkpis">`
-    +gxTile(t('kf422.k.tot',{c:sym}),kfAmt(P.total,sym),'',[{txt:t('kf422.s.val',{v:gxMag(P.usd),p:pctSup==null?'—':kfPct(pctSup)})}],when)
+    +gxTile(t('kf422.k.tot',{c:sym}),kfAmt(P.total,sym),'',[{txt:t(n==='btc'?'kf422.s.valb':'kf422.s.val',{v:gxMag(P.usd),p:pctSup==null?'—':kfPct(pctSup)})}],when)
     +gxTile(t('kf422.k.n'),nfmt(P.n,0),'',[gxNum(P.top5)?{txt:t('kf422.s.top5',{p:kfPct(P.top5)})}:null],when)
     +(Z?gxTile(t('kf422.k.chg',{d:gxDayTxt(Z.od)}),`<span class="${chg.tn}">${chg.txt}</span>`,'',
       [gxNum(Z.istniejace)?{txt:t('kf422.s.ex',{a:kfSpan(Z.istniejace,sym)})}:null,Number.isInteger(Z.nowe_n)&&Z.nowe_n>0&&gxNum(Z.nowe)?{txt:t('kf422.s.nw',{n:nfmt(Z.nowe_n,0),a:kfAmt(Z.nowe,sym)})}:null],when)
@@ -21444,6 +21446,7 @@ function kfFirmBody(n,P){
   h+=kfChart((Array.isArray(P.hist)?P.hist:[]).map(r=>Array.isArray(r)?[r[0],gxNum(r[1])?r[1]/1e3:null]:[]),'kf422.ch.'+n,v=>nfmt(v,v>=1e3?0:1)+' '+t('kf422.u.k')+' '+sym);
   h+=`<div class="gx-h"><b>${t('kf422.h.tab')}</b></div><div class="kf-g">${kfHead()}${R.slice(0,KF_TAB).map(r=>kfRow(P,r,sym)).join('')}`
     +(R.length>KF_TAB?`<details class="etfd" id="kf-rest-${n}"><summary>${t('kf422.rest',{n:R.length-KF_TAB})}</summary>${R.slice(KF_TAB).map(r=>kfRow(P,r,sym)).join('')}</details>`:'')+`</div>`;
+  if(n==='btc')h+=`<p class="pnote">${t('kf422.n.sup')}</p>`;
   if(Z){h+=kfMov(Z,'plus',sym,'kf422.h.up');h+=kfMov(Z,'minus',sym,'kf422.h.dn');
     if(!(Array.isArray(Z.plus)&&Z.plus.length)&&!(Array.isArray(Z.minus)&&Z.minus.length))h+=`<p class="pnote">${t('kf422.mov.none',{d:gxDayTxt(Z.od)})}</p>`;}
   const K=(Array.isArray(P.kraje)?P.kraje:[]).filter(r=>Array.isArray(r)&&r.length===3&&kfCountry(r[0])&&gxNum(r[1])&&r[1]>0);
