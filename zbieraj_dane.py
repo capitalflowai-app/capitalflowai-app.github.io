@@ -34067,7 +34067,7 @@ def main():
         stan_ctw = {}
         for k_ctw in CTW_PARTS:
             if _dict(prev_ctw.get('ok')).get(k_ctw) is False:   # część z jawnym błędem zostaje widoczna z przyczyną z pliku, nie „cached”
-                META['errors'].append(mask(f"{CTW_PX} {CTW_LABEL[k_ctw]}: {str(_dict(prev_ctw.get('errs')).get(k_ctw) or 'błąd w ostatnim pobraniu')[:160]}")[:220])
+                ctw_zglos(k_ctw, str(_dict(prev_ctw.get('errs')).get(k_ctw) or 'błąd w ostatnim pobraniu')[:160])   # v443: przerwa źródła → notatki
                 stan_ctw[k_ctw] = False
             else:
                 stan_ctw[k_ctw] = 'cached'
@@ -42639,6 +42639,9 @@ CTW_TW_STARE = 20              # dni — ostatnia sesja Tajwanu (najdłuższa pr
 CTW_STRONY = 3                 # strony dnia krzywej (terminy do 41 lat; 30 lat jest na stronie 3)
 CTW_Y = (0.0, 12.0)            # % — rentowność / Shibor poza przedziałem = błąd odczytu (Chiny 2021–2026: 0,6–4 %)
 CTW_TW_INST_NAZWY = {'自營商': 'd', '投信': 't', '外資及陸資': 'f'}   # dealerzy, krajowe fundusze (investment trust), zagraniczni i z Chin kontynentalnych
+CTW_TW_PROB = 3                # v443: prób pobrania jednej odpowiedzi Tajwanu, gdy źródło odda coś, co nie jest JSON (sieć dostarczania treści bywa kapryśna wobec maszyn automatu)
+CTW_TW_PAUZA = (4.0, 10.0)     # s — przerwa przed 2. i 3. próbą
+CTW_PRZERWA_H = 12             # h — poprzednie dane części młodsze niż tyle: nie-JSON to „przerwa źródła” (uwaga), starsze albo brak: błąd
 CTW_TW_MAX = 2e7               # mln TWD — wartość pozycji jednej grupy poza ±tym = błąd odczytu (zmierzone: do 1,4 bln TWD = 1,4e6 mln)
 CTW_HK_PROB = 16               # prób pobrania pliku dnia na dobę (okno ma 7 h, rytm co ok. 30–40 min)
 CTW_HK_OKNO = (16 * 60 + 40, 23 * 60 + 55)   # minuty doby czasu Hongkongu (UTC+8): od 16:40 do 23:55
@@ -42675,12 +42678,25 @@ def ctw_get(url, maks):
     return b
 
 
+def ctw_opis_odp(raw):
+    """v443: krótki, bezpieczny opis odpowiedzi, która nie jest JSON (do komunikatu błędu): pusta / strona HTML (tytuł do 40 znaków ASCII) / tekst; żadnej innej treści odpowiedzi."""
+    b = bytes(raw) if isinstance(raw, (bytes, bytearray)) else str(raw).encode('utf-8', 'replace')
+    s = b[:600].decode('utf-8', 'replace').strip('\ufeff \t\r\n')
+    if not s:
+        return 'pusta odpowiedź'
+    if s.startswith('<'):
+        m = re.search(r'<title[^>]*>([^<]{1,80})', s, re.I)
+        t = re.sub(r'[^A-Za-z0-9 .,:;!?|()_/-]+', '', m.group(1)).strip()[:40] if m else ''
+        return 'strona HTML' + (f': {t}' if t else '')
+    return 'tekst, nie JSON'
+
+
 def ctw_json(raw):
-    """Odpowiedź → obiekt JSON; HTML (strona błędu / odmowy) albo ucięty tekst = ValueError."""
+    """Odpowiedź → obiekt JSON (z BOM też); HTML (strona błędu / odmowy), pusta odpowiedź albo ucięty tekst = ValueError z krótkim opisem odpowiedzi (v443)."""
     try:
-        return json.loads(raw.decode('utf-8') if isinstance(raw, (bytes, bytearray)) else raw)
+        return json.loads(raw.decode('utf-8-sig') if isinstance(raw, (bytes, bytearray)) else raw)
     except ValueError:
-        raise ValueError('odpowiedź nie jest JSON (strona błędu albo odmowa)') from None
+        raise ValueError('odpowiedź nie jest JSON (strona błędu albo odmowa: ' + ctw_opis_odp(raw) + ')') from None
 
 
 def ctw_liczba(x, lo, hi, co):
@@ -42886,12 +42902,38 @@ def ctw_tw_inst(raw, dzis):
     return d, g
 
 
+class CtwPrzerwa(ValueError):
+    """v443: źródło wielokrotnie oddało odpowiedź, która nie jest JSON (nie błąd danych: poprzednie dane części zostają z datą)."""
+
+
+def ctw_tw_pobierz(url):
+    """v443: pobranie odpowiedzi Tajwanu; gdy to nie JSON (strona HTML, pusta odpowiedź), do CTW_TW_PROB prób z przerwami CTW_TW_PAUZA; po ostatniej CtwPrzerwa. Błędy sieci i HTTP bez ponowienia
+    (poza tym samym budżetem czasu budowy co każde zapytanie)."""
+    ost = None
+    for i in range(CTW_TW_PROB):
+        if i:
+            time.sleep(CTW_TW_PAUZA[min(i - 1, len(CTW_TW_PAUZA) - 1)])
+        raw = ctw_get(url, CTW_MAXB['tw'])
+        try:
+            ctw_json(raw)
+            return raw
+        except ValueError as e:
+            ost = e
+    raise CtwPrzerwa(f'przerwa źródła ({CTW_TW_PROB} próby): {ost}')
+
+
+def ctw_zglos(k, msg, przerwa_ok=True):
+    """v443: wpis o części z błędem: „przerwa źródła” (komunikat zaczyna się od tych słów) do notatek, reszta do błędów zbieracza."""
+    txt = mask(f'{CTW_PX} {CTW_LABEL[k]}: {msg}')[:220]
+    (META['notes'] if przerwa_ok and str(msg).startswith('przerwa źródła') else META['errors']).append(txt)
+
+
 def ctw_tw(pk, now):
     """Część tw: put/call (20 sesji, historia dokładana wg dnia) i pozycje trzech grup inwestorów (ostatnia sesja + historia od wdrożenia)."""
     dzis = now.date()
     pk = pk if isinstance(pk, dict) else {}
-    pc = ctw_tw_pc(ctw_get(CTW_TW_PC, CTW_MAXB['tw']), dzis)
-    di, g = ctw_tw_inst(ctw_get(CTW_TW_INST, CTW_MAXB['tw']), dzis)
+    pc = ctw_tw_pc(ctw_tw_pobierz(CTW_TW_PC), dzis)
+    di, g = ctw_tw_inst(ctw_tw_pobierz(CTW_TW_INST), dzis)
     L = datetime.date.fromisoformat(pc[-1][0])
     if (dzis - L).days > CTW_TW_STARE or (dzis - di).days > CTW_TW_STARE:
         raise ValueError(f'Tajwan: ostatnia sesja {min(L, di)} sprzed {(dzis - min(L, di)).days} dni (źródło stoi)')
@@ -43078,7 +43120,11 @@ def build_chiny_tw(prev=None, run_t0=None):
                 out['part_at'][k] = NOW
             except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
                 msg = mask(f'{e}')[:160]
-                META['errors'].append(mask(f'{CTW_PX} {CTW_LABEL[k]}: {msg}')[:220])
+                if isinstance(e, CtwPrzerwa):   # v443: przerwa źródła — uwaga, nie błąd, dopóki poprzednie dane części są młodsze niż CTW_PRZERWA_H
+                    t_ost = _ix_dt(pat.get(k) or prev.get('at'))
+                    if pk is None or t_ost is None or (now - t_ost).total_seconds() >= CTW_PRZERWA_H * 3600:
+                        msg = mask(f'przerwa trwa ponad {CTW_PRZERWA_H} h albo brak poprzednich danych: {e}')[:160]
+                ctw_zglos(k, msg)
                 out['ok'][k] = False
                 out['errs'][k] = msg
                 if pk is not None:

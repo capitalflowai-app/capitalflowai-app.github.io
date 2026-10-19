@@ -73071,3 +73071,155 @@ class RwaXstocksBezCenyV442(unittest.TestCase):
         with self.assertRaises(zd.RweXsBlad):
             zd.rwe_xs_czytaj(szybki, None, 15, clock=lambda: t[0], sleep=lambda s: None)
         self.assertEqual(zap, [zd.RWE_XS_LISTA_TMO] * 2, 'błąd po 1 s z 45 s — jedno ponowienie jak dotąd')
+
+
+class TestV443TajwanPrzerwa(unittest.TestCase):
+    """v443 (18.10.2026): część tw pliku chiny-tw.json — odpowiedź źródła, która nie jest JSON (z maszyn automatu), ma opis w komunikacie, jest ponawiana
+    (3 próby), a po nich przy młodych poprzednich danych to „przerwa źródła” w notatkach (nie błąd zbieracza); starsze niż 12 h albo brak danych = błąd."""
+    HTML = b'<!DOCTYPE html><html><head><title>Just a moment... \xe2\x80\x94 <b>x</b></title></head><body>challenge</body></html>'
+
+    def setUp(self):
+        self.p = [mock.patch.object(zd, 'CTW_SLEEP', 0), mock.patch.object(zd, 'CTW_TW_PAUZA', (0, 0))]
+        for p in self.p:
+            p.start()
+
+    def tearDown(self):
+        for p in self.p:
+            p.stop()
+
+    def test_opis_odpowiedzi_i_bom(self):
+        self.assertEqual(zd.ctw_opis_odp(b''), 'pusta odpowiedź')
+        self.assertEqual(zd.ctw_opis_odp(b' \r\n\xef\xbb\xbf'), 'pusta odpowiedź')
+        self.assertEqual(zd.ctw_opis_odp(self.HTML), 'strona HTML: Just a moment...')
+        self.assertEqual(zd.ctw_opis_odp(b'<html><body>bez tytulu</body></html>'), 'strona HTML')
+        self.assertEqual(zd.ctw_opis_odp(b'Service Unavailable'), 'tekst, nie JSON')
+        for zle in (b'', self.HTML, b'xyz'):
+            with self.assertRaises(ValueError) as c:
+                zd.ctw_json(zle)
+            self.assertIn('odpowiedź nie jest JSON (strona błędu albo odmowa: ', str(c.exception))
+        self.assertEqual(zd.ctw_json(b'\xef\xbb\xbf[1,2]'), [1, 2], 'JSON z BOM jest czytany')
+
+    def test_ponowienie_i_przerwa(self):
+        dobra = b'[{"a":1}]'
+        calls = []
+
+        def seria(odp):
+            it = iter(odp)
+
+            def gb(url, headers=None, timeout=60, maks=None):
+                calls.append(url)
+                x = next(it)
+                if isinstance(x, Exception):
+                    raise x
+                return x
+            return gb
+        with mock.patch.object(zd, 'get_bytes_maks', seria([self.HTML, b'', dobra])):
+            self.assertEqual(zd.ctw_tw_pobierz('https://x.test/a'), dobra)
+        self.assertEqual(len(calls), 3, 'dwie nieudane próby, trzecia dobra')
+        del calls[:]
+        with mock.patch.object(zd, 'get_bytes_maks', seria([self.HTML, self.HTML, self.HTML, dobra])):
+            with self.assertRaises(zd.CtwPrzerwa) as c:
+                zd.ctw_tw_pobierz('https://x.test/a')
+        self.assertEqual(len(calls), 3, 'dokładnie 3 próby, bez czwartej')
+        self.assertTrue(str(c.exception).startswith('przerwa źródła (3 próby): odpowiedź nie jest JSON'))
+        del calls[:]
+        with mock.patch.object(zd, 'get_bytes_maks', seria([urllib.error.HTTPError('https://x.test/a', 503, 'x', {}, io.BytesIO(b'')), dobra])):
+            with self.assertRaises(urllib.error.HTTPError):
+                zd.ctw_tw_pobierz('https://x.test/a')
+        self.assertEqual(len(calls), 1, 'błąd HTTP bez ponowienia')
+
+    def test_zglos_notatka_albo_blad(self):
+        with mock.patch.object(zd, 'META', {'errors': [], 'notes': []}):
+            zd.ctw_zglos('tw', 'przerwa źródła (3 próby): odpowiedź nie jest JSON (x)')
+            zd.ctw_zglos('tw', 'przerwa trwa ponad 12 h albo brak poprzednich danych: przerwa źródła (3 próby): x')
+            zd.ctw_zglos('tw', 'Tajwan put/call: odpowiedź ma zły kształt albo mało sesji')
+            m = zd.META
+        self.assertEqual(len(m['notes']), 1)
+        self.assertIn('Tajwan (put/call, pozycje): przerwa źródła', m['notes'][0])
+        self.assertEqual(len(m['errors']), 2)
+
+    def _buduj(self, odp_html, przesuniecie_h):
+        o = _v400_plik()
+        now = _V400_NOW + datetime.timedelta(hours=przesuniecie_h)
+        calls = []
+        sw = _v400_swiat(calls, pc=odp_html, inst=odp_html)
+        meta = {'errors': [], 'notes': [], 'ok': {}}
+        with mock.patch.object(zd, 'get_bytes_maks', sw), mock.patch.object(zd, 'NOW', now.isoformat()), mock.patch.object(zd, 'META', meta), \
+                mock.patch.object(zd, 'CTW_PARTS', ('tw',)):
+            n = zd.build_chiny_tw(o)
+        return o, n, meta, calls
+
+    def test_budowa_przerwa_zostawia_dane(self):
+        o, n, meta, calls = self._buduj(self.HTML, 3)
+        self.assertEqual(meta['errors'], [], 'młoda przerwa nie jest błędem zbieracza')
+        self.assertEqual(len(meta['notes']), 1)
+        self.assertIs(n['ok']['tw'], False)
+        self.assertTrue(n['errs']['tw'].startswith('przerwa źródła (3 próby)'))
+        self.assertEqual(n['tw'], o['tw'], 'dane i dzień zostają z poprzedniego pliku')
+        self.assertEqual(n['part_at']['tw'], o['part_at']['tw'], 'chwila ostatniego udanego pobrania zostaje')
+        self.assertEqual(len(calls), 3, 'trzy próby pierwszej odpowiedzi, drugiej już nie pytamy')
+
+    def test_budowa_dluga_przerwa_jest_bledem(self):
+        o, n, meta, calls = self._buduj(self.HTML, 13)
+        self.assertEqual(meta['notes'], [])
+        self.assertEqual(len(meta['errors']), 1)
+        self.assertTrue(n['errs']['tw'].startswith('przerwa trwa ponad 12 h'))
+        self.assertEqual(n['tw'], o['tw'])
+
+    def test_blok_main_swiezy_plik_z_przerwa(self):
+        """Blok main() (plik świeży, część tw z przerwą źródła w errs) → notatka, nie błąd zbieracza; inna przyczyna w errs → nadal błąd."""
+        import inspect, textwrap
+        src = inspect.getsource(zd.main)
+        blk = textwrap.dedent(src[src.index("    prev_ctw = previous('chiny-tw')"):src.index('    # v400: koniec bloku Chiny / Tajwan / Hongkong')])
+        for errs, ile_err, ile_not in (('przerwa źródła (3 próby): odpowiedź nie jest JSON (x)', 0, 1), ('Tajwan put/call: odpowiedź ma zły kształt', 1, 0)):
+            pk = json.loads(json.dumps(_v400_plik()))
+            pk['ok']['tw'] = False; pk['errs'] = {'tw': errs}
+            meta = {'errors': [], 'notes': [], 'ok': {}}
+            with mock.patch.object(zd, 'META', meta), mock.patch.object(zd, 'previous', side_effect=lambda n: pk), mock.patch.object(zd, 'save'),                     mock.patch.object(zd, 'fresh_pelny', return_value=True):
+                try:
+                    exec(compile(blk, 'blok_v400', 'exec'), zd.__dict__)
+                finally:
+                    for n_ in ('prev_ctw', 'ctw_', 'k_ctw', 'stan_ctw', 'e'):
+                        zd.__dict__.pop(n_, None)
+            self.assertEqual((len(meta['errors']), len(meta['notes'])), (ile_err, ile_not), errs)
+            self.assertIs(meta['ok']['chtw_tw'], False, 'część nadal nieudana — widoczna jako awaria części')
+
+    def test_budowa_bez_poprzednich_danych_jest_bledem(self):
+        o = _v400_plik()
+        o.pop('tw'); o['part_at'].pop('tw')
+        now = _V400_NOW + datetime.timedelta(hours=3)
+        meta = {'errors': [], 'notes': [], 'ok': {}}
+        with mock.patch.object(zd, 'get_bytes_maks', _v400_swiat([], pc=self.HTML, inst=self.HTML)), mock.patch.object(zd, 'NOW', now.isoformat()),                 mock.patch.object(zd, 'META', meta), mock.patch.object(zd, 'CTW_PARTS', ('tw', 'cn')):
+            n = zd.build_chiny_tw(o)
+        self.assertEqual((len(meta['errors']), meta['notes']), (1, []), 'nie ma czego zachować — to błąd, nie przerwa')
+        self.assertTrue(n['errs']['tw'].startswith('przerwa trwa ponad 12 h albo brak poprzednich danych'))
+        self.assertNotIn('tw', n)
+
+    def test_budowa_bez_chwili_pobrania_jest_bledem(self):
+        o = _v400_plik()
+        o['part_at']['tw'] = 'zły'; o['at'] = 'zły'
+        meta = {'errors': [], 'notes': [], 'ok': {}}
+        with mock.patch.object(zd, 'get_bytes_maks', _v400_swiat([], pc=self.HTML, inst=self.HTML)), mock.patch.object(zd, 'NOW', (_V400_NOW + datetime.timedelta(hours=3)).isoformat()),                 mock.patch.object(zd, 'META', meta), mock.patch.object(zd, 'CTW_PARTS', ('tw',)):
+            zd.build_chiny_tw(o)
+        self.assertEqual((len(meta['errors']), meta['notes']), (1, []), 'wiek poprzednich danych nieznany — błąd, nie przerwa')
+
+    def test_budowa_dobra_odpowiedz_po_ponowieniu(self):
+        o = _v400_plik()
+        now = _V400_NOW + datetime.timedelta(hours=3)
+        calls = []
+        sw0 = _v400_swiat(calls)
+        licz = {'n': 0}
+
+        def gb(url, headers=None, timeout=60, maks=None):
+            if 'PutCallRatio' in url:
+                licz['n'] += 1
+                if licz['n'] < 3:
+                    return self.HTML
+            return sw0(url, headers, timeout, maks)
+        meta = {'errors': [], 'notes': [], 'ok': {}}
+        with mock.patch.object(zd, 'get_bytes_maks', gb), mock.patch.object(zd, 'NOW', now.isoformat()), mock.patch.object(zd, 'META', meta), \
+                mock.patch.object(zd, 'CTW_PARTS', ('tw',)):
+            n = zd.build_chiny_tw(o)
+        self.assertIs(n['ok']['tw'], True)
+        self.assertEqual((meta['errors'], meta['notes']), ([], []))
+        self.assertEqual(n['errs'], {})
