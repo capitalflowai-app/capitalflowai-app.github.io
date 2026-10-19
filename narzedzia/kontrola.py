@@ -1382,6 +1382,13 @@ def _aw_t(s):
     return t.astimezone(dt.timezone.utc) if t.tzinfo else None
 
 
+# v461 (19.10.2026): porada zamiast zwrotu kierującego tylko do Claude — neutralna, bez nazwy konkretnego narzędzia jako jedynego wyjścia (po 20.10 Claude może nie być pod ręką)
+NAPRAWA = 'uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną'
+NAPRAWA_W = 'Uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną'
+PORADA_3D = 'jeśli trwa dłużej niż 3 dni: ' + NAPRAWA
+PORADA_3D_W = 'Jeśli trwa dłużej niż 3 dni: ' + NAPRAWA + '.'
+
+
 def _aw_h(h):
     """Godziny → „5 godz.” albo „3 dni 2 godz.” (pełne godziny w dół)."""
     h = int(h)
@@ -1392,9 +1399,9 @@ def awaria_rodzaj(e):
     """v207: błąd zbieracza → dopisek dla właściciela: odrzucony klucz (automat sam tego nie naprawi), limit planu (zwykle mija sam) albo ''."""
     e = str(e)
     if AW_KLUCZ.search(e):
-        return ' — wygląda na odrzucony klucz: automat sam tego nie naprawi (co zrobić: napisz do Claude „sprawdź klucz z tego błędu”)'
+        return ' — wygląda na odrzucony klucz: automat sam tego nie naprawi (' + PORADA_3D + '; zadanie: „sprawdź klucz z tego błędu”)'
     if AW_LIMIT.search(e):
-        return ' — limit darmowego planu: zwykle mija sam (automat ponawia); jeśli trwa ponad 2 dni — napisz do Claude'
+        return ' — limit darmowego planu: zwykle mija sam (automat ponawia); ' + PORADA_3D
     return ''
 
 
@@ -1428,7 +1435,7 @@ def awarie_ocena(meta, now=None):
             if x['bez']:
                 pass
             elif h >= AW_BLAD_H:
-                Z['bledy'].append(opis + ' — automat nie naprawił tego sam; co zrobić: napisz do Claude „napraw część ' + x['czesc'] + '”')
+                Z['bledy'].append(opis + ' — automat nie naprawił tego sam; ' + PORADA_3D + ' (zadanie: „napraw część ' + x['czesc'] + '”)')
             elif h >= AW_UWAGA_H:
                 Z['uwagi'].append(opis + ' — automat ponawia sam; dane tej części mają swój wiek na stronie')
         elif (now - do).total_seconds() <= AW_INFO_H * 3600:
@@ -1444,43 +1451,42 @@ def awarie_ocena(meta, now=None):
 
 
 # v212: rodzaj BŁĘDU (początek treści) → co zrobić — prostymi słowami dla właściciela; kolejność = pierwszeństwo dopasowania
-CO_ZROBIC = (   # v215: dopasowania po przeglądzie — „HTTP 200” i „bez czasu” osobno, publikacja Pages osobno, świeżość bez „to normalne”
+CO_ZROBIC = (   # v215: dopasowania po przeglądzie — „HTTP 200” i „bez czasu” osobno, publikacja Pages osobno, świeżość bez „to normalne”; v461: neutralna porada (NAPRAWA)
     (re.compile(r'^strona główna: HTTP 200'),
-     'Strona odpowiada, ale jej treść jest niepełna (nieudana publikacja) — napisz do Claude: „strona ma złą treść — sprawdź kontrolę”.'),
+     'Strona odpowiada, ale jej treść jest niepełna (nieudana publikacja). Jeśli trwa ponad 3 godziny: ' + NAPRAWA + '.'),
     (re.compile(r'^(strona główna|plik stanu \(meta\.json\) nie odpowiada)'),
      'Strona albo jej plik stanu nie odpowiada. Zwykle to chwilowa awaria serwera GitHub — sprawdź stronę za godzinę (stan serwera: githubstatus.com). '
-     'Jeśli trwa ponad 3 godziny, napisz do Claude: „strona nie działa — sprawdź kontrolę”.'),
+     'Jeśli trwa ponad 3 godziny: ' + NAPRAWA + '.'),
     (re.compile(r'^plik stanu bez czasu'),
-     'Plik stanu automatu jest uszkodzony (bez czasu przebiegu) — to błąd w kodzie, sam się nie naprawi. Napisz do Claude: „plik stanu bez czasu”.'),
+     'Plik stanu automatu jest uszkodzony (bez czasu przebiegu) — to błąd w kodzie, sam się nie naprawi. ' + NAPRAWA_W + '.'),
     (re.compile(r'^automat nie odświeżył danych'),
      'Automat nie odświeża danych od ponad 3 godzin — zegar zapasowy też nie pomógł. Najczęściej to przerwa po stronie GitHub (stan: githubstatus.com); '
-     'jeśli trwa ponad 6 godzin, napisz do Claude: „automat stoi”.'),
+     'jeśli trwa ponad 6 godzin: ' + NAPRAWA + '.'),
     (re.compile(r'^publikacja zawieszona'),   # v232: przebieg czeka na środowisko, choć nikt nie musi zatwierdzać
      'Przebieg publikacji czeka na „zatwierdzenie”, którego nikt nie wymaga (usterka po stronie GitHub), a zegar zapasowy go nie anulował — '
      'dopóki czeka, strona nie dostaje nowych danych. Otwórz na GitHub zakładkę Actions, przebieg „Strona i dane” ze stanem „Waiting” '
-     '→ „Cancel workflow”; następny przebieg ruszy sam w ciągu 10–20 min. Jeśli to wraca, napisz do Claude: „publikacja zawieszona”.'),
+     '→ „Cancel workflow”; następny przebieg ruszy sam w ciągu 10–20 min. Jeśli to wraca: ' + NAPRAWA + '.'),
     (re.compile(r'^automat nie działa \(publikacja GitHub Pages\)'),   # v219: tylko seria samych porażek publikacji (przebiegi_ocena)
-     'Ostatnie przebiegi padły na publikacji strony — to zwykle chwilowa awaria po stronie GitHub. Sprawdź za 1–2 godziny; jeśli trwa dłużej, '
-     'napisz do Claude: „publikacja strony nie działa”.'),
+     'Ostatnie przebiegi padły na publikacji strony — to zwykle chwilowa awaria po stronie GitHub. Sprawdź za 1–2 godziny; jeśli trwa dłużej: ' + NAPRAWA + '.'),
     (re.compile(r'^automat nie działa'),
-     'Ostatnie przebiegi automatu kończą się błędem. Napisz do Claude: „przebiegi automatu kończą się błędem”.'),
+     'Ostatnie przebiegi automatu kończą się błędem. ' + NAPRAWA_W + '.'),
     (re.compile(r'^część automatu „'),
-     'Część automatu nie działa od ponad doby (szczegóły niżej) — napisz do Claude tak, jak podpowiada wiersz błędu.'),
+     'Część automatu nie działa od ponad doby (szczegóły niżej); strona działa dalej na ostatnich danych z datą. ' + PORADA_3D_W),
     (re.compile(r'^zbieracz zgłasza błędy'),
-     'Zbieracz od kilku dni zgłasza błędy — napisz do Claude: „napraw błędy zbieracza z kontroli”.'),
+     'Zbieracz od kilku dni zgłasza błędy zewnętrznych źródeł (szczegóły niżej); strona działa dalej na ostatnich danych z datą. ' + PORADA_3D_W),
     (re.compile(r'^kapitalizacja krypto'),
-     'Dwa źródła tej samej liczby bardzo się różnią — jedno może podawać złe dane. Napisz do Claude: „sprawdź różnicę źródeł z kontroli”.'),
+     'Dwa źródła tej samej liczby bardzo się różnią — jedno może podawać złe dane. ' + PORADA_3D_W),
     (re.compile(r': dane z .* temu \('),
      'Dane źródła są dużo starsze niż zwykle (ponad dwa razy dłużej niż norma; weekendy już odliczone) — źródło przestało publikować '
-     '(np. przerwa w pracy urzędu) albo automat nie może ich pobrać. Napisz do Claude: „sprawdź źródło z kontroli”.'),
+     '(np. przerwa w pracy urzędu) albo automat nie może ich pobrać. ' + PORADA_3D_W),
     (re.compile(r'^limit planu '),   # v222: licznik zużycia darmowych planów
      'Darmowy plan jednego źródła danych jest (prawie) wyczerpany — część liczb może chwilowo zniknąć, aż limit się odnowi (o północy UTC '
-     'albo z nowym miesiącem); nic nie psuje się na stałe. Napisz do Claude: „zmniejsz liczbę zapytań — limit planu z kontroli”.'),
+     'albo z nowym miesiącem); nic nie psuje się na stałe. ' + PORADA_3D_W),
     (re.compile(r'^kontrola przerwana'),   # v327 (KON-04): wspólny termin kontroli albo nieoczekiwana awaria samej kontroli
      'Kontrola nie zdążyła sprawdzić wszystkiego (strona albo serwery odpowiadały bardzo wolno) — raport jest częściowy. Zwykle to chwilowe; '
-     'sprawdź stronę za godzinę. Jeśli powtarza się kilka dni, napisz do Claude: „kontrola przerwana — sprawdź”.'),
+     'sprawdź stronę za godzinę. Jeśli powtarza się kilka dni: ' + NAPRAWA + '.'),
 )
-CO_ZROBIC_INNE = 'Napisz do Claude: „sprawdź błąd z kontroli” — w raporcie niżej jest jego treść.'
+CO_ZROBIC_INNE = 'Treść błędu jest w raporcie niżej. ' + NAPRAWA_W + '.'
 WAIT_UWAGA_MIN, WAIT_BLAD_MIN = 30, 120   # v232: przebieg „Strona i dane” w stanie waiting tak długo — uwaga / błąd (zegar anuluje po 15 min)
 
 
@@ -1491,6 +1497,71 @@ def co_zrobic(bledy):
         h = next((x for r, x in CO_ZROBIC if r.search(str(b))), CO_ZROBIC_INNE)
         if h not in out:
             out.append(h)
+    return out
+
+
+# ---------------------------------------------------------------- v461: ALARM TYLKO PRZY AWARII STRONY ALBO PUBLIKACJI ----------------------------------------------------------------
+# Od 17.10.2026 każdy przebieg kontroli kończył się BŁĄDEM (czerwony przebieg GitHuba i e-mail), bo reguła „błędy zbieracza w 3 kolejnych dniach” i serie awarii części łapały
+# dowolne zewnętrzne źródło (xStocks, BCB, Meksyk…): 13 z 16 czerwonych kontroli w historii (154 przebiegi, 26.09–19.10) to takie awarie, nie awarie strony. Alarm tracił sens.
+# Teraz BŁĄD ❌ (i exit 1) TYLKO dla: strona główna nie odpowiada albo ma złą treść, plik stanu nie odpowiada, dane główne starsze niż próg (automat nie odświeżył danych > 3 godz.;
+# kursy rynków > 2× progu), seria nieudanych przebiegów automatu / publikacja zawieszona (w tym zatrzymana przez straż kluczy), błędy JavaScriptu na stronie w przeglądarce,
+# kontrola przerwana. Wszystko inne (awaria części automatu, limit planu, wiek danych jednego źródła, sprzeczność w pliku, różnica źródeł, błędy zbieracza przez kilka dni) = ⚠️ w uwagach
+# z treścią i czasem trwania (R['zewnetrzne'] — kopia listy) i adnotacją ostrzeżenia w przebiegu (bez e-maila). Nowy, nieznany rodzaj błędu = ⚠️ (lista dozwolonych, nie zabronionych).
+KRYTYCZNE = (
+    re.compile(r'^strona główna'),
+    re.compile(r'^plik stanu'),
+    re.compile(r'^automat nie odświeżył danych'),
+    re.compile(r'^automat nie działa'),
+    re.compile(r'^publikacja zawieszona'),
+    re.compile(r'^kontrola przerwana'),
+    re.compile(r'^rynki \(kursy EBC'),
+    re.compile(r'^strona (?:w przeglądarce|jak u czytelnika \(bez \?pelna=1\)): błędów JavaScriptu'),
+)
+JS_Z_UWAG = re.compile(r'^strona (?:w przeglądarce|jak u czytelnika \(bez \?pelna=1\)): błędów JavaScriptu')   # v461: uwaga z przeglądarki -> BŁĄD (strona ma błąd w kodzie)
+WIERSZ_KRYTYCZNY = ('- Strona główna', '- Strona w przeglądarce', '- Strona jak u czytelnika', '| rynki (kursy EBC', '- Przebiegi Actions', '- Nieudane przebiegi')
+
+
+def jest_krytyczny(tekst):
+    """v461: treść BŁĘDU należy do awarii strony albo publikacji (lista KRYTYCZNE)?"""
+    return any(r.search(str(tekst)) for r in KRYTYCZNE)
+
+
+def rozdziel_alarmy(bledy, uwagi):
+    """v461: (BŁĘDY, UWAGI) zebrane przez kontrolę -> (krytyczne, uwagi, zewnętrzne). Krytyczne zostają BŁĘDAMI; pozostałe BŁĘDY idą na początek uwag (⚠️, treść bez zmian
+    — z czasem trwania i poradą) i do listy zewnętrznych; uwagi o błędach JavaScriptu strony awansują na BŁĄD."""
+    krytyczne, zewn, reszta = [], [], []
+    for b in bledy or []:
+        (krytyczne if jest_krytyczny(b) else zewn).append(b)
+    for u in uwagi or []:
+        (krytyczne if JS_Z_UWAG.search(str(u)) else reszta).append(u)
+    return krytyczne, zewn + reszta, list(zewn)
+
+
+def seria_bledow_dni(hist):
+    """v461: ile ostatnich dni UTC z rzędu (ostatni przebieg dnia) zbieracz zgłaszał błędy — czas trwania awarii do tekstu uwagi."""
+    ost = {}
+    for h in hist or []:
+        if isinstance(h, dict) and isinstance(h.get('at'), str):
+            ost[h['at'][:10]] = h
+    n = 0
+    for d in sorted(ost, reverse=True):
+        if (ost[d].get('bledy_zbieracza') or 0) > 0:
+            n += 1
+        else:
+            break
+    return n
+
+
+def bez_czerwieni_zewnetrznej(L):
+    """v461: w raporcie ❌ zostaje tylko tam, gdzie jest awaria strony albo publikacji (sekcja „Błędy”, nagłówek z liczbą błędów, wiersze strony i przebiegów);
+    ❌ przy wierszu zewnętrznego źródła (awaria części, wiek danych, limit planu, sprzeczność w pliku, zakładki) -> ⚠️ — spójnie z wynikiem."""
+    out, w_bledach = [], False
+    for x in L:
+        if x.startswith('## '):
+            w_bledach = x.startswith('## Błędy')
+        if '❌' in x and not w_bledach and not x.startswith('❌ Błędów:') and not x.startswith(WIERSZ_KRYTYCZNY):
+            x = x.replace('❌', '⚠️')
+        out.append(x)
     return out
 
 
@@ -2396,7 +2467,7 @@ def zuzycie_ocena(meta):
         ml = ds0.get('mies') if isinstance(ds0.get('mies'), list) and len(ds0['mies']) == 3 else [None] * 3
         if okres == 'mies' and _zuz_ok(ml[2]) and ml[2] > 0:
             lim = ml[2]   # v223: limit miesiąca według samego dostawcy (CoinMarketCap 06.10: 15 000, nie 10 000)
-        rada = f'co zrobić: napisz do Claude „zmniejsz liczbę zapytań do {krotko}”'
+        rada = f'{PORADA_3D} (zadanie: „zmniejsz liczbę zapytań do {krotko}”)'
         if okres == 'mies':
             ms = at.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             if q.get('m') != at.strftime('%Y-%m') or not _zuz_ok(q.get('nm')):
@@ -4657,7 +4728,7 @@ def przegladarka_wiersz(P):
     hosty = sorted({u.split('/')[2] if '://' in u else u for u in z})
     return (f'- Strona w przeglądarce (bez okna, ekran telefonu 390 px): zrzut po {str(P.get("czas_s", "—")).replace(".", ",")} s — grafik '
             f'{P.get("svg", 0)}, wykresów liniowych {P.get("wykresy", 0)}' + (' ⚠️ (zwykle ok. 20)' if malo else '')
-            + f'; błędów JavaScriptu: {len(b)} ' + ('⚠️' if b else ('ℹ️' if nc else '✅'))
+            + f'; błędów JavaScriptu: {len(b)} ' + ('❌' if b else ('ℹ️' if nc else '✅'))
             + (f' (wpisów konsoli nieczytelnych: {nc})' if nc else '')
             + (f'; napisy-błędy w tekście (NaN, undefined…): {P["artefakty_n"]} ⚠️' if P.get('artefakty_n') else '')   # v250
             + (f'; nieudane wczytania: {len(z)} ({", ".join(hosty[:4])}) ℹ️' if z else '')
@@ -4702,7 +4773,7 @@ def przegladarka_wiersz_lekka(P):
     if not (isinstance(P, dict) and P.get('ok')):
         return h + f'nie sprawdzono ({(P if isinstance(P, dict) else {}).get("brak") or "—"}) ℹ️.'
     b, nc = P.get('bledy') or [], P.get('nieczytelne') or 0
-    return (h + f'zrzut po {str(P.get("czas_s", "—")).replace(".", ",")} s; błędów JavaScriptu: {len(b)} ' + ('⚠️' if b else ('ℹ️' if nc else '✅'))
+    return (h + f'zrzut po {str(P.get("czas_s", "—")).replace(".", ",")} s; błędów JavaScriptu: {len(b)} ' + ('❌' if b else ('ℹ️' if nc else '✅'))
             + (f' (pierwszy: {b[0][:80]})' if b else '') + (f' (wpisów konsoli nieczytelnych: {nc})' if nc else '')
             + (f'; napisy-błędy w tekście (NaN, undefined…): {P["artefakty_n"]} ⚠️' if P.get('artefakty_n') else '') + '.')
 
@@ -10462,7 +10533,7 @@ USK_K_BLAD_H = 6
 USK_K_429 = re.compile(r'^USDT skarbiec (eth|tron): .*(?:HTTP\D{0,7}429\b|too many requests)', re.I)
 CO_ZROBIC = CO_ZROBIC + ((re.compile(r'^USDT skarbiec: '),
                          'Odczyt salda skarbca USDT z jednej sieci (Ethereum albo Tron) nie działa od ponad 6 godzin — publiczne źródło odrzuca zapytania albo zmieniło odpowiedź. '
-                         'Strona pokazuje wtedy „—” zamiast starej liczby. Napisz do Claude: „sprawdź USDT skarbiec z kontroli”.'),)
+                         'Strona pokazuje wtedy „—” zamiast starej liczby. ' + PORADA_3D_W),)
 
 
 def usk_wiek_czesci_h(j, k, now=None):
@@ -16856,15 +16927,15 @@ def kontrola():
         Z['wh_listy'] = wl
         for g, d, n in wl['stare']:
             R['uwagi'].append(f'lista portfeli giełdy {g} z {d} ma {n} dni — portfele dodane przez giełdę od tego czasu nie są liczone; '
-                              f'co zrobić: napisz do Claude „odśwież listę portfeli {g} z nowego raportu dowodu rezerw”')
+                              f'co zrobić: odśwież listę portfeli {g} z nowego raportu dowodu rezerw ({PORADA_3D})')
         try:   # v237: nowe raporty dowodu rezerw — automat sam wie, kiedy listę można odświeżyć
             Z['wh_nowe'] = wh_nowe_raporty((files.get('wieloryby') or {}).get('gieldy'))
         except Exception as e:  # noqa
             Z['wh_nowe'] = {'_blad': type(e).__name__}   # v243: wiersz „nie wiadomo”, nie zniknięcie
         for g, o in Z['wh_nowe'].items():
             if isinstance(o, dict) and o.get('nowy') and o.get('lista'):
-                R['uwagi'].append(f'nowa lista portfeli giełdy {g} z {o["nowy"]} (raport dowodu rezerw; obecna z {o["od"]}) — co zrobić: napisz do '
-                                  f'Claude „odśwież listę portfeli {g} z nowego raportu dowodu rezerw”')
+                R['uwagi'].append(f'nowa lista portfeli giełdy {g} z {o["nowy"]} (raport dowodu rezerw; obecna z {o["od"]}) — co zrobić: '
+                                  f'odśwież listę portfeli {g} z nowego raportu dowodu rezerw ({PORADA_3D})')
     # 3e. v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (2 zapytania, bez ponawiania; najwyżej ⚠️)
     try:
         Z['etf_emitent'] = etf_emitent(files, R)
@@ -17096,7 +17167,7 @@ def kontrola():
         zn = R['github_ostrz']['znalezione']
         if zn:
             R['uwagi'].append('GitHub ostrzega o przestarzałych akcjach albo systemie (' + '; '.join(f'{w}: {m[:90]}' for w, m in zn[:3])
-                              + ') — napisz do Claude: „zaktualizuj akcje GitHuba”')
+                              + ') — ' + PORADA_3D + ' (zadanie: „zaktualizuj akcje GitHuba”)')
     except Exception as e:  # noqa
         R['github_ostrz'] = {'blad': str(e)[:120]}
     # 4c. v354: strażnik harmonogramów — przepływy z harmonogramem czynne (GitHub wyłącza je po 60 dniach bez aktywności), ostatni przebieg strażnika (raz w tygodniu),
@@ -17112,12 +17183,15 @@ def kontrola():
     # 5. v115: historia — błędy zbieracza w 3 kolejnych przebiegach kontroli = czerwone
     if _TERMIN['przekroczony']:   # v327 (KON-04): po terminie całej kontroli część zapytań nie wyszła — raport częściowy
         R['bledy'].append(kontrola_przerwana_opis(KoniecCzasu()))
+    R['bledy'], R['uwagi'], R['zewnetrzne'] = rozdziel_alarmy(R['bledy'], R['uwagi'])   # v461: BŁĄD tylko przy awarii strony albo publikacji
     n_err = bledy_zbieracza_liczba(R['meta'].get('errors'), files, NOW) if isinstance(R['meta'], dict) else 0   # v386: bez pojedynczych 429 USDT skarbiec przy świeżym odczycie
     hist = historia(os.path.join(OUT_DIR, 'historia.json'), {'at': R['at'], 'bledy_zbieracza': n_err, 'uwagi': len(R['uwagi']), 'bledy': len(R['bledy']),
                                                            'przegl': (R.get('przegladarka') or {}).get('stan'),   # v248: stan przeglądarki
                                                            'zakl': zakladki_do_historii(R.get('zakladki'))})   # v440: czasy pierwszego widoku i liczby kontroli zakładek
     if czerwone_z_historii(hist):
-        R['bledy'].append(f'zbieracz zgłasza błędy w {HIST_CZERWONE} kolejnych dniach kontroli (' + '; '.join((R['meta'].get('errors') or ['?'])[:2]) + ')')
+        zt = (f'zbieracz zgłasza błędy w {max(HIST_CZERWONE, seria_bledow_dni(hist))} kolejnych dniach kontroli (' + '; '.join((R['meta'].get('errors') or ['?'])[:2])
+              + f') — strona i publikacja działają; {PORADA_3D}')   # v461: ⚠️ z czasem trwania, nie BŁĄD (źródło zewnętrzne)
+        R['uwagi'].append(zt); R['zewnetrzne'].append(zt)
     R['historia_n'] = len(hist)
     R['wynik'] = 'BŁĄD' if R['bledy'] else ('UWAGA' if R['uwagi'] else 'OK')
     return R
@@ -17133,8 +17207,13 @@ def raport_md(R):
          f'- Strona główna: {"działa" if (R.get("strona") or {}).get("ok") else "PROBLEM"} (HTTP {(R.get("strona") or {}).get("http", "—")}, {(R.get("strona") or {}).get("ms", "—")} ms).',
          f'- Ostatni przebieg automatu: {czas_pl(m.get("at"))} — {("sprzed " + str(m.get("wiek_min")) + " min") if m.get("wiek_min") is not None else "brak"}; '
          f'źródeł: {m.get("zrodla", "—")}, bez odpowiedzi: {", ".join(m.get("bez_odpowiedzi") or []) or "żadne"}; błędów zbieracza: {len(m.get("errors") or [])}.']
+    ins = []
     if R['wynik'] == 'BŁĄD' and R.get('bledy'):   # v212: zaraz pod werdyktem — co zrobić przy każdym rodzaju błędu (nagłówek i „Wynik:” bez zmian)
-        L[6:6] = ['**Co zrobić:**'] + ['- ' + h for h in co_zrobic(R['bledy'])] + ['']
+        ins += ['**Co zrobić:**'] + ['- ' + h for h in co_zrobic(R['bledy'])] + ['']
+    if R.get('zewnetrzne'):   # v461: awarie zewnętrznych źródeł — ⚠️, nie awaria strony ani publikacji; pełna lista z czasem trwania w „Uwagach”
+        ins += [f'**Ostrzeżenia o źródłach danych: {len(R["zewnetrzne"])}** ⚠️ — strona i publikacja działają, dane tych źródeł mają swój wiek na stronie '
+                f'(pełna lista z czasem trwania: sekcja „Uwagi” niżej). {PORADA_3D_W}', '']
+    L[6:6] = ins
     cz = m.get('czas') if isinstance(m.get('czas'), dict) else None   # v185: czas tego przebiegu i najdłuższe części
     if cz and isinstance(cz.get('s'), (int, float)):
         top = [x for x in (cz.get('top') or []) if isinstance(x, list) and len(x) == 2][:3]
@@ -17170,7 +17249,7 @@ def raport_md(R):
             L.append(f'- Ostrzeżenia GitHuba o przestarzałych akcjach: ? (odczyt przerwany: {go["blad"][:60]}).')
         elif go.get('znalezione'):
             L.append('- Ostrzeżenia GitHuba o przestarzałych akcjach: ' + '; '.join(f'{w}: {m[:90]}' for w, m in go['znalezione'][:3])
-                     + ' ⚠️ — napisz do Claude: „zaktualizuj akcje GitHuba”.')
+                     + ' ⚠️ — ' + PORADA_3D + ' (zadanie: „zaktualizuj akcje GitHuba”).')
         else:
             L.append(f'- Ostrzeżenia GitHuba o przestarzałych akcjach (ostatni przebieg każdego z {go.get("sprawdzone", 0)} przepływów): brak ✅'
                      + (f'; nie odczytano: {", ".join(go["bledne"])[:120]}.' if go.get('bledne') else '.'))
@@ -17637,7 +17716,7 @@ def raport_md(R):
     if not R['bledy'] and not R['uwagi']:
         L += ['', 'Wszystko w normie.']
     L += ['', 'Kontrola wykonana przez GitHub Actions (plik `narzedzia/kontrola.py`), bez kluczy, tylko odczyt.']
-    return '\n'.join(L) + '\n'
+    return '\n'.join(bez_czerwieni_zewnetrznej(L)) + '\n'   # v461
 
 
 def spis_ocena(sp, nazwy, teraz=None):
@@ -17715,6 +17794,8 @@ def kontrola_przerwana(e):
                   ('uwagi', []), ('bledy', [])):
         if not isinstance(R.get(kk), type(v)):
             R[kk] = v
+    if 'zewnetrzne' not in R:   # v461: raport częściowy też bez ❌ z zewnętrznych źródeł
+        R['bledy'], R['uwagi'], R['zewnetrzne'] = rozdziel_alarmy(R['bledy'], R['uwagi'])
     if not any(str(b).startswith('kontrola przerwana') for b in R['bledy']):
         R['bledy'].append(kontrola_przerwana_opis(e))
     R['przerwana'] = True
@@ -17773,6 +17854,8 @@ def main():
     if summ:
         with open(summ, 'a', encoding='utf-8') as f:
             f.write(md)
+    if R.get('zewnetrzne'):   # v461: ostrzeżenie w przebiegu (adnotacja), nie czerwony przebieg
+        print('::warning title=kontrola — źródła zewnętrzne::' + '; '.join(R['zewnetrzne'])[:900].replace('%', '%25').replace('\n', '%0A'))
     print('::notice title=kontrola::' + (R['wynik'] + ' — ' + '; '.join(R['bledy'] + R['uwagi'])[:900]).replace('%', '%25').replace('\n', '%0A'))
     sys.exit(1 if R['bledy'] else 0)
 

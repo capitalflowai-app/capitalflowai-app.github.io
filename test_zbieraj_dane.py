@@ -24829,7 +24829,7 @@ class PamiecAwariiV207(unittest.TestCase):
         self.assertEqual([x['czesc'] for x in Z['trwa']], ['krotka', 'oecd', 'tic']); self.assertEqual([x['czesc'] for x in Z['naprawione']], ['fred'])
         self.assertEqual(len(Z['bledy']), 1); self.assertEqual(len(Z['uwagi']), 1)
         self.assertEqual(Z['bledy'][0], 'część automatu „oecd” nie działa od 04.10.2026, 04:00 (2 dni 2 godz., nieudanych przebiegów z rzędu: 290) — automat '
-                                        'nie naprawił tego sam; co zrobić: napisz do Claude „napraw część oecd”')
+                                        'nie naprawił tego sam; ' + k.PORADA_3D + ' (zadanie: „napraw część oecd”)')
         self.assertEqual(Z['uwagi'][0], 'część automatu „tic” nie działa od 06.10.2026, 01:00 (5 godz., nieudanych przebiegów z rzędu: 30) — automat ponawia '
                                         'sam; dane tej części mają swój wiek na stronie')
         self.assertEqual(Z['naprawione'][0]['h'], 2.1)
@@ -24867,7 +24867,7 @@ class PamiecAwariiV207(unittest.TestCase):
         R['awarie']['trwa'][0]['h'] = 1.5
         self.assertIn('tic od 06.10.2026, 03:00 (1 godz., nieudanych przebiegów: 30) ℹ️.', k.raport_md(R), 'krótka seria — informacja')
         R['awarie']['trwa'][0]['h'] = 50.0
-        self.assertIn('(2 dni 2 godz., nieudanych przebiegów: 30) ❌.', k.raport_md(R))
+        self.assertIn('(2 dni 2 godz., nieudanych przebiegów: 30) ⚠️.', k.raport_md(R), 'v461: awaria części dłuższa niż doba = ⚠️ (❌ tylko przy awarii strony)')
 
     def test_kontrola_calosc_z_awariami(self):
         """Cała kontrola na zaślepionej sieci: meta.json z polem awarie — uwaga i błąd trafiają do wyniku, dopisek przy błędzie klucza."""
@@ -24902,11 +24902,12 @@ class PamiecAwariiV207(unittest.TestCase):
                 mock.patch.object(k.time, 'sleep', lambda s: None), mock.patch.object(k.urllib.request, 'urlopen', urlopen):
             R = k.kontrola()
         self.assertEqual(R['wynik'], 'BŁĄD')
-        self.assertTrue(any('„oecd” nie działa od 03.10.2026, 20:20 (2 dni 11 godz.' in b and 'napraw część oecd' in b for b in R['bledy']), R['bledy'])
+        self.assertTrue(any('„oecd” nie działa od 03.10.2026, 20:20 (2 dni 11 godz.' in b and 'napraw część oecd' in b for b in R['zewnetrzne']), R['zewnetrzne'])
+        self.assertEqual([b for b in R['bledy'] if 'oecd' in b], [], 'v461: awaria źródła nie jest BŁĘDEM; BŁĄD tylko z braku strony w tym teście')
         self.assertTrue(any('„tic” nie działa od 06.10.2026, 03:20 (4 godz.' in u for u in R['uwagi']), 'v211: do ostatniego przebiegu (7 min przed kontrolą)')
         self.assertTrue(any(u.startswith('błąd zbieracza: EODHD') and 'odrzucony klucz' in u for u in R['uwagi']), R['uwagi'])
         md = k.raport_md(R)
-        self.assertIn('- Awarie części automatu — trwają: oecd od 03.10.2026, 20:20 (2 dni 11 godz., nieudanych przebiegów: 350) ❌; tic od 06.10.2026, 03:20 (4 godz., nieudanych przebiegów: 30) ⚠️.', md)
+        self.assertIn('- Awarie części automatu — trwają: oecd od 03.10.2026, 20:20 (2 dni 11 godz., nieudanych przebiegów: 350) ⚠️; tic od 06.10.2026, 03:20 (4 godz., nieudanych przebiegów: 30) ⚠️.', md)
 
 
 # ===================== v208: TRENDY — POSTĘP NAUKI SYGNAŁÓW (pg w dziennikach) =====================
@@ -25604,7 +25605,7 @@ class KontrolaZuzycieV222(unittest.TestCase):
         self.assertEqual((o['uwagi'], o['bledy']), ([], []))
         o = k.zuzycie_ocena(self.M('2026-10-07T07:30:00+00:00', cg=q(300)))   # 300 × 31 = 9 300
         self.assertEqual(o['plany'][0]['znak'], '⚠️'); self.assertIn('zapas maleje', o['uwagi'][0])
-        self.assertIn('co zrobić: napisz do Claude „zmniejsz liczbę zapytań do CoinGecko”', o['uwagi'][0])
+        self.assertIn('zapas maleje; ' + k.PORADA_3D + ' (zadanie: „zmniejsz liczbę zapytań do CoinGecko”)', o['uwagi'][0])
         o = k.zuzycie_ocena(self.M('2026-10-07T07:30:00+00:00', cg=q(400)))   # 12 400
         self.assertIn('ponad limit', o['uwagi'][0]); self.assertEqual(o['bledy'], [])
         o = k.zuzycie_ocena(self.M('2026-10-30T07:30:00+00:00', cg=q(9600, od='2026-09-01T00:00:00+00:00')))
@@ -25659,7 +25660,7 @@ class KontrolaZuzycieV222(unittest.TestCase):
         R['zuzycie'] = {'plany': [], 'uwagi': [], 'bledy': []}
         self.assertNotIn('Zużycie darmowych planów', k.raport_md(R))
         h = k.co_zrobic(['limit planu Twelve Data (Basic) wyczerpany wczoraj: 812 z 800 kredytów (licznik automatu) — część notowań mogła nie przyjść'])
-        self.assertEqual(len(h), 1); self.assertIn('„zmniejsz liczbę zapytań — limit planu z kontroli”', h[0])
+        self.assertEqual(len(h), 1); self.assertIn(k.PORADA_3D_W, h[0])
         self.assertIsNone(k.zuzycie_ocena({'at': '2026-10-07T06:20:00+00:00'})); self.assertIsNone(k.zuzycie_ocena(None))
         self.assertIsNone(k.zuzycie_ocena({'at': 'x', 'zuzycie': {}}))
         self.assertEqual(k.zuzycie_ocena({'at': '2026-10-07T06:20:00+00:00', 'zuzycie': {'cg': 'x', 'td': {'od': 'zly'}}}), {'plany': [], 'uwagi': [], 'bledy': []})
@@ -27324,7 +27325,7 @@ class KontrolaPrzegladarkaV247(unittest.TestCase):
         self.assertEqual(k.przegladarka_uwagi(P), [])
         P2 = dict(P, **k.przegladarka_konsola(self.LOG))
         w = k.przegladarka_wiersz(P2)
-        self.assertIn('błędów JavaScriptu: 2 ⚠️; nieudane wczytania: 2 (api.coingecko.com, api.coinpaprika.com) ℹ️; inne komunikaty konsoli: 1 (pierwszy: BLAD-TESTOWY-1) ℹ️.', w)
+        self.assertIn('błędów JavaScriptu: 2 ❌; nieudane wczytania: 2 (api.coingecko.com, api.coinpaprika.com) ℹ️; inne komunikaty konsoli: 1 (pierwszy: BLAD-TESTOWY-1) ℹ️.', w)
         self.assertEqual(k.przegladarka_uwagi(P2), ['strona w przeglądarce: błędów JavaScriptu 2 — pierwszy: Uncaught (in promise) Error: ODRZUCONE-2 (strona:9875)'])
         self.assertEqual(k.przegladarka_wiersz({'brak': 'brak przeglądarki na maszynie kontroli'}),
                          '- Strona w przeglądarce (bez okna, ekran telefonu): nie sprawdzono (brak przeglądarki na maszynie kontroli) ℹ️.')
@@ -27417,7 +27418,7 @@ class PoPrzegladzieV248(unittest.TestCase):
                                       'Uncaught Error: a b (strona:77)'], 'wiele linii → jeden wpis; starszy zapis CONSOLE(N)')
         self.assertEqual(K['nieczytelne'], 1)
         P = dict({'ok': True, 'stan': 'ok', 'czas_s': 5.0, 'svg': 148, 'wykresy': 20}, **K)
-        self.assertIn('błędów JavaScriptu: 2 ⚠️ (wpisów konsoli nieczytelnych: 1)', k.przegladarka_wiersz(P))
+        self.assertIn('błędów JavaScriptu: 2 ❌ (wpisów konsoli nieczytelnych: 1)', k.przegladarka_wiersz(P))
         P = dict(P, bledy=[])
         self.assertIn('błędów JavaScriptu: 0 ℹ️ (wpisów konsoli nieczytelnych: 1)', k.przegladarka_wiersz(P), 'nigdy cichy ✅')
 
@@ -27746,7 +27747,7 @@ class PoPrzegladzieV252(unittest.TestCase):
         self.assertEqual((K['inne'], K['nieczytelne']), ([], 0), 'doklejona obca linia — wpis odczytany')
         P = dict({'ok': True, 'stan': 'ok', 'czas_s': 5.0, 'svg': 148, 'wykresy': 20}, **K)
         w = k.przegladarka_wiersz(P)
-        self.assertIn('; błędów JavaScriptu: 3 ⚠️', w); self.assertNotIn('nieobsłużonych', w)
+        self.assertIn('; błędów JavaScriptu: 3 ❌', w); self.assertNotIn('nieobsłużonych', w)
         self.assertTrue(k.przegladarka_uwagi(P)[0].startswith('strona w przeglądarce: błędów JavaScriptu 3 — pierwszy: [object DOMException]'))
 
     def test_prawdziwy_chrome_blad_dom(self):
@@ -30229,7 +30230,7 @@ class OstrzezeniaGithubV291(unittest.TestCase):
         self.assertIn('- Ostrzeżenia GitHuba o przestarzałych akcjach (ostatni przebieg każdego z 5 przepływów): brak ✅.', md)
         md = k.raport_md(self._R({'sprawdzone': 5, 'znalezione': [('archiwum.yml', self.NODE[:160])]}))
         self.assertIn('- Ostrzeżenia GitHuba o przestarzałych akcjach: archiwum.yml: Node.js 20 is deprecated.', md)
-        self.assertIn('⚠️ — napisz do Claude: „zaktualizuj akcje GitHuba”.', md)
+        self.assertIn('⚠️ — ' + k.PORADA_3D + ' (zadanie: „zaktualizuj akcje GitHuba”).', md)
         md = k.raport_md(self._R({'blad': 'HTTP Error 403: rate limit'}))
         self.assertIn('- Ostrzeżenia GitHuba o przestarzałych akcjach: ? (odczyt przerwany: HTTP Error 403: rate limit).', md)
         self.assertNotIn('Ostrzeżenia GitHuba', k.raport_md(self._R(None)), 'stary raport bez pola — bez linii')
@@ -36017,7 +36018,7 @@ class GrupaCryptoKontrolaV308(unittest.TestCase):
         self.assertEqual(k.przegladarka_wiersz_lekka(dict(P, nieczytelne=2)), h + 'zrzut po 9,84 s; błędów JavaScriptu: 0 ℹ️ (wpisów konsoli nieczytelnych: 2).', 'nigdy cichy ✅')
         B = dict(P, bledy=['Uncaught TypeError: ' + 'y' * 100], artefakty=['a NaN b'], artefakty_n=2)
         w = k.przegladarka_wiersz_lekka(B)
-        self.assertTrue(w.startswith(h + 'zrzut po 9,84 s; błędów JavaScriptu: 1 ⚠️ (pierwszy: Uncaught TypeError: yyy'), w)
+        self.assertTrue(w.startswith(h + 'zrzut po 9,84 s; błędów JavaScriptu: 1 ❌ (pierwszy: Uncaught TypeError: yyy'), w)
         self.assertTrue(w.endswith('; napisy-błędy w tekście (NaN, undefined…): 2 ⚠️.'), w)
         self.assertEqual(len(k.przegladarka_uwagi_lekka(B)), 2)
         for X in ({'stan': 'brak_programu', 'brak': 'brak przeglądarki na maszynie kontroli'}, {'stan': 'blad'}, None, 'x'):
@@ -44390,8 +44391,9 @@ class ZbozaDzienV341(unittest.TestCase):
         # sprzeczność w pliku = BŁĄD z linią w raporcie; część bez odpowiedzi (ok False) = uwaga
         zly = self.plik(); zly['goi']['s']['goi']['d'][3][0] = '2020-01-01'; zly['ok'] = {'ue': False}
         R2, md2 = uruchom(zly)
-        self.assertEqual(R2['wynik'], 'BŁĄD'); self.assertTrue(any(b.startswith('zboza-dzien.json: sprzeczność w pliku — goi.indeks ogółem') for b in R2['bledy']))
-        self.assertTrue(any('zboza-dzien.json: części bez odpowiedzi: ue' in u for u in R2['uwagi'])); self.assertIn('sprzeczności w pliku: goi.indeks ogółem: daty nie rosną albo się powtarzają ❌', md2)
+        self.assertFalse([b for b in R2['bledy'] if 'zboza' in b], 'v461: sprzeczność w pliku = ⚠️, nie BŁĄD (BŁĄD tu tylko z nagranej, starej meta.json)')
+        self.assertTrue(any(b.startswith('zboza-dzien.json: sprzeczność w pliku — goi.indeks ogółem') for b in R2['zewnetrzne']))
+        self.assertTrue(any('zboza-dzien.json: części bez odpowiedzi: ue' in u for u in R2['uwagi'])); self.assertIn('sprzeczności w pliku: goi.indeks ogółem: daty nie rosną albo się powtarzają ⚠️', md2)
 
     def test_kontrola_spojnosc_i_progi(self):
         k = self.kt()
@@ -58519,7 +58521,7 @@ class KontrolaUsdtTron429V386(unittest.TestCase):
         j = self._j(); j['tron']['t'] = 'zły'
         self.assertEqual(k.usk_bledy(j, self.NOW), [], 'zły czas: wiersz świeżości pokazuje „?”, to nie zastój')
         co = next((x for r, x in k.CO_ZROBIC if r.search(b[0])), k.CO_ZROBIC_INNE)
-        self.assertNotEqual(co, k.CO_ZROBIC_INNE); self.assertIn('USDT skarbiec', co)
+        self.assertNotEqual(co, k.CO_ZROBIC_INNE); self.assertIn('skarbca USDT', co); self.assertIn(k.PORADA_3D_W, co)
         self.assertEqual(next((x for r, x in k.CO_ZROBIC if r.search('część automatu „x” nie działa')), None), next(x for r, x in k.CO_ZROBIC if r.pattern.startswith('^część automatu')), 'stare dopasowania bez zmian')
 
     def test_pojedyncze_429_przy_swiezym_odczycie_nie_liczy_sie(self):
@@ -78913,3 +78915,192 @@ class TestV459SpisPlikow(unittest.TestCase):
         self.assertLess(src.index("for f in ('robots.txt', 'sitemap.xml'"), i, 'po sprawdzeniu plików dla wyszukiwarek')
         fn = src[src.index('def spis_plikow('):src.index('def kontrola_przerwana_opis(')]
         self.assertNotIn('bledy', fn.replace("nigdy błąd", ''))
+
+
+# ===================== v461: ALARM KONTROLI TYLKO PRZY AWARII STRONY ALBO PUBLIKACJI =====================
+class AlarmKontroliV461(unittest.TestCase):
+    """v461 (19.10.2026): kontrola dzienna była czerwona na stałe od 17.10 (13 z 16 czerwonych przebiegów w historii 26.09–19.10 = awarie zewnętrznych źródeł).
+    BŁĄD ❌ (i exit 1) tylko: strona/plik stanu nie odpowiada, dane główne starsze niż próg, publikacja stoi, błędy JavaScriptu, kontrola przerwana.
+    Awarie źródeł zewnętrznych = ⚠️ z czasem trwania. Porady do jednego narzędzia -> neutralna porada. Bez zegara: NOW przypięty."""
+    NOW = datetime.datetime(2026, 10, 19, 6, 20, tzinfo=datetime.timezone.utc)
+    KRYT = ['strona główna: HTTP 503, 120 B', 'strona główna nie odpowiada: HTTP Error 503: x', 'plik stanu (meta.json) nie odpowiada: timed out', 'plik stanu bez czasu przebiegu',
+            'automat nie odświeżył danych od 4 godz. (ostatni przebieg 19.10.2026, 02:10)',
+            'automat nie działa (publikacja GitHub Pages): 4 nieudane przebiegi w 24 h, ostatnie 3 z rzędu — strona nie odświeża danych (06.10 21:45)',
+            'automat nie działa: 3 nieudane przebiegi w 24 h, ostatnie 2 z rzędu — strona nie odświeża danych',
+            'publikacja zawieszona: przebieg z 19.10 05:00 czeka od 2 godz. 10 min na wdrożenie strony (stan „waiting”)',
+            'kontrola przerwana: limit czasu całej kontroli (240 s) — część sprawdzeń pominięta, raport częściowy',
+            'rynki (kursy EBC, rentowności): dane z 2026-10-19T01:00 — 7 h 0 min temu (próg 3 h 0 min, ponad 2× progu)']
+    ZEWN = ['część automatu „interw_br” nie działa od 18.10.2026, 11:17 (3 dni 2 godz., nieudanych przebiegów: 400) — automat nie naprawił tego sam; jeśli trwa dłużej niż 3 dni: uruchom naprawę',
+            'limit planu CoinMarketCap (Basic) prawie wyczerpany: 14 000 z 15 000 kredytów w tym miesiącu (licznik automatu)',
+            'Rosja: rezerwy walutowe (miesięcznie): dane z 2026-08 — 50 d 0 h temu (próg 40 d)', 'ETF krypto (SoSoValue, dziennie): dane z 2026-10-14 — 5 d 0 h temu (próg 1 d 12 h, ponad 2× progu)',
+            'metale.json: sprzeczność w pliku — cena ujemna', 'kapitalizacja krypto: różnica źródeł dziś 9.00% wobec normy 4.00% — x',
+            'USDT skarbiec: odczyt sieci Tron nie działa od ponad 6 godzin', 'jakiś nowy, nieznany rodzaj błędu']
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola461-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v461_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.tmp = tmp
+
+    def test_krytyczne_zostaja_bledami_zewnetrzne_ida_do_uwag(self):
+        k = self.k
+        kr, uw, zw = k.rozdziel_alarmy(self.KRYT + self.ZEWN, ['inna uwaga'])
+        self.assertEqual(kr, self.KRYT, 'każdy rodzaj awarii strony / publikacji / danych głównych zostaje BŁĘDEM')
+        self.assertEqual(zw, self.ZEWN); self.assertEqual(uw, self.ZEWN + ['inna uwaga'], 'zewnętrzne na początku uwag, treść bez zmian (nic nie ginie)')
+        for b in self.KRYT:
+            self.assertTrue(k.jest_krytyczny(b), b)
+        for b in self.ZEWN:
+            self.assertFalse(k.jest_krytyczny(b), b)
+        self.assertEqual(k.rozdziel_alarmy([], []), ([], [], [])); self.assertEqual(k.rozdziel_alarmy(None, None), ([], [], []))
+
+    def test_bledy_javascript_ze_strony_awansuja_na_blad(self):
+        k = self.k
+        js = ['strona w przeglądarce: błędów JavaScriptu 2 — pierwszy: ReferenceError: x', 'strona jak u czytelnika (bez ?pelna=1): błędów JavaScriptu 1 — pierwszy: TypeError: y']
+        luz = ['strona w przeglądarce: napisy-błędy w tekście strony (NaN, undefined…): 1 — pierwszy: „x”', 'strona w przeglądarce: narysowanych wykresów liniowych tylko 3 (zwykle ok. 20)']
+        kr, uw, zw = k.rozdziel_alarmy([], js + luz)
+        self.assertEqual(kr, js); self.assertEqual(uw, luz, 'napisy-błędy i mało wykresów zostają uwagami'); self.assertEqual(zw, [])
+        P = {'ok': True, 'czas_s': 5.0, 'svg': 10, 'wykresy': 25, 'bledy': ['ReferenceError: x']}
+        self.assertIn('błędów JavaScriptu: 1 ❌', k.przegladarka_wiersz(P)); self.assertIn('błędów JavaScriptu: 1 ❌', k.przegladarka_wiersz_lekka(P))
+        P['bledy'] = []
+        self.assertIn('błędów JavaScriptu: 0 ✅', k.przegladarka_wiersz(P))
+
+    def test_historia_kontroli_16_czerwonych_do_1(self):
+        """Test wsteczny na zapisanej historii (154 przebiegi, 26.09–19.10.2026): 13 czerwonych z błędów zbieracza (xStocks, BCB, USDT Tron…) -> UWAGA; publikacja 06.10 -> BŁĄD."""
+        k = self.k
+        zbieracz = ['zbieracz zgłasza błędy w 3 kolejnych dniach kontroli (USDT skarbiec tron: HTTP Error 429: Too Many Requests)',
+                    'zbieracz zgłasza błędy w 3 kolejnych dniach kontroli (Tokenizowane aktywa — dane emitentów: xStocks: TimeoutError: krok lista: The read operation timed out)',
+                    'zbieracz zgłasza błędy w 3 kolejnych dniach kontroli (BCB: brak dni (13970: odpowiedź pusta albo nie JSON; zapas SOAP: HTTP Error 500); DeFi 2: fees)',
+                    'zbieracz zgłasza błędy w 3 kolejnych dniach kontroli (Premie krypto: Upbit: <urlopen error timed out>)']
+        for b in zbieracz:
+            kr, uw, zw = k.rozdziel_alarmy([b], [])
+            self.assertEqual((kr, zw), ([], [b]), 'dawniej czerwone, dziś ⚠️')
+        kr, _, _ = k.rozdziel_alarmy(['automat nie działa (publikacja GitHub Pages): 4 nieudane przebiegi w 24 h, ostatnie 1 z rzędu — strona nie odświeża danych'], [])
+        self.assertEqual(len(kr), 1, 'prawdziwa awaria publikacji z 06.10 zostaje czerwona')
+
+    def test_seria_bledow_dni(self):
+        k = self.k
+        E = lambda d, n, h='06:20:00': {'at': f'2026-10-{d:02d}T{h}+00:00', 'bledy_zbieracza': n}   # noqa: E731
+        self.assertEqual(k.seria_bledow_dni([E(15, 0), E(16, 1), E(17, 2), E(18, 1), E(19, 3)]), 4)
+        self.assertEqual(k.seria_bledow_dni([E(16, 1), E(17, 2), E(18, 1), E(18, 0, '12:00:00')]), 0, 'liczy się ostatni przebieg dnia')
+        self.assertEqual(k.seria_bledow_dni([E(17, 1), E(17, 2, '09:00:00'), E(18, 1)]), 2, 'kilka przebiegów jednego dnia = jeden dzień')
+        self.assertEqual(k.seria_bledow_dni([]), 0); self.assertEqual(k.seria_bledow_dni(None), 0); self.assertEqual(k.seria_bledow_dni([{'x': 1}, 5]), 0)
+
+    def test_porady_bez_claude(self):
+        import re as _re
+        k = self.k
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        self.assertEqual(len(_re.findall(r'napisz do\s+(?:\'\s*\n\s*f?\')?\s*Claude', src, _re.I)), 0, 'żadnej porady „napisz do Claude”')
+        self.assertNotIn('Napisz do Claude', src); self.assertNotIn('napisz do Claude', src)
+        self.assertEqual(k.PORADA_3D, 'jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną')
+        self.assertEqual(k.NAPRAWA_W[0], 'U'); self.assertEqual(k.NAPRAWA, k.NAPRAWA_W[0].lower() + k.NAPRAWA_W[1:])
+        for _, h in k.CO_ZROBIC:
+            self.assertIn('osobę techniczną', h); self.assertIn('kontrola/ostatnia.md', h)
+        self.assertIn('osobę techniczną', k.CO_ZROBIC_INNE)
+        self.assertIn(k.PORADA_3D, k.awaria_rodzaj('CoinGecko: HTTP Error 429: Too Many Requests')); self.assertIn(k.PORADA_3D, k.awaria_rodzaj('EODHD — klucz odrzucony (HTTP 401/403)'))
+
+    def _kontrola(self, meta, hist=None, strona=True):
+        """Cała kontrola na zaślepionej sieci (index.html i meta.json zaślepione, reszta bez sieci), z historią kontroli w katalogu tymczasowym."""
+        import tempfile
+        k = self.k
+
+        class Resp:
+            def __init__(self, b):
+                self.b, self.status = b, 200
+
+            def read(self, *a):
+                return self.b
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def urlopen(req, timeout=None):
+            url = req.full_url
+            if '/data/meta.json?' in url:
+                return Resp(json.dumps(meta).encode())
+            if strona and '/index.html?' in url:
+                return Resp(b'<html>' + b'x' * 1_100_000 + b'const EXTRA1={}')
+            raise k.urllib.error.URLError('brak sieci w teście')
+        d = tempfile.mkdtemp(prefix='k461-')
+        if hist:
+            with open(os.path.join(d, 'historia.json'), 'w', encoding='utf-8') as f:
+                json.dump(hist, f)
+        with mock.patch.object(k, 'NOW', self.NOW), mock.patch.object(k, 'OUT_DIR', d), mock.patch.object(k, 'ARCH_DIR', os.path.join(d, 'brak')), \
+                mock.patch.object(k.time, 'sleep', lambda s: None), mock.patch.object(k.urllib.request, 'urlopen', urlopen):
+            return k.kontrola(), d
+
+    def _meta(self, awarie=None, errors=()):
+        N = self.NOW
+        return {'at': (N - datetime.timedelta(minutes=7)).isoformat(), 'ok': {x: False for x in (awarie or {})}, 'notes': [], 'errors': list(errors),
+                'awarie': {c: {'od': (N - datetime.timedelta(hours=h)).isoformat(), 'ost': (N - datetime.timedelta(minutes=7)).isoformat(), 'n': 400, 'do': None} for c, h in (awarie or {}).items()}}
+
+    def test_kontrola_calosc_awaria_zrodla_to_uwaga_nie_blad(self):
+        k = self.k
+        hist = [{'at': f'2026-10-{d:02d}T06:20:00+00:00', 'bledy_zbieracza': 2, 'uwagi': 5, 'bledy': 0} for d in (16, 17, 18)]
+        R, d = self._kontrola(self._meta({'tic': 60, 'oecd': 30}, ['Tokenizowane aktywa — dane emitentów: xStocks: TimeoutError: krok lista: The read operation timed out']), hist)
+        self.assertEqual(R['bledy'], [], R['bledy']); self.assertEqual(R['wynik'], 'UWAGA')
+        zw = R['zewnetrzne']
+        self.assertTrue(any('„tic” nie działa od' in x and '2 dni 11 godz.' in x for x in zw), zw)
+        self.assertTrue(any('„oecd” nie działa od' in x and '1 dzień 5 godz.' in x for x in zw), 'czas trwania zostaje w tekście')
+        self.assertTrue(any(x.startswith('zbieracz zgłasza błędy w 4 kolejnych dniach kontroli (') and 'xStocks' in x and k.PORADA_3D in x for x in zw), 'czas trwania w dniach: 3 poprzednie + dziś')
+        for x in zw:
+            self.assertIn(x, R['uwagi'], 'nic nie ginie: każde zewnętrzne także w uwagach')
+        md = k.raport_md(R)
+        self.assertIn('**Wynik: UWAGA**', md); self.assertIn(f'**Ostrzeżenia o źródłach danych: {len(zw)}** ⚠️', md); self.assertIn(k.PORADA_3D_W, md)
+        self.assertNotIn('❌', md, 'przy awarii samych źródeł zewnętrznych ani jednego ❌'); self.assertNotIn('## Błędy', md); self.assertNotIn('Claude „', md)
+        self.assertIn('„tic” nie działa od', md)
+        self.assertEqual(json.load(open(os.path.join(d, 'historia.json')))[-1]['bledy'], 0, 'historia zapisuje tylko błędy krytyczne')
+
+    def test_kontrola_calosc_strona_nie_dziala_to_blad(self):
+        k = self.k
+        R, d = self._kontrola(self._meta({'tic': 60}), strona=False)
+        self.assertEqual(R['wynik'], 'BŁĄD'); self.assertEqual(len(R['bledy']), 1, R['bledy']); self.assertTrue(R['bledy'][0].startswith('strona główna nie odpowiada'))
+        self.assertTrue(any('„tic”' in x for x in R['zewnetrzne']), 'awaria źródła obok awarii strony zostaje ⚠️')
+        md = k.raport_md(R)
+        self.assertIn('❌ Błędów: 1', md); self.assertIn('## Błędy (wymagają uwagi)', md); self.assertIn('**Co zrobić:**', md); self.assertIn('osobę techniczną', md)
+        self.assertEqual(md.count('❌'), 1, 'jedyny ❌ — nagłówek błędów strony')
+
+    def test_kod_wyjscia_tylko_z_bledow_krytycznych(self):
+        import io, contextlib, tempfile
+        k = self.k
+        base = {'at': self.NOW.isoformat(), 'strona': {'ok': True, 'http': 200, 'ms': 5}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'historia_n': 1}
+
+        def uruchom(bledy, uwagi, zewn):
+            R = dict(base, bledy=list(bledy), uwagi=list(uwagi), zewnetrzne=list(zewn), wynik='BŁĄD' if bledy else 'UWAGA')
+            with mock.patch.object(k, 'kontrola', lambda: R), mock.patch.object(k, 'OUT_DIR', tempfile.mkdtemp(prefix='k461m-')), \
+                    mock.patch.dict(os.environ, {'GITHUB_STEP_SUMMARY': ''}), contextlib.redirect_stdout(io.StringIO()) as out:
+                with self.assertRaises(SystemExit) as c:
+                    k.main()
+            return c.exception.code, out.getvalue()
+        kod, out = uruchom([], ['x'], ['część automatu „a” nie działa'])
+        self.assertEqual(kod, 0, 'same awarie zewnętrzne = zielony przebieg'); self.assertIn('::warning title=kontrola — źródła zewnętrzne::część automatu „a” nie działa', out)
+        kod, out = uruchom(['strona główna nie odpowiada: x'], [], [])
+        self.assertEqual(kod, 1, 'awaria strony = czerwony przebieg'); self.assertNotIn('::warning', out)
+
+    def test_raport_awaria_czesci_dluzsza_niz_doba_to_ostrzezenie(self):
+        k = self.k
+        R = {'at': '2026-10-19T06:20:00+00:00', 'wynik': 'UWAGA', 'strona': {'ok': True, 'http': 200, 'ms': 500}, 'meta': {'at': '2026-10-19T06:13:00+00:00', 'wiek_min': 7, 'zrodla': 76,
+             'bez_odpowiedzi': [], 'errors': [], 'notes': []}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'uwagi': ['x'], 'bledy': [], 'zewnetrzne': ['x'],
+             'awarie': {'trwa': [{'czesc': 'tic', 'od': '2026-10-17T01:00:00+00:00', 'ost': '2026-10-19T06:10:00+00:00', 'n': 30, 'do': None, 'h': 50.0}], 'naprawione': [], 'uwagi': [], 'bledy': ['y']}}
+        md = k.raport_md(R)
+        self.assertIn('(2 dni 2 godz., nieudanych przebiegów: 30) ⚠️.', md); self.assertNotIn('❌', md)
+        L = ['## Zgodność', '- a ❌ b', '- Strona główna: ❌', '## Błędy (wymagają uwagi)', '- c ❌', '## Uwagi', '- d ❌', '| rynki (kursy EBC) | ❌ |', '❌ Błędów: 2 — x']
+        self.assertEqual(k.bez_czerwieni_zewnetrznej(L), ['## Zgodność', '- a ⚠️ b', '- Strona główna: ❌', '## Błędy (wymagają uwagi)', '- c ❌', '## Uwagi', '- d ⚠️',
+                                                           '| rynki (kursy EBC) | ❌ |', '❌ Błędów: 2 — x'])
+
+    def test_readme_opisuje_zasade_alarmu(self):
+        r = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'README.md'), encoding='utf-8').read()
+        self.assertIn('czerwony przebieg GitHuba i ❌ tylko przy awarii strony albo publikacji', r); self.assertIn(self.k.PORADA_3D, r)
+
+    def test_kontrola_przerwana_nie_czerwieni_zewnetrznych(self):
+        k = self.k
+        part = {'at': self.NOW.isoformat(), 'bledy': ['część automatu „a” nie działa od x'], 'uwagi': ['u']}
+        with mock.patch.object(k, '_R_BIEZACY', [part]):
+            R = k.kontrola_przerwana(k.KoniecCzasu())
+        self.assertEqual(R['wynik'], 'BŁĄD'); self.assertEqual(len(R['bledy']), 1); self.assertTrue(R['bledy'][0].startswith('kontrola przerwana'))
+        self.assertEqual(R['zewnetrzne'], ['część automatu „a” nie działa od x']); self.assertEqual(R['uwagi'], ['część automatu „a” nie działa od x', 'u'])

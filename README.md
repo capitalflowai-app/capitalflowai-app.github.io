@@ -40,4 +40,6 @@ Wyłączniki awaryjne:
 
 Kontrola dzienna sprawdza, że `sw.js` na żywej stronie odpowiada (HTTP 200).
 
+Wynik kontroli dziennej (`kontrola/ostatnia.md`): czerwony przebieg GitHuba i ❌ tylko przy awarii strony albo publikacji (strona albo plik stanu nie odpowiada, dane główne starsze niż próg, błędy JavaScriptu na stronie, publikacja stoi lub zatrzymana przez straż kluczy). Awarie pojedynczych źródeł zewnętrznych to ⚠️ z listą i czasem trwania, bez e-maila: jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną.
+
 Automat działa sam w chmurze GitHub; od v354 raz w tygodniu pilnuje go przepływ „Strażnik harmonogramów” (dba o aktywność repozytorium — commit po 30 dniach ciszy — i próbuje włączyć przepływy wyłączone przez GitHub). Opis, co robić gdy coś stanie, i jak odtworzyć dane: `docs/ODTWORZENIE.md`.
