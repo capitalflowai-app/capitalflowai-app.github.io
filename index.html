@@ -51,7 +51,7 @@
   --yl:#FFD60A; --yl-rgb:255,214,10; --gy-rgb:142,142,147; --gr-tx:#30D158; --rd-tx:#FF453A; --yl-tx:#FFD60A; --ico-sep:#1c1c1e;
   --scene-glass:rgba(12,12,14,.4);
   --scene-stroke:rgba(0,0,0,.92);
-  --scene-floor:rgba(235,235,245,.10);
+  --scene-floor:rgba(0,0,0,.82);   /* v484: podłoga w kolorze tła (dark #000) — bez jasnej mgły */
   --scene-skel:rgba(235,235,245,.22);
   --scene-bg1:rgba(120,120,128,.10);
   --scene-vig:rgba(0,0,0,.82);
@@ -77,7 +77,7 @@
   --yl:#FFCC00; --yl-rgb:255,204,0; --gy-rgb:142,142,147; --gr-tx:#248A3D; --rd-tx:#D70015; --yl-tx:#8F6A00; --ico-sep:#ffffff;
   --scene-glass:rgba(255,255,255,.5);
   --scene-stroke:rgba(255,255,255,.95);
-  --scene-floor:rgba(60,60,67,.10);
+  --scene-floor:rgba(255,255,255,.82);   /* v484: podłoga w kolorze tła (light #fff) — bez mgły */
   --scene-skel:rgba(60,60,67,.24);
   --scene-bg1:rgba(120,120,128,.08);
   --scene-vig:rgba(255,255,255,.88);
@@ -4580,14 +4580,14 @@ function routeOf(e){
 }
 
 /* ---------- podłoga ---------- */
-function drawFloor(){   /* v438 (pkt 17): podłoga bez siatki — miękka poświata na płaszczyźnie podłogi (kolor i siła z --scene-floor); lustro i plamy pod obiektami bez zmian */
+function drawFloor(){   /* v438 (pkt 17): podłoga bez siatki; v484 (właściciel 19.10: „mgła za jasna”): płaszczyzna w kolorze tła z miękkim brzegiem — zasłania tło pod sceną, odbicia lustra i plamy pod obiektami rysowane na niej bez zmian */
   const m=/rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,\/]+([\d.]+))?/.exec(PAL.floor||''),rgb=m?m[1]+','+m[2]+','+m[3]:(PAL.dark?'235,235,245':'60,60,67'),al=m&&m[4]!==undefined?+m[4]:.1;
   const c=pr([0,FY,0]);if(!c)return;
   let rx=0,ry=0;
   for(let k=0;k<24;k++){const t=k/24*Math.PI*2,p=pr([44*Math.cos(t),FY,44*Math.sin(t)]);if(!p)return;rx=Math.max(rx,Math.abs(p[0]-c[0]));ry=Math.max(ry,Math.abs(p[1]-c[1]));}
   if(!(rx>8)||!(ry>2)||!isFinite(rx)||!isFinite(ry))return;
   const gr=g.createRadialGradient(0,0,0,0,0,rx);
-  gr.addColorStop(0,`rgba(${rgb},${(al*1.5).toFixed(3)})`);gr.addColorStop(.45,`rgba(${rgb},${(al*.8).toFixed(3)})`);gr.addColorStop(.8,`rgba(${rgb},${(al*.2).toFixed(3)})`);gr.addColorStop(1,`rgba(${rgb},0)`);
+  gr.addColorStop(0,`rgba(${rgb},${al.toFixed(3)})`);gr.addColorStop(.55,`rgba(${rgb},${(al*.9).toFixed(3)})`);gr.addColorStop(.85,`rgba(${rgb},${(al*.4).toFixed(3)})`);gr.addColorStop(1,`rgba(${rgb},0)`);
   g.save();g.translate(c[0],c[1]);g.scale(1,ry/rx);g.fillStyle=gr;g.beginPath();g.arc(0,0,rx,0,Math.PI*2);g.fill();g.restore();
 }
 function drawGroundGlow(n){

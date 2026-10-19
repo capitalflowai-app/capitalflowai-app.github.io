@@ -34056,7 +34056,7 @@ test('v438: podłoga 3D CRYPTO bez siatki — gradient zamiast odcinków, lustro
   assert.ok(!/lineTo|moveTo|\.stroke\(|strokeStyle|step\s*=/.test(F), 'podłoga nie rysuje już żadnych linii (siatki)');
   assert.ok(F.includes('createRadialGradient') && F.includes('.fill()') && F.includes('PAL.floor'), 'miękka poświata z koloru --scene-floor');
   assert.ok(html.includes('setCam();drawFloor();NODES.forEach(drawGroundGlow);') && html.includes('if(C[1]>FY+.3)drawScene(true,time);'), 'kolejność rysowania: podłoga, plamy, lustro, scena');
-  assert.ok(html.includes('--scene-floor:rgba(235,235,245,.10)') && html.includes('--scene-floor:rgba(60,60,67,.10)'), 'kolor podłogi w obu motywach');
+  assert.ok(html.includes('--scene-floor:rgba(0,0,0,.82)') && html.includes('--scene-floor:rgba(255,255,255,.82)') && !html.includes('--scene-floor:rgba(235,235,245,.10)'), 'v484: podłoga w kolorze tła w obu motywach (bez jasnej mgły)');
 });
 
 
