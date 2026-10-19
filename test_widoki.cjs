@@ -26000,7 +26000,7 @@ test('v367 (F5Z2): marża elektrowni gazowej — MODEL: prąd (zł→€ po kurs
   const h = K.api.prdBody(), m = prd367.tile(h, 'mar'), s = M.v > 0 ? '+' : '−';
   assert.ok(m.includes(`<b class="${M.v > 0 ? 'pos' : 'neg'}">${s}${prd367.sp(nf(Math.abs(M.v), 1))} <small class="mtxt">€/MWh</small></b>`), 'kolor wg znaku marży');
   assert.ok(prd367.txt(m).includes(`prąd ${prd367.sp(nf(M.el, 1))} − gaz ${prd367.sp(nf(M.gaz, 1))} − CO2 ${prd367.sp(nf(M.co2, 1))} (€/MWh)`) && prd367.txt(m).includes('model, nie pomiar'));
-  assert.ok(prd367.txt(m).includes('gaz TTF z 12 paź 2026') || prd367.txt(m).includes('gaz TTF z D:2026-10-12') || /gaz TTF z .*2026/.test(prd367.txt(m)), 'data gazu i CO2 przy marży');
+  assert.ok(prd367.txt(m).includes('gaz Europa (wyliczony z ceny LNG) z 12 paź 2026') || prd367.txt(m).includes('gaz Europa (wyliczony z ceny LNG) z D:2026-10-12') || /gaz Europa \(wyliczony z ceny LNG\) z .*2026/.test(prd367.txt(m)), 'data gazu i CO2 przy marży');
   assert.ok(/węglow/.test(prd367.txt(h)) && /nie liczymy/.test(prd367.txt(h)), 'opis: marży elektrowni węglowej nie liczymy (brak dziennej ceny węgla)');
   /* wiek składników */
   const G = prd367.full(); G.api.SU.j.ceny.ttf = prd367.ttf([['2026-10-07', 41.0]]); assert.equal(G.api.prdMarza(), null, 'gaz sprzed 6 dni — poza modelem');
@@ -37420,4 +37420,18 @@ test('v489: kafel Brenta w Pulsie — cena kontraktu terminowego tylko raz (etyk
   assert.equal(cnt(mala, t('su297g.fut', {d: day(L), v: K.api.suFmt(79 + 29 / 2) + ' ' + t('usa.u.bbl')})), 1, 'mała różnica: zdanie o kontrakcie raz');
   assert.ok(!/o \d+% (wyższa|niższa)/.test(mala), 'mała różnica: bez etykiety różnicy');
   assert.ok(html.includes("return [m,suGapTxt(id,run.l)?'':suFut(id,run.l)].filter(Boolean);}"), 'suRunTxt nie dopisuje kontraktu, gdy etykieta różnicy go zawiera');
+});
+
+
+test('v490: marża elektrowni gazowej — gaz nazwany jak w pulsie surowców (z ceny LNG, wyliczony), nie „TTF”; te same znaczniki, pl i en', () => {
+  const I = v143Final(html);
+  for (const l of ['pl', 'en']) for (const k of ['prd367.mar.d', 'prd367.mar.na']) {
+    assert.ok(typeof I[l][k] === 'string' && I[l][k].length > 10, l + ' ' + k);
+    assert.ok(!/TTF/.test(I[l][k]), l + ' ' + k + ': bez „TTF” (ta sama seria nazywa się w pulsie „z ceny LNG”)');
+    const ph = s => (s.match(/\{\w\}/g) || []).sort().join(); assert.equal(ph(I[l][k]), ph(I.pl[k]), l + ' ' + k + ': te same znaczniki');
+  }
+  assert.equal(I.pl['prd367.mar.d'], 'prąd z doby {x}, gaz Europa (wyliczony z ceny LNG) z {a}, CO2 z {b}');
+  assert.equal(I.en['prd367.mar.d'], 'power for {x}, Europe gas (calculated from the LNG price) from {a}, CO2 from {b}');
+  assert.ok(/LNG/.test(I.pl['prd367.mar.na']) && /LNG/.test(I.en['prd367.mar.na']), 'komunikat braku danych też mówi „z ceny LNG”');
+  assert.equal([...html.matchAll(/"prd367\.mar\.d":/g)].length, 2, 'klucz tylko w pl i en');
 });
