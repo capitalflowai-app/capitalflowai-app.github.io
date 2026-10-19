@@ -33228,6 +33228,8 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'Stres: {e}')); META['ok']['stres'] = False
             if prev_st: save('stres', prev_st)
+    # v460 (F11Z42): Azja i Brazylia (kontrakty w Japonii wg typu inwestora, stan posiadania zagranicy w Korei, Shenzhen i ETF Chin, fundusze w Brazylii) — data/azja2.json; bez kluczy, części co 6 h (jp, cn) i 12 h (kr, br)
+    META['ok']['az2_jp'], META['ok']['az2_kr'], META['ok']['az2_cn'], META['ok']['az2_br'] = az2_czesc()
     # v121: aukcje papierów skarbowych USA (bez klucza; dane rządu USA): co 6 h; plik zbudowany z zapasu albo z błędem części — ponowna próba
     # po godzinie; awaria obu źródeł = poprzedni plik i błąd (strona pokazuje datę i wiek każdej aukcji)
     prev_au = previous('aukcje')
@@ -51458,6 +51460,717 @@ def kl_czesc():
 
 
 ZRODLA_META.update({'kli_en': 'noaa-cpc', 'kli_su': 'usdm', 'kli_re': 'pegelonline', 'kli_ms': 'usgs', 'kli_tm': 'climate-reanalyzer', 'kli_po': 'open-meteo'})   # v458: agencja pogody i klimatu USA już liczona (energia_pogoda); cztery nowe źródła + model pogody = +5
+
+
+# ===================== v460 (F11Z42): AZJA 2 I BRAZYLIA — KONTRAKTY W JAPONII WG TYPU INWESTORA, ZAGRANICA W KOREI, SHENZHEN I ETF CHIN, FUNDUSZE W BRAZYLII (data/azja2.json) =====================
+# Cztery niezależne części, każda z własnym czasem pobrania (pole t w części), rytmem i zapasem po błędzie (plik zostaje z poprzednią częścią, najwyżej AZ2_MAX_D dób):
+#   jp — giełda Osaka/Tokio: tygodniowe obroty w kontraktach terminowych wg typu inwestora (zagranica, osoby prywatne, fundusze inwestycyjne): kontrakty na Nikkei 225 (duże, mini, mikro), TOPIX (zwykłe i mini) i obligacje 10-letnie;
+#       saldo = zakupy minus sprzedaż w wartości (mld JPY), udział zagranicy w obrocie; plik CSV tygodnia (po angielsku), strona z listą ostatnich tygodni; historia rośnie od uruchomienia (strona podaje 5–6 ostatnich tygodni);
+#   kr — nadzór finansowy Korei: z tych samych miesięcznych komunikatów co przepływy (korea.json) zdania o STANIE posiadania zagranicy — akcje (bln KRW i % kapitalizacji) i obligacje (bln KRW i % obligacji notowanych);
+#   cn — giełda w Shenzhen: zestawienie dnia (obrót i kapitalizacja akcji, obrót i wartość ETF) z 8 zapytań na przebieg najwyżej + lista ETF z liczbą jednostek: dzienna zmiana liczby jednostek (uczciwie: tylko fundusze obecne w obu dniach)
+#       i oszacowanie napływu = zmiana jednostek × średnia cena (wartość ETF ÷ liczba jednostek); stan listy w osobnym pliku roboczym azja2-stan.json;
+#   br — rejestr funduszy w Brazylii (CVM): dzienne wpłaty i wypłaty funduszy wg rodzaju (obligacje/„renda fixa”, akcje, multimercado, reszta), bez funduszy wyłącznych (jeden inwestor); dzień liczony dopiero, gdy raport ma
+#       co najmniej 95% funduszy z najliczniejszego dnia miesiąca (ostatnie 2–3 dni robocze są zwykle niepełne); klasyfikacja z rejestru klas (osobny duży plik).
+# Pola pliku: ok (część się udała), part_at (ostatnie UDANE pobranie), try_at (ostatnia PRÓBA — po błędzie ponowienie liczone od niej, żeby awaria źródła nie powtarzała dużych pobrań przy każdym przebiegu).
+# Brak = brak (nigdy zero); część starsza niż dopuszczalny wiek przy pobraniu = błąd (stara liczba nie udaje świeżej). Publiczne GET bez klucza, nagłówek zbieracza, limity czasu i rozmiaru, odstęp AZ2_SLEEP s, budżet czasu AZ2_BUDZET_S s na przebieg.
+# Źródła na stronie: giełda w Japonii (jpx) i nadzór Korei (fss-korea) są już liczone; nowe: giełda w Shenzhen (szse) i rejestr funduszy w Brazylii (cvm) — liczba źródeł rośnie o 2. To nie jest porada inwestycyjna.
+AZ2_V = 1
+AZ2_PARTS = ('jp', 'kr', 'cn', 'br')
+AZ2_CO_H = {'jp': 6, 'kr': 12, 'cn': 6, 'br': 12}      # h między pobraniami części
+AZ2_BLAD_H = {'jp': 1, 'kr': 2, 'cn': 1, 'br': 3}      # po błędzie (albo niedokończonym uzupełnianiu historii)
+AZ2_MAX_D = {'jp': 35, 'kr': 80, 'cn': 14, 'br': 10}   # doby: część po błędzie zostaje z poprzedniego pliku najwyżej tak długo
+AZ2_SLEEP = 0.5
+AZ2_SLEEP_CN = 1.5            # giełda w Shenzhen zrywała połączenie przy zapytaniach co 0,6 s (19.10.2026) — odstęp 1,5 s
+AZ2_TIMEOUT = 60
+AZ2_TIMEOUT_DUZY = 150
+AZ2_BUDZET_S = 170
+AZ2_MAX_B = {'jp_lista': 800_000, 'jp_csv': 800_000, 'kr_lista': 1_500_000, 'kr_kom': 1_500_000, 'cn_json': 300_000, 'cn_xlsx': 800_000, 'br_dzien': 60_000_000, 'br_rej': 40_000_000}
+AZ2_JP_LISTA = 'https://www.jpx.co.jp/english/markets/statistics-derivatives/sector/index.html'
+AZ2_JP_HOST = 'https://www.jpx.co.jp'
+AZ2_JP_LINK = re.compile(r'href="(/english/markets/statistics-derivatives/sector/[A-Za-z0-9_\-/]+/Tousi_DV_W_(\d{8})_(\d{8})\.csv)"')
+AZ2_JP_GRUPY = (('ni', ('301', '313', '331')), ('tp', ('314', '316')), ('jg', ('317',)))   # Nikkei 225 (duże, mini, mikro), TOPIX (zwykłe, mini), obligacje 10-letnie — kody pozycji pliku
+AZ2_JP_INW = ('11', '21', '22', '23', '24', '31', '32', '33', '41', '51', '60')          # wszyscy typy inwestorów pliku (suma = obrót całkowity); 60 zagranica, 51 osoby prywatne, 31 fundusze inwestycyjne
+AZ2_JP_OKNO_D = 84          # tygodnie starsze od najnowszego o więcej dób są pomijane (strona trzyma jeden stary plik sprzed miesięcy)
+AZ2_JP_NA_RAZ = 8           # plików CSV (po ~115 KB) na przebieg
+AZ2_JP_N = 52               # tygodni w pliku
+AZ2_JP_MAX_DNI = 28         # najnowszy tydzień nie starszy niż tyle dób przy pobraniu (publikacja 6–11 dób po końcu tygodnia; największy wiek tuż przed kolejnym ≈ 18 dób)
+AZ2_KR_N = 25
+AZ2_KR_NA_RAZ = 14          # komunikatów na przebieg
+AZ2_KR_OKNO = 13            # miesięcy (najnowszy i 12 wcześniejszych)
+AZ2_CN_SM = 'https://www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON&CATALOGID=1803_sczm&TABKEY=tab1&txtQueryDate={d}'
+AZ2_CN_ETF_J = 'https://www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON&CATALOGID=1945&TABKEY=tab1&PAGENO=1'
+AZ2_CN_ETF_X = 'https://www.szse.cn/api/report/ShowReport?SHOWTYPE=xlsx&CATALOGID=1945&TABKEY=tab1'
+AZ2_CN_NA_RAZ = 8           # zapytań o zestawienie dnia na przebieg
+AZ2_CN_DNI = 45             # okno wstecz (doby) dla uzupełniania zestawień (ok. 31 sesji; po 8 zapytań na przebieg — pierwsze uzupełnienie trwa kilka przebiegów)
+AZ2_CN_N = 70               # sesji w pliku
+AZ2_CN_FL_N = 60
+AZ2_CN_MAX_DNI = 14         # najnowsza sesja nie starsza niż tyle dób (8 dób przerwy w Złotym Tygodniu i w Nowym Roku księżycowym)
+AZ2_BR_DZIEN = 'https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_{ym}.zip'
+AZ2_BR_REJ = 'https://dados.cvm.gov.br/dados/FI/CAD/DADOS/registro_fundo_classe.zip'
+AZ2_BR_N = 60
+AZ2_BR_PELNY = 0.95         # dzień liczony, gdy ma co najmniej tyle funduszy co najliczniejszy dzień miesiąca
+AZ2_BR_MAX_DNI = 14
+AZ2_BR_KAT = {'Renda Fixa': 'rf', 'Ações': 'ac', 'Multimercado': 'mm'}   # reszta (cambial, FGTS, brak klasyfikacji) → 'ot'
+AZ2_BR_KOLEJNOSC = ('rf', 'ac', 'mm', 'ot')
+AZ2_SRC = ('tygodniowe kontrakty wg typu inwestora (giełda w Japonii), stan posiadania zagranicy w Korei (nadzór finansowy), zestawienie dnia i lista ETF (giełda w Shenzhen), dzienne wpłaty i wypłaty funduszy (rejestr funduszy w Brazylii) — '
+           'publiczne pliki giełd i urzędów')
+_AZ2_T0 = [None]
+
+
+def az2_dzien(s):
+    """'RRRR-MM-DD' → datetime.date albo None."""
+    try:
+        return datetime.date.fromisoformat(s) if isinstance(s, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', s) else None
+    except ValueError:
+        return None
+
+
+def az2_liczba(x, a=None, b=None):
+    """Skończona liczba (nie bool) w przedziale [a, b]."""
+    if isinstance(x, bool) or not isinstance(x, (int, float)) or x != x or x in (float('inf'), float('-inf')):
+        return False
+    return (a is None or x >= a) and (b is None or x <= b)
+
+
+def az2_r(x, d):
+    """Zaokrąglenie bez ujemnego zera (−0,0 w pliku wyglądałoby na spadek)."""
+    return round(x, d) + 0.0
+
+
+def az2_czas_ok():
+    """Budżet czasu części w przebiegu (zegar rzeczywisty; testy go nie ustawiają = bez limitu)."""
+    return _AZ2_T0[0] is None or time.monotonic() - _AZ2_T0[0] < AZ2_BUDZET_S
+
+
+def az2_pobierz(url, maks, timeout=AZ2_TIMEOUT, pauza=AZ2_SLEEP):
+    """Jedyne miejsce sieci tej części (testy je łatają): zapytanie GET z odstępem, limitem czasu i rozmiaru → bajty. Chwilowy błąd połączenia (reset, czas) — jedna ponowna próba po 3 s; odpowiedź z kodem 4xx nie jest ponawiana."""
+    time.sleep(pauza)
+    try:
+        return get_bytes_maks(url, None, timeout, maks)
+    except urllib.error.HTTPError as e:
+        if e.code < 500:
+            raise
+    except (OSError, _http_client.HTTPException):
+        pass
+    time.sleep(3)
+    return get_bytes_maks(url, None, timeout, maks)
+
+
+def az2_wiek_dni(d, teraz):
+    """Wiek dnia danych (RRRR-MM-DD) wobec chwili przebiegu w dobach; zła data = None."""
+    a, n = az2_dzien(d), _ix_dt(teraz)
+    return None if a is None or n is None else (n.date() - a).days
+
+
+# ---------------------------------------------------------------- (1) Japonia: kontrakty wg typu inwestora ----------------------------------------------------------------
+def az2_jp_lista(tekst):
+    """Strona z listą tygodni → {koniec tygodnia 'RRRR-MM-DD': (początek, adres pliku CSV)}; tylko okres do 7 dób, bez powtórzeń."""
+    out = {}
+    for href, a, b in AZ2_JP_LINK.findall(str(tekst)):
+        try:
+            da, db = datetime.datetime.strptime(a, '%Y%m%d').date(), datetime.datetime.strptime(b, '%Y%m%d').date()
+        except ValueError:
+            continue
+        if 0 <= (db - da).days <= 6:
+            out[db.isoformat()] = (da.isoformat(), href)
+    return out
+
+
+def az2_jp_csv(tekst):
+    """Plik CSV tygodnia → {'od', 'do', 'ni': [...], 'tp': [...], 'jg': [...]}; każda grupa: [saldo zagranicy, saldo osób prywatnych, saldo funduszy inwestycyjnych (mld JPY, zakupy minus sprzedaż w wartości),
+    udział zagranicy w obrocie %, obrót razem (zakupy wszystkich, mld JPY)]. Zły układ, brak typu inwestora albo niespójne saldo = wyjątek (nigdy zgadywanie)."""
+    r = list(csv.reader(io.StringIO(str(tekst))))
+    if not r or len(r[0]) != 12 or 'Type of Investor' not in r[0][5] or 'Volume/Value' not in r[0][6] or 'Product type' not in r[0][0]:
+        raise RuntimeError('nieznany układ pliku kontraktów')
+    pozycje, okres = {}, set()
+    for x in r[1:]:
+        if len(x) != 12 or not x[0].strip():
+            continue
+        if x[6].strip() != '2':        # 1 = liczba kontraktów, 2 = wartość (jen)
+            continue
+        try:
+            s, sb, b, bb, tot = (int(float(x[i])) for i in (7, 8, 9, 10, 11))
+        except ValueError:
+            raise RuntimeError(f'zła liczba w pliku kontraktów ({x[0]}/{x[5]})')
+        if abs((bb + sb) - (b - s)) > 1 or abs(tot - (s + b)) > 1:   # kolumny „saldo”: przy przewadze sprzedaży ujemna wartość po stronie sprzedaży, przy przewadze zakupów dodatnia po stronie zakupów
+            raise RuntimeError(f'saldo niespójne z zakupami i sprzedażą ({x[0]}/{x[5]})')
+        okres.add((x[3].strip(), x[4].strip()))
+        pozycje.setdefault(x[0].strip(), {})[x[5].strip()] = (s, b)
+    if len(okres) != 1:
+        raise RuntimeError('plik kontraktów obejmuje różne okresy')
+    od, do = next(iter(okres))
+    try:
+        od_d, do_d = datetime.datetime.strptime(od, '%Y%m%d').date(), datetime.datetime.strptime(do, '%Y%m%d').date()
+    except ValueError:
+        raise RuntimeError('zła data okresu w pliku kontraktów')
+    out = {'od': od_d.isoformat(), 'do': do_d.isoformat()}
+    for g, kody in AZ2_JP_GRUPY:
+        S, B = {k: 0 for k in AZ2_JP_INW}, {k: 0 for k in AZ2_JP_INW}
+        for p in kody:
+            d = pozycje.get(p)
+            if d is None or any(k not in d for k in AZ2_JP_INW):
+                raise RuntimeError(f'brak pozycji {p} albo typu inwestora w pliku kontraktów')
+            for k in AZ2_JP_INW:
+                S[k] += d[k][0]
+                B[k] += d[k][1]
+        suma = sum(S.values()) + sum(B.values())
+        if suma <= 0:
+            raise RuntimeError(f'pusty obrót grupy {g}')
+        sh = (S['60'] + B['60']) / suma * 100
+        out[g] = [az2_r((B['60'] - S['60']) / 1e9, 2), az2_r((B['51'] - S['51']) / 1e9, 2), az2_r((B['31'] - S['31']) / 1e9, 2), az2_r(sh, 1), az2_r(sum(B.values()) / 1e9, 1)]
+        if not (0 <= sh <= 100) or abs(out[g][0]) > out[g][4]:
+            raise RuntimeError(f'nieprawdopodobny udział albo saldo zagranicy w grupie {g}')
+    return out
+
+
+def az2_jp_wiersz_ok(w):
+    return (isinstance(w, list) and len(w) == 4 and az2_dzien(w[0]) is not None
+            and all(isinstance(g, list) and len(g) == 5 and all(az2_liczba(v) for v in g) and 0 <= g[3] <= 100 and g[4] > 0 for g in w[1:]))
+
+
+def az2_jp_czesc(stara, teraz):
+    lista = az2_jp_lista(az2_pobierz(AZ2_JP_LISTA, AZ2_MAX_B['jp_lista']).decode('utf-8', 'replace'))
+    if not lista:
+        raise RuntimeError('brak plików tygodnia na stronie giełdy')
+    nowy = max(lista)
+    dn = az2_dzien(nowy)
+    ramy = {k: v for k, v in lista.items() if (dn - az2_dzien(k)).days <= AZ2_JP_OKNO_D}
+    rows = {w[0]: w for w in (stara or {}).get('rows', []) if az2_jp_wiersz_ok(w)}
+    brak = [k for k in sorted(ramy, reverse=True) if k not in rows]
+    for k in brak[:AZ2_JP_NA_RAZ]:
+        if not az2_czas_ok():
+            break
+        try:
+            d = az2_jp_csv(az2_pobierz(AZ2_JP_HOST + ramy[k][1], AZ2_MAX_B['jp_csv']).decode('utf-8-sig'))
+            if d['do'] != k or d['od'] != ramy[k][0]:
+                raise RuntimeError('okres w pliku inny niż w nazwie')
+            rows[k] = [k, d['ni'], d['tp'], d['jg']]
+        except Exception as e:  # noqa — stary tydzień nie psuje części, najnowszy sprawdzany niżej
+            META['errors'].append(mask(f'Azja i Brazylia: kontrakty Japonii {k}: {e}')[:200])
+    if nowy not in rows:
+        raise RuntimeError(f'najnowszy tydzień {nowy} nie został odczytany')
+    w = az2_wiek_dni(nowy, teraz)
+    if w is None or w > AZ2_JP_MAX_DNI:
+        raise RuntimeError(f'najnowszy tydzień {nowy} jest starszy niż {AZ2_JP_MAX_DNI} dób')
+    wsz = [rows[k] for k in sorted(rows)][-AZ2_JP_N:]
+    return {'date': wsz[-1][0], 'rows': wsz,
+            'unit': 'mld JPY, saldo = zakupy minus sprzedaż w wartości kontraktów; grupy: Nikkei 225 (duże, mini, mikro), TOPIX (zwykłe, mini), obligacje 10-letnie; kolumny grupy: zagranica, osoby prywatne, fundusze inwestycyjne, udział zagranicy w obrocie %, obrót razem'}
+
+
+# ---------------------------------------------------------------- (2) Korea: stan posiadania zagranicy ----------------------------------------------------------------
+AZ2_KR_AKCJE = re.compile(r'holdings? of listed stocks.{0,80}?KRW\s?([\d,]+(?:\.\d+)?)\s?(trillion|billion).{0,70}?representing\s+([\d.]+)\s?%\s+of\s+(?:the\s+)?total\s+market\s+capitali[sz]ation')
+AZ2_KR_OBLIG = re.compile(r'bond holdings?.{0,60}?KRW\s?([\d,]+(?:\.\d+)?)\s?(trillion|billion).{0,70}?accounting for\s+([\d.]+)\s?%\s+of\s+(?:the\s+)?total\s+listed\s+bonds')
+MONTHS_EN_LISTA = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December')
+
+
+def az2_kr_tekst(html_):
+    return re.sub(r'\s+', ' ', _html.unescape(re.sub(r'<[^>]+>', ' ', str(html_))))
+
+
+def az2_kr_kom(html_, ym):
+    """Komunikat miesiąca ym → [ym, akcje bln KRW, udział w kapitalizacji %, obligacje bln KRW, udział w obligacjach %] (bln = 10^12; „trillion” źródła). Zdania o stanie posiadania są w tym samym komunikacie co przepływy.
+    Brak tytułu z tym miesiącem albo inne zdania = wyjątek; liczby nieprawdopodobne = wyjątek."""
+    t = az2_kr_tekst(html_)
+    mn = MONTHS_EN_LISTA[int(ym[5:7]) - 1]
+    if f'Stock and Bond Investment, {mn} {ym[:4]}' not in t:
+        raise RuntimeError(f'komunikat nie dotyczy miesiąca {ym}')
+    a, o = AZ2_KR_AKCJE.search(t), AZ2_KR_OBLIG.search(t)
+    if not a or not o:
+        raise RuntimeError('nieznane zdania o stanie posiadania')
+
+    def tn(m):
+        v = _num(m.group(1))
+        return None if v is None else az2_r(v / 1000 if m.group(2) == 'billion' else v, 1)
+    r = [ym, tn(a), _num(a.group(3)), tn(o), _num(o.group(3))]
+    if not az2_kr_ok(r):
+        raise RuntimeError('nieprawdopodobny stan posiadania zagranicy')
+    return r
+
+
+def az2_kr_ok(r):
+    """Wiersz miesiąca i jego wiarygodność: udziały w przedziałach, a stan ÷ udział (= całość rynku) w rozsądnych granicach."""
+    if not (isinstance(r, list) and len(r) == 5 and isinstance(r[0], str) and re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', r[0]) and all(az2_liczba(v) for v in r[1:])):
+        return False
+    return 3 <= r[2] <= 70 and 2 <= r[4] <= 60 and r[1] > 0 and r[3] > 0 and 500 <= r[1] / r[2] * 100 <= 40000 and 100 <= r[3] / r[4] * 100 <= 12000
+
+
+def az2_kr_czesc(stara, teraz):
+    have = {r[0]: r for r in (stara or {}).get('rows', []) if az2_kr_ok(r)}
+    gleboko = bool((stara or {}).get('bf')) or len(have) < 6   # pierwsze uruchomienie albo niedokończone uzupełnianie: lista strona po stronie (jeden komunikat na stronę); później wystarcza pierwsza strona
+    tytuly, pobrane, niedokonczone = {}, 0, False
+    for p in range(1, FSS_PAGES + 1):
+        if not az2_czas_ok():
+            niedokonczone = True
+            break
+        page = az2_pobierz(FSS_LIST.format(p=p), AZ2_MAX_B['kr_lista'], AZ2_TIMEOUT).decode('utf-8', 'replace')
+        for href, mon, yr in FSS_TITLE.findall(page):
+            mo = MONTHS_EN.get(mon)
+            if mo:
+                tytuly[f'{yr}-{mo:02d}'] = _html.unescape(href)
+        if not gleboko or (tytuly and all(m in have or m in tytuly for m in (_q_ym_add(max(tytuly), -k) for k in range(AZ2_KR_OKNO)))):
+            break
+    if not tytuly:
+        raise RuntimeError('brak komunikatów o inwestycjach zagranicy na liście')
+    nowy = max(tytuly)
+    okno = [_q_ym_add(nowy, -k) for k in range(AZ2_KR_OKNO)]
+    for ym in [m for m in okno if m in tytuly and (m not in have or m == nowy)]:     # najnowszy komunikat czytany zawsze (poprawki), starsze tylko brakujące
+        if pobrane >= AZ2_KR_NA_RAZ or not az2_czas_ok():
+            niedokonczone = True
+            break
+        pobrane += 1
+        try:
+            have[ym] = az2_kr_kom(az2_pobierz(FSS_BASE + tytuly[ym], AZ2_MAX_B['kr_kom'], AZ2_TIMEOUT).decode('utf-8', 'replace'), ym)
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'Azja i Brazylia: Korea {ym}: {e}')[:200])
+    if nowy not in have:
+        raise RuntimeError(f'komunikat {nowy} nieczytelny')
+    ostatni = max(have)
+    termin = datetime.date(int(_q_ym_add(ostatni, 2)[:4]), int(_q_ym_add(ostatni, 2)[5:7]), 1) + datetime.timedelta(days=34)
+    te = _ix_dt(teraz)
+    if te is not None and te.date() > termin:
+        raise RuntimeError(f'brak nowego komunikatu po {ostatni} (ostatni termin {termin.isoformat()})')
+    wsz = [have[k] for k in sorted(have)][-AZ2_KR_N:]
+    o = {'m': wsz[-1][0], 'rows': wsz,
+         'unit': 'bln KRW (10^12); udział akcji w kapitalizacji rynku i obligacji w obligacjach notowanych, %; kolumny: miesiąc, akcje, udział akcji, obligacje, udział obligacji'}
+    if niedokonczone or any(m in tytuly and m not in have for m in okno):
+        o['bf'] = True    # historia niepełna (budżet czasu, limit na przebieg albo nieczytelny stary komunikat) — kolejna próba po AZ2_BLAD_H
+    return o
+
+
+# ---------------------------------------------------------------- (3) Chiny: Shenzhen — zestawienie dnia i ETF ----------------------------------------------------------------
+def az2_cn_sm(j, d):
+    """Odpowiedź zestawienia dnia d → [d, obrót akcji mld CNY, kapitalizacja akcji mld CNY, obrót ETF mld CNY, wartość ETF mld CNY, liczba ETF] albo None (dzień bez sesji). Źródło podaje 亿元 (100 mln CNY)."""
+    if not isinstance(j, list) or not j or not isinstance(j[0], dict) or not isinstance(j[0].get('metadata'), dict) or not isinstance(j[0].get('data'), list):
+        raise RuntimeError('nieznany układ zestawienia dnia')
+    md, dane = j[0]['metadata'], j[0]['data']
+    if not dane:
+        return None
+    if md.get('subname') != d:
+        raise RuntimeError(f'zestawienie dla innego dnia ({md.get("subname")})')
+    wiersze = {}
+    for x in dane:
+        if isinstance(x, dict):
+            wiersze[_html.unescape(str(x.get('lbmc', ''))).replace('\xa0', ' ').strip()] = x
+    ak, etf = wiersze.get('股票'), wiersze.get('ETF')
+    if not ak or not etf:
+        raise RuntimeError('brak wierszy akcji albo ETF w zestawieniu dnia')
+
+    def mld(x, k):
+        v = _num(x.get(k))
+        return None if v is None else az2_r(v * 0.1, 2)   # 亿元 → mld CNY
+    n_etf = _num(etf.get('zqsl'))
+    r = [d, mld(ak, 'cjje'), mld(ak, 'sjzz'), mld(etf, 'cjje'), mld(etf, 'sjzz'), None if n_etf is None else int(n_etf)]
+    if not az2_cn_sm_ok(r):
+        raise RuntimeError('nieprawdopodobne liczby w zestawieniu dnia')
+    return r
+
+
+def az2_cn_sm_ok(r):
+    return (isinstance(r, list) and len(r) == 6 and az2_dzien(r[0]) is not None and all(az2_liczba(v) for v in r[1:])
+            and 10 <= r[1] <= 8000 and 2000 <= r[2] <= 300000 and 0 <= r[3] <= 8000 and 50 <= r[4] <= 150000 and 20 <= r[5] <= 6000)
+
+
+def az2_cn_etf_json(j):
+    """Pierwsza strona listy ETF → (dzień stanu, liczba funduszy, kod pierwszego, jego liczba jednostek w tys. szt.). Dzień jest w nagłówku kolumny „stan”."""
+    if not isinstance(j, list) or not j or not isinstance(j[0], dict) or not isinstance(j[0].get('metadata'), dict) or not isinstance(j[0].get('data'), list) or not j[0]['data']:
+        raise RuntimeError('nieznany układ listy ETF')
+    md = j[0]['metadata']
+    m = re.search(r'[（(](\d{4}-\d{2}-\d{2})[）)]', str((md.get('cols') or {}).get('dqgm', '')))   # w nagłówku nawiasy pełnej szerokości
+    if not m or az2_dzien(m.group(1)) is None:
+        raise RuntimeError('brak dnia stanu w nagłówku listy ETF')
+    n = md.get('recordcount')
+    x = j[0]['data'][0]
+    k = re.search(r'>(\d{6})<', str(x.get('sys_key', '')))
+    wan = _num(x.get('dqgm'))
+    if not isinstance(n, int) or isinstance(n, bool) or n < 50 or not k or wan is None:
+        raise RuntimeError('nieczytelna pierwsza strona listy ETF')
+    return m.group(1), n, k.group(1), wan
+
+
+def az2_cn_etf_xlsx(b):
+    """Plik xlsx listy ETF → {kod: liczba jednostek}. Komórki tekstowe w arkuszu (bez tablicy tekstów); inny układ = wyjątek."""
+    z = zipfile.ZipFile(io.BytesIO(b))
+    try:
+        info = z.getinfo('xl/worksheets/sheet1.xml')
+    except KeyError:
+        raise RuntimeError('brak arkusza w pliku listy ETF')
+    if info.file_size > 6_000_000:
+        raise RuntimeError('arkusz listy ETF zbyt duży')
+    xml = z.read(info).decode('utf-8', 'replace')
+    if 't="s"' in xml:
+        raise RuntimeError('lista ETF: inny układ komórek')
+    wiersze = re.findall(r'<row r="\d+">(.*?)</row>', xml, re.S)
+    if len(wiersze) < 51:
+        raise RuntimeError('lista ETF za krótka')
+
+    def kom(w):
+        return [_html.unescape(c).strip() for c in re.findall(r'<t[^>]*>(.*?)</t>', w, re.S)]
+    glowa = kom(wiersze[0])
+    if len(glowa) != 5 or '规模' not in glowa[3]:
+        raise RuntimeError('lista ETF: nieznany nagłówek')
+    out = {}
+    for w in wiersze[1:]:
+        c = kom(w)
+        if len(c) != 5:
+            continue
+        u = _num(c[3])
+        if not re.fullmatch(r'\d{6}', c[0]) or u is None or u <= 0 or u != int(u):
+            continue
+        out[c[0]] = int(u)
+    if len(out) < 0.95 * (len(wiersze) - 1):
+        raise RuntimeError('lista ETF: zbyt wiele nieczytelnych wierszy')
+    return out
+
+
+def az2_cn_etf_dzien(stan_etf, d, mapa, cap):
+    """Aktualizacja stanu listy ETF (słownik z pliku azja2-stan) o stan dnia d i mapę kod → jednostki; zwraca wiersz zmiany dnia
+    [d, zmiana jednostek mld szt., fundusze z napływem, z odpływem, bez zmiany, oszacowanie napływu mld CNY lub None] albo None (brak poprzedniego dnia / ten sam dzień bez poprzedniego).
+    Zmiana liczona tylko dla funduszy obecnych w obu dniach (nowe wejścia i wyjścia nie udają napływu)."""
+    st = stan_etf
+    if st.get('d') == d:
+        st['u'] = mapa
+    elif st.get('d') is None or st['d'] < d:
+        if st.get('d') is not None and isinstance(st.get('u'), dict):
+            st['dp'], st['up'] = st['d'], st['u']
+        st['d'], st['u'] = d, mapa
+    else:
+        raise RuntimeError(f'lista ETF cofnęła się: {d} przed {st.get("d")}')
+    up = st.get('up')
+    if not isinstance(up, dict) or not up or st.get('dp') is None or st['dp'] >= d:
+        return None
+    wsp = [k for k in mapa if k in up]
+    if len(wsp) < 0.9 * len(mapa):
+        return None
+    dU = sum(mapa[k] - up[k] for k in wsp)
+    nu, nd = sum(1 for k in wsp if mapa[k] > up[k]), sum(1 for k in wsp if mapa[k] < up[k])
+    razem = sum(mapa.values())
+    est = None
+    if az2_liczba(cap, 1) and razem > 0:
+        est = az2_r(dU * (cap * 1e9 / razem) / 1e9, 2)   # jednostki × średnia cena (wartość ETF ÷ liczba jednostek), mld CNY
+    return [d, az2_r(dU / 1e9, 3), nu, nd, len(wsp) - nu - nd, est]
+
+
+def az2_cn_czesc(stara, stan, teraz):
+    """Zestawienie dnia (do AZ2_CN_NA_RAZ zapytań) + lista ETF (dwa zapytania). Aktualizuje `stan` (słownik pliku azja2-stan). Błąd samej listy ETF przy działającym zestawieniu: część zostaje z poprzednią listą, błąd w '_bl'."""
+    stara = stara if isinstance(stara, dict) else {}
+    sm = {r[0]: r for r in stara.get('sm', []) if az2_cn_sm_ok(r)}
+    nt = {d for d in stara.get('nt', []) if az2_dzien(d) is not None}
+    te = _ix_dt(teraz)
+    dzis = te.date()
+    dni = [dzis - datetime.timedelta(days=k) for k in range(AZ2_CN_DNI + 1)]
+    dni = [d.isoformat() for d in dni if d.weekday() < 5]
+    swieze = dni[:2]                                    # dwie ostatnie doby robocze: stan wieczorny bywa wstępny — odczyt ponawiany aż do stanu ostatecznego
+    kolejka = swieze + [d for d in dni[2:] if d not in sm and d not in nt]
+    postep = 0     # starsze dni rozstrzygnięte w tym przebiegu (zapisane albo uznane za dni bez sesji)
+    odp = 0        # zapytania o zestawienia, na które giełda odpowiedziała (także „brak sesji”) — bez żadnej odpowiedzi część zawodzi, choćby były starsze dane
+    for d in kolejka[:AZ2_CN_NA_RAZ]:
+        if not az2_czas_ok():
+            break
+        try:
+            r = az2_cn_sm(json.loads(az2_pobierz(AZ2_CN_SM.format(d=d), AZ2_MAX_B['cn_json'], AZ2_TIMEOUT, AZ2_SLEEP_CN).decode('utf-8')), d)
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'Azja i Brazylia: Shenzhen {d}: {e}')[:200])
+            continue
+        odp += 1
+        if r is not None:
+            sm[d] = r
+        elif d not in swieze:
+            nt.add(d)
+        if d not in swieze:
+            postep += 1
+    if not odp:
+        raise RuntimeError('brak odpowiedzi giełdy w Shenzhen (zestawienie dnia)')
+    if not sm:
+        raise RuntimeError('brak zestawienia dnia giełdy w Shenzhen')
+    sm_n = sorted(sm)[-AZ2_CN_N:]
+    sm = {d: sm[d] for d in sm_n}
+    nt = {d for d in nt if d >= sm_n[0]}
+    w = az2_wiek_dni(sm_n[-1], teraz)
+    if w is None or w > AZ2_CN_MAX_DNI:
+        raise RuntimeError(f'najnowsza sesja {sm_n[-1]} jest starsza niż {AZ2_CN_MAX_DNI} dób')
+    # lista ETF
+    etf_stary = stara.get('etf') if isinstance(stara.get('etf'), dict) else None
+    etf, err = etf_stary, None
+    try:
+        if not az2_czas_ok():
+            raise RuntimeError('budżet czasu przebiegu wyczerpany')
+        d_e, n_e, k1, wan1 = az2_cn_etf_json(json.loads(az2_pobierz(AZ2_CN_ETF_J, AZ2_MAX_B['cn_json'], AZ2_TIMEOUT, AZ2_SLEEP_CN).decode('utf-8')))
+        mapa = az2_cn_etf_xlsx(az2_pobierz(AZ2_CN_ETF_X, AZ2_MAX_B['cn_xlsx'], AZ2_TIMEOUT, AZ2_SLEEP_CN))
+        if abs(len(mapa) - n_e) > 3:
+            raise RuntimeError(f'lista ETF: {len(mapa)} wierszy w pliku, {n_e} w odpowiedzi')
+        if k1 not in mapa or abs(mapa[k1] / 1e4 - wan1) > 0.011:
+            raise RuntimeError('lista ETF: plik i odpowiedź z różnych chwil')
+        we = az2_wiek_dni(d_e, teraz)
+        if we is None or we > AZ2_CN_MAX_DNI:
+            raise RuntimeError(f'stan listy ETF {d_e} starszy niż {AZ2_CN_MAX_DNI} dób')
+        cap = sm[d_e][4] if d_e in sm else None
+        fl = {r[0]: r for r in ((etf_stary or {}).get('fl') or []) if isinstance(r, list) and len(r) == 6 and az2_dzien(r[0]) is not None}
+        stan_etf = stan.setdefault('etf', {})
+        wiersz = az2_cn_etf_dzien(stan_etf, d_e, mapa, cap)
+        if wiersz is not None:
+            fl[d_e] = wiersz
+        razem = sum(mapa.values())
+        etf = {'date': d_e, 'n': len(mapa), 'units': az2_r(razem / 1e9, 2), 'cap': cap if cap is None else az2_r(cap, 2),
+               'fl': [fl[k] for k in sorted(fl)][-AZ2_CN_FL_N:]}
+    except Exception as e:  # noqa
+        err = f'lista ETF: {e}'
+        META['errors'].append(mask(f'Azja i Brazylia: Shenzhen {err}')[:200])
+    o = {'date': sm_n[-1], 'sm': [sm[d] for d in sm_n], 'nt': sorted(nt),
+         'unit': 'mld CNY (zestawienie dnia: akcje i ETF w Shenzhen); lista ETF: liczba jednostek w mld szt., napływ ≈ zmiana jednostek × średnia cena'}
+    if etf is not None:
+        o['etf'] = etf
+    if postep and any(d not in sm and d not in nt for d in dni[2:]):
+        o['bf'] = True    # uzupełnianie historii trwa (są jeszcze dni bez odpowiedzi, a ten przebieg coś rozstrzygnął) — kolejna próba po AZ2_BLAD_H
+    if err:
+        o['_bl'] = [err]
+    return o
+
+
+# ---------------------------------------------------------------- (4) Brazylia: wpłaty i wypłaty funduszy ----------------------------------------------------------------
+def az2_br_rejestr(b):
+    """Archiwum rejestru klas funduszy → {CNPJ klasy (same cyfry): (kategoria, wyłączny)}; kategoria: rf (Renda Fixa), ac (Ações), mm (Multimercado), ot (reszta)."""
+    z = zipfile.ZipFile(io.BytesIO(b))
+    try:
+        info = z.getinfo('registro_classe.csv')
+    except KeyError:
+        raise RuntimeError('brak pliku klas w rejestrze funduszy')
+    if info.file_size > 120_000_000:
+        raise RuntimeError('plik klas zbyt duży')
+    r = csv.reader(io.TextIOWrapper(z.open(info), encoding='latin-1', newline=''), delimiter=';')
+    h = next(r, None)
+    if not h or any(k not in h for k in ('CNPJ_Classe', 'Classificacao', 'Exclusivo')):
+        raise RuntimeError('rejestr klas: nieznany nagłówek')
+    ic, ik, ie = h.index('CNPJ_Classe'), h.index('Classificacao'), h.index('Exclusivo')
+    out = {}
+    for x in r:
+        if len(x) <= max(ic, ik, ie):
+            continue
+        c = re.sub(r'\D', '', x[ic])
+        if len(c) >= 11:
+            out[c] = (AZ2_BR_KAT.get(x[ik].strip(), 'ot'), x[ie].strip() == 'S')
+    if len(out) < 5000:
+        raise RuntimeError('rejestr klas: zbyt mało pozycji')
+    return out
+
+
+def az2_br_dni(b, rej, ym):
+    """Archiwum dziennych raportów miesiąca → {dzień: {'n': liczba funduszy w raporcie, 'c': {kategoria: [wpłaty, wypłaty, aktywa netto, liczba funduszy]} w mld BRL}} bez funduszy wyłącznych."""
+    z = zipfile.ZipFile(io.BytesIO(b))
+    nazwa = f'inf_diario_fi_{ym}.csv'
+    try:
+        info = z.getinfo(nazwa)
+    except KeyError:
+        raise RuntimeError(f'brak pliku {nazwa} w archiwum')
+    if info.file_size > 400_000_000:
+        raise RuntimeError('raport dzienny zbyt duży')
+    r = csv.reader(io.TextIOWrapper(z.open(info), encoding='latin-1', newline=''), delimiter=';')
+    h = next(r, None)
+    nz = ('CNPJ_FUNDO_CLASSE', 'DT_COMPTC', 'VL_PATRIM_LIQ', 'CAPTC_DIA', 'RESG_DIA')
+    if not h or any(k not in h for k in nz):
+        raise RuntimeError('raport dzienny: nieznany nagłówek')
+    ic, id_, ip, ia, ir = (h.index(k) for k in nz)
+    mx = max(ic, id_, ip, ia, ir)
+    dni = {}
+    for x in r:
+        if len(x) <= mx:
+            continue
+        d = x[id_]
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', d):
+            continue
+        a = dni.get(d)
+        if a is None:
+            a = dni[d] = {'n': 0, 'c': {k: [0.0, 0.0, 0.0, 0] for k in AZ2_BR_KOLEJNOSC}}
+        a['n'] += 1
+        kat, wyl = rej.get(re.sub(r'\D', '', x[ic]), ('ot', False))
+        if wyl:
+            continue
+        try:
+            cap, res, pl = float(x[ia] or 0), float(x[ir] or 0), float(x[ip] or 0)
+        except ValueError:
+            continue
+        if cap != cap or res != res or pl != pl:
+            continue
+        c = a['c'][kat]
+        c[0] += cap
+        c[1] += res
+        c[2] += pl
+        c[3] += 1
+    return dni
+
+
+def az2_br_pelne(dni):
+    """Dni z kompletem raportów: co najmniej AZ2_BR_PELNY najliczniejszego dnia pliku; zwraca (słownik dzień → dane w mld BRL, najliczniejszy dzień)."""
+    if not dni:
+        return {}, 0
+    ref = max(v['n'] for v in dni.values())
+    if ref < 1000:
+        raise RuntimeError('raport dzienny: zbyt mało funduszy')
+    out = {}
+    for d, v in dni.items():
+        if v['n'] >= AZ2_BR_PELNY * ref:
+            out[d] = {'n': v['n'], 'ref': ref, 'c': {k: [az2_r(x[0] / 1e9, 3), az2_r(x[1] / 1e9, 3), az2_r(x[2] / 1e9, 2), x[3]] for k, x in v['c'].items()}}
+    return out, ref
+
+
+def az2_br_wiersz_ok(w):
+    return isinstance(w, list) and len(w) == 5 and az2_dzien(w[0]) is not None and all(az2_liczba(v) for v in w[1:])
+
+
+def az2_br_czesc(stara, teraz):
+    stara = stara if isinstance(stara, dict) else {}
+    rows = {w[0]: w for w in stara.get('rows', []) if az2_br_wiersz_ok(w)}
+    te = _ix_dt(teraz)
+    ym_now = f'{te.year:04d}{te.month:02d}'
+    ym_prev = _q_ym_add(f'{te.year:04d}-{te.month:02d}', -1).replace('-', '')
+    miesiace = ([ym_prev] if (len(rows) < 25 or te.day <= 7) else []) + [ym_now]
+    rej, nowe, bl = None, {}, []
+    for ym in miesiace:
+        if not az2_czas_ok():
+            bl.append('budżet czasu przebiegu wyczerpany')
+            break
+        try:
+            if rej is None:
+                rej = az2_br_rejestr(az2_pobierz(AZ2_BR_REJ, AZ2_MAX_B['br_rej'], AZ2_TIMEOUT_DUZY))
+            pelne, _ = az2_br_pelne(az2_br_dni(az2_pobierz(AZ2_BR_DZIEN.format(ym=ym), AZ2_MAX_B['br_dzien'], AZ2_TIMEOUT_DUZY), rej, ym))
+            nowe.update(pelne)
+        except Exception as e:  # noqa
+            META['errors'].append(mask(f'Azja i Brazylia: fundusze Brazylii {ym}: {e}')[:200])
+            bl.append(f'{ym}: {e}')
+    if not nowe:
+        raise RuntimeError(bl[0] if bl else 'brak kompletnych dni w raporcie funduszy')
+    for d, v in nowe.items():
+        rows[d] = [d] + [az2_r(v['c'][k][0] - v['c'][k][1], 3) for k in AZ2_BR_KOLEJNOSC]
+    wsz = [rows[k] for k in sorted(rows)][-AZ2_BR_N:]
+    d_o = wsz[-1][0]
+    w = az2_wiek_dni(d_o, teraz)
+    if w is None or w > AZ2_BR_MAX_DNI:
+        raise RuntimeError(f'najnowszy kompletny dzień {d_o} jest starszy niż {AZ2_BR_MAX_DNI} dób')
+    o = {'date': d_o, 'rows': wsz,
+         'unit': 'mld BRL, saldo dnia = wpłaty minus wypłaty funduszy (bez funduszy wyłącznych); kolumny: dzień, obligacje (renda fixa), akcje, multimercado, reszta'}
+    if d_o in nowe:
+        v = nowe[d_o]
+        o['last'] = {'d': d_o, 'n': v['n'], 'cov': az2_r(v['n'] / v['ref'] * 100, 1), 'c': {k: v['c'][k] for k in AZ2_BR_KOLEJNOSC}}
+    elif isinstance(stara.get('last'), dict) and stara['last'].get('d') == d_o:
+        o['last'] = stara['last']
+    return o
+
+
+# ---------------------------------------------------------------- plik, rytm, przebieg ----------------------------------------------------------------
+def az2_job(n, stara, teraz, stan):
+    """Odczyt jednej części z sieci → gotowa część pliku (z polem t = chwila pobrania)."""
+    if n == 'jp':
+        o = az2_jp_czesc(stara, teraz)
+    elif n == 'kr':
+        o = az2_kr_czesc(stara, teraz)
+    elif n == 'cn':
+        o = az2_cn_czesc(stara, stan, teraz)
+    else:
+        o = az2_br_czesc(stara, teraz)
+    o = dict(o)
+    o['t'] = teraz
+    return o
+
+
+def az2_trzeba(czas, ok_prev, teraz, co_h, blad_h):
+    """Czy część pobrać w tym przebiegu: brak czasu poprzedniego pobrania = tak; po błędzie co blad_h, inaczej co co_h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    return (tn - tk).total_seconds() / 3600 >= (co_h if ok_prev else blad_h)
+
+
+def az2_zadania(pv, teraz):
+    """Które części pobrać w tym przebiegu → {część: bool}. Część zdrowa wraca po rytmie od ostatniego UDANEGO pobrania (part_at); część po błędzie albo z niedokończoną historią (bf) — po AZ2_BLAD_H od ostatniej PRÓBY (try_at),
+    żeby awaria źródła nie powodowała ponawiania przy każdym przebiegu (duże pliki)."""
+    ok = pv.get('ok') if isinstance(pv.get('ok'), dict) else {}
+    pat = pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}
+    tat = pv.get('try_at') if isinstance(pv.get('try_at'), dict) else {}
+    out = {}
+    for n in AZ2_PARTS:
+        P = pv.get(n)
+        if not isinstance(P, dict):
+            out[n] = True
+            continue
+        zdrowa = ok.get(n, True) is not False and not P.get('bf')
+        czas = (pat.get(n) or pv.get('at')) if zdrowa else (tat.get(n) or pat.get(n) or pv.get('at'))
+        out[n] = az2_trzeba(czas, zdrowa, teraz, AZ2_CO_H[n], AZ2_BLAD_H[n])
+    return out
+
+
+def build_azja2(prev=None, zadania=None, stan=None):
+    """v460: data/azja2.json {v, at, src, ok, part_at, jp, kr, cn, br} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm) zostaje z poprzedniego pliku bez zmian; część po błędzie — z poprzedniego pliku
+    z własnym czasem (najwyżej AZ2_MAX_D dób), błąd do META['errors']. Żadna część w pliku = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == AZ2_V else {}
+    stan = stan if isinstance(stan, dict) else {}
+    zad = zadania if zadania is not None else az2_zadania(pv, NOW)
+    pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
+    tat0 = pv.get('try_at') if isinstance(pv.get('try_at'), dict) else {}
+    out = {'v': AZ2_V, 'at': NOW, 'src': AZ2_SRC, 'ok': {}, 'part_at': {}, 'try_at': {}}
+    st = {}
+    for n in AZ2_PARTS:
+        stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+        if not zad.get(n):
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+                if tat0.get(n):
+                    out['try_at'][n] = tat0[n]
+            else:
+                st[n] = 'cached'
+            continue
+        out['try_at'][n] = NOW
+        try:
+            o = az2_job(n, stara, NOW, stan)
+            bl = o.pop('_bl', None)
+            out[n], out['part_at'][n] = o, NOW
+            out['ok'][n] = st[n] = not bl
+            for b in (bl or []):
+                META['errors'].append(mask(f'Azja i Brazylia: {n}: {b}')[:200])
+        except Exception as e:  # noqa — jedna część nie psuje pozostałych
+            META['errors'].append(mask(f'Azja i Brazylia: {n}: {e}')[:200])
+            out['ok'][n], st[n] = False, False
+            if stara is not None and _zapas_wiek_ok(pat0.get(n) or pv.get('at'), AZ2_MAX_D[n]):
+                out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
+    if not any(isinstance(out.get(n), dict) for n in AZ2_PARTS):
+        raise RuntimeError('żadna część pliku Azja i Brazylia nie ma danych')
+    return out, st
+
+
+def az2_czesc():
+    """v460: część przebiegu → krotka wartości dla META['ok'] w kolejności AZ2_PARTS: True = pobrane, 'cached' = poprzednia wersja wystarcza (rytm), False = część zawiodła. Nieudana budowa zostawia poprzedni plik.
+    Plik roboczy azja2-stan.json (stan listy ETF z dwóch ostatnich dni) jest zawsze zapisywany ponownie — plik, którego przebieg nie zapisze, znika ze strony."""
+    prev = previous('azja2')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == AZ2_V else None
+    prev_stan = previous('azja2-stan')
+    prev_stan = prev_stan if isinstance(prev_stan, dict) and prev_stan.get('v') == 1 else None
+    zad = az2_zadania(prev or {}, NOW)
+    if prev and not any(zad.values()):
+        save('azja2', prev)
+        if prev_stan:
+            save('azja2-stan', prev_stan)
+        return tuple('cached' for _ in AZ2_PARTS)
+    stan = json.loads(json.dumps(prev_stan)) if prev_stan else {'v': 1}
+    _AZ2_T0[0] = time.monotonic()
+    try:
+        obj, st = build_azja2(prev, zad, stan)
+        save('azja2', obj)
+        if stan != (prev_stan or {'v': 1}):
+            stan['at'] = NOW
+            save('azja2-stan', stan)
+        elif prev_stan:
+            save('azja2-stan', prev_stan)
+        return tuple(st.get(n, False) for n in AZ2_PARTS)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Azja i Brazylia: {e}')[:200])
+        if prev:
+            save('azja2', prev)
+        if prev_stan:
+            save('azja2-stan', prev_stan)
+        return tuple(False for _ in AZ2_PARTS)
+    finally:
+        _AZ2_T0[0] = None
+
+
+ZRODLA_META.update({'az2_jp': 'jpx', 'az2_kr': 'fss-korea', 'az2_cn': 'szse', 'az2_br': 'cvm'})   # v460: giełda w Japonii i nadzór Korei już liczone; giełda w Shenzhen (+1 źródło) i rejestr funduszy w Brazylii (+1 źródło)
 
 
 if __name__ == '__main__':

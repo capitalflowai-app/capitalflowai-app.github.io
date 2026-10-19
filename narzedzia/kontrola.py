@@ -1558,6 +1558,198 @@ def data_danych(name, j):
     return None
 
 
+# ---------------------------------------------------------------- v460 (F11Z42): AZJA I BRAZYLIA (data/azja2.json, data/azja2-stan.json) --------------------
+# Plik: cztery części (jp kontrakty w Japonii wg typu inwestora, kr stan posiadania zagranicy w Korei, cn Shenzhen i ETF Chin, br fundusze w Brazylii), każda z własnym czasem pobrania (pole t); rytm zbieracza: jp i cn co 6 h,
+# kr i br co 12 h (po błędzie ponowienie po 1–3 h). Wiersze świeżości (najwyżej ⚠️): (1) pobranie części: jp i cn ≤ 24 h, kr i br ≤ 36 h (symulacja co 10 minut przez 30 dób w test_zbieraj_dane: największy wiek pobrania
+# bez awarii = rytm, z 12-godzinną awarią źródła = rytm + 12 h — poniżej progów, 0 fałszywych ⚠️); (2) wiek danych z cyklu publikacji: jp ≤ 21 dób od końca tygodnia (plik tygodnia pojawia się 6–11 dób po jego końcu, zmierzone na
+# siedmiu plikach z 2026 r.; największy wiek tuż przed kolejnym ≈ 18 dób), kr ≤ 75 dób od końca miesiąca (komunikat 9–31 dób po końcu miesiąca, 13 komunikatów 09.2025–09.2026; największy wiek tuż przed kolejnym ≈ 61 dób),
+# cn ≤ 14 dób (przerwa giełdy w Złotym Tygodniu 1–7.10.2026 = 7 dób; Nowy Rok księżycowy do 8 dób), br ≤ 9 dób od końca ostatniego kompletnego dnia (19.10.2026 o 06:00 UTC ostatni kompletny dzień = środa 14.10, czyli ok. 4 dób;
+# święta w Brazylii do 5 dób przerwy). Progi bez ❌.
+# Spójność w pliku (⚠️): jp — tygodnie rosnące, udział w [0, 100], saldo nie większe niż obrót, ostatni tydzień = date; kr — miesiące rosnące, udziały i stany spójne (stan ÷ udział = rozmiar rynku w granicach);
+# cn — sesje rosnące, wartości w zakresach, suma zmian ETF: napływ + odpływ + bez zmiany ≤ liczba funduszy, znak szacunku zgodny ze zmianą jednostek, ostatnia sesja = date; br — dni rosnące, pokrycie ostatniego dnia ≥ 95%,
+# saldo ostatniego dnia = wpłaty − wypłaty z bloku „last”.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'azja2')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['azja2'] = 18 * 60   # plik zapisywany przy każdej próbie pobrania (co ~6 h, po błędzie co 1 h) — wiek pliku; wiek pobrania każdej części ocenia wiersz świeżości
+PLIKI_BEZ['azja2-stan'] = 'plik roboczy zbieracza (stan listy ETF z dwóch ostatnich dni, bez liczb dla strony); wiek pobrania ocenia plik azja2.json'
+AW_BEZ_BLEDU.update({'az2_' + p_: 'Azja i Brazylia — część z błędem zostaje z datą (v460); wiek danych w wierszach świeżości' for p_ in ('jp', 'kr', 'cn', 'br')})
+AZK_PARTS = ('jp', 'kr', 'cn', 'br')
+AZK_ETYKIETA = {'jp': 'Azja: kontrakty w Japonii wg typu inwestora', 'kr': 'Azja: stan posiadania zagranicy w Korei', 'cn': 'Azja: Shenzhen i ETF Chin', 'br': 'Brazylia: fundusze (wpłaty i wypłaty)'}
+AZK_POBR_MIN = {'jp': 24 * 60, 'kr': 36 * 60, 'cn': 24 * 60, 'br': 36 * 60}    # min — wiek pobrania części, powyżej ⚠️
+AZK_DATA_MIN = {'jp': 21 * 24 * 60, 'kr': 75 * 24 * 60, 'cn': 14 * 24 * 60, 'br': 9 * 24 * 60}   # min — wiek danych (od końca dnia / miesiąca), powyżej ⚠️
+AZK_POLE = {'jp': ('day', 'date'), 'kr': ('month', 'm'), 'cn': ('day', 'date'), 'br': ('day', 'date')}
+_AZK_M = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+
+
+def azk_dzien(d):
+    return isinstance(d, str) and len(d) == 10 and _ix_dt_k(d + 'T00:00:00Z') is not None
+
+
+def azk_rosnace(S, klucz, ile, dl=None):
+    """Wiersze (listy) o rosnących, niepowtarzalnych kluczach (pierwszy element spełnia `klucz`), niepuste, nie więcej niż ile; dl = wymagana długość. Zwraca opis usterki albo ''."""
+    if not isinstance(S, list) or not S:
+        return 'brak serii'
+    if any(not (isinstance(r, list) and r and klucz(r[0]) and (dl is None or len(r) == dl)) for r in S):
+        return 'zły kształt wiersza'
+    k = [r[0] for r in S]
+    if k != sorted(set(k)):
+        return 'etykiety nie rosną albo się powtarzają'
+    return f'więcej niż {ile} wierszy' if len(S) > ile else ''
+
+
+def azk_jp(P):
+    zle = []
+    d = P.get('date')
+    if not azk_dzien(d):
+        return ['jp: zła data']
+    s = azk_rosnace(P.get('rows'), azk_dzien, 52, 4)
+    if s:
+        return ['jp.rows: ' + s]
+    R = P['rows']
+    if R[-1][0] != d:
+        zle.append('jp.rows: ostatni tydzień ≠ date')
+    for r in R:
+        for gi, g in enumerate(r[1:], 1):
+            if not (isinstance(g, list) and len(g) == 5 and all(_euk_num(x, -1e7, 1e7) for x in g)):
+                zle.append(f'jp.rows: zły kształt grupy {gi} ({r[0]})'); break
+            if not (0 <= g[3] <= 100) or g[4] <= 0 or abs(g[0]) > g[4]:
+                zle.append(f'jp.rows: udział poza [0, 100] albo saldo zagranicy większe niż obrót ({r[0]}, grupa {gi})'); break
+    return zle
+
+
+def azk_kr(P):
+    zle = []
+    m = P.get('m')
+    if not (isinstance(m, str) and _AZK_M.match(m)):
+        return ['kr: zły miesiąc']
+    s = azk_rosnace(P.get('rows'), lambda x: isinstance(x, str) and bool(_AZK_M.match(x)), 25, 5)
+    if s:
+        return ['kr.rows: ' + s]
+    R = P['rows']
+    if R[-1][0] != m:
+        zle.append('kr.rows: ostatni miesiąc ≠ m')
+    for r in R:
+        if not all(_euk_num(x, 0, 1e6) for x in r[1:]):
+            zle.append(f'kr.rows: liczba poza zakresem ({r[0]})'); break
+        if not (3 <= r[2] <= 70 and 2 <= r[4] <= 60 and r[2] > 0 and r[4] > 0 and 500 <= r[1] / r[2] * 100 <= 40000 and 100 <= r[3] / r[4] * 100 <= 12000):
+            zle.append(f'kr.rows: udział albo rozmiar rynku nieprawdopodobny ({r[0]})'); break
+    return zle
+
+
+def azk_cn(P):
+    zle = []
+    d = P.get('date')
+    if not azk_dzien(d):
+        return ['cn: zła data']
+    s = azk_rosnace(P.get('sm'), azk_dzien, 70, 6)
+    if s:
+        return ['cn.sm: ' + s]
+    S = P['sm']
+    if S[-1][0] != d:
+        zle.append('cn.sm: ostatnia sesja ≠ date')
+    for r in S:
+        if not (_euk_num(r[1], 10, 8000) and _euk_num(r[2], 2000, 300000) and _euk_num(r[3], 0, 8000) and _euk_num(r[4], 50, 150000) and _euk_num(r[5], 20, 6000)):
+            zle.append(f'cn.sm: wartość poza zakresem ({r[0]})'); break
+    E = P.get('etf')
+    if E is not None:
+        if not (isinstance(E, dict) and azk_dzien(E.get('date')) and _euk_num(E.get('n'), 20, 6000) and _euk_num(E.get('units'), 1, 100000)):
+            return zle + ['cn.etf: zły kształt']
+        F = E.get('fl')
+        if F:
+            s = azk_rosnace(F, azk_dzien, 60, 6)
+            if s:
+                zle.append('cn.etf.fl: ' + s)
+            else:
+                for r in F:
+                    if not (all(isinstance(x, int) and not isinstance(x, bool) and x >= 0 for x in r[2:5]) and sum(r[2:5]) <= E['n'] + 10 and _euk_num(r[1], -1e4, 1e4)):
+                        zle.append(f'cn.etf.fl: liczba funduszy albo zmiana poza zakresem ({r[0]})'); break
+                    if r[5] is not None and (not _euk_num(r[5], -1e5, 1e5) or (abs(r[1]) > 1e-3 and abs(r[5]) > 1e-3 and (r[1] > 0) != (r[5] > 0))):
+                        zle.append(f'cn.etf.fl: szacunek napływu niezgodny ze zmianą jednostek ({r[0]})'); break
+    return zle
+
+
+def azk_br(P):
+    zle = []
+    d = P.get('date')
+    if not azk_dzien(d):
+        return ['br: zła data']
+    s = azk_rosnace(P.get('rows'), azk_dzien, 60, 5)
+    if s:
+        return ['br.rows: ' + s]
+    R = P['rows']
+    if R[-1][0] != d:
+        zle.append('br.rows: ostatni dzień ≠ date')
+    if any(not all(_euk_num(x, -5000, 5000) for x in r[1:]) for r in R):
+        zle.append('br.rows: saldo poza zakresem')
+    L = P.get('last')
+    if L is not None:
+        if not (isinstance(L, dict) and L.get('d') == d and isinstance(L.get('c'), dict) and all(isinstance(L['c'].get(k), list) and len(L['c'][k]) == 4 for k in ('rf', 'ac', 'mm', 'ot'))):
+            return zle + ['br.last: zły kształt']
+        if not _euk_num(L.get('cov'), 95, 200):
+            zle.append('br.last: pokrycie dnia poniżej 95% najliczniejszego dnia miesiąca')
+        for i, k in enumerate(('rf', 'ac', 'mm', 'ot'), 1):
+            c = L['c'][k]
+            if not (all(_euk_num(x, 0, 1e6) for x in c)):
+                zle.append(f'br.last: {k} poza zakresem'); break
+            if abs(R[-1][i] - (c[0] - c[1])) > 0.0011:
+                zle.append(f'br: saldo {k} w wierszu ≠ wpłaty − wypłaty w bloku last'); break
+    return zle
+
+
+def azk_kontrola(j, now=None):
+    """data/azja2.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    spr = {'jp': azk_jp, 'kr': azk_kr, 'cn': azk_cn, 'br': azk_br}
+    for part in AZK_PARTS:
+        K = j.get(part) if isinstance(j.get(part), dict) else None
+        lab = AZK_ETYKIETA[part]
+        if K is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od dłuższego czasu)')
+            continue
+        zle += spr[part](K)
+        w = wiek_danych(K.get('t'), 'ts', 'k', now)
+        if w is None:
+            out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak czasu pobrania'))
+        else:
+            st = '⚠️' if w > AZK_POBR_MIN[part] else '✅'
+            dane = str(K.get('t'))[:16].replace('T', ' ') + ' UTC'
+            note = '' if st == '✅' else 'pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga'
+            out['rows'].append((lab + ' (pobranie)', st, w, dane, note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (pobranie): {dane} — {fmt_wiek(w)} temu ({note})')
+        kind, pole = AZK_POLE[part]
+        dd = K.get(pole)
+        ok_ = (isinstance(dd, str) and bool(_AZK_M.match(dd))) if kind == 'month' else azk_dzien(dd)
+        wd = wiek_danych(dd, kind, 'k', now) if ok_ else None
+        if wd is None:
+            out['rows'].append((lab + ' (data danych)', '?', None, None, 'brak daty danych'))
+        else:
+            st = '⚠️' if wd > AZK_DATA_MIN[part] else '✅'
+            note = '' if st == '✅' else 'dane starsze niż wynika z cyklu publikacji — źródło nie publikuje albo zbieracz czyta stary plik; najwyżej uwaga'
+            out['rows'].append((lab + ' (data danych)', st, wd, str(dd), note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (data danych): {dd} — {fmt_wiek(wd)} temu ({note})')
+        if part == 'cn' and isinstance(K.get('etf'), dict) and azk_dzien(K['etf'].get('date')):
+            we = wiek_danych(K['etf']['date'], 'day', 'k', now)
+            if we is not None:
+                st = '⚠️' if we > AZK_DATA_MIN['cn'] else '✅'
+                note = '' if st == '✅' else 'lista ETF starsza niż wynika z cyklu publikacji; najwyżej uwaga'
+                out['rows'].append((lab + ' — lista ETF (data danych)', st, we, K['etf']['date'], note))
+                if st == '⚠️':
+                    out['uwagi'].append(f'{lab} — lista ETF (data danych): {K["etf"]["date"]} — {fmt_wiek(we)} temu ({note})')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Azja i Brazylia (azja2.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in AZK_PARTS):
+        out['wiersze'].append(('spójność pliku (Japonia, Korea, Shenzhen i ETF, fundusze w Brazylii)', '⚠️' if zle else '✅'))
+    return out
+
+
 def wiek_danych(txt, kind, kat, now=None):
     """Wiek danych w minutach dla kategorii progu: 'ts' → od znacznika czasu; 'day' → od końca dnia danych; 'month' → od końca
     miesiąca danych; kategoria 'd' liczy godziny robocze (bez sobót i niedziel). None = nie da się policzyć."""
@@ -16272,6 +16464,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['energia-usa'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'energia USA (v395): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v460. Azja i Brazylia (data/azja2.json): wiek pobrania i danych każdej części, spójność w pliku — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        AZ_ = azk_kontrola(files.get('azja2'))
+        for label, st, w, txt, note in AZ_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += AZ_['uwagi']
+        R['zgodnosc']['azja2'] = {'spojnosc': AZ_['spojnosc'], 'wiersze': AZ_['wiersze']} if (AZ_['rows'] or AZ_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['azja2'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Azja i Brazylia (v460): kontrola przerwana ({str(e)[:80]})')
     # 3c-v400. Chiny / Tajwan / Hongkong (data/chiny-tw.json): świeżość pobrania pięciu części i rytm sesji osobnymi wierszami (lista SWIEZOSC bez zmian), uwagi ⚠ oraz sprzeczności w pliku (❌) — z plików strony, bez zapytań
     try:
         for label, st, w, txt, note in chtw_swiezosc(files.get('chiny-tw')):
@@ -17205,6 +17407,11 @@ def raport_md(R):
             L.append('- Skarbce spółek (BTC, ETH) i wnioski o fundusze krypto w kolejce urzędu (z pliku strony; cena BTC z posiadania spółek wobec pliku cen krypto tylko informacyjnie): ' + (f'? kontrola przerwana ({skf_["blad"]})' if skf_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(skf_['spojnosc'][:3]) + ' ⚠️ · ' if skf_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in skf_.get('wiersze') or []) or '—') + '.')
+        saz_ = Z.get('azja2')   # v460: Azja i Brazylia (kontrakty w Japonii, stan posiadania zagranicy w Korei, Shenzhen i ETF, fundusze w Brazylii) — brak pliku = bez linii
+        if saz_:
+            L.append('- Azja i Brazylia: kontrakty w Japonii, stan posiadania zagranicy w Korei, Shenzhen i ETF Chin oraz fundusze w Brazylii (z pliku strony): ' + (f'? kontrola przerwana ({saz_["blad"]})' if saz_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(saz_['spojnosc'][:3]) + ' ⚠️ · ' if saz_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in saz_.get('wiersze') or []) or '—') + '.')
         ssh_ = Z.get('short-eu')   # v429: krótka sprzedaż w Europie — brak pliku = bez linii
         if ssh_:
             L.append('- Krótka sprzedaż w Europie: pozycje netto w Wielkiej Brytanii i w Szwecji (z pliku strony): ' + (f'? kontrola przerwana ({ssh_["blad"]})' if ssh_.get('blad') else

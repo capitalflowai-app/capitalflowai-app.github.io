@@ -36569,3 +36569,240 @@ test('v458 (F11Z40): wygląd — kafle w czterech kolumnach, na telefonie dwie; 
   // kolejność bloków w karcie
   const pos = klm458.TITLES.map(t => h.indexOf(t)); assert.ok(pos.every((x, i) => x >= 0 && (i === 0 || x > pos[i - 1])), 'temperatura, El Niño, susza, pas kukurydzy, Missisipi, Ren');
 });
+
+// ===================== v460 (F11Z42): Azja i Brazylia — kontrakty w Japonii wg typu inwestora, stan posiadania zagranicy w Korei, Shenzhen i ETF Chin, fundusze w Brazylii (data/azja2.json) =====================
+// Fixtura AZM460_FILE: plik azja2.json zbudowany PRAWDZIWYM kodem zbieracza na nagraniach publicznych plików z 19.10.2026 (Japonia: 5 tygodni 07.09–09.10; Korea: 13 komunikatów 08.2025–08.2026; Brazylia: 30 sesji 01.09–14.10;
+// Shenzhen: 19 zestawień 14.09–16.10 i lista ETF z 16.10; wcześniejsze listy ETF 12–15.10 to wariacje syntetyczne — patrz gen_fixture.py). Czas przypięty (Date.now = 19.10.2026 13:00 UTC), bez zegara.
+// Oczekiwane liczby liczone w teście z wierszy fixtury (niezależnie od kodu strony).
+const AZM460_FILE = {"v":1,"at":"2026-10-19T12:00:00+00:00","src":"tygodniowe kontrakty wg typu inwestora (giełda w Japonii), stan posiadania zagranicy w Korei (nadzór finansowy), zestawienie dnia i lista ETF (giełda w Shenzhen), dzienne wpłaty i wypłaty funduszy (rejestr funduszy w Brazylii) — publiczne pliki giełd i urzędów","ok":{"jp":true,"kr":true,"cn":true,"br":true},"part_at":{"jp":"2026-10-19T12:00:00+00:00","kr":"2026-10-19T12:00:00+00:00","cn":"2026-10-19T12:00:00+00:00","br":"2026-10-19T12:00:00+00:00"},"try_at":{"jp":"2026-10-19T12:00:00+00:00","kr":"2026-10-19T12:00:00+00:00","br":"2026-10-19T12:00:00+00:00"},"jp":{"date":"2026-10-09","rows":[["2026-09-11",[397.3,107.08,15.4,65.7,62149.2],[168.78,-18.22,-47.01,67.1,57583.5],[378.13,0.38,18.46,83.5,97355.6]],["2026-09-18",[96.36,-125.04,0.53,76.9,28820.7],[1002.51,32.1,31.82,86.1,11498.1],[229.76,-0.25,-42.6,73.0,23813.4]],["2026-09-25",[186.41,-31.87,-0.68,75.1,19598.2],[453.46,-14.01,-4.38,88.5,7651.4],[-1050.67,0.25,62.46,78.5,13599.3]],["2026-10-02",[-11.63,-70.91,158.46,76.8,37523.0],[-2217.41,-34.57,244.87,79.6,19678.4],[-149.0,0.0,-62.12,78.2,27202.7]],["2026-10-09",[122.43,118.35,-102.25,76.6,36605.9],[-459.29,-10.77,-29.75,90.9,13703.9],[365.34,-0.37,-37.8,72.3,25135.2]]],"unit":"mld JPY, saldo = zakupy minus sprzedaż w wartości kontraktów; grupy: Nikkei 225 (duże, mini, mikro), TOPIX (zwykłe, mini), obligacje 10-letnie; kolumny grupy: zagranica, osoby prywatne, fundusze inwestycyjne, udział zagranicy w obrocie %, obrót razem","t":"2026-10-19T12:00:00+00:00"},"kr":{"m":"2026-08","rows":[["2025-08",904.8,27.5,306.7,11.3],["2025-09",1014.6,28.7,308.3,11.3],["2025-10",1248.9,30.1,307.0,11.2],["2025-11",1192.8,29.6,321.6,11.6],["2025-12",1326.8,30.8,328.5,11.9],["2026-01",1701.4,32.0,330.5,11.9],["2026-02",2025.5,32.6,337.3,12.0],["2026-03",1576.2,30.7,323.8,11.5],["2026-04",2121.4,32.5,325.2,11.6],["2026-05",2852.3,35.3,333.6,11.9],["2026-06",2908.6,36.4,334.8,11.8],["2026-07",2255.5,35.8,336.1,11.7],["2026-08",2280.6,34.8,330.3,11.4]],"unit":"bln KRW (10^12); udział akcji w kapitalizacji rynku i obligacji w obligacjach notowanych, %; kolumny: miesiąc, akcje, udział akcji, obligacje, udział obligacji","t":"2026-10-19T12:00:00+00:00"},"cn":{"date":"2026-10-16","sm":[["2026-09-14",850.97,43357.18,121.14,1565.09,733],["2026-09-15",849.46,43000.32,112.53,1561.28,733],["2026-09-16",968.88,43577.67,117.44,1581.33,735],["2026-09-17",955.24,43483.38,118.62,1582.32,736],["2026-09-18",1084.04,44216.37,126.22,1606.39,738],["2026-09-21",1086.09,44668.75,107.13,1616.49,738],["2026-09-22",1129.93,44681.59,125.09,1619.22,740],["2026-09-23",931.97,44458.4,111.72,1622.31,743],["2026-09-24",870.89,43572.6,100.94,1602.13,746],["2026-09-28",899.28,42236.19,120.32,1572.81,747],["2026-09-29",748.51,42451.62,113.86,1589.58,748],["2026-09-30",759.33,42428.27,103.6,1596.38,749],["2026-10-08",871.61,41720.28,113.74,1575.24,749],["2026-10-09",1012.67,41788.87,130.82,1586.06,750],["2026-10-12",823.63,41031.77,154.54,1574.28,751],["2026-10-13",897.63,41172.11,156.2,1568.59,751],["2026-10-14",752.74,40411.81,146.11,1558.05,753],["2026-10-15",859.4,39382.21,172.46,1533.45,756],["2026-10-16",823.77,39369.71,158.1,1550.11,758]],"nt":["2026-09-25","2026-10-01","2026-10-02","2026-10-05","2026-10-06","2026-10-07"],"unit":"mld CNY (zestawienie dnia: akcje i ETF w Shenzhen); lista ETF: liczba jednostek w mld szt., napływ ≈ zmiana jednostek × średnia cena","etf":{"date":"2026-10-16","n":761,"units":1179.65,"cap":1550.11,"fl":[["2026-10-13",1.801,502,259,0,2.39],["2026-10-14",0.105,506,255,0,0.14],["2026-10-15",1.633,514,247,0,2.12],["2026-10-16",-3.483,247,514,0,-4.58]]},"bf":true,"t":"2026-10-19T12:00:00+00:00"},"br":{"date":"2026-10-14","rows":[["2026-09-01",12.074,-0.259,-0.554,-0.11],["2026-09-02",0.284,-0.146,-1.269,-2.216],["2026-09-03",-16.303,-1.523,-0.573,-3.755],["2026-09-04",-11.579,-0.364,0.916,-0.551],["2026-09-08",4.285,-0.975,-3.177,-0.706],["2026-09-09",18.565,-0.421,-1.351,-0.215],["2026-09-10",27.209,0.137,-1.524,-0.177],["2026-09-11",23.168,0.186,2.575,-0.627],["2026-09-14",-5.712,-0.719,-1.852,0.042],["2026-09-15",-4.354,-0.189,-1.012,-2.356],["2026-09-16",12.012,-0.014,3.393,-0.098],["2026-09-17",-6.208,-0.626,-1.026,-0.218],["2026-09-18",-14.468,-0.336,-0.731,-0.321],["2026-09-21",-11.041,0.091,-0.854,-0.265],["2026-09-22",22.138,0.575,-0.859,-0.192],["2026-09-23",3.886,0.089,-0.449,-0.025],["2026-09-24",-5.54,0.145,0.391,-0.098],["2026-09-25",-25.095,-0.033,0.591,-0.176],["2026-09-28",-14.277,-0.468,-1.029,0.021],["2026-09-29",-25.83,-0.108,-0.196,-0.032],["2026-09-30",-9.577,-0.163,0.171,-0.253],["2026-10-01",-3.251,0.434,-1.537,-0.045],["2026-10-02",3.023,0.331,-0.767,-0.418],["2026-10-05",-13.475,-0.609,-1.137,0.039],["2026-10-06",5.771,-0.814,-0.429,-0.002],["2026-10-07",3.793,0.105,-0.538,-0.009],["2026-10-08",-3.865,0.046,0.079,-0.173],["2026-10-09",23.432,-0.553,-0.17,-0.166],["2026-10-13",0.802,-0.152,-2.338,-0.066],["2026-10-14",27.425,-0.164,0.444,-0.062]],"unit":"mld BRL, saldo dnia = wpłaty minus wypłaty funduszy (bez funduszy wyłącznych); kolumny: dzień, obligacje (renda fixa), akcje, multimercado, reszta","last":{"d":"2026-10-14","n":25064,"cov":98.0,"c":{"rf":[93.034,65.609,6799.74,4060],"ac":[0.529,0.693,735.88,3020],"mm":[2.735,2.291,1274.77,6434],"ot":[0.159,0.221,31.61,209]}},"t":"2026-10-19T12:00:00+00:00"}};
+const az460 = (() => {
+  const a0 = html.indexOf('/* ===================== v460 (F11Z42): AZJA I BRAZYLIA'), a1 = html.indexOf('/* ---------- koniec bloku Azja i Brazylia (v460) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v460 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-19T13:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[\u00a0\u202f]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }},
+      querySelectorAll() { return []; }, querySelector() { return null; }};
+    const els = {'#g-azja2': el};
+    const calls = [], ivs = [], lines = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: () => {}, documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'flagImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkLines', 'wkDay', 'wkMon', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {AZM, azmLoad, renderAzm, azmOk, azmJp, azmKr, azmCn, azmBr, azmBody};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, c => '<f:' + c + '>', i => i, doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (Ls, o) => { lines.push({L: Ls, o}); return '<lines n=' + Ls.map(s => s.d.length).join('+') + ' aria="' + o.aria + '">'; },
+      (ms, y) => new Date(ms).toISOString().slice(0, 10), (ym, long) => 'M' + (long ? 'L' : '') + ':' + ym, FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, ivs, lines, mos, expand, collapse, html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), valHtml: m[3].split('<small')[0], lines: [...m[3].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {az2_jp: true, az2_kr: 'cached', az2_cn: true, az2_br: true}} : meta, azja2: j === undefined ? clone(AZM460_FILE) : j});
+  const J = () => clone(AZM460_FILE);
+  const MON = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+  const pdate = s => `${+s.slice(8)} ${MON[+s.slice(5, 7) - 1]} ${s.slice(0, 4)}`;
+  const fmt = (v, d) => (v < 0 ? '−' : '') + sp(new Intl.NumberFormat('pl-PL', {minimumFractionDigits: d, maximumFractionDigits: d}).format(Math.abs(v)));   // liczba z kropką/przecinkiem i grupowaniem tysięcy wg Intl środowiska (jsc i node mogą grupować cztery cyfry inaczej)
+  const rnd = (v, d) => Math.round(v * 10 ** d) / 10 ** d;
+  const sg = (v, d, u) => { const r = rnd(v, d); return (r > 0 ? '+' : '') + fmt(r, d) + (u ? ' ' + u : ''); };
+  const dir = (v, d, lab) => { const r = rnd(v, d); return r === 0 ? ['neu', '• ' + fmt(0, d) + lab] : [r > 0 ? 'pos' : 'neg', (r > 0 ? '▲ +' : '▼ −') + fmt(Math.abs(r), d) + lab]; };
+  const cls = (v, d) => { const r = rnd(v, d); return r > 0 ? 'pos' : r < 0 ? 'neg' : 'neu'; };
+  const TITLES = ['Japonia: kontrakty terminowe wg typu inwestora', 'Korea Południowa: ile mają inwestorzy z zagranicy', 'Chiny: giełda w Shenzhen i fundusze ETF', 'Brazylia: wpłaty i wypłaty funduszy'];
+  const blk = (h, k) => { const i = h.indexOf(k), e = TITLES.map(x => h.indexOf(x)).filter(x => x > i).sort((a, b) => a - b)[0]; assert.ok(i >= 0, k); return h.slice(i, e === undefined ? undefined : e); };
+  const dec = v => Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2;
+  return {mk, tiles, files, J, sp, txt, code, clone, LOC, pdate, fmt, sg, dir, cls, rnd, blk, MON, TITLES, dec};
+})();
+
+test('v460 (F11Z42): Azja i Brazylia — nagłówek od razu, plik tylko po rozwinięciu karty (jedno pobranie), karta po Chinach/Tajwanie/Hongkongu, jeden obserwator języka, odświeżanie co 30 min tylko przy rozwiniętej karcie', () => {
+  const K = az460.mk('pl', az460.files());
+  assert.equal(K.els['#g-azja2'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2><f:jp><f:kr><f:cn><f:br>Azja i Brazylia: kto kupuje i sprzedaje</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, cztery flagi w nagłówku');
+  assert.ok(h.includes('Dane pojawią się po rozwinięciu karty.') && az460.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'azja2'], 'po rozwinięciu jedno pobranie pliku'); K.expand(); K.collapse(); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'azja2'], 'plik młodszy niż 10 minut — bez ponownego pobrania');
+  const iv = K.ivs.filter(([f, ms]) => ms === 30 * 60e3); assert.equal(iv.length, 1, 'odświeżanie co 30 min'); iv[0][0](); assert.deepEqual(K.calls, ['meta', 'azja2', 'azja2'], 'przy rozwiniętej karcie zegar pobiera ponownie');
+  K.collapse(); iv[0][0](); assert.equal(K.calls.length, 3, 'zwinięta karta — zegar nie pobiera');
+  assert.equal(az460.code.split('new MutationObserver(()=>renderAzm())').length, 2, 'jeden obserwator języka z tej karty');
+  assert.equal(K.mos.filter(m => m.tg === K.els['#g-azja2']).length, 1, 'jeden obserwator klasy karty mimo wielu przerysowań (rozwinięcie, zwinięcie, odświeżenie)');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])azja2\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.equal(html.split('id="g-azja2"').length, 2, 'jedna sekcja'); assert.ok(html.includes('<section class="panel pcard" id="g-azja2" hidden></section>'));
+  const a = html.indexOf('id="g-chinatw"'), b = html.indexOf('id="g-azja2"'), c = html.indexOf('id="g-dolar"'); assert.ok(a > 0 && b > a && c > b, 'karta po Chinach/Tajwanie/Hongkongu, przed kursami dolara');
+  assert.equal(az460.mk('pl', az460.files(undefined, null)).els['#g-azja2'].hidden, true); assert.equal(az460.mk('pl', az460.files(undefined, {ok: {inne: true}})).els['#g-azja2'].hidden, true);
+  // chwilowy błąd meta: ponowienie co 20 s (najwyżej 5 razy), po udanej odpowiedzi karta się pokazuje; meta bez części „az2_*” — bez ponowień
+  const F = az460.files(undefined, null), R = az460.mk('pl', F); const r20 = R.ivs.filter(([f, ms]) => ms === 20e3); assert.equal(r20.length, 1); assert.equal(R.els['#g-azja2'].hidden, true);
+  for (let i = 0; i < 7; i++) r20[0][0](); assert.equal(R.calls.filter(c => c === 'meta').length, 6, 'pierwsza próba + 5 ponowień, potem koniec'); F.meta = {ok: {az2_br: true}}; for (let i = 0; i < 3; i++) r20[0][0]();
+  assert.equal(R.calls.filter(c => c === 'meta').length, 6, 'po wyczerpaniu ponowień już nie pytamy');
+  const F2 = az460.files(undefined, null), R2 = az460.mk('pl', F2); F2.meta = {ok: {az2_br: true}}; R2.ivs.filter(([f, ms]) => ms === 20e3)[0][0](); assert.equal(R2.els['#g-azja2'].hidden, false, 'drugie podejście do meta udane — karta widoczna'); const n2 = R2.calls.length;
+  R2.ivs.filter(([f, ms]) => ms === 20e3)[0][0](); assert.equal(R2.calls.length, n2, 'po udanej odpowiedzi meta — bez dalszych ponowień');
+  const F3 = az460.files(undefined, {ok: {inne: true}}), R3 = az460.mk('pl', F3); R3.ivs.filter(([f, ms]) => ms === 20e3)[0][0](); assert.equal(R3.calls.filter(c => c === 'meta').length, 1, 'meta odpowiedziała, ale bez części — bez ponowień'); assert.equal(R3.els['#g-azja2'].hidden, true);
+  assert.equal(az460.mk('pl', az460.files(undefined, {ok: {az2_cn: false}})).els['#g-azja2'].hidden, false, 'wystarczy jedna znana część');
+  const E = az460.mk('pl', az460.files(null), {open: true}); assert.ok(az460.txt(E.html()).includes('Nie udało się wczytać danych')); assert.deepEqual(E.calls, ['meta', 'azja2']);
+  E.expand(); assert.equal(E.calls.length, 2, 'bez pętli: druga próba dopiero po minucie');
+  assert.equal(az460.tiles(az460.mk('pl', az460.files(), {open: true}).html()).length, 6 + 4 + 4 + 3 + 4, 'sześć kafli Japonii, po cztery Korei, Chin (zestawienie) i Brazylii oraz trzy kafle zmian ETF');
+});
+
+test('v460 (F11Z42): Japonia — sześć kafli z liczbami fixtury (saldo zagranicy w Nikkei 225, TOPIX i obligacjach, osoby prywatne, fundusze, udział zagranicy), zmiana wobec poprzedniego tygodnia, kolory z liczby, wykres trzech linii', () => {
+  const R = AZM460_FILE.jp.rows, a = R[R.length - 1], b = R[R.length - 2], K = az460.mk('pl', az460.files(), {open: true}), h = az460.blk(K.html(), az460.TITLES[0]), T = az460.tiles(h), w = `tydzień do ${az460.pdate(a[0])} · wiek(${a[0]})`;
+  assert.equal(AZM460_FILE.jp.date, a[0]); assert.ok(R.length >= 5, 'fixtura ma pięć tygodni'); assert.equal(T.length, 6); assert.ok(T.every(x => x.when === w));
+  assert.deepEqual(T.map(x => x.label), ['Zagranica: Nikkei 225', 'Zagranica: TOPIX', 'Zagranica: obligacje 10-letnie', 'Osoby prywatne: Nikkei 225', 'Fundusze inwestycyjne: Nikkei 225', 'Udział zagranicy w obrocie: Nikkei 225']);
+  const spec = [[0, 1, 0], [1, 2, 0], [2, 3, 0], [3, 1, 1], [4, 1, 2]];
+  for (const [i, g, k] of spec) {
+    assert.equal(T[i].val, az460.sg(a[g][k], 1, 'mld JPY'), T[i].label); assert.ok(T[i].valHtml.includes(`<span class="${az460.cls(a[g][k], 1)}">`), 'kolor wartości z pokazanej liczby');
+    assert.deepEqual(T[i].lines, [az460.dir(a[g][k] - b[g][k], 1, ' mld JPY wobec poprzedniego tygodnia'), ['pc', `obrót tygodnia: ${az460.fmt(a[g][4], 0)} mld JPY`]]);
+  }
+  assert.equal(T[5].val, az460.fmt(a[1][3], 1) + '%'); assert.deepEqual(T[5].lines, [az460.dir(a[1][3] - b[1][3], 1, ' pkt proc. wobec poprzedniego tygodnia')]);
+  assert.deepEqual(T.slice(0, 5).map(x => /class="(pos|neg|neu)"/.exec(x.valHtml)[1]), [az460.cls(a[1][0], 1), az460.cls(a[2][0], 1), az460.cls(a[3][0], 1), az460.cls(a[1][1], 1), az460.cls(a[1][2], 1)]);
+  assert.equal(az460.cls(a[2][0], 1), 'neg', 'fixtura: zagranica sprzedawała kontrakty TOPIX w ostatnim tygodniu — czerwony'); assert.equal(az460.cls(a[1][0], 1), 'pos', 'a kupowała Nikkei 225 — zielony');
+  const ch = K.lines.filter(l => /Saldo kontraktów terminowych w Japonii/.test(l.o.aria)); assert.equal(ch.length, 1); assert.equal(ch[0].o.aria, `Saldo kontraktów terminowych w Japonii, ${R.length} tygodni`);
+  assert.deepEqual(ch[0].L.map(s => s.n), ['Zagranica, Nikkei 225', 'Zagranica, TOPIX', 'Osoby prywatne, Nikkei 225']); assert.deepEqual(ch[0].L.map(s => s.cls), ['s1', 's2', 's3']); assert.deepEqual(ch[0].L.map(s => s.d.length), [R.length, R.length, R.length]);
+  assert.deepEqual(ch[0].L[1].d[R.length - 1], [Date.parse(a[0] + 'T12:00:00Z'), a[2][0]]); assert.deepEqual(ch[0].L[2].d[0], [Date.parse(R[0][0] + 'T12:00:00Z'), R[0][1][1]]);
+  assert.equal(az460.sp(ch[0].o.fmt(-2217.41)), az460.fmt(-2217.41, 0) + ' mld JPY'); assert.equal(az460.sp(ch[0].o.fmt(-22174.1)), '−22 174 mld JPY'); assert.equal(ch[0].o.dx(Date.UTC(2026, 9, 9, 12)), '2026-10-09'); assert.equal(ch[0].o.zero, undefined, 'oś z zerem (saldo ma znak)');
+  assert.ok(h.includes('Saldo kontraktów: zagranica i osoby prywatne, tygodniowo') && h.includes('Saldo to zakupy minus sprzedaż (wartość kontraktów, w mld jenów). Plus: przewaga kupujących.'));
+  // jeden tydzień: kafle bez zmiany („—”), wykres zastąpiony zdaniem (za mało punktów)
+  const j = az460.J(); j.jp.rows = [j.jp.rows[j.jp.rows.length - 1]]; const K2 = az460.mk('pl', az460.files(j), {open: true}), T2 = az460.tiles(az460.blk(K2.html(), az460.TITLES[0]));
+  assert.deepEqual(T2[0].lines[0], ['na', '— mld JPY wobec poprzedniego tygodnia']); assert.deepEqual(T2[5].lines, [['na', '— pkt proc. wobec poprzedniego tygodnia']]);
+  assert.equal(K2.lines.filter(l => /Saldo kontraktów terminowych/.test(l.o.aria)).length, 0); assert.ok(az460.blk(K2.html(), az460.TITLES[0]).includes('Za mało punktów, by narysować wykres.'));
+  // saldo zero (po zaokrągleniu) = żółte, bez znaku plus
+  const z = az460.J(); z.jp.rows[z.jp.rows.length - 1][1][0] = 0.04; const Tz = az460.tiles(az460.blk(az460.mk('pl', az460.files(z), {open: true}).html(), az460.TITLES[0]));
+  assert.equal(Tz[0].val, '0,0 mld JPY'); assert.ok(Tz[0].valHtml.includes('class="neu"'));
+});
+
+test('v460 (F11Z42): Korea — udział zagranicy w akcjach i obligacjach oraz wartość posiadania (koniec miesiąca), zmiana wobec poprzedniego miesiąca, wykres dwóch linii', () => {
+  const R = AZM460_FILE.kr.rows, a = R[R.length - 1], b = R[R.length - 2], K = az460.mk('pl', az460.files(), {open: true}), h = az460.blk(K.html(), az460.TITLES[1]), T = az460.tiles(h), w = `stan na koniec miesiąca: ML:${a[0]} · wiek(${a[0]})`;
+  assert.equal(AZM460_FILE.kr.m, a[0]); assert.ok(R.length >= 12, 'fixtura ma 13 miesięcy'); assert.equal(T.length, 4); assert.ok(T.every(x => x.when === w));
+  assert.deepEqual(T.map(x => x.label), ['Akcje w rękach zagranicy', 'Wartość akcji w rękach zagranicy', 'Obligacje w rękach zagranicy', 'Wartość obligacji w rękach zagranicy']);
+  assert.equal(T[0].val, az460.fmt(a[2], 1) + '%'); assert.deepEqual(T[0].lines, [az460.dir(a[2] - b[2], 1, ' pkt proc. wobec poprzedniego miesiąca'), ['pc', 'kapitalizacji rynku akcji']]);
+  assert.equal(T[1].val, az460.fmt(a[1], 0) + ' bln KRW'); assert.deepEqual(T[1].lines, [az460.dir((a[1] / b[1] - 1) * 100, 1, ' % wobec poprzedniego miesiąca')]);
+  assert.equal(T[2].val, az460.fmt(a[4], 1) + '%'); assert.deepEqual(T[2].lines, [az460.dir(a[4] - b[4], 1, ' pkt proc. wobec poprzedniego miesiąca'), ['pc', 'obligacji notowanych']]);
+  assert.equal(T[3].val, az460.fmt(a[3], 0) + ' bln KRW'); assert.deepEqual(T[3].lines, [az460.dir((a[3] / b[3] - 1) * 100, 1, ' % wobec poprzedniego miesiąca')]);
+  assert.equal(a[0], '2026-08'); assert.equal(T[0].val, '34,8%'); assert.equal(T[0].lines[0][0], 'neg', 'fixtura: udział akcji spadł w sierpniu (35,8% → 34,8%) — czerwony');
+  const ch = K.lines.filter(l => /Udział zagranicy na rynku akcji i obligacji w Korei/.test(l.o.aria)); assert.equal(ch.length, 1); assert.equal(ch[0].o.aria, `Udział zagranicy na rynku akcji i obligacji w Korei, ${R.length} miesięcy`);
+  assert.deepEqual(ch[0].L.map(s => s.n), ['akcje', 'obligacje']); assert.deepEqual(ch[0].L.map(s => s.d.length), [R.length, R.length]); assert.deepEqual(ch[0].L[0].d[R.length - 1], [Date.UTC(2026, 8, 0, 12), a[2]], 'miesiąc na osi = koniec miesiąca');
+  assert.deepEqual(ch[0].L[1].d[0], [Date.UTC(+R[0][0].slice(0, 4), +R[0][0].slice(5), 0, 12), R[0][4]]); assert.equal(ch[0].o.zero, false, 'oś bez wymuszonego zera'); assert.equal(ch[0].o.dt(Date.UTC(2026, 8, 0, 12)), 'ML:2026-08'); assert.equal(ch[0].o.fmt(34.8), '35%');
+  assert.ok(h.includes('To stan na koniec miesiąca, a nie przepływ.') && h.includes('Udział zagranicy na rynku (koniec miesiąca)'));
+  const j = az460.J(); j.kr.rows = [j.kr.rows[j.kr.rows.length - 1]]; const T2 = az460.tiles(az460.blk(az460.mk('pl', az460.files(j), {open: true}).html(), az460.TITLES[1]));
+  assert.deepEqual(T2[0].lines[0], ['na', '— pkt proc. wobec poprzedniego miesiąca']); assert.deepEqual(T2[1].lines, [['na', '— % wobec poprzedniego miesiąca']]);
+});
+
+test('v460 (F11Z42): Chiny — obrót i wartość akcji oraz ETF w Shenzhen z fixtury, mld/bln, zmiana wobec poprzedniej sesji; zmiana liczby jednostek ETF i szacunek napływu; wykresy; brak zmian = zdanie, brak szacunku = „—”', () => {
+  const P = AZM460_FILE.cn, S = P.sm, a = S[S.length - 1], b = S[S.length - 2], E = P.etf, f = E.fl[E.fl.length - 1];
+  const K = az460.mk('pl', az460.files(), {open: true}), h = az460.blk(K.html(), az460.TITLES[2]), T = az460.tiles(h), w = `dane z dnia ${az460.pdate(a[0])} · wiek(${a[0]})`, we = `dane z dnia ${az460.pdate(f[0])} · wiek(${f[0]})`;
+  assert.equal(P.date, a[0]); assert.equal(a[0], '2026-10-16'); assert.equal(T.length, 7); assert.deepEqual(T.map(x => x.label), ['Obrót akcji', 'Wartość akcji na giełdzie', 'Wartość funduszy ETF', 'Obrót funduszy ETF', 'Napływ do ETF (szacunek)', 'Zmiana liczby jednostek ETF', 'Fundusze z napływem i odpływem']);
+  assert.ok(T.slice(0, 4).every(x => x.when === w)); assert.ok(T.slice(4).every(x => x.when === we));
+  const big = v => Math.abs(v) >= 1000 ? az460.fmt(v / 1000, 2) + ' bln CNY' : az460.fmt(v, Math.abs(v) >= 100 ? 0 : 1) + ' mld CNY', ch = (x, y) => az460.dir((x / y - 1) * 100, 1, ' % wobec poprzedniej sesji');
+  assert.equal(T[0].val, big(a[1])); assert.deepEqual(T[0].lines, [ch(a[1], b[1])]); assert.equal(T[1].val, big(a[2])); assert.deepEqual(T[1].lines, [ch(a[2], b[2])]);
+  assert.equal(T[2].val, big(a[4])); assert.deepEqual(T[2].lines, [ch(a[4], b[4]), ['pc', `${a[5]} funduszy`]]); assert.equal(T[3].val, big(a[3])); assert.deepEqual(T[3].lines, [ch(a[3], b[3])]);
+  assert.equal(T[1].val, '39,37 bln CNY', 'wartość akcji w bln'); assert.equal(T[0].val, '824 mld CNY'); assert.equal(T[2].val, '1,55 bln CNY');
+  assert.equal(T[4].val, az460.sg(f[5], 1, 'mld CNY')); assert.ok(T[4].valHtml.includes(`class="${az460.cls(f[5], 1)}"`)); assert.deepEqual(T[4].lines, []);
+  const pc = f[1] / E.units * 100; assert.equal(T[5].val, az460.sg(f[1], 2, 'mld szt.')); assert.deepEqual(T[5].lines, [['pc', `${az460.fmt(pc, 2)}% jednostek`], ['pc', `razem ${az460.fmt(E.units, 0)} mld szt.`]]);
+  assert.equal(T[6].val, `${f[2]} / ${f[3]}`); assert.deepEqual(T[6].lines, [['pc', `z napływem: ${f[2]}, z odpływem: ${f[3]}`]]);
+  const co = K.lines.filter(l => /Obrót akcji w Shenzhen/.test(l.o.aria)); assert.equal(co.length, 1); assert.equal(co[0].o.aria, `Obrót akcji w Shenzhen, ${S.length} sesji`); assert.equal(co[0].L[0].d.length, S.length); assert.deepEqual(co[0].L[0].d[S.length - 1], [Date.parse(a[0] + 'T12:00:00Z'), a[1]]);
+  assert.equal(co[0].o.zero, false); assert.equal(co[0].o.fmt(823.77), '824 mld CNY');
+  const n = E.fl.filter(r => r[5] !== null).length, cf = K.lines.filter(l => /Szacunkowy napływ do funduszy ETF w Shenzhen/.test(l.o.aria)); assert.equal(cf.length, 1); assert.equal(cf[0].o.aria, `Szacunkowy napływ do funduszy ETF w Shenzhen, ${n} sesji`); assert.equal(cf[0].L[0].d.length, n);
+  assert.deepEqual(cf[0].L[0].d[n - 1], [Date.parse(f[0] + 'T12:00:00Z'), f[5]]); assert.equal(cf[0].o.fmt(-4.58), '−4,6 mld CNY');
+  assert.ok(h.includes('To tylko giełda w Shenzhen, czyli część rynku Chin. Napływ do ETF to szacunek.') && h.includes('Napływ do ETF, dziennie (szacunek)'));
+  // lista ETF bez wierszy zmian (pierwszy dzień zbierania) — tylko zestawienie dnia i zdanie; szacunek bez wartości ETF = „—”, nigdy zero
+  const j0 = az460.J(); j0.cn.etf.fl = []; const K0 = az460.mk('pl', az460.files(j0), {open: true}), h0 = az460.blk(K0.html(), az460.TITLES[2]);
+  assert.equal(az460.tiles(h0).length, 4); assert.ok(h0.includes('Zmiany dzienne pojawią się od drugiej sesji, dla której mamy listę funduszy.')); assert.equal(K0.lines.filter(l => /Szacunkowy napływ/.test(l.o.aria)).length, 0);
+  const j1 = az460.J(); j1.cn.etf.fl[j1.cn.etf.fl.length - 1][5] = null; const T1 = az460.tiles(az460.blk(az460.mk('pl', az460.files(j1), {open: true}).html(), az460.TITLES[2])); assert.equal(T1[4].val, '—'); assert.ok(T1[4].valHtml.includes('class="na"'));
+  const j2 = az460.J(); delete j2.cn.etf; assert.equal(az460.tiles(az460.blk(az460.mk('pl', az460.files(j2), {open: true}).html(), az460.TITLES[2])).length, 4, 'bez listy ETF zostaje zestawienie dnia');
+});
+
+test('v460 (F11Z42): Brazylia — saldo dnia funduszy akcji, mieszanych i dłużnych oraz razem z fixtury, suma 5 sesji i procent aktywów, dwa wykresy; dzień z datą i wiekiem', () => {
+  const P = AZM460_FILE.br, R = P.rows, a = R[R.length - 1], L = P.last, K = az460.mk('pl', az460.files(), {open: true}), h = az460.blk(K.html(), az460.TITLES[3]), T = az460.tiles(h), w = `dane z dnia ${az460.pdate(a[0])} · wiek(${a[0]})`;
+  assert.equal(P.date, a[0]); assert.equal(L.d, a[0]); assert.equal(T.length, 4); assert.ok(T.every(x => x.when === w)); assert.ok(R.length >= 25, 'fixtura ma ponad miesiąc sesji');
+  assert.deepEqual(T.map(x => x.label), ['Fundusze akcji: saldo dnia', 'Fundusze mieszane: saldo dnia', 'Fundusze dłużne: saldo dnia', 'Wszystkie fundusze: saldo dnia']);
+  const s5 = i => R.slice(-5).reduce((x, r) => x + r[i], 0), u = 'mld BRL', IDX = {ac: 2, mm: 3, rf: 1};
+  [['ac', 0], ['mm', 1], ['rf', 2]].forEach(([k, n]) => {
+    const i = IDX[k], v = a[i], d = az460.dec(v);
+    assert.equal(T[n].val, az460.sg(v, d, u)); assert.ok(T[n].valHtml.includes(`class="${az460.cls(v, d)}"`));
+    assert.deepEqual(T[n].lines, [['pc', `5 sesji: ${az460.fmt(s5(i), az460.dec(s5(i)))} ${u}`], ['pc', `${az460.fmt(v / L.c[k][2] * 100, 2)}% aktywów funduszy`]]);
+  });
+  const all = a[1] + a[2] + a[3] + a[4], all5 = s5(1) + s5(2) + s5(3) + s5(4); assert.equal(T[3].val, az460.sg(all, az460.dec(all), u)); assert.deepEqual(T[3].lines, [['pc', `5 sesji: ${az460.fmt(all5, az460.dec(all5))} ${u}`]]);
+  assert.equal(a[0], '2026-10-14', 'ostatni kompletny dzień z nagrań (15.10 miał 93% funduszy — pominięty)'); assert.equal(T[2].val, '+27,4 mld BRL'); assert.ok(T[2].valHtml.includes('class="pos"'), 'fixtura: fundusze dłużne dostały w ostatnim kompletnym dniu napływ netto — zielony');
+  const c1 = K.lines.filter(l => /funduszy akcji i mieszanych w Brazylii/.test(l.o.aria)), c2 = K.lines.filter(l => /funduszy dłużnych w Brazylii/.test(l.o.aria)); assert.equal(c1.length, 1); assert.equal(c2.length, 1);
+  assert.equal(c1[0].o.aria, `Saldo dnia funduszy akcji i mieszanych w Brazylii, ${R.length} sesji`); assert.deepEqual(c1[0].L.map(s => s.n), ['akcje', 'mieszane']); assert.deepEqual(c1[0].L.map(s => s.cls), ['s1', 's2']);
+  assert.deepEqual(c1[0].L[0].d[R.length - 1], [Date.parse(a[0] + 'T12:00:00Z'), a[2]]); assert.deepEqual(c1[0].L[1].d[0], [Date.parse(R[0][0] + 'T12:00:00Z'), R[0][3]]);
+  assert.deepEqual(c2[0].L.map(s => s.n), ['dłużne']); assert.deepEqual(c2[0].L[0].d[R.length - 1], [Date.parse(a[0] + 'T12:00:00Z'), a[1]]); assert.equal(c1[0].o.fmt(-0.164), '−0,2 mld BRL'); assert.equal(c1[0].o.fmt(27.425), '27 mld BRL');
+  assert.ok(h.includes('Akcje i fundusze mieszane: saldo dnia') && h.includes('Fundusze dłużne: saldo dnia') && h.includes('Ostatnie 2–3 dni robocze są jeszcze niepełne'));
+  // brak bloku „last” = procent aktywów „—”; mniej niż 5 sesji = suma „—”
+  const j = az460.J(); delete j.br.last; j.br.rows = j.br.rows.slice(-3); const T2 = az460.tiles(az460.blk(az460.mk('pl', az460.files(j), {open: true}).html(), az460.TITLES[3]));
+  assert.deepEqual(T2[0].lines, [['pc', '5 sesji: —'], ['pc', '—']]); assert.deepEqual(T2[3].lines, [['pc', '5 sesji: —']]);
+  assert.equal(az460.mk('pl', az460.files(j), {open: true}).lines.filter(l => /Brazylii/.test(l.o.aria)).length, 2, 'trzy sesje wystarczą na wykres (dwa punkty to minimum)');
+});
+
+test('v460 (F11Z42): walidacja części — zły kształt, zła data, niezgodny ostatni wiersz albo za stare dane = część znika (nie zero), pozostałe zostają; plik bez żadnej części = komunikat o błędzie; flaga ok=false = zdanie o braku odczytu', () => {
+  const nazwa = (j, k) => { const K = az460.mk('pl', az460.files(j), {open: true}), h = K.html(); return az460.TITLES.map(x => h.includes(x)); };
+  assert.deepEqual(nazwa(undefined), [true, true, true, true]);
+  const cases = [
+    [0, j => { j.jp.date = '2026-10-02'; }], [0, j => { j.jp.rows[j.jp.rows.length - 1][1][3] = 140; }], [0, j => { j.jp.rows[j.jp.rows.length - 1][1][0] = 'x'; }], [0, j => { j.jp.rows[j.jp.rows.length - 1][2] = [1, 2, 3]; }], [0, j => { j.jp.date = '2026-02-30'; }],
+    [0, j => { for (const r of j.jp.rows) r[0] = '2026-08-0' + (1 + j.jp.rows.indexOf(r)); j.jp.date = j.jp.rows[j.jp.rows.length - 1][0]; }],
+    [1, j => { j.kr.m = '2026-07'; }], [1, j => { j.kr.rows[j.kr.rows.length - 1][2] = 0; }], [1, j => { j.kr.rows = 'x'; }], [1, j => { j.kr.rows[j.kr.rows.length - 1][1] = null; }],
+    [2, j => { j.cn.date = '2026-10-15'; }], [2, j => { j.cn.sm[j.cn.sm.length - 1][1] = 'x'; }], [2, j => { j.cn.sm = []; }],
+    [3, j => { j.br.date = '2026-10-13'; }], [3, j => { j.br.rows[j.br.rows.length - 1][1] = 1e9; }], [3, j => { j.br.rows[j.br.rows.length - 1] = [1]; }],
+  ];
+  cases.forEach(([i, f], n) => { const j = az460.J(); f(j); const r = nazwa(j); assert.equal(r[i], false, `przypadek ${n}: część ${i} powinna zniknąć`); assert.deepEqual(r.filter((x, k) => k !== i), [true, true, true], `przypadek ${n}: pozostałe części zostają`); });
+  // uszkodzony wiersz ze środka serii jest pominięty (brak, nie zero) — część zostaje z mniejszą liczbą punktów
+  const srodek = [[0, /Saldo kontraktów terminowych w Japonii, (\d+) tygodni/, j => { j.jp.rows[2][1][3] = 140; }], [0, /Saldo kontraktów terminowych w Japonii, (\d+) tygodni/, j => { j.jp.rows[1][2] = [1, 2]; }],
+    [1, /akcji i obligacji w Korei, (\d+) miesięcy/, j => { j.kr.rows[3][2] = 0; }], [2, /Obrót akcji w Shenzhen, (\d+) sesji/, j => { j.cn.sm[2][1] = 'x'; }], [3, /funduszy akcji i mieszanych w Brazylii, (\d+) sesji/, j => { j.br.rows[2] = [1]; }]];
+  const lines0 = az460.mk('pl', az460.files(), {open: true}).lines;
+  srodek.forEach(([i, re, f], n) => { const j = az460.J(); f(j); const K = az460.mk('pl', az460.files(j), {open: true}), p0 = lines0.find(l => re.test(l.o.aria)), p1 = K.lines.find(l => re.test(l.o.aria));
+    assert.ok(az460.TITLES.every(x => K.html().includes(x)), `środek ${n}: wszystkie bloki zostają`); assert.equal(+re.exec(p1.o.aria)[1], +re.exec(p0.o.aria)[1] - 1, `środek ${n}: o jeden punkt mniej`); });
+  // zła lista ETF (data, liczby) — zestawienie dnia zostaje, tylko bez kafli ETF
+  const badEtf = [j => { j.cn.etf.date = 'x'; }, j => { j.cn.etf.units = 0; }, j => { j.cn.etf.fl[j.cn.etf.fl.length - 1][2] = 1.5; }, j => { j.cn.etf.fl[j.cn.etf.fl.length - 1][5] = 'x'; }];
+  badEtf.slice(0, 2).forEach((f, n) => { const j = az460.J(); f(j); const T = az460.tiles(az460.blk(az460.mk('pl', az460.files(j), {open: true}).html(), az460.TITLES[2])); assert.equal(T.length, 4, `lista ETF ${n}: bez kafli ETF, zestawienie dnia zostaje`); });
+  badEtf.slice(2).forEach((f, n) => { const j = az460.J(); f(j); const T = az460.tiles(az460.blk(az460.mk('pl', az460.files(j), {open: true}).html(), az460.TITLES[2])), pr = AZM460_FILE.cn.etf.fl[AZM460_FILE.cn.etf.fl.length - 2];
+    assert.equal(T.length, 7, `wiersz zmian ${n}: uszkodzony ostatni pominięty`); assert.equal(T[4].when, `dane z dnia ${az460.pdate(pr[0])} · wiek(${pr[0]})`, 'kafle ETF z poprzedniego poprawnego wiersza, z jego datą'); });
+  const j = az460.J(); j.jp.date = 'x'; j.kr.m = 'x'; j.cn.date = 'x'; j.br.date = 'x'; const E = az460.mk('pl', az460.files(j), {open: true}); assert.ok(az460.txt(E.html()).includes('Nie udało się wczytać danych'), 'żadna część poprawna = błąd wczytania');
+  assert.equal(az460.mk('pl', az460.files(Object.assign(az460.J(), {v: 2})), {open: true}).api.AZM.x, true, 'inna wersja pliku = błąd');
+  const jj = az460.J(); jj.jp.date = '2026-10-02'; jj.ok = {jp: false, kr: true, cn: true, br: true}; const hh = az460.txt(az460.mk('pl', az460.files(jj), {open: true}).html()); assert.ok(hh.includes('Brak aktualnego odczytu: Japonia.'), 'zepsuta część z ok=false: zdanie o braku odczytu');
+  jj.ok = {jp: true}; assert.ok(!az460.txt(az460.mk('pl', az460.files(jj), {open: true}).html()).includes('Brak aktualnego odczytu'), 'bez flagi false — bez zdania');
+  // nie-obiekt, null i tablica w miejscu części
+  for (const v of [null, 5, [], 'x']) { const q = az460.J(); q.cn = v; assert.deepEqual(nazwa(q), [true, true, false, true]); }
+  const p = az460.J(); delete p.part_at; delete p.ok; assert.deepEqual(nazwa(p), [true, true, true, true], 'części niezależne od pól pomocniczych');
+});
+
+test('v460 (F11Z42): angielski — te same kafle i jednostki (bn/tn zamiast mld/bln), bez polskich napisów; brak nazw dostawców; słownik tylko w pl i en', () => {
+  const K = az460.mk('en', az460.files(), {open: true}), h = K.html(), T = az460.tiles(h);
+  assert.equal(T.length, 21); assert.ok(h.includes('Asia and Brazil: who is buying and selling') && h.includes('Japan: futures by type of investor') && h.includes('South Korea: what foreign investors hold') && h.includes('China: the Shenzhen exchange and ETFs') && h.includes('Brazil: fund deposits and withdrawals'));
+  const labs = T.map(x => x.label); assert.deepEqual(labs.slice(0, 6), ['Foreigners: Nikkei 225', 'Foreigners: TOPIX', 'Foreigners: 10-year bonds', 'Individuals: Nikkei 225', 'Investment trusts: Nikkei 225', 'Foreign share of trading: Nikkei 225']);
+  assert.ok(T[0].val.endsWith('bn JPY') && T[0].val.startsWith('+')); assert.ok(T[7].val.endsWith('tn KRW'), 'wartość posiadania w bln KRW = tn'); assert.ok(T[10].val.endsWith('tn CNY') || T[10].val.endsWith('bn CNY'));
+  assert.ok(T.some(x => x.val.includes('mld') || x.lines.some(l => l[1].includes('mld'))) === false, 'żadnego „mld” po angielsku');
+  assert.ok(h.includes('The balance is purchases minus sales') && h.includes('This is a month-end holding, not a flow.') && h.includes('The balance is deposits minus withdrawals'));
+  assert.ok(!/[ąćęłńóśźż]/i.test(az460.txt(h)), 'żadnych polskich znaków w angielskiej wersji karty: ' + (az460.txt(h).match(/\S*[ąćęłńóśźż]\S*/i) || [''])[0]);
+  const dict = v96src.I18N, keys = Object.keys(dict.pl).filter(k => k.startsWith('az460.'));
+  assert.ok(keys.length >= 70, 'słownik v460: ' + keys.length); assert.deepEqual(Object.keys(dict).filter(l => dict[l]['az460.t']).sort(), ['en', 'pl'], 'tylko polski i angielski (decyzja właściciela 18.10)');
+  assert.deepEqual(Object.keys(dict.en).filter(k => k.startsWith('az460.')).sort(), keys.slice().sort());
+  const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(','); keys.forEach(k => { assert.equal(ph(dict.pl[k]), ph(dict.en[k]), 'znaczniki ' + k); assert.ok(!/[<>]/.test(dict.pl[k] + dict.en[k]), 'bez HTML w ' + k); assert.ok(dict.pl[k].trim() && dict.en[k].trim(), k); });
+  // klucze użyte w kodzie bloku istnieją (statyczne i rodziny dynamiczne)
+  const used = [...new Set([...az460.code.matchAll(/t\('(az460\.[a-z0-9.]+)'/g)].map(m => m[1]))].filter(k => !k.endsWith('.')); used.forEach(k => assert.ok(keys.includes(k), 'brak klucza ' + k));
+  for (const k of ['jp', 'kr', 'cn', 'br']) { assert.ok(keys.includes('az460.h.' + k) && keys.includes('az460.' + k + '.n') && keys.includes('az460.p.' + k), 'rodzina kluczy ' + k); }
+  const bez = /JPX|Osaka|Japan Exchange|SZSE|Shenzhen Stock Exchange|CVM|Comiss|FSS|Financial Supervisory|HKEX|Bloomberg|Reuters|Anbima/i;
+  for (const k of keys) assert.ok(!bez.test(dict.pl[k] + ' ' + dict.en[k]), 'nazwa dostawcy w kluczu ' + k);
+  const pl = az460.txt(az460.mk('pl', az460.files(), {open: true}).html()); assert.ok(!bez.test(pl) && !bez.test(az460.txt(h)), 'kod i teksty karty bez nazw dostawców'); assert.ok(!bez.test(az460.code.replace(/\/\*[\s\S]*?\*\//g, '')), 'kod bloku (bez komentarzy) bez nazw dostawców');
+});
+
+test('v460 (F11Z42): wygląd — style tylko ze zmiennych motywu, trzy kolumny kafli (cztery w blokach z czterema), dwie na telefonie, bez przewijania w bok; kolory kierunku jak w całej stronie', () => {
+  const s0 = html.indexOf('/* v460 (F11Z42): Azja i Brazylia (panel #g-azja2)'), s1 = html.indexOf('</style>', s0); assert.ok(s0 > 0 && s1 > s0, 'blok CSS v460');
+  const css = html.slice(s0, s1);
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b(?![^{]*\{)/.test(css.replace(/#g-azja2/g, '')), 'bez stałych kolorów szesnastkowych (selektory #g-azja2 pominięte)'); assert.ok(!/rgb|hsl|!important/i.test(css), 'tylko zmienne motywu');
+  assert.ok(css.includes('#g-azja2 .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}') && css.includes('#g-azja2 .etfkpis.k4{grid-template-columns:repeat(4,minmax(0,1fr))}'));
+  assert.ok(css.includes('@media (max-width:620px){#g-azja2 .etfkpis,#g-azja2 .etfkpis.k4{grid-template-columns:repeat(2,minmax(0,1fr))}}'), 'telefon: dwie kolumny');
+  assert.ok(css.includes('overflow-wrap:anywhere') && !/min-width\s*:\s*\d{3,}px|width\s*:\s*\d{4,}px/.test(css), 'długie napisy zawijane, brak sztywnej szerokości');
+  assert.ok(css.includes('span.pos{color:var(--gr-tx)}') && css.includes('span.neg{color:var(--rd-tx)}') && css.includes('span.neu{color:var(--yl-tx)}') && css.includes('small.pos{color:var(--gr-tx)}') && css.includes('small.neg{color:var(--rd-tx)}') && css.includes('small.neu{color:var(--yl-tx)}'), 'zielony wzrost, czerwony spadek, żółte zero');
+  assert.ok(!/color:\s*(gray|grey)/i.test(css), 'żadnych szarych zmian');
+  const body = az460.mk('pl', az460.files(), {open: true}).html(); assert.equal((body.match(/etfkpis k4/g) || []).length, 3, 'Korea, Chiny (zestawienie) i Brazylia po cztery kafle'); assert.equal((body.match(/<div class="etfkpis">/g) || []).length, 2, 'Japonia (sześć) i zmiany ETF (trzy) w trzech kolumnach');
+});
