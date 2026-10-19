@@ -70431,7 +70431,7 @@ class FedDdpV423(unittest.TestCase):
         def run(prevs, build=None, fresh_=True):
             zd.META['ok'].clear(); zd.META['errors'].clear(); saved.clear(); calls.clear()
 
-            def bs(p, run_t0=None):
+            def bs(p, run_t0=None, fred_key=None):   # v462: klucz FRED trafia do budowniczego
                 calls.append('fdd')
                 if build is None:
                     raise RuntimeError('offline')
@@ -70439,9 +70439,10 @@ class FedDdpV423(unittest.TestCase):
             with mock.patch.object(zd, 'previous', side_effect=lambda n: prevs.get(n)), mock.patch.object(zd, 'save', side_effect=lambda n, o: saved.__setitem__(n, o)), \
                     mock.patch.object(zd, 'fresh_pelny', return_value=fresh_), mock.patch.object(zd, 'build_fed_ddp', side_effect=bs):
                 try:
+                    zd.__dict__['fred_key'] = 'klucz-testowy'   # v462: w main() to zmienna lokalna
                     exec(compile(blk, 'blok_v423', 'exec'), zd.__dict__)
                 finally:
-                    for n_ in ('prev_fdd', 'fdd_', 'k_fdd', 'stan_fdd', 'e'):
+                    for n_ in ('prev_fdd', 'fdd_', 'k_fdd', 'stan_fdd', 'e', 'fred_key'):
                         zd.__dict__.pop(n_, None)
         wszystkie = lambda v: {'fedddp_' + k: v for k in zd.FDD_PARTS}   # noqa: E731
         run({'fed-ddp': pk})
@@ -79104,3 +79105,258 @@ class AlarmKontroliV461(unittest.TestCase):
             R = k.kontrola_przerwana(k.KoniecCzasu())
         self.assertEqual(R['wynik'], 'BŁĄD'); self.assertEqual(len(R['bledy']), 1); self.assertTrue(R['bledy'][0].startswith('kontrola przerwana'))
         self.assertEqual(R['zewnetrzne'], ['część automatu „a” nie działa od x']); self.assertEqual(R['uwagi'], ['część automatu „a” nie działa od x', 'u'])
+
+
+# ---------------------------------------------------------------- v462: zapas FRED dla modułu Fed ----------------------------------------------------------------
+_V462_KEY = 'fredtestkey0123456789abcdef01234567'
+_V462_PUB = {'h8': '2026-10-16', 'cp': '2026-10-16', 'so': '2026-09-24', 'sl': '2026-07-30'}
+
+
+def _v462_mapa():
+    """Nagrania _V423_FIX (jednostki paczek) → obserwacje FRED {id: [(dzień FRED, wartość FRED)]}: mld $ (poza B3094NCBA), kwartały od pierwszego dnia, brak = „.”."""
+    import decimal
+    D = decimal.Decimal
+    kw = {'03-31': '01-01', '06-30': '04-01', '09-30': '07-01', '12-31': '10-01'}
+    M, CZ = {}, {}
+
+    def w(v, mn):
+        return format(D(v) / mn, 'f')
+    for _, nm in zd.FDD_H8:
+        sid, mn = zd.FDD_FRED_H8[nm]; M[sid] = [(d, w(v, mn)) for d, v in _V423_FIX['h8'][nm]]; CZ[sid] = 'h8'
+    for _, nm in zd.FDD_CPW:
+        sid, mn = zd.FDD_FRED_CPW[nm]; M[sid] = [(d, w(v, mn)) for d, v in _V423_FIX['cpw'][nm]]; CZ[sid] = 'cp'
+    for _, nm in zd.FDD_CPR:
+        sid = zd.FDD_FRED_CPR[nm]; M[sid] = [(d, v if st == 'A' else '.') for d, st, v in _V423_FIX['cpr'][nm]]; CZ[sid] = 'cp'
+    for _, nm in zd.FDD_SL:
+        sid = zd.FDD_FRED_SL[nm]; M[sid] = [(d[:5] + kw[d[5:]], v) for d, v in _V423_FIX['sl'][nm]]; CZ[sid] = 'sl'
+    for nm in _V423_FIX['so']:
+        sid = zd.fdd_fred_id_so(nm); M[sid] = [(d[:5] + kw[d[5:]], v) for d, v in _V423_FIX['so'][nm]]; CZ[sid] = 'so'
+    return M, CZ
+
+
+_V462_M, _V462_CZ = _v462_mapa()
+
+
+def _v462_swiat(calls, **opc):
+    """Zaślepka get_bytes_maks: adres paczki Fed → paczka z nagrań albo błąd z opc['zip'] ({część: wyjątek | bajty}, 'zip404': True = HTTP 404 dla wszystkich); adres FRED → JSON z nagrań
+    (opc['fred'] = {id: wyjątek | funkcja(lista obserwacji) → lista | bajty}, opc['meta'] = {część: tekst last_updated})."""
+    import urllib.parse as up
+
+    def gb(url, headers=None, timeout=60, maks=None):
+        calls.append(url)
+        if 'api.stlouisfed.org' in url:
+            q = up.parse_qs(up.urlsplit(url).query)
+            assert q['api_key'] == [_V462_KEY], 'klucz tylko w adresie zapytania'
+            sid = q['series_id'][0]
+            if up.urlsplit(url).path.endswith('/series'):
+                return json.dumps({'seriess': [{'id': sid, 'last_updated': opc.get('meta', {}).get(_V462_CZ.get(sid), _V462_PUB.get(_V462_CZ.get(sid), '2026-10-16') + ' 15:31:03-05')}]}).encode()
+            e = opc.get('fred', {}).get(sid)
+            if isinstance(e, Exception):
+                raise e
+            if isinstance(e, (bytes, bytearray)):
+                return bytes(e)
+            if sid not in _V462_M:
+                raise urllib.error.HTTPError(url, 400, 'Bad Request', {}, None)
+            L = [(d, v) for d, v in _V462_M[sid] if d >= q['observation_start'][0]]
+            if callable(e):
+                L = e(L)
+            return json.dumps({'observations': [{'realtime_start': '2026-10-18', 'realtime_end': '2026-10-18', 'date': d, 'value': v} for d, v in L]}).encode()
+        for k, frag in _V423_URL.items():
+            if frag in url:
+                z = opc.get('zip', {}).get(k)
+                if opc.get('zip404') or isinstance(z, Exception):
+                    raise z if isinstance(z, Exception) else urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+                return z if z is not None else _v423_paczka(k)
+        raise AssertionError('nieoczekiwany adres ' + url)
+    return gb
+
+
+class FedFredZapasV462(unittest.TestCase):
+    """v462 (19.10.2026): zapas FRED dla czterech części data/fed-ddp.json na nagraniach — te same dane co z paczek, automatyczne przełączenie przy błędzie paczki (HTTP 404, strona błędu), informacja w pliku,
+    bramki zapasu (jednostki, kwartały, braki, dane stoją), oba źródła bez odpowiedzi, brak klucza, klucz nigdy w wyniku ani w komunikatach."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.p = [mock.patch.object(zd, 'NOW', _V423_NOW.isoformat()), mock.patch.object(zd, 'FDD_SLEEP', 0), mock.patch.object(zd, 'SECRETS', [_V462_KEY])]
+        [p.start() for p in self.p]
+
+    def tearDown(self):
+        [p.stop() for p in self.p]
+        zd._FDD_T0[0] = None
+
+    def _build(self, prev=None, now=None, key=_V462_KEY, **opc):
+        calls = []
+        with mock.patch.object(zd, 'get_bytes_maks', _v462_swiat(calls, **opc)), mock.patch.object(zd, 'NOW', (now or _V423_NOW).isoformat()):
+            return zd.build_fed_ddp(prev, fred_key=key), calls
+
+    def _czesc(self, k, now=None, **opc):
+        calls = []
+        with mock.patch.object(zd, 'get_bytes_maks', _v462_swiat(calls, **opc)):
+            return zd.FDD_FRED_BUDOWA[k](now or _V423_NOW, _V462_KEY)
+
+    def test_zapas_daje_te_same_dane_co_paczka(self):
+        P0 = _v423_plik()
+        for k in zd.FDD_PARTS:
+            self.assertEqual(self._czesc(k), P0[k], k + ': zapas FRED = paczka wydania (liczby, dni, data wydania)')
+        self.assertEqual(self._czesc('h8')['h'][-1], ['2026-10-07', 26100.3, 19948.5, 5766.0, 14182.5, 2987.8, 3155.2, 1935.7, 2098.0, 19771.5, 2605.7, 2390.0, 3208.2])
+        self.assertEqual(self._czesc('sl')['h'][-1], ['2026-09-30', 0.0, 1.8, 6.7, -11.3, -5.7, -10.4, 16.1, 2.2], 'kwartał FRED 1.07 = koniec kwartału 30.09')
+
+    def test_przelaczenie_gdy_paczki_znikaja(self):
+        P0 = _v423_plik()
+        o, calls = self._build(zip404=True)
+        self.assertEqual(o['ok'], {k: True for k in zd.FDD_PARTS}); self.assertEqual(o['errs'], {}); self.assertEqual(zd.META['errors'], [])
+        for k in zd.FDD_PARTS:
+            self.assertEqual(o[k], P0[k], k)
+            self.assertEqual((o['via'][k]['zr'], o['via'][k]['od']), ('fred', _V423_NOW.isoformat()))
+            self.assertIn('HTTP Error 404', o['via'][k]['powod'])
+        self.assertEqual(len(zd.META['notes']), 4); self.assertTrue(all('zapasu FRED' in n for n in zd.META['notes']))
+        self.assertNotIn(_V462_KEY, json.dumps(o)); self.assertNotIn(_V462_KEY, json.dumps(zd.META))
+        pierwszy = next(i for i, u in enumerate(calls) if 'api.stlouisfed.org' in u)
+        self.assertTrue(all('federalreserve.gov' in u for u in calls[:pierwszy]) and pierwszy >= 1, 'najpierw główna droga, zapas dopiero po jej błędzie')
+        # strona błędu zamiast paczki — to samo
+        o2, _ = self._build(zip={'h8': b'<html>Not found</html>'})
+        self.assertIn('via', o2); self.assertEqual(sorted(o2['via']), ['h8']); self.assertEqual(o2['h8'], P0['h8']); self.assertIn('nie jest paczką ZIP', o2['via']['h8']['powod'])
+        self.assertEqual(sorted(o2['ok']), ['cp', 'h8', 'sl', 'so'])
+
+    def test_glowna_droga_dziala_zapas_nietkniety(self):
+        o, calls = self._build()
+        self.assertNotIn('via', o); self.assertFalse([u for u in calls if 'stlouisfed' in u], 'bez błędu paczki FRED nie jest pytany')
+        self.assertEqual(o['ok'], {k: True for k in zd.FDD_PARTS}); self.assertEqual(zd.META['notes'], [])
+
+    def test_oba_zrodla_bez_odpowiedzi(self):
+        P0 = _v423_plik()
+        e400 = lambda: urllib.error.HTTPError('https://api.stlouisfed.org/x?api_key=' + _V462_KEY, 400, 'Bad Request', {}, None)
+        fred = {sid: e400() for sid in _V462_M}
+        prev = json.loads(json.dumps(P0)); prev['at'] = '2026-10-16T20:00:00+00:00'; prev['part_at'] = {k: '2026-10-16T20:00:00+00:00' for k in zd.FDD_PARTS}
+        o, _ = self._build(prev=prev, zip404=True, fred=fred)
+        self.assertEqual(o['ok'], {k: False for k in zd.FDD_PARTS})
+        for k in zd.FDD_PARTS:
+            self.assertEqual(o[k], P0[k], k + ': ostatnie dane zostają'); self.assertIn('zapas FRED: FRED: HTTP 400', o['errs'][k]); self.assertIn('HTTP Error 404', o['errs'][k])
+            self.assertEqual(o['part_at'][k], '2026-10-16T20:00:00+00:00')
+        self.assertNotIn('via', o); self.assertEqual(len(zd.META['errors']), 4)
+        self.assertNotIn(_V462_KEY, json.dumps(o)); self.assertNotIn(_V462_KEY, json.dumps(zd.META))
+        with self.assertRaisesRegex(RuntimeError, 'żadna część nie odpowiedziała'):
+            self._build(zip404=True, fred=fred)
+        # komunikat błędu dostawcy odbija adres z kluczem: klucz nie trafia ani do pliku, ani do meta
+        odbity = {sid: RuntimeError('api_key=' + _V462_KEY + ' odbity adres https://api.stlouisfed.org/fred/series/observations?series_id=X') for sid in _V462_M}
+        o3, _ = self._build(prev=prev, zip404=True, fred=odbity)
+        self.assertEqual(o3['ok'], {k: False for k in zd.FDD_PARTS}); self.assertNotIn(_V462_KEY, json.dumps(o3)); self.assertNotIn(_V462_KEY, json.dumps(zd.META))
+        self.assertTrue(all('***' in v for v in o3['errs'].values()), 'klucz zamaskowany w przyczynie błędu')
+
+    def test_bez_klucza_blad_paczki_bez_zapasu(self):
+        prev = _v423_plik(); prev['part_at'] = {k: '2026-10-16T20:00:00+00:00' for k in zd.FDD_PARTS}
+        o, calls = self._build(prev=prev, key=None, zip404=True)
+        self.assertEqual(o['ok'], {k: False for k in zd.FDD_PARTS}); self.assertTrue(all('zapas' not in v for v in o['errs'].values())); self.assertNotIn('via', o)
+        self.assertFalse([u for u in calls if 'stlouisfed' in u], 'bez klucza FRED nie jest pytany')
+
+    def test_bramki_zapasu(self):
+        def zle(k, wzor, now=None, **opc):
+            with self.assertRaisesRegex(ValueError, wzor):
+                self._czesc(k, now=now, **opc)
+        zob = zd.FDD_FRED_H8['B3094NCBA'][0]
+        zle('h8', 'poza zakresem', fred={zob: lambda L: [(d, format(float(v) * 1000, 'f')) for d, v in L]})   # zmiana jednostki (mld zamiast mln) — wyłapana
+        zle('h8', 'brak wartości w tygodniu', fred={'TOTBKCR': lambda L: L[:-1] + [(L[-1][0], '.')]})
+        zle('h8', 'nie liczba', fred={'TOTBKCR': lambda L: L[:-1] + [(L[-1][0], 'abc')]})
+        zle('h8', 'wartość nieskończona', fred={'TOTBKCR': lambda L: L[:-1] + [(L[-1][0], 'Infinity')]})
+        zle('h8', 'dni inne niż w pierwszej serii', fred={'TOTLL': lambda L: L[:-1] + [('2026-10-06', L[-1][1])]})
+        zle('h8', 'nie dają sum', fred={'TOTBKCR': lambda L: L[:-1] + [(L[-1][0], str(float(L[-1][1]) * 1.06))]})
+        zle('h8', 'źródło stoi', now=datetime.datetime(2026, 11, 20, 9, 0, tzinfo=datetime.timezone.utc))
+        zle('h8', 'FRED: HTTP 400', fred={'TOTBKCR': urllib.error.HTTPError('u', 400, 'Bad Request', {}, None)})
+        zle('h8', 'brak obserwacji', fred={'TOTBKCR': lambda L: []})
+        zle('h8', 'nie jest JSON-em', fred={'TOTBKCR': b'<html>Rate limit</html>'})
+        zle('h8', 'zły wiersz obserwacji', fred={'TOTBKCR': json.dumps({'observations': [{'date': 5, 'value': '1'}]}).encode()})
+        zle('cp', 'razem ≠', fred={'COMPOUT': lambda L: L[:-1] + [(L[-1][0], str(float(L[-1][1]) + 9))]})
+        zle('cp', 'za mało pełnych dni', fred={'RIFSPPNA2P2D30NB': lambda L: [(d, '.') for d, v in L]})
+        zle('sl', 'nie jest początkiem kwartału', fred={'DEMCC': lambda L: [(d[:8] + '15', v) for d, v in L]})
+        zle('sl', 'poza zakresem', fred={'DRTSCIS': lambda L: L[:-1] + [(L[-1][0], '150')]})
+        zle('sl', 'brak daty wydania|źródło stoi', now=datetime.datetime(2026, 12, 20, 9, 0, tzinfo=datetime.timezone.utc))
+        zle('sl', 'brak daty aktualizacji', meta={'sl': ''})
+        zle('so', 'FRED: HTTP 400', fred={'ALLQ04TCNR': urllib.error.HTTPError('u', 400, 'Bad Request', {}, None)})
+        zle('so', 'poza 5–40', fred={'ALLQ04TCNR': lambda L: L[:-1] + [(L[-1][0], '60')]})
+
+    def test_znacznik_zapasu_przenosi_sie_przez_cache_i_blad(self):
+        o1, _ = self._build(zip404=True)
+        later = _V423_NOW + datetime.timedelta(hours=2)   # krócej niż rytm części (12 h / 24 h): części z poprzedniego pliku, znacznik zostaje z początkowym „od”
+        o2, calls = self._build(prev=o1, now=later, zip404=True)
+        self.assertEqual(o2['ok'], {k: 'cached' for k in zd.FDD_PARTS}); self.assertEqual(o2['via'], o1['via']); self.assertEqual(calls, [])
+        pozniej = _V423_NOW + datetime.timedelta(hours=30)   # odczyt znowu zapasem: „od” zostaje z pierwszego przełączenia, powód odświeżony
+        o3, _ = self._build(prev=o2, now=pozniej, zip404=True)
+        self.assertTrue(all(o3['via'][k]['od'] == _V423_NOW.isoformat() and o3['part_at'][k] == pozniej.isoformat() for k in zd.FDD_PARTS))
+        # główna droga wróciła: znacznik znika
+        o4, _ = self._build(prev=o3, now=pozniej + datetime.timedelta(hours=30))
+        self.assertNotIn('via', o4)
+        # zapas nie wyszedł, paczka też: część zostaje z ostatnimi danymi i ze znacznikiem poprzedniego zapasu
+        e = urllib.error.HTTPError('u', 400, 'Bad Request', {}, None)
+        o5, _ = self._build(prev=o3, now=pozniej + datetime.timedelta(hours=30), zip404=True, fred={sid: e for sid in _V462_M})
+        self.assertEqual(o5['ok'], {k: False for k in zd.FDD_PARTS}); self.assertEqual(o5['via'], o3['via'])
+
+    def test_zasady_kodu_zapasu_fred(self):
+        with open(zd.__file__, encoding='utf-8') as f:
+            s = f.read()
+        blok = s[s.index('# ===================== v462 (19.10.2026)'):s.index('# v462: koniec zapasu FRED dla modułu Fed')]
+        for zakaz in ('os.environ', 'datetime.datetime.now(', 'date.today(', 'time.time(', 'Authorization', 'get_json(', 'get_bytes(', 'print(', 'headers='):
+            self.assertNotIn(zakaz, blok, zakaz)
+        import re as _re
+        adresy = _re.findall(r"https?://[^\s'\"]+", blok)
+        self.assertEqual({a.split('/')[2] for a in adresy}, {'api.stlouisfed.org'}); self.assertEqual(len(adresy), 2, 'dwa wzorce adresu: obserwacje i data aktualizacji serii')
+        self.assertEqual(blok.count('fdd_get('), 1, 'każde zapytanie przez fdd_get: odstęp, limit czasu i rozmiaru'); self.assertNotIn(chr(0x200b), blok)
+        # klucz tylko w wywołaniach z zewnątrz: żaden komunikat błędu nie składa się z adresu
+        self.assertNotIn("{url}", blok); self.assertNotIn("f'{url", blok)
+
+    def test_staly_podzial_zapasu(self):
+        self.assertEqual(sorted(zd.FDD_FRED_BUDOWA), sorted(zd.FDD_PARTS))
+        self.assertEqual(sorted(zd.FDD_FRED_H8), sorted(nm for _, nm in zd.FDD_H8)); self.assertEqual(sorted(zd.FDD_FRED_CPW), sorted(nm for _, nm in zd.FDD_CPW))
+        self.assertEqual(sorted(zd.FDD_FRED_CPR), sorted(nm for _, nm in zd.FDD_CPR)); self.assertEqual(sorted(zd.FDD_FRED_SL), sorted(nm for _, nm in zd.FDD_SL))
+        self.assertEqual(zd.fdd_fred_id_so('All_Q04.TC.NR'), 'ALLQ04TCNR')
+        # tabela zgodności Rady Gubernatorów (6.07.2026) sprawdzona na żywych danych 19.10.2026; FRED podaje mld $, paczka mln $ — poza pożyczkami zaciągniętymi (FRED w mln $)
+        self.assertEqual(zd.FDD_FRED_H8, {'B1151NCBA': ('TLAACBW027SBOG', 1000), 'B1001NCBA': ('TOTBKCR', 1000), 'B1002NCBA': ('SBCACBW027SBOG', 1000), 'B1020NCBA': ('TOTLL', 1000),
+                                          'B1023NCBA': ('TOTCI', 1000), 'B3219NCBA': ('CREACBW027SBOG', 1000), 'B1029NCBA': ('CLSACBW027SBOG', 1000), 'B1030NCBA': ('LNFACBW027SBOG', 1000),
+                                          'B1058NCBA': ('DPSACBW027SBOG', 1000), 'B1072NCBA': ('LTDACBW027SBOG', 1000), 'B3094NCBA': ('H8B3094NCBA', 1), 'B1048NCBA': ('CASACBW027SBOG', 1000)})
+        self.assertEqual(zd.FDD_FRED_CPW, {'DTBSPCK.WW': ('COMPOUT', 1000), 'DTBSPCKN.WW': ('NFINCP', 1000), 'DTBSPCKF.WW': ('FINCP', 1000), 'DTBSPCKA.WW': ('ABCOMP', 1000)})
+        self.assertEqual(zd.FDD_FRED_CPR, {'RIFSPPNAAD30_N.B': 'RIFSPPNAAD30NB', 'RIFSPPNA2P2D30_N.B': 'RIFSPPNA2P2D30NB'})
+        self.assertEqual(zd.FDD_FRED_SL, {'SUBLPDCILS_N.Q': 'DRTSCILM', 'SUBLPDCISS_N.Q': 'DRTSCIS', 'SUBLPDCLCS_N.Q': 'DRTSCLCC', 'SUBLPDRCSN_N.Q': 'SUBLPDRCSN', 'SUBLPDMBS_XWB_N.Q': 'SUBLPDMBSXWBNQ',
+                                          'SUBLPDMHS_XWB_N.Q': 'SUBLPDMHSXWBNQ', 'SUBLPDCILD_N.Q': 'DRSDCILM', 'SUBLPDCLCD_N.Q': 'DEMCC'})
+        import inspect
+        src = inspect.getsource(zd.main)
+        self.assertEqual(src.count('build_fed_ddp(prev_fdd, run_t0=_RUN_T0[0], fred_key=fred_key)'), 1, 'klucz FRED trafia do modułu Fed tylko w adresie zapytania')
+
+
+class KontrolaFedZapasV462(unittest.TestCase):
+    """v462: kontrola pokazuje części odczytane z zapasu FRED — do 2 dób informacja (ℹ️), potem uwaga ⚠ z przyczyną; bez zapasu bez zmian."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola462-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v462_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.NOW = datetime.datetime(2026, 10, 18, 13, 0, tzinfo=datetime.timezone.utc)
+        cls.P0 = _v423_plik()
+
+    def _plik(self):
+        return json.loads(json.dumps(self.P0))
+
+    def _z_via(self, godz, ktore=('h8', 'cp')):
+        j = self._plik()
+        j['via'] = {k: {'zr': 'fred', 'od': (self.NOW - datetime.timedelta(hours=godz)).isoformat(), 'powod': 'HTTP Error 404: Not Found'} for k in ktore}
+        return j
+
+    def test_zapas_krotko_to_informacja(self):
+        r = self.k.fedddp_kontrola({'fed-ddp': self._z_via(5)}, self.NOW)
+        self.assertEqual(r['uwagi'], []); self.assertEqual(r['spojnosc'], [])
+        self.assertIn(('banki komercyjne w USA (tygodniowo) zapas FRED od ' + self.k.fmt_wiek(300), 'ℹ️'), [tuple(x) for x in r['wiersze']])
+        self.assertEqual(len([x for x in r['wiersze'] if 'zapas FRED' in x[0]]), 2)
+
+    def test_zapas_dlugo_to_uwaga_z_przyczyna(self):
+        r = self.k.fedddp_kontrola({'fed-ddp': self._z_via(60, ('so',))}, self.NOW)
+        self.assertEqual(len(r['uwagi']), 1)
+        self.assertTrue('ankieta dealerów' in r['uwagi'][0] and 'zapasu FRED' in r['uwagi'][0] and 'HTTP Error 404' in r['uwagi'][0], r['uwagi'][0])
+        self.assertEqual(r['spojnosc'], [], 'zapas to nie sprzeczność w pliku — bez ❌')
+
+    def test_bez_zapasu_bez_zmian(self):
+        r = self.k.fedddp_kontrola({'fed-ddp': self._plik()}, self.NOW)
+        self.assertEqual(r['uwagi'], []); self.assertFalse([x for x in r['wiersze'] if 'zapas' in x[0]])
+        j = self._plik(); j['via'] = {'h8': 'zepsute', 'cp': {'zr': 'fred'}, 'zly': {'od': 'x'}}
+        r = self.k.fedddp_kontrola({'fed-ddp': j}, self.NOW)
+        self.assertEqual(r['uwagi'], []); self.assertEqual(len([x for x in r['wiersze'] if 'zapas' in x[0]]), 1, 'część z niepełnym znacznikiem — tylko informacja, bez błędu kontroli')

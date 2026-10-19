@@ -8783,7 +8783,7 @@ ENG_OVR['wdi-destinations']=el=>{const B=PIP.bil;
 /* v337 (F2Z4): koniec */
 function renderEng(){
   const now=Date.now(),own={'cftc-euro-fx':'cftc','cftc-crypto':'cftc','coinmetrics-exchange-flows':'cm'};   /* v333 (S1, CR8-06): widoki z własnym plikiem zbieracza */
-  ENG_VIEWS.forEach(v=>{const el=$('#eng-'+v);if(!el)return;
+  ENG_VIEWS.forEach(v=>{const el=$('#eng-'+v);if(!el)return;try{   /* v462: wyjątek jednej karty nie psuje pozostałych (dawne widoki silnika wygasają — karta ma pokazać dane z pliku strony albo „—”) */
     if(ENG_OVR[v]&&ENG_OVR[v](el))return;   /* v50: panel zasilany wprost z pliku zbieracza (np. CFTC, Coin Metrics) zamiast widoku silnika */
     if(own[v]){const c=own[v]==='cm',has=c?!!CM.data:!!CFTC.data,tried=c?!!CM.tried:!!CFTC.timer,I=typeof gtI==='function'?gtI:(k,a,x)=>k==='w'?x:'';   /* v333 (S1, CR8-06): bez pliku — karta neutralna
          (wczytywanie albo brak połączenia), dawniej stara karta silnika z 24.09 z nieprawdziwym powodem („licencja”, „plik starszy niż limit”) i kodami wewnętrznymi */
@@ -8793,7 +8793,7 @@ function renderEng(){
     const rec=ENG.files[v],chk=engCheck(rec,v,now);
     if(v.startsWith('tic-')&&!(chk.ok&&chk.state==='BOUND')){el.hidden=true;el.innerHTML='';return;}   /* v47: dane TIC są w sekcji #tic wprost ze Skarbu USA — karta „nie pokazujemy” zbędna */
     el.innerHTML=chk.ok&&chk.state==='BOUND'?engBound(rec):engWithheld(v,rec,chk);
-    el.hidden=false;});
+    el.hidden=false;}catch(e){try{if(v.startsWith('tic-')){el.hidden=true;el.innerHTML='';}else{const I=typeof gtI==='function'?gtI:(k,a,x)=>k==='w'?x:'';el.innerHTML=`<div class="etfh"><div><h2>${I('v',v)}${escH(t('eng.t.'+v))}</h2><p class="pnote">${t('eng.gap')}</p></div></div>`;el.hidden=false;}}catch(e2){el.hidden=true;}}});
 }
 /* v34: sekcje informacyjne — treść po polsku, w innych językach krótka nota (wygląd: istniejące klasy) */
 const TXT_JAK_PL=`

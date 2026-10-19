@@ -36987,3 +36987,45 @@ test('v459 (F11Z41): powiązanie zegara z plikami — funkcja wczytująca i jej 
   const Z = t459Env({ script: 'krótki skrypt' });
   assert.equal(Z.srv.mn.files({ k: '()=>{aLoad();}', f: null }).size, 0, 'bez głównego skryptu strony (za krótki) — puste, bez wyjątku');
 });
+
+// v462 (19.10.2026): 24.10.2026 wygasa „decyzja” dawnych widoków silnika (data/widoki/*, valid_until i decision_expires_at). Karty mają po tej dacie pokazywać dane z bieżących plików
+// strony (pip.json, bilans.json, cftc.json, cm) albo czytelny brak („—” / „wczytywanie”) — nigdy pustkę, kod wewnętrzny („Nie pokazujemy”, FILE_EXPIRED) ani błąd JS. Zegar przypięty na 25.10 i 1.11.2026.
+test('v462: widoki silnika po 24.10.2026 (zegar 25.10 i 1.11) — każda karta: dane z plików strony albo „—”; wyjątek jednej karty nie psuje pozostałych', () => {
+  const src = S1T.cut('function renderEng(){', '\n/* v34: sekcje informacyjne');
+  const V = ['tic-flows', 'tic-countries', 'wdi-destinations', 'imf-portfolio-pairs', 'cftc-euro-fx', 'coinmetrics-exchange-flows', 'defillama-stablecoins', 'cftc-crypto'];
+  const IDX = {schema: 'capitalflowai.public-views-index.v1'};
+  const syn = (v, state, until) => ({schema: 'capitalflowai.public-view.v1', view: v, state, trial: false, public_display: {admitted: state === 'BOUND'}, valid_until: until,
+    captured_at: '2026-09-24T15:00:00Z', values: null, engine_panel: {data: {}}});
+  const prawdziwe = typeof fs.existsSync === 'function' && __dirname && fs.existsSync(path.join(__dirname, 'data', 'widoki', 'index.json'));   // pod jsc brak plików widoków — nagrania syntetyczne
+  const pliki = () => Object.fromEntries(V.map(v => [v, prawdziwe ? JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'widoki', v + '.json'), 'utf8'))
+    : syn(v, /^(imf|wdi)/.test(v) ? 'BOUND' : (v.startsWith('cftc') ? 'BOUND' : 'WITHHELD'), v.startsWith('cftc') ? '2026-10-02T14:58:13Z' : (/^(imf|wdi)/.test(v) ? '2026-10-24T14:58:11Z' : null))]));
+  const idx = prawdziwe ? JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'widoki', 'index.json'), 'utf8')) : IDX;
+  for (const [dzien, ms] of [['25.10', Date.parse('2026-10-25T00:00:00Z')], ['1.11', Date.parse('2026-11-01T12:00:00Z')]]) {
+    for (const scen of ['z-plikami-strony', 'bez-plikow-strony', 'wyjatek-jednej-karty']) {
+      const els = {}, X = v337.make({now: ms, index: idx, files: pliki()}), CM = {data: null}, CFTC = {data: null, timer: null};
+      for (const v of ['cftc-euro-fx', 'cftc-crypto', 'coinmetrics-exchange-flows', 'defillama-stablecoins']) X.ENG_OVR[v] = () => false;   // bez własnych plików (cm, cftc) i bez danych krypto — jak w stronie
+      if (scen === 'z-plikami-strony') X.pipApply(v337.PIPF, v337.BILF);
+      if (scen === 'wyjatek-jednej-karty') { X.pipApply(v337.PIPF, v337.BILF); X.ENG_OVR['imf-portfolio-pairs'] = () => { throw new Error('boom'); }; X.ENG_OVR['tic-flows'] = () => { throw new Error('boom'); }; }
+      const render = new Function('ENG_VIEWS', 'ENG_OVR', 'ENG', '$', 'engCheck', 'engBound', 'engWithheld', 'CM', 'CFTC', 't', 'escH', 'gtI', 'Date', src + '\nreturn renderEng;')(
+        V, X.ENG_OVR, X.ENG, q => els[q] || (els[q] = {hidden: true, innerHTML: ''}), X.engCheck, rec => 'BOUND:' + rec.view, (v, rec, chk) => 'WITHHELD:' + v + ':' + (chk && chk.code || ''),
+        CM, CFTC, k => k, s => String(s), undefined, {now: () => ms, parse: s => Date.parse(s)});
+      const W = dzien + ' ' + scen;
+      render();
+      const H = v => els['#eng-' + v].innerHTML;
+      for (const v of V) assert.ok(!/FILE_EXPIRED|SITE_FILE|eng\.r\.|eng\.b\.off|eng\.k\.why|NaN|undefined|NON_COMMERCIAL/.test(H(v)), W + ' ' + v + ': bez kodów wewnętrznych: ' + H(v).slice(0, 80));
+      for (const v of ['tic-flows', 'tic-countries']) assert.ok(els['#eng-' + v].hidden === true && H(v) === '', W + ' ' + v + ': dane TIC są w osobnej sekcji — karta ukryta (także po wyjątku)');
+      for (const v of ['cftc-euro-fx', 'cftc-crypto', 'coinmetrics-exchange-flows']) assert.ok(els['#eng-' + v].hidden === false && H(v).includes('s1.eng.load') && H(v).includes('<h2>eng.t.' + v + '</h2>'), W + ' ' + v + ': neutralna karta „wczytywanie”');
+      assert.ok(els['#eng-defillama-stablecoins'].hidden === false && H('defillama-stablecoins').startsWith('WITHHELD:defillama-stablecoins:'), W + ': wstrzymany widok bez daty ważności — jak dotąd');
+      for (const v of ['wdi-destinations', 'imf-portfolio-pairs']) {
+        const e = els['#eng-' + v];
+        assert.equal(e.hidden, false, W + ' ' + v + ': karta widoczna'); assert.ok(e.innerHTML.length > 80, W + ' ' + v + ': niepusta');
+        if (scen === 'z-plikami-strony') assert.ok(/[1-9]/.test(e.innerHTML.replace(/<[^>]+>/g, '').replace(/p337\.[\w.]+|eng\.[\w.]+|inst\.[\w.]+/g, '')), W + ' ' + v + ': liczby z pliku strony');
+        if (scen === 'bez-plikow-strony') assert.ok(e.innerHTML.includes('eng.gap') && !e.innerHTML.includes('BOUND:'), W + ' ' + v + ': brak = „—” (eng.gap), nie karta widoku po terminie');
+        if (scen === 'wyjatek-jednej-karty' && v === 'imf-portfolio-pairs') assert.ok(e.innerHTML.includes('<h2>eng.t.imf-portfolio-pairs</h2>') && e.innerHTML.includes('eng.gap'), W + ': karta po wyjątku — tytuł i „brak danych”');
+        if (scen === 'wyjatek-jednej-karty' && v === 'wdi-destinations') assert.ok(/[1-9]/.test(e.innerHTML.replace(/<[^>]+>/g, '')), W + ': pozostałe karty narysowane mimo wyjątku');
+      }
+      if (prawdziwe) for (const v of ['wdi-destinations', 'imf-portfolio-pairs', 'cftc-euro-fx', 'cftc-crypto']) assert.equal(X.engCheck(X.ENG.files[v], v, ms).code, 'FILE_EXPIRED', W + ' ' + v + ': prawdziwy widok po terminie nie pokazuje liczb (dane idą z plików strony)');
+    }
+  }
+  assert.ok(!/2026-10-24/.test(src), 'renderEng bez wpisanej na stałe daty wygaśnięcia');
+});

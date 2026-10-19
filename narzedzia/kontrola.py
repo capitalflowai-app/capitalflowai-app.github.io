@@ -13882,6 +13882,25 @@ def fedddp_swiezosc(j, now=None):
     return rows
 
 
+def fedddp_zapas(j, now=None):
+    """v462: części odczytane z zapasu FRED (paczka wydania Fed nie odpowiadała; program pobierania danych jest wygaszany od 9.11.2026) → (uwagi ⚠, wiersze informacyjne).
+    Do 2 dób od pierwszego przełączenia tylko informacja (chwilowy błąd paczki nie jest alarmem), potem uwaga z przyczyną i prośbą o sprawdzenie adresu paczki."""
+    now = now or NOW
+    uw, wr = [], []
+    V = j.get('via') if isinstance(j.get('via'), dict) else {}
+    for p in FDK_PARTS:
+        v = V.get(p)
+        if not isinstance(v, dict) or not isinstance(j.get(p), dict):
+            continue
+        w = wiek_danych(str(v.get('od')), 'ts', 'k', now)
+        powod = str(v.get('powod') or 'brak przyczyny')[:90]
+        if w is not None and w >= 2 * 1440:
+            uw.append(f'{FDK_ETYKIETA[p]}: od {fmt_wiek(w)} dane z zapasu FRED — paczka wydania Fed nie odpowiada ({powod}); sprawdź adres paczki i nowy sposób pobierania')
+        else:
+            wr.append((f'{FDK_ETYKIETA[p].replace("Fed: ", "")} zapas FRED' + ('' if w is None else f' od {fmt_wiek(w)}'), 'ℹ️'))
+    return uw, wr
+
+
 def fedddp_kontrola(files, now=None):
     """Kontrola pliku fed-ddp.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...], 'czesci_bez_odpowiedzi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
     j = files.get('fed-ddp') if isinstance(files, dict) else None
@@ -13889,7 +13908,8 @@ def fedddp_kontrola(files, now=None):
         return None
     nie = sorted(k for k, v in (j.get('ok') or {}).items() if v is False) if isinstance(j.get('ok'), dict) else []
     wiersze = [(f'{lab.replace("Fed: ", "").replace(" (rytm danych)", "").replace(" (rytm stawek)", " stawki")} {dz}', st) for lab, st, w, dz, note in fedddp_swiezosc(j, now) if '(rytm' in lab]
-    return {'spojnosc': fedddp_spojnosc(j, now), 'wiersze': wiersze, 'uwagi': [], 'czesci_bez_odpowiedzi': nie}
+    uw_, wr_ = fedddp_zapas(j, now)   # v462: części z zapasu FRED
+    return {'spojnosc': fedddp_spojnosc(j, now), 'wiersze': wiersze + wr_, 'uwagi': uw_, 'czesci_bez_odpowiedzi': nie}
 
 
 # ---------------------------------------------------------------- v429 (F11Z28): KRÓTKA SPRZEDAŻ W EUROPIE — POZYCJE NETTO W WIELKIEJ BRYTANII I W SZWECJI (data/short-eu.json) --------------------

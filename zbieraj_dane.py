@@ -34147,7 +34147,7 @@ def main():
                 stan_fdd[k_fdd] = 'cached'
     else:
         try:
-            fdd_ = build_fed_ddp(prev_fdd, run_t0=_RUN_T0[0]); save('fed-ddp', fdd_)
+            fdd_ = build_fed_ddp(prev_fdd, run_t0=_RUN_T0[0], fred_key=fred_key); save('fed-ddp', fdd_)
             stan_fdd = {k_fdd: fdd_['ok'].get(k_fdd, 'cached') for k_fdd in FDD_PARTS}
         except Exception as e:  # noqa
             META['errors'].append(mask(f'{FDD_PX}: {e}')[:200])
@@ -43813,12 +43813,12 @@ FDD_H8_ZAKRES = {'akt': (5000, 60000), 'kre': (3000, 40000), 'pap': (500, 15000)
 FDD_H8_ATR = {'SA': 'SA', 'BG': 'CB', 'FREQ': '19', 'UNIT_MULT': '1000000', 'H8_UNITS': 'LEVEL'}
 
 
-def parse_fdd_h8(zbytes, now):
+def parse_fdd_h8(zbytes, now, fred=None):
     """H.8 → {'asof': dzień, 'pub': data wydania, 'h': [[środa, aktywa, kredyt bankowy, papiery, kredyty i leasing, C&I, nieruchomości komercyjne, konsumenckie, dla instytucji finansowych poza bankami,
     depozyty, duże depozyty terminowe, pożyczki zaciągnięte, gotówka]]} w mld $ (wartość źródła w mln × 0,001, 1 miejsce). Tożsamość: kredyt bankowy = papiery + kredyty i leasing (± 0,5 mld),
     składniki kredytów ≤ kredyty + 0,5, kredyt bankowy ≤ aktywa; atrybuty serii jak FDD_H8_ATR; dni jak w fdd_tyg."""
     dzis = now.date()
-    S, prep = fdd_xml(zbytes, FDD_MEMBER['h8'], {nm: FDD_KEEP['hw'] for _, nm in FDD_H8}, FDD_MAXU['h8'])
+    S, prep = fred if fred is not None else fdd_xml(zbytes, FDD_MEMBER['h8'], {nm: FDD_KEEP['hw'] for _, nm in FDD_H8}, FDD_MAXU['h8'])   # v462: fred = (serie, data wydania) z zapasu FRED
     for _, nm in FDD_H8:
         fdd_attrs(S, nm, FDD_H8_ATR)
     rows = fdd_tyg(S, FDD_H8, FDD_H8_ZAKRES, 0.001, FDD_KEEP['hw'], 'H.8', FDD_STARE['h8'], dzis, 1)
@@ -43838,13 +43838,13 @@ FDD_CPW_ZAKRES = {'raz': (300, 4000), 'nfi': (30, 1500), 'fin': (100, 2500), 'ab
 FDD_CPR_ZAKRES = {'aa': (-0.5, 20), 'a2': (-0.5, 25)}
 
 
-def parse_fdd_cp(zbytes, now):
+def parse_fdd_cp(zbytes, now, fred=None):
     """Papiery komercyjne → {'asof': dzień tygodnia, 'pub', 'w': [[środa, razem, niefinansowe, finansowe, zabezpieczone aktywami]] (mld $), 'r': [[dzień, AA niefinansowe 30 dni, A2/P2 niefinansowe 30 dni]] (%), 'rasof': ostatni dzień stawek}. Tożsamość: razem = niefinansowe + finansowe + zabezpieczone aktywami (± 4 mld; obserwowane do 2,4 mld); w stawkach dni bez którejś
     z dwóch stawek pomijane (święta i dni bez emisji AA); dni stawek rosnące bez powtórzeń, robocze, nie z przyszłości, ostatni nie starszy niż FDD_STARE['cpr'] dni."""
     dzis = now.date()
     want = {nm: FDD_KEEP['cpw'] for _, nm in FDD_CPW}
     want.update({nm: FDD_KEEP['cpr'] + 60 for _, nm in FDD_CPR})   # zapas na dni bez stawki (święta, dni bez emisji AA ≈ 17 % dni)
-    S, prep = fdd_xml(zbytes, FDD_MEMBER['cp'], want, FDD_MAXU['cp'])
+    S, prep = fred if fred is not None else fdd_xml(zbytes, FDD_MEMBER['cp'], want, FDD_MAXU['cp'])
     for _, nm in FDD_CPW:
         fdd_attrs(S, nm, {'FREQ': '19', 'UNIT_MULT': '1000000'})
     for _, nm in FDD_CPR:
@@ -43902,13 +43902,13 @@ def fdd_pub_ok(prep, dzis, co):
         raise ValueError(f'{co}: wydanie z {prep} sprzed {(dzis - d).days} dni (źródło stoi)')
 
 
-def parse_fdd_so(zbytes, now):
+def parse_fdd_so(zbytes, now, fred=None):
     """Ankieta dealerów → {'asof': koniec kwartału, 'pub': data wydania, 'h': [[kwartał, liczba dealerów, zaostrzenie cen netto %, zaostrzenie warunków poza ceną netto %, wzrost dźwigni funduszy netto %,
     więcej dostępnej dźwigni netto %]]}. Netto % = (odpowiedzi „w górę” − „w dół”) / wszystkie odpowiedzi × 100, 1 miejsce; liczba dealerów = suma odpowiedzi na pytanie o ceny (5–40);
     kwartał z brakiem którejkolwiek liczby pomijany; ≥ 40 kwartałów, ostatni obecny, wydanie nie starsze niż FDD_STARE['prep_q'] dni."""
     dzis = now.date()
     nazwy = {f'All_{q}.{k}.NR': FDD_KEEP['so'] for _, q, g in FDD_SO_Q for k in FDD_SO_K[g]}
-    S, prep = fdd_xml(zbytes, FDD_MEMBER['so'], nazwy, FDD_MAXU['so'])
+    S, prep = fred if fred is not None else fdd_xml(zbytes, FDD_MEMBER['so'], nazwy, FDD_MAXU['so'])
     fdd_pub_ok(prep, dzis, 'ankieta dealerów')
     for nm in nazwy:
         fdd_attrs(S, nm, {'FREQ': '162', 'UNIT': 'Number'})
@@ -43946,12 +43946,12 @@ def parse_fdd_so(zbytes, now):
     return {'asof': rows[-1][0], 'pub': prep, 'h': rows}
 
 
-def parse_fdd_sl(zbytes, now):
+def parse_fdd_sl(zbytes, now, fred=None):
     """Ankieta kredytowa banków → {'asof': koniec kwartału, 'pub', 'h': [[kwartał, standardy: duże i średnie firmy, małe firmy, karty kredytowe, nieruchomości komercyjne (poza budownictwem i
     wielorodzinnymi), ważone: biznes, ważone: gospodarstwa domowe; popyt: duże i średnie firmy, karty kredytowe]]} — netto % banków (zaostrzających standardy / widzących silniejszy popyt), 1 miejsce, −100…100.
     Ostatnie FDD_KEEP['sl'] kwartałów, w których są wszystkie serie; ≥ 40, ostatni obecny, wydanie nie starsze niż FDD_STARE['prep_q'] dni."""
     dzis = now.date()
-    S, prep = fdd_xml(zbytes, FDD_MEMBER['sl'], {nm: 140 for _, nm in FDD_SL}, FDD_MAXU['sl'])
+    S, prep = fred if fred is not None else fdd_xml(zbytes, FDD_MEMBER['sl'], {nm: 140 for _, nm in FDD_SL}, FDD_MAXU['sl'])
     fdd_pub_ok(prep, dzis, 'ankieta kredytowa')
     mapy = {}
     for k, nm in FDD_SL:
@@ -43993,7 +43993,7 @@ def fdd_wymagana(k, pk, pok, pat, now):
     return t is None or (now - t).total_seconds() >= FDD_INT[k] * 60
 
 
-def build_fed_ddp(prev=None, run_t0=None):
+def build_fed_ddp(prev=None, run_t0=None, fred_key=None):
     """Plik data/fed-ddp.json (v423): cztery części (h8, cp, so, sl) z własnym ok / part_at / errs; część z błędem zostaje z poprzedniego pliku z własną chwilą, nigdy pusta zamiast ostatnich danych;
     część, której odczyt nie jest jeszcze potrzebny (rytm), zostaje bez zmian z ok 'cached'. Żadna część nie ma danych = wyjątek (przebieg główny zostawia poprzedni plik)."""
     prev = prev if isinstance(prev, dict) and prev.get('v') == FDD_V else {}
@@ -44009,11 +44009,15 @@ def build_fed_ddp(prev=None, run_t0=None):
                     out[k] = pk
                     out['part_at'][k] = pat.get(k) or prev.get('at')
                 out['ok'][k] = 'cached'
+                fdd_via_dalej(out, prev, k)
                 continue
             try:
-                out[k] = FDD_BUDOWA[k](pk, now)
+                out[k], via_ = fdd_czesc(k, pk, now, fred_key)   # v462: paczka wydania, a gdy nie odpowiada i jest klucz — zapas FRED
                 out['ok'][k] = True
                 out['part_at'][k] = NOW
+                if via_:
+                    out.setdefault('via', {})[k] = {'zr': 'fred', 'od': _dict(_dict(prev.get('via')).get(k)).get('od') or NOW, 'powod': via_}
+                    META['notes'].append(mask(f'{FDD_PX} {FDD_LABEL[k]}: paczka wydania nie odpowiada ({via_}) — dane z zapasu FRED')[:220])
             except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
                 msg = mask(f'{e}')[:160]
                 META['errors'].append(mask(f'{FDD_PX} {FDD_LABEL[k]}: {msg}')[:220])
@@ -44022,6 +44026,7 @@ def build_fed_ddp(prev=None, run_t0=None):
                 if pk is not None:
                     out[k] = pk
                     out['part_at'][k] = pat.get(k) or prev.get('at')
+                fdd_via_dalej(out, prev, k)
     finally:
         _FDD_T0[0] = None
     if not any(isinstance(out.get(k), dict) for k in FDD_PARTS):
@@ -44030,6 +44035,154 @@ def build_fed_ddp(prev=None, run_t0=None):
 
 
 # v423: koniec modułu Fed (banki, papiery komercyjne, ankiety)
+
+
+# ===================== v462 (19.10.2026): ZAPAS Z FRED DLA MODUŁU FED (data/fed-ddp.json; blok osobny — blok v423 zostaje bez klucza i bez zapytań poza stroną Fed) =====================
+# Rada Gubernatorów Fed usuwa w tygodniu 9.11.2026 funkcję „Build Your Package” z Data Download Program, a „gotowe paczki” i sam program mają zniknąć później (ogłoszenia z 16.07.2026). Paczki ZIP z adresów
+# wydań są nadal dostępne (główna droga bez zmian). Zapas: gdy część nie da się odczytać główną drogą (adres znika, strona błędu, inny kształt paczki, dane stoją), a w przebiegu jest klucz FRED_KEY, ta sama część
+# jest budowana z serii FRED wskazanych w tabeli zgodności publikowanej przez Radę (DDP–FRED Data Series Crosswalk, 6.07.2026). Te same parsery i te same bramki (zakresy, tożsamości, rytm, środy co 7 dni);
+# atrybuty serii są uzupełniane z oczekiwanych (FRED ich nie podaje — tożsamość serii pochodzi z tabeli, kształt pilnują bramki), jednostki przeliczane na jednostkę paczki (FRED podaje mld $, paczka mln $;
+# wyjątek: pożyczki zaciągnięte H8B3094NCBA — FRED w mln $), kwartał FRED (pierwszy dzień) = koniec kwartału paczki, data wydania ankiet = last_updated serii w FRED. Zmierzone 19.10.2026: wszystkie serie H.8,
+# papierów komercyjnych i ankiety kredytowej zgodne z danymi z paczek co do 0,1; ankieta dealerów (SCOOS) jest w tabeli zgodności, ale serii nie ma jeszcze w FRED (HTTP 404) — ta część zostaje bez zapasu,
+# z ostatnimi danymi i datą (kontrola: ⚠ po progu rytmu). Część odczytana zapasem ma w pliku: via[k] = {zr, od, powod}; kontrola pokazuje to jako informację, a po 2 dobach jako uwagę ⚠.
+import decimal as _fdd_dec
+FDD_FRED_OBS = 'https://api.stlouisfed.org/fred/series/observations?series_id={s}&api_key={k}&file_type=json&observation_start={od}'
+FDD_FRED_SER = 'https://api.stlouisfed.org/fred/series?series_id={s}&api_key={k}&file_type=json'
+FDD_FRED_MAXB = 600000          # B — największa odpowiedź jednej serii
+FDD_FRED_H8 = {'B1151NCBA': ('TLAACBW027SBOG', 1000), 'B1001NCBA': ('TOTBKCR', 1000), 'B1002NCBA': ('SBCACBW027SBOG', 1000), 'B1020NCBA': ('TOTLL', 1000), 'B1023NCBA': ('TOTCI', 1000),
+               'B3219NCBA': ('CREACBW027SBOG', 1000), 'B1029NCBA': ('CLSACBW027SBOG', 1000), 'B1030NCBA': ('LNFACBW027SBOG', 1000), 'B1058NCBA': ('DPSACBW027SBOG', 1000),
+               'B1072NCBA': ('LTDACBW027SBOG', 1000), 'B3094NCBA': ('H8B3094NCBA', 1), 'B1048NCBA': ('CASACBW027SBOG', 1000)}   # (id FRED, mnożnik do mln $ jak w paczce)
+FDD_FRED_CPW = {'DTBSPCK.WW': ('COMPOUT', 1000), 'DTBSPCKN.WW': ('NFINCP', 1000), 'DTBSPCKF.WW': ('FINCP', 1000), 'DTBSPCKA.WW': ('ABCOMP', 1000)}
+FDD_FRED_CPR = {'RIFSPPNAAD30_N.B': 'RIFSPPNAAD30NB', 'RIFSPPNA2P2D30_N.B': 'RIFSPPNA2P2D30NB'}
+FDD_FRED_SL = {'SUBLPDCILS_N.Q': 'DRTSCILM', 'SUBLPDCISS_N.Q': 'DRTSCIS', 'SUBLPDCLCS_N.Q': 'DRTSCLCC', 'SUBLPDRCSN_N.Q': 'SUBLPDRCSN', 'SUBLPDMBS_XWB_N.Q': 'SUBLPDMBSXWBNQ',
+               'SUBLPDMHS_XWB_N.Q': 'SUBLPDMHSXWBNQ', 'SUBLPDCILD_N.Q': 'DRSDCILM', 'SUBLPDCLCD_N.Q': 'DEMCC'}
+FDD_FRED_KW = {'01-01': '03-31', '04-01': '06-30', '07-01': '09-30', '10-01': '12-31'}   # pierwszy dzień kwartału (FRED) → ostatni dzień (paczka)
+FDD_VIA_UWAGA_DNI = 2           # doby — tyle czasu zapas musi trwać, by kontrola zgłosiła uwagę (wcześniej tylko informacja)
+
+
+def fdd_fred_id_so(nm):
+    """Nazwa serii ankiety dealerów w paczce → id w FRED (według tabeli zgodności: wielkie litery, bez „_” i „.”), np. All_Q04.TC.NR → ALLQ04TCNR."""
+    return nm.replace('_', '').replace('.', '').upper()
+
+
+def fdd_fred_pobierz(url):
+    """Jedno zapytanie do FRED (JSON) z odstępem, limitem czasu i rozmiaru jak w głównej drodze; HTTP 4xx/5xx i nie-JSON = ValueError (adres z kluczem nigdy w komunikacie)."""
+    try:
+        return json.loads(fdd_get(url, FDD_FRED_MAXB))
+    except urllib.error.HTTPError as e:
+        raise ValueError(f'FRED: HTTP {e.code}') from None
+    except ValueError:
+        raise ValueError('FRED: odpowiedź nie jest JSON-em') from None
+
+
+def fdd_fred_obs(sid, key, od, kw=False):
+    """Obserwacje serii FRED od dnia `od` → [(dzień, tekst wartości)]; kw: daty kwartalne FRED (pierwszy dzień kwartału) zamieniane na koniec kwartału; inny dzień = ValueError."""
+    j = fdd_fred_pobierz(FDD_FRED_OBS.format(s=sid, k=key, od=od))
+    L = j.get('observations') if isinstance(j, dict) else None
+    if not isinstance(L, list) or not L:
+        raise ValueError(f'FRED {sid}: brak obserwacji')
+    out = []
+    for o in L:
+        d, v = (o.get('date'), o.get('value')) if isinstance(o, dict) else (None, None)
+        if not (isinstance(d, str) and isinstance(v, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', d)):
+            raise ValueError(f'FRED {sid}: zły wiersz obserwacji')
+        if kw:
+            m = FDD_FRED_KW.get(d[5:])
+            if m is None:
+                raise ValueError(f'FRED {sid}: data {d} nie jest początkiem kwartału')
+            d = d[:5] + m
+        out.append((d, v))
+    return out
+
+
+def fdd_fred_wart(v, mn, sid):
+    """Wartość FRED (tekst) × mnożnik → tekst w jednostce paczki; „.” i puste = brak danych (−9999, jak w paczce); nie liczba albo nieskończona = ValueError. Dziesiętnie, bez błędu zmiennoprzecinkowego."""
+    if v in ('', '.'):
+        return '-9999'
+    try:
+        x = _fdd_dec.Decimal(v)
+    except _fdd_dec.InvalidOperation:
+        raise ValueError(f'FRED {sid}: nie liczba ({v[:12]!r})') from None
+    if not x.is_finite():
+        raise ValueError(f'FRED {sid}: wartość nieskończona')
+    return format(x * mn, 'f')
+
+
+def fdd_fred_S(poz, key, od, kw=False):
+    """poz [(nazwa serii w paczce, id FRED, mnożnik, atrybuty oczekiwane, ile ostatnich)] → te same serie co z paczki: {nazwa: {'a': atrybuty, 'o': [(dzień, 'A', tekst)]}}."""
+    S = {}
+    for nm, sid, mn, at, keep in poz:
+        S[nm] = {'a': dict(at), 'o': [(d, 'A', fdd_fred_wart(v, mn, sid)) for d, v in fdd_fred_obs(sid, key, od, kw)][-keep:]}
+    return S
+
+
+def fdd_fred_pub(sid, key, wymagana):
+    """Data ostatniej aktualizacji serii w FRED (dzień) jako data wydania; wymagana (ankiety) — brak = ValueError, inaczej brak = None."""
+    try:
+        j = fdd_fred_pobierz(FDD_FRED_SER.format(s=sid, k=key))
+        L = j.get('seriess') if isinstance(j, dict) else None
+        lu = L[0].get('last_updated') if isinstance(L, list) and L and isinstance(L[0], dict) else None
+        m = re.match(r'\d{4}-\d{2}-\d{2}', lu) if isinstance(lu, str) else None
+        if m:
+            return m.group(0)
+        raise ValueError('FRED: brak daty aktualizacji serii')
+    except Exception:
+        if wymagana:
+            raise
+        return None
+
+
+def fdd_fred_h8(now, key):
+    od = (now.date() - datetime.timedelta(weeks=FDD_KEEP['hw'] + 40)).isoformat()
+    S = fdd_fred_S([(nm, FDD_FRED_H8[nm][0], FDD_FRED_H8[nm][1], FDD_H8_ATR, FDD_KEEP['hw']) for _, nm in FDD_H8], key, od)
+    return parse_fdd_h8(None, now, fred=(S, fdd_fred_pub(FDD_FRED_H8[FDD_H8[0][1]][0], key, False)))
+
+
+def fdd_fred_cp(now, key):
+    poz = [(nm, FDD_FRED_CPW[nm][0], FDD_FRED_CPW[nm][1], {'FREQ': '19', 'UNIT_MULT': '1000000'}, FDD_KEEP['cpw']) for _, nm in FDD_CPW]
+    S = fdd_fred_S(poz, key, (now.date() - datetime.timedelta(weeks=FDD_KEEP['cpw'] + 40)).isoformat())
+    S.update(fdd_fred_S([(nm, FDD_FRED_CPR[nm], 1, {'FREQ': '9', 'UNIT': 'Percent'}, FDD_KEEP['cpr'] + 60) for _, nm in FDD_CPR], key, (now.date() - datetime.timedelta(days=520)).isoformat()))
+    return parse_fdd_cp(None, now, fred=(S, fdd_fred_pub(FDD_FRED_CPW[FDD_CPW[0][1]][0], key, False)))
+
+
+def fdd_fred_so(now, key):
+    nazwy = [f'All_{q}.{k}.NR' for _, q, g in FDD_SO_Q for k in FDD_SO_K[g]]
+    S = fdd_fred_S([(nm, fdd_fred_id_so(nm), 1, {'FREQ': '162', 'UNIT': 'Number'}, FDD_KEEP['so']) for nm in nazwy], key,
+                   (now.date() - datetime.timedelta(days=17 * 366)).isoformat(), kw=True)
+    return parse_fdd_so(None, now, fred=(S, fdd_fred_pub(fdd_fred_id_so(nazwy[0]), key, True)))
+
+
+def fdd_fred_sl(now, key):
+    S = fdd_fred_S([(nm, FDD_FRED_SL[nm], 1, {'FREQ': '162', 'PANEL': 'DOM'}, 140) for _, nm in FDD_SL], key, (now.date() - datetime.timedelta(days=16 * 366)).isoformat(), kw=True)
+    return parse_fdd_sl(None, now, fred=(S, fdd_fred_pub(FDD_FRED_SL[FDD_SL[0][1]], key, True)))
+
+
+FDD_FRED_BUDOWA = {'h8': fdd_fred_h8, 'cp': fdd_fred_cp, 'so': fdd_fred_so, 'sl': fdd_fred_sl}
+
+
+def fdd_czesc(k, pk, now, fred_key):
+    """Część k główną drogą (paczka wydania); gdy się nie uda i jest klucz FRED — z zapasu FRED. → (część, powód użycia zapasu albo None); oba błędy = jeden wyjątek z obiema przyczynami."""
+    try:
+        return FDD_BUDOWA[k](pk, now), None
+    except Exception as e1:  # noqa — przyczyna głównej drogi trafia do pliku (via.powod) albo do błędu części
+        if not fred_key:
+            raise
+        p1 = mask(f'{e1}')[:90]
+        try:
+            return FDD_FRED_BUDOWA[k](now, fred_key), p1
+        except Exception as e2:  # noqa
+            p2 = mask(f'{e2}')[:70]
+            raise RuntimeError(f'{p1}; zapas FRED: {p2}') from None
+
+
+def fdd_via_dalej(out, prev, k):
+    """Część zostaje z poprzedniego pliku (cache albo błąd odczytu) → znacznik zapasu FRED z poprzedniego pliku też zostaje."""
+    v = _dict(prev.get('via')).get(k)
+    if isinstance(v, dict) and isinstance(out.get(k), dict):
+        out.setdefault('via', {})[k] = v
+
+
+# v462: koniec zapasu FRED dla modułu Fed
 
 
 # ===================== v401 (F11Z14): INTERWENCJE WALUTOWE I REZERWY BANKÓW CENTRALNYCH + OCZEKIWANIA RYNKU W BRAZYLII (data/interwencje.json; publiczne zapytania GET bez klucza) =====================
