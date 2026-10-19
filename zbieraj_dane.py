@@ -36011,7 +36011,7 @@ def krz_meta_ok(ok, z_pamieci=False):
 # zobowiązania z dokładnością do grosza: 12.10.2026 184,1997 mld = 184,1997 mld); migawka dobowa, czas z pola id (sekundy UTC); (3) Circle: USDC (39 sieci) i EURC (9 sieci), czas
 # aktualizacji z pola updateDate (limit źródła 1 zapytanie/min/IP — przebieg pyta raz na ~55 min, błąd 429 = część zostaje z poprzedniego pliku z własną datą).
 # Własna historia dobowa USDT (zobowiązania) i USDC/EURC (łączna podaż): zmiana 7 i 30 dni tylko z punktu DOKŁADNIE tyle dni wcześniej (luka w serii = brak, nigdy zero).
-# Część, która zawiodła, zostaje z poprzedniego pliku z czasem pobrania w 'part_at' (lista monet i Circle — najwyżej 3 h, Tether — 36 h; dłużej znika: brak ≠ zero).
+# Część, która zawiodła, zostaje z poprzedniego pliku z czasem pobrania w 'part_at' (lista monet i Circle — najwyżej 3 h, Tether — 120 h liczone od czasu migawki raportu; dłużej znika: brak ≠ zero).
 STE_URL_LLAMA = 'https://stablecoins.llama.fi/stablecoins?includePrices=true'
 STE_URL_TETHER = 'https://app.tether.to/transparency.json'
 STE_URL_CIRCLE = 'https://api.circle.com/v1/stablecoins'
@@ -36019,7 +36019,7 @@ STE_ODSW_MIN = 55          # min — jak plik krypto.json (lista monet pobierana
 STE_TOP = 12               # tyle największych monet dolarowych w tabeli (reszta jedną linią 'inne')
 STE_SIECI = 10             # tyle największych sieci USDC i EURC (reszta: 'inne')
 STE_HIST_DNI = 100         # tyle ostatnich dób własnej historii
-STE_MAX_H = {'llama': 3, 'circle': 3, 'tether': 36}   # godziny — starsza część poprzedniego pliku nie zostaje
+STE_MAX_H = {'llama': 3, 'circle': 3, 'tether': 120}   # godziny — starsza część poprzedniego pliku nie zostaje; v470: Tether od czasu MIGAWKI raportu (emitent odświeża plik z przerwami, weekend ≈ 60 h)
 STE_MIN_DOLAR = 1e10       # USD — podaż stablecoinów dolarowych poniżej tego to błąd odczytu, nie rynek
 STE_SPOJ_PCT = 1.0         # % — suma sieci a łączna liczba w raporcie emitenta: większa różnica = błąd odczytu
 STE_CENA = (1e-5, 1e3)     # USD za sztukę — cena poza przedziałem (np. zepsuta) = moneta pominięta w stablecoinach w innych walutach
@@ -36206,7 +36206,8 @@ def build_stable_emitenci(prev=None, llama=None):
             META['errors'].append(mask(f'Emitenci stablecoinów {part}: {e}')[:200])
             out['ok'][part] = False
             old, t_old = pv.get(key), _zapas_czas(pv, part)
-            tk, tn = _ix_dt(t_old), _ix_dt(NOW)
+            t_wiek = old.get('t') if part == 'tether' and isinstance(old, dict) and _ix_dt(old.get('t')) is not None else t_old   # v470: wiek Tether = czas migawki raportu, nie pobrania
+            tk, tn = _ix_dt(t_wiek), _ix_dt(NOW)
             if isinstance(old, dict) and tk is not None and tn is not None and 0 <= (tn - tk).total_seconds() <= STE_MAX_H[part] * 3600:
                 out[key] = old
                 out['part_at'][part] = t_old

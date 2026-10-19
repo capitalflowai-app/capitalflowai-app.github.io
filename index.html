@@ -13619,7 +13619,7 @@ mcLoad();try{new MutationObserver(()=>renderMica()).observe(document.documentEle
    (do tego czasu „—” i zdanie, od kiedy seria istnieje). Kolory kierunku z POKAZANEJ liczby (plus zielony, minus czerwony, zero żółte, brak bez koloru). Bez nazw dostawców (pole
    src pliku nie jest pokazywane); nazwy monet i sieci to przedmiot danych. Telefon: kafle po dwa, tabela w układzie dwukolumnowym bez przewijania w bok. */
 const STE={d:null};
-const STE_LIVE=3*3600e3,STE_OLD={llama:6*3600e3,circle:6*3600e3,tether:48*3600e3},STE_TOP=6;
+const STE_LIVE=3*3600e3,STE_OLD={llama:6*3600e3,circle:6*3600e3,tether:120*3600e3},STE_TOP=6;
 const STE_COL=['var(--bl)','var(--tl)','var(--or)','rgba(var(--bl-rgb),.5)','rgba(var(--tl-rgb),.5)','rgba(var(--or-rgb),.5)'],STE_MCOL={f:'var(--bl)',c:'var(--tl)',a:'var(--or)',x:'var(--gy)'};
 const STE_CH={ETH:'Ethereum',SOL:'Solana',BASE:'Base',ARB:'Arbitrum',POLY:'Polygon',AVAX:'Avalanche',XLM:'Stellar',HYPEREVM:'HyperEVM',ARC:'Arc',SUI:'Sui',OP:'Optimism',ALGO:'Algorand',APTOS:'Aptos',NEAR:'NEAR',NOBLE:'Noble',UNI:'Unichain',LINEA:'Linea',CODEX:'Codex',SONIC:'Sonic',WORLDCHAIN:'World Chain',FLOW:'Flow',HEDERA:'Hedera',ZKSYNC:'ZKsync',CELO:'Celo',DOT:'Polkadot',PLASMA:'Plasma',CRONOS:'Cronos',SEI:'Sei',INK:'Ink',BSC:'BNB Chain',BNB:'BNB Chain',TRX:'Tron',TON:'TON',STARKNET:'Starknet'};
 const steChain=c=>STE_CH[String(c).toUpperCase()]||(String(c).charAt(0).toUpperCase()+String(c).slice(1).toLowerCase());

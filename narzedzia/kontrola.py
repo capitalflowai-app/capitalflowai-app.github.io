@@ -9265,7 +9265,8 @@ def krzywe_kontrola(kr, ry=None, now=None):
 # powyżej 1 pkt proc. to więcej niż zwykła dobowa zmiana USDT i niż 3 h zmian USDC. Próg (a): STAB_ZOLTE (pokrewna seria — cała podaż z historii dziennej a to samo drugie źródło, 8 dni: odchylenie od mediany najwyżej 0,18 pkt proc.).
 PLIKI.insert(PLIKI.index('krypto-dzien'), 'stable-emitenci')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
 LIMIT_MIN['stable-emitenci'] = 3 * 60   # zapis co przebieg lub co ~55 min — wiek pliku; wiek raportów emitentów ocenia wiersz świeżości
-STE_K_TETHER_H = 30     # h — wiek migawki raportu Tether (pole id = 23:30 UTC dnia)
+STE_K_TETHER_H = 30     # h — wiek migawki raportu Tether (pole id = 23:30 UTC dnia): do tylu godzin ✅
+STE_K_TETHER_UW_H = 96  # h — v470: między 30 a 96 h tylko ℹ️ (emitent odświeża plik z przerwami; weekend ≈ 60 h, najdłuższa przerwa w obserwacji 12–19.10.2026 ≈ 60 h), ⚠️ dopiero powyżej
 STE_K_CIRCLE_H = 2      # h — wiek najnowszej aktualizacji USDC u Circle
 STE_K_ZOLTE = 1.0       # pkt proc. — odchylenie różnicy emitent ↔ lista monet od mediany = ⚠️ (nigdy ❌)
 STE_K_OKNO_H = 3.0      # h — raport Circle i lista monet pobrane dalej od siebie = bez porównania (informacja)
@@ -9314,11 +9315,11 @@ def ste_kontrola(j, cmc, rows, today, now=None):
     E, T, C = (j.get(k) if isinstance(j.get(k), dict) else None for k in ('emit', 'tether', 'circle'))
     pat = j.get('part_at') if isinstance(j.get('part_at'), dict) else {}
     # ---- wiek raportów emitentów ----
-    for k, P, t, lim in (('tether', T, T.get('t') if T else None, STE_K_TETHER_H), ('circle', C, (C.get('usdc') or {}).get('upd') if C else None, STE_K_CIRCLE_H)):
+    for k, P, t, lim in (('tether', T, T.get('t') if T else None, STE_K_TETHER_UW_H), ('circle', C, (C.get('usdc') or {}).get('upd') if C else None, STE_K_CIRCLE_H)):
         lab = STE_K_ETYKIETA[k]
         if P is None:
             out['rows'].append((lab, '?', None, None, 'brak tej części w pliku'))
-            out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od ponad {"36" if k == "tether" else "3"} h)')
+            out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od ponad {"120" if k == "tether" else "3"} h)')
             continue
         w = wiek_danych(t, 'ts', 'k', now) if isinstance(t, str) else None
         if w is None:
@@ -9326,6 +9327,8 @@ def ste_kontrola(j, cmc, rows, today, now=None):
             continue
         st = '⚠️' if w > lim * 60 else '✅'
         note = '' if st == '✅' else f'raport starszy niż {lim} h — emitent nie odświeża pliku albo adres się zmienił; najwyżej uwaga'
+        if k == 'tether' and st == '✅' and w > STE_K_TETHER_H * 60:   # v470: 30–96 h = informacja bez uwagi
+            st, note = 'ℹ️', f'raport starszy niż {STE_K_TETHER_H} h — emitent odświeża plik z przerwami (weekend); uwaga dopiero po {STE_K_TETHER_UW_H} h'
         out['rows'].append((lab, st, w, str(t)[:16].replace('T', ' ') + ' UTC', note))
         if st == '⚠️':
             out['uwagi'].append(f'{lab}: raport z {str(t)[:16].replace("T", " ")} UTC — {fmt_wiek(w)} temu ({note})')

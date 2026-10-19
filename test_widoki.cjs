@@ -25441,11 +25441,11 @@ test('v363: brak = „—”/ukryta karta (nigdy zero), części niezależne i s
   const onlyT = C(ST363_F); delete onlyT.emit; delete onlyT.circle; const el = ok(onlyT); assert.equal(el.hidden, false);
   assert.ok(!el.innerHTML.includes('Stablecoiny dolarowe razem') && !el.innerHTML.includes('USDC w obiegu') && el.innerHTML.includes('USDT w obiegu'), 'tylko raport USDT');
   const onlyE = C(ST363_F); delete onlyE.tether; delete onlyE.circle; assert.ok(!ok(onlyE).innerHTML.includes('Raporty samych emitentów') && ok(onlyE).innerHTML.includes('Stablecoiny dolarowe razem'), 'sama lista monet');
-  /* starzenie osobno: lista monet i USDC po 6 h, raport USDT po 48 h (od czasu raportu) */
+  /* starzenie osobno: lista monet i USDC po 6 h, raport USDT po 120 h (od czasu raportu; v470) */
   const stL = C(ST363_F); stL.part_at.llama = '2026-10-13T14:00:00+00:00'; const eL = ok(stL).innerHTML; assert.ok(!eL.includes('Stablecoiny dolarowe razem') && eL.includes('USDT w obiegu') && eL.includes('USDC w obiegu'), 'lista monet starsza niż 6 h znika');
   const stC = C(ST363_F); stC.circle.usdc.upd = '2026-10-13T14:00:00+00:00'; assert.ok(!ok(stC).innerHTML.includes('USDC w obiegu') && ok(stC).innerHTML.includes('USDT w obiegu'), 'raport USDC starszy niż 6 h znika');
-  const stT = C(ST363_F); stT.tether.t = '2026-10-11T20:00:00Z'; assert.ok(!ok(stT).innerHTML.includes('Aktywa emitenta') && ok(stT).innerHTML.includes('USDC w obiegu'), 'raport USDT starszy niż 48 h znika');
-  const all = C(ST363_F); all.part_at.llama = '2026-10-13T01:00:00+00:00'; all.circle.usdc.upd = '2026-10-13T01:00:00Z'; all.tether.t = '2026-10-10T01:00:00Z'; assert.equal(ok(all).hidden, true, 'wszystkie części stare = karta ukryta');
+  const stT = C(ST363_F); stT.tether.t = '2026-10-08T20:00:00Z'; assert.ok(!ok(stT).innerHTML.includes('Aktywa emitenta') && ok(stT).innerHTML.includes('USDC w obiegu'), 'raport USDT starszy niż 120 h znika');
+  const all = C(ST363_F); all.part_at.llama = '2026-10-13T01:00:00+00:00'; all.circle.usdc.upd = '2026-10-13T01:00:00Z'; all.tether.t = '2026-10-07T01:00:00Z'; assert.equal(ok(all).hidden, true, 'wszystkie części stare = karta ukryta');
   /* brak zmian w tabeli = „—” bez koloru, zero = „0” żółte */
   const nul = C(ST363_F); nul.emit.rows[1][4] = null; nul.emit.rows[1][5] = null; nul.emit.rows[2][4] = 0; const hn = st363.sp(ok(nul).innerHTML), Rn = st363rows(hn);
   assert.equal(Rn[1].d7, '<span class="na">—</span>'); assert.equal(Rn[1].d30, '<span class="na">—</span>'); assert.equal(Rn[2].d7, '<span class="neu">0 mln USD</span>', 'zero = żółte');
@@ -37195,4 +37195,18 @@ test('v468: słownik xs468.* — czysty JSON (pl, en), te same pola {x}, klucz u
   assert.equal(pola(D.pl['xs468.wk']), pola(D.en['xs468.wk']), 'te same pola'); assert.equal(pola(D.pl['xs468.wk']), '{d},{n},{pr},{p},{t},{v}');
   assert.ok(html.slice(end + 2).startsWith('for(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);'), 'linia nakładania zaraz po słowniku');
   assert.ok(rw133.BLK.includes("t('xs468.wk',{") && rw133.BLK.includes('for(const z of rwWkL(D))L.push(z);'), 'klucz i wywołanie w kodzie bloku RWA');
+});
+
+
+test('v470: raport USDT starzeje się po 120 h (nie 48 h) i pokazuje swój wiek; po 130 h znika, reszta karty zostaje', () => {
+  const C = st363.clone, ok = f => st363.mk('pl', f).els['#c-emit'], at = h => new Date(st363.NOW - h * 3600e3).toISOString().replace('.000Z', 'Z');
+  const s60 = C(ST363_F); s60.tether.t = at(60); s60.tether.asof = at(60).slice(0, 10);
+  const h60 = ok(s60).innerHTML;
+  assert.ok(h60.includes('Aktywa emitenta') && h60.includes('USDT w obiegu'), 'migawka sprzed 60 h: podział na sieci i kapitał zostają');
+  assert.ok(h60.includes('raport z D:' + at(60)) && h60.includes(' · temu(' + at(60) + ')'), 'data i wiek migawki widoczne przy liczbach');
+  const s119 = C(ST363_F); s119.tether.t = at(119); assert.ok(ok(s119).innerHTML.includes('Aktywa emitenta'), '119 h jeszcze widoczne');
+  const s130 = C(ST363_F); s130.tether.t = at(130); const h130 = ok(s130).innerHTML;
+  assert.ok(!h130.includes('Aktywa emitenta') && !h130.includes('raport z D:') && h130.includes('USDC w obiegu'), 'migawka sprzed 130 h: część znika, USDC zostaje');
+  assert.ok(!/<span class="(pos|neg)">0 /.test(h60) && !/\b(undefined|NaN|null)\b|Infinity/.test(h60), 'bez zer z kolorem i napisów-błędów');
+  assert.ok(html.includes('tether:120*3600e3'), 'próg w kodzie strony');
 });

@@ -50072,8 +50072,8 @@ class StableEmitenciV363(unittest.TestCase):
         self.assertEqual(o['hist']['usdt'], [['2026-10-12', 1]], 'historia nie dostaje punktu z części, która zawiodła')
         zd.META['errors'].clear()
         with mock.patch.object(zd, 'get_json', self._get(kl=blad)):
-            o = zd.build_stable_emitenci(prev(40, 4))
-        self.assertNotIn('tether', o, 'raport starszy niż 36 h znika (brak, nie stara liczba)'); self.assertNotIn('circle', o, 'raport Circle starszy niż 3 h znika'); self.assertIn('emit', o)
+            o = zd.build_stable_emitenci(prev(130, 4))
+        self.assertNotIn('tether', o, 'raport starszy niż 120 h znika (brak, nie stara liczba)'); self.assertNotIn('circle', o, 'raport Circle starszy niż 3 h znika'); self.assertIn('emit', o)
         # wszystko zawiodło = wyjątek (main zostawia poprzedni plik)
         with mock.patch.object(zd, 'get_json', self._get(kl={k: RuntimeError('offline') for k in ('llama', 'tether', 'circle')})):
             with self.assertRaisesRegex(RuntimeError, 'żadne źródło'):
@@ -50166,7 +50166,7 @@ class KontrolaStableEmitenciV363(unittest.TestCase):
         k = self.k
         o = k.ste_kontrola(self._plik(), None, {}, '2026-10-13', self.NOW)
         self.assertEqual([r[1] for r in o['rows']], ['✅', '✅']); self.assertEqual(o['uwagi'], []); self.assertEqual(o['rows'][0][2], 360)
-        o = k.ste_kontrola(self._plik(tether_h=31, circle_h=2.5), None, {}, '2026-10-13', self.NOW)
+        o = k.ste_kontrola(self._plik(tether_h=97, circle_h=2.5), None, {}, '2026-10-13', self.NOW)
         self.assertEqual([r[1] for r in o['rows']], ['⚠️', '⚠️']); self.assertEqual(len(o['uwagi']), 2); self.assertTrue(all('najwyżej uwaga' in r[4] for r in o['rows']))
         j = self._plik(); del j['tether']; del j['circle']
         o = k.ste_kontrola(j, None, {}, '2026-10-13', self.NOW)
@@ -79916,3 +79916,65 @@ class PremieZapasV469(unittest.TestCase):
         rk = self.zrk(fail=lambda u: _ue.HTTPError(u, 429, 'x', {}, None) if 'korbit' in u else None)
         o = self.bp(rk, self.ebc(), prev)
         self.assertEqual(o['up_src'], 'bithumb'); self.assertEqual(len([u for u in rk.urls if 'korbit' in u]), 1, 'po 429 Korbit wstrzymany do końca przebiegu')
+
+
+class TestV470TetherTolerancja(unittest.TestCase):
+    """v470 (19.10.2026): raport USDT emitenta odświeżany z przerwami (migawka z piątku 23:30 UTC jeszcze w poniedziałek). Zbieracz po błędzie trzyma część do 120 h od MIGAWKI
+    (nie od pobrania), kontrola: do 30 h ✅, 30–96 h ℹ️ bez uwagi, powyżej 96 h ⚠️."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.STE_LLAMA.clear()
+        self.p = [mock.patch.object(zd, '_now_utc', lambda: _V363_NOW), mock.patch.object(zd, 'NOW', _V363_NOW.isoformat())]
+        [p.start() for p in self.p]
+
+    def tearDown(self):
+        [p.stop() for p in self.p]
+
+    @staticmethod
+    def _t(h):
+        return (_V363_NOW - datetime.timedelta(hours=h)).isoformat().replace('+00:00', 'Z')
+
+    def _prev(self, migawka_h):
+        return {'v': 1, 'at': self._t(1), 'ok': {}, 'part_at': {'tether': self._t(1), 'circle': self._t(1), 'llama': self._t(1)},
+                'tether': {'t': self._t(migawka_h), 'asof': self._t(migawka_h)[:10], 'liab': 1}, 'circle': {'usdc': {'tot': 1}}, 'emit': {'total': 1}, 'hist': {}}
+
+    def _buduj(self, prev):
+        def get_json(url, headers=None, timeout=30):
+            if 'llama.fi' in url:
+                return _v363_llama()
+            raise urllib.error.HTTPError(url, 503, 'Unavailable', {}, None)
+        zd.META['errors'].clear()
+        with mock.patch.object(zd, 'get_json', get_json):
+            return zd.build_stable_emitenci(prev)
+
+    def test_zbieracz_migawka_60_h_zostaje_130_h_znika(self):
+        self.assertEqual(zd.STE_MAX_H['tether'], 120)
+        o = self._buduj(self._prev(60))
+        self.assertFalse(o['ok']['tether']); self.assertEqual(o['tether']['liab'], 1, 'migawka sprzed 60 h zostaje (z własnym czasem t)')
+        self.assertEqual(o['tether']['t'], self._t(60), 'wiek migawki widać w polu t')
+        o = self._buduj(self._prev(130))
+        self.assertNotIn('tether', o, 'migawka sprzed 130 h znika (brak, nie stara liczba)'); self.assertIn('emit', o)
+        # wiek liczony od migawki, nie od pobrania: pobranie godzinę temu, migawka sprzed 130 h
+        p = self._prev(130); self.assertGreater(zd._ix_dt(p['part_at']['tether']), _V363_NOW - datetime.timedelta(hours=2))
+        self.assertNotIn('tether', self._buduj(p))
+        # brak czasu migawki — jak dotąd wiek z czasu pobrania (część zostaje)
+        p = self._prev(10); p['tether']['t'] = 'zepsute'
+        self.assertIn('tether', self._buduj(p))
+
+
+class KontrolaTetherTolerancjaV470(unittest.TestCase):
+    """v470: wiek migawki raportu Tether w kontroli — ✅ do 30 h, ℹ️ 30–96 h bez uwagi, ⚠️ powyżej 96 h; Circle bez zmian (2 h)."""
+    setUpClass = classmethod(KontrolaStableEmitenciV363.setUpClass.__func__)
+    _plik = KontrolaStableEmitenciV363._plik
+
+    def test_wiek_tether_trzy_pasma(self):
+        k = self.k
+        self.assertEqual((k.STE_K_TETHER_H, k.STE_K_TETHER_UW_H, k.STE_K_CIRCLE_H), (30, 96, 2))
+        for h, st, uw in ((29.9, '✅', 0), (31, 'ℹ️', 0), (60, 'ℹ️', 0), (95.9, 'ℹ️', 0), (97, '⚠️', 1), (130, '⚠️', 1)):
+            o = k.ste_kontrola(self._plik(tether_h=h), None, {}, '2026-10-13', self.NOW)
+            self.assertEqual((o['rows'][0][1], len(o['uwagi'])), (st, uw), f'migawka sprzed {h} h')
+            self.assertEqual(o['rows'][1][1], '✅', 'Circle bez zmian')
+        o = k.ste_kontrola(self._plik(tether_h=60), None, {}, '2026-10-13', self.NOW)
+        self.assertTrue(o['rows'][0][4].startswith('raport starszy niż 30 h') and 'po 96 h' in o['rows'][0][4]); self.assertEqual(o['rows'][0][2], 3600)
+        j = self._plik(); del j['tether']
+        self.assertIn('120 h', k.ste_kontrola(j, None, {}, '2026-10-13', self.NOW)['uwagi'][0])
