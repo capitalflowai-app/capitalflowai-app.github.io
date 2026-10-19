@@ -7685,8 +7685,12 @@ def bis2_kontrola(files, R):
 #   — zmiany miesięczne indeksu dziennego vs indeks zbóż świata (z surowce.json, 35 miesięcy 10.2023–09.2026): korelacja 0,74, w oknach 24-miesięcznych
 #     najniżej 0,66 → ⚠ poniżej 0,4; azot (N) w UE vs indeks nawozów świata (35 miesięcy): korelacja 0,80, w oknach 24-miesięcznych najniżej 0,59
 #     → ⚠ poniżej 0,3 (fosfor i potas nie są sprawdzane — korelacja 0,40 i 0,15: indeks świata to głównie azot i fosforany z innych rynków);
-#   — tabela wartości na stronie źródła (liczby całkowite) vs seria: ostatnia wartość ±0,6, zmiana dnia ±0,6, zmiana roczna ±1,6 pkt proc., najniższy
+#   — tabela wartości na stronie źródła (liczby całkowite) vs seria: ostatnia wartość ±0,6, zmiana dnia ±1,0 (v480), zmiana roczna ±1,6 pkt proc., najniższy
 #     i najwyższy z 52 tygodni ±1,0 (10.10.2026: wszystkie sześć serii mieści się w tych granicach; różnice wynikają z zaokrągleń do liczb całkowitych);
+#   — v480 (19.10.2026): zmiana dnia w tabeli źródła to RÓŻNICA ZAOKRĄGLEŃ dwóch kolejnych wartości (19.10: ogółem 250 − 250 = 0 przy serii 249,70 − 250,42 = −0,72; ryż 190 − 189 = 1
+#     przy +0,35), więc błąd zaokrągleń sięga prawie 1,0, nie 0,5: test wsteczny na 285 dniach × 6 seriach (model: zaokrąglona ostatnia i poprzednia wartość) — odchylenie zmiany dnia
+#     najwyżej 0,99 (kukurydza), ostatniej wartości 0,50, zmiany rocznej 0,94, najniższej / najwyższej 0,47. Wąska tolerancja ±0,6 dawała ⚠️ w 6 z 14 dni bez błędu; teraz 1,0 + 0,011
+#     (zaokrąglenie serii do 2 miejsc) — rzeczywisty błąd odczytu (np. przesunięty wiersz, zła kolumna) nadal wychodzi ponad granicę;
 #   — pszenica w Polsce (ceny w UE) vs pszenica w polska.json (ten sam portal, dwa pobrania): ostatni wspólny tydzień ±0,011 EUR/t (10.10.2026: 26 wspólnych
 #     tygodni, różnica 0,00).
 ZD_K_ETYKIETA = {'goi': 'zboża: indeks dzienny (dni robocze, dane z poprzedniego dnia roboczego)',
@@ -7700,7 +7704,7 @@ ZD_K_KOR = {'fao': 0.6, 'wb_zboza': 0.4, 'wb_nawozy': 0.3}   # korelacja zmian m
 ZD_K_KOR_MIN = 24       # najmniej par zmian miesięcznych do policzenia korelacji
 ZD_K_TOL = 0.011        # zaokrąglenie do 2 miejsc po przecinku
 ZD_K_HIST = {'goi': '14,4', 'fracht': '26,7', 'fao': '26,6', 'ue': '30,1', 'nawozy': '68'}   # % — największy skok w kroku w historii (progi wyżej)
-ZD_K_TAB = {'last': 0.6, 'd1': 0.6, 'y1': 1.6, 'lo': 1.0, 'hi': 1.0}   # tolerancje tabeli źródła (liczby całkowite)
+ZD_K_TAB = {'last': 0.6, 'd1': 1.011, 'y1': 1.6, 'lo': 1.0, 'hi': 1.0}   # tolerancje tabeli źródła (liczby całkowite); v480: zmiana dnia w tabeli = różnica dwóch zaokrągleń (do 1,0), nie zaokrąglenie różnicy
 ZD_K_NAZWY = {'goi': 'indeks ogółem', 'pszenica': 'pszenica', 'kukurydza': 'kukurydza', 'jeczmien': 'jęczmień', 'soja': 'soja', 'ryz': 'ryż',
               'gofi': 'fracht ogółem', 'argentyna': 'Argentyna', 'australia': 'Australia', 'brazylia': 'Brazylia', 'czarne': 'Morze Czarne', 'kanada': 'Kanada',
               'europa': 'Europa', 'usa': 'USA', 'ogolem': 'indeks ogólny', 'mieso': 'mięso', 'nabial': 'nabiał', 'zboza': 'zboża', 'oleje': 'oleje',
@@ -7892,7 +7896,7 @@ def zboza_porownania(j, files=None):
                 rozne.append(f'{ZD_K_NAZWY.get(cid, cid)} {k_}: tabela {x:g}, seria {st[k_]:g}')
     if T:
         for x in rozne[:2]:
-            U.append(f'zboża dziennie: tabela źródła vs seria — {x} (tolerancja zaokrągleń: ostatnia ±0,6, zmiana dnia ±0,6, roczna ±1,6 pkt, przedział ±1) — sprawdzić'.replace('.', ','))
+            U.append(f'zboża dziennie: tabela źródła vs seria — {x} (tolerancja zaokrągleń: ostatnia ±0,6, zmiana dnia ±1, roczna ±1,6 pkt, przedział ±1) — sprawdzić'.replace('.', ','))
         W.append(('indeks dzienny: tabela źródła vs seria', '\u26a0\ufe0f' if rozne else '✅'))
     # korelacje miesięczne
     gm = ((G.get('s') or {}).get('goi') or {}).get('m') if isinstance(G.get('s'), dict) else None

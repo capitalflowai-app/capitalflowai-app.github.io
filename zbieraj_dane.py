@@ -14239,6 +14239,9 @@ SR_WASDE_SCIEZKA = re.compile(r'^/sites/default/release-files/(\d+)/wasde(\d{2})
 SR_WASDE_STRONA_MAX = 2_000_000   # B — strona wydań (10.10.2026: 88 KB)
 SR_WASDE_XML_MAX = 12_000_000     # B — plik XML (10.10.2026: 3,57 MB; ok. 3× zapasu na rozbudowę raportu)
 SR_WASDE_CSV_PAUZA_MIN = 360      # min — po odmowie (403/429) serwera pliku CSV nie pytamy go ponownie przez 6 h
+SR_WASDE_OCE = 'https://www.usda.gov/oce/commodity/wasde/wasde{mm}{rr}.xml'   # v480: druga kopia TEGO SAMEGO pliku XML na stronie urzędu (10.10.2026: bajt w bajt jak w archiwum, 3,57 MB)
+SR_PON = 1               # v480: ponowienia jednego zapytania po przejściowej awarii (HTTP 5xx, zerwane połączenie, limit czasu); odmowa (403/429), brak pliku (404) i inne 4xx — bez ponowienia
+SR_PON_S = 3             # s — przerwa przed ponowieniem; ponowienie tylko, gdy w budżecie zmieści się jeszcze pełny limit źródła
 SR_WASDE_XML_KLUCZE = ('region_header', 'region', 'attribute', 'forecast_month')   # atrybuty XML bez numeru (region_header1, attribute1 …)
 SR_WASDE_KAL = ('2026-01-12', '2026-02-10', '2026-03-10', '2026-04-09', '2026-05-12', '2026-06-11', '2026-07-10', '2026-08-12', '2026-09-11',
                 '2026-10-09', '2026-11-10', '2026-12-10')            # dni raportów 2026 (12:00 czasu Nowego Jorku); 2027 — dopisać po ogłoszeniu
@@ -14684,21 +14687,38 @@ def _sr_fetch(url, timeout, headers=None, maks=None):
     return get_bytes_maks(url, headers, timeout, maks) if maks else get_bytes(url, headers, timeout=timeout)
 
 
+def _sr_przejsciowy(e):
+    """v480: awaria warta jednego ponowienia — HTTP 5xx, zerwane połączenie, limit czasu; odmowa (403/429), brak pliku (404), inne 4xx i błędy odczytu — nie."""
+    if isinstance(e, urllib.error.HTTPError):
+        return e.code >= 500
+    return isinstance(e, (urllib.error.URLError, OSError, _http_client.HTTPException))
+
+
 def _sr_get(ctx, src, url, maks=None):
     """Jedno zapytanie z limitem źródła, nie dłuższym niż reszta budżetu budowniczego (reszta < 5 s = błąd źródła; ponowienie później). maks —
     najwyżej tyle bajtów odpowiedzi (v332; dłuższa = błąd)."""
-    lim = SR_LIMIT_S[src]
-    if ctx.get('t0') is not None and ctx.get('budzet') is not None:
-        left = ctx['budzet'] - (time.monotonic() - ctx['t0'])
-        if left < 5:
-            raise RuntimeError('budżet czasu budowniczego wyczerpany')
-        lim = min(lim, round(left, 1))
-    if maks is None:
-        return ctx['fetch'](url, lim)
-    b = ctx['fetch'](url, lim, maks=maks)
-    if len(b) > maks:
-        raise RuntimeError(f'odpowiedź dłuższa niż {maks} B (limit)')
-    return b
+    pon = 0
+    while True:
+        lim = SR_LIMIT_S[src]
+        if ctx.get('t0') is not None and ctx.get('budzet') is not None:
+            left = ctx['budzet'] - (time.monotonic() - ctx['t0'])
+            if left < 5:
+                raise RuntimeError('budżet czasu budowniczego wyczerpany')
+            lim = min(lim, round(left, 1))
+        try:
+            b = ctx['fetch'](url, lim) if maks is None else ctx['fetch'](url, lim, maks=maks)
+        except Exception as e:
+            # v480: przejściowa awaria (5xx, zerwane połączenie, limit czasu) — jedno ponowienie, jeśli zmieści się w budżecie z pełnym limitem źródła
+            if pon >= SR_PON or not _sr_przejsciowy(e):
+                raise
+            if ctx.get('t0') is not None and ctx.get('budzet') is not None and ctx['budzet'] - (time.monotonic() - ctx['t0']) - SR_PON_S < SR_LIMIT_S[src]:
+                raise
+            pon += 1
+            ctx.get('sleep', time.sleep)(SR_PON_S)
+            continue
+        if maks is not None and len(b) > maks:
+            raise RuntimeError(f'odpowiedź dłuższa niż {maks} B (limit)')
+        return b
 
 
 def _sr_cameco(ctx):
@@ -14939,6 +14959,47 @@ def _sr_wasde_pop(cur, lista, P, uw):
     return {'nr': P['nr'] if jest else cur['nr'] - 1, 'wyd': wyd, 'mies': pm, 'k': kp}
 
 
+def _sr_wasde_oce(ctx, P):
+    """v480: druga droga odczytu raportu zbóż — ten sam plik XML z drugiej kopii na stronie urzędu (adres z miesiąca i roku, bez strony wydań; nagłówków ani
+    ścieżek nie zmieniamy). Plik jeszcze niepublikowany: kopia odsyła stronę HTML (nie XML) albo HTTP 404 — jak w archiwum: poprzedni miesiąc, gdy części jeszcze
+    nie ma; inaczej dane zostają (notatka; po SR_WASDE_404_DNI dniach od terminu — błąd). Dzień wydania (plik go nie zawiera): z kalendarza raportów,
+    poza nim dzień sprawdzenia w miesiącu raportu. Reszta jak w archiwum: te same straże odczytu i prognoza poprzedniego raportu z tego samego pliku."""
+    now, cel = ctx['now'], _sr_wasde_cel(ctx['now'])
+    cur = None
+    for ym in (cel, _sr_mies(cel, -1)):
+        if ym != cel and P and P['mies'] >= ym:
+            break
+        raw = None
+        try:
+            raw = _sr_get(ctx, 'wasde', SR_WASDE_OCE.format(mm=ym[5:7], rr=ym[2:4]), maks=SR_WASDE_XML_MAX)
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                raise
+        if raw is not None and not bytes(raw[:200]).lstrip(b'\xef\xbb\xbf \r\n\t').startswith(b'<?xml'):
+            raw = None   # przekierowanie na stronę „brak pliku” (HTML) = pliku jeszcze nie ma
+        if raw is None:
+            if (now - _sr_wasde_exp(ym)[3]).total_seconds() > SR_WASDE_404_DNI * 86400:
+                raise RuntimeError(f'raport {ym}: brak pliku w drugiej kopii ponad {SR_WASDE_404_DNI} dni po terminie — zaległy raport albo zmieniony adres pliku')
+            ctx['uwagi'].append(f'wasde: raport {ym} — pliku jeszcze nie ma w drugiej kopii')
+            continue
+        d, _t, z_kal, _x = _sr_wasde_exp(ym)
+        wyd = d.isoformat() if z_kal or now.date().isoformat()[:7] != ym else now.date().isoformat()
+        cur = parse_wasde_xml(raw, wyd)
+        if cur['mies'] != ym:
+            raise RuntimeError(f'plik {ym} zawiera raport z {cur["mies"]}')
+        break
+    if cur is None:
+        if P:
+            return P['mies']
+        raise RuntimeError('brak pliku raportu w drugiej kopii')
+    if cur['zle']:
+        ctx['bledy'].append('wasde: świat ≠ USA + reszta świata — ' + '; '.join(cur['zle'][:2]))
+    if P and _sr_mies(P['mies'], 1) == cur['mies'] and cur['nr'] != P['nr'] + 1:   # kolejne miesiące = kolejne numery raportów
+        ctx['uwagi'].append(f'wasde: numer raportu {cur["nr"]} nie następuje bezpośrednio po {P["nr"]} (poprzednia część) — sprawdzić')
+    ctx['parts']['zboza'] = sr_zboza(cur, _sr_wasde_pop(cur, {}, P, ctx['uwagi']), P)
+    return cur['mies']
+
+
 def _sr_wasde_esmis(ctx, P):
     """Raport zbóż z oficjalnego archiwum: strona wydań → plik XML raportu z ostatniego terminu kalendarza (brak go w archiwum — poprzedni miesiąc,
     gdy części jeszcze nie ma; inaczej dane zostają: notatka, po SR_WASDE_404_DNI dniach od terminu — błąd). Prognoza poprzedniego raportu z tego
@@ -14994,6 +15055,19 @@ def _sr_wasde(ctx):
         blad = e
     if _su_min(now, z.get('csv_od')) < SR_WASDE_CSV_PAUZA_MIN:
         raise blad
+    try:   # v480: druga droga — ten sam plik XML z drugiej kopii na stronie urzędu (ten sam serwer co plik CSV: odmowa 403/429 wstrzymuje oba na SR_WASDE_CSV_PAUZA_MIN min)
+        r = _sr_wasde_oce(ctx, P)
+    except Exception as e1:
+        if isinstance(e1, urllib.error.HTTPError) and e1.code in (403, 429):
+            z['csv_od'] = now.replace(microsecond=0).isoformat()
+            ctx['uwagi'].append(mask(f'wasde: druga kopia pliku też odmówiła — {e1}')[:160])
+            raise blad from None
+        ctx['uwagi'].append(mask(f'wasde: druga kopia pliku zawiodła — {e1}')[:160])
+    else:
+        z.pop('csv_od', None)
+        z['via'] = 'oce'
+        ctx['uwagi'].append(mask(f'wasde: archiwum — {blad}; raport z drugiej kopii pliku XML')[:200])
+        return r
     try:
         r = _sr_wasde_csv(ctx)
     except Exception as e2:
@@ -15021,7 +15095,7 @@ def build_su_raporty(prev=None, keys=None, now=None, fetch=None, budzet_s=None, 
     st = json.loads(json.dumps(prev.get('st'))) if isinstance(prev.get('st'), dict) else {}
     ctx = {'now': now, 'keys': keys, 'st': st, 'pp': {p: prev[p] for p in SR_PARTS if isinstance(prev.get(p), dict)}, 'bledy': [], 'uwagi': [],
            'parts': {}, 't0': time.monotonic(), 'budzet': SR_BUDZET_S if budzet_s is None else budzet_s,
-           'fetch': fetch or _sr_fetch}
+           'fetch': fetch or _sr_fetch, 'sleep': (lambda s: None) if fetch else time.sleep}
     late = run_t0 is not None and time.monotonic() - run_t0 > BACK_LATE
     proby, zle, pominiete, czesc = {p: 0 for p in SR_PARTS}, {}, [], set()
     for src, part in SR_ZR:

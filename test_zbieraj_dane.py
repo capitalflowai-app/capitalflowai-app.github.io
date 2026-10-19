@@ -41528,10 +41528,10 @@ class ZbozaEsmisV332(unittest.TestCase):
         self.assertEqual((oc['err']['zboza'], 'kod' in oc['st']['wasde'], oc['st']['wasde']['csv_od']), ('wasde: HTTP Error 503: Service Unavailable', False, iso(self.NOW)))
         zd.META['notes'].clear()
         od, cd = self.build(oc, now=self.NOW + datetime.timedelta(minutes=61), esmis_kod=503, csv_kod=403)
-        self.assertEqual([c[0] for c in cd], ['lista'], 'plik CSV w pauzie po odmowie')
+        self.assertEqual(list(dict.fromkeys(c[0] for c in cd)), ['lista'], 'plik CSV w pauzie po odmowie (archiwum: zapytanie i jedno ponowienie, v480)')
         self.assertFalse(any('zapas' in n for n in zd.META['notes']))
         oe, ce = self.build(od, now=self.NOW + datetime.timedelta(minutes=361), esmis_kod=503, csv_kod=403)
-        self.assertEqual([c[0] for c in ce], ['lista', 'csv'])
+        self.assertEqual(list(dict.fromkeys(c[0] for c in ce)), ['lista', 'csv'])
         # po pauzie plik CSV odpowiada 200: raport z zapasu, znacznik odmowy znika
         of, cf = self.build(oc, now=self.NOW + datetime.timedelta(minutes=361), esmis_kod=503)
         self.assertEqual((of['ok']['zboza'], of['st']['wasde']['via'], 'csv_od' in of['st']['wasde'], of['zboza']['nr']), (True, 'csv', False, 676))
@@ -82329,3 +82329,211 @@ class TestV479PortfeleStarzenieIProg(unittest.TestCase):
         W = {'OKX': {'od': '2026-09-08', 'nowy': '2026-10-08', 'lista': True, 'prob': 1, 'zakres': None, 'kontrola': True, 'nie_wiadomo': 0, 'przerwane': False}}
         self.assertIn('OKX — nowy raport z listą portfeli z 2026-10-08 (obecna z 2026-09-08) ℹ️', k.wh_nowe_wiersz(W))
         self.assertNotIn('⚠️', k.wh_nowe_wiersz(W))
+
+
+class ZbozaOdpornoscV480(unittest.TestCase):
+    """v480 (19.10.2026): część zbożowa surowców — ponowienie po przejściowej awarii, druga kopia pliku XML raportu (strona urzędu) przed zapasem CSV, wspólna pauza
+    po odmowie 403/429 oraz tolerancja kontroli tabeli „zboża dziennie” równa zaokrągleniu źródła (zmiana dnia = różnica dwóch zaokrągleń). Bez sieci i zegara:
+    atrapa sieci z v332 (ZbozaEsmisV332) + adresy drugiej kopii; liczby tabeli — z odczytu 19.10.2026 (plik zboza-dzien.json: tabela źródła i seria)."""
+    OCE = 'https://www.usda.gov/oce/commodity/wasde/'
+    HTML = b'<html><body>Page not found</body></html>'
+
+    @classmethod
+    def setUpClass(cls):
+        ZbozaEsmisV332.setUpClass()
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear(); zd.META['ok'].clear()
+        self.B = ZbozaEsmisV332('fetch')
+        self.enterContext(mock.patch.object(zd, 'NOW', self.B.NOW.isoformat()))
+
+    def siec(self, calls, oce=None, oce_kod=None, **kw):
+        podst = self.B.fetch(calls=calls, **kw)
+        X = {'2026-09': self.B.X09, '2026-10': self.B.X10} if oce is None else oce
+
+        def f(url, timeout, headers=None, maks=None):
+            if url.startswith(self.OCE):
+                calls.append(('oce', url, timeout, maks))
+                if oce_kod:
+                    raise urllib.error.HTTPError(url, oce_kod, 'Forbidden' if oce_kod == 403 else 'Error', {}, None)
+                m = re.search(r'wasde(\d{2})(\d{2})\.xml$', url)
+                return X.get(f'20{m.group(2)}-{m.group(1)}', self.HTML)
+            return podst(url, timeout, headers, maks=maks)
+        return f
+
+    def build(self, prev=None, now=None, **kw):
+        calls = []
+        o = zd.build_su_raporty(prev, {}, now=now or self.B.NOW, fetch=self.siec(calls, **kw))
+        return o, calls
+
+    @staticmethod
+    def zrodla(calls):
+        return [c[0] for c in calls]
+
+    # ---- ponowienie ----
+    def test_ponowienie_po_przejsciowej_awarii(self):
+        def ctx(f, **kw):
+            return {'fetch': f, 't0': None, 'budzet': None, 'sleep': lambda s: slept.append(s), **kw}
+        slept = []
+        for blad in (urllib.error.HTTPError('u', 503, 'x', {}, None), urllib.error.HTTPError('u', 500, 'x', {}, None), urllib.error.URLError('timed out'),
+                     TimeoutError('timed out'), ConnectionResetError('reset'), __import__('http.client').client.IncompleteRead(b'a')):
+            n, slept[:] = [0], []
+
+            def f(url, t, maks=None, blad=blad):
+                n[0] += 1
+                if n[0] == 1:
+                    raise blad
+                return b'ok'
+            self.assertEqual(zd._sr_get(ctx(f), 'wasde', 'https://a.example/', maks=10), b'ok', repr(blad))
+            self.assertEqual((n[0], slept), (2, [zd.SR_PON_S]), 'jedno ponowienie po przerwie: ' + repr(blad))
+        # odmowa, brak pliku, inne 4xx i błąd odczytu — bez ponowienia; druga awaria z rzędu = błąd (jedno ponowienie, nie więcej)
+        for blad in (urllib.error.HTTPError('u', 403, 'x', {}, None), urllib.error.HTTPError('u', 429, 'x', {}, None), urllib.error.HTTPError('u', 404, 'x', {}, None),
+                     urllib.error.HTTPError('u', 400, 'x', {}, None), RuntimeError('zła treść'), ValueError('zły adres')):
+            n = [0]
+
+            def g(url, t, maks=None, blad=blad):
+                n[0] += 1
+                raise blad
+            with self.assertRaises(type(blad)):
+                zd._sr_get(ctx(g), 'wasde', 'https://a.example/', maks=10)
+            self.assertEqual(n[0], 1, repr(blad))
+        n = [0]
+
+        def h(url, t, maks=None):
+            n[0] += 1
+            raise urllib.error.HTTPError(url, 502, 'x', {}, None)
+        with self.assertRaises(urllib.error.HTTPError):
+            zd._sr_get(ctx(h), 'wasde', 'https://a.example/', maks=10)
+        self.assertEqual(n[0], 1 + zd.SR_PON)
+        # wywołanie bez limitu rozmiaru (ropa, uran) — też ponawiane, wynik bez zmian
+        n = [0]
+
+        def k(url, t):
+            n[0] += 1
+            if n[0] == 1:
+                raise urllib.error.URLError('reset')
+            return b'tak'
+        self.assertEqual(zd._sr_get(ctx(k), 'steo', 'https://a.example/'), b'tak')
+        # za mało budżetu na pełny limit źródła — bez ponowienia (budżet 120 s, 100 s już zużyte)
+        n = [0]
+
+        def m(url, t, maks=None):
+            n[0] += 1
+            raise urllib.error.HTTPError(url, 503, 'x', {}, None)
+        with mock.patch.object(zd.time, 'monotonic', return_value=100.0):
+            with self.assertRaises(urllib.error.HTTPError):
+                zd._sr_get(ctx(m, t0=0.0, budzet=140), 'wasde', 'https://a.example/', maks=10)
+        self.assertEqual(n[0], 1, 'po 100 s z 140 zostaje 40 − przerwa < pełny limit 40 s')
+        n = [0]
+        with mock.patch.object(zd.time, 'monotonic', return_value=10.0):
+            with self.assertRaises(urllib.error.HTTPError):
+                zd._sr_get(ctx(m, t0=0.0, budzet=140), 'wasde', 'https://a.example/', maks=10)
+        self.assertEqual(n[0], 2, 'zostaje 130 s — ponowienie')
+
+    def test_ponowienie_w_przebiegu_nie_zmienia_wyniku(self):
+        # archiwum odpowiada 503 dwa razy z rzędu (ponowienie niczego nie zmienia), druga kopia i zapas CSV w pauzie po odmowie: bez nowych zapytań poza ponowieniem
+        o, c = self.build(esmis_kod=503, oce_kod=500, csv_kod=503)
+        self.assertEqual(o['ok']['zboza'], False); self.assertNotIn('zboza', o)
+        self.assertEqual(self.zrodla(c).count('lista'), 1 + zd.SR_PON); self.assertEqual(self.zrodla(c).count('oce'), 1 + zd.SR_PON)
+        self.assertEqual(self.zrodla(c).count('csv'), 1 + zd.SR_PON)
+
+    # ---- druga kopia pliku ----
+    def test_druga_kopia_pliku_xml(self):
+        Z = self.build()[0]['zboza']
+        iso = self.B.NOW.isoformat()
+        for kod in (403, 503):
+            o, c = self.build(esmis_kod=kod)
+            self.assertEqual(o['zboza'], Z, 'ta sama część z drugiej kopii co z archiwum')
+            self.assertEqual((o['ok']['zboza'], o['st']['wasde']['via'], 'kod' in o['st']['wasde'], 'csv_od' in o['st']['wasde']), (True, 'oce', False, False))
+            self.assertEqual(o['st']['wasde']['asof'], '2026-10')
+            self.assertEqual([x for x in self.zrodla(c) if x != 'lista'], ['oce'], 'jedno zapytanie o plik; zapas CSV nietknięty')
+            oc = [x for x in c if x[0] == 'oce'][0]
+            self.assertEqual((oc[1], oc[3]), (self.OCE + 'wasde1026.xml', zd.SR_WASDE_XML_MAX))
+            self.assertTrue(all(x[2] <= zd.SR_LIMIT_S['wasde'] for x in c))
+        self.assertIn('surowce (raporty): wasde: archiwum — HTTP Error 503: Service Unavailable; raport z drugiej kopii pliku XML', zd.META['notes'])
+        # archiwum znów działa — źródłem podstawowym
+        o2, c2 = self.build(o, now=self.B.NOW + datetime.timedelta(days=7, minutes=1))
+        self.assertEqual((o2['st']['wasde']['via'], o2['zboza'], self.zrodla(c2)), ('esmis', Z, ['lista', 'xml']))
+        # drugiej kopii nie ma dla miesiąca (strona „brak pliku” zamiast XML) i archiwum leży: start od poprzedniego miesiąca, notatka
+        o3, c3 = self.build(esmis_kod=403, oce={'2026-09': self.B.X09})
+        self.assertEqual((o3['zboza']['mies'], o3['st']['wasde']['via'], o3['ok']['zboza']), ('2026-09', 'oce', True))
+        self.assertIn('surowce (raporty): wasde: raport 2026-10 — pliku jeszcze nie ma w drugiej kopii', zd.META['notes'])
+        self.assertEqual([x[1][len(self.OCE):] for x in c3 if x[0] == 'oce'], ['wasde1026.xml', 'wasde0926.xml'])
+        # część z poprzedniego raportu zostaje z datą, gdy druga kopia nie ma jeszcze nowego pliku
+        zd.META['notes'].clear()
+        stary, _ = self.build(now=datetime.datetime(2026, 9, 12, 19, 43, tzinfo=datetime.timezone.utc))
+        self.assertEqual(stary['zboza']['mies'], '2026-09')
+        o4, c4 = self.build(stary, now=self.B.NOW, esmis_kod=403, oce={'2026-09': self.B.X09})
+        self.assertEqual((o4['zboza'], o4['ok']['zboza']), (stary['zboza'], True), 'dane poprzedniego raportu zostają, brak błędu przed terminem 404 dni')
+        # zepsuty plik drugiej kopii = zapas CSV
+        o5, c5 = self.build(esmis_kod=403, oce={'2026-10': b'<?xml version="1.0"?><Report Name="x"/>'})
+        self.assertEqual((o5['st']['wasde']['via'], o5['zboza']), ('csv', Z)); self.assertIn('csv', self.zrodla(c5))
+
+    def test_pauza_po_odmowie_dotyczy_obu_plikow_z_serwera_urzedu(self):
+        iso = self.B.NOW.isoformat()
+        o, c = self.build(esmis_kod=503, oce_kod=403)
+        self.assertEqual(self.zrodla(c).count('csv'), 0, 'ten sam serwer odmówił — zapasu CSV nie pytamy')
+        self.assertEqual((o['ok']['zboza'], 'zboza' in o, o['st']['wasde']['csv_od']), (False, False, iso))
+        self.assertTrue(any(n.startswith('surowce (raporty): wasde: druga kopia pliku też odmówiła — HTTP Error 403') for n in zd.META['notes']))
+        # 61 min później: archiwum (co godzinę) pytane, drugi plik i CSV w pauzie
+        o2, c2 = self.build(o, now=self.B.NOW + datetime.timedelta(minutes=61), esmis_kod=503, oce_kod=403)
+        self.assertEqual(set(self.zrodla(c2)), {'lista'})
+        # po 6 h pauza mija: znów drugi plik
+        o3, c3 = self.build(o, now=self.B.NOW + datetime.timedelta(minutes=361), esmis_kod=503, oce_kod=403)
+        self.assertEqual(set(self.zrodla(c3)), {'lista', 'oce'})
+        # druga kopia odpowiada 200 po pauzie — raport, znacznik odmowy znika
+        o4, c4 = self.build(o, now=self.B.NOW + datetime.timedelta(minutes=361), esmis_kod=503)
+        self.assertEqual((o4['ok']['zboza'], o4['st']['wasde']['via'], 'csv_od' in o4['st']['wasde']), (True, 'oce', False))
+
+    def test_ostatnia_dobra_wartosc_zostaje_z_data(self):
+        Z, st = None, None
+        o, _ = self.build()
+        Z = o['zboza']
+        # wszystkie trzy drogi zawodzą: część z poprzedniego pobrania, ok False, błąd w pliku; chwila części bez zmian
+        o2, c2 = self.build(o, now=self.B.NOW + datetime.timedelta(days=7, minutes=1), esmis_kod=503, oce_kod=500, csv_kod=503)
+        self.assertEqual((o2['zboza'], o2['ok']['zboza'], o2['part_at']['zboza']), (Z, False, o['part_at']['zboza']))
+        self.assertIn('zboza', o2['err'])
+
+    # ---- tolerancja kontroli tabeli źródła ----
+    def kt(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v480', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        return k
+
+    # odczyt 19.10.2026: tabela źródła (ostatnia, zmiana dnia, zmiana roczna, najniższa, najwyższa z 52 tygodni) i seria (st) — sześć wierszy
+    TAB = {'goi': ([250.0, 0.0, 18.0, 211.0, 262.0], (249.7, -0.72, 18.25, 211.79, 262.45)),
+           'pszenica': ([225.0, -2.0, 19.0, 189.0, 241.0], (225.18, -1.42, 19.22, 188.8, 241.47)),
+           'kukurydza': ([230.0, -2.0, 6.0, 216.0, 253.0], (230.49, -1.91, 6.35, 215.67, 253.32)),
+           'ryz': ([190.0, 1.0, 23.0, 151.0, 190.0], (189.62, 0.35, 22.17, 151.14, 189.62)),
+           'soja': ([256.0, -1.0, 22.0, 206.0, 269.0], (256.43, -0.17, 22.01, 206.12, 269.09)),
+           'jeczmien': ([247.0, 1.0, 11.0, 222.0, 255.0], (246.67, 0.53, 10.41, 221.82, 255.24))}
+
+    def plik(self, zm=None):
+        T, S = {}, {}
+        for cid, (t, s) in self.TAB.items():
+            T[cid] = list(t)
+            S[cid] = {'st': dict(zip(('last', 'd1', 'y1', 'lo', 'hi'), s))}
+        if zm:
+            zm(T, S)
+        return {'v': 1, 'goi': {'tab': T, 's': S}}
+
+    def test_tabela_zrodla_zmiana_dnia_to_roznica_zaokraglen(self):
+        k = self.kt()
+        self.assertEqual(k.ZD_K_TAB['d1'], 1.011)
+        W = lambda j: dict(k.zboza_porownania(j)['wiersze'])['indeks dzienny: tabela źródła vs seria']   # noqa: E731
+        P = k.zboza_porownania(self.plik())
+        self.assertEqual((P['uwagi'], W(self.plik())), ([], '✅'), 'ogółem (0 vs −0,72) i ryż (1 vs 0,35) mieszczą się w zaokrągleniu')
+        # model źródła: tabela = zaokrąglona ostatnia − zaokrąglona poprzednia; odchylenie od zmiany z serii < 1,0 dla każdej pary (tolerancja 1,011 = 1,0 + zaokrąglenie serii)
+        r = lambda x: int(x + 0.5)   # noqa: E731
+        for a, b in ((250.42, 249.70), (249.5, 250.49), (100.49, 101.5), (100.5, 99.5), (7.5, 8.49), (3.49, 2.5)):
+            self.assertLess(abs((r(b) - r(a)) - (b - a)), 1.0, (a, b))
+        # prawdziwy błąd odczytu nadal wychodzi: zmiana dnia przesunięta o 2 i ostatnia o 1,5
+        P2 = k.zboza_porownania(self.plik(lambda T, S: (T['soja'].__setitem__(1, -3.5), T['goi'].__setitem__(0, 251.5))))
+        self.assertEqual(dict(P2['wiersze'])['indeks dzienny: tabela źródła vs seria'], '⚠️')
+        self.assertTrue(any('indeks ogółem last: tabela 251,5' in u for u in P2['uwagi']), P2['uwagi'])
+        self.assertTrue(any('soja d1: tabela -3,5' in u for u in P2['uwagi']), P2['uwagi'])
+        self.assertTrue(all('zmiana dnia ±1,' in u for u in P2['uwagi']))
+        # granica: różnica 1,0 jeszcze zaokrąglenie, 1,2 — nie
+        self.assertEqual(W(self.plik(lambda T, S: T['pszenica'].__setitem__(1, -2.42))), '✅')
+        self.assertEqual(W(self.plik(lambda T, S: T['pszenica'].__setitem__(1, -2.62))), '⚠️')
