@@ -33426,6 +33426,8 @@ def main():
         except Exception as e:
             META['errors'].append(mask(f'MFW bilans płatniczy: {e}')); META['ok']['bilans'] = False
             if prev_bl: save('bilans', prev_bl)
+    # v457 (F11Z39): Rynki wschodzące 2 — RPA, płynność banków Indii, fundusze Izraela, przekazy migrantów — data/em2.json; bez kluczy, części co 6 h (za, in), 12 h (il) i 24 h (wb)
+    META['ok']['em2_za'], META['ok']['em2_in'], META['ok']['em2_il'], META['ok']['em2_wb'] = em2_czesc()
     # v431 (F11Z30): MFW IIP — wierzyciele i dłużnicy świata (stany aktywów i zobowiązań ok. 100 gospodarek) + bilans płatniczy krajów spoza listy 37: najwyżej raz na dobę (po paczce bez odpowiedzi — nie częściej niż co 6 h);
     # awaria IIP = poprzedni plik i błąd; paczka bilansu bez odpowiedzi = kraje z poprzedniego pliku i błąd
     prev_iip = previous('iip')
@@ -50586,6 +50588,423 @@ def nkg_czesc():
 
 
 ZRODLA_META.update({'nkg_mi': 'umich', 'nkg_sc': 'ny-fed', 'nkg_ec': 'ecb', 'nkg_fm': 'finra'})   # v456: bank regionalny Fed i bank centralny strefy euro już liczone; sondaż uniwersytecki i organizacja domów maklerskich to +2 źródła
+
+
+# ===================== v457 (F11Z39): RYNKI WSCHODZĄCE 2 — RPA, INDIE (PŁYNNOŚĆ BANKÓW), IZRAEL (FUNDUSZE), PRZEKAZY MIGRANTÓW (data/em2.json) =====================
+# Cztery niezależne części, każda z własnym czasem pobrania (pole t w części), rytmem i zapasem po błędzie (plik zostaje z poprzednią częścią, najwyżej EM_MAX_D dób):
+#   za — bank centralny RPA (interfejs WebApi, serie dzienne i miesięczna): stopa banku, rentowność 10-latek (R2030), Zaronia (stawka overnight), kurs randa do dolara, inflacja CPI;
+#        po ok. 275 sesji historii stopy, rentowności i kursu (wykres roku), 14 miesięcy inflacji; ostatnia zmiana stopy z 2 lat;
+#   in — bank centralny Indii, dzienna tabela operacji rynku pieniężnego (strona HTML, jeden dzień): stopa overnight, call money, triparty repo, korytarz (SDF/MSF), płynność netto systemu
+#        i dzisiejsze operacje (crore ₹), płynność trwała; historia (stopa overnight i płynność netto) zbiera się dzień po dniu w pliku, najwyżej EM_IN_H dni;
+#   il — bank centralny Izraela (SDMX, CSV): aktywa i napływy netto funduszy inwestycyjnych (razem z ETF) wg rodzajów — razem, pieniężne, obligacje rządowe i firm, akcje w kraju i za granicą,
+#        aktywa cyfrowe; 24 miesiące, mln ILS;
+#   wb — Bank Światowy: przekazy pieniężne migrantów do 11 krajów (mld USD i % PKB), ostatnie 6 lat (dane roczne; interfejs bywa wolny — limit czasu 150 s, po błędzie ponowienie po 6 h).
+# Brak = brak (nigdy zero): wiersz bez liczby jest pomijany, ostatni wiersz bez liczby = błąd części. Publiczne GET bez klucza, nagłówek zbieracza, limit czasu i rozmiaru, odstęp EM_SLEEP s.
+# Pominięte (zapis w raporcie): rodzina przekazów i papiery rządowe w rękach nierezydentów w Meksyku — wymagają tokenu banku (tego pliku nie dotyka: Meksyk ma już data/meksyk.json).
+# Źródła na stronie: bank centralny RPA, bank centralny Indii, bank centralny Izraela (+3 źródła); Bank Światowy już liczony. To nie jest porada inwestycyjna.
+EM_V = 1
+EM_PARTS = ('za', 'in', 'il', 'wb')
+EM_CO_H = {'za': 6, 'in': 6, 'il': 12, 'wb': 24}      # h między pobraniami części (po błędzie EM_BLAD_H)
+EM_BLAD_H = {'za': 1, 'in': 1, 'il': 1, 'wb': 6}
+EM_MAX_D = {'za': 14, 'in': 14, 'il': 90, 'wb': 400}   # doby: część po błędzie zostaje z poprzedniego pliku najwyżej tak długo
+EM_SLEEP = 1.0
+EM_TIMEOUT = {'za': 60, 'in': 60, 'il': 60, 'wb': 150}
+EM_MAX_B = {'za': 1_000_000, 'in': 1_500_000, 'il': 600_000, 'wb': 300_000}
+EM_ZA_URL = 'https://custom.resbank.co.za/SarbWebApi/WebIndicators/Shared/GetTimeSeriesObservations/{k}/{a}/{b}'
+EM_IN_URL = 'https://www.rbi.org.in/Scripts/BS_ViewMMO.aspx'
+EM_IL_URL = 'https://edge.boi.gov.il/FusionEdgeServer/sdmx/v2/data/dataflow/BOI.STATISTICS/MF/1.0/{k}?lastNObservations=24&format=csvdata'
+EM_WB_URL = 'https://api.worldbank.org/v2/country/{c}/indicator/{i}?format=json&mrv=6&per_page=200'
+# seria RPA: (kod, fragment nazwy w odpowiedzi, najmniej, najwięcej, dni wstecz, najmniej wierszy)
+EM_ZA_SER = {'rate': ('MMRD002A', 'policy rate', 0.0, 40.0, 760, 100), 'y10': ('MMRD708A', 'r2030', 0.0, 50.0, 400, 100), 'zr': ('MMRD855A', 'zaronia', 0.0, 40.0, 400, 100),
+             'fx': ('EXCX135D', 'rand per us dollar', 3.0, 60.0, 400, 100), 'cpi': ('CPI1000F', 'cpi', -10.0, 50.0, 800, 13)}
+EM_ZA_H = 275              # sesji historii (stopa, rentowność, kurs): ponad rok
+EM_ZA_CPI_N = 14           # miesięcy inflacji (zmiana r/r z miesiąca o 12 wcześniejszego)
+EM_IN_H = 260              # dni historii w pliku (rok sesji)
+EM_IL_G = {'all': 'ALL', 'mm': 'MM_IGMMFC', 'gov': 'GB_IGSB', 'corp': 'CB_IGAB', 'isr': 'IS', 'abr': 'OS', 'da': 'DA'}   # rodzaj funduszu → fragment kodu serii (razem z ETF)
+EM_IL_N = 24
+EM_IL_MIN = 13
+EM_WB_C = ('IN', 'MX', 'PH', 'EG', 'PK', 'BD', 'NG', 'PL', 'MA', 'UA', 'LK')
+EM_WB_IND = {'usd': 'BX.TRF.PWKR.CD.DT', 'gdp': 'BX.TRF.PWKR.DT.GD.ZS'}
+EM_WB_MIN_KRAJE = 8
+EM_WB_ROK_MIN = 2023       # najnowszy rok w danych nie starszy (przekazy za 2025 opublikowano w 2026)
+EM_SRC = ('stopy, rentowność obligacji, kurs i inflacja w RPA, dzienne operacje rynku pieniężnego i płynność banków w Indiach, fundusze inwestycyjne w Izraelu oraz przekazy pieniężne migrantów '
+          '— publiczne pliki i interfejsy banków centralnych i organizacji międzynarodowej')
+_EM_MIES = {'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6, 'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12}
+
+
+def em_dzien(s):
+    """'RRRR-MM-DD' (z godziną lub bez) → datetime.date albo None."""
+    try:
+        return datetime.date.fromisoformat(str(s)[:10]) if re.match(r'^\d{4}-\d{2}-\d{2}', str(s)) else None
+    except ValueError:
+        return None
+
+
+def em_dzis():
+    d = _ix_dt(NOW)
+    return d.date() if d else datetime.date.today()
+
+
+def em_za_seria(j, klucz):
+    """Odpowiedź WebApi RPA → [(dzień albo 'RRRR-MM' dla inflacji, liczba)] rosnąco, bez powtórzeń. Zła nazwa serii, liczba poza zakresem, za mało wierszy, dzień z przyszłości albo brak liczby w ostatnim
+    wierszu = błąd (wiersz bez liczby wcześniej jest pomijany)."""
+    kod, nazwa, lo, hi, _dni, minw = EM_ZA_SER[klucz]
+    if not isinstance(j, list) or not j:
+        raise RuntimeError(f'RPA {klucz}: pusta odpowiedź')
+    out = {}
+    for r in j:
+        if not isinstance(r, dict):
+            raise RuntimeError(f'RPA {klucz}: zły kształt wiersza')
+        if nazwa not in str(r.get('Timeseries', '')).lower():
+            raise RuntimeError(f'RPA {klucz}: odpowiedź dotyczy innej serii')
+        d = em_dzien(r.get('Period'))
+        v = r.get('Value')
+        if d is None:
+            raise RuntimeError(f'RPA {klucz}: zła data')
+        if d > em_dzis() + datetime.timedelta(days=2):
+            raise RuntimeError(f'RPA {klucz}: data z przyszłości')
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            v = None
+        if v is not None and not (lo <= v <= hi):
+            raise RuntimeError(f'RPA {klucz}: liczba poza zakresem ({v})')
+        k = d.isoformat()[:7] if klucz == 'cpi' else d.isoformat()
+        out[k] = v
+    ks = sorted(out)
+    rows = [(k, round(out[k], 4)) for k in ks if out[k] is not None]
+    if len(rows) < minw or ks[-1] != rows[-1][0]:
+        raise RuntimeError(f'RPA {klucz}: za mało wierszy ({len(rows)}) albo ostatni bez liczby')
+    return rows
+
+
+def em_za_czesc(S):
+    """Serie → część 'za': rate/y10/zr/fx = [dzień, liczba], cpi = [miesiąc, liczba], rate_chg = [dzień nowej stopy, zmiana p.p.] albo None (z 2 lat), h = {rate, y10, fx: [[dzień, liczba]]
+    (EM_ZA_H sesji)}, cm = [[miesiąc, liczba]] (EM_ZA_CPI_N). date = najstarszy z ostatnich dni czterech serii dziennych (kontrola widzi stojącą serię)."""
+    R = {k: em_za_seria(S[k], k) for k in EM_ZA_SER}
+    out = {k: list(R[k][-1]) for k in ('rate', 'y10', 'zr', 'fx')}
+    out['cpi'] = list(R['cpi'][-1])
+    chg = None
+    r = R['rate']
+    for i in range(len(r) - 1, 0, -1):
+        if abs(r[i][1] - r[i - 1][1]) > 1e-9:
+            chg = [r[i][0], round(r[i][1] - r[i - 1][1], 4)]
+            break
+    out['rate_chg'] = chg
+    out['h'] = {k: [list(x) for x in R[k][-EM_ZA_H:]] for k in ('rate', 'y10', 'fx')}
+    out['cm'] = [list(x) for x in R['cpi'][-EM_ZA_CPI_N:]]
+    out['date'] = min(out[k][0] for k in ('rate', 'y10', 'zr', 'fx'))
+    out['unit'] = 'rate, y10, zr: % rocznie; fx: randów za 1 dolara; cpi: % rok do roku; rate_chg: zmiana stopy w p.p.'
+    return out
+
+
+def em_za_job(prev_part, teraz):
+    d = em_dzis()
+    S = {}
+    for k, (kod, _n, _lo, _hi, dni, _m) in EM_ZA_SER.items():
+        S[k] = json.loads(em_pobierz(EM_ZA_URL.format(k=kod, a=(d - datetime.timedelta(days=dni)).isoformat(), b=d.isoformat()), 'za').decode('utf-8'))
+    return em_za_czesc(S)
+
+
+def em_in_liczba(tok):
+    """Liczba z tabeli RBI ('1,51,299.00', '-48,348.95', '5.72'); '-', '**', pusty = None."""
+    t = str(tok).strip().replace(',', '')
+    if not re.match(r'^-?\d+(\.\d+)?$', t):
+        return None
+    return float(t)
+
+
+def em_in_data(tok):
+    """'October 16, 2026' → '2026-10-16' albo None."""
+    m = re.match(r'^([A-Za-z]+) (\d{1,2}), (\d{4})$', str(tok).strip())
+    if not m or m.group(1).lower() not in _EM_MIES:
+        return None
+    try:
+        return datetime.date(int(m.group(3)), _EM_MIES[m.group(1).lower()], int(m.group(2))).isoformat()
+    except ValueError:
+        return None
+
+
+def em_in_tokeny(html):
+    h = re.sub(r'(?is)<(script|style)\b.*?</\1>', ' ', html)
+    h = re.sub(r'(?s)<[^>]+>', '|', h).replace('&nbsp;', ' ').replace('&amp;', '&')
+    return [re.sub(r'\s+', ' ', t).strip() for t in h.split('|') if t.strip()]   # twarde spacje (np. „5.\xa0Net”) → zwykłe
+
+
+def em_in_wiersz(T, i0, i1, nazwa):
+    """Tokeny od `nazwa` (zaczyna się od niej) w oknie [i0, i1): [wolumen, stopa, (najmniej, najwięcej)] — trzy tokeny po nazwie."""
+    for i in range(i0, i1):
+        if T[i].startswith(nazwa):
+            w = T[i + 1:i + 4]
+            if len(w) < 3:
+                raise RuntimeError(f'RBI: ucięty wiersz „{nazwa}”')
+            v, r = em_in_liczba(w[0]), em_in_liczba(w[1])
+            m = re.match(r'^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$', w[2])
+            return v, r, ((float(m.group(1)), float(m.group(2))) if m else None)
+    raise RuntimeError(f'RBI: brak wiersza „{nazwa}”')
+
+
+def em_in_operacje(T, i0, i1):
+    """Wiersze operacji w oknie tokenów: (stopa pierwszego wiersza albo None, suma kwot albo None bez wierszy, liczba wierszy). Wiersz = data 'Fri, 16/10/2026', liczba dni, data zapadalności, kwota, stopa."""
+    kw, rate, n = 0.0, None, 0
+    i = i0
+    while i + 4 < i1:
+        if re.match(r'^[A-Z][a-z]{2}, \d{2}/\d{2}/\d{4}$', T[i]) and re.match(r'^\d+$', T[i + 1]) and re.match(r'^[A-Z][a-z]{2}, \d{2}/\d{2}/\d{4}$', T[i + 2]):
+            a, r = em_in_liczba(T[i + 3]), em_in_liczba(T[i + 4])
+            if a is None:
+                raise RuntimeError('RBI: operacja bez kwoty')
+            kw += a
+            if rate is None:
+                rate = r
+            n += 1
+            i += 5
+        else:
+            i += 1
+    return rate, (round(kw, 2) if n else None), n
+
+
+def em_in_czesc(html, prev_part=None):
+    """Strona operacji rynku pieniężnego RBI → część 'in' (jeden dzień + historia z poprzedniej części). Kwoty w crore ₹ (1 crore = 10 mln), stopy w %.
+    net1 = płynność wprowadzona dzisiejszymi operacjami, net = płynność netto łącznie (wstrzyknięcie +, wchłonięcie −: nadwyżka systemu = liczba ujemna)."""
+    T = em_in_tokeny(html)
+    flat = ' '.join(T)
+    m = re.search(r'Money Market Operations as on ([A-Za-z]+ \d{1,2}, \d{4})', flat)
+    d = em_in_data(m.group(1)) if m else None
+    if d is None:
+        raise RuntimeError('RBI: brak daty tabeli')
+    dd = em_dzien(d)
+    if dd > em_dzis() + datetime.timedelta(days=1):
+        raise RuntimeError('RBI: data tabeli z przyszłości')
+    try:
+        a = next(i for i, t in enumerate(T) if t.startswith('A. Overnight Segment'))
+        b = next(i for i, t in enumerate(T) if i > a and t.startswith('B. Term Segment'))
+    except StopIteration:
+        raise RuntimeError('RBI: brak segmentu overnight')
+    on = [em_in_liczba(T[a + 1]), em_in_liczba(T[a + 2])]
+    mm = re.match(r'^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$', T[a + 3])
+    if on[0] is None or on[1] is None or not mm:
+        raise RuntimeError('RBI: zły wiersz overnight')
+    lo, hi = float(mm.group(1)), float(mm.group(2))
+    call = em_in_wiersz(T, a + 1, b, 'I. Call Money')
+    tri = em_in_wiersz(T, a + 1, b, 'II. Triparty Repo')
+    rep = em_in_wiersz(T, a + 1, b, 'III. Market Repo')
+    try:
+        i_msf = next(i for i, t in enumerate(T) if re.match(r'^3\. MSF', t))
+        i_sdf = next(i for i, t in enumerate(T) if i > i_msf and re.match(r'^4\. SDF', t))
+        i_net1 = next(i for i, t in enumerate(T) if i > i_sdf and t.startswith('5. Net liquidity injected from today'))
+        i_e = next(i for i, t in enumerate(T) if i > i_net1 and t.startswith('E. Net liquidity injected from outstanding'))
+        i_f = next(i for i, t in enumerate(T) if i > i_e and t.startswith('F. Net liquidity injected (outstanding'))
+    except StopIteration:
+        raise RuntimeError('RBI: brak sekcji operacji albo płynności')
+    msf = em_in_operacje(T, i_msf + 1, i_sdf)
+    sdf = em_in_operacje(T, i_sdf + 1, i_net1)
+    net1 = em_in_liczba(T[i_net1 + 1])
+    net = em_in_liczba(T[i_f + 2] if T[i_f + 1].startswith('operations)') else T[i_f + 1])   # liczba tuż za opisem; brak = brak (nie następna liczba ze strony)
+    if net1 is None or net is None:
+        raise RuntimeError('RBI: brak liczby płynności')
+    dur = None
+    j = next((i for i, t in enumerate(T) if t.startswith('I. Net durable liquidity')), None)
+    if j is not None:
+        dd2 = next((em_in_data(t) for t in T[j + 1:j + 4] if em_in_data(t)), None)
+        v2 = next((em_in_liczba(t) for t in T[j + 1:j + 6] if em_in_liczba(t) is not None and em_in_data(t) is None), None)
+        if dd2 and v2 is not None:
+            dur = [dd2, v2]
+    o = {'date': d, 'on': [on[0], on[1], lo, hi], 'call': call[1], 'tri': tri[1], 'mr': rep[1], 'net1': net1, 'net': net,
+         'msf': [msf[0], msf[1]], 'sdf': [sdf[0], sdf[1]], 'dur': dur}
+    for k, (lo_, hi_) in (('call', (0, 25)), ('tri', (0, 25)), ('mr', (0, 25))):
+        if o[k] is not None and not (lo_ <= o[k] <= hi_):
+            raise RuntimeError(f'RBI: stopa poza zakresem ({k})')
+    if not (0 < on[1] <= 25 and 0 <= lo <= on[1] <= hi <= 25 and on[0] > 0):
+        raise RuntimeError('RBI: stopa albo wolumen overnight poza zakresem')
+    for k, r in (('msf', o['msf'][0]), ('sdf', o['sdf'][0])):
+        if r is not None and not (0 < r <= 25):
+            raise RuntimeError(f'RBI: stopa {k} poza zakresem')
+    if not (-5e7 <= net <= 5e7 and -5e7 <= net1 <= 5e7):
+        raise RuntimeError('RBI: płynność poza zakresem')
+    h = {}
+    for r in ((prev_part or {}).get('h') or []):
+        if isinstance(r, list) and len(r) == 3 and em_dzien(r[0]) and em_dzien(r[0]) <= dd and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in r[1:]):
+            h[r[0]] = r
+    h[d] = [d, on[1], net]
+    o['h'] = [h[k] for k in sorted(h)][-EM_IN_H:]
+    o['unit'] = 'kwoty w crore ₹ (1 crore = 10 mln); stopy w %; net1 i net: wstrzyknięcie +, wchłonięcie − (nadwyżka systemu to liczba ujemna); h: [dzień, stopa overnight, płynność netto]'
+    return o
+
+
+def em_il_czesc(csv_text):
+    """Plik CSV banku Izraela (14 serii: aktywa „B” i napływy netto „NA”, razem z ETF) → część 'il': mo = miesiące, b/n = {rodzaj: [mln ILS albo None]}, m = ostatni miesiąc.
+    Seria bez miesiąca = None (nigdy zero); ostatni miesiąc musi mieć aktywa razem i napływ razem; suma rodzajów nie przekracza całości."""
+    rd = csv.DictReader(io.StringIO(csv_text.lstrip('\ufeff')))
+    if not rd.fieldnames or not {'SERIES_CODE', 'TIME_PERIOD', 'OBS_VALUE'} <= set(rd.fieldnames):
+        raise RuntimeError('Izrael: zły nagłówek pliku')
+    D = {}
+    for r in rd:
+        if (r.get('UNIT_MEASURE') or 'ILS') != 'ILS' or (r.get('UNIT_MULT') or '6') != '6':
+            raise RuntimeError('Izrael: inna jednostka niż mln ILS')
+        m = str(r.get('TIME_PERIOD', ''))
+        v = _num(r.get('OBS_VALUE', ''))
+        if not re.match(r'^\d{4}-(0[1-9]|1[0-2])$', m):
+            raise RuntimeError('Izrael: zły miesiąc')
+        if v is not None:
+            D.setdefault(r['SERIES_CODE'], {})[m] = v
+    kody = {(t, g): f'MF_ETF_{t}_IG{s}_MSS_M' for g, s in EM_IL_G.items() for t in ('B', 'NA')}
+    for k, kod in kody.items():
+        if kod not in D and k[1] in ('all', 'mm', 'gov', 'corp', 'isr', 'abr'):
+            raise RuntimeError(f'Izrael: brak serii {kod}')
+    mo = sorted(D[kody[('B', 'all')]])
+    if len(mo) < EM_IL_MIN or any(m not in D[kody[('NA', 'all')]] for m in mo[-EM_IL_MIN:]):
+        raise RuntimeError('Izrael: za mało miesięcy albo napływ razem bez miesiąca')
+    mo = mo[-EM_IL_N:]
+    if em_dzien(mo[-1] + '-01') > em_dzis():
+        raise RuntimeError('Izrael: miesiąc z przyszłości')
+    nxt = lambda m: f'{int(m[:4]) + (int(m[5:]) == 12):04d}-{int(m[5:]) % 12 + 1:02d}'   # noqa: E731
+    if any(nxt(a) != b for a, b in zip(mo, mo[1:])):
+        raise RuntimeError('Izrael: miesiące nie są kolejne')
+    out = {'m': mo[-1], 'mo': mo, 'b': {}, 'n': {}}
+    for (t, g), kod in kody.items():
+        S = D.get(kod, {})
+        out['b' if t == 'B' else 'n'][g] = [round(S[m], 1) if m in S else None for m in mo]
+    for g in EM_IL_G:
+        if g != 'all' and out['b'][g][-1] is not None and out['b']['all'][-1] is not None and out['b'][g][-1] > out['b']['all'][-1] * 1.001:
+            raise RuntimeError(f'Izrael: rodzaj {g} większy niż całość')
+    s = sum(out['b'][g][-1] or 0 for g in EM_IL_G if g != 'all')
+    if out['b']['all'][-1] is None or out['b']['all'][-1] <= 0 or s > out['b']['all'][-1] * 1.001:
+        raise RuntimeError('Izrael: suma rodzajów większa niż aktywa razem')
+    out['unit'] = 'mln ILS: b = aktywa na koniec miesiąca, n = napływy netto w miesiącu (fundusze razem z ETF)'
+    return out
+
+
+def em_wb_czesc(usd, gdp):
+    """Dwie odpowiedzi Banku Światowego (przekazy w mld USD i w % PKB) → część 'wb': c = {kraj: [[rok, mld USD, % PKB albo None]]} rosnąco (6 lat), upd = data aktualizacji bazy.
+    Kraj bez żadnej liczby jest pomijany; co najmniej EM_WB_MIN_KRAJE krajów, najnowszy rok nie starszy niż EM_WB_ROK_MIN."""
+    def rzedy(j, nazwa):
+        if not (isinstance(j, list) and len(j) == 2 and isinstance(j[0], dict) and isinstance(j[1], list)):
+            raise RuntimeError(f'Bank Światowy {nazwa}: zły kształt odpowiedzi')
+        if j[0].get('pages') not in (1, '1') or int(j[0].get('total') or 0) > int(j[0].get('per_page') or 0):
+            raise RuntimeError(f'Bank Światowy {nazwa}: odpowiedź na kilku stronach')
+        o = {}
+        for r in j[1]:
+            c = ((r.get('country') or {}).get('id')) if isinstance(r, dict) else None
+            y = str((r or {}).get('date', '')) if isinstance(r, dict) else ''
+            if c not in EM_WB_C or not re.match(r'^\d{4}$', y):
+                raise RuntimeError(f'Bank Światowy {nazwa}: nieoczekiwany wiersz')
+            if ((r.get('indicator') or {}).get('id')) != EM_WB_IND[nazwa]:
+                raise RuntimeError(f'Bank Światowy {nazwa}: inny wskaźnik')
+            v = r.get('value')
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                continue
+            o[(c, int(y))] = float(v)
+        return o, str(j[0].get('lastupdated') or '')
+    U, upd = rzedy(usd, 'usd')
+    G, _upd2 = rzedy(gdp, 'gdp')
+    c = {}
+    for (k, y), v in sorted(U.items()):
+        b = v / 1e9
+        if not (0.05 <= b <= 500):
+            raise RuntimeError(f'Bank Światowy: przekazy poza zakresem ({k} {y})')
+        g = G.get((k, y))
+        if g is not None and not (0 <= g <= 60):
+            raise RuntimeError(f'Bank Światowy: udział w PKB poza zakresem ({k} {y})')
+        c.setdefault(k, []).append([y, round(b, 3), round(g, 2) if g is not None else None])
+    if len(c) < EM_WB_MIN_KRAJE:
+        raise RuntimeError(f'Bank Światowy: tylko {len(c)} krajów z liczbami')
+    if max(r[-1][0] for r in c.values()) < EM_WB_ROK_MIN:
+        raise RuntimeError('Bank Światowy: najnowszy rok za stary')
+    if em_dzien(upd) is None:
+        upd = ''
+    return {'c': {k: c[k] for k in EM_WB_C if k in c}, 'upd': upd[:10], 'unit': 'c: [rok, mld USD, % PKB] (przekazy pieniężne otrzymane przez kraj)'}
+
+
+def em_pobierz(url, czesc, nagl=None):
+    """Jedyne miejsce sieci tego pliku (testy je łatają): zapytanie GET z odstępem, limitem czasu i rozmiaru → bajty."""
+    time.sleep(EM_SLEEP)
+    return get_bytes_maks(url, nagl, EM_TIMEOUT[czesc], EM_MAX_B[czesc])
+
+
+def em_job(n, prev_part, teraz):
+    """Odczyt jednej części z sieci → gotowa część pliku (z polem t = chwila pobrania)."""
+    if n == 'za':
+        o = em_za_job(prev_part, teraz)
+    elif n == 'in':
+        o = em_in_czesc(em_pobierz(EM_IN_URL, 'in').decode('utf-8', 'replace'), prev_part)
+    elif n == 'il':
+        k = '+'.join(f'MF_ETF_{t}_IG{s}_MSS_M' for s in EM_IL_G.values() for t in ('B', 'NA'))
+        o = em_il_czesc(em_pobierz(EM_IL_URL.format(k=k), 'il').decode('utf-8-sig'))
+    else:
+        c = ';'.join(EM_WB_C)
+        u = json.loads(em_pobierz(EM_WB_URL.format(c=c, i=EM_WB_IND['usd']), 'wb').decode('utf-8'))
+        g = json.loads(em_pobierz(EM_WB_URL.format(c=c, i=EM_WB_IND['gdp']), 'wb').decode('utf-8'))
+        o = em_wb_czesc(u, g)
+    o = dict(o)
+    o['t'] = teraz
+    return o
+
+
+def em_trzeba(czas, ok_prev, teraz, co_h, blad_h=1):
+    """Czy część pobrać w tym przebiegu: brak czasu poprzedniego pobrania = tak; po błędzie co `blad_h` h, inaczej co `co_h` h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    return (tn - tk).total_seconds() / 3600 >= (co_h if ok_prev else blad_h)
+
+
+def em_zadania(pv, teraz):
+    """Które części pobrać w tym przebiegu → {część: bool}."""
+    ok, pat = (pv.get('ok') if isinstance(pv.get('ok'), dict) else {}), (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {})
+    return {n: (True if not isinstance(pv.get(n), dict) else em_trzeba(pat.get(n) or pv.get('at'), ok.get(n, True) is not False, teraz, EM_CO_H[n], EM_BLAD_H[n])) for n in EM_PARTS}
+
+
+def build_em2(prev=None, zadania=None):
+    """v457: data/em2.json {v, at, src, ok, part_at, za, in, il, wb} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm) zostaje z poprzedniego pliku bez zmian; część po błędzie —
+    z poprzedniego pliku z własnym czasem (najwyżej EM_MAX_D dób), błąd do META['errors']. Żadna część w pliku = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == EM_V else {}
+    zad = zadania if zadania is not None else em_zadania(pv, NOW)
+    pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
+    out = {'v': EM_V, 'at': NOW, 'src': EM_SRC, 'ok': {}, 'part_at': {}}
+    st = {}
+    for n in EM_PARTS:
+        stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+        if not zad.get(n):
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+            else:
+                st[n] = 'cached'
+            continue
+        if stara is not None and _RUN_T0[0] is not None and time.monotonic() - _RUN_T0[0] > BACK_LATE:   # długi przebieg — poczeka na następny (wb bywa wolne: do 2 × 150 s)
+            META['notes'].append(f'Rynki wschodzące 2: {n} pominięte — przebieg trwa już {time.monotonic() - _RUN_T0[0]:.0f} s (granica {BACK_LATE} s), poprzednia część zostaje')
+            out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+            continue
+        try:
+            out[n] = em_job(n, stara, NOW)
+            out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+        except Exception as e:  # noqa — jedna część nie psuje pozostałych
+            META['errors'].append(mask(f'Rynki wschodzące 2: {n}: {e}')[:200])
+            out['ok'][n], st[n] = False, False
+            if stara is not None and _zapas_wiek_ok(pat0.get(n) or pv.get('at'), EM_MAX_D[n]):
+                out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
+    if not any(isinstance(out.get(n), dict) for n in EM_PARTS):
+        raise RuntimeError('żadna część rynków wschodzących 2 nie ma danych')
+    return out, st
+
+
+def em2_czesc():
+    """v457: część przebiegu → krotka wartości dla META['ok'] w kolejności EM_PARTS: True = pobrane, 'cached' = poprzednia wersja wystarcza (rytm), False = część zawiodła. Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('em2')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == EM_V else None
+    zad = em_zadania(prev or {}, NOW)
+    if prev and not any(zad.values()):
+        save('em2', prev)
+        return tuple('cached' for _ in EM_PARTS)
+    try:
+        obj, st = build_em2(prev, zad)
+        save('em2', obj)
+        return tuple(st.get(n, False) for n in EM_PARTS)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Rynki wschodzące 2: {e}')[:200])
+        if prev:
+            save('em2', prev)
+        return tuple(False for _ in EM_PARTS)
+
+
+ZRODLA_META.update({'em2_za': 'sarb', 'em2_in': 'rbi', 'em2_il': 'bank-izraela', 'em2_wb': 'bank-swiatowy'})   # v457: trzy nowe źródła (banki centralne RPA, Indii i Izraela); Bank Światowy już liczony
 
 
 if __name__ == '__main__':

@@ -15125,6 +15125,219 @@ def nkgk_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v457 (F11Z39): RYNKI WSCHODZĄCE 2 (data/em2.json) --------------------
+# Plik: cztery części (za RPA, in Indie, il Izrael, wb przekazy migrantów), każda z własnym czasem pobrania (pole t); rytm zbieracza: za i in co 6 h, il co 12 h, wb co 24 h (po błędzie ponowienie po 1 h,
+# wb po 6 h). Wiersze świeżości (najwyżej ⚠️): (1) pobranie części: za i in ≤ 24 h, il ≤ 36 h, wb ≤ 60 h (symulacja co 10 minut przez 30 dób w test_zbieraj_dane: największy wiek pobrania bez awarii = rytm,
+# z 12-godzinną awarią źródła co 5 dób = rytm + 12 h + okres ponowienia — poniżej progów, 0 fałszywych ⚠️); (2) wiek danych: za ≤ 8 dni od ostatniego dnia najstarszej z czterech serii dziennych
+# (test wsteczny na 2 latach serii: największy odstęp między sesjami 5 dni, dzień opóźnienia rentowności), inflacja RPA ≤ 80 dni od końca miesiąca (miesiąc M pojawia się w trzecim tygodniu M+1: największy wiek
+# tuż przed kolejnym ≈ 55 dni), in ≤ 8 dni (dzień roboczy + weekend + święta: do 6 dni), il ≤ 80 dni od końca miesiąca (miesiąc M pojawia się w trzecim tygodniu M+1: największy wiek ≈ 50 dni),
+# wb ≤ 760 dni od końca ostatniego roku (dane za rok Y pojawiają się w drugiej połowie Y+1: największy wiek tuż przed kolejnym ≈ 655 dni). Progi dat z cyklu publikacji; bez ❌.
+# Spójność w pliku (⚠️): za — daty rosnące, historia kończy się bieżącą liczbą, zmiana stopy zgodna z historią; in — historia rosnąca i kończąca się bieżącym dniem, stopa overnight w zakresie dnia,
+# górna stopa korytarza wyższa od dolnej; il — miesiące kolejne, serie tej samej długości, suma rodzajów nie większa niż całość; wb — lata rosnące, liczby w zakresach, co najmniej 8 krajów.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'em2')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['em2'] = 18 * 60   # plik zapisywany przy każdej próbie pobrania (co ~6 h, po błędzie co 1 h) — wiek pliku; wiek pobrania każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'em2_' + p_: 'Rynki wschodzące 2 — część z błędem zostaje z datą (v457); wiek danych w wierszach świeżości' for p_ in ('za', 'in', 'il', 'wb')})
+EMK_ETYKIETA = {'za': 'RPA', 'za_cpi': 'RPA inflacja', 'in': 'Indie płynność banków', 'il': 'Izrael fundusze', 'wb': 'Przekazy migrantów'}
+EMK_POBR_MIN = {'za': 24 * 60, 'in': 24 * 60, 'il': 36 * 60, 'wb': 60 * 60}    # min — wiek pobrania części, powyżej ⚠️
+EMK_DATA_MIN = {'za': 8 * 24 * 60, 'za_cpi': 80 * 24 * 60, 'in': 8 * 24 * 60, 'il': 80 * 24 * 60, 'wb': 760 * 24 * 60}   # min — wiek danych (od końca dnia / miesiąca / roku), powyżej ⚠️
+_EMK_M = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+
+
+def emk_dzien(d):
+    return isinstance(d, str) and len(d) == 10 and _ix_dt_k(d + 'T00:00:00Z') is not None
+
+
+def emk_p(x, lo, hi):
+    return _euk_num(x, lo, hi)
+
+
+def emk_za(P):
+    zle = []
+    for k, lo, hi in (('rate', 0, 40), ('y10', 0, 50), ('zr', 0, 40), ('fx', 3, 60)):
+        v = P.get(k)
+        if not (isinstance(v, list) and len(v) == 2 and emk_dzien(v[0]) and emk_p(v[1], lo, hi)):
+            return [f'za.{k}: zły kształt albo liczba poza zakresem']
+    c = P.get('cpi')
+    if not (isinstance(c, list) and len(c) == 2 and isinstance(c[0], str) and _EMK_M.match(c[0]) and emk_p(c[1], -10, 50)):
+        return ['za.cpi: zły kształt']
+    if P.get('date') != min(P[k][0] for k in ('rate', 'y10', 'zr', 'fx')):
+        zle.append('za: date ≠ najstarszy z ostatnich dni serii')
+    H = P.get('h')
+    if not (isinstance(H, dict) and set(H) == {'rate', 'y10', 'fx'}):
+        return zle + ['za.h: zły kształt']
+    for k in ('rate', 'y10', 'fx'):
+        S = H[k]
+        if not (isinstance(S, list) and 2 <= len(S) <= 275) or any(not (isinstance(r, list) and len(r) == 2 and emk_dzien(r[0]) and emk_p(r[1], 0, 60)) for r in S):
+            zle.append(f'za.h.{k}: zły kształt'); continue
+        ds = [r[0] for r in S]
+        if ds != sorted(set(ds)):
+            zle.append(f'za.h.{k}: dni nie rosną'); continue
+        if S[-1] != P[k]:
+            zle.append(f'za.h.{k}: ostatni punkt to nie dane bieżące')
+    M = P.get('cm')
+    if not (isinstance(M, list) and 13 <= len(M) <= 14) or any(not (isinstance(r, list) and len(r) == 2 and isinstance(r[0], str) and _EMK_M.match(r[0]) and emk_p(r[1], -10, 50)) for r in M):
+        zle.append('za.cm: zły kształt')
+    else:
+        ms = [r[0] for r in M]
+        if ms != sorted(set(ms)) or ms[-1] != c[0] or M[-1][1] != c[1]:
+            zle.append('za.cm: miesiące nie rosną albo ostatni to nie bieżąca inflacja')
+        for a, b in zip(ms, ms[1:]):
+            y, m = int(a[:4]), int(a[5:])
+            if b != f'{y + (m == 12):04d}-{m % 12 + 1:02d}':
+                zle.append('za.cm: miesiące nie są kolejne'); break
+    ch = P.get('rate_chg')
+    if ch is not None:
+        if not (isinstance(ch, list) and len(ch) == 2 and emk_dzien(ch[0]) and emk_p(ch[1], -40, 40) and ch[1] != 0):
+            zle.append('za.rate_chg: zły kształt')
+        elif isinstance(H.get('rate'), list) and H['rate'] and ch[0] > H['rate'][0][0]:
+            ix = {r[0]: i for i, r in enumerate(H['rate'])}
+            if ch[0] in ix and ix[ch[0]] > 0 and abs(H['rate'][ix[ch[0]]][1] - H['rate'][ix[ch[0]] - 1][1] - ch[1]) > 1e-6:
+                zle.append('za: zmiana stopy niezgodna z historią')
+    return zle
+
+
+def emk_in(P):
+    zle = []
+    d = P.get('date')
+    on = P.get('on')
+    if not emk_dzien(d) or not (isinstance(on, list) and len(on) == 4 and emk_p(on[0], 0.01, 1e8) and emk_p(on[1], 0.01, 25) and emk_p(on[2], 0, 25) and emk_p(on[3], 0, 25)):
+        return ['in: zła data albo wiersz overnight']
+    if not (on[2] <= on[1] <= on[3]):
+        zle.append('in: stopa overnight poza zakresem dnia')
+    for k in ('call', 'tri', 'mr'):
+        if P.get(k) is not None and not emk_p(P[k], 0, 25):
+            zle.append(f'in.{k}: stopa poza zakresem')
+    for k in ('msf', 'sdf'):
+        v = P.get(k)
+        if not (isinstance(v, list) and len(v) == 2 and (v[0] is None or emk_p(v[0], 0.01, 25)) and (v[1] is None or emk_p(v[1], 0, 1e8))):
+            zle.append(f'in.{k}: zły kształt')
+    if isinstance(P.get('msf'), list) and isinstance(P.get('sdf'), list) and P['msf'][0] is not None and P['sdf'][0] is not None and not P['msf'][0] > P['sdf'][0]:
+        zle.append('in: górna stopa korytarza nie jest wyższa od dolnej')
+    if not emk_p(P.get('net'), -5e7, 5e7) or not emk_p(P.get('net1'), -5e7, 5e7):
+        zle.append('in: płynność poza zakresem')
+    dur = P.get('dur')
+    if dur is not None and not (isinstance(dur, list) and len(dur) == 2 and emk_dzien(dur[0]) and emk_p(dur[1], -1e9, 1e9)):
+        zle.append('in.dur: zły kształt')
+    H = P.get('h')
+    if not (isinstance(H, list) and 1 <= len(H) <= 260) or any(not (isinstance(r, list) and len(r) == 3 and emk_dzien(r[0]) and emk_p(r[1], 0.01, 25) and emk_p(r[2], -5e7, 5e7)) for r in H):
+        zle.append('in.h: zły kształt')
+    else:
+        ds = [r[0] for r in H]
+        if ds != sorted(set(ds)):
+            zle.append('in.h: dni nie rosną')
+        elif H[-1] != [d, on[1], P.get('net')]:
+            zle.append('in.h: ostatni punkt to nie dane bieżące')
+    return zle
+
+
+def emk_il(P):
+    zle = []
+    mo = P.get('mo')
+    if not (isinstance(mo, list) and 13 <= len(mo) <= 24) or any(not (isinstance(m, str) and _EMK_M.match(m)) for m in mo):
+        return ['il: zły szereg miesięcy']
+    if P.get('m') != mo[-1]:
+        zle.append('il: m ≠ ostatni miesiąc')
+    for a, b in zip(mo, mo[1:]):
+        y, m = int(a[:4]), int(a[5:])
+        if b != f'{y + (m == 12):04d}-{m % 12 + 1:02d}':
+            zle.append('il: miesiące nie są kolejne'); break
+    for t in ('b', 'n'):
+        S = P.get(t)
+        if not (isinstance(S, dict) and set(S) == {'all', 'mm', 'gov', 'corp', 'isr', 'abr', 'da'}):
+            return zle + [f'il.{t}: zły zestaw rodzajów']
+        for g, v in S.items():
+            if not (isinstance(v, list) and len(v) == len(mo)) or any(x is not None and not emk_p(x, -1e8, 1e8) for x in v):
+                zle.append(f'il.{t}.{g}: zły kształt'); break
+        if t == 'b' and not zle:
+            if any(x is not None and x < 0 for g in S for x in S[g]):
+                zle.append('il.b: ujemne aktywa')
+    if not zle:
+        if P['b']['all'][-1] is None or P['n']['all'][-1] is None:
+            zle.append('il: brak razem w ostatnim miesiącu')
+        else:
+            s = sum(P['b'][g][-1] or 0 for g in P['b'] if g != 'all')
+            if s > P['b']['all'][-1] * 1.001:
+                zle.append('il: suma rodzajów większa niż aktywa razem')
+    return zle
+
+
+def emk_wb(P):
+    zle = []
+    C = P.get('c')
+    if not (isinstance(C, dict) and 8 <= len(C) <= 11):
+        return ['wb: za mało krajów albo zły kształt']
+    for k, S in C.items():
+        if not (isinstance(S, list) and 1 <= len(S) <= 6) or any(not (isinstance(r, list) and len(r) == 3 and isinstance(r[0], int) and 1990 <= r[0] <= 2100 and emk_p(r[1], 0.05, 500) and (r[2] is None or emk_p(r[2], 0, 60))) for r in S):
+            zle.append(f'wb.{k}: zły kształt'); continue
+        ys = [r[0] for r in S]
+        if ys != sorted(set(ys)):
+            zle.append(f'wb.{k}: lata nie rosną')
+    u = P.get('upd')
+    if u not in ('', None) and not emk_dzien(u):
+        zle.append('wb: zła data aktualizacji')
+    return zle
+
+
+def emk_rok(P):
+    """Najnowszy rok w danych → 'RRRR-12-31' albo None."""
+    try:
+        return f'{max(S[-1][0] for S in P["c"].values()):04d}-12-31'
+    except Exception:
+        return None
+
+
+def emk_kontrola(j, now=None):
+    """data/em2.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    for part, spr in (('za', emk_za), ('in', emk_in), ('il', emk_il), ('wb', emk_wb)):
+        K = j.get(part) if isinstance(j.get(part), dict) else None
+        lab = EMK_ETYKIETA[part]
+        if K is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od dłuższego czasu)')
+            continue
+        zle += spr(K)
+        w = wiek_danych(K.get('t'), 'ts', 'k', now)
+        if w is None:
+            out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak czasu pobrania'))
+        else:
+            st = '⚠️' if w > EMK_POBR_MIN[part] else '✅'
+            dane = str(K.get('t'))[:16].replace('T', ' ') + ' UTC'
+            note = '' if st == '✅' else 'pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga'
+            out['rows'].append((lab + ' (pobranie)', st, w, dane, note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (pobranie): {dane} — {fmt_wiek(w)} temu ({note})')
+        dane_list = [(part, lab, K.get('date'), 'day')]
+        if part == 'za':
+            dane_list.append(('za_cpi', EMK_ETYKIETA['za_cpi'], (K.get('cpi') or [None])[0], 'month'))
+        elif part == 'il':
+            dane_list = [(part, lab, K.get('m'), 'month')]
+        elif part == 'wb':
+            dane_list = [(part, lab, emk_rok(K), 'day')]
+        for pk, lb, dd, kind in dane_list:
+            ok_d = emk_dzien(dd) if kind == 'day' else (isinstance(dd, str) and bool(_EMK_M.match(dd)))
+            wd = wiek_danych(dd, kind, 'k', now) if ok_d else None
+            if wd is None:
+                out['rows'].append((lb + ' (data danych)', '?', None, None, 'brak daty danych'))
+            else:
+                st = '⚠️' if wd > EMK_DATA_MIN[pk] else '✅'
+                note = '' if st == '✅' else 'dane starsze niż wynika z cyklu publikacji — źródło nie publikuje albo zbieracz czyta stary plik; najwyżej uwaga'
+                out['rows'].append((lb + ' (data danych)', st, wd, str(dd)[:7] if pk == 'wb' else str(dd), note))
+                if st == '⚠️':
+                    out['uwagi'].append(f'{lb} (data danych): {dd} — {fmt_wiek(wd)} temu ({note})')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Rynki wschodzące 2 (em2.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in ('za', 'in', 'il', 'wb')):
+        out['wiersze'].append(('spójność pliku (RPA, płynność banków Indii, fundusze Izraela, przekazy migrantów)', '⚠️' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -16059,6 +16272,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['nastroje-gosp'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Nastroje konsumentów (v456): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v457. Rynki wschodzące 2 (data/em2.json): wiek pobrania i danych każdej części, spójność w pliku — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        EM_ = emk_kontrola(files.get('em2'))
+        for label, st, w, txt, note in EM_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += EM_['uwagi']
+        R['zgodnosc']['em2'] = {'spojnosc': EM_['spojnosc'], 'wiersze': EM_['wiersze']} if (EM_['rows'] or EM_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['em2'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Rynki wschodzące 2 (v457): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -16792,6 +17015,11 @@ def raport_md(R):
             L.append('- Nastroje konsumentów, oczekiwana inflacja i zadłużenie marżowe (z pliku strony): ' + (f'? kontrola przerwana ({nkg_["blad"]})' if nkg_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(nkg_['spojnosc'][:3]) + ' ⚠️ · ' if nkg_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in nkg_.get('wiersze') or []) or '—') + '.')
+        em2_ = Z.get('em2')   # v457: Rynki wschodzące 2 — brak pliku = bez linii
+        if em2_:
+            L.append('- Rynki wschodzące: RPA, płynność banków Indii, fundusze Izraela i przekazy migrantów (z pliku strony): ' + (f'? kontrola przerwana ({em2_["blad"]})' if em2_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(em2_['spojnosc'][:3]) + ' ⚠️ · ' if em2_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in em2_.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else

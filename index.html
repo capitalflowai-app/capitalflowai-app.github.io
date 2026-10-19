@@ -2755,6 +2755,38 @@ textarea.kt-f{min-height:110px;resize:vertical}
 #g-nkg .wk-ch{margin:4px 0 10px;max-width:760px}
 #g-nkg .wk-ch .s1{--k:var(--bl)}#g-nkg .wk-ch .s2{--k:var(--or)}#g-nkg .wk-ch .s3{--k:var(--tl)}
 @media (max-width:760px){#g-nkg .etfkpis,#g-nkg .etfkpis.k3,#g-nkg .etfkpis.k6{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* v457 (F11Z39): Rynki wschodzące 2 (panel #g-em2) — kafle w czterech kolumnach (przy 3, 5 i 6 kaflach: trzech; telefon: dwie), paski udziałów, wykresy w pełnej szerokości; tylko zmienne motywu; kolory kierunku jak w całej stronie (wzrost zielony, spadek czerwony, zero żółte) */
+#g-em2 .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+#g-em2 .etfkpis.k3,#g-em2 .etfkpis.k5,#g-em2 .etfkpis.k6{grid-template-columns:repeat(3,minmax(0,1fr))}
+#g-em2 .etfk>span{white-space:normal;overflow-wrap:anywhere}
+#g-em2 .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3;font-variant-numeric:tabular-nums}
+#g-em2 .etfk b small{display:block;font-size:10.5px;font-weight:500;white-space:normal;margin-top:2px}
+#g-em2 .etfk b small.pos{color:var(--gr-tx)}#g-em2 .etfk b small.neg{color:var(--rd-tx)}#g-em2 .etfk b small.neu{color:var(--yl-tx)}#g-em2 .etfk b small.na,#g-em2 .etfk b small.pc{color:var(--dim)}
+#g-em2 .etfk b span.pos{color:var(--gr-tx)}#g-em2 .etfk b span.neg{color:var(--rd-tx)}#g-em2 .etfk b span.neu{color:var(--yl-tx)}
+#g-em2 .etfk .icos{display:inline-flex;margin-right:6px}
+#g-em2 .etfk>small.mtxt{font-size:10.5px;line-height:1.35}
+#g-em2 .pos{color:var(--gr-tx)}#g-em2 .neg{color:var(--rd-tx)}#g-em2 .neu{color:var(--yl-tx)}#g-em2 .na{color:var(--dim)}
+#g-em2 .pnote.neu{color:var(--yl-tx)}
+#g-em2 .gx-h{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin:18px 0 4px;font-size:13px}
+#g-em2 .gx-h .icos{display:inline-flex;margin-right:6px;vertical-align:middle}
+#g-em2 .gxs{margin:8px 0 10px;max-width:760px}
+#g-em2 .gxs-r{margin:7px 0}
+#g-em2 .gxs-n{display:block;font-size:12.5px;color:var(--mut);margin-bottom:3px;overflow-wrap:anywhere}
+#g-em2 .gxs-b{display:grid;grid-template-columns:minmax(0,1fr) 17em;align-items:center;gap:10px}
+#g-em2 .gxs-t{position:relative;height:10px;border-radius:2px;background:var(--line-2)}
+#g-em2 .gxs-t i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--bl)}
+#g-em2 .gxs-t i.cur{background:var(--tl)}
+#g-em2 .gxs-v{font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap;text-align:right}
+#g-em2 .wk-ch{margin:4px 0 10px;max-width:760px}
+#g-em2 .wk-ch .s1{--k:var(--bl)}#g-em2 .wk-ch .s2{--k:var(--or)}#g-em2 .wk-ch .s3{--k:var(--tl)}#g-em2 .wk-ch .s4{--k:var(--mut)}
+#g-em2 .wk-ch .pos{--k:var(--gr)}#g-em2 .wk-ch .neg{--k:var(--rd)}#g-em2 .wk-ch .zer{--k:var(--yl)}#g-em2 .wk-ch .wk-b.em-lv{--k:var(--bl)}
+#g-em2 .wk-bv .pos{color:var(--gr-tx)}#g-em2 .wk-bv .neg{color:var(--rd-tx)}#g-em2 .wk-bv .neu{color:var(--yl-tx)}#g-em2 .wk-bv .na{color:var(--dim)}
+#g-em2 .gxs-n .icos{display:inline-flex;margin-right:6px;vertical-align:middle}
+@media (max-width:760px){#g-em2 .etfkpis,#g-em2 .etfkpis.k3,#g-em2 .etfkpis.k5,#g-em2 .etfkpis.k6{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){
+  #g-em2 .gxs-b{grid-template-columns:1fr;gap:3px}
+  #g-em2 .gxs-v{text-align:left;white-space:normal}
+}
 </style>
 <!-- v348: licznik odwiedzin (decyzja właściciela 12.10). Skrypt count.js leży na naszej stronie (nie na obcej domenie) i nie używa ciasteczek; zliczenie wychodzi do licznika przez sendBeacon (CSP: connect-src; zapas obrazkiem: img-src https:).
      Wizyt technicznych nie liczymy: przeglądarki sterowane automatem (navigator.webdriver), Chrome bez okna (kontrola dzienna, testy), Lighthouse i adresy lokalne z końcówką .local albo [::1] dostają no_onload;
@@ -2998,6 +3030,7 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
     <section class="panel pcard" id="g-snb" hidden></section>
     <section class="panel pcard" id="g-interwencje" hidden></section>
     <section class="panel pcard" id="g-focusbr" hidden></section>
+    <section class="panel pcard" id="g-em2" hidden></section>
     <section class="panel pcard" id="g-stres" hidden></section>
     <section class="panel pcard" id="g-zmiennosc" hidden></section>
     <section class="panel pcard" id="g-niepewnosc" hidden></section>
@@ -3925,6 +3958,9 @@ for(const l in EXTRA310)if(I18N[l])Object.assign(I18N[l],EXTRA310[l]);
 /* v456 (F11Z38): nastroje konsumentów, oczekiwana inflacja gospodarstw i dług na akcjach (GLOBAL, karta #g-nkg) — pl i en */
 const EXTRA311={"pl":{"nkg456.t":"Nastroje konsumentów, oczekiwana inflacja i dług na akcjach","nkg456.sub":"Co Amerykanie i Europejczycy myślą o swojej sytuacji i o cenach oraz ile pieniędzy pożycza się na zakup akcji.","nkg456.lazy":"Dane pojawią się po rozwinięciu karty.","nkg456.err":"Nie udało się wczytać danych — spróbuj za chwilę.","nkg456.errp":"Brak aktualnego odczytu: {p}.","nkg456.p.mi":"nastroje konsumentów","nkg456.p.sc":"oczekiwana inflacja w USA","nkg456.p.ec":"oczekiwana inflacja w strefie euro","nkg456.p.fm":"dług na akcjach","nkg456.h.mi":"Nastroje konsumentów w USA","nkg456.h.inf":"Oczekiwana inflacja: USA i strefa euro","nkg456.h.fm":"Dług na akcjach w USA","nkg456.w.m":"dane za {m}","nkg456.w.pre":"wstępnie, {m}","nkg456.pt":"pkt","nkg456.pp":"p.p.","nkg456.s.mm":"m/m","nkg456.s.yy":"r/r","nkg456.ch.short":"Za mało punktów, by narysować wykres.","nkg456.mi.k1":"Nastroje konsumentów","nkg456.mi.k2":"Ocena obecnej sytuacji","nkg456.mi.k3":"Oczekiwania na przyszłość","nkg456.mi.k4":"Na tle historii","nkg456.mi.p":"miesięcy od {y} r. miało niższy odczyt","nkg456.mi.s1":"Ogółem","nkg456.mi.s2":"Obecna sytuacja","nkg456.mi.s3":"Oczekiwania","nkg456.mi.ch.h":"Wskaźniki w ostatnich trzech latach","nkg456.mi.ch.aria":"Wykres: nastroje konsumentów w USA, {n} miesięcy","nkg456.mi.n":"Im wyższy wskaźnik, tym lepsze nastroje. Poziom 100 to rok 1966.","nkg456.mi.pre":"Ostatni punkt to odczyt wstępny — może się jeszcze zmienić.","nkg456.k.us1":"USA: inflacja za rok (badanie nastrojów)","nkg456.k.us5":"USA: inflacja za 5–10 lat (badanie nastrojów)","nkg456.k.sc1":"USA: inflacja za rok (badanie oczekiwań)","nkg456.k.sc3":"USA: inflacja za 3 lata (badanie oczekiwań)","nkg456.k.ec1":"Strefa euro: inflacja za rok","nkg456.k.ec3":"Strefa euro: inflacja za 3 lata","nkg456.k.ec5":"Strefa euro: inflacja za 5 lat","nkg456.k.un":"USA: szansa na wyższe bezrobocie za rok","nkg456.ref2":"cel inflacji: 2%","nkg456.s.us1m":"USA — badanie nastrojów (za rok)","nkg456.s.us1s":"USA — badanie oczekiwań (za rok)","nkg456.s.ec1":"Strefa euro (za rok)","nkg456.s.us5m":"USA — badanie nastrojów (5–10 lat)","nkg456.s.us5s":"USA — badanie oczekiwań (5 lat)","nkg456.s.ec5":"Strefa euro (5 lat)","nkg456.inf.ch1.h":"Spodziewana inflacja za rok","nkg456.inf.ch2.h":"Spodziewana inflacja za 5 lat i dalej","nkg456.inf.ch1.aria":"Wykres: spodziewana inflacja za rok, USA i strefa euro","nkg456.inf.ch2.aria":"Wykres: spodziewana inflacja za 5 lat i dalej, USA i strefa euro","nkg456.inf.n":"To typowa odpowiedź gospodarstw domowych (mediana), a nie prognoza ekonomistów ani cena z rynku.","nkg456.fm.k1":"Dług na akcjach","nkg456.fm.k2":"Rekord","nkg456.fm.k3":"Na tle 5 lat","nkg456.fm.k4":"Wolne środki klientów","nkg456.fm.u":"bln USD","nkg456.fm.rec":"najwyżej w {m}","nkg456.fm.now":"obecnie {p}% rekordu","nkg456.fm.p5":"miesięcy z ostatnich 5 lat miało niższe saldo","nkg456.fm.s1":"Dług na akcjach","nkg456.fm.s2":"Wolne środki klientów","nkg456.fm.ch.h":"Ostatnie pięć lat (bln USD)","nkg456.fm.ch.aria":"Wykres: dług na akcjach i wolne środki klientów, {n} miesięcy","nkg456.fm.n":"To pożyczki od domów maklerskich na zakup akcji. Wyższe saldo oznacza więcej akcji kupowanych na kredyt.","nkg456.foot":"Dane miesięczne; każda liczba ma swoją datę i wiek."},"en":{"nkg456.t":"Consumer sentiment, expected inflation and borrowing for stocks","nkg456.sub":"What Americans and Europeans think about their finances and prices, and how much money is borrowed to buy stocks.","nkg456.lazy":"The data will load when you expand the card.","nkg456.err":"Could not load the data — please try again shortly.","nkg456.errp":"No current reading: {p}.","nkg456.p.mi":"consumer sentiment","nkg456.p.sc":"expected inflation in the US","nkg456.p.ec":"expected inflation in the euro area","nkg456.p.fm":"borrowing for stocks","nkg456.h.mi":"US consumer sentiment","nkg456.h.inf":"Expected inflation: US and euro area","nkg456.h.fm":"US borrowing for stocks","nkg456.w.m":"data for {m}","nkg456.w.pre":"preliminary, {m}","nkg456.pt":"pts","nkg456.pp":"pp","nkg456.s.mm":"m/m","nkg456.s.yy":"y/y","nkg456.ch.short":"Too few data points for a chart.","nkg456.mi.k1":"Consumer sentiment","nkg456.mi.k2":"Current conditions","nkg456.mi.k3":"Expectations","nkg456.mi.k4":"Against history","nkg456.mi.p":"of months since {y} had a lower reading","nkg456.mi.s1":"Overall","nkg456.mi.s2":"Current conditions","nkg456.mi.s3":"Expectations","nkg456.mi.ch.h":"The indexes over the last three years","nkg456.mi.ch.aria":"Chart: US consumer sentiment, {n} months","nkg456.mi.n":"The higher the index, the better the mood. A level of 100 is the year 1966.","nkg456.mi.pre":"The last point is a preliminary reading — it may still change.","nkg456.k.us1":"US: inflation in a year (sentiment survey)","nkg456.k.us5":"US: inflation in 5–10 years (sentiment survey)","nkg456.k.sc1":"US: inflation in a year (expectations survey)","nkg456.k.sc3":"US: inflation in 3 years (expectations survey)","nkg456.k.ec1":"Euro area: inflation in a year","nkg456.k.ec3":"Euro area: inflation in 3 years","nkg456.k.ec5":"Euro area: inflation in 5 years","nkg456.k.un":"US: chance of higher unemployment in a year","nkg456.ref2":"inflation target: 2%","nkg456.s.us1m":"US — sentiment survey (1 year)","nkg456.s.us1s":"US — expectations survey (1 year)","nkg456.s.ec1":"Euro area (1 year)","nkg456.s.us5m":"US — sentiment survey (5–10 years)","nkg456.s.us5s":"US — expectations survey (5 years)","nkg456.s.ec5":"Euro area (5 years)","nkg456.inf.ch1.h":"Expected inflation in a year","nkg456.inf.ch2.h":"Expected inflation in 5 years and beyond","nkg456.inf.ch1.aria":"Chart: expected inflation in a year, US and euro area","nkg456.inf.ch2.aria":"Chart: expected inflation in 5 years and beyond, US and euro area","nkg456.inf.n":"These are typical answers from households (the median), not economists’ forecasts or market prices.","nkg456.fm.k1":"Borrowing for stocks","nkg456.fm.k2":"Record","nkg456.fm.k3":"Against 5 years","nkg456.fm.k4":"Clients’ free cash","nkg456.fm.u":"USD tn","nkg456.fm.rec":"highest in {m}","nkg456.fm.now":"now {p}% of the record","nkg456.fm.p5":"of the last 5 years’ months had a lower balance","nkg456.fm.s1":"Borrowing for stocks","nkg456.fm.s2":"Clients’ free cash","nkg456.fm.ch.h":"The last five years (USD tn)","nkg456.fm.ch.aria":"Chart: borrowing for stocks and clients’ free cash, {n} months","nkg456.fm.n":"These are loans from brokers used to buy shares. A higher balance means more shares bought on credit.","nkg456.foot":"Monthly data; each number has its own date and age."}};
 for(const l in EXTRA311)if(I18N[l])Object.assign(I18N[l],EXTRA311[l]);
+/* v457 (F11Z39): Rynki wschodzące 2 — RPA, płynność banków Indii, fundusze Izraela, przekazy migrantów (GLOBAL, karta #g-em2) — pl i en */
+const EXTRA312={"pl":{"em457.t":"Rynki wschodzące: RPA, Indie, Izrael i przekazy od migrantów","em457.sub":"Cztery szybkie spojrzenia: stopy i rand w RPA, gotówka w bankach w Indiach, dokąd płyną pieniądze funduszy w Izraelu i ile pieniędzy migranci wysyłają do domu.","em457.lazy":"Dane pojawią się po rozwinięciu karty.","em457.err":"Nie udało się wczytać danych — spróbuj za chwilę.","em457.errp":"Brak aktualnego odczytu: {p}.","em457.p.za":"RPA","em457.p.in":"Indie","em457.p.il":"Izrael","em457.p.wb":"przekazy migrantów","em457.h.za":"RPA: stopy, obligacje, rand i inflacja","em457.h.in":"Indie: gotówka w bankach","em457.h.il":"Izrael: fundusze inwestycyjne","em457.h.wb":"Pieniądze wysyłane do domu przez migrantów","em457.w.day":"dane z dnia {d}","em457.w.m":"dane za {m}","em457.w.y":"dane za rok {y}","em457.u.m":"mln ₹","em457.u.b":"mld ₹","em457.u.t":"bln ₹","em457.u.usd":"mld USD","em457.l.pp30":"p.p. w 30 dni","em457.l.ppy":"p.p. w rok","em457.l.ppmm":"p.p. m/m","em457.l.ppyy":"p.p. r/r","em457.l.pc30":"% w 30 dni","em457.l.pcy":"% w rok","em457.l.pcmm":"% m/m","em457.l.pcyy":"% r/r","em457.bp.since":"pkt bazowych od {d}","em457.za.k.rate":"Stopa banku centralnego","em457.za.nochg":"bez zmian od 2 lat","em457.za.k.zr":"Stawka na jedną noc (Zaronia)","em457.za.zr.n":"stopa banku: {v}","em457.za.k.y10":"Rentowność obligacji (R2030)","em457.za.k.cpi":"Inflacja (rok do roku)","em457.za.k.real":"Stopa realna","em457.za.real.n":"stopa banku minus inflacja","em457.za.k.fx":"Rand wobec dolara","em457.za.fxu":"ZAR za 1 USD","em457.za.ch1":"Stopa banku i rentowność obligacji — ostatni rok","em457.za.ch1.aria":"Wykres: stopa banku i rentowność obligacji RPA, {n} dni","em457.za.ch2":"Ile randów kosztuje 1 dolar — ostatni rok","em457.za.ch2.aria":"Wykres: kurs randa do dolara, {n} dni","em457.za.n":"Rentowność to oprocentowanie, jakiego rynek żąda za pożyczanie państwu pieniędzy. Zmiana kursu pokazuje, o ile zmieniła się wartość randa: plus oznacza mocniejszy rand.","em457.in.k.on":"Stopa na jedną noc (średnia)","em457.in.rng":"zakres dnia: {a}–{b}%","em457.in.corr":"korytarz banku centralnego: {a}–{b}%","em457.in.k.call":"Pożyczki między bankami (call money)","em457.in.k.tri":"Pożyczki pod zastaw papierów (triparty repo)","em457.in.vs":"wobec stopy na jedną noc: {v} p.p.","em457.in.k.sur":"Nadwyżka gotówki w bankach","em457.in.k.def":"Niedobór gotówki w bankach","em457.in.s.d1":"mld ₹ wobec dnia wcześniej","em457.in.dur":"płynność długoterminowa: {v} ({d})","em457.in.k.op":"Operacje banku centralnego tego dnia","em457.in.abs":"wchłonięto {v}","em457.in.inj":"wprowadzono {v}","em457.in.k.vol":"Obrót na jedną noc","em457.in.ch1":"Stopa na jedną noc — kolejne dni","em457.in.ch1.aria":"Wykres: stopa na jedną noc w Indiach, {n} dni","em457.in.ch2":"Nadwyżka gotówki w bankach — kolejne dni (bln ₹)","em457.in.ch2.aria":"Wykres: nadwyżka gotówki w bankach w Indiach, {n} dni","em457.in.hist":"Historia zbiera się dzień po dniu — wykres pojawi się po kilku dniach.","em457.in.n":"Nadwyżka to gotówka, którą banki mają ponad potrzeby; niedobór — gdy jej brakuje. Stopa na jedną noc to koszt pożyczki do jutra; bank centralny pilnuje, by mieściła się w jego korytarzu.","em457.il.k.tot":"Aktywa funduszy","em457.il.k.flow":"Napływ netto w miesiącu","em457.il.prev":"poprzedni miesiąc: {v}","em457.il.y12":"ostatnie 12 miesięcy: {v}","em457.il.k.eq":"Do akcji (kraj i zagranica)","em457.il.k.bond":"Do obligacji (państwa i firm)","em457.il.k.mm":"Do funduszy pieniężnych","em457.il.k.da":"Aktywa cyfrowe w funduszach","em457.il.da.n":"napływ w miesiącu: {v}","em457.il.h.bars":"Dokąd płynęły pieniądze w miesiącu: {m}","em457.il.bars.aria":"Wykres: napływ netto wg rodzajów funduszy, {n} rodzajów","em457.il.h.share":"Z czego składają się aktywa","em457.il.t.mm":"Fundusze pieniężne","em457.il.t.gov":"Obligacje państwa","em457.il.t.corp":"Obligacje firm","em457.il.t.isr":"Akcje w Izraelu","em457.il.t.abr":"Akcje za granicą","em457.il.t.da":"Aktywa cyfrowe","em457.il.t.oth":"Pozostałe","em457.il.u.m":"mln ₪","em457.il.u.b":"mld ₪","em457.il.ch":"Napływ netto do funduszy w kolejnych miesiącach (mld ₪)","em457.il.ch.aria":"Wykres: napływ netto do funduszy w Izraelu, {n} miesięcy","em457.il.n":"Napływ netto to wpłaty klientów minus wypłaty w danym miesiącu. Dane obejmują fundusze razem z funduszami ETF.","em457.wb.k.tot":"Razem (liczba krajów: {n})","em457.wb.k.top":"Największy odbiorca","em457.wb.k.gdp":"Najwyższy udział w PKB","em457.wb.gdp":"PKB","em457.wb.h.rank":"Ile pieniędzy migranci przesłali do domu (ostatni rok i zmiana r/r)","em457.wb.bars.aria":"Wykres: przekazy od migrantów wg krajów, {n} krajów","em457.wb.ch":"Przekazy do czterech największych odbiorców (mld USD)","em457.wb.ch.aria":"Wykres: przekazy od migrantów w latach, {n} kraje","em457.wb.n":"To pieniądze, które osoby pracujące za granicą wysyłają rodzinom. Dla części krajów są ważnym źródłem dolarów. Dane roczne, publikowane z opóźnieniem.","em457.c.IN":"Indie","em457.c.MX":"Meksyk","em457.c.PH":"Filipiny","em457.c.EG":"Egipt","em457.c.PK":"Pakistan","em457.c.BD":"Bangladesz","em457.c.NG":"Nigeria","em457.c.PL":"Polska","em457.c.MA":"Maroko","em457.c.UA":"Ukraina","em457.c.LK":"Sri Lanka","em457.foot":"Cztery zbiory danych o różnej częstotliwości (dzień, miesiąc, rok); każda liczba ma swoją datę i wiek."},"en":{"em457.t":"Emerging markets: South Africa, India, Israel and migrant remittances","em457.sub":"Four quick looks: rates and the rand in South Africa, cash in India’s banks, where Israeli fund money is flowing, and how much money migrants send home.","em457.lazy":"The data will load when you expand the card.","em457.err":"Could not load the data — please try again shortly.","em457.errp":"No current reading: {p}.","em457.p.za":"South Africa","em457.p.in":"India","em457.p.il":"Israel","em457.p.wb":"migrant remittances","em457.h.za":"South Africa: rates, bonds, the rand and inflation","em457.h.in":"India: cash in banks","em457.h.il":"Israel: investment funds","em457.h.wb":"Money sent home by migrants","em457.w.day":"data for {d}","em457.w.m":"data for {m}","em457.w.y":"data for {y}","em457.u.m":"mn ₹","em457.u.b":"bn ₹","em457.u.t":"tn ₹","em457.u.usd":"bn USD","em457.l.pp30":"pp in 30 days","em457.l.ppy":"pp in a year","em457.l.ppmm":"pp m/m","em457.l.ppyy":"pp y/y","em457.l.pc30":"% in 30 days","em457.l.pcy":"% in a year","em457.l.pcmm":"% m/m","em457.l.pcyy":"% y/y","em457.bp.since":"basis points since {d}","em457.za.k.rate":"Central bank rate","em457.za.nochg":"unchanged for 2 years","em457.za.k.zr":"Overnight rate (Zaronia)","em457.za.zr.n":"central bank rate: {v}","em457.za.k.y10":"Bond yield (R2030)","em457.za.k.cpi":"Inflation (year on year)","em457.za.k.real":"Real rate","em457.za.real.n":"central bank rate minus inflation","em457.za.k.fx":"Rand against the dollar","em457.za.fxu":"ZAR per 1 USD","em457.za.ch1":"Central bank rate and bond yield — last year","em457.za.ch1.aria":"Chart: South African central bank rate and bond yield, {n} days","em457.za.ch2":"Rands needed for 1 dollar — last year","em457.za.ch2.aria":"Chart: rand per dollar, {n} days","em457.za.n":"Yield is the interest the market asks for lending money to the state. The change in the rate shows how the value of the rand moved: a plus means a stronger rand.","em457.in.k.on":"Overnight rate (average)","em457.in.rng":"range of the day: {a}–{b}%","em457.in.corr":"central bank corridor: {a}–{b}%","em457.in.k.call":"Loans between banks (call money)","em457.in.k.tri":"Loans against securities (triparty repo)","em457.in.vs":"vs overnight: {v} pp","em457.in.k.sur":"Surplus cash in banks","em457.in.k.def":"Cash shortfall in banks","em457.in.s.d1":"bn ₹ vs the day before","em457.in.dur":"longer-term liquidity: {v} ({d})","em457.in.k.op":"Central bank operations of the day","em457.in.abs":"absorbed {v}","em457.in.inj":"injected {v}","em457.in.k.vol":"Overnight volume","em457.in.ch1":"Overnight rate — day by day","em457.in.ch1.aria":"Chart: India overnight rate, {n} days","em457.in.ch2":"Surplus cash in banks — day by day (tn ₹)","em457.in.ch2.aria":"Chart: surplus cash in India’s banks, {n} days","em457.in.hist":"The history builds up day by day — the chart will appear after a few days.","em457.in.n":"Surplus is cash banks hold beyond their needs; a shortfall is when they lack it. The overnight rate is the cost of a loan until tomorrow; the central bank keeps it inside its corridor.","em457.il.k.tot":"Fund assets","em457.il.k.flow":"Net inflow in the month","em457.il.prev":"previous month: {v}","em457.il.y12":"last 12 months: {v}","em457.il.k.eq":"Into shares (Israel and abroad)","em457.il.k.bond":"Into bonds (government and corporate)","em457.il.k.mm":"Into money-market funds","em457.il.k.da":"Digital assets in funds","em457.il.da.n":"inflow in the month: {v}","em457.il.h.bars":"Where the money went in {m}","em457.il.bars.aria":"Chart: net inflow by fund type, {n} types","em457.il.h.share":"What the assets consist of","em457.il.t.mm":"Money-market funds","em457.il.t.gov":"Government bonds","em457.il.t.corp":"Corporate bonds","em457.il.t.isr":"Shares in Israel","em457.il.t.abr":"Shares abroad","em457.il.t.da":"Digital assets","em457.il.t.oth":"Other","em457.il.u.m":"mn ₪","em457.il.u.b":"bn ₪","em457.il.ch":"Net inflow into funds month by month (bn ₪)","em457.il.ch.aria":"Chart: net inflow into Israeli funds, {n} months","em457.il.n":"Net inflow is clients’ deposits minus withdrawals in the month. The data cover funds together with ETFs.","em457.wb.k.tot":"Total (number of countries: {n})","em457.wb.k.top":"Largest recipient","em457.wb.k.gdp":"Highest share of GDP","em457.wb.gdp":"of GDP","em457.wb.h.rank":"How much money migrants sent home (latest year and change y/y)","em457.wb.bars.aria":"Chart: migrant remittances by country, {n} countries","em457.wb.ch":"Remittances to the four largest recipients (bn USD)","em457.wb.ch.aria":"Chart: migrant remittances over the years, {n} countries","em457.wb.n":"This is money that people working abroad send to their families. For some countries it is an important source of dollars. Annual data, published with a delay.","em457.c.IN":"India","em457.c.MX":"Mexico","em457.c.PH":"Philippines","em457.c.EG":"Egypt","em457.c.PK":"Pakistan","em457.c.BD":"Bangladesh","em457.c.NG":"Nigeria","em457.c.PL":"Poland","em457.c.MA":"Morocco","em457.c.UA":"Ukraine","em457.c.LK":"Sri Lanka","em457.foot":"Four data sets with different frequencies (day, month, year); every number carries its own date and age."}};
+for(const l in EXTRA312)if(I18N[l])Object.assign(I18N[l],EXTRA312[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -19717,6 +19753,185 @@ SRV_GR['eth-lancuch']='c';SRV_LD.c.push(ethLoad);
 setInterval(()=>{if(!document.hidden)ethLoad();},10*60*1000);   /* plik co ~60 min — strona pyta co 10 min (wiek w kafelkach też się odświeża) */
 ethLoad();try{new MutationObserver(()=>renderEth()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
 /* v403: koniec */
+/* ===================== v457 (F11Z39): RYNKI WSCHODZĄCE 2 — RPA, INDIE (PŁYNNOŚĆ BANKÓW), IZRAEL (FUNDUSZE), PRZEKAZY MIGRANTÓW (GLOBAL) — panel #g-em2 (plik automatu data/em2.json) =====================
+   Karta zwijana jak pozostałe w GLOBAL (silnik kart zw). Nagłówek i opis widać od razu (karta pojawia się, gdy meta.json zna którąś część „em2_*”); plik (kilkadziesiąt KB) jest pobierany dopiero po rozwinięciu karty
+   (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie; po wczytaniu odświeżany co 30 min przy rozwiniętej karcie). Cztery bloki, każdy z własną datą danych i wiekiem:
+   (1) RPA: stopa banku centralnego (z ostatnią zmianą), stawka overnight, rentowność obligacji 10-letnich, inflacja, stopa realna, kurs randa do dolara; wykresy roku;
+   (2) Indie: stopa overnight (z zakresem dnia i korytarzem banku), pożyczki międzybankowe i pod zastaw papierów, nadwyżka albo niedobór płynności w bankach, operacje banku centralnego, obrót; historia zbiera się dzień po dniu;
+   (3) Izrael: aktywa funduszy inwestycyjnych i napływy netto wg rodzajów (akcje, obligacje, fundusze pieniężne, aktywa cyfrowe), 24 miesiące;
+   (4) przekazy pieniężne migrantów do 11 krajów (mld USD i % PKB, dane roczne) i ich zmiana w czasie.
+   Kolory zmian z POKAZANEJ liczby (plus zielony, minus czerwony, zero żółte); brak = „—”, nigdy zero; część starsza niż dopuszczalny wiek danych znika. Nazw dostawców tu nie ma.
+   To nie jest porada inwestycyjna. Korzysta z narzędzi panelu stresu (strTile, strDelta, strDay, strNum) i wykresów (wkLines, wkBars, wkCols, wkMs, wkDay, wkMon). */
+const EM2={j:null,l:false,x:false,t:0,e:0,on:false,mo:false};
+const EM2_PARTS=['za','in','il','wb'],EM2_AGE={za:30,zc:90,in:30,il:200,wb:900},EM2_DAYMS=864e5;
+const EM2_D=/^\d{4}-\d{2}-\d{2}$/,EM2_M=/^\d{4}-(0[1-9]|1[0-2])$/;
+const EM2_IL=['mm','gov','corp','isr','abr','da'],EM2_C=['IN','MX','PH','EG','PK','BD','NG','PL','MA','UA','LK'];   /* kraje znane słownikowi (nazwy w obu językach) */
+const emObj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const emDay=s=>typeof s==='string'&&EM2_D.test(s)&&isFinite(Date.parse(s+'T12:00:00Z'))&&new Date(Date.parse(s+'T12:00:00Z')).toISOString().slice(0,10)===s;
+const emMon=s=>typeof s==='string'&&EM2_M.test(s);
+const emFl=c=>typeof flagImg==='function'?flagImg(c,'sm'):'';
+const emPct=(v,d)=>strNum(v)?nfmt(v,d==null?2:d)+'%':'—';
+/* dane nie starsze niż dopuszczalny wiek (część k) i nie z przyszłości (>2 doby) */
+const emYoung=(ms,k)=>{const a=Date.now()-ms;return isFinite(a)&&a<=EM2_AGE[k]*EM2_DAYMS&&a>=-2*EM2_DAYMS;};
+const emMonMs=m=>Date.UTC(+m.slice(0,4),+m.slice(5),0,12);   /* miesiąc → koniec miesiąca, środek doby UTC */
+const emMadd=(m,n)=>{const i=+m.slice(0,4)*12+(+m.slice(5)-1)+n;return `${Math.floor(i/12)}-${String(i%12+1).padStart(2,'0')}`;};
+const emPc=(a,b)=>strNum(a)&&strNum(b)&&b>0?(a/b-1)*100:null;   /* zmiana procentowa; brak albo zerowa podstawa = brak */
+const emWhenD=d=>t('em457.w.day',{d:strDay(d)})+gAgeNote(d);
+const emWhenM=m=>t('em457.w.m',{m:wkMon(m,1)})+gAgeNote(m);
+const emWhenY=y=>t('em457.w.y',{y:y})+gAgeNote(y+'-12-31');
+/* kwota w crore ₹ (1 crore = 10 mln ₹) → tekst; znak: plus przy dodatniej; poniżej 0,5 mln — „<1 mln”; brak = „—” */
+function emInr(cr,znak){if(!strNum(cr))return '—';const a=Math.abs(cr)*1e7,s=cr<0?'−':(znak&&cr>0?'+':'');if(a===0)return '0\u00a0'+t('em457.u.m');
+  if(a>=999.5e9)return s+nfmt(a/1e12,2)+'\u00a0'+t('em457.u.t');if(a>=0.5e9)return s+nfmt(a/1e9,a>=99.5e9?0:1)+'\u00a0'+t('em457.u.b');
+  if(a>=0.5e6)return s+nfmt(a/1e6,0)+'\u00a0'+t('em457.u.m');return s+'<1\u00a0'+t('em457.u.m');}   /* twarda spacja: liczba i jednostka nie rozdzielają się w kaflu */
+/* kwota w mln ₪ → tekst (mld od 1000 mln) */
+function emIls(mln,znak){if(!strNum(mln))return '—';const a=Math.abs(mln),s=mln<0?'−':(znak&&mln>0?'+':'');if(a===0)return '0\u00a0'+t('em457.il.u.m');
+  if(a>=999.5)return s+nfmt(a/1000,a>=99950?0:a>=9995?1:2)+'\u00a0'+t('em457.il.u.b');if(a>=0.5)return s+nfmt(a,0)+'\u00a0'+t('em457.il.u.m');return s+'<1\u00a0'+t('em457.il.u.m');}
+const emUsd=v=>strNum(v)?nfmt(v,v>=100?0:1)+'\u00a0'+t('em457.u.usd'):'—';
+const emSgn=(v,d)=>{if(!strNum(v))return '—';const k=10**d,r=Math.round(v*k)/k;return (r>0?'+':r<0?'−':'')+nfmt(Math.abs(r),d);};
+/* wiersze rosnąco: zła data / nie-liczba odrzucone; min — najmniej wierszy (mniej = brak serii, nie wykres z jednej kropki) */
+function emSer(a,re,len){return (Array.isArray(a)?a:[]).filter(r=>Array.isArray(r)&&r.length===len&&typeof r[0]==='string'&&re.test(r[0])&&r.slice(1).every(strNum)).sort((x,y)=>x[0]<y[0]?-1:x[0]>y[0]?1:0);}
+/* ostatni wiersz co najmniej `dni` dni przed ostatnim (szereg rosnący); brak = null */
+function emBack(rows,dni){if(!rows.length)return null;const lim=wkMs(rows[rows.length-1][0])-dni*EM2_DAYMS;let r=null;for(const x of rows){if(wkMs(x[0])<=lim)r=x;else break;}return r;}
+const emPair=(a,lo,hi,k)=>Array.isArray(a)&&a.length===2&&emDay(a[0])&&strNum(a[1])&&a[1]>=lo&&a[1]<=hi&&emYoung(wkMs(a[0]),k)?a:null;
+/* ---------- walidacja części (zły kształt = część znika, nie zero) ---------- */
+function emZa(j){const P=emObj(j)?j.za:null;if(!emObj(P))return null;
+  const rate=emPair(P.rate,0,40,'za');if(!rate)return null;
+  const y10=emPair(P.y10,0,50,'za'),zr=emPair(P.zr,0,40,'za'),fx=emPair(P.fx,3,60,'za');
+  const cpi=Array.isArray(P.cpi)&&P.cpi.length===2&&emMon(P.cpi[0])&&strNum(P.cpi[1])&&P.cpi[1]>=-10&&P.cpi[1]<=50&&emYoung(emMonMs(P.cpi[0]),'zc')?P.cpi:null;
+  const hh=emObj(P.h)?P.h:{},H={rate:emSer(hh.rate,EM2_D,2).filter(r=>emDay(r[0])),y10:emSer(hh.y10,EM2_D,2).filter(r=>emDay(r[0])),fx:emSer(hh.fx,EM2_D,2).filter(r=>emDay(r[0]))};
+  const cm=emSer(P.cm,EM2_M,2);
+  const chg=Array.isArray(P.rate_chg)&&P.rate_chg.length===2&&emDay(P.rate_chg[0])&&strNum(P.rate_chg[1])&&P.rate_chg[1]!==0?P.rate_chg:null;
+  return {P,rate,y10,zr,fx,cpi,H,cm,chg};}
+function emIn(j){const P=emObj(j)?j['in']:null;if(!emObj(P)||!emDay(P.date)||!emYoung(wkMs(P.date),'in'))return null;
+  const on=P.on;if(!Array.isArray(on)||on.length!==4||!on.every(strNum)||!(on[1]>0)||on[1]>25||!(on[0]>0))return null;
+  const H=(Array.isArray(P.h)?P.h:[]).filter(r=>Array.isArray(r)&&r.length===3&&emDay(r[0])&&strNum(r[1])&&strNum(r[2])).sort((x,y)=>x[0]<y[0]?-1:x[0]>y[0]?1:0);
+  const n=v=>strNum(v)?v:null,rt=a=>Array.isArray(a)&&a.length===2?[n(a[0]),n(a[1])]:[null,null];
+  return {P,on,H,net:n(P.net),net1:n(P.net1),call:n(P.call),tri:n(P.tri),msf:rt(P.msf),sdf:rt(P.sdf),dur:Array.isArray(P.dur)&&P.dur.length===2&&emDay(P.dur[0])&&strNum(P.dur[1])?P.dur:null};}
+function emIl(j){const P=emObj(j)?j.il:null;if(!emObj(P)||!Array.isArray(P.mo)||!emMon(P.m))return null;
+  const mo=P.mo;if(mo.length<13||mo[mo.length-1]!==P.m||!mo.every(emMon)||!emYoung(emMonMs(P.m),'il'))return null;
+  for(let i=1;i<mo.length;i++)if(mo[i]!==emMadd(mo[i-1],1))return null;   /* miesiące kolejne */
+  if(!emObj(P.b)||!emObj(P.n))return null;const B={},N={};
+  for(const g of ['all'].concat(EM2_IL)){const b=P.b[g],n=P.n[g];
+    if(!Array.isArray(b)||!Array.isArray(n)||b.length!==mo.length||n.length!==mo.length){if(g==='all')return null;B[g]=mo.map(()=>null);N[g]=mo.map(()=>null);continue;}
+    B[g]=b.map(v=>strNum(v)?v:null);N[g]=n.map(v=>strNum(v)?v:null);}
+  const L=mo.length-1;if(!(B.all[L]>0)||!strNum(N.all[L]))return null;
+  return {P,mo,B,N,L};}
+function emWb(j){const P=emObj(j)?j.wb:null;if(!emObj(P)||!emObj(P.c))return null;const C={};let my=0;
+  for(const k of Object.keys(P.c)){const S=(Array.isArray(P.c[k])?P.c[k]:[]).filter(r=>Array.isArray(r)&&r.length===3&&Number.isInteger(r[0])&&r[0]>=1990&&r[0]<=2100&&strNum(r[1])&&r[1]>0&&(r[2]===null||strNum(r[2]))).sort((a,b)=>a[0]-b[0]);
+    if(S.length&&EM2_C.includes(k)){C[k]=S;my=Math.max(my,S[S.length-1][0]);}}
+  const ks=Object.keys(C);if(ks.length<3||!emYoung(Date.UTC(my,11,31,12),'wb'))return null;
+  const L=ks.map(k=>({k,y:C[k][C[k].length-1][0],v:C[k][C[k].length-1][1],g:C[k][C[k].length-1][2],p:C[k].length>1&&C[k][C[k].length-2][0]===C[k][C[k].length-1][0]-1?C[k][C[k].length-2][1]:null,S:C[k]})).filter(x=>x.y>=my-1);   /* kraj bez nowego roku odpada z zestawienia */
+  if(L.length<3)return null;
+  return {P,C,L,my};}
+function emOk(j){return !!(emObj(j)&&j.v===1&&typeof j.at==='string'&&isFinite(Date.parse(j.at))&&(emZa(j)||emIn(j)||emIl(j)||emWb(j)));}
+/* ---------- wspólne ---------- */
+const emTiles=a=>`<div class="etfkpis k${a.length}">${a.join('')}</div>`;
+const emHead=(k,ico)=>`<div class="gx-h"><b>${icoWrap(ico)}${t('em457.h.'+k)}</b></div>`;
+function emChart(S,aria,fmt,hk){const ch=wkLines(S,{aria,fmt,dt:ms=>wkDay(ms,1),dx:ms=>wkDay(ms,1),zero:false});
+  return ch?`<div class="gx-h"><b>${t(hk)}</b></div>${ch}`:'';}
+const emSeries=(rows,idx,cls,tk)=>({n:t(tk),cls,d:rows.filter(r=>strNum(r[idx])).map(r=>[wkMs(r[0]),r[idx]])});
+/* ---------- (1) RPA ---------- */
+function emZaHtml(Q){const fl=emFl('za'),R=Q.rate,tl=[];
+  const bp=Q.chg?strDelta(Q.chg[1]*100,0,t('em457.bp.since',{d:strDay(Q.chg[0])})):{txt:t('em457.za.nochg'),cls:'pc'};
+  tl.push(strTile(fl,t('em457.za.k.rate'),emPct(R[1]),[bp],emWhenD(R[0])));
+  if(Q.zr)tl.push(strTile(fl,t('em457.za.k.zr'),emPct(Q.zr[1]),[{txt:t('em457.za.zr.n',{v:emPct(R[1])}),cls:'pc'}],emWhenD(Q.zr[0])));
+  if(Q.y10){const b1=emBack(Q.H.y10,30),b2=emBack(Q.H.y10,365);
+    tl.push(strTile(fl,t('em457.za.k.y10'),emPct(Q.y10[1]),[strDelta(b1?Q.y10[1]-b1[1]:null,2,t('em457.l.pp30')),strDelta(b2?Q.y10[1]-b2[1]:null,2,t('em457.l.ppy'))],emWhenD(Q.y10[0])));}
+  if(Q.cpi){const cm=Q.cm,L=cm.length&&cm[cm.length-1][0]===Q.cpi[0]?cm.length-1:-1,pm=L>0&&cm[L-1][0]===emMadd(Q.cpi[0],-1)?cm[L-1][1]:null,ym=L>=12&&cm[L-12][0]===emMadd(Q.cpi[0],-12)?cm[L-12][1]:null;
+    tl.push(strTile(fl,t('em457.za.k.cpi'),emPct(Q.cpi[1],1),[strDelta(pm==null?null:Q.cpi[1]-pm,1,t('em457.l.ppmm')),strDelta(ym==null?null:Q.cpi[1]-ym,1,t('em457.l.ppyy'))],emWhenM(Q.cpi[0])));
+    tl.push(strTile(fl,t('em457.za.k.real'),strNum(R[1])?emSgn(R[1]-Q.cpi[1],2)+'%':'—',[{txt:t('em457.za.real.n'),cls:'pc'}],emWhenM(Q.cpi[0])));}
+  if(Q.fx){const b1=emBack(Q.H.fx,30),b2=emBack(Q.H.fx,365),up=(b)=>b?emPc(b[1],Q.fx[1]):null;   /* mocniejszy rand = mniej randów za dolara: zmiana wartości randa = stary kurs / nowy − 1 */
+    tl.push(strTile(fl,t('em457.za.k.fx'),nfmt(Q.fx[1],2)+' '+t('em457.za.fxu'),[strDelta(up(b1),1,t('em457.l.pc30')),strDelta(up(b2),1,t('em457.l.pcy'))],emWhenD(Q.fx[0])));}
+  let h=emHead('za',fl)+emTiles(tl);
+  const S1=[];if(Q.H.rate.length>=3)S1.push(emSeries(Q.H.rate,1,'s2','em457.za.k.rate'));if(Q.H.y10.length>=3)S1.push(emSeries(Q.H.y10,1,'s1','em457.za.k.y10'));
+  if(S1.length)h+=emChart(S1,t('em457.za.ch1.aria',{n:Math.max(...S1.map(s=>s.d.length))}),v=>nfmt(v,2)+'%','em457.za.ch1');
+  if(Q.H.fx.length>=3)h+=emChart([emSeries(Q.H.fx,1,'s1','em457.za.k.fx')],t('em457.za.ch2.aria',{n:Q.H.fx.length}),v=>nfmt(v,2),'em457.za.ch2');
+  return h+`<p class="pnote">${t('em457.za.n')}</p>`;}
+/* ---------- (2) Indie ---------- */
+function emInHtml(Q){const fl=emFl('in'),P=Q.P,on=Q.on,w=emWhenD(P.date),tl=[],H=Q.H,ix=H.length&&H[H.length-1][0]===P.date?H.length-1:-1,pv=ix>0?H[ix-1]:null;
+  const cor=Q.sdf[0]!=null&&Q.msf[0]!=null?[{txt:t('em457.in.corr',{a:nfmt(Q.sdf[0],2),b:nfmt(Q.msf[0],2)}),cls:'pc'}]:[];
+  tl.push(strTile(fl,t('em457.in.k.on'),emPct(on[1]),[{txt:t('em457.in.rng',{a:nfmt(on[2],2),b:nfmt(on[3],2)}),cls:'pc'}].concat(cor),w));
+  tl.push(strTile(fl,t('em457.in.k.call'),emPct(Q.call),[{txt:t('em457.in.vs',{v:strVal(Q.call==null?null:Q.call-on[1],2)}),cls:'pc'}],w));
+  tl.push(strTile(fl,t('em457.in.k.tri'),emPct(Q.tri),[{txt:t('em457.in.vs',{v:strVal(Q.tri==null?null:Q.tri-on[1],2)}),cls:'pc'}],w));
+  if(Q.net!=null){const sur=Q.net<0,v=Math.abs(Q.net),ln=[];
+    if(pv&&(pv[2]<0)===sur)ln.push(strDelta((v-Math.abs(pv[2]))/100,0,t('em457.in.s.d1')));   /* zmiana wielkości pokazanej w kaflu (1 crore = 0,01 mld ₹); znak stanu bez zmiany */
+    if(Q.dur)ln.push({txt:t('em457.in.dur',{v:emInr(Q.dur[1]),d:strDay(Q.dur[0])}),cls:'pc'});
+    tl.push(strTile(fl,t(sur?'em457.in.k.sur':'em457.in.k.def'),escH(emInr(v)),ln,w));}
+  if(Q.net1!=null)tl.push(strTile(fl,t('em457.in.k.op'),escH(t(Q.net1<0?'em457.in.abs':'em457.in.inj',{v:emInr(Math.abs(Q.net1))})),[],w));
+  tl.push(strTile(fl,t('em457.in.k.vol'),escH(emInr(on[0])),[],w));
+  let h=emHead('in',fl)+emTiles(tl);
+  if(H.length>=3){const ms=r=>wkMs(r[0]);
+    h+=emChart([{n:t('em457.in.k.on'),cls:'s1',d:H.map(r=>[ms(r),r[1]])}],t('em457.in.ch1.aria',{n:H.length}),v=>nfmt(v,2)+'%','em457.in.ch1');
+    h+=emChart([{n:t('em457.in.k.sur'),cls:'s3',d:H.map(r=>[ms(r),-r[2]/1e5])}],t('em457.in.ch2.aria',{n:H.length}),v=>nfmt(v,2)+' '+t('em457.u.t'),'em457.in.ch2');}
+  else h+=`<p class="pnote">${t('em457.in.hist')}</p>`;
+  return h+`<p class="pnote">${t('em457.in.n')}</p>`;}
+/* ---------- (3) Izrael ---------- */
+function emIlHtml(Q){const fl=emFl('il'),L=Q.L,m=Q.mo[L],B=Q.B,N=Q.N,w=emWhenM(m),tl=[],pm=L>=1?L-1:-1,ym=L>=12?L-12:-1;
+  const at=(a,i)=>i>=0?a[i]:null,mmn=t('em457.l.pcmm'),yyn=t('em457.l.pcyy');
+  tl.push(strTile(fl,t('em457.il.k.tot'),escH(emIls(B.all[L])),[strDelta(emPc(B.all[L],at(B.all,pm)),1,mmn),strDelta(emPc(B.all[L],at(B.all,ym)),1,yyn)],w));
+  const s12=L>=11&&N.all.slice(L-11).every(strNum)?N.all.slice(L-11).reduce((a,b)=>a+b,0):null;
+  tl.push(strTile(fl,t('em457.il.k.flow'),escH(emIls(N.all[L],1)),[{txt:t('em457.il.prev',{v:emIls(at(N.all,pm),1)}),cls:'pc'},{txt:t('em457.il.y12',{v:emIls(s12,1)}),cls:'pc'}],w));
+  const two=(a,b,i)=>strNum(at(N[a],i))&&strNum(at(N[b],i))?N[a][i]+N[b][i]:null;
+  tl.push(strTile(fl,t('em457.il.k.eq'),escH(emIls(two('isr','abr',L),1)),[{txt:t('em457.il.prev',{v:emIls(two('isr','abr',pm),1)}),cls:'pc'}],w));
+  tl.push(strTile(fl,t('em457.il.k.bond'),escH(emIls(two('gov','corp',L),1)),[{txt:t('em457.il.prev',{v:emIls(two('gov','corp',pm),1)}),cls:'pc'}],w));
+  tl.push(strTile(fl,t('em457.il.k.mm'),escH(emIls(N.mm[L],1)),[{txt:t('em457.il.prev',{v:emIls(at(N.mm,pm),1)}),cls:'pc'}],w));
+  if(strNum(B.da[L]))tl.push(strTile(fl,t('em457.il.k.da'),escH(emIls(B.da[L])),[{txt:t('em457.il.da.n',{v:emIls(N.da[L],1)}),cls:'pc'}],w));
+  let h=emHead('il',fl)+emTiles(tl);
+  /* dokąd płynęły pieniądze w ostatnim miesiącu: słupki od zera w obie strony (plus zielony, minus czerwony) */
+  const rows=EM2_IL.filter(g=>strNum(N[g][L])).map(g=>({g,v:N[g][L]})).sort((a,b)=>b.v-a.v).map(x=>({l:escH(t('em457.il.t.'+x.g)),v:x.v,vt:escH(emIls(x.v,1)),tip:t('em457.il.t.'+x.g)+': '+emIls(x.v,1)+' · '+wkMon(m,1)}));
+  if(rows.length)h+=`<div class="gx-h"><b>${t('em457.il.h.bars',{m:wkMon(m,1)})}</b></div>`+wkBars(rows,{aria:t('em457.il.bars.aria',{n:rows.length}),lw:'11em'});
+  /* z czego składają się aktywa: długość paska = udział w całości */
+  const tot=B.all[L],parts=EM2_IL.filter(g=>strNum(B[g][L])&&B[g][L]>0).map(g=>({k:g,v:B[g][L]})),rest=tot-parts.reduce((a,x)=>a+x.v,0);
+  if(rest>0.005*tot)parts.push({k:'oth',v:rest});
+  parts.sort((a,b)=>b.v-a.v);const mx=Math.max(1,...parts.map(x=>x.v/tot*100));
+  h+=`<div class="gx-h"><b>${t('em457.il.h.share')}</b></div><div class="gxs">`+parts.map(x=>gxShare(escH(t('em457.il.t.'+x.k)),x.v/tot*100/mx*100,`${escH(emIls(x.v))} · ${x.v/tot*100<0.1?'&lt;'+nfmt(0.1,1):nfmt(x.v/tot*100,x.v/tot*100<1?1:0)}%`,'cur')).join('')+'</div>';
+  const X=Q.mo.map((mm,i)=>strNum(N.all[i])?{x:wkMon(mm,0),tip:wkMon(mm,1)+': '+emIls(N.all[i],1),v:N.all[i]/1000}:{x:wkMon(mm,0),tip:wkMon(mm,1)+': —',v:null});
+  const ch=wkCols(X,{aria:t('em457.il.ch.aria',{n:X.length})});
+  if(ch)h+=`<div class="gx-h"><b>${t('em457.il.ch')}</b></div>${ch}`;
+  return h+`<p class="pnote">${t('em457.il.n')}</p>`;}
+/* ---------- (4) przekazy migrantów ---------- */
+function emWbHtml(Q){const my=Q.my,w=emWhenY(my),L=Q.L.slice().sort((a,b)=>b.v-a.v),tl=[];
+  const same=L.filter(x=>x.y===my),sum=same.reduce((a,x)=>a+x.v,0);
+  if(same.length>=3)tl.push(strTile('',t('em457.wb.k.tot',{n:same.length}),escH(emUsd(sum)),[strDelta(emPc(sum,same.every(x=>x.p!=null)?same.reduce((a,x)=>a+x.p,0):null),1,t('em457.l.pcyy'))],w));
+  const top=L[0];tl.push(strTile(emFl(top.k.toLowerCase()),t('em457.wb.k.top'),escH(t('em457.c.'+top.k)),[{txt:emUsd(top.v),cls:'pc'}],t('em457.w.y',{y:top.y})));
+  const gd=L.filter(x=>strNum(x.g)).sort((a,b)=>b.g-a.g)[0];
+  if(gd)tl.push(strTile(emFl(gd.k.toLowerCase()),t('em457.wb.k.gdp'),escH(t('em457.c.'+gd.k)),[{txt:nfmt(gd.g,1)+'% '+t('em457.wb.gdp'),cls:'pc'}],t('em457.w.y',{y:gd.y})));
+  let h=emHead('wb','')+emTiles(tl);
+  const mx=Math.max(...L.map(x=>x.v)),rows=L.map(x=>{const d=strDelta(emPc(x.v,x.p),1,'%'),g=strNum(x.g)?nfmt(x.g,1)+'%\u00a0'+t('em457.wb.gdp'):'—';
+    return gxShare(icoWrap(emFl(x.k.toLowerCase()))+escH(t('em457.c.'+x.k)),x.v/mx*100,`${escH(emUsd(x.v))} · ${escH(g)} · <span class="${d.cls}">${d.txt}</span>${x.y!==my?' · '+x.y:''}`,'cur');}).join('');
+  h+=`<div class="gx-h"><b>${t('em457.wb.h.rank')}</b></div><div class="gxs">${rows}</div>`;
+  const S=L.slice(0,4).map((x,i)=>({n:t('em457.c.'+x.k),cls:'s'+(i+1),d:x.S.map(r=>[Date.UTC(r[0],11,31,12),r[1]])}));
+  const ch=wkLines(S,{aria:t('em457.wb.ch.aria',{n:S.length}),fmt:v=>nfmt(v,1),dt:ms=>String(new Date(ms).getUTCFullYear()),dx:ms=>String(new Date(ms).getUTCFullYear()),zero:false});
+  if(ch)h+=`<div class="gx-h"><b>${t('em457.wb.ch')}</b></div>${ch}`;
+  return h+`<p class="pnote">${t('em457.wb.n')}</p>`;}
+function emBody(){const J=EM2.j;
+  if(!J)return `<p class="pnote">${t(EM2.x?'em457.err':'em457.lazy')}</p>`;
+  const Q={za:emZa(J),in:emIn(J),il:emIl(J),wb:emWb(J)},F={za:emZaHtml,in:emInHtml,il:emIlHtml,wb:emWbHtml};
+  const bad=EM2_PARTS.filter(k=>!Q[k]&&emObj(J.ok)&&J.ok[k]===false);
+  return EM2_PARTS.map(k=>Q[k]?F[k](Q[k]):'').join('')
+    +(bad.length?`<p class="pnote neu">${t('em457.errp',{p:bad.map(k=>t('em457.p.'+k)).join(', ')})}</p>`:'')
+    +`<p class="pfoot">${t('inst.file',{t:engDate(J.at)})} · ${t('em457.foot')} ${t('eng.disclaimer')}</p>`;}
+/* karta rozwinięta: silnik kart zwijanych ma klasę zw-on, a nie zw */
+function emOpen(el){return !!(el&&el.classList&&el.classList.contains('zw-on')&&!el.classList.contains('zw'));}
+function renderEm2(){const el=$('#g-em2');if(!el)return;
+  if(!EM2.on){el.hidden=true;el.innerHTML='';return;}
+  el.innerHTML=`<div class="etfh"><div><h2>${t('em457.t')}</h2><p class="pnote">${t('em457.sub')}</p></div></div>${emBody()}`;
+  el.hidden=false;
+  if(!EM2.mo&&typeof MutationObserver==='function'){EM2.mo=true;try{new MutationObserver(()=>{if(emOpen(el))emLoad();}).observe(el,{attributes:true,attributeFilter:['class']});}catch(e){}}   /* rozwinięcie karty (klasa) = pobranie */
+  if(emOpen(el))emLoad();}
+/* pobranie pliku: jedno naraz; chwilowy błąd nie zasłania wczytanych danych; po błędzie najwcześniej po minucie; f = odświeżenie wymuszone zegarem */
+function emLoad(f){if(EM2.l)return;const n=Date.now();if(EM2.j&&!f&&n-EM2.t<10*60e3)return;if(!EM2.j&&n-EM2.e<60e3)return;EM2.l=true;
+  srvJSON('em2').then(j=>{
+    if(!emOk(j)){EM2.l=false;EM2.e=Date.now();if(!EM2.j)EM2.x=true;renderEm2();return;}
+    EM2.l=false;EM2.j=j;EM2.x=false;EM2.t=Date.now();EM2.on=true;renderEm2();});}
+/* karta pojawia się, gdy meta.json zna którąś część „em2_*”; chwilowy błąd meta (brak odpowiedzi) = najwyżej 5 ponowień co 20 s, odpowiedź bez tych części = karta ukryta bez ponowień */
+function emMeta(){srvJSON('meta').then(m=>{const ok=!!(m&&typeof m==='object'&&m.ok&&typeof m.ok==='object');EM2.mf=ok?0:(EM2.mf||0)+1;
+  EM2.on=ok&&EM2_PARTS.some(k=>Object.prototype.hasOwnProperty.call(m.ok,'em2_'+k));renderEm2();});}
+emMeta();
+setInterval(()=>{if(!EM2.on&&EM2.mf>0&&EM2.mf<=5)emMeta();},20*1000);
+setInterval(()=>{if(!document.hidden&&EM2.j&&emOpen($('#g-em2')))emLoad(1);},30*60*1000);
+try{new MutationObserver(()=>renderEm2()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
+/* ---------- koniec bloku Rynki wschodzące 2 (v457) ---------- */
 /* ===================== v456 (F11Z38): GLOBAL — NASTROJE KONSUMENTÓW I OCZEKIWANA INFLACJA GOSPODARSTW — panel #g-nkg (plik automatu data/nastroje-gosp.json) =====================
    Karta zwijana jak pozostałe w GLOBAL (silnik kart zw). Nagłówek widać od razu (karta pojawia się, gdy meta.json zna którąś część „nkg_*”); plik (kilka KB) jest pobierany dopiero po rozwinięciu karty
    (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie; po wczytaniu odświeżany co 30 min przy rozwiniętej karcie). Trzy bloki, każdy z własną datą danych i wiekiem:
