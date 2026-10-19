@@ -22659,6 +22659,11 @@ PR_T = 20              # s: cały budowniczy w jednym przebiegu
 PR_T_LATE = 10         # s: przebieg trwa już dłużej niż PR_LATE — tylko odczyt na żywo, bez historii (start zapytania wymaga PR_LEFT_MIN s zapasu)
 PR_LATE = 480          # s: jak KD_LATE
 PR_TIMEOUT = 10        # s: jedno zapytanie (≤ czas pozostały z budżetu)
+PR_UP_TIMEOUT = 6      # v441: s: jedno zapytanie do Upbitu (łącze z maszyn GitHuba bywa zawieszone — nie czekamy 10 s); ≤ czas pozostały z budżetu
+PR_UP_TRIES = 2        # v441: zapytań do Upbitu na jedną odpowiedź: pierwsze i JEDNO ponowienie (tylko awaria przejściowa: czas, reset, HTTP 5xx)
+PR_UP_PAUSE = 30       # v441: min: po awarii przejściowej Upbitu następna próba najwcześniej po tylu minutach (odczyt Korei zostaje z datą; plik: up_s)
+PR_UP_ERR_H = 6        # v441: h bez żadnej odpowiedzi Upbitu (od ostatniego odczytu), po których awaria jest BŁĘDEM zbieracza (wcześniej uwaga w notatkach)
+PR_UP_ERR_N = 3        # v441: …i najmniej tylu nieudanych prób (przy przerwie 30 min i progu 6 h to ok. 12; próg liczby chroni przed pojedynczym odczytem po długiej przerwie)
 PR_LEFT_MIN = 3        # s: mniej czasu w budżecie — zapytanie nie startuje (PrBudget: uwaga, nie błąd giełdy)
 PR_SLEEP = 0.12        # s: odstęp między zapytaniami do jednej giełdy (limity 10/s)
 PR_BLOK = 40           # min: najkrótsza przerwa dla giełdy po HTTP 429/418 (dłuższa, gdy giełda poda Retry-After)
@@ -22682,15 +22687,16 @@ class PrBlok(RuntimeError):
         self.venue, self.fresh, self.retry = venue, fresh, retry
 
 
-def pr_tmo():
-    """Limit jednego zapytania: ≤ PR_TIMEOUT i ≤ czas pozostały z budżetu budowniczego; zapas mniejszy niż PR_LEFT_MIN s → PrBudget
-    (zapytanie nie startuje — koniec czasu budowniczego, nie awaria giełdy)."""
+def pr_tmo(tmax=None):
+    """Limit jednego zapytania: ≤ tmax (domyślnie PR_TIMEOUT; v441: Upbit ma własny, krótszy) i ≤ czas pozostały z budżetu budowniczego; zapas mniejszy
+    niż PR_LEFT_MIN s → PrBudget (zapytanie nie startuje — koniec czasu budowniczego, nie awaria giełdy)."""
+    tmax = PR_TIMEOUT if tmax is None else tmax
     if _PR_TERMIN[0] is None:
-        return PR_TIMEOUT
+        return tmax
     left = _PR_TERMIN[0] - time.monotonic()
     if left < PR_LEFT_MIN:
         raise PrBudget('limit czasu budowniczego')
-    return min(PR_TIMEOUT, left)
+    return min(tmax, left)
 
 
 def _pr_is_timeout(e):
@@ -22698,15 +22704,16 @@ def _pr_is_timeout(e):
     return isinstance(e, TimeoutError) or (isinstance(e, urllib.error.URLError) and isinstance(getattr(e, 'reason', None), TimeoutError))
 
 
-def _pr_send(fn, url, cnt):
+def _pr_send(fn, url, cnt, tmax=None):
     """fn(url, timeout=pr_tmo()) — jedno zapytanie w budżecie; cnt = [n]: licznik zapytań naprawdę wysłanych (pole req pliku). Przekroczenie
-    czasu, gdy limit uciął budżet (mniej niż PR_TIMEOUT), → PrBudget: to koniec czasu budowniczego, nie awaria giełdy."""
-    tmo = pr_tmo()
+    czasu, gdy limit uciął budżet (mniej niż tmax = PR_TIMEOUT albo limit giełdy), → PrBudget: to koniec czasu budowniczego, nie awaria giełdy."""
+    tmax = PR_TIMEOUT if tmax is None else tmax
+    tmo = pr_tmo(tmax)
     cnt[0] += 1
     try:
         return fn(url, timeout=tmo)
     except OSError as e:   # TimeoutError, URLError (też HTTPError) — reszta bez zmian
-        if tmo < PR_TIMEOUT and _pr_is_timeout(e):
+        if tmo < tmax and _pr_is_timeout(e):
             raise PrBudget('limit czasu budowniczego (zapytanie przerwane)') from e
         raise
 
@@ -22716,18 +22723,24 @@ def pr_get(venue, url, cnt):
     przebiegu → PrBlok bez wysyłania; HTTP 429/418 → giełda wstrzymana do końca przebiegu i PrBlok z nagłówkiem Retry-After."""
     if venue in _PR_PAUSED:
         raise PrBlok('wstrzymana po HTTP 429/418 — zapytanie nie wysłane', venue, fresh=False)
-    wait = PR_SLEEP - (time.monotonic() - _PR_LAST.get(venue, -1e9))
-    if wait > 0:
-        time.sleep(wait)
-    try:
-        return _pr_send(get_json, url, cnt)
-    except urllib.error.HTTPError as e:
-        if e.code in (429, 418):
-            _PR_PAUSED.add(venue)
-            raise PrBlok(f'HTTP {e.code}', venue, retry=e.headers.get('Retry-After') if e.headers is not None else None) from e
-        raise
-    finally:
-        _PR_LAST[venue] = time.monotonic()
+    tmax, proby = (PR_UP_TIMEOUT, PR_UP_TRIES) if venue == 'up' else (PR_TIMEOUT, 1)   # v441: Upbit — własny krótszy limit i jedno ponowienie
+    for k in range(proby):
+        wait = PR_SLEEP - (time.monotonic() - _PR_LAST.get(venue, -1e9))
+        if wait > 0:
+            time.sleep(wait)
+        try:
+            return _pr_send(get_json, url, cnt, tmax)
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 418):
+                _PR_PAUSED.add(venue)
+                raise PrBlok(f'HTTP {e.code}', venue, retry=e.headers.get('Retry-After') if e.headers is not None else None) from e
+            if e.code < 500 or k + 1 >= proby:   # 4xx to nie awaria przejściowa; ponowienie tylko po HTTP 5xx
+                raise
+        except OSError:   # przekroczony czas, reset, brak połączenia: jedno ponowienie (PrBudget to nie OSError — przechodzi dalej bez ponowienia)
+            if k + 1 >= proby:
+                raise
+        finally:
+            _PR_LAST[venue] = time.monotonic()
 
 
 def _pr_px(v, text=False):
@@ -23194,6 +23207,28 @@ def build_premie(prev=None, run_t0=None):
         _PR_PAUSED.clear()
 
 
+def _pr_up_stan(prev):
+    """v441: stan przerwy po awarii przejściowej Upbitu z poprzedniego pliku (up_s: od = pierwsza nieudana próba, try = ostatnia, n = liczba prób) albo None,
+    gdy go nie ma albo jest zepsuty (wtedy Upbit jest odpytywany normalnie)."""
+    s = prev.get('up_s') if isinstance(prev, dict) else None
+    if not isinstance(s, dict) or _pr_ts(s.get('od')) is None or _pr_ts(s.get('try')) is None:
+        return None
+    n = s.get('n')
+    if isinstance(n, bool) or not isinstance(n, int) or n < 1:
+        return None
+    return {'od': s['od'], 'try': s['try'], 'n': n}
+
+
+def _pr_up_przejsciowy(e):
+    """v441: awaria Upbitu, która może minąć sama (przekroczony czas, reset, brak połączenia, HTTP 5xx). Limit zapytań (429/418), inne HTTP 4xx i
+    zła treść odpowiedzi to nie ten przypadek: dalej od razu błąd, jak dotąd."""
+    if isinstance(e, PrBlok):
+        return False
+    if isinstance(e, urllib.error.HTTPError):
+        return e.code >= 500
+    return isinstance(e, OSError)
+
+
 def _pr_build(prev, now, late):
     """Ciało build_premie (termin budżetu ustawiony i czyszczony przez build_premie)."""
     prev = prev if isinstance(prev, dict) else {}
@@ -23206,12 +23241,22 @@ def _pr_build(prev, now, late):
     _PR_PAUSED.clear(); _PR_PAUSED.update(blok)   # przerwy z poprzednich przebiegów; każde 429/418 teraz dopisuje giełdę (pr_get)
     out = {'at': NOW, 'v': 1, 'ok': {}, 'part_at': {}, 'bledy': {}, 'blok': blok, 'now': {}, 'keep': PR_KEEP_CB, 'req': 0}
     cnt, notes, L = [0], [], {}
+    up_s0, up_stan, up_skip, fx_res = (_pr_up_stan(prev) if 'up' in PR_PARTS else None), None, False, None   # v441: stan przerwy Upbitu
     for part, fn in (('cb', _pr_live_cb), ('bn', _pr_live_bn), ('up', _pr_live_up)):   # v129: + Korea
         if part not in PR_PARTS:
             continue
+        if part == 'up':   # v441: kurs wymiany PRZED Upbitem — zawieszone łącze z Upbitem nie zjada budżetu kursu (wcześniej: „kurs wymiany pominięty — limit czasu”)
+            fx_res = _pr_fx(out, prev, now, cnt, notes, blok)
         if part in blok:
             out['ok'][part] = False
             notes.append(f'{PR_LABEL}: {PR_VENUE[part]} wstrzymany do {blok[part]} (wcześniej HTTP 429/418) — bez zapytań')
+            continue
+        if part == 'up' and up_s0 and 0 <= (now - _pr_ts(up_s0['try'])).total_seconds() < PR_UP_PAUSE * 60:
+            # v441: po awarii przejściowej Upbit odpytywany rzadziej (najwyżej raz na PR_UP_PAUSE min); poprzedni odczyt Korei zostaje z datą (stale)
+            out['ok'][part] = False; up_skip = True; up_stan = dict(up_s0)
+            pb0 = prev.get('bledy') if isinstance(prev.get('bledy'), dict) else {}
+            if isinstance(pb0.get('up'), str):
+                out['bledy']['up'] = pb0['up']
             continue
         try:
             L[part] = fn(now, cnt)
@@ -23219,15 +23264,21 @@ def _pr_build(prev, now, late):
         except PrBudget:
             out['ok'][part] = False
             notes.append(f'{PR_LABEL}: {PR_VENUE[part]} pominięty — limit czasu ({_PR_LIM[0]} s)')
+            if part == 'up' and up_s0:
+                up_stan = dict(up_s0)   # koniec czasu budowniczego to nie nowa próba ani nowa awaria — przerwa trwa
         except Exception as e:  # noqa — giełda z błędem: jej poprzedni odczyt zostaje (stale)
             _pr_fail(out, part, e, now, blok)
+            if part == 'up' and _pr_up_przejsciowy(e):
+                up_stan = {'od': up_s0['od'] if up_s0 else seen, 'try': seen, 'n': up_s0['n'] + 1 if up_s0 else 1}
+    if up_stan:
+        out['up_s'] = up_stan
     for part in PR_PARTS:
         if part not in out['part_at'] and isinstance(ppa.get(part), str):
             out['part_at'][part] = ppa[part]
     why = 'blocked' if any(k in blok for k in ('cb', 'bn')) else 'leg_failed'
     out['now']['cb'] = _pr_cb_now(L, before, seen) if ('cb' in L and 'bn' in L) else _pr_keep(pnow.get('cb'), why, PR_COINS, _pr_until(blok, ('cb', 'bn')))
     if 'up' in PR_PARTS:   # v129: Korea — kurs wymiany (część fx) i blok now.kr (Upbit i Coinbase z tego samego przebiegu, nigdy nogi z innej minuty)
-        fx, fx_last = _pr_fx(out, prev, now, cnt, notes, blok)
+        fx, fx_last = fx_res   # v441: policzony przed Upbitem (pętla wyżej)
         out['fx'] = fx
         why = 'blocked' if any(k in blok for k in ('up', 'cb')) else 'leg_failed'
         out['now']['kr'] = _pr_kr_now(L, fx, before, seen, now) if ('up' in L and 'cb' in L) else _pr_keep(pnow.get('kr'), why, PR_KR_COINS, _pr_until(blok, ('up', 'cb')))
@@ -23262,7 +23313,18 @@ def _pr_build(prev, now, late):
     fxz = out.get('fx') if isinstance(out.get('fx'), dict) else None
     fx_ok = bool(fxz and isinstance(fxz.get('d'), str) and _d(fxz['d']) and (now.date() - _d(fxz['d'])).days <= PR_FX_MAX_D)
     raz = {k: v for k, v in out['bledy'].items() if (k in ('h_cb', 'h_kr') or (k == 'fx' and fx_ok)) and k not in pbl}
-    err = {k: v for k, v in out['bledy'].items() if k not in raz}
+    # v441: awaria przejściowa Upbitu (czas, reset, 5xx) to uwaga, dopóki nie minie PR_UP_ERR_H h bez odpowiedzi (od ostatniego odczytu; bez niego — od pierwszej
+    # nieudanej próby) i nie będzie PR_UP_ERR_N prób; odczyt Korei zostaje z datą (stale), historia Korei nadrabia dni wstecz. Dłużej = błąd zbieracza z początkiem przerwy.
+    up_tol = up_stan is not None and 'up' in out['bledy']
+    up_od = (_pr_ts(out['part_at'].get('up')) if isinstance(out['part_at'].get('up'), str) else None) or (_pr_ts(up_stan['od']) if up_stan else None)
+    up_dlugo = bool(up_tol and up_od and now - up_od >= datetime.timedelta(hours=PR_UP_ERR_H) and up_stan['n'] >= PR_UP_ERR_N)
+    err = {k: v for k, v in out['bledy'].items() if k not in raz and not (k == 'up' and up_tol and not up_dlugo)}
+    if up_dlugo and 'up' in err:
+        err['up'] = f"{err['up']} (brak odpowiedzi od {up_od.strftime('%d.%m %H:%M')} UTC, prób: {up_stan['n']})"
+    if up_tol and not up_dlugo:
+        until = (_pr_ts(up_stan['try']) + datetime.timedelta(minutes=PR_UP_PAUSE)).strftime('%H:%M')
+        notes.append(mask(f"{PR_LABEL}: " + (f"Upbit — przerwa po awarii do {until} UTC" if up_skip else out['bledy']['up'] + f" — następna próba po {until} UTC")
+                          + f"; odczyt Korei zostaje z datą, błąd dopiero po {PR_UP_ERR_H} h bez odpowiedzi")[:300])
     if err:
         META['errors'].append(mask(f'{PR_LABEL}: ' + '; '.join(err.values()))[:400])
     if raz:

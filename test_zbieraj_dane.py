@@ -72858,3 +72858,153 @@ class KryptoTop100V439(unittest.TestCase):
         self.assertIn(tm, [round(r[4]) for r in out['g']['ai']['c']])
         self.assertTrue(all(5555555 not in [r[0] for r in g.get('w', {}).get('c', [])] for g in out['g'].values()), 'moneta z dziesiątki sektora nie wraca w warstwie innego')
         self.assertEqual(sum(77777777 in [r[0] for r in g.get('w', {}).get('c', [])] for g in out['g'].values()), 1, 'moneta głęboko w dwóch sektorach: w jednej warstwie')
+
+
+class PremieUpbitV441(unittest.TestCase):
+    """v441 (18.10.2026): Upbit nie odpowiada z maszyn GitHuba (zawieszone łączenie, „timed out”). Własny limit zapytania i JEDNO ponowienie przy awarii
+    przejściowej (czas, reset, HTTP 5xx; 4xx bez ponowienia), kurs wymiany pobierany przed Upbitem (awaria Upbitu go nie głodzi), po awarii rzadsze odpytywanie
+    (przerwa PR_UP_PAUSE min, pole up_s), poprzedni odczyt Korei z datą (stale), błąd zbieracza dopiero po PR_UP_ERR_H h bez odpowiedzi i PR_UP_ERR_N próbach.
+    Bez sieci, zegar przypięty. Pomocniki (setUp, px, rk, ebc, bp) z klasy v129 bez dziedziczenia jej testów."""
+    NOW = PremieKoreaV129.NOW
+    FX = PremieKoreaV129.FX
+    setUp = PremieKoreaV129.setUp
+    tearDown = PremieKoreaV129.tearDown
+    bdays = PremieKoreaV129.__dict__['bdays']
+    px = PremieKoreaV129.__dict__['px']
+    kr_full = PremieKoreaV129.kr_full
+    prev_full = PremieKoreaV129.prev_full
+    bp = PremieKoreaV129.bp
+    rk = PremieKoreaV129.rk
+    ebc = PremieKoreaV129.ebc
+
+    def _tm(self, **kw):
+        import urllib.error as _ue
+        return _ue.URLError(TimeoutError('timed out'))
+
+    def _prev(self):
+        return self.bp(self.rk(), self.ebc(), self.prev_full())
+
+    def _calls(self, rk):
+        return [u for u in rk.urls if 'upbit' in u]
+
+    def test_limit_i_jedno_ponowienie(self):
+        prev = self._prev()
+        seen = []
+        rk = self.rk(fail=lambda u: self._tm() if 'upbit' in u else None)
+        orig = zd.get_json
+
+        def spy(url, headers=None, timeout=30):
+            if 'upbit' in url:
+                seen.append(timeout)
+            return rk(url, headers, timeout)
+        with mock.patch.object(zd, 'get_json', spy), mock.patch.object(zd, 'get_bytes', self.ebc()), mock.patch.object(zd, '_now_utc', lambda: self.NOW + datetime.timedelta(minutes=20)):
+            out = zd.build_premie(prev)
+        self.assertEqual(len(seen), zd.PR_UP_TRIES, 'pierwsze zapytanie i jedno ponowienie, dalsze nogi (ETH, USDT) już nie')
+        self.assertTrue(all(t <= zd.PR_UP_TIMEOUT for t in seen), 'własny limit zapytania do Upbitu')
+        self.assertLess(zd.PR_UP_TIMEOUT, zd.PR_TIMEOUT)
+        self.assertIs(out['ok']['up'], False); self.assertIn('timed out', out['bledy']['up'])
+        self.assertEqual(out['up_s']['n'], 1); self.assertIs(out['now']['kr']['stale'], True, 'poprzedni odczyt Korei zostaje z datą')
+        self.assertEqual(out['now']['kr']['seen'], prev['now']['kr']['seen'])
+
+    def test_ponowienie_tylko_przy_awarii_przejsciowej(self):
+        import urllib.error as _ue
+        prev = self._prev()
+        later = self.NOW + datetime.timedelta(minutes=20)
+        for exc, ile in ((OSError('reset'), 2), (_ue.HTTPError('u', 503, 'x', {}, None), 2), (_ue.HTTPError('u', 404, 'x', {}, None), 1), (_ue.HTTPError('u', 403, 'x', {}, None), 1)):
+            rk = self.rk(fail=lambda u, e=exc: e if 'upbit' in u else None)
+            self.bp(rk, self.ebc(), prev, now=later)
+            self.assertEqual(len(self._calls(rk)), ile, repr(exc))
+        raz = []
+        rk = self.rk(fail=lambda u: self._tm() if 'upbit' in u and not raz and not raz.append(1) else None)
+        out = self.bp(rk, self.ebc(), prev, now=later)
+        self.assertEqual(len(self._calls(rk)), 3 + 1, 'pierwsze zapytanie padło, ponowienie przeszło, potem ETH i USDT'); self.assertIs(out['ok']['up'], True)
+        self.assertNotIn('up_s', out); self.assertIs(out['now']['kr']['stale'], False)
+
+    def test_kurs_wymiany_przed_upbitem_i_budzet(self):
+        """Upbit zawieszony (każde zapytanie zjada 9 s umownego zegara) nie głodzi kursu wymiany: kurs jest pobierany przed Upbitem."""
+        zg = _PrZegar()
+
+        def zawieszony(u):
+            if 'upbit' in u:
+                zg.t += 9.0
+                return self._tm()
+        rk = _PrRynekKr(self.px(), self.NOW, zegar=zg, fail=zawieszony)
+        eb = self.ebc()
+        out = self.bp(rk, eb, self.prev_full(), zegar=zg)
+        self.assertIs(out['ok']['fx'], True, 'kurs wymiany pobrany mimo zawieszonego Upbitu'); self.assertEqual(out['fx']['src'], 'ecb')
+        self.assertEqual(len(eb.urls), 1); self.assertFalse(any('kurs wymiany pominięty' in n for n in zd.META['notes']), zd.META['notes'])
+        self.assertIs(out['ok']['up'], False); self.assertEqual(len(self._calls(rk)), zd.PR_UP_TRIES)
+
+    def test_rzadsze_odpytywanie_po_awarii(self):
+        prev = self._prev()
+        t1 = self.NOW + datetime.timedelta(minutes=20)
+        bad = lambda: self.rk(fail=lambda u: self._tm() if 'upbit' in u else None)   # noqa: E731
+        o1 = self.bp(bad(), self.ebc(), prev, now=t1)
+        self.assertEqual((o1['up_s']['n'], o1['up_s']['try'], o1['up_s']['od']), (1, t1.replace(microsecond=0).isoformat(), t1.replace(microsecond=0).isoformat()))
+        for dm in (10, 20, 29):   # w przerwie: ani jednego zapytania do Upbitu, odczyt Korei zostaje, stan bez zmian
+            rk = self.rk()
+            o = self.bp(rk, self.ebc(), o1, now=t1 + datetime.timedelta(minutes=dm))
+            self.assertEqual(self._calls(rk), [], f'przerwa {dm} min'); self.assertIs(o['ok']['up'], False)
+            self.assertEqual(o['up_s'], o1['up_s']); self.assertEqual(o['bledy']['up'], o1['bledy']['up']); self.assertIs(o['now']['kr']['stale'], True)
+            self.assertIs(o['now']['cb']['stale'], False, 'USA działa normalnie'); self.assertEqual(zd.META['errors'], [])
+        rk = self.rk(fail=lambda u: self._tm() if 'upbit' in u else None)
+        o2 = self.bp(rk, self.ebc(), o1, now=t1 + datetime.timedelta(minutes=30))
+        self.assertEqual(len(self._calls(rk)), zd.PR_UP_TRIES, 'po przerwie nowa próba'); self.assertEqual((o2['up_s']['n'], o2['up_s']['od']), (2, o1['up_s']['od']))
+        rk = self.rk()
+        o3 = self.bp(rk, self.ebc(), o2, now=t1 + datetime.timedelta(minutes=60))
+        self.assertIs(o3['ok']['up'], True); self.assertNotIn('up_s', o3, 'po odpowiedzi stan przerwy znika'); self.assertNotIn('up', o3['bledy'])
+        self.assertEqual(zd.META['errors'], [])
+
+    def test_blad_dopiero_po_dluzszym_zastoju(self):
+        """Pojedyncze i krótkie awarie = uwaga w notatkach (nie błąd); błąd po PR_UP_ERR_H h bez odpowiedzi i PR_UP_ERR_N próbach."""
+        prev = self._prev()
+        t0 = self.NOW + datetime.timedelta(minutes=20)
+        bad = lambda: self.rk(fail=lambda u: self._tm() if 'upbit' in u else None)   # noqa: E731
+        o, t = prev, t0
+        blad_o = None
+        while t - self.NOW < datetime.timedelta(hours=zd.PR_UP_ERR_H + 2):
+            zd.META['errors'].clear(); zd.META['notes'].clear()
+            o = self.bp(bad(), self.ebc(), o, now=t)
+            if any('Upbit' in e for e in zd.META['errors']) and blad_o is None:
+                blad_o = t - datetime.datetime.fromisoformat(prev['part_at']['up'])
+            t += datetime.timedelta(minutes=10)
+        self.assertIsNotNone(blad_o, 'dłuższy zastój kończy się błędem')
+        self.assertGreaterEqual(blad_o, datetime.timedelta(hours=zd.PR_UP_ERR_H)); self.assertLess(blad_o, datetime.timedelta(hours=zd.PR_UP_ERR_H, minutes=zd.PR_UP_PAUSE + 20))
+        self.assertTrue(any('Upbit' in e and 'brak odpowiedzi od' in e for e in zd.META['errors']), zd.META['errors'])
+        self.assertGreaterEqual(o['up_s']['n'], zd.PR_UP_ERR_N)
+        # krótka awaria: uwaga w notatkach, bez błędu
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        o = self.bp(bad(), self.ebc(), prev, now=t0)
+        self.assertEqual(zd.META['errors'], []); self.assertTrue(any('Upbit' in n and 'błąd dopiero po' in n for n in zd.META['notes']), zd.META['notes'])
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        self.bp(self.rk(), self.ebc(), o, now=t0 + datetime.timedelta(minutes=10))
+        self.assertTrue(any('przerwa po awarii' in n for n in zd.META['notes']))
+        self.assertEqual(zd.META['errors'], [])
+
+    def test_awarie_nieprzejsciowe_bez_zmian(self):
+        """HTTP 403 i zła treść odpowiedzi to od razu błąd (jak dotąd), bez przerwy i bez stanu up_s; limit zapytań 429 — przerwa giełdy jak dotąd."""
+        import urllib.error as _ue
+        prev = self._prev()
+        later = self.NOW + datetime.timedelta(minutes=20)
+        zd.META['errors'].clear()
+        o = self.bp(self.rk(fail=lambda u: _ue.HTTPError(u, 403, 'x', {}, None) if 'upbit' in u else None), self.ebc(), prev, now=later)
+        self.assertNotIn('up_s', o); self.assertEqual(len(zd.META['errors']), 1); self.assertIn('Upbit', zd.META['errors'][0])
+        zd.META['errors'].clear()
+        o = self.bp(self.rk(fail=lambda u: _ue.HTTPError(u, 429, 'x', {}, None) if 'upbit' in u else None), self.ebc(), prev, now=later)
+        self.assertNotIn('up_s', o); self.assertIn('up', o['blok']); self.assertEqual(len(zd.META['errors']), 1)
+
+    def test_zepsuty_stan_ignorowany(self):
+        prev = self._prev()
+        later = self.NOW + datetime.timedelta(minutes=20)
+        for zly in ({'od': 'x', 'try': 'y', 'n': 1}, {'od': later.isoformat(), 'try': later.isoformat(), 'n': 0}, {'od': later.isoformat(), 'try': later.isoformat(), 'n': True},
+                    'tekst', [], None):
+            rk = self.rk()
+            o = self.bp(rk, self.ebc(), dict(prev, up_s=zly), now=later)
+            self.assertEqual(len(self._calls(rk)), 3, repr(zly)); self.assertIs(o['ok']['up'], True); self.assertNotIn('up_s', o)
+
+    def test_kontrola_zrodlo(self):
+        """Stałe i kolejność w kodzie: Upbit ma własny limit krótszy od ogólnego, kurs wymiany liczony przed odczytem Upbitu."""
+        import inspect
+        src = inspect.getsource(zd._pr_build)
+        self.assertLess(src.index('_pr_fx('), src.index('L[part] = fn(now, cnt)'))
+        self.assertGreaterEqual(zd.PR_UP_TRIES, 2); self.assertEqual(zd.PR_UP_PAUSE, 30); self.assertEqual(zd.PR_UP_ERR_H, 6)
