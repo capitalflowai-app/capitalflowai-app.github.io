@@ -14045,6 +14045,184 @@ def iip_kontrola(files, now=None):
     return {'spojnosc': zle, 'wiersze': wiersze, 'uwagi': uwagi}
 
 
+# ---------------------------------------------------------------- v445 (F11Z31): USA — PAKIET MAŁYCH (data/usa-pakiet.json) --------------------
+# Plik: cztery części (hh zadłużenie gospodarstw, pm stopy hipoteczne, tp niepewność handlowa, ts przewozy), każda z własnym czasem pobrania (pole t); rytm zbieracza: pm i tp co 6 h, hh i ts co 12 h
+# (po błędzie ponowienie po 1 h). Wiersze świeżości (najwyżej ⚠️): (1) pobranie części: pm i tp ≤ 24 h, hh i ts ≤ 36 h (symulacja co 10 minut przez 30 dób w test_zbieraj_dane: największy wiek pobrania
+# bez awarii = rytm, z 12-godzinną awarią źródła = rytm + 12 h — poniżej progów, 0 fałszywych ⚠️); (2) wiek danych: pm ≤ 14 dni (test wsteczny na pliku z 5 lat: odstęp między tygodniami 6–8 dni, największy 8),
+# tp ≤ 3 dni (plik dzienny bez przerw: odstęp 1 dzień; powstaje o 23:56 UTC), ts ≤ 120 dni od końca miesiąca (miesiąc M pojawia się w połowie M+2, więc największy wiek tuż przed kolejnym ≈ 75–80 dni),
+# hh ≤ 190 dni od końca kwartału (raport za kwartał K w połowie drugiego miesiąca po nim, kolejny po ~92 dniach: największy wiek tuż przed kolejnym ≈ 135 dni). Progi dat danych z cyklu publikacji; bez ❌.
+# Spójność w pliku (⚠️): hh — kwartały rosnące, ostatni = q, end = koniec kwartału, razem = suma rodzajów (0,5%), zakresy; pm — stopa w zakresie, historia rosnąca i kończąca się bieżącym wierszem,
+# zmiana tygodniowa zgodna z historią, zakres 52 tygodni obejmuje bieżącą stopę; tp — wartości dodatnie, historia kończy się bieżącą średnią; ts — miesiące kolejne, wskaźniki w zakresie, razem między towarami a pasażerami.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'usa-pakiet')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['usa-pakiet'] = 18 * 60   # plik zapisywany przy każdej próbie pobrania (co ~6 h, po błędzie co 1 h) — wiek pliku; wiek pobrania każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'usp_' + p_: 'USA pakiet — część z błędem zostaje z datą (v445); wiek danych w wierszach świeżości' for p_ in ('hh', 'pm', 'tp', 'ts')})
+UPK_ETYKIETA = {'hh': 'USA zadłużenie gospodarstw', 'pm': 'USA stopy hipoteczne', 'tp': 'USA niepewność handlowa', 'ts': 'USA przewozy'}
+UPK_POBR_MIN = {'hh': 36 * 60, 'pm': 24 * 60, 'tp': 24 * 60, 'ts': 36 * 60}    # min — wiek pobrania części, powyżej ⚠️
+UPK_DATA_MIN = {'hh': 190 * 24 * 60, 'pm': 14 * 24 * 60, 'tp': 3 * 24 * 60, 'ts': 120 * 24 * 60}   # min — wiek danych (od końca dnia / miesiąca), powyżej ⚠️
+_UPK_Q = re.compile(r'^\d{4}-Q[1-4]$')
+_UPK_M = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+
+
+def upk_q_koniec(q):
+    """'2026-Q2' → '2026-06-30' (ostatni dzień kwartału) albo None."""
+    m = re.match(r'^(\d{4})-Q([1-4])$', q) if isinstance(q, str) else None
+    if not m:
+        return None
+    y, k = int(m.group(1)), int(m.group(2))
+    return (dt.date(y + (k == 4), k * 3 % 12 + 1, 1) - dt.timedelta(days=1)).isoformat()
+
+
+def upk_dzien(d):
+    return isinstance(d, str) and len(d) == 10 and _ix_dt_k(d + 'T00:00:00Z') is not None
+
+
+def upk_seria(S, ile, dl, klucz):
+    """Wiersze długości dl, których pierwszy element spełnia `klucz`, ściśle rosnące, niepuste, nie więcej niż ile; zwraca opis usterki albo ''."""
+    if not isinstance(S, list) or not S:
+        return 'brak serii'
+    if any(not (isinstance(r, list) and len(r) == dl and klucz(r[0])) for r in S):
+        return 'zły kształt wiersza'
+    k = [r[0] for r in S]
+    if k != sorted(set(k)):
+        return 'etykiety nie rosną albo się powtarzają'
+    return f'więcej niż {ile} wierszy' if len(S) > ile else ''
+
+
+def upk_hh(P):
+    zle = []
+    q = P.get('q')
+    if not (isinstance(q, str) and _UPK_Q.match(q)):
+        return ['hh: zły kwartał']
+    if P.get('end') != upk_q_koniec(q):
+        zle.append('hh: end ≠ koniec kwartału q')
+    for k, dl, lo, hi in (('dl', 8, 0, 100), ('dq', 8, 0, 100), ('fc', 3, 0, 100000)):
+        s = upk_seria(P.get(k), 21, dl, lambda x: isinstance(x, str) and bool(_UPK_Q.match(x)))
+        if s:
+            zle.append(f'hh.{k}: {s}'); continue
+        S = P[k]
+        if S[-1][0] != q:
+            zle.append(f'hh.{k}: ostatni kwartał ≠ q')
+        if any(not _euk_num(v, lo, hi) for r in S for v in r[1:]):
+            zle.append(f'hh.{k}: liczba poza zakresem')
+        elif k == 'dl' and any(abs(sum(r[1:7]) - r[7]) > 0.005 * r[7] + 0.002 or r[7] <= 0 for r in S):
+            zle.append('hh.dl: razem ≠ suma rodzajów długu')
+    return zle
+
+
+def upk_pm(P):
+    zle = []
+    d = P.get('date')
+    if not upk_dzien(d) or not _euk_num(P.get('p30'), 0.01, 25):
+        return ['pm: zła data albo stopa 30-letnia']
+    if P.get('p15') is not None and not _euk_num(P.get('p15'), 0.01, 25):
+        zle.append('pm: stopa 15-letnia poza zakresem')
+    H = P.get('hist')
+    s = upk_seria(H, 105, 3, upk_dzien)
+    if s:
+        zle.append('pm.hist: ' + s)
+    else:
+        if H[-1] != [d, P['p30'], P.get('p15')]:
+            zle.append('pm.hist: ostatni punkt to nie dane bieżące')
+        if any(not ((r[1] is None or _euk_num(r[1], 0.01, 25)) and (r[2] is None or _euk_num(r[2], 0.01, 25))) for r in H):
+            zle.append('pm.hist: stopa poza zakresem')
+        if len(H) >= 2 and H[-2][1] is not None and 5 <= (dt.date.fromisoformat(d) - dt.date.fromisoformat(H[-2][0])).days <= 9:
+            if not _euk_num(P.get('d1_30'), -25, 25) or abs(P['d1_30'] - (P['p30'] - H[-2][1])) > 0.011:
+                zle.append('pm: zmiana tygodniowa niezgodna z historią')
+    for k in ('lo52', 'hi52'):
+        v = P.get(k)
+        if not (isinstance(v, list) and len(v) == 2 and _euk_num(v[0], 0.01, 25) and upk_dzien(v[1])):
+            zle.append(f'pm.{k}: zły kształt')
+    if not zle and not (P['lo52'][0] <= P['p30'] <= P['hi52'][0]):
+        zle.append('pm: zakres 52 tygodni nie obejmuje bieżącej stopy')
+    if P.get('p5') is not None and not _euk_num(P['p5'], 0, 100):
+        zle.append('pm: percentyl poza 0–100')
+    return zle
+
+
+def upk_tp(P):
+    zle = []
+    d = P.get('date')
+    if not upk_dzien(d) or not _euk_num(P.get('v'), 0.01, 20000) or not _euk_num(P.get('ma30'), 0.01, 20000):
+        return ['tp: zła data albo wartość']
+    H = P.get('hist')
+    s = upk_seria(H, 365, 2, upk_dzien)
+    if s:
+        zle.append('tp.hist: ' + s)
+    elif H[-1] != [d, P['ma30']]:
+        zle.append('tp.hist: ostatni punkt to nie dane bieżące')
+    elif any(not _euk_num(r[1], 0.01, 20000) for r in H):
+        zle.append('tp.hist: wartość poza zakresem')
+    if P.get('p') is not None and not _euk_num(P['p'], 0, 100):
+        zle.append('tp: percentyl poza 0–100')
+    if P.get('d30') is not None and not _euk_num(P['d30'], -20000, 20000):
+        zle.append('tp: zmiana 30 dni poza zakresem')
+    return zle
+
+
+def upk_ts(P):
+    zle = []
+    R = P.get('rows')
+    s = upk_seria(R, 25, 4, lambda x: isinstance(x, str) and bool(_UPK_M.match(x)))
+    if s:
+        return ['ts: ' + s]
+    if P.get('m') != R[-1][0]:
+        zle.append('ts: m ≠ ostatni miesiąc')
+    for a, b in zip(R, R[1:]):
+        y, m = int(a[0][:4]), int(a[0][5:])
+        if b[0] != f'{y + (m == 12):04d}-{m % 12 + 1:02d}':
+            zle.append('ts: miesiące nie są kolejne'); break
+    for r in R:
+        if any(not _euk_num(v, 50, 300) for v in r[1:]):
+            zle.append(f'ts: wskaźnik poza zakresem ({r[0]})'); break
+        if not (min(r[1], r[2]) - 0.5 <= r[3] <= max(r[1], r[2]) + 0.5):
+            zle.append(f'ts: razem poza przedziałem towary–pasażerowie ({r[0]})'); break
+    return zle
+
+
+def upk_kontrola(j, now=None):
+    """data/usa-pakiet.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    for part, spr, kind, pole in (('hh', upk_hh, 'day', 'end'), ('pm', upk_pm, 'day', 'date'), ('tp', upk_tp, 'day', 'date'), ('ts', upk_ts, 'month', 'm')):
+        K = j.get(part) if isinstance(j.get(part), dict) else None
+        lab = UPK_ETYKIETA[part]
+        if K is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od dłuższego czasu)')
+            continue
+        zle += spr(K)
+        w = wiek_danych(K.get('t'), 'ts', 'k', now)
+        if w is None:
+            out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak czasu pobrania'))
+        else:
+            st = '⚠️' if w > UPK_POBR_MIN[part] else '✅'
+            dane = str(K.get('t'))[:16].replace('T', ' ') + ' UTC'
+            note = '' if st == '✅' else 'pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga'
+            out['rows'].append((lab + ' (pobranie)', st, w, dane, note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (pobranie): {dane} — {fmt_wiek(w)} temu ({note})')
+        dd = K.get(pole)
+        wd = wiek_danych(dd, kind, 'k', now) if (upk_dzien(dd) if kind == 'day' else (isinstance(dd, str) and bool(_UPK_M.match(dd)))) else None
+        if wd is None:
+            out['rows'].append((lab + ' (data danych)', '?', None, None, 'brak daty danych'))
+        else:
+            st = '⚠️' if wd > UPK_DATA_MIN[part] else '✅'
+            note = '' if st == '✅' else 'dane starsze niż wynika z cyklu publikacji — źródło nie publikuje albo zbieracz czyta stary plik; najwyżej uwaga'
+            out['rows'].append((lab + ' (data danych)', st, wd, str(dd), note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (data danych): {dd} — {fmt_wiek(wd)} temu ({note})')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'USA pakiet (usa-pakiet.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in ('hh', 'pm', 'tp', 'ts')):
+        out['wiersze'].append(('spójność pliku (zadłużenie, stopy hipoteczne, niepewność handlowa, przewozy)', '⚠️' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -14898,6 +15076,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['iip'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Wierzyciele i dłużnicy świata (v431): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v445. USA pakiet małych (data/usa-pakiet.json): wiek pobrania i danych każdej części, spójność w pliku — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        UP_ = upk_kontrola(files.get('usa-pakiet'))
+        for label, st, w, txt, note in UP_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += UP_['uwagi']
+        R['zgodnosc']['usa-pakiet'] = {'spojnosc': UP_['spojnosc'], 'wiersze': UP_['wiersze']} if (UP_['rows'] or UP_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['usa-pakiet'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'USA pakiet (v445): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -15596,6 +15784,11 @@ def raport_md(R):
             L.append('- Sektory krypto i Top 10 w scenie CRYPTO (z plików strony; kontrola tylko raportuje, niczego nie zmienia): ' + (f'? kontrola przerwana ({skt_["blad"]})' if skt_.get('blad') else
                      ('uwagi: ' + '; '.join(skt_['spojnosc'][:4]) + ' ⚠️ · ' if skt_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in skt_.get('wiersze') or []) or '—') + '.')
+        sup_ = Z.get('usa-pakiet')   # v445: USA pakiet małych — brak pliku = bez linii
+        if sup_:
+            L.append('- USA: zadłużenie gospodarstw, stopy hipoteczne, niepewność handlowa i przewozy (z pliku strony): ' + (f'? kontrola przerwana ({sup_["blad"]})' if sup_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(sup_['spojnosc'][:3]) + ' ⚠️ · ' if sup_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in sup_.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else

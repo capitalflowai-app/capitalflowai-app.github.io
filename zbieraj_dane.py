@@ -33192,6 +33192,8 @@ def main():
     META['ok']['skarbce_btc'], META['ok']['skarbce_eth'], META['ok']['skarbce_sec'] = kf_czesc(cg_key, sec_contact)
     # v430 (F11Z29): ropa świata — bilans krajów (wydobycie, przerób, handel, zapasy) i zapasy ropy i paliw w Europie — data/ropa-swiat.json; bez kluczy, części raz na ~dobę, duże pliki roczne tylko po zmianie
     META['ok']['ropa_kr'], META['ok']['ropa_eu'] = rop_czesc()
+    # v445 (F11Z31): USA — pakiet małych (zadłużenie gospodarstw, stopy hipoteczne, niepewność handlowa, przewozy) — data/usa-pakiet.json; bez kluczy, części co 6 h (pm, tp) i 12 h (hh, ts)
+    META['ok']['usp_hh'], META['ok']['usp_pm'], META['ok']['usp_tp'], META['ok']['usp_ts'] = up_czesc()
     # v429 (F11Z28): krótka sprzedaż w Europie (pozycje netto w spółkach w Wielkiej Brytanii i w Szwecji) — data/short-eu.json; bez klucza, dwie części raz na ~6 h (po błędzie co 1 h)
     META['ok']['short_uk'], META['ok']['short_se'] = sh_czesc()
     # v121: stres finansowy USA (indeks stresu — bez klucza) i put/call (tylko z pisemną zgodą giełdy: CBOE_ZGODA) — co 6 h; część z błędem
@@ -47557,6 +47559,376 @@ def rop_czesc():
 
 
 ZRODLA_META.update({'ropa_kr': 'jodi', 'ropa_eu': 'eurostat'})   # v430: baza danych o ropie (+1 źródło); urząd statystyczny UE już liczony
+
+
+# ===================== v445 (F11Z31): USA — PAKIET MAŁYCH: ZADŁUŻENIE GOSPODARSTW, HIPOTEKI, NIEPEWNOŚĆ HANDLOWA, PRZEWOZY (data/usa-pakiet.json) =====================
+# Cztery niezależne części, każda z własnym czasem pobrania (pole t w części), rytmem i zapasem po błędzie (plik zostaje z poprzednią częścią, najwyżej UP_MAX_D dób):
+#   hh — raport kwartalny o zadłużeniu gospodarstw domowych (Fed w Nowym Jorku, plik .xlsx z kwartałem w adresie): saldo długu wg rodzajów, udział zaległości 90+ dni, nowe egzekucje i upadłości;
+#        adres kolejnego kwartału sprawdzany co UP_CO_H h (kandydaci: do 3 ostatnich zakończonych kwartałów NOWSZYCH niż w pliku); odpowiedź bez nagłówka zip („PK”) = raportu jeszcze nie ma (strona zastępcza), nie błąd;
+#   pm — cotygodniowa ankieta o oprocentowaniu kredytów hipotecznych (Freddie Mac, plik CSV od 1971): stopa 30- i 15-letnia, zmiana tydzień/4 tygodnie/rok, zakres 52 tygodni, percentyl z 5 lat, historia 105 tygodni;
+#   tp — dzienny indeks niepewności polityki handlowej USA (policyuncertainty.com): ostatni dzień, średnia 30 dni, zmiana wobec 30 dni wcześniej, percentyl z 5 lat, średnia 30 dni z roku;
+#   ts — Transportation Services Index (BTS, miesięczny, API Socrata): towary, pasażerowie, razem; 25 miesięcy (zmiana m/m i r/r liczone ze stanów).
+# Brak = brak (nigdy zero): wiersz bez liczby jest pomijany, ostatni wiersz bez liczby = błąd części. Publiczne GET bez klucza, nagłówek zbieracza, limit czasu i rozmiaru, odstęp UP_SLEEP s.
+# Źródła na stronie: Fed w Nowym Jorku (już liczony: ny-fed) i policyuncertainty (już liczony) + dwa nowe (freddie-mac, bts) — liczba źródeł rośnie o 2. To nie jest porada inwestycyjna.
+UP_V = 1
+UP_PARTS = ('hh', 'pm', 'tp', 'ts')
+UP_CO_H = {'hh': 12, 'pm': 6, 'tp': 6, 'ts': 12}    # h między pobraniami części (po błędzie UP_BLAD_H)
+UP_BLAD_H = 1
+UP_MAX_D = {'hh': 120, 'pm': 21, 'tp': 14, 'ts': 90}   # doby: część po błędzie zostaje z poprzedniego pliku najwyżej tak długo
+UP_SLEEP = 0.5
+UP_TIMEOUT = 60
+UP_HH_URL = 'https://www.newyorkfed.org/medialibrary/interactives/householdcredit/data/xls/HHD_C_Report_{y}Q{q}.xlsx'
+UP_PM_URL = 'https://www.freddiemac.com/pmms/docs/PMMS_history.csv'
+UP_TP_URL = 'https://policyuncertainty.com/media/All_Daily_TPU_Data.csv'
+UP_TS_URL = 'https://data.bts.gov/resource/bw6n-ddqk.json?$limit=30&$order=obs_date%20DESC'
+UP_MAX_B = {'hh': 6_000_000, 'pm': 1_000_000, 'tp': 2_000_000, 'ts': 1_000_000}
+UP_HH_N = 21               # kwartałów w pliku (5 lat + kwartał sprzed 5 lat; zmiana r/r z kwartału o 4 wcześniejszego)
+UP_HH_MIN = 40             # kwartałów w arkuszu (w 2026 jest ich 96 od 2003); mniej = odpowiedź obcięta
+UP_HH_SHEETS = {'dl': ('Page 3 Data', ('Mortgage', 'HE Revolving', 'Auto Loan', 'Credit Card', 'Student Loan', 'Other', 'Total')),
+                'dq': ('Page 12 Data', ('MORTGAGE', 'HELOC', 'AUTO', 'CC', 'STUDENT LOAN', 'OTHER', 'ALL')),
+                'fc': ('Page 17 Data', ('foreclosure', 'bankruptcy'))}
+UP_PM_HIST = 105           # tygodni w wykresie (ok. 2 lata)
+UP_PM_WIN = 260            # tygodni okna percentyla (5 lat)
+UP_PM_WIN_MIN = 240
+UP_PM_MIN_ROWS = 2000      # w 2026: 2,9 tys. tygodni od 1971
+UP_PM_MAX = 25.0
+UP_TP_HEAD = 'day,month,year,daily_tpu_index'
+UP_TP_MAX = 20000.0        # największy dzień w danych od 1985: 8032 (03.2025)
+UP_TP_MIN_ROWS = 5000      # w 2026: 15,3 tys. dni
+UP_TP_WIN = 1826           # dni okna percentyla średniej 30 dni (5 lat)
+UP_TP_WIN_MIN = 1700
+UP_TP_HIST = 365
+UP_TP_MA = 30
+UP_TP_MA_MIN = 27
+UP_TS_N = 25               # miesięcy w pliku (24 zmiany m/m, 13 do zmiany r/r)
+UP_TS_MIN = 13
+UP_TSI_LO, UP_TSI_HI = 50.0, 300.0   # sensowny zakres wskaźnika (2000 = 100; w 2024–2026: 125–140)
+UP_SRC = ('zadłużenie gospodarstw domowych USA (raport kwartalny), oprocentowanie kredytów hipotecznych (cotygodniowa ankieta), dzienny indeks niepewności polityki handlowej USA '
+          'i miesięczny wskaźnik usług transportowych USA — publiczne pliki urzędów i instytutów')
+_UP_RE_Q = re.compile(r'^(\d\d):Q([1-4])$')
+
+
+def up_q_koniec(q):
+    """'2026-Q2' → '2026-06-30' (ostatni dzień kwartału) albo None."""
+    m = re.match(r'^(\d{4})-Q([1-4])$', q) if isinstance(q, str) else None
+    if not m:
+        return None
+    y, k = int(m.group(1)), int(m.group(2))
+    return (datetime.date(y + (k == 4), k * 3 % 12 + 1, 1) - datetime.timedelta(days=1)).isoformat()
+
+
+def up_hh_kandydaci(teraz, pq=None):
+    """Kwartały, w których może już leżeć raport, od najnowszego: trzy ostatnie ZAKOŃCZONE kwartały wobec `teraz`; z `pq` (kwartał w pliku, 'RRRR-Qn') tylko nowsze od niego."""
+    d = _ix_dt(teraz)
+    if d is None:
+        return []
+    y, q = d.year, (d.month - 1) // 3 + 1
+    out = []
+    for _ in range(3):
+        q -= 1
+        if q == 0:
+            y, q = y - 1, 4
+        out.append((y, q))
+    return [c for c in out if not pq or f'{c[0]}-Q{c[1]}' > pq]
+
+
+def up_hh_arkusz(data, arkusz, glowa):
+    """Arkusz raportu → [(kwartał 'RRRR-Qn', [liczby albo None]…)] rosnąco. Nagłówek (wiersz 4, kolumny od B) dokładnie `glowa`, kwartały ściśle rosnące, co najmniej UP_HH_MIN wierszy."""
+    rows = _xlsx_rows(data, arkusz)
+    h = rows.get(4) or {}
+    if [h.get(c) for c in range(2, 2 + len(glowa))] != list(glowa):
+        raise RuntimeError(f'zadłużenie gospodarstw: arkusz „{arkusz}” ma inny nagłówek niż oczekiwany')
+    out = []
+    for r in sorted(rows):
+        m = _UP_RE_Q.match(rows[r].get(1, ''))
+        if m:
+            out.append((f'20{m.group(1)}-Q{m.group(2)}', [_num(rows[r].get(c)) for c in range(2, 2 + len(glowa))]))
+    qs = [q for q, _v in out]
+    if qs != sorted(set(qs)) or len(out) < UP_HH_MIN:
+        raise RuntimeError(f'zadłużenie gospodarstw: arkusz „{arkusz}” — kwartały nie rosną albo odpowiedź obcięta ({len(out)} wierszy)')
+    return out
+
+
+def up_hh_czesc(data):
+    """Plik .xlsx raportu → część 'hh' {q, end, dl, dq, fc}: dl = [[kwartał, hipoteki, linie pod zastaw domu, auto, karty, studia, inne, razem]] (bln USD), dq = udział salda zaległego 90+ dni (%) w tych samych
+    rodzajach (ostatni: wszystkie), fc = [[kwartał, egzekucje, upadłości]] (tys. konsumentów w kwartale). Ostatni kwartał musi być ten sam w trzech arkuszach i pełny; starszy wiersz z brakującą liczbą jest pomijany."""
+    A = {k: up_hh_arkusz(data, a, g) for k, (a, g) in UP_HH_SHEETS.items()}
+    q = A['dl'][-1][0]
+    if A['dq'][-1][0] != q or A['fc'][-1][0] != q:
+        raise RuntimeError('zadłużenie gospodarstw: arkusze mają różny ostatni kwartał')
+    lim = {'dl': (0.0, 100.0, 4), 'dq': (0.0, 100.0, 2), 'fc': (0.0, 100000.0, 2)}
+    out = {}
+    for k, L in A.items():
+        lo, hi, dec = lim[k]
+        rows = []
+        for qq, vv in L[-UP_HH_N:]:
+            if any(v is None for v in vv):
+                if qq == q:
+                    raise RuntimeError(f'zadłużenie gospodarstw: ostatni kwartał {q} ma brakującą liczbę ({k})')
+                continue
+            if any(not (lo <= v <= hi) or (k == 'dl' and v <= 0) for v in vv):
+                raise RuntimeError(f'zadłużenie gospodarstw: liczba poza zakresem ({k}, {qq})')
+            rows.append([qq] + [round(v, dec) for v in vv])
+        out[k] = rows
+    for r in out['dl']:
+        if abs(sum(r[1:7]) - r[7]) > 0.005 * r[7] + 0.002:
+            raise RuntimeError(f'zadłużenie gospodarstw: suma rodzajów długu ≠ razem ({r[0]})')
+    return {'q': q, 'end': up_q_koniec(q), 'unit': 'dl: bln USD (stan na koniec kwartału: hipoteki, linie pod zastaw domu, auto, karty, studia, inne, razem); dq: % salda zaległego 90+ dni (te same rodzaje, na końcu wszystkie); '
+            'fc: tys. konsumentów z nową egzekucją i z nową upadłością w kwartale', **out}
+
+
+def up_hh_job(prev_part, teraz):
+    """Najnowszy raport kwartalny: adresy kolejnych kwartałów od najnowszego; odpowiedź 403/404 albo bez nagłówka zip = jeszcze nie ma. Brak nowszego raportu = poprzednia część bez zmian (nie błąd);
+    brak raportu i brak poprzedniej części = błąd."""
+    pq = prev_part.get('q') if isinstance(prev_part, dict) else None
+    for y, q in up_hh_kandydaci(teraz, pq):
+        try:
+            b = up_pobierz(UP_HH_URL.format(y=y, q=q), UP_MAX_B['hh'])
+        except urllib.error.HTTPError as e:
+            if e.code in (403, 404):
+                continue
+            raise
+        if b[:2] != b'PK':
+            continue
+        o = up_hh_czesc(b)
+        if o['q'] != f'{y}-Q{q}':
+            raise RuntimeError(f'zadłużenie gospodarstw: kwartał w pliku ({o["q"]}) ≠ kwartał z adresu ({y}-Q{q})')
+        return o
+    if isinstance(prev_part, dict) and pq:
+        return prev_part
+    raise RuntimeError('zadłużenie gospodarstw: brak raportu w trzech ostatnich kwartałach')
+
+
+def up_pm_wiersze(text):
+    """Plik CSV ankiety → [(dzień ISO, stopa 30-letnia, stopa 15-letnia)] rosnąco; stopa spoza (0, UP_PM_MAX] albo pusta = None (brak). Nagłówek, daty ściśle rosnące i co najmniej UP_PM_MIN_ROWS wierszy."""
+    lines = [l.strip() for l in str(text).lstrip('\ufeff').splitlines() if l.strip()]
+    if not lines or not lines[0].lower().startswith('date,pmms30,pmms30p,pmms15,'):
+        raise ValueError('nagłówek pliku stóp hipotecznych inny niż oczekiwany')
+    out, prev = [], None
+    for l in lines[1:]:
+        p = l.split(',')
+        if len(p) < 4:
+            raise ValueError('zły wiersz pliku stóp hipotecznych')
+        try:
+            d = datetime.datetime.strptime(p[0].strip(), '%m/%d/%Y').date()
+        except ValueError:
+            raise ValueError('zła data w pliku stóp hipotecznych') from None
+        if prev is not None and d <= prev:
+            raise ValueError('daty w pliku stóp hipotecznych nie rosną')
+        prev = d
+        a, b = _num(p[1]), _num(p[3])
+        out.append((d.isoformat(), a if a is not None and 0 < a <= UP_PM_MAX else None, b if b is not None and 0 < b <= UP_PM_MAX else None))
+    if len(out) < UP_PM_MIN_ROWS:
+        raise ValueError(f'plik stóp hipotecznych obcięty ({len(out)} wierszy)')
+    return out
+
+
+def up_pm_czesc(rows):
+    """Wiersze ankiety → część 'pm' {date, p30, p15, d1_*, w4_*, y1_*, p5, lo52, hi52, hist}. Zmiany względem wiersza najbliższego (7 dni ±2, 28 ±3, 364 ±5 dni wcześniej); brak takiego wiersza = None.
+    p5 = percentyl stopy 30-letniej w ostatnich UP_PM_WIN tygodniach (okno krótsze niż UP_PM_WIN_MIN = None); lo52/hi52 = [stopa, dzień] najniższa i najwyższa z 52 tygodni."""
+    last = rows[-1]
+    if last[1] is None:
+        raise RuntimeError('stopy hipoteczne: ostatni tydzień bez stopy 30-letniej')
+    dd = datetime.date.fromisoformat
+    t0 = dd(last[0])
+    tail = rows[-70:]
+
+    def ref(dni, tol, k):
+        cel = t0 - datetime.timedelta(days=dni)
+        best = None
+        for r in tail:
+            diff = abs((dd(r[0]) - cel).days)
+            if r[k] is not None and diff <= tol and (best is None or diff <= best[0]):
+                best = (diff, r[k])
+        return best[1] if best else None
+
+    def zm(dni, tol, k):
+        a, b = last[k], ref(dni, tol, k)
+        return round(a - b, 2) if a is not None and b is not None else None
+    win = [r[1] for r in rows[-UP_PM_WIN:] if r[1] is not None]
+    r52 = [r for r in tail if r[1] is not None and (t0 - dd(r[0])).days <= 364]
+    lo = min(r52, key=lambda r: (r[1], r[0]))
+    hi = max(r52, key=lambda r: (r[1], r[0]))
+    return {'date': last[0], 'p30': round(last[1], 2), 'p15': round(last[2], 2) if last[2] is not None else None,
+            'd1_30': zm(7, 2, 1), 'd1_15': zm(7, 2, 2), 'w4_30': zm(28, 3, 1), 'w4_15': zm(28, 3, 2), 'y1_30': zm(364, 5, 1), 'y1_15': zm(364, 5, 2),
+            'p5': round(ns_pct(win, last[1]), 1) if len(win) >= UP_PM_WIN_MIN else None, 'lo52': [round(lo[1], 2), lo[0]], 'hi52': [round(hi[1], 2), hi[0]],
+            'hist': [[r[0], None if r[1] is None else round(r[1], 2), None if r[2] is None else round(r[2], 2)] for r in rows[-UP_PM_HIST:]]}
+
+
+def up_tp_wiersze(text):
+    """Plik CSV indeksu → [(dzień ISO, wartość albo None)] rosnąco. Nagłówek dokładnie UP_TP_HEAD, daty ściśle rosnące, co najmniej UP_TP_MIN_ROWS wierszy; wartość ≤ 0 (puste dni 1985) albo powyżej UP_TP_MAX = brak dnia."""
+    lines = [l.strip() for l in str(text).lstrip('\ufeff').splitlines() if l.strip()]
+    if not lines or lines[0].replace(' ', '').lower() != UP_TP_HEAD:
+        raise ValueError('nagłówek pliku niepewności handlowej inny niż oczekiwany')
+    out, prev = [], None
+    for l in lines[1:]:
+        p = l.split(',')
+        if len(p) != 4:
+            raise ValueError('zły wiersz pliku niepewności handlowej')
+        try:
+            d = datetime.date(int(p[2]), int(p[1]), int(p[0]))
+        except ValueError:
+            raise ValueError('zła data w pliku niepewności handlowej') from None
+        if prev is not None and d <= prev:
+            raise ValueError('daty w pliku niepewności handlowej nie rosną')
+        prev = d
+        v = _num(p[3])
+        out.append((d.isoformat(), v if v is not None and 0 < v <= UP_TP_MAX else None))
+    if len(out) < UP_TP_MIN_ROWS:
+        raise ValueError(f'plik niepewności handlowej obcięty ({len(out)} wierszy)')
+    return out
+
+
+def up_tp_czesc(rows):
+    """Wiersze indeksu → część 'tp' {date, v, ma30, d30, p, n, from, hist}: ma30 = średnia z 30 dni kalendarza kończących się w danym dniu (co najmniej UP_TP_MA_MIN dni z wartością), d30 = ma30 − ma30 sprzed
+    30 dni, p = percentyl ma30 w ostatnich UP_TP_WIN dniach (krótsze okno = None), hist = ostatnie UP_TP_HIST średnich. Ostatni dzień z wartością musi mieć średnią (inaczej błąd)."""
+    val = {}
+    for d, v in rows:
+        if v is not None:
+            val[datetime.date.fromisoformat(d).toordinal()] = float(v)
+    if not val:
+        raise RuntimeError('niepewność handlowa: brak dni z wartością')
+    last = max(val)
+    lo = last - UP_TP_WIN - UP_TP_MA - 5
+    pre_s, pre_c, s, c = {}, {}, 0.0, 0
+    for x in range(lo - 1, last + 1):
+        if x in val:
+            s += val[x]; c += 1
+        pre_s[x] = s; pre_c[x] = c
+
+    def ma(x):
+        if x - UP_TP_MA < lo - 1:
+            return None
+        n = pre_c[x] - pre_c[x - UP_TP_MA]
+        return (pre_s[x] - pre_s[x - UP_TP_MA]) / n if n >= UP_TP_MA_MIN else None
+    m_last = ma(last)
+    if m_last is None:
+        raise RuntimeError(f'niepewność handlowa: ostatni dzień nie ma średniej {UP_TP_MA} dni (za mało dni z wartością)')
+    ser = [(x, ma(x)) for x in range(last - UP_TP_WIN + 1, last + 1)]
+    ser = [(x, m) for x, m in ser if m is not None]
+    m_prev = ma(last - 30)
+    iso = lambda x: datetime.date.fromordinal(x).isoformat()
+    return {'date': iso(last), 'v': round(val[last], 2), 'ma30': round(m_last, 2), 'd30': round(m_last - m_prev, 2) if m_prev is not None else None,
+            'p': round(ns_pct([m for _x, m in ser], m_last), 1) if len(ser) >= UP_TP_WIN_MIN else None, 'n': len(ser), 'from': iso(ser[0][0]),
+            'hist': [[iso(x), round(m, 2)] for x, m in ser[-UP_TP_HIST:]]}
+
+
+def up_ts_czesc(j):
+    """Odpowiedź Socrata (lista rekordów miesięcznych) → część 'ts' {m, rows}: rows = [[miesiąc 'RRRR-MM', towary, pasażerowie, razem]] rosnąco, ostatnie UP_TS_N kolejnych miesięcy z kompletem trzech
+    wskaźników (wskaźnik spoza zakresu albo brak = miesiąc pominięty; ogon bez przerw). Mniej niż UP_TS_MIN miesięcy = błąd (nie ma z czego policzyć zmiany r/r)."""
+    if not isinstance(j, list):
+        raise RuntimeError('wskaźnik usług transportowych: odpowiedź nie jest listą')
+    by = {}
+    for r in j:
+        if not isinstance(r, dict):
+            continue
+        m = str(r.get('obs_date') or '')[:7]
+        if not re.match(r'^\d{4}-(0[1-9]|1[0-2])$', m):
+            continue
+        v = [_num(r.get(k)) for k in ('tsi_freight', 'tsi_passenger', 'tsi_total')]
+        if all(x is not None and UP_TSI_LO <= x <= UP_TSI_HI for x in v):
+            by[m] = [round(x, 1) for x in v]
+    ms = sorted(by)
+    tail = []
+    for m in reversed(ms):
+        if tail:
+            y, mo = int(m[:4]), int(m[5:])
+            ny, nm = (y + (mo == 12), mo % 12 + 1)
+            if f'{ny:04d}-{nm:02d}' != tail[-1]:
+                break   # przerwa w miesiącach — starsze dane odcięte
+        tail.append(m)
+        if len(tail) >= UP_TS_N:
+            break
+    tail.reverse()
+    if len(tail) < UP_TS_MIN:
+        raise RuntimeError(f'wskaźnik usług transportowych: tylko {len(tail)} kolejnych miesięcy (poniżej {UP_TS_MIN})')
+    return {'m': tail[-1], 'unit': 'wskaźnik (2000 = 100): towary, pasażerowie, razem; zmiany m/m i r/r liczone ze stanów', 'rows': [[m] + by[m] for m in tail]}
+
+
+def up_pobierz(url, maks):
+    """Jedyne miejsce sieci tego pliku (testy je łatają): zapytanie GET z odstępem, limitem czasu i rozmiaru → bajty."""
+    time.sleep(UP_SLEEP)
+    return get_bytes_maks(url, None, UP_TIMEOUT, maks)
+
+
+def up_job(n, prev_part, teraz):
+    """Odczyt jednej części z sieci → gotowa część pliku (z polem t = chwila pobrania)."""
+    if n == 'hh':
+        o = up_hh_job(prev_part, teraz)
+    elif n == 'pm':
+        o = up_pm_czesc(up_pm_wiersze(up_pobierz(UP_PM_URL, UP_MAX_B['pm']).decode('utf-8-sig')))
+    elif n == 'tp':
+        o = up_tp_czesc(up_tp_wiersze(up_pobierz(UP_TP_URL, UP_MAX_B['tp']).decode('utf-8-sig')))
+    else:
+        o = up_ts_czesc(json.loads(up_pobierz(UP_TS_URL, UP_MAX_B['ts']).decode('utf-8')))
+    o = dict(o)
+    o['t'] = teraz
+    return o
+
+
+def up_trzeba(czas, ok_prev, teraz, co_h):
+    """Czy część pobrać w tym przebiegu: brak czasu poprzedniego pobrania = tak; po błędzie co UP_BLAD_H h, inaczej co `co_h` h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    return (tn - tk).total_seconds() / 3600 >= (co_h if ok_prev else UP_BLAD_H)
+
+
+def up_zadania(pv, teraz):
+    """Które części pobrać w tym przebiegu → {część: bool}."""
+    ok, pat = (pv.get('ok') if isinstance(pv.get('ok'), dict) else {}), (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {})
+    return {n: (True if not isinstance(pv.get(n), dict) else up_trzeba(pat.get(n) or pv.get('at'), ok.get(n, True) is not False, teraz, UP_CO_H[n])) for n in UP_PARTS}
+
+
+def build_usa_pakiet(prev=None, zadania=None):
+    """v445: data/usa-pakiet.json {v, at, src, ok, part_at, hh, pm, tp, ts} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm) zostaje z poprzedniego pliku bez zmian; część po błędzie —
+    z poprzedniego pliku z własnym czasem (najwyżej UP_MAX_D dób), błąd do META['errors']. Żadna część w pliku = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == UP_V else {}
+    zad = zadania if zadania is not None else up_zadania(pv, NOW)
+    pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
+    out = {'v': UP_V, 'at': NOW, 'src': UP_SRC, 'ok': {}, 'part_at': {}}
+    st = {}
+    for n in UP_PARTS:
+        stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+        if not zad.get(n):
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+            else:
+                st[n] = 'cached'
+            continue
+        try:
+            out[n] = up_job(n, stara, NOW)
+            out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+        except Exception as e:  # noqa — jedna część nie psuje pozostałych
+            META['errors'].append(mask(f'USA pakiet: {n}: {e}')[:200])
+            out['ok'][n], st[n] = False, False
+            if stara is not None and _zapas_wiek_ok(pat0.get(n) or pv.get('at'), UP_MAX_D[n]):
+                out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
+    if not any(isinstance(out.get(n), dict) for n in UP_PARTS):
+        raise RuntimeError('żadna część pakietu USA nie ma danych')
+    return out, st
+
+
+def up_czesc():
+    """v445: część przebiegu → krotka wartości dla META['ok'] w kolejności UP_PARTS: True = pobrane, 'cached' = poprzednia wersja wystarcza (rytm), False = część zawiodła. Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('usa-pakiet')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == UP_V else None
+    zad = up_zadania(prev or {}, NOW)
+    if prev and not any(zad.values()):
+        save('usa-pakiet', prev)
+        return tuple('cached' for _ in UP_PARTS)
+    try:
+        obj, st = build_usa_pakiet(prev, zad)
+        save('usa-pakiet', obj)
+        return tuple(st.get(n, False) for n in UP_PARTS)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'USA pakiet: {e}')[:200])
+        if prev:
+            save('usa-pakiet', prev)
+        return tuple(False for _ in UP_PARTS)
+
+
+ZRODLA_META.update({'usp_hh': 'ny-fed', 'usp_pm': 'freddie-mac', 'usp_tp': 'policyuncertainty', 'usp_ts': 'bts'})   # v445: Fed w Nowym Jorku i policyuncertainty już liczone; Freddie Mac i BTS to +2 źródła
 
 
 if __name__ == '__main__':

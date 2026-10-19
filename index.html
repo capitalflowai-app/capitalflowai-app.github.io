@@ -2514,6 +2514,35 @@ textarea.kt-f{min-height:110px;resize:vertical}
 @media (max-width:900px){#g-ropa .etfkpis,#g-ropa .etfkpis.k3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:620px){#g-ropa .rop-g{grid-template-columns:minmax(0,1fr)}#g-ropa .rop-seg button{padding:6px 8px}}
 @media (max-width:520px){#g-ropa .wk-br{--lw:42%}}
+/* v445 (F11Z31): USA — pakiet małych (panel #g-uspak) — kafle w czterech kolumnach (przy 3 i 6 kaflach: trzech; telefon: dwie), paski udziałów, wykresy w pełnej szerokości; tylko zmienne motywu; kolory kierunku jak w całej stronie (wzrost zielony, spadek czerwony, zero żółte) */
+#g-uspak .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+#g-uspak .etfkpis.k3,#g-uspak .etfkpis.k6{grid-template-columns:repeat(3,minmax(0,1fr))}
+#g-uspak .etfk>span{white-space:normal;overflow-wrap:anywhere}
+#g-uspak .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3;font-variant-numeric:tabular-nums}
+#g-uspak .etfk b small{display:block;font-size:10.5px;font-weight:500;white-space:normal;margin-top:2px}
+#g-uspak .etfk b small.pos{color:var(--gr-tx)}#g-uspak .etfk b small.neg{color:var(--rd-tx)}#g-uspak .etfk b small.neu{color:var(--yl-tx)}#g-uspak .etfk b small.na,#g-uspak .etfk b small.pc{color:var(--dim)}
+#g-uspak .etfk b span.pos{color:var(--gr-tx)}#g-uspak .etfk b span.neg{color:var(--rd-tx)}#g-uspak .etfk b span.neu{color:var(--yl-tx)}
+#g-uspak .etfk .icos{display:inline-flex;margin-right:6px}
+#g-uspak .etfk>small.mtxt{font-size:10.5px;line-height:1.35}
+#g-uspak .pos{color:var(--gr-tx)}#g-uspak .neg{color:var(--rd-tx)}#g-uspak .neu{color:var(--yl-tx)}#g-uspak .na{color:var(--dim)}
+#g-uspak .pnote.neu{color:var(--yl-tx)}
+#g-uspak .gx-h{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin:18px 0 4px;font-size:13px}
+#g-uspak .gx-h .icos{display:inline-flex;margin-right:6px;vertical-align:middle}
+#g-uspak .gxs{margin:8px 0 10px;max-width:760px}
+#g-uspak .gxs-r{margin:7px 0}
+#g-uspak .gxs-n{display:block;font-size:12.5px;color:var(--mut);margin-bottom:3px;overflow-wrap:anywhere}
+#g-uspak .gxs-b{display:grid;grid-template-columns:minmax(0,1fr) 17em;align-items:center;gap:10px}
+#g-uspak .gxs-t{position:relative;height:10px;border-radius:2px;background:var(--line-2)}
+#g-uspak .gxs-t i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--bl)}
+#g-uspak .gxs-t i.cur{background:var(--tl)}
+#g-uspak .gxs-v{font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap;text-align:right}
+#g-uspak .wk-ch{margin:4px 0 10px;max-width:760px}
+#g-uspak .wk-ch .s1{--k:var(--bl)}#g-uspak .wk-ch .s2{--k:var(--or)}#g-uspak .wk-ch .s3{--k:var(--tl)}#g-uspak .wk-ch .s4{--k:var(--mut)}
+@media (max-width:760px){#g-uspak .etfkpis,#g-uspak .etfkpis.k3,#g-uspak .etfkpis.k6{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){
+  #g-uspak .gxs-b{grid-template-columns:1fr;gap:3px}
+  #g-uspak .gxs-v{text-align:left;white-space:normal}
+}
 </style>
 <!-- v348: licznik odwiedzin (decyzja właściciela 12.10). Skrypt count.js leży na naszej stronie (nie na obcej domenie) i nie używa ciasteczek; zliczenie wychodzi do licznika przez sendBeacon (CSP: connect-src; zapas obrazkiem: img-src https:).
      Wizyt technicznych nie liczymy: przeglądarki sterowane automatem (navigator.webdriver), Chrome bez okna (kontrola dzienna, testy), Lighthouse i adresy lokalne z końcówką .local albo [::1] dostają no_onload;
@@ -2743,6 +2772,7 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
     <section class="panel pcard" id="g-surowce" hidden></section><!-- v295g: SUROWCE — ceny, mapa zmian, co mówią o gospodarce -->
     <section class="panel pcard" id="g-usa" hidden></section>
     <section class="panel pcard" id="g-usaeksport" hidden></section>
+    <section class="panel pcard" id="g-uspak" hidden></section>
     <section class="panel pcard" id="g-fund" hidden></section>
     <section class="panel pcard" id="g-indeksy" hidden></section>
     <section class="panel pcard" id="g-archiwum" hidden></section>
@@ -3661,6 +3691,9 @@ for(const l in EXTRA301)if(I18N[l])Object.assign(I18N[l],EXTRA301[l]);
 /* v439: warstwa Top 100 w scenie CRYPTO */
 const EXTRA302={"pl":{"c100.btn":"Top 100 — kolejne monety każdego sektora (miejsca 11–100): pokaż lub ukryj","c100.t":"Top 100","c100.leg":"linie od grup do kolejnych monet sektora (miejsca 11–100). Prąd od grupy do kropki — wartość rośnie, do grupy — spada; im więcej iskier, tym większy ruch w 24 h.","c100.up":"wzrost 24 h","c100.dn":"spadek 24 h","c100.per":"Prąd i kolory kierunku pokazuje tylko okres 24H.","c100.none":"Top 100: brak danych","c100.h":"{s} · Top 100","c100.fl":"Zmiana wartości (24 h)","c100.sh":"Udział w ruchu sektora","c100.shs":"Udział sektora w ruchu warstwy","c100.n":"W sektorze: {n} monet w warstwie, razem {v}","c100.meth":"Jedno zakończenie to jedna moneta z miejsc 11–100 kategorii wg kapitalizacji (bez nazwy). Zmiana wartości to szacunek z ceny i kapitalizacji z 24 h, nie pomiar przepływów. Skład i liczby odświeżane co kilka godzin."},"en":{"c100.btn":"Top 100 — the next coins of each sector (places 11–100): show or hide","c100.t":"Top 100","c100.leg":"lines from the groups to the next coins of the sector (places 11–100). Current from the group to a dot — value rises, to the group — falls; the more sparks, the bigger the 24 h move.","c100.up":"up 24 h","c100.dn":"down 24 h","c100.per":"Current and direction colours are shown for the 24H period only.","c100.none":"Top 100: no data","c100.h":"{s} · Top 100","c100.fl":"Value change (24 h)","c100.sh":"Share of the sector’s move","c100.shs":"Sector’s share of the layer’s move","c100.n":"In the sector: {n} coins in the layer, {v} in total","c100.meth":"One end point is one coin from places 11–100 of the category by market capitalisation (no name). The value change is an estimate from the 24 h price and capitalisation, not a measured flow. Composition and figures are refreshed every few hours."}};
 for(const l in EXTRA302)if(I18N[l])Object.assign(I18N[l],EXTRA302[l]);
+/* v445 (F11Z31): USA — pakiet małych: hipoteki, zadłużenie gospodarstw, niepewność handlowa, przewozy (GLOBAL, karta #g-uspak) — pl i en */
+const EXTRA303={"pl":{"up445.t":"USA: kredyty hipoteczne, długi gospodarstw, niepewność handlowa i przewozy","up445.sub":"Cztery drobne, ale ważne wskaźniki gospodarki USA: ile kosztuje kredyt na dom, ile Amerykanie są winni bankom, jak mocno cła i umowy handlowe budzą niepewność oraz ile towarów i pasażerów jeździ po kraju.","up445.lazy":"Dane pojawią się po rozwinięciu karty.","up445.err":"Nie udało się wczytać danych — spróbuj za chwilę.","up445.errp":"Brak aktualnego odczytu: {p}.","up445.p.pm":"kredyty hipoteczne","up445.p.hh":"zadłużenie gospodarstw","up445.p.tp":"niepewność handlowa","up445.p.ts":"przewozy","up445.h.pm":"Kredyt hipoteczny w USA: ile kosztuje","up445.h.hh":"Zadłużenie gospodarstw domowych w USA","up445.h.tp":"Niepewność polityki handlowej USA","up445.h.ts":"Przewozy w USA: towary i pasażerowie","up445.w.day":"dane z dnia {d}","up445.w.q":"kwartał {q}","up445.w.m":"miesiąc {m}","up445.pp":"p.p.","up445.s.yy":"r/r","up445.s.qq":"kw/kw","up445.s.mm":"m/m","up445.ch.short":"Za mało punktów, by narysować wykres.","up445.pm.k.30":"Kredyt 30-letni","up445.pm.k.15":"Kredyt 15-letni","up445.pm.k.y1":"Zmiana od roku (30-letni)","up445.pm.k.rng":"Zakres 52 tygodni (30-letni)","up445.pm.s.wk":"p.p. w tygodniu","up445.pm.s.w4":"p.p. w 4 tygodnie","up445.pm.s.y1":"rok temu: {v}%","up445.pm.s.y15":"p.p. (kredyt 15-letni)","up445.pm.rng.s":"najniżej {a}, najwyżej {b}","up445.pm.p5":"wyżej niż w {p}% tygodni z 5 lat","up445.pm.s30":"kredyt 30-letni","up445.pm.s15":"kredyt 15-letni","up445.pm.ch.h":"Oprocentowanie w ostatnich dwóch latach","up445.pm.ch.aria":"Wykres: oprocentowanie kredytu hipotecznego, {n} tygodni","up445.pm.n":"Średnie oprocentowanie kredytów na dom ze stałą stawką, z cotygodniowej ankiety wśród kredytodawców w USA. To średnia krajowa, a nie oferta żadnego banku.","up445.hh.k.tot":"Dług gospodarstw razem","up445.hh.k.mtg":"Kredyty hipoteczne","up445.hh.k.cc":"Karty kredytowe","up445.hh.k.dq":"Zaległości 90+ dni","up445.hh.k.fc":"Nowe egzekucje z domów","up445.hh.k.bk":"Nowe upadłości osób","up445.hh.u":"bln USD","up445.hh.thou":"tys. osób","up445.hh.share":"{p}% całego długu","up445.hh.dq.cc":"karty kredytowe: {v}%","up445.hh.t.mtg":"Kredyty hipoteczne","up445.hh.t.heloc":"Linie kredytowe pod zastaw domu","up445.hh.t.auto":"Kredyty samochodowe","up445.hh.t.cc":"Karty kredytowe","up445.hh.t.stud":"Kredyty studenckie","up445.hh.t.oth":"Pozostałe","up445.hh.t.all":"Wszystkie rodzaje","up445.hh.h.sk":"Z czego składa się dług (udział i zmiana r/r)","up445.hh.sk.n":"Długość paska to udział rodzaju długu w całości. Zmiana jest liczona wobec tego samego kwartału rok wcześniej.","up445.hh.h.dq":"Zaległości 90+ dni wg rodzaju długu (% salda)","up445.hh.h.ch":"Zaległości 90+ dni w czasie (% salda)","up445.hh.ch.aria":"Wykres: zaległości 90+ dni, {n} kwartałów","up445.hh.n":"Zaległość 90+ dni to część salda, której spłata spóźnia się o co najmniej trzy miesiące. Dane z raportu kwartalnego, stan na koniec kwartału; nowe egzekucje i upadłości to liczba osób w kwartale.","up445.tp.k.ma":"Średnia z 30 dni","up445.tp.k.day":"Ostatni dzień","up445.tp.k.p5":"Na tle 5 lat","up445.tp.k.max":"Szczyt ostatniego roku","up445.tp.s.d30":"wobec 30 dni wcześniej","up445.tp.s.day":"wartość dzienna mocno skacze","up445.tp.p5":"tyle dni od {d} miało niższą średnią 30 dni","up445.tp.s.ma":"średnia z 30 dni","up445.tp.ch.h":"Średnia z 30 dni w ostatnim roku","up445.tp.ch.aria":"Wykres: niepewność polityki handlowej, {n} dni","up445.tp.n":"Indeks pokazuje, jak często amerykańskie gazety piszą o niepewności związanej z polityką handlową (cła, umowy, spory). Im wyższy, tym więcej takich artykułów. Skala nie ma jednostki, a wartość dzienna mocno skacze, dlatego pokazujemy też średnią z 30 dni.","up445.ts.k.fr":"Towary","up445.ts.k.pa":"Pasażerowie","up445.ts.k.to":"Razem","up445.ts.ch.h":"Wskaźnik w ostatnich dwóch latach (2000 = 100)","up445.ts.ch.aria":"Wykres: wskaźnik przewozów, {n} miesięcy","up445.ts.n":"Wskaźnik łączy przewozy towarów (ciężarówki, kolej, barki, rurociągi, lotnictwo) i pasażerów (linie lotnicze, kolej, komunikacja miejska). Wartość 100 to rok 2000; dane z poprawką sezonową, miesiąc danych jest widoczny przy liczbie.","up445.not1":"Stopa z ankiety to średnia krajowa dla kredytów ze stałą stawką — konkretny kredyt może kosztować więcej lub mniej (zależy od banku, wkładu własnego i historii kredytowej).","up445.not2":"Wskaźniki opisują stan, a nie przewidują przyszłości: wzrost zaległości, niepewności czy przewozów sam nie mówi, co zrobią ceny aktywów.","up445.foot":"Cztery pliki o różnej częstotliwości (tydzień, dzień, kwartał, miesiąc); każda liczba ma swoją datę i wiek."},"en":{"up445.t":"USA: mortgages, household debt, trade uncertainty and freight","up445.sub":"Four small but important gauges of the US economy: what a home loan costs, how much Americans owe, how uncertain tariffs and trade deals make the news, and how many goods and passengers are moving across the country.","up445.lazy":"The data will load when you expand the card.","up445.err":"Could not load the data — please try again shortly.","up445.errp":"No current reading: {p}.","up445.p.pm":"mortgage rates","up445.p.hh":"household debt","up445.p.tp":"trade uncertainty","up445.p.ts":"freight and passengers","up445.h.pm":"US mortgages: what they cost","up445.h.hh":"US household debt","up445.h.tp":"US trade policy uncertainty","up445.h.ts":"US transportation: goods and passengers","up445.w.day":"data for {d}","up445.w.q":"quarter {q}","up445.w.m":"month {m}","up445.pp":"pp","up445.s.yy":"y/y","up445.s.qq":"q/q","up445.s.mm":"m/m","up445.ch.short":"Too few data points for a chart.","up445.pm.k.30":"30-year mortgage","up445.pm.k.15":"15-year mortgage","up445.pm.k.y1":"Change over a year (30-year)","up445.pm.k.rng":"52-week range (30-year)","up445.pm.s.wk":"pp on the week","up445.pm.s.w4":"pp over 4 weeks","up445.pm.s.y1":"a year ago: {v}%","up445.pm.s.y15":"pp (15-year mortgage)","up445.pm.rng.s":"low {a}, high {b}","up445.pm.p5":"higher than in {p}% of weeks in 5 years","up445.pm.s30":"30-year","up445.pm.s15":"15-year","up445.pm.ch.h":"Rates over the last two years","up445.pm.ch.aria":"Chart: mortgage rates, {n} weeks","up445.pm.n":"Average rate on fixed-rate home loans from a weekly survey of US lenders. It is a national average, not any bank’s offer.","up445.hh.k.tot":"Household debt, total","up445.hh.k.mtg":"Mortgages","up445.hh.k.cc":"Credit cards","up445.hh.k.dq":"Debt 90+ days late","up445.hh.k.fc":"New foreclosures","up445.hh.k.bk":"New personal bankruptcies","up445.hh.u":"USD tn","up445.hh.thou":"thousand people","up445.hh.share":"{p}% of all debt","up445.hh.dq.cc":"credit cards: {v}%","up445.hh.t.mtg":"Mortgages","up445.hh.t.heloc":"Home equity lines","up445.hh.t.auto":"Auto loans","up445.hh.t.cc":"Credit cards","up445.hh.t.stud":"Student loans","up445.hh.t.oth":"Other","up445.hh.t.all":"All types","up445.hh.h.sk":"What the debt is made of (share and y/y change)","up445.hh.sk.n":"Bar length is the share of each debt type in the total. The change is measured against the same quarter a year earlier.","up445.hh.h.dq":"Debt 90+ days late by type (% of balance)","up445.hh.h.ch":"Debt 90+ days late over time (% of balance)","up445.hh.ch.aria":"Chart: debt 90+ days late, {n} quarters","up445.hh.n":"A 90+ day delinquency is the part of the balance that is at least three months behind. Data come from a quarterly report, as of the end of the quarter; new foreclosures and bankruptcies count people in the quarter.","up445.tp.k.ma":"30-day average","up445.tp.k.day":"Latest day","up445.tp.k.p5":"Against 5 years","up445.tp.k.max":"Peak of the last year","up445.tp.s.d30":"vs 30 days earlier","up445.tp.s.day":"the daily value jumps a lot","up445.tp.p5":"of days since {d} had a lower 30-day average","up445.tp.s.ma":"30-day average","up445.tp.ch.h":"30-day average over the last year","up445.tp.ch.aria":"Chart: trade policy uncertainty, {n} days","up445.tp.n":"The index shows how often US newspapers write about uncertainty around trade policy (tariffs, deals, disputes). The higher it is, the more such articles. The scale has no unit and the daily value jumps a lot, so we also show the 30-day average.","up445.ts.k.fr":"Goods","up445.ts.k.pa":"Passengers","up445.ts.k.to":"Total","up445.ts.ch.h":"The index over the last two years (2000 = 100)","up445.ts.ch.aria":"Chart: transportation index, {n} months","up445.ts.n":"The index combines freight (trucks, rail, barges, pipelines, air cargo) and passenger travel (airlines, rail, public transit). 100 is the year 2000; seasonally adjusted, the month of the data is shown by each number.","up445.not1":"The survey rate is a national average for fixed-rate loans — a particular loan can cost more or less (it depends on the lender, the down payment and the credit history).","up445.not2":"The gauges describe a state, not the future: a rise in arrears, uncertainty or freight does not by itself say what asset prices will do.","up445.foot":"Four files with different frequencies (week, day, quarter, month); every number carries its own date and age."}};
+for(const l in EXTRA303)if(I18N[l])Object.assign(I18N[l],EXTRA303[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -19343,6 +19376,139 @@ SRV_GR['eth-lancuch']='c';SRV_LD.c.push(ethLoad);
 setInterval(()=>{if(!document.hidden)ethLoad();},10*60*1000);   /* plik co ~60 min — strona pyta co 10 min (wiek w kafelkach też się odświeża) */
 ethLoad();try{new MutationObserver(()=>renderEth()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
 /* v403: koniec */
+/* ===================== v445 (F11Z31): USA — PAKIET MAŁYCH: HIPOTEKI, ZADŁUŻENIE GOSPODARSTW, NIEPEWNOŚĆ HANDLOWA, PRZEWOZY (GLOBAL) — panel #g-uspak (plik automatu data/usa-pakiet.json) =====================
+   Karta zwijana jak pozostałe w GLOBAL (silnik kart zw). Nagłówek i opis widać od razu (karta pojawia się, gdy meta.json zna którąś część „usp_*”); plik (kilkanaście KB) jest pobierany dopiero po rozwinięciu karty
+   (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie; po wczytaniu odświeżany co 30 min przy rozwiniętej karcie). Cztery bloki, każdy z własną datą danych i wiekiem:
+   (1) oprocentowanie kredytu hipotecznego w USA (cotygodniowa ankieta): stopa 30- i 15-letnia, zmiana tygodniowa i 4-tygodniowa, zmiana od roku, zakres 52 tygodni i miejsce na tle 5 lat, wykres 2 lat;
+   (2) zadłużenie gospodarstw domowych (raport kwartalny): dług razem i wg rodzajów (z udziałem i zmianą r/r), zaległości 90+ dni wg rodzajów i w czasie, nowe egzekucje i upadłości;
+   (3) niepewność polityki handlowej (dzienny indeks): średnia 30 dni, ostatni dzień, miejsce na tle 5 lat, szczyt roku, wykres roku;
+   (4) przewozy (miesięczny wskaźnik usług transportowych): towary, pasażerowie, razem — zmiana m/m i r/r, wykres 2 lat.
+   Kolory zmian z POKAZANEJ liczby (plus zielony, minus czerwony, zero żółte); brak = „—”, nigdy zero; część starsza niż dopuszczalny wiek danych znika. Nazw dostawców tu nie ma.
+   To nie jest porada inwestycyjna ani oferta kredytowa. Korzysta z narzędzi panelu stresu (strTile, strDelta, strDay, strNum) i wykresów (wkLines, wkMs, wkDay). */
+const UPK={j:null,l:false,x:false,t:0,e:0,on:false,mo:false};
+const UPK_PARTS=['pm','hh','tp','ts'],UPK_AGE={hh:250,pm:45,tp:30,ts:200},UPK_DAYMS=864e5;
+const UPK_D=/^\d{4}-\d{2}-\d{2}$/,UPK_Q=/^\d{4}-Q[1-4]$/,UPK_M=/^\d{4}-(0[1-9]|1[0-2])$/;
+const upkObj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const upkDay=s=>typeof s==='string'&&UPK_D.test(s)&&isFinite(Date.parse(s+'T12:00:00Z'))&&new Date(Date.parse(s+'T12:00:00Z')).toISOString().slice(0,10)===s;
+const upkFl=()=>typeof flagImg==='function'?flagImg('us','sm'):'';
+const upkPct=(v,d)=>strNum(v)?nfmt(v,d==null?2:d)+'%':'—';
+/* dane nie starsze niż dopuszczalny wiek (część k) i nie z przyszłości (>2 doby) */
+const upkYoung=(ms,k)=>{const a=Date.now()-ms;return isFinite(a)&&a<=UPK_AGE[k]*UPK_DAYMS&&a>=-2*UPK_DAYMS;};
+const upkQms=q=>Date.UTC(+q.slice(0,4),+q.slice(6)*3,0,12);   /* kwartał → koniec kwartału, środek doby UTC */
+const upkQadd=(q,n)=>{const i=+q.slice(0,4)*4+(+q.slice(6)-1)+n;return `${Math.floor(i/4)}-Q${i%4+1}`;};
+const upkMadd=(m,n)=>{const i=+m.slice(0,4)*12+(+m.slice(5)-1)+n;return `${Math.floor(i/12)}-${String(i%12+1).padStart(2,'0')}`;};
+const upkQend=q=>new Date(upkQms(q)).toISOString().slice(0,10);
+const upkPc=(a,b)=>strNum(a)&&strNum(b)&&b>0?(a/b-1)*100:null;   /* zmiana procentowa; brak albo zerowa podstawa = brak */
+const upkAt=(S,k)=>S.find(r=>r[0]===k)||null;
+const upkWhenD=d=>t('up445.w.day',{d:strDay(d)})+gAgeNote(d);
+const upkWhenQ=q=>t('up445.w.q',{q:q})+gAgeNote(upkQend(q));
+const upkWhenM=m=>t('up445.w.m',{m:m})+gAgeNote(m);
+/* ---------- walidacja części (zły kształt = część znika, nie zero) ---------- */
+function upkSer(S,len,re,sk){return (Array.isArray(S)?S:[]).filter(r=>Array.isArray(r)&&r.length===len&&typeof r[0]==='string'&&re.test(r[0])&&r.slice(1).every(v=>strNum(v)||(sk&&v===null))).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);}
+function upkPm(j){const P=upkObj(j)?j.pm:null;if(!upkObj(P)||!upkDay(P.date)||!strNum(P.p30)||P.p30<=0||P.p30>25||!upkYoung(wkMs(P.date),'pm'))return null;
+  const H=upkSer(P.hist,3,UPK_D,true).filter(r=>upkDay(r[0]));if(H.length<3)return null;return {P,H};}
+function upkHh(j){const P=upkObj(j)?j.hh:null;if(!upkObj(P)||typeof P.q!=='string'||!UPK_Q.test(P.q)||!upkYoung(upkQms(P.q),'hh'))return null;
+  const dl=upkSer(P.dl,8,UPK_Q),dq=upkSer(P.dq,8,UPK_Q),fc=upkSer(P.fc,3,UPK_Q),q=P.q;
+  if(!dl.length||dl[dl.length-1][0]!==q||!(dl[dl.length-1][7]>0))return null;
+  return {P,dl,dq:dq.length&&dq[dq.length-1][0]===q?dq:[],fc:fc.length&&fc[fc.length-1][0]===q?fc:[]};}
+function upkTp(j){const P=upkObj(j)?j.tp:null;if(!upkObj(P)||!upkDay(P.date)||!strNum(P.ma30)||!strNum(P.v)||!upkYoung(wkMs(P.date),'tp'))return null;
+  const H=upkSer(P.hist,2,UPK_D).filter(r=>upkDay(r[0]));if(H.length<3)return null;return {P,H};}
+function upkTs(j){const P=upkObj(j)?j.ts:null;if(!upkObj(P)||typeof P.m!=='string'||!UPK_M.test(P.m))return null;
+  const R=upkSer(P.rows,4,UPK_M);if(R.length<13||R[R.length-1][0]!==P.m||!upkYoung(Date.UTC(+P.m.slice(0,4),+P.m.slice(5),0,12),'ts'))return null;
+  for(let i=1;i<R.length;i++)if(R[i][0]!==upkMadd(R[i-1][0],1))return null;   /* miesiące kolejne */
+  return {P,R};}
+function upkOk(j){return !!(upkObj(j)&&j.v===1&&typeof j.at==='string'&&isFinite(Date.parse(j.at))&&(upkPm(j)||upkHh(j)||upkTp(j)||upkTs(j)));}
+/* ---------- wspólne ---------- */
+const upkTiles=a=>`<div class="etfkpis k${a.length}">${a.join('')}</div>`;
+const upkPp=(d,lab)=>strDelta(d,2,lab);
+const upkSeries=(rows,idx,cls,tk,ms)=>({n:t(tk),cls,d:rows.filter(r=>strNum(r[idx])).map(r=>[ms(r[0]),r[idx]])});
+function upkChart(S,aria,fmt,hk){const ch=wkLines(S,{aria,fmt,dt:ms=>wkDay(ms,1),dx:ms=>wkDay(ms,1),zero:false});
+  return ch?`<div class="gx-h"><b>${t(hk)}</b></div>${ch}`:`<p class="pnote">${t('up445.ch.short')}</p>`;}
+const upkHead=(k,ico)=>`<div class="gx-h"><b>${icoWrap(ico)}${t('up445.h.'+k)}</b></div>`;
+/* ---------- (1) hipoteki ---------- */
+function upkPmHtml(Q){const P=Q.P,fl=upkFl(),w=upkWhenD(P.date),wk=t('up445.pm.s.wk'),w4=t('up445.pm.s.w4');
+  const ln=(d,l)=>upkPp(d,l);
+  const y30=strDelta(P.y1_30,2,t('up445.pp')),y30v=strNum(P.y1_30)?`<span class="${y30.cls}">${y30.txt}</span>`:'—';
+  const rng=Array.isArray(P.lo52)&&Array.isArray(P.hi52)&&strNum(P.lo52[0])&&strNum(P.hi52[0])?`${nfmt(P.lo52[0],2)}–${nfmt(P.hi52[0],2)}%`:'—';
+  const rs=Array.isArray(P.lo52)&&Array.isArray(P.hi52)&&upkDay(P.lo52[1])&&upkDay(P.hi52[1])?t('up445.pm.rng.s',{a:strDay(P.lo52[1]),b:strDay(P.hi52[1])}):'';
+  const tiles=upkTiles([
+    strTile(fl,t('up445.pm.k.30'),upkPct(P.p30),[ln(P.d1_30,wk),ln(P.w4_30,w4)],w),
+    strTile(fl,t('up445.pm.k.15'),upkPct(P.p15),[ln(P.d1_15,wk),ln(P.w4_15,w4)],w),
+    strTile(fl,t('up445.pm.k.y1'),y30v,[{txt:strNum(P.y1_30)?t('up445.pm.s.y1',{v:nfmt(P.p30-P.y1_30,2)}):'—',cls:'pc'},upkPp(P.y1_15,t('up445.pm.s.y15'))],w),
+    strTile(fl,t('up445.pm.k.rng'),rng,[{txt:rs||'—',cls:'pc'},{txt:strNum(P.p5)?t('up445.pm.p5',{p:nfmt(P.p5,0)}):'—',cls:'pc'}],w)]);
+  const ms=r=>wkMs(r);
+  const ch=upkChart([upkSeries(Q.H,1,'s1','up445.pm.s30',ms),upkSeries(Q.H,2,'s2','up445.pm.s15',ms)],t('up445.pm.ch.aria',{n:Q.H.length}),v=>nfmt(v,2)+'%','up445.pm.ch.h');
+  return upkHead('pm',upkFl())+tiles+ch+`<p class="pnote">${t('up445.pm.n')}</p>`;}
+/* ---------- (2) zadłużenie gospodarstw ---------- */
+function upkHhHtml(Q){const P=Q.P,q=P.q,fl=upkFl(),w=upkWhenQ(q),L=Q.dl[Q.dl.length-1],Y=upkAt(Q.dl,upkQadd(q,-4)),B=upkAt(Q.dl,upkQadd(q,-1));
+  const yy=t('up445.s.yy'),qq=t('up445.s.qq'),u=t('up445.hh.u'),bln=v=>strNum(v)?nfmt(v,2)+' '+u:'—';
+  const pc=(i)=>strDelta(upkPc(L[i],Y&&Y[i]),1,'% '+yy);
+  const D=Q.dq.length?Q.dq[Q.dq.length-1]:null,DY=D?upkAt(Q.dq,upkQadd(q,-4)):null,F=Q.fc.length?Q.fc[Q.fc.length-1]:null,FY=F?upkAt(Q.fc,upkQadd(q,-4)):null;
+  const tl=[
+    strTile(fl,t('up445.hh.k.tot'),bln(L[7]),[pc(7),strDelta(upkPc(L[7],B&&B[7]),1,'% '+qq)],w),
+    strTile(fl,t('up445.hh.k.mtg'),bln(L[1]),[pc(1),{txt:t('up445.hh.share',{p:nfmt(L[1]/L[7]*100,0)}),cls:'pc'}],w),
+    strTile(fl,t('up445.hh.k.cc'),bln(L[4]),[pc(4),{txt:t('up445.hh.share',{p:nfmt(L[4]/L[7]*100,1)}),cls:'pc'}],w)];
+  if(D)tl.push(strTile(fl,t('up445.hh.k.dq'),upkPct(D[7]),[upkPp(DY?D[7]-DY[7]:null,t('up445.pp')+' '+yy),{txt:t('up445.hh.dq.cc',{v:nfmt(D[4],1)}),cls:'pc'}],w));
+  if(F){tl.push(strTile(fl,t('up445.hh.k.fc'),nfmt(F[1],0)+' '+t('up445.hh.thou'),[strDelta(upkPc(F[1],FY&&FY[1]),1,'% '+yy)],w));
+    tl.push(strTile(fl,t('up445.hh.k.bk'),nfmt(F[2],0)+' '+t('up445.hh.thou'),[strDelta(upkPc(F[2],FY&&FY[2]),1,'% '+yy)],w));}
+  /* z czego składa się dług: długość paska = udział w całości */
+  const TY=[[1,'mtg'],[2,'heloc'],[3,'auto'],[4,'cc'],[5,'stud'],[6,'oth']].filter(x=>strNum(L[x[0]])).sort((a,b)=>L[b[0]]-L[a[0]]);
+  const mxs=Math.max(1,...TY.map(x=>L[x[0]]/L[7]*100));
+  const bars=TY.map(x=>{const v=L[x[0]],d=strDelta(upkPc(v,Y&&Y[x[0]]),1,'%');return gxShare(escH(t('up445.hh.t.'+x[1])),v/L[7]*100/mxs*100,`${nfmt(v,2)} ${u} · ${nfmt(v/L[7]*100,0)}% · <span class="${d.cls}">${d.txt}</span>`,'cur');}).join('');
+  let h=upkHead('hh',fl)+upkTiles(tl)+`<div class="gx-h"><b>${t('up445.hh.h.sk')}</b></div><div class="gxs">${bars}</div><p class="pnote">${t('up445.hh.sk.n')}</p>`;
+  if(D){const TD=[[4,'cc'],[5,'stud'],[6,'oth'],[3,'auto'],[1,'mtg'],[2,'heloc']].filter(x=>strNum(D[x[0]])).sort((a,b)=>D[b[0]]-D[a[0]]);
+    const mx=Math.max(0.01,D[7],...TD.map(x=>D[x[0]])),row=(i,k)=>{const d=upkPp(DY?D[i]-DY[i]:null,t('up445.pp'));return gxShare(escH(t('up445.hh.t.'+k)),D[i]/mx*100,`${nfmt(D[i],2)}% · <span class="${d.cls}">${d.txt}</span>`,'cur');};
+    h+=`<div class="gx-h"><b>${t('up445.hh.h.dq')}</b></div><div class="gxs">${row(7,'all')}${TD.map(x=>row(x[0],x[1])).join('')}</div>`;
+    const ms=r=>upkQms(r),ser=[[4,'s1','cc'],[3,'s2','auto'],[5,'s3','stud'],[7,'s4','all']].map(x=>({n:t('up445.hh.t.'+x[2]),cls:x[1],d:Q.dq.filter(r=>strNum(r[x[0]])).map(r=>[ms(r[0]),r[x[0]]])}));
+    h+=upkChart(ser,t('up445.hh.ch.aria',{n:Q.dq.length}),v=>nfmt(v,1)+'%','up445.hh.h.ch');}
+  return h+`<p class="pnote">${t('up445.hh.n')}</p>`;}
+/* ---------- (3) niepewność handlowa ---------- */
+function upkTpHtml(Q){const P=Q.P,fl=upkFl(),w=upkWhenD(P.date);
+  let mx=null;for(const r of Q.H)if(!mx||r[1]>mx[1])mx=r;
+  const tiles=upkTiles([
+    strTile(fl,t('up445.tp.k.ma'),nfmt(P.ma30,0),[strDelta(P.d30,0,t('up445.tp.s.d30'))],w),
+    strTile(fl,t('up445.tp.k.day'),nfmt(P.v,0),[{txt:t('up445.tp.s.day'),cls:'pc'}],w),
+    strTile(fl,t('up445.tp.k.p5'),strNum(P.p)?nfmt(P.p,0)+'%':'—',[{txt:strNum(P.p)?t('up445.tp.p5',{d:strDay(P.from)}):'—',cls:'pc'}],w),
+    strTile(fl,t('up445.tp.k.max'),mx?nfmt(mx[1],0):'—',[{txt:mx?strDay(mx[0]):'—',cls:'pc'}],w)]);
+  const ch=upkChart([upkSeries(Q.H,1,'s1','up445.tp.s.ma',wkMs)],t('up445.tp.ch.aria',{n:Q.H.length}),v=>nfmt(v,0),'up445.tp.ch.h');
+  return upkHead('tp',fl)+tiles+ch+`<p class="pnote">${t('up445.tp.n')}</p>`;}
+/* ---------- (4) przewozy ---------- */
+function upkTsHtml(Q){const P=Q.P,fl=upkFl(),R=Q.R,L=R[R.length-1],B=upkAt(R,upkMadd(L[0],-1)),Y=upkAt(R,upkMadd(L[0],-12)),w=upkWhenM(L[0]),mm=t('up445.s.mm'),yy=t('up445.s.yy');
+  const tile=(i,k)=>strTile(fl,t('up445.ts.k.'+k),nfmt(L[i],1),[strDelta(upkPc(L[i],B&&B[i]),1,'% '+mm),strDelta(upkPc(L[i],Y&&Y[i]),1,'% '+yy)],w);
+  const ms=m=>Date.UTC(+m.slice(0,4),+m.slice(5),0,12);
+  const ch=upkChart([upkSeries(R,1,'s1','up445.ts.k.fr',ms),upkSeries(R,2,'s2','up445.ts.k.pa',ms),upkSeries(R,3,'s3','up445.ts.k.to',ms)],t('up445.ts.ch.aria',{n:R.length}),v=>nfmt(v,1),'up445.ts.ch.h');
+  return upkHead('ts',fl)+upkTiles([tile(1,'fr'),tile(2,'pa'),tile(3,'to')])+ch+`<p class="pnote">${t('up445.ts.n')}</p>`;}
+function upkBody(){const J=UPK.j;
+  if(!J)return `<p class="pnote">${t(UPK.x?'up445.err':'up445.lazy')}</p>`;
+  const Q={pm:upkPm(J),hh:upkHh(J),tp:upkTp(J),ts:upkTs(J)},F={pm:upkPmHtml,hh:upkHhHtml,tp:upkTpHtml,ts:upkTsHtml};
+  const bad=UPK_PARTS.filter(k=>!Q[k]&&upkObj(J.ok)&&J.ok[k]===false);
+  return UPK_PARTS.map(k=>Q[k]?F[k](Q[k]):'').join('')
+    +`<details class="etfd" id="upk-not"><summary>${t('eng.notsays')}</summary>${[1,2].map(i=>`<p class="pnote">${t('up445.not'+i)}</p>`).join('')}</details>`
+    +(bad.length?`<p class="pnote neu">${t('up445.errp',{p:bad.map(k=>t('up445.p.'+k)).join(', ')})}</p>`:'')
+    +`<p class="pfoot">${t('inst.file',{t:engDate(J.at)})} · ${t('up445.foot')} ${t('eng.disclaimer')}</p>`;}
+/* karta rozwinięta: silnik kart zwijanych ma klasę zw-on, a nie zw */
+function upkOpen(el){return !!(el&&el.classList&&el.classList.contains('zw-on')&&!el.classList.contains('zw'));}
+function renderUpk(){const el=$('#g-uspak');if(!el)return;
+  if(!UPK.on){el.hidden=true;el.innerHTML='';return;}
+  const open=typeof el.querySelectorAll==='function'?[...el.querySelectorAll('details')].map(x=>[x.id,!!x.open]).filter(x=>x[0]):[];
+  el.innerHTML=`<div class="etfh"><div><h2>${icoWrap(upkFl())}${t('up445.t')}</h2><p class="pnote">${t('up445.sub')}</p></div></div>${upkBody()}`;
+  open.forEach(([id,o])=>{const x=el.querySelector('#'+id);if(x)x.open=o;});
+  el.hidden=false;
+  if(!UPK.mo&&typeof MutationObserver==='function'){UPK.mo=true;try{new MutationObserver(()=>{if(upkOpen(el))upkLoad();}).observe(el,{attributes:true,attributeFilter:['class']});}catch(e){}}   /* rozwinięcie karty (klasa) = pobranie */
+  if(upkOpen(el))upkLoad();}
+/* pobranie pliku: jedno naraz; chwilowy błąd nie zasłania wczytanych danych; po błędzie najwcześniej po minucie; f = odświeżenie wymuszone zegarem */
+function upkLoad(f){if(UPK.l)return;const n=Date.now();if(UPK.j&&!f&&n-UPK.t<10*60e3)return;if(!UPK.j&&n-UPK.e<60e3)return;UPK.l=true;
+  srvJSON('usa-pakiet').then(j=>{
+    if(!upkOk(j)){UPK.l=false;UPK.e=Date.now();if(!UPK.j)UPK.x=true;renderUpk();return;}
+    UPK.l=false;UPK.j=j;UPK.x=false;UPK.t=Date.now();UPK.on=true;renderUpk();});}
+/* karta pojawia się, gdy meta.json zna którąś część „usp_*”; chwilowy błąd meta (brak odpowiedzi) = najwyżej 5 ponowień co 20 s, odpowiedź bez tych części = karta ukryta bez ponowień */
+function upkMeta(){srvJSON('meta').then(m=>{const ok=!!(m&&typeof m==='object'&&m.ok&&typeof m.ok==='object');UPK.mf=ok?0:(UPK.mf||0)+1;
+  UPK.on=ok&&UPK_PARTS.some(k=>Object.prototype.hasOwnProperty.call(m.ok,'usp_'+k));renderUpk();});}
+upkMeta();
+setInterval(()=>{if(!UPK.on&&UPK.mf>0&&UPK.mf<=5)upkMeta();},20*1000);
+setInterval(()=>{if(!document.hidden&&UPK.j&&upkOpen($('#g-uspak')))upkLoad(1);},30*60*1000);
+try{new MutationObserver(()=>renderUpk()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
+/* ---------- koniec bloku USA pakiet małych (v445) ---------- */
 /* ===================== v430 (F11Z29): ROPA ŚWIATA — BILANS KRAJÓW (WYDOBYCIE, PRZERÓB, IMPORT, EKSPORT, ZAPASY) I ZAPASY ROPY I PALIW W EUROPIE — panel #g-ropa (plik automatu data/ropa-swiat.json) =====================
    Karta zwijana jak pozostałe w GLOBAL (silnik kart zw), po karcie energii USA. Nagłówek i opis widać od razu (karta pojawia się, gdy meta.json zna którąś część „ropa_*”); plik (ok. 70 KB) jest pobierany
    dopiero po rozwinięciu karty (nie przy starcie strony; nieudane pobranie bez pętli: nowa próba najwcześniej po minucie; po wczytaniu odświeżany co 30 min przy rozwiniętej karcie).
