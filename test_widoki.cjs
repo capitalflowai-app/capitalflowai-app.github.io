@@ -27005,7 +27005,7 @@ test('v375 (F9Z1): kalendarz 2 — drugi plik dopiero po rozwinięciu karty, now
 test('v375 (F9Z1): kalendarz 2 — pole brak z przyczynami (RPP, szybki szacunek inflacji), część z błędem ze starymi terminami i część bez terminów', () => {
   const h0 = kal375.mk('pl', kal375.files(kal375.J2()), {open: true}).html();
   assert.ok(h0.includes('Jeszcze bez: posiedzenia NBP (Polska), szybki szacunek inflacji w Polsce.'), 'lista braków z pliku uzupełnienia zastępuje dawną');
-  assert.ok(h0.includes('Terminy posiedzeń RPP: strona banku centralnego Polski jest chroniona przed automatycznym odczytem, a zabezpieczeń nie omijamy.'));
+  assert.ok(h0.includes('Terminy posiedzeń RPP: brak w kalendarzu.'));
   assert.ok(h0.includes('Szybki szacunek inflacji w Polsce (ostatni dzień miesiąca) nie ma oficjalnego kalendarza'));
   assert.ok(!h0.includes('Część źródeł chwilowo nie odpowiedziała') && !h0.includes('poprzedniego pobrania'));
   // część z błędem i starymi terminami: informacja z nazwą części
@@ -37220,4 +37220,16 @@ test('v472: archiwum — stopka i podpisy bez opisu metody (repozytorium, godzin
   const a = html.indexOf('function arcBlock('), b = html.indexOf('\nfunction arcSeg(', a), blk = html.slice(a, b);
   assert.ok(blk.includes("function arcBlock(id,title,lines,unit,small){") && blk.includes("t('arc.month')") && !/źródło|source/i.test(blk));
   assert.ok(!/,'arc\.src/.test(html.slice(html.indexOf('function renderArc('), html.indexOf('function arcApply('))), 'wywołania bez klucza źródła');
+});
+
+
+test('v473: zdania o sposobie zbierania danych znikły z kalendarza i panelu instytucji (zostaje „brak w kalendarzu” i data pliku)', () => {
+  const val = k => { const re = new RegExp('"' + k.replace(/\./g, '\\.') + '":"([^"]*)"', 'g'); const all = [...html.matchAll(re)].map(x => x[1]); assert.equal(all.length, 2, k + ': dokładnie pl i en'); return all; };
+  const [pl, en] = val('kal375.why.pl_bank');
+  assert.equal(pl, 'Terminy posiedzeń RPP: brak w kalendarzu.'); assert.equal(en, 'Dates of Polish rate-setting council meetings: not in the calendar.');
+  const [fp, fe] = val('inst.fred.sub');
+  assert.ok(fp.startsWith('Osiem serii o bilansie Fed i płynności w USA.') && fe.startsWith('Eight series on the Fed balance sheet and US liquidity.'));
+  for (const s of [pl, en, fp, fe]) assert.ok(!/automat|chronion|protected|bypass|omijamy|fetched/i.test(s), 'bez opisu wewnętrznej metody: ' + s.slice(0, 50));
+  assert.ok(!html.includes("${t('inst.refresh')}"), 'stopka panelu instytucji bez zdania o odświeżaniu automatu');
+  assert.ok(html.includes("${t('inst.file',{t:at})} · ${t('eng.disclaimer')}</p>`;"), 'stopka: data pliku i zastrzeżenie');
 });
