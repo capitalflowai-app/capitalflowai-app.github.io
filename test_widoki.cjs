@@ -27711,8 +27711,8 @@ test('v381 (F11Z2): Europa — słupki według typu, kolumny 24 miesięcy skumul
   assert.equal(cf.X.length, 24, '24 miesiące'); assert.equal(cf.o.stack, true); assert.deepEqual(cf.o.ser.map(s => s.cls), ['efz1', 'efz2', 'efz3', 'efz4', 'efz5', 'efz6']); assert.deepEqual(cf.X[23].vs, [40000, 20000, -1000, 800, 2500, -2300]);
   assert.equal(cf.X[23].part, true, 'ostatni miesiąc oznaczony jako wstępny'); assert.equal(cf.X[22].part, false); assert.ok(cf.X[23].tip.includes('dane wstępne, mogą się zmienić') && cf.X[23].tip.includes('razem: +60,0 mld EUR'));
   assert.equal(cf.X[0].x.length > 0, true);
-  assert.deepEqual(kr.rows.map(r => r.v), [10000, 20000, 50000, 30000, -10000], 'DE, FR, IE, LU, NL — razem w ostatnim miesiącu; ujemny odpływ'); assert.ok(kr.rows[0].l.includes('<f:de>') && kr.rows[0].l.includes('N:DE'), 'flaga i nazwa kraju');
-  assert.ok(kr.rows[0].tip.includes('Fundusze akcyjne: +5,0 mld EUR'));
+  assert.deepEqual(kr.rows.map(r => r.v), [50000, 30000, 20000, 10000, -10000], 'IE, LU, FR, DE, NL — razem w ostatnim miesiącu, od największego napływu (v485); ujemny odpływ na końcu'); assert.ok(kr.rows[3].l.includes('<f:de>') && kr.rows[3].l.includes('N:DE'), 'flaga i nazwa kraju');
+  assert.ok(kr.rows[3].tip.includes('Fundusze akcyjne: +5,0 mld EUR'));
   const h = K.html(); assert.ok(h.includes('Saldo napływów netto do funduszy w strefie euro, ' + ef381.mon('pl', '2026-08') + ': +60,0 mld EUR. Najsilniej: Fundusze akcyjne (+40,0 mld EUR); najsłabiej: Pozostałe fundusze (−2,3 mld EUR).'));
   // gospodarstwa domowe: kraj domyślny PL, pięć kafli z kwartałem, zmianą i 4 kwartałami razem
   const T = ef381.tiles(h).slice(3), Q = 'Q2 2026'; assert.deepEqual(T.map(t => t.label), ['Depozyty i gotówka', 'Obligacje', 'Akcje i udziały', 'Fundusze inwestycyjne', 'Ubezpieczenia i emerytury']);
@@ -37334,4 +37334,13 @@ test('v475: zapas ETF — słownik ez475.* po polsku i angielsku (te same znaczn
   assert.deepEqual([...used].sort(), [...KEYS].sort(), 'kod używa dokładnie tych kluczy');
   assert.ok(zap.includes("for(const s of ['btc','eth','sol','xrp'])"), 'cztery monety');
   assert.ok(html.includes("m.ok.sosovalue===false&&ETF.stale)srvJSON('etf-zapas')"), 'plik zapasu wczytywany tylko gdy źródło główne milczy — gdy wróci, strona go nie pokazuje');
+});
+
+
+test('v485: Europa — słupki krajów od największego napływu (Irlandia przed Niemcami), ujemny odpływ na końcu, kraj bez danych pominięty, remis w kolejności listy', () => {
+  const kraje = j => { const K = ef381.mk('pl', ef381.files(j)); K.expand(); return K.bars[1].rows.map(r => [/<f:([a-z]+)>/.exec(r.l)[1], r.v]); };
+  assert.deepEqual(kraje(), [['ie', 50000], ['lu', 30000], ['fr', 20000], ['de', 10000], ['nl', -10000]], 'dane próbne: IE > DE — pierwszy wiersz Irlandia');
+  const J1 = ef381.J(); delete J1.ivf.kraje.LU; assert.deepEqual(kraje(J1).map(x => x[0]), ['ie', 'fr', 'de', 'nl'], 'kraj bez danych pominięty, reszta posortowana');
+  const J2 = ef381.J(); J2.ivf.kraje.DE = ef381.J().ivf.kraje.FR; assert.deepEqual(kraje(J2).map(x => x[0]), ['ie', 'lu', 'de', 'fr', 'nl'], 'remis DE = FR zostaje w kolejności listy (DE przed FR)');
+  const J3 = ef381.J(); J3.ivf.kraje.DE = ef381.J().ivf.kraje.IE; J3.ivf.kraje.IE = ef381.J().ivf.kraje.DE; assert.equal(kraje(J3)[0][0], 'de', 'sortuje po wartości, nie po nazwie kraju');
 });

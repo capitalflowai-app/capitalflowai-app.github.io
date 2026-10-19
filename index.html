@@ -15876,6 +15876,7 @@ function efzIvfCols(I){const E=I.E,T=E.T0,n=T.length,i0=Math.max(0,n-24),X=[];
 function efzIvfKr(I){const rows=EFZ_KR.filter(c=>I.K[c]).map(c=>{const k=I.K[c],r=k.T0,n=r.length,v=r[n-1][1];
     return {l:`<span class="efz-n">${efzFl(c)}${escH(efzCn(c))}</span>`,v,vt:escH(efzEur(v,true)),tip:`${efzCn(c)}${wkK()}${efzEur(v,true)} · ${t('efz.tip.y12')}${wkK()}${efzEur(efzSum(r,n-12,n),true)}`+
       ['10','20','30'].map(s=>k[s]?` · ${efzTy(s)}${wkK()}${efzEur(k[s][k[s].length-1][1],true)}`:'').join('')};});
+  rows.sort((a,b)=>b.v-a.v);   /* v485: od największego napływu (sort stabilny — remis zostaje w kolejności listy krajów) */
   if(!rows.length)return '';
   return `<p class="wk-sub"><b>${t('efz.kr.t',{m:efzMon(I.asof)})}</b> · ${t('efz.kr.u')}</p>`+wkBars(rows,{aria:t('efz.kr.aria',{m:efzMon(I.asof)}),fmt:v=>efzEur(v,true),lw:'30%'});}
 function efzIvfSen(I){const E=I.E,v=EFZ_T.map(s=>({s,v:E[s][E[s].length-1][1]})).sort((a,b)=>b.v-a.v),tot=E.T0[E.T0.length-1][1];
