@@ -17550,7 +17550,7 @@ class KryptoTop10V140(unittest.TestCase):
                 cat = q['category'][0]
                 if cat in fail:
                     raise RuntimeError('HTTP 500' + (' ' + (headers or {}).get('x-cg-demo-api-key', '') if 'echo' in fail else ''))
-                self.assertEqual(q['per_page'], [str(zd.T10_POOL)]); self.assertEqual(q['order'], ['market_cap_desc'])
+                self.assertEqual(q['per_page'], [str(zd.T10_WIDE)]); self.assertEqual(q['order'], ['market_cap_desc'])   # v439: 100 wierszy (10 grupy + Top 100)
                 return _t10_copy.deepcopy(T10_FIX[cat])
             if 'ids' in q:
                 if 'ids' in fail:
@@ -72700,3 +72700,161 @@ class TestV440KontrolaZakladek(unittest.TestCase):
              'scenariusze': [{'oceny': [{'p': '❌', 'n': 'q', 'u': ''}]}]}
         h = kt.zakladki_do_historii(Z)
         self.assertEqual(h['widok'], {'global': 2.4, 'crypto': 1.0, 'trendy': None}); self.assertEqual((h['bledy'], h['ostrz'], h['kroki']), (2, 1, 99))
+
+
+# ---------------------------------------------------------------- v439 (W5B_TOP100): warstwa Top 100 sceny CRYPTO — pole „w” w grupach data/krypto-top10.json
+import copy as _c439
+import math as _m439
+import urllib.parse as _up439
+
+
+class KryptoTop100V439(unittest.TestCase):
+    """v439: zapytanie składu ma teraz T10_WIDE (100) wierszy zamiast T10_POOL (20) — to samo zapytanie, ta sama liczba zapytań — i z drugiej części listy powstaje warstwa Top 100:
+    miejsca 11–100 kategorii po wyjęciu dziesiątki grupy i wykluczeń (L1 bez BTC i ETH, gaming bez memecoinów także z głębi listy) jako [kapitalizacja, zmiana 24 h] z czasem składu.
+    Między składami warstwa z poprzedniego pliku (najwyżej T100_MAX_AGE), potem brak (nigdy stara liczba pod nowym czasem). Bez sieci i bez zegara (now=, zegar i czekanie podmienione)."""
+    NOW = datetime.datetime(2026, 10, 18, 12, 0, tzinfo=datetime.timezone.utc)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        self.clock = [1000.0]
+        self.enterContext(mock.patch.object(zd, '_t10_mono', lambda: self.clock[0]))
+        self.enterContext(mock.patch.object(zd, '_t10_sleep', lambda s: self.clock.__setitem__(0, self.clock[0] + s)))
+        self.enterContext(mock.patch.object(zd, '_RUN_T0', [None]))
+        self.urls = []
+        sec = list(zd.SECRETS); self.addCleanup(lambda: zd.SECRETS.__setitem__(slice(None), sec))
+
+    @staticmethod
+    def _x(cid, i, rank=True, ch=None, mc=None):
+        return {'id': cid, 'symbol': cid[:6], 'name': cid, 'image': None, 'current_price': 1.0 + i, 'market_cap': (1e10 / (i + 1) ** 1.3) if mc is None else mc,
+                'market_cap_rank': (i + 1) if rank else None, 'price_change_percentage_24h': ((i * 37) % 21 - 10) / 3.0 if ch is None else ch,
+                'last_updated': '2026-10-18T11:55:00.000Z'}
+
+    def _rows(self):
+        """8 kategorii po 100 wierszy (malejąca kapitalizacja); L1 z BTC i ETH na czele; jeden token pochodny bez miejsca; moneta 'meme-c50' także w grze (memecoin z głębi listy)."""
+        out = {}
+        for k, cat in zd.T10_CATS:
+            rows = [self._x(f'{k}-c{i}', i + 2) for i in range(99)]
+            if k == 'l1':
+                rows[0:0] = [self._x('bitcoin', 0, mc=1.6e12), self._x('ethereum', 1, mc=3e11)]
+                rows = rows[:99]
+            rows.insert(3, self._x(f'{k}-pochodny', 3, rank=False))
+            out[cat] = rows[:100]
+        meme = {x['id']: x for x in out['meme-token']}
+        meme['meme-c50']['market_cap'] = 123456789.0   # liczba tylko tej monety (żadna inna nie ma takiej kapitalizacji)
+        out['gaming'][40] = _c439.deepcopy(meme['meme-c50'])
+        return out
+
+    def _build(self, prev=None, now=None, fail=(), rows=None):
+        R = rows or self._rows()
+
+        def gj(url, headers=None, timeout=30):
+            self.urls.append(url)
+            q = _up439.parse_qs(_up439.urlsplit(url).query)
+            if 'category' in q:
+                if q['category'][0] in fail:
+                    raise RuntimeError('HTTP 500')
+                self.assertEqual(q['per_page'], [str(zd.T10_WIDE)], 'ta sama strona 100 wierszy w każdym zapytaniu składu')
+                return _c439.deepcopy(R[q['category'][0]])
+            ids = set(q['ids'][0].split(','))
+            seen = {}
+            for rr in R.values():
+                for x in rr:
+                    if x['id'] in ids:
+                        seen.setdefault(x['id'], _c439.deepcopy(x))
+            return list(seen.values())
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, 'get_bytes', lambda *a, **k: b''):
+            return zd.build_krypto_top10('TAJNY-KLUCZ', prev, None, now=now or self.NOW, run_t0=None)[0]
+
+    def test_sklad_robi_warstwe_z_tego_samego_zapytania(self):
+        out = self._build()
+        self.assertEqual(len(self.urls), 8, 'jedno zapytanie na kategorię, bez nowych zapytań')
+        for k, g in out['g'].items():
+            top = {r[0] for r in g['c']}; self.assertEqual(len(g['c']), zd.T10_N)
+            w = g['w']
+            self.assertEqual(w['at'], g['sk'], k + ': czas składu')
+            self.assertTrue(10 <= len(w['c']) <= zd.T10_WIDE - zd.T10_N, f'{k}: {len(w["c"])} wierszy')
+            mcs = [r[0] for r in w['c']]
+            self.assertEqual(mcs, sorted(mcs, reverse=True), k + ': malejąco wg kapitalizacji')
+            self.assertLess(max(mcs), min(r[4] for r in g['c']) + 1, k + ': warstwa to miejsca po dziesiątce grupy')
+            self.assertTrue(all(isinstance(r, list) and len(r) == 2 and isinstance(r[0], int) and r[0] > 0 for r in w['c']), k + ': [kapitalizacja int, zmiana]')
+            self.assertTrue(all(r[1] is None or (isinstance(r[1], float) and _m439.isfinite(r[1])) for r in w['c']))
+            self.assertNotIn('pochodny', json.dumps(w), 'token pochodny bez miejsca pominięty')
+        l1 = out['g']['l1']; self.assertNotIn('bitcoin', [r[0] for r in l1['c']]); self.assertGreater(l1['c'][0][4], l1['w']['c'][0][0])
+        ranked = [x for x in self._rows()['layer-1'] if x['market_cap_rank'] and x['id'] not in ('bitcoin', 'ethereum')]
+        self.assertEqual(len(l1['w']['c']), len(ranked) - zd.T10_N, 'L1: monety z miejscem bez BTC i ETH, minus dziesiątka grupy (token pochodny pominięty)')
+
+    def test_gaming_bez_memecoinow_takze_z_glebi_listy(self):
+        out = self._build()
+        meme_mc = 123456789
+        self.assertIn(meme_mc, [r[0] for r in out['g']['meme']['w']['c']] + [round(r[4]) for r in out['g']['meme']['c']], 'monetą jest memecoin')
+        self.assertNotIn(meme_mc, [r[0] for r in out['g']['gaming']['w']['c']], 'memecoin z głębi listy gier poza warstwą gier')
+        self.assertNotIn(meme_mc, [round(r[4]) for r in out['g']['gaming']['c']])
+
+    def test_miedzy_skladami_poprzednia_warstwa(self):
+        out = self._build()
+        later = self.NOW + datetime.timedelta(minutes=70)
+        self.urls.clear()
+        out2 = self._build(prev=out, now=later)
+        self.assertEqual(len(self.urls), 1, 'między składami jedno zapytanie o ceny — jak dotąd')
+        self.assertNotIn('category', self.urls[0])
+        for k in out['g']:
+            self.assertEqual(out2['g'][k]['w'], out['g'][k]['w'], k + ': warstwa z poprzedniego pliku z czasem składu (nie nowym)')
+            self.assertEqual(out2['g'][k]['sk'], out['g'][k]['sk'])
+        self.assertEqual(len(out2['g']['ai']['c']), zd.T10_N)
+
+    def test_warstwa_starsza_niz_limit_znika(self):
+        out = self._build()
+        for k in out['g']:   # skład sprzed 13 h (starszy niż T100_MAX_AGE), a pobranie kategorii zawodzi: ceny grup z zapytania o ceny, warstwa już nie
+            out['g'][k]['sk'] = out['g'][k]['w']['at'] = (self.NOW - datetime.timedelta(hours=13)).isoformat()
+        out2 = self._build(prev=out, fail=tuple(c for _, c in zd.T10_CATS))
+        self.assertTrue(all('w' not in g for g in out2['g'].values()), 'stara warstwa nie jest przenoszona pod nowym czasem')
+        self.assertEqual([len(g['c']) for g in out2['g'].values()], [zd.T10_N] * 8, 'dziesiątki grup z cen kandydatów')
+        young = self._build()
+        for k in young['g']:
+            young['g'][k]['sk'] = young['g'][k]['w']['at'] = (self.NOW - datetime.timedelta(hours=5)).isoformat()
+        out3 = self._build(prev=young, fail=tuple(c for _, c in zd.T10_CATS))
+        self.assertTrue(all(g['w']['at'] == young['g'][k]['w']['at'] for k, g in out3['g'].items()), '5 h: warstwa zostaje, czas składu bez zmian')
+
+    def test_kategoria_z_bledem_zostawia_warstwe_innych(self):
+        out = self._build()
+        later = self.NOW + datetime.timedelta(hours=7)   # skład po T10_SKLAD: wszystkie kategorie na nowo, jedna zawodzi
+        out2 = self._build(prev=out, now=later, fail=('depin',))
+        self.assertEqual(out2['g']['ai']['w']['at'], later.replace(microsecond=0).isoformat(), 'nowy skład: nowy czas warstwy')
+        self.assertEqual(out2['g']['depin']['w']['at'], out['g']['depin']['w']['at'], 'kategoria z błędem: poprzednia warstwa z jej czasem (7 h < 12 h)')
+        self.assertTrue(any('depin' in e for e in zd.META['errors']))
+
+    def test_pack_i_prev(self):
+        rows = [['a', 'A', 'a', 1.0, 5e9, 1.23456, None], ['b', 'B', 'b', 1.0, 2e9, None, None], ['c', 'C', 'c', 1.0, 0, 1.0, None]]
+        self.assertEqual(zd.t100_pack(rows, '2026-10-18T12:00:00+00:00'), {'at': '2026-10-18T12:00:00+00:00', 'c': [[5000000000, 1.235], [2000000000, None]]}, 'zmiana zaokrąglona, brak = None, kapitalizacja 0 pominięta')
+        self.assertIsNone(zd.t100_pack([], 'x')); self.assertIsNone(zd.t100_pack(rows, None))
+        at = (self.NOW - datetime.timedelta(hours=1)).isoformat()
+        good = {'at': at, 'c': [[5e9, 1.0], [3e9, None]]}
+        self.assertEqual(zd.t100_prev(good, self.NOW), good)
+        for bad in (None, [], {}, {'at': at}, {'c': good['c']}, {'at': 'wczoraj', 'c': good['c']}, {'at': at, 'c': []}, {'at': at, 'c': [[0, 1.0]]},
+                    {'at': at, 'c': [[True, 1.0]]}, {'at': at, 'c': [[1e9, 'x']]}, {'at': at, 'c': [[1e9]]}, {'at': at, 'c': [[float('nan'), 1.0]]}, {'at': at, 'c': 'x'},
+                    {'at': (self.NOW - datetime.timedelta(hours=13)).isoformat(), 'c': good['c']}, {'at': (self.NOW + datetime.timedelta(hours=1)).isoformat(), 'c': good['c']}):
+            self.assertIsNone(zd.t100_prev(bad, self.NOW), repr(bad)[:70])
+        mixed = zd.t100_prev({'at': at, 'c': [[5e9, 1.0], ['x', 1], [1e9, True], [2e9, float('inf')], [4e9, None]]}, self.NOW)
+        self.assertEqual(mixed['c'], [[5e9, 1.0], [4e9, None]], 'zły wiersz pominięty, reszta zostaje')
+
+    def test_plik_zostaje_maly_i_bez_identyfikatorow_warstwy(self):
+        out = self._build()
+        for g in out['g'].values():
+            for r in g['w']['c']:
+                self.assertEqual(len(r), 2, 'warstwa bez nazw i identyfikatorów monet')
+        self.assertLess(len(json.dumps(out, separators=(',', ':'))), 60000, 'plik sceny nie rośnie ponad miarę (8 × 90 wierszy po dwie liczby)')
+
+    def test_v437_kazda_moneta_w_jednym_sektorze_takze_w_warstwie(self):
+        """v439 po v437 (korekta v440-int): moneta z dziesiątki jednego sektora nie stoi też w warstwie innego; moneta głęboko w dwóch sektorach — w warstwie tylko jednego (węższa kategoria)."""
+        R = self._rows()
+        top = _c439.deepcopy(R['artificial-intelligence'][0])
+        deep = _c439.deepcopy(top); deep['market_cap'] = 5555555.0   # ta sama moneta głęboko w liście innego sektora (tam z małą kapitalizacją)
+        R['depin'][60] = deep
+        dup = self._x('dup-y', 3, mc=77777777.0)
+        R['decentralized-finance-defi'][70] = _c439.deepcopy(dup)
+        R['layer-2'][80] = _c439.deepcopy(dup)
+        out = self._build(rows=R)
+        tm = round(top['market_cap'])
+        self.assertIn(tm, [round(r[4]) for r in out['g']['ai']['c']])
+        self.assertTrue(all(5555555 not in [r[0] for r in g.get('w', {}).get('c', [])] for g in out['g'].values()), 'moneta z dziesiątki sektora nie wraca w warstwie innego')
+        self.assertEqual(sum(77777777 in [r[0] for r in g.get('w', {}).get('c', [])] for g in out['g'].values()), 1, 'moneta głęboko w dwóch sektorach: w jednej warstwie')

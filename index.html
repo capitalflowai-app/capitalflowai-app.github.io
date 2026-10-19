@@ -224,6 +224,18 @@ td .cell .logo-img{width:34px;height:34px}
 #z-t10 .t10-ic{display:flex;flex-direction:column;align-items:center;line-height:1;font-family:"Sora",sans-serif;font-weight:700;font-size:12px}
 #z-t10 .t10-ic small{font-size:7.5px;font-weight:600;letter-spacing:.6px;margin-bottom:1px}
 #z-t10[aria-pressed="true"]{color:var(--bl);border-color:rgba(var(--bl-rgb),.55)}
+/* v439: warstwa Top 100 sceny CRYPTO — przycisk pod „TOP 10” (te same wymiary i stan) i opis nad sceną (komputer i telefon: lewy górny róg, poza przyciskami) */
+#z-t100 .t10-ic{display:flex;flex-direction:column;align-items:center;line-height:1;font-family:"Sora",sans-serif;font-weight:700;font-size:11px;letter-spacing:-.2px}
+#z-t100 .t10-ic small{font-size:7.5px;font-weight:600;letter-spacing:.6px;margin-bottom:1px}
+#z-t100[aria-pressed="true"]{color:var(--bl);border-color:rgba(var(--bl-rgb),.55)}
+.t100-leg{position:absolute;left:12px;top:12px;z-index:2;max-width:min(300px,calc(100% - 84px));padding:7px 10px;border-radius:10px;background:var(--panel-2);border:1px solid var(--line-2);color:var(--mut);font-size:11.5px;line-height:1.4;pointer-events:none}
+.t100-leg[hidden]{display:none}
+.t100-leg b{color:var(--tx);font-family:"Sora",sans-serif;font-weight:600}
+.t100-leg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin:0 4px 0 0;vertical-align:baseline}
+.t100-leg i.r{margin-left:10px}
+.t100-leg i.g{background:rgb(var(--gr-rgb))}
+.t100-leg i.r{background:rgb(var(--rd-rgb))}
+@media (max-width:620px){.t100-leg{font-size:11px;padding:6px 8px;max-width:calc(100% - 24px)}.t100-leg .t100-l{display:none}.t100-leg br{display:none}.t100-leg i.g{margin-left:8px}}   /* telefon: jedna linia (tytuł i kolory), pełny opis tylko na komputerze */
 #z-full .ic-close{display:none}
 #z-full[aria-pressed="true"] .ic-open{display:none}
 #z-full[aria-pressed="true"] .ic-close{display:block}
@@ -2582,12 +2594,14 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
         <div class="stage3d" id="stage">
           <canvas id="c3d" tabindex="0" role="img" data-i18n-aria="scene.aria"></canvas>
           <div class="hint" id="hint" data-i18n="hint"></div>
+          <div class="t100-leg" id="t100-leg" hidden></div>
           <div class="zoom">
             <button id="z-in" data-i18n-aria="zoom.in" data-i18n-title="zoom.in">+</button>
             <button id="z-out" data-i18n-aria="zoom.out" data-i18n-title="zoom.out">−</button>
             <button id="z-reset" data-i18n-aria="zoom.reset" data-i18n-title="zoom.reset">⟲</button>
             <button id="z-full" data-i18n-aria="c10.full" data-i18n-title="c10.full" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path class="ic-open" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><path class="ic-close" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>
             <button id="z-t10" data-i18n-aria="c10.btn" data-i18n-title="c10.btn" aria-pressed="true"><span class="t10-ic" aria-hidden="true"><small>TOP</small>10</span></button>
+            <button id="z-t100" data-i18n-aria="c100.btn" data-i18n-title="c100.btn" aria-pressed="false"><span class="t10-ic" aria-hidden="true"><small>TOP</small>100</span></button>
           </div>
         </div>
         <div class="chips" id="chips"></div>
@@ -3644,6 +3658,9 @@ for(const l in EXTRA300)if(I18N[l])Object.assign(I18N[l],EXTRA300[l]);
 /* v432: brakujące teksty angielskie — klucze, które miały tylko polski tekst (w wersji angielskiej pokazywały się po polsku); formy liczby few / many tylko po polsku */
 const EXTRA301={"en":{"top.b":"Back to top","zw.hint":"Choose what to read: click a section title to expand it.","zw.all":"Expand all","zw.none":"Collapse all","zw.rozwin":"Expand","zw.zwin":"Collapse","g.q.h":"Map data quality","g.q.sumcov":"{n} of {m} regions with data","g.pr.d":"data month: {d}","g.pr.leg":"Score components: CLI — leading indicator of the business cycle (100 = average; above 100 — conditions usually better than average over the coming months); CLI 3M — its change over 3 months; Market 1M and 3M — change in the region’s stock indices over 1 and 3 months; Currency — change in the exchange rate against the dollar over 3 months (appreciation helps); Rates — change in the 10-year bond yield over 3 months (a fall helps). A region without components worth at least half the weight — “no data”, no score.","cmc.diff":"These figures come from a different list of coins and exchanges than the tiles at the top of the tab, so they differ: stablecoins — a different list of coins; DeFi — here the market capitalisation of DeFi tokens, at the top the value locked in protocols (TVL); volume — a different list of exchanges. Do not add them together.","pg.sectors.g":"Sectors: world regions","pg.1h":"hourly","lev.stan":"trading halted","live.srv":"Server file (hourly) · {t}","live.srvT":"The live price source in the browser is temporarily not responding — prices come from the site’s server file (refreshed hourly); once the source is back, the page returns to live data on its own.","rel.descSrv":"Prices from the site’s server file (hourly), because the live source is temporarily not responding. Scene coins with data: {n}%.","top.srv":"As of {t} (server file, hourly). Flow = change in the coin’s market capitalisation over the period.","srv.stale.m":"Server data is more than {n} min old — the automatic refresh (usually every 10 min) is running late; every figure carries its own date.","srv.stale.h":"Server data is more than {n} h old — the automatic refresh (usually every 10 min) is running late; every figure carries its own date.","etf.stale":"latest data from {d}","ob.wyk":"Last {n} days — daily flow in USD million (Taiwan and Hong Kong ≈ at the day’s rate): bar up = inflow, down = outflow; each market on its own scale (±max on the right); yellow line = zero, dashed frame = no data.","ob.wyk.in":"India","ob.wyk.tw":"Taiwan","ob.wyk.hk":"Hong Kong (from China)","ob.wyk.brak":"no data","rwc.rez":"{p}: {o} tokens in circulation = {a} minted minus the issuer’s reserve {r} (tokens minted but not yet issued; issuer data as of {t}, consistent with the on-chain reading).","rwc.rez0":"no current issuer data on the reserve","rwc.zakres":"{p}: we count only the {f} fund; the issuer’s other funds (variable unit value, no transparent current price) are not counted.","rwe.in":"of which {v} per issuer data {m}","rwe.top":"{m} value per the product issuer’s data (description above the tables).","rwe.p":"{m} Issuer data — for products whose previous source has stalled, we count from data published by the issuer itself (current number of units × last valuation; the as-of day in brackets): {list}.","rwe.fx":"Values in currencies other than USD converted at the daily rate of {d}.","rwe.gold":"Gold (1 token = 1 ounce): {p} USD per ounce ({d}) — the same price as in the on-chain reading.","rwe.zakres":"A different scope than in the last known value: {list}.","rwe.ref":"last known {v}","rwe.z.sol":"the issuer also counts the fund class on the Solana network","rwe.z.cfg":"the issuer counts only fund tokens, not wrapper tokens","rwe.part":"Without current issuer data — left out of the totals: {list}.","rwe.not":"Issuer data {m} come from the issuers themselves and are not an audit; at rollout (5 Oct 2026) we compared the unit counts with the on-chain reading — they matched.","rwe.z.gm":"the issuer counts more broadly — all tokens of this product line","rwe.z.xs":"the issuer counts all its stock tokens across all networks","odm.tig.sub.w.one":"last session ({a}) · checked at the session close · 50% = coin flip","odm.tig.sub.c.one":"last day ({a}) · checked after each day · 50% = coin flip","odm.wh.wal.one":"{n} wallet · exchange list from {d}","odm.ln.k.mp.vb.one":"{v} million vB ≈ {n} full block","odm.trd.dw2.b.days.one":"{d} session with a signal","odm.t316.nl.q.one":"{n} quiet","odm.t316.nl.x.one":"{n} conflicting","odm.t316.nl.s.one":"{n} outdated","tig.t.c":"Crypto signal results","tig.t.w":"Signal results — world markets","tig.sub.c":"last {n} days ({a}–{b}) · checked after each day · 50% = coin flip","tig.sub.w":"last {n} sessions ({a}–{b}) · checked at the session close · 50% = coin flip","tig.start":"The results log starts on {d} — the first results will appear here after the first check.","tig.k":"Hits","tig.kn":"{k} of {n}","tig.wait":"+ {n} waiting for a result","tig.few":"too few results to judge","tig.d.win.c":"Last days","tig.d.win.w":"Last sessions","tig.d.since":"Since the start ({d})","tig.d.hist":"History (backtest)","tig.d.wait":"waiting for results","tig.n":"n = {n}","tig.hist.sub":"since {d} · n = {n}","tig.b.t":"Day by day","tig.b.k":"hits","tig.b.m":"misses","tig.b.w":"waiting","tig.aria.b":"Day by day (day hits/total): {s}","tig.foot.c":"Signal = direction from the site’s rules for the next day; hit = the price moved that way. Past hits do not guarantee future ones.","tig.foot.w":"Signal = direction from the site’s rules for the next session; hit = the fund’s price moved that way. Past hits do not guarantee future ones.","tig.more":"Details: all signals, rules and method","tig.load":"Loading results…","tig.nodata":"The results file is temporarily unavailable — we will try again shortly.","tig.nodata.k":"no data","tig.d.since0":"Since the start","tig.l.t":"Learning: when is the first assessment of signals?","tig.l.first":"{n} of {c} days with a signal until the first assessment","tig.l.next":"{n} of {c} days with a signal until the next assessment","tig.l.est":"estimated date at the current pace: {d}","tig.l.est0":"we will give a date after about 3 weeks of collecting results","tig.l.done":"all assessments (after 100, 200 and 400 days with a signal) are already recorded","tig.l.vd":"Assessment after {c} days with a signal ({d}): {v}","tig.l.vd.edge":"edge confirmed by the test","tig.l.vd.none":"no confirmed edge","tig.l.vd.anti":"worse than a coin flip","tig.l.how":"The site checks its own signals: each of the {m} rules has its own counter, and the assessment after 100, 200 and 400 days with a signal is recorded permanently and never changes afterwards.","tig.l.aria":"Learning progress: {n} of {c} days with a signal","tig.l.t2":"Learning: when is the next assessment of signals?","tig.l.t3":"Learning: assessments of signals","tig.l.soon":"{c} of {c} days with a signal — assessment within a few days, once the latest results are confirmed","tig.sh":"We are still testing {m} rules in the shadow — we will show them only once they pass the same test at the 200 days with a signal mark.","tig.sh.nx":"Closest to assessment: {n} of {c} days.","tig.sh.ok":"A shadow rule passed the test (at {c} days, {d}): {r}. The decision whether to show its signals rests with the owner.","tig.sh.r.pt":"price move and aggressive buying or selling agree","tig.sh.r.ph":"price and futures premium agree","tig.sh.r.es":"flows to exchanges and stablecoins agree","tig.sh.r.n3":"at least 3 components lean the same way","tig.sh.r.eq.pf":"stocks: price and fund flow agree","tig.sh.r.eq.fo":"stocks: fund flow and foreign investors agree","tig.sh.wyc":"The shadow rule “{r}” no longer has an edge after another assessment ({c} days, {d}) — we are not showing it.","wk.view":"View","wk.cards":"Cards","wk.charts":"Charts","wk.hint":"Hover over or tap a chart to see the number and date. “Details” opens the full card.","wk.more":"Details","wk.rd":"chart","wk.d":"Data: {d}","wk.k.p":"measurement","wk.k.s":"estimate","wk.k.m":"model","wk.k.r":"market prices","wk.u.t":"T","wk.u.b":"B","wk.u.m":"M","wk.na.load":"data is still loading","wk.na.file":"the data file is still loading or unavailable","wk.na.none":"there are no numbers to show in the data","wk.na.few":"too few points to draw a chart","wk.na.err":"the chart could not be drawn","wk.fg.s":"Own 0–100 indicator from stock market sessions; bands from fear (red) to greed (green)","wk.fg.a":"{t}: now {v} ({s}); {n} points on the chart, from {a} to {b}.","wk.g.reg.t":"Regional equity markets: change in USD","wk.g.reg.s":"Period: {p} · {n} of {m} regions with data","wk.g.reg.a":"Change in the value of equity markets in USD — {p}: highest {a} ({va}), lowest {b} ({vb}); {n} of {m} regions with data.","wk.g.prob.s":"Score from −100 to +100 from measured indicators — a snapshot of the moment, not a recommendation","wk.g.prob.cov":"components: {n}","wk.g.prob.a":"Conditions for regional markets: best {a} ({va}), weakest {b} ({vb}).","wk.g.str.s":"Daily index: 0 = average stress over a long period, above 0 — stress above average","wk.g.str.a":"US financial stress: latest {v} ({d}); over {n} days on the chart from {a} to {b}.","wk.g.fund.t":"US: equity and bond funds","wk.g.fund.sm":"Net inflow monthly (USD bn, actual data)","wk.g.fund.sw":"Net inflow weekly (USD bn, publisher’s estimate; week to Wednesday)","wk.g.fund.eq":"Equities (US and world)","wk.g.fund.a":"US funds — {m}: equities {e}, bonds {b}; {n} periods on the chart.","wk.g.tic.s":"Net to the US monthly: plus — foreigners bought more US securities than Americans bought abroad","wk.g.tic.a":"US and world portfolio capital — {m}: net {v}; inflow to the US in {p} of {n} months.","wk.g.ix.s":"Change over 1 month (21 sessions), strongest first","wk.g.ix.a":"Stock indices: {n} of {m} higher than a month ago; strongest {a} ({va}), weakest {b} ({vb}).","wk.g.fed.t":"Fed: odds of a decision at the next meeting","wk.g.fed.s0":"Odds from prediction-market contract prices","wk.g.fed.s":"Decision: {d}, {t} (local time) · odds from contract prices","wk.g.fed.raw":"prices not rescaled to 100%","wk.g.fed.na":"no current prices (we do not show those older than 6 hours) or no meeting is trading","wk.g.fed.a":"Fed, decision {d}: most likely — {o} ({p}).","wk.g.dl.t":"Latin America: the dollar gap","wk.g.dl.s":"By what percentage the dollar costs more than at the official rate","wk.g.dl.a":"Dollar gap: Argentina (CCL) {a}, Venezuela {v}, Bolivia (USDT) {b}.","wk.c.flow.t":"Flows between elements of the scene","wk.c.flow.s":"Period: {p} · change in value in USD; Exchanges* = rest of the balance","wk.c.flow.na":"no connection to live prices","wk.c.flow.a":"Crypto capital flows — {p} (estimate): highest {a} ({va}), lowest {b} ({vb}).","wk.c.etf.s":"Net daily inflow to US ETFs: BTC, ETH, SOL, XRP","wk.c.etf.part":"incomplete day — some coins still missing","wk.c.etf.sum":"total","wk.c.etf.a":"US crypto ETFs: last full day {d} — total {v}; {n} days on the chart.","wk.c.cap.t":"Crypto market structure","wk.c.cap.s":"Market capitalisation: BTC, ETH, stablecoins and the rest of the market (one moment)","wk.c.cap.rest":"Rest of the market","wk.c.cap.tot":"whole market","wk.c.cap.a":"Crypto market {v}: BTC {b}, ETH {e}, stablecoins {s}, rest {r}.","wk.c.stab.s":"Area = stablecoin supply on the network; colour = 7-day change (green — increased, red — decreased)","wk.c.stab.rest":"Other networks","wk.c.stab.a":"Stablecoins in total {v}; most on the {a} network ({p}); {n} largest networks shown separately.","wk.c.rwa.t":"Tokenised assets by type","wk.c.rwa.s":"With current valuation (in the totals) and separately — without current valuation (last known, outside the totals)","wk.c.rwa.cur":"with current valuation","wk.c.rwa.fz":"without current valuation","wk.c.rwa.a":"Tokenised assets: total {v} with current valuation, most — {a}; without current valuation {f}.","wk.c.t10.t":"Top 10 coins in groups","wk.c.wh.s":"Balances of exchanges’ announced wallets on Ethereum, in USD (ETH at the rate at the time of reading)","wk.c.wh.a":"Whales: wallet balances of {n} exchanges; biggest {a} ({v}).","wk.c.lev.t":"Open positions on exchanges","wk.c.lev.s":"BTC and ETH in USD — exchanges with a reading from the last 6 hours","wk.c.lev.a":"Open BTC and ETH positions on {n} exchanges; biggest {a} ({v}).","wk.c.prm.s":"Daily history, last {n} days · each line on its own axis","wk.c.prm.kr":"Korea · BTC","wk.c.prm.us":"US · BTC","wk.c.prm.a":"{l}: latest {v} ({d}); {n} days on the chart.","wk.c.fg.s":"Index 0–100 (an indicator, not a measurement); bands from fear (red) to greed (green)"}};
 for(const l in EXTRA301)if(I18N[l])Object.assign(I18N[l],EXTRA301[l]);
+/* v439: warstwa Top 100 w scenie CRYPTO */
+const EXTRA302={"pl":{"c100.btn":"Top 100 — kolejne monety każdego sektora (miejsca 11–100): pokaż lub ukryj","c100.t":"Top 100","c100.leg":"linie od grup do kolejnych monet sektora (miejsca 11–100). Prąd od grupy do kropki — wartość rośnie, do grupy — spada; im więcej iskier, tym większy ruch w 24 h.","c100.up":"wzrost 24 h","c100.dn":"spadek 24 h","c100.per":"Prąd i kolory kierunku pokazuje tylko okres 24H.","c100.none":"Top 100: brak danych","c100.h":"{s} · Top 100","c100.fl":"Zmiana wartości (24 h)","c100.sh":"Udział w ruchu sektora","c100.shs":"Udział sektora w ruchu warstwy","c100.n":"W sektorze: {n} monet w warstwie, razem {v}","c100.meth":"Jedno zakończenie to jedna moneta z miejsc 11–100 kategorii wg kapitalizacji (bez nazwy). Zmiana wartości to szacunek z ceny i kapitalizacji z 24 h, nie pomiar przepływów. Skład i liczby odświeżane co kilka godzin."},"en":{"c100.btn":"Top 100 — the next coins of each sector (places 11–100): show or hide","c100.t":"Top 100","c100.leg":"lines from the groups to the next coins of the sector (places 11–100). Current from the group to a dot — value rises, to the group — falls; the more sparks, the bigger the 24 h move.","c100.up":"up 24 h","c100.dn":"down 24 h","c100.per":"Current and direction colours are shown for the 24H period only.","c100.none":"Top 100: no data","c100.h":"{s} · Top 100","c100.fl":"Value change (24 h)","c100.sh":"Share of the sector’s move","c100.shs":"Sector’s share of the layer’s move","c100.n":"In the sector: {n} coins in the layer, {v} in total","c100.meth":"One end point is one coin from places 11–100 of the category by market capitalisation (no name). The value change is an estimate from the 24 h price and capitalisation, not a measured flow. Composition and figures are refreshed every few hours."}};
+for(const l in EXTRA302)if(I18N[l])Object.assign(I18N[l],EXTRA302[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -9095,6 +9112,15 @@ const T10_ID=/^[a-z0-9][a-z0-9-]{0,99}$/,T10_URI=/^data:image\/(?:png|jpeg|webp|
 function t10ColFor(k,dark){const P=T10_COL[dark===false?'light':'dark'];return P[k]||P.l1;}
 /* czas z pliku: dzień musi wrócić do siebie (2026-02-30 to nie 2 marca) */
 function t10Iso(s){if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s))return null;const ms=Date.parse(s);return isFinite(ms)&&new Date(ms).toISOString().slice(0,10)===s.slice(0,10)?s:null;}
+/* v439: warstwa Top 100 — część licząca (czyste funkcje): pole „w” grupy z pliku i zmiana wartości monety */
+const T100_MAX=90;   /* najwyżej tyle monet warstwy w sektorze (miejsca 11–100) */
+/* pole „w” grupy z pliku → {at, c:[{mc, ch}]} malejąco wg kapitalizacji (najwyżej T100_MAX); zły czas, wiersz bez dodatniej kapitalizacji — odrzucone; brak zmiany = null, nie 0 */
+function t100Norm(w){
+  if(!w||typeof w!=='object'||!Array.isArray(w.c))return null;const at=t10Iso(w.at);if(!at)return null;const c=[];
+  for(const r of w.c){if(!Array.isArray(r))continue;const mc=typeof r[0]==='number'&&isFinite(r[0])?r[0]:null,ch=typeof r[1]==='number'&&isFinite(r[1])?r[1]:null;if(mc>0)c.push({mc,ch});}
+  c.sort((a,b)=>b.mc-a.mc);return c.length?{at,c:c.slice(0,T100_MAX)}:null;}
+/* zmiana wartości monety w 24 h w mln USD (ta sama miara co t10Flow); brak zmiany albo ≤ −99,9 % = null */
+function t100V(mc,ch){return typeof ch==='number'&&isFinite(ch)&&ch>-99.9&&mc>0?(mc-mc/(1+ch/100))/1e6:null;}
 /* plik → {at, g:{grupa:{c:[{id,sym,name,px,mc,ch,upd}], sk}}}; wiersz bez id albo bez dodatniej kapitalizacji odrzucony; cena ≤ 0 i brak zmiany = null (nie 0);
    kolejność wg kapitalizacji (miejsce w sektorze), najwyżej 10; żadnej monety = null (strona: „brak danych”) */
 function t10Norm(j){
@@ -9107,7 +9133,8 @@ function t10Norm(j){
       if(typeof id!=='string'||!T10_ID.test(id)||seen.has(id)||!(mc>0))return;seen.add(id);
       const sym=str(r[I.sym],16)||id.slice(0,8).toUpperCase(),px=num(r[I.px]);
       rows.push({id,sym,name:str(r[I.name],60)||sym,px:px>0?px:null,mc,ch:num(r[I.ch]),upd:t10Iso(r[I.upd])});});
-    rows.sort((a,b)=>b.mc-a.mc);out.g[k]={c:rows.slice(0,T10_N),sk:G?t10Iso(G.sk):null};n+=out.g[k].c.length;});
+    rows.sort((a,b)=>b.mc-a.mc);out.g[k]={c:rows.slice(0,T10_N),sk:G?t10Iso(G.sk):null};n+=out.g[k].c.length;
+    const WL=rows.length?t100Norm(G&&G.w):null;if(WL)out.g[k].w=WL;});   /* v439: warstwa Top 100 (tylko przy monetach grupy) */
   return n?out:null;
 }
 /* plik logo → {id: data:image/…} (tylko obrazki rastrowe, najwyżej 40 000 znaków) */
@@ -9180,10 +9207,11 @@ function t10FlTxt(v){const x=big(Math.abs(v)*1e6);return (v>0?'+':v<0?'−':'')+
 /* v140: koniec części liczącej */
 var T10={data:null,logo:{},tried:new Set(),st:'idle',seen:false,tex:{},img:{},pos:{},lay:{w:{},n:{}},hit:[],box:[],labs:[],nlab:[],hov:null,pin:null,mp:null,down:null,tip:null,logoAt:0,timer:null};   /* var: kamera (homeDist) może pytać przed tym miejscem skryptu */
 if(st.t10===undefined)st.t10=true;
+if(st.t100===undefined)st.t100=false;   /* v439: warstwa Top 100 domyślnie wyłączona */
 function t10Narrow(){return CW<T10_NARROW;}
 function t10Any(){const D=T10&&T10.data;if(!D)return false;for(const k in D.g)if(D.g[k].c.length)return true;return false;}
 /* kamera startowa: oddalona tylko na komputerze, gdy grupy są pokazane i jest choć jedna moneta (telefon — skala modelu jak dotąd) */
-function t10Fit(){return st&&st.t10!==false&&!t10Narrow()&&t10Any()?T10_FIT:1;}
+function t10Fit(){if(!(st&&st.t10!==false&&t10Any()))return 1;const L=st.t100===true&&t100Any();return t10Narrow()?(L?T100_FITN:1):T10_FIT*(L?T100_FIT:1);}   /* v439: z warstwą Top 100 kamera dalej (telefon — też) */
 function t10DistMax(){return Math.max(95,homeDist()*1.45);}   /* oddalanie: bez grup jak dotąd (95 / 80) */
 function t10DistOut(){return Math.max(80,homeDist()*1.25);}
 function t10Col(k){return t10ColFor(k,PAL.dark);}
@@ -9192,7 +9220,7 @@ function t10L(k){return T10.lay[t10Narrow()?'n':'w'][k]||null;}
 function t10Coins(k){const D=T10.data;return D&&D.g[k]?D.g[k].c.slice(0,t10Narrow()?T10_NP:T10_N):[];}
 /* kamera stała w miejscu startowym — po zmianie miejsca startowego (dane przyszły / zniknęły, grupy pokazane / ukryte) jedzie do nowego */
 function t10Rehome(was){const h=homeDist();if(Math.abs(h-was)<1e-9)return;const at=Math.abs(cam.dist-was)<.6&&!st.sel;cam._home=h;if(at)camTo({dist:h},700);dirty=true;}
-function t10SetData(d){const was=homeDist();T10.data=d;T10.st='ok';T10.lay={w:{},n:{}};
+function t10SetData(d){const was=homeDist();T10.data=d;T10.st='ok';T10.lay={w:{},n:{}};if(T100){T100.fan={w:{},n:{}};T100.tot=null;}
   for(const k in d.g){const c=d.g[k].c;if(c.length){T10.lay.w[k]=t10Group(c.slice(0,T10_N).map(x=>x.mc),T10_RG);T10.lay.n[k]=t10Group(c.slice(0,T10_NP).map(x=>x.mc),T10_RGP);}}
   t10Rehome(was);try{wkPing('wk-t10');}catch(e){}}   /* v157: kafel „Top 10” widoku Wykresy */
 function t10Load(){if(!T10.data)T10.st='load';
@@ -9201,7 +9229,7 @@ function t10Load(){if(!T10.data)T10.st='load';
 /* v334 (faza 2A): plik top 10 poprawny (kolumny i grupy jak w t10Norm), ale bez żadnej monety */
 function t10NoCoins(j){return !!(j&&typeof j==='object'&&j.g&&typeof j.g==='object'&&Array.isArray(j.cols)&&['id','sym','name','px','mc','ch','upd'].every(n=>j.cols.includes(n)))&&!t10Norm(j);}
 /* v334 (faza 2A): stan „brak danych” jak u nowego widza (T10.st='err', bez grup); kamera wraca do miejsca startowego bez grup, kafel widoku Wykresy odświeżony */
-function t10Clear(){const was=homeDist();T10.data=null;T10.st='err';T10.lay={w:{},n:{}};t10Rehome(was);try{wkPing('wk-t10');}catch(e){}}
+function t10Clear(){const was=homeDist();T10.data=null;T10.st='err';T10.lay={w:{},n:{}};if(T100){T100.fan={w:{},n:{}};T100.tot=null;}t10Rehome(was);try{wkPing('wk-t10');}catch(e){}}
 function t10Ids(){const D=T10.data,o=[];if(D)for(const k in D.g)D.g[k].c.forEach(c=>{if(!o.includes(c.id))o.push(c.id);});return o;}
 /* plik logo: tylko gdy w grupach jest moneta, o którą jeszcze nie pytano (brak logo w pliku zapamiętany — bez ponownego pobierania co 20 min);
    nieudane pobranie — ponownie najwcześniej po 15 min */
@@ -9280,7 +9308,7 @@ function t10Coin(k,i,c,w,s,q,col,dim,fade,off){
 /* do listy rysowania sceny (sortowanie po głębokości razem z elementami modelu): linie sektor → grupa, monety, puste grupy */
 function t10Items(items){
   T10.hit=[];T10.box=[];if(!st.t10||st.mode!=='crypto')return;
-  const TB=t10CurB();   /* v322 (pkt 8): wspólne partie cząstek prądu wszystkich grup tej klatki */
+  const TB=t10CurB(),B100=t100CurB();   /* v322 (pkt 8): wspólne partie cząstek prądu wszystkich grup tej klatki; v439: partie kresek prądu warstwy Top 100 */
   if(!T10.seen){T10.seen=true;t10LogoLoad();}   /* plik logo dopiero, gdy grupy są pierwszy raz na ekranie — widz samego GLOBAL go nie pobiera */
   const P=t10Pos(),zr=t10ZoomRect(),NS=[];
   NODES.forEach(n=>{const q=pr(n.p);if(q)NS.push({x:q[0],y:q[1],r:rad(n)*FP/q[2]*1.15+3,z:q[2]});});   /* elementy modelu na ekranie (zasłanianie) */
@@ -9289,12 +9317,13 @@ function t10Items(items){
     const pa=pr(a),pb=pr(b),pm=pr(mid(a,b));
     if(pa&&pb&&pm)items.push({z:pm[2],fn:()=>{t10Line(pa,pb,col,dim,!c.length);t10Cur(k,pa,pb,c,dim,TB);}});   /* v322 (pkt 8): prąd na linii (do partii) */
     if(!c.length){const pc=pr(G.p);if(pc)items.push({z:pc[2],fn:()=>t10Empty(pc,col,dim)});return;}
+    if(st.t100){const F=t100Fan(k,t10Narrow()),pf=F&&pr(F.c);if(pf)items.push({z:pf[2],fn:()=>t100Group(k,F,col,dim,NS,zr,B100)});}   /* v439: warstwa Top 100 */
     c.forEach((x,i)=>{const o=L.o[i],s=L.s[i],w=[G.p[0]+R[0]*o[0]+U[0]*o[1],G.p[1]+R[1]*o[0]+U[1]*o[1],G.p[2]+R[2]*o[0]+U[2]*o[1]],q=pr(w);if(!q)return;
       const rr=s*FP/q[2]*(st.view==='bubbles'?.55:.75),fade=NS.some(m=>q[2]<m.z&&Math.hypot(q[0]-m.x,q[1]-m.y)<m.r+rr);
       const off=!!zr&&q[0]>=zr.x&&q[0]<=zr.x+zr.w&&q[1]>=zr.y&&q[1]<=zr.y+zr.h;
       items.push({z:q[2],fn:()=>t10Coin(k,i,x,w,s,q,col,dim,fade,off)});});
   });
-  items.push({z:-Infinity,fn:()=>t10CurPaint(TB)});   /* v322: prąd malowany raz, po elementach sceny (przed podpisami) */
+  items.push({z:-Infinity,fn:()=>{t10CurPaint(TB);t100CurPaint(B100);}});   /* v322: prąd malowany raz, po elementach sceny (przed podpisami) */
 }
 /* etykieta modelu pod przyciskami sceny (drawLabels) — przesunięta w lewo, obok przycisków; dotychczasowe miejsce bez zmian, gdy przyciski nie zasłaniają */
 function t10Keep(r){const z=typeof T10==='object'&&T10?t10ZoomRect():null;if(z&&r.x<z.x+z.w&&r.x+r.w>z.x&&r.y<z.y+z.h&&r.y+r.h>z.y)r.x=Math.max(2,z.x-r.w-2);return r;}
@@ -9317,7 +9346,7 @@ function t10Obst(){const O=(T10.nlab||[]).slice(),B={};
 /* po etykietach modelu: podpisy grup w pierwszym wolnym miejscu (t10LabSpots) — pełny („L1 · top 10”), krótki („L1”) albo żaden; nigdy na innym napisie,
    bryle, monecie ani przycisku. Telefon: tylko krótki. Pusta grupa: podpis z „brak danych” albo samo „brak danych” (kreska w okręgu widać zawsze); na końcu podpowiedź */
 function t10After(){
-  T10.labs=[];
+  T10.labs=[];t100Leg();
   if(!st.t10||st.mode!=='crypto'){t10TipHide();return;}
   const P=t10Pos(),narrow=t10Narrow(),f1='600 '+(narrow?11:12)+'px '+FF,f2='500 '+(narrow?10.5:11)+'px '+FF;
   const {O,B}=t10Obst(),placed=O,hit=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y,m0=pr([0,0,0]),mx=m0?m0[0]:CW/2;
@@ -9336,11 +9365,11 @@ function t10After(){
 }
 /* moneta pod punktem (najbliższa kamerze; dotyk — z zapasem slop, najbliższa palcowi); tylko monety z podpowiedzią (bez przygaszonych i schowanych pod przyciskami) */
 function t10Pick(x,y,slop){if(!st.t10||st.mode!=='crypto'||st.view==='list')return null;let b=null,bd=1e9;
-  for(const h of T10.hit){const d=Math.hypot(x-h.x,y-h.y);if(d>h.r+(slop||0))continue;if(slop?d<bd:(!b||h.z<b.z)){b=h;bd=d;}}return b;}
+  for(const h of T10.hit){const d=Math.hypot(x-h.x,y-h.y);if(d>h.r+(slop||0))continue;if(slop?d<bd:(!b||(h.w&&b.w?d<bd:h.z<b.z))){b=h;bd=d;}}return b;}
 /* moneta wygrywa wskazanie tylko, gdy jest bliżej kamery niż element modelu pod tym samym punktem */
 function t10PickTop(x,y,slop){const c=t10Pick(x,y,slop);if(!c)return null;const m=typeof pickModel==='function'?pickModel(x,y):null;return !m||c.z<m.z?c:null;}
 function t10TipEl(){if(T10.tip)return T10.tip;const s=$('#stage');if(!s)return null;const el=document.createElement('div');el.className='t10-tip';el.hidden=true;el.setAttribute('role','tooltip');s.appendChild(el);return T10.tip=el;}
-function t10TipShow(h,x,y){const el=t10TipEl();if(!el)return;const f=t10Find(h.k,h.id);if(!f){t10TipHide();return;}const c=f.c;
+function t10TipShow(h,x,y){if(h.w){t100TipShow(h,x,y);return;}const el=t10TipEl();if(!el)return;const f=t10Find(h.k,h.id);if(!f){t10TipHide();return;}const c=f.c;
   const key=[h.k,c.id,LANG,T10.data.at,Math.floor(Date.now()/60000),t10Narrow()?'n':'w'].join('|');   /* v322: prąd grupy zależy od liczby pokazanych monet */
   if(el.dataset.key!==key){el.innerHTML=t10TipHtml(h.k,c,f.i+1,T10.data.g[h.k].c.length,T10.logo[c.id]||'',T10.data.g[h.k].sk,Date.now(),t10Flow(t10Coins(h.k)));el.dataset.key=key;}
   el.hidden=false;const W=el.offsetWidth||240,H=el.offsetHeight||150;let lx=x+14,ly=y+14;
@@ -9389,6 +9418,106 @@ function cSetFull(on){
     else if(T10.pin){T10.pin=null;t10TipHide();dirty=true;}});
 })();
 t10Load();t10Auto();
+/* ===================== v439: WARSTWA TOP 100 W SCENIE CRYPTO (przełącznik „TOP 100” pod „TOP 10”) =====================
+   Po włączeniu od każdej grupy top 10 prowadzą dodatkowe linie do kolejnych monet tego sektora — miejsca 11–100 kategorii wg kapitalizacji (plik krypto-top10, pole „w” grupy:
+   [kapitalizacja, zmiana 24 h], bez nazw i bez logo). Na scenie tylko linie i zakończenia: kwadraty (BLOCKCHAIN 3D) albo koła (KULE 3D), bez opisów monet; wielkość zakończenia
+   rośnie z kapitalizacją (skala logarytmiczna). Kierunek i wielkość prądu z danych — ta sama miara co prąd grupy (t10Flow): zmiana wartości monety w 24 h = kapitalizacja − kapitalizacja ÷
+   (1 + zmiana ÷ 100): wzrost — od grupy do zakończenia, zielony; spadek — od zakończenia do grupy, czerwony; zmiana 0 — żółty; brak zmiany w danych — pusty kwadrat / koło w kolorze grupy
+   (nigdy zero). Wielkość prądu: pierwiastek z udziału w największym ruchu warstwy (trzy stopnie gęstości i grubości iskier). Prąd i kolory kierunku tylko przy okresie 24H (jak prąd grup).
+   Podpowiedź zakończenia (najechanie / dotknięcie): sektor, miejsce, kapitalizacja, zmiana, zmiana wartości w mln USD, udział w ruchu sektora (|zmiana| ÷ suma |zmian| monet sektora
+   w warstwie) i udział sektora w ruchu warstwy — bez nazwy monety. Dane warstwy odświeżane razem ze składem kategorii (co kilka godzin) — podpowiedź podaje wiek. Lekkie rysowanie: linie
+   grupy w JEDNEJ ścieżce, zakończenia w kilku ścieżkach (kolor × zasłonięcie), prąd jako kreski przerywane wspólne dla wszystkich grup (12–24 pociągnięcia na klatkę, bez cząstek) —
+   koszt klatki rośnie z liczbą linii znikomo; na telefonie najwyżej T100_MAXN największych monet w sektorze. Domyślnie wyłączona; wyłączenie — widok jak dotąd. */
+var T100={fan:{w:{},n:{}},mx:null,tot:null};
+const T100_MAXN=40,T100_HALF=17*Math.PI/180,T100_FIT=1.2,T100_FITN=1.3,T100_VMIN=.05,T100_LOGMIN=1e7;
+const T100_P={w:{sp:.85,dr:.7,dh:.75,g:2.1,smin:.2,smax:.62},n:{sp:.72,dr:.6,dh:.65,g:1.9,smin:.17,smax:.5}};   /* sp odstęp w rzędzie, dr / dh o ile rząd dalej od kręgu i wyżej (wachlarz = pochyły panel), g odstęp od grupy */
+/* kreski prądu: [wzór kreska/przerwa, grubość, prędkość px/ms, okres] — trzy stopnie wielkości ruchu */
+const T100_D=[{d:[1,13],w:1.5,v:.011,p:14},{d:[1.4,8],w:1.9,v:.014,p:9.4},{d:[2,5],w:2.4,v:.018,p:7}];
+function t100Any(){const D=T10&&T10.data;if(!D)return false;for(const k in D.g)if(D.g[k].w)return true;return false;}
+/* największa kapitalizacja w warstwie (skala wielkości zakończeń), największy ruch (skala prądu), suma |ruchu| warstwy (udział sektora) — raz na dane */
+function t100Tot(){
+  if(T100.tot)return T100.tot;const D=T10.data,o={mx:1,vmax:0,sum:0,by:{}};
+  if(D)for(const k in D.g){const W=D.g[k].w;if(!W)continue;let s=0,n=0,net=0;
+    for(const e of W.c){o.mx=Math.max(o.mx,e.mc);const v=t100V(e.mc,e.ch);if(v!==null){s+=Math.abs(v);net+=v;n++;o.vmax=Math.max(o.vmax,Math.abs(v));}}
+    o.by[k]={abs:s,net,nv:n};o.sum+=s;}
+  return T100.tot=o;}
+/* wachlarz jednej grupy: zakończenia w łukach wokół kąta grupy na kręgu (rzędy coraz dalej od kręgu i wyżej — pochyły panel, widoczny z każdej strony; największe monety w środku rzędu i najbliżej grupy), pojemność rzędu z kąta
+   (T100_HALF) i odstępu; położenia w świecie, więc wachlarz obraca się razem ze sceną. Zwraca null bez danych warstwy albo bez grupy */
+function t100Fan(k,narrow){
+  const nw=narrow?'n':'w',C=T100.fan[nw];if(C[k]!==undefined)return C[k];
+  const D=T10.data,G=D&&D.g[k],W=G&&G.w,L=T10.lay[nw][k];if(!W||!L)return C[k]=null;
+  const P=T10.pos[nw]||(T10.pos[nw]=t10Ring(NODES,narrow)),a=P[k].a,R=narrow?T10_RP:T10_R,Q=T100_P[nw],r0=R+L.r+Q.g,cap=narrow?T100_MAXN:T100_MAX,tot=t100Tot(),lg=Math.log(Math.max(2,tot.mx/T100_LOGMIN));
+  const rows=W.c.slice(0,cap),pts=[];let i=0,row=0;
+  while(i<rows.length){const r=r0+row*Q.dr,m=Math.min(Math.max(1,Math.floor(2*r*Math.sin(T100_HALF)/Q.sp)+1),rows.length-i),sl=[];
+    for(let s=0;s<m;s++)sl.push((s-(m-1)/2)*Q.sp/r);sl.sort((x,y)=>Math.abs(x)-Math.abs(y)||x-y);
+    for(let s=0;s<m;s++){const e=rows[i+s],th=a+sl[s],f=Math.max(0,Math.min(1,Math.log(Math.max(1,e.mc/T100_LOGMIN))/lg));
+      pts.push({p:[r*Math.cos(th),T10_Y+row*Q.dh,r*Math.sin(th)],mc:e.mc,ch:e.ch,v:t100V(e.mc,e.ch),s:Q.smin+(Q.smax-Q.smin)*f,rank:T10_N+i+s+1});}
+    i+=m;row++;}
+  const ro=R+L.r+.3;
+  return C[k]={k,pts,n:W.c.length,at:W.at,o:[ro*Math.cos(a),T10_Y,ro*Math.sin(a)],c:[(r0+row*Q.dr/2)*Math.cos(a),T10_Y+row*Q.dh/2,(r0+row*Q.dr/2)*Math.sin(a)]};}
+/* partie prądu: Path2D wspólne dla wszystkich grup (klucz: przygaszenie, kierunek, stopień, faza) — malowane raz na klatkę po elementach sceny */
+function t100CurB(){return {m:{}};}
+/* kierunek prądu: wzrost wartości (v > 0) — od grupy (o) do zakończenia (q), zielony; spadek — od zakończenia do grupy, czerwony */
+function t100Seg(v,o,q){return v>0?{out:true,a:o,z:q}:{out:false,a:q,z:o};}
+function t100CurAdd(B,dim,out,b,ph,A,Z){const key=(dim?1:0)+''+(out?1:0)+b+ph,p=B.m[key]||(B.m[key]=new Path2D());p.moveTo(A[0],A[1]);p.lineTo(Z[0],Z[1]);}
+function t100CurPaint(B){
+  g.save();g.lineCap='round';g.globalCompositeOperation=PAL.dark?'lighter':'source-over';
+  for(const key in B.m){const dim=key[0]==='1',out=key[1]==='1',b=+key[2],ph=+key[3],D=T100_D[b];
+    g.setLineDash(D.d);g.lineWidth=D.w;g.lineDashOffset=-((st.anim?CB.t*D.v:0)+ph*D.p/2);g.globalAlpha=(dim?.25:1)*(PAL.dark?.8:.9);
+    g.strokeStyle=`rgb(${out?PAL.gr:PAL.rd})`;g.stroke(B.m[key]);}
+  g.setLineDash([]);g.restore();}
+/* jedna grupa: linie (jedna ścieżka), zakończenia (ścieżki wg stanu), prąd (do wspólnych partii), pola trafienia */
+function t100Group(k,F,col,dim,NS,zr,B){
+  const o=pr(F.o);if(!o)return;
+  const bub=st.view==='bubbles',per=st.period==='24H',hov=T10.hov&&T10.hov.k===k?T10.hov.i:-1,pin=T10.pin&&T10.pin.k===k?T10.pin.id:'',tot=t100Tot(),lp=new Path2D(),S={},hot=[];
+  F.pts.forEach((e,j)=>{const q=pr(e.p);if(!q)return;lp.moveTo(o[0],o[1]);lp.lineTo(q[0],q[1]);
+    const h=Math.max(1.1,e.s*FP/q[2]*.5),fade=NS.some(m=>q[2]<m.z&&Math.hypot(q[0]-m.x,q[1]-m.y)<m.r+h),off=!!zr&&q[0]>=zr.x&&q[0]<=zr.x+zr.w&&q[1]>=zr.y&&q[1]<=zr.y+zr.h;
+    const sg=per&&e.ch!==null?(e.ch>0?'g':e.ch<0?'r':'y'):per?'h':'n',pa=S[sg+(fade?1:0)]||(S[sg+(fade?1:0)]=new Path2D());
+    if(bub){pa.moveTo(q[0]+h,q[1]);pa.arc(q[0],q[1],h,0,6.2832);}else pa.rect(q[0]-h,q[1]-h,2*h,2*h);
+    if(per&&e.v!==null&&Math.abs(e.v)>=T100_VMIN&&tot.vmax>0){const rel=Math.sqrt(Math.min(1,Math.abs(e.v)/tot.vmax)),b=rel<.15?0:rel<.4?1:2;
+      const sg2=t100Seg(e.v,o,q);t100CurAdd(B,dim,sg2.out,b,j%2,sg2.a,sg2.z);}
+    const id='w'+j;if(!fade&&!off)T10.hit.push({k,i:1000+j,id,w:1,x:q[0],y:q[1],r:h+2,z:q[2]});
+    if(hov===1000+j||pin===id)hot.push([q[0],q[1],h]);});
+  g.save();g.globalAlpha=dim?.25:1;g.lineWidth=.8;g.lineCap='round';g.strokeStyle=`rgba(${col},${PAL.dark?.2:.28})`;g.stroke(lp);
+  const fillC={g:PAL.gr,r:PAL.rd,y:PAL.yl,n:col};
+  for(const key in S){const sg=key[0],f=key[1]==='1';g.globalAlpha=(dim?.25:1)*(f?.16:1);
+    if(sg==='h'){g.lineWidth=1;g.strokeStyle=`rgba(${col},.85)`;g.stroke(S[key]);}else{g.fillStyle=`rgba(${fillC[sg]},${sg==='n'?.6:.9})`;g.fill(S[key]);}}
+  g.globalAlpha=1;g.lineWidth=1.6;g.strokeStyle=PAL.text;
+  for(const [x,y,h] of hot){g.beginPath();if(bub)g.arc(x,y,h+3,0,6.2832);else g.rect(x-h-3,y-h-3,2*h+6,2*h+6);g.stroke();}
+  g.restore();}
+/* podpowiedź zakończenia: bez nazwy monety */
+function t100Pct(x){if(!(typeof x==='number'&&isFinite(x)))return '—';const p=x*100;return p<1&&p>0?'<1 %':nfmt(p,p<10?1:0)+' %';}
+function t100TipHtml(k,F,j,now){
+  const G=T10_G.find(x=>x[0]===k),sec=G?(G[2]||nName(G[1])):k,e=F.pts[j],tot=t100Tot(),by=tot.by[k]||{abs:0,net:0,nv:0},ch=e.ch,v=e.v;
+  const shE=v!==null&&by.abs>0?Math.abs(v)/by.abs:null,shS=tot.sum>0&&by.abs>=0?by.abs/tot.sum:null;
+  return `<div class="t10-h"><span>${escH(t('c100.h',{s:sec}))}</span></div>`
+    +`<div class="t10-r">${escH(t('c10.rank',{s:sec,r:e.rank,n:T10_N+F.n}))}</div>`
+    +`<dl><dt>${escH(t('c10.mc'))}</dt><dd>${escH(t10Mc(e.mc))}</dd>`
+    +`<dt>${escH(t('c10.ch'))}</dt><dd class="${ch>0?'up':ch<0?'dn':ch===0?'eq':''}">${ch===null?'—':(ch>0?'▲':ch<0?'▼':'•')+' '+escH(fPct(ch,2))}</dd>`
+    +`<dt>${escH(t('c100.fl'))}</dt><dd class="${v>0?'up':v<0?'dn':''}">${v===null?'—':(v>0?'▲ ':v<0?'▼ ':'• ')+escH(t10FlTxt(v))}</dd>`
+    +`<dt>${escH(t('c100.sh'))}</dt><dd>${escH(t100Pct(shE))}</dd>`
+    +`<dt>${escH(t('c100.shs'))}</dt><dd>${escH(t100Pct(shS))}</dd></dl>`
+    +`<div class="t10-f">${escH(t('c100.n',{n:F.n,v:by.nv?t10FlTxt(by.net):'—'}))}<br>${escH(t('c10.sk',{t:t10When(F.at,now)}))}</div>`
+    +`<div class="t10-m">${escH(t('c100.meth'))}</div>`;}
+function t100TipShow(h,x,y){
+  const el=t10TipEl();if(!el)return;const F=t100Fan(h.k,t10Narrow()),j=h.i-1000;if(!F||!F.pts[j]){t10TipHide();return;}
+  const key=['w',h.k,j,LANG,T10.data.at,Math.floor(Date.now()/60000),t10Narrow()?'n':'w'].join('|');
+  if(el.dataset.key!==key){el.innerHTML=t100TipHtml(h.k,F,j,Date.now());el.dataset.key=key;}
+  el.hidden=false;const W=el.offsetWidth||240,H=el.offsetHeight||150;let lx=x+14,ly=y+14;
+  if(lx+W>CW-6)lx=x-W-14;if(lx<6)lx=6;if(ly+H>CH-6)ly=y-H-14;if(ly<6)ly=6;
+  el.style.left=Math.round(lx)+'px';el.style.top=Math.round(ly)+'px';}
+/* opis nad sceną (włączona warstwa): co oznaczają linie i kolory; tylko gdy tekst się zmienił */
+function t100Leg(){
+  const el=$('#t100-leg');if(!el)return;const on=!!(st.t100&&st.t10&&st.mode==='crypto'&&st.view!=='list'),any=t100Any();
+  const key=on?[LANG,st.period,any?1:0,T10.st].join('|'):'';if(el.dataset.key===key)return;el.dataset.key=key;el.hidden=!on;if(!on)return;
+  el.innerHTML=any?`<b>${escH(t('c100.t'))}</b><span class="t100-l">: ${escH(t('c100.leg'))}</span><br><i class="g"></i>${escH(t('c100.up'))}<i class="r"></i>${escH(t('c100.dn'))}`
+      +(st.period==='24H'?'':`<br>${escH(t('c100.per'))}`):escH(t(T10.st==='load'||T10.st==='idle'?'c10.load':'c100.none'));}
+function t100Set(on){
+  on=!!on;const was=homeDist();if(on&&st.t10===false){st.t10=true;const b1=$('#z-t10');if(b1)b1.setAttribute('aria-pressed','true');}
+  st.t100=on;const b=$('#z-t100');if(b)b.setAttribute('aria-pressed',on?'true':'false');
+  T10.pin=null;T10.hov=null;t10TipHide();t10Rehome(was);dirty=true;}
+(function(){const b=$('#z-t100');if(b){b.setAttribute('aria-pressed',st.t100?'true':'false');b.addEventListener('click',()=>t100Set(!st.t100));}})();
+T10.w100={state:T100,norm:t100Norm,v:t100V,any:t100Any,tot:t100Tot,fan:t100Fan,tip:t100TipHtml,pct:t100Pct,set:t100Set,leg:t100Leg,items:t100Group,seg:t100Seg,curB:t100CurB,curAdd:t100CurAdd};   /* uchwyt diagnostyczny i testowy (jak T10.tip): widoczny przez T10 */
 /* ---------- zaznaczenie i panele ---------- */
 function select(s){
   if(s&&!(s.type==='edge'?EB[s.id]:NB[s.id]))return;   /* v334 (CR8-02): element, którego nie ma na scenie (np. linia bez id albo spoza bieżącego okresu) — zaznaczenie bez zmian */

@@ -5679,6 +5679,8 @@ T10_GLOWNY = {'near': 'l1', 'stellar': 'l1', 'bittensor': 'ai', 'chainlink': 'de
 T10_STABILNE = frozenset({'dai', 'usds', 'tether', 'usd-coin', 'ethena-usde', 'usd1-wlfi', 'paypal-usd', 'first-digital-usd', 'true-usd', 'usdd', 'frax',
                           'gemini-dollar', 'binance-usd', 'ripple-usd', 'global-dollar', 'stasis-eurs'})
 T10_N = 10               # monet w grupie
+T10_WIDE = 100           # v439: wierszy kategorii w zapytaniu składu (to samo zapytanie co dotąd, tylko dłuższa strona): 10 w grupie + do 90 w warstwie Top 100
+T100_MAX_AGE = 12 * 60   # min — najstarsze wiersze warstwy Top 100 z poprzedniego pliku, gdy skład kategorii nie przyszedł (odświeżane co T10_SKLAD = 6 h)
 T10_POOL = 25            # kandydatów z jednej kategorii (jedno zapytanie; zapas na tokeny pochodne, zmianę kolejności między pobraniami składu i monety, których sektorem głównym jest inny — v437: było 20)
 T10_EVERY = 55           # min — ceny i kapitalizacje (jak krypto.json)
 T10_SKLAD = 360          # min — skład kategorii na nowo; kategoria z błędem albo z mniej niż T10_N kandydatami — w następnym przebiegu
@@ -5854,6 +5856,25 @@ def _t10_fresh(r, now):
     return a is not None and a < T10_MAX_AGE
 
 
+def t100_pack(rows, at):
+    """v439: warstwa Top 100 jednej grupy — monety poza dziesiątką grupy (miejsca 11–100 w kategorii wg kapitalizacji) jako [kapitalizacja USD, zmiana 24 h %]
+    (bez nazw i identyfikatorów: strona rysuje tylko linie i zakończenia, bez opisów monet); {'at': czas składu, 'c': [...]} albo None, gdy monet brak."""
+    c = [[round(r[4]), round(r[5], 3) if r[5] is not None else None] for r in rows if r[4] and r[4] > 0]
+    return {'at': at, 'c': c} if c and at else None
+
+
+def t100_prev(w, now):
+    """v439: warstwa Top 100 z poprzedniego pliku — tylko poprawna (czas składu z datą, wiersze [kapitalizacja > 0, zmiana albo null]) i młodsza niż T100_MAX_AGE;
+    inaczej None (brak danych, nigdy stara liczba pod nowym czasem)."""
+    if not isinstance(w, dict) or not isinstance(w.get('c'), list):
+        return None
+    a = _t10_age(w.get('at'), now)
+    if a is None or a < 0 or a >= T100_MAX_AGE:
+        return None
+    c = [r for r in w['c'] if isinstance(r, list) and len(r) == 2 and _t10_num(r[0]) and r[0] > 0 and (r[1] is None or _t10_num(r[1]) is not None)][:T10_WIDE - T10_N]
+    return {'at': w['at'], 'c': c} if c else None
+
+
 def build_krypto_top10(cg_key, prev=None, prev_logo=None, now=None, run_t0=None):
     """(data/krypto-top10.json, data/krypto-top10-logo.json): grupy top 10 w 8 kategoriach. Kategoria bez składu młodszego niż T10_SKLAD albo z mniej
     niż T10_N kandydatami — pobranie kategorii; pozostałe (i kategorie z błędem, które mają poprzednich kandydatów) — ceny kandydatów jednym zapytaniem
@@ -5872,7 +5893,7 @@ def build_krypto_top10(cg_key, prev=None, prev_logo=None, now=None, run_t0=None)
         p = pg.get(k) if isinstance(pg.get(k), dict) else {}
         pool = [i for i in (p.get('pool') or []) if isinstance(i, str) and T10_ID.match(i)][:T10_POOL]
         age = _t10_age(p.get('sk'), now)
-        G[k] = {'cat': cat, 'sk': p.get('sk') if age is not None else None, 'pool': pool, 'rows': None,
+        G[k] = {'cat': cat, 'sk': p.get('sk') if age is not None else None, 'pool': pool, 'rows': None, 'skl': False,
                 'prev': [r for r in (p.get('c') or []) if _t10_ok_row(r)], 'todo': age is None or age >= T10_SKLAD or len(pool) < T10_N}
 
     def take(j, what):
@@ -5894,12 +5915,12 @@ def build_krypto_top10(cg_key, prev=None, prev_logo=None, now=None, run_t0=None)
         if not G[k]['todo'] or late:
             continue
         try:
-            rows = take(_t10_get(CG + f'/coins/markets?vs_currency=usd&category={cat}&order=market_cap_desc&per_page={T10_POOL}&page=1'
-                                 '&price_change_percentage=24h', hdr, st), cat)
+            rows = take(_t10_get(CG + f'/coins/markets?vs_currency=usd&category={cat}&order=market_cap_desc&per_page={T10_WIDE}&page=1'
+                                 '&price_change_percentage=24h', hdr, st), cat)   # v439: 100 wierszy (10 grupy + warstwa Top 100) tym samym zapytaniem
             if not rows:
                 raise RuntimeError(f'{cat}: brak monet z miejscem w rankingu')
             rows.sort(key=lambda r: -r[4])
-            G[k].update(rows=rows, sk=at, pool=[r[0] for r in rows[:T10_POOL]])
+            G[k].update(rows=rows, sk=at, skl=True, pool=[r[0] for r in rows[:T10_POOL]])
         except Exception as e:  # noqa — jedna kategoria nie kasuje pozostałych
             errs.append(f'{k}: {e}')
     rest = [k for k, _ in T10_CATS if G[k]['rows'] is None and G[k]['pool']]
@@ -5917,11 +5938,12 @@ def build_krypto_top10(cg_key, prev=None, prev_logo=None, now=None, run_t0=None)
         except Exception as e:  # noqa
             errs.append(f'ceny ({len(ids)} monet): {e}')
     out = {'at': at, 'cols': list(T10_COLS), 'n': T10_N, 'g': {}, 'ok': {}}
+    WB = {}   # v439: pełna lista kategorii po wykluczeniach (bez sektora głównego) — baza warstwy Top 100
     bezk = {}   # v437: wykluczenia sektora (stare reguły + stablecoiny); sektor główny liczony z kandydatów bez nich
     for k, _ in T10_CATS:
         bezk[k] = set(T10_BEZ.get(k, ())) | T10_STABILNE
         if k in T10_BEZ_Z:   # v155: moneta z kandydatów grupy memecoinów (ten albo poprzedni skład) to memecoin, nie gra
-            bezk[k] |= {i for i in (G[T10_BEZ_Z[k]]['pool'] or []) if isinstance(i, str)}
+            bezk[k] |= {i for i in (G[T10_BEZ_Z[k]]['pool'] or []) if isinstance(i, str)} | {r[0] for r in (G[T10_BEZ_Z[k]]['rows'] or [])}   # v439: także memecoiny z głębi listy
     glowny = t10_glowny({k: [i for i in G[k]['pool'] if i not in bezk[k]] for k, _ in T10_CATS})   # v437: każda moneta w jednym sektorze
     for k, cat in T10_CATS:                                   # 3) plik: top 10 wg kapitalizacji
         g = G[k]
@@ -5932,10 +5954,22 @@ def build_krypto_top10(cg_key, prev=None, prev_logo=None, now=None, run_t0=None)
                 errs.append(f'{k}: ' + ('poprzednie ceny' if rows else 'brak danych'))
         bez = bezk[k]
         inne = {i for i, s in glowny.items() if s != k}   # v437: moneta, której sektorem głównym jest inny — tu nie stoi (kandydaci zostają: reguła liczona od nowa w każdym przebiegu)
-        rows = sorted((r for r in rows if r[0] not in bez and r[0] not in inne), key=lambda r: -r[4])[:T10_N]
+        WB[k] = sorted((r for r in rows if r[0] not in bez), key=lambda r: -r[4])
+        rows = [r for r in WB[k] if r[0] not in inne][:T10_N]
         pool = [i for i in g['pool'] if i not in bez]   # v155: kandydaci też bez wykluczonych (kolejne ceny tylko dla monet grupy)
         out['g'][k] = {'cat': cat, 'sk': g['sk'] if rows else None, 'pool': pool if rows else [], 'c': rows}
         out['ok'][k] = g['rows'] is not None
+    # v439: warstwa Top 100 (miejsca 11–100 kategorii) — z tego samego zapytania składu (co T10_SKLAD); między składami poprzednia, najwyżej T100_MAX_AGE; bez monet grupy — bez warstwy.
+    # Każda moneta w jednym sektorze (jak v437): bez monet z dziesiątek wszystkich grup i bez monet, których sektor główny (liczony z całych list) jest inny
+    cid = {r[0] for k, _ in T10_CATS for r in out['g'][k]['c']}
+    gw = t10_glowny({k: [r[0] for r in WB[k]] for k, _ in T10_CATS})
+    for k, _ in T10_CATS:
+        o, g = out['g'][k], G[k]
+        pk = pg.get(k) if isinstance(pg.get(k), dict) else {}
+        wl = [r for r in WB[k] if r[0] not in cid and gw.get(r[0], k) == k][:T10_WIDE - T10_N]
+        w = (t100_pack(wl, g['sk']) if g['skl'] else t100_prev(pk.get('w'), now)) if o['c'] else None
+        if w:
+            o['w'] = w
     pusty = not any(out['g'][k]['c'] for k, _ in T10_CATS)
     if pusty and not pg:   # v330 (ZB04-02): bez poprzedniego pliku nie ma czego chronić; z plikiem — zapis pustych grup (main inaczej zostawiłby stare ceny)
         raise RuntimeError('żadna grupa nie ma monet' + (f' ({"; ".join(errs)[:300]})' if errs else ''))

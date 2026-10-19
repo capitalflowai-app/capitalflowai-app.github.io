@@ -8559,7 +8559,7 @@ test('v140: kamera startowa obejmuje model i wszystkie grupy przy każdym obroci
   const s0 = html.indexOf('const sub=(a,b)=>'), s1 = html.indexOf('\n', html.indexOf('function pr(p){', s0));
   const h0 = html.indexOf('const homeBase=()=>'), h1 = html.indexOf('\n', h0);
   assert.ok(s0 > 0 && s1 > s0 && h0 > 0, 'setCam, pr, homeBase');
-  assert.ok(html.includes("function t10Fit(){return st&&st.t10!==false&&!t10Narrow()&&t10Any()?T10_FIT:1;}") && html.includes('function t10Narrow(){return CW<T10_NARROW;}'),
+  assert.ok(html.includes("function t10Fit(){if(!(st&&st.t10!==false&&t10Any()))return 1;const L=st.t100===true&&t100Any();return t10Narrow()?(L?T100_FITN:1):T10_FIT*(L?T100_FIT:1);}") && html.includes('function t10Narrow(){return CW<T10_NARROW;}'),
     't10Fit: oddalenie tylko na komputerze, gdy grupy pokazane i jest choć jedna moneta');
   for (const [W, H] of [[1100, 680], [1280, 680], [900, 520], [700, 520], [600, 460], [343, 380], [390, 390], [375, 420], [500, 420]]) {
     const narrow = W < X.T10_NARROW, fit = narrow ? 1 : X.T10_FIT, P = X.t10Ring(t10v140.NODES, narrow);
@@ -34138,4 +34138,166 @@ test('v440: skrypt kontroli zakładek (wstrzykiwany do kopii strony) — składn
   /* zakładki i ich sekcje istnieją w stronie pod nazwami, których używa skrypt */
   for (const id of ['tab-global', 'tab-crypto', 'tab-trendy', 'srv-stale']) assert.ok(html.includes('id="' + id + '"'), 'strona ma #' + id);
   for (const id of ['global', 'crypto', 'trendy']) assert.ok(new RegExp('<[a-z]+[^>]*id="' + id + '"[^>]*role="tabpanel"').test(html), 'strona ma panel zakładki #' + id);
+});
+
+/* ===================== v439: WARSTWA TOP 100 W SCENIE CRYPTO (przycisk „TOP 100” pod „TOP 10”, pole „w” w data/krypto-top10.json) ===================== */
+const t100B = (() => {
+  const AT = '2026-09-27T21:30:00+00:00';
+  /* wiersze [kapitalizacja, zmiana 24 h]: malejąca kapitalizacja; co siódmy bez zmiany (null), co siódmy „0”, reszta na przemian wzrost i spadek */
+  const rowsFor = n => Array.from({length: n}, (_, i) => [Math.round(3e9 / Math.pow(i + 1, 1.3)) + 5e6, i % 7 === 3 ? null : i % 7 === 4 ? 0 : ((i * 37) % 21 - 10) / 3]);
+  const file = o => { o = o || {}; const f = t10B.file(o.empty);
+    for (const k of Object.keys(f.g)) if (f.g[k].c.length && !(o.skip || []).includes(k)) f.g[k].w = {at: o.at || AT, c: rowsFor(o.n || 90)};
+    return f; };
+  const open = (W, H, o) => t10B.open(W, H, {files: {'data/krypto-top10': file(o)}});
+  const hits = A => A.T10.hit.filter(h => h.w);
+  const fanLines = (A, fr) => fr.stroke.filter(s => s.lw === .8 && t10B.mine(A, s));
+  const cur = fr => fr.stroke.filter(s => s.dash === 2 && [1.5, 1.9, 2.4].includes(s.lw) && /^rgb\(/.test(s.style));
+  return {AT, rowsFor, file, open, hits, fanLines, cur};
+})();
+
+test('v439 Top 100: przycisk „TOP 100” bezpośrednio pod „TOP 10”, opis nad sceną, słownik pl i en (te same klucze i pola, bez nazw dostawców, każdy klucz użyty w kodzie)', () => {
+  const z0 = html.indexOf('<div class="zoom">', html.indexOf('id="stage"')), z1 = html.indexOf('</div>', z0), Z = html.slice(z0, z1);
+  const ids = [...Z.matchAll(/<button id="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(ids.slice(-2), ['z-t10', 'z-t100'], 'TOP 100 tuż pod TOP 10 w kolumnie przycisków: ' + ids.join(','));
+  assert.ok(/<button id="z-t100"[^>]*data-i18n-aria="c100\.btn"[^>]*data-i18n-title="c100\.btn"[^>]*aria-pressed="false"/.test(Z), 'domyślnie wyłączony, nazwa przycisku ze słownika');
+  assert.ok(/<div class="t100-leg" id="t100-leg" hidden><\/div>/.test(html), 'opis nad sceną ukryty do włączenia');
+  const m = /const (EXTRA\d+)=(\{"pl":\{"c100\.btn"[^\n]*?\});\nfor\(const l in \1\)/.exec(html); assert.ok(m, 'słownik c100.* jako czysty JSON');
+  const D = JSON.parse(m[2]), keys = Object.keys(D.pl);
+  const LG = Object.keys(D).sort(); assert.ok(LG.includes('pl') && LG.includes('en') && (LG.length === 2 || LG.length === 10), 'pl i en; komplet 10 języków tylko na bazie sprzed v432: ' + LG);
+  for (const l of LG) assert.deepEqual(Object.keys(D[l]).sort(), keys.slice().sort(), l + ': te same klucze');
+  for (const k of keys) { assert.ok(k.startsWith('c100.'), k); assert.equal(typeof D.pl[k], 'string'); assert.notEqual(D.pl[k], D.en[k] + '~', k);
+    const ph = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(); assert.equal(ph(D.pl[k]), ph(D.en[k]), k + ': te same pola {x}');
+    assert.ok(!/coingecko|coinmarketcap|defillama|binance|bybit|alternative\.me|farside|sosovalue/i.test(D.pl[k] + D.en[k]), k + ': bez nazw dostawców');
+    const use = html.split("'" + k + "'").length - 1 + html.split('"' + k + '"').length - 1; assert.ok(use >= 2, k + ': użyty w kodzie (poza słownikiem): ' + use); }
+  assert.ok(keys.length >= 12, 'komplet kluczy: ' + keys.length);
+  assert.ok(/linie|Linie/.test(D.pl['c100.leg']) && /lines/.test(D.en['c100.leg']), 'opis mówi o liniach');
+});
+
+test('v439 Top 100: plik — pole „w” grupy czytane ostrożnie (malejąco wg kapitalizacji, najwyżej 90, zły czas albo brak dodatniej kapitalizacji = odrzucone, brak zmiany = null, nigdy 0); zmiana wartości jak w prądzie grupy', () => {
+  const R = t100B.open(1100, 680), A = R.api, W = A.T10.w100; assert.ok(W, 'uchwyt w T10');
+  const at = '2026-10-18T10:00:00+00:00';
+  const n = W.norm({at, c: [[1e9, 1], [3e9, null], [0, 5], [-4, 1], ['x', 1], [NaN, 1], [2e9, '3'], [5e9, 0], [4e9, true], 'zly', null, [7e9, Infinity], [6e9]]});
+  assert.deepEqual(n.c, [{mc: 7e9, ch: null}, {mc: 6e9, ch: null}, {mc: 5e9, ch: 0}, {mc: 4e9, ch: null}, {mc: 3e9, ch: null}, {mc: 2e9, ch: null}, {mc: 1e9, ch: 1}], 'malejąco; zła zmiana = null (nie 0), zero zostaje zerem');
+  assert.equal(n.at, at); assert.equal(W.norm({at, c: Array.from({length: 150}, (_, i) => [1e9 + i, 1])}).c.length, 90, 'najwyżej 90');
+  for (const bad of [null, undefined, 5, 'x', [], {}, {c: [[1e9, 1]]}, {at: 'wczoraj', c: [[1e9, 1]]}, {at: '2026-02-30T10:00:00+00:00', c: [[1e9, 1]]}, {at, c: 'x'}, {at, c: []}, {at, c: [[0, 1], ['a']]}]) assert.equal(W.norm(bad), null, JSON.stringify(bad));
+  assert.ok(Math.abs(W.v(1e9, 10) - (1e9 - 1e9 / 1.1) / 1e6) < 1e-9); assert.equal(W.v(1e9, 0), 0); assert.equal(W.v(1e9, null), null); assert.equal(W.v(1e9, -99.95), null); assert.equal(W.v(0, 5), null);
+  assert.ok(Math.abs(W.v(2.5e9, -3.3) - A.t10Flow([{mc: 2.5e9, ch: -3.3}])) < 1e-9, 'ta sama miara co prąd grupy');
+  const k0 = Object.keys(A.T10.data.g); assert.equal(k0.length, 8);
+  for (const k of k0) { const w = A.T10.data.g[k].w; assert.equal(w.c.length, 90, k); assert.equal(w.at, t100B.AT); }
+  const E = t100B.open(1100, 680, {empty: ['meme']}); assert.equal(E.api.T10.data.g.meme.w, undefined, 'grupa bez monet — bez warstwy');
+  const F0 = t10B.open(1100, 680); assert.equal(F0.api.T10.data.g.l1.w, undefined, 'plik bez pola w — jak dotąd'); assert.equal(F0.api.T10.w100.any(), false);
+  assert.deepEqual(Object.keys(F0.api.T10.data.g.l1).sort(), ['c', 'sk'], 'kształt grupy bez zmian, gdy pola w nie ma');
+});
+
+test('v439 Top 100: domyślnie wyłączona — widok jak dotąd; przycisk włącza i wyłącza (stan, kamera dalej, opis); wyłączenie przywraca widok bez śladu warstwy', () => {
+  const X = t10v140.mk(), R = t100B.open(1100, 680), A = R.api, b = R.el('z-t100'), leg = R.el('t100-leg');
+  assert.equal(A.st.t100, false); assert.equal(b.getAttribute('aria-pressed'), 'false');
+  let f = t10B.frame(R, .78); const d0 = A.homeDist();
+  assert.ok(Math.abs(d0 - A.homeBase() * X.T10_FIT) < 1e-9, 'kamera jak dotąd');
+  assert.deepEqual([t100B.hits(A).length, t100B.fanLines(A, f).length, t100B.cur(f).length, leg.hidden], [0, 0, 0, true], 'wyłączona: nic z warstwy');
+  const base = f.stroke.length, hit0 = A.T10.hit.length;
+  t10B.click(R, b, 't100Set(!st.t100)');
+  assert.equal(A.st.t100, true); assert.equal(b.getAttribute('aria-pressed'), 'true');
+  const m = /T100_FIT=([\d.]+),T100_FITN=([\d.]+)/.exec(html); assert.ok(m, 'stałe kamery'); assert.ok(Math.abs(A.homeDist() - A.homeBase() * X.T10_FIT * +m[1]) < 1e-9, 'komputer: kamera dalej o T100_FIT');
+  f = t10B.frame(R, .78); assert.equal(leg.hidden, false, 'opis widoczny'); assert.ok(leg.innerHTML.includes(A.t('c100.t')) && leg.innerHTML.includes(A.t('c100.up')) && leg.innerHTML.includes(A.t('c100.dn')), 'opis: tytuł i kolory');
+  assert.equal(t100B.fanLines(A, f).length, 8, 'jedna ścieżka linii na grupę'); assert.ok(t100B.hits(A).length >= 400, 'zakończenia z podpowiedzią: ' + t100B.hits(A).length);
+  t10B.click(R, b, 't100Set(!st.t100)');
+  assert.equal(A.st.t100, false); assert.equal(b.getAttribute('aria-pressed'), 'false'); assert.ok(Math.abs(A.homeDist() - d0) < 1e-9, 'kamera wraca');
+  f = t10B.frame(R, .78); assert.deepEqual([t100B.hits(A).length, t100B.fanLines(A, f).length, t100B.cur(f).length, leg.hidden, f.stroke.length, A.T10.hit.length], [0, 0, 0, true, base, hit0], 'po wyłączeniu widok jak przed włączeniem');
+  /* TOP 10 ukryte: warstwa też znika; włączenie TOP 100 przy ukrytym TOP 10 pokazuje oba */
+  t10B.click(R, b, 't100Set(!st.t100)'); t10B.click(R, R.el('z-t10'), 't10Set(!st.t10)'); f = t10B.frame(R, .78);
+  assert.deepEqual([A.st.t10, A.st.t100, t100B.hits(A).length, t100B.fanLines(A, f).length, leg.hidden], [false, true, 0, 0, true], 'bez grup top 10 nie ma od czego prowadzić linii');
+  t10B.click(R, b, 't100Set(!st.t100)'); t10B.click(R, b, 't100Set(!st.t100)'); assert.equal(A.st.t100, true);
+  assert.equal(A.st.t10, true, 'włączenie TOP 100 włącza też TOP 10'); f = t10B.frame(R, .78); assert.ok(t100B.hits(A).length >= 400);
+});
+
+test('v439 Top 100: kierunek i wielkość prądu z danych — zielony od grupy do zakończenia (wzrost), czerwony od zakończenia do grupy (spadek); trzy stopnie; tylko okres 24H; bez danych bez prądu', () => {
+  const R = t100B.open(1100, 680), A = R.api; A.st.t100 = true; let f = t10B.frame(R, .78);
+  const C = t100B.cur(f), col = k => 'rgb(' + A.PAL[k] + ')';
+  assert.ok(C.some(s => s.style === col('gr')) && C.some(s => s.style === col('rd')), 'oba kierunki z danych (wzrost i spadek)');
+  assert.ok(new Set(C.map(s => s.lw)).size >= 2, 'stopnie wielkości ruchu (grubość kresek): ' + [...new Set(C.map(s => s.lw))].join());
+  assert.ok(C.length <= 24, 'prąd w najwyżej 24 pociągnięciach na klatkę: ' + C.length);
+  assert.ok(C.every(s => s.style === col('gr') || s.style === col('rd')), 'tylko kolory kierunku (żadnych szarości)');
+  const o0 = [0, 0], q0 = [10, 5], up = A.T10.w100.seg(3, o0, q0), dn = A.T10.w100.seg(-3, o0, q0);
+  assert.deepEqual([up.out, up.a, up.z, dn.out, dn.a, dn.z], [true, o0, q0, false, q0, o0], 'wzrost: od grupy do zakończenia (zielony); spadek: od zakończenia do grupy (czerwony)');
+  assert.ok(/const sg2=t100Seg\(e\.v,o,q\);t100CurAdd\(B,dim,sg2\.out,/.test(html), 'rysowanie bierze kierunek z t100Seg');
+  /* okres inny niż 24H: ta sama dana to inna zmiana — kolory i prąd tylko dla 24H */
+  A.st.period = '7D'; f = t10B.frame(R, .78); assert.equal(t100B.cur(f).length, 0, 'poza 24H bez prądu'); assert.equal(t100B.fanLines(A, f).length, 8, 'linie i zakończenia zostają'); assert.ok(R.el('t100-leg').innerHTML.includes(A.t('c100.per')), 'opis mówi o 24H');
+  A.st.period = '24H';
+  /* wyłącznie wzrosty → tylko zielony; wyłącznie spadki → tylko czerwony; brak zmiany we wszystkich wierszach → bez prądu */
+  const mk = ch => { const o = t100B.file(); for (const k in o.g) if (o.g[k].w) o.g[k].w.c = o.g[k].w.c.map(r => [r[0], ch]); return t10B.open(1100, 680, {files: {'data/krypto-top10': o}}); };
+  for (const [ch, want] of [[2, ['gr']], [-2, ['rd']], [null, []], [0, []]]) { const Q = mk(ch), B = Q.api; B.st.t100 = true; const g = t10B.frame(Q, .78);
+    assert.deepEqual([...new Set(t100B.cur(g).map(s => s.style))].sort(), want.map(k => 'rgb(' + B.PAL[k] + ')').sort(), 'zmiana ' + ch + ': ' + want.join()); }
+  /* im większy ruch, tym wyższy stopień: jedna duża zmiana wśród małych */
+  const o = t100B.file(); for (const k in o.g) if (o.g[k].w) o.g[k].w.c = o.g[k].w.c.map((r, i) => [r[0], i === 0 ? 30 : .01]);
+  const Q2 = t10B.open(1100, 680, {files: {'data/krypto-top10': o}}); Q2.api.st.t100 = true; const g2 = t10B.frame(Q2, .78);
+  assert.ok(new Set(t100B.cur(g2).map(s => s.lw)).size >= 2, 'różne stopnie przy różnych ruchach'); assert.ok(t100B.cur(g2).every(s => s.style === 'rgb(' + Q2.api.PAL.gr + ')'));
+});
+
+test('v439 Top 100: układ — zakończenia poza grupą, odstęp w rzędzie, największe w środku i najbliżej grupy, wachlarze sąsiednich grup rozłączne; telefon: najwyżej 40 monet w sektorze', () => {
+  const R = t100B.open(1100, 680), A = R.api, W = A.T10.w100, P = A.T10.pos.w || (t10B.frame(R, .78), A.T10.pos.w);
+  const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]), F = {};
+  for (const [k] of A.T10_G) { F[k] = W.fan(k, false); assert.ok(F[k], k); assert.equal(F[k].pts.length, 90, k + ': 90 zakończeń'); }
+  for (const k in F) { const pts = F[k].pts, a = P[k].a, ring = Math.hypot(P[k].p[0], P[k].p[2]);
+    assert.equal(pts[0].mc, Math.max(...pts.map(p => p.mc)), k + ': największa pierwsza'); assert.equal(pts[0].rank, 11, 'miejsce 11 w sektorze'); assert.equal(pts[89].rank, 100, 'miejsce 100');
+    assert.deepEqual(pts.map(p => p.rank), Array.from({length: 90}, (_, i) => i + 11), k + ': kolejne miejsca');
+    for (const p of pts) { const r = Math.hypot(p.p[0], p.p[2]); assert.ok(r > ring + A.T10.lay.w[k].r + 1, k + ': poza grupą top 10'); assert.ok(p.s > 0 && p.s < 1, 'rozmiar'); }
+    const off = p => { const t = Math.atan2(p.p[2], p.p[0]) - a; return Math.abs(Math.atan2(Math.sin(t), Math.cos(t))); }, ang = Math.max(...pts.map(off)); assert.ok(off(pts[0]) < .85 / 28, 'największa na osi grupy (w środku rzędu, co najwyżej pół odstępu od osi)'); assert.ok(ang < 17.5 * Math.PI / 180, k + ': wachlarz w granicy kąta ' + ang);
+    let mn = 1e9; for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) mn = Math.min(mn, dist(pts[i].p, pts[j].p)); assert.ok(mn >= .7, k + ': odstęp zakończeń ' + mn.toFixed(2));
+    const sz = pts.map(p => p.s); assert.ok(Math.max(...sz) > Math.min(...sz), 'wielkość zależy od kapitalizacji'); assert.ok(pts.every((p, i) => i === 0 || p.s <= pts[0].s + 1e-9), 'największa kapitalizacja = największy znak'); }
+  let cross = 1e9; const ks = Object.keys(F); for (let a = 0; a < ks.length; a++) for (let b = a + 1; b < ks.length; b++) for (const p of F[ks[a]].pts) for (const q of F[ks[b]].pts) cross = Math.min(cross, dist(p.p, q.p));
+  assert.ok(cross >= 1, 'wachlarze różnych grup się nie stykają: ' + cross.toFixed(2));
+  const N = t100B.open(343, 380), B = N.api; t10B.frame(N, .78); const g = B.T10.w100.fan('l1', true); assert.equal(g.pts.length, 40, 'telefon: 40 największych'); assert.ok(g.n === 90, 'w pliku 90, w sektorze razem liczone z całości');
+  assert.ok(Math.hypot(...g.pts[0].p.filter((_, i) => i !== 1)) < Math.hypot(...A.T10.pos.w.l1.p.filter((_, i) => i !== 1)) + 3 && g.pts.length <= 40, 'mniejszy krąg telefonu');
+});
+
+test('v439 Top 100: podpowiedź zakończenia — sektor, miejsce, kapitalizacja, zmiana, zmiana wartości, udziały (suma udziałów monet sektora = 100 %, sektorów = 100 %), bez nazwy monety, wiek składu; przypięcie dotknięciem', () => {
+  const R = t100B.open(1100, 680), A = R.api, W = A.T10.w100, cv = R.el('c3d'); A.st.t100 = true; t10B.frame(R, .78);
+  const T = W.tot(); let sum = 0, ssum = 0;
+  for (const k in T.by) { sum += T.by[k].abs; const F = W.fan(k, false); let s = 0; for (const p of F.pts) if (p.v !== null) s += Math.abs(p.v); assert.ok(Math.abs(s - T.by[k].abs) < 1e-6, k + ': udziały monet sektora sumują się do całości (wszystkie 90)'); ssum += T.by[k].abs / T.sum; }
+  assert.ok(Math.abs(sum - T.sum) < 1e-6 && Math.abs(ssum - 1) < 1e-9, 'udziały sektorów sumują się do 100 %');
+  const h = A.T10.hit.find(x => x.w && A.t10PickTop(x.x, x.y) === x); assert.ok(h, 'zakończenie na wolnym miejscu');
+  R.act('najechanie', () => cv.dispatchEvent(t10B.ev('pointermove', h.x, h.y)));
+  const tip = A.T10.tip, F = W.fan(h.k, false), j = h.i - 1000, e = F.pts[j], gr = A.T10_G.find(g => g[0] === h.k), sec = gr[2] || A.nName(gr[1]);
+  assert.ok(tip && !tip.hidden, 'podpowiedź widoczna');
+  for (const s of [A.t('c100.h', {s: sec}), A.t('c10.rank', {s: sec, r: e.rank, n: 10 + F.n}), A.t('c10.mc'), A.t('c10.ch'), A.t('c100.fl'), A.t('c100.sh'), A.t('c100.shs'), A.t('c100.meth'), A.t('c10.sk', {t: ''}).split(':')[0]])
+    assert.ok(tip.innerHTML.includes(s.replace(/&/g, '&amp;')), 'podpowiedź: ' + s);
+  assert.ok(!/Moneta |<img/.test(tip.innerHTML), 'bez nazwy i logo monety');
+  assert.ok(tip.innerHTML.includes(W.pct(Math.abs(e.v) / T.by[h.k].abs)) || e.v === null, 'udział w ruchu sektora'); assert.ok(tip.innerHTML.includes(W.pct(T.by[h.k].abs / T.sum)), 'udział sektora w ruchu warstwy');
+  assert.equal(A.hover, null, 'element modelu bez najechania');
+  R.act('zjechanie', () => cv.dispatchEvent({type: 'pointerleave'})); assert.ok(tip.hidden);
+  const tap = (x, y) => { cv.dispatchEvent(t10B.ev('pointerdown', x, y, {pointerType: 'touch', pointerId: 7})); cv.dispatchEvent(t10B.ev('pointerup', x, y, {pointerType: 'touch', pointerId: 7})); };
+  R.act('dotknięcie', () => tap(h.x + 1, h.y)); assert.ok(A.T10.pin && A.T10.pin.id === h.id && A.T10.pin.k === h.k && !tip.hidden, 'przypięta'); assert.equal(A.st.sel, null);
+  R.act('dotknięcie 2', () => tap(h.x, h.y)); assert.equal(A.T10.pin, null); assert.ok(tip.hidden);
+  assert.equal(W.pct(.004), '<1 %'); assert.equal(W.pct(null), '—'); assert.equal(W.pct(NaN), '—'); assert.ok(/^12 %$/.test(W.pct(.1234).replace(/\s/g, ' ')), W.pct(.1234));
+  /* moneta grupy top 10 nadal ma swoją podpowiedź (tip przełączany po h.w) */
+  const c = A.T10.hit.find(x => !x.w && A.t10PickTop(x.x, x.y) === x); R.act('moneta', () => cv.dispatchEvent(t10B.ev('pointermove', c.x, c.y))); assert.ok(A.T10.tip.innerHTML.includes(A.T10.data.g[c.k].c[c.i].sym), 'moneta top 10 bez zmian');
+});
+
+test('v439 Top 100: widok KULE 3D, ciemny i jasny motyw, telefon — klatki bez błędów; zakończenia w kolorach kierunku; lekkie rysowanie (liczba pociągnięć nie zależy od liczby linii)', () => {
+  const R = t100B.open(1100, 680), A = R.api;
+  for (const view of ['blocks', 'bubbles']) for (const dark of [true, false]) { A.st.view = view; A.PAL.dark = dark; A.st.t100 = false; const b0 = t10B.frame(R, .9).stroke.length; A.st.t100 = true; const f = t10B.frame(R, .9);
+    assert.equal(t100B.fanLines(A, f).length, 8, view + (dark ? ' ciemny' : ' jasny')); assert.ok(t100B.hits(A).length >= 300, view + ': ' + t100B.hits(A).length);
+    assert.ok(f.stroke.length - b0 <= 8 + 24 + 4, 'lekko: warstwa dokłada najwyżej 36 pociągnięć na klatkę (700 linii i zakończeń): ' + (f.stroke.length - b0)); }
+  A.st.view = 'blocks'; A.PAL.dark = true;
+  const one = t100B.open(1100, 680, {n: 12}), two = t100B.open(1100, 680, {n: 90}); one.api.st.t100 = true; two.api.st.t100 = true;
+  const a = t10B.frame(one, .9).stroke.length, b = t10B.frame(two, .9).stroke.length; assert.ok(Math.abs(a - b) <= 14, `liczba pociągnięć prawie nie rośnie z liczbą linii: ${a} → ${b}`);
+  assert.ok(t100B.hits(two.api).length > 4 * t100B.hits(one.api).length, 'a liczba zakończeń rośnie');
+  const P = t100B.open(343, 380), B = P.api; B.st.t100 = true; const g = t10B.frame(P, .9);
+  assert.ok(t100B.hits(B).length > 80 && t100B.hits(B).length <= 8 * 40, 'telefon: ' + t100B.hits(B).length); assert.equal(t100B.fanLines(B, g).length, 8);
+  const m = /T100_FIT=([\d.]+),T100_FITN=([\d.]+)/.exec(html); assert.ok(Math.abs(B.homeDist() - B.homeBase() * +m[2]) < 1e-9, 'telefon: kamera dalej o T100_FITN');
+  B.st.t100 = false; assert.equal(B.homeDist(), B.homeBase(), 'telefon bez warstwy: skala modelu bez zmian');
+  assert.ok(/@media \(max-width:620px\)\{\.t100-leg\{[^}]*\}\.t100-leg \.t100-l\{display:none\}/.test(html), 'telefon: opis w jednej linii (pełny tekst tylko na komputerze)');
+  /* zakończenia poza kadrem i pod przyciskami sceny bez podpowiedzi; widok listy bez wskazywania */
+  A.st.t100 = true; t10B.frame(R, .78); const h = A.T10.hit.find(x => x.w); A.st.view = 'list'; assert.equal(A.t10Pick(h.x, h.y), null, 'widok listy — bez wskazywania zakończeń'); A.st.view = 'blocks';
+});
+
+test('v439 Top 100: nowe dane pliku czyszczą pamięć wachlarzy; brak pliku / plik bez warstwy — bez błędu i bez linii; warstwa włączona bez danych: opis „brak danych”', () => {
+  const R = t10B.open(1100, 680), A = R.api; A.st.t100 = true; const f = t10B.frame(R, .78);
+  assert.deepEqual([t100B.hits(A).length, t100B.fanLines(A, f).length], [0, 0], 'plik bez pola w: brak linii, brak błędu'); assert.ok(R.el('t100-leg').innerHTML.includes(A.t('c100.none')), 'opis: brak danych');
+  assert.ok(Math.abs(A.homeDist() - A.homeBase() * t10v140.mk().T10_FIT) < 1e-9, 'bez danych warstwy kamera jak dotąd');
+  const Q = t100B.open(1100, 680), B = Q.api; B.st.t100 = true; t10B.frame(Q, .78); const a1 = B.T10.w100.fan('l1', false); assert.ok(a1);
+  const o = t100B.file({at: '2026-09-28T00:00:00+00:00', n: 30}); Q.files['data/krypto-top10'] = o; const c0 = t10H.CLK.ms;
+  try { t10H.CLK.ms = c0 + 5 * 60000; Q.act('nowy plik', () => B.t10Load()); Q.settle(); } finally { t10H.CLK.ms = c0; }
+  const a2 = B.T10.w100.fan('l1', false); assert.ok(a2 !== a1 && a2.pts.length === 30, 'nowy plik — nowy wachlarz (30 zamiast 90): ' + (a2 && a2.pts.length));
 });
