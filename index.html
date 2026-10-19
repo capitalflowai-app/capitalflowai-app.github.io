@@ -4034,6 +4034,9 @@ const EXTRA318={"pl":{"br474.wyl":"wyliczone z pozostałych kolumn","br474.przer
 for(const l in EXTRA318)if(I18N[l])Object.assign(I18N[l],EXTRA318[l]);
 const EXTRA319={"pl":{"ez475.row":"fundusze {f} ({p} aktywów ETF-ów tej monety)","ez475.prel":"wstępnie","ez475.none":"Dla monet bez wiersza powyżej zapasu nie ma — ich przepływy zostają z danych głównych."},"en":{"ez475.row":"funds {f} ({p} of this coin's ETF assets)","ez475.prel":"preliminary","ez475.none":"There is no backup for coins without a row above — their flows stay as in the main data."}};
 for(const l in EXTRA319)if(I18N[l])Object.assign(I18N[l],EXTRA319[l]);
+/* v488: liczba mnoga „zgłoszenia” (insiderzy) i „instytucje” (Brazylia) — formy przez tN(); pl i en */
+const EXTRA320={"pl":{"odm.ins.k.rep.one":"{n} zgłoszenie","odm.ins.k.rep.few":"{n} zgłoszenia","odm.ins.k.rep.many":"{n} zgłoszeń","odm.iw401.fo.zakres.one":"zakres {a}–{b} · {n} instytucja","odm.iw401.fo.zakres.few":"zakres {a}–{b} · {n} instytucje","odm.iw401.fo.zakres.many":"zakres {a}–{b} · {n} instytucji"},"en":{"odm.ins.k.rep.one":"{n} filing","odm.iw401.fo.zakres.one":"range {a}–{b} · {n} institution"}};
+for(const l in EXTRA320)if(I18N[l])Object.assign(I18N[l],EXTRA320[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -12144,8 +12147,8 @@ function insBody(D){
   const sub=`${insDay(D.day)}${gAgeNote(D.day)}`,part=D.done===false;
   const b=insNum(D.buys_usd)?D.buys_usd:null,s=insNum(D.sells_usd)?D.sells_usd:null;
   const tile=(label,val,cls,small,exact)=>`<div class="etfk"><span>${label}</span><b${cls?` class="${cls}"`:''}${exact?` title="${escH(exact)}"`:''}>${val}${small?`<small>${small}</small>`:''}</b><small class="mtxt">${sub}</small></div>`;
-  const tiles=[tile(`<span class="icos">${F('us','sm')}</span>${t('ins.k.buy')}`,insUsd(b),b==null?'na':'pos',b!=null&&insNum(D.n_buy)?t('ins.k.rep',{n:nfmt(D.n_buy,0)}):'',insExact(b)),
-    tile(`<span class="icos">${F('us','sm')}</span>${t('ins.k.sell')}`,insUsd(s),s==null?'na':'neg',s!=null&&insNum(D.n_sell)?t('ins.k.rep',{n:nfmt(D.n_sell,0)}):'',insExact(s)),
+  const tiles=[tile(`<span class="icos">${F('us','sm')}</span>${t('ins.k.buy')}`,insUsd(b),b==null?'na':'pos',b!=null&&insNum(D.n_buy)?tN('ins.k.rep',D.n_buy,{n:nfmt(D.n_buy,0)}):'',insExact(b)),
+    tile(`<span class="icos">${F('us','sm')}</span>${t('ins.k.sell')}`,insUsd(s),s==null?'na':'neg',s!=null&&insNum(D.n_sell)?tN('ins.k.rep',D.n_sell,{n:nfmt(D.n_sell,0)}):'',insExact(s)),
     tile(`<span class="icos">${G('gauge','sm')}</span>${t('ins.k.ratio')}`,insRatio(D.ratio),insNum(D.ratio)?(D.ratio>=1?'pos':'neg'):'na',insNum(D.share)?t('ins.k.share',{p:nfmt(D.share,1)}):t('ins.k.noshare')),
     tile(`<span class="icos">${G('chart','sm')}</span>${t('ins.k.n')}`,insNum(D.n_parsed)&&insNum(D.n_queued)?t('ins.k.nv',{n:nfmt(D.n_parsed,0),m:nfmt(D.n_queued,0)}):'—','',part?t('ins.part'):(insNum(D.n_filings)&&insNum(D.n_queued)&&D.n_filings>D.n_queued?t('ins.cap',{n:nfmt(D.n_filings,0),m:nfmt(D.n_queued,0)}):t('ins.full')))].join('');
   return `<div class="etfkpis">${tiles}</div>${insTops(D)}${insList(D)}<p class="pnote">${t('ins.delay')}</p>`;
@@ -14971,7 +14974,7 @@ function iwFoBlock(P,ico){
   if(!P)return iwNa(t('iw401.fo.h'));
   const when=iwWhen(P.asof);let tiles='',ch='';
   for(let yi=0;yi<2;yi++){for(const k of IW_FKEYS){const L=P.i[k].last[yi],w=P.i[k].w[yi],y=P.y[yi],d1=iwFd(w,1),d4=iwFd(w,4);
-    tiles+=iwTile(ico,t('iw401.fo.k.'+k,{y}),iwFv(k,L[0]),[strDelta(d1,2,t('iw401.fo.vs1')),strDelta(d4,2,t('iw401.fo.vs4')),iwPcLine(t('iw401.fo.zakres',{a:strVal(L[3],2),b:strVal(L[4],2),n:strVal(L[5],0)}))],when);}}
+    tiles+=iwTile(ico,t('iw401.fo.k.'+k,{y}),iwFv(k,L[0]),[strDelta(d1,2,t('iw401.fo.vs1')),strDelta(d4,2,t('iw401.fo.vs4')),iwPcLine(tN('iw401.fo.zakres',L[5],{a:strVal(L[3],2),b:strVal(L[4],2),n:strVal(L[5],0)}))],when);}}
   for(const k of IW_FKEYS){const lab=t('iw401.fo.c.'+k),o=P.i[k];
     const Ls=[0,1].map(yi=>({n:String(P.y[yi]),cls:yi?'iw-b':'iw-a',d:o.w[yi].map(r=>[iwMs(r[0]),r[1]])}));
     ch+=`<div class="iw-c"><p class="wk-sub"><b>${lab}</b> · ${k==='cambio'?t('iw401.fo.u.kurs'):'%'}</p>${wkLines(Ls,{zero:false,fmt:v=>strVal(v,2),dt:ms=>wkDay(ms,1),dx:ms=>wkDay(ms),aria:t('iw401.ch.aria',{n:lab,k:o.w[0].length})})}</div>`;}

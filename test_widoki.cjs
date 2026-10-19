@@ -4609,10 +4609,10 @@ test('v121 (v126.2): ceny krypto — podpisu licencji danych (pliki giełdy, CC 
 test('v121: insiderzy — blok strony: kafelki (zakupy, sprzedaż, stosunek, zgłoszenia), największe spółki, lista 30 dni ze słupkami, dzień w toku, brak ≠ zero, ukryte bez danych, wczytanie pliku', () => {
   const i0 = html.indexOf('/* ===================== v121: INSIDERZY SPÓŁEK USA'), i1 = html.indexOf('\nfunction insLoad(', i0);
   assert.ok(i0 > 0 && i1 > i0, 'blok v121 na stronie');
-  const mk = ($) => new Function('$', 't', 'nfmt', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', html.slice(i0, i1) +
+  const mk = ($) => new Function('$', 't', 'nfmt', 'escH', 'gAgeNote', 'engDate', 'LOCALE', 'LANG', 'tN', html.slice(i0, i1) +
     '\nreturn {INS, INS_DAYS, INS_MAX_AGE, insRows, insUsd, insRatio, insExact, insTop, insList, insTops, insBody, renderIns, insApply};')(
     $ || (() => null), (k, o) => k + (o ? JSON.stringify(o) : ''), (v, d) => Number(v).toFixed(d),
-    s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c])), d => ' · age(' + d + ')', iso => 'D(' + iso + ')', {pl: 'pl-PL', en: 'en-US'}, 'en');
+    s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c])), d => ' · age(' + d + ')', iso => 'D(' + iso + ')', {pl: 'pl-PL', en: 'en-US'}, 'en', (k, n, o) => k + (o ? JSON.stringify(o) : ''));
   const X = mk();
   assert.equal(X.insUsd(1.5e6), '1.5 ins.mln'); assert.equal(X.insUsd(2.25e9), '2.25 ins.mld'); assert.equal(X.insUsd(37047.9), '37.0 ins.tys'); assert.equal(X.insUsd(500), '500 USD'); assert.equal(X.insUsd(null), '—'); assert.equal(X.insUsd(-1), '—'); assert.equal(X.insUsd(0), '0 USD', 'prawdziwe zero dnia bez transakcji zostaje zerem');
   assert.equal(X.insRatio(35), '35.0'); assert.equal(X.insRatio(0.42), '0.42'); assert.equal(X.insRatio(0.001), '0.001'); assert.equal(X.insRatio(0.0004), '<0.001'); assert.equal(X.insRatio(0), '0.000'); assert.equal(X.insRatio(null), '—');
@@ -30028,14 +30028,14 @@ const iw401 = (() => {
     const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
     const doc = {addEventListener: (e, f, c) => hnd.push([e, f, c]), documentElement: {}, hidden: false};
     const T = v96src.tFor(L), EH = v96src.escH;
-    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkBars', 'wkCols', 'wkLines', 'wkMs', 'wkDay', 'Date',
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'glyphImg', 'flagImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkBars', 'wkCols', 'wkLines', 'wkMs', 'wkDay', 'Date', 'tN',
       "'use strict';\n" + helpers + '\n' + code + '\nreturn {IW, iwLoad, renderIw, iwOk, iwJp, iwHk, iwAr, iwBr, iwCa, iwFo, iwBody, iwFoBody, iwJpInfo, iwJpTxt, iwJpYears, iwRef, iwHkInfo, iwArInfo, iwJpAmt};')(
       q => els[q] || null, T, EH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, () => '', c => '<f:' + c + '>', i => i, doc,
       function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
       (R, o) => { bars.push({R, o}); return '<bars n=' + R.length + ' aria="' + o.aria + '">'; },
       (X, o) => { cols.push({X, o}); return '<cols n=' + X.length + ' aria="' + o.aria + '">'; },
       (Ls, o) => { lines.push({L: Ls, o}); return '<lines n=' + Ls[0].d.length + ' aria="' + o.aria + '">'; },
-      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), FD);
+      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), FD, (k, n, o) => T(k, o));
     const fire = id => mos.filter(m => m.tg === els[id]).forEach(m => m.cb());
     const expand = (id = '#g-interwencje') => { els[id].classList.s.add('zw-on'); els[id].classList.s.delete('zw'); fire(id); };
     const collapse = (id = '#g-interwencje') => { els[id].classList.s.add('zw-on'); els[id].classList.s.add('zw'); fire(id); };
@@ -37370,4 +37370,28 @@ test('v487-podwojny-stempel: blok stóp — ten sam czas pliku stóp i kursów e
   SP.eerApply({ at: AT2, rows: { XM: { c30: 1.2, c12: -0.4, m: '2026-08', d: '2026-09-22' }, US: { c30: 0, c12: 2 } } });
   h = SP.spBlock();
   assert.ok(st(h) === 1 && st2(h) === 1 && h.includes('inst.file{"t":"' + AT + '"} · inst.file{"t":"' + AT2 + '"}'), 'różny czas plików: dwa stemple');
+});
+
+test('v488: liczba mnoga — „zgłoszenia” (insiderzy) i „instytucje” (Brazylia) przez tN: 1 / 2–4 / 5+ po polsku, „filing” / „institution” po angielsku; kod wywołuje tN z liczbą', () => {
+  const I = v143Final(html);
+  const fp = v183tN(I, 'pl'), fe = v183tN(I, 'en');
+  const rep = (f, n) => f('ins.k.rep', n, {n: String(n)});
+  assert.deepEqual([1, 2, 4, 5, 12, 22, 30, 104, 0].map(n => rep(fp, n)),
+    ['1 zgłoszenie', '2 zgłoszenia', '4 zgłoszenia', '5 zgłoszeń', '12 zgłoszeń', '22 zgłoszenia', '30 zgłoszeń', '104 zgłoszenia', '0 zgłoszeń']);
+  assert.deepEqual([1, 2, 104].map(n => rep(fe, n)), ['1 filing', '2 filings', '104 filings']);
+  const zak = (f, n) => f('iw401.fo.zakres', n, {a: '13,00', b: '14,00', n: String(n)});
+  assert.deepEqual([1, 3, 12, 103, 104, 132, 133, 135].map(n => zak(fp, n)),
+    ['zakres 13,00–14,00 · 1 instytucja', 'zakres 13,00–14,00 · 3 instytucje', 'zakres 13,00–14,00 · 12 instytucji', 'zakres 13,00–14,00 · 103 instytucje',
+     'zakres 13,00–14,00 · 104 instytucje', 'zakres 13,00–14,00 · 132 instytucje', 'zakres 13,00–14,00 · 133 instytucje', 'zakres 13,00–14,00 · 135 instytucji']);
+  assert.deepEqual([1, 133].map(n => zak(fe, n)), ['range 13,00–14,00 · 1 institution', 'range 13,00–14,00 · 133 institutions']);
+  assert.equal(rep(fp, NaN), 'NaN zgłoszeń', 'nie-liczba — tekst bazowy');
+  for (const k of ['odm.ins.k.rep.one', 'odm.ins.k.rep.few', 'odm.ins.k.rep.many', 'odm.iw401.fo.zakres.one', 'odm.iw401.fo.zakres.few', 'odm.iw401.fo.zakres.many'])
+    assert.ok(typeof I.pl[k] === 'string' && I.pl[k].includes('{n}'), 'pl ' + k);
+  assert.ok(I.en['odm.ins.k.rep.one'].includes('filing') && I.en['odm.iw401.fo.zakres.one'].includes('institution'));
+  assert.ok(html.includes("tN('ins.k.rep',D.n_buy,{n:nfmt(D.n_buy,0)})") && html.includes("tN('ins.k.rep',D.n_sell,{n:nfmt(D.n_sell,0)})"), 'insiderzy: tN z liczbą');
+  assert.ok(html.includes("tN('iw401.fo.zakres',L[5],"), 'Brazylia: tN z liczbą');
+  assert.ok(!html.includes("t('ins.k.rep'") && !html.includes("t('iw401.fo.zakres'"), 'nie zostało zwykłe t() dla tych kluczy');
+  const mm = [...html.matchAll(/^const EXTRA(\d+)=\{"pl":\{"odm\.ins\.k\.rep\.one"/gm)];
+  assert.equal(mm.length, 1, 'jeden słownik v488'); const n = mm[0][1];
+  assert.equal([...html.matchAll(new RegExp('^for\\(const l in EXTRA' + n + '\\)if\\(I18N\\[l\\]\\)Object\\.assign\\(I18N\\[l\\],EXTRA' + n + '\\[l\\]\\);$', 'gm'))].length, 1, 'jedna linia nakładania');
 });
