@@ -35306,3 +35306,183 @@ test('v452 (F11Z32): struktura strony — jedna sekcja, jedno miejsce pobrania p
   const ico = html.indexOf('id="g-ropa"'), me = html.indexOf('id="g-zlotouk"'), ch = html.indexOf('id="g-chinatw"');
   assert.ok(ico > 0 && me > ico && ch > me, 'karta po ropie świata, przed Chinami i Tajwanem');
 });
+
+// ===================== v453 (F11Z34): Hyperliquid — największe konta i pożyczki w DeFi — karty #c-hl i #c-aave w CRYPTO (data/hl-aave.json) =====================
+// Fixtura HLA453_F: plik hl-aave.json zbudowany przez zbieracz v453 z danych testowych (40 kont wymyślonych, pozycje 12 największych aktywnych, rynki pożyczkowe z nagrania z 19.10.2026 w wersji skróconej).
+// Czas przypięty (Date.now, 2026-10-19 07:00 UTC), bez zegara; oczekiwane liczby liczone w teście z pól fixtury (niezależnie od kodu strony), formatowanie przez nfmt strony tylko tam, gdzie liczba nie jest całkowita.
+const HLA453_F = {"v":1,"at":"2026-10-19T06:00:00+00:00","src":"publiczny ranking kont giełdy kontraktów, stany największych aktywnych kont i publiczne dane największego protokołu pożyczkowego DeFi","ok":{"hl":true,"aave":true},"part_at":{"hl":"2026-10-19T06:00:00+00:00","aave":"2026-10-19T06:00:00+00:00"},"try_at":{"hl":"2026-10-19T06:00:00+00:00","aave":"2026-10-19T06:00:00+00:00"},"hl":{"t":"2026-10-19T06:00:00+00:00","dzien":"2026-10-19","asof":"2026-10-19","upd":"2026-10-19T04:37:59+00:00","rank":{"n":40,"bad":0,"suma":159332500,"gr":[[16,32500],[6,300000],[6,3000000],[4,20000000],[8,136000000],[0,0]],"s10":150000000,"s100":159332500,"okna":{"day":{"act":26,"np":15,"nl":14,"sp":2194,"sl":-1529,"vlm":12014000},"week":{"act":19,"np":22,"nl":3,"sp":36098,"sl":-6000,"vlm":30635000},"month":{"act":40,"np":6,"nl":33,"sp":10500,"sl":-8060,"vlm":96252000}}},"poz":{"n":12,"ok":12,"poz":10,"eq":18000006,"long":111000000,"short":188000000,"mon":12,"coins":[["BTC",20000000,16000000,2,1],["SUI",24000000,12000000,2,1],["DOGE",8000000,24000000,1,2],["SOL",4000000,28000000,1,2],["AVAX",12000000,18000000,1,1],["LINK",15000000,13000000,1,1],["ETH",0,22000000,0,2],["ZEC",11000000,9000000,1,1],["HYPE",10000000,8000000,1,1],["XRP",0,18000000,0,2]],"t":"2026-10-19T06:00:00+00:00"}},"aave":{"t":"2026-10-19T06:00:00+00:00","dzien":"2026-10-19","asof":"2026-10-19","suma":25791045777,"poz":10094749837,"plyn":15173389360,"n":4,"sieci":3,"rynki":[["Ethereum","",23580329862,9253065135,13892667190],["Arbitrum","",971947682,352293174,538934246],["Base","",925207543,362398805,555219958],["Ethereum","Lido",313560691,126992723,186567965]],"glowny":["Ethereum",""],"stawki":[["WETH",5280561199,1.33,1.97,81.5],["weETH",3690670541,0.0,1.01,0.0],["USDT",2881123670,3.19,4.17,85.4],["WBTC",2798031615,0.0,0.32,2.1],["USDC",2387527663,3.84,4.58,93.5],["wstETH",2348125293,0.0,0.03,2.5],["cbBTC",1427814341,0.0,0.29,0.8],["osETH",311243545,0.0,0.0,0.0]],"stab":{"USDC":[2387527663,3.84,4.58,93.5],"USDT":[2881123670,3.19,4.17,85.4]}}};
+const hla453 = (() => {
+  const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); assert.ok(i > 0 && j > i, 'wycinek: ' + a); return html.slice(i, j); };
+  const code = cut('/* ===================== v453 (F11Z34): HYPERLIQUID', '/* v453: koniec */');
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-19T07:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[  ]/g, ' ');
+  const txt = h => sp(h).replace(/<(?=[\d ])/g, '&lt;').replace(/<[^>]+>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const mk = (L, file, opt) => {
+    opt = opt || {};
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const mkEl = () => ({innerHTML: '', hidden: true});
+    const els = {'#c-hl': mkEl(), '#c-aave': mkEl()};
+    const calls = [], ivs = [], obs = [];
+    const srv = n => { calls.push(n); const v = n === 'hl-aave' ? file : null; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const SRV_GR = {'ceny-krypto': 'c'}, SRV_LD = {c: [function srvLiveStart() {}]};
+    const doc = {addEventListener: () => {}, querySelector: () => null, documentElement: {}, hidden: false};
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'lnAgo', 'srvJSON', 'SRV_GR', 'SRV_LD', 'glyphImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'Date', 'steCoin',
+      "'use strict';\n" + gx349.code + '\n' + code + '\nreturn {HLA, renderHla, renderHl, renderAave, hlaApply, hlaLoad, hlaOk, hlaHl, hlaAave, hlaPoz, hlaP};')(
+      q => els[q] || null, v96src.tFor(L), v96src.escH, F.nfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, s => ' · temu(' + s + ')', srv, SRV_GR, SRV_LD,
+      (n, s) => '[g:' + n + ']', i => i ? '<span class="icos">' + i + '</span>' : '', doc, function () { this.observe = (...a) => obs.push(a); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD,
+      opt.coin ? (s => '[c:' + s + ']') : undefined);
+    return {api, els, calls, ivs, SRV_GR, SRV_LD, obs, F};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)]
+    .map(m => ({label: m[1], cls: (m[2].match(/class="([^"]*)"/) || [, ''])[1], val: txt(m[3].split('<small')[0]), valHtml: m[3].split('<small')[0], subs: [...m[3].matchAll(/<small[^>]*>(.*?)<\/small>/g)].map(x => txt(x[1])), when: txt(m[4])}));
+  const bars = h => [...sp(h).matchAll(/<div class="gxs-r"><span class="gxs-n">(.*?)<\/span><span class="gxs-b"><span class="gxs-t" aria-hidden="true"><i( class="([a-z]+)")? style="width:([\d.]+)%"><\/i><\/span><span class="gxs-v">(.*?)<\/span><\/span><\/div>/g)]
+    .map(m => ({name: txt(m[1]), cls: m[3] || '', w: parseFloat(m[4]), val: txt(m[5])}));
+  const rows = h => [...sp(h).matchAll(/<div class="hla-r((?: hla-[a-z])*)"><span class="hla-n">(.*?)<\/span>((?:<span class="hla-c" data-l="[^"]*">.*?<\/span>)+)(<span class="hla-bar"[^>]*>.*?<\/span>)?<\/div>/g)]
+    .map(m => ({kind: m[1].trim(), name: txt(m[2]), cells: [...m[3].matchAll(/<span class="hla-c" data-l="([^"]*)">(.*?)<\/span>(?=<span class="hla-c"|$)/g)].map(c => ({l: c[1], v: txt(c[2]), html: c[2]})), bar: m[4] ? [...m[4].matchAll(/class="(up|dn)" style="width:([\d.]+)%/g)].map(x => [x[1], parseFloat(x[2])]) : null}));
+  return {mk, tiles, bars, rows, clone, sp, txt, code, NOW, LOC};
+})();
+
+const hla453J = () => hla453.clone(HLA453_F);
+const hla453Go = (L, f, o) => hla453.mk(L, f === undefined ? hla453J() : f, o);   // moduł sam pobiera plik przy wczytaniu (jedno srvJSON) i rysuje karty
+const hla453Mag = v => { const a = Math.abs(v), s = v < 0 ? '−' : ''; return s + (a >= 1e9 ? (a / 1e9).toFixed(a >= 1e10 ? 1 : 2).replace('.', ',') + ' mld USD' : a >= 1e8 ? Math.round(a / 1e6) + ' mln USD' : (a / 1e6).toFixed(1).replace('.', ',') + ' mln USD'); };   // niezależny zapis kwot jak na stronie
+const hla453Pl = (v, d) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(d).replace('.', ',');
+
+test('v453 (F11Z34): karty #c-hl i #c-aave — ładowarka w grupie CRYPTO, jedno pobranie pliku, odświeżanie co 30 min, jeden obserwator języka, po karcie DeFi 2', () => {
+  const K = hla453Go('pl');
+  assert.equal(K.calls.filter(n => n === 'hl-aave').length, 1, 'jedno pobranie przy starcie'); K.api.hlaLoad(); assert.equal(K.calls.filter(n => n === 'hl-aave').length, 2, 'ładowarka pobiera plik z serwera strony');
+  assert.equal(K.SRV_GR['hl-aave'], 'c'); assert.equal(K.SRV_LD.c.filter(f => f.name === 'hlaLoad').length, 1, 'ładowarka dopisana do rejestru grupy c');
+  assert.equal(hla453.code.split('hlaLoad();},30*60*1000)').length, 2, 'odświeżanie co 30 min'); assert.equal(hla453.code.split('new MutationObserver(()=>renderHla())').length, 2, 'jeden obserwator języka z tych kart'); assert.equal(K.ivs.filter(([f, ms]) => ms === 30 * 60e3).length, 1, 'jeden zegar odświeżania'); K.ivs.find(([f, ms]) => ms === 30 * 60e3)[0](); assert.equal(K.calls.filter(n => n === 'hl-aave').length, 3, 'zegar pobiera plik ponownie');
+  assert.equal(K.els['#c-hl'].hidden, false); assert.equal(K.els['#c-aave'].hidden, false);
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])hl-aave\1/g)].length, 1, 'plik pobierany w jednym miejscu');
+  const a = html.indexOf('id="c-defi2"'), b = html.indexOf('id="c-hl"'), c = html.indexOf('id="c-aave"');
+  assert.ok(a > 0 && b > a && c > b, 'kolejność kart: DeFi 2 < Hyperliquid < pożyczki');
+  assert.equal([...html.matchAll(/<section class="panel pcard hla" id="c-(?:hl|aave)" hidden><\/section>/g)].length, 2);
+  assert.deepEqual(hla453.code.match(/\bfetch\(|XMLHttpRequest|WebSocket|localStorage|sessionStorage|eval\(|innerHTML\s*=\s*[^`]*\+\s*[A-Za-z]/g), null, 'żadnych zapytań sieciowych (tylko srvJSON), pamięci przeglądarki ani eval');
+  assert.ok(!/api[_-]?key|token|secret|password/i.test(hla453.code), 'bez kluczy i tokenów');
+});
+
+test('v453 (F11Z34): ranking kont — kafle, słupki grup i tabela zysków z liczb pliku (liczone niezależnie), czas danych z pliku wydawcy', () => {
+  const R = HLA453_F.hl.rank, O = R.okna, K = hla453Go('pl'), h = K.els['#c-hl'].innerHTML, T = hla453.tiles(h);
+  assert.equal(T.length, 8, 'cztery kafle rankingu i cztery kafle pozycji');
+  assert.deepEqual(T.slice(0, 4).map(x => x.label), ['Konta w rankingu', 'Wartość kont razem', 'Konta na plusie (tydzień)', 'Udział 100 największych kont']);
+  assert.equal(T[0].val, String(R.n)); assert.equal(T[0].subs[0], 'aktywnych w tygodniu: ' + O.week.act);
+  assert.ok(R.suma >= 1e8 && R.suma < 1e9); assert.equal(T[1].val, Math.round(R.suma / 1e6) + ' mln USD');
+  assert.equal(T[1].subs[0], 'kont powyżej 1 mln: ' + (R.gr[3][0] + R.gr[4][0] + R.gr[5][0]));
+  const w = O.week.np / (O.week.np + O.week.nl) * 100; assert.equal(T[2].val, Math.round(w) + '%'); assert.equal(T[2].subs[0], 'na minusie: ' + O.week.nl);
+  assert.equal(T[3].val, Math.round(R.s100 / R.suma * 100) + '%'); assert.equal(T[3].subs[0], '10 największych: ' + Math.round(R.s10 / R.suma * 100) + '%');
+  assert.ok(T.slice(0, 4).every(x => /stan: D:2026-10-19T04:37:59\+00:00 · temu\(/.test(x.when)), 'czas danych = plik wydawcy (upd), nie czas pobrania');
+  const B = hla453.bars(h.slice(0, h.indexOf('Zyski i straty kont'))); assert.equal(B.length, 6);
+  assert.deepEqual(B.map(x => x.name), ['do 10 tys.', '10–100 tys.', '100 tys.–1 mln', '1–10 mln', '10–100 mln', 'ponad 100 mln']);
+  B.forEach((x, i) => { assert.equal(x.w, +(R.gr[i][1] / R.suma * 100).toFixed(2)); assert.ok(x.val.startsWith('kont: ' + R.gr[i][0] + ' · '), x.val); });
+  assert.equal(B[5].cls, 'cur'); assert.equal(B.slice(0, 5).filter(x => x.cls).length, 0);
+  const rows = hla453.rows(h).filter(r => ['Doba', 'Tydzień', 'Miesiąc'].includes(r.name));
+  assert.deepEqual(rows.map(r => r.name), ['Doba', 'Tydzień', 'Miesiąc']);
+  ['day', 'week', 'month'].forEach((k, i) => { const c = rows[i].cells; assert.deepEqual(c.map(x => x.l), ['Na plusie', 'Na minusie', 'Zyski razem', 'Straty razem', 'Obrót']); assert.equal(c[0].v, String(O[k].np)); assert.equal(c[1].v, String(O[k].nl)); });
+  assert.equal(rows[0].cells[2].v, '<1 mln USD'.replace('<1', '<1'), 'zysk poniżej 0,5 mln USD to „<1 mln” i kolor żółty'); assert.ok(rows[0].cells[2].html.includes('class="neu"'));
+});
+
+test('v453 (F11Z34): ranking kont — kolory kierunku z pokazanej liczby (zyski zielone, straty czerwone, zero żółte), duże kwoty', () => {
+  const J = hla453J(); const O = J.hl.rank.okna;
+  O.day.sp = 3.2e9; O.day.sl = -1.8e9; O.day.vlm = 6.4e11; O.week.sp = 0; O.week.sl = -40; O.month.sp = 7.5e7; O.month.sl = -6e5;
+  const K = hla453Go('pl', J), rows = hla453.rows(K.els['#c-hl'].innerHTML).filter(r => ['Doba', 'Tydzień', 'Miesiąc'].includes(r.name));
+  assert.equal(rows[0].cells[2].v, '+3,20 mld USD'); assert.ok(rows[0].cells[2].html.includes('class="pos"'));
+  assert.equal(rows[0].cells[3].v, '−1,80 mld USD'); assert.ok(rows[0].cells[3].html.includes('class="neg"'));
+  assert.equal(rows[0].cells[4].v, '640,0 mld USD');
+  assert.equal(rows[1].cells[2].v, '0 mln USD'); assert.ok(rows[1].cells[2].html.includes('class="neu"'), 'zero = żółte, bez znaku');
+  assert.equal(rows[1].cells[3].v, '<1 mln USD'); assert.ok(rows[1].cells[3].html.includes('class="neu"'), 'strata 40 USD poniżej progu = „<1 mln” żółte, nie czerwone');
+  assert.equal(rows[2].cells[2].v, '+75,0 mln USD'); assert.equal(rows[2].cells[3].v, '−0,6 mln USD'); assert.ok(rows[2].cells[3].html.includes('class="neg"'));
+});
+
+test('v453 (F11Z34): pozycje największych aktywnych kont — sumy, różnica long minus short z kolorem, tabela monet z paskiem podziału', () => {
+  const Z = HLA453_F.hl.poz, K = hla453Go('pl'), h = K.els['#c-hl'].innerHTML, T = hla453.tiles(h).slice(4);
+  assert.deepEqual(T.map(x => x.label), ['Pozycje long (na wzrost)', 'Pozycje short (na spadek)', 'Long minus short', 'Wartość tych kont']);
+  assert.equal(T[0].val, hla453Mag(Z.long)); assert.equal(T[0].subs[0], 'kont z pozycjami: ' + Z.poz);
+  assert.equal(T[1].val, hla453Mag(Z.short));
+  assert.ok(Z.long < Z.short); assert.equal(T[2].val, hla453Mag(Z.long - Z.short)); assert.ok(T[2].valHtml.includes('class="neg"'), 'przewaga short = minus czerwony');
+  assert.equal(T[2].subs[0], 'long to ' + Math.round(Z.long / (Z.long + Z.short) * 100) + '% wszystkich pozycji');
+  assert.equal(T[3].val, hla453Mag(Z.eq)); assert.equal(T[3].subs[0], 'odczytano ' + Z.ok + ' z ' + Z.n + ' kont');
+  assert.ok(T.every(x => x.when.startsWith('stan: ')));
+  assert.ok(h.includes('Odczyt dla ' + Z.n + ' największych kont, które handlowały w ostatnim tygodniu.'));
+  const R = hla453.rows(h).filter(r => r.kind === 'hla-p'); assert.equal(R.length, Math.min(10, Z.coins.length)); assert.deepEqual(R.map(r => r.name), Z.coins.map(c => c[0]));
+  const tot = Z.coins.map(c => c[1] + c[2]); assert.deepEqual(tot, tot.slice().sort((a, b) => b - a), 'monety malejąco wg sumy pozycji');
+  R.forEach((r, i) => { const c = Z.coins[i]; assert.deepEqual(r.cells.map(x => x.l), ['Long', 'Short', 'Różnica', 'Konta long / short']); assert.equal(r.cells[3].v, c[3] + ' / ' + c[4]);
+    const net = c[1] - c[2]; assert.equal(r.cells[2].html.includes('class="pos"'), net >= 5e5); assert.equal(r.cells[2].html.includes('class="neg"'), net <= -5e5);
+    const lp = c[1] / (c[1] + c[2]) * 100; assert.deepEqual(r.bar, [['up', +lp.toFixed(2)], ['dn', +(100 - lp).toFixed(2)]]); });
+  const J = hla453J(); J.hl.poz.coins[0][1] = 9e9; J.hl.poz.coins[0][2] = 1e9; J.hl.poz.long = 2e10;
+  const R2 = hla453.rows(hla453Go('pl', J).els['#c-hl'].innerHTML).filter(r => r.kind === 'hla-p'); assert.ok(R2[0].cells[2].html.includes('class="pos"') && R2[0].cells[2].v.startsWith('+'), 'przewaga long = plus zielony');
+});
+
+test('v453 (F11Z34): pozycje niedostępne (poz = null albo stare) nie zasłaniają rankingu — notatka zamiast pustego miejsca', () => {
+  for (const f of [j => { j.hl.poz = null; }, j => { j.hl.poz.t = '2026-10-10T00:00:00+00:00'; }, j => { j.hl.poz.coins = 'x'; }, j => { j.hl.poz.ok = 0; }]) {
+    const J = hla453J(); f(J); const K = hla453Go('pl', J), h = K.els['#c-hl'].innerHTML;
+    assert.equal(K.els['#c-hl'].hidden, false); assert.equal(hla453.tiles(h).length, 4); assert.ok(h.includes('Pozycje chwilowo niedostępne.')); assert.ok(h.includes('Ile pieniędzy mają konta'));
+  }
+});
+
+test('v453 (F11Z34): pożyczki w DeFi — kafle, słupki rynków i tabela stawek z liczb pliku; pożyczanie wyłączone to „—”, nie zero', () => {
+  const A = HLA453_F.aave, K = hla453Go('pl'), h = K.els['#c-aave'].innerHTML, T = hla453.tiles(h);
+  assert.deepEqual(T.map(x => x.label), ['Wpłacone razem', 'Pożyczone razem', 'USDC: pożyczka', 'USDT: pożyczka']);
+  assert.equal(T[0].val, hla453Pl(A.suma / 1e9, 1) + ' mld USD'); assert.equal(T[0].subs[0], 'rynków: ' + A.n + ' · sieci: ' + A.sieci);
+  assert.equal(T[1].val, hla453Pl(A.poz / 1e9, 1) + ' mld USD'); assert.equal(T[1].subs[0], 'wykorzystanie ' + Math.round(A.poz / A.suma * 100) + '%');
+  assert.equal(T[2].val, hla453Pl(A.stab.USDC[2], 2) + '%'); assert.equal(T[2].subs[0], 'wpłata ' + hla453Pl(A.stab.USDC[1], 2) + '% · wykorzystanie ' + Math.round(A.stab.USDC[3]) + '%');
+  assert.equal(T[3].val, hla453Pl(A.stab.USDT[2], 2) + '%');
+  const B = hla453.bars(h.slice(0, h.indexOf('Stawki na rynku głównym'))); assert.equal(B.length, A.rynki.length);
+  assert.deepEqual(B.map(x => x.name), A.rynki.map(r => r[0] + (r[1] ? ' (' + r[1] + ')' : ''))); assert.ok(B.some(x => x.name === 'Ethereum (Lido)'));
+  B.forEach((x, i) => assert.equal(x.w, +(A.rynki[i][2] / A.rynki[0][2] * 100).toFixed(2))); assert.equal(B[0].w, 100); assert.deepEqual(B.map(x => x.cls), B.map((x, i) => i === 0 ? 'cur' : ''), 'największy rynek wyróżniony, reszta zwykłe');
+  assert.ok(h.includes('Stawki na rynku głównym (Ethereum)'));
+  const R = hla453.rows(h).filter(r => r.kind === 'hla-a'); assert.equal(R.length, A.stawki.length); assert.deepEqual(R.map(r => r.name), A.stawki.map(r => r[0]));
+  R.forEach((r, i) => { const s = A.stawki[i]; assert.deepEqual(r.cells.map(x => x.l), ['Wpłacono', 'Stawka wpłaty', 'Stawka pożyczki', 'Wykorzystanie']); assert.equal(r.cells[1].v, hla453Pl(s[2], 2) + '%'); assert.equal(r.cells[2].v, s[3] === null ? '—' : hla453Pl(s[3], 2) + '%'); });
+  const J = hla453J(); J.aave.stawki[0][3] = null; J.aave.stawki[0][4] = null; J.aave.stab = {USDC: J.aave.stab.USDC};
+  const K2 = hla453Go('pl', J), R2 = hla453.rows(K2.els['#c-aave'].innerHTML).filter(r => r.kind === 'hla-a'), T2 = hla453.tiles(K2.els['#c-aave'].innerHTML);
+  assert.deepEqual([R2[0].cells[2].v, R2[0].cells[3].v], ['—', '—']); assert.equal(T2[3].val, '—'); assert.equal(T2[3].cls, 'na');
+});
+
+test('v453 (F11Z34): świeżość części — ranking znika po 5 dobach, pożyczki po 2; jedna część nie chowa drugiej; zły plik ukrywa karty', () => {
+  const J = hla453J(); J.hl.t = '2026-10-13T00:00:00+00:00'; let K = hla453Go('pl', J);
+  assert.equal(K.els['#c-hl'].hidden, true); assert.equal(K.els['#c-hl'].innerHTML, ''); assert.equal(K.els['#c-aave'].hidden, false);
+  const J2 = hla453J(); J2.aave.t = '2026-10-16T00:00:00+00:00'; K = hla453Go('pl', J2); assert.equal(K.els['#c-aave'].hidden, true); assert.equal(K.els['#c-hl'].hidden, false);
+  const J3 = hla453J(); delete J3.aave; K = hla453Go('pl', J3); assert.equal(K.els['#c-aave'].hidden, true); assert.equal(K.els['#c-hl'].hidden, false);
+  for (const bad of [{v: 2}, {v: 1}, {v: 1, at: 'x', hl: {}}, [], 'x', 0]) { K = hla453Go('pl', bad); assert.equal(K.els['#c-hl'].hidden, true); assert.equal(K.els['#c-aave'].hidden, true); }
+  const sz = [j => { j.hl.rank.gr.pop(); }, j => { j.hl.rank.n = 0; }, j => { j.hl.rank.suma = 'x'; }, j => { j.hl.rank.okna.week.sl = 5; }, j => { delete j.hl.rank.okna.month; }];
+  for (const f of sz) { const j = hla453J(); f(j); const k = hla453Go('pl', j); assert.equal(k.els['#c-hl'].hidden, true); assert.equal(k.els['#c-aave'].hidden, false); }
+  const sa = [j => { j.aave.suma = 0; }, j => { j.aave.rynki = []; }, j => { j.aave.stawki = []; }, j => { j.aave.rynki = j.aave.rynki.map(r => r.slice(1)); }];
+  for (const f of sa) { const j = hla453J(); f(j); const k = hla453Go('pl', j); assert.equal(k.els['#c-aave'].hidden, true, String(f)); assert.equal(k.els['#c-hl'].hidden, false); }
+});
+
+test('v453 (F11Z34): chwilowy błąd pobrania nie zasłania wczytanych danych; poprawny plik je odświeża', () => {
+  const K = hla453Go('pl'); assert.equal(K.els['#c-hl'].hidden, false);
+  K.api.hlaApply(null); K.api.hlaApply({v: 2}); assert.equal(K.els['#c-hl'].hidden, false, 'zły plik po poprawnym — dane zostają');
+  const J = hla453J(); J.hl.rank.n = 41; K.api.hlaApply(J); assert.equal(hla453.tiles(K.els['#c-hl'].innerHTML)[0].val, '41');
+  const K0 = hla453Go('pl', null); assert.equal(K0.els['#c-hl'].hidden, true, 'bez pliku od początku — karty ukryte');
+});
+
+test('v453 (F11Z34): angielski — tytuły, etykiety i liczby; brak surowych kluczy, NaN i undefined w obu językach także przy danych szczątkowych', () => {
+  const K = hla453Go('en'), a = K.els['#c-hl'].innerHTML, b = K.els['#c-aave'].innerHTML;
+  assert.ok(a.includes('<h2>Hyperliquid: biggest accounts</h2>') && b.includes('<h2>Aave: lending in DeFi</h2>'));
+  assert.deepEqual(hla453.tiles(a).slice(0, 4).map(x => x.label), ['Accounts in the ranking', 'Total value of accounts', 'Accounts in profit (week)', 'Share of the 100 biggest accounts']);
+  assert.deepEqual(hla453.tiles(b).map(x => x.label), ['Total deposited', 'Total borrowed', 'USDC: loan', 'USDT: loan']);
+  assert.equal(hla453.tiles(b)[0].val, hla453Pl(HLA453_F.aave.suma / 1e9, 1).replace(',', '.') + ' B USD', 'angielski: kropka dziesiętna');
+  assert.ok(hla453.rows(a).some(r => r.name === 'Week') && hla453.rows(a).some(r => r.cells.some(c => c.l === 'Accounts long / short')));
+  assert.ok(!/(?:^|[^\w])(?:hl|aave|hla)\.[a-z]/.test(a + b), 'brak surowych kluczy słownika');
+  const sparse = hla453J(); sparse.hl.poz = null; sparse.aave.stab = {}; sparse.hl.upd = null; sparse.hl.rank.okna.day.np = 0; sparse.hl.rank.okna.day.nl = 0; sparse.hl.rank.okna.week.np = 0; sparse.hl.rank.okna.week.nl = 0;
+  for (const L of ['pl', 'en']) for (const f of [HLA453_F, sparse]) { const k = hla453Go(L, hla453.clone(f)); const x = k.els['#c-hl'].innerHTML + k.els['#c-aave'].innerHTML; assert.ok(x.length > 500 && !/NaN|undefined|Infinity|\[object/.test(x), L); }
+  const T = hla453.tiles(hla453Go('pl', sparse).els['#c-hl'].innerHTML); assert.equal(T[2].val, '—'); assert.equal(T[2].cls, 'na', 'brak kont z wynikiem = „—”, nie 0%');
+  assert.ok(hla453.tiles(hla453Go('pl', sparse).els['#c-hl'].innerHTML)[0].when.includes('D:2026-10-19T06:00:00+00:00'), 'bez daty pliku wydawcy — czas pobrania');
+});
+
+test('v453 (F11Z34): słownik tylko pl i en o tych samych kluczach, zero nazw dostawców i adresów w tekstach, styl na telefon 390 px', () => {
+  const m = html.match(/const EXTRA(\d+)=(\{"pl":\{"hla\.when".*?\});\nfor\(const l in EXTRA\1\)/s); assert.ok(m, 'słownik v453');
+  const D = JSON.parse(m[2].replace(/\\u([0-9a-f]{4})/g, (x, c) => String.fromCharCode(parseInt(c, 16)))); assert.deepEqual(Object.keys(D), ['pl', 'en']);
+  const kp = Object.keys(D.pl).sort(), ke = Object.keys(D.en).sort(); assert.deepEqual(kp, ke); assert.ok(kp.length > 60);
+  for (const k of kp) { assert.ok(D.pl[k].trim() && D.en[k].trim(), k); assert.deepEqual((D.pl[k].match(/\{[a-z]+\}/g) || []).sort(), (D.en[k].match(/\{[a-z]+\}/g) || []).sort(), 'znaczniki ' + k); assert.ok(!/[<>]/.test(D.pl[k] + D.en[k]), k); }
+  const wszystko = JSON.stringify(D);
+  assert.ok(!/CoinGecko|DefiLlama|Llama|CoinMarketCap|Etherscan|GraphQL|stats-data|leaderboard|Last-Modified|API|JSON|MB\b/i.test(wszystko), 'bez nazw dostawców i opisów wewnętrznych metod');
+  assert.ok(!/0x[0-9a-f]{6}/i.test(wszystko));
+  assert.ok(html.includes('.hla .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}') && /@media \(max-width:760px\)\{\.hla \.etfkpis\{grid-template-columns:repeat\(2/.test(html), 'kafle po dwa na telefonie');
+  assert.ok(/@media \(max-width:560px\)\{[^@]*\.hla \.hla-c::before\{content:attr\(data-l\)/.test(html) && html.includes('.hla .hla-hd{display:none}'), 'tabele jako kartki z etykietami kolumn');
+  assert.ok(/\.hla \.hla-n b\{[^}]*overflow-wrap:anywhere/.test(html) && !/\.hla[^{]*\{[^}]*white-space:nowrap[^}]*\}/.test(html.slice(html.indexOf('.hla .etfkpis'), html.indexOf('.hla .etfkpis') + 4000).replace(/\.hla \.gxs-v\{[^}]*\}/, '')), 'bez wymuszonego jednego wiersza poza wartością paska');
+});

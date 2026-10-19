@@ -33537,6 +33537,8 @@ def main():
     META['ok']['ucits_fx'], META['ok']['ucits_scr'], META['ok']['ucits_hist'] = ucf_czesc()
     # v402 (F11Z15): DeFi 2 — data/defi2.json; opłaty i przychody protokołów, ceny stablecoinów, włamania, opcje na DEX; publiczne zapytania bez klucza, każda część raz na dobę UTC (ta sama usługa co stablecoiny i DEX)
     META['ok']['defi2_fees'], META['ok']['defi2_peg'], META['ok']['defi2_hacks'], META['ok']['defi2_opt'] = df2_czesc()
+    # v453 (F11Z34): Hyperliquid — największe konta (ranking czytany strumieniowo, tylko sumy) i pożyczki w DeFi — data/hl-aave.json; publiczne zapytania tylko do odczytu, bez klucza; ranking co 12 h, pożyczki co 3 h
+    META['ok']['hlaave_hl'], META['ok']['hlaave_aave'] = hla_czesc()
     # v394 (F11Z8): premie lokalnych stablecoinów USDT wobec kursu referencyjnego — data/premie-stable.json; zapytania tylko w oknie po opublikowaniu kursu (raz na dzień roboczy), poza nim sam zapis pliku
     META['ok']['premie_st_tr'], META['ok']['premie_st_br'], META['ok']['premie_st_za'], META['ok']['premie_st_id'], META['ok']['premie_st_in'], META['ok']['premie_st_mx'] = pst_czesc()
     # v140: TOP 10 monet w 8 sektorach sceny CRYPTO (klucz CoinGecko w nagłówku): najwyżej co 55 min, skład kategorii co 6 h (reszta: jedno zapytanie
@@ -48571,6 +48573,489 @@ def hmrc_czesc():
 
 
 ZRODLA_META.update({'zloto_uk': 'hmrc'})   # v452: brytyjski urząd skarbowo-celny (+1 źródło)
+
+
+# ===================== v453 (F11Z34): HYPERLIQUID — NAJWIĘKSI GRACZE I POŻYCZKI W DEFI (AAVE) — data/hl-aave.json =====================
+# Dwie niezależne części, każda z własnym czasem pobrania i rytmem; po błędzie ponowienie nie częściej niż co HLA_BLAD_H h od ostatniej PRÓBY (try_at); część po błędzie zostaje z poprzedniego pliku najwyżej HLA_MAX_D dób.
+#   hl   — publiczny ranking kont giełdy kontraktów Hyperliquid (jeden duży plik JSON, ok. 39 MB, ok. 47 tys. kont; rytm 12 h). Czytany STRUMIENIOWO (kawałki po 256 KB, jedno konto naraz, pamięć stała), z twardym limitem
+#          rozmiaru i czasu (HLA_RANK_DEADLINE); do pliku trafiają tylko SUMY: liczba kont i ich wartość, podział wg wielkości konta, udział 10 i 100 największych, zyskowne i stratne konta oraz obrót w dobie, tygodniu i miesiącu.
+#          Adresy kont NIE są zapisywane. Dodatkowo odczyt pozycji (zapytanie tylko do odczytu) dla HLA_POZ_N największych kont, które handlowały w ostatnim tygodniu: suma pozycji kupna i sprzedaży oraz podział na monety.
+#   aave — największy protokół pożyczkowy DeFi (publiczne zapytanie GraphQL tylko do odczytu, rytm 3 h): wartość wpłat i pożyczek na wszystkich rynkach, wykorzystanie, rynki wg wielkości oraz stawki depozytu i pożyczki
+#          najważniejszych aktywów na rynku głównym.
+# Liczby na stronie to sumy z publicznych plików, nie porada inwestycyjna. Konta są pseudonimowe — nie ma imion ani adresów.
+import codecs as _hla_codecs     # v453: dekoder UTF-8 strumienia (biblioteka standardowa; ponowny import jest nieszkodliwy)
+import email.utils as _hla_eu     # v453: data z nagłówka Last-Modified (biblioteka standardowa)
+import heapq as _hla_heap
+import math as _hla_math
+import zlib as _hla_zlib
+HLA_V = 1
+HLA_CZESCI = ('hl', 'aave')
+HLA_URL_RANK = 'https://stats-data.hyperliquid.xyz/Mainnet/leaderboard'
+HLA_URL_AAVE = 'https://api.v3.aave.com/graphql'
+HLA_CO_H = {'hl': 12, 'aave': 3}        # h — rytm pobierania części
+HLA_BLAD_H = {'hl': 3, 'aave': 1}       # h — część, która zawiodła: ponowienie nie częściej niż co tyle od ostatniej próby
+HLA_MAX_D = 3                           # dób — część po błędzie zostaje z poprzedniego pliku najwyżej tyle
+HLA_RANK_MAX_B = 150_000_000            # B — limit rozmiaru rankingu po rozpakowaniu (19.10.2026: 39 MB)
+HLA_RANK_TIMEOUT = 30                   # s — jedno czytanie z sieci
+HLA_RANK_DEADLINE = 110                 # s — cały ranking (19.10.2026 z domowego łącza: 30 s)
+HLA_RANK_CHUNK = 262144                 # B — kawałek czytany ze strumienia
+HLA_RANK_WIERSZ_MAX = 2_000_000         # znaków — dłuższy niedokończony wiersz = uszkodzony plik
+HLA_RANK_MIN, HLA_RANK_MAX_N = 5000, 5_000_000   # liczba kont (19.10.2026: 47 431)
+HLA_RANK_BAD_MAX = 0.01                 # część wierszy odrzuconych jako błędne, powyżej której cały ranking jest błędny
+HLA_RANK_STARY_D = 3                    # dób — plik rankingu starszy niż tyle (Last-Modified) = błąd
+HLA_PROGI = (1e4, 1e5, 1e6, 1e7, 1e8)   # USD — granice grup wg wartości konta (6 grup)
+HLA_OKNA = ('day', 'week', 'month')
+HLA_PNL_MIN = 0.01                      # USD — wynik mniejszy co do modułu nie liczy się jako zysk ani strata
+HLA_AV_MAX = 1e12                       # USD — wartość konta powyżej = błąd odczytu
+HLA_POZ_N = 40                          # liczba największych aktywnych kont do odczytu pozycji
+HLA_POZ_MIN_AV, HLA_POZ_MIN_VLM = 1e6, 1e6   # USD — konto aktywne: wartość co najmniej 1 mln i obrót tygodniowy co najmniej 1 mln
+HLA_POZ_SLEEP, HLA_POZ_TMO, HLA_POZ_DEADLINE = 0.25, 10, 60   # s
+HLA_POZ_MIN_OK = 0.75                   # część zapytań o pozycje, która musi się udać
+HLA_POZ_MONET = 10                      # monet w tabeli pozycji
+HLA_AAVE_MAX_B = 2_000_000
+HLA_AAVE_TMO = 30
+HLA_AAVE_RYNKI = 10                     # rynków w zestawieniu
+HLA_AAVE_AKTYWA = 8                     # aktywów w tabeli stawek
+HLA_AAVE_MIN_RYNEK = 1e6                # USD — rynek mniejszy nie wchodzi do zestawienia
+HLA_AAVE_GLOWNY = 'AaveV3Ethereum'
+HLA_AAVE_SUMA = (1e9, 1e12)             # USD — suma wpłat poza przedziałem = błąd odczytu (19.10.2026: ok. 30 mld)
+HLA_AAVE_APY_MAX = 5.0                  # stawka roczna (ułamek) powyżej = błąd odczytu (500 %)
+HLA_AAVE_STAB = ('USDC', 'USDT')
+HLA_AAVE_BLEDNE_MAX = 0.2
+_HLA_ADR = re.compile(r'^0x[0-9a-fA-F]{40}$')
+_HLA_MON = re.compile(r'^[A-Za-z0-9:_.\-]{1,24}$')
+_HLA_SYM = re.compile(r'''^[^\s<>&"'\\/]{1,24}$''')   # symbole bywają spoza ASCII (np. USD₮0) — bez białych znaków i znaków specjalnych HTML
+_HLA_JSON = json.JSONDecoder()
+
+
+def hla_num(v, lo, hi):
+    """Liczba skończona z liczby albo tekstu (nie wartość logiczna) w przedziale [lo, hi] albo None."""
+    if isinstance(v, bool) or not isinstance(v, (int, float, str)):
+        return None
+    try:
+        x = float(v)
+    except ValueError:
+        return None
+    return x if _hla_math.isfinite(x) and lo <= x <= hi else None
+
+
+def hla_wiersz(o):
+    """Jedno konto rankingu → (adres, wartość konta, {okno: (wynik, obrót)}) albo None. Wymagane okna: doba, tydzień, miesiąc."""
+    if not isinstance(o, dict) or not isinstance(o.get('ethAddress'), str) or not _HLA_ADR.match(o['ethAddress']):
+        return None
+    av = hla_num(o.get('accountValue'), 0, HLA_AV_MAX)
+    wp = o.get('windowPerformances')
+    if av is None or not isinstance(wp, list):
+        return None
+    okna = {}
+    for p in wp:
+        if not (isinstance(p, list) and len(p) == 2 and isinstance(p[0], str) and isinstance(p[1], dict)):
+            return None
+        if p[0] in HLA_OKNA:
+            pnl, vlm = hla_num(p[1].get('pnl'), -HLA_AV_MAX, HLA_AV_MAX), hla_num(p[1].get('vlm'), 0, 1e15)
+            if pnl is None or vlm is None:
+                return None
+            okna[p[0]] = (pnl, vlm)
+    return (o['ethAddress'], av, okna) if all(w in okna for w in HLA_OKNA) else None
+
+
+class HlaRank:
+    """Sumy rankingu liczone konto po koncie (pamięć stała): bez zapisu adresów."""
+
+    def __init__(self):
+        self.n = self.bad = 0
+        self.suma = 0.0
+        self.gr = [[0, 0.0] for _ in range(len(HLA_PROGI) + 1)]
+        self.top = []   # kopiec min wartości 100 największych kont
+        self.win = {w: {'act': 0, 'np': 0, 'nl': 0, 'sp': 0.0, 'sl': 0.0, 'vlm': 0.0} for w in HLA_OKNA}
+        self.cand = []  # kopiec min (wartość, adres): największe aktywne konta do odczytu pozycji
+
+    def dodaj(self, o):
+        w = hla_wiersz(o)
+        if w is None:
+            self.bad += 1
+            return
+        adr, av, okna = w
+        self.n += 1
+        self.suma += av
+        g = self.gr[bisect.bisect_right(HLA_PROGI, av)]
+        g[0] += 1
+        g[1] += av
+        if len(self.top) < 100:
+            _hla_heap.heappush(self.top, av)
+        elif av > self.top[0]:
+            _hla_heap.heapreplace(self.top, av)
+        for k, (pnl, vlm) in okna.items():
+            s = self.win[k]
+            if vlm > 0:
+                s['act'] += 1
+                s['vlm'] += vlm
+            if pnl >= HLA_PNL_MIN:
+                s['np'] += 1
+                s['sp'] += pnl
+            elif pnl <= -HLA_PNL_MIN:
+                s['nl'] += 1
+                s['sl'] += pnl
+        if av >= HLA_POZ_MIN_AV and okna['week'][1] >= HLA_POZ_MIN_VLM:
+            if len(self.cand) < HLA_POZ_N:
+                _hla_heap.heappush(self.cand, (av, adr))
+            elif av > self.cand[0][0]:
+                _hla_heap.heapreplace(self.cand, (av, adr))
+
+    def wynik(self):
+        t = sorted(self.top, reverse=True)
+        return {'n': self.n, 'bad': self.bad, 'suma': round(self.suma), 'gr': [[c, round(s)] for c, s in self.gr], 's10': round(sum(t[:10])), 's100': round(sum(t)),
+                'okna': {k: {'act': s['act'], 'np': s['np'], 'nl': s['nl'], 'sp': round(s['sp']), 'sl': round(s['sl']), 'vlm': round(s['vlm'])} for k, s in self.win.items()}}
+
+    def adresy(self):
+        return [a for _, a in sorted(self.cand, reverse=True)]
+
+
+def hla_rank_agreguj(chunki):
+    """Strumień kawałków bajtów rankingu ({"leaderboardRows": [ {...}, ... ]}) → HlaRank. Format dowolny co do białych znaków; wiersz niedokończony na końcu kawałka czeka na następny;
+    brak końca tablicy (plik ucięty) = błąd. Czytanie kończy się po zamknięciu tablicy."""
+    dek = _hla_codecs.getincrementaldecoder('utf-8')('strict')
+    R, buf, stan = HlaRank(), '', 0   # stan: 0 szukam początku tablicy, 1 w tablicy, 2 koniec tablicy
+    for ch in chunki:
+        buf += dek.decode(ch)
+        while stan < 2:
+            if stan == 0:
+                i = buf.find('"leaderboardRows"')
+                if i < 0:
+                    buf = buf[-40:]
+                    break
+                j = buf.find('[', i)
+                if j < 0:
+                    buf = buf[i:]
+                    break
+                buf, stan = buf[j + 1:], 1
+            k, n = 0, len(buf)
+            while k < n and buf[k] in ' \t\r\n,':
+                k += 1
+            if k == n:
+                buf = ''
+                break
+            if buf[k] == ']':
+                stan = 2
+                break
+            try:
+                o, e = _HLA_JSON.raw_decode(buf, k)
+            except json.JSONDecodeError:
+                if n - k > HLA_RANK_WIERSZ_MAX:
+                    raise ValueError('wiersz rankingu za długi albo uszkodzony') from None
+                buf = buf[k:]
+                break
+            R.dodaj(o)
+            buf = buf[e:]
+        if stan == 2:
+            break
+    if stan != 2:
+        raise ValueError('ranking ucięty: brak końca tablicy kont')
+    return R
+
+
+def hla_chunki(r, maks, deadline):
+    """Odpowiedź HTTP → kawałki bajtów po rozpakowaniu (gzip, gdy tak odpowiada serwer); przekroczenie rozmiaru albo czasu = błąd."""
+    enc = str(r.headers.get('Content-Encoding') or '').lower() if getattr(r, 'headers', None) is not None else ''
+    d = _hla_zlib.decompressobj(16 + _hla_zlib.MAX_WBITS) if 'gzip' in enc else None
+    razem = 0
+    while True:
+        if time.monotonic() > deadline:
+            raise RuntimeError('ranking: przekroczony czas pobierania')
+        b = r.read(HLA_RANK_CHUNK)
+        if not b:
+            break
+        b = d.decompress(b) if d is not None else b
+        razem += len(b)
+        if razem > maks:
+            raise RuntimeError(f'ranking większy niż {maks} B (limit)')
+        if b:
+            yield b
+    if d is not None:
+        b = d.flush()
+        if b:
+            yield b
+
+
+def hla_otworz(url, timeout):
+    """Jedyne miejsce sieci dla rankingu (testy je łatają): GET ze zbieraczem w nagłówku; odpowiedź jako menedżer kontekstu."""
+    return _otworz(url, {'Accept-Encoding': 'gzip'}, timeout)
+
+
+def hla_last_modified(r):
+    """Nagłówek Last-Modified odpowiedzi → czas ISO UTC (sekundy) albo None."""
+    h = r.headers.get('Last-Modified') if getattr(r, 'headers', None) is not None else None
+    try:
+        d = _hla_eu.parsedate_to_datetime(h) if h else None
+    except (TypeError, ValueError):
+        d = None
+    if d is None:
+        return None
+    d = d if d.tzinfo else d.replace(tzinfo=datetime.timezone.utc)
+    return d.astimezone(datetime.timezone.utc).replace(microsecond=0).isoformat()
+
+
+def hla_post_hl(body, timeout):
+    """Zapytanie o stan konta (tylko odczyt) — przez wspólne wejście hl_post (testy je łatają)."""
+    return hl_post(body, timeout)
+
+
+def hla_pozycje(adresy, post, spij=time.sleep):
+    """Pozycje kont (clearinghouseState) → {n, ok, poz, eq, long, short, mon, coins: [[moneta, long, short, liczba long, liczba short]]}. Błąd limitu (429) albo seria
+    pierwszych pięciu porażek przerywa odczyt; udało się mniej niż HLA_POZ_MIN_OK zapytań = błąd. Adresów nie zapisujemy."""
+    t0, ok, poz, eq, lg, sh, mon, pierwsze = time.monotonic(), 0, 0, 0.0, 0.0, 0.0, {}, 0
+    for i, adr in enumerate(adresy):
+        if time.monotonic() - t0 > HLA_POZ_DEADLINE:
+            break
+        try:
+            s = post({'type': 'clearinghouseState', 'user': adr}, HLA_POZ_TMO)
+            ms = s.get('marginSummary') if isinstance(s, dict) else None
+            ap = s.get('assetPositions') if isinstance(s, dict) else None
+            e = hla_num(ms.get('accountValue'), 0, HLA_AV_MAX) if isinstance(ms, dict) else None
+            if e is None or not isinstance(ap, list):
+                raise ValueError('zły kształt stanu konta')
+            lista = []
+            for a in ap:
+                p = a.get('position') if isinstance(a, dict) else None
+                if not isinstance(p, dict):
+                    raise ValueError('zła pozycja')
+                coin, szi, v = p.get('coin'), hla_num(p.get('szi'), -1e15, 1e15), hla_num(p.get('positionValue'), 0, HLA_AV_MAX)
+                if not (isinstance(coin, str) and _HLA_MON.match(coin)) or szi is None or v is None:
+                    raise ValueError('zła pozycja')
+                if szi != 0 and v > 0:
+                    lista.append((coin, szi > 0, v))
+        except Exception as ex:  # noqa — pojedyncze konto nie psuje reszty
+            if isinstance(ex, urllib.error.HTTPError) and ex.code == 429:
+                raise RuntimeError('pozycje: limit zapytań (HTTP 429)') from None
+            pierwsze += 1 if ok == 0 else 0
+            if ok == 0 and pierwsze >= 5:
+                raise RuntimeError(f'pozycje: pięć pierwszych zapytań bez odpowiedzi ({str(ex)[:60]})') from None
+            spij(HLA_POZ_SLEEP)
+            continue
+        ok += 1
+        eq += e
+        poz += 1 if lista else 0
+        for coin, dl, v in lista:
+            m = mon.setdefault(coin, [0.0, 0.0, 0, 0])
+            if dl:
+                m[0] += v
+                m[2] += 1
+                lg += v
+            else:
+                m[1] += v
+                m[3] += 1
+                sh += v
+        spij(HLA_POZ_SLEEP)
+    if not adresy or ok < HLA_POZ_MIN_OK * len(adresy):
+        raise RuntimeError(f'pozycje: odczytano {ok} z {len(adresy)} kont (minimum {HLA_POZ_MIN_OK:.0%})')
+    top = sorted(mon.items(), key=lambda kv: (-(kv[1][0] + kv[1][1]), kv[0]))[:HLA_POZ_MONET]
+    return {'n': len(adresy), 'ok': ok, 'poz': poz, 'eq': round(eq), 'long': round(lg), 'short': round(sh), 'mon': len(mon),
+            'coins': [[c, round(m[0]), round(m[1]), m[2], m[3]] for c, m in top]}
+
+
+def hla_hl_buduj(dzis, otworz=None, post=None):
+    """Część hl → {t, dzien, asof, upd, rank:…, poz:… albo None}. Ranking czytany strumieniowo; pozycje największych aktywnych kont — dodatek (błąd = poz None i uwaga w notatkach)."""
+    otworz, post = otworz or hla_otworz, post or hla_post_hl
+    termin = time.monotonic() + HLA_RANK_DEADLINE
+    with otworz(HLA_URL_RANK, HLA_RANK_TIMEOUT) as r:
+        upd = hla_last_modified(r)
+        R = hla_rank_agreguj(hla_chunki(r, HLA_RANK_MAX_B, termin))
+    if not (HLA_RANK_MIN <= R.n <= HLA_RANK_MAX_N):
+        raise ValueError(f'liczba kont {R.n} poza {HLA_RANK_MIN}–{HLA_RANK_MAX_N}')
+    if R.bad > max(1, R.n * HLA_RANK_BAD_MAX):
+        raise ValueError(f'{R.bad} z {R.n + R.bad} kont odrzuconych jako błędne')
+    ud = _ix_dt(upd)
+    if ud is not None:
+        wiek = (_ix_dt(NOW) - ud).total_seconds() / 86400
+        if wiek > HLA_RANK_STARY_D or wiek < -1:
+            raise ValueError(f'plik rankingu z {upd} nie pasuje do czasu przebiegu')
+    rank = R.wynik()
+    poz = None
+    try:
+        poz = hla_pozycje(R.adresy(), post)
+        poz['t'] = NOW
+    except Exception as e:  # noqa — pozycje są dodatkiem do rankingu
+        META['notes'].append(mask(f'Hyperliquid: pozycje największych kont: {e}')[:200])
+    return {'t': NOW, 'dzien': dzis.isoformat(), 'asof': (upd or NOW)[:10], 'upd': upd, 'rank': rank, 'poz': poz}
+
+
+def hla_gql(zapytanie, timeout=None):
+    """Jedyne miejsce sieci dla Aave (testy je łatają): zapytanie GraphQL (tylko odczyt) → słownik data; błędy GraphQL albo zły kształt = wyjątek."""
+    req = urllib.request.Request(HLA_URL_AAVE, data=json.dumps({'query': zapytanie}).encode('utf-8'),
+                                 headers={'User-Agent': 'CapitalFlowAI-collector/1.0', 'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req, timeout=timeout or HLA_AAVE_TMO) as r:
+        b = r.read(HLA_AAVE_MAX_B + 1)
+    if len(b) > HLA_AAVE_MAX_B:
+        raise RuntimeError(f'odpowiedź dłuższa niż {HLA_AAVE_MAX_B} B (limit)')
+    j = json.loads(b.decode('utf-8'))
+    if not isinstance(j, dict) or j.get('errors') or not isinstance(j.get('data'), dict):
+        raise ValueError('odpowiedź GraphQL z błędem albo bez danych')
+    return j['data']
+
+
+HLA_Q_SIECI = '{ chains(filter: ALL) { name chainId isTestnet } }'
+HLA_Q_RYNKI = ('{ markets(request: {chainIds: [%s]}) { name chain { name chainId } totalMarketSize totalAvailableLiquidity reserves { underlyingToken { symbol } size { usd } '
+               'supplyInfo { apy { value } } borrowInfo { apy { value } total { usd } utilizationRate { value } } isFrozen isPaused } } }')
+
+
+def hla_wariant(nazwa, siec):
+    """Nazwa rynku → dopisek rynku wyspecjalizowanego w danej sieci ('' dla rynku głównego): 'AaveV3EthereumLido' w sieci Ethereum → 'Lido'."""
+    t = nazwa[6:] if nazwa.startswith('AaveV3') else nazwa
+    cn = siec.replace(' ', '')
+    w = t[len(cn):] if t.startswith(cn) else ''
+    return w if w.isalpha() and len(w) <= 20 else ''
+
+
+def hla_get(o, *ks):
+    """Zagnieżdżone pola słowników; brak albo inny typ po drodze = None."""
+    for k in ks:
+        o = o.get(k) if isinstance(o, dict) else None
+    return o
+
+
+def hla_aave_rynek(m):
+    """Jeden rynek → słownik {nazwa, siec, wariant, wp, poz, plyn, rez: [[symbol, wielkość, stawka depozytu %, stawka pożyczki %|None, wykorzystanie %|None, zamrożony]]} albo None (zły kształt)."""
+    if not isinstance(m, dict) or not isinstance(m.get('name'), str) or not isinstance(m.get('chain'), dict) or not isinstance(m['chain'].get('name'), str):
+        return None
+    wp, pl = hla_num(m.get('totalMarketSize'), 0, 1e13), hla_num(m.get('totalAvailableLiquidity'), 0, 1e13)
+    if wp is None or pl is None or not isinstance(m.get('reserves'), list):
+        return None
+    rez, pozyczki = [], 0.0
+    for r in m['reserves']:
+        if not isinstance(r, dict):
+            return None
+        sym, wiel = hla_get(r, 'underlyingToken', 'symbol'), hla_num(hla_get(r, 'size', 'usd'), 0, 1e13)
+        dep = hla_num(hla_get(r, 'supplyInfo', 'apy', 'value'), 0, HLA_AAVE_APY_MAX)
+        bi = r.get('borrowInfo')
+        if bi is not None and not isinstance(bi, dict):
+            return None
+        bor = hla_num(hla_get(bi, 'apy', 'value'), 0, HLA_AAVE_APY_MAX) if bi else None   # pożyczanie wyłączone = brak stawki (None)
+        poz = hla_num(hla_get(bi, 'total', 'usd'), 0, 1e13) if bi else 0.0
+        wyk = hla_num(hla_get(bi, 'utilizationRate', 'value'), 0, 1.0001) if bi else None
+        if not (isinstance(sym, str) and _HLA_SYM.match(sym)) or wiel is None or dep is None or poz is None:
+            return None
+        pozyczki += poz
+        rez.append([sym, wiel, round(dep * 100, 2), None if bor is None else round(bor * 100, 2), None if wyk is None else round(wyk * 100, 1),
+                    bool(r.get('isFrozen')) or bool(r.get('isPaused'))])
+    if pozyczki > wp * 1.001 or pl > wp * 1.001:
+        return None
+    return {'nazwa': m['name'], 'siec': m['chain']['name'], 'wariant': hla_wariant(m['name'], m['chain']['name']), 'wp': wp, 'poz': pozyczki, 'plyn': pl, 'rez': rez}
+
+
+def hla_aave_buduj(dzis, gql=None):
+    """Część aave → {t, dzien, asof, suma, poz, plyn, n, sieci, rynki: [[sieć, dopisek, wpłaty, pożyczki, płynność]], glowny, stawki: [[symbol, wielkość, depozyt %, pożyczka %, wykorzystanie %]], stab: {symbol: […]}}."""
+    gql = gql or hla_gql
+    ch = gql(HLA_Q_SIECI).get('chains')
+    ids = sorted({c['chainId'] for c in ch if isinstance(c, dict) and isinstance(c.get('chainId'), int) and not isinstance(c.get('chainId'), bool) and c.get('isTestnet') is False}) if isinstance(ch, list) else []
+    if len(ids) < 5:
+        raise ValueError('lista sieci: za mało sieci produkcyjnych')
+    lista = gql(HLA_Q_RYNKI % ', '.join(str(i) for i in ids)).get('markets')
+    if not isinstance(lista, list) or not lista:
+        raise ValueError('brak listy rynków')
+    ry, zle = [], 0
+    for m in lista:
+        x = hla_aave_rynek(m)
+        if x is None:
+            zle += 1
+        elif x['wp'] >= HLA_AAVE_MIN_RYNEK:
+            ry.append(x)
+    if zle > max(1, len(lista) * HLA_AAVE_BLEDNE_MAX) or len(ry) < 3:
+        raise ValueError(f'rynki: {zle} z {len(lista)} błędnych, {len(ry)} wystarczająco dużych')
+    ry.sort(key=lambda x: (-x['wp'], x['nazwa']))
+    suma, poz, plyn = sum(x['wp'] for x in ry), sum(x['poz'] for x in ry), sum(x['plyn'] for x in ry)
+    if not (HLA_AAVE_SUMA[0] <= suma <= HLA_AAVE_SUMA[1]):
+        raise ValueError(f'suma wpłat {suma:.0f} USD poza przedziałem')
+    gl = next((x for x in ry if x['nazwa'] == HLA_AAVE_GLOWNY), None) or ry[0]
+    akt = sorted((r for r in gl['rez'] if not r[5] and r[1] > 0), key=lambda r: (-r[1], r[0]))
+    stab = {}
+    for s in HLA_AAVE_STAB:
+        r = next((r for r in akt if r[0] == s), None)
+        if r is not None and r[3] is not None:
+            stab[s] = [round(r[1]), r[2], r[3], r[4]]
+    return {'t': NOW, 'dzien': dzis.isoformat(), 'asof': dzis.isoformat(), 'suma': round(suma), 'poz': round(poz), 'plyn': round(plyn), 'n': len(ry), 'sieci': len({x['siec'] for x in ry}),
+            'rynki': [[x['siec'], x['wariant'], round(x['wp']), round(x['poz']), round(x['plyn'])] for x in ry[:HLA_AAVE_RYNKI]], 'glowny': [gl['siec'], gl['wariant']],
+            'stawki': [[r[0], round(r[1]), r[2], r[3], r[4]] for r in akt[:HLA_AAVE_AKTYWA]], 'stab': stab}
+
+
+def hla_dzis():
+    """Dzień UTC przebiegu."""
+    return datetime.date.fromisoformat(NOW[:10])
+
+
+def hla_trzeba(czas, ok_prev, teraz, n):
+    """Czy część n pobrać w tym przebiegu. czas — chwila poprzedniego pobrania części (brak = tak); po błędzie co HLA_BLAD_H[n] h, inaczej co HLA_CO_H[n] h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    return (tn - tk).total_seconds() / 3600 >= (HLA_CO_H[n] if ok_prev else HLA_BLAD_H[n])
+
+
+def hla_zadania(pv, teraz):
+    """Które części pobrać w tym przebiegu → {część: bool}. Po udanym pobraniu liczy się czas tego pobrania, po błędzie czas ostatniej PRÓBY."""
+    ok, pat, pro = (pv.get('ok') if isinstance(pv.get('ok'), dict) else {}), (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('try_at') if isinstance(pv.get('try_at'), dict) else {})
+    return {n: (True if not isinstance(pv.get(n), dict) else
+                hla_trzeba((pat.get(n) or pv.get('at')) if ok.get(n, True) is not False else (pro.get(n) or pat.get(n) or pv.get('at')), ok.get(n, True) is not False, teraz, n)) for n in HLA_CZESCI}
+
+
+def hla_job(n, dzis):
+    """Odczyt jednej części z sieci → gotowa część pliku."""
+    return hla_hl_buduj(dzis) if n == 'hl' else hla_aave_buduj(dzis)
+
+
+def build_hl_aave(prev=None, zadania=None):
+    """v453: data/hl-aave.json {v, at, src, ok, part_at, try_at, hl, aave} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm) zostaje z poprzedniego pliku; część po błędzie — z poprzedniego
+    pliku z własnym czasem (najwyżej HLA_MAX_D dób), błąd do META['errors']. Żadna część w pliku = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == HLA_V else {}
+    zad = zadania if zadania is not None else hla_zadania(pv, NOW)
+    pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
+    pro0 = pv.get('try_at') if isinstance(pv.get('try_at'), dict) else {}
+    out = {'v': HLA_V, 'at': NOW, 'src': 'publiczny ranking kont giełdy kontraktów, stany największych aktywnych kont i publiczne dane największego protokołu pożyczkowego DeFi', 'ok': {}, 'part_at': {}, 'try_at': {}}
+    st, dzis = {}, hla_dzis()
+    for n in HLA_CZESCI:
+        stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+        if not zad.get(n):
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+                if pro0.get(n):
+                    out['try_at'][n] = pro0[n]
+            else:
+                st[n] = 'cached'
+            continue
+        out['try_at'][n] = NOW
+        try:
+            out[n] = hla_job(n, dzis)
+            out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+        except Exception as e:  # noqa — jedna część nie psuje drugiej
+            META['errors'].append(mask(f'Hyperliquid i Aave: {n}: {e}')[:200])
+            out['ok'][n], st[n] = False, False
+            if stara is not None and _zapas_wiek_ok(pat0.get(n) or pv.get('at'), HLA_MAX_D):
+                out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
+    if not any(isinstance(out.get(n), dict) for n in HLA_CZESCI):
+        raise RuntimeError('żadna część (ranking kont, pożyczki) nie ma danych')
+    return out, st
+
+
+def hla_czesc():
+    """v453: część przebiegu → krotka wartości dla META['ok'] w kolejności HLA_CZESCI: True = pobrane, 'cached' = poprzednia wersja wystarcza (rytm), False = część zawiodła.
+    Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('hl-aave')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == HLA_V else None
+    zad = hla_zadania(prev or {}, NOW)
+    if prev and not any(zad.values()):
+        save('hl-aave', prev)
+        return tuple('cached' for _ in HLA_CZESCI)
+    try:
+        obj, st = build_hl_aave(prev, zad)
+        save('hl-aave', obj)
+        return tuple(st.get(n, False) for n in HLA_CZESCI)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Hyperliquid i Aave: {e}')[:200])
+        if prev:
+            save('hl-aave', prev)
+        return tuple(False for _ in HLA_CZESCI)
+
+
+ZRODLA_META.update({'hlaave_hl': 'hyperliquid', 'hlaave_aave': 'aave'})   # v453: giełda kontraktów Hyperliquid już liczona (dźwignia); protokół pożyczkowy = +1 źródło
 
 
 if __name__ == '__main__':

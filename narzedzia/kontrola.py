@@ -14527,6 +14527,150 @@ def zuk_k_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v453 (F11Z34): HYPERLIQUID — NAJWIĘKSI GRACZE I POŻYCZKI W DEFI (data/hl-aave.json) --------------------
+# Plik: dwie części (hl, aave), każda z własnym czasem pobrania (pole t) i rytmem (zbieracz v453: ranking co 12 h, po błędzie co 3 h; pożyczki co 3 h, po błędzie co 1 h).
+# Wiersze świeżości (najwyżej ⚠️): (1) pobranie ranking nie starsze niż 36 h (rytm 12 h + 24 h awarii źródła), pobranie pożyczek nie starsze niż 12 h (rytm 3 h + 9 h awarii);
+# (2) wiek pliku rankingu u wydawcy (nagłówek Last-Modified, pole upd) nie starszy niż 72 h. Próg (2) jest szeroki ŚWIADOMIE: wydawca nie publikuje historii i 19.10.2026 mierzone były dwa odczyty
+# tego samego pliku (wiek 14 min), więc rytm odświeżania nie jest znany; 72 h to trzy doby, więc nie wywoła fałszywego ⚠️ nawet przy odświeżaniu raz na dobę, a wyłapie zatrzymanie pliku na długo.
+# Spójność w pliku (⚠️): ranking — liczba kont w grupach = n, wartość grup ≈ suma kont (±0,5%), udział 10 największych ≤ 100 największych ≤ suma, w oknach liczba kont zyskownych i stratnych ≤ n,
+# zyski ≥ 0, straty ≤ 0, obrót ≥ 0; pozycje (jeśli są) — odczytane ≤ zapytane, z pozycjami ≤ odczytane, monety malejąco wg sumy pozycji, suma pozycji monet ≤ suma ogółem; pożyczki — pożyczki ≤ wpłaty,
+# płynność ≤ wpłaty, rynki malejąco wg wpłat, suma rynków ≤ suma ogółem (±0,5%), stawki w 0–500%, wykorzystanie w 0–100%, aktywa malejąco wg wielkości.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'hl-aave')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['hl-aave'] = 8 * 60   # plik zapisywany co przebieg, w którym któraś część się odświeża (co ~3 h); wiek pobrania każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'hlaave_' + p_: 'Hyperliquid i pożyczki DeFi — część z błędem zostaje z datą (v453); wiek danych w wierszach świeżości' for p_ in ('hl', 'aave')})
+HLA_K_POBR_MIN = {'hl': 36 * 60, 'aave': 12 * 60}   # min — wiek pobrania części, powyżej tego ⚠️
+HLA_K_UPD_MIN = 72 * 60                              # min — wiek pliku rankingu u wydawcy, powyżej tego ⚠️
+HLA_K_ETYKIETA = {'hl': 'Hyperliquid — ranking kont', 'aave': 'Pożyczki DeFi (Aave)'}
+
+
+def hla_k_nn(v):
+    """Liczba całkowita nieujemna (nie wartość logiczna)."""
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+
+def hla_k_l(v, lo=0, hi=1e13):
+    """Skończona liczba (nie wartość logiczna) w [lo, hi] albo None."""
+    x = _ste_k_l(v)
+    return x if x is not None and lo <= x <= hi else None
+
+
+def hla_k_dzien(d):
+    return isinstance(d, str) and len(d) == 10 and _ix_dt_k(d + 'T00:00:00Z') is not None
+
+
+def hla_k_hl(P):
+    """Spójność części hl → lista usterek."""
+    zle = []
+    R, Z = P.get('rank'), P.get('poz')
+    if not isinstance(R, dict):
+        return ['brak rankingu']
+    n, suma = R.get('n'), R.get('suma')
+    gr = R.get('gr')
+    if not hla_k_nn(n) or n == 0 or hla_k_l(suma) is None:
+        return ['liczba kont albo suma poza granicami']
+    if not (isinstance(gr, list) and len(gr) == 6 and all(isinstance(g, list) and len(g) == 2 and hla_k_nn(g[0]) and hla_k_l(g[1]) is not None for g in gr)):
+        zle.append('grupy wg wartości konta: zły kształt')
+    elif sum(g[0] for g in gr) != n or abs(sum(g[1] for g in gr) - suma) > 0.005 * suma + 10:
+        zle.append('grupy wg wartości konta nie sumują się do liczby kont albo ich wartości')
+    s10, s100 = hla_k_l(R.get('s10')), hla_k_l(R.get('s100'))
+    if s10 is None or s100 is None or not (s10 <= s100 <= suma * 1.0001 + 10):
+        zle.append('udział największych kont: 10 > 100 albo więcej niż suma')
+    O = R.get('okna')
+    if not (isinstance(O, dict) and set(O) == {'day', 'week', 'month'}):
+        zle.append('okna zyskowności: brak doby, tygodnia albo miesiąca')
+    else:
+        for k, s in O.items():
+            if not (isinstance(s, dict) and all(hla_k_nn(s.get(x)) for x in ('act', 'np', 'nl')) and s['act'] <= n and s['np'] + s['nl'] <= n
+                    and hla_k_l(s.get('sp')) is not None and hla_k_l(s.get('sl'), -1e13, 0) is not None and hla_k_l(s.get('vlm')) is not None):
+                zle.append(f'okno {k}: zły kształt albo liczby poza granicami')
+    if Z is not None:
+        C = Z.get('coins') if isinstance(Z, dict) else None
+        if not (isinstance(Z, dict) and all(hla_k_nn(Z.get(x)) for x in ('n', 'ok', 'poz', 'mon')) and Z['ok'] <= Z['n'] and Z['poz'] <= Z['ok']
+                and hla_k_l(Z.get('long')) is not None and hla_k_l(Z.get('short')) is not None and hla_k_l(Z.get('eq')) is not None and isinstance(C, list)):
+            zle.append('pozycje: zły kształt albo odczytane > zapytane')
+        else:
+            if any(not (isinstance(c, list) and len(c) == 5 and isinstance(c[0], str) and hla_k_l(c[1]) is not None and hla_k_l(c[2]) is not None and hla_k_nn(c[3]) and hla_k_nn(c[4])) for c in C):
+                zle.append('pozycje: zły wiersz monety')
+            else:
+                tot = [c[1] + c[2] for c in C]
+                if tot != sorted(tot, reverse=True) or len(C) > Z['mon'] or sum(c[1] for c in C) > Z['long'] + 1 or sum(c[2] for c in C) > Z['short'] + 1:
+                    zle.append('pozycje: monety nie malejące albo suma monet większa niż suma ogółem')
+    return zle
+
+
+def hla_k_aave(P):
+    """Spójność części aave → lista usterek."""
+    zle = []
+    su, po, pl = hla_k_l(P.get('suma')), hla_k_l(P.get('poz')), hla_k_l(P.get('plyn'))
+    if su is None or po is None or pl is None or su == 0:
+        return ['suma wpłat, pożyczek albo płynności poza granicami']
+    if po > su * 1.001 or pl > su * 1.001:
+        zle.append('pożyczki albo płynność większe niż wpłaty')
+    R = P.get('rynki')
+    if not (isinstance(R, list) and R and all(isinstance(r, list) and len(r) == 5 and isinstance(r[0], str) and isinstance(r[1], str) and all(hla_k_l(x) is not None for x in r[2:]) for r in R)):
+        zle.append('rynki: zły kształt')
+    else:
+        if [r[2] for r in R] != sorted((r[2] for r in R), reverse=True) or any(r[3] > r[2] * 1.001 or r[4] > r[2] * 1.001 for r in R) or sum(r[2] for r in R) > su * 1.005:
+            zle.append('rynki: nie malejące wg wpłat, pożyczki albo płynność większe niż wpłaty, albo suma większa niż suma ogółem')
+        if not (hla_k_nn(P.get('n')) and P['n'] >= len(R)):
+            zle.append('liczba rynków mniejsza niż pokazanych')
+    A = P.get('stawki')
+    if not (isinstance(A, list) and A and all(isinstance(r, list) and len(r) == 5 and isinstance(r[0], str) and hla_k_l(r[1]) is not None and hla_k_l(r[2], 0, 500) is not None
+                                              and (r[3] is None or hla_k_l(r[3], 0, 500) is not None) and (r[4] is None or hla_k_l(r[4], 0, 100.1) is not None) for r in A)):
+        zle.append('stawki: zły kształt albo poza granicami')
+    elif [r[1] for r in A] != sorted((r[1] for r in A), reverse=True):
+        zle.append('stawki: aktywa nie malejące wg wielkości')
+    S = P.get('stab')
+    if not isinstance(S, dict) or any(not (isinstance(v, list) and len(v) == 4 and hla_k_l(v[0]) is not None and hla_k_l(v[1], 0, 500) is not None and hla_k_l(v[2], 0, 500) is not None) for v in S.values()):
+        zle.append('stablecoiny: zły kształt')
+    return zle
+
+
+def hla_k_kontrola(j, now=None):
+    """data/hl-aave.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    for part in ('hl', 'aave'):
+        K = j.get(part) if isinstance(j.get(part), dict) else None
+        lab = HLA_K_ETYKIETA[part]
+        if K is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od ponad 3 dób)')
+            continue
+        zle += [f'{part}: {x}' for x in (hla_k_hl(K) if part == 'hl' else hla_k_aave(K))]
+        w = wiek_danych(K.get('t'), 'ts', 'k', now)
+        if w is None:
+            out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak czasu pobrania'))
+        else:
+            st = '⚠️' if w > HLA_K_POBR_MIN[part] else '✅'
+            dane = str(K.get('t'))[:16].replace('T', ' ') + ' UTC'
+            note = '' if st == '✅' else 'pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga'
+            out['rows'].append((lab + ' (pobranie)', st, w, dane, note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (pobranie): {dane} — {fmt_wiek(w)} temu ({note})')
+        if part == 'hl' and K.get('upd') is not None:
+            wu = wiek_danych(K.get('upd'), 'ts', 'k', now)
+            if wu is None:
+                out['rows'].append((lab + ' (plik wydawcy)', '?', None, None, 'zły czas pliku'))
+            else:
+                st = '⚠️' if wu > HLA_K_UPD_MIN else '✅'
+                dane = str(K.get('upd'))[:16].replace('T', ' ') + ' UTC'
+                note = '' if st == '✅' else 'plik rankingu u wydawcy stoi dłużej niż zwykle; najwyżej uwaga'
+                out['rows'].append((lab + ' (plik wydawcy)', st, wu, dane, note))
+                if st == '⚠️':
+                    out['uwagi'].append(f'{lab} (plik wydawcy): {dane} — {fmt_wiek(wu)} temu ({note})')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Hyperliquid i pożyczki DeFi (hl-aave.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in ('hl', 'aave')):
+        out['wiersze'].append(('spójność pliku (ranking kont Hyperliquid, pozycje, pożyczki DeFi)', '⚠️' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -14997,6 +15141,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['ucits-przeplywy'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Fundusze ETF w Europie (v409): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v453. Hyperliquid i pożyczki DeFi (data/hl-aave.json): wiek pobrania każdej części i pliku rankingu, spójność w pliku — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        HLA_ = hla_k_kontrola(files.get('hl-aave'))
+        for label, st, w, txt, note in HLA_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += HLA_['uwagi']
+        R['zgodnosc']['hl-aave'] = {'spojnosc': HLA_['spojnosc'], 'wiersze': HLA_['wiersze']} if (HLA_['rows'] or HLA_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['hl-aave'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Hyperliquid i pożyczki DeFi (v453): kontrola przerwana ({str(e)[:80]})')
     # 3c-v402. DeFi 2 (data/defi2.json): wiek doby danych każdej części, spójność w pliku, porównanie podaży USDT z plikiem emitentów — z plików strony, bez zapytań; porównanie TYLKO informacja (ℹ️), reszta najwyżej ⚠️
     try:
         DF_ = df2_kontrola(files.get('defi2'), files.get('stable-emitenci'))
@@ -16079,6 +16233,11 @@ def raport_md(R):
             L.append('- Indie, wycena indeksów, pozycje w kontraktach i dostawy akcji (z pliku strony): ' + (f'? kontrola przerwana ({sin_["blad"]})' if sin_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(sin_['spojnosc'][:3]) + ' ⚠️ · ' if sin_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in sin_.get('wiersze') or []) or '—') + '.')
+        shla_ = Z.get('hl-aave')   # v453: Hyperliquid i pożyczki DeFi — brak pliku = bez linii
+        if shla_:
+            L.append('- Hyperliquid (ranking kont, pozycje) i pożyczki DeFi (z pliku strony): ' + (f'? kontrola przerwana ({shla_["blad"]})' if shla_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(shla_['spojnosc'][:3]) + ' ⚠️ · ' if shla_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in shla_.get('wiersze') or []) or '—') + '.')
         sdf_ = Z.get('defi2')   # v402: DeFi 2 — brak pliku = bez linii
         if sdf_:
             L.append('- DeFi 2, opłaty, ceny stablecoinów, włamania i opcje (z pliku strony; porównanie podaży USDT z plikiem emitentów tylko informacyjnie): ' + (f'? kontrola przerwana ({sdf_["blad"]})' if sdf_.get('blad') else

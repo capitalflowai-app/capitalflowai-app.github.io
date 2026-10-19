@@ -2637,6 +2637,43 @@ textarea.kt-f{min-height:110px;resize:vertical}
 @media (max-width:900px){#g-zlotouk .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:620px){#g-zlotouk .zuk-g{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:520px){#g-zlotouk .wk-br{--lw:42%}}
+/* v453 (F11Z34): karty Hyperliquid (#c-hl) i pożyczek DeFi (#c-aave) w CRYPTO — kafle w czterech kolumnach (telefon: dwie), słupki udziałów, tabele (telefon: kartki z etykietami kolumn), pasek podziału long/short; tylko zmienne motywu; kolory kierunku jak w całej stronie */
+.hla .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+.hla .etfk b{font-variant-numeric:tabular-nums;white-space:normal;overflow-wrap:anywhere}
+.hla .etfk b.na{color:var(--dim)}
+.hla .etfk b small{margin-top:2px}
+.hla .etfk b small span{display:inline;font-size:inherit;color:inherit}
+.hla .etfk>small.mtxt{display:block;margin-top:6px;font-size:10.5px;line-height:1.35;color:var(--dim)}
+.hla .pos{color:var(--gr-tx)}.hla .neg{color:var(--rd-tx)}.hla .neu{color:var(--yl-tx)}.hla .na{color:var(--dim)}
+.hla .gx-h{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;margin:16px 0 4px;font-size:13px}
+.hla .gxs{margin:8px 0 10px;max-width:760px}
+.hla .gxs-r{margin:7px 0}
+.hla .gxs-n{display:block;font-size:12.5px;color:var(--mut);margin-bottom:3px;overflow-wrap:anywhere}
+.hla .gxs-b{display:grid;grid-template-columns:minmax(0,1fr) 21em;align-items:center;gap:10px}
+.hla .gxs-t{position:relative;height:10px;border-radius:2px;background:var(--line-2)}
+.hla .gxs-t i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--bl)}
+.hla .gxs-t i.cur{background:var(--tl)}
+.hla .gxs-v{font-variant-numeric:tabular-nums;font-size:12px;text-align:right;overflow-wrap:anywhere}
+.hla .hla-g{margin:2px 0 8px;max-width:860px}
+.hla .hla-r{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(5,minmax(66px,1fr));align-items:center;gap:4px 12px;padding:7px 0;border-top:1px solid var(--line);font-size:12.5px}
+.hla .hla-r.hla-p{grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(66px,1fr))}
+.hla .hla-r.hla-a{grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(66px,1fr))}
+.hla .hla-hd{border-top:0;color:var(--dim);font-size:11px;padding:2px 0}
+.hla .hla-hd span:not(:first-child){text-align:right}
+.hla .hla-n b{display:block;font-weight:600;font-size:13px;overflow-wrap:anywhere}
+.hla .hla-n .icos{display:inline-flex;vertical-align:-3px;margin-right:5px}
+.hla .hla-c{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;overflow-wrap:anywhere}
+.hla .hla-bar{grid-column:1/-1;display:flex;gap:2px;height:6px}
+.hla .hla-bar i{display:block;height:6px;border-radius:2px}
+.hla .hla-bar i.up{background:var(--gr)}.hla .hla-bar i.dn{background:var(--rd)}
+@media (max-width:760px){.hla .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}.hla .gxs-b{grid-template-columns:minmax(0,1fr);gap:3px}.hla .gxs-v{text-align:left}}
+@media (max-width:560px){
+  .hla .hla-r,.hla .hla-r.hla-p,.hla .hla-r.hla-a{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px}
+  .hla .hla-r>.hla-n{grid-column:1/-1}
+  .hla .hla-c{text-align:left}
+  .hla .hla-c::before{content:attr(data-l);display:block;color:var(--dim);font-size:10.5px}
+  .hla .hla-hd{display:none}
+}
 </style>
 <!-- v348: licznik odwiedzin (decyzja właściciela 12.10). Skrypt count.js leży na naszej stronie (nie na obcej domenie) i nie używa ciasteczek; zliczenie wychodzi do licznika przez sendBeacon (CSP: connect-src; zapas obrazkiem: img-src https:).
      Wizyt technicznych nie liczymy: przeglądarki sterowane automatem (navigator.webdriver), Chrome bez okna (kontrola dzienna, testy), Lighthouse i adresy lokalne z końcówką .local albo [::1] dostają no_onload;
@@ -2750,6 +2787,8 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
     <section class="panel pcard" id="c-rwa" hidden></section>
     <section class="panel pcard" id="c-surowce" hidden></section>
     <section class="panel pcard" id="c-defi2" hidden></section>
+    <section class="panel pcard hla" id="c-hl" hidden></section>
+    <section class="panel pcard hla" id="c-aave" hidden></section>
     <section class="panel pcard" id="eng-cftc-crypto" hidden></section>
     <section class="panel pcard" id="c-dzwignia" hidden></section>
     <section class="panel pcard" id="c-premie" hidden></section>
@@ -3790,6 +3829,9 @@ for(const l in EXTRA306)if(I18N[l])Object.assign(I18N[l],EXTRA306[l]);
 /* v452 (F11Z32): złoto w handlu Wielkiej Brytanii — import i eksport wg miesięcy i krajów (GLOBAL, karta #g-zlotouk) — pl i en */
 const EXTRA307={"pl":{"zuk452.t":"Złoto w handlu Wielkiej Brytanii","zuk452.sub":"Ile złota Wielka Brytania sprowadza i wywozi, miesiąc po miesiącu.","zuk452.lazy":"Dane pojawią się po rozwinięciu karty.","zuk452.err":"Nie udało się wczytać danych o handlu złotem. Spróbuj ponownie za chwilę.","zuk452.errp":"Ostatnie odświeżenie się nie udało — widać wcześniejsze dane.","zuk452.k.imp":"Import — ostatni miesiąc","zuk452.k.exp":"Eksport — ostatni miesiąc","zuk452.k.imp12":"Import — 12 miesięcy","zuk452.k.exp12":"Eksport — 12 miesięcy","zuk452.u.mln":"mln £","zuk452.u.t":"t","zuk452.when":"dane za {m}","zuk452.when12":"12 miesięcy do {m}","zuk452.v.mm":"m/m","zuk452.v.yy":"r/r","zuk452.na.t":"brak danych","zuk452.na.k":"Brak danych o krajach.","zuk452.c.imp":"Import złota","zuk452.c.exp":"Eksport złota","zuk452.ch.aria":"Wykres kolumnowy: {n}, {k} miesięcy","zuk452.ch.short":"Za mało danych na wykres.","zuk452.h.imp":"Skąd złoto płynie do Wielkiej Brytanii — 12 miesięcy do {m}","zuk452.h.exp":"Dokąd Wielka Brytania wysyła złoto — 12 miesięcy do {m}","zuk452.rest":"Pozostałe kraje","zuk452.share":"udział {p}%","zuk452.bars.aria":"Wykres słupkowy: {n} pozycji","zuk452.note":"Dane urzędu celnego: złoto niemonetarne (sztabki, półprodukty i złoto nieobrobione), bez złota monetarnego, monet i biżuterii. Miesięczne, z opóźnieniem około dwóch miesięcy."},"en":{"zuk452.t":"Gold in UK trade","zuk452.sub":"How much gold the United Kingdom imports and exports, month by month.","zuk452.lazy":"Data will appear when you expand the card.","zuk452.err":"Could not load the gold trade data. Please try again in a moment.","zuk452.errp":"The latest refresh failed — earlier data is shown.","zuk452.k.imp":"Imports — last month","zuk452.k.exp":"Exports — last month","zuk452.k.imp12":"Imports — 12 months","zuk452.k.exp12":"Exports — 12 months","zuk452.u.mln":"£m","zuk452.u.t":"t","zuk452.when":"data for {m}","zuk452.when12":"12 months to {m}","zuk452.v.mm":"m/m","zuk452.v.yy":"y/y","zuk452.na.t":"no data","zuk452.na.k":"Country data is not available.","zuk452.c.imp":"Gold imports","zuk452.c.exp":"Gold exports","zuk452.ch.aria":"Column chart: {n}, {k} months","zuk452.ch.short":"Not enough data for a chart.","zuk452.h.imp":"Where gold comes from — 12 months to {m}","zuk452.h.exp":"Where the UK sends gold — 12 months to {m}","zuk452.rest":"Other countries","zuk452.share":"{p}% share","zuk452.bars.aria":"Bar chart: {n} items","zuk452.note":"Customs data: non-monetary gold (bars, semi-finished and unwrought), excluding monetary gold, coins and jewellery. Monthly, about two months behind."}};
 for(const l in EXTRA307)if(I18N[l])Object.assign(I18N[l],EXTRA307[l]);
+/* v453 (F11Z34): Hyperliquid — największe konta i pożyczki w DeFi (CRYPTO, karty #c-hl i #c-aave) — polski i angielski */
+const EXTRA308={"pl":{"hla.when":"stan: {t}","hla.err":"Brak aktualnych danych. Spróbuj ponownie za chwilę.","hla.foot":"Dane publiczne, mogą się zmieniać.","hl.t":"Hyperliquid: największe konta","hl.sub":"Publiczny ranking kont na giełdzie kontraktów Hyperliquid: ile pieniędzy mają konta, ile z nich zarabia i jak ustawiają się największe aktywne konta.","hl.k.n":"Konta w rankingu","hl.s.act":"aktywnych w tygodniu: {n}","hl.k.val":"Wartość kont razem","hl.s.big":"kont powyżej 1 mln: {n}","hl.k.win":"Konta na plusie (tydzień)","hl.s.win":"na minusie: {n}","hl.k.top":"Udział 100 największych kont","hl.s.top":"10 największych: {p}","hl.h.gr":"Ile pieniędzy mają konta","hl.g.1":"do 10 tys.","hl.g.2":"10–100 tys.","hl.g.3":"100 tys.–1 mln","hl.g.4":"1–10 mln","hl.g.5":"10–100 mln","hl.g.6":"ponad 100 mln","hl.v.gr":"kont: {n} · {v} · {p}","hl.h.win":"Zyski i straty kont","hl.c.okres":"Okres","hl.c.plus":"Na plusie","hl.c.minus":"Na minusie","hl.c.zysk":"Zyski razem","hl.c.strata":"Straty razem","hl.c.obrot":"Obrót","hl.w.day":"Doba","hl.w.week":"Tydzień","hl.w.month":"Miesiąc","hl.n.win":"Liczą się konta, które w danym okresie miały zysk lub stratę.","hl.h.poz":"Pozycje największych aktywnych kont","hl.sub.poz":"Odczyt dla {n} największych kont, które handlowały w ostatnim tygodniu. Long to zakład na wzrost ceny, short — na spadek.","hl.k.long":"Pozycje long (na wzrost)","hl.k.short":"Pozycje short (na spadek)","hl.k.net":"Long minus short","hl.k.eq":"Wartość tych kont","hl.s.poz":"kont z pozycjami: {n}","hl.s.longp":"long to {p} wszystkich pozycji","hl.s.read":"odczytano {a} z {b} kont","hl.h.coins":"Pozycje według monet","hl.c.moneta":"Moneta","hl.c.long":"Long","hl.c.short":"Short","hl.c.net":"Różnica","hl.c.konta":"Konta long / short","hl.n.poz":"Konta są anonimowe — pokazujemy tylko sumy. Pozycje zmieniają się co chwilę.","hl.n.nopoz":"Pozycje chwilowo niedostępne.","aave.t":"Aave: pożyczki w DeFi","aave.sub":"Ile pieniędzy wpłacono i pożyczono w największym protokole pożyczkowym DeFi oraz ile kosztuje pożyczka.","aave.k.dep":"Wpłacone razem","aave.s.rynki":"rynków: {n} · sieci: {m}","aave.k.bor":"Pożyczone razem","aave.s.wyk":"wykorzystanie {p}","aave.k.stab":"{s}: pożyczka","aave.s.stab":"wpłata {d} · wykorzystanie {u}","aave.h.rynki":"Gdzie jest najwięcej pieniędzy","aave.v.rynek":"wpłaty {a} · pożyczki {b}","aave.h.stawki":"Stawki na rynku głównym ({s})","aave.c.aktywo":"Aktywo","aave.c.wp":"Wpłacono","aave.c.dep":"Stawka wpłaty","aave.c.bor":"Stawka pożyczki","aave.c.wyk":"Wykorzystanie","aave.n.1":"Stawka wpłaty to roczne odsetki dla wpłacającego, stawka pożyczki — roczny koszt dla pożyczającego. Stawki zmieniają się co chwilę.","aave.n.2":"„—” oznacza, że pożyczanie tego aktywa jest wyłączone."},"en":{"hla.when":"as of: {t}","hla.err":"No current data. Please try again in a moment.","hla.foot":"Public data, which may change.","hl.t":"Hyperliquid: biggest accounts","hl.sub":"The public ranking of accounts on the Hyperliquid futures exchange: how much money the accounts hold, how many are making money and how the biggest active accounts are positioned.","hl.k.n":"Accounts in the ranking","hl.s.act":"active this week: {n}","hl.k.val":"Total value of accounts","hl.s.big":"accounts above 1 million: {n}","hl.k.win":"Accounts in profit (week)","hl.s.win":"in loss: {n}","hl.k.top":"Share of the 100 biggest accounts","hl.s.top":"top 10: {p}","hl.h.gr":"How much money the accounts hold","hl.g.1":"under 10 thousand","hl.g.2":"10–100 thousand","hl.g.3":"100 thousand–1 million","hl.g.4":"1–10 million","hl.g.5":"10–100 million","hl.g.6":"over 100 million","hl.v.gr":"accounts: {n} · {v} · {p}","hl.h.win":"Profits and losses of accounts","hl.c.okres":"Period","hl.c.plus":"In profit","hl.c.minus":"In loss","hl.c.zysk":"Total profits","hl.c.strata":"Total losses","hl.c.obrot":"Trading volume","hl.w.day":"Day","hl.w.week":"Week","hl.w.month":"Month","hl.n.win":"Accounts count if they had a profit or a loss in the period.","hl.h.poz":"Positions of the biggest active accounts","hl.sub.poz":"A reading for the {n} biggest accounts that traded in the last week. Long is a bet on a rising price, short on a falling one.","hl.k.long":"Long positions (up)","hl.k.short":"Short positions (down)","hl.k.net":"Long minus short","hl.k.eq":"Value of these accounts","hl.s.poz":"accounts with positions: {n}","hl.s.longp":"long is {p} of all positions","hl.s.read":"{a} of {b} accounts read","hl.h.coins":"Positions by coin","hl.c.moneta":"Coin","hl.c.long":"Long","hl.c.short":"Short","hl.c.net":"Difference","hl.c.konta":"Accounts long / short","hl.n.poz":"Accounts are anonymous, only totals are shown. Positions change all the time.","hl.n.nopoz":"Positions are temporarily unavailable.","aave.t":"Aave: lending in DeFi","aave.sub":"How much money has been deposited and borrowed in the biggest DeFi lending protocol, and how much a loan costs.","aave.k.dep":"Total deposited","aave.s.rynki":"markets: {n} · networks: {m}","aave.k.bor":"Total borrowed","aave.s.wyk":"utilisation {p}","aave.k.stab":"{s}: loan","aave.s.stab":"deposit {d} · utilisation {u}","aave.h.rynki":"Where most of the money is","aave.v.rynek":"deposits {a} · loans {b}","aave.h.stawki":"Rates on the main market ({s})","aave.c.aktywo":"Asset","aave.c.wp":"Deposited","aave.c.dep":"Deposit rate","aave.c.bor":"Loan rate","aave.c.wyk":"Utilisation","aave.n.1":"The deposit rate is the yearly interest for the depositor, the loan rate is the yearly cost for the borrower. Rates change all the time.","aave.n.2":"“—” means borrowing this asset is switched off."}};
+for(const l in EXTRA308)if(I18N[l])Object.assign(I18N[l],EXTRA308[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -19333,6 +19375,117 @@ SRV_GR.defi2='c';SRV_LD.c.push(df2Load);
 setInterval(()=>{if(!document.hidden)df2Load();},30*60*1000);   /* części co dobę — strona pyta co 30 min (wiek w kafelkach też się odświeża) */
 df2Load();try{new MutationObserver(()=>renderDf2()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
 /* v402: koniec */
+/* ===================== v453 (F11Z34): HYPERLIQUID — NAJWIĘKSZE KONTA I POŻYCZKI W DEFI (CRYPTO, karty #c-hl i #c-aave — zaraz po karcie DeFi 2) =====================
+   Plik data/hl-aave.json (zbieracz: ranking kont co 12 h, pożyczki co 3 h; grupa plików „c” — pobierany dopiero po otwarciu CRYPTO). Dwie niezależne części, każda z własnym czasem pobrania:
+   (A) #c-hl — ranking kont giełdy kontraktów: cztery kafle (konta, wartość, konta na plusie w tygodniu, udział największych), słupki „ile pieniędzy mają konta”, tabela zysków i strat (doba, tydzień, miesiąc),
+       pozycje największych aktywnych kont (long i short, różnica, tabela według monet z paskiem podziału) — tylko sumy, żadnych adresów;
+   (B) #c-aave — pożyczki w DeFi: kafle (wpłacone, pożyczone, stawka pożyczki USDC i USDT), słupki rynków, tabela stawek na rynku głównym.
+   Każda liczba ma czas danych i wiek; brak = „—”, nigdy zero; część starsza niż HLA_OLD znika. Kolory kierunku z POKAZANEJ liczby (plus zielony, minus czerwony, zero żółte). Nazw dostawców tu nie ma;
+   nazwy giełdy, protokołu, sieci i monet to przedmiot danych. To nie jest porada inwestycyjna. Telefon 390 px: kafle po dwa, tabele w układzie kartek z etykietami kolumn. */
+const HLA={d:null};
+const HLA_OLD={hl:5*864e5,aave:2*864e5},HLA_LIVE=30*3600e3;
+const hlaNN=v=>Number.isInteger(v)&&v>=0;
+const hlaSum=v=>gxNum(v)&&v>=0;
+function hlaOk(j){return !!(gxObj(j)&&j.v===1&&typeof j.at==='string'&&isFinite(Date.parse(j.at))&&['hl','aave'].some(k=>gxObj(j[k])));}
+/* procent: 10 % i więcej bez miejsc po przecinku, mniej — jedno miejsce */
+const hlaP=x=>!gxNum(x)?'—':nfmt(x,Math.abs(x)>=10?0:1)+'%';
+const hlaAt=n=>{const D=HLA.d;return (D&&gxObj(D.part_at)&&typeof D.part_at[n]==='string'&&D.part_at[n])||(D&&D.at)||'';};
+function hlaHl(){
+  const D=HLA.d,P=D&&gxObj(D.hl)?D.hl:null;if(!P||typeof P.t!=='string'||gxAge(P.t)>HLA_OLD.hl)return null;
+  const R=P.rank;
+  if(!gxObj(R)||!hlaNN(R.n)||!(R.n>0)||!hlaSum(R.suma)||!(R.suma>0)||!hlaSum(R.s10)||!hlaSum(R.s100)||!Array.isArray(R.gr)||R.gr.length!==6||!R.gr.every(g=>Array.isArray(g)&&g.length===2&&hlaNN(g[0])&&hlaSum(g[1]))||!gxObj(R.okna))return null;
+  for(const k of ['day','week','month']){const s=R.okna[k];if(!gxObj(s)||!['act','np','nl'].every(x=>hlaNN(s[x]))||!hlaSum(s.sp)||!gxNum(s.sl)||s.sl>0||!hlaSum(s.vlm))return null;}
+  return P;
+}
+function hlaPoz(P){
+  const Z=P.poz;
+  if(!gxObj(Z)||typeof Z.t!=='string'||gxAge(Z.t)>HLA_OLD.hl||!['n','ok','poz'].every(x=>hlaNN(Z[x]))||!hlaSum(Z.long)||!hlaSum(Z.short)||!hlaSum(Z.eq)||!(Z.ok>0)||!Array.isArray(Z.coins))return null;
+  const C=Z.coins.filter(c=>Array.isArray(c)&&c.length===5&&typeof c[0]==='string'&&c[0]&&hlaSum(c[1])&&hlaSum(c[2])&&hlaNN(c[3])&&hlaNN(c[4]));
+  return {Z,C};
+}
+function hlaAave(){
+  const D=HLA.d,A=D&&gxObj(D.aave)?D.aave:null;if(!A||typeof A.t!=='string'||gxAge(A.t)>HLA_OLD.aave)return null;
+  if(!hlaSum(A.suma)||!(A.suma>0)||!hlaSum(A.poz)||!hlaNN(A.n)||!hlaNN(A.sieci)||!Array.isArray(A.rynki)||!Array.isArray(A.stawki))return null;
+  const R=A.rynki.filter(r=>Array.isArray(r)&&r.length===5&&typeof r[0]==='string'&&typeof r[1]==='string'&&hlaSum(r[2])&&hlaSum(r[3])&&hlaSum(r[4]));
+  const S=A.stawki.filter(r=>Array.isArray(r)&&r.length===5&&typeof r[0]==='string'&&r[0]&&hlaSum(r[1])&&hlaSum(r[2])&&(r[3]===null||hlaSum(r[3]))&&(r[4]===null||hlaSum(r[4])));
+  return R.length&&S.length?{A,R,S}:null;
+}
+const hlaCoin=sym=>typeof steCoin==='function'?steCoin(sym):'';
+const hlaSigned=v=>`<span class="${gxTone(v)}">${gxSig(v)}</span>`;
+/* ---------- A) ranking kont i pozycje ---------- */
+function hlaHlBody(P,when){
+  const R=P.rank,O=R.okna,big=R.gr[3][0]+R.gr[4][0]+R.gr[5][0],wn=O.week.np+O.week.nl;
+  let h=`<div class="etfkpis">`
+    +gxTile(t('hl.k.n'),nfmt(R.n,0),'',[{txt:t('hl.s.act',{n:nfmt(O.week.act,0)})}],when)
+    +gxTile(t('hl.k.val'),gxMag(R.suma),'',[{txt:t('hl.s.big',{n:nfmt(big,0)})}],when)
+    +gxTile(t('hl.k.win'),wn>0?hlaP(O.week.np/wn*100):'—',wn>0?'':'na',[wn>0?{txt:t('hl.s.win',{n:nfmt(O.week.nl,0)})}:null],when)
+    +gxTile(t('hl.k.top'),hlaP(R.s100/R.suma*100),'',[{txt:t('hl.s.top',{p:hlaP(R.s10/R.suma*100)})}],when)+`</div>`;
+  h+=`<div class="gx-h"><b>${t('hl.h.gr')}</b></div><div class="gxs">`+R.gr.map((g,i)=>gxShare(escH(t('hl.g.'+(i+1))),g[1]/R.suma*100,t('hl.v.gr',{n:nfmt(g[0],0),v:gxMag(g[1]),p:hlaP(g[1]/R.suma*100)}),i===5?'cur':'')).join('')+`</div>`;
+  h+=`<div class="gx-h"><b>${t('hl.h.win')}</b></div><div class="hla-g"><div class="hla-r hla-hd"><span>${t('hl.c.okres')}</span><span>${t('hl.c.plus')}</span><span>${t('hl.c.minus')}</span><span>${t('hl.c.zysk')}</span><span>${t('hl.c.strata')}</span><span>${t('hl.c.obrot')}</span></div>`
+    +['day','week','month'].map(k=>{const s=O[k];
+      return `<div class="hla-r"><span class="hla-n"><b>${t('hl.w.'+k)}</b></span><span class="hla-c" data-l="${escH(t('hl.c.plus'))}">${nfmt(s.np,0)}</span><span class="hla-c" data-l="${escH(t('hl.c.minus'))}">${nfmt(s.nl,0)}</span>`
+        +`<span class="hla-c" data-l="${escH(t('hl.c.zysk'))}">${hlaSigned(s.sp)}</span><span class="hla-c" data-l="${escH(t('hl.c.strata'))}">${hlaSigned(s.sl)}</span><span class="hla-c" data-l="${escH(t('hl.c.obrot'))}">${gxMag(s.vlm)}</span></div>`;}).join('')
+    +`</div><p class="pnote">${t('hl.n.win')}</p>`;
+  const Q=hlaPoz(P);
+  h+=`<div class="gx-h"><b>${t('hl.h.poz')}</b></div>`;
+  if(!Q)return h+`<p class="pnote">${t('hl.n.nopoz')}</p>`;
+  const Z=Q.Z,tot=Z.long+Z.short,net=Z.long-Z.short,pw=t('hla.when',{t:gxWhen(Z.t)});
+  h+=`<p class="pnote">${t('hl.sub.poz',{n:nfmt(Z.n,0)})}</p><div class="etfkpis">`
+    +gxTile(t('hl.k.long'),gxMag(Z.long),Z.long>0?'':'na',[{txt:t('hl.s.poz',{n:nfmt(Z.poz,0)})}],pw)
+    +gxTile(t('hl.k.short'),gxMag(Z.short),Z.short>0?'':'na',[],pw)
+    +gxTile(t('hl.k.net'),hlaSigned(net),'',[tot>0?{txt:t('hl.s.longp',{p:hlaP(Z.long/tot*100)})}:null],pw)
+    +gxTile(t('hl.k.eq'),gxMag(Z.eq),Z.eq>0?'':'na',[{txt:t('hl.s.read',{a:nfmt(Z.ok,0),b:nfmt(Z.n,0)})}],pw)+`</div>`;
+  if(Q.C.length){
+    h+=`<div class="gx-h"><b>${t('hl.h.coins')}</b></div><div class="hla-g"><div class="hla-r hla-p hla-hd"><span>${t('hl.c.moneta')}</span><span>${t('hl.c.long')}</span><span>${t('hl.c.short')}</span><span>${t('hl.c.net')}</span><span>${t('hl.c.konta')}</span></div>`
+      +Q.C.map(c=>{const s=c[1]+c[2],lp=s>0?c[1]/s*100:0;
+        return `<div class="hla-r hla-p"><span class="hla-n"><b>${hlaCoin(c[0])}${escH(c[0])}</b></span><span class="hla-c" data-l="${escH(t('hl.c.long'))}">${gxMag(c[1])}</span><span class="hla-c" data-l="${escH(t('hl.c.short'))}">${gxMag(c[2])}</span>`
+          +`<span class="hla-c" data-l="${escH(t('hl.c.net'))}">${hlaSigned(c[1]-c[2])}</span><span class="hla-c" data-l="${escH(t('hl.c.konta'))}">${nfmt(c[3],0)} / ${nfmt(c[4],0)}</span>`
+          +`<span class="hla-bar" aria-hidden="true"><i class="up" style="width:${lp.toFixed(2)}%"></i><i class="dn" style="width:${(100-lp).toFixed(2)}%"></i></span></div>`;}).join('')+`</div>`;
+  }
+  return h+`<p class="pnote">${t('hl.n.poz')}</p>`;
+}
+function renderHl(){
+  const el=$('#c-hl');if(!el)return;
+  const P=HLA.d?hlaHl():null;
+  if(!P){el.hidden=true;el.innerHTML='';return;}
+  const D=HLA.d,live=gxAge(D.at)<HLA_LIVE,when=t('hla.when',{t:gxWhen(P.upd||P.t)});
+  el.innerHTML=`<div class="etfh"><div><h2>${t('hl.t')}</h2><p class="pnote">${t('hl.sub')}</p></div><div class="etfb"><span class="live ${live?'on':'off'}"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`
+    +hlaHlBody(P,when)+`<p class="pfoot">${t('inst.file',{t:engDate(D.at)})} · ${t('hla.foot')} ${t('eng.disclaimer')}</p>`;
+  el.hidden=false;
+}
+/* ---------- B) pożyczki w DeFi ---------- */
+const hlaPc=v=>gxNum(v)?nfmt(v,2)+'%':'—';
+function hlaAaveBody(Q,when){
+  const A=Q.A,max=Math.max(...Q.R.map(r=>r[2])),wyk=A.suma>0?A.poz/A.suma*100:null;
+  const stab=s=>{const v=gxObj(A.stab)&&Array.isArray(A.stab[s])&&A.stab[s].length===4&&A.stab[s].every((x,i)=>i===3?(x===null||hlaSum(x)):hlaSum(x))?A.stab[s]:null;
+    return gxTile(t('aave.k.stab',{s}),v?hlaPc(v[2]):'—',v?'':'na',[v?{txt:t('aave.s.stab',{d:hlaPc(v[1]),u:v[3]===null?'—':nfmt(v[3],0)+'%'})}:null],when);};
+  let h=`<div class="etfkpis">`
+    +gxTile(t('aave.k.dep'),gxMag(A.suma),'',[{txt:t('aave.s.rynki',{n:nfmt(A.n,0),m:nfmt(A.sieci,0)})}],when)
+    +gxTile(t('aave.k.bor'),gxMag(A.poz),A.poz>0?'':'na',[wyk==null?null:{txt:t('aave.s.wyk',{p:hlaP(wyk)})}],when)
+    +stab('USDC')+stab('USDT')+`</div>`;
+  h+=`<div class="gx-h"><b>${t('aave.h.rynki')}</b></div><div class="gxs">`+Q.R.map((r,i)=>gxShare(escH(r[0]+(r[1]?' ('+r[1]+')':'')),max>0?r[2]/max*100:0,t('aave.v.rynek',{a:gxMag(r[2]),b:gxMag(r[3])}),i===0?'cur':'')).join('')+`</div>`;
+  const g=Array.isArray(A.glowny)&&typeof A.glowny[0]==='string'?A.glowny[0]+(typeof A.glowny[1]==='string'&&A.glowny[1]?' ('+A.glowny[1]+')':''):'—';
+  h+=`<div class="gx-h"><b>${t('aave.h.stawki',{s:escH(g)})}</b></div><div class="hla-g"><div class="hla-r hla-a hla-hd"><span>${t('aave.c.aktywo')}</span><span>${t('aave.c.wp')}</span><span>${t('aave.c.dep')}</span><span>${t('aave.c.bor')}</span><span>${t('aave.c.wyk')}</span></div>`
+    +Q.S.map(r=>`<div class="hla-r hla-a"><span class="hla-n"><b>${hlaCoin(r[0])}${escH(r[0])}</b></span><span class="hla-c" data-l="${escH(t('aave.c.wp'))}">${gxMag(r[1])}</span><span class="hla-c" data-l="${escH(t('aave.c.dep'))}">${hlaPc(r[2])}</span>`
+      +`<span class="hla-c" data-l="${escH(t('aave.c.bor'))}">${hlaPc(r[3])}</span><span class="hla-c" data-l="${escH(t('aave.c.wyk'))}">${r[4]===null?'—':nfmt(r[4],0)+'%'}</span></div>`).join('')+`</div>`;
+  return h+`<p class="pnote">${t('aave.n.1')}</p><p class="pnote">${t('aave.n.2')}</p>`;
+}
+function renderAave(){
+  const el=$('#c-aave');if(!el)return;
+  const Q=HLA.d?hlaAave():null;
+  if(!Q){el.hidden=true;el.innerHTML='';return;}
+  const D=HLA.d,live=gxAge(D.at)<HLA_LIVE,when=t('hla.when',{t:gxWhen(Q.A.t)});
+  el.innerHTML=`<div class="etfh"><div><h2>${t('aave.t')}</h2><p class="pnote">${t('aave.sub')}</p></div><div class="etfb"><span class="live ${live?'on':'off'}"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`
+    +hlaAaveBody(Q,when)+`<p class="pfoot">${t('inst.file',{t:engDate(D.at)})} · ${t('hla.foot')} ${t('eng.disclaimer')}</p>`;
+  el.hidden=false;
+}
+function renderHla(){renderHl();renderAave();}
+function hlaApply(j){const ok=hlaOk(j);if(!ok&&HLA.d)return;HLA.d=ok?j:null;renderHla();}   /* chwilowy błąd pobrania nie zasłania wczytanych danych */
+function hlaLoad(){srvJSON('hl-aave').then(hlaApply);}
+SRV_GR['hl-aave']='c';SRV_LD.c.push(hlaLoad);
+setInterval(()=>{if(!document.hidden)hlaLoad();},30*60*1000);   /* części co kilka godzin — strona pyta co 30 min (wiek w kafelkach też się odświeża) */
+hlaLoad();try{new MutationObserver(()=>renderHla()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
+/* v453: koniec */
 /* ===================== v403 (F11Z16): ETHEREUM I WARSTWA 2 — KOLEJKI STAKINGU, PODAŻ I SPALANIE, SIECI L2 (CRYPTO, panel #c-eth) =====================
    Plik data/eth-lancuch.json (zbieracz, co ~60 min; grupa plików „c”, ładowarka ethLoad dopisana do rejestru SRV_LD). Cztery części z własnym czasem: wal (kolejka wpłat do stakingu, walidatorzy opuszczający zbiór
    rozdzieleni na WYJŚCIA i ŁĄCZENIE walidatorów — przy łączeniu ETH zostaje w stakingu — oraz częściowe wypłaty, historia dobowa), spal (podaż ETH, spalone ETH w oknach czasu, zmiany podaży, szacunek rocznej
