@@ -39779,9 +39779,17 @@ def usk_zmiany(pts):
     return out
 
 
+def _usk_skarb_dzis(out):
+    """v491: czy suma skarbca (Ethereum + Tron) ma dziś dostać punkt: odczyty OBU sieci istnieją i każdy ma czas 't' z dzisiejszej doby UTC (jak NOW); brak, zły czas albo inny dzień = nie."""
+    try:
+        return all(isinstance(out.get(p), dict) and isinstance(out[p].get('t'), str) and out[p]['t'][:10] == NOW[:10] and isinstance(out[p].get('bal'), (int, float)) for p in ('eth', 'tron'))
+    except Exception:   # noqa — zła struktura = bez sumy
+        return False
+
+
 def build_usdt_skarbiec(prev=None):
     """v377: data/usdt-skarbiec.json {v, at, src, part_at, ok, eth, tron, hist, zm}. Część, która zawiodła, zostaje z poprzedniego pliku (USK_MAX_H godzin od jej pobrania), błąd do META['errors'];
-    obie zawiodły = wyjątek (main zostawia poprzedni plik). Historia dobowa salda: 'eth', 'tron' (każda z własnego odczytu) i 'skarb' (suma — tylko gdy obie sieci odczytane w tym przebiegu)."""
+    obie zawiodły = wyjątek (main zostawia poprzedni plik). Historia dobowa salda: 'eth', 'tron' (każda z własnego odczytu) i 'skarb' (suma — tylko gdy odczyty obu sieci są z dzisiejszej doby UTC, także gdy Tron jest z pamięci)."""
     pv = prev if isinstance(prev, dict) and prev.get('v') == USK_V else {}
     out = {'v': USK_V, 'at': NOW, 'src': 'zdarzenia emisji i umorzeń oraz saldo skarbca USDT odczytane z sieci Ethereum i Tron', 'part_at': {}, 'ok': {}}
     proba = dict(pv['proba']) if isinstance(pv.get('proba'), dict) else {}   # v386: czas ostatniej nieudanej próby Tron
@@ -39815,7 +39823,7 @@ def build_usdt_skarbiec(prev=None):
     for part in ('eth', 'tron'):
         if out['ok'][part] is True:   # v386: 'cached' (odczyt z poprzedniego pliku) nie dostaje punktu historii z nową datą
             ste_historia(h, part, NOW[:10], out[part]['bal'])
-    if out['ok']['eth'] is True and out['ok']['tron'] is True:
+    if _usk_skarb_dzis(out):   # v491: Tron z pamięci (rytm 55 min) nie wstrzymuje sumy, byle odczyty obu sieci były z dzisiejszej doby
         ste_historia(h, 'skarb', NOW[:10], out['eth']['bal'] + out['tron']['bal'])
     out['hist'] = h
     if proba:

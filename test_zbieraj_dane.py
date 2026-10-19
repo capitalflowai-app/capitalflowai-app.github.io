@@ -55467,7 +55467,7 @@ class UsdtSkarbiecV377(unittest.TestCase):
         with mock.patch.object(zd, 'get_json', self._get(bl=blad)):
             o = zd.build_usdt_skarbiec(prev(4))
         self.assertEqual(o['ok'], {'eth': True, 'tron': False}); self.assertEqual(o['tron']['bal'], 777, 'część z poprzedniego pliku'); self.assertEqual(o['part_at']['tron'], (_V377_NOW - datetime.timedelta(hours=4)).isoformat())
-        self.assertEqual(o['hist']['skarb'], [['2026-10-14', 5]], 'suma „razem” tylko gdy obie sieci odczytane w tym przebiegu'); self.assertEqual(o['hist']['eth'][-1], ['2026-10-15', 2109852401])
+        self.assertEqual(o['hist']['skarb'], [['2026-10-14', 5], ['2026-10-15', 2109852401 + 777]], 'v491: suma „razem” także z odczytem Tron z pamięci, gdy oba odczyty są z dzisiejszej doby'); self.assertEqual(o['hist']['eth'][-1], ['2026-10-15', 2109852401])
         self.assertEqual(o['hist']['tron'], [['2026-10-15', 1171852227]], 'sieć po błędzie nie dostaje punktu historii z odczytu z poprzedniego pliku (777)')
         self.assertEqual([e.split(':')[0] for e in zd.META['errors']], ['USDT skarbiec tron']); self.assertIn('429', zd.META['errors'][0])
         zd.META['errors'].clear()
@@ -58420,7 +58420,7 @@ class TestV386TronLimit(unittest.TestCase):
         self.assertEqual(st['tron'], 0, 'Tron młodszy niż 55 min — ani jednego zapytania'); self.assertEqual(sum('blockscout' in c for c in st['calls']), 4)
         self.assertEqual(o1['ok'], {'eth': True, 'tron': 'cached'}); self.assertEqual(o1['tron'], o0['tron']); self.assertEqual(o1['part_at']['tron'], o0['part_at']['tron'], 'data odczytu Tron zostaje')
         self.assertEqual(o1['part_at']['eth'], (_V377_NOW + datetime.timedelta(minutes=30)).isoformat()); self.assertEqual(zd.META['errors'], [])
-        self.assertEqual(o1['hist']['tron'], [['2026-10-15', 1171852227]]); self.assertEqual(o1['hist']['skarb'], o0['hist']['skarb'], 'suma „razem” tylko gdy obie sieci odczytane w tym przebiegu')
+        self.assertEqual(o1['hist']['tron'], [['2026-10-15', 1171852227]]); self.assertEqual(o1['hist']['skarb'], [['2026-10-15', o1['eth']['bal'] + 777]], 'v491: suma „razem” liczona ze świeżego Ethereum i Tron z pamięci z dzisiejszej doby')
         g, st = _v386_serwer()
         o2 = self._bud(o1, 56, g)
         self.assertEqual((st['tron'], o2['ok']), (3, {'eth': True, 'tron': True})); self.assertEqual(o2['part_at']['tron'], (_V377_NOW + datetime.timedelta(minutes=56)).isoformat())
@@ -81236,3 +81236,54 @@ class RaportAiV482(unittest.TestCase):
         m = r.fakty_meta({'errors': ['e' * 900] * 40, 'awarie': {f'k{i}': {'od': 'x', 'n': i, 'prev': 1} for i in range(100)}, 'zrodla': {'n': 1}, 'ok': {'a': 1}})
         self.assertEqual((len(m['errors']), len(m['errors'][0]), len(m['awarie']), sorted(m['awarie']['k1'])), (30, 300, 60, ['n', 'od']))
         self.assertEqual(r.historia_7_dni('zły', self.NOW), []); self.assertEqual(r.historia_7_dni([{'at': 'zła'}, 5], self.NOW), [])
+
+
+class TestV491SkarbPunktPrzyTronZPamieci(unittest.TestCase):
+    """v491 (19.10.2026): Tron pytany najwyżej co 55 min (ok 'cached'), Ethereum co ~25 min; punkt dzienny „skarb” (suma obu sieci) powstawał tylko gdy obie sieci odczytano w tym przebiegu,
+    więc „Zmiana skarbca (obie sieci razem)” liczyła się ze starego punktu (19.10: +0,9 mln przy Ethereum +214 mln). Teraz punkt powstaje, gdy odczyty obu sieci są z dzisiejszej doby UTC."""
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+        self.p = [mock.patch.object(zd, '_now_utc', lambda: _V377_NOW), mock.patch.object(zd, 'NOW', _V377_NOW.isoformat()), mock.patch.object(zd, 'USK_SLEEP', 0),
+                  mock.patch.object(zd, 'USK_RETRY_DOM_S', 4), mock.patch.object(zd.time, 'sleep', lambda s: None)]
+        [p.start() for p in self.p]
+
+    def tearDown(self):
+        [p.stop() for p in self.p]
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def _bud(self, prev, minuty):
+        g, st = _v386_serwer()
+        t = _V377_NOW + datetime.timedelta(minutes=minuty)
+        with mock.patch.object(zd, 'NOW', t.isoformat()), mock.patch.object(zd, '_now_utc', lambda: t), mock.patch.object(zd, 'get_json', g):
+            return zd.build_usdt_skarbiec(prev), st
+
+    def _pelny(self):
+        o, st = self._bud(None, 0)
+        self.assertEqual(o['ok'], {'eth': True, 'tron': True}); self.assertEqual(st['tron'], 3)
+        return o
+
+    def test_tron_z_pamieci_dzisiejszy_odczyt_daje_punkt_sumy(self):
+        o0 = self._pelny()
+        o0['tron']['bal'] = 1398500025   # odczyt Tron sprzed 30 min, ten sam dzień
+        o0['hist']['skarb'] = [['2026-10-14', 5], ['2026-10-15', 1]]   # stara suma z rana
+        o1, st = self._bud(o0, 30)
+        self.assertEqual(o1['ok'], {'eth': True, 'tron': 'cached'}); self.assertEqual(st['tron'], 0)
+        self.assertEqual(o1['hist']['skarb'], [['2026-10-14', 5], ['2026-10-15', o1['eth']['bal'] + 1398500025]], 'dzisiejszy punkt = Ethereum + Tron')
+        self.assertEqual(o1['zm']['skarb']['1'], o1['eth']['bal'] + 1398500025 - 5, 'zmiana 1 dnia liczona z dzisiejszej sumy')
+        self.assertEqual(len(o1['hist']['skarb']), 2, 'jeden punkt na dobę')
+
+    def test_tron_z_pamieci_wczorajszy_odczyt_bez_nowego_punktu(self):
+        o0 = self._pelny()
+        o0['tron']['t'] = '2026-10-14T23:30:00+00:00'   # odczyt Tron z wczorajszej doby (rytm liczony od part_at — jeszcze świeży)
+        o0['hist']['skarb'] = [['2026-10-14', 5]]
+        o1, st = self._bud(o0, 30)
+        self.assertEqual(o1['ok']['tron'], 'cached'); self.assertEqual(o1['hist']['skarb'], [['2026-10-14', 5]], 'odczyt Tron z innej doby = bez nowego punktu sumy')
+        self.assertEqual(o1['hist']['eth'][-1][0], '2026-10-15')
+
+    def test_pomocnik_zle_struktury(self):
+        d = _V377_NOW.isoformat()
+        self.assertTrue(zd._usk_skarb_dzis({'eth': {'t': d, 'bal': 1}, 'tron': {'t': d, 'bal': 2}}))
+        for zle in ({}, {'eth': {'t': d, 'bal': 1}}, {'eth': {'t': d, 'bal': 1}, 'tron': {'bal': 2}}, {'eth': {'t': d, 'bal': 1}, 'tron': {'t': d, 'bal': None}},
+                    {'eth': {'t': '2026-10-14T23:59:00+00:00', 'bal': 1}, 'tron': {'t': d, 'bal': 2}}, {'eth': 'x', 'tron': {'t': d, 'bal': 2}}):
+            self.assertFalse(zd._usk_skarb_dzis(zle), zle)
