@@ -393,4 +393,4 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main(sys.argv))   # v477b: main() oczekuje pełnego argv (nazwa skryptu); wcześniej sys.argv[1:] dawało puste argv → kod 2 przy każdym uruchomieniu

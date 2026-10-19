@@ -82727,3 +82727,31 @@ class RopaGazEiaOdpornoscV481(unittest.TestCase):
         src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zbieraj_dane.py'), encoding='utf-8').read()
         a = src.index('def su_q('); b = src.index('\ndef ', a + 10)
         self.assertNotIn('SU_QA', src[a:b], 'ocena punktów (skok, rozjazd, bezpiecznik) bez zmian')
+
+
+class V477bWejscieSkryptuListy(unittest.TestCase):
+    """v477b: skrypt narzedzia/wh_lista.py uruchomiony w przepływie bez argumentów (python3 narzedzia/wh_lista.py) ma kończyć kodem 0 — pierwsze uruchomienie
+    na GitHubie padło, bo punkt wejścia przekazywał main() sys.argv[1:] (puste), a main() wymaga pełnego argv (kod 2 „użycie”)."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    def test_main_bez_argumentow_kod_0_i_z_argumentem_kod_2(self):
+        w = _v477_mod('wh_lista_v477b', 'narzedzia', 'wh_lista.py')
+        wywolania = []
+        w.uruchom = lambda *a, **kw: wywolania.append(1) or 'test'
+        self.assertEqual(w.main(['wh_lista.py']), 0, 'tak wywołuje przepływ: python3 narzedzia/wh_lista.py')
+        self.assertEqual(wywolania, [1])
+        self.assertEqual(w.main(['wh_lista.py', 'x']), 2, 'argument nadmiarowy = użycie, bez uruchomienia')
+        self.assertEqual(wywolania, [1])
+
+    def test_punkt_wejscia_przekazuje_pelny_argv(self):
+        with open(os.path.join(self.ROOT, 'narzedzia', 'wh_lista.py'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertIn("sys.exit(main(sys.argv))", src)
+        self.assertNotIn("main(sys.argv[1:])", src, 'puste argv → kod 2 przy każdym uruchomieniu w przepływie')
+
+    def test_uruchomienie_jak_w_przeplywie_nie_konczy_sie_kodem_uzycia(self):
+        import subprocess
+        import sys
+        p = subprocess.run([sys.executable, '-B', os.path.join(self.ROOT, 'narzedzia', 'wh_lista.py'), 'nadmiarowy'], capture_output=True, text=True, timeout=60)
+        self.assertEqual(p.returncode, 2); self.assertIn('użycie', p.stdout)   # z argumentem — użycie; bez argumentów kod 0 sprawdza test wyżej (bez sieci)
+
