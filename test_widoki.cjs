@@ -34113,3 +34113,13 @@ test('v432: każdy klucz z polskim tekstem ma angielski odpowiednik (poza polski
   assert.deepEqual(pol, [], 'polskie litery w angielskim: ' + pol.slice(0, 20).join(' '));
   for (const k of ['tig.t.c', 'tig.sh.ok', 'wk.hint', 'wk.g.fed.na', 'zw.all', 'top.b', 'rwe.p', 'g.pr.leg']) assert.ok(EN[k] && /[A-Za-z]/.test(EN[k]) && EN[k] !== PL[k], 'angielski ' + k);
 });
+
+test('v438: podłoga 3D CRYPTO bez siatki — gradient zamiast odcinków, lustro i plamy zostają', () => {
+  const i = html.indexOf('function drawFloor(){'), j = html.indexOf('function drawGroundGlow(n)');
+  assert.ok(i > 0 && j > i, 'drawFloor i drawGroundGlow na miejscu');
+  const F = html.slice(i, j);
+  assert.ok(!/lineTo|moveTo|\.stroke\(|strokeStyle|step\s*=/.test(F), 'podłoga nie rysuje już żadnych linii (siatki)');
+  assert.ok(F.includes('createRadialGradient') && F.includes('.fill()') && F.includes('PAL.floor'), 'miękka poświata z koloru --scene-floor');
+  assert.ok(html.includes('setCam();drawFloor();NODES.forEach(drawGroundGlow);') && html.includes('if(C[1]>FY+.3)drawScene(true,time);'), 'kolejność rysowania: podłoga, plamy, lustro, scena');
+  assert.ok(html.includes('--scene-floor:rgba(235,235,245,.10)') && html.includes('--scene-floor:rgba(60,60,67,.10)'), 'kolor podłogi w obu motywach');
+});
