@@ -17486,7 +17486,7 @@ WH_GIELDY = {
                          '0x4976a4a02f38326660d17bf34b431dc6e2eb2327']},
     # OKX ogłasza ~24 000 adresów na Ethereum (plik CSV dowodu rezerw, adresy podpisane „I am an OKX address”); ETH giełdy leży
     # w tysiącach adresów stakingu — nie do odczytu co 20 min z publicznego węzła. USDC jest skupione: 10 największych = 98 %.
-    'OKX': {'src': 'OKX — Proof of Reserves, plik adresów por_csv_2026090800_V1 (8.09.2026): 10 największych portfeli USDC w sieci Ethereum (98 % USDC z tej listy)',
+    'OKX': {'src': '',   # v477: napis liczony z pliku listy (wh_okx_src, niżej)
             'url': 'https://www.okx.com/proof-of-reserves/download', 'since': '2026-09-08', 'tokeny': ['USDC'],
             'addr': ['0xa073345811e360e9b66f24bc11f3a4bfa924f236', '0x08f619716db7c6245401b543e59acac1d25cb483',
                      '0x6709383e211ab08a6e3270532e756220400424a6', '0xa09fe38187abecc2768b98b80ea30afbc2fbd774',
@@ -17500,7 +17500,7 @@ WH_GIELDY = {
     # KuCoin — tabela „Verified wallets” z raportu ze stanem na 31.08.2026 (PDF podlinkowany na stronie Proof of Reserves giełdy),
     # Bitfinex — publiczna lista portfeli giełdy (GitHub bitfinexcom/pub, wallets.txt, 11.2022). Salda wszystkich odczytane 26.09.2026:
     # Bybit 2,34 mld USD (108 portfeli), KuCoin 0,74 mld (33), Bitfinex 0,76 mld (4) — pełne listy, bez wyboru „największych N”.
-    'Bybit': {'src': 'Bybit — miesięczny raport dowodu rezerw giełdy (audyt z 23.09.2026, PDF na stronie giełdy): wszystkie 122 portfele w sieci Ethereum z tabeli „Verified wallets”',
+    'Bybit': {'src': 'Bybit — miesięczny raport dowodu rezerw giełdy (audyt z 23.09.2026, PDF na stronie giełdy): wszystkie {n} w sieci Ethereum z tabeli „Verified wallets”',
               'url': 'https://www.bybit.com/common-static/cht-static/por/Bybit_PoR_Audit_2026_Sep_23.pdf', 'since': '2026-09-23',
               'tokeny': ['USDT', 'USDC', 'ETH'],
               'addr': ['0x01e2fb8f565d5e3cb9e0e8f0b607a96169b94393', '0x076d55c8998da29531ef7fcac2a01fa21582eed2',
@@ -17564,7 +17564,7 @@ WH_GIELDY = {
                       '0x8d6d3479c94bb95e737b72186192ff5e7fedf3a2', '0x8ebff0f0c7d644310bd1728b6bbf643cea905986',
                       '0xa31231e727ca53ff95f0d00a06c645110c4ab647', '0xa4b9569bf942c3aad23c0c2d322fe4aff8e1bf30',
                       '0xefdca8d1f52cf3a85dc9eb797d7bcc5e9adffe9c', '0xf4e83ff52d497ed2e5301953188cf67af3064cca']},
-    'KuCoin': {'src': 'KuCoin — miesięczny raport dowodu rezerw giełdy (stan z 31.08.2026, PDF podlinkowany na stronie Proof of Reserves giełdy): wszystkie 33 portfele w sieci Ethereum z tabeli „Verified wallets”',
+    'KuCoin': {'src': 'KuCoin — miesięczny raport dowodu rezerw giełdy (stan z 31.08.2026, PDF podlinkowany na stronie Proof of Reserves giełdy): wszystkie {n} w sieci Ethereum z tabeli „Verified wallets”',
                'url': 'https://assets.staticimg.com/cms/media/YKni0XbjiNeiu4woYgDkB3rZ2Uk6rBO4nmihgsvRI.pdf', 'since': '2026-08-31',
                'tokeny': ['USDT', 'USDC', 'ETH'],
                'addr': ['0x061f7937b7b2bc7596539959804f86538b6368dc', '0x0c32131b67a9306a42e5b66f869bc213d40e43f0',
@@ -17590,6 +17590,83 @@ WH_GIELDY = {
                  'addr': ['0x77134cbc06cb00b66f4c7e623d5fdbf6777635ec', '0x742d35cc6634c0532925a3b844bc454e4438f44e',
                          '0xc61b9bb3a7a0767e3179713f3a5c7a9aedce193c', '0x876eabf441b2ee5b5b0554fd502a8e0600950cfa']},
 }
+
+
+# v477: listy giełd liczone z danych, nie z liczb wpisanych na sztywno. Bybit i KuCoin: liczba portfeli w napisie = długość listy. OKX: lista z pliku
+# konfig/wh_listy.json — odświeża ją sam przepływ .github/workflows/wh_listy.yml (narzedzia/wh_lista.py) i przyjmuje dopiero po kontrolach; wartownik:
+# plik brakujący albo niepoprawny = lista wbudowana powyżej (stan z 8.09.2026), nigdy błąd zbieracza. 'since' i napis 'src' OKX liczone z pliku;
+# zmianę 'since' obsługuje v230 (gieldy[g].zmiana, wersja listy w historii sald).
+WH_LISTY_PLIK = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'konfig', 'wh_listy.json')
+WH_OKX_WBUDOWANA = {'since': WH_GIELDY['OKX']['since'], 'plik': 'por_csv_2026090800_V1', 'udzial': 0.9817, 'addr': list(WH_GIELDY['OKX']['addr'])}
+WH_OKX_N = 10                      # lista OKX = 10 największych portfeli USDC w sieci Ethereum
+WH_OKX_MIN_UDZIAL = 0.90           # 10 portfeli ≥ 90 % USDC z sieci Ethereum (kontrola automatu; tu druga bariera)
+WH_SRC_SZABLON = {g: WH_GIELDY[g]['src'] for g in ('Bybit', 'KuCoin')}
+
+
+def _wh_portfeli(n):
+    """Liczba z poprawnie odmienionym słowem „portfel” (1 portfel, 2–4 portfele, 5+ i 12–14 portfeli, 22–24 portfele)."""
+    n = int(n)
+    return f'{n} ' + ('portfel' if n == 1 else 'portfele' if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14 else 'portfeli')
+
+
+def wh_src_licz(g):
+    """Napis źródła Bybit/KuCoin z liczbą portfeli równą długości listy."""
+    return WH_SRC_SZABLON[g].format(n=_wh_portfeli(len(WH_GIELDY[g]['addr'])))
+
+
+for _g in WH_SRC_SZABLON:
+    WH_GIELDY[_g]['src'] = wh_src_licz(_g)
+
+
+def wh_okx_src(rec):
+    """Napis źródła listy OKX z rekordu listy (plik, data, liczba portfeli, udział USDC)."""
+    m = re.match(r'^(\d{4})-(\d{2})-(\d{2})$', rec['since'])
+    return (f'OKX — Proof of Reserves, plik adresów {rec["plik"]} ({int(m.group(3))}.{m.group(2)}.{m.group(1)}): {len(rec["addr"])} największych portfeli USDC '
+            f'w sieci Ethereum ({round(rec["udzial"] * 100)} % USDC z tej listy)')
+
+
+def wh_okx_wczytaj(sciezka=None, dzis=None):
+    """Plik listy OKX → (rekord, None); (None, None) — pliku nie ma (lista wbudowana, cicho); (None, powód) — plik niepoprawny (lista wbudowana + notatka).
+    Zasady jak w narzedzia/wh_lista.py: wersja 1, plik por_csv_RRRRMMDD00_V1 zgodny z datą, 10 różnych adresów 0x + 40 znaków szesnastkowych małymi literami,
+    udział 90–100 %, data nie starsza niż lista wbudowana i nie z przyszłości."""
+    try:
+        with open(sciezka or WH_LISTY_PLIK, encoding='utf-8') as f:
+            j = json.load(f)
+    except FileNotFoundError:
+        return None, None
+    except (OSError, ValueError) as e:
+        return None, f'nieczytelny plik ({type(e).__name__})'
+    try:
+        if not isinstance(j, dict) or j.get('v') != 1 or not isinstance(j.get('OKX'), dict):
+            return None, 'zły układ pliku'
+        o = j['OKX']
+        m = re.match(r'^por_csv_(\d{4})(\d{2})(\d{2})00_V1$', o['plik']) if isinstance(o.get('plik'), str) else None
+        s = o.get('since')
+        if not m or not isinstance(s, str) or s != f'{m.group(1)}-{m.group(2)}-{m.group(3)}':
+            return None, 'data listy niezgodna z nazwą pliku'
+        d = datetime.date.fromisoformat(s)
+        if s < WH_OKX_WBUDOWANA['since']:
+            return None, 'lista starsza niż wbudowana'
+        if d > (dzis or datetime.datetime.now(datetime.timezone.utc).date()) + datetime.timedelta(days=1):
+            return None, 'data listy z przyszłości'
+        a = o.get('addr')
+        if not isinstance(a, list) or len(a) != WH_OKX_N or len(set(a)) != WH_OKX_N or not all(isinstance(x, str) and re.match(r'^0x[0-9a-f]{40}$', x) for x in a):
+            return None, 'adresy niepoprawne (oczekiwano 10 różnych, 0x + 40 znaków szesnastkowych małymi literami)'
+        u = o.get('udzial')
+        if isinstance(u, bool) or not isinstance(u, (int, float)) or not WH_OKX_MIN_UDZIAL <= u <= 1:
+            return None, 'udział USDC poza 90–100 %'
+        return {'since': s, 'plik': o['plik'], 'udzial': float(u), 'addr': list(a)}, None
+    except (KeyError, TypeError, ValueError):
+        return None, 'zły układ pliku'
+
+
+def wh_okx_ustaw(rec):
+    """Ustawia listę OKX (adresy, since i napis src liczone z rekordu)."""
+    WH_GIELDY['OKX'].update({'addr': list(rec['addr']), 'since': rec['since'], 'src': wh_okx_src(rec)})
+
+
+_wh_rec, WH_LISTA_BLAD = wh_okx_wczytaj()
+wh_okx_ustaw(_wh_rec or WH_OKX_WBUDOWANA)
 
 
 def wh_portfele():
@@ -17932,6 +18009,8 @@ def build_wieloryby(prev=None, eth_key=None):
            'dobowe': prev.get('dobowe') if isinstance(prev.get('dobowe'), dict) else {}, 'dobowe_klucze': prev.get('dobowe_klucze') if isinstance(prev.get('dobowe_klucze'), dict) else {},
            'dobowe_od': prev.get('dobowe_od') if isinstance(prev.get('dobowe_od'), str) else NOW}   # v117: sumy dobowe + od kiedy są zbierane (pierwsza doba jest niepełna)
     errs = []
+    if WH_LISTA_BLAD:   # v477: plik listy OKX niepoprawny — używana lista wbudowana (ślad w notatkach przebiegu, nie błąd)
+        META['notes'].append(f'lista portfeli OKX: plik konfig/wh_listy.json odrzucony ({WH_LISTA_BLAD}) — użyta lista wbudowana')
 
     def keep(k):   # część z błędem: poprzednia wersja z własnym czasem
         out['ok'][k] = False

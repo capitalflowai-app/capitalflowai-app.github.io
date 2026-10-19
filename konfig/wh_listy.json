@@ -1,0 +1,24 @@
+{
+ "v": 1,
+ "OKX": {
+  "since": "2026-09-08",
+  "plik": "por_csv_2026090800_V1",
+  "n": 10,
+  "udzial": 0.9817,
+  "adresy_w_pliku": 15034,
+  "crc": "10fec299",
+  "zapisano": "2026-10-19",
+  "addr": [
+   "0xa073345811e360e9b66f24bc11f3a4bfa924f236",
+   "0x08f619716db7c6245401b543e59acac1d25cb483",
+   "0x6709383e211ab08a6e3270532e756220400424a6",
+   "0xa09fe38187abecc2768b98b80ea30afbc2fbd774",
+   "0x445f16314284b43dfa1fd3cd77b9dea4a1bebd97",
+   "0x87d0d6c8cdd71a658ecf1566f13e4cbc562beaf9",
+   "0x1dfc6bec8499fcb5e3151c7c6d27feb9d7eae1d4",
+   "0xebf6c883a1d60ab38c8ed4780aadbfe4c805ed4f",
+   "0x3425519651e4c42833633fe5c0e24ed89c1023a3",
+   "0x7fea5b4568751533039179116e372e26b6b41b13"
+  ]
+ }
+}

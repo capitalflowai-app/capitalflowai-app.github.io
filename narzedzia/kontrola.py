@@ -2536,6 +2536,9 @@ def zuzycie_ocena(meta):
 
 WH_LISTY_MIES = ('OKX', 'Bybit', 'KuCoin')   # v218: giełdy z comiesięcznym raportem dowodu rezerw (wieloryby.json → gieldy[*].since) — listy do odświeżania
 WH_LISTY_DNI = 45                             # v218: lista starsza = uwaga (portfele dodane przez giełdę od tego czasu nie są liczone)
+WH_LISTY_AUTO = ('OKX',)   # v477: listy odświeżane przez automat (.github/workflows/wh_listy.yml) — sam wiek listy nie jest uwagą; liczy się, czy odświeżenie działa
+WH_OKX_BLAD_DNI = 7        # v477: ostrzeżenie, gdy odświeżenie listy OKX zawodzi (albo przepływ jej nie sprawdza) dłużej niż tyle dni
+WH_OKX_STAN = os.path.join(os.path.dirname(OUT_DIR), 'konfig', 'wh_listy_stan.json')   # v477: stan przebiegu automatu (zapisuje narzedzia/wh_lista.py)
 
 
 def wh_listy_ocena(j, now=None):
@@ -2552,7 +2555,7 @@ def wh_listy_ocena(j, now=None):
             A.append((g, s, (now.date() - dt.date.fromisoformat(s)).days))
         except (TypeError, ValueError):
             continue
-    return {'wszystkie': A, 'stare': [x for x in A if x[2] > WH_LISTY_DNI]}
+    return {'wszystkie': A, 'stare': [x for x in A if x[2] > WH_LISTY_DNI and x[0] not in WH_LISTY_AUTO]}   # v477: OKX odświeża automat
 
 
 # v237/v242: nowe raporty dowodu rezerw giełd (listy portfeli wielorybów) — sprawdzanie codzienne, bez pobierania całych plików
@@ -2693,6 +2696,51 @@ def wh_nowe_wiersz(W):
         else:
             cz.append(f'{g} — brak nowszego niż {o["od"]} ✅')
     return '- Nowe raporty dowodu rezerw giełd (listy portfeli; sprawdzone dziś): ' + '; '.join(cz) + '.'
+
+
+def wh_okx_stan(sciezka=None):
+    """v477: konfig/wh_listy_stan.json (zapisuje narzedzia/wh_lista.py po każdym przebiegu automatu) → słownik albo None (brak pliku, nieczytelny)."""
+    try:
+        with open(sciezka or WH_OKX_STAN, encoding='utf-8') as f:
+            j = json.load(f)
+        return j if isinstance(j, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
+def wh_okx_ocena(stan, nowy=None, gieldy=None, now=None):
+    """v477: lista portfeli OKX odświeża się sama (przepływ „Listy portfeli giełd”) — wiek listy nie jest uwagą; uwaga tylko, gdy odświeżenie zawodzi
+    dłużej niż WH_OKX_BLAD_DNI dni: (1) automat nie sprawdzał listy od tylu dni (przepływ stoi), (2) błąd trwa od tylu dni (stan: blad_od),
+    (3) nowszy plik giełdy leży tyle dni, a lista go nie przyjęła. → {'wiersz': tekst do raportu, 'uwaga': tekst albo None, 'znak': '✅'|'⚠️'|'ℹ️'}."""
+    now = now or NOW
+    dzis = now.date()
+
+    def dni(s):
+        try:
+            return (dzis - dt.date.fromisoformat(s)).days
+        except (TypeError, ValueError):
+            return None
+    S = stan if isinstance(stan, dict) else None
+    o = gieldy.get('OKX') if isinstance(gieldy, dict) and isinstance(gieldy.get('OKX'), dict) else {}
+    od = o.get('since') if isinstance(o.get('since'), str) else '—'
+    nw = nowy.get('nowy') if isinstance(nowy, dict) and nowy.get('lista') and isinstance(nowy.get('nowy'), str) else None
+    sp = dni(S.get('sprawdzono')) if S else None
+    bd = dni(S.get('blad_od')) if S else None
+    uw = None
+    if sp is not None and sp > WH_OKX_BLAD_DNI:
+        uw = (f'automat odświeżania listy portfeli OKX nie sprawdzał listy od {sp} dni (ostatni przebieg {S["sprawdzono"]}) — przepływ „Listy portfeli giełd” '
+              f'stoi; włącz go w zakładce Actions (Enable workflow) albo poproś osobę techniczną')
+    elif bd is not None and bd > WH_OKX_BLAD_DNI:
+        uw = (f'odświeżanie listy portfeli OKX zawodzi od {S["blad_od"]} ({bd} dni): {str(S.get("blad") or "błąd")[:100]} — lista z {od} dalej działa, '
+              f'nowe portfele giełdy nie są liczone; automat próbuje codziennie')
+    elif nw and dni(nw) is not None and dni(nw) > WH_OKX_BLAD_DNI and nw > od:
+        uw = f'nowy plik giełdy OKX z {nw} leży od {dni(nw)} dni, a lista portfeli z {od} jeszcze go nie przyjęła — automat próbuje codziennie'
+    if S is None:
+        zr = 'automat odświeża sam (pierwszy przebieg jeszcze się nie odbył)'
+    else:
+        zr = f'automat odświeża sam (ostatni przebieg {S.get("sprawdzono") or "—"})'
+    znak = '⚠️' if uw else ('ℹ️' if S is None else '✅')
+    return {'wiersz': f'- Lista portfeli OKX (z {od}): {zr}; ostrzeżenie, gdy odświeżenie zawodzi > {WH_OKX_BLAD_DNI} dni {znak}.', 'uwaga': uw, 'znak': znak}
 
 
 def wh_zmiany(j):
@@ -3233,7 +3281,7 @@ def pl_udane(n):
     return f'{n} udanych przebiegów'
 
 
-GH_OSTRZ_WF = ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'sondy.yml')   # v291: czynne przepływy (sondy_v128 — archiwalny)
+GH_OSTRZ_WF = ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'sondy.yml', 'wh_listy.yml')   # v291: czynne przepływy (sondy_v128 — archiwalny)
 GH_OSTRZ_RE = re.compile(r'deprecat|no longer supported|will be removed|will stop working|end of life|is being retired', re.I)
 GH_OSTRZ_BUDZET_S = 30   # s — najdłużej odczyt adnotacji (5 przepływów: lista, zadania, adnotacje — ok. 15 zapytań)
 
@@ -3282,7 +3330,7 @@ def github_ostrz_odczyt(hdr, getf=None):
     return {'sprawdzone': nwf, 'znalezione': ostrzezenia_github(ann), 'bledne': bledne}
 
 
-STRAZNIK_WF = ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml', 'raport-ai.yml')   # v354: przepływy z harmonogramem (jak ZAPLANOWANE w narzedzia/straznik.py; test pilnuje zgodności)
+STRAZNIK_WF = ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml', 'raport-ai.yml', 'wh_listy.yml')   # v354: przepływy z harmonogramem (jak ZAPLANOWANE w narzedzia/straznik.py; test pilnuje zgodności)
 STRAZNIK_PRZEBIEG_DNI = 16   # v354: strażnik działa raz w tygodniu — 2 tygodnie + 2 dni zapasu: jeden pominięty poniedziałek nie jest alarmem (zapas do 60 dni jest ogromny)
 STRAZNIK_COMMIT_DNI = 45     # v354: strażnik robi commit aktywności po 30 dniach bez commitu; 45 = nie zadziałał (GitHub wyłącza harmonogramy po 60)
 
@@ -16967,9 +17015,15 @@ def kontrola():
         except Exception as e:  # noqa
             Z['wh_nowe'] = {'_blad': type(e).__name__}   # v243: wiersz „nie wiadomo”, nie zniknięcie
         for g, o in Z['wh_nowe'].items():
-            if isinstance(o, dict) and o.get('nowy') and o.get('lista'):
+            if isinstance(o, dict) and o.get('nowy') and o.get('lista') and g not in WH_LISTY_AUTO:
                 R['uwagi'].append(f'nowa lista portfeli giełdy {g} z {o["nowy"]} (raport dowodu rezerw; obecna z {o["od"]}) — co zrobić: '
                                   f'odśwież listę portfeli {g} z nowego raportu dowodu rezerw ({PORADA_3D})')
+        try:   # v477: listę OKX odświeża automat — ostrzeżenie dopiero, gdy odświeżenie zawodzi dłużej niż WH_OKX_BLAD_DNI dni
+            Z['wh_okx'] = wh_okx_ocena(wh_okx_stan(), Z['wh_nowe'].get('OKX'), (files.get('wieloryby') or {}).get('gieldy'))
+        except Exception:  # noqa
+            Z['wh_okx'] = None
+        if Z.get('wh_okx') and Z['wh_okx'].get('uwaga'):
+            R['uwagi'].append(Z['wh_okx']['uwaga'])
     # 3e. v130: ETF krypto u źródła — przepływy IBIT i ETHA na stronie vs wyliczenie z plików emitenta (2 zapytania, bez ponawiania; najwyżej ⚠️)
     try:
         Z['etf_emitent'] = etf_emitent(files, R)
@@ -17396,10 +17450,12 @@ def raport_md(R):
             L.append('- Wieloryby: archiwum ma mniej niż dwa dni — porównanie od jutra.')
         wl = Z.get('wh_listy')   # v218: wiek list portfeli giełd z raportów miesięcznych
         if wl and wl.get('wszystkie'):
-            L.append('- Listy portfeli giełd z raportów miesięcznych (wiek): ' + ', '.join(f'{g} {n} dni' + (' ⚠️' if n > WH_LISTY_DNI else '') for g, d, n in wl['wszystkie'])
+            L.append('- Listy portfeli giełd z raportów miesięcznych (wiek): ' + ', '.join(f'{g} {n} dni' + (' ⚠️' if (g, d, n) in wl['stare'] else '') for g, d, n in wl['wszystkie'])
                      + (' ✅.' if not wl['stare'] else '.'))
         if Z.get('wh_nowe'):   # v237
             L.append(wh_nowe_wiersz(Z['wh_nowe']))
+        if Z.get('wh_okx'):   # v477
+            L.append(Z['wh_okx']['wiersz'])
         wy = Z.get('wycena')   # v132: MVRV BTC z dwóch źródeł — tylko różnice procentowe i daty; brak = „—”
         if wy:
             dz = f'{wy["roznica_pct"]:+.2f}% ({wy["dzien"]})' if wy.get('roznica_pct') is not None else '—'

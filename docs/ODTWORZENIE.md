@@ -18,6 +18,7 @@ Dokument dla każdego, także dla osoby, która nie programuje. Stan na 13.10.20
 | `zegar.yml` | Zegar zapasowy | minuty 13, 33, 53 każdej godziny i na końcu każdego przebiegu strony | gdy harmonogram `strona.yml` stoi (zdarza się, GitHub nie uruchamia wszystkich terminów), uruchamia go ręcznie; uruchamia też kontrolę i archiwum, jeśli ich harmonogram nie ruszył; odblokowuje przebieg zawieszony w stanie „waiting” |
 | `kontrola.yml` | Kontrola strony | codziennie 06:20 | sprawdza stronę, wiek plików danych, zgodność liczb z drugim źródłem, przebiegi i stan przepływów; wynik w `kontrola/ostatnia.md` |
 | `archiwum.yml` | Archiwum własne | codziennie 01:20 | dopisuje dzienne wiersze do `archiwum/*.csv` (commit `[skip ci]`) |
+| `wh_listy.yml` | Listy portfeli giełd | codziennie 05:47 | odświeża listę portfeli OKX z miesięcznego pliku giełdy (`konfig/wh_listy.json`, stan w `konfig/wh_listy_stan.json`, commit `[skip ci]`); listę przyjmuje tylko po kontrolach, a kontrola ostrzega, gdy odświeżenie zawodzi dłużej niż 7 dni |
 | `straznik.yml` | Strażnik harmonogramów | poniedziałek 04:41 | gdy w repozytorium nie było commitu od ponad 30 dni, robi malutki commit aktywności (`kontrola/straznik.json`) — to główna ochrona przed wyłączeniem harmonogramów; próbuje też włączyć przepływy wyłączone przez GitHub |
 | `sondy.yml`, `sondy_v128.yml` | Sondy źródeł | tylko ręcznie | jednorazowe sprawdzenia nowych źródeł; nie są potrzebne do działania strony |
 

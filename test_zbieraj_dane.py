@@ -21,6 +21,11 @@ def _v474_csv_bez_sieci(url, timeout=30):   # v474: zapas CSV banku w testach za
 
 
 zd._bcb_csv_tekst = _v474_csv_bez_sieci
+zd.wh_okx_ustaw(zd.WH_OKX_WBUDOWANA)   # v477: testy na liście wbudowanej — nie zależą od tego, co automat zapisał w konfig/wh_listy.json
+
+
+def _wh_n_portfeli_testy():   # v477: liczba wszystkich portfeli z list (OKX zawsze 10, ale lista może się zmienić)
+    return sum(len(c['addr']) for c in zd.WH_GIELDY.values())
 
 
 def _iso(minutes_ago):
@@ -9239,7 +9244,7 @@ class WielorybyV105(unittest.TestCase):
         self.assertEqual(zd.wh_hex('0x1a'), 26); self.assertEqual(zd.wh_hex('0x0'), 0)
         self.assertIsNone(zd.wh_hex('0x')); self.assertIsNone(zd.wh_hex(None)); self.assertIsNone(zd.wh_hex('zz')); self.assertIsNone(zd.wh_hex(12))
         self.assertEqual(zd.wh_topic('0xBE0EB53F46CD790CD13851D5EFF43D12404D33E8'), '0x000000000000000000000000be0eb53f46cd790cd13851d5eff43d12404d33e8')
-        self.assertEqual(len(zd.wh_portfele()), 178); self.assertTrue(all(w['src'] and w['since'] and w['addr'] == w['addr'].lower() for w in zd.wh_portfele()))   # v230: 9 + 10 + 122 + 33 + 4
+        self.assertEqual(len(zd.wh_portfele()), _wh_n_portfeli_testy()); self.assertTrue(all(w['src'] and w['since'] and w['addr'] == w['addr'].lower() for w in zd.wh_portfele()))   # v230: 9 + 10 + 122 + 33 + 4
 
     def test_zakres(self):
         p, luka = zd.wh_zakres(10000, None)
@@ -9351,7 +9356,7 @@ class WielorybyV105(unittest.TestCase):
         self.assertEqual(sorted(o['part_at']), ['salda', 'transfery']); self.assertEqual(o['blk'], 10000)
         NB = -(-(2 + 3 * len(zd.wh_portfele())) // zd.WH_BATCH)   # v230: 536 wywołań w paczkach po 40 = 14 żądań (v108: 494 = 13)
         self.assertEqual(NB, 14); self.assertEqual(len(calls), NB + 6 + 1, 'czternaście paczek sald (≤ 40 wywołań), sześć paczek logów, jedna o czasy bloków')
-        self.assertEqual(calls[0][1][:2], ['eth_getBlockByNumber', 'eth_call']); self.assertEqual(sum(len(c[1]) for c in calls[:NB]), 2 + 3 * 178); self.assertEqual(len(calls[0][1]), 40)
+        self.assertEqual(calls[0][1][:2], ['eth_getBlockByNumber', 'eth_call']); self.assertEqual(sum(len(c[1]) for c in calls[:NB]), 2 + 3 * _wh_n_portfeli_testy()); self.assertEqual(len(calls[0][1]), 40)
         self.assertTrue(all(u == zd.WH_RPC for u, _ in calls))
         self.assertAlmostEqual(o['eth_usd'], 2688.8695031); self.assertEqual(o['eth_usd_at'], o['blk_t'])
         b = o['salda']['Binance']
@@ -9366,7 +9371,7 @@ class WielorybyV105(unittest.TestCase):
         self.assertTrue(all(r['t'].endswith('+00:00') for r in o['transfery']))
         self.assertEqual((o['ostatni_blok'], o['okno_od'], o['okno'], o['luka']), (10000, 5201, 4800, False))
         self.assertTrue(o['okno_od_t'] < o['ostatni_t'] == o['blk_t']); self.assertEqual(o['gieldy']['OKX']['tokeny'], ['USDC'])
-        self.assertEqual(len(o['wallets']), 178); self.assertTrue(all(w['src'] for w in o['wallets']))   # v230: Bybit 122
+        self.assertEqual(len(o['wallets']), _wh_n_portfeli_testy()); self.assertTrue(all(w['src'] for w in o['wallets']))   # v230: Bybit 122
         # drugi przebieg: od ostatniego bloku, jedna paczka, historia bez drugiego zrzutu tego dnia, okno ≈ 24 h w blokach
         post2, calls2 = self._rpc(head=10100)
         with mock.patch.object(zd, 'post_json', side_effect=post2):
@@ -10069,7 +10074,7 @@ class Wieloryby2V108(WielorybyV105):
         self.assertEqual((g['Bybit']['since'], g['KuCoin']['since'], g['Bitfinex']['since']), ('2026-09-23', '2026-08-31', '2022-11'))   # v230
         W = self.W
         self.assertEqual((W[self.BY1], W[self.KC1], W[self.BF1]), ('Bybit', 'KuCoin', 'Bitfinex'))
-        self.assertEqual(len(set(W.values())), 5); self.assertEqual(len(W), 178, 'adres należy do jednej giełdy (v230: także 14 nowych Bybit)')
+        self.assertEqual(len(set(W.values())), 5); self.assertEqual(len(W), _wh_n_portfeli_testy(), 'adres należy do jednej giełdy (v230: także 14 nowych Bybit)')
 
     def test_nowe_gieldy_salda_noty_i_pierwszy_zrzut(self):
         '''Pełny przebieg: sumy nowych giełd, wpisy gieldy[...] (n, since, tokeny), historia zaczyna się od pierwszego odczytu;
@@ -26041,7 +26046,7 @@ class WielorybyListaV230(unittest.TestCase):
         self.assertEqual((len(g['addr']), len(set(g['addr'])), g['since']), (122, 122, '2026-09-23'))
         self.assertIn('Bybit_PoR_Audit_2026_Sep_23.pdf', g['url']); self.assertIn('122 portfele', g['src'])
         self.assertTrue(all(re.fullmatch(r'0x[0-9a-f]{40}', a) for a in g['addr']), 'adresy małymi literami, bez ligatur z PDF')
-        self.assertEqual(len(zd.wh_portfele()), 178); self.assertLessEqual(len(zd.wh_portfele()), zd.WH_TOPICS)
+        self.assertEqual(len(zd.wh_portfele()), _wh_n_portfeli_testy()); self.assertLessEqual(len(zd.wh_portfele()), zd.WH_TOPICS)
         self.assertEqual(zd.WH_RPC_ZAPAS, {'wywolania': ('https://rpc.mevblocker.io', 25), 'logi': ('https://rpc.mevblocker.io', 5)})
 
     def test_wersja_w_historii(self):
@@ -30292,14 +30297,14 @@ class OstrzezeniaGithubV292(unittest.TestCase):
     def test_jeden_zly_przeplyw(self):
         k = self.k
         go = k.github_ostrz_odczyt({}, self._get(('zegar.yml',)))
-        self.assertEqual((go['sprawdzone'], [w for w, _ in go['znalezione']]), (4, ['archiwum.yml']), 'pozostałe ocenione mimo 404 jednego')
+        self.assertEqual((go['sprawdzone'], [w for w, _ in go['znalezione']]), (len(k.GH_OSTRZ_WF) - 1, ['archiwum.yml']), 'pozostałe ocenione mimo 404 jednego')
         self.assertEqual(len(go['bledne']), 1); self.assertTrue(go['bledne'][0].startswith('zegar.yml ('))
         md = k.raport_md({'at': '2026-10-08T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 1}, 'meta': {}, 'pliki': {},
                           'actions': {}, 'github_ostrz': {'sprawdzone': 4, 'znalezione': [], 'bledne': go['bledne']}, 'swiezosc': [], 'zgodnosc': {},
                           'uwagi': [], 'bledy': []})
         self.assertIn('brak ✅; nie odczytano: zegar.yml (', md)
         go = k.github_ostrz_odczyt({}, self._get(()))
-        self.assertEqual((go['sprawdzone'], go['bledne']), (5, []))
+        self.assertEqual((go['sprawdzone'], go['bledne']), (len(k.GH_OSTRZ_WF), []))
 
     def test_wszystkie_zle(self):
         with self.assertRaises(RuntimeError):
@@ -47301,7 +47306,8 @@ class StraznikV354(unittest.TestCase):
         self.assertEqual(s.dni_bez_commita('2026-10-13T06:51:12Z', self.NOW), 0)
         self.assertIsNone(s.dni_bez_commita('zła data', self.NOW)); self.assertIsNone(s.dni_bez_commita(None, self.NOW))
         self.assertFalse(s.potrzebny_commit(None), 'nieczytelna data = nie zgaduje (błąd zgłasza sprawdz)')
-        self.assertEqual((s.PROG_COMMIT_DNI, s.ZAPLANOWANE), (30, ('strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml', 'raport-ai.yml')))
+        self.assertEqual(s.PROG_COMMIT_DNI, 30); self.assertEqual(set(s.ZAPLANOWANE) & {'strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml'},
+                                                           {'strona.yml', 'zegar.yml', 'kontrola.yml', 'archiwum.yml', 'straznik.yml'}, 'pilnowane przepływy (kolejne dochodzą)')
 
     def _api(self, lista, commit_iso, zle_put=(), log=None):
         s = self.s
@@ -47433,12 +47439,12 @@ class StraznikV354(unittest.TestCase):
         W = [self.wf(n) for n in k.STRAZNIK_WF]
         run = lambda dni, wynik='success': {'status': 'completed', 'conclusion': wynik, 'created_at': (N - datetime.timedelta(days=dni, hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')}  # noqa: E731
         S = k.straznik_ocena(W, [run(8), run(15)], '2026-10-13T06:51:12Z', N)
-        self.assertEqual((S['czynne'], S['razem'], S['przebieg_dni'], S['przebieg_wynik'], S['commit_dni'], S['uwagi']), (6, 6, 8, 'success', 0, []))
-        self.assertIn('✅', k.straznik_wiersz(S)); self.assertIn('czynne 6 z 6', k.straznik_wiersz(S)); self.assertIn('8 dni temu (success)', k.straznik_wiersz(S))
+        self.assertEqual((S['czynne'], S['razem'], S['przebieg_dni'], S['przebieg_wynik'], S['commit_dni'], S['uwagi']), (len(k.STRAZNIK_WF), len(k.STRAZNIK_WF), 8, 'success', 0, []))
+        self.assertIn('✅', k.straznik_wiersz(S)); self.assertIn(f'czynne {len(k.STRAZNIK_WF)} z {len(k.STRAZNIK_WF)}', k.straznik_wiersz(S)); self.assertIn('8 dni temu (success)', k.straznik_wiersz(S))
         # wyłączony przez GitHub, brakujący, strażnik milczy 17 dni, nieudany, stary commit
-        W2 = [self.wf('strona.yml', 'disabled_inactivity'), self.wf('zegar.yml'), self.wf('kontrola.yml'), self.wf('straznik.yml')]
+        W2 = [self.wf('strona.yml', 'disabled_inactivity'), self.wf('zegar.yml'), self.wf('kontrola.yml'), self.wf('straznik.yml'), self.wf('wh_listy.yml')]
         S2 = k.straznik_ocena(W2, [run(17, 'failure')], '2026-08-01T00:00:00Z', N)
-        self.assertEqual(S2['czynne'], 3); self.assertEqual(S2['brak'], ['archiwum.yml', 'raport-ai.yml'])
+        self.assertEqual(S2['czynne'], 4); self.assertEqual(S2['brak'], ['archiwum.yml', 'raport-ai.yml'])
         txt = ' | '.join(S2['uwagi'])
         for fr in ('strona.yml (disabled_inactivity)', 'brak w repozytorium przepływów: archiwum.yml', 'nie działał od 17 dni', 'wynikiem „failure”', 'sprzed 73 dni'):
             self.assertIn(fr, txt)
@@ -47476,13 +47482,13 @@ class StraznikV354(unittest.TestCase):
                 return 200, json.dumps({'workflows': W}).encode(), 5
             raise k.urllib.error.HTTPError(url, 500, 'x', {}, None)
         S2 = k.straznik_odczyt({}, N, get2)
-        self.assertEqual((S2['przebieg_dni'], S2['commit_dni'], S2['uwagi'], S2['czynne']), (None, None, [], 6))
+        self.assertEqual((S2['przebieg_dni'], S2['commit_dni'], S2['uwagi'], S2['czynne']), (None, None, [], len(k.STRAZNIK_WF)))
         with self.assertRaises(Exception):
             k.straznik_odczyt({}, N, lambda *a, **kw: (_ for _ in ()).throw(RuntimeError('503')))
         R = {'at': '2026-10-13T06:20:00+00:00', 'wynik': 'OK', 'strona': {'ok': True, 'http': 200, 'ms': 100}, 'meta': {}, 'pliki': {}, 'actions': {},
              'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': [], 'straznik': S}
         md = k.raport_md(R)
-        self.assertIn('- Strażnik harmonogramów (raz w tygodniu): przepływy z harmonogramem czynne 6 z 6;', md)
+        self.assertIn('- Strażnik harmonogramów (raz w tygodniu): przepływy z harmonogramem czynne {n} z {n};'.format(n=len(k.STRAZNIK_WF)), md)
         self.assertNotIn('Strażnik', k.raport_md({kk: v for kk, v in R.items() if kk != 'straznik'}), 'stary raport bez pola — bez linii')
         import inspect
         src = inspect.getsource(k)
@@ -81287,3 +81293,593 @@ class TestV491SkarbPunktPrzyTronZPamieci(unittest.TestCase):
         for zle in ({}, {'eth': {'t': d, 'bal': 1}}, {'eth': {'t': d, 'bal': 1}, 'tron': {'bal': 2}}, {'eth': {'t': d, 'bal': 1}, 'tron': {'t': d, 'bal': None}},
                     {'eth': {'t': '2026-10-14T23:59:00+00:00', 'bal': 1}, 'tron': {'t': d, 'bal': 2}}, {'eth': 'x', 'tron': {'t': d, 'bal': 2}}):
             self.assertFalse(zd._usk_skarb_dzis(zle), zle)
+
+
+# ===================== v477: AUTOMATYCZNE ODŚWIEŻANIE LISTY PORTFELI OKX (przepływ, wartownik, kontrola) =====================
+import importlib.util as _v477_iu
+import struct as _v477_st
+import tempfile as _v477_tf
+import urllib.error as _v477_ue
+import zlib as _v477_zl
+
+
+def _v477_mod(nazwa, *plik):
+    s = _v477_iu.spec_from_file_location(nazwa, os.path.join(os.path.dirname(os.path.abspath(__file__)), *plik))
+    m = _v477_iu.module_from_spec(s)
+    s.loader.exec_module(m)
+    return m
+
+
+_V477_NAGL = 'coin,Type,Network,Snapshot Height,address,amount,message,signature1,signature2,redeem script/ public key,EOA1,EOA2'
+
+
+def _v477_adres(i):
+    return '0x' + format(0xABCDEF0000 + i, '040x')
+
+
+def _v477_csv(top, ogon_n=30, ogon_suma=40.0, nagl=_V477_NAGL, zle=0, wielkie_litery=False, bez_naglowka=False):
+    """Plik w układzie OKX: zestawienie „coin,amount”, pusty wiersz, tabela adresów (USDC w sieci ETH, szum: inne sieci i monety, wiersz stakingu)."""
+    L = ['coin,amount', 'USDC,1697540011', 'ETH,1716056', '']
+    if not bez_naglowka:
+        L.append(nagl)
+    for i, (a, x) in enumerate(top):
+        L.append(f'USDC,Non Staking,ETH,100,{a.upper().replace("0X", "0x") if wielkie_litery else a},{x},I am an OKX address,sigA+/=,sigB,,,')
+    for j in range(ogon_n):
+        L.append(f'USDC,Non Staking,ETH,100,{_v477_adres(900 + j)},{ogon_suma / ogon_n},I am an OKX address,s1,s2,,,')
+    for j in range(zle):
+        L.append(f'USDC,Non Staking,ETH,100,0xZZ{j},12.5,I am an OKX address,s1,s2,,,')
+    L += [f'USDC,Non Staking,TRX,100,T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb,999999999,I am an OKX address,s1,s2,,,',
+          f'USDC,Non Staking,BSC,100,{_v477_adres(2000)},999999999,I am an OKX address,s1,s2,,,',
+          f'USDT,Non Staking,ETH,100,{_v477_adres(1)},999999999,I am an OKX address,s1,s2,,,',
+          f'BTC,Non Staking,BTC,965949,13jTtHxBPFwZkaCdm6BwJMMJkqvTpBZccw,3000.5,I am an OKX address,s1,s2,,,',
+          f'USDC,Native Staking,ETH,100,{top[0][0]},1,I am an OKX address,s1,s2,,,']
+    return ('\n'.join(L) + '\n').encode()
+
+
+def _v477_zip(csv_b, tryb='desc', crc_zle=False, rozm_zle=False, ucinka=None):
+    """Archiwum ZIP z jednym plikiem CSV (deflate). tryb: 'desc' (deskryptor z sygnaturą), 'desc0' (bez sygnatury), 'desc64' (zip64), 'lokalny' (sumy w nagłówku)."""
+    co = _v477_zl.compressobj(6, _v477_zl.DEFLATED, -15)
+    dane = co.compress(csv_b) + co.flush()
+    crc = _v477_zl.crc32(csv_b) ^ (1 if crc_zle else 0)
+    rz = len(csv_b) + (1 if rozm_zle else 0)
+    nazwa = b'okx_por_2026101200_V1.csv'
+    if tryb == 'lokalny':
+        h = b'PK\x03\x04' + _v477_st.pack('<HHHHHIIIHH', 20, 0x800, 8, 0, 0, crc, len(dane), rz, len(nazwa), 0) + nazwa
+        d = b''
+    else:
+        h = b'PK\x03\x04' + _v477_st.pack('<HHHHHIIIHH', 45, 0x808, 8, 0, 0, 0, 0, 0, len(nazwa), 0) + nazwa
+        d = {'desc': b'PK\x07\x08' + _v477_st.pack('<III', crc, len(dane), rz), 'desc0': _v477_st.pack('<III', crc, len(dane), rz),
+             'desc64': b'PK\x07\x08' + _v477_st.pack('<IQQ', crc, len(dane), rz)}[tryb]
+    b = h + dane + d + b'PK\x01\x02' + b'\x00' * 60 + b'PK\x05\x06' + b'\x00' * 18
+    if ucinka is not None:
+        b = b[:ucinka] if ucinka >= 0 else b[:len(h) + len(dane) + ucinka]
+    return b
+
+
+def _v477_czytnik(b, porcje=(7, 1, 4096, 65536, 3)):
+    st = {'p': 0, 'i': 0}
+
+    def odczyt(n):
+        n = min(n, porcje[st['i'] % len(porcje)])
+        st['i'] += 1
+        k = b[st['p']:st['p'] + n]
+        st['p'] += len(k)
+        return k
+    return odczyt
+
+
+_V477_TOP = [(_v477_adres(i), 1000.0 - 50 * i) for i in range(10)]   # 7750 USDC; ogon 40 → udział 99,5 %
+
+
+class _V477Odp:
+    def __init__(self, b):
+        self.b, self.p, self.status = b, 0, 200
+
+    def read(self, n=None):
+        n = len(self.b) - self.p if n is None else n
+        k = self.b[self.p:self.p + n]
+        self.p += len(k)
+        return k
+
+    def close(self):
+        pass
+
+
+class _V477Siec:
+    """Zaślepka sieci: adres → bajty (404, gdy brak), kody → wymuszony błąd HTTP; Range = pierwsze bajty; zapis zapytań."""
+
+    def __init__(self, pliki=None, kody=None, ucinaj=None):
+        self.pliki, self.kody, self.ucinaj, self.zapytania = dict(pliki or {}), dict(kody or {}), ucinaj, []
+
+    def __call__(self, url, bajty=None, timeout=60):
+        self.zapytania.append((url, bajty))
+        if url in self.kody:
+            raise _v477_ue.HTTPError(url, self.kody[url], 'x', {}, None)
+        if url not in self.pliki:
+            raise _v477_ue.HTTPError(url, 404, 'Not Found', {}, None)
+        b = self.pliki[url]
+        if bajty:
+            return _V477Odp(b[:bajty])
+        return _V477Odp(b[:self.ucinaj] if self.ucinaj else b)
+
+    def duze(self):
+        return [u for u, b in self.zapytania if not b]
+
+
+class V477ListaOkxPlik(unittest.TestCase):
+    """v477: czytnik pliku OKX — ZIP strumieniowo (CRC), wybór 10 największych portfeli USDC w sieci Ethereum, wszystkie kontrole przed przyjęciem."""
+
+    def setUp(self):
+        self.w = _v477_mod('wh_lista_v477', 'narzedzia', 'wh_lista.py')
+
+    def _czytaj(self, b, **kw):
+        kw.setdefault('min_adresow', 20)
+        return self.w.czytaj_plik(_v477_czytnik(b), **kw)
+
+    def test_wybor_kolejnosc_szum_i_male_litery(self):
+        r = self._czytaj(_v477_zip(_v477_csv(_V477_TOP, wielkie_litery=True)))
+        self.assertEqual(r['addr'], [a for a, _ in _V477_TOP], 'od największego; adresy zapisane małymi literami')
+        self.assertTrue(all(self.w.ADRES.match(a) for a in r['addr']))
+        self.assertEqual(r['adresy'], 10 + 30, 'liczone tylko USDC w sieci Ethereum; wiersz stakingu tego samego adresu nie dodaje adresu')
+        self.assertAlmostEqual(r['kwoty'][0], 1001.0, msg='wiersze tego samego adresu są sumowane')
+        self.assertAlmostEqual(r['udzial'], (sum(x for _, x in _V477_TOP) + 1) / (sum(x for _, x in _V477_TOP) + 1 + 40.0), places=6)
+        self.assertRegex(r['crc'], r'^[0-9a-f]{8}$')
+
+    def test_warianty_archiwum_i_male_porcje_odczytu(self):
+        csv_b = _v477_csv(_V477_TOP)
+        for tryb in ('desc', 'desc0', 'desc64', 'lokalny'):
+            self.assertEqual(self._czytaj(_v477_zip(csv_b, tryb))['addr'], [a for a, _ in _V477_TOP], tryb)
+        self.assertEqual(self.w.czytaj_plik(_v477_czytnik(_v477_zip(csv_b), (1,)), min_adresow=20)['addr'][0], _V477_TOP[0][0], 'odczyt po 1 bajcie')
+
+    def test_odrzucenie_bledow_zawartosci(self):
+        csv_b = _v477_csv(_V477_TOP)
+        B = self.w.BladPliku
+        z = _v477_zip(csv_b)
+        for nazwa, b, szukane in (
+                ('CRC', _v477_zip(csv_b, crc_zle=True), 'CRC'),
+                ('CRC w nagłówku', _v477_zip(csv_b, 'lokalny', crc_zle=True), 'CRC'),
+                ('rozmiar', _v477_zip(csv_b, rozm_zle=True), 'rozmiar'),
+                ('sygnatura PK', b'<html>Access Denied</html>' + z, 'PK'),
+                ('metoda', z[:8] + b'\x00\x00' + z[10:], 'metoda'),
+                ('uszkodzony strumień', z[:55] + b'\xff' + z[56:], 'strumień'),
+                ('bez nagłówka tabeli', _v477_zip(_v477_csv(_V477_TOP, bez_naglowka=True)), 'nagłówka'),
+                ('kolumna Network', _v477_zip(_v477_csv(_V477_TOP, nagl=_V477_NAGL.replace('Network', 'Chain'))), 'Network'),
+                ('kolumna address', _v477_zip(_v477_csv(_V477_TOP, nagl=_V477_NAGL.replace(',address,', ',wallet,'))), 'address'),
+                ('udział poniżej 90 %', _v477_zip(_v477_csv(_V477_TOP, ogon_suma=2000.0)), '%'),
+                ('za mało adresów', _v477_zip(_v477_csv(_V477_TOP[:6], ogon_n=0)), 'za mało'),
+                ('błędne adresy', _v477_zip(_v477_csv(_V477_TOP, zle=8)), 'błędnych')):
+            with self.assertRaises(B, msg=nazwa) as cm:
+                self._czytaj(b)
+            if szukane:
+                self.assertIn(szukane, str(cm.exception), nazwa)
+
+    def test_plik_uciety_to_blad_sieci_nie_odrzucenie(self):
+        z = _v477_zip(_v477_csv(_V477_TOP))
+        for uc in (10, 40, len(z) // 2, -12):
+            with self.assertRaises(self.w.BladSieci, msg=str(uc)):
+                self._czytaj(_v477_zip(_v477_csv(_V477_TOP), ucinka=uc))
+
+    def test_ochrona_przed_bomba(self):
+        z = _v477_zip(_v477_csv(_V477_TOP))
+        with self.assertRaises(self.w.BladPliku):
+            list(self.w.strumien_zip(_v477_czytnik(z), max_rozpak=500))
+        with self.assertRaises(self.w.BladPliku):
+            list(self.w.strumien_zip(_v477_czytnik(z), max_skompr=100))
+        t = iter([0.0, 5.0, 10.0, 1000.0, 2000.0, 3000.0, 4000.0])
+        with self.assertRaises(self.w.BladSieci):
+            list(self.w.strumien_zip(_v477_czytnik(z, (3,)), zegar=lambda: next(t), limit_s=100))
+
+    def test_poprawna_lista(self):
+        w = self.w
+        ok = {'v': 1, 'OKX': {'since': '2026-10-12', 'plik': 'por_csv_2026101200_V1', 'udzial': 0.98, 'addr': [_v477_adres(i) for i in range(10)]}}
+        self.assertIsNotNone(w.poprawna_lista(ok, datetime.date(2026, 10, 19)))
+        zle = []
+        for zm in (lambda o: o.update(since='2026-10-13'), lambda o: o.update(plik='por_csv_2026101200_V2'), lambda o: o.update(udzial=0.8),
+                   lambda o: o.update(udzial='0.98'), lambda o: o.update(udzial=True), lambda o: o.update(addr=o['addr'][:9]),
+                   lambda o: o.update(addr=o['addr'][:9] + [o['addr'][0]]), lambda o: o.update(addr=o['addr'][:9] + [o['addr'][9].upper()]),
+                   lambda o: o.update(addr=o['addr'][:9] + ['0x12']), lambda o: o.update(since='2026-10-30', plik='por_csv_2026103000_V1'),
+                   lambda o: o.update(addr='x')):
+            j = json.loads(json.dumps(ok))
+            zm(j['OKX'])
+            zle.append(j)
+        zle += [{'v': 2, 'OKX': ok['OKX']}, {'v': 1}, {'v': 1, 'OKX': 'x'}, [], None, 'x']
+        for j in zle:
+            self.assertIsNone(w.poprawna_lista(j, datetime.date(2026, 10, 19)), repr(j)[:80])
+
+
+class V477ListaOkxPrzebieg(unittest.TestCase):
+    """v477: jeden przebieg automatu (zaślepka sieci, dzień podany z zewnątrz): nowy plik → test odtworzenia → odczyt → kontrole → zapis listy i stanu."""
+
+    DZIS = datetime.date(2026, 10, 19)
+
+    def setUp(self):
+        self.w = _v477_mod('wh_lista_v477p', 'narzedzia', 'wh_lista.py')
+        self.d = _v477_tf.TemporaryDirectory()
+        self.addCleanup(self.d.cleanup)
+        self.lp, self.sp = os.path.join(self.d.name, 'wh_listy.json'), os.path.join(self.d.name, 'wh_listy_stan.json')
+        with open(self.lp, 'w', encoding='utf-8') as f:
+            json.dump({'v': 1, 'OKX': {'since': '2026-09-08', 'plik': 'por_csv_2026090800_V1', 'udzial': 0.98, 'addr': self.w.WZORZEC['adresy']}}, f)
+        self.wzorzec = _v477_zip(_v477_csv([(a, 900.0 - 10 * i) for i, a in enumerate(self.w.WZORZEC['adresy'])]))
+        self.nowy = _v477_zip(_v477_csv(_V477_TOP))
+        self.u_wz = self.w.adres_pliku(datetime.date(2026, 9, 8))
+        self.u_nowy = self.w.adres_pliku(datetime.date(2026, 10, 12))
+
+    def _bieg(self, siec, dzis=None, **kw):
+        kw.setdefault('min_adresow', 20)
+        return self.w.uruchom(self.lp, self.sp, dzis or self.DZIS, siec, spij=lambda s: None, **kw)
+
+    def _tekst(self):
+        with open(self.lp, encoding='utf-8') as f:
+            return f.read()
+
+    def _stan(self):
+        with open(self.sp, encoding='utf-8') as f:
+            return json.load(f)
+
+    def _lista(self):
+        with open(self.lp, encoding='utf-8') as f:
+            return json.load(f)['OKX']
+
+    def test_nowy_plik_przyjety_po_kontrolach(self):
+        siec = _V477Siec({self.u_wz: self.wzorzec, self.u_nowy: self.nowy})
+        wyn = self._bieg(siec)
+        self.assertIn('odświeżona', wyn)
+        L = self._lista()
+        self.assertEqual((L['since'], L['plik'], L['addr'], L['n']), ('2026-10-12', 'por_csv_2026101200_V1', [a for a, _ in _V477_TOP], 10))
+        self.assertIsNotNone(self.w.poprawna_lista({'v': 1, 'OKX': L}, self.DZIS))
+        S = self._stan()
+        self.assertEqual((S['blad'], S['blad_od'], S['ostatnie_ok'], S['odtworzenie'], S['nowy'], S['lista_od'], S['odrzucony']),
+                         (None, None, '2026-10-19', 'ok', None, '2026-10-12', None))
+        self.assertEqual(len(siec.duze()), 2, 'plik wzorcowy i nowy — po jednym odczycie')
+        self.assertEqual([u for u, b in siec.zapytania if b][:2], [self.w.adres_pliku(datetime.date(2026, 10, 19)), self.w.adres_pliku(datetime.date(2026, 10, 18))],
+                         'sondy od najnowszej daty')
+        s2 = _V477Siec()
+        self.assertIn('za wcześnie', self._bieg(s2, self.DZIS + datetime.timedelta(days=1)))
+        self.assertEqual(s2.zapytania, [], 'lista z 12.10 — nowego raportu miesięcznego szukamy dopiero od +20 dni')
+
+    def test_sonda_pliku(self):
+        w = self.w
+        u = w.adres_pliku(datetime.date(2026, 10, 12))
+        self.assertTrue(w.sonda(u, _V477Siec({u: self.nowy})))
+        self.assertFalse(w.sonda(u, _V477Siec()), '404 = nie ma pliku')
+        self.assertIsNone(w.sonda(u, _V477Siec({u: b'<html>Access Denied</html>' + b' ' * 1200})), 'strona HTML z kodem 200 to nie plik')
+        self.assertIsNone(w.sonda(u, _V477Siec(kody={u: 403})), 'blokada = nie wiadomo')
+        self.assertIsNone(w.sonda(u, _V477Siec(kody={u: 500})))
+        self.assertIsNone(w.sonda(u, lambda *a, **k: (_ for _ in ()).throw(OSError('sieć'))), 'błąd sieci = nie wiadomo')
+        self.assertEqual(w.adres_pliku(datetime.date(2026, 9, 8)), 'https://static.okx.com/cdn/okx/por/chain/por_csv_2026090800_V1.zip')
+
+    def test_brak_nowszego_i_blokada(self):
+        przed = self._tekst()
+        self.assertIn('brak nowszego', self._bieg(_V477Siec()))
+        S = self._stan()
+        self.assertEqual((S['ostatnie_ok'], S['blad'], S['blad_od']), ('2026-10-19', None, None))
+        self.assertEqual(self._tekst(), przed, 'lista bez zmian')
+        # blokada serwera (403 na każde zapytanie) = „nie wiadomo”, nie „brak nowszego”; początek błędu zostaje przy kolejnych dniach
+        blok = _V477Siec(kody={self.w.adres_pliku(datetime.date(2026, 10, 19) - datetime.timedelta(days=i)): 403 for i in range(60)})
+        self.assertIn('brak odpowiedzi', self._bieg(blok))
+        S = self._stan()
+        self.assertEqual((S['blad_od'], S['ostatnie_ok']), ('2026-10-19', '2026-10-19'), 'ostatnie_ok z poprzedniego udanego przebiegu')
+        blok2 = _V477Siec(kody={self.w.adres_pliku(datetime.date(2026, 10, 20) - datetime.timedelta(days=i)): 403 for i in range(60)})
+        self._bieg(blok2, datetime.date(2026, 10, 20))
+        S = self._stan()
+        self.assertEqual((S['blad_od'], S['sprawdzono']), ('2026-10-19', '2026-10-20'))
+        self._bieg(_V477Siec(), datetime.date(2026, 10, 21))
+        S = self._stan()
+        self.assertEqual((S['blad'], S['blad_od'], S['ostatnie_ok']), (None, None, '2026-10-21'), 'udany przebieg kasuje błąd')
+        self.assertEqual(self._tekst(), przed)
+
+    def test_odrzucenie_zostawia_stara_liste_i_nie_pobiera_ponownie(self):
+        przed = self._tekst()
+        zly = _v477_zip(_v477_csv(_V477_TOP), crc_zle=True)
+        siec = _V477Siec({self.u_wz: self.wzorzec, self.u_nowy: zly})
+        self.assertIn('odrzucony', self._bieg(siec))
+        self.assertEqual(self._tekst(), przed, 'lista przyjęta tylko po kontrolach')
+        S = self._stan()
+        self.assertEqual(S['odrzucony']['plik'], 'por_csv_2026101200_V1'); self.assertIn('CRC', S['blad']); self.assertEqual(S['blad_od'], '2026-10-19')
+        s2 = _V477Siec({self.u_wz: self.wzorzec, self.u_nowy: zly})
+        self._bieg(s2, datetime.date(2026, 10, 20))
+        self.assertEqual(s2.duze(), [], 'ten sam odrzucony plik nie jest pobierany codziennie (83 MB)')
+        self.assertEqual(self._stan()['blad_od'], '2026-10-19')
+        s3 = _V477Siec({self.u_wz: self.wzorzec, self.u_nowy: self.nowy})
+        self._bieg(s3, datetime.date(2026, 10, 26))
+        self.assertEqual(len(s3.duze()), 2, 'po 7 dniach kolejna próba — tym razem poprawny plik')
+        self.assertEqual(self._lista()['since'], '2026-10-12')
+
+    def test_test_odtworzenia(self):
+        przed = self._tekst()
+        inny = _v477_zip(_v477_csv(_V477_TOP))   # wzorzec odczytany jako inna lista = parser albo format się zmienił
+        siec = _V477Siec({self.u_wz: inny, self.u_nowy: self.nowy})
+        self.assertIn('test odtworzenia', self._bieg(siec))
+        self.assertEqual(self._tekst(), przed)
+        self.assertEqual(len(siec.duze()), 1, 'nowego pliku nie czytamy, gdy parser nie odtwarza znanej listy')
+        siec = _V477Siec({self.u_nowy: self.nowy})   # plik wzorcowy usunięty przez giełdę (404): reszta kontroli obowiązuje
+        self.assertIn('odświeżona', self._bieg(siec, datetime.date(2026, 10, 27)))
+        self.assertEqual(self._stan()['odtworzenie'], 'brak')
+        self.setUp()
+        siec = _V477Siec({self.u_wz: self.wzorzec, self.u_nowy: self.nowy}, ucinaj=300)   # przerwane pobieranie = nie wiadomo, nie odrzucenie
+        self.assertIn('brak odpowiedzi', self._bieg(siec))
+        S = self._stan()
+        self.assertIsNone(S['odrzucony']); self.assertEqual(self._lista()['since'], '2026-09-08')
+
+    def test_inne_odrzucenia_nowego_pliku(self):
+        for nazwa, csv_b in (('udział', _v477_csv(_V477_TOP, ogon_suma=5000.0)), ('nagłówek', _v477_csv(_V477_TOP, bez_naglowka=True)),
+                             ('adresy', _v477_csv(_V477_TOP, zle=9)), ('mało', _v477_csv(_V477_TOP[:5], ogon_n=0))):
+            self.setUp()
+            przed = self._tekst()
+            siec = _V477Siec({self.u_wz: self.wzorzec, self.u_nowy: _v477_zip(csv_b)})
+            self.assertIn('odrzucony', self._bieg(siec), nazwa)
+            self.assertEqual(self._tekst(), przed, nazwa)
+            self.assertEqual(self._stan()['odrzucony']['plik'], 'por_csv_2026101200_V1', nazwa)
+
+    def test_uszkodzona_lista_nie_zatrzymuje_automatu(self):
+        with open(self.lp, 'w', encoding='utf-8') as f:
+            f.write('{nie json')
+        siec = _V477Siec({self.u_wz: self.wzorzec, self.u_nowy: self.nowy})
+        self.assertIn('odświeżona', self._bieg(siec), 'uszkodzony plik listy = punkt wyjścia z listy wzorcowej (8.09.2026)')
+        self.assertEqual(self._lista()['since'], '2026-10-12')
+
+
+class V477WartownikListy(unittest.TestCase):
+    """v477: zbieracz czyta listę OKX z konfig/wh_listy.json z wartownikiem; since i napis src liczone z listy, liczby portfeli w src z długości list."""
+
+    def setUp(self):
+        self.d = _v477_tf.TemporaryDirectory()
+        self.addCleanup(self.d.cleanup)
+        self.addCleanup(lambda: zd.wh_okx_ustaw(zd.WH_OKX_WBUDOWANA))
+        self.p = os.path.join(self.d.name, 'wh_listy.json')
+        self.w = _v477_mod('wh_lista_v477w', 'narzedzia', 'wh_lista.py')
+
+    OK = {'v': 1, 'OKX': {'since': '2026-10-12', 'plik': 'por_csv_2026101200_V1', 'udzial': 0.9712, 'addr': ['0x' + format(0xBEEF00 + i, '040x') for i in range(10)]}}
+    DZIS = datetime.date(2026, 10, 19)
+
+    def _zapisz(self, j):
+        with open(self.p, 'w', encoding='utf-8') as f:
+            f.write(j if isinstance(j, str) else json.dumps(j))
+
+    def _zle(self):
+        out = []
+        for zm in (lambda o: o.update(since='2026-10-13'), lambda o: o.update(since='2026-09-07', plik='por_csv_2026090700_V1'),
+                   lambda o: o.update(udzial=0.5), lambda o: o.update(udzial='x'), lambda o: o.update(addr=o['addr'][:9]),
+                   lambda o: o.update(addr=o['addr'][:9] + [o['addr'][0]]), lambda o: o.update(addr=o['addr'][:9] + [o['addr'][9].upper()]),
+                   lambda o: o.update(addr=o['addr'][:9] + ['0xabc']), lambda o: o.update(plik='inny_plik'),
+                   lambda o: o.update(since='2026-10-30', plik='por_csv_2026103000_V1'), lambda o: o.pop('addr')):
+            j = json.loads(json.dumps(self.OK))
+            zm(j['OKX'])
+            out.append(j)
+        return out + [{'v': 2, 'OKX': self.OK['OKX']}, {'v': 1}, [], {'v': 1, 'OKX': []}]
+
+    def test_brak_pliku_i_niepoprawny_plik_to_lista_wbudowana(self):
+        self.assertEqual(zd.wh_okx_wczytaj(self.p, self.DZIS), (None, None), 'brak pliku — cicho, lista wbudowana')
+        for j in self._zle() + ['{nie json', '']:
+            self._zapisz(j)
+            rec, powod = zd.wh_okx_wczytaj(self.p, self.DZIS)
+            self.assertIsNone(rec, repr(j)[:70]); self.assertTrue(powod, 'niepoprawny plik — powód do notatki')
+        self.assertEqual(zd.WH_GIELDY['OKX']['addr'], zd.WH_OKX_WBUDOWANA['addr'], 'wczytanie nie zmienia listy bez wywołania wh_okx_ustaw')
+
+    def test_poprawny_plik_since_i_src_z_listy(self):
+        self._zapisz(self.OK)
+        rec, powod = zd.wh_okx_wczytaj(self.p, self.DZIS)
+        self.assertIsNone(powod)
+        zd.wh_okx_ustaw(rec)
+        g = zd.WH_GIELDY['OKX']
+        self.assertEqual((g['since'], g['addr'], len(g['addr'])), ('2026-10-12', self.OK['OKX']['addr'], 10))
+        self.assertEqual(g['src'], 'OKX — Proof of Reserves, plik adresów por_csv_2026101200_V1 (12.10.2026): 10 największych portfeli USDC w sieci Ethereum (97 % USDC z tej listy)')
+        W = [w for w in zd.wh_portfele() if w['exch'] == 'OKX']
+        self.assertEqual((len(W), {w['since'] for w in W}, {w['addr'] for w in W} == set(self.OK['OKX']['addr'])), (10, {'2026-10-12'}, True))
+        self.assertIsNotNone(self.w.poprawna_lista(self.OK, self.DZIS), 'te same zasady w automacie i w wartowniku')
+        # v230: zmiana listy = dzień zmiany w pliku wieloryby (gieldy[g].zmiana)
+        o = zd.wh_gieldy({'OKX': {'since': '2026-09-08'}}, '2026-10-19')['OKX']
+        self.assertEqual((o['since'], o['zmiana'], o['n']), ('2026-10-12', '2026-10-19', 10))
+        self.assertEqual(zd.wh_gieldy({'OKX': {'since': '2026-10-12', 'zmiana': '2026-10-19'}}, '2026-10-20')['OKX']['zmiana'], '2026-10-19')
+        self.assertEqual(len(zd.wh_portfele()), sum(len(c['addr']) for c in zd.WH_GIELDY.values()))
+
+    def test_wartownik_zgodny_z_automatem_i_lista_wbudowana_ze_wzorcem(self):
+        for j in self._zle() + [self.OK]:
+            self._zapisz(j)
+            rec, _ = zd.wh_okx_wczytaj(self.p, self.DZIS)
+            try:
+                since = j['OKX']['since']
+            except (KeyError, TypeError):
+                since = ''
+            ok_automat = self.w.poprawna_lista(j, self.DZIS) is not None and since >= zd.WH_OKX_WBUDOWANA['since']
+            self.assertEqual(rec is not None, ok_automat, repr(j)[:90])
+        self.assertEqual(zd.WH_OKX_WBUDOWANA['addr'], self.w.WZORZEC['adresy'])
+        self.assertEqual((zd.WH_OKX_WBUDOWANA['since'], zd.WH_OKX_WBUDOWANA['plik']), (self.w.WZORZEC['since'], self.w.WZORZEC['plik']))
+        self.assertEqual(zd.wh_okx_src(zd.WH_OKX_WBUDOWANA), 'OKX — Proof of Reserves, plik adresów por_csv_2026090800_V1 (8.09.2026): '
+                         '10 największych portfeli USDC w sieci Ethereum (98 % USDC z tej listy)')
+
+    def _swiezy(self, sciezka):
+        import types
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zbieraj_dane.py'), encoding='utf-8') as f:
+            src = f.read()
+        a = "os.path.join(os.path.dirname(os.path.abspath(__file__)), 'konfig', 'wh_listy.json')"
+        self.assertEqual(src.count(a), 1)
+        m = types.ModuleType('zd_v477_swiezy')
+        m.__file__ = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zbieraj_dane.py')
+        exec(compile(src.replace(a, repr(sciezka)), m.__file__, 'exec'), m.__dict__)
+        return m
+
+    def test_wczytanie_przy_starcie_z_wartownikiem(self):
+        from unittest import mock as _mk
+        # brak pliku: lista wbudowana, bez notatki
+        m = self._swiezy(self.p)
+        self.assertEqual((m.WH_GIELDY['OKX']['addr'], m.WH_GIELDY['OKX']['since'], m.WH_LISTA_BLAD), (m.WH_OKX_WBUDOWANA['addr'], '2026-09-08', None))
+        self.assertEqual(len(m.WH_GIELDY['OKX']['addr']), 10)
+        # plik niepoprawny: lista wbudowana + powód
+        self._zapisz('{nie json')
+        m = self._swiezy(self.p)
+        self.assertEqual((m.WH_GIELDY['OKX']['addr'], bool(m.WH_LISTA_BLAD)), (m.WH_OKX_WBUDOWANA['addr'], True))
+        # plik poprawny: lista z pliku, since i src z pliku
+        self._zapisz(self.OK)
+        m = self._swiezy(self.p)
+        self.assertEqual((m.WH_GIELDY['OKX']['addr'], m.WH_GIELDY['OKX']['since'], m.WH_LISTA_BLAD), (self.OK['OKX']['addr'], '2026-10-12', None))
+        self.assertIn('por_csv_2026101200_V1 (12.10.2026)', m.WH_GIELDY['OKX']['src'])
+        self.assertEqual(len([w for w in m.wh_portfele() if w['exch'] == 'OKX']), 10)
+        # notatka przebiegu tylko przy niepoprawnym pliku
+        zd.META['notes'].clear()
+        with _mk.patch.object(zd, 'WH_LISTA_BLAD', 'zły układ pliku'), _mk.patch.object(zd, 'post_json', side_effect=RuntimeError('down')), \
+                _mk.patch.object(zd, 'get_json', side_effect=RuntimeError('down')), _mk.patch.object(zd.time, 'sleep', lambda s: None):
+            with self.assertRaises(RuntimeError):
+                zd.build_wieloryby(None)
+        self.assertEqual([n for n in zd.META['notes'] if 'lista portfeli OKX' in n],
+                         ['lista portfeli OKX: plik konfig/wh_listy.json odrzucony (zły układ pliku) — użyta lista wbudowana'])
+        zd.META['notes'].clear()
+        with _mk.patch.object(zd, 'WH_LISTA_BLAD', None), _mk.patch.object(zd, 'post_json', side_effect=RuntimeError('down')), \
+                _mk.patch.object(zd, 'get_json', side_effect=RuntimeError('down')), _mk.patch.object(zd.time, 'sleep', lambda s: None):
+            with self.assertRaises(RuntimeError):
+                zd.build_wieloryby(None)
+        self.assertEqual([n for n in zd.META['notes'] if 'lista portfeli OKX' in n], [])
+        zd.META['notes'].clear()
+
+    def test_plik_w_repozytorium_poprawny(self):
+        rec, powod = zd.wh_okx_wczytaj()
+        self.assertIsNotNone(rec, powod)
+        self.assertIsNone(zd.WH_LISTA_BLAD)
+        self.assertEqual(zd.WH_LISTY_PLIK, os.path.join(os.path.dirname(os.path.abspath(zd.__file__)), 'konfig', 'wh_listy.json'))
+
+    def test_liczba_portfeli_w_src_z_dlugosci_list(self):
+        for g in ('Bybit', 'KuCoin'):
+            c = zd.WH_GIELDY[g]
+            self.assertIn(zd._wh_portfeli(len(c['addr'])), c['src'], g)
+            self.assertEqual(c['src'], zd.wh_src_licz(g))
+        self.assertEqual([zd._wh_portfeli(n) for n in (1, 2, 4, 5, 11, 12, 14, 22, 33, 112, 122)],
+                         ['1 portfel', '2 portfele', '4 portfele', '5 portfeli', '11 portfeli', '12 portfeli', '14 portfeli', '22 portfele', '33 portfele',
+                          '112 portfeli', '122 portfele'])
+        zd.WH_GIELDY['KuCoin']['addr'].append('0x' + 'a' * 40)
+        try:
+            self.assertIn('34 portfele', zd.wh_src_licz('KuCoin'))
+        finally:
+            zd.WH_GIELDY['KuCoin']['addr'].pop()
+        import re
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zbieraj_dane.py'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertIsNone(re.search(r"'src': '(?:Bybit|KuCoin)[^\n]*wszystkie \d+ ", src), 'liczby portfeli w napisach nie są wpisane na sztywno')
+        import inspect
+        self.assertIn('WH_LISTA_BLAD', inspect.getsource(zd.build_wieloryby))
+
+
+class V477KontrolaListyOkx(unittest.TestCase):
+    """v477: kontrola — lista OKX odświeża się sama: wiek listy nie jest uwagą, ostrzeżenie dopiero gdy odświeżenie zawodzi > 7 dni."""
+
+    U = datetime.timezone.utc
+
+    def setUp(self):
+        self.k = _v477_mod('kontrola_v477', 'narzedzia', 'kontrola.py')
+
+    def _t(self, d):
+        return datetime.datetime(2026, 10, d, 6, 20, tzinfo=self.U)
+
+    def test_wiek_okx_nie_jest_uwaga(self):
+        k = self.k
+        G = {'gieldy': {'OKX': {'since': '2026-01-01'}, 'Bybit': {'since': '2026-08-26'}, 'KuCoin': {'since': '2026-10-01'}}}
+        o = k.wh_listy_ocena(G, self._t(19))
+        self.assertEqual([x[0] for x in o['wszystkie']], ['OKX', 'Bybit', 'KuCoin'])
+        self.assertEqual([x[0] for x in o['stare']], ['Bybit'], 'OKX stara tylko w wieku — automat sam odświeża; ręczne listy (Bybit) bez zmian')
+        self.assertEqual(k.WH_LISTY_AUTO, ('OKX',)); self.assertEqual(k.WH_OKX_BLAD_DNI, 7)
+        R = {'at': '2026-10-19T06:20:00+00:00', 'wynik': 'OK', 'meta': {}, 'uwagi': [], 'bledy': [],
+             'zgodnosc': {'wh_listy': {'wszystkie': [('OKX', '2026-01-01', 291), ('Bybit', '2026-08-26', 54)], 'stare': [('Bybit', '2026-08-26', 54)]}}}
+        self.assertIn('- Listy portfeli giełd z raportów miesięcznych (wiek): OKX 291 dni, Bybit 54 dni ⚠️.', k.raport_md(R))
+
+    def test_ocena_odswiezania(self):
+        k = self.k
+        G = {'OKX': {'since': '2026-09-08'}}
+        ok = {'sprawdzono': '2026-10-19', 'blad': None, 'blad_od': None}
+        o = k.wh_okx_ocena(ok, None, G, self._t(19))
+        self.assertEqual((o['uwaga'], o['znak']), (None, '✅'))
+        self.assertIn('automat odświeża sam', o['wiersz']); self.assertIn('ostrzeżenie, gdy odświeżenie zawodzi > 7 dni', o['wiersz']); self.assertIn('OKX (z 2026-09-08)', o['wiersz'])
+        # przepływ nie sprawdzał listy: 7 dni jeszcze nie, 8 dni tak
+        self.assertIsNone(k.wh_okx_ocena({'sprawdzono': '2026-10-12'}, None, G, self._t(19))['uwaga'])
+        u = k.wh_okx_ocena({'sprawdzono': '2026-10-11'}, None, G, self._t(19))
+        self.assertIn('nie sprawdzał listy od 8 dni', u['uwaga']); self.assertEqual(u['znak'], '⚠️')
+        # błąd trwa od: 7 dni nie, 8 dni tak
+        self.assertIsNone(k.wh_okx_ocena({'sprawdzono': '2026-10-19', 'blad': 'x', 'blad_od': '2026-10-12'}, None, G, self._t(19))['uwaga'])
+        u = k.wh_okx_ocena({'sprawdzono': '2026-10-19', 'blad': 'serwer nie odpowiada', 'blad_od': '2026-10-11'}, None, G, self._t(19))
+        self.assertIn('zawodzi od 2026-10-11 (8 dni)', u['uwaga']); self.assertIn('serwer nie odpowiada', u['uwaga']); self.assertIn('automat próbuje codziennie', u['uwaga'])
+        # nowy plik giełdy leży i nie został przyjęty: bez stanu (przepływ jeszcze nie ruszył) też po 7 dniach
+        N = {'nowy': '2026-10-10', 'lista': True, 'od': '2026-09-08'}
+        self.assertIn('leży od 9 dni', k.wh_okx_ocena(None, N, G, self._t(19))['uwaga'])
+        self.assertIsNone(k.wh_okx_ocena(None, dict(N, nowy='2026-10-13'), G, self._t(19))['uwaga'])
+        self.assertIsNone(k.wh_okx_ocena(None, dict(N, lista=False), G, self._t(19))['uwaga'])
+        self.assertIsNone(k.wh_okx_ocena(ok, dict(N, nowy='2026-09-08'), G, self._t(19))['uwaga'], 'plik nie nowszy niż obecna lista')
+        self.assertEqual(k.wh_okx_ocena(None, None, G, self._t(19))['znak'], 'ℹ️')
+        for zle in ('x', [], {'sprawdzono': 5, 'blad_od': 'jutro'}, {'sprawdzono': None}):
+            o = k.wh_okx_ocena(zle, 'x', 'y', self._t(19))
+            self.assertIsNone(o['uwaga']); self.assertIn('automat odświeża sam', o['wiersz'])
+
+    def test_stan_z_pliku_i_wpiecie(self):
+        k = self.k
+        with _v477_tf.TemporaryDirectory() as d:
+            p = os.path.join(d, 's.json')
+            self.assertIsNone(k.wh_okx_stan(p))
+            with open(p, 'w', encoding='utf-8') as f:
+                f.write('{zepsute')
+            self.assertIsNone(k.wh_okx_stan(p))
+            with open(p, 'w', encoding='utf-8') as f:
+                json.dump([1], f)
+            self.assertIsNone(k.wh_okx_stan(p))
+            with open(p, 'w', encoding='utf-8') as f:
+                json.dump({'sprawdzono': '2026-10-19'}, f)
+            self.assertEqual(k.wh_okx_stan(p), {'sprawdzono': '2026-10-19'})
+        self.assertTrue(k.WH_OKX_STAN.endswith(os.path.join('konfig', 'wh_listy_stan.json')))
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertIn("Z['wh_okx'] = wh_okx_ocena(wh_okx_stan(), Z['wh_nowe'].get('OKX')", src)
+        self.assertIn("and g not in WH_LISTY_AUTO:", src, 'dla OKX automat sam przyjmuje nowy plik — bez porady „odśwież ręcznie”')
+        self.assertIn("L.append(Z['wh_okx']['wiersz'])", src)
+        self.assertIn("R['uwagi'].append(Z['wh_okx']['uwaga'])", src)
+        self.assertNotIn('napisz do claude', src.lower())
+
+    def test_raport_ma_wiersz_odswiezania(self):
+        k = self.k
+        R = {'at': '2026-10-19T06:20:00+00:00', 'wynik': 'OK', 'meta': {}, 'uwagi': [], 'bledy': [],
+             'zgodnosc': {'wh_okx': {'wiersz': '- Lista portfeli OKX (z 2026-09-08): automat odświeża sam (ostatni przebieg 2026-10-19); ostrzeżenie, gdy odświeżenie zawodzi > 7 dni ✅.',
+                                     'uwaga': None, 'znak': '✅'},
+                          'wh_listy': {'wszystkie': [('OKX', '2026-09-08', 41)], 'stare': []}}}
+        self.assertIn('- Lista portfeli OKX (z 2026-09-08): automat odświeża sam', k.raport_md(R))
+
+
+class V477PrzeplywListy(unittest.TestCase):
+    """v477: przepływ .github/workflows/wh_listy.yml i skrypt narzedzia/wh_lista.py: biblioteka standardowa, bez kluczy, commit [skip ci], pilnowany przez strażnika."""
+
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    def rd(self, *p):
+        with open(os.path.join(self.ROOT, *p), encoding='utf-8') as f:
+            return f.read()
+
+    def test_przeplyw(self):
+        import re
+        y = self.rd('.github', 'workflows', 'wh_listy.yml')
+        self.assertIn('runs-on: ubuntu-24.04', y); self.assertNotIn('ubuntu-latest', y)
+        self.assertIn('group: wh_listy', y); self.assertIn('cancel-in-progress: false', y)
+        self.assertIn('git commit -q -m "Listy portfeli giełd $(date -u +%Y-%m-%d) [skip ci]"', y, 'commit bez ponownej budowy strony'); self.assertIn('contents: write', y)
+        self.assertIsNone(re.search(r'secrets\.|ANTHROPIC|GITHUB_TOKEN|claude ', y), 'bez kluczy, tokenów i narzędzi AI')
+        self.assertIn('python3 narzedzia/wh_lista.py', y)
+        self.assertIn('git add konfig/wh_listy.json konfig/wh_listy_stan.json', y)
+        self.assertEqual(re.findall(r'uses: (\S+)', y), ['actions/checkout@v7', 'actions/setup-python@v7'], 'te same wersje akcji co pozostałe przepływy')
+        c = re.search(r"cron: '(\d+) (\d+) \* \* \*'", y)
+        self.assertTrue(c and (int(c.group(2)), int(c.group(1))) < (6, 20), 'przed kontrolą dzienną (06:20 UTC), żeby kontrola widziała świeży stan')
+        s = self.rd('narzedzia', 'straznik.py')
+        self.assertIn("'wh_listy.yml'", s); self.assertIn("'wh_listy.yml'", self.rd('narzedzia', 'kontrola.py'))
+
+    def test_skrypt_tylko_biblioteka_standardowa_bez_kluczy(self):
+        import ast
+        import sys
+        src = self.rd('narzedzia', 'wh_lista.py')
+        mody = set()
+        for n in ast.walk(ast.parse(src)):
+            if isinstance(n, ast.Import):
+                mody |= {a.name.split('.')[0] for a in n.names}
+            elif isinstance(n, ast.ImportFrom):
+                mody.add((n.module or '').split('.')[0])
+        self.assertTrue(mody <= set(sys.stdlib_module_names), sorted(mody - set(sys.stdlib_module_names)))
+        for zakaz in ('os.environ', 'getenv', 'Authorization', 'apikey', 'subprocess', 'socket.'):
+            self.assertNotIn(zakaz, src, zakaz)
+        self.assertNotIn('claude', src.lower().replace('capitalflowai', ''))
+
+    def test_lista_w_repozytorium_zgodna_z_formatem(self):
+        w = _v477_mod('wh_lista_v477r', 'narzedzia', 'wh_lista.py')
+        j = json.loads(self.rd('konfig', 'wh_listy.json'))
+        self.assertIsNotNone(w.poprawna_lista(j, datetime.date(2099, 1, 1)))
+        self.assertEqual(j['OKX']['n'], len(j['OKX']['addr']))
+        self.assertTrue(w.STAN_PLIK.endswith(os.path.join('konfig', 'wh_listy_stan.json')) and w.LISTA_PLIK.endswith(os.path.join('konfig', 'wh_listy.json')))

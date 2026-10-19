@@ -1,0 +1,44 @@
+name: Listy portfeli giełd (codziennie)
+
+# v477 (19.10.2026): lista portfeli OKX (10 największych portfeli USDC w sieci Ethereum z miesięcznego pliku dowodu rezerw giełdy) odświeża się SAMA.
+# Raz dziennie ok. 05:47 UTC narzedzia/wh_lista.py szuka nowszego pliku (krótkie zapytania), czyta go strumieniowo (bez zapisu na dysk, tylko biblioteka
+# standardowa, bez kluczy) i przyjmuje listę do konfig/wh_listy.json TYLKO po kontrolach (test odtworzenia z pliku wzorcowego, sygnatura PK i CRC, nagłówek
+# kolumn, adresy, udział co najmniej 90 %). Stan przebiegu trafia do konfig/wh_listy_stan.json (czyta go kontrola dzienna: ostrzeżenie, gdy odświeżenie
+# zawodzi dłużej niż 7 dni). Commit z [skip ci]; zbieracz czyta plik przy następnej budowie strony. Brak nowego pliku albo błąd sieci to nie awaria przebiegu
+# (zapisane w stanie), więc bez e-maila od GitHuba.
+on:
+  schedule:
+    - cron: '47 5 * * *'        # 05:47 UTC = 07:47 czasu polskiego (letniego), przed kontrolą dzienną (06:20)
+  push:
+    branches: [main]
+    paths: ['narzedzia/wh_lista.py', '.github/workflows/wh_listy.yml']
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: wh_listy
+  cancel-in-progress: false
+
+jobs:
+  listy:
+    runs-on: ubuntu-24.04   # przypięty obraz jak pozostałe przepływy (v274)
+    timeout-minutes: 20
+    permissions:
+      contents: write          # zapis konfig/wh_listy.json i konfig/wh_listy_stan.json
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Odśwież listę portfeli OKX (publiczne zapytania GET, bez kluczy)
+        run: python3 narzedzia/wh_lista.py
+      - name: Zapisz wynik w repozytorium
+        run: |
+          git config user.name 'listy-portfeli'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add konfig/wh_listy.json konfig/wh_listy_stan.json
+          if git diff --cached --quiet; then echo "bez zmian"; else
+            git commit -q -m "Listy portfeli giełd $(date -u +%Y-%m-%d) [skip ci]"
+            git push -q origin HEAD:main || (git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main)   # pliki z tego przebiegu wygrywają przy konflikcie
+          fi
