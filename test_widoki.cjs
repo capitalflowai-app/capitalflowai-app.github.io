@@ -37344,3 +37344,12 @@ test('v485: Europa — słupki krajów od największego napływu (Irlandia przed
   const J2 = ef381.J(); J2.ivf.kraje.DE = ef381.J().ivf.kraje.FR; assert.deepEqual(kraje(J2).map(x => x[0]), ['ie', 'lu', 'de', 'fr', 'nl'], 'remis DE = FR zostaje w kolejności listy (DE przed FR)');
   const J3 = ef381.J(); J3.ivf.kraje.DE = ef381.J().ivf.kraje.IE; J3.ivf.kraje.IE = ef381.J().ivf.kraje.DE; assert.equal(kraje(J3)[0][0], 'de', 'sortuje po wartości, nie po nazwie kraju');
 });
+
+
+test('v486: przypis krótkiej sprzedaży (sh429.n.def) nie obiecuje „sprzed tygodnia” — mówi o wcześniejszym zapisie z datą przy liczbie, po polsku i angielsku', () => {
+  const I = v143Final(html);
+  assert.ok(I.pl['sh429.n.def'].includes('Zmiany wobec wcześniejszego zapisu') && I.pl['sh429.n.def'].includes('data jest podana przy każdej liczbie'), 'pl: nowe zdanie');
+  assert.ok(I.en['sh429.n.def'].includes('Changes are versus an earlier snapshot') && I.en['sh429.n.def'].includes('its date is shown next to each number'), 'en: nowe zdanie');
+  assert.ok(!/sprzed około tygodnia/.test(I.pl['sh429.n.def']) && !/against about a week ago/.test(I.en['sh429.n.def']), 'stare zdanie usunięte');
+  assert.ok(I.pl['sh429.n.def'].startsWith('Pozycja netto to akcje sprzedane krótko') && I.en['sh429.n.def'].startsWith('A net position is shares sold short'), 'początek przypisu bez zmian');
+});
