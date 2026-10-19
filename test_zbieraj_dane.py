@@ -62580,7 +62580,8 @@ class IndieV399(unittest.TestCase):
         p1 = self._run(None)
         later = _V399_NOW + datetime.timedelta(hours=2)
         o2 = self._run(p1, _v399_get(blok=blok), later)
-        self.assertEqual(o2['ok'], {'ind': True, 'fao': False, 'dl': True}); self.assertEqual(o2['fao'], p1['fao']); self.assertEqual(o2['part_at']['fao'], _V399_NOW.isoformat())
+        self.assertEqual(o2['ok'], {'ind': True, 'fao': 'cached', 'dl': True}); self.assertEqual(o2['fao'], p1['fao']); self.assertEqual(o2['part_at']['fao'], _V399_NOW.isoformat())
+        self.assertEqual(zd.META['errors'], [], 'v476: giełda nie odpowiada, dane młode — notatka'); self.assertTrue(any('Indie: fao: ' in x and 'HTTP 403' in x for x in zd.META['notes']), zd.META['notes'])
         self.assertEqual(o2['part_at']['ind'], later.isoformat())
         # po 5 dobach od ostatniego udanego sprawdzenia część wypada z pliku (brak, nie stare dane bez końca)
         o3 = self._run(p1, _v399_get(blok=blok), _V399_NOW + datetime.timedelta(days=5, hours=1))
@@ -62861,7 +62862,7 @@ class ChinyTwV400(unittest.TestCase):
 
     def setUp(self):
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
-        self.p = [mock.patch.object(zd, 'NOW', _V400_NOW.isoformat()), mock.patch.object(zd, 'CTW_SLEEP', 0)]
+        self.p = [mock.patch.object(zd, 'NOW', _V400_NOW.isoformat()), mock.patch.object(zd, 'CTW_SLEEP', 0), mock.patch.object(zd, 'AZJA_BRAMKA', False)]   # v476: rytm części bez bramki sesji (stałe nagrania z soboty)
         [p.start() for p in self.p]
 
     def tearDown(self):
@@ -73163,17 +73164,17 @@ class TestV443TajwanPrzerwa(unittest.TestCase):
         return o, n, meta, calls
 
     def test_budowa_przerwa_zostawia_dane(self):
-        o, n, meta, calls = self._buduj(self.HTML, 3)
+        o, n, meta, calls = self._buduj(self.HTML, 7)   # v476: sobota, dane z piątku — kontrolna próba po 6 h
         self.assertEqual(meta['errors'], [], 'młoda przerwa nie jest błędem zbieracza')
         self.assertEqual(len(meta['notes']), 1)
-        self.assertIs(n['ok']['tw'], False)
-        self.assertTrue(n['errs']['tw'].startswith('przerwa źródła (3 próby)'))
+        self.assertEqual(n['ok']['tw'], 'cached', 'v476: nie nieudany przebieg')
+        self.assertEqual(n['errs'], {}); self.assertIn('dane z 2026-10-16', meta['notes'][0])
         self.assertEqual(n['tw'], o['tw'], 'dane i dzień zostają z poprzedniego pliku')
         self.assertEqual(n['part_at']['tw'], o['part_at']['tw'], 'chwila ostatniego udanego pobrania zostaje')
         self.assertEqual(len(calls), 3, 'trzy próby pierwszej odpowiedzi, drugiej już nie pytamy')
 
     def test_budowa_dluga_przerwa_jest_bledem(self):
-        o, n, meta, calls = self._buduj(self.HTML, 13)
+        o, n, meta, calls = self._buduj(self.HTML, 24 * 21)   # v476: dane z 16.10 starsze niż najdłuższa przerwa Tajwanu (20 dni)
         self.assertEqual(meta['notes'], [])
         self.assertEqual(len(meta['errors']), 1)
         self.assertTrue(n['errs']['tw'].startswith('przerwa trwa ponad 12 h'))
@@ -73214,11 +73215,11 @@ class TestV443TajwanPrzerwa(unittest.TestCase):
         meta = {'errors': [], 'notes': [], 'ok': {}}
         with mock.patch.object(zd, 'get_bytes_maks', _v400_swiat([], pc=self.HTML, inst=self.HTML)), mock.patch.object(zd, 'NOW', (_V400_NOW + datetime.timedelta(hours=3)).isoformat()),                 mock.patch.object(zd, 'META', meta), mock.patch.object(zd, 'CTW_PARTS', ('tw',)):
             zd.build_chiny_tw(o)
-        self.assertEqual((len(meta['errors']), meta['notes']), (1, []), 'wiek poprzednich danych nieznany — błąd, nie przerwa')
+        self.assertEqual((len(meta['errors']), len(meta['notes'])), (0, 1), 'v476: wiek liczony z dnia danych (16.10), nie z chwili pobrania — młode dane = notatka')
 
     def test_budowa_dobra_odpowiedz_po_ponowieniu(self):
         o = _v400_plik()
-        now = _V400_NOW + datetime.timedelta(hours=3)
+        now = _V400_NOW + datetime.timedelta(hours=7)   # v476: sobota, dane z piątku — kontrolna próba po 6 h
         calls = []
         sw0 = _v400_swiat(calls)
         licz = {'n': 0}
@@ -79541,7 +79542,7 @@ class TestV467RbiWeekend(unittest.TestCase):
         wk = self._dane()
         with mock.patch.object(zd, 'em_pobierz', lambda u, c, nagl=None: self._pusta().encode() if c == 'in' else wk(u, c, nagl)):
             p, st = zd.build_em2(None)
-        self.assertEqual((st['in'], p['ok']['in']), (False, False)); self.assertNotIn('in', p); self.assertTrue(any('Rynki wschodzące 2: in: RBI: dzień bez danych' in e for e in zd.META['errors']))
+        self.assertEqual(st['in'], 'cached'); self.assertNotIn('in', p); self.assertEqual(zd.META['errors'], [], 'v476: bez poprzednich danych to brak danych, nie błąd części'); self.assertEqual(p['brak']['in']['dzien'], '2026-10-18')
 
 
 class RwaXstocksWeekendV468(unittest.TestCase):
@@ -80758,3 +80759,231 @@ class EtfSnapV475(unittest.TestCase):
             self.assertTrue(url.startswith('https://') and '?' not in url and '@' not in url and 'key' not in url.lower(), url)
         self.assertEqual([t for _, t, *_ in zd.ETFZ_SNAP], ['BITB', 'ARKB', 'ETHW', 'BSOL', 'XRP']); self.assertEqual(zd.ETFZ_SNAP_BAZA, {'sol': 'BSOL', 'xrp': 'XRP'})
         self.assertEqual(src.count("META['ok']['etf_zapas'] = etf_zapas_czesc("), 1, 'część zapasu wywoływana raz, po bloku ETF')
+
+
+class TestV476AzjaSesje(unittest.TestCase):
+    """v476 (19.10.2026): „sesja wymagana?” — weekend, święta giełd i godzina publikacji; brak nowej sesji albo niedostępność źródła przy młodych danych to notatka z wiekiem danych (status „cached”),
+    nie błąd i nie nieudany przebieg; błąd dopiero po najdłuższej przerwie z historii albo przy złej treści. Zegar przypięty (piątek 16.10, sobota, niedziela, poniedziałek 19.10, wtorek 20.10 = święto w Indiach)."""
+    UTC = datetime.timezone.utc
+
+    def T(self, d, h=0, m=0):
+        return datetime.datetime(2026, 10, d, h, m, tzinfo=self.UTC)
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+
+    # ---------------------------------------------------------------- pomocnik
+    def test_dni_sesji_i_swieta(self):
+        d = datetime.date
+        self.assertEqual([zd.azja_sesja('in', d(2026, 10, x)) for x in (16, 17, 18, 19, 20, 21)], [True, False, False, True, False, True], 'Indie: weekend i Dussehra 20.10')
+        self.assertEqual([zd.azja_sesja('tw', d(2026, 10, x)) for x in (8, 9, 12, 26)], [True, False, True, False])
+        self.assertEqual([zd.azja_sesja('cn', d(2026, 10, x)) for x in (1, 6, 7, 8)], [False, False, False, True], 'Złoty Tydzień w Chinach')
+        self.assertEqual([zd.azja_sesja('rbi', d(2026, 10, x)) for x in (19, 20)], [True, False], 'RBI liczy święta jak giełda Indii')
+        self.assertTrue(all(zd.azja_sesja(r, d(2027, 3, 3)) for r in ('in', 'tw', 'cn', 'rbi')), 'po końcu listy dzień roboczy to sesja (bezpiecznie)')
+
+    def test_ostatnia_sesja_i_nastepna_publikacja(self):
+        o = zd.azja_ostatnia_sesja
+        self.assertEqual(o('in', self.T(19, 11, 59)), datetime.date(2026, 10, 16), 'poniedziałek przed publikacją: piątek')
+        self.assertEqual(o('in', self.T(19, 12, 0)), datetime.date(2026, 10, 19))
+        self.assertEqual(o('in', self.T(20, 13)), datetime.date(2026, 10, 19), 'wtorek 20.10 to święto')
+        self.assertEqual(o('in', self.T(21, 13)), datetime.date(2026, 10, 21))
+        self.assertEqual(o('cn', self.T(7, 12)), datetime.date(2026, 9, 30), 'Złoty Tydzień: ostatnia sesja 30.09')
+        self.assertEqual(o('cn', self.T(8, 9)), datetime.date(2026, 10, 8))
+        n = zd.azja_nast_pub
+        self.assertEqual(n('in', self.T(18, 14)), self.T(19, 12), 'niedziela: poniedziałek 12:00 UTC')
+        self.assertEqual(n('in', self.T(19, 13)), self.T(21, 12), 'po poniedziałkowej publikacji: środa (wtorek święto)')
+        self.assertEqual(n('tw', self.T(16, 6)), self.T(16, 7, 30)); self.assertEqual(n('tw', self.T(16, 7, 30)), self.T(19, 7, 30), 'ściśle po t')
+
+    def test_wymagana_i_proba_kontrolna(self):
+        w = zd.azja_wymagana
+        for t in (self.T(17, 6), self.T(18, 20), self.T(19, 7, 29)):
+            self.assertFalse(w('tw', '2026-10-16', t), str(t))
+        self.assertTrue(w('tw', '2026-10-16', self.T(19, 7, 30)), 'po publikacji poniedziałku')
+        self.assertTrue(w('tw', None, self.T(17, 6))); self.assertTrue(w('tw', 'zły', self.T(17, 6)), 'brak dnia danych = czytaj')
+        self.assertFalse(w('tw', datetime.date(2026, 10, 19), self.T(19, 9)))
+        p = zd.azja_potrzebna
+        self.assertFalse(p('tw', '2026-10-16', self.T(17, 3).isoformat(), self.T(17, 8)), '5 h od ostatniego sprawdzenia: bez próby')
+        self.assertTrue(p('tw', '2026-10-16', self.T(17, 1).isoformat(), self.T(17, 8)), '7 h: kontrolna próba (święto na liście bywa błędne)')
+        self.assertTrue(p('tw', '2026-10-16', None, self.T(17, 8))); self.assertTrue(p('tw', '2026-10-15', self.T(17, 7).isoformat(), self.T(17, 8)), 'dzień danych starszy niż oczekiwana sesja')
+
+    def test_dostepnosc_zrodla_a_zla_tresc(self):
+        for e in (urllib.error.URLError('timed out'), urllib.error.HTTPError('https://x.test/', 503, 'x', {}, io.BytesIO(b'')), TimeoutError('x'), zd.CtwPrzerwa('przerwa źródła (3 próby): x'),
+                  RuntimeError('HTTP 403 (blokada serwera)'), RuntimeError('pusta odpowiedź'), RuntimeError('limit czasu budowy (150 s)'), ValueError('odpowiedź nie jest JSON (strona błędu albo odmowa: strona HTML)'),
+                  'The read operation timed out', ConnectionResetError('reset')):
+            self.assertTrue(zd.azja_dostepnosc(e), repr(e))
+        for e in (ValueError('Tajwan put/call: zły dzień'), RuntimeError('RBI: zły wiersz overnight'), RuntimeError('odpowiedź dłuższa niż 5 B (limit)'), ValueError('CSI 300 2026-10-16: ceny niespójne'), KeyError('x'),
+                  'Indie: format zmieniony'):
+            self.assertFalse(zd.azja_dostepnosc(e), repr(e))
+
+    def test_nota_z_powodem_i_wiekiem(self):
+        self.assertEqual(zd.azja_nota('X', '2026-10-16', self.T(18, 20), 'tw', 'timed out'), 'X: brak nowej sesji (weekend) — dane z 2026-10-16 (wiek 2 d); timed out')
+        self.assertIn('(święto giełdy)', zd.azja_nota('X', '2026-10-19', self.T(20, 13), 'in', 'x'))
+        self.assertIn('(przed publikacją danych dnia)', zd.azja_nota('X', '2026-10-16', self.T(19, 6), 'tw', 'x'))
+        self.assertIn('źródło nie odpowiada', zd.azja_nota('X', '2026-10-16', self.T(19, 9), 'tw', 'x'), 'sesja już powinna być opublikowana')
+
+    # ---------------------------------------------------------------- Tajwan i Chiny: rytm, notatka zamiast błędu
+    def _ctw(self, now, prev, **opc):
+        calls = []
+        meta = {'errors': [], 'notes': [], 'ok': {}}
+        with mock.patch.object(zd, 'get_bytes_maks', _v400_swiat(calls, **opc)), mock.patch.object(zd, 'NOW', now.isoformat()), mock.patch.object(zd, 'META', meta), \
+                mock.patch.object(zd, 'CTW_SLEEP', 0), mock.patch.object(zd, 'CTW_PARTS', ('tw',)):
+            n = zd.build_chiny_tw(prev)
+        return n, meta, calls
+
+    def test_ctw_wymagana_weekend_tylko_proba_kontrolna(self):
+        o = _v400_plik(); pk = o['tw']
+        part = lambda h, now_=self.T(17, 12): {'tw': (now_ - datetime.timedelta(hours=h)).isoformat()}   # noqa: E731
+        now = self.T(17, 12)
+        self.assertFalse(zd.ctw_wymagana('tw', pk, {'tw': True}, part(1), now), 'rytm 2 h')
+        self.assertFalse(zd.ctw_wymagana('tw', pk, {'tw': True}, part(3), now), 'sobota, dane z piątku: bez odczytu (rytm 2 h już minął, kontrolna próba dopiero po 6 h)')
+        self.assertTrue(zd.ctw_wymagana('tw', pk, {'tw': True}, part(7), now), 'kontrolna próba')
+        self.assertTrue(zd.ctw_wymagana('tw', pk, {'tw': False}, part(0.1), now), 'po błędzie od razu')
+        self.assertTrue(zd.ctw_wymagana('tw', pk, {'tw': True}, part(3, self.T(19, 8)), self.T(19, 8)), 'poniedziałek po publikacji: odczyt co 2 h')
+        self.assertFalse(zd.ctw_wymagana('tw', pk, {'tw': True}, part(3, self.T(19, 7)), self.T(19, 7)), 'poniedziałek przed publikacją: bez odczytu')
+        with mock.patch.object(zd, 'AZJA_BRAMKA', False):
+            self.assertTrue(zd.ctw_wymagana('tw', pk, {'tw': True}, part(3), now), 'bez bramki: rytm 2 h jak dotąd')
+        self.assertFalse(zd.ctw_wymagana('tw', pk, {'tw': True}, part(3), self.T(19, 8), {'tw': self.T(19, 7, 50).isoformat()}), 'ostatnia próba z notatką liczy się do rytmu')
+
+    def test_ctw_dzien_danych_czesci(self):
+        d = datetime.date
+        self.assertEqual(zd.ctw_dzien_danych('tw', {'pc': {'asof': '2026-10-16'}, 'in': {'asof': '2026-10-15'}}), d(2026, 10, 15), 'Tajwan: starszy z dni put/call i pozycji')
+        self.assertIsNone(zd.ctw_dzien_danych('tw', {'pc': {'asof': '2026-10-16'}})); self.assertIsNone(zd.ctw_dzien_danych('tw', None)); self.assertIsNone(zd.ctw_dzien_danych('csi', {'asof': 'zły'}))
+        self.assertEqual((zd.ctw_dzien_danych('csi', {'asof': '2026-10-16'}), zd.ctw_dzien_danych('cn', {'asof': '2026-10-19'}), zd.ctw_dzien_danych('sh', {'asof': '2026-10-19'})), (d(2026, 10, 16), d(2026, 10, 19), d(2026, 10, 19)))
+        self.assertEqual(zd.CTW_RYNEK, {'cn': 'cn', 'sh': 'cn', 'tw': 'tw', 'csi': 'cn'})
+
+    def test_ctw_niedziela_zrodlo_nie_odpowiada_to_notatka_bez_bledu(self):
+        o = _v400_plik()
+        o['part_at']['tw'] = self.T(17, 1).isoformat()
+        for e in (urllib.error.URLError('timed out'), urllib.error.HTTPError('https://x.test/', 503, 'x', {}, io.BytesIO(b'')), TimeoutError('timed out')):
+            n, meta, calls = self._ctw(self.T(18, 20, 31), json.loads(json.dumps(o)), blad={'openapi.taifex': e})
+            self.assertEqual(meta['errors'], [], repr(e)); self.assertEqual(len(meta['notes']), 1, meta['notes'])
+            self.assertIn('brak nowej sesji (weekend)', meta['notes'][0]); self.assertIn('dane z 2026-10-16 (wiek 2 d)', meta['notes'][0])
+            self.assertEqual((n['ok']['tw'], n['errs']), ('cached', {}), 'nie nieudany przebieg')
+            self.assertEqual((n['tw'], n['part_at']['tw']), (o['tw'], o['part_at']['tw']), 'dane i chwila ostatniego odczytu zostają')
+            self.assertEqual(n['proba'], {'tw': self.T(18, 20, 31).isoformat()})
+        n2, meta2, calls2 = self._ctw(self.T(18, 20, 41), n, blad={'openapi.taifex': urllib.error.URLError('x')})
+        self.assertEqual((calls2, meta2['notes'], meta2['errors']), ([], [], []), 'następna próba nie wcześniej niż po rytmie 2 h od próby z notatką')
+        n3, meta3, calls3 = self._ctw(self.T(19, 8, 40), n)
+        self.assertEqual((meta3['errors'], meta3['notes']), ([], []), 'poniedziałek po publikacji: źródło wróciło'); self.assertEqual(n3['ok']['tw'], True); self.assertNotIn('proba', n3)
+        self.assertTrue(len(calls3) >= 2)
+
+    def test_ctw_zla_tresc_albo_stare_dane_nadal_sa_bledem(self):
+        o = _v400_plik(); o['part_at']['tw'] = self.T(17, 1).isoformat()
+        n, meta, _c = self._ctw(self.T(17, 12), json.loads(json.dumps(o)), pc=b'[{"Date": "20261016", "PutVolume": "abc"}]')
+        self.assertEqual(len(meta['errors']), 1, 'zła treść to nie niedostępność'); self.assertIs(n['ok']['tw'], False); self.assertNotIn('proba', n)
+        stary = json.loads(json.dumps(o))
+        now = datetime.datetime(2026, 11, 8, 12, 0, tzinfo=self.UTC)   # dane z 16.10 mają 23 dni = dłużej niż najdłuższa przerwa Tajwanu
+        stary['part_at']['tw'] = (now - datetime.timedelta(hours=9)).isoformat()
+        n, meta, _c = self._ctw(now, stary, blad={'openapi.taifex': urllib.error.URLError('timed out')})
+        self.assertEqual(len(meta['errors']), 1, meta); self.assertEqual(meta['notes'], []); self.assertIs(n['ok']['tw'], False)
+        o2 = _v400_plik(); o2.pop('tw'); o2['part_at'].pop('tw')
+        with self.assertRaisesRegex(RuntimeError, 'żadna część nie odpowiedziała'):   # jedyna część bez danych: plik nie powstaje (main zostawia poprzedni)
+            self._ctw(self.T(18, 20), o2, blad={'openapi.taifex': urllib.error.URLError('timed out')})
+
+    # ---------------------------------------------------------------- CSI 300: trwająca sesja
+    def test_csi_wiersz_trwajacej_sesji_nie_zrywa_odczytu(self):
+        d = list(_V400_CSI)
+        zly = ('20261019', 4600.0, 4650.0, 4620.0, 4610.0, 5.0, 0.11, 2.5e10)   # niskie > otwarcie: ceny niespójne, jak chwilowy odczyt na żywo
+        raw = _v400_csi_odp(d + [zly])
+        w = zd.parse_ctw_csi(raw, self.T(19, 6, 23))   # 14:23 w Chinach
+        self.assertEqual(w[-1][0], '2026-10-16'); self.assertEqual(len(w), len(zd.parse_ctw_csi(_v400_csi_odp(d), self.T(19, 6, 23))))
+        with self.assertRaisesRegex(ValueError, 'ceny niespójne'):
+            zd.parse_ctw_csi(raw, self.T(19, 8, 40))   # po 16:30 w Chinach wiersz dnia jest liczony i walidowany
+        with self.assertRaisesRegex(ValueError, 'ceny niespójne'):
+            zd.parse_ctw_csi(_v400_csi_odp(d[:-1] + [('20261016',) + d[-1][1:2] + (d[-1][2], d[-1][1] + 50) + d[-1][4:]]), self.T(17, 12))   # zły wiersz z wczorajszej sesji nadal błąd
+
+    # ---------------------------------------------------------------- RBI (em2_in)
+    def _em(self):
+        return Em2V457._dane(self)
+
+    def _em_buduj(self, now, prev, pusta=True):
+        wk = self._em()
+        pusty = _v467_html(_V467_RBI_18_10).encode()
+        with mock.patch.object(zd, 'NOW', now.isoformat()), mock.patch.object(zd, 'EM_SLEEP', 0), mock.patch.object(zd, 'SECRETS', []), \
+                mock.patch.object(zd, 'em_pobierz', lambda u, c, nagl=None: pusty if (c == 'in' and pusta) else wk(u, c, nagl)):
+            return zd.build_em2(prev)
+
+    def test_rbi_pusta_tabela_bez_poprzednich_danych_to_notatka_i_znacznik(self):
+        p, st = self._em_buduj(self.T(19, 8), None)
+        self.assertEqual(zd.META['errors'], [], 'dzień bez danych nie jest błędem zbieracza'); self.assertEqual(len(zd.META['notes']), 1); self.assertIn('2026-10-18', zd.META['notes'][0])
+        self.assertEqual(st['in'], 'cached'); self.assertNotIn('in', p); self.assertNotIn('in', p['ok'])
+        self.assertEqual(p['brak'], {'in': {'dzien': '2026-10-18', 't': self.T(19, 8).isoformat()}})
+        self.assertEqual({k: st[k] for k in ('za', 'il', 'wb')}, {'za': True, 'il': True, 'wb': True}, 'pozostałe części bez zmian')
+
+    def test_rbi_rytm_po_pustej_tabeli(self):
+        p, _st = self._em_buduj(self.T(18, 14), None)   # niedziela po południu
+        z = lambda t: zd.em_zadania(p, t.isoformat())['in']   # noqa: E731
+        self.assertFalse(z(self.T(18, 23)), 'niedziela: nie pytamy do publikacji poniedziałkowej sesji')
+        self.assertFalse(z(self.T(19, 11, 59)))
+        self.assertTrue(z(self.T(19, 12, 0)), 'po publikacji poniedziałku')
+        p2, _st = self._em_buduj(self.T(19, 12, 5), p)   # tabela nadal z niedzieli (publikacja późna)
+        self.assertEqual(p2['brak']['in'], {'dzien': '2026-10-18', 't': self.T(19, 12, 5).isoformat()})
+        z2 = lambda t: zd.em_zadania(p2, t.isoformat())['in']   # noqa: E731
+        self.assertFalse(z2(self.T(19, 12, 50))); self.assertTrue(z2(self.T(19, 13, 5)), 'tabela starsza niż oczekiwana sesja: próba co godzinę')
+        nowa = _v457_in_html(data='October 19, 2026').encode(); wk = self._em()
+        with mock.patch.object(zd, 'NOW', self.T(19, 14).isoformat()), mock.patch.object(zd, 'EM_SLEEP', 0), mock.patch.object(zd, 'SECRETS', []), \
+                mock.patch.object(zd, 'em_pobierz', lambda u, c, nagl=None: nowa if c == 'in' else wk(u, c, nagl)):
+            p3, st3 = zd.build_em2(p2)
+        self.assertEqual((st3['in'], p3['in']['date'], 'brak' in p3), (True, '2026-10-19', False), 'dane wracają, znacznik znika')
+
+    def test_rbi_zadanie_gdy_dane_sa_a_sesji_nie_ma(self):
+        P = zd.em_in_czesc(_v457_in_html()); P['t'] = self.T(17, 3).isoformat()
+        pv = {'in': P, 'part_at': {'in': self.T(17, 3).isoformat()}, 'at': self.T(17, 3).isoformat(), 'ok': {'in': True}}
+        z = lambda t, pv_=pv: zd.em_zadania(pv_, t.isoformat())['in']   # noqa: E731
+        self.assertFalse(z(self.T(17, 10)), 'sobota, dane z piątku, 7 h: rytm 6 h minął, ale nic nowego się nie spodziewamy')
+        self.assertTrue(z(self.T(17, 15)), 'kontrolna próba po 12 h')
+        pv1 = dict(pv, part_at={'in': self.T(19, 5).isoformat()})
+        self.assertFalse(z(self.T(19, 11, 30), pv1), 'poniedziałek przed publikacją'); self.assertTrue(z(self.T(19, 12, 30), pv1), 'poniedziałek po publikacji: rytm 6 h od ostatniego odczytu')
+        pv2 = dict(pv, part_at={'in': self.T(19, 11).isoformat()}); pv2['in'] = dict(P, bd='2026-10-18')
+        self.assertTrue(z(self.T(19, 12, 30), pv2), 'pusta tabela po publikacji: co godzinę zamiast co 6 h')
+        with mock.patch.object(zd, 'AZJA_BRAMKA', False):
+            self.assertTrue(z(self.T(17, 10)), 'bez bramki rytm 6 h jak dotąd')
+
+    # ---------------------------------------------------------------- giełda w Indiach i NSDL / TWSE
+    def _indie(self, errs, prev_t, now, asof='2026-10-16'):
+        pv = {'v': 1, 'at': prev_t, 'part_at': {p: prev_t for p in ('ind', 'fao', 'dl')}, 'ok': {},
+              'ind': {'asof': asof, 't': prev_t}, 'fao': {'asof': asof, 'vasof': '2026-10-15', 't': prev_t}, 'dl': {'asof': asof, 't': prev_t}}
+
+        def job(p):
+            return lambda prev, n: (dict(prev), errs.get(p))
+        with mock.patch.object(zd, 'NOW', now.isoformat()), mock.patch.object(zd, 'META', {'errors': [], 'notes': [], 'ok': {}}) as meta, \
+                mock.patch.object(zd, 'in_cz_ind', job('ind')), mock.patch.object(zd, 'in_cz_fao', job('fao')), mock.patch.object(zd, 'in_cz_dl', job('dl')):
+            o = zd.build_indie(pv)
+        return o, meta
+
+    def test_indie_niedostepnosc_giełdy_przy_mlodych_danych_to_notatka(self):
+        t0 = self.T(16, 13).isoformat()
+        o, meta = self._indie({'ind': 'HTTP 403 (blokada serwera)', 'fao': 'timed out'}, t0, self.T(18, 12))
+        self.assertEqual(meta['errors'], []); self.assertEqual(len(meta['notes']), 2, meta['notes'])
+        self.assertEqual(o['ok'], {'ind': 'cached', 'fao': 'cached', 'dl': True}); self.assertEqual(o['part_at']['ind'], t0, 'chwila ostatniego udanego sprawdzenia zostaje')
+        self.assertIn('Indie: ind: brak nowej sesji (weekend) — dane z 2026-10-16 (wiek 2 d)', meta['notes'][0]); self.assertIn('dane z 2026-10-15 (wiek 3 d)', meta['notes'][1], 'pozycje: starszy z dni oi i vol')
+        o, meta = self._indie({'dl': 'Indie: zły format pliku'}, t0, self.T(18, 12))
+        self.assertEqual((len(meta['errors']), meta['notes'], o['ok']['dl']), (1, [], False), 'zła treść to błąd')
+        o, meta = self._indie({'dl': 'HTTP 403 (blokada serwera)'}, t0, self.T(22, 12))
+        self.assertEqual((len(meta['errors']), meta['notes'], o['ok']['dl']), (1, [], False), 'ponad 5 dób bez udanego sprawdzenia = błąd (jak dotąd)')
+        o, meta = self._indie({'dl': 'HTTP 403 (blokada serwera)'}, t0, self.T(18, 12), asof='2026-10-05')
+        self.assertEqual((len(meta['errors']), meta['notes'], o['ok']['dl']), (1, [], False), 'dane starsze niż najdłuższa przerwa giełdy (7 dni) = błąd mimo świeżego sprawdzenia')
+
+    def _obce(self, bl, asof, now):
+        pp = {'at': '2026-10-16T13:00:00+00:00', 'asof': asof}
+        prev = {'in': dict(pp), 'tw': dict(pp)}
+        meta = {'errors': [], 'notes': [], 'ok': {}}
+
+        def part(nm):
+            def f(*a, **k):
+                if nm in bl:
+                    raise bl[nm]
+                return {'at': 'now', 'asof': '2026-10-19', 'src': nm}
+            return f
+        with mock.patch.object(zd, 'NOW', now.isoformat()), mock.patch.object(zd, 'META', meta), mock.patch.object(zd, 'nsdl_part', part('in')), mock.patch.object(zd, 'twse_part', part('tw')), \
+                mock.patch.object(zd, 'hkex_part', part('hk')), mock.patch.object(zd, 'bcb_part', part('br')), mock.patch.object(zd, 'tcmb_part', part('tr')), mock.patch.object(zd, 'thbma_part', part('th')):
+            return zd.build_obce('k', prev), meta
+
+    def test_obce_nsdl_twse_niedostepnosc_przy_mlodych_danych(self):
+        o, meta = self._obce({'in': urllib.error.URLError('timed out'), 'tw': TimeoutError('timed out')}, '2026-10-16', self.T(18, 20))
+        self.assertEqual(meta['errors'], []); self.assertEqual(len(meta['notes']), 2); self.assertEqual((meta['ok']['obce_in'], meta['ok']['obce_tw']), ('cached', 'cached'))
+        self.assertEqual((o['in']['asof'], o['tw']['asof'], o['ok']['in'], o['errs']), ('2026-10-16', '2026-10-16', True, {})); self.assertIn('NSDL: brak nowej sesji (weekend)', meta['notes'][0])
+        o, meta = self._obce({'in': ValueError('NSDL: zły układ tabeli')}, '2026-10-16', self.T(18, 20))
+        self.assertEqual((len(meta['errors']), meta['ok']['obce_in']), (1, False), 'zła treść to błąd')
+        o, meta = self._obce({'in': urllib.error.URLError('timed out')}, '2026-10-05', self.T(18, 20))
+        self.assertEqual((len(meta['errors']), meta['ok']['obce_in']), (1, False), 'dane starsze niż 7 dni = błąd')

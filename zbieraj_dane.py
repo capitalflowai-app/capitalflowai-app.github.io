@@ -4565,6 +4565,10 @@ def build_obce(key, prev=None, evds_key=''):
                 out[part] = bcb_przerwa_wynik(pp, e); META['ok']['obce_br'] = False; out['ok'][part] = False
                 META['notes'].append(mask(bcb_przerwa_nota(out[part])))
                 continue
+            if part in ('in', 'tw') and AZJA_BRAMKA and isinstance(pp, dict) and azja_dostepnosc(e) and azja_wiek_ok('in' if part == 'in' else 'tw', pp.get('asof'), _ix_dt(NOW)):   # v476: źródło nie odpowiada, dane młode
+                out[part] = pp; META['ok']['obce_' + part] = 'cached'; out['ok'][part] = True
+                META['notes'].append(mask(azja_nota({'in': 'NSDL', 'tw': 'TWSE'}[part], pp.get('asof'), _ix_dt(NOW), 'in' if part == 'in' else 'tw', e))[:200])
+                continue
             META['errors'].append(mask(f"{ {'in': 'NSDL', 'tw': 'TWSE', 'hk': 'HKEX', 'br': 'BCB', 'tr': 'CBRT', 'th': 'ThaiBMA'}[part] }: {e}")); META['ok']['obce_' + part] = False
             if isinstance(prev.get(part), dict):
                 out[part] = prev[part]
@@ -42893,6 +42897,115 @@ def d2_czesc():
 ZRODLA_META.update({'dzwignia2_okx': 'okx', 'dzwignia2_bfx': 'bitfinex'})   # v397: OKX już jest źródłem (dzwignia_okx); Bitfinex = +1 źródło
 
 
+# ===================== v476: „SESJA WYMAGANA?” — jeden pomocnik dla rynków Azji (weekend, święto giełdy lub banku, godzina publikacji) =====================
+# Brak nowej sesji (weekend, święto lokalne, poranek przed publikacją dnia) albo chwilowa niedostępność źródła przy młodych danych to NOTATKA z dniem i wiekiem danych, nie błąd zbieracza i nie nieudany przebieg:
+# część zostaje z poprzednimi danymi (status „cached”), a kolejna próba jest po rytmie części albo po godzinie publikacji następnej sesji. Błąd (ostrzeżenie) dopiero, gdy danych nie ma dłużej niż najdłuższa
+# przerwa z historii rynku (AZJA_STARE_DNI: Tajwan 20 dni jak CTW_TW_STARE, Chiny 20 dni jak CTW_CN_STARE, Indie 7 dni) albo nie ma żadnych poprzednich danych. Błąd formatu i liczb (zła treść) nadal jest błędem.
+# Rynki: 'in' (giełda w Indiach, NSDL), 'rbi' (tabela dnia banku centralnego Indii), 'tw' (Tajwan), 'cn' (Chiny). Godzina publikacji (UTC) = najwcześniejsza, o której dane dnia bywają dostępne (wcześniejsza = tylko
+# więcej prób). Święta: lista od 14.09.2026 do końca 2026 (Indie 14.09, 2.10, 20.10, 10.11, 24.11, 25.12; Tajwan 25.09, 28.09, 9.10, 26.10, 25.12; Chiny 25.09 i 1.–7.10 — pierwsze dni sprawdzone na danych
+# z okna 75 dni, reszta z kalendarzy giełd); po końcu listy każdy dzień roboczy liczy się jak sesja (bezpiecznie: więcej prób, nigdy pominięta sesja), a kontrolna próba co AZJA_SONDA_H h działa zawsze.
+AZJA_BRAMKA = True            # False = bez bramki (testy starszych rytmów)
+AZJA_SONDA_H = {'in': 2, 'rbi': 12, 'tw': 6, 'cn': 6}   # h — kontrolna próba, gdy nic nowego się nie spodziewamy (zawsze mniej niż próg wieku pobrania w kontroli: Chiny/Tajwan 12 h, Indie 4 h, RBI 24 h)
+AZJA_PUB = {'in': (12, 0), 'rbi': (12, 0), 'tw': (7, 30), 'cn': (8, 30)}   # godzina i minuta UTC, od której oczekujemy danych sesji tego samego dnia
+AZJA_STARE_DNI = {'in': 7, 'rbi': 10, 'tw': 20, 'cn': 20}   # dni — dane starsze niż najdłuższa przerwa z historii rynku = błąd, nie notatka
+AZJA_SW_RYNEK = {'in': 'in', 'rbi': 'in', 'tw': 'tw', 'cn': 'cn'}
+AZJA_SWIETA = {
+    'in': frozenset(('2026-09-14', '2026-10-02', '2026-10-20', '2026-11-10', '2026-11-24', '2026-12-25')),
+    'tw': frozenset(('2026-09-25', '2026-09-28', '2026-10-09', '2026-10-26', '2026-12-25')),
+    'cn': frozenset(('2026-09-25', '2026-10-01', '2026-10-02', '2026-10-05', '2026-10-06', '2026-10-07')),
+}
+_AZJA_DOSTEP = re.compile(r'(?i)^(HTTP \d{3}|pusta odpowiedź|limit czasu|przerwa źródła)|nie jest JSON|time[d ]?-? ?out|connection|refused|unreachable|name or service|temporar|EOF occurred|HTTP Error [45]\d\d')
+
+
+def azja_dzien(x):
+    """Dzień jako date z date, datetime albo tekstu RRRR-MM-DD (także początek znacznika czasu); inaczej None."""
+    if isinstance(x, datetime.datetime):
+        return x.date()
+    if isinstance(x, datetime.date):
+        return x
+    if isinstance(x, str) and re.match(r'^\d{4}-\d{2}-\d{2}', x):
+        try:
+            return datetime.date.fromisoformat(x[:10])
+        except ValueError:
+            return None
+    return None
+
+
+def azja_sesja(r, d):
+    """Czy dzień d (date) jest dniem sesji rynku r: pon–pt i nie święto z listy."""
+    return d.weekday() < 5 and d.isoformat() not in AZJA_SWIETA[AZJA_SW_RYNEK[r]]
+
+
+def azja_pub(r, d):
+    """Chwila (UTC), od której oczekujemy danych sesji dnia d."""
+    h, m = AZJA_PUB[r]
+    return datetime.datetime(d.year, d.month, d.day, h, m, tzinfo=datetime.timezone.utc)
+
+
+def azja_ostatnia_sesja(r, now):
+    """Ostatni dzień sesji rynku r, którego dane powinny już być opublikowane w chwili now (UTC); None, gdy nie ma w ostatnich 20 dobach."""
+    for i in range(20):
+        x = now.date() - datetime.timedelta(days=i)
+        if azja_sesja(r, x) and azja_pub(r, x) <= now:
+            return x
+    return None
+
+
+def azja_nast_pub(r, t):
+    """Najbliższa chwila publikacji sesji rynku r ściśle po t (UTC); gdy brak w 20 dobach — t + 1 doba."""
+    for i in range(20):
+        x = t.date() + datetime.timedelta(days=i)
+        if azja_sesja(r, x) and azja_pub(r, x) > t:
+            return azja_pub(r, x)
+    return t + datetime.timedelta(days=1)
+
+
+def azja_wymagana(r, dzien, now):
+    """Czy czytać źródło: dzień danych starszy niż ostatnia sesja, której dane powinny już być (weekend, święto i poranek przed publikacją = nie); brak dnia = tak."""
+    dz, ost = azja_dzien(dzien), azja_ostatnia_sesja(r, now)
+    return dz is None or ost is None or dz < ost
+
+
+def azja_potrzebna(r, dzien, ostatnia, now):
+    """azja_wymagana albo kontrolna próba: ostatnie sprawdzenie (ISO / datetime) starsze niż AZJA_SONDA_H[r] h albo nieznane."""
+    if azja_wymagana(r, dzien, now):
+        return True
+    t = _ix_dt(ostatnia)
+    return t is None or (now - t).total_seconds() >= AZJA_SONDA_H[r] * 3600
+
+
+def azja_powod(r, now):
+    """Dlaczego nowej sesji jeszcze nie ma: 'weekend', 'święto giełdy', 'przed publikacją danych dnia' albo '' (sesja już powinna być opublikowana)."""
+    d = now.date()
+    if d.weekday() >= 5:
+        return 'weekend'
+    if not azja_sesja(r, d):
+        return 'święto giełdy'
+    return 'przed publikacją danych dnia' if now < azja_pub(r, d) else ''
+
+
+def azja_wiek_ok(r, dzien, now):
+    """Czy dzień danych jest znany i nie starszy niż najdłuższa przerwa z historii rynku (AZJA_STARE_DNI)."""
+    dz = azja_dzien(dzien)
+    return dz is not None and 0 <= (now.date() - dz).days <= AZJA_STARE_DNI[r]
+
+
+def azja_dostepnosc(e):
+    """Czy błąd e to niedostępność źródła (sieć, czas, HTTP, strona błędu zamiast danych), a nie zła treść (format, liczby): wyjątek sieci albo opis z listy."""
+    import http.client as _hc
+    if isinstance(e, (OSError, TimeoutError, _hc.HTTPException)):
+        return True
+    return bool(_AZJA_DOSTEP.search(str(e)))
+
+
+def azja_nota(etykieta, dzien, now, r, przyczyna):
+    """Tekst notatki: brak nowej sesji (z powodem) albo źródło nie odpowiada, dzień i wiek danych, krótka przyczyna."""
+    dz = azja_dzien(dzien)
+    pw = azja_powod(r, now)
+    kto = f'brak nowej sesji ({pw})' if pw else 'źródło nie odpowiada'
+    return f'{etykieta}: {kto} — dane z {dz} (wiek {(now.date() - dz).days} d); {str(przyczyna)[:100]}'
+
+
 # ===================== v399 (F11Z12): INDIE — WYCENA INDEKSÓW, POZYCJE UCZESTNIKÓW W KONTRAKTACH, UDZIAŁ DOSTAW — data/indie.json =====================
 # Trzy niezależne części jednego pliku (każda z własnym czasem, ok i poprzednią wersją przy awarii), publiczne pliki dzienne giełdy w Indiach (GET bez klucza, nagłówek zbieracza, odstęp między zapytaniami):
 #  (1) ind — zamknięcia wszystkich indeksów z P/E, P/B i stopą dywidendy (plik dzienny, 160+ wierszy): zapisujemy wiersze z wyceną i indeks strachu; historia dobowa wybranych indeksów (cena, P/E, P/B, stopa dywidendy);
@@ -43227,11 +43340,16 @@ def build_indie(prev=None):
                 obj, err = job(pv.get(part), now)
             except Exception as e:  # noqa — jedna część nie psuje drugiej
                 err = str(e)[:160]
-            if err:
-                META['errors'].append(mask(f'Indie: {part}: {err}')[:200])
-            out['ok'][part] = not err
             old, t_old = pv.get(part), _zapas_czas(pv, part)
             stary = bool(err) and t_old is not None and not _zapas_wiek_ok(t_old, IN_ZAPAS_DNI)   # nieudane sprawdzenia od ponad IN_ZAPAS_DNI dób: część wypada z pliku (brak, nie stare dane bez końca)
+            P_ = obj if isinstance(obj, dict) else old
+            dz_ = min((x for x in (azja_dzien(P_.get('asof')), azja_dzien(P_.get('vasof'))) if x), default=None) if isinstance(P_, dict) else None
+            nota = bool(err) and AZJA_BRAMKA and not stary and azja_dostepnosc(err) and azja_wiek_ok('in', dz_, now)   # v476: giełda nie odpowiada, dane młode = notatka z wiekiem, nie błąd
+            if nota:
+                META['notes'].append(mask(azja_nota(f'Indie: {part}', dz_, now, 'in', err))[:200])
+            elif err:
+                META['errors'].append(mask(f'Indie: {part}: {err}')[:200])
+            out['ok'][part] = 'cached' if nota else not err
             if obj is not None and not stary:
                 out[part] = obj
                 out['part_at'][part] = NOW if not err else (t_old or NOW)
@@ -43708,11 +43826,14 @@ def parse_ctw_csi(raw, now):
     d = j.get('data') if isinstance(j, dict) else None
     if not (isinstance(j, dict) and str(j.get('code')) == '200' and isinstance(d, list) and len(d) >= 20):
         raise ValueError('CSI 300: odpowiedź ma zły kształt albo mało sesji')
+    cst0 = now.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
     rows, widziane = [], set()
     for r in d:
         if not isinstance(r, dict) or r.get('indexCode') != '000300':
             raise ValueError('CSI 300: inny indeks albo zły wiersz')
         dz = ctw_dzien(r.get('tradeDate'), 'cyfry', dzis, 'CSI 300')
+        if dz == cst0.date() and cst0.hour * 60 + cst0.minute < 16 * 60 + 30:
+            continue   # v476: sesja bieżącego dnia jeszcze trwa — źródło podaje wiersz na żywo (ceny bywają chwilowo niespójne), pomijany przed walidacją, nie zrywa odczytu
         if dz in widziane:
             raise ValueError(f'CSI 300: dzień {dz} powtórzony')
         widziane.add(dz)
@@ -43755,16 +43876,36 @@ def ctw_csi(pk, now):
 CTW_BUDOWA = {'cn': ctw_cn, 'sh': ctw_sh, 'tw': ctw_tw, 'hk': ctw_hk, 'csi': ctw_csi}
 
 
-def ctw_wymagana(k, pk, pok, pat, now):
-    """Czy część k wymaga odczytu: hk — tylko w oknie dnia Hongkongu i bez zapisanego dnia; pozostałe — brak części, poprzedni błąd albo odczyt starszy niż CTW_INT[k] min."""
+CTW_RYNEK = {'cn': 'cn', 'sh': 'cn', 'tw': 'tw', 'csi': 'cn'}   # v476: rynek części dla pomocnika „sesja wymagana?”
+
+
+def ctw_dzien_danych(k, pk):
+    """v476: dzień ostatniej sesji części k (date) z poprzedniej części pk; Tajwan — starszy z dni put/call i pozycji; brak albo zły zapis = None."""
+    if not isinstance(pk, dict):
+        return None
+    if k == 'tw':
+        dni = [azja_dzien(_dict(pk.get(x)).get('asof')) for x in ('pc', 'in')]
+        return None if None in dni else min(dni)
+    return azja_dzien(pk.get('asof'))
+
+
+def ctw_wymagana(k, pk, pok, pat, now, proba=None):
+    """Czy część k wymaga odczytu: hk — tylko w oknie dnia Hongkongu i bez zapisanego dnia; pozostałe — brak części, poprzedni błąd albo odczyt (udany albo nieudany z notatką — `proba`) starszy niż CTW_INT[k] min;
+    v476: gdy dzień danych jest już ostatnią oczekiwaną sesją (weekend, święto, poranek przed publikacją) — tylko kontrolna próba co AZJA_SONDA_H h."""
     if k == 'hk':
         dz = ctw_hk_okno(now)
         h = pk.get('h') if isinstance(pk, dict) and isinstance(pk.get('h'), list) else []
         return dz is not None and not (h and isinstance(h[-1], list) and h[-1][0] == dz.isoformat())
     if not isinstance(pk, dict) or pok.get(k) is False:
         return True
-    t = _ix_dt(pat.get(k))
-    return t is None or (now - t).total_seconds() >= CTW_INT[k] * 60
+    t, tp = _ix_dt(pat.get(k)), _ix_dt(_dict(proba).get(k))
+    if tp is not None and (t is None or tp > t):
+        t = tp
+    if t is None or (now - t).total_seconds() < CTW_INT[k] * 60:
+        return t is None
+    if AZJA_BRAMKA and k in CTW_RYNEK and not azja_wymagana(CTW_RYNEK[k], ctw_dzien_danych(k, pk), now):
+        return (now - t).total_seconds() >= AZJA_SONDA_H[CTW_RYNEK[k]] * 3600
+    return True
 
 
 def build_chiny_tw(prev=None, run_t0=None):
@@ -43774,11 +43915,12 @@ def build_chiny_tw(prev=None, run_t0=None):
     pat, pok = _dict(prev.get('part_at')), _dict(prev.get('ok'))
     now = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc)
     out = {'v': CTW_V, 'at': NOW, 'od': prev.get('od') if isinstance(prev.get('od'), str) else now.date().isoformat(), 'src': CTW_SRC, 'ok': {}, 'part_at': {}, 'errs': {}}
+    proba = dict(_dict(prev.get('proba')))   # v476: chwila ostatniej nieudanej próby części z notatką (rytm ponowień liczony od niej)
     _CTW_T0[0] = time.monotonic()
     try:
         for k in CTW_PARTS:
             pk = prev.get(k) if isinstance(prev.get(k), dict) else None
-            if not ctw_wymagana(k, pk, pok, pat, now):
+            if not ctw_wymagana(k, pk, pok, pat, now, proba):
                 if pk is not None:
                     out[k] = pk
                     out['part_at'][k] = pat.get(k) or prev.get('at')
@@ -43788,8 +43930,14 @@ def build_chiny_tw(prev=None, run_t0=None):
                 out[k] = CTW_BUDOWA[k](pk, now)
                 out['ok'][k] = True
                 out['part_at'][k] = NOW
+                proba.pop(k, None)
             except Exception as e:  # noqa — część z błędem: poprzednie dane z własną chwilą
                 msg = mask(f'{e}')[:160]
+                dz_ = ctw_dzien_danych(k, pk)
+                if AZJA_BRAMKA and dz_ is not None and azja_dostepnosc(e) and azja_wiek_ok(CTW_RYNEK[k], dz_, now):   # v476: źródło nie odpowiada, a dane są młode — notatka z wiekiem, nie błąd ani nieudany przebieg
+                    META['notes'].append(mask(azja_nota(f'{CTW_PX} {CTW_LABEL[k]}', dz_, now, CTW_RYNEK[k], msg))[:220])
+                    out[k], out['ok'][k], out['part_at'][k], proba[k] = pk, 'cached', pat.get(k) or prev.get('at'), NOW
+                    continue
                 if isinstance(e, CtwPrzerwa):   # v443: przerwa źródła — uwaga, nie błąd, dopóki poprzednie dane części są młodsze niż CTW_PRZERWA_H
                     t_ost = _ix_dt(pat.get(k) or prev.get('at'))
                     if pk is None or t_ost is None or (now - t_ost).total_seconds() >= CTW_PRZERWA_H * 3600:
@@ -43804,6 +43952,8 @@ def build_chiny_tw(prev=None, run_t0=None):
         _CTW_T0[0] = None
     if not any(isinstance(out.get(k), dict) for k in CTW_PARTS):
         raise RuntimeError('żadna część nie odpowiedziała')
+    if proba:
+        out['proba'] = proba
     return out
 
 
@@ -51792,10 +51942,38 @@ def em_trzeba(czas, ok_prev, teraz, co_h, blad_h=1):
     return (tn - tk).total_seconds() / 3600 >= (co_h if ok_prev else blad_h)
 
 
+def em_in_potrzebna(pv, teraz, baza):
+    """v476: czy pobierać część 'in' (RBI): `baza` = rytm części. Po pustej tabeli bez poprzednich danych (znacznik 'brak') — dopiero po publikacji następnej sesji, a gdy tabela jest starsza niż oczekiwana
+    sesja — co godzinę; gdy dzień danych jest już ostatnią oczekiwaną sesją (weekend, święto, poranek) — tylko kontrolna próba; nowa sesja oczekiwana i pusta tabela (bd) — co godzinę zamiast co 6 h."""
+    t = _ix_dt(teraz)
+    if not AZJA_BRAMKA or t is None:
+        return baza
+    P = pv.get('in') if isinstance(pv.get('in'), dict) else {}
+    last = _dict(pv.get('part_at')).get('in')
+    b = _dict(_dict(pv.get('brak')).get('in'))
+    tb, db = _ix_dt(b.get('t')), azja_dzien(b.get('dzien'))
+    if tb is not None and tb <= t and not isinstance(P.get('date'), str):
+        ost = azja_ostatnia_sesja('rbi', t)
+        if db is not None and ost is not None and db >= ost:
+            return t >= azja_nast_pub('rbi', tb)
+        return (t - tb).total_seconds() >= EM_BLAD_H['in'] * 3600
+    dz = P.get('date')
+    if not isinstance(dz, str):
+        return baza
+    if azja_wymagana('rbi', dz, t):
+        tl = _ix_dt(last)
+        if P.get('bd') and tl is not None and (t - tl).total_seconds() >= EM_BLAD_H['in'] * 3600:
+            return True
+        return baza
+    return azja_potrzebna('rbi', dz, last, t)
+
+
 def em_zadania(pv, teraz):
     """Które części pobrać w tym przebiegu → {część: bool}."""
     ok, pat = (pv.get('ok') if isinstance(pv.get('ok'), dict) else {}), (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {})
-    return {n: (True if not isinstance(pv.get(n), dict) else em_trzeba(pat.get(n) or pv.get('at'), ok.get(n, True) is not False, teraz, EM_CO_H[n], EM_BLAD_H[n])) for n in EM_PARTS}
+    z = {n: (True if not isinstance(pv.get(n), dict) else em_trzeba(pat.get(n) or pv.get('at'), ok.get(n, True) is not False, teraz, EM_CO_H[n], EM_BLAD_H[n])) for n in EM_PARTS}
+    z['in'] = em_in_potrzebna(pv, teraz, z['in'])   # v476: weekend, święto i poranek przed publikacją to nie powód do pobrania
+    return z
 
 
 def build_em2(prev=None, zadania=None):
@@ -51805,6 +51983,7 @@ def build_em2(prev=None, zadania=None):
     zad = zadania if zadania is not None else em_zadania(pv, NOW)
     pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
     out = {'v': EM_V, 'at': NOW, 'src': EM_SRC, 'ok': {}, 'part_at': {}}
+    brak = dict(_dict(pv.get('brak')))   # v476: część bez poprzednich danych, której tabela źródła jest pusta (weekend, święto) — dzień pustej tabeli i chwila próby
     st = {}
     for n in EM_PARTS:
         stara = pv.get(n) if isinstance(pv.get(n), dict) else None
@@ -51821,6 +52000,13 @@ def build_em2(prev=None, zadania=None):
         try:
             out[n] = em_job(n, stara, NOW)
             out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+            brak.pop(n, None)
+        except EmInBrakDnia as e:   # v476: pusta tabela dnia (weekend, święto), a poprzedniej części z datą nie ma — brak danych, nie błąd: znacznik, notatka, następna próba po publikacji sesji
+            META['notes'].append(f'Rynki wschodzące 2: {n}: tabela z {e.dzien} bez danych (weekend albo święto), jeszcze bez pierwszego odczytu — następna próba po publikacji kolejnej sesji')
+            brak[n] = {'dzien': e.dzien, 't': NOW}
+            st[n] = 'cached'
+            if stara is not None:
+                out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
         except Exception as e:  # noqa — jedna część nie psuje pozostałych
             META['errors'].append(mask(f'Rynki wschodzące 2: {n}: {e}')[:200])
             out['ok'][n], st[n] = False, False
@@ -51828,6 +52014,8 @@ def build_em2(prev=None, zadania=None):
                 out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
     if not any(isinstance(out.get(n), dict) for n in EM_PARTS):
         raise RuntimeError('żadna część rynków wschodzących 2 nie ma danych')
+    if brak:
+        out['brak'] = brak
     return out, st
 
 
