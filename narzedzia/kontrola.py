@@ -13785,7 +13785,8 @@ ROP_K_USA_ROZNICA = 0.10      # część — wydobycie USA: plik vs raport tygod
 ROP_K_PL_ROZNICA = 0.05       # część — zapasy Polski: dwie części pliku, powyżej tego ℹ️
 ROP_K_BBL_T = 7.33            # baryłek ropy w tonie
 ROP_K_ETYKIETA = {'kr': 'Ropa świata — bilans krajów (sprawdzenie źródła)', 'eu': 'Ropa świata — zapasy w Europie (sprawdzenie źródła)'}
-ROP_K_SERIE_J = {'p': (0, 40), 'r': (0, 40), 'i': (0, 40), 'e': (0, 40), 'z': (0.5, 3000)}
+# v444: zapasy (z) od 0 mln baryłek — małe kraje mają realnie 0,1-0,3 mln (AZ, BO, CH), PG po zaokrągleniu 0,0; zbieracz sam odrzuca ujemne i znaczniki braku
+ROP_K_SERIE_J = {'p': (0, 40), 'r': (0, 40), 'i': (0, 40), 'e': (0, 40), 'z': (0, 3000)}
 ROP_K_UE = ('BE', 'BG', 'CZ', 'DK', 'DE', 'EE', 'IE', 'EL', 'ES', 'FR', 'HR', 'IT', 'CY', 'LV', 'LT', 'LU', 'HU', 'MT', 'NL', 'AT', 'PL', 'PT', 'RO', 'SI', 'SK', 'FI', 'SE')
 
 

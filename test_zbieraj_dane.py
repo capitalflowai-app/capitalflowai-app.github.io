@@ -73223,3 +73223,53 @@ class TestV443TajwanPrzerwa(unittest.TestCase):
         self.assertIs(n['ok']['tw'], True)
         self.assertEqual((meta['errors'], meta['notes']), ([], []))
         self.assertEqual(n['errs'], {})
+
+
+class KontrolaRopaProgiV444(unittest.TestCase):
+    """v444: dolna granica zapasów w kontroli ropy świata = 0 (nie 0,5 mln) — małe kraje nie dają fałszywego ⚠️; ujemne i zbyt duże nadal tak.
+    Liczby małych zapasów z prawdziwych plików rocznych 2024-2025 i bieżących danych (mln baryłek)."""
+    MALE = {'AZ': (0.21, 0.37, 0.29), 'BO': (0.09, 0.12, 0.10), 'CH': (0.13, 0.35, 0.19), 'NI': (0.22, 0.48, 0.31), 'TN': (0.28, 0.30, 0.29), 'NZ': (0.24, 0.44, 0.42),
+            'IE': (0.43, 0.48, 0.45), 'PG': (0.0, 0.01, 0.04)}
+    _plik = KontrolaRopaV430._plik
+
+    @classmethod
+    def setUpClass(cls):
+        cls.k = KontrolaRopaV430.k if hasattr(KontrolaRopaV430, 'k') else None
+        if cls.k is None:
+            KontrolaRopaV430.setUpClass(); cls.k = KontrolaRopaV430.k
+        cls.NOW = _V430_NOW + datetime.timedelta(minutes=10)
+
+    def _spojnosc(self, mut=None):
+        p = self._plik()
+        if mut:
+            mut(p)
+        return self.k.rop_k_kontrola(p, None, self.NOW)['spojnosc']
+
+    def test_male_zapasy_nie_daja_falszywego_ostrzezenia(self):
+        kr = ['BN', 'TH', 'NG', 'DZ', 'VE', 'ID', 'GB', 'AU']
+        def male(p):
+            n = len(p['kr']['mies'])
+            for c, (kod, v) in zip(kr, self.MALE.items()):
+                a = [None] * n
+                for i, x in enumerate(v):
+                    a[n - 1 - i] = x
+                p['kr']['kraje'][c]['z'] = a
+        self.assertEqual(self._spojnosc(), [])
+        self.assertEqual(self._spojnosc(male), [], 'zapasy 0,0-0,48 mln to prawdziwe liczby małych krajów')
+
+    def test_ujemne_i_zbyt_duze_nadal_ostrzezenie(self):
+        def ujemne(p): p['kr']['kraje']['BN']['z'][3] = -0.01
+        def duze(p): p['kr']['kraje']['BN']['z'][3] = 3000.01
+        def granica(p): p['kr']['kraje']['BN']['z'][3] = 3000.0
+        def zero(p): p['kr']['kraje']['BN']['z'][3] = 0.0
+        self.assertTrue(any('BN z: liczba poza zakresem' in z for z in self._spojnosc(ujemne)))
+        self.assertTrue(any('BN z: liczba poza zakresem' in z for z in self._spojnosc(duze)))
+        self.assertEqual(self._spojnosc(granica), [])
+        self.assertEqual(self._spojnosc(zero), [])
+
+    def test_kontrola_nie_jest_ostrzejsza_od_zbieracza(self):
+        k = self.k
+        for s, (lo, hi) in zd.ROP_JODI_ZAKRES.items():
+            klo, khi = k.ROP_K_SERIE_J[s]
+            self.assertLessEqual(klo, lo / 1000.0, f'seria {s}: dolna granica kontroli nie może przekraczać granicy zbieracza (tys. -> mln)')
+            self.assertGreaterEqual(khi, hi / 1000.0, f'seria {s}: górna granica kontroli nie może być niższa niż zbieracza')
