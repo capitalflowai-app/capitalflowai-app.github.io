@@ -15,6 +15,14 @@ from unittest import mock
 import zbieraj_dane as zd
 
 
+def _v474_csv_bez_sieci(url, timeout=30):   # v474: zapas CSV banku w testach zawsze zawodzi bez sieci (testy z nagraniem podstawiają własną odpowiedź)
+    import urllib.error as _v474ue
+    raise _v474ue.URLError('test bez sieci (v474)')
+
+
+zd._bcb_csv_tekst = _v474_csv_bez_sieci
+
+
 def _iso(minutes_ago):
     t = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=minutes_ago)
     return t.replace(microsecond=0).isoformat()
@@ -2393,7 +2401,7 @@ class BcbV71(unittest.TestCase):
             out = zd.bcb_part(prev)
         rows = {r[0]: r for r in out['d']}
         self.assertEqual(rows['2026-09-17'][4], 9.9, 'seria bez odpowiedzi: stara wartość zostaje')
-        self.assertIsNone(rows['2026-09-18'][4], 'nowy dzień bez tej serii = None, nie 0')
+        self.assertEqual(rows['2026-09-18'][4], -62.1, 'v474: nowy dzień bez tej serii — wyliczone z razem i salda finansowego (bez żadnej z nich byłoby None, nie 0)')
         self.assertEqual(rows['2026-09-18'][1], -330.4)
         self.assertTrue(any(e.startswith('BCB: 1 serie') for e in zd.META['errors']))
         with mock.patch.object(zd, 'get_json', self.gj(broken=(13970, 13968, 13969, 13967, 13961))):
@@ -28027,7 +28035,7 @@ class BcbChwilowyV256(unittest.TestCase):
                 mock.patch.object(zd, '_now_utc', lambda: datetime.datetime(2026, 10, 6, 17, 30, tzinfo=datetime.timezone.utc)):
             out = zd.bcb_part(prev)
         self.assertEqual(soap, [13970], 'po nieudanym SOAP kolejna seria z błędem już bez czekania na SOAP')
-        self.assertEqual(out['d'][-1], ['2026-09-25', None, None, 13969.5, 13967.5, 13961.5], 'bez danych = None, nigdy 0')
+        self.assertEqual(out['d'][-1], ['2026-09-25', -6.0, 13963.5, 13969.5, 13967.5, 13961.5], 'v474: saldo = razem − handlowy, kupno = saldo + sprzedaż (bez danych wejściowych byłoby None, nigdy 0)')
         e = [x for x in zd.META['errors'] if x.startswith('BCB: 2 serie')]
         self.assertEqual(len(e), 1, zd.META['errors'])
         self.assertIn('13970: HTTP Error 502: Bad Gateway; zapas SOAP: <urlopen error [Errno 60] Operation timed out>', e[0])
@@ -68809,15 +68817,15 @@ class TestV416BcbPrzerwa(unittest.TestCase):
         self.assertNotIn('przerwa', out['br']); self.assertIs(out['ok']['br'], True); self.assertEqual(zd.META['errors'], [])
 
     def test_po_trzech_dobach_blad_jak_dotad(self):
-        out, _ = self._build(self._prev(at='2026-10-15T07:00:00+00:00'))
+        out, _ = self._build(self._prev(at='2026-10-10T07:00:00+00:00'))
         self.assertEqual(len(zd.META['errors']), 1, zd.META['errors']); self.assertTrue(zd.META['errors'][0].startswith('BCB: brak dni (13970:'))
         self.assertEqual(out['br']['d'][0][0], '2026-10-09', 'poprzednie dane zostają także przy błędzie'); self.assertNotIn('przerwa', out['br'])
         self.assertFalse([n for n in zd.META['notes'] if n.startswith('BCB: bank nie podaje')])
         zd.META['errors'].clear(); zd.META['ok'].clear()
-        self._build(self._prev(at='2026-10-15T07:44:43+00:00'))   # równo 3 doby = już błąd (granica: młodsze niż 3 doby)
+        self._build(self._prev(at='2026-10-11T07:44:43+00:00'))   # v474: równo 7 dób = już błąd (granica: młodsze niż 3 doby)
         self.assertEqual(len(zd.META['errors']), 1)
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
-        self._build(self._prev(at='2026-10-15T07:44:44+00:00'))
+        self._build(self._prev(at='2026-10-11T07:44:44+00:00'))
         self.assertEqual(zd.META['errors'], [])
 
     def test_bez_poprzednich_danych_albo_inny_blad_to_blad(self):
@@ -68867,7 +68875,7 @@ class TestV416BcbPrzerwa(unittest.TestCase):
         self.assertEqual(k.aw_bez_opis('stres'), '', 'części spoza list: pusty opis')
         self.assertEqual(k.aw_bez_opis('ici'), k.AW_BEZ_BLEDU['ici'])
         # po 3 dobach zbieracz nie zostawia notatki → w pełnym przebiegu błąd i ❌ po AW_BLAD_H
-        out, _ = self._build(self._prev(at='2026-10-15T07:00:00+00:00'))
+        out, _ = self._build(self._prev(at='2026-10-10T07:00:00+00:00'))
         self.assertFalse([n for n in zd.META['notes'] if n.startswith(k.AW_PRZERWA_BANKU['obce_br'][0])])
         self.assertTrue(zd.META['errors'])
 
@@ -68886,7 +68894,7 @@ class TestV416BcbPrzerwa(unittest.TestCase):
             self.assertIs(out['ok']['br'], False); self.assertEqual({a: b for a, b in out['br'].items() if a != 'przerwa'}, pr['br'], 'dane bez zmian (v427: dochodzi znacznik przerwy)'); self.assertEqual(out['part_at']['br'], '2026-10-18T02:04:55+00:00')
             self.assertTrue(any(n.startswith('Interwencje i rezerwy Brazylia: bank nie podaje danych') and 'dane z dnia 2026-10-15' in n for n in zd.META['notes']), zd.META['notes'])
             zd.META['notes'].clear(); zd._BCB_WS.update(on=False, chw=[]); zd._BCB_WS.pop('ws_zle', None); zd._BCB_WS.pop('json_zle', None)
-            pr['part_at']['br'] = '2026-10-14T02:04:55+00:00'
+            pr['part_at']['br'] = '2026-10-10T02:04:55+00:00'
             zd.build_interwencje(pr)
             self.assertEqual(len(zd.META['errors']), 1, 'dane starsze niż 3 doby — błąd jak dotąd'); self.assertTrue(zd.META['errors'][0].startswith('Interwencje i rezerwy Brazylia:'))
 
@@ -70677,12 +70685,12 @@ class TestV427InterwencjeBrCached(unittest.TestCase):
 
     def test_cached_po_trzech_dobach_albo_bez_znacznika_albo_inny_blad_to_blad(self):
         o1 = self._przebuduj(self._pk(), zd.BcbPrzerwa(self.MSG))
-        stary = json.loads(json.dumps(o1)); stary['part_at']['br'] = '2026-10-15T07:00:00+00:00'
+        stary = json.loads(json.dumps(o1)); stary['part_at']['br'] = '2026-10-10T07:00:00+00:00'
         zd.META['notes'].clear(); zd.META['ok'].clear()
         self._main(stary)
         self.assertEqual(len(zd.META['errors']), 1, zd.META['errors']); self.assertTrue(zd.META['errors'][0].startswith('Interwencje i rezerwy Brazylia: brak dni (13970:'))
         self.assertEqual(zd.META['notes'], []); self.assertIs(zd.META['ok']['interw_br'], False)
-        granica = json.loads(json.dumps(o1)); granica['part_at']['br'] = '2026-10-15T07:44:43+00:00'   # równo 3 doby = już błąd
+        granica = json.loads(json.dumps(o1)); granica['part_at']['br'] = '2026-10-11T07:44:43+00:00'   # v474: równo 7 dób = już błąd
         zd.META['errors'].clear(); zd.META['ok'].clear()
         self._main(granica)
         self.assertEqual(len(zd.META['errors']), 1)
@@ -80130,3 +80138,350 @@ class TestV471MeksykOdpornosc(unittest.TestCase):
         self.assertEqual((ok, err, notes), (True, [], []), 'bez śladu awarii')
         f, ok, err, notes = self._main(prev, [urllib.error.URLError('x'), self.B.api()], [])   # wraca w trakcie przebiegu (drugie ponowienie)
         self.assertEqual((f['d'][-1], ok, err, notes), (self.B.LAST, True, [], []))
+
+
+class TestV474BcbOdpornosc(unittest.TestCase):
+    """v474 (19.10.2026): Brazylia (przepływy dzienne, bilans płatniczy, rezerwy) zależy od jednego interfejsu banku, który co kilka dni zwraca HTTP 500/502.
+    Tolerancja przerwy 7 dób (osobno dla każdej serii), brakująca kolumna liczona z pozostałych i oznaczona, odstęp ponowień rosnący z liczbą nieudanych prób,
+    druga oficjalna droga (wariant CSV tej samej serii). Bez sieci: wszystkie odpowiedzi nagrane."""
+    T = '2026-10-19T12:00:00+00:00'
+    CSV = '"data";"valor"\n"16/10/2026";"1234,50"\n"17/10/2026";"-317,81"\n'
+    RES = {13970: '600.25', 13968: '1000.5', 13969: '400.25', 13967: '-50.1', 13961: '550.15'}
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
+        zd._BCB_WS.update(on=False, chw=[])
+        for k in ('ws_zle', 'json_zle', 'csv_zle', 'csv_nota'):
+            zd._BCB_WS.pop(k, None)
+
+    tearDown = setUp
+
+    def _w(self, dni=0, godz=0, min_=0):
+        t = datetime.datetime.fromisoformat(self.T) - datetime.timedelta(days=dni, hours=godz, minutes=min_)
+        return t.isoformat()
+
+    def _prev(self, **extra):
+        return {'at': self._w(godz=3), 'asof': '2026-10-15', 'd': [['2026-10-15', 1.0, 3.0, 2.0, 0.5, 1.5]], **extra}
+
+    def _api(self, psuja=(), wyjatek=None, wywolania=None):
+        def gb(sid, a, b):
+            if wywolania is not None:
+                wywolania.append(sid)
+            if sid in psuja:
+                raise (wyjatek or zd.BcbPrzerwa)('test: bank nie odpowiada')
+            return [{'data': '16/10/2026', 'valor': self.RES[sid]}] if sid in self.RES else []
+
+        def bop(sid, a, b):   # miesięczne serie bilansu płatniczego (portfelowe = akcje + fundusze + obligacje)
+            return [{'data': '01/09/2026', 'valor': '0.0'}]
+        return lambda sid, a, b: gb(sid, a, b) if sid in self.RES else bop(sid, a, b)
+
+    def _part(self, prev=None, now=None, **kw):
+        with mock.patch.object(zd, 'NOW', now or self.T), mock.patch.object(zd, '_bcb_get', self._api(**kw)):
+            return zd.bcb_part(prev if prev is not None else self._prev())
+
+    def _wiersz(self, out, d='2026-10-16'):
+        return [r for r in out['d'] if r[0] == d][0]
+
+    def test_stale_i_odstep(self):
+        self.assertEqual(zd.BCB_PRZERWA_DNI, 7)
+        self.assertEqual([zd.bcb_odstep_min(n) for n in (0, 1, 2, 3, 4, 5, 6, 40)], [30, 30, 60, 120, 240, 480, 480, 480])
+        self.assertEqual([zd.bcb_odstep_min(x) for x in (None, 'x', True, -3)], [30, 30, 30, 30])
+        self.assertEqual(zd.BCB_PONOW_MIN, (30, 60, 120, 240, 480), 'rośnie, nie spada')
+
+    def test_czesc_tolerancja_siedmiu_dob(self):
+        e = zd.BcbPrzerwa('x')
+        pp = lambda at: {'at': at, 'd': [['2026-10-09', 1, 2, 3, 4, 5]]}
+        with mock.patch.object(zd, 'NOW', self.T):
+            self.assertTrue(zd.bcb_przerwa_dozwolona(e, pp(self._w(dni=6, godz=23))), '6 dób 23 h — jeszcze przerwa')
+            self.assertTrue(zd.bcb_przerwa_dozwolona(e, pp(self._w(dni=5))), 'dawne 3 doby już nie granicą')
+            self.assertFalse(zd.bcb_przerwa_dozwolona(e, pp(self._w(dni=7))), 'równo 7 dób = błąd (młodsze niż 7 dób)')
+            self.assertFalse(zd.bcb_przerwa_dozwolona(e, pp(self._w(dni=9))))
+            self.assertFalse(zd.bcb_przerwa_dozwolona(RuntimeError('x'), pp(self._w(godz=1))), 'błąd danych to nie przerwa')
+            self.assertIn('po 7 dobach od pobrania będzie to błąd', zd.bcb_przerwa_nota({'at': self._w(dni=2), 'asof': '2026-10-09', 'przerwa': {'od': self.T, 'powod': 'x'}}))
+
+    def _build(self, prev, now, wyw):
+        def part(pp):
+            wyw.append(1)
+            raise zd.BcbPrzerwa('brak dni (13970: test)')
+        with mock.patch.object(zd, 'NOW', now), mock.patch.object(zd, 'bcb_part', part), mock.patch.object(zd, 'nsdl_part', lambda p: {'y': 1}), \
+                mock.patch.object(zd, 'twse_part', lambda p, k: {'y': 1}), mock.patch.object(zd, 'hkex_part', lambda p, k: {'y': 1}), \
+                mock.patch.object(zd, 'tcmb_part', lambda *a: {'y': 1}), mock.patch.object(zd, 'thbma_part', lambda p, k: {'y': 1}):
+            return zd.build_obce('', prev)
+
+    def test_czesc_odstep_rosnie_z_liczba_prob(self):
+        for n, wait in ((1, 30), (2, 60), (3, 120), (4, 240), (5, 480), (9, 480)):
+            pr = {'at': self._w(godz=1), 'ok': {'br': False}, 'errs': {}, 'br': {'at': self._w(dni=1), 'asof': '2026-10-15', 'd': [['2026-10-15', 1, 2, 3, 4, 5]],
+                  'przerwa': {'od': self._w(dni=1), 'ost': self._w(min_=wait - 1), 'n': n, 'powod': 'x'}}}
+            wyw = []
+            zd.META['notes'].clear(); zd.META['errors'].clear()
+            out = self._build(pr, self.T, wyw)
+            self.assertEqual(wyw, [], f'n={n}: po {wait - 1} min bank nie jest pytany')
+            self.assertEqual((out['br'], zd.META['errors']), (pr['br'], []), 'znacznik bez zmian, bez błędu')
+            self.assertTrue([x for x in zd.META['notes'] if x.startswith('BCB: bank nie podaje danych')])
+            pr['br']['przerwa']['ost'] = self._w(min_=wait + 1)
+            out = self._build(pr, self.T, wyw)
+            self.assertEqual(wyw, [1], f'n={n}: po {wait + 1} min kolejna próba'); self.assertEqual(out['br']['przerwa']['n'], n + 1)
+            self.assertEqual(zd.META['errors'], [], 'przerwa do 7 dób to nie błąd')
+
+    def test_czesc_po_siedmiu_dobach_blad(self):
+        pr = {'at': self._w(godz=1), 'ok': {'br': False}, 'errs': {}, 'br': {'at': self._w(dni=7, min_=1), 'asof': '2026-10-09', 'd': [['2026-10-09', 1, 2, 3, 4, 5]],
+              'przerwa': {'od': self._w(dni=7), 'ost': self._w(min_=5), 'n': 40, 'powod': 'x'}}}
+        wyw = []
+        self._build(pr, self.T, wyw)
+        self.assertEqual(wyw, [1], 'dane starsze niż 7 dób — bez czekania, normalna próba'); self.assertEqual(len(zd.META['errors']), 1)
+
+    def test_kolumna_wyliczona_z_pozostalych(self):
+        przyp = {   # kolumna, której nie ma → [saldo fin., kupno, sprzedaż, handlowy, razem], znacznik
+            13970: ([600.25, 1000.5, 400.25, -50.1, 550.15], ['fin']),
+            13961: ([600.25, 1000.5, 400.25, -50.1, 550.15], ['tot']),
+            13967: ([600.25, 1000.5, 400.25, -50.1, 550.15], ['com'])}
+        for sid, (w, fl) in przyp.items():
+            zd.META['errors'].clear(); zd.META['notes'].clear()
+            out = self._part(psuja=(sid,))
+            self.assertEqual(self._wiersz(out)[1:], w, sid); self.assertEqual(out['wyl'], {'2026-10-16': fl})
+            self.assertEqual(zd.META['errors'], [], 'seria w granicach 7 dób — notatka, nie błąd')
+            nt = [x for x in zd.META['notes'] if x.startswith(f'BCB: seria {sid} (przepływy dzienne) bez odpowiedzi od 2026-10-19 12:00 UTC')]
+            self.assertEqual(len(nt), 1, zd.META['notes']); self.assertIn('po 7 dobach od ostatniego odczytu będzie to błąd', nt[0])
+            self.assertEqual(out['ser'][{13970: 'fin', 13961: 'tot', 13967: 'com'}[sid]]['n'], 1)
+            self.assertEqual(out['ser']['fin_buy'], {'ok': self.T})
+
+    def test_dwie_kolumny_i_brak_danych_wejsciowych(self):
+        out = self._part(psuja=(13968, 13970))   # kupno i saldo finansowe: saldo z razem − handlowy, kupno z saldo + sprzedaż
+        self.assertEqual(self._wiersz(out)[1:], [600.25, 1000.5, 400.25, -50.1, 550.15]); self.assertEqual(out['wyl'], {'2026-10-16': ['fin', 'fin_buy']})
+        out = self._part(psuja=(13967, 13961))   # handlowy i razem: nie da się — brak, nie zero
+        self.assertEqual(self._wiersz(out)[1:], [600.25, 1000.5, 400.25, None, None]); self.assertNotIn('wyl', out)
+        out = self._part(psuja=(13970, 13968, 13969))   # saldo, kupno i sprzedaż: saldo = razem − handlowy; kupno i sprzedaż bez pary — brak
+        self.assertEqual(self._wiersz(out)[1:], [600.25, None, None, -50.1, 550.15]); self.assertEqual(out['wyl'], {'2026-10-16': ['fin']})
+
+    def test_wartosc_banku_nie_jest_nadpisana_i_znacznik_znika(self):
+        out = self._part(psuja=(13970,))
+        self.assertEqual(out['wyl'], {'2026-10-16': ['fin']})
+        zd.META['notes'].clear()
+        out2 = self._part(out, now=self._w(godz=-1))   # godzinę później bank wrócił: seria 13970 przysłała 600.25
+        self.assertNotIn('wyl', out2); self.assertEqual(self._wiersz(out2)[1], 600.25)
+        self.assertEqual(out2['ser']['fin'], {'ok': self._w(godz=-1)}, 'po udanym odczycie stan serii czysty'); self.assertEqual(zd.META['errors'], [])
+        # wartość przysłana przez bank różni się od wyliczonej — zostaje wartość banku
+        api = self._api()
+        def gb(sid, a, b):
+            return [{'data': '16/10/2026', 'valor': '600.3'}] if sid == 13970 else api(sid, a, b)
+        with mock.patch.object(zd, 'NOW', self._w(godz=-1)), mock.patch.object(zd, '_bcb_get', gb):
+            out3 = zd.bcb_part(out)
+        self.assertEqual(self._wiersz(out3)[1], 600.3); self.assertNotIn('wyl', out3)
+
+    def test_wyliczona_kolumna_liczona_od_nowa_z_biezacych_danych(self):
+        out = self._part(psuja=(13970,))
+        api = self._api(psuja=(13970,))
+        def gb(sid, a, b):
+            return [{'data': '16/10/2026', 'valor': '1100.5'}] if sid == 13968 else api(sid, a, b)   # kupno poprawione przez bank, saldo nadal bez odpowiedzi
+        with mock.patch.object(zd, 'NOW', self._w(godz=-1)), mock.patch.object(zd, '_bcb_get', gb):
+            out2 = zd.bcb_part(out)
+        self.assertEqual(self._wiersz(out2)[1], 700.25, 'saldo przeliczone z nowego kupna'); self.assertEqual(out2['wyl'], {'2026-10-16': ['fin']})
+        # bez możliwości przeliczenia (brak sprzedaży i razem) zostaje poprzednia wartość z nadal tym znacznikiem
+        r = [['2026-10-16', 7.0, None, None, 1.0, None]]
+        self.assertEqual(zd.bcb_wylicz(r, {}, {'2026-10-16': ['fin']}), {'2026-10-16': ['fin']}); self.assertEqual(r[0][1], 7.0)
+        r = [['2026-10-16', None, 5.0, 3.0]]   # wiersz krótszy niż kolumny — pominięty bez wyjątku
+        self.assertEqual(zd.bcb_wylicz(r, {}, {}), {})
+
+    def test_tolerancja_osobna_dla_kazdej_serii(self):
+        ser = {'fin': {'ok': self._w(dni=6, godz=23), 'od': self._w(dni=6), 'ost': self._w(godz=12), 'n': 2},   # 6 dób 23 h: w granicy
+               'com': {'ok': self._w(dni=8), 'od': self._w(dni=8), 'ost': self._w(godz=12), 'n': 2}}          # 8 dób: poza granicą
+        out = self._part(self._prev(ser=ser), psuja=(13970, 13967))
+        self.assertEqual(len(zd.META['errors']), 1, zd.META['errors']); self.assertTrue(zd.META['errors'][0].startswith('BCB: 1 serie bez odpowiedzi, np. 13967:'))
+        self.assertEqual(len([x for x in zd.META['notes'] if x.startswith('BCB: seria 13970 (')]), 1, 'seria w granicy — notatka')
+        self.assertEqual(out['ser']['fin']['n'], 3); self.assertEqual(out['ser']['fin']['ok'], ser['fin']['ok'], 'ostatni udany odczyt zostaje')
+
+    def test_inny_blad_niz_przerwa_to_blad_od_razu(self):
+        out = self._part(psuja=(13970,), wyjatek=RuntimeError)
+        self.assertEqual(len(zd.META['errors']), 1, 'zły kształt albo Fault SOAP to błąd danych, nie przerwa banku')
+        self.assertEqual([x for x in zd.META['notes'] if x.startswith(('BCB: seria', 'BCB: bank'))], [])
+
+    def test_seria_po_nieudanej_probie_czeka_bez_zapytania(self):
+        ser = {'com': {'ok': self._w(godz=3), 'od': self._w(godz=2), 'ost': self._w(min_=30), 'n': 2}}   # n=2: 60 min — jeszcze czeka
+        wyw = []
+        out = self._part(self._prev(ser=ser), psuja=(), wywolania=wyw)
+        self.assertNotIn(13967, wyw, 'seria czeka — bez zapytania'); self.assertIn(13970, wyw)
+        self.assertEqual(out['ser']['com'], ser['com'], 'stan bez zmian (bez nowej próby)')
+        self.assertEqual(zd.META['errors'], []); self.assertEqual(len([x for x in zd.META['notes'] if x.startswith('BCB: seria 13967')]), 1)
+        self.assertEqual((self._wiersz(out)[4], out['wyl']), (-50.1, {'2026-10-16': ['com']}), 'kolumna handlowa czekającej serii — wyliczona z razem i saldo')
+        ser['com']['ost'] = self._w(min_=61)
+        wyw.clear()
+        out = self._part(self._prev(ser=ser), wywolania=wyw)
+        self.assertIn(13967, wyw, 'po 61 min kolejna próba'); self.assertEqual(out['ser']['com'], {'ok': self.T})
+
+    def test_wszystkie_serie_bez_odpowiedzi_zapisuje_stan_w_znaczniku(self):
+        pr = {'at': self._w(godz=3), 'ok': {'br': True}, 'errs': {}, 'br': self._prev()}
+        with mock.patch.object(zd, 'NOW', self.T), mock.patch.object(zd, '_bcb_get', self._api(psuja=tuple(self.RES))):
+            with self.assertRaises(zd.BcbPrzerwa) as c:
+                zd.bcb_part(pr['br'])
+            self.assertEqual({k: v['n'] for k, v in c.exception.ser.items()}, {'fin': 1, 'fin_buy': 1, 'fin_sell': 1, 'com': 1, 'tot': 1})
+            w = zd.bcb_przerwa_wynik(pr['br'], c.exception)
+        self.assertEqual(w['ser']['fin']['n'], 1, 'stan serii w znaczniku przerwy'); self.assertEqual(w['przerwa']['n'], 1)
+        self.assertEqual(w['d'], pr['br']['d'], 'dane bez zmian')
+
+    def test_bilans_platniczy_seria_w_tolerancji_notatka(self):
+        prev_m = [['2026-08', 1.0, 3.0, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0, 0.0]]
+        def gb(sid, a, b):
+            if sid == 22924:
+                raise zd.BcbPrzerwa('test')
+            return [{'data': '01/09/2026', 'valor': '10.0'}]
+        with mock.patch.object(zd, 'NOW', self.T), mock.patch.object(zd, '_bcb_get', gb):
+            so = {}
+            rows = zd.bcb_bop(prev_m, {}, so, self._w(godz=3))
+            self.assertEqual(zd.META['errors'], []); self.assertEqual(so['pi']['n'], 1); self.assertEqual(so['fdi'], {'ok': self.T})
+            self.assertEqual(len([x for x in zd.META['notes'] if x.startswith('BCB: seria 22924 (bilans płatniczy')]), 1)
+            zd.META['notes'].clear()
+            zd.bcb_bop(prev_m)   # bez stanu serii — jak dotąd: błąd
+            self.assertEqual(len(zd.META['errors']), 1); self.assertTrue(zd.META['errors'][0].startswith('BCB bilans płatniczy: 1 serie bez odpowiedzi'))
+            zd.META['errors'].clear()
+            so2 = {'pi': {'ok': self._w(dni=8), 'od': self._w(dni=8), 'ost': self._w(godz=5), 'n': 4}}
+            zd.bcb_bop(prev_m, so2, {}, self._w(godz=3))
+            self.assertEqual(len(zd.META['errors']), 1, 'ostatni odczyt serii starszy niż 7 dób — błąd')
+
+    def test_bilans_platniczy_wszystko_bez_odpowiedzi_w_tolerancji(self):
+        def gb(sid, a, b):
+            if sid in self.RES:
+                return [{'data': '16/10/2026', 'valor': self.RES[sid]}]
+            raise zd.BcbPrzerwa('test: miesięczne bez odpowiedzi')
+        prev = self._prev(m=[['2026-08', 1.0, 3.0, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0, 0.0]])
+        with mock.patch.object(zd, 'NOW', self.T), mock.patch.object(zd, '_bcb_get', gb):
+            out = zd.bcb_part(prev)
+        self.assertEqual(zd.META['errors'], []); self.assertEqual(out['m'], prev['m'], 'poprzednie miesiące zostają')
+        self.assertEqual(len([x for x in zd.META['notes'] if x.startswith('BCB bilans płatniczy: bank nie podaje danych')]), 1, zd.META['notes'])
+        self.assertEqual(out['m_ser']['fdi']['n'], 1)
+
+    # ---- druga droga: wariant CSV tej samej serii
+    def test_csv_parser(self):
+        self.assertEqual(zd._bcb_csv_rows(self.CSV), [{'data': '16/10/2026', 'valor': '1234.50'}, {'data': '17/10/2026', 'valor': '-317.81'}])
+        self.assertEqual(zd._num('-317.81'), -317.81, 'przecinek dziesiętny zamieniony na kropkę (_num wyrzuca przecinki jako separator tysięcy)')
+        self.assertEqual(zd._bcb_csv_rows('\ufeff"data";"valor"\n"01/10/2026";"3.012,26"\n"x";"1"\n"02/10/2026";""\n"03/10/2026";"abc"\n"04/10/2026";"7"\n'),
+                         [{'data': '01/10/2026', 'valor': '3012.26'}, {'data': '04/10/2026', 'valor': '7'}], 'zły wiersz pominięty, nigdy zero')
+        self.assertEqual(zd._bcb_csv_rows('"data";"valor"\n'), [])
+        for zle in ('', '   ', '<html>Requisição inválida</html>', '"a";"b"\n1;2\n', 'x'):
+            with self.assertRaises(ValueError, msg=zle):
+                zd._bcb_csv_rows(zle)
+
+    def _json5xx(self, kod=502):
+        def gj(url, headers=None):
+            raise urllib.error.HTTPError(url, kod, 'Bad Gateway', {}, io.BytesIO(b'x'))
+        return gj
+
+    @staticmethod
+    def _soap500(xml, timeout=60):
+        raise urllib.error.HTTPError('https://www3.bcb.gov.br/x', 500, 'Internal Server Error', {}, io.BytesIO(b'x'))
+
+    def test_csv_gdy_json_i_soap_zawodza(self):
+        wyw = []
+
+        def csv(url, timeout=30):
+            wyw.append(url); return self.CSV
+        with mock.patch.object(zd, 'get_json', self._json5xx()), mock.patch.object(zd, '_bcb_ws_post', self._soap500), mock.patch.object(zd, '_bcb_csv_tekst', csv):
+            r1 = zd._bcb_get(13970, '01/10/2026', '19/10/2026'); r2 = zd._bcb_get(13968, '01/10/2026', '19/10/2026')
+        self.assertEqual(r1[0], {'data': '16/10/2026', 'valor': '1234.50'}); self.assertEqual(len(r2), 2)
+        self.assertEqual(len(wyw), 2); self.assertIn('bcdata.sgs.13970/dados?formato=csv&dataInicial=01/10/2026&dataFinal=19/10/2026', wyw[0])
+        self.assertEqual(len([x for x in zd.META['notes'] if 'wariantu CSV' in x]), 1, 'jedna notatka na przebieg'); self.assertEqual(zd._BCB_WS['chw'], [])
+        self.assertNotIn('BCB', ''.join(zd.META['errors']))
+
+    def test_csv_zawodzi_przerwa_z_przyczynami_i_bez_ponawiania_w_przebiegu(self):
+        wyw = []
+
+        def csv(url, timeout=30):
+            wyw.append(url); raise urllib.error.HTTPError(url, 502, 'Bad Gateway', {}, io.BytesIO(b'x'))
+        with mock.patch.object(zd, 'get_json', self._json5xx()), mock.patch.object(zd, '_bcb_ws_post', self._soap500), mock.patch.object(zd, '_bcb_csv_tekst', csv):
+            with self.assertRaises(zd.BcbPrzerwa) as c:
+                zd._bcb_get(13970, 'a', 'b')
+            s = str(c.exception)
+            self.assertIn('zapas SOAP: HTTP Error 500', s); self.assertIn('CSV: HTTP Error 502', s)
+            with self.assertRaises(zd.BcbPrzerwa) as c2:
+                zd._bcb_get(13968, 'a', 'b')
+        self.assertEqual(len(wyw), 1, 'druga seria bez ponownego pytania o CSV'); self.assertIn('CSV w tym przebiegu niedostępny', str(c2.exception))
+        # strona z odmową zamiast CSV to też przerwa po stronie banku
+        zd._BCB_WS.pop('csv_zle', None); zd._BCB_WS.pop('ws_zle', None)
+        with mock.patch.object(zd, 'get_json', self._json5xx()), mock.patch.object(zd, '_bcb_ws_post', self._soap500), \
+                mock.patch.object(zd, '_bcb_csv_tekst', lambda u, timeout=30: '<html>Requisição inválida!</html>'):
+            with self.assertRaises(zd.BcbPrzerwa) as c3:
+                zd._bcb_get(13970, 'a', 'b')
+        self.assertIn('CSV: strona z odmową zamiast CSV', str(c3.exception))
+
+    def test_csv_odpowiedz_4xx_to_blad_danych(self):
+        def csv(url, timeout=30):
+            raise urllib.error.HTTPError(url, 404, 'Not Found', {}, io.BytesIO(b'x'))
+        with mock.patch.object(zd, 'get_json', self._json5xx()), mock.patch.object(zd, '_bcb_ws_post', self._soap500), mock.patch.object(zd, '_bcb_csv_tekst', csv):
+            with self.assertRaises(RuntimeError) as c:
+                zd._bcb_get(13970, 'a', 'b')
+        self.assertNotIsInstance(c.exception, zd.BcbPrzerwa)
+
+    def test_csv_nie_gdy_fault_soap_ani_gdy_padlo_polaczenie(self):
+        wyw = []
+
+        def csv(url, timeout=30):
+            wyw.append(url); return self.CSV
+
+        def fault(xml, timeout=60):
+            return b'<soap:Envelope><soap:Body><soap:Fault><faultstring>Serie nieznana</faultstring></soap:Fault></soap:Body></soap:Envelope>'
+        with mock.patch.object(zd, 'get_json', self._json5xx()), mock.patch.object(zd, '_bcb_ws_post', fault), mock.patch.object(zd, '_bcb_csv_tekst', csv):
+            with self.assertRaises(RuntimeError) as c:
+                zd._bcb_get(13970, 'a', 'b')
+        self.assertNotIsInstance(c.exception, zd.BcbPrzerwa); self.assertEqual(wyw, [], 'Fault SOAP to odpowiedź banku o serii — CSV nie pomoże')
+
+        def gj(url, headers=None):
+            raise urllib.error.URLError('timed out')
+        zd._BCB_WS.update(on=False); zd._BCB_WS.pop('ws_zle', None)
+        with mock.patch.object(zd, 'get_json', gj), mock.patch.object(zd, '_bcb_ws_post', self._soap500), mock.patch.object(zd, '_bcb_csv_tekst', csv):
+            with self.assertRaises(urllib.error.HTTPError):   # jak dotąd: połączenie z JSON zawiodło, SOAP — HTTP 500
+                zd._bcb_get(13970, 'a', 'b')
+        self.assertEqual(wyw, [], 'ten sam serwer nie odpowiada na połączenie — wariant CSV bez zapytania')
+
+    def test_csv_w_czesci_dziennej_dane_i_brak_zapytan_poza_zapasem(self):
+        def csv(url, timeout=30):
+            return self.CSV
+        with mock.patch.object(zd, 'NOW', self.T), mock.patch.object(zd, 'get_json', self._json5xx()), mock.patch.object(zd, '_bcb_ws_post', self._soap500), \
+                mock.patch.object(zd, '_bcb_csv_tekst', csv):
+            out = zd.bcb_part(self._prev())
+        self.assertEqual(self._wiersz(out, '2026-10-16')[1:], [1234.5, 1234.5, 1234.5, 1234.5, 1234.5]); self.assertEqual(self._wiersz(out, '2026-10-17')[1], -317.81)
+        self.assertEqual(zd.META['errors'], [])
+
+    # ---- rezerwy i interwencje (Brazylia): odstęp rosnący i tolerancja 7 dób
+    def _iw_pr(self, ost, n, part_at):
+        k_all = zd.IW_PARTS
+        return {'v': zd.IW_V, 'at': part_at, 'ok': {**{k: True for k in k_all}, 'br': False}, 'part_at': {k: part_at for k in k_all},
+                'errs': {'br': 'brak odpowiedzi'},
+                **{k: {'asof': '2026-10-15', 's': [['2026-10-15', 356000.0]], 't': part_at} for k in k_all},
+                'br': {'asof': '2026-10-15', 's': [['2026-10-15', 356000.0]], 't': part_at, 'przerwa': {'od': self._w(dni=1), 'ost': ost, 'n': n, 'powod': 'x'}}}
+
+    def test_interwencje_br_odstep_rosnacy_i_siedem_dob(self):
+        wyw = []
+
+        def cz(k, pp, dzis):
+            if k == 'br':
+                wyw.append(1)
+                return zd.iw_br_czesc(pp, dzis)
+            return {'asof': '2026-10-15', 's': [], 't': zd.NOW}
+
+        def gj(url, headers=None):
+            raise json.JSONDecodeError('Expecting value', '<html>x</html>', 0)
+
+        def csv(url, timeout=30):
+            raise urllib.error.URLError('test')
+        pat = self._w(dni=2)
+        with mock.patch.object(zd, 'NOW', self.T), mock.patch.object(zd, 'iw_czesc', cz), mock.patch.object(zd, 'get_json', gj), \
+                mock.patch.object(zd, '_bcb_ws_post', self._soap500), mock.patch.object(zd, '_bcb_csv_tekst', csv):
+            pr = self._iw_pr(self._w(min_=59), 2, pat)   # n=2: 60 min — jeszcze czeka
+            out = zd.build_interwencje(pr)
+            self.assertEqual(wyw, [], 'bank nie jest pytany'); self.assertEqual(out['br'], pr['br']); self.assertIs(out['ok']['br'], False)
+            self.assertEqual(zd.META['errors'], []); self.assertEqual(out['part_at']['br'], pat)
+            self.assertTrue(any(n.startswith('Interwencje i rezerwy Brazylia: bank nie podaje danych') and 'dane z dnia 2026-10-15' in n for n in zd.META['notes']), zd.META['notes'])
+            pr = self._iw_pr(self._w(min_=61), 2, pat)
+            out = zd.build_interwencje(pr)
+            self.assertEqual(wyw, [1], 'po 61 min kolejna próba'); self.assertEqual(out['br']['przerwa']['n'], 3); self.assertEqual(zd.META['errors'], [], 'dane młodsze niż 7 dób')
+            zd.META['notes'].clear(); wyw.clear()
+            pr = self._iw_pr(self._w(min_=5), 5, self._w(dni=7, min_=1))   # dane starsze niż 7 dób — bez czekania i z błędem
+            out = zd.build_interwencje(pr)
+            self.assertEqual(wyw, [1]); self.assertEqual(len(zd.META['errors']), 1); self.assertNotIn('przerwa', out['br'])
+
+    def test_kontrola_tekst_o_siedmiu_dobach(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_v474', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        self.assertIn('do 7 dób', k.AW_PRZERWA_BANKU['obce_br'][1]); self.assertNotIn('do 3 dób', k.AW_PRZERWA_BANKU['obce_br'][1])
+        pp = {'at': self._w(dni=2), 'asof': '2026-10-09', 'przerwa': {'od': self.T, 'ost': self.T, 'n': 1, 'powod': 'x'}}
+        self.assertTrue(zd.bcb_przerwa_nota(pp).startswith(k.AW_PRZERWA_BANKU['obce_br'][0]), 'przedrostek notatki = przedrostek w kontroli')

@@ -37233,3 +37233,41 @@ test('v473: zdania o sposobie zbierania danych znikły z kalendarza i panelu ins
   assert.ok(!html.includes("${t('inst.refresh')}"), 'stopka panelu instytucji bez zdania o odświeżaniu automatu');
   assert.ok(html.includes("${t('inst.file',{t:at})} · ${t('eng.disclaimer')}</p>`;"), 'stopka: data pliku i zastrzeżenie');
 });
+
+
+test('v474: blok Brazylii — „wyliczone” tylko przy kolumnach z oznaczeniem dla ostatniego dnia, zdanie o przerwie z datą danych; bez nich tekst bez zmian; słownik br474.*', () => {
+  const a0 = html.indexOf('function brBlock(){'), a1 = html.indexOf('/* v59: MFW COFER', a0);
+  const T = (k, o) => k + (o ? JSON.stringify(o) : '');
+  const ZAG = {data: null};
+  const zagNum = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+  const zagSum = (d, i, n) => { if (d.length < n) return null; let s = 0; for (const r of d.slice(-n)) { const v = zagNum(r[i]); if (v == null) return null; s += v; } return s; };
+  const zagPart = k => { const p = ZAG.data && ZAG.data[k]; return (p && Array.isArray(p.d) && p.d.length) ? p : null; };
+  const f = new Function('t', 'ZAG', 'zagPart', 'zagNum', 'zagSum', 'zagM', 'zagSes', 'instRow', 'instFoot', 'engDate', 'nfmt', html.slice(a0, a1) + '\nreturn {brBlock, brRegion};')(
+    T, ZAG, zagPart, zagNum, zagSum, v => v == null ? '—' : String(Math.round(v * 100) / 100), n => n === 1 ? 'session' : 'sessions',
+    (l, v, x, n) => `[${l}|${v}|${n}]`, s => s, s => 'E(' + s + ')', (v, d) => v.toFixed(d));
+  const days = Array.from({length: 22}, (_, i) => ['2026-08-' + String(10 + i).padStart(2, '0'), 10, 20, 10, 1, 11]);
+  days[21] = ['2026-09-18', 600.25, 1000.5, 400.25, -50.1, 550.15];
+  const blok = (extra) => { ZAG.data = {at: 'x', br: {at: 'y', d: days, ...extra}}; return f.brBlock(); };
+  const bez = blok({});
+  assert.ok(!bez.includes('br474') && !bez.includes('pnote">br474'), 'bez pól wyl i przerwa — bez zmian');
+  const h = blok({wyl: {'2026-09-18': ['fin', 'tot']}});
+  const wiersz = k => h.split('[').filter(x => x.startsWith(k + '|'))[0];
+  assert.ok(wiersz('br.fin').includes(' · br474.wyl') && wiersz('br.tot').includes(' · br474.wyl'), 'saldo i razem oznaczone: ' + h);
+  assert.ok(!wiersz('br.com').includes('br474.wyl'), 'handlowy nie jest wyliczony');
+  assert.equal(h.split('br474.wyl').length - 1, 2, 'znacznik tylko przy dwóch wierszach');
+  assert.ok(!blok({wyl: {'2026-09-17': ['fin', 'com', 'tot']}}).includes('br474.wyl'), 'oznaczenie starszego dnia nie dotyczy ostatniego');
+  assert.ok(blok({wyl: {'2026-09-18': ['fin_buy']}}).split('br474.wyl').length === 2, 'kupno wyliczone: znacznik przy wierszu salda (kupno i sprzedaż są w jego opisie)');
+  assert.ok(!blok({wyl: 'x'}).includes('br474') && !blok({wyl: {'2026-09-18': 'fin'}}).includes('br474'), 'zepsute pole wyl ignorowane');
+  const p = blok({przerwa: {od: '2026-10-18T07:44:43+00:00', ost: '2026-10-19T12:00:00+00:00', n: 4, powod: 'x'}});
+  assert.ok(p.includes('<p class="pnote">br474.przerwa{"od":"E(2026-10-18T07:44:43+00:00)","d":"2026-09-18"}</p><p class="pnote">inst.file'), 'zdanie o przerwie z datą danych tuż przed linią pliku: ' + p);
+  assert.ok(!blok({przerwa: 'x'}).includes('br474') && !blok({przerwa: {n: 1}}).includes('br474'), 'zepsute pole przerwa ignorowane');
+  assert.ok(!/\b(undefined|NaN|null)\b/.test(h + p));
+  const i = html.indexOf('{"pl":{"br474.'), a = html.lastIndexOf('const EXTRA', i), name = html.slice(a + 6, i - 1);
+  assert.ok(i > 0 && /^EXTRA\d+$/.test(name) && html.split('const ' + name + '=').length === 2, 'słownik br474: ' + name);
+  const end = html.indexOf(';\n', i), D = JSON.parse(html.slice(i, end));
+  assert.deepEqual(Object.keys(D).sort(), ['en', 'pl']); assert.deepEqual(Object.keys(D.pl).sort(), ['br474.przerwa', 'br474.wyl']); assert.deepEqual(Object.keys(D.en).sort(), ['br474.przerwa', 'br474.wyl']);
+  const pola = s => (s.match(/\{[a-z]+\}/g) || []).sort().join();
+  assert.equal(pola(D.pl['br474.przerwa']), pola(D.en['br474.przerwa'])); assert.equal(pola(D.pl['br474.przerwa']), '{d},{od}');
+  assert.ok(html.slice(end + 2).startsWith('for(const l in ' + name + ')if(I18N[l])Object.assign(I18N[l],' + name + '[l]);'), 'linia nakładania zaraz po słowniku');
+  assert.ok(!/Banco|BCB|SGS/.test(JSON.stringify(D)), 'zero nazw dostawców w tekstach strony');
+});

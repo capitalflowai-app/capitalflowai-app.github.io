@@ -4029,6 +4029,9 @@ const EXTRA316={"pl":{"g464.gap.u":"Kontrakt terminowy: {v}. Cena dostawy fizycz
 for(const l in EXTRA316)if(I18N[l])Object.assign(I18N[l],EXTRA316[l]);
 const EXTRA317={"pl":{"xs468.wk":"{p}: wartość wstępna — rynek akcji jest zamknięty, więc część tokenów wyceniono ostatnią ceną z {d} (tokenów: {n}, razem {v}, czyli {pr} wartości produktu); odczyt {t}."},"en":{"xs468.wk":"{p}: preliminary value — the stock market is closed, so some tokens are priced at the last price from {d} (tokens: {n}, {v} in total, which is {pr} of the product's value); read {t}."}};
 for(const l in EXTRA317)if(I18N[l])Object.assign(I18N[l],EXTRA317[l]);
+/* v474: Brazylia — oznaczenie wartości wyliczonych i zdanie o przerwie po stronie banku — pl i en */
+const EXTRA318={"pl":{"br474.wyl":"wyliczone z pozostałych kolumn","br474.przerwa":"Nowych danych nie udaje się pobrać od {od}. Pokazujemy dane z dnia {d}."},"en":{"br474.wyl":"calculated from the other columns","br474.przerwa":"New data have been unavailable since {od}. Showing data from {d}."}};
+for(const l in EXTRA318)if(I18N[l])Object.assign(I18N[l],EXTRA318[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -6150,11 +6153,13 @@ function brBopRow(B){const M=B&&Array.isArray(B.m)?B.m.filter(r=>Array.isArray(r
 function brOx(r){return [6,7,8,9].every(i=>typeof r[i]==='number')?r[6]-r[7]-r[8]-r[9]:null;}   /* v81: pozostałe bez banku centralnego i SDR */
 function brBlock(){const B=zagPart('br');if(!B)return '';const I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'',l=B.d[B.d.length-1],n=Math.min(20,B.d.length),v=i=>I('w',zagNum(l[i]),`${zagM(zagNum(l[i]))} ${t('inst.mln.usd')}`),g=i=>{const x=zagNum(l[i]);return x==null?'—':nfmt(x,0);},s=(i,k)=>{const x=zagSum(B.d,i,k);return I('w',x,zagM(x));};   /* kupno i sprzedaż to kwoty brutto — bez znaku; v96: flaga, kolory */
   const note=i=>`${t('ob.day')} ${instFoot(l[0])} · ${t('br.s5',{v:s(i,5)})} · ${t('br.sn',{n,w:zagSes(n),v:s(i,n)})}`;
+  const W=B.wyl&&typeof B.wyl==='object'&&Array.isArray(B.wyl[l[0]])?B.wyl[l[0]]:[],wy=(...ii)=>ii.some(i=>W.includes(['','fin','fin_buy','fin_sell','com','tot'][i]))?' · '+t('br474.wyl'):'',   /* v474: kolumna wyliczona z pozostałych */
+    pz=B.przerwa&&typeof B.przerwa==='object'&&typeof B.przerwa.od==='string'?`<p class="pnote">${t('br474.przerwa',{od:engDate(B.przerwa.od),d:instFoot(l[0])})}</p>`:'';   /* v474: przerwa po stronie banku — jawna data danych */
   return `<h3 class="mtxt">${I('f','br')}<b>${t('br.t')}</b></h3><p class="pnote">${t('br.sub')}${(typeof brBopRow==='function'&&brBopRow(B))?' '+t('br.bop.note'):''}</p><div class="etfkpis">`+
-    instRow(t('br.fin'),v(1),'',`${t('br.fin.bs',{b:g(2),s:g(3)})} · ${note(1)}`)+
-    instRow(t('br.com'),v(4),'',note(4))+instRow(t('br.tot'),v(5),'',note(5))+
+    instRow(t('br.fin'),v(1),'',`${t('br.fin.bs',{b:g(2),s:g(3)})} · ${note(1)}${wy(1,2,3)}`)+
+    instRow(t('br.com'),v(4),'',note(4)+wy(4))+instRow(t('br.tot'),v(5),'',note(5)+wy(5))+
     ((R=>R?instRow(t('br.bop'),I('w',R.t,`${bopMld(R.t)} ${t('inst.mld.usd')}`),'',`${t('sf.m',{m:instFoot(R.m)})} · ${t('br.bop.split',{d:bopMld(R.d),p:bopMld(R.p),o:bopMld(R.o)})} · ${t('sf.12',{v:I('w',R.t12,bopMld(R.t12))})}`):'')(typeof brBopRow==='function'?brBopRow(B):null))+   /* v79 */
-    `</div><details class="etfd"><summary>${t('eng.notsays')}</summary><p class="pnote">${t('br.not')}</p></details><p class="pnote">${t('inst.file',{t:engDate(B.at||ZAG.data.at)})}</p>`;}
+    `</div><details class="etfd"><summary>${t('eng.notsays')}</summary><p class="pnote">${t('br.not')}</p></details>${pz}<p class="pnote">${t('inst.file',{t:engDate(B.at||ZAG.data.at)})}</p>`;}
 function brRegion(id){if(id!=='lat')return '';const B=zagPart('br');if(!B)return '';const l=B.d[B.d.length-1],n=Math.min(20,B.d.length),I=typeof gtI==='function'?gtI:(k,a,c)=>k==='w'?c:'',w=x=>I('w',x,zagM(x)),m=x=>I('w',x,bopMld(x));   /* v96: flaga, kolory */
   const R=typeof brBopRow==='function'?brBopRow(B):null;   /* v79: druga linia — miesięczny bilans płatniczy */
   return `<div class="wide"><dt>${I('f','br','sm')}${t('br.reg')}</dt><dd>${t('br.reg.v',{d:instFoot(l[0]),f:w(zagNum(l[1])),c:w(zagNum(l[4])),n,w:zagSes(n),f20:w(zagSum(B.d,1,n)),t20:w(zagSum(B.d,5,n))})}${R?'<br>'+t('br.reg.m',{m:instFoot(R.m),t:m(R.t),d:m(R.d),p:m(R.p),o:m(R.o),t12:m(R.t12)}):''}</dd></div>`;}

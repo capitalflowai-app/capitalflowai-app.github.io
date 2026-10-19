@@ -3655,8 +3655,8 @@ BCB_WS = 'https://www3.bcb.gov.br/wssgs/services/FachadaWSSGS'
 _BCB_WS = {'on': False, 'chw': []}   # w tym przebiegu API JSON już zawiodło na poziomie połączenia → kolejne serie od razu z SOAP;
                                      # v256: 'chw' — serie z SOAP po chwilowym błędzie API JSON, 'ws_zle' — SOAP w tym przebiegu zawiódł
 BCB_CHW_MAX = 3   # v256: po tylu seriach z chwilowym błędem API JSON w przebiegu — dalsze serie od razu z SOAP
-BCB_PRZERWA_DNI = 3       # v416: przerwa po stronie banku przy ostatnim udanym pobraniu młodszym niż tyle dób = poprzednie dane + notatka (⚠️), nie błąd (❌)
-BCB_PRZERWA_PONOW_MIN = 30   # v416: po przerwie kolejne zapytanie do banku nie wcześniej niż po tylu minutach (przebieg co 10 min)
+BCB_PRZERWA_DNI = 7       # v416: przerwa po stronie banku przy ostatnim udanym pobraniu młodszym niż tyle dób = poprzednie dane + notatka (⚠️), nie błąd (❌); v474: 3 → 7 (przerwy trwają kilka dni; część i każda seria osobno)
+BCB_PRZERWA_PONOW_MIN = 30   # v416: po przerwie kolejne zapytanie do banku nie wcześniej niż po tylu minutach (przebieg co 10 min); v474: pierwszy odstęp, dalsze rosną (BCB_PONOW_MIN)
 
 
 class BcbPrzerwa(RuntimeError):
@@ -3693,7 +3693,8 @@ def bcb_przerwa_wynik(pp, e):
     """v416: poprzednia część bez zmian danych + znacznik przerwy (od kiedy, ostatnia próba, ile prób, przyczyna)."""
     m = pp.get('przerwa') if isinstance(pp.get('przerwa'), dict) else {}
     n = m.get('n') if isinstance(m.get('n'), int) else 0
-    return {**pp, 'przerwa': {'od': m.get('od') or NOW, 'ost': NOW, 'n': n + 1, 'powod': str(e)[:160]}}
+    ser = getattr(e, 'ser', None)   # v474: stan serii z nieudanego odczytu (liczniki prób każdej serii)
+    return {**pp, **({'ser': ser} if isinstance(ser, dict) and ser else {}), 'przerwa': {'od': m.get('od') or NOW, 'ost': NOW, 'n': n + 1, 'powod': str(e)[:160]}}
 
 
 def bcb_przerwa_odczekaj(pp, prev):
@@ -3703,7 +3704,8 @@ def bcb_przerwa_odczekaj(pp, prev):
     t0, t1, ta = _ix_dt(pp['przerwa'].get('ost')), _ix_dt(NOW), _ix_dt(pp.get('at'))
     if t0 is None or t1 is None or ta is None:
         return False
-    return 0 <= (t1 - t0).total_seconds() < BCB_PRZERWA_PONOW_MIN * 60 and 0 <= (t1 - ta).total_seconds() < BCB_PRZERWA_DNI * 86400
+    n = pp['przerwa'].get('n')   # v474: odstęp rośnie z liczbą nieudanych prób z rzędu (bcb_odstep_min), a nie stałe BCB_PRZERWA_PONOW_MIN
+    return 0 <= (t1 - t0).total_seconds() < bcb_odstep_min(n) * 60 and 0 <= (t1 - ta).total_seconds() < BCB_PRZERWA_DNI * 86400
 
 
 def bcb_przerwa_nota(pp):
@@ -3775,11 +3777,148 @@ def _bcb_chwilowy(e):
     return isinstance(e, ValueError)
 
 
+# ---- v474: stan serii (tolerancja i odstęp ponowień), kolumny wyliczone, druga droga CSV ----
+BCB_PONOW_MIN = (30, 60, 120, 240, 480)   # v474: odstęp (min) przed kolejną próbą po 1., 2., … nieudanej próbie z rzędu; ostatni powtarzany (zamiast stałych 30 min przy przebiegu co 10 min)
+BCB_URL_CSV = 'https://api.bcb.gov.br/dados/serie/bcdata.sgs.{id}/dados?formato=csv&dataInicial={a}&dataFinal={b}'   # v474: ta sama seria SGS w wariancie CSV tego samego interfejsu
+BCB_WYL = (('fin', ('fin_buy', 'fin_sell'), lambda b, s: b - s),   # v474: saldo finansowe = kupno − sprzedaż
+           ('tot', ('fin', 'com'), lambda f, c: f + c),            # razem = finansowe + handlowe
+           ('com', ('tot', 'fin'), lambda t, f: t - f),
+           ('fin', ('tot', 'com'), lambda t, c: t - c),
+           ('fin_buy', ('fin', 'fin_sell'), lambda f, s: f + s),
+           ('fin_sell', ('fin_buy', 'fin'), lambda b, f: b - f))
+
+
+def bcb_odstep_min(n):
+    """v474: ile minut odczekać po n-tej nieudanej próbie z rzędu (n < 1 liczone jak 1)."""
+    n = n if isinstance(n, int) and not isinstance(n, bool) and n >= 1 else 1
+    return BCB_PONOW_MIN[min(n, len(BCB_PONOW_MIN)) - 1]
+
+
+def bcb_ser_czekaj(st):
+    """v474: czy seria z poprzedniego pliku (stan {'ok','od','ost','n'}) ma jeszcze odczekać przed kolejnym zapytaniem (odstęp rośnie z liczbą nieudanych prób z rzędu)."""
+    if not isinstance(st, dict) or not isinstance(st.get('n'), int) or isinstance(st.get('n'), bool) or st['n'] < 1:
+        return False
+    t0, t1 = _ix_dt(st.get('ost')), _ix_dt(NOW)
+    return t0 is not None and t1 is not None and 0 <= (t1 - t0).total_seconds() < bcb_odstep_min(st['n']) * 60
+
+
+def bcb_ser_porazka(stare, nazwa, pp_at):
+    """v474: nowy stan serii po nieudanej próbie: ostatni udany odczyt tej serii (w razie braku — chwila poprzedniej części), początek przerwy, ostatnia próba i licznik prób."""
+    st = stare.get(nazwa) if isinstance(stare, dict) and isinstance(stare.get(nazwa), dict) else {}
+    n = st.get('n') if isinstance(st.get('n'), int) and not isinstance(st.get('n'), bool) and st['n'] >= 0 else 0
+    return {'ok': st.get('ok') or pp_at, 'od': st.get('od') or NOW, 'ost': NOW, 'n': n + 1}
+
+
+def bcb_ser_dozwolona(st):
+    """v474: osobna tolerancja serii — jej ostatni udany odczyt młodszy niż BCB_PRZERWA_DNI dób (brak odczytu = nie)."""
+    t0, t1 = _ix_dt(_dict(st).get('ok')), _ix_dt(NOW)
+    return t0 is not None and t1 is not None and 0 <= (t1 - t0).total_seconds() < BCB_PRZERWA_DNI * 86400
+
+
+def bcb_ser_nota(tol, jednostka):
+    """v474: jedna notatka (⚠️) o seriach, których bank nie podaje, a ich ostatni odczyt mieści się w tolerancji."""
+    od = min(str(_dict(st).get('od') or NOW) for _, _, st, _ in tol)[:16].replace('T', ' ')
+    ok = min(str(_dict(st).get('ok') or '—') for _, _, st, _ in tol)[:10]
+    return mask(f"BCB: seria {', '.join(str(s) for _, s, _, _ in tol)} ({jednostka}) bez odpowiedzi od {od} UTC (ostatni odczyt {ok}) — "
+                f"{tol[0][3][:90]}; po {BCB_PRZERWA_DNI} dobach od ostatniego odczytu będzie to błąd")
+
+
+def bcb_wylicz(rows, got, wyl_prev):
+    """v474: brakującą kolumnę wiersza liczy z pozostałych (BCB_WYL; tożsamości sprawdzone na danych: różnica do 0,01) i zwraca {data: [kolumny wyliczone]}.
+    Wartość przysłana przez bank nigdy nie jest nadpisywana; kolumna wyliczona wcześniej jest liczona od nowa z bieżących danych (gdy się nie da — zostaje poprzednia wartość),
+    a gdy bank ją przyśle — traci znacznik. Brak danych wejściowych = brak (None), nigdy zero."""
+    cols = [n for n, _ in BCB_SERIES]
+    ix = {n: i + 1 for i, n in enumerate(cols)}
+    wyl = {}
+    for r in rows:
+        if len(r) < len(cols) + 1:
+            continue
+        dost = got.get(r[0]) or {}
+        sf = wyl_prev.get(r[0]) if isinstance(wyl_prev.get(r[0]), list) else []
+        stare = {c: r[ix[c]] for c in sf if c in ix and c not in dost}
+        for c in stare:
+            r[ix[c]] = None
+        flagi = []
+        for _ in range(3):
+            zm = False
+            for cel, wej, fn in BCB_WYL:
+                if r[ix[cel]] is None and all(isinstance(r[ix[w]], (int, float)) and not isinstance(r[ix[w]], bool) for w in wej):
+                    r[ix[cel]] = round(fn(*(r[ix[w]] for w in wej)), 2)
+                    flagi.append(cel); zm = True
+            if not zm:
+                break
+        for c, v in stare.items():
+            if r[ix[c]] is None:
+                r[ix[c]] = v
+                flagi.append(c)
+        if flagi:
+            wyl[r[0]] = sorted(set(flagi), key=cols.index)
+    return wyl
+
+
+def _bcb_csv_tekst(url, timeout=30):
+    """v474: treść odpowiedzi wariantu CSV (osobna funkcja — testy podstawiają nagranie)."""
+    return get(url, None, timeout)[1]
+
+
+def _bcb_csv_rows(tekst):
+    """v474: CSV banku (nagłówek "data";"valor", średniki, cudzysłowy, przecinek dziesiętny) → [{'data': 'dd/mm/rrrr', 'valor': '123.45'}] jak z JSON.
+    Strona z odmową (HTML), pusta treść i zły nagłówek = ValueError (przerwa po stronie banku); wiersz zły albo bez wartości — pominięty (nigdy 0)."""
+    s = str(tekst or '').lstrip('\ufeff')
+    if s.lstrip()[:1] == '<':
+        raise ValueError('strona z odmową zamiast CSV')
+    linie = [x for x in s.splitlines() if x.strip()]
+    if not linie or [p.strip().strip('"').lower() for p in linie[0].split(';')] != ['data', 'valor']:
+        raise ValueError('odpowiedź pusta albo nie CSV')
+    out = []
+    for x in linie[1:]:
+        p = [q.strip().strip('"') for q in x.split(';')]
+        if len(p) != 2 or not re.match(r'^\d{2}/\d{2}/\d{4}$', p[0]):
+            continue
+        v = p[1].replace('.', '').replace(',', '.') if ',' in p[1] else p[1]
+        if re.match(r'^-?\d+(\.\d+)?$', v):
+            out.append({'data': p[0], 'valor': v})
+    return out
+
+
+def _bcb_csv_raz(sid, a, b, msg0, e):
+    """v474: druga oficjalna droga po JSON i SOAP — ta sama seria SGS w wariancie CSV. Zawiodła (połączenie, HTTP 5xx, strona z odmową) → BcbPrzerwa z przyczynami
+    wszystkich dróg, a dalsze serie w tym przebiegu bez ponownego pytania; odpowiedź 4xx (zła seria, zły zakres) = RuntimeError (błąd danych)."""
+    if _BCB_WS.get('csv_zle'):
+        raise BcbPrzerwa(f'{msg0}; CSV w tym przebiegu niedostępny') from e
+    try:
+        rows = _bcb_csv_rows(_bcb_csv_tekst(BCB_URL_CSV.format(id=sid, a=a, b=b)))
+    except Exception as e3:
+        if isinstance(e3, ValueError) or _bcb_przerwa_blad(e3):
+            _BCB_WS['csv_zle'] = str(e3)[:60]
+            raise BcbPrzerwa(f'{msg0}; CSV: {str(e3)[:60]}') from e
+        raise RuntimeError(f'{msg0}; CSV: {str(e3)[:60]}') from e
+    if not _BCB_WS.get('csv_nota'):
+        _BCB_WS['csv_nota'] = True
+        META['notes'].append(mask('BCB: JSON i SOAP bez danych — serie z wariantu CSV tego samego interfejsu banku'))
+    return rows
+
+
+def _bcb_zapas(sid, a, b, pw, e):
+    """v474: zapas po chwilowym błędzie JSON: najpierw SOAP, a gdy jest niedostępny (przerwa po stronie banku) — wariant CSV. → ('soap' | 'csv', wiersze)."""
+    if _BCB_WS.get('ws_zle'):
+        msg0 = f'{pw}; zapas SOAP w tym przebiegu niedostępny ({_BCB_WS["ws_zle"]})'
+    else:
+        try:
+            return 'soap', _bcb_ws_raz(sid, a, b)
+        except Exception as e2:
+            msg0 = f'{pw}; zapas SOAP: {str(e2)[:90]}'
+            if not _bcb_przerwa_blad(e2):
+                raise RuntimeError(msg0) from e   # Fault SOAP to odpowiedź banku o serii — błąd danych, CSV nie pomoże
+    return 'csv', _bcb_csv_raz(sid, a, b, msg0, e)
+
+
 def _bcb_get(sid, a, b):
     """v127.2: seria SGS — API JSON, a przy awarii połączenia usługa SOAP banku (jedna notatka na przebieg; dalsze serie od razu z SOAP).
     v256: chwilowy błąd API JSON jednej serii (HTTP 5xx, pusta odpowiedź) → ta seria z SOAP, reszta nadal z API JSON (te same liczby —
     06.10.2026 sprawdzone na 13968, 13970 i 22936); po BCB_CHW_MAX takich seriach w przebiegu dalsze od razu z SOAP. SOAP też zawiedzie →
-    błąd z obiema przyczynami, a dalsze chwilowe błędy w tym przebiegu już bez próby SOAP (najwyżej jedno czekanie na SOAP)."""
+    błąd z obiema przyczynami, a dalsze chwilowe błędy w tym przebiegu już bez próby SOAP (najwyżej jedno czekanie na SOAP).
+    v474: gdy SOAP jest niedostępny po chwilowym błędzie JSON (HTTP 5xx, strona z odmową) — wariant CSV tej samej serii (druga oficjalna droga; najwyżej jedna nieudana próba w przebiegu)."""
     if _BCB_WS.get('json_zle'):   # v263 (przegląd v261): API JSON i SOAP w tym przebiegu nie odpowiadają — dalsze serie bez czekania
         raise BcbPrzerwa(f"API JSON i zapas SOAP w tym przebiegu niedostępne ({_BCB_WS['json_zle']})")
     if not _BCB_WS['on']:
@@ -3788,17 +3927,13 @@ def _bcb_get(sid, a, b):
         except Exception as e:
             if _bcb_chwilowy(e):
                 pw = str(e)[:60] if isinstance(e, urllib.error.HTTPError) else _bcb_opis_json(e)   # v416: strona z odmową nazwana wprost
-                if _BCB_WS.get('ws_zle'):
-                    raise BcbPrzerwa(f'{pw}; zapas SOAP w tym przebiegu niedostępny ({_BCB_WS["ws_zle"]})') from e
-                try:
-                    rows = _bcb_ws_raz(sid, a, b)
-                except Exception as e2:
-                    raise (BcbPrzerwa if _bcb_przerwa_blad(e2) else RuntimeError)(f'{pw}; zapas SOAP: {str(e2)[:90]}') from e
-                ch = _BCB_WS.setdefault('chw', [])
-                ch.append((str(sid), pw))
-                if len(ch) >= BCB_CHW_MAX:
-                    _BCB_WS['on'] = True
-                    META['notes'].append(mask(f'BCB: API JSON z błędami dla {len(ch)} serii w tym przebiegu — dalsze serie od razu z usługi SOAP tego samego banku'))
+                via, rows = _bcb_zapas(sid, a, b, pw, e)
+                if via == 'soap':
+                    ch = _BCB_WS.setdefault('chw', [])
+                    ch.append((str(sid), pw))
+                    if len(ch) >= BCB_CHW_MAX:
+                        _BCB_WS['on'] = True
+                        META['notes'].append(mask(f'BCB: API JSON z błędami dla {len(ch)} serii w tym przebiegu — dalsze serie od razu z usługi SOAP tego samego banku'))
                 return rows
             if not _bcb_conn_err(e):
                 raise
@@ -3836,12 +3971,14 @@ BCB_BOP = (('fdi', 22885), ('pi', 22924), ('pi_eq', 22927), ('pi_fund', 22936), 
            ('cb_dep', 22986), ('cb_loan', 23001), ('sdr', 23042))   # v81: pozycje banku centralnego i SDR — strona odejmuje je od pozostałych
 
 
-def bcb_bop(prev_m):
+def bcb_bop(prev_m, stare=None, ser_out=None, pp_at=None):
     """SGS (miesięcznie) → [[YYYY-MM, bezpośrednie, portfelowe, akcje, fundusze, obligacje, pozostałe]] w mln USD, 25 miesięcy.
-    Seria bez odpowiedzi zostawia stare wartości swojej kolumny (nowe miesiące: None, nigdy 0); bez żadnego miesiąca = błąd."""
+    Seria bez odpowiedzi zostawia stare wartości swojej kolumny (nowe miesiące: None, nigdy 0); bez żadnego miesiąca = błąd.
+    v474: z `ser_out` (słownik) funkcja wpisuje stan każdej serii (ostatni udany odczyt, początek przerwy, liczba prób); seria z przerwą po stronie banku,
+    której ostatni udany odczyt jest młodszy niż BCB_PRZERWA_DNI dób (osobna tolerancja każdej serii), daje notatkę (⚠️) zamiast błędu. Bez `ser_out` — jak dotąd."""
     now_br = _now_utc() - datetime.timedelta(hours=3)
     a, b = f'01/{now_br.month:02d}/{now_br.year - 2}', now_br.strftime('%d/%m/%Y')
-    got, fails = {}, []
+    got, fails, tol = {}, [], []
     for name, sid in BCB_BOP:
         try:
             j = _bcb_get(sid, a, b)   # v127.2: z zapasem SOAP przy awarii połączenia
@@ -3852,10 +3989,22 @@ def bcb_bop(prev_m):
                 v = _num(r.get('valor')) if d else None
                 if d and v is not None and v == v and abs(v) != float('inf'):
                     got.setdefault(d[:7], {})[name] = round(v, 1)
+            if ser_out is not None:
+                ser_out[name] = {'ok': NOW}
         except Exception as e:
-            fails.append(f'{sid}: {e}')
+            if ser_out is None:
+                fails.append(f'{sid}: {e}')
+                continue
+            st = ser_out[name] = bcb_ser_porazka(stare, name, pp_at)
+            if _bcb_przerwa_blad(e) and bcb_ser_dozwolona(st):
+                tol.append((name, sid, st, str(e)))
+            else:
+                fails.append(f'{sid}: {e}')
     if not got:
-        raise RuntimeError('brak miesięcy' + (f' ({fails[0]})' if fails else ''))
+        zle = fails[0] if fails else (f'{tol[0][1]}: {tol[0][3]}' if tol else None)
+        ex = (BcbPrzerwa if tol and not fails else RuntimeError)('brak miesięcy' + (f' ({zle})' if zle else ''))
+        ex.ser = ser_out   # v474: stan serii zostaje zapisany także, gdy cała część odpada
+        raise ex
     have = {r[0]: list(r) for r in (prev_m or []) if isinstance(r, list) and r and isinstance(r[0], str)}
     cols = [n for n, _ in BCB_BOP]
     for m, vals in got.items():
@@ -3863,6 +4012,8 @@ def bcb_bop(prev_m):
         have[m] = [m] + [vals[c] if c in vals else (old[i + 1] if len(old) > i + 1 else None) for i, c in enumerate(cols)]
     if fails:
         META['errors'].append(mask(f'BCB bilans płatniczy: {len(fails)} serie bez odpowiedzi, np. {fails[0]}'))
+    if tol:
+        META['notes'].append(bcb_ser_nota(tol, 'bilans płatniczy, miesięcznie'))
     rows = [have[k] for k in sorted(have)][-25:]
     bad = [r[0] for r in rows if None not in r[2:6] and abs(r[2] - r[3] - r[4] - r[5]) > 1]
     if bad:
@@ -3872,14 +4023,27 @@ def bcb_bop(prev_m):
 
 def bcb_part(prev_br):
     """BCB SGS → [data, finansowy saldo, kupno, sprzedaż, handlowy saldo, razem] w mln USD. Każda seria osobno: seria bez odpowiedzi
-    zostawia stare wartości swojej kolumny, a nowe dni mają tam None (nigdy 0). Bez żadnego nowego dnia = błąd (zostaje poprzednia część)."""
+    zostawia stare wartości swojej kolumny, a nowe dni mają tam None (nigdy 0). Bez żadnego nowego dnia = błąd (zostaje poprzednia część).
+    v474: osobna tolerancja każdej serii (stan 'ser': ostatni udany odczyt, początek przerwy, liczba prób) — przerwa po stronie banku, której ostatni odczyt
+    tej serii jest młodszy niż BCB_PRZERWA_DNI dób, to notatka (⚠️), nie błąd; seria po nieudanej próbie czeka coraz dłużej (BCB_PONOW_MIN); brakującą kolumnę liczymy z pozostałych
+    (BCB_WYL) i oznaczamy w polu 'wyl' ({data: [kolumny]})."""
     have = {k: list(v) for k, v in _rows(prev_br).items()}
-    got, fails, przerwy = {}, [], []   # v416: przerwy — czy porażka serii to przerwa po stronie banku
+    pb = prev_br if isinstance(prev_br, dict) else {}
+    stare, pp_at, wyl_prev = _dict(pb.get('ser')), pb.get('at'), _dict(pb.get('wyl'))
+    got, fails, tol, przerwy, nowe = {}, [], [], [], {}   # v416: przerwy — czy porażka serii to przerwa po stronie banku
     _BCB_WS['chw'] = []; _BCB_WS.pop('ws_zle', None)   # v256: liczniki chwilowych błędów API JSON — od nowa w każdym przebiegu
     _BCB_WS.pop('json_zle', None); _BCB_WS['soap_ok'] = 0   # v263
+    _BCB_WS.pop('csv_zle', None); _BCB_WS.pop('csv_nota', None)   # v474
     now_br = _now_utc() - datetime.timedelta(hours=3)
     a, b = (now_br - datetime.timedelta(days=BCB_DAYS)).strftime('%d/%m/%Y'), now_br.strftime('%d/%m/%Y')
     for name, sid in BCB_SERIES:
+        if bcb_ser_czekaj(stare.get(name)):   # v474: po nieudanej próbie seria czeka coraz dłużej — bez zapytania
+            st = nowe[name] = stare[name]; przerwy.append(True)
+            if bcb_ser_dozwolona(st):
+                tol.append((name, sid, st, 'kolejna próba po przerwie dopiero za jakiś czas'))
+            else:
+                fails.append(f'{sid}: bank nie odpowiada od {str(st.get("od") or "—")[:10]}')
+            continue
         try:
             j = _bcb_get(sid, a, b)   # v127.2: z zapasem SOAP przy awarii połączenia
             if not isinstance(j, list):
@@ -3889,34 +4053,53 @@ def bcb_part(prev_br):
                 v = _num(r.get('valor')) if d else None
                 if d and v is not None and v == v and abs(v) != float('inf'):
                     got.setdefault(d, {})[name] = round(v, 2)
+            nowe[name] = {'ok': NOW}
         except Exception as e:
-            fails.append(f'{sid}: {e}'); przerwy.append(_bcb_przerwa_blad(e))
+            st = nowe[name] = bcb_ser_porazka(stare, name, pp_at)
+            przerwy.append(_bcb_przerwa_blad(e))
+            if przerwy[-1] and bcb_ser_dozwolona(st):
+                tol.append((name, sid, st, str(e)))
+            else:
+                fails.append(f'{sid}: {e}')
     if not got:
-        raise (BcbPrzerwa if fails and all(przerwy) else RuntimeError)('brak dni' + (f' ({fails[0]})' if fails else ''))   # v416: tylko przerwa banku może zostać zastąpiona poprzednimi danymi
+        zle = fails[0] if fails else (f'{tol[0][1]}: {tol[0][3]}' if tol else None)
+        ex = (BcbPrzerwa if (fails or tol) and all(przerwy) else RuntimeError)('brak dni' + (f' ({zle})' if zle else ''))   # v416: tylko przerwa banku może zostać zastąpiona poprzednimi danymi
+        ex.ser = nowe   # v474: stan serii zostaje zapisany także, gdy cała część odpada
+        raise ex
     cols = [n for n, _ in BCB_SERIES]
     for d, vals in got.items():
         old = have.get(d) or []
         have[d] = [d] + [vals[c] if c in vals else (old[i + 1] if len(old) > i + 1 else None) for i, c in enumerate(cols)]
     if fails:
         META['errors'].append(mask(f'BCB: {len(fails)} serie bez odpowiedzi, np. {fails[0]}'))
+    if tol:   # v474: seria bez odpowiedzi w granicach tolerancji — informacja (⚠️), nie błąd
+        META['notes'].append(bcb_ser_nota(tol, 'przepływy dzienne'))
     d = [have[k] for k in sorted(have)][-OBCE_KEEP:]
+    wyl = bcb_wylicz(d, got, wyl_prev)   # v474: brakująca kolumna z pozostałych, z oznaczeniem „wyliczone”
+    m_ser = {}
     try:   # v79: miesięczny bilans płatniczy — jego awaria nie zatrzymuje części dziennej
-        mrows = bcb_bop((prev_br or {}).get('m'))
+        mrows = bcb_bop(pb.get('m'), _dict(pb.get('m_ser')), m_ser, pp_at)
     except Exception as e:
-        mrows = (prev_br or {}).get('m'); META['errors'].append(mask(f'BCB bilans płatniczy: {e}'))
+        mrows = pb.get('m'); m_ser = getattr(e, 'ser', None) or _dict(pb.get('m_ser'))
+        if isinstance(e, BcbPrzerwa):   # v474: przerwa po stronie banku w granicach tolerancji serii — notatka, poprzednie miesiące zostają
+            META['notes'].append(mask(f'BCB bilans płatniczy: bank nie podaje danych ({str(e)[:140]}) — zostają poprzednie miesiące'))
+        else:
+            META['errors'].append(mask(f'BCB bilans płatniczy: {e}'))
     if _BCB_WS.get('chw'):   # v256: serie z SOAP po chwilowym błędzie API JSON — jedna notatka na przebieg (części dzienna i miesięczna)
         META['notes'].append(mask(f"BCB: API JSON chwilowo bez danych serii {', '.join(s for s, _ in _BCB_WS['chw'])} (np. {_BCB_WS['chw'][0][1]})"
                                   ' — te serie z usługi SOAP tego samego banku'))
     extra = {'m': mrows, 'm_cols': ['miesiąc', 'bezpośrednie', 'portfelowe', 'akcje', 'fundusze', 'obligacje', 'pozostałe',
                                     'bank centralny: waluty i depozyty', 'bank centralny: kredyty', 'SDR'],
              'm_src': 'Banco Central do Brasil — SGS, balanço de pagamentos (22885, 22924, 22927, 22936, 22939, 22971, 22986, 23001, 23042)'} if mrows else {}
+    if m_ser:
+        extra['m_ser'] = m_ser
     ch, ok_s = _BCB_WS.get('chw') or [], _BCB_WS.get('soap_ok', 0)
     if ch or (_BCB_WS['on'] and ok_s):   # v261/v263: ślad w części tylko, gdy coś naprawdę przyszło z SOAP — notatka wraca z pamięci (bcb_nota)
         extra['soap'] = {'at': NOW, 'serie': [s for s, _ in ch], 'np': (ch[0][1] if ch else None), 'wszystkie': bool(_BCB_WS['on']) and ok_s > len(ch)}
     return {**extra, 'at': NOW, 'src': 'Banco Central do Brasil — SGS, câmbio contratado (13961, 13967–13970)',
             'url': 'https://www.bcb.gov.br/estatisticas/tabelaespecial', 'unit': 'mln USD',
             'cols': ['data', 'finansowy saldo', 'finansowy kupno', 'finansowy sprzedaż', 'handlowy saldo', 'razem saldo'],
-            'asof': d[-1][0], 'd': d}
+            'asof': d[-1][0], 'ser': nowe, **({'wyl': wyl} if wyl else {}), 'd': d}
 
 
 def bcb_nota(pp):
@@ -44713,7 +44896,7 @@ def iw_ar_czesc(prev, dzis):
 # ---------- Brazylia ----------
 def iw_br_czesc(prev, dzis):
     _BCB_WS['chw'] = []; _BCB_WS.pop('ws_zle', None)   # liczniki chwilowych błędów interfejsu JSON — od nowa w każdym przebiegu (jak w bcb_part)
-    _BCB_WS.pop('json_zle', None); _BCB_WS['soap_ok'] = 0
+    _BCB_WS.pop('json_zle', None); _BCB_WS['soap_ok'] = 0; _BCB_WS.pop('csv_zle', None); _BCB_WS.pop('csv_nota', None)
     now_br = datetime.datetime.fromisoformat(NOW).astimezone(datetime.timezone.utc) - datetime.timedelta(hours=3)
     a, b = (now_br - datetime.timedelta(days=IW_DNI_WSTECZ)).strftime('%d/%m/%Y'), now_br.strftime('%d/%m/%Y')
     j = _bcb_get(IW_BR_SGS, a, b)
@@ -44862,6 +45045,15 @@ def iw_br_przerwa_trwa(prev):
     return bcb_przerwa_dozwolona(BcbPrzerwa('przerwa'), pp, _dict(_dict(prev).get('part_at')).get('br') or _dict(prev).get('at'))
 
 
+def iw_br_odczekaj(prev):
+    """v474: czy część br poprzedniego pliku jest w przerwie banku (znacznik, dane młodsze niż BCB_PRZERWA_DNI dób), a od ostatniej próby minęło mniej niż odstęp po tylu nieudanych próbach (bcb_odstep_min)."""
+    pp = _dict(prev).get('br')
+    if not isinstance(pp, dict) or _dict(_dict(prev).get('ok')).get('br') is not False or not iw_br_przerwa_trwa(prev):
+        return False
+    t0, t1 = _ix_dt(pp['przerwa'].get('ost')), _ix_dt(NOW)
+    return t0 is not None and t1 is not None and 0 <= (t1 - t0).total_seconds() < bcb_odstep_min(pp['przerwa'].get('n')) * 60
+
+
 def iw_bez_przerwy(czesc):
     """v427: poprzednia część bez znacznika przerwy (inny błąd niż przerwa banku nie dziedziczy starego znacznika)."""
     return {kk: vv for kk, vv in czesc.items() if kk != 'przerwa'}
@@ -44879,6 +45071,11 @@ def build_interwencje(prev=None, run_t0=None):
             out[k] = prev[k]
             out['ok'][k] = True
             out['part_at'][k] = pat.get(k)
+            continue
+        if k == 'br' and iw_br_odczekaj(prev):   # v474: po przerwie banku kolejna próba nie wcześniej niż po rosnącym odstępie (30, 60, 120, 240, 480 min) — bez zapytania, ta sama notatka z datą danych
+            msg = mask(str(_dict(prev.get('errs')).get('br') or _dict(prev['br'].get('przerwa')).get('powod') or 'brak odpowiedzi'))[:160]
+            out[k] = prev[k]; out['ok'][k] = False; out['errs'][k] = msg; out['part_at'][k] = pat.get(k) or prev.get('at')
+            META['notes'].append(iw_br_przerwa_nota(out[k], msg))
             continue
         try:
             out[k] = iw_czesc(k, prev.get(k), dzis)

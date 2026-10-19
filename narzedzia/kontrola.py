@@ -1339,8 +1339,8 @@ AW_INFO_H = 24        # v207: awarie naprawione w ostatnich tylu godzinach — i
 AW_KLUCZ = re.compile(r'klucz\w*(?:\s+\S+)?\s+odrzuc|zły klucz|unauthori[sz]ed|HTTP\D{0,7}401\b|(?:invalid|incorrect) api ?key', re.I)
 AW_LIMIT = re.compile(r'HTTP\D{0,7}(?:429|402)\b|too many requests|rate limit|credits|limit zapytań(?! w przebiegu)|dobowy limit|limit planu', re.I)   # v211: bez własnego limitu zbieracza
 # v416: część z przerwą po stronie źródła, o której zbieracz zostawia notatkę w meta.notes (początek tekstu): seria awarii tej części jest informacją (bez ❌), dopóki
-# notatka jest — zbieracz sam kończy ją po 3 dobach od ostatniego udanego pobrania (wtedy znów ❌ po AW_BLAD_H); bez notatki (inny błąd) — ocena jak dotąd
-AW_PRZERWA_BANKU = {'obce_br': ('BCB: bank nie podaje danych', 'Brazylia — przerwa po stronie banku: dane z datą, do 3 dób (v416); wiek danych w wierszach świeżości')}
+# notatka jest — zbieracz sam kończy ją po 7 dobach (v474) od ostatniego udanego pobrania (wtedy znów ❌ po AW_BLAD_H); bez notatki (inny błąd) — ocena jak dotąd
+AW_PRZERWA_BANKU = {'obce_br': ('BCB: bank nie podaje danych', 'Brazylia — przerwa po stronie banku: dane z datą, do 7 dób (v474); wiek danych w wierszach świeżości')}
 
 
 def aw_bez_opis(czesc):
