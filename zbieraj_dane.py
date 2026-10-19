@@ -33192,6 +33192,9 @@ def main():
     # v422 (F11Z25): skarbce spółek (BTC, ETH) i nowe wnioski o fundusze krypto w kolejce urzędu — data/krypto-firmy.json; klucz usługi cen tylko w nagłówku, adres kontaktowy urzędu z sekretu SEC_CONTACT;
     # części raz na ~dobę, część sec wyłączona bez adresu kontaktowego (bez błędu)
     META['ok']['skarbce_btc'], META['ok']['skarbce_eth'], META['ok']['skarbce_sec'] = kf_czesc(cg_key, sec_contact)
+    # v455 (F11Z37): pozycje instytucji w akcjach USA (zgłoszenia 13F, kwartalnie) i niedostarczone akcje (dwa razy w miesiącu) — data/sec-13f.json; bez klucza, adres kontaktowy urzędu z sekretu SEC_CONTACT,
+    # sprawdzenie co 12 h (po błędzie co 2 h), duże odczyty tylko przy nowym oknie zestawu; bez adresu część wyłączona bez błędu
+    META['ok']['sec_f13'], META['ok']['sec_ftd'] = sec_czesc(sec_contact)
     # v430 (F11Z29): ropa świata — bilans krajów (wydobycie, przerób, handel, zapasy) i zapasy ropy i paliw w Europie — data/ropa-swiat.json; bez kluczy, części raz na ~dobę, duże pliki roczne tylko po zmianie
     META['ok']['ropa_kr'], META['ok']['ropa_eu'] = rop_czesc()
     # v454 (F11Z36): rynki prognoz (cena BTC i ETH na kolejne dni), odsłony artykułów o kryptowalutach i indeks sezonu altcoinów — data/nastroje.json; bez kluczy, trzy części (1 h, 12 h, 6 h), wyłącznik NASTROJE_OFF
@@ -49458,6 +49461,767 @@ def nas_czesc():
 
 
 ZRODLA_META.update({'nastr_pm': 'polymarket', 'nastr_wiki': 'wikimedia', 'nastr_alt': 'coinmarketcap'})   # v454: rynek prognoz (+1 źródło), encyklopedia internetowa (+1 źródło); indeks altcoinów z tego samego dostawcy co kapitalizacje (liczba bez zmian)
+
+
+# ===================== v455 (F11Z37): AMERYKAŃSKI NADZÓR GIEŁDOWY — POZYCJE INSTYTUCJI (13F) I NIEDOSTARCZONE AKCJE (FTD) — data/sec-13f.json =====================
+# Dwie niezależne części, obie z tego samego urzędu co insiderzy (to samo źródło na stronie Źródła: liczba źródeł bez zmian), z tymi samymi zasadami dostępu:
+# najwyżej 8 zapytań na sekundę (wspólny odstęp INS_TEMPO), User-Agent z nazwą programu i adresem kontaktowym wyłącznie z sekretu SEC_CONTACT (ins_ua), bez adresu część jest wyłączona
+# bez błędu (notatkę o braku adresu zapisują już insiderzy), odpowiedzi 403/429 z blokadą kończą część w tym przebiegu (_ins_err), limity rozmiaru odpowiedzi i czasu.
+#   f13 — kwartalne pozycje instytucji w akcjach spółek USA (zgłoszenia 13F: zestawy danych urzędu, okno 3-miesięczne publikowane ok. 2 tygodnie po jego końcu). Zestaw to archiwum ZIP (ok. 100 MB);
+#         nie pobieramy go w całości na ślepo: z końcówki archiwum czytamy katalog, z małych plików (zgłoszenia, strony tytułowe, podsumowania) wybieramy instytucje, które zgłosiły pozycje w obu
+#         ostatnich kwartałach (zgłoszenie wstępne albo korekta typu „restatement”, jedno na instytucję i kwartał, najpóźniejsze), a tabelę pozycji czytamy strumieniowo (rozpakowanie w locie,
+#         tylko akcje: bez opcji i obligacji) z sumowaniem po papierze. Dwa duże odczyty na kwartał (nowy i poprzedni zestaw), potem plik zostaje do następnego okna. Zmiana = liczba akcji
+#         wszystkich instytucji z obu kwartałów (ten sam zestaw instytucji), przepływ = zmiana liczby akcji × cena z końca kwartału; papiery ze zmianą liczby akcji o ponad 25% (podziały akcji, przejęcia, nowe numery, błędy w zgłoszeniach)
+#         i papiery tylko wchodzące albo wychodzące nie wchodzą do rankingu kupna i sprzedaży. To nie jest porada inwestycyjna.
+#   ftd — niedostarczone akcje (fails-to-deliver): stan zbiorczy na dzień rozliczenia dla wszystkich spółek USA, plik dwa razy w miesiącu (połowa miesiąca, ok. 2 tygodnie opóźnienia). Plik ZIP ma
+#         ok. 1,5 MB; jedno zapytanie o następny plik (brak pliku = jeszcze nie opublikowany), przy pierwszym odczycie dwa pliki (historia ok. miesiąca). Wartość = liczba akcji × cena z pliku.
+import zlib as _s13_zlib        # biblioteka standardowa (ponowny import jest nieszkodliwy)
+import struct as _s13_struct
+import zipfile as _s13_zipfile
+import io as _s13_io
+import calendar as _s13_cal
+
+SEC_V = 1
+SEC_CZESCI = ('f13', 'ftd')
+SEC_BAZA = 'https://www.sec.gov'
+SEC_LISTA_URL = SEC_BAZA + '/data-research/sec-markets-data/form-13f-data-sets'
+SEC_FTD_URL = SEC_BAZA + '/files/data/fails-deliver-data/cnsfails{id}.zip'
+SEC_CO_H = 12              # h — sprawdzenie nowego pliku nie częściej niż co tyle
+SEC_BLAD_H = 2             # h — część, która zawiodła: ponowienie nie częściej niż co tyle (od ostatniej PRÓBY)
+SEC_MAX_D = {'f13': 120, 'ftd': 45}   # dób — część po błędzie zostaje z poprzedniego pliku najwyżej tyle (dane kwartalne i dwutygodniowe starzeją się wolno; wiek widać na stronie)
+SEC_TIMEOUT = 40           # s — zapytanie o mały plik
+SEC_STRUM_TIMEOUT = 60     # s — przerwa w napływie danych strumienia
+SEC_MAX_LISTA = 800_000    # B — strona z listą zestawów (15.10.2026: 108 KB)
+# --- FTD ---
+FTD_OPOZN_D = 10           # dób — plik za połowę miesiąca pojawia się najwcześniej tyle dób po jej końcu (15.10.2026: wrzesień b opublikowany 15 dób po końcu)
+FTD_MAX_ZIP = 12_000_000   # B (15.10.2026: 1,5 MB)
+FTD_MAX_TXT = 60_000_000   # B po rozpakowaniu (15.10.2026: 4,2 MB)
+FTD_MIN_WIERSZY = 10_000   # mniej wierszy = błąd odczytu (15.10.2026: 66 693)
+FTD_MIN_DNI = 3
+FTD_BLEDNE_MAX = 0.01      # część wierszy o złym kształcie, powyżej której cały plik jest błędny
+FTD_DNI_MAX = 120          # dni w historii pliku
+FTD_TOP = 12               # tyle największych pozycji najnowszego dnia
+FTD_PRÓG_1M = 1_000_000    # USD — próg licznika dużych pozycji
+FTD_ILOSC_MAX = 20_000_000_000   # akcji w jednym wierszu — większa = błąd wiersza
+FTD_CENA_MAX = 10_000_000.0
+_FTD_DZ = re.compile(r'^\d{8}$')
+_FTD_ID = re.compile(r'^(\d{4})(\d{2})([ab])$')
+# --- 13F ---
+S13_MAX_ZIP = 600_000_000  # B — większy zestaw = błąd (15.10.2026: 100 MB)
+S13_MAX_MALY = 30_000_000  # B — mały plik w archiwum po rozpakowaniu (15.10.2026: do 2,1 MB)
+S13_MAX_INFO = 3_000_000_000   # B — tabela pozycji po rozpakowaniu (15.10.2026: 397 MB)
+S13_START_MAX = 240        # s — przebieg zbieracza trwa już dłużej: duży odczyt poczeka na następny przebieg (cały przebieg ma limit 25 min)
+S13_BUDZET = 420           # s — najwyżej tyle na całą część f13 (oba duże odczyty)
+S13_MIN_ZGL = 3000         # mniej instytucji w kwartale = błąd odczytu (15.10.2026: 8 857 zgłoszeń wstępnych)
+S13_MIN_POR = 1500         # mniej instytucji w obu kwartałach = błąd
+S13_MIN_WIERSZY = 100_000  # mniej akcji w tabeli pozycji = błąd (15.10.2026: 3,3 mln)
+S13_MIN_WART = 1e9         # USD — papier z mniejszą wartością (w obu kwartałach) nie wchodzi do rankingów
+S13_MIN_POS = 30           # mniej instytucji z pozycją (w obu kwartałach) = papier nie wchodzi do rankingów
+S13_TOP = 15
+S13_ZM = (0.75, 1.33)       # liczba akcji w obu kwartałach wszystkich instytucji razem: większa zmiana (podział akcji, przejęcie, nowy numer papieru, błąd w zgłoszeniu) nie jest pokazywana jako kupno ani sprzedaż
+S13_POS = (0.6, 1.7)       # liczba instytucji z pozycją: zmiana poza przedziałem (załamanie albo skok) = to samo
+S13_RUCH_N = 8
+S13_INST_N = 10
+S13_BLEDNE_MAX = 0.01
+S13_ZGODNOSC = (0.5, 1.02)  # suma wartości akcji z tabeli pozycji / suma wartości z podsumowań zgłoszeń: poza przedziałem = błąd odczytu (opcje i obligacje obniżają, zaokrąglenia nie podnoszą)
+_S13_MIES = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
+_S13_HREF = re.compile(r'href="(/files/[A-Za-z0-9_\-]+/data/form-13f-data-sets/(\d{2})([a-z]{3})(\d{4})-(\d{2})([a-z]{3})(\d{4})_form13f\.zip)"')
+_S13_DATA = re.compile(r'^(\d{1,2})-([A-Z]{3})-(\d{4})$')
+_S13_MALE = {'INC': 'Inc', 'CORP': 'Corp', 'LTD': 'Ltd', 'PLC': 'plc', 'CO': 'Co', 'THE': 'The', 'AND': 'and', 'OF': 'of', 'TR': 'Trust', 'NEW': 'New', 'OLD': 'Old', 'OIL': 'Oil',
+             'GAS': 'Gas', 'ONE': 'One', 'ALL': 'All', 'SUN': 'Sun', 'BAY': 'Bay', 'AIR': 'Air', 'ART': 'Art', 'BIG': 'Big', 'TOP': 'Top', 'FOR': 'For', 'USA': 'USA', 'ADR': 'ADR'}
+_S13_SLABA = re.compile(r'[\x00-\x1f\x7f<>"]')
+
+
+class _SecOdloz(Exception):
+    """Duży odczyt poczeka na następny przebieg (przebieg zbieracza trwa już długo) — to nie jest błąd."""
+
+
+def sec_dzis():
+    d = _ix_dt(NOW)
+    return (d if d is not None else datetime.datetime.now(datetime.timezone.utc)).date()
+
+
+def sec_odstep():
+    wait = _INS_LAST[0] + INS_TEMPO - time.monotonic()
+    if wait > 0:
+        time.sleep(wait)
+
+
+def sec_maly(url, ua, zakres, maks):
+    """Jedyne miejsce sieci małych odpowiedzi tego pliku (testy je łatają): GET (z nagłówkiem Range, gdy zakres podany: „-65536” = końcówka, „a-b” = bajty) z User-Agentem z kontaktem, odstępem
+    i limitem rozmiaru → (bajty, rozmiar całego pliku z Content-Range albo None). Błąd 403/404 to wyjątek HTTPError (rozróżnia go _ins_err)."""
+    sec_odstep()
+    h = {'User-Agent': ua, 'Accept': '*/*'}
+    if zakres:
+        h['Range'] = 'bytes=' + zakres
+    try:
+        with _otworz(url, h, SEC_TIMEOUT) as r:
+            b = r.read(maks + 1)
+            cr = r.headers.get('Content-Range') or ''
+    finally:
+        _INS_LAST[0] = time.monotonic()
+    if len(b) > maks:
+        raise RuntimeError(f'odpowiedź dłuższa niż {maks} B (limit)')
+    m = re.search(r'/(\d+)\s*$', cr)
+    return b, (int(m.group(1)) if m else None)
+
+
+def sec_strumien(url, ua, a, b, termin):
+    """Jedyne miejsce sieci dużych odpowiedzi (testy je łatają): GET z Range a-b → kolejne kawałki bajtów (do 1 MiB); odpowiedź inna niż 206 (cały plik od zera) albo przekroczenie terminu
+    (czas monotoniczny) = wyjątek."""
+    sec_odstep()
+    try:
+        with _otworz(url, {'User-Agent': ua, 'Accept': '*/*', 'Range': f'bytes={a}-{b}'}, SEC_STRUM_TIMEOUT) as r:
+            if r.status != 206:
+                raise RuntimeError(f'serwer nie obsługuje zakresów bajtów (HTTP {r.status})')
+            while True:
+                if time.monotonic() > termin:
+                    raise RuntimeError('budżet czasu wyczerpany')
+                ch = r.read(1 << 20)
+                if not ch:
+                    return
+                yield ch
+    finally:
+        _INS_LAST[0] = time.monotonic()
+
+
+def sec_blad(e):
+    """Wyjątek zapytania → komunikat; blokada urzędu (403 z odmową, 429) jest zgłaszana jako „blok”, brak pliku (404, 403 AccessDenied) jako „brak”."""
+    rodzaj, opis = _ins_err(e)
+    return rodzaj, opis
+
+
+def sec_liczba(v, lo=None, hi=None):
+    """Skończona liczba (nie wartość logiczna) w przedziale [lo, hi] albo None."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not _etf_math.isfinite(v):
+        return None
+    if (lo is not None and v < lo) or (hi is not None and v > hi):
+        return None
+    return v
+
+
+def s13_nazwa(txt, maks=36):
+    """Nazwa instytucji albo spółki: bez znaków sterujących i ostrych nawiasów; nazwy pisane samymi wielkimi literami dostają zwykłą wielkość liter (krótkie skróty, np. IBM, zostają)."""
+    s = re.sub(r'\s+', ' ', _S13_SLABA.sub(' ', str(txt or ''))).strip()
+    if not s:
+        return None
+    if s != s.upper():
+        out = s
+    else:
+        sl = []
+        for w in s.split(' '):
+            if w in _S13_MALE:
+                sl.append(_S13_MALE[w])
+            elif len(w) <= 3 or not w.isalpha():
+                sl.append(w)
+            else:
+                sl.append(w.capitalize())
+        out = ' '.join(sl)
+    if len(out) > maks:
+        out = out[:maks - 1].rstrip(' ,.') + '…'
+    return out
+
+
+# ---------------------------------------------------------------- FTD
+def ftd_koniec(id_):
+    """Ostatni dzień połowy miesiąca z identyfikatora pliku (RRRRMMa / RRRRMMb) albo None."""
+    m = _FTD_ID.match(str(id_))
+    if not m:
+        return None
+    y, mo = int(m.group(1)), int(m.group(2))
+    if not (2000 <= y <= 2100 and 1 <= mo <= 12):
+        return None
+    return datetime.date(y, mo, 15 if m.group(3) == 'a' else _s13_cal.monthrange(y, mo)[1])
+
+
+def ftd_nast(id_, krok=1):
+    """Identyfikator pliku o `krok` połówek miesiąca dalej (ujemny krok = wstecz)."""
+    m = _FTD_ID.match(id_)
+    y, mo, h = int(m.group(1)), int(m.group(2)), 0 if m.group(3) == 'a' else 1
+    n = (y * 12 + mo - 1) * 2 + h + krok
+    ym, h2 = divmod(n, 2)
+    y2, m2 = divmod(ym, 12)
+    return f'{y2}{m2 + 1:02d}{"ab"[h2]}'
+
+
+def ftd_najnowszy(dzis):
+    """Identyfikator najnowszego pliku, który mógł już zostać opublikowany: połowa miesiąca zakończona co najmniej FTD_OPOZN_D dób temu."""
+    id_ = f'{dzis.year}{dzis.month:02d}b'
+    while ftd_koniec(id_) > dzis - datetime.timedelta(days=FTD_OPOZN_D):
+        id_ = ftd_nast(id_, -1)
+    return id_
+
+
+def ftd_parsuj(tresc, id_):
+    """Treść pliku (tekst rozdzielany znakiem |: dzień rozliczenia, CUSIP, symbol, liczba niedostarczonych akcji, opis, cena + 2 wiersze końcowe z kontrolą) →
+    ({dzień: [spółek, akcji, wartość USD, spółek z wartością ≥ 1 mln]}, lista największych pozycji ostatniego dnia, liczba dni). Błąd odczytu = wyjątek."""
+    kon = ftd_koniec(id_)
+    lo, hi = kon - datetime.timedelta(days=40), kon + datetime.timedelta(days=5)
+    wiersze = tresc.splitlines()
+    if not wiersze or not wiersze[0].upper().startswith('SETTLEMENT DATE|CUSIP|SYMBOL'):
+        raise RuntimeError('FTD: nieznany nagłówek pliku')
+    dni, zlich, nzl = {}, 0, 0
+    sym_dni, ostatni = {}, {}
+    n_wierszy, suma_ilosci, trailer_n, trailer_q = 0, 0, None, None
+    for ln in wiersze[1:]:
+        if ln.startswith('Trailer record count'):
+            trailer_n = int(re.sub(r'\D', '', ln) or -1)
+            continue
+        if ln.startswith('Trailer total quantity'):
+            trailer_q = int(re.sub(r'\D', '', ln) or -1)
+            continue
+        if not ln.strip():
+            continue
+        p = ln.split('|')
+        n_wierszy += 1
+        try:
+            if len(p) != 6 or not _FTD_DZ.match(p[0]):
+                raise ValueError
+            d = datetime.date(int(p[0][:4]), int(p[0][4:6]), int(p[0][6:]))
+            if not (lo <= d <= hi):
+                raise ValueError
+            ilosc = int(p[3])
+            if not (0 < ilosc <= FTD_ILOSC_MAX):
+                raise ValueError
+            sym = p[2].strip()
+            if not sym or len(sym) > 12:
+                raise ValueError
+        except ValueError:
+            nzl += 1
+            continue
+        try:
+            cena = float(p[5])
+            cena = cena if sec_liczba(cena, 0.0, FTD_CENA_MAX) else None
+        except ValueError:
+            cena = None
+        wart = ilosc * cena if cena else None
+        suma_ilosci += ilosc
+        dk = d.isoformat()
+        r = dni.setdefault(dk, [0, 0, 0.0, 0])
+        r[0] += 1
+        r[1] += ilosc
+        if wart:
+            r[2] += wart
+            if wart >= FTD_PRÓG_1M:
+                r[3] += 1
+        sym_dni[sym] = sym_dni.get(sym, 0) + 1
+        ostatni.setdefault(dk, []).append((sym, p[4], ilosc, cena, wart))
+    if n_wierszy < FTD_MIN_WIERSZY or len(dni) < FTD_MIN_DNI:
+        raise RuntimeError(f'FTD: za mało danych ({n_wierszy} wierszy, {len(dni)} dni)')
+    if nzl > n_wierszy * FTD_BLEDNE_MAX:
+        raise RuntimeError(f'FTD: za dużo wierszy o złym kształcie ({nzl} z {n_wierszy})')
+    if trailer_n is not None and trailer_n != n_wierszy:
+        raise RuntimeError(f'FTD: liczba wierszy {n_wierszy} ≠ wiersz kontrolny {trailer_n}')
+    if trailer_q is not None and trailer_q != suma_ilosci and nzl == 0:
+        raise RuntimeError(f'FTD: suma akcji {suma_ilosci} ≠ wiersz kontrolny {trailer_q}')
+    dzien = max(dni)
+    top = sorted((r for r in ostatni[dzien] if r[4]), key=lambda r: (-r[4], r[0]))[:FTD_TOP]
+    k_dni = len(dni)
+    wyn = [[s, (s13_nazwa(op, 30) or ''), q, round(c, 4), round(w), min(sym_dni.get(s, 1), k_dni)] for s, op, q, c, w in top]
+    dni_out = {d: [v[0], v[1], round(v[2]), v[3]] for d, v in dni.items()}
+    return dni_out, wyn, k_dni
+
+
+def ftd_pobierz_plik(id_, ua):
+    """Jeden plik FTD → treść tekstowa; brak pliku (jeszcze nie opublikowany) = None; blokada urzędu = wyjątek."""
+    try:
+        zb, _ = sec_maly(SEC_FTD_URL.format(id=id_), ua, None, FTD_MAX_ZIP)
+    except Exception as e:  # noqa
+        rodzaj, opis = sec_blad(e)
+        if rodzaj == 'brak':
+            return None
+        raise RuntimeError(f'FTD {id_}: {opis}') from None
+    try:
+        z = _s13_zipfile.ZipFile(_s13_io.BytesIO(zb))
+        nazwy = [i for i in z.infolist() if i.filename.lower().endswith('.txt')]
+        if len(nazwy) != 1 or nazwy[0].file_size > FTD_MAX_TXT:
+            raise RuntimeError('nieoczekiwana zawartość archiwum')
+        return z.read(nazwy[0]).decode('latin-1')
+    except (_s13_zipfile.BadZipFile, OSError, ValueError) as e:
+        raise RuntimeError(f'FTD {id_}: archiwum nieczytelne ({type(e).__name__})') from None
+
+
+def ftd_polacz(stare, nowe):
+    """Historia dni: nowsze odczyty zastępują starsze z tego samego dnia; najwyżej FTD_DNI_MAX ostatnich dni → lista [dzień, spółek, akcji, wartość, spółek ≥ 1 mln]."""
+    sl = {r[0]: r for r in (stare or []) if isinstance(r, list) and len(r) == 5}
+    for d, v in nowe.items():
+        sl[d] = [d] + v
+    return [sl[d] for d in sorted(sl)][-FTD_DNI_MAX:]
+
+
+def ftd_job(prev_part, ua, teraz):
+    """Odczyt niedostarczonych akcji → gotowa część pliku. Przy pierwszym odczycie dwa najnowsze pliki, potem każdy nowy (kolejno); brak nowego pliku = poprzednia część z nowym czasem sprawdzenia."""
+    pv = prev_part if isinstance(prev_part, dict) else {}
+    dzis = sec_dzis()
+    nowy = ftd_najnowszy(dzis)
+    gotowe = [x for x in (pv.get('pliki') or []) if isinstance(x, str) and ftd_koniec(x)]
+    if gotowe:
+        kol = []
+        x = ftd_nast(gotowe[-1])
+        while ftd_koniec(x) <= ftd_koniec(nowy) and len(kol) < 6:
+            kol.append(x); x = ftd_nast(x)
+    else:   # pierwszy odczyt: od najnowszego wstecz do pierwszego istniejącego (najwyżej 4 próby), potem jeden wcześniejszy
+        kol = None
+    pliki, hist, top, k_dni = list(gotowe), list(pv.get('dni') or []), pv.get('top') or [], pv.get('k_dni')
+    if kol is None:
+        x, znal = nowy, []
+        for _ in range(4):
+            tr = ftd_pobierz_plik(x, ua)
+            if tr is not None:
+                znal.append((x, tr)); break
+            x = ftd_nast(x, -1)
+        if not znal:
+            raise RuntimeError('FTD: nie znaleziono żadnego pliku wśród czterech ostatnich')
+        wcz = ftd_nast(znal[0][0], -1)
+        tr2 = ftd_pobierz_plik(wcz, ua)
+        kolejne = ([(wcz, tr2)] if tr2 is not None else []) + znal
+    else:
+        kolejne = []
+        for x in kol:
+            tr = ftd_pobierz_plik(x, ua)
+            if tr is None:
+                continue   # brak pliku w środku (zdarza się: w maju 2026 nie było dwóch plików) nie zatrzymuje kolejnych
+            kolejne.append((x, tr))
+    for x, tr in kolejne:
+        dni, top_x, k = ftd_parsuj(tr, x)
+        hist = ftd_polacz(hist, dni)
+        top, k_dni = top_x, k
+        pliki.append(x)
+    if not hist:
+        raise RuntimeError('FTD: brak historii dni')
+    pliki = sorted(set(pliki))[-6:]
+    ost = hist[-1]
+    top10 = sum(r[4] for r in top[:10])
+    return {'t': teraz, 'dzien': dzis.isoformat(), 'pliki': pliki, 'ost': ost[0], 'dni': hist, 'top': top, 'k_dni': k_dni,
+            'stan': {'n': ost[1], 'q': ost[2], 'v': ost[3], 'n1m': ost[4], 'u10': (round(top10 / ost[3] * 100, 1) if ost[3] > 0 and len(top) >= 10 else None)}}
+
+
+# ---------------------------------------------------------------- 13F: archiwum ZIP czytane zakresami bajtów
+def s13_katalog(koncowka, total):
+    """Katalog archiwum ZIP z jego końcówki (ostatnie bajty) i rozmiaru całego pliku → {nazwa: (metoda, rozmiar spakowany, rozmiar po rozpakowaniu, położenie nagłówka)}."""
+    i = koncowka.rfind(b'PK\x05\x06')
+    if i < 0 or len(koncowka) - i < 22:
+        raise RuntimeError('archiwum bez katalogu')
+    (_s, _d, _d2, _n1, n, rozm, przes, _k) = _s13_struct.unpack('<IHHHHIIH', koncowka[i:i + 22])
+    if n == 0xFFFF or przes == 0xFFFFFFFF or rozm == 0xFFFFFFFF:
+        raise RuntimeError('archiwum ZIP64 — nieobsługiwane')
+    p = len(koncowka) - (total - przes)
+    if n == 0 or n > 200 or p < 0 or p + rozm > len(koncowka):
+        raise RuntimeError('katalog archiwum poza końcówką albo pusty')
+    wyn = {}
+    for _ in range(n):
+        if koncowka[p:p + 4] != b'PK\x01\x02' or p + 46 > len(koncowka):
+            raise RuntimeError('uszkodzony katalog archiwum')
+        (_sg, _vm, _vn, fl, meth, _t, _dt, _crc, cs, us, nl, el, cl, _ds, _ia, _ea, lho) = _s13_struct.unpack('<IHHHHHHIIIHHHHHII', koncowka[p:p + 46])
+        nazwa = koncowka[p + 46:p + 46 + nl].decode('utf-8', 'replace')
+        if fl & 1 or meth not in (0, 8) or cs == 0xFFFFFFFF or us == 0xFFFFFFFF or lho == 0xFFFFFFFF:
+            raise RuntimeError(f'archiwum: nieobsługiwany plik {nazwa[:40]}')
+        wyn[nazwa] = (meth, cs, us, lho)
+        p += 46 + nl + el + cl
+    return wyn
+
+
+class S13Zip:
+    """Archiwum ZIP na serwerze czytane zakresami bajtów: katalog z końcówki, małe pliki jednym zapytaniem, duży plik strumieniem z rozpakowaniem w locie."""
+
+    def __init__(self, url, ua):
+        self.url, self.ua = url, ua
+        kon, total = sec_maly(url, ua, '-65536', 70_000)
+        if total is None or not (1000 < total <= S13_MAX_ZIP):
+            raise RuntimeError(f'zestaw 13F: rozmiar pliku {total}')
+        self.total, self.kat = total, s13_katalog(kon, total)
+
+    def _czlonek(self, nazwa):
+        if nazwa not in self.kat:
+            raise RuntimeError(f'zestaw 13F: brak pliku {nazwa}')
+        meth, cs, us, lho = self.kat[nazwa]
+        if lho + cs > self.total:
+            raise RuntimeError(f'zestaw 13F: plik {nazwa} poza archiwum')
+        return meth, cs, us, lho, len(nazwa.encode('utf-8'))
+
+    @staticmethod
+    def _naglowek(bufor, nl):
+        """Długość nagłówka lokalnego (30 B + nazwa + pole dodatkowe) z początku bufora albo None, gdy bufor za krótki."""
+        if len(bufor) < 30:
+            return None
+        if bufor[:4] != b'PK\x03\x04':
+            raise RuntimeError('uszkodzony nagłówek pliku w archiwum')
+        nl2, el2 = _s13_struct.unpack('<HH', bufor[26:30])
+        return 30 + nl2 + el2 if len(bufor) >= 30 + nl2 + el2 else None
+
+    def maly(self, nazwa):
+        meth, cs, us, lho, nl = self._czlonek(nazwa)
+        if us > S13_MAX_MALY:
+            raise RuntimeError(f'zestaw 13F: plik {nazwa} za duży ({us} B)')
+        blok, _ = sec_maly(self.url, self.ua, f'{lho}-{lho + 30 + nl + 1024 + cs}', cs + nl + 4096)
+        h = self._naglowek(blok, nl)
+        if h is None or len(blok) < h + cs:
+            raise RuntimeError(f'zestaw 13F: plik {nazwa} ucięty')
+        dane = blok[h:h + cs]
+        if meth == 0:
+            return dane
+        d = _s13_zlib.decompressobj(-15)
+        wyj = d.decompress(dane, S13_MAX_MALY + 1)
+        if len(wyj) > S13_MAX_MALY or d.unconsumed_tail or not d.eof:
+            raise RuntimeError(f'zestaw 13F: plik {nazwa} nie rozpakowuje się poprawnie')
+        return wyj
+
+    def strumien(self, nazwa, termin):
+        """Kolejne kawałki rozpakowanej zawartości dużego pliku (rozpakowanie w locie); brak końca strumienia albo za dużo danych = wyjątek."""
+        meth, cs, us, lho, nl = self._czlonek(nazwa)
+        if us > S13_MAX_INFO or meth != 8:
+            raise RuntimeError(f'zestaw 13F: plik {nazwa} ({us} B, metoda {meth}) — nieobsługiwany')
+        buf, h, d, pobrane, razem = b'', None, _s13_zlib.decompressobj(-15), 0, 0
+        for ch in sec_strumien(self.url, self.ua, lho, lho + 30 + nl + 1024 + cs, termin):
+            if h is None:
+                buf += ch
+                h = self._naglowek(buf, nl)
+                if h is None:
+                    continue
+                ch, buf = buf[h:], b''
+            pobrane += len(ch)
+            if pobrane > cs:
+                ch = ch[:len(ch) - (pobrane - cs)]
+                pobrane = cs
+            if ch:
+                wyj = d.decompress(ch)
+                razem += len(wyj)
+                if razem > us + 1024:
+                    raise RuntimeError(f'zestaw 13F: plik {nazwa} większy niż w katalogu')
+                if wyj:
+                    yield wyj
+            if d.eof or pobrane >= cs:
+                break
+        if not d.eof:
+            raise RuntimeError(f'zestaw 13F: plik {nazwa} ucięty')
+
+
+def s13_tsv(bajty):
+    return list(csv.DictReader(bajty.decode('utf-8', 'replace').splitlines(), delimiter='\t', quoting=csv.QUOTE_NONE))
+
+
+def s13_data(s):
+    """Data w postaci DD-MON-RRRR (np. 31-JUL-2026) → date albo None."""
+    m = _S13_DATA.match(str(s or '').strip().upper())
+    if not m or m.group(2).lower() not in _S13_MIES:
+        return None
+    try:
+        return datetime.date(int(m.group(3)), _S13_MIES[m.group(2).lower()], int(m.group(1)))
+    except ValueError:
+        return None
+
+
+def s13_okna(html):
+    """Strona z listą zestawów → {koniec okna: (początek, adres)} dla zestawów w oknach 3-miesięcznych (adres tylko z katalogu /files/…/form-13f-data-sets/ tego serwera)."""
+    wyn = {}
+    for m in _S13_HREF.finditer(html):
+        a, b = s13_data(f'{m.group(2)}-{m.group(3).upper()}-{m.group(4)}'), s13_data(f'{m.group(5)}-{m.group(6).upper()}-{m.group(7)}')
+        if a and b and 80 <= (b - a).days <= 95:
+            wyn[b] = (a, SEC_BAZA + m.group(1))
+    return wyn
+
+
+def s13_okres(koniec_okna):
+    """Koniec kwartału, którego zgłoszenia leżą w oknie kończącym się tego dnia (okno lipiec–sierpień ma zgłoszenia za czerwiec itd.) → date; okno o innym kształcie = wyjątek."""
+    ym = koniec_okna.year * 12 + koniec_okna.month - 1 - 2
+    y, m = divmod(ym, 12)
+    m += 1
+    if m not in (3, 6, 9, 12):
+        raise RuntimeError(f'zestaw 13F: nieznany kształt okna kończącego się {koniec_okna}')
+    return datetime.date(y, m, _s13_cal.monthrange(y, m)[1])
+
+
+def s13_wybor(sub, cov, sm, okres):
+    """Zgłoszenia 13F za kwartał → {CIK: {acc, dzien, wart, poz, nazwa}}: zgłoszenie wstępne (13F-HR) albo korekta typu „restatement”, jedno na instytucję (najpóźniejsze); powiadomienia
+    (bez pozycji), korekty dopisujące pozycje i zgłoszenia za inne kwartały odpadają."""
+    okres_s = okres.strftime('%d-%b-%Y').upper()
+    cov_d = {r.get('ACCESSION_NUMBER'): r for r in cov}
+    sm_d = {r.get('ACCESSION_NUMBER'): r for r in sm}
+    best = {}
+    for r in sub:
+        typ, acc = (r.get('SUBMISSIONTYPE') or '').strip(), (r.get('ACCESSION_NUMBER') or '').strip()
+        if typ not in ('13F-HR', '13F-HR/A') or (r.get('PERIODOFREPORT') or '').strip().upper() != okres_s:
+            continue
+        c, s = cov_d.get(acc) or {}, sm_d.get(acc) or {}
+        if typ == '13F-HR/A' and not ((c.get('ISAMENDMENT') or '').strip() == 'Y' and (c.get('AMENDMENTTYPE') or '').strip().upper() == 'RESTATEMENT'):
+            continue
+        try:
+            wart, poz = int(s.get('TABLEVALUETOTAL') or 0), int(s.get('TABLEENTRYTOTAL') or 0)
+        except ValueError:
+            continue
+        dz = s13_data(r.get('FILING_DATE'))
+        cik = (r.get('CIK') or '').strip()
+        if wart <= 0 or poz <= 0 or dz is None or not cik or len(acc) != 20:
+            continue
+        klucz = (dz, acc)
+        if cik not in best or klucz > best[cik][0]:
+            best[cik] = (klucz, {'acc': acc, 'dzien': dz, 'wart': wart, 'poz': poz, 'nazwa': s13_nazwa(c.get('FILINGMANAGER_NAME')) or cik})
+    return {k: v[1] for k, v in best.items()}
+
+
+def s13_pozycje(kawalki, akcesje):
+    """Tabela pozycji (kawałki rozpakowanej zawartości) → ({CUSIP: [akcji, wartość USD, liczba instytucji]}, {CUSIP: (nazwa, rodzaj papieru)}, przeczytanych wierszy, zachowanych, złych wierszy).
+    Tylko wiersze zgłoszeń z `akcesje` (zbiór numerów jako bajty), tylko akcje (bez opcji put/call i obligacji), sumowanie po papierze; wiersze jednego zgłoszenia idą po kolei
+    (liczba instytucji = liczba zgłoszeń z papierem)."""
+    agg, nazwy, nmax = {}, {}, {}
+    blok, cur = {}, None
+    kol = None
+    wierszy = zach = zle = 0
+    ogon = b''
+
+    def zrzut():
+        for c, (s, v) in blok.items():
+            e = agg.get(c)
+            if e is None:
+                agg[c] = [s, v, 1]
+            else:
+                e[0] += s; e[1] += v; e[2] += 1
+        blok.clear()
+
+    for ch in kawalki:
+        tekst = ogon + ch
+        linie = tekst.split(b'\n')
+        ogon = linie.pop()
+        for ln in linie:
+            if kol is None:
+                nagl = ln.rstrip(b'\r').split(b'\t')
+                try:
+                    kol = {k: nagl.index(k.encode()) for k in ('ACCESSION_NUMBER', 'NAMEOFISSUER', 'TITLEOFCLASS', 'CUSIP', 'VALUE', 'SSHPRNAMT', 'SSHPRNAMTTYPE', 'PUTCALL')}
+                except ValueError:
+                    raise RuntimeError('zestaw 13F: nieznany nagłówek tabeli pozycji') from None
+                if kol['ACCESSION_NUMBER'] != 0:
+                    raise RuntimeError('zestaw 13F: numer zgłoszenia nie jest pierwszą kolumną')
+                iN, iK, iC, iV, iS, iT, iP = kol['NAMEOFISSUER'], kol['TITLEOFCLASS'], kol['CUSIP'], kol['VALUE'], kol['SSHPRNAMT'], kol['SSHPRNAMTTYPE'], kol['PUTCALL']
+                imax = max(iN, iK, iC, iV, iS, iT, iP)
+                continue
+            wierszy += 1
+            a = ln[:20]
+            if a not in akcesje:
+                continue
+            p = ln.split(b'\t')
+            if len(p) <= imax:
+                zle += 1
+                continue
+            if p[iP].strip() or p[iT].strip() != b'SH':
+                continue
+            try:
+                s, v = int(p[iS]), int(p[iV])
+                c = p[iC].decode('ascii').strip().upper()
+            except (ValueError, UnicodeDecodeError):
+                zle += 1
+                continue
+            if s <= 0 or v < 0 or len(c) != 9:
+                zle += 1
+                continue
+            zach += 1
+            if a != cur:
+                zrzut()
+                cur = a
+            x = blok.get(c)
+            if x is None:
+                blok[c] = [s, v]
+            else:
+                x[0] += s; x[1] += v
+            if v > nmax.get(c, -1):
+                nmax[c] = v
+                nazwy[c] = (p[iN], p[iK])
+    zrzut()
+    return agg, {c: (n.decode('utf-8', 'replace'), k.decode('utf-8', 'replace')) for c, (n, k) in nazwy.items()}, wierszy, zach, zle
+
+
+def s13_kwartal(zip_, okres):
+    """Małe pliki zestawu (zgłoszenia, strony tytułowe, podsumowania) → wybór zgłoszeń za kwartał {CIK: …}."""
+    sub, cov, sm = s13_tsv(zip_.maly('SUBMISSION.tsv')), s13_tsv(zip_.maly('COVERPAGE.tsv')), s13_tsv(zip_.maly('SUMMARYPAGE.tsv'))
+    wyb = s13_wybor(sub, cov, sm, okres)
+    if len(wyb) < S13_MIN_ZGL:
+        raise RuntimeError(f'zestaw 13F: za mało zgłoszeń za {okres} ({len(wyb)})')
+    return wyb
+
+
+_S13_FUNDUSZ = ('ISHARES', 'VANGUARD', 'SPDR', 'INVESCO', 'TRUST', ' TR', ' FDS', 'FUND', 'ETF', 'SERIES', 'PROSHARES', 'SCHWAB')
+_S13_OGOLNE = frozenset(('COM', 'COMMON', 'COMMON STOCK', 'COM NEW', 'ORD', 'SHS', 'ADR', 'SPONSORED ADR', 'SPONSORED ADS', 'NEW', 'UNIT', 'UNITS', 'SHS BEN INT', 'SH BEN INT'))
+_S13_KLASA = re.compile(r'\b(?:CL|CLASS)\s+([A-Z])\b')
+
+
+def s13_papier(nazwa_tytul):
+    """Nazwa papieru do rankingu: nazwa emitenta; fundusz notowany (ETF) dostaje nazwę funduszu z rodzaju papieru, akcje kilku klas — literę klasy w nawiasie."""
+    nazwa, tytul = nazwa_tytul if isinstance(nazwa_tytul, tuple) else (nazwa_tytul, '')
+    t, n = (tytul or '').upper().strip(), (nazwa or '').upper()
+    if t and t not in _S13_OGOLNE and (re.search(r'\bETF\b', t) or any(k in n for k in _S13_FUNDUSZ)):
+        return s13_nazwa(f'{nazwa} {tytul}', 40)
+    m = _S13_KLASA.search(t)
+    return s13_nazwa(f'{nazwa} ({m.group(1)})' if m and m.group(1) in 'ABCDEFGHIJK' else nazwa, 40)
+
+
+def s13_ruchy(agg_n, agg_p, nazwy):
+    """Papiery z obu kwartałów → (ranking największych pozycji, największe kupna, największe sprzedaże, liczba papierów, nowe, wyjścia, pominięte podziały akcji)."""
+    top, kup, sprz = [], [], []
+    nowe = wyj = podz = 0
+    for c in set(agg_n) | set(agg_p):
+        sn, vn, hn = agg_n.get(c, (0, 0, 0))
+        sp, vp, hp = agg_p.get(c, (0, 0, 0))
+        if sn <= 0:
+            wyj += 1 if (vp >= S13_MIN_WART and hp >= S13_MIN_POS) else 0
+        elif sp <= 0:
+            nowe += 1 if (vn >= S13_MIN_WART and hn >= S13_MIN_POS) else 0
+        if max(vn, vp) < S13_MIN_WART or max(hn, hp) < S13_MIN_POS:
+            continue
+        nz = s13_papier(nazwy.get(c) or (c, '')) or c
+        obie = sn > 0 and sp > 0
+        norma = obie and S13_ZM[0] <= sn / sp <= S13_ZM[1] and S13_POS[0] <= hn / hp <= S13_POS[1]
+        if obie and not norma:
+            podz += 1   # zmiana ponad miarę (podział akcji, przejęcie, nowy numer papieru, błąd w zgłoszeniu) — to nie są transakcje; w rankingu pozycji zmiana akcji zostaje pusta
+        zm = round((sn / sp - 1) * 100, 1) if norma else None
+        if vn > 0:
+            top.append([nz, vn, (vp if vp > 0 else None), zm, hn, (hp if hp > 0 else None)])
+        if not norma:
+            continue   # papier tylko wchodzący albo wychodzący albo ze zmianą ponad miarę nie jest dowodem kupna ani sprzedaży
+        pn = vn / sn
+        przeplyw = round((sn - sp) * pn)
+        w = [nz, przeplyw, zm, hn, hp]
+        if przeplyw > 0:
+            kup.append(w)
+        elif przeplyw < 0:
+            sprz.append(w)
+    top.sort(key=lambda r: (-r[1], r[0]))
+    kup.sort(key=lambda r: (-r[1], r[0]))
+    sprz.sort(key=lambda r: (r[1], r[0]))
+    return top[:S13_TOP], kup[:S13_RUCH_N], sprz[:S13_RUCH_N], len([1 for c in agg_n if agg_n[c][1] > 0]), nowe, wyj, podz
+
+
+def s13_job(prev_part, ua, teraz):
+    """Odczyt pozycji instytucji → gotowa część pliku albo (brak nowego okna) poprzednia część. Duży odczyt poczeka na następny przebieg, gdy ten trwa już długo (_SecOdloz)."""
+    pv = prev_part if isinstance(prev_part, dict) else {}
+    lista, _ = sec_maly(SEC_LISTA_URL, ua, None, SEC_MAX_LISTA)
+    okna = s13_okna(lista.decode('utf-8', 'replace'))
+    if not okna:
+        raise RuntimeError('zestaw 13F: lista zestawów bez okien 3-miesięcznych')
+    kon_n = max(okna)
+    pocz_n, url_n = okna[kon_n]
+    kon_p = pocz_n - datetime.timedelta(days=1)
+    if kon_p not in okna:
+        raise RuntimeError('zestaw 13F: brak poprzedniego okna na liście')
+    url_p = okna[kon_p][1]
+    okres_n, okres_p = s13_okres(kon_n), s13_okres(kon_p)
+    if pv.get('okres') == okres_n.isoformat() and pv.get('wersja') == SEC_V:
+        out = dict(pv); out['t'] = teraz; out['dzien'] = sec_dzis().isoformat()
+        return out
+    if _RUN_T0[0] is not None and time.monotonic() - _RUN_T0[0] > S13_START_MAX:
+        raise _SecOdloz()
+    t0 = time.monotonic()
+    termin = t0 + S13_BUDZET
+    zn, zp = S13Zip(url_n, ua), S13Zip(url_p, ua)
+    sn, sp = s13_kwartal(zn, okres_n), s13_kwartal(zp, okres_p)
+    wspolne = sorted(set(sn) & set(sp))
+    if len(wspolne) < S13_MIN_POR:
+        raise RuntimeError(f'zestaw 13F: za mało instytucji w obu kwartałach ({len(wspolne)})')
+    akc_n, akc_p = {sn[c]['acc'].encode() for c in wspolne}, {sp[c]['acc'].encode() for c in wspolne}
+    agg_n, naz_n, wi_n, za_n, zle_n = s13_pozycje(zn.strumien('INFOTABLE.tsv', termin), akc_n)
+    agg_p, naz_p, wi_p, za_p, zle_p = s13_pozycje(zp.strumien('INFOTABLE.tsv', termin), akc_p)
+    for nz, za, zle, wi in (('nowy', za_n, zle_n, wi_n), ('poprzedni', za_p, zle_p, wi_p)):
+        if za < S13_MIN_WIERSZY or zle > max(10, za * S13_BLEDNE_MAX):
+            raise RuntimeError(f'zestaw 13F ({nz}): odczyt pozycji niewiarygodny ({za} akcji, {zle} złych wierszy z {wi})')
+    v_n = sum(sn[c]['wart'] for c in wspolne)
+    v_p = sum(sp[c]['wart'] for c in wspolne)
+    for nz, agg, v in (('nowy', agg_n, v_n), ('poprzedni', agg_p, v_p)):
+        r = sum(e[1] for e in agg.values()) / v if v > 0 else 0
+        if not (S13_ZGODNOSC[0] <= r <= S13_ZGODNOSC[1]):
+            raise RuntimeError(f'zestaw 13F ({nz}): suma wartości akcji nie zgadza się z podsumowaniami zgłoszeń (stosunek {r:.2f})')
+    nazwy = dict(naz_p); nazwy.update(naz_n)
+    top, kup, sprz, n_pap, nowe, wyj, podz = s13_ruchy(agg_n, agg_p, nazwy)
+    wspolne_w = sorted(wspolne, key=lambda c: (-sn[c]['wart'], c))
+    inst = [[sn[c]['nazwa'], sn[c]['wart'], sp[c]['wart'], sn[c]['poz'], sp[c]['poz']] for c in wspolne_w[:S13_INST_N]]
+    u10 = round(sum(r[1] for r in inst) / v_n * 100, 1) if v_n > 0 else None
+    ost_zgl = max(sn[c]['dzien'] for c in wspolne)
+    return {'t': teraz, 'dzien': sec_dzis().isoformat(), 'wersja': SEC_V, 'okno': kon_n.isoformat(), 'okres': okres_n.isoformat(), 'okres_pop': okres_p.isoformat(),
+            'zgl_do': ost_zgl.isoformat(), 'n_zgl': len(sn), 'n_por': len(wspolne), 'wart': v_n, 'wart_pop': v_p, 'n_pap': n_pap, 'u10': u10,
+            'inst': inst, 'top': top, 'kup': kup, 'sprz': sprz, 'nowe': nowe, 'wyj': wyj, 'pom': podz, 'sek': round(time.monotonic() - t0)}
+
+
+# ---------------------------------------------------------------- rytm, plik, część przebiegu
+def sec_trzeba(czas, ok_prev, teraz):
+    """Czy część sprawdzić w tym przebiegu. czas — chwila poprzedniej udanej próby (brak = tak); po błędzie co SEC_BLAD_H h, inaczej co SEC_CO_H h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    h = (tn - tk).total_seconds() / 3600
+    return h >= (SEC_CO_H if ok_prev else SEC_BLAD_H)
+
+
+def sec_zadania(pv, teraz, ma_ua=True):
+    """Które części sprawdzić w tym przebiegu → {część: bool}; bez adresu kontaktowego (ma_ua=False) żadna."""
+    ok, pat, pro = (pv.get('ok') if isinstance(pv.get('ok'), dict) else {}), (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('try_at') if isinstance(pv.get('try_at'), dict) else {})
+    if not ma_ua:
+        return {n: False for n in SEC_CZESCI}
+    return {n: (True if not isinstance(pv.get(n), dict) else
+                sec_trzeba((pat.get(n) or pv.get('at')) if ok.get(n, True) is not False else (pro.get(n) or pat.get(n) or pv.get('at')), ok.get(n, True) is not False, teraz)) for n in SEC_CZESCI}
+
+
+def build_sec_13f(contact, prev=None, zadania=None):
+    """v455: data/sec-13f.json {v, at, src, ok, part_at, try_at, f13, ftd} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm) zostaje z poprzedniego pliku bez zmian; część po błędzie —
+    z poprzedniego pliku z własnym czasem (najwyżej SEC_MAX_D[część] dób), błąd do META['errors']. Żadna część w pliku = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == SEC_V else {}
+    ua = ins_ua(contact)
+    zad = zadania if zadania is not None else sec_zadania(pv, NOW, bool(ua))
+    pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
+    pro0 = pv.get('try_at') if isinstance(pv.get('try_at'), dict) else {}
+    out = {'v': SEC_V, 'at': NOW, 'src': 'pozycje instytucji w akcjach spółek USA (kwartalne zgłoszenia do amerykańskiego nadzoru giełdowego) i niedostarczone akcje (zestawienia nadzoru, dwa razy w miesiącu)',
+           'ok': {}, 'part_at': {}, 'try_at': {}}
+    st = {}
+    f = {'f13': s13_job, 'ftd': ftd_job}
+    for n in SEC_CZESCI:
+        stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+        if not zad.get(n):
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+                if pro0.get(n):
+                    out['try_at'][n] = pro0[n]
+            else:
+                st[n] = 'cached'
+            continue
+        out['try_at'][n] = NOW
+        try:
+            out[n] = f[n](stara, ua, NOW)
+            out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+        except _SecOdloz:
+            out['try_at'].pop(n, None)
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+            else:
+                st[n] = 'cached'
+        except Exception as e:  # noqa — jedna część nie psuje drugiej
+            META['errors'].append(mask(f'Pozycje instytucji i niedostarczone akcje: {n}: {e}')[:200])
+            out['ok'][n], st[n] = False, False
+            if stara is not None and _zapas_wiek_ok(pat0.get(n) or pv.get('at'), SEC_MAX_D[n]):
+                out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
+    if not any(isinstance(out.get(n), dict) for n in SEC_CZESCI):
+        raise RuntimeError('żadna część pozycji instytucji i niedostarczonych akcji nie ma danych')
+    return out, st
+
+
+def sec_czesc(contact):
+    """v455: część przebiegu → krotka wartości dla META['ok'] w kolejności SEC_CZESCI: True = pobrane / sprawdzone, 'cached' = poprzednia wersja wystarcza (rytm) albo część wyłączona (brak adresu
+    kontaktowego), False = część zawiodła. Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('sec-13f')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == SEC_V else None
+    ua = ins_ua(contact)
+    zad = sec_zadania(prev or {}, NOW, bool(ua))
+    if not any(zad.values()):
+        if prev:
+            save('sec-13f', prev)
+        return tuple('cached' for _ in SEC_CZESCI)
+    try:
+        obj, st = build_sec_13f(contact, prev, zad)
+        save('sec-13f', obj)
+        return tuple(st.get(n, False) for n in SEC_CZESCI)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Pozycje instytucji i niedostarczone akcje: {e}')[:200])
+        if prev:
+            save('sec-13f', prev)
+        return tuple(False for _ in SEC_CZESCI)
+
+
+ZRODLA_META.update({'sec_f13': 'sec', 'sec_ftd': 'sec'})   # v455: ten sam urząd co insiderzy (zgłoszenia Form 4) — liczba źródeł bez zmian
 
 
 if __name__ == '__main__':

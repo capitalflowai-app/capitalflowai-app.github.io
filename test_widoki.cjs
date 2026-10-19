@@ -35665,3 +35665,205 @@ test('v454 ładowanie: grupa „c”, ładowarka w rejestrze, odświeżanie co 1
   assert.ok(!/toLocaleString|Intl\.NumberFormat/.test(code.replace(/\/\*[\s\S]*?\*\//g, '')), 'liczby przez wspólną funkcję nfmt');
   assert.equal((html.match(/SRV_GR\['nastroje'\]='c'/g) || []).length, 1);
 });
+
+// ===================== v455 (F11Z37): Pozycje instytucji w USA (13F) i niedostarczone akcje w GLOBAL (data/sec-13f.json) =====================
+// Fixtura SX455_FILE: plik sec-13f.json zbudowany przez zbieracz na nagraniach z 19.10.2026 (zestawy 13F za II i I kwartał 2026: 8 501 instytucji w obu kwartałach, 22 250 papierów; niedostarczone akcje:
+// 12 dni rozliczeniowych 15–30.09.2026). Czas przypięty (Date.now), bez zegara. Oczekiwane liczby liczone w teście z wierszy fixtury (niezależnie od kodu strony), część pinowana literalnie.
+const SX455_FILE = {"v":1,"at":"2026-10-19T05:00:00+00:00","src":"pozycje instytucji w akcjach spółek USA (kwartalne zgłoszenia do amerykańskiego nadzoru giełdowego) i niedostarczone akcje (zestawienia nadzoru, dwa razy w miesiącu)","ok":{"f13":true,"ftd":true},"part_at":{"f13":"2026-10-19T05:00:00+00:00","ftd":"2026-10-19T05:00:00+00:00"},"try_at":{"f13":"2026-10-19T05:00:00+00:00","ftd":"2026-10-19T05:00:00+00:00"},"f13":{"t":"2026-10-19T05:00:00+00:00","dzien":"2026-10-19","wersja":1,"okno":"2026-08-31","okres":"2026-06-30","okres_pop":"2026-03-31","zgl_do":"2026-08-31","n_zgl":8751,"n_por":8501,"wart":78766277076834,"wart_pop":66091627654439,"n_pap":22250,"u10":35.2,"inst":[["BlackRock, Inc.",6729538649155,5723531457401,49968,50651],["Vanguard Capital Management LLC",4680129845935,3995910438125,4092,3982],["State Street Corp",3371239854465,2896359015041,4177,4269],["FMR LLC",2303878429728,1898434661409,13978,13282],["Vanguard Portfolio Management LLC",2219148474929,1886798423444,3141,3040],["Morgan Stanley",1890805575974,1659786624056,45905,45985],["Geode Capital MANAGEMENT, LLC",1875315674155,1607536611643,8470,8577],["Jpmorgan Chase & Co",1807041234839,1557139501048,34064,33063],["Bank of America Corp /DE/",1552074225223,1367983567206,18318,17872],["Susquehanna International GROUP, LLP",1283997737803,893325416442,15205,14878]],"top":[["Nvidia Corporation",3181961273523,2660441920906,4.0,5776,5670],["Apple Inc",2680107928563,2252284697187,3.4,5919,5906],["Microsoft Corp",1958702749754,1870038500223,3.3,6021,6015],["Amazon COM Inc",1642879881286,1364571304184,5.0,5936,5819],["Alphabet Inc (A)",1594076360337,1230581522821,4.3,5609,5463],["Broadcom Inc",1331172711017,1045278896087,3.5,4674,4533],["Alphabet Inc (C)",1126879668837,855847854825,6.6,5083,4971],["Micron Technology Inc",964618500516,270166841230,4.2,3772,2924],["Meta Platforms Inc (A)",914888073230,887753167468,3.9,4902,4923],["Eli Lilly and Company",905257401695,682507547725,1.4,4491,4243],["Ishares Trust Core S&P500 ETF",691302608773,538490398246,13.0,3977,3861],["Tesla Inc",680484206667,562226400002,7.5,4148,4058],["Advanced Micro Devices Inc",645990932281,203281011298,10.4,3861,3073],["Jpmorgan Chase & Co",614075484739,542215665176,1.1,4980,4920],["Space Exploration Techn Corp (A)",563431190730,null,null,1681,null]],"kup":[["Nvidia Corporation",121425458772,4.0,5776,5670],["Apple Inc",88650148540,3.4,5919,5906],["Ishares Trust Core S&P500 ETF",79616051156,13.0,3977,3861],["Amazon COM Inc",77953639869,5.0,5936,5819],["Alphabet Inc (C)",69680949237,6.6,5083,4971],["Alphabet Inc (A)",65574507122,4.3,5609,5463],["Microsoft Corp",62674896571,3.3,6021,6015],["Advanced Micro Devices Inc",60885563495,10.4,3861,3073]],"sprz":[["Exxon Mobil Corp",-11984825719,-3.3,3757,4635],["Ishares Trust Msci USA QLT FCT",-7936581899,-17.8,1592,1591],["Ishares Trust Russell 2000 ETF",-7552353854,-8.7,2653,2492],["Salesforce Inc",-5316633809,-4.8,2412,2590],["Ishares Trust Eafe Value ETF",-5092710519,-20.2,1207,1216],["Sandisk Corp",-4044236536,-1.7,1781,1150],["Dell Technologies Inc (C)",-3934178545,-3.9,2081,1594],["State Street Consumer Staples Select Se…",-3879111338,-20.9,1197,1209]],"nowe":30,"wyj":3,"pom":140,"sek":10},"ftd":{"t":"2026-10-19T05:00:00+00:00","dzien":"2026-10-19","pliki":["202609b"],"ost":"2026-09-30","dni":[["2026-09-15",5811,238772796,6617052366,389],["2026-09-16",5353,185305062,3999749607,372],["2026-09-17",5592,189249413,5327532039,395],["2026-09-18",5854,199371566,4800086962,456],["2026-09-21",6016,364148119,15030117178,671],["2026-09-22",5544,229182244,7150484402,491],["2026-09-23",5551,247716157,9828961156,454],["2026-09-24",5496,235517349,6511608683,481],["2026-09-25",5333,253486765,6658915095,463],["2026-09-28",5311,222295029,5150909590,415],["2026-09-29",5038,191468751,5272337485,389],["2026-09-30",5793,188520406,5741084809,416]],"top":[["BIL","State Street Spdr Bloomberg 1-",15980425,91.65,1464605951,6],["TRP","TC Energy Corp COM (CAN)",3625207,58.26,211204560,11],["EFA","Ishares Trust Msci Eafe ETF",1973555,104.54,206315440,4],["SHV","Ishares Trust Ishares 0-1 Yea…",1583105,110.31,174632313,10],["EWJ","Ishares Msci Japan ETF",1362075,96.51,131453858,8],["VTES","Vanguard Wellington FD SHORT-T",996954,98.08,97781248,12],["ACWX","Ishares Msci Acwi EX US ETF",1084461,76.18,82614239,8],["INTW","Graniteshares ETF Trust 2X Lo…",2430873,29.2,70981492,11],["AMDL","Graniteshares ETF Trust Grani…",836041,78.1,65294802,12],["IHI","Ishares Trust DOW Jones US Me…",1196813,51.79,61982945,11],["WPM","Wheaton Precious Metals Corp C",447200,135.39,60546408,5],["XOP","Spdr SER Trust State Street S…",329508,178.63,58860014,12]],"k_dni":12,"stan":{"n":5793,"q":188520406,"v":5741084809,"n1m":416,"u10":44.7}}};
+const sx455 = (() => {
+  const a0 = html.indexOf('/* ===================== v455 (F11Z37): POZYCJE INSTYTUCJI W USA (13F)'), a1 = html.indexOf('/* ---------- koniec bloku pozycji instytucji (v455) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v455 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const g0 = html.indexOf('function gxShare('), g1 = html.indexOf('\n', g0);
+  assert.ok(g0 > 0 && g1 > g0, 'pasek udziału');
+  const m0 = html.indexOf('const gfmt='), m1 = html.indexOf('const gpct=', m0);
+  assert.ok(m0 > 0 && m1 > m0, 'format kwot');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1), share = html.slice(g0, g1), gf = html.slice(m0, m1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-19T13:00:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[\u00a0\u202f]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }}};
+    const els = {'#g-sec13f': el};
+    const calls = [], ivs = [], lines = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: () => {}, documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const gfmt = new Function('LOCALE', 'LANG', 't', gf + '\nreturn gfmt;')(LOC, L, T);
+    const api = new Function('$', 't', 'escH', 'nfmt', 'gfmt', 'LOCALE', 'LANG', 'gAgeNote', 'engDate', 'srvJSON', 'flagImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'wkLines', 'wkMs', 'wkDay', 'Date',
+      "'use strict';\n" + helpers + '\n' + share + '\n' + code + '\nreturn {SX5, sxLoad, renderSx5, sxOk, sxPart, sxPct, sxD, sxUsd, sxQ, sxBody};')(
+      q => els[q] || null, T, EH, F.nfmt, gfmt, LOC, L, d => ' · wiek(' + d + ')', s => 'D:' + s, srv, (c, z) => '<f:' + c + '>', i => i, doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; },
+      (Ls, o) => { lines.push({L: Ls, o}); return '<lines n=' + Ls.map(s => s.d.length).join('+') + ' aria="' + o.aria + '" f0="' + o.fmt(Ls[0].d[0][1]) + '">'; },
+      d => Date.parse(String(d).slice(0, 10) + 'T12:00:00Z'), (ms, y) => new Date(ms).toISOString().slice(0, y ? 10 : 7), FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, ivs, lines, mos, expand, collapse, nfmt: (v, d) => sp(F.nfmt(v, d)), gfmt: v => sp(gfmt(v)), html: () => sp(el.innerHTML)};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), valHtml: m[3].split('<small')[0], lines: [...m[3].matchAll(/<small class="([a-z]+)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const bars = h => [...sp(h).matchAll(/<div class="gxs-r"><span class="gxs-n">(.*?)<\/span><span class="gxs-b"><span class="gxs-t" aria-hidden="true"><i( class="([a-z]+)")? style="width:([\d.]+)%"><\/i><\/span><span class="gxs-v">(.*?)<\/span><\/span><\/div>/g)].map(m => ({
+    name: txt(m[1]), nameHtml: m[1], cls: m[3] || '', w: parseFloat(m[4]), val: txt(m[5]), valHtml: m[5]}));
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {sec_f13: true, sec_ftd: 'cached'}} : meta, 'sec-13f': j === undefined ? clone(SX455_FILE) : j});
+  const J = () => clone(SX455_FILE);
+  const MON = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+  const pdate = s => `${+s.slice(8)} ${MON[+s.slice(5, 7) - 1]} ${s.slice(0, 4)}`;
+  const sg = (v, d) => Math.round(v * 10 ** d) / 10 ** d;
+  const pct = (v, d) => { const r = sg(v, d); return r === 0 ? '0,0%' : (r > 0 ? '+' : '−') + Math.abs(r).toFixed(d).replace('.', ',') + '%'; };
+  const sec = (h, k) => { const i = Math.max(...(k === 'f13' ? ['Co trzymają instytucje w akcjach USA</b>', 'What institutions hold in US stocks</b>'] : ['Niedostarczone akcje</b>', 'Undelivered shares</b>']).map(m => h.indexOf(m))); assert.ok(i >= 0, k); return i; };
+  const part = (h, k) => { const a = sec(h, 'f13'), b = sec(h, 'ftd'); return k === 'f13' ? h.slice(a, b) : h.slice(b); };
+  return {mk, tiles, bars, files, J, sp, txt, code, clone, LOC, pdate, part, MON, sg, pct, NOW};
+})();
+
+test('v455 (F11Z37): pozycje instytucji — nagłówek od razu, plik tylko po rozwinięciu karty (jedno pobranie), karta na końcu GLOBAL przed kursami dolara, jeden obserwator języka, odświeżanie co 30 min tylko przy rozwiniętej karcie', () => {
+  const K = sx455.mk('pl', sx455.files());
+  assert.equal(K.els['#g-sec13f'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Instytucje i niedostarczone akcje w USA</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart');
+  assert.ok(h.includes('Dane pojawią się po rozwinięciu karty.') && sx455.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'sec-13f'], 'po rozwinięciu jedno pobranie pliku'); K.expand(); K.collapse(); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'sec-13f'], 'plik młodszy niż 10 minut — bez ponownego pobrania');
+  const iv = K.ivs.filter(([f, ms]) => ms === 30 * 60e3); assert.equal(iv.length, 1, 'odświeżanie co 30 min'); iv[0][0](); assert.deepEqual(K.calls, ['meta', 'sec-13f', 'sec-13f'], 'przy rozwiniętej karcie zegar pobiera ponownie');
+  K.collapse(); iv[0][0](); assert.equal(K.calls.length, 3, 'zwinięta karta — zegar nie pobiera');
+  assert.equal(sx455.code.split('new MutationObserver(()=>renderSx5())').length, 2, 'jeden obserwator języka z tej karty');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])sec-13f\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.equal(html.split('id="g-sec13f"').length, 2, 'jedna sekcja'); assert.ok(html.includes('<section class="panel pcard" id="g-sec13f" hidden></section>'));
+  const a = html.indexOf('id="g-chinatw"'), b = html.indexOf('id="g-sec13f"'), c = html.indexOf('id="g-dolar"'); assert.ok(a > 0 && b > a && c > b, 'karta po Chinach i Tajwanie, przed kursami dolara (koniec GLOBAL)');
+  assert.ok(html.indexOf('id="g-insider"') < a && html.indexOf('id="g-shorteu"') < a, 'po insiderach i krótkiej sprzedaży w Europie');
+  assert.equal(sx455.mk('pl', sx455.files(undefined, null)).els['#g-sec13f'].hidden, true); assert.equal(sx455.mk('pl', sx455.files(undefined, {ok: {inne: true}})).els['#g-sec13f'].hidden, true);
+  assert.equal(sx455.mk('pl', sx455.files(undefined, {ok: {sec_ftd: false}})).els['#g-sec13f'].hidden, false, 'wystarczy jedna znana część');
+  const E = sx455.mk('pl', sx455.files(null), {open: true}); assert.ok(sx455.txt(E.html()).includes('Nie udało się teraz pobrać danych')); assert.deepEqual(E.calls, ['meta', 'sec-13f']);
+  E.expand(); assert.equal(E.calls.length, 2, 'bez pętli: druga próba dopiero po minucie');
+  assert.ok(sx455.tiles(sx455.mk('pl', sx455.files(), {open: true}).html()).length > 0);
+});
+
+test('v455 (F11Z37): fixtura = nagranie z 19.10.2026 (niezmienniki pliku)', () => {
+  const F = sx455.J(), p = F.f13, q = F.ftd;
+  assert.deepEqual([p.okres, p.okres_pop, p.okno, p.n_zgl, p.n_por, p.n_pap, p.u10, p.inst.length, p.top.length, p.kup.length, p.sprz.length], ['2026-06-30', '2026-03-31', '2026-08-31', 8751, 8501, 22250, 35.2, 10, 15, 8, 8]);
+  assert.deepEqual([p.wart, p.wart_pop, p.inst[0][0], p.top[0][0]], [78766277076834, 66091627654439, 'BlackRock, Inc.', 'Nvidia Corporation']);
+  assert.ok(p.top.every((r, i, a) => !i || a[i - 1][1] >= r[1]) && p.kup.every(r => r[1] > 0) && p.sprz.every(r => r[1] < 0), 'rankingi malejąco, znaki przepływów');
+  assert.deepEqual([q.ost, q.dni.length, q.k_dni, q.top.length, q.stan.n, q.stan.v, q.stan.n1m, q.stan.u10], ['2026-09-30', 12, 12, 12, 5793, 5741084809, 416, 44.7]);
+  assert.ok(q.top.every((r, i, a) => !i || a[i - 1][4] >= r[4]) && q.top.every(r => Math.abs(r[4] - r[2] * r[3]) <= Math.max(1, r[4] * 1e-3)), 'wartość = akcje × cena');
+});
+
+test('v455 (F11Z37): pozycje instytucji — cztery kafle z liczbami fixtury, zmiana wartości w kolorach kierunku, data danych i wiek przy każdej liczbie', () => {
+  const F = sx455.J(), p = F.f13, {pdate, pct} = sx455;
+  const K = sx455.mk('pl', sx455.files(), {open: true}), h = sx455.part(K.html(), 'f13'), T = sx455.tiles(h);
+  assert.deepEqual(T.map(x => x.label), ['Instytucje w porównaniu', 'Wartość ich pozycji', 'Liczba papierów', 'Udział 10 największych']);
+  assert.equal(T[0].val, K.nfmt(8501, 0)); assert.deepEqual(T[0].lines, [['pc', `z ${K.nfmt(8751, 0)} zgłaszających`]]);
+  assert.equal(T[1].val, K.gfmt(p.wart / 1e9)); assert.ok(/^78,77 bln/.test(T[1].val), T[1].val);
+  const dw = (p.wart / p.wart_pop - 1) * 100; assert.equal(Math.round(dw * 10) / 10, 19.2);
+  assert.deepEqual(T[1].lines, [['pos', `▲ +${K.nfmt(19.2, 1)}% wobec ${pdate('2026-03-31')}`]], 'wzrost wartości zielony, z datą porównania');
+  assert.equal(T[2].val, K.nfmt(22250, 0)); assert.equal(T[3].val, K.nfmt(35.2, 1) + '%');
+  for (const x of T) assert.equal(x.when, `dane z ${pdate('2026-06-30')} · wiek(2026-06-30)`, 'data danych (koniec kwartału) i wiek');
+  assert.ok(h.includes('2. kwartał 2026 (stan na 30 cze 2026)'), 'kwartał i stan na dzień w podtytule');
+  // wartość spadła → czerwona strzałka; bez zmiany → żółty punkt; brak liczby → „—” (nigdy zero)
+  const L = (f) => { const j = sx455.J(); f(j.f13); const k = sx455.mk('pl', sx455.files(j), {open: true}); return sx455.tiles(sx455.part(k.html(), 'f13')); };
+  assert.deepEqual(L(x => { x.wart = x.wart_pop * 0.9; })[1].lines[0][0], 'neg'); assert.ok(L(x => { x.wart = x.wart_pop * 0.9; })[1].lines[0][1].startsWith('▼ −10,0%'));
+  assert.deepEqual(L(x => { x.wart = x.wart_pop; })[1].lines[0], ['neu', `• 0,0% wobec ${pdate('2026-03-31')}`]);
+  const brak = L(x => { delete x.n_pap; delete x.u10; }); assert.deepEqual([brak[2].val, brak[3].val, brak[2].lines[0][0], brak[3].lines[0][0]], ['—', '—', 'na', 'na']);
+  const E = sx455.mk('en', sx455.files(), {open: true}), TE = sx455.tiles(sx455.part(E.html(), 'f13'));
+  assert.deepEqual(TE.map(x => x.label), ['Institutions compared', 'Value of their holdings', 'Number of securities', 'Share of the top 10']); assert.ok(E.html().includes('Q2 2026 (as of'), 'angielski: kwartał Q2 2026');
+});
+
+test('v455 (F11Z37): pozycje instytucji — paski: największe instytucje, największe pozycje, kupna i sprzedaże (kolory, szerokości, liczby z fixtury)', () => {
+  const F = sx455.J(), p = F.f13, K = sx455.mk('pl', sx455.files(), {open: true}), h = sx455.part(K.html(), 'f13');
+  const i0 = h.indexOf('Największe instytucje</b>'), i1 = h.indexOf('Największe pozycje</b>'), i2 = h.indexOf('Największe kupna w kwartale (szacunek)</b>'), i3 = h.indexOf('Największe sprzedaże w kwartale (szacunek)</b>');
+  assert.ok(i0 > 0 && i1 > i0 && i2 > i1 && i3 > i2, 'kolejność: instytucje, pozycje, kupna, sprzedaże');
+  const B = k => sx455.bars(h.slice(...k)), I = B([i0, i1]), Pz = B([i1, i2]), Ku = B([i2, i3]), Sp = B([i3]);
+  assert.deepEqual([I.length, Pz.length, Ku.length, Sp.length], [10, 15, 8, 8]);
+  assert.equal(I[0].name, 'BlackRock, Inc.'); assert.equal(I[0].w, 100); assert.ok(Math.abs(I[9].w - p.inst[9][1] / p.inst[0][1] * 100) < 0.01);
+  assert.ok(I[0].val.startsWith(K.gfmt(p.inst[0][1] / 1e9) + ' · +17,6%') && I[0].valHtml.includes('<span class="pos">+17,6%</span>'), I[0].val);
+  assert.equal(Pz[0].name, 'Nvidia Corporation'); assert.ok(Pz[0].val.includes('+4,0%') && Pz[0].valHtml.includes('class="pos"'), Pz[0].val);
+  const nowa = Pz.find(x => x.name.startsWith('Space Exploration')); assert.ok(nowa && nowa.val.includes('nowa pozycja') && nowa.valHtml.includes('class="neu"'), 'pozycja bez poprzedniego kwartału: „nowa pozycja” (żółte), nie 0%');
+  Ku.forEach((r, i) => { assert.equal(r.cls, 'up'); assert.ok(r.valHtml.startsWith('<span class="pos">+') && r.val.includes('liczba akcji'), r.val); if (i) assert.ok(r.w <= Ku[i - 1].w); });
+  Sp.forEach(r => { assert.equal(r.cls, 'dn'); assert.ok(r.valHtml.startsWith('<span class="neg">−') && r.val.includes('liczba akcji'), r.val); });
+  assert.equal(Ku[0].w, 100); assert.equal(Sp[0].w, 100); assert.ok(Ku[0].val.startsWith('+' + K.gfmt(p.kup[0][1] / 1e9)), Ku[0].val);
+  assert.ok(Sp[0].val.startsWith('−' + K.gfmt(-p.sprz[0][1] / 1e9)), Sp[0].val);
+  assert.ok(h.includes('Szacunek na podstawie zmiany liczby akcji w portfelach tych samych instytucji.'), 'krótka nota zamiast opisu metody');
+  // zmiana akcji pusta przy istniejącej poprzedniej wartości = „—” (nie „nowa pozycja” i nie zero)
+  const jn = sx455.J(); jn.f13.top[1][3] = null; const Bn = sx455.bars(sx455.part(sx455.mk('pl', sx455.files(jn), {open: true}).html(), 'f13').split('Największe pozycje</b>')[1]);
+  assert.ok(Bn[1].val.endsWith('· —') && Bn[1].valHtml.includes('class="na"') && !Bn[1].val.includes('nowa'), Bn[1].val);
+  // bez rankingów kupna i sprzedaży nie ma też noty
+  const j = sx455.J(); j.f13.kup = []; j.f13.sprz = []; const h2 = sx455.part(sx455.mk('pl', sx455.files(j), {open: true}).html(), 'f13');
+  assert.ok(!h2.includes('Największe kupna') && !h2.includes('Szacunek na podstawie') && h2.includes('Największe pozycje</b>'));
+});
+
+test('v455 (F11Z37): niedostarczone akcje — kafle (wartość i zmiana od poprzedniego dnia), wykres dzień po dniu, paski największych pozycji z liczbą dni', () => {
+  const F = sx455.J(), q = F.ftd, {pdate} = sx455;
+  const K = sx455.mk('pl', sx455.files(), {open: true}), h = sx455.part(K.html(), 'ftd'), T = sx455.tiles(h);
+  assert.deepEqual(T.map(x => x.label), ['Wartość niedostarczonych akcji', 'Spółki z niedostarczeniem', 'Pozycje powyżej 1 mln USD', 'Udział 10 największych']);
+  const L = q.dni[11], R = q.dni[10], rel = (a, b) => Math.round((a / b - 1) * 1000) / 10;
+  assert.equal(T[0].val, K.gfmt(L[3] / 1e9)); assert.ok(/^5,7 mld/.test(T[0].val), T[0].val); assert.deepEqual(T[0].lines, [['pos', `▲ +${K.nfmt(rel(L[3], R[3]), 1)}% wobec ${pdate('2026-09-29')}`]]);
+  assert.equal(T[1].val, K.nfmt(5793, 0)); assert.equal(T[1].lines[0][0], 'pos'); assert.equal(T[2].val, K.nfmt(416, 0)); assert.equal(T[2].lines[0][0], 'pos'); assert.equal(T[3].val, K.nfmt(44.7, 1) + '%');
+  for (const x of T) assert.equal(x.when, `dane z ${pdate('2026-09-30')} · wiek(2026-09-30)`);
+  assert.equal(K.lines.length, 1, 'jeden wykres'); const ch = K.lines[0]; assert.equal(ch.L.length, 1); assert.equal(ch.L[0].d.length, 12); assert.equal(ch.L[0].d[0][1], 6617052366); assert.equal(ch.o.zero, false);
+  assert.ok(ch.o.aria === 'Wykres: wartość niedostarczonych akcji w 12 dniach' && h.includes('<lines n=12'), ch.o.aria); assert.ok(h.includes('f0="' + K.gfmt(6617052366 / 1e9) + '"'), 'etykiety osi w kwotach');
+  const i0 = h.indexOf('Największe pozycje, ' + pdate('2026-09-30') + '</b>'); assert.ok(i0 > 0, 'nagłówek rankingu z dniem'); const B = sx455.bars(h.slice(i0));
+  assert.equal(B.length, 12); assert.equal(B[0].name, 'BIL State Street Spdr Bloomberg 1-'); assert.equal(B[0].w, 100); assert.ok(B[0].nameHtml.startsWith('<b>BIL</b> <small>State Street'), 'symbol pogrubiony, nazwa małą czcionką');
+  assert.equal(B[0].val, K.gfmt(1464605951 / 1e9) + ' · 6 z 12 dni'); assert.ok(Math.abs(B[1].w - 211204560 / 1464605951 * 100) < 0.01);
+  // spadek wartości → czerwona strzałka; pojedynczy dzień = brak wykresu i brak zmiany („—”)
+  const j = sx455.J(); j.ftd.dni[11][3] = j.ftd.dni[10][3] * 0.5; assert.deepEqual(sx455.tiles(sx455.part(sx455.mk('pl', sx455.files(j), {open: true}).html(), 'ftd'))[0].lines[0][0], 'neg');
+  const j1 = sx455.J(); j1.ftd.dni = [j1.ftd.dni[11]]; const K1 = sx455.mk('pl', sx455.files(j1), {open: true}), T1 = sx455.tiles(sx455.part(K1.html(), 'ftd'));
+  assert.equal(K1.lines.length, 0, 'jeden punkt — bez wykresu'); assert.deepEqual(T1.map(x => x.lines[0]).slice(0, 3), [['na', '—'], ['na', '—'], ['na', '—']]);
+  const E = sx455.mk('en', sx455.files(), {open: true}), TE = sx455.tiles(sx455.part(E.html(), 'ftd')); assert.deepEqual(TE.map(x => x.label), ['Value of undelivered shares', 'Companies with fails', 'Positions above USD 1 million', 'Share of the top 10']);
+  assert.ok(E.html().includes('6 of 12 days') && E.lines[0].o.aria === 'Chart: value of undelivered shares over 12 days');
+});
+
+test('v455 (F11Z37): odporność — stare części znikają, złe wiersze odpadają, brak liczb to „—”, nazwy ze znakami HTML są zabezpieczone, jedna część wystarcza, błąd części widać', () => {
+  const NOWY = sx455.NOW;
+  const draw = (f, meta) => { const j = sx455.J(); f(j); return sx455.mk('pl', sx455.files(j, meta), {open: true}); };
+  // stare dane: 13F starszy niż 200 dób znika, niedostarczone akcje starsze niż 60 dób znikają; obie = karta bez bloków i bez pliku w stopce
+  let K = draw(j => { j.f13.okres = '2026-01-01'; j.f13.okres_pop = '2025-10-01'; }); let h = K.html(); assert.ok(!h.includes('Co trzymają instytucje') && h.includes('Niedostarczone akcje</b>'), 'tylko niedostarczone akcje');
+  K = draw(j => { j.ftd.ost = '2026-07-01'; j.ftd.dni = j.ftd.dni.map(r => ['2026-07-01', ...r.slice(1)]).slice(0, 1); }); h = K.html(); assert.ok(h.includes('Co trzymają instytucje') && !h.includes('Niedostarczone akcje</b>'), 'tylko 13F');
+  K = draw(j => { j.f13.okres = '2026-01-01'; j.ftd.ost = '2026-07-01'; }); assert.ok(sx455.txt(K.html()).includes('Nie udało się teraz pobrać danych'), 'plik bez żadnej poprawnej części = błąd pobrania');
+  // części z zepsutym kształtem odpadają, reszta zostaje
+  K = draw(j => { j.f13.wart = 'x'; }); assert.ok(!K.html().includes('Co trzymają instytucje') && K.html().includes('Niedostarczone akcje</b>'));
+  K = draw(j => { j.f13.okres_pop = 'zła'; }); assert.ok(!K.html().includes('Co trzymają instytucje') && K.html().includes('Niedostarczone akcje</b>'), 'zła data poprzedniego kwartału = część odrzucona');
+  K = draw(j => { j.f13.inst = [['A', 5, 4, 1], ['B', 'x', 1, 1, 1], ['Zero', 0, 5, 1, 1], ['Ujemna', -5, 5, 1, 1], ['Dobra', 100, 50, 3, 3]]; j.f13.top = []; j.f13.kup = [['X', -5, 1, 1, 1], ['Y', 0, 1, 1, 1]]; j.f13.sprz = [['Z', 5, 1, 1, 1]]; });
+  let B = sx455.bars(sx455.part(K.html(), 'f13')); assert.deepEqual(B.map(x => x.name), ['Dobra'], 'tylko poprawne wiersze; kupno i sprzedaż z niewłaściwym znakiem odpadają'); assert.ok(!K.html().includes('Największe pozycje</b>') && !K.html().includes('Największe kupna'));
+  K = draw(j => { j.ftd.dni = [['2026-09-29', 1, 2, 3], ['zła', 1, 2, 3, 4], ['2026-09-30', 5, 6, 7, 8]]; j.ftd.top = [['A', 'a', 1, 2, 'x', 1]]; });
+  assert.ok(K.html().includes('Niedostarczone akcje</b>') && sx455.bars(sx455.part(K.html(), 'ftd')).length === 0 && K.lines.length === 0, 'jeden poprawny dzień, ranking bez poprawnych wierszy');
+  // brak liczb: wartość dnia NaN/null → „—”
+  K = draw(j => { j.ftd.dni[11][3] = null; }); assert.ok(sx455.tiles(sx455.part(K.html(), 'ftd'))[0].when.startsWith('dane z ' + sx455.pdate('2026-09-29')), 'wiersz z nie-liczbą odpada w całości — ostatnim dniem zostaje poprzedni, nie zero');
+  // nazwy z HTML-em
+  K = draw(j => { j.f13.inst[0][0] = '<img src=x onerror=alert(1)>'; j.f13.top[0][0] = '"><script>x</script>'; j.ftd.top[0][0] = '<b>'; j.ftd.top[0][1] = '<i>x</i>'; });
+  assert.ok(!K.html().includes('<img src=x') && !K.html().includes('<script>') && K.html().includes('&lt;img src=x onerror=alert(1)&gt;') && !K.html().includes('<i>x</i>'), 'nazwy zabezpieczone');
+  // błąd części w meta (ok = false) bez poprawnej części: informacja o braku odczytu
+  K = draw(j => { j.f13.okres = '2026-01-01'; j.ok.f13 = false; }); assert.ok(K.html().includes('Brak aktualnego odczytu: pozycje instytucji.'), K.html().slice(0, 400));
+  // jedna część bez błędu w meta — bez informacji
+  K = draw(j => { j.ok.f13 = false; }); assert.ok(!K.html().includes('Brak aktualnego odczytu'), 'część w pliku jest — brak komunikatu');
+  // czas w przyszłości / zły plik
+  assert.equal(sx455.mk('pl', sx455.files({v: 2, at: 'x'}), {open: true}).api.sxOk({v: 2}), false); assert.equal(sx455.mk('pl', sx455.files(), {open: true}).api.sxOk(sx455.J()), true);
+  const P = sx455.mk('pl', sx455.files(), {open: true}).api; assert.equal(P.sxPart({f13: 'x'}, 'f13'), null); assert.equal(P.sxPart(null, 'ftd'), null); assert.equal(P.sxPart(sx455.J(), 'ftd').H.length, 12);
+  const jf = sx455.J(); jf.f13.okres = '2026-10-30'; assert.equal(P.sxPart(jf, 'f13'), null, 'koniec kwartału z przyszłości = część odrzucona');
+});
+
+test('v455 (F11Z37): kolory zmian z pokazanej liczby, angielski i brak nazw dostawców, słownik pl/en o tych samych kluczach i polach, telefon 390 px', () => {
+  const K = sx455.mk('pl', sx455.files(), {open: true}).api;
+  assert.deepEqual([K.sxPct(1.23, 1), K.sxPct(-1.23, 1), K.sxPct(0.04, 1), K.sxPct(null, 1), K.sxPct(NaN, 1)].map(x => [x.txt, x.cls]), [['+1,2%', 'pos'], ['−1,2%', 'neg'], ['0,0%', 'neu'], ['—', 'na'], ['—', 'na']], 'znak po zaokrągleniu, zero żółte');
+  assert.deepEqual([K.sxD(3, 1, '%', 'x'), K.sxD(-0.01, 1, '%', ''), K.sxD(undefined, 1, '%', 'x')].map(x => [x.txt, x.cls]), [['▲ +3,0% x', 'pos'], ['• 0,0%', 'neu'], ['— x', 'na']]);
+  assert.equal(K.sxUsd(null), '—'); assert.equal(K.sxQ('2026-06-30'), '2. kwartał 2026'); assert.equal(K.sxQ('2025-12-31'), '4. kwartał 2025'); assert.equal(sx455.mk('en', sx455.files(), {open: true}).api.sxQ('2026-03-31'), 'Q1 2026');
+  for (const L of ['pl', 'en']) {
+    const h = sx455.txt(sx455.mk(L, sx455.files(), {open: true}).html());
+    for (const zly of ['SEC', 'EDGAR', 'sec.gov', 'Form 13F', 'FINRA', 'DTCC', 'undefined', 'NaN', 'null', '[object']) assert.ok(!h.includes(zly), L + ': w karcie nie ma „' + zly + '”');
+  }
+  const m = [...html.matchAll(/const (EXTRA\d+)=(\{"pl":\{"sx455\..*?\});\n/gs)]; assert.equal(m.length, 1, 'jeden słownik v455'); const E = JSON.parse(m[0][2]);
+  assert.deepEqual(Object.keys(E), ['pl', 'en'], 'tylko polski i angielski'); const kp = Object.keys(E.pl), ke = Object.keys(E.en); assert.deepEqual(kp, ke); assert.ok(kp.length >= 40 && kp.every(k => k.startsWith('sx455.')));
+  for (const k of kp) { const f = s => (s.match(/\{[a-z]+\}/g) || []).sort().join(); assert.equal(f(E.pl[k]), f(E.en[k]), k + ': te same pola'); assert.ok(E.pl[k].trim() && E.en[k].trim()); assert.ok(!/[<>]/.test(E.pl[k] + E.en[k]), k); }
+  const used = new Set([...sx455.code.matchAll(/t\(\s*(?:'(sx455\.[\w.]+)'|`)/g)].map(x => x[1]).filter(k => k && !k.endsWith('.'))); ['sx455.p.f13', 'sx455.p.ftd'].forEach(k => used.add(k));
+  for (const k of used) assert.ok(kp.includes(k), 'klucz użyty w kodzie jest w słowniku: ' + k);
+  assert.ok(new RegExp('const ' + m[0][1] + '=.*\\nfor\\(const l in ' + m[0][1] + '\\)if\\(I18N\\[l\\]\\)Object\\.assign\\(I18N\\[l\\],' + m[0][1] + '\\[l\\]\\);', 's').test(html), 'jedna linia for słownika');
+  // CSS: kolory tylko ze zmiennych motywu, telefon: pasek nad liczbą, bez przewijania w bok
+  const css = html.slice(html.indexOf('/* v455 (F11Z37): pozycje instytucji USA'), html.indexOf('</style>', html.indexOf('/* v455 (F11Z37): pozycje instytucji USA')));
+  assert.ok(css.length > 500 && !/#[0-9a-fA-F]{3,6}\b/.test(css.replace(/#g-sec13f/g, '')), 'bez stałych kolorów w CSS karty'); assert.ok(css.includes('@media (max-width:560px)') && css.includes('#g-sec13f .gxs-b{grid-template-columns:minmax(0,1fr);gap:3px}'));
+  assert.ok(css.includes('overflow-wrap:anywhere') && css.includes('repeat(2,minmax(0,1fr))'));
+  assert.ok(css.includes('#g-sec13f .gxs-t i.up{background:var(--gr)}') && css.includes('#g-sec13f .gxs-t i.dn{background:var(--rd)}'), 'paski kupna zielone, sprzedaży czerwone');
+});

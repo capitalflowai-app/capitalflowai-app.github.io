@@ -2710,6 +2710,36 @@ textarea.kt-f{min-height:110px;resize:vertical}
   #c-nastroje .nas-c::before{content:attr(data-l);display:block;color:var(--dim);font-size:10.5px}
   #c-nastroje .nas-hd{display:none}
 }
+/* v455 (F11Z37): pozycje instytucji USA i niedostarczone akcje (panel #g-sec13f) — kafle w czterech kolumnach (telefon: dwie), paski rankingów, wykres w pełnej szerokości; tylko zmienne motywu; kolory kierunku jak w innych kartach GLOBAL */
+#g-sec13f .etfkpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+#g-sec13f .etfk>span{white-space:normal;overflow-wrap:anywhere}
+#g-sec13f .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3;font-variant-numeric:tabular-nums}
+#g-sec13f .etfk b small{display:block;font-size:10.5px;font-weight:500;white-space:normal;margin-top:2px}
+#g-sec13f .etfk b small.pos{color:var(--gr-tx)}#g-sec13f .etfk b small.neg{color:var(--rd-tx)}#g-sec13f .etfk b small.neu{color:var(--yl-tx)}#g-sec13f .etfk b small.na,#g-sec13f .etfk b small.pc{color:var(--dim)}
+#g-sec13f .etfk b span.pos{color:var(--gr-tx)}#g-sec13f .etfk b span.neg{color:var(--rd-tx)}#g-sec13f .etfk b span.neu{color:var(--yl-tx)}
+#g-sec13f .etfk .icos{display:inline-flex;margin-right:6px}
+#g-sec13f .etfk>small.mtxt{font-size:10.5px;line-height:1.35}
+#g-sec13f .pos{color:var(--gr-tx)}#g-sec13f .neg{color:var(--rd-tx)}#g-sec13f .neu{color:var(--yl-tx)}#g-sec13f .na{color:var(--dim)}
+#g-sec13f .pnote.neu{color:var(--yl-tx)}
+#g-sec13f .gx-h{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin:16px 0 4px;font-size:13px}
+#g-sec13f .gx-h .icos{display:inline-flex;margin-right:6px;vertical-align:middle}
+#g-sec13f .gxs{margin:8px 0 10px;max-width:760px}
+#g-sec13f .gxs-r{margin:7px 0}
+#g-sec13f .gxs-n{display:block;font-size:12.5px;color:var(--mut);margin-bottom:3px;overflow-wrap:anywhere}
+#g-sec13f .gxs-b{display:grid;grid-template-columns:minmax(0,1fr) minmax(9em,15em);align-items:center;gap:10px}
+#g-sec13f .gxs-n .ico,#g-sec13f .gxs-n>img{margin-right:6px;vertical-align:middle}
+#g-sec13f .gxs-t{position:relative;height:10px;border-radius:2px;background:var(--line-2)}
+#g-sec13f .gxs-t i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--bl)}
+#g-sec13f .gxs-t i.cur{background:var(--tl)}#g-sec13f .gxs-t i.up{background:var(--gr)}#g-sec13f .gxs-t i.dn{background:var(--rd)}
+#g-sec13f .gxs-v{font-variant-numeric:tabular-nums;font-size:12px;white-space:normal;text-align:right}
+#g-sec13f .gxs-n small{color:var(--dim);font-size:11px}
+#g-sec13f .wk-ch{margin:4px 0 10px;max-width:760px}
+#g-sec13f .wk-ch .s1{--k:var(--bl)}#g-sec13f .wk-ch .s2{--k:var(--or)}#g-sec13f .wk-ch .s3{--k:var(--tl)}
+@media (max-width:760px){#g-sec13f .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){
+  #g-sec13f .gxs-b{grid-template-columns:minmax(0,1fr);gap:3px}
+  #g-sec13f .gxs-v{text-align:left}
+}
 </style>
 <!-- v348: licznik odwiedzin (decyzja właściciela 12.10). Skrypt count.js leży na naszej stronie (nie na obcej domenie) i nie używa ciasteczek; zliczenie wychodzi do licznika przez sendBeacon (CSP: connect-src; zapas obrazkiem: img-src https:).
      Wizyt technicznych nie liczymy: przeglądarki sterowane automatem (navigator.webdriver), Chrome bez okna (kontrola dzienna, testy), Lighthouse i adresy lokalne z końcówką .local albo [::1] dostają no_onload;
@@ -2970,6 +3000,7 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
     <section class="panel pcard" id="g-sur247" hidden></section>
     <section class="panel pcard" id="g-zlotouk" hidden></section>
     <section class="panel pcard" id="g-chinatw" hidden></section>
+    <section class="panel pcard" id="g-sec13f" hidden></section>
     <section class="panel pcard" id="g-waluty" hidden></section>
     <section class="panel pcard" id="g-dolar" hidden></section>
       <section class="panel pcard" id="inst" hidden></section>
@@ -3872,6 +3903,9 @@ for(const l in EXTRA308)if(I18N[l])Object.assign(I18N[l],EXTRA308[l]);
 /* v454 (F11Z36): rynki prognoz i uwaga detalu (CRYPTO, karta #c-nastroje) — pl i en */
 const EXTRA309={"pl":{"nas454.t":"Rynki prognoz i uwaga detalu","nas454.sub":"Jak rynek prognoz ocenia cenę bitcoina i ethera na najbliższe dni, jak bardzo interesują się nimi zwykli ludzie i czy altcoiny biją bitcoina.","nas454.c.btc":"Bitcoin","nas454.c.eth":"Ethereum","nas454.h.pm":"Cena na najbliższe dni według rynku prognoz","nas454.k.mid":"{c}: środek na {d}","nas454.s.rg":"80% szans, że cena będzie między {a} a {b} USD","nas454.s.up":"Szansa wzrostu w ciągu doby ({d}): {p}","nas454.s.vol":"Obrót w ostatniej dobie: {v} USD","nas454.when":"odczyt: {w}","nas454.h.rg":"{c}: cena na kolejne dni","nas454.c.day":"Dzień","nas454.c.rg":"Zakres 80% szans (USD)","nas454.c.mid":"Środek (USD)","nas454.c.vol":"Obrót 24 h (USD)","nas454.rg.aria":"Zakres 80% szans: od {a} do {b} USD","nas454.lad":"Szansa każdego progu: {c}, {d}","nas454.lad.r":"powyżej {k} USD","nas454.u.k":"tys.","nas454.u.m":"mln","nas454.n.pm":"Środek to cena, powyżej której rynek daje 50% szans. Rynek rozstrzyga się codziennie w południe czasu nowojorskiego.","nas454.h.w":"Zainteresowanie zwykłych ludzi: odsłony artykułów","nas454.w.bitcoin":"Bitcoin","nas454.w.ethereum":"Ethereum","nas454.w.solana":"Solana","nas454.w.dogecoin":"Dogecoin","nas454.w.day":"odsłon dziennie","nas454.w.chg":"Ostatni tydzień wobec średniej z 90 dni: {p}","nas454.w.last":"Ostatni dzień danych ({d}): {n}","nas454.w.when":"dane za {d} · pobrano: {w}","nas454.h.wc":"Zainteresowanie wobec normy (średnia z 90 dni = 100)","nas454.wc.aria":"Wykres zainteresowania artykułami o kryptowalutach wobec średniej z 90 dni, cztery artykuły","nas454.norma":"norma (100)","nas454.n.w":"Liczone bez botów. Dane mają kilka dni opóźnienia. Więcej odsłon to większe zainteresowanie, a nie kierunek ceny.","nas454.h.a":"Altcoiny kontra bitcoin","nas454.a.k":"Indeks sezonu altcoinów","nas454.a.hi":"Sezon altcoinów: większość dużych kryptowalut bije bitcoina","nas454.a.lo":"Sezon bitcoina: większość dużych kryptowalut jest słabsza od bitcoina","nas454.a.mid":"Bez wyraźnej przewagi altcoinów albo bitcoina","nas454.a.wk":"Zmiana w tydzień: {p} pkt","nas454.a.mc":"Kapitalizacja altcoinów: {v}","nas454.a.when":"dane za {d} · pobrano: {w}","nas454.h.ac":"Indeks sezonu altcoinów, ostatnie 90 dni","nas454.ac.aria":"Wykres indeksu sezonu altcoinów z ostatnich 90 dni, skala od 0 do 100","nas454.a.lo.s":"sezon bitcoina (25)","nas454.a.hi.s":"sezon altcoinów (75)","nas454.n.a":"Ile ze 100 największych kryptowalut zarobiło w ostatnich 90 dniach więcej niż bitcoin. Powyżej 75 to sezon altcoinów, poniżej 25 to sezon bitcoina.","nas454.not1":"To szacunek uczestników rynku prognoz, a nie prognoza instytucji. Rynek bywa cienki i może się mylić.","nas454.not2":"Zainteresowanie ludzi nie mówi, czy cena wzrośnie, czy spadnie.","nas454.not3":"Indeks altcoinów opisuje ostatnie 90 dni, a nie przyszłość.","nas454.foot":"Rynek prognoz odświeżamy co około godzinę, odsłony co pół doby, indeks altcoinów co kilka godzin."},"en":{"nas454.t":"Prediction markets and retail attention","nas454.sub":"How the prediction market prices Bitcoin and Ether for the coming days, how interested ordinary people are, and whether altcoins are beating Bitcoin.","nas454.c.btc":"Bitcoin","nas454.c.eth":"Ethereum","nas454.h.pm":"Price for the coming days according to the prediction market","nas454.k.mid":"{c}: midpoint for {d}","nas454.s.rg":"80% chance the price lands between {a} and {b} USD","nas454.s.up":"Chance of a rise over the day ({d}): {p}","nas454.s.vol":"Volume in the last day: {v} USD","nas454.when":"read: {w}","nas454.h.rg":"{c}: price for the next days","nas454.c.day":"Day","nas454.c.rg":"80% range (USD)","nas454.c.mid":"Midpoint (USD)","nas454.c.vol":"24h volume (USD)","nas454.rg.aria":"80% range: from {a} to {b} USD","nas454.lad":"Chance of each level: {c}, {d}","nas454.lad.r":"above {k} USD","nas454.u.k":"k","nas454.u.m":"mln","nas454.n.pm":"The midpoint is the price the market gives a 50% chance of staying above. The market settles every day at noon New York time.","nas454.h.w":"Interest of ordinary people: article page views","nas454.w.bitcoin":"Bitcoin","nas454.w.ethereum":"Ethereum","nas454.w.solana":"Solana","nas454.w.dogecoin":"Dogecoin","nas454.w.day":"views a day","nas454.w.chg":"Last week vs the 90-day average: {p}","nas454.w.last":"Last day of data ({d}): {n}","nas454.w.when":"data for {d} · fetched: {w}","nas454.h.wc":"Interest vs normal (90-day average = 100)","nas454.wc.aria":"Chart of interest in crypto articles vs the 90-day average, four articles","nas454.norma":"normal (100)","nas454.n.w":"Bots are excluded. The data runs a few days behind. More views mean more interest, not a price direction.","nas454.h.a":"Altcoins vs Bitcoin","nas454.a.k":"Altcoin season index","nas454.a.hi":"Altcoin season: most large coins beat Bitcoin","nas454.a.lo":"Bitcoin season: most large coins trail Bitcoin","nas454.a.mid":"No clear lead for altcoins or Bitcoin","nas454.a.wk":"Change over a week: {p} pts","nas454.a.mc":"Altcoin market cap: {v}","nas454.a.when":"data for {d} · fetched: {w}","nas454.h.ac":"Altcoin season index, last 90 days","nas454.ac.aria":"Chart of the altcoin season index over the last 90 days, scale 0 to 100","nas454.a.lo.s":"Bitcoin season (25)","nas454.a.hi.s":"Altcoin season (75)","nas454.n.a":"How many of the 100 largest coins did better than Bitcoin over the last 90 days. Above 75 is altcoin season, below 25 is Bitcoin season.","nas454.not1":"This is an estimate by prediction-market traders, not a forecast by an institution. The market can be thin and wrong.","nas454.not2":"People's interest does not say whether the price will rise or fall.","nas454.not3":"The altcoin index describes the last 90 days, not the future.","nas454.foot":"The prediction market is refreshed about hourly, page views twice a day, the altcoin index every few hours."}};
 for(const l in EXTRA309)if(I18N[l])Object.assign(I18N[l],EXTRA309[l]);
+/* v455 (F11Z37): pozycje instytucji w USA (13F) i niedostarczone akcje (GLOBAL, karta #g-sec13f) — polski i angielski */
+const EXTRA310={"pl":{"sx455.lazy":"Dane pojawią się po rozwinięciu karty.","sx455.err":"Nie udało się teraz pobrać danych. Spróbuj ponownie za chwilę.","sx455.errp":"Brak aktualnego odczytu: {p}.","sx455.dzien":"dane z {d}","sx455.vs":"wobec {d}","sx455.t":"Instytucje i niedostarczone akcje w USA","sx455.sub":"Co kupiły i sprzedały największe instytucje oraz które akcje nie zostały dostarczone w terminie.","sx455.p.f13":"pozycje instytucji","sx455.p.ftd":"niedostarczone akcje","sx455.q":"{n}. kwartał {y}","sx455.h.f13":"Co trzymają instytucje w akcjach USA","sx455.sub.f13":"{q} (stan na {d}). Instytucje zgłaszają pozycje raz na kwartał, z opóźnieniem.","sx455.k.n":"Instytucje w porównaniu","sx455.s.n":"z {m} zgłaszających","sx455.k.w":"Wartość ich pozycji","sx455.k.pap":"Liczba papierów","sx455.s.pap":"akcji i funduszy w portfelach","sx455.k.u10":"Udział 10 największych","sx455.s.u10":"w wartości pozycji","sx455.h.inst":"Największe instytucje","sx455.h.top":"Największe pozycje","sx455.sub.top":"Wartość u wszystkich instytucji razem i zmiana liczby akcji w kwartale.","sx455.nowa":"nowa pozycja","sx455.akcji":"liczba akcji","sx455.h.kup":"Największe kupna w kwartale (szacunek)","sx455.h.sprz":"Największe sprzedaże w kwartale (szacunek)","sx455.n.f13":"Szacunek na podstawie zmiany liczby akcji w portfelach tych samych instytucji. Pominięto papiery z nietypową zmianą (np. po podziale akcji).","sx455.h.ftd":"Niedostarczone akcje","sx455.sub.ftd":"Akcje sprzedane, ale niedostarczone w terminie rozliczenia. Dane dwa razy w miesiącu, z opóźnieniem około 2 tygodni.","sx455.k.fv":"Wartość niedostarczonych akcji","sx455.k.fn":"Spółki z niedostarczeniem","sx455.k.f1":"Pozycje powyżej 1 mln USD","sx455.s.f10":"w wartości dnia","sx455.h.fch":"Wartość dzień po dniu","sx455.s.fv":"Wartość","sx455.ch.f":"Wykres: wartość niedostarczonych akcji w {n} dniach","sx455.h.ftop":"Największe pozycje, {d}","sx455.f.dni":"{k} z {n} dni","sx455.n.ftd":"Wartość = liczba akcji × cena. Takie pozycje bywają krótkotrwałe i nie są sygnałem do kupna ani sprzedaży.","sx455.foot":"Dane urzędowe USA, sprawdzane dwa razy na dobę."},"en":{"sx455.lazy":"The data appear when the card is expanded.","sx455.err":"The data could not be loaded right now. Please try again in a moment.","sx455.errp":"No current reading: {p}.","sx455.dzien":"data from {d}","sx455.vs":"vs {d}","sx455.t":"US institutions and undelivered shares","sx455.sub":"What the largest institutions bought and sold, and which shares were not delivered on time.","sx455.p.f13":"institutional holdings","sx455.p.ftd":"undelivered shares","sx455.q":"Q{n} {y}","sx455.h.f13":"What institutions hold in US stocks","sx455.sub.f13":"{q} (as of {d}). Institutions report their holdings once a quarter, with a delay.","sx455.k.n":"Institutions compared","sx455.s.n":"out of {m} reporting","sx455.k.w":"Value of their holdings","sx455.k.pap":"Number of securities","sx455.s.pap":"stocks and funds in portfolios","sx455.k.u10":"Share of the top 10","sx455.s.u10":"of the holdings value","sx455.h.inst":"Largest institutions","sx455.h.top":"Largest holdings","sx455.sub.top":"Value held by all institutions together and the change in shares during the quarter.","sx455.nowa":"new holding","sx455.akcji":"shares","sx455.h.kup":"Biggest purchases in the quarter (estimate)","sx455.h.sprz":"Biggest sales in the quarter (estimate)","sx455.n.f13":"An estimate based on the change in shares held by the same institutions. Securities with an unusual change (e.g. after a stock split) are left out.","sx455.h.ftd":"Undelivered shares","sx455.sub.ftd":"Shares sold but not delivered by the settlement date. Data twice a month, about 2 weeks late.","sx455.k.fv":"Value of undelivered shares","sx455.k.fn":"Companies with fails","sx455.k.f1":"Positions above USD 1 million","sx455.s.f10":"of the day’s value","sx455.h.fch":"Value day by day","sx455.s.fv":"Value","sx455.ch.f":"Chart: value of undelivered shares over {n} days","sx455.h.ftop":"Largest positions, {d}","sx455.f.dni":"{k} of {n} days","sx455.n.ftd":"Value = number of shares × price. Such positions are often short-lived and are not a signal to buy or sell.","sx455.foot":"US official data, checked twice a day."}};
+for(const l in EXTRA310)if(I18N[l])Object.assign(I18N[l],EXTRA310[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -19664,6 +19698,133 @@ SRV_GR['eth-lancuch']='c';SRV_LD.c.push(ethLoad);
 setInterval(()=>{if(!document.hidden)ethLoad();},10*60*1000);   /* plik co ~60 min — strona pyta co 10 min (wiek w kafelkach też się odświeża) */
 ethLoad();try{new MutationObserver(()=>renderEth()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
 /* v403: koniec */
+/* ===================== v455 (F11Z37): POZYCJE INSTYTUCJI W USA (13F) I NIEDOSTARCZONE AKCJE (GLOBAL) — panel #g-sec13f (plik automatu data/sec-13f.json) =====================
+   Karta zwijana jak pozostałe w GLOBAL (silnik kart zw), na końcu GLOBAL po Chinach i Tajwanie (przed kursami dolara). Nagłówek widać od razu (karta pojawia się, gdy meta.json zna którąś część „sec_*”); plik (kilka KB) jest pobierany dopiero po rozwinięciu
+   karty (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie; po wczytaniu odświeżany co 30 min przy rozwiniętej karcie). Dwa bloki, każdy z własną datą danych i wiekiem:
+   (1) pozycje instytucji w akcjach USA (kwartalnie): cztery kafle (instytucje w porównaniu, wartość portfeli ze zmianą od poprzedniego kwartału, liczba papierów, udział 10 największych), paski: największe
+       instytucje, największe pozycje (ze zmianą liczby akcji), największe kupna i sprzedaże (szacunek: zmiana liczby akcji w portfelach tych samych instytucji);
+   (2) niedostarczone akcje (dwa razy w miesiącu, stan na dzień rozliczenia): cztery kafle (wartość i zmiana od poprzedniego dnia, liczba spółek, pozycje powyżej 1 mln USD, udział 10 największych), wykres wartości
+       dzień po dniu i paski największych pozycji ostatniego dnia (z liczbą dni z niedostarczeniem w pliku).
+   Kolory zmian z POKAZANEJ liczby (plus zielony, minus czerwony, zero żółte); brak = „—”, nigdy zero; część starsza niż 200 dób (13F) albo 60 dób (niedostarczone akcje) znika. Nazw dostawców tu nie ma.
+   To nie jest porada inwestycyjna. Korzysta z narzędzi panelu stresu (strTile, strDay, strNum), pasków udziału (gxShare), wykresów (wkLines, wkMs, wkDay) i formatu kwot (gfmt). */
+const SX5={j:null,l:false,x:false,t:0,e:0,on:false,mo:false};
+const SX5_PARTS=['f13','ftd'],SX5_OLD={f13:200*864e5,ftd:60*864e5},SX5_D=/^\d{4}-\d{2}-\d{2}$/;
+const sxObj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const sxDay=s=>typeof s==='string'&&SX5_D.test(s)&&isFinite(Date.parse(s+'T12:00:00Z'))&&new Date(Date.parse(s+'T12:00:00Z')).toISOString().slice(0,10)===s;
+const sxFl=()=>typeof flagImg==='function'?flagImg('US','sm'):'';
+const sxWhen=d=>t('sx455.dzien',{d:strDay(d)})+gAgeNote(d);
+const sxPos=(x,n)=>Array.isArray(x)&&x.length===n;
+const sxNn=x=>x===null||strNum(x);
+/* kwota w USD → „mld”/„bln” wg formatu strony; brak = „—” */
+const sxUsd=v=>strNum(v)?gfmt(v/1e9):'—';
+/* zmiana w % z POKAZANEJ liczby (dec miejsc): plus zielony, minus czerwony, zero żółte, brak „—” */
+function sxPct(v,dec){
+  if(!strNum(v))return {txt:'—',cls:'na'};
+  const r=Math.round(v*10**dec)/10**dec;if(!r)return {txt:nfmt(0,dec)+'%',cls:'neu'};
+  return {txt:(r>0?'+':'−')+nfmt(Math.abs(r),dec)+'%',cls:r>0?'pos':'neg'};
+}
+/* zmiana ze strzałką (kafle): dec miejsc, suf jednostka, lab dopisek */
+function sxD(v,dec,suf,lab){
+  const L=lab?' '+lab:'';if(!strNum(v))return {txt:'—'+L,cls:'na'};
+  const r=Math.round(v*10**dec)/10**dec;if(!r)return {txt:'• '+nfmt(0,dec)+suf+L,cls:'neu'};
+  return {txt:(r>0?'▲ +':'▼ −')+nfmt(Math.abs(r),dec)+suf+L,cls:r>0?'pos':'neg'};
+}
+const sxSpan=p=>`<span class="${p.cls}">${p.txt}</span>`;
+/* kwartał z dnia końca kwartału: „2. kwartał 2026” / „Q2 2026” */
+const sxQ=d=>t('sx455.q',{n:nfmt(Math.ceil(+d.slice(5,7)/3),0),y:d.slice(0,4)});
+/* ---------- poprawność części pliku ---------- */
+function sxPart(j,k){
+  const P=sxObj(j)?j[k]:null;if(!sxObj(P)||typeof P.t!=='string'||!isFinite(Date.parse(P.t)))return null;
+  if(k==='f13'){
+    if(!sxDay(P.okres)||!sxDay(P.okres_pop))return null;
+    const a=Date.now()-Date.parse(P.okres+'T12:00:00Z');if(!isFinite(a)||a>SX5_OLD.f13||a<-864e5)return null;
+    if(!(strNum(P.wart)&&P.wart>0&&strNum(P.wart_pop)&&P.wart_pop>0&&strNum(P.n_por)&&strNum(P.n_zgl)))return null;
+    const nm=r=>typeof r[0]==='string'&&r[0];
+    const inst=(Array.isArray(P.inst)?P.inst:[]).filter(r=>sxPos(r,5)&&nm(r)&&r.slice(1).every(x=>strNum(x)&&x>0));
+    const top=(Array.isArray(P.top)?P.top:[]).filter(r=>sxPos(r,6)&&nm(r)&&strNum(r[1])&&r[1]>0&&sxNn(r[2])&&sxNn(r[3])&&strNum(r[4])&&sxNn(r[5]));
+    const mv=a=>(Array.isArray(a)?a:[]).filter(r=>sxPos(r,5)&&nm(r)&&strNum(r[1])&&r[1]!==0&&sxNn(r[2])&&strNum(r[3])&&strNum(r[4]));
+    if(!inst.length&&!top.length)return null;
+    return {P,inst,top,kup:mv(P.kup).filter(r=>r[1]>0),sprz:mv(P.sprz).filter(r=>r[1]<0)};
+  }
+  if(!sxDay(P.ost))return null;
+  const a=Date.now()-Date.parse(P.ost+'T12:00:00Z');if(!isFinite(a)||a>SX5_OLD.ftd||a<-2*864e5)return null;
+  const H=(Array.isArray(P.dni)?P.dni:[]).filter(r=>sxPos(r,5)&&sxDay(r[0])&&r.slice(1).every(x=>strNum(x)&&x>=0)).sort((x,y)=>x[0]<y[0]?-1:x[0]>y[0]?1:0);
+  if(!H.length)return null;
+  const top=(Array.isArray(P.top)?P.top:[]).filter(r=>sxPos(r,6)&&typeof r[0]==='string'&&r[0]&&typeof r[1]==='string'&&strNum(r[2])&&strNum(r[3])&&strNum(r[4])&&r[4]>0&&strNum(r[5])&&r[5]>0);
+  return {P,H,top};
+}
+function sxOk(j){return !!(sxObj(j)&&j.v===1&&typeof j.at==='string'&&isFinite(Date.parse(j.at))&&SX5_PARTS.some(k=>sxPart(j,k)));}
+/* ---------- blok 1: pozycje instytucji (13F) ---------- */
+function sxF13Tiles(Q){
+  const P=Q.P,w=sxWhen(P.okres),ico=icoWrap(sxFl()),vs=t('sx455.vs',{d:strDay(P.okres_pop)});
+  return strTile(ico,t('sx455.k.n'),nfmt(P.n_por,0),[{txt:t('sx455.s.n',{m:nfmt(P.n_zgl,0)}),cls:'pc'}],w)
+    +strTile(ico,t('sx455.k.w'),sxUsd(P.wart),[sxD((P.wart/P.wart_pop-1)*100,1,'%',vs)],w)
+    +strTile(ico,t('sx455.k.pap'),strNum(P.n_pap)?nfmt(P.n_pap,0):'—',[{txt:t('sx455.s.pap'),cls:strNum(P.n_pap)?'pc':'na'}],w)
+    +strTile(ico,t('sx455.k.u10'),strNum(P.u10)?nfmt(P.u10,1)+'%':'—',[{txt:t('sx455.s.u10'),cls:strNum(P.u10)?'pc':'na'}],w);
+}
+function sxInst(Q){
+  if(!Q.inst.length)return '';
+  const mx=Math.max(...Q.inst.map(r=>r[1]));
+  return `<div class="gx-h"><b>${t('sx455.h.inst')}</b></div><div class="gxs">`
+    +Q.inst.map(r=>gxShare(escH(r[0]),r[1]/mx*100,`${sxUsd(r[1])} · ${sxSpan(sxPct((r[1]/r[2]-1)*100,1))}`)).join('')+`</div>`;
+}
+function sxTop(Q){
+  if(!Q.top.length)return '';
+  const mx=Math.max(...Q.top.map(r=>r[1]));
+  return `<div class="gx-h"><b>${t('sx455.h.top')}</b></div><p class="pnote">${t('sx455.sub.top')}</p><div class="gxs">`
+    +Q.top.map(r=>{const p=r[2]===null?{txt:t('sx455.nowa'),cls:'neu'}:sxPct(r[3],1);return gxShare(escH(r[0]),r[1]/mx*100,`${sxUsd(r[1])} · ${sxSpan(p)}`);}).join('')+`</div>`;
+}
+function sxMov(Q,up){
+  const L=up?Q.kup:Q.sprz;if(!L.length)return '';
+  const mx=Math.max(...L.map(r=>Math.abs(r[1])));
+  return `<div class="gx-h"><b>${t(up?'sx455.h.kup':'sx455.h.sprz')}</b></div><div class="gxs">`
+    +L.map(r=>{const p=sxPct(r[2],1);return gxShare(escH(r[0]),Math.abs(r[1])/mx*100,`<span class="${up?'pos':'neg'}">${up?'+':'−'}${sxUsd(Math.abs(r[1]))}</span> · ${t('sx455.akcji')} ${sxSpan(p)}`,up?'up':'dn');}).join('')+`</div>`;
+}
+function sxF13Block(Q){
+  const P=Q.P,ico=icoWrap(sxFl());
+  return `<div class="gx-h"><b>${ico}${t('sx455.h.f13')}</b></div><p class="pnote">${t('sx455.sub.f13',{q:sxQ(P.okres),d:strDay(P.okres)})}</p><div class="etfkpis">${sxF13Tiles(Q)}</div>`
+    +sxInst(Q)+sxTop(Q)+sxMov(Q,true)+sxMov(Q,false)+(Q.kup.length||Q.sprz.length?`<p class="pnote">${t('sx455.n.f13')}</p>`:'');
+}
+/* ---------- blok 2: niedostarczone akcje ---------- */
+function sxFtdBlock(Q){
+  const P=Q.P,H=Q.H,n=H.length,L=H[n-1],R=n>1?H[n-2]:null,w=sxWhen(L[0]),ico=icoWrap(sxFl()),vs=R?t('sx455.vs',{d:strDay(R[0])}):'';
+  const dl=(a,b)=>R&&strNum(a)&&strNum(b)&&b>0?sxD((a/b-1)*100,1,'%',vs):{txt:'—',cls:'na'};
+  const u10=P.stan&&strNum(P.stan.u10)?P.stan.u10:null;
+  const tiles=strTile(ico,t('sx455.k.fv'),sxUsd(L[3]),[dl(L[3],R&&R[3])],w)
+    +strTile(ico,t('sx455.k.fn'),nfmt(L[1],0),[dl(L[1],R&&R[1])],w)
+    +strTile(ico,t('sx455.k.f1'),nfmt(L[4],0),[dl(L[4],R&&R[4])],w)
+    +strTile(ico,t('sx455.k.u10'),u10===null?'—':nfmt(u10,1)+'%',[{txt:t('sx455.s.f10'),cls:u10===null?'na':'pc'}],w);
+  const ch=n>=2?`<div class="gx-h"><b>${t('sx455.h.fch')}</b></div>`+wkLines([{n:t('sx455.s.fv'),cls:'s1',d:H.map(r=>[wkMs(r[0]),r[3]])}],{aria:t('sx455.ch.f',{n:nfmt(n,0)}),fmt:v=>gfmt(v/1e9),dt:ms=>wkDay(ms,1),dx:ms=>wkDay(ms,1),zero:false}):'';
+  const mx=Q.top.length?Math.max(...Q.top.map(r=>r[4])):0;
+  const kd=strNum(P.k_dni)&&P.k_dni>0?P.k_dni:null;
+  const top=Q.top.length?`<div class="gx-h"><b>${t('sx455.h.ftop',{d:strDay(L[0])})}</b></div><div class="gxs">`
+    +Q.top.map(r=>gxShare(`<b>${escH(r[0])}</b>${r[1]?` <small>${escH(r[1])}</small>`:''}`,r[4]/mx*100,`${sxUsd(r[4])}${kd?` · ${t('sx455.f.dni',{k:nfmt(r[5],0),n:nfmt(kd,0)})}`:''}`)).join('')+`</div>`:'';
+  return `<div class="gx-h"><b>${ico}${t('sx455.h.ftd')}</b></div><p class="pnote">${t('sx455.sub.ftd')}</p><div class="etfkpis">${tiles}</div>`+ch+top+`<p class="pnote">${t('sx455.n.ftd')}</p>`;
+}
+function sxBody(){const J=SX5.j;
+  if(!J)return `<p class="pnote">${t(SX5.x?'sx455.err':'sx455.lazy')}</p>`;
+  const Q={};SX5_PARTS.forEach(k=>{Q[k]=sxPart(J,k);});
+  const bad=SX5_PARTS.filter(k=>!Q[k]&&sxObj(J.ok)&&J.ok[k]===false);
+  return (Q.f13?sxF13Block(Q.f13):'')+(Q.ftd?sxFtdBlock(Q.ftd):'')
+    +(bad.length?`<p class="pnote neu">${t('sx455.errp',{p:bad.map(k=>t('sx455.p.'+k)).join(', ')})}</p>`:'')
+    +`<p class="pfoot">${t('inst.file',{t:engDate(J.at)})} · ${t('sx455.foot')} ${t('eng.disclaimer')}</p>`;}
+/* karta rozwinięta: silnik kart zwijanych ma klasę zw-on, a nie zw */
+function sxOpen(el){return !!(el&&el.classList&&el.classList.contains('zw-on')&&!el.classList.contains('zw'));}
+function renderSx5(){const el=$('#g-sec13f');if(!el)return;
+  if(!SX5.on){el.hidden=true;el.innerHTML='';return;}
+  el.innerHTML=`<div class="etfh"><div><h2>${icoWrap(sxFl())}${t('sx455.t')}</h2><p class="pnote">${t('sx455.sub')}</p></div></div>${sxBody()}`;
+  el.hidden=false;
+  if(!SX5.mo&&typeof MutationObserver==='function'){SX5.mo=true;try{new MutationObserver(()=>{if(sxOpen(el))sxLoad();}).observe(el,{attributes:true,attributeFilter:['class']});}catch(e){}}   /* rozwinięcie karty (klasa) = pobranie */
+  if(sxOpen(el))sxLoad();}
+/* pobranie pliku: jedno naraz; chwilowy błąd nie zasłania wczytanych danych; po błędzie najwcześniej po minucie; f = odświeżenie wymuszone zegarem */
+function sxLoad(f){if(SX5.l)return;const n=Date.now();if(SX5.j&&!f&&n-SX5.t<10*60e3)return;if(!SX5.j&&n-SX5.e<60e3)return;SX5.l=true;
+  srvJSON('sec-13f').then(j=>{
+    if(!sxOk(j)){SX5.l=false;SX5.e=Date.now();if(!SX5.j)SX5.x=true;renderSx5();return;}
+    SX5.l=false;SX5.j=j;SX5.x=false;SX5.t=Date.now();SX5.on=true;renderSx5();});}
+srvJSON('meta').then(m=>{SX5.on=!!(m&&typeof m==='object'&&m.ok&&typeof m.ok==='object'&&SX5_PARTS.some(k=>Object.prototype.hasOwnProperty.call(m.ok,'sec_'+k)));renderSx5();});
+setInterval(()=>{if(!document.hidden&&SX5.j&&sxOpen($('#g-sec13f')))sxLoad(1);},30*60*1000);
+try{new MutationObserver(()=>renderSx5()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
+/* ---------- koniec bloku pozycji instytucji (v455) ---------- */
 /* ===================== v447 (F11Z35): WALUTY ŚWIATA I KOSZT PIENIĄDZA — KURSY WIELU WALUT, KURS CENTRALNY JUANA, GILTY I INFLACJA OCZEKIWANA (GLOBAL) — panel #g-waluty (plik automatu data/waluty.json) =====================
    Karta zwijana jak pozostałe w GLOBAL (silnik kart zw), po krzywych rentowności. Nagłówek widać od razu (karta pojawia się, gdy meta.json zna którąś część „waluty_*”); plik (kilkadziesiąt KB) jest pobierany dopiero
    po rozwinięciu karty (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie; po wczytaniu odświeżany co 30 min przy rozwiniętej karcie). Trzy bloki, każdy z własną datą danych i wiekiem:

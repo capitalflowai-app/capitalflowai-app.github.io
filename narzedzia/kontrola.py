@@ -14828,6 +14828,144 @@ def nas_k_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v455 (F11Z37): POZYCJE INSTYTUCJI (13F) I NIEDOSTARCZONE AKCJE W USA (data/sec-13f.json) --------------------
+# Plik: dwie części (f13, ftd), każda z własnym czasem sprawdzenia (pole t), rytmem 12 h (po błędzie ponowienie po 2 h, zbieracz v455), dniem danych (f13: koniec kwartału, ftd: ostatni dzień rozliczenia).
+# Wiersze świeżości (najwyżej ⚠️): (1) sprawdzenie części nie starsze niż 48 h — rytm 12 h + 12-godzinna awaria źródła = 24 h (symulacja co 10 minut przez 30 dób w test_zbieraj_dane: największy wiek
+# bez awarii 12,0 h, z awarią 24,0 h), 0 fałszywych ⚠️; (2) dzień danych: f13 — koniec kwartału nie starszy niż 185 dób, ftd — ostatni dzień rozliczenia nie starszy niż 45 dób.
+# Test wsteczny (19.10.2026): f13 — okno zestawu publikowane 3–14 dób po swoim końcu (nagłówki Last-Modified pięciu poprzednich okien: 2–4 doby), czyli najnowszy kwartał pojawia się 63–76 dób po jego końcu;
+# najstarszy widoczny kwartał tuż przed następnym ma ok. 167 dób (91 + 76) → próg 185 dób daje 0 fałszywych ⚠️. ftd — 25 plików z ostatnich 14 miesięcy (Last-Modified): opóźnienie publikacji 14–18 dób
+# (jedno 29 dób), najstarszy ostatni dzień rozliczenia widoczny tuż przed kolejnym plikiem ok. 32 doby; przy braku dwóch plików (maj 2026 nie miał ani jednego) wiek rósł do 60 dób → próg 45 dób daje
+# 0 fałszywych ⚠️ w zwykłym cyklu, a w tamtej przerwie ostrzeżenie słusznie by się pojawiło.
+# Spójność w pliku (⚠️): f13 — kwartały kolejne, liczby instytucji (n_por ≤ n_zgl), wartości dodatnie, instytucje i papiery malejąco, kupno dodatnie i sprzedaż ujemna, udział największych zgodny z listą;
+# ftd — dni rosnące bez powtórzeń, ostatni dzień = ost = stan, ranking malejąco z wartością = akcje × cena, identyfikatory plików.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'sec-13f')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['sec-13f'] = 30 * 60   # plik zapisywany przy każdej próbie (co 12 h, po błędzie co 2 h) — wiek pliku; wiek sprawdzenia każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'sec_' + p_: 'Pozycje instytucji i niedostarczone akcje — część z błędem zostaje z datą (v455); wiek danych w wierszach świeżości' for p_ in ('f13', 'ftd')})
+SEC_K_POBR_MIN = 48 * 60       # min — wiek sprawdzenia części, powyżej tego ⚠️
+SEC_K_DATA_MIN = {'f13': 185 * 24 * 60, 'ftd': 45 * 24 * 60}   # min — wiek dnia danych (od końca dnia), powyżej tego ⚠️
+SEC_K_ETYKIETA = {'f13': 'Pozycje instytucji USA (13F)', 'ftd': 'Niedostarczone akcje USA'}
+
+
+def sec_k_dzien(d):
+    return isinstance(d, str) and len(d) == 10 and _ix_dt_k(d + 'T00:00:00Z') is not None
+
+
+def sec_k_czesc(n, P):
+    """Spójność jednej części → lista usterek."""
+    zle = []
+    if not sec_k_dzien(P.get('dzien')):
+        return ['dzień sprawdzenia bez poprawnej daty']
+    dzis = dt.date.fromisoformat(P['dzien'])
+    if n == 'ftd':
+        H = P.get('dni')
+        if not isinstance(H, list) or not H or any(not (isinstance(r, list) and len(r) == 5 and sec_k_dzien(r[0]) and all(_ste_k_l(x) is not None and x >= 0 for x in r[1:])) for r in H):
+            return ['dni: brak serii albo zły kształt wiersza']
+        d = [r[0] for r in H]
+        if d != sorted(set(d)) or len(d) > 120:
+            zle.append('dni: nie rosną, powtarzają się albo jest ich za dużo')
+        if d[-1] > (dzis + dt.timedelta(days=1)).isoformat():
+            zle.append('dni: ostatni dzień z przyszłości')
+        if P.get('ost') != d[-1]:
+            zle.append('ost: nie jest ostatnim dniem serii')
+        S = P.get('stan')
+        if not (isinstance(S, dict) and [S.get('n'), S.get('q'), S.get('v'), S.get('n1m')] == H[-1][1:]):
+            zle.append('stan: różni się od ostatniego dnia serii')
+        T = P.get('top')
+        if not isinstance(T, list) or not T or len(T) > 12:
+            zle.append('ranking: brak albo za długi')
+        else:
+            if any(not (isinstance(r, list) and len(r) == 6 and isinstance(r[0], str) and r[0] and isinstance(r[1], str) and all(_ste_k_l(x) is not None and x > 0 for x in r[2:5])
+                        and isinstance(r[5], int) and 1 <= r[5] <= (P.get('k_dni') or 99)) for r in T):
+                zle.append('ranking: zły kształt wiersza')
+            elif any(abs(r[4] - r[2] * r[3]) > max(1.0, r[4] * 1e-3) for r in T):
+                zle.append('ranking: wartość ≠ akcje × cena')
+            elif [r[4] for r in T] != sorted((r[4] for r in T), reverse=True):
+                zle.append('ranking: nie malejąco')
+            elif sum(r[4] for r in T) > H[-1][3] * 1.001:
+                zle.append('ranking: suma pozycji większa niż wartość dnia')
+        if not (isinstance(P.get('pliki'), list) and P['pliki'] and all(isinstance(x, str) and len(x) == 7 and x[:6].isdigit() and x[6] in 'ab' for x in P['pliki'])):
+            zle.append('pliki: zły kształt identyfikatorów')
+        return zle
+    # f13
+    try:
+        ok_, op_ = dt.date.fromisoformat(P.get('okres')), dt.date.fromisoformat(P.get('okres_pop'))
+        wn = dt.date.fromisoformat(P.get('okno'))
+    except (TypeError, ValueError):
+        return ['okres, poprzedni okres albo okno bez poprawnej daty']
+    if not (ok_.month in (3, 6, 9, 12) and 85 <= (ok_ - op_).days <= 95 and 55 <= (wn - ok_).days <= 65) or ok_ > dzis:
+        zle.append('kwartały: okres, poprzedni okres albo okno zestawu nie pasują do siebie')
+    if not (isinstance(P.get('n_zgl'), int) and isinstance(P.get('n_por'), int) and 0 < P['n_por'] <= P['n_zgl']):
+        zle.append('liczby instytucji: porównywanych więcej niż zgłaszających')
+    w, wp = P.get('wart'), P.get('wart_pop')
+    if not (_ste_k_l(w) is not None and _ste_k_l(wp) is not None and w > 0 and wp > 0 and 0.5 <= w / wp <= 2.0):
+        zle.append('wartość portfeli: brak albo zmiana kwartał do kwartału poza 50–200%')
+    I = P.get('inst')
+    if not isinstance(I, list) or not I or len(I) > 10 or any(not (isinstance(r, list) and len(r) == 5 and isinstance(r[0], str) and r[0] and all(_ste_k_l(x) is not None and x > 0 for x in r[1:])) for r in I):
+        zle.append('instytucje: brak, za długa lista albo zły kształt wiersza')
+    elif [r[1] for r in I] != sorted((r[1] for r in I), reverse=True) or (w and sum(r[1] for r in I) > w * 1.0001):
+        zle.append('instytucje: nie malejąco albo suma większa niż wartość portfeli')
+    elif P.get('u10') is not None and w and len(I) == 10 and abs(P['u10'] - sum(r[1] for r in I) / w * 100) > 0.11:
+        zle.append('instytucje: udział największych niezgodny z listą')
+    T = P.get('top')
+    if not isinstance(T, list) or not T or len(T) > 15 or any(not (isinstance(r, list) and len(r) == 6 and isinstance(r[0], str) and r[0] and _ste_k_l(r[1]) is not None and r[1] > 0
+                                                                   and (r[2] is None or (_ste_k_l(r[2]) is not None and r[2] > 0)) and (r[3] is None or _ste_k_l(r[3]) is not None)
+                                                                   and isinstance(r[4], int) and r[4] > 0 and (r[5] is None or (isinstance(r[5], int) and r[5] > 0))) for r in T):
+        zle.append('największe pozycje: brak, za długa lista albo zły kształt wiersza')
+    elif [r[1] for r in T] != sorted((r[1] for r in T), reverse=True):
+        zle.append('największe pozycje: nie malejąco')
+    for nazwa, L, znak in (('kupno', P.get('kup'), 1), ('sprzedaż', P.get('sprz'), -1)):
+        if not isinstance(L, list) or len(L) > 8 or any(not (isinstance(r, list) and len(r) == 5 and isinstance(r[0], str) and r[0] and isinstance(r[1], int) and r[1] * znak > 0
+                                                          and (r[2] is None or _ste_k_l(r[2]) is not None) and isinstance(r[3], int) and isinstance(r[4], int)) for r in L):
+            zle.append(f'{nazwa}: zły kształt albo znak przepływu')
+        elif [r[1] * znak for r in L] != sorted((r[1] * znak for r in L), reverse=True):
+            zle.append(f'{nazwa}: nie od największego')
+    return zle
+
+
+def sec_k_kontrola(j, now=None):
+    """data/sec-13f.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    for part in ('f13', 'ftd'):
+        K = j.get(part) if isinstance(j.get(part), dict) else None
+        lab = SEC_K_ETYKIETA[part]
+        if K is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab + ' (sprawdzenie)', '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od dłuższego czasu)')
+            continue
+        zle += [f'{part}: {x}' for x in sec_k_czesc(part, K)]
+        w = wiek_danych(K.get('t'), 'ts', 'k', now)
+        if w is None:
+            out['rows'].append((lab + ' (sprawdzenie)', '?', None, None, 'brak czasu sprawdzenia'))
+        else:
+            st = '⚠️' if w > SEC_K_POBR_MIN else '✅'
+            dane = str(K.get('t'))[:16].replace('T', ' ') + ' UTC'
+            note = '' if st == '✅' else 'sprawdzenie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga'
+            out['rows'].append((lab + ' (sprawdzenie)', st, w, dane, note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (sprawdzenie): {dane} — {fmt_wiek(w)} temu ({note})')
+        asof = K.get('okres') if part == 'f13' else K.get('ost')
+        wd = wiek_danych(asof, 'day', 'k', now) if sec_k_dzien(asof) else None
+        if wd is None:
+            out['rows'].append((lab + ' (dzień danych)', '?', None, None, 'brak dnia danych'))
+        else:
+            st = '⚠️' if wd > SEC_K_DATA_MIN[part] else '✅'
+            note = '' if st == '✅' else 'dane starsze niż zwykle — urząd nie dopisuje nowych zestawień albo zbieracz czyta stary plik; najwyżej uwaga'
+            out['rows'].append((lab + ' (dzień danych)', st, wd, str(asof), note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (dzień danych): {asof} — {fmt_wiek(wd)} temu ({note})')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Pozycje instytucji i niedostarczone akcje (sec-13f.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in ('f13', 'ftd')):
+        out['wiersze'].append(('spójność pliku (pozycje instytucji USA, niedostarczone akcje)', '⚠️' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -15742,6 +15880,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['waluty'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Waluty świata (v447): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v455. Pozycje instytucji (13F) i niedostarczone akcje (data/sec-13f.json): wiek sprawdzenia i dnia danych każdej części, spójność w pliku — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        SEC_ = sec_k_kontrola(files.get('sec-13f'))
+        for label, st, w, txt, note in SEC_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += SEC_['uwagi']
+        R['zgodnosc']['sec-13f'] = {'spojnosc': SEC_['spojnosc'], 'wiersze': SEC_['wiersze']} if (SEC_['rows'] or SEC_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['sec-13f'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Pozycje instytucji i niedostarczone akcje (v455): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -16465,6 +16613,11 @@ def raport_md(R):
             L.append('- Waluty świata, kurs centralny juana, gilty i inflacja oczekiwana (z pliku strony): ' + (f'? kontrola przerwana ({swl_["blad"]})' if swl_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(swl_['spojnosc'][:3]) + ' ⚠️ · ' if swl_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in swl_.get('wiersze') or []) or '—') + '.')
+        ssec_ = Z.get('sec-13f')   # v455: pozycje instytucji (13F) i niedostarczone akcje — brak pliku = bez linii
+        if ssec_:
+            L.append('- Pozycje instytucji USA (13F) i niedostarczone akcje (z pliku strony): ' + (f'? kontrola przerwana ({ssec_["blad"]})' if ssec_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(ssec_['spojnosc'][:3]) + ' ⚠️ · ' if ssec_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in ssec_.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else
