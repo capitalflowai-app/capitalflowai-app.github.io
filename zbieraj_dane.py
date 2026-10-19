@@ -33197,6 +33197,8 @@ def main():
     META['ok']['sec_f13'], META['ok']['sec_ftd'] = sec_czesc(sec_contact)
     # v430 (F11Z29): ropa świata — bilans krajów (wydobycie, przerób, handel, zapasy) i zapasy ropy i paliw w Europie — data/ropa-swiat.json; bez kluczy, części raz na ~dobę, duże pliki roczne tylko po zmianie
     META['ok']['ropa_kr'], META['ok']['ropa_eu'] = rop_czesc()
+    # v458 (F11Z40): pogoda i klimat (El Niño, susza w USA, Ren, Missisipi, temperatura świata, pas kukurydzy) — data/klimat.json; bez kluczy, części co 6 h (re, ms, po) i 12 h (en, su, tm)
+    META['ok']['kli_en'], META['ok']['kli_su'], META['ok']['kli_re'], META['ok']['kli_ms'], META['ok']['kli_tm'], META['ok']['kli_po'] = kl_czesc()
     # v454 (F11Z36): rynki prognoz (cena BTC i ETH na kolejne dni), odsłony artykułów o kryptowalutach i indeks sezonu altcoinów — data/nastroje.json; bez kluczy, trzy części (1 h, 12 h, 6 h), wyłącznik NASTROJE_OFF
     META['ok']['nastr_pm'], META['ok']['nastr_wiki'], META['ok']['nastr_alt'] = nas_czesc()
     # v452 (F11Z32): złoto w handlu Wielkiej Brytanii (import i eksport wg miesięcy i krajów) — data/zloto-uk.json; bez klucza, dwa zapytania raz na ~dobę (po błędzie co 3 h)
@@ -51005,6 +51007,457 @@ def em2_czesc():
 
 
 ZRODLA_META.update({'em2_za': 'sarb', 'em2_in': 'rbi', 'em2_il': 'bank-izraela', 'em2_wb': 'bank-swiatowy'})   # v457: trzy nowe źródła (banki centralne RPA, Indii i Izraela); Bank Światowy już liczony
+
+
+# ===================== v458 (F11Z40): POGODA I KLIMAT — EL NIÑO, SUSZA W USA, REN I MISSISIPI, TEMPERATURA ŚWIATA, POGODA W PASIE KUKURYDZY (data/klimat.json) =====================
+# Sześć niezależnych części, każda z własnym czasem pobrania (pole t w części), rytmem i zapasem po błędzie (plik zostaje z poprzednią częścią, najwyżej KL_MAX_D dób):
+#   en — wskaźnik ONI (agencja pogody i klimatu USA; plik tekstowy od 1950, jeden wiersz = trzymiesięczny sezon): odchylenie temperatury Pacyfiku od normy, faza (El Niño od +0,5, La Niña od −0,5), ile sezonów z rzędu, 25 sezonów;
+#   su — monitor suszy w USA (cotygodniowy plik CSV, 48 stanów): udział powierzchni w stopniach D0–D4 (skumulowany, jak podaje źródło), 105 tygodni;
+#   re — poziom Renu w Kaub (urząd żeglugi w Niemczech, pomiar co 15 min): ostatni pomiar, stan względem normy, średnie dobowe z 31 dni, wartości charakterystyczne stacji (najniższy dobowy, średni niski, średni z lat 2010–2020);
+#   ms — Missisipi w St. Louis (służba geologiczna USA): przepływ dobowy (z 62 dni), stan wody (z 62 dni) i miejsce przepływu na tle tej samej doby roku z wielolecia (percentyle dobowe);
+#   tm — temperatura powietrza na świecie (dobowa, reanaliza ERA5): ostatnia doba, odchylenie od normy 1991–2020, średnie odchylenie z 30 dób, miejsce doby w rankingu lat, 365 dób;
+#   po — pogoda w pasie kukurydzy USA (Iowa, Illinois, Nebraska; model pogody): opad i temperatura maks. z 7 ostatnich dób i prognoza na 7 kolejnych.
+# Brak = brak (nigdy zero): wiersz bez liczby jest pomijany, ostatni wiersz bez liczby = błąd części; część starsza niż dopuszczalny wiek przy pobraniu = błąd (stara liczba nie udaje świeżej).
+# Publiczne GET bez klucza, nagłówek zbieracza, limit czasu i rozmiaru, odstęp KL_SLEEP s. Źródła na stronie: agencja pogody i klimatu USA (już liczona: noaa-cpc) + pięć nowych — liczba źródeł rośnie o 5.
+# Ceny pszenicy z FAO są już w pliku zboza-dzien.json (nie dublujemy); cyklony tropikalne pominięte (odpowiedź zmienia kształt przy aktywnym sztormie — brak nagrania do testu). To nie jest porada inwestycyjna.
+KL_V = 1
+KL_PARTS = ('en', 'su', 're', 'ms', 'tm', 'po')
+KL_CO_H = {'en': 12, 'su': 12, 're': 6, 'ms': 6, 'tm': 12, 'po': 6}    # h między pobraniami części (po błędzie KL_BLAD_H)
+KL_BLAD_H = 1
+KL_MAX_D = {'en': 120, 'su': 21, 're': 5, 'ms': 10, 'tm': 21, 'po': 3}   # doby: część po błędzie zostaje z poprzedniego pliku najwyżej tak długo
+KL_SLEEP = 0.5
+KL_TIMEOUT = 60
+KL_EN_URL = 'https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt'
+KL_SU_URL = 'https://usdmdataservices.unl.edu/api/USStatistics/GetDroughtSeverityStatisticsByAreaPercent?aoi=us&startdate={a}&enddate={b}&statisticsType=1'
+KL_RE_URL_H = 'https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations/KAUB/W/measurements.json?start=P31D'
+KL_RE_URL_C = 'https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations/KAUB/W.json?includeCurrentMeasurement=true&includeCharacteristicValues=true'
+KL_MS_URL_Q = 'https://waterservices.usgs.gov/nwis/dv/?format=json&sites=07010000&parameterCd=00060,00065&period=P62D'
+KL_MS_URL_S = 'https://waterservices.usgs.gov/nwis/stat/?format=rdb&sites=07010000&statReportType=daily&statTypeCd=all&parameterCd=00060'
+KL_TM_URL = 'https://climatereanalyzer.org/clim/t2_daily/json/era5_world_t2_day.json'
+KL_PO_URL = ('https://api.open-meteo.com/v1/forecast?latitude=41.6,40.1,40.9&longitude=-93.6,-88.2,-98.3&daily=precipitation_sum,temperature_2m_max'
+             '&past_days=7&forecast_days=7&timezone=UTC')
+KL_MAX_B = {'en': 200_000, 'su': 400_000, 're': 800_000, 'ms': 400_000, 'tm': 2_000_000, 'po': 100_000}
+KL_EN_SEAS = ('DJF', 'JFM', 'FMA', 'MAM', 'AMJ', 'MJJ', 'JJA', 'JAS', 'ASO', 'SON', 'OND', 'NDJ')
+KL_EN_MIN_ROWS = 800        # w 2026: 921 sezonów od 1950
+KL_EN_N = 25                # sezonów w pliku (dwa lata z zapasem)
+KL_EN_MAX_DNI = 150         # najnowszy sezon: koniec jego środkowego miesiąca nie starszy niż tyle dób (publikacja ok. 5.–10. dnia po sezonie; największy wiek tuż przed kolejną ≈ 85 dni)
+KL_EN_PROG = 0.5            # |ONI| od tego progu = faza El Niño / La Niña
+KL_SU_HEAD = 'MapDate,AreaOfInterest,None,D0,D1,D2,D3,D4,ValidStart,ValidEnd,StatisticFormatID'
+KL_SU_OBSZAR = 'CONUS'      # 48 stanów; w pliku jest też blok „Total” (z Alaską, Hawajami i Portoryko) — pomijany
+KL_SU_DNI = 740             # okno zapytania (ok. 105 tygodni)
+KL_SU_N = 105
+KL_SU_MIN = 90
+KL_SU_MAX_DNI = 30          # najnowsza mapa nie starsza niż tyle dób przy pobraniu
+KL_RE_SKRAJ = (-100.0, 1200.0)   # cm — sensowny zakres odczytu wodowskazu (rekord 825 cm, najniższy 25 cm)
+KL_RE_MIN_PUNKTOW = 24      # pomiarów (co 15 min) potrzebnych do średniej dobowej (6 h)
+KL_RE_MIN_DNI = 20
+KL_RE_MAX_DNI = 3
+KL_MS_MAX_DNI = 10
+KL_MS_Q_MAX = 3_000_000.0   # cfs — rekord 1993 ok. 1 mln cfs
+KL_MS_H_ZAKRES = (-20.0, 60.0)   # stopy
+KL_MS_POZIOMY = (5, 10, 20, 25, 50, 75, 80, 90, 95)
+KL_CFS = 0.028316846592     # 1 stopa sześcienna na sekundę w m³/s
+KL_FT = 0.3048
+KL_MS_LAT_MIN = 30          # lat danych w statystyce doby (w 2026: 94)
+KL_TM_N = 365
+KL_TM_MIN_LAT = 60
+KL_TM_MAX_DNI = 30
+KL_TM_KLIM = '1991-2020'
+KL_PO_PKT = ('ia', 'il', 'ne')
+KL_PO_DNI = 14
+KL_SRC = ('wskaźnik El Niño (ONI), monitor suszy w USA, poziom Renu i Missisipi, dobowa temperatura świata (reanaliza) i pogoda w pasie kukurydzy USA — publiczne pliki urzędów i instytutów')
+
+
+def kl_dzien(s):
+    """'RRRR-MM-DD' → date albo None."""
+    try:
+        return datetime.date.fromisoformat(str(s)[:10]) if re.match(r'^\d{4}-\d{2}-\d{2}', str(s)) else None
+    except ValueError:
+        return None
+
+
+def kl_wiek_dni(d, teraz):
+    """Ile dób od końca dnia `d` (date) do `teraz` (ISO); zły czas = None."""
+    tn = _ix_dt(teraz)
+    return None if tn is None or d is None else (tn - datetime.datetime.combine(d + datetime.timedelta(days=1), datetime.time(), tzinfo=datetime.timezone.utc)).total_seconds() / 86400
+
+
+# ---------------------------------------------------------------- en: ONI
+def kl_en_wiersze(text):
+    """Plik tekstowy ONI → [('RRRR-MM' środkowego miesiąca sezonu, odchylenie)] rosnąco. Nagłówek „SEAS YR TOTAL ANOM”, sezony kolejne (DJF → JFM → … → NDJ → DJF), liczby w zakresie, co najmniej KL_EN_MIN_ROWS wierszy."""
+    lines = [l.split() for l in str(text).lstrip('\ufeff').splitlines() if l.strip()]
+    if not lines or lines[0] != ['SEAS', 'YR', 'TOTAL', 'ANOM']:
+        raise ValueError('nagłówek pliku ONI inny niż oczekiwany')
+    out, prev = [], None
+    for p in lines[1:]:
+        if len(p) != 4 or p[0] not in KL_EN_SEAS or not re.match(r'^\d{4}$', p[1]):
+            raise ValueError('zły wiersz pliku ONI')
+        i, y = KL_EN_SEAS.index(p[0]), int(p[1])
+        if prev is not None and y * 12 + i != prev + 1:
+            raise ValueError('sezony w pliku ONI nie są kolejne')
+        prev = y * 12 + i
+        tot, a = _num(p[2]), _num(p[3])
+        if tot is None or a is None or not (-6.0 <= a <= 6.0) or not (15.0 <= tot <= 40.0):
+            raise ValueError('liczba w pliku ONI poza zakresem')
+        out.append((f'{y}-{i + 1:02d}', a))
+    if len(out) < KL_EN_MIN_ROWS:
+        raise ValueError(f'plik ONI obcięty ({len(out)} wierszy)')
+    return out
+
+
+def kl_en_faza(a):
+    """'w' = ciepła faza (El Niño), 'c' = zimna (La Niña), 'n' = neutralnie."""
+    return 'w' if a >= KL_EN_PROG else ('c' if a <= -KL_EN_PROG else 'n')
+
+
+def kl_en_czesc(rows, teraz):
+    """Wiersze ONI → część 'en' {m, s, v, ph, run, d3, pk, hist}: m = środkowy miesiąc najnowszego sezonu, s = jego skrót (np. JAS), v = odchylenie (°C), ph = faza, run = ile ostatnich sezonów z rzędu w tej fazie,
+    d3 = zmiana wobec sezonu sprzed 3 sezonów, pk = [miesiąc, odchylenie] największego co do modułu w 25 sezonach, hist = [[miesiąc, odchylenie]]. Najnowszy sezon starszy niż KL_EN_MAX_DNI = błąd."""
+    m, v = rows[-1]
+    y, mo = int(m[:4]), int(m[5:])
+    koniec = datetime.date(y + (mo == 12), mo % 12 + 1, 1) - datetime.timedelta(days=1)
+    w = kl_wiek_dni(koniec, teraz)
+    if w is None or w > KL_EN_MAX_DNI:
+        raise RuntimeError(f'ONI: najnowszy sezon {m} jest starszy niż {KL_EN_MAX_DNI} dób')
+    ph = kl_en_faza(v)
+    run = 0
+    for _m, a in reversed(rows):
+        if kl_en_faza(a) != ph:
+            break
+        run += 1
+    tail = rows[-KL_EN_N:]
+    pk = max(tail, key=lambda r: (abs(r[1]), r[0]))
+    return {'m': m, 's': KL_EN_SEAS[mo - 1], 'v': round(v, 2), 'ph': ph, 'run': run, 'd3': round(v - rows[-4][1], 2), 'pk': [pk[0], round(pk[1], 2)],
+            'unit': '°C odchylenia temperatury powierzchni Pacyfiku od normy, średnia z trzech miesięcy', 'hist': [[a, round(b, 2)] for a, b in tail]}
+
+
+# ---------------------------------------------------------------- su: monitor suszy
+def kl_su_wiersze(text):
+    """CSV monitora suszy → [(dzień mapy ISO, [D0, D1, D2, D3, D4])] rosnąco, tylko obszar KL_SU_OBSZAR. Nagłówek dokładnie KL_SU_HEAD, daty ściśle rosnące, bez-suszy + D0 = 100% (±0,3),
+    D0 ≥ D1 ≥ D2 ≥ D3 ≥ D4 (skumulowane), co najmniej KL_SU_MIN tygodni."""
+    lines = [l.strip() for l in str(text).lstrip('\ufeff').splitlines() if l.strip()]
+    if not lines or lines[0] != KL_SU_HEAD:
+        raise ValueError('nagłówek pliku suszy inny niż oczekiwany')
+    out = {}
+    for l in lines[1:]:
+        p = l.split(',')
+        if len(p) != 11:
+            raise ValueError('zły wiersz pliku suszy')
+        if p[1] != KL_SU_OBSZAR:
+            continue
+        if not re.match(r'^\d{8}$', p[0]):
+            raise ValueError('zła data w pliku suszy')
+        d = kl_dzien(f'{p[0][:4]}-{p[0][4:6]}-{p[0][6:]}')
+        v = [_num(x) for x in p[2:8]]
+        if d is None or any(x is None or not (0.0 <= x <= 100.0) for x in v) or abs(v[0] + v[1] - 100.0) > 0.3 or any(v[i] < v[i + 1] - 0.005 for i in range(1, 5)):
+            raise ValueError('liczby w pliku suszy poza zakresem albo niespójne')
+        if d in out:
+            raise ValueError('powtórzona mapa w pliku suszy')
+        out[d] = v[1:]
+    ds = sorted(out)
+    if len(ds) < KL_SU_MIN:
+        raise ValueError(f'plik suszy obcięty ({len(ds)} tygodni)')
+    if any((b - a).days < 5 for a, b in zip(ds, ds[1:])):
+        raise ValueError('mapy suszy zbyt blisko siebie')
+    return [(d.isoformat(), out[d]) for d in ds]
+
+
+def kl_su_czesc(rows, teraz):
+    """Wiersze → część 'su' {date, area, hist}: hist = [[dzień mapy, D0, D1, D2, D3, D4]] (udział powierzchni w %, skumulowany: D1 = co najmniej umiarkowana susza), najwyżej KL_SU_N tygodni. Mapa starsza niż KL_SU_MAX_DNI = błąd."""
+    d = kl_dzien(rows[-1][0])
+    w = kl_wiek_dni(d, teraz)
+    if w is None or w > KL_SU_MAX_DNI:
+        raise RuntimeError(f'susza: najnowsza mapa {rows[-1][0]} jest starsza niż {KL_SU_MAX_DNI} dób')
+    return {'date': rows[-1][0], 'area': KL_SU_OBSZAR, 'unit': '% powierzchni 48 stanów w stopniu D0–D4 (skumulowane: D1 = D1 i wyżej)',
+            'hist': [[a] + [round(x, 2) for x in b] for a, b in rows[-KL_SU_N:]]}
+
+
+def kl_su_url(teraz):
+    tn = _ix_dt(teraz).date()
+    f = lambda x: f'{x.month}/{x.day}/{x.year}'   # noqa: E731
+    return KL_SU_URL.format(a=f(tn - datetime.timedelta(days=KL_SU_DNI)), b=f(tn))
+
+
+# ---------------------------------------------------------------- re: Ren w Kaub
+def kl_re_czesc(hist, st, teraz):
+    """Odpowiedzi stacji → część 're' {date, ts, v, st, mw, mnw, nw, hist}: v = ostatni pomiar (cm), st = stan względem wielolecia (low/normal/high albo None), mw/mnw = średni i średni niski stan z wartości
+    charakterystycznych, nw = [najniższy dobowy, dzień], hist = [[dzień, średnia dobowa cm]] z dni z co najmniej KL_RE_MIN_PUNKTOW pomiarami (co najmniej KL_RE_MIN_DNI dni). Ostatni pomiar starszy niż KL_RE_MAX_DNI dób = błąd."""
+    if not isinstance(hist, list) or not isinstance(st, dict) or not isinstance(st.get('currentMeasurement'), dict):
+        raise RuntimeError('Ren: odpowiedź stacji w innym kształcie')
+    cur = st['currentMeasurement']
+    v, ts = _num(cur.get('value')), str(cur.get('timestamp') or '')
+    t_cur = _ix_dt(ts)
+    if v is None or t_cur is None or not (KL_RE_SKRAJ[0] <= v <= KL_RE_SKRAJ[1]):
+        raise RuntimeError('Ren: zły ostatni pomiar')
+    tn = _ix_dt(teraz)
+    if tn is None or not (-3600 <= (tn - t_cur).total_seconds() <= KL_RE_MAX_DNI * 86400):
+        raise RuntimeError('Ren: ostatni pomiar starszy niż dopuszczalny')
+    dni = {}
+    for r in hist:
+        if not isinstance(r, dict):
+            continue
+        x, d = _num(r.get('value')), str(r.get('timestamp') or '')[:10]
+        if x is None or not re.match(r'^\d{4}-\d{2}-\d{2}$', d) or not (KL_RE_SKRAJ[0] <= x <= KL_RE_SKRAJ[1]):
+            continue
+        dni.setdefault(d, []).append(x)
+    rows = [[d, round(sum(x) / len(x), 1)] for d, x in sorted(dni.items()) if len(x) >= KL_RE_MIN_PUNKTOW]
+    if len(rows) < KL_RE_MIN_DNI:
+        raise RuntimeError(f'Ren: tylko {len(rows)} dób z kompletem pomiarów (poniżej {KL_RE_MIN_DNI})')
+    ch = {c.get('shortname'): c for c in (st.get('characteristicValues') or []) if isinstance(c, dict)}
+    mw, mnw, nw = (_num((ch.get(k) or {}).get('value')) for k in ('MW', 'MNW', 'NW'))
+    nwd = ((ch.get('NW') or {}).get('occurrences') or [None])[0]
+    stan = cur.get('stateMnwMhw')
+    return {'date': ts[:10], 'ts': ts, 'v': round(v, 1), 'st': stan if stan in ('low', 'normal', 'high') else None, 'mw': mw, 'mnw': mnw,
+            'nw': [nw, nwd if kl_dzien(nwd) else None] if nw is not None else None, 'unit': 'cm na wodowskazie w Kaub; średnie dobowe z ostatnich 31 dób',
+            'hist': rows}
+
+
+# ---------------------------------------------------------------- ms: Missisipi w St. Louis
+def kl_ms_serie(j):
+    """Odpowiedź służby geologicznej (dobowe wartości) → ({dzień: przepływ cfs}, {dzień: stan ft}); brak wartości (−999999) i nie-liczba pomijane. Brak serii przepływu = błąd."""
+    try:
+        ts = j['value']['timeSeries']
+    except (TypeError, KeyError):
+        raise RuntimeError('Missisipi: odpowiedź w innym kształcie') from None
+    out = {'00060': {}, '00065': {}}
+    for s in ts if isinstance(ts, list) else []:
+        try:
+            kod = s['variable']['variableCode'][0]['value']
+            vals = s['values'][0]['value']
+        except (TypeError, KeyError, IndexError):
+            continue
+        if kod not in out:
+            continue
+        for r in vals:
+            d, x = str(r.get('dateTime') or '')[:10], _num(r.get('value'))
+            if kl_dzien(d) and x is not None and x > -999:
+                out[kod][d] = x
+    if not out['00060']:
+        raise RuntimeError('Missisipi: brak serii przepływu')
+    return out['00060'], out['00065']
+
+
+def kl_ms_stat(rdb, miesiac, dzien):
+    """Plik RDB statystyk dobowych → ({poziom: przepływ cfs}, liczba lat) dla doby roku; brak wiersza, zła kolejność percentyli albo mniej niż KL_MS_LAT_MIN lat = błąd."""
+    wiersze = [l.split('\t') for l in str(rdb).splitlines() if l.strip() and not l.startswith('#')]
+    if len(wiersze) < 3:
+        raise RuntimeError('Missisipi: statystyki dobowe puste')
+    h = wiersze[0]
+    pot = ['p%02d_va' % p for p in KL_MS_POZIOMY]
+    if any(k not in h for k in ['month_nu', 'day_nu', 'count_nu'] + pot):
+        raise RuntimeError('Missisipi: statystyki dobowe mają inne kolumny')
+    ix = {k: h.index(k) for k in h}
+    for r in wiersze[2:]:
+        if len(r) == len(h) and _num(r[ix['month_nu']]) == miesiac and _num(r[ix['day_nu']]) == dzien:
+            p = [_num(r[ix[k]]) for k in pot]
+            n = _num(r[ix['count_nu']])
+            if any(x is None for x in p) or n is None or n < KL_MS_LAT_MIN or any(a > b for a, b in zip(p, p[1:])) or p[0] < 0:
+                raise RuntimeError('Missisipi: statystyki doby niespójne')
+            return dict(zip(KL_MS_POZIOMY, p)), int(n)
+    raise RuntimeError('Missisipi: brak statystyk dla doby roku')
+
+
+def kl_ms_pozycja(x, P):
+    """Miejsce przepływu x na tle percentyli doby P ({poziom: przepływ}) → (percentyl 5–95 liniowo między progami, 'lo' | 'hi' | None gdy poza skrajnymi progami)."""
+    ps = sorted(P)
+    if x <= P[ps[0]]:
+        return float(ps[0]), 'lo'
+    if x >= P[ps[-1]]:
+        return float(ps[-1]), 'hi'
+    for a, b in zip(ps, ps[1:]):
+        if P[a] <= x <= P[b]:
+            return (float(a) if P[b] == P[a] else a + (b - a) * (x - P[a]) / (P[b] - P[a])), None
+    return 50.0, None
+
+
+def kl_ms_czesc(dv, rdb, teraz):
+    """Odpowiedzi → część 'ms' {date, q, med, p, pc, yrs, ref, hist, h}: q = przepływ ostatniej doby (m³/s), med = mediana tej doby roku, p = miejsce na tle wielolecia (percentyl), pc = 'lo'/'hi' gdy poza
+    skrajnymi progami (5. i 95.), yrs = ile lat w statystyce, ref = progi 10./50./90. (m³/s), hist = [[dzień, m³/s]], h = [[dzień, stan w m]]. Ostatnia doba starsza niż KL_MS_MAX_DNI = błąd."""
+    q, h = kl_ms_serie(dv)
+    d = max(q)
+    w = kl_wiek_dni(kl_dzien(d), teraz)
+    if w is None or w > KL_MS_MAX_DNI or q[d] <= 0 or q[d] > KL_MS_Q_MAX:
+        raise RuntimeError('Missisipi: ostatnia doba przepływu zbyt stara albo poza zakresem')
+    P, lat = kl_ms_stat(rdb, int(d[5:7]), int(d[8:10]))
+    poz, pc = kl_ms_pozycja(q[d], P)
+    mq = lambda x: round(x * KL_CFS, 1)   # noqa: E731
+    hh = [[a, round(b * KL_FT, 2)] for a, b in sorted(h.items()) if KL_MS_H_ZAKRES[0] <= b <= KL_MS_H_ZAKRES[1]]
+    return {'date': d, 'q': mq(q[d]), 'med': mq(P[50]), 'p': round(poz, 1), 'pc': pc, 'yrs': lat, 'ref': {'p10': mq(P[10]), 'p50': mq(P[50]), 'p90': mq(P[90])},
+            'unit': 'm³/s (przepływ dobowy w St. Louis); stan wody w m', 'hist': [[a, mq(b)] for a, b in sorted(q.items()) if 0 < b <= KL_MS_Q_MAX][-62:], 'h': hh[-63:]}
+
+
+# ---------------------------------------------------------------- tm: temperatura świata
+def kl_tm_czesc(j, teraz):
+    """Odpowiedź (lista serii: lata 1940… i średnie wielolecia) → część 'tm' {date, v, clim, a, rk, a30, y1, hist}: v = temperatura ostatniej doby (°C), clim = norma 1991–2020 dla tej doby, a = v − clim, rk = [miejsce doby
+    wśród lat (1 = najcieplejsza), liczba lat], a30 = średnie odchylenie z 30 ostatnich dób, y1 = [dzień, temperatura] tej samej doby roku przed rokiem, hist = [[dzień, temperatura, norma]] z KL_TM_N dób. Ostatnia doba starsza niż KL_TM_MAX_DNI = błąd."""
+    if not isinstance(j, list):
+        raise RuntimeError('temperatura świata: odpowiedź nie jest listą')
+    lata, norma = {}, None
+    for s in j:
+        if not isinstance(s, dict) or not isinstance(s.get('data'), list) or len(s['data']) != 366:
+            continue
+        n = str(s.get('name'))
+        if re.match(r'^\d{4}$', n):
+            lata[int(n)] = s['data']
+        elif n == KL_TM_KLIM:
+            norma = s['data']
+    if len(lata) < KL_TM_MIN_LAT or norma is None:
+        raise RuntimeError('temperatura świata: za mało lat albo brak normy 1991–2020')
+    ok = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool) and -10.0 <= x <= 30.0   # noqa: E731
+    rok = max(lata)
+    idx = [i for i, x in enumerate(lata[rok]) if ok(x)]
+    if not idx:
+        raise RuntimeError('temperatura świata: brak dni z liczbą w najnowszym roku')
+    i = max(idx)
+    d = datetime.date(rok, 1, 1) + datetime.timedelta(days=i)   # miejsce k w serii roku = k-ty dzień roku (w roku nieprzestępnym ostatnie miejsce jest puste)
+    w = kl_wiek_dni(d, teraz)
+    if d.year != rok or w is None or w > KL_TM_MAX_DNI or not ok(norma[i]):
+        raise RuntimeError('temperatura świata: ostatnia doba zbyt stara albo bez normy')
+    ser = []   # (data, temperatura, norma) rosnąco z dwóch ostatnich lat
+    for y in (rok - 1, rok):
+        if y not in lata:
+            continue
+        for k in range(366):
+            dk = datetime.date(y, 1, 1) + datetime.timedelta(days=k)
+            if dk.year == y and ok(lata[y][k]) and ok(norma[k]):
+                ser.append((dk, lata[y][k], norma[k]))
+    ser = ser[-KL_TM_N:]
+    if len(ser) < KL_TM_N - 5 or ser[-1][0] != d:
+        raise RuntimeError('temperatura świata: seria ostatnich dób niepełna')
+    wsz = sorted((lata[y][i] for y in lata if ok(lata[y][i])), reverse=True)
+    miejsce = wsz.index(lata[rok][i]) + 1
+    a30 = [x - n for _d, x, n in ser[-30:]]
+    dp = datetime.date(rok - 1, 1, 1) + datetime.timedelta(days=i)   # ta sama doba roku przed rokiem (ten sam numer miejsca w serii)
+    y1 = [dp.isoformat(), round(lata[rok - 1][i], 2)] if rok - 1 in lata and dp.year == rok - 1 and ok(lata[rok - 1][i]) else None
+    return {'date': d.isoformat(), 'v': round(lata[rok][i], 2), 'clim': round(norma[i], 2), 'a': round(lata[rok][i] - norma[i], 2), 'rk': [miejsce, len(wsz)],
+            'a30': round(sum(a30) / len(a30), 2), 'y1': y1, 'unit': '°C, średnia powietrza przy powierzchni ziemi na całym świecie (dobowa); norma = średnia z lat 1991–2020',
+            'hist': [[a.isoformat(), round(b, 2), round(c, 2)] for a, b, c in ser]}
+
+
+# ---------------------------------------------------------------- po: pas kukurydzy
+def kl_po_czesc(j, teraz):
+    """Odpowiedź modelu pogody (lista trzech punktów, 14 dób: 7 ostatnich + dziś + 6 prognoz) → część 'po' {date, past, ahead, rows}: date = dzisiejszy dzień (UTC), rows = [[dzień, opad średni (mm), temperatura maks. średnia (°C)]],
+    past = [suma opadu z 7 dób przed dzisiejszą, średnia temp. maks.], ahead = [suma opadu z 7 dób od dzisiejszej, średnia temp. maks., najwyższa temp. maks. prognozy]. Brak liczby w którymś punkcie = błąd."""
+    if not isinstance(j, list) or len(j) != len(KL_PO_PKT):
+        raise RuntimeError('pogoda w pasie kukurydzy: odpowiedź w innym kształcie')
+    dni, opad, tmax = None, [], []
+    for p in j:
+        try:
+            dd = p['daily']
+            t, r, x = dd['time'], dd['precipitation_sum'], dd['temperature_2m_max']
+        except (TypeError, KeyError):
+            raise RuntimeError('pogoda w pasie kukurydzy: punkt bez serii dobowych') from None
+        if len(t) != KL_PO_DNI or len(r) != KL_PO_DNI or len(x) != KL_PO_DNI or (dni is not None and t != dni):
+            raise RuntimeError('pogoda w pasie kukurydzy: inna liczba albo inne dni w punktach')
+        dni = t
+        if any(not isinstance(v, (int, float)) or isinstance(v, bool) or not (0.0 <= v <= 500.0) for v in r) or any(not isinstance(v, (int, float)) or isinstance(v, bool) or not (-60.0 <= v <= 60.0) for v in x):
+            raise RuntimeError('pogoda w pasie kukurydzy: brak liczby albo liczba poza zakresem')
+        opad.append(r); tmax.append(x)
+    ds = [kl_dzien(a) for a in dni]
+    if any(d is None for d in ds) or any((b - a).days != 1 for a, b in zip(ds, ds[1:])):
+        raise RuntimeError('pogoda w pasie kukurydzy: dni nie są kolejne')
+    tn = _ix_dt(teraz)
+    dzis = tn.date() if tn else None
+    if dzis is None or ds[7] != dzis:
+        raise RuntimeError('pogoda w pasie kukurydzy: dzisiejszy dzień nie jest ósmy w serii')
+    n = len(KL_PO_PKT)
+    rows = [[dni[k], round(sum(o[k] for o in opad) / n, 1), round(sum(x[k] for x in tmax) / n, 1)] for k in range(KL_PO_DNI)]
+    past, ahead = rows[:7], rows[7:]
+    return {'date': dzis.isoformat(), 'past': [round(sum(r[1] for r in past), 1), round(sum(r[2] for r in past) / 7, 1)],
+            'ahead': [round(sum(r[1] for r in ahead), 1), round(sum(r[2] for r in ahead) / 7, 1), max(r[2] for r in ahead)], 'pts': list(KL_PO_PKT),
+            'unit': 'mm opadu dobowego i °C temperatury maksymalnej, średnia z trzech punktów (Iowa, Illinois, Nebraska); 7 dób wstecz i 7 dób naprzód od dziś', 'rows': rows}
+
+
+def kl_pobierz(url, maks):
+    """Jedyne miejsce sieci tego pliku (testy je łatają): zapytanie GET z odstępem, limitem czasu i rozmiaru → bajty."""
+    time.sleep(KL_SLEEP)
+    return get_bytes_maks(url, None, KL_TIMEOUT, maks)
+
+
+def kl_job(n, prev_part, teraz):
+    """Odczyt jednej części z sieci → gotowa część pliku (z polem t = chwila pobrania)."""
+    if n == 'en':
+        o = kl_en_czesc(kl_en_wiersze(kl_pobierz(KL_EN_URL, KL_MAX_B['en']).decode('utf-8-sig')), teraz)
+    elif n == 'su':
+        o = kl_su_czesc(kl_su_wiersze(kl_pobierz(kl_su_url(teraz), KL_MAX_B['su']).decode('utf-8-sig')), teraz)
+    elif n == 're':
+        hist = json.loads(kl_pobierz(KL_RE_URL_H, KL_MAX_B['re']).decode('utf-8'))
+        o = kl_re_czesc(hist, json.loads(kl_pobierz(KL_RE_URL_C, KL_MAX_B['re']).decode('utf-8')), teraz)
+    elif n == 'ms':
+        dv = json.loads(kl_pobierz(KL_MS_URL_Q, KL_MAX_B['ms']).decode('utf-8'))
+        o = kl_ms_czesc(dv, kl_pobierz(KL_MS_URL_S, KL_MAX_B['ms']).decode('utf-8'), teraz)
+    elif n == 'tm':
+        o = kl_tm_czesc(json.loads(kl_pobierz(KL_TM_URL, KL_MAX_B['tm']).decode('utf-8')), teraz)
+    else:
+        o = kl_po_czesc(json.loads(kl_pobierz(KL_PO_URL, KL_MAX_B['po']).decode('utf-8')), teraz)
+    o = dict(o)
+    o['t'] = teraz
+    return o
+
+
+def kl_trzeba(czas, ok_prev, teraz, co_h):
+    """Czy część pobrać w tym przebiegu: brak czasu poprzedniego pobrania = tak; po błędzie co KL_BLAD_H h, inaczej co `co_h` h."""
+    tk, tn = _ix_dt(czas), _ix_dt(teraz)
+    if tn is None or tk is None or tk > tn:
+        return True
+    return (tn - tk).total_seconds() / 3600 >= (co_h if ok_prev else KL_BLAD_H)
+
+
+def kl_zadania(pv, teraz):
+    """Które części pobrać w tym przebiegu → {część: bool}."""
+    ok, pat = (pv.get('ok') if isinstance(pv.get('ok'), dict) else {}), (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {})
+    return {n: (True if not isinstance(pv.get(n), dict) else kl_trzeba(pat.get(n) or pv.get('at'), ok.get(n, True) is not False, teraz, KL_CO_H[n])) for n in KL_PARTS}
+
+
+def build_klimat(prev=None, zadania=None):
+    """v458: data/klimat.json {v, at, src, ok, part_at, en, su, re, ms, tm, po} → (plik, {część: True | False | 'cached'}). Część pominięta (rytm) zostaje z poprzedniego pliku bez zmian; część po błędzie —
+    z poprzedniego pliku z własnym czasem (najwyżej KL_MAX_D dób), błąd do META['errors']. Żadna część w pliku = wyjątek (main zostawia poprzedni plik)."""
+    pv = prev if isinstance(prev, dict) and prev.get('v') == KL_V else {}
+    zad = zadania if zadania is not None else kl_zadania(pv, NOW)
+    pat0, ok0 = (pv.get('part_at') if isinstance(pv.get('part_at'), dict) else {}), (pv.get('ok') if isinstance(pv.get('ok'), dict) else {})
+    out = {'v': KL_V, 'at': NOW, 'src': KL_SRC, 'ok': {}, 'part_at': {}}
+    st = {}
+    for n in KL_PARTS:
+        stara = pv.get(n) if isinstance(pv.get(n), dict) else None
+        if not zad.get(n):
+            if stara is not None:
+                out[n], out['ok'][n], out['part_at'][n], st[n] = stara, ok0.get(n, True), pat0.get(n) or pv.get('at'), 'cached'
+            else:
+                st[n] = 'cached'
+            continue
+        try:
+            out[n] = kl_job(n, stara, NOW)
+            out['ok'][n], out['part_at'][n], st[n] = True, NOW, True
+        except Exception as e:  # noqa — jedna część nie psuje pozostałych
+            META['errors'].append(mask(f'Pogoda i klimat: {n}: {e}')[:200])
+            out['ok'][n], st[n] = False, False
+            if stara is not None and _zapas_wiek_ok(pat0.get(n) or pv.get('at'), KL_MAX_D[n]):
+                out[n], out['part_at'][n] = stara, pat0.get(n) or pv.get('at')
+    if not any(isinstance(out.get(n), dict) for n in KL_PARTS):
+        raise RuntimeError('żadna część pliku pogody i klimatu nie ma danych')
+    return out, st
+
+
+def kl_czesc():
+    """v458: część przebiegu → krotka wartości dla META['ok'] w kolejności KL_PARTS: True = pobrane, 'cached' = poprzednia wersja wystarcza (rytm), False = część zawiodła. Nieudana budowa zostawia poprzedni plik."""
+    prev = previous('klimat')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == KL_V else None
+    zad = kl_zadania(prev or {}, NOW)
+    if prev and not any(zad.values()):
+        save('klimat', prev)
+        return tuple('cached' for _ in KL_PARTS)
+    try:
+        obj, st = build_klimat(prev, zad)
+        save('klimat', obj)
+        return tuple(st.get(n, False) for n in KL_PARTS)
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Pogoda i klimat: {e}')[:200])
+        if prev:
+            save('klimat', prev)
+        return tuple(False for _ in KL_PARTS)
+
+
+ZRODLA_META.update({'kli_en': 'noaa-cpc', 'kli_su': 'usdm', 'kli_re': 'pegelonline', 'kli_ms': 'usgs', 'kli_tm': 'climate-reanalyzer', 'kli_po': 'open-meteo'})   # v458: agencja pogody i klimatu USA już liczona (energia_pogoda); cztery nowe źródła + model pogody = +5
 
 
 if __name__ == '__main__':

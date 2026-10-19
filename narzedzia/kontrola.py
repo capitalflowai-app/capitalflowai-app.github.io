@@ -15338,6 +15338,231 @@ def emk_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v458 (F11Z40): POGODA I KLIMAT (data/klimat.json) --------------------
+# Plik: sześć części (en El Niño/ONI, su susza w USA, re Ren, ms Missisipi, tm temperatura świata, po pas kukurydzy), każda z własnym czasem pobrania (pole t); rytm zbieracza: re, ms i po co 6 h, en, su i tm co 12 h
+# (po błędzie ponowienie po 1 h). Wiersze świeżości (najwyżej ⚠️): (1) pobranie części: re, ms i po ≤ 24 h, en, su i tm ≤ 36 h (symulacja co 10 minut przez 30 dób w test_zbieraj_dane: największy wiek pobrania
+# bez awarii = rytm, z 12-godzinną awarią źródła = rytm + 12 h — poniżej progów, 0 fałszywych ⚠️); (2) wiek danych z cyklu publikacji: en ≤ 110 dni od końca środkowego miesiąca sezonu (sezon pojawia się ok. 5.–10. dnia
+# po jego końcu; największy wiek tuż przed kolejnym ≈ 70 dni), su ≤ 14 dni od dnia mapy (mapa wtorkowa pojawia się w czwartek; największy wiek tuż przed kolejną ≈ 9 dni, we wszystkich 94 tygodniach nagrania odstęp = 7 dni),
+# re ≤ 3 dni (pomiar co 15 minut; data = dzień ostatniego pomiaru), ms ≤ 5 dni od ostatniej doby (doba pojawia się następnego dnia), tm ≤ 21 dni (opóźnienie reanalizy w nagraniu: 7 dni; zwykle 2–4), po ≤ 2 dni
+# (data = dzień pobrania prognozy). Progi bez ❌.
+# Spójność w pliku (⚠️): en — faza zgodna ze znakiem, miesiące kolejne, ostatni punkt = bieżący; su — udziały malejące od D0 do D4, tygodnie rosnące; re — pomiar w zakresie, stan z listy, średnie dobowe rosnące;
+# ms — percentyle w zakresie, progi 10 ≤ 50 ≤ 90, mediana = próg 50, wiersze rosnące; tm — odchylenie = temperatura − norma, miejsce w rankingu ≤ liczba lat, ostatni punkt = bieżący; po — 14 kolejnych dób,
+# dziś = ósma, sumy zgodne z wierszami.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'klimat')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['klimat'] = 18 * 60   # plik zapisywany przy każdej próbie pobrania (co ~6 h, po błędzie co 1 h) — wiek pliku; wiek pobrania każdej części ocenia wiersz świeżości
+AW_BEZ_BLEDU.update({'kli_' + p_: 'pogoda i klimat — część z błędem zostaje z datą (v458); wiek danych w wierszach świeżości' for p_ in ('en', 'su', 're', 'ms', 'tm', 'po')})
+KLK_PARTS = ('en', 'su', 're', 'ms', 'tm', 'po')
+KLK_ETYKIETA = {'en': 'Pogoda: El Niño (ONI)', 'su': 'Pogoda: susza w USA', 're': 'Pogoda: Ren w Kaub', 'ms': 'Pogoda: Missisipi', 'tm': 'Pogoda: temperatura świata', 'po': 'Pogoda: pas kukurydzy USA'}
+KLK_POBR_MIN = {'en': 36 * 60, 'su': 36 * 60, 're': 24 * 60, 'ms': 24 * 60, 'tm': 36 * 60, 'po': 24 * 60}    # min — wiek pobrania części, powyżej ⚠️
+KLK_DATA_MIN = {'en': 110 * 24 * 60, 'su': 14 * 24 * 60, 're': 3 * 24 * 60, 'ms': 5 * 24 * 60, 'tm': 21 * 24 * 60, 'po': 2 * 24 * 60}   # min — wiek danych (od końca dnia / miesiąca), powyżej ⚠️
+KLK_POLE = {'en': ('month', 'm'), 'su': ('day', 'date'), 're': ('day', 'date'), 'ms': ('day', 'date'), 'tm': ('day', 'date'), 'po': ('day', 'date')}
+_KLK_M = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+
+
+def klk_dzien(d):
+    return isinstance(d, str) and len(d) == 10 and _ix_dt_k(d + 'T00:00:00Z') is not None
+
+
+def klk_rosnace(S, dl, klucz, ile):
+    """Wiersze długości dl, których pierwszy element spełnia `klucz`, ściśle rosnące, niepuste, nie więcej niż ile; zwraca opis usterki albo ''."""
+    if not isinstance(S, list) or not S:
+        return 'brak serii'
+    if any(not (isinstance(r, list) and len(r) == dl and klucz(r[0])) for r in S):
+        return 'zły kształt wiersza'
+    k = [r[0] for r in S]
+    if k != sorted(set(k)):
+        return 'etykiety nie rosną albo się powtarzają'
+    return f'więcej niż {ile} wierszy' if len(S) > ile else ''
+
+
+def klk_en(P):
+    zle = []
+    m, v = P.get('m'), P.get('v')
+    if not (isinstance(m, str) and _KLK_M.match(m)) or not _euk_num(v, -6, 6):
+        return ['en: zły miesiąc albo odchylenie']
+    if P.get('ph') != ('w' if v >= 0.5 else ('c' if v <= -0.5 else 'n')):
+        zle.append('en: faza niezgodna ze znakiem odchylenia')
+    if P.get('s') not in ('DJF', 'JFM', 'FMA', 'MAM', 'AMJ', 'MJJ', 'JJA', 'JAS', 'ASO', 'SON', 'OND', 'NDJ') or ('DJF JFM FMA MAM AMJ MJJ JJA JAS ASO SON OND NDJ'.split()[int(m[5:]) - 1] != P.get('s')):
+        zle.append('en: skrót sezonu niezgodny z miesiącem')
+    if not (isinstance(P.get('run'), int) and P['run'] >= 1) or not _euk_num(P.get('d3'), -12, 12):
+        zle.append('en: zły licznik sezonów albo zmiana')
+    s = klk_rosnace(P.get('hist'), 2, lambda x: isinstance(x, str) and bool(_KLK_M.match(x)), 25)
+    if s:
+        zle.append('en.hist: ' + s)
+    else:
+        H = P['hist']
+        if H[-1] != [m, v]:
+            zle.append('en.hist: ostatni punkt to nie dane bieżące')
+        if any(not _euk_num(r[1], -6, 6) for r in H):
+            zle.append('en.hist: wartość poza zakresem')
+        for a, b in zip(H, H[1:]):
+            y, mo = int(a[0][:4]), int(a[0][5:])
+            if b[0] != f'{y + (mo == 12):04d}-{mo % 12 + 1:02d}':
+                zle.append('en.hist: miesiące nie są kolejne'); break
+    return zle
+
+
+def klk_su(P):
+    zle = []
+    d = P.get('date')
+    if not klk_dzien(d):
+        return ['su: zła data']
+    s = klk_rosnace(P.get('hist'), 6, klk_dzien, 105)
+    if s:
+        return ['su.hist: ' + s]
+    H = P['hist']
+    if H[-1][0] != d:
+        zle.append('su.hist: ostatni tydzień ≠ date')
+    for r in H:
+        if any(not _euk_num(x, 0, 100) for x in r[1:]) or any(r[i] < r[i + 1] - 0.005 for i in range(1, 5)):
+            zle.append(f'su.hist: udziały poza zakresem albo rosnące od D0 do D4 ({r[0]})'); break
+    return zle
+
+
+def klk_re(P):
+    zle = []
+    d = P.get('date')
+    if not klk_dzien(d) or not _euk_num(P.get('v'), -100, 1200):
+        return ['re: zła data albo pomiar']
+    if P.get('st') not in (None, 'low', 'normal', 'high'):
+        zle.append('re: nieznany stan względem wielolecia')
+    for k in ('mw', 'mnw'):
+        if not _euk_num(P.get(k), 0, 1200):
+            zle.append(f're.{k}: brak albo poza zakresem')
+    s = klk_rosnace(P.get('hist'), 2, klk_dzien, 40)
+    if s:
+        zle.append('re.hist: ' + s)
+    else:
+        if any(not _euk_num(r[1], -100, 1200) for r in P['hist']):
+            zle.append('re.hist: wartość poza zakresem')
+        if P['hist'][-1][0] > d:
+            zle.append('re.hist: ostatnia doba późniejsza niż pomiar bieżący')
+    return zle
+
+
+def klk_ms(P):
+    zle = []
+    d = P.get('date')
+    if not klk_dzien(d) or not _euk_num(P.get('q'), 1, 90000) or not _euk_num(P.get('med'), 1, 90000):
+        return ['ms: zła data albo przepływ']
+    R = P.get('ref')
+    if not (isinstance(R, dict) and all(_euk_num(R.get(k), 0, 90000) for k in ('p10', 'p50', 'p90'))) or not (R['p10'] <= R['p50'] <= R['p90']):
+        zle.append('ms.ref: progi 10 ≤ 50 ≤ 90 niespełnione')
+    elif R['p50'] != P['med']:
+        zle.append('ms: mediana ≠ próg 50')
+    p, pc = P.get('p'), P.get('pc')
+    if not _euk_num(p, 0, 100) or pc not in (None, 'lo', 'hi') or (pc == 'lo' and p != 5) or (pc == 'hi' and p != 95) or (pc is None and not 5 < p < 95):
+        zle.append('ms: miejsce na tle wielolecia niezgodne z oznaczeniem krańca')
+    if not (isinstance(P.get('yrs'), int) and P['yrs'] >= 30):
+        zle.append('ms: za mało lat w statystyce')
+    for k, ile in (('hist', 62), ('h', 63)):
+        s = klk_rosnace(P.get(k), 2, klk_dzien, ile)
+        if s:
+            zle.append(f'ms.{k}: ' + s)
+    if not zle and P['hist'][-1] != [d, P['q']]:
+        zle.append('ms.hist: ostatni punkt to nie dane bieżące')
+    return zle
+
+
+def klk_tm(P):
+    zle = []
+    d = P.get('date')
+    if not klk_dzien(d) or not all(_euk_num(P.get(k), -10, 30) for k in ('v', 'clim')) or not _euk_num(P.get('a'), -15, 15):
+        return ['tm: zła data, temperatura albo norma']
+    if abs(P['a'] - (P['v'] - P['clim'])) > 0.011:
+        zle.append('tm: odchylenie ≠ temperatura − norma')
+    rk = P.get('rk')
+    if not (isinstance(rk, list) and len(rk) == 2 and all(isinstance(x, int) for x in rk) and 1 <= rk[0] <= rk[1] and rk[1] >= 60):
+        zle.append('tm.rk: zły ranking')
+    if not _euk_num(P.get('a30'), -15, 15):
+        zle.append('tm.a30: poza zakresem')
+    y1 = P.get('y1')
+    if y1 is not None and not (isinstance(y1, list) and len(y1) == 2 and klk_dzien(y1[0]) and _euk_num(y1[1], -10, 30)):
+        zle.append('tm.y1: zły kształt')
+    elif y1 is not None and klk_dzien(d) and (dt.date.fromisoformat(d) - dt.date.fromisoformat(y1[0])).days not in (365, 366):
+        zle.append('tm.y1: to nie doba sprzed roku')
+    s = klk_rosnace(P.get('hist'), 3, klk_dzien, 365)
+    if s:
+        zle.append('tm.hist: ' + s)
+    else:
+        if P['hist'][-1] != [d, P['v'], P['clim']]:
+            zle.append('tm.hist: ostatni punkt to nie dane bieżące')
+        if any(not _euk_num(r[1], -10, 30) or not _euk_num(r[2], -10, 30) for r in P['hist']):
+            zle.append('tm.hist: liczba poza zakresem')
+    return zle
+
+
+def klk_po(P):
+    zle = []
+    d = P.get('date')
+    R = P.get('rows')
+    if not klk_dzien(d) or not isinstance(R, list) or len(R) != 14 or any(not (isinstance(r, list) and len(r) == 3 and klk_dzien(r[0]) and _euk_num(r[1], 0, 500) and _euk_num(r[2], -60, 60)) for r in R):
+        return ['po: zła data albo wiersze']
+    try:
+        ds = [dt.date.fromisoformat(r[0]) for r in R]
+    except ValueError:
+        return ['po: zła data w wierszu']
+    if any((b - a).days != 1 for a, b in zip(ds, ds[1:])):
+        zle.append('po: dni nie są kolejne')
+    if R[7][0] != d:
+        zle.append('po: dzisiejszy dzień nie jest ósmy w serii')
+    pa, ah = P.get('past'), P.get('ahead')
+    if not (isinstance(pa, list) and len(pa) == 2 and isinstance(ah, list) and len(ah) == 3 and all(_euk_num(x, -60, 4000) for x in pa + ah)):
+        return zle + ['po: zły kształt sum']
+    if abs(pa[0] - sum(r[1] for r in R[:7])) > 0.11 or abs(ah[0] - sum(r[1] for r in R[7:])) > 0.11:
+        zle.append('po: sumy opadu niezgodne z wierszami')
+    if abs(ah[2] - max(r[2] for r in R[7:])) > 0.011:
+        zle.append('po: najwyższa temperatura prognozy niezgodna z wierszami')
+    return zle
+
+
+def klk_kontrola(j, now=None):
+    """data/klimat.json → {'rows': [(etykieta, status, wiek min, dane, uwaga)], 'uwagi': [...], 'wiersze': [(opis, znak)], 'spojnosc': [...]}; brak pliku albo inna wersja = puste. Najwyżej ⚠️."""
+    now = now or NOW
+    out = {'rows': [], 'uwagi': [], 'wiersze': [], 'spojnosc': []}
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return out
+    zle = []
+    spr = {'en': klk_en, 'su': klk_su, 're': klk_re, 'ms': klk_ms, 'tm': klk_tm, 'po': klk_po}
+    for part in KLK_PARTS:
+        K = j.get(part) if isinstance(j.get(part), dict) else None
+        lab = KLK_ETYKIETA[part]
+        if K is None:
+            if j.get('ok', {}).get(part) is not None:
+                out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak tej części w pliku'))
+                out['uwagi'].append(f'{lab}: brak tej części w pliku (źródło nie odpowiada od dłuższego czasu)')
+            continue
+        zle += spr[part](K)
+        w = wiek_danych(K.get('t'), 'ts', 'k', now)
+        if w is None:
+            out['rows'].append((lab + ' (pobranie)', '?', None, None, 'brak czasu pobrania'))
+        else:
+            st = '⚠️' if w > KLK_POBR_MIN[part] else '✅'
+            dane = str(K.get('t'))[:16].replace('T', ' ') + ' UTC'
+            note = '' if st == '✅' else 'pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga'
+            out['rows'].append((lab + ' (pobranie)', st, w, dane, note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (pobranie): {dane} — {fmt_wiek(w)} temu ({note})')
+        kind, pole = KLK_POLE[part]
+        dd = K.get(pole)
+        ok_ = (isinstance(dd, str) and bool(_KLK_M.match(dd))) if kind == 'month' else klk_dzien(dd)
+        wd = wiek_danych(dd, kind, 'k', now) if ok_ else None
+        if wd is None:
+            out['rows'].append((lab + ' (data danych)', '?', None, None, 'brak daty danych'))
+        else:
+            st = '⚠️' if wd > KLK_DATA_MIN[part] else '✅'
+            note = '' if st == '✅' else 'dane starsze niż wynika z cyklu publikacji — źródło nie publikuje albo zbieracz czyta stary plik; najwyżej uwaga'
+            out['rows'].append((lab + ' (data danych)', st, wd, str(dd), note))
+            if st == '⚠️':
+                out['uwagi'].append(f'{lab} (data danych): {dd} — {fmt_wiek(wd)} temu ({note})')
+    out['spojnosc'] = zle
+    for z in zle[:4]:
+        out['uwagi'].append(f'Pogoda i klimat (klimat.json): {z}')
+    if any(isinstance(j.get(k), dict) for k in KLK_PARTS):
+        out['wiersze'].append(('spójność pliku (El Niño, susza, Ren, Missisipi, temperatura świata, pas kukurydzy)', '⚠️' if zle else '✅'))
+    return out
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -16282,6 +16507,16 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['em2'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'Rynki wschodzące 2 (v457): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v458. Pogoda i klimat (data/klimat.json): wiek pobrania i danych każdej części, spójność w pliku — z plików strony, bez zapytań; najwyżej ⚠️
+    try:
+        KL_ = klk_kontrola(files.get('klimat'))
+        for label, st, w, txt, note in KL_['rows']:
+            R['swiezosc'].append({'zrodlo': label, 'status': st, 'wiek_min': w, 'data': txt, 'uwaga': note})
+        R['uwagi'] += KL_['uwagi']
+        R['zgodnosc']['klimat'] = {'spojnosc': KL_['spojnosc'], 'wiersze': KL_['wiersze']} if (KL_['rows'] or KL_['wiersze']) else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['klimat'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Pogoda i klimat (v458): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -17020,6 +17255,11 @@ def raport_md(R):
             L.append('- Rynki wschodzące: RPA, płynność banków Indii, fundusze Izraela i przekazy migrantów (z pliku strony): ' + (f'? kontrola przerwana ({em2_["blad"]})' if em2_.get('blad') else
                      ('niespójności w pliku: ' + '; '.join(em2_['spojnosc'][:3]) + ' ⚠️ · ' if em2_.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in em2_.get('wiersze') or []) or '—') + '.')
+        skl_ = Z.get('klimat')   # v458: pogoda i klimat — brak pliku = bez linii
+        if skl_:
+            L.append('- Pogoda i klimat: El Niño, susza w USA, Ren, Missisipi, temperatura świata i pas kukurydzy (z pliku strony): ' + (f'? kontrola przerwana ({skl_["blad"]})' if skl_.get('blad') else
+                     ('niespójności w pliku: ' + '; '.join(skl_['spojnosc'][:3]) + ' ⚠️ · ' if skl_.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in skl_.get('wiersze') or []) or '—') + '.')
         suk_ = Z.get('usdt-skarbiec')   # v377: USDT na żywo, skarbiec emitenta — brak pliku = bez linii
         if suk_:
             L.append('- USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): ' + (f'? kontrola przerwana ({suk_["blad"]})' if suk_.get('blad') else
