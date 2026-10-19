@@ -79443,3 +79443,92 @@ class KontrolaDefi2V463(unittest.TestCase):
         p['part_at']['peg'] = p['peg']['dzien'] + 'T08:50:51+00:00'
         o = k.df2_kontrola(p, None, self.NOW)
         self.assertEqual([r[1] for r in o['rows']], ['⚠️', '✅', '✅', '⚠️'], 'ceny: etykieta doby to bieżąca data — bez ostrzeżenia')
+
+
+_V467_RBI_18_10 = json.loads("""["Money Market Operations as on October 18, 2026", "(Amount in ₹ crore, Rate in Per cent)", "MONEY MARKETS", "@", "-->", "Money Markets", "@", "Volume", "(One Leg)", "Weighted", "Average Rate", "Range", "A. Overnight Segment (I+II+III+IV)", "0.00", "-", "-", "I. Call Money", "0.00", "-", "-", "II. Triparty Repo", "0.00", "-", "-", "III. Market Repo", "0.00", "-", "-", "IV. Repo in Corporate Bond", "0.00", "-", "-", "B. Term Segment", "I. Notice Money", "**", "0.00", "-", "-", "II. Term Money", "@@", "0.00", "-", "-", "III. Triparty Repo", "0.00", "-", "-", "IV. Market Repo", "0.00", "-", "-", "V. Repo in Corporate Bond", "0.00", "-", "-", "RBI OPERATIONS", "@", "-->", "RBI OPERATIONS", "@", "-->", "RBI Operations", "@", "Auction Date", "Tenor (Days)", "Maturity Date", "Amount", "Current Rate /", "Cut off Rate", "C. Liquidity Adjustment Facility (LAF), Marginal Standing Facility (MSF) & Standing Deposit Facility (SDF)", "I. Today's Operations", "1. Fixed Rate", "2. Variable Rate", "&", "(a) Repo Operation", "(b) Reverse Repo Operation", "3. MSF", "#", "Sun, 18/10/2026", "1", "Mon, 19/10/2026", "10,410.00", "5.75", "4. SDF", "Δ#", "Sun, 18/10/2026", "1", "Mon, 19/10/2026", "1,44,678.00", "5.25", "5. Net liquidity injected from today's operations [injection (+)/absorption (-)]*", "-1,34,268.00", "II. Outstanding Operations", "1. Fixed Rate", "2. Variable Rate", "&", "(a) Repo Operation", "(b) Reverse Repo Operation", "Fri, 09/10/2026", "10", "Mon, 19/10/2026", "18,170.00", "5.49", "Thu, 08/10/2026", "29", "Fri, 06/11/2026", "38,655.00", "5.49", "3. MSF", "#", "Sat, 17/10/2026", "2", "Mon, 19/10/2026", "177.00", "5.75", "Fri, 16/10/2026", "3", "Mon, 19/10/2026", "0.00", "5.75", "4. SDF", "Δ#", "Sat, 17/10/2026", "2", "Mon, 19/10/2026", "2,292.00", "5.25", "Fri, 16/10/2026", "3", "Mon, 19/10/2026", "1,141.00", "5.25", "D. Standing Liquidity Facility (SLF) Availed from RBI", "$", "8,476.05", "E. Net liquidity injected from outstanding operations [injection (+)/absorption (-)]*", "-51,604.95", "F. Net liquidity injected (outstanding including today's", "operations) [injection (+)/absorption (-)]*", "-1,85,872.95", "RESERVE POSITION", "@", "-->", "RESERVE POSITION", "@", "-->", "Reserve Position", "@", "Date", "Amount", "-->", "G. Cash Reserves Position of Scheduled Commercial Banks", "-->", "(i) Cash balances with RBI as on^^", "-->", "October 18, 2026", "8,43,207.56", "-->", "(ii) Average daily cash reserve requirement for the fortnight ending^", "October 31, 2026", "8,33,309.00", "-->", "H. Government of India Surplus Cash Balance Reckoned for Auction as on", "¥", "October 16, 2026", "0.00", "-->", "I. Net durable liquidity [surplus (+)/deficit (-)] as on", "September 30, 2026", "10,14,401.00", "-->", "@", "Based on Reserve Bank of India (RBI) / Clearing Corporation of India Limited (CCIL)."]""")   # komórki tabeli RBI z niedzieli 18.10.2026 (nagranie z 19.10: zera i myślniki, operacje niedzielne)
+
+
+def _v467_html(komorki):
+    return '<html><head><style>.x{}</style><script>var a=1;</script></head><body><table>' + ''.join('<tr><td>%s</td></tr>' % x.replace('&', '&amp;') for x in komorki) + '</table></body></html>'
+
+
+class TestV467RbiWeekend(unittest.TestCase):
+    """v467 (19.10.2026): w weekend i święta strona banku Indii pokazuje tabelę z zerami i myślnikami (nagranie z 18.10) — to dzień bez danych:
+    zostają poprzednie dane z datą, jest notatka, nie ma błędu. Błąd tylko przy prawdziwie zmienionym formacie."""
+    _dane = Em2V457._dane
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+        self.p = [mock.patch.object(zd, 'NOW', _V457_NOW.isoformat()), mock.patch.object(zd, 'EM_SLEEP', 0), mock.patch.object(zd, 'SECRETS', [])]
+        for p in self.p:
+            p.start()
+        self.T = _V457_NOW.isoformat()
+
+    def tearDown(self):
+        for p in self.p:
+            p.stop()
+        zd.META['errors'].clear(); zd.META['notes'].clear()
+
+    def _pusta(self):
+        return _v467_html(_V467_RBI_18_10)
+
+    def test_nagranie_z_niedzieli_to_dzien_bez_danych(self):
+        with self.assertRaises(zd.EmInBrakDnia) as c:
+            zd.em_in_czesc(self._pusta())
+        self.assertEqual(c.exception.dzien, '2026-10-18'); self.assertIsInstance(c.exception, RuntimeError)
+        self.assertIn('Sun, 18/10/2026', _V467_RBI_18_10, 'nagranie ma niedzielne operacje, ale segment overnight jest pusty')
+
+    def test_zmieniony_format_nadal_jest_bledem(self):
+        def blad(f, wzor):
+            k = list(_V467_RBI_18_10); f(k)
+            with self.assertRaisesRegex(RuntimeError, wzor) as c:
+                zd.em_in_czesc(_v467_html(k))
+            self.assertNotIsInstance(c.exception, zd.EmInBrakDnia)
+        i = _V467_RBI_18_10.index('I. Call Money')
+        blad(lambda k: k.__setitem__(slice(i + 1, i + 4), ['1,475.35', '5.39', '4.90-5.90']), 'zły wiersz overnight')   # suma pusta, ale wiersz ma liczby
+        blad(lambda k: k.__setitem__(slice(i + 2, i + 3), ['5.39']), 'zły wiersz overnight')   # stopa w wierszu, której nie ma w sumie
+        a = _V467_RBI_18_10.index('A. Overnight Segment (I+II+III+IV)')
+        blad(lambda k: k.__setitem__(slice(a + 1, a + 4), ['0.00', '-', 'brak']), 'zły wiersz overnight')   # inny zapis zakresu
+        blad(lambda k: k.__setitem__(slice(a + 1, a + 4), ['n/a', '-', '-']), 'zły wiersz overnight')   # wolumen nie jest liczbą
+        blad(lambda k: k.__setitem__(slice(a + 1, a + 4), ['15,299.40', '-', '-']), 'zły wiersz overnight')   # wolumen bez stopy to nie dzień bez danych
+        blad(lambda k: k.__setitem__(slice(i, i + 4), []), 'brak wiersza')   # brak wiersza Call Money
+        blad(lambda k: k.__setitem__(a, 'A. Overnight (nowy układ)'), 'brak segmentu overnight')
+        with self.assertRaisesRegex(RuntimeError, 'zły wiersz overnight'):
+            zd.em_in_czesc(_v457_in_html(on='15,299.40|5.72|-'))   # dzień roboczy z liczbami i uszkodzonym zakresem
+
+    def test_zadanie_zostawia_poprzednie_dane_z_notatka_bez_bledu(self):
+        P = zd.em_in_czesc(_v457_in_html()); P['t'] = '2026-10-17T06:00:00+00:00'
+        with mock.patch.object(zd, 'em_pobierz', lambda *a, **k: self._pusta().encode()):
+            o = zd.em_job('in', P, self.T)
+            self.assertEqual({k: v for k, v in o.items() if k not in ('bd', 't')}, {k: v for k, v in P.items() if k != 't'}, 'dane, data i historia bez zmian')
+            self.assertEqual((o['date'], o['bd'], o['t']), ('2026-10-16', '2026-10-18', self.T))
+            self.assertEqual(zd.META['errors'], []); self.assertEqual(len(zd.META['notes']), 1); self.assertIn('2026-10-16', zd.META['notes'][0]); self.assertIn('2026-10-18', zd.META['notes'][0])
+            zd.em_job('in', o, self.T)
+            self.assertEqual(len(zd.META['notes']), 1, 'notatka raz na pusty dzień')
+            with self.assertRaisesRegex(RuntimeError, 'dzień bez danych'):
+                zd.em_job('in', None, self.T)   # nie ma czego zostawić
+
+    def test_plik_em2_weekend_bez_bledu_i_powrot_w_dzien_roboczy(self):
+        with mock.patch.object(zd, 'em_pobierz', self._dane()):
+            pl, _st = zd.build_em2(None)
+        wk = self._dane()
+        t1 = (_V457_NOW + datetime.timedelta(hours=7)).isoformat()
+        with mock.patch.object(zd, 'NOW', t1), mock.patch.object(zd, 'em_pobierz', lambda u, c, nagl=None: self._pusta().encode() if c == 'in' else wk(u, c, nagl)):
+            p1, st1 = zd.build_em2(pl)
+        self.assertEqual(st1['in'], True); self.assertEqual((p1['ok']['in'], p1['part_at']['in']), (True, t1)); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual((p1['in']['date'], p1['in']['bd'], p1['in']['on']), ('2026-10-16', '2026-10-18', pl['in']['on'])); self.assertEqual(p1['in']['h'], pl['in']['h'])
+        # emk_in (kontrola) nie widzi w polu bd błędu: kontrola sprawdza tylko znane pola
+        self.assertEqual(set(p1['in']) - set(pl['in']), {'bd'})
+        # poniedziałek z danymi: znacznik znika, historia rośnie
+        t2 = (_V457_NOW + datetime.timedelta(hours=14)).isoformat()
+        nowa = _v457_in_html(data='October 19, 2026').encode()
+        with mock.patch.object(zd, 'NOW', t2), mock.patch.object(zd, 'em_pobierz', lambda u, c, nagl=None: nowa if c == 'in' else wk(u, c, nagl)):
+            p2, st2 = zd.build_em2(p1)
+        self.assertNotIn('bd', p2['in']); self.assertEqual(p2['in']['date'], '2026-10-19'); self.assertEqual([r[0] for r in p2['in']['h']], ['2026-10-16', '2026-10-19'])
+        self.assertEqual(zd.META['errors'], [])
+
+    def test_pusty_dzien_bez_pliku_poprzedniego_jest_bledem_czesci(self):
+        wk = self._dane()
+        with mock.patch.object(zd, 'em_pobierz', lambda u, c, nagl=None: self._pusta().encode() if c == 'in' else wk(u, c, nagl)):
+            p, st = zd.build_em2(None)
+        self.assertEqual((st['in'], p['ok']['in']), (False, False)); self.assertNotIn('in', p); self.assertTrue(any('Rynki wschodzące 2: in: RBI: dzień bez danych' in e for e in zd.META['errors']))

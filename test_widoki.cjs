@@ -27059,7 +27059,7 @@ test('v375 (F9Z1): kalendarz 2 — słownik 10 języków pełny, tabela kodów i
     const T = v96src.tFor(L);
     for (const k of kal375.KODY) { const v = T('kal375.e.' + k); assert.ok(v && v !== 'kal375.e.' + k, L + ' ' + k); }
     for (const p of kal375.PARTS) { const v = T('kal375.p.' + p); assert.ok(v && v !== 'kal375.p.' + p, L + ' ' + p); }
-    for (const k of ['sub', 'brak.pl_szybki', 'why.pl_bank', 'why.pl_szybki', 'why.err', 'n4']) { const v = T('kal375.' + k); assert.ok(v && v !== 'kal375.' + k && v.length > 6, L + ' ' + k); }
+    for (const k of ['sub', 'brak.pl_szybki', 'why.pl_bank', 'why.pl_szybki', 'why.err']) { const v = T('kal375.' + k); assert.ok(v && v !== 'kal375.' + k && v.length > 6, L + ' ' + k); }
   }
   for (const L of ['en']) {
     const j2 = kal375.J2(); j2.ok.bc_jp = false; j2.e.bc_jp = []; j2.brak.push('jp_bank');

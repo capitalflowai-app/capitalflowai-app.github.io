@@ -50930,6 +50930,13 @@ def em_in_operacje(T, i0, i1):
     return rate, (round(kw, 2) if n else None), n
 
 
+class EmInBrakDnia(RuntimeError):
+    """v467: tabela RBI bez danych dnia (weekend, święto: zera i myślniki) — to nie błąd formatu; zostają poprzednie dane (em_job)."""
+    def __init__(self, dzien):
+        super().__init__(f'RBI: dzień bez danych ({dzien})')
+        self.dzien = dzien
+
+
 def em_in_czesc(html, prev_part=None):
     """Strona operacji rynku pieniężnego RBI → część 'in' (jeden dzień + historia z poprzedniej części). Kwoty w crore ₹ (1 crore = 10 mln), stopy w %.
     net1 = płynność wprowadzona dzisiejszymi operacjami, net = płynność netto łącznie (wstrzyknięcie +, wchłonięcie −: nadwyżka systemu = liczba ujemna)."""
@@ -50949,6 +50956,10 @@ def em_in_czesc(html, prev_part=None):
         raise RuntimeError('RBI: brak segmentu overnight')
     on = [em_in_liczba(T[a + 1]), em_in_liczba(T[a + 2])]
     mm = re.match(r'^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$', T[a + 3])
+    if on[0] == 0.0 and T[a + 2] == '-' and T[a + 3] == '-' and all(
+            w[0] in (None, 0.0) and w[1] is None and w[2] is None
+            for w in (em_in_wiersz(T, a + 1, b, n_) for n_ in ('I. Call Money', 'II. Triparty Repo', 'III. Market Repo'))):
+        raise EmInBrakDnia(d)   # v467: suma i wiersze składowe bez wolumenu i stopy (jawne „0.00” i „-”) = dzień bez danych; każdy inny układ to błąd poniżej
     if on[0] is None or on[1] is None or not mm:
         raise RuntimeError('RBI: zły wiersz overnight')
     lo, hi = float(mm.group(1)), float(mm.group(2))
@@ -51093,7 +51104,15 @@ def em_job(n, prev_part, teraz):
     if n == 'za':
         o = em_za_job(prev_part, teraz)
     elif n == 'in':
-        o = em_in_czesc(em_pobierz(EM_IN_URL, 'in').decode('utf-8', 'replace'), prev_part)
+        try:
+            o = em_in_czesc(em_pobierz(EM_IN_URL, 'in').decode('utf-8', 'replace'), prev_part)
+        except EmInBrakDnia as e:   # v467: weekend / święto — poprzednie dane z własną datą zostają, pole bd = dzień pustej tabeli; bez poprzednich danych błąd części
+            if not (isinstance(prev_part, dict) and prev_part.get('date')):
+                raise
+            o = dict(prev_part)
+            if prev_part.get('bd') != e.dzien:
+                META['notes'].append(f"Indie (RBI): tabela z {e.dzien} bez danych (weekend albo święto) — zostają dane z {prev_part.get('date')}")
+            o['bd'] = e.dzien
     elif n == 'il':
         k = '+'.join(f'MF_ETF_{t}_IG{s}_MSS_M' for s in EM_IL_G.values() for t in ('B', 'NA'))
         o = em_il_czesc(em_pobierz(EM_IL_URL.format(k=k), 'il').decode('utf-8-sig'))
