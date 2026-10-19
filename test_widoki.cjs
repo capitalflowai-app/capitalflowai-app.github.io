@@ -37491,3 +37491,42 @@ test('v485: płynność — tło ze znakami 1×, stop tła przy przewijaniu, sce
   assert.ok(html.includes("let hScroll=false,hScT=0;") && html.indexOf("let hScroll=false") < html.indexOf("function hSync()") + 100000, 'zmienna przewijania zadeklarowana');
   assert.ok(html.includes("DPR=Math.min(window.devicePixelRatio||1,1.5);") && html.includes("GDPR=Math.min(window.devicePixelRatio||1,1.5);"), 'scena 3D i mapa najwyżej 1,5×');
 });
+
+test('v479: lista portfeli giełdy starsza niż 45 dni ma przy nagłówku giełdy wiek (liczony od dnia danych, bez zegara); słownik wh479.* po polsku i angielsku, jeden słownik i jedna linia nakładania', () => {
+  const w0 = html.indexOf('/* ===================== v105: wieloryby'), w1 = html.indexOf('\nfunction whApply(', w0);
+  assert.ok(w0 > 0 && w1 > w0, 'blok v105 w stronie');
+  const T = (k, v) => (k.startsWith('wh.n.') ? 'nota:' + k : k) + (v ? JSON.stringify(v) : '');
+  const run = D => {
+    const el = {innerHTML: '', hidden: true, querySelectorAll: () => [], querySelector: () => null};
+    new Function('$', 't', 'nfmt', 'escH', 'engDate', 'gAgeNote', 'icoWrap', 'coinImg', 'exchImg', 'netImg', 'D', html.slice(w0, w1) + '\nWH.data=D;renderWh();')(
+      q => q === '#c-wieloryby' ? el : null, T, (v, d) => Number(v).toFixed(d), v96src.escH, s => '[' + String(s) + ']', d => ' · age(' + String(d).slice(0, 10) + ')',
+      x => `<span class="icos">${x}</span>`, (s, c) => `<i class="ico ${c}">${s}</i>`, (s, c) => `<i class="ico ${c}">${s}</i>`, (s, c) => `<i class="ico ${c}">${s}</i>`, D);
+    return el;
+  };
+  const mk = (day, since) => {
+    const t0 = day + 'T08:00:00+00:00', S = {blk: 4899, t: t0};
+    return {at: t0, eth_usd: 2690.54, eth_usd_at: t0, okno: 4800, okno_od: 100, okno_od_t: day + 'T00:00:00+00:00', ostatni_blok: 4899, ostatni_t: t0,
+      gieldy: {Binance: {n: 9, since: '2022-11', tokeny: ['USDT']}, OKX: {n: 10, since: '2026-09-08', tokeny: ['USDC']}, KuCoin: {n: 33, since, tokeny: ['USDT']}},
+      salda: {Binance: Object.assign({usdt: 2e10, usd: 2e10, n: 9}, S), OKX: Object.assign({usdc: 1.3e9, usd: 1.3e9, n: 10}, S), KuCoin: Object.assign({usdt: 5e8, usd: 5e8, n: 33}, S)},
+      hist: {}, transfery: []};
+  };
+  const o = run(mk('2026-10-19', '2026-08-31')).innerHTML;
+  assert.ok(o.includes('wh.wal{"n":"33","d":"2026-08-31"}</span> <span class="whn warn">wh479.old{"a":"49"}</span>'), 'KuCoin: lista z 31.08 przy danych z 19.10 = 49 dni, żółta nota obok liczby portfeli');
+  assert.equal(o.split('wh479.old').length - 1, 1, 'nota tylko przy KuCoin (OKX 41 dni, Binance bez dnia w dacie listy)');
+  assert.ok(!run(mk('2026-10-14', '2026-08-31')).innerHTML.includes('wh479.old'), '44 dni — bez noty');
+  assert.ok(run(mk('2026-10-15', '2026-08-31')).innerHTML.includes('wh479.old{"a":"45"}') === false, '45 dni — jeszcze bez noty (próg: więcej niż 45)');
+  assert.ok(run(mk('2026-10-16', '2026-08-31')).innerHTML.includes('wh479.old{"a":"46"}'), '46 dni — nota');
+  assert.ok(run(mk('2027-03-01', '2026-08-31')).innerHTML.includes('wh479.old{"a":"182"}'), 'wiek rośnie z dniem danych');
+  const I = v143Final(html), KEYS = ['wh479.old'];
+  for (const l of ['pl', 'en']) for (const k of KEYS) {
+    assert.ok(typeof I[l][k] === 'string' && I[l][k].length > 15, l + ' ' + k);
+    const ph = s => (s.match(/\{\w\}/g) || []).sort().join(); assert.equal(ph(I[l][k]), ph(I.pl[k]), l + ' ' + k + ': te same znaczniki co po polsku');
+    if (l !== 'pl') assert.notEqual(I[l][k], I.pl[k], l + ' ' + k + ': prawdziwe tłumaczenie');
+    assert.ok(!/KuCoin|Bybit|OKX|Binance/.test(I[l][k]), 'bez nazw giełd w tekście');
+  }
+  const mm = [...html.matchAll(/^const EXTRA(\d+)=\{"pl":\{"wh479\.old"/gm)];
+  assert.equal(mm.length, 1, 'jeden słownik v479'); const n = mm[0][1];
+  assert.equal([...html.matchAll(new RegExp('^for\\(const l in EXTRA' + n + '\\)if\\(I18N\\[l\\]\\)Object\\.assign\\(I18N\\[l\\],EXTRA' + n + '\\[l\\]\\);$', 'gm'))].length, 1, 'jedna linia nakładania');
+  assert.ok(html.includes('#c-wieloryby h3.mtxt .whn.warn{color:var(--yl-tx)}'), 'żółty kolor noty (informacja) — reguła nagłówka giełdy nie nadpisuje go szarym');
+  assert.ok(html.includes('function whListAge(since,day){') && html.includes("t('wh479.old',{a:nfmt(a,0)})") && html.includes('a>45'), 'kod wiek listy: tylko pełne daty, próg 45 dni');
+});

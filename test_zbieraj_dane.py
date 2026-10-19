@@ -23419,7 +23419,7 @@ class KontrolaWielorybyV174(unittest.TestCase):
         for i in range(5):
             D.append((f'2026-10-0{i + 1}', 26_000_000 + i * 7200, {('Binance', 'USDT'): (bn + i * 20_000_000, 0), ('Bybit', 'USDT'): (by_ + i * 5_000_000, 5_000_000)}))
         last = D[-1][1] + last_spacing
-        t = today or {('Binance', 'USDT'): (bn + 4 * 20_000_000 + 25_000_000, 0), ('Bybit', 'USDT'): (by_ + 4 * 5_000_000 + 100_000_000, 0)}
+        t = today or {('Binance', 'USDT'): (bn + 4 * 20_000_000 + 25_000_000, 0), ('Bybit', 'USDT'): (by_ + 4 * 5_000_000 + 300_000_000, 0)}   # v479: skok 300 mln (ok. 23% salda) — nad 5× podłogi (2% salda, do 20 mln)
         D.append(('2026-10-06', last, t))
         return D
 
@@ -23428,8 +23428,8 @@ class KontrolaWielorybyV174(unittest.TestCase):
         o = k.wieloryby_ocena(self._csv(self._hist()))
         self.assertEqual((o['dzien'], o['poprzedni'], o['porownane'], o['odstep_h'], o['pomin']), ('2026-10-06', '2026-10-05', 2, 24.0, None))
         self.assertEqual([(g, a) for g, a, *_ in o['zle']], [('Bybit', 'USDT')],
-                         'Binance USDT: 25 mln wobec zwykłych 20 mln — norma; Bybit USDT: 100 mln wobec zwykłego 0 — nietypowe')
-        self.assertEqual(o['zle'][0][4:], (100_000_000.0, 0.0))
+                         'Binance USDT: 25 mln wobec zwykłych 20 mln — norma; Bybit USDT: 300 mln wobec zwykłego 0 (podłoga 2% salda, limit 20 mln) — nietypowe')
+        self.assertEqual(o['zle'][0][4], 300_000_000.0); self.assertAlmostEqual(o['zle'][0][5], k.WH_MED_SALDO_MAX, delta=1.0)
         o = k.wieloryby_ocena(self._csv(self._hist(last_spacing=8485)))
         self.assertEqual((o['zle'], o['odstep_h']), ([], 28.3)); self.assertIn('odstęp migawek 28.3 h', o['pomin'])
         D = self._hist()[3:]   # tylko 2 wcześniejsze dni — za mało historii
@@ -23439,7 +23439,7 @@ class KontrolaWielorybyV174(unittest.TestCase):
         self.assertIn('brak numeru bloku', k.wieloryby_ocena(self._csv(D))['pomin'])
         self.assertIsNone(k.wieloryby_ocena(os.path.join(self.tmp, 'nie-ma.csv')))
         self.assertIsNone(k.wieloryby_ocena(self._csv(self._hist()[:1])), 'jeden dzień')
-        self.assertEqual((k.WH_DOBA_BLOKI, k.WH_RAZY, k.WH_HIST_MIN), ((6900, 7500), 3.0, 3))
+        self.assertEqual((k.WH_DOBA_BLOKI, k.WH_RAZY, k.WH_HIST_MIN), ((6900, 7500), 5.0, 3))   # v479: 5× (było 3×) i podłoga 2% salda
 
     def test_raport_i_wpiecie(self):
         k = self.k
@@ -23452,9 +23452,9 @@ class KontrolaWielorybyV174(unittest.TestCase):
         md = k.raport_md(R)
         self.assertIn('- Wieloryby 2026-10-06 vs 2026-10-05: odstęp migawek 27.0 h — porównanie z przepływami 24 h tylko przy ok. dobie ℹ️.', md)
         R['zgodnosc']['wieloryby'].update(odstep_h=24.0, pomin=None, rozbieznosci=[{'gielda': 'Bybit', 'aktywo': 'USDT', 'zmiana_usd': 1e8, 'netto_usd': 0.0, 'roznica_usd': 1e8, 'mediana_usd': 0.0}])
-        self.assertIn('- Wieloryby 2026-10-06 vs 2026-10-05: 13 par giełda/aktywo, rozbieżności nietypowe (> 5% i > 3× zwykłej): 1 ⚠️ — Bybit USDT.', k.raport_md(R))
+        self.assertIn(f'- Wieloryby 2026-10-06 vs 2026-10-05: 13 par giełda/aktywo, rozbieżności nietypowe (> 5% i > {k.WH_RAZY:g}× zwykłej): 1 ⚠️ — Bybit USDT.', k.raport_md(R))
         R['zgodnosc']['wieloryby'].update(rozbieznosci=[], bez_historii=2)
-        self.assertIn('rozbieżności nietypowe (> 5% i > 3× zwykłej): 0 ✅ (bez historii: 2).', k.raport_md(R))
+        self.assertIn(f'rozbieżności nietypowe (> 5% i > {k.WH_RAZY:g}× zwykłej): 0 ✅ (bez historii: 2).', k.raport_md(R))
 
 
 # ===================== v175: POPRAWKI PO PRZEGLĄDZIE v169–v174 =====================
@@ -25367,7 +25367,7 @@ class KontrolaListyPortfeliV218(unittest.TestCase):
         self.assertIn("wl = wh_listy_ocena(files.get('wieloryby'))", src)
         R = {'at': '2026-10-11T06:20:00+00:00', 'wynik': 'UWAGA', 'meta': {}, 'uwagi': [], 'bledy': [],
              'zgodnosc': {'wh_listy': {'wszystkie': [('OKX', '2026-09-08', 33), ('Bybit', '2026-08-26', 46), ('KuCoin', '2026-08-31', 41)], 'stare': [('Bybit', '2026-08-26', 46)]}}}
-        self.assertIn('- Listy portfeli giełd z raportów miesięcznych (wiek): OKX 33 dni, Bybit 46 dni ⚠️, KuCoin 41 dni.', k.raport_md(R))
+        self.assertIn('- Listy portfeli giełd z raportów miesięcznych (wiek): OKX 33 dni, Bybit 46 dni ℹ️, KuCoin 41 dni — starzenie bez alarmu', k.raport_md(R))   # v479: ℹ️ do 180 dni
         R['zgodnosc']['wh_listy'] = {'wszystkie': [('OKX', '2026-09-08', 28)], 'stare': []}
         self.assertIn('- Listy portfeli giełd z raportów miesięcznych (wiek): OKX 28 dni ✅.', k.raport_md(R))
 
@@ -26580,7 +26580,7 @@ class KontrolaNoweRaportyV237(unittest.TestCase):
         with mock.patch.object(k, 'get', self._get(jest=('Bybit_PoR_Audit_2026_Oct_5.pdf',), kucoin=kuc)):
             W3 = k.wh_nowe_raporty(dict(self.G, Bybit={'since': '2026-09-10'}), now, spij=lambda s: None)
         self.assertEqual(W3['Bybit']['nowy'], '2026-10-05', 'dzień jednocyfrowy — także zapis bez zera')
-        self.assertIn('OKX — nowy raport z listą portfeli z 2026-10-08 (obecna z 2026-09-08) ⚠️', k.wh_nowe_wiersz(W))
+        self.assertIn('OKX — nowy raport z listą portfeli z 2026-10-08 (obecna z 2026-09-08) ℹ️', k.wh_nowe_wiersz(W))   # v479: informacja, nie ⚠️
 
     def test_blokada_i_strona_html(self):
         import urllib.error
@@ -27569,7 +27569,7 @@ class KontrolaWielorybyV249(unittest.TestCase):
                 f.write(f'{d},Binance,USDT,20000000000,20000000000,0,0,20000000,{b}\n{d},Bybit,USDT,1000000000,1000000000,0,0,5000000,{b}\n')
         return p
 
-    def _hist(self, czas_ost='00:05', wer_ost='2026-09-23', bybit_ost=105_000_000):
+    def _hist(self, czas_ost='00:05', wer_ost='2026-09-23', bybit_ost=305_000_000):   # v479: skok 305 mln (23% salda) — nad 5× podłogi 2% salda
         """Migawki o północy 30.09–06.10: Binance USDT +20 mln na dobę (= przelewy), Bybit USDT +5 mln (= przelewy), ostatnia doba Bybit + bybit_ost."""
         H = {'Binance': [], 'Bybit': []}
         for i in range(7):
@@ -27588,8 +27588,8 @@ class KontrolaWielorybyV249(unittest.TestCase):
         self.assertIn('odstęp migawek 20.0 h', o['pomin'])
         o = k.wieloryby_ocena(path, hist=self._hist())
         self.assertEqual((o['porownane'], o['pominiete'], o['polnoc'], o['pomin']), (2, 0, 2, None))
-        self.assertEqual([(g, a, round(x / 1e6, 1), round(y / 1e6, 1), round(z / 1e6, 1)) for g, a, x, y, z, m in o['zle']], [('Bybit', 'USDT', 105.0, 5.0, 100.0)],
-                         'Binance: zmiana 20 mln = przelewy 20 mln; Bybit: 105 mln wobec przelewów 5 mln — nietypowe (zwykle 0)')
+        self.assertEqual([(g, a, round(x / 1e6, 1), round(y / 1e6, 1), round(z / 1e6, 1)) for g, a, x, y, z, m in o['zle']], [('Bybit', 'USDT', 305.0, 5.0, 300.0)],
+                         'Binance: zmiana 20 mln = przelewy 20 mln; Bybit: 305 mln wobec przelewów 5 mln — nietypowe (zwykle 0)')
         o = k.wieloryby_ocena(path, hist=self._hist(bybit_ost=5_000_000))
         self.assertEqual((o['porownane'], o['zle']), (2, []))
 
@@ -27704,14 +27704,14 @@ class PoPrzegladzieV250(unittest.TestCase):
     def test_norma_z_par_tego_samego_rodzaju(self):
         k = self.k
         dni = [f'2026-10-0{i}' for i in range(1, 8)]
-        arch = self._archiwum(dni, lambda i: 26_000_000 + i * 7200, lambda i: 1e9 + i * 20e6, 0)   # archiwum: rozbieżność 20 mln dziennie
-        H = self._hist(['2026-09-30'] + dni, lambda i: 1e9 + i * 4e6, czas=lambda d: '02:30' if d == '2026-10-07' else '00:05')   # północ: 4 mln; 07.10 późno
+        arch = self._archiwum(dni, lambda i: 26_000_000 + i * 7200, lambda i: 1e8 + i * 20e6, 0)   # archiwum: rozbieżność 20 mln dziennie (v479: saldo 100 mln — podłoga 2% salda poniżej normy)
+        H = self._hist(['2026-09-30'] + dni, lambda i: 1e8 + i * 4e6, czas=lambda d: '02:30' if d == '2026-10-07' else '00:05')   # północ: 4 mln; 07.10 późno
         o = k.wieloryby_ocena(arch, hist=H)
         self.assertEqual((o['porownane'], o['polnoc'], o['zle']), (1, 0, []), 'para z archiwum (20 mln) oceniana normą par z archiwum (20 mln) — bez fałszywej ⚠️')
-        H2 = self._hist(['2026-09-30'] + dni, lambda i: 1e9 + i * 4e6 + (16e6 if i == 7 else 0))
+        H2 = self._hist(['2026-09-30'] + dni, lambda i: 1e8 + i * 4e6 + (26e6 if i == 7 else 0))
         o = k.wieloryby_ocena(arch, hist=H2)
-        self.assertEqual((o['polnoc'], [(g, a, round(z / 1e6)) for g, a, x, y, z, m in o['zle']]), (1, [('Bitfinex', 'USDT', 20)]),
-                         'para z północy 20 mln wobec normy par północnych 4 mln — nietypowe')
+        self.assertEqual((o['polnoc'], [(g, a, round(z / 1e6)) for g, a, x, y, z, m in o['zle']]), (1, [('Bitfinex', 'USDT', 30)]),
+                         'para z północy 30 mln wobec normy par północnych 4 mln (5× = 20 mln) — nietypowe')
 
     def test_podpis_i_powod(self):
         k = self.k
@@ -81779,7 +81779,7 @@ class V477KontrolaListyOkx(unittest.TestCase):
         self.assertEqual(k.WH_LISTY_AUTO, ('OKX',)); self.assertEqual(k.WH_OKX_BLAD_DNI, 7)
         R = {'at': '2026-10-19T06:20:00+00:00', 'wynik': 'OK', 'meta': {}, 'uwagi': [], 'bledy': [],
              'zgodnosc': {'wh_listy': {'wszystkie': [('OKX', '2026-01-01', 291), ('Bybit', '2026-08-26', 54)], 'stare': [('Bybit', '2026-08-26', 54)]}}}
-        self.assertIn('- Listy portfeli giełd z raportów miesięcznych (wiek): OKX 291 dni, Bybit 54 dni ⚠️.', k.raport_md(R))
+        self.assertIn('- Listy portfeli giełd z raportów miesięcznych (wiek): OKX 291 dni, Bybit 54 dni ℹ️ — starzenie bez alarmu', k.raport_md(R))   # v479: ℹ️ do 180 dni
 
     def test_ocena_odswiezania(self):
         k = self.k
@@ -81825,7 +81825,7 @@ class V477KontrolaListyOkx(unittest.TestCase):
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
             src = f.read()
         self.assertIn("Z['wh_okx'] = wh_okx_ocena(wh_okx_stan(), Z['wh_nowe'].get('OKX')", src)
-        self.assertIn("and g not in WH_LISTY_AUTO:", src, 'dla OKX automat sam przyjmuje nowy plik — bez porady „odśwież ręcznie”')
+        self.assertNotIn("f'nowa lista portfeli giełdy {g} z", src, 'dla OKX automat sam przyjmuje nowy plik — bez porady „odśwież ręcznie” (v479: nowy raport to informacja w wierszu)')
         self.assertIn("L.append(Z['wh_okx']['wiersz'])", src)
         self.assertIn("R['uwagi'].append(Z['wh_okx']['uwaga'])", src)
         self.assertNotIn('napisz do claude', src.lower())
@@ -82195,7 +82195,7 @@ class ListyPortfeliAutoV478(unittest.TestCase):
         """Stare uwagi o liście portfeli Bybit i KuCoin nie każą już nikomu odświeżać ich ręcznie (robi to automat); dla OKX rada zostaje."""
         src = self.cz(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), False)
         self.assertIn('if g in WH_AUTO_GIELDY else f\'co zrobić: odśwież listę portfeli {g}', src, 'rada dla człowieka tylko poza listami z automatu')
-        self.assertIn("o.get('nowy') and o.get('lista') and g not in WH_AUTO_GIELDY", src, 'nowy raport Bybit/KuCoin: bez uwagi z radą — automat bierze go sam')
+        self.assertNotIn("f'nowa lista portfeli giełdy {g} z", src, 'nowy raport Bybit/KuCoin: bez uwagi z radą — automat bierze go sam (v479: informacja w wierszu)')
         self.assertIn('sam automat po nowym raporcie', src)
 
     # --- kontrola -----------------------------------------------------------------------------------------------------
@@ -82247,3 +82247,85 @@ class ListyPortfeliAutoV478(unittest.TestCase):
         self.assertEqual(src.count('import pypdf'), 1); self.assertNotIn('\nimport pypdf', src, 'import pypdf tylko leniwie, wewnątrz funkcji')
         for zakaz in ('KEY', 'TOKEN', 'getenv', 'subprocess', 'os.system', 'GH_TOKEN'):
             self.assertNotIn(zakaz, src, 'skrypt bez kluczy i bez uruchamiania poleceń: ' + zakaz)
+
+
+# ===================== v479: LISTY PORTFELI — ŁAGODNE STARZENIE; PRÓG ROZBIEŻNOŚCI Z TESTU WSTECZNEGO =====================
+class TestV479PortfeleStarzenieIProg(unittest.TestCase):
+    """v479 (19.10.2026): lista portfeli, której nikt nie odświeży (raport KuCoin nie ma stałego adresu, a po 20.10 nikt nie wgra nowych list), nie może dawać
+    codziennego ⚠️ — starzenie to informacja (strona pokazuje datę i wiek listy), ⚠️ dopiero po 180 dniach; nowy raport giełdy to informacja. Próg „rozbieżność
+    salda ≠ przelewy netto” (było 3× zwykłej, 10 z 19 dni z ⚠️) z testu wstecznego na całym archiwum (19 dni, 132 pary po progu 5% i 1 mln USD):
+    5× zwykłej, ale „zwykła” nie mniej niż 2% salda pary (mediana 0 przy rzadkich ruchach dawała „zwykłą” 0,0 mln i ⚠️ za 5 mln przy saldzie 170 mln) i podłoga nie większa
+    niż 20 mln USD (saldo rzędu 20 mld USD dałoby podłogę 400 mln i ślepy próg 2 mld — awaria skanu dużej pary nie byłaby widoczna)."""
+    # FIX: dzień|giełda|aktywo|rozbieżność|zwykła (mediana)|saldo pary — wszystko w mln USD
+    FIX = "10-01|Bin|USDT|36.516|41.154|20885.1;10-01|Bit|USDC|1.115|0.886|18.8;10-01|Bit|USDT|6.794|7.960|102.2;10-01|KuC|USDC|2.468|1.132|42.6;10-01|KuC|USDT|6.108|2.950|553.4;10-01|OKX|USDC|26.488|16.754|1373.2;10-02|Bit|USDC|1.474|1.000|16.2;10-02|Bit|USDT|8.516|7.377|100.1;10-02|Byb|USDC|3.203|1.430|299.1;10-02|Byb|USDT|5.304|6.338|1411.4;10-02|KuC|USDC|1.264|1.800|37.1;10-02|OKX|USDC|6.226|18.012|1379.2;10-03|Bit|USDC|1.040|1.115|17.8;10-03|Byb|USDC|1.659|2.116|299.7;10-03|Byb|USDT|7.933|5.644|1360.0;10-03|KuC|USDC|1.275|1.264|36.8;10-03|KuC|USDT|5.655|2.950|571.1;10-03|OKX|USDC|18.350|16.754|1371.1;10-04|Bin|USDT|1.499|30.183|20580.3;10-04|Byb|USDT|5.610|6.338|1385.4;10-04|KuC|USDT|2.702|3.001|574.9;10-04|OKX|USDC|22.602|17.552|1363.0;10-05|Bin|USDT|1.556|23.850|20526.9;10-05|Bit|USDT|3.542|6.794|177.0;10-05|OKX|USDC|25.485|18.350|1381.2;10-06|Bin|ETH|22.561|24.954|7294.0;10-06|Bit|ETH|6.683|3.570|1003.4;10-06|KuC|USDT|6.738|2.826|574.3;10-06|OKX|USDC|7.463|18.810|1374.1;10-07|Bin|ETH|10.628|23.757|6687.4;10-07|KuC|USDC|1.830|1.132|37.9;10-07|KuC|USDT|6.564|2.950|550.8;10-07|OKX|USDC|15.026|18.350|1380.8;10-08|Bin|ETH|110.430|22.561|6640.2;10-08|Bin|USDT|39.177|11.225|20834.6;10-08|Bit|ETH|143.369|3.570|1455.4;10-08|Bit|USDC|2.411|0.825|18.1;10-08|Bit|USDT|50.968|3.846|57.1;10-08|Byb|ETH|32.493|4.595|926.1;10-08|Byb|USDC|6.196|1.202|455.9;10-08|Byb|USDT|17.620|5.627|1535.6;10-08|KuC|USDT|6.384|3.001|555.5;10-08|OKX|USDC|35.600|17.552|1389.9;10-09|Bin|ETH|8.261|23.757|6399.3;10-09|Bin|USDT|46.411|14.975|20995.1;10-09|Bit|ETH|13.480|5.127|1365.8;10-09|Bit|USDT|15.047|4.150|10.3;10-09|Byb|ETH|11.171|6.665|886.7;10-09|Byb|USDT|12.631|5.644|1525.9;10-09|KuC|USDC|2.509|1.132|33.9;10-09|KuC|USDT|6.412|3.053|563.4;10-09|OKX|USDC|21.837|18.350|1357.0;10-10|Bin|ETH|42.158|22.561|6470.8;10-10|Bit|USDC|1.917|0.825|16.5;10-10|Bit|USDT|1.787|5.472|12.1;10-10|Byb|ETH|1.308|8.735|916.5;10-10|Byb|USDC|2.884|1.202|452.9;10-10|KuC|USDT|5.697|4.354|529.8;10-10|OKX|USDC|119.001|18.810|1265.0;10-11|Bin|ETH|4.285|23.757|6533.8;10-11|Bin|USDT|31.635|23.850|20040.8;10-11|Bit|ETH|1.114|5.127|1362.3;10-11|Bit|USDT|2.625|4.150|4.4;10-11|Byb|ETH|5.332|6.665|916.4;10-11|Byb|USDC|5.511|1.659|451.6;10-11|KuC|USDT|1.775|5.655|532.8;10-11|OKX|USDC|25.125|19.270|1264.6;10-12|Bin|ETH|3.999|22.561|6703.1;10-12|Byb|ETH|7.161|5.332|923.7;10-12|Byb|USDC|6.231|1.887|450.4;10-12|KuC|ETH|5.731|0.025|176.4;10-12|KuC|USDT|4.779|4.354|537.8;10-12|OKX|USDC|1.276|20.553|1267.6;10-13|Bin|ETH|4.274|16.594|6497.5;10-13|Bin|USDT|23.158|23.850|20240.7;10-13|Bit|ETH|6.771|2.342|1319.3;10-13|Bit|USDT|1.762|3.542|36.5;10-13|Byb|ETH|6.377|6.246|885.5;10-13|Byb|USDC|5.122|2.116|415.1;10-13|Byb|USDT|1.468|5.610|1526.3;10-13|KuC|ETH|1.293|0.042|169.9;10-13|KuC|USDT|3.720|4.779|545.1;10-13|OKX|USDC|14.590|19.270|1242.1;10-14|Bin|ETH|5.877|10.628|6709.3;10-14|Bin|USDT|29.351|23.504|20670.9;10-14|Bit|ETH|16.423|3.570|1403.9;10-14|Byb|ETH|11.634|6.377|916.9;10-14|Byb|USDC|2.712|2.174|411.1;10-14|Byb|USDT|7.921|5.457|1517.7;10-14|KuC|USDT|5.785|4.249|554.5;10-14|OKX|USDC|18.185|18.810|1214.9;10-15|Bin|ETH|24.429|10.421|6440.7;10-15|Bin|USDT|25.921|23.850|20534.6;10-15|Bit|ETH|15.843|5.127|1429.7;10-15|Bit|USDT|9.673|3.542|272.3;10-15|Byb|USDC|2.887|2.232|416.6;10-15|Byb|USDT|15.515|5.610|1460.9;10-15|KuC|ETH|2.245|0.042|169.1;10-15|KuC|USDC|1.569|0.925|22.2;10-15|KuC|USDT|5.768|4.779|570.9;10-15|OKX|USDC|34.671|18.350|1306.3;10-16|Bin|ETH|60.659|10.628|6460.1;10-16|Bin|USDT|41.400|24.885|20602.7;10-16|Bit|ETH|5.452|6.683|1481.9;10-16|Bit|USDT|12.306|3.846|97.8;10-16|Byb|ETH|18.859|6.377|918.3;10-16|Byb|USDC|4.097|2.472|408.5;10-16|Byb|USDT|14.064|5.627|1458.3;10-16|KuC|USDC|1.139|0.939|20.8;10-16|OKX|USDC|43.105|18.810|1305.8;10-17|Bin|ETH|7.351|16.594|6472.1;10-17|Bin|USDT|32.399|25.921|21020.2;10-17|Bit|ETH|2.637|6.068|1429.6;10-17|Byb|ETH|10.415|6.769|926.5;10-17|Byb|USDC|9.833|2.712|428.5;10-17|Byb|USDT|6.219|5.644|1416.6;10-17|KuC|USDT|1.659|4.779|586.8;10-17|OKX|USDC|37.226|19.270|1301.6;10-18|Bin|ETH|26.845|10.628|6455.2;10-18|Bin|USDT|14.638|27.636|21081.3;10-18|Bit|ETH|2.056|5.452|1420.6;10-18|Byb|ETH|12.172|7.161|937.8;10-18|Byb|USDC|2.088|2.798|424.4;10-18|Byb|USDT|4.386|5.932|1421.2;10-18|KuC|USDT|2.201|4.249|587.2;10-19|Bin|ETH|15.179|16.594|6498.1;10-19|Bin|USDT|3.542|25.921|21074.6;10-19|Bit|ETH|3.608|4.511|1428.4;10-19|Bit|USDT|9.809|4.150|222.9;10-19|Byb|ETH|5.698|7.948|944.9;10-19|Byb|USDC|1.483|2.712|410.8;10-19|OKX|USDC|12.746|19.270|1255.8"
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        root = os.path.dirname(os.path.abspath(__file__))
+        spec = importlib.util.spec_from_file_location('kontrola_v479', os.path.join(root, 'narzedzia', 'kontrola.py'))
+        cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        with open(os.path.join(root, 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
+            cls.src = f.read()
+        cls.P = [(a, b, c, float(d), float(e), float(f)) for a, b, c, d, e, f in (x.split('|') for x in cls.FIX.split(';'))]
+
+    def _dni(self, raz, podloga, maks=None):
+        return {d for d, g, a, roz, med, bal in self.P if roz > raz * max(med, min(podloga * bal, maks) if maks else podloga * bal)}
+
+    def test_prog_z_testu_wstecznego(self):
+        k = self.k
+        self.assertEqual((k.WH_RAZY, k.WH_MED_SALDO, k.WH_MED_SALDO_MAX, k.WH_HIST_MIN), (5.0, 0.02, 20_000_000, 3))
+        self.assertEqual((len(self.P), len({p[0] for p in self.P})), (132, 19))
+        self.assertEqual(len(self._dni(3.0, 0.0)), 10, 'stara reguła: ⚠️ w 10 z 19 dni')
+        self.assertEqual(self._dni(k.WH_RAZY, k.WH_MED_SALDO, k.WH_MED_SALDO_MAX / 1e6), {'10-08', '10-10'},
+                         'nowa reguła: 2 dni z 19 (10-08 Bitfinex: 51 mln przy saldzie 57 mln, 143 mln przy 1,5 mld; 10-10 OKX USDC: 119 mln przy 1,3 mld)')
+        self.assertEqual(self._dni(k.WH_RAZY, k.WH_MED_SALDO), {'10-08'}, 'bez limitu podłogi alarmy dużych par znikały (OKX USDC 10-10, Bitfinex ETH 10-08)')
+        r = sorted((roz / max(med, min(k.WH_MED_SALDO * bal, k.WH_MED_SALDO_MAX / 1e6)) for d, g, a, roz, med, bal in self.P), reverse=True)
+        self.assertGreater(r[0], 10)
+        self.assertLess(r[4], 4.0, 'poza jednorazowymi skokami (10-08, 10-10) zwykłe odczyty nie przekraczają 4× zwykłej — próg 5× ma zapas')
+        self.assertLess(sorted(r)[len(r) * 95 // 100], 3.2, '95. percentyl zwykłych odczytów ok. 3×')
+
+    def _csv(self, bal_k, med_k, saldo=170_000_000):
+        import tempfile
+        p = os.path.join(tempfile.mkdtemp(prefix='k479-'), 'wieloryby.csv')
+        with open(p, 'w', encoding='utf-8') as f:
+            f.write('date,exchange,asset,balance,balance_usd,inflow_24h,outflow_24h,net_24h,block\n')
+            for i in range(6):
+                u = saldo + i * med_k
+                f.write(f'2026-10-0{i + 1},KuCoin,USDT,{u},{u},0,0,0,{26_000_000 + i * 7200}\n')
+            f.write(f'2026-10-07,KuCoin,USDT,{saldo + 5 * med_k + bal_k},{saldo + 5 * med_k + bal_k},0,0,0,{26_000_000 + 6 * 7200}\n')
+        return p
+
+    def test_podloga_salda_i_prawdziwa_anomalia(self):
+        k = self.k
+        o = k.wieloryby_ocena(self._csv(5_700_000, 0))
+        self.assertEqual((o['porownane'], o['zle']), (1, []), 'zwykła rozbieżność 0, skok 5,7 mln przy saldzie 170 mln (3%) — nie alarm')
+        o = k.wieloryby_ocena(self._csv(30_000_000, 0))
+        self.assertEqual([(g, a) for g, a, *_ in o['zle']], [('KuCoin', 'USDT')], '30 mln (18% salda) bez przelewów — nietypowe')
+        self.assertAlmostEqual(o['zle'][0][5], 0.02 * 200_000_000, delta=1.0, msg='podawana „zwykła” to podłoga 2% salda')
+
+    def test_duza_para_z_limitem_podlogi(self):
+        k = self.k
+        S = 20_700_000_000   # saldo rzędu największej pary (ok. 20,7 mld USD): podłoga 2% to 414 mln, z limitem 20 mln
+        o = k.wieloryby_ocena(self._csv(30_000_000, 0, saldo=S))
+        self.assertEqual((o['porownane'], o['zle']), (1, []), 'skok 30 mln przy saldzie 20 mld — poniżej 5× limitu podłogi (100 mln)')
+        o = k.wieloryby_ocena(self._csv(200_000_000, 0, saldo=S))
+        self.assertEqual([(g, a) for g, a, *_ in o['zle']], [('KuCoin', 'USDT')], 'skok 200 mln przy saldzie 20 mld bez przelewów — awaria skanu widoczna')
+        self.assertAlmostEqual(o['zle'][0][5], k.WH_MED_SALDO_MAX, delta=1.0, msg='„zwykła” w raporcie = limit podłogi, nie 2% salda')
+        self.assertIn('min(WH_MED_SALDO * sal, WH_MED_SALDO_MAX)', self.src)
+
+    def test_starzenie_listy_bez_alarmu(self):
+        k, src = self.k, self.src
+        self.assertEqual((k.WH_LISTY_DNI, k.WH_LISTY_UWAGA_DNI), (45, 180))
+        R = {'at': '2026-10-19T06:20:00+00:00', 'wynik': 'UWAGA', 'meta': {}, 'uwagi': [], 'bledy': [],
+             'zgodnosc': {'wh_listy': {'wszystkie': [('OKX', '2026-09-08', 41), ('Bybit', '2026-09-23', 26), ('KuCoin', '2026-08-31', 49)], 'stare': [('KuCoin', '2026-08-31', 49)]}}}
+        w = k.raport_md(R)
+        self.assertIn('(wiek): OKX 41 dni, Bybit 26 dni, KuCoin 49 dni ℹ️ — starzenie bez alarmu', w)
+        self.assertNotIn('KuCoin 49 dni ⚠️', w)
+        R['zgodnosc']['wh_listy'] = {'wszystkie': [('KuCoin', '2026-01-01', 200)], 'stare': [('KuCoin', '2026-01-01', 200)]}
+        self.assertIn('KuCoin 200 dni ⚠️', k.raport_md(R), 'po 180 dniach ⚠️')
+        self.assertIn('if n <= WH_LISTY_UWAGA_DNI:', src)
+        self.assertNotIn("f'nowa lista portfeli giełdy {g} z", src, 'nowy raport giełdy to informacja w wierszu, nie uwaga dnia')
+        W = {'OKX': {'od': '2026-09-08', 'nowy': '2026-10-08', 'lista': True, 'prob': 1, 'zakres': None, 'kontrola': True, 'nie_wiadomo': 0, 'przerwane': False}}
+        self.assertIn('OKX — nowy raport z listą portfeli z 2026-10-08 (obecna z 2026-09-08) ℹ️', k.wh_nowe_wiersz(W))
+        self.assertNotIn('⚠️', k.wh_nowe_wiersz(W))

@@ -1685,6 +1685,7 @@ textarea.kt-f{min-height:110px;resize:vertical}
 #c-wieloryby h3.mtxt{margin:14px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 #c-wieloryby h3.mtxt>.icos{display:inline-flex;margin-right:0}
 #c-wieloryby h3.mtxt .whn{font-weight:500;color:var(--mut);font-size:11.5px}
+#c-wieloryby h3.mtxt .whn.warn{color:var(--yl-tx)}   /* v479: informacja o wieku listy — żółta */
 #c-wieloryby .etfkpis{margin:8px 0 6px}
 #c-wieloryby td .cell{padding:7px 8px;gap:6px}
 #c-wieloryby td .cell .icos{display:inline-flex;margin-right:2px}
@@ -4039,6 +4040,8 @@ const EXTRA320={"pl":{"odm.ins.k.rep.one":"{n} zgłoszenie","odm.ins.k.rep.few":
 for(const l in EXTRA320)if(I18N[l])Object.assign(I18N[l],EXTRA320[l]);
 const EXTRA321={"pl":{"kf422.s.valb":"wartość {v} · {p} z 21 mln BTC (podaż maksymalna)","kf422.n.sup":"Udział w podaży: wobec 21 mln BTC (podaż maksymalna)."},"en":{"kf422.s.valb":"worth {v} · {p} of 21 M BTC (maximum supply)","kf422.n.sup":"Share of supply: of 21 M BTC (maximum supply)."}};
 for(const l in EXTRA321)if(I18N[l])Object.assign(I18N[l],EXTRA321[l]);
+const EXTRA322={"pl":{"wh479.old":"lista sprzed {a} dni — nowe portfele giełdy mogą być jeszcze niewliczone"},"en":{"wh479.old":"wallet list is {a} days old — new wallets of the exchange may not be counted yet"}};
+for(const l in EXTRA322)if(I18N[l])Object.assign(I18N[l],EXTRA322[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -21628,6 +21631,8 @@ function whZm(m){const z=m&&typeof m.zmiana==='string'&&/^\d{4}-\d{2}-\d{2}$/.te
 function arcWhLista(ids,Z,ser){const G=Z&&typeof Z==='object'?Z:{};const l=(Array.isArray(ids)?ids:[]).map(x=>{const n=String(x).slice(3),m=G[n],s=typeof ser==='function'?ser(x):[];
   return m&&typeof m.zmiana==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(m.zmiana)&&Array.isArray(s)&&s.length&&Array.isArray(s[0])&&m.zmiana>=s[0][0]?`${escH(n)} ${whZm(m)}`:'';}).filter(Boolean);
   return l.length?`<p class="pnote">${t('arc.wh.lista',{l:l.join(', ')})}</p>`:'';}
+/* v479: wiek listy portfeli giełdy w dniach (od daty listy do dnia danych; tylko pełne daty RRRR-MM-DD) — bez zegara przeglądarki */
+function whListAge(since,day){if(!/^\d{4}-\d{2}-\d{2}$/.test(since)||!/^\d{4}-\d{2}-\d{2}$/.test(day))return null;const a=Date.parse(since+'T12:00:00Z'),b=Date.parse(day+'T12:00:00Z');return isFinite(a)&&isFinite(b)?Math.round((b-a)/864e5):null;}
 function whExch(D){const S=D&&D.salda&&typeof D.salda==='object'?D.salda:{},G=D&&D.gieldy&&typeof D.gieldy==='object'?D.gieldy:{},H=D&&D.hist&&typeof D.hist==='object'?D.hist:{};
   const I=typeof icoWrap==='function',ex=n=>I&&typeof exchImg==='function'?exchImg(n,'sm'):'',co=n=>I&&typeof coinImg==='function'?coinImg(n,'sm'):'';
   let h='';
@@ -21643,7 +21648,7 @@ function whExch(D){const S=D&&D.salda&&typeof D.salda==='object'?D.salda:{},G=D&
       tiles.push(whTile(ex(g)+co(tok),`${escH(g)} · ${tok}`,whAmt(cur,tok),lines,when));});
     if(toks.length===3)tiles.push(whTile(ex(g),`${escH(g)} · ${t('wh.k.usd')}`,whNum(s.usd)?whAmt(s.usd,'USD'):`— <small class="na">${t('wh.usd.na')}</small>`,[],when));
     const note=t('wh.n.'+g)!=='wh.n.'+g?` <span class="whn">${t('wh.n.'+g)}</span>`:'';
-    h+=`<h3 class="mtxt">${I?`<span class="icos">${ex(g)}</span>`:''}<b>${escH(g)}</b><span class="whn">${n!==null?(typeof tN==='function'?tN:(k,x,o)=>t(k,o))('wh.wal',n,{n:nfmt(n,0),d:escH(since)}):''}</span>${note}</h3><div class="etfkpis">${tiles.join('')}</div>`;}
+    h+=`<h3 class="mtxt">${I?`<span class="icos">${ex(g)}</span>`:''}<b>${escH(g)}</b><span class="whn">${n!==null?(typeof tN==='function'?tN:(k,x,o)=>t(k,o))('wh.wal',n,{n:nfmt(n,0),d:escH(since)}):''}</span>${(a=>a!==null&&a>45?` <span class="whn warn">${t('wh479.old',{a:nfmt(a,0)})}</span>`:'')(whListAge(since,String(s.t||'').slice(0,10)))}${note}</h3><div class="etfkpis">${tiles.join('')}</div>`;}
   return h?`<h3 class="mtxt"><b>${t('wh.h.bal')}</b></h3><p class="pnote">${t('wh.bal.sub')}</p>${h}`:'';}
 /* wiersz bez kwoty, bez czasu bloku (data przy każdej liczbie) albo bez kierunku nie trafia do tabeli */
 function whUsd(r){return whNum(r.usd)?r.usd:r.amt;}   /* v112: kwota w USD (ETH przeliczone kursem z chwili odczytu); wiersz bez usd = stablecoin ≈ USD */

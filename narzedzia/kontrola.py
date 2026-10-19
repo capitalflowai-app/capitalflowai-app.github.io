@@ -2385,7 +2385,11 @@ def wieloryby_porownanie(path):
 
 
 WH_DOBA_BLOKI = (6900, 7500)   # v174: migawki oddalone o ok. dobę (12 s na blok Ethereum: 23–25 h) — inny odstęp: sald nie porównujemy z przepływami 24 h
-WH_RAZY = 3.0                  # v174: rozbieżność pary ponad tyle × jej mediana z wcześniejszych porównywalnych dni = uwaga (zwykła rozbieżność to norma)
+WH_RAZY = 5.0                  # v174/v479: rozbieżność pary ponad tyle × jej „zwykła” (mediana z wcześniejszych porównywalnych dni, nie mniej niż WH_MED_SALDO salda) = uwaga
+# v479: test wsteczny na całym archiwum (19 dni, 132 pary nad progiem 5% i 1 mln USD): przy 3× ⚠️ w 10 z 19 dni, przy 5× i podłodze 2% salda (do 20 mln USD) w dwóch
+# (8.10 Bitfinex, 10.10 OKX USDC — jednorazowe skoki 120–140 mln); pozostałe odczyty ≤ 4,9× zwykłej (95. percentyl 3,0×)
+WH_MED_SALDO = 0.02            # v479: „zwykła” rozbieżność pary nie mniej niż tyle jej salda (mediana 0 przy rzadkich ruchach dawała ⚠️ za 5 mln przy saldzie 170 mln)
+WH_MED_SALDO_MAX = 20_000_000  # v479: USD — podłoga z salda nie większa (saldo rzędu 20 mld USD dałoby podłogę 400 mln i ślepy próg; z limitem ok. 100 mln)
 WH_HIST_MIN = 3                # v174: mniej wcześniejszych porównywalnych dni pary = bez oceny (informacja)
 
 
@@ -2535,7 +2539,8 @@ def zuzycie_ocena(meta):
 
 
 WH_LISTY_MIES = ('OKX', 'Bybit', 'KuCoin')   # v218: giełdy z comiesięcznym raportem dowodu rezerw (wieloryby.json → gieldy[*].since) — listy do odświeżania
-WH_LISTY_DNI = 45                             # v218: lista starsza = uwaga (portfele dodane przez giełdę od tego czasu nie są liczone)
+WH_LISTY_DNI = 45                             # v218/v479: lista starsza = informacja ℹ️ (portfele dodane przez giełdę od tego czasu nie są liczone; strona pokazuje datę i wiek listy)
+WH_LISTY_UWAGA_DNI = 180                      # v479: dopiero lista starsza niż tyle dni = ⚠️ (raportu KuCoin nie da się czytać automatycznie, po 20.10 nikt nie odświeża list ręcznie)
 WH_LISTY_AUTO = ('OKX',)   # v477: listy odświeżane przez automat (.github/workflows/wh_listy.yml) — sam wiek listy nie jest uwagą; liczy się, czy odświeżenie działa
 WH_OKX_BLAD_DNI = 7        # v477: ostrzeżenie, gdy odświeżenie listy OKX zawodzi (albo przepływ jej nie sprawdza) dłużej niż tyle dni
 WH_OKX_STAN = os.path.join(os.path.dirname(OUT_DIR), 'konfig', 'wh_listy_stan.json')   # v477: stan przebiegu automatu (zapisuje narzedzia/wh_lista.py)
@@ -2728,7 +2733,7 @@ def wh_nowe_wiersz(W):
     cz = []
     for g, o in W.items():
         if o.get('nowy') and o.get('lista'):
-            cz.append(f'{g} — nowy raport z listą portfeli z {o["nowy"]} (obecna z {o["od"]}) ⚠️')
+            cz.append(f'{g} — nowy raport z listą portfeli z {o["nowy"]} (obecna z {o["od"]}) ℹ️')
         elif o.get('nowy'):
             cz.append(f'{g} — audyt z {o["nowy"]}, raport z listą portfeli jeszcze niedostępny ℹ️')
         elif o.get('kontrola') == 'brak':
@@ -3150,7 +3155,7 @@ def wieloryby_ocena(path, zmiany=None, hist=None):
     WH_HIST_MIN wcześniejszych porównywalnych dni. v175: odstęp liczony dla KAŻDEJ pary z jej własnych bloków — para z innym odstępem pominięta
     (pole pominiete), reszta porównana; żadnej pary o dobę = bez porównania (powód w 'pomin'). Mniej niż dwa dni archiwum = None.
     → {'dzien', 'poprzedni', 'poprzedni_pokaz', 'porownane', 'pominiete', 'odstep_h' (mediana par), 'pomin', 'zle': [(giełda, aktywo, zmiana,
-    netto, rozb., mediana)], 'bez_historii', 'lista', 'polnoc'}. v230: zmiany = {giełda: dzień zmiany listy portfeli} — pary tej giełdy
+    netto, rozb., zwykła = mediana, nie mniej niż min(WH_MED_SALDO × saldo, WH_MED_SALDO_MAX))], 'bez_historii', 'lista', 'polnoc'}. v230: zmiany = {giełda: dzień zmiany listy portfeli} — pary tej giełdy
     obejmujące ten dzień (także jako dzień poprzedni: migawka archiwum mogła być przed zmianą) pominięte — nowe portfele to skok salda bez
     przelewów. v249: hist = pole hist pliku wielorybów — para z migawek o północy UTC (zgrana z dobą przelewów) zastępuje dziś parę z migawek
     archiwum ('polnoc' — ile dziś takich par). v250: historia (norma pary) liczona osobno dla par z północy i z archiwum — para dnia oceniana
@@ -3220,8 +3225,13 @@ def wieloryby_ocena(path, zmiany=None, hist=None):
             out['bez_historii'] += 1
             continue
         med = h[len(h) // 2] if len(h) % 2 else (h[len(h) // 2 - 1] + h[len(h) // 2]) / 2
-        if roz > WH_RAZY * med:
-            out['zle'].append((k[0], k[1], delta, net, roz, med))
+        try:   # v479: podłoga „zwykłej” rozbieżności = WH_MED_SALDO salda pary (USD) w dniu oceny
+            sal = float(by[d][k][4])
+        except (KeyError, IndexError, TypeError, ValueError):
+            sal = 0.0
+        baza = max(med, min(WH_MED_SALDO * sal, WH_MED_SALDO_MAX))
+        if roz > WH_RAZY * baza:
+            out['zle'].append((k[0], k[1], delta, net, roz, baza))
     return out
 
 
@@ -17057,6 +17067,8 @@ def kontrola():
     if wl is not None:
         Z['wh_listy'] = wl
         for g, d, n in wl['stare']:
+            if n <= WH_LISTY_UWAGA_DNI:   # v479: 45–180 dni to informacja w wierszu raportu, nie codzienne ⚠️
+                continue
             R['uwagi'].append(f'lista portfeli giełdy {g} z {d} ma {n} dni — portfele dodane przez giełdę od tego czasu nie są liczone; ' + (
                               'odświeża ją sam automat po nowym raporcie dowodu rezerw giełdy (codziennie; powód zwłoki w wierszu automatu) — człowiek nie musi nic robić'   # v478
                               if g in WH_AUTO_GIELDY else f'co zrobić: odśwież listę portfeli {g} z nowego raportu dowodu rezerw ({PORADA_3D})'))
@@ -17064,10 +17076,7 @@ def kontrola():
             Z['wh_nowe'] = wh_nowe_raporty((files.get('wieloryby') or {}).get('gieldy'))
         except Exception as e:  # noqa
             Z['wh_nowe'] = {'_blad': type(e).__name__}   # v243: wiersz „nie wiadomo”, nie zniknięcie
-        for g, o in Z['wh_nowe'].items():
-            if isinstance(o, dict) and o.get('nowy') and o.get('lista') and g not in WH_AUTO_GIELDY and g not in WH_LISTY_AUTO:   # v478 (+ v477): Bybit i KuCoin odświeża automat (bez rady dla człowieka)
-                R['uwagi'].append(f'nowa lista portfeli giełdy {g} z {o["nowy"]} (raport dowodu rezerw; obecna z {o["od"]}) — co zrobić: '
-                                  f'odśwież listę portfeli {g} z nowego raportu dowodu rezerw ({PORADA_3D})')
+        # v479: nowy raport giełdy to informacja w wierszu „Nowe raporty dowodu rezerw giełd” (ℹ️), nie uwaga dnia — bez odświeżania ręcznego wracałaby codziennie
         try:   # v477: listę OKX odświeża automat — ostrzeżenie dopiero, gdy odświeżenie zawodzi dłużej niż WH_OKX_BLAD_DNI dni
             Z['wh_okx'] = wh_okx_ocena(wh_okx_stan(), Z['wh_nowe'].get('OKX'), (files.get('wieloryby') or {}).get('gieldy'))
         except Exception:  # noqa
@@ -17507,8 +17516,8 @@ def raport_md(R):
             L.append('- Wieloryby: archiwum ma mniej niż dwa dni — porównanie od jutra.')
         wl = Z.get('wh_listy')   # v218: wiek list portfeli giełd z raportów miesięcznych
         if wl and wl.get('wszystkie'):
-            L.append('- Listy portfeli giełd z raportów miesięcznych (wiek): ' + ', '.join(f'{g} {n} dni' + (' ⚠️' if (g, d, n) in wl['stare'] else '') for g, d, n in wl['wszystkie'])
-                     + (' ✅.' if not wl['stare'] else '.'))
+            L.append('- Listy portfeli giełd z raportów miesięcznych (wiek): ' + ', '.join(f'{g} {n} dni' + ((' ⚠️' if n > WH_LISTY_UWAGA_DNI else ' ℹ️') if (g, d, n) in wl['stare'] else '') for g, d, n in wl['wszystkie'])
+                     + (' ✅.' if not wl['stare'] else f' — starzenie bez alarmu: strona pokazuje datę listy i jej wiek (⚠️ po {WH_LISTY_UWAGA_DNI} dniach).'))
         if Z.get('wh_nowe'):   # v237
             L.append(wh_nowe_wiersz(Z['wh_nowe']))
         if Z.get('wh_auto'):   # v478
