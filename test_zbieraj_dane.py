@@ -78698,3 +78698,218 @@ class KontrolaAzjaBrazyliaV460(unittest.TestCase):
             src = fh.read()
         self.assertEqual(src.count("AZ_ = azk_kontrola(files.get('azja2'))"), 1); self.assertEqual(src.count("saz_ = Z.get('azja2')"), 1)
         self.assertLess(src.index("AZ_ = azk_kontrola(files.get('azja2'))"), src.index('# 3c-v400. Chiny / Tajwan / Hongkong')); self.assertLess(src.index("saz_ = Z.get('azja2')"), src.index("ssh_ = Z.get('short-eu')"))
+
+
+# ===================== v459 (F11Z41): szybkość etap 7 — spis plików danych (narzedzia/manifest.py), krok publikacji, Service Worker, kontrola =====================
+import hashlib as _hl459
+import importlib.util as _ilu459
+import re as _re459
+import shutil as _sh459
+import tempfile as _tf459
+import urllib.error as _ue459
+
+
+class TestV459SpisPlikow(unittest.TestCase):
+    """Spis plików wydania: skrót i rozmiar każdego pliku data/*.json (i widoki/*.json), zapis atomowy, sprawdzenie zgodności; krok publikacji po skopiowaniu
+    plików, sprawdzenie po straży kluczy; spis jest DODATKIEM (błąd = bez spisu, strona działa na własnych zegarach modułów). Kontrola dzienna ostrzega (nigdy BŁĄD)."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
+    @classmethod
+    def setUpClass(cls):
+        spec = _ilu459.spec_from_file_location('v459_manifest', os.path.join(cls.ROOT, 'narzedzia', 'manifest.py'))
+        cls.M = _ilu459.module_from_spec(spec); spec.loader.exec_module(cls.M)
+        os.environ.setdefault('KONTROLA_DIR', os.path.join(_tf459.mkdtemp(prefix='kontrola-v459-'), 'k'))
+        os.environ.setdefault('KONTROLA_ARCH', os.path.join(_tf459.mkdtemp(prefix='kontrola-v459a-'), 'a'))
+        spec = _ilu459.spec_from_file_location('v459_kontrola', os.path.join(cls.ROOT, 'narzedzia', 'kontrola.py'))
+        cls.K = _ilu459.module_from_spec(spec); spec.loader.exec_module(cls.K)
+
+    def setUp(self):
+        self.tmp = _tf459.mkdtemp(prefix='spis-')
+        self.addCleanup(_sh459.rmtree, self.tmp, True)
+        os.makedirs(os.path.join(self.tmp, 'widoki'))
+
+    def _zapisz(self, rel, tresc):
+        with open(os.path.join(self.tmp, rel), 'wb') as f:
+            f.write(tresc if isinstance(tresc, bytes) else tresc.encode('utf-8'))
+
+    def _dane(self):
+        self._zapisz('cmc.json', '{"at":"2026-10-19T10:00:00Z","total_mcap":1}')
+        self._zapisz('stres.json', '{"at":"x","zażółć":"gęślą jaźń"}')
+        self._zapisz('widoki/index.json', '{"v":1}')
+
+    def test_zawartosc_spisu(self):
+        self._dane()
+        self._zapisz('notatka.txt', 'nie json'); self._zapisz('zla nazwa.json', '{}'); self._zapisz('a.b.json', '{}')
+        os.symlink(os.path.join(self.tmp, 'cmc.json'), os.path.join(self.tmp, 'dowiazanie.json'))
+        os.makedirs(os.path.join(self.tmp, 'inny')); self._zapisz('inny/x.json', '{}')
+        m = self.M.zapisz(self.tmp)
+        self.assertEqual(sorted(m['f']), ['cmc', 'stres', 'widoki/index'], 'tylko pliki *.json o prostej nazwie, z widokami; bez dowiązań, podkatalogów i samego spisu')
+        self.assertEqual(m['v'], 1); self.assertRegex(m['at'], r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$')
+        for k, rel in (('cmc', 'cmc.json'), ('stres', 'stres.json'), ('widoki/index', 'widoki/index.json')):
+            tresc = open(os.path.join(self.tmp, rel), 'rb').read()
+            self.assertEqual(m['f'][k], [_hl459.sha256(tresc).hexdigest()[:12], len(tresc)], k)
+        zapisany = json.load(open(os.path.join(self.tmp, 'manifest.json'), encoding='utf-8'))
+        self.assertEqual(zapisany, m); self.assertFalse(os.path.exists(os.path.join(self.tmp, 'manifest.json.tmp')), 'zapis atomowy: bez pliku tymczasowego')
+        self.assertLess(os.path.getsize(os.path.join(self.tmp, 'manifest.json')), 600)
+        for k in zapisany['f']:   # nazwy zgodne ze wzorcem strony (manApply) i Service Workera
+            self.assertRegex(k, r'^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)?$')
+        for v in zapisany['f'].values():
+            self.assertRegex(v[0], r'^[0-9a-f]{12}$'); self.assertIsInstance(v[1], int)
+
+    def test_ponowny_zapis_nie_wlicza_samego_spisu_i_jest_powtarzalny(self):
+        self._dane()
+        a = self.M.zapisz(self.tmp); b = self.M.zapisz(self.tmp)
+        self.assertEqual(a['f'], b['f']); self.assertNotIn('manifest', b['f'])
+
+    def test_zapis_atomowy_przez_zamiane_pliku(self):
+        self._dane()
+        with mock.patch('os.replace', wraps=os.replace) as r:
+            self.M.zapisz(self.tmp)
+        self.assertEqual(r.call_count, 1); self.assertTrue(r.call_args[0][0].endswith('manifest.json.tmp') and r.call_args[0][1].endswith('manifest.json'))
+        # przerwany zapis (błąd przy zamianie): stary spis cały, bez pół pliku
+        stary = open(os.path.join(self.tmp, 'manifest.json'), 'rb').read(); self._zapisz('nowy.json', '{}')
+        with mock.patch('os.replace', side_effect=OSError('przerwane')):
+            with self.assertRaises(OSError):
+                self.M.zapisz(self.tmp)
+        self.assertEqual(open(os.path.join(self.tmp, 'manifest.json'), 'rb').read(), stary)
+
+    def test_sprawdz_zgodnosc_i_niezgodnosc(self):
+        self._dane(); self.M.zapisz(self.tmp)
+        self.assertEqual(self.M.sprawdz(self.tmp), [])
+        self._zapisz('stres.json', '{"at":"inny"}')
+        self.assertEqual(self.M.sprawdz(self.tmp), ['stres'], 'zmieniony plik po zapisie spisu = niezgodność')
+        self.M.zapisz(self.tmp); self._zapisz('nowy.json', '{}')
+        self.assertEqual(self.M.sprawdz(self.tmp), ['nowy'], 'plik dodany po spisie')
+        os.remove(os.path.join(self.tmp, 'nowy.json')); os.remove(os.path.join(self.tmp, 'cmc.json'))
+        self.assertEqual(self.M.sprawdz(self.tmp), ['cmc'], 'plik usunięty po spisie')
+        os.remove(os.path.join(self.tmp, 'manifest.json'))
+        self.assertTrue(self.M.sprawdz(self.tmp)[0].startswith('brak albo uszkodzony spis'))
+        self._zapisz('manifest.json', '{niepoprawny'); self.assertTrue(self.M.sprawdz(self.tmp))
+        self._zapisz('manifest.json', '{"v":2,"f":{"a":["aaaaaaaaaaaa",1]}}'); self.assertEqual(self.M.sprawdz(self.tmp), ['zły format spisu'])
+
+    def test_pusty_katalog_nie_tworzy_spisu(self):
+        with self.assertRaises(RuntimeError):
+            self.M.zapisz(self.tmp)
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, 'manifest.json')))
+
+    def test_wiersz_polecen_kody_wyjscia(self):
+        import contextlib, io
+        self._dane()
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(self.M.main(['manifest.py', 'zapisz', self.tmp]), 0)
+            self.assertEqual(self.M.main(['manifest.py', 'sprawdz', self.tmp]), 0)
+            self._zapisz('cmc.json', '{}'); self.assertEqual(self.M.main(['manifest.py', 'sprawdz', self.tmp]), 1)
+            self.assertEqual(self.M.main(['manifest.py']), 2); self.assertEqual(self.M.main(['manifest.py', 'x', self.tmp]), 2)
+            self.assertEqual(self.M.main(['manifest.py', 'zapisz', os.path.join(self.tmp, 'brak')]), 2)
+
+    def test_pliki_wydania_z_prawdziwego_zbieracza_maja_dozwolone_nazwy(self):
+        """Nazwy plików, które zbieracz zapisuje (data/<nazwa>.json w zbieraj_dane.py i widoki), mieszczą się we wzorcu spisu — żaden nie wypadnie ze spisu po cichu."""
+        src = open(os.path.join(self.ROOT, 'zbieraj_dane.py'), encoding='utf-8').read()
+        nazwy = set(_re459.findall(r"\bsave\(\s*'([^'\n]+)'", src))
+        self.assertGreater(len(nazwy), 40)
+        zle = [n for n in nazwy if not _re459.match(r'^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)?$', n)]
+        self.assertEqual(zle, [])
+
+    def test_krok_publikacji(self):
+        wf = open(os.path.join(self.ROOT, '.github', 'workflows', 'strona.yml'), encoding='utf-8').read()
+        i_cp = wf.index('cp data/widoki/*.json _site/data/widoki/'); i_z = wf.index('python3 narzedzia/manifest.py zapisz _site/data'); i_nj = wf.index('touch _site/.nojekyll')
+        i_straz = wf.index('python3 narzedzia/straz_kluczy.py'); i_s = wf.index('python3 narzedzia/manifest.py sprawdz _site/data'); i_up = wf.index('actions/upload-pages-artifact')
+        self.assertTrue(i_cp < i_z < i_nj < i_straz < i_s < i_up, 'spis po skopiowaniu plików danych, sprawdzenie po straży kluczy, oba przed wysłaniem strony')
+        zapis = wf[i_z:wf.index('\n', i_z)]
+        self.assertIn('||', zapis); self.assertIn('rm -f _site/data/manifest.json', zapis); self.assertNotIn('exit 1', zapis, 'błąd spisu nie blokuje publikacji')
+        spr = wf[wf.rindex('- name:', 0, i_s):wf.index('- uses: actions/upload-pages-artifact')]
+        self.assertIn('rm -f _site/data/manifest.json', spr); self.assertNotIn('exit 1', spr); self.assertIn('if [ -f _site/data/manifest.json ]', spr)
+        self.assertEqual(wf.count('manifest.py zapisz'), 1); self.assertEqual(wf.count('manifest.py sprawdz'), 1)
+        self.assertTrue(os.access(os.path.join(self.ROOT, 'narzedzia', 'manifest.py'), os.R_OK))
+
+    def test_service_worker_nie_przechwytuje_spisu(self):
+        sw = open(os.path.join(self.ROOT, 'sw.js'), encoding='utf-8').read()
+        self.assertEqual(sw.count("w === 'data/manifest.json'"), 1)
+        self.assertLess(sw.index("w === 'data/manifest.json'"), sw.index('if (/^data\\/'), 'wyjątek przed regułą plików danych')
+        self.assertIn('WYLACZONY = false', sw)
+
+    def test_strona_czyta_spis(self):
+        idx = open(os.path.join(self.ROOT, 'index.html'), encoding='utf-8').read()
+        self.assertEqual(idx.count("fetch('data/manifest.json?t='"), 1); self.assertEqual(idx.count('srvJSON.mh=name=>'), 1)
+        self.assertIn("fetch('data/'+name+'.json?t='+m+(mh?'&h='+mh:''),o)", idx)
+        wyc = idx.index('function srvJSON(name){'); self.assertLess(idx.index('/* v459 (F11Z41, szybkość etap 7)'), wyc, 'blok spisu przed srvJSON (testy wycinają srvJSON do srvLive)')
+
+    # ---- kontrola dzienna
+    def _spis(self, nazwy, wiek_min=5, rozmiar=500):
+        at = (self.K.NOW - datetime.timedelta(minutes=wiek_min)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        return {'v': 1, 'at': at, 'f': {n: ['%012x' % i, rozmiar + i] for i, n in enumerate(nazwy)}}
+
+    def test_kontrola_ocena_progi(self):
+        K = self.K; nazwy = ['n%d' % i for i in range(40)]
+        self.assertEqual(K.spis_ocena(self._spis(nazwy), nazwy), [], 'świeży, kompletny spis — bez uwag')
+        self.assertEqual(K.spis_ocena(self._spis(nazwy, wiek_min=239), nazwy), [], 'publikacja co 10 min: do 4 godz. bez uwag (przestoje zgłasza kontrola świeżości automatu)')
+        self.assertIn('sprzed 4 godz.', K.spis_ocena(self._spis(nazwy, wiek_min=241), nazwy)[0])
+        s = self._spis(nazwy); [s['f'].pop(n) for n in nazwy[:8]]
+        self.assertEqual(K.spis_ocena(s, nazwy), [], '8 z 40 (20%) brakuje — jeszcze bez uwagi (plik wyłączony celowo, chwilowa luka)')
+        s['f'].pop(nazwy[8]); u = K.spis_ocena(s, nazwy); self.assertEqual(len(u), 1); self.assertIn('brakuje 9 z 40', u[0])
+        for zly in (None, [], {}, {'v': 2, 'f': {'a': ['x', 1]}}, {'v': 1, 'f': {}}, {'v': 1, 'f': []}, 'x'):
+            self.assertEqual(len(K.spis_ocena(zly, nazwy)), 1, repr(zly))
+        self.assertEqual(K.spis_ocena({'v': 1, 'at': 'wczoraj', 'f': {'a': ['aaaaaaaaaaaa', 1]}}, []), ['spis plików bez czasu powstania'])
+
+    def _pobierz(self, spis_1, pliki, spis_2=None):
+        """Atrapa get: spis (kolejne odczyty z listy) i pliki {nazwa: bajty}; zlicza zapytania."""
+        spisy = [spis_1] + ([spis_2] if spis_2 is not None else []); log = []
+
+        def get(url, *a, **kw):
+            log.append(url)
+            if '/data/manifest.json' in url:
+                s = spisy.pop(0) if len(spisy) > 1 else spisy[0]
+                if isinstance(s, int):
+                    raise _ue459.HTTPError(url, s, 'x', {}, None)
+                if isinstance(s, Exception):
+                    raise s
+                return 200, (s if isinstance(s, bytes) else json.dumps(s).encode()), 5
+            n = url.split('/data/')[1].split('.json')[0]
+            return 200, pliki[n], 5
+        get.log = log
+        return get
+
+    def _spis_z_plikow(self, pliki, **kw):
+        s = {'v': 1, 'at': (self.K.NOW).strftime('%Y-%m-%dT%H:%M:%SZ'), 'f': {n: [_hl459.sha256(b).hexdigest()[:12], len(b)] for n, b in pliki.items()}}
+        s['f'].update(kw); return s
+
+    def test_kontrola_porownanie_z_najmniejszymi_plikami(self):
+        K = self.K; pliki = {'a': b'x' * 900, 'b': b'y' * 300, 'c': b'z' * 150, 'd': b'q' * 50}
+        zl = []
+        g = self._pobierz(self._spis_z_plikow(pliki), pliki)
+        R, uw = K.spis_plikow(list(pliki), pobierz=g, czekaj=lambda s: zl.append(s))
+        self.assertEqual(uw, []); self.assertEqual(R['sprawdzone'], ['c', 'b'], 'dwa najmniejsze o rozmiarze ≥ 100 B'); self.assertEqual(zl, [])
+        self.assertEqual(len(g.log), 3, 'spis + dwa pliki — trzy zapytania')
+        # niezgodny skrót: ponowienie po 20 s; przy drugim odczycie już zgodny (publikacja weszła między zapytaniami) — bez uwagi
+        zle = self._spis_z_plikow(pliki, c=['000000000000', 150])
+        g = self._pobierz(zle, pliki, spis_2=self._spis_z_plikow(pliki)); R, uw = K.spis_plikow(list(pliki), pobierz=g, czekaj=lambda s: zl.append(s))
+        self.assertEqual(uw, []); self.assertEqual(zl, [20])
+        # niezgodny dwa razy: uwaga (nie błąd)
+        g = self._pobierz(zle, pliki); zl.clear(); R, uw = K.spis_plikow(list(pliki), pobierz=g, czekaj=lambda s: zl.append(s))
+        self.assertEqual(len(uw), 1); self.assertIn('niezgodny z plikiem: c', uw[0]); self.assertEqual(zl, [20])
+        # zły rozmiar przy dobrym skrócie — też niezgodność
+        zr = self._spis_z_plikow(pliki, c=[_hl459.sha256(pliki['c']).hexdigest()[:12], 151]); R, uw = K.spis_plikow(list(pliki), pobierz=self._pobierz(zr, pliki), czekaj=lambda s: None)
+        self.assertEqual(len(uw), 1)
+
+    def test_kontrola_brak_spisu_i_bledy_to_tylko_uwagi(self):
+        K = self.K; pliki = {'a': b'x' * 900}
+        R, uw = K.spis_plikow(['a'], pobierz=self._pobierz(404, pliki), czekaj=lambda s: None)
+        self.assertEqual(R, {'http': 404}); self.assertEqual(len(uw), 1); self.assertIn('HTTP 404', uw[0]); self.assertIn('własnych zegarach', uw[0])
+        R, uw = K.spis_plikow(['a'], pobierz=self._pobierz(OSError('sieć'), pliki), czekaj=lambda s: None); self.assertEqual(len(uw), 1)
+        R, uw = K.spis_plikow(['a'], pobierz=self._pobierz(b'{niepoprawny', pliki), czekaj=lambda s: None); self.assertEqual(len(uw), 1)
+        R, uw = K.spis_plikow(['a'], pobierz=self._pobierz({'v': 1, 'f': {}}, pliki), czekaj=lambda s: None); self.assertEqual(len(uw), 1)
+        # plik niedostępny przy sprawdzaniu: wyjątek nie wychodzi na zewnątrz (bez fałszywego alarmu o zgodności, spis ma wpis)
+        def get(url, *a, **kw):
+            if '/data/manifest.json' in url:
+                return 200, json.dumps(self._spis_z_plikow(pliki)).encode(), 5
+            raise OSError('sieć')
+        R, uw = K.spis_plikow(['a'], pobierz=get, czekaj=lambda s: None)
+        self.assertLessEqual(len(uw), 1)
+
+    def test_kontrola_wywolanie_tylko_uwagi_nigdy_bledy(self):
+        src = open(os.path.join(self.ROOT, 'narzedzia', 'kontrola.py'), encoding='utf-8').read()
+        i = src.index("    # 3b'. v459 (F11Z41)"); blk = src[i:src.index('    if pominiete:', i)]
+        self.assertNotIn("R['bledy']", blk); self.assertIn("R['uwagi'] += uw_spis", blk); self.assertIn('if not site_pomin():', blk)
+        self.assertLess(src.index("for f in ('robots.txt', 'sitemap.xml'"), i, 'po sprawdzeniu plików dla wyszukiwarek')
+        fn = src[src.index('def spis_plikow('):src.index('def kontrola_przerwana_opis(')]
+        self.assertNotIn('bledy', fn.replace("nigdy błąd", ''))

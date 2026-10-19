@@ -19,6 +19,10 @@ i nazwane `capitalflowai-app.github.io`, więc jest to strona użytkownika bez �
 - Pierwszy widok: lista plików kafelków i mapy (T0: oecd, rynki, ceny, kursy, dzis, krypto, cmc, surowce, nastroj, etf, meta) jest w jednym miejscu (`srvJSON.t0` w `index.html`). Na starcie każdy inny plik `data/*.json` i `archiwum/seria.json` idzie z `priority:'low'`; faza kończy się po pobraniu T0 (najpóźniej po 8 s), przy otwarciu CRYPTO/TRENDÓW i od razu przy `?pelna=1`. Kafelki Złoto i Ropa Brent (od v321) rysują się dopiero po `surowce.json`, dlatego jest w T0.
 - Komentarze programisty są wycinane tylko z opublikowanej kopii (`narzedzia/bez_komentarzy.py`, krok „Złóż stronę” w `strona.yml`): tokenizator JavaScriptu, ten sam ciąg tokenów, składnia sprawdzona w silniku JS; błąd = zostaje wersja z komentarzami i ostrzeżenie. Źródło w repozytorium zostaje z komentarzami. W opublikowanej stronie `<meta name="cf-wydanie">` podaje skrót commitu, który jest na żywo (numery wersji z komentarzy nie są już w opublikowanym kodzie).
 
+## Spis plików danych (v459)
+
+Przy publikacji krok „Złóż stronę” zapisuje `data/manifest.json` (`narzedzia/manifest.py`): skrót SHA-256 (12 znaków) i rozmiar każdego pliku wydania; kolejny krok po straży kluczy sprawdza zgodność i przy niezgodności usuwa spis. Strona odpytuje go co minutę (tylko widoczna karta): niezmienionych plików nie pobiera ponownie, zmienione pobiera od razu (`&h=<skrót>` w adresie), a moduły zmienionych plików odświeżają się od razu zamiast na własnym zegarze (10–60 min). Zegary modułów zostają i działają, gdy spisu brak. Service Worker spisu nie przechwytuje, kontrola dzienna ostrzega, gdy spisu brak albo nie zgadza się z plikiem.
+
 ## Service Worker (v351)
 
 Plik `sw.js` (kopiowany do `_site/` w kroku „Złóż stronę”, rejestrowany w `index.html`) przyspiesza powroty na stronę:

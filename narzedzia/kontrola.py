@@ -15872,6 +15872,15 @@ def kontrola():
             R['pliki'][f] = {'http': e.code}; R['uwagi'].append(f'{f}: HTTP {e.code}')
         except Exception as e:  # noqa
             R['pliki'][f] = {'blad': str(e)[:120]}; R['uwagi'].append(f'{f}: {str(e)[:80]}')
+    # 3b'. v459 (F11Z41): spis plików wydania (data/manifest.json) — obecny, świeży, kompletny i zgodny z dwoma najmniejszymi plikami; najwyżej uwaga
+    if not site_pomin():
+        try:
+            R['spis'], uw_spis = spis_plikow([n for n in PLIKI if n != 'meta' and not R['pliki'].get(n, {}).get('pominiete') and not R['pliki'].get(n, {}).get('wylaczone') and R['pliki'].get(n, {}).get('http', 200) == 200])
+            R['uwagi'] += uw_spis
+        except KoniecCzasu:
+            pass
+        except Exception as e:  # noqa
+            R['spis'] = {'blad': str(e)[:120]}
     if pominiete:   # v327 (KON-04): jedna uwaga zamiast uwagi przy każdym pliku
         R['uwagi'].append(f'pominięto plików strony: {len(pominiete)} ({pow_pom}) — ' + ', '.join(pominiete[:6]) + (' …' if len(pominiete) > 6 else ''))
     # 3c. v115: świeżość źródeł wg kategorii — żółte po progu, czerwone po 2×
@@ -17629,6 +17638,65 @@ def raport_md(R):
         L += ['', 'Wszystko w normie.']
     L += ['', 'Kontrola wykonana przez GitHub Actions (plik `narzedzia/kontrola.py`), bez kluczy, tylko odczyt.']
     return '\n'.join(L) + '\n'
+
+
+def spis_ocena(sp, nazwy, teraz=None):
+    """v459 (F11Z41): ocena spisu plików wydania (data/manifest.json) — lista uwag (nigdy błąd: strona bez spisu działa na własnych zegarach modułów).
+    sp = odczytany JSON (albo None); nazwy = pliki, które kontrola i tak sprawdza. Progi: spis starszy niż 4 godz. (publikacja co 10 min; dłuższe przestoje
+    zgłasza już kontrola świeżości automatu) albo brakujące > 20% nazw kontroli."""
+    if not isinstance(sp, dict) or sp.get('v') != 1 or not isinstance(sp.get('f'), dict) or not sp['f']:
+        return ['spis plików (data/manifest.json) ma zły format — strona działa na własnych zegarach modułów']
+    uw = []
+    w = wiek_min(sp.get('at'))
+    if w is None:
+        uw.append('spis plików bez czasu powstania')
+    elif w > 240:
+        uw.append(f'spis plików sprzed {w // 60} godz. {w % 60} min (publikacja co 10 min)')
+    brak = [n for n in nazwy if n not in sp['f']]
+    if nazwy and len(brak) > 0.2 * len(nazwy):
+        uw.append(f'w spisie plików brakuje {len(brak)} z {len(nazwy)} plików: ' + ', '.join(brak[:6]) + (' …' if len(brak) > 6 else ''))
+    return uw
+
+
+def spis_plikow(nazwy, pobierz=None, czekaj=None):
+    """v459 (F11Z41): pobiera spis i porównuje z dwoma najmniejszymi plikami (skrót 12 znaków SHA-256); przy różnicy jedno ponowienie po 20 s (publikacja
+    mogła wejść między zapytaniami). Zwraca (wynik dla raportu, lista uwag); brak spisu (404) = uwaga, bo strona działa wtedy na własnych zegarach."""
+    import hashlib
+    pobierz = pobierz or get
+    czekaj = czekaj or time.sleep
+    R = {}
+    try:
+        st, body, ms = pobierz(f'{SITE}/data/manifest.json?nc={int(time.time())}')
+        sp = json.loads(body)
+    except urllib.error.HTTPError as e:
+        return {'http': e.code}, [f'spis plików (data/manifest.json): HTTP {e.code} — strona działa na własnych zegarach modułów']
+    except Exception as e:  # noqa
+        return {'blad': str(e)[:120]}, [f'spis plików (data/manifest.json): {str(e)[:100]}']
+    uw = spis_ocena(sp, nazwy)
+    R['plikow'] = len(sp['f']) if isinstance(sp, dict) and isinstance(sp.get('f'), dict) else 0
+    if not isinstance(sp, dict) or not isinstance(sp.get('f'), dict):
+        return R, uw
+    mal = sorted((v[1], k) for k, v in sp['f'].items() if k in nazwy and isinstance(v, list) and len(v) == 2 and isinstance(v[1], int) and v[1] >= 100)[:2]
+    zle = []
+    for _, k in mal:
+        for proba in (0, 1):
+            try:
+                if proba:
+                    czekaj(20)
+                    sp = json.loads(pobierz(f'{SITE}/data/manifest.json?nc={int(time.time())}')[1])
+                wpis = sp['f'].get(k)
+                body = pobierz(f'{SITE}/data/{k}.json?nc={int(time.time())}')[1]
+                if wpis and wpis[0] == hashlib.sha256(body).hexdigest()[:12] and wpis[1] == len(body):
+                    break
+            except Exception:  # noqa
+                if proba:
+                    break
+        else:
+            zle.append(k)
+    R['sprawdzone'] = [k for _, k in mal]
+    if zle:
+        uw.append('spis plików niezgodny z plikiem: ' + ', '.join(zle) + ' (dwa odczyty)')
+    return R, uw
 
 
 def kontrola_przerwana_opis(e):

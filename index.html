@@ -5343,6 +5343,67 @@ const GPROXY={usa:[['SPY',1]],can:[['EWC',1]],lat:[['ILF',1]],eur:[['VGK',1]],ru
   mea:[['KSA',.76],['TUR',.13],['EIS',.11]],afr:[['EZA',1]],ind:[['INDA',1]],chn:[['MCHI',1]],
   jpn:[['EWJ',7611],['EWY',2757]],asean:[['ASEA',1]],oce:[['EWA',1]]};
 let gDayBusy=false;
+/* v459 (F11Z41, szybkość etap 7): spis plików danych. Przy publikacji powstaje data/manifest.json — {"v":1,"at":…,"f":{nazwa:[skrót,bajty]}} (narzedzia/manifest.py, ok. 5 KB).
+   Strona pyta o niego co minutę (tylko widoczna karta) i dzięki temu:
+   (1) srvJSON nie pobiera ponownie pliku, którego skrót się nie zmienił (spis musi być świeży, najwyżej 150 s; najdłużej 60 min bez ponownego pobrania),
+       a plik zmieniony pobiera od razu pod adresem ze skrótem (&h=…), czyli nie z pamięci pośredniej;
+   (2) moduły, których plik się zmienił, odświeżają się od razu (w odstępach 150 ms), a nie dopiero na własnym zegarze (10–60 min).
+   Własne zegary modułów zostają BEZ ZMIAN: odświeżają wiek danych i pracują, gdy spisu brak (404, błąd sieci, stary albo uszkodzony spis) — wtedy strona działa dokładnie jak przed v459.
+   Który moduł czyta który plik: z kodu strony (wywołanie w zegarze → funkcja wczytująca → srvJSON('nazwa')), bez osobnej tabeli, która by się starzała. Błąd w tym bloku = brak przyspieszenia, nigdy brak odświeżania. */
+try{(function(){
+  const FRESH=150*1000,GAP=45*1000,E=[],ST={polls:0,fails:0,kicks:0,changed:0},NM=/^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)?$/;
+  let H=null,OK=0,busy=false,IDX=null;
+  srvJSON.mh=name=>(H&&Date.now()-OK<FRESH&&Object.prototype.hasOwnProperty.call(H,name))?H[name]:null;   /* skrót pliku ze świeżego spisu albo null (= pobieranie jak dawniej) */
+  /* zegary ≥ 10 min: rejestr (źródło funkcji → wpis); sam zegar działa jak zawsze, wpis tylko zapamiętuje czas ostatniego uruchomienia */
+  try{const si=window.setInterval;if(typeof si==='function')window.setInterval=function(fn,ms){
+    try{if(typeof fn==='function'&&ms>=10*60*1000&&arguments.length<3){
+      const k=Function.prototype.toString.call(fn);let e=E.find(x=>x.k===k);if(!e){e={k,f:null,last:0,fn:null};E.push(e);}
+      e.fn=fn;return si.call(window,function(){e.last=Date.now();return fn.apply(this,arguments);},ms);}}catch(x){}
+    return si.apply(window,arguments);};}catch(x){}
+  /* indeks funkcji z kodu strony (nazwa → miejsce w tekście skryptu); budowany raz, przy pierwszej potrzebie */
+  function idx(){
+    if(IDX)return IDX;IDX=new Map();IDX.src='';
+    try{const L=document.scripts;for(let i=0;i<L.length;i++){const x=L[i].textContent||'';if(x.length>1e6&&x.length>IDX.src.length)IDX.src=x;}   /* główny skrypt strony = najdłuższy */
+      for(const m of IDX.src.matchAll(/(?:^|[^\w$.])function\s+([A-Za-z_$][\w$]*)\s*\(/g))if(!IDX.has(m[1]))IDX.set(m[1],m.index+m[0].length);}catch(x){}
+    return IDX;}
+  function body(id){
+    const I=idx(),s=I.src,p=I.get(id);if(p===undefined)return '';
+    const a=s.indexOf('{',p);if(a<0||a-p>400)return '';let d=0,j=a;const z=Math.min(s.length,a+6000);
+    for(;j<z;j++){const c=s.charCodeAt(j);if(c===123)d++;else if(c===125&&--d===0)break;}
+    return s.slice(a,Math.min(j+1,z));}
+  /* pliki, które czyta zegar: nazwy srvJSON('…') w jego kodzie, w funkcjach przez niego wołanych i w ich pomocnikach (bez rysujących, najwyżej 4000 znaków) */
+  function files(e){
+    if(e.f)return e.f;const s=new Set(),calls=t=>new Set(t.match(/[A-Za-z_$][\w$]*(?=\()/g)||[]),grab=t=>{for(const m of t.matchAll(/srvJSON\('([A-Za-z0-9_\/-]+)'\)/g))s.add(m[1]);};
+    try{grab(e.k);const ids=calls(e.k);ids.delete('if');
+      for(const id of ids){const b=body(id);if(!b)continue;grab(b);
+        for(const j of calls(b)){if(j===id||ids.has(j)||/^render/.test(j))continue;const bb=body(j);if(bb&&bb.length<4000)grab(bb);}}}catch(x){}
+    return e.f=s;}
+  function kick(ch){
+    const set=new Set(ch),now=Date.now();let i=0;
+    for(const e of E){
+      let hit=false;for(const n of files(e))if(set.has(n)){hit=true;break;}
+      if(!hit||now-e.last<GAP)continue;
+      ST.kicks++;setTimeout(()=>{e.last=Date.now();try{e.fn();}catch(x){console.error(x);}},(i++)*150);}}
+  function apply(j,t0){
+    let f=null;try{f=j&&j.v===1&&j.f&&typeof j.f==='object'&&!Array.isArray(j.f)?j.f:null;}catch(x){}
+    const h={};let n=0;
+    if(f)for(const k of Object.keys(f)){const a=f[k];if(NM.test(k)&&Array.isArray(a)&&typeof a[0]==='string'&&/^[0-9a-f]{8,64}$/.test(a[0])){h[k]=a[0];n++;}}
+    if(!n){ST.fails++;return;}   /* zły albo pusty spis: poprzedni zostaje do wygaśnięcia świeżości, potem pobieranie jak dawniej */
+    const old=H;H=h;OK=Date.now();
+    if(!old){   /* pierwszy odczyt = punkt odniesienia; pliki pobrane PO wysłaniu tego zapytania (start strony) przejmują jego skróty — bez zbędnego drugiego pobrania; plik nowszy niż spis da tylko jedno dodatkowe pobranie przy następnym odczycie */
+      const S=srvJSON.c;if(S)for(const n of Object.keys(S)){const c=S[n];if(c&&!c.h&&c.t>=t0&&Object.prototype.hasOwnProperty.call(h,n))c.h=h[n];}
+      return;}
+    const ch=Object.keys(h).filter(k=>old[k]!==h[k]);
+    if(ch.length){ST.changed+=ch.length;kick(ch);}}
+  function poll(){
+    if(location.protocol==='file:'||busy||document.hidden)return;
+    busy=true;ST.polls++;let p;const t0=Date.now();
+    try{p=fetch('data/manifest.json?t='+Math.floor(Date.now()/60000),{cache:'no-store',signal:(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?AbortSignal.timeout(10000):undefined}).then(r=>r.ok?r.json():null);}catch(x){p=Promise.resolve(null);}
+    p.catch(()=>null).then(j=>{busy=false;try{apply(j,t0);}catch(x){ST.fails++;}});}
+  srvJSON.mn={apply,poll,kick,files,E,ST};
+  try{poll();setInterval(poll,60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll();});}catch(x){}
+})();}catch(x){}   /* nawet nieprzewidziany błąd w tym bloku nie zatrzyma reszty skryptu strony */
+/* v459: koniec spisu plików */
 /* ---------- dane z serwera strony: data/*.json wytwarzane przez GitHub Actions (klucze zostają na serwerze) ----------
    Widz nie wpisuje żadnych kluczy. Z pliku lokalnego (file://) tej ścieżki nie ma — wtedy działają klucze z Ustawień. */
 /* v189: ten sam plik serwera w tej samej minucie — jedno pobranie (przy starcie strony cm.json, stopy.json i meta.json szły 2–3 razy, np. cm.json
@@ -5351,13 +5412,15 @@ let gDayBusy=false;
 function srvJSON(name){
   if(location.protocol==='file:')return Promise.resolve(null);
   if(srvJSON.g&&srvJSON.g.zamk(name))return new Promise(()=>{});   /* v308: plik z zamkniętej grupy (bramka niżej) — bez pobierania; obietnica się nie rozstrzyga */
-  const S=srvJSON.c||(srvJSON.c={}),m=Math.floor(Date.now()/60000);let c=S[name];
+  const S=srvJSON.c||(srvJSON.c={}),m=Math.floor(Date.now()/60000),mh=typeof srvJSON.mh==='function'?srvJSON.mh(name):null;let c=S[name];
+  if(c&&mh&&c.h===mh&&Date.now()-c.t<60*60*1000)c.m=m;   /* v459 (F11Z41): spis plików mówi, że plik się nie zmienił od tego pobrania — bez ponownego pobrania (najdłużej 60 min) */
+  else if(c&&mh&&c.h&&c.h!==mh&&c.m===m)c=null;   /* v459: spis mówi o nowszej wersji — pobranie od razu, także w tej samej minucie (c.h puste = pobrane przed spisem: bez zmian) */
   if(!c||c.m!==m){
     const o={cache:'no-store',signal:(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?AbortSignal.timeout(20000):undefined};
     if(srvJSON.lo&&srvJSON.t0&&srvJSON.t0.indexOf(name)<0)o.priority='low';   /* v412 (F11Z21): w fazie startu pliki spoza pierwszego widoku (srvJSON.t0 niżej) idą z niskim priorytetem — pliki kafelków i mapy nie dzielą z nimi łącza; faza kończy się po pobraniu T0 (najpóźniej po 8 s) albo przy otwarciu CRYPTO/TRENDÓW */
-    const p=fetch('data/'+name+'.json?t='+m,o)
+    const p=fetch('data/'+name+'.json?t='+m+(mh?'&h='+mh:''),o)   /* v459: &h=skrót — adres tej wersji pliku (nie z pamięci pośredniej starszej wersji) */
       .then(r=>r.ok?r.json():null).catch(()=>null);
-    c=S[name]={m,p};
+    c=S[name]={m,p,h:mh,t:Date.now()};
     p.then(j=>{if(j==null&&S[name]===c)delete S[name];});
   }
   return c.p.then(j=>j&&typeof j==='object'?(typeof structuredClone==='function'?structuredClone(j):JSON.parse(JSON.stringify(j))):j);

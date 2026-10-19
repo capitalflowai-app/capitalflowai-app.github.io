@@ -35,6 +35,7 @@ function rodzaj(url) {
   if (url.origin !== ZAKRES.origin || url.pathname.indexOf(KORZEN) !== 0) return null;
   const w = url.pathname.slice(KORZEN.length);
   if (w === '' || w === 'index.html') return ['strona', KLUCZ_STRONY];
+  if (w === 'data/manifest.json') return null;   // v459: spis plików wydania — zawsze prosto z sieci, bez kopii (stary spis zafałszowałby ocenę, co się zmieniło)
   if (/^data\/(?:[A-Za-z0-9_-]+\/)?[A-Za-z0-9_.-]+\.json$/.test(w)) return ['dane', url.origin + url.pathname];
   if (/^(?:fonts|img)\/[A-Za-z0-9_.\/-]+$/.test(w) || w === 'count.js') return ['statyk', url.origin + url.pathname];
   return null;

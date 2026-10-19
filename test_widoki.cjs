@@ -36806,3 +36806,184 @@ test('v460 (F11Z42): wygląd — style tylko ze zmiennych motywu, trzy kolumny k
   assert.ok(!/color:\s*(gray|grey)/i.test(css), 'żadnych szarych zmian');
   const body = az460.mk('pl', az460.files(), {open: true}).html(); assert.equal((body.match(/etfkpis k4/g) || []).length, 3, 'Korea, Chiny (zestawienie) i Brazylia po cztery kafle'); assert.equal((body.match(/<div class="etfkpis">/g) || []).length, 2, 'Japonia (sześć) i zmiany ETF (trzy) w trzech kolumnach');
 });
+
+// ===================== v459 (F11Z41): szybkość etap 7 — spis plików danych (data/manifest.json), niezmienione pliki bez pobrania, zmienione od razu =====================
+// Testy bez zegara strony: czas, sieć i zegary są atrapami; kod bloku i srvJSON wycinany z index.html (jak w v189/v308/v412).
+const t459 = (() => {
+  const a = html.indexOf('/* v459 (F11Z41, szybkość etap 7)'), b = html.indexOf('/* v459: koniec spisu plików */');
+  const s = html.indexOf('function srvJSON(name){'), e = html.indexOf('\n}\n', s) + 2;
+  return { blok: a > 0 && b > a ? html.slice(a, b) : '', srv: html.slice(s, e) };
+})();
+
+test('v459 (F11Z41): srvJSON — bez świeżego spisu zachowanie jak dawniej; ze spisem niezmieniony plik bez pobrania, zmieniony od razu pod adresem ze skrótem', async () => {
+  assert.ok(t459.blok.length > 500 && t459.srv.includes('srvJSON.mh'), 'blok spisu i hak w srvJSON są w stronie');
+  let now = Date.parse('2026-10-19T10:00:10Z'); const calls = []; let fail = false;
+  const fetchF = (u, o) => { calls.push(u); return fail ? Promise.reject(new Error('sieć')) : Promise.resolve({ ok: true, json: () => Promise.resolve({ at: 'x', n: calls.length }) }); };
+  const f = new Function('fetch', 'location', 'Date', 'AbortSignal', 'structuredClone', t459.srv + '\nreturn srvJSON;')(
+    fetchF, { protocol: 'https:' }, { now: () => now }, { timeout: () => 'SYG' }, typeof structuredClone === 'function' ? structuredClone : undefined);
+  /* bez spisu (f.mh niezdefiniowane): adres bez skrótu, pamięć minutowa jak w v189 */
+  await f('cm'); await f('cm'); assert.deepEqual(calls, ['data/cm.json?t=' + Math.floor(now / 60000)], 'jedno pobranie, adres bez &h');
+  now += 60 * 1000; await f('cm'); assert.equal(calls.length, 2, 'nowa minuta — nowe pobranie (bez spisu)');
+  /* spis niedostępny (mh zwraca null) = to samo */
+  let H = {}; f.mh = n => H[n] || null;
+  now += 60 * 1000; await f('cm'); assert.equal(calls.length, 3); assert.ok(!calls[2].includes('&h='), 'brak skrótu — brak &h');
+  /* pobrane przed spisem (c.h puste): spis się pojawia — w tej samej minucie bez ponownego pobrania, w następnej jedno pobranie już ze skrótem */
+  H = { cm: 'aaaaaaaaaaaa', stopy: 'bbbbbbbbbbbb' };
+  await f('cm'); assert.equal(calls.length, 3, 'ta sama minuta, pobrane przed spisem — bez nowego pobrania');
+  now += 60 * 1000; await f('cm'); assert.equal(calls.length, 4); assert.ok(calls[3].endsWith('&h=aaaaaaaaaaaa'), 'adres ze skrótem: ' + calls[3]);
+  /* skrót ten sam — nowe minuty bez pobrania, każdy wołający dostaje własną kopię */
+  for (let i = 0; i < 5; i++) { now += 60 * 1000; const x = await f('cm'); x.n = -1; } assert.equal(calls.length, 4, 'niezmieniony plik: pięć minut bez pobrania');
+  assert.notEqual((await f('cm')).n, -1, 'zmiana kopii nie przenosi się do pamięci');
+  /* skrót się zmienił — pobranie od razu, także w tej samej minucie */
+  H.cm = 'cccccccccccc'; await f('cm'); assert.equal(calls.length, 5); assert.ok(calls[4].endsWith('&h=cccccccccccc'));
+  await f('cm'); assert.equal(calls.length, 5, 'po pobraniu nowej wersji znów z pamięci');
+  /* nie dłużej niż 60 min bez ponownego pobrania, nawet gdy spis mówi „bez zmian” */
+  now += 59 * 60 * 1000; await f('cm'); assert.equal(calls.length, 5, '59 min — jeszcze z pamięci'); now += 2 * 60 * 1000; await f('cm'); assert.equal(calls.length, 6, 'ponad 60 min — pobranie mimo niezmienionego skrótu');
+  /* spis wygasł (mh = null): nowa minuta = pobranie jak dawniej */
+  H = {}; now += 60 * 1000; await f('cm'); assert.equal(calls.length, 7); assert.ok(!calls[6].includes('&h='));
+  /* błąd pobrania nie jest zapamiętany także ze skrótem */
+  H = { nowy: 'dddddddddddd' }; fail = true; assert.equal(await f('nowy'), null); fail = false;
+  assert.equal((await f('nowy')).at, 'x'); assert.ok(calls[calls.length - 1].endsWith('&h=dddddddddddd'));
+  /* nazwy z podkatalogiem */
+  H['widoki/index'] = 'eeeeeeeeeeee'; await f('widoki/index'); assert.ok(calls[calls.length - 1].startsWith('data/widoki/index.json?t=') && calls[calls.length - 1].endsWith('&h=eeeeeeeeeeee'));
+});
+
+const t459Env = (opt = {}) => {
+  let now = Date.parse('2026-10-19T10:00:10Z'); const regs = [], tos = [], fl = [], doc = { hidden: false, scripts: [{ textContent: opt.script || html }], addEventListener: (t, fn) => { doc[t] = fn; } };
+  const env = { man: opt.man || null, hang: false, set now(v) { now = v; }, get now() { return now; }, regs, tos, fl, doc };
+  const win = { setInterval: (fn, ms) => { regs.push([fn, ms]); return regs.length; } };
+  const fetchF = (u, o) => {
+    fl.push([u, o]);
+    if (u.startsWith('data/manifest.json') && opt.hold && !env.held) { env.held = true; return new Promise(res => { env.release = () => res({ ok: true, json: () => Promise.resolve(env.man) }); }); }   /* pierwszy odczyt spisu wstrzymany do env.release() */
+    if (u.startsWith('data/manifest.json')) return env.hang ? Promise.reject(new Error('sieć')) : Promise.resolve(env.man === 404 ? { ok: false, status: 404 } : { ok: true, json: () => Promise.resolve(env.man) });
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ at: 'x' }) });
+  };
+  env.srv = new Function('fetch', 'location', 'Date', 'AbortSignal', 'structuredClone', 'window', 'document', 'setTimeout', 'setInterval', 'console',
+    t459.srv + '\n' + t459.blok + '\nreturn srvJSON;')(fetchF, { protocol: 'https:' }, { now: () => now }, { timeout: () => 'SYG' }, typeof structuredClone === 'function' ? structuredClone : undefined,
+    win, doc, (fn, ms) => { tos.push([fn, ms]); return tos.length; }, (fn, ms) => { regs.push([fn, ms]); return regs.length; }, { error: () => {} });
+  env.win = win;
+  /* callback jak w stronie: ta sama postać tekstu, funkcja-atrapa zamiast ładowarki */
+  env.timer = (src, ms, log) => { const names = [...src.matchAll(/([A-Za-z_$][\w$]*)(?=\()/g)].map(m => m[1]).filter(n => n !== 'if' && /Load/.test(n)); const fn = new Function('log', 'document', ...names, 'return ' + src)(log, doc, ...names.map(n => () => log.push(n))); win.setInterval(fn, ms); return fn; };
+  env.tick = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
+  return env;
+};
+const t459Man = (o, at = '2026-10-19T10:00:00Z') => ({ v: 1, at, f: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, [v, 1000]])) });
+
+test('v459 (F11Z41): blok spisu — rejestr zegarów ≥ 10 min, pierwszy odczyt to punkt odniesienia, zmiana skrótu odświeża od razu tylko moduły zmienionego pliku (co 150 ms, bez dubli), zły spis ignorowany', async () => {
+  const E = t459Env({ man: t459Man({ wieloryby: '111111111111', cmc: '222222222222', cm: '333333333333', fed: '444444444444' }) });
+  const log = [];
+  const cbWh = E.timer("()=>{if(!document.hidden)whLoad();}", 10 * 60 * 1000, log), cbCmc = E.timer("()=>{if(!document.hidden)cmcLoad();}", 10 * 60 * 1000, log);
+  const cbCm = E.timer("()=>{if(!document.hidden)cmLoad();}", 30 * 60 * 1000, log), cb5 = E.timer("()=>{if(!document.hidden)fedLoad();}", 5 * 60 * 1000, log);
+  const mn = E.srv.mn; assert.ok(mn, 'srvJSON.mn');
+  assert.equal(mn.E.length, 3, 'tylko zegary ≥ 10 min w rejestrze (zegar 5-minutowy nie)');
+  assert.deepEqual(E.regs.slice(-4).map(r => r[1]), [10 * 60 * 1000, 10 * 60 * 1000, 30 * 60 * 1000, 5 * 60 * 1000], 'wszystkie zegary przechodzą do prawdziwego setInterval z tym samym czasem');
+  assert.ok(E.regs.some(r => r[1] === 60 * 1000), 'odpytywanie spisu co 60 s'); assert.equal(E.fl.filter(x => x[0].startsWith('data/manifest.json')).length, 1, 'pierwszy odczyt spisu od razu przy starcie bloku'); assert.equal(typeof E.doc.visibilitychange, 'function');
+  const wh = E.regs.find(r => r[1] === 10 * 60 * 1000)[0]; wh(); assert.deepEqual(log, ['whLoad'], 'zegar uruchamia ładowarkę jak dotąd'); log.length = 0;
+  /* pliki zegara wynikają z kodu strony */
+  assert.deepEqual([...mn.files(mn.E[0])], ['wieloryby']); assert.deepEqual([...mn.files(mn.E[1])], ['cmc']); assert.deepEqual([...mn.files(mn.E[2])], ['cm']);
+  /* pierwszy odczyt: punkt odniesienia, bez odświeżeń */
+  E.srv.mn.poll(); await E.tick(); assert.equal(E.srv.mh('cm'), '333333333333'); assert.equal(E.srv.mh('brak'), null); assert.equal(E.tos.filter(t => t[1] !== 2500).length, 0, 'bez odświeżeń przy pierwszym odczycie');
+  const u = E.fl.find(x => x[0].startsWith('data/manifest.json')); assert.ok(/^data\/manifest\.json\?t=\d+$/.test(u[0]) && u[1].cache === 'no-store' && u[1].signal === 'SYG');
+  /* zmiana jednego pliku: odświeża się tylko jego moduł, od razu */
+  E.now += 60 * 1000; E.man = t459Man({ wieloryby: '111111111111', cmc: '222222222222', cm: '999999999999', fed: '444444444444' }); E.srv.mn.poll(); await E.tick();
+  let kick = E.tos.filter(t => t[1] !== 2500); assert.equal(kick.length, 1); assert.equal(kick[0][1], 0); kick[0][0](); assert.deepEqual(log, ['cmLoad']); log.length = 0; E.tos.length = 0;
+  /* trzy pliki naraz (cm w ciągu 45 s po poprzednim odświeżeniu — pomijany): kolejka co 150 ms */
+  E.now += 30 * 1000; E.man = t459Man({ wieloryby: 'a11111111111', cmc: 'b22222222222', cm: 'c33333333333', fed: '444444444444' }); E.srv.mn.poll(); await E.tick();
+  kick = E.tos.filter(t => t[1] !== 2500); assert.deepEqual(kick.map(k => k[1]), [0, 150], 'dwa moduły, w odstępie 150 ms'); kick.forEach(k => k[0]()); assert.deepEqual(log, ['whLoad', 'cmcLoad'], 'cm pominięty (odświeżony przed chwilą)'); log.length = 0; E.tos.length = 0;
+  /* plik bez zegara w rejestrze (fed): nic nie startuje, ale skrót jest znany */
+  E.now += 120 * 1000; E.man = t459Man({ wieloryby: 'a11111111111', cmc: 'b22222222222', cm: 'c33333333333', fed: '555555555555' }); E.srv.mn.poll(); await E.tick();
+  assert.equal(E.tos.filter(t => t[1] !== 2500).length, 0); assert.equal(E.srv.mh('fed'), '555555555555');
+  /* zły spis: ignorowany, poprzedni zostaje do wygaśnięcia świeżości */
+  const f0 = E.srv.mn.ST.fails;
+  for (const bad of [404, null, {}, { v: 2, f: { cm: ['aaaaaaaaaaaa', 1] } }, { v: 1, f: {} }, { v: 1, f: [] }, { v: 1, f: { cm: 'x', 'zła nazwa': ['aaaaaaaaaaaa', 1], 'a/b/c': ['aaaaaaaaaaaa', 1], cm2: ['ZZ', 1] } }]) {
+    E.now += 20 * 1000; E.man = bad; E.srv.mn.poll(); await E.tick(); assert.equal(E.srv.mh('cm'), 'c33333333333', JSON.stringify(bad) + ': poprzedni spis zostaje');
+  }
+  assert.equal(E.srv.mn.ST.fails - f0, 7, 'siedem zepsutych odpowiedzi policzonych');
+  E.hang = true; E.srv.mn.poll(); await E.tick(); assert.equal(E.srv.mn.ST.fails - f0, 8, 'błąd sieci też'); E.hang = false;
+  assert.equal(E.tos.filter(t => t[1] !== 2500).length, 0, 'zepsute odpowiedzi nigdy nie uruchamiają odświeżeń');
+  /* świeżość: po 150 s bez udanego odczytu skrót wygasa (pobieranie jak dawniej) */
+  E.now += 151 * 1000; assert.equal(E.srv.mh('cm'), null);
+  E.man = t459Man({ cm: 'c33333333333' }); E.srv.mn.poll(); await E.tick(); assert.equal(E.srv.mh('cm'), 'c33333333333'); assert.equal(E.srv.mh('cmc'), null, 'plik, którego spis nie zna, nie ma skrótu');
+  /* karta ukryta: bez zapytań; powrót do karty: odczyt od razu */
+  const n0 = E.fl.length; E.doc.hidden = true; E.srv.mn.poll(); assert.equal(E.fl.length, n0, 'ukryta karta nie pyta'); E.doc.hidden = false; E.doc.visibilitychange(); await E.tick(); assert.equal(E.fl.length, n0 + 1, 'powrót do karty — odczyt od razu');
+  E.doc.hidden = true; E.doc.visibilitychange(); assert.equal(E.fl.length, n0 + 1, 'ukrycie karty nie pyta');
+  /* nakładające się odczyty: jeden naraz */
+  E.doc.hidden = false; const n1 = E.fl.length; E.srv.mn.poll(); E.srv.mn.poll(); E.srv.mn.poll(); assert.equal(E.fl.length, n1 + 1, 'jedno zapytanie naraz'); await E.tick();
+});
+
+test('v459 (F11Z41): zegar z dodatkowymi argumentami i zegary krótkie przechodzą bez rejestracji; wyjątek w bloku nie zatrzymuje skryptu strony', () => {
+  const E = t459Env(); const n0 = E.srv.mn.E.length;
+  E.win.setInterval(() => {}, 20 * 60 * 1000, 'arg'); assert.equal(E.srv.mn.E.length, n0, 'zegar z dodatkowym argumentem nie jest rejestrowany');
+  assert.equal(E.regs[E.regs.length - 1][1], 20 * 60 * 1000, 'ale działa');
+  /* blok owinięty w try: brak document.scripts / window nie przerywa skryptu */
+  assert.ok(/\}\)\(\);\}catch\(x\)\{\}/.test(t459.blok) && t459.blok.includes('try{(function(){'), 'cały blok w try/catch');
+  let blad = null;
+  try { new Function('fetch', 'location', 'Date', 'AbortSignal', 'structuredClone', 'window', 'document', 'setTimeout', 'setInterval', 'console', t459.srv + '\n' + t459.blok + '\nreturn srvJSON;')(
+    () => { throw new Error('fetch'); }, { protocol: 'https:' }, Date, undefined, undefined, undefined, undefined, undefined, undefined, console); } catch (e) { blad = e; }
+  assert.equal(blad, null, 'bez window, document i setInterval blok nie rzuca wyjątku');
+});
+
+test('v459 (F11Z41): rejestr zegarów — ten sam zegar zarejestrowany ponownie (np. cmcAuto, ETF) nie mnoży wpisów; zegar działa nawet gdy blok spisu zawiedzie', async () => {
+  const E = t459Env(); const log = [];
+  for (let i = 0; i < 4; i++) E.timer("()=>{if(!document.hidden)cmcLoad();}", 10 * 60 * 1000, log);
+  assert.equal(E.srv.mn.E.length, 1, 'jeden wpis na źródło funkcji');
+  /* zegar bez spisu i bez żadnych danych o plikach: callback po prostu się wykonuje */
+  const last = E.regs[E.regs.length - 1][0]; last(); assert.deepEqual(log, ['cmcLoad']);
+  /* funkcja z wyjątkiem w rejestrze nie przerywa kolejnych odświeżeń */
+  const Z = t459Env({ man: t459Man({ a1: '111111111111', b1: '222222222222' }) }); const lg = [];
+  Z.timer("()=>{if(!document.hidden)whLoad();}", 10 * 60 * 1000, lg); Z.timer("()=>{if(!document.hidden)cmcLoad();}", 10 * 60 * 1000, lg);
+  Z.srv.mn.E[0].fn = () => { throw new Error('x'); };
+  Z.srv.mn.poll(); await Z.tick(); Z.now += 60000; Z.man = t459Man({ wieloryby: '111111111111', cmc: '333333333333' }); Z.srv.mn.poll(); await Z.tick();
+  Z.srv.mn.kick(['wieloryby', 'cmc']); for (const t of Z.tos.filter(t => t[1] !== 2500)) t[0](); assert.ok(lg.includes('cmcLoad'), 'wyjątek jednego modułu nie zatrzymuje pozostałych');
+});
+
+test('v459 (F11Z41): powiązanie zegarów z plikami wynika z prawdziwego kodu strony — znane moduły, pokrycie, brak wymyślonych nazw', () => {
+  const E = t459Env();
+  const re = /setInterval\(\(\)=>\{(.*?)\},\s*(\d+)\*60\*1000\)/g; let m, n = 0, ok = 0; const brak = [], wszystkie = new Set();
+  while ((m = re.exec(html))) {
+    if (+m[2] < 10) continue; n++;
+    const fs_ = [...E.srv.mn.files({ k: '()=>{' + m[1] + '}', f: null })]; fs_.forEach(x => wszystkie.add(x));
+    if (fs_.length) ok++; else brak.push(m[1].slice(0, 60));
+  }
+  assert.ok(n >= 60, 'zegarów ≥ 10 min w stronie: ' + n);
+  assert.ok(ok >= n - 5, 'prawie każdy zegar ma rozpoznane pliki (' + ok + ' z ' + n + '; bez: ' + brak.join(' | ') + ')');
+  const znane = { 'if(!document.hidden)whLoad();': ['wieloryby'], 'if(!document.hidden)cmcLoad();': ['cmc'], 'if(!document.hidden)cmLoad();': ['cm'], 'if(!document.hidden){gxLoad();dxLoad();}': ['dex', 'gieldy'],
+    'if(!document.hidden)trdLoad();': ['trendy'], 'if(!document.hidden)metaLoad();': ['meta'], 'if(!document.hidden)srvJSON(\'stopy\').then(fndRateApply);': ['stopy'] };
+  for (const [k, v] of Object.entries(znane)) { assert.ok(html.includes('setInterval(()=>{' + k + '}'), 'zegar w stronie: ' + k); assert.deepEqual([...E.srv.mn.files({ k: '()=>{' + k + '}', f: null })].sort(), v, k); }
+  for (const nm of wszystkie) assert.ok(html.includes("srvJSON('" + nm + "')"), nm + ': nazwa pliku występuje w kodzie strony');
+  /* nieznana albo nieistniejąca funkcja: puste, bez wyjątku */
+  assert.equal(E.srv.mn.files({ k: '()=>{niemaTakiejLoad();}', f: null }).size, 0);
+  assert.equal(E.srv.mn.files({ k: 'constructor(); hasOwnProperty(); toString(); __proto__(1)', f: null }).size, 0, 'nazwy z prototypu nie są funkcjami strony');
+});
+
+test('v459 (F11Z41): Service Worker nie przechwytuje spisu plików (zawsze prosto z sieci), a zwykłe pliki danych nadal najpierw z sieci', async () => {
+  if (!sw351Real) return;
+  const F = sw351Env({ wydanie: 'ffffffffffffffff' }); F.siec = () => sw351Ok('{"v":1}', 'application/json');
+  const r = await F.pobierz('https://x.test/data/manifest.json?t=29'); assert.equal(r.e.odp, undefined, 'spis nieprzechwycony');
+  assert.deepEqual(F.log.fetch, [], 'żadnych zapytań z Service Workera');
+  const d = await F.pobierz('https://x.test/data/cmc.json?t=29&h=aaaaaaaaaaaa'); assert.ok(d.e.odp, 'zwykły plik danych (także z &h=) nadal przechwytywany: sieć najpierw');
+  assert.equal(d.res.status, 200); assert.ok(F.kopia('cf-ffffffffffffffff', 'https://x.test/data/cmc.json'), 'kopia zapisana pod kluczem bez zapytania');
+  assert.equal(F.kopia('cf-ffffffffffffffff', 'https://x.test/data/manifest.json'), undefined, 'spisu nie ma w pamięci');
+});
+
+test('v459 (F11Z41): start strony — pliki pobrane po wysłaniu pierwszego zapytania o spis przejmują jego skróty (bez zbędnego drugiego pobrania), wcześniejsze nie', async () => {
+  const E = t459Env({ man: t459Man({ cm: 'aaaaaaaaaaaa', stopy: 'bbbbbbbbbbbb', stary: 'cccccccccccc' }), hold: true });
+  E.now -= 5000; await E.srv('stary'); E.now += 5000;   /* pobrane przed zapytaniem o spis */
+  await E.srv('cm'); E.now += 1000; await E.srv('stopy'); E.release(); await E.tick();   /* pobrane po zapytaniu; spis przychodzi na końcu */
+  assert.equal(E.srv.mh('stary'), 'cccccccccccc');
+  const n0 = E.fl.length; assert.equal(E.srv.mh('cm'), 'aaaaaaaaaaaa');
+  E.now += 60 * 1000; await E.srv('cm'); await E.srv('stopy'); assert.equal(E.fl.length, n0, 'cm i stopy: kolejna minuta bez pobrania');
+  await E.srv('stary'); assert.equal(E.fl.length, n0 + 1, 'plik sprzed zapytania o spis: jedno pobranie, już ze skrótem'); assert.ok(E.fl[n0][0].endsWith('&h=cccccccccccc'));
+  E.now += 60 * 1000; await E.srv('stary'); assert.equal(E.fl.length, n0 + 1, 'potem z pamięci');
+});
+
+test('v459 (F11Z41): powiązanie zegara z plikami — funkcja wczytująca i jej pomocnicy tak; funkcje rysujące i zbyt duże pomocniki nie', () => {
+  const src = '/*' + ' '.repeat(1100000) + '*/\nfunction aLoad(){srvJSON(\'a1\').then(x);renderQ();helper();wielka();}\nfunction renderQ(){srvJSON(\'zly\');}\nfunction helper(){srvJSON(\'a2\');}\n'
+    + 'function wielka(){' + 'x();'.repeat(1200) + 'srvJSON(\'duza\');}\nfunction bLoad(){var o={a:{b:1}};srvJSON(\'b1\');if(o){srvJSON(\'b2\');}}\nfunction drugie(){srvJSON(\'poza\');}\n';
+  const E = t459Env({ script: src });
+  assert.deepEqual([...E.srv.mn.files({ k: '()=>{if(!document.hidden)aLoad();}', f: null })].sort(), ['a1', 'a2'], 'wczytująca + pomocnik; bez rysującej i bez zbyt dużej');
+  assert.deepEqual([...E.srv.mn.files({ k: '()=>{if(!document.hidden)bLoad();}', f: null })].sort(), ['b1', 'b2'], 'zagnieżdżone nawiasy w funkcji');
+  assert.deepEqual([...E.srv.mn.files({ k: "()=>{srvJSON('stopy').then(f);}", f: null })], ['stopy'], 'nazwa wprost w zegarze');
+  const Z = t459Env({ script: 'krótki skrypt' });
+  assert.equal(Z.srv.mn.files({ k: '()=>{aLoad();}', f: null }).size, 0, 'bez głównego skryptu strony (za krótki) — puste, bez wyjątku');
+});
