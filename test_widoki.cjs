@@ -34938,3 +34938,99 @@ test('v447 (F11Z35): karta nie sięga do przeglądarki poza ładowarką i nie ma
   const j = JSON.stringify(WLT447_FILE); assert.ok(!/api[_-]?key|token|secret|password/i.test(j), 'w pliku danych nie ma kluczy'); assert.ok(!/Frankfurter|CFETS|bankofengland/i.test(j), 'ani nazw dostawców');
   assert.equal(WLT447_FILE.gilty.hist.length + WLT447_FILE.yuan.hist.length + WLT447_FILE.fx.wiersze.length, 130 + 45 + 157);
 });
+
+
+/* ===================== v451: ustawienia — zapis, jedna animacja, język z adresu (punkt 8 poleceń 18.10) ===================== */
+const v451 = (() => {
+  const a = html.indexOf("/* v451 (punkt 8 poleceń 18.10): ustawienia zapamiętane"), b = html.indexOf("$('#z-reset').addEventListener('click',()=>{st.camPreset='iso'", a);
+  assert.ok(a > 0 && b > a, 'blok v451');
+  const code = html.slice(a, b);
+  return {code, make(opt = {}) {
+    const store = Object.assign({}, opt.ls || {}), calls = {hSync: 0, gDirty: 0}, el = {};
+    const q = s => el[s] || (el[s] = {value: ''});
+    const st = Object.assign({mode: 'crypto', view: 'blocks', label: 'pct', scale: 'M', anim: !opt.reduce, rot: !opt.reduce, bg: 'soft', theme: 'system', customBg: '#000000', customOp: .62}, opt.st || {});
+    const gst = {label: 'both', dots: 'mid'}, cam = {yaw: .78, pitch: .36}, PRE = {iso: {yaw: .78, pitch: .36}, top: {yaw: 0, pitch: 1.45}, side: {yaw: 0, pitch: .06}};
+    const ls = opt.noLs ? {getItem() { throw new Error('zablokowane'); }, setItem() { throw new Error('zablokowane'); }} : {getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }};
+    const doc = {body: {dataset: {bg: 'soft'}}};
+    const env = {cur: {a: 1}, to: {a: 2}, sizeTw: true, dirty: false};
+    const f = new Function('st', 'gst', 'cam', 'PRE', 'localStorage', 'document', '$', 'reduce', 'hSync', 'gDirty', 'env',
+      'let cur=env.cur,to=env.to,sizeTw=env.sizeTw,dirty=env.dirty;' + code + '\nreturn {setAnim,setSave,setLoad,SET_TOUCH,get cur(){return cur;},get sizeTw(){return sizeTw;},get dirty(){return dirty;}};')(
+      st, gst, cam, PRE, ls, doc, q, !!opt.reduce, () => { calls.hSync++; }, () => { calls.gDirty++; }, env);
+    return Object.assign(f, {st, gst, cam, store, calls, doc, q});
+  }};
+})();
+
+test('v451: zapis i odczyt ustawień — wszystkie opcje wracają po odświeżeniu, nieznane wartości są ignorowane', () => {
+  const A = v451.make();
+  A.st.theme = 'light'; A.st.bg = 'strong'; A.st.view = 'list'; A.st.label = 'val'; A.st.scale = 'L'; A.st.camPreset = 'top'; A.gst.label = 'name'; A.gst.dots = 'hard'; A.st.customBg = '#102030'; A.st.customOp = .2;
+  A.setAnim(false); A.st.rot = false; A.SET_TOUCH.rot = true; A.setSave();
+  const raw = JSON.parse(A.store['cfai.set']);
+  assert.deepEqual(raw, {v: 1, theme: 'light', bg: 'strong', view: 'list', label: 'val', scale: 'L', camPreset: 'top', glabel: 'name', gdots: 'hard', customBg: '#102030', customOp: .2, anim: false, rot: false});
+  const B = v451.make({ls: {'cfai.set': A.store['cfai.set']}}); B.setLoad();
+  assert.deepEqual([B.st.theme, B.st.bg, B.st.view, B.st.label, B.st.scale, B.st.camPreset, B.gst.label, B.gst.dots, B.st.customBg, B.st.customOp, B.st.anim, B.st.rot],
+    ['light', 'strong', 'list', 'val', 'L', 'top', 'name', 'hard', '#102030', .2, false, false]);
+  assert.deepEqual([B.cam.yaw, B.cam.pitch], [0, 1.45], 'kamera startuje w zapamiętanym układzie');
+  assert.equal(B.doc.body.dataset.bg, 'strong'); assert.equal(B.q('#c-color').value, '#102030'); assert.equal(B.q('#c-op').value, '20', 'selektor koloru i suwak pokazują stan strony');
+  // śmieci: złe typy i wartości spoza listy nie zmieniają stanu
+  const bad = {v: 1, theme: 'neon', bg: 3, view: ['x'], label: null, scale: 'XL', camPreset: 'bottom', glabel: 'x', gdots: {}, customBg: 'red', customOp: 7, anim: 'tak', rot: 1};
+  const C = v451.make({ls: {'cfai.set': JSON.stringify(bad)}}); C.setLoad();
+  assert.deepEqual([C.st.theme, C.st.bg, C.st.view, C.st.label, C.st.scale, C.st.camPreset, C.gst.label, C.gst.dots, C.st.customBg, C.st.customOp, C.st.anim, C.st.rot],
+    ['system', 'soft', 'blocks', 'pct', 'M', undefined, 'both', 'mid', '#000000', .62, true, true], 'wartości spoza listy ignorowane');
+  for (const junk of ['{', '[]', '"x"', 'null', '123', '']) { const D = v451.make({ls: {'cfai.set': junk}}); D.setLoad(); assert.equal(D.st.theme, 'system', 'plik „' + junk + '” = domyślne'); }
+});
+
+test('v451: animacja i obrót zapisywane tylko po zmianie widza; „ogranicz ruch” w systemie nie jest nadpisywany', () => {
+  const A = v451.make({reduce: true}); A.st.theme = 'dark'; A.setSave();
+  assert.ok(!('anim' in JSON.parse(A.store['cfai.set'])) && !('rot' in JSON.parse(A.store['cfai.set'])), 'bez zmiany widza brak animacji i obrotu w zapisie');
+  const B = v451.make({reduce: true, ls: {'cfai.set': JSON.stringify({v: 1, anim: true, rot: true})}}); B.setLoad();
+  assert.deepEqual([B.st.anim, B.st.rot], [false, false], 'system ogranicza ruch — zapisane „włączone” go nie przywraca');
+  const C = v451.make({reduce: true, ls: {'cfai.set': JSON.stringify({v: 1, anim: false, rot: false})}}); C.setLoad();
+  assert.deepEqual([C.st.anim, C.st.rot], [false, false]);
+  const D = v451.make({ls: {'cfai.set': JSON.stringify({v: 1, anim: false})}}); D.setLoad();
+  assert.deepEqual([D.st.anim, D.st.rot, D.SET_TOUCH.anim, D.SET_TOUCH.rot], [false, true, true, false]);
+});
+
+test('v451: pamięć przeglądarki zablokowana albo pełna — ustawienia działają, bez zapisu (try/catch)', () => {
+  const A = v451.make({noLs: true});
+  A.st.theme = 'light'; A.setSave(); A.setLoad();
+  assert.equal(A.st.theme, 'light'); assert.equal(A.doc.body.dataset.bg, 'soft'); assert.equal(A.q('#c-color').value, '#000000', 'selektor koloru pokazuje stan strony także bez pamięci');
+  assert.ok(/function setSave\(\)\{try\{/.test(v451.code) && /function setLoad\(\)\{try\{/.test(v451.code), 'oba w try');
+});
+
+test('v451: jedna funkcja animacji dla obu menu — przerysowanie tła i mapy, zatrzymanie rozmiarów, odświeżenie napisów', () => {
+  const A = v451.make(); A.setAnim(false);
+  assert.deepEqual([A.st.anim, A.sizeTw, A.dirty, A.calls.hSync, A.calls.gDirty], [false, false, true, 1, 1]);
+  assert.deepEqual(A.cur, {a: 2}, 'rozmiary od razu w stanie docelowym');
+  A.setAnim(true); assert.equal(A.st.anim, true);
+  const n = html.split('set:v=>setAnim(v===\'1\')').length - 1;
+  assert.equal(n, 2, 'menu „Znaki w tle” i „Mapa” używają tej samej funkcji');
+  assert.ok(!/set:v=>\{st\.anim=v===/.test(html), 'brak dawnych osobnych obsług');
+  assert.ok(html.includes("gp.set(b.dataset.v);DD.forEach(d=>d.refresh());close();btn.focus();setSave();});"), 'po wyborze odświeżone wszystkie menu i zapisane ustawienia');
+  assert.ok(html.includes("set:v=>{st.rot=v==='1';SET_TOUCH.rot=true;}"), 'obrót też oznaczany jako wybór widza');
+  assert.ok(html.includes("applyHexOp();setSave();});") && html.includes("st.customBg=e.target.value;applyTheme();setSave();});"), 'kolor i widoczność znaków zapisywane');
+  assert.ok(html.indexOf('\nsetLoad();\napplyTheme();applyLang();') > html.indexOf('/* ---------- start ---------- */'), 'ustawienia wczytane przed pierwszym motywem i językiem');
+  assert.ok(html.includes("$('#z-reset').addEventListener('click',()=>{st.camPreset='iso';DD.forEach(d=>d.refresh());setSave();});"), '⟲ przywraca napis „Izometria”');
+});
+
+test('v451: język z adresu (?lang=) przestawiany na wybrany w Ustawieniach lub fladze; angielskie nazwy opcji bez żargonu', () => {
+  const a = html.indexOf('function seoApply(){'), b = html.indexOf('\nconst t=(k,vars)', a);
+  assert.ok(a > 0 && b > a);
+  const run = (href, lang) => {
+    const rec = {url: null, store: {}};
+    class U { constructor(h) { this.p = {}; const m = /^([^?#]*)(?:\?([^#]*))?(#.*)?$/.exec(h); this.pathname = '/' + m[1].replace(/^https?:\/\/[^/]*\/?/, ''); (m[2] || '').split('&').filter(Boolean).forEach(x => { const [k, v] = x.split('='); this.p[k] = v; }); this.hash = m[3] || '';
+      this.searchParams = {has: k => k in this.p, get: k => this.p[k], set: (k, v) => { this.p[k] = v; }}; }
+      get search() { const k = Object.keys(this.p); return k.length ? '?' + k.map(x => x + '=' + this.p[x]).join('&') : ''; } }
+    new Function('LANG', 'localStorage', 'document', 'URL', 'location', 'history', 't', 'SEO_SITE',
+      html.slice(a, b) + '\nseoApply();')(lang, {setItem: (k, v) => { rec.store[k] = v; }}, {title: '', head: {querySelector: () => null}}, U, {href}, {replaceState: (x, y, u) => { rec.url = u; }}, k => k, 'https://x/');
+    return rec;
+  };
+  assert.equal(run('http://h/index.html?lang=pl', 'en').url, '/index.html?lang=en', 'wybrany en — adres ?lang=en');
+  assert.equal(run('http://h/index.html?lang=en#a', 'pl').url, '/index.html?lang=pl#a');
+  assert.equal(run('http://h/index.html?lang=en', 'en').url, null, 'już zgodny — bez zmiany adresu');
+  assert.equal(run('http://h/index.html', 'en').url, null, 'bez ?lang= adres nietknięty');
+  assert.equal(run('http://h/index.html', 'en').store['cfai.lang'], 'en', 'język nadal zapamiętany');
+  const D = v96src.I18N;
+  assert.deepEqual([D.en['bg'], D.en['theme.pattern']], ['Falling digits', 'Falling digit visibility']);
+  assert.deepEqual([D.pl['bg'], D.pl['theme.pattern']], ['Znaki w tle', 'Widoczność znaków w tle']);
+  assert.ok(!/hex/i.test([D.en['bg'], D.en['theme.pattern'], D.en['theme.color'], D.en['anim']].join(' ')), 'bez żargonu „hex” w ustawieniach po angielsku');
+});
