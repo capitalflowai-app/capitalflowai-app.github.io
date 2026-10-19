@@ -14223,6 +14223,84 @@ def upk_kontrola(j, now=None):
     return out
 
 
+# ---------------------------------------------------------------- v446 (F11Z33): SUROWCE CAŁĄ DOBĘ — KONTRAKTY WIECZYSTE NA ROPĘ, GAZ, ZŁOTO, SREBRO I MIEDŹ (data/surowce-247.json) ----------------------------------------------------------------
+# Plik: order, rows {id: {sym, u, px, last, lt, ix, o24, h24, l24, ch, oi_usd, vq, t}}, pomin {id: powód}, t (chwila odczytu), at. Zbieracz składa go z odpowiedzi giełdy, którą i tak pobiera dla dźwigni (zero nowych zapytań),
+# więc rytm i wiek pliku są jak dla dzwignia.json: odczyt co ~godzinę (LEV_EVERY 55 min, przebieg co 20 min) — normalnie plik ma najwyżej ~75 min, z jedną nieudaną próbą ~2 h. Próg wieku pliku 180 min = ten sam co
+# dla dzwignia.json (LIMIT_MIN['dzwignia'], 0 fałszywych ⚠️ w raportach kontroli od 06.10.2026). Plik jest nowy, więc nie ma jeszcze własnej historii do testu wstecznego — progi z rytmu i z nagrania 18.10.2026
+# (najstarsza ostatnia transakcja sprzed 24 minut, najcichszy rynek: gaz, obrót 24 h ok. 2,9 tys. USD): wiek odczytu wiersza ⚠️ po 6 h, ostatnia transakcja ⚠️ po 12 h (zbieracz sam pomija wiersz po 48 h).
+# ❌ wyłącznie przy sprzeczności wewnątrz pliku: nieznany surowiec, cena poza zakresem jednostki (pomyłka jednostki lub symbolu), cena odbiegająca od indeksu o ponad 10%, zakres 24 h odwrócony, zmiana % niezgodna
+# z ceną i ceną sprzed doby, otwarte pozycje w USD niezgodne z ceną, brak czasu odczytu, lista order inna niż klucze rows, mniej niż 3 wiersze. Uwagi ⚠️: wiersz pominięty przez zbieracza (powód w `pomin`), starość odczytu.
+PLIKI.insert(PLIKI.index('krypto-dzien'), 'surowce-247')   # przed plikami krypto dziennie (test: PLIKI[-2:] bez zmian)
+LIMIT_MIN['surowce-247'] = 180   # jak dzwignia.json — wiek pliku; wiek odczytu każdego wiersza ocenia S247K_WIEK_H
+S247K_ZAKRES = {'brent': (20.0, 400.0), 'wti': (20.0, 400.0), 'gaz': (0.5, 40.0), 'zloto': (500.0, 20000.0), 'srebro': (5.0, 500.0), 'miedz': (1.0, 30.0)}   # te same zakresy jednostek co SUR247_SYM w zbieraczu
+S247K_NAZWA = {'brent': 'ropa Brent', 'wti': 'ropa WTI', 'gaz': 'gaz ziemny', 'zloto': 'złoto', 'srebro': 'srebro', 'miedz': 'miedź'}
+S247K_MIN_WIERSZY = 3
+S247K_ODCHYL = 0.10
+S247K_WIEK_H = 6        # wiek odczytu wiersza (pole t) — powyżej ⚠️
+S247K_OSTATNIA_H = 12   # wiek ostatniej transakcji kontraktu — powyżej ⚠️ (rynek 24/7; gaz 18.10.2026: transakcja sprzed 2 minut)
+
+
+def s247_kontrola(files, now=None):
+    """Kontrola pliku surowce-247.json bez sieci → {'spojnosc': [...], 'wiersze': [(opis, znak)], 'uwagi': [...]}; brak pliku albo inna wersja = None (raport bez linii)."""
+    j = files.get('surowce-247') if isinstance(files, dict) else None
+    if not isinstance(j, dict) or j.get('v') != 1:
+        return None
+    now = now or NOW
+    zle, uwagi, wiersze = [], [], []
+    rows, order = j.get('rows'), j.get('order')
+    if not (isinstance(rows, dict) and isinstance(order, list)):
+        return {'spojnosc': ['zły kształt pliku (rows albo order)'], 'wiersze': [], 'uwagi': []}
+    if len(rows) < S247K_MIN_WIERSZY:
+        zle.append(f'tylko {len(rows)} wierszy (minimum {S247K_MIN_WIERSZY})')
+    if sorted(order) != sorted(rows):
+        zle.append('lista order ≠ klucze rows')
+    if _ix_dt_k(j.get('t')) is None:
+        zle.append('brak czasu odczytu (t)')
+    wiek_t, wiek_lt = [], []
+    for cid, r in rows.items():
+        if cid not in S247K_ZAKRES:
+            zle.append(f'{cid}: nieznany surowiec'); continue
+        if not isinstance(r, dict):
+            zle.append(f'{cid}: zły wiersz'); continue
+        lo, hi = S247K_ZAKRES[cid]
+        px = r.get('px')
+        if not _euk_num(px, lo, hi):
+            zle.append(f'{cid}: cena poza zakresem jednostki ({px})'); continue
+        ix = r.get('ix')
+        if ix is not None and not (_euk_num(ix, lo, hi) and abs(px / ix - 1) <= S247K_ODCHYL):
+            zle.append(f'{cid}: cena kontraktu {px} odbiega od indeksu {ix} o ponad {S247K_ODCHYL * 100:.0f}%')
+        h24, l24 = r.get('h24'), r.get('l24')
+        if (h24 is None) != (l24 is None) or (h24 is not None and not (_euk_num(h24, lo, hi) and _euk_num(l24, lo, hi) and l24 <= h24)):
+            zle.append(f'{cid}: zakres 24 h ({l24}–{h24}) nieprawidłowy')
+        o24, ch = r.get('o24'), r.get('ch')
+        if ch is not None:
+            if not (_euk_num(o24, lo, hi) and _euk_num(ch, -60.0, 60.0) and abs(ch - (px / o24 - 1) * 100) <= 0.011):
+                zle.append(f'{cid}: zmiana {ch}% niezgodna z ceną {px} i ceną sprzed doby {o24}')
+        oi = r.get('oi_usd')
+        if oi is not None and not _euk_num(oi, 0.0, 1e12):
+            zle.append(f'{cid}: otwarte pozycje poza zakresem ({oi})')
+        td, ltd = _ix_dt_k(r.get('t')), _ix_dt_k(r.get('lt'))
+        if td is None or ltd is None:
+            zle.append(f'{cid}: brak czasu odczytu albo ostatniej transakcji'); continue
+        if ltd > td + dt.timedelta(minutes=10):
+            zle.append(f'{cid}: czas ostatniej transakcji z przyszłości wobec odczytu')
+        wiek_t.append(((now - td).total_seconds() / 3600, cid)); wiek_lt.append(((now - ltd).total_seconds() / 3600, cid))
+    if isinstance(j.get('pomin'), dict) and j['pomin']:
+        k0 = sorted(j['pomin'])[0]
+        uwagi.append(f'surowce-247.json: pominięto {len(j["pomin"])} z {len(S247K_ZAKRES)} kontraktów (np. {k0}: {str(j["pomin"][k0])[:100]})')
+    if wiek_t:
+        stary_t = max(wiek_t)
+        zl = stary_t[0] > S247K_WIEK_H
+        wiersze.append((f'Surowce 24/7: {len(rows)} z {len(S247K_ZAKRES)} kontraktów, najstarszy odczyt sprzed {stary_t[0]:.1f} h ({S247K_NAZWA.get(stary_t[1], stary_t[1])})', '⚠️' if zl else '✅'))
+        if zl:
+            uwagi.append(f'surowce-247.json: odczyt {S247K_NAZWA.get(stary_t[1], stary_t[1])} sprzed {stary_t[0]:.1f} h (próg {S247K_WIEK_H} h)')
+        stary_l = max(wiek_lt)
+        if stary_l[0] > S247K_OSTATNIA_H:
+            wiersze.append((f'Surowce 24/7: ostatnia transakcja {S247K_NAZWA.get(stary_l[1], stary_l[1])} sprzed {stary_l[0]:.1f} h', '⚠️'))
+            uwagi.append(f'surowce-247.json: ostatnia transakcja {S247K_NAZWA.get(stary_l[1], stary_l[1])} sprzed {stary_l[0]:.1f} h (próg {S247K_OSTATNIA_H} h; rynek kontraktu cichy)')
+    return {'spojnosc': zle, 'wiersze': wiersze, 'uwagi': uwagi}
+
+
 def kontrola():
     R = {'at': NOW.isoformat(), 'strona': {}, 'meta': {}, 'pliki': {}, 'actions': {}, 'swiezosc': [], 'zgodnosc': {}, 'uwagi': [], 'bledy': []}
     _R_BIEZACY[0] = R; termin_start()   # v327 (KON-04): wspólny termin całej kontroli; R widoczny dla raportu częściowego
@@ -15086,6 +15164,17 @@ def kontrola():
     except Exception as e:  # noqa
         R['zgodnosc']['usa-pakiet'] = {'blad': str(e)[:120]}
         R['uwagi'].append(f'USA pakiet (v445): kontrola przerwana ({str(e)[:80]})')
+    # 3c-v446. Surowce całą dobę (data/surowce-247.json): sprzeczności w pliku (❌), starość odczytu i pominięte kontrakty (⚠) — z plików strony, bez zapytań
+    try:
+        T_s247 = s247_kontrola(files)
+        if T_s247:
+            for z_ in T_s247['spojnosc'][:5]:
+                R['bledy'].append(f'surowce-247.json: sprzeczność w pliku — {z_}')
+            R['uwagi'] += T_s247['uwagi']
+        R['zgodnosc']['surowce-247'] = {k_: T_s247[k_] for k_ in ('spojnosc', 'wiersze')} if T_s247 else None
+    except Exception as e:  # noqa
+        R['zgodnosc']['surowce-247'] = {'blad': str(e)[:120]}
+        R['uwagi'].append(f'Surowce całą dobę (v446): kontrola przerwana ({str(e)[:80]})')
     # 3d. v115: zgodność liczb — kapitalizacja (mediana 30 dni), ceny BTC/ETH, TGA, wieloryby
     Z = R['zgodnosc']
     today = NOW.date().isoformat()
@@ -15904,6 +15993,12 @@ def raport_md(R):
             L.append('- Wierzyciele i dłużnicy świata, pozycja inwestycyjna ok. 100 gospodarek (z pliku strony): ' + (f'? kontrola przerwana ({kip["blad"]})' if kip.get('blad') else
                      ('sprzeczności w pliku: ' + '; '.join(kip['spojnosc'][:3]) + ' ❌ · ' if kip.get('spojnosc') else '')
                      + ' · '.join(f'{o} {zn}' for o, zn in kip.get('wiersze') or []) or '—') + '.')
+        # v446 (F11Z33): surowce całą dobę — sprzeczności w pliku, starość odczytu i pominięte kontrakty; brak pliku = bez linii
+        s247z = Z.get('surowce-247')
+        if s247z:
+            L.append('- Surowce całą dobę, kontrakty na ropę, gaz, złoto, srebro i miedź (z pliku strony): ' + (f'? kontrola przerwana ({s247z["blad"]})' if s247z.get('blad') else
+                     ('sprzeczności w pliku: ' + '; '.join(s247z['spojnosc'][:3]) + ' ❌ · ' if s247z.get('spojnosc') else '')
+                     + ' · '.join(f'{o} {zn}' for o, zn in s247z.get('wiersze') or []) or '—') + '.')
         srz = Z.get('surowce-raporty')   # v320: raporty miesięczne o surowcach — sprzeczności w pliku i porównania; brak pliku = bez linii
         if srz:
             L.append('- Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ' + (f'? kontrola przerwana ({srz["blad"]})' if srz.get('blad') else

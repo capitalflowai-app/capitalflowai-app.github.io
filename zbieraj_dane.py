@@ -15805,7 +15805,9 @@ def kr_parse(j, syms=KR_SYM):
 def lev_kr(prev=None):
     """Kraken Futures: jedno zapytanie dla wszystkich rynków; moneta bez wiersza → poprzednia wersja tej monety (z własnym czasem t)."""
     prev = prev if isinstance(prev, dict) else {}
-    out = kr_parse(get_json(KR_URL, timeout=lev_tmo()))
+    j = get_json(KR_URL, timeout=lev_tmo())
+    _KR_SUR[0] = j   # v446 (F11Z33): ta sama odpowiedź giełdy zasila data/surowce-247.json (sur247_czesc) — bez dodatkowego zapytania
+    out = kr_parse(j)
     for c, sym in KR_SYM.items():
         if c not in out and isinstance(prev.get(c), dict):
             out[c] = prev[c]; META['errors'].append(mask(f'Dźwignia: Kraken: brak wiersza {sym} — zostaje poprzedni'))
@@ -33196,6 +33198,9 @@ def main():
     META['ok']['usp_hh'], META['ok']['usp_pm'], META['ok']['usp_tp'], META['ok']['usp_ts'] = up_czesc()
     # v429 (F11Z28): krótka sprzedaż w Europie (pozycje netto w spółkach w Wielkiej Brytanii i w Szwecji) — data/short-eu.json; bez klucza, dwie części raz na ~6 h (po błędzie co 1 h)
     META['ok']['short_uk'], META['ok']['short_se'] = sh_czesc()
+    # v446 (F11Z33): surowce całą dobę (ropa, gaz, złoto, srebro, miedź w kontraktach wieczystych) — data/surowce-247.json z TEJ SAMEJ odpowiedzi giełdy co część `kr` dźwigni (zero nowych zapytań);
+    # przebieg bez pobrania części `kr` (rytm godzinowy) zostawia poprzedni plik
+    META['ok']['sur247'] = sur247_czesc()
     # v121: stres finansowy USA (indeks stresu — bez klucza) i put/call (tylko z pisemną zgodą giełdy: CBOE_ZGODA) — co 6 h; część z błędem
     # ponawiana po godzinie; zmiana stanu zgody = przebudowa (bez zgody stare put/call nie są przepisywane); awaria = poprzedni plik i błąd
     if not PC_ZGODA:
@@ -47929,6 +47934,111 @@ def up_czesc():
 
 
 ZRODLA_META.update({'usp_hh': 'ny-fed', 'usp_pm': 'freddie-mac', 'usp_tp': 'policyuncertainty', 'usp_ts': 'bts'})   # v445: Fed w Nowym Jorku i policyuncertainty już liczone; Freddie Mac i BTS to +2 źródła
+
+
+# ===================== v446 (F11Z33): SUROWCE CAŁĄ DOBĘ — ROPA, GAZ, ZŁOTO, SREBRO I MIEDŹ W KONTRAKTACH WIECZYSTYCH GIEŁDY KRYPTO (data/surowce-247.json) =====================
+# Zero nowych zapytań: giełda kontraktów wieczystych, z której już czytamy część `kr` pliku dzwignia.json (KR_URL), oddaje w tej samej odpowiedzi `tickers` obok BTC i ETH także kontrakty
+# na surowce (sprawdzone 18.10.2026: PF_BRENTOILUSD, PF_WTIOILUSD, PF_NATGASUSD, PF_XAUUSD, PF_XAGUSD, PF_XCUUSD). Handlują nimi całą dobę, także w weekendy i święta, gdy giełdy towarowe
+# są zamknięte — cena kontraktu pokazuje, gdzie rynek wycenia surowiec poza godzinami sesji. Rynek jest cienki (obrót 24 h od kilku tysięcy do kilkuset tysięcy USD), więc to cena orientacyjna.
+# lev_kr zapamiętuje odpowiedź w _KR_SUR; po zbudowaniu dzwignia.json main() woła sur247_czesc(), która z TEJ SAMEJ odpowiedzi składa plik. Przebieg, w którym część `kr` nie była pobierana
+# (rytm godzinowy dźwigni), zostawia poprzedni plik bez zmian ('cached'). Cena = cena rozliczeniowa kontraktu (markPrice); zmiana 24 h = cena / cena sprzed 24 h − 1 (liczona u nas, żeby zgadzała
+# się z pokazaną ceną); otwarte pozycje w USD = kontrakty × cena (1 kontrakt = 1 jednostka: baryłka, mln Btu, uncja, funt — sprawdzone: obrót w USD = kontrakty × średnia cena).
+# Straże: cena poza wiarygodnym zakresem jednostki (pomyłka jednostki lub symbolu), cena kontraktu odbiegająca od indeksu o ponad 10%, rynek zawieszony albo bez transakcji od 48 h → wiersz
+# pominięty (powód w `pomin`); wiersz brakujący w odpowiedzi zostaje z poprzedniego pliku do 24 h (z własnym czasem t). Mniej niż SUR247_MIN wierszy = zły odczyt (plik zostaje poprzedni).
+SUR247_V = 1
+SUR247_SYM = (   # (id, symbol kontraktu, najniższa i najwyższa wiarygodna cena w USD za jednostkę — straż jednostki i symbolu)
+    ('brent', 'PF_BRENTOILUSD', 20.0, 400.0), ('wti', 'PF_WTIOILUSD', 20.0, 400.0), ('gaz', 'PF_NATGASUSD', 0.5, 40.0),
+    ('zloto', 'PF_XAUUSD', 500.0, 20000.0), ('srebro', 'PF_XAGUSD', 5.0, 500.0), ('miedz', 'PF_XCUUSD', 1.0, 30.0))
+SUR247_JEDN = {'brent': 'USD/bbl', 'wti': 'USD/bbl', 'gaz': 'USD/MMBtu', 'zloto': 'USD/oz', 'srebro': 'USD/oz', 'miedz': 'USD/lb'}
+SUR247_MIN = 3             # mniej wierszy z ceną w jednej odpowiedzi = zły odczyt (18.10.2026: 6 z 6)
+SUR247_ODCHYL = 0.10       # cena kontraktu może odbiegać od indeksu najwyżej o tyle (18.10.2026: poniżej 0,1% we wszystkich sześciu)
+SUR247_OSTATNIA_H = 48     # ostatnia transakcja starsza o tyle godzin od czasu serwera = brak aktywnego rynku (18.10.2026: najstarsza sprzed 24 minut)
+SUR247_ZAPAS_H = 24        # brakujący wiersz zostaje z poprzedniego pliku najwyżej tyle godzin
+SUR247_ZMIANA_MAX = 60.0   # zmiana 24 h poza ±60% = cena sprzed doby nieużyteczna (brak, nie liczba)
+SUR247_SRC = 'kontrakty wieczyste na surowce z jednej odpowiedzi giełdy kontraktów krypto (ta sama co dźwignia, bez dodatkowych zapytań)'
+SUR247_UNIT = ('USD za jednostkę kontraktu: baryłka (bbl), mln Btu (MMBtu), uncja trojańska (oz), funt (lb); px = cena rozliczeniowa kontraktu wieczystego, ix = cena indeksu, last = ostatnia '
+               'transakcja (lt = jej czas), o24/h24/l24 = cena sprzed 24 h / najwyżej / najniżej w 24 h, ch = zmiana % px wobec o24, oi_usd = otwarte pozycje w USD, vq = obrót 24 h w USD, '
+               't = chwila odczytu; brak = None (nigdy zero)')
+_KR_SUR = [None]   # odpowiedź giełdy zapamiętana przez lev_kr w tym przebiegu (zużywa ją sur247_czesc)
+
+
+def sur247_parse(j):
+    """Odpowiedź `tickers` → (czas odczytu ISO, {id: wiersz}, {id: powód pominięcia}). Wiersz: sym, u, px, last, lt, ix, o24, h24, l24, ch, oi_usd, vq, t. Brak liczby = None, nigdy zero;
+    cena poza zakresem jednostki, odbiegająca od indeksu, rynek zawieszony albo bez transakcji od SUR247_OSTATNIA_H godzin → wiersz pominięty z powodem."""
+    tick = j.get('tickers') if isinstance(j, dict) else None
+    if not isinstance(tick, list) or not tick:
+        raise ValueError('brak wierszy tickers')
+    by = {r.get('symbol'): r for r in tick if isinstance(r, dict) and isinstance(r.get('symbol'), str)}
+    t = lev_iso(j.get('serverTime')) or NOW
+    td = _ix_dt(t)
+    pos = lambda v: v if v is not None and v > 0 else None   # noqa: E731
+    rows, pomin = {}, {}
+    for cid, sym, lo, hi in SUR247_SYM:
+        r = by.get(sym)
+        if not isinstance(r, dict):
+            pomin[cid] = 'brak wiersza ' + sym; continue
+        if r.get('suspended') is True:
+            pomin[cid] = 'rynek zawieszony'; continue
+        px = lev_num(r.get('markPrice'))
+        if px is None or not lo <= px <= hi:
+            pomin[cid] = f'cena poza wiarygodnym zakresem ({lev_r(px, 4)} USD)'; continue
+        ix = pos(lev_num(r.get('indexPrice')))
+        if ix is not None and abs(px / ix - 1) > SUR247_ODCHYL:
+            pomin[cid] = f'cena kontraktu odbiega od indeksu o ponad {SUR247_ODCHYL * 100:.0f}%'; continue
+        lt = lev_iso(r.get('lastTime'))
+        ltd = _ix_dt(lt)
+        if ltd is None or td is None or (td - ltd).total_seconds() > SUR247_OSTATNIA_H * 3600 or (ltd - td).total_seconds() > 600:
+            pomin[cid] = f'brak transakcji w ostatnich {SUR247_OSTATNIA_H} h albo zły czas'; continue
+        o24, h24, l24 = pos(lev_num(r.get('open24h'))), pos(lev_num(r.get('high24h'))), pos(lev_num(r.get('low24h')))
+        if h24 is None or l24 is None or h24 < l24:
+            h24 = l24 = None
+        ch = None if o24 is None else (px / o24 - 1) * 100
+        if ch is not None and abs(ch) > SUR247_ZMIANA_MAX:
+            o24 = ch = None
+        oi = pos(lev_num(r.get('openInterest')))
+        rows[cid] = {'sym': sym, 'u': SUR247_JEDN[cid], 'px': round(px, 4), 'last': lev_r(pos(lev_num(r.get('last'))), 4), 'lt': lt, 'ix': lev_r(ix, 4), 'o24': lev_r(o24, 4),
+                     'h24': lev_r(h24, 4), 'l24': lev_r(l24, 4), 'ch': lev_r(ch, 2), 'oi_usd': None if oi is None else lev_r(oi * px, 0), 'vq': lev_r(pos(lev_num(r.get('volumeQuote'))), 0), 't': t}
+    return t, rows, pomin
+
+
+def sur247_buduj(j, prev=None):
+    """data/surowce-247.json {v, at, t, src, unit, order, rows, pomin}. Wiersz brakujący w tej odpowiedzi zostaje z poprzedniego pliku (z jego czasem t) do SUR247_ZAPAS_H godzin;
+    mniej niż SUR247_MIN wierszy z tej odpowiedzi = wyjątek (main zostawia poprzedni plik)."""
+    t, rows, pomin = sur247_parse(j)
+    if len(rows) < SUR247_MIN:
+        raise RuntimeError(f'tylko {len(rows)} z {len(SUR247_SYM)} kontraktów z ceną (minimum {SUR247_MIN}): ' + '; '.join(f'{k}: {v}' for k, v in pomin.items())[:120])
+    pv = prev.get('rows') if isinstance(prev, dict) and prev.get('v') == SUR247_V and isinstance(prev.get('rows'), dict) else {}
+    for cid, _sym, _lo, _hi in SUR247_SYM:
+        old = pv.get(cid)
+        if cid not in rows and isinstance(old, dict) and _zapas_wiek_ok(old.get('t'), SUR247_ZAPAS_H / 24):
+            rows[cid] = old
+            META['notes'].append(mask(f'Surowce 24/7: {cid}: {pomin.get(cid, "brak odczytu")} — zostaje poprzedni odczyt')[:200])
+            pomin.pop(cid, None)
+    order = [c for c, _s, _l, _h in SUR247_SYM if c in rows]
+    return {'v': SUR247_V, 'at': NOW, 't': t, 'src': SUR247_SRC, 'unit': SUR247_UNIT, 'order': order, 'rows': {c: rows[c] for c in order}, 'pomin': pomin}
+
+
+def sur247_czesc():
+    """v446: część przebiegu → wartość dla META['ok']['sur247']: True = plik zbudowany z odpowiedzi tego przebiegu, 'cached' = część `kr` dźwigni nie była pobierana (rytm) i poprzedni plik
+    zostaje bez zmian, False = odpowiedź zła (poprzedni plik zostaje, błąd do META['errors']). Odpowiedź zapamiętana przez lev_kr jest zużywana (jeden przebieg = jedna odpowiedź)."""
+    j, _KR_SUR[0] = _KR_SUR[0], None
+    prev = previous('surowce-247')
+    prev = prev if isinstance(prev, dict) and prev.get('v') == SUR247_V else None
+    if j is None:
+        if prev:
+            save('surowce-247', prev)
+        return 'cached'
+    try:
+        save('surowce-247', sur247_buduj(j, prev))
+        return True
+    except Exception as e:  # noqa
+        META['errors'].append(mask(f'Surowce 24/7: {e}')[:200])
+        if prev:
+            save('surowce-247', prev)
+        return False
+
+
+ZRODLA_META.update({'sur247': 'kraken'})   # v446: ta sama giełda kontraktów i ta sama odpowiedź co część `kr` dźwigni — liczba źródeł bez zmian
 
 
 if __name__ == '__main__':

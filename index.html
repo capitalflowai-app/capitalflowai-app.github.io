@@ -2543,6 +2543,34 @@ textarea.kt-f{min-height:110px;resize:vertical}
   #g-uspak .gxs-b{grid-template-columns:1fr;gap:3px}
   #g-uspak .gxs-v{text-align:left;white-space:normal}
 }
+/* v446 (F11Z33): surowce całą dobę (panel #g-sur247) — kafle w trzech kolumnach (telefon: dwie), wykres położenia ceny w zakresie 24 h; tylko kolory systemowe i zmienne strony */
+#g-sur247 .etfkpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+#g-sur247 .etfk>span{white-space:normal;overflow-wrap:anywhere}
+#g-sur247 .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3;font-variant-numeric:tabular-nums}
+#g-sur247 .etfk b .un{font-size:11px;font-weight:500;color:var(--mut);white-space:nowrap}
+#g-sur247 .etfk b small{display:block;font-size:10.5px;font-weight:500;white-space:normal;margin-top:2px}
+#g-sur247 .etfk b small.pos{color:var(--gr-tx)}#g-sur247 .etfk b small.neg{color:var(--rd-tx)}#g-sur247 .etfk b small.neu{color:var(--yl-tx)}#g-sur247 .etfk b small.na,#g-sur247 .etfk b small.pc{color:var(--dim)}
+#g-sur247 .etfk .icos{display:inline-flex;margin-right:6px}
+#g-sur247 .etfk>small.mtxt{font-size:10.5px;line-height:1.35}
+#g-sur247 .pnote.neu{color:var(--yl-tx)}
+#g-sur247 .gx-h{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin:16px 0 4px;font-size:13px}
+#g-sur247 .s247-g{margin:2px 0 8px;max-width:860px}
+#g-sur247 .s247-r{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,2.6fr) repeat(2,minmax(84px,1fr));align-items:center;gap:4px 14px;padding:8px 0;border-top:1px solid var(--line);font-size:12.5px}
+#g-sur247 .s247-hd{border-top:0;color:var(--dim);font-size:11px;padding:2px 0}
+#g-sur247 .s247-hd span:not(:first-child){text-align:left}
+#g-sur247 .s247-n{display:flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
+#g-sur247 .s247-n .icos{display:inline-flex}
+#g-sur247 .s247-c{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#g-sur247 .s247-tr{position:relative;display:block;height:8px;border-radius:99px;background:var(--line-2)}
+#g-sur247 .s247-tr i{position:absolute;top:-3px;width:4px;height:14px;margin-left:-2px;border-radius:2px;background:var(--bl)}
+#g-sur247 .s247-lb{display:flex;justify-content:space-between;gap:8px;margin-top:5px;font-size:11px;color:var(--dim)}
+@media (max-width:760px){#g-sur247 .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){
+  #g-sur247 .s247-r{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px}
+  #g-sur247 .s247-r>.s247-n,#g-sur247 .s247-r>.s247-rg{grid-column:1/-1}
+  #g-sur247 .s247-c::before{content:attr(data-l);display:block;color:var(--dim);font-size:10.5px}
+  #g-sur247 .s247-hd{display:none}
+}
 </style>
 <!-- v348: licznik odwiedzin (decyzja właściciela 12.10). Skrypt count.js leży na naszej stronie (nie na obcej domenie) i nie używa ciasteczek; zliczenie wychodzi do licznika przez sendBeacon (CSP: connect-src; zapas obrazkiem: img-src https:).
      Wizyt technicznych nie liczymy: przeglądarki sterowane automatem (navigator.webdriver), Chrome bez okna (kontrola dzienna, testy), Lighthouse i adresy lokalne z końcówką .local albo [::1] dostają no_onload;
@@ -2797,6 +2825,7 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
     <section class="panel pcard" id="g-shorteu" hidden></section>
     <section class="panel pcard" id="g-energiausa" hidden></section>
     <section class="panel pcard" id="g-ropa" hidden></section>
+    <section class="panel pcard" id="g-sur247" hidden></section>
     <section class="panel pcard" id="g-chinatw" hidden></section>
     <section class="panel pcard" id="g-dolar" hidden></section>
       <section class="panel pcard" id="inst" hidden></section>
@@ -3694,6 +3723,9 @@ for(const l in EXTRA302)if(I18N[l])Object.assign(I18N[l],EXTRA302[l]);
 /* v445 (F11Z31): USA — pakiet małych: hipoteki, zadłużenie gospodarstw, niepewność handlowa, przewozy (GLOBAL, karta #g-uspak) — pl i en */
 const EXTRA303={"pl":{"up445.t":"USA: kredyty hipoteczne, długi gospodarstw, niepewność handlowa i przewozy","up445.sub":"Cztery drobne, ale ważne wskaźniki gospodarki USA: ile kosztuje kredyt na dom, ile Amerykanie są winni bankom, jak mocno cła i umowy handlowe budzą niepewność oraz ile towarów i pasażerów jeździ po kraju.","up445.lazy":"Dane pojawią się po rozwinięciu karty.","up445.err":"Nie udało się wczytać danych — spróbuj za chwilę.","up445.errp":"Brak aktualnego odczytu: {p}.","up445.p.pm":"kredyty hipoteczne","up445.p.hh":"zadłużenie gospodarstw","up445.p.tp":"niepewność handlowa","up445.p.ts":"przewozy","up445.h.pm":"Kredyt hipoteczny w USA: ile kosztuje","up445.h.hh":"Zadłużenie gospodarstw domowych w USA","up445.h.tp":"Niepewność polityki handlowej USA","up445.h.ts":"Przewozy w USA: towary i pasażerowie","up445.w.day":"dane z dnia {d}","up445.w.q":"kwartał {q}","up445.w.m":"miesiąc {m}","up445.pp":"p.p.","up445.s.yy":"r/r","up445.s.qq":"kw/kw","up445.s.mm":"m/m","up445.ch.short":"Za mało punktów, by narysować wykres.","up445.pm.k.30":"Kredyt 30-letni","up445.pm.k.15":"Kredyt 15-letni","up445.pm.k.y1":"Zmiana od roku (30-letni)","up445.pm.k.rng":"Zakres 52 tygodni (30-letni)","up445.pm.s.wk":"p.p. w tygodniu","up445.pm.s.w4":"p.p. w 4 tygodnie","up445.pm.s.y1":"rok temu: {v}%","up445.pm.s.y15":"p.p. (kredyt 15-letni)","up445.pm.rng.s":"najniżej {a}, najwyżej {b}","up445.pm.p5":"wyżej niż w {p}% tygodni z 5 lat","up445.pm.s30":"kredyt 30-letni","up445.pm.s15":"kredyt 15-letni","up445.pm.ch.h":"Oprocentowanie w ostatnich dwóch latach","up445.pm.ch.aria":"Wykres: oprocentowanie kredytu hipotecznego, {n} tygodni","up445.pm.n":"Średnie oprocentowanie kredytów na dom ze stałą stawką, z cotygodniowej ankiety wśród kredytodawców w USA. To średnia krajowa, a nie oferta żadnego banku.","up445.hh.k.tot":"Dług gospodarstw razem","up445.hh.k.mtg":"Kredyty hipoteczne","up445.hh.k.cc":"Karty kredytowe","up445.hh.k.dq":"Zaległości 90+ dni","up445.hh.k.fc":"Nowe egzekucje z domów","up445.hh.k.bk":"Nowe upadłości osób","up445.hh.u":"bln USD","up445.hh.thou":"tys. osób","up445.hh.share":"{p}% całego długu","up445.hh.dq.cc":"karty kredytowe: {v}%","up445.hh.t.mtg":"Kredyty hipoteczne","up445.hh.t.heloc":"Linie kredytowe pod zastaw domu","up445.hh.t.auto":"Kredyty samochodowe","up445.hh.t.cc":"Karty kredytowe","up445.hh.t.stud":"Kredyty studenckie","up445.hh.t.oth":"Pozostałe","up445.hh.t.all":"Wszystkie rodzaje","up445.hh.h.sk":"Z czego składa się dług (udział i zmiana r/r)","up445.hh.sk.n":"Długość paska to udział rodzaju długu w całości. Zmiana jest liczona wobec tego samego kwartału rok wcześniej.","up445.hh.h.dq":"Zaległości 90+ dni wg rodzaju długu (% salda)","up445.hh.h.ch":"Zaległości 90+ dni w czasie (% salda)","up445.hh.ch.aria":"Wykres: zaległości 90+ dni, {n} kwartałów","up445.hh.n":"Zaległość 90+ dni to część salda, której spłata spóźnia się o co najmniej trzy miesiące. Dane z raportu kwartalnego, stan na koniec kwartału; nowe egzekucje i upadłości to liczba osób w kwartale.","up445.tp.k.ma":"Średnia z 30 dni","up445.tp.k.day":"Ostatni dzień","up445.tp.k.p5":"Na tle 5 lat","up445.tp.k.max":"Szczyt ostatniego roku","up445.tp.s.d30":"wobec 30 dni wcześniej","up445.tp.s.day":"wartość dzienna mocno skacze","up445.tp.p5":"tyle dni od {d} miało niższą średnią 30 dni","up445.tp.s.ma":"średnia z 30 dni","up445.tp.ch.h":"Średnia z 30 dni w ostatnim roku","up445.tp.ch.aria":"Wykres: niepewność polityki handlowej, {n} dni","up445.tp.n":"Indeks pokazuje, jak często amerykańskie gazety piszą o niepewności związanej z polityką handlową (cła, umowy, spory). Im wyższy, tym więcej takich artykułów. Skala nie ma jednostki, a wartość dzienna mocno skacze, dlatego pokazujemy też średnią z 30 dni.","up445.ts.k.fr":"Towary","up445.ts.k.pa":"Pasażerowie","up445.ts.k.to":"Razem","up445.ts.ch.h":"Wskaźnik w ostatnich dwóch latach (2000 = 100)","up445.ts.ch.aria":"Wykres: wskaźnik przewozów, {n} miesięcy","up445.ts.n":"Wskaźnik łączy przewozy towarów (ciężarówki, kolej, barki, rurociągi, lotnictwo) i pasażerów (linie lotnicze, kolej, komunikacja miejska). Wartość 100 to rok 2000; dane z poprawką sezonową, miesiąc danych jest widoczny przy liczbie.","up445.not1":"Stopa z ankiety to średnia krajowa dla kredytów ze stałą stawką — konkretny kredyt może kosztować więcej lub mniej (zależy od banku, wkładu własnego i historii kredytowej).","up445.not2":"Wskaźniki opisują stan, a nie przewidują przyszłości: wzrost zaległości, niepewności czy przewozów sam nie mówi, co zrobią ceny aktywów.","up445.foot":"Cztery pliki o różnej częstotliwości (tydzień, dzień, kwartał, miesiąc); każda liczba ma swoją datę i wiek."},"en":{"up445.t":"USA: mortgages, household debt, trade uncertainty and freight","up445.sub":"Four small but important gauges of the US economy: what a home loan costs, how much Americans owe, how uncertain tariffs and trade deals make the news, and how many goods and passengers are moving across the country.","up445.lazy":"The data will load when you expand the card.","up445.err":"Could not load the data — please try again shortly.","up445.errp":"No current reading: {p}.","up445.p.pm":"mortgage rates","up445.p.hh":"household debt","up445.p.tp":"trade uncertainty","up445.p.ts":"freight and passengers","up445.h.pm":"US mortgages: what they cost","up445.h.hh":"US household debt","up445.h.tp":"US trade policy uncertainty","up445.h.ts":"US transportation: goods and passengers","up445.w.day":"data for {d}","up445.w.q":"quarter {q}","up445.w.m":"month {m}","up445.pp":"pp","up445.s.yy":"y/y","up445.s.qq":"q/q","up445.s.mm":"m/m","up445.ch.short":"Too few data points for a chart.","up445.pm.k.30":"30-year mortgage","up445.pm.k.15":"15-year mortgage","up445.pm.k.y1":"Change over a year (30-year)","up445.pm.k.rng":"52-week range (30-year)","up445.pm.s.wk":"pp on the week","up445.pm.s.w4":"pp over 4 weeks","up445.pm.s.y1":"a year ago: {v}%","up445.pm.s.y15":"pp (15-year mortgage)","up445.pm.rng.s":"low {a}, high {b}","up445.pm.p5":"higher than in {p}% of weeks in 5 years","up445.pm.s30":"30-year","up445.pm.s15":"15-year","up445.pm.ch.h":"Rates over the last two years","up445.pm.ch.aria":"Chart: mortgage rates, {n} weeks","up445.pm.n":"Average rate on fixed-rate home loans from a weekly survey of US lenders. It is a national average, not any bank’s offer.","up445.hh.k.tot":"Household debt, total","up445.hh.k.mtg":"Mortgages","up445.hh.k.cc":"Credit cards","up445.hh.k.dq":"Debt 90+ days late","up445.hh.k.fc":"New foreclosures","up445.hh.k.bk":"New personal bankruptcies","up445.hh.u":"USD tn","up445.hh.thou":"thousand people","up445.hh.share":"{p}% of all debt","up445.hh.dq.cc":"credit cards: {v}%","up445.hh.t.mtg":"Mortgages","up445.hh.t.heloc":"Home equity lines","up445.hh.t.auto":"Auto loans","up445.hh.t.cc":"Credit cards","up445.hh.t.stud":"Student loans","up445.hh.t.oth":"Other","up445.hh.t.all":"All types","up445.hh.h.sk":"What the debt is made of (share and y/y change)","up445.hh.sk.n":"Bar length is the share of each debt type in the total. The change is measured against the same quarter a year earlier.","up445.hh.h.dq":"Debt 90+ days late by type (% of balance)","up445.hh.h.ch":"Debt 90+ days late over time (% of balance)","up445.hh.ch.aria":"Chart: debt 90+ days late, {n} quarters","up445.hh.n":"A 90+ day delinquency is the part of the balance that is at least three months behind. Data come from a quarterly report, as of the end of the quarter; new foreclosures and bankruptcies count people in the quarter.","up445.tp.k.ma":"30-day average","up445.tp.k.day":"Latest day","up445.tp.k.p5":"Against 5 years","up445.tp.k.max":"Peak of the last year","up445.tp.s.d30":"vs 30 days earlier","up445.tp.s.day":"the daily value jumps a lot","up445.tp.p5":"of days since {d} had a lower 30-day average","up445.tp.s.ma":"30-day average","up445.tp.ch.h":"30-day average over the last year","up445.tp.ch.aria":"Chart: trade policy uncertainty, {n} days","up445.tp.n":"The index shows how often US newspapers write about uncertainty around trade policy (tariffs, deals, disputes). The higher it is, the more such articles. The scale has no unit and the daily value jumps a lot, so we also show the 30-day average.","up445.ts.k.fr":"Goods","up445.ts.k.pa":"Passengers","up445.ts.k.to":"Total","up445.ts.ch.h":"The index over the last two years (2000 = 100)","up445.ts.ch.aria":"Chart: transportation index, {n} months","up445.ts.n":"The index combines freight (trucks, rail, barges, pipelines, air cargo) and passenger travel (airlines, rail, public transit). 100 is the year 2000; seasonally adjusted, the month of the data is shown by each number.","up445.not1":"The survey rate is a national average for fixed-rate loans — a particular loan can cost more or less (it depends on the lender, the down payment and the credit history).","up445.not2":"The gauges describe a state, not the future: a rise in arrears, uncertainty or freight does not by itself say what asset prices will do.","up445.foot":"Four files with different frequencies (week, day, quarter, month); every number carries its own date and age."}};
 for(const l in EXTRA303)if(I18N[l])Object.assign(I18N[l],EXTRA303[l]);
+/* v446 (F11Z33): surowce całą dobę — ropa, gaz, złoto, srebro i miedź w kontraktach całodobowych (GLOBAL, karta #g-sur247) — pl i en */
+const EXTRA304={"pl":{"s247.t":"Surowce całą dobę: ropa, gaz, złoto, srebro i miedź","s247.sub":"Kontrakty na surowce, którymi handluje się także w nocy, w weekendy i w święta. Gdy zwykłe giełdy towarowe są zamknięte, pokazują, gdzie rynek wycenia surowiec — ale rynek jest mały, więc to cena orientacyjna.","s247.lazy":"Dane pojawią się po rozwinięciu karty.","s247.err":"Nie udało się teraz pobrać danych. Spróbuj ponownie za chwilę.","s247.errp":"Brak aktualnego odczytu: {p}.","s247.k.brent":"Ropa Brent","s247.k.wti":"Ropa WTI","s247.k.gaz":"Gaz ziemny","s247.k.zloto":"Złoto","s247.k.srebro":"Srebro","s247.k.miedz":"Miedź","s247.h24":"24 h","s247.rg":"zakres 24 h: {a} – {b}","s247.last":"ostatnia transakcja: {a}","s247.when":"odczyt: {a}","s247.h.rg":"Gdzie jest cena w zakresie ostatnich 24 godzin","s247.c.cm":"Surowiec","s247.c.rg":"Zakres 24 h","s247.c.vol":"Obrót 24 h","s247.c.oi":"Otwarte pozycje","s247.rg.aria":"Cena leży w {p}% zakresu ostatnich 24 godzin, licząc od minimum","s247.u.k":"tys. USD","s247.u.m":"mln USD","s247.n.def":"Cena to cena rozliczeniowa kontraktu wieczystego (bez daty wygaśnięcia). Zmiana 24 h to różnica wobec ceny sprzed doby. Jednostki: baryłka (bbl), milion Btu (MMBtu), uncja (oz), funt (lb).","s247.n.thin":"Obroty są małe, więc jedno duże zlecenie może przesunąć cenę. To cena orientacyjna, nie notowanie giełdy towarowej.","s247.not1":"To nie jest notowanie giełdy towarowej ani cena fizycznego surowca — kontrakt wieczysty może się od niej różnić, zwłaszcza gdy zwykły rynek jest zamknięty.","s247.not2":"Zmiana ceny w ciągu doby nie mówi, dokąd cena pójdzie dalej.","s247.foot":"Kontrakty odczytywane co ok. godzinę."},"en":{"s247.t":"Commodities around the clock: oil, gas, gold, silver and copper","s247.sub":"Contracts on commodities that also trade at night, at weekends and on holidays. When regular commodity exchanges are closed, they show where the market prices the commodity — but the market is small, so the price is only indicative.","s247.lazy":"Data will appear when you expand the card.","s247.err":"Could not load the data right now. Please try again in a moment.","s247.errp":"No current reading: {p}.","s247.k.brent":"Brent crude","s247.k.wti":"WTI crude","s247.k.gaz":"Natural gas","s247.k.zloto":"Gold","s247.k.srebro":"Silver","s247.k.miedz":"Copper","s247.h24":"24 h","s247.rg":"24 h range: {a} – {b}","s247.last":"last trade: {a}","s247.when":"reading: {a}","s247.h.rg":"Where the price sits in the last 24 hours range","s247.c.cm":"Commodity","s247.c.rg":"24 h range","s247.c.vol":"24 h turnover","s247.c.oi":"Open interest","s247.rg.aria":"The price is at {p}% of the last 24 hours range, counting from the low","s247.u.k":"k USD","s247.u.m":"m USD","s247.n.def":"The price is the settlement price of a perpetual contract (no expiry date). The 24 h change is the difference from the price a day earlier. Units: barrel (bbl), million Btu (MMBtu), ounce (oz), pound (lb).","s247.n.thin":"Turnover is small, so one large order can move the price. This is an indicative price, not a quote from a commodity exchange.","s247.not1":"This is not a quote from a commodity exchange or the price of the physical commodity — a perpetual contract can differ from it, especially when the regular market is closed.","s247.not2":"A price change over one day does not say where the price will go next.","s247.foot":"Contracts read about once an hour."}};
+for(const l in EXTRA304)if(I18N[l])Object.assign(I18N[l],EXTRA304[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -19797,6 +19829,80 @@ srvJSON('meta').then(m=>{SHE.on=!!(m&&typeof m==='object'&&m.ok&&typeof m.ok==='
 setInterval(()=>{if(!document.hidden&&SHE.j&&sheOpen($('#g-shorteu')))sheLoad(1);},30*60*1000);
 try{new MutationObserver(()=>renderShe()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
 /* ---------- koniec bloku krótka sprzedaż w Europie (v429) ---------- */
+/* ===================== v446 (F11Z33): SUROWCE CAŁĄ DOBĘ — ROPA, GAZ, ZŁOTO, SREBRO I MIEDŹ W KONTRAKTACH CAŁODOBOWYCH (GLOBAL) — panel #g-sur247 (plik automatu data/surowce-247.json) =====================
+   Karta zwijana jak pozostałe w GLOBAL (silnik kart zw), po karcie ropy świata. Nagłówek i opis widać od razu (karta pojawia się, gdy meta.json zna część „sur247”); plik (kilka KB) jest pobierany dopiero po rozwinięciu
+   karty (nieudane pobranie bez pętli: nowa próba najwcześniej po minucie albo po zwinięciu i rozwinięciu; po wczytaniu odświeżany co 15 min przy rozwiniętej karcie).
+   Sześć kafli (Brent, WTI, gaz ziemny, złoto, srebro, miedź): cena kontraktu wieczystego w USD za jednostkę, zmiana wobec ceny sprzed 24 h (strzałka i kolor z POKAZANEJ liczby: wzrost zielony, spadek czerwony, zero żółte),
+   zakres 24 h, wiek ostatniej transakcji i chwila odczytu z wiekiem. Pod nimi wykres: gdzie leży cena w zakresie ostatnich 24 godzin (znacznik na pasku od minimum do maksimum) oraz obrót 24 h i otwarte pozycje w USD —
+   rynek jest cienki (od kilku tysięcy do kilkuset tysięcy USD na dobę), więc to cena orientacyjna, nie notowanie giełdy towarowej. Wiersz starszy niż doba znika (kafel „—”, nigdy zero); brak liczby = „—”.
+   Nazw dostawców tu nie ma. Korzysta z narzędzi panelu stresu (strNum, strDelta, strTile) i z gxWhen. To nie jest porada inwestycyjna. */
+const S247={j:null,l:false,x:false,t:0,e:0,on:false,mo:false};
+const S247_IDS=['brent','wti','gaz','zloto','srebro','miedz'],S247_G={brent:'oil',wti:'oil',gaz:'gas',zloto:'gold',srebro:'silver',miedz:'copper'},S247_DEC={brent:2,wti:2,gaz:3,zloto:2,srebro:2,miedz:3},
+  S247_U={brent:'USD/bbl',wti:'USD/bbl',gaz:'USD/MMBtu',zloto:'USD/oz',srebro:'USD/oz',miedz:'USD/lb'},S247_OLD=24*36e5;
+const s247Obj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const s247Ico=id=>typeof glyphImg==='function'?glyphImg(S247_G[id],'sm'):'';   /* sam znaczek (kafel owija go własnym icos); w wierszach i nagłówku przez icoWrap */
+const s247Ago=iso=>{const a=typeof lnAgo==='function'?lnAgo(iso).replace(/^ · /,''):'';return a||engDate(iso);};
+/* wiersz surowca: tylko z ceną dodatnią i odczytem młodszym niż doba (i nie z przyszłości); inaczej null */
+function s247Row(j,id){
+  const R=s247Obj(j)&&s247Obj(j.rows)?j.rows[id]:null;
+  if(!s247Obj(R)||typeof R.t!=='string'||!strNum(R.px)||!(R.px>0))return null;
+  const a=Date.now()-Date.parse(R.t);return isFinite(a)&&a<=S247_OLD&&a>=-6e5?R:null;
+}
+function s247Ok(j){return !!(s247Obj(j)&&j.v===1&&typeof j.at==='string'&&isFinite(Date.parse(j.at))&&S247_IDS.some(id=>s247Row(j,id)));}
+/* kwota USD: tys. od 1 tys., mln od 1 mln (zaokrąglenie do 1000 tys. przechodzi do mln); poniżej 1 tys. „<1 tys.”; brak = „—” */
+function s247Usd(v){
+  if(!strNum(v)||!(v>0))return '—';
+  if(v>=1e6||+(v/1e3).toFixed(0)>=1000)return nfmt(v/1e6,v>=1e7?1:2)+' '+t('s247.u.m');
+  if(v>=1e3)return nfmt(v/1e3,v>=1e5?0:1)+' '+t('s247.u.k');
+  return '&lt;1 '+t('s247.u.k');
+}
+function s247Tile(id,R){
+  const ico=s247Ico(id),lab=t('s247.k.'+id);
+  if(!R)return strTile(ico,lab,'—',[{txt:t('eng.gap'),cls:'pc'}],'');
+  const d=strNum(R.ch)?strDelta(R.ch,2,'% · '+t('s247.h24')):{txt:'—',cls:'na'},dc=S247_DEC[id],L=[d];
+  if(strNum(R.l24)&&strNum(R.h24))L.push({txt:t('s247.rg',{a:nfmt(R.l24,dc),b:nfmt(R.h24,dc)}),cls:'pc'});
+  if(typeof R.lt==='string'&&isFinite(Date.parse(R.lt)))L.push({txt:t('s247.last',{a:s247Ago(R.lt)}),cls:'pc'});
+  return strTile(ico,lab,`${nfmt(R.px,dc)} <span class="un">${S247_U[id]}</span>`,L,t('s247.when',{a:gxWhen(R.t)}));
+}
+/* położenie ceny w zakresie 24 h: znacznik na pasku od minimum do maksimum (cena spoza zakresu rozszerza go); brak zakresu = „—” */
+function s247Rg(R,id){
+  if(!strNum(R.l24)||!strNum(R.h24)||R.h24<R.l24)return '—';
+  const lo=Math.min(R.l24,R.px),hi=Math.max(R.h24,R.px),p=hi>lo?(R.px-lo)/(hi-lo)*100:50,dc=S247_DEC[id];
+  return `<span class="s247-tr" role="img" aria-label="${escH(t('s247.rg.aria',{p:nfmt(Math.round(p),0)}))}"><i style="left:${p.toFixed(1)}%"></i></span><span class="s247-lb"><span>${nfmt(lo,dc)}</span><span>${nfmt(hi,dc)}</span></span>`;
+}
+function s247Line(id,R){
+  return `<div class="s247-r"><span class="s247-n">${icoWrap(s247Ico(id))}<b>${t('s247.k.'+id)}</b></span><span class="s247-c s247-rg" data-l="${escH(t('s247.c.rg'))}">${s247Rg(R,id)}</span>`
+    +`<span class="s247-c" data-l="${escH(t('s247.c.vol'))}">${s247Usd(R.vq)}</span><span class="s247-c" data-l="${escH(t('s247.c.oi'))}">${s247Usd(R.oi_usd)}</span></div>`;
+}
+function s247Body(){const J=S247.j;
+  if(!J)return `<p class="pnote">${t(S247.x?'s247.err':'s247.lazy')}</p>`;
+  const R={};S247_IDS.forEach(id=>{R[id]=s247Row(J,id);});
+  const have=S247_IDS.filter(id=>R[id]),miss=S247_IDS.filter(id=>!R[id]);
+  return `<div class="etfkpis">${S247_IDS.map(id=>s247Tile(id,R[id])).join('')}</div>`
+    +`<div class="gx-h"><b>${t('s247.h.rg')}</b></div><div class="s247-g"><div class="s247-r s247-hd"><span>${t('s247.c.cm')}</span><span>${t('s247.c.rg')}</span><span>${t('s247.c.vol')}</span><span>${t('s247.c.oi')}</span></div>${have.map(id=>s247Line(id,R[id])).join('')}</div>`
+    +`<p class="pnote">${t('s247.n.def')}</p><p class="pnote neu">${t('s247.n.thin')}</p>`
+    +`<details class="etfd" id="s247-not"><summary>${t('eng.notsays')}</summary>${[1,2].map(i=>`<p class="pnote">${t('s247.not'+i)}</p>`).join('')}</details>`
+    +(miss.length?`<p class="pnote neu">${t('s247.errp',{p:miss.map(id=>t('s247.k.'+id)).join(', ')})}</p>`:'')
+    +`<p class="pfoot">${t('inst.file',{t:engDate(J.at)})} · ${t('s247.foot')} ${t('eng.disclaimer')}</p>`;}
+/* karta rozwinięta: silnik kart zwijanych ma klasę zw-on, a nie zw */
+function s247Open(el){return !!(el&&el.classList&&el.classList.contains('zw-on')&&!el.classList.contains('zw'));}
+function renderS247(){const el=$('#g-sur247');if(!el)return;
+  if(!S247.on){el.hidden=true;el.innerHTML='';return;}
+  const open=typeof el.querySelectorAll==='function'?[...el.querySelectorAll('details')].map(x=>[x.id,!!x.open]).filter(x=>x[0]):[];
+  el.innerHTML=`<div class="etfh"><div><h2>${icoWrap(typeof glyphImg==='function'?glyphImg('oil','sm')+glyphImg('gold','sm'):'')}${t('s247.t')}</h2><p class="pnote">${t('s247.sub')}</p></div></div>${s247Body()}`;
+  open.forEach(([id,o])=>{const x=el.querySelector('#'+id);if(x)x.open=o;});
+  el.hidden=false;
+  if(!S247.mo&&typeof MutationObserver==='function'){S247.mo=true;try{new MutationObserver(()=>{if(s247Open(el))s247Load();}).observe(el,{attributes:true,attributeFilter:['class']});}catch(e){}}   /* rozwinięcie karty (klasa) = pobranie */
+  if(s247Open(el))s247Load();}
+/* pobranie pliku: jedno naraz; chwilowy błąd nie zasłania wczytanych danych; po błędzie najwcześniej po minucie; f = odświeżenie wymuszone zegarem */
+function s247Load(f){if(S247.l)return;const n=Date.now();if(S247.j&&!f&&n-S247.t<10*60e3)return;if(!S247.j&&n-S247.e<60e3)return;S247.l=true;
+  srvJSON('surowce-247').then(j=>{
+    if(!s247Ok(j)){S247.l=false;S247.e=Date.now();if(!S247.j)S247.x=true;renderS247();return;}
+    S247.l=false;S247.j=j;S247.x=false;S247.t=Date.now();S247.on=true;renderS247();});}
+srvJSON('meta').then(m=>{S247.on=!!(m&&typeof m==='object'&&m.ok&&typeof m.ok==='object'&&Object.prototype.hasOwnProperty.call(m.ok,'sur247'));renderS247();});
+setInterval(()=>{if(!document.hidden&&S247.j&&s247Open($('#g-sur247')))s247Load(1);},15*60*1000);
+try{new MutationObserver(()=>renderS247()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});}catch(e){}   /* zmiana języka = nowe etykiety */
+/* ---------- koniec bloku surowców całą dobę (v446) ---------- */
 /* ===================== v422 (F11Z25): SKARBCE SPÓŁEK — BTC I ETH W SPÓŁKACH PUBLICZNYCH I NOWE WNIOSKI O FUNDUSZE KRYPTO W KOLEJCE URZĘDU (CRYPTO, #c-skarbce — po karcie MiCA) =====================
    Plik data/krypto-firmy.json (zbieracz, części odświeżane raz na ~dobę; grupa plików „c” — pobierany dopiero po otwarciu CRYPTO, ładowarka kfLoad dopisana do rejestru SRV_LD). Trzy części z własnym czasem pobrania:
    btc i eth — ile BTC i ETH deklarują spółki publiczne (suma, wartość, udział w podaży, liczba spółek, największa spółka, tabela 8 największych + reszta po rozwinięciu, kraje, wykres sumy z kolejnych dób,

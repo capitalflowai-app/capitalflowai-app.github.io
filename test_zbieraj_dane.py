@@ -73730,3 +73730,221 @@ class KontrolaUsaPakietV445(unittest.TestCase):
         i1, i2 = s.index("UP_ = upk_kontrola(files.get('usa-pakiet'))"), s.index('# 3d. v115: zgodność liczb')
         self.assertLess(i1, i2); self.assertEqual(s.count("R['zgodnosc']['usa-pakiet'] ="), 2, 'wynik i błąd')
         self.assertEqual(s.count("sup_ = Z.get('usa-pakiet')"), 1); self.assertIn('kontrola przerwana', s[s.index("sup_ = Z.get('usa-pakiet')"):][:600])
+
+
+# ===================== v446 (F11Z33): SUROWCE CAŁĄ DOBĘ — kontrakty wieczyste na ropę, gaz, złoto, srebro i miedź z odpowiedzi giełdy już pobieranej (data/surowce-247.json) =====================
+# Nagranie _V446_KR: odpowiedź `tickers` giełdy kontraktów wieczystych z 18.10.2026 20:24 UTC (sześć kontraktów na surowce + BTC i ETH, pola bez zmian, reszta rynków obcięta).
+_V446_KR = json.loads('{"result":"success","serverTime":"2026-10-18T20:24:03.072Z","tickers":[{"symbol":"PF_BRENTOILUSD","last":107.191,"lastTime":"2026-10-18T20:16:20.441004531Z","tag":"perpetual","markPrice":107.12938058683,"vol24h":1060.8,"volumeQuote":113177.2423,"openInterest":5452.9,"open24h":106.998,"high24h":107.303,"low24h":106.47,"fundingRate":6.463660166702e-06,"relativeFundingRate":6.0416666667e-08,"suspended":false,"indexPrice":107.13305,"change24h":0.18},{"symbol":"PF_WTIOILUSD","last":99.253,"lastTime":"2026-10-18T20:16:42.037288822Z","tag":"perpetual","markPrice":99.18229033515,"vol24h":4311.3,"volumeQuote":426478.952,"openInterest":7777.8,"open24h":98.961,"high24h":99.439,"low24h":98.562,"fundingRate":-0.001287341694202634,"relativeFundingRate":-1.3003283333333e-05,"suspended":false,"indexPrice":99.18626,"change24h":0.3},{"symbol":"PF_NATGASUSD","last":3.4018,"lastTime":"2026-10-18T20:22:19.297101422Z","tag":"perpetual","markPrice":3.40227579387,"vol24h":849,"volumeQuote":2874.617,"openInterest":22587.0,"open24h":3.3746,"high24h":3.4056,"low24h":3.3746,"fundingRate":2.042387118916e-06,"relativeFundingRate":6.00620833333e-07,"suspended":false,"indexPrice":3.40087,"change24h":0.81},{"symbol":"PF_XAUUSD","last":4150.48,"lastTime":"2026-10-18T20:19:36.105229686Z","tag":"perpetual","markPrice":4152.16892182902,"vol24h":86.909,"volumeQuote":361149.50413,"openInterest":216.307,"open24h":4162.24,"high24h":4162.24,"low24h":4130,"fundingRate":0.03495775152227405,"relativeFundingRate":8.420466666667e-06,"suspended":false,"indexPrice":4150.3363,"change24h":-0.28},{"symbol":"PF_XAGUSD","last":56.7012,"lastTime":"2026-10-18T20:17:42.475390374Z","tag":"perpetual","markPrice":56.70676839336,"vol24h":5031.7,"volumeQuote":286088.82252,"openInterest":28919.2,"open24h":56.9631,"high24h":57.0405,"low24h":56.412,"fundingRate":0.000923328815470814,"relativeFundingRate":1.6300083333333e-05,"suspended":false,"indexPrice":56.69777,"change24h":-0.46},{"symbol":"PF_XCUUSD","last":6.5612,"lastTime":"2026-10-18T20:00:22.080126493Z","tag":"perpetual","markPrice":6.55370782395,"vol24h":7100,"volumeQuote":46699.4994,"openInterest":22567.0,"open24h":6.5981,"high24h":6.5994,"low24h":6.5515,"fundingRate":0.001637690723001669,"relativeFundingRate":0.000250512166666667,"suspended":false,"indexPrice":6.5406,"change24h":-0.56},{"symbol":"PF_XBTUSD","last":80737,"lastTime":"2026-10-18T20:24:02.8389083Z","tag":"perpetual","markPrice":80738.21219087981,"vol24h":2809.2323,"volumeQuote":228578191.9197,"openInterest":2303.4393,"open24h":81513,"high24h":82191,"low24h":80583,"fundingRate":1.155522926826,"relativeFundingRate":1.430405e-05,"suspended":false,"indexPrice":80732.29,"change24h":-0.95},{"symbol":"PF_ETHUSD","last":2341.3,"lastTime":"2026-10-18T20:24:00.788435803Z","tag":"perpetual","markPrice":2341.01962260692,"vol24h":33534.77,"volumeQuote":79905960.9627,"openInterest":27494.802,"open24h":2415.6,"high24h":2427.4,"low24h":2325.5,"fundingRate":-7.29771875e-07,"relativeFundingRate":-3.125e-10,"suspended":false,"indexPrice":2341.16,"change24h":-3.08}]}')
+
+
+def _v446_kr(mut=None):
+    j = json.loads(json.dumps(_V446_KR))
+    if mut:
+        mut(j)
+    return j
+
+
+def _v446_t(j, sym):
+    return next(r for r in j['tickers'] if r['symbol'] == sym)
+
+
+class Surowce247V446(unittest.TestCase):
+    """v446 (F11Z33): data/surowce-247.json składa się z odpowiedzi giełdy kontraktów, którą zbieracz i tak pobiera dla dźwigni — ZERO nowych zapytań. Sześć kontraktów (Brent, WTI, gaz, złoto,
+    srebro, miedź): cena rozliczeniowa, zmiana 24 h liczona z pokazanej ceny, zakres 24 h, otwarte pozycje i obrót w USD. Straże jednostki, indeksu, zawieszenia i martwego rynku; brak nie jest zerem."""
+    NOW = '2026-10-18T20:32:42+00:00'
+
+    def setUp(self):
+        for nazwa, wartosc in (('NOW', self.NOW), ('META', {'at': self.NOW, 'ok': {}, 'errors': [], 'notes': []}), ('_KR_SUR', [None])):
+            p = mock.patch.object(zd, nazwa, wartosc); p.start(); self.addCleanup(p.stop)
+
+    def test_parse_wartosci_z_nagrania(self):
+        t, rows, pomin = zd.sur247_parse(_v446_kr())
+        self.assertEqual(t, '2026-10-18T20:24:03+00:00'); self.assertEqual(pomin, {})
+        self.assertEqual(list(rows), ['brent', 'wti', 'gaz', 'zloto', 'srebro', 'miedz'])
+        b = rows['brent']
+        self.assertEqual((b['sym'], b['u'], b['px'], b['last'], b['ix'], b['o24'], b['h24'], b['l24']), ('PF_BRENTOILUSD', 'USD/bbl', 107.1294, 107.191, 107.133, 106.998, 107.303, 106.47))
+        self.assertEqual(b['lt'], '2026-10-18T20:16:20+00:00'); self.assertEqual(b['t'], t)
+        self.assertEqual(b['ch'], round((107.12938058683 / 106.998 - 1) * 100, 2)); self.assertEqual(b['ch'], 0.12, 'zmiana liczona z POKAZANEJ ceny (mark), nie z ostatniej transakcji')
+        self.assertEqual(b['oi_usd'], round(5452.9 * 107.12938058683)); self.assertEqual(b['vq'], 113177.0)
+        self.assertEqual([(c, rows[c]['ch'], rows[c]['u']) for c in ('wti', 'gaz', 'zloto', 'srebro', 'miedz')],
+                         [('wti', 0.22, 'USD/bbl'), ('gaz', 0.82, 'USD/MMBtu'), ('zloto', -0.24, 'USD/oz'), ('srebro', -0.45, 'USD/oz'), ('miedz', -0.67, 'USD/lb')])
+        self.assertEqual(rows['gaz']['vq'], 2875.0, 'najcichszy rynek: obrót 24 h ok. 2,9 tys. USD'); self.assertEqual(rows['miedz']['px'], 6.5537)
+        self.assertTrue(all(r['t'] == t and set(r) == set(b) for r in rows.values()))
+        # obrót w USD = kontrakty × średnia cena (1 kontrakt = 1 jednostka): to uzasadnia otwarte pozycje = kontrakty × cena
+        for sym in ('PF_BRENTOILUSD', 'PF_WTIOILUSD', 'PF_XAUUSD', 'PF_XAGUSD', 'PF_XCUUSD'):
+            r = _v446_t(_v446_kr(), sym); self.assertTrue(r['low24h'] <= r['volumeQuote'] / r['vol24h'] <= r['high24h'], sym + ': średnia cena obrotu mieści się w zakresie 24 h')
+
+    def test_brak_nie_jest_zerem(self):
+        def mut(j):
+            r = _v446_t(j, 'PF_NATGASUSD'); r.pop('openInterest'); r['volumeQuote'] = 0; r.pop('open24h'); r.pop('high24h')
+        g = zd.sur247_parse(_v446_kr(mut))[1]['gaz']
+        for k in ('oi_usd', 'vq', 'ch', 'o24', 'h24', 'l24'):
+            self.assertIsNone(g[k], k)
+        self.assertEqual(g['px'], 3.4023, 'cena zostaje'); self.assertNotIn(0, [v for v in g.values() if isinstance(v, (int, float))])
+
+    def test_straze_wiersza(self):
+        def pomin(mut):
+            return zd.sur247_parse(_v446_kr(mut))[2]
+        self.assertEqual(pomin(lambda j: _v446_t(j, 'PF_BRENTOILUSD').update(suspended=True)), {'brent': 'rynek zawieszony'})
+        self.assertIn('poza wiarygodnym zakresem', pomin(lambda j: _v446_t(j, 'PF_XCUUSD').update(markPrice=14500.0))['miedz'])   # tony zamiast funtów
+        self.assertIn('poza wiarygodnym zakresem', pomin(lambda j: _v446_t(j, 'PF_XAUUSD').update(markPrice=None))['zloto'])
+        self.assertIn('odbiega od indeksu', pomin(lambda j: _v446_t(j, 'PF_WTIOILUSD').update(indexPrice=80.0))['wti'])
+        self.assertEqual(list(pomin(lambda j: _v446_t(j, 'PF_WTIOILUSD').update(indexPrice=None))), [], 'brak indeksu to nie powód odrzucenia')
+        self.assertIn('brak transakcji', pomin(lambda j: _v446_t(j, 'PF_NATGASUSD').update(lastTime='2026-10-15T00:00:00Z'))['gaz'])
+        self.assertIn('brak transakcji', pomin(lambda j: _v446_t(j, 'PF_NATGASUSD').update(lastTime='2026-10-19T20:00:00Z'))['gaz'])   # z przyszłości
+        self.assertIn('brak transakcji', pomin(lambda j: _v446_t(j, 'PF_NATGASUSD').pop('lastTime'))['gaz'])
+        self.assertEqual(pomin(lambda j: j.update(tickers=[r for r in j['tickers'] if r['symbol'] != 'PF_XAGUSD'])), {'srebro': 'brak wiersza PF_XAGUSD'})
+        _, rows, _p = zd.sur247_parse(_v446_kr(lambda j: _v446_t(j, 'PF_WTIOILUSD').update(open24h=10.0)))
+        self.assertIsNone(rows['wti']['ch']); self.assertIsNone(rows['wti']['o24']); self.assertEqual(rows['wti']['px'], 99.1823, 'cena sprzed doby nieużyteczna = brak zmiany, cena zostaje')
+        _, rows, _p = zd.sur247_parse(_v446_kr(lambda j: _v446_t(j, 'PF_XAUUSD').update(high24h=4000.0)))
+        self.assertIsNone(rows['zloto']['h24']); self.assertIsNone(rows['zloto']['l24'], 'zakres odwrócony = brak obu końców')
+        for zly in ({}, {'tickers': []}, {'tickers': 'x'}, None, []):
+            with self.assertRaises(ValueError):
+                zd.sur247_parse(zly)
+
+    def test_minimum_wierszy_i_zapas_brakujacego(self):
+        def zostaja(*sym):
+            return lambda j: j.update(tickers=[r for r in j['tickers'] if r['symbol'] not in sym])
+        with self.assertRaisesRegex(RuntimeError, 'tylko 2 z 6'):
+            zd.sur247_buduj(_v446_kr(zostaja('PF_XAGUSD', 'PF_XCUUSD', 'PF_NATGASUSD', 'PF_WTIOILUSD')), None)
+        self.assertEqual(zd.sur247_buduj(_v446_kr(zostaja('PF_XAGUSD', 'PF_XCUUSD', 'PF_NATGASUSD')), None)['order'], ['brent', 'wti', 'zloto'], 'trzy wiersze wystarczą')
+        prev = zd.sur247_buduj(_v446_kr(), None)
+        stary = json.loads(json.dumps(prev)); stary['rows']['miedz']['t'] = '2026-10-18T18:00:00+00:00'; stary['rows']['srebro']['t'] = '2026-10-17T18:00:00+00:00'
+        o = zd.sur247_buduj(_v446_kr(zostaja('PF_XAGUSD', 'PF_XCUUSD')), stary)
+        self.assertEqual(o['order'], ['brent', 'wti', 'gaz', 'zloto', 'miedz'], 'miedź sprzed 2,5 h zostaje, srebro sprzed 26,5 h nie')
+        self.assertEqual(o['rows']['miedz']['t'], '2026-10-18T18:00:00+00:00', 'zostaje z własnym czasem'); self.assertEqual(list(o['pomin']), ['srebro'])
+        self.assertTrue(any('miedz' in n and 'zostaje poprzedni' in n for n in zd.META['notes'])); self.assertEqual(zd.META['errors'], [], 'zapas to informacja, nie błąd')
+        o2 = zd.sur247_buduj(_v446_kr(zostaja('PF_XAGUSD', 'PF_XCUUSD')), dict(stary, v=2))
+        self.assertEqual(o2['order'], ['brent', 'wti', 'gaz', 'zloto'], 'plik w innej wersji nie jest zapasem')
+        self.assertEqual((o['v'], o['at'], o['t']), (1, self.NOW, '2026-10-18T20:24:03+00:00')); self.assertIn('bez dodatkowych zapytań', o['src'])
+        json.dumps(o, allow_nan=False)
+
+    def test_lev_kr_oddaje_ta_sama_odpowiedz_bez_drugiego_zapytania(self):
+        j = _v446_kr(); calls = []
+        with mock.patch.object(zd, '_LEV_TERMIN', [None]), mock.patch.object(zd, 'get_json', side_effect=lambda url, headers=None, timeout=30: calls.append(url) or j):   # budżet czasu przebiegu z innych testów nie przecieka
+            out = zd.lev_kr(None)
+        self.assertEqual(calls, [zd.KR_URL], 'jedno zapytanie na giełdę — to samo dla dźwigni i dla surowców'); self.assertIs(zd._KR_SUR[0], j)
+        self.assertIn('BTC', out); self.assertIn('ETH', out)
+        with open(zd.__file__, encoding='utf-8') as f:
+            src = f.read()
+        self.assertEqual(src.count('futures.kraken.com'), 1, 'adres giełdy w kodzie raz — surowce nie dodają zapytania')
+        self.assertEqual(src.count('get_json(KR_URL'), 1)
+
+    def test_czesc_przebiegu(self):
+        saved = {}
+
+        def run(j, prev):
+            zd._KR_SUR[0] = j; saved.clear()
+            with mock.patch.object(zd, 'previous', lambda n: prev if n == 'surowce-247' else None), mock.patch.object(zd, 'save', lambda n, o: saved.__setitem__(n, o)):
+                return zd.sur247_czesc()
+        prev = zd.sur247_buduj(_v446_kr(), None)
+        self.assertEqual(run(None, prev), 'cached'); self.assertIs(saved['surowce-247'], prev, 'część kr dźwigni nie była pobierana — plik zostaje')
+        self.assertEqual(run(None, None), 'cached'); self.assertEqual(saved, {}, 'bez odpowiedzi i bez poprzedniego pliku nic nie zapisujemy')
+        self.assertEqual(run(None, dict(prev, v=2)), 'cached'); self.assertEqual(saved, {}, 'plik w innej wersji nie jest poprzednim')
+        self.assertIs(run(_v446_kr(), prev), True); self.assertEqual((saved['surowce-247']['v'], saved['surowce-247']['at']), (1, self.NOW)); self.assertIsNone(zd._KR_SUR[0], 'odpowiedź zużyta')
+        self.assertIs(run({'tickers': []}, prev), False); self.assertIs(saved['surowce-247'], prev, 'zła odpowiedź — poprzedni plik zostaje')
+        self.assertTrue(any(e.startswith('Surowce 24/7: ') for e in zd.META['errors']))
+        self.assertIs(run({'serverTime': 'x'}, None), False); self.assertEqual(saved, {})
+
+    def test_wpiecie_w_main_i_tabela_zrodel(self):
+        with open(zd.__file__, encoding='utf-8') as f:
+            src = f.read()
+        wywolanie = "META['ok']['sur247'] = sur247_czesc()"
+        self.assertEqual(src.count(wywolanie), 1)
+        m0 = src.index('\ndef main(')
+        self.assertTrue(m0 < src.index('build_dzwignia(prev_lv') < src.index(wywolanie), 'w main(), po zbudowaniu dzwignia.json (odpowiedź giełdy już zapamiętana)')
+        self.assertEqual(src.count('_KR_SUR[0] = j'), 1)
+        self.assertEqual(zd.ZRODLA_META['sur247'], 'kraken'); self.assertEqual(zd.ZRODLA_META['dzwignia_kr'], 'kraken', 'ta sama giełda — liczba źródeł bez zmian')
+        self.assertEqual(zd.zrodla_meta({'dzwignia_kr': True, 'sur247': True}), {'n': 1, 'ok': 1})
+        self.assertEqual(zd.zrodla_meta({'dzwignia_kr': False, 'sur247': False}), {'n': 1, 'ok': 0})
+        self.assertEqual(zd.zrodla_meta({'dzwignia_kr': True, 'sur247': 'cached'}), {'n': 1, 'ok': 1})
+
+
+class KontrolaSur247V446(unittest.TestCase):
+    """v446 (F11Z33): kontrola dzienna pliku surowce-247.json — wiek pliku jak dla dźwigni (180 min), ⚠️ za starość odczytu (6 h) i ostatniej transakcji (12 h), ❌ tylko przy sprzeczności w pliku."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util, tempfile
+        tmp = tempfile.mkdtemp(prefix='kontrola446-')
+        with mock.patch.dict(os.environ, {'KONTROLA_DIR': os.path.join(tmp, 'k'), 'KONTROLA_ARCH': os.path.join(tmp, 'a')}):
+            spec = importlib.util.spec_from_file_location('v446_k', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'))
+            cls.k = importlib.util.module_from_spec(spec); spec.loader.exec_module(cls.k)
+        cls.NOW = datetime.datetime(2026, 10, 18, 20, 40, tzinfo=datetime.timezone.utc)
+        with mock.patch.object(zd, 'NOW', '2026-10-18T20:32:42+00:00'), mock.patch.object(zd, 'META', {'at': '', 'ok': {}, 'errors': [], 'notes': []}):
+            cls.P0 = zd.sur247_buduj(_v446_kr(), None)
+
+    def _plik(self, mut=None):
+        j = json.loads(json.dumps(self.P0))
+        if mut:
+            mut(j)
+        return j
+
+    def _kont(self, mut=None, now=None):
+        return self.k.s247_kontrola({'surowce-247': self._plik(mut)}, now or self.NOW)
+
+    def test_plik_wpiety_w_liscie_i_stale_zgodne_ze_zbieraczem(self):
+        k = self.k
+        self.assertEqual(k.PLIKI[-2:], ['krypto-dzien', 'krypto-dziennik']); self.assertEqual(k.PLIKI.count('surowce-247'), 1); self.assertLess(k.PLIKI.index('surowce-247'), k.PLIKI.index('krypto-dzien'))
+        self.assertEqual(k.LIMIT_MIN['surowce-247'], 180); self.assertEqual(k.LIMIT_MIN['surowce-247'], k.LIMIT_MIN['dzwignia'], 'ten sam rytm i próg co dzwignia.json')
+        self.assertEqual(list(k.S247K_ZAKRES), [c for c, _s, _l, _h in zd.SUR247_SYM]); self.assertEqual(list(k.S247K_NAZWA), list(k.S247K_ZAKRES))
+        self.assertEqual([k.S247K_ZAKRES[c] for c in k.S247K_ZAKRES], [(lo, hi) for _c, _s, lo, hi in zd.SUR247_SYM], 'te same zakresy jednostek w zbieraczu i w kontroli')
+        self.assertEqual((k.S247K_MIN_WIERSZY, k.S247K_ODCHYL), (zd.SUR247_MIN, zd.SUR247_ODCHYL))
+        self.assertLess(zd.SUR247_ZAPAS_H, 48); self.assertLess(k.S247K_OSTATNIA_H, zd.SUR247_OSTATNIA_H, 'ostrzeżenie przed pominięciem wiersza przez zbieracza')
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertEqual(src.count("s247_kontrola(files)"), 1); self.assertEqual(src.count("R['zgodnosc']['surowce-247'] = "), 2); self.assertEqual(src.count("Z.get('surowce-247')"), 1)
+
+    def test_swiezy_plik_bez_sprzecznosci(self):
+        o = self._kont()
+        self.assertEqual(o['spojnosc'], []); self.assertEqual(o['uwagi'], [])
+        self.assertEqual(len(o['wiersze']), 1); self.assertEqual(o['wiersze'][0][1], '✅'); self.assertTrue(o['wiersze'][0][0].startswith('Surowce 24/7: 6 z 6 kontraktów, najstarszy odczyt sprzed 0.3 h'))
+        for brak in (None, {}, {'surowce-247': {'v': 2}}, {'surowce-247': None}):
+            self.assertIsNone(self.k.s247_kontrola(brak, self.NOW))
+
+    def test_progi_wieku_odczytu_6_h_i_ostatniej_transakcji_12_h(self):
+        k = self.k
+        t0 = datetime.datetime(2026, 10, 18, 20, 24, 3, tzinfo=datetime.timezone.utc)
+        for dh, znak in ((0, '✅'), (6.0, '✅'), (6.02, '⚠️'), (30, '⚠️')):
+            o = self._kont(now=t0 + datetime.timedelta(hours=dh))
+            self.assertEqual(o['wiersze'][0][1], znak, dh); self.assertEqual(o['spojnosc'], [], 'wiek to nigdy ❌')
+            if znak == '⚠️':
+                self.assertTrue(any('próg 6 h' in u for u in o['uwagi']))
+        # ostatnia transakcja miedzi: odczyt „świeży”, ale kontrakt cichy
+        def cichy(h):
+            def mut(j):
+                for r in j['rows'].values():
+                    r['t'] = self.NOW.isoformat()
+                j['rows']['miedz']['lt'] = (self.NOW - datetime.timedelta(hours=h)).isoformat()
+            return mut
+        self.assertEqual(self._kont(cichy(12))['wiersze'][0][1], '✅'); self.assertEqual(len(self._kont(cichy(12))['wiersze']), 1)
+        o = self._kont(cichy(12.02)); self.assertEqual(len(o['wiersze']), 2); self.assertEqual(o['wiersze'][1][1], '⚠️'); self.assertIn('miedź', o['wiersze'][1][0]); self.assertEqual(o['spojnosc'], [])
+        self.assertEqual(len(k.S247K_ZAKRES), 6)
+
+    def test_sprzecznosci_w_pliku(self):
+        def zle(mut):
+            return self._kont(mut)['spojnosc']
+        def px(c, v):
+            return lambda j: j['rows'][c].__setitem__('px', v)
+        self.assertTrue(any('cena poza zakresem jednostki' in z for z in zle(px('miedz', 14500.0))))
+        self.assertTrue(any('odbiega od indeksu' in z for z in zle(lambda j: j['rows']['gaz'].__setitem__('ix', 1.0))))
+        self.assertTrue(any('odbiega od indeksu' in z for z in zle(px('brent', 80.0))))
+        self.assertTrue(any('zakres 24 h' in z for z in zle(lambda j: j['rows']['zloto'].update(h24=4000.0))))
+        self.assertTrue(any('zakres 24 h' in z for z in zle(lambda j: j['rows']['zloto'].update(h24=None))), 'tylko jeden koniec zakresu')
+        self.assertTrue(any('niezgodna' in z for z in zle(lambda j: j['rows']['brent'].__setitem__('ch', 5.0))))
+        self.assertTrue(any('niezgodna' in z for z in zle(lambda j: j['rows']['brent'].__setitem__('o24', None))), 'zmiana bez ceny sprzed doby')
+        self.assertEqual(zle(lambda j: j['rows']['brent'].update(ch=None, o24=None)), [], 'brak zmiany to nie sprzeczność')
+        self.assertEqual(zle(lambda j: j['rows']['gaz'].update(oi_usd=None, vq=None, h24=None, l24=None)), [], 'brak = nie sprzeczność')
+        self.assertTrue(any('otwarte pozycje' in z for z in zle(lambda j: j['rows']['wti'].__setitem__('oi_usd', -5.0))))
+        self.assertTrue(any('order' in z for z in zle(lambda j: j.__setitem__('order', j['order'][:-1]))))
+        self.assertTrue(any('nieznany surowiec' in z for z in zle(lambda j: (j['rows'].__setitem__('kakao', dict(j['rows']['brent'])), j['order'].append('kakao')))))
+        self.assertTrue(any('tylko 2 wierszy' in z for z in zle(lambda j: (j.__setitem__('rows', {c: j['rows'][c] for c in ('brent', 'wti')}), j.__setitem__('order', ['brent', 'wti'])))))
+        self.assertTrue(any('z przyszłości' in z for z in zle(lambda j: j['rows']['gaz'].__setitem__('lt', '2026-10-18T22:00:00+00:00'))))
+        self.assertTrue(any('czasu odczytu (t)' in z for z in zle(lambda j: j.__setitem__('t', None))))
+        self.assertTrue(any('brak czasu odczytu albo ostatniej' in z for z in zle(lambda j: j['rows']['gaz'].__setitem__('t', None))))
+        self.assertEqual(self._kont(lambda j: j.update(rows=[]))['spojnosc'], ['zły kształt pliku (rows albo order)'])
+        self.assertEqual(self._kont(lambda j: j['rows'].__setitem__('brent', 'x'))['spojnosc'], ['brent: zły wiersz'])
+
+    def test_pominiete_kontrakty_to_uwaga_nie_blad(self):
+        o = self._kont(lambda j: j.update(pomin={'srebro': 'brak wiersza PF_XAGUSD'}))
+        self.assertEqual(o['spojnosc'], []); self.assertEqual(len(o['uwagi']), 1); self.assertIn('pominięto 1 z 6 kontraktów (np. srebro: brak wiersza PF_XAGUSD)', o['uwagi'][0])

@@ -34520,3 +34520,162 @@ test('v445 (F11Z31): karta nie sięga do przeglądarki poza ładowarką i nie ma
   const j = JSON.stringify(UPK445_FILE); assert.ok(!/api[_-]?key|token|secret|password|@/i.test(j), 'w pliku danych nie ma kluczy ani adresów'); assert.deepEqual(Object.keys(UPK445_FILE).sort(), ['at', 'hh', 'ok', 'part_at', 'pm', 'src', 'tp', 'ts', 'v']);
   assert.ok(!/New York Fed|Freddie|PMMS|Equifax|Socrata|policyuncertainty/i.test(j), 'zero nazw dostawców w pliku danych'); assert.ok(j.length < 30000, 'plik danych poniżej 30 KB: ' + j.length);
 });
+
+// ===================== v446 (F11Z33): Surowce całą dobę w GLOBAL — ropa, gaz, złoto, srebro i miedź w kontraktach całodobowych (data/surowce-247.json); karta #g-sur247 =====================
+// Fixtura S247_FILE: plik surowce-247.json zbudowany przez zbieracz (sur247_buduj) z nagrania odpowiedzi giełdy kontraktów z 18.10.2026 20:24 UTC. Czas przypięty (Date.now = 18.10.2026 20:40 UTC), bez zegara.
+// Oczekiwane liczby liczone w teście z pól fixtury (niezależnie od kodu strony), część przypięta literalnie.
+const S247_FILE = {"v":1,"at":"2026-10-18T20:32:42+00:00","t":"2026-10-18T20:24:03+00:00","src":"x","unit":"x","order":["brent","wti","gaz","zloto","srebro","miedz"],"rows":{"brent":{"sym":"PF_BRENTOILUSD","u":"USD/bbl","px":107.1294,"last":107.191,"lt":"2026-10-18T20:16:20+00:00","ix":107.133,"o24":106.998,"h24":107.303,"l24":106.47,"ch":0.12,"oi_usd":584166.0,"vq":113177.0,"t":"2026-10-18T20:24:03+00:00"},"wti":{"sym":"PF_WTIOILUSD","u":"USD/bbl","px":99.1823,"last":99.253,"lt":"2026-10-18T20:16:42+00:00","ix":99.1863,"o24":98.961,"h24":99.439,"l24":98.562,"ch":0.22,"oi_usd":771420.0,"vq":426479.0,"t":"2026-10-18T20:24:03+00:00"},"gaz":{"sym":"PF_NATGASUSD","u":"USD/MMBtu","px":3.4023,"last":3.4018,"lt":"2026-10-18T20:22:19+00:00","ix":3.4009,"o24":3.3746,"h24":3.4056,"l24":3.3746,"ch":0.82,"oi_usd":76847.0,"vq":2875.0,"t":"2026-10-18T20:24:03+00:00"},"zloto":{"sym":"PF_XAUUSD","u":"USD/oz","px":4152.1689,"last":4150.48,"lt":"2026-10-18T20:19:36+00:00","ix":4150.3363,"o24":4162.24,"h24":4162.24,"l24":4130.0,"ch":-0.24,"oi_usd":898143.0,"vq":361150.0,"t":"2026-10-18T20:24:03+00:00"},"srebro":{"sym":"PF_XAGUSD","u":"USD/oz","px":56.7068,"last":56.7012,"lt":"2026-10-18T20:17:42+00:00","ix":56.6978,"o24":56.9631,"h24":57.0405,"l24":56.412,"ch":-0.45,"oi_usd":1639914.0,"vq":286089.0,"t":"2026-10-18T20:24:03+00:00"},"miedz":{"sym":"PF_XCUUSD","u":"USD/lb","px":6.5537,"last":6.5612,"lt":"2026-10-18T20:00:22+00:00","ix":6.5406,"o24":6.5981,"h24":6.5994,"l24":6.5515,"ch":-0.67,"oi_usd":147898.0,"vq":46699.0,"t":"2026-10-18T20:24:03+00:00"}},"pomin":{}};
+const s247t = (() => {
+  const a0 = html.indexOf('/* ===================== v446 (F11Z33): SUROWCE CAŁĄ DOBĘ'), a1 = html.indexOf('/* ---------- koniec bloku surowców całą dobę (v446) ---------- */');
+  assert.ok(a0 > 0 && a1 > a0, 'blok v446 w stronie');
+  const h0 = html.indexOf('const strNum='), h1 = html.indexOf('function strFsi(', h0);
+  assert.ok(h0 > 0 && h1 > h0, 'narzędzia panelu stresu');
+  const code = html.slice(a0, a1), helpers = html.slice(h0, h1);
+  const l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
+  const f0 = html.indexOf('const NF={};'), f1 = html.indexOf('\n', html.indexOf('const k=LANG+d;', f0));
+  const NOW = Date.parse('2026-10-18T20:40:00Z');
+  class FD extends Date { constructor(...a) { if (a.length === 0) super(NOW); else super(...a); } static now() { return NOW; } }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const sp = h => String(h).replace(/[  ]/g, ' ');
+  const txt = h => sp(h).replace(/<[^>]+>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const mk = (L, files, opt) => {
+    const F = new Function('LANG', 'LOCALE', html.slice(f0, f1) + '\nreturn {nfmt};')(L, LOC);
+    const el = {innerHTML: '', hidden: true, classList: {s: new Set((opt && opt.open) ? ['zw-on'] : []), contains(c) { return this.s.has(c); }},
+      querySelectorAll() { return []; }, querySelector() { return null; }};
+    const els = {'#g-sur247': el};
+    const calls = [], ivs = [], mos = [];
+    const srv = n => { calls.push(n); const v = (files || {})[n]; return {then(f) { f(v === undefined || v === null ? null : clone(v)); return this; }}; };
+    const doc = {addEventListener: () => {}, documentElement: {}, hidden: false};
+    const T = v96src.tFor(L), EH = v96src.escH;
+    const api = new Function('$', 't', 'escH', 'nfmt', 'LOCALE', 'LANG', 'engDate', 'lnAgo', 'gxWhen', 'srvJSON', 'glyphImg', 'icoWrap', 'document', 'MutationObserver', 'setInterval', 'Date',
+      "'use strict';\n" + helpers + '\n' + code + '\nreturn {S247, s247Load, renderS247, s247Ok, s247Row, s247Usd, s247Tile, s247Rg, s247Body};')(
+      q => els[q] || null, T, EH, F.nfmt, LOC, L, s => 'D:' + s, iso => ' · ago(' + iso + ')', iso => 'W[' + iso + ']', srv, g => '<g:' + g + '>', i => i ? '<i>' + i + '</i>' : '', doc,
+      function (cb) { this.observe = (tg, o) => mos.push({cb, tg, o}); }, (f, ms) => { ivs.push([f, ms]); return ivs.length; }, FD);
+    const fire = () => mos.filter(m => m.tg === el).forEach(m => m.cb());
+    const expand = () => { el.classList.s.add('zw-on'); el.classList.s.delete('zw'); fire(); };
+    const collapse = () => { el.classList.s.add('zw-on'); el.classList.s.add('zw'); fire(); };
+    return {api, els, calls, ivs, mos, expand, collapse, html: () => sp(el.innerHTML), nfmt: F.nfmt};
+  };
+  const tiles = h => [...sp(h).matchAll(/<div class="etfk"><span>(?:<span class="icos">.*?<\/span>)?([^<]*)<\/span><b([^>]*)>(.*?)<\/b><small class="mtxt">(.*?)<\/small><\/div>/g)].map(m => ({
+    label: m[1], val: txt(m[3].split('<small')[0]), unit: (m[3].match(/<span class="un">(.*?)<\/span>/) || [, ''])[1], ico: (m[0].match(/<g:([a-z]+)>/) || [, ''])[1],
+    lines: [...m[3].matchAll(/<small class="(pos|neg|neu|na|pc)">(.*?)<\/small>/g)].map(x => [x[1], txt(x[2])]), when: txt(m[4])}));
+  const lines = h => sp(h).split('<div class="s247-r">').slice(1).map(c => ({
+    name: txt((c.match(/<span class="s247-n">.*?<b>(.*?)<\/b>/) || [, ''])[1]), left: (c.match(/left:([\d.]+)%/) || [, null])[1], lo: txt((c.match(/<span class="s247-lb"><span>(.*?)<\/span>/) || [, ''])[1]),
+    hi: txt((c.match(/<span class="s247-lb"><span>.*?<\/span><span>(.*?)<\/span>/) || [, ''])[1]), vol: txt((c.match(/data-l="Obrót 24 h">(.*?)<\/span>/) || [, ''])[1]),
+    oi: txt((c.match(/data-l="Otwarte pozycje">(.*?)<\/span>/) || [, ''])[1]), aria: (c.match(/aria-label="([^"]*)"/) || [, ''])[1]}));
+  const files = (j, meta) => ({meta: meta === undefined ? {ok: {sur247: true}} : meta, 'surowce-247': j === undefined ? clone(S247_FILE) : j});
+  const J = () => clone(S247_FILE);
+  const ids = ['brent', 'wti', 'gaz', 'zloto', 'srebro', 'miedz'];
+  return {mk, tiles, lines, files, J, sp, txt, code, clone, LOC, ids};
+})();
+
+test('v446 (F11Z33): karta surowców całą dobę — nagłówek dopiero gdy meta zna „sur247”, plik dopiero po rozwinięciu (jedno pobranie), błąd bez pętli, odświeżanie co 15 min tylko przy rozwiniętej karcie', () => {
+  const K = s247t.mk('pl', s247t.files());
+  assert.equal(K.els['#g-sur247'].hidden, false, 'meta zna część — panel widoczny');
+  let h = K.html(); assert.ok(h.includes('<h2>') && h.includes('Surowce całą dobę: ropa, gaz, złoto, srebro i miedź</h2>') && !h.includes('<details'), 'karta zwijana silnikiem kart, bez własnego bloku');
+  assert.ok(h.includes('Dane pojawią się po rozwinięciu karty.') && s247t.tiles(h).length === 0);
+  assert.deepEqual(K.calls, ['meta'], 'przy starcie tylko meta — bez pliku'); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'surowce-247'], 'po rozwinięciu jedno pobranie pliku'); K.expand(); K.collapse(); K.expand();
+  assert.deepEqual(K.calls, ['meta', 'surowce-247'], 'plik młodszy niż 10 minut — bez ponownego pobrania');
+  const iv = K.ivs.filter(([f, ms]) => ms === 15 * 60e3); assert.equal(iv.length, 1, 'odświeżanie co 15 min'); iv[0][0](); assert.deepEqual(K.calls, ['meta', 'surowce-247', 'surowce-247'], 'przy rozwiniętej karcie zegar pobiera ponownie');
+  K.collapse(); iv[0][0](); assert.equal(K.calls.length, 3, 'zwinięta karta — zegar nie pobiera');
+  assert.equal(s247t.code.split('new MutationObserver(()=>renderS247())').length, 2, 'jeden obserwator języka z tej karty');
+  assert.equal([...html.matchAll(/srvJSON\(\s*(['"`])surowce-247\1/g)].length, 1, 'plik pobierany w jednym miejscu (ładowarka)');
+  assert.equal(html.split('id="g-sur247"').length, 2, 'jedna sekcja'); assert.ok(html.includes('<section class="panel pcard" id="g-sur247" hidden></section>'));
+  const a = html.indexOf('id="g-ropa"'), b = html.indexOf('id="g-sur247"'), c = html.indexOf('id="g-chinatw"'); assert.ok(a > 0 && b > a && c > b, 'karta po karcie ropy świata, przed Chinami i Tajwanem');
+  assert.equal(s247t.mk('pl', s247t.files(undefined, null)).els['#g-sur247'].hidden, true, 'bez meta ukryta'); assert.equal(s247t.mk('pl', s247t.files(undefined, {ok: {inne: true}})).els['#g-sur247'].hidden, true, 'meta nie zna części — ukryta');
+  assert.equal(s247t.mk('pl', s247t.files(undefined, {ok: {sur247: false}})).els['#g-sur247'].hidden, false, 'część znana, choć ostatni odczyt nieudany — karta widoczna');
+  const E = s247t.mk('pl', s247t.files(null), {open: true}); assert.ok(s247t.txt(E.html()).includes('Nie udało się teraz pobrać danych')); assert.deepEqual(E.calls, ['meta', 'surowce-247']);
+  E.expand(); assert.equal(E.calls.length, 2, 'bez pętli: druga próba dopiero po minucie');
+  const Z = s247t.mk('pl', s247t.files({v: 1, at: 'x', rows: {}}), {open: true}); assert.ok(s247t.txt(Z.html()).includes('Nie udało się teraz pobrać danych'), 'plik bez żadnego wiersza = błąd, nie puste kafle');
+  const V = s247t.mk('pl', s247t.files(), {open: true}); assert.equal(s247t.tiles(V.html()).length, 6);
+});
+
+test('v446 (F11Z33): sześć kafli z liczbami z fixtury — cena i jednostka, zmiana 24 h w kolorach kierunku, zakres 24 h, wiek ostatniej transakcji, chwila odczytu', () => {
+  const F = s247t.J(), R = F.rows, K = s247t.mk('pl', s247t.files(), {open: true}), T = s247t.tiles(K.html());
+  assert.deepEqual(T.map(x => x.label), ['Ropa Brent', 'Ropa WTI', 'Gaz ziemny', 'Złoto', 'Srebro', 'Miedź']);
+  assert.deepEqual(T.map(x => x.ico), ['oil', 'oil', 'gas', 'gold', 'silver', 'copper'], 'znaczki surowców');
+  assert.deepEqual(T.map(x => x.unit), ['USD/bbl', 'USD/bbl', 'USD/MMBtu', 'USD/oz', 'USD/oz', 'USD/lb']);
+  const pl = (v, d) => (v < 0 ? '−' : '') + new Intl.NumberFormat('pl-PL', {minimumFractionDigits: d, maximumFractionDigits: d}).format(Math.abs(v)).replace(/[\u00a0\u202f]/g, ' ');   // pl: zaokrąglenie dziesiętne jak Intl (6,5515 → 6,552), bez separatora tysięcy przy czterech cyfrach
+  const dec = {brent: 2, wti: 2, gaz: 3, zloto: 2, srebro: 2, miedz: 3};
+  s247t.ids.forEach((id, i) => {
+    const r = R[id], ch = r.ch;
+    assert.equal(T[i].val, pl(r.px, dec[id]) + ' ' + T[i].unit, id);
+    assert.deepEqual(T[i].lines[0], [ch > 0 ? 'pos' : 'neg', (ch > 0 ? '▲ +' : '▼ −') + pl(Math.abs(ch), 2) + ' % · 24 h'], id + ': strzałka i kolor z pokazanej liczby');
+    assert.deepEqual(T[i].lines[1], ['pc', 'zakres 24 h: ' + pl(r.l24, dec[id]) + ' – ' + pl(r.h24, dec[id])], id);
+    assert.deepEqual(T[i].lines[2], ['pc', 'ostatnia transakcja: ago(' + r.lt + ')'], id);
+    assert.equal(T[i].when, 'odczyt: W[' + r.t + ']', id); assert.equal(T[i].lines.length, 3);
+  });
+  assert.deepEqual([T[0].val, T[3].val, T[5].val], ['107,13 USD/bbl', '4152,17 USD/oz', '6,554 USD/lb'], 'literalnie z nagrania');
+  assert.deepEqual([T[0].lines[0], T[3].lines[0], T[5].lines[0]], [['pos', '▲ +0,12 % · 24 h'], ['neg', '▼ −0,24 % · 24 h'], ['neg', '▼ −0,67 % · 24 h']], 'plus zielony, minus czerwony');
+  // zero po zaokrągleniu = żółte, brak zmiany = „—” (nigdy zero), brak zakresu i ostatniej transakcji = bez tych wierszy
+  const J = s247t.J(); J.rows.brent.ch = 0.004; J.rows.wti.ch = null; J.rows.gaz.l24 = null; J.rows.gaz.h24 = null; delete J.rows.zloto.lt;
+  const T2 = s247t.tiles(s247t.mk('pl', s247t.files(J), {open: true}).html());
+  assert.deepEqual(T2[0].lines[0], ['neu', '• 0,00 % · 24 h']); assert.deepEqual(T2[1].lines[0], ['na', '—']);
+  assert.deepEqual(T2[2].lines.map(x => x[1]).filter(x => x.startsWith('zakres')), [], 'bez zakresu nie ma wiersza zakresu'); assert.equal(T2[3].lines.length, 2, 'bez czasu ostatniej transakcji nie ma wiersza');
+  // wiersz starszy niż doba, z przyszłości albo bez ceny: kafel „—” (nie zero), wiersz znika z wykresu, informacja o braku odczytu
+  const S = s247t.J(); S.rows.wti.t = '2026-10-17T19:00:00+00:00'; S.rows.gaz.t = '2026-10-18T21:00:00+00:00'; S.rows.srebro.px = 0; S.rows.miedz.px = null;
+  const h3 = s247t.mk('pl', s247t.files(S), {open: true}).html(), T3 = s247t.tiles(h3);
+  assert.equal(T3.length, 6); [1, 2, 4, 5].forEach(i => { assert.equal(T3[i].val, '—'); assert.deepEqual(T3[i].lines, [['pc', 'brak danych — to nie zero']]); assert.equal(T3[i].when, ''); });
+  assert.equal(T3[0].val, '107,13 USD/bbl'); assert.equal(s247t.lines(h3).length, 2);
+  assert.ok(s247t.txt(h3).includes('Brak aktualnego odczytu: Ropa WTI, Gaz ziemny, Srebro, Miedź.'));
+  assert.ok(!s247t.txt(h3).includes(' 0 USD') && !/NaN|undefined/.test(h3));
+  // wszystkie wiersze nieaktualne = plik odrzucony jak błąd (karta nie pokazuje pustych kafli)
+  const W = s247t.J(); Object.values(W.rows).forEach(r => { r.t = '2026-10-16T00:00:00+00:00'; });
+  assert.ok(s247t.txt(s247t.mk('pl', s247t.files(W), {open: true}).html()).includes('Nie udało się teraz pobrać danych'));
+});
+
+test('v446 (F11Z33): wykres położenia ceny w zakresie 24 h, obrót i otwarte pozycje w USD (tys./mln, „<1 tys.”), rozszerzenie zakresu o cenę spoza niego, brak = „—”', () => {
+  const F = s247t.J(), R = F.rows, K = s247t.mk('pl', s247t.files(), {open: true}), L = s247t.lines(K.html());
+  assert.deepEqual(L.map(x => x.name), ['Ropa Brent', 'Ropa WTI', 'Gaz ziemny', 'Złoto', 'Srebro', 'Miedź']);
+  const pl = (v, d) => (v < 0 ? '−' : '') + new Intl.NumberFormat('pl-PL', {minimumFractionDigits: d, maximumFractionDigits: d}).format(Math.abs(v)).replace(/[\u00a0\u202f]/g, ' ');   // pl: zaokrąglenie dziesiętne jak Intl (6,5515 → 6,552), bez separatora tysięcy przy czterech cyfrach
+  const dec = {brent: 2, wti: 2, gaz: 3, zloto: 2, srebro: 2, miedz: 3};
+  s247t.ids.forEach((id, i) => {
+    const r = R[id], p = (r.px - r.l24) / (r.h24 - r.l24) * 100;
+    assert.equal(L[i].left, p.toFixed(1), id); assert.equal(L[i].lo, pl(r.l24, dec[id]), id); assert.equal(L[i].hi, pl(r.h24, dec[id]), id);
+    assert.equal(L[i].aria, 'Cena leży w ' + Math.round(p) + '% zakresu ostatnich 24 godzin, licząc od minimum', id);
+  });
+  assert.deepEqual([L[3].left, L[0].left, L[2].left], ['68.8', '79.2', '89.4'], 'złoto, Brent, gaz — literalnie');
+  assert.deepEqual(L.map(x => x.vol), ['113 tys. USD', '426 tys. USD', '2,9 tys. USD', '361 tys. USD', '286 tys. USD', '46,7 tys. USD']);
+  assert.deepEqual(L.map(x => x.oi), ['584 tys. USD', '771 tys. USD', '76,8 tys. USD', '898 tys. USD', '1,64 mln USD', '148 tys. USD']);
+  // cena spoza zakresu 24 h rozszerza zakres (znacznik na brzegu), zakres odwrócony i brak końca = „—”
+  const J = s247t.J(); J.rows.brent.px = 108; J.rows.wti.px = 98; J.rows.gaz.h24 = null; J.rows.zloto.vq = null; J.rows.srebro.oi_usd = null;
+  const L2 = s247t.lines(s247t.mk('pl', s247t.files(J), {open: true}).html());
+  assert.deepEqual([L2[0].left, L2[0].hi, L2[0].lo], ['100.0', '108,00', '106,47']); assert.deepEqual([L2[1].left, L2[1].lo, L2[1].hi], ['0.0', '98,00', '99,44']);
+  const K2 = s247t.mk('pl', s247t.files(J), {open: true}); assert.equal(L2[2].left, null); assert.ok(s247t.txt(K2.html()).includes('Gaz ziemny —'), 'brak zakresu: „—” w kolumnie zakresu');
+  assert.equal(L2[3].vol, '—'); assert.equal(L2[4].oi, '—');
+  const u = K.api.s247Usd;
+  assert.deepEqual([u(null), u(0), u(-5), u(NaN), u(undefined), u('x')], ['—', '—', '—', '—', '—', '—'], 'brak i zero to „—”');
+  assert.equal(s247t.txt(u(500)), '<1 tys. USD'); assert.equal(u(500), '&lt;1 tys. USD'); assert.equal(u(1000), '1,0 tys. USD'); assert.equal(u(99999), '100,0 tys. USD');
+  assert.equal(u(100000), '100 tys. USD'); assert.equal(u(999499), '999 tys. USD'); assert.equal(u(999500), '1,00 mln USD', 'zaokrąglenie do 1000 tys. przechodzi do mln'); assert.equal(u(1e6), '1,00 mln USD');
+  assert.equal(u(12.3e6), '12,3 mln USD'); assert.equal(u(1e7), '10,0 mln USD');
+  // język angielski: etykiety, separatory i jednostki
+  const E = s247t.mk('en', s247t.files(), {open: true}), TE = s247t.tiles(E.html()), LE = E.html();
+  assert.deepEqual(TE.map(x => x.label), ['Brent crude', 'WTI crude', 'Natural gas', 'Gold', 'Silver', 'Copper']);
+  assert.equal(TE[0].val, '107.13 USD/bbl'); assert.deepEqual(TE[0].lines[0], ['pos', '▲ +0.12 % · 24 h']); assert.equal(TE[0].lines[1][1], '24 h range: 106.47 – 107.30'); assert.equal(TE[0].lines[2][1], 'last trade: ago(' + R.brent.lt + ')');
+  assert.ok(LE.includes('Commodities around the clock') && LE.includes('k USD') && LE.includes('Where the price sits in the last 24 hours range') && LE.includes('24 h turnover'));
+});
+
+test('v446 (F11Z33): słownik (pl i en, a na stronie z dziesięcioma językami wszystkie) — te same klucze i znaczniki, każdy klucz użyty w kodzie istnieje, brak nazw dostawców, styl telefonu 390 px i tylko kolory systemowe', () => {
+  const D = v96src.I18N, keys = L => Object.keys(D[L]).filter(k => k.startsWith('s247.')).sort();
+  const langs = Object.keys(D).filter(l => keys(l).length); assert.ok(langs.includes('pl') && langs.includes('en'), 'co najmniej pl i en');
+  for (const l of langs) assert.deepEqual(keys(l), keys('pl'), 'te same klucze w języku ' + l);
+  assert.equal(keys('pl').length, 28);
+  const stat = [...s247t.code.matchAll(/'(s247\.[a-z0-9.]+)'/g)].map(m => m[1]).filter(k => !k.endsWith('.') && k !== 's247.not');
+  const dyn = [].concat(s247t.ids.map(id => 's247.k.' + id), [1, 2].map(i => 's247.not' + i));
+  const used = new Set(stat.concat(dyn));
+  for (const k of used) for (const l of langs) assert.ok(D[l][k], l + ': ' + k);
+  assert.deepEqual(keys('pl').filter(k => !used.has(k)), [], 'żaden klucz słownika nie jest martwy');
+  for (const l of langs) for (const k of keys('pl')) assert.deepEqual((D.pl[k].match(/\{[a-z]+\}/g) || []).sort(), (D[l][k].match(/\{[a-z]+\}/g) || []).sort(), 'znaczniki: ' + l + ' ' + k);
+  const bezKomentarzy = s247t.code.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/kraken|binance|coingecko|bybit|okx|coinbase|deribit|hyperliquid/i.test(bezKomentarzy), 'kod sekcji bez nazw dostawców');
+  assert.ok(!/kraken|binance|coingecko|bybit|okx|coinbase|deribit|hyperliquid/i.test(JSON.stringify(langs.map(l => keys(l).map(k => D[l][k])))), 'słownik bez nazw dostawców');
+  const c0 = html.indexOf('/* v446 (F11Z33): surowce całą dobę (panel #g-sur247)'), c1 = html.indexOf('</style>', c0); assert.ok(c0 > 0 && c1 > c0, 'blok stylów');
+  const css = html.slice(c0, c1);
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(css.replace(/#g-sur247/g, '')), 'żadnych stałych kolorów'); assert.ok(!/\brgba?\(/.test(css), 'tylko zmienne motywu');
+  assert.ok(css.includes('@media (max-width:760px){#g-sur247 .etfkpis{grid-template-columns:repeat(2,minmax(0,1fr))}}'), 'telefon: kafle po dwa');
+  assert.ok(/@media \(max-width:560px\)\{[^}]*#g-sur247 \.s247-r\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/.test(css.replace(/\n\s*/g, '')) && css.includes('content:attr(data-l)') && css.includes('#g-sur247 .s247-hd{display:none}'), 'telefon: wiersz w dwóch kolumnach z podpisami zamiast nagłówka');
+  assert.ok(css.includes('var(--gr-tx)') && css.includes('var(--rd-tx)') && css.includes('var(--yl-tx)'), 'kierunek: kolory systemowe strony');
+  assert.ok(/#g-sur247 \.etfk b small\.na,#g-sur247 \.etfk b small\.pc\{color:var\(--dim\)\}/.test(css), 'brak i opisy w kolorze podpisów, nie szare strzałki');
+  assert.ok(!/toLocaleString|Intl\./.test(bezKomentarzy), 'liczby przez wspólną funkcję nfmt');
+});
