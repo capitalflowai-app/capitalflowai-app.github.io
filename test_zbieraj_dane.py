@@ -17539,7 +17539,7 @@ T10_PNG = b'\x89PNG\r\n\x1a\n' + bytes(range(40))
 
 class KryptoTop10V140(unittest.TestCase):
     """v140: grupy top 10 w scenie CRYPTO — wiersze (tokeny pochodne i brak kapitalizacji odrzucone, brak ceny = None), skład z 8 kategorii (klucz
-    tylko w nagłówku), ceny jednym zapytaniem między pobraniami składu (kolejność liczona od nowa), kategoria po 6 h na nowo, awarie (poprzednie wiersze
+    tylko w nagłówku), ceny jednym zapytaniem między pobraniami składu (kolejność liczona od nowa), kategoria po T10_SKLAD (v505: ok. 2 h) na nowo, awarie (poprzednie wiersze
     z ich czasem najwyżej 72 h, błąd w meta, żadnej monety = wyjątek), jedno ponowienie po 429, loga (z poprzedniego pliku bez pobierania, tylko obrazy
     z serwera obrazów, limit na przebieg, przycięcie do monet w grupach), przebieg główny (co 55 min, poprzednie pliki po awarii), krotki zaślepek,
     kontrola; czas budowniczego (budżet T10_BUDGET, odstępy, czekanie po 429, limity czasu zapytań i logo, przebieg długi). Bez sieci: get_json i get_bytes
@@ -17658,7 +17658,7 @@ class KryptoTop10V140(unittest.TestCase):
             for x in rows:
                 if x['id'] == 'litecoin':              # 14. w L1 w nagraniu — teraz przed Cardano (10.)
                     x['market_cap'], x['current_price'], x['last_updated'] = 9.9e9, 127.5, '2026-09-27T22:25:00.000Z'
-        out, logo2 = self._build(self._aged(base, 60), logo, now=T10_NOW + datetime.timedelta(minutes=60), mut=mut)
+        out, logo2 = self._build(self._aged(base, 60), logo, now=T10_NOW + datetime.timedelta(minutes=30), mut=mut)   # v505: wiek składu 90 min < T10_SKLAD (110), jedno zapytanie o ceny
         self.assertEqual(len(self.calls), 1, 'jedno zapytanie o ceny'); u = self.calls[0][0]
         self.assertIn('ids=', u); self.assertNotIn('category=', u); self.assertEqual(out['calls'], 1)
         ids = [r[0] for r in out['g']['l1']['c']]
@@ -17689,7 +17689,7 @@ class KryptoTop10V140(unittest.TestCase):
             self._build(fail=tuple(c for _, c in zd.T10_CATS))
         base, logo = self._build()
         zd.META['errors'].clear(); self.calls.clear()
-        out, _ = self._build(self._aged(base, 120), logo, fail=('ids',))       # ceny nie przyszły: poprzednie wiersze z ich czasem notowania
+        out, _ = self._build(self._aged(base, 100), logo, fail=('ids',))       # ceny nie przyszły: poprzednie wiersze z ich czasem notowania (v505: 100 < T10_SKLAD = 110, bez nowego składu)
         self.assertEqual(out['g']['l1']['c'], base['g']['l1']['c']); self.assertFalse(any(out['ok'].values()))
         self.assertTrue(zd.META['errors'][0].startswith('krypto top 10: ceny ('), zd.META['errors'])
         zd.META['errors'].clear()
@@ -72800,7 +72800,7 @@ class KryptoTop100V439(unittest.TestCase):
             mcs = [r[0] for r in w['c']]
             self.assertEqual(mcs, sorted(mcs, reverse=True), k + ': malejąco wg kapitalizacji')
             self.assertLess(max(mcs), min(r[4] for r in g['c']) + 1, k + ': warstwa to miejsca po dziesiątce grupy')
-            self.assertTrue(all(isinstance(r, list) and len(r) == 2 and isinstance(r[0], int) and r[0] > 0 for r in w['c']), k + ': [kapitalizacja int, zmiana]')
+            self.assertTrue(all(isinstance(r, list) and len(r) == 4 and isinstance(r[0], int) and r[0] > 0 for r in w['c']), k + ': [kapitalizacja int, zmiana, symbol, nazwa] (v505)')
             self.assertTrue(all(r[1] is None or (isinstance(r[1], float) and _m439.isfinite(r[1])) for r in w['c']))
             self.assertNotIn('pochodny', json.dumps(w), 'token pochodny bez miejsca pominięty')
         l1 = out['g']['l1']; self.assertNotIn('bitcoin', [r[0] for r in l1['c']]); self.assertGreater(l1['c'][0][4], l1['w']['c'][0][0])
@@ -72849,7 +72849,7 @@ class KryptoTop100V439(unittest.TestCase):
 
     def test_pack_i_prev(self):
         rows = [['a', 'A', 'a', 1.0, 5e9, 1.23456, None], ['b', 'B', 'b', 1.0, 2e9, None, None], ['c', 'C', 'c', 1.0, 0, 1.0, None]]
-        self.assertEqual(zd.t100_pack(rows, '2026-10-18T12:00:00+00:00'), {'at': '2026-10-18T12:00:00+00:00', 'c': [[5000000000, 1.235], [2000000000, None]]}, 'zmiana zaokrąglona, brak = None, kapitalizacja 0 pominięta')
+        self.assertEqual(zd.t100_pack(rows, '2026-10-18T12:00:00+00:00'), {'at': '2026-10-18T12:00:00+00:00', 'c': [[5000000000, 1.235, 'A', 'a'], [2000000000, None, 'B', 'b']]}, 'zmiana zaokrąglona, brak = None, kapitalizacja 0 pominięta; v505: symbol i nazwa na końcu')
         self.assertIsNone(zd.t100_pack([], 'x')); self.assertIsNone(zd.t100_pack(rows, None))
         at = (self.NOW - datetime.timedelta(hours=1)).isoformat()
         good = {'at': at, 'c': [[5e9, 1.0], [3e9, None]]}
@@ -72865,8 +72865,8 @@ class KryptoTop100V439(unittest.TestCase):
         out = self._build()
         for g in out['g'].values():
             for r in g['w']['c']:
-                self.assertEqual(len(r), 2, 'warstwa bez nazw i identyfikatorów monet')
-        self.assertLess(len(json.dumps(out, separators=(',', ':'))), 60000, 'plik sceny nie rośnie ponad miarę (8 × 90 wierszy po dwie liczby)')
+                self.assertEqual(len(r), 4, 'v505: warstwa z symbolem i nazwą monety, bez identyfikatorów')
+        self.assertLess(len(json.dumps(out, separators=(',', ':'))), 80000, 'plik sceny nie rośnie ponad miarę (8 × 90 wierszy: dwie liczby, symbol i nazwa)')
 
     def test_v437_kazda_moneta_w_jednym_sektorze_takze_w_warstwie(self):
         """v439 po v437 (korekta v440-int): moneta z dziesiątki jednego sektora nie stoi też w warstwie innego; moneta głęboko w dwóch sektorach — w warstwie tylko jednego (węższa kategoria)."""
@@ -83012,3 +83012,73 @@ class TestV503XstocksBezDowoduOsobno(unittest.TestCase):
         with self.assertRaises(ValueError) as c:
             zd._rwe_xs_licz(_rwe170_xs(N), None, lambda S: {s: 3809.0 for s in S})
         self.assertIn('— ponad 0.5% sumy', str(c.exception), 'granica z percentyla cen to szacunek — limit 0,5% zostaje')
+
+
+class TestV505Top100Nazwy(unittest.TestCase):
+    """v505 (20.10.2026): warstwa Top 100 sceny CRYPTO zapisuje w wierszu symbol i nazwę monety ([kapitalizacja, zmiana, SYMBOL, nazwa]) — dymek zakończenia
+    pokazuje, o jaką monetę chodzi; stare wiersze 2-elementowe nadal czytane (plik sprzed zmiany); skład kategorii (i warstwa) co ok. 2 h zamiast 6 h.
+    Bez sieci i bez zegara (now=, zegar i czekanie podmienione; pomocniki z klasy v439 bez dziedziczenia jej testów)."""
+    NOW = KryptoTop100V439.NOW
+    setUp = KryptoTop100V439.setUp
+    _x = KryptoTop100V439.__dict__['_x']
+    _rows = KryptoTop100V439._rows
+    _build = KryptoTop100V439._build
+
+    def _by_id(self):
+        return {x['id']: x for rr in self._rows().values() for x in rr}
+
+    def test_wiersz_ma_symbol_i_nazwe_a_liczby_bez_zmian(self):
+        out = self._build()
+        by = self._by_id()
+        for k, g in out['g'].items():
+            self.assertTrue(g['w']['c'], k)
+            for r in g['w']['c']:
+                self.assertEqual(len(r), 4, k + ': [kapitalizacja, zmiana, SYMBOL, nazwa]')
+                x = by[r[3]]   # w danych próbnych nazwa = identyfikator
+                self.assertEqual((r[0], r[2]), (round(x['market_cap']), x['symbol'].upper()), k)
+                self.assertTrue(r[3].startswith(k + '-c'), k + ': moneta z własnej kategorii: ' + r[3])
+            mcs = [r[0] for r in g['w']['c']]
+            self.assertEqual(mcs, sorted(mcs, reverse=True), k + ': kolejność wg kapitalizacji bez zmian')
+        self.assertLess(len(json.dumps(out, separators=(',', ':'))), 80000, 'plik sceny z nazwami nadal mały')
+
+    def test_pack_i_prev_z_nazwami_i_starym_ksztaltem(self):
+        rows = [['a', 'AA', 'Alfa  Coin ', 1.0, 5e9, 1.23456, None], ['b', 'BB', 'Beta', 1.0, 2e9, None, None], ['c', 'CC', 'Gamma', 1.0, 0, 1.0, None]]
+        self.assertEqual(zd.t100_pack(rows, '2026-10-18T12:00:00+00:00'),
+                         {'at': '2026-10-18T12:00:00+00:00', 'c': [[5000000000, 1.235, 'AA', 'Alfa  Coin '], [2000000000, None, 'BB', 'Beta']]},
+                         'symbol i nazwa jak w odpowiedzi (porządkowane dopiero przy odczycie), kapitalizacja 0 pominięta')
+        at = (self.NOW - datetime.timedelta(hours=1)).isoformat()
+        nowy = zd.t100_prev({'at': at, 'c': [[5e9, 1.0, 'AA', ' Alfa   Coin '], [4e9, None, 'BB', 'Beta']]}, self.NOW)
+        self.assertEqual(nowy['c'], [[5e9, 1.0, 'AA', 'Alfa Coin'], [4e9, None, 'BB', 'Beta']], 'nowy kształt przenoszony, spacje uporządkowane')
+        stary = zd.t100_prev({'at': at, 'c': [[5e9, 1.0], [4e9, None]]}, self.NOW)
+        self.assertEqual(stary['c'], [[5e9, 1.0], [4e9, None]], 'plik sprzed v505 (2 elementy) nadal poprawny')
+        zly = zd.t100_prev({'at': at, 'c': [[5e9, 1.0, 7, 'x'], [4e9, 1.0, '', 'x'], [3e9, 1.0, 'S', None], [2e9, 1.0, 'S'], [1e9, 1.0, 'S', 'n', 'z'], [6e9, 'x', 'S', 'n'],
+                                           [7e9, 2.0, 'S' * 40, 'N' * 100]]}, self.NOW)
+        self.assertEqual(zly['c'], [[5e9, 1.0], [4e9, 1.0], [3e9, 1.0], [7e9, 2.0, 'S' * 16, 'N' * 60]],
+                         'zły symbol/nazwa = liczby bez nich; zły kształt (3, 5 elementów) i zła zmiana odrzucone; długie teksty obcięte')
+
+    def test_skad_wiersze_miedzy_skladami_i_przejscie_ze_starego_pliku(self):
+        out = self._build()
+        later = self.NOW + datetime.timedelta(minutes=70)
+        self.urls.clear()
+        out2 = self._build(prev=out, now=later)
+        self.assertEqual(len(self.urls), 1, 'między składami jedno zapytanie o ceny')
+        for k in out['g']:
+            self.assertEqual(out2['g'][k]['w'], out['g'][k]['w'], k + ': warstwa z nazwami przeniesiona bez zmian')
+        stary = _t10_copy.deepcopy(out)
+        for g in stary['g'].values():
+            g['w']['c'] = [r[:2] for r in g['w']['c']]
+        out3 = self._build(prev=stary, now=later)
+        self.assertTrue(all(len(r) == 2 for g in out3['g'].values() for r in g['w']['c']), 'stary plik między składami: wiersze bez nazw, nic nie pęka')
+        self.urls.clear()
+        out4 = self._build(prev=stary, now=self.NOW + datetime.timedelta(minutes=zd.T10_SKLAD + 1))
+        self.assertEqual(sum('category' in u for u in self.urls), 8, 'po T10_SKLAD skład wszystkich 8 kategorii')
+        self.assertTrue(all(len(r) == 4 for g in out4['g'].values() for r in g['w']['c']), 'po nowym składzie wiersze mają symbol i nazwę')
+
+    def test_odswiezanie_co_ok_2_godziny_i_budzet_planu(self):
+        self.assertTrue(90 <= zd.T10_SKLAD <= 130, 'ok. 2 h (przebiegi co ok. 55–65 min): ' + str(zd.T10_SKLAD))
+        out = self._build()
+        self.urls.clear()
+        self._build(prev=out, now=self.NOW + datetime.timedelta(minutes=zd.T10_SKLAD - 5))
+        self.assertEqual([u for u in self.urls if 'category' in u], [], 'przed upływem T10_SKLAD brak zapytań o skład')
+        na_dobe = 8 * 12 + 12   # skład co 2. przebieg (12 razy) + zapytanie o ceny w pozostałych 12 przebiegach
+        self.assertLess(na_dobe * 31, 10000 * 0.4, 'ten plik zużywa najwyżej 40% miesięcznego limitu planu Demo (razem z resztą krypto poniżej 80%)')

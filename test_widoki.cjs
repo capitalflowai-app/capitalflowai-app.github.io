@@ -37812,3 +37812,47 @@ test('v504 (BRENT_KAFEL): kafel „Ropa Brent” (GLOBAL, Puls, Aktywa) pokazuje
   // 7) słownik pl i en, bez nazw dostawców
   assert.ok(/Cena fizyczna/.test(t('g504.fiz', {v: '1', d: '2'})) && /Physical price/.test(te('g504.fiz', {v: '1', d: '2'})) && !/EIA|ICE|FMP|Reuters/.test(t('g504.fiz') + te('g504.fiz')));
 });
+
+
+/* ===================== v505: TOP 100 — nazwa i symbol monety w dymku zakończenia, wiersz [kapitalizacja, zmiana, SYMBOL, nazwa] ===================== */
+test('v505 Top 100: plik z symbolem i nazwą — odczyt ostrożny, stary wiersz 2-elementowy nadal działa; stabilne identyfikatory zakończeń', () => {
+  const R = t100B.open(1100, 680), A = R.api, W = A.T10.w100, at = '2026-10-20T10:00:00+00:00';
+  const n = W.norm({at, c: [[1e9, 1, 'AAA', ' Alfa   Coin '], [3e9, null, 'BBB', 'Beta'], [2e9, 2], [4e9, 1, 7, 'x'], [5e9, 1, 'S', ''], [6e9, 1, 'S'.repeat(40), 'N'.repeat(100)]]});
+  assert.deepEqual(n.c, [{mc: 6e9, ch: 1, sym: 'S'.repeat(16), name: 'N'.repeat(60)}, {mc: 5e9, ch: 1}, {mc: 4e9, ch: 1}, {mc: 3e9, ch: null, sym: 'BBB', name: 'Beta'}, {mc: 2e9, ch: 2}, {mc: 1e9, ch: 1, sym: 'AAA', name: 'Alfa Coin'}],
+    'symbol i nazwa tylko gdy oba są tekstem (spacje uporządkowane, długie obcięte); inaczej sama liczba; stary kształt bez zmian');
+  assert.deepEqual(W.norm({at, c: [[1e9, 1], [2e9, 0]]}).c, [{mc: 2e9, ch: 0}, {mc: 1e9, ch: 1}], 'plik sprzed v505: dokładnie jak dotąd');
+  const o = t100B.file(); for (const k in o.g) if (o.g[k].w) o.g[k].w.c = o.g[k].w.c.map((r, i) => [r[0], r[1], i % 10 === 3 ? 'DUP' : 'S' + i, 'Moneta ' + i]);
+  const Q = t10B.open(1100, 680, {files: {'data/krypto-top10': o}}), B = Q.api; B.st.t100 = true; t10B.frame(Q, .78);
+  for (const k of Object.keys(B.T10.data.g)) { const F = B.T10.w100.fan(k, false), ids = F.pts.map(p => p.id);
+    assert.equal(new Set(ids).size, ids.length, k + ': identyfikatory zakończeń różne (powtórzony symbol dostaje numer)'); assert.ok(F.pts.every(p => typeof p.name === 'string' && p.id.startsWith('wS') || p.id.startsWith('wDUP')), k); }
+  const F2 = B.T10.w100.fan('l1', false); assert.equal(F2.pts[0].name, 'Moneta 0'); assert.equal(F2.pts[0].sym, 'S0');
+  const G = t100B.open(1100, 680), g = G.api; g.st.t100 = true; t10B.frame(G, .78); const P = g.T10.w100.fan('l1', false).pts;
+  assert.ok(P.every((p, i) => p.id === 'w' + i && p.name === undefined), 'plik bez nazw: identyfikatory po numerze jak dotąd');
+});
+
+test('v505 Top 100: dymek zakończenia pokazuje nazwę i symbol monety (oraz sektor, miejsce i liczby jak dotąd); bez nazw w pliku — jak dotąd', () => {
+  const o = t100B.file(); for (const k in o.g) if (o.g[k].w) o.g[k].w.c = o.g[k].w.c.map((r, i) => [r[0], r[1], 'S' + i, 'Moneta <b>' + i]);
+  const R = t10B.open(1100, 680, {files: {'data/krypto-top10': o}}), A = R.api, W = A.T10.w100, cv = R.el('c3d'); A.st.t100 = true; t10B.frame(R, .78);
+  const h = A.T10.hit.find(x => x.w && A.t10PickTop(x.x, x.y) === x); assert.ok(h, 'zakończenie na wolnym miejscu');
+  R.act('najechanie', () => cv.dispatchEvent(t10B.ev('pointermove', h.x, h.y)));
+  const tip = A.T10.tip, F = W.fan(h.k, false), j = h.i - 1000, e = F.pts[j], gr = A.T10_G.find(x => x[0] === h.k), sec = gr[2] || A.nName(gr[1]);
+  assert.ok(tip && !tip.hidden, 'dymek widoczny');
+  assert.ok(tip.innerHTML.includes('<span>Moneta &lt;b&gt;' + e.name.replace('Moneta <b>', '') + ' <small>' + e.sym + '</small></span>'), 'nazwa (zabezpieczona) i symbol w nagłówku: ' + tip.innerHTML.slice(0, 200));
+  assert.ok(!tip.innerHTML.includes('Moneta <b>'), 'nazwa z pliku nie wstawia znaczników');
+  for (const s of [A.t('c100.h', {s: sec}), A.t('c10.rank', {s: sec, r: e.rank, n: 10 + F.n}), A.t('c10.mc'), A.t('c10.ch'), A.t('c100.fl'), A.t('c100.sh'), A.t('c100.shs'), A.t('c100.meth')])
+    assert.ok(tip.innerHTML.includes(s.replace(/&/g, '&amp;')), 'dymek nadal ma: ' + s);
+  assert.ok(A.T10.tip.innerHTML.indexOf(e.sym) < A.T10.tip.innerHTML.indexOf(A.t('c10.mc')), 'nazwa przed liczbami');
+  const tap = (x, y) => { cv.dispatchEvent(t10B.ev('pointerdown', x, y, {pointerType: 'touch', pointerId: 7})); cv.dispatchEvent(t10B.ev('pointerup', x, y, {pointerType: 'touch', pointerId: 7})); };
+  R.act('dotknięcie', () => tap(h.x + 1, h.y)); assert.ok(A.T10.pin && A.T10.pin.id === h.id && h.id === 'w' + e.sym, 'przypięcie po symbolu monety: ' + h.id);
+  const G = t100B.open(1100, 680), g = G.api, cg = G.el('c3d'); g.st.t100 = true; t10B.frame(G, .78);
+  const h2 = g.T10.hit.find(x => x.w && g.t10PickTop(x.x, x.y) === x); G.act('najechanie', () => cg.dispatchEvent(t10B.ev('pointermove', h2.x, h2.y)));
+  assert.ok(g.T10.tip.innerHTML.includes(g.t('c100.h', {s: (g.T10_G.find(x => x[0] === h2.k)[2] || g.nName(g.T10_G.find(x => x[0] === h2.k)[1]))})) && !g.T10.tip.innerHTML.includes('<small>'), 'plik bez nazw: nagłówek sektora jak dotąd, bez nazwy');
+});
+
+test('v505 Top 100: opis w dymku — krótki, bez słowa „bez nazwy”, bez opisu metody, odświeżanie co około 2 godziny (pl i en)', () => {
+  const R = t100B.open(1100, 680), A = R.api;
+  const pl = A.t('c100.meth'); assert.ok(!/bez nazwy|kilka godzin/.test(pl) && /2 godziny/.test(pl) && pl.length < 160, pl);
+  const m = /const (EXTRA\d+)=(\{"pl":\{"c100\.btn"[^\n]*?\});\nfor\(const l in \1\)/.exec(html), D = JSON.parse(m[2]);
+  assert.ok(!/no name|few hours/.test(D.en['c100.meth']) && /2 hours/.test(D.en['c100.meth']) && D.en['c100.meth'].length < 160, D.en['c100.meth']);
+  assert.ok(!/bez nazwy monety/.test(html.slice(html.indexOf('function t100TipHtml'), html.indexOf('function t100TipShow'))), 'kod dymka nie twierdzi, że nazwy nie ma');
+});

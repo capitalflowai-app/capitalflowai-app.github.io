@@ -5900,7 +5900,7 @@ def build_krypto(cg_key, prev=None):
 # DeFi, RWA, memecoiny, DePIN, gaming (giełdy — bez grupy). CoinGecko /coins/markets z kluczem właściciela w nagłówku (jak build_krypto); bez klucza —
 # zapytania publiczne (mniejszy limit). Skład kategorii (do T10_POOL kandydatów) pobierany co T10_SKLAD min — 8 zapytań; w pozostałych przebiegach
 # JEDNO zapytanie ids=… o ceny i kapitalizacje wszystkich kandydatów naraz, a kolejność liczona od nowa (skład top 10 zmienia się sam także między
-# pobraniami kategorii). Budżet planu Demo (10 000 zapytań/mies.): 8 × 4 + 1 × 20 ≈ 52 zapytania na dobę (≈ 1 600/mies.) obok ok. 120 na dobę
+# pobraniami kategorii). Budżet planu Demo (10 000 zapytań/mies.): v505: skład co ok. 2 h = 8 × 12 + ok. 12 × 1 ≈ 110 zapytań na dobę (≈ 3 400/mies.; było 52 na dobę) obok ok. 120 na dobę
 # pozostałych części krypto. Tylko monety z własnym miejscem w rankingu kapitalizacji: tokeny pochodne (stakowane, opakowane, „peg”) miejsca nie mają
 # i powtarzają kapitał monety bazowej — pomijane. Loga: obrazki 50 px z serwera obrazów (nie API, bez limitu zapytań), pobierane raz na monetę
 # i wbudowane jako data: w osobny plik logo (przeglądarka widza nie łączy się z obcym serwerem; strona wczytuje plik logo raz na wizytę, plik danych
@@ -5930,10 +5930,12 @@ T10_STABILNE = frozenset({'dai', 'usds', 'tether', 'usd-coin', 'ethena-usde', 'u
                           'gemini-dollar', 'binance-usd', 'ripple-usd', 'global-dollar', 'stasis-eurs'})
 T10_N = 10               # monet w grupie
 T10_WIDE = 100           # v439: wierszy kategorii w zapytaniu składu (to samo zapytanie co dotąd, tylko dłuższa strona): 10 w grupie + do 90 w warstwie Top 100
-T100_MAX_AGE = 12 * 60   # min — najstarsze wiersze warstwy Top 100 z poprzedniego pliku, gdy skład kategorii nie przyszedł (odświeżane co T10_SKLAD = 6 h)
+T100_MAX_AGE = 12 * 60   # min — najstarsze wiersze warstwy Top 100 z poprzedniego pliku, gdy skład kategorii nie przyszedł (odświeżane co T10_SKLAD ≈ 2 h)
 T10_POOL = 25            # kandydatów z jednej kategorii (jedno zapytanie; zapas na tokeny pochodne, zmianę kolejności między pobraniami składu i monety, których sektorem głównym jest inny — v437: było 20)
 T10_EVERY = 55           # min — ceny i kapitalizacje (jak krypto.json)
-T10_SKLAD = 360          # min — skład kategorii na nowo; kategoria z błędem albo z mniej niż T10_N kandydatami — w następnym przebiegu
+T10_SKLAD = 110          # min — skład kategorii na nowo (v505: było 360); przebiegi budowniczego są co ok. 55–65 min, więc 110 = co drugi przebieg, ok. 2 h; kategoria z błędem albo z mniej niż T10_N kandydatami — w następnym przebiegu
+# v505: zużycie planu Demo (10 000/mies.): skład 8 × 12 na dobę + ceny ok. 12 = ok. 110 zapytań na dobę dla tego pliku (było ok. 52); razem z resztą krypto (stan 20.10: 120–170 na dobę) ok. 230 na dobę = ok. 7 000/mies. (70% limitu);
+# kontrola dzienna (zuzycie_ocena) ostrzega od 80% — wtedy przywrócić 180 albo 360
 T10_MAX_AGE = 72 * 60    # min — najstarsze poprzednie wiersze grupy, gdy ceny nie przyszły (potem „brak danych”)
 T10_SLEEP = 2.5          # s między zapytaniami do API (limit Demo 30/min; w tym samym przebiegu pyta też część krypto)
 T10_WAIT_429 = 20        # s — jedno ponowienie po 429 w całym przebiegu
@@ -6107,10 +6109,23 @@ def _t10_fresh(r, now):
 
 
 def t100_pack(rows, at):
-    """v439: warstwa Top 100 jednej grupy — monety poza dziesiątką grupy (miejsca 11–100 w kategorii wg kapitalizacji) jako [kapitalizacja USD, zmiana 24 h %]
-    (bez nazw i identyfikatorów: strona rysuje tylko linie i zakończenia, bez opisów monet); {'at': czas składu, 'c': [...]} albo None, gdy monet brak."""
-    c = [[round(r[4]), round(r[5], 3) if r[5] is not None else None] for r in rows if r[4] and r[4] > 0]
+    """v439: warstwa Top 100 jednej grupy — monety poza dziesiątką grupy (miejsca 11–100 w kategorii wg kapitalizacji) jako [kapitalizacja USD, zmiana 24 h %];
+    v505: z SYMBOLEM i nazwą monety na końcu wiersza ([kapitalizacja, zmiana, SYMBOL, nazwa]) — dymek zakończenia pokazuje, o jaką monetę chodzi
+    (bez identyfikatorów; kolejność i wartości liczb bez zmian); {'at': czas składu, 'c': [...]} albo None, gdy monet brak."""
+    c = [[round(r[4]), round(r[5], 3) if r[5] is not None else None, r[1], r[2]] for r in rows if r[4] and r[4] > 0]
     return {'at': at, 'c': c} if c and at else None
+
+
+def _t100_row(r):
+    """v505: wiersz warstwy z poprzedniego pliku — [kapitalizacja > 0, zmiana albo null] (stary kształt) albo z symbolem i nazwą na końcu (nowy); zły symbol albo
+    nazwa (nie tekst, pusty) = wiersz bez nich (liczby zostają); zły wiersz = None."""
+    if not (isinstance(r, list) and len(r) in (2, 4) and _t10_num(r[0]) and r[0] > 0 and (r[1] is None or _t10_num(r[1]) is not None)):
+        return None
+    if len(r) == 4 and isinstance(r[2], str) and isinstance(r[3], str):
+        sym, name = re.sub(r'\s+', ' ', r[2]).strip()[:16], re.sub(r'\s+', ' ', r[3]).strip()[:60]
+        if sym and name:
+            return [r[0], r[1], sym, name]
+    return [r[0], r[1]]
 
 
 def t100_prev(w, now):
@@ -6121,7 +6136,7 @@ def t100_prev(w, now):
     a = _t10_age(w.get('at'), now)
     if a is None or a < 0 or a >= T100_MAX_AGE:
         return None
-    c = [r for r in w['c'] if isinstance(r, list) and len(r) == 2 and _t10_num(r[0]) and r[0] > 0 and (r[1] is None or _t10_num(r[1]) is not None)][:T10_WIDE - T10_N]
+    c = [x for x in (_t100_row(r) for r in w['c']) if x][:T10_WIDE - T10_N]   # v505: także wiersze z symbolem i nazwą
     return {'at': w['at'], 'c': c} if c else None
 
 
@@ -34373,7 +34388,7 @@ def main():
     META['ok']['hlaave_hl'], META['ok']['hlaave_aave'] = hla_czesc()
     # v394 (F11Z8): premie lokalnych stablecoinów USDT wobec kursu referencyjnego — data/premie-stable.json; zapytania tylko w oknie po opublikowaniu kursu (raz na dzień roboczy), poza nim sam zapis pliku
     META['ok']['premie_st_tr'], META['ok']['premie_st_br'], META['ok']['premie_st_za'], META['ok']['premie_st_id'], META['ok']['premie_st_in'], META['ok']['premie_st_mx'] = pst_czesc()
-    # v140: TOP 10 monet w 8 sektorach sceny CRYPTO (klucz CoinGecko w nagłówku): najwyżej co 55 min, skład kategorii co 6 h (reszta: jedno zapytanie
+    # v140: TOP 10 monet w 8 sektorach sceny CRYPTO (klucz CoinGecko w nagłówku): najwyżej co 55 min, skład kategorii (i warstwa Top 100) co ok. 2 h (v505; reszta: jedno zapytanie
     # o ceny); oba pliki zapisywane w każdym przebiegu (strona składana od zera); awaria = poprzednie pliki i błąd „krypto top 10: …” (brak ≠ zero)
     prev_t10, prev_t10l = previous('krypto-top10'), previous('krypto-top10-logo')
     if prev_t10 and fresh(prev_t10, T10_EVERY):
