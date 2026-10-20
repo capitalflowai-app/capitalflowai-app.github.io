@@ -17294,6 +17294,98 @@ def cz_check(c, rates, cz, out, now):
     return res
 
 
+# v499 (B5): okres rozliczenia Binance (rynki USDT/USDC) z miesięcznego archiwum publicznego (data.binance.vision, ten sam host co pliki dzienne
+# dźwigni). Zapytania o okres wprost do giełd z serwerów GitHuba są blokowane (Binance 451, Bybit 403 — sonda 17.10), więc ich nie ma; Bybit zostaje
+# bez okresu (stawka za okres giełdy, bez przeliczania na rok). Plik miesięczny (calc_time ms, funding_interval_hours, last_funding_rate) powstaje po
+# końcu miesiąca: okres jest znany z jego ostatnich dni. Ważny tylko, gdy w ostatnich 7 dniach pliku okres jest jeden i zapis jest pełny (zmiana okresu
+# albo dziury = okres niepewny = bez przeliczania na rok), a ostatni zapis ma najwyżej 40 dni. Wpis: cz.bnh[symbol giełdy] = {h, m, last, t}.
+CZ_BNH_URL = 'https://data.binance.vision/data/futures/um/monthly/fundingRate/{s}/{s}-fundingRate-{m}.zip'
+CZ_BNH_KEEP = 40 * 86400        # s: okres ważny, gdy ostatni zapis archiwum nie jest starszy
+CZ_BNH_WIN = 7 * 86400          # s: okno ostatnich dni pliku, w którym okres musi być jeden i zapis pełny
+CZ_BNH_RECHECK = 86400          # s: wpis (także „brak okresu”) sprawdzany ponownie najwcześniej po dobie, chyba że dotyczy już ostatniego miesiąca
+CZ_BNH_MAX = 200000             # B: plik miesięczny ma ok. 1 kB; większy = błąd
+
+
+def cz_is_binance(cz, code):
+    return str((cz.get('ex') or {}).get(code) or '').lower().startswith('binance')
+
+
+def cz_bn_sym(sym):
+    """Symbol rynku Binance u pośrednika ('BTCUSDT_PERP.A') → symbol giełdy ('BTCUSDT'); inny kształt (np. kontrakt w monecie bazowej) → None."""
+    m = re.match(r'^([A-Z0-9]{2,20}(?:USDT|USDC))_PERP\.[A-Z0-9]$', str(sym or ''))
+    return m.group(1) if m else None
+
+
+def cz_bnh_parse(text):
+    """CSV miesięczny → {'h': okres w godzinach, 'last': ISO ostatniego zapisu} albo None (zły nagłówek, pusty, okres niejednolity w ostatnich 7 dniach,
+    zapis niepełny albo okres poza 1–24 h = okres niepotwierdzony)."""
+    lines = str(text).splitlines()
+    if not lines or 'funding_interval_hours' not in lines[0] or not lines[0].startswith('calc_time'):
+        return None
+    rows = []
+    for ln in lines[1:]:
+        p = ln.split(',')
+        try:
+            rows.append((int(p[0]), float(p[1])))
+        except (ValueError, IndexError):
+            continue
+    if not rows:
+        return None
+    last = max(t for t, _h in rows)
+    win = [(t, h) for t, h in rows if t >= last - CZ_BNH_WIN * 1000]
+    hs = {h for _t, h in win}
+    if len(hs) != 1:
+        return None
+    h = hs.pop()
+    if not 1 <= h <= 24 or len({t for t, _h in win}) < 0.8 * CZ_BNH_WIN / 3600 / h:
+        return None
+    return {'h': float(h), 'last': cz_iso(last // 1000)}
+
+
+def cz_bnh_months(now):
+    """Dwa ostatnie zamknięte miesiące (najnowszy pierwszy) jako 'RRRR-MM'."""
+    d, out = now.date().replace(day=1), []
+    for _ in range(2):
+        d = (d - datetime.timedelta(days=1)).replace(day=1)
+        out.append(d.strftime('%Y-%m'))
+    return out
+
+
+def cz_bnh_refresh(cz, rows, now):
+    """Uzupełnia cz.bnh dla rynków Binance z `rows` (brakujące albo starsze niż doba wpisy, o ile nie dotyczą już ostatniego zamkniętego miesiąca);
+    najpierw ostatni zamknięty miesiąc, a gdy pliku jeszcze nie ma (404) — poprzedni. Błąd odczytu → notatka, poprzedni wpis zostaje (ważność
+    sprawdza cz_hours). Zmieniony okres w ostatnich dniach albo brak pliku → wpis bez okresu. → True, gdy spis się zmienił."""
+    import zipfile
+    store, months, changed, seen = cz.setdefault('bnh', {}), cz_bnh_months(now), False, set()
+    for r in rows:
+        s = cz_bn_sym(r[0]) if cz_is_binance(cz, r[1]) else None
+        e = store.get(s)
+        if not s or s in seen or (isinstance(e, dict) and (e.get('m') == months[0] or cz_age(e.get('t'), now) < CZ_BNH_RECHECK)):
+            continue
+        seen.add(s)
+        got = (None, None)
+        try:
+            for m in months:
+                try:
+                    data = get_bytes_maks(CZ_BNH_URL.format(s=s, m=m), timeout=lev_tmo(), maks=CZ_BNH_MAX)
+                except urllib.error.HTTPError as ex:
+                    if ex.code == 404:
+                        continue
+                    raise
+                with zipfile.ZipFile(io.BytesIO(data)) as z:
+                    names = [n for n in z.namelist() if n.lower().endswith('.csv')]
+                    if not names:
+                        raise ValueError('archiwum bez CSV')
+                    got = (m, cz_bnh_parse(z.read(names[0]).decode('utf-8', 'replace')))
+                break
+        except Exception as ex:  # noqa — okres jest dodatkiem; finansowanie liczy się dalej (bez przeliczania tego rynku na rok)
+            META['notes'].append(mask(f'Dźwignia: Binance okres {s}: {ex}')[:300])
+            continue
+        store[s] = dict({'h': got[1]['h'], 'last': got[1]['last']} if got[1] else {'h': None}, m=got[0], t=now.replace(microsecond=0).isoformat())
+        changed = True
+    return changed
+
+
 def cz_hours(sym, code, c, cz, now):
     """Okres rozliczenia rynku w godzinach, gdy potwierdzony; inaczej None (stawka zostaje za okres, bez przeliczania na rok).
     Giełda z tabeli CZ_FR_H: najnowsze rozstrzygające porównania (BTC i ETH, ≤ 7 dni) muszą być zgodne — przy tym samym czasie (oba
@@ -17311,6 +17403,10 @@ def cz_hours(sym, code, c, cz, now):
         v = chk.get(f'okx:{c}')
         if isinstance(v, dict) and v.get('ok') is True and v.get('sym') == sym and cz_age(v.get('t'), now) <= CZ_CHK_KEEP and lev_num(v.get('h')):
             return v['h']
+    if p is None and cz_is_binance(cz, code):   # v499: Binance — okres z archiwum miesięcznego (cz.bnh); brak, niejednolity albo starszy niż CZ_BNH_KEEP = None
+        e = (cz.get('bnh') or {}).get(cz_bn_sym(sym))
+        if isinstance(e, dict) and lev_num(e.get('h')) and cz_age(e.get('last'), now) <= CZ_BNH_KEEP:
+            return float(e['h'])
     return None
 
 
@@ -17353,7 +17449,7 @@ def cz_fr(rows, rates, s, hours_of, now):
 def cz_norm(prev):
     """Poprzednia część `cz` → głęboka kopia z pewnymi słownikami (zły kształt = pusty, zadania wracają do kolejki)."""
     P = json.loads(json.dumps(prev)) if isinstance(prev, dict) else {}
-    for k in ('ex', 'mk', 's', 'lqno', 'c', 'q', 'chk'):
+    for k in ('ex', 'mk', 's', 'lqno', 'c', 'q', 'chk', 'bnh'):
         if not isinstance(P.get(k), dict):
             P[k] = {}
     for c in list(P['mk']):
@@ -17537,6 +17633,21 @@ def lev_cz(prev, key, out=None, now=None):
     return cz
 
 
+def lev_cz_bn(prev, key, out=None, now=None):
+    """v499: lev_cz + okres rozliczenia Binance. Spis cz.bnh odświeżany tylko dla monet z zadaniem finansowania w tym przebiegu i tylko dla
+    brakujących albo przeterminowanych wpisów; błąd = notatka, a finansowanie liczy się dalej (rynek bez okresu zostaje poza średnią roczną)."""
+    now = now or datetime.datetime.fromisoformat(NOW)
+    try:
+        pc = cz_norm(prev)
+        todo = sorted({t.partition(':')[2] for t in cz_plan(pc, now) if t.startswith('fr:')})
+        rows = [r for c in todo for r in cz_big_rows(pc, c)]
+        if rows and cz_bnh_refresh(pc, rows, now):
+            prev = pc
+    except Exception as e:  # noqa — dodatek nie psuje części cz
+        META['notes'].append(mask(f'Dźwignia: Binance okres: {e}')[:300])
+    return lev_cz(prev, key, out, now)
+
+
 def cz_due(prev_cz, now=None):
     """Czy część `cz` ma zaległe zadania (main(): młody zdrowy plik — dobierana tylko ta część)."""
     return bool(cz_plan(cz_norm(prev_cz), now or datetime.datetime.fromisoformat(NOW)))
@@ -17584,7 +17695,7 @@ def build_dzwignia(prev=None, today=None, only=None, cz_key=None):
     if not any(out['ok'].get(k) for k in LEV_PX):   # v126: liczą się tylko odczyty bezpośrednie — sama część cz nie może odświeżyć pliku
         raise RuntimeError('żadna część nie odpowiedziała')   # (wszystkie bezpośrednie padły: poprzedni plik zostaje, kontrola to widzi; bez zapytań cz)
     if cz_key:   # v126: część dodatkowa tylko z kluczem — ostatnia, by porównać stawki z bieżącymi odczytami bezpośrednimi (hl, kr, cb, dy, okx)
-        part('cz', lambda: lev_cz(prev.get('cz'), cz_key, out))
+        part('cz', lambda: lev_cz_bn(prev.get('cz'), cz_key, out))   # v499: + okres Binance
     out['hist'] = lev_hist(prev.get('hist'), out, today)
     return out
 

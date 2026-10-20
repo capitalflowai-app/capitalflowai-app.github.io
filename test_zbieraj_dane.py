@@ -82807,3 +82807,156 @@ class TestV497DexPrzestarzale(unittest.TestCase):
             zd.parse_dex(j, self.DZIEN)
         with mock.patch.object(zd, 'GX_DEX_STALE_MAX', 0.99):
             self.assertEqual(zd.parse_dex(j, self.DZIEN)['stale_n'], len(top))
+
+
+import urllib.error   # v499: HTTPError w nagraniach (ponowny import jest nieszkodliwy)
+
+
+class TestV499BinanceFundingPeriod(unittest.TestCase):
+    """v499 (B5): okres rozliczenia Binance z miesięcznego archiwum (bez sieci: pliki nagrane w teście), Bybit bez okresu, stawka roczna 0,01 % × 3 × 365."""
+    NOW = datetime.datetime(2026, 10, 20, 6, 0, tzinfo=datetime.timezone.utc)
+    ISO = NOW.isoformat()
+
+    def setUp(self):
+        self.enterContext(mock.patch.object(zd, '_LEV_TERMIN', [None]))   # budżet czasu przebiegu ustawiany przez inne testy nie może wpływać na te
+
+    @staticmethod
+    def csv(h=8, days=30, start=datetime.datetime(2026, 9, 1, tzinfo=datetime.timezone.utc), head='calc_time,funding_interval_hours,last_funding_rate'):
+        t0 = int(start.timestamp() * 1000)
+        return head + '\n' + ''.join(f'{t0 + i * h * 3600000 + 5},{h},0.0001\n' for i in range(int(days * 24 / h)))
+
+    @staticmethod
+    def zipped(text):
+        import io as _io
+        import zipfile
+        b = _io.BytesIO()
+        with zipfile.ZipFile(b, 'w', zipfile.ZIP_DEFLATED) as z:
+            z.writestr('x.csv', text)
+        return b.getvalue()
+
+    def cz(self):
+        ms = int(self.NOW.timestamp() * 1000)
+        cz = zd.cz_norm({'ex': {'A': 'Binance', '6': 'Bybit', '3': 'OKX', 'H': 'Hyperliquid'},
+                         'mk': {'BTC': {'all': [['BTCUSDT_PERP.A', 'A', 'USDT', 0], ['BTCUSDT.6', '6', 'USDT', 0], ['BTCUSD_PERP.A', 'A', 'USD', 0]],
+                                        'big': ['BTCUSDT_PERP.A', 'BTCUSDT.6', 'BTCUSD_PERP.A']}},
+                         's': {'BTCUSDT_PERP.A': [6e9, self.ISO], 'BTCUSDT.6': [3e9, self.ISO], 'BTCUSD_PERP.A': [1e9, self.ISO]}})
+        return cz, ms
+
+    def test_symbol_mapping_only_linear_usdt_usdc(self):
+        self.assertEqual(zd.cz_bn_sym('BTCUSDT_PERP.A'), 'BTCUSDT')
+        self.assertEqual(zd.cz_bn_sym('1000PEPEUSDC_PERP.A'), '1000PEPEUSDC')
+        for bad in ('BTCUSD_PERP.A', 'BTCUSDT.6', 'BTC.H', '', None, 'btcusdt_perp.a'):
+            self.assertIsNone(zd.cz_bn_sym(bad), repr(bad))
+
+    def test_parse_requires_one_full_period_in_last_week(self):
+        ok = zd.cz_bnh_parse(self.csv())
+        self.assertEqual((ok['h'], ok['last'][:10]), (8.0, '2026-09-30'))
+        self.assertEqual(zd.cz_bnh_parse(self.csv(h=4))['h'], 4.0)
+        self.assertIsNone(zd.cz_bnh_parse(self.csv(head='time,x,y')), 'zły nagłówek')
+        self.assertIsNone(zd.cz_bnh_parse(self.csv(days=0)), 'pusty')
+        self.assertIsNone(zd.cz_bnh_parse(self.csv(days=3)), 'zapis niepełny w oknie 7 dni')
+        mixed = self.csv(h=8, days=25) + ''.join(f'{int(datetime.datetime(2026, 9, 26, tzinfo=datetime.timezone.utc).timestamp() * 1000) + i * 4 * 3600000},4,0.0001\n' for i in range(24))
+        self.assertIsNone(zd.cz_bnh_parse(mixed), 'okres zmieniony w ostatnim tygodniu = niepewny')
+        old_change = self.csv(h=4, days=10) + ''.join(f'{int(datetime.datetime(2026, 9, 11, tzinfo=datetime.timezone.utc).timestamp() * 1000) + i * 8 * 3600000},8,0.0001\n' for i in range(60))
+        self.assertEqual(zd.cz_bnh_parse(old_change)['h'], 8.0, 'zmiana sprzed tygodnia nie przeszkadza — liczy się ostatni tydzień')
+        self.assertIsNone(zd.cz_bnh_parse(self.csv(h=0.5, days=30)), 'okres poza 1–24 h')
+
+    def test_months_and_refresh_fallback_to_previous_month_on_404(self):
+        self.assertEqual(zd.cz_bnh_months(self.NOW), ['2026-09', '2026-08'])
+        self.assertEqual(zd.cz_bnh_months(datetime.datetime(2026, 1, 3, tzinfo=datetime.timezone.utc)), ['2025-12', '2025-11'])
+        cz, _ = self.cz(); urls = []
+
+        def get(url, headers=None, timeout=60, maks=None):
+            urls.append(url)
+            if '2026-09' in url:
+                raise urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+            return self.zipped(self.csv(days=31, start=datetime.datetime(2026, 8, 1, tzinfo=datetime.timezone.utc)))
+        with mock.patch.object(zd, 'META', {'errors': [], 'notes': []}), mock.patch.object(zd, 'get_bytes_maks', side_effect=get):
+            self.assertTrue(zd.cz_bnh_refresh(cz, zd.cz_big_rows(cz, 'BTC'), self.NOW))
+            notes = list(zd.META['notes'])
+        self.assertEqual(notes, [])
+        self.assertEqual([u.rsplit('/', 1)[-1] for u in urls], ['BTCUSDT-fundingRate-2026-09.zip', 'BTCUSDT-fundingRate-2026-08.zip'],
+                         'tylko BTCUSDT (USDT-M): ani Bybit, ani kontrakt w monecie bazowej')
+        e = cz['bnh']['BTCUSDT']
+        self.assertEqual((e['h'], e['m'], e['last'][:10], e['t']), (8.0, '2026-08', '2026-08-31', self.NOW.isoformat()))
+        self.assertEqual(set(cz['bnh']), {'BTCUSDT'})
+
+    def test_refresh_is_not_repeated_within_a_day_nor_for_last_closed_month(self):
+        cz, _ = self.cz()
+        rows = zd.cz_big_rows(cz, 'BTC'); calls = []
+
+        def get(url, headers=None, timeout=60, maks=None):
+            calls.append(url); return self.zipped(self.csv())
+        with mock.patch.object(zd, 'META', {'errors': [], 'notes': []}), mock.patch.object(zd, 'get_bytes_maks', side_effect=get):
+            self.assertTrue(zd.cz_bnh_refresh(cz, rows, self.NOW))
+            self.assertFalse(zd.cz_bnh_refresh(cz, rows, self.NOW + datetime.timedelta(hours=5)), 'wpis z ostatniego zamkniętego miesiąca nie wygasa')
+            cz['bnh']['BTCUSDT']['m'] = '2026-08'
+            self.assertFalse(zd.cz_bnh_refresh(cz, rows, self.NOW + datetime.timedelta(hours=5)), 'młodszy niż doba — bez ponownego pytania')
+            self.assertTrue(zd.cz_bnh_refresh(cz, rows, self.NOW + datetime.timedelta(hours=25)), 'po dobie wpis ze starszego miesiąca jest sprawdzany ponownie')
+        self.assertEqual(len(calls), 2)
+
+    def test_changed_period_or_missing_file_means_no_period_and_error_keeps_old_entry(self):
+        cz, _ = self.cz(); rows = zd.cz_big_rows(cz, 'BTC')
+        mixed = self.csv(h=8, days=25) + ''.join(f'{int(datetime.datetime(2026, 9, 26, tzinfo=datetime.timezone.utc).timestamp() * 1000) + i * 4 * 3600000},4,0.0001\n' for i in range(24))
+        cz['bnh']['BTCUSDT'] = {'h': 8.0, 'm': '2026-08', 'last': '2026-08-31T16:00:00+00:00', 't': '2026-10-18T00:00:00+00:00'}
+        with mock.patch.object(zd, 'META', {'errors': [], 'notes': []}), mock.patch.object(zd, 'get_bytes_maks', return_value=self.zipped(mixed)):
+            zd.cz_bnh_refresh(cz, rows, self.NOW)
+        self.assertEqual((cz['bnh']['BTCUSDT']['h'], cz['bnh']['BTCUSDT']['m']), (None, '2026-09'), 'okres zmieniony — poprzedni wpis zastąpiony brakiem')
+        self.assertIsNone(zd.cz_hours('BTCUSDT_PERP.A', 'A', 'BTC', cz, self.NOW))
+        cz2, _ = self.cz()
+        nf = urllib.error.HTTPError('u', 404, 'Not Found', {}, None)
+        with mock.patch.object(zd, 'META', {'errors': [], 'notes': []}), mock.patch.object(zd, 'get_bytes_maks', side_effect=nf):
+            zd.cz_bnh_refresh(cz2, zd.cz_big_rows(cz2, 'BTC'), self.NOW)
+        self.assertEqual(cz2['bnh']['BTCUSDT'], {'h': None, 'm': None, 't': self.NOW.isoformat()}, 'brak pliku w obu miesiącach — brak okresu, ponowne pytanie po dobie')
+        cz3, _ = self.cz()
+        cz3['bnh']['BTCUSDT'] = {'h': 8.0, 'm': '2026-08', 'last': '2026-08-31T16:00:00+00:00', 't': '2026-10-18T00:00:00+00:00'}
+        with mock.patch.object(zd, 'META', {'errors': [], 'notes': []}), mock.patch.object(zd, 'get_bytes_maks', side_effect=OSError('sieć')):
+            self.assertFalse(zd.cz_bnh_refresh(cz3, zd.cz_big_rows(cz3, 'BTC'), self.NOW))
+            self.assertEqual(len(zd.META['notes']), 1); self.assertIn('Binance okres BTCUSDT', zd.META['notes'][0])
+        self.assertEqual(cz3['bnh']['BTCUSDT']['h'], 8.0, 'błąd sieci nie kasuje potwierdzonego okresu')
+
+    def test_hours_only_for_binance_usdt_and_only_while_fresh(self):
+        cz, _ = self.cz()
+        cz['bnh']['BTCUSDT'] = {'h': 8.0, 'm': '2026-09', 'last': '2026-09-30T16:00:00+00:00', 't': self.ISO}
+        self.assertEqual(zd.cz_hours('BTCUSDT_PERP.A', 'A', 'BTC', cz, self.NOW), 8.0)
+        self.assertIsNone(zd.cz_hours('BTCUSDT.6', '6', 'BTC', cz, self.NOW), 'Bybit: okresu nie ma skąd wziąć — bez przeliczania')
+        self.assertIsNone(zd.cz_hours('BTCUSD_PERP.A', 'A', 'BTC', cz, self.NOW), 'kontrakt w monecie bazowej — bez okresu')
+        self.assertIsNone(zd.cz_hours('ETHUSDT_PERP.A', 'A', 'ETH', cz, self.NOW), 'inny symbol bez wpisu')
+        self.assertIsNone(zd.cz_hours('BTCUSDT_PERP.A', 'A', 'BTC', cz, self.NOW + datetime.timedelta(days=21)), 'ostatni zapis starszy niż 40 dni')
+        self.assertEqual(zd.cz_hours('BTCUSDT_PERP.A', 'A', 'BTC', cz, self.NOW + datetime.timedelta(days=19)), 8.0)
+
+    def test_annual_rate_includes_binance_and_share_grows(self):
+        cz, ms = self.cz()
+        rates = {'BTCUSDT_PERP.A': (0.01, ms - 5000), 'BTCUSDT.6': (0.006358, ms - 5000), 'BTCUSD_PERP.A': (0.01, ms - 5000)}
+        hrs = lambda c: (lambda sym, code: zd.cz_hours(sym, code, 'BTC', c, self.NOW))
+        rows = zd.cz_big_rows(cz, 'BTC')
+        f0 = zd.cz_fr(rows, rates, cz['s'], hrs(cz), self.NOW)
+        self.assertEqual((f0['y'], f0['w'], f0['yx']), (None, None, 'h'), 'bez okresu Binance nic nie wchodzi do średniej')
+        cz['bnh']['BTCUSDT'] = {'h': 8.0, 'm': '2026-09', 'last': '2026-09-30T16:00:00+00:00', 't': self.ISO}
+        f = zd.cz_fr(rows, rates, cz['s'], hrs(cz), self.NOW)
+        self.assertEqual((f['y'], f['yv'], f['n']), (10.95, 'A', 1), '0,01 % × 3 × 365 = 10,95 %')
+        self.assertEqual(f['w'], 0.6, '6 z 10 mld USD pozycji (Bybit i kontrakt w monecie bazowej poza średnią)')
+        self.assertEqual(f['by']['A'][1], 8.0); self.assertIsNone(f['by']['6'][1])
+
+    def test_collector_calls_wrapper_not_bare_lev_cz(self):
+        src = open(zd.__file__, encoding='utf-8').read()
+        self.assertEqual(src.count("part('cz', lambda: lev_cz_bn(prev.get('cz'), cz_key, out))"), 1)
+        self.assertNotIn("lambda: lev_cz(prev.get('cz')", src)
+
+    def test_wrapper_refreshes_only_due_funding_coins_and_keeps_result(self):
+        cz, _ = self.cz(); cz['mk_at'] = self.ISO
+        seen = {}
+
+        def fake_lev_cz(prev, key, out=None, now=None):
+            seen['prev'], seen['key'] = prev, key; return {'ok': True}
+        with mock.patch.object(zd, 'META', {'errors': [], 'notes': []}), mock.patch.object(zd, 'get_bytes_maks', return_value=self.zipped(self.csv())) as g, \
+                mock.patch.object(zd, 'cz_plan', return_value=['oi:BTC', 'fr:BTC']), mock.patch.object(zd, 'lev_cz', side_effect=fake_lev_cz):
+            self.assertEqual(zd.lev_cz_bn(cz, 'KLUCZ', None, self.NOW), {'ok': True})
+            self.assertEqual(g.call_count, 1); self.assertEqual(seen['prev']['bnh']['BTCUSDT']['h'], 8.0)
+        with mock.patch.object(zd, 'META', {'errors': [], 'notes': []}), mock.patch.object(zd, 'get_bytes_maks') as g, \
+                mock.patch.object(zd, 'cz_plan', return_value=['oi:BTC']), mock.patch.object(zd, 'lev_cz', side_effect=fake_lev_cz):
+            zd.lev_cz_bn(cz, 'KLUCZ', None, self.NOW)
+            self.assertEqual(g.call_count, 0, 'brak zadania finansowania — bez pobierania')
+        with mock.patch.object(zd, 'META', {'errors': [], 'notes': []}), mock.patch.object(zd, 'cz_plan', side_effect=RuntimeError('x')), mock.patch.object(zd, 'lev_cz', side_effect=fake_lev_cz):
+            self.assertEqual(zd.lev_cz_bn(cz, 'KLUCZ', None, self.NOW), {'ok': True}, 'błąd dodatku nie psuje części cz')
+            self.assertEqual(len(zd.META['notes']), 1)
