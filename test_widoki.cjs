@@ -37590,3 +37590,44 @@ test('v495: telefon 390 px — insiderzy: tabela dzień po dniu jako kartki, bez
   assert.ok(r.cells[1].A.has('data-x') && r.cells[3].A.has('data-x'), 'paski bez etykiety schowane');
   assert.equal(tblPrep(mk(), 0), false, 'z min-width 0 (stare brzmienie) kartek nie było');
 });
+
+
+test('v496: inflacja USA w stopach, inflacji i stopach realnych = najświeższy odczyt z panelu Gospodarka USA (wrzesień 3,7% zamiast sierpnia 3,4%), reszta krajów bez zmian, bez nowszego odczytu — jak dotąd', () => {
+  const a = html.indexOf('const RRF={f:null};'), b = html.indexOf('function rrLoad(){', a);
+  assert.ok(a > 0 && b > a, 'moduł v496 przed rrLoad');
+  const src = html.slice(a, b);
+  const num = html.slice(html.indexOf('const rrNum='), html.indexOf('function rrReal(a)'));
+  const fn = new Function('RL_MAX', 'RL', 'renderInst', num + '\n' + src + '\nreturn {rrUsaLast, rrWithUsa, rrMerge, rrR2, RRF, RL};');
+  const rend = []; const RL = {i: null}; const A = fn(3, RL, () => rend.push(1));
+  const INF = rl366.clone(rl366.INF), us = (yoy) => ({s: {cpi: {yoy}}});
+  /* odczyt z usa-makro: ostatni miesiąc z poprawną liczbą; śmieci odrzucone */
+  assert.deepEqual(A.rrUsaLast(us([['2026-08', 3.4], ['2026-09', 3.7]])), {m: '2026-09', v: 3.7});
+  assert.deepEqual(A.rrUsaLast(us([['2026-09', 3.7], ['2026-08', 3.4]])), {m: '2026-09', v: 3.7}, 'kolejność nieważna');
+  assert.deepEqual(A.rrUsaLast(us([['2026-08', 3.4], ['2026-9', 3.7], ['2026-10', 'x'], ['2026-11', 400]])), {m: '2026-08', v: 3.4}, 'zły miesiąc, tekst i liczba spoza zakresu pominięte');
+  for (const bad of [null, {}, {s: {}}, {s: {cpi: {}}}, {s: {cpi: {yoy: 'x'}}}, us([]), 'x']) assert.equal(A.rrUsaLast(bad), null);
+  /* nałożenie: tylko USA, znacznik u, seria dopisana, plik wejściowy nietknięty */
+  const before = JSON.stringify(INF), M = A.rrWithUsa(INF, us([['2026-08', 3.4], ['2026-09', 3.7]]));
+  assert.equal(JSON.stringify(INF), before, 'plik wejściowy bez zmian');
+  assert.deepEqual([M.c.US.m, M.c.US.v, M.c.US.u], ['2026-09', 3.7, 1]); assert.deepEqual(M.c.US.s.slice(-2), [['2026-08', 3.397], ['2026-09', 3.7]]);
+  assert.deepEqual(M.c.PL, INF.c.PL); assert.deepEqual(M.c.XM, INF.c.XM); assert.equal(M.v, 1);
+  /* bez nowszego odczytu, ten sam miesiąc, starszy, zbyt odległy, bez USA w pliku, zły plik */
+  assert.equal(A.rrWithUsa(INF, us([['2026-08', 3.4]])), INF, 'ten sam miesiąc — plik bez zmian'); assert.equal(A.rrWithUsa(INF, us([['2026-07', 3.0]])), INF, 'starszy — bez zmian');
+  assert.equal(A.rrWithUsa(INF, us([['2026-12', 3.0]])), INF, 'o więcej niż 3 miesiące nowszy — nie nakładamy'); assert.equal(A.rrWithUsa(INF, null), INF);
+  const noUs = rl366.clone(INF); delete noUs.c.US; assert.equal(A.rrWithUsa(noUs, us([['2026-09', 3.7]])), noUs, 'brak USA w pliku — nic nie dopisujemy');
+  assert.equal(A.rrWithUsa({v: 9}, us([['2026-09', 3.7]])), null); assert.equal(A.rrWithUsa(null, null), null);
+  /* zaokrąglenie połówki: 3,875 − 3,7 = +0,18 (nie 0,17); zero bez minusa */
+  assert.equal(A.rrR2(3.875 - 3.7), 0.18); assert.equal(A.rrR2(3.7 - 3.875), -0.18); assert.equal(A.rrR2(3.875 - 3.397), 0.48); assert.equal(Object.is(A.rrR2(-0.0000001), 0), true);
+  /* łączenie: plik inflacji potem panel USA i odwrotnie; przerysowanie tylko przy zmianie */
+  A.RRF.f = INF; A.rrMerge(false); assert.equal(RL.i, INF, 'bez panelu USA — dotychczasowy plik'); assert.equal(rend.length, 0);
+  A.RRF.f = {v: 9}; A.rrMerge(true); assert.equal(RL.i, null, 'zły plik inflacji — kolumny znikają (nie pokazujemy starych liczb jako świeżych)'); assert.equal(rend.length, 1);
+  /* wygląd: tabela stóp, wykres inflacji i stopy realne z nowym odczytem USA */
+  const K = rl366.mk('pl'); K.api.spApply(rl366.clone(rl366.STO)); K.api.RL.i = M;
+  const h = rl366.sp(K.api.spBlock()), R = Object.fromEntries(rl366.rows(h).map(r => [/\[f:([A-Z]+)\]/.exec(r)[1], [...r.matchAll(/<td>(.*?)<\/td>/g)].map(m => m[1])]));
+  assert.deepEqual(K.api.rrReal('US'), {v: 0.18, i: 3.7, m: '2026-09', r: 3.875}); assert.equal(K.api.rrReal('PL').i, 3.257, 'Polska bez zmian');
+  assert.ok(rl366.txt(R.US[6]).includes('+0,18') && rl366.txt(R.US[6]).includes('3,70') && rl366.txt(R.US[6]).includes('2026-09'), 'USA w tabeli stóp: ' + rl366.txt(R.US[6]));
+  assert.ok(rl366.txt(R.PL[6]).includes('3,26') && rl366.txt(R.PL[6]).includes('2026-08'), 'Polska: sierpień: ' + rl366.txt(R.PL[6]));
+  const wi = K.bars.find(x => x.op.aria.startsWith('Inflacja rok do roku według krajów')), rowUs = wi && wi.rows.find(r => r.l.includes('[f:US]')), rowPl = wi && wi.rows.find(r => r.l.includes('[f:PL]'));
+  assert.ok(rowUs && rowUs.v === 3.7 && rowUs.l.includes('2026-09'), 'wykres inflacji: USA 3,7% z miesiącem'); assert.ok(rowPl && !rowPl.l.includes('2026-08'), 'inni bez znacznika miesiąca (wspólny miesiąc to sierpień)');
+  /* spójność ze stroną: ładowanie i panel USA */
+  assert.ok(html.includes("srvJSON('inflacja').then(j=>{RRF.f=j;rrMerge(false);renderInst();})") && html.includes("if(k==='m'&&typeof rrMerge==='function'){try{rrMerge(true);}catch(e){}}"), 'plik inflacji i panel USA wołają to samo łączenie');
+});

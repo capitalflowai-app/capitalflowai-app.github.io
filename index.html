@@ -16332,7 +16332,7 @@ const RL={i:null,n:null,s:'',d:-1};   /* i: plik inflacji, n: plik koniunktury, 
 const RL_MAX=3;   /* miesięcy: najstarsza dopuszczalna inflacja wobec miesiąca stanu stopy */
 const rrNum=v=>typeof v==='number'&&isFinite(v);
 const rrMi=ym=>{const m=/^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(ym||''));return m?(+m[1])*12+(+m[2])-1:null;};
-const rrR2=v=>{const x=Math.round(v*100)/100;return x===0?0:x;};
+const rrR2=v=>{const x=Math.sign(v)*Math.round(Math.abs(v)*100+1e-7)/100;return x===0?0:x;};   /* v496: połówka (np. 3,875 − 3,7 = 0,175) zawsze w górę co do modułu, bez błędu zmiennoprzecinkowego */
 function rrInfOk(j){return !!(j&&typeof j==='object'&&j.v===1&&typeof j.at==='string'&&isFinite(Date.parse(j.at))&&j.c&&typeof j.c==='object'&&!Array.isArray(j.c)&&Object.keys(j.c).some(a=>rrInf(j,a)));}
 function rrInf(j,a){const o=j&&j.c&&j.c[a];return o&&typeof o==='object'&&rrNum(o.v)&&rrMi(o.m)!==null?o:null;}
 /* stopa realna kraju a: {v: pkt proc. (2 miejsca), i: inflacja %, m: miesiąc inflacji, r: stopa %} albo null (brak stopy, brak inflacji albo inflacja starsza niż RL_MAX miesięcy od stanu stopy) */
@@ -16368,15 +16368,15 @@ function wiInfl(D){
   if(!RL.i||!D||!Array.isArray(D.order)||!D.rows)return '';
   const I=rrI(),B=D.order.filter(a=>D.rows[a]);
   let R=B.map(a=>({a,o:rrInf(RL.i,a)})).filter(x=>x.o);
-  const mx=R.reduce((m,x)=>Math.max(m,rrMi(x.o.m)),-1);
-  R=R.filter(x=>mx-rrMi(x.o.m)<=RL_MAX);   /* inflacja starsza niż 3 miesiące od najnowszej — poza wykresem */
+  const mx=R.reduce((m,x)=>x.o.u?m:Math.max(m,rrMi(x.o.m)),-1);   /* v496: nowszy odczyt USA (u) nie przesuwa wspólnego miesiąca innych krajów */
+  R=R.filter(x=>x.o.u||mx-rrMi(x.o.m)<=RL_MAX);   /* inflacja starsza niż 3 miesiące od najnowszej — poza wykresem */
   if(R.length<3)return '';
   R.sort((p,q)=>q.o.v-p.o.v||(p.a<q.a?-1:p.a>q.a?1:0));
   const vs=R.map(x=>x.o.v),ok=vs.filter(v=>v<=WI_MAX),hi=Math.max(4,Math.ceil(Math.max.apply(null,ok.length?ok:vs))),lo=Math.min(0,Math.floor(Math.min.apply(null,vs))),
     fm=(v,d)=>nfmt(v,d).replace(/^-/,'−');
   let cut=0;
   const rows=R.map(({a,o})=>{const nm=t('sp.cc.'+a),g=WI_CEL[a],c=o.v>hi;if(c)cut++;
-    const old=rrMi(o.m)<mx?` <small>${escH(o.m)}</small>`:'',p={c:nm,v:fm(o.v,2),m:o.m};
+    const old=rrMi(o.m)!==mx?` <small>${escH(o.m)}</small>`:'',p={c:nm,v:fm(o.v,2),m:o.m};
     return {l:I('f',a,'sm')+escH(nm)+old,v:o.v,mk:g,vt:escH(fm(o.v,1)+'%'+(c?' »':'')),tip:g!==undefined?t('wi419.tip',Object.assign(p,{g:nfmt(g,1)})):t('wi419.tip0',p)};});
   const ms=R.map(x=>x.o.m).sort((p,q)=>rrMi(p)-rrMi(q)),rg=ms[0]===ms[ms.length-1]?ms[0]:ms[0]+' – '+ms[ms.length-1];
   return `<h3 class="mtxt">${I('g','globe')}<b>${t('wi419.t')}</b></h3><p class="pnote">${t('wi419.sub')}</p><div class="wi-ch">${wkBars(rows,{aria:t('wi419.aria'),lw:'44%',dom:[lo,hi],tone:'lvl'})}</div>`+
@@ -16406,8 +16406,22 @@ function nsBlock(){if(!RL.n||!nsOk(RL.n))return '';const I=rrI(),N=RL.n;
   const g1=nsChart('cci',t('ns366.cons.t'),t('ns366.aria.c'),I),g2=nsChart('bci',t('ns366.bus.t'),t('ns366.aria.b'),I);
   if(g1||g2)h+=`<details class="etfd"><summary>${t('ns366.cmp')}</summary>${g1}${g2}<p class="pnote">${t('ns366.note')}</p></details>`;
   return h+`<p class="pnote">${t('inst.file',{t:engDate(N.at)})}</p>`;}
+/* ---- v496: inflacja USA w stopach, inflacji i stopach realnych = najświeższy odczyt z panelu Gospodarka USA (usa-makro, CPI r/r), jeśli jest nowszy niż w pliku inflacji ---- */
+const RRF={f:null};   /* plik inflacji bez zmian (RL.i = ten plik z nowszym odczytem USA, jeśli jest) */
+function rrUsaLast(uf){const S=uf&&typeof uf==='object'&&uf.s&&typeof uf.s==='object'&&uf.s.cpi&&typeof uf.s.cpi==='object'?uf.s.cpi.yoy:null;
+  if(!Array.isArray(S))return null;let b=null;
+  for(const r of S){if(Array.isArray(r)&&rrMi(r[0])!==null&&rrNum(r[1])&&r[1]>-30&&r[1]<100&&(b===null||rrMi(r[0])>rrMi(b[0])))b=r;}
+  return b?{m:b[0],v:b[1]}:null;}
+/* plik inflacji z USA zastąpionym nowszym odczytem (znacznik u:1); bez nowszego odczytu (albo starszy o więcej niż RL_MAX) — ten sam plik; zły plik — null */
+function rrWithUsa(f,uf){if(!rrInfOk(f))return null;const U=rrUsaLast(uf),o=rrInf(f,'US');
+  if(!U||!o||rrMi(U.m)<=rrMi(o.m)||rrMi(U.m)-rrMi(o.m)>RL_MAX)return f;
+  const us=Object.assign({},o,{m:U.m,v:U.v,u:1});if(Array.isArray(o.s))us.s=o.s.concat([[U.m,U.v]]);
+  return Object.assign({},f,{c:Object.assign({},f.c,{US:us})});}
+function rrUsaSrc(){try{return USA&&USA.m||null;}catch(e){return null;}}
+function rrMerge(rd){const n=rrWithUsa(RRF.f,rrUsaSrc()),a=RL.i&&RL.i.c&&RL.i.c.US,b=n&&n.c&&n.c.US,
+  ch=!!n!==!!RL.i||!!a!==!!b||!!(a&&b&&(a.m!==b.m||a.v!==b.v));RL.i=n;if(rd&&ch)renderInst();}
 function rrLoad(){
-  srvJSON('inflacja').then(j=>{RL.i=rrInfOk(j)?j:null;renderInst();}).catch(()=>{});
+  srvJSON('inflacja').then(j=>{RRF.f=j;rrMerge(false);renderInst();}).catch(()=>{});
   srvJSON('koniunktura').then(j=>{RL.n=nsOk(j)?j:null;renderInst();}).catch(()=>{});}
 try{document.addEventListener('click',rrClick);}catch(e){}
 try{setTimeout(rrLoad,1200);setInterval(()=>{if(!document.hidden)rrLoad();},30*60*1000);}catch(e){}
@@ -18888,6 +18902,7 @@ function usaApply(k,j){
   const ok=!!(j&&typeof j==='object'&&typeof j.at==='string'&&(k==='b'?(j.ita&&typeof j.ita==='object'):(j.s&&typeof j.s==='object')));
   if(!ok&&USA[k])return;   /* chwilowy błąd pobrania nie zasłania wcześniej wczytanych danych */
   USA[k]=ok?j:null;renderUsa();
+  if(k==='m'&&typeof rrMerge==='function'){try{rrMerge(true);}catch(e){}}   /* v496: nowszy odczyt CPI USA trafia też do stóp i stóp realnych */
 }
 function usaLoad(){srvJSON('energia').then(j=>usaApply('e',j));srvJSON('usa-makro').then(j=>usaApply('m',j));srvJSON('bilans-usa').then(j=>usaApply('b',j));}
 function usaAuto(){if(USA.timer)return;USA.timer=setInterval(()=>{if(!document.hidden)usaLoad();},60*60*1000);}
