@@ -6858,7 +6858,7 @@ test('v127: po 9:00 w Nowym Jorku (poniedziałek 13:30 UTC) — „karty ustalon
   const s6 = sec(view('pl', mk(R6, WL), {now: '2026-11-26T16:00:00Z'}));
   const expHalf = tp('trd.dw2.win', {s: f.trdDay(H), a: hm(H, 570), b: hm(H, 780)}) + ' · ' + tp('trd.dw2.win.half');
   assert.ok(s6.includes(expHalf) && expHalf.includes('sesja skrócona'), 'sesja skrócona: ' + expHalf);
-  if (LIT) assert.ok(expHalf.includes(LIT.ha + '–' + LIT.hb), 'strefa ' + trdV127.TZ + ': ' + expHalf);
+  assert.ok(!/\d\d:\d\d/.test(expHalf), 'okno sesji skróconej bez godzin (v500): ' + expHalf);
   /* reguła czasu letniego USA strony = strefa America/New_York (Intl) — 9:00, 9:30, 13:00 i 16:00 w każdym dniu roboczym 2026–2027 */
   const NYF = new Intl.DateTimeFormat('en-GB', {timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false}), ny = ms => NYF.format(new Date(ms));
   let n = 0;
