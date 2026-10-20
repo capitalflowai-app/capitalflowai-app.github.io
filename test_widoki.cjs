@@ -2771,7 +2771,7 @@ test('v96-pages: po przeglądzie — dni z serwerów zewnętrznych zabezpieczone
   const k = c.el.innerHTML;
   assert.ok(!k.includes('<script>') && !k.includes('<b>w</b>') && k.includes('pg.20m · D(&lt;script&gt;)') && k.includes('pg.live · &lt;b&gt;w&lt;/b&gt;'), 'CRYPTO: czas z pliku i czas na żywo zabezpieczone');
   const a0 = html.indexOf('function renderAssets(){'), a1 = html.indexOf('\nfunction renderSectorsPage(', a0), body = html.slice(a0, a1);
-  assert.ok(body.includes("const when=(fr,day)=>fr+(day?' · '+escH(typeof gFreshTxt==='function'?gFreshTxt(day):day)+gAgeNote(day):'');") && !/toFixed\(/.test(body), 'kod: dzień przez escH, liczby przez nfmt (v314, audyt G6: chwila notowania przez gFreshTxt)');
+  assert.ok(body.includes("const when=(fr,day)=>fr+(day?' · '+escH(/^\\d{4}-\\d{2}$/.test(String(day))&&typeof usaMon==='function'?usaMon(day):typeof gFreshTxt==='function'?gFreshTxt(day):day)+gAgeNote(day):'');") && !/toFixed\(/.test(body), 'kod: dzień przez escH, liczby przez nfmt (v314, audyt G6: chwila notowania przez gFreshTxt)');
   const a = 'const EXTRA91=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
   assert.equal(D.pl['pg.20m'], 'co 10 min');   /* v168: plik rynku krypto w każdym przebiegu */ assert.equal(D.en['pg.20m'], 'every 20 min');
 });
@@ -37735,4 +37735,34 @@ test('v501 (B8): napisy czasu — „Na żywo” w GLOBAL i plakietka ETF format
   assert.ok(/^\d{1,2}:\d{2}\s?(AM|PM)$/.test(ts) && /^\d{2}:\d{2}$/.test(tp), 'pobranie w przeglądarce: sama godzina w obu językach: ' + ts + ' / ' + tp);
   assert.ok(tx(badge({st: 'ok', live: true, stale: false, data: {asof: '2026-10-16'}, at: '11.10.2026, 10:19'}, 'en')) === '11.10.2026, 10:19', 'bez milisekund — zapisany tekst');
   assert.ok(!/escH\(ETF\.at\)/.test(html) && html.includes("ETF.atFmt='dt'") && html.includes("ETF.atFmt='t'"), 'plakietka nie czyta ETF.at wprost; rodzaj zapisu ustawiany przy obu pobraniach');
+});
+
+test('v502: Aktywa — miesiąc danych słownie („wrzesień 2026”, „September 2026”), nie „2026-09”; dzień i chwila bez zmian, dzień w złym formacie nadal zabezpieczony', () => {
+  const u0 = html.indexOf('function usaMon('), u1 = html.indexOf('\n', u0);
+  assert.ok(u0 > 0 && u1 > u0, 'usaMon w stronie');
+  const um = lang => new Function('LOCALE', 'LANG', 'escH', html.slice(u0, u1) + '\nreturn usaMon;')({pl: 'pl-PL', en: 'en-US'}, lang, s => String(s));
+  const run = lang => {
+    const g = pgEnv({
+      LANG: lang, usaMon: um(lang), gFreshTxt: s => 'F(' + s + ')',
+      GLIVE: {irlt: {USA: [['2026-08', 4.1]], DEU: [['2026-08', 2.6]], JPN: [['2026-09', 1.6]]}},
+      GKPI: [{k: 'g.k.eq', v: 1, fresh: '2026-09-24'}], gDaily: () => null,
+    });
+    g.f.renderAssets();
+    const h = g.el.innerHTML;
+    return k => h.split('<tr>').find(r => r.includes('<b>' + k + '</b>')) || '';
+  };
+  const pl = run('pl'), en = run('en');
+  assert.ok(pl('as.jp10').includes('pg.monthly · wrzesień 2026 ·age(2026-09)') && !/ · 2026-09( |<|$)/.test(pl('as.jp10')), 'PL Japonia: miesiąc słownie, wiek bez zmian: ' + pl('as.jp10'));
+  assert.ok(pl('as.us10').includes('pg.monthly · sierpień 2026') && pl('as.de10').includes('pg.monthly · sierpień 2026'), 'PL USA i Niemcy w trybie miesięcznym też słownie');
+  assert.ok(en('as.jp10').includes('pg.monthly · September 2026 ·age(2026-09)') && en('as.us10').includes('pg.monthly · August 2026') && en('as.de10').includes('pg.monthly · August 2026'), 'EN: miesiąc słownie');
+  assert.ok(pl('as.eq').includes('pg.monthly · F(2026-09-24)'), 'dzień RRRR-MM-DD nadal przez gFreshTxt (bez zmian)');
+  const dn = pgEnv({LANG: 'pl', usaMon: um('pl'), gFreshTxt: s => 'F(' + s + ')', GLIVE: {irlt: {USA: [['2026-08', 4.1]]}, ust: 'UST'}, gDaily: s => s === 'UST' ? {v: 4.2, d: 0.1, date: '2026-10-15T20:00:00Z'} : null});
+  dn.f.renderAssets();
+  const r = dn.el.innerHTML.split('<tr>').find(x => x.includes('<b>as.us10</b>')) || '';
+  assert.ok(r.includes('pg.daily · F(2026-10-15T20:00:00Z)') && !r.includes('październik 2026'), 'chwila z godziną nadal przez gFreshTxt, nie jako miesiąc: ' + r);
+  const X = pgEnv({LANG: 'pl', usaMon: um('pl'), gAgeNote: () => '', GLIVE: {irlt: {USA: [['<b>2026-08</b>', 4.1]]}}});
+  X.f.renderAssets();
+  assert.ok(X.el.innerHTML.includes('&lt;b&gt;2026-08&lt;/b&gt;') && !X.el.innerHTML.includes('<b>2026-08'), 'dzień w złym formacie nadal zabezpieczony (escH)');
+  const a0 = html.indexOf('function renderAssets(){'), a1 = html.indexOf('\nfunction renderSectorsPage(', a0), body = html.slice(a0, a1);
+  assert.ok(body.includes("/^\\d{4}-\\d{2}$/.test(String(day))&&typeof usaMon==='function'?usaMon(day):"), 'kod: miesiąc przez usaMon');
 });

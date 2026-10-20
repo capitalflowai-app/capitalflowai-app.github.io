@@ -8264,7 +8264,7 @@ function renderAssets(){
   /* v96: wiersz = [klucz, wartość, zmiana %, aktualność]; aktualność to częstotliwość, dzień danych i ich wiek — nazwy dostawców są tylko na stronie Źródła */
   const rows=[];
   /* po przeglądzie: dzień przychodzi z odpowiedzi serwerów zewnętrznych — zawsze przez escH */
-  const when=(fr,day)=>fr+(day?' · '+escH(typeof gFreshTxt==='function'?gFreshTxt(day):day)+gAgeNote(day):'');   /* v314 (audyt G6): chwila (DZIŚ — notowanie ISO) jako data i godzina czytelnika, z wiekiem */
+  const when=(fr,day)=>fr+(day?' · '+escH(/^\d{4}-\d{2}$/.test(String(day))&&typeof usaMon==='function'?usaMon(day):typeof gFreshTxt==='function'?gFreshTxt(day):day)+gAgeNote(day):'');   /* v502 (B9): miesiąc danych słownie („wrzesień 2026”), nie „2026-09”; v314 (audyt G6): chwila (DZIŚ — notowanie ISO) jako data i godzina czytelnika, z wiekiem */
   const n2=v=>nfmt(v,2);   /* liczby z przecinkiem po polsku, jak reszta strony */
   if(gActive()){
     const F=GDATA?GDATA[gst.period]:null;
