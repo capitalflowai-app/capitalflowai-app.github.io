@@ -32874,6 +32874,7 @@ GX_MIN_DEX_ALL, GX_MIN_DEX = 500, 400
 GX_SUM_DEX = (1e8, 1e12)               # USD — obrót kategorii Dexs w dobie (dzisiaj 5–11 mld)
 GX_DEX_DZIEN_TOL = 0.005               # punkt szeregu = podsumowanie odpowiedzi z dokładnością 0,5% (zaobserwowane 0,0001%)
 GX_DEX_TOP, GX_DEX_SIECI = 12, 10
+GX_DEX_STALE_MAX = 0.30                # v497: udział protokołów z przestarzałą wartością doby w sumie doby, powyżej którego odpowiedź jest odrzucona (20.10.2026: 10,9%)
 GX_MIN_OI = 60
 GX_SUM_OI = (1e9, 1e12)                # USD (dzisiaj 1,7e10)
 GX_OI_TOP = 15
@@ -33143,13 +33144,21 @@ def parse_dex(j, src_dzien):
         raise ValueError(f'kategoria Dexs: {len(D)} pozycji (oczekiwano co najmniej {GX_MIN_DEX} — zmiana nazwy kategorii?)')
     s = {k: _gx_suma(D, f) for k, f in (('s24', 'total24h'), ('s48', 'total48hto24h'), ('s7', 'total7d'), ('s7p', 'total14dto7d'), ('s30', 'total30d'),
                                          ('s30p', 'total60dto30d'), ('d7', 'total7DaysAgo'), ('d30', 'total30DaysAgo'))}
+    # v497: protokół z odczytem zatrzymanym ma w polu doby DOKŁADNIE tę samą liczbę co w polu doby wcześniejszej (ostatni znany dzień, nie wczorajszy obrót);
+    # wyjęty z sumy doby i z listy największych (doba wcześniejsza zostaje: tam wartość jest prawdziwa). Zgodność z szeregiem dobowym źródła: 0,02% (20.10.2026)
+    stale = [p for p in D if (_gx_num(p.get('total24h'), lo=0) or 0) > 0 and _gx_num(p.get('total24h'), lo=0) == _gx_num(p.get('total48hto24h'), lo=0)]
+    stale_ids = {id(p) for p in stale}
+    stale_usd = sum(_gx_num(p.get('total24h'), lo=0) for p in stale)
+    if s['s24'] and stale_usd > GX_DEX_STALE_MAX * s['s24']:
+        raise ValueError(f'przestarzałych protokołów {len(stale)} ({stale_usd / s["s24"] * 100:.0f}% sumy doby) — odpowiedź odrzucona')
+    s['s24'] = _gx_suma([p for p in D if id(p) not in stale_ids], 'total24h')
     if s['s24'] is None or not GX_SUM_DEX[0] <= s['s24'] <= GX_SUM_DEX[1]:
         raise ValueError('suma doby poza zakresem')
     day, est = gx_dex_dzien(j, src_dzien)
     top = []
     for p in D:
         v = _gx_num(p.get('total24h'), lo=0)
-        if v and isinstance(p.get('name'), str):
+        if v and id(p) not in stale_ids and isinstance(p.get('name'), str):
             v0 = _gx_num(p.get('total48hto24h'), lo=0)
             top.append([' '.join(p['name'].split())[:GX_NAME_MAX], _gx_usd(v), round((v / v0 - 1) * 100, 1) if v0 else None])
     top.sort(key=lambda r: (-r[1], r[0]))
@@ -33172,7 +33181,7 @@ def parse_dex(j, src_dzien):
         rest = sum(v for _, v in R[GX_DEX_SIECI:])
         if rest > 0:
             sieci.append([GX_INNE, None, _gx_usd(rest), round(rest / tot * 100, 2)])
-    o = {'day': day, 'est': est, 'n': len(D), 'n_act': nact, 'chains_n': len(ch), 'top': top, 'sieci': sieci, 'sieci_sum': _gx_usd(tot) if sieci else None}
+    o = {'day': day, 'est': est, 'n': len(D), 'n_act': nact, 'stale_n': len(stale), 'stale_usd': _gx_usd(stale_usd), 'chains_n': len(ch), 'top': top, 'sieci': sieci, 'sieci_sum': _gx_usd(tot) if sieci else None}
     for k, v in s.items():
         o[k] = _gx_usd(v)
     return o

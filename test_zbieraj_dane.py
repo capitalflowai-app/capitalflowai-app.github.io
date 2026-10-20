@@ -46395,7 +46395,7 @@ class GieldyDexV349(unittest.TestCase):
         jold = json.loads(json.dumps(self.dex)); jold['totalDataChart'] = jold['totalDataChart'][:-2] + jold['totalDataChart'][-1:]; jold['total24h'] = jold['totalDataChart'][-2][1]
         for p in jold['protocols']:
             if p['category'] == 'Dexs':
-                p['total24h'] = p['total48hto24h']
+                p['total24h'] = p['total48hto24h'] + 1   # v497: o 1 USD różna od doby wcześniejszej (równa = odczyt zatrzymany, wyjęty z sumy)
         d_new = json.loads(json.dumps(d)); d_new['dex']['day'] = '2026-10-10'
         with mock.patch.object(zd, 'gx_pobierz', self.net(dex=jold)):
             g, sg = zd.build_dex(d_new, now=datetime.datetime(2026, 10, 12, 5, 0, tzinfo=self.U))
@@ -82755,3 +82755,55 @@ class V477bWejscieSkryptuListy(unittest.TestCase):
         p = subprocess.run([sys.executable, '-B', os.path.join(self.ROOT, 'narzedzia', 'wh_lista.py'), 'nadmiarowy'], capture_output=True, text=True, timeout=60)
         self.assertEqual(p.returncode, 2); self.assertIn('użycie', p.stdout)   # z argumentem — użycie; bez argumentów kod 0 sprawdza test wyżej (bez sieci)
 
+
+class TestV497DexPrzestarzale(unittest.TestCase):
+    """v497 (20.10.2026): protokół DEX z zatrzymanym odczytem ma w polu doby tę samą liczbę co w polu doby wcześniejszej (ostatni znany dzień) —
+    nie wchodzi do sumy doby ani do listy największych; doba wcześniejsza bez zmian; za duży udział takich protokołów = odpowiedź odrzucona."""
+    DZIEN = datetime.date(2026, 10, 10)
+
+    def setUp(self):
+        for k, v in (('GX_MIN_DEX_ALL', 20), ('GX_MIN_DEX', 10)):
+            p = mock.patch.object(zd, k, v); p.start(); self.addCleanup(p.stop)
+        self.j = json.loads(GX349_DEX)
+
+    def _zatrzymaj(self, nazwy):
+        """Odczyt zatrzymany: pole doby = pole doby wcześniejszej. Zwraca (odpowiedź, dotychczasowa doba tych protokołów, ich doba po zmianie)."""
+        j = json.loads(json.dumps(self.j)); stare, nowe = [], []
+        for p in j['protocols']:
+            if p['category'] == 'Dexs' and p['name'] in nazwy:
+                stare.append(p['total24h']); p['total24h'] = p['total48hto24h']; nowe.append(p['total24h'])
+        self.assertEqual(len(nowe), len(nazwy)); return j, sum(stare), sum(nowe)
+
+    def test_bez_przestarzalych_wynik_bez_zmian(self):
+        d = zd.parse_dex(self.j, self.DZIEN)
+        self.assertEqual((d['stale_n'], d['stale_usd']), (0, 0)); self.assertAlmostEqual(d['s24'] / 1e9, 5.4265153, 5)
+
+    def test_przestarzale_poza_suma_doby_i_lista(self):
+        d0 = zd.parse_dex(self.j, self.DZIEN)
+        top2 = [r[0] for r in d0['top'] if r[0] in ('BisonFi', 'Tessera V')]
+        self.assertEqual(len(top2), 2, 'oba w liście największych przed zmianą')
+        j, stare, nowe = self._zatrzymaj({'BisonFi', 'Tessera V'})
+        d = zd.parse_dex(j, self.DZIEN)
+        self.assertEqual((d['stale_n'], d['stale_usd']), (2, int(round(nowe))))
+        self.assertAlmostEqual(d['s24'], d0['s24'] - stare, delta=2)
+        self.assertEqual(d['s48'], d0['s48'], 'doba wcześniejsza bez zmian')
+        self.assertEqual(d['n'], d0['n']); self.assertEqual(d['n_act'], d0['n_act'] - 2)
+        self.assertFalse({r[0] for r in d['top']} & {'BisonFi', 'Tessera V'})
+        self.assertEqual(d['top'][0][0], 'Uniswap V4')
+        self.assertAlmostEqual(d['top'][0][3], d['top'][0][1] / d['s24'] * 100, delta=0.011, msg='udział liczony od nowej sumy doby')
+        self.assertLessEqual(sum(r[1] for r in d['top']), d['s24'] * 1.001)
+        self.assertEqual((d['day'], d['est']), (d0['day'], d0['est']), 'doba z szeregu źródła bez zmian')
+
+    def test_zero_i_rozne_wartosci_nie_sa_przestarzale(self):
+        j = json.loads(json.dumps(self.j)); P = [p for p in j['protocols'] if p['category'] == 'Dexs']
+        P[-1]['total24h'] = 0; P[-1]['total48hto24h'] = 0      # zero = brak obrotu, nie zatrzymany odczyt
+        P[-2]['total48hto24h'] = P[-2]['total24h'] + 1          # różnica o jednostkę = zwykły odczyt
+        d = zd.parse_dex(j, self.DZIEN); self.assertEqual(d['stale_n'], 0)
+
+    def test_zbyt_duzy_udzial_przestarzalych_odrzuca_odpowiedz(self):
+        top = {r[0] for r in zd.parse_dex(self.j, self.DZIEN)['top'][:6]}
+        j, _, _ = self._zatrzymaj(top)
+        with self.assertRaisesRegex(ValueError, 'przestarzałych'):
+            zd.parse_dex(j, self.DZIEN)
+        with mock.patch.object(zd, 'GX_DEX_STALE_MAX', 0.99):
+            self.assertEqual(zd.parse_dex(j, self.DZIEN)['stale_n'], len(top))
