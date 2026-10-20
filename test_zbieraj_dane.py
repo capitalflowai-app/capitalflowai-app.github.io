@@ -36739,23 +36739,25 @@ class XstocksBezDowoduV311(unittest.TestCase):
 
     def test_duzy_token_null_dalej_blad(self):
         N = self._N(); N[0] = dict(N[0], proofOfReserves=None)   # przegląd v267: null w największym tokenie (STRCx: −15,5% bez błędu)
+        # v503: limit „brakuje większości” (granica > połowy całości), nie 0,5% sumy; wartość 'v' bez doliczania granicy
+        r = zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'B0x': 1000000}))
+        self.assertEqual((r['bez']['n'], r['bez']['max_usd']), (1, 200000100), 'granica 200 mln wobec 100 mln znanej wartości w tym tokenie — nie większość')
+        self.assertAlmostEqual(r['v'], 2 * 100000000 + 60 * 389, places=2, msg='wartość tylko z dowodów')
         with self.assertRaises(ValueError) as c:
-            zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'B0x': 1000000}))
-        self.assertEqual(str(c.exception), 'tokenów bez dowodu rezerw 1 (np. B0x) najwyżej 200,000,100 USD — ponad 0.5% sumy')
-        with self.assertRaises(ValueError):
-            zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'B0x': 7500}))   # 1 500 100 USD wobec 0,5% z 200 mln — też ponad
+            zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'B0x': 1501000}))   # 300 200 100 USD > suma znana 200 023 340 USD
+        self.assertEqual(str(c.exception), 'tokenów bez dowodu rezerw 1 (np. B0x) najwyżej 300,200,100 USD — brakuje większości wartości (ponad 50% całości)')
         self.assertEqual(zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'B0x': 4999}))['bez']['max_usd'], 999900, 'mały — pominięty')
 
     def test_limit_wartosci_razem_z_reszta_listy(self):
         N = self._N() + [_xs311_null('Mx', 10000)]
         self.assertEqual(zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'Mx': 7500}))['bez']['max_usd'], 1500100, 'tuż pod 0,5%')
-        with self.assertRaises(ValueError) as c:
-            zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'Mx': 7500.1}))
-        self.assertEqual(str(c.exception), 'tokenów bez dowodu rezerw 1 (np. Mx) najwyżej 1,500,120 USD — ponad 0.5% sumy')
+        self.assertEqual(zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob({'Mx': 7500.1}))['bez']['max_usd'], 1500120, 'v503: ponad 0,5% — przyjęte, policzone osobno')
         j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 2, 'totalNodes': 100}   # reszta listy 36 × 389 × 2 = 28 008 USD
-        with self.assertRaises(ValueError) as c:
-            zd.rwe_xs_parse(j, self.FX, obieg=self._ob({'Mx': 7500}))
-        self.assertEqual(str(c.exception), 'tokenów bez dowodu rezerw 1 (np. Mx) najwyżej 1,500,100 USD + reszta listy 28,008 — ponad 0.5% sumy', 'jeden limit')
+        r = zd.rwe_xs_parse(j, self.FX, obieg=self._ob({'Mx': 7500}))
+        self.assertEqual((r['ogon'], r['bez']['max_usd']), ({'n': 36, 'max_usd': 28008}, 1500100), 'v503: reszta listy i tokeny bez dowodu — osobne granice, nie jeden limit 0,5%')
+        with self.assertRaises(ValueError) as c:   # granice razem 300 028 108 USD > suma znana 300 023 340 USD
+            zd.rwe_xs_parse(j, self.FX, obieg=self._ob({'Mx': 1500000}))
+        self.assertEqual(str(c.exception), 'tokenów bez dowodu rezerw 1 (np. Mx) najwyżej 300,000,100 USD + reszta listy 28,008 — brakuje większości wartości (ponad 50% całości)')
         r = zd.rwe_xs_parse(j, self.FX, obieg=self._ob({'Mx': 7300}))
         self.assertEqual((r['ogon'], r['bez']['max_usd']), ({'n': 36, 'max_usd': 28008}, 1460100))
         for M in ({'Mx': 0}, {'Mx': '0'}, {'Mx': 0.0}):
@@ -82960,3 +82962,53 @@ class TestV499BinanceFundingPeriod(unittest.TestCase):
         with mock.patch.object(zd, 'META', {'errors': [], 'notes': []}), mock.patch.object(zd, 'cz_plan', side_effect=RuntimeError('x')), mock.patch.object(zd, 'lev_cz', side_effect=fake_lev_cz):
             self.assertEqual(zd.lev_cz_bn(cz, 'KLUCZ', None, self.NOW), {'ok': True}, 'błąd dodatku nie psuje części cz')
             self.assertEqual(len(zd.META['notes']), 1)
+
+
+class TestV503XstocksBezDowoduOsobno(unittest.TestCase):
+    """v503 (20.10.2026): meta „xStocks: tokenów bez dowodu rezerw 16 (np. WBDx) najwyżej 392,073 USD + reszta listy 4,742,398 — ponad 0.5% sumy” od kilku dni.
+    Emitent nie zmienił dowodu rezerw: 16 tokenów z dowodem null i znaną liczbą w obiegu jak wcześniej; reszta listy poza stroną 0 ≈ 0,5% sumy sama, tokeny
+    bez dowodu ≈ 0,04% — razem ponad jeden limit 0,5%. Nagranie o tej samej budowie (3 × 100 mln USD + 60 małych, 1900 tokenów poza stroną, 16 tokenów null)."""
+    FX = {'d': '2026-10-20', 'rates': {}}
+
+    def _N(self, n_null=16, px=50000):
+        N = [_rwe170_xn(f'B{i}x', 1000000, 10000, 'USD', '2026-10-20T06:00:00Z') for i in range(3)] + \
+            [_rwe170_xn(f'S{i}x', 1, 38900, 'USD', '2026-10-20T06:00:00Z') for i in range(60)]
+        return N + [_xs311_null(f'W{i}x', px) for i in range(n_null)]
+
+    @staticmethod
+    def _ob(q=1):
+        return lambda S: {s: q for s in S}
+
+    def _j(self, N, tn=1979):   # 1979 − 79 tokenów na stronie = 1900 poza stroną × 389 × 2 = 1 478 200 USD (0,493% z 300 023 340)
+        j = _rwe170_xs(N); j['data']['tokens']['page'] = {'totalPages': 2, 'totalNodes': tn}
+        return j
+
+    def test_reszta_listy_i_tokeny_bez_dowodu_osobno_nie_blad(self):
+        r = zd.rwe_xs_parse(self._j(self._N()), self.FX, obieg=self._ob())
+        tot = 3 * 100000000 + 60 * 389
+        self.assertAlmostEqual(r['v'], tot, places=2, msg='wartość tylko z dowodów — granice nie są doliczane')
+        self.assertEqual(r['ogon'], {'n': 1900, 'max_usd': 1478200})
+        self.assertEqual((r['bez']['n'], r['bez']['max_usd'], r['bez']['obieg']), (16, 16 * 3 * 500, 16.0), 'liczba jawnie, granica z obiegu')
+        self.assertEqual(r['bez']['sym'], ['W0x', 'W1x', 'W2x', 'W3x', 'W4x'])
+        self.assertGreater(r['ogon']['max_usd'] + r['bez']['max_usd'], 0.005 * tot, 'razem ponad dawny limit 0,5% — wcześniej błąd')
+        self.assertLessEqual(r['ogon']['max_usd'], 0.005 * tot, 'reszta listy ma swój limit 0,5% (bez zmian)')
+
+    def test_reszta_listy_ponad_swoj_limit_dalej_blad(self):
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_xs_parse(self._j(self._N(), tn=2100), self.FX, obieg=self._ob())
+        self.assertIn('górna granica reszty listy poza stroną 0', str(c.exception))
+
+    def test_blad_dopiero_gdy_brakuje_wiekszosci(self):
+        N = self._N(n_null=1, px=10000)   # jeden token null, cena akcji 100 USD
+        r = zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob(1000000))   # granica 200 000 100 USD wobec 300 023 340 USD
+        self.assertEqual(r['bez']['n'], 1)
+        with self.assertRaises(ValueError) as c:
+            zd.rwe_xs_parse(_rwe170_xs(N), self.FX, obieg=self._ob(1600000))   # 320 000 100 USD > suma znana
+        self.assertEqual(str(c.exception), 'tokenów bez dowodu rezerw 1 (np. W0x) najwyżej 320,000,100 USD — brakuje większości wartości (ponad 50% całości)')
+
+    def test_szacunek_bez_ceny_dalej_limit_pol_procent(self):
+        nul = {'symbol': 'NPx', 'proofOfReserves': None, '_np': True}
+        N = [_rwe170_xn(f'U{i:03d}x', 1000, 10000 * (i + 1), 'USD', '2026-10-20T06:00:00Z') for i in range(60)] + [nul]
+        with self.assertRaises(ValueError) as c:
+            zd._rwe_xs_licz(_rwe170_xs(N), None, lambda S: {s: 3809.0 for s in S})
+        self.assertIn('— ponad 0.5% sumy', str(c.exception), 'granica z percentyla cen to szacunek — limit 0,5% zostaje')

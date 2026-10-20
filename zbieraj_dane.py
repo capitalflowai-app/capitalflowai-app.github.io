@@ -27048,6 +27048,8 @@ RWE_XS_OGON_ZAPAS = 2     # v267 (przegląd v265): zapas — kolejność emitent
 RWE_XS_OGON_PROC = 0.5    # v265: % — górna granica pominiętej reszty listy do tylu procent sumy = odczyt przyjęty (pole 'ogon'); więcej = błąd
 RWE_XS_BEZ_MAX = 250      # v391: było 100 (17.10.2026: 116 tokenów bez dowodu, razem granica 0,05% sumy — próg 0,5% sumy nadal ogranicza wartość). v311: xStocks — najwyżej tyle tokenów z dowodem rezerw null (na stronie odpowiedzi) pomijamy, każdy z górną granicą
                           #       wartości z liczby tokenów w obiegu (10.10.2026: 58 z 1318 tokenów emitenta; 05.10: 0 z 1000); więcej = błąd
+RWE_XS_BEZ_WIEKSZ = 50    # v503: % całości — błąd odczytu xStocks dopiero, gdy granica wartości tokenów bez dowodu rezerw (z resztą listy) przekracza tyle procent sumy znanej + granicy (brakuje większości);
+                          #       mniejsza część jest policzona osobno (pole 'bez': liczba, obieg, granica) i opisana na stronie. 20.10.2026: reszta listy 0,5% + 16 tokenów 0,04% = błąd mimo bez zmian u emitenta
 RWE_XS_DOP_TMO = 50       # v442: było 40 (19.10.2026 lista z sortowaniem odpowiada ok. 31 s). v385: s — zapytanie dopelniajace liste xStocks ma WLASNY limit czasu (nie resztke budzetu kroku: 16.10.2026 po glownym zapytaniu
                           #       zostawalo kilka sekund i dopelnienie konczylo sie TimeoutError); budzet kroku rosnie o tyle, gdy dopelnienie jest potrzebne
 RWE_ERR_MAX = 420         # v398: było 280 (nazwa kroku i czasy kroków xStocks w opisie błędu). v391: było 220 (dopisek o dopełnieniu listy xStocks jest dłuższy). v385: znakow opisu bledu produktu w pliku (razem z nazwa wyjatku; dotad 160 — diagnostyka v385 jest dluzsza)
@@ -27910,7 +27912,7 @@ def _rwe_xs_bez(B, R, obieg, tot, ogon, cap=None, dod=0.0, pm=None):
     → {symbol: liczba}; u tokenów z dowodem to ta sama liczba co circulatingSupply w dowodzie — 10.10.2026: 8 z 9 sprawdzonych co do cyfry,
     9. o 0,003 tokenu, bo dowód był sprzed 31 min — ale liczona także bez dowodu): granica = (RWE_XS_OGON_ZAPAS × w obiegu + 1) × cena akcji
     (zapas na mnożnik dywidend i zaokrąglenie do całej akcji), w USD po kursie jak wartość (R: kursy pliku rynki). Pominięte, gdy tokenów
-    najwyżej RWE_XS_BEZ_MAX, każdy ma liczbę w obiegu (≥ 0) i cenę, a granica razem z resztą listy (`ogon`) ≤ RWE_XS_OGON_PROC % sumy `tot`.
+    najwyżej RWE_XS_BEZ_MAX, każdy ma liczbę w obiegu (≥ 0) i cenę, a granica razem z resztą listy (`ogon`) ≤ RWE_XS_BEZ_WIEKSZ % całości (v503: dotąd RWE_XS_OGON_PROC % sumy `tot` — tokeny z ceną liczone osobno; tokeny bez dowodu i bez ceny: nadal RWE_XS_OGON_PROC %, bo ich granica to szacunek z percentyla).
     Inaczej wyjątek; bez `obieg` — wyjątek jak w v268 (dowód nieznany). Kolejność listy emitenta (wg jego „aum”) nie ogranicza tokenu bez
     dowodu — jego „aum” nie musi nic znaczyć; liczba w obiegu — tak. Akcje emitenta ponad obieg (jego zapas: na nagraniu 05.10 u 408 z 748
     tokenów, każdy najwyżej ok. 9 tys. USD ponad granicę) nie są wartością tokenów w obiegu.
@@ -27927,7 +27929,7 @@ def _rwe_xs_bez(B, R, obieg, tot, ogon, cap=None, dod=0.0, pm=None):
             raise ValueError(f'{s}: dowód rezerw nieznany, zły symbol')
     O = obieg(S)
     O = O if isinstance(O, dict) else {}
-    gb = ob = 0.0
+    gb = ob = gbn = 0.0   # v503: gbn — część granicy z tokenów bez ceny (szacunek z percentyla albo pamięci cen)
     bc = bm = 0   # v398: tokeny bez ceny (bc) i z nich z granicą ceny z pamięci (bm); mx — największa granica pojedynczego tokenu (granica, symbol, z pamięci? albo None)
     mx = (0.0, None, None)
     for (s, n), x in zip(B, S):
@@ -27938,6 +27940,7 @@ def _rwe_xs_bez(B, R, obieg, tot, ogon, cap=None, dod=0.0, pm=None):
             g1 = pm.granica(x) if pm is not None else None
             g = (RWE_XS_OGON_ZAPAS * q + 1) * (g1 if g1 is not None else cap())
             gb += g
+            gbn += g
             ob += q
             bc += 1
             bm += g1 is not None
@@ -27961,9 +27964,13 @@ def _rwe_xs_bez(B, R, obieg, tot, ogon, cap=None, dod=0.0, pm=None):
         if g > mx[0]:
             mx = (g, s, None)
     og = (ogon['max_usd'] if ogon else 0) + dod   # v398: + tokeny z rezerwą bez ceny
-    if tot <= 0 or og + gb > RWE_XS_OGON_PROC / 100 * tot:
+    if tot <= 0 or og + gbn > RWE_XS_OGON_PROC / 100 * tot:   # v503: limit 0,5% tylko dla szacunków (bez ceny, reszta listy); tokeny z ceną — niżej
         raise ValueError(f'tokenów bez dowodu rezerw {len(B)} (np. {s0}) najwyżej {gb:,.0f} USD' + (f' + reszta listy {og:,.0f}' if ogon and not dod else f' + reszta listy i tokeny bez ceny {og:,.0f}' if og else '')
                          + f' — ponad {RWE_XS_OGON_PROC:g}% sumy' + (f'; największy {mx[1]} {mx[0]:,.0f} USD' + (f', cena akcji najwyżej {RWE_XS_PM_RAZY} × ostatnia znana' if mx[2] else ', cena akcji z percentyla cen (bez pamięci)') if mx[2] is not None else ''))
+    nz = og + gb   # v503: nieznana część razem (granice): brak większości — odczyt przyjęty z jawnym polem 'bez'; brak większości = ponad połowa całości
+    if nz > RWE_XS_BEZ_WIEKSZ / 100 * (tot + nz):
+        raise ValueError(f'tokenów bez dowodu rezerw {len(B)} (np. {s0}) najwyżej {gb:,.0f} USD' + (f' + reszta listy {og:,.0f}' if og else '')
+                         + f' — brakuje większości wartości (ponad {RWE_XS_BEZ_WIEKSZ:g}% całości)')
     return {'n': len(B), 'max_usd': round(gb), 'obieg': round(ob, 4), 'sym': [s for s, _n in B[:RWE_XS_BEZ_SYM]], **({'bc': bc, 'bm': bm} if bc else {})}
 
 
