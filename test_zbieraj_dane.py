@@ -38841,7 +38841,7 @@ class WygladGlobalV321(unittest.TestCase):
         self.assertIn("const SU_FUT={brent:'brent_fut'};", h)
         self.assertIn("if(typeof suKpi==='function')GKPI.push(suKpi('gold','w321.k.gold',per),suKpi('brent','w321.k.brent',per));", h)
         self.assertIn("const GKPI_TOP=['g.k.eq','g.k.dxy','g.k.us10','g.k.de10','w321.k.gold','w321.k.brent'];", h)
-        self.assertIn("const s=suSer('ceny',id),R=s?suRows(s.d,SU_D):[],V=suVal(R);if(!V.length)return o;", h, 'ta sama seria co Puls (suTile)')
+        self.assertIn("const eid=suEff(id),s=suSer('ceny',eid),R=s?suRows(s.d,SU_D):[],V=suVal(R);if(!V.length)return o;", h, 'ta sama seria co Puls (suTile): v504 — kontrakt, gdy świeższy')
 
     def test_pierwszy_widok_bez_nowego_pliku(self):
         h = self.h

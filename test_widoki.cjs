@@ -37766,3 +37766,49 @@ test('v502: Aktywa — miesiąc danych słownie („wrzesień 2026”, „Septem
   const a0 = html.indexOf('function renderAssets(){'), a1 = html.indexOf('\nfunction renderSectorsPage(', a0), body = html.slice(a0, a1);
   assert.ok(body.includes("/^\\d{4}-\\d{2}$/.test(String(day))&&typeof usaMon==='function'?usaMon(day):"), 'kod: miesiąc przez usaMon');
 });
+
+
+test('v504 (BRENT_KAFEL): kafel „Ropa Brent” (GLOBAL, Puls, Aktywa) pokazuje najświeższą wiarygodną cenę — kontrakt, gdy nowszy albo gdy cena fizyczna z tego dnia nie jest potwierdzona; cena fizyczna jako dopisek; bez kontraktu i przy świeżej potwierdzonej cenie fizycznej — jak dotąd', () => {
+  const {mk, file, B} = v321su, t = v96src.tFor('pl'), te = v96src.tFor('en');
+  const L = B[B.length - 1], P = B[B.length - 2];
+  const lastFut = (f, n) => f.ceny.brent_fut.d.slice(-n);
+  // 1) kontrakt nowszy niż ostatnia cena fizyczna (cena fizyczna kończy się dzień wcześniej): kafel = kontrakt
+  let f = file(); f.ceny.brent.d = f.ceny.brent.d.filter(r => r[0] !== L); f.ceny.brent_fut.x = ['kontr'];
+  let K = mk('pl', {}); K.api.suApply(f);
+  let k = K.api.suKpi('brent', 'w321.k.brent', '1T');
+  const fv = lastFut(f, 1)[0][1], pv = f.ceny.brent.d[f.ceny.brent.d.length - 1];
+  assert.equal(k.v, fv, 'wartość kafla = kontrakt'); assert.equal(k.fresh, L, 'data kontraktu'); assert.equal(k.su, 'brent');
+  assert.ok(k.mk.includes(t('su295g.x.kontr')), 'oznaczenie: kontrakt terminowy, nie cena fizyczna');
+  assert.equal(k.fiz, t('g504.fiz', {v: K.api.suFmt(pv[1]) + ' ' + t('usa.u.bbl'), d: K.api.suDay(pv[0])}), 'dopisek: cena fizyczna i jej data');
+  assert.ok(k.note.includes(k.fiz) && typeof k.d === 'number' && k.d > 0, 'dopisek w uwadze kafla, zmiana tygodnia liczona z serii kontraktu: ' + k.d);
+  const tl = K.api.suTile('brent', 'oil', ['gb']);
+  assert.ok(tl.includes('su-fz') && tl.includes(k.fiz) && tl.includes(K.api.suFmt(fv)) && tl.includes(t('su295g.x.kontr')) && tl.includes('data-su="brent"'), 'Puls: kontrakt + dopisek z ceną fizyczną');
+  assert.ok(html.includes("+(x.fiz?' · '+x.fiz:'')") && html.includes("rows.push([x.fiz?'g504.k.brent':ak,"), 'wiersz Aktywów dopisuje cenę fizyczną i nazywa kontrakt kontraktem');
+  assert.ok(tl.includes(t('g504.k.brent')) && !tl.includes(t('su295g.k.brent')) && /kontrakt terminowy/.test(t('g504.k.brent')) && /futures/.test(te('g504.k.brent')), 'Puls: nazwa kafla = kontrakt, nie „dostawa fizyczna”');
+  // 2) ta sama data, cena fizyczna niepotwierdzona (rozjazd): kontrakt
+  const chron = B.slice(-6).map((d, i) => [d, i ? 'trwa' : 'rozjazd', 'niepotw']);   // stały rozjazd: 6 sesji z rzędu bez potwierdzenia
+  f = file({q: chron}); f.ceny.brent_fut.d = f.ceny.brent_fut.d.map(r => [r[0], r[1] - 20]); f.ceny.brent_fut.x = ['kontr']; K = mk('pl', {}); K.api.suApply(f);
+  k = K.api.suKpi('brent', 'w321.k.brent', '1T');
+  assert.equal(k.v, lastFut(f, 1)[0][1], 'stały rozjazd (niepotwierdzona cena fizyczna z tego dnia, różnica od progu) — kafel pokazuje kontrakt'); assert.ok(k.fiz.includes(t('g504.fiz', {v: '', d: ''}).split(' ')[0]), k.fiz);
+  assert.equal(k.fresh, L);
+  // 2b) ta sama data, pojedynczy niepotwierdzony skok (nie stały rozjazd) albo kontrakt blisko: jak dotąd — cena fizyczna z uwagą
+  f = file({q: [[L, 'skok', 'niepotw']]}); f.ceny.brent_fut.d = f.ceny.brent_fut.d.map(r => [r[0], r[1] - 20]); K = mk('pl', {}); K.api.suApply(f); k = K.api.suKpi('brent', 'w321.k.brent', '1T');
+  assert.equal(k.v, f.ceny.brent.d[f.ceny.brent.d.length - 1][1], 'pojedynczy skok — bez zmian'); assert.equal(k.fiz, '');
+  // 3) ta sama data, cena fizyczna potwierdzona: jak dotąd (cena fizyczna, bez dopisku)
+  f = file(); K = mk('pl', {}); K.api.suApply(f); k = K.api.suKpi('brent', 'w321.k.brent', '1T');
+  assert.equal(k.v, f.ceny.brent.d[f.ceny.brent.d.length - 1][1], 'potwierdzona cena fizyczna — bez zmian'); assert.equal(k.fiz, '');
+  assert.ok(!K.api.suTile('brent', 'oil', ['gb']).includes('su-fz'), 'Puls bez dopisku');
+  // 4) brak kontraktu: jak dotąd, także przy niepotwierdzonej cenie
+  f = file({q: [[L, 'rozjazd', 'niepotw']]}); delete f.ceny.brent_fut; K = mk('pl', {}); K.api.suApply(f); k = K.api.suKpi('brent', 'w321.k.brent', '1T');
+  assert.equal(k.v, f.ceny.brent.d[f.ceny.brent.d.length - 1][1], 'bez kontraktu — cena fizyczna'); assert.equal(k.fiz, '');
+  // 5) kontrakt starszy niż cena fizyczna: cena fizyczna (nigdy starsza data zamiast świeższej)
+  f = file({q: [[L, 'rozjazd', 'niepotw']]}); f.ceny.brent_fut.d = f.ceny.brent_fut.d.filter(r => r[0] !== L); K = mk('pl', {}); K.api.suApply(f); k = K.api.suKpi('brent', 'w321.k.brent', '1T');
+  assert.equal(k.fresh, L); assert.equal(k.fiz, '');
+  // 5b) ikona wiersza Aktywów dla klucza kontraktu = ikona ropy (glif ropy + flagi), nie ogólna moneta
+  const ico = pgEnv().f.pgAsIco, icoK = ico('g504.k.brent');
+  assert.equal(icoK, ico('su295g.k.brent'), 'ikona wiersza kontraktu = ikona ropy'); assert.ok(/oil/.test(icoK) && !/coin/.test(icoK) && icoK !== ico('xx.nieznany'), 'ikona ropy, nie moneta: ' + icoK);
+  // 6) złoto bez kontraktu nie zmienia się
+  K = mk('pl', {}); K.api.suApply(file()); assert.equal(K.api.suKpi('gold', 'w321.k.gold', '1T').fiz, '');
+  // 7) słownik pl i en, bez nazw dostawców
+  assert.ok(/Cena fizyczna/.test(t('g504.fiz', {v: '1', d: '2'})) && /Physical price/.test(te('g504.fiz', {v: '1', d: '2'})) && !/EIA|ICE|FMP|Reuters/.test(t('g504.fiz') + te('g504.fiz')));
+});

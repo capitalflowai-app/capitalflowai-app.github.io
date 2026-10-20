@@ -4050,6 +4050,8 @@ const EXTRA322={"pl":{"wh479.old":"lista sprzed {a} dni — nowe portfele giełd
 for(const l in EXTRA322)if(I18N[l])Object.assign(I18N[l],EXTRA322[l]);
 const EXTRA323={"pl":{"su481.chr":"Od {d}: {n} z {m} ostatnich sesji bez potwierdzenia drugim źródłem — stały rozjazd cen, nie pojedynczy skok.","su481.chg0":"— w tygodniu (stały rozjazd cen)","su481.k.n":"— stały rozjazd cen"},"en":{"su481.chr":"Since {d}: {n} of the last {m} sessions not confirmed by a second source — a lasting price gap, not a one-off jump.","su481.chg0":"— over the week (lasting price gap)","su481.k.n":"— lasting price gap"}};
 for(const l in EXTRA323)if(I18N[l])Object.assign(I18N[l],EXTRA323[l]);
+const EXTRA324={"pl":{"g504.fiz":"Cena fizyczna: {v} · {d}","g504.k.brent":"Ropa Brent (kontrakt terminowy)"},"en":{"g504.fiz":"Physical price: {v} · {d}","g504.k.brent":"Brent crude (futures contract)"}};
+for(const l in EXTRA324)if(I18N[l])Object.assign(I18N[l],EXTRA324[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -8168,7 +8170,7 @@ function pgAsIco(k){
     case 'kpi.vol':return icoWrap(pgLogo('exch'));
     case 'kpi.tvl':return icoWrap(pgLogo('defi'));
     case 'su295g.k.gold':return icoWrap(glyphImg('gold'));   /* v321: wiersze złota i ropy Brent — nazwy i ikony jak w Pulsie surowców */
-    case 'su295g.k.brent':return icoWrap(glyphImg('oil')+flagImg('gb')+flagImg('no'));
+    case 'g504.k.brent':case 'su295g.k.brent':return icoWrap(glyphImg('oil')+flagImg('gb')+flagImg('no'));
   }
   return icoWrap(glyphImg('coin'));
 }
@@ -8301,7 +8303,7 @@ function renderAssets(){
     if(sd)rows.push(['as.stab',gfmt(sd[2]),sd[1],t('pg.daily')+' · '+(sdD?escH(typeof gFreshTxt==='function'?gFreshTxt(sdD):sdD)+gAgeNote(sdD):noD())]);
     /* v321: złoto i ropa Brent — te same liczby, zmiana i dzień co kafelki GLOBAL (Puls surowców); bez ceny — bez wiersza */
     for(const [kk,ak] of [['w321.k.gold','su295g.k.gold'],['w321.k.brent','su295g.k.brent']]){const x=Array.isArray(GKPI)?GKPI.find(o=>o&&o.k===kk):null;
-      if(x&&typeof x.v==='number'&&isFinite(x.v))rows.push([ak,(typeof suFmt==='function'?suFmt(x.v):n2(x.v))+(x.unit?' '+x.unit:''),typeof x.d==='number'&&isFinite(x.d)?x.d:null,when(t('pg.daily'),x.fresh)+(x.pre?' · '+t('su295g.pre'):'')+(x.mk?' · '+x.mk:'')+(x.gap?' · '+x.gap:''),null,x.why]);}   /* v321 (przegląd): opis ceny jak w Pulsie */
+      if(x&&typeof x.v==='number'&&isFinite(x.v))rows.push([x.fiz?'g504.k.brent':ak,(typeof suFmt==='function'?suFmt(x.v):n2(x.v))+(x.unit?' '+x.unit:''),typeof x.d==='number'&&isFinite(x.d)?x.d:null,when(t('pg.daily'),x.fresh)+(x.pre?' · '+t('su295g.pre'):'')+(x.mk?' · '+x.mk:'')+(x.gap?' · '+x.gap:'')+(x.fiz?' · '+x.fiz:''),null,x.why]);}   /* v321 (przegląd): opis ceny jak w Pulsie */
   }else{
     const KV=kpiVals(),lv=isLive();
     KDEF.forEach(k=>{
@@ -17201,6 +17203,14 @@ function suGapTxt(id,d){const fid=SU_FUT[id];if(!fid||!d)return '';const s=suSer
   const g=(a[1]/b[1]-1)*100;if(!suNum(g)||Math.abs(g)<SU_GAP_MIN)return '';
   return t(g>0?'g464.gap.u':'g464.gap.d',{v:suFmt(b[1])+' '+suUnit(f.u),p:nfmt(Math.abs(g),0)});}
 const suGapN=(id,d)=>{const g=suGapTxt(id,d);return g?`<small class="mtxt su-qn">${g}</small>`:'';};
+/* v504 (20.10.2026): seria do pokazania na kaflu — kontrakt terminowy (SU_FUT), gdy jest NOWSZY niż ostatnia cena fizyczna albo gdy ostatnia cena fizyczna
+   jest niepotwierdzona od dłuższego czasu (stan trwały, suChr), kontrakt jest z tego samego dnia i różnica sięga SU_GAP_MIN %; w pozostałych przypadkach (brak kontraktu,
+   cena fizyczna świeża i potwierdzona, pojedynczy niepotwierdzony skok) — cena fizyczna jak dotąd (z uwagą i kontraktem w etykiecie różnicy). suFiz: krótki dopisek z ostatnią ceną fizyczną, gdy kafel pokazuje kontrakt. */
+function suEff(id){const fid=SU_FUT[id];if(!fid)return id;const s=suSer('ceny',id),f=suSer('ceny',fid),F=f?suVal(suRows(f.d,SU_D)):[];if(!F.length)return id;
+  const P=s?suVal(suRows(s.d,SU_D)):[];if(!P.length)return fid;const lf=F[F.length-1],lp=P[P.length-1];
+  return lf[0]>lp[0]||(lf[0]===lp[0]&&lf[1]>0&&Math.abs((lp[1]/lf[1]-1)*100)>=SU_GAP_MIN&&suQ(s).get(lp[0])==='niepotw'&&suChr(P,suQ(s)))?fid:id;}
+function suFiz(id){const s=suSer('ceny',id),V=s?suVal(suRows(s.d,SU_D)):[];if(!V.length)return '';const l=V[V.length-1];
+  return t('g504.fiz',{v:suFmt(l[1])+' '+suUnit(s.u),d:suDay(l[0])});}
 /* v481: stan trwały — co najmniej SU_QA[1] z ostatnich SU_QA[0] sesji bez potwierdzenia i któraś z ostatnich SU_QA[2] (ta sama reguła co su_chron w kontroli):
    jedna adnotacja zamiast uwag o punktach i ciągu, a zmiana w tygodniu „—” z powodem; inaczej null */
 const SU_QA=[14,5,5];
@@ -17232,19 +17242,19 @@ function suSpark(R,Q){const V=suVal(R);if(V.length<2)return '';
   const h=arcChart(L,'',true).replace(/<circle class="arc-p su-q" cx="([-\d.]+)" cy="([-\d.]+)" r="3"\/>/g,(m,x,y)=>{const a=`x1="${x}" x2="${(+x+.01).toFixed(2)}" y1="${y}" y2="${y}" vector-effect="non-scaling-stroke"`;return `<line class="su-q" ${a}/><line class="su-qi" ${a}/>`;});
   return `<div class="su-sp">${h}</div>`;}
 function suTile(id,g,F){
-  const s=suSer('ceny',id),R=s?suRows(s.d,SU_D):[],V=suVal(R),l=V.length?V[V.length-1]:null,mk=s?suMarks(s.x):'';
-  const head=`<span>${suIco(g,F)}${t('su295g.k.'+id)}</span>`,mkh=mk?`<small class="mtxt su-x">${mk}</small>`:'';
+  const eid=suEff(id),s=suSer('ceny',eid),R=s?suRows(s.d,SU_D):[],V=suVal(R),l=V.length?V[V.length-1]:null,mk=s?suMarks(s.x):'';   /* v504: eid — kontrakt, gdy świeższy */
+  const head=`<span>${suIco(g,F)}${eid!==id?t('g504.k.'+id):t('su295g.k.'+id)}</span>`,mkh=mk?`<small class="mtxt su-x">${mk}</small>`:'';
   if(!l)return `<div class="etfk su-k" data-su="${id}">${head}<b class="na">—</b>${mkh}<small class="mtxt">${t('eng.gap')}</small></div>`;
   const Q=suQ(s),why=suWkWhy(V,Q),ok=!why,chr=suChr(V,Q),run=suRun(V,Q,suQE(s)),p=suBack(V,l[0],5),ch=ok&&p&&p[1]>0?(l[1]/p[1]-1)*100:null;   /* v297g: zmiana tylko przy obu końcach potwierdzonych */
   const QW=new Map([...suQE(s)].filter(([d])=>d>=R[0][0])),pre=Array.isArray(s.pre)&&s.pre.includes(l[0]);
   const chg=suNum(ch)?` <small class="${suTone(ch,1)}">${suChg(ch,1,'%',t('usa.wk'))}</small>`:!ok&&p?` <small class="su-nc">${suChg0(why,chr)}</small>`:
     !p?` <small class="su-nc">${t('g314.su.wk0',{d:suDay(V[0][0])})}</small>`:'';   /* v314 (audyt G8): za krótka historia (miedź, uran od 7.10) — „—” z powodem, nie pusto */
-  const rt=suRunTxt(id,run,false,null,chr).join(' '),rn=rt?`<small class="mtxt su-qn su-qr"><i class="su-qo" aria-hidden="true"></i>${rt}</small>`:'';
+  const rt=suRunTxt(eid,run,false,null,chr).join(' '),rn=rt?`<small class="mtxt su-qn su-qr"><i class="su-qo" aria-hidden="true"></i>${rt}</small>`:'';
   const sp=V.length>1?suSpark(R,QW):`<small class="mtxt su-few">${t('su295g.few',{d:suDay(V[0][0])})}</small>`;
   const qn=chr?'':[...QW].filter(([d])=>!(run&&(run.d!==run.l&&d===run.d||run.t&&d===run.p))).sort((a,b)=>a[0]<b[0]?1:-1).slice(0,2).map(([d,st])=>`<small class="mtxt su-qn"><i class="su-qo" aria-hidden="true"></i>${t(st==='potw'?'su295g.q.p':'su295g.q.n',{d:suDay(d)})}</small>`).join('');
   const L=s.live,la=suObj(L)&&typeof L.at==='string'?Date.parse(L.at):NaN;
   const lv=suNum(L&&L.v)&&isFinite(la)&&L.at.slice(0,10)>=l[0]&&Date.now()-la<=SU_LIVE_H*3600e3?`<small class="mtxt su-live">${t('su295g.live',{h:suHM(L.at),v:suFmt(L.v,suDec(l[1])),a:suAgo(L.at)})}</small>`:'';
-  return `<div class="etfk su-k" data-su="${id}">${head}<b>${suFmt(l[1])} <small class="mtxt">${suUnit(s.u)}</small>${chg}</b>${mkh}${rn}${suGapN(id,l[0])}${sp}`+
+  return `<div class="etfk su-k" data-su="${id}">${head}<b>${suFmt(l[1])} <small class="mtxt">${suUnit(s.u)}</small>${chg}</b>${mkh}${rn}${suGapN(eid,l[0])}${eid!==id&&suFiz(id)?`<small class="mtxt su-qn su-fz">${suFiz(id)}</small>`:''}${sp}`+
     `<small class="mtxt su-d">${suDay(l[0])}${gAgeNote(l[0])}${pre?' · '+t('su295g.pre'):''}</small>${lv}${qn}</div>`;
 }
 /* ---------- B) mapa zmian miesięcznych ---------- */
@@ -18807,12 +18817,12 @@ setInterval(()=>{if(!document.hidden&&ZD.j)zdLoad(1);},30*60*1000);
 const SU_K_N={'1D':1,'1T':5,'1M':21,'1Q':63,'1R':252},SUK={tried:false};
 function suKpi(id,key,per){
   const o={k:key,v:null,u:'su',d:null,su:id,fresh:'',why:SUK.tried?'':'…'};
-  const s=suSer('ceny',id),R=s?suRows(s.d,SU_D):[],V=suVal(R);if(!V.length)return o;
-  const l=V[V.length-1],Q=suQ(s),k=SU_K_N[per]||21;
-  Object.assign(o,{v:l[1],unit:suUnit(s.u),fresh:l[0],pre:Array.isArray(s.pre)&&s.pre.includes(l[0]),why:'',name:t('su295g.k.'+id),note:suRunTxt(id,suRun(V,Q,suQE(s)),true,l[0],suChr(V,Q)).join(' '),gap:suGapTxt(id,l[0]),
+  const eid=suEff(id),s=suSer('ceny',eid),R=s?suRows(s.d,SU_D):[],V=suVal(R);if(!V.length)return o;   /* v504: eid — kontrakt, gdy świeższy niż cena fizyczna */
+  const l=V[V.length-1],Q=suQ(s),k=SU_K_N[per]||21,fz=eid!==id?suFiz(id):'';
+  Object.assign(o,{v:l[1],unit:suUnit(s.u),fresh:l[0],pre:Array.isArray(s.pre)&&s.pre.includes(l[0]),why:'',name:t('su295g.k.'+id),note:suRunTxt(eid,suRun(V,Q,suQE(s)),true,l[0],suChr(V,Q)).concat(fz?[fz]:[]).join(' '),gap:suGapTxt(eid,l[0]),fiz:fz,
     mk:suMarks(s.x)});   /* v321 (przegląd): opis ceny z serii jak w Pulsie (wyliczona, z wyceny funduszu, kontrakt terminowy, szacunek) */
   let VV=V;
-  if(V.length<=k){const hs=SU.h&&suObj(SU.h.d)&&Array.isArray(SU.h.d[id])?suVal(suRows(SU.h.d[id],SU_D)):null;
+  if(V.length<=k){const hs=SU.h&&suObj(SU.h.d)&&Array.isArray(SU.h.d[eid])?suVal(suRows(SU.h.d[eid],SU_D)):null;
     if(hs&&hs.length)VV=suMerge(hs,V);
     else if(per==='1R'&&!SU.hx){o.why=t('w321.k.n.load');suKpiHist();return o;}}
   const p=suBack(VV,l[0],k);
