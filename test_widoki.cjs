@@ -23340,7 +23340,7 @@ test('v349: wybór okresu przepływów (24 h / 7 / 30 dni) — zapamiętany w pr
   assert.ok(/aria-pressed="true">30 dni/.test(K.els['#c-gieldy'].innerHTML), 'wybrany przycisk'); gx349.click(K, 99); assert.equal(K.api.GX.per, 30); gx349.click(K, 1); assert.equal(K.api.GX.per, 1);
   const L = gx349.mk('pl', gx349.files()); L.store['cfai.gx.per'] = '30'; /* odczyt przy starcie — z localStorage (atrapa po wywołaniu kodu; tu sprawdzamy brak wyjątku) */
   for (const bad of [null, {v: 2}, {v: 1, at: 'x', cex: {}}, {v: 1, at: '2026-10-10T14:00:00+00:00', cex: {razem: {}, rows: [], src_at: '2026-10-10T13:00:00+00:00'}}, [], 'x']) {
-    const M = gx349.mk('pl', gx349.files(bad)); M.api.gxLoad(); assert.equal(M.els['#c-gieldy'].hidden, true, JSON.stringify(bad).slice(0, 50));
+    const M = gx349.mk('pl', gx349.files(bad)); M.api.gxLoad(); assert.equal(M.els['#c-gieldy'].hidden, false, JSON.stringify(bad).slice(0, 50)); assert.ok(M.els['#c-gieldy'].innerHTML.includes('Brak połączenia z plikiem danych'), 'v498: zły plik bez danych — komunikat, nie zniknięcie');
   }
   const O = gx349.clone(GX349_G); O.cex.src_at = '2026-10-07T13:00:00+00:00'; const KO = gx349.mk('pl', gx349.files(O)); KO.api.gxLoad();
   const hO = KO.els['#c-gieldy'].innerHTML, TO = gx349.tiles(hO);
@@ -30271,7 +30271,7 @@ test('v402: rejestr grupy „c” (defi2), ładowanie co 30 min, jeden obserwato
   assert.equal(html.split('id="c-defi2"').length, 2, 'jedna sekcja');
   const a = html.indexOf('id="c-surowce"'), b = html.indexOf('id="c-defi2"'), c = html.indexOf('id="eng-cftc-crypto"');
   assert.ok(a > 0 && b > a && c > b, 'karta po surowcach, przed CFTC'); assert.ok(html.includes('<section class="panel pcard" id="c-defi2" hidden></section>'));
-  assert.equal(K.els['#c-defi2'].hidden, false, 'z plikiem karta widoczna'); assert.equal(df2t.mk('pl', null).els['#c-defi2'].hidden, true, 'bez pliku ukryta');
+  assert.equal(K.els['#c-defi2'].hidden, false, 'z plikiem karta widoczna'); assert.equal(df2t.mk('pl', null).els['#c-defi2'].hidden, false, 'bez pliku (v498): karta z komunikatem');
 });
 
 test('v402: opłaty i przychody — kafle (doba, przychód, 30 dób, największy zarabiający), wykres z 90 dób, tabela, kategorie; data i wiek; kolory z pokazanej liczby', () => {
@@ -30355,10 +30355,10 @@ test('v402: brak = „—”, części niezależne, stara część znika, zły p
   const d = C(DF2_F); d.peg.dzien = '2026-10-11'; d.hacks.t = '2026-10-10T00:00:00+00:00'; d.opt.dzien = '2026-10-12'; const hd = ok(d).innerHTML;
   assert.ok(hd.includes('Opłaty i przychody protokołów') && !hd.includes('Ceny stablecoinów: odchylenie') && !hd.includes('Włamania i wycieki') && !hd.includes('Opcje na zdecentralizowanych giełdach'), 'ceny 6 dób, włamania 7 dób, opcje 5 dób temu: znikają');
   const e = C(DF2_F); e.fees.dzien = '2026-10-10'; e.peg.dzien = '2026-10-11'; e.hacks.t = '2026-10-10T00:00:00+00:00'; e.opt.dzien = '2026-10-12'; assert.equal(ok(e).hidden, true, 'wszystkie części stare = karta ukryta');
-  for (const zly of [{v: 1, at: 'zły', fees: DF2_F.fees}, {v: 2, at: DF2_F.at, fees: DF2_F.fees}, 'tekst', [], {v: 1, at: DF2_F.at}, {v: 1, at: DF2_F.at, fees: []}]) assert.equal(ok(zly).hidden, true, JSON.stringify(zly).slice(0, 40));
+  for (const zly of [{v: 1, at: 'zły', fees: DF2_F.fees}, {v: 2, at: DF2_F.at, fees: DF2_F.fees}, 'tekst', [], {v: 1, at: DF2_F.at}, {v: 1, at: DF2_F.at, fees: []}]) { const z = ok(zly); assert.equal(z.hidden, false, JSON.stringify(zly).slice(0, 40)); assert.ok(z.innerHTML.includes('Brak połączenia z plikiem danych') && !z.innerHTML.includes('etfk'), 'v498: zły plik — komunikat bez liczb'); }
   const f = C(DF2_F); f.fees.rows = f.fees.rows.slice(0, 2); f.peg.top = f.peg.top.slice(0, 2); f.hacks.lat = 'zły'; f.opt.o30 = 0; const hf = ok(f); assert.equal(hf.hidden, true, 'części bez wystarczających danych nie są pokazywane');
   const K = df2t.mk('pl', DF2_F); K.api.df2Apply(null); assert.equal(K.els['#c-defi2'].hidden, false, 'błąd pobrania nie zasłania wczytanych danych'); K.api.df2Apply({v: 1, at: 'zły'}); assert.equal(K.els['#c-defi2'].hidden, false);
-  const K0 = df2t.mk('pl', null); assert.equal(K0.els['#c-defi2'].hidden, true); K0.api.df2Apply(C(DF2_F)); assert.equal(K0.els['#c-defi2'].hidden, false, 'późniejszy dobry plik pokazuje kartę');
+  const K0 = df2t.mk('pl', null); assert.equal(K0.els['#c-defi2'].hidden, false); assert.ok(K0.els['#c-defi2'].innerHTML.includes('Brak połączenia z plikiem danych')); K0.api.df2Apply(C(DF2_F)); assert.equal(K0.els['#c-defi2'].hidden, false, 'późniejszy dobry plik pokazuje kartę');
   const nw = df2t.mk('pl', DF2_F, {nowk: true}), hw = nw.els['#c-defi2'].innerHTML; assert.ok(!hw.includes('[CHART') && hw.includes('Opłaty i przychody protokołów') && df2tiles(hw).length === 16, 'bez wk-: bez wykresów, reszta działa');
   const op = df2t.mk('pl', DF2_F); op.els['#c-defi2'].open = ['df2-ev', 'df2-top']; op.api.renderDf2(); assert.equal(op.els['#c-defi2'].hidden, false, 'przerysowanie z otwartymi rozwijanymi');
 });
@@ -35450,7 +35450,7 @@ test('v453 (F11Z34): świeżość części — ranking znika po 5 dobach, pożyc
   assert.equal(K.els['#c-hl'].hidden, true); assert.equal(K.els['#c-hl'].innerHTML, ''); assert.equal(K.els['#c-aave'].hidden, false);
   const J2 = hla453J(); J2.aave.t = '2026-10-16T00:00:00+00:00'; K = hla453Go('pl', J2); assert.equal(K.els['#c-aave'].hidden, true); assert.equal(K.els['#c-hl'].hidden, false);
   const J3 = hla453J(); delete J3.aave; K = hla453Go('pl', J3); assert.equal(K.els['#c-aave'].hidden, true); assert.equal(K.els['#c-hl'].hidden, false);
-  for (const bad of [{v: 2}, {v: 1}, {v: 1, at: 'x', hl: {}}, [], 'x', 0]) { K = hla453Go('pl', bad); assert.equal(K.els['#c-hl'].hidden, true); assert.equal(K.els['#c-aave'].hidden, true); }
+  for (const bad of [{v: 2}, {v: 1}, {v: 1, at: 'x', hl: {}}, [], 'x', 0]) { K = hla453Go('pl', bad); for (const id of ['#c-hl', '#c-aave']) { assert.equal(K.els[id].hidden, false); assert.ok(K.els[id].innerHTML.includes('Brak połączenia z plikiem danych'), 'v498: zły plik bez danych — komunikat'); } }
   const sz = [j => { j.hl.rank.gr.pop(); }, j => { j.hl.rank.n = 0; }, j => { j.hl.rank.suma = 'x'; }, j => { j.hl.rank.okna.week.sl = 5; }, j => { delete j.hl.rank.okna.month; }];
   for (const f of sz) { const j = hla453J(); f(j); const k = hla453Go('pl', j); assert.equal(k.els['#c-hl'].hidden, true); assert.equal(k.els['#c-aave'].hidden, false); }
   const sa = [j => { j.aave.suma = 0; }, j => { j.aave.rynki = []; }, j => { j.aave.stawki = []; }, j => { j.aave.rynki = j.aave.rynki.map(r => r.slice(1)); }];
@@ -35461,7 +35461,7 @@ test('v453 (F11Z34): chwilowy błąd pobrania nie zasłania wczytanych danych; p
   const K = hla453Go('pl'); assert.equal(K.els['#c-hl'].hidden, false);
   K.api.hlaApply(null); K.api.hlaApply({v: 2}); assert.equal(K.els['#c-hl'].hidden, false, 'zły plik po poprawnym — dane zostają');
   const J = hla453J(); J.hl.rank.n = 41; K.api.hlaApply(J); assert.equal(hla453.tiles(K.els['#c-hl'].innerHTML)[0].val, '41');
-  const K0 = hla453Go('pl', null); assert.equal(K0.els['#c-hl'].hidden, true, 'bez pliku od początku — karty ukryte');
+  const K0 = hla453Go('pl', null); assert.equal(K0.els['#c-hl'].hidden, false, 'bez pliku od początku (v498) — karty z komunikatem'); assert.ok(K0.els['#c-hl'].innerHTML.includes('Brak połączenia z plikiem danych'));
 });
 
 test('v453 (F11Z34): angielski — tytuły, etykiety i liczby; brak surowych kluczy, NaN i undefined w obu językach także przy danych szczątkowych', () => {
@@ -37630,4 +37630,57 @@ test('v496: inflacja USA w stopach, inflacji i stopach realnych = najświeższy 
   assert.ok(rowUs && rowUs.v === 3.7 && rowUs.l.includes('2026-09'), 'wykres inflacji: USA 3,7% z miesiącem'); assert.ok(rowPl && !rowPl.l.includes('2026-08'), 'inni bez znacznika miesiąca (wspólny miesiąc to sierpień)');
   /* spójność ze stroną: ładowanie i panel USA */
   assert.ok(html.includes("srvJSON('inflacja').then(j=>{RRF.f=j;rrMerge(false);renderInst();})") && html.includes("if(k==='m'&&typeof rrMerge==='function'){try{rrMerge(true);}catch(e){}}"), 'plik inflacji i panel USA wołają to samo łączenie');
+});
+
+
+test('v498 (B4): sześć kart CRYPTO przy nieudanym pobraniu bez danych pokazuje tytuł i krótki komunikat zamiast znikać, ponawia po 90 s; z danymi bez zmian', () => {
+  const OFF = {pl: 'Brak połączenia z plikiem danych. Strona spróbuje ponownie sama.', en: 'No connection to the data file. The page will try again on its own.'};
+  const wst = (fn) => { const g = globalThis, old = g.setTimeout, rec = []; g.setTimeout = (f, ms) => { rec.push([f, ms]); return rec.length; }; try { return fn(rec); } finally { g.setTimeout = old; } };
+  const tit = (L, k) => v96src.tFor(L)(k);
+  for (const L of ['pl', 'en']) {
+    wst(rec => {
+      const K = gx349.mk(L, gx349.files(null, null));
+      assert.equal(K.els['#c-gieldy'].hidden, false); assert.ok(K.els['#c-gieldy'].innerHTML.includes(OFF[L]) && K.els['#c-gieldy'].innerHTML.includes(tit(L, 'gx349.c.t')), 'giełdy: ' + L);
+      for (const id of ['#c-dex', '#c-kontrakty']) assert.equal(K.els[id].hidden, false, id);
+      assert.ok(K.els['#c-dex'].innerHTML.includes(tit(L, 'gx349.d.t')) && K.els['#c-dex'].innerHTML.includes(OFF[L]));
+      assert.ok(K.els['#c-kontrakty'].innerHTML.includes(tit(L, 'gx349.o.t')) && K.els['#c-kontrakty'].innerHTML.includes(OFF[L]));
+      assert.ok(/class="live off"/.test(K.els['#c-dex'].innerHTML) && !/\d[\d\s]*mld|<details/.test(K.els['#c-dex'].innerHTML), 'komunikat, bez liczb i rozwijanych części');
+      assert.deepEqual(rec.map(r => r[1]), [90000, 90000], 'po jednym ponowieniu na plik (gieldy, dex) po 90 s');
+      const D = df2t.mk(L, null); assert.equal(D.els['#c-defi2'].hidden, false); assert.ok(D.els['#c-defi2'].innerHTML.includes(OFF[L]) && D.els['#c-defi2'].innerHTML.includes(tit(L, 'df2.t')));
+      const H = hla453Go(L, null); assert.equal(H.els['#c-hl'].hidden, false); assert.equal(H.els['#c-aave'].hidden, false);
+      assert.ok(H.els['#c-hl'].innerHTML.includes(OFF[L]) && H.els['#c-hl'].innerHTML.includes(tit(L, 'hl.t')));
+      assert.ok(H.els['#c-aave'].innerHTML.includes(OFF[L]) && H.els['#c-aave'].innerHTML.includes(tit(L, 'aave.t')));
+      assert.ok(rec.length >= 4 && rec.every(r => r[1] === 90000), 'ponowienie 90 s także dla defi2 i hl-aave (harnesy wspólnie z kodem kart giełd)');
+    });
+  }
+  /* ponowienie: timer woła ładowarkę; druga porażka — kolejne ponowienie, najwyżej 5, potem cisza; sukces zeruje licznik i pokazuje liczby */
+  wst(rec => {
+    const K = gx349.mk('pl', gx349.files(null, null)); assert.equal(K.calls.length, 2);
+    let n = 0; while (rec.length && n < 60) { const [f] = rec.shift(); f(); n++; }
+    assert.equal(n, 5 * 2, 'na plik najwyżej 5 ponowień (bez nieskończonej pętli)'); assert.equal(K.calls.length, 2 + 10);
+    assert.equal(K.els['#c-gieldy'].hidden, false, 'po wyczerpaniu ponowień komunikat zostaje');
+  });
+  wst(rec => {
+    const files = {gieldy: null, dex: null}; const K = gx349.mk('pl', files);
+    assert.equal(rec.length, 2); K.api.gxApply(gx349.clone(GX349_G)); K.api.dxApply(gx349.clone(GX349_D));
+    for (const id of ['#c-gieldy', '#c-dex', '#c-kontrakty']) { assert.equal(K.els[id].hidden, false); assert.ok(!K.els[id].innerHTML.includes(OFF.pl), 'po dobrym pliku liczby zamiast komunikatu: ' + id); }
+    assert.ok(/mld|mln/.test(gx349.txt(K.els['#c-gieldy'].innerHTML)), 'karta giełd z liczbami');
+    K.api.gxApply(null); K.api.dxApply(null); assert.ok(!K.els['#c-gieldy'].innerHTML.includes(OFF.pl) && !K.els['#c-dex'].innerHTML.includes(OFF.pl), 'dane już były: błąd nie zasłania ich komunikatem');
+    assert.equal(rec.length, 2, 'dane były: żadnego nowego ponowienia');
+  });
+  wst(rec => {   /* dane wczytane od początku, potem błąd: stare dane zostają, bez ponowienia i bez komunikatu */
+    const K = gx349.mk('pl', gx349.files()); assert.equal(rec.length, 0);
+    K.api.gxApply(null); K.api.dxApply(null); assert.equal(rec.length, 0, 'z danymi błąd nie uruchamia ponowienia');
+    for (const id of ['#c-gieldy', '#c-dex']) assert.ok(K.els[id].hidden === false && !K.els[id].innerHTML.includes(OFF.pl), id);
+    const H = hla453Go('pl'), D = df2t.mk('pl', DF2_F), r0 = rec.length; H.api.hlaApply(null); D.api.df2Apply(null); assert.equal(rec.length, r0, 'także defi2 i hl-aave: z danymi błąd nie uruchamia ponowienia'); assert.equal(H.els['#c-hl'].hidden, false); assert.equal(D.els['#c-defi2'].hidden, false);
+  });
+  /* karty z danymi pustymi w sensie treści (plik poprawny, części za stare) zostają ukryte, nie udają awarii */
+  wst(rec => {
+    const d = gx349.clone(GX349_D); d.dex.day = '2026-09-01'; d.oi.src_at = '2026-09-01T00:00:00+00:00';
+    const K = gx349.mk('pl', gx349.files(undefined, d)); assert.equal(K.els['#c-dex'].hidden, true); assert.equal(K.els['#c-kontrakty'].hidden, true); assert.equal(rec.length, 0, 'poprawny plik — brak ponowień');
+  });
+  /* ponowienie nie rusza karty w ukrytej karcie przeglądarki ani bez setTimeout */
+  const src = html.slice(html.indexOf('function coffNote('), html.indexOf('function coffPanel('));
+  assert.ok(src.includes('!document.hidden') && src.includes("typeof setTimeout!=='function'") && src.includes('90*1000') && src.includes('>=5'), 'zasady ponowienia');
+  assert.ok(!/el\.hidden=true/.test(html.slice(html.indexOf('function coffPanel('), html.indexOf('function coffPanel(') + 400)), 'komunikat nie ukrywa karty');
 });

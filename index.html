@@ -12698,6 +12698,22 @@ try{new MutationObserver(()=>renderPrs()).observe(document.documentElement,{attr
    kroczących 24 h giełd scentralizowanych — opisane wprost. Nazw źródła tu nie ma (pole src pliku nie jest pokazywane); nazwy giełd, protokołów i sieci to przedmiot
    danych. Plik starszy niż 48 h = liczby „—” z powodem. */
 const GX={cex:null,dex:null,per:7,ok:[1,7,30]};
+/* v498: pobranie pliku karty nieudane i brak wczytanych danych → karta z tytułem i krótkim komunikatem (jak karty „eng-*”) zamiast zniknięcia;
+   ponowienie po 90 s (najwyżej 5 razy z rzędu, potem zwykły zegar karty; w ukrytej karcie przeglądarki bez ponowienia). Gdy dane już były: bez zmian. */
+const COFF={f:{},w:{},n:{}};
+function coffNote(k,fn,ok,had){
+  if(ok){COFF.f[k]=0;COFF.n[k]=0;return;}
+  if(had)return;
+  COFF.f[k]=1;
+  if(COFF.w[k]||typeof setTimeout!=='function'||(COFF.n[k]||0)>=5)return;
+  COFF.n[k]=(COFF.n[k]||0)+1;
+  const h=setTimeout(()=>{COFF.w[k]=0;if(typeof document==='undefined'||!document.hidden)fn();},90*1000);
+  COFF.w[k]=h||1;if(h&&typeof h.unref==='function')h.unref();
+}
+function coffPanel(el,tk,ic){
+  el.innerHTML=`<div class="etfh"><div><h2>${ic||''}${t(tk)}</h2><p class="pnote">${t('s1.eng.off')}</p></div><div class="etfb"><span class="live off"><i></i>${t('s1.eng.offB')}</span></div></div>`;
+  el.hidden=false;
+}
 try{const v=+localStorage.getItem('cfai.gx.per');if(GX.ok.includes(v))GX.per=v;}catch(e){}
 const GX_LIVE=3*3600e3,GX_OLD=48*3600e3,GX_OLD_DAY=4*864e5,GX_TOP=15,GX_PK={1:'in24',7:'in7',30:'in30'},GX_MIN=5e5;   /* plik co 55 min: starszy niż 3 h = „off”; liczby starsze niż 48 h (doba DEX: 4 dni) = „—”; mniej niż 0,5 mln USD = zero po zaokrągleniu */
 const GX_WYL={1:'wyl',7:'wyl7',30:'wyl30'};   /* pole sum z nazwami giełd poza sumą okna (zbieracz: dz = 2 poza każdym oknem, dz7 / dz30 = 2 poza oknem 7 / 30 dni) */
@@ -12782,7 +12798,7 @@ function gxCexBody(D,old){
 function renderGxCex(){
   const el=$('#c-gieldy');if(!el)return;
   const D=GX.cex;
-  if(!D){el.hidden=true;el.innerHTML='';return;}
+  if(!D){if(COFF.f.gieldy)coffPanel(el,'gx349.c.t',icoWrap(gxI('glyph','globe','sm')));else{el.hidden=true;el.innerHTML='';return;}return;}
   const old=gxAge(D.cex.src_at)>GX_OLD,live=gxAge(D.at)<GX_LIVE;
   const open=typeof el.querySelectorAll==='function'?[...el.querySelectorAll('details')].map(d=>[d.id,!!d.open]).filter(x=>x[0]):[];
   el.innerHTML=`<div class="etfh"><div><h2>${icoWrap(gxI('glyph','globe','sm'))}${t('gx349.c.t')}</h2><p class="pnote">${t('gx349.c.sub')}</p></div><div class="etfb"><span class="live ${live?'on':'off'}"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`
@@ -12828,7 +12844,7 @@ function gxDexBody(d){
 function renderGxDex(){
   const el=$('#c-dex');if(!el)return;
   const D=GX.dex,d=gxDexHas(D)&&!gxDexOld(D.dex)?D.dex:null;
-  if(!d){el.hidden=true;el.innerHTML='';return;}
+  if(!d){if(!D&&COFF.f.dex)coffPanel(el,'gx349.d.t',icoWrap(gxI('glyph','chart','sm')));else{el.hidden=true;el.innerHTML='';return;}return;}
   const live=gxAge(D.part_at&&D.part_at.dex||D.at)<36*3600e3;
   const open=typeof el.querySelectorAll==='function'?[...el.querySelectorAll('details')].map(x=>[x.id,!!x.open]).filter(x=>x[0]):[];
   el.innerHTML=`<div class="etfh"><div><h2>${icoWrap(gxI('glyph','chart','sm'))}${t('gx349.d.t')}</h2><p class="pnote">${t('gx349.d.sub')}</p></div><div class="etfb"><span class="live ${live?'on':'off'}"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`
@@ -12861,7 +12877,7 @@ function gxOiBody(o){
 function renderGxOi(){
   const el=$('#c-kontrakty');if(!el)return;
   const D=GX.dex,o=gxOiHas(D)&&gxAge(D.oi.src_at)<=GX_OLD?D.oi:null;
-  if(!o){el.hidden=true;el.innerHTML='';return;}
+  if(!o){if(!D&&COFF.f.dex)coffPanel(el,'gx349.o.t',icoWrap(gxI('glyph','chart','sm')));else{el.hidden=true;el.innerHTML='';return;}return;}
   const live=gxAge(D.part_at&&D.part_at.oi||D.at)<GX_LIVE;
   const open=typeof el.querySelectorAll==='function'?[...el.querySelectorAll('details')].map(x=>[x.id,!!x.open]).filter(x=>x[0]):[];
   el.innerHTML=`<div class="etfh"><div><h2>${icoWrap(gxI('glyph','chart','sm'))}${t('gx349.o.t')}</h2><p class="pnote">${t('gx349.o.sub')}</p></div><div class="etfb"><span class="live ${live?'on':'off'}"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`
@@ -12872,8 +12888,8 @@ function renderGxOi(){
   el.hidden=false;
 }
 function renderGx(){renderGxCex();renderGxDex();renderGxOi();}
-function gxApply(j){const ok=gxCexOk(j);if(!ok&&GX.cex)return;GX.cex=ok?j:null;renderGx();}   /* chwilowy błąd pobrania nie zasłania wczytanych danych; DEX porównuje się z giełdami, więc przerysowanie wszystkich */
-function dxApply(j){const ok=gxDexOk(j);if(!ok&&GX.dex)return;GX.dex=ok?j:null;renderGx();}
+function gxApply(j){const ok=gxCexOk(j);coffNote('gieldy',gxLoad,ok,!!GX.cex);if(!ok&&GX.cex)return;GX.cex=ok?j:null;renderGx();}   /* chwilowy błąd pobrania nie zasłania wczytanych danych; DEX porównuje się z giełdami, więc przerysowanie wszystkich */
+function dxApply(j){const ok=gxDexOk(j);coffNote('dex',dxLoad,ok,!!GX.dex);if(!ok&&GX.dex)return;GX.dex=ok?j:null;renderGx();}
 function gxLoad(){srvJSON('gieldy').then(gxApply);}
 function dxLoad(){srvJSON('dex').then(dxApply);}
 /* rejestr grupy „c” (v308): dopisek po deklaracjach — stare wiersze SRV_GR i SRV_LD bez zmian; przed pierwszym wywołaniem ładowarek (bramka srvJSON czyta SRV_GR przy każdym pobraniu) */
@@ -19822,7 +19838,7 @@ function df2OptBody(O,when){
 function renderDf2(){
   const el=$('#c-defi2');if(!el)return;
   const D=DF2.d;
-  if(!D){el.hidden=true;el.innerHTML='';return;}
+  if(!D){if(COFF.f.defi2)coffPanel(el,'df2.t','');else{el.hidden=true;el.innerHTML='';return;}return;}
   const F=df2Fees(),P=df2Peg(),H=df2Hacks(),O=df2Opt();
   if(!F&&!P&&!H&&!O){el.hidden=true;el.innerHTML='';return;}
   const live=gxAge(D.at)<DF2_LIVE;
@@ -19834,7 +19850,7 @@ function renderDf2(){
   open.forEach(([id,o])=>{const x=el.querySelector('#'+id);if(x)x.open=o;});
   el.hidden=false;
 }
-function df2Apply(j){const ok=df2Ok(j);if(!ok&&DF2.d)return;DF2.d=ok?j:null;renderDf2();}   /* chwilowy błąd pobrania nie zasłania wczytanych danych */
+function df2Apply(j){const ok=df2Ok(j);coffNote('defi2',df2Load,ok,!!DF2.d);if(!ok&&DF2.d)return;DF2.d=ok?j:null;renderDf2();}   /* chwilowy błąd pobrania nie zasłania wczytanych danych */
 function df2Load(){srvJSON('defi2').then(df2Apply);}
 SRV_GR.defi2='c';SRV_LD.c.push(df2Load);
 setInterval(()=>{if(!document.hidden)df2Load();},30*60*1000);   /* części co dobę — strona pyta co 30 min (wiek w kafelkach też się odświeża) */
@@ -19912,7 +19928,7 @@ function hlaHlBody(P,when){
 function renderHl(){
   const el=$('#c-hl');if(!el)return;
   const P=HLA.d?hlaHl():null;
-  if(!P){el.hidden=true;el.innerHTML='';return;}
+  if(!P){if(!HLA.d&&COFF.f['hl-aave'])coffPanel(el,'hl.t','');else{el.hidden=true;el.innerHTML='';return;}return;}
   const D=HLA.d,live=gxAge(D.at)<HLA_LIVE,when=t('hla.when',{t:gxWhen(P.upd||P.t)});
   el.innerHTML=`<div class="etfh"><div><h2>${t('hl.t')}</h2><p class="pnote">${t('hl.sub')}</p></div><div class="etfb"><span class="live ${live?'on':'off'}"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`
     +hlaHlBody(P,when)+`<p class="pfoot">${t('inst.file',{t:engDate(D.at)})} · ${t('hla.foot')} ${t('eng.disclaimer')}</p>`;
@@ -19938,14 +19954,14 @@ function hlaAaveBody(Q,when){
 function renderAave(){
   const el=$('#c-aave');if(!el)return;
   const Q=HLA.d?hlaAave():null;
-  if(!Q){el.hidden=true;el.innerHTML='';return;}
+  if(!Q){if(!HLA.d&&COFF.f['hl-aave'])coffPanel(el,'aave.t','');else{el.hidden=true;el.innerHTML='';return;}return;}
   const D=HLA.d,live=gxAge(D.at)<HLA_LIVE,when=t('hla.when',{t:gxWhen(Q.A.t)});
   el.innerHTML=`<div class="etfh"><div><h2>${t('aave.t')}</h2><p class="pnote">${t('aave.sub')}</p></div><div class="etfb"><span class="live ${live?'on':'off'}"><i></i>${t('inst.file',{t:engDate(D.at)})}</span></div></div>`
     +hlaAaveBody(Q,when)+`<p class="pfoot">${t('inst.file',{t:engDate(D.at)})} · ${t('hla.foot')} ${t('eng.disclaimer')}</p>`;
   el.hidden=false;
 }
 function renderHla(){renderHl();renderAave();}
-function hlaApply(j){const ok=hlaOk(j);if(!ok&&HLA.d)return;HLA.d=ok?j:null;renderHla();}   /* chwilowy błąd pobrania nie zasłania wczytanych danych */
+function hlaApply(j){const ok=hlaOk(j);coffNote('hl-aave',hlaLoad,ok,!!HLA.d);if(!ok&&HLA.d)return;HLA.d=ok?j:null;renderHla();}   /* chwilowy błąd pobrania nie zasłania wczytanych danych */
 function hlaLoad(){srvJSON('hl-aave').then(hlaApply);}
 SRV_GR['hl-aave']='c';SRV_LD.c.push(hlaLoad);
 setInterval(()=>{if(!document.hidden)hlaLoad();},30*60*1000);   /* części co kilka godzin — strona pyta co 30 min (wiek w kafelkach też się odświeża) */
