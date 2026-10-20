@@ -37708,3 +37708,31 @@ test('v500: opisy bez mechanizmu — panele tygodniowe TRENDY to 1–2 proste zd
   assert.ok(ALL.length > 120, 'klucze kart dziennych: ' + ALL.length);
   for (const m of ALL) { const t = JSON.parse(m[2]); assert.ok(!/\{u\}|(po|przed|after|before)\s+(\{\w+\}|\d{1,2}:\d\d)\s*UTC/.test(t), m[1] + ': bez progu godzinowego: ' + t); }
 });
+
+test('v501 (B8): napisy czasu — „Na żywo” w GLOBAL i plakietka ETF formatowane z milisekund przy rysowaniu, więc zmiana języka bez odświeżenia zmienia zapis (godzina 24 h ↔ AM/PM, data PL ↔ US); bez LOCALE/LANG — zapisany tekst jak dotąd', () => {
+  const LOC = {pl: 'pl-PL', en: 'en-US'};
+  const a = html.indexOf('function gAtTxt(){'), g = html.slice(a, html.indexOf('\n', a));
+  const gat = (lang, G) => new Function('GLIVE', 'LOCALE', 'LANG', g + '\nreturn gAtTxt();')(G, LOC, lang);
+  const G = {tms: Date.parse('2026-10-19T18:47:00Z'), at: '20:47 (stary zapis)'};
+  const gp = gat('pl', G), ge = gat('en', G);
+  assert.ok(/^\d{2}:\d{2}$/.test(gp) && !/AM|PM/.test(gp), 'po polsku 24 godziny: ' + gp);
+  assert.ok(/(AM|PM)$/.test(ge) && gp !== ge, 'po angielsku AM/PM: ' + ge);
+  assert.equal(gat('en', {tms: 0, at: '20:38'}), '20:38', 'bez milisekund zostaje zapisany tekst');
+  assert.equal(new Function('GLIVE', g + '\nreturn gAtTxt();')({tms: G.tms, at: 'x'}), 'x', 'piaskownica bez LOCALE i LANG — zapisany tekst');
+  assert.ok(!html.includes('{t:GLIVE.at}') && (html.match(/\{t:gAtTxt\(\)\}/g) || []).length === 4, 'wszystkie 4 napisy „Na żywo”/„Odświeżone” używają gAtTxt');
+  /* plakietka ETF: ten sam obiekt, dwa języki */
+  const b0 = html.indexOf('function etfBadge(){'), eb = html.slice(b0, html.indexOf('\n/* stan zbieracza na serwerze', b0));
+  const badge = (E, lang) => new Function('ETF', 't', 'escH', 'gAgeNote', 'ETF_SNAP', 'dayLoc', 'LOCALE', 'LANG', eb + '\nreturn etfBadge();')(
+    E, (k, o) => k + (o ? ':' + JSON.stringify(o) : ''), s => String(s), () => '', {asof: 'x'}, d => d, LOC, lang);
+  const ms = Date.parse('2026-10-19T12:22:00Z');
+  const E = {st: 'ok', live: true, stale: false, data: {asof: '2026-10-16'}, atMs: ms, atFmt: 'dt', at: '19.10.2026, 14:22'};
+  const tx = s => JSON.parse(s.slice(s.indexOf('{"d"'), s.indexOf('}', s.indexOf('{"d"')) + 1)).t;
+  const bp = tx(badge(E, 'pl')), be = tx(badge(E, 'en'));
+  assert.ok(/^\d{1,2}\.\d{1,2}\.2026, \d{2}:\d{2}$/.test(bp), 'PL: data i godzina po polsku: ' + bp);
+  assert.ok(/^\d{1,2}\/\d{1,2}\/26, \d{1,2}:\d{2}\s?(AM|PM)$/.test(be), 'EN: ta sama chwila po angielsku, nie stary zapis: ' + be);
+  assert.ok(tx(badge(Object.assign({}, E, {stale: true}), 'en')).includes('PM') || tx(badge(Object.assign({}, E, {stale: true}), 'en')).includes('AM'), 'ta sama reguła przy nieodświeżonym pliku');
+  const ts = tx(badge(Object.assign({}, E, {atFmt: 't'}), 'en')), tp = tx(badge(Object.assign({}, E, {atFmt: 't'}), 'pl'));
+  assert.ok(/^\d{1,2}:\d{2}\s?(AM|PM)$/.test(ts) && /^\d{2}:\d{2}$/.test(tp), 'pobranie w przeglądarce: sama godzina w obu językach: ' + ts + ' / ' + tp);
+  assert.ok(tx(badge({st: 'ok', live: true, stale: false, data: {asof: '2026-10-16'}, at: '11.10.2026, 10:19'}, 'en')) === '11.10.2026, 10:19', 'bez milisekund — zapisany tekst');
+  assert.ok(!/escH\(ETF\.at\)/.test(html) && html.includes("ETF.atFmt='dt'") && html.includes("ETF.atFmt='t'"), 'plakietka nie czyta ETF.at wprost; rodzaj zapisu ustawiany przy obu pobraniach');
+});

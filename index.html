@@ -7697,6 +7697,8 @@ function gPick(x,y){
    zwykłe odstępy: pliki dnia i krypto co 5 min). Dawniej próg 150 s z czasów odświeżania co minutę — przy odświeżaniu co 5–15 min przez ok. 40–50%
    zwykłej pracy żółta kropka mówiła, że dane stoją, choć wszystko działało. gUdane — udane pobranie (czas „Odświeżone” i licznik błędów od zera). */
 function gUdane(){GLIVE.at=new Date().toLocaleTimeString(LOCALE[LANG],{hour:'2-digit',minute:'2-digit'});GLIVE.tms=Date.now();GLIVE.failN=0;}
+/* v501 (B8): godzina „Na żywo” liczona z milisekund w chwili rysowania — po zmianie języka bez odświeżenia od razu w nowym zapisie (GLIVE.at tylko zapas bez milisekund) */
+function gAtTxt(){return (GLIVE.tms&&typeof LOCALE!=='undefined'&&typeof LANG!=='undefined')?new Date(GLIVE.tms).toLocaleTimeString(LOCALE[LANG],{hour:'2-digit',minute:'2-digit'}):GLIVE.at;}
 function gNieakt(live){return !!(live&&GLIVE.tms&&((GLIVE.failN||0)>=2||Date.now()-GLIVE.tms>11*60*1000));}
 function gStatus(){
   const b=$('#g-live');if(!b)return;
@@ -7704,7 +7706,7 @@ function gStatus(){
   const stale=gNieakt(live);   /* v333 (S1, GL-01) */
   const cls=stale?'off':live?'on':GLIVE.st==='load'?'wait':'off';
   b.className='live '+cls;
-  b.innerHTML='<i></i>'+(stale?t('g.rf.stale',{t:GLIVE.at}):live?t('g.live.on',{t:GLIVE.at})
+  b.innerHTML='<i></i>'+(stale?t('g.rf.stale',{t:gAtTxt()}):live?t('g.live.on',{t:gAtTxt()})
     :GLIVE.st==='load'?t('g.live.load'):t(location.protocol==='file:'?'g.live.off':'s1.g.off'))+(live&&!GLIVE.oecd?' · '+t('s1.g.nooecd'):'');   /* v333 (S1, GL-02): „dane przykładowe” tylko w pliku otwartym z dysku; brak wskaźników miesięcznych — osobna uwaga (ranking warunków jest wtedy ukryty) */
   const s2=$('#g-sample');if(s2)s2.hidden=live||location.protocol!=='file:';
 }
@@ -7988,7 +7990,7 @@ function gRenderRefresh(){
   const cls=GLIVE.st==='load'?'wait':(live?'on':'off');
   const stale=gNieakt(live);   /* v333 (S1, GL-01): ta sama reguła co znacznik nad mapą */
   const txt=GLIVE.st==='load'?t('g.rf.load')
-    :live?(stale?t('g.rf.stale',{t:GLIVE.at}):(age!=null&&age<90?t('g.rf.now',{s:age}):t('g.rf.at',{t:GLIVE.at})))
+    :live?(stale?t('g.rf.stale',{t:gAtTxt()}):(age!=null&&age<90?t('g.rf.now',{s:age}):t('g.rf.at',{t:gAtTxt()})))
     :((GLIVE.sample&&location.protocol==='file:')?t('g.rf.sample'):t('g.rf.off'));   /* v333 (S1, GL-02) */
   const nsrc=Object.keys(GLIVE.src).filter(k=>GLIVE.src[k]).length;
   w.innerHTML=`<span class="live ${stale?'off':cls}"><i></i>${txt}</span>
@@ -9184,7 +9186,7 @@ function etfLoad(cb){
       ETF.data=srv;ETF.live=true;ETF.st='srv';ETF.err='';ETF.mcap=srv.mcap||ETF.mcap;if(typeof ldUdane==='function')ldUdane('etf');
       /* data i godzina zapisu pliku na serwerze (nie sama godzina) oraz wiek pliku */
       ETF.atMs=srv.at?Date.parse(srv.at):null;
-      ETF.at=ETF.atMs?new Date(ETF.atMs).toLocaleString(LOCALE[LANG],{dateStyle:'short',timeStyle:'short'}):'';
+      ETF.at=ETF.atMs?new Date(ETF.atMs).toLocaleString(LOCALE[LANG],{dateStyle:'short',timeStyle:'short'}):'';ETF.atFmt='dt';   /* v501 (B8): plakietka formatuje z atMs przy rysowaniu */
       ETF.stale=!!(ETF.atMs&&Date.now()-ETF.atMs>3*3600*1000);   /* zbieracz odświeża co godzinę; starsze niż 3 h = nieodświeżone */
       srvJSON('meta').then(m=>{ETF.meta=m||null;ETF.zap=null;
         /* v360 (ETF_ZAPAS): źródło główne milczy ponad 3 h i meta zgłasza jego błąd — plik zapasu (brak / zła wersja = {v:0}: samo zdanie o źródle głównym) */
@@ -9219,7 +9221,7 @@ function etfLoadLive(cb){
       }
       await mc;
       ETF_SYMS.forEach(s=>{const a=out.assets[s],m=ETF.mcap[s];if(a&&a.aum&&m)a.share=a.aum*1e6/m*100;});
-      ETF.data=out;ETF.live=true;ETF.st='ok';ETF.err='';ETF.atMs=Date.now();ETF.stale=false;ETF.at=new Date().toLocaleTimeString(LOCALE[LANG],{hour:'2-digit',minute:'2-digit'});
+      ETF.data=out;ETF.live=true;ETF.st='ok';ETF.err='';ETF.atMs=Date.now();ETF.stale=false;ETF.at=new Date().toLocaleTimeString(LOCALE[LANG],{hour:'2-digit',minute:'2-digit'});ETF.atFmt='t';
       renderEtf();cb&&cb();
       /* fundusze pojedynczo — wolno, w tle, w granicach limitu 20/min */
       for(const s of ETF_SYMS){
@@ -9343,7 +9345,9 @@ function etfBadge(){
   if(ETF.st==='load')return `<span class="live wait"><i></i>${t('etf.b.load')}</span>`;
   if(ETF.live){const asof=ETF.data.asof||'',age=gAgeNote(String(asof).split('–').pop().trim());
     const dl=typeof dayLoc==='function'?dayLoc:escH;   /* v345 (C-10) */
-    return ETF.stale?`<span class="live off"><i></i>${t('etf.b.stale',{d:dl(asof),t:escH(ETF.at)})}${age}</span>`:`<span class="live on"><i></i>${t('etf.b.live',{d:dl(asof),t:escH(ETF.at)})}${age}</span>`;}
+    /* v501 (B8): data i godzina (plik serwera) albo sama godzina (pobranie w przeglądarce) z milisekund w bieżącym języku; bez LOCALE/LANG (piaskownice) — zapisany tekst */
+    const at=(ETF.atMs&&typeof LOCALE!=='undefined'&&typeof LANG!=='undefined')?(ETF.atFmt==='t'?new Date(ETF.atMs).toLocaleTimeString(LOCALE[LANG],{hour:'2-digit',minute:'2-digit'}):new Date(ETF.atMs).toLocaleString(LOCALE[LANG],{dateStyle:'short',timeStyle:'short'})):ETF.at;
+    return ETF.stale?`<span class="live off"><i></i>${t('etf.b.stale',{d:dl(asof),t:escH(at)})}${age}</span>`:`<span class="live on"><i></i>${t('etf.b.live',{d:dl(asof),t:escH(at)})}${age}</span>`;}
   const d=ETF.data?ETF.data.asof:ETF_SNAP.asof;
   return `<span class="live off"><i></i>${t('etf.b.snap',{d})}</span>`+(ETF.st==='err'?` <span class="pchip n">${t('etf.b.err',{e:ETF.err==='KEY'?t('etf.e.key'):escH(ETF.err)})}</span>`:'');
 }
