@@ -1174,7 +1174,7 @@ textarea.kt-f{min-height:110px;resize:vertical}
 @media (max-width:620px){#c-ceny-krypto .etft th.kc-w,#c-ceny-krypto .etft td.kc-w{display:none}#c-ceny-krypto td .cell{padding:6px 5px;gap:6px}#c-ceny-krypto .etft th{padding:6px 5px}}
 @media (max-width:430px){#c-ceny-krypto .kcn b{font-size:12px}#c-ceny-krypto .etft th{white-space:normal;font-size:11px;padding:6px 4px}#c-ceny-krypto td .cell{padding:6px 4px}#c-ceny-krypto td .cell.mono{font-size:11px}#c-ceny-krypto .kcn small{font-size:10px}}
 /* v121 insiderzy */
-#g-insider .etft{min-width:0;width:100%}
+#g-insider .etft{min-width:400px;width:100%}   /* v495: >= 400 px = tblPrep włącza kartki telefonu (<= 620 px); szeroki ekran: panel szerszy niż 400 px */
 #g-insider .etft th{white-space:nowrap;padding:8px 8px}
 #g-insider .etft th:not(:first-child),#g-insider td .cell.mono{text-align:right;justify-content:flex-end}
 #g-insider td .cell{padding:7px 8px;gap:8px}
@@ -1191,7 +1191,13 @@ textarea.kt-f{min-height:110px;resize:vertical}
 #g-insider .pos{color:var(--gr-tx)}#g-insider .neg{color:var(--rd-tx)}#g-insider .na{color:var(--dim)}
 #g-insider tr.ins-part td{opacity:.75}
 #g-insider h3.mtxt{margin:14px 0 4px}
-@media (max-width:620px){#g-insider .ins-top{grid-template-columns:1fr}#g-insider td .cell{padding:6px 5px;gap:6px}#g-insider .etft th{padding:6px 5px;font-size:11px}#g-insider .etft th.ins-n,#g-insider .etft td.ins-n,#g-insider .etft th.ins-b,#g-insider .etft td.ins-b{display:none}}
+@media (max-width:620px){#g-insider .ins-top{grid-template-columns:1fr}#g-insider td .cell{padding:6px 5px;gap:6px}#g-insider .etft th{padding:6px 5px;font-size:11px}#g-insider .etft th.ins-n,#g-insider .etft td.ins-n,#g-insider .etft th.ins-b,#g-insider .etft td.ins-b{display:none}
+  #g-insider .etft.tst{min-width:0}
+  #g-insider .etft.tst>tbody>tr{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #g-insider .etft.tst td>.cell{padding:2px 2px 3px 8px}
+  #g-insider .etft.tst td .cell.mono{text-align:left;justify-content:flex-start;font-size:11px}
+  #g-insider .etft.tst td[data-l]::before{padding-left:8px}
+  #g-insider .etft.tst td:first-child>.cell{padding:6px 8px 2px}}   /* v495: kartki: dzień u góry, zakupy / sprzedaż / netto w trzech kolumnach; liczba „−243,9 mln USD” mieści się w kolumnie ok. 100 px */
 /* v121 stres */
 #g-stres .etft{min-width:0;width:100%}
 #g-stres .etfk b{white-space:normal;overflow-wrap:anywhere;line-height:1.3}

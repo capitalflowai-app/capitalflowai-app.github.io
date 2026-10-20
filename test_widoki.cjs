@@ -4681,7 +4681,7 @@ test('v121: insiderzy — słownik EXTRA112 w 10 językach (te same klucze, miej
   assert.equal(html.split('<section class="panel pcard" id="g-insider" hidden></section>').length, 2, 'jedno miejsce sekcji');
   const u = html.indexOf('<section class="panel pcard" id="g-archiwum" hidden></section>'), x = html.indexOf('<section class="panel pcard" id="g-insider" hidden></section>');
   assert.ok(x > u && x < u + 1600, 'po panelu archiwum (zakładka GLOBAL)');
-  assert.ok(html.includes("srvJSON('insider')") && html.includes('/* v121 insiderzy */') && html.includes('#g-insider .etft{min-width:0;width:100%}') && html.includes('#g-insider .ins-bar{'), 'plik, styl');
+  assert.ok(html.includes("srvJSON('insider')") && html.includes('/* v121 insiderzy */') && /#g-insider \.etft\{min-width:(0|400px);width:100%\}/.test(html) && html.includes('#g-insider .ins-bar{'), 'plik, styl');
   assert.ok(html.includes('for(const l in EXTRA112)if(I18N[l])Object.assign(I18N[l],EXTRA112[l]);'), 'słownik dołączony');
   assert.ok(html.includes('if(!ok&&INS.data)return;') && html.includes('INS.timer=setInterval(()=>{if(!document.hidden)insLoad();},60*60*1000)'), 'odświeżanie co 60 min, błąd nie zasłania danych');
   assert.equal(html.split('/* ===================== v121: INSIDERZY SPÓŁEK USA').length, 2);
@@ -37571,4 +37571,22 @@ test('v481 (ropa i gaz EIA): ciąg cen bez potwierdzenia — jedna adnotacja zam
   const usa = html.slice(html.indexOf('function suUsaQ('), html.indexOf('function suUsaQ(') + 400);
   assert.ok(usa.includes('chr=suChr(V,Q)') && usa.includes('c:!!chr') && html.includes('suChg0(uq.w,uq.c)'), 'panel USA dostaje tę samą adnotację i powód zmiany');
   assert.ok(html.includes("const suChg0=(w,c)=>t(c?'su481.chg0':"), 'powód zmiany w tygodniu');
+});
+
+test('v495: telefon 390 px — insiderzy: tabela dzień po dniu jako kartki, bez ucinania kolumny Netto', () => {
+  assert.ok(html.includes('#g-insider .etft{min-width:400px;width:100%}'), 'min-width >= 400 px: tblPrep włącza kartki telefonu');
+  assert.ok(!html.includes('#g-insider .etft{min-width:0;width:100%}'), 'stara reguła bez min-width usunięta');
+  const i = html.indexOf('@media (max-width:620px){#g-insider .ins-top'), b = html.slice(i, i + 1500);
+  assert.ok(i > 0 && b.includes('#g-insider .etft.tst{min-width:0}') && b.includes('#g-insider .etft.tst>tbody>tr{grid-template-columns:repeat(3,minmax(0,1fr))}'), 'kartki: bez min-width, trzy kolumny wartości');
+  assert.ok(b.includes('td.ins-b{display:none}') && b.includes('td.ins-n,') && b.includes('text-align:left'), 'paski i licznik schowane, wartości do lewej');
+  /* tblPrep na układzie tabeli insiderów: dzień, pasek, zakupy, pasek, sprzedaż, netto, liczba */
+  const {tblPrep} = v165Blok();
+  const mk = () => v165Tab(['Dzień zgłoszeń', '', 'Zakupy', '', 'Sprzedaż', 'Netto', 'Zgłoszeń: zakup / sprzedaż'], [['pon.', '', '1,0 mln USD', '', '2,0 mln USD', '−1,0 mln USD', '3 / 4']]);
+  const T = mk();
+  assert.equal(tblPrep(T, 400), true, 'min-width 400 px włącza kartki');
+  assert.ok(T.C.has('tst') && !T.C.has('tst-r'));
+  const r = T.tBodies[0].rows[0];
+  assert.deepEqual(r.cells.map(c => c.A.get('data-l') ?? null), [null, null, 'Zakupy', null, 'Sprzedaż', 'Netto', 'Zgłoszeń: zakup / sprzedaż'], 'etykiety wartości z nagłówka');
+  assert.ok(r.cells[1].A.has('data-x') && r.cells[3].A.has('data-x'), 'paski bez etykiety schowane');
+  assert.equal(tblPrep(mk(), 0), false, 'z min-width 0 (stare brzmienie) kartek nie było');
 });
