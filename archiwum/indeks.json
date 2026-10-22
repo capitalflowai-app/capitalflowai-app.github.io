@@ -1,5 +1,5 @@
 {
- "at": "2026-10-21T01:45:44+00:00",
+ "at": "2026-10-22T01:45:09+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,10 +22,10 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
-   "rows": 338,
+   "at": "2026-10-22T01:45:09+00:00",
+   "rows": 351,
    "first": "2026-09-26",
-   "last": "2026-10-21",
+   "last": "2026-10-22",
    "added": 13,
    "revised": 0,
    "revisions_total": 156,
@@ -44,10 +44,10 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
-   "rows": 52,
+   "at": "2026-10-22T01:45:09+00:00",
+   "rows": 54,
    "first": "2026-09-26",
-   "last": "2026-10-21",
+   "last": "2026-10-22",
    "added": 2,
    "revised": 0,
    "revisions_total": 13,
@@ -67,7 +67,7 @@
    "key": [
     "date"
    ],
-   "ok": true,
+   "ok": false,
    "at": "2026-10-21T01:45:44+00:00",
    "rows": 765,
    "first": "2023-09-26",
@@ -75,7 +75,9 @@
    "added": 1,
    "revised": 0,
    "revisions_total": 759,
-   "fetched": 765
+   "fetched": 765,
+   "error_at": "2026-10-22T01:45:09+00:00",
+   "error": "plynnosc: Expecting value: line 1 column 1 (char 0)"
   },
   "tic": {
    "file": "tic.csv",
@@ -92,7 +94,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
+   "at": "2026-10-22T01:45:09+00:00",
    "rows": 8987,
    "first": "2023-02",
    "last": "2026-08",
@@ -118,7 +120,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
+   "at": "2026-10-22T01:45:09+00:00",
    "rows": 1070,
    "first": "2024-10-01",
    "last": "2026-10-13",
@@ -140,10 +142,10 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
-   "rows": 534,
+   "at": "2026-10-22T01:45:09+00:00",
+   "rows": 535,
    "first": "2024-09-26",
-   "last": "2026-10-20",
+   "last": "2026-10-21",
    "added": 1,
    "revised": 0,
    "revisions_total": 2,
@@ -170,10 +172,10 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
-   "rows": 4024,
+   "at": "2026-10-22T01:45:09+00:00",
+   "rows": 4026,
    "first": "2020-09-01",
-   "last": "2026-10-19",
+   "last": "2026-10-20",
    "added": 2,
    "revised": 0,
    "revisions_total": 0,
@@ -194,7 +196,7 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
+   "at": "2026-10-22T01:45:09+00:00",
    "rows": 4930,
    "first": "2020-01-01",
    "last": "2026-09-30",
@@ -219,10 +221,10 @@
     "cur"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
-   "rows": 4074,
+   "at": "2026-10-22T01:45:09+00:00",
+   "rows": 4076,
    "first": "2021-03-24",
-   "last": "2026-10-20",
+   "last": "2026-10-21",
    "added": 2,
    "revised": 0,
    "revisions_total": 0,
@@ -249,14 +251,14 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
-   "rows": 220,
+   "at": "2026-10-22T01:45:09+00:00",
+   "rows": 230,
    "first": "2026-09-28",
-   "last": "2026-10-19",
+   "last": "2026-10-20",
    "added": 10,
    "revised": 10,
-   "revisions_total": 200,
-   "fetched": 220
+   "revisions_total": 210,
+   "fetched": 230
   },
   "swiat-dziennik": {
    "file": "swiat-dziennik.csv",
@@ -279,14 +281,14 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
-   "rows": 528,
+   "at": "2026-10-22T01:45:09+00:00",
+   "rows": 572,
    "first": "2026-10-05",
-   "last": "2026-10-20",
+   "last": "2026-10-21",
    "added": 44,
-   "revised": 44,
+   "revised": 0,
    "revisions_total": 396,
-   "fetched": 528
+   "fetched": 572
   },
   "swiat-dziennik-pk": {
    "file": "swiat-dziennik-pk.csv",
@@ -319,7 +321,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
+   "at": "2026-10-22T01:45:09+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -352,14 +354,14 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
-   "rows": 86,
+   "at": "2026-10-22T01:45:09+00:00",
+   "rows": 93,
    "first": "2026-10-08",
-   "last": "2026-10-21",
-   "added": 15,
-   "revised": 14,
-   "revisions_total": 146,
-   "fetched": 86
+   "last": "2026-10-22",
+   "added": 7,
+   "revised": 8,
+   "revisions_total": 154,
+   "fetched": 93
   },
   "ng-dziennik": {
    "file": "ng-dziennik.csv",
@@ -385,14 +387,14 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
-   "rows": 112,
+   "at": "2026-10-22T01:45:09+00:00",
+   "rows": 157,
    "first": "2026-10-15",
-   "last": "2026-10-21",
-   "added": 23,
-   "revised": 35,
-   "revisions_total": 205,
-   "fetched": 112
+   "last": "2026-10-22",
+   "added": 45,
+   "revised": 5,
+   "revisions_total": 210,
+   "fetched": 157
   },
   "fw-dziennik": {
    "file": "fw-dziennik.csv",
@@ -418,17 +420,19 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-10-21T01:45:44+00:00",
-   "rows": 5,
+   "at": "2026-10-22T01:45:09+00:00",
+   "rows": 6,
    "first": "2026-10-19",
-   "last": "2026-10-21",
-   "added": 2,
-   "revised": 3,
-   "revisions_total": 5,
-   "fetched": 5
+   "last": "2026-10-22",
+   "added": 1,
+   "revised": 2,
+   "revisions_total": 7,
+   "fetched": 6
   }
  },
- "errors": [],
+ "errors": [
+  "plynnosc: Expecting value: line 1 column 1 (char 0)"
+ ],
  "notes": [
   "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania"
  ],
@@ -448,12 +452,12 @@
   "cftc.eth.lev": 107,
   "cftc.eth.am": 107,
   "cftc.eth.dealer": 107,
-  "stab.usdt": 26,
-  "stab.usdc": 26,
-  "wh.Binance": 26,
-  "wh.Bitfinex": 26,
-  "wh.Bybit": 26,
-  "wh.KuCoin": 26,
-  "wh.OKX": 26
+  "stab.usdt": 27,
+  "stab.usdc": 27,
+  "wh.Binance": 27,
+  "wh.Bitfinex": 27,
+  "wh.Bybit": 27,
+  "wh.KuCoin": 27,
+  "wh.OKX": 27
  }
 }
