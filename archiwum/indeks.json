@@ -1,5 +1,5 @@
 {
- "at": "2026-10-29T07:05:36+00:00",
+ "at": "2026-10-30T03:09:58+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,12 +22,12 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
-   "rows": 442,
+   "at": "2026-10-30T03:09:58+00:00",
+   "rows": 455,
    "first": "2026-09-26",
-   "last": "2026-10-29",
-   "added": 0,
-   "revised": 13,
+   "last": "2026-10-30",
+   "added": 13,
+   "revised": 0,
    "revisions_total": 221,
    "fetched": 13
   },
@@ -44,12 +44,12 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
-   "rows": 68,
+   "at": "2026-10-30T03:09:58+00:00",
+   "rows": 70,
    "first": "2026-09-26",
-   "last": "2026-10-29",
-   "added": 0,
-   "revised": 1,
+   "last": "2026-10-30",
+   "added": 2,
+   "revised": 0,
    "revisions_total": 18,
    "fetched": 2
   },
@@ -68,14 +68,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
-   "rows": 771,
+   "at": "2026-10-30T03:09:58+00:00",
+   "rows": 772,
    "first": "2023-09-26",
-   "last": "2026-10-28",
-   "added": 0,
-   "revised": 0,
-   "revisions_total": 759,
-   "fetched": 771,
+   "last": "2026-10-29",
+   "added": 1,
+   "revised": 1,
+   "revisions_total": 760,
+   "fetched": 772,
    "error_at": "2026-10-22T01:45:09+00:00",
    "error": "plynnosc: Expecting value: line 1 column 1 (char 0)"
   },
@@ -94,7 +94,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
+   "at": "2026-10-30T03:09:58+00:00",
    "rows": 8987,
    "first": "2023-02",
    "last": "2026-08",
@@ -120,14 +120,14 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
+   "at": "2026-10-30T03:09:58+00:00",
    "rows": 1080,
    "first": "2024-10-01",
    "last": "2026-10-20",
    "added": 0,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 1040
+   "fetched": 1030
   },
   "rentownosci": {
    "file": "rentownosci.csv",
@@ -142,11 +142,11 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
-   "rows": 540,
+   "at": "2026-10-30T03:09:58+00:00",
+   "rows": 541,
    "first": "2024-09-26",
-   "last": "2026-10-28",
-   "added": 0,
+   "last": "2026-10-29",
+   "added": 1,
    "revised": 0,
    "revisions_total": 2,
    "fetched": 517
@@ -172,14 +172,14 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
-   "rows": 4040,
+   "at": "2026-10-30T03:09:58+00:00",
+   "rows": 4042,
    "first": "2020-09-01",
-   "last": "2026-10-27",
-   "added": 0,
+   "last": "2026-10-28",
+   "added": 2,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 0
+   "fetched": 2
   },
   "binance-funding": {
    "file": "binance-funding.csv",
@@ -196,7 +196,7 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
+   "at": "2026-10-30T03:09:58+00:00",
    "rows": 4930,
    "first": "2020-01-01",
    "last": "2026-09-30",
@@ -221,14 +221,14 @@
     "cur"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
-   "rows": 4090,
+   "at": "2026-10-30T03:09:58+00:00",
+   "rows": 4092,
    "first": "2021-03-24",
-   "last": "2026-10-28",
-   "added": 0,
+   "last": "2026-10-29",
+   "added": 2,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 0
+   "fetched": 2
   },
   "krypto-dziennik": {
    "file": "krypto-dziennik.csv",
@@ -251,13 +251,13 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
+   "at": "2026-10-30T03:09:58+00:00",
    "rows": 310,
    "first": "2026-09-28",
    "last": "2026-10-28",
-   "added": 10,
-   "revised": 0,
-   "revisions_total": 290,
+   "added": 0,
+   "revised": 10,
+   "revisions_total": 300,
    "fetched": 310
   },
   "swiat-dziennik": {
@@ -281,14 +281,14 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
-   "rows": 792,
+   "at": "2026-10-30T03:09:58+00:00",
+   "rows": 836,
    "first": "2026-10-05",
-   "last": "2026-10-28",
-   "added": 0,
+   "last": "2026-10-29",
+   "added": 44,
    "revised": 0,
    "revisions_total": 528,
-   "fetched": 792
+   "fetched": 836
   },
   "swiat-dziennik-pk": {
    "file": "swiat-dziennik-pk.csv",
@@ -321,7 +321,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
+   "at": "2026-10-30T03:09:58+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -354,14 +354,14 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
-   "rows": 155,
+   "at": "2026-10-30T03:09:58+00:00",
+   "rows": 166,
    "first": "2026-10-08",
-   "last": "2026-10-29",
-   "added": 0,
+   "last": "2026-10-30",
+   "added": 11,
    "revised": 11,
-   "revisions_total": 291,
-   "fetched": 155
+   "revisions_total": 302,
+   "fetched": 166
   },
   "ng-dziennik": {
    "file": "ng-dziennik.csv",
@@ -387,14 +387,14 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
-   "rows": 295,
+   "at": "2026-10-30T03:09:58+00:00",
+   "rows": 319,
    "first": "2026-10-15",
-   "last": "2026-10-29",
-   "added": 3,
-   "revised": 24,
-   "revisions_total": 541,
-   "fetched": 295
+   "last": "2026-10-30",
+   "added": 24,
+   "revised": 27,
+   "revisions_total": 568,
+   "fetched": 319
   },
   "fw-dziennik": {
    "file": "fw-dziennik.csv",
@@ -420,14 +420,14 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-10-29T07:05:36+00:00",
-   "rows": 15,
+   "at": "2026-10-30T03:09:58+00:00",
+   "rows": 17,
    "first": "2026-10-19",
-   "last": "2026-10-29",
-   "added": 0,
+   "last": "2026-10-30",
+   "added": 2,
    "revised": 1,
-   "revisions_total": 33,
-   "fetched": 15
+   "revisions_total": 34,
+   "fetched": 17
   }
  },
  "errors": [],
@@ -450,12 +450,12 @@
   "cftc.eth.lev": 108,
   "cftc.eth.am": 108,
   "cftc.eth.dealer": 108,
-  "stab.usdt": 34,
-  "stab.usdc": 34,
-  "wh.Binance": 34,
-  "wh.Bitfinex": 34,
-  "wh.Bybit": 34,
-  "wh.KuCoin": 34,
-  "wh.OKX": 34
+  "stab.usdt": 35,
+  "stab.usdc": 35,
+  "wh.Binance": 35,
+  "wh.Bitfinex": 35,
+  "wh.Bybit": 35,
+  "wh.KuCoin": 35,
+  "wh.OKX": 35
  }
 }
