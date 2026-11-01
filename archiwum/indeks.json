@@ -1,5 +1,5 @@
 {
- "at": "2026-11-01T03:08:42+00:00",
+ "at": "2026-11-01T07:32:06+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,11 +22,11 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 481,
    "first": "2026-09-26",
    "last": "2026-11-01",
-   "added": 13,
+   "added": 0,
    "revised": 0,
    "revisions_total": 247,
    "fetched": 13
@@ -44,13 +44,13 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 74,
    "first": "2026-09-26",
    "last": "2026-11-01",
-   "added": 2,
-   "revised": 0,
-   "revisions_total": 20,
+   "added": 0,
+   "revised": 1,
+   "revisions_total": 21,
    "fetched": 2
   },
   "plynnosc": {
@@ -67,7 +67,7 @@
    "key": [
     "date"
    ],
-   "ok": true,
+   "ok": false,
    "at": "2026-11-01T03:08:42+00:00",
    "rows": 773,
    "first": "2023-09-26",
@@ -76,8 +76,8 @@
    "revised": 0,
    "revisions_total": 760,
    "fetched": 773,
-   "error_at": "2026-10-22T01:45:09+00:00",
-   "error": "plynnosc: Expecting value: line 1 column 1 (char 0)"
+   "error_at": "2026-11-01T07:32:06+00:00",
+   "error": "plynnosc: HTTP Error 500: Internal Server Error"
   },
   "tic": {
    "file": "tic.csv",
@@ -94,7 +94,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 8987,
    "first": "2023-02",
    "last": "2026-08",
@@ -120,7 +120,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 1090,
    "first": "2024-10-01",
    "last": "2026-10-27",
@@ -142,7 +142,7 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 542,
    "first": "2024-09-26",
    "last": "2026-10-30",
@@ -172,14 +172,14 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
-   "rows": 4046,
+   "at": "2026-11-01T07:32:06+00:00",
+   "rows": 4048,
    "first": "2020-09-01",
-   "last": "2026-10-30",
-   "added": 0,
+   "last": "2026-10-31",
+   "added": 2,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 0
+   "fetched": 2
   },
   "binance-funding": {
    "file": "binance-funding.csv",
@@ -196,7 +196,7 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 4930,
    "first": "2020-01-01",
    "last": "2026-09-30",
@@ -221,14 +221,14 @@
     "cur"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 4096,
    "first": "2021-03-24",
    "last": "2026-10-31",
-   "added": 2,
+   "added": 0,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 2
+   "fetched": 0
   },
   "krypto-dziennik": {
    "file": "krypto-dziennik.csv",
@@ -251,7 +251,7 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 330,
    "first": "2026-09-28",
    "last": "2026-10-30",
@@ -281,7 +281,7 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 880,
    "first": "2026-10-05",
    "last": "2026-10-30",
@@ -321,7 +321,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -354,12 +354,12 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 177,
    "first": "2026-10-08",
    "last": "2026-11-02",
    "added": 0,
-   "revised": 10,
+   "revised": 0,
    "revisions_total": 345,
    "fetched": 177
   },
@@ -387,12 +387,12 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 345,
    "first": "2026-10-15",
    "last": "2026-11-02",
    "added": 0,
-   "revised": 23,
+   "revised": 0,
    "revisions_total": 665,
    "fetched": 345
   },
@@ -420,17 +420,19 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-01T03:08:42+00:00",
+   "at": "2026-11-01T07:32:06+00:00",
    "rows": 20,
    "first": "2026-10-19",
    "last": "2026-11-02",
    "added": 0,
-   "revised": 2,
+   "revised": 0,
    "revisions_total": 40,
    "fetched": 20
   }
  },
- "errors": [],
+ "errors": [
+  "plynnosc: HTTP Error 500: Internal Server Error"
+ ],
  "notes": [
   "wieloryby: doba 2026-10-31: skan USDT/USDC nie sięga północy (ostatni blok 2026-10-31T23:51) — przepływy USDT/USDC puste; doba 2026-10-31: rotacja portfeli ETH nie objęła całej doby — przepływy ETH puste",
   "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania"
