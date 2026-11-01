@@ -1,11 +1,11 @@
 {
  "v": 1,
- "sprawdzono": "2026-10-31",
- "ostatnie_ok": "2026-10-31",
+ "sprawdzono": "2026-11-01",
+ "ostatnie_ok": "2026-11-01",
  "blad": null,
  "blad_od": null,
- "lista_od": "2026-09-08",
+ "lista_od": "2026-11-01",
  "nowy": null,
  "odrzucony": null,
- "odtworzenie": null
+ "odtworzenie": "ok"
 }
