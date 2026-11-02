@@ -1,5 +1,5 @@
 {
- "at": "2026-11-01T07:32:06+00:00",
+ "at": "2026-11-02T03:09:27+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,11 +22,11 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
-   "rows": 481,
+   "at": "2026-11-02T03:09:27+00:00",
+   "rows": 494,
    "first": "2026-09-26",
-   "last": "2026-11-01",
-   "added": 0,
+   "last": "2026-11-02",
+   "added": 13,
    "revised": 0,
    "revisions_total": 247,
    "fetched": 13
@@ -44,12 +44,12 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
-   "rows": 74,
+   "at": "2026-11-02T03:09:27+00:00",
+   "rows": 76,
    "first": "2026-09-26",
-   "last": "2026-11-01",
-   "added": 0,
-   "revised": 1,
+   "last": "2026-11-02",
+   "added": 2,
+   "revised": 0,
    "revisions_total": 21,
    "fetched": 2
   },
@@ -67,8 +67,8 @@
    "key": [
     "date"
    ],
-   "ok": false,
-   "at": "2026-11-01T03:08:42+00:00",
+   "ok": true,
+   "at": "2026-11-02T03:09:27+00:00",
    "rows": 773,
    "first": "2023-09-26",
    "last": "2026-10-30",
@@ -94,7 +94,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
+   "at": "2026-11-02T03:09:27+00:00",
    "rows": 8987,
    "first": "2023-02",
    "last": "2026-08",
@@ -120,7 +120,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
+   "at": "2026-11-02T03:09:27+00:00",
    "rows": 1090,
    "first": "2024-10-01",
    "last": "2026-10-27",
@@ -142,14 +142,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
+   "at": "2026-11-02T03:09:27+00:00",
    "rows": 542,
    "first": "2024-09-26",
    "last": "2026-10-30",
    "added": 0,
    "revised": 0,
    "revisions_total": 2,
-   "fetched": 516
+   "fetched": 515
   },
   "binance-metrics": {
    "file": "binance-metrics.csv",
@@ -172,14 +172,14 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
+   "at": "2026-11-02T03:09:27+00:00",
    "rows": 4048,
    "first": "2020-09-01",
    "last": "2026-10-31",
-   "added": 2,
+   "added": 0,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 2
+   "fetched": 0
   },
   "binance-funding": {
    "file": "binance-funding.csv",
@@ -196,14 +196,14 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
-   "rows": 4930,
+   "at": "2026-11-02T03:09:27+00:00",
+   "rows": 4992,
    "first": "2020-01-01",
-   "last": "2026-09-30",
-   "added": 0,
+   "last": "2026-10-31",
+   "added": 62,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 0
+   "fetched": 62
   },
   "deribit-dvol": {
    "file": "deribit-dvol.csv",
@@ -221,14 +221,14 @@
     "cur"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
-   "rows": 4096,
+   "at": "2026-11-02T03:09:27+00:00",
+   "rows": 4098,
    "first": "2021-03-24",
-   "last": "2026-10-31",
-   "added": 0,
+   "last": "2026-11-01",
+   "added": 2,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 0
+   "fetched": 2
   },
   "krypto-dziennik": {
    "file": "krypto-dziennik.csv",
@@ -251,7 +251,7 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
+   "at": "2026-11-02T03:09:27+00:00",
    "rows": 330,
    "first": "2026-09-28",
    "last": "2026-10-30",
@@ -281,7 +281,7 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
+   "at": "2026-11-02T03:09:27+00:00",
    "rows": 880,
    "first": "2026-10-05",
    "last": "2026-10-30",
@@ -321,7 +321,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
+   "at": "2026-11-02T03:09:27+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -354,7 +354,7 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
+   "at": "2026-11-02T03:09:27+00:00",
    "rows": 177,
    "first": "2026-10-08",
    "last": "2026-11-02",
@@ -387,7 +387,7 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
+   "at": "2026-11-02T03:09:27+00:00",
    "rows": 345,
    "first": "2026-10-15",
    "last": "2026-11-02",
@@ -420,7 +420,7 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-01T07:32:06+00:00",
+   "at": "2026-11-02T03:09:27+00:00",
    "rows": 20,
    "first": "2026-10-19",
    "last": "2026-11-02",
@@ -430,11 +430,9 @@
    "fetched": 20
   }
  },
- "errors": [
-  "plynnosc: HTTP Error 500: Internal Server Error"
- ],
+ "errors": [],
  "notes": [
-  "wieloryby: doba 2026-10-31: skan USDT/USDC nie sięga północy (ostatni blok 2026-10-31T23:51) — przepływy USDT/USDC puste; doba 2026-10-31: rotacja portfeli ETH nie objęła całej doby — przepływy ETH puste",
+  "wieloryby: brak sum dobowych za 2026-11-01 — przepływy puste",
   "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania"
  ],
  "seria": {
@@ -453,12 +451,12 @@
   "cftc.eth.lev": 109,
   "cftc.eth.am": 109,
   "cftc.eth.dealer": 109,
-  "stab.usdt": 37,
-  "stab.usdc": 37,
-  "wh.Binance": 37,
-  "wh.Bitfinex": 37,
-  "wh.Bybit": 37,
-  "wh.KuCoin": 37,
-  "wh.OKX": 37
+  "stab.usdt": 38,
+  "stab.usdc": 38,
+  "wh.Binance": 38,
+  "wh.Bitfinex": 38,
+  "wh.Bybit": 38,
+  "wh.KuCoin": 38,
+  "wh.OKX": 38
  }
 }
