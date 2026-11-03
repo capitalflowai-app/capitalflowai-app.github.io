@@ -1,0 +1,13 @@
+{
+ "Bybit": {
+  "dzien": "2026-11-03",
+  "powod": "nowa lista z 2026-10-27: 124 portfeli (było 122)",
+  "status": "ok"
+ },
+ "KuCoin": {
+  "dzien": "2026-11-03",
+  "powod": "audyt z 2026-10-31 jest, link do raportu jeszcze niepodany",
+  "status": "czeka"
+ },
+ "v": 1
+}
