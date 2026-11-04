@@ -1,27 +1,5 @@
 [
 {
-"at": "2026-10-19T13:40:19+00:00",
-"bledy_zbieracza": 1,
-"uwagi": 17,
-"bledy": 0,
-"przegl": "ok",
-"zakl": {
-"widok": {
-"global": 1.5,
-"crypto": 0.4,
-"trendy": 0.1
-},
-"wykresy": {
-"global": 153,
-"crypto": 25,
-"trendy": 48
-},
-"kroki": 119,
-"bledy": 0,
-"ostrz": 0
-}
-},
-{
 "at": "2026-10-19T15:54:55+00:00",
 "bledy_zbieracza": 1,
 "uwagi": 16,
@@ -656,6 +634,28 @@
 },
 "kroki": 115,
 "bledy": 0,
+"ostrz": 0
+}
+},
+{
+"at": "2026-11-04T14:42:20+00:00",
+"bledy_zbieracza": 8,
+"uwagi": 324,
+"bledy": 3,
+"przegl": "ok",
+"zakl": {
+"widok": {
+"global": 0.8,
+"crypto": 0.5,
+"trendy": 0.1
+},
+"wykresy": {
+"global": 162,
+"crypto": 7,
+"trendy": 48
+},
+"kroki": 114,
+"bledy": 1,
 "ostrz": 0
 }
 }
