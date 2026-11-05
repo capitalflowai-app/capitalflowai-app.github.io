@@ -38,7 +38,11 @@ Wyłączniki awaryjne:
 - dla wszystkich: w `sw.js` zmienić `WYLACZONY` na `true` i opublikować (przeglądarki sprawdzają ten plik przy każdym wejściu;
   wyłączony Service Worker nie przechwytuje niczego, kasuje pamięci `cf-*` i sam się wyrejestrowuje).
 
-Kontrola dzienna sprawdza, że `sw.js` na żywej stronie odpowiada (HTTP 200).
+Kontrola działa cztery razy dziennie: 06:20, 11:20, 16:20 i 21:20 UTC (zimą w Polsce 07:20, 12:20, 17:20 i 22:20; latem godzinę później).
+Sprawdza też, że `sw.js` na żywej stronie odpowiada (HTTP 200). Zegar zapasowy pilnuje każdego terminu po 70 minutach zapasu;
+jeżeli brakuje kilku kontroli, uruchamia jeden aktualny raport. Kontrole działają na GitHubie i nie zużywają limitu rozmów planu Plus.
+
+Podział pracy agentów, kolejność napraw i reguły ochrony danych: [UTRZYMANIE_DANYCH.md](UTRZYMANIE_DANYCH.md).
 
 Wynik kontroli dziennej (`kontrola/ostatnia.md`): czerwony przebieg GitHuba i ❌ tylko przy awarii strony albo publikacji (strona albo plik stanu nie odpowiada, dane główne starsze niż próg, błędy JavaScriptu na stronie, publikacja stoi lub zatrzymana przez straż kluczy). Awarie pojedynczych źródeł zewnętrznych to ⚠️ z listą i czasem trwania, bez e-maila: jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną.
 

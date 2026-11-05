@@ -5,6 +5,7 @@ Sprawdzają zasady projektu: brak nie jest zerem, żadnego cichego zastępowania
 zakres dat gdy monety publikują w różnych dniach, pamięć podręczna tylko dla młodych plików.
 Uruchomienie: python3 -m unittest -v test_zbieraj_dane.py
 """
+import copy
 import datetime
 import json
 import os
@@ -22,7 +23,19 @@ def _v474_csv_bez_sieci(url, timeout=30):   # v474: zapas CSV banku w testach za
 
 
 zd._bcb_csv_tekst = _v474_csv_bez_sieci
-zd.wh_okx_ustaw(zd.WH_OKX_WBUDOWANA)   # v477: testy na liście wbudowanej — nie zależą od tego, co automat zapisał w konfig/wh_listy.json
+
+
+def _wh_listy_wbudowane_testy(modul):
+    """Spójna baza testów niezależna od listy OKX odświeżanej przez automat.
+
+    Import produkcyjny zachowuje bieżącą OKX także w bazie dla list PDF. Reset
+    aktywnej listy w testach musi więc objąć tę bazę, bez współdzielenia adresów.
+    """
+    modul.wh_okx_ustaw(modul.WH_OKX_WBUDOWANA)
+    modul.WH_GIELDY_WBUDOWANE['OKX'] = copy.deepcopy(modul.WH_GIELDY['OKX'])
+
+
+_wh_listy_wbudowane_testy(zd)
 
 
 def _wh_n_portfeli_testy():   # v477: liczba wszystkich portfeli z list (OKX zawsze 10, ale lista może się zmienić)
@@ -54937,6 +54950,74 @@ class NowcastyV376(unittest.TestCase):
             zd.nc_pkb(self.rss(self.KAN), datetime.date(2027, 1, 20))
         self.assertEqual(zd.nc_pkb(self.rss(self.KAN), datetime.date(2027, 1, 5))['v'], 3.6, '89 dni po ostatnim szacunku — jeszcze bez alarmu')
 
+    def pkb_15(self, v=3.6, kwartal='third'):
+        wpis = ('Thu, 15 Oct 2026 11:00:00 EST', 'x',
+                f'The GDPNow model estimate for real GDP growth (seasonally adjusted annual rate) in the {kwartal} quarter of 2026 is {v} percent on October 15'
+                + (', unchanged from October 8 after rounding.' if v == 3.6 and kwartal == 'third' else '.')
+                + ' The next GDPNow update is Tuesday, October 20.')
+        return self.rss([wpis] + self.KAN).encode()
+
+    def test_pkb_cofniety_rss_zachowuje_nowszy_szacunek_i_part_at_z_bledem(self):
+        prev = self.build(pkb=self.pkb_15())
+        prev['part_at']['pkb'] = '2026-10-15T09:00:00+00:00'
+        zachowany = copy.deepcopy(prev)
+        o = self.build(prev=prev)   # kanał ponownie kończy się 8 X, poprzedni plik ma szacunek 15 X
+        self.assertEqual(o['ok'], {'pkb': False, 'cpi': True})
+        self.assertEqual(o['pkb'], zachowany['pkb']); self.assertEqual(prev, zachowany)
+        self.assertEqual(o['part_at']['pkb'], '2026-10-15T09:00:00+00:00')
+        self.assertIn('cofnął datę', o['errs']['pkb'])
+        self.assertEqual(o['pkb']['hist'][-1], ['2026-10-15', 3.6, '2026-Q3'])
+
+    def test_pkb_wczesniej_sprzeczny_plik_nie_dostaje_fikcyjnej_swiezosci(self):
+        prev = self.build()
+        prev['pkb']['hist'].append(['2026-10-15', 3.6, '2026-Q3'])
+        prev['part_at']['pkb'] = '2026-10-15T09:00:00+00:00'
+        o = self.build(prev=prev)
+        self.assertFalse(o['ok']['pkb']); self.assertIn('historia ma nowszy szacunek z 2026-10-15', o['errs']['pkb'])
+        self.assertEqual(o['pkb'], prev['pkb']); self.assertEqual(o['part_at']['pkb'], prev['part_at']['pkb'])
+        self.assertEqual(o['pkb']['date'], '2026-10-08', 'nie odtwarzamy prev_* i next z samego punktu historii')
+        # Źródło ponownie potwierdza 15 X: dopiero teraz daty i metadane pochodzą z pełnego wpisu.
+        naprawiony = self.build(prev=o, pkb=self.pkb_15())
+        self.assertTrue(naprawiony['ok']['pkb']); self.assertNotIn('pkb', naprawiony['errs'])
+        self.assertEqual((naprawiony['pkb']['date'], naprawiony['pkb']['prev_date'], naprawiony['pkb']['next']), ('2026-10-15', '2026-10-08', '2026-10-20'))
+        self.assertEqual(naprawiony['pkb']['hist'][-1], ['2026-10-15', 3.6, '2026-Q3'])
+
+    def test_pkb_cofniety_rss_nie_cofa_dat_przy_braku_historii(self):
+        prev = self.build(pkb=self.pkb_15())
+        prev['pkb']['hist'] = []
+        o = self.build(prev=prev)
+        self.assertFalse(o['ok']['pkb']); self.assertIn('cofnął datę', o['errs']['pkb'])
+        self.assertEqual(o['pkb'], prev['pkb'])
+
+    def test_pkb_nowy_kwartal_i_korekta_tego_samego_dnia_z_prawdziwego_wpisu(self):
+        prev = self.build()
+        nowy = self.build(prev=prev, pkb=self.pkb_15(v=2.2, kwartal='fourth'))
+        self.assertTrue(nowy['ok']['pkb']); self.assertEqual(nowy['pkb']['hist'][-1], ['2026-10-15', 2.2, '2026-Q4'])
+        self.assertEqual(nowy['pkb']['hist'][-2], ['2026-10-08', 3.6, '2026-Q3'])
+        stary = self.build(prev=nowy)
+        self.assertFalse(stary['ok']['pkb']); self.assertEqual(stary['pkb'], nowy['pkb'])
+        korekta = self.build(prev=nowy, pkb=self.pkb_15(v=2.3, kwartal='fourth'))
+        self.assertTrue(korekta['ok']['pkb']); self.assertEqual(korekta['pkb']['hist'][-1], ['2026-10-15', 2.3, '2026-Q4'])
+        self.assertEqual(korekta['pkb']['date'], '2026-10-15')
+
+    def test_pkb_pozniejsza_data_nie_uprawnia_do_cofniecia_kwartalu(self):
+        prev = self.build(pkb=self.pkb_15(v=2.2, kwartal='fourth'))
+        # 16 X w źródle, ale ponownie Q3; nie utożsamiamy wzrostu daty z nowym kwartałem.
+        rss = self.pkb_15().replace(b'October 15', b'October 16')
+        o = self.build(prev=prev, pkb=rss)
+        self.assertFalse(o['ok']['pkb']); self.assertIn('kwartał', o['errs']['pkb']); self.assertEqual(o['pkb'], prev['pkb'])
+
+    def test_pkb_historia_innego_typu_okresu_jest_bledem_czesci(self):
+        prev = self.build()
+        prev['pkb']['hist'].insert(0, ['2026-09-01', 0.3, '2026-09'])
+        o = self.build(prev=prev)
+        self.assertFalse(o['ok']['pkb']); self.assertIn('kwartał', o['errs']['pkb']); self.assertEqual(o['pkb'], prev['pkb'])
+
+    def test_pkb_pusta_historia_po_70_dniach_nie_zmienia_bramki_wieku_90_dni(self):
+        with mock.patch.object(zd, 'nc_http', return_value=self.rss(self.KAN).encode()):
+            p = zd.nc_czesc('pkb', None, datetime.date(2026, 12, 19))
+        self.assertEqual(p['hist'], []); self.assertEqual((p['date'], p['q']), ('2026-10-08', '2026-Q3'))
+
     # ---------------- szacunek inflacji ----------------
     def test_cpi_pierwszy_miesiac_z_liczba_oraz_bramki_tabel(self):
         c = zd.nc_cpi_html(self.html(), self.DZIS)
@@ -81735,6 +81816,20 @@ class V477WartownikListy(unittest.TestCase):
                 zd.build_wieloryby(None)
         self.assertEqual([n for n in zd.META['notes'] if 'lista portfeli OKX' in n], [])
         zd.META['notes'].clear()
+
+    def test_baza_testow_niezalezna_od_odswiezenia_okx(self):
+        for dzien in ('2026-10-12', '2026-11-01'):
+            with self.subTest(dzien=dzien):
+                j = copy.deepcopy(self.OK)
+                j['OKX'].update(since=dzien, plik='por_csv_' + dzien.replace('-', '') + '00_V1')
+                self._zapisz(j)
+                m = self._swiezy(self.p)
+                self.assertEqual(m.WH_GIELDY['OKX']['since'], dzien, 'produkcja przyjmuje aktualną listę z pliku')
+                self.assertEqual(m.WH_GIELDY_WBUDOWANE['OKX'], m.WH_GIELDY['OKX'], 'nałożenie PDF zachowuje aktualną OKX')
+                _wh_listy_wbudowane_testy(m)
+                self.assertEqual(m.WH_GIELDY, m.wh_konfig_nalozone(m.WH_GIELDY_WBUDOWANE, '-'))
+                self.assertEqual(m.WH_GIELDY['OKX']['since'], m.WH_OKX_WBUDOWANA['since'])
+                self.assertIsNot(m.WH_GIELDY['OKX']['addr'], m.WH_GIELDY_WBUDOWANE['OKX']['addr'])
 
     def test_plik_w_repozytorium_poprawny(self):
         rec, powod = zd.wh_okx_wczytaj()

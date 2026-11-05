@@ -24,6 +24,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - name: Testy pauzy po 429 i harmonogramu kontroli (bez sieci)
+        run: PYTHONPATH=narzedzia/bez_sieci PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v test_soso_backoff.py test_kontrola_harmonogram.py
       - name: Testy zbieracza (sieć zablokowana)
         run: PYTHONPATH=narzedzia/bez_sieci PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test_zbieraj_dane.py
       - name: Testy strony (widoki)

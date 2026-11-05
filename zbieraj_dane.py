@@ -24,6 +24,7 @@ CG_IDS = {'btc': 'bitcoin', 'eth': 'ethereum', 'sol': 'solana', 'xrp': 'ripple'}
 _DEADLINE = [None]   # v49: po tym czasie (monotonic) SoSoValue nie czeka na 429 i pomija listy funduszy
 SOSO_BUDGET = 8 * 60
 SOSO_SLEEP = 4.0   # limit 20 zapytań/min — 15/min zostawia zapas
+SOSO_BLOK429_MIN = 55   # po 429 bez ponowienia w tym przebiegu; dłuższy Retry-After ma pierwszeństwo
 ETF_FUNDS_EVERY = 6 * 60   # v192: min — lista i szczegóły funduszy tylko przy nowym dniu danych albo co 6 h (dotąd co godzinę: ok. 47 zapytań
                            # po ok. 7 s, 479 z 686 s przebiegu 05.10); Hongkong (strona go nie pokazuje) też najwyżej co 6 h
 # te same ETF-y zastępcze co w index.html (GPROXY)
@@ -364,15 +365,28 @@ def get_bytes(url, headers=None, timeout=60):
         return r.read()
 
 
+def soso_blok429_swieza(meta, now=None):
+    """Przerwa po 429 w meta.json, także bez poprzednich danych ETF; odczyt nie przesuwa jej końca."""
+    b = meta.get('soso_blok429') if isinstance(meta, dict) else None
+    od = _ix_dt(b.get('od')) if isinstance(b, dict) and isinstance(b.get('od'), str) else None
+    do = _ix_dt(b.get('do')) if isinstance(b, dict) and isinstance(b.get('do'), str) else None
+    return od is not None and do is not None and od <= (now or _now_utc()) < do
+
+
 def soso(path, key, _retry=True):
+    if soso_blok429_swieza(META):
+        raise RuntimeError(f'HTTP 429 — bez zapytań do {META["soso_blok429"]["do"]}')
     time.sleep(SOSO_SLEEP)
     try:
         j = get_json(SOSO + path, {'x-soso-api-key': key})
     except urllib.error.HTTPError as e:
-        if e.code == 429 and _retry and (_DEADLINE[0] is None or time.monotonic() < _DEADLINE[0]):          # limit minutowy — odczekaj pełną minutę i spróbuj raz jeszcze
-            print('SoSoValue 429 — czekam 65 s')
-            time.sleep(65)
-            return soso(path, key, _retry=False)
+        if e.code == 429:
+            now = _now_utc()
+            retry = e.headers.get('Retry-After') if e.headers is not None else None
+            # Zegar pełnych sekund zapobiega skróceniu daty HTTP przez zaokrąglenie parsera.
+            delay = max(SOSO_BLOK429_MIN * 60, _pr_retry_s(retry, now.replace(microsecond=0)) or 0)
+            META['soso_blok429'] = {'od': now.isoformat(), 'do': (now + datetime.timedelta(seconds=delay)).isoformat()}
+            print('SoSoValue 429 — bez kolejnych zapytań do', META['soso_blok429']['do'])
         raise
     if isinstance(j, dict) and j.get('code') not in (None, 0):
         raise RuntimeError(f'SoSoValue {path}: {j.get("message")}')
@@ -6412,6 +6426,12 @@ def build_etf(key, cg_key, prev=None, tylko=None):
             META['ok']['coingecko'] = False
     nowe, stare, pominiete = 0, {}, set()
     for s in ETF_SYMS:
+        if soso_blok429_swieza(META):
+            for k, a in prev_assets.items():
+                if (k in ETF_SYMS and k not in out['assets'] and isinstance(a, dict) and isinstance(a.get('day'), list)
+                        and a['day'] and isinstance(a.get('asof'), str) and _d(a['asof'])):
+                    stare[k] = a
+            break   # pierwszy 429 dotyczy całego klucza — następne monety bez zapytań
         pa = prev_assets.get(s) if isinstance(prev_assets.get(s), dict) else {}
         if tylko is not None and s not in tylko and isinstance(pa.get('day'), list) and pa['day'] and isinstance(pa.get('asof'), str) and _d(pa['asof']):
             out['assets'][s] = json.loads(json.dumps(pa)); pominiete.add(s)   # v282: tryb szybki — moneta z oczekiwanym dniem bez zapytań
@@ -6425,7 +6445,7 @@ def build_etf(key, cg_key, prev=None, tylko=None):
             # źródła (ok. 21 sesji; następny przebieg łączy nowe okno z tą historią)
             if isinstance(pa.get('day'), list) and pa['day'] and isinstance(pa.get('asof'), str) and _d(pa['asof']):
                 stare[s] = pa
-    if not nowe and (tylko is None or not pominiete):   # wszystkie monety zawiodły — main zostawia poprzedni plik z jego czasem
+    if not nowe and (soso_blok429_swieza(META) or tylko is None or not pominiete):   # bez nowych danych po 429 także tryb szybki zachowuje prawdziwe 'at'
         raise RuntimeError('SoSoValue: brak danych dla wszystkich monet')   # v283: w trybie szybkim z przeniesionymi monetami — bez wyjątku (błąd monety w meta)
     top = max(a['asof'] for a in out['assets'].values())
     for s, pa in stare.items():   # v199/v203: poprzedni wpis z własną datą i historią dni (stan „stale” — niżej, jak dla każdej monety)
@@ -33499,12 +33519,26 @@ def main():
     fred_key = klucz('FRED_KEY')
     eia_key, bls_key, bea_key = (klucz(k) for k in ('EIA_KEY', 'BLS_KEY', 'BEA_KEY'))   # v97
     SECRETS[:] = [k for k in (soso_key, cg_key, fh_key, td_key, cmc_key, fred_key, eia_key, bls_key, bea_key) if k]
+    pm = {}
+    try:   # ten sam odczyt meta służy później pamięci awarii i zużycia; bez dodatkowego zapytania
+        pm = previous('meta') or {}
+    except Exception as e:
+        META['notes'].append(f'pamięć awarii: {e}')
+    META.pop('soso_blok429', None)
+    if soso_blok429_swieza(pm):
+        META['soso_blok429'] = dict(pm['soso_blok429'])
     # ETF — dane dzienne: SoSoValue pytamy najwyżej raz na godzinę (oszczędza limit 100 000/mies.),
     # między odświeżeniami zachowujemy plik z opublikowanej strony (pole "at" mówi, kiedy pobrano)
     prev_etf = previous('etf') if soso_key else None
     etf_pelne = {'at': prev_etf.get('pelne_at') or prev_etf.get('at')} if isinstance(prev_etf, dict) else None   # v282: czas ostatniej pełnej budowy
     etf_szybkie = etf_brakujace(prev_etf, _now_utc()) if (soso_key and prev_etf) else set()   # v279/v282: monety bez oczekiwanego dnia w swoim oknie
-    if soso_key and prev_etf and fresh(etf_pelne, 55) and not (etf_szybkie and not fresh(prev_etf, ETF_SZYBKO_MIN)):
+    if soso_key and soso_blok429_swieza(META):
+        if prev_etf:
+            save('etf', prev_etf)
+        META['ok']['sosovalue'] = False
+        META['errors'].append(f'SoSoValue: blokada HTTP 429 — bez zapytań do {META["soso_blok429"]["do"]}')
+        print('ETF: blokada 429 — bez zapytań do źródła głównego')
+    elif soso_key and prev_etf and fresh(etf_pelne, 55) and not (etf_szybkie and not fresh(prev_etf, ETF_SZYBKO_MIN)):
         save('etf', prev_etf); META['ok']['sosovalue'] = 'cached'; print('ETF: dane z', prev_etf.get('at'), '— młodsze niż 55 min, bez zapytań do SoSoValue')
     elif soso_key and prev_etf and etf_blokada_swieza(prev_etf):
         # v360: poprzedni przebieg: 403 u wszystkich monet (reguła hosta) — bez zapytań przez ETF_BLOK_MIN min od ostatniej próby; dane i ich wiek bez zmian
@@ -33515,6 +33549,8 @@ def main():
         try:
             etf_tylko = etf_szybkie if (prev_etf and fresh(etf_pelne, 55)) else None   # v282: pełna budowa co godzinę; w oknie — tylko brakujące monety
             save('etf', build_etf(soso_key, cg_key, prev_etf, etf_tylko)); META['ok']['sosovalue'] = True
+            if soso_blok429_swieza(META):
+                META['ok']['sosovalue'] = False   # nowe dane częściowe nie ukrywają limitu źródła
         except Exception as e:
             META['errors'].append(mask(f'SoSoValue: {e}')); META['ok']['sosovalue'] = False
             if prev_etf: save('etf', etf_znacznik_blokady(prev_etf, META['errors'], NOW)); print('SoSoValue zawiódł — zachowano poprzedni etf.json z', prev_etf.get('at'))   # v360: 403 u wszystkich monet = znacznik blokady
@@ -35011,9 +35047,7 @@ def main():
     if META['czas']['s'] > CZAS_UWAGA_S:
         META['notes'].append(f"przebieg automatu trwał {META['czas']['s'] / 60:.1f} min — blisko limitu zadania (25 min); najdłużej: "
                              + ', '.join(f'{n} {s} s' for n, s in META['czas']['top'][:3]))
-    pm = {}
     try:   # v207: pamięć awarii części między przebiegami (kontrola dzienna: od kiedy nie działa, co naprawiło się samo); awaria = bez pola
-        pm = previous('meta') or {}
         META['awarie'] = awarie(pm.get('awarie'), META['ok'], NOW)
         META['awarie_od'] = pm['awarie_od'] if 'awarie' in pm and _aw_t(pm.get('awarie_od')) else NOW   # v211: początek pamięci (raport: „pamięć od …”)
     except Exception as e:
@@ -39891,6 +39925,16 @@ def nc_czesc(k, prev, dzis):
     if k == 'pkb':
         c = nc_pkb(nc_http(NC_URL_PKB).decode('utf-8', 'replace'), dzis)
         c['hist'] = nc_scal(pp.get('hist'), c['hist'], dzis)
+        # Cofnięty kanał nie potwierdza nowszego szacunku z pliku; sam punkt historii nie ma prev_* ani next.
+        pd = pp.get('date')
+        if isinstance(pd, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', pd) and pd > c['date']:
+            raise ValueError(f'kanał PKB cofnął datę szacunku z {pd} do {c["date"]}')
+        if c['hist'] and c['hist'][-1] != [c['date'], c['v'], c['q']]:
+            raise ValueError(f'kanał PKB kończy się {c["date"]}, historia ma nowszy szacunek z {c["hist"][-1][0]}')
+        pq = pp.get('q')
+        if ((isinstance(pq, str) and re.fullmatch(r'\d{4}-Q[1-4]', pq) and pq > c['q'])
+                or any(not re.fullmatch(r'\d{4}-Q[1-4]', r[2]) or r[2] > c['q'] for r in c['hist'])):
+            raise ValueError(f'kanał PKB ma kwartał {c["q"]} niezgodny z zachowanymi szacunkami')
         return c
     c = nc_cpi_html(nc_http(NC_URL_CPI).decode('utf-8', 'replace'), dzis)
     hist = nc_okno(pp.get('hist'), dzis)

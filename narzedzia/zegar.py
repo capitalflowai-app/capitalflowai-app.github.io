@@ -44,7 +44,10 @@ DOCZEKAJ_S = 120       # v145.1: po czekaniu brakuje najwyżej tylu sekund (ró�
 AKTYWNE = ('queued', 'in_progress', 'waiting', 'pending', 'requested')
 # v159: zadania dzienne pilnowane przez zegar — (plik workflow, nazwa w logu, godzina UTC, minuta, zapas w min) zgodne z ich cron (test pilnuje).
 # Zapas = typowe spóźnienie harmonogramu GitHub + margines: kontrola 06:20 → 07:30 UTC, archiwum 01:20 → 03:00 UTC.
+# Pierwszy termin kontroli pozostaje w DZIENNE; pozostałe terminy są w KONTROLA_GODZINY. W jednym czuwaniu uruchamiamy najwyżej jeden
+# przebieg danego workflow — ostatni należny, bez nadrabiania kilku starych raportów naraz.
 DZIENNE = (('kontrola.yml', 'kontrola dzienna', 6, 20, 70), ('archiwum.yml', 'archiwum dzienne', 1, 20, 100))
+KONTROLA_GODZINY = (6, 11, 16, 21)   # kontrola.yml: cztery kontrole dziennie, o minucie 20 UTC
 DZIENNE_OD_MIN = 20   # przebieg „z dziś” = utworzony najwcześniej tyle minut przed terminem (wcześniejszy push to nie dzisiejsze zadanie)
 # v232 (06.10.2026): zadanie „opublikuj” stało ponad godzinę w stanie waiting (środowisko github-pages bez wymogu zatwierdzenia) i trzymało
 # grupę „pages” — każdy następny przebieg czekał. Tryb `odblokuj` anuluje taki przebieg; zatwierdzenia przez osobę nie rusza nigdy.
@@ -143,10 +146,20 @@ def przebiegi_wf(wf, token, n=10):
     return (j.get('workflow_runs') or []) if isinstance(j, dict) else []
 
 
+def dzienne_godzina(wf, now, godz, minuta, zapas):
+    """Ostatni termin kontroli, którego zapas już minął; inne zadania zachowują swój jeden termin.
+    Wcześniejszy raport tego samego dnia nie zastępuje kontroli popołudniowej ani wieczornej. Gdy minęło kilka terminów,
+    jeden nowy raport zastępuje wszystkie zaległe — bez czterech jednoczesnych wywołań workflow_dispatch."""
+    godziny = KONTROLA_GODZINY if wf == 'kontrola.yml' else (godz,)
+    nalezne = [h for h in godziny if now >= now.replace(hour=h, minute=minuta, second=0, microsecond=0) + dt.timedelta(minutes=zapas)]
+    return max(nalezne) if nalezne else godz
+
+
 def _dzienne(token, now):
     """v159: każde zadanie osobno — błąd jednego (sieć, API) nie blokuje drugiego; w logu tylko rodzaj błędu."""
     for wf, nazwa, godz, minuta, zapas in DZIENNE:
         try:
+            godz = dzienne_godzina(wf, now, godz, minuta, zapas)
             d = dzienne_decyzja(przebiegi_wf(wf, token), now, godz, minuta, zapas)
             if d[0] == 'uruchom':
                 st = uruchom(wf, token)

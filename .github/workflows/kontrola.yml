@@ -1,14 +1,17 @@
 name: Kontrola strony (codziennie)
 
-# Codzienna kontrola z serwera GitHub (ma dostęp do strony i do listy przebiegów) — zamiast zadania w chmurze Claude, które nie ma
+# Kontrola cztery razy dziennie z serwera GitHub (ma dostęp do strony i do listy przebiegów) — zamiast zadania w chmurze Claude, które nie ma
 # dostępu do sieci. Wynik: kontrola/ostatnia.md i ostatnia.json w repozytorium (commit z [skip ci] — nie uruchamia budowy strony),
 # podsumowanie przebiegu i adnotacja. Nieudany przebieg (BŁĄD) = e-mail od GitHuba do właściciela.
 on:
   schedule:
-    - cron: '20 6 * * *'        # 06:20 UTC = 08:20 czasu polskiego (letniego)
+    - cron: '20 6 * * *'        # godziny UTC; zimą w Polsce +1 h, latem +2 h
+    - cron: '20 11 * * *'
+    - cron: '20 16 * * *'
+    - cron: '20 21 * * *'
   push:
     branches: [main]
-    paths: ['narzedzia/kontrola.py', 'narzedzia/kontrola_zakladki.py', 'narzedzia/kontrola_zakladki.js', '.github/workflows/kontrola.yml']   # v440
+    paths: ['narzedzia/kontrola.py', 'narzedzia/kontrola_zakladki.py', 'narzedzia/kontrola_zakladki.js', 'narzedzia/zegar.py', 'test_kontrola_harmonogram.py', '.github/workflows/kontrola.yml']
   workflow_dispatch:
 
 permissions: {}
@@ -29,6 +32,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - name: Testy harmonogramu kontroli (bez sieci)
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v test_kontrola_harmonogram.py
       - name: Po pushu poczekaj na publikację strony (budowa i wdrożenie trwają kilka minut; bez tego kontrola widzi stary stan)
         if: github.event_name == 'push'
         run: sleep 300

@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - name: Testy pauzy po 429 i harmonogramu kontroli (bez sieci)
+        run: PYTHONPATH=narzedzia/bez_sieci PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v test_soso_backoff.py test_kontrola_harmonogram.py
       - name: Testy zbieracza (brak nie jest zerem, zakres dat, pamięć podręczna) — awaria blokuje publikację
         run: PYTHONPATH=narzedzia/bez_sieci PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v test_zbieraj_dane.py   # v122: sieć zablokowana — próba połączenia w teście = kod 3, publikacja staje
       - name: Test bramki strony dla plików widoków silnika (bez przeglądarki) — awaria blokuje publikację
