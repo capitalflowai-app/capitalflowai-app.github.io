@@ -39356,7 +39356,7 @@ import html as _kal2_html
 
 KAL2_URL_FRED = 'https://api.stlouisfed.org/fred/release/dates?release_id={rid}&api_key={key}&file_type=json&include_release_dates_with_no_data=true&sort_order=desc&limit=100'
 KAL2_URL_FRED_NAZWA = 'https://api.stlouisfed.org/fred/release?release_id={rid}&api_key={key}&file_type=json'
-KAL2_URL_GUS = 'https://stat.gov.pl/download/gfx/portalinformacyjny/pl/defaultstronaopisowa/6610/3/1/sdds_kalendarz_upowszechniania_danych_w_{y}_r.xlsx'
+KAL2_GUS_STRONA = 'https://stat.gov.pl/banki-i-bazy-danych/sdds/'
 KAL2_URL_BOE = 'https://www.bankofengland.co.uk/monetary-policy/upcoming-mpc-dates'
 KAL2_URL_BOJ = 'https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm'
 KAL2_PARTS = ('cpi_praca_us', 'dane_pl', 'bc_uk', 'bc_jp')
@@ -39442,6 +39442,19 @@ def kal2_fred_daty(j, kod, od, do):
         if kal_w_oknie(u, od, do):
             out.append(kal2_zdarzenie(u, kod))
     return kal_koniec(out), rozp
+
+
+def kal2_gus_url(tekst, rok):
+    """Oficjalna strona SDDS → jednoznaczny odnośnik XLSX kalendarza roku, także z przyrostkiem wersji; bez zgadywania adresu ani wyboru spośród różnych plików."""
+    pliki = set()
+    for href in re.findall(r"(?i)\bhref\s*=\s*[\"']([^\"']+)[\"']", tekst):
+        href = _kal2_html.unescape(href)
+        m = re.fullmatch(r'(?:https://stat\.gov\.pl)?(/download/[^?#<>]+/sdds_kalendarz_upowszechniania_danych_w_(20\d{2})_r(?:_\d+)*\.xlsx)', href)
+        if m and int(m.group(2)) == rok:
+            pliki.add('https://stat.gov.pl' + m.group(1))
+    if len(pliki) != 1:
+        raise ValueError(f'GUS: oczekiwano jednego odnośnika kalendarza {rok}, jest {len(pliki)}')
+    return pliki.pop()
 
 
 def kal2_okres_gus(s):
@@ -39582,10 +39595,11 @@ def kal2_czesc(k, od, do, key):
             ev += e_; rozp += r_
         ev = kal_koniec(ev)
     elif k == 'dane_pl':
+        strona = kal2_http(KAL2_GUS_STRONA).decode('utf-8', 'replace')
         ev, rozp = [], 0
         for i, y in enumerate(sorted({od.year, do.year})):
             try:
-                e_, r_ = kal2_gus(kal2_http(KAL2_URL_GUS.format(y=y)), od, do)
+                e_, r_ = kal2_gus(kal2_http(kal2_gus_url(strona, y)), od, do)
             except Exception:  # noqa — plik roku następnego bywa jeszcze nieopublikowany; wymagany jest tylko pierwszy
                 if i == 0:
                     raise

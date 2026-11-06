@@ -54463,15 +54463,18 @@ class KalendarzV375(unittest.TestCase):
         return '<html><body><div>' + tab(2026, w26, True) + '<p>Note: The time of release will be, in principle, as follows.</p>' + tab(2027, w27, False) + '</div></body></html>'
 
     def serwer(self, **zm):
-        """adres → treść (bajty) albo wyjątek; zm: cpi / praca (daty), cpi_nazwa / praca_nazwa, gus (bajty albo słownik rok → bajty), boe, boj nadpisują część"""
+        """adres → treść (bajty) albo wyjątek; zm: cpi / praca (daty), cpi_nazwa / praca_nazwa, gus (bajty albo słownik rok → bajty), gus_strona, boe, boj nadpisują część"""
         S = {'cpi': self.fred_daty(10, self.CPI_DATY), 'praca': self.fred_daty(50, self.PRACA_DATY), 'cpi_nazwa': self.fred_nazwa(10, 'Consumer Price Index'),
-             'praca_nazwa': self.fred_nazwa(50, 'Employment Situation'), 'gus': self.xlsx(), 'boe': self.boe_html().encode(), 'boj': self.boj_html().encode()}
+             'praca_nazwa': self.fred_nazwa(50, 'Employment Situation'), 'gus': self.xlsx(), 'boe': self.boe_html().encode(), 'boj': self.boj_html().encode(),
+             'gus_strona': ('<a href="/download/gfx/portalinformacyjny/pl/defaultstronaopisowa/6610/3/1/sdds_kalendarz_upowszechniania_danych_w_2026_r_11_06.xlsx">2026</a>'
+                            '<a href="/download/gfx/portalinformacyjny/pl/defaultstronaopisowa/6610/3/1/sdds_kalendarz_upowszechniania_danych_w_2027_r.xlsx">2027 (syntetyczny)</a>').encode()}
         S.update(zm)
         log = []
 
         def http(url):
             log.append(url)
             for k, frag in (('cpi_nazwa', 'fred/release?release_id=10'), ('praca_nazwa', 'fred/release?release_id=50'), ('cpi', 'fred/release/dates?release_id=10'), ('praca', 'fred/release/dates?release_id=50'),
+                            ('gus_strona', 'stat.gov.pl/banki-i-bazy-danych/sdds/'),
                             ('gus', 'stat.gov.pl/download/gfx/portalinformacyjny/pl/defaultstronaopisowa/6610/3/1/sdds_kalendarz_upowszechniania_danych_w_'),
                             ('boe', 'bankofengland.co.uk/monetary-policy/upcoming-mpc-dates'), ('boj', 'boj.or.jp/en/mopo/mpmsche_minu/index.htm')):
                 if frag in url:
@@ -54545,6 +54548,50 @@ class KalendarzV375(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'nazwa wydania'):
                 zd.kal2_fred_nazwa(zla, r'Consumer Price Index')
 
+    def test_gus_wersjonowany_plik_z_oficjalnej_strony_sdds_zamiast_url_404(self):
+        # Odnośnik z oficjalnej strony SDDS odczytany 06.11.2026; stary ..._2026_r.xlsx zwraca HTTP 404.
+        plik = 'https://stat.gov.pl/download/gfx/portalinformacyjny/pl/defaultstronaopisowa/6610/3/1/sdds_kalendarz_upowszechniania_danych_w_2026_r_11_06.xlsx'
+        strona = ('<a href="' + plik.removeprefix('https://stat.gov.pl') + '">Kalendarz Upowszechniania Danych w 2026 r. w formacie XLSX</a>').encode()
+        log = []
+
+        def http(url):
+            log.append(url)
+            if url == 'https://stat.gov.pl/banki-i-bazy-danych/sdds/':
+                return strona
+            if url == plik:
+                return self.xlsx()
+            raise urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+
+        with mock.patch.object(zd, 'kal2_http', side_effect=http):
+            ev, n = zd.kal2_czesc('dane_pl', self.OD, self.DO, None)
+        self.assertEqual(log, ['https://stat.gov.pl/banki-i-bazy-danych/sdds/', plik])
+        self.assertEqual((ev, n), (zd.kal2_gus(self.xlsx(), self.OD, self.DO)[0], [39, 4]), 'odkrycie adresu nie zmienia dat, okresów, godziny ani bramek parsera')
+
+    def test_gus_odnosnik_kalendarza_jednoznaczny_rok_i_oficjalna_domena(self):
+        p = '/download/gfx/portalinformacyjny/pl/defaultstronaopisowa/6610/3/1/sdds_kalendarz_upowszechniania_danych_w_2026_r_11_06.xlsx'
+        a = lambda u: '<a href="' + u + '">Kalendarz</a>'
+        inne = a(p.replace('2026', '2027')) + a('https://example.invalid' + p) + a('//example.invalid' + p)
+        for tekst in (a(p), a('https://stat.gov.pl' + p), a(p) + a(p) + inne, a(p).replace('"', "'"), a(p.replace('_r_11_06.', '_r.'))):
+            with self.subTest(tekst=tekst):
+                self.assertEqual(zd.kal2_gus_url(tekst, 2026), 'https://stat.gov.pl' + (p.replace('_r_11_06.', '_r.') if '_r.xlsx' in tekst else p))
+        for tekst, ile in ((inne, 0), ('<html>Nowy układ</html>', 0), (a(p) + a(p.replace('_11_06', '_10_01')), 2)):
+            with self.subTest(tekst=tekst), self.assertRaisesRegex(ValueError, f'kalendarza 2026, jest {ile}'):
+                zd.kal2_gus_url(tekst, 2026)
+
+    def test_gus_brak_odnosnika_nie_odswieza_poprzednich_terminow(self):
+        prev = self.build()
+        prev['part_at']['dane_pl'] = '2026-10-14T21:00:00+00:00'
+        o = self.build(prev, gus_strona=b'<html>Brak kalendarza</html>')
+        self.assertFalse(o['ok']['dane_pl'])
+        self.assertEqual(o['e']['dane_pl'], prev['e']['dane_pl'])
+        self.assertEqual(o['part_at']['dane_pl'], prev['part_at']['dane_pl'])
+        self.assertIn('odnośnika kalendarza 2026, jest 0', o['errs']['dane_pl'])
+        self.assertFalse(any('sdds_kalendarz' in u for u in self.log), 'bez odnośnika nie zgadujemy nazw plików')
+        with mock.patch.object(zd, 'NOW', '2026-12-20T09:00:00+00:00'):
+            o2 = self.build(gus_strona=('<a href="/download/gfx/portalinformacyjny/pl/defaultstronaopisowa/6610/3/1/sdds_kalendarz_upowszechniania_danych_w_2026_r_11_06.xlsx">2026</a>').encode())
+        self.assertTrue(o2['ok']['dane_pl'], 'brak odnośnika następnego roku jest nadal opcjonalny')
+        self.assertEqual(sum('sdds_kalendarz' in u for u in self.log), 1)
+
     def test_gus_kalendarz_cztery_kategorie_okresy_i_godzina_10_00(self):
         ev, rozp = zd.kal2_gus(self.xlsx(), self.OD, self.DO)
         self.assertEqual([(e['t'], e['k'], e.get('p')) for e in ev], [('2026-10-14T08:00Z', 'pl_cpi', '2026-09'), ('2026-10-20T08:00Z', 'pl_prod', '2026-09'), ('2026-10-23T08:00Z', 'pl_praca', '2026-09'),
@@ -54603,7 +54650,7 @@ class KalendarzV375(unittest.TestCase):
         self.assertEqual([e['t'] for e in o['e']['cpi_praca_us']], ['2026-10-14T12:30Z', '2026-11-06T13:30Z', '2026-11-12T13:30Z'])
         s = json.dumps(o, ensure_ascii=False)
         self.assertFalse(re.search(r'stlouisfed|stat\.gov|bankofengland|boj\.or|FRED|Bureau|Federal Reserve|GUS|' + re.escape(self.KEY), s, re.I), 'w pliku tylko kody terminów i obszarów — bez nazw dostawców i klucza')
-        self.assertEqual(len(self.log), 7, 'cztery zapytania FRED (nazwa i daty dla dwóch wydań) + kalendarz Polski (okno w jednym roku) + Anglia + Japonia')
+        self.assertEqual(len(self.log), 8, 'cztery zapytania FRED (nazwa i daty dla dwóch wydań) + strona SDDS i kalendarz Polski (okno w jednym roku) + Anglia + Japonia')
         self.assertEqual(json.loads(json.dumps(o)), o)
         self.assertTrue(all(self.KEY in u for u in self.log[:4]) and not any(self.KEY in u for u in self.log[4:]), 'klucz tylko w zapytaniach FRED')
 
