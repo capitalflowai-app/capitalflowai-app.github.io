@@ -1439,6 +1439,8 @@ def awarie_ocena(meta, now=None):
             elif h >= AW_UWAGA_H:
                 Z['uwagi'].append(opis + ' — automat ponawia sam; dane tej części mają swój wiek na stronie')
         elif (now - do).total_seconds() <= AW_INFO_H * 3600:
+            if w.get('zakonczone') is True:
+                x['zakonczone'] = True
             Z['zniknely' if w.get('zn') is True else 'naprawione'].append(x)
         p = w.get('prev')
         if isinstance(p, list) and len(p) == 3:
@@ -16092,6 +16094,8 @@ def kontrola():
                      'errors': [str(x)[:160] for x in (m.get('errors') or [])], 'notes': [str(x)[:160] for x in (m.get('notes') or [])],
                      'czas': m.get('czas') if isinstance(m.get('czas'), dict) else None,   # v185: czas przebiegu automatu
                      'awarie_od': m.get('awarie_od') if isinstance(m.get('awarie_od'), str) else None}   # v211: początek pamięci awarii
+        if isinstance(m.get('archiwalne'), dict):
+            R['meta']['archiwalne'] = m['archiwalne']   # trwała informacja także po wygaśnięciu pamięci awarii
         if w is None:
             R['bledy'].append('plik stanu bez czasu przebiegu')
         elif w > 180:
@@ -17446,6 +17450,10 @@ def raport_md(R):
         ins += [f'**Ostrzeżenia o źródłach danych: {len(R["zewnetrzne"])}** ⚠️ — strona i publikacja działają, dane tych źródeł mają swój wiek na stronie '
                 f'(pełna lista z czasem trwania: sekcja „Uwagi” niżej). {PORADA_3D_W}', '']
     L[6:6] = ins
+    for k, ar in (m['archiwalne'].items() if isinstance(m.get('archiwalne'), dict) else ()):
+        if isinstance(ar, dict):
+            L.append(f'- Źródło archiwalne {k}: {ar.get("powod", "—")}; data migracji: {ar.get("effective_from", "—")}; '
+                     f'oficjalna informacja: {ar.get("url", "—")}.')
     cz = m.get('czas') if isinstance(m.get('czas'), dict) else None   # v185: czas tego przebiegu i najdłuższe części
     if cz and isinstance(cz.get('s'), (int, float)):
         top = [x for x in (cz.get('top') or []) if isinstance(x, list) and len(x) == 2][:3]
@@ -17500,9 +17508,14 @@ def raport_md(R):
         if aw.get('naprawione'):
             L.append('- Naprawiły się same (24 h): ' + '; '.join(
                 f'{x["czesc"]} {czas_pl(x["od"])} – {czas_pl(x["do"])} ({_aw_h(x["h"])}, nieudanych przebiegów: {x["n"]}) ℹ️' for x in aw['naprawione']) + '.')
-        if aw.get('zniknely'):   # v211: seria zamknięta, bo część nie pojawia się w przebiegach (wyłączona albo zmieniona) — nie awaria, nie naprawa
+        zniknely = [x for x in aw.get('zniknely', []) if not x.get('zakonczone')]
+        if zniknely:   # v211: część wyłączona albo zmieniona — nie naprawa
             L.append('- Zniknęły z przebiegów (24 h; część wyłączona albo zmieniona — nie awaria): ' + '; '.join(
-                f'{x["czesc"]} — ostatnia nieudana próba {czas_pl(x["ost"])} (nieudanych przebiegów: {x["n"]}) ℹ️' for x in aw['zniknely']) + '.')
+                f'{x["czesc"]} — ostatnia nieudana próba {czas_pl(x["ost"])} (nieudanych przebiegów: {x["n"]}) ℹ️' for x in zniknely) + '.')
+        zakonczone = [x for x in aw.get('zniknely', []) if x.get('zakonczone')]
+        if zakonczone:
+            L.append('- Zakończone źródła (zamknięcie serii, nie naprawa): ' + '; '.join(
+                f'{x["czesc"]} — ostatnia nieudana próba {czas_pl(x["ost"])} (nieudanych przebiegów: {x["n"]}) ℹ️' for x in zakonczone) + '.')
     zu = R.get('zuzycie') if isinstance(R.get('zuzycie'), dict) else None   # v222: zużycie darmowych planów z limitem
     if zu and zu.get('plany'):
         L.append('- Zużycie darmowych planów (licznik automatu — dolna granica): ' + '; '.join(f'{p["tekst"]} {p["znak"]}' for p in zu['plany']) + '.')

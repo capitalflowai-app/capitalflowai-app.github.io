@@ -9004,6 +9004,7 @@ class DzwigniaV104(unittest.TestCase):
         return b.getvalue()
 
     def setUp(self):
+        self.enterContext(mock.patch.object(zd, 'NOW', '2026-09-26T07:30:00+00:00'))   # historyczne nagrania sprzed migracji INTX do Deribit
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
         self.enterContext(mock.patch.object(zd, 'cde_get', side_effect=lambda u: json.loads(_F1Z3_CDE)))   # v343 (F1Z3): Coinbase USA — zaślepka zamiast sieci (nagranie 11.10.2026)
 
@@ -9891,6 +9892,7 @@ class DzwigniaV109(unittest.TestCase):
     # v109 (dzwignia2): Kraken Futures, Coinbase International, dYdX — okresy finansowania z dokumentacji (co godzinę), stawka bezwzględna Kraken → względna,
     # wiersze zepsute → brak (nie zero), suma giełd z bieżącym stanem (do 6 h, bez Binance), dobieranie nowych części do pliku sprzed v109.
     def setUp(self):
+        self.enterContext(mock.patch.object(zd, 'NOW', '2026-09-26T07:30:00+00:00'))   # historyczne nagrania sprzed migracji INTX do Deribit
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
         self.V = DzwigniaV104('test_num_never_zero_for_missing')   # nagrania i trasy odpowiedzi bloku v104 (z nowymi giełdami)
         self.enterContext(mock.patch.object(zd, 'cde_get', side_effect=lambda u: json.loads(_F1Z3_CDE)))   # v343 (F1Z3): Coinbase USA — zaślepka zamiast sieci
@@ -24845,7 +24847,7 @@ class PamiecAwariiV207(unittest.TestCase):
         src = inspect.getsource(zd.main)
         i, j = src.index("META['awarie'] = awarie("), src.index("save('meta', META)")
         self.assertLess(i, j, 'pamięć awarii liczona przed zapisem meta.json')
-        self.assertIn("META['awarie'] = awarie(pm.get('awarie'), META['ok'], NOW)", src); self.assertIn("pm = previous('meta') or {}", src)
+        self.assertIn("META['awarie'] = awarie(pm.get('awarie'), META['ok'], NOW, META.get('archiwalne'))", src); self.assertIn("pm = previous('meta') or {}", src)
 
     def test_kontrola_ocena(self):
         k, t = self.k, self._t
@@ -45295,7 +45297,8 @@ class DzwigniaF1Z3(unittest.TestCase):
         with mock.patch.object(zd, 'hl_post', side_effect=V.hl_post), mock.patch.object(zd, 'get_bytes', side_effect=gb), mock.patch.object(zd, 'get_json', side_effect=gj), \
              mock.patch.object(zd, 'cde_get', side_effect=lambda u: json.loads(_F1Z3_CDE)):
             o = zd.build_dzwignia(None, today=self.TODAY)
-        self.assertEqual(o['ok'], {k: True for k in ('hl', 'bn', 'dr', 'okx', 'kr', 'cb', 'dy', 'cde')}); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(o['ok'], {k: True for k in ('hl', 'bn', 'dr', 'okx', 'kr', 'dy', 'cde')}); self.assertEqual(zd.META['errors'], [])
+        self.assertEqual(o['archiwalne']['cb']['effective_from'], '2026-10-01'); self.assertNotIn('cb', o['part_at'])
         self.assertEqual(o['part_at']['cde'], _F1Z3_T0); self.assertEqual(o['cde']['BTC']['terms'][0]['id'], 'BIT-30OCT26-CDE')
         self.assertEqual(len(o['dr']['BTC']['fut']['terms']), 7); self.assertEqual(len(o['okx']['BTC']['fut']['terms']), 6)
         h = o['hist'][-1]
@@ -45338,7 +45341,7 @@ class DzwigniaF1Z3(unittest.TestCase):
         self.assertTrue(any('kontrakty z datą BTC: 503' in e for e in zd.META['errors']), zd.META['errors'])
 
     def test_stale_ustawienia(self):
-        self.assertEqual(sorted(zd.lev_px_aktywne()), ['bn', 'cb', 'cde', 'dr', 'dy', 'hl', 'kr', 'okx']); self.assertEqual(zd.LEV_PX['cde'], 'Coinbase USA')
+        self.assertEqual(sorted(zd.lev_px_aktywne()), ['bn', 'cde', 'dr', 'dy', 'hl', 'kr', 'okx']); self.assertEqual(zd.LEV_PX['cde'], 'Coinbase USA')
         self.assertEqual(zd.LEV_LIVE[:6], ['hl', 'okx', 'kr', 'cb', 'cde', 'dy'], 'v345 (C-08): + cde (Coinbase USA)'); self.assertEqual((zd.DR_FUT_MIN_DNI, zd.DR_OPT_TERMS, zd.DR_OPT_WEEK_N, zd.CDE_PAGES, zd.CDE_MIN_OI_USD), (7.0, 10, 3, 2, 1e6))
 
 
@@ -83224,3 +83227,165 @@ class TestV505Top100Nazwy(unittest.TestCase):
         self.assertEqual([u for u in self.urls if 'category' in u], [], 'przed upływem T10_SKLAD brak zapytań o skład')
         na_dobe = 8 * 12 + 12   # skład co 2. przebieg (12 razy) + zapytanie o ceny w pozostałych 12 przebiegach
         self.assertLess(na_dobe * 31, 10000 * 0.4, 'ten plik zużywa najwyżej 40% miesięcznego limitu planu Demo (razem z resztą krypto poniżej 80%)')
+
+
+class CoinbaseArchiwalne(unittest.TestCase):
+    """INTX od 01.10.2026 jest archiwum; dane Deribit pozostają jedną odrębną częścią."""
+    NOW = '2026-11-06T12:00:00+00:00'
+    OLD = '2026-10-01T09:00:29+00:00'
+
+    def setUp(self):
+        self.enterContext(mock.patch.object(zd, 'NOW', self.NOW))
+        self.enterContext(mock.patch.object(zd, 'META', {'at': self.NOW, 'ok': {}, 'errors': [], 'notes': []}))
+        self.prev = {'at': '2026-11-06T11:00:00+00:00', 'full_at': '2026-11-06T11:00:00+00:00',
+                     'ok': {'cb': False}, 'part_at': {'cb': '2026-10-20T16:12:00+00:00'},
+                     'cb': {'t': '2026-10-20T16:12:00+00:00', 'BTC': {'t': self.OLD, 'oi_usd': 86636785, 'f_y': None, 'stan': 'PAUSED'}},
+                     'hist': [{'d': '2026-09-30', 'all_btc': 123, 'all_btc_v': 'cb,dr'}]}
+
+    def test_bez_http_i_zachowanie_calej_historii_z_czasami(self):
+        prev = copy.deepcopy(self.prev)
+        with mock.patch.object(zd, 'get_json', side_effect=AssertionError('nie wolno pytać starego endpointu')) as net:
+            self.assertIs(zd.lev_cb(prev['cb']), prev['cb'])
+            self.assertIsNone(zd.lev_cb())
+        net.assert_not_called()
+        out = zd.lev_archiwizuj(prev)
+        self.assertEqual(prev, self.prev, 'wejściowy plik nie jest zmieniany')
+        for k in ('cb', 'part_at', 'hist', 'at', 'full_at'):
+            self.assertEqual(out[k], prev[k], k)
+        self.assertNotIn('cb', out['ok'])
+        self.assertEqual(out['archiwalne']['cb'], zd.LEV_ARCHIWALNE['cb'])
+        self.assertEqual(zd.lev_archiwizuj(out), out, 'kolejne przebiegi nie przesuwają dat ani metadanych')
+
+    def test_build_zachowuje_cb_bez_wywolania_i_bez_sukcesu(self):
+        with mock.patch.object(zd, 'lev_hl', return_value={'rows': {'BTC': {'oi_usd': 10}}}), \
+             mock.patch.object(zd, 'lev_cb', side_effect=AssertionError('archiwalne źródło nie jest zadaniem')) as cb:
+            out = zd.build_dzwignia(self.prev, today=datetime.date(2026, 11, 6), only={'hl', 'cb'})
+        cb.assert_not_called()
+        self.assertEqual(out['cb'], self.prev['cb']); self.assertEqual(out['part_at']['cb'], self.prev['part_at']['cb'])
+        self.assertEqual(out['hist'][0], self.prev['hist'][0]); self.assertNotIn('cb', out['ok'])
+        self.assertNotIn('cb', zd.lev_px_aktywne()); self.assertEqual(zd.META['errors'], [])
+
+    def test_sumy_ignorują_cb_z_nowym_czasem_deribit_i_cde_osobno(self):
+        def dane(t):
+            return {'part_at': {'cb': t, 'dr': t, 'cde': t}, 'cb': {'BTC': {'t': t, 'oi_usd': 90}},
+                    'dr': {'BTC': {'fut': {'t': t, 'perp': {'oi_usd': 20}}}}, 'cde': {'BTC': {'t': t, 'oi_usd': 30}}}
+        out = dane(self.NOW)
+        self.assertEqual(zd.lev_all(out), {'BTC': {'usd': 50, 'v': 'cde,dr'}}, 'Deribit jeden raz; Coinbase USA niezależnie')
+        old = '2026-09-30T23:59:59+00:00'
+        self.assertEqual(zd.lev_all(dane(old), datetime.datetime.fromisoformat(old)), {'BTC': {'usd': 140, 'v': 'cb,cde,dr'}}, 'historyczny rynek sprzed migracji pozostaje liczony')
+        at = '2026-10-01T00:00:00+00:00'
+        self.assertEqual(zd.lev_all(dane(at), datetime.datetime.fromisoformat(at)), {'BTC': {'usd': 50, 'v': 'cde,dr'}})
+
+    def test_archiwum_poza_odpowiedziami_a_inne_bledy_trwaja(self):
+        ar = {'dzwignia_cb': zd.lev_archiwalne()['cb']}
+        old = {'od': '2026-10-20T17:20:00+00:00', 'ost': '2026-11-06T11:59:00+00:00', 'n': 989, 'do': None}
+        out = zd.awarie({'dzwignia_cb': dict(old), 'tic': dict(old)}, {'tic': False}, self.NOW, ar)
+        self.assertEqual(out['dzwignia_cb'], dict(old, do=self.NOW, zn=True, zakonczone=True))
+        self.assertEqual(out['tic']['n'], 990); self.assertIsNone(out['tic']['do'])
+        self.assertEqual(zd.zrodla_meta({}), None, 'archiwum bez aktywnego odczytu nie jest odpowiedzią')
+        self.assertEqual(zd.zrodla_meta({'dzwignia_dr': True, 'dzwignia_cde': False}), {'n': 2, 'ok': 1})
+        later = '2026-11-06T12:10:00+00:00'
+        self.assertEqual(zd.awarie(out, {'tic': False}, later, ar)['dzwignia_cb'], out['dzwignia_cb'])
+
+    def _main_zapis(self, prev, meta_archiwalne=None):
+        import contextlib
+        now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
+        prev = copy.deepcopy(prev)
+        prev.update(at=now, full_at=now)
+        zd.META['archiwalne'] = meta_archiwalne
+        aw = {'od': '2026-10-20T17:20:00+00:00', 'ost': self.NOW, 'n': 989, 'do': None}
+        saved = {}
+        with contextlib.ExitStack() as st:
+            for n in dir(zd):
+                if n.startswith('build_') and callable(getattr(zd, n)):
+                    st.enter_context(mock.patch.object(zd, n, side_effect=RuntimeError('offline')))
+            st.enter_context(mock.patch.dict(os.environ, {}, clear=True))
+            st.enter_context(mock.patch.object(zd, 'NOW', now))
+            st.enter_context(mock.patch.object(zd, 'AW_MAX', 1000))   # zaślepione pozostałe budownicze zgłaszają ponad 100 niezależnych błędów
+            st.enter_context(mock.patch.object(zd, 'previous', side_effect=lambda n: prev if n == 'dzwignia' else {'awarie': {'dzwignia_cb': aw}} if n == 'meta' else None))
+            st.enter_context(mock.patch.object(zd, 'save', side_effect=lambda n, o: saved.__setitem__(n, copy.deepcopy(o))))
+            st.enter_context(mock.patch.object(zd, 'get_json', side_effect=RuntimeError('offline')))
+            st.enter_context(mock.patch.object(zd, '_otworz', side_effect=RuntimeError('offline')))
+            st.enter_context(mock.patch('builtins.print'))
+            zd.main()
+        return saved, prev
+
+    def test_main_cache_migruje_stare_ok_i_zamyka_serie_bez_naprawy(self):
+        prev = copy.deepcopy(self.prev)
+        prev['ok'] = {k: True for k in zd.lev_px_aktywne()}; prev['ok']['cb'] = False
+        saved, prev = self._main_zapis(prev)
+        self.assertNotIn('cb', saved['dzwignia']['ok']); self.assertNotIn('dzwignia_cb', saved['meta']['ok'])
+        self.assertEqual(saved['dzwignia']['cb'], prev['cb']); self.assertEqual(saved['dzwignia']['part_at'], prev['part_at'])
+        self.assertEqual(saved['dzwignia']['hist'], prev['hist']); self.assertEqual(saved['dzwignia']['at'], prev['at'])
+        self.assertEqual(saved['meta']['archiwalne']['dzwignia_cb'], zd.LEV_ARCHIWALNE['cb'])
+        self.assertTrue(saved['meta']['awarie']['dzwignia_cb']['zakonczone'])
+        self.assertEqual(saved['meta']['awarie']['dzwignia_cb']['n'], 989)
+
+    def test_raport_stale_podaje_powod_date_url_i_nie_nazywa_naprawa(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_cb_archiwum', os.path.join(os.path.dirname(__file__), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        ar = {'dzwignia_cb': zd.LEV_ARCHIWALNE['cb']}
+        old = {'od': '2026-10-20T17:20:00+00:00', 'ost': '2026-11-06T11:59:00+00:00', 'n': 989, 'do': None}
+        meta = {'at': self.NOW, 'archiwalne': ar, 'awarie': zd.awarie({'dzwignia_cb': old}, {}, self.NOW, ar)}
+        oc = k.awarie_ocena(meta, datetime.datetime.fromisoformat(self.NOW))
+        self.assertEqual(oc['trwa'], []); self.assertEqual(oc['naprawione'], [])
+        self.assertTrue(oc['zniknely'][0]['zakonczone'])
+        R = {'at': self.NOW, 'wynik': 'OK', 'strona': {'ok': True}, 'meta': meta, 'awarie': oc, 'uwagi': [], 'bledy': []}
+        md = k.raport_md(R)
+        self.assertIn('Zakończone źródła (zamknięcie serii, nie naprawa)', md)
+        self.assertNotIn('Naprawiły się same', md)
+        for q in ('2026-10-01', ar['dzwignia_cb']['url'], ar['dzwignia_cb']['powod']):
+            self.assertIn(q, md)
+        R['awarie'] = k.awarie_ocena(meta, datetime.datetime(2026, 11, 10, tzinfo=datetime.timezone.utc))
+        self.assertEqual(R['awarie']['zniknely'], [])
+        self.assertIn(ar['dzwignia_cb']['url'], k.raport_md(R), 'informacja nie wygasa razem z pamięcią awarii')
+
+
+    def test_uszkodzone_mapy_cache_i_meta_nie_zatrzymuja_zbieracza(self):
+        for bad in (['niepusta lista'], 'niepusty tekst'):
+            with self.subTest(bad=bad):
+                prev = dict(self.prev, ok=bad, archiwalne=bad)
+                out = zd.lev_archiwizuj(prev)
+                self.assertEqual(out['ok'], {})
+                self.assertEqual(out['archiwalne'], zd.lev_archiwalne())
+                for k in ('cb', 'hist', 'part_at', 'at', 'full_at'):
+                    self.assertEqual(out[k], prev[k], k)
+                saved, prev = self._main_zapis(prev, meta_archiwalne=bad)
+                for k in ('cb', 'hist', 'part_at', 'at', 'full_at'):
+                    self.assertEqual(saved['dzwignia'][k], prev[k], k)
+                self.assertEqual(saved['dzwignia']['ok'], {})
+                self.assertNotIn('dzwignia_cb', saved['meta']['ok'])
+                self.assertEqual(saved['meta']['archiwalne'], {'dzwignia_cb': zd.lev_archiwalne()['cb']})
+                self.assertFalse(saved['meta']['ok']['dzwignia'])
+                self.assertFalse(saved['meta']['ok']['tic'], 'niezależny błąd nie znika')
+
+    def test_awarie_pomijaja_bledny_typ_mapy_archiwum(self):
+        old = {'od': '2026-10-20T17:20:00+00:00', 'ost': '2026-11-06T11:59:00+00:00', 'n': 989, 'do': None}
+        for bad in ([{'dzwignia_cb': 'zły kształt'}], 'dzwignia_cb'):
+            with self.subTest(bad=bad):
+                out = zd.awarie({'dzwignia_cb': old}, {'dzwignia_cb': False}, self.NOW, bad)
+                self.assertEqual(out['dzwignia_cb'], dict(old, ost=self.NOW, n=990))
+
+    def test_raport_pomija_bledny_typ_mapy_archiwum(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('kontrola_cb_archiwum_bad', os.path.join(os.path.dirname(__file__), 'narzedzia', 'kontrola.py'))
+        k = importlib.util.module_from_spec(spec); spec.loader.exec_module(k)
+        for bad in (['niepusta lista'], 'niepusty tekst'):
+            with self.subTest(bad=bad):
+                R = {'at': self.NOW, 'wynik': 'OK', 'strona': {'ok': True}, 'meta': {'at': self.NOW, 'archiwalne': bad}, 'uwagi': [], 'bledy': []}
+                md = k.raport_md(R)
+                self.assertIn('**Wynik: OK**', md)
+                self.assertNotIn('Źródło archiwalne', md)
+
+
+    def test_granica_migracji_liczona_w_utc_dla_offsetow(self):
+        for iso, archived in [('2026-09-30T23:30:00-02:00', True), ('2026-10-01T00:30:00+02:00', False)]:
+            with self.subTest(iso=iso):
+                now = datetime.datetime.fromisoformat(iso)
+                self.assertEqual('cb' in zd.lev_archiwalne(now), archived)
+                self.assertEqual('cb' in zd.lev_archiwalne(iso), archived)
+                data = {'part_at': {'cb': iso, 'cde': iso}, 'cb': {'BTC': {'t': iso, 'oi_usd': 90}}, 'cde': {'BTC': {'t': iso, 'oi_usd': 30}}}
+                self.assertEqual(zd.lev_all(data, now), {'BTC': {'usd': 30 if archived else 120, 'v': 'cde' if archived else 'cb,cde'}})
+        self.assertIn('cb', zd.lev_archiwalne(datetime.date(2026, 10, 1)))
+        self.assertNotIn('cb', zd.lev_archiwalne('2026-09-30'))

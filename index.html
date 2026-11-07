@@ -19231,7 +19231,7 @@ const levNum=v=>typeof v==='number'&&isFinite(v);
 const levObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
 function levI(f,...a){try{const g={coin:typeof coinImg==='function'?coinImg:null,exch:typeof exchImg==='function'?exchImg:null,glyph:typeof glyphImg==='function'?glyphImg:null}[f];return g?g(...a):'';}catch(e){return '';}}   /* ikony tylko, gdy są pomocniki (testy uruchamiają blok bez nich) */
 const levIco=(...h)=>{const s=h.filter(Boolean).join('');return s?`<span class="icos">${s}</span>`:'';};
-function levPart(k){const D=LEV.data;if(!D||!levObj(D[k]))return null;const ms=Date.parse((D.part_at&&D.part_at[k])||'');return (isFinite(ms)&&Date.now()-ms<=LEV_MAXAGE)?D[k]:null;}
+function levPart(k){const D=LEV.data;if(!D||!levObj(D[k])||(k==='cb'&&Date.now()>=Date.parse('2026-10-01T00:00:00Z')))return null;const ms=Date.parse((D.part_at&&D.part_at[k])||'');return (isFinite(ms)&&Date.now()-ms<=LEV_MAXAGE)?D[k]:null;}
 function levAt(k){const at=LEV.data&&LEV.data.part_at&&LEV.data.part_at[k];return typeof at==='string'?at:'';}
 function levDay(d){const ms=Date.parse(String(d||'').slice(0,10)+'T12:00:00Z');return isFinite(ms)?new Date(ms).toLocaleDateString(LOCALE[LANG]||'pl-PL',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):escH(d);}
 function levWhen(iso){return typeof iso==='string'&&iso?`${engDate(iso)}${gAgeNote(iso)}`:'';}   /* v287: cała chwila — wiek od dnia czytelnika */

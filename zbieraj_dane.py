@@ -3170,7 +3170,7 @@ def _aw_seria(s, tn):
     return [s[0], s[1], n]
 
 
-def awarie(prev, ok, now):
+def awarie(prev, ok, now, archiwalne=None):
     """v207/v211: pamięć awarii części między przebiegami (meta.json → 'awarie'): kontrola dzienna widzi, od kiedy część nie działa i co
     naprawiło się samo w nocy. prev — 'awarie' poprzedniego meta.json; ok — META['ok'] tego przebiegu; now — czas przebiegu (ISO ze strefą).
     Wpis {część: {'od', 'ost', 'n', 'do'[, 'zn'][, 'prev']}}: od — pierwszy nieudany przebieg serii, ost — ostatni nieudany, n — nieudanych
@@ -3179,7 +3179,8 @@ def awarie(prev, ok, now):
     ok False → seria trwa (n + 1) albo zaczyna się nowa; tylko True kończy serię (v211: 'cached' = bez zapytania — część po nieudanej próbie
     czeka na ponowienie — nic nie zmienia, jak brak części w przebiegu). Seria części nieobecnej dłużej niż AW_NIEOBECNA_H h od ostatniej
     awarii — zamknięta z zn. Zamknięty wpis znika AW_PO_NAPRAWIE_H h po końcu, prev — AW_PO_NAPRAWIE_H h po swoim końcu; złe wpisy pomijane;
-    najwyżej AW_MAX wpisów."""
+    najwyżej AW_MAX wpisów. Opcjonalne archiwalne zamyka serię jako zakończone źródło (zn + zakonczone), nigdy naprawę."""
+    archiwalne = _dict(archiwalne)
     tn = _aw_t(now)
     if tn is None:
         raise ValueError('awarie: czas przebiegu bez strefy')
@@ -3196,11 +3197,15 @@ def awarie(prev, ok, now):
         e = {'od': w['od'], 'ost': w['ost'], 'n': n, 'do': do}
         if do is not None and w.get('zn') is True:
             e['zn'] = True
+            if w.get('zakonczone') is True:
+                e['zakonczone'] = True
         p = _aw_seria(w.get('prev'), tn)
         if p and _aw_t(p[1]) <= od:
             e['prev'] = p
         out[k] = e
     for k, v in (ok.items() if isinstance(ok, dict) else ()):
+        if k in archiwalne:
+            continue   # zakończone źródło nie staje się awarią ani sukcesem
         w = out.get(k)
         if v is False:
             if w and w['do'] is None:
@@ -3213,6 +3218,10 @@ def awarie(prev, ok, now):
                 out[k] = e
         elif v is True and w and w['do'] is None:
             w['do'] = now
+    for k in archiwalne:
+        w = out.get(k)
+        if w and w['do'] is None:
+            w.update(do=now, zn=True, zakonczone=True)   # zamknięcie źródła, nie naprawa; od/ost/n bez zmian
     for k in list(out):
         w = out[k]
         if w.get('prev') and tn - _aw_t(w['prev'][1]) > H48:
@@ -15871,6 +15880,32 @@ LEV_TOP = 12              # + największe rynki wg otwartych pozycji w USD
 LEV_HIST = 90             # dni historii dziennej
 LEV_PX = {'hl': 'Hyperliquid', 'bn': 'Binance', 'dr': 'Deribit', 'okx': 'OKX', 'kr': 'Kraken', 'cb': 'Coinbase', 'dy': 'dYdX'}   # początek komunikatu błędu (strona Źródła); v109: +kr, cb, dy
 LEV_HOURS = {'kr': 1, 'cb': 1, 'dy': 1}    # v109: okres finansowania wg dokumentacji giełd (godziny): Kraken, Coinbase i dYdX rozliczają co godzinę
+# Coinbase International zakończyło odrębny rynek 01.10.2026. Archiwum nie jest odpowiedzią ani świeżą pamięcią.
+LEV_ARCHIWALNE = {'cb': {'effective_from': '2026-10-01', 'nastepca': 'dr',
+    'powod': 'Coinbase International przeniesione do Deribit; historyczne dane pozostają z własnymi datami, poza bieżącymi sumami',
+    'url': 'https://help.coinbase.com/en/international-exchange/deribit/institutional-faqs'}}
+
+
+def lev_archiwalne(now=None):
+    """Zakończone źródła na dzień przebiegu; odtworzenie sprzed migracji zachowuje dawną semantykę."""
+    at = datetime.datetime.fromisoformat(str(now or NOW))
+    if at.tzinfo is None:
+        at = at.replace(tzinfo=datetime.timezone.utc)   # data bez godziny oznacza dzień UTC
+    dzien = at.astimezone(datetime.timezone.utc).date().isoformat()
+    return {k: dict(v) for k, v in LEV_ARCHIWALNE.items() if dzien >= v['effective_from']}
+
+
+def lev_archiwizuj(prev):
+    """Osobne metadane, bez zmiany danych, historii, at/full_at i part_at ani udawania odpowiedzi w ok."""
+    ar = lev_archiwalne()
+    if not ar or not isinstance(prev, dict) or not prev:
+        return prev
+    out = dict(prev)
+    out['archiwalne'] = dict(_dict(prev.get('archiwalne')), **ar)
+    out['ok'] = {k: v for k, v in _dict(prev.get('ok')).items() if k not in ar}
+    return out
+
+
 LEV_FMAX = 0.005                          # v109: |stawka godzinowa| ponad 0,5 % (4 380 % rocznie) = pomyłka jednostki → brak, nie liczba
 LEV_SUMAGE = 6 * 3600                     # v109: do sumy „wszystkie giełdy” wchodzą tylko wiersze młodsze niż 6 h
 LEV_LIVE = ['hl', 'okx', 'kr', 'cb', 'cde', 'dy', 'dr']   # v359 (CR-M11-03): + wieczysty Deribit (wiersz fut.perp; strona liczy ten sam zestaw); v345 (C-08): + Coinbase USA (cde) — do sumy „wszystkie giełdy razem” (strona liczy ten sam zestaw); część `cde` ma wiersz BTC/ETH jak inne giełdy
@@ -16273,6 +16308,8 @@ def lev_cb(prev=None):
     """Coinbase International: po jednym zapytaniu na monetę (szczegóły zawierają notowanie; gdyby nie — osobne zapytanie o notowanie).
     Moneta z błędem → poprzednia wersja tej monety z własnym czasem; nic nowego → część nieudana."""
     prev = prev if isinstance(prev, dict) else {}
+    if 'cb' in lev_archiwalne():
+        return prev or None   # zakończone źródło: bez HTTP i bez nowego czasu
     out, fails, new = {'t': NOW, 'f_hours': LEV_HOURS['cb']}, [], 0
     for c in ('BTC', 'ETH'):
         try:
@@ -16654,7 +16691,7 @@ ZRODLA_SKLADOWE['dzwignia'] = ZRODLA_SKLADOWE['dzwignia'] + tuple(f'dzwignia_{k}
 def lev_px_aktywne():
     """Części dźwigni pobierane w tym wydaniu: dotychczasowe zawsze, pięć giełd v369 tylko z LEV9 (testy dotychczasowych części podmieniają LEV9 na pustą krotkę).
     Z tej listy korzysta main(): części do dobrania (lv_bad) i klucze META ok.dzwignia_*."""
-    return [k for k in LEV_PX if k not in L9_NAZWY or k in LEV9]
+    return [k for k in LEV_PX if k not in lev_archiwalne() and (k not in L9_NAZWY or k in LEV9)]
 
 
 def l9_get(url):
@@ -16962,6 +16999,8 @@ def lev_all(out, now=None):
     for c in ('BTC', 'ETH'):
         tot, ven = 0.0, []
         for k in (*LEV_LIVE, *LEV9):   # v369 (F6Z2): + Bitget, Gate, KuCoin, MEXC, HTX (strona dopisuje je do swojej listy tak samo)
+            if k in lev_archiwalne(now):
+                continue   # migracja: nigdy nie dodajemy ponownie pozycji już obecnych w Deribit
             P = out.get(k)
             if not isinstance(P, dict):
                 continue
@@ -17692,10 +17731,13 @@ def build_dzwignia(prev=None, today=None, only=None, cz_key=None):
     """only = zbiór części do pobrania (młody plik z częścią z błędem: zdrowe części zostają z własnym czasem); None = wszystkie.
     full_at = czas ostatniej pełnej budowy — harmonogram w main() liczy godzinę od niego, nie od `at` (które odświeża też dobranie części)."""
     today = today or datetime.datetime.now(datetime.timezone.utc).date()
+    prev = lev_archiwizuj(prev)
     prev = prev if isinstance(prev, dict) else {}
     pat = prev.get('part_at') if isinstance(prev.get('part_at'), dict) else {}
     pok = prev.get('ok') if isinstance(prev.get('ok'), dict) else {}
     out = {'at': NOW, 'ok': {}, 'part_at': {}, 'full_at': (prev.get('full_at') or prev.get('at') or NOW) if only is not None else NOW}
+    if lev_archiwalne():
+        out['archiwalne'] = dict(_dict(prev.get('archiwalne')), **lev_archiwalne())
     _LEV_TERMIN[0] = time.monotonic() + LEV_LIMIT   # v109.1: budżet czasu całego budowniczego
 
     def keep(k):
@@ -17703,6 +17745,12 @@ def build_dzwignia(prev=None, today=None, only=None, cz_key=None):
             out[k] = prev[k]; out['part_at'][k] = pat.get(k) or prev.get('at')
 
     def part(k, fn):
+        if k in lev_archiwalne():
+            if k in prev:
+                out[k] = prev[k]
+            if k in pat:
+                out['part_at'][k] = pat[k]
+            return   # historia i jej czas zostają; brak daty pozostaje brakiem, archiwum poza ok i bez HTTP
         if only is not None and k not in only:   # zdrowa część z młodego pliku — bez pobierania, z własnym czasem
             keep(k); out['ok'][k] = bool(out.get(k)) and pok.get(k) is True; return
         try:
@@ -33936,7 +33984,18 @@ def main():
     else:
         META['notes'].append('brak COINALYZE_KEY — dźwignia ze wszystkich dużych giełd wyłączona')
     cz_kw = {'cz_key': cz_key} if cz_key else {}
-    prev_lv = previous('dzwignia')
+    prev_lv = lev_archiwizuj(previous('dzwignia'))
+    ar_lv = lev_archiwalne()
+    ar_meta = dict(_dict(META.get('archiwalne')))
+    for k in LEV_ARCHIWALNE:
+        ar_meta.pop(f'dzwignia_{k}', None)
+    ar_meta.update({f'dzwignia_{k}': v for k, v in ar_lv.items()})
+    if ar_meta:
+        META['archiwalne'] = ar_meta
+    else:
+        META.pop('archiwalne', None)
+    for k in ar_lv:
+        META['ok'].pop(f'dzwignia_{k}', None)
     lv_ok = prev_lv.get('ok') if isinstance(prev_lv, dict) and isinstance(prev_lv.get('ok'), dict) else {}
     lv_bad = [k for k in lev_px_aktywne() if lv_ok.get(k) is not True]   # v369: + pięć giełd z LEV9
     lv_young = isinstance(prev_lv, dict) and fresh({'at': prev_lv.get('full_at') or prev_lv.get('at')}, LEV_EVERY)
@@ -35048,7 +35107,7 @@ def main():
         META['notes'].append(f"przebieg automatu trwał {META['czas']['s'] / 60:.1f} min — blisko limitu zadania (25 min); najdłużej: "
                              + ', '.join(f'{n} {s} s' for n, s in META['czas']['top'][:3]))
     try:   # v207: pamięć awarii części między przebiegami (kontrola dzienna: od kiedy nie działa, co naprawiło się samo); awaria = bez pola
-        META['awarie'] = awarie(pm.get('awarie'), META['ok'], NOW)
+        META['awarie'] = awarie(pm.get('awarie'), META['ok'], NOW, META.get('archiwalne'))
         META['awarie_od'] = pm['awarie_od'] if 'awarie' in pm and _aw_t(pm.get('awarie_od')) else NOW   # v211: początek pamięci (raport: „pamięć od …”)
     except Exception as e:
         META['notes'].append(f'pamięć awarii: {e}')
