@@ -45725,7 +45725,7 @@ class LiczbaZrodelV347(unittest.TestCase):
                   'SR': lambda: {'surowce_raporty_' + p for p in zd.SR_PARTS}, 'SZ': lambda: {'szlaki_' + p for p in zd.SZ_PARTS},
                   'LNG': lambda: {'lng_' + p for p in zd.LNG_PARTS}, 'ZD': lambda: {'zboza_dzien_' + p for p in zd.ZD_PARTS},
                   'MT': lambda: {'metale_' + p for p in zd.MT_PARTS}, 'RYNKI': lambda: {f'rynki_{k}' for k in zd.RYNKI_PX},
-                  'LEV': lambda: {f'dzwignia_{k}' for k in zd.lev_px_aktywne()}, 'PR': lambda: {f'premie_{k}' for k in zd.PR_PARTS},
+                  'LEV': lambda: {f'dzwignia_{k}' for k in set(zd.lev_px_aktywne()) | set(zd.LEV_ARCHIWALNE)}, 'PR': lambda: {f'premie_{k}' for k in zd.PR_PARTS},
                   'IX': lambda: {'indeksy_' + k for k in zd.IX_PARTS}}
         return czesci[g]()
 
@@ -45743,6 +45743,17 @@ class LiczbaZrodelV347(unittest.TestCase):
         self.assertEqual(nadmiar, [], 'wpisy tabeli bez takiej części w kodzie: ' + ', '.join(nadmiar))
         self.assertEqual(sorted(k for k in self.ZYWE if k not in zd.ZRODLA_META), [])
         self.assertTrue(set(self.ZYWE) <= oczek, 'klucz z żywego pliku stanu, którego kod już nie ustawia: ' + ', '.join(sorted(set(self.ZYWE) - oczek)))
+
+    def test_dzwignia_aktywne_i_archiwalne_maja_pelne_rozlaczne_pokrycie(self):
+        with mock.patch.object(zd, 'NOW', '2026-11-08T12:00:00+00:00'):
+            aktywne = set(zd.lev_px_aktywne())
+            archiwalne = set(zd.LEV_ARCHIWALNE)
+            self.assertEqual(archiwalne, set(zd.lev_archiwalne()), 'zadeklarowane archiwalne części są już po migracji')
+            self.assertFalse(aktywne & archiwalne, 'część archiwalna nie może być aktywnym zadaniem')
+            self.assertEqual(aktywne | archiwalne, set(zd.LEV_PX), 'wszystkie obsługiwane części: bez braków i bez nadmiaru')
+            self.assertEqual(self._rozwin('LEV'), {f'dzwignia_{k}' for k in zd.LEV_PX})
+            self.assertIn('cb', archiwalne); self.assertNotIn('cb', aktywne)
+            self.assertEqual(zd.ZRODLA_META['dzwignia_cb'], 'coinbase', 'mapowanie historycznej części pozostaje w tabeli')
 
     def test_wpisy_tabeli_maja_poprawny_ksztalt(self):
         for k, v in zd.ZRODLA_META.items():
@@ -52212,6 +52223,7 @@ class PiecGieldiV369(unittest.TestCase):
     def setUp(self):
         zd.META['errors'].clear(); zd.META['ok'].clear(); zd.META['notes'].clear()
         self.enterContext(mock.patch.object(zd, 'NOW', self.NOW))
+        self.enterContext(mock.patch.object(zd, 'LEV_ARCHIWALNE', {}))   # historyczna konfiguracja sprzed obsługi migracji; nagrania i daty Gate bez zmian
         self.enterContext(mock.patch.object(zd, 'cde_get', side_effect=lambda u: json.loads(_F1Z3_CDE)))
         self.bg, self.gt, self.stats = json.loads(_L9_BG), json.loads(_L9_GT), json.loads(_L9_GT_STATS)
         self.kc, self.mx, self.hx = json.loads(_L9_KC), json.loads(_L9_MX), json.loads(_L9_HX)
