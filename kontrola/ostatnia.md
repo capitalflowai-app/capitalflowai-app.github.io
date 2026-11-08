@@ -1,73 +1,73 @@
-# Kontrola strony — 08.11.2026, 18:04 (czas polski)
+# Kontrola strony — 08.11.2026, 21:36 (czas polski)
 
 **Wynik: UWAGA**
 
-⚠️ Uwag: 25 — nic nie wymaga natychmiastowej reakcji.
+⚠️ Uwag: 21 — nic nie wymaga natychmiastowej reakcji.
 
 **Ostrzeżenia o źródłach danych: 2** ⚠️ — strona i publikacja działają, dane tych źródeł mają swój wiek na stronie (pełna lista z czasem trwania: sekcja „Uwagi” niżej). Jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną.
 
-- Strona główna: działa (HTTP 200, 350 ms).
-- Ostatni przebieg automatu: 08.11.2026, 18:02 — sprzed 1 min; źródeł: 282, bez odpowiedzi: premie_up, rwa-emitenci; błędów zbieracza: 1.
+- Strona główna: działa (HTTP 200, 99 ms).
+- Ostatni przebieg automatu: 08.11.2026, 21:33 — sprzed 3 min; źródeł: 282, bez odpowiedzi: premie_up, rwa-emitenci; błędów zbieracza: 1.
 - Źródło archiwalne dzwignia_cb: Coinbase International przeniesione do Deribit; historyczne dane pozostają z własnymi datami, poza bieżącymi sumami; data migracji: 2026-10-01; oficjalna informacja: https://help.coinbase.com/en/international-exchange/deribit/institutional-faqs.
-- Czas tego przebiegu automatu: 2 min 3 s; najdłużej: premie 52 s, wieloryby 21 s, usdt-skarbiec 16 s.
-- Strona w przeglądarce (bez okna, ekran telefonu 390 px): zrzut po 8,0 s — grafik 526, wykresów liniowych 38; błędów JavaScriptu: 0 ✅.
-- Strona jak u czytelnika (bez ?pelna=1 — pliki CRYPTO dopiero po otwarciu zakładki): zrzut po 7,0 s; błędów JavaScriptu: 0 ✅.
-- Przebiegi Actions w 24 h: 134 (in_progress: 1, success: 36, failure: 97).
+- Czas tego przebiegu automatu: 1 min 40 s; najdłużej: premie 51 s, wieloryby 19 s, trendy 12 s.
+- Strona w przeglądarce (bez okna, ekran telefonu 390 px): zrzut po 11,0 s — grafik 526, wykresów liniowych 38; błędów JavaScriptu: 0 ✅; nieudane wczytania: 1 (api.coingecko.com) ℹ️.
+- Strona jak u czytelnika (bez ?pelna=1 — pliki CRYPTO dopiero po otwarciu zakładki): zrzut po 10,0 s; błędów JavaScriptu: 0 ✅.
+- Przebiegi Actions w 24 h: 130 (in_progress: 1, success: 43, failure: 86).
 - Najdłuższy udany przebieg w 24 h: 32,1 min (od startu do końca, z czekaniem na maszyny); samo zadanie budowy najdłużej 23,3 min z limitu 25 min ⚠️ blisko limitu.
-- Nieudane przebiegi (24 h): 08.11.2026, 12:20 — zbuduj / Testy zbieracza; 08.11.2026, 12:09 — zbuduj / Testy zbieracza; 08.11.2026, 11:59 — zbuduj / Testy zbieracza; 08.11.2026, 11:49 — zbuduj / Testy zbieracza; 08.11.2026, 11:39 — zbuduj / Testy zbieracza; 08.11.2026, 11:29; 08.11.2026, 11:19; 08.11.2026, 11:09; 08.11.2026, 10:59; 08.11.2026, 10:49. Od ostatniej porażki 27 udanych przebiegów z rzędu.
+- Nieudane przebiegi (24 h): 08.11.2026, 12:20 — zbuduj / Testy zbieracza; 08.11.2026, 12:09 — zbuduj / Testy zbieracza; 08.11.2026, 11:59 — zbuduj / Testy zbieracza; 08.11.2026, 11:49 — zbuduj / Testy zbieracza; 08.11.2026, 11:39 — zbuduj / Testy zbieracza; 08.11.2026, 11:29; 08.11.2026, 11:19; 08.11.2026, 11:09; 08.11.2026, 10:59; 08.11.2026, 10:49. Od ostatniej porażki 43 udane przebiegi z rzędu.
 - Strażnik harmonogramów (raz w tygodniu): przepływy z harmonogramem czynne 8 z 8; ostatni przebieg strażnika 6 dni temu (success); ostatni commit w repozytorium dziś ✅.
 - Ostrzeżenia GitHuba o przestarzałych akcjach (ostatni przebieg każdego z 6 przepływów): brak ✅.
-- Pliki danych (wiek): etf 0h25, trendy 0h01, oecd 5h27, rynki 0h11, dzwignia 0h01, wieloryby 0h01, energia 5h27, surowce 0h01, surowce-hist 0h01, usa-makro 5h27, bilans-usa 5h27, krypto 0h25, krypto-top10 0h10, cmc 0h01, instytucje 0h25, tic 5h27, cm 0h11, fred 0h25, cftc 5h27, ceny 0h25, indeksy 0h25, ceny-krypto 0h25, snb 5h27, ici 5h27, fed 0h01, lancuch 0h01, wycena 5h19, insider 0h01, nastroj 5h27, stres 5h27, aukcje 5h27, swiat-dzien 0h01, swiat-dziennik 0h00, surowce-dziennik 0h00, premie 0h01, dolar 0h23, stopy 5h27, jpx 5h15, rwa 1h50, zloto-krypto 0h00, szlaki 5h22, polska 1h38, surowce-raporty 5h22, dzis 0h01, fundusze 0h01, obce 0h25, krypto-top10-logo 0h10, eer 5h27, meksyk 5h27, kursy 5h27, bis 5h27, rezerwy 5h27, cofer 5h27, bilans 5h27, safe 5h27, ue 5h27, kanada 5h27, korea 5h27, spw 5h27, pip 5h27, fundusze-przeplywy 0h01, zboza-dzien 0h49, metale 5h21, azja2 5h27, ng-dziennik 0h00, ng-ceny 0h01, fw-dziennik 0h00, porty 30h33, lng 5h22, rosja 5h22, polska-rynek 0h01, polska-kapital 0h01, polska-dlug 0h01, polska-2 0h01, bis2 5h27, gieldy 0h23, dex 0h23, target 5h27, mica 5h27, etf-zapas 5h27, soma-sklad 2h13, eurosystem 2h13, hedge 5h27, krzywe 2h36, stable-emitenci 0h25, inflacja 5h27, koniunktura 5h27, prad 0h00, niepewnosc 5h27, kalendarz 5h27, kalendarz2 5h27, nowcasty 2h28, usdt-skarbiec 0h01, europa-fundusze 5h27, plynnosc-usa 1h27, skarb-usa 2h28, usda-eksport 2h28, premie-stable 0h01, energia-usa 2h28, dzwignia2 0h25, indie 0h25, chiny-tw 0h11, interwencje 2h28, defi2 5h27, eth-lancuch 0h25, ucits-przeplywy 0h01, kanada-dlug 0h11, fred2 2h28, kapitalizacje 0h11, krypto-firmy 3h39, fed-ddp 0h11, short-eu 5h27, ropa-swiat 3h39, iip 5h27, usa-pakiet 5h27, surowce-247 0h25, waluty 0h11, zloto-uk 3h39, hl-aave 2h13, nastroje 0h11, sec-13f 5h27, nastroje-gosp 5h27, em2 5h01, klimat 5h27, zmiennosc 5h27, krypto-dzien 0h01, krypto-dziennik 0h00, robots.txt HTTP 200, sitemap.xml HTTP 200, google433f7c24524100a9.html HTTP 200, count.js HTTP 200, sw.js HTTP 200.
-- Awarie części automatu — trwają: iip od 08.11.2026, 12:36 (5 godz., nieudanych przebiegów: 1) ⚠️; metale_cu od 23.10.2026, 19:58 (15 dni 23 godz., nieudanych przebiegów: 39) ℹ️ (metale — część z błędem zostaje z datą (v339); wiek danych w wierszach świeżości); polska_hurt od 08.11.2026, 12:36 (5 godz., nieudanych przebiegów: 1) ℹ️ (Polska — część z błędem zostaje z datą (v304); wiek danych w wierszach świeżości); polska_pszenica od 06.11.2026, 20:29 (1 dzień 21 godz., nieudanych przebiegów: 27) ℹ️ (Polska — część z błędem zostaje z datą (v304); wiek danych w wierszach świeżości); premie_st_br od 06.11.2026, 16:04 (2 dni 2 godz., nieudanych przebiegów: 11) ℹ️ (premie USDT — kraj z błędem ponawia w oknie pobierania (v394); wiek odczytu w wierszach świeżości); premie_up od 08.11.2026, 18:02 (0 godz., nieudanych przebiegów: 1) ℹ️; rwa-emitenci od 07.11.2026, 09:03 (1 dzień 9 godz., nieudanych przebiegów: 81) ⚠️; szlaki_presja od 05.11.2026, 23:22 (2 dni 18 godz., nieudanych przebiegów: 15) ℹ️ (szlaki — część z błędem zostaje z datą (v305); wiek danych w wierszach świeżości); waluty_fx od 06.11.2026, 23:17 (1 dzień 18 godz., nieudanych przebiegów: 25) ℹ️ (Waluty świata — część z błędem zostaje z datą (v447); wiek danych w wierszach świeżości); zboza_dzien_ue od 06.11.2026, 20:29 (1 dzień 21 godz., nieudanych przebiegów: 27) ℹ️ (zboża dziennie — część z błędem zostaje z datą (v341); wiek danych w wierszach świeżości).
-- Naprawiły się same (24 h): eth_wal 08.11.2026, 12:36 – 08.11.2026, 13:39 (1 godz., nieudanych przebiegów: 4) ℹ️; usdt_eth 08.11.2026, 15:27 – 08.11.2026, 16:01 (0 godz., nieudanych przebiegów: 1) ℹ️.
+- Pliki danych (wiek): etf 0h55, trendy 0h03, oecd 2h53, rynki 0h28, dzwignia 0h03, wieloryby 0h03, energia 2h53, surowce 0h28, surowce-hist 0h28, usa-makro 2h53, bilans-usa 8h59, krypto 0h55, krypto-top10 0h52, cmc 0h03, instytucje 0h55, tic 8h59, cm 0h28, fred 0h55, cftc 2h53, ceny 0h55, indeksy 0h55, ceny-krypto 0h55, snb 8h59, ici 8h59, fed 0h03, lancuch 0h03, wycena 2h46, insider 0h03, nastroj 2h53, stres 2h53, aukcje 2h53, swiat-dzien 0h03, swiat-dziennik 0h01, surowce-dziennik 0h01, premie 0h03, dolar 0h52, stopy 2h53, jpx 8h48, rwa 2h17, zloto-krypto 0h01, szlaki 2h49, polska 5h10, surowce-raporty 2h49, dzis 0h03, fundusze 0h03, obce 0h55, krypto-top10-logo 0h52, eer 2h53, meksyk 2h53, kursy 8h59, bis 8h59, rezerwy 8h59, cofer 8h59, bilans 8h59, safe 8h59, ue 8h59, kanada 8h59, korea 8h59, spw 8h59, pip 8h59, fundusze-przeplywy 0h03, zboza-dzien 0h16, metale 8h54, azja2 2h53, ng-dziennik 0h01, ng-ceny 0h03, fw-dziennik 0h01, porty 34h05, lng 1h40, rosja 8h54, polska-rynek 0h03, polska-kapital 0h03, polska-dlug 0h03, polska-2 0h03, bis2 8h59, gieldy 0h52, dex 0h52, target 8h59, mica 8h59, etf-zapas 2h53, soma-sklad 2h32, eurosystem 2h32, hedge 8h59, krzywe 0h16, stable-emitenci 0h55, inflacja 8h59, koniunktura 2h53, prad 0h01, niepewnosc 2h53, kalendarz 2h53, kalendarz2 2h53, nowcasty 2h53, usdt-skarbiec 0h16, europa-fundusze 2h53, plynnosc-usa 0h55, skarb-usa 2h53, usda-eksport 2h53, premie-stable 0h03, energia-usa 2h53, dzwignia2 0h55, indie 0h55, chiny-tw 0h03, interwencje 2h53, defi2 8h59, eth-lancuch 0h55, ucits-przeplywy 0h03, kanada-dlug 0h03, fred2 2h53, kapitalizacje 0h03, krypto-firmy 7h12, fed-ddp 0h03, short-eu 2h53, ropa-swiat 7h12, iip 2h53, usa-pakiet 2h53, surowce-247 0h55, waluty 0h28, zloto-uk 7h12, hl-aave 2h32, nastroje 0h28, sec-13f 8h59, nastroje-gosp 2h53, em2 2h53, klimat 2h53, zmiennosc 2h53, krypto-dzien 0h03, krypto-dziennik 0h01, robots.txt HTTP 200, sitemap.xml HTTP 200, google433f7c24524100a9.html HTTP 200, count.js HTTP 200, sw.js HTTP 200.
+- Awarie części automatu — trwają: metale_cu od 23.10.2026, 19:58 (16 dni 2 godz., nieudanych przebiegów: 40) ℹ️ (metale — część z błędem zostaje z datą (v339); wiek danych w wierszach świeżości); polska_hurt od 08.11.2026, 12:36 (8 godz., nieudanych przebiegów: 1) ℹ️ (Polska — część z błędem zostaje z datą (v304); wiek danych w wierszach świeżości); polska_pszenica od 06.11.2026, 20:29 (2 dni 1 godz., nieudanych przebiegów: 31) ℹ️ (Polska — część z błędem zostaje z datą (v304); wiek danych w wierszach świeżości); premie_st_br od 06.11.2026, 16:04 (2 dni 5 godz., nieudanych przebiegów: 11) ℹ️ (premie USDT — kraj z błędem ponawia w oknie pobierania (v394); wiek odczytu w wierszach świeżości); premie_up od 08.11.2026, 18:02 (3 godz., nieudanych przebiegów: 17) ⚠️; rwa-emitenci od 07.11.2026, 09:03 (1 dzień 12 godz., nieudanych przebiegów: 97) ⚠️; szlaki_presja od 05.11.2026, 23:22 (2 dni 22 godz., nieudanych przebiegów: 15) ℹ️ (szlaki — część z błędem zostaje z datą (v305); wiek danych w wierszach świeżości); waluty_fx od 06.11.2026, 23:17 (1 dzień 22 godz., nieudanych przebiegów: 28) ℹ️ (Waluty świata — część z błędem zostaje z datą (v447); wiek danych w wierszach świeżości); zboza_dzien_ue od 06.11.2026, 20:29 (2 dni 1 godz., nieudanych przebiegów: 31) ℹ️ (zboża dziennie — część z błędem zostaje z datą (v341); wiek danych w wierszach świeżości).
+- Naprawiły się same (24 h): eth_wal 08.11.2026, 12:36 – 08.11.2026, 13:39 (1 godz., nieudanych przebiegów: 4) ℹ️; iip 08.11.2026, 12:36 – 08.11.2026, 18:43 (6 godz., nieudanych przebiegów: 1) ℹ️; usdt_eth 08.11.2026, 15:27 – 08.11.2026, 16:01 (0 godz., nieudanych przebiegów: 1) ℹ️; usdt_eth 08.11.2026, 20:54 – 08.11.2026, 21:19 (0 godz., nieudanych przebiegów: 1) ℹ️.
 - Zakończone źródła (zamknięcie serii, nie naprawa): dzwignia_cb — ostatnia nieudana próba 07.11.2026, 19:50 (nieudanych przebiegów: 1110) ℹ️.
-- Zużycie darmowych planów (licznik automatu — dolna granica): CoinGecko (Demo) — zapytań w tym miesiącu: 452, prognoza na miesiąc ok. 1 759 z limitu 10 000 (18%) ✅; CoinMarketCap (Basic) — zapytań w tym miesiącu: 241, prognoza na miesiąc ok. 938 z limitu 15 000 (6%); według dostawcy w miesiącu: 196 z 15 000 (1%, stan 08.11.2026, 13:03) ✅; Twelve Data (Basic) — kredytów wczoraj (doba UTC): 266 z limitu 800 (33%); w bieżącej dobie (od północy UTC): 84 ✅; FMP (darmowy) — zapytań wczoraj (doba UTC): 0 z limitu 250 (0%); w bieżącej dobie (od północy UTC): 0 ✅.
+- Zużycie darmowych planów (licznik automatu — dolna granica): CoinGecko (Demo) — zapytań w tym miesiącu: 477, prognoza na miesiąc ok. 1 821 z limitu 10 000 (18%) ✅; CoinMarketCap (Basic) — zapytań w tym miesiącu: 259, prognoza na miesiąc ok. 989 z limitu 15 000 (7%); według dostawcy w miesiącu: 225 z 15 000 (2%, stan 08.11.2026, 19:04) ✅; Twelve Data (Basic) — kredytów wczoraj (doba UTC): 266 z limitu 800 (33%); w bieżącej dobie (od północy UTC): 126 ✅; FMP (darmowy) — zapytań wczoraj (doba UTC): 0 z limitu 250 (0%); w bieżącej dobie (od północy UTC): 0 ✅.
 - Notatki automatu: Premie krypto: Upbit pominięty — limit czasu (20 s).
 
 ## Świeżość źródeł
 
 | Źródło | Status | Wiek danych | Data danych | Uwaga |
 |---|---|---|---|---|
-| rynki (kursy EBC, rentowności) | ✅ | 0 h 11 min | 2026-11-08T16:53:05+00:00 | — |
-| wieloryby (salda portfeli giełd) | ✅ | 0 h 01 min | 2026-11-08T17:02:34+00:00 | — |
-| dźwignia (giełdy pochodnych) | ✅ | 0 h 25 min | 2026-11-08T16:38:25+00:00 | — |
-| premie krypto (minuty giełd) | ✅ | 0 h 03 min | 2026-11-08T17:01 | — |
+| rynki (kursy EBC, rentowności) | ✅ | 0 h 28 min | 2026-11-08T20:08:03+00:00 | — |
+| wieloryby (salda portfeli giełd) | ✅ | 0 h 03 min | 2026-11-08T20:33:37+00:00 | — |
+| dźwignia (giełdy pochodnych) | ✅ | 0 h 55 min | 2026-11-08T19:40:58+00:00 | — |
+| premie krypto (minuty giełd) | ✅ | 0 h 04 min | 2026-11-08T20:32 | — |
 | TGA (Fiscal Data, dziennie) | ✅ | 24 h 00 min | 2026-11-05 | — |
 | ETF krypto (SoSoValue, dziennie) | ✅ | 0 h 00 min | 2026-11-06 | — |
 | FRED dzienne (RRPONTSYD) | ✅ | 0 h 00 min | 2026-11-06 | — |
-| EIA ceny dzienne (publikowane co tydzień) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| CFTC (raport tygodniowy) | ✅ | 4 d 17 h | 2026-11-03 | — |
-| FRED tygodniowe (WALCL) | ✅ | 3 d 17 h | 2026-11-04 | — |
-| TIC (miesięcznie) | ✅ | 68 d 17 h | 2026-08 | — |
-| OECD (miesięcznie) | ✅ | 7 d 17 h | 2026-10 | — |
-| BLS (miesięcznie) | ✅ | 38 d 17 h | 2026-09 | — |
-| szanse decyzji Fed (rynek zakładów) | ✅ | 0 h 00 min | 2026-11-08T17:04:01+00:00 | — |
-| wycena BTC — MVRV, średnia cena zakupu (dziennie) | ✅ | 17 h 04 min | 2026-11-07 | — |
-| SOPR BTC (źródło opóźnia 7 dni) | ✅ | 6 d 17 h | 2026-11-01 | — |
-| kursy dolara Ameryki Łacińskiej (co godzinę) | ✅ | 0 h 23 min | 2026-11-08T16:40:42+00:00 | — |
-| Fundusze USA: napływy (tydzień do środy, publ. w środę) | ✅ | 10 d 17 h | 2026-10-28 | — |
-| Fundusze USA: rynek pieniężny (tydzień do środy, publ. w czwartek) | ✅ | 3 d 17 h | 2026-11-04 | — |
+| EIA ceny dzienne (publikowane co tydzień) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| CFTC (raport tygodniowy) | ✅ | 4 d 20 h | 2026-11-03 | — |
+| FRED tygodniowe (WALCL) | ✅ | 3 d 20 h | 2026-11-04 | — |
+| TIC (miesięcznie) | ✅ | 68 d 20 h | 2026-08 | — |
+| OECD (miesięcznie) | ✅ | 7 d 20 h | 2026-10 | — |
+| BLS (miesięcznie) | ✅ | 38 d 20 h | 2026-09 | — |
+| szanse decyzji Fed (rynek zakładów) | ✅ | 0 h 01 min | 2026-11-08T20:34:57+00:00 | — |
+| wycena BTC — MVRV, średnia cena zakupu (dziennie) | ✅ | 20 h 36 min | 2026-11-07 | — |
+| SOPR BTC (źródło opóźnia 7 dni) | ✅ | 6 d 20 h | 2026-11-01 | — |
+| kursy dolara Ameryki Łacińskiej (co godzinę) | ✅ | 0 h 52 min | 2026-11-08T19:44:16+00:00 | — |
+| Fundusze USA: napływy (tydzień do środy, publ. w środę) | ✅ | 10 d 20 h | 2026-10-28 | — |
+| Fundusze USA: rynek pieniężny (tydzień do środy, publ. w czwartek) | ✅ | 3 d 20 h | 2026-11-04 | — |
 | surowce: ropa i gaz dziennie (strona dzienna T+1, API co tydzień) | ✅ | 24 h 00 min | 2026-11-05 | — |
 | surowce: złoto dziennie (LBMA PM wyliczona) | ✅ | 24 h 00 min | 2026-11-05 | — |
-| surowce: zapasy w USA (tydzień do piątku, publ. w środę) | ✅ | 8 d 17 h | 2026-10-30 | — |
-| surowce: ceny miesięczne (publ. ok. 2. dnia roboczego) | ✅ | 7 d 17 h | 2026-10 | — |
-| surowce: pozycje funduszy (stan na wtorek, publ. w piątek) | ✅ | 4 d 17 h | 2026-11-03 | — |
-| surowce: pozycje funduszy — USA, 30 rynków + fundusze indeksowe + indeks (stan na wtorek, publ. w piątek) | ✅ | 4 d 17 h | 2026-11-03 | — |
-| surowce: pozycje funduszy — Londyn (stan na wtorek, publ. w piątek) | ✅ | 4 d 17 h | 2026-11-03 | — |
-| surowce: pozycje producentów — ropa Murban, Abu Zabi (stan na wtorek, publ. w piątek) | ✅ | 11 d 17 h | 2026-10-27 | — |
+| surowce: zapasy w USA (tydzień do piątku, publ. w środę) | ✅ | 8 d 20 h | 2026-10-30 | — |
+| surowce: ceny miesięczne (publ. ok. 2. dnia roboczego) | ✅ | 7 d 20 h | 2026-10 | — |
+| surowce: pozycje funduszy (stan na wtorek, publ. w piątek) | ✅ | 4 d 20 h | 2026-11-03 | — |
+| surowce: pozycje funduszy — USA, 30 rynków + fundusze indeksowe + indeks (stan na wtorek, publ. w piątek) | ✅ | 4 d 20 h | 2026-11-03 | — |
+| surowce: pozycje funduszy — Londyn (stan na wtorek, publ. w piątek) | ✅ | 4 d 20 h | 2026-11-03 | — |
+| surowce: pozycje producentów — ropa Murban, Abu Zabi (stan na wtorek, publ. w piątek) | ✅ | 11 d 20 h | 2026-10-27 | — |
 | surowce: złoto w funduszach (tony; po sesji w USA) | ✅ | 24 h 00 min | 2026-11-05 | — |
-| surowce: złoto banków centralnych (miesięcznie; każdy kraj ze swoim miesiącem) | ℹ️ | 7 d 17 h | 2026-10 | bez progu (MFW publikuje kraje w różnych dniach); dane starsze niż 120 dni: KG 2026-06 |
-| szlaki: ruch statków w 8 cieśninach (dziennie, publ. we wtorek) | ✅ | 6 d 17 h | 2026-11-01 | — |
-| szlaki: wskaźnik presji w łańcuchach dostaw (miesięcznie, publ. ok. 4. dnia roboczego) | ✅ | 38 d 17 h | 2026-09 | — |
-| szlaki: indeks cen surowców (tydzień do środy, publ. ok. tydzień później) | ✅ | 3 d 17 h | 2026-11-04 | — |
-| porty: świat wg ładunku (dziennie, publ. raz w tygodniu) | ✅ | 8 d 17 h | 2026-10-30 | — |
-| porty: 20 dużych portów (dziennie, publ. raz w tygodniu) | ✅ | 8 d 17 h | 2026-10-30 | — |
-| gaz i LNG: Świnoujście, dobowa wysyłka z terminalu (doba gazowa) | ✅ | 17 h 04 min | 2026-11-07 | — |
-| gaz i LNG: terminale UE razem, dobowa wysyłka (doba kompletna) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| gaz i LNG: import LNG do UE27 wg pochodzenia (miesięcznie) | ✅ | 68 d 17 h | 2026-08 | — |
-| gaz i LNG: import LNG do Polski (miesięcznie) | ✅ | 38 d 17 h | 2026-09 | — |
-| gaz i LNG: zapasy gazu w magazynach UE27 (miesięcznie) | ✅ | 68 d 17 h | 2026-08 | — |
-| gaz i LNG: zapasy gazu w magazynach Polski (miesięcznie) | ✅ | 38 d 17 h | 2026-09 | — |
+| surowce: złoto banków centralnych (miesięcznie; każdy kraj ze swoim miesiącem) | ℹ️ | 7 d 20 h | 2026-10 | bez progu (MFW publikuje kraje w różnych dniach); dane starsze niż 120 dni: KG 2026-06 |
+| szlaki: ruch statków w 8 cieśninach (dziennie, publ. we wtorek) | ✅ | 6 d 20 h | 2026-11-01 | — |
+| szlaki: wskaźnik presji w łańcuchach dostaw (miesięcznie, publ. ok. 4. dnia roboczego) | ✅ | 38 d 20 h | 2026-09 | — |
+| szlaki: indeks cen surowców (tydzień do środy, publ. ok. tydzień później) | ✅ | 3 d 20 h | 2026-11-04 | — |
+| porty: świat wg ładunku (dziennie, publ. raz w tygodniu) | ✅ | 8 d 20 h | 2026-10-30 | — |
+| porty: 20 dużych portów (dziennie, publ. raz w tygodniu) | ✅ | 8 d 20 h | 2026-10-30 | — |
+| gaz i LNG: Świnoujście, dobowa wysyłka z terminalu (doba gazowa) | ✅ | 20 h 36 min | 2026-11-07 | — |
+| gaz i LNG: terminale UE razem, dobowa wysyłka (doba kompletna) | ✅ | 20 h 36 min | 2026-11-07 | — |
+| gaz i LNG: import LNG do UE27 wg pochodzenia (miesięcznie) | ✅ | 68 d 20 h | 2026-08 | — |
+| gaz i LNG: import LNG do Polski (miesięcznie) | ✅ | 38 d 20 h | 2026-09 | — |
+| gaz i LNG: zapasy gazu w magazynach UE27 (miesięcznie) | ✅ | 68 d 20 h | 2026-08 | — |
+| gaz i LNG: zapasy gazu w magazynach Polski (miesięcznie) | ✅ | 38 d 20 h | 2026-09 | — |
 | zmienność: VIX (S&P 500, 30 dni; dni robocze USA) | ✅ | 24 h 00 min | 2026-11-05 | — |
 | zmienność: VIX 3M (S&P 500, 3 miesiące; dni robocze USA) | ✅ | 24 h 00 min | 2026-11-05 | — |
 | zmienność: Nasdaq 100 (dni robocze USA) | ✅ | 24 h 00 min | 2026-11-05 | — |
@@ -76,69 +76,69 @@
 | zmienność: złoto (dni robocze USA) | ✅ | 24 h 00 min | 2026-11-05 | — |
 | put/call: wskaźniki dzienne giełdy opcji USA (sesje USA) | ✅ | 0 h 00 min | 2026-11-06 | — |
 | indeks stresu finansowego USA (dni robocze, opóźnienie 2 dni) | ✅ | 2 d 0 h | 2026-11-04 | — |
-| Rosja: handel UE z Rosją (miesięcznie) | ✅ | 68 d 17 h | 2026-08 | — |
-| Rosja: należności banków świata (kwartalnie) | ✅ | 130 d 17 h | 2026-Q2 | — |
-| Rosja: handel Rosji wg partnerów (miesięcznie) | ✅ | 99 d 17 h | 2026-07 | — |
-| Rosja: rezerwy walutowe (miesięcznie) | ⚠️ | 342 d 17 h | 2025-11 | próg 180 d 0 h — najwyżej uwaga; spodziewana zmiana 09.11.2026, 12:42; źródło międzynarodowe publikuje rezerwy Rosji z dużym opóźnieniem (nowy miesiąc zależy od Rosji, nie od zbieracza) — ostatni miesiąc w tabeli międzynarodowej widać w kolumnie daty |
-| Rosja: złoto banku centralnego w tonach (miesięcznie) | ✅ | 38 d 17 h | 2026-09 | — |
+| Rosja: handel UE z Rosją (miesięcznie) | ✅ | 68 d 20 h | 2026-08 | — |
+| Rosja: należności banków świata (kwartalnie) | ✅ | 130 d 20 h | 2026-Q2 | — |
+| Rosja: handel Rosji wg partnerów (miesięcznie) | ✅ | 99 d 20 h | 2026-07 | — |
+| Rosja: rezerwy walutowe (miesięcznie) | ⚠️ | 342 d 20 h | 2025-11 | próg 180 d 0 h — najwyżej uwaga; spodziewana zmiana 09.11.2026, 12:42; źródło międzynarodowe publikuje rezerwy Rosji z dużym opóźnieniem (nowy miesiąc zależy od Rosji, nie od zbieracza) — ostatni miesiąc w tabeli międzynarodowej widać w kolumnie daty |
+| Rosja: złoto banku centralnego w tonach (miesięcznie) | ✅ | 38 d 20 h | 2026-09 | — |
 | Polska: indeksy giełdy w Warszawie (dziennie) | ✅ | 0 h 00 min | 2026-11-06 | — |
 | Polska: krzywa rentowności obligacji skarbowych (dziennie) | ✅ | 0 h 00 min | 2026-11-06 | — |
-| Polska: przepływy do funduszy inwestycyjnych (miesięcznie) | ✅ | 38 d 17 h | 2026-09-30 | — |
-| Polska: członkowie giełdy w obrotach akcjami (miesięcznie) | ✅ | 7 d 17 h | 2026-10-31 | — |
-| Polska: inwestycje bezpośrednie według kraju (kwartalnie) | ✅ | 130 d 17 h | 2026-06-30 | — |
-| Polska: wypłaty z budżetu UE 2021–2027 (dziennie w dni robocze) | ✅ | 2 d 10 h | 2026-11-06 | — |
-| Polska: kto trzyma dług skarbowy (struktura posiadaczy, miesięcznie) | ✅ | 38 d 17 h | 2026-09 | — |
-| Polska: sprzedaż obligacji detalicznych (miesięcznie) | ✅ | 38 d 17 h | 2026-09 | — |
-| Polska 2: dług zagraniczny i pozycja inwestycyjna (kwartalnie) | ✅ | 130 d 17 h | 2026-Q2 | — |
-| Polska 2: oficjalne rezerwy i złoto (miesięcznie) | ✅ | 7 d 17 h | 2026-10 | — |
-| Polska 2: indeks cen konsumpcyjnych od 1999 (miesięcznie) | ✅ | 38 d 17 h | 2026-09 | — |
-| Polska 2: depozyty i kredyty banków (miesięcznie) | ✅ | 68 d 17 h | 2026-08 | — |
-| Polska 2: WIBID i WIBOR (dziennie) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| Polska 2: WIRON i POLSTR (dziennie) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| Polska 2: ceny mieszkań (kwartalnie) | ✅ | 130 d 17 h | 2026-Q2 | — |
-| Giełdy: salda i przepływy netto giełd scentralizowanych (szacunek z portfeli) | ✅ | 0 h 55 min | 2026-11-08T16:09:06+00:00 | — |
-| DEX: obrót ostatniej pełnej doby UTC | ✅ | 17 h 04 min | 2026-11-07 | — |
-| Kontrakty na łańcuchu: otwarte pozycje | ✅ | 0 h 44 min | 2026-11-08T16:20:05+00:00 | — |
-| surowce: podaż ropy OPEC+ (raport miesięczny — szacunek i prognoza) | ✅ | 32 d 17 h | 2026-10-06 | — |
-| surowce: bilans zbóż świata i USA (raport miesięczny) | ✅ | 29 d 17 h | 2026-10-09 | — |
-| surowce: uran — średnia branżowa z końca miesiąca | ✅ | 8 d 17 h | 2026-10-30 | — |
+| Polska: przepływy do funduszy inwestycyjnych (miesięcznie) | ✅ | 38 d 20 h | 2026-09-30 | — |
+| Polska: członkowie giełdy w obrotach akcjami (miesięcznie) | ✅ | 7 d 20 h | 2026-10-31 | — |
+| Polska: inwestycje bezpośrednie według kraju (kwartalnie) | ✅ | 130 d 20 h | 2026-06-30 | — |
+| Polska: wypłaty z budżetu UE 2021–2027 (dziennie w dni robocze) | ✅ | 2 d 13 h | 2026-11-06 | — |
+| Polska: kto trzyma dług skarbowy (struktura posiadaczy, miesięcznie) | ✅ | 38 d 20 h | 2026-09 | — |
+| Polska: sprzedaż obligacji detalicznych (miesięcznie) | ✅ | 38 d 20 h | 2026-09 | — |
+| Polska 2: dług zagraniczny i pozycja inwestycyjna (kwartalnie) | ✅ | 130 d 20 h | 2026-Q2 | — |
+| Polska 2: oficjalne rezerwy i złoto (miesięcznie) | ✅ | 7 d 20 h | 2026-10 | — |
+| Polska 2: indeks cen konsumpcyjnych od 1999 (miesięcznie) | ✅ | 38 d 20 h | 2026-09 | — |
+| Polska 2: depozyty i kredyty banków (miesięcznie) | ✅ | 68 d 20 h | 2026-08 | — |
+| Polska 2: WIBID i WIBOR (dziennie) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| Polska 2: WIRON i POLSTR (dziennie) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| Polska 2: ceny mieszkań (kwartalnie) | ✅ | 130 d 20 h | 2026-Q2 | — |
+| Giełdy: salda i przepływy netto giełd scentralizowanych (szacunek z portfeli) | ✅ | 1 h 25 min | 2026-11-08T19:10:51+00:00 | — |
+| DEX: obrót ostatniej pełnej doby UTC | ✅ | 20 h 36 min | 2026-11-07 | — |
+| Kontrakty na łańcuchu: otwarte pozycje | ✅ | 1 h 19 min | 2026-11-08T19:17:03+00:00 | — |
+| surowce: podaż ropy OPEC+ (raport miesięczny — szacunek i prognoza) | ✅ | 32 d 20 h | 2026-10-06 | — |
+| surowce: bilans zbóż świata i USA (raport miesięczny) | ✅ | 29 d 20 h | 2026-10-09 | — |
+| surowce: uran — średnia branżowa z końca miesiąca | ✅ | 8 d 20 h | 2026-10-30 | — |
 | zboża: indeks dzienny (dni robocze, dane z poprzedniego dnia roboczego) | ✅ | 24 h 00 min | 2026-11-05 | — |
-| zboża: indeks frachtu (tygodniowo, środa, dane za wtorek) | ✅ | 11 d 17 h | 2026-10-27 | — |
-| żywność: podindeksy cen FAO (miesięcznie, publ. ok. 1. piątku) | ✅ | 7 d 17 h | 2026-10 | — |
-| zboża i rzepak w UE: ceny tygodniowe (czwartek, tydzień do niedzieli) | ✅ | 6 d 17 h | 2026-11-01 | — |
-| nawozy w UE (miesięcznie, publ. ok. 10. dnia) | ✅ | 38 d 17 h | 2026-09 | — |
-| Meksyk: obligacje rządu u nierezydentów (dziennie, opóźnienie ok. 1,5 tygodnia) | ✅ | 11 d 17 h | 2026-10-27 | — |
-| Polska: nierezydenci w obligacjach skarbowych (miesięcznie) | ✅ | 38 d 17 h | 2026-09 | — |
-| Korea Płd.: inwestorzy zagraniczni w akcjach i obligacjach (komunikat miesięczny) | ✅ | 38 d 17 h | 2026-09 | — |
-| MFW PIP — Polska jako emitent (półrocze) | ✅ | 311 d 17 h | 2025-S2 | — |
-| MFW PIP — 20 największych par (półrocze) | ✅ | 311 d 17 h | 2025-S2 | — |
+| zboża: indeks frachtu (tygodniowo, środa, dane za wtorek) | ✅ | 11 d 20 h | 2026-10-27 | — |
+| żywność: podindeksy cen FAO (miesięcznie, publ. ok. 1. piątku) | ✅ | 7 d 20 h | 2026-10 | — |
+| zboża i rzepak w UE: ceny tygodniowe (czwartek, tydzień do niedzieli) | ✅ | 6 d 20 h | 2026-11-01 | — |
+| nawozy w UE (miesięcznie, publ. ok. 10. dnia) | ✅ | 38 d 20 h | 2026-09 | — |
+| Meksyk: obligacje rządu u nierezydentów (dziennie, opóźnienie ok. 1,5 tygodnia) | ✅ | 11 d 20 h | 2026-10-27 | — |
+| Polska: nierezydenci w obligacjach skarbowych (miesięcznie) | ✅ | 38 d 20 h | 2026-09 | — |
+| Korea Płd.: inwestorzy zagraniczni w akcjach i obligacjach (komunikat miesięczny) | ✅ | 38 d 20 h | 2026-09 | — |
+| MFW PIP — Polska jako emitent (półrocze) | ✅ | 311 d 20 h | 2025-S2 | — |
+| MFW PIP — 20 największych par (półrocze) | ✅ | 311 d 20 h | 2025-S2 | — |
 | MFW PIP — kto trzyma polskie papiery: suma = świat | ✅ | — | 193.3 vs 193.3 mld USD (2025-S2) | — |
 | MFW PIP — Polska jako inwestor: suma = świat | ✅ | — | 94.3 vs 94.3 mld USD (2025-S2) | — |
-| Dźwignia — krzywa terminowa Deribit (BTC, ETH) | ✅ | 0 h 24 min | 2026-11-08T16:39:57+00:00 | — |
-| Dźwignia — Coinbase USA (kontrakty BTC, ETH) | ✅ | 0 h 24 min | 2026-11-08T16:40:01+00:00 | — |
-| Dźwignia — basis Deribit vs OKX (ten sam termin) | ✅ | — | BTC: 5 terminów, największa różnica 0.03 pp (tolerancja 1.14); ETH: 5 terminów, największa różnica 0.07 pp (tolerancja 1.14) | — |
-| Dźwignia — Bitget (BTC, ETH) | ✅ | 0 h 24 min | 2026-11-08T16:40:02+00:00 | — |
-| Dźwignia — Gate (BTC, ETH, likwidacje) | ✅ | 0 h 25 min | 2026-11-08T16:38:25+00:00 | — |
-| Dźwignia — KuCoin (BTC, ETH) | ✅ | 0 h 25 min | 2026-11-08T16:38:25+00:00 | — |
-| Dźwignia — MEXC (BTC, ETH) | ✅ | 0 h 24 min | 2026-11-08T16:40:03+00:00 | — |
-| Dźwignia — HTX (BTC, ETH) | ✅ | 0 h 24 min | 2026-11-08T16:40:08+00:00 | — |
-| Dźwignia — suma otwartych pozycji, wobec poprzedniego zestawu giełd (informacja) | ✅ | — | BTC: 11 giełd 18.88 mld USD (2026-11-08), poprzednio 5 giełd 5.91 mld USD (2026-10-12); ETH: 11 giełd 9.53 mld USD (2026-11-08), poprzednio 5 giełd 4.22 mld USD (2026-10-12) | — |
-| metale: giełda w Londynie — ceny i zapasy (dziennie, publ. wieczorem UTC) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| metale: giełda w Szanghaju — ceny (dziennie, ok. 07:30 UTC) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| metale: giełda w Szanghaju — kwity magazynowe (dziennie) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| metale: giełda w Szanghaju — zapasy w magazynach (tygodniowo) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| metale: raport tygodniowy o zapasach miedzi (Londyn, USA, Chiny) | ⚠️ | 22 d 17 h | 2026-10-16 | próg 14 d 0 h — najwyżej uwaga; spodziewana publikacja 06.11.2026, 19:00 — zaległa (święto albo przerwa u źródła?) |
+| Dźwignia — krzywa terminowa Deribit (BTC, ETH) | ✅ | 0 h 54 min | 2026-11-08T19:42:37+00:00 | — |
+| Dźwignia — Coinbase USA (kontrakty BTC, ETH) | ✅ | 0 h 54 min | 2026-11-08T19:42:43+00:00 | — |
+| Dźwignia — basis Deribit vs OKX (ten sam termin) | ✅ | — | BTC: 5 terminów, największa różnica 0.01 pp (tolerancja 1.14); ETH: 5 terminów, największa różnica 0.04 pp (tolerancja 1.14) | — |
+| Dźwignia — Bitget (BTC, ETH) | ✅ | 0 h 54 min | 2026-11-08T19:42:44+00:00 | — |
+| Dźwignia — Gate (BTC, ETH, likwidacje) | ✅ | 0 h 55 min | 2026-11-08T19:40:58+00:00 | — |
+| Dźwignia — KuCoin (BTC, ETH) | ✅ | 0 h 55 min | 2026-11-08T19:40:58+00:00 | — |
+| Dźwignia — MEXC (BTC, ETH) | ✅ | 0 h 54 min | 2026-11-08T19:42:47+00:00 | — |
+| Dźwignia — HTX (BTC, ETH) | ✅ | 0 h 54 min | 2026-11-08T19:42:50+00:00 | — |
+| Dźwignia — suma otwartych pozycji, wobec poprzedniego zestawu giełd (informacja) | ✅ | — | BTC: 11 giełd 18.78 mld USD (2026-11-08), poprzednio 5 giełd 5.91 mld USD (2026-10-12); ETH: 11 giełd 9.55 mld USD (2026-11-08), poprzednio 5 giełd 4.22 mld USD (2026-10-12) | — |
+| metale: giełda w Londynie — ceny i zapasy (dziennie, publ. wieczorem UTC) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| metale: giełda w Szanghaju — ceny (dziennie, ok. 07:30 UTC) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| metale: giełda w Szanghaju — kwity magazynowe (dziennie) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| metale: giełda w Szanghaju — zapasy w magazynach (tygodniowo) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| metale: raport tygodniowy o zapasach miedzi (Londyn, USA, Chiny) | ⚠️ | 22 d 20 h | 2026-10-16 | próg 14 d 0 h — najwyżej uwaga; spodziewana publikacja 06.11.2026, 19:00 — zaległa (święto albo przerwa u źródła?) |
 | Fundusze ETF (USA) — fundusze z ostatnią sesją (State Street, iShares) | ✅ | — | 94 z 94 (100%) — oczekiwana sesja: iShares 2026-11-06, State Street 2026-11-05 | — |
 | Fundusze ETF (USA) — NAV a zamknięcie na giełdzie (kontrola krzyżowa) | ✅ | — | 12 funduszy, największa różnica 0,85% (EZA, 2026-11-06) | — |
 | Polska: złoto w zł/g (dni robocze w Polsce) | ✅ | 0 h 00 min | 2026-11-06 | — |
 | Polska: ceny hurtowe paliw (dni obowiązywania wt–sob) | ✅ | 0 h 00 min | 2026-11-07 | — |
 | Polska: gaz i prąd z giełdy (dzień dostawy, 7 dni w tygodniu) | ✅ | 0 h 00 min | 2026-11-09 | — |
-| Polska: ceny na stacjach na tle UE (poniedziałki, pobierane w nocy) | ✅ | 5 d 17 h | 2026-11-02 | — |
-| Polska: pszenica (tydzień do niedzieli, publ. w czwartek) | ✅ | 6 d 17 h | 2026-11-01 | — |
-| Japonia: kto handluje akcjami na giełdzie (tydzień) | ✅ | 8 d 17 h | 2026-10-30 | — |
-| TRENDY krypto — ostatni dzień z wynikiem sygnałów | ✅ | 2 d 17 h | 2026-11-05 | — |
+| Polska: ceny na stacjach na tle UE (poniedziałki, pobierane w nocy) | ✅ | 5 d 20 h | 2026-11-02 | — |
+| Polska: pszenica (tydzień do niedzieli, publ. w czwartek) | ✅ | 6 d 20 h | 2026-11-01 | — |
+| Japonia: kto handluje akcjami na giełdzie (tydzień) | ✅ | 8 d 20 h | 2026-10-30 | — |
+| TRENDY krypto — ostatni dzień z wynikiem sygnałów | ✅ | 2 d 20 h | 2026-11-05 | — |
 | TRENDY świat — ostatnia sesja z wynikiem sygnałów | ✅ | 0 h 00 min | 2026-11-06 | — |
-| TRENDY surowce — ostatni dzień z wynikiem reguł w cieniu | ✅ | 41 h 04 min | 2026-11-06 | — |
+| TRENDY surowce — ostatni dzień z wynikiem reguł w cieniu | ✅ | 44 h 36 min | 2026-11-06 | — |
 | TRENDY surowce — ceny 7 funduszy surowcowych (sesja w USA; reguły w cieniu) | ✅ | 0 h 00 min | 2026-11-06 | — |
 | TRENDY surowce — NAV i jednostki 3 funduszy surowcowych (reguły w cieniu) | ✅ | 0 h 00 min | 2026-11-06 | — |
 | TRENDY nowe grupy — ostatni dzień z wynikiem reguł w cieniu | ✅ | 0 h 00 min | 2026-11-06 | — |
@@ -148,38 +148,38 @@
 | TRENDY nowe grupy — zboża: ostatni dzień z wynikiem reguł w cieniu | ✅ | 0 h 00 min | 2026-11-06 | — |
 | TRENDY nowe grupy — ceny 14 funduszy wyników (sesja w USA; reguły w cieniu) | ✅ | 0 h 00 min | 2026-11-06 | — |
 | TRENDY najnowsze źródła — ostatni dzień z wynikiem reguł w cieniu | ✅ | 0 h 00 min | 2026-11-06 | — |
-| tokenizowane aktywa RWA (co 3 h) | ✅ | 1 h 50 min | 2026-11-08T15:13:28+00:00 | — |
-| tokenizowane aktywa — odczyt własny z łańcucha (co 3 h) | ✅ | 1 h 50 min | 2026-11-08T15:13:28+00:00 | — |
-| tokenizowane aktywa — dane emitentów (co 3 h) | ✅ | 1 h 50 min | 2026-11-08T15:13:28+00:00 | — |
-| TARGET: salda krajów strefy euro (EBC, miesięcznie) | ✅ | 38 d 17 h | 2026-09 | — |
-| Rejestry MiCA: wykaz firm z licencją CASP (plik zmieniany nieregularnie) | ✅ | 3 d 2 h | 2026-11-05 | — |
-| Rejestry MiCA: wykaz emitentów tokenów powiązanych z walutą (EMT) | ✅ | 3 d 2 h | 2026-11-05 | — |
-| Portfel papierów Fed: skład (tygodniowo, stan na środę) | ✅ | 3 d 17 h | 2026-11-04 | — |
-| Bilans Eurosystemu: główne pozycje (tygodniowo, stan na piątek) | ✅ | 8 d 17 h | 2026-10-30 | — |
-| Fundusze hedgingowe w USA: aktywa (kwartalnie) | ✅ | 130 d 17 h | 2026-06-30 | — |
-| Stablecoiny — raport Tether (zobowiązania, sieci) | ✅ | 17 h 34 min | 2026-11-07 23:30 UTC | — |
-| Stablecoiny — raport Circle (USDC, EURC) | ✅ | 0 h 25 min | 2026-11-08 16:39 UTC | — |
-| USDT skarbiec — odczyt sieci Ethereum | ✅ | 0 h 01 min | 2026-11-08 17:02 UTC | — |
-| USDT skarbiec — odczyt sieci Tron | ✅ | 0 h 01 min | 2026-11-08 17:02 UTC | — |
-| Dźwignia 2 — odczyt statystyk dziennych giełdy OKX | ✅ | 0 h 25 min | 2026-11-08 16:38 UTC | — |
-| Dźwignia 2 — odczyt stanów Bitfinex | ✅ | 0 h 25 min | 2026-11-08 16:38 UTC | — |
-| Ethereum — odczyt kolejek stakingu | ✅ | 4 h 24 min | 2026-11-08 12:39 UTC | — |
-| Ethereum — odczyt spalania i podaży | ✅ | 0 h 25 min | 2026-11-08 16:38 UTC | — |
-| Sieci L2 — odczyt aktywności | ✅ | 1 h 27 min | 2026-11-08 15:36 UTC | — |
-| Sieci L2 — odczyt drugiego źródła TVL | ✅ | 1 h 27 min | 2026-11-08 15:36 UTC | — |
-| Fundusze ETF — odczyt kursów walut | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Fundusze ETF — odczyt zestawienia funduszy | ✅ | 1 h 12 min | 2026-11-08 15:51 UTC | — |
-| Fundusze ETF — pliki historii funduszy | ✅ | 2 d 21 h | najstarszy plik sprzed 2 d 21 h | — |
-| Hyperliquid — ranking kont (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Hyperliquid — ranking kont (plik wydawcy) | ✅ | 5 h 42 min | 2026-11-08 11:22 UTC | — |
-| Pożyczki DeFi (Aave) (pobranie) | ✅ | 2 h 13 min | 2026-11-08 14:51 UTC | — |
-| DeFi 2 — opłaty i przychody protokołów (doba danych) | ✅ | 17 h 04 min | 2026-11-07 | — |
+| tokenizowane aktywa RWA (co 3 h) | ✅ | 2 h 17 min | 2026-11-08T18:19:45+00:00 | — |
+| tokenizowane aktywa — odczyt własny z łańcucha (co 3 h) | ✅ | 2 h 17 min | 2026-11-08T18:19:45+00:00 | — |
+| tokenizowane aktywa — dane emitentów (co 3 h) | ✅ | 2 h 17 min | 2026-11-08T18:19:45+00:00 | — |
+| TARGET: salda krajów strefy euro (EBC, miesięcznie) | ✅ | 38 d 20 h | 2026-09 | — |
+| Rejestry MiCA: wykaz firm z licencją CASP (plik zmieniany nieregularnie) | ✅ | 3 d 6 h | 2026-11-05 | — |
+| Rejestry MiCA: wykaz emitentów tokenów powiązanych z walutą (EMT) | ✅ | 3 d 6 h | 2026-11-05 | — |
+| Portfel papierów Fed: skład (tygodniowo, stan na środę) | ✅ | 3 d 20 h | 2026-11-04 | — |
+| Bilans Eurosystemu: główne pozycje (tygodniowo, stan na piątek) | ✅ | 8 d 20 h | 2026-10-30 | — |
+| Fundusze hedgingowe w USA: aktywa (kwartalnie) | ✅ | 130 d 20 h | 2026-06-30 | — |
+| Stablecoiny — raport Tether (zobowiązania, sieci) | ✅ | 21 h 06 min | 2026-11-07 23:30 UTC | — |
+| Stablecoiny — raport Circle (USDC, EURC) | ✅ | 0 h 53 min | 2026-11-08 19:43 UTC | — |
+| USDT skarbiec — odczyt sieci Ethereum | ✅ | 0 h 16 min | 2026-11-08 20:19 UTC | — |
+| USDT skarbiec — odczyt sieci Tron | ✅ | 0 h 16 min | 2026-11-08 20:19 UTC | — |
+| Dźwignia 2 — odczyt statystyk dziennych giełdy OKX | ✅ | 0 h 55 min | 2026-11-08 19:40 UTC | — |
+| Dźwignia 2 — odczyt stanów Bitfinex | ✅ | 0 h 55 min | 2026-11-08 19:40 UTC | — |
+| Ethereum — odczyt kolejek stakingu | ✅ | 1 h 52 min | 2026-11-08 18:44 UTC | — |
+| Ethereum — odczyt spalania i podaży | ✅ | 1 h 52 min | 2026-11-08 18:44 UTC | — |
+| Sieci L2 — odczyt aktywności | ✅ | 1 h 52 min | 2026-11-08 18:44 UTC | — |
+| Sieci L2 — odczyt drugiego źródła TVL | ✅ | 1 h 52 min | 2026-11-08 18:44 UTC | — |
+| Fundusze ETF — odczyt kursów walut | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| Fundusze ETF — odczyt zestawienia funduszy | ✅ | 0 h 28 min | 2026-11-08 20:08 UTC | — |
+| Fundusze ETF — pliki historii funduszy | ✅ | 3 d 0 h | najstarszy plik sprzed 3 d 0 h | — |
+| Hyperliquid — ranking kont (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| Hyperliquid — ranking kont (plik wydawcy) | ✅ | 9 h 14 min | 2026-11-08 11:22 UTC | — |
+| Pożyczki DeFi (Aave) (pobranie) | ✅ | 2 h 32 min | 2026-11-08 18:04 UTC | — |
+| DeFi 2 — opłaty i przychody protokołów (doba danych) | ✅ | 20 h 36 min | 2026-11-07 | — |
 | DeFi 2 — ceny stablecoinów (doba danych) | ✅ | 0 h 00 min | 2026-11-08 | — |
-| DeFi 2 — lista włamań (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| DeFi 2 — opcje na zdecentralizowanych giełdach (doba danych) | ✅ | 17 h 04 min | 2026-11-07 | — |
-| Indie — odczyt wyceny indeksów | ✅ | 0 h 25 min | sesja 2026-11-06 · sprawdzone 2026-11-08 16:38 UTC | — |
-| Indie — odczyt pozycji w kontraktach | ✅ | 0 h 25 min | sesja 2026-11-06 · sprawdzone 2026-11-08 16:38 UTC | — |
-| Indie — odczyt dostaw akcji | ✅ | 0 h 25 min | sesja 2026-11-06 · sprawdzone 2026-11-08 16:38 UTC | — |
+| DeFi 2 — lista włamań (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| DeFi 2 — opcje na zdecentralizowanych giełdach (doba danych) | ✅ | 20 h 36 min | 2026-11-07 | — |
+| Indie — odczyt wyceny indeksów | ✅ | 0 h 55 min | sesja 2026-11-06 · sprawdzone 2026-11-08 19:40 UTC | — |
+| Indie — odczyt pozycji w kontraktach | ✅ | 0 h 55 min | sesja 2026-11-06 · sprawdzone 2026-11-08 19:40 UTC | — |
+| Indie — odczyt dostaw akcji | ✅ | 0 h 55 min | sesja 2026-11-06 · sprawdzone 2026-11-08 19:40 UTC | — |
 | Premia USDT — Turcja | ✅ | 2 d 0 h | 2026-11-06 | — |
 | Premia USDT — Brazylia | ⚠️ | 10 d 0 h | 2026-10-29 | ostatni odczyt sprzed 10 dni (próg 8) — giełda albo kurs referencyjny nie odpowiadają |
 | Premia USDT — RPA | ✅ | 2 d 0 h | 2026-11-06 | — |
@@ -191,188 +191,190 @@
 | Krzywa rentowności Japonii (dni robocze) | ✅ | 24 h 00 min | 2026-11-05 | — |
 | Krzywa rentowności strefy euro (dni robocze) | ✅ | 24 h 00 min | 2026-11-05 | — |
 | Krzywa rentowności Kanady (dni robocze) | ✅ | 24 h 00 min | 2026-11-05 | — |
-| BIS: luka kredytowa (kwartalnie) | ✅ | 221 d 17 h | 2026-Q1 | — |
-| BIS: obsługa długu (kwartalnie) | ✅ | 221 d 17 h | 2026-Q1 | — |
-| BIS: ceny mieszkań (kwartalnie) | ✅ | 130 d 17 h | 2026-Q2 | — |
-| BIS: należności banków wobec rynków wschodzących (kwartalnie) | ✅ | 130 d 17 h | 2026-Q2 | — |
-| BIS: emisje obligacji międzynarodowych (kwartalnie) | ✅ | 130 d 17 h | 2026-Q2 | — |
-| BIS: płynność globalna (kwartalnie) | ✅ | 130 d 17 h | 2026-Q2 | — |
-| BIS: aktywa banków centralnych (miesięcznie) | ✅ | 99 d 17 h | 2026-07 | — |
-| Inflacja r/r (miesięcznie, najnowszy miesiąc) | ✅ | 38 d 17 h | 2026-09 | — |
-| Koniunktura: zaufanie konsumentów i firm (miesięcznie) | ✅ | 38 d 17 h | 2026-09 | — |
+| BIS: luka kredytowa (kwartalnie) | ✅ | 221 d 20 h | 2026-Q1 | — |
+| BIS: obsługa długu (kwartalnie) | ✅ | 221 d 20 h | 2026-Q1 | — |
+| BIS: ceny mieszkań (kwartalnie) | ✅ | 130 d 20 h | 2026-Q2 | — |
+| BIS: należności banków wobec rynków wschodzących (kwartalnie) | ✅ | 130 d 20 h | 2026-Q2 | — |
+| BIS: emisje obligacji międzynarodowych (kwartalnie) | ✅ | 130 d 20 h | 2026-Q2 | — |
+| BIS: płynność globalna (kwartalnie) | ✅ | 130 d 20 h | 2026-Q2 | — |
+| BIS: aktywa banków centralnych (miesięcznie) | ✅ | 99 d 20 h | 2026-07 | — |
+| Inflacja r/r (miesięcznie, najnowszy miesiąc) | ✅ | 38 d 20 h | 2026-09 | — |
+| Koniunktura: zaufanie konsumentów i firm (miesięcznie) | ✅ | 38 d 20 h | 2026-09 | — |
 | Prąd w Polsce: cena w kwadransach, dziś i jutro (dziennie) | ✅ | 0 h 00 min | 2026-11-09 | — |
 | Prąd i CO2: cena uprawnień do emisji (dziennie, także w weekend) | ✅ | 0 h 00 min | 2026-11-08 | — |
 | Prąd w Europie: ceny w 15 strefach (dziś i jutro) | ✅ | 0 h 00 min | 2026-11-09 | — |
-| Prąd w Europie: miks produkcji Niemiec, Polski i Francji (co 2 h na kraj) | ✅ | 3 h 19 min | 2026-11-08T13:45:00+00:00 | — |
-| Prąd w Polsce: przepływy z sąsiadami (co godzinę) | ✅ | 3 h 34 min | 2026-11-08T13:30:00+00:00 | — |
-| Prąd w Wielkiej Brytanii: miks i emisyjność (co 30 min) | ✅ | 0 h 09 min | 2026-11-08T16:54:21+00:00 | — |
+| Prąd w Europie: miks produkcji Niemiec, Polski i Francji (co 2 h na kraj) | ✅ | 4 h 51 min | 2026-11-08T15:45:00+00:00 | — |
+| Prąd w Polsce: przepływy z sąsiadami (co godzinę) | ✅ | 4 h 36 min | 2026-11-08T16:00:00+00:00 | — |
+| Prąd w Wielkiej Brytanii: miks i emisyjność (co 30 min) | ✅ | 0 h 14 min | 2026-11-08T20:22:13+00:00 | — |
 | Stres i niepewność: stres systemowy CISS (strefa euro; dni robocze) | ✅ | 24 h 00 min | 2026-11-05 | — |
 | Stres i niepewność: niepewność polityki USA (EPU) | ✅ | 0 h 00 min | 2026-11-07 | — |
 | Stres i niepewność: ryzyko geopolityczne (GPR) | ✅ | 4 d 0 h | 2026-11-02 | — |
-| Kalendarz: terminarz Rezerwy Federalnej (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Kalendarz: terminarz PKB i inflacji PCE USA (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Kalendarz: terminarz sprzedaży i budownictwa USA (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Kalendarz: terminarz statystyk strefy euro (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Kalendarz: terminarz posiedzeń EBC (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Kalendarz 2: terminy inflacji i zatrudnienia USA (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Kalendarz 2: kalendarz danych Polski (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Kalendarz 2: terminy decyzji banku Anglii (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Kalendarz 2: terminy posiedzeń banku Japonii (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Nowcasty: szacunek PKB USA (pobranie) | ✅ | 2 h 28 min | 2026-11-08T14:36:08+00:00 | — |
-| Nowcasty: szacunek PKB USA (rytm aktualizacji) | ✅ | 3 d 17 h | 2026-11-04 | — |
-| Nowcasty: szacunek inflacji CPI USA (pobranie) | ✅ | 2 h 28 min | 2026-11-08T14:36:08+00:00 | — |
-| Nowcasty: szacunek inflacji CPI USA (rytm aktualizacji) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Europa fundusze: napływy do funduszy (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Europa fundusze: napływy do funduszy (rytm publikacji) | ✅ | 68 d 17 h | 2026-08 | — |
-| Europa fundusze: oszczędności gospodarstw domowych (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Europa fundusze: oszczędności gospodarstw domowych (rytm publikacji) | ✅ | 130 d 17 h | 2026-Q2 | — |
-| Płynność USA: stopy SOFR (pobranie) | ✅ | 1 h 27 min | 2026-11-08T15:36:21+00:00 | — |
-| Płynność USA: SOFR (najnowszy dzień) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| Płynność USA: operacje repo Fed (pobranie) | ✅ | 1 h 27 min | 2026-11-08T15:36:21+00:00 | — |
-| Płynność USA: operacje repo (najnowszy dzień) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Płynność USA: wolumeny repo (pobranie) | ✅ | 1 h 27 min | 2026-11-08T15:36:21+00:00 | — |
-| Płynność USA: wolumeny repo (najnowszy dzień) | ✅ | 3 d 17 h | 2026-11-04 | — |
-| Skarb USA: wpływy dzienne — cła i podatki (pobranie) | ✅ | 2 h 28 min | 2026-11-08T14:36:08+00:00 | — |
-| Skarb USA: wpływy dzienne (rytm publikacji) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| Skarb USA: emisje i umorzenia długu (pobranie) | ✅ | 2 h 28 min | 2026-11-08T14:36:08+00:00 | — |
-| Skarb USA: dług dzienny (rytm publikacji) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| Skarb USA: wykupy papierów z rynku (pobranie) | ✅ | 2 h 28 min | 2026-11-08T14:36:08+00:00 | — |
-| Skarb USA: wykupy (rytm operacji) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| Eksport zbóż USA (pobranie) | ✅ | 2 h 28 min | 2026-11-08T14:36:08+00:00 | — |
-| Eksport zbóż USA (rytm publikacji tygodniowej) | ✅ | 9 d 17 h | 2026-10-29 | — |
-| Energia USA: raport ropy (pobranie) | ✅ | 2 h 28 min | 2026-11-08T14:36:08+00:00 | — |
-| Energia USA: raport ropy (rytm publikacji) | ✅ | 8 d 17 h | 2026-10-30 | — |
-| Energia USA: stopniodni (pobranie) | ✅ | 2 h 28 min | 2026-11-08T14:36:08+00:00 | — |
-| Energia USA: stopniodni (rytm publikacji) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Azja: kontrakty w Japonii wg typu inwestora (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Azja: kontrakty w Japonii wg typu inwestora (data danych) | ✅ | 8 d 17 h | 2026-10-30 | — |
-| Azja: stan posiadania zagranicy w Korei (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Azja: stan posiadania zagranicy w Korei (data danych) | ✅ | 38 d 17 h | 2026-09 | — |
-| Azja: Shenzhen i ETF Chin (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Azja: Shenzhen i ETF Chin (data danych) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Azja: Shenzhen i ETF Chin — lista ETF (data danych) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Brazylia: fundusze (wpłaty i wypłaty) (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Brazylia: fundusze (wpłaty i wypłaty) (data danych) | ✅ | 3 d 17 h | 2026-11-04 | — |
-| Chiny: krzywa rentowności (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Chiny: krzywa rentowności (rytm sesji) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Chiny: Shibor (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Chiny: Shibor (rytm sesji) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Tajwan: put/call i pozycje (pobranie) | ⚠️ | 27 h 41 min | 2026-11-07T13:22:37+00:00 | pobranie starsze niż 12 h 00 min (odczyt co 2 h) — dane mogą być nieaktualne; najwyżej uwaga |
-| Tajwan: put/call i pozycje — put/call (rytm sesji) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Tajwan: put/call i pozycje — pozycje (rytm sesji) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Hongkong: krótka sprzedaż (rytm sesji) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Chiny: indeks CSI 300 (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Chiny: indeks CSI 300 (rytm sesji) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Interwencje i rezerwy: Japonia (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Interwencje i rezerwy: Japonia (rytm publikacji) | ✅ | 10 d 17 h | 2026-10-28 | — |
-| Interwencje i rezerwy: Hongkong (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Interwencje i rezerwy: Hongkong (rytm publikacji) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Interwencje i rezerwy: Argentyna (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Interwencje i rezerwy: Argentyna (rytm publikacji) | ✅ | 4 d 17 h | 2026-11-03 | — |
-| Interwencje i rezerwy: Brazylia (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Interwencje i rezerwy: Brazylia (rytm publikacji) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| Interwencje i rezerwy: Kanada (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Interwencje i rezerwy: Kanada (rytm publikacji) | ✅ | 8 d 17 h | 2026-10-30 | — |
-| Interwencje i rezerwy: oczekiwania w Brazylii (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Interwencje i rezerwy: oczekiwania w Brazylii (rytm publikacji) | ⚠️ | 8 d 17 h | 2026-10-30 | ostatni odczyt 2026-10-30 sprzed 8 d 17 h (próg 8 dób z testu wstecznego rytmu publikacji) |
-| Kanada: aukcje obligacji (pobranie) | ✅ | 0 h 49 min | 2026-11-08T16:14:24+00:00 | — |
-| Kanada: aukcje obligacji (rytm danych) | ✅ | 3 d 17 h | 2026-11-04 | — |
-| Kanada: posiadacze długu rządu (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Kanada: posiadacze długu rządu (rytm danych) | ✅ | 3 d 17 h | 2026-11-04 | — |
-| Kanada: stawka CORRA (pobranie) | ✅ | 2 h 02 min | 2026-11-08T15:01:51+00:00 | — |
-| Kanada: stawka CORRA (rytm danych) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| Kanada: bilans Banku Kanady (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Kanada: bilans Banku Kanady (rytm danych) | ✅ | 3 d 17 h | 2026-11-04 | — |
-| Kanada: ropociągi (Keystone, Trans Mountain) (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Kanada: ropociągi (Keystone, Trans Mountain) (rytm danych) | ✅ | 130 d 17 h | 2026-06 | — |
-| FRED 2: serie (pobranie) | ✅ | 2 h 28 min | 2026-11-08T14:36:08+00:00 | — |
-| FRED 2: serie (rytm publikacji) | ✅ | 14 d 17 h | 2026-10-24 | — |
-| Kapitalizacje: USA (pobranie) | ✅ | 39 h 33 min | 2026-11-07T01:31:11+00:00 | — |
-| Kapitalizacje: USA (rytm danych) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Kapitalizacje: Europa (7 krajów) (pobranie) | ✅ | 2 d 21 h | 2026-11-05T19:39:03+00:00 | — |
-| Kapitalizacje: Europa (7 krajów) (rytm danych) | ✅ | 130 d 17 h | 2026-06-30 | — |
-| Kapitalizacje: Japonia (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Kapitalizacje: Japonia (rytm danych) | ✅ | 8 d 17 h | 2026-10-30 | — |
-| Skarbce spółek — BTC w spółkach publicznych (pobranie) | ✅ | 3 h 39 min | 2026-11-08 13:24 UTC | — |
-| Skarbce spółek — ETH w spółkach publicznych (pobranie) | ✅ | 3 h 39 min | 2026-11-08 13:24 UTC | — |
-| Wnioski o fundusze krypto w kolejce urzędu (pobranie) | ✅ | 3 h 39 min | 2026-11-08 13:24 UTC | — |
-| Fed: banki komercyjne w USA (tygodniowo) (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Fed: banki komercyjne w USA (tygodniowo) (rytm danych) | ✅ | 10 d 17 h | 2026-10-28 | — |
-| Fed: papiery komercyjne (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Fed: papiery komercyjne (rytm danych) | ✅ | 3 d 17 h | 2026-11-04 | — |
-| Fed: papiery komercyjne (rytm stawek) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| Fed: ankieta dealerów (fundusze hedgingowe) (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Fed: ankieta dealerów (fundusze hedgingowe) (rytm danych) | ✅ | 44 d 17 h | 2026-09-24 | — |
-| Fed: ankieta kredytowa banków (pobranie) | ✅ | 5 h 27 min | 2026-11-08T11:36:56+00:00 | — |
-| Fed: ankieta kredytowa banków (rytm danych) | ✅ | 9 d 17 h | 2026-10-29 | — |
-| Krótka sprzedaż — Wielka Brytania (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Krótka sprzedaż — Wielka Brytania (data pozycji) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| Krótka sprzedaż — Szwecja (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Krótka sprzedaż — Szwecja (data pozycji) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Rynki prognoz — cena BTC i ETH (pobranie) | ✅ | 0 h 11 min | 2026-11-08 16:53 UTC | — |
-| Uwaga detalu — odsłony artykułów (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Uwaga detalu — odsłony artykułów (dzień danych) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Indeks sezonu altcoinów (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
+| Kalendarz: terminarz Rezerwy Federalnej (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Kalendarz: terminarz PKB i inflacji PCE USA (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Kalendarz: terminarz sprzedaży i budownictwa USA (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Kalendarz: terminarz statystyk strefy euro (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Kalendarz: terminarz posiedzeń EBC (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Kalendarz 2: terminy inflacji i zatrudnienia USA (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Kalendarz 2: kalendarz danych Polski (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Kalendarz 2: terminy decyzji banku Anglii (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Kalendarz 2: terminy posiedzeń banku Japonii (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Nowcasty: szacunek PKB USA (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Nowcasty: szacunek PKB USA (rytm aktualizacji) | ✅ | 3 d 20 h | 2026-11-04 | — |
+| Nowcasty: szacunek inflacji CPI USA (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Nowcasty: szacunek inflacji CPI USA (rytm aktualizacji) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Europa fundusze: napływy do funduszy (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Europa fundusze: napływy do funduszy (rytm publikacji) | ✅ | 68 d 20 h | 2026-08 | — |
+| Europa fundusze: oszczędności gospodarstw domowych (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Europa fundusze: oszczędności gospodarstw domowych (rytm publikacji) | ✅ | 130 d 20 h | 2026-Q2 | — |
+| Płynność USA: stopy SOFR (pobranie) | ✅ | 0 h 55 min | 2026-11-08T19:40:58+00:00 | — |
+| Płynność USA: SOFR (najnowszy dzień) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| Płynność USA: operacje repo Fed (pobranie) | ✅ | 0 h 55 min | 2026-11-08T19:40:58+00:00 | — |
+| Płynność USA: operacje repo (najnowszy dzień) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Płynność USA: wolumeny repo (pobranie) | ✅ | 0 h 55 min | 2026-11-08T19:40:58+00:00 | — |
+| Płynność USA: wolumeny repo (najnowszy dzień) | ✅ | 3 d 20 h | 2026-11-04 | — |
+| Skarb USA: wpływy dzienne — cła i podatki (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Skarb USA: wpływy dzienne (rytm publikacji) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| Skarb USA: emisje i umorzenia długu (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Skarb USA: dług dzienny (rytm publikacji) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| Skarb USA: wykupy papierów z rynku (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Skarb USA: wykupy (rytm operacji) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| Eksport zbóż USA (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Eksport zbóż USA (rytm publikacji tygodniowej) | ✅ | 9 d 20 h | 2026-10-29 | — |
+| Energia USA: raport ropy (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Energia USA: raport ropy (rytm publikacji) | ✅ | 8 d 20 h | 2026-10-30 | — |
+| Energia USA: stopniodni (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Energia USA: stopniodni (rytm publikacji) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Azja: kontrakty w Japonii wg typu inwestora (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
+| Azja: kontrakty w Japonii wg typu inwestora (data danych) | ✅ | 8 d 20 h | 2026-10-30 | — |
+| Azja: stan posiadania zagranicy w Korei (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| Azja: stan posiadania zagranicy w Korei (data danych) | ✅ | 38 d 20 h | 2026-09 | — |
+| Azja: Shenzhen i ETF Chin (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
+| Azja: Shenzhen i ETF Chin (data danych) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Azja: Shenzhen i ETF Chin — lista ETF (data danych) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Brazylia: fundusze (wpłaty i wypłaty) (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| Brazylia: fundusze (wpłaty i wypłaty) (data danych) | ✅ | 3 d 20 h | 2026-11-04 | — |
+| Chiny: krzywa rentowności (pobranie) | ✅ | 2 h 32 min | 2026-11-08T18:04:44+00:00 | — |
+| Chiny: krzywa rentowności (rytm sesji) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Chiny: Shibor (pobranie) | ✅ | 2 h 32 min | 2026-11-08T18:04:44+00:00 | — |
+| Chiny: Shibor (rytm sesji) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Tajwan: put/call i pozycje (pobranie) | ✅ | 2 h 32 min | 2026-11-08T18:04:44+00:00 | — |
+| Tajwan: put/call i pozycje — put/call (rytm sesji) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Tajwan: put/call i pozycje — pozycje (rytm sesji) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Hongkong: krótka sprzedaż (rytm sesji) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Chiny: indeks CSI 300 (pobranie) | ✅ | 2 h 32 min | 2026-11-08T18:04:44+00:00 | — |
+| Chiny: indeks CSI 300 (rytm sesji) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Interwencje i rezerwy: Japonia (pobranie) | ✅ | 8 h 59 min | 2026-11-08T11:36:56+00:00 | — |
+| Interwencje i rezerwy: Japonia (rytm publikacji) | ✅ | 10 d 20 h | 2026-10-28 | — |
+| Interwencje i rezerwy: Hongkong (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Interwencje i rezerwy: Hongkong (rytm publikacji) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Interwencje i rezerwy: Argentyna (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Interwencje i rezerwy: Argentyna (rytm publikacji) | ✅ | 4 d 20 h | 2026-11-03 | — |
+| Interwencje i rezerwy: Brazylia (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| Interwencje i rezerwy: Brazylia (rytm publikacji) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| Interwencje i rezerwy: Kanada (pobranie) | ✅ | 8 h 59 min | 2026-11-08T11:36:56+00:00 | — |
+| Interwencje i rezerwy: Kanada (rytm publikacji) | ✅ | 8 d 20 h | 2026-10-30 | — |
+| Interwencje i rezerwy: oczekiwania w Brazylii (pobranie) | ✅ | 8 h 59 min | 2026-11-08T11:36:56+00:00 | — |
+| Interwencje i rezerwy: oczekiwania w Brazylii (rytm publikacji) | ⚠️ | 8 d 20 h | 2026-10-30 | ostatni odczyt 2026-10-30 sprzed 8 d 20 h (próg 8 dób z testu wstecznego rytmu publikacji) |
+| Kanada: aukcje obligacji (pobranie) | ✅ | 0 h 03 min | 2026-11-08T20:33:37+00:00 | — |
+| Kanada: aukcje obligacji (rytm danych) | ✅ | 3 d 20 h | 2026-11-04 | — |
+| Kanada: posiadacze długu rządu (pobranie) | ✅ | 2 h 32 min | 2026-11-08T18:04:44+00:00 | — |
+| Kanada: posiadacze długu rządu (rytm danych) | ✅ | 3 d 20 h | 2026-11-04 | — |
+| Kanada: stawka CORRA (pobranie) | ✅ | 2 h 32 min | 2026-11-08T18:04:44+00:00 | — |
+| Kanada: stawka CORRA (rytm danych) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| Kanada: bilans Banku Kanady (pobranie) | ✅ | 2 h 32 min | 2026-11-08T18:04:44+00:00 | — |
+| Kanada: bilans Banku Kanady (rytm danych) | ✅ | 3 d 20 h | 2026-11-04 | — |
+| Kanada: ropociągi (Keystone, Trans Mountain) (pobranie) | ✅ | 8 h 59 min | 2026-11-08T11:36:56+00:00 | — |
+| Kanada: ropociągi (Keystone, Trans Mountain) (rytm danych) | ✅ | 130 d 20 h | 2026-06 | — |
+| FRED 2: serie (pobranie) | ✅ | 2 h 53 min | 2026-11-08T17:43:02+00:00 | — |
+| FRED 2: serie (rytm publikacji) | ✅ | 14 d 20 h | 2026-10-24 | — |
+| Kapitalizacje: USA (pobranie) | ✅ | 43 h 05 min | 2026-11-07T01:31:11+00:00 | — |
+| Kapitalizacje: USA (rytm danych) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Kapitalizacje: Europa (7 krajów) (pobranie) | ✅ | 0 h 55 min | 2026-11-08T19:40:58+00:00 | — |
+| Kapitalizacje: Europa (7 krajów) (rytm danych) | ✅ | 130 d 20 h | 2026-06-30 | — |
+| Kapitalizacje: Japonia (pobranie) | ✅ | 8 h 59 min | 2026-11-08T11:36:56+00:00 | — |
+| Kapitalizacje: Japonia (rytm danych) | ✅ | 8 d 20 h | 2026-10-30 | — |
+| Skarbce spółek — BTC w spółkach publicznych (pobranie) | ✅ | 7 h 12 min | 2026-11-08 13:24 UTC | — |
+| Skarbce spółek — ETH w spółkach publicznych (pobranie) | ✅ | 7 h 12 min | 2026-11-08 13:24 UTC | — |
+| Wnioski o fundusze krypto w kolejce urzędu (pobranie) | ✅ | 7 h 12 min | 2026-11-08 13:24 UTC | — |
+| Fed: banki komercyjne w USA (tygodniowo) (pobranie) | ✅ | 8 h 59 min | 2026-11-08T11:36:56+00:00 | — |
+| Fed: banki komercyjne w USA (tygodniowo) (rytm danych) | ✅ | 10 d 20 h | 2026-10-28 | — |
+| Fed: papiery komercyjne (pobranie) | ✅ | 8 h 59 min | 2026-11-08T11:36:56+00:00 | — |
+| Fed: papiery komercyjne (rytm danych) | ✅ | 3 d 20 h | 2026-11-04 | — |
+| Fed: papiery komercyjne (rytm stawek) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| Fed: ankieta dealerów (fundusze hedgingowe) (pobranie) | ✅ | 8 h 59 min | 2026-11-08T11:36:56+00:00 | — |
+| Fed: ankieta dealerów (fundusze hedgingowe) (rytm danych) | ✅ | 44 d 20 h | 2026-09-24 | — |
+| Fed: ankieta kredytowa banków (pobranie) | ✅ | 8 h 59 min | 2026-11-08T11:36:56+00:00 | — |
+| Fed: ankieta kredytowa banków (rytm danych) | ✅ | 9 d 20 h | 2026-10-29 | — |
+| Krótka sprzedaż — Wielka Brytania (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
+| Krótka sprzedaż — Wielka Brytania (data pozycji) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| Krótka sprzedaż — Szwecja (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
+| Krótka sprzedaż — Szwecja (data pozycji) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Rynki prognoz — cena BTC i ETH (pobranie) | ✅ | 0 h 28 min | 2026-11-08 20:08 UTC | — |
+| Uwaga detalu — odsłony artykułów (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| Uwaga detalu — odsłony artykułów (dzień danych) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Indeks sezonu altcoinów (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
 | Indeks sezonu altcoinów (dzień danych) | ✅ | 0 h 00 min | 2026-11-08 | — |
-| Ropa świata — bilans krajów (sprawdzenie źródła) | ✅ | 3 h 39 min | 2026-11-08 13:24 UTC | — |
-| Ropa świata — bilans krajów (ostatni miesiąc danych) | ✅ | 68 d 17 h | 2026-08 | — |
-| Ropa świata — zapasy w Europie (sprawdzenie źródła) | ✅ | 3 h 39 min | 2026-11-08 13:24 UTC | — |
-| Ropa świata — zapasy UE27 (ostatni miesiąc danych) | ✅ | 99 d 17 h | 2026-07 | — |
-| Złoto Wielkiej Brytanii (sprawdzenie źródła) | ✅ | 3 h 39 min | 2026-11-08 13:24 UTC | — |
-| Złoto Wielkiej Brytanii (ostatni miesiąc danych) | ✅ | 68 d 17 h | 2026-08 | — |
-| USA zadłużenie gospodarstw (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| USA zadłużenie gospodarstw (data danych) | ✅ | 130 d 17 h | 2026-06-30 | — |
-| USA stopy hipoteczne (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| USA stopy hipoteczne (data danych) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| USA niepewność handlowa (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| USA niepewność handlowa (data danych) | ✅ | 17 h 04 min | 2026-11-07 | — |
-| USA przewozy (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| USA przewozy (data danych) | ✅ | 68 d 17 h | 2026-08 | — |
-| Waluty świata — kursy wobec dolara (pobranie) | ⚠️ | 2 d 1 h | 2026-11-06 16:03 UTC | pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga |
-| Waluty świata — kursy wobec dolara (dzień danych) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Waluty świata — kurs centralny juana (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Waluty świata — kurs centralny juana (dzień danych) | ✅ | 41 h 04 min | 2026-11-06 | — |
-| Waluty świata — gilty i inflacja oczekiwana (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Waluty świata — gilty i inflacja oczekiwana (dzień danych) | ✅ | 3 d 17 h | 2026-11-04 | — |
-| Pozycje instytucji USA (13F) (sprawdzenie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Pozycje instytucji USA (13F) (dzień danych) | ✅ | 130 d 17 h | 2026-06-30 | — |
-| Niedostarczone akcje USA (sprawdzenie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Niedostarczone akcje USA (dzień danych) | ✅ | 38 d 17 h | 2026-09-30 | — |
-| USA nastroje konsumentów (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
+| Ropa świata — bilans krajów (sprawdzenie źródła) | ✅ | 7 h 12 min | 2026-11-08 13:24 UTC | — |
+| Ropa świata — bilans krajów (ostatni miesiąc danych) | ✅ | 68 d 20 h | 2026-08 | — |
+| Ropa świata — zapasy w Europie (sprawdzenie źródła) | ✅ | 7 h 12 min | 2026-11-08 13:24 UTC | — |
+| Ropa świata — zapasy UE27 (ostatni miesiąc danych) | ✅ | 99 d 20 h | 2026-07 | — |
+| Złoto Wielkiej Brytanii (sprawdzenie źródła) | ✅ | 7 h 12 min | 2026-11-08 13:24 UTC | — |
+| Złoto Wielkiej Brytanii (ostatni miesiąc danych) | ✅ | 68 d 20 h | 2026-08 | — |
+| USA zadłużenie gospodarstw (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| USA zadłużenie gospodarstw (data danych) | ✅ | 130 d 20 h | 2026-06-30 | — |
+| USA stopy hipoteczne (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
+| USA stopy hipoteczne (data danych) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| USA niepewność handlowa (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
+| USA niepewność handlowa (data danych) | ✅ | 20 h 36 min | 2026-11-07 | — |
+| USA przewozy (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| USA przewozy (data danych) | ✅ | 68 d 20 h | 2026-08 | — |
+| Waluty świata — kursy wobec dolara (pobranie) | ⚠️ | 2 d 4 h | 2026-11-06 16:03 UTC | pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga |
+| Waluty świata — kursy wobec dolara (dzień danych) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Waluty świata — kurs centralny juana (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
+| Waluty świata — kurs centralny juana (dzień danych) | ✅ | 44 h 36 min | 2026-11-06 | — |
+| Waluty świata — gilty i inflacja oczekiwana (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
+| Waluty świata — gilty i inflacja oczekiwana (dzień danych) | ✅ | 3 d 20 h | 2026-11-04 | — |
+| Pozycje instytucji USA (13F) (sprawdzenie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| Pozycje instytucji USA (13F) (dzień danych) | ✅ | 130 d 20 h | 2026-06-30 | — |
+| Niedostarczone akcje USA (sprawdzenie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| Niedostarczone akcje USA (dzień danych) | ✅ | 38 d 20 h | 2026-09-30 | — |
+| USA nastroje konsumentów (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
 | USA nastroje konsumentów (data danych) | ✅ | 0 h 00 min | 2026-11 | — |
-| USA oczekiwana inflacja gospodarstw (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| USA oczekiwana inflacja gospodarstw (data danych) | ✅ | 38 d 17 h | 2026-09 | — |
-| Strefa euro oczekiwana inflacja (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Strefa euro oczekiwana inflacja (data danych) | ✅ | 38 d 17 h | 2026-09 | — |
-| USA zadłużenie marżowe (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| USA zadłużenie marżowe (data danych) | ✅ | 38 d 17 h | 2026-09 | — |
-| RPA (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| RPA (data danych) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| RPA inflacja (data danych) | ✅ | 38 d 17 h | 2026-09 | — |
-| Indie płynność banków (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Indie płynność banków (data danych) | ✅ | 2 d 17 h | 2026-11-05 | — |
-| Izrael fundusze (pobranie) | ✅ | 5 h 01 min | 2026-11-08 12:03 UTC | — |
-| Izrael fundusze (data danych) | ✅ | 38 d 17 h | 2026-09 | — |
-| Przekazy migrantów (pobranie) | ✅ | 5 h 01 min | 2026-11-08 12:03 UTC | — |
-| Przekazy migrantów (data danych) | ✅ | 311 d 17 h | 2025-12 | — |
-| Pogoda: El Niño (ONI) (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Pogoda: El Niño (ONI) (data danych) | ✅ | 38 d 17 h | 2026-09 | — |
-| Pogoda: susza w USA (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Pogoda: susza w USA (data danych) | ✅ | 4 d 17 h | 2026-11-03 | — |
-| Pogoda: Ren w Kaub (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
+| USA oczekiwana inflacja gospodarstw (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| USA oczekiwana inflacja gospodarstw (data danych) | ✅ | 38 d 20 h | 2026-09 | — |
+| Strefa euro oczekiwana inflacja (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| Strefa euro oczekiwana inflacja (data danych) | ✅ | 38 d 20 h | 2026-09 | — |
+| USA zadłużenie marżowe (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| USA zadłużenie marżowe (data danych) | ✅ | 38 d 20 h | 2026-09 | — |
+| RPA (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
+| RPA (data danych) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| RPA inflacja (data danych) | ✅ | 38 d 20 h | 2026-09 | — |
+| Indie płynność banków (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
+| Indie płynność banków (data danych) | ✅ | 2 d 20 h | 2026-11-05 | — |
+| Izrael fundusze (pobranie) | ✅ | 8 h 33 min | 2026-11-08 12:03 UTC | — |
+| Izrael fundusze (data danych) | ✅ | 38 d 20 h | 2026-09 | — |
+| Przekazy migrantów (pobranie) | ✅ | 8 h 33 min | 2026-11-08 12:03 UTC | — |
+| Przekazy migrantów (data danych) | ✅ | 311 d 20 h | 2025-12 | — |
+| Pogoda: El Niño (ONI) (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| Pogoda: El Niño (ONI) (data danych) | ✅ | 38 d 20 h | 2026-09 | — |
+| Pogoda: susza w USA (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| Pogoda: susza w USA (data danych) | ✅ | 4 d 20 h | 2026-11-03 | — |
+| Pogoda: Ren w Kaub (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
 | Pogoda: Ren w Kaub (data danych) | ✅ | 0 h 00 min | 2026-11-08 | — |
-| Pogoda: Missisipi (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Pogoda: Missisipi (data danych) | ✅ | 17 h 04 min | 2026-11-07 | — |
-| Pogoda: temperatura świata (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
-| Pogoda: temperatura świata (data danych) | ✅ | 5 d 17 h | 2026-11-02 | — |
-| Pogoda: pas kukurydzy USA (pobranie) | ✅ | 5 h 27 min | 2026-11-08 11:36 UTC | — |
+| Pogoda: Missisipi (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
+| Pogoda: Missisipi (data danych) | ✅ | 20 h 36 min | 2026-11-07 | — |
+| Pogoda: temperatura świata (pobranie) | ✅ | 8 h 59 min | 2026-11-08 11:36 UTC | — |
+| Pogoda: temperatura świata (data danych) | ✅ | 5 d 20 h | 2026-11-02 | — |
+| Pogoda: pas kukurydzy USA (pobranie) | ✅ | 2 h 53 min | 2026-11-08 17:43 UTC | — |
 | Pogoda: pas kukurydzy USA (data danych) | ✅ | 0 h 00 min | 2026-11-08 | — |
 
 ## Zgodność liczb (porównania krzyżowe)
 
-- Kapitalizacja krypto, dwa źródła: różnica dziś — — ? brak odczytu.
+- Kapitalizacja krypto, dwa źródła: różnica dziś 5.20%, norma (mediana 30 dni) 4.04% — ✅ odchylenie od mediany 1.16 pkt proc. (progi 2 / 5).
+- Cena BTC: 75 782 vs 75 754 USD — różnica 0.04% ✅.
+- Cena ETH: 2 227 vs 2 228 USD — różnica 0.03% ✅.
 - TGA 2026-11-04: Fiscal Data 936 248 vs FRED 936 248 mln USD — różnica 0.00% — ✅ próg stały 1% (stan na środę = saldo zamknięcia tego dnia).
-- Podaż stablecoinów, dwa źródła: 292.4 vs 272.8 mld USD — różnica dziś +7.16%, norma (mediana 30 dni) +7.89% — ✅ odchylenie od mediany 0.73 pkt proc. (progi 2).
+- Podaż stablecoinów, dwa źródła: 292.4 vs 272.9 mld USD — różnica dziś +7.14%, norma (mediana 30 dni) +7.89% — ✅ odchylenie od mediany 0.75 pkt proc. (progi 2).
 - Rentowność 10L USA (Skarb USA vs H.15 — Fed, te same dni): porównane 9 dat (do 2026-11-05), różnice > 0.02 pkt proc.: 0 ✅.
 - Stopy banków centralnych (strona vs źródło banku, ten sam dzień): Fed 3,875% = 3,875% (NY Fed) ✅; EBC 2,5% = 2,5% (EBC) ✅; Bank Anglii 3,75% = 3,75% (BoE) ℹ️ (zmiana 2026-11-05 na 4% — strona jeszcze bez niej); Bank Szwajcarii 0% = 0% (SNB) ✅; Bank Szwecji 1,75% = 1,75% (Riksbank) ✅; Bank Norwegii 4,5% = 4,5% (Norges Bank) ✅; NBP 3,75% = 3,75% (NBP) ✅; Bank Kanady 2,5% = 2,5% (BoC) ✅; Bank Brazylii 13,75% = 13,75% (BCB) ✅.
 - Kursy walut (strona: kurs EBC; H.10: Fed, Nowy Jork; te same dni): 2025-11-06 — 20 walut, mediana różnicy 0,21%, najwięcej AUD -0,75%; 2026-08-06 — 20 walut, mediana różnicy 0,18%, najwięcej SEK -0,54%; 2026-10-06 — 20 walut, mediana różnicy 0,06%, najwięcej CAD +0,22%; 2026-10-30 — 20 walut, mediana różnicy 0,08%, najwięcej MXN +0,61% ✅.
@@ -385,7 +387,7 @@
 - Samodzielne odświeżanie list portfeli giełd z raportów PDF (Bybit, KuCoin; codziennie): Bybit — raport miesięczny — sprawdzanie od 2026-11-16 ✅; KuCoin — audyt z 2026-10-31 jest, link do raportu jeszcze niepodany ℹ️.
 - Lista portfeli OKX (z 2026-11-01): automat odświeża sam (ostatni przebieg 2026-11-08); ostrzeżenie, gdy odświeżenie zawodzi > 7 dni ✅.
 - MVRV BTC, dwa źródła: różnica najnowszego wspólnego dnia +0.19% (2026-11-01), norma (mediana 54 dni) +0.14% — ✅ odchylenie najnowszego dnia od normy 0.05 pkt proc. (próg 1.5), norma +0.14% (próg ±3%).
-- Premie krypto: USA BTC -0.00% (przez USDC -0.03%, różnica 0.03 pkt proc.); Korea BTC +0.63% (kurs z 2026-11-06); kurs KRW/USD 2026-11-06: wprost 1358.728, w pliku rynki 1358.730 (różnica 0.000%) ✅.
+- Premie krypto: USA BTC -0.01% (przez USDC -0.03%, różnica 0.02 pkt proc.); Korea BTC +0.63% (kurs z 2026-11-06); kurs KRW/USD 2026-11-06: wprost 1358.728, w pliku rynki 1358.730 (różnica 0.000%) ✅.
 - ETF krypto u źródła — przepływy funduszy na stronie vs wyliczenie z plików emitenta (dzień D = zmiana liczby jednostek D → D+1 × NAV z D; próg max 0.5 mln USD / 2%): IBIT ✅ porównane sesje: 5 (2026-10-16 – 2026-11-05), różnic ponad próg: 0, największa różnica 0.0 mln USD; plik emitenta do 2026-11-06, nowszych sesji na stronie: 0; czeka na porównanie: 1 (2026-11-06) · ETHA ✅ porównane sesje: 5 (2026-10-16 – 2026-11-05), różnic ponad próg: 0, największa różnica 0.0 mln USD; plik emitenta do 2026-11-06, nowszych sesji na stronie: 0; czeka na porównanie: 1 (2026-11-06).
 - ETF bitcoina — druga, niezależna kontrola przepływu ARKB (zmiana liczby BTC w pliku emitenta × cena z pliku vs przepływ na stronie; próg max 1 mln USD / 10%): ⚠️ porównane sesje: 3 (2026-11-04 – 2026-11-06), różnic ponad próg: 2 — 2026-11-04: -18.9 mln USD; 2026-11-05: -38.8 mln USD; pominięte: 2026-11-02 (brak przepływu strony z tego dnia), 2026-11-03 (brak przepływu strony z tego dnia); plik emitenta do 2026-11-06.
 - Argentyna — dwa odczyty tych samych kursów: blue ✅ 0.00%, hurtowy ✅ 0.00%, oficjalny w banku ✅ 0.12%, MEP ✅ 0.26%, CCL ✅ 0.53%; hurtowy vs bank centralny (2026-11-05) ✅ 0.00%; główne luki: AR ✅, VE ✅, BO ✅.
@@ -401,7 +403,7 @@
 - Polska: kapitał z zagranicy i wypłaty UE (z pliku strony): 2026-Q2 do Polski: kwartał 4 430 mln EUR ↔ suma 3 miesięcy z pliku miesięcznego 4 436 mln EUR (różnica 6) ✅ · 2026-Q2 z Polski: kwartał 482 mln EUR ↔ suma 3 miesięcy z pliku miesięcznego 482 mln EUR (różnica 0) ✅.
 - Polska: dług skarbowy i obligacje detaliczne (z pliku strony): Zagranica: 25 wspólnych miesięcy z plikiem nierezydentów, największa różnica 0,05 mln zł (2025-05: struktura 157 223,7 ↔ nierezydenci 157 223,7) ✅.
 - Polska 2: dług zagraniczny, depozyty, WIBOR, WIRON, ceny mieszkań (z pliku strony): bez sprzeczności ✅.
-- Giełdy scentralizowane, DEX i kontrakty na łańcuchu (z plików strony): podejrzany skok listy portfeli (próg planu F6Z1): brak ✅ · przepływ 7 dni ponad 25% salda (saldo ≥ 10 mln USD): VALR, Zoomex, Okcoin, Flipster — poza sumą 7 dni ℹ️ · przepływ 30 dni ponad 50% salda (saldo ≥ 10 mln USD): Poloniex, Gate US, Flipster, CoinEx — poza sumą 30 dni ℹ️ · suma sald między dobami 2026-11-07 → 2026-11-08: +0,1% ✅ · znak przepływu 7 dni: giełdy z listy (wszystkie aktywa) minus; BTC + ETH z drugiego źródła (do 2026-11-07) minus (inne zbiory portfeli i aktywów — tylko informacja) ✅ · obrót DEX doby ÷ obrót spot giełd scentralizowanych (kroczące 24 h): 0,21 ✅.
+- Giełdy scentralizowane, DEX i kontrakty na łańcuchu (z plików strony): podejrzany skok listy portfeli (próg planu F6Z1): brak ✅ · przepływ 24 h ponad 10% salda (saldo ≥ 100 mln USD): Poloniex — do sprawdzenia, czy to nie zmiana listy portfeli ℹ️ · przepływ 7 dni ponad 25% salda (saldo ≥ 10 mln USD): Poloniex, VALR, Okcoin, Flipster — poza sumą 7 dni ℹ️ · przepływ 30 dni ponad 50% salda (saldo ≥ 10 mln USD): Gate US, Flipster, CoinEx — poza sumą 30 dni ℹ️ · suma sald między dobami 2026-11-07 → 2026-11-08: +0,1% ✅ · znak przepływu 7 dni: giełdy z listy (wszystkie aktywa) minus; BTC + ETH z drugiego źródła (do 2026-11-07) minus (inne zbiory portfeli i aktywów — tylko informacja) ✅ · obrót DEX doby ÷ obrót spot giełd scentralizowanych (kroczące 24 h): 0,20 ✅.
 - Salda TARGET krajów strefy euro (z pliku strony; porównanie z panelem „dane urzędowe”): spójność pliku (miesiące rosnące, suma sald = 0) ✅ · zgodność z panelem „dane urzędowe” (27 porównań kraj-miesiąc) ✅.
 - Rejestry MiCA (z pliku strony): spójność pliku (sumy w krajach, usługi, szereg) ✅.
 - BIS: kredyt, obsługa długu, wierzyciele i płynność (z pliku strony): porównanie zmiany r/r kredytu w trzech walutach: zgodne ✅.
@@ -426,11 +428,11 @@
 - Pogoda i klimat: El Niño, susza w USA, Ren, Missisipi, temperatura świata i pas kukurydzy (z pliku strony): spójność pliku (El Niño, susza, Ren, Missisipi, temperatura świata, pas kukurydzy) ✅.
 - USDT na żywo, skarbiec emitenta (z pliku strony; porównanie z raportem emitenta tylko informacyjnie): spójność pliku (saldo, podaż, 30 dób, zdarzenia, historia) ✅ · Ethereum: skarbiec w sieci 3,75 mld, w raporcie emitenta 3,75 mld (z 2026-11-07), różnica 4 mln — ruch po raporcie; podaż w sieci 84,30 mld a „wybite” w raporcie 84,30 mld (+0,000%, bez emisji i umorzeń po raporcie) ℹ️ · Tron: skarbiec w sieci 1,93 mld, w raporcie emitenta 1,93 mld (z 2026-11-07), różnica 0 mln — ruch po raporcie ℹ️.
 - Premie USDT na lokalnych giełdach (z pliku strony; jeden odczyt na dzień roboczy po opublikowaniu kursu referencyjnego): spójność pliku (doby, premie, minuty, koszyk) ✅.
-- Emitenci stablecoinów (z pliku strony; porównania z drugim źródłem tylko informacyjnie): spójność pliku (sieci, kapitał, sumy, zabezpieczenie) ✅ · suma emitentów a podaż z drugiego źródła: różnica dziś +7.62% (norma +8.25%, mediana 26 dni) — odchylenie od mediany 0.63 pkt proc. (progi 2) ✅ · USDC: raport Circle a lista monet: różnica dziś -0.18% (norma -0.19%, mediana 26 dni) — odchylenie od mediany 0.01 pkt proc. (progi 1) ✅ · USDT: zobowiązania w raporcie Tether a lista monet: różnica dziś +0.15% (norma +0.14%, mediana 26 dni) — odchylenie od mediany 0.01 pkt proc. (progi 1) ✅.
+- Emitenci stablecoinów (z pliku strony; porównania z drugim źródłem tylko informacyjnie): spójność pliku (sieci, kapitał, sumy, zabezpieczenie) ✅ · suma emitentów a podaż z drugiego źródła: różnica dziś +7.55% (norma +8.25%, mediana 26 dni) — odchylenie od mediany 0.71 pkt proc. (progi 2) ✅ · USDC: raport Circle a lista monet: różnica dziś -0.22% (norma -0.19%, mediana 26 dni) — odchylenie od mediany 0.03 pkt proc. (progi 1) ✅ · USDT: zobowiązania w raporcie Tether a lista monet: różnica dziś +0.15% (norma +0.14%, mediana 26 dni) — odchylenie od mediany 0.01 pkt proc. (progi 1) ✅.
 - Płynność dolara i euro oraz fundusze hedgingowe (z plików strony; porównanie z panelem „dane urzędowe”): portfel Fed razem: zgodność z panelem „dane urzędowe” (12 wspólnych tygodni) ✅ · aktywa Eurosystemu razem: zgodność z panelem „dane urzędowe” (13 wspólnych tygodni) ✅ · spójność plików (dni rosnące, sumy grup, szczyt, brutto ≥ netto) ✅.
 - Krzywe rentowności (z plików strony; porównanie 10L USA i Niemiec z rynki.json): rentowność 10L USA: zgodność z plikiem rynki (2 wspólne dni) ✅ · rentowność 10L Niemcy: zgodność z plikiem rynki (2 wspólne dni) ✅ · spójność pliku (dni, „miesiąc temu”, liczby, różnice nominalna − realna, wszyscy − AAA) ✅.
 - Inflacja, koniunktura i stopy realne (z plików strony; inflacja USA a CPI-U z pliku usa-makro tylko informacyjnie): inflacja USA 2026-09: 3.74 % (plik inflacja) a 3.7 % (CPI-U z pliku usa-makro) — tylko informacja ✅ · stopa realna policzona dla 35 z 37 banków (reszta: brak inflacji albo starsza niż 3 mies. od stanu stopy) ✅ · spójność plików (miesiące, liczby, Polska w obu miarach zaufania) ✅.
-- Prąd i CO2 (z pliku strony): Polska 2026-11-08: średnia 795.2 zł/MWh, minimum 3.3, maksimum 1472.3; kwadransów z ceną ujemną: 0 (dozwolone — tylko informacja) ℹ️ · Polska 2026-11-08: RCE 181.1 €/MWh (po kursie z ceny CO2) wobec strefy Polska 199.4 €/MWh — różnica 9.2% ⚠️ · Polska 2026-11-08: RCE 795.2 zł/MWh wobec indeksu giełdowego 781.8 zł/MWh (inny rynek) — różnica 1.7% ✅ · Polska 2026-11-09: średnia 1572.5 zł/MWh, minimum 566.0, maksimum 3309.0; kwadransów z ceną ujemną: 0 (dozwolone — tylko informacja) ℹ️ · Polska 2026-11-09: RCE 358.0 €/MWh (po kursie z ceny CO2) wobec strefy Polska 372.6 €/MWh — różnica 3.9% ✅ · Polska 2026-11-09: RCE 1572.5 zł/MWh wobec indeksu giełdowego 1570.0 zł/MWh (inny rynek) — różnica 0.2% ✅ · Miks DE 2026-11-08: odnawialne 27.5% z podziału wobec 29.0% z serii źródła — różnica 1.5 pkt proc. ✅ · Miks PL 2026-11-08: odnawialne 17.1% z podziału wobec 17.1% z serii źródła — różnica 0.0 pkt proc. ✅ · Miks FR 2026-11-08: odnawialne 20.8% z podziału wobec 21.1% z serii źródła — różnica 0.3 pkt proc. ✅ · Przepływy Polski 2026-11-08T13:30:00+00:00: saldo +679 MW (import; tylko informacja) ℹ️ · Wielka Brytania 2026-11-08T16:00Z: emisyjność 262 gCO2/kWh, skala „very high” (tylko informacja) ℹ️.
+- Prąd i CO2 (z pliku strony): Polska 2026-11-08: średnia 795.2 zł/MWh, minimum 3.3, maksimum 1472.3; kwadransów z ceną ujemną: 0 (dozwolone — tylko informacja) ℹ️ · Polska 2026-11-08: RCE 181.1 €/MWh (po kursie z ceny CO2) wobec strefy Polska 199.4 €/MWh — różnica 9.2% ⚠️ · Polska 2026-11-08: RCE 795.2 zł/MWh wobec indeksu giełdowego 781.8 zł/MWh (inny rynek) — różnica 1.7% ✅ · Polska 2026-11-09: średnia 1572.5 zł/MWh, minimum 566.0, maksimum 3309.0; kwadransów z ceną ujemną: 0 (dozwolone — tylko informacja) ℹ️ · Polska 2026-11-09: RCE 358.0 €/MWh (po kursie z ceny CO2) wobec strefy Polska 372.6 €/MWh — różnica 3.9% ✅ · Polska 2026-11-09: RCE 1572.5 zł/MWh wobec indeksu giełdowego 1570.0 zł/MWh (inny rynek) — różnica 0.2% ✅ · Miks DE 2026-11-08: odnawialne 20.0% z podziału wobec 21.6% z serii źródła — różnica 1.6 pkt proc. ✅ · Miks PL 2026-11-08: odnawialne 8.0% z podziału wobec 8.0% z serii źródła — różnica 0.0 pkt proc. ✅ · Miks FR 2026-11-08: odnawialne 15.6% z podziału wobec 16.0% z serii źródła — różnica 0.4 pkt proc. ✅ · Przepływy Polski 2026-11-08T16:00:00+00:00: saldo +1875 MW (import; tylko informacja) ℹ️ · Wielka Brytania 2026-11-08T19:30Z: emisyjność 274 gCO2/kWh, skala „very high” (tylko informacja) ℹ️.
 - Stres i niepewność (CISS, EPU, GPR; z pliku strony; CISS USA a indeks stresu USA tylko informacyjnie): niespójności w pliku: CISS: daty głównych obszarów rozjeżdżają się o więcej niż 5 dni ⚠️ · CISS USA a indeks stresu USA (plik stres): korelacja poziomów 0.23 na 259 wspólnych dniach — tylko informacja ℹ️ · spójność pliku (zakresy, skoki dzienne, wykresy, percentyle, komplet obszarów) ⚠️.
 - Kalendarz (z pliku strony): terminy w następnych 14 dniach: 9 (w tym wagi 3: 1) ✅.
 - Kalendarz 2 (z pliku strony): terminy: FRED 3, GUS 4, BoE 0, BoJ 0 ✅.
@@ -447,7 +449,7 @@
 - Kapitalizacje rynków akcji, USA / siedem krajów Europy / Japonia (z pliku strony): —.
 - Fed: banki komercyjne USA, papiery komercyjne, ankieta dealerów, ankieta kredytowa banków (z pliku strony): banki komercyjne w USA (tygodniowo) 2026-10-28 ✅ · papiery komercyjne 2026-11-04 ✅ · papiery komercyjne stawki 2026-11-05 ✅ · ankieta dealerów (fundusze hedgingowe) 2026-09-24 ✅ · ankieta kredytowa banków 2026-10-29 ✅.
 - Wierzyciele i dłużnicy świata, pozycja inwestycyjna ok. 100 gospodarek (z pliku strony): IIP: kwartał 2026-Q2, 102 krajów ✅.
-- Surowce całą dobę, kontrakty na ropę, gaz, złoto, srebro i miedź (z pliku strony): Surowce 24/7: 6 z 6 kontraktów, najstarszy odczyt sprzed 0.4 h (złoto) ✅.
+- Surowce całą dobę, kontrakty na ropę, gaz, złoto, srebro i miedź (z pliku strony): Surowce 24/7: 6 z 6 kontraktów, najstarszy odczyt sprzed 0.9 h (złoto) ✅.
 - Surowce — raporty miesięczne (podaż ropy, zboża, uran; z plików strony): ropa: wydanie 2026-10-06, szacunki do 2026-09, prognoza od 2026-10; OPEC+ = objęci porozumieniem + pozostali uczestnicy, cały OPEC ≥ objęci ✅ · zboża: raport 2026-10 (nr 676), sezon 2026/27; z poprzednim raportem: 8 z 8 wpisów ℹ️ · uran 2026-10-30: wycena funduszu fizycznego (2026-10-30) 92,74 vs średnia branżowa 91,55 USD/lb (+1,30%) — informacja (inne definicje i chwile wyceny), bez progu ℹ️.
 - Zboża dziennie i koszt transportu (z plików strony): indeks dzienny: skoki dnia ✅ · indeks frachtu: skoki tygodnia ✅ · podindeksy żywności: skoki miesiąca ✅ · ceny w UE: skoki tygodnia ✅ · nawozy w UE: skoki miesiąca ✅ · indeks dzienny: tabela źródła vs seria ✅ · indeks dzienny vs podindeks zbóż w żywności (zmiany miesięczne) ✅ · indeks dzienny vs indeks zbóż świata (zmiany miesięczne) ✅ · azot w UE vs indeks nawozów świata (zmiany miesięczne) ✅ · pszenica w Polsce: ten sam portal w dwóch plikach ✅.
 - Surowce — pozycje funduszy USA, plik tygodniowy vs drugi kanał urzędu (ten sam raport): raport 2026-11-03: 29 rynków × 14 liczb i 349 wcześniejszych wpisów rynków (open interest i netto funduszy zarządzających) — zgodne ✅.
@@ -458,13 +460,13 @@
 
 ## Kontrola zakładek GLOBAL, CRYPTO i TRENDY (przeglądarka bez okna, ekran telefonu 390 px)
 
-- Zakres: przełączanie zakładek, przełączniki i zakresy, rozwijanie bloków, wykresy, błędy JavaScriptu, napisy-błędy, czas pierwszego widoku; potem to samo przy 7 podmienionych plikach danych (kopia strony, żywa strona bez zmian). Kroków: 125; czas: 102,4 s.
+- Zakres: przełączanie zakładek, przełączniki i zakresy, rozwijanie bloków, wykresy, błędy JavaScriptu, napisy-błędy, czas pierwszego widoku; potem to samo przy 7 podmienionych plikach danych (kopia strony, żywa strona bez zmian). Kroków: 120; czas: 101,5 s.
 
 ### GLOBAL
 - ✅ przełączenie zakładki
 - ✅ rysowanie wykresów (159, w 59 panelach)
 - ✅ napisy-błędy (NaN, undefined…)
-- ✅ czas pierwszego widoku (0,9 s)
+- ✅ czas pierwszego widoku (1,0 s)
 - ✅ powrót do zakładki GLOBAL (wykresów 1 z 1)
 - ✅ Przełączniki i zakresy (9): Okres (GLOBAL): DZIŚ, 1T, 1KW, 1R · Kalendarz makro (Okres kalendarza): Dzień, Miesiąc · Widok: Karty / Wykresy: Wykresy · Archiwum własne — świat (Okno czasu): 30 dni, 365 dni
 - ✅ Rozwijane bloki (51): Gdzie warunki sprzyjają wzrostom, a gdzie spa…, Fed: czego spodziewa się rynek zakładów, Krzywe rentowności obligacji rządowych, Jakość danych mapy, Strach i chciwość GLOBALi, Przepływy kapitału USA ↔ świat, Przepływy bankowe między regionami (pomiar kw…, Dokąd płynie kapitał portfelowy, Kto trzyma czyje papiery, Pozycje w kontraktach na euro i inne rynki, Surowce — paliwo gospodarki, USA: energia, gospodarka i przepływ kapitału, Kto kupuje amerykańskie zboże i soję, USA: kredyty hipoteczne, długi gospodarstw, n…, USA: dokąd płyną pieniądze inwestorów — fundu…, Indeksy giełdowe świata, Archiwum własne — świat, Aukcje papierów skarbowych USA: popyt (stosun…, Kanada: kto kupuje i trzyma dług, stopa na je…, Banki USA: kredyty, papiery komercyjne i waru…, Wielkość rynków akcji: USA, Europa, Japonia —…, Szwajcaria: depozyty banków w banku centralny…, Interwencje walutowe i rezerwy banków central…, Brazylia: czego oczekuje rynek, Rynki wschodzące: RPA, Indie, Izrael i przeka…, Stres finansowy USA i nastroje na opcjach, Zmienność rynków, Stres i niepewność, Kalendarz: najbliższe 14 dni, Szacunek na bieżąco vs ostatni odczyt, Oszczędności i fundusze w Europie, Wybrane fundusze ETF w Europie: dokąd płyną p…, Premia terminowa, dolar, stres kredytowy i za…, Płynność USA, Skarb USA: wpływy, dług i wykupy dziennie, Insiderzy spółek USA: zakupy i sprzedaż na ry…, Krótka sprzedaż w Europie: pozycje netto w Wi…, Energia USA: rafinerie, import ropy i pogoda, Ropa świata: kraje i zapasy, Pogoda i klimat: El Niño, susza, rzeki, Surowce całą dobę: ropa, gaz, złoto, srebro i…, Złoto w handlu Wielkiej Brytanii, Chiny, Hongkong i Tajwan: obligacje, indeks i…, Azja i Brazylia: kto kupuje i sprzedaje, Nastroje konsumentów, oczekiwana inflacja i d…, Instytucje i niedostarczone akcje w USA, Waluty świata i koszt pieniądza, Ameryka Łacińska: ile więcej kosztuje dolar p…, Prosto od banków centralnych, rządów i giełd:…, Napływy ETF do krypto, Gdzie płynie kapitał? (przycisk „Widok”)
@@ -473,8 +475,8 @@
 - ✅ przełączenie zakładki
 - ✅ rysowanie wykresów (30, w 38 panelach)
 - ✅ napisy-błędy (NaN, undefined…)
-- ✅ czas pierwszego widoku (0,5 s)
-- ✅ Przełączniki i zakresy (30): Okres (CRYPTO): 7D, 30D, 1R · Scena krypto (TOP 10, pełny ekran): Pełny ekran, TOP 10, TOP 100 · Sektory krypto (chipy): Giełdy, L1/L2, ETH, BTC • 0,0%, DeFi, AI, Memecoiny, Stablecoiny • 0,0%, DePIN, RWA, Gaming · Widok: Karty / Wykresy: Wykresy · Archiwum własne — krypto (Okno czasu): 30 dni, 365 dni · Kapitał w krypto: L1/L2 → Stablecoiny +27 m…, ETH → Stablecoiny +24 mln…, BTC → Stablecoiny +20 mln…, DeFi → Stablecoiny +11 ml…, AI → Stablecoiny +9 mln U…, L1/L2 → Giełdy −598 mln U…, ETH → Giełdy −520 mln USD…, BTC → Giełdy −436 mln USD…, DeFi → Giełdy −236 mln US…, AI → Giełdy −186 mln USD ›
+- ✅ czas pierwszego widoku (0,2 s)
+- ✅ Przełączniki i zakresy (25): Okres (CRYPTO): 7D, 30D, 1R · Scena krypto (TOP 10, pełny ekran): Pełny ekran, TOP 10, TOP 100 · Sektory krypto (chipy): Giełdy, BTC, ETH, L1/L2, DeFi, Memecoiny, Stablecoiny • 0,0%, DePIN, AI, Gaming, RWA • 0,0% · Widok: Karty / Wykresy: Wykresy · Archiwum własne — krypto (Okno czasu): 30 dni, 365 dni · Kapitał w krypto: Giełdy → BTC +4058 mln US…, Giełdy → ETH +259 mln USD…, Giełdy → L1/L2 +183 mln U…, DeFi → BTC +103 mln USD ›, Giełdy → Memecoiny +94 ml…
 - ✅ Rozwijane bloki (26): Czy bitcoin i ether płyną na giełdy (pomiar), Wieloryby: portfele giełd na Ethereum, Giełdy: salda i przepływy netto, Obrót na giełdach zdecentralizowanych, Kontrakty na łańcuchu, Na które sieci płyną stablecoiny, Emitenci stablecoinów, Rejestry MiCA: kto w Europie ma licencję na k…, Skarbce spółek: krypto w spółkach publicznych…, Tokenizowane aktywa: obligacje, fundusze i zł…, Złoto i surowce a krypto, DeFi: opłaty, stres stablecoinów i włamania, Hyperliquid: największe konta, Aave: pożyczki w DeFi, Kontrakty na Bitcoin i Ether (CME), Dźwignia i pozycje w krypto, Premie cenowe krypto: Korea i USA, Archiwum własne — krypto, Zamknięcia dzienne 10 kryptowalut, Sieć Bitcoin: opłaty, kolejka transakcji i mo…, Ethereum: staking, podaż i sieci warstwy 2, Bitcoin: wycena z łańcucha bloków, Rynki prognoz i uwaga detalu, Rynek krypto: kapitalizacja i udziały, Rynek krypto: kontrakty i DeFi, Widok (przycisk „Widok”)
 
 ### TRENDY
@@ -498,30 +500,26 @@
 - ✅ plik „meta”: plik z datami sprzed 14 dni: bez nowych błędów JavaScriptu i napisów-błędów, zakładki się przełączają; ✅ pasek o nieaktualnych danych serwera
 
 ## Uwagi
-- część automatu „rwa-emitenci” nie działa od 07.11.2026, 09:03 (1 dzień 8 godz., nieudanych przebiegów z rzędu: 81) — automat nie naprawił tego sam; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną (zadanie: „napraw część rwa-emitenci”)
+- część automatu „rwa-emitenci” nie działa od 07.11.2026, 09:03 (1 dzień 12 godz., nieudanych przebiegów z rzędu: 97) — automat nie naprawił tego sam; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną (zadanie: „napraw część rwa-emitenci”)
 - źródła bez odpowiedzi w ostatnim przebiegu: premie_up, rwa-emitenci
-- błąd zbieracza: Tokenizowane aktywa — dane emitentów: xStocks: ValueError: krok przetwarzanie: tokenów z rezerwą bez ceny 82 (np. TNGXx) najwyżej 22,730,714 USD (akcje × 565) +
-- część automatu „iip” nie działa od 08.11.2026, 12:36 (5 godz., nieudanych przebiegów z rzędu: 1) — automat ponawia sam; dane tej części mają swój wiek na stronie
+- błąd zbieracza: Tokenizowane aktywa — dane emitentów: xStocks: ValueError: krok przetwarzanie: górna granica reszty listy poza stroną 0: 9,337,559 USD ponad 0.5% sumy (tn=1515,
+- część automatu „premie_up” nie działa od 08.11.2026, 18:02 (3 godz., nieudanych przebiegów z rzędu: 17) — automat ponawia sam; dane tej części mają swój wiek na stronie
 - premie.json: części bez odpowiedzi: up
 - waluty.json: części bez odpowiedzi: fx
-- Rosja: rezerwy walutowe (miesięcznie): dane z 2025-11 — 342 d 17 h temu (próg 180 d 0 h — najwyżej uwaga; spodziewana zmiana 09.11.2026, 12:42; źródło międzynarodowe publikuje rezerwy Rosji z dużym opóźnieniem (nowy miesiąc zależy od Rosji, nie od zbieracza) — ostatni miesiąc w tabeli międzynarodowej widać w kolumnie daty)
-- metale: raport tygodniowy o zapasach miedzi (Londyn, USA, Chiny): dane z 2026-10-16 — 22 d 17 h temu (próg 14 d 0 h — najwyżej uwaga; spodziewana publikacja 06.11.2026, 19:00 — zaległa (święto albo przerwa u źródła?))
+- Rosja: rezerwy walutowe (miesięcznie): dane z 2025-11 — 342 d 20 h temu (próg 180 d 0 h — najwyżej uwaga; spodziewana zmiana 09.11.2026, 12:42; źródło międzynarodowe publikuje rezerwy Rosji z dużym opóźnieniem (nowy miesiąc zależy od Rosji, nie od zbieracza) — ostatni miesiąc w tabeli międzynarodowej widać w kolumnie daty)
+- metale: raport tygodniowy o zapasach miedzi (Londyn, USA, Chiny): dane z 2026-10-16 — 22 d 20 h temu (próg 14 d 0 h — najwyżej uwaga; spodziewana publikacja 06.11.2026, 19:00 — zaległa (święto albo przerwa u źródła?))
 - DeFi 2 (defi2.json): opłaty: kategorie razem większe niż suma serwisu
 - Premia USDT — Brazylia: ostatni odczyt sprzed 10 dni (próg 8) — giełda albo kurs referencyjny nie odpowiadają
 - Prąd w Polsce 2026-11-08: RCE 181.1 €/MWh a strefa Polska 199.4 €/MWh — różnica 9.2% (próg 5%)
 - stres i niepewność (v368): CISS: daty głównych obszarów rozjeżdżają się o więcej niż 5 dni
 - eksport zbóż USA: 1 nazw krajów bez kodu w sumach (OTHER PACIFIC ISLANDS, NEC) — dopisać do tabeli krajów
-- Tajwan: put/call i pozycje (pobranie): dane z 2026-11-07T13:22:37+00:00 — 27 h 41 min temu (pobranie starsze niż 12 h 00 min (odczyt co 2 h) — dane mogą być nieaktualne; najwyżej uwaga)
-- Interwencje i rezerwy: oczekiwania w Brazylii (rytm publikacji): dane z 2026-10-30 — 8 d 17 h temu (ostatni odczyt 2026-10-30 sprzed 8 d 17 h (próg 8 dób z testu wstecznego rytmu publikacji))
-- iip.json: MFW bilans płatniczy (paczka 1): przebieg zbyt długi, paczka w następnym przebiegu — kraje z poprzedniego pliku
-- Waluty świata — kursy wobec dolara (pobranie): 2026-11-06 16:03 UTC — 2 d 1 h temu (pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga)
-- zgodność kapitalizacji: brak odczytu (HTTP Error 429: Too Many Requests)
-- zgodność cen BTC/ETH: brak odczytu (HTTP Error 429: Too Many Requests)
+- Interwencje i rezerwy: oczekiwania w Brazylii (rytm publikacji): dane z 2026-10-30 — 8 d 20 h temu (ostatni odczyt 2026-10-30 sprzed 8 d 20 h (próg 8 dób z testu wstecznego rytmu publikacji))
+- Waluty świata — kursy wobec dolara (pobranie): 2026-11-06 16:03 UTC — 2 d 4 h temu (pobranie starsze niż zwykle — źródło nie odpowiada albo zbieracz nie odświeżył części; najwyżej uwaga)
 - ARKB (druga kontrola przepływów ETF bitcoina): przepływ na stronie ≠ zmiana liczby BTC w pliku wydawcy w większości z ostatnich 3 sesji (próg max 1 mln USD / 10%) — 2026-11-04: -18.9 mln USD; 2026-11-05: -38.8 mln USD
 - surowce: ropa WTI 2026-10 — średnia miesiąca z dwóch źródeł różni się o +4,47% (próg 4% z testu wstecznego) — sprawdzić
 - Rosja: iloraz importu Rosji z UE do eksportu UE do Rosji 1,09 poza pasmem 1,20–6,00 (2026-07) — najwyżej uwaga
-- tokenizowane aktywa (dane emitentów): ostatni odczyt niepełny — xStocks: ValueError: krok przetwarzanie: tokenów z rezerwą bez ceny 82 (np. TNGXx) najwyżej 22,730,714 USD (akcje × 565) + reszta listy 40,290 — ponad 0.5% sumy (poprzednie odczyty z ich stanem; tylko uwaga)
-- 97 nieudanych przebiegów automatu w 24 h — już naprawione: od ostatniej porażki 27 udanych przebiegów z rzędu (08.11 12:20 (zbuduj / Testy zbieracza), 08.11 12:09 (zbuduj / Testy zbieracza), 08.11 11:59 (zbuduj / Testy zbieracza), 08.11 11:49 (zbuduj / Testy zbieracza), 08.11 11:39 (zbuduj / Testy zbieracza) i 92 wcześniejsze)
-- zbieracz zgłasza błędy w 7 kolejnych dniach kontroli (Tokenizowane aktywa — dane emitentów: xStocks: ValueError: krok przetwarzanie: tokenów z rezerwą bez ceny 82 (np. TNGXx) najwyżej 22,730,714 USD (akcje × 565) +) — strona i publikacja działają; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną
+- tokenizowane aktywa (dane emitentów): ostatni odczyt niepełny — xStocks: ValueError: krok przetwarzanie: górna granica reszty listy poza stroną 0: 9,337,559 USD ponad 0.5% sumy (tn=1515, N=1000, med=9,066, max=72,907,905 SPY (poprzednie odczyty z ich stanem; tylko uwaga)
+- 86 nieudanych przebiegów automatu w 24 h — już naprawione: od ostatniej porażki 43 udane przebiegi z rzędu (08.11 12:20 (zbuduj / Testy zbieracza), 08.11 12:09 (zbuduj / Testy zbieracza), 08.11 11:59 (zbuduj / Testy zbieracza), 08.11 11:49 (zbuduj / Testy zbieracza), 08.11 11:39 (zbuduj / Testy zbieracza) i 81 wcześniejsze)
+- zbieracz zgłasza błędy w 7 kolejnych dniach kontroli (Tokenizowane aktywa — dane emitentów: xStocks: ValueError: krok przetwarzanie: górna granica reszty listy poza stroną 0: 9,337,559 USD ponad 0.5% sumy (tn=1515,) — strona i publikacja działają; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną
 
 Kontrola wykonana przez GitHub Actions (plik `narzedzia/kontrola.py`), bez kluczy, tylko odczyt.
