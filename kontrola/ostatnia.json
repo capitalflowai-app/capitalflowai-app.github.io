@@ -1,58 +1,57 @@
 {
- "at": "2026-11-12T12:34:22+00:00",
+ "at": "2026-11-12T15:25:33+00:00",
  "strona": {
   "http": 200,
   "bajty": 2902366,
-  "ms": 205,
+  "ms": 183,
   "ok": true
  },
  "meta": {
-  "at": "2026-11-12T12:27:21+00:00",
-  "wiek_min": 7,
+  "at": "2026-11-12T15:01:48+00:00",
+  "wiek_min": 23,
   "zrodla": 282,
   "bez_odpowiedzi": [
-   "em2_wb",
    "interw_jp",
-   "niepewnosc_ciss",
-   "premie_fx",
+   "premie_st_br",
+   "premie_st_id",
+   "premie_st_in",
+   "premie_st_mx",
+   "premie_st_tr",
+   "premie_st_za",
    "swiat-dzien",
-   "waluty_fx",
-   "zboza_dzien_nawozy"
+   "waluty_fx"
   ],
   "errors": [
-   "zboża dziennie naw: HTTP Error 500: ",
-   "Premie krypto: EBC: The read operation timed out",
    "Waluty świata: fx: 11 z 200 wierszy kursów odrzuconych jako błędne",
-   "Rynki wschodzące 2: wb: The read operation timed out",
-   "Niepewność CISS: HTTP Error 503: Service Temporarily Unavailable",
+   "premie stable EBC: The read operation timed out",
    "Interwencje i rezerwy Japonia: Japonia: za mało wierszy (0 dni, 0 kwartałów)"
   ],
   "notes": [
-   "Premie krypto: kurs wymiany z poprzedniego odczytu (2026-11-11) — kurs EBC wprost niedostępny",
+   "Tokenizowane aktywa (RWA): dane emitentów: Centrifuge Protocol: stan emitenta 2026-11-04T12:00:00+00:00 starszy niż 192 h — poza sumami",
    "Świat dziennie: Nasdaq niedostępny od 2026-11-10T22:08:05Z (9 prób) — następna próba po 2026-11-12T16:00:45Z"
   ],
   "czas": {
-   "s": 368,
+   "s": 133,
    "top": [
     [
-     "em2",
-     151
-    ],
-    [
-     "niepewnosc",
-     39
-    ],
-    [
-     "zboza-dzien",
-     26
-    ],
-    [
-     "krzywe",
-     25
+     "rwa",
+     29
     ],
     [
      "wieloryby",
-     20
+     21
+    ],
+    [
+     "premie-stable",
+     21
+    ],
+    [
+     "trendy",
+     13
+    ],
+    [
+     "premie",
+     5
     ]
    ]
   },
@@ -69,626 +68,625 @@
  "pliki": {
   "etf": {
    "http": 200,
-   "bajty": 18763,
-   "wiek_min": 49,
+   "bajty": 18764,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "trendy": {
    "http": 200,
-   "bajty": 68165,
-   "wiek_min": 7,
+   "bajty": 68169,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "oecd": {
    "http": 200,
-   "bajty": 20168,
-   "wiek_min": 371,
+   "bajty": 20186,
+   "wiek_min": 178,
    "czesci_bez_odpowiedzi": []
   },
   "rynki": {
    "http": 200,
-   "bajty": 17589,
-   "wiek_min": 49,
+   "bajty": 17609,
+   "wiek_min": 77,
    "czesci_bez_odpowiedzi": []
   },
   "dzwignia": {
    "http": 200,
-   "bajty": 55540,
-   "wiek_min": 7,
+   "bajty": 55616,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "wieloryby": {
    "http": 200,
-   "bajty": 137160,
-   "wiek_min": 7,
+   "bajty": 139762,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "energia": {
    "http": 200,
-   "bajty": 7275,
-   "wiek_min": 7,
+   "bajty": 7274,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "surowce": {
    "http": 200,
-   "bajty": 151253,
-   "wiek_min": 6,
+   "bajty": 151313,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "surowce-hist": {
    "http": 200,
-   "bajty": 355687,
-   "wiek_min": 6,
+   "bajty": 355757,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "usa-makro": {
    "http": 200,
    "bajty": 5205,
-   "wiek_min": 7,
+   "wiek_min": 178,
    "czesci_bez_odpowiedzi": []
   },
   "bilans-usa": {
    "http": 200,
    "bajty": 25928,
-   "wiek_min": 49,
+   "wiek_min": 220,
    "czesci_bez_odpowiedzi": []
   },
   "krypto": {
    "http": 200,
-   "bajty": 39606,
-   "wiek_min": 49,
+   "bajty": 39599,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "krypto-top10": {
    "http": 200,
-   "bajty": 33517,
-   "wiek_min": 16,
+   "bajty": 33573,
+   "wiek_min": 64,
    "czesci_bez_odpowiedzi": []
   },
   "cmc": {
    "http": 200,
-   "bajty": 449,
-   "wiek_min": 7,
+   "bajty": 448,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "instytucje": {
    "http": 200,
    "bajty": 15510,
-   "wiek_min": 49,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "tic": {
    "http": 200,
    "bajty": 28143,
-   "wiek_min": 31,
+   "wiek_min": 203,
    "czesci_bez_odpowiedzi": []
   },
   "cm": {
    "http": 200,
-   "bajty": 79835,
-   "wiek_min": 49,
+   "bajty": 79838,
+   "wiek_min": 77,
    "czesci_bez_odpowiedzi": []
   },
   "fred": {
    "http": 200,
    "bajty": 13357,
-   "wiek_min": 49,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "cftc": {
    "http": 200,
    "bajty": 19397,
-   "wiek_min": 341,
+   "wiek_min": 144,
    "czesci_bez_odpowiedzi": []
   },
   "ceny": {
    "http": 200,
-   "bajty": 105329,
-   "wiek_min": 49,
+   "bajty": 104929,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "indeksy": {
    "http": 200,
-   "bajty": 186575,
-   "wiek_min": 49,
+   "bajty": 186577,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "ceny-krypto": {
    "http": 200,
    "bajty": 196667,
-   "wiek_min": 49,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "snb": {
    "http": 200,
    "bajty": 10150,
-   "wiek_min": 168,
+   "wiek_min": 339,
    "czesci_bez_odpowiedzi": []
   },
   "ici": {
    "http": 200,
    "bajty": 8360,
-   "wiek_min": 549,
+   "wiek_min": 720,
    "czesci_bez_odpowiedzi": []
   },
   "fed": {
    "http": 200,
-   "bajty": 14591,
-   "wiek_min": 7,
+   "bajty": 14587,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "lancuch": {
    "http": 200,
-   "bajty": 9368,
-   "wiek_min": 7,
+   "bajty": 9372,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "wycena": {
    "http": 200,
    "bajty": 25254,
-   "wiek_min": 194,
+   "wiek_min": 365,
    "czesci_bez_odpowiedzi": []
   },
   "insider": {
    "http": 200,
    "bajty": 3873,
-   "wiek_min": 7,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "nastroj": {
    "http": 200,
    "bajty": 1555,
-   "wiek_min": 7,
+   "wiek_min": 178,
    "czesci_bez_odpowiedzi": []
   },
   "stres": {
    "http": 200,
    "bajty": 18599,
-   "wiek_min": 355,
+   "wiek_min": 163,
    "czesci_bez_odpowiedzi": []
   },
   "aukcje": {
    "http": 200,
    "bajty": 11694,
-   "wiek_min": 7,
+   "wiek_min": 178,
    "czesci_bez_odpowiedzi": []
   },
   "swiat-dzien": {
    "http": 200,
    "bajty": 7795482,
-   "wiek_min": 7,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "swiat-dziennik": {
    "http": 200,
    "bajty": 68621,
-   "wiek_min": 1,
+   "wiek_min": 21,
    "czesci_bez_odpowiedzi": []
   },
   "surowce-dziennik": {
    "http": 200,
-   "bajty": 19377,
-   "wiek_min": 1,
+   "bajty": 19460,
+   "wiek_min": 21,
    "czesci_bez_odpowiedzi": []
   },
   "premie": {
    "http": 200,
-   "bajty": 27026,
-   "wiek_min": 7,
-   "czesci_bez_odpowiedzi": [
-    "fx"
-   ]
+   "bajty": 26984,
+   "wiek_min": 23,
+   "czesci_bez_odpowiedzi": []
   },
   "dolar": {
    "http": 200,
-   "bajty": 33118,
-   "wiek_min": 16,
+   "bajty": 33136,
+   "wiek_min": 64,
    "czesci_bez_odpowiedzi": []
   },
   "stopy": {
    "http": 200,
-   "bajty": 3967,
-   "wiek_min": 355,
+   "bajty": 3959,
+   "wiek_min": 163,
    "czesci_bez_odpowiedzi": []
   },
   "jpx": {
    "http": 200,
    "bajty": 28738,
-   "wiek_min": 352,
+   "wiek_min": 523,
    "czesci_bez_odpowiedzi": []
   },
   "rwa": {
    "http": 200,
-   "bajty": 59133,
-   "wiek_min": 44,
+   "bajty": 59684,
+   "wiek_min": 22,
    "czesci_bez_odpowiedzi": []
   },
   "zloto-krypto": {
    "http": 200,
-   "bajty": 27212,
-   "wiek_min": 1,
+   "bajty": 27256,
+   "wiek_min": 21,
    "czesci_bez_odpowiedzi": []
   },
   "szlaki": {
    "http": 200,
    "bajty": 34806,
-   "wiek_min": 31,
+   "wiek_min": 54,
    "czesci_bez_odpowiedzi": []
   },
   "polska": {
    "http": 200,
-   "bajty": 17303,
-   "wiek_min": 46,
+   "bajty": 17321,
+   "wiek_min": 38,
    "czesci_bez_odpowiedzi": []
   },
   "surowce-raporty": {
    "http": 200,
    "bajty": 9169,
-   "wiek_min": 322,
+   "wiek_min": 129,
    "czesci_bez_odpowiedzi": []
   },
   "dzis": {
    "http": 200,
-   "bajty": 852,
-   "wiek_min": 7,
+   "bajty": 857,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "fundusze": {
    "http": 200,
    "bajty": 1024911,
-   "wiek_min": 7,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "obce": {
    "http": 200,
    "bajty": 96518,
-   "wiek_min": 49,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "krypto-top10-logo": {
    "http": 200,
-   "bajty": 278809,
-   "wiek_min": 16,
+   "bajty": 271066,
+   "wiek_min": 0,
    "czesci_bez_odpowiedzi": []
   },
   "eer": {
    "http": 200,
    "bajty": 2164,
-   "wiek_min": 7,
+   "wiek_min": 178,
    "czesci_bez_odpowiedzi": []
   },
   "meksyk": {
    "http": 200,
    "bajty": 18778,
-   "wiek_min": 7,
+   "wiek_min": 178,
    "czesci_bez_odpowiedzi": []
   },
   "kursy": {
    "http": 200,
    "bajty": 7805,
-   "wiek_min": 697,
+   "wiek_min": 130,
    "czesci_bez_odpowiedzi": []
   },
   "bis": {
    "http": 200,
    "bajty": 21792,
-   "wiek_min": 31,
+   "wiek_min": 203,
    "czesci_bez_odpowiedzi": []
   },
   "rezerwy": {
    "http": 200,
    "bajty": 3556,
-   "wiek_min": 31,
+   "wiek_min": 203,
    "czesci_bez_odpowiedzi": []
   },
   "cofer": {
    "http": 200,
    "bajty": 942,
-   "wiek_min": 49,
+   "wiek_min": 220,
    "czesci_bez_odpowiedzi": []
   },
   "bilans": {
    "http": 200,
    "bajty": 56258,
-   "wiek_min": 49,
+   "wiek_min": 220,
    "czesci_bez_odpowiedzi": []
   },
   "safe": {
    "http": 200,
    "bajty": 1938,
-   "wiek_min": 49,
+   "wiek_min": 220,
    "czesci_bez_odpowiedzi": []
   },
   "ue": {
    "http": 200,
    "bajty": 66038,
-   "wiek_min": 49,
+   "wiek_min": 220,
    "czesci_bez_odpowiedzi": []
   },
   "kanada": {
    "http": 200,
    "bajty": 1619,
-   "wiek_min": 49,
+   "wiek_min": 220,
    "czesci_bez_odpowiedzi": []
   },
   "korea": {
    "http": 200,
    "bajty": 1291,
-   "wiek_min": 49,
+   "wiek_min": 220,
    "czesci_bez_odpowiedzi": []
   },
   "spw": {
    "http": 200,
    "bajty": 10938,
-   "wiek_min": 49,
+   "wiek_min": 220,
    "czesci_bez_odpowiedzi": []
   },
   "pip": {
    "http": 200,
    "bajty": 2068,
-   "wiek_min": 49,
+   "wiek_min": 220,
    "czesci_bez_odpowiedzi": []
   },
   "fundusze-przeplywy": {
    "http": 200,
    "bajty": 18356,
-   "wiek_min": 7,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "zboza-dzien": {
    "http": 200,
-   "bajty": 124083,
-   "wiek_min": 1418,
+   "bajty": 124115,
+   "wiek_min": 1589,
    "czesci_bez_odpowiedzi": [
-    "nawozy"
+    "ue"
    ]
   },
   "metale": {
    "http": 200,
    "bajty": 103420,
-   "wiek_min": 292,
+   "wiek_min": 143,
    "czesci_bez_odpowiedzi": []
   },
   "azja2": {
    "http": 200,
-   "bajty": 8169,
-   "wiek_min": 293,
+   "bajty": 8305,
+   "wiek_min": 92,
    "czesci_bez_odpowiedzi": []
   },
   "ng-dziennik": {
    "http": 200,
    "bajty": 40959,
-   "wiek_min": 1,
+   "wiek_min": 0,
    "czesci_bez_odpowiedzi": []
   },
   "ng-ceny": {
    "http": 200,
    "bajty": 145811,
-   "wiek_min": 7,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "fw-dziennik": {
    "http": 200,
-   "bajty": 3224,
-   "wiek_min": 1,
+   "bajty": 3307,
+   "wiek_min": 0,
    "czesci_bez_odpowiedzi": []
   },
   "porty": {
    "http": 200,
    "bajty": 62227,
-   "wiek_min": 2513,
+   "wiek_min": 2684,
    "czesci_bez_odpowiedzi": []
   },
   "lng": {
    "http": 200,
    "bajty": 36906,
-   "wiek_min": 354,
+   "wiek_min": 161,
    "czesci_bez_odpowiedzi": []
   },
   "rosja": {
    "http": 200,
    "bajty": 4471,
-   "wiek_min": 18,
+   "wiek_min": 143,
    "czesci_bez_odpowiedzi": []
   },
   "polska-rynek": {
    "http": 200,
    "bajty": 67231,
-   "wiek_min": 7,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "polska-kapital": {
    "http": 200,
    "bajty": 6263,
-   "wiek_min": 7,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "polska-dlug": {
    "http": 200,
    "bajty": 26038,
-   "wiek_min": 7,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "polska-2": {
    "http": 200,
    "bajty": 42205,
-   "wiek_min": 7,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "bis2": {
    "http": 200,
    "bajty": 7231,
-   "wiek_min": 1004,
+   "wiek_min": 1176,
    "czesci_bez_odpowiedzi": []
   },
   "gieldy": {
    "http": 200,
-   "bajty": 25947,
-   "wiek_min": 16,
+   "bajty": 25946,
+   "wiek_min": 0,
    "czesci_bez_odpowiedzi": []
   },
   "dex": {
    "http": 200,
    "bajty": 4304,
-   "wiek_min": 16,
+   "wiek_min": 0,
    "czesci_bez_odpowiedzi": []
   },
   "target": {
    "http": 200,
    "bajty": 6914,
-   "wiek_min": 19,
+   "wiek_min": 190,
    "czesci_bez_odpowiedzi": []
   },
   "mica": {
    "http": 200,
    "bajty": 1454,
-   "wiek_min": 49,
+   "wiek_min": 220,
    "czesci_bez_odpowiedzi": []
   },
   "etf-zapas": {
    "http": 200,
-   "bajty": 8788,
-   "wiek_min": 341,
+   "bajty": 8781,
+   "wiek_min": 144,
    "czesci_bez_odpowiedzi": []
   },
   "soma-sklad": {
    "http": 200,
    "bajty": 6509,
-   "wiek_min": 73,
+   "wiek_min": 54,
    "czesci_bez_odpowiedzi": []
   },
   "eurosystem": {
    "http": 200,
    "bajty": 14982,
-   "wiek_min": 73,
+   "wiek_min": 54,
    "czesci_bez_odpowiedzi": []
   },
   "hedge": {
    "http": 200,
    "bajty": 1951,
-   "wiek_min": 708,
+   "wiek_min": 144,
    "czesci_bez_odpowiedzi": []
   },
   "krzywe": {
    "http": 200,
    "bajty": 5573,
-   "wiek_min": 7,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "stable-emitenci": {
    "http": 200,
-   "bajty": 7731,
-   "wiek_min": 49,
+   "bajty": 7726,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "inflacja": {
    "http": 200,
    "bajty": 18226,
-   "wiek_min": 1004,
+   "wiek_min": 1176,
    "czesci_bez_odpowiedzi": []
   },
   "koniunktura": {
    "http": 200,
    "bajty": 12750,
-   "wiek_min": 355,
+   "wiek_min": 163,
    "czesci_bez_odpowiedzi": []
   },
   "prad": {
    "http": 200,
-   "bajty": 9656,
+   "bajty": 10884,
    "wiek_min": 0,
    "czesci_bez_odpowiedzi": []
   },
   "niepewnosc": {
    "http": 200,
-   "bajty": 40919,
-   "wiek_min": 7,
-   "czesci_bez_odpowiedzi": [
-    "ciss"
-   ]
+   "bajty": 40857,
+   "wiek_min": 118,
+   "czesci_bez_odpowiedzi": []
   },
   "kalendarz": {
    "http": 200,
    "bajty": 2989,
-   "wiek_min": 7,
+   "wiek_min": 178,
    "czesci_bez_odpowiedzi": []
   },
   "kalendarz2": {
    "http": 200,
    "bajty": 1992,
-   "wiek_min": 7,
+   "wiek_min": 178,
    "czesci_bez_odpowiedzi": []
   },
   "nowcasty": {
    "http": 200,
    "bajty": 2689,
-   "wiek_min": 110,
+   "wiek_min": 105,
    "czesci_bez_odpowiedzi": []
   },
   "usdt-skarbiec": {
    "http": 200,
    "bajty": 4102,
-   "wiek_min": 19,
+   "wiek_min": 13,
    "czesci_bez_odpowiedzi": []
   },
   "europa-fundusze": {
    "http": 200,
    "bajty": 23444,
-   "wiek_min": 49,
+   "wiek_min": 220,
    "czesci_bez_odpowiedzi": []
   },
   "plynnosc-usa": {
    "http": 200,
-   "bajty": 15474,
-   "wiek_min": 7,
+   "bajty": 15451,
+   "wiek_min": 54,
    "czesci_bez_odpowiedzi": []
   },
   "skarb-usa": {
    "http": 200,
    "bajty": 5069,
-   "wiek_min": 110,
+   "wiek_min": 105,
    "czesci_bez_odpowiedzi": []
   },
   "usda-eksport": {
    "http": 200,
    "bajty": 19090,
-   "wiek_min": 110,
+   "wiek_min": 105,
    "czesci_bez_odpowiedzi": []
   },
   "premie-stable": {
    "http": 200,
-   "bajty": 2563,
-   "wiek_min": 7,
-   "czesci_bez_odpowiedzi": []
+   "bajty": 2665,
+   "wiek_min": 1,
+   "czesci_bez_odpowiedzi": [
+    "br",
+    "in"
+   ]
   },
   "energia-usa": {
    "http": 200,
    "bajty": 6207,
-   "wiek_min": 110,
+   "wiek_min": 105,
    "czesci_bez_odpowiedzi": []
   },
   "dzwignia2": {
    "http": 200,
    "bajty": 18011,
-   "wiek_min": 49,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "indie": {
    "http": 200,
-   "bajty": 32452,
-   "wiek_min": 49,
+   "bajty": 32853,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "chiny-tw": {
    "http": 200,
-   "bajty": 8641,
-   "wiek_min": 7,
+   "bajty": 8637,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "interwencje": {
    "http": 200,
    "bajty": 42339,
-   "wiek_min": 49,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": [
     "jp"
    ]
@@ -696,85 +694,85 @@
   "defi2": {
    "http": 200,
    "bajty": 8571,
-   "wiek_min": 86,
+   "wiek_min": 257,
    "czesci_bez_odpowiedzi": []
   },
   "eth-lancuch": {
    "http": 200,
    "bajty": 14091,
-   "wiek_min": 49,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "ucits-przeplywy": {
    "http": 200,
    "bajty": 186314,
-   "wiek_min": 7,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "kanada-dlug": {
    "http": 200,
    "bajty": 29817,
-   "wiek_min": 7,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "fred2": {
    "http": 200,
-   "bajty": 66970,
-   "wiek_min": 110,
+   "bajty": 66972,
+   "wiek_min": 105,
    "czesci_bez_odpowiedzi": []
   },
   "kapitalizacje": {
    "http": 200,
    "bajty": 3793,
-   "wiek_min": 19,
+   "wiek_min": 13,
    "czesci_bez_odpowiedzi": []
   },
   "krypto-firmy": {
    "http": 200,
    "bajty": 22642,
-   "wiek_min": 403,
+   "wiek_min": 574,
    "czesci_bez_odpowiedzi": []
   },
   "fed-ddp": {
    "http": 200,
-   "bajty": 35423,
-   "wiek_min": 7,
+   "bajty": 35431,
+   "wiek_min": 23,
    "czesci_bez_odpowiedzi": []
   },
   "short-eu": {
    "http": 200,
-   "bajty": 130928,
-   "wiek_min": 293,
+   "bajty": 131013,
+   "wiek_min": 92,
    "czesci_bez_odpowiedzi": []
   },
   "ropa-swiat": {
    "http": 200,
    "bajty": 60382,
-   "wiek_min": 403,
+   "wiek_min": 574,
    "czesci_bez_odpowiedzi": []
   },
   "iip": {
    "http": 200,
    "bajty": 114549,
-   "wiek_min": 1111,
+   "wiek_min": 1282,
    "czesci_bez_odpowiedzi": []
   },
   "usa-pakiet": {
    "http": 200,
    "bajty": 15765,
-   "wiek_min": 293,
+   "wiek_min": 92,
    "czesci_bez_odpowiedzi": []
   },
   "surowce-247": {
    "http": 200,
-   "bajty": 2078,
-   "wiek_min": 49,
+   "bajty": 2070,
+   "wiek_min": 40,
    "czesci_bez_odpowiedzi": []
   },
   "waluty": {
    "http": 200,
-   "bajty": 23206,
-   "wiek_min": 7,
+   "bajty": 23283,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": [
     "fx"
    ]
@@ -782,65 +780,61 @@
   "zloto-uk": {
    "http": 200,
    "bajty": 2492,
-   "wiek_min": 403,
+   "wiek_min": 574,
    "czesci_bez_odpowiedzi": []
   },
   "hl-aave": {
    "http": 200,
-   "bajty": 2409,
-   "wiek_min": 73,
+   "bajty": 2412,
+   "wiek_min": 54,
    "czesci_bez_odpowiedzi": []
   },
   "nastroje": {
    "http": 200,
-   "bajty": 12209,
-   "wiek_min": 19,
-   "czesci_bez_odpowiedzi": [
-    "alt"
-   ]
+   "bajty": 12433,
+   "wiek_min": 1,
+   "czesci_bez_odpowiedzi": []
   },
   "sec-13f": {
    "http": 200,
    "bajty": 5538,
-   "wiek_min": 708,
+   "wiek_min": 144,
    "czesci_bez_odpowiedzi": []
   },
   "nastroje-gosp": {
    "http": 200,
    "bajty": 5867,
-   "wiek_min": 293,
+   "wiek_min": 92,
    "czesci_bez_odpowiedzi": []
   },
   "em2": {
    "http": 200,
-   "bajty": 23601,
-   "wiek_min": 7,
-   "czesci_bez_odpowiedzi": [
-    "wb"
-   ]
+   "bajty": 23645,
+   "wiek_min": 92,
+   "czesci_bez_odpowiedzi": []
   },
   "klimat": {
    "http": 200,
-   "bajty": 20182,
-   "wiek_min": 293,
+   "bajty": 20204,
+   "wiek_min": 92,
    "czesci_bez_odpowiedzi": []
   },
   "zmiennosc": {
    "http": 200,
    "bajty": 20243,
-   "wiek_min": 7,
+   "wiek_min": 178,
    "czesci_bez_odpowiedzi": []
   },
   "krypto-dzien": {
    "http": 200,
    "bajty": 959601,
-   "wiek_min": 7,
+   "wiek_min": 1,
    "czesci_bez_odpowiedzi": []
   },
   "krypto-dziennik": {
    "http": 200,
    "bajty": 28451,
-   "wiek_min": 1,
+   "wiek_min": 0,
    "czesci_bez_odpowiedzi": []
   },
   "robots.txt": {
@@ -865,17 +859,17 @@
   }
  },
  "actions": {
-  "przebiegi_24h": 106,
+  "przebiegi_24h": 107,
   "wg_wyniku": {
    "in_progress": 1,
-   "success": 104,
+   "success": 105,
    "failure": 1
   },
-  "ostatni": "2026-11-12T12:34:17Z",
+  "ostatni": "2026-11-12T15:28:16Z",
   "najdluzszy_min": 22.0,
   "ostatnia_porazka": "2026-11-11T20:04:57Z",
   "porazki_z_rzedu": 0,
-  "udane_po_porazce": 71,
+  "udane_po_porazce": 84,
   "porazki": [
    {
     "at": "2026-11-11T20:04:57Z",
@@ -888,595 +882,595 @@
   {
    "zrodlo": "rynki (kursy EBC, rentowności)",
    "status": "✅",
-   "wiek_min": 49,
-   "data": "2026-11-12T11:44:42+00:00",
+   "wiek_min": 77,
+   "data": "2026-11-12T14:08:13+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "wieloryby (salda portfeli giełd)",
    "status": "✅",
-   "wiek_min": 7,
-   "data": "2026-11-12T12:27:21+00:00",
+   "wiek_min": 23,
+   "data": "2026-11-12T15:01:48+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "dźwignia (giełdy pochodnych)",
    "status": "✅",
-   "wiek_min": 49,
-   "data": "2026-11-12T11:44:42+00:00",
+   "wiek_min": 40,
+   "data": "2026-11-12T14:45:09+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "premie krypto (minuty giełd)",
    "status": "✅",
-   "wiek_min": 7,
-   "data": "2026-11-12T12:27",
+   "wiek_min": 24,
+   "data": "2026-11-12T15:01",
    "uwaga": ""
   },
   {
    "zrodlo": "TGA (Fiscal Data, dziennie)",
    "status": "⚠️",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": "próg 2 d 0 h (godziny robocze)"
   },
   {
    "zrodlo": "ETF krypto (SoSoValue, dziennie)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "FRED dzienne (RRPONTSYD)",
    "status": "⚠️",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": "próg 36 h 00 min (godziny robocze)"
   },
   {
    "zrodlo": "EIA ceny dzienne (publikowane co tydzień)",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "CFTC (raport tygodniowy)",
    "status": "✅",
-   "wiek_min": 12274,
+   "wiek_min": 12445,
    "data": "2026-11-03",
    "uwaga": ""
   },
   {
    "zrodlo": "FRED tygodniowe (WALCL)",
    "status": "✅",
-   "wiek_min": 10834,
+   "wiek_min": 11005,
    "data": "2026-11-04",
    "uwaga": ""
   },
   {
    "zrodlo": "TIC (miesięcznie)",
    "status": "✅",
-   "wiek_min": 104434,
+   "wiek_min": 104605,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "OECD (miesięcznie)",
    "status": "✅",
-   "wiek_min": 16594,
+   "wiek_min": 16765,
    "data": "2026-10",
    "uwaga": ""
   },
   {
    "zrodlo": "BLS (miesięcznie)",
    "status": "✅",
-   "wiek_min": 16594,
+   "wiek_min": 16765,
    "data": "2026-10",
    "uwaga": ""
   },
   {
    "zrodlo": "szanse decyzji Fed (rynek zakładów)",
    "status": "✅",
-   "wiek_min": 5,
-   "data": "2026-11-12T12:29:06+00:00",
+   "wiek_min": 22,
+   "data": "2026-11-12T15:02:38+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "wycena BTC — MVRV, średnia cena zakupu (dziennie)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "SOPR BTC (źródło opóźnia 7 dni)",
    "status": "✅",
-   "wiek_min": 9394,
+   "wiek_min": 9565,
    "data": "2026-11-05",
    "uwaga": ""
   },
   {
    "zrodlo": "kursy dolara Ameryki Łacińskiej (co godzinę)",
    "status": "✅",
-   "wiek_min": 16,
-   "data": "2026-11-12T12:18:05+00:00",
+   "wiek_min": 64,
+   "data": "2026-11-12T14:21:12+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Fundusze USA: napływy (tydzień do środy, publ. w środę)",
    "status": "✅",
-   "wiek_min": 10834,
+   "wiek_min": 11005,
    "data": "2026-11-04",
    "uwaga": ""
   },
   {
    "zrodlo": "Fundusze USA: rynek pieniężny (tydzień do środy, publ. w czwartek)",
    "status": "✅",
-   "wiek_min": 10834,
+   "wiek_min": 11005,
    "data": "2026-11-04",
    "uwaga": ""
   },
   {
    "zrodlo": "surowce: ropa i gaz dziennie (strona dzienna T+1, API co tydzień)",
-   "status": "ℹ️",
-   "wiek_min": 3634,
-   "data": "2026-11-09",
-   "uwaga": "zgodnie z kalendarzem publikacji (święto w USA): spodziewany najnowszy dzień 2026-11-09; próg 36 h 00 min (godziny robocze) przekroczony z powodu przerwy"
+   "status": "✅",
+   "wiek_min": 925,
+   "data": "2026-11-11",
+   "uwaga": ""
   },
   {
    "zrodlo": "surowce: złoto dziennie (LBMA PM wyliczona)",
-   "status": "⚠️",
-   "wiek_min": 2194,
-   "data": "2026-11-10",
-   "uwaga": "próg 36 h 00 min (godziny robocze) — najwyżej uwaga"
+   "status": "✅",
+   "wiek_min": 925,
+   "data": "2026-11-11",
+   "uwaga": ""
   },
   {
    "zrodlo": "surowce: złoto teraz (notowanie co godzinę)",
    "status": "✅",
-   "wiek_min": 7,
-   "data": "2026-11-12T12:27:00+00:00",
+   "wiek_min": 54,
+   "data": "2026-11-12T14:31:00+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "surowce: zapasy w USA (tydzień do piątku, publ. w środę)",
    "status": "✅",
-   "wiek_min": 18034,
+   "wiek_min": 18205,
    "data": "2026-10-30",
    "uwaga": ""
   },
   {
    "zrodlo": "surowce: ceny miesięczne (publ. ok. 2. dnia roboczego)",
    "status": "✅",
-   "wiek_min": 16594,
+   "wiek_min": 16765,
    "data": "2026-10",
    "uwaga": ""
   },
   {
    "zrodlo": "surowce: pozycje funduszy (stan na wtorek, publ. w piątek)",
    "status": "✅",
-   "wiek_min": 12274,
+   "wiek_min": 12445,
    "data": "2026-11-03",
    "uwaga": ""
   },
   {
    "zrodlo": "surowce: pozycje funduszy — USA, 30 rynków + fundusze indeksowe + indeks (stan na wtorek, publ. w piątek)",
    "status": "✅",
-   "wiek_min": 12274,
+   "wiek_min": 12445,
    "data": "2026-11-03",
    "uwaga": ""
   },
   {
    "zrodlo": "surowce: pozycje funduszy — Londyn (stan na wtorek, publ. w piątek)",
    "status": "✅",
-   "wiek_min": 12274,
+   "wiek_min": 12445,
    "data": "2026-11-03",
    "uwaga": ""
   },
   {
    "zrodlo": "surowce: pozycje producentów — ropa Murban, Abu Zabi (stan na wtorek, publ. w piątek)",
    "status": "⚠️",
-   "wiek_min": 22354,
+   "wiek_min": 22525,
    "data": "2026-10-27",
    "uwaga": "próg 14 d 0 h — najwyżej uwaga"
   },
   {
    "zrodlo": "surowce: złoto w funduszach (tony; po sesji w USA)",
-   "status": "⚠️",
-   "wiek_min": 2194,
-   "data": "2026-11-10",
-   "uwaga": "próg 36 h 00 min (godziny robocze) — najwyżej uwaga; spodziewana publikacja 13.11.2026, 02:00"
+   "status": "✅",
+   "wiek_min": 925,
+   "data": "2026-11-11",
+   "uwaga": ""
   },
   {
    "zrodlo": "surowce: złoto banków centralnych (miesięcznie; każdy kraj ze swoim miesiącem)",
    "status": "ℹ️",
-   "wiek_min": 16594,
+   "wiek_min": 16765,
    "data": "2026-10",
    "uwaga": "bez progu (MFW publikuje kraje w różnych dniach); dane starsze niż 120 dni: KG 2026-06"
   },
   {
    "zrodlo": "szlaki: ruch statków w 8 cieśninach (dziennie, publ. we wtorek)",
    "status": "✅",
-   "wiek_min": 5074,
+   "wiek_min": 5245,
    "data": "2026-11-08",
    "uwaga": ""
   },
   {
    "zrodlo": "szlaki: wskaźnik presji w łańcuchach dostaw (miesięcznie, publ. ok. 4. dnia roboczego)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "szlaki: indeks cen surowców (tydzień do środy, publ. ok. tydzień później)",
    "status": "✅",
-   "wiek_min": 10834,
+   "wiek_min": 11005,
    "data": "2026-11-04",
    "uwaga": ""
   },
   {
    "zrodlo": "porty: świat wg ładunku (dziennie, publ. raz w tygodniu)",
    "status": "✅",
-   "wiek_min": 7954,
+   "wiek_min": 8125,
    "data": "2026-11-06",
    "uwaga": ""
   },
   {
    "zrodlo": "porty: 20 dużych portów (dziennie, publ. raz w tygodniu)",
    "status": "✅",
-   "wiek_min": 7954,
+   "wiek_min": 8125,
    "data": "2026-11-06",
    "uwaga": ""
   },
   {
    "zrodlo": "gaz i LNG: Świnoujście, dobowa wysyłka z terminalu (doba gazowa)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "gaz i LNG: terminale UE razem, dobowa wysyłka (doba kompletna)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "gaz i LNG: import LNG do UE27 wg pochodzenia (miesięcznie)",
    "status": "✅",
-   "wiek_min": 104434,
+   "wiek_min": 104605,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "gaz i LNG: import LNG do Polski (miesięcznie)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "gaz i LNG: zapasy gazu w magazynach UE27 (miesięcznie)",
    "status": "✅",
-   "wiek_min": 104434,
+   "wiek_min": 104605,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "gaz i LNG: zapasy gazu w magazynach Polski (miesięcznie)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "zmienność: VIX (S&P 500, 30 dni; dni robocze USA)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "zmienność: VIX 3M (S&P 500, 3 miesiące; dni robocze USA)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "zmienność: Nasdaq 100 (dni robocze USA)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "zmienność: rynki wschodzące (dni robocze USA)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "zmienność: ropa (dni robocze USA)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "zmienność: złoto (dni robocze USA)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "put/call: wskaźniki dzienne giełdy opcji USA (sesje USA)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "indeks stresu finansowego USA (dni robocze, opóźnienie 2 dni)",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Rosja: handel UE z Rosją (miesięcznie)",
    "status": "✅",
-   "wiek_min": 104434,
+   "wiek_min": 104605,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "Rosja: należności banków świata (kwartalnie)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-Q2",
    "uwaga": ""
   },
   {
    "zrodlo": "Rosja: handel Rosji wg partnerów (miesięcznie)",
    "status": "✅",
-   "wiek_min": 149074,
+   "wiek_min": 149245,
    "data": "2026-07",
    "uwaga": ""
   },
   {
    "zrodlo": "Rosja: rezerwy walutowe (miesięcznie)",
    "status": "⚠️",
-   "wiek_min": 498994,
+   "wiek_min": 499165,
    "data": "2025-11",
    "uwaga": "próg 180 d 0 h — najwyżej uwaga; spodziewana zmiana 13.11.2026, 13:15; źródło międzynarodowe publikuje rezerwy Rosji z dużym opóźnieniem (nowy miesiąc zależy od Rosji, nie od zbieracza) — ostatni miesiąc w tabeli międzynarodowej widać w kolumnie daty"
   },
   {
    "zrodlo": "Rosja: złoto banku centralnego w tonach (miesięcznie)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska: indeksy giełdy w Warszawie (dziennie)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska: krzywa rentowności obligacji skarbowych (dziennie)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska: przepływy do funduszy inwestycyjnych (miesięcznie)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09-30",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska: członkowie giełdy w obrotach akcjami (miesięcznie)",
    "status": "✅",
-   "wiek_min": 16594,
+   "wiek_min": 16765,
    "data": "2026-10-31",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska: inwestycje bezpośrednie według kraju (kwartalnie)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-06-30",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska: wypłaty z budżetu UE 2021–2027 (dziennie w dni robocze)",
    "status": "✅",
-   "wiek_min": 1435,
+   "wiek_min": 1606,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska: kto trzyma dług skarbowy (struktura posiadaczy, miesięcznie)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska: sprzedaż obligacji detalicznych (miesięcznie)",
    "status": "✅",
-   "wiek_min": 16594,
+   "wiek_min": 16765,
    "data": "2026-10",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska 2: dług zagraniczny i pozycja inwestycyjna (kwartalnie)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-Q2",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska 2: oficjalne rezerwy i złoto (miesięcznie)",
    "status": "✅",
-   "wiek_min": 16594,
+   "wiek_min": 16765,
    "data": "2026-10",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska 2: indeks cen konsumpcyjnych od 1999 (miesięcznie)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska 2: depozyty i kredyty banków (miesięcznie)",
    "status": "✅",
-   "wiek_min": 104434,
+   "wiek_min": 104605,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska 2: WIBID i WIBOR (dziennie)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska 2: WIRON i POLSTR (dziennie)",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska 2: ceny mieszkań (kwartalnie)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-Q2",
    "uwaga": ""
   },
   {
    "zrodlo": "Giełdy: salda i przepływy netto giełd scentralizowanych (szacunek z portfeli)",
    "status": "✅",
-   "wiek_min": 48,
-   "data": "2026-11-12T11:45:45+00:00",
+   "wiek_min": 17,
+   "data": "2026-11-12T15:08:22+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "DEX: obrót ostatniej pełnej doby UTC",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Kontrakty na łańcuchu: otwarte pozycje",
    "status": "✅",
-   "wiek_min": 18,
-   "data": "2026-11-12T12:15:54+00:00",
+   "wiek_min": 0,
+   "data": "2026-11-12T15:24:59+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "surowce: podaż ropy OPEC+ (raport miesięczny — szacunek i prognoza)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "surowce: bilans zbóż świata i USA (raport miesięczny)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "surowce: uran — średnia branżowa z końca miesiąca",
    "status": "✅",
-   "wiek_min": 18034,
+   "wiek_min": 18205,
    "data": "2026-10-30",
    "uwaga": ""
   },
   {
    "zrodlo": "zboża: indeks dzienny (dni robocze, dane z poprzedniego dnia roboczego)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "zboża: indeks frachtu (tygodniowo, środa, dane za wtorek)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "żywność: podindeksy cen FAO (miesięcznie, publ. ok. 1. piątku)",
    "status": "✅",
-   "wiek_min": 16594,
+   "wiek_min": 16765,
    "data": "2026-10",
    "uwaga": ""
   },
   {
    "zrodlo": "zboża i rzepak w UE: ceny tygodniowe (czwartek, tydzień do niedzieli)",
    "status": "✅",
-   "wiek_min": 15154,
+   "wiek_min": 15325,
    "data": "2026-11-01",
    "uwaga": ""
   },
   {
    "zrodlo": "nawozy w UE (miesięcznie, publ. ok. 10. dnia)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Meksyk: obligacje rządu u nierezydentów (dziennie, opóźnienie ok. 1,5 tygodnia)",
    "status": "✅",
-   "wiek_min": 18034,
+   "wiek_min": 18205,
    "data": "2026-10-30",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska: nierezydenci w obligacjach skarbowych (miesięcznie)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Korea Płd.: inwestorzy zagraniczni w akcjach i obligacjach (komunikat miesięczny)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "MFW PIP — Polska jako emitent (półrocze)",
    "status": "✅",
-   "wiek_min": 454354,
+   "wiek_min": 454525,
    "data": "2025-S2",
    "uwaga": ""
   },
   {
    "zrodlo": "MFW PIP — 20 największych par (półrocze)",
    "status": "✅",
-   "wiek_min": 454354,
+   "wiek_min": 454525,
    "data": "2025-S2",
    "uwaga": ""
   },
@@ -1497,70 +1491,70 @@
   {
    "zrodlo": "Dźwignia — krzywa terminowa Deribit (BTC, ETH)",
    "status": "✅",
-   "wiek_min": 46,
-   "data": "2026-11-12T11:48:19+00:00",
+   "wiek_min": 37,
+   "data": "2026-11-12T14:47:34+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Dźwignia — Coinbase USA (kontrakty BTC, ETH)",
    "status": "✅",
-   "wiek_min": 46,
-   "data": "2026-11-12T11:48:21+00:00",
+   "wiek_min": 37,
+   "data": "2026-11-12T14:47:39+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Dźwignia — basis Deribit vs OKX (ten sam termin)",
    "status": "✅",
    "wiek_min": null,
-   "data": "BTC: 5 terminów, największa różnica 0.06 pp (tolerancja 1.16); ETH: 5 terminów, największa różnica 0.12 pp (tolerancja 1.16)",
+   "data": "BTC: 5 terminów, największa różnica 0.06 pp (tolerancja 1.16); ETH: 5 terminów, największa różnica 0.08 pp (tolerancja 1.16)",
    "uwaga": ""
   },
   {
    "zrodlo": "Dźwignia — Bitget (BTC, ETH)",
    "status": "✅",
-   "wiek_min": 45,
-   "data": "2026-11-12T11:48:24+00:00",
+   "wiek_min": 37,
+   "data": "2026-11-12T14:47:42+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Dźwignia — Gate (BTC, ETH, likwidacje)",
    "status": "✅",
-   "wiek_min": 49,
-   "data": "2026-11-12T11:44:42+00:00",
+   "wiek_min": 40,
+   "data": "2026-11-12T14:45:09+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Dźwignia — KuCoin (BTC, ETH)",
    "status": "✅",
-   "wiek_min": 49,
-   "data": "2026-11-12T11:44:42+00:00",
+   "wiek_min": 40,
+   "data": "2026-11-12T14:45:09+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Dźwignia — MEXC (BTC, ETH)",
    "status": "✅",
-   "wiek_min": 45,
-   "data": "2026-11-12T11:48:23+00:00",
+   "wiek_min": 37,
+   "data": "2026-11-12T14:47:42+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Dźwignia — HTX (BTC, ETH)",
    "status": "✅",
-   "wiek_min": 45,
-   "data": "2026-11-12T11:48:29+00:00",
+   "wiek_min": 37,
+   "data": "2026-11-12T14:47:47+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Dźwignia — suma otwartych pozycji, wobec poprzedniego zestawu giełd (informacja)",
    "status": "✅",
    "wiek_min": null,
-   "data": "BTC: 11 giełd 18.11 mld USD (2026-11-12), poprzednio 5 giełd 5.91 mld USD (2026-10-12); ETH: 11 giełd 7.85 mld USD (2026-11-12), poprzednio 5 giełd 4.22 mld USD (2026-10-12)",
+   "data": "BTC: 11 giełd 17.96 mld USD (2026-11-12), poprzednio 5 giełd 5.91 mld USD (2026-10-12); ETH: 11 giełd 7.85 mld USD (2026-11-12), poprzednio 5 giełd 4.22 mld USD (2026-10-12)",
    "uwaga": ""
   },
   {
    "zrodlo": "metale: giełda w Londynie — ceny i zapasy (dziennie, publ. wieczorem UTC)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
@@ -1581,14 +1575,14 @@
   {
    "zrodlo": "metale: giełda w Szanghaju — zapasy w magazynach (tygodniowo)",
    "status": "✅",
-   "wiek_min": 7954,
+   "wiek_min": 8125,
    "data": "2026-11-06",
    "uwaga": ""
   },
   {
    "zrodlo": "metale: raport tygodniowy o zapasach miedzi (Londyn, USA, Chiny)",
    "status": "⚠️",
-   "wiek_min": 38194,
+   "wiek_min": 38365,
    "data": "2026-10-16",
    "uwaga": "próg 14 d 0 h — najwyżej uwaga; spodziewana publikacja 06.11.2026, 19:00 — zaległa (święto albo przerwa u źródła?)"
   },
@@ -1596,7 +1590,7 @@
    "zrodlo": "Fundusze ETF (USA) — fundusze z ostatnią sesją (State Street, iShares)",
    "status": "✅",
    "wiek_min": null,
-   "data": "94 z 94 (100%) — oczekiwana sesja: iShares 2026-11-10, State Street 2026-11-11",
+   "data": "94 z 94 (100%) — oczekiwana sesja: iShares 2026-11-11, State Street 2026-11-11",
    "uwaga": ""
   },
   {
@@ -1616,7 +1610,7 @@
   {
    "zrodlo": "Polska: ceny hurtowe paliw (dni obowiązywania wt–sob)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
@@ -1630,287 +1624,287 @@
   {
    "zrodlo": "Polska: ceny na stacjach na tle UE (poniedziałki, pobierane w nocy)",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Polska: pszenica (tydzień do niedzieli, publ. w czwartek)",
    "status": "✅",
-   "wiek_min": 15154,
+   "wiek_min": 15325,
    "data": "2026-11-01",
    "uwaga": ""
   },
   {
    "zrodlo": "Japonia: kto handluje akcjami na giełdzie (tydzień)",
    "status": "✅",
-   "wiek_min": 7954,
+   "wiek_min": 8125,
    "data": "2026-11-06",
    "uwaga": ""
   },
   {
    "zrodlo": "TRENDY krypto — ostatni dzień z wynikiem sygnałów",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "TRENDY świat — ostatnia sesja z wynikiem sygnałów",
    "status": "⚠️",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": "próg 2 d 0 h — wyniki sygnałów przestały dochodzić (tylko uwaga)"
   },
   {
    "zrodlo": "TRENDY surowce — ostatni dzień z wynikiem reguł w cieniu",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "TRENDY surowce — ceny 7 funduszy surowcowych (sesja w USA; reguły w cieniu)",
    "status": "⚠️",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": "próg 2 d 12 h (godziny robocze) — dane przestały dochodzić: CMDY, COMT, CPER, DBA, DBC, GSG, USO (tylko uwaga)"
   },
   {
    "zrodlo": "TRENDY surowce — NAV i jednostki 3 funduszy surowcowych (reguły w cieniu)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "TRENDY nowe grupy — ostatni dzień z wynikiem reguł w cieniu",
    "status": "⚠️",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": "próg 2 d 12 h (godziny robocze) — wyniki reguł w cieniu przestały dochodzić (tylko uwaga)"
   },
   {
    "zrodlo": "TRENDY nowe grupy — fundusze: ostatni dzień z wynikiem reguł w cieniu",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "TRENDY nowe grupy — rynek polski: ostatni dzień z wynikiem reguł w cieniu",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "TRENDY nowe grupy — metale: ostatni dzień z wynikiem reguł w cieniu",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "TRENDY nowe grupy — zboża: ostatni dzień z wynikiem reguł w cieniu",
    "status": "✅",
-   "wiek_min": 5074,
+   "wiek_min": 5245,
    "data": "2026-11-06",
    "uwaga": ""
   },
   {
    "zrodlo": "TRENDY nowe grupy — ceny 14 funduszy wyników (sesja w USA; reguły w cieniu)",
    "status": "⚠️",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": "próg 2 d 12 h (godziny robocze) — dane przestały dochodzić: ECH, EIDO, EPHE, EPOL, EWM, EWS, EWW, KWT, QAT, THD, UAE, XLB, XLC, XLRE (tylko uwaga)"
   },
   {
    "zrodlo": "TRENDY najnowsze źródła — ostatni dzień z wynikiem reguł w cieniu",
    "status": "⚠️",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": "próg 2 d 12 h (godziny robocze) — wyniki reguł w cieniu przestały dochodzić (tylko uwaga)"
   },
   {
    "zrodlo": "tokenizowane aktywa RWA (co 3 h)",
    "status": "✅",
-   "wiek_min": 44,
-   "data": "2026-11-12T11:50:11+00:00",
+   "wiek_min": 22,
+   "data": "2026-11-12T15:03:07+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "tokenizowane aktywa — odczyt własny z łańcucha (co 3 h)",
    "status": "✅",
-   "wiek_min": 44,
-   "data": "2026-11-12T11:50:11+00:00",
+   "wiek_min": 22,
+   "data": "2026-11-12T15:03:07+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "tokenizowane aktywa — dane emitentów (co 3 h)",
    "status": "✅",
-   "wiek_min": 44,
-   "data": "2026-11-12T11:50:11+00:00",
+   "wiek_min": 22,
+   "data": "2026-11-12T15:03:07+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "TARGET: salda krajów strefy euro (EBC, miesięcznie)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Rejestry MiCA: wykaz firm z licencją CASP (plik zmieniany nieregularnie)",
    "status": "✅",
-   "wiek_min": 1358,
+   "wiek_min": 1529,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Rejestry MiCA: wykaz emitentów tokenów powiązanych z walutą (EMT)",
    "status": "✅",
-   "wiek_min": 1358,
+   "wiek_min": 1529,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Portfel papierów Fed: skład (tygodniowo, stan na środę)",
    "status": "✅",
-   "wiek_min": 10834,
+   "wiek_min": 11005,
    "data": "2026-11-04",
    "uwaga": ""
   },
   {
    "zrodlo": "Bilans Eurosystemu: główne pozycje (tygodniowo, stan na piątek)",
    "status": "✅",
-   "wiek_min": 7954,
+   "wiek_min": 8125,
    "data": "2026-11-06",
    "uwaga": ""
   },
   {
    "zrodlo": "Fundusze hedgingowe w USA: aktywa (kwartalnie)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-06-30",
    "uwaga": ""
   },
   {
    "zrodlo": "Stablecoiny — raport Tether (zobowiązania, sieci)",
    "status": "✅",
-   "wiek_min": 784,
+   "wiek_min": 955,
    "data": "2026-11-11 23:30 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Stablecoiny — raport Circle (USDC, EURC)",
    "status": "✅",
-   "wiek_min": 46,
-   "data": "2026-11-12 11:48 UTC",
+   "wiek_min": 38,
+   "data": "2026-11-12 14:47 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "USDT skarbiec — odczyt sieci Ethereum",
    "status": "✅",
-   "wiek_min": 19,
-   "data": "2026-11-12 12:15 UTC",
+   "wiek_min": 13,
+   "data": "2026-11-12 15:12 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "USDT skarbiec — odczyt sieci Tron",
    "status": "✅",
-   "wiek_min": 49,
-   "data": "2026-11-12 11:44 UTC",
+   "wiek_min": 40,
+   "data": "2026-11-12 14:45 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Dźwignia 2 — odczyt statystyk dziennych giełdy OKX",
    "status": "✅",
-   "wiek_min": 49,
-   "data": "2026-11-12 11:44 UTC",
+   "wiek_min": 40,
+   "data": "2026-11-12 14:45 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Dźwignia 2 — odczyt stanów Bitfinex",
    "status": "✅",
-   "wiek_min": 49,
-   "data": "2026-11-12 11:44 UTC",
+   "wiek_min": 40,
+   "data": "2026-11-12 14:45 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Ethereum — odczyt kolejek stakingu",
    "status": "✅",
-   "wiek_min": 246,
-   "data": "2026-11-12 08:28 UTC",
+   "wiek_min": 40,
+   "data": "2026-11-12 14:45 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Ethereum — odczyt spalania i podaży",
    "status": "✅",
-   "wiek_min": 49,
-   "data": "2026-11-12 11:44 UTC",
+   "wiek_min": 40,
+   "data": "2026-11-12 14:45 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Sieci L2 — odczyt aktywności",
    "status": "✅",
-   "wiek_min": 122,
-   "data": "2026-11-12 10:32 UTC",
+   "wiek_min": 105,
+   "data": "2026-11-12 13:40 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Sieci L2 — odczyt drugiego źródła TVL",
    "status": "✅",
-   "wiek_min": 122,
-   "data": "2026-11-12 10:32 UTC",
+   "wiek_min": 105,
+   "data": "2026-11-12 13:40 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Fundusze ETF — odczyt kursów walut",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 105,
+   "data": "2026-11-12 13:40 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Fundusze ETF — odczyt zestawienia funduszy",
    "status": "✅",
-   "wiek_min": 31,
-   "data": "2026-11-12 12:02 UTC",
+   "wiek_min": 77,
+   "data": "2026-11-12 14:08 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Fundusze ETF — pliki historii funduszy",
    "status": "✅",
-   "wiek_min": 9655,
-   "data": "najstarszy plik sprzed 6 d 16 h",
+   "wiek_min": 9826,
+   "data": "najstarszy plik sprzed 6 d 19 h",
    "uwaga": ""
   },
   {
    "zrodlo": "Hyperliquid — ranking kont (pobranie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Hyperliquid — ranking kont (plik wydawcy)",
    "status": "✅",
-   "wiek_min": 723,
-   "data": "2026-11-12 00:30 UTC",
+   "wiek_min": 160,
+   "data": "2026-11-12 12:45 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Pożyczki DeFi (Aave) (pobranie)",
    "status": "✅",
-   "wiek_min": 73,
-   "data": "2026-11-12 11:21 UTC",
+   "wiek_min": 54,
+   "data": "2026-11-12 14:31 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "DeFi 2 — opłaty i przychody protokołów (doba danych)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
@@ -1924,43 +1918,43 @@
   {
    "zrodlo": "DeFi 2 — lista włamań (pobranie)",
    "status": "✅",
-   "wiek_min": 624,
+   "wiek_min": 795,
    "data": "2026-11-12 02:09 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "DeFi 2 — opcje na zdecentralizowanych giełdach (doba danych)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Indie — odczyt wyceny indeksów",
    "status": "✅",
-   "wiek_min": 49,
-   "data": "sesja 2026-11-11 · sprawdzone 2026-11-12 11:44 UTC",
+   "wiek_min": 40,
+   "data": "sesja 2026-11-12 · sprawdzone 2026-11-12 14:45 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Indie — odczyt pozycji w kontraktach",
    "status": "✅",
-   "wiek_min": 49,
-   "data": "sesja 2026-11-11 · sprawdzone 2026-11-12 11:44 UTC",
+   "wiek_min": 40,
+   "data": "sesja 2026-11-12 · sprawdzone 2026-11-12 14:45 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Indie — odczyt dostaw akcji",
    "status": "✅",
-   "wiek_min": 49,
-   "data": "sesja 2026-11-12 · sprawdzone 2026-11-12 11:44 UTC",
+   "wiek_min": 40,
+   "data": "sesja 2026-11-12 · sprawdzone 2026-11-12 14:45 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Premia USDT — Turcja",
    "status": "✅",
-   "wiek_min": 1440,
-   "data": "2026-11-11",
+   "wiek_min": 0,
+   "data": "2026-11-12",
    "uwaga": ""
   },
   {
@@ -1973,15 +1967,15 @@
   {
    "zrodlo": "Premia USDT — RPA",
    "status": "✅",
-   "wiek_min": 1440,
-   "data": "2026-11-11",
+   "wiek_min": 0,
+   "data": "2026-11-12",
    "uwaga": ""
   },
   {
    "zrodlo": "Premia USDT — Indonezja",
    "status": "✅",
-   "wiek_min": 1440,
-   "data": "2026-11-11",
+   "wiek_min": 0,
+   "data": "2026-11-12",
    "uwaga": ""
   },
   {
@@ -1994,14 +1988,14 @@
   {
    "zrodlo": "Premia USDT — Meksyk",
    "status": "✅",
-   "wiek_min": 1440,
-   "data": "2026-11-11",
+   "wiek_min": 0,
+   "data": "2026-11-12",
    "uwaga": ""
   },
   {
    "zrodlo": "Krzywa rentowności USA (dni robocze)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
@@ -2015,84 +2009,84 @@
   {
    "zrodlo": "Krzywa rentowności Japonii (dni robocze)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Krzywa rentowności strefy euro (dni robocze)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Krzywa rentowności Kanady (dni robocze)",
    "status": "✅",
-   "wiek_min": 3634,
-   "data": "2026-11-09",
+   "wiek_min": 2365,
+   "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "BIS: luka kredytowa (kwartalnie)",
    "status": "✅",
-   "wiek_min": 324754,
+   "wiek_min": 324925,
    "data": "2026-Q1",
    "uwaga": ""
   },
   {
    "zrodlo": "BIS: obsługa długu (kwartalnie)",
    "status": "✅",
-   "wiek_min": 324754,
+   "wiek_min": 324925,
    "data": "2026-Q1",
    "uwaga": ""
   },
   {
    "zrodlo": "BIS: ceny mieszkań (kwartalnie)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-Q2",
    "uwaga": ""
   },
   {
    "zrodlo": "BIS: należności banków wobec rynków wschodzących (kwartalnie)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-Q2",
    "uwaga": ""
   },
   {
    "zrodlo": "BIS: emisje obligacji międzynarodowych (kwartalnie)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-Q2",
    "uwaga": ""
   },
   {
    "zrodlo": "BIS: płynność globalna (kwartalnie)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-Q2",
    "uwaga": ""
   },
   {
    "zrodlo": "BIS: aktywa banków centralnych (miesięcznie)",
    "status": "✅",
-   "wiek_min": 149074,
+   "wiek_min": 149245,
    "data": "2026-07",
    "uwaga": ""
   },
   {
    "zrodlo": "Inflacja r/r (miesięcznie, najnowszy miesiąc)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Koniunktura: zaufanie konsumentów i firm (miesięcznie)",
    "status": "✅",
-   "wiek_min": 16594,
+   "wiek_min": 16765,
    "data": "2026-10",
    "uwaga": ""
   },
@@ -2100,377 +2094,377 @@
    "zrodlo": "Prąd w Polsce: cena w kwadransach, dziś i jutro (dziennie)",
    "status": "✅",
    "wiek_min": 0,
-   "data": "2026-11-12",
+   "data": "2026-11-13",
    "uwaga": ""
   },
   {
    "zrodlo": "Prąd i CO2: cena uprawnień do emisji (dziennie, także w weekend)",
-   "status": "✅",
-   "wiek_min": 754,
-   "data": "2026-11-11",
-   "uwaga": ""
-  },
-  {
-   "zrodlo": "Prąd w Europie: ceny w 15 strefach (dziś i jutro)",
    "status": "✅",
    "wiek_min": 0,
    "data": "2026-11-12",
    "uwaga": ""
   },
   {
+   "zrodlo": "Prąd w Europie: ceny w 15 strefach (dziś i jutro)",
+   "status": "✅",
+   "wiek_min": 0,
+   "data": "2026-11-13",
+   "uwaga": ""
+  },
+  {
    "zrodlo": "Prąd w Europie: miks produkcji Niemiec, Polski i Francji (co 2 h na kraj)",
    "status": "✅",
-   "wiek_min": 289,
+   "wiek_min": 460,
    "data": "2026-11-12T07:45:00+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Prąd w Polsce: przepływy z sąsiadami (co godzinę)",
    "status": "✅",
-   "wiek_min": 169,
+   "wiek_min": 340,
    "data": "2026-11-12T09:45:00+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Prąd w Wielkiej Brytanii: miks i emisyjność (co 30 min)",
    "status": "✅",
-   "wiek_min": 15,
-   "data": "2026-11-12T12:19:10+00:00",
+   "wiek_min": 0,
+   "data": "2026-11-12T15:27:31+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Stres i niepewność: stres systemowy CISS (strefa euro; dni robocze)",
    "status": "✅",
-   "wiek_min": 2194,
-   "data": "2026-11-10",
+   "wiek_min": 925,
+   "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Stres i niepewność: niepewność polityki USA (EPU)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Stres i niepewność: ryzyko geopolityczne (GPR)",
    "status": "⚠️",
-   "wiek_min": 10834,
+   "wiek_min": 11005,
    "data": "2026-11-02",
    "uwaga": "próg 4 d 0 h roboczych — źródło spóźnia się albo część przestała się odświeżać; najwyżej uwaga"
   },
   {
    "zrodlo": "Kalendarz: terminarz Rezerwy Federalnej (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
+   "wiek_min": 178,
    "data": "2026-11-12T12:27:21+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kalendarz: terminarz PKB i inflacji PCE USA (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
+   "wiek_min": 178,
    "data": "2026-11-12T12:27:21+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kalendarz: terminarz sprzedaży i budownictwa USA (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
+   "wiek_min": 178,
    "data": "2026-11-12T12:27:21+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kalendarz: terminarz statystyk strefy euro (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
+   "wiek_min": 178,
    "data": "2026-11-12T12:27:21+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kalendarz: terminarz posiedzeń EBC (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
+   "wiek_min": 178,
    "data": "2026-11-12T12:27:21+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kalendarz 2: terminy inflacji i zatrudnienia USA (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
+   "wiek_min": 178,
    "data": "2026-11-12T12:27:21+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kalendarz 2: kalendarz danych Polski (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
+   "wiek_min": 178,
    "data": "2026-11-12T12:27:21+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kalendarz 2: terminy decyzji banku Anglii (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
+   "wiek_min": 178,
    "data": "2026-11-12T12:27:21+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kalendarz 2: terminy posiedzeń banku Japonii (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
+   "wiek_min": 178,
    "data": "2026-11-12T12:27:21+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Nowcasty: szacunek PKB USA (pobranie)",
    "status": "✅",
-   "wiek_min": 110,
-   "data": "2026-11-12T10:43:57+00:00",
+   "wiek_min": 105,
+   "data": "2026-11-12T13:40:08+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Nowcasty: szacunek PKB USA (rytm aktualizacji)",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Nowcasty: szacunek inflacji CPI USA (pobranie)",
    "status": "✅",
-   "wiek_min": 110,
-   "data": "2026-11-12T10:43:57+00:00",
+   "wiek_min": 105,
+   "data": "2026-11-12T13:40:08+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Nowcasty: szacunek inflacji CPI USA (rytm aktualizacji)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "Europa fundusze: napływy do funduszy (pobranie)",
    "status": "✅",
-   "wiek_min": 49,
+   "wiek_min": 220,
    "data": "2026-11-12T11:44:42+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Europa fundusze: napływy do funduszy (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 104434,
+   "wiek_min": 104605,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "Europa fundusze: oszczędności gospodarstw domowych (pobranie)",
    "status": "✅",
-   "wiek_min": 49,
+   "wiek_min": 220,
    "data": "2026-11-12T11:44:42+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Europa fundusze: oszczędności gospodarstw domowych (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-Q2",
    "uwaga": ""
   },
   {
    "zrodlo": "Płynność USA: stopy SOFR (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
-   "data": "2026-11-12T12:27:21+00:00",
+   "wiek_min": 54,
+   "data": "2026-11-12T14:31:04+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Płynność USA: SOFR (najnowszy dzień)",
    "status": "✅",
-   "wiek_min": 3634,
-   "data": "2026-11-09",
+   "wiek_min": 2365,
+   "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "Płynność USA: operacje repo Fed (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
-   "data": "2026-11-12T12:27:21+00:00",
+   "wiek_min": 54,
+   "data": "2026-11-12T14:31:04+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Płynność USA: operacje repo (najnowszy dzień)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "Płynność USA: wolumeny repo (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
-   "data": "2026-11-12T12:27:21+00:00",
+   "wiek_min": 54,
+   "data": "2026-11-12T14:31:04+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Płynność USA: wolumeny repo (najnowszy dzień)",
    "status": "✅",
-   "wiek_min": 7954,
+   "wiek_min": 8125,
    "data": "2026-11-06",
    "uwaga": ""
   },
   {
    "zrodlo": "Skarb USA: wpływy dzienne — cła i podatki (pobranie)",
    "status": "✅",
-   "wiek_min": 110,
-   "data": "2026-11-12T10:43:57+00:00",
+   "wiek_min": 105,
+   "data": "2026-11-12T13:40:08+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Skarb USA: wpływy dzienne (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Skarb USA: emisje i umorzenia długu (pobranie)",
    "status": "✅",
-   "wiek_min": 110,
-   "data": "2026-11-12T10:43:57+00:00",
+   "wiek_min": 105,
+   "data": "2026-11-12T13:40:08+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Skarb USA: dług dzienny (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Skarb USA: wykupy papierów z rynku (pobranie)",
    "status": "✅",
-   "wiek_min": 110,
-   "data": "2026-11-12T10:43:57+00:00",
+   "wiek_min": 105,
+   "data": "2026-11-12T13:40:08+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Skarb USA: wykupy (rytm operacji)",
    "status": "✅",
-   "wiek_min": 9394,
+   "wiek_min": 9565,
    "data": "2026-11-05",
    "uwaga": ""
   },
   {
    "zrodlo": "Eksport zbóż USA (pobranie)",
    "status": "✅",
-   "wiek_min": 110,
-   "data": "2026-11-12T10:43:57+00:00",
+   "wiek_min": 105,
+   "data": "2026-11-12T13:40:08+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Eksport zbóż USA (rytm publikacji tygodniowej)",
    "status": "✅",
-   "wiek_min": 19474,
+   "wiek_min": 19645,
    "data": "2026-10-29",
    "uwaga": ""
   },
   {
    "zrodlo": "Energia USA: raport ropy (pobranie)",
    "status": "✅",
-   "wiek_min": 110,
-   "data": "2026-11-12T10:43:57+00:00",
+   "wiek_min": 105,
+   "data": "2026-11-12T13:40:08+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Energia USA: raport ropy (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 18034,
+   "wiek_min": 18205,
    "data": "2026-10-30",
    "uwaga": ""
   },
   {
    "zrodlo": "Energia USA: stopniodni (pobranie)",
    "status": "✅",
-   "wiek_min": 110,
-   "data": "2026-11-12T10:43:57+00:00",
+   "wiek_min": 105,
+   "data": "2026-11-12T13:40:08+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Energia USA: stopniodni (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 2194,
+   "wiek_min": 2365,
    "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "Azja: kontrakty w Japonii wg typu inwestora (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Azja: kontrakty w Japonii wg typu inwestora (data danych)",
    "status": "✅",
-   "wiek_min": 7954,
+   "wiek_min": 8125,
    "data": "2026-11-06",
    "uwaga": ""
   },
   {
    "zrodlo": "Azja: stan posiadania zagranicy w Korei (pobranie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Azja: stan posiadania zagranicy w Korei (data danych)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Azja: Shenzhen i ETF Chin (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Azja: Shenzhen i ETF Chin (data danych)",
    "status": "✅",
-   "wiek_min": 754,
-   "data": "2026-11-11",
+   "wiek_min": 0,
+   "data": "2026-11-12",
    "uwaga": ""
   },
   {
    "zrodlo": "Azja: Shenzhen i ETF Chin — lista ETF (data danych)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Brazylia: fundusze (wpłaty i wypłaty) (pobranie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Brazylia: fundusze (wpłaty i wypłaty) (data danych)",
    "status": "✅",
-   "wiek_min": 9394,
-   "data": "2026-11-05",
+   "wiek_min": 3805,
+   "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Chiny: krzywa rentowności (pobranie)",
    "status": "✅",
-   "wiek_min": 99,
+   "wiek_min": 270,
    "data": "2026-11-12T10:55:02+00:00",
    "uwaga": ""
   },
@@ -2484,7 +2478,7 @@
   {
    "zrodlo": "Chiny: Shibor (pobranie)",
    "status": "✅",
-   "wiek_min": 31,
+   "wiek_min": 203,
    "data": "2026-11-12T12:02:27+00:00",
    "uwaga": ""
   },
@@ -2498,21 +2492,21 @@
   {
    "zrodlo": "Tajwan: put/call i pozycje (pobranie)",
    "status": "✅",
-   "wiek_min": 31,
-   "data": "2026-11-12T12:02:27+00:00",
+   "wiek_min": 65,
+   "data": "2026-11-12T14:20:16+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Tajwan: put/call i pozycje — put/call (rytm sesji)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Tajwan: put/call i pozycje — pozycje (rytm sesji)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
@@ -2526,365 +2520,365 @@
   {
    "zrodlo": "Chiny: indeks CSI 300 (pobranie)",
    "status": "✅",
-   "wiek_min": 99,
-   "data": "2026-11-12T10:55:02+00:00",
+   "wiek_min": 23,
+   "data": "2026-11-12T15:01:48+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Chiny: indeks CSI 300 (rytm sesji)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Interwencje i rezerwy: Japonia (pobranie)",
    "status": "⚠️",
-   "wiek_min": 5817,
+   "wiek_min": 5988,
    "data": "2026-11-08T11:36:56+00:00",
    "uwaga": "pobranie starsze niż 24 h 00 min (odświeżanie co 3 h) — dane mogą być nieaktualne; najwyżej uwaga"
   },
   {
    "zrodlo": "Interwencje i rezerwy: Japonia (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 20914,
+   "wiek_min": 21085,
    "data": "2026-10-28",
    "uwaga": ""
   },
   {
    "zrodlo": "Interwencje i rezerwy: Hongkong (pobranie)",
    "status": "✅",
-   "wiek_min": 168,
+   "wiek_min": 339,
    "data": "2026-11-12T09:45:50+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Interwencje i rezerwy: Hongkong (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Interwencje i rezerwy: Argentyna (pobranie)",
    "status": "✅",
-   "wiek_min": 49,
+   "wiek_min": 220,
    "data": "2026-11-12T11:44:42+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Interwencje i rezerwy: Argentyna (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 10834,
+   "wiek_min": 11005,
    "data": "2026-11-04",
    "uwaga": ""
   },
   {
    "zrodlo": "Interwencje i rezerwy: Brazylia (pobranie)",
    "status": "✅",
-   "wiek_min": 49,
+   "wiek_min": 220,
    "data": "2026-11-12T11:44:42+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Interwencje i rezerwy: Brazylia (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Interwencje i rezerwy: Kanada (pobranie)",
    "status": "✅",
-   "wiek_min": 49,
+   "wiek_min": 220,
    "data": "2026-11-12T11:44:42+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Interwencje i rezerwy: Kanada (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 18034,
+   "wiek_min": 18205,
    "data": "2026-10-30",
    "uwaga": ""
   },
   {
    "zrodlo": "Interwencje i rezerwy: oczekiwania w Brazylii (pobranie)",
    "status": "✅",
-   "wiek_min": 49,
+   "wiek_min": 220,
    "data": "2026-11-12T11:44:42+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Interwencje i rezerwy: oczekiwania w Brazylii (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 7954,
+   "wiek_min": 8125,
    "data": "2026-11-06",
    "uwaga": ""
   },
   {
    "zrodlo": "Kanada: aukcje obligacji (pobranie)",
    "status": "✅",
-   "wiek_min": 131,
-   "data": "2026-11-12T10:23:22+00:00",
+   "wiek_min": 23,
+   "data": "2026-11-12T15:01:48+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kanada: aukcje obligacji (rytm danych)",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Kanada: posiadacze długu rządu (pobranie)",
    "status": "✅",
-   "wiek_min": 31,
+   "wiek_min": 203,
    "data": "2026-11-12T12:02:27+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kanada: posiadacze długu rządu (rytm danych)",
    "status": "✅",
-   "wiek_min": 10834,
+   "wiek_min": 11005,
    "data": "2026-11-04",
    "uwaga": ""
   },
   {
    "zrodlo": "Kanada: stawka CORRA (pobranie)",
    "status": "✅",
-   "wiek_min": 31,
+   "wiek_min": 203,
    "data": "2026-11-12T12:02:27+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kanada: stawka CORRA (rytm danych)",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Kanada: bilans Banku Kanady (pobranie)",
    "status": "✅",
-   "wiek_min": 31,
+   "wiek_min": 203,
    "data": "2026-11-12T12:02:27+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kanada: bilans Banku Kanady (rytm danych)",
    "status": "✅",
-   "wiek_min": 10834,
+   "wiek_min": 11005,
    "data": "2026-11-04",
    "uwaga": ""
   },
   {
    "zrodlo": "Kanada: ropociągi (Keystone, Trans Mountain) (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
+   "wiek_min": 178,
    "data": "2026-11-12T12:27:21+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kanada: ropociągi (Keystone, Trans Mountain) (rytm danych)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-06",
    "uwaga": ""
   },
   {
    "zrodlo": "FRED 2: serie (pobranie)",
    "status": "✅",
-   "wiek_min": 110,
-   "data": "2026-11-12T10:43:57+00:00",
+   "wiek_min": 105,
+   "data": "2026-11-12T13:40:08+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "FRED 2: serie (rytm publikacji)",
    "status": "✅",
-   "wiek_min": 26674,
-   "data": "2026-10-24",
+   "wiek_min": 18205,
+   "data": "2026-10-30",
    "uwaga": ""
   },
   {
    "zrodlo": "Kapitalizacje: USA (pobranie)",
    "status": "✅",
-   "wiek_min": 3535,
+   "wiek_min": 3706,
    "data": "2026-11-10T01:38:37+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kapitalizacje: USA (rytm danych)",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Kapitalizacje: Europa (7 krajów) (pobranie)",
    "status": "✅",
-   "wiek_min": 1004,
+   "wiek_min": 1176,
    "data": "2026-11-11T19:49:23+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kapitalizacje: Europa (7 krajów) (rytm danych)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-06-30",
    "uwaga": ""
   },
   {
    "zrodlo": "Kapitalizacje: Japonia (pobranie)",
    "status": "✅",
-   "wiek_min": 649,
-   "data": "2026-11-12T01:44:26+00:00",
+   "wiek_min": 92,
+   "data": "2026-11-12T13:53:19+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Kapitalizacje: Japonia (rytm danych)",
    "status": "✅",
-   "wiek_min": 18034,
+   "wiek_min": 18205,
    "data": "2026-10-30",
    "uwaga": ""
   },
   {
    "zrodlo": "Skarbce spółek — BTC w spółkach publicznych (pobranie)",
    "status": "✅",
-   "wiek_min": 403,
+   "wiek_min": 574,
    "data": "2026-11-12 05:50 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Skarbce spółek — ETH w spółkach publicznych (pobranie)",
    "status": "✅",
-   "wiek_min": 403,
+   "wiek_min": 574,
    "data": "2026-11-12 05:50 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Wnioski o fundusze krypto w kolejce urzędu (pobranie)",
    "status": "✅",
-   "wiek_min": 403,
+   "wiek_min": 574,
    "data": "2026-11-12 05:50 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Fed: banki komercyjne w USA (tygodniowo) (pobranie)",
    "status": "✅",
-   "wiek_min": 663,
-   "data": "2026-11-12T01:31:15+00:00",
+   "wiek_min": 105,
+   "data": "2026-11-12T13:40:08+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Fed: banki komercyjne w USA (tygodniowo) (rytm danych)",
    "status": "✅",
-   "wiek_min": 20914,
+   "wiek_min": 21085,
    "data": "2026-10-28",
    "uwaga": ""
   },
   {
    "zrodlo": "Fed: papiery komercyjne (pobranie)",
    "status": "✅",
-   "wiek_min": 663,
-   "data": "2026-11-12T01:31:15+00:00",
+   "wiek_min": 105,
+   "data": "2026-11-12T13:40:08+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Fed: papiery komercyjne (rytm danych)",
    "status": "✅",
-   "wiek_min": 10834,
+   "wiek_min": 11005,
    "data": "2026-11-04",
    "uwaga": ""
   },
   {
    "zrodlo": "Fed: papiery komercyjne (rytm stawek)",
    "status": "✅",
-   "wiek_min": 3634,
+   "wiek_min": 3805,
    "data": "2026-11-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Fed: ankieta dealerów (fundusze hedgingowe) (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
+   "wiek_min": 178,
    "data": "2026-11-12T12:27:21+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Fed: ankieta dealerów (fundusze hedgingowe) (rytm danych)",
    "status": "✅",
-   "wiek_min": 69874,
+   "wiek_min": 70045,
    "data": "2026-09-24",
    "uwaga": ""
   },
   {
    "zrodlo": "Fed: ankieta kredytowa banków (pobranie)",
    "status": "✅",
-   "wiek_min": 7,
+   "wiek_min": 178,
    "data": "2026-11-12T12:27:21+00:00",
    "uwaga": ""
   },
   {
    "zrodlo": "Fed: ankieta kredytowa banków (rytm danych)",
    "status": "✅",
-   "wiek_min": 19474,
+   "wiek_min": 19645,
    "data": "2026-10-29",
    "uwaga": ""
   },
   {
    "zrodlo": "Krótka sprzedaż — Wielka Brytania (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Krótka sprzedaż — Wielka Brytania (data pozycji)",
    "status": "✅",
-   "wiek_min": 3634,
-   "data": "2026-11-09",
+   "wiek_min": 925,
+   "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Krótka sprzedaż — Szwecja (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Krótka sprzedaż — Szwecja (data pozycji)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Rynki prognoz — cena BTC i ETH (pobranie)",
    "status": "✅",
-   "wiek_min": 19,
-   "data": "2026-11-12 12:15 UTC",
+   "wiek_min": 1,
+   "data": "2026-11-12 15:23 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Uwaga detalu — odsłony artykułów (pobranie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Uwaga detalu — odsłony artykułów (dzień danych)",
    "status": "✅",
-   "wiek_min": 2194,
-   "data": "2026-11-10",
+   "wiek_min": 925,
+   "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Indeks sezonu altcoinów (pobranie)",
    "status": "✅",
-   "wiek_min": 390,
-   "data": "2026-11-12 06:04 UTC",
+   "wiek_min": 65,
+   "data": "2026-11-12 14:20 UTC",
    "uwaga": ""
   },
   {
@@ -2897,98 +2891,98 @@
   {
    "zrodlo": "Ropa świata — bilans krajów (sprawdzenie źródła)",
    "status": "✅",
-   "wiek_min": 403,
+   "wiek_min": 574,
    "data": "2026-11-12 05:50 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Ropa świata — bilans krajów (ostatni miesiąc danych)",
    "status": "✅",
-   "wiek_min": 104434,
+   "wiek_min": 104605,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "Ropa świata — zapasy w Europie (sprawdzenie źródła)",
    "status": "✅",
-   "wiek_min": 403,
+   "wiek_min": 574,
    "data": "2026-11-12 05:50 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Ropa świata — zapasy UE27 (ostatni miesiąc danych)",
    "status": "✅",
-   "wiek_min": 149074,
+   "wiek_min": 149245,
    "data": "2026-07",
    "uwaga": ""
   },
   {
    "zrodlo": "Złoto Wielkiej Brytanii (sprawdzenie źródła)",
    "status": "✅",
-   "wiek_min": 403,
+   "wiek_min": 574,
    "data": "2026-11-12 05:50 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Złoto Wielkiej Brytanii (ostatni miesiąc danych)",
    "status": "✅",
-   "wiek_min": 104434,
+   "wiek_min": 104605,
    "data": "2026-08",
    "uwaga": ""
   },
   {
    "zrodlo": "USA zadłużenie gospodarstw (pobranie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "USA zadłużenie gospodarstw (data danych)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09-30",
    "uwaga": ""
   },
   {
    "zrodlo": "USA stopy hipoteczne (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "USA stopy hipoteczne (data danych)",
    "status": "✅",
-   "wiek_min": 9394,
+   "wiek_min": 9565,
    "data": "2026-11-05",
    "uwaga": ""
   },
   {
    "zrodlo": "USA niepewność handlowa (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "USA niepewność handlowa (data danych)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "USA przewozy (pobranie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "USA przewozy (data danych)",
    "status": "✅",
-   "wiek_min": 104434,
+   "wiek_min": 104605,
    "data": "2026-08",
    "uwaga": ""
   },
@@ -3002,8 +2996,8 @@
   {
    "zrodlo": "Waluty świata — kurs centralny juana (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
@@ -3016,50 +3010,50 @@
   {
    "zrodlo": "Waluty świata — gilty i inflacja oczekiwana (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Waluty świata — gilty i inflacja oczekiwana (dzień danych)",
    "status": "✅",
-   "wiek_min": 3634,
-   "data": "2026-11-09",
+   "wiek_min": 2365,
+   "data": "2026-11-10",
    "uwaga": ""
   },
   {
    "zrodlo": "Pozycje instytucji USA (13F) (sprawdzenie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Pozycje instytucji USA (13F) (dzień danych)",
    "status": "✅",
-   "wiek_min": 193714,
+   "wiek_min": 193885,
    "data": "2026-06-30",
    "uwaga": ""
   },
   {
    "zrodlo": "Niedostarczone akcje USA (sprawdzenie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Niedostarczone akcje USA (dzień danych)",
    "status": "✅",
-   "wiek_min": 41074,
+   "wiek_min": 41245,
    "data": "2026-10-14",
    "uwaga": ""
   },
   {
    "zrodlo": "USA nastroje konsumentów (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
@@ -3072,141 +3066,141 @@
   {
    "zrodlo": "USA oczekiwana inflacja gospodarstw (pobranie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "USA oczekiwana inflacja gospodarstw (data danych)",
    "status": "✅",
-   "wiek_min": 16594,
+   "wiek_min": 16765,
    "data": "2026-10",
    "uwaga": ""
   },
   {
    "zrodlo": "Strefa euro oczekiwana inflacja (pobranie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Strefa euro oczekiwana inflacja (data danych)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "USA zadłużenie marżowe (pobranie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "USA zadłużenie marżowe (data danych)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "RPA (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "RPA (data danych)",
    "status": "✅",
-   "wiek_min": 2194,
-   "data": "2026-11-10",
+   "wiek_min": 925,
+   "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "RPA inflacja (data danych)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Indie płynność banków (pobranie)",
    "status": "✅",
-   "wiek_min": 31,
+   "wiek_min": 203,
    "data": "2026-11-12 12:02 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Indie płynność banków (data danych)",
    "status": "✅",
-   "wiek_min": 754,
+   "wiek_min": 925,
    "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Izrael fundusze (pobranie)",
    "status": "✅",
-   "wiek_min": 697,
-   "data": "2026-11-12 00:57 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Izrael fundusze (data danych)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Przekazy migrantów (pobranie)",
    "status": "✅",
-   "wiek_min": 1454,
-   "data": "2026-11-11 12:20 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Przekazy migrantów (data danych)",
    "status": "✅",
-   "wiek_min": 454354,
+   "wiek_min": 454525,
    "data": "2025-12",
    "uwaga": ""
   },
   {
    "zrodlo": "Pogoda: El Niño (ONI) (pobranie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Pogoda: El Niño (ONI) (data danych)",
    "status": "✅",
-   "wiek_min": 61234,
+   "wiek_min": 61405,
    "data": "2026-09",
    "uwaga": ""
   },
   {
    "zrodlo": "Pogoda: susza w USA (pobranie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Pogoda: susza w USA (data danych)",
    "status": "✅",
-   "wiek_min": 12274,
+   "wiek_min": 12445,
    "data": "2026-11-03",
    "uwaga": ""
   },
   {
    "zrodlo": "Pogoda: Ren w Kaub (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
@@ -3219,36 +3213,36 @@
   {
    "zrodlo": "Pogoda: Missisipi (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Pogoda: Missisipi (data danych)",
    "status": "✅",
-   "wiek_min": 2194,
-   "data": "2026-11-10",
+   "wiek_min": 925,
+   "data": "2026-11-11",
    "uwaga": ""
   },
   {
    "zrodlo": "Pogoda: temperatura świata (pobranie)",
    "status": "✅",
-   "wiek_min": 708,
-   "data": "2026-11-12 00:45 UTC",
+   "wiek_min": 144,
+   "data": "2026-11-12 13:01 UTC",
    "uwaga": ""
   },
   {
    "zrodlo": "Pogoda: temperatura świata (data danych)",
    "status": "✅",
-   "wiek_min": 9394,
-   "data": "2026-11-05",
+   "wiek_min": 8125,
+   "data": "2026-11-06",
    "uwaga": ""
   },
   {
    "zrodlo": "Pogoda: pas kukurydzy USA (pobranie)",
    "status": "✅",
-   "wiek_min": 293,
-   "data": "2026-11-12 07:40 UTC",
+   "wiek_min": 92,
+   "data": "2026-11-12 13:53 UTC",
    "uwaga": ""
   },
   {
@@ -3318,15 +3312,15 @@
      "✅"
     ],
     [
-     "suma emitentów a podaż z drugiego źródła: różnica dziś +7.23% (norma +8.20%, mediana 30 dni) — odchylenie od mediany 0.97 pkt proc. (progi 2)",
+     "suma emitentów a podaż z drugiego źródła: różnica dziś +7.03% (norma +8.20%, mediana 30 dni) — odchylenie od mediany 1.18 pkt proc. (progi 2)",
      "✅"
     ],
     [
-     "USDC: raport Circle a lista monet: różnica dziś -0.40% (norma -0.19%, mediana 30 dni) — odchylenie od mediany 0.20 pkt proc. (progi 1)",
+     "USDC: raport Circle a lista monet: różnica dziś -0.20% (norma -0.19%, mediana 30 dni) — odchylenie od mediany 0.01 pkt proc. (progi 1)",
      "✅"
     ],
     [
-     "USDT: zobowiązania w raporcie Tether a lista monet: różnica dziś +0.14% (norma +0.15%, mediana 30 dni) — odchylenie od mediany 0.02 pkt proc. (progi 1)",
+     "USDT: zobowiązania w raporcie Tether a lista monet: różnica dziś +0.13% (norma +0.15%, mediana 30 dni) — odchylenie od mediany 0.02 pkt proc. (progi 1)",
      "✅"
     ]
    ]
@@ -3356,8 +3350,8 @@
      "✅"
     ],
     [
-     "stosunek kont long/short zgodny z dzwignia.json",
-     "✅"
+     "stosunek kont long/short różni się od dzwignia.json (BTC: 3,03 i 3,07)",
+     "ℹ️"
     ]
    ]
   },
@@ -3453,7 +3447,7 @@
      "✅"
     ],
     [
-     "rentowność 10L Niemcy: zgodność z plikiem rynki (1 wspólne dni)",
+     "rentowność 10L Niemcy: zgodność z plikiem rynki (2 wspólne dni)",
      "✅"
     ],
     [
@@ -3487,11 +3481,23 @@
      "ℹ️"
     ],
     [
-     "Polska 2026-11-12: RCE 355.2 €/MWh (po kursie z ceny CO2) wobec strefy Polska 331.6 €/MWh — różnica 7.1%",
+     "Polska 2026-11-12: RCE 354.2 €/MWh (po kursie z ceny CO2) wobec strefy Polska 331.6 €/MWh — różnica 6.8%",
      "⚠️"
     ],
     [
      "Polska 2026-11-12: RCE 1559.2 zł/MWh wobec indeksu giełdowego 1579.9 zł/MWh (inny rynek) — różnica 1.3%",
+     "✅"
+    ],
+    [
+     "Polska 2026-11-13: średnia 556.7 zł/MWh, minimum 457.9, maksimum 728.8; kwadransów z ceną ujemną: 0 (dozwolone — tylko informacja)",
+     "ℹ️"
+    ],
+    [
+     "Polska 2026-11-13: RCE 126.5 €/MWh (po kursie z ceny CO2) wobec strefy Polska 126.4 €/MWh — różnica 0.0%",
+     "✅"
+    ],
+    [
+     "Polska 2026-11-13: RCE 556.7 zł/MWh wobec indeksu giełdowego 558.7 zł/MWh (inny rynek) — różnica 0.4%",
      "✅"
     ],
     [
@@ -3511,7 +3517,7 @@
      "ℹ️"
     ],
     [
-     "Wielka Brytania 2026-11-12T11:30Z: emisyjność 95 gCO2/kWh, skala „moderate” (tylko informacja)",
+     "Wielka Brytania 2026-11-12T14:30Z: emisyjność 110 gCO2/kWh, skala „moderate” (tylko informacja)",
      "ℹ️"
     ]
    ],
@@ -3521,7 +3527,7 @@
    "spojnosc": [],
    "wiersze": [
     [
-     "CISS USA a indeks stresu USA (plik stres): korelacja poziomów 0.25 na 259 wspólnych dniach — tylko informacja",
+     "CISS USA a indeks stresu USA (plik stres): korelacja poziomów 0.26 na 258 wspólnych dniach — tylko informacja",
      "ℹ️"
     ],
     [
@@ -3594,15 +3600,15 @@
      "✅"
     ],
     [
-     "SOFR: lista 3.88% i najnowszy odczyt stóp 3.88% (2026-11-09)",
+     "SOFR: lista 3.89% i najnowszy odczyt stóp 3.89% (2026-11-10)",
      "✅"
     ],
     [
-     "EFFR 3.88% a korytarz docelowy 3.75–4.0% (2026-11-09)",
+     "EFFR 3.88% a korytarz docelowy 3.75–4.0% (2026-11-10)",
      "✅"
     ],
     [
-     "SOFR − EFFR: +0.00 pp (informacyjnie; duży rozstęp bywa prawdziwym napięciem rynku, nie błędem danych)",
+     "SOFR − EFFR: +0.01 pp (informacyjnie; duży rozstęp bywa prawdziwym napięciem rynku, nie błędem danych)",
      "✅"
     ],
     [
@@ -3856,7 +3862,7 @@
    "spojnosc": [],
    "wiersze": [
     [
-     "Surowce 24/7: 6 z 6 kontraktów, najstarszy odczyt sprzed 0.8 h (złoto)",
+     "Surowce 24/7: 6 z 6 kontraktów, najstarszy odczyt sprzed 0.6 h (złoto)",
      "✅"
     ]
    ]
@@ -3906,16 +3912,26 @@
     ]
    ]
   },
-  "kapitalizacja_blad": "HTTP Error 429: Too Many Requests",
   "kapitalizacja": {
-   "status": "?",
-   "dzis_pct": null,
-   "mediana_pct": null,
+   "status": "✅",
+   "dzis_pct": 3.554,
+   "mediana_pct": 4.006,
    "dni": 30,
-   "opis": "brak odczytu",
-   "cmc_pct": null
+   "opis": "odchylenie od mediany 0.45 pkt proc. (progi 2 / 5)",
+   "cmc_pct": -0.927
   },
-  "ceny_blad": "HTTP Error 429: Too Many Requests",
+  "ceny": {
+   "bitcoin": {
+    "a": 71382.0,
+    "b": 71402.48851466789,
+    "roznica_pct": 0.029
+   },
+   "ethereum": {
+    "a": 2002.48,
+    "b": 2001.1305922735476,
+    "roznica_pct": 0.067
+   }
+  },
   "tga": {
    "data": "2026-11-04",
    "fiscal_mln": 936248.0,
@@ -3927,15 +3943,15 @@
    "opis": "próg stały 1% (stan na środę = saldo zamknięcia tego dnia)"
   },
   "stablecoiny": {
-   "a": 289050131345.0,
-   "b": 270314366906.2259,
-   "roznica_pct": 6.931,
-   "odstep_h": 0.7,
+   "a": 289059506719.0,
+   "b": 270399112976.4883,
+   "roznica_pct": 6.901,
+   "odstep_h": 0.3,
    "data": "2026-11-12",
    "status": "✅",
    "mediana_pct": 7.853,
    "dni": 30,
-   "opis": "odchylenie od mediany 0.92 pkt proc. (progi 2)"
+   "opis": "odchylenie od mediany 0.95 pkt proc. (progi 2)"
   },
   "ust10": {
    "porownane": 9,
@@ -3948,7 +3964,7 @@
     {
      "bank": "Fed",
      "zrodlo": "NY Fed",
-     "data": "2026-11-03",
+     "data": "2026-11-10",
      "strona": 3.875,
      "fred": 3.875,
      "zgodne": true,
@@ -3957,7 +3973,7 @@
     {
      "bank": "EBC",
      "zrodlo": "EBC",
-     "data": "2026-11-03",
+     "data": "2026-11-10",
      "strona": 2.5,
      "fred": 2.5,
      "zgodne": true,
@@ -3966,19 +3982,16 @@
     {
      "bank": "Bank Anglii",
      "zrodlo": "BoE",
-     "data": "2026-11-02",
-     "strona": 3.75,
-     "fred": 3.75,
+     "data": "2026-11-09",
+     "strona": 4.0,
+     "fred": 4.0,
      "zgodne": true,
-     "zmiana": [
-      "2026-11-05",
-      4.0
-     ]
+     "zmiana": null
     },
     {
      "bank": "Bank Szwajcarii",
      "zrodlo": "SNB",
-     "data": "2026-11-03",
+     "data": "2026-11-10",
      "strona": 0.0,
      "fred": 0.0,
      "zgodne": true,
@@ -3987,7 +4000,7 @@
     {
      "bank": "Bank Szwecji",
      "zrodlo": "Riksbank",
-     "data": "2026-11-03",
+     "data": "2026-11-10",
      "strona": 1.75,
      "fred": 1.75,
      "zgodne": true,
@@ -3999,7 +4012,7 @@
     {
      "bank": "Bank Norwegii",
      "zrodlo": "Norges Bank",
-     "data": "2026-11-02",
+     "data": "2026-11-05",
      "strona": 4.5,
      "fred": 4.5,
      "zgodne": true,
@@ -4008,7 +4021,7 @@
     {
      "bank": "NBP",
      "zrodlo": "NBP",
-     "data": "2026-11-03",
+     "data": "2026-11-10",
      "strona": 3.75,
      "fred": 3.75,
      "zgodne": true,
@@ -4017,7 +4030,7 @@
     {
      "bank": "Bank Kanady",
      "zrodlo": "BoC",
-     "data": "2026-11-02",
+     "data": "2026-11-09",
      "strona": 2.5,
      "fred": 2.5,
      "zgodne": true,
@@ -4026,7 +4039,7 @@
     {
      "bank": "Bank Brazylii",
      "zrodlo": "BCB",
-     "data": "2026-11-03",
+     "data": "2026-11-10",
      "strona": 13.75,
      "fred": 13.75,
      "zgodne": true,
@@ -4257,22 +4270,22 @@
      "s": "GSPC",
      "nazwa": "S&P 500",
      "at": "2026-11-11T23:29:43+00:00",
-     "wyd_at": "2026-11-12T11:44:42+00:00",
-     "n": 32,
-     "zgodne": 32,
+     "wyd_at": "2026-11-12T14:45:09+00:00",
+     "n": 33,
+     "zgodne": 33,
      "ost": "2026-11-11",
      "ost_roz": null,
      "roznice": [],
      "bez_sesji": [],
      "luki": [],
-     "wyd_do": "2026-11-10",
+     "wyd_do": "2026-11-11",
      "wyd_stare": false
     },
     {
      "s": "IXIC",
      "nazwa": "Nasdaq Composite",
      "at": "2026-11-11T22:33:54+00:00",
-     "wyd_at": "2026-11-12T11:44:42+00:00",
+     "wyd_at": "2026-11-12T14:45:09+00:00",
      "n": 33,
      "zgodne": 33,
      "ost": "2026-11-11",
@@ -4287,7 +4300,7 @@
      "s": "DJI",
      "nazwa": "Dow Jones",
      "at": "2026-11-11T22:33:54+00:00",
-     "wyd_at": "2026-11-12T11:44:42+00:00",
+     "wyd_at": "2026-11-12T14:45:09+00:00",
      "n": 33,
      "zgodne": 33,
      "ost": "2026-11-11",
@@ -4302,15 +4315,15 @@
      "s": "N225",
      "nazwa": "Nikkei 225",
      "at": "2026-11-12T08:42:19+00:00",
-     "wyd_at": "2026-11-12T11:44:42+00:00",
-     "n": 31,
-     "zgodne": 31,
+     "wyd_at": "2026-11-12T14:45:09+00:00",
+     "n": 32,
+     "zgodne": 32,
      "ost": "2026-11-12",
      "ost_roz": null,
      "roznice": [],
      "bez_sesji": [],
      "luki": [],
-     "wyd_do": "2026-11-11",
+     "wyd_do": "2026-11-12",
      "wyd_stare": false
     }
    ]
@@ -4391,7 +4404,7 @@
    }
   },
   "wh_okx": {
-   "wiersz": "- Lista portfeli OKX (z 2026-11-01): automat odświeża sam (ostatni przebieg 2026-11-11); ostrzeżenie, gdy odświeżenie zawodzi > 7 dni ✅.",
+   "wiersz": "- Lista portfeli OKX (z 2026-11-01): automat odświeża sam (ostatni przebieg 2026-11-12); ostrzeżenie, gdy odświeżenie zawodzi > 7 dni ✅.",
    "uwaga": null,
    "znak": "✅"
   },
@@ -4416,7 +4429,7 @@
      "zaleglosc": 0,
      "strona_do": null,
      "nieaktualny": false,
-     "ms": 769
+     "ms": 533
     },
     "ETHA": {
      "status": "✅",
@@ -4433,7 +4446,7 @@
      "zaleglosc": 0,
      "strona_do": null,
      "nieaktualny": false,
-     "ms": 395
+     "ms": 521
     }
    },
    "zapis_dni": 20,
@@ -4463,9 +4476,9 @@
    "nieaktualny": false
   },
   "premie": {
-   "opis": "USA BTC -0.02% (przez USDC -0.04%, różnica 0.02 pkt proc.); Korea BTC +1.23% (kurs z 2026-11-11); kurs KRW/USD 2026-11-11: wprost 1336.901, w pliku rynki 1336.900 (różnica 0.000%)",
+   "opis": "USA BTC -0.01% (przez USDC -0.03%, różnica 0.02 pkt proc.); Korea BTC +1.61% (kurs z 2026-11-11); kurs KRW/USD 2026-11-11: wprost 1336.901, w pliku rynki 1336.900 (różnica 0.000%)",
    "uwagi": [],
-   "cb_usdc_pp": 0.019,
+   "cb_usdc_pp": 0.018,
    "fx_gap_pct": 0.0001
   },
   "dolar": {
@@ -4474,7 +4487,7 @@
     {
      "kurs": "blue",
      "status": "✅",
-     "roznica_pct": 0.32,
+     "roznica_pct": 0.0,
      "prog": 1.5
     },
     {
@@ -4492,35 +4505,36 @@
     {
      "kurs": "MEP",
      "status": "✅",
-     "roznica_pct": 0.01,
+     "roznica_pct": 0.04,
      "prog": 2.0
     },
     {
      "kurs": "CCL",
      "status": "✅",
-     "roznica_pct": 0.08,
+     "roznica_pct": 0.09,
      "prog": 2.0
     }
    ],
    "bcra": {
-    "status": "✅",
-    "data": "2026-11-11",
-    "roznica_pct": 0.0
+    "status": "?",
+    "data": "2026-11-12",
+    "roznica_pct": null,
+    "uwaga": "brak tego dnia w odpowiedzi banku"
    },
    "uwagi": [],
-   "opis": "blue ✅ 0.32%, hurtowy ✅ 0.00%, oficjalny w banku ✅ 0.19%, MEP ✅ 0.01%, CCL ✅ 0.08%; hurtowy vs bank centralny (2026-11-11) ✅ 0.00%; główne luki: AR ✅, VE ✅, BO ✅",
+   "opis": "blue ✅ 0.00%, hurtowy ✅ 0.00%, oficjalny w banku ✅ 0.19%, MEP ✅ 0.04%, CCL ✅ 0.09%; hurtowy vs bank centralny (2026-11-12) ? (brak tego dnia w odpowiedzi banku); główne luki: AR ✅, VE ✅, BO ✅",
    "luki": {
     "ar": {
      "status": "✅",
-     "wiek_dni": 0.9
+     "wiek_dni": 0.2
     },
     "ve": {
      "status": "✅",
-     "wiek_dni": 0.0
+     "wiek_dni": 0.1
     },
     "bo": {
      "status": "✅",
-     "wiek_dni": 0.0
+     "wiek_dni": 0.1
     }
    }
   },
@@ -4598,11 +4612,11 @@
      "ℹ️"
     ],
     [
-     "fundusze: GLD 2026-11-10 — wartość aktywów ÷ (uncje × cena złota) − 1 = -0,046% (próg 0,1%)",
+     "fundusze: GLD 2026-11-11 — wartość aktywów ÷ (uncje × cena złota) − 1 = -0,047% (próg 0,1%)",
      "✅"
     ],
     [
-     "fundusze: GLDM 2026-11-10 — wartość aktywów ÷ (uncje × cena złota) − 1 = -0,011% (próg 0,1%)",
+     "fundusze: GLDM 2026-11-11 — wartość aktywów ÷ (uncje × cena złota) − 1 = -0,011% (próg 0,1%)",
      "✅"
     ],
     [
@@ -4825,7 +4839,7 @@
     ]
    ],
    "czesci_bez_odpowiedzi": [
-    "nawozy"
+    "ue"
    ]
   },
   "gieldy-dex": {
@@ -4848,7 +4862,7 @@
      "ℹ️"
     ],
     [
-     "suma sald między dobami 2026-11-11 → 2026-11-12: -1,1%",
+     "suma sald między dobami 2026-11-11 → 2026-11-12: -2,0%",
      "✅"
     ],
     [
@@ -4856,7 +4870,7 @@
      "✅"
     ],
     [
-     "obrót DEX doby ÷ obrót spot giełd scentralizowanych (kroczące 24 h): 0,17",
+     "obrót DEX doby ÷ obrót spot giełd scentralizowanych (kroczące 24 h): 0,14",
      "✅"
     ]
    ],
@@ -4894,7 +4908,7 @@
    "spojnosc": [],
    "wiersze": [
     [
-     "złoto w Polsce 2026-11-12 (zł/g) vs cena w USD z 2026-11-10 × kurs USD/PLN: +0,83% (próg 3%)",
+     "złoto w Polsce 2026-11-12 (zł/g) vs cena w USD z 2026-11-11 × kurs USD/PLN: +0,59% (próg 3%)",
      "✅"
     ],
     [
@@ -4921,17 +4935,20 @@
    "status": "✅"
   },
   "rwa": {
-   "status": "✅",
-   "opis": "zmiana 7 dni produktów z listy: własna -2.49% vs źródło -2.48% (różnica 0.01 pkt proc.) ✅; ℹ️ produkty spoza listy z wartością 0 (próg 20) — źródło nie podaje ich wartości od 2026-10-05 (38 dni, stan trwały); bez bieżącej wyceny 0,0% sumy — bez uwagi; produkty spoza listy: z bieżącą wartością 0, bez bieżącej wyceny 0 ✅; skoków sumy ponad 25% w tygodniu: brak ✅",
-   "uwagi": [],
-   "c7_api": -2.477,
-   "c7_own": -2.486,
-   "c7_roznica_pp": 0.009,
+   "status": "⚠️",
+   "opis": "zmiana 7 dni produktów z listy: własna -2.49% vs źródło -2.48% (różnica 0.01 pkt proc.) ✅; produkty spoza listy z wartością 0 (próg 20) ⚠️; bez bieżącej wyceny 6% wartości (1.5 mld USD, liczba produktów 1: 1 bez wartości od 2026-10-05), z bieżącą wyceną 23.9 mld USD ℹ️; ℹ️ 2026-11-12: zmiana zbioru produktów z odczytu własnego albo danych emitentów (21.1 → 20.3 mld USD) — skok sumy liczony bez nich; skoków sumy ponad 25% w tygodniu: brak ✅",
+   "uwagi": [
+    "tokenizowane aktywa: produkty spoza głównej listy z jakąkolwiek wartością — tylko 0 (próg 20) — źródło przestało podawać ich wartości; ostatnio znane są w grupie „bez bieżącej wyceny”, sumy spadną (tylko uwaga)"
+   ],
+   "c7_api": -2.482,
+   "c7_own": -2.493,
+   "c7_roznica_pp": 0.011,
+   "fz_pct": 5.8,
    "skoki": []
   },
   "rwa-lancuch": {
    "status": "✅",
-   "opis": "podaż 24 h: zmian ponad 50% brak ✅; wartość vs ostatnio znana: w paśmie 1/3–3× ✅; w sumach z odczytu własnego: 7 z 7 produktów, 9.3 mld USD",
+   "opis": "podaż 24 h: zmian ponad 50% brak ✅; wartość vs ostatnio znana: w paśmie 1/3–3× ✅; w sumach z odczytu własnego: 7 z 7 produktów, 9.2 mld USD",
    "uwagi": [],
    "skoki_podazy": [],
    "razy": [],
@@ -4939,65 +4956,62 @@
    "wypadly": []
   },
   "rwa-emitenci": {
-   "status": "✅",
-   "opis": "w sumach wg emitentów: 14 z 14 produktów, 11.8 mld USD; inny zakres niż ostatnio znana (opisane na stronie): Centrifuge Protocol 657 mln USD vs ostatnio znana 1482 mln (0.44×); Ondo Global Markets 1443 mln USD vs ostatnio znana 966 mln (1.49×); Securitize Tokenized AAA CLO Fund 284 mln USD vs ostatnio znana 104 mln (2.74×); xStocks 1133 mln USD vs ostatnio znana 438 mln (2.59×) ℹ️; Ondo Global Markets: punkt dnia emitenta (2026-11-11) 1443 mln USD vs liczba w nagłówku jego strony 1453 mln (-0.68%) — w sumach punkt dnia (nagłówek bez daty) ℹ️; xStocks: reszta listy emitenta poza odczytem (516 tokenów) najwyżej 5.09 mln USD (0.449% wartości) ℹ️; xStocks: pominięte tokeny bez dowodu rezerw u emitenta — 5 tokenów (np. WBDx, WTRGx, HRx), w obiegu łącznie 3320.29 — najwyżej 174.5 tys. USD (0.015% wartości), odczyt 2026-11-12 11:50 UTC ℹ️",
-   "uwagi": [],
-   "braki": [],
+   "status": "⚠️",
+   "opis": "w sumach wg emitentów: 13 z 14 produktów, 11.1 mld USD; inny zakres niż ostatnio znana (opisane na stronie): Ondo Global Markets 1443 mln USD vs ostatnio znana 966 mln (1.49×); Securitize Tokenized AAA CLO Fund 284 mln USD vs ostatnio znana 104 mln (2.74×); xStocks 1138 mln USD vs ostatnio znana 438 mln (2.60×) ℹ️; Ondo Global Markets: punkt dnia emitenta (2026-11-11) 1443 mln USD vs liczba w nagłówku jego strony 1453 mln (-0.68%) — w sumach punkt dnia (nagłówek bez daty) ℹ️; xStocks: reszta listy emitenta poza odczytem (516 tokenów) najwyżej 5.19 mln USD (0.456% wartości) ℹ️; xStocks: pominięte tokeny bez dowodu rezerw u emitenta — 6 tokenów (np. WBDx, OWLx, WTRGx), w obiegu łącznie 3352.99 — najwyżej 183.8 tys. USD (0.016% wartości), odczyt 2026-11-12 15:03 UTC ℹ️; bez bieżących danych emitenta (poza sumami): Centrifuge Protocol: stan emitenta za stary albo brak ceny ℹ️; już nie wg emitenta: Centrifuge Protocol ⚠️",
+   "uwagi": [
+    "tokenizowane aktywa (dane emitentów): po 2026-11-11 już nie liczone wg emitenta: Centrifuge Protocol — odczyt nieudany, stan za stary albo źródło v133 znów podaje bieżącą wartość (tylko uwaga)"
+   ],
+   "braki": [
+    "Centrifuge Protocol: stan emitenta za stary albo brak ceny"
+   ],
    "zakres": [
-    "Centrifuge Protocol 657 mln USD vs ostatnio znana 1482 mln (0.44×)",
     "Ondo Global Markets 1443 mln USD vs ostatnio znana 966 mln (1.49×)",
     "Securitize Tokenized AAA CLO Fund 284 mln USD vs ostatnio znana 104 mln (2.74×)",
-    "xStocks 1133 mln USD vs ostatnio znana 438 mln (2.59×)"
+    "xStocks 1138 mln USD vs ostatnio znana 438 mln (2.60×)"
    ],
-   "wypadly": []
+   "wypadly": [
+    "centrifuge-protocol"
+   ]
   }
  },
  "uwagi": [
-  "część automatu „swiat-dzien” nie działa od 10.11.2026, 23:07 (1 dzień 14 godz., nieudanych przebiegów z rzędu: 172) — automat nie naprawił tego sam; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną (zadanie: „napraw część swiat-dzien”)",
-  "źródła bez odpowiedzi w ostatnim przebiegu: em2_wb, interw_jp, niepewnosc_ciss, premie_fx, swiat-dzien, waluty_fx, zboza_dzien_nawozy",
-  "błąd zbieracza: zboża dziennie naw: HTTP Error 500: ",
-  "błąd zbieracza: Premie krypto: EBC: The read operation timed out",
+  "część automatu „swiat-dzien” nie działa od 10.11.2026, 23:07 (1 dzień 16 godz., nieudanych przebiegów z rzędu: 183) — automat nie naprawił tego sam; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną (zadanie: „napraw część swiat-dzien”)",
+  "źródła bez odpowiedzi w ostatnim przebiegu: interw_jp, premie_st_br, premie_st_id, premie_st_in, premie_st_mx, premie_st_tr, premie_st_za, swiat-dzien, waluty_fx",
   "błąd zbieracza: Waluty świata: fx: 11 z 200 wierszy kursów odrzuconych jako błędne",
-  "błąd zbieracza: Rynki wschodzące 2: wb: The read operation timed out",
-  "błąd zbieracza: Niepewność CISS: HTTP Error 503: Service Temporarily Unavailable",
+  "błąd zbieracza: premie stable EBC: The read operation timed out",
   "błąd zbieracza: Interwencje i rezerwy Japonia: Japonia: za mało wierszy (0 dni, 0 kwartałów)",
-  "premie.json: części bez odpowiedzi: fx",
-  "zboza-dzien.json: części bez odpowiedzi: nawozy",
-  "niepewnosc.json: części bez odpowiedzi: ciss",
+  "zboza-dzien.json: części bez odpowiedzi: ue",
+  "premie-stable.json: części bez odpowiedzi: br, in",
   "interwencje.json: części bez odpowiedzi: jp",
   "waluty.json: części bez odpowiedzi: fx",
-  "nastroje.json: części bez odpowiedzi: alt",
-  "em2.json: części bez odpowiedzi: wb",
-  "TGA (Fiscal Data, dziennie): dane z 2026-11-09 — 2 d 12 h temu (próg 2 d 0 h (godziny robocze))",
-  "FRED dzienne (RRPONTSYD): dane z 2026-11-10 — 36 h 34 min temu (próg 36 h 00 min (godziny robocze))",
-  "surowce: złoto dziennie (LBMA PM wyliczona): dane z 2026-11-10 — 36 h 34 min temu (próg 36 h 00 min (godziny robocze) — najwyżej uwaga)",
-  "surowce: pozycje producentów — ropa Murban, Abu Zabi (stan na wtorek, publ. w piątek): dane z 2026-10-27 — 15 d 12 h temu (próg 14 d 0 h — najwyżej uwaga)",
-  "surowce: złoto w funduszach (tony; po sesji w USA): dane z 2026-11-10 — 36 h 34 min temu (próg 36 h 00 min (godziny robocze) — najwyżej uwaga; spodziewana publikacja 13.11.2026, 02:00)",
-  "Rosja: rezerwy walutowe (miesięcznie): dane z 2025-11 — 346 d 12 h temu (próg 180 d 0 h — najwyżej uwaga; spodziewana zmiana 13.11.2026, 13:15; źródło międzynarodowe publikuje rezerwy Rosji z dużym opóźnieniem (nowy miesiąc zależy od Rosji, nie od zbieracza) — ostatni miesiąc w tabeli międzynarodowej widać w kolumnie daty)",
-  "metale: raport tygodniowy o zapasach miedzi (Londyn, USA, Chiny): dane z 2026-10-16 — 26 d 12 h temu (próg 14 d 0 h — najwyżej uwaga; spodziewana publikacja 06.11.2026, 19:00 — zaległa (święto albo przerwa u źródła?))",
-  "TRENDY świat — ostatnia sesja z wynikiem sygnałów: ostatni wynik z 2026-11-09 — 2 d 12 h temu (próg 2 d 0 h — wyniki sygnałów przestały dochodzić (tylko uwaga))",
-  "TRENDY surowce — ceny 7 funduszy surowcowych (sesja w USA; reguły w cieniu): dane z 2026-11-09 — 2 d 12 h temu (próg 2 d 12 h (godziny robocze) — dane przestały dochodzić: CMDY, COMT, CPER, DBA, DBC, GSG, USO (tylko uwaga))",
-  "TRENDY nowe grupy — ostatni dzień z wynikiem reguł w cieniu: ostatni wynik z 2026-11-09 — 2 d 12 h temu (próg 2 d 12 h (godziny robocze) — wyniki reguł w cieniu przestały dochodzić (tylko uwaga))",
-  "TRENDY nowe grupy — ceny 14 funduszy wyników (sesja w USA; reguły w cieniu): ostatni wynik z 2026-11-09 — 2 d 12 h temu (próg 2 d 12 h (godziny robocze) — dane przestały dochodzić: ECH, EIDO, EPHE, EPOL, EWM, EWS, EWW, KWT, QAT, THD, UAE, XLB, XLC, XLRE (tylko uwaga))",
-  "TRENDY najnowsze źródła — ostatni dzień z wynikiem reguł w cieniu: ostatni wynik z 2026-11-09 — 2 d 12 h temu (próg 2 d 12 h (godziny robocze) — wyniki reguł w cieniu przestały dochodzić (tylko uwaga))",
+  "TGA (Fiscal Data, dziennie): dane z 2026-11-09 — 2 d 15 h temu (próg 2 d 0 h (godziny robocze))",
+  "FRED dzienne (RRPONTSYD): dane z 2026-11-10 — 39 h 25 min temu (próg 36 h 00 min (godziny robocze))",
+  "surowce: pozycje producentów — ropa Murban, Abu Zabi (stan na wtorek, publ. w piątek): dane z 2026-10-27 — 15 d 15 h temu (próg 14 d 0 h — najwyżej uwaga)",
+  "Rosja: rezerwy walutowe (miesięcznie): dane z 2025-11 — 346 d 15 h temu (próg 180 d 0 h — najwyżej uwaga; spodziewana zmiana 13.11.2026, 13:15; źródło międzynarodowe publikuje rezerwy Rosji z dużym opóźnieniem (nowy miesiąc zależy od Rosji, nie od zbieracza) — ostatni miesiąc w tabeli międzynarodowej widać w kolumnie daty)",
+  "metale: raport tygodniowy o zapasach miedzi (Londyn, USA, Chiny): dane z 2026-10-16 — 26 d 15 h temu (próg 14 d 0 h — najwyżej uwaga; spodziewana publikacja 06.11.2026, 19:00 — zaległa (święto albo przerwa u źródła?))",
+  "TRENDY świat — ostatnia sesja z wynikiem sygnałów: ostatni wynik z 2026-11-09 — 2 d 15 h temu (próg 2 d 0 h — wyniki sygnałów przestały dochodzić (tylko uwaga))",
+  "TRENDY surowce — ceny 7 funduszy surowcowych (sesja w USA; reguły w cieniu): dane z 2026-11-09 — 2 d 15 h temu (próg 2 d 12 h (godziny robocze) — dane przestały dochodzić: CMDY, COMT, CPER, DBA, DBC, GSG, USO (tylko uwaga))",
+  "TRENDY nowe grupy — ostatni dzień z wynikiem reguł w cieniu: ostatni wynik z 2026-11-09 — 2 d 15 h temu (próg 2 d 12 h (godziny robocze) — wyniki reguł w cieniu przestały dochodzić (tylko uwaga))",
+  "TRENDY nowe grupy — ceny 14 funduszy wyników (sesja w USA; reguły w cieniu): ostatni wynik z 2026-11-09 — 2 d 15 h temu (próg 2 d 12 h (godziny robocze) — dane przestały dochodzić: ECH, EIDO, EPHE, EPOL, EWM, EWS, EWW, KWT, QAT, THD, UAE, XLB, XLC, XLRE (tylko uwaga))",
+  "TRENDY najnowsze źródła — ostatni dzień z wynikiem reguł w cieniu: ostatni wynik z 2026-11-09 — 2 d 15 h temu (próg 2 d 12 h (godziny robocze) — wyniki reguł w cieniu przestały dochodzić (tylko uwaga))",
   "DeFi 2 (defi2.json): opłaty: kategorie razem większe niż suma serwisu",
   "Premia USDT — Brazylia: ostatni odczyt sprzed 14 dni (próg 8) — giełda albo kurs referencyjny nie odpowiadają",
-  "Prąd w Polsce 2026-11-12: RCE 355.2 €/MWh a strefa Polska 331.6 €/MWh — różnica 7.1% (próg 5%)",
-  "Stres i niepewność: ryzyko geopolityczne (GPR): dane z 2026-11-02 — 7 d 12 h temu (próg 4 d 0 h roboczych — źródło spóźnia się albo część przestała się odświeżać; najwyżej uwaga)",
+  "Prąd w Polsce 2026-11-12: RCE 354.2 €/MWh a strefa Polska 331.6 €/MWh — różnica 6.8% (próg 5%)",
+  "Stres i niepewność: ryzyko geopolityczne (GPR): dane z 2026-11-02 — 7 d 15 h temu (próg 4 d 0 h roboczych — źródło spóźnia się albo część przestała się odświeżać; najwyżej uwaga)",
   "Nowcasty: szacunek CPI dotyczy 2026-11, a ostatni odczyt jest za 2026-09 — oczekiwano miesiąca następnego po odczycie (plik usa-makro nieaktualny albo szacunek dotyczy wcześniejszego miesiąca)",
   "eksport zbóż USA: 1 nazw krajów bez kodu w sumach (OTHER PACIFIC ISLANDS, NEC) — dopisać do tabeli krajów",
-  "Interwencje i rezerwy: Japonia (pobranie): dane z 2026-11-08T11:36:56+00:00 — 4 d 0 h temu (pobranie starsze niż 24 h 00 min (odświeżanie co 3 h) — dane mogą być nieaktualne; najwyżej uwaga)",
+  "Interwencje i rezerwy: Japonia (pobranie): dane z 2026-11-08T11:36:56+00:00 — 4 d 3 h temu (pobranie starsze niż 24 h 00 min (odświeżanie co 3 h) — dane mogą być nieaktualne; najwyżej uwaga)",
   "Waluty świata — kursy wobec dolara: brak tej części w pliku (źródło nie odpowiada od ponad 3 dób)",
-  "zgodność kapitalizacji: brak odczytu (HTTP Error 429: Too Many Requests)",
-  "zgodność cen BTC/ETH: brak odczytu (HTTP Error 429: Too Many Requests)",
   "surowce: ropa WTI 2026-10 — średnia miesiąca z dwóch źródeł różni się o +4,47% (próg 4% z testu wstecznego) — sprawdzić",
   "Rosja: iloraz importu Rosji z UE do eksportu UE do Rosji 1,09 poza pasmem 1,20–6,00 (2026-07) — najwyżej uwaga",
-  "1 nieudany przebieg automatu w 24 h — już naprawione: od ostatniej porażki 71 udanych przebiegów z rzędu (11.11 21:04 (zbuduj / Run actions/upload-pages-artifact@v5))",
-  "zbieracz zgłasza błędy w 5 kolejnych dniach kontroli (zboża dziennie naw: HTTP Error 500: ; Premie krypto: EBC: The read operation timed out) — strona i publikacja działają; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną"
+  "tokenizowane aktywa: produkty spoza głównej listy z jakąkolwiek wartością — tylko 0 (próg 20) — źródło przestało podawać ich wartości; ostatnio znane są w grupie „bez bieżącej wyceny”, sumy spadną (tylko uwaga)",
+  "tokenizowane aktywa (dane emitentów): po 2026-11-11 już nie liczone wg emitenta: Centrifuge Protocol — odczyt nieudany, stan za stary albo źródło v133 znów podaje bieżącą wartość (tylko uwaga)",
+  "1 nieudany przebieg automatu w 24 h — już naprawione: od ostatniej porażki 84 udane przebiegi z rzędu (11.11 21:04 (zbuduj / Run actions/upload-pages-artifact@v5))",
+  "zbieracz zgłasza błędy w 5 kolejnych dniach kontroli (Waluty świata: fx: 11 z 200 wierszy kursów odrzuconych jako błędne; premie stable EBC: The read operation timed out) — strona i publikacja działają; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną"
  ],
  "bledy": [],
  "zakladki": {
-  "at": "2026-11-12T12:34:22Z",
+  "at": "2026-11-12T15:25:33Z",
   "stan": "ok",
   "oceny": [
    {
@@ -5010,7 +5024,7 @@
    {
     "z": "GLOBAL",
     "p": "✅",
-    "n": "rysowanie wykresów (159, w 59 panelach)",
+    "n": "rysowanie wykresów (160, w 59 panelach)",
     "t": "wykresy",
     "u": ""
    },
@@ -5024,7 +5038,7 @@
    {
     "z": "GLOBAL",
     "p": "✅",
-    "n": "czas pierwszego widoku (2,6 s)",
+    "n": "czas pierwszego widoku (1,3 s)",
     "t": "czas",
     "u": ""
    },
@@ -5052,7 +5066,7 @@
    {
     "z": "CRYPTO",
     "p": "✅",
-    "n": "czas pierwszego widoku (0,2 s)",
+    "n": "czas pierwszego widoku (0,4 s)",
     "t": "czas",
     "u": ""
    },
@@ -5591,14 +5605,14 @@
    {
     "z": "CRYPTO",
     "p": "✅",
-    "n": "Sektory krypto (chipy) › DeFi",
+    "n": "Sektory krypto (chipy) › AI",
     "t": "przełącznik",
     "u": ""
    },
    {
     "z": "CRYPTO",
     "p": "✅",
-    "n": "Sektory krypto (chipy) › AI",
+    "n": "Sektory krypto (chipy) › DeFi",
     "t": "przełącznik",
     "u": ""
    },
@@ -5654,35 +5668,35 @@
    {
     "z": "CRYPTO",
     "p": "✅",
-    "n": "Kapitał w krypto › BTC → Giełdy −18 093 mln …",
+    "n": "Kapitał w krypto › BTC → Giełdy −58 811 mln …",
     "t": "przełącznik",
     "u": ""
    },
    {
     "z": "CRYPTO",
     "p": "✅",
-    "n": "Kapitał w krypto › ETH → Giełdy −3889 mln US…",
+    "n": "Kapitał w krypto › ETH → Giełdy −9705 mln US…",
     "t": "przełącznik",
     "u": ""
    },
    {
     "z": "CRYPTO",
     "p": "✅",
-    "n": "Kapitał w krypto › L1/L2 → Giełdy −1455 mln …",
+    "n": "Kapitał w krypto › L1/L2 → Giełdy −2933 mln …",
     "t": "przełącznik",
     "u": ""
    },
    {
     "z": "CRYPTO",
     "p": "✅",
-    "n": "Kapitał w krypto › Memecoiny → Giełdy −764 m…",
+    "n": "Kapitał w krypto › Memecoiny → Giełdy −1328 …",
     "t": "przełącznik",
     "u": ""
    },
    {
     "z": "CRYPTO",
     "p": "✅",
-    "n": "Kapitał w krypto › DeFi → Giełdy −735 mln US…",
+    "n": "Kapitał w krypto › AI → Giełdy −1033 mln USD…",
     "t": "przełącznik",
     "u": ""
    },
@@ -5945,7 +5959,7 @@
     "plik": "krypto",
     "zmiana": "pusty",
     "opis": "plik „krypto”: plik pusty ({})",
-    "czas_s": 22.1,
+    "czas_s": 22.8,
     "oceny": [
      {
       "p": "✅",
@@ -5979,7 +5993,7 @@
     "plik": "rynki",
     "zmiana": "brak",
     "opis": "plik „rynki”: plik nie istnieje (HTTP 404)",
-    "czas_s": 21.2,
+    "czas_s": 22.7,
     "oceny": [
      {
       "p": "✅",
@@ -6013,7 +6027,7 @@
     "plik": "trendy",
     "zmiana": "puste_listy",
     "opis": "plik „trendy”: plik bez wierszy (wszystkie listy puste)",
-    "czas_s": 19.4,
+    "czas_s": 21.1,
     "oceny": [
      {
       "p": "✅",
@@ -6047,7 +6061,7 @@
     "plik": "swiat-dziennik",
     "zmiana": "ucięty",
     "opis": "plik „swiat-dziennik”: plik niepełny (ucięty w połowie)",
-    "czas_s": 20.5,
+    "czas_s": 21.6,
     "oceny": [
      {
       "p": "✅",
@@ -6081,7 +6095,7 @@
     "plik": "krypto-dziennik",
     "zmiana": "ucięty",
     "opis": "plik „krypto-dziennik”: plik niepełny (ucięty w połowie)",
-    "czas_s": 20.5,
+    "czas_s": 21.3,
     "oceny": [
      {
       "p": "✅",
@@ -6115,7 +6129,7 @@
     "plik": "ceny",
     "zmiana": "puste_listy",
     "opis": "plik „ceny”: plik bez wierszy (wszystkie listy puste)",
-    "czas_s": 19.5,
+    "czas_s": 20.6,
     "oceny": [
      {
       "p": "✅",
@@ -6149,7 +6163,7 @@
     "plik": "meta",
     "zmiana": "stary",
     "opis": "plik „meta”: plik z datami sprzed 14 dni",
-    "czas_s": 15.4,
+    "czas_s": 16.2,
     "oceny": [
      {
       "p": "✅",
@@ -6185,43 +6199,45 @@
    }
   ],
   "czas": {
-   "podstawowy_s": 24.3,
-   "razem_s": 100.8
+   "podstawowy_s": 31.3,
+   "razem_s": 112.6
   },
   "wynik_podstawowy": {
    "wykresy": {
-    "global": 159,
+    "global": 160,
     "crypto": 31,
     "trendy": 48
    },
    "kroki": 120,
-   "zapytania": 385
+   "zapytania": 386
   },
   "widok": {
-   "global": 2.6,
-   "crypto": 0.2,
+   "global": 1.3,
+   "crypto": 0.4,
    "trendy": 0.1
   }
  },
  "przegladarka": {
   "stan": "ok",
   "ok": true,
-  "czas_s": 7.0,
-  "bajty": 4363207,
-  "svg": 490,
+  "czas_s": 11.0,
+  "bajty": 4826588,
+  "svg": 526,
   "wykresy": 38,
   "artefakty": [],
   "artefakty_n": 0,
   "bledy": [],
-  "zasoby": [],
+  "zasoby": [
+   "https://api.coingecko.com/api/v3/global"
+  ],
   "inne": [],
   "nieczytelne": 0
  },
  "przegladarka_lekka": {
   "stan": "ok",
   "ok": true,
-  "czas_s": 9.0,
-  "bajty": 4121864,
+  "czas_s": 10.0,
+  "bajty": 4122362,
   "svg": 448,
   "wykresy": 25,
   "artefakty": [],
@@ -6236,21 +6252,12 @@
  "awarie": {
   "trwa": [
    {
-    "czesc": "em2_wb",
-    "od": "2026-11-12T12:27:21+00:00",
-    "ost": "2026-11-12T12:27:21+00:00",
-    "n": 1,
-    "do": null,
-    "h": 0.0,
-    "bez": true
-   },
-   {
     "czesc": "interw_jp",
     "od": "2026-11-08T23:45:09+00:00",
-    "ost": "2026-11-12T12:27:21+00:00",
-    "n": 363,
+    "ost": "2026-11-12T15:01:48+00:00",
+    "n": 374,
     "do": null,
-    "h": 84.7,
+    "h": 87.3,
     "bez": true
    },
    {
@@ -6259,34 +6266,16 @@
     "ost": "2026-11-12T07:26:00+00:00",
     "n": 54,
     "do": null,
-    "h": 34.8,
+    "h": 37.4,
     "bez": true
    },
    {
     "czesc": "metale_cu",
     "od": "2026-10-23T17:58:25+00:00",
-    "ost": "2026-11-12T06:52:34+00:00",
-    "n": 54,
+    "ost": "2026-11-12T13:01:25+00:00",
+    "n": 55,
     "do": null,
-    "h": 474.5,
-    "bez": true
-   },
-   {
-    "czesc": "nastr_alt",
-    "od": "2026-11-12T12:15:21+00:00",
-    "ost": "2026-11-12T12:15:21+00:00",
-    "n": 1,
-    "do": null,
-    "h": 0.2,
-    "bez": true
-   },
-   {
-    "czesc": "niepewnosc_ciss",
-    "od": "2026-11-12T12:27:21+00:00",
-    "ost": "2026-11-12T12:27:21+00:00",
-    "n": 1,
-    "do": null,
-    "h": 0.0,
+    "h": 477.1,
     "bez": true
    },
    {
@@ -6295,52 +6284,79 @@
     "ost": "2026-11-10T09:40:13+00:00",
     "n": 26,
     "do": null,
-    "h": 56.6,
+    "h": 59.2,
     "bez": true
    },
    {
     "czesc": "polska_pszenica",
     "od": "2026-11-06T19:29:00+00:00",
-    "ost": "2026-11-12T11:21:18+00:00",
-    "n": 99,
+    "ost": "2026-11-12T14:31:04+00:00",
+    "n": 100,
     "do": null,
-    "h": 137.0,
+    "h": 139.5,
     "bez": true
-   },
-   {
-    "czesc": "premie_fx",
-    "od": "2026-11-12T12:15:21+00:00",
-    "ost": "2026-11-12T12:27:21+00:00",
-    "n": 2,
-    "do": null,
-    "h": 0.2,
-    "bez": false
    },
    {
     "czesc": "premie_st_br",
     "od": "2026-11-06T15:04:46+00:00",
-    "ost": "2026-11-11T17:01:48+00:00",
-    "n": 43,
+    "ost": "2026-11-12T15:01:48+00:00",
+    "n": 44,
     "do": null,
-    "h": 141.4,
+    "h": 144.0,
+    "bez": true
+   },
+   {
+    "czesc": "premie_st_id",
+    "od": "2026-11-12T15:01:48+00:00",
+    "ost": "2026-11-12T15:01:48+00:00",
+    "n": 1,
+    "do": null,
+    "h": 0.0,
     "bez": true
    },
    {
     "czesc": "premie_st_in",
     "od": "2026-11-09T15:00:28+00:00",
-    "ost": "2026-11-11T17:01:48+00:00",
-    "n": 32,
+    "ost": "2026-11-12T15:01:48+00:00",
+    "n": 33,
     "do": null,
-    "h": 69.4,
+    "h": 72.0,
+    "bez": true
+   },
+   {
+    "czesc": "premie_st_mx",
+    "od": "2026-11-12T15:01:48+00:00",
+    "ost": "2026-11-12T15:01:48+00:00",
+    "n": 1,
+    "do": null,
+    "h": 0.0,
+    "bez": true
+   },
+   {
+    "czesc": "premie_st_tr",
+    "od": "2026-11-12T15:01:48+00:00",
+    "ost": "2026-11-12T15:01:48+00:00",
+    "n": 1,
+    "do": null,
+    "h": 0.0,
+    "bez": true
+   },
+   {
+    "czesc": "premie_st_za",
+    "od": "2026-11-12T15:01:48+00:00",
+    "ost": "2026-11-12T15:01:48+00:00",
+    "n": 1,
+    "do": null,
+    "h": 0.0,
     "bez": true
    },
    {
     "czesc": "swiat-dzien",
     "od": "2026-11-10T22:07:17+00:00",
-    "ost": "2026-11-12T12:27:21+00:00",
-    "n": 172,
+    "ost": "2026-11-12T15:01:48+00:00",
+    "n": 183,
     "do": null,
-    "h": 38.3,
+    "h": 40.9,
     "bez": false
    },
    {
@@ -6349,16 +6365,16 @@
     "ost": "2026-11-12T10:43:57+00:00",
     "n": 30,
     "do": null,
-    "h": 158.1,
+    "h": 160.7,
     "bez": true
    },
    {
     "czesc": "waluty_fx",
     "od": "2026-11-06T22:17:09+00:00",
-    "ost": "2026-11-12T12:27:21+00:00",
-    "n": 331,
+    "ost": "2026-11-12T15:01:48+00:00",
+    "n": 342,
     "do": null,
-    "h": 134.2,
+    "h": 136.7,
     "bez": true
    },
    {
@@ -6367,7 +6383,7 @@
     "ost": "2026-11-12T12:27:21+00:00",
     "n": 5,
     "do": null,
-    "h": 12.4,
+    "h": 14.9,
     "bez": true
    },
    {
@@ -6376,7 +6392,7 @@
     "ost": "2026-11-12T12:15:21+00:00",
     "n": 100,
     "do": null,
-    "h": 137.0,
+    "h": 139.5,
     "bez": true
    }
   ],
@@ -6470,28 +6486,20 @@
     "h": 0.2
    },
    {
-    "czesc": "eth_wal",
-    "od": "2026-11-11T11:49:21+00:00",
-    "ost": "2026-11-11T12:36:22+00:00",
-    "n": 4,
-    "do": "2026-11-11T12:53:02+00:00",
-    "h": 1.1
-   },
-   {
-    "czesc": "eurosystem",
-    "od": "2026-11-11T07:08:22+00:00",
-    "ost": "2026-11-11T10:16:44+00:00",
+    "czesc": "em2_wb",
+    "od": "2026-11-12T12:27:21+00:00",
+    "ost": "2026-11-12T12:42:25+00:00",
     "n": 2,
-    "do": "2026-11-11T13:21:50+00:00",
-    "h": 6.2
+    "do": "2026-11-12T13:01:25+00:00",
+    "h": 0.6
    },
    {
-    "czesc": "m3",
-    "od": "2026-11-11T12:36:22+00:00",
-    "ost": "2026-11-11T12:36:22+00:00",
+    "czesc": "kursy",
+    "od": "2026-11-12T13:01:25+00:00",
+    "ost": "2026-11-12T13:01:25+00:00",
     "n": 1,
-    "do": "2026-11-11T13:33:41+00:00",
-    "h": 1.0
+    "do": "2026-11-12T13:15:29+00:00",
+    "h": 0.2
    },
    {
     "czesc": "metale_sh",
@@ -6500,6 +6508,22 @@
     "n": 2,
     "do": "2026-11-12T07:26:00+00:00",
     "h": 1.2
+   },
+   {
+    "czesc": "nastr_alt",
+    "od": "2026-11-12T12:15:21+00:00",
+    "ost": "2026-11-12T12:15:21+00:00",
+    "n": 1,
+    "do": "2026-11-12T14:20:16+00:00",
+    "h": 2.1
+   },
+   {
+    "czesc": "niepewnosc_ciss",
+    "od": "2026-11-12T12:27:21+00:00",
+    "ost": "2026-11-12T13:15:29+00:00",
+    "n": 4,
+    "do": "2026-11-12T13:27:07+00:00",
+    "h": 1.0
    },
    {
     "czesc": "polska_hurt",
@@ -6518,9 +6542,17 @@
     "h": 1.0
    },
    {
+    "czesc": "premie_fx",
+    "od": "2026-11-12T12:15:21+00:00",
+    "ost": "2026-11-12T13:15:29+00:00",
+    "n": 5,
+    "do": "2026-11-12T13:27:07+00:00",
+    "h": 1.2
+   },
+   {
     "czesc": "premie_st_id",
     "od": "2026-11-11T15:07:49+00:00",
-    "ost": "2026-11-11T15:07:49+00:00",
+    "ost": "2026-11-11T15:34:39+00:00",
     "n": 1,
     "do": "2026-11-11T15:34:39+00:00",
     "h": 0.4
@@ -6528,7 +6560,7 @@
    {
     "czesc": "premie_st_mx",
     "od": "2026-11-11T15:07:49+00:00",
-    "ost": "2026-11-11T15:07:49+00:00",
+    "ost": "2026-11-11T15:34:39+00:00",
     "n": 1,
     "do": "2026-11-11T15:34:39+00:00",
     "h": 0.4
@@ -6536,7 +6568,7 @@
    {
     "czesc": "premie_st_tr",
     "od": "2026-11-11T15:07:49+00:00",
-    "ost": "2026-11-11T15:07:49+00:00",
+    "ost": "2026-11-11T15:34:39+00:00",
     "n": 1,
     "do": "2026-11-11T15:34:39+00:00",
     "h": 0.4
@@ -6544,7 +6576,7 @@
    {
     "czesc": "premie_st_za",
     "od": "2026-11-11T15:07:49+00:00",
-    "ost": "2026-11-11T15:07:49+00:00",
+    "ost": "2026-11-11T15:34:39+00:00",
     "n": 1,
     "do": "2026-11-11T15:34:39+00:00",
     "h": 0.4
@@ -6558,12 +6590,12 @@
     "h": 9.5
    },
    {
-    "czesc": "tgb",
-    "od": "2026-11-11T12:36:22+00:00",
-    "ost": "2026-11-11T12:36:22+00:00",
-    "n": 1,
-    "do": "2026-11-11T13:33:41+00:00",
-    "h": 1.0
+    "czesc": "ucits_fx",
+    "od": "2026-11-12T13:01:25+00:00",
+    "ost": "2026-11-12T13:27:07+00:00",
+    "n": 3,
+    "do": "2026-11-12T13:40:08+00:00",
+    "h": 0.6
    },
    {
     "czesc": "usdt_eth",
@@ -6577,24 +6609,24 @@
   "zniknely": [],
   "uwagi": [],
   "bledy": [
-   "część automatu „swiat-dzien” nie działa od 10.11.2026, 23:07 (1 dzień 14 godz., nieudanych przebiegów z rzędu: 172) — automat nie naprawił tego sam; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną (zadanie: „napraw część swiat-dzien”)"
+   "część automatu „swiat-dzien” nie działa od 10.11.2026, 23:07 (1 dzień 16 godz., nieudanych przebiegów z rzędu: 183) — automat nie naprawił tego sam; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną (zadanie: „napraw część swiat-dzien”)"
   ]
  },
  "zuzycie": {
   "plany": [
    {
     "k": "cg",
-    "tekst": "CoinGecko (Demo) — zapytań w tym miesiącu: 1 281, prognoza na miesiąc ok. 3 336 z limitu 10 000 (33%)",
+    "tekst": "CoinGecko (Demo) — zapytań w tym miesiącu: 1 305, prognoza na miesiąc ok. 3 367 z limitu 10 000 (34%)",
     "znak": "✅"
    },
    {
     "k": "cmc",
-    "tekst": "CoinMarketCap (Basic) — zapytań w tym miesiącu: 668, prognoza na miesiąc ok. 1 740 z limitu 15 000 (12%); według dostawcy w miesiącu: 613 z 15 000 (4%, stan 12.11.2026, 13:02)",
+    "tekst": "CoinMarketCap (Basic) — zapytań w tym miesiącu: 680, prognoza na miesiąc ok. 1 755 z limitu 15 000 (12%); według dostawcy w miesiącu: 613 z 15 000 (4%, stan 12.11.2026, 13:02)",
     "znak": "✅"
    },
    {
     "k": "td",
-    "tekst": "Twelve Data (Basic) — kredytów wczoraj (doba UTC): 329 z limitu 800 (41%); w bieżącej dobie (od północy UTC): 181",
+    "tekst": "Twelve Data (Basic) — kredytów wczoraj (doba UTC): 329 z limitu 800 (41%); w bieżącej dobie (od północy UTC): 225",
     "znak": "✅"
    },
    {
@@ -6623,14 +6655,14 @@
   "razem": 8,
   "wylaczone": [],
   "brak": [],
-  "przebieg_dni": 2,
+  "przebieg_dni": 3,
   "przebieg_wynik": "success",
   "commit_dni": 0,
   "uwagi": []
  },
  "zewnetrzne": [
-  "część automatu „swiat-dzien” nie działa od 10.11.2026, 23:07 (1 dzień 14 godz., nieudanych przebiegów z rzędu: 172) — automat nie naprawił tego sam; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną (zadanie: „napraw część swiat-dzien”)",
-  "zbieracz zgłasza błędy w 5 kolejnych dniach kontroli (zboża dziennie naw: HTTP Error 500: ; Premie krypto: EBC: The read operation timed out) — strona i publikacja działają; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną"
+  "część automatu „swiat-dzien” nie działa od 10.11.2026, 23:07 (1 dzień 16 godz., nieudanych przebiegów z rzędu: 183) — automat nie naprawił tego sam; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną (zadanie: „napraw część swiat-dzien”)",
+  "zbieracz zgłasza błędy w 5 kolejnych dniach kontroli (Waluty świata: fx: 11 z 200 wierszy kursów odrzuconych jako błędne; premie stable EBC: The read operation timed out) — strona i publikacja działają; jeśli trwa dłużej niż 3 dni: uruchom naprawę (np. Claude) z plikiem kontrola/ostatnia.md albo poproś osobę techniczną"
  ],
  "historia_n": 30,
  "wynik": "UWAGA"
