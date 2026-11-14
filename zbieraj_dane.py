@@ -45639,11 +45639,15 @@ def iw_jp_kier(opis):
 
 def iw_jp_csv(tekst):
     """Plik historii (po dekodowaniu Shift_JIS) → (zdarzenia [[RRRR-MM-DD, kwota w setkach mln jenów, kierunek]], kwartały [(rok, miesiąc od, miesiąc do, suma)]). Rok (kolumna 4) i miesiąc (kolumna 5)
-    przenoszone w dół; wiersz „…期計” = suma kwartału. Bramki: 9 kolumn; co najmniej 300 dni i 100 kwartałów; dni rosnąco; kwartały po kolei bez luk; każdy dzień w kwartale; suma kwartału = suma jego dni (±IW_JP_TOL)."""
+    przenoszone w dół; wiersz „…期計” = suma kwartału. Bramki: 9 kolumn danych (dalsze pola tylko puste); co najmniej 300 dni i 100 kwartałów; dni rosnąco; kwartały po kolei bez luk; każdy dzień w kwartale; suma kwartału = suma jego dni (±IW_JP_TOL)."""
     wz = list(csv.reader(io.StringIO(tekst.lstrip(chr(0xFEFF)))))
     ev, kw = [], []
     rok = mies = None
     for w in wz:
+        if len(w) > 9:   # od publikacji 09.11.2026 plik ma sześć pustych kolumn końcowych
+            if any(p.strip() for p in w[9:]):
+                raise RuntimeError('Japonia: niepuste pola poza 9 kolumnami historii')
+            w = w[:9]   # zachowaj także puste pole opisu wewnątrz dziewięciu kolumn danych
         if len(w) != 9:
             continue
         if w[0].strip().endswith('期計'):
@@ -49596,6 +49600,7 @@ ZRODLA_META.update({'sur247': 'kraken'})   # v446: ta sama giełda kontraktów i
 import math as _wal_math   # v447: isfinite (biblioteka standardowa; ponowny import jest nieszkodliwy)
 WAL_V = 1
 WAL_CZESCI = ('fx', 'yuan', 'gilty')
+WAL_URL_TYPY = 'https://api.frankfurter.dev/v2/currencies?scope=all'   # także waluty historyczne w odniesieniach; type: currency / metal / crypto
 WAL_URL_KURSY = 'https://api.frankfurter.dev/v2/rates?base=USD'
 WAL_URL_DZIEN = WAL_URL_KURSY + '&date={d}'
 WAL_URL_SERIA = WAL_URL_KURSY + '&quotes={q}&from={a}&to={b}'
@@ -49664,6 +49669,40 @@ def wal_json(tekst):
     return j
 
 
+def wal_typy(j):
+    """Katalog scope=all → kod: typ. Niepełny/niejednoznaczny katalog nie może zakwalifikować aktywów jako walut."""
+    if not isinstance(j, list) or not j:
+        raise ValueError('katalog typów walut nie jest niepustą listą')
+    out = {}
+    for r in j:
+        kod, typ = (r.get('iso_code'), r.get('type')) if isinstance(r, dict) else (None, None)
+        if not isinstance(kod, str) or not kod or typ not in ('currency', 'metal', 'crypto'):
+            raise ValueError('katalog walut: brak kodu albo nieznany typ')
+        if kod in out:
+            raise ValueError(f'katalog walut: kod {kod} występuje dwa razy')
+        if typ == 'currency' and not _WAL_KOD.match(kod):
+            raise ValueError(f'katalog walut: błędny kod waluty {kod}')
+        out[kod] = typ
+    if out.get('USD') != 'currency':
+        raise ValueError('katalog walut: brak typu currency dla USD')
+    return out
+
+
+def wal_tylko_waluty(j, typy):
+    """Wyłącznie zadeklarowane currency; metale/krypto poza zakresem, nie błędne kursy. Brak metadanych kodu = jawny błąd. Złe wiersze nadal ocenia wal_kursy."""
+    out = []
+    for r in j:
+        kod = r.get('quote') if isinstance(r, dict) else None
+        if not isinstance(kod, str):
+            out.append(r)   # nie da się sklasyfikować: pozostaje w bramce błędnych wierszy
+            continue
+        if kod not in typy:
+            raise ValueError(f'katalog walut: brak typu dla kodu {kod}')
+        if typy[kod] == 'currency':
+            out.append(r)
+    return out
+
+
 def wal_kursy(j, dzis):
     """Lista kursów z interfejsu (wiersze {date, base, quote, rate}) → {kod: [kurs, dzień (date)]}; najnowszy dzień kodu wygrywa. Wiersz z inną bazą niż USD, złym kodem, kursem albo dniem późniejszym niż
     jutro (waluty Azji i Pacyfiku mają dzień „z przodu”) jest odrzucony; odrzuconych ponad WAL_BLEDNE_MAX = błąd odpowiedzi."""
@@ -49705,7 +49744,13 @@ def wal_zmiana(kurs, dzien, ref, okres):
 def wal_fx_buduj(dzis, pobierz):
     """Część fx → słownik {asof, ref, n, pom, brak, glowne, wiersze: [[kod, kurs, dzień, zm 1T, zm 1M, zm 1Q, zm 1R]]}. pobierz(adres, maks) → bajty. Brak miesięcznego odniesienia = błąd (rdzeń rankingu); brak
     tygodnia, kwartału albo roku — kolumna pusta („—”) i wpis w `brak`."""
-    teraz = wal_kursy(wal_json(pobierz(WAL_URL_KURSY, WAL_MAX_B['fx']).decode('utf-8')), dzis)
+    typy = wal_typy(json.loads(pobierz(WAL_URL_TYPY, WAL_MAX_B['fx']).decode('utf-8')))
+
+    def kursy(url):
+        j = wal_json(pobierz(url, WAL_MAX_B['fx']).decode('utf-8'))
+        return wal_kursy(wal_tylko_waluty(j, typy), dzis)
+
+    teraz = kursy(WAL_URL_KURSY)
     if not (WAL_MIN_WALUT <= len(teraz) <= WAL_MAX_WALUT):
         raise ValueError(f'liczba walut {len(teraz)} poza {WAL_MIN_WALUT}–{WAL_MAX_WALUT}')
     asof = wal_dzien_danych(teraz)
@@ -49715,7 +49760,7 @@ def wal_fx_buduj(dzis, pobierz):
     refs, brak = {}, []
     for p in WAL_OKRESY:
         try:
-            refs[p] = wal_kursy(wal_json(pobierz(WAL_URL_DZIEN.format(d=ref_d[p].isoformat()), WAL_MAX_B['fx']).decode('utf-8')), dzis)
+            refs[p] = kursy(WAL_URL_DZIEN.format(d=ref_d[p].isoformat()))
         except Exception as e:  # noqa — tydzień, kwartał i rok są dodatkiem
             if p == '1M':
                 raise ValueError(f'kursy sprzed miesiąca: {e}')

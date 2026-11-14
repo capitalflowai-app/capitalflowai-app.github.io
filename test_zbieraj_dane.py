@@ -63520,6 +63520,70 @@ class KontrolaChinyTwV400(unittest.TestCase):
 
 
 _IW401_NAGRANIA = {
+    # Oficjalny plik MF po publikacji 09.11.2026; bajty cp932 bez zmian, SHA-256 w teście nagrania.
+    'csv20261109': ('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'),
     'csv': ('eNq1PU2PHMd1dwP+D405cYFW0vVdrZNpSwokQKQBJQEcBwGbu03uRMuZxXxQWgsRvLOGLS65Ky25tHMKAh2F+GAERk5EjEAQHIP2KbAvCWzkFA'
         's+GMiNyCHvVfV3U9NN6BUhkbM79V7Xq3rf9er12e9++JMPfx4Xf776lTens+lytTiK5rei16azbLab11/Wn06vn1188JuLXz9+cra6+O7ZHzZP'
         'z392/t6H/3v/p/WY1+aLfHp7Fr367u5+NrudR6/PVvnibj5bTeez6Pphvsjw0/J5+K+c3Dr+9snfnD47/Y+XHz/56J/E5TX54Pz4xk5jCCCYzv'
@@ -63923,6 +63987,55 @@ class InterwencjeV401(unittest.TestCase):
             zd.iw_jp_csv(self.zam(t, 'April - June 2026,,,"117,349",,', 'April - June 2026,,,"117,349",,\n,,15日,,Jul,15,100,米ドル売り・日本円買い,the US dollar (sold) the Japanese yen (bought)'))
         # różnica w granicach zaokrągleń (±3) nie jest błędem
         zd.iw_jp_csv(self.zam(t, '"62,787"', '"62,789"'))
+
+    def test_jp_csv_nagranie_20261109_389_dni_142_kwartaly(self):
+        import hashlib, csv, io
+        raw = self.nagr('csv20261109')
+        self.assertEqual(hashlib.sha256(raw).hexdigest(), '5d3483e2ebcb339c6a3c5a1c0ff9205fcd2c12d6b96d25feef5dc3a5e8f7748f')
+        tekst = raw.decode('cp932')
+        rows = list(csv.reader(io.StringIO(tekst)))
+        self.assertEqual({len(r) for r in rows}, {15})
+        self.assertTrue(all(not any(r[9:]) for r in rows), 'pierwsze dziewięć pól to dane, pozostałe sześć jest pustych')
+        ev, kw = zd.iw_jp_csv(tekst)
+        self.assertEqual((len(ev), len(kw)), (389, 142))
+        self.assertEqual(ev[0], ['1991-05-13', 139, 'S'])
+        self.assertEqual(ev[-3:], [['2026-07-30', 79756, 'S'], ['2026-07-31', 55523, 'S'], ['2026-08-03', 18714, 'S']])
+        self.assertEqual(kw[-1], (2026, 7, 9, 153993))
+        self.assertEqual(zd.iw_jp_koniec(kw), datetime.date(2026, 9, 30), 'data danych, nie data pobrania ani publikacji')
+        for r in rows:
+            r[-1] = ' \t'   # puste formatowanie może zawierać białe znaki
+        out = io.StringIO(); csv.writer(out).writerows(rows)
+        self.assertEqual(zd.iw_jp_csv(out.getvalue()), (ev, kw), 'białe znaki poza danymi nie zmieniają żadnego zdarzenia ani sumy')
+
+    def test_jp_csv_niepuste_pole_poza_danymi_jest_bledem(self):
+        import csv, io
+        rows = list(csv.reader(io.StringIO(self.nagr('csv20261109').decode('cp932'))))
+        row = next(r for r in reversed(rows) if r[0].strip().endswith('期計'))
+        for extra in ('0', 'nowe pole'):
+            with self.subTest(extra=extra):
+                row[-1] = extra
+                out = io.StringIO(); csv.writer(out).writerows(rows)
+                with self.assertRaisesRegex(RuntimeError, 'niepuste pola poza 9 kolumnami historii'):
+                    zd.iw_jp_csv(out.getvalue())
+
+    def test_jp_dopelnienie_nie_zmienia_odczytu_a_blad_zachowuje_dane_i_date(self):
+        import csv, io
+        def kolumny(tekst, extra=''):
+            rows = list(csv.reader(io.StringIO(tekst)))
+            out = io.StringIO(); csv.writer(out).writerows(r + [''] * 5 + [extra] for r in rows)
+            return out.getvalue()
+        oczek = self.czesc('jp')   # dotychczasowy plik dziewięciokolumnowy i komunikaty miesięczne
+        self.assertEqual(self.czesc('jp', odp=self.z_csv(kolumny)), oczek, 'sześć pustych pól nie zmienia danych, jednostek, kierunku ani dat')
+        pk = self.build()
+        stara = '2026-10-16T06:00:00+00:00'
+        pk['part_at']['jp'] = stara; pk['jp']['t'] = stara
+        o = self.build(prev=pk, odp=self.z_csv(lambda t: kolumny(t, 'nowe pole')))
+        self.assertFalse(o['ok']['jp']); self.assertEqual(o['jp'], pk['jp'])
+        self.assertEqual(o['part_at']['jp'], stara, 'nieudana próba nie przesuwa czasu zachowanych danych')
+        self.assertEqual(o['errs']['jp'], 'Japonia: niepuste pola poza 9 kolumnami historii')
+        for k in zd.IW_PARTS:
+            if k != 'jp':
+                self.assertTrue(o['ok'][k]); self.assertEqual(o[k], pk[k]); self.assertEqual(o['part_at'][k], pk['part_at'][k])
 
     def test_jp_komunikaty_miesieczne_okres_i_kwota(self):
         self.assertEqual(zd.iw_jp_okres(self.txt('m20260731')), (datetime.date(2026, 6, 29), datetime.date(2026, 7, 29), 0.0))
@@ -74157,6 +74270,9 @@ def _v447_siec(n=130, brak=(), zle=None, wyw=None, daty=None, extra=()):
     def f(url, maks):
         if wyw is not None:
             wyw.append(url)
+        if url == zd.WAL_URL_TYPY:
+            kody = {r['quote'] for r in _v447_lista(n, extra=extra) if isinstance(r, dict) and isinstance(r.get('quote'), str)}
+            return json.dumps([{'iso_code': k, 'type': 'metal' if k in ('XAU', 'XAG', 'XPD', 'XPT') else 'currency'} for k in sorted(kody)]).encode()
         if url == zd.WAL_URL_KURSY:
             return json.dumps(_v447_lista(n, daty=daty, extra=extra)).encode()
         for p, d in _V447_REF.items():
@@ -74234,6 +74350,84 @@ class WalutyV447(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'odrzuconych'):
             zd.wal_kursy([5, None, 'x', {'quote': 'ABC'}], _V447_DZIS)
 
+    def test_fx_katalog_typow_odrzuca_krypto_3_i_4_literowe_we_wszystkich_odniesieniach(self):
+        crypto = ('AAVE', 'ALGO', 'ATOM', 'AVAX', 'HBAR', 'LINK', 'MANA', 'NEAR', 'ONDO', 'USDC', 'USDT', 'BTC', 'ETH', 'SOL')
+        katalog = [{'iso_code': r['quote'], 'type': 'metal' if r['quote'] in ('XAU', 'XAG', 'XPD', 'XPT') else 'currency'} for r in _v447_lista(130)]
+        katalog += [{'iso_code': k, 'type': 'crypto'} for k in crypto] + [{'iso_code': 'ZMK', 'type': 'currency'}]   # kod historyczny nadal znany
+        calls, base = [], _v447_siec(130)
+
+        def pobierz(url, maks):
+            calls.append(url)
+            if url == 'https://api.frankfurter.dev/v2/currencies?scope=all':
+                return json.dumps(katalog).encode()
+            rows = json.loads(base(url, maks))
+            return json.dumps(rows + [{'date': rows[0]['date'], 'base': 'USD', 'quote': k, 'rate': 2.0} for k in crypto]).encode()
+
+        out = zd.wal_fx_buduj(_V447_DZIS, pobierz)
+        self.assertEqual((out['n'], out['asof'], out['brak']), (130, '2026-10-18', []))
+        self.assertFalse({r[0] for r in out['wiersze']} & set(crypto))
+        self.assertEqual(out['wiersze'][0], ['BAA', _v447_kurs(0), '2026-10-18'] + [_v447_zm(0)] * 4)
+        self.assertEqual(len(calls), 6, 'jeden katalog scope=all oraz bieżące kursy i cztery odniesienia')
+        self.assertEqual(calls[0], 'https://api.frankfurter.dev/v2/currencies?scope=all')
+
+    def test_fx_katalog_niepelny_duplikat_i_nieznany_typ_sa_bledem(self):
+        good = [{'iso_code': 'USD', 'type': 'currency'}, {'iso_code': 'PLN', 'type': 'currency'}, {'iso_code': 'CNH', 'type': 'currency'},
+                {'iso_code': 'ZMK', 'type': 'currency'}, {'iso_code': 'BTC', 'type': 'crypto'}, {'iso_code': 'USDT', 'type': 'crypto'}, {'iso_code': 'XAU', 'type': 'metal'}]
+        typy = zd.wal_typy(good)
+        self.assertEqual((typy['CNH'], typy['ZMK'], typy['BTC'], typy['USDT'], typy['XAU']), ('currency', 'currency', 'crypto', 'crypto', 'metal'))
+        legacy = {'date': '2025-10-18', 'base': 'USD', 'quote': 'ZMK', 'rate': 5.0}
+        self.assertEqual(zd.wal_kursy(zd.wal_tylko_waluty([legacy], typy), _V447_DZIS)['ZMK'], [5.0, datetime.date(2025, 10, 18)], 'scope=all klasyfikuje historyczny kod bez zmiany jego daty')
+        for bad in (None, {}, [], [None], good + [good[0]], good + [{'iso_code': 'BTC', 'type': 'currency'}],
+                    good + [{'iso_code': 'ZZZ'}], good + [{'iso_code': 'ZZZ', 'type': 'unknown'}], good + [{'iso_code': 'LONG', 'type': 'currency'}], good[1:]):
+            with self.subTest(bad=bad), self.assertRaisesRegex(ValueError, 'katalog'):
+                zd.wal_typy(bad)
+        row = {'date': '2026-10-18', 'base': 'USD', 'quote': 'ZZZ', 'rate': 1.0}
+        with self.assertRaisesRegex(ValueError, 'brak typu dla kodu ZZZ'):
+            zd.wal_tylko_waluty([row], typy)
+
+    def test_fx_próg_pieciu_procent_liczy_tylko_wiersze_walut(self):
+        rows = _v447_lista(100, pomin=False)
+        typy = zd.wal_typy([{'iso_code': r['quote'], 'type': 'currency'} for r in rows] + [{'iso_code': 'USD', 'type': 'currency'}, {'iso_code': 'BTC', 'type': 'crypto'}])
+        for r in rows[:5]:
+            r['rate'] = 0
+        crypto = [{'date': '2026-10-18', 'base': 'USD', 'quote': 'BTC', 'rate': 2.0}] * 100
+        self.assertEqual(len(zd.wal_kursy(zd.wal_tylko_waluty(rows + crypto, typy), _V447_DZIS)), 95, 'dokładnie 5% jak wcześniej')
+        rows[5]['rate'] = 0
+        with self.assertRaisesRegex(ValueError, '6 z 100 wierszy'):
+            zd.wal_kursy(zd.wal_tylko_waluty(rows + crypto, typy), _V447_DZIS)
+        typy['BZZ'] = 'currency'
+        selected = zd.wal_tylko_waluty([None, {'date': 'x'}, {'quote': 'BZZ', 'rate': -1}], typy)
+        with self.assertRaises(ValueError):
+            zd.wal_kursy(selected, _V447_DZIS)
+        self.assertEqual((zd.WAL_MIN_WALUT, zd.WAL_MIN_WIERSZY, zd.WAL_BLEDNE_MAX), (100, 100, 0.05))
+
+    def test_fx_minimum_stu_walut_nie_jest_dopelniane_krypto(self):
+        base = _v447_siec(90)
+        def pobierz(url, maks):
+            body = json.loads(base(url, maks))
+            if url == zd.WAL_URL_TYPY:
+                return json.dumps(body + [{'iso_code': 'BTC', 'type': 'crypto'}]).encode()
+            return json.dumps(body + [{'date': '2026-10-18', 'base': 'USD', 'quote': 'BTC', 'rate': 2.0}] * 100).encode()
+        with self.assertRaisesRegex(ValueError, 'liczba walut 94 poza 100'):
+            zd.wal_fx_buduj(_V447_DZIS, pobierz)
+
+    def test_fx_blad_katalogu_zostawia_poprzednia_czesc_i_rzeczywisty_czas(self):
+        prev, _ = self._plik_po_trzech_czesciach()
+        now = (_V447_NOW + datetime.timedelta(hours=2)).isoformat()
+        base = self._siec_wszystko()
+        for response in ({'message': 'brak katalogu'}, [{'iso_code': 'USD', 'type': 'currency'}] * 2, [{'iso_code': 'USD', 'type': 'unknown'}]):
+            calls = []
+            def pobierz(url, maks):
+                calls.append(url)
+                return json.dumps(response).encode() if url == zd.WAL_URL_TYPY else base(url, maks)
+            with self.subTest(response=response), mock.patch.object(zd, 'NOW', now), mock.patch.object(zd, 'wal_pobierz', side_effect=pobierz):
+                out, state = zd.build_waluty(prev, zadania={'fx': True, 'yuan': False, 'gilty': False})
+            self.assertEqual(state, {'fx': False, 'yuan': 'cached', 'gilty': 'cached'})
+            self.assertEqual(out['fx'], prev['fx']); self.assertEqual(out['part_at']['fx'], prev['part_at']['fx'])
+            self.assertEqual(out['try_at']['fx'], now); self.assertFalse(out['ok']['fx'])
+            self.assertEqual(calls, [zd.WAL_URL_TYPY], 'bez metadanych nie pobieramy ani nie zgadujemy kursów')
+            self.assertTrue(any(e.startswith('Waluty świata: fx: katalog') for e in zd.META['errors']))
+
     def test_zmiana_sila_waluty_okna_dni_i_skrajnosci(self):
         d = datetime.date(2026, 10, 18); D = lambda s: datetime.date.fromisoformat(s)   # noqa: E731
         self.assertEqual(zd.wal_zmiana(4.0, d, [4.4, D('2026-09-18')], '1M'), 10.0, 'kurs spadł z 4,4 do 4,0 — waluta zyskała 10%')
@@ -74265,7 +74459,7 @@ class WalutyV447(unittest.TestCase):
         kody = [w[0] for w in o['wiersze']]
         self.assertEqual(kody, sorted(kody)); self.assertEqual(len(kody), len(set(kody)))
         self.assertFalse(set(kody) & set(zd.WAL_POMIN), 'dolar, kruszce, prawa specjalne, jednostka COMESA i juan zagraniczny pominięte')
-        self.assertEqual(len(wyw), 5, 'odpowiedź „wszystkie waluty” + cztery odniesienia'); self.assertEqual(wyw[0], zd.WAL_URL_KURSY)
+        self.assertEqual(len(wyw), 6, 'katalog typów + odpowiedź „wszystkie waluty” + cztery odniesienia'); self.assertEqual(wyw[:2], [zd.WAL_URL_TYPY, zd.WAL_URL_KURSY])
         W = {w[0]: w for w in o['wiersze']}
         for i in (0, 1, 2, 6, 10, 77):
             k = _v447_kod(i); z = _v447_zm(i)
