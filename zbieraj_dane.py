@@ -40423,7 +40423,7 @@ P2_ODSW_DNI = 8                 # dni — ten sam identyfikator pliku: ponowne p
 P2_GUS_STRONA = 'https://stat.gov.pl/banki-i-bazy-danych/sdds/'
 P2_GUS_HOST = 'https://stat.gov.pl'
 P2_GUS_PLIK = re.compile(r'href="([^"]*/(sdds_dane_gospodarcze_i_finansowe_dla_polski_(\d{2})-(\d{2})-(\d{4})\.xlsx))"')
-P2_GUS_CPI = re.compile(r'href="([^"]*/pl_cpi_1998\.xlsx)"')
+P2_GUS_CPI = re.compile(r'/download/(?:[A-Za-z0-9_-]+/)+pl_cpi_1998(?:_[0-9]+)*\.xlsx')
 P2_KNF_STRONA = 'https://www.knf.gov.pl/?articleId=56224&p_id=18'
 P2_KNF_HOST = 'https://www.knf.gov.pl'
 P2_KNF_PLIK = re.compile(r'href="(/knf/pl/komponenty/img/((\d{4})_(\d{2})-Dane_statystyczne[\w.\-]*\.xlsx))"')
@@ -40939,6 +40939,32 @@ def _p2_stary(prev, now_t):
     return dl is None or (now_t - dl) >= datetime.timedelta(days=P2_ODSW_DNI)
 
 
+class _P2CpiLinks(_mt_hp.HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.pliki = set()
+
+    def handle_starttag(self, tag, attrs):
+        if tag != 'a':
+            return
+        for nazwa, href in attrs:
+            if nazwa == 'href' and href:
+                sciezka = href.removeprefix(P2_GUS_HOST)
+                if P2_GUS_CPI.fullmatch(sciezka):
+                    self.pliki.add(P2_GUS_HOST + sciezka)
+
+
+def p2_gus_cpi_url(tekst):
+    """Wybierz jeden arkusz CPI podlinkowany w SDDS, także z numerem wersji."""
+    parser = _P2CpiLinks()
+    parser.feed(tekst)
+    parser.close()
+    pliki = parser.pliki
+    if len(pliki) != 1:
+        raise RuntimeError(f'GUS: oczekiwano jednego odnośnika do indeksu cen, znaleziono {len(pliki)}')
+    return pliki.pop()
+
+
 def p2_czesc(n, prev, prev_at, proba, now_t):
     """→ (część, stan, błąd, sprawdzono). stan True = zbudowana, 'cached' = poprzednia wystarcza (odstęp nie minął, ten sam plik albo nowy plik starszy od poprzedniego)."""
     mam = isinstance(prev, dict) and bool(prev.get('asof'))
@@ -40947,14 +40973,15 @@ def p2_czesc(n, prev, prev_at, proba, now_t):
     znak = {'at': NOW, 'dl': now_t.replace(microsecond=0).isoformat()}
     if n == 'sdds':
         strona = p2_get(P2_GUS_STRONA, 40, P2_MAX_STRONA)[0].decode('utf-8', 'replace')
-        lk, lc = P2_GUS_PLIK.search(strona), P2_GUS_CPI.search(strona)
-        if lk is None or lc is None:
-            raise RuntimeError('GUS: na stronie nie ma odnośnika do pliku danych albo indeksu cen')
+        lk = P2_GUS_PLIK.search(strona)
+        if lk is None:
+            raise RuntimeError('GUS: na stronie nie ma odnośnika do pliku danych')
+        cpi_url = p2_gus_cpi_url(strona)
         uid = lk.group(2)
         plik = f'{lk.group(5)}-{lk.group(4)}-{lk.group(3)}'
         if _p2_data(plik) is None:
             raise RuntimeError('GUS: data w nazwie pliku nie jest datą')
-        cpi = p2_cpi_zloz(p2_get(P2_GUS_HOST + lc.group(1), 60, P2_MAX_PLIK)[0])
+        cpi = p2_cpi_zloz(p2_get(cpi_url, 60, P2_MAX_PLIK)[0])
         if mam and prev.get('uid') == uid and not _p2_stary(prev, now_t):
             nowa = dict(prev, cpi=cpi)
             nowa['at'] = NOW

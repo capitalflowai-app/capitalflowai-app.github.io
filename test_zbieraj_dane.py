@@ -56247,6 +56247,52 @@ class PolskaDwaV380(unittest.TestCase):
         self.assertIsNone(zd.p2_szukaj(R, (r'zadłużenie zagraniczne brutto', r'nie ma takiej'), 'q')); self.assertIsNone(zd.p2_szukaj(R, (r'złoto monetarne',), 'q'), 'złoto jest miesięczne — rodzaj q nie pasuje')
 
     # ---------------- sdds ----------------
+    def test_sdds_pobiera_wersjonowany_arkusz_cpi(self):
+        cpi_url = self.GUS + 'pl_cpi_1998_2.xlsx'
+        strona = self.strony()[0].replace('pl_cpi_1998.xlsx', 'pl_cpi_1998_2.xlsx')
+        get = self.stub(P2_GUS_STRONA=strona.encode())
+
+        def pobierz(url, *args):
+            if url == self.CPI_URL:
+                self.fail('stary adres CPI nie jest już podlinkowany')
+            if url == cpi_url:
+                self.urls.append(url)
+                return _p2t_xlsx(_p2t_cpi()), None
+            return get(url, *args)
+
+        with mock.patch.object(zd, 'p2_get', pobierz):
+            p = zd.build_polska2(now=self.NOW)
+        self.assertTrue(p['ok']['sdds'])
+        self.assertEqual(self.urls[:3], [zd.P2_GUS_STRONA, cpi_url, self.SDDS_URL])
+        self.assertEqual(p['sdds']['cpi']['asof'], '2026-09')
+        self.assertEqual(p['sdds']['asof'], '2026-10-15')
+
+    def test_sdds_niejednoznaczny_cpi_zachowuje_poprzednie_dane(self):
+        prev = self.plik()
+        strona = self.strony()[0] + f'<a href="{self.GUS}pl_cpi_1998_2.xlsx">inna wersja</a>'
+        p = self.zbuduj(prev, now='2026-10-16T05:00:00+00:00', P2_GUS_STRONA=strona.encode())
+        self.assertFalse(p['ok']['sdds'])
+        self.assertEqual(p['sdds'], prev['sdds'])
+        self.assertEqual(p['part_at']['sdds'], prev['part_at']['sdds'])
+        self.assertEqual([u for u in self.urls if u.startswith(zd.P2_GUS_HOST + '/')], [zd.P2_GUS_STRONA])
+        self.assertTrue(p['ok']['wibor'])
+        self.assertTrue(p['ok']['wiron'])
+
+    def test_sdds_cpi_tylko_oficjalny_link_i_bez_powtorzen(self):
+        url = self.GUS + 'pl_cpi_1998_2.xlsx'
+        rel = url.removeprefix(zd.P2_GUS_HOST)
+        obce = (
+            f'<a href="https://example.org{rel}">obcy host</a>'
+            f'<a href="//example.org{rel}">obcy host</a>'
+            f'<a data-href="{rel}">brak odnośnika</a>'
+            f'<a href="{rel}.bak">inny plik</a>'
+            f'<!-- <a href="{rel}">komentarz</a> -->'
+            f'<script>const cpi = \'<a href="{rel}">skrypt</a>\'</script>'
+        )
+        with self.assertRaisesRegex(RuntimeError, 'znaleziono 0'):
+            zd.p2_gus_cpi_url(obce)
+        self.assertEqual(zd.p2_gus_cpi_url(obce + f'<a href="{url}">CPI</a><a HREF = \'{rel}\'>ten sam CPI</a>'), url)
+
     def sdds(self, **kw):
         cpi = zd.p2_cpi_zloz(_p2t_xlsx(_p2t_cpi()))
         prev = kw.pop('prev', None)
