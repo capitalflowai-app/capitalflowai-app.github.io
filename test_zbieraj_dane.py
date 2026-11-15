@@ -70627,6 +70627,17 @@ class FedDdpV423(unittest.TestCase):
         zle(None, 'stawki papierów komercyjnych: ostatni dzień', now=datetime.datetime(2026, 10, 28, 9, 0, tzinfo=datetime.timezone.utc))
 
     # ---------------------------------------------------------------- ankieta dealerów
+    def test_so_paczka_rozpoznaje_nowa_nazwe_xml_i_odrzuca_dwa_pliki(self):
+        import zipfile
+        xml = _v423_xml(_V423_SERIE['so'](), _V423_PREP['so'])
+        nowa = _v423_zip('scoos_data.xml', xml)
+        self.assertEqual(zd.parse_fdd_so(nowa, _V423_NOW), zd.parse_fdd_so(_v423_paczka('so'), _V423_NOW))
+        buf = io.BytesIO(nowa)
+        with zipfile.ZipFile(buf, 'a') as paczka:
+            paczka.writestr('SCOOS_data.xml', xml)
+        with self.assertRaisesRegex(ValueError, 'niejednoznaczna nazwa'):
+            zd.parse_fdd_so(buf.getvalue(), _V423_NOW)
+
     def test_so_parser_netto_procent(self):
         r = zd.parse_fdd_so(_v423_paczka('so'), _V423_NOW)
         self.assertEqual((r['asof'], r['pub'], len(r['h'])), ('2026-09-30', '2026-09-24', 61)); self.assertEqual(r['h'][-1], ['2026-09-30', 17, 0.0, 5.9, 0.0, 0.0])

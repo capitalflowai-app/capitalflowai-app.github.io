@@ -45059,17 +45059,25 @@ def fdd_dzien(s, dzis, co):
     return d
 
 
-def fdd_xml(zbytes, member, wanted, maxu):
+def fdd_xml(zbytes, member, wanted, maxu, *, alias=None):
     """Paczka ZIP → {nazwa serii: {'a': atrybuty, 'o': [(dzień, status, wartość)] (ostatnie `keep`)}} + {'prep': data z nagłówka}. `wanted` = {nazwa: keep}.
     Strumieniowo (expat): rozpakowany plik większy niż maxu, DOCTYPE/ENTITY, powtórzona seria, brak którejś z wymaganych serii albo zły ZIP = ValueError."""
     try:
         zf = _fdd_zip.ZipFile(io.BytesIO(zbytes))
     except (_fdd_zip.BadZipFile, ValueError, OSError):
         raise ValueError('odpowiedź nie jest paczką ZIP (strona błędu albo odmowa)') from None
-    try:
-        info = zf.getinfo(member)
-    except KeyError:
-        raise ValueError(f'w paczce brak pliku {member}') from None
+    if alias is None:
+        try:
+            info = zf.getinfo(member)
+        except KeyError:
+            raise ValueError(f'w paczce brak pliku {member}') from None
+    else:
+        pasujace = [i for i in zf.infolist() if i.filename in (member, alias)]
+        if not pasujace:
+            raise ValueError(f'w paczce brak pliku {member} lub {alias}')
+        if len(pasujace) != 1:
+            raise ValueError(f'niejednoznaczna nazwa pliku {member} lub {alias} w paczce')
+        info = pasujace[0]
     if info.file_size > maxu:
         raise ValueError(f'plik {member} po rozpakowaniu większy niż {maxu} B (limit)')
     out, st = {}, {'cur': None, 'hdr': False, 'prep': [], 'inprep': False}
@@ -45278,7 +45286,8 @@ def parse_fdd_so(zbytes, now, fred=None):
     kwartał z brakiem którejkolwiek liczby pomijany; ≥ 40 kwartałów, ostatni obecny, wydanie nie starsze niż FDD_STARE['prep_q'] dni."""
     dzis = now.date()
     nazwy = {f'All_{q}.{k}.NR': FDD_KEEP['so'] for _, q, g in FDD_SO_Q for k in FDD_SO_K[g]}
-    S, prep = fred if fred is not None else fdd_xml(zbytes, FDD_MEMBER['so'], nazwy, FDD_MAXU['so'])
+    # Oficjalna paczka SCOOS od listopada 2026 używa małych liter w nazwie XML.
+    S, prep = fred if fred is not None else fdd_xml(zbytes, FDD_MEMBER['so'], nazwy, FDD_MAXU['so'], alias='scoos_data.xml')
     fdd_pub_ok(prep, dzis, 'ankieta dealerów')
     for nm in nazwy:
         fdd_attrs(S, nm, {'FREQ': '162', 'UNIT': 'Number'})
