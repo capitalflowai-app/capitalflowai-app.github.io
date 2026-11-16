@@ -70504,6 +70504,11 @@ def _v423_paczka(k, edit=None, prep=None, dtd=''):
     return _v423_zip(zd.FDD_MEMBER[k], _v423_xml(s, _V423_PREP[k] if prep is None else prep, dtd))
 
 
+def _v423_sl_wydanie_html(data):
+    return ('<span id="ReleaseLabel"><a href="/sloos">Senior Loan Officer Opinion Survey on Bank Lending Practices</a>'
+            f' - last released {data}</span>').encode()
+
+
 def _v423_swiat(calls, **opc):
     """Zaślepka get_bytes_maks: adres → paczka (h8, cp, so, sl). opc: blad={fragment adresu: wyjątek}, h8 / cp / so / sl: własna odpowiedź (bajty)."""
     def gb(url, headers=None, timeout=60, maks=None):
@@ -70511,6 +70516,8 @@ def _v423_swiat(calls, **opc):
         for frag, e in opc.get('blad', {}).items():
             if frag in url:
                 raise e
+        if url == zd.FDD_SL_WYDANIE:
+            return opc.get('sl_wydanie', _v423_sl_wydanie_html('Thursday, July 30, 2026'))
         for k, frag in _V423_URL.items():
             if frag in url:
                 return opc[k] if k in opc else _v423_paczka(k)
@@ -70679,6 +70686,37 @@ class FedDdpV423(unittest.TestCase):
         self.assertEqual((r['asof'], len(r['h'])), ('2026-06-30', 60), 'kwartał z brakiem którejkolwiek liczby jest pomijany (część wspólna kwartałów), ostatni dzień danych cofa się')
 
     # ---------------------------------------------------------------- ankieta kredytowa
+    def test_sl_paczka_rozpoznaje_nowa_nazwe_xml_i_odrzuca_dwa_pliki(self):
+        import zipfile
+        xml = _v423_xml(_V423_SERIE['sl'](), _V423_PREP['sl'])
+        nowa = _v423_zip('sloos_data.xml', xml)
+        self.assertEqual(zd.parse_fdd_sl(nowa, _V423_NOW), zd.parse_fdd_sl(_v423_paczka('sl'), _V423_NOW))
+        buf = io.BytesIO(nowa)
+        with zipfile.ZipFile(buf, 'a') as paczka:
+            paczka.writestr('SLOOS_data.xml', xml)
+        with self.assertRaisesRegex(ValueError, 'niejednoznaczna nazwa'):
+            zd.parse_fdd_sl(buf.getvalue(), _V423_NOW)
+
+    def test_sl_wydanie_nie_jest_dniem_przygotowania_xml(self):
+        xml = _v423_xml(_V423_SERIE['sl'](), _V423_PREP['sl'])
+        paczka = _v423_zip('sloos_data.xml', xml)
+        html = _v423_sl_wydanie_html('Monday, August 3, 2026')
+        calls = []
+        with mock.patch.object(zd, 'get_bytes_maks', _v423_swiat(calls, sl=paczka, sl_wydanie=html)):
+            out = zd.fdd_sl(None, _V423_NOW)
+            self.assertEqual((out['pub'], out['prepared'], out['asof']), ('2026-08-03', '2026-07-30', '2026-09-30'))
+            self.assertEqual(zd.fdd_sl(out, _V423_NOW), out)
+        self.assertEqual([c[0] for c in calls], [zd.FDD_URL['sl'], zd.FDD_SL_WYDANIE, zd.FDD_URL['sl']])
+        calls.clear()
+        with mock.patch.object(zd, 'get_bytes_maks', _v423_swiat(calls, sl=paczka, sl_wydanie=html)):
+            self.assertEqual(zd.fdd_sl(dict(out, pub='2026-07-29'), _V423_NOW), out)
+        self.assertEqual([c[0] for c in calls], [zd.FDD_URL['sl'], zd.FDD_SL_WYDANIE])
+        for zla in (b'', html + html, _v423_sl_wydanie_html('Monday, July 27, 2026'),
+                    _v423_sl_wydanie_html('Monday, November 2, 2026')):
+            with self.subTest(zla=zla), mock.patch.object(zd, 'get_bytes_maks',
+                    _v423_swiat([], sl=paczka, sl_wydanie=zla)), self.assertRaisesRegex(ValueError, 'data wydania|daty wydania'):
+                zd.fdd_sl(None, _V423_NOW)
+
     def test_sl_parser_i_bramki(self):
         r = zd.parse_fdd_sl(_v423_paczka('sl'), _V423_NOW)
         self.assertEqual((r['asof'], r['pub'], len(r['h'])), ('2026-09-30', '2026-07-30', 52)); self.assertEqual(r['h'][-1], ['2026-09-30', 0.0, 1.8, 6.7, -11.3, -5.7, -10.4, 16.1, 2.2])
@@ -70694,9 +70732,10 @@ class FedDdpV423(unittest.TestCase):
         zle(lambda s: s.pop(2), 'brak wymaganych serii')
 
     # ---------------------------------------------------------------- budowa pliku
-    def test_budowa_zimny_start_cztery_zapytania(self):
+    def test_budowa_zimny_start_cztery_paczki_i_data_wydania_sloos(self):
         o, calls = self._build()
-        self.assertEqual([c[0] for c in calls], [zd.FDD_URL[k] for k in zd.FDD_PARTS]); self.assertTrue(all(c[3] == zd.FDD_MAXZ[k] for c, k in zip(calls, zd.FDD_PARTS)), 'limit rozmiaru w każdym zapytaniu')
+        self.assertEqual([c[0] for c in calls], [zd.FDD_URL[k] for k in zd.FDD_PARTS] + [zd.FDD_SL_WYDANIE])
+        self.assertEqual([c[3] for c in calls], [zd.FDD_MAXZ[k] for k in zd.FDD_PARTS] + [500_000], 'limit rozmiaru w każdym zapytaniu')
         self.assertEqual(o['ok'], {k: True for k in zd.FDD_PARTS}); self.assertEqual(o['errs'], {}); self.assertEqual(o['v'], 1)
         self.assertEqual({k: o['part_at'][k] for k in zd.FDD_PARTS}, {k: _V423_NOW.isoformat() for k in zd.FDD_PARTS}); self.assertEqual(o['od'], '2026-10-18')
         self.assertTrue(all(isinstance(o[k], dict) for k in zd.FDD_PARTS)); self.assertEqual(len(json.dumps(o, ensure_ascii=False)), len(json.dumps(o, ensure_ascii=False).encode('utf-8').decode('utf-8')))
@@ -70745,7 +70784,7 @@ class FedDdpV423(unittest.TestCase):
         sl, calls = [], []
         with mock.patch.object(zd.time, 'sleep', side_effect=sl.append), mock.patch.object(zd, 'FDD_SLEEP', 1.0), mock.patch.object(zd, 'get_bytes_maks', _v423_swiat(calls)), mock.patch.object(zd, 'META', {'errors': [], 'notes': [], 'ok': {}}):
             zd.build_fed_ddp(None)
-        self.assertEqual(sl, [1.0] * 4, 'odstęp 1 s przed każdym z czterech zapytań'); self.assertTrue(all(0 < c[2] <= zd.FDD_TIMEOUT for c in calls))
+        self.assertEqual(sl, [1.0] * 5, 'odstęp 1 s przed każdą paczką i datą wydania SLOOS'); self.assertTrue(all(0 < c[2] <= zd.FDD_TIMEOUT for c in calls))
 
     def test_rytm_czesci_funkcja_wymagana(self):
         now = _V423_NOW; swiezy = (now - datetime.timedelta(minutes=30)).isoformat(); stary = (now - datetime.timedelta(minutes=721)).isoformat(); pk = {'asof': '2026-10-14'}

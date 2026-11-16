@@ -45002,6 +45002,7 @@ FDD_SLEEP = 1.0                 # s — odstęp między zapytaniami
 FDD_LIMIT_S = 240               # s — budżet czasu budowy pliku (pobranie + rozbiór); po nim kolejne części zgłaszają błąd limitu (poprzednie dane zostają)
 FDD_BASE = 'https://www.federalreserve.gov/releases/'
 FDD_URL = {'h8': FDD_BASE + 'h8/data/FRB_h8_xml.zip', 'cp': FDD_BASE + 'cp/data/FRB_CP_xml.zip', 'so': FDD_BASE + 'scoos/data/FRB_SCOOS_xml.zip', 'sl': FDD_BASE + 'sloos/data/FRB_SLOOS_xml.zip'}
+FDD_SL_WYDANIE = 'https://www.federalreserve.gov/datadownload/Choose.aspx?rel=sloos'
 FDD_MEMBER = {'h8': 'H8_data.xml', 'cp': 'CP_data.xml', 'so': 'SCOOS_data.xml', 'sl': 'SLOOS_data.xml'}
 FDD_MAXZ = {'h8': 12000000, 'cp': 10000000, 'so': 1500000, 'sl': 1500000}   # B — największa dopuszczalna paczka (zmierzone 18.10.2026: 8,4 MB / 6,3 MB / 0,3 MB / 0,24 MB)
 FDD_MAXU = {'h8': 140000000, 'cp': 190000000, 'so': 30000000, 'sl': 20000000}   # B — największy dopuszczalny rozpakowany XML (zmierzone: 79 MB / 112 MB / 13 MB / 5 MB)
@@ -45330,7 +45331,8 @@ def parse_fdd_sl(zbytes, now, fred=None):
     wielorodzinnymi), ważone: biznes, ważone: gospodarstwa domowe; popyt: duże i średnie firmy, karty kredytowe]]} — netto % banków (zaostrzających standardy / widzących silniejszy popyt), 1 miejsce, −100…100.
     Ostatnie FDD_KEEP['sl'] kwartałów, w których są wszystkie serie; ≥ 40, ostatni obecny, wydanie nie starsze niż FDD_STARE['prep_q'] dni."""
     dzis = now.date()
-    S, prep = fred if fred is not None else fdd_xml(zbytes, FDD_MEMBER['sl'], {nm: 140 for _, nm in FDD_SL}, FDD_MAXU['sl'])
+    S, prep = fred if fred is not None else fdd_xml(
+        zbytes, FDD_MEMBER['sl'], {nm: 140 for _, nm in FDD_SL}, FDD_MAXU['sl'], alias='sloos_data.xml')
     fdd_pub_ok(prep, dzis, 'ankieta kredytowa')
     mapy = {}
     for k, nm in FDD_SL:
@@ -45356,8 +45358,44 @@ def fdd_so(pk, now):
     return parse_fdd_so(fdd_get(FDD_URL['so'], FDD_MAXZ['so']), now)
 
 
+def fdd_sl_wydanie(tekst, przygotowano, okres, dzis):
+    """Potwierdź datę publicznego wydania pakietu SLOOS na stronie Fed."""
+    daty = re.findall(r'<span id="ReleaseLabel"><a [^>]*>Senior Loan Officer Opinion Survey on Bank Lending Practices</a>'
+                      r'\s*-\s*last released [A-Za-z]+, ([A-Za-z]+) (\d{1,2}), (\d{4})\s*</span>', tekst)
+    if len(daty) != 1 or daty[0][0] not in MONTHS_EN:
+        raise ValueError('ankieta kredytowa: brak jednoznacznej daty wydania Fed')
+    mies, dzien, rok = daty[0]
+    pub = datetime.date(int(rok), MONTHS_EN[mies], int(dzien)).isoformat()
+    return fdd_sl_potwierdz_date(pub, przygotowano, okres, dzis)
+
+
+def fdd_sl_potwierdz_date(pub, przygotowano, okres, dzis):
+    fdd_pub_ok(pub, dzis, 'ankieta kredytowa')
+    wydanie = datetime.date.fromisoformat(pub)
+    koniec = datetime.date.fromisoformat(okres)
+    odstep = (wydanie - datetime.date.fromisoformat(przygotowano)).days
+    if wydanie.year != koniec.year or (wydanie.month - 1) // 3 != (koniec.month - 1) // 3 or not 0 <= odstep <= 14:
+        raise ValueError('ankieta kredytowa: data wydania Fed nie pasuje do paczki')
+    return wydanie.isoformat()
+
+
 def fdd_sl(pk, now):
-    return parse_fdd_sl(fdd_get(FDD_URL['sl'], FDD_MAXZ['sl']), now)
+    out = parse_fdd_sl(fdd_get(FDD_URL['sl'], FDD_MAXZ['sl']), now)
+    przygotowano = out['pub']
+    # Prepared w XML to data przygotowania paczki, nie data wydania ankiety.
+    # Raz potwierdzoną datę tej samej paczki można zachować z poprzedniego odczytu.
+    pub = None
+    if isinstance(pk, dict) and pk.get('prepared') == przygotowano and pk.get('asof') == out['asof']:
+        try:
+            pub = fdd_sl_potwierdz_date(pk.get('pub'), przygotowano, out['asof'], now.date())
+        except (TypeError, ValueError):
+            pass
+    if pub is None:
+        tekst = fdd_get(FDD_SL_WYDANIE, 500_000).decode('utf-8', 'replace')
+        pub = fdd_sl_wydanie(tekst, przygotowano, out['asof'], now.date())
+    out['pub'] = pub
+    out['prepared'] = przygotowano
+    return out
 
 
 # ---------------------------------------------------------------- budowa pliku ----------------------------------------------------------------
