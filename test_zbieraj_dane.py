@@ -79616,6 +79616,10 @@ def _v462_swiat(calls, **opc):
             if callable(e):
                 L = e(L)
             return json.dumps({'observations': [{'realtime_start': '2026-10-18', 'realtime_end': '2026-10-18', 'date': d, 'value': v} for d, v in L]}).encode()
+        if url == zd.FDD_SL_WYDANIE:
+            if opc.get('sl_wydanie_offline'):
+                raise OSError('strona wydania Fed niedostępna')
+            return _v423_sl_wydanie_html('Thursday, July 30, 2026')
         for k, frag in _V423_URL.items():
             if frag in url:
                 z = opc.get('zip', {}).get(k)
@@ -79649,10 +79653,16 @@ class FedFredZapasV462(unittest.TestCase):
         with mock.patch.object(zd, 'get_bytes_maks', _v462_swiat(calls, **opc)):
             return zd.FDD_FRED_BUDOWA[k](now or _V423_NOW, _V462_KEY)
 
+    def _dane_wspolne_z_paczki(self, k, p):
+        p = dict(p)
+        if k == 'sl':
+            self.assertEqual(p.pop('prepared'), '2026-07-30', 'data przygotowania pochodzi wyłącznie z XML')
+        return p
+
     def test_zapas_daje_te_same_dane_co_paczka(self):
         P0 = _v423_plik()
         for k in zd.FDD_PARTS:
-            self.assertEqual(self._czesc(k), P0[k], k + ': zapas FRED = paczka wydania (liczby, dni, data wydania)')
+            self.assertEqual(self._czesc(k), self._dane_wspolne_z_paczki(k, P0[k]), k + ': zapas FRED = paczka wydania (liczby, dni, data wydania)')
         self.assertEqual(self._czesc('h8')['h'][-1], ['2026-10-07', 26100.3, 19948.5, 5766.0, 14182.5, 2987.8, 3155.2, 1935.7, 2098.0, 19771.5, 2605.7, 2390.0, 3208.2])
         self.assertEqual(self._czesc('sl')['h'][-1], ['2026-09-30', 0.0, 1.8, 6.7, -11.3, -5.7, -10.4, 16.1, 2.2], 'kwartał FRED 1.07 = koniec kwartału 30.09')
 
@@ -79661,7 +79671,7 @@ class FedFredZapasV462(unittest.TestCase):
         o, calls = self._build(zip404=True)
         self.assertEqual(o['ok'], {k: True for k in zd.FDD_PARTS}); self.assertEqual(o['errs'], {}); self.assertEqual(zd.META['errors'], [])
         for k in zd.FDD_PARTS:
-            self.assertEqual(o[k], P0[k], k)
+            self.assertEqual(o[k], self._dane_wspolne_z_paczki(k, P0[k]), k)
             self.assertEqual((o['via'][k]['zr'], o['via'][k]['od']), ('fred', _V423_NOW.isoformat()))
             self.assertIn('HTTP Error 404', o['via'][k]['powod'])
         self.assertEqual(len(zd.META['notes']), 4); self.assertTrue(all('zapasu FRED' in n for n in zd.META['notes']))
@@ -79677,6 +79687,14 @@ class FedFredZapasV462(unittest.TestCase):
         o, calls = self._build()
         self.assertNotIn('via', o); self.assertFalse([u for u in calls if 'stlouisfed' in u], 'bez błędu paczki FRED nie jest pytany')
         self.assertEqual(o['ok'], {k: True for k in zd.FDD_PARTS}); self.assertEqual(zd.META['notes'], [])
+
+    def test_sloos_bez_potwierdzenia_daty_wydania_uzywa_zapasu(self):
+        p = _v423_plik()
+        o, calls = self._build(sl_wydanie_offline=True)
+        self.assertEqual(set(o['via']), {'sl'})
+        self.assertEqual(o['via']['sl']['zr'], 'fred')
+        self.assertEqual(o['sl'], self._dane_wspolne_z_paczki('sl', p['sl']))
+        self.assertLess(calls.index(zd.FDD_SL_WYDANIE), next(i for i, u in enumerate(calls) if 'stlouisfed' in u))
 
     def test_oba_zrodla_bez_odpowiedzi(self):
         P0 = _v423_plik()
