@@ -1,5 +1,5 @@
 {
- "at": "2026-11-17T03:14:40+00:00",
+ "at": "2026-11-17T09:13:01+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,13 +22,13 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
+   "at": "2026-11-17T09:13:01+00:00",
    "rows": 689,
    "first": "2026-09-26",
    "last": "2026-11-17",
-   "added": 13,
-   "revised": 0,
-   "revisions_total": 377,
+   "added": 0,
+   "revised": 13,
+   "revisions_total": 390,
    "fetched": 13
   },
   "stablecoiny-eth": {
@@ -44,13 +44,13 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
+   "at": "2026-11-17T09:13:01+00:00",
    "rows": 106,
    "first": "2026-09-26",
    "last": "2026-11-17",
-   "added": 2,
-   "revised": 0,
-   "revisions_total": 36,
+   "added": 0,
+   "revised": 1,
+   "revisions_total": 37,
    "fetched": 2
   },
   "plynnosc": {
@@ -68,11 +68,11 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
+   "at": "2026-11-17T09:13:01+00:00",
    "rows": 783,
    "first": "2023-09-26",
    "last": "2026-11-16",
-   "added": 1,
+   "added": 0,
    "revised": 0,
    "revisions_total": 761,
    "fetched": 783,
@@ -94,7 +94,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
+   "at": "2026-11-17T09:13:01+00:00",
    "rows": 8987,
    "first": "2023-02",
    "last": "2026-08",
@@ -120,11 +120,11 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
+   "at": "2026-11-17T09:13:01+00:00",
    "rows": 1110,
    "first": "2024-10-01",
    "last": "2026-11-10",
-   "added": 10,
+   "added": 0,
    "revised": 0,
    "revisions_total": 0,
    "fetched": 1040
@@ -142,11 +142,11 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
+   "at": "2026-11-17T09:13:01+00:00",
    "rows": 553,
    "first": "2024-09-26",
    "last": "2026-11-16",
-   "added": 1,
+   "added": 0,
    "revised": 0,
    "revisions_total": 2,
    "fetched": 516
@@ -172,14 +172,14 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
-   "rows": 4078,
+   "at": "2026-11-17T09:13:01+00:00",
+   "rows": 4080,
    "first": "2020-09-01",
-   "last": "2026-11-15",
-   "added": 0,
+   "last": "2026-11-16",
+   "added": 2,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 0
+   "fetched": 2
   },
   "binance-funding": {
    "file": "binance-funding.csv",
@@ -196,7 +196,7 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
+   "at": "2026-11-17T09:13:01+00:00",
    "rows": 4992,
    "first": "2020-01-01",
    "last": "2026-10-31",
@@ -221,14 +221,14 @@
     "cur"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
+   "at": "2026-11-17T09:13:01+00:00",
    "rows": 4128,
    "first": "2021-03-24",
    "last": "2026-11-16",
-   "added": 2,
+   "added": 0,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 2
+   "fetched": 0
   },
   "krypto-dziennik": {
    "file": "krypto-dziennik.csv",
@@ -250,7 +250,7 @@
     "v",
     "since"
    ],
-   "ok": true,
+   "ok": false,
    "at": "2026-11-17T03:14:40+00:00",
    "rows": 430,
    "first": "2026-09-28",
@@ -258,7 +258,9 @@
    "added": 0,
    "revised": 10,
    "revisions_total": 420,
-   "fetched": 430
+   "fetched": 430,
+   "error_at": "2026-11-17T09:13:01+00:00",
+   "error": "krypto-dziennik: HTTP Error 503: Service Unavailable"
   },
   "swiat-dziennik": {
    "file": "swiat-dziennik.csv",
@@ -281,7 +283,7 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
+   "at": "2026-11-17T09:13:01+00:00",
    "rows": 1012,
    "first": "2026-10-05",
    "last": "2026-11-10",
@@ -321,7 +323,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
+   "at": "2026-11-17T09:13:01+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -354,13 +356,13 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
+   "at": "2026-11-17T09:13:01+00:00",
    "rows": 238,
    "first": "2026-10-08",
    "last": "2026-11-17",
-   "added": 4,
-   "revised": 3,
-   "revisions_total": 492,
+   "added": 0,
+   "revised": 4,
+   "revisions_total": 496,
    "fetched": 238
   },
   "ng-dziennik": {
@@ -387,14 +389,14 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
-   "rows": 546,
+   "at": "2026-11-17T09:13:01+00:00",
+   "rows": 562,
    "first": "2026-10-15",
    "last": "2026-11-17",
-   "added": 9,
-   "revised": 27,
-   "revisions_total": 1101,
-   "fetched": 546
+   "added": 16,
+   "revised": 9,
+   "revisions_total": 1110,
+   "fetched": 562
   },
   "fw-dziennik": {
    "file": "fw-dziennik.csv",
@@ -420,17 +422,19 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-17T03:14:40+00:00",
+   "at": "2026-11-17T09:13:01+00:00",
    "rows": 40,
    "first": "2026-10-19",
    "last": "2026-11-17",
-   "added": 4,
-   "revised": 1,
-   "revisions_total": 83,
+   "added": 0,
+   "revised": 2,
+   "revisions_total": 85,
    "fetched": 40
   }
  },
- "errors": [],
+ "errors": [
+  "krypto-dziennik: HTTP Error 503: Service Unavailable"
+ ],
  "notes": [
   "swiat-dziennik-pk: dziennik świata wersji 2 od 2026-10-05 jeszcze bez punktów kontrolnych i bez poprzednich wersji — nic do zapisania"
  ],
