@@ -80976,6 +80976,124 @@ def _v475_etf():
         'xrp': {'sym': 'XRP', 'asof': '2026-10-16', 'aum': 1471.4, 'funds': [{'t': 'XRP', 'aum': 541.0}]}}}
 
 
+# Nagrania oficjalnych poddrzew Bitwise z 17.11.2026: holdings/details mają dzień 16.11.2026.
+# Poniżej transport testowy złożony z prawdziwych poddrzew (nie pełny HTML). Wartości i referencje emitenta pozostają dosłowne;
+# pominięto wykresy i treści strony. Asset in Trust = monety, Shares Outstanding = odrębna liczba jednostek ETF.
+_V475_BW_RSC = {'BITB': {'fund': {'kind': 'available',
+                   'ticker': 'BITB',
+                   'aggregate': {'ticker': 'BITB',
+                                 'details': {'asOfDate': '2026-11-16',
+                                             'lifecycle': 'Active',
+                                             'marketPrice': {'dollarChange': -2.0800000000000054,
+                                                             'percentChange': -0.05570433851098032,
+                                                             'value': 35.26},
+                                             'nav': {'dollarChange': -2.1300000000000026, 'percentChange': -0.056982343499197494, 'value': 35.25},
+                                             'netAssets': 2384473372.74,
+                                             'numHoldings': 1,
+                                             'sharesOutstanding': 67650000,
+                                             'thirtyDayMedianBidAskSpread': {'asOfDate': '2026-11-16', 'value': 0.00023733239999999998},
+                                             'volume': 1287633},
+                                 'holdings': '$8f:props:children:2:props:holdings'}},
+          'holdings': {'asOfDate': '2026-11-16',
+                       'basket': [{'name': 'BITCOIN',
+                                   'marketValue': 2384726000.33,
+                                   'weight': 1,
+                                   'ticker': 'BTC',
+                                   'assetInTrust': 36698.0911312,
+                                   'assetPerShare': 0.000542469935420547}]}},
+ 'ETHW': {'fund': {'kind': 'available',
+                   'ticker': 'ETHW',
+                   'aggregate': {'ticker': 'ETHW',
+                                 'details': {'asOfDate': '2026-11-16',
+                                             'lifecycle': 'Active',
+                                             'marketPrice': {'dollarChange': -0.9100000000000001, 'percentChange': -0.06542056074766356, 'value': 13},
+                                             'nav': {'dollarChange': -0.9299999999999997, 'percentChange': -0.0667623833452979, 'value': 13},
+                                             'netAssets': 194651883.86,
+                                             'numHoldings': 1,
+                                             'sharesOutstanding': 14970000,
+                                             'thirtyDayMedianBidAskSpread': {'asOfDate': '2026-11-16', 'value': 0.0006103143},
+                                             'volume': 740408},
+                                 'holdings': '$8f:props:children:2:props:holdings'}},
+          'holdings': {'asOfDate': '2026-11-16',
+                       'basket': [{'name': 'ETHEREUM',
+                                   'marketValue': 194673219.78,
+                                   'weight': 1,
+                                   'ticker': 'ETH',
+                                   'assetInTrust': 107010.93331904,
+                                   'assetPerShare': 0.007148358939147629}]}},
+ 'BSOL': {'fund': {'kind': 'available',
+                   'ticker': 'BSOL',
+                   'aggregate': {'ticker': 'BSOL',
+                                 'details': {'asOfDate': '2026-11-16',
+                                             'lifecycle': 'Active',
+                                             'marketPrice': {'dollarChange': -1.1799999999999997,
+                                                             'percentChange': -0.1066907775768535,
+                                                             'value': 9.88},
+                                             'nav': {'dollarChange': -1.2199999999999989, 'percentChange': -0.10981098109810972, 'value': 9.89},
+                                             'netAssets': 726002894.06,
+                                             'numHoldings': 1,
+                                             'sharesOutstanding': 73360000,
+                                             'thirtyDayMedianBidAskSpread': {'asOfDate': '2026-11-16', 'value': 0.0007654038000000001},
+                                             'volume': 4368566},
+                                 'holdings': {'asOfDate': '2026-11-16',
+                                              'basket': [{'name': 'SOLANA',
+                                                          'marketValue': 726082646.88,
+                                                          'weight': 1,
+                                                          'ticker': 'SOL',
+                                                          'assetInTrust': 10167544.39568222,
+                                                          'assetPerShare': 0.13859793341987758}]}}},
+          'holdings': {'asOfDate': '2026-11-16',
+                       'basket': [{'name': 'SOLANA',
+                                   'marketValue': 726082646.88,
+                                   'weight': 1,
+                                   'ticker': 'SOL',
+                                   'assetInTrust': 10167544.39568222,
+                                   'assetPerShare': 0.13859793341987758}]}},
+ 'XRP': {'fund': {'kind': 'available',
+                  'ticker': 'XRP',
+                  'aggregate': {'ticker': 'XRP',
+                                'details': {'asOfDate': '2026-11-16',
+                                            'lifecycle': 'Active',
+                                            'marketPrice': {'dollarChange': -0.7699999999999996,
+                                                            'percentChange': -0.06742556917688262,
+                                                            'value': 10.65},
+                                            'nav': {'dollarChange': -0.7599999999999998, 'percentChange': -0.06643356643356642, 'value': 10.68},
+                                            'netAssets': 389141204.33,
+                                            'numHoldings': 1,
+                                            'sharesOutstanding': 36440000,
+                                            'thirtyDayMedianBidAskSpread': {'asOfDate': '2026-11-16', 'value': 0.0007015082000000001},
+                                            'volume': 2471667},
+                                'holdings': '$64:props:children:2:props:holdings'}},
+         'holdings': {'asOfDate': '2026-11-16',
+                      'basket': [{'name': 'XRP',
+                                  'marketValue': 389214359.48,
+                                  'weight': 1,
+                                  'ticker': 'XRP',
+                                  'assetInTrust': 406770577.613846,
+                                  'assetPerShare': 11.162749111247146}]}}}
+
+
+def _v475_rsc_modele(ticker='BITB', inline=False):
+    r = copy.deepcopy(_V475_BW_RSC[ticker])
+    modele = {'1': {'fund': r['fund']}, '2': {'fund': ticker.lower()}, '3': {'fund': '$1:fund'}, '4': {'fund': '$1:fund'}}
+    h = r['fund']['aggregate']['holdings']
+    if isinstance(h, str):
+        if inline:
+            r['fund']['aggregate']['holdings'] = r['holdings']
+        else:
+            ident = h[1:].split(':')[0]
+            modele[ident] = ['$', '$Lfixture', None, {'children': [None, None, ['$', '$Lfixture', None, {'holdings': r['holdings']}]]}]
+    return modele
+
+
+def _v475_rsc(modele, fragment=0):
+    """Ramki RSC, w tym cięcia wewnątrz modelu/ref; powtarzane fund-string/ref nie są drugim obiektem funduszu."""
+    wiersze = modele.items() if isinstance(modele, dict) else modele
+    s = ''.join(k + ':' + json.dumps(v, separators=(',', ':'), ensure_ascii=False) + '\n' for k, v in wiersze)
+    czesci = [s[i:i + fragment] for i in range(0, len(s), fragment)] if fragment else [s]
+    return ('<html>' + ''.join('<script>self.__next_f.push(' + json.dumps([1, c], separators=(',', ':')) + ')</script>' for c in czesci) + '</html>').encode()
+
+
 class EtfSnapV475(unittest.TestCase):
     """v475: kolejne fundusze w zapasie — odczyty (migawki) z publicznych danych emitentów, przepływ z różnicy stanu, uczciwe pokrycie, odmowa emitenta (403/429) = stop bez obchodzenia."""
 
@@ -80999,6 +81117,82 @@ class EtfSnapV475(unittest.TestCase):
             with self.assertRaises(ValueError, msg=co):
                 zd.etfz_bw_parse(zle, 'BITCOIN')
         self.assertEqual(zd.etfz_bw_parse(_v475_strona(na=None), 'BITCOIN')[0], '2026-10-16', 'brak aktywów netto: bez porównania')
+
+    def test_bitwise_rsc_cztery_nagrania_dat_jednostek_i_fragmentacja(self):
+        for ticker, nazwa in (('BITB', 'BITCOIN'), ('ETHW', 'ETHEREUM'), ('BSOL', 'SOLANA'), ('XRP', 'XRP')):
+            r = _V475_BW_RSC[ticker]
+            h, fd = r['holdings'], r['fund']['aggregate']['details']
+            p = h['basket'][0]
+            self.assertEqual(h['asOfDate'], fd['asOfDate'])
+            self.assertAlmostEqual(p['assetInTrust'] / fd['sharesOutstanding'], p['assetPerShare'])
+            for inline, fragment in ((False, 0), (False, 17), (True, 11)):
+                with self.subTest(ticker=ticker, inline=inline, fragment=fragment):
+                    self.assertEqual(zd.etfz_bw_parse(_v475_rsc(_v475_rsc_modele(ticker, inline), fragment), nazwa),
+                                     ('2026-11-16', p['assetInTrust'], p['marketValue']))
+        # Dict poza kluczem fund nie jest drugim funduszem; stringi/ref fund nie mnożą liczby obiektów.
+        m = _v475_rsc_modele()
+        m['a'] = copy.deepcopy(m['1']['fund'])
+        m['2']['tekst'] = 'legalna treść JSON: linia\u2028druga linia\u2029trzecia linia'
+        self.assertEqual(zd.etfz_bw_parse(_v475_rsc(m), 'BITCOIN'), ('2026-11-16', 36698.0911312, 2384726000.33))
+
+    def test_bitwise_rsc_odrzuca_niepewny_fundusz_modele_i_referencje(self):
+        przypadki = []
+        def zly(opis, zmien):
+            m = _v475_rsc_modele(); zmien(m); przypadki.append((opis, m))
+        zly('inny fundusz', lambda m: m['1']['fund'].update(ticker='ETHW'))
+        zly('niezgodny ticker aggregate', lambda m: m['1']['fund']['aggregate'].update(ticker='ETHW'))
+        zly('niedostępny fundusz', lambda m: m['1']['fund'].update(kind='unavailable'))
+        zly('dwa obiekty funduszu', lambda m: m.update(a=copy.deepcopy(m['1'])))
+        def obcy_fundusz(m):
+            m['a'] = copy.deepcopy(m['1']); m['a']['fund']['ticker'] = m['a']['fund']['aggregate']['ticker'] = 'ETHW'
+        zly('docelowy fundusz i obcy fundusz', obcy_fundusz)
+        zly('dict poza kluczem fund nie zastępuje funduszu', lambda m: m.__setitem__('1', m['1']['fund']))
+        zly('brak modelu', lambda m: m.pop('8f'))
+        zly('zła ścieżka', lambda m: m['1']['fund']['aggregate'].update(holdings='$8f:props:nie_ma'))
+        zly('zły indeks', lambda m: m['1']['fund']['aggregate'].update(holdings='$8f:props:children:99'))
+        zly('props poza elementem React', lambda m: m['8f'].__setitem__(0, 'zwykła tablica'))
+        zly('zła referencja', lambda m: m['1']['fund']['aggregate'].update(holdings='$L8f'))
+        def cykl(m):
+            m['1']['fund']['aggregate']['holdings'] = '$a'; m['a'] = '$b'; m['b'] = '$a'
+        zly('cykl', cykl)
+        def gleboko(m):
+            m['1']['fund']['aggregate']['holdings'] = '$100'
+            for i in range(0x100, 0x129): m[format(i, 'x')] = '$' + format(i + 1, 'x')
+            m['129'] = copy.deepcopy(_V475_BW_RSC['BITB']['holdings'])
+        zly('limit głębokości referencji', gleboko)
+        for opis, m in przypadki:
+            with self.subTest(opis=opis), self.assertRaises(ValueError):
+                zd.etfz_bw_parse(_v475_rsc(m, 19), 'BITCOIN')
+        m = _v475_rsc_modele()
+        for ident in ('1', '01'):
+            with self.subTest(duplikat=ident), self.assertRaises(ValueError):
+                zd.etfz_bw_parse(_v475_rsc(list(m.items()) + [(ident, m['1'])]), 'BITCOIN')
+
+    def test_bitwise_rsc_zachowuje_walidacje_dat_liczb_i_nav(self):
+        for opis in ('różne daty', 'zero monet', 'logiczna liczba monet', 'nan', 'NAV ponad 5%', 'brak monet mimo sharesOutstanding'):
+            m = _v475_rsc_modele(inline=True); a = m['1']['fund']['aggregate']; p = a['holdings']['basket'][0]
+            if opis == 'różne daty': a['details']['asOfDate'] = '2026-11-13'
+            elif opis == 'zero monet': p['assetInTrust'] = 0
+            elif opis == 'logiczna liczba monet': p['assetInTrust'] = True
+            elif opis == 'nan': p['marketValue'] = float('nan')
+            elif opis == 'NAV ponad 5%': a['details']['netAssets'] *= 2
+            else:
+                p.pop('assetInTrust'); p['sharesOutstanding'] = a['details']['sharesOutstanding']
+            with self.subTest(opis=opis), self.assertRaises(ValueError):
+                zd.etfz_bw_parse(_v475_rsc(m), 'BITCOIN')
+
+    def test_bitwise_rsc_blad_zachowuje_historie_i_rzeczywisty_czas(self):
+        prev = {'BITB': {'coin': 'btc', 'hist': [['2026-11-13', 37000.0, 2400000000.0]], 'at': '2026-11-16T14:00:00+00:00'}}
+        zachowane = copy.deepcopy(prev)
+        m = _v475_rsc_modele(); m['1']['fund']['aggregate']['details']['asOfDate'] = '2026-11-13'
+        now = datetime.datetime(2026, 11, 17, 19, 30, tzinfo=datetime.timezone.utc)
+        with mock.patch.object(zd, 'get_bytes_maks', return_value=_v475_rsc(m)), mock.patch.object(zd, '_now_utc', return_value=now), \
+                mock.patch.object(zd, 'NOW', now.isoformat()):
+            snap, ok = zd.etfz_snap_zbierz(prev, ['BITB'])
+        self.assertEqual(ok, {'BITB': False})
+        self.assertEqual(snap, zachowane)
+        self.assertEqual(prev, zachowane, 'nie modyfikuje poprzedniego pliku')
+        self.assertTrue(any('ETF zapas BITB: dane funduszu: zły albo niespójny dzień danych' in e for e in zd.META['errors']))
 
     def test_plik_csv_funduszu_ark(self):
         # data pliku = dzień publikacji (poniedziałek 19.10); dane z piątku 16.10 (cena jak w BITB z dnia 16.10: 81 296,9 USD)

@@ -35752,15 +35752,100 @@ def _etfz_liczba(v):
     return float(v)
 
 
-def etfz_bw_parse(b, nazwa):
-    """Dane funduszu z jego strony (blok danych strony: fundData.data) → (dzień ISO, liczba monet, wartość USD) ze składnika `nazwa`. Wyjątek (brak, nie zero), gdy: nie ma bloku
-    danych, dzień danych różni się między sekcjami, składnik nie występuje dokładnie raz, liczby są złe albo wartość zasobów różni się od aktywów netto o ponad 5%."""
-    m = _ETFZ_NEXT.search(b.decode('utf-8', 'replace'))
-    if not m:
-        raise ValueError('brak danych funduszu na stronie (zmieniony układ?)')
+def _etfz_bw_rsc(html, nazwa):
+    """Nowa strona Bitwise: jeden wskazany fundusz z modeli RSC → stare holdings/fundDetails. Tylko lokalne referencje, bez wybierania cudzych zasobów."""
+    tickery = [t for _c, t, rodzaj, _u, n in ETFZ_SNAP if rodzaj == 'bw' and n == nazwa]
+    if len(tickery) != 1:
+        raise ValueError('dane funduszu RSC: niejednoznaczny symbol funduszu')
+    ticker = tickery[0]
+    modele, widziane = {}, set()
+    for w in rwe_ondo_rsc(html).split('\n'):   # U+2028/U+2029 są legalną treścią napisów JSON (BSOL)
+        m = re.fullmatch(r'([0-9a-fA-F]+):(.*)', w)
+        if not m:
+            continue
+        ident = int(m.group(1), 16)
+        if ident in widziane:
+            raise ValueError('dane funduszu RSC: powtórzony identyfikator modelu')
+        widziane.add(ident)
+        tekst = m.group(2).strip()
+        if not tekst or tekst[0] not in '{["':   # importy komponentów i rekordy tekstowe nie są modelami JSON
+            continue
+        try:
+            modele[ident] = json.loads(tekst)
+        except (ValueError, RecursionError):
+            raise ValueError('dane funduszu RSC: zły model JSON') from None
+
+    def rozwiaz(v, sciezka=(), glebokosc=0):
+        if glebokosc > 32:
+            raise ValueError('dane funduszu RSC: za głęboka referencja')
+        if not isinstance(v, str) or not v.startswith('$'):
+            return v
+        m = re.fullmatch(r'\$([0-9a-fA-F]+)((?::[^:]+)*)', v)
+        if not m:
+            raise ValueError('dane funduszu RSC: zła referencja')
+        ident, pola = int(m.group(1), 16), tuple(m.group(2).split(':')[1:])
+        klucz = (ident, pola)
+        if klucz in sciezka or len(pola) > 32:
+            raise ValueError('dane funduszu RSC: cykl albo za długa ścieżka')
+        dalej = sciezka + (klucz,)
+        try:
+            v = modele[ident]
+            for pole in pola:
+                v = rozwiaz(v, dalej, glebokosc + 1)
+                if isinstance(v, dict):
+                    v = v[pole]
+                elif isinstance(v, list) and pole == 'props' and len(v) == 4 and v[0] == '$' and isinstance(v[3], dict):
+                    v = v[3]   # props jest indeksem 3 wyłącznie w elemencie React
+                elif isinstance(v, list) and re.fullmatch(r'0|[1-9][0-9]*', pole):
+                    v = v[int(pole)]
+                else:
+                    raise ValueError('zła ścieżka')
+            return rozwiaz(v, dalej, glebokosc + 1)
+        except (KeyError, IndexError, TypeError):
+            raise ValueError('dane funduszu RSC: brak modelu albo zła ścieżka') from None
+
+    fundusze, stos = [], [(v, 0) for v in modele.values()]
+    while stos:
+        v, glebokosc = stos.pop()
+        if glebokosc > 64:
+            raise ValueError('dane funduszu RSC: za głęboki model')
+        if isinstance(v, dict):
+            if isinstance(v.get('fund'), dict):
+                fundusze.append(v['fund'])
+            stos.extend((x, glebokosc + 1) for x in v.values())
+        elif isinstance(v, list):
+            stos.extend((x, glebokosc + 1) for x in v)
+    if len(fundusze) != 1 or fundusze[0].get('kind') != 'available' or fundusze[0].get('ticker') != ticker:
+        raise ValueError('dane funduszu RSC: brak jednego dostępnego funduszu')
     try:
-        d = json.loads(m.group(1))['props']['pageProps']['fundData']['data']
-        h, fd = d['holdings'], d['fundDetails']
+        a = rozwiaz(fundusze[0]['aggregate'])
+        if not isinstance(a, dict) or a.get('ticker') != ticker:
+            raise ValueError('dane funduszu RSC: niezgodny symbol funduszu')
+        h, fd = rozwiaz(a['holdings']), rozwiaz(a['details'])
+        if not isinstance(h, dict) or not isinstance(fd, dict) or not isinstance(h.get('basket'), list):
+            raise ValueError('dane funduszu RSC: zły układ zasobów')
+        basket = [dict(x, companyName=x.get('name'), shares=x.get('assetInTrust')) if isinstance(x, dict) else x for x in h['basket']]
+        return dict(h, basket=basket), fd
+    except (KeyError, TypeError):
+        raise ValueError('dane funduszu RSC: zmieniony układ danych') from None
+
+
+def etfz_bw_parse(b, nazwa):
+    """Dane funduszu z jego strony (fundData.data albo modele RSC wskazanego funduszu) → (dzień ISO, liczba monet, wartość USD) ze składnika `nazwa`. Wyjątek (brak, nie zero), gdy: nie ma bloku
+    danych, dzień danych różni się między sekcjami, składnik nie występuje dokładnie raz, liczby są złe albo wartość zasobów różni się od aktywów netto o ponad 5%."""
+    html = b.decode('utf-8', 'replace')
+    m = _ETFZ_NEXT.search(html)
+    if m:
+        try:
+            d = json.loads(m.group(1))['props']['pageProps']['fundData']['data']
+            h, fd = d['holdings'], d['fundDetails']
+        except (KeyError, TypeError, ValueError, AttributeError):
+            raise ValueError('dane funduszu: zmieniony układ strony') from None
+    else:
+        if not _RWE_NEXTF.search(html):
+            raise ValueError('brak danych funduszu na stronie (zmieniony układ?)')
+        h, fd = _etfz_bw_rsc(html, nazwa)
+    try:
         dzien, dzien2 = h['asOfDate'], fd['asOfDate']
         poz = [x for x in h['basket'] if isinstance(x, dict) and str(x.get('companyName', '')).strip().upper() == nazwa]
     except (KeyError, TypeError, ValueError, AttributeError):
