@@ -475,6 +475,92 @@ class Hardening(unittest.TestCase):
         self.assertTrue(any('odrzucony ticker' in e for e in zd.META['errors']))
 
 
+# Dosłowne nagranie odpowiedzi oficjalnego ECB ILM z 19.11.2026, 19:21 UTC: HTTP200, Content-Encoding:gzip mimo Accept-Encoding:identity.
+# URL = ILM_URL; 1520 B, SHA256 59327c5d8435e2a4500a22ddcc961dbf02906296fbe15311d0228f6c75ce4386.
+# Base64 zachowuje bajty bez przepakowania; dane emitenta: 13 obserwacji, ostatnia 2026-W46 / 13.11.2026, 5906258 mln EUR.
+import base64 as _http_ecb_b64
+_HTTP_ECB_ILM_GZIP_20261119 = _http_ecb_b64.b64decode(
+    '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'
+    'LTxUI7v2SOWHAP8DuFX+mMASAAA='
+)
+
+
+class TransportGzipEcb(unittest.TestCase):
+    """Warstwa tekstowego HTTP respektuje deklarowane gzip; parser, daty i surowe get_bytes pozostają bez zmian. Bez sieci."""
+
+    @staticmethod
+    def _odpowiedz(body, encoding=None, header='Content-Encoding'):
+        from io import BytesIO
+        from email.message import Message
+        class R(BytesIO):
+            status = 200
+        r = R(body)
+        r.headers = Message()
+        if encoding is not None:
+            r.headers[header] = encoding
+        return r
+
+    def test_rzeczywisty_gzip_ecb_przez_get_json_i_parse_ilm(self):
+        import hashlib
+        self.assertEqual(len(_HTTP_ECB_ILM_GZIP_20261119), 1520)
+        self.assertEqual(hashlib.sha256(_HTTP_ECB_ILM_GZIP_20261119).hexdigest(), '59327c5d8435e2a4500a22ddcc961dbf02906296fbe15311d0228f6c75ce4386')
+        with mock.patch.object(zd, '_otworz', return_value=self._odpowiedz(_HTTP_ECB_ILM_GZIP_20261119, 'gzip')) as otw:
+            out = zd.parse_ilm(zd.get_json(zd.ILM_URL))
+        otw.assert_called_once_with(zd.ILM_URL, None, 30)
+        self.assertEqual(len(out['d']), 13)
+        self.assertEqual(out['period'], '2026-W46')
+        self.assertEqual(out['asof'], '2026-11-13')
+        self.assertEqual(out['d'][-1], ['2026-11-13', 5906258, '2026-W46'])
+        self.assertEqual(out['unit'], 'mln EUR')
+
+    def test_naglowek_http_bez_wzgledow_na_wielkosc_liter_i_odstepy(self):
+        for header, value in (('Content-Encoding', 'gzip'), ('content-encoding', ' GZIP '), ('CONTENT-ENCODING', 'gZiP')):
+            with self.subTest(header=header, value=value), mock.patch.object(zd, '_otworz', return_value=self._odpowiedz(_HTTP_ECB_ILM_GZIP_20261119, value, header)):
+                j = zd.get_json(zd.ILM_URL)
+            self.assertEqual(len(j['dataSets'][0]['series']), 1)
+            self.assertEqual(j['structure']['dimensions']['observation'][0]['values'][-1]['id'], '2026-W46')
+
+    def test_zwykly_json_bez_encoding_i_identity_jest_identyczny(self):
+        for encoding in (None, 'identity'):
+            with self.subTest(encoding=encoding), mock.patch.object(zd, '_otworz', return_value=self._odpowiedz(b'{"value":7}', encoding)):
+                self.assertEqual(zd.get('https://example.invalid/data'), (200, '{"value":7}'))
+            with self.subTest(encoding=encoding, json=True), mock.patch.object(zd, '_otworz', return_value=self._odpowiedz(b'{"value":7}', encoding)):
+                self.assertEqual(zd.get_json('https://example.invalid/data'), {'value': 7})
+
+    def test_uszkodzony_i_urwany_gzip_to_wyjatek(self):
+        for body in (b'nie jest gzip', _HTTP_ECB_ILM_GZIP_20261119[:-8]):
+            with self.subTest(body_len=len(body)), mock.patch.object(zd, '_otworz', return_value=self._odpowiedz(body, 'gzip')), self.assertRaises((OSError, EOFError)):
+                zd.get_json(zd.ILM_URL)
+
+    def test_magiczne_bajty_bez_deklaracji_gzip_nie_powoduja_zgadywania(self):
+        for encoding in (None, 'identity'):
+            with self.subTest(encoding=encoding), mock.patch.object(zd, '_otworz', return_value=self._odpowiedz(_HTTP_ECB_ILM_GZIP_20261119, encoding)), self.assertRaises(json.JSONDecodeError):
+                zd.get_json(zd.ILM_URL)
+
+    def test_get_bytes_pozostawia_surowe_bajty(self):
+        with mock.patch.object(zd, '_otworz', return_value=self._odpowiedz(_HTTP_ECB_ILM_GZIP_20261119, 'gzip')):
+            self.assertEqual(zd.get_bytes(zd.ILM_URL), _HTTP_ECB_ILM_GZIP_20261119)
+
+
 class Instytucje(unittest.TestCase):
     """Źródła urzędowe bez klucza: parsery na kształtach odpowiedzi sprawdzonych 24.09.2026; brak nie jest zerem."""
 

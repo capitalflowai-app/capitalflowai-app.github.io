@@ -17,6 +17,7 @@ zamiast pustki (data w polu "at" pokazuje wtedy prawdziwy wiek danych).
 Tylko biblioteka standardowa — zero zależności.
 """
 import csv, io, json, os, re, sys, time, datetime, urllib.request, urllib.error
+import gzip as _http_gzip
 
 SOSO = 'https://openapi.sosovalue.com/openapi/v1'
 ETF_SYMS = ['btc', 'eth', 'sol', 'xrp']
@@ -351,7 +352,10 @@ def _otworz(url, headers=None, timeout=30):
 def get(url, headers=None, timeout=30):
     _zuz_licz(url, headers)   # v222: licznik zużycia planów z limitem
     with _otworz(url, headers, timeout) as r:   # v272: zły adres/nagłówek — komunikat bez klucza
-        return r.status, r.read().decode('utf-8', 'replace')
+        body = r.read()
+        if (getattr(r, 'headers', None) or {}).get('Content-Encoding', '').strip().lower() == 'gzip':
+            body = _http_gzip.decompress(body)
+        return r.status, body.decode('utf-8', 'replace')
 
 
 def get_json(url, headers=None, timeout=30):
