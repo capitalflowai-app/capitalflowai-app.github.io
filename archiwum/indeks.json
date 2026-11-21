@@ -1,5 +1,5 @@
 {
- "at": "2026-11-20T08:32:27+00:00",
+ "at": "2026-11-21T03:07:29+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,12 +22,12 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
-   "rows": 728,
+   "at": "2026-11-21T03:07:29+00:00",
+   "rows": 741,
    "first": "2026-09-26",
-   "last": "2026-11-20",
-   "added": 0,
-   "revised": 13,
+   "last": "2026-11-21",
+   "added": 13,
+   "revised": 0,
    "revisions_total": 429,
    "fetched": 13
   },
@@ -44,12 +44,12 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
-   "rows": 112,
+   "at": "2026-11-21T03:07:29+00:00",
+   "rows": 114,
    "first": "2026-09-26",
-   "last": "2026-11-20",
-   "added": 0,
-   "revised": 1,
+   "last": "2026-11-21",
+   "added": 2,
+   "revised": 0,
    "revisions_total": 40,
    "fetched": 2
   },
@@ -68,14 +68,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
-   "rows": 786,
+   "at": "2026-11-21T03:07:29+00:00",
+   "rows": 787,
    "first": "2023-09-26",
-   "last": "2026-11-19",
-   "added": 0,
+   "last": "2026-11-20",
+   "added": 1,
    "revised": 0,
    "revisions_total": 762,
-   "fetched": 786,
+   "fetched": 787,
    "error_at": "2026-11-01T07:32:06+00:00",
    "error": "plynnosc: HTTP Error 500: Internal Server Error"
   },
@@ -94,7 +94,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
+   "at": "2026-11-21T03:07:29+00:00",
    "rows": 9196,
    "first": "2023-02",
    "last": "2026-09",
@@ -120,14 +120,14 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
-   "rows": 1110,
+   "at": "2026-11-21T03:07:29+00:00",
+   "rows": 1120,
    "first": "2024-10-01",
-   "last": "2026-11-10",
-   "added": 0,
+   "last": "2026-11-17",
+   "added": 10,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 1030
+   "fetched": 1040
   },
   "rentownosci": {
    "file": "rentownosci.csv",
@@ -142,11 +142,11 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
-   "rows": 556,
+   "at": "2026-11-21T03:07:29+00:00",
+   "rows": 557,
    "first": "2024-09-26",
-   "last": "2026-11-19",
-   "added": 0,
+   "last": "2026-11-20",
+   "added": 1,
    "revised": 0,
    "revisions_total": 2,
    "fetched": 517
@@ -172,14 +172,14 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
+   "at": "2026-11-21T03:07:29+00:00",
    "rows": 4086,
    "first": "2020-09-01",
    "last": "2026-11-19",
-   "added": 2,
+   "added": 0,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 2
+   "fetched": 0
   },
   "binance-funding": {
    "file": "binance-funding.csv",
@@ -196,7 +196,7 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
+   "at": "2026-11-21T03:07:29+00:00",
    "rows": 4992,
    "first": "2020-01-01",
    "last": "2026-10-31",
@@ -221,14 +221,14 @@
     "cur"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
-   "rows": 4134,
+   "at": "2026-11-21T03:07:29+00:00",
+   "rows": 4136,
    "first": "2021-03-24",
-   "last": "2026-11-19",
-   "added": 0,
+   "last": "2026-11-20",
+   "added": 2,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 0
+   "fetched": 2
   },
   "krypto-dziennik": {
    "file": "krypto-dziennik.csv",
@@ -251,13 +251,13 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
+   "at": "2026-11-21T03:07:29+00:00",
    "rows": 470,
    "first": "2026-09-28",
    "last": "2026-11-19",
-   "added": 10,
-   "revised": 0,
-   "revisions_total": 450,
+   "added": 0,
+   "revised": 10,
+   "revisions_total": 460,
    "fetched": 470,
    "error_at": "2026-11-17T09:13:01+00:00",
    "error": "krypto-dziennik: HTTP Error 503: Service Unavailable"
@@ -283,7 +283,7 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
+   "at": "2026-11-21T03:07:29+00:00",
    "rows": 1012,
    "first": "2026-10-05",
    "last": "2026-11-10",
@@ -323,7 +323,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
+   "at": "2026-11-21T03:07:29+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -356,14 +356,14 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
-   "rows": 250,
+   "at": "2026-11-21T03:07:29+00:00",
+   "rows": 254,
    "first": "2026-10-08",
-   "last": "2026-11-20",
-   "added": 2,
-   "revised": 2,
-   "revisions_total": 517,
-   "fetched": 250
+   "last": "2026-11-23",
+   "added": 4,
+   "revised": 4,
+   "revisions_total": 521,
+   "fetched": 254
   },
   "ng-dziennik": {
    "file": "ng-dziennik.csv",
@@ -389,14 +389,14 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
-   "rows": 641,
+   "at": "2026-11-21T03:07:29+00:00",
+   "rows": 668,
    "first": "2026-10-15",
-   "last": "2026-11-20",
-   "added": 6,
-   "revised": 17,
-   "revisions_total": 1230,
-   "fetched": 641
+   "last": "2026-11-23",
+   "added": 27,
+   "revised": 23,
+   "revisions_total": 1253,
+   "fetched": 668
   },
   "fw-dziennik": {
    "file": "fw-dziennik.csv",
@@ -422,14 +422,14 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-20T08:32:27+00:00",
-   "rows": 49,
+   "at": "2026-11-21T03:07:29+00:00",
+   "rows": 52,
    "first": "2026-10-19",
-   "last": "2026-11-20",
-   "added": 0,
+   "last": "2026-11-23",
+   "added": 3,
    "revised": 3,
-   "revisions_total": 102,
-   "fetched": 49
+   "revisions_total": 105,
+   "fetched": 52
   }
  },
  "errors": [],
@@ -446,18 +446,18 @@
   "rent.spread": 400,
   "tic.in": 44,
   "tic.out": 44,
-  "cftc.btc.lev": 111,
-  "cftc.btc.am": 111,
-  "cftc.btc.dealer": 111,
-  "cftc.eth.lev": 111,
-  "cftc.eth.am": 111,
-  "cftc.eth.dealer": 111,
-  "stab.usdt": 56,
-  "stab.usdc": 56,
-  "wh.Binance": 56,
-  "wh.Bitfinex": 56,
-  "wh.Bybit": 56,
-  "wh.KuCoin": 56,
-  "wh.OKX": 56
+  "cftc.btc.lev": 112,
+  "cftc.btc.am": 112,
+  "cftc.btc.dealer": 112,
+  "cftc.eth.lev": 112,
+  "cftc.eth.am": 112,
+  "cftc.eth.dealer": 112,
+  "stab.usdt": 57,
+  "stab.usdc": 57,
+  "wh.Binance": 57,
+  "wh.Bitfinex": 57,
+  "wh.Bybit": 57,
+  "wh.KuCoin": 57,
+  "wh.OKX": 57
  }
 }
