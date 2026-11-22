@@ -29411,6 +29411,7 @@ SZ_CIES = (   # id strony, identyfikator u źródła, fragment nazwy u źródła
 SZ_PW_URL = 'https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0/query'
 SZ_PW_POLA = 'date,portid,portname,n_total,n_tanker,n_cargo,capacity'
 SZ_GSCPI_URL = 'https://www.newyorkfed.org/medialibrary/research/interactives/data/gscpi/gscpi_interactive_data.csv'
+SZ_GSCPI_PARSER = 1   # wersja odczytu nagłówków CSV, zapisywana po podjęciu próby
 SZ_BCPI_URL = 'https://www.bankofcanada.ca/valet/observations/group/BCPI_WEEKLY/json?recent=' + str(SZ_W)
 SZ_BCPI = (('calosc', 'W.BCPI'), ('energia', 'W.ENER'), ('metale', 'W.MTLS'), ('rolne', 'W.AGRI'))
 SZ_MIES_EN = ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec')
@@ -29482,8 +29483,13 @@ def parse_pw(j):
 
 
 def _sz_vint(h):
-    """Nagłówek kolumny wydania 'Oct-26' → '2026-10'; inaczej None."""
-    m = re.match(r'^\s*([A-Za-z]{3})-(\d{2})\s*$', str(h or ''))
+    """Miesiąc wydania: 'Oct-26' albo data Excela 46296 (01.10.2026); inaczej None."""
+    s = str(h or '').strip()
+    if re.fullmatch(r'\d{5}', s):
+        # NY Fed CSV: nagłówki wydań to pierwsze dni miesięcy, w systemie dat Excela 1900.
+        d = datetime.date(1899, 12, 30) + datetime.timedelta(days=int(s))
+        return d.strftime('%Y-%m') if 2000 <= d.year <= 2099 and d.day == 1 else None
+    m = re.match(r'^([A-Za-z]{3})-(\d{2})$', s)
     if not m or m.group(1).lower() not in SZ_MIES_EN:
         return None
     return f'20{m.group(2)}-{SZ_MIES_EN.index(m.group(1).lower()) + 1:02d}'
@@ -29588,6 +29594,9 @@ def _sz_oczek(src, now):
 def _sz_due(src, z, now):
     """Czy źródło trzeba pobrać w tym przebiegu: pierwsze pobranie — co godzinę do skutku; spodziewane dane jeszcze nie przyszły — co
     SZ_CZESTO min (po SZ_ZALEGLE_H h od publikacji — co 6 h); poza tym co SZ_RZADKO min (poprawki wstecz); po błędzie — najwcześniej po 60 min."""
+    # Jedna próba po naprawie starego parsera; błędy dostawcy nie omijają zwykłych przerw.
+    if src == 'gscpi' and z.get('parser') is None and z.get('err') == 'gscpi: brak kolumn wydań':
+        return True
     at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
     if at == float('inf'):
         return tr >= 60
@@ -29747,6 +29756,8 @@ def build_szlaki(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None):
         nb = len(ctx['bledy'])
         z['try'] = now_iso
         proby[part] += 1
+        if src == 'gscpi':
+            z['parser'] = SZ_GSCPI_PARSER   # także po błędzie: kolejne przebiegi respektują harmonogram
         try:
             asof = SZ_POBIERZ[src](ctx)
         except Exception as e:

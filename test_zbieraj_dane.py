@@ -34977,6 +34977,81 @@ class SzlakiV305(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 zd.parse_bcpi(bad)
 
+    def test_gscpi_numery_dat_wydan_excela(self):
+        # Wyciąg z oficjalnego CSV NY Fed 22.11.2026: 46327 = 01.11, 46296 = 01.10.
+        # Kolejność celowo inna: najnowsze wydanie rewizuje wcześniejsze obserwacje.
+        text = ('Date,46327,46266,46296\n'
+                '31-Aug-2026,1.27103115086032,1.0624046720255,1.19847753142404\n'
+                '30-Sep-2026,1.36118044629765,#N/A,1.28384440918118\n'
+                '31-Oct-2026,1.26191118130865,#N/A,#N/A\n')
+        expected = ('2026-11', {'2026-08': 1.27, '2026-09': 1.36, '2026-10': 1.26})
+        self.assertEqual(zd.parse_gscpi(text), expected, 'miesiąc wydania ≠ miesiąc obserwacji')
+        self.assertEqual(zd.parse_gscpi(text.encode('utf-8-sig')), expected)
+        mixed = 'Date,Oct-26,46327,Sep-26\n31-Aug-2026,1.20,#N/A,1.06\n30-Sep-2026,1.28,0,#N/A\n31-Oct-2026,#N/A,1.26,#N/A\n'
+        self.assertEqual(zd.parse_gscpi(mixed), ('2026-11', {'2026-09': 0.0, '2026-10': 1.26}),
+                         'stare i nowe nagłówki: brak w najnowszym wydaniu nie jest uzupełniany starszą wersją; prawdziwe 0 zostaje')
+
+    def test_gscpi_nieprawidlowe_numery_nie_sa_wydaniami(self):
+        for h in ('0', '-46327', '46327.5', '46327.0', '46327x', '46328', '2026', '202611', '99999', '36525'):
+            with self.subTest(header=h):
+                self.assertIsNone(zd._sz_vint(h), 'tylko rzeczywisty pierwszy dzień miesiąca z zakresu 2000–2099')
+                with self.assertRaisesRegex(RuntimeError, 'brak kolumn wydań'):
+                    zd.parse_gscpi(f'Date,{h}\n31-Oct-2026,1.26\n')
+        with self.assertRaisesRegex(RuntimeError, 'wydanie 2026-11 bez liczb'):
+            zd.parse_gscpi('Date,46296,46327\n30-Sep-2026,1.28,#N/A\n')
+
+    def test_gscpi_odzyskanie_zrodla_z_datami_excela(self):
+        prev, _ = self.build(fail={'gscpi'})
+        now = datetime.datetime(2026, 11, 22, 19, 0, tzinfo=datetime.timezone.utc)
+        text = 'Date,46296,46327\n30-Sep-2026,1.28384440918118,1.36118044629765\n31-Oct-2026,#N/A,1.26191118130865\n'
+        out, _ = self.build(prev, now=now, gscpi=text)
+        self.assertTrue(out['ok']['presja'])
+        self.assertEqual(out['presja']['wyd'], '2026-11')
+        self.assertEqual(out['presja']['asof'], '2026-10')
+        self.assertEqual(out['presja']['d'], [['2026-09', 1.36], ['2026-10', 1.26]])
+        self.assertEqual(out['part_at']['presja'], now.isoformat(), 'data pobrania osobno od obserwacji i wydania')
+        self.assertNotIn('presja', out['err'])
+        self.assertNotIn('err', out['st']['gscpi'])
+        self.assertEqual(out['st']['gscpi']['asof'], '2026-10')
+
+    def test_gscpi_stary_blad_parsera_wznawia_tylko_raz(self):
+        prev, _ = self.build()
+        prev['st']['gscpi'].pop('parser', None)   # stan sprzed poprawki
+        now = datetime.datetime(2026, 11, 22, 19, 20, tzinfo=datetime.timezone.utc)
+        prev['st']['gscpi']['try'] = '2026-11-22T15:42:53+00:00'
+        prev['st']['gscpi']['err'] = 'gscpi: brak kolumn wydań'
+        self.assertTrue(zd._sz_due('gscpi', prev['st']['gscpi'], now), 'wznowienie przed upływem 6 h tylko dla starego parsera')
+        broken = 'Date,Broken\n31-Oct-2026,1.26\n'
+        failed, calls = self.build(prev, now=now, gscpi=broken)
+        self.assertEqual([c[0] for c in calls].count('gscpi'), 1)
+        self.assertFalse(failed['ok']['presja'])
+        self.assertEqual(failed['st']['gscpi']['parser'], zd.SZ_GSCPI_PARSER)
+        self.assertEqual(failed['st']['gscpi']['err'], 'gscpi: brak kolumn wydań')
+        self.assertEqual(failed['presja'], prev['presja'])
+        self.assertEqual(failed['part_at']['presja'], prev['part_at']['presja'], 'brak zmiany prawdziwej daty po nieudanej próbie')
+        cached, calls2 = self.build(failed, now=now + datetime.timedelta(minutes=10), gscpi=broken)
+        self.assertNotIn('gscpi', [c[0] for c in calls2], 'nowy błąd tej samej treści nie uruchamia szybkiej pętli')
+        self.assertEqual(cached['st']['gscpi']['try'], now.isoformat())
+        self.assertFalse(zd._sz_due('gscpi', failed['st']['gscpi'], now + datetime.timedelta(hours=6, seconds=-1)))
+        self.assertTrue(zd._sz_due('gscpi', failed['st']['gscpi'], now + datetime.timedelta(hours=6)))
+
+    def test_gscpi_wznowienie_nie_obchodzi_innych_bledow_ani_budzetu(self):
+        prev, _ = self.build()
+        z = prev['st']['gscpi']
+        z.pop('parser', None)
+        z['try'] = '2026-11-22T15:42:53+00:00'
+        now = datetime.datetime(2026, 11, 22, 19, 20, tzinfo=datetime.timezone.utc)
+        for err in ('gscpi: HTTP Error 429: Too Many Requests', 'gscpi: HTTP Error 503: Service Unavailable', 'gscpi: timed out', ''):
+            with self.subTest(error=err):
+                self.assertFalse(zd._sz_due('gscpi', dict(z, err=err), now))
+        z['err'] = 'gscpi: brak kolumn wydań'
+        self.assertFalse(zd._sz_due('bcpi', z, now), 'wznowienie dotyczy wyłącznie GSCPI')
+        calls = []
+        skipped = zd.build_szlaki(prev, now=now, fetch=self.fetch(calls=calls), budzet_s=0)
+        self.assertEqual(calls, [])
+        self.assertEqual(skipped['st']['gscpi'], z, 'brak budżetu nie zużywa jednorazowego wznowienia')
+        self.assertTrue(zd._sz_due('gscpi', skipped['st']['gscpi'], now))
+
     # ---- budowniczy ----
     def test_plik_z_nagran(self):
         o, calls = self.build()
@@ -34988,7 +35063,7 @@ class SzlakiV305(unittest.TestCase):
         self.assertEqual(o['part_at'], {p: '2026-10-08T04:30:00+00:00' for p in ('cies', 'presja', 'bcpi')})
         self.assertEqual(o['next'], {'cies': '2026-10-13T12:10:00+00:00', 'presja': '2026-11-05T15:00:00+00:00', 'bcpi': '2026-10-13T12:00:00+00:00'},
                          'wtorek 12:10 UTC; 4. dzień roboczy listopada (5.11); środa 07.10 — od wtorku 13.10')
-        self.assertEqual(o['st'], {'bcpi': {'try': o['at'], 'at': o['at'], 'asof': '2026-09-30'}, 'gscpi': {'try': o['at'], 'at': o['at'], 'asof': '2026-09'},
+        self.assertEqual(o['st'], {'bcpi': {'try': o['at'], 'at': o['at'], 'asof': '2026-09-30'}, 'gscpi': {'try': o['at'], 'parser': zd.SZ_GSCPI_PARSER, 'at': o['at'], 'asof': '2026-09'},
                                    'pw': {'try': o['at'], 'at': o['at'], 'asof': '2026-10-04'}})
         C = o['cies']
         self.assertEqual((C['asof'], C['u'], C['okno'], C['rok'], C['nz']), ('2026-10-04', 'statki/dzień', 7, 364, 0))

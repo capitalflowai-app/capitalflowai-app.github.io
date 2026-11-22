@@ -42,3 +42,11 @@ git diff --check
 ```
 
 Nie wyłączaj testów ani kontroli dla obejścia błędu. Zmianę wyglądu, nowych funkcji, źródeł o innym znaczeniu lub warunkach użycia i płatnych usług pozostaw do decyzji właściciela.
+
+## Naprawa GSCPI — 22.11.2026
+
+- Oficjalny [CSV New York Fed](https://www.newyorkfed.org/medialibrary/research/interactives/data/gscpi/gscpi_interactive_data.csv), odczytany 22.11, ma nagłówki wydań jako daty Excela, np. `46327` = 01.11.2026. Poprzedni parser odtwarzał `RuntimeError: brak kolumn wydań` i zachowywał obserwację 2026-09. SHA-256 odpowiedzi: `ef5109319ee888d704a5512ec4790b929c38d07069085138765f1229125f4328`.
+- `_sz_vint` rozpoznaje oba formaty: `Oct-26` i całkowity numer pierwszego dnia miesiąca Excela w latach 2000–2099. Wydanie 2026-11 zawiera ostatnią obserwację 2026-10 = 1,26 oraz rewizję 2026-09 = 1,36; miesiąc wydania, miesiąc obserwacji i czas pobrania pozostają osobnymi polami.
+- Jedna próba wznowienia dotyczy tylko bezwersyjnego stanu GSCPI z dokładnym dawnym błędem parsera. Rzeczywiście podjęta próba zapisuje `st.gscpi.parser=1`, również po błędzie; następne próby respektują dotychczasowy harmonogram. Błędy dostawcy, progi świeżości i budżety pozostają bez zmian. Nieudana próba zachowuje ostatnie poprawne dane z ich datą.
+- Pięć nowych regresji obejmuje rzeczywiste dane CSV, rewizje, kolejność i mieszane formaty nagłówków, brak różny od zera, nieprawidłowe daty, odzyskanie źródła i jednorazowość wznowienia. Cała klasa `test_zbieraj_dane.SzlakiV305`: 16/16 PASS bez sieci; niezależny przegląd obu części poprawki: PASS.
+- Odbiór publikacji przez istniejący `strona.yml`: sprawdzić znacznik commitu w stronie, świeży `data/meta.json` oraz `data/szlaki.json`: `presja.wyd=2026-11`, `presja.asof=2026-10`, ostatnia wartość 1,26, nowy czas `part_at.presja` i brak błędu parsera. Sam nowy czas pliku nie potwierdza aktualnej obserwacji.
