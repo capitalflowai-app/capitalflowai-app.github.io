@@ -1,5 +1,5 @@
 {
- "at": "2026-11-21T08:16:54+00:00",
+ "at": "2026-11-22T03:02:34+00:00",
  "credit": "Archiwum własne CapitalFlowAI",
  "files": {
   "wieloryby": {
@@ -22,12 +22,12 @@
     "asset"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
-   "rows": 741,
+   "at": "2026-11-22T03:02:34+00:00",
+   "rows": 754,
    "first": "2026-09-26",
-   "last": "2026-11-21",
-   "added": 0,
-   "revised": 13,
+   "last": "2026-11-22",
+   "added": 13,
+   "revised": 0,
    "revisions_total": 442,
    "fetched": 13
   },
@@ -44,12 +44,12 @@
     "token"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
-   "rows": 114,
+   "at": "2026-11-22T03:02:34+00:00",
+   "rows": 116,
    "first": "2026-09-26",
-   "last": "2026-11-21",
-   "added": 0,
-   "revised": 1,
+   "last": "2026-11-22",
+   "added": 2,
+   "revised": 0,
    "revisions_total": 41,
    "fetched": 2
   },
@@ -68,7 +68,7 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
+   "at": "2026-11-22T03:02:34+00:00",
    "rows": 787,
    "first": "2023-09-26",
    "last": "2026-11-20",
@@ -94,7 +94,7 @@
     "table"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
+   "at": "2026-11-22T03:02:34+00:00",
    "rows": 9196,
    "first": "2023-02",
    "last": "2026-09",
@@ -120,7 +120,7 @@
     "group"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
+   "at": "2026-11-22T03:02:34+00:00",
    "rows": 1120,
    "first": "2024-10-01",
    "last": "2026-11-17",
@@ -142,14 +142,14 @@
     "date"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
+   "at": "2026-11-22T03:02:34+00:00",
    "rows": 557,
    "first": "2024-09-26",
    "last": "2026-11-20",
    "added": 0,
    "revised": 0,
    "revisions_total": 2,
-   "fetched": 517
+   "fetched": 516
   },
   "binance-metrics": {
    "file": "binance-metrics.csv",
@@ -172,14 +172,14 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
+   "at": "2026-11-22T03:02:34+00:00",
    "rows": 4088,
    "first": "2020-09-01",
    "last": "2026-11-20",
-   "added": 2,
+   "added": 0,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 2
+   "fetched": 0
   },
   "binance-funding": {
    "file": "binance-funding.csv",
@@ -196,7 +196,7 @@
     "sym"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
+   "at": "2026-11-22T03:02:34+00:00",
    "rows": 4992,
    "first": "2020-01-01",
    "last": "2026-10-31",
@@ -221,14 +221,14 @@
     "cur"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
-   "rows": 4136,
+   "at": "2026-11-22T03:02:34+00:00",
+   "rows": 4138,
    "first": "2021-03-24",
-   "last": "2026-11-20",
-   "added": 0,
+   "last": "2026-11-21",
+   "added": 2,
    "revised": 0,
    "revisions_total": 0,
-   "fetched": 0
+   "fetched": 2
   },
   "krypto-dziennik": {
    "file": "krypto-dziennik.csv",
@@ -251,13 +251,13 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
+   "at": "2026-11-22T03:02:34+00:00",
    "rows": 480,
    "first": "2026-09-28",
    "last": "2026-11-20",
-   "added": 10,
-   "revised": 0,
-   "revisions_total": 460,
+   "added": 0,
+   "revised": 10,
+   "revisions_total": 470,
    "fetched": 480,
    "error_at": "2026-11-17T09:13:01+00:00",
    "error": "krypto-dziennik: HTTP Error 503: Service Unavailable"
@@ -283,7 +283,7 @@
     "since"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
+   "at": "2026-11-22T03:02:34+00:00",
    "rows": 1012,
    "first": "2026-10-05",
    "last": "2026-11-10",
@@ -323,7 +323,7 @@
     "c"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
+   "at": "2026-11-22T03:02:34+00:00",
    "rows": 0,
    "first": null,
    "last": null,
@@ -356,13 +356,13 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
+   "at": "2026-11-22T03:02:34+00:00",
    "rows": 254,
    "first": "2026-10-08",
    "last": "2026-11-23",
    "added": 0,
    "revised": 4,
-   "revisions_total": 525,
+   "revisions_total": 529,
    "fetched": 254
   },
   "ng-dziennik": {
@@ -389,13 +389,13 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
+   "at": "2026-11-22T03:02:34+00:00",
    "rows": 668,
    "first": "2026-10-15",
    "last": "2026-11-23",
    "added": 0,
    "revised": 23,
-   "revisions_total": 1276,
+   "revisions_total": 1299,
    "fetched": 668
   },
   "fw-dziennik": {
@@ -422,13 +422,13 @@
     "reg"
    ],
    "ok": true,
-   "at": "2026-11-21T08:16:54+00:00",
+   "at": "2026-11-22T03:02:34+00:00",
    "rows": 52,
    "first": "2026-10-19",
    "last": "2026-11-23",
    "added": 0,
    "revised": 3,
-   "revisions_total": 108,
+   "revisions_total": 111,
    "fetched": 52
   }
  },
@@ -452,12 +452,12 @@
   "cftc.eth.lev": 112,
   "cftc.eth.am": 112,
   "cftc.eth.dealer": 112,
-  "stab.usdt": 57,
-  "stab.usdc": 57,
-  "wh.Binance": 57,
-  "wh.Bitfinex": 57,
-  "wh.Bybit": 57,
-  "wh.KuCoin": 57,
-  "wh.OKX": 57
+  "stab.usdt": 58,
+  "stab.usdc": 58,
+  "wh.Binance": 58,
+  "wh.Bitfinex": 58,
+  "wh.Bybit": 58,
+  "wh.KuCoin": 58,
+  "wh.OKX": 58
  }
 }
