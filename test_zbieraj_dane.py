@@ -18112,6 +18112,80 @@ def _ici_months(end='2026-07', n=31):
     return out
 
 
+class IciGridContract(unittest.TestCase):
+    """Siatka XLS zachowuje luki, wartości i niezależne wiersze przy liniowym skanowaniu kluczy."""
+
+    def test_sparse_rectangles_preserve_values_and_independent_rows(self):
+        cases = [
+            ({}, []),
+            ({(0, 3): 0}, [[None, None, None, 0]]),
+            ({(3, 0): False}, [[None], [None], [None], [False]]),
+            ({(0, 0): 0, (1, 3): False, (3, 1): None, (4, 5): 'koniec'},
+             [[0, None, None, None, None, None],
+              [None, None, None, False, None, None],
+              [None, None, None, None, None, None],
+              [None, None, None, None, None, None],
+              [None, None, None, None, None, 'koniec']]),
+        ]
+        for cells, expected in cases:
+            with self.subTest(cells=cells):
+                before = dict(cells)
+                grid = zd.ici_grid(cells)
+                self.assertEqual(grid, expected)
+                self.assertEqual(cells, before)
+                self.assertEqual(len({id(row) for row in grid}), len(grid))
+        grid = zd.ici_grid(cases[-1][0])
+        self.assertIs(type(grid[0][0]), int)
+        self.assertIs(grid[1][3], False)
+        self.assertIsNone(grid[3][1])
+        grid[2][0] = 'zmiana'
+        self.assertIsNone(grid[1][0])
+        self.assertEqual(grid[0][0], 0)
+
+    def test_seeded_sparse_maps_match_coordinate_reference(self):
+        import random
+        rng = random.Random(20261123)
+        values = [None, False, True, 0, -3, 2.5, '', 'tekst']
+        for case in range(80):
+            height, width = rng.randrange(1, 45), rng.randrange(1, 20)
+            cells = {(r, c): rng.choice(values)
+                     for r in range(height) for c in range(width) if rng.random() < 0.08}
+            if case % 10 == 0:
+                cells = {}
+            before = dict(cells)
+            expected = []
+            if cells:
+                last_row = max(key[0] for key in cells)
+                last_col = max(key[1] for key in cells)
+                expected = [[cells.get((r, c)) for c in range(last_col + 1)]
+                            for r in range(last_row + 1)]
+            with self.subTest(case=case):
+                self.assertEqual(zd.ici_grid(cells), expected)
+                self.assertEqual(cells, before)
+
+    def test_key_iteration_scales_linearly_with_rows(self):
+        class Counted(dict):
+            def __init__(self, cells):
+                super().__init__(cells)
+                self.visits = 0
+
+            def __iter__(self):
+                for key in super().__iter__():
+                    self.visits += 1
+                    yield key
+
+        def work(rows):
+            cells = Counted({(r, c): r + c for r in range(rows) for c in range(2)})
+            grid = zd.ici_grid(cells)
+            self.assertEqual((len(grid), len(grid[-1])), (rows, 2))
+            self.assertEqual(grid[-1], [rows - 1, rows])
+            return cells.visits
+
+        work0, work1 = work(100), work(1000)
+        self.assertGreater(work0, 0)
+        self.assertLessEqual(work1, 20 * work0, (work0, work1))
+
+
 class IciV134(unittest.TestCase):
     """v134: USA — tygodniowe napływy netto do funduszy długoterminowych (fundusze wzajemne i ETF razem), data/ici.json: czytnik .xls (OLE2 +
     BIFF8, biblioteka standardowa), parser po nazwach kolumn z kontrolą sum, historia budowana z kolejnych plików (nowszy plik wygrywa, poprawione
@@ -55455,6 +55529,30 @@ class NowcastyV376(unittest.TestCase):
 
     PLIKI_INNE = {'bilans-usa': {'gdp': [['2026-Q1', 2.5], ['2026-Q2', 2.2]]}, 'usa-makro': {'s': {'cpi': {'yoy': [['2026-08', 3.4], ['2026-09', 3.7]]}}}}
 
+    def test_cpi_nowszy_indeks_bez_bazy_rocznej_nie_jest_starym_miesiacem(self):
+        k = self.kt()
+        C = {'cpi': {'m': '2026-11', 'yy': 3.8, 'hist': []}}
+        F = {'usa-makro': {'s': {'cpi': {'d': [['2025-10', None], ['2026-09', 336.94], ['2026-10', 337.511]], 'yoy': [['2026-09', 3.7]]}}}}
+        out = k.nowcasty_uwagi(C, F, self.teraz('2026-11-23T10:00:00+00:00'))
+        self.assertEqual(out['uwagi'], [], 'luka BLS w bazie 2025 nie cofa daty indeksu 2026')
+        self.assertTrue(any('ostatni odczyt 2026-10' in w and 'r/r niedostępna' in w and z == '✅' for w, z in out['wiersze']))
+
+    def test_cpi_brak_rocznej_zmiany_przy_istniejacej_bazie_nadal_alarmuje(self):
+        k = self.kt()
+        F = {'usa-makro': {'s': {'cpi': {'d': [['2025-10', 323.1], ['2026-10', 337.511]], 'yoy': [['2026-09', 3.7]]}}}}
+        out = k.nowcasty_uwagi({'cpi': {'m': '2026-11', 'yy': 3.8, 'hist': []}}, F, self.teraz())
+        self.assertTrue(any('brak zmiany CPI r/r za 2026-10' in w for w in out['uwagi']), out)
+        self.assertFalse(any('plik usa-makro nieaktualny' in w for w in out['uwagi']))
+
+    def test_cpi_niepoprawny_indeks_nie_ukrywa_luki_a_prog_roczny_zostaje(self):
+        k = self.kt()
+        F = {'usa-makro': {'s': {'cpi': {'d': [['2026-10', None], ['2026-11', True]], 'yoy': [['2026-07', 3.7]]}}}}
+        out = k.nowcasty_uwagi({'cpi': {'m': '2026-11', 'yy': 3.8, 'hist': []}}, F, self.teraz())
+        self.assertTrue(any('ostatni odczyt jest za 2026-07' in w for w in out['uwagi']))
+        F['usa-makro']['s']['cpi'] = {'d': [['2026-10', 337.511]], 'yoy': [['2026-09', 3.7]]}
+        out = k.nowcasty_uwagi({'cpi': {'m': '2026-10', 'yy': 15.0, 'hist': []}}, F, self.teraz())
+        self.assertTrue(any('różni się od ostatniego odczytu (3.7%)' in w for w in out['uwagi']), 'próg skoku pozostaje')
+
     def test_kontrola_pliki_limity_i_progi_z_testu_wstecznego(self):
         import pathlib
         k = self.kt()
@@ -55756,7 +55854,7 @@ class UsdtSkarbiecV377(unittest.TestCase):
         self.assertEqual(o['eth']['ost'], {'i': ['2026-10-12T03:00:00Z', 1000000000], 'r': ['2026-10-05T04:00:00Z', 500000000]})
         self.assertEqual(set(o['hist']), {'eth', 'tron', 'skarb'}); self.assertEqual(o['hist']['skarb'], [['2026-10-15', 2109852401 + 1171852227]])
         self.assertEqual(o['zm']['skarb'], {'1': None, '7': None, '30': None}); self.assertLess(len(json.dumps(o)), 12000, 'plik mały (kilka KB)')
-        prev = {'v': 1, 'at': '2026-10-14T20:00:00+00:00', 'hist': {'skarb': [['2026-10-14', 3000000000], ['2026-10-08', 3100000000]], 'eth': [['2026-10-14', 1]], 'tron': [['2026-10-14', 2]], 'obca': [['x', 1]]}}
+        prev = {'v': 1, 'at': '2026-10-14T20:00:00+00:00', 'hist': {'skarb': [['2026-10-14', 3000000000], ['2026-10-08', 3100000000]], 'eth': [['2026-10-14', 2000000000]], 'tron': [['2026-10-14', 1000000000]], 'obca': [['x', 1]]}}
         with mock.patch.object(zd, 'get_json', self._get()):
             o = zd.build_usdt_skarbiec(prev)
         self.assertEqual(o['zm']['skarb'], {'1': 2109852401 + 1171852227 - 3000000000, '7': 2109852401 + 1171852227 - 3100000000, '30': None}); self.assertNotIn('obca', o['hist'])
@@ -55778,12 +55876,12 @@ class UsdtSkarbiecV377(unittest.TestCase):
 
         def prev(godz):
             p = json.loads(json.dumps(pelny)); p['at'] = (_V377_NOW - datetime.timedelta(hours=1)).isoformat()
-            p['part_at'] = {'eth': p['at'], 'tron': (_V377_NOW - datetime.timedelta(hours=godz)).isoformat()}; p['tron']['bal'] = 777; p['hist']['skarb'] = [['2026-10-14', 5]]; return p
+            p['part_at'] = {'eth': p['at'], 'tron': (_V377_NOW - datetime.timedelta(hours=godz)).isoformat()}; p['tron']['bal'] = 777; p['hist']['tron'][-1][1] = 777; p['hist']['skarb'] = [['2026-10-14', 5]]; return p
         with mock.patch.object(zd, 'get_json', self._get(bl=blad)):
             o = zd.build_usdt_skarbiec(prev(4))
         self.assertEqual(o['ok'], {'eth': True, 'tron': False}); self.assertEqual(o['tron']['bal'], 777, 'część z poprzedniego pliku'); self.assertEqual(o['part_at']['tron'], (_V377_NOW - datetime.timedelta(hours=4)).isoformat())
         self.assertEqual(o['hist']['skarb'], [['2026-10-14', 5], ['2026-10-15', 2109852401 + 777]], 'v491: suma „razem” także z odczytem Tron z pamięci, gdy oba odczyty są z dzisiejszej doby'); self.assertEqual(o['hist']['eth'][-1], ['2026-10-15', 2109852401])
-        self.assertEqual(o['hist']['tron'], [['2026-10-15', 1171852227]], 'sieć po błędzie nie dostaje punktu historii z odczytu z poprzedniego pliku (777)')
+        self.assertEqual(o['hist']['tron'], [['2026-10-15', 777]], 'sieć po błędzie zachowuje punkt z prawdziwej daty odczytu; nie dostaje nowego dnia')
         self.assertEqual([e.split(':')[0] for e in zd.META['errors']], ['USDT skarbiec tron']); self.assertIn('429', zd.META['errors'][0])
         zd.META['errors'].clear()
         with mock.patch.object(zd, 'get_json', self._get(bl=blad)):
@@ -55845,6 +55943,47 @@ class UsdtSkarbiecV377(unittest.TestCase):
             s = f.read()
         i0, i1, i2 = s.index("META['ok']['emit_llama'], META['ok']['emit_tether'], META['ok']['emit_circle'] = ste_czesc()"), s.index("META['ok']['usdt_eth'], META['ok']['usdt_tron'] = usk_czesc()"), s.index('# v140: TOP 10 monet w 8 sektorach')
         self.assertTrue(i0 < i1 < i2, 'zaraz po emitentach stablecoinów, przed top 10'); self.assertEqual(s.count('usk_czesc()'), 2)   # definicja + jedno wywołanie
+
+
+class UsdtHistoriaSpójnaV20261123(unittest.TestCase):
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def tearDown(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def test_koncowy_odczyt_sieci_poprawia_sume_tego_samego_dnia(self):
+        h = {'eth': [['2026-11-17', 4425289809], ['2026-11-18', 4425289809]],
+             'tron': [['2026-11-17', 2350325403], ['2026-11-18', 2469202678], ['2026-11-19', 2758102678]],
+             'skarb': [['2026-11-17', 6775615212], ['2026-11-18', 6775615212]]}
+        zd._usk_hist_skarb(h)
+        self.assertEqual(h['skarb'], [['2026-11-17', 6775615212], ['2026-11-18', 6894492487]])
+        self.assertNotIn('2026-11-19', dict(h['skarb']), 'brak Ethereum tego dnia nie jest zerem ani saldem z poprzedniego dnia')
+        self.assertEqual(zd.usk_zmiany(h['skarb'])['1'], 118877275)
+
+    def test_brak_i_nieliczby_nie_tworza_sumy_zero_jest_pomiarem(self):
+        h = {'eth': [['2026-11-18', 0], ['2026-11-19', None], ['2026-11-20', True], ['2026-11-21', float('inf')], ['2026-11-99', 7]],
+             'tron': [['2026-11-18', 4], ['2026-11-19', 9], ['2026-11-20', 5], ['2026-11-21', 2], ['2026-11-99', 3]],
+             'skarb': [['2026-11-17', 8]]}
+        zd._usk_hist_skarb(h)
+        self.assertEqual(h['skarb'], [['2026-11-17', 8], ['2026-11-18', 4]], 'stary poprawny punkt bez obu składników zostaje; nie tworzymy zastępników')
+        before = json.loads(json.dumps(h['skarb']))
+        zd._usk_hist_skarb(h)
+        self.assertEqual(h['skarb'], before, 'wielokrotna kontrola nie mnoży punktów')
+
+    def test_awaria_ethereum_zostawia_wlasne_daty_i_koryguje_wylacznie_wspolny_dzien(self):
+        now = '2026-11-19T13:00:00+00:00'
+        prev = {'v': 1, 'at': '2026-11-18T23:00:00+00:00',
+                'hist': {'eth': [['2026-11-18', 4425289809]], 'tron': [['2026-11-18', 2469202678]], 'skarb': [['2026-11-18', 6775615212]]}}
+        with mock.patch.object(zd, 'NOW', now), mock.patch.object(zd, 'usk_eth', side_effect=RuntimeError('timeout')), \
+                mock.patch.object(zd, 'usk_tron', return_value={'bal': 2758102678, 'sup': None, 't': now, 'dni': [], 'ost': {'i': None, 'r': None}}):
+            out = zd.build_usdt_skarbiec(prev)
+        self.assertFalse(out['ok']['eth']); self.assertNotIn('eth', out)
+        self.assertEqual(out['hist']['eth'], prev['hist']['eth'])
+        self.assertEqual(out['hist']['skarb'], [['2026-11-18', 6894492487]])
+        self.assertNotIn('eth', out['part_at'], 'awaria nie tworzy nowego pobrania')
+        self.assertEqual(prev['hist']['skarb'], [['2026-11-18', 6775615212]], 'nie mutujemy wejściowej pamięci')
+
 
 
 class KontrolaUsdtSkarbiecV377(unittest.TestCase):
@@ -58776,12 +58915,13 @@ class TestV386TronLimit(unittest.TestCase):
     def test_rytm_tron_bez_zapytan_i_bez_nowego_punktu_historii(self):
         o0 = self._pelny()
         o0['tron']['bal'] = 777   # odczyt Tron z poprzedniego pliku — jego saldo nie może trafić do historii z nową datą
+        o0['hist']['tron'][-1][1] = 777   # historia i saldo pochodzą z tego samego zaakceptowanego odczytu
         g, st = _v386_serwer()
         o1 = self._bud(o0, 30, g)
         self.assertEqual(st['tron'], 0, 'Tron młodszy niż 55 min — ani jednego zapytania'); self.assertEqual(sum('blockscout' in c for c in st['calls']), 4)
         self.assertEqual(o1['ok'], {'eth': True, 'tron': 'cached'}); self.assertEqual(o1['tron'], o0['tron']); self.assertEqual(o1['part_at']['tron'], o0['part_at']['tron'], 'data odczytu Tron zostaje')
         self.assertEqual(o1['part_at']['eth'], (_V377_NOW + datetime.timedelta(minutes=30)).isoformat()); self.assertEqual(zd.META['errors'], [])
-        self.assertEqual(o1['hist']['tron'], [['2026-10-15', 1171852227]]); self.assertEqual(o1['hist']['skarb'], [['2026-10-15', o1['eth']['bal'] + 777]], 'v491: suma „razem” liczona ze świeżego Ethereum i Tron z pamięci z dzisiejszej doby')
+        self.assertEqual(o1['hist']['tron'], [['2026-10-15', 777]], 'zachowana historia tego samego odczytu, bez nowego dnia'); self.assertEqual(o1['hist']['skarb'], [['2026-10-15', o1['eth']['bal'] + 777]], 'v491: suma „razem” liczona ze świeżego Ethereum i Tron z pamięci z dzisiejszej doby')
         g, st = _v386_serwer()
         o2 = self._bud(o1, 56, g)
         self.assertEqual((st['tron'], o2['ok']), (3, {'eth': True, 'tron': True})); self.assertEqual(o2['part_at']['tron'], (_V377_NOW + datetime.timedelta(minutes=56)).isoformat())
@@ -82083,6 +82223,7 @@ class TestV491SkarbPunktPrzyTronZPamieci(unittest.TestCase):
     def test_tron_z_pamieci_dzisiejszy_odczyt_daje_punkt_sumy(self):
         o0 = self._pelny()
         o0['tron']['bal'] = 1398500025   # odczyt Tron sprzed 30 min, ten sam dzień
+        o0['hist']['tron'][-1][1] = 1398500025   # historia tego samego zaakceptowanego odczytu
         o0['hist']['skarb'] = [['2026-10-14', 5], ['2026-10-15', 1]]   # stara suma z rana
         o1, st = self._bud(o0, 30)
         self.assertEqual(o1['ok'], {'eth': True, 'tron': 'cached'}); self.assertEqual(st['tron'], 0)
@@ -82093,6 +82234,7 @@ class TestV491SkarbPunktPrzyTronZPamieci(unittest.TestCase):
     def test_tron_z_pamieci_wczorajszy_odczyt_bez_nowego_punktu(self):
         o0 = self._pelny()
         o0['tron']['t'] = '2026-10-14T23:30:00+00:00'   # odczyt Tron z wczorajszej doby (rytm liczony od part_at — jeszcze świeży)
+        o0['hist']['tron'][-1][0] = '2026-10-14'   # punkt również pochodzi z rzeczywistej doby odczytu
         o0['hist']['skarb'] = [['2026-10-14', 5]]
         o1, st = self._bud(o0, 30)
         self.assertEqual(o1['ok']['tron'], 'cached'); self.assertEqual(o1['hist']['skarb'], [['2026-10-14', 5]], 'odczyt Tron z innej doby = bez nowego punktu sumy')
@@ -84199,3 +84341,102 @@ class MetaleCochilcoUklad20261120(unittest.TestCase):
         self.assertEqual(recovered['st']['co']['parser'], 1)
         self.assertNotIn('cu', recovered['err'])
         self.assertNotIn('err', recovered['st']['co'])
+
+
+class UsdtHistoriaCacheV20261123(unittest.TestCase):
+    """Naprawa pochodnej historii nie jest nowym odczytem ani wznowieniem dostawcy."""
+    NOW = '2026-11-23T12:00:00+00:00'
+
+    def setUp(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def tearDown(self):
+        zd.META['errors'].clear(); zd.META['ok'].clear()
+
+    def _prev(self):
+        at = '2026-11-18T23:00:00+00:00'
+        return {'v': 1, 'at': at, 'src': 'zapisane odczyty Ethereum i Tron',
+                'part_at': {'eth': '2026-11-18T01:00:00+00:00', 'tron': at},
+                'ok': {'eth': False, 'tron': True}, 'proba': {'tron': '2026-11-19T00:00:00+00:00'},
+                'eth': {'bal': 4425289809, 't': '2026-11-18T01:00:00+00:00'},
+                'tron': {'bal': 2469202678, 't': at},
+                'hist': {'eth': [['2026-11-17', 4425289809], ['2026-11-18', 4425289809]],
+                         'tron': [['2026-11-17', 2350325403], ['2026-11-18', 2469202678], ['2026-11-19', 2758102678]],
+                         'skarb': [['2026-11-17', 6775615212], ['2026-11-18', 6775615212]], 'obca': [['zachowaj', 1]]},
+                'zm': {'eth': {'1': 0, '7': None, '30': None}, 'tron': {'1': 288900000, '7': None, '30': None},
+                       'skarb': {'1': 0, '7': None, '30': None}, 'obca': {'x': 1}}}
+
+    def _run(self, prev, fresh, build=None):
+        with mock.patch.object(zd, 'NOW', self.NOW), mock.patch.object(zd, 'previous', return_value=prev), \
+                mock.patch.object(zd, 'fresh', return_value=fresh), mock.patch.object(zd, 'save') as save, \
+                mock.patch.object(zd, 'get_json', side_effect=AssertionError('bez pobierania')) as fetch:
+            if build is None:
+                result = zd.usk_czesc()
+            else:
+                with mock.patch.object(zd, 'build_usdt_skarbiec', build):
+                    result = zd.usk_czesc()
+            fetch.assert_not_called()
+        save.assert_called_once()
+        self.assertEqual(save.call_args.args[0], 'usdt-skarbiec')
+        return result, save.call_args.args[1]
+
+    def _tylko_pochodne(self, prev, saved):
+        expected = copy.deepcopy(prev)
+        expected['hist']['skarb'] = [['2026-11-17', 6775615212], ['2026-11-18', 6894492487]]
+        expected['zm']['skarb'] = {'1': 118877275, '7': None, '30': None}
+        self.assertEqual(saved, expected, 'zmieniają się tylko suma historii i wyliczona z niej zmiana')
+
+    def test_swiezy_cache_naprawia_historie_bez_odczytu_i_nowych_dat(self):
+        prev = self._prev(); before = copy.deepcopy(prev)
+        prev['at'] = '2026-11-23T11:50:00+00:00'; before['at'] = prev['at']
+        build = mock.Mock(side_effect=AssertionError('cache bez budowy'))
+        result, saved = self._run(prev, True, build)
+        self.assertEqual(result, ('cached', 'cached')); build.assert_not_called()
+        self._tylko_pochodne(prev, saved)
+        self.assertEqual(prev, before, 'nie mutujemy obiektu poprzedniego odczytu')
+        again, saved_again = self._run(saved, True, build)
+        self.assertEqual(again, result); self.assertIs(saved_again, saved, 'naprawa idempotentna')
+
+    def test_obie_sieci_zawiodly_korekta_zostaje_bez_falszywego_ok(self):
+        import urllib.error
+        prev = self._prev(); before = copy.deepcopy(prev)
+        with mock.patch.object(zd, 'usk_eth', side_effect=RuntimeError('timeout')) as eth, \
+                mock.patch.object(zd, 'usk_tron', side_effect=urllib.error.HTTPError('u', 429, 'Too Many Requests', {}, None)) as tron:
+            result, saved = self._run(prev, False)
+        self.assertEqual(result, (False, False)); eth.assert_called_once_with(); tron.assert_called_once_with()
+        self._tylko_pochodne(prev, saved); self.assertEqual(prev, before)
+        self.assertEqual(len(zd.META['errors']), 3)
+        self.assertIn('timeout', zd.META['errors'][0]); self.assertIn('429', zd.META['errors'][1])
+        self.assertIn('żadna sieć', zd.META['errors'][2])
+
+    def test_brak_wspolnego_dnia_zostawia_cache_i_brak_zmiany(self):
+        prev = self._prev()
+        prev['hist'] = {'eth': [['2026-11-18', 0]], 'tron': [['2026-11-19', 4]], 'skarb': [['2026-11-17', 8]]}
+        prev['zm']['skarb'] = {'1': None, '7': None, '30': None}
+        before = copy.deepcopy(prev)
+        result, saved = self._run(prev, True, mock.Mock(side_effect=AssertionError('bez budowy')))
+        self.assertEqual(result, ('cached', 'cached')); self.assertIs(saved, prev); self.assertEqual(saved, before)
+
+    def test_prawdziwe_zero_liczy_sie_ale_brak_nie_tworzyl_nowej_doby(self):
+        prev = self._prev()
+        prev['hist'] = {'eth': [['2026-11-18', 0]], 'tron': [['2026-11-18', 4], ['2026-11-19', 9]],
+                        'skarb': [['2026-11-18', 8]]}
+        prev['zm']['skarb'] = {'1': None, '7': None, '30': None}
+        before = copy.deepcopy(prev)
+        _, saved = self._run(prev, True, mock.Mock(side_effect=AssertionError('bez budowy')))
+        self.assertEqual(saved['hist']['skarb'], [['2026-11-18', 4]])
+        self.assertEqual(saved['zm']['skarb'], {'1': None, '7': None, '30': None})
+        self.assertEqual(prev, before); self.assertEqual(saved['part_at'], prev['part_at']); self.assertEqual(saved['at'], prev['at'])
+
+    def test_poprawna_suma_z_bledna_zmiana_naprawia_tylko_zmiane(self):
+        prev = self._prev(); prev['hist']['skarb'][-1][1] = 6894492487
+        before = copy.deepcopy(prev)
+        _, saved = self._run(prev, True, mock.Mock(side_effect=AssertionError('bez budowy')))
+        self._tylko_pochodne(prev, saved); self.assertEqual(prev, before)
+
+    def test_niepelny_lub_uszkodzony_cache_nie_powoduje_wyjscia_poza_obsluge(self):
+        for hist in (None, [], {'eth': None, 'tron': []}, {'skarb': [['2026-11-18', None], ['2026-11-17', 1]]}):
+            with self.subTest(hist=hist):
+                prev = self._prev(); prev['hist'] = hist
+                result, saved = self._run(prev, True, mock.Mock(side_effect=AssertionError('bez budowy')))
+                self.assertEqual(result, ('cached', 'cached')); self.assertIs(saved, prev)

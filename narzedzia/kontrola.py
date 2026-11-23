@@ -10662,18 +10662,29 @@ def nowcasty_uwagi(j, files=None, now=None):
     try:
         yy = _nc_k_sciezka(files.get('usa-makro'), 's', 'cpi', 'yoy')
         rows = [r for r in (yy if isinstance(yy, list) else []) if isinstance(r, list) and len(r) == 2 and _nc_k_mc(r[0]) is not None and _nc_k_num(r[1], -20, 50)]
-        if C and rows and _nc_k_mc(C.get('m')) is not None:
-            ost = max(rows, key=lambda r: _nc_k_mc(r[0]))
+        ix = _nc_k_sciezka(files.get('usa-makro'), 's', 'cpi', 'd')
+        indeksy = [r for r in (ix if isinstance(ix, list) else []) if isinstance(r, list) and len(r) == 2 and _nc_k_mc(r[0]) is not None and _nc_k_num(r[1], 1, 10000)]
+        if C and (rows or indeksy) and _nc_k_mc(C.get('m')) is not None:
+            ost_rr = max(rows, key=lambda r: _nc_k_mc(r[0])) if rows else None
+            ost = max(rows + indeksy, key=lambda r: _nc_k_mc(r[0]))
             roz = _nc_k_mc(C['m']) - _nc_k_mc(ost[0])
             zg = roz in (0, 1)
-            out['wiersze'].append((f'CPI: szacunek dla {C["m"]} a ostatni odczyt {ost[0]} ({ost[1]}% r/r)', '✅' if zg else '⚠\ufe0f'))
+            # BLS: nowy indeks może istnieć bez zmiany r/r, gdy brak bazy sprzed roku.
+            ma_rr = ost_rr is not None and ost_rr[0] == ost[0]
+            opis = f'{ost_rr[1]}% r/r' if ma_rr else f'indeks {ost[1]}; zmiana r/r niedostępna'
+            out['wiersze'].append((f'CPI: szacunek dla {C["m"]} a ostatni odczyt {ost[0]} ({opis})', '✅' if zg else '⚠️'))
             if not zg:
                 out['uwagi'].append(f'Nowcasty: szacunek CPI dotyczy {C["m"]}, a ostatni odczyt jest za {ost[0]} — oczekiwano miesiąca następnego po odczycie (plik usa-makro nieaktualny albo szacunek dotyczy wcześniejszego miesiąca)')
-            if roz == 1 and _nc_k_num(C.get('yy'), -5, 30):
-                sk = abs(C['yy'] - ost[1])
-                out['wiersze'].append((f'CPI r/r: szacunek {C["yy"]}% a ostatni odczyt {ost[1]}% (różnica {sk:.2f} pp)', '✅' if sk <= NC_K_SKOK_RR else '⚠\ufe0f'))
+            if not ma_rr:
+                baza = f'{int(ost[0][:4]) - 1:04d}{ost[0][4:]}'
+                if any(r[0] == baza for r in indeksy):
+                    out['uwagi'].append(f'Nowcasty: brak zmiany CPI r/r za {ost[0]} mimo dostępnego indeksu i bazy {baza} — sprawdź obliczenie albo tabelę źródła')
+            # Skok r/r porównujemy wyłącznie z r/r za poprzedni miesiąc, nigdy z indeksem lub starszym r/r.
+            if ost_rr is not None and _nc_k_mc(C['m']) - _nc_k_mc(ost_rr[0]) == 1 and _nc_k_num(C.get('yy'), -5, 30):
+                sk = abs(C['yy'] - ost_rr[1])
+                out['wiersze'].append((f'CPI r/r: szacunek {C["yy"]}% a ostatni odczyt {ost_rr[1]}% (różnica {sk:.2f} pp)', '✅' if sk <= NC_K_SKOK_RR else '⚠️'))
                 if sk > NC_K_SKOK_RR:
-                    out['uwagi'].append(f'Nowcasty: szacunek inflacji r/r ({C["yy"]}%) różni się od ostatniego odczytu ({ost[1]}%) o {sk:.2f} pp (próg {NC_K_SKOK_RR} pp) — sprawdź tabelę źródła')
+                    out['uwagi'].append(f'Nowcasty: szacunek inflacji r/r ({C["yy"]}%) różni się od ostatniego odczytu ({ost_rr[1]}%) o {sk:.2f} pp (próg {NC_K_SKOK_RR} pp) — sprawdź tabelę źródła')
     except Exception as ex:  # noqa
         out['uwagi'].append(f'Nowcasty: porównanie CPI z ostatnim odczytem przerwane ({str(ex)[:60]})')
     # ---- CPI: ostatni odczyt miesiąca (oczekiwanie kontra wynik) i długość historii ----

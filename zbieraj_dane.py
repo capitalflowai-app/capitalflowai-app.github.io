@@ -21861,7 +21861,9 @@ def ici_grid(cells):
     """Komórki → lista wierszy (puste komórki = None)."""
     if not cells:
         return []
-    g = [[None] * (max(c for _, c in cells) + 1) for _ in range(max(r for r, _ in cells) + 1)]
+    width = max(c for _, c in cells) + 1
+    height = max(r for r, _ in cells) + 1
+    g = [[None] * width for _ in range(height)]
     for (r, c), v in cells.items():
         g[r][c] = v
     return g
@@ -40454,6 +40456,19 @@ def _usk_skarb_dzis(out):
         return False
 
 
+
+def _usk_hist_skarb(h):
+    """Suma ostatnich odczytów obu sieci z tej samej doby UTC; brak składnika nie tworzy punktu ani zera. Koryguje wyłącznie pochodną serię, nie daty obserwacji sieci."""
+    parts = {}
+    for part in ('eth', 'tron'):
+        parts[part] = {r[0]: r[1] for r in h.get(part, [])
+                       if isinstance(r, list) and len(r) == 2 and isinstance(r[0], str)
+                       and re.fullmatch(r'\d{4}-\d{2}-\d{2}', r[0]) and _d(r[0]) is not None
+                       and _isnum(r[1]) and r[1] >= 0}
+    for day in sorted(parts['eth'].keys() & parts['tron'].keys()):
+        ste_historia(h, 'skarb', day, parts['eth'][day] + parts['tron'][day])
+
+
 def build_usdt_skarbiec(prev=None):
     """v377: data/usdt-skarbiec.json {v, at, src, part_at, ok, eth, tron, hist, zm}. Część, która zawiodła, zostaje z poprzedniego pliku (USK_MAX_H godzin od jej pobrania), błąd do META['errors'];
     obie zawiodły = wyjątek (main zostawia poprzedni plik). Historia dobowa salda: 'eth', 'tron' (każda z własnego odczytu) i 'skarb' (suma — tylko gdy odczyty obu sieci są z dzisiejszej doby UTC, także gdy Tron jest z pamięci)."""
@@ -40492,6 +40507,7 @@ def build_usdt_skarbiec(prev=None):
             ste_historia(h, part, NOW[:10], out[part]['bal'])
     if _usk_skarb_dzis(out):   # v491: Tron z pamięci (rytm 55 min) nie wstrzymuje sumy, byle odczyty obu sieci były z dzisiejszej doby
         ste_historia(h, 'skarb', NOW[:10], out['eth']['bal'] + out['tron']['bal'])
+    _usk_hist_skarb(h)   # późniejszy odczyt jednej sieci aktualizuje sumę tej doby, także po wygaśnięciu drugiej części
     out['hist'] = h
     if proba:
         out['proba'] = proba
@@ -40499,11 +40515,32 @@ def build_usdt_skarbiec(prev=None):
     return out
 
 
+def _usk_hist_zapas(prev):
+    """Korekta wyłącznie pochodnej sumy i jej zmian w zapisanym pliku; zachowuje daty, źródła i stan prób. Nie pobiera danych."""
+    hist = prev.get('hist')
+    if not isinstance(hist, dict):
+        return prev
+    pts = hist.get('skarb', [])
+    if not isinstance(pts, list) or any(not (isinstance(r, list) and len(r) == 2 and isinstance(r[0], str)
+            and re.fullmatch(r'\d{4}-\d{2}-\d{2}', r[0]) and _d(r[0]) is not None
+            and _isnum(r[1]) and r[1] >= 0) for r in pts):
+        return prev   # uszkodzona pochodna zostaje do istniejącej kontroli, nie przerywa ścieżki cache
+    h = {k: v for k, v in hist.items() if k in ('eth', 'tron', 'skarb') and isinstance(v, list)}
+    _usk_hist_skarb(h)
+    if 'skarb' not in h:
+        return prev
+    zm = usk_zmiany(h['skarb'])
+    if h['skarb'] == hist.get('skarb') and zm == _dict(prev.get('zm')).get('skarb'):
+        return prev
+    return {**prev, 'hist': {**hist, 'skarb': h['skarb']}, 'zm': {**_dict(prev.get('zm')), 'skarb': zm}}
+
+
 def usk_czesc():
     """v377: część przebiegu → krotka wartości dla META['ok'] (Ethereum, Tron): True = odpowiedziała, 'cached' = poprzedni plik jeszcze świeży (USK_EVERY_MIN min), False = zawiodła. Nieudana budowa
     zostawia poprzedni plik."""
     prev = previous('usdt-skarbiec')
     prev = prev if isinstance(prev, dict) and prev.get('v') == USK_V else None
+    prev = _usk_hist_zapas(prev) if prev else None   # również cache i pełna awaria: to nie jest nowy odczyt sieci
     if prev and fresh(prev, USK_EVERY_MIN):
         save('usdt-skarbiec', prev)
         return ('cached', 'cached')
