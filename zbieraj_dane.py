@@ -30566,7 +30566,8 @@ def mt_pdf_tekst(dane):
 def parse_mt_co(dane):
     """Tygodniowy raport o miedzi (PDF) → {'asof': dzień raportu, 'lme', 'comex', 'shfe', 'razem'} (t). Dzień z nagłówka „Reporte al <dzień
     tygodnia> DD de <miesiąc> de RRRR”; wiersze tabeli zapasów „BML-Londres / COMEX-EE.UU / SHFE-Shanghai / TOTAL GLOBAL” (liczby z kropką
-    tysięcy). Brak dnia, wiersza albo suma ≠ razem (± 3 t) = ValueError."""
+    tysięcy). Rozpoznaje także tabelę „INVENTARIOS POR BOLSA DE METALES” z kolumną „Stock TM” i etykietami
+    „LME · Londres / COMEX · EE.UU. / SHFE · Shanghái / TOTAL”. Brak dnia, wiersza albo suma ≠ razem (± 3 t) = ValueError."""
     tx = mt_pdf_tekst(dane)
     asof = None
     for w in tx:
@@ -30583,6 +30584,26 @@ def parse_mt_co(dane):
         m = re.match(r'(BML-Londres|COMEX-EE\.UU\.?|SHFE-Shanghai|TOTALGLOBAL)(\d{1,3}(?:\.\d{3})*)(?=[+-])', w.replace(' ', ''))
         if m and K[m.group(1)] not in out:
             out[K[m.group(1)]] = int(m.group(2).replace('.', ''))
+    if not out:
+        # Cochilco 20.11.2026: nowe etykiety; Stock TM = ten sam zapas w tonach.
+        # W tym PDF glif minus w zmianach nie trafia do tekstu. Stan odczytujemy
+        # z osobnej kolumny po ścisłym rozpoznaniu tytułu, jednostki i 5 kolumn.
+        nowy_klucz = {'LME · Londres': 'lme', 'COMEX · EE.UU.': 'comex', 'SHFE · Shanghái': 'shfe', 'TOTAL': 'razem'}
+        tytul, tabela = False, False
+        for w in tx:
+            w = ' '.join(w.split())
+            if w == 'INVENTARIOS POR BOLSA DE METALES':
+                tytul = True
+            elif tytul and w == 'Bolsa Stock TM Var. sem. TM Var. sem. % Var. anual %':
+                tabela = True
+            elif tabela:
+                m = re.fullmatch(r'(LME · Londres|COMEX · EE\.UU\.|SHFE · Shanghái|TOTAL) '
+                                 r'(\d{1,3}(?:\.\d{3})*) [+-]?\d{1,3}(?:\.\d{3})* '
+                                 r'[+-]?\d+(?:,\d+)?% [+-]?\d+(?:,\d+)?%', w)
+                if m and nowy_klucz[m.group(1)] not in out:
+                    out[nowy_klucz[m.group(1)]] = int(m.group(2).replace('.', ''))
+                if m and m.group(1) == 'TOTAL':
+                    break
     if not asof:
         raise ValueError('raport o miedzi: brak dnia raportu')
     if set(out) != {'lme', 'comex', 'shfe', 'razem'}:
@@ -30653,6 +30674,9 @@ def _mt_aktualne(src, z, E):
 def mt_due(src, z, now):
     """Czy pobrać źródło w tym przebiegu: pierwsze pobranie — co godzinę do skutku; spodziewany dzień jeszcze nie przyszedł — w oknie co
     MT_CZESTO min, po oknie co MT_ZALEGLE min; dane aktualne — co MT_RZADKO min (i nie częściej niż co godzinę po próbie)."""
+    # Jedna próba po naprawie rozpoznanego układu PDF; nie obejmuje błędów dostawcy.
+    if src == 'co' and z.get('parser') is None and z.get('err') == 'co: raport o miedzi: brak wiersza tabeli zapasów (comex, lme, razem, shfe)':
+        return True
     at, tr = _su_min(now, z.get('at')), _su_min(now, z.get('try'))
     if at == float('inf'):
         return tr >= 60
@@ -30954,6 +30978,8 @@ def build_metale(prev=None, now=None, fetch=None, budzet_s=None, run_t0=None, fx
             pominiete.append(f'{src} (budżet czasu)'); continue
         prev_try, prev_asof = z.get('try'), z.get('asof')
         z['try'] = now_iso
+        if src == 'co':
+            z['parser'] = 1   # tylko rzeczywista próba; także błąd wraca potem do zwykłego harmonogramu
         proby[part] += 1
         try:
             if src == 'wm':

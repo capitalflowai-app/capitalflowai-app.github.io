@@ -2403,12 +2403,13 @@ test('v96-crypto: fundusze ETF — znaczek wydawcy wg NAZWY (BTC = Grayscale Min
   assert.ok(a0 > 0 && a1 > a0);
   const el = { '#g-etf': { innerHTML: '', hidden: true }, '#c-etf': { innerHTML: '' }, '#c-bal': { innerHTML: '', hidden: true } };
   const D = { asof: '2026-09-24', assets: {
-    btc: { sym: 'BTC', d1: 100, w: 0, m: -5, cum: 1000, aum: 5000, share: 6.1, day: [['a', 10], ['b', 0], ['c', -4], ['d', null]], funds: [
+    btc: { sym: 'BTC', asof: '2026-09-24', d1: 100, w: 0, m: -5, cum: 1000, aum: 5000, share: 6.1, day: [['a', 10], ['b', 0], ['c', -4], ['d', null]], funds: [
       { t: 'BTC', n: 'Grayscale Bitcoin Mini Trust ETF', aum: 100, d1: 0, cum: 5, fee: 0.15, cty: 'us' },
       { t: 'IBIT', n: 'iShares Bitcoin Trust', aum: 500, d1: 3, cum: 9, fee: 0.25, cty: 'us' },
       { t: '<X>', n: '<img src=x>', aum: 1, d1: null, cum: null, fee: null, cty: 'hk' }] },
-    eth: { sym: 'ETH', d1: -1, w: -1, m: 2, cum: 3, aum: 4, share: 2.2, day: [], funds: [{ t: 'ETH', n: 'Grayscale Ethereum Mini Trust ETF', aum: 1, d1: 1, cum: 1, fee: 0.15, cty: 'us' }] },
-    xrp: { sym: 'XRP', d1: 1, w: 1, m: 1, cum: 1, aum: 1, share: 1, day: [], funds: [{ t: 'XRP', n: 'Bitwise XRP ETF', aum: 1, d1: 1, cum: 1, fee: 0.3, cty: 'us' }] } } };
+    eth: { sym: 'ETH', asof: '2026-09-24', d1: -1, w: -1, m: 2, cum: 3, aum: 4, share: 2.2, day: [], funds: [{ t: 'ETH', n: 'Grayscale Ethereum Mini Trust ETF', aum: 1, d1: 1, cum: 1, fee: 0.15, cty: 'us' }] },
+    sol: { sym: 'SOL', asof: '2026-09-24', d1: 0, w: 0, m: 0, cum: 0, aum: 0, share: null, day: [], funds: [] },
+    xrp: { sym: 'XRP', asof: '2026-09-24', d1: 1, w: 1, m: 1, cum: 1, aum: 1, share: 1, day: [], funds: [{ t: 'XRP', n: 'Bitwise XRP ETF', aum: 1, d1: 1, cum: 1, fee: 0.3, cty: 'us' }] } } };
   const ETF = { data: D, live: true, st: 'srv', stale: false, at: '10:00', meta: { at: '2026-09-24T10:00:00Z', ok: { sosovalue: true, finnhub: false }, errors: ['Finnhub: HTTP 500'] } };
   const f = new Function('ETF', 'ETF_SYMS', 'ETF_SNAP', '$', 't', 'escH', 'etfM', 'etfA', 'etfP', 'etfCls', 'etfKey', 'gAgeNote', 'LOCALE', 'LANG', 'krStabh', 'gfmt',
     'CM', 'cmA', 'cmIs', 'cmUsd', 'cftcMkt', 'cftcS', 'instFoot', 'cCoins', 'fundIco', 'flagImg', 'glyphImg', 'icoWrap', 'coinImg',
@@ -13045,7 +13046,7 @@ test('v203: g.d.today — ostatnia sesja w 10 językach; wh.not2 bez „Verträg
 test('v205: etfTotals i wiersz ETF przy monecie stale — sumy przepływów „—”, poziomy sumowane; obrót „—”; nota „ostatnie dane z …”', () => {
   const a0 = html.indexOf('function etfTotals(D){'), a1 = html.indexOf('\nfunction etfStabCompare(', a0);
   const tot = new Function('ETF_SYMS', html.slice(a0, a1) + '\nreturn etfTotals;')(['btc', 'eth']);
-  const D = {assets: {btc: {d1: 100, w: 300, m: 900, cum: 5000, aum: 60000}, eth: {d1: 10, w: 30, m: 90, cum: 1000, aum: 12000, stale: true}}};
+  const D = {assets: {btc: {asof: '2026-10-01', d1: 100, w: 300, m: 900, cum: 5000, aum: 60000}, eth: {asof: '2026-10-01', d1: 10, w: 30, m: 90, cum: 1000, aum: 12000, stale: true}}};
   assert.deepEqual(tot(D), {d1: null, w: null, m: null, cum: 6000, aum: 72000}, 'przepływy „—”, aktywa i suma od startu sumowane');
   delete D.assets.eth.stale; assert.deepEqual(tot(D), {d1: 110, w: 330, m: 990, cum: 6000, aum: 72000}, 'bez stale — jak dotąd');
   assert.ok(html.includes("const a=a0.stale?Object.assign({},a0,{d1:null,w:null,m:null}):a0;"), 'wiersz i panel boczny: przepływy „—”');
@@ -37883,4 +37884,99 @@ test('Coinbase INTX: bramka po migracji odrzuca nowe spreparowane czasy; Deribit
   assert.ok(before.levPart('cb'));
   assert.deepEqual(before.levLive('BTC').map(r => r.k).sort(), ['cb', 'cde', 'dr']);
   assert.equal(mk('2026-10-01T00:00:00Z').levPart('cb'), null);
+});
+
+
+/* ETF sesje: suma okresowa wymaga wszystkich oczekiwanych monet i jednej daty sesji źródła; brak nie jest zerem. */
+const etfSessionSyms = ['btc', 'eth', 'sol', 'xrp'];
+const etfSessionTotals = (() => {
+  const a = html.indexOf('function etfTotals(D){'), b = html.indexOf('\nfunction etfStabCompare(', a);
+  assert.ok(a > 0 && b > a);
+  return new Function('ETF_SYMS', html.slice(a, b) + '\nreturn etfTotals;')(etfSessionSyms);
+})();
+const etfSessionData = () => ({asof: '2026-11-20', assets: Object.fromEntries(etfSessionSyms.map((s, i) => [s, {
+  sym: s.toUpperCase(), asof: '2026-11-20', d1: 10 ** i, w: 3 * 10 ** i, m: 9 * 10 ** i, cum: 20 * 10 ** i, aum: 100 * 10 ** i,
+}]))});
+const etfSessionUnknown = {d1: null, w: null, m: null, cum: null, aum: null};
+test('ETF sesje: zgodny pełny komplet sumuje liczby i nie zmienia danych wejściowych', () => {
+  const D = etfSessionData(), before = JSON.stringify(D);
+  assert.deepEqual(etfSessionTotals(D), {d1: 1111, w: 3333, m: 9999, cum: 22220, aum: 111100});
+  assert.equal(JSON.stringify(D), before);
+});
+test('ETF sesje: różne daty bez stale nie tworzą przepływu za wspólny okres', () => {
+  const D = etfSessionData();
+  D.assets.btc.asof = D.assets.eth.asof = '2026-11-19';
+  assert.ok(etfSessionSyms.every(s => !D.assets[s].stale));
+  assert.deepEqual(etfSessionTotals(D), {d1: null, w: null, m: null, cum: 22220, aum: 111100});
+  D.asof = '2026-11-19 – 2026-11-20';
+  assert.deepEqual(etfSessionTotals(D), {d1: null, w: null, m: null, cum: 22220, aum: 111100}, 'zakres główny nie zastępuje dat monet');
+});
+test('ETF sesje: brak całej monety wyklucza każdą łączną sumę, także poziomy', () => {
+  for (const s of etfSessionSyms) {
+    const D = etfSessionData(); delete D.assets[s];
+    assert.deepEqual(etfSessionTotals(D), etfSessionUnknown, s);
+  }
+  assert.deepEqual(etfSessionTotals({assets: {}}), etfSessionUnknown);
+});
+test('ETF sesje: brak lub niepoprawna data monety wyklucza przepływy bez wymyślania daty', () => {
+  for (const date of [undefined, null, '', 'wczoraj', '2026-02-30', '2026-13-01', '2026-11-20T00:00:00Z']) {
+    const D = etfSessionData(); D.assets.eth.asof = date;
+    assert.deepEqual(etfSessionTotals(D), {d1: null, w: null, m: null, cum: 22220, aum: 111100}, String(date));
+  }
+});
+test('ETF sesje: dokładne zero jest liczbą, null i inne nie-liczby nie są zerem', () => {
+  const D = etfSessionData();
+  for (const s of etfSessionSyms) for (const k of ['d1', 'w', 'm', 'cum', 'aum']) D.assets[s][k] = 0;
+  assert.deepEqual(etfSessionTotals(D), {d1: 0, w: 0, m: 0, cum: 0, aum: 0});
+  for (const missing of [null, undefined, NaN, Infinity, '0', false]) {
+    const X = etfSessionData(); X.assets.sol.d1 = missing;
+    assert.deepEqual(etfSessionTotals(X), {d1: null, w: 3333, m: 9999, cum: 22220, aum: 111100}, String(missing));
+  }
+  D.assets.eth.aum = null;
+  assert.deepEqual(etfSessionTotals(D), {d1: 0, w: 0, m: 0, cum: 0, aum: null});
+});
+test('ETF sesje: stale blokuje tylko przepływy, poziomy zachowują semantykę v205', () => {
+  const D = etfSessionData(); D.assets.eth.stale = true; D.assets.eth.asof = '2026-11-12';
+  assert.deepEqual(etfSessionTotals(D), {d1: null, w: null, m: null, cum: 22220, aum: 111100});
+});
+test('ETF sesje: migawka zapisuje datę każdej monety z rzeczywistego ostatniego punktu', () => {
+  const a = html.indexOf('const ETF_SNAP='), b = html.indexOf('\n/* ---------- SoSoValue ---------- */', a);
+  const api = new Function(html.slice(a, b) + '\nreturn {D:etfFromSnap(),S:ETF_SNAP,T:ETF_SYMS};')();
+  for (const s of api.T) {
+    const last = api.S[s].day.at(-1);
+    assert.equal(api.D.assets[s].asof, new Date(last[0] * 1000).toISOString().slice(0, 10), s);
+  }
+  assert.ok(etfSessionTotals(api.D).d1 !== null, 'zgodne daty wbudowanej migawki zachowują sumy');
+});
+test('ETF sesje: pobranie w przeglądarce zapisuje sesję ostatniego wiersza z przepływem, pomija nowszy null', async () => {
+  const a = html.indexOf('function etfLoadLive(cb){'), b = html.indexOf('\nfunction etfAuto(', a), ETF = {mcap: {}};
+  const rows = s => [{date: '2026-11-23', total_net_inflow: null}, {date: s === 'sol' ? '2026-11-19' : '2026-11-20', total_net_inflow: 1000000, cum_net_inflow: 2000000, total_net_assets: 3000000}, {date: '2026-11-18', total_net_inflow: 0}];
+  const args = {ETF, ETF_SYMS: etfSessionSyms, etfKey: () => 'test-fixture', etfFromSnap: () => ({assets: {}}),
+    renderEtf: () => {}, LOCALE: {pl: 'pl-PL'}, LANG: 'pl', cgUrl: x => x,
+    fetch: async () => ({json: async () => Object.fromEntries(['bitcoin', 'ethereum', 'solana', 'ripple'].map(s => [s, {usd_market_cap: 1e9}]))}),
+    sosoGet: async path => path.startsWith('/etfs/summary-history?') ? {data: rows(/symbol=([A-Z]+)/.exec(path)[1].toLowerCase())} : [],
+    etfSleep: async () => {}, etfSum: (r, n) => r.slice(-n).reduce((a, x) => a + x[1], 0)};
+  const load = new Function(...Object.keys(args), html.slice(a, b) + '\nreturn etfLoadLive;')(...Object.values(args));
+  await new Promise(resolve => load(resolve));
+  assert.equal(ETF.st, 'ok');
+  for (const s of etfSessionSyms) assert.equal(ETF.data.assets[s].asof, s === 'sol' ? '2026-11-19' : '2026-11-20', s);
+  assert.deepEqual(etfSessionTotals(ETF.data), {d1: null, w: null, m: null, cum: 8, aum: 12});
+});
+test('ETF sesje: wykres dzienny łączy po sesji i nie ogłasza pełnej sumy bez całej monety', () => {
+  const D = {asof: '2026-11-19 – 2026-11-20', assets: Object.fromEntries(etfSessionSyms.map((s, i) => [s, {
+    day: [[Date.parse((i < 2 ? '2026-11-19' : '2026-11-20') + 'T00:00:00Z') / 1000, i + 1]],
+  }]))};
+  const draw = data => v157C('2026-11-23T12:00:00Z', {ETF: {data, live: true}}).wkCEtf();
+  const partial = draw(D);
+  assert.ok(v157.tips(partial.ch).every(t => t.includes('dzień niepełny') && !t.includes(' · razem: ')), 'różne sesje bez sumowania');
+  assert.ok(!partial.ch.includes('ostatni pełny dzień'));
+  for (const s of etfSessionSyms) D.assets[s].day = [[Date.parse('2026-11-20T00:00:00Z') / 1000, 0]];
+  const full = draw(D);
+  assert.ok(v157.tips(full.ch)[0].endsWith(' · razem: 0 mln USD'), 'zero wszystkich monet to pełna suma');
+  assert.ok(full.ch.includes('ostatni pełny dzień'));
+  delete D.assets.xrp;
+  const missing = draw(D);
+  assert.ok(v157.tips(missing.ch).every(t => t.includes('dzień niepełny') && !t.includes(' · razem: ')), 'brak całej monety nigdy nie daje pełnej sumy');
+  assert.ok(!missing.ch.includes('ostatni pełny dzień'), 'opis dostępności nie deklaruje części jako pełnego dnia');
+  assert.ok(v157.tags(missing.ch, 'rect', 'wk-b').every(r => / pt$/.test(r.class)), 'niepełne słupki zachowują istniejące oznaczenie');
 });

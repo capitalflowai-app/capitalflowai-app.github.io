@@ -9167,7 +9167,7 @@ function etfFromSnap(){
   ETF_SYMS.forEach(s=>{const S=ETF_SNAP[s];
     const funds=S.funds.map(f=>({t:f[0],n:f[1],cty:f[2],aum:f[3],cum:f[4],d1:f[5],fee:f[6]}));
     const aum=funds.length&&funds.every(f=>f.aum!=null)?(funds.reduce((a,f)=>a+f.aum,0)||null):null;   /* suma tylko, gdy każdy fundusz ma aktywa */
-    out.assets[s]={sym:s.toUpperCase(),day:S.day,d1:S.day[S.day.length-1][1],w:etfSum(S.day,5),m:etfSum(S.day,30),cum:S.cum,aum,share:S.share,funds};
+    out.assets[s]={sym:s.toUpperCase(),asof:new Date(S.day[S.day.length-1][0]*1000).toISOString().slice(0,10),day:S.day,d1:S.day[S.day.length-1][1],w:etfSum(S.day,5),m:etfSum(S.day,30),cum:S.cum,aum,share:S.share,funds};
   });
   return out;
 }
@@ -9217,7 +9217,7 @@ function etfLoadLive(cb){
         const day=rows.map(r=>[Math.round(new Date(r.date+'T00:00:00Z').getTime()/1000),+r.total_net_inflow/1e6]);
         const last=rows[rows.length-1];
         if(!out.asof||last.date>out.asof)out.asof=last.date;
-        out.assets[s]={sym:s.toUpperCase(),day,d1:day[day.length-1][1],w:etfSum(day,5),m:etfSum(day,Math.min(day.length,22)),
+        out.assets[s]={sym:s.toUpperCase(),asof:last.date,day,d1:day[day.length-1][1],w:etfSum(day,5),m:etfSum(day,Math.min(day.length,22)),
           cum:+last.cum_net_inflow/1e6,aum:last.total_net_assets?+last.total_net_assets/1e6:null,share:null,funds:[]};   /* lista funduszy przyjdzie z SoSoValue w tle — nie z migawki */
         await etfSleep(3200);
       }
@@ -9363,11 +9363,13 @@ function etfMetaLine(){
   return ' · '+t('etf.meta2',{t:escH(at),s})+(errs?' · '+t('etf.meta.errs2'):'');
 }
 function etfTotals(D){
-  const A=ETF_SYMS.map(s=>D.assets[s]).filter(Boolean);
-  /* suma tylko z liczb, które są; brak którejś = suma nieznana (null), nigdy „brak liczony jako zero” */
-  /* v205: moneta stale (ponad 2 sesje za najnowszą) — jej przepływy nie wchodzą do sum „dziś”: suma przepływów nieznana (null), poziomy (aktywa, od startu) jak dotąd */
-  const sum=k=>A.length&&A.every(x=>x[k]!=null&&isFinite(x[k])&&!(x.stale&&(k==='d1'||k==='w'||k==='m')))?A.reduce((a,x)=>a+x[k],0):null;
-  return {d1:sum('d1'),w:sum('w'),m:sum('m'),cum:sum('cum'),aum:sum('aum')};
+  const A=ETF_SYMS.map(s=>D.assets[s]),full=A.length>0&&A.every(Boolean),d=full?A[0].asof:null;
+  /* Przepływy sumujemy tylko dla kompletu monet z jedną poprawną datą sesji źródła (asof), bez stale.
+     Różne/brakujące daty = null; nie wybieramy zastępczej wspólnej sesji. Poziomy zachowują semantykę v205. */
+  const aligned=full&&typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&isFinite(Date.parse(d+'T00:00:00Z'))&&new Date(d+'T00:00:00Z').toISOString().slice(0,10)===d&&A.every(x=>x.asof===d&&!x.stale);
+  /* Brak monety lub liczby = suma nieznana (null), nigdy zero ani suma częściowa udająca pełną. */
+  const sum=(k,flow)=>full&&(!flow||aligned)&&A.every(x=>typeof x[k]==='number'&&isFinite(x[k]))?A.reduce((a,x)=>a+x[k],0):null;
+  return {d1:sum('d1',true),w:sum('w',true),m:sum('m',true),cum:sum('cum'),aum:sum('aum')};
 }
 function etfStabCompare(){
   /* porównanie z napływem mierzonym stablecoinami (GLOBAL, okres 1M) */
@@ -22460,10 +22462,10 @@ function wkCEtf(){
   C.forEach(s=>A[s].day.forEach(r=>{if(!Array.isArray(r))return;const d=day(r[0]);if(d&&wkNum(r[1]))(M[d]=M[d]||{})[s]=r[1];}));
   const days=Object.keys(M).sort().slice(-20);if(!days.length)return {s:t('wk.c.etf.s'),na:t('wk.na.none')};
   const S=C.map(s=>({n:s.toUpperCase(),cls:'c-'+s,s}));
-  const X=days.map(d=>{const o=M[d],miss=S.filter(x=>!wkNum(o[x.s])),sum=S.reduce((a,x)=>a+(wkNum(o[x.s])?o[x.s]:0),0);
+  const X=days.map(d=>{const o=M[d],miss=ETF_SYMS.filter(s=>!wkNum(o[s])),sum=miss.length?null:S.reduce((a,x)=>a+o[x.s],0);
     return {x:wkDay(wkMs(d)),vs:S.map(x=>wkNum(o[x.s])?o[x.s]*1e6:null),part:miss.length>0,
       tip:wkDay(wkMs(d),1)+' · '+S.map(x=>x.n+wkK()+(wkNum(o[x.s])?etfM(o[x.s]):t('eng.gap'))).join(' · ')+(miss.length?' · '+t('wk.c.etf.part'):' · '+t('wk.c.etf.sum')+wkK()+etfM(sum))};});
-  const full=days.filter(d=>S.every(x=>wkNum(M[d][x.s]))).pop();
+  const full=days.filter(d=>ETF_SYMS.every(s=>wkNum(M[d][s]))).pop();
   const aria=full?t('wk.c.etf.a',{d:wkDay(wkMs(full),1),v:etfM(S.reduce((a,x)=>a+M[full][x.s],0)),n:days.length}):t('wk.c.etf.s');
   return {s:t('wk.c.etf.s')+(ETF.live===false?' · '+t('etf.b.snap',{d:String(D.asof||'')}):''),k:'p',d:(typeof instFootL==='function'?instFootL:instFoot)(D.asof),ch:wkCols(X,{ser:S,stack:true,aria})};
 }

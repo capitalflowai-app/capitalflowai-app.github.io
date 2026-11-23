@@ -84064,3 +84064,138 @@ class CoinbaseArchiwalne(unittest.TestCase):
                 self.assertEqual(zd.lev_all(data, now), {'BTC': {'usd': 30 if archived else 120, 'v': 'cde' if archived else 'cb,cde'}})
         self.assertIn('cb', zd.lev_archiwalne(datetime.date(2026, 10, 1)))
         self.assertNotIn('cb', zd.lev_archiwalne('2026-09-30'))
+
+
+# Cochilco: rzeczywiste, niezmienione bloki tekstu daty i tabeli strony 1 raportu 20.11.2026.
+# Źródło: https://www.cochilco.cl/web/download/1006/2026/17093/informe-del-mercado-internacional-del-cobre-semana-del-16-al-20-de-noviembre-de-2026.pdf
+# Pobrano 23.11.2026, HTTP 200, PDF 436888 B; SHA-256 całego PDF:
+# c124c0dbdf02e089f3e7c308412c28a108af999d43427654aa2ee10183d69e49.
+# Wybrano oryginalne bloki BT…ET daty, tytułu, nagłówka i 4 wierszy, zachowując współrzędne.
+# Testowe opakowanie FlateDecode pomija pozostały tekst, fonty i wykresy; nie służy do renderowania.
+_MT_CO_20261120_B64 = (
+    'JVBERi0xLjcKMSAwIG9iago8PCAvRmlsdGVyIC9GbGF0ZURlY29kZSA+PgpzdHJlYW0KeJy1WO1u0zAU/V+p7+A/SLZYjD9jW0JI'
+    'DAoMbQytYUKa+DHGKAi2oQ54NZ6HN+Fep02T0BInGapqJY57e861z/F19ovp5MEzSaQgxcfpRBIBH0mM5kJZ4qzhhhRXMOb53JPF'
+    '7XQiuMwlWcSeUOt5Pp2c0ZPLbyynN8zRJQv0O8sMvSTM0POvLJOCEnj4k2WOfmZZoJdLGHfNLL28XT19R4qX08msmOxvRyVl4KKO'
+    'qgJTYSCZ4MKR4uKMKtEdUHUGPEvBpSVXXWE+IFOWKRnTgLwxT7V0XL1fMinLhMXBBNJiqYJRAr4K7hTNt4BRDTBKwdz5vpw0Cc0o'
+    '8PPcE60U934VRuigiOBKB2i1dWS52Np9Ev/i4BXLcnrKMk9nr7AtgPZj+J4AmYNjBjM+hztk+/qY+diNjB3dB/LHsH4O53Br4m9w'
+    '1FMYNMMRnh7B2FkBw/DZ4WzeOUM6BO5Uk05SVnKeN/OSA1NHtNBxmV3hkwU2McB+BHyDxL8C4ltAeN6JTTmDoGohB2LT1nK5Cxrm'
+    'UoIk1/gumDL0CyqUYF+B83HUnUcPkPQdYDXStALVwZ7GPJ7DGlgypShnmS1h3pYiAiZXTNnag0T8xgQe7F3gdwHW+t3hv9cJ3Upx'
+    'N9CtBui+N3Tsuka3+oEN3uESTwXvNJduAHi3TX3Ke7S4lSsZLdF+rGy6Uru7dKVD5HMUZ2BGfqHfkkPkc4NKuMaHH7ABJ1ZxogRM'
+    'WacoBMxME1TSLuJa6s1Bvc0oJlIQJhIJK2bt3pKYRlHHRmHDkY8ob2HLsd0kYEGDIMeyMOCwWg2ncR8Tv2EQKkLdDIyR3NnxDHzO'
+    'bTtMXwYx83vYRAYJAgFlhPHgLRRuwY0ELxFybDY0VCKN3KO39KWxS+dOD9X5E9CuhioCCquV2t/iDgGS95TMZhx5vmGZLhueoPEc'
+    'NV4HNFzjjSg9ZsdVGheVQkzZBxrXyRrvyULt0PhAGg+FEOpRp49YLNgGp0pWCZKle8SkpVrI2AStLOS/JsjHSmbgf8ClAMXgMUns'
+    'qXR7Grn+1/Y0dFY39iSqWY32lPezp540dtmTHVyGzONh7sUzqKDWZUh52PmE1cc5mFSsRRbRumLfb+j7nGRTuglskE053qLXuxTZ'
+    'OJTHK1POUrdDuWgtIwmsHWoog7jOdMVAVYRMsoWMZeDN32GGb+S9RCJsdK+eDNomaA04uB/MIMkELRzn5OCVWjNBJ/d8in2Ar7cp'
+    'DbcPU72MqB/ACjhZxboFL+L7jYQ3CAHLCtP35UZb9Rq9Yzuq1X4KJZSoqlpd9ekeAtFe8qBGo0WJy51w4/I3Fb4I15XAUwU8Ft+q'
+    'BvgHvrK6tuju6TvwSFhrVf4DlttsrXkiNtCFc+nY/gAp1TrhCmVuZHN0cmVhbQplbmRvYmoKJSVFT0YK'
+)
+
+
+class MetaleCochilcoUklad20261120(unittest.TestCase):
+    """Nowa tabela Stock TM: prawdziwy PDF, stare nagranie, błędy i wznowienie w zwykłym oknie."""
+    PDF = _b64_v339.b64decode(_MT_CO_20261120_B64)
+    URL = 'https://www.cochilco.cl/web/download/1006/2026/17093/informe-del-mercado-internacional-del-cobre-semana-del-16-al-20-de-noviembre-de-2026.pdf'
+    OLD_URL = 'https://www.cochilco.cl/web/download/1006/2026/16982/informe-del-mercado-internacional-del-cobre-semana-del-12-a-16-de-octubre-de-2026.pdf'
+    HEADER = 'Bolsa Stock TM Var. sem. TM Var. sem. % Var. anual %'
+
+    def test_rzeczywisty_pdf_nowy_uklad_i_stary_raport(self):
+        tx = [' '.join(w.split()) for w in zd.mt_pdf_tekst(self.PDF)]
+        self.assertIn('Reporte al viernes 20 de noviembre de 2026', tx)
+        self.assertIn(self.HEADER, tx)
+        self.assertIn('COMEX · EE.UU. 730.433 1.150 0,2% +105,6%', tx)
+        self.assertEqual(zd.parse_mt_co(self.PDF), {'lme': 332025, 'comex': 730433, 'shfe': 30846, 'razem': 1093304, 'asof': '2026-11-20'})
+        self.assertEqual(zd.parse_mt_co(_b64_v339.b64decode(_MT_CO_V339_B64)),
+                         {'lme': 233025, 'comex': 711610, 'shfe': 58744, 'razem': 1003379, 'asof': '2026-10-09'})
+
+    def test_nowa_tabela_wymaga_tytulu_jednostki_i_kolumn(self):
+        tx = zd.mt_pdf_tekst(self.PDF)
+        for przed, po in [('INVENTARIOS POR BOLSA DE METALES', 'OTRA TABLA'), ('Stock TM', 'Stock lb'),
+                          ('Var. anual %', 'Var. anual TM')]:
+            with self.subTest(przed=przed), mock.patch.object(zd, 'mt_pdf_tekst', return_value=[w.replace(przed, po) for w in tx]):
+                with self.assertRaisesRegex(ValueError, 'brak wiersza tabeli'):
+                    zd.parse_mt_co(self.PDF)
+
+    def test_brak_wiersza_lub_stanu_nie_jest_zerem(self):
+        tx = zd.mt_pdf_tekst(self.PDF)
+        for przed, po in [('LME · Londres', 'LME desconocida'), ('730.433', '-'), ('30.846', '30,846'), ('TOTAL 1.093.304', 'TOTAL -')]:
+            with self.subTest(przed=przed), mock.patch.object(zd, 'mt_pdf_tekst', return_value=[w.replace(przed, po) for w in tx]):
+                with self.assertRaisesRegex(ValueError, 'brak wiersza tabeli'):
+                    zd.parse_mt_co(self.PDF)
+
+    def test_suma_nadal_ma_tolerancje_trzech_ton(self):
+        tx = zd.mt_pdf_tekst(self.PDF)
+        with mock.patch.object(zd, 'mt_pdf_tekst', return_value=[w.replace('TOTAL 1.093.304', 'TOTAL 1.093.307') for w in tx]):
+            self.assertEqual(zd.parse_mt_co(self.PDF)['razem'], 1093307)
+        with mock.patch.object(zd, 'mt_pdf_tekst', return_value=[w.replace('TOTAL 1.093.304', 'TOTAL 1.093.308') for w in tx]):
+            with self.assertRaisesRegex(ValueError, 'suma giełd ≠ razem'):
+                zd.parse_mt_co(self.PDF)
+
+    def test_zwykle_ponowienie_po_szesc_godzinach_i_url_po_sukcesie(self):
+        state = {'asof': '2026-10-16', 'at': '2026-10-22T18:16:38+00:00', 'try': '2026-11-23T05:34:54+00:00', 'parser': 1,
+                 'url': self.OLD_URL, 'err': 'co: raport o miedzi: brak wiersza tabeli zapasów (comex, lme, razem, shfe)'}
+        self.assertFalse(zd.mt_due('co', state, datetime.datetime(2026, 11, 23, 11, 34, 53, tzinfo=datetime.timezone.utc)))
+        self.assertTrue(zd.mt_due('co', state, datetime.datetime(2026, 11, 23, 11, 34, 54, tzinfo=datetime.timezone.utc)))
+        log = []
+        def fetch(url, timeout, max_b):
+            log.append(url)
+            return (200, ('<a href="' + self.URL + '">raport</a>').encode()) if url == zd.MT_CO_URL else (200, self.PDF)
+        ctx = {'prev': {'cu': {'asof': '2026-10-16'}}, 'fetch': fetch, 't0': zd.time.monotonic(), 'n': 0, 'budzet': zd.MT_BUDZET_S}
+        with mock.patch.object(zd, 'parse_mt_co', side_effect=ValueError('raport o miedzi: brak wiersza tabeli zapasów')):
+            with self.assertRaises(ValueError):
+                zd._mt_pobierz_co(ctx, state)
+        self.assertEqual(state['url'], self.OLD_URL, 'błąd nie oznacza PDF jako przeczytanego')
+        out = zd._mt_pobierz_co(ctx, state)
+        self.assertEqual((out['asof'], out['razem'], state['url']), ('2026-11-20', 1093304, self.URL))
+        self.assertIsNone(zd._mt_pobierz_co(ctx, state), 'po sukcesie ten sam PDF nie jest pobierany ponownie')
+        self.assertEqual(log, [zd.MT_CO_URL, self.URL, zd.MT_CO_URL, self.URL, zd.MT_CO_URL])
+
+    def test_wznowienie_obejmuje_tylko_znany_blad_bez_wersji(self):
+        now = datetime.datetime(2026, 11, 23, 10, 45, tzinfo=datetime.timezone.utc)
+        z = {'asof': '2026-10-16', 'at': '2026-10-22T18:16:38+00:00', 'try': now.isoformat(),
+             'err': 'co: raport o miedzi: brak wiersza tabeli zapasów (comex, lme, razem, shfe)'}
+        self.assertTrue(zd.mt_due('co', z, now))
+        for zmiana in ({'parser': 1}, {'err': 'co: HTTP 429'}, {'err': 'co: raport o miedzi: suma giełd ≠ razem'},
+                       {'err': 'co: raport o miedzi: brak wiersza tabeli zapasów (comex)'}):
+            with self.subTest(zmiana=zmiana):
+                self.assertFalse(zd.mt_due('co', dict(z, **zmiana), now))
+        self.assertNotIn('parser', z, 'sprawdzenie bramki nie zużywa próby')
+
+    def test_wznowienie_zachowuje_dane_po_bledzie_i_nie_powtarza_proby(self):
+        now = datetime.datetime(2026, 11, 23, 10, 45, tzinfo=datetime.timezone.utc)
+        err = 'raport o miedzi: brak wiersza tabeli zapasów (comex, lme, razem, shfe)'
+        prev = {'v': zd.MT_V, 'cu': {'asof': '2026-10-16', 'lme': 225425, 'comex': 716765, 'shfe': 73962, 'razem': 1016152,
+                                  'd': [['2026-10-16', 225425, 716765, 73962, 1016152]]},
+                'part_at': {'cu': '2026-10-16T18:01:30+00:00'},
+                'err': {'cu': 'co: ' + err},
+                'st': {'co': {'asof': '2026-10-16', 'at': '2026-10-22T18:16:38+00:00', 'try': now.isoformat(),
+                              'url': self.OLD_URL, 'err': 'co: ' + err}}}
+        log = []
+        def fetch(url, timeout, max_b):
+            log.append(url)
+            return (200, ('<a href="' + self.URL + '">raport</a>').encode()) if url == zd.MT_CO_URL else (200, self.PDF)
+        due = zd.mt_due
+        with mock.patch.object(zd, 'META', {'errors': [], 'notes': []}), \
+             mock.patch.object(zd, '_mt_wmh_plan', return_value=([], 0)), \
+             mock.patch.object(zd, 'mt_due', side_effect=lambda src, z, t: src == 'co' and due(src, z, t)):
+            for kw in ({'budzet_s': 0}, {'run_t0': zd.time.monotonic() - zd.BACK_LATE - 1}):
+                skipped = zd.build_metale(prev, now=now, fetch=fetch, **kw)
+                self.assertNotIn('parser', skipped['st']['co'], 'brak budżetu lub długi przebieg nie zużywa próby')
+                self.assertEqual(log, [])
+            with mock.patch.object(zd, 'parse_mt_co', side_effect=ValueError(err)):
+                bad = zd.build_metale(prev, now=now, fetch=fetch)
+                self.assertIs(bad['ok']['cu'], False)
+                self.assertEqual(bad['cu'], prev['cu'])
+                self.assertEqual(bad['part_at']['cu'], prev['part_at']['cu'])
+                self.assertEqual((bad['st']['co']['parser'], bad['st']['co']['url']), (1, self.OLD_URL))
+                again = zd.build_metale(bad, now=now + datetime.timedelta(minutes=10), fetch=fetch)
+                self.assertEqual(len(log), 2, 'po błędzie nie ma dodatkowej serii prób')
+                self.assertEqual(again['cu'], prev['cu'])
+            recovered = zd.build_metale(prev, now=now, fetch=fetch)
+        self.assertIs(recovered['ok']['cu'], True)
+        self.assertEqual(recovered['cu']['asof'], '2026-11-20')
+        self.assertEqual(recovered['cu']['d'][-1], ['2026-11-20', 332025, 730433, 30846, 1093304])
+        self.assertEqual(recovered['cu']['d'][0], prev['cu']['d'][0], 'historia pozostaje')
+        self.assertEqual(recovered['part_at']['cu'], now.isoformat())
+        self.assertEqual(recovered['st']['co']['parser'], 1)
+        self.assertNotIn('cu', recovered['err'])
+        self.assertNotIn('err', recovered['st']['co'])
