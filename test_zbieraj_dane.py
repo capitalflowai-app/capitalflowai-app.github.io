@@ -51900,6 +51900,50 @@ class PradV367(unittest.TestCase):
         o7 = json.loads(json.dumps(o)); o7['co2']['d'] = []
         self.assertFalse(any('wobec strefy Polska' in w[0] for w in k.prad_porownania(o7, {}, self.t(2026, 10, 13, 15, 10))['wiersze']))
 
+    def test_kontrola_rce_i_strefa_20261125_rozne_miary_i_dzien_kursu(self):
+        # Rzeczywista doba 25.11.2026: oba źródła mają pełne 96 kwadransów.
+        # RCE w kwadransie jest ważoną wolumenem średnią cen sesji RDN (art. 4b ust. 4–5 OZE),
+        # a strefa PL ceną dnia następnego; próg rozbieżności 5% nadal daje uwagę.
+        p = [
+            817.96, 933.66, 952.74, 962.17, 967.51, 952.84, 944.75, 945.03, 947.05, 931.17, 926.93, 917.1,
+            927.88, 925.83, 918.05, 918.85, 918.45, 933.3, 925.32, 920.87, 891.78, 897.16, 955.38, 1039.39,
+            1120.25, 1252.55, 1343.99, 1616.37, 1458.04, 1581.92, 1675.89, 2663.42, 1917.88, 1791.78, 1860.43, 1671.0,
+            2017.58, 1524.25, 1311.05, 1271.01, 1329.05, 1248.13, 1205.33, 1193.95, 1187.17, 1200.85, 1203.62, 1288.14,
+            1263.57, 1298.22, 1353.26, 1857.8, 1419.62, 1527.98, 1814.08, 2838.74, 1759.07, 2862.27, 2959.79, 2966.09,
+            2855.22, 2177.81, 2841.17, 3005.1, 2831.73, 2814.9, 2173.04, 2806.69, 2732.78, 2325.65, 1659.69, 1578.8,
+            2545.99, 2363.05, 1667.57, 1814.98, 1603.5, 2606.71, 2623.29, 2064.97, 2651.73, 2695.46, 2630.36, 1591.69,
+            2496.9, 1527.83, 1244.08, 1049.82, 1237.44, 1100.93, 1044.16, 975.39, 1032.44, 970.22, 941.69, 914.7,
+        ]
+        j = {'v': 1, 'pl': {'asof': '2026-11-25', 'u': 'PLN/MWh',
+                             'd': {'2026-11-25': {'p': p, 'n': 96}},
+                             'hist': [['2026-11-25', 1598.15]]},
+             'co2': {'asof': '2026-11-24', 'u': 'EUR/t', 'd': [['2026-11-24', 81.82, 365.20]]},
+             'str': {'z': {'PL': {'d': {'2026-11-25': [310.98, 143.28, 535.58, 96]}}}}}
+        k = self.kt(); before = copy.deepcopy(j)
+        got = k.prad_kontrola({'prad': j}, self.t(2026, 11, 25, 4, 15))
+        self.assertEqual(k.PRAD_K_RCE_STREFA, 0.05)
+        self.assertEqual(j, before, 'kontrola nie przepisuje cen, średniej ani dat danych')
+        self.assertEqual(got['spojnosc'], [])
+        self.assertEqual(len(got['uwagi']), 1, '15,1% nadal przekracza niezmieniony próg 5%')
+        note = got['uwagi'][0]
+        self.assertIn('RCE 358.1 €/MWh a strefa Polska 311.0 €/MWh', note)
+        self.assertIn('różnica 15.1% (próg 5%', note)
+        self.assertIn('różne miary RDN', note)
+        self.assertIn('kurs orientacyjny z ceny CO2 z 2026-11-24', note)
+        self.assertIn('rozbieżność do sprawdzenia', note)
+        row = [w for w in got['wiersze'] if w[0].startswith('Polska 2026-11-25: RCE')][0]
+        self.assertEqual(row[1], '⚠️')
+        self.assertIn('różne miary RDN', row[0])
+        self.assertIn('średnie arytmetyczne doby', row[0])
+        self.assertIn('kursie z ceny CO2 z 2026-11-24', row[0])
+        # Przyszły kurs nie służy do przeliczenia dzisiejszej doby.
+        j['co2']['d'].append(['2026-11-26', 80.0, 400.0]); j['co2']['asof'] = '2026-11-26'
+        got2 = k.prad_porownania(j, {}, self.t(2026, 11, 25, 4, 15))
+        self.assertEqual(got2['uwagi'], got['uwagi'])
+        # Błąd własnego uśredniania nadal jest sprzecznością, niezależnie od różnych miar RDN.
+        j['pl']['hist'][0][1] = 1000.0
+        self.assertTrue(any('średnia dobowa w hist' in x for x in k.prad_spojnosc(j)))
+
     def test_kontrola_okablowanie_raport(self):
         import pathlib
         src = pathlib.Path(os.path.dirname(os.path.abspath(__file__)), 'narzedzia', 'kontrola.py').read_text(encoding='utf-8')

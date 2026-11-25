@@ -9752,7 +9752,9 @@ def stopy_realne_kontrola(infl, kon, usam=None, stopy=None, now=None):
 # * CO2: dzień danych starszy niż 3 doby (dane powstają co dzień, także w weekend);
 # * strefy: mniej niż 10 z 15 stref z danymi odświeżonymi w ciągu 6 h albo — po 18:00 UTC — mniej niż 8 stref z jutrzejszą dobą (źródło publikuje dobę następną w strefach
 #   w różnych godzinach; 13.10 wieczorem część stref nie miała jeszcze doby następnej);
-# * RCE Polski a cena w strefie Polska ze źródła europejskiego (ta sama doba, po kursie z ceny CO2): ponad 5% różnicy = uwaga (13.10: 0,7%);
+# * RCE Polski a cena dnia następnego strefy Polska: różne miary RDN (RCE w kwadransie = średnia cen sesji ważona ich wolumenem, art. 4b ust. 4–5 ustawy OZE);
+#   średnie arytmetyczne kwadransów tej samej doby, orientacyjny kurs z ceny CO2 z podanego dnia; ponad 5% różnicy = uwaga do sprawdzenia, sama różnica nie dowodzi błędu danych (13.10: 0,7%).
+#   Definicje: https://eli.gov.pl/api/acts/DU/2026/68/text/U/D20260068Lj.pdf (s. 34–35); https://api.energy-charts.info/openapi.json
 # * RCE a indeks prądu z giełdy w polska.json (inny rynek): ponad 12% różnicy tej samej doby = uwaga (plan: 0,8% dla 11.10).
 # ❌ / BŁĄD wyłącznie przy sprzeczności wewnątrz pliku (liczba kwadransów ≠ n albo spoza 92/96/100, średnia dobowa w hist ≠ średnia z kwadransów ±0,01, asof ≠ najnowszy dzień,
 # dni nie rosną, minimum > średnia > maksimum w strefie, cena CO2 poza zakresem).
@@ -10016,16 +10018,19 @@ def prad_porownania(j, files, now=None):
         if not (PRAD_K_AVG_MIN <= sr <= PRAD_K_AVG_MAX):
             out['wiersze'].append((f'Polska {k}: średnia doby {sr:.1f} zł/MWh poza zakresem [{PRAD_K_AVG_MIN:.0f}; {PRAD_K_AVG_MAX:.0f}]', '⚠️'))
             out['uwagi'].append(f'Prąd w Polsce {k}: średnia doby {sr:.1f} zł/MWh poza zakresem [{PRAD_K_AVG_MIN:.0f}; {PRAD_K_AVG_MAX:.0f}] — sprawdź źródło')
-        # RCE wobec strefy Polska ze źródła europejskiego (ta sama doba, kurs z ceny CO2 tego dnia albo najbliższego wcześniejszego)
+        # Różne miary RDN: RCE w kwadransie waży ceny wszystkich sesji ich wolumenem, strefa PL to cena dnia następnego.
+        # Porównujemy średnie arytmetyczne kwadransów doby, bez ważenia dobowym wolumenem.
+        # Próg rozbieżności zostaje; przeliczenie przez parę cen CO2 jest orientacyjne, z jawną datą kursu.
         ec = ((((j.get('str') or {}).get('z') or {}).get('PL') or {}).get('d') or {}).get(k) if isinstance(j.get('str'), dict) and isinstance((j.get('str') or {}).get('z'), dict) else None
-        kr = kurs.get(k) or (kurs[max(x for x in kurs if x <= k)] if any(x <= k for x in kurs) else None)
+        kr_dzien = max((x for x in kurs if x <= k), default=None)
+        kr = kurs.get(kr_dzien)
         if isinstance(ec, list) and len(ec) == 4 and _prad_k_num(ec[0]) and ec[0] > 0 and kr:
             eur = sr / kr
             roz = abs(eur - ec[0]) / ec[0]
             ok = roz <= PRAD_K_RCE_STREFA
-            out['wiersze'].append((f'Polska {k}: RCE {eur:.1f} €/MWh (po kursie z ceny CO2) wobec strefy Polska {ec[0]:.1f} €/MWh — różnica {roz * 100:.1f}%', '✅' if ok else '⚠️'))
+            out['wiersze'].append((f'Polska {k}: RCE {eur:.1f} €/MWh (orientacyjnie po kursie z ceny CO2 z {kr_dzien}) wobec strefy Polska {ec[0]:.1f} €/MWh (cena dnia następnego) — różnica {roz * 100:.1f}%; różne miary RDN, średnie arytmetyczne doby; ceny RCE w kwadransach ważone wolumenem sesji', '✅' if ok else '⚠️'))
             if not ok:
-                out['uwagi'].append(f'Prąd w Polsce {k}: RCE {eur:.1f} €/MWh a strefa Polska {ec[0]:.1f} €/MWh — różnica {roz * 100:.1f}% (próg {PRAD_K_RCE_STREFA * 100:.0f}%)')
+                out['uwagi'].append(f'Prąd w Polsce {k}: RCE {eur:.1f} €/MWh a strefa Polska {ec[0]:.1f} €/MWh — różnica {roz * 100:.1f}% (próg {PRAD_K_RCE_STREFA * 100:.0f}%; różne miary RDN, średnie arytmetyczne doby; kurs orientacyjny z ceny CO2 z {kr_dzien}; rozbieżność do sprawdzenia, sama nie dowodzi błędu danych)')
         # RCE wobec indeksu giełdowego (polska.json: energia.prad.d = [[dzień, zł/MWh]])
         pj = files.get('polska') if isinstance(files, dict) else None
         tge = ((((pj or {}).get('energia') or {}).get('prad') or {}).get('d')) if isinstance(pj, dict) and isinstance(pj.get('energia'), dict) else None
