@@ -49488,12 +49488,16 @@ def up_hh_job(prev_part, teraz):
 
 def up_pm_wiersze(text):
     """Plik CSV ankiety → [(dzień ISO, stopa 30-letnia, stopa 15-letnia)] rosnąco; stopa spoza (0, UP_PM_MAX] albo pusta = None (brak). Nagłówek, daty ściśle rosnące i co najmniej UP_PM_MIN_ROWS wierszy."""
-    lines = [l.strip() for l in str(text).lstrip('\ufeff').splitlines() if l.strip()]
-    if not lines or not lines[0].lower().startswith('date,pmms30,pmms30p,pmms15,'):
+    reader = csv.reader(io.StringIO(str(text).lstrip('\ufeff'), newline=''), strict=True)
+    try:
+        rows = iter([row for row in reader if row and (len(row) > 1 or row[0].strip())])
+    except csv.Error as e:
+        raise ValueError('zły zapis CSV w pliku stóp hipotecznych') from e
+    header = next(rows, [])
+    if len(header) < 5 or [s.strip().lower() for s in header[:4]] != ['date', 'pmms30', 'pmms30p', 'pmms15']:
         raise ValueError('nagłówek pliku stóp hipotecznych inny niż oczekiwany')
     out, prev = [], None
-    for l in lines[1:]:
-        p = l.split(',')
+    for p in rows:
         if len(p) < 4:
             raise ValueError('zły wiersz pliku stóp hipotecznych')
         try:
@@ -49503,7 +49507,9 @@ def up_pm_wiersze(text):
         if prev is not None and d <= prev:
             raise ValueError('daty w pliku stóp hipotecznych nie rosną')
         prev = d
-        a, b = _num(p[1]), _num(p[3])
+        # Stopy w PMMS mają kropkę dziesiętną. Przecinek wewnątrz pola nie jest separatorem tysięcy.
+        a = _num(p[1]) if ',' not in p[1] else None
+        b = _num(p[3]) if ',' not in p[3] else None
         out.append((d.isoformat(), a if a is not None and 0 < a <= UP_PM_MAX else None, b if b is not None and 0 < b <= UP_PM_MAX else None))
     if len(out) < UP_PM_MIN_ROWS:
         raise ValueError(f'plik stóp hipotecznych obcięty ({len(out)} wierszy)')

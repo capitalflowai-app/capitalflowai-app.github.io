@@ -74175,6 +74175,30 @@ class UsaPakietV445(unittest.TestCase):
         pusty15 = rows[:-1] + [(rows[-1][0], rows[-1][1], None)]; o3 = zd.up_pm_czesc(pusty15); self.assertIsNone(o3['p15']); self.assertIsNone(o3['d1_15']); self.assertIsNone(o3['hist'][-1][2]); self.assertEqual(o3['p30'], 7.4)
         krotki = rows[-200:]; self.assertIsNone(zd.up_pm_czesc(krotki)['p5'], 'okno krótsze niż 240 tygodni = brak percentyla')
 
+    def test_pm_mieszany_csv_freddie_mac_z_publikacja_srodowa(self):
+        def dodaj_nagranie(w):
+            return w + ['11/12/2026,7.11, ,6.45,,,,,',
+                        '"11/19/2026","7.28","","6.66"',
+                        '"11/25/2026","7.21","","6.54","","","","",""']
+
+        rows = zd.up_pm_wiersze(_v445_pm_csv(bom=True, zle=dodaj_nagranie))
+        self.assertEqual(len(rows), 2103)
+        self.assertEqual(rows[-2:], [('2026-11-19', 7.28, 6.66), ('2026-11-25', 7.21, 6.54)])
+        self.assertIsNone(rows[0][2])
+        part = zd.up_pm_czesc(rows)
+        self.assertEqual((part['date'], part['p30'], part['p15']), ('2026-11-25', 7.21, 6.54))
+        self.assertEqual((part['d1_30'], part['d1_15']), (-0.07, -0.12))
+        self.assertEqual(part['hist'][-1], ['2026-11-25', 7.21, 6.54])
+
+    def test_pm_przecinek_wewnatrz_stopy_nie_tworzyl_liczby(self):
+        rows = zd.up_pm_wiersze(_v445_pm_csv(zle=lambda w: w + ['"11/25/2026","7.21","","0,7"']))
+        self.assertEqual(rows[-1], ('2026-11-25', 7.21, None))
+        self.assertIsNone(zd.up_pm_czesc(rows)['p15'])
+
+    def test_pm_csv_niedomkniety_cudzyslow_odrzuca_plik(self):
+        with self.assertRaisesRegex(ValueError, 'zły zapis CSV'):
+            zd.up_pm_wiersze(_v445_pm_csv(zle=lambda w: w + ['"11/25/2026,7.21,,6.54']))
+
     def test_pm_bledy_pliku(self):
         for nazwa, f in {'nagłówek': lambda: _v445_pm_csv(glowa='data,rate'), 'obcięty': lambda: _v445_pm_csv(n=1000), 'daty nie rosną': lambda: _v445_pm_csv(zle=lambda w: w[:5] + [w[3]] + w[5:]),
                          'zła data': lambda: _v445_pm_csv(zle=lambda w: w[:5] + ['13/45/2020,5.0, ,4.0,,,,,'] + w[5:]), 'za mało pól': lambda: _v445_pm_csv(zle=lambda w: w[:5] + ['1/1/2010,5'] + w[5:])}.items():
