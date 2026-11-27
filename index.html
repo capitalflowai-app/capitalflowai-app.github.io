@@ -3021,9 +3021,9 @@ window.addEventListener('load',function(){setTimeout(function(){tr(function(){S.
         <div class="sub"><span class="live off" id="g-live"></span><span class="badge" id="g-sample" data-i18n="badge" hidden></span><span class="gsub" data-i18n="g.sub"></span></div>
       </div>
       <div class="seg" id="g-period" role="group">
-        <button data-v="1D" aria-pressed="false" data-i18n="g.p.1D" hidden></button>
-        <button data-v="1T" aria-pressed="false" data-i18n="g.p.1T" hidden></button>
-        <button data-v="1M" aria-pressed="true" data-i18n="g.p.1M"></button>
+        <button data-v="1D" aria-pressed="true" data-i18n="g.p.1D"></button>
+        <button data-v="1T" aria-pressed="false" data-i18n="g.p.1T"></button>
+        <button data-v="1M" aria-pressed="false" data-i18n="g.p.1M"></button>
         <button data-v="1Q" aria-pressed="false" data-i18n="g.p.1Q"></button>
         <button data-v="1R" aria-pressed="false" data-i18n="g.p.1R"></button>
       </div>
@@ -4052,6 +4052,8 @@ const EXTRA323={"pl":{"su481.chr":"Od {d}: {n} z {m} ostatnich sesji bez potwier
 for(const l in EXTRA323)if(I18N[l])Object.assign(I18N[l],EXTRA323[l]);
 const EXTRA324={"pl":{"g504.fiz":"Cena fizyczna: {v} · {d}","g504.k.brent":"Ropa Brent (kontrakt terminowy)"},"en":{"g504.fiz":"Physical price: {v} · {d}","g504.k.brent":"Brent crude (futures contract)"}};
 for(const l in EXTRA324)if(I18N[l])Object.assign(I18N[l],EXTRA324[l]);
+const EXTRA325={"pl":{"g.age.session":"ostatnia zamknięta sesja","g.age.sessionQuote":"notowanie z dnia ostatniej sesji"},"en":{"g.age.session":"latest closed session","g.age.sessionQuote":"quote from the latest session date"}};
+for(const l in EXTRA325)if(I18N[l])Object.assign(I18N[l],EXTRA325[l]);
 
 /* v151: ze słowników usunięto klucze, których kod strony nie czyta (150 kluczy: dawne podpisy źródeł i teksty bez użycia); lista i strażnik: testy v151 w test_widoki.cjs */
 /* v152: ze słowników usunięto wpisy zasłonięte (tekst, który później nakładany słownik zastępuje w tym samym języku — widz go nigdy nie widział); kolejność nakładania = kolejność linii for(…); strażnik: testy v152 w test_widoki.cjs */
@@ -5239,7 +5241,7 @@ const GB_=Object.fromEntries(GREG.map(r=>[r.id,r]));
    Wypełniane na żywo; zanim przyjdą, korytarze liczone są proporcjonalnie. */
 let GLINK=null;
 const GPER=['1D','1T','1M','1Q','1R'];   /* 1D = dzisiejsza sesja z ETF-ów krajowych (Finnhub); 1T i 1M z pliku ceny.json (Twelve Data), 1M bez pliku = OECD */
-const gst={period:'1M',sel:null,hover:null,label:'both',dots:'mid'};
+const gst={period:'1D',sel:null,hover:null,label:'both',dots:'mid'};
 const gv={x:0,y:0,k:1};   /* lupa: przesunięcie i powiększenie mapy */
 const GLIVE={st:'idle',err:'',at:'',oecd:null,fx:null,crypto:null,stab:null,asof:'',src:{},srcAt:{},failN:0};
 /* udane pobranie źródła: flaga + czas (żeby licznik źródeł i znacznik czasu mówiły prawdę) */
@@ -5508,13 +5510,18 @@ srvJSON.lo=!srvJSON.g.o.c;
 /* notowania ETF-ów krajowych → zmiana dnia per region (wspólne dla serwera i klucza Finnhub) */
 function gDayApply(q){
   const day={};let ok=0;
-  GREG.forEach(r=>{const P=GPROXY[r.id]||[];let s=0,ws=0,syms2=[];
+  const dayTime=t=>t>0&&t<1e11?t:0,dayIso=t=>t?new Date(t*1000).toISOString():'';
+  GREG.forEach(r=>{const P=GPROXY[r.id]||[];let s=0,ws=0,tt=0;const syms2=[];
     const pc={};   /* v296 (runda 2, G1): poprzednie zamknięcie funduszy — początek sesji dla kwoty dnia (gDayStart) */
-    P.forEach(([sy,w])=>{if(q[sy]&&typeof q[sy]==='object'&&typeof q[sy].dp==='number'&&isFinite(q[sy].dp)){   /* v336 (GL-13): dp null nie jest zerem */s+=q[sy].dp*w;ws+=w;syms2.push(sy);if(typeof q[sy].pc==='number'&&q[sy].pc>0&&isFinite(q[sy].pc))pc[sy]=q[sy].pc;}});
-    if(ws){day[r.id]={dp:s/ws,syms:syms2,pc};ok++;}});
+    P.forEach(([sy,w])=>{
+      const x=q[sy];if(!x||typeof x.dp!=='number'||!isFinite(x.dp))return;   /* dp null nie jest zerem */
+      s+=x.dp*w;ws+=w;syms2.push(sy);
+      tt=Math.max(tt,dayTime(Number(x.t)));
+      if(typeof x.pc==='number'&&x.pc>0&&isFinite(x.pc))pc[sy]=x.pc;
+    });
+    if(ws){day[r.id]={dp:s/ws,syms:syms2,pc,at:dayIso(tt)};ok++;}});
   if(ok){GLIVE.day=day;gOk('finnhub');GLIVE.dayErr='';
-    const tt=Math.max(...Object.values(q).map(x=>(x&&typeof x==='object'&&x.t)||0));   /* v336 (GL-13): wpis null — pominięty (dawniej TypeError i ukryty przycisk DZIŚ) */
-    GLIVE.dayAt=(tt>0&&tt<1e11)?new Date(tt*1000).toISOString():'';   /* v314 (audyt G6): chwila notowania jako ISO (UTC) — pod liczbą data i godzina czytelnika (gFreshTxt)
+    GLIVE.dayAt=Object.values(day).reduce((latest,r)=>r.at>latest?r.at:latest,'');   /* najnowszy czas spośród użytych notowań (ISO UTC)
        i wiek (gAgeNote), jak przy chwilach ze strefą (v287/v290); dawniej gotowy napis lokalny („9.10.2026, 22:00”), przy którym wiek się nie liczył (DZIŚ: kafel
        „Rynki akcji”, „Jakość danych mapy”, Aktywa, Wykresy; „Ostatnia sesja” w kartach regionów w każdym okresie) */
     if(GDATA){gBuild();gRenderAll();if(typeof renderPage==='function')renderPage();}}
@@ -5713,8 +5720,8 @@ function fgCard(X,title,long,ab){   /* v350: ab — w panelu etykiety skrótami 
       `<b class="fg-c fg-${q||'na'}">${ok?fgInt(row[1]):'—'}</b><i>${long&&!ab?t(lab):t(FG_AB[i])}</i><em>${escH(qn)}</em><small>${ok?escH(fgShort(row[0])):'—'}</small></span>`;}).join('');
   return `<span class="sg">${sgSvg(has?X.v:null,SG_FG,has?fgInt(X.v):'—',aria,!long||ab)}${long&&!ab?'':`<b class="sg-n" aria-hidden="true">${has?fgInt(X.v):'—'}</b>`}`+
     `<span class="sg-st${s?' fg-'+s:''}">${s?'<i class="fg-dot"></i>':''}${escH(sn)}</span>`+
-    (has&&fgIso(X.date)?(long?`<span class="sg-d">${t('fg.upd',{d:fgLong(X.date)+gAgeNote(X.date)})}</span>`:   /* panel: jak dawniej „Dane z dnia … · wiek” */
-      `<span class="sg-d" title="${escH(t('fg.upd',{d:fgLong(X.date)}))}">${escH(fgShort(X.date)+gAgeNote(X.date))}</span>`):'')+(hist?`<span class="sg-hs${long?' sg-hl':''}">${hist}</span>`:'')+`</span>`;
+    (has&&fgIso(X.date)?(long?`<span class="sg-d">${t('fg.upd',{d:fgLong(X.date)+gAgeNote(X.date,X.nyse)})}</span>`:   /* panel: jak dawniej „Dane z dnia … · wiek” */
+      `<span class="sg-d" title="${escH(t('fg.upd',{d:fgLong(X.date)}))}">${escH(fgShort(X.date)+gAgeNote(X.date,X.nyse))}</span>`):'')+(hist?`<span class="sg-hs${long?' sg-hl':''}">${hist}</span>`:'')+`</span>`;
 }
 /* CRYPTO: fng = {asof, d: [[dzień, wartość, klasa]]} → dane bloku; bez wierszy — null */
 function fgCrypto(F){
@@ -5725,7 +5732,7 @@ function fgCrypto(F){
 /* GLOBAL: nastroj.json → dane bloku (wynik z wierszy d; bez wierszy — v null, historia z „—”) */
 function fgGlobal(N){
   const rows=fgRows(N&&N.d),L=rows.length?rows[rows.length-1]:null,stOf=r=>fgState(r[1]);
-  return {v:L?L[1]:null,s:L?fgState(L[1]):null,date:L?L[0]:null,hist:fgHist(rows,'g'),stOf};
+  return {v:L?L[1]:null,s:L?fgState(L[1]):null,date:L?L[0]:null,hist:fgHist(rows,'g'),stOf,nyse:true};
 }
 /* składnik: liczby do opisu z pliku (każda z własnym dniem w tabeli); brak = „—” */
 function fgRaw(k,c){
@@ -5787,7 +5794,7 @@ function fgRenderG(){
   const N=FG.g;if(!N){el.hidden=true;el.innerHTML='';return;}
   const title=t('fg.t.g'),X=fgGlobal(N),C=fgComps(N,fgNum(X.v));
   const tz=fgNum(X.v)?`<span class="fg-tz"><b>${fgInt(X.v)}</b>${X.s?`<i class="fg-dot fg-${X.s}"></i>`:''}${escH(X.s?t('fg.s.'+X.s):t('fg.na'))}`+
-    `${fgIso(X.date)?escH(' · '+fgShort(X.date)+gAgeNote(X.date)):''}</span>`:'';   /* v163: zwinięta karta na telefonie — liczba, stan, dzień z wiekiem */
+    `${fgIso(X.date)?escH(' · '+fgShort(X.date)+gAgeNote(X.date,X.nyse)):''}</span>`:'';   /* v163: zwinięta karta na telefonie — liczba, stan, dzień z wiekiem */
   const I=typeof icoWrap==='function'&&typeof flagImg==='function'&&typeof glyphImg==='function',ico=I?icoWrap(flagImg('us','sm')+glyphImg('gauge','sm')):'';
   const open=typeof el.querySelectorAll==='function'?[...el.querySelectorAll('details[open]')].map(d=>d.id).filter(Boolean):[];
   el.innerHTML=`<div class="etfh"><div><h2>${ico}${title}${fgHead(t('fg.g.cap')+'. '+t('fg.meth.g'),'fg-how-g')}</h2><p class="pnote">${t('fg.g.sub')}</p></div>`+
@@ -5917,7 +5924,15 @@ function instRow(label,value,exact,note){
 }
 function instFoot(d){const s=String(d||''),last=s.split('–').pop().trim();return `${escH(d)}${gAgeNote(last)}`;}   /* v51: zakres „2026-06 – 2026-07” też ma wiek */
 /* v51: stan źródeł z meta.json zbieracza i czas pliku (pole at) zamiast chwili pobrania przez przeglądarkę */
-function metaLoad(){srvJSON('meta').then(m=>{const ok=!!(m&&typeof m==='object'&&m.ok);if(!ok&&typeof ldPonow==='function')ldPonow('meta',metaLoad);else if(ok&&typeof ldUdane==='function')ldUdane('meta');if(!ok&&GLIVE.meta)return;   /* v333 (S1, CR8-03): chwilowy błąd nie chowa paska o starych danych serwera */GLIVE.meta=ok?m:null;try{if(page==='sources'||page==='method')renderPage();}catch(e){}try{updSrc();}catch(e){}try{gUpdAt();}catch(e){}try{srvStale();}catch(e){}});}
+function metaLoad(){srvJSON('meta').then(m=>{
+  const ok=!!(m&&typeof m==='object'&&m.ok);
+  if(!ok&&typeof ldPonow==='function')ldPonow('meta',metaLoad);else if(ok&&typeof ldUdane==='function')ldUdane('meta');
+  if(!ok&&GLIVE.meta)return;   /* chwilowy błąd nie chowa paska o starych danych serwera */
+  GLIVE.meta=ok?m:null;
+  try{if(page==='sources'||page==='method')renderPage();}catch(e){}
+  try{updSrc();}catch(e){}try{gUpdAt();}catch(e){}try{srvStale();}catch(e){}
+  if(typeof gNyseRefresh==='function')gNyseRefresh();
+});}
 /* v191: dane z serwera starsze niż godzina (automat zwykle co 10 min; 05.10 wieczorem awaria GitHub Actions — ponad 2 h bez nowych plików, a strona
    nie mówiła tego wprost: pasek boczny pokazuje czas odświeżenia w przeglądarce, kafle — dzień danych) → pasek w nagłówku, na każdej zakładce i na telefonie */
 function srvStale(){const el=document.getElementById('srv-stale');if(!el)return;
@@ -6655,13 +6670,8 @@ function tdStatusPair(){
   const base=TDST.ok?t('key.td.ok',{p:TDST.plan||'?',u:TDST.used==null?'?':TDST.used,l:TDST.limit==null?'?':TDST.limit}):t('etf.s.wait');
   return [pend?'wait':'on',base+(pend?' · '+t('key.td.loading'):'')+(GLIVE.ceny?' · '+t('key.td.file',{t:gCenyAt()}):'')];
 }
-function gPeriodButtons(){const b=$('#g-period button[data-v="1D"]');if(!b)return;
-  const bt=$('#g-period button[data-v="1T"]');const onT=gCenyHas();if(bt)bt.hidden=!onT;
-  if(!onT&&gst.period==='1T'){gst.period='1M';$$('#g-period button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v==='1M'?'true':'false'));
-    if(GDATA){gEdges();gKpis();gRenderAll();}}
-  const on=!!keyGet('finnhub')||!!GLIVE.daySrv;b.hidden=!on;
-  if(!on&&gst.period==='1D'){gst.period='1M';$$('#g-period button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v==='1M'?'true':'false'));
-    if(GDATA){gEdges();gKpis();gRenderAll();}}
+function gPeriodButtons(){
+  $$('#g-period button').forEach(b=>{if(b.dataset.v)b.setAttribute('aria-pressed',b.dataset.v===gst.period?'true':'false');});
 }
 function gStart(){const d=new Date();d.setMonth(d.getMonth()-15);return d.toISOString().slice(0,7);}
 const fetchTO=ms=>(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?AbortSignal.timeout(ms):undefined;   /* v49: zapytanie nie wisi w nieskończoność */
@@ -7096,7 +7106,7 @@ function gStabFresh(st,per){
   const d=+S[S.length-1].date;return (isFinite(d)&&d>0)?new Date(d*1000).toISOString().slice(0,10):'';
 }
 function gKpis(){
-  const per=gst.period,F=GDATA[per];
+  const per=gst.period,F=GDATA[per],win=F.td?gCenyWin(per):null;
   /* F15: suma i zmiana tylko z regionów z danymi (brak nie jest zerem); pokrycie „z N z 12” w podpisie kafelka; zero regionów = brak (NaN → „—”), nie 0 */
   const EQ=gEqTot(F);   /* v293 (audyt G1): poziom = szacunek (ten sam w każdym okresie), zmiana z tych samych regionów; ta sama funkcja co strona Aktywa */
   const dxy=gDxy(per);
@@ -7106,7 +7116,7 @@ function gKpis(){
   const st=gStabDelta(per);
   const yu=gDaily(GLIVE.ust,per),yd=gDaily(GLIVE.buba,per);
   GKPI=[
-   {k:'g.k.eq',v:EQ.v,u:'u.b',d:EQ.d,cov:EQ.n<GREG.length?[EQ.n,GREG.length]:null,tip:EQ.v!=null?t('a293g.k.tip',{d:EQ.est})+(typeof kapTipMore==='function'?kapTipMore():''):'',src:per==='1D'?'Finnhub · ETF':(F.td?(GLIVE.cenySrv?'Twelve Data · ETF':t('g.src.tdown')+' · ETF'):(F.fxm?'OECD · EBC':'OECD')),fresh:per==='1D'?(GLIVE.dayAt||''):(F.td?String(GLIVE.ceny&&GLIVE.ceny.asof||'').slice(-10):GLIVE.asof)},
+   {k:'g.k.eq',v:EQ.v,u:'u.b',d:EQ.d,cov:EQ.n<GREG.length?[EQ.n,GREG.length]:null,tip:EQ.v!=null?t('a293g.k.tip',{d:EQ.est})+(typeof kapTipMore==='function'?kapTipMore():''):'',src:per==='1D'?'Finnhub · ETF':(F.td?(GLIVE.cenySrv?'Twelve Data · ETF':t('g.src.tdown')+' · ETF'):(F.fxm?'OECD · EBC':'OECD')),fresh:per==='1D'?(GLIVE.dayAt||''):(F.td?(win&&EQ.n?win[1]:''):GLIVE.asof),nyse:per==='1D'?'quote':!!win},
    {k:'g.k.dxy',v:dxy?dxy[0]:null,u:'',dec:2,d:dxy?dxy[1]:null,src:'ECB',fresh:GLIVE.fx?GLIVE.fx.now.date:''},
    /* rentowności: dziennie ze źródeł pierwotnych (pomiar), OECD miesięcznie tylko jako zapas */
    yu?{k:'g.k.us10',v:yu.v,u:'u.pp0',dec:2,d:yu.d,dpp:1,src:'US Treasury',fresh:yu.date}
@@ -7715,9 +7725,13 @@ function gStatus(){
 /* wiek danych: ile dni minęło od końca okresu (RRRR-MM, RRRR-Qn) albo od dnia (RRRR-MM-DD) do teraz — brak = pusty tekst, nigdy „0”.
    v287: chwila ze strefą (…T…Z albo ±hh:mm) — różnica dni kalendarzowych w strefie czytelnika, tej samej co data obok (engDate); wcześniej
    dzień UTC tej chwili: „7.10.2026, 00:00 · dane sprzed 1 dnia” przy danych sprzed 8 godzin */
-function gAgeNote(fresh){
+function gAgeNote(fresh,nyse=false){
   if(!fresh||typeof fresh!=='string')return '';
   const f=fresh.trim();let end=null;
+  const session=nyse&&gNyseDay();
+  if(session&&f===session)return ' · '+t('g.age.session');
+  /* Notowania DZIŚ mają godzinę w UTC. Znacznik kontekstu sesji zachowuje tę godzinę i nie oznacza ceny zamknięcia. */
+  if(nyse==='quote'&&session&&f.startsWith(session+'T')&&Number.isFinite(Date.parse(f)))return ' · '+t('g.age.sessionQuote');
   if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/.test(f)){   /* v287: chwila ze strefą — dzień czytelnika */
     const x=new Date(Date.parse(f)),n=new Date(Date.now());if(isNaN(x.getTime()))return '';
     const d=Math.round((Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())-Date.UTC(x.getFullYear(),x.getMonth(),x.getDate()))/86400000);
@@ -7735,6 +7749,19 @@ function gAgeNote(fresh){
   if(end==null||isNaN(end))return '';
   const d=Math.floor((Date.now()-end)/86400000);if(d<0)return '';
   return ' · '+(d===0?t('g.age0'):d===1?t('g.age1'):t('g.age',{n:d}));   /* v43: dzisiejsze dane to nie „sprzed 0 dni” */
+}
+/* Podpis sesyjny tylko w przedziale ważności kalendarza, również przy pliku z pamięci podręcznej. */
+function gNyseDay(){
+  const cal=typeof GLIVE==='object'&&GLIVE.meta&&GLIVE.meta.nyse,now=Date.now();
+  return cal&&/^\d{4}-\d{2}-\d{2}$/.test(cal.day)&&Date.parse(cal.close)<=now&&now<Date.parse(cal.next_close)?cal.day:'';
+}
+function gNyseRefresh(){
+  const day=gNyseDay();
+  if(day===(GLIVE.nyseDay||''))return;
+  GLIVE.nyseDay=day;
+  gRenderKpi();gRenderDetail();gRenderQ();fgRenderG();   /* karty boczne i wykresy odświeżą ich obserwatory */
+  if(ETF.data)renderEtf();
+  if(page==='assets')renderPage();
 }
 /* v356: data dnia w kaflach, karcie „Jakość danych mapy” i tabeli Aktywa — jeden zapis (gFreshTxt niżej)
    v290 (przegląd v287): chwila ze strefą pokazana jako data i godzina czytelnika (engDate) — ta sama, od której gAgeNote liczy wiek;
@@ -7761,7 +7788,7 @@ function gRenderKpi(){
         num=Math.abs(k.d).toLocaleString(LOCALE[LANG],{minimumFractionDigits:2,maximumFractionDigits:2})+(k.dpp?' '+t('u.pp'):'%');
       d=big?`<span class="dlt ${up?'up':'dn'}">${(up?'▲ +':'▼ −')+num}${per}</span>`:`<span class="dlt zero">• ${num}${per}</span>`;   /* zero to zero, nie „brak porównania” */
     }else d=`<span class="dlt na${k.why?' k-why':''}">${k.why||t('kpi.nodelta')}</span>`;   /* v321: kafel surowca — powód braku zmiany (za krótka historia, cena niepotwierdzona, wczytywanie) */
-    const foot=[k.cov?t('g.cov.of',{n:k.cov[0],m:k.cov[1]}):'',k.estn||'',k.fresh?escH(typeof gFreshTxt==='function'?gFreshTxt(k.fresh):k.fresh)+gAgeNote(k.fresh):(k.nd&&has?t('g.k.nodate'):''),k.pre&&has?t('su295g.pre'):'',k.mk&&has?k.mk:''].filter(Boolean).join(' · ');   /* v321 (przegląd): k.mk — opis ceny surowca jak w Pulsie */
+    const foot=[k.cov?t('g.cov.of',{n:k.cov[0],m:k.cov[1]}):'',k.estn||'',k.fresh?escH(typeof gFreshTxt==='function'?gFreshTxt(k.fresh):k.fresh)+gAgeNote(k.fresh,k.nyse):(k.nd&&has?t('g.k.nodate'):''),k.pre&&has?t('su295g.pre'):'',k.mk&&has?k.mk:''].filter(Boolean).join(' · ');   /* v321 (przegląd): k.mk — opis ceny surowca jak w Pulsie */
     const tip=k.tip||(k.name&&has?k.name+(typeof sepK==='function'?sepK():': ')+val+(k.unit?' '+k.unit:''):'');
     return `<div class="panel kpi"><div class="k-head">${H&&ico[k.k]?icoWrap(ico[k.k]()):''}<span>${t(k.k)}</span></div>
       <div class="k-val"${tip?` title="${escH(tip)}"`:''}>${val}${unit}</div>
@@ -7790,7 +7817,7 @@ function gRenderDetail(){
           <div class="wide"><dt>${t('d.limits')}</dt><dd>${t('g.l.crypto')}</dd></div>
         </dl>${gFiatBox()}`;
     }else{
-      const r=GB_[s.id],v=F[s.id],dy=GLIVE.day&&GLIVE.day[s.id];
+      const r=GB_[s.id],v=F[s.id],dy=GLIVE.day&&GLIVE.day[s.id],dyAt=dy&&dy.at||'';
       box.innerHTML=`<div class="d-top"><h3>${gmRf(s.id,'')}${gNameL(s.id)}</h3><button class="x" id="g-close">×</button></div>
         <div class="d-val">${v[2]?gmAmt(v[0]):'—'}<small>${t('g.d.chg')} · ${t('g.per.'+gst.period)}</small></div>
         <p class="d-plain"><span>${t('d.plain')}</span>${v[2]?t(v[0]>0?'g.plain.in':v[0]<0?'g.plain.out':'gmap.plain.zero',{n:t('g.n.'+s.id),v:gfmt(Math.abs(v[0])),p:t('g.per.'+gst.period)}):t('g.plain.none',{n:t('g.n.'+s.id),p:t('g.per.'+gst.period)})}</p>
@@ -7799,7 +7826,7 @@ function gRenderDetail(){
           ${(e=>e?`<div><dt>${t('a293g.d.est')}</dt><dd>${gfmt(e.v)} · ${escH(GLIVE.est.d)}${gAgeNote(GLIVE.est.d)}</dd></div>`:'')(GLIVE.est&&GLIVE.est.r?GLIVE.est.r[s.id]:null)}
           <div><dt>${t('g.d.chgp')}</dt><dd>${v[2]?`<span class="${gmTone(v[1])||'neu'}">${gmPct(v[1])}</span>`:'—'}</dd></div>
           ${(ri=>`<div${ri.length>2?' class="wide"':''}><dt>${t('g.d.cty')}</dt><dd class="gctys">${ri.map(gmCty).join('')}</dd></div>`)(typeof gRegIso==='function'?gRegIso(r,gst.period):r.iso)}
-          ${(dy&&dy.dp!=null)?`<div class="wide"><dt>${t('g.d.today')}</dt><dd><b class="${gmTone(dy.dp)||'neu'}">${gmPct(dy.dp)}</b> · ${gmRf(s.id)}${(Array.isArray(dy.syms)?dy.syms:[]).map(gmFund).join(' + ')} · ${escH(typeof gFreshTxt==='function'?gFreshTxt(GLIVE.dayAt||''):(GLIVE.dayAt||''))}${typeof gAgeNote==='function'?gAgeNote(GLIVE.dayAt||''):''}</dd></div>`:''}
+          ${(dy&&dy.dp!=null)?`<div class="wide"><dt>${t('g.d.today')}</dt><dd><b class="${gmTone(dy.dp)||'neu'}">${gmPct(dy.dp)}</b> · ${gmRf(s.id)}${(Array.isArray(dy.syms)?dy.syms:[]).map(gmFund).join(' + ')}${dyAt?' · '+escH(typeof gFreshTxt==='function'?gFreshTxt(dyAt):dyAt)+(typeof gAgeNote==='function'?gAgeNote(dyAt,'quote'):''):''}</dd></div>`:''}
           ${gCenyRow(s)}
           ${spRegion(s.id)}
           ${eerRegion(s.id)}
@@ -7922,18 +7949,19 @@ function gFiatBox(){
 function gRenderQ(){
   const w=$('#g-q');if(!w)return;
   const cov=GREG.filter(r=>GDATA&&GDATA[gst.period][r.id][2]).length;
-  const KQ=(typeof GKPI!=='undefined'&&Array.isArray(GKPI))?GKPI.find(k=>k.k==='g.k.eq'):null,fr=KQ&&KQ.fresh?String(KQ.fresh):GLIVE.asof;   /* v166: data danych mapy w wybranym okresie (jak kafel „Rynki akcji”) */
-  const frT=fr&&typeof gFreshTxt==='function'?gFreshTxt(fr):fr;   /* v314 (audyt G6): DZIŚ — chwila notowania (ISO) jako data i godzina czytelnika; wiek — gAgeNote(fr) */
+  const KQ=(typeof GKPI!=='undefined'&&Array.isArray(GKPI))?GKPI.find(k=>k.k==='g.k.eq'):null,fr=KQ?String(KQ.fresh||''):(gst.period==='1D'?'':GLIVE.asof);   /* v166: data danych mapy w wybranym okresie (jak kafel „Rynki akcji”) */
+  const nyse=KQ&&KQ.fresh&&KQ.nyse;
+  const frT=fr&&typeof gFreshTxt==='function'?gFreshTxt(fr):fr;   /* v314 (audyt G6): DZIŚ — chwila notowania (ISO) jako data i godzina czytelnika; wiek — gAgeNote(fr,nyse) */
   /* v96: bez karty „Źródła” — nazwy dostawców są tylko na stronie Źródła; pozostałe opisy bez nazw instytucji */
   const cards=[
-   ['g.q.fresh','g.q.freshv','gmap.q.freshd',fr?escH(frT)+gAgeNote(fr):'<span class="na">—</span>'],
+   ['g.q.fresh','g.q.freshv','gmap.q.freshd',fr?escH(frT)+gAgeNote(fr,nyse):'<span class="na">—</span>'],
    ['g.q.cov','g.q.covv','gmap.q.covd',cov+' / '+GREG.length],
    ['g.q.meth','g.q.methv','gmap.q.methd',''],
    ['g.q.corr',GLINK?'gmap.q.corrv1':'g.q.corrv0','gmap.q.corrd',''],
    ['g.q.lim','g.q.limv','gmap.q.limd','']
   ];
   /* v154: jedna karta „Jakość danych mapy” (zwijana jak inne): w nagłówku sedno — data danych, ich wiek i pokrycie regionów; pięć kart w środku */
-  const sum=(fr?escH(frT)+gAgeNote(fr)+' · ':'')+t('g.q.sumcov',{n:cov,m:GREG.length});
+  const sum=(fr?escH(frT)+gAgeNote(fr,nyse)+' · ':'')+t('g.q.sumcov',{n:cov,m:GREG.length});
   w.innerHTML=`<div class="etfh"><div><h2>${t('g.q.h')}</h2><p class="pnote">${sum}</p></div></div><div class="q-grid gq">`+cards.map(([a,b,c,extra])=>
     `<div class="panel q"><div class="t">${t(a)}</div><div class="v">${extra||t(b)}</div><p>${t(c)}</p></div>`).join('')+'</div>';
 }
@@ -7948,12 +7976,12 @@ function gCover(per){
 }
 function gCovCard(){
   const C=gCover(gst.period),p=C?C.p:null,lvl=p==null?'eng.gap':p>=80?'rel.high':p>=60?'rel.mid':'rel.low';
-  const KQ=Array.isArray(GKPI)?GKPI.find(k=>k&&k.k==='g.k.eq'):null,fr=KQ&&KQ.fresh?String(KQ.fresh):String(GLIVE.asof||'');
+  const KQ=Array.isArray(GKPI)?GKPI.find(k=>k&&k.k==='g.k.eq'):null,fr=KQ?String(KQ.fresh||''):(gst.period==='1D'?'':String(GLIVE.asof||''));
   const aria=t('w321.cov.t')+(typeof sepK==='function'?sepK():': ')+(p==null?'—':p+'%');
   const miss=C&&C.miss.length?' · '+t('w321.cov.miss',{r:C.miss.map(id=>t('g.n.'+id)).join(', ')}):'';
   return `<span class="sg">${sgSvg(p,SG_COV,p==null?'—':p+'%',aria,true)}<span class="sg-nl"><b class="sg-n" aria-hidden="true">${p==null?'—':p+'%'}</b><span class="lv sora ${p!=null&&p>=60?'ok':'warn'}">${t(lvl)}</span></span>`+   /* v321 (przegląd): półkole „wysokie”, liczba też tekstem (układ zwarty) */
     (C?`<span class="sg-p">${t('w321.cov.s',{n:C.n,m:C.m})}${escH(miss)}</span>`:'')+
-    (C&&fr?`<span class="sg-d">${escH((typeof fgIso==='function'&&fgIso(fr)?fgShort(fr):typeof gFreshTxt==='function'?gFreshTxt(fr):fr)+gAgeNote(fr))}</span>`:'')   /* v344 (T10-07): sam dzień — zapis jak w karcie obok (fgShort), chwila z godziną — jak dotąd (gFreshTxt) */+`</span>`;
+    (C&&fr?`<span class="sg-d">${escH((typeof fgIso==='function'&&fgIso(fr)?fgShort(fr):typeof gFreshTxt==='function'?gFreshTxt(fr):fr)+gAgeNote(fr,KQ&&KQ.fresh&&KQ.nyse))}</span>`:'')   /* v344 (T10-07): sam dzień — zapis jak w karcie obok (fgShort), chwila z godziną — jak dotąd (gFreshTxt) */+`</span>`;
 }
 function gRenderProb(){
   const w=$('#g-prob');if(!w)return;
@@ -8088,7 +8116,8 @@ function gInit(){
     gst.sel=(h&&gst.sel&&gst.sel.type===h.type&&gst.sel.id===h.id)?null:h;gRenderDetail();gDirty();});
   $$('#g-period button').forEach(b=>b.addEventListener('click',()=>{
     gst.period=b.dataset.v;
-    $$('#g-period button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+    gPeriodButtons();
+    if(!GDATA)return;   /* pierwszy odczyt wyrenderuje wybrany okres */
     gEdges();gKpis();gProb();gRenderAll();renderPage();GLAY=null;}));
   gResize();
 }
@@ -8266,15 +8295,16 @@ function renderAssets(){
   /* v96: wiersz = [klucz, wartość, zmiana %, aktualność]; aktualność to częstotliwość, dzień danych i ich wiek — nazwy dostawców są tylko na stronie Źródła */
   const rows=[];
   /* po przeglądzie: dzień przychodzi z odpowiedzi serwerów zewnętrznych — zawsze przez escH */
-  const when=(fr,day)=>fr+(day?' · '+escH(/^\d{4}-\d{2}$/.test(String(day))&&typeof usaMon==='function'?usaMon(day):typeof gFreshTxt==='function'?gFreshTxt(day):day)+gAgeNote(day):'');   /* v502 (B9): miesiąc danych słownie („wrzesień 2026”), nie „2026-09”; v314 (audyt G6): chwila (DZIŚ — notowanie ISO) jako data i godzina czytelnika, z wiekiem */
+  const when=(fr,day,nyse)=>fr+(day?' · '+escH(/^\d{4}-\d{2}$/.test(String(day))&&typeof usaMon==='function'?usaMon(day):typeof gFreshTxt==='function'?gFreshTxt(day):day)+gAgeNote(day,nyse):'');   /* v502 (B9): miesiąc danych słownie („wrzesień 2026”), nie „2026-09”; v314 (audyt G6): chwila (DZIŚ — notowanie ISO) jako data i godzina czytelnika, z wiekiem */
   const n2=v=>nfmt(v,2);   /* liczby z przecinkiem po polsku, jak reszta strony */
   if(gActive()){
     const F=GDATA?GDATA[gst.period]:null;
     /* F15: suma i zmiana tylko z regionów z danymi (brak nie jest zerem); pokrycie „N/12” w kolumnie aktualności */
     const EQ=gEqTot(F);   /* v293 (audyt G1): ta sama liczba co kafelek GLOBAL — szacunek wartości (jeden poziom w każdym okresie); bez szacunku „—” i sama zmiana */
     const covT=EQ.n<GREG.length?' · '+t('g.q.cov')+' '+EQ.n+'/'+GREG.length:'';
-    const gkf=k=>{const x=Array.isArray(GKPI)?GKPI.find(o=>o&&o.k===k):null;return (x&&typeof x.fresh==='string')?x.fresh:'';};   /* ten sam dzień co kafelek GLOBAL */
-    rows.push(['as.eq',EQ.v!=null?gfmt(EQ.v):'—',EQ.d,when(((F&&F.td)||gst.period==='1D')?t('pg.daily'):t('pg.monthly'),EQ.n?gkf('g.k.eq'):'')+covT+(EQ.v!=null&&EQ.est?' · '+t('a293g.k.est',{d:escH(typeof gFreshTxt==='function'?gFreshTxt(EQ.est):EQ.est)}):'')]);
+    const globalKpi=k=>Array.isArray(GKPI)?GKPI.find(x=>x&&x.k===k):null;   /* ten sam dzień co kafelek GLOBAL */
+    const eqKpi=globalKpi('g.k.eq');
+    rows.push(['as.eq',EQ.v!=null?gfmt(EQ.v):'—',EQ.d,when(((F&&F.td)||gst.period==='1D')?t('pg.daily'):t('pg.monthly'),EQ.n&&eqKpi?eqKpi.fresh:'',eqKpi&&eqKpi.nyse)+covT+(EQ.v!=null&&EQ.est?' · '+t('a293g.k.est',{d:escH(typeof gFreshTxt==='function'?gFreshTxt(EQ.est):EQ.est)}):'')]);
     const dxy=gDxy(gst.period),fxD=(GLIVE.fx&&GLIVE.fx.now&&typeof GLIVE.fx.now.date==='string')?GLIVE.fx.now.date:'';
     if(dxy)rows.push(['as.fx',n2(dxy[0]),dxy[1],when(t('pg.daily'),fxD)]);
     const y=(c)=>{const s2=GLIVE.irlt&&GLIVE.irlt[c];return (s2&&s2.length)?s2[s2.length-1]:null;};   /* [okres RRRR-MM, rentowność] */
@@ -8298,7 +8328,7 @@ function renderAssets(){
     if(gk){const D=typeof gk.fresh==='string'?gk.fresh:'';rows.push(['as.cry',gfmt(gk.v),gk.d,fq+' · '+(D?fT(D):noD())]);}
     else if(cy){const n=+cy.updated_at,D=(n>0&&isFinite(n))?new Date(n*1000).toISOString():'';rows.push(['as.cry',gfmt(cy.total_market_cap.usd/1e9),cy.market_cap_change_percentage_24h_usd,t('pg.live')+' · '+(D?fT(D):noD())]);}
     const sd=gStabDelta(gst.period);
-    const sdD=sd?gkf('g.k.stab'):'';   /* v293 (audyt G3): ten sam dzień co kafelek GLOBAL (gStabFresh: historia serwera → stabh.asof, seria → ostatni punkt);
+    const stabKpi=sd?globalKpi('g.k.stab'):null,sdD=stabKpi?stabKpi.fresh:'';   /* v293 (audyt G3): ten sam dzień co kafelek GLOBAL (gStabFresh: historia serwera → stabh.asof, seria → ostatni punkt);
        dawniej tylko z serii pobieranej na żywo, której przy historii serwera strona w ogóle nie pobiera — zawsze „bez daty u źródła” */
     if(sd)rows.push(['as.stab',gfmt(sd[2]),sd[1],t('pg.daily')+' · '+(sdD?escH(typeof gFreshTxt==='function'?gFreshTxt(sdD):sdD)+gAgeNote(sdD):noD())]);
     /* v321: złoto i ropa Brent — te same liczby, zmiana i dzień co kafelki GLOBAL (Puls surowców); bez ceny — bez wiersza */
@@ -8399,7 +8429,7 @@ function gIsoTxt(d){const s=String(d==null?'':d).trim();
   if(/^\d{4}-\d{2}$/.test(s)&&typeof usaMon==='function')return usaMon(s);
   return s;}
 function instFootG(d){const s=String(d==null?'':d).trim();return /^\d{4}-\d{2}(-\d{2})?$/.test(s)?`${escH(gIsoTxt(s))}${gAgeNote(s)}`:instFoot(d);}
-function instFootL(d){const s=String(d==null?'':d).trim();return /^\d{4}-\d{2}-\d{2}$/.test(s)?`${dayLoc(s)}${gAgeNote(s)}`:instFoot(d);}
+function instFootL(d,nyse=false){const s=String(d==null?'':d).trim();return /^\d{4}-\d{2}-\d{2}$/.test(s)?`${dayLoc(s)}${gAgeNote(s,nyse)}`:instFoot(d);}
 /* v345 (C-11): czas pliku `at` zbieracz zapisuje na początku przebiegu, a odczyty (blok łańcucha, kontrakty) kończą się później — „Plik z 10:49” stało nad „Stan na 10:50”.
    Do nagłówka bierzemy późniejszy z `at` i czasów danych w tym pliku (do 30 min po `at`; dalsze — pomyłka, ignorowane); `at` zostaje do oceny świeżości */
 function fileAtMax(at,list){let ms=Date.parse(at||'');if(!isFinite(ms))return at;const m0=ms;for(const x of Array.isArray(list)?list:[]){const m=Date.parse(typeof x==='string'?x:'');if(isFinite(m)&&m>ms&&m-m0<=30*60e3)ms=m;}return ms===m0?at:new Date(ms).toISOString();}
@@ -9345,7 +9375,7 @@ function etfBars(day){
 /* ---------- render ---------- */
 function etfBadge(){
   if(ETF.st==='load')return `<span class="live wait"><i></i>${t('etf.b.load')}</span>`;
-  if(ETF.live){const asof=ETF.data.asof||'',age=gAgeNote(String(asof).split('–').pop().trim());
+  if(ETF.live){const asof=ETF.data.asof||'',day=String(asof).split('–').pop().trim(),age=gAgeNote(day,!ETF.stale&&day===asof);
     const dl=typeof dayLoc==='function'?dayLoc:escH;   /* v345 (C-10) */
     /* v501 (B8): data i godzina (plik serwera) albo sama godzina (pobranie w przeglądarce) z milisekund w bieżącym języku; bez LOCALE/LANG (piaskownice) — zapisany tekst */
     const at=(ETF.atMs&&typeof LOCALE!=='undefined'&&typeof LANG!=='undefined')?(ETF.atFmt==='t'?new Date(ETF.atMs).toLocaleTimeString(LOCALE[LANG],{hour:'2-digit',minute:'2-digit'}):new Date(ETF.atMs).toLocaleString(LOCALE[LANG],{dateStyle:'short',timeStyle:'short'})):ETF.at;
@@ -12048,7 +12078,7 @@ if(document.fonts&&document.fonts.load){Promise.all([document.fonts.load('700 16
 /* ETF → krypto: migawka od razu, dane na żywo gdy jest klucz */
 etfLoad();etfAuto();engLoad();engAuto();cmcLoad();cmcAuto();krLoad();krAuto();
 metaLoad();setInterval(()=>{if(!document.hidden)metaLoad();},10*60*1000);   /* v51: stan źródeł z meta.json */
-setInterval(()=>{if(!document.hidden)srvStale();},60*1000);   /* v191: wiek danych serwera rośnie także bez nowego pliku */
+setInterval(()=>{if(!document.hidden){srvStale();gNyseRefresh();}},60*1000);   /* v191: wiek danych serwera rośnie także bez nowego pliku */
 /* v333 (S1, CR8-03): chwilowy błąd pobrania pliku serwera (np. telefon tuż po wybudzeniu, sieć jeszcze nie wstała) — dawniej pięć ładowarek CRYPTO
    (cmcLoad, krLoad, cmApply, metaLoad, etfLoad) zastępowało wtedy wczytane dane pustką albo wbudowaną migawką ETF z 23.09 i czekało na następne tyknięcie
    zegara (10–60 min). Teraz dane zostają (z datą i wiekiem), a pobranie jest ponawiane po 5 i po 10 s — najwyżej dwa razy na jedną awarię; udane = od zera. */
@@ -22340,7 +22370,7 @@ function wkGReg(){
   const nm=id=>t('g.n.'+id),rows=ok.concat(R.filter(r=>r.v===null)).map(r=>({l:wkRf(r.id)+escH(nm(r.id)),v:r.v,vt:r.v===null?'—':escH(wkPct(r.v,2)),cls:r.v===null?'':wkTone(Math.round(r.v*100)/100),
     tip:nm(r.id)+' · '+pn+wkK()+(r.v===null?t('eng.gap'):wkPct(r.v,2))+wkAt(frT)}));
   const a=ok[0],b=ok[ok.length-1];
-  return {s,k:'p',d:fr?escH(frT)+gAgeNote(fr):'',ch:wkBars(rows,{lw:'46%',aria:t('wk.g.reg.a',{p:pn,a:nm(a.id),va:wkPct(a.v,2),b:nm(b.id),vb:wkPct(b.v,2),n:ok.length,m:GREG.length})})};
+  return {s,k:'p',d:fr?escH(frT)+gAgeNote(fr,K&&K.nyse):'',ch:wkBars(rows,{lw:'46%',aria:t('wk.g.reg.a',{p:pn,a:nm(a.id),va:wkPct(a.v,2),b:nm(b.id),vb:wkPct(b.v,2),n:ok.length,m:GREG.length})})};
 }
 /* GLOBAL 2: „Gdzie warunki sprzyjają” — wynik regionu −100…+100 (model z mierzonych wskaźników) */
 function wkGProb(){
@@ -22364,7 +22394,7 @@ function wkGFg(){
   const N=FG.g;if(!N)return {s:t('wk.fg.s'),na:t('wk.na.file')};
   const rows=fgRows(N.d);if(rows.length<2)return {s:t('wk.fg.s'),na:t('wk.na.few')};
   const L=rows[rows.length-1];
-  return {s:t('wk.fg.s'),k:'m',d:fgLong(L[0])+gAgeNote(L[0]),ch:wkFgCh(rows,t('fg.t.g'),r=>fgState(r[1]))};
+  return {s:t('wk.fg.s'),k:'m',d:fgLong(L[0])+gAgeNote(L[0],true),ch:wkFgCh(rows,t('fg.t.g'),r=>fgState(r[1]))};
 }
 /* GLOBAL 4: stres finansowy USA — indeks dzienny z historii pliku (0 = przeciętnie) */
 function wkGStr(){
@@ -22467,7 +22497,7 @@ function wkCEtf(){
       tip:wkDay(wkMs(d),1)+' · '+S.map(x=>x.n+wkK()+(wkNum(o[x.s])?etfM(o[x.s]):t('eng.gap'))).join(' · ')+(miss.length?' · '+t('wk.c.etf.part'):' · '+t('wk.c.etf.sum')+wkK()+etfM(sum))};});
   const full=days.filter(d=>ETF_SYMS.every(s=>wkNum(M[d][s]))).pop();
   const aria=full?t('wk.c.etf.a',{d:wkDay(wkMs(full),1),v:etfM(S.reduce((a,x)=>a+M[full][x.s],0)),n:days.length}):t('wk.c.etf.s');
-  return {s:t('wk.c.etf.s')+(ETF.live===false?' · '+t('etf.b.snap',{d:String(D.asof||'')}):''),k:'p',d:(typeof instFootL==='function'?instFootL:instFoot)(D.asof),ch:wkCols(X,{ser:S,stack:true,aria})};
+  return {s:t('wk.c.etf.s')+(ETF.live===false?' · '+t('etf.b.snap',{d:String(D.asof||'')}):''),k:'p',d:(typeof instFootL==='function'?instFootL:instFoot)(D.asof,ETF.live&&!ETF.stale&&D.asof===full),ch:wkCols(X,{ser:S,stack:true,aria})};
 }
 /* CRYPTO 3: struktura rynku — BTC, ETH, stablecoiny, reszta (jeden plik, jedna chwila); brak którejś części = brak wykresu */
 function wkCCap(){

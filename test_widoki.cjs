@@ -216,7 +216,7 @@ test('FRED: strona czyta fred.json z serwera, pokazuje cztery serie Fed; v126.2:
 });
 
 // v43: Eurosystem (EBC) w sekcji danych urzędowych; „dane z dzisiaj” zamiast „sprzed 0 dni”
-const ga0 = html.indexOf('function gAgeNote(fresh){');
+const ga0 = html.indexOf('function gAgeNote(fresh,nyse=false){');
 const ga1 = html.indexOf('\nfunction gRenderKpi(){', ga0);
 const ageFor = new Function('t', html.slice(ga0, ga1) + '\nreturn gAgeNote;')(k => k);
 const dayIso = (back) => { const n = new Date(Date.now()), d = new Date(n.getFullYear(), n.getMonth(), n.getDate() - back); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };   /* v334 (CR8-08): dzień czytelnika (strefa lokalna), jak gAgeNote — dawniej doba UTC */
@@ -2038,7 +2038,7 @@ test('v96-global_map: gRenderDetail uruchomiony — węzeł krypto, regiony, kra
   const GREG = new Function(html.slice(g0, g1) + '\nreturn GREG;')(), GB_ = Object.fromEntries(GREG.map(r => [r.id, r]));
   const H = gm96.H, els = {}, $ = q => els[q] || (els[q] = {innerHTML: '', hidden: false, addEventListener() {}});
   const GDATA = {'1M': {cry: 1, crypto: [-3.2, -1, 1], usa: [0, 0, 1], jpn: [-5, -1.234, 1], eur: [12, 0.8, 1], can: [0, 0, 0], lat: [4, 1, 1]}};
-  const GLIVE = {day: {usa: {dp: 0, syms: ['SPY']}, jpn: {dp: -0.5, syms: ['EWJ', '<x>']}}, dayAt: '<b>x</b>', fiat: {cur: {usa: {USD: 1}, eur: {EUR: 1, GBP: 1}}, byCur: {USD: 5, EUR: 2, GBP: 1}}};
+  const GLIVE = {day: {usa: {dp: 0, syms: ['SPY']}, jpn: {dp: -0.5, syms: ['EWJ', '<x>'], at: '<b>x</b>'}}, dayAt: '2026-11-27T18:00:00Z', fiat: {cur: {usa: {USD: 1}, eur: {EUR: 1, GBP: 1}}, byCur: {USD: 5, EUR: 2, GBP: 1}}};
   const GCEDGE = [{id: 'usa>crypto', f: 'usa', sh: .6, a: 2.5}, {id: 'eur>crypto', f: 'eur', sh: .3, a: -2}, {id: 'jpn>crypto', f: 'jpn', sh: .1, a: 0}];
   const GPROB = [{id: 'jpn', score: -12, parts: [['mom1', -3, NF.gpct(-3)], ['fx', 0, NF.gpct(0)]]}];
   const names = ['t', 'I18N', 'LANG', 'LOCALE', '$', 'gst', 'GDATA', 'GB_', 'GLIVE', 'gStabDelta', 'ETF', 'etfTotals', 'etfCls', 'etfM', 'etfA', 'gCenyRow', 'spRegion', 'eerRegion', 'zagRegion',
@@ -2772,7 +2772,7 @@ test('v96-pages: po przeglądzie — dni z serwerów zewnętrznych zabezpieczone
   const k = c.el.innerHTML;
   assert.ok(!k.includes('<script>') && !k.includes('<b>w</b>') && k.includes('pg.20m · D(&lt;script&gt;)') && k.includes('pg.live · &lt;b&gt;w&lt;/b&gt;'), 'CRYPTO: czas z pliku i czas na żywo zabezpieczone');
   const a0 = html.indexOf('function renderAssets(){'), a1 = html.indexOf('\nfunction renderSectorsPage(', a0), body = html.slice(a0, a1);
-  assert.ok(body.includes("const when=(fr,day)=>fr+(day?' · '+escH(/^\\d{4}-\\d{2}$/.test(String(day))&&typeof usaMon==='function'?usaMon(day):typeof gFreshTxt==='function'?gFreshTxt(day):day)+gAgeNote(day):'');") && !/toFixed\(/.test(body), 'kod: dzień przez escH, liczby przez nfmt (v314, audyt G6: chwila notowania przez gFreshTxt)');
+  assert.ok(body.includes("const when=(fr,day,nyse)=>fr+(day?' · '+escH(/^\\d{4}-\\d{2}$/.test(String(day))&&typeof usaMon==='function'?usaMon(day):typeof gFreshTxt==='function'?gFreshTxt(day):day)+gAgeNote(day,nyse):'');") && !/toFixed\(/.test(body), 'kod: dzień przez escH, liczby przez nfmt (v314, audyt G6: chwila notowania przez gFreshTxt)');
   const a = 'const EXTRA91=', x0 = html.indexOf(a), D = JSON.parse(html.slice(x0 + a.length, html.indexOf(';\n', x0)));
   assert.equal(D.pl['pg.20m'], 'co 10 min');   /* v168: plik rynku krypto w każdym przebiegu */ assert.equal(D.en['pg.20m'], 'every 20 min');
 });
@@ -3271,7 +3271,7 @@ test('v98.2: kolory tam, gdzie ich brakowało; brak danych szary; plakietka CRYP
     v => v > 0 ? '+' : v < 0 ? '−' : '', v => (v / 1000).toFixed(1), d => d, gtI, c => '');
   const us = ms('usa');
   assert.ok(us.includes('"in":"<span class=\\"pos\\">+40.6</span>"') && us.includes('"tr":"<span class=\\"neg\\">−3.6</span>"') && us.includes('"out":"<span class=\\"pos\\">+68.5</span>"'), 'USA: napływ zielony; zakupy Amerykanów za granicą — v321: plus zielony jak wszędzie (dawniej czerwone): ' + us);
-  assert.ok(html.includes("const chg=(k,d,why)=>{if(d==null||!isFinite(d))return `<span class=\"cell na\">${why?escH(why):'—'}</span>`;")   /* v321: brak — „—” albo powód (kafel surowca) */ && html.includes("<span class=\"sval ${na?'na':c}\">") && html.includes("gAgeNote(fr):'<span class=\"na\">—</span>'],")   /* v166: data okresu (fr), brak — szary „—” */);
+  assert.ok(html.includes("const chg=(k,d,why)=>{if(d==null||!isFinite(d))return `<span class=\"cell na\">${why?escH(why):'—'}</span>`;")   /* v321: brak — „—” albo powód (kafel surowca) */ && html.includes("<span class=\"sval ${na?'na':c}\">") && html.includes("gAgeNote(fr,nyse):'<span class=\"na\">—</span>'],")   /* v166: data okresu (fr), brak — szary „—” */);
   assert.ok(html.includes('#page-assets .cell.na,#page-sectors .sval.na,#g-q .na{color:var(--dim)}'));
   const a0 = html.indexOf('function applyLang(){'), a1 = html.indexOf('\nfunction applyTheme(', a0);
   assert.ok(html.slice(a0, a1).includes("if(typeof renderStatus==='function')renderStatus();"), 'applyLang odświeża plakietkę');
@@ -3412,7 +3412,7 @@ test('v103-zrodla: bez pliku meta „—” z powodem i bez linii liczby źróde
 });
 
 test('v103-zrodla: wszystkie klucze zr2 w 10 językach, foot.src = „Źródła” jak nav.sources, zdanie o źródłach w każdym języku, bez surowych kluczy', () => {
-  const a0 = html.indexOf('function gAgeNote(fresh){'), a1 = html.indexOf('\n}', a0) + 2;
+  const a0 = html.indexOf('function gAgeNote(fresh,nyse=false){'), a1 = html.indexOf('\n}', a0) + 2;
   const AGE = (L, days) => new Function('t', html.slice(a0, a1) + '\nreturn gAgeNote;')(v96src.tFor(L))(dayIso(days));   /* v334 (CR8-08): dzień czytelnika, jak gAgeNote (dawniej doba UTC) */
   const d = v103zr.dict, KEYS = ['zr2.live', 'zr2.refresh', 'zr2.count', 'zr2.legal', 'zr2.note', 'zr2.help', 'zr2.stale', 'zr2.nometa', 'zr2.noat', 'foot.src', 'pg.sources', 'g.age1', 'g.age'];   /* v151: zr2.attr, zr2.tv, zr2.icons (podpisy usunięte z karty w v126.2) usunięte ze słowników */
   assert.deepEqual(Object.keys(d).sort(), [...v103zr.L10].sort());
@@ -12447,9 +12447,9 @@ test('v166: warunki — miesiąc danych i wiek w nagłówku karty, objaśnienie 
 });
 test('v166: „Jakość danych mapy” — data danych wybranego okresu jak kafel „Rynki akcji” (ETF-y dziennie albo miesiące OECD); karta rynku krypto — zdanie o innym spisie monet', () => {
   const a = html.indexOf('function gRenderQ(){'), b = html.indexOf('\nfunction gRenderProb(', a), s = html.slice(a, b);
-  assert.ok(s.includes("const KQ=(typeof GKPI!=='undefined'&&Array.isArray(GKPI))?GKPI.find(k=>k.k==='g.k.eq'):null,fr=KQ&&KQ.fresh?String(KQ.fresh):GLIVE.asof;"));
-  assert.ok(s.includes("fr?escH(frT)+gAgeNote(fr):'<span class=\"na\">—</span>'") && s.includes("const sum=(fr?escH(frT)+gAgeNote(fr)+' · ':'')") && !/GLIVE\.asof\?escH/.test(s));   /* v314 (audyt G6): frT — chwila notowania DZIŚ jako data i godzina czytelnika */
-  assert.ok(html.includes("fresh:per==='1D'?(GLIVE.dayAt||''):(F.td?String(GLIVE.ceny&&GLIVE.ceny.asof||'').slice(-10):GLIVE.asof)}"), 'kafel „Rynki akcji”: data według źródła okresu');
+  assert.ok(s.includes("const KQ=(typeof GKPI!=='undefined'&&Array.isArray(GKPI))?GKPI.find(k=>k.k==='g.k.eq'):null,fr=KQ?String(KQ.fresh||''):(gst.period==='1D'?'':GLIVE.asof);"));
+  assert.ok(s.includes("fr?escH(frT)+gAgeNote(fr,nyse):'<span class=\"na\">—</span>'") && s.includes("const sum=(fr?escH(frT)+gAgeNote(fr,nyse)+' · ':'')") && !/GLIVE\.asof\?escH/.test(s));   /* v314 (audyt G6): frT — chwila notowania DZIŚ jako data i godzina czytelnika */
+  assert.ok(html.includes("fresh:per==='1D'?(GLIVE.dayAt||''):(F.td?(win&&EQ.n?win[1]:''):GLIVE.asof),nyse:per==='1D'?'quote':!!win}"), 'kafel „Rynki akcji”: data według źródła okresu');
   assert.ok(html.indexOf('function gRenderAll(){gRenderKpi();gRenderDetail();gRenderQ();') > 0, 'gRenderQ po kafelkach (GKPI gotowe)');
   const c0 = html.indexOf('function renderCmc(){'), c1 = html.indexOf('\n}', c0), C = html.slice(c0, c1);
   assert.ok(C.indexOf("t('a293c.cmc.diff')") > C.indexOf("t('inst.asof')") && C.indexOf("t('a293c.cmc.diff')") < C.indexOf("t('eng.notsays')"));   /* v293c (CR-02): nota w 10 językach */
@@ -12917,7 +12917,7 @@ test('v191: dane z serwera starsze niż 60 min — pasek w nagłówku (min / god
   run(null); assert.equal(el.hidden, true, 'bez pliku stanu — nie zgadujemy'); run({at: 'zły'}); assert.equal(el.hidden, true);
   const head = html.slice(html.indexOf('<header class="top">'), html.indexOf('</header>'));
   assert.ok(head.includes('<p class="srv-stale" id="srv-stale" role="status" hidden></p>'), 'w nagłówku — każda zakładka i telefon');
-  assert.ok(html.includes(".srv-stale{") && html.includes("srvStale();}catch(e){}") && html.includes('setInterval(()=>{if(!document.hidden)srvStale();},60*1000);'));
+  assert.ok(html.includes(".srv-stale{") && html.includes("srvStale();}catch(e){}") && html.includes('setInterval(()=>{if(!document.hidden){srvStale();gNyseRefresh();}},60*1000);'));
   const mm = [...html.matchAll(/for\(const l in (EXTRA\d+)\)if\(I18N\[l\]\)Object\.assign\(I18N\[l\],\1\[l\]\);\n/g)].map(m => m[1]);
   assert.ok(mm.indexOf('EXTRA173') > mm.indexOf('EXTRA172') && mm.indexOf('EXTRA172') >= 0, 'po słowniku v183');
   assert.ok(html.includes("const stale=!!at&&(Date.now()-ms)>60*60e3;") && html.includes("t('zr2.stale',{h:1})"), 'Źródła: ten sam próg (1 godz.)');
@@ -13761,7 +13761,7 @@ test('v290: gFreshTxt — chwila przez engDate, dzień bez zmian; kafelek, panel
   assert.ok(html.includes("fresh:String(M.asof||'')}") && !html.includes("fresh:String(M.asof||'').slice(0,10)"), 'kafelek GLOBAL — cała chwila');
   assert.ok(html.includes("new Date(+cy.updated_at*1000).toISOString():''})") && !html.includes("new Date(+cy.updated_at*1000).toISOString().slice(0,10)"), 'zapas na żywo — cała chwila');
   assert.ok(html.includes("const asof=String(D.asof||'');") && html.includes("${t('inst.asof')} ${escH(typeof gFreshTxt==='function'?gFreshTxt(asof):asof)}${gAgeNote(asof)}"), 'panel CRYPTO');
-  assert.ok(html.includes("k.fresh?escH(typeof gFreshTxt==='function'?gFreshTxt(k.fresh):k.fresh)+gAgeNote(k.fresh):"), 'stopka kafelka');
+  assert.ok(html.includes("k.fresh?escH(typeof gFreshTxt==='function'?gFreshTxt(k.fresh):k.fresh)+gAgeNote(k.fresh,k.nyse):"), 'stopka kafelka');
   assert.ok(html.includes("const fT=D=>escH(typeof gFreshTxt==='function'?gFreshTxt(D):D)+gAgeNote(D);"), 'tabela aktywów');
 });
 
@@ -13812,6 +13812,15 @@ test('v293 (audyt G1): rynki akcji — poziom = szacunek (baza z końca roku dan
   }
   for (const per of ['1D', '1T', '1Q', '1R']) assert.equal(tiles[per].v, tiles['1M'].v, per + ': TEN SAM poziom co miesiąc (dawniej 142,37 / 138,55 / 144,18 / 154,98)');
   assert.ok(new Set(['1T', '1M', '1Q', '1R'].map(p => tiles[p].d.toFixed(6))).size === 4, 'zmiany różne w okresach');
+  const mixed = ceny('2025-06-02');
+  mixed.asof = '2026-10-07';
+  mixed.q.EWC.d.push(['2026-10-07',50,1000]);
+  const gm = mk({...L0,ceny:mixed}, {period: '1M'});
+  gm.gBuild();
+  const k = gm.get().GKPI.find(x=>x.k==='g.k.eq');
+  assert.equal(k.fresh,'2026-10-06','typowa data pliku może być nowsza niż wspólny koniec okna SPY');
+  assert.equal(k.nyse,true);
+
   const base = fA.GREG.filter(r => (fA.GPROXY[r.id] || []).length).reduce((a, r) => a + r.mcap, 0);
   assert.ok(Math.abs(tiles['1M'].v - base) > 1, 'poziom to szacunek, nie sama baza z roku danych');
   assert.equal(tiles['1M'].estn, 'a293g.k.est0', '1M: data kafelka = dzień szacunku → „szacunek wartości”');
@@ -17425,7 +17434,7 @@ test('v314 (audyt G6): DZIŚ — chwila notowania jako ISO; data i godzina czyte
     Date.now = () => NOW;
     const P = v96src.tFor('pl'), l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
     const e0 = html.indexOf('const engDate=iso=>'), engDate = new Function('LOCALE', 'LANG', html.slice(e0, html.indexOf('\n', e0)) + '\nreturn engDate;')(LOC, 'pl');
-    const GF = new Function('t', 'engDate', html.slice(html.indexOf('function gAgeNote(fresh){'), html.indexOf('\nfunction gRenderKpi(){')) + '\nreturn {gAgeNote, gFreshTxt};')(P, engDate);
+    const GF = new Function('t', 'engDate', html.slice(html.indexOf('function gAgeNote(fresh,nyse=false){'), html.indexOf('\nfunction gRenderKpi(){')) + '\nreturn {gAgeNote, gFreshTxt};')(P, engDate);
     const WANT = v96src.escH(engDate(ISO)) + v314Age(P, NOW, Q);
     assert.ok(/^\d{1,2}\.\d{2}\.\d{4}, \d{2}:\d{2} · /.test(WANT), 'data, godzina i wiek: ' + WANT);
     /* gDayApply: chwila najnowszego notowania jako ISO (UTC) — bez napisu lokalnego */
@@ -17461,8 +17470,8 @@ test('v314 (audyt G6): DZIŚ — chwila notowania jako ISO; data i godzina czyte
     assert.equal(W.d, WANT, 'Wykresy: data i wiek pod kaflem'); assert.ok(v157.tips(W.ch)[0].endsWith(' · ' + engDate(ISO)), 'podpowiedź z datą i godziną czytelnika');
     /* karta regionu: wiersz „Ostatnia sesja (ETF w USA)” — w każdym okresie */
     const t0 = html.indexOf("${(dy&&dy.dp!=null)?`<div class=\"wide\"><dt>${t('g.d.today')}</dt>"), t1 = html.indexOf("</dd></div>`:''}", t0) + "</dd></div>`:''}".length;
-    const row = new Function('dy', 't', 'gmTone', 'gmPct', 'gmRf', 'gmFund', 'escH', 'GLIVE', 'gFreshTxt', 'gAgeNote', 's', 'return `' + html.slice(t0, t1) + '`;');
-    const R = row({dp: 0.6, syms: ['SPY']}, P, () => 'pos', v => '+' + v + '%', () => '', x => x, v96src.escH, {dayAt: ISO}, GF.gFreshTxt, GF.gAgeNote, {id: 'usa'});
+    const row = new Function('dy', 't', 'gmTone', 'gmPct', 'gmRf', 'gmFund', 'escH', 'GLIVE', 'gFreshTxt', 'gAgeNote', 's', 'dyAt', 'return `' + html.slice(t0, t1) + '`;');
+    const R = row({dp: 0.6, syms: ['SPY']}, P, () => 'pos', v => '+' + v + '%', () => '', x => x, v96src.escH, {dayAt: '2026-10-10T20:00:00Z'}, GF.gFreshTxt, GF.gAgeNote, {id: 'usa'}, ISO);
     assert.ok(R.endsWith(' · SPY · ' + WANT + '</dd></div>'), 'karta regionu: ' + R);
   } finally { Date.now = now0; if (PE) { if (tz0 === undefined) delete PE.TZ; else PE.TZ = tz0; } }
 });
@@ -18051,7 +18060,7 @@ test('v318 (recenzja CRYPTO fali 7): GLOBAL — tydzień i miesiąc stablecoinó
   assert.equal(mk(null).gStabPelne('1T'), null, 'bez historii serwera');
   /* gBuild zapisuje okno przy liczbach (podpis w szczegółach węzła „Krypto”) — tylko tydzień i miesiąc, tylko przy liczbie na żywo */
   assert.ok(html.includes("  ['1T','1M'].forEach(per=>{const F=GDATA[per];if(F&&F.crypto&&F.crypto[2]&&!F.crypto[3])F.cryP=gStabPelne(per);});\n  gEdges();gKpis();gProb();"), 'gBuild: F.cryP');
-  assert.ok(html.includes("fresh:gStabFresh(st,per)}") && html.includes("const sdD=sd?gkf('g.k.stab'):'';"), 'kafel i strona Aktywa — data z gStabFresh (dzień końca okna)');
+  assert.ok(html.includes("fresh:gStabFresh(st,per)}") && html.includes("const stabKpi=sd?globalKpi('g.k.stab'):null,sdD=stabKpi?stabKpi.fresh:'';"), 'kafel i strona Aktywa — data z gStabFresh (dzień końca okna)');
 });
 
 test('v318 (recenzja CRYPTO fali 7): GLOBAL — gBuild i kafel „Podaż stablecoinów” w tygodniu i miesiącu z pełnych dób: liczby, okres „7 (30) pełnych dób”, data końca okna; strona Aktywa i Sektory z dopiskiem okna; bez pola — jak dotąd', () => {
@@ -19735,7 +19744,7 @@ const v323 = (() => {
   const t0 = html.indexOf('const t=(k,vars)=>'), t1 = html.indexOf(';\n', t0);
   const tp = L => new Function('I18N', 'LANG', 'return ' + html.slice(t0 + 'const t='.length, t1))(I, L);   /* t() strony: język → en → pl → klucz */
   const tNsrc = html.slice(html.indexOf('function tN(k,n,o){'), html.indexOf('\nfunction rwN(n)'));
-  const g0 = html.indexOf('function gAgeNote(fresh){'), gAge = html.slice(g0, html.indexOf('\n}\n', g0) + 3);
+  const g0 = html.indexOf('function gAgeNote(fresh,nyse=false){'), gAge = html.slice(g0, html.indexOf('\n}\n', g0) + 3);
   const b0 = html.indexOf('/* v89: TRENDY — początek'), b1 = html.indexOf('/* v323: koniec siły sygnału */');
   assert.ok(b0 > 0 && b1 > b0 && html.indexOf('/* v158: koniec infografiki */') < b1, 'blok TRENDY z infografiką i panelem v323 (panel za końcem infografiki)');
   const blk = html.slice(b0, b1).replace(/document\.addEventListener\('click'[\s\S]*?\},true\);/, '');
@@ -20294,7 +20303,7 @@ test('v334 (CR8-07): dźwignia „razem” — zmiana podpisana dniem kotwicy (k
 });
 
 test('v334 (CR8-08): wiek danych — dzień bez godziny liczony od daty czytelnika, jak chwila z godziną (o 01:30 w Warszawie oba napisy mówią to samo)', () => {
-  const src = s2v334.cut('function gAgeNote(fresh){', '\nfunction gRenderKpi(){');
+  const src = s2v334.cut('function gAgeNote(fresh,nyse=false){', '\nfunction gRenderKpi(){');
   const PE = (typeof process !== 'undefined' && process && process.env) ? process.env : null, tz0 = PE ? PE.TZ : undefined, now0 = Date.now;
   const A = new Function('t', src + '\nreturn gAgeNote;')(k => k), loc = s2v334.dayLoc;
   try {
@@ -20365,7 +20374,7 @@ const v335 = (() => {
   const blk = html.slice(b0, b1).replace(/document\.addEventListener\('click'[\s\S]*?\},true\);/, '');
   const I = v96src.I18N, l0 = html.indexOf('const LOCALE='), LOC = new Function(html.slice(l0, html.indexOf('\n', l0)) + '\nreturn LOCALE;')();
   const tNsrc = html.slice(html.indexOf('function tN(k,n,o){'), html.indexOf('\nfunction rwN(n)'));
-  const g0 = html.indexOf('function gAgeNote(fresh){'), gAge = html.slice(g0, html.indexOf('\n}\n', g0) + 3);
+  const g0 = html.indexOf('function gAgeNote(fresh,nyse=false){'), gAge = html.slice(g0, html.indexOf('\n}\n', g0) + 3);
   const names = ['$', 't', 'st', 'srvJSON', 'escH', 'etfCls', 'fInt', 'sg', 'nfmt', 'fPct', 'zagSes', 'engDate', 'LANG', 'LOCALE', 'I18N',
     'flagImg', 'glyphImg', 'coinImg', 'issBadge', 'issuerOf', 'icoWrap', 'Date', 'sepL', 'sepK', 'setTimeout', 'document'];
   const RET = '\nreturn {TRD, TRDJ, trdApply, trdLoad, trdRetry, trdTick, trdKey, trdAge, trdKpis, trdIcoP, trdIcoF, renderTrendy, trdDRow, trdDRowW, trdDAnsW, trdDAns, trdSilaPanel,' +
@@ -20665,10 +20674,21 @@ test('v336 GL-13: gDayApply — notowanie null (dzis.json q.SPY = null) nie zatr
   const d0 = html.indexOf('function gDayApply('), d1 = html.indexOf('function gDay(', d0), GL = {};
   const apply = new Function('GREG', 'GPROXY', 'GLIVE', 'gOk', 'LOCALE', 'LANG', 'GDATA', html.slice(d0, d1) + '\nreturn gDayApply;')(
     [{id: 'usa'}, {id: 'mea'}], {usa: [['SPY', 1]], mea: [['KSA', .76], ['TUR', .13], ['EIS', .11]]}, GL, () => {}, v336.LOC, 'pl', null);
-  assert.equal(apply({SPY: null, KSA: {dp: 1, t: 1791576000}, TUR: {dp: null, t: 0}, EIS: {dp: 3, t: 0}}), 1, 'bez TypeError (dawniej: null.t)');
-  assert.equal(GL.dayAt, '2026-10-09T20:00:00.000Z', 'chwila notowania z pozostałych funduszy');
+  const q = {
+    SPY: null,
+    KSA: {dp: 1, t: 1791576000},
+    TUR: {dp: null, t: 1791576060},
+    EIS: {dp: 3, t: 1791575940},
+    EWC: {dp: 2, t: 1791576120}
+  };
+  assert.equal(apply(q), 1, 'bez TypeError (dawniej: null.t)');
+  assert.equal(GL.dayAt, '2026-10-09T20:00:00.000Z', 'najnowsza chwila spośród notowań użytych do wyniku');
+  assert.equal(GL.day.mea.at, GL.dayAt);
   assert.deepEqual(GL.day.mea.syms, ['KSA', 'EIS'], 'TUR z dp null — pominięty, nie 0 %'); assert.equal(GL.day.mea.dp, (1 * .76 + 3 * .11) / (.76 + .11));
   assert.equal(GL.day.usa, undefined, 'SPY null — region bez liczby');
+  apply({...q, SPY: {dp: 5, t: 1791574800}});
+  assert.equal(GL.day.usa.at, '2026-10-09T19:40:00.000Z', 'region pokazuje własny czas');
+  assert.equal(GL.dayAt, GL.day.mea.at, 'cała mapa zachowuje nowszy czas użytego regionu');
 });
 
 test('v336 GL-04: gDaily — „miesiąc / kwartał wstecz” z przyciętym końcem miesiąca (jak gFxBack): 31.03 − 1 mies. = 28.02, nie 3.03', () => {
@@ -22476,7 +22496,7 @@ test('v344 (T10-07): karta „Pokrycie danych GLOBAL” w lewej kolumnie — sam
   assert.equal(dom(card('2026-10-09', false)), 'F(2026-10-09) · wiek(2026-10-09)', 'bez fgShort (stary kod i testy) — jak dotąd');
   assert.ok(!/\b20\d\d-\d\d-\d\d\b/.test(card('2026-10-09', true).replace(/wiek\([^)]*\)/g, '')), 'w karcie nie ma daty ISO');
   assert.equal(dom(card('2026-02-30', true)), 'F(2026-02-30) · wiek(2026-02-30)', 'zła data (30.02) — nie jest przesuwana w „1 mar”, jak dotąd');
-  assert.ok(html.includes("(typeof fgIso==='function'&&fgIso(fr)?fgShort(fr):typeof gFreshTxt==='function'?gFreshTxt(fr):fr)+gAgeNote(fr)"), 'kod gCovCard');
+  assert.ok(html.includes("(typeof fgIso==='function'&&fgIso(fr)?fgShort(fr):typeof gFreshTxt==='function'?gFreshTxt(fr):fr)+gAgeNote(fr,KQ&&KQ.fresh&&KQ.nyse)"), 'kod gCovCard');
 });
 
 
@@ -22684,7 +22704,7 @@ test('v345 (C-10): dzień danych w stylu liczbowym czasu pliku — plakietka ETF
   assert.ok(ph.includes('cm.day') && ph.includes('LF(2026-09-23)') && !ph.includes('INST(2026-09-23)'), 'nagłówek: dzień z wiekiem w nowym stylu');
   assert.ok(ph.includes('cm.win:{"n":7,"d":"L(2026-09-23)"}') && ph.includes('"d":"L(2026-09-16)"') && ph.includes('<td><span class="cell mono">L(2026-09-23)</span></td>'), 'okna, zapas sprzed N dni i tabela dni: ten sam styl');
   /* Wykresy CRYPTO i CFTC krypto korzystają z tych samych pomocników */
-  assert.ok(html.includes("k:'p',d:(typeof instFootL==='function'?instFootL:instFoot)(D.asof),ch:wkCols(X,{ser:S,stack:true,aria})};") && html.includes("k:'p',d:day?(typeof instFootL==='function'?instFootL:instFoot)(day):'',ch:wkTree("), 'Wykresy: ETF i stablecoiny');
+  assert.ok(html.includes("k:'p',d:(typeof instFootL==='function'?instFootL:instFoot)(D.asof,ETF.live&&!ETF.stale&&D.asof===full),ch:wkCols(X,{ser:S,stack:true,aria})};") && html.includes("k:'p',d:day?(typeof instFootL==='function'?instFootL:instFoot)(day):'',ch:wkTree("), 'Wykresy: ETF i stablecoiny');
   assert.ok(html.includes("${t('inst.asof')} ${cftcD(m.asof)}${gAgeNote(m.asof)}${m.kept?' · '+t('cftc.kept'):''}`:t('eng.gap')}</summary>`+"), 'CFTC krypto: stan w stylu nagłówka panelu („6 paź 2026”)');
 });
 
@@ -23019,7 +23039,7 @@ test('v347: „Dane z N źródeł” — odmiana według języka widza (pl: źr�
 test('v347: lewa karta „Ostatnia aktualizacja” — linia „Dane z N źródeł” z dymkiem; bez pola w meta ukryta (nigdy „0”); w każdym języku', () => {
   assert.ok(html.includes('<b data-i18n="upd.v"></b><small class="upd-n" id="upd-n" hidden></small></div></div>'), 'miejsce linii w karcie (ukryta do czasu pliku stanu)');
   assert.ok(html.includes('.upd .upd-n b{display:inline;'), 'liczba w linii nie dziedziczy bloku z .upd b');
-  assert.ok(html.includes("GLIVE.meta=ok?m:null;try{if(page==='sources'||page==='method')renderPage();}catch(e){}try{updSrc();}catch(e){}"), 'odświeżenie po każdym wczytaniu pliku stanu');
+  assert.ok(html.includes("GLIVE.meta=ok?m:null;") && html.includes("if(page==='sources'||page==='method')renderPage();") && html.includes("try{updSrc();}catch(e){}"), 'odświeżenie po każdym wczytaniu pliku stanu');
   assert.ok(html.includes("if(typeof updSrc==='function')updSrc();"), 'zmiana języka przelicza linię');
   const F = v347z.mk('pl', {at: v347z.FRESH, zrodla: {n: 90, ok: 82}});
   F.updSrc();
@@ -24235,8 +24255,8 @@ test('v356: gFreshTxt — dzień bez godziny jak w tabelach („9 paź 2026”),
   assert.equal(mk('en', true)('2026-10-09'), 'Oct 9, 2026'); assert.equal(mk('de', true)('2026-10-09'), '9. Okt. 2026');
   assert.equal(mk('pl', false)('2026-10-09'), '2026-10-09', 'bez fgLong (wycinek testowy innych testów) — jak dotąd');
   /* kafel, karta „Jakość danych mapy” i tabela Aktywa korzystają z tej samej funkcji; dzień nie jest już wypisywany surowo */
-  assert.ok(html.includes("k.fresh?escH(typeof gFreshTxt==='function'?gFreshTxt(k.fresh):k.fresh)+gAgeNote(k.fresh):"), 'stopka kafla GLOBAL');
-  assert.ok(html.includes("fr?escH(frT)+gAgeNote(fr):'<span class=\"na\">—</span>'") && html.includes("const sum=(fr?escH(frT)+gAgeNote(fr)+' · ':'')"), 'karta „Jakość danych mapy”: nagłówek i „Świeżość”');
+  assert.ok(html.includes("k.fresh?escH(typeof gFreshTxt==='function'?gFreshTxt(k.fresh):k.fresh)+gAgeNote(k.fresh,k.nyse):"), 'stopka kafla GLOBAL');
+  assert.ok(html.includes("fr?escH(frT)+gAgeNote(fr,nyse):'<span class=\"na\">—</span>'") && html.includes("const sum=(fr?escH(frT)+gAgeNote(fr,nyse)+' · ':'')"), 'karta „Jakość danych mapy”: nagłówek i „Świeżość”');
   assert.ok(html.includes("const fT=D=>escH(typeof gFreshTxt==='function'?gFreshTxt(D):D)+gAgeNote(D);"), 'tabela Aktywa');
 });
 
@@ -24247,7 +24267,7 @@ test('v356: kafel „Jakość danych mapy” i kafle górnego rzędu — dzień 
   const fgi = html.slice(html.indexOf('const fgIso=s=>'), html.indexOf('\n', html.indexOf('const fgIso=s=>'))), fgl = html.slice(html.indexOf('function fgLong(iso){'), html.indexOf('\n', html.indexOf('function fgLong(iso){')));
   const oldNow = Date.now; Date.now = () => NOW;
   try {
-    const GF = new Function('t', 'engDate', 'LOCALE', 'LANG', fgi + '\n' + fgl + '\n' + html.slice(html.indexOf('function gAgeNote(fresh){'), html.indexOf('\nfunction gRenderKpi(){')) + '\nreturn {gAgeNote, gFreshTxt};')(P, engDate, LOC, 'pl');
+    const GF = new Function('t', 'engDate', 'LOCALE', 'LANG', fgi + '\n' + fgl + '\n' + html.slice(html.indexOf('function gAgeNote(fresh,nyse=false){'), html.indexOf('\nfunction gRenderKpi(){')) + '\nreturn {gAgeNote, gFreshTxt};')(P, engDate, LOC, 'pl');
     const k0 = html.indexOf('\nfunction gRenderKpi(){'), k1 = html.indexOf('\nfunction gNameL(', k0), wrap = {innerHTML: ''};
     new Function('$', 'GKPI', 'gst', 't', 'LOCALE', 'LANG', 'gfmt', 'escH', 'gFreshTxt', 'gAgeNote', html.slice(k0, k1) + '\ngRenderKpi();')(
       q => q === '#g-kpis' ? wrap : null, [{k: 'g.k.eq', v: 152970, u: 'u.b', d: 0.87, cov: [11, 12], fresh: '2026-10-09'}, {k: 'g.k.us10', v: 4.31, u: 'u.pp0', dec: 2, d: 0.02, dpp: 1, fresh: '2026-10-09'}], {period: '1D'}, P, LOC, 'pl', v => String(v), v96src.escH, GF.gFreshTxt, GF.gAgeNote);
@@ -24628,7 +24648,7 @@ test('v358 (G11-1): Aktywa — dzień stablecoinów i szacunku akcji jak w sąsi
   try {
     const P = v96src.tFor('pl'), e0 = html.indexOf('const engDate=iso=>'), engDate = new Function('LOCALE', 'LANG', html.slice(e0, html.indexOf('\n', e0)) + '\nreturn engDate;')(v358.LOC, 'pl');
     const fgi = html.slice(html.indexOf('const fgIso=s=>'), html.indexOf('\n', html.indexOf('const fgIso=s=>'))), fgl = html.slice(html.indexOf('function fgLong(iso){'), html.indexOf('\n', html.indexOf('function fgLong(iso){')));
-    const GF = new Function('t', 'engDate', 'LOCALE', 'LANG', fgi + '\n' + fgl + '\n' + html.slice(html.indexOf('function gAgeNote(fresh){'), html.indexOf('\nfunction gRenderKpi(){')) + '\nreturn {gAgeNote, gFreshTxt};')(P, engDate, v358.LOC, 'pl');
+    const GF = new Function('t', 'engDate', 'LOCALE', 'LANG', fgi + '\n' + fgl + '\n' + html.slice(html.indexOf('function gAgeNote(fresh,nyse=false){'), html.indexOf('\nfunction gRenderKpi(){')) + '\nreturn {gAgeNote, gFreshTxt};')(P, engDate, v358.LOC, 'pl');
     const GL = {fx: null, irlt: {}, stab: null, est: {d: '2026-10-12', r: {eur: {v: 120}, jpn: {v: 60}, usa: {v: 250}}}};
     const KP = [{k: 'g.k.stab', v: 313, d: 1.26, fresh: '2026-10-12'}, {k: 'g.k.eq', v: 430, fresh: '2026-10-09'}];
     const g = pgEnv({GLIVE: GL, gStabDelta: () => [3.9, 1.26, 313], GKPI: KP, gAgeNote: GF.gAgeNote, gFreshTxt: GF.gFreshTxt, t: P}); g.f.renderAssets();
@@ -37121,7 +37141,7 @@ test('v464 (GLOBAL-1, audyt m13): etykieta różnicy między ceną dostawy fizyc
 test('v464 (GLOBAL-3, GLOBAL-4, STRONY-1, STRONY-3, STRONY-4): jednostka zmiany rezerw Japonii; daty bez zapisu ISO; pomoc CRYPTO bez opisu metody; jeden zapis daty po angielsku; „?” w TRENDACH otwiera okno', () => {
   assert.ok(html.includes("strDelta(strNum(c.d1m)?c.d1m:null,1,t('iw401.u.mldusd')+' '+t('iw401.vs.m'))"), 'rezerwy Japonii: zmiana miesięczna z „mld USD”');
   // daty: dzień i miesiąc jako zapis czytelnika, zakres bez zmian
-  const a = html.indexOf('function gIsoTxt(d){'), b = html.indexOf('function instFootL(d){');
+  const a = html.indexOf('function gIsoTxt(d){'), b = html.indexOf('function instFootL(');
   assert.ok(a > 0 && b > a);
   const F = new Function('gFreshTxt', 'usaMon', 'escH', 'gAgeNote', 'instFoot', html.slice(a, b) + '\nreturn {gIsoTxt, instFootG};')(s => 'D:' + s, s => 'M:' + s, v96src.escH, s => '+age', d => 'I:' + d);
   assert.equal(F.gIsoTxt('2026-10-13'), 'D:2026-10-13'); assert.equal(F.gIsoTxt('2026-08'), 'M:2026-08'); assert.equal(F.gIsoTxt('2026-Q3'), '2026-Q3'); assert.equal(F.gIsoTxt(null), '');
@@ -37979,4 +37999,62 @@ test('ETF sesje: wykres dzienny łączy po sesji i nie ogłasza pełnej sumy bez
   assert.ok(v157.tips(missing.ch).every(t => t.includes('dzień niepełny') && !t.includes(' · razem: ')), 'brak całej monety nigdy nie daje pełnej sumy');
   assert.ok(!missing.ch.includes('ostatni pełny dzień'), 'opis dostępności nie deklaruje części jako pełnego dnia');
   assert.ok(v157.tags(missing.ch, 'rect', 'wk-b').every(r => / pt$/.test(r.class)), 'niepełne słupki zachowują istniejące oznaczenie');
+});
+
+test('Świeżość NYSE: karta sesyjna, starsze dane, wygaśnięcie kalendarza i tryb całodobowy', () => {
+  const cut = (a,b) => html.slice(html.indexOf(a),html.indexOf(b,html.indexOf(a)));
+  const GLIVE = {meta: {nyse: {day: '2026-11-25', close: '2026-11-25T21:00:00Z', next_close: '2026-11-27T18:00:00Z'}}};
+  const renders=[];
+  let clock = Date.parse('2026-11-27T12:00:00Z');
+  class FixedDate extends Date {
+    static now(){return clock;}
+    getFullYear(){return this.getUTCFullYear();}
+    getMonth(){return this.getUTCMonth();}
+    getDate(){return this.getUTCDate();}
+  }
+  const t = v96src.tFor('pl');
+  const {gAgeNote:age, gNyseRefresh:refresh} = new Function('t','Date','GLIVE','gRenderKpi','gRenderDetail','gRenderQ','fgRenderG','ETF','page',
+    cut('function gAgeNote(', '/* v356: data dnia')+'\nreturn {gAgeNote,gNyseRefresh};')(t,FixedDate,GLIVE,
+    () => renders.push('kpi'), () => renders.push('detail'), () => renders.push('quality'), () => renders.push('fear'), {data: null}, 'overview');
+  refresh();
+  refresh();
+  assert.deepEqual(renders,['kpi','detail','quality','fear'], 'kafle odświeżają się tylko przy zmianie sesji');
+  assert.equal(age('2026-11-25',true), ' · ostatnia zamknięta sesja');
+  assert.equal(age('2026-11-24',true), ' · dane sprzed 3 dni');
+  assert.equal(age('2026-11-25'), ' · dane sprzed 2 dni', 'krypto i dane niesesyjne liczą dni kalendarzowe');
+  assert.equal(age('2026-11-25T10:00:00Z',true), ' · dane sprzed 2 dni', 'chwila odczytu nie jest dniem sesji');
+  assert.equal(age('2026-11-25T21:00:00.000Z','quote'), ' · notowanie z dnia ostatniej sesji');
+  assert.equal(age('2026-11-24T21:00:00.000Z','quote'), ' · dane sprzed 3 dni');
+  clock = Date.parse('2026-11-27T18:00:00Z');
+  refresh();
+  assert.equal(renders.length,8,'kafle tracą etykietę także bez nowej odpowiedzi serwera');
+  assert.equal(age('2026-11-25',true), ' · dane sprzed 2 dni', 'stary kalendarz nie ukrywa opóźnienia po skróconej sesji');
+  GLIVE.meta.nyse = {day: '2026-11-27', close: '2026-11-27T18:00:00Z', next_close: '2026-11-30T21:00:00Z'};
+  assert.equal(age('2026-11-27',true), ' · ostatnia zamknięta sesja');
+  GLIVE.meta.nyse = null;
+  assert.equal(age('2026-11-25',true), ' · dane sprzed 2 dni');
+});
+
+test('GLOBAL po wejściu wybiera DZIŚ i zachowuje ręczny okres bez danych', () => {
+  const controls = html.slice(html.indexOf('id="g-period"'), html.indexOf('</div>',html.indexOf('id="g-period"')));
+  const buttons=[...controls.matchAll(/<button data-v="([^"]+)" aria-pressed="([^"]+)"[^>]*>/g)].map(m => ({
+    mark:m[2], dataset:{v:m[1]}, hidden:m[0].includes(' hidden'), setAttribute(k,v){assert.equal(k,'aria-pressed');this.mark=v;}
+  }));
+  assert.deepEqual(buttons.map(x=>x.dataset.v),['1D','1T','1M','1Q','1R']);
+  assert.ok(buttons.every(x=>!x.hidden));
+  const selected=()=>buttons.find(x=>x.mark==='true').dataset.v;
+  const a=html.indexOf('const gst='),b=html.indexOf('function gPeriodButtons(){');
+  const run=new Function('$$',html.slice(a,html.indexOf('\n',a))+html.slice(b,html.indexOf('\nfunction gStart()',b))+
+    '\nreturn {gst,gPeriodButtons};')(()=>buttons);
+  assert.equal(selected(),'1D','domyślny znacznik już w HTML');
+  assert.equal(run.gst.period,'1D','domyślny stan obliczeń');
+  run.gPeriodButtons();
+  assert.equal(selected(),'1D','brak plików nie przełącza na miesiąc');
+  const clickStart=html.indexOf('    gst.period=b.dataset.v;');
+  const clickEnd=html.indexOf('GLAY=null;',clickStart);
+  assert.ok(clickStart>=0&&clickEnd>clickStart);
+  new Function('b','gst','gPeriodButtons','GDATA',html.slice(clickStart,clickEnd))(buttons[1],run.gst,run.gPeriodButtons,null);
+  assert.equal(run.gst.period,'1T','kliknięcie przed pierwszym odczytem zapisuje wybór bez wyjątku');
+  run.gPeriodButtons();
+  assert.equal(selected(),'1T','odczyt danych zachowuje wybrany tydzień');
 });

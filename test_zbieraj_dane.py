@@ -24588,6 +24588,22 @@ class CenyZamknieciaV195(unittest.TestCase):
         self.assertEqual(zd._zamkniecia_z_notowan(q, self._dz(at='2026-10-05T22:35:00+00:00')), 0, 'drugi raz — nic do zmiany')
         self.assertEqual(zd.META['notes'], [])
 
+    def test_skrocona_sesja(self):
+        prev, day = '2026-11-25', '2026-11-27'
+        quote_time = zd._ix_dt(day + 'T18:00:00Z').timestamp()
+        mk = lambda: {'SPY': {'d': [[prev, 600.0, 20000], [day, 602.0, 15000]], 'asof': day}}
+        self.assertEqual(zd._drop_open_session(mk(), datetime.datetime(2026, 11, 27, 13, 14)), 1)
+        self.assertEqual(zd._drop_open_session(mk(), datetime.datetime(2026, 11, 27, 13, 15)), 0)
+        q = mk()
+        dz = {'at': day + 'T18:14:59Z', 'q': {'SPY': {'c': 601.0, 'pc': 600.0, 't': quote_time}}}
+        self.assertEqual(zd._zamkniecia_z_notowan(q, dz), 0)
+        dz['at'] = day + 'T18:15:00Z'
+        dz['q']['SPY']['t'] = quote_time - 60
+        self.assertEqual(zd._zamkniecia_z_notowan(q, dz), 0, 'odczyt z 12:59 NY nie zastępuje zamknięcia')
+        dz['q']['SPY']['t'] = quote_time
+        self.assertEqual(zd._zamkniecia_z_notowan(q, dz), 1)
+        self.assertEqual(q['SPY']['d'][-1], [day, 601.0, None])
+
     def test_bez_zmian(self):
         for dz, why in ((self._dz(at='2026-10-05T19:30:00+00:00', ASEA={'t': self.T - 1800}), 'plik pobrany 15:30 — sesja w toku (v205: czas pobrania)'),
                         (self._dz(at='2026-10-05T20:10:00+00:00'), 'plik pobrany 16:10 — przed 16:15'),
@@ -24898,8 +24914,8 @@ class PoPrzegladzieV205(unittest.TestCase):
             self.assertEqual((e.get('stale'), e['d1'], b.get('stale')), (True, 100.0, None), 'ETH ze źródła kończy się 25.09 (5 sesji za BTC) — stale, liczby zostają')
             self.assertTrue(any('SoSoValue ETH: dane z 2026-09-25 — ponad 2 sesje za najnowszymi (2026-10-02)' in n for n in zd.META['notes']), zd.META['notes'])
             zd.META['notes'].clear()
-            out, _ = t._run(None, hist={'btc': _rows(['2026-09-03', '2026-09-08']), 'eth': _rows(['2026-09-03', '2026-09-04'])})
-            self.assertNotIn('stale', out['assets']['eth'], 'pt 04.09 → wt 08.09 (Święto Pracy w poniedziałek) = 2 sesje — nie stale')
+            out, _ = t._run(None, hist={'btc': _rows(['2026-11-25', '2026-11-27']), 'eth': _rows(['2026-11-23', '2026-11-24'])})
+            self.assertNotIn('stale', out['assets']['eth'], '24 → 27.11 pomija Święto Dziękczynienia: dwie sesje, więc przepływ zachowuje liczbę')
             self.assertEqual(zd.ETF_STALE_SES, 2)
         finally:
             t.doCleanups()
@@ -29909,6 +29925,24 @@ class EtfPoraPublikacjiV279(unittest.TestCase):
         self.assertEqual(f(self.T(2026, 10, 6, 19, 0)).isoformat(), '2026-10-05', 'wtorek przed 20:00 — poniedziałek')
         self.assertEqual(f(self.T(2026, 10, 12, 10, 0)).isoformat(), '2026-10-09', 'poniedziałek rano — piątek')
         self.assertEqual(f(self.T(2026, 10, 11, 12, 0)).isoformat(), '2026-10-09', 'niedziela — piątek')
+
+    def test_nyse_swieto_skrocenie_i_strefa(self):
+        before = {'day': '2026-11-25', 'close': '2026-11-25T21:00:00Z', 'next_close': '2026-11-27T18:00:00Z'}
+        after = {'day': '2026-11-27', 'close': '2026-11-27T18:00:00Z', 'next_close': '2026-11-30T21:00:00Z'}
+        for now, expected in ((self.T(2026, 11, 26, 23), before), (self.T(2026, 11, 27, 17, 59), before),
+                              (self.T(2026, 11, 27, 18), after), (self.T(2026, 11, 29, 12), after)):
+            with self.subTest(now=now):
+                self.assertEqual(zd._nyse_session_meta(now), expected)
+                self.assertEqual(zd.etf_oczekiwany(now).isoformat(), expected['day'])
+        self.assertEqual(zd.etf_oczekiwany(self.T(2026, 11, 25, 20, 59)).isoformat(), '2026-11-24')
+        self.assertEqual(zd.etf_oczekiwany(self.T(2026, 7, 6, 20)).isoformat(), '2026-07-06')
+        self.assertEqual(zd._nyse_session_meta(self.T(2028, 7, 3, 17))['next_close'], '2028-07-05T20:00:00Z')
+        self.assertIsNone(zd._nyse_session_meta(self.T(2029, 1, 2, 22)))
+
+    def test_tryb_szybki_pomija_swieto(self):
+        prev = {'assets': {'btc': {'asof': '2026-11-25'}}}
+        self.assertFalse(zd.etf_szybko(prev, self.T(2026, 11, 26, 23)), 'w święto nie ma nowej sesji')
+        self.assertTrue(zd.etf_szybko(prev, self.T(2026, 11, 27, 23)), 'po krótkiej sesji wciąż działa istniejące okno publikacji')
 
     def test_okno(self):
         self.assertEqual(zd.etf_okno(None), (21 * 60, 30 * 60, 0))

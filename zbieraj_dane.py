@@ -972,11 +972,11 @@ def _ny_now():
 
 
 def _drop_open_session(q, now_ny=None):
-    """v51: świeca z dzisiejszą datą przed 16:15 czasu Nowego Jorku to trwająca sesja, nie zamknięcie — pomijamy ją,
-    żeby wszystkie regiony liczyły zmianę do tego samego rodzaju ceny (ostatnie zamknięcie)."""
+    """Pomiń świecę z dnia bez sesji albo świecę dzisiejszą przed upływem 15 minut od zamknięcia."""
     now_ny = now_ny or _ny_now()
     today = now_ny.date().isoformat()
-    if (now_ny.hour, now_ny.minute) >= (16, 15):
+    end = TD_W_END_HALF if today in TD_NYSE_HALF else TD_W_END
+    if now_ny.weekday() < 5 and today not in TD_NYSE_CLOSED and now_ny.hour * 60 + now_ny.minute >= end:
         return 0
     n = 0
     for s, v in q.items():
@@ -1013,14 +1013,14 @@ def _ny_z_epoch(t):
 def _zamkniecia_z_notowan(q, dz):
     """v195: świeca sesji tuż po zamknięciu bywa wstępna (05.10, 17:33 w Nowym Jorku: ceny różne od zamknięcia o 0,02–0,17%, fundusz o małym
     obrocie ASEA bez świecy — region „—”; ostateczne o 18:35, równe zamknięciom z pliku notowań dziennych). Notowanie z pliku notowań tego
-    przebiegu (dz = dzis.json) z czasem ≥ 16:00 sesji D, teraz ≥ 16:15 (jak _drop_open_session), z poprzednim zamknięciem równym poprzedniej
+    przebiegu (dz = dzis.json) po sesji i 15-minutowym buforze (jak _drop_open_session), z poprzednim zamknięciem równym poprzedniej
     świecy (≤ CENY_ZGODNOSC_PC; inaczej — dywidenda, święto, korekta — bez zmian): jego cena zastępuje świecę D albo dopisuje brakującą;
     obrót nieznany = None (brak, nie zero). Świeca równa cenie zamknięcia zostaje. Zwraca liczbę zmienionych funduszy.
-    v205: o „po sesji” decyduje czas pobrania pliku notowań (dz['at'] ≥ 16:15 w Nowym Jorku dnia notowania), nie zegar przebiegu — plik
-    z poprzedniego przebiegu (zapas po błędzie źródła) sprzed 16:15 nie podmienia; bez warunku „czas notowania ≥ 16:00” (dni skrócone)."""
+    O buforze decyduje czas pobrania pliku notowań, także gdy zachowano go po błędzie źródła. Dla znanej skróconej sesji wymagamy
+    notowania z końca sesji lub późniejszego, aby wcześniejsze notowanie nie zastąpiło zamknięcia."""
     at = _ix_dt(dz.get('at')) if isinstance(dz, dict) else None
-    fz = _ny_z_epoch(at.timestamp()) if at is not None else None
-    Q = dz.get('q') if isinstance(dz, dict) and isinstance(dz.get('q'), dict) and fz is not None else {}
+    fetched = at.astimezone(datetime.timezone.utc).isoformat()[:19] if at is not None else ''
+    Q = dz.get('q') if fetched and isinstance(dz.get('q'), dict) else {}
     num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool) and x > 0  # noqa: E731
     zm = []
     for sym, v in q.items():
@@ -1028,9 +1028,13 @@ def _zamkniecia_z_notowan(q, dz):
         if not isinstance(z, dict) or not isinstance(d, list) or not d or not isinstance(d[-1], list) or len(d[-1]) < 2:
             continue
         c, pc, tq = z.get('c'), z.get('pc'), _ny_z_epoch(z.get('t'))
-        if tq is None or not (num(c) and num(pc)) or fz < datetime.datetime(tq.year, tq.month, tq.day, 16, 15):
-            continue   # plik notowań pobrany przed 16:15 dnia notowania — sesja mogła trwać (v205)
+        if tq is None or not (num(c) and num(pc)):
+            continue
         D, ld = tq.date().isoformat(), str(d[-1][0])[:10]
+        if tq.weekday() >= 5 or D in TD_NYSE_CLOSED or fetched < _tdw_end(D):
+            continue   # dzień bez sesji albo plik pobrany przed końcem bufora
+        if D in TD_NYSE_HALF and tq.hour * 60 + tq.minute < TD_W_CLOSE_HALF:
+            continue   # wcześniejszy odczyt w skróconej sesji to jeszcze nie zamknięcie
         ref = (d[-2] if len(d) >= 2 else None) if ld == D else (d[-1] if ld < D else None)
         if not (isinstance(ref, list) and len(ref) > 1 and num(ref[1]) and abs(ref[1] / pc - 1) <= CENY_ZGODNOSC_PC):
             continue   # inna sesja odniesienia — bez zmian
@@ -6328,7 +6332,10 @@ ETF_FUNDS_PONOW = 55                  # v282: min — lista funduszy niezgodna z
 
 
 def etf_oczekiwany(now):
-    """v279: dzień danych, którego przepływów oczekujemy: ostatni dzień roboczy D (pon–pt) taki, że teraz ≥ D 20:00 UTC (po sesji w USA)."""
+    """Dzień przepływów ETF w USA: ostatnia zamknięta sesja. Poza potwierdzonym kalendarzem zachowuje dotychczasowe przybliżenie."""
+    day = _nyse_last_close(now)
+    if day is not None:
+        return _d(day)
     d = (now - datetime.timedelta(hours=20)).date()
     while d.weekday() >= 5:
         d -= datetime.timedelta(days=1)
@@ -6468,7 +6475,7 @@ def build_etf(key, cg_key, prev=None, tylko=None):
     # dla swojej daty; przy wznowieniu lista funduszy nie jest pobierana co przebieg), strona pokazuje przepływy „—” i datę przy nazwie
     for s, a in out['assets'].items():
         ad = _d(a['asof']) if isinstance(a.get('asof'), str) else None
-        if ad and a['asof'] < top and _bdays(ad, _d(top)) > ETF_STALE_SES:
+        if ad and a['asof'] < top and _bdays(ad, _d(top), TD_NYSE_CLOSED) > ETF_STALE_SES:
             a['stale'] = True
             META['notes'].append(f'SoSoValue {s.upper()}: dane z {a["asof"]} — ponad {ETF_STALE_SES} sesje za najnowszymi ({top}); na stronie przepływy „—”')
         else:
@@ -6730,7 +6737,7 @@ def _fund_x_dt(s):
 
 
 def _fund_sesja_przed(day):
-    """v342: ostatnia sesja NYSE przed dniem `day` (data) — dni robocze bez TD_NYSE_CLOSED (po 2027 — same dni robocze)."""
+    """v342: ostatnia sesja NYSE przed dniem `day` (data) — dni robocze bez TD_NYSE_CLOSED (po końcu kalendarza — same dni robocze)."""
     d = day - datetime.timedelta(days=1)
     while d.weekday() >= 5 or d.isoformat() in TD_NYSE_CLOSED:
         d -= datetime.timedelta(days=1)
@@ -7368,9 +7375,12 @@ TD_W_SPLIT = (1.5, 2, 3, 4, 5, 10)   # iloraz zamknięć w 2% od k albo 1/k = ni
 TD_W_YR = (2 / 3, 1.5)            # otwarcie→zamknięcie poza tym zakresem = błąd danych → brak
 TD_NYSE_CLOSED = ('2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07',
                   '2026-11-26', '2026-12-25', '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18',
-                  '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24')   # nyse.com (27.09.2026)
-TD_NYSE_HALF = ('2026-11-27', '2026-12-24', '2027-11-26')                   # zamknięcie 13:00 NY
-TD_NYSE_LAST = '2027-12-31'       # po 2027-12-01 uwaga w meta: dopisać następny rok
+                  '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24',
+                  '2028-01-17', '2028-02-21', '2028-04-14', '2028-05-29', '2028-06-19', '2028-07-04', '2028-09-04',
+                  '2028-11-23', '2028-12-25')   # https://www.nyse.com/trade/hours-calendars (27.11.2026)
+TD_NYSE_HALF = ('2026-11-27', '2026-12-24', '2027-11-26', '2028-07-03', '2028-11-24')   # zamknięcie 13:00 NY
+TD_NYSE_FIRST = '2026-01-01'
+TD_NYSE_LAST = '2028-12-31'       # ostatni rok z potwierdzonym kalendarzem
 TD_W_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'archiwum', 'swiat-dziennik.csv')
 TD_W_CSV_COLS = ['date', 'sym', 'n', 'state', 'votes', 'saved_at', 'y', 'v', 'since']
 TD_W_PK = 'swiat-dziennik-pk.csv'   # v127: obok TD_W_CSV — zamrożone punkty kontrolne (każda wersja reguły) i sumy poprzednich wersji (prev)
@@ -9543,8 +9553,6 @@ def build_daily_w2(S):
     if not wd:
         return None, None
     now_utc = _now_utc(); today = now_utc.date()
-    if today.isoformat() > '2027-12-01':
-        META['notes'].append('trendy dziennie świat: lista dni bez sesji NYSE kończy się na 2027 — dopisać następny rok')
     series = []
     for sym in TD_W_SYMS:
         try:
@@ -9892,6 +9900,33 @@ def _wd_prev_session(day):
     while d.weekday() >= 5 or d.isoformat() in TD_NYSE_CLOSED:
         d -= datetime.timedelta(days=1)
     return d.isoformat()
+
+
+def _nyse_close(day):
+    return _tdw_at(day, TD_W_CLOSE_HALF if day in TD_NYSE_HALF else TD_W_CLOSE) + 'Z'
+
+
+def _nyse_last_close(now):
+    # Ostatnie zamknięcie głównej sesji NYSE w obrębie potwierdzonego kalendarza.
+    ny = _wd_ny(now)
+    day = ny.date().isoformat()
+    if not TD_NYSE_FIRST <= day <= TD_NYSE_LAST:
+        return None
+    now_utc = now.astimezone(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    if ny.weekday() >= 5 or day in TD_NYSE_CLOSED or now_utc < _nyse_close(day):
+        day = _wd_prev_session(day)
+    return day if day >= TD_NYSE_FIRST else None
+
+
+def _nyse_session_meta(now):
+    # Przedział ważności podpisu ostatniej zamkniętej sesji, niezależny od dat zapisanych danych.
+    day = _nyse_last_close(now)
+    if day is None:
+        return None
+    nxt = _tdw_next(day)
+    if nxt > TD_NYSE_LAST:
+        return None
+    return {'day': day, 'close': _nyse_close(day), 'next_close': _nyse_close(nxt)}
 
 
 def _wd_trim(wd):
@@ -35168,6 +35203,9 @@ def main():
             META['zrodla'] = z_
     except Exception as e:  # noqa
         META['notes'].append(mask(f'liczba źródeł: {e}')[:160])
+    META['nyse'] = _nyse_session_meta(_now_utc())
+    if NOW[:10] >= TD_NYSE_LAST[:7] + '-01':
+        META['notes'].append(f"kalendarz sesji NYSE jest potwierdzony do {TD_NYSE_LAST} — dopisać następny rok")
     save('meta', META)
     print('błędy:', META['errors'] or 'brak')
     return 0
